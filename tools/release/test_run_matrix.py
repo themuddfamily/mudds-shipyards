@@ -17,6 +17,7 @@ class LegacyMatrixTest(unittest.TestCase):
             root = Path(directory)
             (root / "tools/release").mkdir(parents=True)
             shutil.copy2(RUNNER, root / "tools/release/run_matrix.sh")
+            shutil.copy2(RUNNER.with_name("test_suite_catalog.py"), root / "tools/release/test_suite_catalog.py")
             (root / "tests").mkdir()
             (root / "tests/probe_test.gd").write_text("original source\n")
             def git(*args):

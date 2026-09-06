@@ -80,6 +80,8 @@ func _run() -> void:
 
 	module.queue_free()
 	await process_frame
+	if not _failed:
+		print("AFT_JUNCTION_ROOF_VENT_LOUVRE_BATCH_TEST_OK")
 	quit(1 if _failed else 0)
 
 

@@ -9,6 +9,9 @@ OUT_DIR="${1:-artifacts/matrix/$(date -u +%Y%m%d_%H%M%S)-$(git rev-parse --short
 TIMEOUT_SECONDS="${2:-120}"
 GODOT_BIN="${3:-godot}"
 AUDIO_DRIVER="${MATRIX_AUDIO_DRIVER:-Dummy}"
+if [[ "$AUDIO_DRIVER" != Dummy ]]; then
+  echo "Automated test audio requires --audio-driver Dummy"; exit 2
+fi
 
 mkdir -p "$OUT_DIR/logs"
 
@@ -17,7 +20,20 @@ MANIFEST_AFTER_PATH="$OUT_DIR/source_manifest_after.txt"
 SUMMARY_PATH="$OUT_DIR/matrix_summary.csv"
 RESULTS_PATH="$OUT_DIR/matrix_results.json"
 
-mapfile -t SUITES < <(find tests -maxdepth 1 -type f -name '*_test.gd' | sort)
+# Legacy CSV consumers keep their format; discovery and completion rules are shared
+# with the primary runner. Select graphical explicitly via MATRIX_MODE.
+MODE="${MATRIX_MODE:-headless}"
+CATALOG="$ROOT_DIR/tools/release/test_suite_catalog.py"
+WORK_DIR="$(mktemp -d)"
+trap 'rm -rf "$WORK_DIR"' EXIT
+python3 "$CATALOG" --root "$ROOT_DIR" --mode "$MODE" > "$WORK_DIR/suites.tsv"
+mapfile -t SUITES < <(cut -f1 "$WORK_DIR/suites.tsv")
+declare -A SUITE_MODES=()
+while IFS=$'\t' read -r suite kind; do SUITE_MODES["$suite"]="$kind"; done < "$WORK_DIR/suites.tsv"
+if [[ "$MODE" != headless && -z "${DISPLAY:-}${WAYLAND_DISPLAY:-}" ]]; then
+  echo "Graphical suites require DISPLAY or WAYLAND_DISPLAY"; exit 2
+fi
+if (( ${#SUITES[@]} == 0 )); then echo "No suites selected"; exit 2; fi
 
 {
   printf "test,exit_code,sentinel_count,sentinel_line,assertion_count,diagnostic_hits,log_sha256,log_bytes\n"
@@ -60,30 +76,32 @@ echo "source_manifest_before_sha256=$manifest_before_sha"
 failures=0
 
 for suite in "${SUITES[@]}"; do
-  suite_name="$(basename "$suite")"
+  suite_name="${suite#tests/}"
   log_path="$OUT_DIR/logs/${suite_name%.gd}.log"
+  mkdir -p "$(dirname "$log_path")"
+  suite_user_data_dir="$WORK_DIR/user-data/${suite_name%.gd}"
+  mkdir -p "$suite_user_data_dir"
+  source_copy="$WORK_DIR/source/$suite"
+  mkdir -p "$(dirname "$source_copy")"
+  cp "$suite" "$source_copy"
   echo "RUN $suite"
 
   exit_code=0
-  GODOT_ARGS=("$GODOT_BIN" --headless --path . --script "$suite")
+  GODOT_ARGS=("$GODOT_BIN" --path . --script "$suite")
+  if [[ "${SUITE_MODES[$suite]}" == headless ]]; then GODOT_ARGS+=(--headless); fi
   if [[ -n "$AUDIO_DRIVER" ]]; then
     GODOT_ARGS+=(--audio-driver "$AUDIO_DRIVER")
   fi
-  if timeout "$TIMEOUT_SECONDS" "${GODOT_ARGS[@]}" >"$log_path" 2>&1; then
+  if env XDG_DATA_HOME="$suite_user_data_dir" timeout "$TIMEOUT_SECONDS" "${GODOT_ARGS[@]}" >"$log_path" 2>&1; then
     exit_code=0
   else
     exit_code=$?
   fi
 
-  sentinel_lines=$(grep -E '^[A-Z0-9_]+_(OK|PASS)(:|$)' "$log_path" | tr -d '\r' || true)
-  sentinel_count=0
-  sentinel_line=""
-  if [[ -n "$sentinel_lines" ]]; then
-    sentinel_count=$(printf '%s\n' "$sentinel_lines" | awk 'END{print NR}')
-    sentinel_line=$(printf '%s\n' "$sentinel_lines" | tail -n 1)
-  fi
-
-  assertion_count=$(printf '%s\n' "$sentinel_lines" | tail -n 1 | grep -Eo '[0-9]+' | tail -n 1 || true)
+  IFS=$'\t' read -r sentinel_line sentinel_count terminal_sentinel assertion_count < <(
+    python3 "$CATALOG" --assess "$source_copy" "$log_path"
+  )
+  if [[ "$terminal_sentinel" != "$sentinel_line" ]]; then sentinel_count=0; fi
 
   diagnostics=$(grep -E "SCRIPT ERROR|\\bFATAL\\b|\\bERROR\\b|FAIL:|ObjectDB|Resource .*still in use|Orphan|Leaked" "$log_path" || true)
   diagnostic_count=$(printf '%s\n' "$diagnostics" | awk 'BEGIN{n=0} /./{n++} END{print n}')

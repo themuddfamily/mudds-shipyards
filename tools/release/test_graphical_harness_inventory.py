@@ -502,6 +502,17 @@ class GraphicalHarnessInventoryTests(unittest.TestCase):
         self.assertFalse(payload["render_execution"])
         self.assertFalse(payload["human_review_performed"])
 
+    def test_supplementary_capture_does_not_claim_review_or_authored_default(self):
+        row = entry()
+        row["classification"] = "supplementary"
+        row["output"]["root"] = None
+        row["output"]["runtime_override_env"] = "FIXTURE_CAPTURE_PATH"
+        self.fixture.register([row])
+        # Validate the entry directly: the fixture ID is mandatory required.
+        self.assertEqual(inventory._validate_entry(self.fixture.root, row, 0), [])
+        row["output"]["runtime_override_env"] = None
+        self.assertTrue(inventory._validate_entry(self.fixture.root, row, 0))
+
     def test_checked_in_registry_covers_live_discovery(self):
         repository = Path(__file__).resolve().parents[2]
         result = inventory.validate_inventory(

@@ -11,22 +11,22 @@ TIMEOUT_SECONDS="${TEST_MATRIX_TIMEOUT_SECONDS:-180}"
 RUN_RESULTS_ROOT="${TEST_MATRIX_RESULTS_ROOT:-$PROJECT_ROOT/artifacts/test-matrix}"
 RUN_ID="${TEST_MATRIX_RUN_ID:-$(date -u +%Y%m%dT%H%M%SZ)}"
 AUDIO_DRIVER="${TEST_MATRIX_AUDIO_DRIVER:-Dummy}"
+MODE="${TEST_MATRIX_MODE:-headless}"
+LIST_ONLY=0
 IMPORT_GATE="${TEST_MATRIX_IMPORT_GATE:-auto}"
 ALLOW_CACHE_DRIFT="${TEST_MATRIX_ALLOW_CACHE_DRIFT:-0}"
 
-# Default job count: leave two cores for the shell, the OS and whatever else the
-# box is doing. Godot suites are themselves multi-threaded, so this is already a
-# deliberate over-subscription of one process per remaining core.
+# Godot workers create their own thread pools. Cap CPU and memory pressure;
+# explicit --jobs remains available for hosts with measured capacity.
 detect_default_jobs() {
-	local cores
+	local cores memory_kb jobs memory_jobs
 	cores="$(nproc 2>/dev/null || echo 1)"
-	if ! [[ "$cores" =~ ^[0-9]+$ ]] || (( cores < 1 )); then
-		cores=1
-	fi
-	local jobs=$(( cores - 2 ))
-	if (( jobs < 1 )); then
-		jobs=1
-	fi
+	memory_kb="$(awk '/MemAvailable:/ {print $2}' /proc/meminfo 2>/dev/null || echo 2097152)"
+	jobs=$(( cores / 4 ))
+	memory_jobs=$(( memory_kb / 2097152 ))
+	(( jobs > memory_jobs )) && jobs="$memory_jobs"
+	(( jobs > 4 )) && jobs=4
+	(( jobs < 1 )) && jobs=1
 	printf '%s' "$jobs"
 }
 JOBS="${TEST_MATRIX_JOBS:-$(detect_default_jobs)}"
@@ -40,7 +40,7 @@ fi
 # Keep the word-boundary escapes single: grep receives `\b`, not the literal
 # two-character sequence `\\b`. The latter silently misses ObjectDB/orphan/RID
 # leak lines, allowing a shutdown diagnostic to pass the stabilization gate.
-DIAGNOSTIC_RE='^[[:space:]]*SCRIPT[[:space:]]+ERROR|^[[:space:]]*ERROR:|\bFATAL ERROR\b|\bObjectDB\b|Resource.*still in use|\bOrphaned\b|\bLeaked\b|\bObjectDB\b'
+DIAGNOSTIC_RE='^[[:space:]]*SCRIPT[[:space:]]+ERROR|^[[:space:]]*ERROR:|\bFATAL ERROR\b|\bObjectDB\b|Resource.*still in use|\bOrphaned\b|\bLeaked\b|\bObjectDB\b|^[[:space:]]*FAIL:'
 
 usage() {
 	cat <<EOF
@@ -48,7 +48,7 @@ Usage: $(basename "$0") [--godot PATH] [--timeout SECONDS] [--results-dir DIR]
                         [--audio-driver NAME] [--jobs N] [--scope SPEC[,SPEC...]]
                         [--manifest-scope PATH[,PATH...]] [--import-gate MODE]
 
-Run tests/*_test.gd files under Godot --headless, one isolated process per suite,
+Recursively run tests/**/*_test.gd files under Godot, one isolated process per suite,
 and write a timestamped matrix manifest. Suites run in parallel by default; the
 results TSV, the console transcript and the run manifest are emitted in sorted
 suite order regardless of completion order. results-canonical.tsv is the
@@ -60,7 +60,9 @@ Options:
   --timeout SECONDS         Per-suite timeout (default: 180).
   --results-dir DIR         Results root (default: artifacts/test-matrix).
   --audio-driver NAME       Audio backend passed to --audio-driver (default: Dummy).
-  --jobs N                  Concurrent suites. Default: nproc-2, floor 1.
+  --mode MODE               headless (default), graphical, or all; graphical needs DISPLAY.
+  --list                    List selected relative paths and modes without running Godot.
+  --jobs N                  Concurrent suites. Default: min(cores/4, available GiB/2, 4), floor 1.
                             Use --jobs 1 for a strictly serial debugging run.
   --scope SPEC[,SPEC...]    Select a subset of suites. Repeatable. A SPEC may be
                             a suite name (fleet_pbr_test), a file name
@@ -79,7 +81,7 @@ Environment variables:
   GODOT_BIN                 Defaults to \`godot\`.
   TEST_MATRIX_TIMEOUT_SECONDS Defaults to 180.
   TEST_MATRIX_RESULTS_ROOT   Defaults to artifacts/test-matrix.
-  TEST_MATRIX_TEST_FILTER    Extended-regular-expression filter applied to tests/*_test.gd paths.
+  TEST_MATRIX_TEST_FILTER    Extended-regular-expression filter applied to tests/**/*_test.gd paths.
   TEST_MATRIX_AUDIO_DRIVER   Audio backend passed to --audio-driver (defaults to Dummy).
   TEST_MATRIX_RUN_ID         Override the timestamp label.
   TEST_MATRIX_JOBS           Default concurrency (same meaning as --jobs).
@@ -97,6 +99,8 @@ MANIFEST_SCOPE_OVERRIDE="${TEST_MATRIX_MANIFEST_SCOPE:-}"
 
 while [[ $# -gt 0 ]]; do
 	case "$1" in
+		--mode) MODE="$2"; shift 2 ;;
+		--list) LIST_ONLY=1; shift ;;
 		--godot)
 			GODOT_BIN="$2"
 			shift 2
@@ -142,7 +146,7 @@ while [[ $# -gt 0 ]]; do
 	esac
 done
 
-if ! [[ "$TIMEOUT_SECONDS" =~ ^[0-9]+$ ]]; then
+if ! [[ "$TIMEOUT_SECONDS" =~ ^[0-9]+$ ]] || (( TIMEOUT_SECONDS < 1 )); then
 	echo "Invalid timeout: $TIMEOUT_SECONDS"
 	exit 2
 fi
@@ -150,6 +154,10 @@ fi
 if ! [[ "$JOBS" =~ ^[0-9]+$ ]] || (( JOBS < 1 )); then
 	echo "Invalid --jobs value: $JOBS (expected a positive integer)"
 	exit 2
+fi
+
+if [[ "$AUDIO_DRIVER" != Dummy ]]; then
+	echo "Automated test audio requires --audio-driver Dummy"; exit 2
 fi
 
 case "$IMPORT_GATE" in
@@ -160,7 +168,7 @@ case "$IMPORT_GATE" in
 		;;
 esac
 
-if [[ ! -x "$GODOT_BIN" ]] && ! command -v "$GODOT_BIN" >/dev/null; then
+if (( LIST_ONLY == 0 )) && [[ ! -x "$GODOT_BIN" ]] && ! command -v "$GODOT_BIN" >/dev/null; then
 	echo "Godot binary not found: $GODOT_BIN"
 	exit 2
 fi
@@ -257,7 +265,7 @@ collect_source_manifest() {
 
 	printf 'path,size_bytes,sha256\n' > "$output_path"
 	while IFS= read -r -d '' file; do
-		relative="${file#$PROJECT_ROOT/}"
+		relative="${file#"$PROJECT_ROOT"/}"
 		size="$(stat -c '%s' "$file")"
 		sha="$(sha256sum "$file" | cut -d' ' -f1)"
 		printf '%s,%s,%s\n' "$relative" "$size" "$sha" >> "$output_path"
@@ -282,16 +290,10 @@ godot_cache_signature() {
 		| cut -d' ' -f1
 }
 
-count_sentinel() {
-	local token="$1"
-	local log_path="$2"
-	grep -aE "^[[:space:]]*${token}([[:space:]]|:|$)" "$log_path" | wc -l || true
-}
-
 count_matches() {
 	local pattern="$1"
 	local log_path="$2"
-	grep -aEi "$pattern" "$log_path" | wc -l || true
+	grep -acEi "$pattern" "$log_path" || true
 }
 
 tail_nonempty_line() {
@@ -304,7 +306,7 @@ collect_file_hashes() {
 	printf 'path,sha256\n' > "$output_path"
 	while IFS= read -r -d '' file; do
 		[[ "$file" == "$output_path" ]] && continue
-		rel="${file#$RUN_DIR/}"
+		rel="${file#"$RUN_DIR"/}"
 		sha="$(sha256sum "$file" | cut -d' ' -f1)"
 		printf '%s,%s\n' "$rel" "$sha" >> "$output_path"
 	done < <(find "$RUN_DIR" -type f -print0 | sort -z)
@@ -362,9 +364,9 @@ run_import_gate() {
 	start_ms="$(now_ms)"
 	set +e
 	if (( HAVE_TIMEOUT_BIN == 1 )); then
-		timeout "$(( TIMEOUT_SECONDS * 4 ))s" "$GODOT_BIN" --headless --editor --path "$PROJECT_ROOT" --quit > "$gate_log" 2>&1
+		timeout "$(( TIMEOUT_SECONDS * 4 ))s" "$GODOT_BIN" --headless --audio-driver "$AUDIO_DRIVER" --editor --path "$PROJECT_ROOT" --quit > "$gate_log" 2>&1
 	else
-		"$GODOT_BIN" --headless --editor --path "$PROJECT_ROOT" --quit > "$gate_log" 2>&1
+		"$GODOT_BIN" --headless --audio-driver "$AUDIO_DRIVER" --editor --path "$PROJECT_ROOT" --quit > "$gate_log" 2>&1
 	fi
 	import_gate_exit="$?"
 	set -e
@@ -412,18 +414,16 @@ case "$IMPORT_GATE" in
 		;;
 esac
 
-if [[ "$import_gate_needed" == "true" ]]; then
-	run_import_gate
-fi
+
 
 # ---------------------------------------------------------------------------
 # Suite selection
 # ---------------------------------------------------------------------------
 # Resolved before the source manifest is hashed so that a mistyped --scope
 # fails immediately instead of after a full-tree hash.
-mapfile -d '' ALL_TEST_FILES < <(find "$PROJECT_ROOT/tests" -maxdepth 1 -type f -name '*_test.gd' -print0 | sort -z)
+mapfile -d '' ALL_TEST_FILES < <(find "$PROJECT_ROOT/tests" -type f -name '*_test.gd' -print0 | sort -z)
 if (( ${#ALL_TEST_FILES[@]} == 0 )); then
-	echo "No tests/*_test.gd files found under $PROJECT_ROOT/tests"
+	echo "No tests/**/*_test.gd files found under $PROJECT_ROOT/tests"
 	exit 1
 fi
 
@@ -432,7 +432,7 @@ fi
 spec_matches() {
 	local spec="$1"
 	local abs="$2"
-	local rel="${abs#$PROJECT_ROOT/}"
+	local rel="${abs#"$PROJECT_ROOT"/}"
 	local file="${abs##*/}"
 	local name="${file%.gd}"
 	local candidate
@@ -440,7 +440,8 @@ spec_matches() {
 		if [[ "$candidate" == "$spec" ]]; then
 			return 0
 		fi
-		# shellcheck disable=SC2053 - glob matching is the point.
+		# Glob matching is the point.
+		# shellcheck disable=SC2053
 		if [[ "$candidate" == $spec ]]; then
 			return 0
 		fi
@@ -474,7 +475,7 @@ if (( ${#SCOPE_SPECS[@]} > 0 )); then
 	done
 	if (( ${#unmatched[@]} > 0 )); then
 		echo "No suite matched --scope spec(s): ${unmatched[*]}"
-		echo "Suites live in tests/*_test.gd; pass a suite name, a path or a glob."
+		echo "Suites live in tests/**/*_test.gd; pass a suite name, a path or a glob."
 		exit 2
 	fi
 	# Re-derive the order from the sorted master list so that scope order never
@@ -500,10 +501,53 @@ if [[ -n "${TEST_MATRIX_TEST_FILTER:-}" ]]; then
 	TEST_FILES=("${filtered_tests[@]}")
 fi
 if (( ${#TEST_FILES[@]} == 0 )); then
-	echo "No tests/*_test.gd files selected under $PROJECT_ROOT/tests"
+	echo "No tests/**/*_test.gd files selected under $PROJECT_ROOT/tests"
 	exit 1
 fi
 
+case "$MODE" in
+	headless|graphical|all) ;;
+	*) echo "Invalid --mode: $MODE"; exit 2 ;;
+esac
+declare -A SUITE_MODES=()
+python3 "$SCRIPT_DIR/test_suite_catalog.py" --root "$PROJECT_ROOT" > "$WORK_DIR/catalog.tsv"
+while IFS=$'\t' read -r path kind; do
+	SUITE_MODES["$PROJECT_ROOT/$path"]="$kind"
+done < "$WORK_DIR/catalog.tsv"
+mode_tests=()
+mode_excluded_count=0
+for test_file in "${TEST_FILES[@]}"; do
+	kind="${SUITE_MODES[$test_file]}"
+	if [[ "$MODE" == all || "$MODE" == "$kind" ]]; then
+		mode_tests+=("$test_file")
+	else
+		mode_excluded_count=$(( mode_excluded_count + 1 ))
+		if (( LIST_ONLY == 0 )); then
+			echo "NOT_RUN (${kind}; --mode $MODE): ${test_file#"$PROJECT_ROOT"/}"
+		fi
+	fi
+done
+TEST_FILES=("${mode_tests[@]}")
+if (( LIST_ONLY == 1 )); then
+	for test_file in "${TEST_FILES[@]}"; do
+		printf '%s\t%s\n' "${test_file#"$PROJECT_ROOT"/}" "${SUITE_MODES[$test_file]}"
+	done
+	exit 0
+fi
+if (( ${#TEST_FILES[@]} == 0 )); then
+	echo "No suites selected for --mode $MODE"; exit 2
+fi
+if [[ "$MODE" != headless && -z "${DISPLAY:-}${WAYLAND_DISPLAY:-}" ]]; then
+	echo "Graphical suites require DISPLAY or WAYLAND_DISPLAY (use xvfb-run in CI)."; exit 2
+fi
+if [[ "$import_gate_needed" == "true" ]]; then
+	run_import_gate
+fi
+# Release-candidate consumers require scope_specs=all. A mode-filtered run must
+# never masquerade as the complete recursive roster.
+if (( mode_excluded_count > 0 )) && [[ "$SCOPE_LABEL" == all ]]; then
+	SCOPE_LABEL="$MODE:all"
+fi
 TOTAL_SUITES="${#TEST_FILES[@]}"
 if (( JOBS > TOTAL_SUITES )); then
 	EFFECTIVE_JOBS="$TOTAL_SUITES"
@@ -533,28 +577,34 @@ run_suite_worker() {
 	local index="$1"
 	local test_file="$2"
 
-	local relative_test_path="${test_file#$PROJECT_ROOT/}"
+	local relative_test_path="${test_file#"$PROJECT_ROOT"/}"
 	local base_name
 	base_name="$(basename "$test_file" .gd)"
-	local base_upper
-	base_upper="$(printf '%s' "$base_name" | tr '[:lower:]' '[:upper:]')"
 	local res_path="res://$relative_test_path"
-	local log_path="$LOG_DIR/${base_name}.log"
-	local expected_ok="${base_upper}_OK"
-	local expected_pass="${base_upper}_PASS"
+	local suite_identity="${relative_test_path#tests/}"
+	suite_identity="${suite_identity%.gd}"
+	local log_path="$LOG_DIR/${suite_identity}.log"
+	mkdir -p "$(dirname "$log_path")"
+
 	local sentinel_found=""
 	# Every suite receives a private Godot `user://` root. Production startup now
 	# performs real atomic settings/recovery writes; without this boundary,
 	# parallel suites would race over the developer's actual user data and each
 	# other's STARTING/STABLE markers.
-	local suite_user_data_dir="$WORK_DIR/user-data/$base_name"
+	local suite_user_data_dir="$WORK_DIR/user-data/$suite_identity"
 	mkdir -p "$suite_user_data_dir"
 
+	local source_copy="$WORK_DIR/source/$suite_identity.gd"
+	mkdir -p "$(dirname "$source_copy")"
+	cp "$test_file" "$source_copy"
 	local start_ms end_ms duration_ms exit_code
 	start_ms="$(now_ms)"
 
 	set +e
-	local GODOT_ARGS=("$GODOT_BIN" --headless --path "$PROJECT_ROOT" --script "$res_path")
+	local GODOT_ARGS=("$GODOT_BIN" --path "$PROJECT_ROOT" --script "$res_path")
+	if [[ "${SUITE_MODES[$test_file]}" == headless ]]; then
+		GODOT_ARGS+=(--headless)
+	fi
 	if [[ -n "$AUDIO_DRIVER" ]]; then
 		GODOT_ARGS+=(--audio-driver "$AUDIO_DRIVER")
 	fi
@@ -573,28 +623,17 @@ run_suite_worker() {
 	end_ms="$(now_ms)"
 	duration_ms="$(elapsed_ms "$start_ms" "$end_ms")"
 
-	local pass_count diag_count ok_count pass_token_count sentinel_count
-	pass_count="$(grep -aE '^PASS:' "$log_path" | wc -l || true)"
-	pass_count="${pass_count//[[:space:]]/}"
+	local pass_count diag_count sentinel_count terminal_sentinel
+	IFS=$'\t' read -r sentinel_found sentinel_count terminal_sentinel pass_count < <(
+		python3 "$SCRIPT_DIR/test_suite_catalog.py" --assess "$source_copy" "$log_path"
+	)
+	[[ "$sentinel_found" == '<none>' ]] && sentinel_found=""
+	[[ "$terminal_sentinel" == '<none>' ]] && terminal_sentinel=""
 	diag_count="$(count_matches "$DIAGNOSTIC_RE" "$log_path")"
 	diag_count="${diag_count//[[:space:]]/}"
-	ok_count="$(count_sentinel "$expected_ok" "$log_path" | tr -d ' ')"
-	pass_token_count="$(count_sentinel "$expected_pass" "$log_path" | tr -d ' ')"
-	sentinel_count=$((ok_count + pass_token_count))
-	if (( ok_count > 0 )); then
-		sentinel_found="$expected_ok"
-	elif (( pass_token_count > 0 )); then
-		sentinel_found="$expected_pass"
-	fi
-	local terminal_line log_sha terminal_sentinel
+	local terminal_line log_sha
 	terminal_line="$(tail_nonempty_line "$log_path" || true)"
 	log_sha="$(sha256sum "$log_path" | cut -d' ' -f1)"
-	terminal_sentinel=""
-	if [[ "$terminal_line" =~ ^[[:space:]]*${expected_ok}([[:space:]]|:|$) ]]; then
-		terminal_sentinel="$expected_ok"
-	elif [[ "$terminal_line" =~ ^[[:space:]]*${expected_pass}([[:space:]]|:|$) ]]; then
-		terminal_sentinel="$expected_pass"
-	fi
 
 	local reasons=()
 	# Keep human diagnostics in results.tsv, but never let an arbitrary line from
@@ -608,7 +647,7 @@ run_suite_worker() {
 		failure_flags+=("exit_nonzero")
 	fi
 	if (( sentinel_count != 1 )); then
-		reasons+=("sentinel_count=$sentinel_count (expected 1 of ${expected_ok} or ${expected_pass})")
+		reasons+=("sentinel_count=$sentinel_count (expected one source-declared completion)")
 		failure_flags+=("sentinel_count_invalid")
 	fi
 	if [[ -n "$sentinel_found" && -n "$terminal_sentinel" && "$terminal_sentinel" != "$sentinel_found" ]]; then
@@ -738,12 +777,12 @@ failed_suites=()
 total_pass_assertions=0
 for (( index = 0; index < TOTAL_SUITES; index++ )); do
 	test_file="${TEST_FILES[$index]}"
-	relative_test_path="${test_file#$PROJECT_ROOT/}"
+	relative_test_path="${test_file#"$PROJECT_ROOT"/}"
 	if [[ ! -f "$WORK_DIR/$index.tsv" ]]; then
 		# A worker that dies before recording is itself a failure, and it must
 		# never be able to silently shrink the results table.
 		printf '%s\tFAIL\t-1\t<none>\t0\t0\t0\t0\t%s\t-\tharness_error=worker produced no result record\n' \
-			"$relative_test_path" "$LOG_DIR/$(basename "$test_file" .gd).log" >> "$results_tsv"
+			"$relative_test_path" "$LOG_DIR/${relative_test_path#tests/}" >> "$results_tsv"
 		printf '%s\tFAIL\t-1\t<none>\t0\t0\t0\tharness_error\n' \
 			"$relative_test_path" >> "$results_canonical_tsv"
 		failed_suites+=("$relative_test_path (harness_error: no result record)")
@@ -827,6 +866,9 @@ log_dir=${LOG_DIR}
 jobs_requested=${JOBS}
 jobs_effective=${EFFECTIVE_JOBS}
 scope_specs=${SCOPE_LABEL}
+execution_mode=${MODE}
+discovered_suite_count=${#ALL_TEST_FILES[@]}
+mode_excluded_suite_count=${mode_excluded_count}
 manifest_scope=$(printf '%s ' "${SCOPE_PATHS[@]}" | sed 's/ $//')
 suite_phase_duration_ms=${suite_phase_duration_ms}
 total_pass_assertions=${total_pass_assertions}

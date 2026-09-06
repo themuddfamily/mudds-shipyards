@@ -26,7 +26,7 @@ RENDER_READBACK_MARKERS = (
     ".get_texture().get_image()",
     "get_viewport().get_texture()",
 )
-CLASSIFICATIONS = frozenset(("required", "historical", "deprecated"))
+CLASSIFICATIONS = frozenset(("required", "supplementary", "historical", "deprecated"))
 REVIEW_STATUSES = frozenset(
     ("reviewed_current", "reviewed_historical", "pending", "retired")
 )
@@ -312,7 +312,8 @@ def _validate_output(value: Any, label: str) -> list[str]:
     errors = _unknown_keys(value, OUTPUT_KEYS, f"{label}.output")
     if not {"root", "contract"}.issubset(value):
         errors.append(f"{label}.output must contain root and contract")
-    path_error = _safe_output_root(value.get("root"))
+    # Some optional captures have no authored default: their caller supplies it.
+    path_error = None if value.get("root") is None and value.get("runtime_override_env") else _safe_output_root(value.get("root"))
     if path_error:
         errors.append(f"{label}: {path_error}")
     if not _is_enum(value.get("contract"), OUTPUT_CONTRACTS):
@@ -493,7 +494,7 @@ def _validate_entry(root: Path, value: Any, index: int) -> list[str]:
     review = value.get("review_status")
     if not _is_enum(review, REVIEW_STATUSES):
         errors.append(f"{label}.review_status must be one of {sorted(REVIEW_STATUSES)}")
-    elif classification == "required" and review not in ("reviewed_current", "pending"):
+    elif classification in ("required", "supplementary") and review not in ("reviewed_current", "pending"):
         errors.append(f"{label}: required harness has incompatible review_status {review!r}")
     elif classification == "historical" and review not in ("reviewed_historical", "pending"):
         errors.append(f"{label}: historical harness has incompatible review_status {review!r}")
@@ -909,7 +910,7 @@ def main(argv: list[str] | None = None) -> int:
         print(
             "GRAPHICAL_HARNESS_INVENTORY_OK: "
             f"discovered={len(result.discovered)} registered={len(result.registered)} "
-            f"required={counts['required']} historical={counts['historical']} "
+            f"required={counts['required']} supplementary={counts['supplementary']} historical={counts['historical']} "
             f"deprecated={counts['deprecated']} fingerprint={result.fingerprint}"
         )
     else:

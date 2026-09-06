@@ -1,0 +1,77 @@
+name: Game regression
+on:
+  pull_request:
+  push:
+    branches: [main, master]
+  workflow_dispatch:
+  schedule:
+    - cron: '23 3 * * 1,4'
+permissions:
+  contents: read
+concurrency:
+  group: regression-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name != 'schedule' }}
+env:
+  GODOT_VERSION: 4.7.1
+  GODOT_SILENCE_ROOT_WARNING: '1'
+  TEST_MATRIX_AUDIO_DRIVER: Dummy
+  TEST_MATRIX_JOBS: '1'
+  # Each Godot worker owns a pool; ENet suites also use fixed loopback ports.
+  # Keep the broad jobs serial until those suites own independent ports.
+jobs:
+  core:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - name: Release tools and runner fixtures
+        run: |
+          python3 -m unittest discover -s tools/release -p 'test_*.py'
+          bash tools/release/test_run_test_matrix_canonical.sh
+          shellcheck tools/release/run_test_matrix.sh tools/release/run_matrix.sh tools/release/install_ci_godot.sh
+      - name: Install pinned Godot
+        run: bash tools/release/install_ci_godot.sh
+      - name: Core gameplay regression
+        run: >-
+          bash tools/release/run_test_matrix.sh --audio-driver Dummy --jobs 1
+          --scope smoke_test,sandbox_loop_test,ship_command_test,landing_assist_accessibility_test,flight_input_test,control_mapping_test,crash_recovery_coordinator_test,tests/world/ember_surface_loop_return_persistence_test.gd
+          --timeout 180
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: core-regression
+          path: artifacts/test-matrix/
+          retention-days: 7
+  broad:
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 180
+    strategy:
+      fail-fast: false
+      max-parallel: 2
+      matrix:
+        mode: [headless, graphical]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install pinned Godot
+        run: bash tools/release/install_ci_godot.sh
+      - name: Install software rendering display
+        if: matrix.mode == 'graphical'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y xvfb mesa-vulkan-drivers
+      - name: Broader headless suites
+        if: matrix.mode == 'headless'
+        run: bash tools/release/run_test_matrix.sh --mode headless --audio-driver Dummy --jobs 1 --timeout 180
+      - name: Graphical suites with Forward+ software rendering
+        if: matrix.mode == 'graphical'
+        env:
+          LIBGL_ALWAYS_SOFTWARE: '1'
+          LP_NUM_THREADS: '2'
+        run: xvfb-run -a -s '-screen 0 2560x1440x24' bash tools/release/run_test_matrix.sh --mode graphical --audio-driver Dummy --jobs 1 --timeout 300
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: broad-${{ matrix.mode }}-regression
+          path: artifacts/test-matrix/
+          retention-days: 14
