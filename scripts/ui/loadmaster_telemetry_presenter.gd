@@ -72,8 +72,8 @@ func _present_accepted_snapshot(snapshot: Dictionary, cursor: Dictionary = {}) -
 		next_action = "CREW REVIEW // CONFIRM PUBLISHED ROUTE"
 	if cinder_roster and (roster_shape.is_empty() or roster_status.is_empty()):
 		var roster_reading := _roster_reading(seat_state, manifest_receipt)
-		roster_shape = str(roster_reading["shape"])
-		roster_status = str(roster_reading["status"])
+		roster_shape = str(roster_reading.get("shape", ""))
+		roster_status = str(roster_reading.get("status", ""))
 	if not seat_state.is_empty():
 		manifest = "%s  //  SEAT %s" % [manifest, seat_state]
 	var history: Array[String] = []

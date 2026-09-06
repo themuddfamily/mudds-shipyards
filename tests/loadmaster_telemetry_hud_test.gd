@@ -35,6 +35,19 @@ func _run() -> void:
 	_check(detail.text.contains("MANIFEST CHECKED") and detail.text.contains("OLD RECEIPT") and not detail.text.contains("IGNORED OVERFLOW"), "receipt history is bounded")
 	_check(detail.text.contains("NO INVENTORY TRANSFER") and detail.text.contains("NO REWARD AUTHORITY") and detail.text.contains("NO HELM AUTHORITY"), "authority boundaries are explicit")
 	_check(actions.get_child_count() == 1 and (actions.get_child(0) as Button).focus_mode == Control.FOCUS_ALL, "loadmaster review is controller and keyboard focusable")
+	for incomplete_state in ["", "unknown", "manifest_ready"]:
+		hud.clear_loadmaster_telemetry()
+		hud.update_cinder_loadmaster_telemetry(
+			&"cinder_cargo_hauler", &"loadmaster",
+			{"state": incomplete_state, "generation": 1},
+			{"manifest_generation": 1, "receipt": {}}
+		)
+		_check(
+			panel.visible and detail.text.contains("CRAFT // CINDER_CARGO_HAULER")
+				and not detail.text.contains("ROSTER STATE //"),
+			"incomplete Cinder state '%s' keeps telemetry readable without inventing roster status" % incomplete_state
+		)
+	hud.clear_loadmaster_telemetry()
 	hud.update_cinder_loadmaster_telemetry(
 		&"cinder_cargo_hauler", &"loadmaster",
 		{"state": "available", "generation": 1},

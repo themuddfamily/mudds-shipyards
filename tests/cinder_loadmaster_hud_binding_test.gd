@@ -30,7 +30,7 @@ func _run() -> void:
 	var binding := BindingType.new()
 	_check(bool(binding.attach(craft, hud, &"loadmaster").get("accepted", false)), "binding attaches through explicit caller seam")
 	var detail := hud.get("_runtime_status_detail") as Label
-	_check(detail.text.contains("CRAFT // CINDER-CARGO-HAULER") and detail.text.contains("SEAT AVAILABLE") and detail.text.contains("ROSTER STATE // [/] DETACHED // STATION OPEN"), "initial detached Cinder state has a text-and-shape roster reading")
+	_check(detail.text.contains("CRAFT // " + str(Hauler.COMPONENT_ID).to_upper()) and detail.text.contains("SEAT AVAILABLE") and detail.text.contains("ROSTER STATE // [/] DETACHED // STATION OPEN"), "initial detached Cinder state has a text-and-shape roster reading")
 	_check(bool(authority.claim(1, 72, &"binding_loadmaster", Hauler.LOADMASTER_STATION_SEAT_ID, Authority.ROLE_PASSENGER, 1).get("accepted", false)), "caller claims the physical loadmaster seat")
 	craft.refresh_loadmaster_status_display()
 	binding.detach()
