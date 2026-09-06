@@ -144,6 +144,76 @@ done < <(LC_ALL=C sort -z "$paths")
                     elif run_id != 'earlier-error':
                         self.assertEqual(row.get('accepted_risk_count', '0'), '0')
 
+    def test_parallel_network_lane_allows_other_work_and_releases_after_timeout(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            release = root / 'tools/release'
+            release.mkdir(parents=True)
+            for name in ('run_test_matrix.sh', 'test_suite_catalog.py', 'source_manifest.py'):
+                shutil.copy2(SUPPORT / name, release / name)
+            scripts = ['network/a_test.gd', 'network/b_test.gd', 'network/c_test.gd', 'network_top_test.gd', 'z_other_test.gd']
+            for relative in scripts:
+                script = root / 'tests' / relative
+                script.parent.mkdir(parents=True, exist_ok=True)
+                script.write_text('print("OK: network lane fixture")')
+            fake = root / 'fake-godot'
+            fake.write_text('''#!/usr/bin/env python3
+import os,sys,pathlib,time,signal,fcntl
+root=pathlib.Path(os.environ['LANE_FIXTURE_ROOT'])
+args=sys.argv[1:]
+script=args[args.index('--script')+1]
+network='/network/' in script or script.endswith('/network_top_test.gd')
+active=root/'active-network'
+def stop(*_):
+    if network and active.exists(): active.rmdir()
+    sys.exit(143)
+signal.signal(signal.SIGTERM,stop)
+if network:
+    inherited=[]
+    for fd in pathlib.Path('/proc/self/fd').iterdir():
+        try: path=os.readlink(fd)
+        except FileNotFoundError: continue
+        if path.endswith('/network.lock'): inherited.append(path)
+    assert len(inherited)==1, 'network lock descriptor was not inherited'
+    with open(inherited[0], 'w') as contender:
+        try: fcntl.flock(contender, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except BlockingIOError: pass
+        else: raise AssertionError('parent did not hold the network flock')
+    try: active.mkdir()
+    except FileExistsError:
+        (root/'collision').touch()
+        sys.exit(7)
+    if script.endswith('/a_test.gd'):
+        deadline=time.monotonic()+3
+        while not (root/'other-complete').exists() and time.monotonic()<deadline: time.sleep(0.01)
+        assert (root/'other-complete').exists(), 'nonnetwork workers were starved'
+        if os.environ.get('LANE_TIMEOUT') == '1': time.sleep(10)
+    with (root/'network-complete').open('a') as out: out.write(script+'\\n')
+    active.rmdir()
+else:
+    (root/'other-complete').touch()
+print('OK: network lane fixture')
+''')
+            fake.chmod(0o755)
+            command = ['bash', str(release / 'run_test_matrix.sh'), '--godot', str(fake), '--jobs', '4', '--results-dir', str(root / 'results'), '--manifest-scope', 'tests', '--import-gate', 'never', '--timeout', '4']
+            for timeout in (False, True):
+                with self.subTest(timeout=timeout):
+                    for marker in ('other-complete', 'network-complete'):
+                        (root / marker).unlink(missing_ok=True)
+                    run_id = 'timeout' if timeout else 'success'
+                    extra = ['--timeout', '1'] if timeout else []
+                    result = subprocess.run(command + extra, cwd=root, env={**os.environ, 'LANE_FIXTURE_ROOT': str(root), 'LANE_TIMEOUT': str(int(timeout)), 'TEST_MATRIX_RUN_ID': run_id}, text=True, capture_output=True, timeout=15)
+                    self.assertEqual(result.returncode, int(timeout), result.stdout + result.stderr)
+                    self.assertFalse((root / 'collision').exists())
+                    self.assertFalse((root / 'active-network').exists())
+                    completed = (root / 'network-complete').read_text().splitlines()
+                    self.assertEqual(len(completed), 3 if timeout else 4)
+                    with (root / 'results' / run_id / 'results.tsv').open() as stream:
+                        rows = list(csv.DictReader(stream, delimiter='\t'))
+                    self.assertEqual([row['test_path'] for row in rows], sorted('tests/' + item for item in scripts))
+                    self.assertEqual(rows[0]['exit_code'], '124' if timeout else '0')
+                    self.assertTrue(all(row['status'] == 'PASS' for row in rows[1:]))
+
     def test_generic_pass_descriptions_are_not_completion(self):
         with tempfile.TemporaryDirectory() as temporary:
             script = Path(temporary) / 'probe_test.gd'

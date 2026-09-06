@@ -68,7 +68,8 @@ Options:
   --list                    List selected relative paths and modes without running Godot.
                             Only an unfiltered --mode all run qualifies as full release scope.
   --jobs N                  Concurrent suites. Default: min(cores/4, available GiB/2, 4), floor 1.
-                            Use --jobs 1 for a strictly serial debugging run.
+                            Use --jobs 1 for a strictly serial debugging run. Network suites
+                            share one per-run flock lane; other workers keep advancing.
   --scope SPEC[,SPEC...]    Select a subset of suites. Repeatable. A SPEC may be
                             a suite name (fleet_pbr_test), a file name
                             (fleet_pbr_test.gd), a path (tests/fleet_pbr_test.gd),
@@ -529,13 +530,23 @@ fi
 if [[ "$MODE" != headless && -z "${DISPLAY:-}${WAYLAND_DISPLAY:-}" ]]; then
 	echo "Graphical suites require DISPLAY or WAYLAND_DISPLAY (use xvfb-run in CI)."; exit 2
 fi
-if [[ "$import_gate_needed" == "true" ]]; then
-	run_import_gate
-fi
 # Release-candidate consumers require scope_specs=all. A mode-filtered run must
 # never masquerade as the complete recursive roster.
 if (( mode_excluded_count > 0 )) && [[ "$SCOPE_LABEL" == all ]]; then
 	SCOPE_LABEL="$MODE:all"
+fi
+network_suite() {
+	local relative="${1#"$PROJECT_ROOT"/}"
+	[[ "$relative" == tests/network/* || ( "$relative" == tests/network_* && "${relative#tests/}" != */* ) ]]
+}
+for test_file in "${TEST_FILES[@]}"; do
+	if network_suite "$test_file" && ! command -v flock >/dev/null; then
+		echo "Network suites require flock (util-linux) for the per-run lane."; exit 2
+	fi
+done
+
+if [[ "$import_gate_needed" == "true" ]]; then
+	run_import_gate
 fi
 TOTAL_SUITES="${#TEST_FILES[@]}"
 if (( JOBS > TOTAL_SUITES )); then
@@ -586,6 +597,12 @@ run_suite_worker() {
 	local source_copy="$WORK_DIR/source/$suite_identity.gd"
 	mkdir -p "$(dirname "$source_copy")"
 	cp "$test_file" "$source_copy"
+	# Acquire before starting the suite clock: lock wait is not execution time.
+	local network_lock_fd=""
+	if network_suite "$test_file"; then
+		exec {network_lock_fd}>"$WORK_DIR/network.lock"
+		flock "$network_lock_fd"
+	fi
 	local start_ms end_ms duration_ms exit_code
 	start_ms="$(now_ms)"
 
@@ -608,6 +625,10 @@ run_suite_worker() {
 		exit_code="$?"
 	fi
 	set -e
+	if [[ -n "$network_lock_fd" ]]; then
+		flock -u "$network_lock_fd"
+		exec {network_lock_fd}>&-
+	fi
 
 	end_ms="$(now_ms)"
 	duration_ms="$(elapsed_ms "$start_ms" "$end_ms")"
@@ -755,11 +776,38 @@ flush_ready() {
 	done
 }
 
+# A blocked lock must not occupy every pool slot. Queue at most one network
+# worker, letting the remaining slots run unrelated suites; publish by index.
+network_indices=()
+other_indices=()
+for (( index = 0; index < TOTAL_SUITES; index++ )); do
+	if network_suite "${TEST_FILES[$index]}"; then
+		network_indices+=("$index")
+	else
+		other_indices+=("$index")
+	fi
+done
+network_next=0
+other_next=0
+network_active=-1
+network_pid=0
 next=0
 running=0
 while (( next < TOTAL_SUITES || running > 0 )); do
 	while (( running < EFFECTIVE_JOBS && next < TOTAL_SUITES )); do
-		run_suite_worker "$next" "${TEST_FILES[$next]}" &
+		if (( network_next < ${#network_indices[@]} )) && \
+			{ (( network_active < 0 )) || [[ -f "$WORK_DIR/$network_active.done" ]] || ! kill -0 "$network_pid" 2>/dev/null; }; then
+			index="${network_indices[$network_next]}"
+			network_next=$(( network_next + 1 ))
+			network_active="$index"
+		elif (( other_next < ${#other_indices[@]} )); then
+			index="${other_indices[$other_next]}"
+			other_next=$(( other_next + 1 ))
+		else
+			break
+		fi
+		run_suite_worker "$index" "${TEST_FILES[$index]}" &
+		if [[ "$index" == "$network_active" ]]; then network_pid="$!"; fi
 		running=$(( running + 1 ))
 		next=$(( next + 1 ))
 	done
