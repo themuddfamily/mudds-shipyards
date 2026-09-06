@@ -29,10 +29,11 @@ func _run() -> void:
 		"network diagnostics bridge forwards a detached observation")
 	var observation: Dictionary = lifecycle.observations[0]
 	_check(int(observation.reason_code) == 1 and int(observation.session_id) == 42
-		and int((observation.quality as Dictionary).buffer_count) == 7,
+		and int((observation.quality as Dictionary).buffer_count) == 8,
 		"bridge maps only normalized reason and bounded quality counters")
 	_check((bridge.detach()).accepted and not bridge.publish(adapter, 42, 101, 1.6, 4).accepted,
 		"diagnostics detach fences later publication")
+	adapter.free()
 	if _failures.is_empty():
 		print("OK: network diagnostics bridge (%d assertions)" % _assertions)
 		quit(0)

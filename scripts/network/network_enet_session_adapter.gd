@@ -123,6 +123,7 @@ var _migration
 var _prediction
 var _server_browser
 var _snapshot_jitter
+var _moving_jitter
 var _replication_interest
 var _snapshot_delta_encoder
 var _snapshot_delta_decoder
@@ -250,6 +251,7 @@ func _init() -> void:
 	_prediction = PredictionGuard.new(AUTHORITY_PEER_ID)
 	_server_browser = ServerBrowser.new(AUTHORITY_PEER_ID)
 	_snapshot_jitter = SnapshotJitterBuffer.new()
+	_moving_jitter = SnapshotJitterBuffer.new()
 	_replication_interest = ReplicationInterest.new(AUTHORITY_PEER_ID)
 	_snapshot_delta_encoder = SnapshotDeltaCodec.new()
 	_snapshot_delta_decoder = SnapshotDeltaCodec.new()
@@ -2316,12 +2318,7 @@ func reset_snapshot_jitter(migration_generation: int = 1) -> Dictionary:
 	_crew_snapshot_codec = CrewSnapshotCodec.new()
 	_crew_snapshot_revision = 0
 	_crew_replica_snapshot.clear()
-	_moving_replica_samples.clear()
-	_moving_snapshot_revision = 0
-	_moving_resync_revision = 0
-	_moving_recipient_budgets.clear()
-	_moving_recipient_entities.clear()
-	_moving_recipient_pending.clear()
+	_reset_moving_interior_jitter(migration_generation)
 	_projectile_snapshot_revision = 0
 	_projectile_recipient_budgets.clear()
 	_projectile_recipient_pending.clear()
@@ -2329,12 +2326,6 @@ func reset_snapshot_jitter(migration_generation: int = 1) -> Dictionary:
 	_reset_projectile_replica_state(migration_generation)
 	_canonical_projectile_revision = 0
 	_projectile_authoritative_records.clear()
-	for entity_variant in _moving_replica_binding_ids.keys():
-		_moving_replica_binding.detach(StringName(entity_variant))
-	_moving_replica_binding_ids.clear()
-	if migration_generation > int(_moving_relationship_stream.get_snapshot().get("migration_generation", 1)):
-		_moving_relationship_stream.reset_migration(AUTHORITY_PEER_ID, migration_generation)
-		_moving_replica.reset_migration(AUTHORITY_PEER_ID, migration_generation)
 	_landing_replica_samples.clear()
 	_landing_snapshot_revision = 0
 	_landing_authoritative_records.clear()
@@ -2360,6 +2351,22 @@ func reset_snapshot_jitter(migration_generation: int = 1) -> Dictionary:
 	_presentation_evictions = 0
 	_interest_jitter.reset(migration_generation)
 	return _remember(_snapshot_jitter.reset(migration_generation))
+
+
+func _reset_moving_interior_jitter(migration_generation: int) -> Dictionary:
+	_moving_replica_samples.clear()
+	_moving_snapshot_revision = 0
+	_moving_resync_revision = 0
+	_moving_recipient_budgets.clear()
+	_moving_recipient_entities.clear()
+	_moving_recipient_pending.clear()
+	for entity_variant in _moving_replica_binding_ids.keys():
+		_moving_replica_binding.detach(StringName(entity_variant))
+	_moving_replica_binding_ids.clear()
+	if migration_generation > int(_moving_relationship_stream.get_snapshot().get("migration_generation", 1)):
+		_moving_relationship_stream.reset_migration(AUTHORITY_PEER_ID, migration_generation)
+		_moving_replica.reset_migration(AUTHORITY_PEER_ID, migration_generation)
+	return _moving_jitter.reset(migration_generation)
 
 
 ## Caller-driven reconnect scheduling. This records a capped delay only; it
@@ -2535,7 +2542,7 @@ func _store_presentation_sample(store: Dictionary, entity_id: StringName, record
 
 
 ## Presents a released authoritative moving-interior relationship without
-## mutating authority or scene state. Packets are ordered by the shared jitter
+## mutating authority or scene state. Packets are ordered by their own jitter
 ## buffer before the relationship is interpolated in frame-local coordinates.
 func consume_moving_interior_snapshot(
 	packet: Dictionary,
@@ -2547,12 +2554,12 @@ func consume_moving_interior_snapshot(
 		return _remember(_result(false, &"invalid_moving_interior_snapshot"))
 	if not is_finite(alpha):
 		return _remember(_result(false, &"invalid_interpolation_alpha"))
-	var buffered: Dictionary = _snapshot_jitter.push(packet)
+	var buffered: Dictionary = _moving_jitter.push(packet)
 	if not bool(buffered.get("accepted", false)):
 		return _remember(_result(false, StringName(buffered.get("status", &"buffer_rejected"))))
 	var presented: Array = []
 	while true:
-		var ready: Dictionary = _snapshot_jitter.pop_ready()
+		var ready: Dictionary = _moving_jitter.pop_ready()
 		if ready.is_empty():
 			break
 		var raw_relationship: Variant = ready.get("relationship")
@@ -2757,10 +2764,14 @@ func get_snapshot_jitter_state() -> Dictionary:
 	return _snapshot_jitter.get_snapshot()
 
 
+func get_moving_interior_jitter_state() -> Dictionary:
+	return _moving_jitter.get_snapshot()
+
+
 ## Detached session-quality counters; these are observations, never admission
 ## or authority inputs. Every presentation cursor resets with migration.
 func get_session_quality_telemetry() -> Dictionary:
-	var buffers: Array = [_snapshot_jitter, _projectile_jitter, _landing_jitter,
+	var buffers: Array = [_snapshot_jitter, _moving_jitter, _projectile_jitter, _landing_jitter,
 		_damage_jitter, _boarding_jitter, _migration_jitter, _interest_jitter]
 	var aggregate := {
 		"accepted_count": 0,
@@ -4017,14 +4028,14 @@ func _apply_moving_interior_resync(packet: Dictionary) -> Dictionary:
 	if generation < current_generation:
 		return _remember(_result(false, &"stale_migration_generation"))
 	if generation > current_generation:
-		var reset_result := reset_snapshot_jitter(generation)
+		var reset_result := _reset_moving_interior_jitter(generation)
 		if not bool(reset_result.get("accepted", false)):
 			return _remember(reset_result)
 	var applied_count := 0
 	for relationship_variant in relationships_variant as Array:
 		if not relationship_variant is Dictionary:
 			return _remember(_result(false, &"invalid_moving_interior_relationship"))
-		var next_revision := int(_snapshot_jitter.get_snapshot().get("next_revision", 1))
+		var next_revision := int(_moving_jitter.get_snapshot().get("next_revision", 1))
 		var relationship := relationship_variant as Dictionary
 		var applied := consume_moving_interior_snapshot({
 			"revision": next_revision,

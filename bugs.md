@@ -84,23 +84,6 @@ performance, and human visual review were **NOT_RUN** in this review.
 - **Repair:** Bootstrap each newly admitted peer with a full authoritative
   snapshot and initialize its ordering cursor to that baseline.
 
-### NET-002 — Independent snapshot streams share one ordering cursor — P1
-
-- **Locations:** [`consume_moving_interior_snapshot()`](scripts/network/network_enet_session_adapter.gd#L2550),
-  [`_broadcast_snapshot_fragment()`](scripts/network/network_enet_session_adapter.gd#L3820).
-- **Reproduce:** Deliver canonical revision 1 and then a valid moving-interior
-  revision 1 to a client through the adapter's production receive paths.
-- **Expected / actual:** Both independent sequences should accept their first
-  packet. Both use `_snapshot_jitter`, so canonical delivery consumes revision 1
-  and the interior packet is rejected as `stale_or_duplicate`. Buffered packets
-  can also be released into the other stream's parser.
-- **Verified:** The fragment callback applied canonical revision **1**; the
-  following valid interior packet returned **`stale_or_duplicate`**.
-- **Impact:** GameFlow publishes both streams in production, including walking
-  inside moving craft and canonical telemetry/projectile updates.
-- **Repair:** Give each stream its own jitter buffer, lifecycle resets, and
-  resynchronization cursor.
-
 ### TEST-001 — Legacy matrix reports failing process exits as success — P2
 
 - **Location:** [`tools/release/run_matrix.sh`](tools/release/run_matrix.sh#L51).

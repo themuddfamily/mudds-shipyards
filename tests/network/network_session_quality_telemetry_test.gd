@@ -28,11 +28,12 @@ func _run() -> void:
 		and int(telemetry.max_pending_depth) == 1,
 		"telemetry reports bounded accepted/released/stale/gap/depth counters")
 	var aggregate := adapter.get_session_quality_telemetry()
-	_check(int(aggregate.buffer_count) == 7 and int(aggregate.pending_depth) == 0,
+	_check(int(aggregate.buffer_count) == 8 and int(aggregate.pending_depth) == 0,
 		"adapter exposes detached aggregate telemetry across presentation cursors")
 	_check(adapter.reset_snapshot_jitter(71).accepted
 		and int(adapter.get_session_quality_telemetry().accepted_count) == 0,
 		"migration reset clears session timing telemetry")
+	adapter.free()
 	if _failures.is_empty():
 		print("OK: network session quality telemetry (%d assertions)" % _assertions)
 		quit(0)
