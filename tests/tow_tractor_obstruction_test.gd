@@ -77,7 +77,7 @@ func _test_declared_contract(tractor: TowTractor) -> void:
 	)
 	_check(
 		(tractor.collision_mask & PhysicsLayers.SHIP) != 0,
-		"the live tractor masks the Ship layer used by all five parked craft"
+		"the live tractor masks the Ship layer used by all nine parked craft"
 	)
 	_check(
 		(tractor.collision_mask & PhysicsLayers.PLAYER) == 0,
@@ -392,16 +392,13 @@ func _test_the_tractor_took_no_authority(
 		world: ShipyardWorld,
 		tractor: TowTractor
 	) -> void:
-	_check(game.get_flyable_ships().size() == 5, "the fleet registry still holds exactly five flyable craft")
+	_check(game.get_flyable_ships().size() == 9, "the fleet registry still holds exactly nine flyable craft")
 	_check(
 		tractor.collision_layer == PhysicsLayers.WORLD
 		and (tractor.collision_layer & PhysicsLayers.SHIP) == 0,
 		"the tractor keeps exact World-scenery collision semantics without advertising Ship"
 	)
-	for berth_id in [
-		&"central_berth", &"arrow_recon_berth", &"jovian_freight_berth",
-		&"zenith_fleet_dock_berth", &"halyard_fleet_dock_berth"
-	]:
+	for berth_id in world.get_berth_ids():
 		var berth := world.get_berth_node(berth_id)
 		_check(
 			berth != null and berth.get_occupant() != tractor,

@@ -58,7 +58,7 @@ func _run() -> void:
 	_check(
 		torrent != null and arrow != null and jovian != null and halyard != null
 		and zenith != null and world != null,
-		"production Main exposes the complete five-craft roster and authoritative berth world"
+		"production Main exposes the selected five-craft regression subset and authoritative berth world"
 	)
 	if (
 		torrent == null or arrow == null or jovian == null or halyard == null
@@ -176,7 +176,7 @@ func _test_derived_roster_immediate_presentation(roster: Array) -> void:
 	)
 	_check(
 		await _wait_until(func() -> bool: return _roster_has_state(roster, &"OFFLINE"), 0.8),
-		"the complete derived roster idles offline after the same finite deadline"
+		"the selected derived craft idle offline after the same finite deadline"
 	)
 	var same_tick_sync := true
 	for candidate: Variant in roster:

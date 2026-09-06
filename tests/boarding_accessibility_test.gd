@@ -38,10 +38,10 @@ func _run() -> void:
 	var fleet: Array[HeroShip] = game.get_flyable_ships()
 	_check(
 		player != null and torrent != null and arrow != null and jovian != null and zenith != null and halyard != null,
-		"production player and complete five-craft fleet resolve"
+		"production player and the five craft used by detailed approach scenarios resolve"
 	)
-	_check(fleet.size() == 5, "accessibility fixture covers all five production spacecraft")
-	if player == null or torrent == null or arrow == null or jovian == null or zenith == null or halyard == null or fleet.size() != 5:
+	_check(fleet.size() == 9, "boarding-radius fixture covers all nine production spacecraft")
+	if player == null or torrent == null or arrow == null or jovian == null or zenith == null or halyard == null or fleet.size() != 9:
 		game.queue_free()
 		await process_frame
 		_finish()

@@ -41,7 +41,7 @@ func _run() -> void:
 	var pulse := game.get_node_or_null("PulseWeaponPresentation") as PulseWeaponPresentation
 	var pulse_instances := _find_pulse_presentations(game)
 	var grouped_pools := get_nodes_in_group(&"pulse_weapon_presentation")
-	_check(fleet.size() == 5, "quality integration owns the exact five-craft production fleet")
+	_check(fleet.size() == 9, "quality integration owns the exact nine-craft production fleet")
 	_check(
 		pulse != null
 		and pulse.get_parent() == game
@@ -66,6 +66,10 @@ func _run() -> void:
 		&"jovian_provisional": &"heavy_quad_freighter",
 		&"zenith_b7_observed": &"standard_fighter",
 		&"halyard_new_design": &"heavy_quad_freighter",
+		&"bulwark_heavy_gunship": &"bulwark_heavy_gunship",
+		&"cinder_cargo_hauler": &"heavy_quad_freighter",
+		&"cinder_long_range_bomber": &"standard_fighter",
+		&"cinder_light_interceptor": &"efficient_twin_recon",
 	}
 	var observed_profiles := {}
 	var fleet_by_id := {}
@@ -99,16 +103,16 @@ func _run() -> void:
 	var discovered_rigs := _find_ship_audio_rigs(game)
 	var grouped_rigs := get_nodes_in_group(&"ship_audio_rig")
 	_check(
-		discovered_rigs.size() == 5
-		and grouped_rigs.size() == 5
-		and fleet_rigs.size() == 5
+		discovered_rigs.size() == 9
+		and grouped_rigs.size() == 9
+		and fleet_rigs.size() == 9
 		and _same_instances(discovered_rigs, fleet_rigs)
 		and _same_instances(grouped_rigs, fleet_rigs),
-		"production exposes exactly the five per-ship ShipAudioRig instances"
+		"production exposes exactly the nine per-ship ShipAudioRig instances"
 	)
 	_check(
 		observed_profiles == expected_profiles and fleet_by_id.size() == expected_profiles.size(),
-		"fleet IDs map one-to-one onto five assignments while Zenith and Halyard deliberately reuse existing profiles"
+		"all nine fleet IDs map one-to-one onto their authored audio-profile assignments"
 	)
 
 	var torrent := fleet_by_id.get(&"torrent_provisional") as HeroShip
@@ -200,17 +204,19 @@ func _run() -> void:
 	var fire_counts := fire_state.get("cue_counts", {}) as Dictionary
 	_check(
 		int(fire_counts.get(CombatAudioPresentation.CUE_DRY_FIRE, 0))
-			== int(fire_counts_before.get(CombatAudioPresentation.CUE_DRY_FIRE, 0)) + 1
+			== int(fire_counts_before.get(CombatAudioPresentation.CUE_DRY_FIRE, 0))
 		and int(fire_counts.get(CombatAudioPresentation.CUE_PLAYER_FIRE, 0))
-			== int(fire_counts_before.get(CombatAudioPresentation.CUE_PLAYER_FIRE, 0))
-		and fire_state.get("last_cue_id", &"") == CombatAudioPresentation.CUE_DRY_FIRE,
-		"one locally safed weapon action requests one restrained dry cue and no accepted fire cue"
+			== int(fire_counts_before.get(CombatAudioPresentation.CUE_PLAYER_FIRE, 0)) + 1
+		and fire_state.get("last_cue_id", &"") == CombatAudioPresentation.CUE_PLAYER_FIRE,
+		"one ready free-play weapon action requests one accepted fire cue and no dry cue (before=%s, after=%s, last=%s)" % [
+			fire_counts_before, fire_counts, fire_state.get("last_cue_id", &""),
+		]
 	)
 	_check(
 		fire_state.get("last_world_position") is Vector3
 		and (fire_state.get("last_world_position") as Vector3).is_finite()
 		and int(fire_state.get("last_source_instance_id", 0)) == torrent.get_instance_id(),
-		"safed cue remains observable at its finite muzzle origin under Dummy audio"
+		"accepted free-play cue remains observable at its finite muzzle origin under Dummy audio"
 	)
 
 	var combat := game.get_node_or_null("CombatAuthority") as LiveCombatAuthority

@@ -10,7 +10,7 @@ extends SceneTree
 ## The suite has four jobs:
 ##
 ## 1. Prove the walk-up / board / drive / exit loop works in the shipped scene.
-## 2. Prove the tractor took no craft authority: the five-berth fleet roster, the
+## 2. Prove the tractor took no craft authority: the nine-craft fleet roster, the
 ##    guided Torrent activity and the range contacts are all untouched by it.
 ## 3. Prove the player cannot be stranded — including the case where the tractor
 ##    ends up off the station with the driver aboard.
@@ -64,7 +64,7 @@ func _run() -> void:
 
 	# --- Group 1: the tractor holds no craft authority -----------------------
 	var fleet := game.get_flyable_ships()
-	_check(fleet.size() == 5, "the fleet registry still holds exactly five flyable craft")
+	_check(fleet.size() == 9, "the fleet registry still holds exactly nine flyable craft")
 	for registered in fleet:
 		_check(
 			registered.get_instance_id() != tractor.get_instance_id(),
@@ -77,10 +77,7 @@ func _run() -> void:
 		"the tractor claims no home berth"
 	)
 	var berth_occupants: Dictionary = {}
-	for berth_id in [
-		&"central_berth", &"arrow_recon_berth", &"jovian_freight_berth",
-		&"zenith_fleet_dock_berth", &"halyard_fleet_dock_berth"
-	]:
+	for berth_id in world.get_berth_ids():
 		var berth := world.get_berth_node(berth_id)
 		_check(berth != null and berth.get_occupant() != tractor, "%s is not leased to the tractor" % berth_id)
 		berth_occupants[berth_id] = berth.get_occupant() if berth != null else null
@@ -232,7 +229,7 @@ func _run() -> void:
 	_check(not game.is_guided_activity_complete(), "driving the tractor does not complete the guided test")
 	_check(not bool(opponent.call("is_active")), "the range defender stays dormant throughout")
 	_check(torrent.is_boardable(), "the Torrent remains available after the drive")
-	_check(game.get_flyable_ships().size() == 5, "the fleet roster is unchanged by the drive")
+	_check(game.get_flyable_ships() == fleet, "the fleet roster is unchanged by the drive")
 	for berth_id: Variant in berth_occupants:
 		var berth := world.get_berth_node(berth_id as StringName)
 		_check(
@@ -316,7 +313,7 @@ func _run() -> void:
 	)
 	_check(tractor.is_boardable(), "the recovered tractor can be driven again")
 	_check(
-		game.phase == GameFlow.Phase.APPROACH_SHIP and game.get_flyable_ships().size() == 5,
+		game.phase == GameFlow.Phase.APPROACH_SHIP and game.get_flyable_ships() == fleet,
 		"recovery leaves the guided objective and the fleet roster exactly as they were"
 	)
 

@@ -1,7 +1,7 @@
 extends SceneTree
 
 ## Focused integration regression for the provisional Arrow's place in the
-## persistent five-craft yard. This deliberately begins before the guided
+## persistent nine-craft yard. This deliberately begins before the guided
 ## Torrent activity so Arrow freeplay remains available without replacing the
 ## authored guide.
 
@@ -33,7 +33,7 @@ func _init() -> void:
 
 func _run() -> void:
 	var game := MAIN_SCENE.instantiate() as GameFlow
-	_check(game != null, "five-craft production scene instantiates")
+	_check(game != null, "nine-craft production scene instantiates")
 	if game == null:
 		_finish()
 		return
@@ -53,11 +53,11 @@ func _run() -> void:
 	var original_game_id := game.get_instance_id()
 	var original_player_id := player.get_instance_id()
 	var fleet := game.get_flyable_ships()
-	_check(fleet.size() == 5, "main scene registers exactly five physical flyable craft")
+	_check(fleet.size() == 9, "main scene registers exactly nine physical flyable craft")
 	_check(
 		fleet.has(torrent) and fleet.has(arrow) and fleet.has(jovian)
 		and fleet.has(zenith) and fleet.has(halyard),
-		"fleet registry contains exactly the Torrent, Arrow, Jovian, Zenith, and Halyard instances"
+		"expanded fleet retains the Torrent, Arrow, Jovian, Zenith, and Halyard instances used by this scenario"
 	)
 	_check(game.get_node_or_null("ReserveInterceptor") == null, "retired duplicate handling article is absent")
 	_check(game.get_guided_ship() == torrent, "Torrent remains the explicit guided-activity craft")
