@@ -56,6 +56,18 @@ func _run() -> void:
 	music_source.emit_music(&"music_landing", 0.5)
 	_check(_events.size() == 2, "detached router receives no stale source cues")
 	_check(router.get_binding_count() == 0, "detach clears bindings")
+	_check(
+		bool(router.bind_source(source, &"combat").accepted)
+		and bool(router.bind_source(music_source, &"music").accepted),
+		"a fresh lifecycle binds independently owned sources"
+	)
+	source.free()
+	_check(
+		bool(router.detach().accepted) and router.get_binding_count() == 0,
+		"source destruction before router teardown clears dead and live bindings"
+	)
+	music_source.emit_music(&"music_landing", 0.5)
+	_check(_events.size() == 2, "teardown still disconnects the surviving source")
 	for failure in _failures:
 		push_error(failure)
 	print("semantic_audio_cue_router_test: %d assertions" % _assertions)

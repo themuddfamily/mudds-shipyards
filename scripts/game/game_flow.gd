@@ -9292,7 +9292,7 @@ func _sync_fleet_ship_semantic_audio() -> Dictionary:
 	for source_id: int in _fleet_ship_semantic_audio_sources.keys():
 		if desired.has(source_id):
 			continue
-		var prior := (_fleet_ship_semantic_audio_sources[source_id] as Dictionary).get("rig") as Node
+		var prior: Variant = (_fleet_ship_semantic_audio_sources[source_id] as Dictionary).get("rig")
 		if is_instance_valid(prior):
 			audio.call(&"unbind_semantic_audio_source", prior, &"ship")
 		_fleet_ship_semantic_audio_sources.erase(source_id)
@@ -9311,7 +9311,7 @@ func _sync_fleet_ship_semantic_audio() -> Dictionary:
 func _detach_fleet_ship_semantic_audio() -> Dictionary:
 	if is_instance_valid(audio) and audio.has_method(&"unbind_semantic_audio_source"):
 		for row_variant: Variant in _fleet_ship_semantic_audio_sources.values():
-			var rig := (row_variant as Dictionary).get("rig") as Node
+			var rig: Variant = (row_variant as Dictionary).get("rig")
 			if is_instance_valid(rig):
 				audio.call(&"unbind_semantic_audio_source", rig, &"ship")
 	_fleet_ship_semantic_audio_sources.clear()
@@ -9328,7 +9328,7 @@ func _fleet_ship_semantic_audio_report(reason: StringName) -> Dictionary:
 	for row_variant: Variant in _fleet_ship_semantic_audio_sources.values():
 		var row := row_variant as Dictionary
 		bound_ship_ids.append(StringName(row.get("ship_id", &"")))
-		var rig := row.get("rig") as Node
+		var rig: Variant = row.get("rig")
 		active_bound = active_bound or (
 			is_instance_valid(active_ship)
 			and is_instance_valid(rig)

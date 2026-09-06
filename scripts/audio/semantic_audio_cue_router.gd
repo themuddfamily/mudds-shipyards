@@ -89,7 +89,9 @@ func unbind_source(source: Node, source_id: StringName) -> Dictionary:
 ## Disconnects all sources and clears deduplication state for a fresh lifecycle.
 func detach() -> Dictionary:
 	for binding in _bindings:
-		var source: Node = binding.source
+		# A caller may free its source before this presentation router detaches.
+		# Validate the Variant before assigning/casting a typed Node tombstone.
+		var source: Variant = binding.source
 		if is_instance_valid(source) and source.is_connected(binding.signal, binding.callback):
 			source.disconnect(binding.signal, binding.callback)
 	_bindings.clear()
