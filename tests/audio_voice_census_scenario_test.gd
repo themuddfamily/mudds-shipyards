@@ -69,37 +69,37 @@ func _run() -> void:
 	)
 	var resident_totals := resident.get("totals", {}) as Dictionary
 	_check(
-		int(resident_totals.get("player_nodes", -1)) == 56
+		int(resident_totals.get("player_nodes", -1)) == 80
 		and int(resident_totals.get("audio_stream_player_nodes", -1)) == 8
 		and int(resident_totals.get("audio_stream_player_2d_nodes", -1)) == 0
-		and int(resident_totals.get("audio_stream_player_3d_nodes", -1)) == 48
-		and int(resident_totals.get("summed_max_polyphony_ceiling", -1)) == 56,
-		"resident graph freezes 56 players: 8 plain / 0 2D / 48 3D with ceiling 56"
+		and int(resident_totals.get("audio_stream_player_3d_nodes", -1)) == 72
+		and int(resident_totals.get("summed_max_polyphony_ceiling", -1)) == 80,
+		"resident graph freezes 80 players: 8 plain / 0 2D / 72 3D with ceiling 80"
 	)
 	_check(
 		int(resident_totals.get("currently_playing_nodes", -1)) == 0
 		and int(resident_totals.get("currently_playing_voice_lower_bound", -1)) == 0
 		and int(resident_totals.get("currently_playing_voice_ceiling", -1)) == 0
-		and int(resident_totals.get("max_polyphony_exposed_nodes", -1)) == 56
+		and int(resident_totals.get("max_polyphony_exposed_nodes", -1)) == 80
 		and int(resident_totals.get("max_polyphony_unexposed_nodes", -1)) == 0,
-		"Dummy freeze observes zero attached playback and all 56 exposed polyphony fields"
+		"Dummy freeze observes zero attached playback and all 80 exposed polyphony fields"
 	)
 	var resident_streams := resident.get("retained_streams", {}) as Dictionary
 	_check(
-		int(resident_streams.get("unique_count", -1)) == 97
-		and int(resident_streams.get("payload_bytes", -1)) == 4052420
+		int(resident_streams.get("unique_count", -1)) == 88
+		and int(resident_streams.get("payload_bytes", -1)) == 1790420
 		and int(resident_streams.get("unknown_payload_count", -1)) == 0,
-		"resident retained graph freezes 97 exact WAV payloads / 4,052,420 bytes"
+		"resident retained graph freezes 88 reachable WAV resources / 1,790,420 exposed data bytes"
 	)
 	_check(
 		_bus_player_counts(resident) == {
 			"Ambience": 9,
-			"Engines": 20,
+			"Engines": 36,
 			"Music": 3,
-			"UI": 9,
-			"Weapons": 15,
+			"UI": 13,
+			"Weapons": 19,
 		},
-		"resident bus split accounts for all 56 player nodes exactly"
+		"resident bus split accounts for all 80 player nodes exactly"
 	)
 	_check(
 		_component_player_counts(resident) == _integer_map(
@@ -165,7 +165,7 @@ func _run() -> void:
 			baseline.get("cinder_loaded_minus_station_resident", {})
 		)
 		and resident.get("measurement_fingerprint") != loaded.get("measurement_fingerprint"),
-		"real Cinder generation has exact zero audio delta and a distinct scenario fingerprint"
+		"real Cinder generation retains three music WAVs with no additional players"
 	)
 	_check(
 		loaded.get("authority_exclusions") == baseline.get("authority_exclusions")

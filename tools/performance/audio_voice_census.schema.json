@@ -144,8 +144,14 @@
       ],
       "properties": {
         "unique_count": { "type": "integer", "minimum": 0 },
-        "payload_bytes": { "type": "integer", "minimum": 0 },
-        "unknown_payload_count": { "type": "integer", "minimum": 0 },
+        "payload_bytes": {
+          "type": "integer", "minimum": 0,
+          "description": "Sum of exposed AudioStream.data byte arrays, including known empty arrays as zero. Excludes separate cue byte caches, imported files on disk, and native decoded buffers."
+        },
+        "unknown_payload_count": {
+          "type": "integer", "minimum": 0,
+          "description": "Resources without an exposed PackedByteArray data property; an empty exposed array is known, not unknown."
+        },
         "skipped_freed_object_references": { "type": "integer", "minimum": 0 },
         "rows": {
           "type": "array",

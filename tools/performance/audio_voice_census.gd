@@ -44,6 +44,7 @@ class AudioStreamResourceCensus:
 	var skipped_freed_object_references := 0
 	var _visited_objects: Dictionary = {}
 	var _strong_resources: Array[Resource] = []
+	var _scene_root: Node
 
 
 	func note_bound(stream: AudioStream) -> void:
@@ -53,6 +54,7 @@ class AudioStreamResourceCensus:
 
 
 	func collect_retained(root_node: Node) -> void:
+		_scene_root = root_node
 		_visited_objects.clear()
 		retained_origins.clear()
 		_visit_object(root_node, "scene")
@@ -132,6 +134,16 @@ class AudioStreamResourceCensus:
 		if _visited_objects.has(instance_id):
 			return
 		_visited_objects[instance_id] = true
+		# Runtime owner maps may use instance IDs as keys. Anchor scene Nodes
+		# to their authored hierarchy even when a property reaches them first.
+		if object is Node and _scene_root.is_ancestor_of(object as Node):
+			var segments := PackedStringArray()
+			var node := object as Node
+			while node != _scene_root:
+				segments.append(_stable_sibling_segment(node))
+				node = node.get_parent()
+			segments.reverse()
+			origin = "scene/%s" % "/".join(segments)
 		if object is Resource:
 			_strong_resources.append(object as Resource)
 		var properties := object.get_property_list()
@@ -174,6 +186,9 @@ class AudioStreamResourceCensus:
 
 
 	static func _payload_bytes(stream: AudioStream) -> PackedByteArray:
+		# Count only the resource's exposed data, not external cue byte caches,
+		# imported files on disk, or decoded backend buffers. Empty data remains
+		# a known zero-byte payload when the property exists.
 		if not _has_payload_property(stream):
 			return PackedByteArray()
 		return stream.get("data") as PackedByteArray
@@ -183,7 +198,9 @@ class AudioStreamResourceCensus:
 		var context := HashingContext.new()
 		if context.start(HashingContext.HASH_SHA256) != OK:
 			return ""
-		if context.update(bytes) != OK:
+		# Empty exposed payloads are valid, e.g. reusable ship cue WAV handles.
+		# Finishing the initial context hashes empty data; update rejects it.
+		if not bytes.is_empty() and context.update(bytes) != OK:
 			return ""
 		return context.finish().hex_encode()
 

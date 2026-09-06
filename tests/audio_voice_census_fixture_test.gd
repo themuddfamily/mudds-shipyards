@@ -112,13 +112,32 @@ func _run() -> void:
 	var mutable := report.duplicate(true)
 	(mutable.get("players") as Array).clear()
 	(mutable.get("component_buckets") as Dictionary).clear()
+	# Main's fleet audio owner map uses runtime instance IDs as dictionary keys.
+	# Reaching an existing Node through that map must retain its authored origin.
+	fixture.retained_streams[&"node_alias"] = {alpha.get_instance_id(): alpha}
 	var repeated := census.measure_frozen_scene(fixture, &"station_resident", 0, 8)
 	_check(
 		(repeated.get("players") as Array).size() == 4
 		and (repeated.get("component_buckets") as Dictionary).size() == 2
 		and repeated.get("measurement_fingerprint") == report.get("measurement_fingerprint"),
-		"reports are deeply detached and repeated frozen measurement is deterministic"
+		"detached reports retain stable origins through an instance-ID-keyed Node alias"
 	)
+	fixture.retained_streams.erase(&"node_alias")
+	fixture.retained_streams[&"empty"] = AudioStreamWAV.new()
+	var with_empty := census.measure_frozen_scene(fixture, &"station_resident", 0, 8)
+	var empty_rows := (with_empty.retained_streams as Dictionary).get("rows", []) as Array
+	var empty_hash := ""
+	for row: Dictionary in empty_rows:
+		if row.origin == "scene.retained_streams[empty]":
+			empty_hash = str(row.payload_sha256)
+	_check(
+		int(with_empty.retained_streams.unique_count) == 4
+		and int(with_empty.retained_streams.payload_bytes) == 1800
+		and int(with_empty.retained_streams.unknown_payload_count) == 0
+		and empty_hash == "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+		"an exposed empty WAV remains a known zero-byte resource with the SHA-256 of empty data"
+	)
+	fixture.retained_streams.erase(&"empty")
 
 	var injected := AudioStreamPlayer.new()
 	injected.name = "InjectedVoice"
