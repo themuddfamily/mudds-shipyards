@@ -1,5 +1,12 @@
 # Agent collaboration policy
 
+## Automated test audio
+
+- Every automated Godot invocation must include `--audio-driver Dummy`, including
+  headless tests, rendered captures, and exported-game probes. `--headless` alone
+  does not disable audio and can play loud engine tones through the user's headphones.
+- Use real audio output only when the user explicitly authorizes an audible test.
+
 ## Parallel-agent policy
 
 Use subagents deliberately when they materially shorten independent work. The
