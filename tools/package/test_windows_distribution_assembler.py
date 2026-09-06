@@ -1,4 +1,6 @@
 import hashlib
+import subprocess
+import sys
 import tempfile
 import unittest
 import zipfile
@@ -44,6 +46,13 @@ class WindowsDistributionAssemblerTest(unittest.TestCase):
             self.assertTrue((stage / "SHA256SUMS.txt").is_file())
             self.assertTrue((stage / "Start Mudds Shipyards.cmd").is_file())
             self.assertTrue((stage / "install/windows_portable_installer.py").is_file())
+            help_result = subprocess.run(
+                [sys.executable, str(stage / "install/windows_portable_installer.py"), "--help"],
+                cwd=stage, capture_output=True, text=True,
+            )
+            self.assertEqual(help_result.returncode, 0, help_result.stderr)
+            self.assertIn("install", help_result.stdout)
+            self.assertIn("rollback", help_result.stdout)
             self.assertTrue((stage / "install/windows_portable_installer.ps1").is_file())
             self.assertTrue((stage / "install/verify_distribution.ps1").is_file())
             self.assertTrue((stage / "install/collect_support_bundle.ps1").is_file())

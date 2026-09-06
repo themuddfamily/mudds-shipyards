@@ -117,22 +117,6 @@ performance, and human visual review were **NOT_RUN** in this review.
 - **Repair:** Give each stream its own jitter buffer, lifecycle resets, and
   resynchronization cursor.
 
-### PACKAGE-001 — Distribution contains the wrong Python installer — P2
-
-- **Location:** [`assemble_distribution()`](tools/package/windows_distribution_assembler.py#L153).
-- **Reproduce:** Assemble a distribution and run
-  `python3 <distribution>/install/windows_portable_installer.py --help`.
-- **Expected / actual:** The packaged installer should start and display help.
-  The assembler copies `Path(__file__)`—itself—under the installer's filename.
-  Execution fails before argument parsing with a circular
-  `ImportError: cannot import name 'LAUNCHER_NAME'`.
-- **Verified:** Real assembly of fixture package inputs, followed by execution
-  of the packaged file, exited **1**. Existing tests checked that the file
-  existed, so they passed. The separate PowerShell installer is unaffected by
-  this finding.
-- **Repair:** Copy the actual sibling `windows_portable_installer.py` and
-  exercise the assembled file in the existing packaging test.
-
 ### PACKAGE-002 — Progress exporter publishes source changed during export — P2
 
 - **Locations:** [`export_and_assemble()` preflight](tools/package/export_windows_progress_build.py#L83),

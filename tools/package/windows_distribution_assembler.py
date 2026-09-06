@@ -150,7 +150,7 @@ def assemble_distribution(
     _copy(license_file, stage / "LICENSE.txt")
     _copy(config, stage / "config" / "project.godot")
     (stage / LAUNCHER_NAME).write_bytes(_launcher_bytes())
-    _copy(Path(__file__), stage / "install" / "windows_portable_installer.py")
+    _copy(Path(__file__).with_name("windows_portable_installer.py"), stage / "install" / "windows_portable_installer.py")
     _copy(Path(__file__).with_name("windows_portable_installer.ps1"), stage / "install" / "windows_portable_installer.ps1")
     _copy(Path(__file__).with_name("verify_distribution.ps1"), stage / "install" / "verify_distribution.ps1")
     _copy(Path(__file__).with_name("collect_support_bundle.ps1"), stage / "install" / "collect_support_bundle.ps1")
