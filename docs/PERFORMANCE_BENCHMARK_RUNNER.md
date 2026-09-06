@@ -115,7 +115,7 @@ Long-form run on the machine being evaluated:
 ```bash
 KETH_BENCHMARK_TARGET_PROFILE=/absolute/path/target.json \
 KETH_BENCHMARK_JSON=/absolute/path/result.json \
-godot --path /absolute/path/to/repository \
+godot --audio-driver Dummy --path /absolute/path/to/repository \
   --script res://tools/performance/benchmark_runner.gd
 ```
 
@@ -162,3 +162,72 @@ Hardware matching only establishes that the route ran on the declared profile;
 it does not replace package identity,
 native-Windows review, long-session coverage, GPU timing, VRAM measurement, or
 budget evaluation.
+
+## Native Windows launcher
+
+`tools/performance/run_native_windows_benchmark.ps1` launches the existing
+runner with Dummy audio, an isolated user-data directory, explicit working
+directory, clean Git checks before and after execution, a timeout, and separate
+logs. It records the actual CIM CPU/GPU/driver/RAM identity and executable hash,
+plus one-second Windows process working-set samples. Optional `nvidia-smi`
+before/after snapshots describe **whole-board** usage, not process VRAM or GPU
+frame time. Missing GPU timing and process VRAM stay unavailable; the launcher
+does not grant budget acceptance.
+
+Use a native Windows checkout on a local drive with Windows Git on PATH.
+A WSL worktree's `.git` file contains Linux paths that Windows Git cannot use;
+make a normal clone instead. Use the matching portable Windows editor from the
+[official Godot 4.7.1 archive](https://godotengine.org/download/archive/4.7.1-stable/).
+Extract its ZIP outside the checkout; no installer or service is needed. With
+the matching Linux editor installed, prepare resources from WSL (choose unused paths):
+
+```bash
+git clone --no-hardlinks /root/mudds-shipyards /mnt/c/Temp/keth-benchmark/source
+godot --headless --audio-driver Dummy --editor \
+  --path /mnt/c/Temp/keth-benchmark/source --import
+```
+
+The installed Windows release template rejects `--path` because it was built
+without path overrides; use the portable editor executable for this runner.
+A matching native Windows editor can also import the checkout with
+`--headless --audio-driver Dummy --editor --path <checkout> --import` first.
+Verify the checkout is still clean after import. Do not discard source changes
+to force a passing identity check; resolve and commit genuine resource changes,
+then prepare a fresh checkout of that revision.
+
+Run in Windows PowerShell, using a new output directory each time:
+
+```powershell
+$launcher = 'C:\Temp\keth-benchmark\source\tools\performance\run_native_windows_benchmark.ps1'
+& $launcher -Godot C:\Temp\keth-benchmark\Godot_v4.7.1-stable_win64.exe `
+  -Project C:\Temp\keth-benchmark\source `
+  -OutputDirectory C:\Temp\keth-benchmark\preflight -PreflightOnly
+& $launcher -Godot C:\Temp\keth-benchmark\Godot_v4.7.1-stable_win64.exe `
+  -Project C:\Temp\keth-benchmark\source `
+  -OutputDirectory C:\Temp\keth-benchmark\smoke -Smoke
+# After independent target-profile review and other tests have stopped:
+& $launcher -Godot C:\Temp\keth-benchmark\Godot_v4.7.1-stable_win64.exe `
+  -Project C:\Temp\keth-benchmark\source `
+  -OutputDirectory C:\Temp\keth-benchmark\full `
+  -TargetProfile C:\Temp\keth-benchmark\target.json
+```
+
+`-Smoke -Headless` is a readiness check that needs no rendered window. Headless
+full runs are rejected. `-PreflightOnly` records hardware and checks the clean
+source without launching Godot. The launcher removes inherited benchmark
+protocol overrides for its child and restores the caller's environment after
+execution; full runs use the documented runner defaults.
+
+Review `benchmark.json` scenario completion and frame percentiles together with
+`process-summary.json`, logs, and the copied target profile. The target template's
+60-second warm-up / 600-second sample budgets are time requirements; the runner's
+3,600 / 18,000 frame counts do not guarantee those durations. A default run alone
+cannot establish that longer acceptance protocol. Process peak sampling covers
+startup and both scenarios and is separate from Godot's static-memory monitor.
+GPU frame-time tooling and per-process dedicated VRAM collection remain separate
+requirements for complete acceptance.
+
+A Windows 11 / i9-14900 / RTX 5070 Ti host is useful for an explicitly declared
+observational profile. Results on that host do **not** validate the published
+minimum specification or RTX 3060 target. Native normal-control playthroughs and
+audible review are separate human gates and remain `NOT_RUN` until performed.
