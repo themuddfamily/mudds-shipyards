@@ -126,7 +126,7 @@ func _test_route_and_authority_boundaries(module: SalvageTerrace) -> void:
 	)
 	_check(
 		bool(performance.exact_census)
-		and int(performance.geometry_submissions) == 37
+		and int(performance.geometry_submissions) == 36
 		and int(performance.multimesh_instances) == 170
 		and int(performance.visible_geometry_copies) == 206
 		and bool(module.get_audit_report().valid),

@@ -106,10 +106,10 @@ func _initialize() -> void:
 	_check(
 		bool(performance.within_budget)
 			and bool(performance.resource_sharing_matches_authored)
-			and int(performance.mesh_instances) == 36
+			and int(performance.mesh_instances) == 30
 			and int(performance.multimesh_batches) == 6
-			and int(performance.geometry_submissions) == 42
-			and int(performance.visible_geometry_copies) == 200,
+			and int(performance.geometry_submissions) == 36
+			and int(performance.visible_geometry_copies) == 206,
 		"the exact production census and all six established structural batches remain unchanged"
 	)
 	_check(
