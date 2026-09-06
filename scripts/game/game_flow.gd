@@ -15807,12 +15807,15 @@ func _on_setting_change_requested(setting: StringName, value: Variant) -> void:
 				_runtime_settings_transaction_active = false
 				_sync_production_runtime_settings_state()
 				return
+			# Every candidate in this transaction shares the last confirmed baseline.
+			var prior: Dictionary = before if _pending_display_confirmation.is_empty() \
+				else _pending_display_confirmation.prior
 			_start_display_confirmation_clock()
 			_display_confirmation_generation += 1
 			_pending_display_confirmation = {
 				"generation": _display_confirmation_generation,
 				"remaining": 15.0,
-				"prior": before.duplicate(true),
+				"prior": prior.duplicate(true),
 				"candidate": runtime_settings.to_dictionary(),
 			}
 			if is_instance_valid(hud):

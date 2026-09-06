@@ -16,20 +16,6 @@ This is a bounded source review with focused execution, not a claim that every
 bug has been found. Native Windows, physical controllers, representative GPU
 performance, and human visual review were **NOT_RUN** in this review.
 
-### DISPLAY-003 — A second preview replaces the rollback baseline — P2
-
-- **Location:** [`_on_setting_change_requested()`](scripts/game/game_flow.gd#L15809).
-- **Reproduce:** From confirmed 1920×1080, preview 1280×720; without confirming,
-  preview 2560×1440, then press Revert.
-- **Expected / actual:** Revert should restore the last confirmed 1920×1080.
-  Each new preview replaces `prior` with the current, still-unconfirmed settings,
-  so the result is **1280×720**. The settings controls remain available during
-  confirmation.
-- **Verified:** The production Main display probe returned 1280×720 after this
-  exact sequence, with 1920×1080 as the original baseline.
-- **Repair:** Keep one confirmed baseline for the whole preview transaction;
-  subsequent changes should update only its candidate and deadline.
-
 ### TEST-002 — Legacy matrix source guard hashes the same filename list twice — P2
 
 - **Locations:** [`manifest capture`](tools/release/run_matrix.sh#L35),
