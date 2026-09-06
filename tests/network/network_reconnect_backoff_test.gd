@@ -31,6 +31,23 @@ func _run() -> void:
 	_check(adapter.reset_snapshot_jitter(72).accepted
 		and int(adapter.get_reconnect_backoff_state().attempts) == 0,
 		"migration reset clears reconnect backoff state")
+	root.add_child(adapter)
+	adapter.set("_configured", true)
+	var relationship := preload("res://scripts/network/moving_interior_relationship.gd").create(
+		1, &"reconnecting_passenger", 1, &"craft", 1,
+		Transform3D.IDENTITY, Vector3.ZERO, Vector3.ZERO, 1
+	).get_snapshot()
+	var packet := {"revision": 1, "server_tick": 1, "relationship": relationship}
+	_check(adapter.consume_moving_interior_snapshot(packet).status == &"moving_interior_presented",
+		"first admitted peer presents its initial moving snapshot")
+	adapter.shutdown(&"manual_leave")
+	relationship["server_tick"] = 2
+	relationship["event_sequence"] = 2
+	packet["server_tick"] = 2
+	packet["relationship"] = relationship
+	_check(adapter.consume_moving_interior_snapshot(packet).status == &"moving_interior_presented",
+		"reconnected peer accepts the restarted per-recipient revision without stale cursor")
+	adapter.free()
 	if _failures.is_empty():
 		print("OK: reconnect backoff (%d assertions)" % _assertions)
 		quit(0)

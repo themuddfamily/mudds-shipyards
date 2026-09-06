@@ -448,11 +448,11 @@ func shutdown(reason: StringName = &"requested") -> Dictionary:
 	_cargo_manifest_replica_generation = 0
 	_cargo_manifest_terminal_generation = 0
 	_crew_replica_snapshot.clear()
-	_moving_snapshot_revision = 0
-	_moving_resync_revision = 0
-	for entity_variant in _moving_replica_binding_ids.keys():
-		_moving_replica_binding.detach(StringName(entity_variant))
-	_moving_replica_binding_ids.clear()
+	# A new admitted peer receives a fresh per-recipient moving stream at revision 1.
+	# Retire the old ordering cursor along with its presentation bindings.
+	_reset_moving_interior_jitter(int(
+		_moving_relationship_stream.get_snapshot().get("migration_generation", 1)
+	))
 	mark_reconnect_succeeded()
 	record_session_end(reason)
 	_reset_handshake_deadline()
