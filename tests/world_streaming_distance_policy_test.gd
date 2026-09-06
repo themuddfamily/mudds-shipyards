@@ -48,6 +48,7 @@ func _run() -> void:
 	await _test_signal_reentry_guard_and_time_overflow()
 	await _test_hysteresis_tracking_loss_and_failures()
 	await _test_external_retirement_and_detach_reentry()
+	await _test_deferred_completion_during_parent_detach()
 	await _test_direct_runtime_calls_require_live_policy()
 	await _test_detached_snapshot_and_authority_boundary()
 	_finish()
@@ -317,6 +318,38 @@ func _test_external_retirement_and_detach_reentry() -> void:
 		"whole detach/re-entry does not duplicate the location on the next explicit update"
 	)
 	await _free_fixture(fixture)
+
+
+func _test_deferred_completion_during_parent_detach() -> void:
+	var owner := Node3D.new()
+	var coordinator := CoordinatorScript.new() as WorldStreamingCoordinator
+	var policy := PolicyScript.new() as WorldStreamingDistancePolicy
+	owner.add_child(coordinator)
+	owner.add_child(policy)
+	root.add_child(owner)
+	_check(policy.configure(coordinator, 1), "deferred policy configures with the production coordinator")
+	var definition := load("res://assets/world/locations/cinder_reach.tres") as WorldLocationDefinition
+	var scene := ControlledLoader.new()._packed_root()
+	_check(policy.register_location(definition, 20.0, 30.0, scene), "Cinder registers with the built-in deferred loader")
+	var requested := policy.update_position(definition.get_anchor_position())
+	_check(requested.attempted_count == 1 and coordinator.get_loading_ids().size() == 1,
+		"nearby Cinder begins a deferred load")
+	root.remove_child(owner)
+	await process_frame
+	await process_frame
+	_check(coordinator.get_loaded_ids().is_empty() and coordinator.get_child_count() == 0,
+		"deferred completion does not instantiate the location while detached")
+	root.add_child(owner)
+	await process_frame
+	for _update in range(3):
+		var reentry := policy.update_now()
+		_check(reentry.attempted_count == 0 and coordinator.get_loading_ids().is_empty()
+			and coordinator.get_loaded_ids() == PackedStringArray([definition.location_id]),
+			"same-position reentry finishes the retained load without stranding or duplicating it")
+	_check(coordinator.audit().load_request_count == 1 and coordinator.get_child_count() == 1,
+		"reentry owns exactly one location from the original request")
+	owner.queue_free()
+	await process_frame
 
 
 func _test_direct_runtime_calls_require_live_policy() -> void:

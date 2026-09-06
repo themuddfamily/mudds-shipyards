@@ -52,6 +52,7 @@ func _enter_tree() -> void:
 	# A child `tree_exiting` event followed by a different coordinator entry epoch
 	# is a whole-coordinator detach/re-entry, not independent child retirement.
 	_tree_entry_epoch += 1
+	call_deferred("_resume_detached_completions")
 
 
 ## Installs an asynchronous loader. Changing the loader while a request is in
@@ -180,7 +181,8 @@ func request_load(location_id: StringName) -> Dictionary:
 
 ## Generation-checked completion entry point handed to loaders. A callback may
 ## commit either one scene or one failure; duplicates, unknown IDs and callbacks
-## retired by unload/re-registration cannot change state.
+## retired by unload/re-registration cannot change state. Matching outcomes that
+## arrive while detached wait on their pending generation until tree reentry.
 func complete_load(
 	location_id: StringName,
 	generation: int,
@@ -188,6 +190,13 @@ func complete_load(
 	error_reason: StringName = NO_ERROR
 ) -> Dictionary:
 	if not is_inside_tree() or is_queued_for_deletion():
+		# A loader completion can arrive while the owning subtree is detached.
+		# Keep its first outcome on that exact pending generation so tree reentry
+		# can finish it; unload/unregister retire the record and its payload together.
+		if not is_queued_for_deletion() and _is_loading_generation(location_id, generation):
+			var pending := _loading[location_id] as Dictionary
+			if not pending.has("detached_completion"):
+				pending["detached_completion"] = {"scene": packed_scene, "error_reason": error_reason}
 		return _completion_result(false, &"coordinator_unavailable", location_id, generation)
 	if not _definitions.has(location_id):
 		return _completion_result(false, &"unknown_location", location_id, generation)
@@ -366,6 +375,19 @@ func audit() -> Dictionary:
 		"network_authority": false,
 	}
 	return report.duplicate(true)
+
+
+func _resume_detached_completions() -> void:
+	for location_id_value in _loading.keys():
+		if not _is_runtime_current():
+			return
+		var location_id := StringName(location_id_value)
+		var pending := _loading.get(location_id, {}) as Dictionary
+		if not pending.has("detached_completion"):
+			continue
+		var completion := pending["detached_completion"] as Dictionary
+		pending.erase("detached_completion")
+		complete_load(location_id, int(pending.generation), completion.scene, completion.error_reason)
 
 
 func _request_bound_scene(

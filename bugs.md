@@ -139,25 +139,6 @@ performance, and human visual review were **NOT_RUN** in this review.
 - **Repair:** Convert the admitted world sample through the current body frame
   once, retain the coordinate generation, and use it for both consumers.
 
-### WORLD-003 — Detached streaming completion strands a pending load — P2
-
-- **Locations:** [`WorldStreamingCoordinator.complete_load()`](scripts/world/world_streaming_coordinator.gd#L190),
-  [`distance-policy load decisions`](scripts/world/world_streaming_distance_policy.gd#L260).
-- **Reproduce:** Request a bound scene, detach the coordinator's parent before
-  deferred completion, allow that callback to execute, then reattach the parent
-  while remaining inside the load radius.
-- **Expected / actual:** Reentry should resume the completion or retire and
-  retry the request. Completion returns `coordinator_unavailable` but retains
-  `_loading`. The distance policy sees a pending load and never requests another.
-- **Verified:** With the built-in deferred loader, real coordinator/policy, and
-  Cinder definition, three updates after reentry each reported
-  `attempted_count=0`, `loading=["cinder_reach"]`, and `loaded=[]`.
-- **Scope:** Confirmed supported detach/reentry lifecycle defect, not tied to
-  a demonstrated player menu action. Explicit unload/reload, or moving beyond
-  the unload radius, provides a workaround.
-- **Repair:** Preserve deferred completions safely across detachment or retire
-  lost requests so ordinary reentry policy can retry.
-
 ### AUDIO-002 — Boarding cue slots become a permanent priority lockout — P3
 
 - **Location:** [`BoardingSeatAudioBinding._admit()`](scripts/audio/boarding_seat_audio_binding.gd#L133).

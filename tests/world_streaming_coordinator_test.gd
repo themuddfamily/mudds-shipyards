@@ -426,6 +426,7 @@ func _test_queued_completion_is_inert() -> void:
 	await process_frame
 	var detached_pending_snapshot := detached.audit()
 	var detached_completion := detached_fake.complete(0, _packed_node_3d())
+	detached_fake.complete(0, null, &"duplicate_failure")
 	_check(
 		bool(detached_request.get("accepted", false))
 			and not detached.is_inside_tree()
@@ -439,8 +440,19 @@ func _test_queued_completion_is_inert() -> void:
 	)
 	root.add_child(detached)
 	await process_frame
+	_check(detached.get_loading_ids().is_empty()
+		and detached.get_loaded_ids() == PackedStringArray([detached_definition.location_id])
+		and detached_loaded_events == PackedStringArray([detached_definition.location_id]),
+		"reattachment resumes the retained completion without a manual unload or replacement request")
 	var retired_request := detached.request_unload(detached_definition.location_id)
 	var fresh_request := detached.request_load(detached_definition.location_id)
+	root.remove_child(detached)
+	detached_fake.complete(0, _packed_node_3d(), &"obsolete_failure")
+	root.add_child(detached)
+	await process_frame
+	_check(detached.get_loaded_ids().is_empty() and detached.get_loading_ids().size() == 1
+		and detached_failed_events.is_empty(),
+		"a stale detached callback cannot complete or fail the replacement generation")
 	var fresh_completion := detached_fake.complete(1, _packed_node_3d())
 	_check(
 		bool(retired_request.get("accepted", false))
@@ -448,10 +460,27 @@ func _test_queued_completion_is_inert() -> void:
 			and bool(fresh_completion.get("accepted", false))
 			and detached.get_loaded_ids() == PackedStringArray([detached_definition.location_id])
 			and detached.get_child_count() == 1
-			and detached_loaded_events == PackedStringArray([detached_definition.location_id])
+			and detached_loaded_events == PackedStringArray([detached_definition.location_id, detached_definition.location_id])
 			and detached_failed_events.is_empty(),
-		"a reattached coordinator accepts a fresh pending completion after the detached callback was rejected"
+		"a reattached coordinator accepts a fresh pending completion after the old detached generation was retired"
 	)
+	detached.request_unload(detached_definition.location_id)
+	detached.request_load(detached_definition.location_id)
+	root.remove_child(detached)
+	detached_fake.complete(2, _packed_node_3d())
+	root.add_child(detached)
+	# Retire the saved completion before the deferred reentry drain executes.
+	detached.request_unload(detached_definition.location_id)
+	var replacement_request := detached.request_load(detached_definition.location_id)
+	await process_frame
+	_check(detached.get_loaded_ids().is_empty() and detached.get_loading_ids().size() == 1
+		and detached_loaded_events.size() == 2 and detached_failed_events.is_empty(),
+		"retirement before reentry drain discards the saved completion without touching its replacement")
+	var replacement_completion := detached_fake.complete(3, _packed_node_3d())
+	_check(replacement_completion.accepted
+		and replacement_completion.generation == replacement_request.generation
+		and detached.get_child_count() == 1,
+		"the replacement request retains its own completion authority")
 	detached.queue_free()
 	await process_frame
 
