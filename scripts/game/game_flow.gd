@@ -15860,7 +15860,7 @@ func _update_display_confirmation(delta: float) -> void:
 func _on_display_settings_keep_requested(generation: int) -> void:
 	if _pending_display_confirmation.is_empty() or int(_pending_display_confirmation.generation) != generation:
 		return
-	var status := _persist_runtime_settings()
+	var status := _persist_runtime_settings(true)
 	if bool(status.get("accepted", false)):
 		_runtime_settings_unsaved_changes = false
 		_pending_display_confirmation = {}
@@ -15889,7 +15889,7 @@ func _revert_display_settings(generation: int, reason: StringName) -> void:
 	runtime_settings.apply_display_settings()
 	if is_instance_valid(hud):
 		hud.clear_display_settings_confirmation()
-		hud.set_settings_snapshot(prior)
+		hud.set_settings_snapshot(runtime_settings.to_dictionary())
 		hud.set_settings_status("DISPLAY CHANGE REVERTED // %s" % String(reason).to_upper(), false)
 	_sync_production_runtime_settings_state()
 
@@ -16142,6 +16142,8 @@ func _on_settings_reset_requested() -> void:
 		_sync_production_runtime_settings_state()
 		return
 	_runtime_settings_transaction_active = true
+	if not _pending_display_confirmation.is_empty():
+		_revert_display_settings(int(_pending_display_confirmation.generation), &"reset")
 	runtime_settings.reset_to_defaults()
 	_apply_all_runtime_settings()
 	_runtime_settings_transaction_count += 1
@@ -16152,7 +16154,7 @@ func _on_settings_reset_requested() -> void:
 	_sync_production_runtime_settings_state()
 
 
-func _persist_runtime_settings() -> Dictionary:
+func _persist_runtime_settings(keep_display: bool = false) -> Dictionary:
 	if _runtime_settings_store_adapter == null:
 		var unavailable := {
 			"accepted": false,
@@ -16181,7 +16183,10 @@ func _persist_runtime_settings() -> Dictionary:
 		return exhausted
 	var commit_id := "%s%010d" % [RUNTIME_SETTINGS_COMMIT_PREFIX, next_serial]
 	_runtime_settings_save_attempt_count += 1
-	var status := _runtime_settings_store_adapter.save(commit_id).duplicate(true)
+	var confirmed_display: Dictionary = {}
+	if not keep_display and not _pending_display_confirmation.is_empty():
+		confirmed_display = _pending_display_confirmation.prior
+	var status := _runtime_settings_store_adapter.save(commit_id, confirmed_display).duplicate(true)
 	status["commit_id"] = commit_id
 	_runtime_settings_last_save_status = status.duplicate(true)
 	if bool(status.get("accepted", false)):

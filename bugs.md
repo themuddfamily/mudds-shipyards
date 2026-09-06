@@ -16,24 +16,6 @@ This is a bounded source review with focused execution, not a claim that every
 bug has been found. Native Windows, physical controllers, representative GPU
 performance, and human visual review were **NOT_RUN** in this review.
 
-### DISPLAY-002 — Other settings save an unconfirmed display change — P2
-
-- **Locations:** [`_on_setting_change_requested()`](scripts/game/game_flow.gd#L15822),
-  [`_on_settings_save_requested()`](scripts/game/game_flow.gd#L16105),
-  [`_revert_display_settings()`](scripts/game/game_flow.gd#L15864).
-- **Reproduce:** Preview another resolution, then adjust Master volume or press
-  Apply + Save before pressing Keep Display. Press Revert Display and restart.
-- **Expected / actual:** An unconfirmed display choice must remain transient.
-  Ordinary settings saves serialize the entire live settings object, including
-  the pending resolution. Revert changes only runtime state, so the rejected
-  resolution returns on the next launch.
-- **Verified:** With the production Main scene and an injected in-memory store,
-  changing volume during a 1280×720 preview saved **1280×720** while confirmation
-  remained pending. After Revert, runtime was **1920×1080** but a fresh settings
-  adapter still loaded **1280×720** from the store.
-- **Repair:** Persist the last confirmed display fields during unrelated saves,
-  or isolate display preview state until Keep commits it.
-
 ### DISPLAY-003 — A second preview replaces the rollback baseline — P2
 
 - **Location:** [`_on_setting_change_requested()`](scripts/game/game_flow.gd#L15809).

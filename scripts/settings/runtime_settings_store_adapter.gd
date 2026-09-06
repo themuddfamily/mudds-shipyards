@@ -77,16 +77,18 @@ func _load() -> Dictionary:
 ## commits the current validated live snapshot against that generation. An
 ## invalid/newer settings section or a backup-recovery load requires a separate
 ## repair decision and is never overwritten by an ordinary save.
-func save(commit_id: String) -> Dictionary:
+## During a display preview, callers supply the confirmed display baseline.
+## Only the persisted display fields change; live settings and signals are untouched.
+func save(commit_id: String, confirmed_display: Dictionary = {}) -> Dictionary:
 	if _operation_active:
 		return _reentrant_status()
 	_operation_active = true
-	var result := _save(commit_id)
+	var result := _save(commit_id, confirmed_display)
 	_operation_active = false
 	return result
 
 
-func _save(commit_id: String) -> Dictionary:
+func _save(commit_id: String, confirmed_display: Dictionary) -> Dictionary:
 	if _settings == null or _store == null:
 		return _status(false, &"invalid_owner", false, false, {})
 	var store_load := _store.load()
@@ -106,7 +108,14 @@ func _save(commit_id: String) -> Dictionary:
 			return _status(false, reason, false, false, store_load, {
 				"payload_reason": existing.reason,
 			})
-	payload[SETTINGS_PAYLOAD_KEY] = _settings.to_user_data_payload()
+	var settings_payload := _settings.to_user_data_payload()
+	if not confirmed_display.is_empty():
+		var display := RuntimeSettings.new()
+		display.window_mode = int(confirmed_display.get("window_mode", _settings.window_mode))
+		display.display_resolution = String(confirmed_display.get("display_resolution", _settings.display_resolution))
+		settings_payload.values.window_mode = String(display.get_window_mode_id())
+		settings_payload.values.display_resolution = display.display_resolution
+	payload[SETTINGS_PAYLOAD_KEY] = settings_payload
 	var committed := _store.commit(payload, _store.get_generation(), commit_id)
 	if not bool(committed.accepted):
 		return _status(false, &"store_commit_failed", false, false, committed)
