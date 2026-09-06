@@ -3641,10 +3641,9 @@ func _receive_movement_intent(wire: Dictionary) -> void:
 	if not is_server():
 		return
 	var source_peer_id := multiplayer.get_remote_sender_id()
-	if int(wire.get("protocol_version", 0)) != NETWORK_PROTOCOL_VERSION \
-		or int(wire.get("package_generation", 0)) != NETWORK_BUILD_VERSION:
-		transport_rejected.emit(&"protocol_mismatch")
-		return
+	# Protocol/build compatibility is negotiated by hello before the transport
+	# registers this peer. Movement uses the same authenticated exact envelope
+	# as every other intent stream; it has no top-level handshake fields.
 	var payload := _accept_secure_rpc(source_peer_id, wire, &"movement")
 	if payload.is_empty():
 		return

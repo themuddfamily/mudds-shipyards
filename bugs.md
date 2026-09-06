@@ -4,8 +4,8 @@ This ledger contains only unresolved or explicitly accepted issues. Fixed and cl
 
 ## Code review — 2026-09-06
 
-Reviewed source: `aceff1619`. The findings below are **OPEN**; this review changes
-documentation only. P1 means a major feature or gameplay path is broken; P2 means
+Reviewed source: `aceff1619`. The remaining findings below are **OPEN**; verified
+fixes are removed as they are committed. P1 means a major feature or gameplay path is broken; P2 means
 an actionable correctness defect; P3 means a bounded lifecycle or robustness
 defect. The existing accepted `RENDER-001` record remains below.
 
@@ -116,26 +116,6 @@ performance, and human visual review were **NOT_RUN** in this review.
   inside moving craft and canonical telemetry/projectile updates.
 - **Repair:** Give each stream its own jitter buffer, lifecycle resets, and
   resynchronization cursor.
-
-### NET-003 — Movement RPC rejects the sender's own valid envelope — P2
-
-- **Location:** [`_receive_movement_intent()`](scripts/network/network_enet_session_adapter.gd#L3644);
-  sender at [`send_movement_intent()`](scripts/network/network_enet_session_adapter.gd#L549).
-- **Reproduce:** Run
-  `godot --headless --path . --script tests/network/network_enet_session_adapter_test.gd`.
-- **Expected / actual:** An admitted client's valid movement reaches movement
-  authority; replay and spoof checks then reject invalid follow-ups. The
-  receiver instead requires top-level `protocol_version` and
-  `package_generation`, which the exact secure transport envelope does not
-  contain. Both default to zero, producing `protocol_mismatch` first.
-- **Verified:** The existing 80-assertion integration test exited **1** with
-  three failed movement assertions. Its unconditional final `_OK` line is not a
-  passing result.
-- **Scope:** Confirmed socket/API defect. Current GameFlow has no caller of
-  `send_movement_intent()`; this does not demonstrate broken local flight input.
-- **Repair:** Align the receiver with the negotiated admission/transport
-  contract. Adding fields only to the sender would violate the existing exact
-  transport schema.
 
 ### PACKAGE-001 — Distribution contains the wrong Python installer — P2
 
