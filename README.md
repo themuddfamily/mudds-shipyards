@@ -362,7 +362,7 @@ godot --headless --path . --script res://tests/zenith_fleet_dock_integration_tes
 # Render and validate 27 distinct evidence frames (requires a graphical display).
 xvfb-run -a godot --path . --script res://tests/capture_scenes.gd
 
-# Render 12 HUD-free 2560x1440 hero-cell frames (requires a graphical display).
+# Render 18 HUD-free 2560x1440 hero-cell frames (requires a graphical display).
 xvfb-run -a -s '-screen 0 2560x1440x24' godot --path . --resolution 2560x1440 --rendering-method forward_plus --script res://tests/capture_hero_cell.gd
 
 # Render seven HUD-free 2560x1440 operational-lattice/backdrop frames (requires a graphical display).
@@ -391,6 +391,18 @@ The wrapper itself runs on Linux or WSL: it deliberately uses Linux
 `/proc/<pid>/fd` directory descriptors and the GNU command-line tools it checks
 at startup. The emitted artifact is the Windows executable; the wrapper is not
 a `cmd.exe` or PowerShell entry point.
+
+The hero-cell capture also supports native Windows Forward+ for GPU qualification.
+From the project directory in PowerShell, with the Godot console executable available
+as `godot.exe`, run:
+
+```powershell
+godot.exe --headless --path . --editor --quit
+godot.exe --path . --resolution 2560x1440 --rendering-method forward_plus --audio-driver Dummy --script res://tests/capture_hero_cell.gd
+```
+
+The harness records the display and graphics adapter and retains the same resolution,
+visual thresholds, and source-freeze checks on both platforms.
 
 `flight_input_test.gd`, `control_mapping_test.gd`, `flight_path_cue_test.gd`, and `flight_quality_closure_test.gd` are deterministic handling and presentation regressions, not a claim that the controls are fully tuned. The requested human feel pass remains open. The command list above enumerates 86 of the 112 `tests/*_test.gd` headless suites in the current source tree; the frozen matrix runner discovers all of them, and the list is a reading order rather than the roster. The recorded definitive v0.12 Godot 4.7.1 matrix predates the added station-surface and station-triplanar suites: it recorded an editor/import exit of `0` in 2,844 ms and exactly 75 of 75 suite exits of `0`, with 6,969 anchored `PASS:` assertions and exactly one terminal sentinel per suite (73 `OK`, two `PASS`). Its logs contained zero timeout, failure, error, fatal, RID, ObjectDB, resource, or orphan diagnostics; the only warnings were 76 generic root-startup warnings. The 452-file runnable-source scope remained byte-identical before and after at ordered-manifest SHA-256 `2115dddd6c11fa751c804b1e3140e0b2cf1b476b478675fe17ed2f7383e68792`. The exact results table, sentinel validation, and ordered process-hash aggregate have SHA-256 values `521d9bfd278ddec4ba0623f070b08487d962e7748d9eeafce09134f9125fe349`, `c243dfea866cb07a01343ad0300db10f9a72a12948b5a7c9a1d6e76c45ac1e05`, and `f0338503e70ca534a666b04c2ee41e4cb22d180f45fa7818ce110a6cbd493b10`. The now-superseded post-ledger/Fleet-Dock-Comb 72-suite, 6,673-assertion matrix remains historical, as do the earlier 69-, 54-, 44-, and 40-suite checkpoints; none supersedes the v0.12 result. Three shutdown-only Dummy-audio resource diagnostics found across preliminary historical passes were traced to test teardown racing an active WAV; the affected harnesses now explicitly release the presentation bank across a mixer boundary, and the definitive matrices plus repeated verbose focused runs were clean.
 

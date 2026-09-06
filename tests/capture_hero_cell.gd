@@ -3,14 +3,24 @@ extends SceneTree
 ## Source-current Forward+ acceptance harness for the production hero cell.
 ##
 ## This runner instantiates the live ShipyardWorld, Torrent, and PlayerController.
-## It adds only an evidence camera and temporary neutral review lights. It never
-## adds a HUD, reticle, toast, or CanvasLayer and never replaces production art.
+## It adds an evidence camera, temporary neutral review lighting/contrast, and a
+## sequenced command source. It adds no HUD, reticle, toast, or CanvasLayer and
+## never replaces production art.
 ##
 ## Set KETH_CAPTURE_HERO_CELL_PARSE_ONLY=1 to validate the script without
 ## opening a renderer or touching artifacts/hero_cell. Set
 ## KETH_CAPTURE_HERO_CELL_STAGING_ONLY=1 to execute only the real automatic
 ## propulsion wake and 1.5-second neutral shutdown route. The production capture
 ## is intentionally run only after the art/source freeze has been declared stable.
+
+## Replay only the held hover demand through the production sequenced command
+## contract. A staged capture must not depend on which desktop window has focus.
+class CaptureCommandSource:
+	extends ShipCommandSource
+	var hover_held := false
+
+	func _sample_controls() -> Dictionary:
+		return {"hover": hover_held}
 
 const WORLD_SCENE := preload("res://scenes/world/shipyard_world.tscn")
 const TORRENT_SCENE := preload("res://scenes/ships/torrent_interceptor.tscn")
@@ -25,6 +35,7 @@ const TRANSACTION_DIR := OUTPUT_DIR + "/.capture_transaction"
 const STAGED_EVIDENCE_MANIFEST_PATH := TRANSACTION_DIR + "/evidence_manifest.json"
 const STAGED_SOURCE_MANIFEST_PATH := TRANSACTION_DIR + "/source_manifest.sha256"
 const CAPTURE_RESOLUTION := Vector2i(2560, 1440)
+const CAPTURE_DISPLAY_SERVERS := ["X11", "Windows"]
 const RECONSTRUCTION_AUDIT_METHOD := &"get_torrent_reconstruction_audit_report"
 const ART_AUDIT_METHOD := &"get_torrent_art_audit_report"
 
@@ -177,18 +188,9 @@ const COCKPIT_INSTRUMENT_MINIMUM_TOP_FRACTION := 0.64
 const COCKPIT_INSTRUMENT_MAXIMUM_TOP_FRACTION := 0.82
 const COCKPIT_INSTRUMENT_MAXIMUM_HEIGHT_FRACTION := 0.35
 
-## Frames each fixed-cockpit differential state settles for before readback.
-##
-## The exterior control is a pixel differential of a deliberately frozen scene,
-## so it is only as tight as the renderer's own frame-to-frame reproducibility.
-## TAA is enabled on this viewport (`_configure_native_capture`) and never stops
-## jittering, so that floor is not zero. Settling longer was tried as a repair and
-## bought nothing: the floor measured 0.0044 and 0.0120 on two runs at 8 frames
-## and 0.0124 on one at 48, so it is unstable run to run and independent of this
-## value, while 48 frames cost roughly three times the harness runtime. It
-## therefore stays at the original 8, and the floor is instead measured every run
-## and printed as `HERO_CELL_DIAGNOSTIC` — which is what lets a reader tell a
-## marginal exterior number apart from renderer noise instead of guessing at it.
+## Published frames retain TAA. Unpublished camera/pose/world controls disable
+## its jitter while retaining MSAA, the exact exterior mask, and the 0.005 gate.
+## The unchanged ONLINE repeat measures reproducibility in each AA mode.
 const COCKPIT_DIFFERENTIAL_SETTLE_FRAMES := 8
 
 ## Simulated frames granted on top of a nominal duration, so a condition that
@@ -227,7 +229,10 @@ var _lighting_metrics: Dictionary = {}
 var _cockpit_display_roi := Rect2i()
 var _triangle_mesh_cache: Dictionary = {}
 var _cockpit_camera_for_metrics: Camera3D
+var _cockpit_offline_exterior_control: Image
+var _cockpit_online_exterior_control: Image
 var _cockpit_critical_exterior_control: Image
+var _capture_command_source: CaptureCommandSource
 var _quiesced_damage_emitters := PackedStringArray()
 var _full_capture_started := false
 var _capture_transaction_cleanup_armed := false
@@ -603,6 +608,20 @@ func _run() -> void:
 	await process_frame
 	_validate_active_lod(0, 0.0)
 	var light_snapshot := _enable_neutral_review_lighting()
+	var restore_camera_environment := _evidence_camera.environment
+	var production_environment := (
+		restore_camera_environment
+		if restore_camera_environment != null
+		else _evidence_camera.get_world_3d().environment
+	)
+	_check(production_environment != null, "neutral material crop resolves the production environment")
+	if production_environment != null:
+		# The production grade intentionally crushes blacks. This isolated material
+		# review uses a neutral contrast curve without changing the runtime resource,
+		# exposure, white point, atmosphere, or material-separation thresholds.
+		var neutral_environment := production_environment.duplicate() as Environment
+		neutral_environment.tonemap_agx_contrast = 1.0
+		_evidence_camera.environment = neutral_environment
 	_frame_camera(
 		_ship_point(Vector3(-5.6, 4.8, -9.2)),
 		_ship_point(Vector3(-0.45, 1.0, -2.15)),
@@ -613,9 +632,11 @@ func _run() -> void:
 		"lighting": "capture_only_D65_key_fill_rim",
 		"production_lights": "temporarily_hidden_and_restored",
 		"production_environment": "unchanged",
+		"camera_environment_override": "production_environment_duplicate_with_only_tonemap_agx_contrast_1.0_then_restored",
 		"engine_state": "offline",
 		"material_roles": ["WarmIvoryHull", "GraphiteMachinery"],
 	}, &"", true)
+	_evidence_camera.environment = restore_camera_environment
 	_restore_production_lighting(light_snapshot)
 
 	# 16/17/18 — One physical pilot-eye camera and immutable world/craft pose.
@@ -642,6 +663,7 @@ func _run() -> void:
 		"sight_corridor_degrees": [20.0, 12.0],
 		"world_presentation_tick": "capture_only_frozen_for_pixel_differential",
 	}, &"cockpit_fixed")
+	_cockpit_offline_exterior_control = await _capture_cockpit_exterior_control("OFFLINE")
 
 	_check(
 		await _wake_engine_with_hover(cockpit_camera),
@@ -656,6 +678,7 @@ func _run() -> void:
 	}, &"cockpit_fixed")
 
 	await _diagnose_exterior_noise_floor()
+	_cockpit_online_exterior_control = await _capture_cockpit_exterior_control("ONLINE")
 
 	_torrent.apply_damage(_torrent.maximum_hull * 0.76)
 	await _settle_render(COCKPIT_DIFFERENTIAL_SETTLE_FRAMES)
@@ -704,11 +727,11 @@ func _configure_native_capture() -> void:
 	var display_name := DisplayServer.get_name()
 	var native_window_size := DisplayServer.window_get_size()
 	_check(renderer == &"forward_plus", "capture uses the Forward+ renderer")
-	_check(display_name == "X11", "capture uses a native X11 display")
+	_check(display_name in CAPTURE_DISPLAY_SERVERS, "capture uses a native X11 or Windows display")
 	_check(root.size == CAPTURE_RESOLUTION, "root viewport accepts exact 2560x1440 output")
 	_check(
 		native_window_size == CAPTURE_RESOLUTION,
-		"native X11 window content is exactly 2560x1440"
+		"native window content is exactly 2560x1440"
 	)
 	print(
 		"HERO_CELL_RENDERER: method=%s adapter=%s display=%s window=%dx%d viewport=%dx%d"
@@ -732,7 +755,7 @@ func _capture_renderer_is_available() -> bool:
 	var adapter := RenderingServer.get_video_adapter_name().strip_edges()
 	return (
 		RenderingServer.get_current_rendering_method() == &"forward_plus"
-		and DisplayServer.get_name() == "X11"
+		and DisplayServer.get_name() in CAPTURE_DISPLAY_SERVERS
 		and not adapter.is_empty()
 		and adapter != "Unknown"
 		and root.get_texture() != null
@@ -761,7 +784,7 @@ func _validate_source_components() -> void:
 		and int(berth_features.get(&"umbilical_housing", 0)) == 3
 		and bool(berth_asset_audit.get("valid", false))
 		and int(berth_asset_audit.get("runtime_mesh_count", 0)) == 8
-		and int(berth_asset_audit.get("runtime_triangle_count", 0)) == 11_508,
+		and int(berth_asset_audit.get("runtime_triangle_count", 0)) == 11_892,
 		"capture berth has exact clamps and its source-current Blender-authored service hierarchy"
 	)
 
@@ -921,6 +944,12 @@ func _validate_open_canopy_semantics() -> void:
 func _validate_sealed_exterior_semantics() -> void:
 	var seat_anchor := _torrent.get_pilot_seat_anchor()
 	var pilot_parts := _pilot.get_pilot_visual_parts()
+	var pilot_parts_visible := pilot_parts.size() == 2
+	var pilot_part_names := PackedStringArray()
+	for part in pilot_parts:
+		pilot_parts_visible = pilot_parts_visible and part.is_visible_in_tree()
+		pilot_part_names.append(String(part.name))
+	pilot_part_names.sort()
 	var imported_canopy := _hero_presentation.get_canopy_pivot() if _hero_presentation != null else null
 	var source_cockpit := (_asset_manifest.get("collections", {}) as Dictionary).get(
 		"CockpitArt", []
@@ -946,14 +975,14 @@ func _validate_sealed_exterior_semantics() -> void:
 		"sealed exterior uses the continuous imported canopy at its closed transform"
 	)
 	_check(
-		pilot_parts.size() == 1
-		and (pilot_parts[0] as MeshInstance3D).is_visible_in_tree()
+		pilot_parts_visible
+		and pilot_part_names == PackedStringArray(["HarnessRelease", "PilotSuit"])
 		and source_cockpit.has("CrimsonSeatPan")
 		and source_cockpit.has("CrimsonSeatBack")
 		and crimson_batches.size() == 2
 		and (crimson_batches[0] as MeshInstance3D).is_visible_in_tree()
 		and (crimson_batches[1] as MeshInstance3D).is_visible_in_tree(),
-		"sealed frame contains the live skinned pilot, protected seat pan, and crimson seat-back batch"
+		"sealed frame contains the live pilot suit and rigid harness light, protected seat pan, and crimson seat-back batch"
 	)
 	# Pixel colour alone cannot reliably distinguish shaded crimson upholstery
 	# from the pilot and canopy. The 60% silhouette threshold remains an explicit
@@ -1286,8 +1315,13 @@ func _run_automatic_propulsion_witness() -> void:
 
 func _wake_engine_with_hover(active_camera: Camera3D) -> bool:
 	_release_flight_controls()
+	if not is_instance_valid(_capture_command_source):
+		_capture_command_source = CaptureCommandSource.new()
+		_capture_command_source.name = "CaptureCommandSource"
+		_torrent.add_child(_capture_command_source)
+		_torrent.set_command_source(_capture_command_source)
 	_torrent.set_piloted(true)
-	Input.action_press(&"hover")
+	_capture_command_source.hover_held = true
 	await physics_frame
 	await process_frame
 	var accepted := (
@@ -1325,6 +1359,8 @@ func _idle_engine_offline() -> bool:
 
 
 func _release_flight_controls() -> void:
+	if is_instance_valid(_capture_command_source):
+		_capture_command_source.hover_held = false
 	for action: StringName in FLIGHT_CONTROL_ACTIONS:
 		Input.action_release(action)
 
@@ -1575,7 +1611,18 @@ func _validate_cockpit_roi_pairs() -> void:
 	var online_critical_roi := _compare_region(online, critical, _cockpit_display_roi, false)
 	var offline_online_raw_outside := _compare_region(offline, online, _cockpit_display_roi, true)
 	var online_critical_raw_outside := _compare_region(online, critical, _cockpit_display_roi, true)
-	var offline_online_outside := _compare_exterior_world(offline, online)
+	var offline_online_live_outside := _compare_exterior_world(offline, online)
+	_check(
+		_cockpit_offline_exterior_control != null and _cockpit_online_exterior_control != null,
+		"fixed cockpit OFFLINE/ONLINE non-jittering exterior control frames are available"
+	)
+	if _cockpit_offline_exterior_control == null or _cockpit_online_exterior_control == null:
+		return
+	var offline_online_outside := _compare_exterior_world(
+		_cockpit_offline_exterior_control, _cockpit_online_exterior_control
+	)
+	offline_online_outside["comparison"] = "unpublished OFFLINE/ONLINE controls with TAA disabled and MSAA retained"
+	_pair_metrics["cockpit_offline_online_live_taa_exterior_world_non_gated"] = offline_online_live_outside
 	# The gated ONLINE/CRITICAL exterior comparison uses the deterministic half of
 	# the critical state. See `_capture_cockpit_critical_exterior_control` for why
 	# the live transient damage emitters cannot be measured by an immutability
@@ -1586,12 +1633,12 @@ func _validate_cockpit_roi_pairs() -> void:
 		"fixed cockpit ONLINE/CRITICAL exterior control frame is available"
 	)
 	var online_critical_outside := (
-		_compare_exterior_world(online, _cockpit_critical_exterior_control)
+		_compare_exterior_world(_cockpit_online_exterior_control, _cockpit_critical_exterior_control)
 		if _cockpit_critical_exterior_control != null
 		else online_critical_live_outside
 	)
 	online_critical_outside["comparison"] = (
-		"CRITICAL with transient damage emitters quiesced: [%s]"
+		"unpublished ONLINE/CRITICAL controls with TAA disabled, MSAA retained, and CRITICAL transient damage emitters quiesced: [%s]"
 		% ", ".join(_quiesced_damage_emitters)
 	)
 	online_critical_live_outside["comparison"] = (
@@ -1729,6 +1776,32 @@ func _diagnose_exterior_noise_floor() -> void:
 	)
 
 
+## Only unpublished control readbacks change AA. The live PNG is captured first
+## with production TAA; restoring it here also restores the next published view.
+func _capture_cockpit_exterior_control(state_name: String) -> Image:
+	var restore_taa := root.use_taa
+	root.use_taa = false
+	var control := await _read_diagnostic_image()
+	_validate_fixed_camera(
+		&"cockpit_fixed", _cockpit_camera_for_metrics, "%s non-jittering exterior control" % state_name
+	)
+	_check(control != null, "%s non-jittering exterior control reads back" % state_name)
+	if state_name == "ONLINE" and control != null:
+		var repeat := await _read_diagnostic_image()
+		_check(repeat != null, "unchanged ONLINE non-jittering exterior control repeats")
+		if repeat != null:
+			var noise := _compare_exterior_world(control, repeat)
+			noise["diagnostic"] = "unchanged ONLINE control, TAA disabled and MSAA retained"
+			_pair_metrics["cockpit_exterior_world_control_noise_floor"] = noise
+			_check(
+				float(noise.get("changed_fraction", 1.0)) <= COCKPIT_MAXIMUM_OUTSIDE_ROI_CHANGED_FRACTION,
+				"non-jittering ONLINE control repeats within the unchanged exterior gate (%.6f)"
+				% float(noise.get("changed_fraction", 1.0))
+			)
+	root.use_taa = restore_taa
+	return control
+
+
 ## Reads the deterministic half of the CRITICAL state, for the exterior control
 ## comparison only.
 ##
@@ -1783,7 +1856,7 @@ func _capture_cockpit_critical_exterior_control() -> void:
 		_cockpit_camera_for_metrics,
 		"cockpit critical exterior control"
 	)
-	_cockpit_critical_exterior_control = await _read_diagnostic_image()
+	_cockpit_critical_exterior_control = await _capture_cockpit_exterior_control("CRITICAL")
 	_check(
 		_cockpit_critical_exterior_control != null,
 		"fixed cockpit critical exterior control frame reads back"
@@ -1795,6 +1868,10 @@ func _capture_cockpit_critical_exterior_control() -> void:
 		"fixed cockpit exterior control still holds the live critical hull state"
 	)
 	for node in transient_emitters:
+		# One-shot component emitters may finish and free themselves while the
+		# control settles. Test the reference before attempting any object cast.
+		if not is_instance_valid(node):
+			continue
 		var emitter := node as Node3D
 		if emitter == null:
 			continue
@@ -2332,18 +2409,19 @@ func _write_evidence_manifest() -> void:
 			"cockpit_online_critical_roi_minimum_changed_fraction": COCKPIT_ONLINE_CRITICAL_MINIMUM_CHANGED_FRACTION,
 				"cockpit_exterior_world_maximum_changed_fraction": COCKPIT_MAXIMUM_OUTSIDE_ROI_CHANGED_FRACTION,
 				"cockpit_exterior_world_online_critical_comparison": (
-					"CRITICAL with transient damage emitters quiesced: [%s]. The exterior"
+					"Unpublished ONLINE/CRITICAL controls with TAA disabled and MSAA retained;"
+					+ " CRITICAL transient damage emitters quiesced: [%s]. The exterior"
 					+ " comparison is a camera/pose/world immutability control; pulsing"
 					+ " damage illumination and stochastic damage particles are neither,"
 					+ " and the fully live figure is recorded separately under pair_metrics"
 					+ " as cockpit_online_critical_live_damage_exterior_world_non_gated."
 				) % ", ".join(_quiesced_damage_emitters),
 				"cockpit_exterior_world_renderer_noise_floor": (
-					"Measured, never gated. See pair_metrics"
+					"Published TAA noise is diagnostic-only. See pair_metrics"
 					+ " cockpit_exterior_world_renderer_noise_floor_non_gated: two readbacks"
-					+ " of one unchanged state through the same mask, which bounds how tight"
-					+ " cockpit_exterior_world_maximum_changed_fraction can be on this"
-					+ " renderer."
+					+ " of one unchanged state through the same mask. The unpublished TAA-off"
+					+ " controls retain MSAA and must satisfy the unchanged exterior gate,"
+					+ " including the repeated ONLINE control noise measurement."
 				),
 				"cockpit_display_roi_minimum_samples": COCKPIT_DISPLAY_ROI_MINIMUM_SAMPLES,
 			"ship_mask_luminance_p5_minimum": SHIP_LUMINANCE_P5_MINIMUM,
@@ -2365,7 +2443,7 @@ func _write_evidence_manifest() -> void:
 		"human_review_status": "NOT_CLAIMED_BY_AUTOMATION",
 		"evidence_limits": [
 			"These are deterministic staged acceptance views, not an uninterrupted human playthrough.",
-			"X11 Forward+ output does not prove native-Windows rendering, native-GPU performance, flight feel, or camera comfort.",
+			"Forward+ output qualifies only the recorded display and adapter; it does not prove performance, flight feel, or camera comfort.",
 				"TriangleMesh lighting masks classify live ship geometry in an intentionally unobstructed crop; they do not solve arbitrary unrelated-world occlusion.",
 				"Finite TriangleMesh sight samples and UV/normal-map contracts do not prove continuous visibility, motif handedness, or correct perceived relief; those remain listed original-resolution reviews.",
 				"Pixel ROI and luminance checks do not replace the listed original-resolution human silhouette, glazing, depth, UV, or overall art reviews.",
@@ -2611,7 +2689,7 @@ func _verify_published_capture_transaction(evidence_path: String, phase: String)
 			and manifest_file == CAPTURE_FILES[frame_index]
 			and str(manifest_record.get("semantic_state", "")) == CAPTURE_STATES[frame_index]
 			and str(manifest_record.get("sha256", "")) == FileAccess.get_sha256(published_path)
-			and manifest_record.get("resolution", []) == [CAPTURE_RESOLUTION.x, CAPTURE_RESOLUTION.y]
+			and _has_exact_capture_resolution(manifest_record.get("resolution"))
 		)
 	_check(
 		not evidence.is_empty()
@@ -2631,6 +2709,19 @@ func _verify_published_capture_transaction(evidence_path: String, phase: String)
 		and str(evidence.get("source_aggregate_sha256", "")) == _source_aggregate_sha256
 		and evidence.get("source_files", {}) == _source_snapshot,
 		"%s evidence manifest authenticates the frozen source roster and published source manifest" % phase
+	)
+
+
+static func _has_exact_capture_resolution(value: Variant) -> bool:
+	# JSON decodes every number as float. Whole-array equality treats those as
+	# different from the captured int array; compare exact numeric components.
+	# Do not cast to int, which would accept fractional or string dimensions.
+	return (
+		value is Array and value.size() == 2
+		and typeof(value[0]) in [TYPE_INT, TYPE_FLOAT]
+		and typeof(value[1]) in [TYPE_INT, TYPE_FLOAT]
+		and value[0] == CAPTURE_RESOLUTION.x
+		and value[1] == CAPTURE_RESOLUTION.y
 	)
 
 
