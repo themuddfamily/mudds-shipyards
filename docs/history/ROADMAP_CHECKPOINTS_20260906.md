@@ -1,12 +1,14 @@
+# Roadmap checkpoints archived 2026-09-06
+
+Archived on 2026-09-06 from the pre-stabilization documentation. This is a historical snapshot: “current”, test counts, fleet counts, package claims and completed checkpoints below refer only to their original recording context. They do not qualify the current source or close native-hardware, human-review, signing or permission gates. Command examples have been made silent for automated use; relative Markdown links have been rebased.
+
+Return to the [current README](../../README.md) or [active roadmap](../../ROADMAP.md).
+
+---
+
 # Development roadmap
 
-The current game has **nine flyable craft and implemented slices across Phases 2–10**, including remapping/curves/glyphs, bounded ENet/crew integration, nearby activities and the Ember Moon expedition. Phase 1 authenticity research and the full station, fleet, combat, multiplayer, planetary and release scope remain open. A checked item records bounded implementation or research, never whole-phase completion or historical authentication.
-
-## Current state and next milestone — 2026-09-06
-
-The [README capability inventory](README.md#current-prototype-slice) describes the running source. The next milestone is a source-pinned stabilization candidate: repair recursive regression discovery and stale fleet/capture expectations, add fast-core and scheduled broader CI, bound failed diagnostic-save retries, then package the tested source for normal-controls Windows feedback through boarding, combat, landing, disembarking, crash recovery and Ember. Tune camera comfort, landing clarity, prompts and audio from those observations. Run the existing benchmark on representative hardware before further visual expansion. Extract planetary journey coordination from `GameFlow` while delivering the next player-visible Ember improvement; consolidate validators only as their consumers permit.
-
-**Current-source regression/package evidence: pending. Current-candidate native-Windows human play, representative benchmarks, real-controller review and audible mix: `NOT_RUN`.** Historical successes remain dated records. All native/human, signing, permission and full-phase gates stay open until actually satisfied.
+This roadmap preserves the full remake objective while keeping implementation ordered around a polished physical core. The current state is an **early Phase 2 prototype with a settled, bounded Phase 3 operational-lattice slice and bounded Phase 4 foundations**, with Phase 1 authenticity research continuing in parallel. The active delivery strategy is **playable core first**: feature scope remains in this roadmap, but new content waits behind explicit stability gates for the existing walk/board/fly/fight/land/disembark loop. A checked item means that bounded implementation or research milestone exists; it does not declare the phase, the overall objective, or an authentic historical reconstruction complete.
 
 The visual target is a realistic-looking, polished stylised high-end PC presentation—not literal photorealism—that preserves Keth's clean silhouettes, readable colours, and playful scale. Much of the station and remaining fleet is still procedural prototype work, while the bounded Torrent, bounded B7-observed Blender-authored Zenith, skinned pilot and Blender-authored central-berth shell establish the imported-art pipeline. None is final production art or an authenticated historical reconstruction.
 
@@ -25,12 +27,12 @@ Bug status is independent from severity: `CANDIDATE` → `NEW` → `REPRODUCED` 
 
 ### Stabilization stages
 
-1. **Gate A — reproducible baseline:** add a checked-in one-command runner that recursively discovers `tests/**/*_test.gd`, freezes the sorted roster, gives each suite a timeout, requires exit `0` and exactly one accepted terminal sentinel, counts anchored assertions, scans raw logs for failure/error/leak/orphan diagnostics, hashes every log/result file, and proves the runnable-source manifest is unchanged before/after. Use the runner-discovered sorted roster rather than a hard-coded suite total. Historical matrices remain in the dated archive; Gate A requires a new source-pinned record.
+1. **Gate A — reproducible baseline:** add a checked-in one-command runner that discovers `tests/*_test.gd`, freezes the sorted roster, gives each suite a timeout, requires exit `0` and exactly one accepted terminal sentinel, counts anchored assertions, scans raw logs for failure/error/leak/orphan diagnostics, hashes every log/result file, and proves the runnable-source manifest is unchanged before/after. The historical 77-suite/7,070-assertion working-tree pass and recorded 75-suite matrix are retained checkpoints, not current merged-source evidence; Gate A remains open until the runner produces a new source-pinned record.
 2. **Gate B — stabilization closure:** reproduce or explicitly disposition every active P0/P1 and current review candidate. Each closed defect needs a before-failing/after-green regression, focused and full matrix, current-package scenario rerun, and independent verification for P0/P1.
-3. **Gate C — packaged core scenarios:** run three scripts without debug shortcuts. **Guided:** cold boot → begin → walk/board Torrent → apply thrust for same-tick automatic power → physical launch → targets/defender → lease landing → `1.5` physics seconds of neutral automatic shutdown → disembark → completion. **Sandbox:** traverse Central/Aft/Habitat/Freight/Fleet Dock; launch/land/exit Arrow, Jovian, Zenith, Halyard, Bulwark and all three Cinder craft; deliberately crash; recover on foot; regenerate and reuse a craft. **Settings/re-entry:** save settings → restart → pause/resume → camera modes → all required keyboard/mouse and current gamepad lifecycle controls. Require Guided 3/3 consecutive fresh-process passes, Sandbox 1/1, Settings 1/1.
+3. **Gate C — packaged core scenarios:** run three scripts without debug shortcuts. **Guided:** cold boot → begin → walk/board Torrent → apply thrust for same-tick automatic power → physical launch → targets/defender → lease landing → `1.5` physics seconds of neutral automatic shutdown → disembark → completion. **Sandbox:** traverse Central/Aft/Habitat/Freight/Fleet Dock; launch/land/exit Arrow, Jovian, Zenith, and Halyard; deliberately crash; recover on foot; regenerate and reuse a craft. **Settings/re-entry:** save settings → restart → pause/resume → camera modes → all required keyboard/mouse and current gamepad lifecycle controls. Require Guided 3/3 consecutive fresh-process passes, Sandbox 1/1, Settings 1/1.
 4. **Gate D — external tuning:** five first-time Windows players may use in-game help but receive no developer intervention. At least four must launch, fight, redock, and disembark within 30 minutes; median camera comfort, control clarity, and landing clarity must each be at least 4/5; any P0/P1 returns the project to Gate B.
 5. **Gate E — candidate/performance:** export from one exact clean commit with a unique build label. Record source commit, matrix record, Godot version, EXE size/hash, PE version, embedded PCK inventory, signing state, smoke result, and hardware. Initial proposed 1920×1080 High benchmark after 60 seconds warm-up: ten-minute representative route, p95 ≤16.7 ms, p99 ≤33.3 ms, no post-warm-up frame >100 ms, peak working set ≤4 GiB. Record CPU/GPU/RAM/driver/audio device; these are design budgets until representative hardware validates them.
-6. **Gate F — controlled expansion resume:** all nine current craft/package scenarios, frozen matrix, external thresholds, performance candidate, zero P0/P1, and no accepted core-loop P2. Resume the existing Phase 1–9 backlog with a WIP limit of one authority-bearing runtime slice. Every merged runtime slice invalidates relevant package/human evidence and returns through the affected gates before the next slice.
+6. **Gate F — controlled expansion resume:** five current craft/package scenarios, frozen matrix, external thresholds, performance candidate, zero P0/P1, and no accepted core-loop P2. Resume the existing Phase 1–9 backlog with a WIP limit of one authority-bearing runtime slice. Every merged runtime slice invalidates relevant package/human evidence and returns through the affected gates before the next slice.
 
 Pause expansion again on any P0/P1, editor/import or full-matrix failure, two open core-loop P2s in one subsystem, Guided below 3/3, external completion below 4/5, same-hardware p95 regression above 10%, or mismatched source/artifact evidence. Fixes may cut an immediate candidate, but otherwise produce at most one internal candidate after a clean day and one public preview only after two consecutive candidate gates; permission/legal/licensing and signing requirements still apply.
 
@@ -47,7 +49,7 @@ Every implementation item—bug fix or feature—must record the following befor
 - **Package parity:** the source fix is not accepted for a downloadable prototype until the exported Windows pack reproduces the corrected behaviour or passes an equivalent external probe.
 - **Human check:** controls, visual readability, texture direction, audio audibility, and comfort require real-time review; headless assertions do not substitute for perception.
 
-Unconfirmed audit observations stay in [`bugs.md`](bugs.md) until reproduced. Confirmed P0/P1 defects move into the active Phase 2 stabilization checkpoint with a failing witness and owner; resolved items remain recorded with their regression gate instead of being silently deleted.
+Unconfirmed audit observations stay in [`bugs.md`](../../bugs.md) until reproduced. Confirmed P0/P1 defects move into the active Phase 2 stabilization checkpoint with a failing witness and owner; resolved items remain recorded with their regression gate instead of being silently deleted.
 
 ### Playable-prototype gate
 
@@ -83,11 +85,624 @@ Use this sequence for every roadmap task. Do not skip directly from an isolated 
 
 The minimum change report should state: outcome, root cause/design decision, files, tests/assertions, native/human evidence, package hash, and remaining risks. A junior developer should be able to hand that report to a reviewer without relying on unstated conversation context.
 
-## Historical context and continuing constraints
+## Art direction — player feedback, 2026-08-15
 
-The [dated archive](docs/history/README.md) preserves the August art passes, cabin-access notes, player recollections, session handoffs and reconciliation checkpoints, including their source/package hashes and original links. Those observations describe the checkpoint where they were recorded; no historical native startup or capture qualifies the current candidate.
+After playtesting the traversal fixes the player confirmed the layout is right — *"I wanted the same map and everything, yes we have that, perfect"* — and gave a specific direction for the presentation: it currently **looks too close to the original Keth's Shipyards**, and should **feel more realistic than Keth's did**, i.e. **"more like its own game, less like Roblox."**
 
-Carry forward the unresolved work: improve material/lighting readability while preserving evidence-bounded layout and silhouettes; obtain authored geometry/material and human art review; re-measure the merged scene before changing performance ceilings; validate minor cargo/deck offsets through player observation; and resolve navigation continuity before expanding autonomous services. Player recollections remain research leads, never registered evidence. Existing source fixes and later settings persistence supersede stale handoff tasks. The phase lists below retain the full feature and acceptance scope.
+This does not change the stated visual target above; it records that the target has not been reached, and sharpens what "reached" means:
+
+- **Layout, adjacency, silhouettes and scale are correct and must not be changed** to chase realism. The evidence boundary and the recovered/inferred station shape stay exactly as they are.
+- What must change is **how surfaces read**. The current presentation reads as untextured primitives: flat scalar colour over large areas, sharp unbevelled 90° edges, uniform roughness, and little contact shading. Those four properties, not the shapes, are what make blocky geometry read as a toy.
+- Highest-leverage work, in rough order: edge bevelling/chamfering on structural geometry so edges catch a highlight; extending the station material family to the wider lattice, catwalks and control room, which are still entirely flat scalar; ambient-occlusion and indirect-light tuning at the station's actual 10–50 m scale rather than defaults; tonemapping and specular response; and lighting coherence.
+- Two parts of this remain **outside what can be produced headlessly** and need a human artist: final authored/baked/scanned normal/roughness/ORM sets, and the curved/bevelled *authored* geometry pass on ships. Procedural bevelling of structural primitives and material-family extension are achievable here; authored art is not.
+
+Presentation changes require real-time human review; automated checks cannot establish that something reads as a manufactured place.
+
+### Station lighting pass — 2026-08-16
+
+Three independent surface passes (post-processing, ship detail, chamfering) each reported the same ceiling in different words: the material and geometry work was landing on surfaces too dark to show it. Measured mean frame luminance before this pass ran 2–27 out of 255 across parked berths, the engine cluster, the operations room and the gantry, and the *median* pixel of every one of those frames sat at 14–17/255. Screen-space AO modulates ambient and there was almost no ambient to modulate; `normal_scale` at an absurd 12.0 moved under 1% of a berth frame.
+
+What the measurements showed, recorded because the two ambient terms are not interchangeable and the next person will otherwise assume they are:
+
+- `background_energy_multiplier` scales the **hemispheric** half of the sky ambient. It moves open decks and hull undersides and barely touches the enclosed operations room and habitat. Raising it alone flattens the frame — at 1.6 the measured per-frame standard deviation *fell*, and the backdrop stopped reading as vacuum.
+- `ambient_light_energy` scales the **flat colour** quarter. It moves enclosed interiors and barely touches open decks. It is uniform by construction and is the flattening term.
+- Neither substitutes for a light. The fixes that produced the largest gains were a warm shadowless bounce aimed upward (nothing previously lit any downward-facing surface in the station), and two measured facts about reach: a 39° mast cone from y = 9.0 stopped 0.7 m short of the Arrow berth it exists to light, and the freight berth's two apron work lights left a four-metre unlit seam down the exact centreline where a freighter parks.
+
+Structural contrast — the standard deviation of the non-emissive 90% of each frame, which is what "does form read" actually means — rose in every measured frame (+4% to +44%) while the fraction of near-blown pixels moved by under 2.1 points. That is the discriminator between a lighting scheme and a gain knob, and it is the number to reproduce before accepting any future change here.
+
+Remaining, in order of leverage:
+
+- **Interiors are monochrome.** The operations room and habitat common room now read as manufactured plate, but every surface in them is one cyan hue. A single-hue frame is a strong "not real" cue independent of level. The exteriors got hue separation from the warm bounce; the interiors cannot see it, and their own fixtures are all cool.
+- **The frame is still bimodal.** Emissive fixtures sit near 250/255 with heavy bloom while structure sits at 20–40. Real luminaires would spill onto what they are mounted to. Glow was measured and retuned by an earlier pass, so it is deliberately untouched here.
+- **Two backdrop artifacts got brighter along with the ambient, and both come from values `space_backdrop_test` freezes deliberately.** They are not new; the raised hemispheric term made them about 45% more legible.
+  - The procedural sky's equator is a **hard step of 8.8/255** (measured across `07_original_identity_backdrop.png`: 19.4 above, 10.6 below, over roughly ten pixels), because `sky_horizon_color` `0d1a24` and `ground_horizon_color` `070d13` are a two-to-one luminance pair with no blend between them. `sky_curve`/`ground_curve` were softened here, which smooths each hemisphere but cannot cross the equator. It reads as a ruled line, and in wide shots as a distant wall. The fix is to bring the two horizon colours together, which is a frozen identity decision.
+  - The **legacy nebula cover is faintly legible as panel seams** in the same shots, roughly 4/255 of modulation over a 15/255 field. Its 0.08 modulate is frozen for the same reason.
+- Frame cost of the three added lights and one added shadow map is **unmeasured**. This machine renders through llvmpipe; any number produced here would be meaningless.
+
+### Fixture practicals and interior colour temperature — 2026-08-16
+
+Closes the two items left open above: fixtures that did not light their mounts, and monochrome interiors.
+
+**The bimodal frame was a mechanism problem, not a tuning problem.** `emission` is a purely local surface term in Forward+ — it changes what the emitting fragment returns and nothing else — and the glow pass is a screen-space convolution of the finished *image*. Neither delivers any radiance to the plate a fixture is bolted to. So no amount of emission can make a sign light its own backing panel; raising it only pushes the lens past the tonemapper's shoulder and widens the bloom, which *is* the bimodality. The only mechanism in this renderer that lights a mount is a `Light3D`. Anyone reaching for emission energy to fix a "glowing decal" is reaching for the wrong control.
+
+Thirty-nine small fixture practicals were added under one shared idiom in four modules (`aft_junction_stack`, `habitat_spine`, `jovian_freight_berth`, `fleet_dock_comb`): shadowless, sub-7 m range, steep attenuation, distance-faded, each carrying **its own fixture's hue** so the spill identifies the source. Where one was added the lens emission came down by roughly what the practical now carries, so energy moved out of the blown top of the histogram into the structural band rather than being added as gain.
+
+**The distance fade is the trap, and it is worth recording because it silently voids the whole pass.** Set at 16 m begin / 8 m length, every practical was off in nine of eleven measured frames while the emission reduction that paid for them had still landed; structural sigma measured **−0.9% to +0.1%** across the exteriors — cost delivered, benefit not. The station is a 10–50 m structure normally read from 30–120 m, so a fade ending at 24 m ends *inside the subject*. At 60 m / 25 m the practicals are present at every distance the station is actually looked at, and the 140 m-plus lattice overview still measures bit-stable.
+
+Measured, structural sigma being the std-dev of the non-emissive lower 90% of the frame:
+
+| frame | mean | structural σ | hue spread (rad) | near-blown % |
+| --- | --- | --- | --- | --- |
+| `operations_room` | 35.05 → **45.73** | 18.28 → **22.33** (+22.2%) | 0.140 → **0.507** | 0.27 → 0.16 |
+| `habitat_common_room` | 48.21 → 50.74 | 19.51 → **20.87** (+7.0%) | 0.422 → **0.507** | 0.00 → 0.00 |
+| `aft_junction` | 48.05 → 48.22 | 38.65 → 38.83 (+0.5%) | 0.469 → 0.493 | 0.00 |
+| `habitat_exterior` | 28.19 → 28.61 | 15.11 → 14.90 (−1.4%) | 0.197 → 0.202 | 0.00 |
+| `station`, `03`, `05`, `jovian_*` | ±0.1% | ±0.1% | +0.1–1.7% | 0.00 |
+| `01`, `02`, `04`, `06`, `07` | unchanged to 2 d.p. | | | |
+
+Read honestly. This is a *local* pass and it measures where a person stands. The wide-lattice frames are flat because a sub-7 m pool is sub-pixel at 80–120 m; `01`/`02` cannot move at all because neither frame contains any of the four modules touched. `habitat_exterior` is the one frame showing the pattern this project watches for — mean up 1.5% while sigma falls 1.4% — and the cause is known: warm light now reaches the common room, which sits behind the station's only large glazed wall, so a big low-variance area got brighter. Kept, because the same light is what makes the habitat read as inhabited from outside, but it is a real cost.
+
+**Interior hue.** Interiors were one cyan because the station's only warm light is a directional bounce aimed up from the open decks, which an enclosed room cannot see, and because their own fixtures were all cool. Two corrections, neither touching the cool identity or the cue palette. First, fixtures now cast the colour they look like: the habitat's cove and ceiling lenses are an authored `#ffe6bd` but their pools were cool near-whites, which is a specific "not real" cue — the room looked tinted rather than lit. That cost no lights. Second, rooms carry two colour temperatures as real rooms do: cool overheads stay dominant, and warm light arrives at working height from sources that belong to the room (under-console task wash, cove lamp, arc tiles, bunk reading lamps, a freight-control desk lamp). Every added warm light is a low broad wash below cue height; the cyan/amber/green cue hues and the colourblind-safe shape channel in `ship_berth_feedback.gd` are untouched.
+
+Light counts re-frozen in the open, exact equalities kept exact. **World rig unchanged** at directional 3 / spot 8 / omni 1 / total 12 with 8 shadow casters — nothing was added at world level. `FleetDockComb` `LIGHT_BUDGET` 0 → 4 (it was the only module with no light at all; its loop budgets stay at zero) with `fleet_dock_comb_test` moved from `== 0` to `== 4` plus a new property assertion that every comb light is shadowless, range-bounded and distance-faded. Module ceilings: aft junction 12 → 32 (built 11 → 32), habitat 12 → 15 (built 6 → 15), freight 24 → 26 (built 21 → 26), each set at the exact built count rather than left with headroom.
+
+Two regressions were caught by measurement inside this pass and are recorded rather than quietly fixed, because both are easy to repeat. Raising `_guide_light` attenuation to 1.55 in the freight module steepened the falloff on all eighteen existing apron guide lights at once and cost `05_jovian_freight_operations` 0.25 of structural sigma — a real loss on that module's best-lit feature, for no benefit. And siting `TableDisplayGlow` 0.19 m above the panel it lights put a blown specular hotspot on the deck and took the habitat common room's near-blown fraction from 0.00 to 0.43 points, i.e. it *created* the defect the pass exists to remove. A practical placed too close to its own fixture is a new blowout, not a fix.
+
+Frame cost is **unmeasured and unmeasurable here**: this box renders through llvmpipe, and any number produced on it would be meaningless.
+
+**Still open.** The central pad and launch approach are world-level and were left alone, so their cues are unchanged — they were already the best-served area (eight recessed berth fixtures and guide lights all carry practicals). `ship_berth_feedback.gd` still asserts `lights == 0`; its state cue is the one berth cue with no light of its own, and reversing that property belongs with whoever owns the accessibility cue work rather than with this pass.
+
+**Screen-space AO cannot be evaluated on this machine.** Rendering the production scene to the root viewport under llvmpipe/Vulkan and capturing six framings, `ssao_enabled = false` at the profile level (applied before the world builds), the shipped `HIGH` settings, and a forced 4× maximum (intensity 16, radius 8 m, power 4, `light_affect` 1.0) all produce **bit-identical** frames to four decimal places on every statistic. A desaturation applied through the same Environment reference *does* land, so the reference is live and the pass is simply not contributing. Any earlier conclusion about how much AO does or does not do — including "AO's job is modulating ambient and there is almost no ambient to modulate" — was measured through an instrument that is inert on this box and needs re-taking on real hardware. The lighting result recorded above does not depend on AO either way.
+
+### Interior legibility after the regrade — 2026-08-16
+
+Pays the two costs the global look pass named and could not pay itself: the habitat common room going dark with its chairs near silhouette once the flat cyan fill came out, and the operations room barely moving because it is built and lit entirely from its own module's materials and fixtures.
+
+**Read this first, because it invalidates an instrument.** `--headless` on this box has **no rendering device at all**. `RenderingServer.get_video_adapter_name()` returns empty, `Viewport.get_texture().get_image()` returns null with `Parameter "t" is null`, and — the part that wastes hours — `await RenderingServer.frame_post_draw` **never fires**, so it does not error, it hangs forever at ~1% CPU while looking exactly like a slow render. Every capture harness in this repo awaits that signal, so `capture_art_direction`, `capture_station_operations` and anything modelled on them **cannot produce a frame here and will hang instead of failing**. The fix is one line of invocation: drop `--headless` and run under Xvfb against lavapipe, which is installed.
+
+```
+VK_ICD_FILENAMES=/usr/share/vulkan/icd.d/lvp_icd.json \
+  xvfb-run -a godot --audio-driver Dummy --path . --script res://tools/interior_room_probe.gd \
+  --rendering-driver vulkan --audio-driver Dummy
+```
+
+That reports `adapter=[llvmpipe (LLVM 20.1.2, 256 bits)]` and renders four 1280×720 interior framings in **about two and a half minutes**, instantiation included. Rendering was never slow; it was never happening. `tools/interior_room_probe.gd` is committed with this pass and refuses to run without a rendering device rather than hanging. A fresh worktree also has no `.godot`, and until `godot --audio-driver Dummy --headless --import` is run every script load fails with `Could not resolve script` parse errors and then idles the same way.
+
+**The defect is `omni_range`, and it is arithmetic rather than taste.** Godot 4's omni falloff is a *windowed* inverse power:
+
+```
+attenuation = (1 - (d/range)^4)^2 * d^(-omni_attenuation)
+```
+
+The window term is ~1.0 at the lamp and collapses to a hard zero at `range`. Both interiors had ceiling luminaires ~4.1 m above their decks with `omni_range = 5.6`, so the floor directly beneath a lamp already sat at `d/range = 0.73`, where the window has removed ~45% of what the distance term left — and every wall, corner, chair back and face is *further away than that*. The operations deck received 0.069 from a 0.94-energy lamp. The common room is 10.6 m deep and was lit by one row across its middle, so its rear sill and front partition were both 6.2 m from the nearest lamp: **outside the lights entirely, a literal zero.** Those chairs were never lit by the room's own fixtures. They were lit by the fill, which is exactly why removing the fill dropped them to silhouette.
+
+**Range, not energy, is the control.** Energy scales the bright disc on the ceiling and the dark deck by the same factor, so it reaches the blown end first — the gain knob this project has already rejected once. Widening the range changes *nothing* in the near field (at 0.5 m the window reads 1.00 either way) and restores only the clipped tail. `OperationsPoolLight` 5.6 → 9.0 at energy 0.94 → 0.82; `CommonPoolLight` 5.6 → 9.0 at 0.76 → 0.66; `ConsoleGlow` 2.6 → 3.4 at unchanged energy, which leaves the console panel exactly as lit and takes a seated operator's face 0.067 → 0.093; `DoorPoolLight` 3.8 → 5.6 at unchanged energy.
+
+**One row of lamps cannot light a room in two dimensions.** Operations is 10.4 m wide with a single centreline row of three, so neither side third had an overhead, and each of its two 7.3 m ceiling coves was represented by one point lamp at the cove's midpoint — so both ends of both side walls, where the room goes to black first, lay outside the lamp. Overheads become two rows of three at x = 3.2 and x = 8.0; each cove gets three lamps down its length; the coordinator chair, the one seat in either room with no fixture within range of it in any direction, gets the same task wash the other two working positions had. Common-room overheads become two rows of three at z = 20.5 and z = 24.3.
+
+**The rear row's z is the most load-bearing number in this pass, and it was wrong on the first attempt.** At z = 25.6 it sat *behind* the observation chairs, whose backrests are at z = 25.07 and lean 6° back. From the doorway — the committed harness's framing, and the one the complaint was made about — the camera sees the −z face of those backrests, and against a lamp behind them `n · l = −0.185`. Negative: that face received nothing, and **no amount of range or energy could have fixed it, because the geometry was wrong rather than the level.** Rendered, the chairs were still flat cut-outs even though every statistic had improved. Moved to z = 24.3 the same lamp gives `n · l = +0.402` and the backrests, arm tops and seat edges all read. That failure is the reason this pass renders instead of trusting the numbers: mean, structural σ and lit σ were all up while the specific thing being fixed was untouched.
+
+**More lights is the opposite of more fill.** A fill adds one term to every surface however it faces and wherever it sits — what the global pass correctly removed. Discrete pools with falloff between them put a gradient across a deck and let a viewer see where the light comes from. Per-fixture energy comes down wherever the count went up, in both rooms.
+
+**Emissive area is held flat while fixture count doubles**, because lens emission sets the blown top of both histograms and twice the lenses would have bought the added structure with a wider bloom. Lenses are made smaller instead: operations 2.85 × 0.24 → 1.85 × 0.20, habitat 2.35 × 0.25 → 1.55 × 0.20. **No emission value is changed anywhere.** In the habitat that is not optional — `warm_light` is shared with the corridor cove strips, so reducing it would have dimmed a corridor that was fine.
+
+**The rear glazing is now a fixture.** Four 3.4 m panes onto space read as flat panels because the sill, header and mullions in front of them were the least-lit structure in the module, and a window reads as a hole when its surround is lit and the hole is not. The sill gets a shallow cool `teal_dim` cove and three lamps carrying that strip's hue, sited 0.65 m inboard of the glass and below its lower edge so the panes see them at a grazing angle. Neither overhead row is placed near the glass: a ceiling lamp within about a metre of a window lays a sheet across the pane and turns the opening back into a panel.
+
+**Colour temperature is unchanged in kind and the rooms stay deliberately opposite.** Operations keeps cool overheads dominant with warm arriving at working height from its own sources. The habitat keeps its inversion — warm overheads, because a crew lounge is warm and because warm light through the station's only glazed wall is what makes it look inhabited from outside — with the cool counterpoint from the table display and now the glazing. Every added lamp carries its own fixture's hue. Built hues: aft 20 warm / 20 cool, habitat 16 warm / 5 cool. No cue colour, palette entry, emission value, material, sky, fog or grade was touched.
+
+Measured at 1280×720 through the production `HIGH` profile (AgX, exposure 1.24, white 6.6, contrast 1.52). `structure` is the std-dev of the non-emissive lower 90%; `lit σ` is the 65th–98th percentile band.
+
+| frame | mean | structure σ | lit σ | p50 |
+| --- | --- | --- | --- | --- |
+| `08_operations_room` | 0.1277 → **0.1945** (+52.3%) | 0.0814 → **0.1142** (+40.2%) | 0.1096 → 0.1110 (+1.3%) | 0.0841 → **0.1480** |
+| `08b_operations_reverse` | 0.1513 → **0.2038** (+34.6%) | 0.1051 → **0.1510** (+43.7%) | 0.1979 → 0.1769 (−10.6%) | 0.0875 → **0.1564** |
+| `09_habitat_common_room` | 0.1450 → **0.1960** (+35.2%) | 0.0830 → **0.1076** (+29.6%) | 0.1344 → **0.1618** (+20.4%) | 0.0862 → **0.1314** |
+| `09b_habitat_common_reverse` | 0.0950 → **0.1320** (+39.0%) | 0.0608 → **0.0811** (+33.3%) | 0.0593 → **0.0748** (+26.1%) | 0.0632 → **0.1082** |
+
+Mean **and** structural σ rise together on all four framings, which is the pattern this project wants and the opposite of the one it has rejected. The median roughly doubles everywhere — that is the clipped tail coming back as mid-tones, which is precisely what a range change should do and what a gain change would not.
+
+**One statistic goes the wrong way and is kept.** `08b_operations_reverse` loses 10.6% of lit σ while its structural σ gains 43.7%. The cause is understood: that band is the 65th–98th percentile, which in the old frame was dominated by three blown console tops standing against black walls. The walls are now lit plate, so the band's population changed from "a few bright things against nothing" to "a lit room", and its spread narrowed. That is the bimodality being removed, not contrast being lost, and the guard statistic the brief names — structural σ — is up on the same frame. Recorded rather than hidden because a single number moving down is exactly the thing worth arguing about.
+
+**Verified.** Eight framings rendered and reviewed by eye (four before, four after, plus a discarded intermediate). Thirteen suites pass: `aft_junction_stack_test`, `habitat_spine_test`, `habitat_integration_test`, `station_expansion_test`, `station_operational_lattice_test`, `station_presentation_defect_witness_test`, `station_triplanar_material_test`, `station_surface_playability_test`, `station_topology_evidence_test`, `station_navigation_graph_test`, `station_route_registry_integration_test`, `station_traversal_defect_witness_test`, `jovian_freight_berth_transform_test`. The full matrix was not run.
+
+Counts re-frozen in the open, exact equalities kept exact. `AftJunctionStack` `lights` **32 → 40** (+3 overheads, +4 cove lamps, +1 task wash); `HabitatSpine` `lights` **15 → 21** (+3 overheads, +3 sill lamps). Both set at the exact built count with no headroom, confirmed by census. Meshes stay inside their ceilings (aft 531/600, habitat 658/740). `station_triplanar_material_test` re-frozen **1703 → 1706** with 0.30 going **1042 → 1045**; the whole delta is the three new `hull_dark` `CeilingLuminaireBody` boxes, 0.22 and 0.28 untouched at 129 and 532, no mapped surface removed and no new scale introduced. The world rig is untouched.
+
+**Still open.** The observation chairs' backrests are `fabric_dark` at `#21363c` and roughness 0.95, so even correctly lit they sit near the bottom of the frame — the remaining darkness there is now a material choice rather than a lighting hole, and if it still reads badly the fix is the albedo, not another lamp. The operations room's window panes read slightly flatter than the habitat's because the room behind the camera is brighter and the glass returns it; nothing was done about that here. Frame cost remains **unmeasured** — llvmpipe.
+
+### Pilot seated pose — sagittal sign defect, fixed 2026-08-16
+
+The player reported, of every craft: *"the animation turns my legs the wrong way, it looks like my legs break to get in!"* Measured on the live skeleton, the seated pilot's knee sat **0.362 m behind** his hip — 78° of hip hyperextension with the shin folding forward — and the same sign error was present in all nine authored clips.
+
+It was not a facing problem and did not live in any ship. Every bone in `pilot_motion_v2` is built in the sagittal plane with roll 0, so a positive local-X key is a rotation about world +X. That tips an **up**-pointing bone (the spine) towards the face and swings a **down**-pointing bone (the leg chain) away from it. The pose tables are authored in the legacy Godot fallback rig's convention, where positive means "towards the face" for the legs as well — correct there, because that rig's leg node points -Y with forward at -Z, the mirror of a Blender -Y-forward bone pointing -Z. The two authorities disagreed and the Blender one lost.
+
+Recorded because this is the second orientation defect in this asset and the fix pattern matters more than the fix: it was corrected **at the one place authored degrees become bone-local euler** (`bone_local_euler_degrees`), not by mirroring the mount, the seat anchor or a downstream transform. Compensating there would have satisfied one camera and left every other one wrong, and would have collided with the gate clause above.
+
+`pilot_leg_pose_test.gd` now measures the shipped GLB's deformed skeleton in the raw imported frame: no clip may fold a knee forwards, and no seat-transition clip may swing a knee behind its hip. Both quantities are invariant under any mount-level flip, so the guard cannot be satisfied by the hack it exists to forbid.
+
+Left alone deliberately, as tuning rather than defect: the walk and run clips key `pelvis` location as `(0, 0, lift)`, which in pelvis-bone-local space is a ~18 mm **forward** shift, not the vertical bob the values were clearly meant to be.
+
+## Unverified player recollections — leads, not evidence
+
+Recorded because they are useful for aiming work and for knowing what to look for if
+new footage ever surfaces. **None of this is registered evidence and none of it may be
+cited as support.** The ledger rules in Phase 1 still apply: a recollection is not a
+source, and nothing here changes any `name_to_model_status`.
+
+- **2026-08-16** — the player, who played the original, reports being able to shut a
+  ship down and disembark in space, and remembers one ship *"so big it could hold
+  multiple users at once, not necessarily sitting in a seat whilst flying."*
+- **2026-08-16** — on seeing the current fleet: *"The Jovian looks sort of like this big
+  ship I remember you being able to walk around whilst in flight."* The Jovian's
+  `name_to_model_status` remains `unknown` with `model_sources: []`; this says the modern
+  interpretation reads well to someone who played it, and says nothing about the original.
+
+What would turn either into evidence: registered footage showing a named craft with a
+walkable interior in flight, anchored by frame or timestamp, with the name tied to the
+craft rather than to a regeneration label. See the Arrow/Jovian evidence gate in Phase 4.
+
+## In-flight cabin access — 2026-08-16
+
+**Motivated by an unverified player recollection, and nothing stronger.** A player who played the original Keth's Shipyards said they were sure you could shut the engine down and get out of a ship in space, and remembered one craft big enough to hold several people who were not all sitting in seats. That recollection is **not registered evidence**: it has no ledger anchor, it is not in `docs/research/`, and nothing in this feature may be cited as recovering it. `docs/research/ship_evidence_matrix.json` still records the Jovian with `name_to_model_status: unknown` and no model sources, and a later remark that our Jovian resembles a ship the player remembers is a sign the modern interpretation reads well — not a mapping. Everything below is `modern_interpretation` design.
+
+What shipped: a pilot who shuts down away from a berth can leave the seat and walk the craft's own interior while it drifts, then take the seat back with one key press. The loop is exit → walk the hold → re-board → fly home, all through the existing seams — `GameFlow` owns the phase (`Phase.IN_FLIGHT_CABIN`), the craft's `MovingInteriorFrame` owns occupancy, `ShipBerth` is untouched, and the boarding-area reservation is held for the whole walk so re-boarding costs nothing.
+
+Decisions worth keeping, because each closes a way to soft-lock a player:
+
+- **Only a craft that publishes a walkable cabin may release its pilot.** `HeroShip.get_in_flight_cabin_report()` defaults to closed; only `JovianLightFreighter` overrides it. The Torrent, Arrow and Zenith refuse, because "leave the seat" on a fighter means "stand in open space". Stepping onto a **hull exterior** in open space is deliberately **not** built — it needs an EVA envelope, a tether or magnetic footing, and a reason to be out there, none of which this pass has.
+- **The pilot is confined to a published ship-local envelope**, `JovianLightFreighter.CABIN_MOVEMENT_BOUNDS`, enforced by `PlayerController.set_cabin_containment()` after the slide: at the envelope they are clamped, well outside it they are recalled bodily to the craft's cabin standing marker. It is evaluated against the live hull, so it holds even if occupancy is lost. `_recover_from_destroyed_ship()` remains the outer net if the cabin itself is destroyed.
+- **The flight deck got real port, starboard and forward walls.** It had a floor and no sides, which was invisible while the only way onto it was the seat transition and load-bearing the moment a crew member could walk on it.
+- **Seat transitions can now be bound to a live craft** (`begin_boarding`/`begin_disembark` take a reference frame). A world-space exit pose is left behind by exactly the distance a moving hull covers; `tests/in_flight_cabin_test.gd` proves that as a structured red.
+- **A registered occupant is removed from the hull's own collision mask** while aboard, so a crew member standing on a deck is not an obstacle to the deck. Counted, not latched, so more than one occupant already works.
+
+Three things only the render showed, all fixed here:
+
+- The on-foot readout could say exactly one thing — `ON FOOT // REGENERATION DECK` — because on foot used to mean exactly one place. It now names where the pilot actually is (`GameHUD.set_mode()` takes an optional location).
+- The piloting controls overlay still read `E — EXIT: LANDED + OFFLINE`. Now `LEAVE SEAT: OFFLINE`.
+- **Secured freight in the hold had no collision — CLOSED 2026-08-16, both halves together.** Nobody could tell while the hold was scenery the camera flew past; walking it, the chase boom is pushed *inside* a container (`artifacts/cabin_04_walking_the_hold.png` is that shot). Making the cargo units solid was the right fix, was written, was measured, and was **reverted** once, because `tests/fleet_role_differentiation_test.gd` staged its Jovian approach at ship-local `(-3.4, -0.47, +3.85)` — *inside* the hold, standing on the ship's own cargo deck under its roof — and walked a straight unpathfound line to the pilot hatch through exactly where the port crates stand. Reproduced here before touching anything: with the crates solid that approach jams against `CargoContainerCollisionPort00` **2.0 m out**.
+  - **Freight is now solid.** Eight colliders, one per drawn pallet and container, built from the same `JovianLightFreighter.CARGO_UNIT_ANCHORS` roster `_build_cargo_bay` draws from, so the crate and the collider cannot drift apart. The crates were also given per-station names: Godot renames same-named siblings, so four crates could only ever be found as two by name, and an audit that can only see half a roster is part of why they stayed permeable.
+  - **The approach is restaged**, onto the apron the player actually walks. `APPROACH_OFFSETS[jovian]` goes `(0, 0, 12)` -> `(-8.6, 0, -8.0)`, landing at ship-local `(-12.0, -0.47, -16.15)` — 1.4 m outboard of the port hull line and clear of the bow, on `ApronDeck04`, 11.45 m from the hatch. Chosen from a measured sweep, not by eye: of 1681 apron points 7.5–15.0 m from the hatch, 286 are standable and 82 have a clear straight capsule sweep to it. The suite's subject is role differentiation and boarding through the *exterior* pilot hatch, which is on the apron, not in the hold. It walks 6.97 m of real left-stick locomotion in 20 of its 510 frames and stays green at 174 assertions.
+  - Regression: `tests/jovian_light_freighter_test.gd` `_test_secured_freight_is_solid` — every drawn cargo unit stops a probe placed inside it, the central lane and the ramp-to-cabin diagonal stay open (freight that swallowed the aisle would strand a crew member in a pressurised hull, which is worse than freight you can walk through), and disabling the eight colliders turns it red. `_test_physical_player_traversal` then walks that lane for real, unchanged.
+  - **Measured, not fixed:** the drawn pallets sit **0.060 m** above the drawn cargo deck (`CargoDeck` top 2.220 world, pallet bottom 2.280), and the deck's own collider top is a further 0.110 m below its mesh. Both predate this and neither is the recorded defect; the colliders added here match the drawn crates exactly rather than inventing a new seat for authored ship geometry.
+
+Rendered evidence: `artifacts/cabin_01…08_*.png` (produced by `tests/in_flight_cabin_render.gd`, a looking tool deliberately not named `*_test.gd` so it never joins the matrix).
+
+**Left alone, pre-existing:** the Jovian's engine cores are emissive geometry rather than driven presentation, so the nozzles still glow with `ENGINE // OFFLINE`. Visible whenever a shut-down Jovian is viewed in chase, not something this feature introduced.
+
+Not blocked for Phase 7: occupancy stays inside `MovingInteriorFrame` (which already has authority modes), the cabin phase names a craft rather than a single player, and nothing added here assumes exactly one occupant. Passenger *seats* and crew roles remain unbuilt.
+
+Tests: `tests/in_flight_cabin_test.gd` (contract, containment, frame-relative transitions) and `tests/in_flight_cabin_integration_test.gd` (the whole loop through `res://scenes/main.tscn` with real input, plus whole-Main detach/re-entry mid-cabin and the destroyed-cabin recovery). Verified against a targeted suite selection — ship lifecycle, seat/board/exit, sandbox integration, interior frame, HUD and recovery — rather than the full matrix, per the phase's verification policy.
+
+## Session handoff — 2026-08-16
+
+Written at the point the session was stopped. `main` is at the commit that carries this
+section; the full matrix is **green at 120 suites / 10,428 assertions**, and
+`builds/windows/MuddsShipyards-68756b7.exe` was exported from that tree.
+
+### Shipped this session
+
+Player-reported defects, all closed: the seated pilot's legs (the knee sat 0.362 m
+**behind** the hip — 78° of hip hyperextension — on all nine clips, from leg pose tables
+authored in the legacy rig's sign convention); the Arrow walkway and its boarding marker,
+which sat **inside the craft's own wing collision** so the whole starboard flank was
+silent; the Torrent runway seam; the Zenith-area invisible barriers, which turned out to
+be at the **central** berth, the Zenith's own collision being the tightest in the fleet;
+and the Halyard's stand, which supported only **42%** of the craft.
+
+Features: the tow tractor is drivable; a pilot can hold controls neutral for `1.5` physics
+seconds to idle propulsion offline in space, leave the seat and
+walk a drifting ship's interior (Jovian and Halyard only — the contract defaults closed,
+so a fighter can never strand its pilot in vacuum); first/third person on foot, bound to
+`C`; a fifth craft, the Halyard crew transport; the Cinder Reach sector 706 m out; two new
+opponent archetypes with non-kill objectives; station life, dock arm, registry,
+observation, aft operations, freight berth and central berth content passes; and the VIP
+reception suite behind a door that had been sealed since the station was built.
+
+Art direction: the sky was the real culprit. `ProceduralSkyMaterial` blends a sky
+hemisphere into a **ground** hemisphere, and with no ground it drew a hard line across
+every wide shot that read as a wall behind the station — and because the sky is also the
+ambient and reflection source, a featureless sphere lit every face identically and gave
+metalness nothing to return. Replaced with a real deep-space sky, depth-ranged fog, a
+desaturated palette and a regrade.
+
+Tooling: the test matrix went **526 s → 72 s** (parallel, results proven byte-identical
+across `--jobs 1/30/64`), gained a real `--scope` flag, and startup went **20,990 ms → 31
+ms** to first presented frame with the mouse no longer captured during load.
+
+### The three findings worth carrying forward
+
+1. **`--headless` cannot render on this box.** There is no rendering device:
+   `get_texture().get_image()` returns null and `await RenderingServer.frame_post_draw`
+   **never fires**, so every capture harness *hangs at ~1% CPU* instead of failing. This
+   cost one agent ninety minutes and led several others to conclude "llvmpipe is slow".
+   Frames actually cost 3–80 ms. Rendering was never slow; it was never happening. Use
+   `VK_ICD_FILENAMES=/usr/share/vulkan/icd.d/lvp_icd.json xvfb-run -a godot --audio-driver Dummy --path .
+   --rendering-driver vulkan --script res://<script>.gd`, and run `--headless --import`
+   first in a fresh worktree. `tools/interior_room_probe.gd` is a working example that
+   refuses to run without a device rather than hanging.
+2. **Rendering finds what assertions cannot.** This session, *looking* caught: operator
+   chairs facing away from their own consoles, a status board built inside a bulkhead, a
+   conveyor running through a solid gateway leg, a pilot perched on top of a solid cab
+   with their hands in the air, a legend built 0.04 m inside a girder, and 39 + 16 + 13
+   floating pieces across three modules. None were visible to any test.
+3. **Adding a craft invalidates counts in unrelated suites.** The Halyard produced *five*
+   separate stale "four player craft plus the defender" censuses, found one at a time over
+   several hours. A changed-file → relevant-suite map would have caught them together.
+
+### Handoff queue and current disposition
+
+- **Completed after handoff:** the startup loading/mouse branch merged as `c7f20e1`, and
+  the habitat rooms, bunk alcoves and hydroponic garden merged as `024c77b`.
+- **Completed after handoff:** VEHICLE-001 merged as `809d96b`. The tractor keeps its
+  `WORLD` layer while its mask changes `WORLD` -> `WORLD | SHIP`; reachable fixed
+  operational furniture gains exact World collision, measured **39 -> 63 shapes**. The
+  Fleet Dock Comb remains vehicle-inaccessible (its `1.54 / 1.38 m` entrances are
+  narrower than the `2.30 m` tractor), so its dressing correctly remains non-colliding.
+  The bounded evidence and residual policy are recorded under VEHICLE-001 in `bugs.md`.
+- **The performance budget is exceeded** on mesh instances, lights and unique materials.
+  `docs/PERFORMANCE_BUDGET_SCENE_GEOMETRY.md` was written earlier the same day against a
+  GTX 1060 / RTX 3060 target and the station has grown past it. Two independent censuses
+  disagreed on the current totals, so **re-measure on a merged tree before acting**. Owner
+  decision: raise the ceilings, or schedule a trim.
+- **Completed after handoff:** Dock 02 now reads `HALYARD // MODERN DESIGN`, its stranded
+  `DockEdgeKerb02` is removed, and Dock 03 alone remains empty/deferred.
+- The Jovian hold's pallets sit 0.060 m above their cargo deck —
+  `CARGO_PALLET_OFFSET_Y` in `scripts/ships/jovian_light_freighter.gd`, one constant.
+- First/third person is **session-scoped** and does not survive a restart; persisting it
+  means touching settings storage beside the frozen accessibility presets.
+- A GitHub release was requested and never cut. The repo is public and three pre-releases
+  already exist.
+- **MATRIX-001**: four suites emit run-to-run-variable numeric evidence, so the per-log
+  aggregate SHA quoted as release evidence is not reproducible. None of them flakes;
+  `results-canonical.tsv` is the stable comparison artifact and has replaced it in the
+  current matrix and release-candidate contract. Historical checkpoint hashes below
+  remain historical records, not current cross-run reproducibility anchors.
+
+## Session handoff — 2026-08-15
+
+State recorded mid-session so work can resume without reconstructing context. Delete this section once the open threads below are closed.
+
+### Landed on `main` this session
+
+Station module contract and non-metric route registry (Phase 3 playbook steps 1–2); Arrow/Jovian name-to-model evidence audit; station panel family extended onto walked-on overlay surfaces; controller overlay binding plus a no-action-remains-keyboard-only sweep; station topology validation with a doc/implementation drift regression. Matrix at the last merge: 82 suites, source manifest unchanged.
+
+### Open threads
+
+- **Map defect sweep — CLOSED.** MAP-001…MAP-006 are all fixed and recorded `CLOSED` in [`bugs.md`](../../bugs.md). The root cause was that `PlayerController` had no step-up assist; it now has `STEP_UP_MAX_HEIGHT = 0.30` (`scripts/player/player_controller.gd:45`), chosen as the station's own authored stair riser, 58% of the avatar's measured knee height, and deliberately below the 0.40 m pod slab. Reachability went from **53,073/106,903 (49.6%)** to **91,901/106,969 (85.9%)**, and no craft is stranded. Both witnesses — `tests/station_traversal_defect_witness_test.gd` and `tests/station_presentation_defect_witness_test.gd` — are green and back **inside** the `*_test.gd` gate glob.
+  - Residuals recorded rather than silently absorbed, all in `bugs.md`: the aft landing frontage is not equally open along its length (a ramp side 0.33 m proud, just above the step limit); floor decals are rotated rather than mirrored and their intended reading direction is a design choice nobody has made; a 0.010–0.030 m beacon seating residual from the activity mount transform; and 15,068 nodes still unreached, dominated by roofs and ceilings with no intended route.
+  - **Still unswept:** ship interiors for reachability, the exterior target range, and reachability *within* the remaining unreached islands.
+  - **Arrow berth cue overhang — CLOSED.** Commit `2a1715ccd` widened the live port berth node to `16.8 m`; its deck now spans world `x = -51.4…-34.6`, so the unchanged cue corners at `x = -50.02`/`-35.98` sit `1.38 m` inside supported deck on both sides. No cue shrink or further geometry change is required.
+- **Navigation graph (`worktree-agent-a33d5d8b5dbb488a9`, complete, deliberately unmerged).** Reviewed and held. Two reasons: it adds four couriers hovering 3.4–3.7 m above their routes with no rendered or human review, which is the same visual category the player is complaining about; and the graph resolves to four disjoint components, so cross-module routing does not exist and the couriers behave much like the four fixed rails already shipped. Decide after the map sweep triage.
+- **Fleet role differentiation audit (Phase 4) — closed for the five presently implemented properties.** A fresh production run of `tests/fleet_role_differentiation_test.gd` passed **229 assertions**. It verifies the live five-craft roster's physical boarding, small-craft versus interior provision, and lateral handling trade-offs (minimum **14 of 16** differing axes), as well as the frozen body/accent palette: the worst CIEDE2000 separation remains **16.62** for body tones and **31.38** for accents across the normal/protanopia/deuteranopia/tritanopia checks. Fresh X11 Forward+ review frames from the production Halyard transport capture show the olive transport and its aubergine trim distinctly beside Zenith's pale hull and deep-blue identification strips at Fleet Dock 02; the cockpit and berth/approach frames are substantive rather than blank or clipped.
+  - **Zenith cockpit seating is closed, not merely recorded.** The live seated-pilot measurement is camera **+0.201 m** above the head bone and **0.531 m** from that bone to the visible hull crown, clearing the fleet's 0.15–0.35 m eye-point band and 0.50 m hull-clearance floor. The earlier chest-height/canopy-intersection values (**−0.859 m** / **0.061 m**) are historical defects; all five craft are now covered by the same regression.
+  - This closes the bounded implementation/readability evidence only. It does not substitute for final human art sign-off, a player-led feel pass, native-GPU/Windows review, or historical authentication of provisional craft.
+- **Windows package build — landed.** [`docs/PACKAGE_BUILD_RECORD_20260815_EF5450C.md`](../../docs/PACKAGE_BUILD_RECORD_20260815_EF5450C.md) records `gateE-20260815-ef5450c` in full. The binary was executed **natively on the Windows host** through WSL2 interop on an RTX 5070 Ti, which surfaced a defect Linux headless structurally cannot see: **7 Texture RIDs leak at finalize**, constant across 300 and 900 frames. Linux headless creates no rendering device, which is precisely why the matrix and probes stay clean — the package-parity rule earning its keep. Diagnosed engine-side in [`docs/TEXTURE_RID_LEAK_INVESTIGATION_20260815.md`](../../docs/TEXTURE_RID_LEAK_INVESTIGATION_20260815.md) - a stock ReflectionProbe leaks it in an empty project, and no application-side teardown clears it. Now recorded as **RENDER-001** in [`bugs.md`](../../bugs.md), disposition `ACCEPTED_RISK` with rationale, both documented configurations, and the upstream references; it is engine-owned, so no owner is needed on this side. Two things that record surfaces and this line should carry: the leak is **not** an llvmpipe or capture-harness artifact — the two characterisations further down this file are wrong and encouraged dismissal — and its bounded shutdown-only nature collides with the literal playable-prototype wording "no ... resource-leak ... diagnostics", which needs an explicit carve-out or every rendered candidate run re-opens the same adjudication. Note also that a fresh worktree has no `.godot/`, so `godot --audio-driver Dummy --headless --editor --quit` must run before any suite, and that the PE version still reads `0.12.0.0` — the same internal label as the previous, different binary. **Gate E is not satisfied**: no performance benchmark and no human playtest.
+- **Accessibility presets (`worktree-agent-a99ef250da1b44a63`, committed, unmerged).** Held back only because the agent never completed a full matrix, and it touches `game_flow.gd`, `hud.gd` and `audio_director.gd`. Adds HUD scale, colour-vision palettes, reduced motion and captions, with CIEDE2000 separation lifted from **11.6 → 24.4** under deuteranopia. Rendering caught two layout defects headless assertions missed. Two honest caveats from that agent worth preserving: its re-entry mutation **did not fire**, so "survives re-entry" is not actually proven by that assertion; and the berth-state cyan/amber/green cues were out of its scope, so the biggest colourblind gap was left open in `scripts/world/ship_berth_feedback.gd` — **now closed, see the next entry**. Run the matrix, then merge.
+- **Berth-state cue readability — landed and frozen.** The gap the accessibility pass could not reach is closed in `scripts/world/ship_berth_feedback.gd`. Measured first with `tests/fleet_colour_metrics.gd` rather than assumed: the audited cyan/amber/green triad separated by CIEDE2000 **27.72 normal / 22.63 protanopia / 18.38 deuteranopia / 2.77 tritanopia** (released vs occupied), and the Label3D tint by **1.46 under tritanopia** — the deepest colour defect measured anywhere in the project, and note it was *blue-yellow*, not the red-green the brief predicted. The replacement is deliberately **safe by default, not preset-gated**: the cue triad moved onto a lightness ladder (pale cyan L\* 90 / orange L\* 66 / blue L\* 40) and now measures **48.57 / 46.25 / 44.90 / 41.94** across the same four models, holding **31.23** at worst even after the emissive product is clipped. Colour is no longer the only channel: a shape-coded deck glyph at the berth mouth draws two separated gate marks when open, a chevron when reserved and one unbroken bar when secured, which is static geometry and therefore unaffected by the reduced-motion preset. Contract re-frozen openly at `MESH_COUNT` 11 → 16 with old/new recorded in the source. Verified by render and by dichromacy-simulating the captured frames, not only by clearing a threshold. **Known limit:** on the Jovian and Zenith berths a parked hull covers the deck, so the glyph is occluded while a craft sits in the berth — benign, because a parked hull is itself the strongest non-colour "occupied" signal, but the glyph does not help there.
+- **Wrong-clock test waits — the systemic class is now cleared from the priority suites.** Eleven suites in total have been converted from wall-clock waits to bounded *frame* budgets: the four already merged (`station_interaction_flow`, `regeneration_reentry_safety`, `habitat_integration`, `fleet_lifecycle_safety`) plus `arrow_sandbox_integration`, `sandbox_loop`, `controller_physical_sortie`, and the five copies of the duplicated `_wait_for_door_state` helper (`aft_junction_stack`, `habitat_spine`, `jovian_freight_berth`, `station_operational_lattice`, `capture_jovian_freight_berth`). Measured under genuine parallel load (`loadavg` 30–72): `arrow_sandbox_integration` **1/5 → 5/5**, `controller_physical_sortie` **1/4 → 5/5**, `sandbox_loop` **2/5 → 5/5**. The rule that keeps working: *wait on the real condition with a budget counted in simulated frames*; never widen a sleep, because the smoothed engine delta diverges from the monotonic clock in **both** directions.
+  - Still outstanding, same defect class, not yet converted: `jovian_sandbox_integration_test.gd` (3 helpers), `zenith_fleet_dock_integration_test.gd` (2), `torrent_sortie_completion_test.gd`, `fleet_transition_destruction_test.gd`, `controller_sortie_lifecycle_test.gd`, `command_consumer_delivery_test.gd`, `station_door_test.gd`, `fleet_role_differentiation_test.gd:792` (owned elsewhere at the time), plus `create_timer`-then-assert sites in `vertical_slice_test.gd` (5), `station_expansion_test.gd` (3), `hero_damage_visual_test.gd`, `audio_director_test.gd` and several `capture_*` scripts. Audio-mixer release timers keyed to `AudioServer.get_time_to_next_mix()` are correctly wall-clock and should be left alone.
+- **SANDBOX-001 (P2) — `GameFlow` re-board suppression is bypassable; fixed.** `_reboard_blocked_ship` was consulted in exactly one place, `_find_boarding_candidate()`, which runs from `_update_on_foot_flow()` → `_process()` and **only while `not _piloting`**. `_on_interact_requested()` never consulted it; it acted on the cached `boarding_candidate` / `_near_ship` pair, and that pair is not refreshed for the entire duration of a sortie, so it still held the values from when the pilot walked up and boarded. `_try_exit_ship()` re-enables control and sets `_reboard_blocked_ship` before any `_process` can refresh it, while `interact_requested` is emitted from `PlayerController._physics_process()` — and Godot runs physics iterations ahead of the idle frame. An interact arriving in that window re-boarded the craft the player just climbed out of, which is exactly what the suppression exists to prevent. The window is one idle frame wide, so it **widens under load**, which is why `sandbox_loop_test.gd` only ever saw it on a busy box. Reproduced independently through the real input path before any edit. The fix is not a second copy of the predicate at the interact handler but the removal of the snapshot: `_refresh_interaction_targets()` now recomputes the block expiry and both interaction candidates, and `_on_interact_requested()` calls it immediately before deciding, so the boarding, station-door and reservation gates are all evaluated at the instant of the press. The suppression rule itself still lives only in `_find_boarding_candidate()`. Witness renamed into the gate as `tests/sandbox_stale_reboard_defect_witness_test.gd` (sentinel `SANDBOX_STALE_REBOARD_DEFECT_WITNESS_TEST_OK`), 19 assertions; one clause of its red assertion was unsatisfiable (`get_active_ship() != arrow` — nothing clears `active_ship` on disembark) and was replaced by observables that actually discriminate a re-board, documented in the suite header. See `bugs.md` for the reproduction and the survey of the same class elsewhere.
+
+### Findings worth acting on
+
+- **Documentation drift is the recurring defect of this session.** Four cases: the README claimed the Aft/Habitat shells still used the Arrow ship atlas (fixed months earlier); stored berth evidence failed its own source manifest, with 7 of 9 files changed; the README claimed the then-current manual engine start/stop and landing actions required the keyboard when all three were already gamepad-bound (the manual engine actions were subsequently retired by the automatic-demand migration recorded below); and `STATION_TOPOLOGY.md` documented an Aft-to-Fleet-Dock edge the registry would actually reject. Three of these caused work to be dispatched at defects that did not exist. **Verify a prose claim against the code before acting on it**, and prefer a test that fails on drift over a corrected sentence — see `tests/station_topology_evidence_test.gd` for the pattern.
+- **Unregistered evidence citations keep appearing.** Two in ship code and five in the topology doc cited timestamps present in no ledger anchor, so no reader could reproduce them. Both sets are corrected and regression-locked.
+- **`tests/station_interaction_flow_test.gd:45` is load-flaky.** It waits on a wall-clock `0.15 s` timer against a `0.08 s` door tween and starves under heavy parallel load. It passes in isolation. Not yet fixed; replace the wall-clock wait with a deterministic condition.
+- **Spawn/vertical-transition provenance overclaim — repaired.** `scripts/world/shipyard_world.gd` no longer calls the spawn/ladder relationship source-supported. Its comment and live `JunctionAccessRamp` metadata now preserve the strongest registered B3 wording: one `00:04–00:52` sequence observes an exposed spawn/return deck and a "short vertical transition"; it does not identify a ladder, stair or ramp, exact placement, rise or tread count. The live stair/ramp stays `modern_interpretation`, with `historical_form_identified = false` and `historical_ladder_supported = false`. Matching research/topology prose was corrected without changing geometry or gameplay, and the focused evidence regression now turns red if an unanchored B3 ladder claim is reintroduced.
+
+### Current-state reconciliation — 2026-08-16
+
+The older handoff bullets immediately above contain several historical dispositions that
+were stale when this tree resumed. Current evidence is:
+
+- The accessibility preset/settings slice is landed and passes `accessibility_presets_test`
+  (74 assertions) plus `accessibility_reentry_integration_test` (48 assertions). Runtime
+  rebinding is now a separate opt-in foundation in `scripts/settings/` with 45 focused
+  assertions; it is not yet wired into the settings UI or automatic `InputMap` mutation.
+- `station_interaction_flow_test`'s door wait is physics-frame bounded and passes 8
+  assertions. The remaining lower-priority wrong-clock inventory still needs separate
+  conversion where applicable.
+- The Cinder Reach activity foundation now has typed location/activity resources,
+  `ActivityDirector`, and a generation-safe checkpoint route (27 focused assertions),
+  but it is not yet integrated into `Main`, HUD objectives, rewards, or a packaged human
+  route. The Phase 8 activity item therefore remains open.
+- The torus tessellation pass is already landed: the current census records 180
+  `TorusMesh` instances at 174,260 triangles, and the rendered smoothness review is
+  recorded in `docs/PERFORMANCE_BUDGET_SCENE_GEOMETRY.md`. Remaining performance work is
+  native-hardware frame/GPU/VRAM benchmarking and the measured trim plan, not another
+  torus pass.
+- `MATRIX-001` now keeps run-variable terminal text out of `results-canonical.tsv` while
+  retaining strict exit, sentinel, assertion, and diagnostic gates. `CAPTURE-001` is
+  partially fixed: the neutral crop uses a controlled ship-material reference and the
+  harness fails closed without a renderer, but cockpit exterior noise still needs a
+  real-GPU qualification.
+- `tools/release/package_inventory.py` now parses the current format-4 export and validates
+  its bounded `GDSC`/zstd payloads. The current exported EXE produced a deterministic
+  inventory of 1,008 entries, including 328 compiled-script entries; forbidden release
+  paths remain rejected. Native Windows execution and human package review remain open.
+
+### Wave 8 integration checkpoint — 2026-08-23
+
+Wave 8 closes several source-level composition gaps without claiming the remaining
+native, multi-process, packaged-route, or human gates:
+
+- The real `GameFlow` network session now publishes server-owned bomber projectile,
+  damage/respawn, landing, boarding, and moving-interior transitions. A bounded
+  `NetworkRemoteShipCommandSource` admits only the current pilot's generation-fenced,
+  rate-limited finite commands and publishes presentation-only pilot ownership for
+  late join. Clients still cannot mutate ship physics, damage, leases, seats, or combat.
+  The exact focused integration tests and the three-process host/join authority harness
+  now pass, including its impairment/reordering and lifecycle markers. The 30-minute
+  soak and native-Windows two-client playtest remain `NOT_RUN`; Phase 7 therefore remains
+  open.
+- Ember's caller-owned return samples now reach `ORBIT_RETURN`, validate the existing
+  Mudds landing-return contract, and emit exactly-once approach/arrival-ready receipts.
+  The contract deliberately stops before station occupancy because its next existing
+  transition is terminal; no parallel berth, teleport, movement, reward, or `GameFlow`
+  authority was invented.
+- `NearbyActivityRewardAdapter` gives checkpoint race, cargo, patrol, convoy,
+  station-defence, and debris-beacon completion a shared generation-fenced handoff to a
+  caller-owned reward callback/store. It owns no wallet or save data, so this is a real
+  exactly-once integration seam rather than proof of a packaged payout or return route.
+- Station defence now communicates wave state, protected-asset danger, and hostile
+  approach bearing through one fixed presentation budget. Expanded encounter tactics
+  add convoy interdiction, heavy standoff, and damaged-wing regrouping while retaining
+  critical-disengage and station-defence priority.
+- Runtime settings now persist Reduced Flash and low/medium/high Payload Visual
+  Intensity controls with deterministic keyboard/gamepad focus and accessible labels.
+  Bomber terminal/trail presentation consumes the matching profile vocabulary, while
+  the HUD exposes remaining payload, cooldown, and explicit unavailable reasons.
+- Caller-driven cockpit/exterior audio perspective is composed into Halyard, Jovian,
+  Cinder, Torrent, Arrow, and Zenith production craft. Reduced dynamic range updates
+  active director voices, and component destruction emits one deduplicated cue. Native
+  listening remains `NOT_RUN`.
+- Five bounded renderer/resource trims preserve exact visible copies and stable paths:
+  Fleet Expansion cargo containers, station task strips, VIP servery shelves, Aft
+  Junction arc tiles, and Habitat cupola downlights. These are deterministic source
+  improvements, not native frame-time/GPU/VRAM evidence.
+
+### Wave 11 source reconciliation checkpoint — 2026-08-23
+
+The following are landed source-level production compositions and focused deterministic
+audits. They do not constitute a new full matrix, package, native-Windows benchmark,
+audibility pass, or human gameplay review, and no Phase 6–10 umbrella item closes here:
+
+- The streamed Cinder cluster now places the physical Jovian-compatible cargo berth,
+  walkable access and destination terminal. The terminal binds the live source and
+  destination manifest handles, commits the existing transfer receipt into the cargo
+  activity exactly once, and exposes the shared reward handoff without taking inventory,
+  ship-motion, or reward authority. Detached snapshots also drive bounded mining, scan,
+  ordered-beacon, cargo-terminal and recovery cues. A packaged station→Cinder→station
+  journey, human flight review, and broader save/network coverage remain open.
+- Station defence now has one physical station Activity Board and one encounter-content
+  instance at the audited `(90, 0, -10)` anchor. The board composes the real live-combat
+  roster, protected-asset failure/recovery, exactly-once shared reward handoff, reset, and
+  terminal-history persistence without adding a `GameFlow` phase or duplicate combat,
+  health, or reward authority. Package, native, human and network gates remain open.
+- Production Ember cruise now owns the bounded final leg from its prior brake-complete
+  shell to the exact surface Host approach envelope. A generation-fenced completion
+  receipt releases cruise control and hands the retained craft to the Host once, with
+  detached HUD/presentation/audio consumers. The complete surface-and-return repetition,
+  whole-`Main` continuity, native performance, audibility and human review remain open.
+- Cinder now exposes embodied loadmaster and navigator stations with lifecycle-fenced
+  interactions and detached HUD/help/semantic consumers. This broadens source-level crew
+  roles without claiming native controller accessibility, multiplayer playability, or
+  heard audio.
+- Seven later family-local batching passes preserve exact visible copies and authority
+  boundaries: Fleet Dock corner beacons `12→1`, structural-dressing fascia fasteners
+  `6→1` per instance, Habitat corridor seams `9→1`, Jovian ladder rungs `12→1`, VIP
+  cushions `7→1`, station-operations rail fasteners `8→1` per gantry placement, and
+  structural X-braces `8→1`. These are focused renderer-submission facts only. They do
+  not update the last whole-scene geometry census and do not prove driver draw calls,
+  GPU/CPU time, VRAM, or frame-time improvement.
+
+### Wave 13 production reconciliation checkpoint — 2026-08-23
+
+This additive checkpoint records landed runtime and player-visible source outcomes only.
+It does not close any Phase umbrella item, and UIDs, validators, or test counts are not
+counted as project progress:
+
+- Startup now authenticates the real settings-repair receipt, retains failed/retry state,
+  and carries the resolved confirmation through `GameFlow` into the recovery HUD instead
+  of presenting an inferred repair. The resulting focusable status and confirmation are
+  player-visible, while package and native controller review remain open.
+- Cinder's navigator ping now traverses the production network authority, semantic audio,
+  HUD, bridge-result and `GameFlow` seams with identity/generation fencing, retained failed
+  publications, and bounded replacement handling. Multiple detached presentation observers
+  can receive the same lifecycle-fenced state without acquiring navigation authority.
+- Streamed Ember now composes its airless sun and the complete source-level surface-return
+  cadence through `GameFlow`. The authenticated generation/receipt handback fences stale or
+  duplicate completion and returns the retained craft to the existing owner exactly once;
+  it does not claim that the end-to-end journey has been packaged or flown by a human.
+- Bomber projectiles now use the real network presentation loop: replica lifecycle,
+  resynchronization window and acceptance are bounded and generation-fenced while the
+  existing payload HUD/trail/terminal presentation remains the consumer. Siege-lance audio
+  reuse now releases and reacquires pooled voices cleanly instead of creating parallel
+  audio authority.
+- **41** bounded family-local batching changes are committed in this reconciliation span.
+  Representative exact source deltas include station door frame posts `2→1`, Cinder
+  console keys `4→1`, Jovian service panels `7→1`, and range-opponent engine pods
+  `2→1`. The current streamed-Cinder local census preserves **758 visible copies** and
+  **125,706 triangles** across **209 MeshInstance3D + 12 MultiMeshInstance3D = 221** renderer
+  nodes/surface submissions. These family-local facts do not update the historical
+  whole-scene census or establish a driver draw-call or frame-time delta.
+
+The full matrix, source-current package, native-Windows execution, uninterrupted human
+playthrough, audibility review, representative native frame/GPU timing, and VRAM gates all
+remain `NOT_RUN` for this checkpoint.
+
+### Wave 14/15 production reconciliation checkpoint — 2026-08-23
+
+This additive checkpoint records landed runtime and player-visible source outcomes only.
+It does not close a Phase umbrella item or claim percentage progress:
+
+- Ember's terminal return now uses the current craft's real registered home berth, existing
+  lease token, `HeroShip` landing lifecycle and live occupancy before consuming one physical
+  arrival receipt. Abort, destruction, detach/re-entry and replay fail closed without adding
+  movement, berth or reward authority. The terminal persistence record now rejects actual
+  movement/release/GameFlow authority, correlates complete nested evidence, and is retired
+  exactly once on a fresh station startup; a failed atomic retirement remains retryable.
+- The Aft operations room now contains one physical, on-foot Activity Board console. It opens
+  and focuses the existing paused selection page but owns no activity selection, start,
+  generation or reward state. Halyard's visible port airstair now crosses a real 1.90 m hull
+  aperture into the cabin, leaving 1.14 m clearance around the production Player capsule and
+  preserving the wall collision outside the hatch.
+- On-foot first/third-person choice now persists through the existing settings store and fresh
+  restart, including schema migration and retained-tree re-entry, while ship chase/cockpit
+  camera authority remains separate. The chase SpringArm also keeps its camera point and four
+  near-plane corners outside every production craft's own enabled hull when an obstacle forces
+  maximum retraction; the reproduced Torrent case moved from 0.692 m inside its hull to 0.020 m
+  clear without weakening external obstruction avoidance.
+- Guided Torrent return publishes the existing landing tutorial when `RETURN_TO_YARD` begins,
+  rather than after landing. Active tutorial glyphs now follow the current input device and
+  remapped profile, refresh after retained HUD re-entry with the same generation, and remain
+  dismissed after later device changes.
+- Interrupted-session recovery now offers a fenced **Save Support Summary** action through the
+  existing privacy-safe bounded local export sink. It does not upload, use the clipboard,
+  acknowledge recovery, or change settings/gameplay. Explicit HUD Exit and Windows close now
+  independently clean both existing safe-start and session-diagnostic markers; ordinary
+  detach/free and forced termination remain intentionally dirty for next-start recovery.
+- A service courier that intersected the complete Dock 05 walkable-pad thickness now flies
+  above it with 2.320 m player headroom. The pad, graph waypoints, berth clearance and task,
+  interaction, collision and lifecycle ownership remain unchanged. Standoff escort fire also
+  revokes synchronously when its defender stands down, so a committed lance cannot resolve in
+  `RETURN_TO_YARD`. Retained-`Main` combat restoration now waits for the station-defence child
+  to restore alpha, beta and gamma before auditing the exact ten-source live roster, eliminating
+  the transient seven-source re-entry error without weakening source identity or teardown.
+- Reviewed presentation-only sharing/batching preserves authored transforms, materials, named
+  anchors, visible copies and separate physical authority across Cinder extraction/beacon trim,
+  Jovian restraint/cabinet detail, Arrow and Bulwark cockpit detail, Halyard dampers, Fleet Dock
+  mast caps, Habitat mess legs, Observation/VIP practical lenses, Aft pipe clamps, service-agent
+  hulls, exterior target lamps, Salvage Terrace rails and DockMast collars. Salvage rails retain
+  their two perpendicular recipes with exact visual-to-collision AABB checks; DockMast collars
+  retain authored 48x16 metadata and the existing normalized 40x16 live recipe. These are local
+  allocation/submission facts, not whole-scene or driver timing evidence. Cinder's streamed
+  transition contract now reconciles the collar conversion's exact `223/225 -> 219/221`
+  pre-bind/bound renderer counts and freezes the two collar, aperture-lens and beacon-ring batch
+  roster together, so the hidden-first-draw/fade lifecycle accepts the current production graph.
+
+Focused production coverage for these paths includes
+`game_flow_planetary_return_approach_test.gd`, `game_flow_planetary_return_test.gd`,
+`planetary_return_persistence_adapter_test.gd`, `station_interaction_flow_test.gd`,
+`halyard_airstair_cabin_traversal_test.gd`, `on_foot_camera_mode_persistence_test.gd`,
+`flight_input_test.gd`, `torrent_sortie_completion_test.gd`,
+`first_sortie_tutorial_hud_integration_test.gd`,
+`game_flow_session_recovery_hud_integration_test.gd`,
+`main_session_diagnostics_integration_test.gd`, `station_navigation_graph_test.gd`,
+`outbound_route_clearance_test.gd`, and each changed presentation component's focused test.
+
+The full isolated-process matrix, source-current package review, native-Windows execution,
+uninterrupted human playthrough, audibility review, representative native frame/GPU timing and
+VRAM gates remain `NOT_RUN` at this source checkpoint.
+
+### Wave 25 production reconciliation checkpoint — 2026-08-24
+
+This checkpoint records source-level runtime and player-facing outcomes, not a phase
+completion percentage or a substitute for native/human review:
+
+- Cinder race countdown, missed-gate, saved-best, scan, cargo-transfer, mining and
+  station-defence recovery states now give explicit next actions. Convoy actor loss,
+  bunker actor mismatch, Jovian repair-receipt staleness and Ember landmark range loss
+  likewise recover through the existing owners instead of leaving ambiguous retained UI.
+- Ember surface progression now shows the next landmark, return/take-off state, latched
+  hazard recovery and reward audio through the existing surface/session bindings. The
+  broader mid-visit save/re-entry problem remains open because restoring it safely also
+  requires caller-owned craft/player embodiment, berth lease and travel-session state.
+- Combat gains one bounded opponent pressure-turn telegraph, while station defence now
+  retires a missing hostile cleanly and tells the player to reset/redeploy. Cargo and
+  planetary audio re-entry/teardown paths release their retained voices; Hero exhaust
+  presentation now ignores already-freed plume/light references during teardown.
+- Production visual cost was reduced across Aft, Fabrication, Observation, Habitat,
+  Jovian, VIP, Salvage Terrace, Cinder scan/cargo/hauler/interceptor, Torrent, Arrow,
+  Bulwark, Zenith, Halyard and station-service presentation. The current streamed-Cinder
+  local census is **196 MeshInstance3D + 15 MultiMeshInstance3D = 211 renderer/surface
+  submissions**, retaining **755 visible copies and 125,706 triangles**. These are
+  component/source facts only; native driver draw calls, frame time and VRAM remain
+  unmeasured.
+- Focused affected-component tests pass at the merged checkpoint, including physical
+  cargo detach/re-entry, scan state transitions, station defence, Torrent reconstruction,
+  Habitat, Salvage Terrace and VIP reception. The complete isolated-process matrix was
+  intentionally not run for this short delivery checkpoint.
+
+Native gameplay-distance visual review, real audio listening, representative Windows
+performance measurement, uninterrupted end-to-end playthrough and repeated planetary
+loop endurance remain `NOT_RUN`.
+
+### Wave 26 production reconciliation checkpoint — 2026-08-24
+
+This source checkpoint records changes a player can exercise in the next package:
+
+- The packaged pilot mesh now tolerates Windows decoder-level normal/tangent variance
+  without replacing a valid skinned pilot with the safe fallback. Geometry, UVs, rig,
+  skin, materials and animations retain their exact production contracts.
+- Cinder patrols now fail and recover explicitly when their active craft exits, is freed,
+  or reports a non-finite transform; detach/re-entry publishes one terminal result and
+  legacy callers retain their existing start/advance behavior. Skirmishers also gain a
+  bounded rear-cross tactic, and successful patrols publish their semantic audio cue.
+- Player-facing route and landmark readability was strengthened across Ember Moon, Fleet
+  Dock and its expansion berths, Aft Operations, Upper Operations, Habitat, Fabrication,
+  Observation, VIP reception, Central/Jovian berths, Salvage Terrace, Cinder extraction,
+  station defence, the activity console and the exterior target range. The Aft cyan route
+  now reaches the live stair base without clipping the Operations Access post, and range
+  acquisition frames remain approach-facing while their targets rotate.
+- Arrow, Bulwark, Zenith, Halyard, Cinder bomber/hauler/interceptor and station-service
+  silhouettes gained bounded recognition cues. Structural, service-agent and Jovian berth
+  presentation also share immutable meshes where authored copies are identical; these are
+  local allocation facts, not native driver performance claims.
+
+Focused affected-feature suites pass at the merged checkpoint. The full matrix was not run.
+Human gameplay-distance visual review, real audio listening, representative Windows GPU and
+frame-time measurement, and an uninterrupted end-to-end playthrough remain `NOT_RUN`.
+
+### Wave 27/28 production reconciliation checkpoint — 2026-08-24
+
+This source checkpoint records player-visible and runtime changes intended for the next
+package:
+
+- The recurring full-screen service-drone flash now uses one assembly-wide near-camera
+  clearance bound across every body, pod, thruster, glow and navigation-lens surface. The
+  bound covers the exact furthest surface pair plus the production camera near plane and a
+  reserve, while far visibility remains unbounded; this replaces the incomplete per-part
+  cutoff that allowed remote pieces of a close drone to cross the camera plane.
+- Cinder interceptor, cargo-hauler and long-range-bomber component damage now has steady,
+  craft-specific silhouette feedback driven by the existing damage ledger. Station defence
+  adds a bounded revenge-dive response, and exterior range targets give clearer hit feedback.
+- Walked-route readability and station identity were strengthened at Halyard boarding,
+  Observation, Central Berth, Jovian, Fleet Dock, Ember, Habitat, Aft, Salvage Terrace and
+  Dock Operations. The Dock Operations floor pass consolidates the existing inset instead of
+  layering duplicate coplanar decoration.
+
+Focused affected-feature suites pass at the merged checkpoint. The complete matrix was not
+run. Native gameplay-distance review of the new source-current package, representative
+Windows performance measurement, real audio listening and an uninterrupted end-to-end
+playthrough remain `NOT_RUN`.
+
+### Wave 29/30 production reconciliation checkpoint — 2026-08-24
+
+This checkpoint records player-visible and runtime changes intended for the next package:
+
+- Service drones and the articulated Aft service arm now disappear as complete assemblies
+  before any remote pod, glow, lens, fork or arm segment crosses the camera near plane. This
+  removes screen-filling flashes and partial floating pieces while preserving normal-distance
+  visibility and the Aft pedestal.
+- Independently keyed runtime cards preserve SafeStart, tutorial and background status while
+  the bomber occupies its dedicated foreground band. Server-browser selection and focus now
+  survive result navigation and retry states. Exact Cinder piloting copy reads `RELEASE
+  PAYLOAD`, other craft retain `FIRE`, and keyboard, Xbox and PlayStation glyph changes repaint
+  the controls and payload action in place without focus loss.
+- During an active Ember survey, the current on-foot player can analyse the authored sample
+  rack and receive an immediate completed marker; a newer survey resets it. Reaching the
+  staging relay records one local diagnostic and changes its marker without advancing the
+  route or granting a reward. Both labels now sit clear of their physical props.
+- An admitted seated Jovian engineer repair now displays a steady component-local progress arc
+  and work lamp. Completion, interruption, role release, destruction, detach and reuse clear
+  the cue immediately.
+- Redundant outer strips were removed from Observation and Salvage while keeping route seams,
+  ramps, collision-backed pads, markers, rails and traversal intact. Observation changes
+  `426 -> 366 m²`; Salvage changes `456 -> 396 m²`; the total walkable-footprint reduction is
+  `120 m²`.
+
+Package review, native-Windows gameplay and GPU/frame-time measurement,
+real-controller and audio review, and an uninterrupted human playthrough remain `NOT_RUN`.
 
 ## Phase 1 — Research
 
@@ -163,7 +778,7 @@ Carry forward the unresolved work: improve material/lighting readability while p
 
 **Required tests for any loop change:** start with the affected component test, then add/extend `station_surface_playability_test.gd`, `boarding_accessibility_test.gd`, `controller_physical_sortie_test.gd`, `controller_sortie_lifecycle_test.gd`, `torrent_sortie_completion_test.gd`, `sandbox_loop_test.gd`, `fleet_lifecycle_safety_test.gd`, `main_reentry_quality_test.gd`, and `smoke_test.gd` as applicable. The integration assertion must use the production scene and normal public actions; a test that directly sets the final phase is setup evidence only.
 
-### Earlier stabilization work and remaining acceptance
+### Current playable-first stabilization checkpoint
 
 - [x] Correct the imported pilot's raw `+Z` semantic face with a Player-owned mount-only `PI` yaw offset so the visible model faces actual travel while velocity, controls, camera-relative movement, and animation playback remain unchanged; preserve zero offset for the legacy fallback and all boarding/re-entry paths.
 - [x] Replace the unreachable spawn-adjacent decorative stair collision with one co-located rendered/colliding ramp and shallow uniquely named tread overlays; move the obstructing mast onto supported deck; require no-jump continuous `W` traversal and at most `0.10 m` player-foot-to-rendered-plane separation.
@@ -171,11 +786,12 @@ Carry forward the unresolved work: improve material/lighting readability while p
 - [x] Audit both a curated critical roster and discovered broad upward-facing route meshes so floor-looking surfaces cannot silently remain unsupported; presentation-only exclusions require explicit reasons.
 - [x] Remove the directional Arrow hull atlas from station floors, walls, and stairs; bind a dedicated symmetric albedo/normal/roughness station set through continuous world-triplanar mapping while keeping Arrow, Jovian, Torrent, and Zenith material identities unchanged.
 - [x] Regenerate the Central berth DeckComposite with canonical non-mirrored metric UV0 and bounded live imported anisotropy/density, replacing the stretched/mirrored perimeter mapping.
-- [ ] Complete the first uninterrupted normal-controls human playtest of the next exact source-pinned stabilization package and turn every P0/P1 observation into a reproduction plus regression before resuming Phase 3 content expansion.
+- [x] Run and record the definitive post-fix full matrix for the expanded test inventory, rebuild the Windows package from the exact tested source, and rerun package-level probes for facing, no-jump stairs, floor support, station atlas exclusion, and Central UV orientation. Evidence: `artifacts/test-matrix/roadmap_run_auto/20260815T112607Z` and `artifacts/package-probes/20260815T113255Z`.
+- [ ] Complete the first uninterrupted normal-controls human playtest of that exact post-fix package and turn every P0/P1 observation into a reproduction plus regression before resuming Phase 3 content expansion.
 
-### Resolved audit contracts and remaining acceptance
+### Current audit-candidate implementation notes
 
-These records began as `CANDIDATE` reports. The recorded audit had
+These records began as `CANDIDATE` reports. The current-source audit has since
 resolved all four code seams below: the receipt collision was reproduced and
 fixed; both audio acceptance paths now mutate presentation state only after the
 shared playback gate accepts; and the explicit whole-`Main` deferred-damage
@@ -199,10 +815,10 @@ mixed package result.
 - [x] Make the loop repeatable after the guided sortie: choose any nearby flyable without a menu, land at a compatible berth, disembark, switch craft, suffer collision damage, recover from a deliberate high-speed crash in the same world, and regenerate the lost craft at its home berth.
 - [x] Make guided Torrent completion a strict physical lifecycle rather than a combat-victory flag: defender destruction grants only return authorization; the same craft must complete an accepted lease-bound landing, occupy the exact dock, reach automatic engine-offline state after `1.5` neutral physics seconds, and finish its generation-guarded physical disembark before the guide commits once. Landing, shutdown, or victory alone cannot complete it, and destruction/duplicate signals during return or exit fail back to a coherent retry.
 - [x] Upgrade physical berths and landing to schema v2: opaque requester/ship-bound lease tokens, complete root-collision envelopes, strict dock-fit acceptance, snapshotted berth identity/parent/transform/volume, collision-aware step and rotation checks, lease-to-occupancy conversion only at completion, and fail-safe release on timeout, obstruction, authority loss, destruction, or reuse reset.
-- [x] Add direct-child `ShipBerthFeedback` displays observing production berth leases (the initial five-display slice), rendering only the authoritative `released`, `approach`, and `occupied` lease states as cyan `BERTH OPEN`, amber `APPROACH VECTOR`, and green `BERTH SECURED` deck cues. They are non-authoritative, collision/audio/navigation-free, presentation-only modern interpretation; no original docking display, colour, label, animation, dimensions, material, or placement is claimed.
+- [x] Add exactly five direct-child `ShipBerthFeedback` displays, one for each current production berth, rendering only the authoritative `released`, `approach`, and `occupied` lease states as cyan `BERTH OPEN`, amber `APPROACH VECTOR`, and green `BERTH SECURED` deck cues. They are non-authoritative, collision/audio/navigation-free, presentation-only modern interpretation; no original docking display, colour, label, animation, dimensions, material, or placement is claimed.
 - [x] Implement a physically parked interceptor candidate, engine states, arcade flight, weapons, landing assist, and a stable docking latch.
 - [x] Revise the first flight-control pass with direct mouse attitude, yaw-only `A`/`D`, explicit Up/Down pitch and `Q`/`R` roll while preserving `E` interaction, nose-aligned velocity assist, prompt release/reversal, discarded parked/startup input, and exact nose/reticle alignment in both chase and cockpit views. Preserve coalesced mouse motion in a bounded per-tick backlog instead of dropping saturated input, compose simultaneous mouse yaw/pitch as one local rotation vector, and cover equivalent 30/60/120 Hz trials including a saturated diagonal sweep. A brief `W` tap retains the berth latch, sustained `W` departs along the visible nose, and real external motion/impulses remain preserved and clear landed authority.
-- [x] Add a calibrated gamepad layout with `0.18` deadzones: left stick throttle/yaw, right stick pitch/roll, triggers brake/fire, `L3` boost, `A` hover, `B` barrel roll, `X` interact, `Y` camera, Start pause, D-pad Left landing assist, `LB`/`RB` chase-distance adjustment, and Back for the shared `toggle_controls_overlay` action. Every input-requiring core-loop action carries a gamepad binding and `controller_physical_sortie_test.gd` completes the loop, including automatic propulsion, the overlay, and pause/resume, without a keyboard. Remapping, conflict/reset UI, curve/hold-toggle execution and keyboard/Xbox/PlayStation glyphs have since landed; real-hardware validation and broader accessibility remain open in Phase 9.
+- [x] Add a calibrated gamepad layout with `0.18` deadzones: left stick throttle/yaw, right stick pitch/roll, triggers brake/fire, `L3` boost, `A` hover, `B` barrel roll, `X` interact, `Y` camera, Start pause, D-pad Left landing assist, `LB`/`RB` chase-distance adjustment, and Back for the shared `toggle_controls_overlay` action. Every input-requiring core-loop action carries a gamepad binding and `controller_physical_sortie_test.gd` completes the loop, including automatic propulsion, the overlay, and pause/resume, without a keyboard. Remapping, conflict resolution, curve/hold-toggle data, controller glyphs, and real-hardware validation are still open in Phase 9.
 - [x] Replace the player-facing manual engine loop with automatic demand and idle. **Old → new:** keyboard `Y` start / `X` stop and gamepad D-pad Up / Down were removed; accepted throttle, pitch/yaw/roll or look, boost, brake, hover, barrel-roll, landing, and fire intent now wakes propulsion in the same physics tick, while camera/UI/interaction does not. Exactly `1.5` neutral physics seconds outside landing/recovery settles engine state, thrust visuals, and continuous audio `OFFLINE`; landing holds power until touchdown and then uses that countdown. The reason is responsiveness and flow: the first meaningful input is never discarded behind a separate startup step, and a secured return becomes exit-ready without a second stop command. Internal `request_engine_start()` / `request_engine_stop()` compatibility APIs remain non-player-facing.
 - [x] Keep the fixed nose/weapon reticle and add a separate pointer-transparent flight-path cue projected from world velocity through the active camera, including safe-ellipse clamping, a distinct rearward state, and safe suppression at low speed or outside valid flight.
 - [x] Add a `V` chase/cockpit toggle, mouse-wheel chase-distance adjustment, swept-sphere SpringArm collision avoidance against the world and other physical ships while excluding the piloted craft's own RID, and a bounded chase-boom attitude response with capped angular lag while the optical axis and aim remain nose-locked.
@@ -216,25 +832,43 @@ mixed package result.
 - [x] Replace the central Torrent berth's old procedural visual inset/fascia/trusses with an identity-mounted Blender-authored presentation shell: 111 editable components across five semantic layers batch to eight UV0-mapped runtime meshes and 11,508 triangles. Preserve the established walking/berth collision, add collision-only support across the visible berth-to-launch seam, and retain three gear-aligned retracted clamps, stowed utilities, trenches/drains, neutral work lighting, a control pedestal, safe routes and a clear launch volume. The layout and hardware remain provisional modern interpretation.
 - [x] Complete the bounded interim material pass with registered project-original albedos and locally derived normal/roughness maps for Torrent, Arrow, Jovian, and the central berth's authored UV0 walking skin, plus per-material physical response, generated tangents where required, and mipmaps. These are modern prototype materials, not final authored/scanned/baked ORM sets or historical assets.
 - [x] Adopt Godot Forward+ as the desktop rendering baseline and add Low/Medium/High runtime profiles; High enables SSAO, SSIL, TAA, AgX tone mapping, glow, and subtle volumetric fog, subject to an unproven hardware performance budget.
-- [x] Add a persistent pause settings panel for independent ship/on-foot sensitivity and invert-Y, camera FOV, five audio groups, graphics profile, and window mode. Modern/Classic labels describe control history; runtime remapping, conflict/reset UI and stored input options are now implemented (Phase 9).
+- [x] Add a persistent pause settings panel for independent ship/on-foot sensitivity and invert-Y, camera FOV, five audio groups, graphics profile, and window mode. Modern/Classic control entries are descriptors only, not alternate runtime remapping.
 - [x] Prepare the v0.11 source transition to **Mudds Shipyards** branding, correct the registered normal-map/hero-asset texture handedness, broaden landing-assist acquisition while preserving exact final berth authority, and widen collision-safe boarding discovery without allowing through-hull or unavailable-seat shortcuts.
+- [x] Record the earlier 37-suite Godot 4.7.1 headless matrix with 2,571 `PASS` results before the current input/camera/cockpit closure work.
+- [x] Record the prior pre-operational-lattice settled-tree matrix for all 40 then-current `tests/*_test.gd` suites with 2,819 recorded `PASS` assertions, 40 suite sentinels, and zero failures, errors, warnings, leaks, or timeouts, including the control-mapping, flight-path-cue, combined flight-quality closure, and saturated-diagonal input audits. The 202-file scoped manifest remained unchanged during that historical run at SHA-256 `a03f98deaf2e2a9b74e9a6c35a141ad504f71c850fdc8742ed0127eb1e4f1b5d`; it is not evidence for the expanded 44-suite tree.
+- [x] Record the now-superseded v0.9 operational-lattice matrix under Godot 4.7.1: all 44 then-current `tests/*_test.gd` suites exited 0 with 3,392 exact `PASS:` assertions and 44 suite sentinels; the scoped 221-file manifest remained byte-identical before and after at SHA-256 `66d33185ee8d922af931d90330296518e16fbdc58eeb24c08c6e6c7133161273`. This is historical evidence, not the definitive matrix for the expanded 54-suite v0.10 tree.
+- [x] Record the now-superseded Godot 4.7.1 v0.10 matrix: the editor/import gate exited `0`; all 54 suites then present exited `0` with 4,075 anchored `PASS:` assertions and 54 exact terminal sentinels; raw logs contained zero failures, errors, warnings, timeouts, or genuine RID/ObjectDB/resource-leak/orphan diagnostics. The scoped 252-file manifest—2 root configuration files, 76 scripts, 21 scenes, 120 test files, and 33 assets—remained byte-identical before and after at SHA-256 `204f6d482370684c823e84ecef66a44540d37f84f583915802df56533cf5197c`. This is historical evidence, not the definitive matrix for the 65-suite v0.11 source tree.
+- [x] Record a definitive editor/import gate and full 66-suite matrix for the authored-central-berth source checkpoint: all 66 suites exited `0` with 6,284 anchored `PASS:` assertions and 66 success sentinels, with no warning/error/failure diagnostics. The 390-file source scope remained byte-identical before and after (manifest SHA-256 `922c772dd900777d176abc530a66803abfdde9f789ca9001b76f818318d68f8c`); the aggregate SHA-256 of the ordered per-suite log hashes is `4efac8ac185b46cb02893cea8e473bc56e7d949e42ccb91c4e2f049eea0a1e2c`.
+- [x] Record the integrated 69-suite Godot 4.7.1 release matrix for the authored central berth, combat audio/VFX, receipt lifecycle, and source-bounded space backdrop: all 69 suites exited `0` with 6,545 anchored `PASS:` assertions, zero failure/error/leak diagnostics, and a byte-identical 456-file source scope (ordered source-manifest SHA-256 `999ed919e1b276f4285d14ab468a04cbf3820756903f037493b95ca831dc4a53`). Preliminary passes exposed three shutdown-only Dummy-audio WAV diagnostics in test teardown; all affected harnesses now cross a bounded mixer boundary before freeing the presentation bank, and the definitive matrix plus repeated verbose focused runs are clean.
+- [x] Record the now-superseded post-ledger/Fleet-Dock-Comb Godot 4.7.1 matrix: editor/import exited `0`; all 72 then-current suites exited `0` with 6,673 anchored `PASS:` assertions and zero failure/error/leak diagnostics. The runnable 426-file scope (`project.godot`, export/audio configuration, `scripts/`, `scenes/`, `tests/`, `assets/`, `art_source/`, and `tools/`) remained byte-identical at ordered-manifest SHA-256 `bf3408f108a9be3c134188a54fca710450d05a987ffb6d034801c59843a2a4a8`; documentation and generated/export outputs were explicitly outside that scope. Exact results-table SHA-256: `8fd6eb2c54c8fb35d6ca7b12f14b5279216054ab12a1d8e8560d365771366ce7`. This remains historical rather than the definitive v0.12 result.
+- [x] Record the definitive Godot 4.7.1 v0.12 matrix: editor/import exited `0` in 2,844 ms; exactly 75 of 75 suites exited `0` with 6,969 anchored `PASS:` assertions and 75 exact terminal sentinels (73 `OK` plus two `PASS`); logs contained zero timeout/failure/error/fatal/RID/ObjectDB/resource/orphan diagnostics and only 76 generic root-startup warnings. The 452-file source scope remained byte-identical before and after at SHA-256 `2115dddd6c11fa751c804b1e3140e0b2cf1b476b478675fe17ed2f7383e68792`; results-table, exact-sentinel-validation and process-hash-aggregate SHA-256 values are `521d9bfd278ddec4ba0623f070b08487d962e7748d9eeafce09134f9125fe349`, `c243dfea866cb07a01343ad0300db10f9a72a12948b5a7c9a1d6e76c45ac1e05`, and `f0338503e70ca534a666b04c2ee41e4cb22d180f45fa7818ce110a6cbd493b10`.
+- [x] In the now-superseded v0.10 capture pass, run all 27 states declared by the main rendered-evidence runner successfully at 1280×720; these staged automated checks are historical integration evidence, not validation of v0.12, an uninterrupted human playtest, final visual sign-off, or authenticity proof.
 - [x] Pass the earlier vertical-slice milestone's clean-copy key gates.
 - [x] Put the authority-aware `ShipCommand`/command-source contract on the live `HeroShip` flight/fire path, with one validated command snapshot sampled per physics tick and a production `LocalShipInputSource`. This is a swappable local authority seam, not networked control; engine/landing/interaction remain coordinator events. Ship-local thrust presentation now consumes the same sampled command's boost value together with the resulting actual throttle rather than reading a separate local action.
 - [x] Put the source-registered `CombatResolver` on both live player and opponent hitscan paths, with explicit stable source IDs, authority-owned factions/weapon profiles, monotonic sequence validation, self-exclusion, world occlusion, friendly-fire policy, and typed proxies into existing ship/drone lifecycles. This is not multiplayer networking.
 - [x] Add one global `PulseWeaponPresentation` for accepted resolved shots: a fixed preallocated six-slot oldest-recycle pool, three bounded modern emissive styles, deterministic world-space travel/impact visuals, and no collision, ray queries, damage, firing cadence, audio, or gameplay authority. Re-entrant signal callbacks, saturation, reuse, and tree-exit cleanup preserve exact pool accounting. This is project-original presentation, not an authenticated historical weapon effect or networked projectile simulation.
-- [x] Add one finite-range positional 3D `ShipAudioRig` to each of the then-implemented five production craft (historical initial audio slice; the live fleet now has nine), using three definition-bound profiles: Torrent and Zenith `standard_fighter`, Arrow `efficient_twin_recon`, and Jovian and Halyard `heavy_quad_freighter`. Each deterministically synthesizes four loop layers and eight cues into a fixed six-voice/two-transient hierarchy, releases PCM/playback handles on detach, and regenerates once on re-entry. All profiles, waveforms, ranges, levels, and cue mappings are project-original modern sound design; automated routing/queue/lifecycle checks make no real-output audibility or historical-authenticity claim.
+- [x] Add one finite-range positional 3D `ShipAudioRig` to each of the exact five production craft, using three definition-bound profiles: Torrent and Zenith `standard_fighter`, Arrow `efficient_twin_recon`, and Jovian and Halyard `heavy_quad_freighter`. Each deterministically synthesizes four loop layers and eight cues into a fixed six-voice/two-transient hierarchy, releases PCM/playback handles on detach, and regenerates once on re-entry. All profiles, waveforms, ranges, levels, and cue mappings are project-original modern sound design; automated routing/queue/lifecycle checks make no real-output audibility or historical-authenticity claim.
 - [x] Replace production combat transients with seven original checked-in 48 kHz mono PCM cues and one presentation-only ten-voice positional bank. Safed triggers, accepted player/defender shots, delayed endpoint impacts, and ship explosions route from their exact non-authoritative event seams into separate fixed dry/fire/impact/explosion pools; rejection, overlap, immutable world positions, resource identity/content, detach/re-entry, and zero collision/gameplay authority are regression-locked. Fixed-seed Linux regeneration is byte-identical, but cross-libm identity, real-hardware audibility, final mix quality, and historical authenticity are not claimed.
 - [x] Harden whole-tree reuse: detach/re-entry preserves `Main` node identities and gameplay sentinels without replaying startup, reconnects each combat source and integration signal exactly once, clears transient pulse state, rebuilds released procedural audio resources, and retains `CombatResolver` sequence history so captured requests cannot damage twice. Process-owned regeneration deadlines never mutate a detached tree; occupied home berths cause bounded retries, and reuse restores the same craft instance only after it owns the physical lease. These are local lifecycle/replay guarantees, not networking.
 - [x] Integrate a reusable `MovingInteriorFrame` local-authority foundation that carries registered occupants through translation/rotation, aligns floor classification, provides frame-local gravity, and applies exit velocity once; make the real `PlayerController` resolve walking, jumping, braking, facing, and animation in the live deck-tangent plane. This is not multiplayer or multi-crew gameplay.
 - [x] Expand the rendered-evidence runner to 27 distinct validated states, adding the integrated freight approach plus Jovian walk-up, profile, ramp, cargo bay, passenger cabin, cockpit, launch, and return to the prior title/station/fleet/module/flight/combat/landing sequence.
 - [x] Produce and validate a 12-frame, HUD/CanvasLayer-free Forward+ hero-cell capture set at 2560×1440 covering the wide berth, Torrent front three-quarter/profile/aft, landing gear and clamps, pilot walk-up, canopy boarding, seated cockpit exterior, cockpit sight, and cockpit power-off, online and critical states. Together with the 27-state gameplay runner, this forms the 39-frame pre-operational-lattice subset; capture-only staging is not an uninterrupted human playthrough or final human visual sign-off.
+- [x] Produce and record the now-superseded three-craft Windows x86-64 export at `builds/windows/KethShipyardsReforged.exe`: version `0.5.0.0`, 120,379,616 bytes, SHA-256 `346cbf89b12729bbb233492d6d4cf7fcd37e3af54a993438a616da4cd8853fac`, PE32+ Windows GUI with 12 sections. Its product name and description were embedded correctly; the absent PE Security Directory recorded that it was unsigned.
 - [x] Start that 0.5 artifact's embedded pack successfully under Linux Godot 4.7.1 with the headless dummy-audio smoke command; this is historical package evidence, not validation of the later builds or native-Windows behaviour.
+- [x] Produce and record the now-superseded Windows x86-64 export at `builds/windows/KethShipyardsReforged.exe`: version `0.6.0.0`, 135,995,400 bytes, SHA-256 `0034ba97cb883cbe15df8c27e76d9b2bbd7abc82fb269d381910bcf010eaa92a`, PE32+ Windows GUI x86-64 with 12 sections, correct product name/description, and tests/artifacts/tools excluded. Its zero PE Security Directory records no embedded Authenticode signature; it predates the B5-linked reconstruction v1 and is not source-current.
 - [x] Start that older 0.6 executable's embedded pack successfully under Linux Godot 4.7.1 with the headless dummy-audio smoke command; this is historical package evidence, not validation of the newer source or native-Windows behaviour.
-- [ ] Validate the next source-pinned stabilization artifact through an uninterrupted native-Windows run and no-shortcut human playtest; v0.12 is historical.
+- [x] Produce and inspect the now-superseded v0.7 Windows x86-64 export after the B5-linked Torrent reconstruction: 136,002,696 bytes, SHA-256 `027d8b4834091dc46754a17d75fc70d51dbdb5f97199d4b85ad6fd267bc59416`, version `0.7.0.0`, PE32+ Windows GUI x86-64 with 12 sections, correct product name/description, zero Security Directory (no embedded Authenticode signature; external catalog signing not assessed), no exported tests/artifacts/tools paths, and a clean Linux Godot 4.7.1 embedded-pack smoke exit. Later input, camera, HUD and cockpit changes make it historical rather than source-current.
+- [x] Refresh and inspect the now-superseded v0.8 Windows x86-64 artifact after the final diagonal-input correction: 137,079,000 bytes, SHA-256 `2f39ab1f818327e76f4d5b50654ac4825010162089cca14432a12d4a568fdc60`, version `0.8.0.0`, PE32+ Windows GUI x86-64 with 12 sections and zero Security Directory. Its format-4 Godot 4.7.1 PCK contains 137 entries and no tests/artifacts/tools paths; Linux Godot starts the embedded pack with dummy audio and exits 0. This artifact predates the settled Phase 3 operational-lattice source and is historical rather than source-current.
+- [x] Produce and inspect the now-superseded v0.9 Windows x86-64 artifact at `builds/windows/KethShipyardsReforged.exe`: 137,200,568 bytes, modified `2026-08-13 04:59:22.156788156 +0100`, SHA-256 `37ab59451723e80fcd29088ea5c2ebd117906588f99528819fc25ca1f1f104a0`, version `0.9.0.0`, PE32+ Windows GUI AMD64 with 12 sections, and correct product name/description. Its zero Security Directory records no embedded Authenticode certificate; external catalog signing was not assessed. Inspection accounted for all 149 entries in its format-4 Godot 4.7.1 PCK and found no tests/artifacts/tools paths. Linux Godot started the embedded main pack with dummy audio and exited 0. This is historical package evidence, not evidence for later source, native-Windows behaviour, representative performance, or audibility.
+- [x] Produce and inspect the now-superseded v0.10 Windows x86-64 artifact at `builds/windows/KethShipyardsReforged.exe`: export exit `0`; 137,356,496 bytes; modified `2026-08-13 08:25:39.484373665 +0100`; SHA-256 `fe41f1b52e43c6e11b3fd3782088a66efb851b6e70ca0ea49a99f8c5126d6147`; PE32+ AMD64 Windows GUI with 12 sections; file/product version `0.10.0.0`; correct product name/description. Its zero-offset/zero-size Security Directory records no embedded Authenticode certificate; external catalog signing was not assessed. This is historical package evidence, not source-current evidence.
+- [x] Audit that historical v0.10 embedded Godot 4.7.1 format-4 PCK: exactly 161 unique entries with sorted-entry-manifest SHA-256 `765f5d31b73e45e119d45fc62e67dc71684b1931758b6fbeaa1ec753bec4091a`; exactly 12 additions over v0.9 cover compiled/remap entries for `ShipAudioRig`, `PulseWeaponPresentation`, and `ShipBerthFeedback`; all three scripts and all three scenes load; and there are zero tests/artifacts/tools paths or raw `.gd`/`.tscn`/`.tres` files. An isolated Linux headless Dummy-audio main-pack smoke ran 300 frames in 3.258 seconds and exited `0` with zero error, warning, leak, or orphan markers. The 133-file release scope remained byte-identical before and after at SHA-256 `1db8afc2e44d809c5df2802885e292e9181d3df96e598e7f63bc2c8f12166b87`. This is historical package/Linux-startup evidence, not evidence for v0.12, native-Windows, representative performance, audibility, or uninterrupted playthrough.
+- [x] Produce and inspect the now-superseded v0.11 Windows x86-64 artifact after the Phase-1 ledger/B5 chronology/Fleet-Dock-Comb checkpoint at `builds/windows/MuddsShipyards.exe`: export exit `0`; 152,061,840 bytes; modified `2026-08-14 03:19:42.759480226 +0100`; SHA-256 `bf2db8ab56d42ac7063fe7cbc894c0f623f3ddfa96f54cc4d5c7105ad9822d98`; PE32+ Windows GUI x86-64, stripped to an external PDB, with 12 sections; file/product version `0.11.0.0`; product name `Mudds Shipyards`; and zero-offset/zero-size Security Directory (no embedded Authenticode certificate; external catalog signing not assessed). An isolated Linux headless Dummy-audio embedded-main-pack smoke ran 300 frames, exited `0`, and emitted no diagnostics after the engine banner. This historical package predates Zenith and is not evidence for v0.12, native-Windows behaviour, representative performance, audibility, or an uninterrupted human playthrough; a detailed v0.11 PCK inventory audit was not recorded in this checkpoint.
+- [x] Produce and inspect the source-current v0.12 Windows x86-64 artifact at `builds/windows/MuddsShipyards.exe`: 153,657,032 bytes; modified `2026-08-14 07:42:29.806068718 +0100`; SHA-256 `014b6e443822cf263d8811af946bda43f29bf10f8986b0dabb6a6d804282b669`; PE32+ Windows GUI x86-64 with 12 sections, product name `Mudds Shipyards`, file description `Modern standalone Keth Shipyards fan remake prototype`, and file/product version `0.12.0.0`. Its zero-offset/zero-size Security Directory records no embedded Authenticode certificate; signing remains pending. Its 44,428,988-byte embedded format-4 Godot 4.7.1 PCK begins at offset 109,228,032 with flags `2`, with no external PCK. Isolated candidate and promoted-artifact Linux headless Dummy-audio smokes each ran 300 frames in about 3.72 seconds, exited `0`, and were diagnostically clean. This is package/Linux-startup evidence, not native-Windows play, performance, audibility, signing or permission evidence.
+- [ ] Validate the finalized v0.12 artifact through an uninterrupted native-Windows run and no-shortcut human playtest.
 
-Earlier matrix, package and capture records are preserved in the [dated roadmap snapshot](docs/history/ROADMAP_CHECKPOINTS_20260906.md). The next prototype decision requires fresh source-pinned regression/package evidence and the native/human gates above.
+Checkpoint terms such as `source-current` and `finalized` in the retained history are relative to that named checkpoint when it was recorded. The v0.12 artifact predates the current pilot-facing, station-route, floor-support, material-mapping, UV, help-repeat, and ambience re-entry stabilization changes; it must not be used for active playability sign-off. The post-fix matrix, uniquely labelled package, external probes, and human gates above supersede it for the next prototype decision.
 
-- [ ] Validate and refine each station module, adjacency, and interaction against a confidence-graded floor plan; do not call the present revision a recovered original segment. Partially closed: the `LIVE` section of `docs/research/STATION_TOPOLOGY.md` has now been derived from the running production scene rather than from prose, and `tests/station_topology_evidence_test.gd` fails whenever the documented graph and the live `StationRouteRegistry` diverge in either direction. That audit corrected real drift — the document drew the Fleet Dock Comb hanging off the Aft Junction Stack, which the registry rejects as an invalid module-to-module pairing; the comb's connector deck belongs to the world lattice and its recorded edge is to the station hub. It also recorded the two compound module evidence statuses the document had flattened to plain `modern_interpretation`, and recorded four module rosters, four hub anchors, twenty-nine route markers, four deferred/dead-end markers and the then-current five berth transforms. Fleet expansion requires the live registry to remain authoritative. Still open: interaction validation beyond the deferred-landmark gates, and the confidence grading itself, which remains partial. No station relationship is `authenticated`, no live geometry is a recovered original segment, and this revision must never be described as one.
+- [ ] Validate and refine each station module, adjacency, and interaction against a confidence-graded floor plan; do not call the present revision a recovered original segment. Partially closed: the `LIVE` section of `docs/research/STATION_TOPOLOGY.md` has now been derived from the running production scene rather than from prose, and `tests/station_topology_evidence_test.gd` fails whenever the documented graph and the live `StationRouteRegistry` diverge in either direction. That audit corrected real drift — the document drew the Fleet Dock Comb hanging off the Aft Junction Stack, which the registry rejects as an invalid module-to-module pairing; the comb's connector deck belongs to the world lattice and its recorded edge is to the station hub. It also recorded the two compound module evidence statuses the document had flattened to plain `modern_interpretation`, and now pins four module rosters, four hub anchors, twenty-nine route markers, four deferred/dead-end markers and five berth transforms. Still open: interaction validation beyond the deferred-landmark gates, and the confidence grading itself, which remains partial. No station relationship is `authenticated`, no live geometry is a recovered original segment, and this revision must never be described as one.
 - [x] Complete the bounded B5-linked Torrent reconstruction v1 redesign: source-align the compact stepped wedge, blocky aft body, four stepped side-plane tiers, upright U-like rail hierarchy, amber unknown-function forward panel, red seat and low-part macroform; use an approximately `8.4 m × 7.2 m × 4.54 m` modern ergonomic normalization, keep the paired housings' normalized `0.80 m` diameter/`3.35 m` length distinct from their unknown historical function, update collision and damage anchors for the compact form, keep reconstruction status partial and 2009 continuity unproved, and preserve modern systems as separately tagged interpretations.
 - [ ] Complete player-led packaged-build tuning of flight input, camera comfort, steering, throttle, braking, hover, and landing feel before treating the slice as playtest-ready; automated mapping, sampling-rate, chase-lag, sight and flight-path-cue closure does not substitute for this pass.
 - [ ] Extend the bounded Torrent/central-berth realism treatment into curved and bevelled authored geometry across the remaining station and ships while preserving evidence-backed broad shapes. Untouched by the station material-family work, which changed material bindings only and deliberately altered no geometry, bevel, or silhouette.
@@ -271,25 +905,27 @@ animation review is still open.
 3. **Create one module in isolated files:** `scenes/world/modules/<module_id>.tscn`, `scripts/world/<module_id>.gd`, `tests/<module_id>_test.gd`, and optional authored presentation/generator/manifest files. Do not construct the new module procedurally inside `shipyard_world.gd`; that file should instance and place it.
 4. **Implement semantic roots first:** `ModuleAnchor`, connection markers, route markers, walkable structure root, presentation root, and deferred/locked landmarks. Then add materials, collision, doors/components, dressing, audio/activity consumers. Every marker gets a stable ID and local transform; every runtime-generated child gets a deterministic name.
 5. **Publish local geometry contracts:** exact AABB/footprint, floor elevations, connector width/headroom, critical route samples, negative-space samples, collision layer/mask counts, mesh/light/audio/activity budgets, and prohibited authority node types. Validate all values in `get_audit_report()`.
-6. **Integrate through `ShipyardWorld`:** choose one transform from the topology map, connect it to an existing route, register it, and leave existing registered berth transforms unchanged unless the module's explicit feature requires a reviewed berth migration. Run overlap queries against every assist-capture/final hull envelope and neighbouring ship collision.
+6. **Integrate through `ShipyardWorld`:** choose one transform from the topology map, connect it to an existing route, register it, and leave existing five berth transforms unchanged unless the module's explicit feature requires a reviewed berth migration. Run overlap queries against every assist-capture/final hull envelope and neighbouring ship collision.
 7. **Prove real traversal:** extend `station_surface_playability_test.gd` with start/end transforms and continuous production input; extend `station_interaction_flow_test.gd` for doors/controls; add module-specific route/occupancy/negative-space assertions. No teleport is allowed between the connection threshold and destination.
 8. **Add richer station life only through reusable data:** extend `StationOperationsActivity` profiles first. If agents need free routing, then add `station_navigation_graph.gd` and `station_service_agent.gd` with stable IDs, bounded service envelopes, pause/disable/reset/re-entry methods, deterministic seeds, and no berth/combat/regeneration authority.
-9. **Review and release:** run 30/60/120 Hz activity equivalence, teardown/re-entry identity/count checks, station collision/material discovery, full-fleet berth lifecycle tests, native overview plus player-height connection/interior frames, full matrix, package smoke, and human walk-through.
+9. **Review and release:** run 30/60/120 Hz activity equivalence, teardown/re-entry identity/count checks, station collision/material discovery, five-berth lifecycle tests, native overview plus player-height connection/interior frames, full matrix, package smoke, and human walk-through.
 
 - [x] Add the first reusable Aft Junction Stack: two physical elevations, a continuous real stair under visible treads, an enterable windowed operations room, cyan-operated door, and red locked/deferred VIP landmark. Exact geometry, furniture, mechanics, and adjacency are explicitly modern interpretation.
 - [x] Integrate that module into the shared station with a continuous collidable route, open the former solid navigation pylon, and exercise stairs/door/room with the production player controller.
 - [x] Add and integrate the first Habitat Spine through a real starboard connector: an operated door, player-clear corridor, six bunk alcoves, an eight-chair observation/common room, windows, consoles, service detail, and a sealed deferred branch. It is a fixed-era-inspired modern interpretation because C1's exact build provenance, launch-era applicability, plan, dimensions, functions, and adjacency are unverified.
 - [x] Add a reusable source-bounded Fleet Dock Comb and integrate it beyond the Aft upper circulation: one narrow trunk, three short teeth, three broad physically separated slabs, genuine voids, and one short ramp. B2 supports the comb/slab rhythm only; exact geometry, count, placement and styling are modern interpretation. Dock 01 records a modern external Zenith assignment and Dock 02 a modern external Halyard assignment, each aligned to a world-owned berth; Dock 03 alone remains empty/deferred. The module itself adds no berth, lease, regeneration, activity, audio or gameplay authority.
-- [x] Prove the complete visible connector and module route with collision, preserve the then-current registry and transforms, and audit that the comb's presentation dock markers cannot masquerade as `ShipBerth` authority.
+- [x] Prove the complete visible connector and module route with collision, preserve the exact five-berth registry and transforms, and audit that the comb's two assigned and one deferred dock markers cannot masquerade as `ShipBerth` authority.
 - [x] Settle the bounded operational-lattice presentation with exactly four fixed-rail, role-specific, non-colliding activities: `Full` at Central (`CentralTowServiceActivity`), `Gantry` at Freight (`FreightApproachGantry`, corrected to freight-module-local `z = 0.9`), `Service Arm` at Aft (`AftOperationsActivity`), and `Drone Patrol` at Habitat (`HabitatServicePatrol`). Fixed transforms/seeds, finite envelopes, deterministic seek and 30/60/120 Hz audits, and reversible pause/disable/re-entry lifecycles are covered; the rails are presentation, not a navigation graph or autonomous logistics. Full and roof-patrol service drones plus the Aft service arm now use one near-camera boundary per complete moving assembly, so no remote part can flash across the camera while the rest has already disappeared.
 - [x] Add exactly four finite-range 3D procedural machinery ambience beds: central berth (`26 m` maximum / `4 m` reference distance), Aft operations (`24 m` / `3.5 m`), Habitat environment (`22 m` / `3 m`), and Freight control (`28 m` / `4 m`). Deterministic loop/servo/latch waveforms use bounded positional voices, with servo/latch hooks on the Aft, Habitat, and Freight station doors.
 - [x] Add exactly four collision-free structural outer-face dressings at the Central berth, Aft operations, Habitat, and Freight rack. Each exposes a fixed prebuilt Low / Medium / High profile of 16 / 33 / 41 visible primitives without widening walkable surfaces, filling station voids, or rebuilding geometry.
 - [x] Keep every new role, rail, transform, service envelope, machinery placement/motion, structural dressing, and sound tagged `modern_interpretation`; the bounded pass authenticates no original geometry, placement, layout, operations, or audio, and its component budgets are not measured representative-Windows performance evidence.
 - [x] Produce and validate six distinct HUD/CanvasLayer-free 2560×1440 operational-lattice captures—exposed overview, Central, Aft, Habitat, Freight, and launch flypast—bringing the pre-berth subset to 45 distinct frames (`27` gameplay frames at 1280×720 plus `12 + 6` hero/operational frames at 2560×1440).
+- [x] Record the now-superseded v0.10 berth-feedback pass: nine HUD/CanvasLayer-free 2560×1440 Forward+ views cover `released`, `approach`, and `occupied` at the Central, Arrow, and Jovian berths, bringing that historical four-harness total to 54 frames. All four runners exited `0` with exact sentinels; all 54 declared PNGs had the correct type/dimensions and unique full-file SHA-256 hashes. Every closest-pair check passed: main mean difference/changed fraction `0.02177`/`0.081`, hero `0.05385`/`0.242`, station `0.05045`/`0.300`, and berth `0.00085`/`0.0039`. Representative original-resolution inspection found no visual blocker; occupied mint cues remained visible, including the subtler partly obscured Jovian state. This is staged historical Linux software-renderer evidence, not validation of v0.12, final art sign-off, native-GPU/Windows behaviour, performance, audibility, an uninterrupted human playthrough, or an original docking display.
 - [x] Preserve that historical v0.10 capture pass's critical 255-file scope (`project.godot`, `export_presets.cfg`, `default_bus_layout.tres`, `scripts/`, `scenes/`, `tests/`, `assets/`, and `tools/`) byte-for-byte before and after at SHA-256 `7b00e37f8af4c857665bf12f840717cd0d8ebe1a4d56b3e5932085901839e11d`. Capture logs contained no errors, fatal/script errors, harness-failure lines, or failed sentinels; each process emitted only a generic root startup warning and the known seven-Texture-RID llvmpipe shutdown warning after success.
+- [x] Record the final source-current Zenith X11 Forward+ automation: all seven declared 2560×1440 frames passed and original-resolution review found no blocker. Evidence-manifest SHA-256 is `6e6d66b3d6a7a1254da6da8ce1259b5c593f7820312c74ed199c4712a529c89a`, 286-file frozen-source aggregate SHA-256 is `68d23207b9841463c61273b8c3de610a25519e82dc56f46eeddfb7befdef77c4`, and raw-log SHA-256 is `6da081c58304bb152d7553669395fd481fd64862276a944fd17be6cedd117704`; the only post-sentinel diagnostic was the known seven-Texture-RID capture warning. This is bounded staged Linux presentation evidence and review, not historical authentication, complete-project art sign-off, native-Windows behaviour or an uninterrupted player sortie.
 - [x] Normalize the shared module contract before adding more modules: `scripts/world/station_module_contract.gd` freezes the typed requirement set—module ID, connection anchor, route registry, local footprint, evidence metadata, component roster, collision/authority/performance reports, reversible enable/disable lifecycle, audit report, and validation errors—and Aft, Habitat, Fleet Dock, and Freight all satisfy it without behaviour changes. The shared computation lives in one place rather than four drifted copies, and every module now rejects on its own collision, performance, and lifecycle contract instead of merely publishing it: a drifted collision layer, a blown component ceiling, a hidden surface, or a module still processing while disabled turns the audit red. `validate_contract` treats a wrong-typed or self-failing contract getter as a recorded error rather than aborting, so a malformed module can no longer disappear from the registry while the report stays green. The declared component ceilings are regression bounds measured against the built modules—the previous Aft and Habitat mesh figures were never met by any build—and remain unrelated to representative-Windows performance evidence.
 - [x] Add the `ShipyardWorld`-owned `scripts/world/station_route_registry.gd`. It registers module ID, connection plane, route endpoints, and evidence status, and rejects duplicate module IDs, the reserved hub ID, missing evidence, non-finite transforms, missing route markers, modules that declare no connection slot, one module declaring a slot twice, overlapping authority IDs, dangling connections, two modules claiming the same slot, and slots claimed by more than two endpoints. Adjacency is declared and non-metric: a module tags exactly one route marker with the slot ID it names and the world publishes the matching hub endpoint over real lattice geometry, so endpoints pair by declaration rather than by coordinate proximity. The live station resolves to four modules, four hub endpoints, four edges, and zero dangling or overclaimed slots across 29 route markers, with the deferred VIP landmark, sealed habitat branch, dock thresholds, and internal waypoints deliberately excluded. The returned graph is a deep-copied report for tests and UI that assigns no gameplay authority and does not itself prove a walkable route.
-- [ ] Complete a source-current full-fleet berth rendered-evidence rerun and broader final human visual review; the final seven-frame Zenith review does not close complete-project art sign-off.
+- [ ] Complete a source-current five-berth rendered-evidence rerun and broader final human visual review; the final seven-frame Zenith review does not close complete-project art sign-off.
 - [ ] Continue expanding the demonstrated exposed deck-and-lattice language beyond the bounded Aft/Habitat/Freight/Fleet Dock modules only as evidence permits; this first comb is not a recovered complete spine.
 - [ ] Continue confidence-graded interpretations of remaining habitat, VIP, platform, ladder, regeneration, dock-arm, and room relationships, labelling observed, inferred, fixed-era-inspired, and new elements. A first grading pass now covers all seven families in `docs/research/STATION_TOPOLOGY.md`, each row carrying an element label, its registered ledger anchor or an explicit `unknown`, an evidence status, and its unknowns. The pass is deliberately unflattering: most of the station is `new`, the habitat's "fixed-era" inspiration is itself an inference because C1's fixed-build provenance is unverified, the live mirrored port/starboard branch pair contradicts A8's asymmetric lattice and is therefore not an A8 continuity claim, and several previously quoted timestamps turned out not to be registered ledger anchors at all, so the compact console/window room and the multi-elevation route claims drop to `inferred`. The ladder relationship cannot be graded in either direction: no registered anchor in any source names a ladder and none is implemented, so it stays `unknown`. Remaining work needs new external evidence, not further implementation: anchors for the room and elevation claims, any source tying a room to a function, and any source joining the observed VIP sightline to the later-source VIP area.
 - [x] Expand beyond the bounded fixed-rail activity into richer cargo, maintenance, signage, observatory, and station-life content without erasing the clean original silhouette. `StationOperationsActivity` gained four new reusable profiles built entirely from the existing shared chamfered-box/cylinder kit and the registered triplanar panel recipe: `cargo_line` (fixed transfer rail, powered container sled, overhead hoist, palletised crate stacks, control readout), `signage_pylon` (lit sign board, bay plaque, notice rack, five-chevron chase, rotating identifier drum), `observatory` (three-legged skywatch post whose yoke pans and whose optic tube elevates above the horizontal, with a tracking aperture and instrument cabinet), and `crew_workpost` (bench, vice, parts bins, tool wall, task lamp, cable drum, supply crates, a hard hat left on the bench, an indexing tool carousel and a nodding weld jig with a flickering arc). The production roster went 4 -> 8 placements: `CentralCargoTransferLine` on the Central junction deck, `AftCrewWorkPost` at the head of the Aft upper stair, `HabitatSkywatchPost` on the Habitat common roof, and `FreightApproachSignage` on the Registry pod roof. Every new mover is a closed-form function of the component clock and every new lit cue a deterministic material swap, so 30/60/120 Hz equivalence, `set_activity_time()` seek, pause/disable/reset and whole-`Main` detach/re-entry all hold unchanged. No collision node, no berth/lease/regeneration/interaction authority, no widened walkable surface and no filled void; all eight roots keep the 12 m sparse-lattice spacing and every service envelope clears every live berth. Everything added stays `modern_interpretation` — no source authenticates station cargo handling, signage, observation or crew practice.
@@ -522,7 +1158,7 @@ reuse.
 6. Add `tests/network/` unit/component cases plus a three-process harness covering host/join, spoofed owner, duplicate/out-of-order commands, simultaneous seat/berth claims, 100 ms RTT + 2% loss/jitter/reorder, disconnect during boarding/flight/landing, late join/resync, ownership transfer, destruction/respawn, and entity cleanup. Dedicated server must run without render/audio authority.
 7. Require a 30-minute two-client soak with zero authority divergence, duplicate entities/seats, unbounded queue growth, or leaks; record tick/bandwidth budgets and complete a native-Windows two-client playtest before increasing player count or implementing gunner/engineer roles.
 
-- [ ] Add authoritative networked movement, moving-interior occupancy, boarding, ship ownership, projectiles, landing, damage, and respawn; bounded production ENet session, seat/command/combat and moving-interior paths exist, but do not complete multiplayer acceptance.
+- [ ] Add authoritative networked movement, moving-interior occupancy, boarding, ship ownership, projectiles, landing, damage, and respawn; current local authority seams and authority-gated tests do not constitute multiplayer.
 - [ ] Keep fighters immediately accessible while adding optional pilot/gunner/passenger/engineer roles to larger vessels. Halyard now has pilot, gunner, passenger and engineer role gameplay; real production `GameFlow` publishes its loadmaster receipts; Bulwark has an optional gunner; Jovian's physical `passenger_port_01` can be admitted as an engineer and delegates bounded repair to the existing component authority. The fleet role registry publishes those capabilities without owning seats. The exact three-process authority harness is green, but the roles have not passed the required native multiplayer and human accessibility gates, so this remains open.
 - [ ] Test moving-interior stability under latency before broadening player counts. A server-owned bounded relationship stream rejects stale/reordered ticks, freezes across excessive gaps, publishes generation-framed per-recipient snapshots, ties accepted seat claims to one relationship, and resets on release/transfer/disconnect/migration. Client replicas interpolate and boundedly extrapolate accepted frame-local poses; the ENet adapter now binds caller-registered remote avatar/frame nodes, rejects physics targets, freezes on frame loss, supports admitted-peer late-join resync, and applies deterministic per-recipient snapshot/byte budgets with coalescing that never drops generation or release transitions. Deterministic jitter/reorder/teleport/lifecycle/budget tests and the exact three-process 100 ms RTT/loss harness are green, but the 30-minute soak and native Windows two-client review are still missing, so this remains open.
 
@@ -595,7 +1231,7 @@ The matching **production streaming path** now exists in `scripts/world/world_st
 ### Junior implementation playbook
 
 1. Keep `RuntimeSettings` as validated settings state; add typed/versioned `input_binding_profile.gd`, `input_rebind_service.gd`, `user_data_store.gd`, and migration helpers. Use temp-write → flush/sync where supported → atomic replace; retain/recover the last valid document; reject unsupported newer schemas without overwriting them.
-2. Implement remapping with action/device binding lists, conflict detection/resolution, deadzone/curve/hold-toggle data, defaults/reset, and UI focus. The controller help-overlay action now exists and a headless controller-only regression completes the solo loop, so remapping, conflict/reset UI, curves/hold-toggle execution and device glyphs have since landed; remaining work includes real-hardware focus and full required-route validation.
+2. Implement remapping with action/device binding lists, conflict detection/resolution, deadzone/curve/hold-toggle data, defaults/reset, and UI focus. The controller help-overlay action now exists and a headless controller-only regression completes the solo loop, so what remains before claiming controller-only support is remapping, glyphs, and a real-hardware pass.
 3. Add accessibility fields for subtitle/caption mode, text/UI scale, reticle/colour alternatives, camera shake, motion/flash reduction, and audio cue alternatives. Test default/round-trip/migration/reset and UI focus at 16:9, 16:10, 21:9, and 32:9 safe areas.
 4. Add authored music/audio through checked-in assets, `ASSETS.md` provenance, fixed bus layout, and a `music_director.gd` that follows session/phase signals without owning gameplay. Verify packaged assets and perform real-device mix/audibility review.
 5. Add `tools/release/` scripts for source manifest, editor/import, isolated matrix, graphical harness inventory, export, PE/PCK inventory, forbidden-path scan, smoke, hashes, and release notes. Each step writes a machine-readable result and fails closed; the orchestrator stops on the first invalid gate.
@@ -620,7 +1256,7 @@ claim (`tests/hud_panel_layout_test.gd`).
 
   Two current Jovian resource-only trims share exact immutable SphereMeshes across 25 dorsal-rib joints and seven exterior shoulder-rail joints, reducing those private mesh identities **32 -> 2 (-30)** while preserving every named node, visible copy, material and structural submission. The first measured light consolidation removes only the centre of three overlapping VIP outboard sill spills, retains both side pools plus the complete 11.4 m emissive sill, and reduces each resident/streamed scenario by one enabled light and one node. The next retains all six Fabrication luminaire meshes while consolidating their six same-colour practicals into three midpoint pools, removing three more enabled lights and nodes. Same-process Forward+ A/B reviews found no black gaps or readability/colour loss; these are composition checks only, not frame-time claims.
 
-  The Arrow lateral sensor arrays now likewise share one exact immutable SphereMesh across six retained childless curve-joint nodes, reducing whole-scene unique meshes by another five while preserving all six renderer submissions, transforms, materials, shadows, collision and semantic authority. The historical census and fingerprints above include that trim.
+  The Arrow lateral sensor arrays now likewise share one exact immutable SphereMesh across six retained childless curve-joint nodes, reducing whole-scene unique meshes by another five while preserving all six renderer submissions, transforms, materials, shadows, collision and semantic authority. The current census and fingerprints above include that trim.
 
   The pilot fallback builder now retains 65 local generated mesh identities instead of 79 while preserving its 79 named visual nodes and submissions, but the documented resident and Cinder-loaded scenarios select `PilotSkinnedPresentation`; the direct `2f2419f` remeasurement therefore leaves their complete-scene counts and fingerprints unchanged.
 
