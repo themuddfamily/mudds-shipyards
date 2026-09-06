@@ -1,5 +1,8 @@
 extends SceneTree
 
+# Resolve a concrete subtype before this fixture's HeroShip references. Loading
+# it afterward retains the shared inheritance script resources at process exit.
+const ArrowShipType := preload("res://scripts/ships/arrow_recon_ship.gd")
 const ShipCommandSourceType := preload("res://scripts/control/ship_command_source.gd")
 
 const AXIS_LEFT_Y := 1
