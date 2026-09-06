@@ -51,6 +51,17 @@ def assert_source_clean(root: Path, runner=subprocess.run) -> None:
         raise ExportBlocked("source tree is dirty outside builds/: " + ", ".join(dirty))
 
 
+def assert_source_identity(root: Path, source_commit: str, runner=subprocess.run) -> None:
+    """Reject source edits and clean checkouts of a different commit."""
+    assert_source_clean(root, runner)
+    current = runner(
+        ["git", "rev-parse", "HEAD"], cwd=root, check=True,
+        capture_output=True, text=True,
+    ).stdout.strip()
+    if current != source_commit:
+        raise ExportBlocked(f"source HEAD changed during export: {source_commit} -> {current}")
+
+
 def export_windows(root: Path, output: Path, runner=subprocess.run) -> int:
     output = output if output.is_absolute() else root / output
     if output.resolve().relative_to(root.resolve()).parts[0] != "builds":
@@ -85,6 +96,7 @@ def export_and_assemble(
     source_commit = commit_result.stdout.strip()
     if not source_commit:
         raise ValueError("unable to determine source commit")
+    assert_source_identity(root, source_commit, runner)
     staging_parent = root / "builds"
     staging_parent.mkdir(parents=True, exist_ok=True)
     published: list[Path] = []
@@ -98,9 +110,11 @@ def export_and_assemble(
         )
         if exported.returncode != 0 or not staged_exe.is_file():
             raise RuntimeError(f"Windows export failed with exit code {exported.returncode}")
+        assert_source_identity(root, source_commit, runner)
         assembled = assembler(staged_exe, staging / "distributions", version, source_commit, readme, license_file, config)
         archive = Path(assembled["archive"])
         archive_verify(archive)
+        assert_source_identity(root, source_commit, runner)
         final_archive = root / "builds" / "distributions" / archive.name
         final_directory = root / "builds" / "distributions" / Path(assembled["directory"]).name
         for destination in (output, final_archive, final_directory):
@@ -115,9 +129,11 @@ def export_and_assemble(
             shutil.copyfile(staged_exe, temp_exe)
             shutil.copyfile(archive, temp_archive)
             shutil.copytree(Path(assembled["directory"]), temp_directory)
+            assert_source_identity(root, source_commit, runner)
             for temporary_artifact, destination in ((temp_exe, output), (temp_archive, final_archive), (temp_directory, final_directory)):
                 temporary_artifact.replace(destination)
                 published.append(destination)
+            assert_source_identity(root, source_commit, runner)
         except Exception:
             for destination in published:
                 if destination.is_dir():

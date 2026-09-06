@@ -101,24 +101,6 @@ performance, and human visual review were **NOT_RUN** in this review.
 - **Repair:** Give each stream its own jitter buffer, lifecycle resets, and
   resynchronization cursor.
 
-### PACKAGE-002 — Progress exporter publishes source changed during export — P2
-
-- **Locations:** [`export_and_assemble()` preflight](tools/package/export_windows_progress_build.py#L83),
-  [publication](tools/package/export_windows_progress_build.py#L118).
-- **Reproduce:** Start a clean progress export, then edit tracked source or
-  change HEAD while Godot is exporting.
-- **Expected / actual:** Publication should reject a changed source identity.
-  Cleanliness and HEAD are checked only before the export. The archive can
-  contain changed content while its name/manifest still claim the original
-  commit.
-- **Verified:** In an isolated Git fixture, an injected export runner changed
-  tracked `project.godot` and produced an EXE fixture. The real assembler and
-  archive verifier still published successfully under the original HEAD.
-  This verifies the publication guard defect, not a native Windows export.
-- **Repair:** Recheck tracked content and HEAD before assembly and publication,
-  or export from an immutable isolated checkout. The separate shell candidate
-  exporter already performs repeated source checks.
-
 ### TEST-001 — Legacy matrix reports failing process exits as success — P2
 
 - **Location:** [`tools/release/run_matrix.sh`](tools/release/run_matrix.sh#L51).
