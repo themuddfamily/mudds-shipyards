@@ -122,14 +122,17 @@ godot --headless --audio-driver Dummy --editor --path . --quit
 godot --headless --audio-driver Dummy --path . --script res://tests/smoke_test.gd
 godot --headless --audio-driver Dummy --path . --script res://tests/sandbox_loop_test.gd
 
-# Full matrix: the runner's discovered roster is authoritative, not a README count.
-tools/release/run_test_matrix.sh --audio-driver Dummy
+# Headless regression; the runner reports graphical suites as NOT_RUN.
+tools/release/run_test_matrix.sh --audio-driver Dummy --mode headless
+
+# Complete roster, including graphical suites; requires a working display.
+tools/release/run_test_matrix.sh --audio-driver Dummy --mode all
 
 # Source-named Windows candidate from a clean exact commit; existing outputs are preserved.
 tools/release/export_windows_candidate.sh
 ```
 
-Use `--scope` on the matrix runner for focused suites. Graphical harnesses require a rendering device/display and are tracked separately from headless suites. Consult the runner's `--help` for selection and result paths. Compare structured `results-canonical.tsv` outcomes; raw logs remain the diagnostic record. A documented command is not evidence that its run passed.
+Use `--scope` on the matrix runner for focused suites, or `--list --mode all` to inspect its recursively discovered roster. Graphical harnesses require a rendering device/display; CI supplies Xvfb for its scheduled graphical job. Only an unfiltered `--mode all` run covers the complete roster for the release gate. Consult the runner's `--help` for selection and result paths. Compare structured `results-canonical.tsv` outcomes; raw logs remain the diagnostic record. A documented command is not evidence that its run passed.
 
 The export wrapper runs on Linux/WSL using Linux `/proc` and GNU tools; its output is a Windows executable under ignored `builds/windows/`. Export, pack inventory and Linux startup checks do not establish native-Windows gameplay. The [release evidence tool](docs/RELEASE_EVIDENCE_TOOL.md) binds a clean source revision, matrix, package probes, inventory, PE/signing metadata and executable checksum; signing and publishing remain separate gates.
 
