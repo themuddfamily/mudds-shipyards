@@ -572,6 +572,30 @@ func _test_real_scheduler_complete_loop() -> void:
 			and early.sample_count == samples_before + 1,
 		"one admitted on-foot sample advances the exact late hazard receipt once",
 	)
+	var survey_started := production.start_planetary_relay_survey()
+	_check(survey_started.accepted, "real on-foot scheduler starts the relay survey")
+	var advance_before_survey := int(production.get_snapshot().advance_count)
+	for _sample in 3:
+		await _one_physics(false)
+	_check(
+		production.get_state() == EmberSurfaceLoopProductionBinding.State.RUNNING
+			and int(production.get_snapshot().advance_count) >= advance_before_survey + 3
+			and production.get_planetary_surface_snapshot().adapter.activity_reward.state == &"active",
+		"stationary observations outside the checkpoint keep the survey and journey active",
+	)
+	if production.get_state() == EmberSurfaceLoopProductionBinding.State.FAILED:
+		await _cleanup(world)
+		return
+	_check(
+		await _walk_until(fixture, &"move_back", func(p: Vector3) -> bool: return p.x <= 35.0, 60)
+			and production.get_state() == EmberSurfaceLoopProductionBinding.State.RUNNING,
+		"ordinary walking between checkpoints advances the journey without terminalizing it",
+	)
+	var surface_composition := world.get_node(^"EmberPlanetarySurfaceProductionBinding")
+	_check(
+		(surface_composition.call(&"abort_relay_survey", &"test_route_retired") as Dictionary).accepted,
+		"survey fixture retires its active route before exercising return ownership",
+	)
 	_check(await _walk_return(fixture), "real Player returns to the exact BoardingArea")
 	var retained_session := host.get_travel_session_observation_source()
 	var retained_attachment_generation := int(
@@ -1075,6 +1099,9 @@ func _walk_until(fixture: Dictionary, action: StringName, reached: Callable, bud
 	var player := fixture.player as PlayerController
 	Input.action_press(action)
 	for _index in budget:
+		if is_instance_valid(_active_production) and _active_production.get_state() == EmberSurfaceLoopProductionBinding.State.FAILED:
+			Input.action_release(action)
+			return false
 		await _one_physics()
 		if bool(reached.call(landing.to_local(player.global_position))):
 			Input.action_release(action)

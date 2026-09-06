@@ -33,27 +33,6 @@ performance, and human visual review were **NOT_RUN** in this review.
   while retaining generation, actor, slope, and fall-safety checks. Verify real
   movement from the pad onto the route rather than teleporting test samples.
 
-### WORLD-001 — Normal survey movement fails the entire Ember journey — P1
-
-- **Locations:** [`_forward_active_relay_position()`](scripts/world/ember_surface_loop_production_binding.gd#L2394),
-  [scheduler failure handling](scripts/world/ember_surface_loop_production_binding.gd#L2269).
-- **Reproduce:** Reach Ember's on-foot phase and start Relay Survey away from
-  its next checkpoint. Alternatively, reach the first checkpoint and remain
-  there for another physics tick.
-- **Expected / actual:** The survey should remain active while the player walks
-  toward the next checkpoint. The route's ordinary `outside_checkpoint` result
-  is converted to `relay_position_forward_rejected`, which moves the production
-  scheduler into `FAILED` and stops subsequent journey advancement.
-- **Verified:** A temporary extension of the real scheduler integration fixture
-  passed 31 startup, landing, and walking checks. Survey start returned
-  `activity_sequence_started`; the next real physics tick produced **state 4
-  (`FAILED`)** and **`relay_position_forward_rejected`**. Separately, real
-  surface/director components accepted checkpoint one and returned
-  `outside_checkpoint` for the next stationary sample, which the forwarder
-  converted to the same fatal error.
-- **Repair:** Treat valid observations outside a checkpoint as no progress;
-  reserve terminal failure for invalid identity/lifecycle conditions.
-
 ### WORLD-002 — Rebased player positions use the wrong survey/hazard frame — P1
 
 - **Locations:** [`survey forwarding`](scripts/world/ember_surface_loop_production_binding.gd#L2387),

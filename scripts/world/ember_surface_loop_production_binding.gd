@@ -2392,6 +2392,9 @@ func _forward_active_relay_position(envelope: Dictionary) -> StringName:
 		&"submit_relay_survey_position", position
 	)
 	if not bool(forwarded.get("accepted", false)):
+		# A valid observation between checkpoints keeps the route active.
+		if StringName(forwarded.get("reason", &"")) == &"outside_checkpoint":
+			return &""
 		return &"relay_position_forward_rejected"
 	var updated: Dictionary = _planetary_composition.call(&"get_snapshot")
 	var updated_activity := (
