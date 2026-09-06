@@ -12,14 +12,15 @@ const UNLOAD_BOUNDARY_METERS := 650.0
 const FADE_IN_SECONDS := 0.5
 const FADE_OUT_SECONDS := 0.5
 const MAX_RETAINED_DISTANCE_METERS := 725.0
-const EXPECTED_AUTHORED_RENDERER_COUNT := 218
-const EXPECTED_BOUND_RENDERER_COUNT := 222
+# Authored consolidation: collars -1, scan ruins -3, crater rims -5,
+# cargo cross/handoff rails -2; race crown +2, ore lift +1, survey fork +1.
+const EXPECTED_AUTHORED_RENDERER_COUNT := 211
+const EXPECTED_BOUND_RENDERER_COUNT := 215
 const EXPECTED_LIGHT_COUNT := 27
 const EPSILON := 0.000001
 const EXTRACTION_ARM_COLLAR_FAMILY_ID: StringName = &"cinder-extraction-arm-collars"
 const EXTRACTION_ARM_COLLAR_PATHS: Array[NodePath] = [
-	^"ExtractionPlatform/CinderReachPlatform/ExtractionArmPort/ArmCollar",
-	^"ExtractionPlatform/CinderReachPlatform/ExtractionArmStarboard/ArmCollar",
+	^"ExtractionPlatform/CinderReachPlatform/ExtractionArmCollars",
 ]
 const EXTRACTION_ARM_COLLAR_TRANSFORMS: Array[Transform3D] = [
 	Transform3D(Basis.IDENTITY, Vector3(0.0, -6.0, 0.0)),
@@ -28,9 +29,6 @@ const EXTRACTION_ARM_COLLAR_TRANSFORMS: Array[Transform3D] = [
 ]
 const EXTRACTION_ARM_COLLAR_MESH_AABB := AABB(
 	Vector3(-3.0, -0.7, -3.0), Vector3(6.0, 1.4, 6.0)
-)
-const EXTRACTION_ARM_COLLAR_BATCH_AABB := AABB(
-	Vector3(-3.0, -28.7, -3.0), Vector3(6.0, 23.4, 6.0)
 )
 const APERTURE_LENS_BATCH_NAME: StringName = &"StreamingApertureLensBatch"
 const APERTURE_LENS_FAMILY_ID: StringName = &"cinder-streaming-aperture-lenses"
@@ -63,10 +61,8 @@ const BEACON_MAST_PATHS: Array[NodePath] = [
 	^"RouteBeacons/RouteBeaconDelta/Mast",
 ]
 const EXPECTED_INTEGRATED_BATCH_FINGERPRINT := (
-	"ExtractionPlatform/CinderReachPlatform/ExtractionArmPort/ArmCollar"
-	+ "|cinder-extraction-arm-collars|3|-1;"
-	+ "ExtractionPlatform/CinderReachPlatform/ExtractionArmStarboard/ArmCollar"
-	+ "|cinder-extraction-arm-collars|3|-1;"
+	"ExtractionPlatform/CinderReachPlatform/ExtractionArmCollars"
+	+ "|cinder-extraction-arm-collars|6|-1;"
 	+ "ExtractionPlatform/CinderReachPlatform/StreamingApertureLensBatch"
 	+ "|cinder-streaming-aperture-lenses|8|-1;"
 	+ "ExtractionPlatform/CinderReachPlatform/StreamingScorchedBayBatch"
@@ -387,52 +383,59 @@ func _apply_opacity() -> void:
 			light.light_energy = float(record.get("authored_energy", 0.0)) * _opacity
 
 
-## The two extraction-arm collar batches are authored before the streamed
-## transition binds. Freezing their exact paths, copies, bounds, and transforms
+## The six collars share one platform-local batch before the streamed
+## transition binds. Freezing its exact path, copies, bounds, and transforms
 ## keeps the renderer-count reduction attributable to this intended visual
 ## batching rather than allowing an unrelated authored renderer loss through.
 func _validate_extraction_arm_collar_family(content_root: Node3D) -> bool:
-	var exemplar_mesh: Mesh
-	var exemplar_material: Material
-	for batch_path in EXTRACTION_ARM_COLLAR_PATHS:
-		var batch := content_root.get_node_or_null(batch_path) as MultiMeshInstance3D
-		if batch == null or batch.multimesh == null:
+	var platform := content_root.get_node_or_null(
+		^"ExtractionPlatform/CinderReachPlatform"
+	) as Node3D
+	var batch := content_root.get_node_or_null(EXTRACTION_ARM_COLLAR_PATHS[0]) as MultiMeshInstance3D
+	if platform == null or batch == null or batch.multimesh == null:
+		return false
+	var expected_transforms: Array[Transform3D] = []
+	var expected_names := PackedStringArray()
+	var expected_bounds := AABB()
+	for side in [-1.0, 1.0]:
+		var arm_name := "ExtractionArmPort" if side < 0.0 else "ExtractionArmStarboard"
+		var arm := platform.get_node_or_null(NodePath(arm_name)) as Node3D
+		var arm_transform := Transform3D(
+			Basis.from_euler(Vector3(-36.0, 0.0, side * 14.0) * PI / 180.0),
+			Vector3(side * 12.0, -8.0, -6.0)
+		)
+		if arm == null or not arm.transform.is_equal_approx(arm_transform):
 			return false
-		var multi := batch.multimesh
-		var transforms := batch.get_meta(&"authored_instance_transforms", []) as Array
-		var names := batch.get_meta(&"authored_instance_names", PackedStringArray()) \
-			as PackedStringArray
-		if multi.transform_format != MultiMesh.TRANSFORM_3D \
-				or multi.instance_count != EXTRACTION_ARM_COLLAR_TRANSFORMS.size() \
-				or multi.visible_instance_count != -1 \
-				or multi.mesh == null \
-				or not multi.mesh.get_aabb().is_equal_approx(
-					EXTRACTION_ARM_COLLAR_MESH_AABB
-				) \
-				or not batch.custom_aabb.is_equal_approx(
-					EXTRACTION_ARM_COLLAR_BATCH_AABB
-				) \
-				or batch.cast_shadow \
-					!= GeometryInstance3D.SHADOW_CASTING_SETTING_OFF \
-				or not bool(batch.get_meta(&"visual_detail_only", false)) \
-				or StringName(batch.get_meta(&"visual_batch_family_id", &"")) \
-					!= EXTRACTION_ARM_COLLAR_FAMILY_ID \
-				or transforms != EXTRACTION_ARM_COLLAR_TRANSFORMS \
-				or names != PackedStringArray([
-					"ArmCollar", "ArmCollar", "ArmCollar"
-				]) \
-				or not batch.find_children(
-					"*", "CollisionObject3D", true, false
-				).is_empty() \
-				or not batch.find_children(
-					"*", "CollisionShape3D", true, false
-				).is_empty():
-			return false
-		if exemplar_mesh == null:
-			exemplar_mesh = multi.mesh
-			exemplar_material = batch.material_override
-		elif multi.mesh != exemplar_mesh \
-				or batch.material_override != exemplar_material:
+		for local_transform in EXTRACTION_ARM_COLLAR_TRANSFORMS:
+			var expected_transform := arm_transform * local_transform
+			var bounds := (expected_transform * EXTRACTION_ARM_COLLAR_MESH_AABB).abs()
+			expected_bounds = bounds if expected_transforms.is_empty() else expected_bounds.merge(bounds)
+			expected_transforms.append(expected_transform)
+			expected_names.append("%s/ArmCollar" % arm_name)
+	var multi := batch.multimesh
+	var transforms := batch.get_meta(&"authored_instance_transforms", []) as Array
+	if multi.transform_format != MultiMesh.TRANSFORM_3D \
+			or multi.instance_count != 6 or multi.visible_instance_count != -1 \
+			or multi.mesh == null \
+			or not multi.mesh.get_aabb().is_equal_approx(EXTRACTION_ARM_COLLAR_MESH_AABB) \
+			or not batch.transform.is_equal_approx(Transform3D.IDENTITY) \
+			or not batch.custom_aabb.is_equal_approx(expected_bounds) \
+			or not multi.custom_aabb.is_equal_approx(expected_bounds) \
+			or batch.cast_shadow != GeometryInstance3D.SHADOW_CASTING_SETTING_OFF \
+			or not bool(batch.get_meta(&"visual_detail_only", false)) \
+			or StringName(batch.get_meta(&"visual_batch_family_id", &"")) \
+				!= EXTRACTION_ARM_COLLAR_FAMILY_ID \
+			or transforms.size() != expected_transforms.size() \
+			or batch.get_meta(&"authored_instance_names", PackedStringArray()) != expected_names \
+			or not batch.find_children("*", "CollisionObject3D", true, false).is_empty() \
+			or not batch.find_children("*", "CollisionShape3D", true, false).is_empty():
+		return false
+	var spar := platform.get_node_or_null(^"ProcessingSpineRibs") as MultiMeshInstance3D
+	if spar == null or batch.material_override != spar.material_override:
+		return false
+	for index in expected_transforms.size():
+		if not transforms[index] is Transform3D \
+				or not (transforms[index] as Transform3D).is_equal_approx(expected_transforms[index]):
 			return false
 	return true
 

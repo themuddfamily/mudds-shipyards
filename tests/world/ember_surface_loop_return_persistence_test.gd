@@ -45,6 +45,7 @@ class Runtime:
 	func get_presentation_snapshot() -> Dictionary:
 		return {
 			"state_id": &"completed", "generation": 7,
+			"world_id": &"ember_moon",
 			"attachment_generation": 4, "reward_authority": false,
 		}
 	func get_snapshot() -> Dictionary:
@@ -91,6 +92,11 @@ func _run() -> void:
 		Runtime.new(), Runtime.new(), _receipt(), 1, "return-write-succeeds"
 	)
 	var published := store.get_snapshot()
+	_check(bool(saved.get("accepted", false)), "return save succeeds: %s" % saved)
+	if not bool(saved.get("accepted", false)) or not published.has("return_slot"):
+		binding.free()
+		_finish()
+		return
 	_check(
 		bool(saved.get("accepted", false))
 		and published.settings.volume == 0.75
@@ -232,6 +238,10 @@ func _run() -> void:
 	retry_binding.free()
 	final_binding.free()
 	await process_frame
+	_finish()
+
+
+func _finish() -> void:
 	if not _failures.is_empty():
 		for failure in _failures:
 			push_error(failure)
@@ -259,6 +269,9 @@ func _receipt() -> Dictionary:
 			"accepted": true,
 			"reason": &"returned_to_station",
 			"phase_id": &"completed",
+			# The terminal receipt must identify the exact completed contract
+			# captured above; its status alone cannot authorize persistence.
+			"snapshot": Runtime.new().get_snapshot(),
 		},
 	}
 

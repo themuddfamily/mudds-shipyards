@@ -79,6 +79,10 @@ func _run() -> void:
 		"one production caller sample commits the Cinder generation"
 	)
 	var cluster := bootstrap.get_loaded_instance() as NearbySectorCluster
+	if not is_instance_valid(cluster):
+		await _clean_up(game)
+		_finish()
+		return
 	game.call("_physics_process", 0.5)
 	_check(
 		cluster != null
@@ -122,13 +126,20 @@ func _run() -> void:
 	await process_frame
 	game.set_physics_process(false)
 	_check(
-		bootstrap.get_loaded_instance() == cluster
+		is_instance_valid(cluster)
+		and bootstrap.get_loaded_instance() == cluster
 		and cluster.get_instance_id() == cluster_id
 		and int(game.get_active_activity_snapshot().get(
 			"session_generation", -1
 		)) == activity_generation,
 		"re-entry restores the same cluster and exact active activity generation"
 	)
+	# A premature unload is already a failed ownership assertion. Stop before
+	# dereferencing its freed presentation in the remaining actor-loss witness.
+	if not is_instance_valid(cluster):
+		await _clean_up(game)
+		_finish()
+		return
 
 	# This is the production cabin-unseat seam. Its activity terminal decision is
 	# synchronous and precedes the awaited embodiment movement.

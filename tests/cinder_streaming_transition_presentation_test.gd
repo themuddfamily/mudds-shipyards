@@ -4,13 +4,11 @@ const CLUSTER_SCENE := preload("res://scenes/world/components/nearby_sector_clus
 const LOCATION_ID: StringName = &"cinder_reach"
 const GENERATION := 7
 const TICK := 1.0 / 60.0
-const EXPECTED_AUTHORED_RENDERER_COUNT := 218
-const EXPECTED_BOUND_RENDERER_COUNT := 222
+const EXPECTED_AUTHORED_RENDERER_COUNT := 211
+const EXPECTED_BOUND_RENDERER_COUNT := 215
 const EXPECTED_INTEGRATED_BATCH_FINGERPRINT := (
-	"ExtractionPlatform/CinderReachPlatform/ExtractionArmPort/ArmCollar"
-	+ "|cinder-extraction-arm-collars|3|-1;"
-	+ "ExtractionPlatform/CinderReachPlatform/ExtractionArmStarboard/ArmCollar"
-	+ "|cinder-extraction-arm-collars|3|-1;"
+	"ExtractionPlatform/CinderReachPlatform/ExtractionArmCollars"
+	+ "|cinder-extraction-arm-collars|6|-1;"
 	+ "ExtractionPlatform/CinderReachPlatform/StreamingApertureLensBatch"
 	+ "|cinder-streaming-aperture-lenses|8|-1;"
 	+ "ExtractionPlatform/CinderReachPlatform/StreamingScorchedBayBatch"
@@ -414,8 +412,7 @@ func _integrated_batch_roster_contract(
 			!= EXPECTED_INTEGRATED_BATCH_FINGERPRINT:
 		return false
 	var paths: Array[NodePath] = [
-		^"ExtractionPlatform/CinderReachPlatform/ExtractionArmPort/ArmCollar",
-		^"ExtractionPlatform/CinderReachPlatform/ExtractionArmStarboard/ArmCollar",
+		^"ExtractionPlatform/CinderReachPlatform/ExtractionArmCollars",
 		^"ExtractionPlatform/CinderReachPlatform/StreamingApertureLensBatch",
 		^"ExtractionPlatform/CinderReachPlatform/StreamingScorchedBayBatch",
 		^"StreamingBeaconMastBatch",
@@ -443,11 +440,19 @@ func _integrated_batch_roster_contract(
 			batch.multimesh.instance_count,
 			batch.multimesh.visible_instance_count,
 		])
-		if index < 2:
+		if index == 0:
 			var transforms := batch.get_meta(
 				&"authored_instance_transforms", []
 			) as Array
-			if transforms != EXPECTED_ARM_COLLAR_TRANSFORMS \
+			var expected_transforms: Array[Transform3D] = []
+			for side in [-1.0, 1.0]:
+				var arm_transform := Transform3D(
+					Basis.from_euler(Vector3(-36.0, 0.0, side * 14.0) * PI / 180.0),
+					Vector3(side * 12.0, -8.0, -6.0)
+				)
+				for local_transform in EXPECTED_ARM_COLLAR_TRANSFORMS:
+					expected_transforms.append(arm_transform * local_transform)
+			if transforms.size() != expected_transforms.size() \
 					or not bool(batch.get_meta(&"visual_detail_only", false)) \
 					or not batch.find_children(
 						"*", "CollisionObject3D", true, false
@@ -456,7 +461,12 @@ func _integrated_batch_roster_contract(
 						"*", "CollisionShape3D", true, false
 					).is_empty():
 				return false
-	return integrated_family_count == 6 \
+			for collar_index in expected_transforms.size():
+				if not (transforms[collar_index] as Transform3D).is_equal_approx(
+					expected_transforms[collar_index]
+				):
+					return false
+	return integrated_family_count == 5 \
 		and ";".join(rows) == EXPECTED_INTEGRATED_BATCH_FINGERPRINT
 
 
