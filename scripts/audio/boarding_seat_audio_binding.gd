@@ -8,6 +8,9 @@ signal semantic_boarding_cue_emitted(cue_id: StringName, seat_id: StringName, in
 signal semantic_cue_emitted(source_id: StringName, cue_id: StringName, intensity: float, world_position: Vector3)
 
 const MAXIMUM_SIMULTANEOUS_VOICES := 2
+# This semantic producer has no playback nodes or finished signal. Reserve a
+# bounded one-shot presentation window; a seat's lifetime is not voice lifetime.
+const CUE_SLOT_LIFETIME_MSEC := 1000
 const CUES := {
 	&"reserve": &"boarding_seat_reserved",
 	&"boarding_start": &"boarding_started",
@@ -35,7 +38,6 @@ var _last_sequence := -1
 var _next_sequence := 0
 var _seat_id: StringName = &""
 var _slots: Array[Dictionary] = []
-var _seen: Dictionary = {}
 var _perspective: StringName = &"exterior"
 var _reduced_dynamic_range := false
 var _emitted_count := 0
@@ -51,7 +53,6 @@ func attach(area: Node, seat_id: StringName = &"boarding_seat") -> Dictionary:
 	_last_sequence = -1
 	_next_sequence = 0
 	_slots.clear()
-	_seen.clear()
 	var callback := Callable(self, "_on_reservation_changed")
 	if not area.is_connected(&"reservation_changed", callback):
 		area.connect(&"reservation_changed", callback)
@@ -70,7 +71,6 @@ func detach() -> Dictionary:
 	_last_sequence = -1
 	_next_sequence = 0
 	_slots.clear()
-	_seen.clear()
 	_generation += 1
 	return _result(true, &"detached")
 
@@ -95,10 +95,11 @@ func present_event(event: Dictionary) -> Dictionary:
 			or not sequence is int or int(sequence) < 0 \
 			or not bool(event.get("accepted", true)):
 		return _result(false, &"invalid_or_stale_event")
-	if int(sequence) <= _last_sequence or _seen.has(int(sequence)):
+	# Strictly increasing delivery needs only a watermark, not lifetime history.
+	if int(sequence) <= _last_sequence:
 		return _result(false, &"duplicate_event")
-	_seen[int(sequence)] = true
 	_last_sequence = int(sequence)
+	_next_sequence = maxi(_next_sequence, _last_sequence + 1)
 	var cue_id: StringName = CUES[event_id]
 	if not _admit(cue_id):
 		return _result(false, &"voice_budget_rejected")
@@ -109,6 +110,7 @@ func present_event(event: Dictionary) -> Dictionary:
 	return _result(true, &"cue_presented")
 
 func get_snapshot() -> Dictionary:
+	_retire_expired_slots()
 	return {"attached": _attached, "generation": _generation, "seat_id": _seat_id, "last_sequence": _last_sequence, "emitted_cue_count": _emitted_count, "active_cue_slots": _slots.duplicate(true), "prebuilt_voice_ids": PREBUILT_VOICE_IDS.duplicate(), "maximum_simultaneous_voices": MAXIMUM_SIMULTANEOUS_VOICES, "perspective": _perspective, "reduced_dynamic_range": _reduced_dynamic_range, "authority": {"boarding": false, "seat": false, "lease": false, "controls": false, "audio_cues": true}}.duplicate(true)
 
 func _on_reservation_changed(reserved: bool, _token: Variant) -> void:
@@ -120,7 +122,6 @@ func _on_reservation_changed(reserved: bool, _token: Variant) -> void:
 
 func _present_internal(event_id: StringName) -> void:
 	present_event({"event_id": event_id, "generation": _generation, "sequence": _next_sequence, "accepted": true})
-	_next_sequence += 1
 
 func _intensity(value: float) -> float:
 	var adjusted := clampf(value, 0.0, 1.0)
@@ -131,9 +132,11 @@ func _intensity(value: float) -> float:
 	return clampf(adjusted, 0.0, 1.0)
 
 func _admit(cue_id: StringName) -> bool:
+	_retire_expired_slots()
 	var priority := int(PRIORITIES.get(cue_id, 0))
+	var slot := {"cue_id": cue_id, "priority": priority, "expires_at_msec": Time.get_ticks_msec() + CUE_SLOT_LIFETIME_MSEC}
 	if _slots.size() < MAXIMUM_SIMULTANEOUS_VOICES:
-		_slots.append({"cue_id": cue_id, "priority": priority})
+		_slots.append(slot)
 		return true
 	var lowest := 0
 	for index in range(1, _slots.size()):
@@ -141,8 +144,14 @@ func _admit(cue_id: StringName) -> bool:
 			lowest = index
 	if priority < int(_slots[lowest].priority):
 		return false
-	_slots[lowest] = {"cue_id": cue_id, "priority": priority}
+	_slots[lowest] = slot
 	return true
+
+func _retire_expired_slots() -> void:
+	var now := Time.get_ticks_msec()
+	for index in range(_slots.size() - 1, -1, -1):
+		if int(_slots[index].expires_at_msec) <= now:
+			_slots.remove_at(index)
 
 func _world_position() -> Vector3:
 	return _area.global_position if _area is Node3D else Vector3.ZERO

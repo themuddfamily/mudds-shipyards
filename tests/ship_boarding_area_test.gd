@@ -244,6 +244,7 @@ func _run() -> void:
 		"queued boarding-area disposal publishes no late availability after the deferred turn"
 	)
 
+	await _test_boarding_audio_cycles(area_scene, host)
 	await _test_live_enablement_currentness(area_scene, host)
 
 	var incompatible_parent := Node3D.new()
@@ -264,6 +265,41 @@ func _run() -> void:
 	await process_frame
 	_check(root.get_child_count() == original_root_child_count, "boarding-area fixture cleans up every node")
 	_finish()
+
+
+func _test_boarding_audio_cycles(area_scene: PackedScene, host: Node3D) -> void:
+	var ship := DummyCompatibleShip.new()
+	host.add_child(ship)
+	var area := area_scene.instantiate() as ShipBoardingArea
+	ship.add_child(area)
+	var binding: RefCounted = area.get_audio_binding()
+	var cues: Array[StringName] = []
+	binding.semantic_boarding_cue_emitted.connect(func(cue_id: StringName, _seat_id: StringName, _intensity: float) -> void: cues.append(cue_id))
+	for cycle in 3:
+		cues.clear()
+		_check(area.try_reserve(&"cycle_pilot") and area.release_reservation(&"cycle_pilot"), "boarding cycle %d reserves and releases normally" % cycle)
+		_check(cues == [&"boarding_seat_reserved", &"boarding_started", &"boarding_release"], "boarding cycle %d emits all three cues after previous playback window" % cycle)
+		_check(binding.get_snapshot().active_cue_slots.size() == 2, "overlapping cues preserve the two-slot limit")
+		await _wait_for_boarding_cue_expiry()
+		_check(binding.get_snapshot().active_cue_slots.is_empty(), "finished presentation windows retire every slot")
+	# Higher-priority concurrent events still preempt or reject within the window.
+	var generation := int(binding.get_snapshot().generation)
+	_check(bool(binding.present_event({"event_id": &"rejected", "generation": generation, "sequence": 100}).accepted), "high-priority rejection acquires one slot")
+	_check(bool(binding.present_event({"event_id": &"disembark", "generation": generation, "sequence": 101}).accepted), "disembark acquires the other slot")
+	_check(not bool(binding.present_event({"event_id": &"reserve", "generation": generation, "sequence": 102}).accepted), "concurrent lower-priority cue remains rejected")
+	await _wait_for_boarding_cue_expiry()
+	cues.clear()
+	_check(area.try_reserve(&"next_pilot") and area.release_reservation(&"next_pilot"), "next real reservation succeeds after external presentation events")
+	_check(cues == [&"boarding_seat_reserved", &"boarding_started", &"boarding_release"], "expired high-priority events do not suppress the next reservation's cues")
+	ship.queue_free()
+	await process_frame
+
+
+func _wait_for_boarding_cue_expiry() -> void:
+	# Exercise actual monotonic expiry even when the runner uses --fixed-fps.
+	var deadline := Time.get_ticks_msec() + BoardingSeatAudioBinding.CUE_SLOT_LIFETIME_MSEC + 20
+	while Time.get_ticks_msec() < deadline:
+		await process_frame
 
 
 func _test_live_enablement_currentness(area_scene: PackedScene, host: Node3D) -> void:

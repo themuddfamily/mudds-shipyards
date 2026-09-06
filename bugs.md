@@ -139,21 +139,6 @@ performance, and human visual review were **NOT_RUN** in this review.
 - **Repair:** Convert the admitted world sample through the current body frame
   once, retain the coordinate generation, and use it for both consumers.
 
-### AUDIO-002 — Boarding cue slots become a permanent priority lockout — P3
-
-- **Location:** [`BoardingSeatAudioBinding._admit()`](scripts/audio/boarding_seat_audio_binding.gd#L133).
-- **Reproduce:** Reserve and release one boarding point three times without
-  detaching it.
-- **Expected / actual:** Every independent cycle should emit reserve, start,
-  and release cues. The two supposedly simultaneous voice slots never expire.
-  Release priority 60 eventually fills both slots, permanently rejecting reserve
-  priority 45 and boarding-start priority 55.
-- **Verified:** Successive cycles emitted **3, 2, then 1** semantic cues.
-- **Scope:** Confirmed event suppression, with the same audible-playback
-  qualification as `AUDIO-001`.
-- **Repair:** Retire slots when playback completes or expires, so a concurrency
-  limit does not become a lifetime priority threshold.
-
 ### Review validation
 
 - Godot `4.7.1.stable.official.a13da4feb`; headless component/physics and real
