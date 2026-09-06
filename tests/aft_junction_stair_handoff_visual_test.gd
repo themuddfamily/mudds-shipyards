@@ -115,8 +115,8 @@ func _initialize() -> void:
 	module.queue_free()
 	await process_frame
 	if _failures.is_empty():
-		print("PASS aft_junction_stair_handoff_visual_test (%d assertions)" % _assertions)
 		print("AFT_JUNCTION_STAIR_HANDOFF_CAPTURE %s" % capture_path)
+		print("PASS aft_junction_stair_handoff_visual_test (%d assertions)" % _assertions)
 		quit(0)
 		return
 	for failure in _failures:

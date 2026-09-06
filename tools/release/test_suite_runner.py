@@ -159,6 +159,8 @@ print('OK: fixture (2 assertions)')
         paths = catalog.suites(root)
         self.assertGreaterEqual(sum(len(p.relative_to(root / 'tests').parts) > 1 for p in paths), 272)
         self.assertEqual(catalog.mode(root / 'tests/ui/cinder_navigator_ping_hud_render_test.gd'), 'graphical')
+        self.assertEqual(catalog.mode(root / 'tests/aft_junction_stair_handoff_visual_test.gd'), 'graphical')
+        self.assertEqual(catalog.mode(root / 'tests/cinder_cargo_hauler_freight_frame_visual_test.gd'), 'graphical')
         self.assertEqual(catalog.mode(root / 'tests/network/network_enet_keepalive_test.gd'), 'headless')
 
 

@@ -271,10 +271,11 @@ godot_cache_signature() {
 		| cut -d' ' -f1
 }
 
-count_matches() {
-	local pattern="$1"
-	local log_path="$2"
-	grep -acEi "$pattern" "$log_path" || true
+diagnostic_lines() {
+	local log_path="$1"
+	# Successful assertions may describe prevention of leaks or orphaned state.
+	# Keep actual engine diagnostics, including unprefixed leak reports, strict.
+	grep -avE '^[[:space:]]*PASS:' "$log_path" | grep -aEi "$DIAGNOSTIC_RE" || true
 }
 
 tail_nonempty_line() {
@@ -610,7 +611,7 @@ run_suite_worker() {
 	)
 	[[ "$sentinel_found" == '<none>' ]] && sentinel_found=""
 	[[ "$terminal_sentinel" == '<none>' ]] && terminal_sentinel=""
-	diag_count="$(count_matches "$DIAGNOSTIC_RE" "$log_path")"
+	diag_count="$(diagnostic_lines "$log_path" | wc -l)"
 	diag_count="${diag_count//[[:space:]]/}"
 	local terminal_line log_sha
 	terminal_line="$(tail_nonempty_line "$log_path" || true)"
@@ -698,7 +699,7 @@ run_suite_worker() {
 			printf '    reasons: %s\n' "$reason_text"
 			printf '    log: %s\n' "$log_path"
 			local diag_lines
-			diag_lines="$(grep -aEi "$DIAGNOSTIC_RE" "$log_path" | head -n 8 || true)"
+			diag_lines="$(diagnostic_lines "$log_path" | head -n 8 || true)"
 			if [[ -n "$diag_lines" ]]; then
 				printf '    diagnostics:\n'
 				printf '%s\n' "$diag_lines" | sed 's/^/      /'

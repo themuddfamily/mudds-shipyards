@@ -37,7 +37,7 @@ if [[ -n "$script_path" ]]; then
 			>> "$MATRIX_FAKE_USER_DATA_RECORD"
 	fi
 	for (( assertion = 1; assertion <= ${MATRIX_FAKE_ASSERTIONS:-1}; assertion++ )); do
-		printf 'PASS: measured_distance=%s assertion=%s\n' "${MATRIX_FAKE_MEASUREMENT:?}" "$assertion"
+		printf 'PASS: no orphaned registration; measured_distance=%s assertion=%s\n' "${MATRIX_FAKE_MEASUREMENT:?}" "$assertion"
 	done
 	if [[ "${MATRIX_FAKE_DIAGNOSTIC:-0}" == "1" ]]; then
 		printf 'ERROR: synthetic diagnostic %s\n' "${MATRIX_FAKE_MEASUREMENT:?}"

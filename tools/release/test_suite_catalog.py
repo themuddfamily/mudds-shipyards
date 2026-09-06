@@ -10,7 +10,14 @@ import argparse
 import re
 from pathlib import Path
 
-RENDER_MARKERS = ("RenderingServer.frame_post_draw", ".get_texture().get_image()", "get_viewport().get_texture()")
+RENDER_MARKERS = (
+    "RenderingServer.frame_post_draw",
+    ".get_texture().get_image()",
+    "get_viewport().get_texture()",
+    # Readback may store the ViewportTexture before requesting its image.
+    "root.get_texture()",
+    "viewport.get_texture()",
+)
 PRINT_LITERAL = re.compile(r'''\bprint\(\s*["']([^"'\n]+)["']''')
 TOKEN = re.compile(r"^([A-Z][A-Z0-9_]*(?:_OK|_PASS))(?=[:\s]|$)")
 
