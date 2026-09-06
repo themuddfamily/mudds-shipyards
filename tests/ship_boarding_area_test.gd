@@ -181,6 +181,11 @@ func _run() -> void:
 	)
 	host.add_child(ship)
 	await _physics_frames(3)
+	var reentry_audio: RefCounted = area.get_audio_binding()
+	var reentry_cues: Array[StringName] = []
+	_check(reentry_audio != null and reentry_audio != boarding_audio, "reentry creates a fresh semantic audio binding")
+	if reentry_audio != null:
+		reentry_audio.semantic_boarding_cue_emitted.connect(func(cue_id: StringName, _seat_id: StringName, _intensity: float) -> void: reentry_cues.append(cue_id))
 	_check(
 		area.is_available()
 		and _player_discovers(player, area)
@@ -189,6 +194,7 @@ func _run() -> void:
 		"re-entry restores physical discovery without carrying the detached pilot token"
 	)
 	_check(area.release_reservation(second_player_token), "new pilot releases the re-entered seat")
+	_check(reentry_cues == [&"boarding_seat_reserved", &"boarding_started", &"boarding_release"], "reentered seat emits each reserve, start and release cue exactly once")
 	_availability_events.clear()
 	host.remove_child(ship)
 	await process_frame
@@ -203,7 +209,13 @@ func _run() -> void:
 		"unreserved ship re-entry publishes false then true availability without reviving a reservation"
 	)
 
+	var repeated_reentry_audio: RefCounted = area.get_audio_binding()
+	var repeated_reentry_cues: Array[StringName] = []
+	_check(repeated_reentry_audio != null and repeated_reentry_audio != reentry_audio, "second reentry also restores a fresh binding")
+	if repeated_reentry_audio != null:
+		repeated_reentry_audio.semantic_boarding_cue_emitted.connect(func(cue_id: StringName, _seat_id: StringName, _intensity: float) -> void: repeated_reentry_cues.append(cue_id))
 	_check(area.try_reserve(first_player_token), "object token reserves before lifetime cleanup")
+	_check(repeated_reentry_cues == [&"boarding_seat_reserved", &"boarding_started"] and reentry_cues.size() == 3, "repeated reentry emits once through the new binding and leaves retired bindings silent")
 	first_player_token.queue_free()
 	await process_frame
 	_check(area.is_available(), "freed object reservation is detected and released safely")

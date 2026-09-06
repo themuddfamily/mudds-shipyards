@@ -229,20 +229,6 @@ performance, and human visual review were **NOT_RUN** in this review.
 - **Repair:** Guard lifecycle reentrancy or revalidate state/generation after
   emitting the checkpoint signal before committing completion.
 
-### AUDIO-001 — Boarding cue producer is lost after scene reentry — P3
-
-- **Location:** [`ShipBoardingArea` lifecycle](scripts/interaction/ship_boarding_area.gd#L46).
-- **Reproduce:** Add a boarding area, remove its ship/parent from the tree, then
-  readd the same instance.
-- **Expected / actual:** Reentry should restore the cue binding alongside
-  availability. `_exit_tree()` clears `_audio_binding`; initialized
-  `_enter_tree()` restores only availability, and `_ready()` is not rerun.
-- **Verified:** The initial binding existed; after reentry, availability was
-  **true** and `get_audio_binding()` was **null**.
-- **Scope:** Confirmed loss of the semantic cue producer. No production consumer
-  of its getter was found; missing audible playback was not demonstrated.
-- **Repair:** Restore the binding during initialized reentry.
-
 ### AUDIO-002 — Boarding cue slots become a permanent priority lockout — P3
 
 - **Location:** [`BoardingSeatAudioBinding._admit()`](scripts/audio/boarding_seat_audio_binding.gd#L133).

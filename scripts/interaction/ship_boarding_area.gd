@@ -46,6 +46,7 @@ var _audio_binding: RefCounted
 func _enter_tree() -> void:
 	_detaching = false
 	if _initialized:
+		_bind_audio()
 		_apply_enabled_state()
 		call_deferred("_publish_availability_after_reentry")
 
