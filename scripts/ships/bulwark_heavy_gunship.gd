@@ -530,7 +530,9 @@ func _build_bulwark_variant(_controller: HeroShip) -> bool:
 
 	# Replace the temporary Torrent collision envelope with a compact armored
 	# envelope.  These are gameplay collision shapes, not a second damage model.
-	for collision_node in find_children("*", "CollisionShape3D", true, false):
+	# Only the ship's direct shapes belong to that hull envelope. Nested areas
+	# retain their own shapes, including the shared boarding discovery sphere.
+	for collision_node in find_children("*", "CollisionShape3D", false, false):
 		var collision := collision_node as CollisionShape3D
 		if collision != null:
 			collision.get_parent().remove_child(collision)
