@@ -185,7 +185,7 @@ func _fail(message: String) -> void:
 
 func _finish() -> void:
 	if _failures.is_empty():
-		print("Hero collision component routing test passed")
+		print("HERO_COLLISION_COMPONENT_ROUTING_TEST_OK")
 		quit(0)
 	else:
 		push_error("Hero collision component routing test failed: %s" % _failures)
