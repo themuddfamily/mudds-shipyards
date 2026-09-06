@@ -165,21 +165,6 @@ performance, and human visual review were **NOT_RUN** in this review.
 - **Scope / repair:** This affects `run_matrix.sh`. Delegate to the maintained
   runner's content checks instead of preserving another acceptance path.
 
-### TEST-003 — Settings regression expects an obsolete accessibility descriptor — P2
-
-- **Location:** [`tests/runtime_settings_test.gd`](tests/runtime_settings_test.gd#L62).
-- **Reproduce:** Run
-  `godot --headless --path . --script tests/runtime_settings_test.gd`.
-- **Expected / actual:** The default-settings regression should agree with the
-  supported accessibility preferences. Its exact dictionary comparison omits
-  `reduced_flash` and `payload_visual_intensity`, both returned by the production
-  descriptor and exposed by the settings UI. It therefore fails on current
-  defaults, blocking the maintained release matrix.
-- **Verified:** The focused matrix recorded exit **1**, 136 passing assertions,
-  and `FAIL: the accessibility descriptor exposes the five presentation presets`.
-- **Repair:** Update the existing expected contract to cover the supported
-  fields and defaults; preserve the runtime preferences.
-
 ### TEST-004 — Passing display HUD suite lacks the required success marker — P2
 
 - **Location:** [`tests/display_settings_hud_integration_test.gd`](tests/display_settings_hud_integration_test.gd#L57).
