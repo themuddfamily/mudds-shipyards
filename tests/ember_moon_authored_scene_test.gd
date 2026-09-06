@@ -2,7 +2,7 @@ extends SceneTree
 
 const SCENE_PATH := "res://scenes/world/planets/ember_moon.tscn"
 const PLAYER_SCENE := preload("res://scenes/player/player.tscn")
-const EXPECTED_ASSERTIONS := 79
+const EXPECTED_ASSERTIONS := 80
 const EMBER_SURFACE_GRAVITY_MPS2 := 1.62
 const PROJECT_GRAVITY_MPS2 := 18.0
 const INTEGRATION_AUTHORITY_KEYS := [
@@ -968,6 +968,10 @@ func _test_terrain_focus_recenter(scene: EmberMoonAuthoredScene) -> void:
 		).is_empty(),
 		"production physics supports the far actor through 1.5 km and stops immediately beyond the local disc",
 	)
+	_check(
+		await _far_actor_has_stable_contact(scene, renderer, far_direction),
+		"a real capsule stays grounded on the actor-following relief disc after origin rebasing",
+	)
 	var farther_focus := Vector3(40_000.0, 120_000.0, 0.0)
 	var farther_recentered := scene.update_terrain_focus(farther_focus, generation)
 	await physics_frame
@@ -1110,6 +1114,37 @@ func _test_detachment_and_structured_reds(packed: PackedScene, scene: EmberMoonA
 	)
 	drifted.queue_free()
 	await process_frame
+
+
+func _far_actor_has_stable_contact(
+	scene: EmberMoonAuthoredScene, renderer: PlanetaryTerrainClipmapRenderer, up: Vector3
+) -> bool:
+	var surface_point := _focused_terrain_surface_point(renderer, up, Vector2.ZERO)
+	var prior_transform := scene.global_transform
+	scene.global_position -= surface_point
+	var actor := CharacterBody3D.new()
+	actor.up_direction = up
+	var collision := CollisionShape3D.new()
+	var capsule := CapsuleShape3D.new()
+	capsule.radius = 0.35
+	capsule.height = 1.8
+	collision.shape = capsule
+	collision.position.y = 0.9
+	actor.add_child(collision)
+	root.add_child(actor)
+	actor.global_basis = Basis.looking_at(Vector3.FORWARD, up)
+	actor.global_position = up
+	var grounded_samples := 0
+	for tick in 180:
+		await physics_frame
+		actor.velocity -= up * 1.62 / float(Engine.physics_ticks_per_second)
+		actor.move_and_slide()
+		if tick >= 120 and actor.is_on_floor():
+			grounded_samples += 1
+	actor.free()
+	scene.global_transform = prior_transform
+	await physics_frame
+	return grounded_samples == 60
 
 
 func _ray_hit(space: PhysicsDirectSpaceState3D, origin: Vector3) -> Dictionary:

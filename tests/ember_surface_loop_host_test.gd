@@ -30,6 +30,7 @@ func _run() -> void:
 	await _test_command_source_currentness()
 	await _test_exact_generation_and_loaded_root_freshness()
 	await _test_tangent_frame_and_continuous_support_fail_closed()
+	await _test_terrain_contact_rejects_airborne()
 	await _test_synchronous_destruction_first_wins()
 	for phase in [
 		EmberSurfaceLoopHost.Phase.DISEMBARKING,
@@ -1058,19 +1059,106 @@ func _test_tangent_frame_and_continuous_support_fail_closed() -> void:
 	if fixture.is_empty():
 		return
 	host = fixture.host as EmberSurfaceLoopHost
-	var walkable := fixture.walkable as StaticBody3D
-	walkable.collision_layer = PhysicsLayers.NONE
+	_replace_pad_with_tagged_support(fixture, fixture.scene as Node)
 	await physics_frame
+	await process_frame
+	var substitute_support := (fixture.player as PlayerController).is_on_floor() \
+		and _player_has_live_surface_support(fixture)
 	var unsupported := host.advance_physics(
 		PHYSICS_DELTA, host.get_generation(), host.get_attachment_generation(),
 		(fixture.frame as PlanetaryCoordinateFrame).get_generation(), 1
 	)
 	_check(
-		unsupported.reason == &"surface_support_lost"
+		substitute_support and unsupported.reason == &"surface_support_lost"
 			and host.get_phase() == EmberSurfaceLoopHost.Phase.FAILED,
-		"missing exact live WalkablePatch support fails between route endpoints",
+		"outbound traversal still requires the exact pad even on scene-owned tagged support",
 	)
 	await _cleanup(fixture)
+
+	fixture = await _fixture_at_surface_outbound()
+	if fixture.is_empty():
+		return
+	host = fixture.host as EmberSurfaceLoopHost
+	if not await _walk_outbound_route(fixture):
+		_check(false, "foreign-support fixture reaches ON_FOOT through real walking")
+		await _cleanup(fixture)
+		return
+	_replace_pad_with_tagged_support(fixture, fixture.world as Node)
+	await physics_frame
+	await process_frame
+	var foreign_support := (fixture.player as PlayerController).is_on_floor() \
+		and _player_has_live_surface_support(fixture)
+	var foreign_result := host.advance_physics(
+		PHYSICS_DELTA, host.get_generation(), host.get_attachment_generation(),
+		(fixture.frame as PlanetaryCoordinateFrame).get_generation(), 1
+	)
+	_check(
+		foreign_support and foreign_result.reason == &"surface_support_lost"
+			and host.get_phase() == EmberSurfaceLoopHost.Phase.FAILED,
+		"on-foot terrain metadata cannot authorize a foreign collider outside the authored scene",
+	)
+	await _cleanup(fixture)
+
+
+func _test_terrain_contact_rejects_airborne() -> void:
+	for kind in [&"too_high", &"rising"]:
+		var fixture := await _fixture_at_surface_outbound()
+		if fixture.is_empty():
+			return
+		var host := fixture.host as EmberSurfaceLoopHost
+		if not await _walk_outbound_route(fixture) or not await _walk_until(
+			fixture, &"move_forward", func(p: Vector3) -> bool: return p.x >= 55.0, 90
+		):
+			_check(false, "airborne guard fixture walks onto authored terrain")
+			await _cleanup(fixture)
+			return
+		var player := fixture.player as PlayerController
+		var up := (fixture.landing_root as Node3D).global_basis.y.normalized()
+		player.velocity = Vector3.ZERO
+		await physics_frame
+		await physics_frame
+		if kind == &"too_high":
+			player.teleport_to(Transform3D(player.global_basis, player.global_position + up))
+		else:
+			# A small real jump keeps the feet near the surface: proximity
+			# must never substitute for actual floor contact.
+			player.jump_velocity = 0.12
+			Input.action_press(&"jump")
+		await physics_frame
+		await physics_frame
+		Input.action_release(&"jump")
+		var hit := _surface_support_hit(fixture)
+		var collider := hit.get("collider") as Node
+		var gap := (player.global_position - (hit.get("position", Vector3.INF) as Vector3)).dot(up)
+		var expected_observation := not player.is_on_floor() \
+			and collider != null and (fixture.scene as Node).is_ancestor_of(collider) \
+			and bool(collider.get_meta(&"generated_planetary_terrain", false))
+		if kind == &"too_high":
+			expected_observation = expected_observation and gap > 0.5
+		else:
+			expected_observation = expected_observation and absf(gap) <= 0.02 \
+				and player.velocity.dot(up) > 0.0
+		var rejected := host.advance_physics(
+			PHYSICS_DELTA, host.get_generation(), host.get_attachment_generation(),
+			(fixture.frame as PlanetaryCoordinateFrame).get_generation(), 1
+		)
+		_check(
+			expected_observation and rejected.reason == &"surface_support_lost",
+			"authored terrain support rejects an airborne actor: " + str(kind),
+		)
+		await _cleanup(fixture)
+
+
+func _replace_pad_with_tagged_support(fixture: Dictionary, parent: Node) -> void:
+	var original := fixture.walkable as StaticBody3D
+	var substitute := original.duplicate() as StaticBody3D
+	substitute.name = "TaggedSupportSubstitute"
+	substitute.set_meta(&"generated_planetary_terrain", true)
+	parent.add_child(substitute)
+	substitute.global_transform = original.global_transform
+	original.collision_layer = PhysicsLayers.NONE
+	# The ray witness follows the substitute; the Host still retains its real pad.
+	fixture.walkable = substitute
 
 
 func _test_synchronous_destruction_first_wins() -> void:
@@ -1608,27 +1696,30 @@ func _player_near(area: ShipBoardingArea, player: PlayerController) -> bool:
 
 
 func _player_has_live_surface_support(fixture: Dictionary) -> bool:
+	var hit := _surface_support_hit(fixture)
+	var up := (fixture.landing_root as Node3D).global_basis.y.normalized()
+	return not hit.is_empty() and hit.get("collider") == fixture.walkable \
+		and (hit.get("normal", Vector3.ZERO) as Vector3).dot(up) >= 0.9
+
+
+func _surface_support_hit(fixture: Dictionary) -> Dictionary:
 	var player := fixture.player as PlayerController
-	var landing_root := fixture.landing_root as Node3D
-	var walkable := fixture.walkable as StaticBody3D
-	var surface_up := landing_root.global_basis.y.normalized()
+	var up := (fixture.landing_root as Node3D).global_basis.y.normalized()
 	var query := PhysicsRayQueryParameters3D.create(
-		player.global_position + surface_up * 0.5,
-		player.global_position - surface_up * 2.5,
+		player.global_position + up * 0.5,
+		player.global_position - up * 2.5,
 		PhysicsLayers.WORLD_BODY_LAYER
 	)
 	query.exclude = [player.get_rid(), (fixture.ship as ArrowReconShip).get_rid()]
 	query.collide_with_areas = false
 	query.collide_with_bodies = true
-	var hit := player.get_world_3d().direct_space_state.intersect_ray(query)
-	return not hit.is_empty() and hit.get("collider") == walkable \
-		and (hit.get("normal", Vector3.ZERO) as Vector3).dot(surface_up) >= 0.9
+	return player.get_world_3d().direct_space_state.intersect_ray(query)
 
 
 func _cleanup(fixture: Dictionary) -> void:
 	for action in [
 		&"move_left", &"move_right", &"move_forward", &"move_back",
-		&"sprint_boost",
+		&"sprint_boost", &"jump",
 	]:
 		Input.action_release(action)
 	var world := fixture.get("world") as Node

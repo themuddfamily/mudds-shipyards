@@ -2,55 +2,6 @@
 
 This ledger contains only unresolved or explicitly accepted issues. Fixed and closed records are removed once their fixes are verified.
 
-## Code review — 2026-09-06
-
-Reviewed source: `aceff1619`. The remaining findings below are **OPEN**; verified
-fixes are removed as they are committed. P1 means a major feature or gameplay path is broken; P2 means
-an actionable correctness defect; P3 means a bounded lifecycle or robustness
-defect. The existing accepted `RENDER-001` record remains below.
-
-Scope: flight/boarding/combat, world activities/streaming, network transport,
-startup/settings/persistence, and executable packaging/test runners. Findings
-distinguish production behavior from defects reproduced through component APIs.
-This is a bounded source review with focused execution, not a claim that every
-bug has been found. Native Windows, physical controllers, representative GPU
-performance, and human visual review were **NOT_RUN** in this review.
-
-### WORLD-004 — Valid terrain beyond the landing pad is rejected as lost support — P1
-
-- **Location:** [`EmberSurfaceLoopHost._surface_actor_supported()`](scripts/world/ember_surface_loop_host.gd).
-- **Found during fix verification:** Walk from Ember's 96×96 m landing pad onto
-  the generated terrain toward the authored survey checkpoint and Relay Arc.
-- **Expected / actual:** Authored traversable terrain should support the on-foot
-  journey. The host requires the original pad's exact collider and a narrow
-  landing-height band. It rejects the existing `generated_planetary_terrain`
-  collider and terminates the journey with `surface_support_lost`.
-- **Verified:** The active-survey walking fixture stopped advancing after
-  leaving the pad near local X=50. Source inspection confirms that the actual
-  checkpoint at X=180 / Y=9 and hazard near X=176 / Y=6 lie outside the host's
-  permitted footprint/height, despite real terrain collision being present.
-- **Repair:** Admit current authored terrain support in the correct body frame,
-  while retaining generation, actor, slope, and fall-safety checks. Verify real
-  movement from the pad onto the route rather than teleporting test samples.
-
-### Review validation
-
-- Godot `4.7.1.stable.official.a13da4feb`; headless component/physics and real
-  ENet fixtures, plus production display transactions under Xvfb with 3D drawing
-  disabled and isolated user data. Display probes used Compatibility/llvmpipe;
-  they do not qualify the production Forward+ visuals.
-- 31 focused Python packaging/release tests passed, as did
-  `tools/release/test_run_test_matrix_canonical.sh`.
-- Existing production settings persistence, activity director, and streaming
-  coordinator suites passed (34, 33, and 85 assertions respectively).
-- Existing network adapter integration failed three movement assertions;
-  existing runtime settings regression failed its descriptor assertion; the
-  display HUD test passed its assertions but failed the runner's output contract.
-  These are recorded above, not presented as a clean test run.
-- Temporary reproduction scripts/fixtures were used for the additional
-  findings. The full test matrix and native Windows package execution were not
-  run; production code and existing tests were not modified.
-
 ## RENDER-001 — Seven `Texture` RIDs leak at `RenderingDevice::finalize()` on every rendered run — **ACCEPTED_RISK**
 
 - Status: `ACCEPTED_RISK`. Severity: **P3**. Disposition: **accepted, engine-side, no code

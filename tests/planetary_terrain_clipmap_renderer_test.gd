@@ -152,6 +152,8 @@ func _run() -> void:
 		"the landing region is exactly flattened while the global height field remains varied",
 	)
 
+	await _test_live_character_support(renderer)
+
 	var north_root_id := committed.get_instance_id()
 	var north_collision_shape_id := (
 		(committed.get_node(
@@ -224,8 +226,8 @@ func _run() -> void:
 		"a 3 km focus keeps the cached landing surface and adds one exact bounded collision corridor",
 	)
 	var corridor_geometry := _inspect_focus_collision_corridor(
-		current_fixed_collision.shape as ConcavePolygonShape3D,
-		focus_corridor_collision.shape as ConcavePolygonShape3D,
+		current_fixed_collision,
+		focus_corridor_collision,
 	)
 	_check(
 		int(corridor_geometry.get("face_count", 0))
@@ -399,6 +401,8 @@ func _inspect_collision_clearance(body: StaticBody3D) -> Dictionary:
 			continue
 		shape_count += 1
 		var faces := shape.get_faces()
+		for index in faces.size():
+			faces[index] = body.transform * (collision.transform * faces[index])
 		face_count += faces.size() / 3
 		for start in range(0, faces.size(), 3):
 			var a := faces[start]
@@ -429,16 +433,54 @@ func _inspect_collision_clearance(body: StaticBody3D) -> Dictionary:
 	}
 
 
+func _test_live_character_support(renderer: PlanetaryTerrainClipmapRenderer) -> void:
+	# Reproduce the production body-to-world offset while using real capsule
+	# narrow-phase contact, which ray hits alone cannot establish.
+	renderer.position = -LANDING_CENTER
+	var actor := CharacterBody3D.new()
+	var collision := CollisionShape3D.new()
+	var capsule := CapsuleShape3D.new()
+	capsule.radius = 0.35
+	capsule.height = 1.8
+	collision.shape = capsule
+	collision.position.y = 0.9
+	actor.add_child(collision)
+	root.add_child(actor)
+	actor.global_position = Vector3(72.0, 1.0, 0.0)
+	var grounded_samples := 0
+	for tick in 180:
+		await physics_frame
+		actor.velocity.y -= 1.62 / float(Engine.physics_ticks_per_second)
+		actor.move_and_slide()
+		if tick >= 120 and actor.is_on_floor():
+			grounded_samples += 1
+	_check(
+		grounded_samples == 60 and actor.global_position.y > -0.1,
+		"a real CharacterBody capsule remains grounded on rebased terrain for sixty consecutive ticks",
+	)
+	actor.free()
+	renderer.position = Vector3.ZERO
+	await physics_frame
+
+
+func _body_local_collision_faces(collision: CollisionShape3D) -> PackedVector3Array:
+	var faces := (collision.shape as ConcavePolygonShape3D).get_faces()
+	var transform := (collision.get_parent() as Node3D).transform * collision.transform
+	for index in faces.size():
+		faces[index] = transform * faces[index]
+	return faces
+
+
 func _inspect_focus_collision_corridor(
-	fixed_shape: ConcavePolygonShape3D,
-	corridor_shape: ConcavePolygonShape3D,
+	fixed_collision: CollisionShape3D,
+	corridor_collision: CollisionShape3D,
 ) -> Dictionary:
 	var fixed_seam := {}
-	for vertex in fixed_shape.get_faces():
+	for vertex in _body_local_collision_faces(fixed_collision):
 		var offset := _landing_tangent_offset(vertex)
 		if absf(offset.length() - EXPECTED_COLLISION_DISTANCE_M) <= 0.02:
 			fixed_seam[_quantized_tangent_key(offset)] = offset
-	var corridor_faces := corridor_shape.get_faces()
+	var corridor_faces := _body_local_collision_faces(corridor_collision)
 	var corridor_seam := {}
 	var minimum_tangent_radius_m := INF
 	var maximum_tangent_radius_m := 0.0

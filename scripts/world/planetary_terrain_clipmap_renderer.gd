@@ -259,6 +259,9 @@ func rebuild(
 	staged_root.add_child(visuals)
 	var collision_body := StaticBody3D.new()
 	collision_body.name = COLLISION_BODY_NAME
+	# Keep narrow-phase collision coordinates near the surface, not the body centre.
+	# Large (~120 km) shape-local coordinates destabilize CharacterBody contact.
+	collision_body.position = collision_focus_up * _body_radius_m
 	collision_body.collision_layer = TERRAIN_LAYER
 	collision_body.collision_mask = 0
 	collision_body.set_meta(&"generated_planetary_terrain", true)
@@ -346,7 +349,9 @@ func rebuild(
 			_mutation_active = false
 			return _result(false, &"collision_build_failed")
 		collision_shape = ConcavePolygonShape3D.new()
-		collision_shape.set_faces(collision_faces)
+		collision_shape.set_faces(_collision_faces_relative_to(
+			collision_faces, collision_body.position
+		))
 		collision_shape.backface_collision = false
 		collision_report = {
 			"vertex_count": int(collision_surface.get("vertex_count", 0)),
@@ -411,7 +416,9 @@ func rebuild(
 			_mutation_active = false
 			return _result(false, &"focus_collision_build_failed")
 		var focus_collision_shape := ConcavePolygonShape3D.new()
-		focus_collision_shape.set_faces(focus_collision_faces)
+		focus_collision_shape.set_faces(_collision_faces_relative_to(
+			focus_collision_faces, collision_body.position
+		))
 		focus_collision_shape.backface_collision = false
 		var focus_collision := CollisionShape3D.new()
 		focus_collision.name = FOCUS_COLLISION_NAME
@@ -654,6 +661,10 @@ func audit() -> Dictionary:
 			if visuals == null or visuals.get_child_count() != _ring_distances_m.size():
 				errors.append("terrain visual ring roster drifted")
 			if collision == null \
+					or collision.basis != Basis.IDENTITY \
+					or collision.position != (
+						_last_snapshot.get("collision_focus_radial_up", Vector3.ZERO) as Vector3
+					) * _body_radius_m \
 					or collision.collision_layer != TERRAIN_LAYER \
 					or collision.collision_mask != 0 \
 					or collision.get_child_count() != expected_collision_shape_count \
@@ -1196,6 +1207,16 @@ static func _append_clockwise_triangle(
 	else:
 		indices.append(b)
 		indices.append(c)
+
+
+static func _collision_faces_relative_to(
+	faces: PackedVector3Array, origin: Vector3
+) -> PackedVector3Array:
+	var local_faces := PackedVector3Array()
+	local_faces.resize(faces.size())
+	for index in faces.size():
+		local_faces[index] = faces[index] - origin
+	return local_faces
 
 
 static func _append_collision_triangle(

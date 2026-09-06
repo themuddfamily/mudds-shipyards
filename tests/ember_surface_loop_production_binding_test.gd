@@ -572,11 +572,6 @@ func _test_real_scheduler_complete_loop() -> void:
 			and early.sample_count == samples_before + 1,
 		"one admitted on-foot sample advances the exact late hazard receipt once",
 	)
-	# Keep this coordinate regression on the supported pad; the real director
-	# still owns progression and receives only automatic early/late observations.
-	var survey_definition := planetary_director.get_definition(&"ember_beacon_survey")
-	survey_definition.checkpoint_positions[0] = Vector3(36.0, 120000.0, 0.0)
-	survey_definition.checkpoint_radius = 2.0
 	var survey_started := production.start_planetary_relay_survey()
 	_check(survey_started.accepted, "real on-foot scheduler starts the relay survey")
 	var advance_before_survey := int(production.get_snapshot().advance_count)
@@ -606,12 +601,12 @@ func _test_real_scheduler_complete_loop() -> void:
 	var feedback := production.get_planetary_surface_snapshot().surface_navigation_feedback as Dictionary
 	var cue := (feedback.get("navigation", {}) as Dictionary).get("cue", {}) as Dictionary
 	_check(
-		int(survey_progress.get("next_checkpoint_index", -1)) == 1
+		int(survey_progress.get("next_checkpoint_index", -1)) == 0
 			and production.get_state() == EmberSurfaceLoopProductionBinding.State.RUNNING
 			and int(frozen.coordinate_frame_generation) == early.frame.get_generation()
 			and (frozen.position_body_local_m as Vector3).is_equal_approx(expected_body_position)
 			and expected_body_position.distance_to(frozen.actor_sample.position as Vector3) > 100000.0,
-		"rebased real walking reaches one body-local checkpoint and stationary samples retain it",
+		"rebased pad walking preserves the current body-local sample while the survey stays active",
 	)
 	_check(
 		bool(cue.get("available", false))
@@ -621,10 +616,55 @@ func _test_real_scheduler_complete_loop() -> void:
 		"the hazard consumer receives the same body-local sample for authored navigation distance",
 	)
 	var surface_composition := world.get_node(^"EmberPlanetarySurfaceProductionBinding")
+	# Continue the same survey over the real authored terrain and checkpoints.
+	var reached_arc := await _walk_until(
+		fixture, &"move_forward", func(p: Vector3) -> bool: return p.x >= 90.0, 180
+	)
+	_check(reached_arc, "real Player crosses from the fixed pad onto authored Ember terrain")
+	if not reached_arc:
+		_check(false, "terrain crossing failure: " + str(production.get_snapshot().last_late_result))
+		await _cleanup(world)
+		return
+	await _one_physics()
+	var arc := production.get_authored_hazard_presentation_snapshot().hazard as Dictionary
+	_check(
+		arc.get("state") == &"warning" and float(arc.get("exposure_unitless", 0.0)) > 0.0,
+		"actual rebased walking into the authored Relay Arc produces hazard exposure",
+	)
+	var reached_route := await _walk_until(
+		fixture, &"move_left", func(p: Vector3) -> bool: return p.z <= -30.0, 120
+	) and await _walk_until(
+		fixture, &"move_forward", func(p: Vector3) -> bool: return p.x >= 160.0, 210
+	)
+	_check(reached_route, "real Player walks the generated terrain to the authored relay checkpoint")
+	if not reached_route:
+		await _cleanup(world)
+		return
+	for _sample in 3:
+		await _one_physics(false)
+	_check(
+		int(planetary_director.get_activity_snapshot(&"ember_beacon_survey").get("next_checkpoint_index", -1)) == 1
+			and production.get_state() == EmberSurfaceLoopProductionBinding.State.RUNNING
+			and production.get_authored_hazard_presentation_snapshot().hazard.state == &"clear",
+		"authored checkpoint progress survives stationary samples and leaving the arc clears exposure",
+	)
 	_check(
 		(surface_composition.call(&"abort_relay_survey", &"test_route_retired") as Dictionary).accepted,
-		"survey fixture retires its active route before exercising return ownership",
+		"authored survey retires before the physical return fixture",
 	)
+	# Retrace the clear outbound corridor before entering the pad; the gantry
+	# pylons occupy x=34, z=+/-5.2 on either side of that corridor.
+	var returned_to_pad := await _walk_until(
+		fixture, &"move_back", func(p: Vector3) -> bool: return p.x <= 90.0, 210
+	) and await _walk_until(
+		fixture, &"move_right", func(p: Vector3) -> bool: return p.z >= 0.0, 120
+	) and await _walk_until(
+		fixture, &"move_back", func(p: Vector3) -> bool: return p.x <= 35.0, 180
+	)
+	_check(returned_to_pad, "real Player crosses from terrain back onto the fixed pad")
+	if not returned_to_pad:
+		await _cleanup(world)
+		return
 	_check(await _walk_return(fixture), "real Player returns to the exact BoardingArea")
 	var retained_session := host.get_travel_session_observation_source()
 	var retained_attachment_generation := int(

@@ -2693,8 +2693,7 @@ func _surface_actor_supported() -> bool:
 		return false
 	var player_tangent := _world_to_reference_tangent(_player.global_position)
 	var live_surface_local := _landing_root.to_local(_player.global_position)
-	if player_tangent.distance_to(live_surface_local) > 0.02 \
-			or live_surface_local.y < -0.1 or live_surface_local.y > 2.5:
+	if player_tangent.distance_to(live_surface_local) > 0.02:
 		return false
 	var surface_up := _landing_root.global_basis.y.normalized()
 	var query := PhysicsRayQueryParameters3D.create(
@@ -2706,8 +2705,17 @@ func _surface_actor_supported() -> bool:
 	query.collide_with_areas = false
 	query.collide_with_bodies = true
 	var hit := get_world_3d().direct_space_state.intersect_ray(query)
-	return not hit.is_empty() and hit.get("collider") == _walkable_body \
-		and (hit.get("normal", Vector3.ZERO) as Vector3).dot(surface_up) >= 0.9
+	if hit.is_empty() or (hit.get("normal", Vector3.ZERO) as Vector3).dot(surface_up) < 0.9:
+		return false
+	var collider := hit.get("collider") as Node
+	if collider == _walkable_body:
+		if live_surface_local.y < -0.1 or live_surface_local.y > 2.5:
+			return false
+	elif _phase != Phase.ON_FOOT or not collider is StaticBody3D \
+			or not _scene.is_ancestor_of(collider) \
+			or not bool(collider.get_meta(&"generated_planetary_terrain", false)):
+		return false
+	return true
 
 
 func _connect_dependency_signals() -> void:

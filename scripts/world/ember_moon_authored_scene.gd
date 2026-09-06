@@ -719,6 +719,7 @@ func _configure_actor_collision_owner() -> void:
 	_actor_collision_body.collision_layer = WORLD_LAYER
 	_actor_collision_body.collision_mask = 0
 	_actor_collision_body.set_meta(&"common_origin_owner", true)
+	_actor_collision_body.set_meta(&"generated_planetary_terrain", true)
 	_actor_collision_shape = CollisionShape3D.new()
 	_actor_collision_shape.name = &"TerrainActorCollisionSurface"
 	_actor_collision_shape.disabled = true
@@ -804,6 +805,11 @@ func _stage_actor_collision_support(
 	var triangle_count := faces.size() / 3
 	if triangle_count != TERRAIN_ACTOR_COLLISION_TRIANGLE_COUNT:
 		return {"accepted": false, "reason": &"actor_collision_triangle_budget_drift"}
+	# Follow the actor with a local collision origin as well as local coverage.
+	# Retaining body-centred vertices here defeats the common-origin rebase.
+	var collision_origin := focus_up * BODY_RADIUS_M
+	for index in faces.size():
+		faces[index] -= collision_origin
 	var collision_shape := ConcavePolygonShape3D.new()
 	collision_shape.set_faces(faces)
 	collision_shape.backface_collision = false
@@ -835,11 +841,13 @@ func _commit_actor_collision_support(staged: Dictionary) -> void:
 	var report := staged.get("report", {}) as Dictionary
 	if not bool(report.get("active", false)):
 		_actor_collision_shape.disabled = true
+		_actor_collision_body.position = Vector3.ZERO
 		_actor_collision_report = report.duplicate(true)
 		return
 	var shape := staged.get("shape") as ConcavePolygonShape3D
 	if shape == null:
 		return
+	_actor_collision_body.position = (report.focus_radial_up as Vector3) * BODY_RADIUS_M
 	_actor_collision_shape.shape = shape
 	_actor_collision_shape.disabled = false
 	_actor_collision_report = report.duplicate(true)
@@ -1513,10 +1521,15 @@ func _validate_collision(errors: Array[Dictionary]) -> void:
 		if actor_shape != null else PackedVector3Array()
 	var actor_contract_valid := (
 		actor_body != null
-			and actor_body.transform == Transform3D.IDENTITY
+			and actor_body.basis == Basis.IDENTITY
+			and actor_body.position == (
+				(_actor_collision_report.get("focus_radial_up", Vector3.ZERO) as Vector3) * BODY_RADIUS_M
+				if actor_active else Vector3.ZERO
+			)
 			and actor_body.collision_layer == WORLD_LAYER
 			and actor_body.collision_mask == 0
 			and bool(actor_body.get_meta(&"common_origin_owner", false))
+			and bool(actor_body.get_meta(&"generated_planetary_terrain", false))
 			and actor_collision != null
 			and actor_collision.transform == Transform3D.IDENTITY
 			and actor_collision.disabled != actor_active
@@ -1540,7 +1553,7 @@ func _validate_collision(errors: Array[Dictionary]) -> void:
 			and float(_actor_collision_report.get(
 				"landing_surface_distance_m", 0.0
 			)) > TERRAIN_RENDER_MAXIMUM_DISTANCE_M \
-			and _actor_collision_winding_is_outward(actor_faces)
+			and _actor_collision_winding_is_outward(actor_faces, actor_body.position)
 	if not actor_contract_valid:
 		_append_error(
 			errors, &"actor_collision_support_drift", &"TerrainActorCollision",
@@ -1592,14 +1605,14 @@ func _validate_collision(errors: Array[Dictionary]) -> void:
 
 
 static func _actor_collision_winding_is_outward(
-		faces: PackedVector3Array,
+		faces: PackedVector3Array, origin: Vector3,
 	) -> bool:
 	if faces.size() != TERRAIN_ACTOR_COLLISION_TRIANGLE_COUNT * 3:
 		return false
 	for face_index in range(0, faces.size(), 3):
-		var a := faces[face_index]
-		var b := faces[face_index + 1]
-		var c := faces[face_index + 2]
+		var a := faces[face_index] + origin
+		var b := faces[face_index + 1] + origin
+		var c := faces[face_index + 2] + origin
 		var mathematical_normal := (b - a).cross(c - a)
 		var outward := (a + b + c).normalized()
 		if mathematical_normal.is_zero_approx() \
