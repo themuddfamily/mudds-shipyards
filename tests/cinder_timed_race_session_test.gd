@@ -78,6 +78,19 @@ func _run() -> void:
 		"the director rejects a position outside the expected shared checkpoint"
 	)
 
+	var before_invalid := session.get_presentation_snapshot()
+	var route_before_invalid := director.get_activity_snapshot(ROUTE.activity_id)
+	for invalid_position in [Vector3(NAN, 0, 0), Vector3(0, INF, 0), Vector3(0, 0, -INF)]:
+		for _checkpoint_index in ROUTE.get_checkpoint_count():
+			var rejected := session.submit_position(invalid_position, session_generation)
+			_check(not rejected.accepted and rejected.reason == &"invalid_position",
+				"the session rejects nonfinite positions through the shared route authority")
+	var after_invalid := session.get_presentation_snapshot()
+	for key in ["state_id", "lap_number", "next_checkpoint_index", "current_time_seconds", "last_time_seconds", "best_time_seconds"]:
+		_check(after_invalid[key] == before_invalid[key], "nonfinite positions preserve session %s" % key)
+	_check(director.get_activity_snapshot(ROUTE.activity_id) == route_before_invalid,
+		"nonfinite session positions preserve the director route")
+
 	for checkpoint_index in ROUTE.get_checkpoint_count():
 		_check(
 			session.submit_position(

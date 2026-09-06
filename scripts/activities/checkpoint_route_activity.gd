@@ -51,6 +51,8 @@ func submit_position(position: Vector3, expected_generation: int) -> Dictionary:
 		return _result(false, &"stale_generation")
 	if _state != State.ACTIVE:
 		return _result(false, &"not_active")
+	if not position.is_finite():
+		return _result(false, &"invalid_position")
 	var checkpoint := definition.get_checkpoint_position(_next_checkpoint_index)
 	if position.distance_to(checkpoint) > definition.checkpoint_radius:
 		return _result(false, &"outside_checkpoint")

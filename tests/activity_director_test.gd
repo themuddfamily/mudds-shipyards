@@ -122,6 +122,15 @@ func _test_route_lifecycle_and_generation_guards() -> void:
 			and int(first_start.get("state", -1)) == CheckpointRouteActivity.State.ACTIVE,
 		"starting creates generation one in the active state"
 	)
+	var before_invalid := director.get_activity_snapshot(ROUTE.activity_id)
+	for invalid_position in [Vector3(NAN, 0, 0), Vector3(0, INF, 0), Vector3(0, 0, -INF)]:
+		for _checkpoint_index in ROUTE.get_checkpoint_count():
+			var rejected := director.submit_position(ROUTE.activity_id, invalid_position, first_generation)
+			_check(
+				not rejected.accepted and rejected.reason == &"invalid_position"
+					and director.get_activity_snapshot(ROUTE.activity_id) == before_invalid,
+				"nonfinite positions cannot advance the route or emit checkpoint signals"
+			)
 	_check(
 		not bool(director.submit_position(
 			ROUTE.activity_id, ROUTE.get_checkpoint_position(1), first_generation

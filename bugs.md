@@ -212,22 +212,6 @@ performance, and human visual review were **NOT_RUN** in this review.
 - **Repair:** Preserve deferred completions safely across detachment or retire
   lost requests so ordinary reentry policy can retry.
 
-### ACTIVITY-001 — Nonfinite positions complete checkpoint routes — P2
-
-- **Location:** [`CheckpointRouteActivity.submit_position()`](scripts/activities/checkpoint_route_activity.gd#L54).
-- **Reproduce:** Start the real Cinder route/race and submit
-  `Vector3(NAN, 0, 0)` once per checkpoint through its public API.
-- **Expected / actual:** Reject nonfinite coordinates without changing progress.
-  `NaN > checkpoint_radius` evaluates false, so every sample counts as reaching
-  the next checkpoint.
-- **Verified:** With the actual ActivityDirector, Cinder route, and
-  `CinderTimedRaceSession.new(1, 0.0, 120.0)`, five NaN samples all returned
-  `checkpoint_reached`. The race finished with **0-second last and best times**.
-- **Scope:** Public API validation defect. No ordinary player action producing
-  NaN was demonstrated; upstream actor sampling can reject it.
-- **Repair:** Require finite positions at the route authority boundary before
-  performing distance comparisons.
-
 ### ACTIVITY-002 — Checkpoint callback failure is overwritten by completion — P2
 
 - **Location:** [`CheckpointRouteActivity.submit_position()`](scripts/activities/checkpoint_route_activity.gd#L59).
