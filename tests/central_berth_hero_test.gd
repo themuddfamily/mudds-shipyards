@@ -209,8 +209,13 @@ func _test_audit_and_evidence(world: ShipyardWorld) -> void:
 	_check(
 		int(authored_audit.get("runtime_mesh_count", 0)) == 8
 		and int(authored_audit.get("runtime_surface_count", 0)) == 8
-		and int(authored_audit.get("runtime_triangle_count", 0)) == 11_508,
-		"111 editable components remain batched to eight runtime draws and 11,508 triangles"
+		and int(authored_audit.get("runtime_triangle_count", 0)) == 11_508 + 384
+		and int(authored_audit.get("approach_fascia_member_count", 0)) == 4
+		and int(authored_audit.get("approach_fascia_triangle_count", 0)) == 432
+		and int(authored_audit.get("total_render_mesh_count", 0)) == 9
+		and int(authored_audit.get("total_render_surface_count", 0)) == 9
+		and int(authored_audit.get("route_handoff_triangle_count", 0)) == 864,
+		"eight authored shell batches retain 11,508 source triangles plus 384 approach-fascia bevel triangles"
 	)
 	_check(
 		not bool(authored_audit.get("gameplay_authority", true))
@@ -250,16 +255,19 @@ func _test_audit_and_evidence(world: ShipyardWorld) -> void:
 
 
 func _test_berth_contracts(world: ShipyardWorld, torrent: HeroShip) -> void:
+	# Six original/provisional fleet berths plus the three authored Cinder pads
+	# all participate in the same production registry. Keep an independent exact
+	# roster so a missing expansion pad or an unexpected berth still fails.
+	var expected_berth_ids: Array[StringName] = [
+		&"arrow_recon_berth", &"central_berth", &"jovian_freight_berth",
+		&"zenith_fleet_dock_berth", &"halyard_fleet_dock_berth",
+		&"bulwark_fleet_dock_berth", &"dock_04_cargo", &"dock_05_bomber",
+		&"dock_06_interceptor",
+	]
 	var berth_ids := world.get_berth_ids()
-	_check(
-		berth_ids.size() == 5
-		and berth_ids.has(&"arrow_recon_berth")
-		and berth_ids.has(&"central_berth")
-		and berth_ids.has(&"jovian_freight_berth")
-		and berth_ids.has(&"zenith_fleet_dock_berth")
-		and berth_ids.has(&"halyard_fleet_dock_berth"),
-		"exactly the five production berth IDs remain registered"
-	)
+	berth_ids.sort()
+	expected_berth_ids.sort()
+	_check(berth_ids == expected_berth_ids, "all nine exact production berth IDs remain registered")
 	var central_transform := world.get_berth_transform(&"central_berth")
 	var arrow_transform := world.get_berth_transform(&"arrow_recon_berth")
 	var jovian_transform := world.get_berth_transform(&"jovian_freight_berth")

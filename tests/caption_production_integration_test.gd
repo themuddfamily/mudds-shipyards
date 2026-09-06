@@ -61,6 +61,7 @@ func _initialize() -> void:
 
 
 func _run() -> void:
+	root.size = Vector2i(2560, 1440)
 	_production_store_before = _production_store_snapshot()
 	_isolated_filesystem = MemoryFilesystem.new()
 	_isolated_store = Store.new(ISOLATED_STORE_PATH, _isolated_filesystem)
@@ -109,9 +110,23 @@ func _run() -> void:
 		"HUD retains no legacy caption history, wall-clock timer or duplicate panel state"
 	)
 
+	# Reduced motion makes the normal intro transition deterministic without
+	# adding a wall-clock delay or a fifth settings transaction.
+	hud.setting_change_requested.emit(&"reduced_motion", true)
+	# Retire the intro through the shipping input route while captions are still
+	# disabled. Measuring a hidden HUD leaves its containers unsorted at 1 px.
+	var start_press := InputEventAction.new()
+	start_press.action = &"interact"
+	start_press.pressed = true
+	Input.parse_input_event(start_press)
+	var start_release := InputEventAction.new()
+	start_release.action = &"interact"
+	Input.parse_input_event(start_release)
+	await _settle()
+	_check(game.phase == GameFlow.Phase.APPROACH_SHIP, "shipping start input enters the visible on-foot HUD")
+
 	# Drive the authoritative settings signals used by the shipping pause panel.
 	hud.setting_change_requested.emit(&"captions_enabled", true)
-	hud.setting_change_requested.emit(&"reduced_motion", true)
 	hud.setting_change_requested.emit(&"ui_scale", 1.6)
 	hud.layout_for_viewport(Vector2(2560.0, 1440.0))
 	await _settle()
@@ -120,9 +135,9 @@ func _run() -> void:
 		is_equal_approx(float(scaled.ui_scale), 1.6)
 		and is_equal_approx(
 			float(scaled.effective_safe_margin_bottom),
-			GameHUD.CAPTION_BOTTOM_SAFE_LOGICAL * 1.6
+			GameHUD.PANEL_COMPOSED_CAPTION_BOTTOM_SAFE_LOGICAL * 1.6
 		),
-		"the production HUD passes the full supported 1.6 scale and exact reserved bottom band"
+		"the visible on-foot HUD passes 1.6 scale and the composed public-status bottom reservation"
 	)
 
 	var audio := game.get_node_or_null(^"AudioDirector") as AudioDirector
@@ -131,6 +146,9 @@ func _run() -> void:
 	var snapshot := game.get_caption_presentation_snapshot()
 	var applied := hud.get_caption_presentation_snapshot()
 	var visible_report := hud.get_caption_presentation_report()
+	var expected_category := "[SYSTEM]  MED · P60 · %ds" % ceili(
+		float(snapshot.caption.remaining_physics_seconds)
+	)
 	_check(
 		bool(snapshot.visible)
 		and snapshot == applied
@@ -142,10 +160,14 @@ func _run() -> void:
 	)
 	_check(
 		bool(visible_report.visible)
-		and str(visible_report.rendered_category) == "[ SYSTEM ]"
-		and str(visible_report.rendered_speaker) == "Range control"
+		and str(visible_report.rendered_category) == expected_category
+		and str(visible_report.rendered_speaker) == "SOURCE · Range control"
 		and str(visible_report.rendered_text) == "[ range target destroyed ]"
-		and not bool(visible_report.text_clipped),
+		and not bool(visible_report.text_clipped)
+		# Match the presenter layout suite's half-pixel raster rounding tolerance.
+		and (visible_report.safe_rect as Rect2).grow(0.51).encloses(visible_report.panel_rect as Rect2)
+		and (visible_report.panel_rect as Rect2).encloses(visible_report.text_rect as Rect2)
+		and (presenter_nodes[0] as Control).is_visible_in_tree(),
 		"HUD routes the snapshot through the speaker/category/text presenter without clipping"
 	)
 	(snapshot.caption as Dictionary)["text"] = "consumer mutation"
