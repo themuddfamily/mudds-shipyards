@@ -156,6 +156,7 @@ func _test_derived_opponent_weapon_profiles() -> void:
 		_test_root.add_child(craft)
 	await process_frame
 
+	var cue_count_before := int(presentation.get_state_snapshot().cue_count)
 	var resolved_miss := {
 		"accepted": true,
 		"resolved": true,
@@ -164,8 +165,12 @@ func _test_derived_opponent_weapon_profiles() -> void:
 	}
 	picket.call("_present_lance_shot", Vector3(-12.0, 3.0, 8.0), Vector3.FORWARD, 1, resolved_miss)
 	var lance_fire := presentation.get_state_snapshot()
+	# Resolver-backed fire dispatch now separates the audio request from pulse
+	# presentation. Exercise both production seams, as the firing path does.
+	courier.call("_play_weapon_fire_audio", Vector3.ZERO)
 	courier.call("_present_resolved_shot", Vector3.ZERO, Vector3.FORWARD, 2, resolved_miss)
 	var turret_fire := presentation.get_state_snapshot()
+	skirmisher.call("_play_weapon_fire_audio", Vector3(12.0, 3.0, 8.0))
 	skirmisher.call("_present_resolved_shot", Vector3(12.0, 3.0, 8.0), Vector3.FORWARD, 3, resolved_miss)
 	var repeater_fire := presentation.get_state_snapshot()
 	_check(
@@ -188,7 +193,8 @@ func _test_derived_opponent_weapon_profiles() -> void:
 		"live lance, tail turret, and repeater dispatches select low, broad, and fast fire profiles"
 	)
 	_check(
-		int(repeater_fire.profiled_source_count) == 3
+		int(repeater_fire.cue_count) == cue_count_before + 3
+		and int(repeater_fire.profiled_source_count) == 3
 		and int(repeater_fire.voice_count) == 10
 		and int((presentation.get_audit_report() as Dictionary).maximum_simultaneous_voices) == 10,
 		"profile association adds no voices and stays inside the existing ten-voice bank"

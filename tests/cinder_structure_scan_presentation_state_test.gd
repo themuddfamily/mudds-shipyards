@@ -27,11 +27,12 @@ func _run() -> void:
 	var initial_audit := cluster.get_structure_scan_presentation_audit()
 	_check(
 		bool(initial_audit.valid)
-		and int(initial_audit.counts.material_resources) == 8
-		and (initial_audit.material_roles as Dictionary).size() == 5
+		and int(initial_audit.counts.material_resources) == 9
+		and (initial_audit.material_roles as Dictionary).size() == 6
+		and initial_audit.material_roles.get(&"landmark") == &"scan_landmark_teal"
 		and _has_scan_material_hierarchy(presentation)
 		and _has_immutable_ruin_batch(presentation),
-		"the derelict retains its finish hierarchy while four immutable ruin pieces share one exact batched surface"
+		"the derelict adds the survey-fork landmark finish while retaining its four-piece immutable ruin batch"
 	)
 	_check(
 		initial.state_id == &"available"
@@ -211,6 +212,8 @@ func _has_scan_material_hierarchy(presentation: Node3D) -> bool:
 		^"FracturedHeaderPort": [Color("1c566e"), 0.5, 0.36, 0.45, 0.12],
 		^"DeadArrayCollar": [Color("ff9f43"), 0.1, 0.56, 0.30, 0.24],
 		^"DeadArrayReceiver": [Color("101820"), 0.4, 0.72, 0.45, 0.12],
+		# The authored survey fork owns the sixth non-emissive material role.
+		^"StructureScanSurveyFork": [Color("3f8f7a"), 0.35, 0.48, 0.45, 0.12],
 	}
 	var material_ids := {}
 	for renderer_path: NodePath in expected:

@@ -376,10 +376,27 @@ func _test_generation_rebase_and_lifecycle() -> void:
 	)
 	host.add_child(rig)
 	await process_frame
+	# Re-entry can follow an orbit/landing transition: the shared presenter
+	# deliberately invalidates the old phase until this caller observes again.
+	var reentered := rig.get_snapshot()
+	var awaiting_observation := (
+		light.light_energy == EmberAirlessSunBinding.AUTHORED_BASELINE_ENERGY
+		and not bool(reentered.presentation.has_presented_observation)
+		and (reentered.presentation.last_evaluation as Dictionary).is_empty()
+	)
+	var renewed := rig.present_post_rebase_observation(observer, 3, 1, 1)
+	var after_renewal := rig.get_snapshot()
 	_check(
-		light.light_energy == 0.0
-			and rig.present_post_rebase_observation(observer, 3, 1, 1).accepted,
-		"rig re-entry reapplies retained night state without advancing any generation",
+		awaiting_observation and renewed.accepted and light.light_energy == 0.0
+			and int(reentered.binding_generation) == 1
+			and int(reentered.presentation_generation) == 1
+			and int(reentered.coordinate_frame_generation) == 3
+			and int(reentered.location_generation) == 1
+			and int(after_renewal.binding_generation) == 1
+			and int(after_renewal.presentation_generation) == 1
+			and int(after_renewal.coordinate_frame_generation) == 3
+			and int(after_renewal.location_generation) == 1,
+		"rig re-entry clears stale solar phase and a fresh observation restores night without advancing generations",
 	)
 	await _cleanup_fixture(fixture)
 
