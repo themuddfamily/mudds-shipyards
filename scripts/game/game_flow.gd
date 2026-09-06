@@ -674,6 +674,7 @@ var _runtime_settings_apply_count := 0
 var _runtime_settings_first_apply_followed_load := false
 var _pending_display_confirmation: Dictionary = {}
 var _display_confirmation_generation := 0
+var _display_confirmation_clock: Node
 var _runtime_settings_persistence_injected := false
 ## Retained safe-start composition over the exact same process-lifetime store.
 var _safe_start_production_recovery: SafeStartProductionRecovery
@@ -2726,7 +2727,6 @@ func _process(delta: float) -> void:
 	# gameplay startup tail has run.
 	if not _initialized:
 		return
-	_update_display_confirmation(delta)
 	_update_debug_overlay()
 	_update_pending_regeneration(delta)
 	_update_music_bed_state()
@@ -15807,6 +15807,7 @@ func _on_setting_change_requested(setting: StringName, value: Variant) -> void:
 				_runtime_settings_transaction_active = false
 				_sync_production_runtime_settings_state()
 				return
+			_start_display_confirmation_clock()
 			_display_confirmation_generation += 1
 			_pending_display_confirmation = {
 				"generation": _display_confirmation_generation,
@@ -15825,6 +15826,20 @@ func _on_setting_change_requested(setting: StringName, value: Variant) -> void:
 		_present_runtime_settings_save_status(status, &"change")
 	_runtime_settings_transaction_active = false
 	_sync_production_runtime_settings_state()
+
+
+## A dedicated child owns only the recovery clock while the game stays paused.
+func _start_display_confirmation_clock() -> void:
+	if not is_instance_valid(_display_confirmation_clock):
+		_display_confirmation_clock = preload("res://scripts/settings/display_confirmation_clock.gd").new()
+		_display_confirmation_clock.elapsed.connect(_update_display_confirmation)
+		add_child(_display_confirmation_clock)
+	_display_confirmation_clock.set_process(true)
+
+
+func _stop_display_confirmation_clock() -> void:
+	if is_instance_valid(_display_confirmation_clock):
+		_display_confirmation_clock.set_process(false)
 
 
 func _update_display_confirmation(delta: float) -> void:
@@ -15849,6 +15864,7 @@ func _on_display_settings_keep_requested(generation: int) -> void:
 	if bool(status.get("accepted", false)):
 		_runtime_settings_unsaved_changes = false
 		_pending_display_confirmation = {}
+		_stop_display_confirmation_clock()
 		if is_instance_valid(hud):
 			hud.clear_display_settings_confirmation()
 			hud.set_settings_status("DISPLAY CHANGE KEPT", true)
@@ -15866,6 +15882,7 @@ func _revert_display_settings(generation: int, reason: StringName) -> void:
 		return
 	var prior := _pending_display_confirmation.prior as Dictionary
 	_pending_display_confirmation = {}
+	_stop_display_confirmation_clock()
 	runtime_settings.window_mode = int(prior.get("window_mode", RuntimeSettings.DEFAULT_WINDOW_MODE))
 	runtime_settings.display_resolution = String(prior.get("display_resolution", RuntimeSettings.DEFAULT_DISPLAY_RESOLUTION_ID))
 	runtime_settings.apply_window_mode()

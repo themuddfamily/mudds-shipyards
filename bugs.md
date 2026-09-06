@@ -16,23 +16,6 @@ This is a bounded source review with focused execution, not a claim that every
 bug has been found. Native Windows, physical controllers, representative GPU
 performance, and human visual review were **NOT_RUN** in this review.
 
-### DISPLAY-001 — Display rollback countdown freezes in the settings menu — P2
-
-- **Locations:** [`GameFlow._process()`](scripts/game/game_flow.gd#L2723),
-  [`_update_display_confirmation()`](scripts/game/game_flow.gd#L15830),
-  [`GameHUD.set_paused()`](scripts/ui/hud.gd#L2389).
-- **Reproduce:** Open Pause → Settings, change resolution/window mode, and leave
-  the displayed 15-second confirmation unanswered.
-- **Expected / actual:** The display automatically reverts after 15 seconds.
-  Instead, opening the menu pauses the SceneTree, and GameFlow inherits the
-  pausable process mode. Its countdown does not advance until gameplay resumes.
-  A player who cannot use the new display cannot rely on automatic recovery.
-- **Verified:** In the production Main scene under Xvfb, after changing
-  1920×1080 to 1280×720, `paused=true`, `game.can_process()=false`, and the pending
-  countdown remained exactly **15.0** across an independent 0.5-second timer.
-- **Repair:** Run only display confirmation timing in an owner that processes
-  while paused; do not enable gameplay simulation during pause.
-
 ### DISPLAY-002 — Other settings save an unconfirmed display change — P2
 
 - **Locations:** [`_on_setting_change_requested()`](scripts/game/game_flow.gd#L15822),
