@@ -21,7 +21,41 @@ func _init() -> void:
 func _run() -> void:
 	await _test_resources_match_the_live_nearby_sector()
 	await _test_route_lifecycle_and_generation_guards()
+	_test_checkpoint_notification_reentrancy()
 	_finish()
+
+
+func _test_checkpoint_notification_reentrancy() -> void:
+	var route := CheckpointRouteActivity.new(ROUTE)
+	var outcomes := PackedStringArray()
+	route.failed.connect(func(_id: StringName, _reason: StringName, _generation: int) -> void:
+		outcomes.append("failed")
+	)
+	route.completed.connect(func(_id: StringName, _generation: int) -> void:
+		outcomes.append("completed")
+	)
+	route.checkpoint_reached.connect(func(_id: StringName, index: int, generation: int) -> void:
+		var before := route.get_snapshot()
+		_check(not route.restore_persistence_state(route.capture_persistence_state()).accepted,
+			"checkpoint observers cannot restore persistence into an already live route")
+		_check(not route.fail(&"actor_lost", generation), "checkpoint observers cannot interrupt the committed transition with failure")
+		_check(not route.reset(generation) and route.start() == -1,
+			"checkpoint observers cannot reset or replace the run")
+		var nested := route.submit_position(ROUTE.get_checkpoint_position(index), generation)
+		_check(not nested.accepted and nested.reason == &"reentrant_call" and route.get_snapshot() == before,
+			"nested checkpoint submission leaves the active transition unchanged")
+	)
+	var generation := route.start()
+	for index in ROUTE.get_checkpoint_count():
+		_check(route.submit_position(ROUTE.get_checkpoint_position(index), generation).accepted,
+			"each outer checkpoint submission remains accepted")
+	_check(outcomes == PackedStringArray(["completed"]), "final checkpoint emits exactly one terminal outcome")
+	_check(route.get_state() == CheckpointRouteActivity.State.COMPLETED
+		and route.get_snapshot().failure_reason == &""
+		and route.validate_persistence_state(route.capture_persistence_state()).accepted,
+		"completion retains a consistent persistable state after nested failure/reset attempts")
+	_check(route.reset(generation) and route.start() > generation,
+		"lifecycle APIs are available again after checkpoint dispatch")
 
 
 func _test_resources_match_the_live_nearby_sector() -> void:

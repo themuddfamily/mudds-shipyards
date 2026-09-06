@@ -29,6 +29,7 @@ var _state := State.IDLE
 var _generation := 0
 var _next_checkpoint_index := 0
 var _failure_reason: StringName = &""
+var _checkpoint_signal_in_progress := false
 
 
 func _init(activity_definition: ActivityDefinition) -> void:
@@ -36,6 +37,8 @@ func _init(activity_definition: ActivityDefinition) -> void:
 
 
 func start() -> int:
+	if _checkpoint_signal_in_progress:
+		return -1
 	if definition == null or not definition.is_definition_valid() or _state == State.ACTIVE:
 		return -1
 	_generation += 1
@@ -47,6 +50,8 @@ func start() -> int:
 
 
 func submit_position(position: Vector3, expected_generation: int) -> Dictionary:
+	if _checkpoint_signal_in_progress:
+		return _result(false, &"reentrant_call")
 	if not _matches_generation(expected_generation):
 		return _result(false, &"stale_generation")
 	if _state != State.ACTIVE:
@@ -58,7 +63,11 @@ func submit_position(position: Vector3, expected_generation: int) -> Dictionary:
 		return _result(false, &"outside_checkpoint")
 	var reached_index := _next_checkpoint_index
 	_next_checkpoint_index += 1
+	# Observers see the reached checkpoint, but cannot replace the run while
+	# its checkpoint-to-terminal transition is still being committed.
+	_checkpoint_signal_in_progress = true
 	checkpoint_reached.emit(definition.activity_id, reached_index, _generation)
+	_checkpoint_signal_in_progress = false
 	if _next_checkpoint_index == definition.get_checkpoint_count():
 		_state = State.COMPLETED
 		completed.emit(definition.activity_id, _generation)
@@ -66,6 +75,8 @@ func submit_position(position: Vector3, expected_generation: int) -> Dictionary:
 
 
 func fail(reason: StringName, expected_generation: int) -> bool:
+	if _checkpoint_signal_in_progress:
+		return false
 	if not _matches_generation(expected_generation) or _state != State.ACTIVE:
 		return false
 	_failure_reason = reason if not reason.is_empty() else &"unspecified_failure"
@@ -75,6 +86,8 @@ func fail(reason: StringName, expected_generation: int) -> bool:
 
 
 func reset(expected_generation: int = ANY_GENERATION) -> bool:
+	if _checkpoint_signal_in_progress:
+		return false
 	if expected_generation != ANY_GENERATION and not _matches_generation(expected_generation):
 		return false
 	_generation += 1

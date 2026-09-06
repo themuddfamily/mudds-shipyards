@@ -158,23 +158,6 @@ performance, and human visual review were **NOT_RUN** in this review.
 - **Repair:** Preserve deferred completions safely across detachment or retire
   lost requests so ordinary reentry policy can retry.
 
-### ACTIVITY-002 — Checkpoint callback failure is overwritten by completion — P2
-
-- **Location:** [`CheckpointRouteActivity.submit_position()`](scripts/activities/checkpoint_route_activity.gd#L59).
-- **Reproduce:** Connect a `checkpoint_reached` observer that calls
-  `fail(&"actor_lost", generation)` on the final checkpoint, then reach it.
-- **Expected / actual:** Either reject nested lifecycle mutation or retain the
-  accepted failure and emit one terminal outcome. `fail()` succeeds and emits
-  `failed`, but the outer call then sets `COMPLETED` and emits `completed`.
-- **Verified:** A valid one-checkpoint route emitted `failed`, returned true from
-  the callback's `fail()`, then emitted `completed`. Its final snapshot combined
-  **state 2 (`COMPLETED`)** with **`failure_reason=actor_lost`**, an invalid
-  combination for its persistence validator.
-- **Scope:** Confirmed synchronous observer/API defect; an ordinary production
-  observer causing this exact callback was not demonstrated.
-- **Repair:** Guard lifecycle reentrancy or revalidate state/generation after
-  emitting the checkpoint signal before committing completion.
-
 ### AUDIO-002 — Boarding cue slots become a permanent priority lockout — P3
 
 - **Location:** [`BoardingSeatAudioBinding._admit()`](scripts/audio/boarding_seat_audio_binding.gd#L133).
