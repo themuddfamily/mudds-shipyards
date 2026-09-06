@@ -60,9 +60,13 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y xvfb mesa-vulkan-drivers
+      # Real Ember walking and 20 km ascent needs up to 1200 seconds on slow
+      # software/CI hosts. Keep core suites at 180 seconds; preserve real physics.
+      # These mode-filtered jobs are regressions, not a full-scope release gate.
+      # Full release evidence requires one unfiltered --mode all run with display.
       - name: Broader headless suites
         if: matrix.mode == 'headless'
-        run: bash tools/release/run_test_matrix.sh --mode headless --audio-driver Dummy --jobs 1 --timeout 180
+        run: bash tools/release/run_test_matrix.sh --mode headless --audio-driver Dummy --jobs 1 --timeout 1200
       - name: Graphical suites with Forward+ software rendering
         if: matrix.mode == 'graphical'
         env:

@@ -7,6 +7,7 @@ import tempfile
 import unittest
 from pathlib import Path
 import test_suite_catalog as catalog
+import source_manifest
 
 SUPPORT = Path(__file__).parent
 
@@ -42,12 +43,77 @@ class SuiteRunnerTests(unittest.TestCase):
                 log.write_text(output + '\n')
                 self.assertEqual(catalog.assess(script, log)[1], 0)
 
+    def test_source_manifest_matches_shell_and_detects_drift(self):
+        # Differential coverage of the former find/stat/sha256sum contract.
+        old_writer = r'''set -euo pipefail
+root="$1"; output="$2"; shift 2
+paths="$(mktemp)"
+trap 'rm -f "$paths"' EXIT
+for entry in "$@"; do
+    if [[ -f "$root/$entry" ]]; then printf '%s\0' "$root/$entry" >> "$paths"
+    elif [[ -d "$root/$entry" ]]; then find "$root/$entry" -type f -print0 >> "$paths"
+    fi
+done
+printf 'path,size_bytes,sha256\n' > "$output"
+while IFS= read -r -d '' file; do
+    relative="${file#"$root"/}"
+    printf '%s,%s,%s\n' "$relative" "$(stat -c '%s' "$file")" "$(sha256sum "$file" | cut -d' ' -f1)" >> "$output"
+done < <(LC_ALL=C sort -z "$paths")
+'''
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            (root / 'tree/nested').mkdir(parents=True)
+            target = root / 'tree/nested/space name.gd'
+            target.write_text('before')
+            (root / 'tree/.hidden').write_bytes(b'\x00\xff')
+            (root / 'tree/excluded-link').symlink_to(target)
+            (root / 'tree/excluded-directory').symlink_to(root / 'tree/nested')
+            (root / 'explicit-link').symlink_to(target)
+            (root / 'explicit-directory').symlink_to(root / 'tree')
+            scope = ['tree', 'explicit-link', 'explicit-directory', 'missing', 'tree/nested']
+            old = root / 'old.csv'
+            new = root / 'new.csv'
+            subprocess.run(['bash', '-c', old_writer, 'fixture', str(root), str(old), *scope], check=True)
+            source_manifest.write_manifest(root, scope, new)
+            baseline = new.read_bytes()
+            self.assertEqual(old.read_bytes(), baseline)
+            self.assertNotIn(b'excluded', baseline)
+            self.assertIn(b'explicit-link', baseline)
+            # Content changes of identical length, new paths and removed paths
+            # must all change the source-freeze bytes.
+            target.write_text('after!')
+            source_manifest.write_manifest(root, scope, new)
+            self.assertNotEqual(new.read_bytes(), baseline)
+            baseline = new.read_bytes()
+            added = root / 'tree/new.gd'
+            added.write_text('new')
+            source_manifest.write_manifest(root, scope, new)
+            self.assertNotEqual(new.read_bytes(), baseline)
+            added.unlink()
+            source_manifest.write_manifest(root, scope, new)
+            self.assertEqual(new.read_bytes(), baseline)
+
+    def test_generic_pass_descriptions_are_not_completion(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            script = Path(temporary) / 'probe_test.gd'
+            log = Path(temporary) / 'log'
+            for source, output in (
+                ('print("PASS %s" % description)', 'PASS a successful assertion'),
+                ('print("PASS %s (%d assertions)" % [description, 2])', 'PASS arbitrary (2 assertions)'),
+                ('print("OK: %s" % description)', 'OK: a successful assertion'),
+                ('print("PASS ", description)', 'PASS '),
+            ):
+                with self.subTest(source=source):
+                    script.write_text(source)
+                    log.write_text(output + '\n')
+                    self.assertEqual(catalog.assess(script, log)[1:3], (0, '<none>'))
+
     def test_recursive_parallel_isolation_import_audio_and_display_selection(self):
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
             release = root / 'tools/release'
             release.mkdir(parents=True)
-            for name in ('run_test_matrix.sh', 'test_suite_catalog.py'):
+            for name in ('run_test_matrix.sh', 'test_suite_catalog.py', 'source_manifest.py'):
                 shutil.copy2(SUPPORT / name, release / name)
             for relative in ('a/probe_test.gd', 'b/probe_test.gd', 'ui/render_test.gd'):
                 script = root / 'tests' / relative

@@ -44,6 +44,11 @@ def completion_patterns(path: Path):
             name = token[1]
             patterns[name] = re.compile(r"^\s*" + name + r"(?=\s|:|$).*$")
             continue
+        # A free-form assertion description must never become a completion
+        # contract (e.g. print("PASS %s" % description)). Summary contracts have
+        # authored static text and, when formatted, only numeric counts.
+        if "%s" in literal or literal.strip(" :") in ("OK", "PASS"):
+            continue
         is_summary = (
             re.match(r"^(OK[: ]|PASS )", literal)
             or (literal.startswith("PASS:") and "%d assertions" in literal)

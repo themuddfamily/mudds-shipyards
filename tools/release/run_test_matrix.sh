@@ -62,6 +62,7 @@ Options:
   --audio-driver NAME       Audio backend passed to --audio-driver (default: Dummy).
   --mode MODE               headless (default), graphical, or all; graphical needs DISPLAY.
   --list                    List selected relative paths and modes without running Godot.
+                            Only an unfiltered --mode all run qualifies as full release scope.
   --jobs N                  Concurrent suites. Default: min(cores/4, available GiB/2, 4), floor 1.
                             Use --jobs 1 for a strictly serial debugging run.
   --scope SPEC[,SPEC...]    Select a subset of suites. Repeatable. A SPEC may be
@@ -249,28 +250,8 @@ PROTECTED_ROOT_FILES=(
 )
 
 collect_source_manifest() {
-	local output_path="$1"
-	local path_list_file
-	path_list_file="$(mktemp)"
-	: > "$output_path"
-
-	for entry in "${SCOPE_PATHS[@]}"; do
-		local root="$PROJECT_ROOT/$entry"
-		if [[ -f "$root" ]]; then
-			printf '%s\0' "$root" >> "$path_list_file"
-		elif [[ -d "$root" ]]; then
-			find "$root" -type f -print0 >> "$path_list_file"
-		fi
-	done
-
-	printf 'path,size_bytes,sha256\n' > "$output_path"
-	while IFS= read -r -d '' file; do
-		relative="${file#"$PROJECT_ROOT"/}"
-		size="$(stat -c '%s' "$file")"
-		sha="$(sha256sum "$file" | cut -d' ' -f1)"
-		printf '%s,%s,%s\n' "$relative" "$size" "$sha" >> "$output_path"
-	done < <(sort -z < "$path_list_file")
-	rm -f "$path_list_file"
+	python3 "$SCRIPT_DIR/source_manifest.py" --root "$PROJECT_ROOT" \
+		--output "$1" "${SCOPE_PATHS[@]}"
 }
 
 # Signature of the shared Godot import cache. Suites run as separate processes
