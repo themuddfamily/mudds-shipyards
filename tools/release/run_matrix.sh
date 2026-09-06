@@ -48,11 +48,13 @@ for suite in "${SUITES[@]}"; do
   if [[ -n "$AUDIO_DRIVER" ]]; then
     GODOT_ARGS+=(--audio-driver "$AUDIO_DRIVER")
   fi
-  if ! timeout "$TIMEOUT_SECONDS" "${GODOT_ARGS[@]}" >"$log_path" 2>&1; then
+  if timeout "$TIMEOUT_SECONDS" "${GODOT_ARGS[@]}" >"$log_path" 2>&1; then
+    exit_code=0
+  else
     exit_code=$?
   fi
 
-  sentinel_lines=$(grep -E '^[A-Z0-9_]+_(OK|PASS)(:|$)' "$log_path" | tr -d '\r')
+  sentinel_lines=$(grep -E '^[A-Z0-9_]+_(OK|PASS)(:|$)' "$log_path" | tr -d '\r' || true)
   sentinel_count=0
   sentinel_line=""
   if [[ -n "$sentinel_lines" ]]; then

@@ -30,21 +30,6 @@ performance, and human visual review were **NOT_RUN** in this review.
 - **Repair:** Keep one confirmed baseline for the whole preview transaction;
   subsequent changes should update only its candidate and deadline.
 
-### TEST-001 — Legacy matrix reports failing process exits as success — P2
-
-- **Location:** [`tools/release/run_matrix.sh`](tools/release/run_matrix.sh#L51).
-- **Reproduce:** Run this runner against a fixture suite whose Godot command
-  prints `PROBE_TEST_OK` and exits **7**.
-- **Expected / actual:** The result must retain exit 7 and fail the matrix.
-  Inside `if ! timeout ...`, `$?` is the successful negation's status, so the
-  runner records **0**. With one sentinel and no diagnostics, it prints
-  `MATRIX_OK` and exits **0**.
-- **Verified:** An unchanged copy of the runner in an isolated one-suite Git
-  fixture produced exactly that false pass.
-- **Scope / repair:** This affects legacy `run_matrix.sh`, not the maintained
-  `run_test_matrix.sh`. Retire/delegate the legacy runner or capture the actual
-  child exit status without negating it first.
-
 ### TEST-002 — Legacy matrix source guard hashes the same filename list twice — P2
 
 - **Locations:** [`manifest capture`](tools/release/run_matrix.sh#L35),
