@@ -67,12 +67,13 @@ jobs:
       - name: Broader headless suites
         if: matrix.mode == 'headless'
         run: bash tools/release/run_test_matrix.sh --mode headless --audio-driver Dummy --jobs 1 --timeout 1200
+      # bugs.md RENDER-001 remains accepted, not fixed; preserve/report raw warnings.
       - name: Graphical suites with Forward+ software rendering
         if: matrix.mode == 'graphical'
         env:
           LIBGL_ALWAYS_SOFTWARE: '1'
           LP_NUM_THREADS: '2'
-        run: xvfb-run -a -s '-screen 0 2560x1440x24' bash tools/release/run_test_matrix.sh --mode graphical --audio-driver Dummy --jobs 1 --timeout 300
+        run: xvfb-run -a -s '-screen 0 2560x1440x24' bash tools/release/run_test_matrix.sh --mode graphical --accepted-risk RENDER-001 --audio-driver Dummy --jobs 1 --timeout 300
       - uses: actions/upload-artifact@v4
         if: always()
         with:

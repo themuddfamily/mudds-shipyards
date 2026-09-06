@@ -310,6 +310,10 @@ def validate_matrix(manifest_path, repository, godot):
         raise EvidenceError("canonical matrix results SHA-256 mismatch")
     if len(rows) != total_suites:
         raise EvidenceError("canonical matrix row count disagrees with total_suites")
+    policy = values.get("accepted_risk_policy", "")
+    if policy not in ("", "RENDER-001"):
+        raise EvidenceError("unknown matrix accepted-risk policy")
+    risk_count = 0
     assertions = 0
     for row in rows:
         if (
@@ -320,10 +324,21 @@ def validate_matrix(manifest_path, repository, godot):
             or row["failure_flags"]
         ):
             raise EvidenceError(f"failed canonical matrix row: {row['test_path']}")
+        row_risk_count = row.get("accepted_risk_count", "0")
+        row_risk_ids = row.get("accepted_risk_ids", "")
+        if row_risk_count not in ("0", "1") or row_risk_ids != ("RENDER-001" if row_risk_count == "1" else ""):
+            raise EvidenceError("invalid matrix accepted-risk row")
+        if row.get("raw_diagnostic_count", row["diagnostic_count"]) != str(int(row["diagnostic_count"]) + int(row_risk_count)):
+            raise EvidenceError("matrix raw and accepted diagnostic counts disagree")
+        risk_count += int(row_risk_count)
         try:
             assertions += int(row["pass_assertions"])
         except ValueError as error:
             raise EvidenceError("invalid matrix assertion count") from error
+    if (values.get("accepted_risk_count", "0") != str(risk_count)
+            or values.get("accepted_risk_ids", "") != ("RENDER-001" if risk_count else "")
+            or (risk_count and policy != "RENDER-001")):
+        raise EvidenceError("matrix accepted-risk totals or policy disagree")
     if assertions != total_assertions:
         raise EvidenceError("matrix assertion total mismatch")
 
@@ -364,6 +379,8 @@ def validate_matrix(manifest_path, repository, godot):
         "source_manifest_sha256": before_sha,
         "total_suites": total_suites,
         "total_pass_assertions": total_assertions,
+        "accepted_risk_ids": ["RENDER-001"] if risk_count else [],
+        "accepted_risk_count": risk_count,
     }
 
 

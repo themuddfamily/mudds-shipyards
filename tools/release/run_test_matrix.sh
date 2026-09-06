@@ -13,6 +13,7 @@ RUN_ID="${TEST_MATRIX_RUN_ID:-$(date -u +%Y%m%dT%H%M%SZ)}"
 AUDIO_DRIVER="${TEST_MATRIX_AUDIO_DRIVER:-Dummy}"
 MODE="${TEST_MATRIX_MODE:-headless}"
 LIST_ONLY=0
+ACCEPTED_RISK=""
 IMPORT_GATE="${TEST_MATRIX_IMPORT_GATE:-auto}"
 ALLOW_CACHE_DRIFT="${TEST_MATRIX_ALLOW_CACHE_DRIFT:-0}"
 
@@ -60,6 +61,9 @@ Options:
   --timeout SECONDS         Per-suite timeout (default: 180).
   --results-dir DIR         Results root (default: artifacts/test-matrix).
   --audio-driver NAME       Audio backend passed to --audio-driver (default: Dummy).
+  --accepted-risk ID        Opt in to exact trailing RENDER-001 shutdown warning;
+                            raw logs remain intact; diagnostic_count excludes only this block.
+                            Opt-in rows also report raw_diagnostic_count and accepted counts.
   --mode MODE               headless (default), graphical, or all; graphical needs DISPLAY.
   --list                    List selected relative paths and modes without running Godot.
                             Only an unfiltered --mode all run qualifies as full release scope.
@@ -100,6 +104,9 @@ MANIFEST_SCOPE_OVERRIDE="${TEST_MATRIX_MANIFEST_SCOPE:-}"
 
 while [[ $# -gt 0 ]]; do
 	case "$1" in
+		--accepted-risk)
+			[[ "$2" == RENDER-001 ]] || { echo "Unknown accepted risk: $2"; exit 2; }
+			ACCEPTED_RISK="$2"; shift 2 ;;
 		--mode) MODE="$2"; shift 2 ;;
 		--list) LIST_ONLY=1; shift ;;
 		--godot)
@@ -605,14 +612,22 @@ run_suite_worker() {
 	end_ms="$(now_ms)"
 	duration_ms="$(elapsed_ms "$start_ms" "$end_ms")"
 
-	local pass_count diag_count sentinel_count terminal_sentinel
+	local assessment_path="$log_path" accepted_count=0 accepted_ids=""
+	if [[ "$ACCEPTED_RISK" == RENDER-001 ]]; then
+		assessment_path="$WORK_DIR/$index.assessment.log"
+		accepted_count="$(python3 "$SCRIPT_DIR/test_suite_catalog.py" \
+			--render-001-assessment-log "$log_path" "$assessment_path")"
+		(( accepted_count == 1 )) && accepted_ids=RENDER-001
+	fi
+	local pass_count diag_count raw_diag_count sentinel_count terminal_sentinel
 	IFS=$'\t' read -r sentinel_found sentinel_count terminal_sentinel pass_count < <(
-		python3 "$SCRIPT_DIR/test_suite_catalog.py" --assess "$source_copy" "$log_path"
+		python3 "$SCRIPT_DIR/test_suite_catalog.py" --assess "$source_copy" "$assessment_path"
 	)
 	[[ "$sentinel_found" == '<none>' ]] && sentinel_found=""
 	[[ "$terminal_sentinel" == '<none>' ]] && terminal_sentinel=""
-	diag_count="$(diagnostic_lines "$log_path" | wc -l)"
+	diag_count="$(diagnostic_lines "$assessment_path" | wc -l)"
 	diag_count="${diag_count//[[:space:]]/}"
+	raw_diag_count=$(( diag_count + accepted_count ))
 	local terminal_line log_sha
 	terminal_line="$(tail_nonempty_line "$log_path" || true)"
 	log_sha="$(sha256sum "$log_path" | cut -d' ' -f1)"
@@ -685,6 +700,15 @@ run_suite_worker() {
 		"$diag_count" \
 		"$(IFS=,; printf '%s' "${failure_flags[*]}")" > "$WORK_DIR/$index.canonical"
 
+	if [[ -n "$ACCEPTED_RISK" ]]; then
+		for record in "$WORK_DIR/$index.tsv" "$WORK_DIR/$index.canonical"; do
+			# Each record currently has one final newline; append opt-in fields.
+			truncate -s -1 "$record"
+			printf '\t%s\t%s\t%s\n' "$accepted_ids" "$accepted_count" "$raw_diag_count" >> "$record"
+		done
+	fi
+	printf '%s' "$accepted_count" > "$WORK_DIR/$index.accepted"
+
 	{
 		printf '[%s] %s: status=%s exit=%s sentinel=%s pass=%s diag=%s duration_ms=%s\n' \
 			"$(date -u +%H:%M:%S)" \
@@ -695,6 +719,9 @@ run_suite_worker() {
 			"$pass_count" \
 			"$diag_count" \
 			"$duration_ms"
+		if (( accepted_count > 0 )); then
+			printf '    accepted_risk=%s count=%s (raw log retained)\n' "$accepted_ids" "$accepted_count"
+		fi
 		if [[ "$status" == "FAIL" ]]; then
 			printf '    reasons: %s\n' "$reason_text"
 			printf '    log: %s\n' "$log_path"
@@ -755,6 +782,14 @@ godot_cache_after_sha="$(godot_cache_signature)"
 printf 'test_path\tstatus\texit_code\tsentinel\tsentinel_count\tpass_assertions\tdiagnostic_count\tduration_ms\tlog_path\tlog_sha256\treasons\n' > "$results_tsv"
 printf 'test_path\tstatus\texit_code\tsentinel\tsentinel_count\tpass_assertions\tdiagnostic_count\tfailure_flags\n' > "$results_canonical_tsv"
 
+if [[ -n "$ACCEPTED_RISK" ]]; then
+	for record in "$results_tsv" "$results_canonical_tsv"; do
+		truncate -s -1 "$record"
+		printf '\taccepted_risk_ids\taccepted_risk_count\traw_diagnostic_count\n' >> "$record"
+	done
+fi
+accepted_risk_count=0
+accepted_risk_ids=""
 failed_suites=()
 total_pass_assertions=0
 for (( index = 0; index < TOTAL_SUITES; index++ )); do
@@ -767,6 +802,12 @@ for (( index = 0; index < TOTAL_SUITES; index++ )); do
 			"$relative_test_path" "$LOG_DIR/${relative_test_path#tests/}" >> "$results_tsv"
 		printf '%s\tFAIL\t-1\t<none>\t0\t0\t0\tharness_error\n' \
 			"$relative_test_path" >> "$results_canonical_tsv"
+		if [[ -n "$ACCEPTED_RISK" ]]; then
+			for record in "$results_tsv" "$results_canonical_tsv"; do
+				truncate -s -1 "$record"
+				printf '\t\t0\t0\n' >> "$record"
+			done
+		fi
 		failed_suites+=("$relative_test_path (harness_error: no result record)")
 		overall_status="FAIL"
 		echo "[harness] ${relative_test_path}: worker produced no result record"
@@ -774,6 +815,7 @@ for (( index = 0; index < TOTAL_SUITES; index++ )); do
 	fi
 	cat "$WORK_DIR/$index.tsv" >> "$results_tsv"
 	cat "$WORK_DIR/$index.canonical" >> "$results_canonical_tsv"
+	accepted_risk_count=$(( accepted_risk_count + $(cat "$WORK_DIR/$index.accepted") ))
 	suite_status="$(cat "$WORK_DIR/$index.status")"
 	suite_passes="$(cut -f6 < "$WORK_DIR/$index.canonical")"
 	if [[ "$suite_passes" =~ ^[0-9]+$ ]]; then
@@ -785,6 +827,7 @@ for (( index = 0; index < TOTAL_SUITES; index++ )); do
 	fi
 done
 
+(( accepted_risk_count > 0 )) && accepted_risk_ids=RENDER-001
 results_canonical_sha="$(sha256sum "$results_canonical_tsv" | cut -d' ' -f1)"
 
 manifest_source_after="$RUN_DIR/source-manifest-after.csv"
@@ -848,6 +891,9 @@ log_dir=${LOG_DIR}
 jobs_requested=${JOBS}
 jobs_effective=${EFFECTIVE_JOBS}
 scope_specs=${SCOPE_LABEL}
+accepted_risk_policy=${ACCEPTED_RISK}
+accepted_risk_ids=${accepted_risk_ids}
+accepted_risk_count=${accepted_risk_count}
 execution_mode=${MODE}
 discovered_suite_count=${#ALL_TEST_FILES[@]}
 mode_excluded_suite_count=${mode_excluded_count}
@@ -886,6 +932,9 @@ echo "Pass assertions: ${total_pass_assertions}"
 echo "Source manifest match: ${source_manifest_match}"
 echo "Godot import cache stable: ${godot_cache_stable}"
 echo "Overall status: ${overall_status}"
+if [[ -n "$ACCEPTED_RISK" ]]; then
+	echo "Accepted risks: ${accepted_risk_ids:-none}; count=${accepted_risk_count}; raw logs retained"
+fi
 
 if [[ "$overall_status" != "PASS" ]]; then
 	exit 1

@@ -3,6 +3,7 @@
 
 import hashlib
 import json
+import re
 import os
 import struct
 import subprocess
@@ -250,6 +251,24 @@ class ReleaseCandidateTests(unittest.TestCase):
         sums = sums_path.read_text(encoding="ascii").splitlines()
         self.assertEqual(sums, sorted(sums, key=lambda line: line.split("  ", 1)[1]))
         self.assertIn(candidate._sha256_file(record_path), sums[1])
+
+    def test_matrix_accepted_risk_is_preserved_and_totals_are_checked(self):
+        canonical = self.evidence / "results-canonical.tsv"
+        lines = canonical.read_text().splitlines()
+        lines[0] += "\taccepted_risk_ids\taccepted_risk_count\traw_diagnostic_count"
+        lines[1] += "\tRENDER-001\t1\t1"
+        canonical.write_text("\n".join(lines) + "\n")
+        manifest = self.matrix_manifest.read_text()
+        manifest = re.sub(r"results_canonical_sha=[^\n]+", "results_canonical_sha=" + sha256(canonical.read_bytes()), manifest)
+        manifest += "accepted_risk_policy=RENDER-001\naccepted_risk_ids=RENDER-001\naccepted_risk_count=1\n"
+        self.matrix_manifest.write_text(manifest)
+        record = self.build()
+        self.assertEqual(record["evidence"]["matrix"]["accepted_risk_ids"], ["RENDER-001"])
+        self.assertEqual(record["evidence"]["matrix"]["accepted_risk_count"], 1)
+        candidate.validate_record_schema(record)
+        self.matrix_manifest.write_text(manifest.replace("accepted_risk_count=1", "accepted_risk_count=2"))
+        with self.assertRaisesRegex(candidate.EvidenceError, "accepted-risk totals"):
+            self.build()
 
     def test_rejects_dirty_source(self):
         (self.repository / "untracked.txt").write_text("dirty", encoding="utf-8")

@@ -98,7 +98,9 @@
         "canonical_results_sha256": {"$ref": "#/$defs/sha256"},
         "source_manifest_sha256": {"$ref": "#/$defs/sha256"},
         "total_suites": {"type": "integer", "minimum": 1},
-        "total_pass_assertions": {"type": "integer", "minimum": 1}
+        "total_pass_assertions": {"type": "integer", "minimum": 1},
+        "accepted_risk_ids": {"type": "array", "maxItems": 1, "uniqueItems": true, "items": {"enum": ["RENDER-001"]}},
+        "accepted_risk_count": {"type": "integer", "minimum": 0}
       }
     },
     "probes": {

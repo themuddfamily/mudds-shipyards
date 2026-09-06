@@ -92,12 +92,38 @@ def assess(path: Path, log: Path):
     return found, len(unique), terminal, assertions
 
 
+RENDER_001_BLOCK = (
+    'WARNING: 7 RIDs of type "Texture" were leaked.',
+    '   at: finalize (servers/rendering/rendering_device.cpp:8900)',
+)
+
+
+def assessment_log(raw: Path, output: Path) -> int:
+    """Remove only the single exact trailing RENDER-001 block for opt-in callers.
+
+    Raw logs are never modified. Different counts, resource types, locations,
+    repeated blocks or output after the block retain the strict diagnostic gate.
+    """
+    lines = raw.read_text(encoding="utf-8", errors="replace").splitlines(keepends=True)
+    while lines and not lines[-1].strip():
+        lines.pop()
+    normalized = [line.rstrip("\r\n") for line in lines]
+    accepted = int(tuple(normalized[-2:]) == RENDER_001_BLOCK
+                   and normalized.count(RENDER_001_BLOCK[0]) == 1)
+    output.write_text("".join(lines[:-2] if accepted else lines), encoding="utf-8")
+    return accepted
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--root", type=Path, default=Path(__file__).resolve().parents[2])
     parser.add_argument("--mode", choices=("all", "headless", "graphical"), default="all")
     parser.add_argument("--assess", nargs=2, metavar=("SCRIPT", "LOG"))
+    parser.add_argument("--render-001-assessment-log", nargs=2, metavar=("RAW", "ASSESSMENT"))
     args = parser.parse_args()
+    if args.render_001_assessment_log:
+        print(assessment_log(*map(Path, args.render_001_assessment_log)))
+        return
     if args.assess:
         print("\t".join(map(str, assess(*map(Path, args.assess)))))
     else:

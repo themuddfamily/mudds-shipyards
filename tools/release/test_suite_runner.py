@@ -1,5 +1,6 @@
 """Focused runner fixtures: real completion forms, nested identities and modes."""
 import csv
+import hashlib
 import os
 import shutil
 import subprocess
@@ -92,6 +93,56 @@ done < <(LC_ALL=C sort -z "$paths")
             added.unlink()
             source_manifest.write_manifest(root, scope, new)
             self.assertEqual(new.read_bytes(), baseline)
+
+    def test_render_001_requires_explicit_opt_in_and_exact_shutdown_block(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            release = root / 'tools/release'
+            release.mkdir(parents=True)
+            for name in ('run_test_matrix.sh', 'test_suite_catalog.py', 'source_manifest.py'):
+                shutil.copy2(SUPPORT / name, release / name)
+            (root / 'tests').mkdir()
+            (root / 'tests/probe_test.gd').write_text('print("PROBE_TEST_OK")')
+            fake = root / 'fake-godot'
+            fake.write_text('#!/usr/bin/env bash\ncat "$RISK_FIXTURE_LOG"\n')
+            fake.chmod(0o755)
+            raw = root / 'raw.log'
+            block = '\n'.join(catalog.RENDER_001_BLOCK) + '\n'
+            cases = [
+                ('strict', block, False, 1),
+                ('accepted', block, True, 0),
+                ('clean-opt-in', '', True, 0),
+                ('trailing-text', block + 'unexpected trailing text\n', True, 1),
+                ('changed-count', block.replace('7 RIDs', '8 RIDs'), True, 1),
+                ('changed-type', block.replace('"Texture"', '"Buffer"'), True, 1),
+                ('changed-location', block.replace(':8900', ':8901'), True, 1),
+                ('extra-error', block + 'ERROR: another error\n', True, 1),
+                ('earlier-error', 'ERROR: another error\n' + block, True, 1),
+                ('repeated', block + block, True, 1),
+            ]
+            for run_id, ending, opt_in, expected_exit in cases:
+                with self.subTest(run_id=run_id):
+                    raw.write_text('PASS: fixture assertion\nPROBE_TEST_OK\n' + ending)
+                    command = ['bash', str(release / 'run_test_matrix.sh'), '--godot', str(fake), '--jobs', '1', '--results-dir', str(root / 'results'), '--manifest-scope', 'tests', '--import-gate', 'never']
+                    if opt_in:
+                        command += ['--accepted-risk', 'RENDER-001']
+                    result = subprocess.run(command, cwd=root, env={**os.environ, 'RISK_FIXTURE_LOG': str(raw), 'TEST_MATRIX_RUN_ID': run_id}, text=True, capture_output=True, timeout=20)
+                    self.assertEqual(result.returncode, expected_exit, result.stdout + result.stderr)
+                    run = root / 'results' / run_id
+                    self.assertEqual((run / 'logs/probe_test.log').read_bytes(), raw.read_bytes())
+                    with (run / 'results.tsv').open() as stream:
+                        detail = next(csv.DictReader(stream, delimiter='\t'))
+                    self.assertEqual(detail['log_sha256'], hashlib.sha256(raw.read_bytes()).hexdigest())
+                    with (run / 'results-canonical.tsv').open() as stream:
+                        row = next(csv.DictReader(stream, delimiter='\t'))
+                    if run_id == 'accepted':
+                        self.assertEqual(row['accepted_risk_ids'], 'RENDER-001')
+                        self.assertEqual(row['accepted_risk_count'], '1')
+                        self.assertEqual(row['diagnostic_count'], '0')
+                        self.assertEqual(row['raw_diagnostic_count'], '1')
+                        self.assertIn('accepted_risk_count=1', (run / 'run-manifest.txt').read_text())
+                    elif run_id != 'earlier-error':
+                        self.assertEqual(row.get('accepted_risk_count', '0'), '0')
 
     def test_generic_pass_descriptions_are_not_completion(self):
         with tempfile.TemporaryDirectory() as temporary:
