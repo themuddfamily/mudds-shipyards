@@ -9,9 +9,8 @@ This ledger contains only unresolved or explicitly accepted issues. Fixed and cl
 - Reporter: package-build agent, 2026-08-15, from the native-Windows execution recorded in
   [`docs/PACKAGE_BUILD_RECORD_20260815_EF5450C.md`](docs/PACKAGE_BUILD_RECORD_20260815_EF5450C.md).
   Investigated and adjudicated 2026-08-15; recorded here 2026-08-16.
-- Owner: **none required on this side.** Owned upstream (godotengine/godot). The one
-  follow-up that would belong to a person here is filing an upstream issue naming
-  `ReflectionProbe`, which the investigation notes was not located and is optional.
+- Owner: **none required on this side.** Tracked upstream in
+  [godotengine/godot#122498](https://github.com/godotengine/godot/issues/122498).
 - Affected loop beat: **none.** It occurs only during process teardown, after every beat
   (begin shift, walk, board, start, launch, fly, fire, return, land, shut down, disembark)
   has already completed. No player-observable behaviour is involved at any beat.
@@ -40,9 +39,30 @@ removed exited `0` without the warning. This remains an engine-side accepted
 risk, not a confirmed fix. The completed native Windows RTX 5070 Ti and
 Linux llvmpipe hero-cell captures also reported the same seven shutdown RIDs.
 
-The source descriptions below are historical: the current world builds the
+The dated source descriptions in this record are historical: the current world builds the
 central probe plus four module probes. The default scene is now `scenes/boot.tscn`;
 a default-scene run must enter the shipyard before it exercises these probes.
+
+### Upstream repair candidate — checked 2026-09-06
+
+[godotengine/godot#122498](https://github.com/godotengine/godot/issues/122498),
+opened 2026-08-17, now reports this exact seven-Texture-RID leak on the same
+`4.7.1.stable.official.a13da4feb` engine. It identifies missing cleanup of the
+reflection atlas's six color views and color buffer and proposes freeing them
+and their framebuffers in `LightStorage::_reflection_atlas_clear()`.
+
+The official `4.7.1-stable` source was inspected independently: these resources
+are allocated but omitted from that cleanup function. The issue is still open,
+with no linked pull request or milestone; no released repair was found in the
+bounded upstream review. The proposed patch is **not build- or runtime-verified
+here** and does not close this record.
+
+Using that patch locally would require building and qualifying a custom Godot
+editor and matching Windows export templates. Selecting a patched editor with
+`GODOT_BIN` alone would not fix the shipped executable: the current export
+preset still selects the stock templates. The existing accepted disposition
+continues to use official Godot until that dependency policy changes or an
+upstream fixed release is qualified.
 
 ### Environment — two documented configurations, identical result
 
@@ -101,7 +121,7 @@ different non-zero count: 7 at 20, 300 and 900 frames; 7 on Forward+ and on Forw
 Mobile; 7 on llvmpipe and on the RTX 5070 Ti; 7 with one `ReflectionProbe` and 7 with
 four; 7 from four different capture harnesses that load `ShipyardWorld`. Runs that never
 render `ShipyardWorld`, and every `--headless` Linux run, produce 0. It was observed again
-unprompted in today's `tests/capture_hero_cell.gd` verification runs for CAPTURE-001 below
+unprompted in today's `tests/capture_hero_cell.gd` verification runs for the now-closed CAPTURE-001
 — an independent sighting on `e57d207`.
 
 ### Root cause — engine-side, proven by an empty-project reproduction
@@ -136,8 +156,9 @@ twice independently.
 Upstream references for the same class (RD-level RIDs surviving
 `RenderingDevice::finalize()` in trivial projects): godotengine/godot
 [#89182](https://github.com/godotengine/godot/issues/89182),
-[#73577](https://github.com/godotengine/godot/issues/73577). No upstream issue naming
-`ReflectionProbe` specifically was located.
+[#73577](https://github.com/godotengine/godot/issues/73577). At the original investigation date, no upstream issue naming
+`ReflectionProbe` specifically was located. The matching issue found on
+2026-09-06 is linked above.
 
 ### Rationale for accepting
 
