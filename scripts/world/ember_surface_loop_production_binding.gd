@@ -1687,7 +1687,14 @@ func prepare_early_tick(
 			!= current_coordinate_frame_generation:
 		return _finish(false, &"host_coordinate_frame_not_adopted")
 
+	# Authored surface geometry is body-local. Freeze its position in the same
+	# generation as the admitted world sample; actors move between early and late.
+	# The live bootstrap transform also accounts for a translated composition root.
+	var body_local_position := _bootstrap.to_local(sample.position as Vector3)
+	if not body_local_position.is_finite():
+		return _finish(false, &"invalid_body_local_position")
 	_pending_envelope = {
+		"position_body_local_m": body_local_position,
 		"caller_serial": caller_serial,
 		"physics_frame": int(Engine.get_physics_frames()),
 		"delta": delta,
@@ -2384,8 +2391,7 @@ func _forward_active_relay_position(envelope: Dictionary) -> StringName:
 		return &""
 	if activity_state == &"awaiting_reward":
 		return _commit_pending_relay_reward(envelope, activity)
-	var sample: Dictionary = envelope.get("actor_sample", {}) as Dictionary
-	var position: Variant = sample.get("position", Vector3.INF)
+	var position: Variant = envelope.get("position_body_local_m", Vector3.INF)
 	if not position is Vector3 or not (position as Vector3).is_finite():
 		return &"invalid_relay_position_sample"
 	var forwarded: Dictionary = _planetary_composition.call(
@@ -2422,7 +2428,7 @@ func _forward_authored_hazard_observation(envelope: Dictionary) -> void:
 			"actor_instance_id": int(sample.get("actor_instance_id", 0)),
 			"delta_seconds": float(envelope.get("delta", 0.0)),
 			"exposure_unitless": 1.0,
-			"position_body_local_m": sample.get("position", Vector3.INF),
+			"position_body_local_m": envelope.get("position_body_local_m", Vector3.INF),
 			"surface_phase_id": &"on_foot",
 		}.duplicate(true),
 		_host.get_generation(), _host.get_attachment_generation()

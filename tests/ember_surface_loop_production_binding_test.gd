@@ -572,6 +572,11 @@ func _test_real_scheduler_complete_loop() -> void:
 			and early.sample_count == samples_before + 1,
 		"one admitted on-foot sample advances the exact late hazard receipt once",
 	)
+	# Keep this coordinate regression on the supported pad; the real director
+	# still owns progression and receives only automatic early/late observations.
+	var survey_definition := planetary_director.get_definition(&"ember_beacon_survey")
+	survey_definition.checkpoint_positions[0] = Vector3(36.0, 120000.0, 0.0)
+	survey_definition.checkpoint_radius = 2.0
 	var survey_started := production.start_planetary_relay_survey()
 	_check(survey_started.accepted, "real on-foot scheduler starts the relay survey")
 	var advance_before_survey := int(production.get_snapshot().advance_count)
@@ -590,6 +595,30 @@ func _test_real_scheduler_complete_loop() -> void:
 		await _walk_until(fixture, &"move_back", func(p: Vector3) -> bool: return p.x <= 35.0, 60)
 			and production.get_state() == EmberSurfaceLoopProductionBinding.State.RUNNING,
 		"ordinary walking between checkpoints advances the journey without terminalizing it",
+	)
+	for _sample in 3:
+		await _one_physics(false)
+	var survey_progress := planetary_director.get_activity_snapshot(&"ember_beacon_survey")
+	var frozen := production.get_snapshot().last_prepared_evidence as Dictionary
+	var expected_body_position := (fixture.bootstrap as Node3D).to_local(
+		(frozen.actor_sample as Dictionary).position as Vector3
+	)
+	var feedback := production.get_planetary_surface_snapshot().surface_navigation_feedback as Dictionary
+	var cue := (feedback.get("navigation", {}) as Dictionary).get("cue", {}) as Dictionary
+	_check(
+		int(survey_progress.get("next_checkpoint_index", -1)) == 1
+			and production.get_state() == EmberSurfaceLoopProductionBinding.State.RUNNING
+			and int(frozen.coordinate_frame_generation) == early.frame.get_generation()
+			and (frozen.position_body_local_m as Vector3).is_equal_approx(expected_body_position)
+			and expected_body_position.distance_to(frozen.actor_sample.position as Vector3) > 100000.0,
+		"rebased real walking reaches one body-local checkpoint and stationary samples retain it",
+	)
+	_check(
+		bool(cue.get("available", false))
+			and absf(float(cue.get("distance_m", -1.0)) - expected_body_position.distance_to(
+				cue.get("target_body_local_m", Vector3.INF) as Vector3
+			)) < 0.02,
+		"the hazard consumer receives the same body-local sample for authored navigation distance",
 	)
 	var surface_composition := world.get_node(^"EmberPlanetarySurfaceProductionBinding")
 	_check(

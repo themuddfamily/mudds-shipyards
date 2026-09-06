@@ -33,29 +33,6 @@ performance, and human visual review were **NOT_RUN** in this review.
   while retaining generation, actor, slope, and fall-safety checks. Verify real
   movement from the pad onto the route rather than teleporting test samples.
 
-### WORLD-002 — Rebased player positions use the wrong survey/hazard frame — P1
-
-- **Locations:** [`survey forwarding`](scripts/world/ember_surface_loop_production_binding.gd#L2387),
-  [`hazard forwarding`](scripts/world/ember_surface_loop_production_binding.gd#L2422),
-  [`authored checkpoints`](scripts/world/ember_planetary_surface_production_binding.gd#L1017).
-- **Trigger:** Visit Ember after CommonWorldOrigin rebases the world.
-- **Expected / actual:** The shared actor position should be converted into
-  body-local coordinates before comparing it with authored survey/hazard
-  geometry. The sample is checked against `actor.global_position`, then passed
-  unchanged to the body-local survey API and labeled `position_body_local_m`
-  for hazards. The authored coordinates retain their original frame.
-- **Verified:** In the actual rebased scheduler fixture, player world position
-  was `(41.5498, -59.96806, -290.4699)` and the surface bootstrap was
-  `(0, -120060, -290.2366)`. The first checkpoint remains
-  `(180, 120009, -44)` body-local; its rendered world position is approximately
-  `(180, -51, -334.2366)`, which the unchanged forwarding cannot match. Both
-  forwarding and comparison paths were traced in production source.
-- **Impact / limit:** Survey progress and hazard exposure use incorrect
-  positions. The hazard was not separately traversed in this review. This
-  coordinate defect remains even after fixing `WORLD-001`.
-- **Repair:** Convert the admitted world sample through the current body frame
-  once, retain the coordinate generation, and use it for both consumers.
-
 ### Review validation
 
 - Godot `4.7.1.stable.official.a13da4feb`; headless component/physics and real
