@@ -25,6 +25,7 @@ func _run() -> void:
 	var reentered := adapter.consume_interest_snapshot(_packet(4, 7003, true, 13, {"position": 4}))
 	_check(reentered.accepted and bool((reentered.samples[0] as Dictionary).entered), "new interest entry starts clean after exit")
 	_check(adapter.reset_snapshot_jitter(61).accepted, "migration reset clears interest presentation lifecycle")
+	adapter.free()
 	if _failures.is_empty():
 		print("OK: ENet interest consumer (%d assertions)" % _assertions)
 		quit(0)

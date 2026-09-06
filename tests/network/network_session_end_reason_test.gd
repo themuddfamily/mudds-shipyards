@@ -32,6 +32,7 @@ func _run() -> void:
 		and adapter.get_session_end_reason_snapshot().reason == &"unknown"
 		and int(adapter.get_session_end_reason_snapshot().sequence) == 0,
 		"reconnect/migration reset clears detached session-end state")
+	adapter.free()
 	if _failures.is_empty():
 		print("OK: session end reason normalization (%d assertions)" % _assertions)
 		quit(0)

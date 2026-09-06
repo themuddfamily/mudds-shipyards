@@ -21,6 +21,7 @@ func _run() -> void:
 		"adapter exposes the authoritative role policy without client mutation")
 	_check(adapter.reset_snapshot_jitter(2).accepted and adapter.get_crew_role_snapshot().role_count == 0,
 		"migration reset clears crew-role presentation state")
+	adapter.free()
 	if _failures.is_empty():
 		print("OK: ENet crew role integration (%d assertions)" % _assertions)
 		quit(0)

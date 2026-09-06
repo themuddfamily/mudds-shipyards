@@ -32,6 +32,7 @@ func _run() -> void:
 		"new migration generation clears stale cursors")
 	_check(adapter.consume_migration_session_snapshot(_packet(2, 6101, 50, 7)).status == &"stale_migration_generation",
 		"old migration generation is rejected after handoff")
+	adapter.free()
 	if _failures.is_empty():
 		print("OK: ENet migration consumer (%d assertions)" % _assertions)
 		quit(0)

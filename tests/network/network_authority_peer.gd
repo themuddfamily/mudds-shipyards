@@ -2,9 +2,6 @@ extends SceneTree
 
 const Adapter := preload("res://scripts/network/network_enet_session_adapter.gd")
 const Relationship := preload("res://scripts/network/moving_interior_relationship.gd")
-const JovianScene := preload("res://scenes/ships/jovian_light_freighter.tscn")
-const HalyardScene := preload("res://scenes/ships/halyard_crew_transport.tscn")
-const PlayerScene := preload("res://scenes/player/player.tscn")
 const CinderBomber := preload("res://scripts/ships/cinder_long_range_bomber.gd")
 const PayloadProjectile := preload("res://scripts/combat/bomber_payload_projectile.gd")
 const LiveCombatAuthority := preload("res://scripts/combat/live_combat_authority.gd")
@@ -40,18 +37,20 @@ func _init() -> void:
 	_parse_args()
 	_adapter = Adapter.new()
 	root.add_child(_adapter)
-	_jovian = JovianScene.instantiate() as Node3D
+	# Compose scene resources after script dependencies finish loading.
+	# Preloading these scenes beside the adapter retains script resources at exit.
+	_jovian = load("res://scenes/ships/jovian_light_freighter.tscn").instantiate() as Node3D
 	_jovian.name = &"JovianAuthorityCraft"
 	_jovian.position = Vector3(0.0, 8.0, 0.0)
 	root.add_child(_jovian)
-	_halyard = HalyardScene.instantiate() as Node3D
+	_halyard = load("res://scenes/ships/halyard_crew_transport.tscn").instantiate() as Node3D
 	_halyard.name = &"HalyardAuthorityCraft"
 	root.add_child(_halyard)
-	_player = PlayerScene.instantiate() as Node3D
+	_player = load("res://scenes/player/player.tscn").instantiate() as Node3D
 	_player.name = &"PassengerAvatar"
 	_player.position = Vector3(0.0, 9.0, 0.0)
 	root.add_child(_player)
-	_passenger_player = PlayerScene.instantiate() as Node3D
+	_passenger_player = load("res://scenes/player/player.tscn").instantiate() as Node3D
 	_passenger_player.name = &"SecondPassengerAvatar"
 	_passenger_player.position = Vector3(1.0, 9.0, 0.0)
 	root.add_child(_passenger_player)
@@ -192,7 +191,12 @@ func _server_loop() -> void:
 				_log("STATION_ACTIVE_WAVE")
 				_log("STATION_ASSET_CRITICAL")
 				_log("STATION_DEFENSE_TERMINAL")
-			if bool(station_replay.get("accepted", false)):
+			if not bool(station_replay.get("accepted", false)) \
+				and station_replay.get("status") == &"stale_damage_server_tick":
+				_log("STATION_REPLAY_REJECTED_SERVER")
+				# Inject the previously valid wire packet to exercise replica rejection too.
+				for peer_variant in peer_ids:
+					_adapter._send_damage_respawn_snapshot.rpc_id(int(peer_variant), station_start.packet)
 				_log("STATION_REPLAY_SENT")
 			if not bool(station_invalid.get("accepted", false)):
 				_log("STATION_INVALID_GENERATION_REJECTED")
@@ -357,10 +361,10 @@ func _server_loop() -> void:
 			_adapter.reset_remote_ship_pilot(&"jovian_authority_craft", &"disconnect")
 			_adapter.reset_remote_ship_pilot(&"jovian_passenger_craft", &"disconnect")
 			var damage_registration := _adapter.register_damage_entity(
-				passenger_peer, &"jovian_authority_craft", 2, 1
+				Adapter.AUTHORITY_PEER_ID, &"jovian_authority_craft", 2, 1
 			)
 			var destroyed := _adapter.publish_damage_respawn_snapshot(
-				&"jovian_authority_craft", 2, 0.0, &"destroyed", true, 1, peer_ids, 51
+				&"jovian_authority_craft", 2, 0.0, &"destroyed", true, 1, peer_ids, 5
 			)
 			var moving_release := _adapter.publish_moving_interior_release(
 				&"jovian_passenger", 1, peer_ids
@@ -374,13 +378,13 @@ func _server_loop() -> void:
 				_adapter.reset_remote_ship_pilot(&"jovian_authority_craft", &"destroyed")
 				_log("OLD_REPLICAS_CLEARED")
 				var respawn_registration := _adapter.register_damage_entity(
-					passenger_peer, &"jovian_authority_craft", 3, 2
+					Adapter.AUTHORITY_PEER_ID, &"jovian_authority_craft", 3, 2
 				)
 				var respawn_pilot := _adapter.register_remote_ship_pilot(
 					passenger_peer, &"jovian_authority_craft", 3
 				)
 				var respawn := _adapter.publish_damage_respawn_snapshot(
-					&"jovian_authority_craft", 3, 100.0, &"active", false, 2, peer_ids, 52
+					&"jovian_authority_craft", 3, 100.0, &"active", false, 2, peer_ids, 6
 				)
 				if bool(respawn_registration.get("accepted", false)) \
 					and bool(respawn_pilot.get("accepted", false)) \
@@ -494,8 +498,14 @@ func _server_loop() -> void:
 						&"jovian_authority_craft", 1
 					)
 					var landing_registration := _adapter.register_landing_entity(
-						passenger_peer, &"jovian_authority_craft", 1
+						Adapter.AUTHORITY_PEER_ID, &"jovian_authority_craft", 1
 					)
+					_adapter.register_landing_target(&"authority_test_berth", &"station", 1)
+					var landing_reservation := _adapter.reserve_server_landing(
+						&"jovian_authority_craft", 1, &"station", &"authority_test_berth", 1, 1, 53
+					)
+					var lease_id := StringName(landing_reservation.get("lease_id", &""))
+					var committed := _adapter.commit_server_landing(&"jovian_authority_craft", 1, lease_id)
 					var landed := _adapter.publish_landing_snapshot(
 						&"jovian_authority_craft", 1, Vector3.ZERO, &"landed", peer_ids, 53
 					)
@@ -516,6 +526,7 @@ func _server_loop() -> void:
 						and bool(interior_frame.get("accepted", false)) \
 						and real_boarding_ok \
 						and bool(landing_registration.get("accepted", false)) \
+						and bool(committed.get("accepted", false)) \
 						and bool(landed.get("accepted", false)) \
 						and bool(pilot_occupied.get("accepted", false)) \
 						and bool(passenger_occupied.get("accepted", false)):
@@ -526,8 +537,10 @@ func _server_loop() -> void:
 						_adapter.publish_boarding_snapshot(
 							&"jovian_authority_craft", passenger_peer, &"passenger_seat", 1, 1, false, peer_ids, 54
 						)
-						_adapter.publish_landing_snapshot(
-							&"jovian_authority_craft", 1, Vector3.ZERO, &"departed", peer_ids, 54
+						var departed := _adapter.release_server_landing(&"jovian_authority_craft", 1, lease_id)
+						var departure_snapshot := _adapter.publish_landing_snapshot(
+							&"jovian_authority_craft", int(departed.get("entity_generation", 0)),
+							Vector3.ZERO, &"flying", peer_ids, 54
 						)
 						_adapter.publish_moving_interior_release(&"jovian_passenger", 1, peer_ids)
 						var moving_frame: Node = _jovian.call("get_moving_interior_component") as Node
@@ -546,7 +559,9 @@ func _server_loop() -> void:
 						boarding_area.call("release_reservation", _player)
 						_adapter.release_owned_ship(passenger_peer, &"jovian_authority_craft", 1, 1)
 						_log("REAL_BOARDING_RELEASED")
-						if bool(pilot_disembark) and bool(passenger_disembark):
+						if bool(pilot_disembark) and bool(passenger_disembark) \
+							and bool(departed.get("accepted", false)) \
+							and bool(departure_snapshot.get("accepted", false)):
 							_log("SEATS_RELEASED")
 							_log("LANDING_EXIT_CLEAN")
 			_log("TRANSFER_CLEAN_DISCONNECT")
@@ -597,10 +612,10 @@ func _server_loop() -> void:
 						_adapter._moving_recipient_pending.erase(current_peer)
 						_adapter._moving_recipient_budgets.erase(current_peer)
 					var resync_damage := _adapter.publish_damage_respawn_snapshot(
-						&"jovian_authority_craft", 3, 100.0, &"active", false, 2, current_peers, 60
+						&"jovian_authority_craft", 3, 100.0, &"active", false, 2, current_peers, 7
 					)
 					var station_terminal_resync := _adapter.publish_damage_respawn_snapshot(
-						&"station_defense_protected_asset", 1, 0.0, &"destroyed", true, 1, current_peers, 4
+						&"station_defense_protected_asset", 1, 0.0, &"destroyed", true, 1, current_peers, 8
 					)
 					var cargo_terminal_resync := _adapter.publish_cargo_manifest_snapshot(
 						_cargo_manifest(&"completed", 1, 12), current_peers
@@ -620,12 +635,34 @@ func _server_loop() -> void:
 				_log("RECONNECT_GENERATION_FRESH")
 			_adapter.reset_remote_ship_pilot(&"jovian_authority_craft", &"disconnect")
 			await create_timer(0.8).timeout
-			quit(0)
+			call_deferred(&"_finish", 0)
 			return
 		await create_timer(0.02).timeout
 	_log("SERVER_PEERS_%d" % _adapter._peer_generations.size())
 	_log("SERVER_TIMEOUT")
-	quit(1)
+	call_deferred(&"_finish", 1)
+
+
+func _finish(exit_code: int) -> void:
+	for child in root.get_children():
+		child.process_mode = Node.PROCESS_MODE_DISABLED
+	# Drain the graceful disconnect before destroying ENet's channel owners.
+	if _role != "server" and _adapter._peer != null:
+		_adapter._peer.disconnect_peer(Adapter.AUTHORITY_PEER_ID)
+	var disconnect_deadline := Time.get_ticks_msec() + 2000
+	while Time.get_ticks_msec() < disconnect_deadline:
+		if _role == "server" and _adapter._peer_generations.is_empty():
+			break
+		if _role != "server" and not _adapter._configured:
+			break
+		await create_timer(0.02).timeout
+	_adapter.shutdown(&"test_cleanup")
+	for child in root.get_children():
+		child.queue_free()
+	await process_frame
+	await process_frame
+	_log("PEER_FINISHED")
+	quit(exit_code)
 
 
 func _client_loop() -> void:
@@ -685,15 +722,15 @@ func _client_loop() -> void:
 					and (not _reconnect_damage_seen or not _reconnect_relationship_seen):
 					await create_timer(0.05).timeout
 				_log("CLIENT_CLEAN")
-				quit(0)
+				call_deferred(&"_finish", 0)
 				return
 			await create_timer(12.0).timeout
 			_log("CLIENT_CLEAN")
-			quit(0)
+			call_deferred(&"_finish", 0)
 			return
 		await create_timer(0.02).timeout
 	_log("CLIENT_TIMEOUT")
-	quit(1)
+	call_deferred(&"_finish", 1)
 
 
 func _movement_command(
@@ -782,7 +819,7 @@ func _on_moving_interior_result(result: Dictionary) -> void:
 	var status := StringName(result.get("status", &""))
 	if status == &"moving_interior_presented":
 		_log("RELATIONSHIP_STABLE")
-		if _reconnect_attempted:
+		if _did_reconnect:
 			_reconnect_relationship_seen = true
 			_log("RECONNECT_RELATIONSHIP_RESYNC")
 	elif status == &"moving_interior_release_applied":
@@ -808,16 +845,16 @@ func _on_damage_respawn_result(result: Dictionary) -> void:
 			_log("STATION_WAVE_PRESENTED")
 		elif server_tick == 3 and state == &"critical":
 			_log("STATION_CRITICAL_PRESENTED")
-		elif server_tick == 4 and state == &"destroyed":
+		elif server_tick >= 4 and state == &"destroyed":
 			_station_terminal_seen = true
 			_log("STATION_TERMINAL_PRESENTED")
-			if _reconnect_attempted:
+			if _did_reconnect:
 				_log("STATION_TERMINAL_RESYNC_PRESENTED")
 	if state == &"destroyed":
 		_log("DAMAGE_DESTROYED_PRESENTED")
 	elif state == &"active":
 		_log("DAMAGE_RESPAWN_PRESENTED")
-	if _reconnect_attempted and state == &"active":
+	if _did_reconnect and state == &"active":
 		_reconnect_damage_seen = true
 		_log("RECONNECT_DAMAGE_RESYNC")
 	if StringName(result.get("status", &"")) in [&"stale_server_tick", &"stale_or_duplicate"]:
@@ -855,7 +892,7 @@ func _on_cargo_manifest_result(result: Dictionary) -> void:
 		elif state == &"completed":
 			_cargo_completed_seen = true
 			_log("CARGO_COMPLETED_PRESENTED")
-			if _reconnect_attempted:
+			if _did_reconnect:
 				_log("CARGO_TERMINAL_RESYNC_PRESENTED")
 	elif status in [&"stale_cargo_terminal", &"stale_or_invalid_cargo_manifest"]:
 		_log("CARGO_REPLAY_REJECTED")
@@ -920,7 +957,7 @@ func _on_landing_result(result: Dictionary) -> void:
 	var state := StringName((samples[0] as Dictionary).get("state", &""))
 	if state == &"landed":
 		_log("LANDED_PRESENTED")
-	elif state == &"departed":
+	elif state == &"flying":
 		_log("LANDING_EXIT_PRESENTED")
 
 

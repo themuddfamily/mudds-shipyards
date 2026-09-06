@@ -32,6 +32,8 @@ func _run() -> void:
 	_check(bridge.attach(adapter, ship).accepted and bridge.submit(12, 3, 1).accepted, "re-entry starts a fresh generation")
 	var replica := Snapshot.new(1)
 	_check(replica.apply_replica(1, adapter.packet).accepted and float((replica.get_section(&"movement")[0] as Dictionary).targeting_power) >= 0.0, "replica presents server modifiers without mutation authority")
+	bridge.detach()
+	ship.free()
 	if _failures.is_empty():
 		print("OK: network ship telemetry snapshot bridge (%d assertions)" % _assertions)
 		quit(0)

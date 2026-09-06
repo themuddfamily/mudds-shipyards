@@ -35,6 +35,7 @@ func _run() -> void:
 		"landing presentation resumes after the missing snapshot")
 	_check(adapter.reset_snapshot_jitter(21).accepted,
 		"migration reset clears landing presentation state")
+	adapter.free()
 	if _failures.is_empty():
 		print("OK: ENet landing consumer (%d assertions)" % _assertions)
 		quit(0)

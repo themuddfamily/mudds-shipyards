@@ -31,6 +31,7 @@ func _run() -> void:
 	var recovered := adapter.consume_damage_respawn_snapshot(_packet(4, 4003, 50.0))
 	_check(recovered.accepted and recovered.samples.size() == 2, "damage presentation resumes after the missing snapshot")
 	_check(adapter.reset_snapshot_jitter(31).accepted, "migration reset clears damage presentation state")
+	adapter.free()
 	if _failures.is_empty():
 		print("OK: ENet damage consumer (%d assertions)" % _assertions)
 		quit(0)

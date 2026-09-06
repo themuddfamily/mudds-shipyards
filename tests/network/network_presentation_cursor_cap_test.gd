@@ -40,6 +40,7 @@ func _run() -> void:
 		and int(adapter.get_presentation_cursor_audit().interest_count) == 0
 		and int(adapter.get_presentation_cursor_audit().eviction_count) == 0,
 		"migration reset clears bounded presentation audit")
+	adapter.free()
 	if _failures.is_empty():
 		print("OK: presentation cursor cap (%d assertions)" % _assertions)
 		quit(0)

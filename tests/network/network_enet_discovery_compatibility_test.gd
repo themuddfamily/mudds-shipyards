@@ -29,6 +29,7 @@ func _run() -> void:
 	var intent := adapter.create_join_intent(&"compatible")
 	_check(intent.accepted and adapter.consume_join_intent({"session_id": &"old_protocol", "directory_generation": 4, "intent_sequence": 99}).status == &"protocol_mismatch",
 		"incompatible intent cannot be consumed")
+	adapter.free()
 	if _failures.is_empty():
 		print("OK: ENet discovery compatibility (%d assertions)" % _assertions)
 		quit(0)

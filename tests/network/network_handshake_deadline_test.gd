@@ -29,6 +29,7 @@ func _run() -> void:
 	_check(adapter.begin_handshake(4000, 5, 10, 1000).accepted
 		and adapter.reset_snapshot_jitter(11).accepted
 		and not bool(adapter.get_handshake_deadline_state().active), "migration reset clears pending handshake")
+	adapter.free()
 	if _failures.is_empty():
 		print("OK: handshake deadline (%d assertions)" % _assertions)
 		quit(0)

@@ -35,6 +35,7 @@ func _run() -> void:
 	_check(adapter.reset_snapshot_jitter(13).accepted
 		and adapter.get_snapshot_jitter_state().next_revision == 1,
 		"migration reset clears projectile and shared timing cursors")
+	adapter.free()
 	if _failures.is_empty():
 		print("OK: ENet projectile consumer (%d assertions)" % _assertions)
 		quit(0)

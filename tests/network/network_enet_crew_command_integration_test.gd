@@ -27,6 +27,7 @@ func _run() -> void:
 	_check(adapter.reset_snapshot_jitter(2).accepted
 		and adapter.get_crew_command_snapshot().migration_generation == 2,
 		"migration reset clears and advances command generation")
+	adapter.free()
 	if _failures.is_empty():
 		print("OK: ENet crew command integration (%d assertions)" % _assertions)
 		quit(0)

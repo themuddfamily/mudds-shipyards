@@ -29,6 +29,7 @@ func _run() -> void:
 	_check(adapter.reset_snapshot_jitter(3).accepted
 		and adapter.consume_join_intent(intent, "").status == &"session_not_found",
 		"migration reset clears consumed discovery intents and listings")
+	adapter.free()
 	if _failures.is_empty():
 		print("OK: join intent integration (%d assertions)" % _assertions)
 		quit(0)

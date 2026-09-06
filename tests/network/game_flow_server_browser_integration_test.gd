@@ -72,6 +72,8 @@ func _run() -> void:
 	_check(bool(session.get("_configured")), "validated join starts through ENet adapter")
 	session.shutdown(&"test_cleanup")
 	session.queue_free()
+	flow.free()
+	hud.free()
 	if _failures.is_empty():
 		print("GAME_FLOW_SERVER_BROWSER_INTEGRATION_TEST_OK (%d assertions)" % _assertions)
 		quit(0)

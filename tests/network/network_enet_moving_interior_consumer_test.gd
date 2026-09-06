@@ -70,6 +70,7 @@ func _run() -> void:
 	_check(adapter.reset_snapshot_jitter(8).accepted
 		and adapter.get_snapshot_jitter_state().next_revision == 1,
 		"migration reset clears the loss gap and presentation cursor")
+	adapter.free()
 	if _failures.is_empty():
 		print("OK: ENet moving interior consumer (%d assertions)" % _assertions)
 		quit(0)

@@ -33,6 +33,7 @@ func _run() -> void:
 	_check(adapter.apply_server_directory_snapshot(5, 132, [_entry("fresh", 30)]).accepted, "new directory generation replaces stale listings")
 	_check(adapter.detach_server_directory().accepted and adapter.query_server_directory().is_empty(),
 		"binding detaches discovery state for migration/reconnect")
+	adapter.free()
 	if _failures.is_empty():
 		print("OK: server browser binding (%d assertions)" % _assertions)
 		quit(0)

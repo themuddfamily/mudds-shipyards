@@ -22,7 +22,7 @@ func _run() -> void:
 		if log_file != null:
 			log_file.close()
 		var args := PackedStringArray([
-			"--headless", "--path", ProjectSettings.globalize_path("res://"),
+			"--headless", "--audio-driver", "Dummy", "--path", ProjectSettings.globalize_path("res://"),
 			"--script", script_path, "--", "--role",
 			role, "--port", str(PORT), "--log", log_path,
 		])
@@ -39,7 +39,14 @@ func _run() -> void:
 	while Time.get_ticks_msec() < deadline:
 		await create_timer(0.1).timeout
 		if _evidence_complete():
-			_cleanup()
+			# Let all child destructors run so their diagnostics remain part of this gate.
+			await create_timer(0.25).timeout
+			var still_running := false
+			for child_pid in _pids:
+				still_running = still_running or OS.is_process_running(child_pid)
+			if still_running:
+				continue
+			_pids.clear()
 			print("OK: three-process network authority harness")
 			quit(0)
 			return
@@ -66,7 +73,7 @@ func _evidence_complete() -> bool:
 		"REAL_PLAYERS_BOARDING", "REAL_BOARDING_RELEASED",
 		"REAL_PAYLOAD_RELEASED", "REAL_PAYLOAD_TERMINAL_RESOLVED", "DAMAGE_ONCE_SERVER_ONLY",
 		"STATION_DEFENSE_STARTED", "STATION_ACTIVE_WAVE", "STATION_ASSET_CRITICAL",
-		"STATION_DEFENSE_TERMINAL", "STATION_REPLAY_SENT", "STATION_INVALID_GENERATION_REJECTED",
+		"STATION_DEFENSE_TERMINAL", "STATION_REPLAY_SENT", "STATION_REPLAY_REJECTED_SERVER", "STATION_INVALID_GENERATION_REJECTED",
 		"CARGO_MANIFEST_READY", "CARGO_TRANSFER_COMMITTED", "CARGO_TRANSFER_COMPLETED",
 		"CARGO_QUANTITY_CONSERVED_12", "CARGO_REPLAY_SENT", "CARGO_INVALID_GENERATION_REJECTED",
 		"COPILOT_ADMITTED", "COPILOT_NAV_ACCEPTED", "COPILOT_NAV_REPLICATED",
@@ -127,6 +134,9 @@ func _evidence_complete() -> bool:
 			or not client_log.contains("SEATS_RELEASED_PRESENTED") \
 			or not client_log.contains("LANDING_EXIT_PRESENTED") \
 			or not client_log.contains("CLIENT_CLEAN"):
+			return false
+	for peer_log in [server_log, client_a_log, client_b_log]:
+		if not peer_log.contains("PEER_FINISHED"):
 			return false
 	return true
 

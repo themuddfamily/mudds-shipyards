@@ -29,6 +29,7 @@ func _run() -> void:
 		and not bool((recovered.samples[0] as Dictionary).seat_occupied),
 		"boarding presentation resumes ownership and seat changes in order")
 	_check(adapter.reset_snapshot_jitter(41).accepted, "migration reset clears boarding presentation state")
+	adapter.free()
 	if _failures.is_empty():
 		print("OK: ENet boarding ownership consumer (%d assertions)" % _assertions)
 		quit(0)

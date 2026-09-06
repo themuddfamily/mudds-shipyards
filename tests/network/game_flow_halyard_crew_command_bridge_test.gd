@@ -17,6 +17,7 @@ func _run() -> void:
 	var flow := GameFlowType.new()
 	var session := AdapterType.new()
 	var halyard := HalyardType.new()
+	root.add_child(halyard)
 	var authority := CrewAuthorityType.new(1)
 	_check(authority.register_halyard_roster().accepted, "Halyard roster is available")
 	_check(halyard.attach_crew_role_authority(authority).accepted, "Halyard accepts role authority")
@@ -37,6 +38,9 @@ func _run() -> void:
 		"server receipt reaches real Halyard command bridge")
 	flow._on_network_session_stopped(&"migration")
 	_check(flow._network_halyard_command_bridge == null, "session stop detaches and clears bridge")
+	flow.free()
+	session.free()
+	halyard.free()
 	if _failures.is_empty():
 		print("OK: GameFlow/Halyard crew command bridge (%d assertions)" % _assertions)
 		quit(0)
