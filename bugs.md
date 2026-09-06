@@ -60,9 +60,13 @@ here** and does not close this record.
 Using that patch locally would require building and qualifying a custom Godot
 editor and matching Windows export templates. Selecting a patched editor with
 `GODOT_BIN` alone would not fix the shipped executable: the current export
-preset still selects the stock templates. The existing accepted disposition
-continues to use official Godot until that dependency policy changes or an
-upstream fixed release is qualified.
+preset still selects the stock templates.
+
+**User decision — 2026-09-06: keep official Godot.** Continue using official
+Godot releases and matching official Windows export templates. Retain
+`RENDER-001` as an accepted risk until a fixed official release is qualified.
+This resolves the dependency choice for the bug review: this entry is an
+explicitly accepted exception, not a verified fix, and remains in the ledger.
 
 ### Environment — two documented configurations, identical result
 
