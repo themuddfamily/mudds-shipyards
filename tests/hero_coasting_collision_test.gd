@@ -43,7 +43,8 @@ func _run() -> void:
 	_check(is_equal_approx(float(ship.get_telemetry().hull), hull_after_contact), "resting contact does not apply repeated damage")
 	stage.queue_free()
 	await process_frame
-	print("HERO_COASTING_COLLISION_TEST: %d failures" % _failures.size())
+	if _failures.is_empty():
+		print("HERO_COASTING_COLLISION_TEST_OK")
 	quit(0 if _failures.is_empty() else 1)
 
 func _check(condition: bool, message: String) -> void:
