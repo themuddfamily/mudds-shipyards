@@ -187,6 +187,7 @@ func _test_deterministic_regeneration() -> void:
 		OS.get_executable_path(),
 		[
 			"--headless",
+			"--audio-driver", "Dummy",
 			"--path", ProjectSettings.globalize_path("res://"),
 			"--script", "res://tools/generate_torrent_authored_assets.gd",
 			"--", "--verify-checked-in",
