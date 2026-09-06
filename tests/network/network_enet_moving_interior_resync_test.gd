@@ -29,7 +29,7 @@ func _run() -> void:
 		"resync populates the client replica")
 	var stale_packet := packet.duplicate(true)
 	stale_packet["relationships"] = [_relationship(2, 0.0)]
-	_check(client._apply_moving_interior_resync(stale_packet).get("status") == &"stale_server_tick",
+	_check(client._apply_moving_interior_resync(stale_packet).get("status") == &"stale_or_reordered_tick",
 		"older same-generation relationship is rejected")
 	var foreign_packet := packet.duplicate(true)
 	foreign_packet["authority_peer_id"] = 9
@@ -42,6 +42,10 @@ func _run() -> void:
 	oversized["relationships"] = many
 	_check(client._apply_moving_interior_resync(oversized).get("status") == &"invalid_moving_interior_resync",
 		"oversized relationship list is rejected")
+	var later_resync := packet.duplicate(true)
+	later_resync["revision"] = 99
+	later_resync["relationships"] = []
+	_check(client._apply_moving_interior_resync(later_resync).accepted, "empty resync advances current generation fence")
 	var migrated := packet.duplicate(true)
 	migrated["migration_generation"] = 2
 	migrated["relationships"] = [_relationship(1, 3.0)]

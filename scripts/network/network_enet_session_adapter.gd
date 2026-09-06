@@ -146,6 +146,7 @@ var _moving_resync_revision := 0
 var _moving_recipient_budgets: Dictionary = {}
 var _moving_recipient_entities: Dictionary = {}
 var _moving_recipient_pending: Dictionary = {}
+var _moving_recipient_revisions: Dictionary = {}
 var _projectile_jitter
 var _projectile_replica_samples: Dictionary = {}
 var _projectile_snapshot_revision := 0
@@ -419,6 +420,7 @@ func shutdown(reason: StringName = &"requested") -> Dictionary:
 	_moving_recipient_budgets.clear()
 	_moving_recipient_entities.clear()
 	_moving_recipient_pending.clear()
+	_moving_recipient_revisions.clear()
 	_projectile_snapshot_revision = 0
 	_projectile_recipient_budgets.clear()
 	_projectile_recipient_pending.clear()
@@ -1706,7 +1708,7 @@ func publish_moving_interior_snapshot(
 		var transition := prior.is_empty() or int(prior.get("entity_generation", 0)) != relationship.get_entity_generation()
 		var budget := _moving_budget_decision(peer_id, packet, entity_id, logical_tick, transition)
 		if bool(budget.get("accepted", false)) and _peer != null:
-			_broadcast_moving_interior_snapshot.rpc_id(peer_id, packet)
+			_send_moving_interior_packet(peer_id, packet)
 		elif budget.get("status") == &"coalesced":
 			coalesced += 1
 	var result := _result(true, &"moving_interior_snapshot_coalesced" if coalesced == target_peers.size() and not target_peers.is_empty() else &"moving_interior_snapshot_published", {
@@ -1769,6 +1771,7 @@ func publish_moving_interior_resync(peer_id: int, budget_tick: int = -1) -> Dict
 		"recipient_peer_id": peer_id,
 		"migration_generation": int(_migration.get_snapshot().get("migration_generation", 1)),
 		"revision": maxi(1, _moving_snapshot_revision),
+		"snapshot_revision": int(_moving_recipient_revisions.get(peer_id, 0)),
 		"relationships": relationships,
 		"released_entities": released_entities,
 	}
@@ -1783,7 +1786,7 @@ func publish_moving_interior_resync(peer_id: int, budget_tick: int = -1) -> Dict
 			transition = true
 	var budget := _moving_budget_decision(peer_id, packet, &"__resync__", logical_tick, transition)
 	if bool(budget.get("accepted", false)) and _peer != null:
-		_send_moving_interior_resync.rpc_id(peer_id, packet)
+		_send_moving_interior_packet(peer_id, packet)
 	if bool(budget.get("accepted", false)):
 		_moving_recipient_entities[peer_id] = current_entities
 	return _remember(_result(bool(budget.get("accepted", false)), budget.get("status", &"moving_interior_resync_published"), {
@@ -1798,6 +1801,27 @@ func get_moving_interior_budget_snapshot(peer_id: int = 0) -> Dictionary:
 	if peer_id > 0:
 		return (_moving_recipient_budgets.get(peer_id, {}) as Dictionary).duplicate(true)
 	return _moving_recipient_budgets.duplicate(true)
+
+
+func _send_moving_interior_packet(peer_id: int, packet: Dictionary) -> void:
+	var wire := packet.duplicate(true)
+	if wire.has("relationship"):
+		var revision := int(_moving_recipient_revisions.get(peer_id, 0)) + 1
+		_moving_recipient_revisions[peer_id] = revision
+		wire["revision"] = revision
+		var relationship := wire.relationship as Dictionary
+		var entity_id := StringName(relationship.get("entity_id", &""))
+		var pending: Dictionary = _moving_recipient_pending.get(peer_id, {}) as Dictionary
+		pending.erase(entity_id)
+		_moving_recipient_pending[peer_id] = pending
+		if _moving_recipient_budgets.has(peer_id):
+			_moving_recipient_budgets[peer_id]["pending_count"] = pending.size()
+		_broadcast_moving_interior_snapshot.rpc_id(peer_id, wire)
+	else:
+		# Resync records form one authority baseline, irrespective of their count
+		# and their independently advancing entity ticks.
+		wire["snapshot_revision"] = int(_moving_recipient_revisions.get(peer_id, 0))
+		_send_moving_interior_resync.rpc_id(peer_id, wire)
 
 
 func _moving_budget_decision(
@@ -1821,17 +1845,18 @@ func _moving_budget_decision(
 		state["snapshot_count"] = 0
 		state["byte_count"] = 0
 		var pending: Dictionary = _moving_recipient_pending.get(peer_id, {}) as Dictionary
-		for pending_variant in pending.values():
-			var pending_packet := pending_variant as Dictionary
+		for pending_entity in pending.keys():
+			var pending_packet := pending[pending_entity] as Dictionary
 			var pending_size := Marshalls.variant_to_base64(pending_packet).to_utf8_buffer().size()
 			if int(state.snapshot_count) >= MOVING_INTERIOR_MAX_SNAPSHOTS_PER_WINDOW \
 					or int(state.byte_count) + pending_size > MOVING_INTERIOR_MAX_BYTES_PER_WINDOW:
 				break
 			if _peer != null:
-				_broadcast_moving_interior_snapshot.rpc_id(peer_id, pending_packet)
+				_send_moving_interior_packet(peer_id, pending_packet)
 			state.snapshot_count = int(state.snapshot_count) + 1
 			state.byte_count = int(state.byte_count) + pending_size
-			pending.erase(pending_variant)
+			pending.erase(pending_entity)
+		state.pending_count = pending.size()
 		_moving_recipient_pending[peer_id] = pending
 	if int(state.snapshot_count) >= MOVING_INTERIOR_MAX_SNAPSHOTS_PER_WINDOW \
 			or int(state.byte_count) + size_bytes > MOVING_INTERIOR_MAX_BYTES_PER_WINDOW:
@@ -2161,6 +2186,7 @@ func rotate_session_migration(next_package_generation: int = -1) -> Dictionary:
 		_moving_recipient_budgets.clear()
 		_moving_recipient_entities.clear()
 		_moving_recipient_pending.clear()
+		_moving_recipient_revisions.clear()
 		_projectile_snapshot_revision = 0
 		_projectile_recipient_budgets.clear()
 		_projectile_recipient_pending.clear()
@@ -2360,6 +2386,7 @@ func _reset_moving_interior_jitter(migration_generation: int) -> Dictionary:
 	_moving_recipient_budgets.clear()
 	_moving_recipient_entities.clear()
 	_moving_recipient_pending.clear()
+	_moving_recipient_revisions.clear()
 	for entity_variant in _moving_replica_binding_ids.keys():
 		_moving_replica_binding.detach(StringName(entity_variant))
 	_moving_replica_binding_ids.clear()
@@ -2562,55 +2589,10 @@ func consume_moving_interior_snapshot(
 		var ready: Dictionary = _moving_jitter.pop_ready()
 		if ready.is_empty():
 			break
-		var raw_relationship: Variant = ready.get("relationship")
-		if not raw_relationship is Dictionary:
-			return _remember(_result(false, &"invalid_moving_interior_relationship"))
-		var stream_generation := int(_moving_relationship_stream.get_snapshot().get("migration_generation", 1))
-		var replica_gate: Dictionary = _moving_replica.accept_snapshot(
-			AUTHORITY_PEER_ID,
-			raw_relationship as Dictionary,
-			stream_generation,
-			float(ready.get("server_tick", 0))
-		)
-		if not bool(replica_gate.get("accepted", false)):
-			return _remember(_result(false, replica_gate.get("status", &"replica_rejected")))
-		var relationship_gate: Dictionary = _moving_relationship_stream.accept_snapshot(
-			AUTHORITY_PEER_ID,
-			raw_relationship as Dictionary,
-			stream_generation
-		)
-		if not bool(relationship_gate.get("accepted", false)):
-			return _remember(_result(false, relationship_gate.get("status", &"relationship_rejected")))
-		if relationship_gate.get("status") == &"gap_hold":
-			return _remember(_result(true, &"moving_interior_waiting_for_gap", {
-				"samples": _frozen_moving_interior_samples(frame_world_transform),
-				"buffered_revision": int(ready.get("revision", 0)),
-				"frozen": true,
-			}))
-		var relationship := MovingInteriorRelationship.from_dictionary(raw_relationship as Dictionary)
-		if not relationship.is_valid():
-			return _remember(_result(false, &"invalid_moving_interior_relationship"))
-		var entity_id := relationship.get_entity_id()
-		var prior: Dictionary = _moving_replica_samples.get(entity_id, {})
-		var local_transform := relationship.get_frame_local_transform()
-		if not prior.is_empty():
-			var prior_transform: Transform3D = prior.get("local_transform", Transform3D.IDENTITY)
-			local_transform = prior_transform.interpolate_with(local_transform, clampf(alpha, 0.0, 1.0))
-		_store_presentation_sample(_moving_replica_samples, entity_id, {
-			"revision": int(ready.get("revision", 0)),
-			"server_tick": relationship.get_server_tick(),
-			"parent_frame_id": relationship.get_parent_frame_id(),
-			"parent_frame_generation": relationship.get_parent_frame_generation(),
-			"local_transform": local_transform,
-		})
-		presented.append({
-			"revision": int(ready.get("revision", 0)),
-			"server_tick": relationship.get_server_tick(),
-			"entity_id": entity_id,
-			"parent_frame_id": relationship.get_parent_frame_id(),
-			"parent_frame_generation": relationship.get_parent_frame_generation(),
-			"world_transform": frame_world_transform * local_transform,
-		})
+		var applied := _present_moving_interior_relationship(ready, frame_world_transform, alpha)
+		if not bool(applied.get("accepted", false)) or applied.get("status") == &"moving_interior_waiting_for_gap":
+			return _remember(applied)
+		presented.append_array(applied.get("samples", []) as Array)
 	if presented.is_empty():
 		return _remember(_result(true, &"moving_interior_waiting_for_gap", {
 			"samples": _frozen_moving_interior_samples(frame_world_transform),
@@ -2621,6 +2603,58 @@ func consume_moving_interior_snapshot(
 		"samples": presented,
 		"buffered_revision": int(buffered.get("revision", 0)),
 	}))
+
+
+func _present_moving_interior_relationship(ready: Dictionary, frame_world_transform: Transform3D, alpha: float) -> Dictionary:
+	var raw_relationship: Variant = ready.get("relationship")
+	if not raw_relationship is Dictionary:
+		return _remember(_result(false, &"invalid_moving_interior_relationship"))
+	var stream_generation := int(_moving_relationship_stream.get_snapshot().get("migration_generation", 1))
+	var replica_gate: Dictionary = _moving_replica.accept_snapshot(
+		AUTHORITY_PEER_ID,
+		raw_relationship as Dictionary,
+		stream_generation,
+		float(ready.get("server_tick", 0))
+	)
+	if not bool(replica_gate.get("accepted", false)):
+		return _remember(_result(false, replica_gate.get("status", &"replica_rejected")))
+	var relationship_gate: Dictionary = _moving_relationship_stream.accept_snapshot(
+		AUTHORITY_PEER_ID,
+		raw_relationship as Dictionary,
+		stream_generation
+	)
+	if not bool(relationship_gate.get("accepted", false)):
+		return _remember(_result(false, relationship_gate.get("status", &"relationship_rejected")))
+	if relationship_gate.get("status") == &"gap_hold":
+		return _remember(_result(true, &"moving_interior_waiting_for_gap", {
+			"samples": _frozen_moving_interior_samples(frame_world_transform),
+			"buffered_revision": int(ready.get("revision", 0)),
+			"frozen": true,
+		}))
+	var relationship := MovingInteriorRelationship.from_dictionary(raw_relationship as Dictionary)
+	if not relationship.is_valid():
+		return _remember(_result(false, &"invalid_moving_interior_relationship"))
+	var entity_id := relationship.get_entity_id()
+	var prior: Dictionary = _moving_replica_samples.get(entity_id, {})
+	var local_transform := relationship.get_frame_local_transform()
+	if not prior.is_empty():
+		var prior_transform: Transform3D = prior.get("local_transform", Transform3D.IDENTITY)
+		local_transform = prior_transform.interpolate_with(local_transform, clampf(alpha, 0.0, 1.0))
+	_store_presentation_sample(_moving_replica_samples, entity_id, {
+		"revision": int(ready.get("revision", 0)),
+		"server_tick": relationship.get_server_tick(),
+		"parent_frame_id": relationship.get_parent_frame_id(),
+		"parent_frame_generation": relationship.get_parent_frame_generation(),
+		"local_transform": local_transform,
+	})
+	return _remember(_result(true, &"moving_interior_presented", {"samples": [{
+		"revision": int(ready.get("revision", 0)),
+		"server_tick": relationship.get_server_tick(),
+		"entity_id": entity_id,
+		"parent_frame_id": relationship.get_parent_frame_id(),
+		"parent_frame_generation": relationship.get_parent_frame_generation(),
+		"world_transform": frame_world_transform * local_transform,
+	}]}))
 
 
 func sample_moving_interior_replica(entity_id: StringName, now_seconds: float) -> Dictionary:
@@ -4036,8 +4070,6 @@ func _apply_moving_interior_resync(packet: Dictionary) -> Dictionary:
 	if Marshalls.variant_to_base64(packet).to_utf8_buffer().size() > MAX_MOVING_INTERIOR_PACKET_BYTES:
 		return _remember(_result(false, &"moving_interior_packet_too_large"))
 	var resync_revision := int(packet.get("revision", 0))
-	if resync_revision < _moving_resync_revision:
-		return _remember(_result(false, &"stale_moving_interior_resync"))
 	var relationships_variant: Variant = packet.get("relationships")
 	if not relationships_variant is Array or (relationships_variant as Array).size() > 128:
 		return _remember(_result(false, &"invalid_moving_interior_resync"))
@@ -4048,21 +4080,25 @@ func _apply_moving_interior_resync(packet: Dictionary) -> Dictionary:
 	var current_generation := int(_moving_relationship_stream.get_snapshot().get("migration_generation", 1))
 	if generation < current_generation:
 		return _remember(_result(false, &"stale_migration_generation"))
+	if generation == current_generation and resync_revision < _moving_resync_revision:
+		return _remember(_result(false, &"stale_moving_interior_resync"))
 	if generation > current_generation:
 		var reset_result := _reset_moving_interior_jitter(generation)
 		if not bool(reset_result.get("accepted", false)):
 			return _remember(reset_result)
+	var snapshot_revision := int(packet.get("snapshot_revision", packet.get("revision", 0)))
+	if snapshot_revision < int(_moving_jitter.get_snapshot().next_revision) - 1:
+		return _remember(_result(false, &"stale_moving_interior_resync"))
 	var applied_count := 0
 	for relationship_variant in relationships_variant as Array:
 		if not relationship_variant is Dictionary:
 			return _remember(_result(false, &"invalid_moving_interior_relationship"))
-		var next_revision := int(_moving_jitter.get_snapshot().get("next_revision", 1))
 		var relationship := relationship_variant as Dictionary
-		var applied := consume_moving_interior_snapshot({
-			"revision": next_revision,
+		var applied := _present_moving_interior_relationship({
+			"revision": snapshot_revision,
 			"server_tick": int(relationship.get("server_tick", -1)),
 			"relationship": relationship,
-		})
+		}, Transform3D.IDENTITY, 1.0)
 		if not bool(applied.get("accepted", false)):
 			return _remember(_result(false, applied.get("status", &"moving_interior_resync_rejected")))
 		applied_count += 1
@@ -4074,6 +4110,7 @@ func _apply_moving_interior_resync(packet: Dictionary) -> Dictionary:
 		_moving_replica_samples.erase(released_id)
 		_moving_replica_binding.detach(released_id)
 		_moving_replica_binding_ids.erase(released_id)
+	_moving_jitter.reset(generation, snapshot_revision + 1)
 	_moving_resync_revision = resync_revision
 	return _remember(_result(true, &"moving_interior_resync_applied", {
 		"generation": generation,
@@ -4188,6 +4225,7 @@ func _on_peer_disconnected(peer_id: int, reason: StringName = &"disconnect") -> 
 	_moving_recipient_budgets.erase(peer_id)
 	_moving_recipient_entities.erase(peer_id)
 	_moving_recipient_pending.erase(peer_id)
+	_moving_recipient_revisions.erase(peer_id)
 	_projectile_recipient_budgets.erase(peer_id)
 	_projectile_recipient_pending.erase(peer_id)
 	_projectile_published_generations.erase(peer_id)

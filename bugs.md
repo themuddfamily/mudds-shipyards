@@ -16,26 +16,6 @@ This is a bounded source review with focused execution, not a claim that every
 bug has been found. Native Windows, physical controllers, representative GPU
 performance, and human visual review were **NOT_RUN** in this review.
 
-### NET-004 — Targeted interior snapshots leave permanent revision gaps — P1
-
-- **Location:** Moving-interior publication, budget flushing, and resync in
-  [`network_enet_session_adapter.gd`](scripts/network/network_enet_session_adapter.gd).
-- **Found during fix verification:** With two admitted clients, target the
-  first interior update to client A and the second to client B, then continue
-  targeting updates through the real ENet adapter.
-- **Expected / actual:** Each recipient should order only the snapshots sent
-  to it. Publication uses one global revision counter despite targeting and
-  coalescing per recipient. B waits forever for revision 1 while holding revision
-  2; A subsequently waits for revision 2 while holding revisions 3–9. Resync also
-  synthesizes one cursor revision per relationship instead of aligning with the
-  subsequent recipient stream.
-- **Verified:** The real two-client socket regression failed six delivery and
-  ordering assertions. Budget flushing also retained already-sent entries by
-  erasing a dictionary value instead of its entity key.
-- **Repair:** Use contiguous emitted revisions per recipient, align resync with
-  that stream, and retire delivered pending entries by key. Keep canonical and
-  interior ordering independent as established by NET-002's completed fix.
-
 ### WORLD-004 — Valid terrain beyond the landing pad is rejected as lost support — P1
 
 - **Location:** [`EmberSurfaceLoopHost._surface_actor_supported()`](scripts/world/ember_surface_loop_host.gd).
