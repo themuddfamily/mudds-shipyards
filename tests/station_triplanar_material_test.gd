@@ -594,12 +594,18 @@ func _test_live_station_coverage(
 	# `brass` cue surfaces at the existing 0.30 m module scale: 2428 -> 2435
 	# ordinary mapped surfaces and 1561 -> 1568 at 0.30. The 0.22 and 0.28
 	# buckets, instanced batches, ceilings, and every material recipe stay fixed.
+	# Subsequent Observation deck, Observatory tripod, Jovian apron/collar and
+	# structural service-run consolidation transfers or combines existing mapped
+	# surfaces. New production destination/registry terminals add mapped stock.
+	# The integrated census is 2413 / 45 / 822 / 1546, with all seven couriers
+	# dispatched from a valid station graph. Missing couriers must still fail;
+	# they are not a legitimate reduction in this material-coverage contract.
 	_check(
-		mapped_surface_count == 2435
+		mapped_surface_count == 2413
 		and scale_022_count == 45
 		and scale_028_count == 822
-		and scale_030_count == 1568,
-		"live static station binds exactly 2435 ordinary surfaces including the Aft stair-handoff cue"
+		and scale_030_count == 1546,
+		"live static station binds exactly 2413 ordinary mapped surfaces with all seven couriers dispatched"
 	)
 	_check(exact_recipe, "every mapped station surface uses the matched world-triplanar albedo/normal/roughness recipe")
 	_check(forbidden_ship_atlas_count == 0, "no live station surface reuses the Arrow or Jovian directional ship atlases")
@@ -696,9 +702,13 @@ func _test_instanced_station_family(
 	# side of the exact 0.22/0.28/0.30 ordinary-surface transfer frozen above;
 	# deliberately painted, emissive, rubber and sky batches remain counted only
 	# in the total column, while every mapped replacement still passes `exact`.
+	# Later deck, tripod, apron, bollard and fleet-status batching, together
+	# with the Fabrication luminous and Observation canopy consolidation, leaves
+	# 228 live batches / 129 mapped. Ordinary and batched bindings both retain
+	# their exact material recipes rather than disappearing from this audit.
 	_check(
-		batches == 220 and mapped == 125,
-		"instanced station structure is exactly 220 batches, 125 of them mapped"
+		batches == 228 and mapped == 129,
+		"instanced station structure is exactly 228 batches, 129 of them mapped"
 	)
 	_check(exact, "every mapped instanced batch uses the same recipe and frozen scale as drawn surfaces")
 
@@ -717,21 +727,23 @@ func _test_recent_module_material_rosters(world: ShipyardWorld) -> void:
 		"ModernFleetRegistry": [34, 22, 1, 1],
 		# Floor, work-bay, overhead, portal and guardrail batching leaves four
 		# registered ordinary surfaces and moves the other registered populations
-		# behind 24 exact material-family batches.
-		"FabricationAnnex": [4, 4, 29, 24],
+		# behind 24 exact material-family batches. Consolidating the two luminous
+		# batches adds one plain surface and removes two unmapped batches.
+		"FabricationAnnex": [5, 4, 27, 24],
 		"ExposedDockLattice/FabricationAnnexConnector": [10, 10, 0, 0],
 		# The valid production registry dispatches all seven couriers before this
 		# snapshot; each contributes seven renderers, five of them registered station
 		# structure. The post-stage navigation owner checks their full recipe directly.
 		"OperationalLattice/ServiceAgents/FabricationAnnexServiceCourier": [7, 5, 0, 0],
-		# Portal, cargo, practical-lens and trim batching moves the Spur to its live
-		# 7/6 ordinary and 28/17 batch profile without changing registered recipes.
-		"ObservationLogisticsSpur": [7, 6, 28, 17],
+		# Five mapped walkable decks move into one batch; canopy consolidation
+		# then removes one mapped batch. The deck and canopy copies retain their
+		# registered recipes through the 2/1 ordinary and 28/17 batch profile.
+		"ObservationLogisticsSpur": [2, 1, 28, 17],
 		"ExposedDockLattice/ObservationLogisticsConnector": [3, 3, 0, 0],
 		"OperationalLattice/ServiceAgents/ObservationLogisticsServiceCourier": [7, 5, 0, 0],
-		# The machine-dressing merge removes one mapped ordinary renderer only;
-		# six batches and their five mapped material bindings stay unchanged.
-		"SalvageTerrace": [31, 28, 6, 5],
+		# The emissive-dressing merge removes one unmapped ordinary renderer;
+		# mapped surfaces and the six batches stay unchanged.
+		"SalvageTerrace": [30, 28, 6, 5],
 		"ExposedDockLattice/SalvageTerraceConnector": [3, 3, 0, 0],
 		"OperationalLattice/ServiceAgents/SalvageTerraceServiceCourier": [7, 5, 0, 0],
 	}
