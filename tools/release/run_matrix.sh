@@ -13,6 +13,7 @@ AUDIO_DRIVER="${MATRIX_AUDIO_DRIVER:-Dummy}"
 mkdir -p "$OUT_DIR/logs"
 
 MANIFEST_PATH="$OUT_DIR/source_manifest.txt"
+MANIFEST_AFTER_PATH="$OUT_DIR/source_manifest_after.txt"
 SUMMARY_PATH="$OUT_DIR/matrix_summary.csv"
 RESULTS_PATH="$OUT_DIR/matrix_results.json"
 
@@ -31,8 +32,28 @@ mapfile -t SUITES < <(find tests -maxdepth 1 -type f -name '*_test.gd' | sort)
   printf '  "godot": "%s",\n' "$GODOT_BIN"
 } > "$RESULTS_PATH"
 
-# Capture a deterministic source manifest before execution.
-git ls-files | sort > "$MANIFEST_PATH"
+# Capture identity, the current index inventory, and actual working-tree bytes.
+# Refresh all three after execution; a saved filename list cannot detect edits.
+capture_source_manifest() {
+  printf 'HEAD %s\n' "$(git rev-parse HEAD)"
+  git ls-files --stage
+  while IFS= read -r -d '' source_path; do
+    printf 'WORKTREE %q ' "$source_path"
+    if [[ -L "$source_path" ]]; then
+      printf 'symlink '
+      readlink -z -- "$source_path" | sha256sum
+    elif [[ -f "$source_path" ]]; then
+      printf 'file '
+      sha256sum < "$source_path"
+    elif [[ -d "$source_path" ]]; then
+      printf 'directory\n'
+    else
+      printf 'missing\n'
+    fi
+  done < <(git ls-files -z | sort -zu)
+}
+
+capture_source_manifest > "$MANIFEST_PATH"
 manifest_before_sha=$(sha256sum "$MANIFEST_PATH" | awk '{print $1}')
 echo "source_manifest_before_sha256=$manifest_before_sha"
 
@@ -95,7 +116,8 @@ for suite in "${SUITES[@]}"; do
 
 done
 
-manifest_after_sha=$(sha256sum "$MANIFEST_PATH" | awk '{print $1}')
+capture_source_manifest > "$MANIFEST_AFTER_PATH"
+manifest_after_sha=$(sha256sum "$MANIFEST_AFTER_PATH" | awk '{print $1}')
 manifest_match="false"
 if [[ "$manifest_before_sha" == "$manifest_after_sha" ]]; then
   manifest_match="true"

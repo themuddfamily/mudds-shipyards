@@ -16,21 +16,6 @@ This is a bounded source review with focused execution, not a claim that every
 bug has been found. Native Windows, physical controllers, representative GPU
 performance, and human visual review were **NOT_RUN** in this review.
 
-### TEST-002 — Legacy matrix source guard hashes the same filename list twice — P2
-
-- **Locations:** [`manifest capture`](tools/release/run_matrix.sh#L35),
-  [`post-run comparison`](tools/release/run_matrix.sh#L96).
-- **Reproduce:** Run the legacy matrix while its fixture Godot command rewrites
-  a tracked suite.
-- **Expected / actual:** A source change should invalidate the run. The runner
-  hashes a saved `git ls-files` list before execution and hashes the exact same
-  unchanged list afterward; it never compares source bytes or refreshes the
-  tracked-file inventory. It reports `manifest_unchanged=true` and `MATRIX_OK`.
-- **Verified:** An isolated fixture retained both the modified tracked suite
-  and the successful matrix result after execution.
-- **Scope / repair:** This affects `run_matrix.sh`. Delegate to the maintained
-  runner's content checks instead of preserving another acceptance path.
-
 ### WORLD-001 — Normal survey movement fails the entire Ember journey — P1
 
 - **Locations:** [`_forward_active_relay_position()`](scripts/world/ember_surface_loop_production_binding.gd#L2394),
