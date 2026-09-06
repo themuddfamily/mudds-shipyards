@@ -1,8 +1,9 @@
 extends SceneTree
 
 ## End-to-end regression for the first repeatable physical sandbox foundation:
-## enter the completed-activity sandbox, choose among five parked craft, berth/exit,
-## move to another craft, crash it, recover without a reload, and keep flying.
+## verify all nine parked craft and their leases, then fly an Arrow/Torrent
+## berth/exit/switch/crash/recovery loop without reloading the world. The expanded
+## craft's physical switching paths have their own production integration suite.
 
 ## Extra simulated frames every bounded wait is granted on top of the frames its
 ## nominal duration implies. A frame count, never a wall-clock grace: widening a
@@ -14,6 +15,17 @@ const FRAME_BUDGET_GRACE := 30
 ## of. The consequence lands in `_process`, so it needs idle frames rather than
 ## simulated seconds, and the grace supplies those.
 const SETTLE_SECONDS := 0.1
+const EXPECTED_HOME_BERTHS := {
+	&"torrent_provisional": &"central_berth",
+	&"arrow_provisional": &"arrow_recon_berth",
+	&"jovian_provisional": &"jovian_freight_berth",
+	&"zenith_b7_observed": &"zenith_fleet_dock_berth",
+	&"halyard_new_design": &"halyard_fleet_dock_berth",
+	&"bulwark_heavy_gunship": &"bulwark_fleet_dock_berth",
+	&"cinder_cargo_hauler": &"dock_04_cargo",
+	&"cinder_long_range_bomber": &"dock_05_bomber",
+	&"cinder_light_interceptor": &"dock_06_interceptor",
+}
 const FLIGHT_CONTROL_ACTIONS := [
 	&"move_forward", &"move_back", &"move_left", &"move_right",
 	&"pitch_up", &"pitch_down", &"roll_left", &"roll_right",
@@ -43,9 +55,15 @@ func _run() -> void:
 	var player := game.get_node("Player") as CharacterBody3D
 	var original_player_id := player.get_instance_id()
 	var world := game.get_node("ShipyardWorld") as ShipyardWorld
+	# The three nested Cinder craft join the same registry through deferred
+	# production composition. Wait for that handoff before checking the roster.
+	await _wait_until(
+		func() -> bool: return game.get_flyable_ships().size() == EXPECTED_HOME_BERTHS.size(),
+		SETTLE_SECONDS
+	)
 	var fleet: Array[HeroShip] = game.get_flyable_ships()
-	_check(fleet.size() == 5, "exactly five physical flyable craft share the station")
-	if fleet.size() != 5:
+	_check(fleet.size() == EXPECTED_HOME_BERTHS.size(), "all nine physical flyable craft share the station")
+	if fleet.size() != EXPECTED_HOME_BERTHS.size():
 		game.queue_free()
 		await process_frame
 		_finish()
@@ -61,7 +79,7 @@ func _run() -> void:
 	_check(
 		fleet.has(primary) and fleet.has(arrow) and fleet.has(jovian)
 		and fleet.has(zenith) and fleet.has(halyard),
-		"fleet registry contains exactly the Torrent, Arrow, Jovian, Zenith, and Halyard instances"
+		"expanded fleet retains the Torrent, Arrow, Jovian, Zenith, and Halyard instances"
 	)
 	_check(
 		jovian.get_ship_id() == &"jovian_provisional"
@@ -87,7 +105,7 @@ func _run() -> void:
 		and primary.yaw_speed_degrees != arrow.yaw_speed_degrees,
 		"Torrent and Arrow have measurably different handling profiles"
 	)
-	_check(world.get_berth_ids().size() == 5, "world exposes exactly five registered production landing berths")
+	_check(world.get_berth_ids().size() == EXPECTED_HOME_BERTHS.size(), "world exposes all nine registered production landing berths")
 	var jovian_berth := world.get_berth_node(jovian.get_home_berth_id())
 	_check(
 		jovian_berth != null
@@ -101,7 +119,25 @@ func _run() -> void:
 		(-arrow_transform.basis.z).dot(Vector3.LEFT) > 0.99,
 		"Arrow berth preserves a full rotated docking transform"
 	)
-	for craft in [primary, arrow, jovian, zenith, halyard]:
+	var seen_ship_ids: Array[StringName] = []
+	var seen_berth_ids: Array[StringName] = []
+	for craft: HeroShip in fleet:
+		var ship_id := craft.get_ship_id()
+		var berth_id := craft.get_home_berth_id()
+		_check(EXPECTED_HOME_BERTHS.has(ship_id), "%s belongs to the nine-craft production roster" % ship_id)
+		_check(not seen_ship_ids.has(ship_id), "%s owns a unique fleet identity" % ship_id)
+		_check(not seen_berth_ids.has(berth_id), "%s owns a separate home berth" % ship_id)
+		seen_ship_ids.append(ship_id)
+		seen_berth_ids.append(berth_id)
+		_check(berth_id == EXPECTED_HOME_BERTHS.get(ship_id, &""), "%s retains its assigned physical berth" % ship_id)
+		var berth := world.get_berth_node(berth_id)
+		_check(
+			berth != null
+			and berth.get_reservation_owner() == craft
+			and berth.get_occupant() == craft
+			and berth.get_reserved_ship_id() == ship_id,
+			"%s starts with one authoritative occupied home lease" % ship_id
+		)
 		var area := craft.get_node_or_null("ShipBoardingArea") as ShipBoardingArea
 		_check(area != null, "%s has a physical boarding interaction area" % craft.name)
 		if area != null:

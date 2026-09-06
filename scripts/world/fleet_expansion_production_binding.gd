@@ -11,6 +11,7 @@ const Bomber := preload("res://scripts/ships/cinder_long_range_bomber.gd")
 const Interceptor := preload("res://scripts/ships/cinder_light_interceptor.gd")
 const CargoActivityBridge := preload("res://scripts/ships/cinder_cargo_activity_bridge.gd")
 const ShipAudioRigScene := preload("res://scenes/audio/ship_audio_rig.tscn")
+const ShipBoardingAreaScene := preload("res://scenes/interaction/ship_boarding_area.tscn")
 const FleetAudioBinding := preload("res://scripts/audio/fleet_expansion_audio_binding.gd")
 const FleetBerthAudioBinding := preload("res://scripts/audio/fleet_expansion_berth_audio_binding.gd")
 const CRAFT_SPECS: Array[Dictionary] = [
@@ -332,8 +333,15 @@ func _bind_pedestrian_handoff(
 	boarding_point.global_position = deck_position
 	exit_point.global_position = deck_position
 	var boarding_area := craft.get_node_or_null(^"ShipBoardingArea") as ShipBoardingArea
-	if boarding_area != null:
-		boarding_area.global_position = deck_position
+	# Script-built fighters and bombers need the same reservation-backed physical
+	# interaction as scene-built ships. Reuse the cargo craft's existing area and
+	# retain every area's identity across subsequent berth attachments.
+	if boarding_area == null:
+		if craft.has_node(^"ShipBoardingArea"):
+			return {"accepted": false, "reason": &"pedestrian_boarding_authority_invalid"}
+		boarding_area = ShipBoardingAreaScene.instantiate() as ShipBoardingArea
+		craft.add_child(boarding_area)
+	boarding_area.global_position = deck_position
 	return {
 		"accepted": true,
 		"reason": &"pedestrian_handoff_bound",

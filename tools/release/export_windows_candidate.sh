@@ -186,6 +186,7 @@ require_stable_release_root
 
 "$godot_bin" \
 	--headless \
+	--audio-driver Dummy \
 	--path "$REPO_ROOT" \
 	--export-release "Windows Desktop" \
 	"$temporary_output"

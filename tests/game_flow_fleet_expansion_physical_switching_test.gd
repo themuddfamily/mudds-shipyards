@@ -73,6 +73,19 @@ func _initialize() -> void:
 		_check(craft != null, "%s is registered for physical switching" % craft_id)
 		if craft == null:
 			continue
+		var boarding_area := craft.get_node_or_null(^"ShipBoardingArea") as ShipBoardingArea
+		_check(boarding_area != null, "%s exposes the physical seat reservation authority" % craft_id)
+		if boarding_area == null:
+			continue
+		var competing_pilot := RefCounted.new()
+		_check(boarding_area.try_reserve(competing_pilot), "%s admits one competing seat owner" % craft_id)
+		game.call(&"_board_ship", craft)
+		_check(
+			not craft.is_piloted()
+			and boarding_area.get_reservation_token() == competing_pilot,
+			"%s rejects boarding while another pilot holds its physical seat" % craft_id
+		)
+		_check(boarding_area.release_reservation(competing_pilot), "%s releases only the matching seat claim" % craft_id)
 		var boarded := await _approach_and_board(game, player, craft)
 		_check(
 			boarded,
@@ -87,6 +100,10 @@ func _initialize() -> void:
 				]
 		)
 		_check(game.get_active_ship() == craft and craft.is_piloted(), "%s becomes the active piloted craft" % craft_id)
+		_check(
+			boarded and boarding_area.get_reservation_token() == player,
+			"%s retains the real Player reservation through the physical boarding handoff" % craft_id
+		)
 		if craft_id == &"cinder_long_range_bomber" and boarded:
 			await physics_frame
 			await process_frame
@@ -114,6 +131,7 @@ func _initialize() -> void:
 			)
 		var disembarked := await _disembark(game, player)
 		_check(disembarked, "%s disembarks through the real GameFlow path" % craft_id)
+		_check(not boarding_area.is_reserved(), "%s releases the Player reservation after disembarking" % craft_id)
 		if craft_id == &"cinder_long_range_bomber":
 			var cleared := game.get_bomber_payload_loop_snapshot()
 			var cleared_fleet: Dictionary = game.world.get_fleet_expansion_production_binding().get_fleet_snapshot()
