@@ -73,6 +73,9 @@ try {
         ConvertTo-Json -Depth 4 | Set-Content "$OutputDirectory\invocation.json" -Encoding UTF8
     $process = Start-Process -FilePath $Godot -ArgumentList $arguments -WorkingDirectory $Project -PassThru `
         -RedirectStandardOutput "$OutputDirectory\stdout.log" -RedirectStandardError "$OutputDirectory\stderr.log"
+    # Retain the process handle: Windows PowerShell 5.1 can otherwise lose
+    # ExitCode when Start-Process children exit before a later property read.
+    $processHandle = $process.Handle
     $timer = [Diagnostics.Stopwatch]::StartNew()
     $peakWorkingSet = 0L
     'elapsed_seconds,working_set_bytes,peak_working_set_bytes' | Set-Content "$OutputDirectory\process-memory.csv"
