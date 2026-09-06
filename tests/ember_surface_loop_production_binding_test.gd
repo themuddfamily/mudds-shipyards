@@ -29,6 +29,9 @@ class EarlyCaller:
 	var ship: ArrowReconShip
 	var player: PlayerController
 	var enabled := false
+	var journey_flow: GameFlow
+	var journey_cadence_enabled := false
+	var journey_cadence_samples := 0
 	var actor_kind: StringName = &"ship"
 	var sample_count := 0
 	var last_prepare: Dictionary = {}
@@ -48,6 +51,12 @@ class EarlyCaller:
 	var last_handback: Dictionary = {}
 	var take_station_intent_when_ready := false
 	var station_intent_take: Dictionary = {}
+
+
+	func _exit_tree() -> void:
+		if is_instance_valid(journey_flow):
+			journey_flow.free()
+			journey_flow = null
 
 	func _ready() -> void:
 		process_physics_priority = -100
@@ -112,6 +121,11 @@ class EarlyCaller:
 				)
 			frame_offset_red = 0
 			retry_after_frame_red = false
+		elif journey_cadence_enabled:
+			last_prepare = journey_flow._advance_ember_surface_loop_cadence(
+				CALLER_DELTA, last_sample, last_origin, current_generation,
+			)
+			journey_cadence_samples += 1
 		else:
 			last_prepare = production.prepare_early_tick(
 				serial, CALLER_DELTA, last_sample, last_origin,
@@ -555,6 +569,20 @@ func _test_real_scheduler_complete_loop() -> void:
 	)
 	_check(await _wait_phase(fixture, EmberSurfaceLoopHost.Phase.SURFACE_OUTBOUND, 300), "real disembark reaches surface route")
 	early.actor_kind = &"player"
+	# Exercise the actual extracted GameFlow surface coordinator over the real
+	# walk. The fixture still owns its initial approach setup and early origin
+	# sample; neither caller writes actor transforms during this traversal.
+	early.journey_flow = GameFlow.new()
+	early.journey_flow.active_ship = ship
+	early.journey_flow.player = player
+	early.journey_flow.ember_surface_loop_host = host
+	early.journey_flow.ember_surface_loop_production_binding = production
+	early.journey_flow.set("_ember_surface_journey_active", true)
+	early.journey_flow.set("_ember_final_approach_handoff_ready", true)
+	early.journey_flow.set("_ember_surface_caller_serial",
+		int(production.get_snapshot().last_caller_serial))
+	var journey_reference: WeakRef = weakref(early.journey_flow.get("_planetary_journey"))
+	early.journey_cadence_enabled = true
 	_check(await _walk_outbound(fixture), "real Player crosses the ordered outbound route")
 	var hazard_before := production.get_authored_hazard_presentation_snapshot()
 	var late_before := int(production.get_snapshot().late_consume_count)
@@ -666,6 +694,15 @@ func _test_real_scheduler_complete_loop() -> void:
 		await _cleanup(world)
 		return
 	_check(await _walk_return(fixture), "real Player returns to the exact BoardingArea")
+	_check(
+		early.journey_cadence_samples > 100
+			and int(early.journey_flow.get("_ember_surface_caller_serial"))
+				== int(production.get_snapshot().last_caller_serial)
+			and journey_reference.get_ref() == early.journey_flow.get("_planetary_journey")
+			and production.get_state() == EmberSurfaceLoopProductionBinding.State.RUNNING,
+		"one retained GameFlow coordinator feeds the real outbound, terrain and return walk without duplicate late samples",
+	)
+	early.journey_cadence_enabled = false
 	var retained_session := host.get_travel_session_observation_source()
 	var retained_attachment_generation := int(
 		(retained_session.call(&"get_presentation_snapshot") as Dictionary).get(
@@ -1134,7 +1171,18 @@ func _wait_binding_state(fixture: Dictionary, state: int, budget: int) -> bool:
 	var production := (fixture.world as Node).get_node(
 		^"EmberSurfaceLoopProductionBinding"
 	) as EmberSurfaceLoopProductionBinding
+	var host := fixture.host as EmberSurfaceLoopHost
+	var ship := fixture.ship as HeroShip
+	var berth := fixture.berth as ShipBerth
 	for _index in budget:
+		if _index % 30 == 0:
+			var altitude := (ship.global_position - berth.global_position).dot(
+				berth.global_basis.y.normalized())
+			print("Ember return: step=%d frame=%d phase=%s altitude=%.1f/%.1f velocity=%s late=%s" % [
+				_index, Engine.get_physics_frames(), host.get_snapshot().phase_id,
+				altitude, EmberSurfaceLoopHost.ORBIT_RETURN_ALTITUDE_M, ship.velocity,
+				production.get_snapshot().last_late_result.get("reason", &""),
+			])
 		if production.get_state() == state:
 			return true
 		if production.get_state() == EmberSurfaceLoopProductionBinding.State.FAILED:

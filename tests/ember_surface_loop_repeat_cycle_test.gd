@@ -28,6 +28,18 @@ func _run() -> void:
 		if bool(game.get("_initialized")):
 			break
 	game.set("_initialized", true)
+	var journey_reference: WeakRef = weakref(game.get("_planetary_journey"))
+	var journey_id: int = journey_reference.get_ref().get_instance_id()
+	var caller_tick_before := int(game.get("_planetary_cruise_caller_tick"))
+	root.remove_child(game)
+	root.add_child(game)
+	await process_frame
+	await physics_frame
+	_check(
+		game.get("_planetary_journey").get_instance_id() == journey_id
+			and int(game.get("_planetary_cruise_caller_tick")) >= caller_tick_before,
+		"whole-Main detach/reentry retains the same journey owner and caller clock",
+	)
 	var ship := game.active_ship as HeroShip
 	var player := game.player as PlayerController
 	var area := ship.get_node(^"ShipBoardingArea") as ShipBoardingArea
@@ -94,10 +106,23 @@ func _run() -> void:
 	production.set("_return_berth_adapter", TerminalReturnAdapter.new())
 	var terminal_detach := production.detach_planetary_surface()
 	var rebound := game._ensure_ember_surface_loop_host_bound(true)
+	game.set("_mudds_return_approach_completion_attempted", true)
+	game.set("_planetary_return_receipt_consumed", true)
+	_check(
+		bool(journey_reference.get_ref().get("_planetary_return_receipt_consumed")),
+		"GameFlow compatibility state forwards to the sole retained owner",
+	)
 	var second := game.begin_ember_surface_journey(
 		host, game.activity_director, Callable(self, &"_reward"), 2
 	)
 	var surface_snapshot := production.get_planetary_surface_snapshot()
+	_check(
+		game.get("_planetary_journey").get_instance_id() == journey_id
+			and not bool(game.get("_mudds_return_approach_completion_attempted"))
+			and not bool(game.get("_planetary_return_receipt_consumed"))
+			and bool(game.get("_ember_surface_journey_active")),
+		"cycle two clears terminal fences only on admission in the retained owner",
+	)
 	_check(
 		bool(adopted_start.get("accepted", false))
 			and bool(detached.get("accepted", false))
@@ -116,6 +141,8 @@ func _run() -> void:
 
 	game.queue_free()
 	await process_frame
+	_check(journey_reference.get_ref() == null,
+		"freeing Main releases the retained coordinator without a reference cycle")
 	if _failures.is_empty():
 		print("EMBER_SURFACE_LOOP_REPEAT_CYCLE_TEST_OK: retained Main admits cycle two")
 		quit(0)
