@@ -1,8 +1,9 @@
 class_name StationSurfaceKit
 extends RefCounted
 
-## Shared station surface treatment: the chamfered-box and chamfered-cylinder
-## builders, and the one registered panel-material recipe the whole station uses.
+## Shared station surface treatment: chamfered geometry and a quiet, metric
+## manufactured finish. Panel boundaries come from construction geometry rather
+## than the same embossed tile stamped onto rails, columns and every deck.
 ##
 ## Two properties separate a manufactured station part from a shaded primitive:
 ## a chamfer that catches a highlight along every edge, and a metric surface
@@ -28,19 +29,19 @@ extends RefCounted
 ## The kit is deliberately stateless. Callers own their mesh cache so the meshes
 ## are freed with the node that built them and never outlive the scene tree.
 
-const PANEL_ALBEDO_PATH := "res://assets/materials/procedural-panel-triplanar-albedo-v2.png"
-const PANEL_NORMAL_PATH := "res://assets/materials/procedural-panel-triplanar-normal-v2.png"
-const PANEL_ROUGHNESS_PATH := "res://assets/materials/procedural-panel-triplanar-roughness-v2.png"
-const PANEL_NORMAL_SCALE := 1.0
+const PANEL_ALBEDO_PATH := "res://assets/materials/manufactured-paint-albedo.png"
+const PANEL_NORMAL_PATH := "res://assets/materials/manufactured-paint-normal.png"
+const PANEL_ROUGHNESS_PATH := "res://assets/materials/manufactured-paint-roughness.png"
+const PANEL_NORMAL_SCALE := 0.32
 const PANEL_TRIPLANAR_SHARPNESS := 4.0
 
-## Finish response layered over the shared panel maps.  The map family stays
-## identical across the station; these profiles keep broad surfaces, walked
-## decks and close metal trim from collapsing into one plastic-looking response.
+## Finish response layered over a neutral microfinish. Roughness and clearcoat
+## keep broad surfaces, walked decks and close metal trim distinct; the maps
+## supply fine surface variation without inventing large bolts or panel seams.
 ## Callers still own the albedo/metalness values; this only owns the clearcoat
 ## hierarchy and therefore cannot rewrite a caller's colour or scalar PBR read.
 ## Painted metal keeps the tighter clear layer already authored for exterior
-## safety furniture while sharing the same metric plate maps underneath.
+## safety furniture while sharing the same metric surface grain underneath.
 enum PanelFinish {
 	STRUCTURAL_ALLOY,
 	WALKED_DECK,
@@ -577,8 +578,9 @@ static func _emit_cylinder_vertex(tool: SurfaceTool, normal: Vector3, uv: Vector
 	tool.add_vertex(point)
 
 
-## Binds the registered station panel family: world-space triplanar albedo,
-## normal and red-channel roughness at one of the frozen physical scales.
+## Binds the station microfinish: world-space triplanar albedo, normal and
+## red-channel roughness. Existing world scales preserve grain continuity across
+## module joins, while authored seams and part boundaries carry construction.
 ## Returns false when the registered maps are unavailable, leaving the caller's
 ## untextured PBR values untouched rather than binding a partial recipe.
 static func apply_panel_triplanar(

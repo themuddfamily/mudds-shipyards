@@ -16,11 +16,11 @@ extends SceneTree
 const MAIN_SCENE := preload("res://scenes/main.tscn")
 const AGENT_SCENE := preload("res://scenes/world/components/station_service_agent.tscn")
 
-const STATION_PANEL_ALBEDO_PATH := "res://assets/materials/procedural-panel-triplanar-albedo-v2.png"
-const STATION_PANEL_NORMAL_PATH := "res://assets/materials/procedural-panel-triplanar-normal-v2.png"
-const STATION_PANEL_ROUGHNESS_PATH := "res://assets/materials/procedural-panel-triplanar-roughness-v2.png"
+const STATION_PANEL_ALBEDO_PATH := "res://assets/materials/manufactured-paint-albedo.png"
+const STATION_PANEL_NORMAL_PATH := "res://assets/materials/manufactured-paint-normal.png"
+const STATION_PANEL_ROUGHNESS_PATH := "res://assets/materials/manufactured-paint-roughness.png"
 const STATION_PANEL_SCALE := Vector3.ONE * 0.30
-const STATION_PANEL_NORMAL_SCALE := 1.0
+const STATION_PANEL_NORMAL_SCALE := 0.32
 const STATION_PANEL_TRIPLANAR_SHARPNESS := 4.0
 const STATION_STRUCTURAL_CLEARCOAT := 0.18
 const STATION_STRUCTURAL_CLEARCOAT_ROUGHNESS := 0.38

@@ -211,22 +211,12 @@ func _create_materials() -> void:
 	_apply_station_panel_family()
 
 
-## Bind the registered station panel/normal/roughness recipe to this component's
-## structural greys.
-##
-## Before this pass the operations equipment was the only lattice population with
-## no mapped surface at all: flat scalar albedo on hard-edged primitives standing
-## on decks that are visibly plated. The recipe, its `normal_scale`, its
-## red-channel roughness, its world-triplanar mode and its sharpness are copied
-## verbatim from `AftJunctionStack`, including that module's 0.30 physical scale,
-## so a gantry column is stamped from the same plate stock as the deck under it
-## rather than acquiring a look of its own. Painted hazard bands, tyre rubber and
-## the emissive lenses stay unmapped, exactly as the sibling modules leave their
-## accent and light materials unmapped.
+## Use the station's shared manufactured grain on equipment and cargo. Actual
+## frame/crate geometry supplies seams; no repeating embossed panel grid is added.
 func _apply_station_panel_family() -> void:
-	var panel_albedo := load("res://assets/materials/procedural-panel-triplanar-albedo-v2.png") as Texture2D
-	var panel_normal := load("res://assets/materials/procedural-panel-triplanar-normal-v2.png") as Texture2D
-	var panel_roughness := load("res://assets/materials/procedural-panel-triplanar-roughness-v2.png") as Texture2D
+	var panel_albedo := load(StationSurfaceKit.PANEL_ALBEDO_PATH) as Texture2D
+	var panel_normal := load(StationSurfaceKit.PANEL_NORMAL_PATH) as Texture2D
+	var panel_roughness := load(StationSurfaceKit.PANEL_ROUGHNESS_PATH) as Texture2D
 	if panel_albedo == null or panel_normal == null or panel_roughness == null:
 		return
 	for key in ["frame", "frame_edge", "graphite", "ceramic", "crate", "crate_alt"]:
@@ -234,15 +224,7 @@ func _apply_station_panel_family() -> void:
 		panel_material.albedo_texture = panel_albedo
 		panel_material.normal_enabled = true
 		panel_material.normal_texture = panel_normal
-		# Raised from 0.48 by a rendered sweep at 0.48 / 1.0 / 1.4 / 1.9. At 0.48 a
-		# plated wall at eye height is nearly featureless: the seams and rivets are
-		# present in the map but too shallow to catch light, which is much of why
-		# plated geometry still read as untextured. At 1.9 the plate faces dome and
-		# read as embossed plastic, worst on the bright pod walls. 1.0 is the highest
-		# value at which no frame showed doming while the dark walls resolved into
-		# pressed sheet metal. Every module shares the value so a deck and the wall
-		# beside it cannot disagree.
-		panel_material.normal_scale = 1.0
+		panel_material.normal_scale = StationSurfaceKit.PANEL_NORMAL_SCALE
 		panel_material.roughness_texture = panel_roughness
 		panel_material.roughness_texture_channel = BaseMaterial3D.TEXTURE_CHANNEL_RED
 		panel_material.uv1_triplanar = true

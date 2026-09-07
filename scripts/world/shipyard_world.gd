@@ -5622,24 +5622,11 @@ func _create_materials() -> void:
 	_apply_station_panel_family()
 
 
-## Bind the registered station panel/normal/roughness recipe to the hub's
-## structural and deck greys.
-##
-## This was the largest single gap in the presentation. The hub's boxes have been
-## chamfered for a long time, but `_material()` produced pure scalar colour: no
-## albedo texture, no normal, no roughness map, no triplanar. That left roughly
-## 6.6 thousand square metres of walkable deck and another 2.8 thousand of keels,
-## cross braces and pods rendering as unbroken plastic in three colours, directly
-## alongside four modules that were already plated. Bevelling alone cannot fix
-## that; a 1.8 thousand square metre deck needs surface information across its
-## face, not only at its edge.
-##
-## The recipe, `normal_scale`, red-channel roughness, world-triplanar mode and
-## sharpness are copied verbatim from `AftJunctionStack`, at that module's 0.30
-## physical scale, so the hub is stamped from the same plate stock as everything
-## that joins it. Only structural roles are bound: hazard paint, every emissive
-## legend and the transparent glass deliberately stay unmapped, as they do in the
-## sibling modules, so signage and lit cues keep their flat readable identity.
+## Bind a continuous manufactured microfinish to structural stock and paint.
+## Broad panels, columns, rails and safety furniture no longer share an embossed
+## grid of oversized rivets. Actual construction geometry supplies panel seams;
+## matte walked decks, tighter metal trim and coated paint retain their separate
+## roughness/clearcoat response under the existing readable lighting rig.
 func _apply_station_panel_family() -> void:
 	# Keep the shared map recipe in StationSurfaceKit so the world and authored
 	# modules cannot drift. The finish is deliberately role-specific: deck plate
@@ -5650,7 +5637,7 @@ func _apply_station_panel_family() -> void:
 		"deck_light": StationSurfaceKit.PanelFinish.WALKED_DECK,
 		"steel_blue": StationSurfaceKit.PanelFinish.METAL_TRIM,
 		# Paired guard rails/posts and their red service equipment are one coated
-		# safety-furniture family. Keep the shared panel grain without flattening
+		# safety-furniture family. Keep the shared fine grain without flattening
 		# their paint into the generic structural-alloy response.
 		"ivory": StationSurfaceKit.PanelFinish.PAINTED_METAL,
 		"orange": StationSurfaceKit.PanelFinish.PAINTED_METAL,

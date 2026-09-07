@@ -1,14 +1,14 @@
 extends SceneTree
 
-## Live import/material audit for the station-only symmetry-safe PBR tile and
+## Live import/material audit for the shared manufactured PBR microfinish and
 ## the CentralBerth authored UV0 correction. Ship-specific material identities
 ## remain deliberately outside the station material family.
 
 const MAIN_SCENE := preload("res://scenes/main.tscn")
 const CLUSTER_SCENE := preload("res://scenes/world/components/nearby_sector_cluster.tscn")
-const ALBEDO_PATH := "res://assets/materials/procedural-panel-triplanar-albedo-v2.png"
-const NORMAL_PATH := "res://assets/materials/procedural-panel-triplanar-normal-v2.png"
-const ROUGHNESS_PATH := "res://assets/materials/procedural-panel-triplanar-roughness-v2.png"
+const ALBEDO_PATH := "res://assets/materials/manufactured-paint-albedo.png"
+const NORMAL_PATH := "res://assets/materials/manufactured-paint-normal.png"
+const ROUGHNESS_PATH := "res://assets/materials/manufactured-paint-roughness.png"
 const TORRENT_HULL_PATH := "res://assets/materials/torrent-hull-albedo-v1.png"
 
 var _assertions := 0
@@ -60,7 +60,7 @@ func _test_imported_normal_direction() -> void:
 		return
 	var directional_samples := 0
 	var maximum_red_blue_error := 0.0
-	var maximum_inverted_green_error := 0.0
+	var maximum_green_error := 0.0
 	for y in range(0, source.get_height(), 3):
 		for x in range(0, source.get_width(), 3):
 			var encoded := source.get_pixel(x, y)
@@ -72,15 +72,15 @@ func _test_imported_normal_direction() -> void:
 				maximum_red_blue_error,
 				maxf(absf(live.r - encoded.r), absf(live.b - encoded.b))
 			)
-			maximum_inverted_green_error = maxf(
-				maximum_inverted_green_error,
-				absf(live.g - (1.0 - encoded.g))
+			maximum_green_error = maxf(
+				maximum_green_error,
+				absf(live.g - encoded.g)
 			)
 	_check(
 		directional_samples >= 1000
 		and maximum_red_blue_error <= 1.1 / 255.0
-		and maximum_inverted_green_error <= 2.1 / 255.0,
-		"live imported normal preserves X/Z and performs the exact effective tangent-Y inversion"
+		and maximum_green_error <= 2.1 / 255.0,
+		"live imported microfinish preserves the authored OpenGL tangent directions"
 	)
 
 
@@ -145,7 +145,7 @@ func _test_live_station_coverage(
 			var recipe_matches := (
 				material.normal_enabled
 				and _texture_path(material.normal_texture) == NORMAL_PATH
-				and is_equal_approx(material.normal_scale, 1.0)
+				and is_equal_approx(material.normal_scale, 0.32)
 				and _texture_path(material.roughness_texture) == ROUGHNESS_PATH
 				and material.roughness_texture_channel == BaseMaterial3D.TEXTURE_CHANNEL_RED
 				and material.uv1_triplanar
@@ -654,7 +654,7 @@ func _test_instanced_station_family(
 			exact
 			and material.normal_enabled
 			and _texture_path(material.normal_texture) == NORMAL_PATH
-			and is_equal_approx(material.normal_scale, 1.0)
+			and is_equal_approx(material.normal_scale, 0.32)
 			and _texture_path(material.roughness_texture) == ROUGHNESS_PATH
 			and material.roughness_texture_channel == BaseMaterial3D.TEXTURE_CHANNEL_RED
 			and material.uv1_triplanar
@@ -825,7 +825,7 @@ func _test_cluster_family(cluster_root: Node) -> void:
 				exact
 				and material.normal_enabled
 				and _texture_path(material.normal_texture) == NORMAL_PATH
-				and is_equal_approx(material.normal_scale, 1.0)
+				and is_equal_approx(material.normal_scale, 0.32)
 				and _texture_path(material.roughness_texture) == ROUGHNESS_PATH
 				and material.roughness_texture_channel == BaseMaterial3D.TEXTURE_CHANNEL_RED
 				and material.uv1_triplanar
@@ -835,7 +835,7 @@ func _test_cluster_family(cluster_root: Node) -> void:
 			if material.uv1_scale.x >= 0.22:
 				coarser_than_station = false
 	_check(mapped >= 40, "the cluster's manufactured surfaces bind the registered panel maps (%d)" % mapped)
-	_check(exact, "every mapped cluster surface uses the same recipe and the same 1.0 relief depth")
+	_check(exact, "every mapped cluster surface uses the same recipe and the same restrained 0.32 relief depth")
 	_check(
 		coarser_than_station,
 		"every cluster plate is physically larger than the station's largest, as its structures are"

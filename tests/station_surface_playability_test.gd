@@ -1264,13 +1264,13 @@ func _test_station_panel_material_bindings(world: ShipyardWorld) -> void:
 				continue
 			every_binding_exact = every_binding_exact \
 				and material.albedo_texture != null \
-				and material.albedo_texture.resource_path == "res://assets/materials/procedural-panel-triplanar-albedo-v2.png" \
+				and material.albedo_texture.resource_path == "res://assets/materials/manufactured-paint-albedo.png" \
 				and material.normal_enabled \
 				and material.normal_texture != null \
-				and material.normal_texture.resource_path == "res://assets/materials/procedural-panel-triplanar-normal-v2.png" \
-				and is_equal_approx(material.normal_scale, 1.0) \
+				and material.normal_texture.resource_path == "res://assets/materials/manufactured-paint-normal.png" \
+				and is_equal_approx(material.normal_scale, 0.32) \
 				and material.roughness_texture != null \
-				and material.roughness_texture.resource_path == "res://assets/materials/procedural-panel-triplanar-roughness-v2.png" \
+				and material.roughness_texture.resource_path == "res://assets/materials/manufactured-paint-roughness.png" \
 				and material.roughness_texture_channel == BaseMaterial3D.TEXTURE_CHANNEL_RED \
 				and material.uv1_triplanar \
 				and material.uv1_world_triplanar \
@@ -1397,7 +1397,7 @@ func _test_station_panel_material_bindings(world: ShipyardWorld) -> void:
 		walked_overlays_mapped = walked_overlays_mapped \
 			and overlay_material != null \
 			and overlay_material.albedo_texture != null \
-			and overlay_material.albedo_texture.resource_path == "res://assets/materials/procedural-panel-triplanar-albedo-v2.png" \
+			and overlay_material.albedo_texture.resource_path == "res://assets/materials/manufactured-paint-albedo.png" \
 			and overlay_material.uv1_world_triplanar
 	_check(walked_overlays_mapped, "the Aft stair ramp and the Habitat connector/corridor/common floor overlays carry the station panel family")
 
@@ -1413,7 +1413,7 @@ func _test_station_panel_material_bindings(world: ShipyardWorld) -> void:
 			if plate_material == null or not plate_materials.has(plate_material):
 				continue
 			if plate_material.albedo_texture != null \
-					and plate_material.albedo_texture.resource_path == "res://assets/materials/procedural-panel-triplanar-albedo-v2.png" \
+					and plate_material.albedo_texture.resource_path == "res://assets/materials/manufactured-paint-albedo.png" \
 					and plate_material.uv1_world_triplanar:
 				mapped_pressure_plates += 1
 	_check(mapped_pressure_plates == 9, "all nine Aft operations-room floor pressure plates read as mapped station floor, not unmapped voids")
