@@ -64,6 +64,8 @@ func _run() -> void:
 		"visual correction cannot advance imported animation timing"
 	)
 
+	_test_repeated_foot_placement(player)
+
 	player.set_physics_process(true)
 	player.velocity = Vector3.UP * 2.0
 	await _settle(2)
@@ -77,6 +79,81 @@ func _run() -> void:
 	await process_frame
 	await process_frame
 	_finish()
+
+
+func _test_repeated_foot_placement(player: PlayerController) -> void:
+	var presentation := player.find_child("PilotSkinnedPresentation", true, false) as PilotSkinnedPresentation
+	var skeleton := presentation.get_skeleton()
+	var animation := presentation.get_animation_player()
+	var feet := {}
+	var snapshot := presentation.get_foot_placement_snapshot()
+	var chain_indices: Array[int] = []
+	for side: StringName in [&"l", &"r"]:
+		var foot: Dictionary = snapshot.feet[side]
+		feet[side] = {"position": foot.support_position, "normal": foot.support_normal}
+		for bone_name: StringName in PilotSkinnedPresentation.FOOT_CHAIN_BONES[side]:
+			chain_indices.append(skeleton.find_bone(bone_name))
+	var frame := int(snapshot.physics_frame) + 1
+	var body_before := player.global_transform
+	var velocity_before := player.velocity
+	var layer_before := player.collision_layer
+	var mask_before := player.collision_mask
+	var capsule := (player.get_node("PlayerCollision") as CollisionShape3D).shape as CapsuleShape3D
+	var capsule_size := Vector2(capsule.radius, capsule.height)
+	var stable_pose := true
+	var stable_contact := true
+	var stable_orientation := true
+	var stable_animation_time := true
+	var iterations := 0
+	# Run more than ten minutes of actual imported idle sampling without waiting
+	# for wall time. The global-pose IK setters used to accumulate scale drift.
+	for iteration in 40000:
+		animation.advance(1.0 / 60.0)
+		skeleton.force_update_all_bone_transforms()
+		var animated_poses: Array[Transform3D] = []
+		for bone in chain_indices:
+			animated_poses.append(skeleton.get_bone_pose(bone))
+		var foot_rotations: Array[Basis] = []
+		for index in [2, 5]:
+			foot_rotations.append(skeleton.get_bone_global_pose(chain_indices[index]).basis.orthonormalized())
+		var animation_time := animation.current_animation_position
+		presentation.apply_foot_placement({
+			"physics_frame": frame + iteration, "motion_state": &"idle",
+			"movement_up": Vector3.UP, "feet": feet,
+		}, presentation.get_foot_placement_attachment_generation())
+		stable_animation_time = stable_animation_time and animation.current_animation_position == animation_time
+		for index in chain_indices.size():
+			var bone := chain_indices[index]
+			var pose := skeleton.get_bone_pose(bone)
+			stable_pose = stable_pose and pose.is_finite() \
+				and skeleton.get_bone_global_pose(bone).is_finite() \
+				and not is_zero_approx(skeleton.get_bone_global_pose(bone).basis.determinant()) \
+				and pose.origin.is_equal_approx(animated_poses[index].origin) \
+				and pose.basis.get_scale().is_equal_approx(animated_poses[index].basis.get_scale()) \
+				and skeleton.get_bone_pose_rotation(bone).is_normalized()
+		var corrected_feet: Dictionary = presentation.get_foot_placement_snapshot().feet
+		for side: StringName in [&"l", &"r"]:
+			var foot: Dictionary = corrected_feet[side]
+			stable_contact = stable_contact and bool(foot.get("active", false)) \
+				and float(foot.get("sole_error_m", INF)) <= MAX_SOLE_ERROR_M \
+				and float(foot.get("ankle_chain_error_m", INF)) <= MAX_ANKLE_CHAIN_ERROR_M
+		for index in 2:
+			var rotation := skeleton.get_bone_global_pose(chain_indices[2 + index * 3]).basis.orthonormalized()
+			stable_orientation = stable_orientation and rotation.is_equal_approx(foot_rotations[index])
+		iterations = iteration + 1
+		if not stable_pose or not stable_contact or not stable_orientation:
+			break
+	_check(stable_pose and iterations == 40000, "40,000 animated IK samples preserve finite rotations and animated joint positions/scales")
+	_check(stable_contact, "repeated IK preserves sole contact and continuous ankle chains")
+	_check(stable_orientation, "repeated IK preserves animated global foot orientation")
+	_check(stable_animation_time, "repeated IK does not advance imported animation timing")
+	_check(
+		player.global_transform.is_equal_approx(body_before)
+		and player.velocity.is_equal_approx(velocity_before)
+		and player.collision_layer == layer_before and player.collision_mask == mask_before
+		and Vector2(capsule.radius, capsule.height).is_equal_approx(capsule_size),
+		"repeated IK leaves player movement and capsule collision authority unchanged"
+	)
 
 
 func _make_support(node_name: StringName, origin: Vector3, ramp_degrees: float) -> StaticBody3D:

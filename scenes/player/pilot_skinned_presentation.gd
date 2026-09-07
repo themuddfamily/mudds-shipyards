@@ -1607,14 +1607,14 @@ func _apply_foot_chain(
 	var thigh_from := (knee - hip).normalized()
 	var thigh_to := (solved_knee - hip).normalized()
 	thigh_pose.basis = Basis(Quaternion(thigh_from, thigh_to)) * thigh_pose.basis
-	_skeleton.set_bone_global_pose(thigh_index, thigh_pose)
+	_set_foot_chain_global_rotation(thigh_index, thigh_pose.basis)
 	_skeleton.force_update_all_bone_transforms()
 	calf_pose = _skeleton.get_bone_global_pose(calf_index)
 	foot_pose = _skeleton.get_bone_global_pose(foot_index)
 	var calf_from := (foot_pose.origin - calf_pose.origin).normalized()
 	var calf_to := (solved_ankle - calf_pose.origin).normalized()
 	calf_pose.basis = Basis(Quaternion(calf_from, calf_to)) * calf_pose.basis
-	_skeleton.set_bone_global_pose(calf_index, calf_pose)
+	_set_foot_chain_global_rotation(calf_index, calf_pose.basis)
 	_skeleton.force_update_all_bone_transforms()
 	foot_pose = _skeleton.get_bone_global_pose(foot_index)
 	# Keep the foot joint exactly where the solved calf placed it. Translating the
@@ -1624,7 +1624,7 @@ func _apply_foot_chain(
 	# only the animated foot orientation; the leg chain remains continuous.
 	var chain_ankle := foot_pose.origin
 	foot_pose.basis = original_foot_basis
-	_skeleton.set_bone_global_pose(foot_index, foot_pose)
+	_set_foot_chain_global_rotation(foot_index, foot_pose.basis)
 	_skeleton.force_update_all_bone_transforms()
 	var corrected_ankle := _skeleton.get_bone_global_pose(foot_index).origin
 	var corrected_sole := corrected_ankle - up_local * FOOT_SOLE_CLEARANCE_M
@@ -1642,6 +1642,17 @@ func _apply_foot_chain(
 		"ankle_position": _skeleton.global_transform * corrected_ankle,
 		"sole_position": _skeleton.global_transform * corrected_sole,
 	}.duplicate(true)
+
+
+func _set_foot_chain_global_rotation(bone_index: int, global_basis: Basis) -> void:
+	# IK changes orientation only. Decomposing a whole global pose also rewrites
+	# local position/scale, feeding roundoff back into unkeyed animated scales
+	# until repeated foot-orientation restoration collapses an axis.
+	var parent_index := _skeleton.get_bone_parent(bone_index)
+	var local_basis := global_basis
+	if parent_index >= 0:
+		local_basis = _skeleton.get_bone_global_pose(parent_index).basis.inverse() * global_basis
+	_skeleton.set_bone_pose_rotation(bone_index, local_basis.get_rotation_quaternion())
 
 
 func _inactive_foot_record(reason: StringName) -> Dictionary:
