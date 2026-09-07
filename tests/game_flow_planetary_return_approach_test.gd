@@ -94,11 +94,15 @@ class CadenceSurfaceBinding:
 	var disembark_calls := 0
 	var reboard_calls := 0
 	var takeoff_calls := 0
+	var identities: Dictionary = {}
+	var retained_return_context: Dictionary = {}
 
 	func get_snapshot() -> Dictionary:
 		return {
 			"state_id": &"running",
-			"identities": {"location_generation": 1},
+			"identities": identities.duplicate(true),
+			"generation": get_generation(),
+			"retained_return_context": retained_return_context.duplicate(true),
 			"last_intent_serial": last_intent_serial,
 			"pending_envelope": {
 				"physics_frame": int(Engine.get_physics_frames()),
@@ -176,6 +180,19 @@ func _run() -> void:
 	await physics_frame
 	var frame := game.ember_streaming_bootstrap.get_coordinate_frame_for_session()
 	var cadence := CadenceSurfaceBinding.new()
+	var host := game.ember_surface_loop_host
+	var session := PlanetaryTravelSession.new(
+		EmberSurfaceLoopHost.HOST_ID,
+		load(EmberSurfaceLoopHost.WORLD_PATH) as PlanetaryWorldDefinition,
+		frame,
+	)
+	host.set("_session", session)
+	cadence.identities = {
+		"location_generation": 1,
+		"host_instance_id": host.get_instance_id(),
+		"player_instance_id": game.player.get_instance_id(),
+		"ship_instance_id": craft.get_instance_id(),
+	}
 	game.ember_surface_loop_production_binding = cadence
 	game.set("_piloting", true)
 	game.set("_ember_surface_journey_active", true)
@@ -194,6 +211,21 @@ func _run() -> void:
 		},
 		frame.get_generation(),
 	)
+	game._on_interact_requested()
+	_check(
+		cadence.reboard_calls == 0 and cadence.pending,
+		"a nearby reboard press waits for survey return admission without consuming the pending tick",
+	)
+	# Model the binding's already-authenticated admission boundary with the
+	# current host, session, actor and craft identities; keep the coordinator gate live.
+	cadence.retained_return_context = {
+		"host_instance_id": host.get_instance_id(),
+		"host_generation": host.get_generation(),
+		"host_attachment_generation": host.get_attachment_generation(),
+		"session_instance_id": session.get_instance_id(),
+		"actor_instance_id": game.player.get_instance_id(),
+		"craft_instance_id": craft.get_instance_id(),
+	}
 	game._on_interact_requested()
 	_check(
 		bool(on_foot_tick.get("accepted", false))
