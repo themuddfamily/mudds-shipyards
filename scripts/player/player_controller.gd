@@ -2335,10 +2335,13 @@ func _resolve_step_up(
 		return false
 	var intended := pre_move_velocity.slide(movement_up) * delta
 	var intended_distance := intended.length()
-	if intended_distance < STEP_UP_MIN_ADVANCE:
+	# Wall contact consumes tangent velocity, so the next tick's acceleration
+	# can request less than the minimum accepted landing advance. Use the
+	# body's contact tolerance here; keep STEP_UP_MIN_ADVANCE for the landing.
+	if intended_distance <= safe_margin:
 		return false
 	var achieved := (global_position - pre_move_transform.origin).slide(movement_up)
-	if achieved.length() >= intended_distance - STEP_UP_MIN_ADVANCE:
+	if achieved.length() >= intended_distance - safe_margin:
 		return false
 
 	var landing := _probe_step_up_landing(pre_move_transform, intended, movement_up)
