@@ -92,6 +92,7 @@ func _run() -> void:
 			and int((store.get_snapshot().foreign as Dictionary).retained) == 41,
 		"accepted reward commits once and atomically merges its terminal receipt"
 	)
+	_test_opaque_session_identity_persistence(first_snapshot)
 	first_binding.queue_free()
 	(first.director as Node).queue_free()
 	first_flow.free()
@@ -169,6 +170,41 @@ func _run() -> void:
 		push_error(failure)
 	print("EMBER_RELAY_SURVEY_GAMEFLOW_PERSISTENCE_ROUNDTRIP_TEST_OK: %d assertions" % _assertions)
 	quit(0 if _failures.is_empty() else 1)
+
+
+func _test_opaque_session_identity_persistence(surface_snapshot: Dictionary) -> void:
+	# RefCounted instance IDs are opaque 64-bit diagnostics. These exact values
+	# expose Godot JSON's numeric roundtrip drift near the signed 64-bit limit.
+	for session_id in [-9223371822139962792, -9223371822123185576]:
+		var filesystem := MemoryFilesystem.new()
+		var store := StoreScript.new("memory://ember-opaque-session.json", filesystem)
+		store.load()
+		var persistence := EmberRelaySurveyPersistenceBinding.new()
+		persistence.configure(store, &"ember_relay_survey_completion")
+		var live := surface_snapshot.duplicate(true)
+		var live_reward := live.adapter.activity_reward.committed_reward as Dictionary
+		live_reward.authority_result["evidence"] = {"session_instance_id": session_id}
+		var saved := persistence.save(live, "opaque-session-completion")
+		var loaded := persistence.load()
+		_check(bool(saved.get("accepted", false)) and bool(loaded.get("accepted", false)),
+			"opaque production session identity survives atomic save and reload: " + str(saved.get("reason", &"")))
+		_check(live_reward.authority_result.evidence.session_instance_id == session_id,
+			"completion capture leaves the exact live session authority evidence unchanged")
+		if not bool(loaded.get("accepted", false)):
+			continue
+		var restored := loaded.completion.committed_reward.authority_result.evidence as Dictionary
+		_check(restored.session_instance_id is String and restored.session_instance_id == str(session_id),
+			"the durable completion retains an exact decimal diagnostic identity without float coercion")
+		# Existing numeric diagnostic records remain passive readable evidence.
+		var legacy := store.get_snapshot().ember_relay_survey_completion as Dictionary
+		legacy.completion.committed_reward.authority_result.evidence.session_instance_id = 1024.0
+		legacy.receipt_sha256 = persistence.call("_digest", legacy.completion)
+		var legacy_saved := store.commit({"ember_relay_survey_completion": legacy}, 1, "legacy-numeric-completion")
+		var legacy_loaded := persistence.load()
+		_check(bool(legacy_saved.get("accepted", false))
+			and bool(legacy_loaded.get("accepted", false))
+			and legacy_loaded.completion.committed_reward.authority_result.evidence.session_instance_id == 1024.0,
+			"legacy numeric diagnostic identities retain the existing digest and load contract")
 
 
 func _make_surface(generation: int, store: RefCounted) -> Dictionary:

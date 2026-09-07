@@ -240,6 +240,14 @@ func capture(surface_snapshot: Variant) -> Dictionary:
 	if bool(optional.get("completed", false)) \
 			and not bool(optional_completion.get("accepted", false)):
 		return optional_completion
+	# The process-local RefCounted identity is passive diagnostic evidence.
+	# JSON numbers cannot reliably roundtrip its signed 64-bit value, so retain
+	# exact decimal text in the saved copy while live authority keeps its int.
+	var persisted_reward := committed.duplicate(true)
+	var persisted_authority := persisted_reward.get("authority_result", {}) as Dictionary
+	var persisted_evidence := persisted_authority.get("evidence", {}) as Dictionary
+	if persisted_evidence.get("session_instance_id") is int:
+		persisted_evidence["session_instance_id"] = str(persisted_evidence.session_instance_id)
 	var completion_payload := {
 		"world_id": WORLD_ID,
 		"activity_id": ACTIVITY_ID,
@@ -247,7 +255,7 @@ func capture(surface_snapshot: Variant) -> Dictionary:
 		"reward_id": REWARD_ID,
 		"reward_store_id": REWARD_STORE_ID,
 		"reward_authority_id": REWARD_AUTHORITY_ID,
-		"committed_reward": committed,
+		"committed_reward": persisted_reward,
 		"mandatory_route": route,
 		"presentation_state": "reward_confirmed",
 		"reward_replay_allowed": false,
