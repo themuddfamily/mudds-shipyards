@@ -1,12 +1,12 @@
 [gd_scene load_steps=17 format=3]
 
 [ext_resource type="Script" path="res://scripts/world/station_door.gd" id="1_door"]
-[ext_resource type="Texture2D" path="res://assets/materials/procedural-panel-triplanar-albedo-v2.png" id="2_panel_albedo"]
-[ext_resource type="Texture2D" path="res://assets/materials/procedural-panel-triplanar-normal-v2.png" id="3_panel_normal"]
-[ext_resource type="Texture2D" path="res://assets/materials/procedural-panel-triplanar-roughness-v2.png" id="4_panel_roughness"]
+[ext_resource type="Texture2D" path="res://assets/materials/manufactured-paint-albedo.png" id="2_panel_albedo"]
+[ext_resource type="Texture2D" path="res://assets/materials/manufactured-paint-normal.png" id="3_panel_normal"]
+[ext_resource type="Texture2D" path="res://assets/materials/manufactured-paint-roughness.png" id="4_panel_roughness"]
 
-; The three structural materials bind the registered station panel family at the
-; 0.28 m physical scale, matching the Habitat shell the doors are set into, so a
+; The three structural materials bind the shared manufactured microfinish at the
+; 0.28 world-triplanar scale, matching the Habitat shell the doors are set into, so a
 ; door frame reads as the same manufactured plate stock as the wall around it
 ; rather than as flat-shaded trim. Metallic and roughness are also spread much
 ; further apart than the original 0.30-0.38 band: a cast frame post, a machined
@@ -18,7 +18,7 @@ albedo_color = Color(0.105, 0.145, 0.16, 1)
 metallic = 0.44
 roughness = 0.62
 normal_enabled = true
-normal_scale = 1.0
+normal_scale = 0.32
 albedo_texture = ExtResource("2_panel_albedo")
 normal_texture = ExtResource("3_panel_normal")
 roughness_texture = ExtResource("4_panel_roughness")
@@ -33,7 +33,7 @@ albedo_color = Color(0.72, 0.79, 0.78, 1)
 metallic = 0.58
 roughness = 0.27
 normal_enabled = true
-normal_scale = 1.0
+normal_scale = 0.32
 albedo_texture = ExtResource("2_panel_albedo")
 normal_texture = ExtResource("3_panel_normal")
 roughness_texture = ExtResource("4_panel_roughness")
@@ -48,7 +48,7 @@ albedo_color = Color(0.055, 0.205, 0.265, 1)
 metallic = 0.22
 roughness = 0.52
 normal_enabled = true
-normal_scale = 1.0
+normal_scale = 0.32
 albedo_texture = ExtResource("2_panel_albedo")
 normal_texture = ExtResource("3_panel_normal")
 roughness_texture = ExtResource("4_panel_roughness")

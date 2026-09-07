@@ -9,7 +9,7 @@ const CLUSTER_SCENE := preload("res://scenes/world/components/nearby_sector_clus
 const ALBEDO_PATH := "res://assets/materials/manufactured-paint-albedo.png"
 const NORMAL_PATH := "res://assets/materials/manufactured-paint-normal.png"
 const ROUGHNESS_PATH := "res://assets/materials/manufactured-paint-roughness.png"
-const TORRENT_HULL_PATH := "res://assets/materials/torrent-hull-albedo-v1.png"
+const SHIP_PAINT_PATH := ShipSurfaceDetail.PAINT_ALBEDO_PATH
 
 var _assertions := 0
 var _failures: Array[String] = []
@@ -117,6 +117,9 @@ func _test_live_station_coverage(
 	# Mobile vehicle bodywork is covered by its own focused material/lifecycle
 	# contract, not by this static station-architecture census.
 	var tow_tractor_root := world.get_node_or_null(^"CargoAndMachinery/TowTractor")
+	# Berthed Cinder craft share paint, but retain ship-local material scales.
+	# Their visible hulls are vehicles, not static station construction.
+	var fleet_root := world.get_node_or_null(^"FleetExpansionProductionBinding")
 	_check(
 		world.get_node_or_null(^"NearbySectorCluster") == null
 		and world.get_nearby_sector_cluster() == null,
@@ -131,6 +134,8 @@ func _test_live_station_coverage(
 		if cluster_root != null and cluster_root.is_ancestor_of(mesh_instance):
 			continue
 		if tow_tractor_root != null and tow_tractor_root.is_ancestor_of(mesh_instance):
+			continue
+		if fleet_root != null and fleet_root.is_ancestor_of(mesh_instance):
 			continue
 		for surface_index in mesh_instance.mesh.get_surface_count():
 			var material := mesh_instance.get_active_material(surface_index) as StandardMaterial3D
@@ -843,32 +848,47 @@ func _test_cluster_family(cluster_root: Node) -> void:
 
 
 func _test_four_ship_material_identity(game: GameFlow) -> void:
+	# The finish is intentionally shared. Identity lives in the visible hull's
+	# authored tint and ship-local mapping, not exclusive texture ownership.
 	var ship_specs := {
-		"ArrowReconShip": "res://assets/materials/arrow-hull-albedo-v1.png",
-		"JovianLightFreighter": "res://assets/materials/jovian-hull-albedo-v1.png",
-		"TorrentInterceptor": TORRENT_HULL_PATH,
-		"ZenithInterceptor": TORRENT_HULL_PATH,
+		"ArrowReconShip": ["ReconFuselage", Color("7891ab"), true, 0.34],
+		"JovianLightFreighter": ["ForwardFlightDeck", Color("e0ab74"), true, 0.24],
+		"TorrentInterceptor": ["WarmIvoryHull", Color("e8e2cf"), false, 1.0],
+		"ZenithInterceptor": ["BlendedPressureHull", Color("bac8d6"), true, 0.22],
 	}
 	for ship_name: String in ship_specs:
 		var ship := game.get_node_or_null(NodePath(ship_name)) as Node3D
-		var expected_path := str(ship_specs[ship_name])
-		var expected_surface_count := 0
-		var station_surface_count := 0
+		var spec: Array = ship_specs[ship_name]
+		var hull_witnesses := 0
+		var correct_recipe := true
 		if ship != null:
 			for candidate in ship.find_children("*", "MeshInstance3D", true, false):
 				var mesh_instance := candidate as MeshInstance3D
-				if mesh_instance.mesh == null:
+				if mesh_instance.mesh == null or not mesh_instance.is_visible_in_tree():
+					continue
+				var is_hull_witness := String(mesh_instance.name) == String(spec[0]) \
+					or String(mesh_instance.get_meta("torrent_material_role", "")) == String(spec[0])
+				if not is_hull_witness:
 					continue
 				for surface_index in mesh_instance.mesh.get_surface_count():
+					hull_witnesses += 1
 					var material := mesh_instance.get_active_material(surface_index) as StandardMaterial3D
+					correct_recipe = correct_recipe and material != null
 					if material == null:
 						continue
-					var albedo_path := _texture_path(material.albedo_texture)
-					expected_surface_count += 1 if albedo_path == expected_path else 0
-					station_surface_count += 1 if albedo_path == ALBEDO_PATH else 0
+					correct_recipe = correct_recipe \
+						and _texture_path(material.albedo_texture) == SHIP_PAINT_PATH \
+						and _texture_path(material.normal_texture) == ShipSurfaceDetail.PAINT_NORMAL_PATH \
+						and _texture_path(material.roughness_texture) == ShipSurfaceDetail.PAINT_ROUGHNESS_PATH \
+						and material.normal_enabled \
+						and is_equal_approx(material.normal_scale, 0.32) \
+						and material.albedo_color.is_equal_approx(spec[1] as Color) \
+						and material.uv1_triplanar == bool(spec[2]) \
+						and not material.uv1_world_triplanar \
+						and material.uv1_scale.is_equal_approx(Vector3.ONE * float(spec[3]))
 		_check(
-			ship != null and expected_surface_count > 0 and station_surface_count == 0,
-			"%s retains its registered ship material identity and never binds the station tile" % ship_name
+			ship != null and hull_witnesses > 0 and correct_recipe,
+			"%s visible hull uses the shared microfinish with its authored tint and local mapping" % ship_name
 		)
 	_test_torrent_zenith_uv0_tangent_handedness(game)
 
@@ -889,10 +909,13 @@ func _test_torrent_zenith_uv0_tangent_handedness(game: GameFlow) -> void:
 				continue
 			for surface_index in mesh_instance.mesh.get_surface_count():
 				var material := mesh_instance.get_active_material(surface_index) as StandardMaterial3D
-				if material == null or _texture_path(material.albedo_texture) != TORRENT_HULL_PATH:
+				if material == null or _texture_path(material.albedo_texture) != SHIP_PAINT_PATH:
+					continue
+				# Modern Zenith shells use local triplanar, already checked above.
+				# Authored UV0 surfaces must still supply a complete tangent frame.
+				if material.uv1_triplanar:
 					continue
 				mapped_surface_count += 1
-				complete_arrays = complete_arrays and not material.uv1_triplanar
 				var arrays := mesh_instance.mesh.surface_get_arrays(surface_index)
 				var vertices := arrays[Mesh.ARRAY_VERTEX] as PackedVector3Array
 				var uvs := arrays[Mesh.ARRAY_TEX_UV] as PackedVector2Array
@@ -903,17 +926,21 @@ func _test_torrent_zenith_uv0_tangent_handedness(game: GameFlow) -> void:
 					and uvs.size() == vertices.size()
 					and tangents.size() == vertices.size() * 4
 				)
+				if tangents.size() != vertices.size() * 4:
+					continue
 				for vertex_index in vertices.size():
 					var tangent_w := tangents[vertex_index * 4 + 3]
 					complete_arrays = complete_arrays and is_equal_approx(absf(tangent_w), 1.0)
 					positive_tangent_vertices += 1 if tangent_w > 0.0 else 0
 					negative_tangent_vertices += 1 if tangent_w < 0.0 else 0
 	_check(
-		mapped_surface_count == 9
+		# Five authored Torrent paint surfaces retain UV0; modern Zenith is
+		# explicitly local-triplanar. The new authored islands all use -1 parity.
+		mapped_surface_count == 5
 		and complete_arrays
-		and positive_tangent_vertices > 8000
-		and negative_tangent_vertices > 29000,
-		"Torrent/Zenith keep explicit UV0 and valid ±1 tangent handedness across mirrored authored islands"
+		and positive_tangent_vertices == 0
+		and negative_tangent_vertices > 0,
+		"Torrent/Zenith authored UV0 paint surfaces retain complete UVs and valid ±1 mirrored tangent handedness"
 	)
 
 
