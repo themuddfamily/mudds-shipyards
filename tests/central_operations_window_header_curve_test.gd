@@ -82,7 +82,7 @@ func _run() -> void:
 	var threshold := upper.get_node_or_null(^"OperationsPodThreshold") as StaticBody3D if upper != null else null
 	_check(
 		fascia != null and fascia.position.is_equal_approx(Vector3(43.0, 5.35, 22.9))
-		and sign != null and sign.position.is_equal_approx(Vector3(43.0, 5.15, 22.68))
+		and sign != null and sign.position.is_equal_approx(Vector3(43.0, 5.16, 22.68))
 		and sign.rotation_degrees.is_equal_approx(Vector3(0.0, 180.0, 0.0))
 		and threshold != null
 		and bool(threshold.get_meta("station_doorway", false))

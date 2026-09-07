@@ -7803,13 +7803,13 @@ func _build_catwalks_and_control_room() -> void:
 	# The glyph extrusion is symmetric about local z = 0, so this does not change
 	# the sign's depth footprint and cannot push it into the glazing behind it.
 	# Name the modern, non-authoritative workspace without implying live service
-	# state. The generated glyph bounds are 7.71725 x 0.568 m before node scale;
-	# 0.84 is the largest clean hundredth that leaves at least 0.05 m inside the
-	# existing fascia at this unchanged low-mounted transform.
+	# state. Keep the 0.84 lettering scale and lift its anchor by 0.01 m: the
+	# current 47-point glyph hinting then leaves 0.056 m above the fascia's lower
+	# edge, preserving the 0.05 m clearance without shrinking the room identity.
 	var dock_operations_sign := _text_sign(
 		upper,
 		"DOCK OPS // TRAFFIC",
-		Vector3(43.0, 5.15, 22.68),
+		Vector3(43.0, 5.16, 22.68),
 		Vector3(0.0, 180.0, 0.0),
 		0.84,
 		_materials["cyan_glow"]
