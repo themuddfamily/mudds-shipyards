@@ -9557,7 +9557,7 @@ func get_live_combat_source_roster_audit() -> Dictionary:
 			continue
 		var source_id := int(authored["source_id"])
 		var profiles := reinforcement.call(&"get_weapon_profiles") as Dictionary
-		var exact := _combat_registration_matches(
+		var exact := not profiles.is_empty() and _combat_registration_matches(
 			reinforcement, source_id, OPPONENT_FACTION, profiles
 		)
 		if seen_source_ids.has(source_id):
