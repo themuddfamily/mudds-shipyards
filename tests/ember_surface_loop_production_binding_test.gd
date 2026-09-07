@@ -390,9 +390,22 @@ func _test_real_scheduler_complete_loop() -> void:
 	world.add_child(atmosphere)
 	await process_frame
 	_check(atmosphere.configure().accepted, "live atmosphere composition configures for planetary recipe consumption")
+	early.journey_flow = GameFlow.new()
+	early.journey_flow.active_ship = ship
+	early.journey_flow.player = player
+	early.journey_flow.ember_surface_loop_host = host
+	early.journey_flow.ember_surface_loop_production_binding = production
+	var reward_store := UserDataStore.new("user://ember-survey-production.json")
+	_check(bool(reward_store.load().accepted), "production survey uses the real atomic user-data store")
+	early.journey_flow.set("_runtime_settings_user_data_store", reward_store)
+	early.journey_flow.set("_runtime_settings_persistence_injected", true)
+	early.journey_flow.call("_initialize_game_flow_reward_authority")
 	var planetary_bound := production.configure_planetary_surface(
-		planetary_director, Callable(self, "_planetary_reward_sink"), atmosphere
+		planetary_director, Callable(early.journey_flow, "_commit_game_flow_activity_reward"), atmosphere
 	)
+	_check(early.journey_flow.bind_ember_relay_survey_persistence(production).accepted,
+		"retained GameFlow binds survey completion to its existing persistence authority")
+	player.interact_requested.connect(early.journey_flow._on_interact_requested)
 	var planetary_discovery := production.discover_planetary_settlements(
 		Vector3(92.0, 120000.5, -18.0), 20.0
 	)
@@ -572,11 +585,6 @@ func _test_real_scheduler_complete_loop() -> void:
 	# Exercise the actual extracted GameFlow surface coordinator over the real
 	# walk. The fixture still owns its initial approach setup and early origin
 	# sample; neither caller writes actor transforms during this traversal.
-	early.journey_flow = GameFlow.new()
-	early.journey_flow.active_ship = ship
-	early.journey_flow.player = player
-	early.journey_flow.ember_surface_loop_host = host
-	early.journey_flow.ember_surface_loop_production_binding = production
 	early.journey_flow.set("_ember_surface_journey_active", true)
 	early.journey_flow.set("_ember_final_approach_handoff_ready", true)
 	early.journey_flow.set("_ember_surface_caller_serial",
@@ -600,8 +608,11 @@ func _test_real_scheduler_complete_loop() -> void:
 			and early.sample_count == samples_before + 1,
 		"one admitted on-foot sample advances the exact late hazard receipt once",
 	)
-	var survey_started := production.start_planetary_relay_survey()
-	_check(survey_started.accepted, "real on-foot scheduler starts the relay survey")
+	var survey_started: bool = production.get_planetary_surface_snapshot().adapter.activity_reward.state == &"active"
+	_check(survey_started, "retained GameFlow starts the survey from the real on-foot lifecycle")
+	if not survey_started:
+		await _cleanup(world)
+		return
 	var advance_before_survey := int(production.get_snapshot().advance_count)
 	for _sample in 3:
 		await _one_physics(false)
@@ -619,6 +630,16 @@ func _test_real_scheduler_complete_loop() -> void:
 			and production.get_state() == EmberSurfaceLoopProductionBinding.State.RUNNING,
 		"ordinary walking between checkpoints advances the journey without terminalizing it",
 	)
+	_check(await _walk_return(fixture), "pilot can physically return to the ship before finishing the survey")
+	var early_intents := int(production.get_snapshot().last_intent_serial)
+	Input.action_press(&"interact")
+	await _one_physics()
+	Input.action_release(&"interact")
+	_check(host.get_phase() == EmberSurfaceLoopHost.Phase.ON_FOOT
+		and not player.is_seated()
+		and int(production.get_snapshot().last_intent_serial) == early_intents,
+		"real early E cannot reboard before the authenticated survey return is admitted")
+	_check(await _walk_outbound(fixture), "pilot walks back out to continue the same mandatory survey")
 	for _sample in 3:
 		await _one_physics(false)
 	var survey_progress := planetary_director.get_activity_snapshot(&"ember_beacon_survey")
@@ -643,7 +664,6 @@ func _test_real_scheduler_complete_loop() -> void:
 			)) < 0.02,
 		"the hazard consumer receives the same body-local sample for authored navigation distance",
 	)
-	var surface_composition := world.get_node(^"EmberPlanetarySurfaceProductionBinding")
 	# Continue the same survey over the real authored terrain and checkpoints.
 	var reached_arc := await _walk_until(
 		fixture, &"move_forward", func(p: Vector3) -> bool: return p.x >= 90.0, 180
@@ -676,16 +696,61 @@ func _test_real_scheduler_complete_loop() -> void:
 			and production.get_authored_hazard_presentation_snapshot().hazard.state == &"clear",
 		"authored checkpoint progress survives stationary samples and leaving the arc clears exposure",
 	)
-	_check(
-		(surface_composition.call(&"abort_relay_survey", &"test_route_retired") as Dictionary).accepted,
-		"authored survey retires before the physical return fixture",
+	var reached_return_checkpoint := await _walk_until(
+		fixture, &"move_left", func(p: Vector3) -> bool: return p.z <= -210.0, 750
+	) and await _walk_until(
+		fixture, &"move_forward", func(_p: Vector3) -> bool: return int(planetary_director.get_activity_snapshot(&"ember_beacon_survey").get("next_checkpoint_index", -1)) == 2, 1600
 	)
+	_check(reached_return_checkpoint, "real Player walks to the authored return beacon and completes both mandatory checkpoints")
+	if not reached_return_checkpoint:
+		_check(false, "return checkpoint walk failed: " + str(production.get_snapshot().last_late_result))
+		await _cleanup(world)
+		return
+	var checkpoint_completion := production.get_snapshot()
+	var checkpoint_reward := checkpoint_completion.relay_reward_commit as Dictionary
+	var checkpoint_persistence := (checkpoint_reward.last_result as Dictionary).get("persistence", {}) as Dictionary
+	print("Ember checkpoint completion: state=", checkpoint_completion.state_id,
+		" late=", checkpoint_completion.last_late_result.get("reason", &""),
+		" authority_count=", checkpoint_reward.authority_commit_count,
+		" persistence_count=", checkpoint_reward.persistence_commit_count,
+		" persistence_reason=", checkpoint_persistence.get("reason", &""),
+		" persistence_errors=", checkpoint_persistence.get("errors", []),
+		" route=", production.get_planetary_surface_snapshot().relay_survey.mandatory_route)
+	if production.get_state() != EmberSurfaceLoopProductionBinding.State.RUNNING:
+		_check(false, "survey completion keeps the production cadence running: " + str(checkpoint_completion.last_late_result))
+		await _cleanup(world)
+		return
+	await _one_physics()
+	var completed_survey := production.get_snapshot()
+	var reward_commit := completed_survey.relay_reward_commit as Dictionary
+	var return_context := completed_survey.retained_return_context as Dictionary
+	var saved_rewards := reward_store.get_snapshot().get("game_flow_reward_store", {}) as Dictionary
+	print("Ember survey completion: state=", completed_survey.planetary_surface.adapter.activity_reward.state,
+		" authority_count=", reward_commit.authority_commit_count,
+		" persistence_count=", reward_commit.persistence_commit_count,
+		" return=", return_context)
+	_check(int(reward_commit.authority_commit_count) == 1
+		and int(reward_commit.persistence_commit_count) == 1
+		and bool((reward_commit.commit_receipt.persistence as Dictionary).accepted)
+		and int(saved_rewards.get("total_receipts", 0)) == 1
+		and int(return_context.session_instance_id) == host.get_travel_session_observation_source().get_instance_id()
+		and int(return_context.actor_instance_id) == player.get_instance_id()
+		and int(return_context.craft_instance_id) == ship.get_instance_id(),
+		"real survey completion persists one GameFlow reward before the coordinator admits the authenticated route home")
+	if int(return_context.session_instance_id) == 0:
+		await _cleanup(world)
+		return
+	for _sample in 3:
+		await _one_physics()
+	_check(int(production.get_snapshot().relay_reward_commit.authority_commit_count) == 1
+		and int(production.get_snapshot().relay_reward_commit.persistence_commit_count) == 1,
+		"continued completion samples cannot replay the reward or persistence commit")
 	# Retrace the clear outbound corridor before entering the pad; the gantry
 	# pylons occupy x=34, z=+/-5.2 on either side of that corridor.
 	var returned_to_pad := await _walk_until(
-		fixture, &"move_back", func(p: Vector3) -> bool: return p.x <= 90.0, 210
+		fixture, &"move_back", func(p: Vector3) -> bool: return p.x <= 90.0, 1800
 	) and await _walk_until(
-		fixture, &"move_right", func(p: Vector3) -> bool: return p.z >= 0.0, 120
+		fixture, &"move_right", func(p: Vector3) -> bool: return p.z >= 0.0, 900
 	) and await _walk_until(
 		fixture, &"move_back", func(p: Vector3) -> bool: return p.x <= 35.0, 180
 	)
@@ -702,46 +767,20 @@ func _test_real_scheduler_complete_loop() -> void:
 			and production.get_state() == EmberSurfaceLoopProductionBinding.State.RUNNING,
 		"one retained GameFlow coordinator feeds the real outbound, terrain and return walk without duplicate late samples",
 	)
-	early.journey_cadence_enabled = false
-	var retained_session := host.get_travel_session_observation_source()
-	var retained_attachment_generation := int(
-		(retained_session.call(&"get_presentation_snapshot") as Dictionary).get(
-			"attachment_generation", 0
-		)
-	)
-	var return_admitted := production.admit_planetary_relay_survey_return(
-		{
-			"accepted": true,
-			"reason": &"return_manifest_ready",
-			"manifest": {
-				"activity_id": &"ember_beacon_survey",
-				"activity_generation": 17,
-				"attachment_generation": retained_attachment_generation,
-				"destination_id": &"mudds_shipyards",
-				"movement_authority": false,
-				"berth_authority": false,
-				"reward_authority": false,
-			}.duplicate(true),
-		}.duplicate(true),
-		player.get_instance_id(),
-		ship.get_instance_id(),
-	)
 	early.take_station_intent_when_ready = true
-	_check(
-		bool(return_admitted.get("accepted", false)),
-		"the real on-foot Host admits one retained Ember return manifest",
-	)
 	early.arm_intent(1, &"reboard")
 	await _one_physics()
 	_check(early.last_intent.reason == &"intent_serial_replayed", "intent replay rejects")
-	early.arm_intent(2, &"reboard")
+	Input.action_press(&"interact")
 	await _one_physics()
-	_check(early.last_intent.accepted, "typed reboard intent consumes serial two")
+	Input.action_release(&"interact")
+	_check(int(production.get_snapshot().last_intent_serial) == 2,
+		"real E queues the existing reboard intent after persisted survey completion")
 	_check(await _wait_phase(fixture, EmberSurfaceLoopHost.Phase.REBOARDED, 30), "real reboard completes")
 	early.actor_kind = &"ship"
-	early.arm_intent(3, &"takeoff")
 	await _one_physics()
-	_check(early.last_intent.accepted, "typed takeoff intent consumes serial three")
+	_check(int(production.get_snapshot().last_intent_serial) == 3,
+		"retained coordinator queues takeoff once after the real reboard")
 	_check(await _wait_binding_state(
 		fixture, EmberSurfaceLoopProductionBinding.State.HANDOFF_PENDING, 2700
 	), "real physical loop reaches completion and atomic handback")
@@ -1216,6 +1255,8 @@ func _walk_until(fixture: Dictionary, action: StringName, reached: Callable, bud
 	var player := fixture.player as PlayerController
 	Input.action_press(action)
 	for _index in budget:
+		if budget >= 750 and _index % 120 == 0:
+			print("Ember walk: action=", action, " step=", _index, " position=", landing.to_local(player.global_position), " phase=", (fixture.host as EmberSurfaceLoopHost).get_phase())
 		if is_instance_valid(_active_production) and _active_production.get_state() == EmberSurfaceLoopProductionBinding.State.FAILED:
 			Input.action_release(action)
 			return false
@@ -1264,7 +1305,7 @@ func _one_physics(expect_late_completion: bool = true) -> void:
 
 
 func _cleanup(world: Node) -> void:
-	for action in [&"move_left", &"move_right", &"move_forward", &"move_back", &"sprint_boost"]:
+	for action in [&"move_left", &"move_right", &"move_forward", &"move_back", &"sprint_boost", &"interact"]:
 		Input.action_release(action)
 	if is_instance_valid(world):
 		world.queue_free()

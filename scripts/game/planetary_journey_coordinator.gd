@@ -17,6 +17,8 @@ var _pending_ember_surface_reward_sink := Callable()
 var _pending_ember_surface_serial := 0
 var _last_ember_surface_forward_result: Dictionary = {}
 var _ember_surface_forward_count := 0
+var _ember_survey_start_context: Dictionary = {}
+var _ember_survey_return_manifest: Dictionary = {}
 var _ember_surface_journey_active := false
 var _ember_final_approach_handoff_ready := false
 var _ember_final_approach_completion_receipt: Dictionary = {}
@@ -299,6 +301,9 @@ func _advance_ember_surface_loop_cadence(
 	)
 	if not bool(advanced.get("accepted", false)):
 		return advanced
+	var survey_lifecycle := _advance_ember_survey_lifecycle(binding_snapshot)
+	if not survey_lifecycle.is_empty():
+		advanced["relay_survey"] = survey_lifecycle.duplicate(true)
 	var intent_result: Dictionary = {}
 	if host_phase == EmberSurfaceLoopHost.Phase.LANDED \
 			and str(telemetry.get("engine_state", "ONLINE")) == "OFFLINE":
@@ -308,6 +313,89 @@ func _advance_ember_surface_loop_cadence(
 	if not intent_result.is_empty():
 		advanced["intent"] = intent_result.duplicate(true)
 	return advanced.duplicate(true)
+
+
+func _ember_survey_context(binding_snapshot: Dictionary) -> Dictionary:
+	var host := _flow.ember_surface_loop_host
+	if not is_instance_valid(host) or not is_instance_valid(_flow.player) \
+			or not is_instance_valid(_flow.active_ship):
+		return {}
+	var identities := binding_snapshot.get("identities", {}) as Dictionary
+	var session := host.get_travel_session_observation_source()
+	if not is_instance_valid(session) \
+			or int(identities.get("host_instance_id", 0)) != host.get_instance_id() \
+			or int(identities.get("player_instance_id", 0)) != _flow.player.get_instance_id() \
+			or int(identities.get("ship_instance_id", 0)) != _flow.active_ship.get_instance_id():
+		return {}
+	return {
+		"owner_generation": int(binding_snapshot.get("generation", -1)),
+		"host_instance_id": host.get_instance_id(),
+		"host_generation": host.get_generation(),
+		"host_attachment_generation": host.get_attachment_generation(),
+		"session_instance_id": session.get_instance_id(),
+		"actor_instance_id": _flow.player.get_instance_id(),
+		"craft_instance_id": _flow.active_ship.get_instance_id(),
+	}
+
+
+func _ember_survey_return_is_admitted(binding_snapshot: Dictionary) -> bool:
+	var context := _ember_survey_context(binding_snapshot)
+	if context.is_empty():
+		return false
+	var retained := binding_snapshot.get("retained_return_context", {}) as Dictionary
+	for key in context:
+		if key != "owner_generation" and retained.get(key) != context[key]:
+			return false
+	return true
+
+
+## The caller starts the authored route once at the real on-foot boundary.
+## Reward and persistence remain the late binding's authorities; only their
+## matching committed receipt permits the existing route-home admission.
+func _advance_ember_survey_lifecycle(binding_snapshot: Dictionary) -> Dictionary:
+	var binding := _flow.ember_surface_loop_production_binding
+	if binding.get_host_phase() != EmberSurfaceLoopHost.Phase.ON_FOOT:
+		return {}
+	var context := _ember_survey_context(binding_snapshot)
+	if context.is_empty():
+		return {"accepted": false, "reason": &"ember_survey_context_unavailable"}
+	var surface := binding_snapshot.get("planetary_surface", {}) as Dictionary
+	var activity := (surface.get("adapter", {}) as Dictionary).get("activity_reward", {}) as Dictionary
+	var activity_state := StringName(activity.get("state", &""))
+	if _ember_survey_start_context.is_empty():
+		if activity_state in [&"active", &"awaiting_reward"]:
+			# Persistence has already authenticated this live route. Adopt its
+			# current visit without restarting its checkpoints or optional work.
+			_ember_survey_start_context = context.duplicate(true)
+		elif activity_state in [&"ready", &"completed", &"failed"]:
+			# Only a newly admitted journey reaches a prior terminal activity
+			# with no start context; the existing facade owns repeat/retry.
+			var started := binding.start_planetary_relay_survey()
+			if bool(started.get("accepted", false)) \
+					and _ember_survey_context(binding.get_snapshot()) == context:
+				_ember_survey_start_context = context.duplicate(true)
+			return started
+	if _ember_survey_start_context != context \
+			or StringName(activity.get("state", &"")) != &"completed" \
+			or _ember_survey_return_is_admitted(binding_snapshot):
+		return {}
+	var reward := binding_snapshot.get("relay_reward_commit", {}) as Dictionary
+	var committed := reward.get("commit_receipt", {}) as Dictionary
+	if not bool((committed.get("persistence", {}) as Dictionary).get("accepted", false)) \
+			or int(committed.get("activity_generation", -1)) != int(activity.get("activity_generation", -2)):
+		return {"accepted": false, "reason": &"ember_survey_reward_not_persisted"}
+	for key in ["owner_generation", "host_generation", "host_attachment_generation", "actor_instance_id", "session_instance_id"]:
+		if committed.get(key) != context[key]:
+			return {"accepted": false, "reason": &"ember_survey_reward_context_mismatch"}
+	if _ember_survey_return_manifest.is_empty():
+		var issued := binding.issue_planetary_relay_survey_return_manifest()
+		if not bool(issued.get("accepted", false)):
+			return issued
+		_ember_survey_return_manifest = issued.duplicate(true)
+	return binding.admit_planetary_relay_survey_return(
+		_ember_survey_return_manifest,
+		int(context.actor_instance_id), int(context.craft_instance_id)
+	)
 
 
 func _queue_ember_surface_intent(intent_id: StringName) -> Dictionary:
@@ -370,6 +458,10 @@ func _consume_ember_surface_reboard_interaction() -> bool:
 			boarding_area_nearby = true
 			break
 	if boarding_area_nearby:
+		if not _ember_survey_return_is_admitted(_flow.ember_surface_loop_production_binding.get_snapshot()):
+			if is_instance_valid(_flow.hud):
+				_flow.hud.toast("Survey return pending", "Complete the Ember relay survey and save its reward before boarding for home")
+			return true
 		_queue_ember_surface_intent(&"reboard")
 	return true
 
@@ -445,6 +537,8 @@ func begin_ember_surface_journey(
 	# phase-specific caller intent after the Host has actually reached LANDED;
 	# queuing it while the binding is still IDLE necessarily rejects because no
 	# same-frame caller envelope exists yet.
+	_ember_survey_start_context.clear()
+	_ember_survey_return_manifest.clear()
 	_ember_surface_journey_active = true
 	_ember_final_approach_handoff_ready = false
 	_ember_final_approach_completion_receipt.clear()
