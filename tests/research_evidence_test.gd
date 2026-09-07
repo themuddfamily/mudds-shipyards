@@ -333,22 +333,24 @@ func _test_station_topology(topology: String) -> void:
 		and topology.contains("Three short orthogonal teeth")
 		and topology.contains("Dock01 marker is externally assigned by `ShipyardWorld`")
 		and topology.contains("modern Zenith berth `zenith_fleet_dock_berth`")
-		# Dock02 stopped being empty when the Halyard — an original modern design,
-		# not a ledger name — was parked on it. The assignment is still modern and
-		# still non-authoritative, so what this suite pins is unchanged in kind:
-		# the doc must name the assignment and must not launder it into
-		# source-authenticated topology.
+		# Halyard and Bulwark now occupy Dock02 and Dock03. These current modern
+		# assignments remain non-authoritative and cannot upgrade historical
+		# class-to-berth evidence. Frozen historical roster variants below retain
+		# their own original identities and counts.
 		and topology.contains("modern Halyard berth `halyard_fleet_dock_berth`")
-		and topology.contains("Dock03 remains empty/deferred")
+		and topology.contains("Dock03 is externally assigned to the modern Bulwark berth `bulwark_fleet_dock_berth`")
 		and topology.contains("All three markers and the module itself remain non-authoritative")
 		and topology.contains("FleetDockComb owns none of their berth, lease, landing, boarding, or spawn authority")
 		and topology.contains("no hidden full-footprint collision slab exists")
-		and topology.contains("exactly five lease-bound production berths")
+		and topology.contains("exactly nine lease-bound production berths")
+		and topology.contains("Central/Torrent, Arrow, Jovian, Zenith, Halyard, Bulwark, and the three expansion cargo/bomber/interceptor berths")
 		and topology.contains("no source authenticates a historical class-to-berth topology")
-		and topology.contains("promoting either modern Dock01/Dock02 class assignment\ninto source-authenticated topology")
+		and topology.contains("promoting any modern Dock01/Dock02/Dock03 class assignment\ninto source-authenticated topology")
 		and not topology.contains("all three dock markers are empty/deferred")
-		and not topology.contains("exact three existing lease-bound berths"),
-		"live topology pins the non-authoritative modern Dock01/Dock02 assignments, one deferred marker and five world-owned production berths"
+		and not topology.contains("exact three existing lease-bound berths")
+		and not topology.contains("exactly five lease-bound production berths")
+		and not topology.contains("Dock03 remains empty"),
+		"live topology pins all three non-authoritative modern dock assignments and the exact nine world-owned production berth roster"
 	)
 
 
