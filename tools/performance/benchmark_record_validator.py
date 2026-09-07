@@ -124,6 +124,19 @@ def validate_record(report: dict[str, Any], target: dict[str, Any] | None = None
 
     selected_target = target if target is not None else report.get("target_profile")
     budgets = selected_target.get("budgets") if isinstance(selected_target, dict) else None
+    expected_resolution = selected_target.get("render", {}).get("resolution") if isinstance(selected_target, dict) else None
+    if not isinstance(expected_resolution, list) or len(expected_resolution) != 2:
+        errors.append("target render.resolution is required")
+    for scenario in scenarios:
+        if not isinstance(scenario, dict):
+            continue
+        for boundary in ("resolution_before", "resolution_after"):
+            observed = scenario.get(boundary, {})
+            if not isinstance(observed, dict) or observed.get("framebuffer_available") is not True or any(
+                observed.get(field) != expected_resolution for field in ("requested", "window", "viewport", "framebuffer")
+            ):
+                errors.append(f"scenario {scenario.get('name', 'unknown')} {boundary} does not match target framebuffer")
+
     for phase, floor in (("warmup", 60.0), ("sample", 600.0)):
         requested = budgets.get(f"{phase}_seconds") if isinstance(budgets, dict) else None
         if not _number(requested) or not math.isfinite(requested) or requested <= 0:

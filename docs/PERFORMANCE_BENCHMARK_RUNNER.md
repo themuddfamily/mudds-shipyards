@@ -49,6 +49,15 @@ frame-quota progress and elapsed-time progress, so fast frames cannot skip the
 movement or boost segments while the time window is still running. Smoke keeps
 its tiny frame-only windows and remains nonrepresentative.
 
+After each Main instance applies its saved display settings, the runner reapplies
+the requested window size and disables content scaling for a one-to-one render
+viewport. Outside timing, it reads the rendered image before and after each
+scenario and records `resolution_before` / `resolution_after` with requested,
+window, viewport, and actual framebuffer dimensions. Qualification rejects any
+mismatch. Headless smoke records its logical viewport and explicitly unavailable
+framebuffer; it cannot qualify as a full run. Environment resolution is observed
+before the caller's original display is restored.
+
 Frame delta is the wall interval, in milliseconds, between consecutive
 `process_frame` signals measured with `Time.get_ticks_usec()`. The JSON records
 nearest-rank p50, p95, p99, and maximum. It also records per-frame summaries for

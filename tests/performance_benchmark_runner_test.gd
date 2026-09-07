@@ -125,6 +125,10 @@ func _test_schema_mutations() -> void:
 		_contains_fragment(RUNNER.validate_report(invalid_percentiles), "frame_delta_ms summary is invalid"),
 		"non-monotonic percentile mutation makes the schema fixture fail"
 	)
+	var resized := report.duplicate(true)
+	resized.scenarios[0].resolution_after.framebuffer = [1280, 720]
+	_check(_contains_fragment(RUNNER.validate_report(resized), "requested framebuffer"),
+		"a window resized below the requested render resolution cannot qualify")
 	var short_sample := report.duplicate(true)
 	short_sample.scenarios[0].sample_elapsed_seconds = 300.0
 	_check(_contains_fragment(RUNNER.validate_report(short_sample), "sample elapsed duration"),
@@ -194,6 +198,8 @@ func _test_live_smoke() -> void:
 		_check(bool(scenario.completed), "%s live smoke completes" % scenario.name)
 		_check(float(scenario.warmup_elapsed_seconds) >= 0.0 and float(scenario.sample_elapsed_seconds) > 0.0,
 			"%s records monotonic elapsed warmup and sampling" % scenario.name)
+		_check(scenario.resolution_before.viewport == [640, 360] and scenario.resolution_after.viewport == [640, 360],
+			"%s reapplies the requested viewport after Main startup" % scenario.name)
 		_check(int(scenario.sample_count) == 3, "%s records the exact smoke sample count" % scenario.name)
 		_check(not (scenario.scene_counts as Dictionary).is_empty(), "%s records scene counts" % scenario.name)
 		_check(not (scenario.monitors as Dictionary).is_empty(), "%s records engine monitors" % scenario.name)
@@ -280,6 +286,8 @@ func _scenario_fixture(name: String) -> Dictionary:
 		"error": "",
 		"deterministic_inputs": {"fixture": true},
 		"scenario_progress": _progress_fixture(name),
+		"resolution_before": {"requested": [1920, 1080], "viewport": [1920, 1080], "window": [1920, 1080], "framebuffer_available": true, "framebuffer": [1920, 1080]},
+		"resolution_after": {"requested": [1920, 1080], "viewport": [1920, 1080], "window": [1920, 1080], "framebuffer_available": true, "framebuffer": [1920, 1080]},
 		"warmup_elapsed_seconds": 60.0,
 		"sample_elapsed_seconds": 600.0,
 		"warmup_frames": 2,

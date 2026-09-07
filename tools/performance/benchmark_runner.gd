@@ -94,6 +94,10 @@ static func run_benchmark(
 		smoke_run: bool = false
 	) -> Dictionary:
 	var original_root_size := tree.root.size
+	var original_content_mode := tree.root.content_scale_mode
+	var original_content_size := tree.root.content_scale_size
+	var original_content_factor := tree.root.content_scale_factor
+	var original_window_mode := tree.root.mode
 	var requested_resolution := Vector2i(maxi(resolution.x, 1), maxi(resolution.y, 1))
 	tree.root.size = requested_resolution
 	if DisplayServer.get_name() != "headless":
@@ -108,11 +112,17 @@ static func run_benchmark(
 			maxi(sample_frames, 2),
 			quality_level,
 			smoke_run,
-			durations
+			durations,
+			requested_resolution
 		))
 	_release_inputs()
+	# Capture the live viewport before restoring the caller's display.
+	var observed := capture_environment(Vector2i(tree.root.get_visible_rect().size), quality_level)
+	tree.root.content_scale_mode = original_content_mode
+	tree.root.content_scale_size = original_content_size
+	tree.root.content_scale_factor = original_content_factor
+	tree.root.mode = original_window_mode
 	tree.root.size = original_root_size
-	var observed := capture_environment(requested_resolution, quality_level)
 	var source := capture_source_state()
 	var representativeness := classify_representativeness(observed, target_profile)
 	var representativeness_reasons := (
@@ -162,7 +172,8 @@ static func _run_scenario(
 		sample_frames: int,
 		quality_level: int,
 		smoke_run: bool,
-		durations: Dictionary
+		durations: Dictionary,
+		requested_resolution: Vector2i
 	) -> Dictionary:
 	_release_inputs()
 	seed(_scenario_seed(scenario_name))
@@ -185,6 +196,17 @@ static func _run_scenario(
 		await tree.process_frame
 		return {"name": String(scenario_name), "completed": false, "error": "production actors unavailable"}
 	var quality_report := world.apply_visual_quality(quality_level)
+	# Main startup applies persisted display settings; benchmark sizing must win
+	# after that startup, with one render pixel per requested viewport pixel.
+	tree.root.mode = Window.MODE_WINDOWED
+	tree.root.content_scale_mode = Window.CONTENT_SCALE_MODE_DISABLED
+	tree.root.content_scale_size = Vector2i.ZERO
+	tree.root.content_scale_factor = 1.0
+	tree.root.size = requested_resolution
+	if DisplayServer.get_name() != "headless":
+		DisplayServer.window_set_size(requested_resolution)
+	await tree.process_frame
+	await tree.process_frame
 	var inputs := await _stage_scenario(tree, game, world, player, ship, scenario_name)
 	if not bool(inputs.get("staging_valid", false)):
 		_release_inputs()
@@ -199,6 +221,7 @@ static func _run_scenario(
 			"error": str(inputs.get("staging_error", "scenario staging failed")),
 			"deterministic_inputs": inputs,
 		}
+	var resolution_before := await capture_resolution(tree, requested_resolution)
 	var progress_tracker := _begin_scenario_progress(player, ship, scenario_name, inputs, smoke_run)
 	# One declared activation tick guarantees that a short smoke actually offers
 	# its input to the production physics authority before timing continues.
@@ -241,10 +264,13 @@ static func _run_scenario(
 		_capture_monitor_sample(monitor_samples)
 
 	var sample_elapsed := float(Time.get_ticks_usec() - sample_started) / 1_000_000.0
+	var resolution_after := await capture_resolution(tree, requested_resolution)
 	var progress := _finish_scenario_progress(progress_tracker, player, ship, scenario_name)
 	var progress_errors := validate_scenario_progress(scenario_name, progress)
 	_release_inputs()
 	var result := {
+		"resolution_before": resolution_before,
+		"resolution_after": resolution_after,
 		"name": String(scenario_name),
 		"completed": progress_errors.is_empty(),
 		"error": "; ".join(progress_errors),
@@ -543,6 +569,27 @@ static func _stage_scenario(
 	}
 
 
+static func capture_resolution(tree: SceneTree, requested: Vector2i) -> Dictionary:
+	var native_display := DisplayServer.get_name() != "headless"
+	var framebuffer := Vector2i.ZERO
+	if native_display:
+		await RenderingServer.frame_post_draw
+		var pixels := tree.root.get_texture().get_image()
+		if pixels != null:
+			framebuffer = pixels.get_size()
+	var viewport := Vector2i(tree.root.get_visible_rect().size)
+	var window := DisplayServer.window_get_size() if native_display else viewport
+	return {
+		"requested": [requested.x, requested.y],
+		"viewport": [viewport.x, viewport.y],
+		"window": [window.x, window.y],
+		"framebuffer_available": native_display,
+		"framebuffer": [framebuffer.x, framebuffer.y] if native_display else null,
+		"matches_requested": viewport == requested and window == requested
+			and (not native_display or framebuffer == requested),
+	}
+
+
 static func required_phase_seconds(target: Dictionary, smoke_run: bool) -> Dictionary:
 	if smoke_run:
 		return {"warmup": 0.0, "sample": 0.0}
@@ -825,6 +872,16 @@ static func validate_report(report: Dictionary) -> PackedStringArray:
 		var endpoint_expected := not smoke_run and scenario_name == &"nearby_sector_ship_flight_route"
 		if bool(progress.get("endpoint_required", false)) != endpoint_expected:
 			errors.append("scenario %s endpoint requirement does not match configuration" % scenario_name)
+		for observation in ["resolution_before", "resolution_after"]:
+			var evidence := scenario.get(observation, {}) as Dictionary
+			var expected_resolution: Variant = configuration.get("resolution", [])
+			if evidence.get("requested") != expected_resolution \
+					or evidence.get("viewport") != expected_resolution \
+					or evidence.get("window") != expected_resolution \
+					or (bool(evidence.get("framebuffer_available", false)) and evidence.get("framebuffer") != expected_resolution):
+				errors.append("scenario %s %s does not match requested framebuffer" % [scenario_name, observation])
+			if not smoke_run and not bool(evidence.get("framebuffer_available", false)):
+				errors.append("full scenario requires observed framebuffer dimensions")
 		var required := required_phase_seconds(report.get("target_profile", {}) as Dictionary, smoke_run)
 		for phase: String in required:
 			var elapsed := float(scenario.get(phase + "_elapsed_seconds", -1.0))

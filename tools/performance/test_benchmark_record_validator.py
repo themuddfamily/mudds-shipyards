@@ -26,6 +26,7 @@ def record():
             for name, unit in validator.NATIVE_METRIC_FIELDS.items()
         },
         "target_profile": {
+            "render": {"resolution": [1920, 1080]},
             "budgets": {
                 "warmup_seconds": 60,
                 "sample_seconds": 600,
@@ -37,6 +38,8 @@ def record():
             {
                 "name": name,
                 "completed": True,
+                "resolution_before": {"requested": [1920, 1080], "window": [1920, 1080], "viewport": [1920, 1080], "framebuffer_available": True, "framebuffer": [1920, 1080]},
+                "resolution_after": {"requested": [1920, 1080], "window": [1920, 1080], "viewport": [1920, 1080], "framebuffer_available": True, "framebuffer": [1920, 1080]},
                 "warmup_elapsed_seconds": 60.0,
                 "sample_elapsed_seconds": 600.0,
                 "frame_delta_ms": {"count": 10, "p50": 10.0, "p95": 15.0, "p99": 20.0, "max": 40.0},
@@ -50,6 +53,11 @@ def record():
 class BenchmarkRecordValidatorTests(unittest.TestCase):
     def test_valid_record(self):
         self.assertEqual(validator.validate_record(record()), [])
+
+    def test_actual_framebuffer_mismatch_blocks_requested_resolution_claim(self):
+        value = record()
+        value["scenarios"][0]["resolution_after"]["framebuffer"] = [1280, 720]
+        self.assertTrue(any("target framebuffer" in error for error in validator.validate_record(value)))
 
     def test_short_or_missing_elapsed_cannot_qualify(self):
         for elapsed in (None, 300.0, float("nan"), float("inf")):
