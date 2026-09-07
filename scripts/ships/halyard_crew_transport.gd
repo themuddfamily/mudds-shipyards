@@ -40,6 +40,8 @@ extends HeroShip
 ## rails and paired round housings; both are evidence-bounded reads and are not
 ## available to a modern design.
 
+const ShipBunkType := preload("res://scripts/interaction/ship_bunk.gd")
+
 const SCHEMA_VERSION := 1
 const EVIDENCE_STATUS: StringName = &"modern_interpretation"
 const EVIDENCE_SCOPE: StringName = &"original_design"
@@ -3395,6 +3397,7 @@ func _build_aft_systems_bay() -> void:
 		# where the off-watch crew are.
 		_box(_aft_systems_bay, side_name + "CrewBunk", Vector3(side * 1.62, 1.24, 6.60), Vector3(1.16, 0.16, 2.10), _halyard_materials.cloth)
 		_box(_aft_systems_bay, side_name + "BunkFrame", Vector3(side * 1.62, 1.14, 6.60), Vector3(1.24, 0.10, 2.20), _halyard_materials.structure)
+		_build_liveaboard_berth(side, side_name)
 		_box(_aft_systems_bay, side_name + "BunkCurtainRail", Vector3(side * 1.02, 2.16, 6.60), Vector3(0.07, 0.07, 2.20), _halyard_materials.trim)
 		_box(_aft_systems_bay, side_name + "SystemsRack", Vector3(side * 1.80, 2.26, 3.85), Vector3(0.72, 1.80, 1.30), _halyard_materials.locker)
 		for panel_index in 3:
@@ -3428,6 +3431,46 @@ func _build_aft_systems_bay() -> void:
 	bay_light.omni_range = 5.0
 	bay_light.shadow_enabled = true
 	_aft_systems_bay.add_child(bay_light)
+
+
+func _build_liveaboard_berth(side: float, side_name: String) -> void:
+	# Dressing stays inside the existing mattress footprint, leaving the central
+	# walk from the flight deck to the pressure hatch unobstructed.
+	var linen := _halyard_material(Color("ded4bc"), 0.0, 0.96)
+	var blanket := _halyard_material(Color("506f76"), 0.0, 0.98)
+	_box(_aft_systems_bay, side_name + "BunkPillow", Vector3(side * 1.62, 1.40, 7.30), Vector3(0.82, 0.16, 0.38), linen)
+	_box(_aft_systems_bay, side_name + "BunkBlanket", Vector3(side * 1.62, 1.34, 6.30), Vector3(1.10, 0.07, 1.40), blanket)
+	_box(_aft_systems_bay, side_name + "BunkBlanketFold", Vector3(side * 1.62, 1.40, 6.96), Vector3(1.10, 0.08, 0.19), linen)
+	_box(_aft_systems_bay, side_name + "ReadingLampHousing", Vector3(side * 2.10, 2.00, 7.30), Vector3(0.12, 0.20, 0.28), _halyard_materials.trim)
+	var reading_light := OmniLight3D.new()
+	reading_light.name = side_name + "BunkReadingLight"
+	reading_light.position = Vector3(side * 1.97, 1.95, 7.30)
+	reading_light.light_color = Color("ffd6a0")
+	reading_light.light_energy = 0.55
+	reading_light.omni_range = 1.8
+	reading_light.shadow_enabled = false
+	_aft_systems_bay.add_child(reading_light)
+	var berth_label := Label3D.new()
+	berth_label.name = side_name + "BerthLabel"
+	berth_label.text = "OFF WATCH\n" + side_name.to_upper() + " BERTH"
+	berth_label.position = Vector3(side * 2.12, 2.10, 6.65)
+	berth_label.rotation.y = -side * PI * 0.5
+	berth_label.font_size = 36
+	berth_label.pixel_size = 0.0025
+	berth_label.modulate = Color("f3dfba")
+	berth_label.outline_modulate = Color("172025")
+	berth_label.outline_size = 6
+	berth_label.double_sided = false
+	_aft_systems_bay.add_child(berth_label)
+	var berth := Node3D.new()
+	berth.name = side_name + "SleepingBerth"
+	_aft_systems_bay.add_child(berth)
+	ShipBunkType.install_bunk(
+		berth, self,
+		Transform3D(Basis(Vector3.RIGHT, PI * 0.5), Vector3(side * 1.62, 1.32, 5.70)),
+		Transform3D(Basis(Vector3.UP, -side * PI * 0.5), Vector3(side * 0.45, 0.52, 6.60)),
+		side_name + " berth"
+	)
 
 
 func _build_interior_route_and_markers() -> void:
