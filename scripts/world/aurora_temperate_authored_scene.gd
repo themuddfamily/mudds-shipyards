@@ -262,55 +262,201 @@ func _orbital_origin() -> Dictionary:
 	}
 
 
-## Landmarks give the production excursion a readable walking destination.
+## A short coastal walk starts at the working pad and ends at a real lookout.
+## The authored touchdown/approach volumes remain clear; dressing lives east
+## and north of the pad and the existing terrain owns the walking ground.
 func _build_exploration_landmarks() -> void:
 	var landing := get_node("LandingRegion") as Node3D
 	var content := Node3D.new()
 	content.name = "CoastalExploration"
 	landing.add_child(content)
-	var stone := StandardMaterial3D.new()
-	stone.albedo_color = Color("536e73")
-	var foliage := StandardMaterial3D.new()
-	foliage.albedo_color = Color("237362")
-	var bark := StandardMaterial3D.new()
-	bark.albedo_color = Color("554e42")
-	for i in range(7):
-		var angle := float(i) * TAU / 7.0
-		var point := Vector3(39.0 + cos(angle) * 6.0, 0.0, -24.0 + sin(angle) * 6.0)
-		var rock := CylinderMesh.new()
-		rock.top_radius = 0.6
-		rock.bottom_radius = 1.2
-		rock.height = 2.5 + float(i % 3)
-		rock.radial_segments = 5
-		_exploration_prop(content, "StandingStone%d" % i, point + Vector3.UP * rock.height * 0.5, rock, stone, Vector3(1.5, rock.height, 1.5))
-	for i in range(12):
-		var point := Vector3(-36.0 + float(i % 4) * 21.0, 0.0, -39.0 + float(i / 4) * 72.0)
-		var trunk := CylinderMesh.new()
-		trunk.top_radius = 0.25
-		trunk.bottom_radius = 0.4
-		trunk.height = 3.0
-		_exploration_prop(content, "TreeTrunk%d" % i, point + Vector3.UP * 1.5, trunk, bark, Vector3(0.7, 3.0, 0.7))
-		var crown := CylinderMesh.new()
-		crown.top_radius = 0.0
-		crown.bottom_radius = 2.4
-		crown.height = 5.0
-		_exploration_prop(content, "TreeCrown%d" % i, point + Vector3.UP * 4.5, crown, foliage)
+	var stone := _exploration_material(Color("65777b"))
+	var dark_stone := _exploration_material(Color("435659"))
+	var foliage := _exploration_material(Color("427567"))
+	var light_foliage := _exploration_material(Color("739581"))
+	var bark := _exploration_material(Color("665744"))
+	var deck := _exploration_material(Color("687974"))
+	var metal := _exploration_material(Color("354a51"))
+	var amber := _exploration_material(Color("d4ad68"))
+	var ground := _exploration_material(Color("4d6655"))
+	(get_node("LandingRegion/LandingFloor") as MeshInstance3D).material_override = ground
+	(get_node("LandingRegion/PadVisual") as MeshInstance3D).material_override = metal
+
+	# Quiet edge markings keep the existing landing footprint readable.
+	for side in [-1.0, 1.0]:
+		_exploration_box(content, "PadEdge%s" % side, Vector3(side * 12.5, 0.055, 0), Vector3(0.2, 0.025, 26), amber)
+		for z in [-12.0, 12.0]:
+			_exploration_box(content, "PadCorner%s_%s" % [side, z], Vector3(side * 10.0, 0.055, z), Vector3(5, 0.025, 0.2), amber)
+
+	# Amber gravel and small posts guide the player from the pad past the
+	# existing staging marker to the overlook; every segment lies on solid ground.
+	var trail := [Vector3(14, 0, 2), Vector3(33, 0, 2), Vector3(43, 0, -8), Vector3(57, 0, -20)]
+	for i in range(trail.size() - 1):
+		var start: Vector3 = trail[i]
+		var finish: Vector3 = trail[i + 1]
+		var direction := finish - start
+		var strip := _exploration_box(content, "CoastalTrail%d" % i, (start + finish) * 0.5 + Vector3.UP * 0.035, Vector3(2.8, 0.035, direction.length() + 0.6), deck)
+		strip.rotation.y = atan2(direction.x, direction.z)
+		var edge := Vector3(direction.z, 0, -direction.x).normalized() * 1.6
+		for j in range(3):
+			var point := start.lerp(finish, (float(j) + 0.4) / 3.0) + edge
+			_exploration_box(content, "TrailPost%d_%d" % [i, j], point + Vector3.UP * 0.3, Vector3(0.13, 0.6, 0.13), metal)
+			_exploration_box(content, "TrailCap%d_%d" % [i, j], point + Vector3.UP * 0.62, Vector3(0.19, 0.06, 0.19), amber)
+
+	# Grounded wayfinding: the sign is attached to a backboard and two posts.
 	var sign := MeshInstance3D.new()
 	sign.name = "CoastalLookoutSign"
 	var lettering := TextMesh.new()
-	lettering.text = "AURORA\nCOASTAL LOOKOUT\nWELCOME, EXPLORER"
-	lettering.font_size = 64
-	lettering.pixel_size = 0.025
+	lettering.text = "COASTAL LOOKOUT  >\nFOLLOW THE AMBER TRAIL"
+	lettering.font_size = 48
+	lettering.pixel_size = 0.006
 	sign.mesh = lettering
-	sign.position = Vector3(38.0, 3.6, -15.0)
-	var ink := StandardMaterial3D.new()
-	ink.albedo_color = Color("95e7d7")
+	sign.position = Vector3(30.0, 1.9, -1.4)
+	sign.rotation.y = -PI * 0.5
+	var ink := _exploration_material(Color("f2d79b"))
 	ink.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 	sign.material_override = ink
 	content.add_child(sign)
+	_exploration_box(sign, "SignBackboard", Vector3(0, 0, -0.12), Vector3(4.6, 1.1, 0.18), metal)
+	for side in [-1.0, 1.0]:
+		_exploration_box(sign, "Signpost%s" % side, Vector3(side * 1.7, -0.9, -0.13), Vector3(0.16, 2.0, 0.16), metal)
+
+	# Low accessible platform with a landward entrance and a protected sea edge.
+	_exploration_box(content, "CoastalLookoutDeck", Vector3(64, 0.12, -20), Vector3(14, 0.24, 12), deck, true)
+	_exploration_box(content, "LookoutStep", Vector3(56.5, 0.06, -20), Vector3(1.3, 0.12, 3.2), deck, true)
+	for z in [-26.0, -14.0]:
+		_exploration_box(content, "LookoutSideRail%s" % z, Vector3(64, 1.2, z), Vector3(14, 0.12, 0.12), metal, true)
+		for x in [58.0, 64.0, 70.0]:
+			_exploration_box(content, "LookoutRailPost%s_%s" % [x, z], Vector3(x, 0.72, z), Vector3(0.14, 1.2, 0.14), metal, true)
+	_exploration_box(content, "LookoutSeaRail", Vector3(71, 1.2, -20), Vector3(0.12, 0.12, 12), amber, true)
+	for z in [-23.0, -17.0]:
+		_exploration_box(content, "LookoutInstrumentPedestal%s" % z, Vector3(68, 0.85, z), Vector3(0.3, 1.2, 0.3), metal, true)
+		var scope := CylinderMesh.new()
+		scope.top_radius = 0.16
+		scope.bottom_radius = 0.25
+		scope.height = 1.15
+		var telescope := _exploration_prop(content, "LookoutScope%s" % z, Vector3(68, 1.55, z), scope, amber)
+		telescope.rotation.z = PI * 0.5
+
+	# Weathered standing stones form a sheltered stopping point beside the trail.
+	for i in range(7):
+		var angle := float(i) * 2.39996
+		var point := Vector3(51.0 + cos(angle) * (4.0 + float(i % 3)), 0.0, -33.0 + sin(angle) * 4.0)
+		var rock := CylinderMesh.new()
+		rock.top_radius = 0.35 + float(i % 2) * 0.2
+		rock.bottom_radius = 0.9 + float(i % 3) * 0.25
+		rock.height = 1.4 + float(i % 4) * 0.7
+		rock.radial_segments = 5
+		var visual := _exploration_prop(content, "StandingStone%d" % i, point + Vector3.UP * rock.height * 0.5, rock, stone if i % 2 else dark_stone, Vector3(1.3, rock.height, 1.3))
+		visual.rotation.y = angle
+		visual.scale = Vector3(1.0, 1.0, 0.65 + float(i % 3) * 0.17)
+
+	# Coast-facing clusters replace the evenly spaced cone trees. Their broken
+	# silhouettes leave the approach from +Z and the player trail unobstructed.
+	var groves := [Vector3(-30, 0, -29), Vector3(24, 0, -34), Vector3(45, 0, 20)]
+	for i in range(12):
+		var cluster: Vector3 = groves[i / 4]
+		var angle := float(i) * 2.39996
+		var point := cluster + Vector3(cos(angle) * 5, 0, sin(angle) * 5)
+		var height := 2.2 + float(i % 3) * 0.65
+		var trunk := CylinderMesh.new()
+		trunk.top_radius = 0.16
+		trunk.bottom_radius = 0.28
+		trunk.height = height
+		_exploration_prop(content, "TreeTrunk%d" % i, point + Vector3.UP * height * 0.5, trunk, bark, Vector3(0.5, height, 0.5))
+		for branch in range(2):
+			var crown := SphereMesh.new()
+			crown.radius = 1.3 + float((i + branch) % 3) * 0.25
+			crown.height = crown.radius * 1.5
+			crown.radial_segments = 7
+			crown.rings = 4
+			var crown_point := point + Vector3(float(branch) * 0.8 - 0.4, height + float(branch) * 0.4, 0)
+			_exploration_prop(content, "TreeCrown%d_%d" % [i, branch], crown_point, crown, foliage if i % 2 else light_foliage)
+	for i in range(18):
+		var point := Vector3(73 + sin(float(i) * 1.7) * 2.5, 0.0, -68 + float(i) * 7)
+		var rock := SphereMesh.new()
+		rock.radius = 1.2 + float(i % 3) * 0.45
+		rock.height = rock.radius * 1.4
+		rock.radial_segments = 6
+		rock.rings = 3
+		_exploration_prop(content, "ShoreRock%d" % i, point + Vector3.UP * 0.5, rock, dark_stone if i % 2 else stone)
+	_build_coastal_water(content)
 
 
-func _exploration_prop(parent: Node3D, prop_name: String, point: Vector3, mesh: Mesh, material: Material, collision_size: Vector3 = Vector3.ZERO) -> void:
+func _build_coastal_water(parent: Node3D) -> void:
+	# The local waterline is a shallow shore on the existing collision shelf.
+	# Nothing in this presentation removes terrain or expands the landing pad.
+	var water := SurfaceTool.new()
+	water.begin(Mesh.PRIMITIVE_TRIANGLES)
+	var foam := SurfaceTool.new()
+	foam.begin(Mesh.PRIMITIVE_TRIANGLES)
+	var beach := SurfaceTool.new()
+	beach.begin(Mesh.PRIMITIVE_TRIANGLES)
+	var coastline := [-10000.0]
+	for step in range(-20, 21):
+		coastline.append(float(step) * 20.0)
+	coastline.append(10000.0)
+	for i in range(coastline.size() - 1):
+		var z0: float = coastline[i]
+		var z1: float = coastline[i + 1]
+		var x0 := 78.0 + sin(float(i) * 1.7) * 3.0
+		var x1 := 78.0 + sin(float(i + 1) * 1.7) * 3.0
+		var near0 := Vector3(x0, 0.09, z0)
+		var near1 := Vector3(x1, 0.09, z1)
+		_water_quad(water, near0, near1, Vector3(30000, 0.09, z1), Vector3(30000, 0.09, z0))
+		_water_quad(foam, near0 + Vector3.UP * 0.015, near1 + Vector3.UP * 0.015, near1 + Vector3(1.2, 0.015, 0), near0 + Vector3(1.2, 0.015, 0))
+		_water_quad(beach, near0 - Vector3(4.0, 0.02, 0), near1 - Vector3(4.0, 0.02, 0), near1 - Vector3(0.0, 0.02, 0), near0 - Vector3(0.0, 0.02, 0))
+	var surface := MeshInstance3D.new()
+	surface.name = "AuroraCoastalWater"
+	surface.mesh = water.commit()
+	var shader := Shader.new()
+	shader.code = "shader_type spatial; render_mode unshaded, cull_disabled; void fragment(){ float ripple = sin(UV.x * 21.0 + TIME * 0.7) * sin(UV.y * 17.0 + TIME * 0.35); ALBEDO = mix(vec3(0.035, 0.19, 0.26), vec3(0.09, 0.36, 0.39), ripple * 0.22 + 0.55); }"
+	var material := ShaderMaterial.new()
+	material.shader = shader
+	surface.material_override = material
+	surface.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	parent.add_child(surface)
+	var shore := MeshInstance3D.new()
+	shore.name = "AuroraShoreline"
+	shore.mesh = foam.commit()
+	var foam_material := _exploration_material(Color("91bcb0"))
+	foam_material.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	foam_material.cull_mode = BaseMaterial3D.CULL_DISABLED
+	shore.material_override = foam_material
+	shore.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	parent.add_child(shore)
+	var strand := MeshInstance3D.new()
+	strand.name = "AuroraShingleBeach"
+	strand.mesh = beach.commit()
+	var sand := _exploration_material(Color("8c997c"))
+	sand.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	sand.cull_mode = BaseMaterial3D.CULL_DISABLED
+	strand.material_override = sand
+	strand.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	parent.add_child(strand)
+
+
+func _water_quad(builder: SurfaceTool, a: Vector3, b: Vector3, c: Vector3, d: Vector3) -> void:
+	for point: Vector3 in [a, b, c, a, c, d]:
+		builder.set_normal(Vector3.UP)
+		builder.set_uv(Vector2(point.x, point.z) * 0.025)
+		builder.add_vertex(point)
+
+
+func _exploration_material(color: Color) -> StandardMaterial3D:
+	var material := StandardMaterial3D.new()
+	material.albedo_color = color
+	material.roughness = 0.88
+	return material
+
+
+func _exploration_box(parent: Node3D, prop_name: String, point: Vector3, size: Vector3, material: Material, solid: bool = false) -> MeshInstance3D:
+	var mesh := BoxMesh.new()
+	mesh.size = size
+	return _exploration_prop(parent, prop_name, point, mesh, material, size if solid else Vector3.ZERO)
+
+
+func _exploration_prop(parent: Node3D, prop_name: String, point: Vector3, mesh: Mesh, material: Material, collision_size: Vector3 = Vector3.ZERO) -> MeshInstance3D:
 	var visual := MeshInstance3D.new()
 	visual.name = prop_name
 	visual.mesh = mesh
@@ -327,3 +473,4 @@ func _exploration_prop(parent: Node3D, prop_name: String, point: Vector3, mesh: 
 		collision.shape = shape
 		body.add_child(collision)
 		visual.add_child(body)
+	return visual
