@@ -187,6 +187,28 @@ budget evaluation.
 
 ## Native Windows launcher
 
+Run rendered automation on a dedicated test machine or inside an isolated
+Windows guest with its viewer closed. Do not launch it on the user's active
+desktop without explicit authorization for that desktop run. The benchmark
+activates production camera controls; a private user-data directory does not
+isolate mouse capture, keyboard focus or the displayed window.
+
+For routine checks, use headless Godot or a private Xvfb display on Linux.
+A Windows Hyper-V guest can run headless commands and exchange files through
+[PowerShell Direct](https://learn.microsoft.com/en-us/windows-server/virtualization/hyper-v/powershell-direct)
+without opening VMConnect. Rendered guest tests need a working guest graphics
+backend and an interactive guest session, with the viewer closed during
+automation. When using VMConnect interactively, its default host input release
+is **Ctrl+Alt+Left Arrow**, followed by moving the pointer outside the viewer;
+**Ctrl+Alt+Break** leaves full screen. See
+[Microsoft's VMConnect controls](https://learn.microsoft.com/en-us/windows-server/virtualization/hyper-v/virtual-machine-connection).
+
+[Windows Sandbox](https://learn.microsoft.com/en-us/windows/security/application-security/application-isolation/windows-sandbox/windows-sandbox-configure-using-wsb-file)
+is a disposable alternative with startup commands and configurable GPU sharing.
+Guest rendering compatibility must be checked. VM, remote-display and software
+rendering measurements do not qualify the physical minimum/target GPU budgets.
+Keep `--audio-driver Dummy` in every automated guest invocation as well.
+
 `tools/performance/run_native_windows_benchmark.ps1` launches the existing
 runner with Dummy audio, an isolated user-data directory, explicit working
 directory, clean Git checks before and after execution, a timeout, and separate

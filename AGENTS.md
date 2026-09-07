@@ -7,6 +7,19 @@
   does not disable audio and can play loud engine tones through the user's headphones.
 - Use real audio output only when the user explicitly authorizes an audible test.
 
+## Automated test display and input
+
+- Run automated checks headlessly or on an isolated display such as Xvfb. Run
+  Windows graphical checks inside a dedicated test VM/session with its viewer
+  closed, or on a dedicated test machine.
+- Do not launch rendered automation on the user's active desktop unless they
+  explicitly authorize that desktop run. A benchmark request alone does not
+  authorize taking their mouse or keyboard focus.
+- Keep an independent abort path for rendered automation; do not rely on the
+  game's pause menu. Release synthetic inputs and cursor capture on exit.
+- VM, remote-display and software-renderer results establish behavior in those
+  environments; they do not qualify native GPU performance on target hardware.
+
 ## Parallel-agent policy
 
 Use subagents deliberately when they materially shorten independent work. The

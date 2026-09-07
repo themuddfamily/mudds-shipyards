@@ -22,17 +22,18 @@ The historical evidence boundary is unchanged: Torrent's B5 link and Zenith's B7
 
 ## Next milestone
 
-Deliver a source-pinned stabilization candidate for normal-controls Windows feedback:
+Review the source-pinned stabilization candidate with normal Windows controls:
 
 Regression discovery now includes nested suites and registered graphical harnesses; CI runs the eight-suite core on changes and broader suites on a schedule. Failed diagnostic saves retain their records and back off between retries. The planetary journey coordinator now lives outside `GameFlow` and remains attached across Ember return cycles. Equivalent audio validators share one implementation.
 
-The current stabilization pass also repairs physical boarding, moving-cabin collision alignment, stable foot placement during extended play, doorway face winding, Cinder streaming fades, startup cleanup and network HUD revision handling. Focused checks have passed; the complete matrix must pass on the merged source before release qualification.
+The stabilization pass repairs physical boarding, moving-cabin collision alignment, doorway face winding, Cinder streaming fades, startup cleanup and network HUD revision handling, and stabilizes foot placement during extended play.
 
-1. Finish the merged full regression and export its exact source revision.
-2. Exercise boarding, combat, landing, disembarking, crash recovery and the Ember expedition on Windows using normal controls. Tune camera comfort, landing clarity, prompts and audio from recorded observations.
-3. Run the existing benchmark on representative minimum/target hardware before further visual expansion. Use the packaged Ember observations to choose its next visible improvement.
+Candidate **`2147039ad4d6167a787dd9c7aef8f4b4f9cab549`**, exported on 2026-09-07, passed the complete **927-suite regression** and all **four embedded-package probes**. The source-bound release record and `SHA256SUMS` accompany `MuddsShipyards-2147039.exe`. These results apply to that exact candidate, not later documentation or tooling commits. Package probes used Linux Godot; they do not establish native Windows playability.
 
-Current-source full regression, packaging and package parity evidence are **pending**. Current-candidate native-Windows human play, representative CPU/GPU benchmarks, real-controller focus and audible mix review are **`NOT_RUN`** until actually performed. Historical native startup/capture records do not substitute for those gates. The [complete roadmap](ROADMAP.md) retains every phase and open acceptance requirement.
+1. Exercise boarding, combat, landing, disembarking, crash recovery and the Ember expedition on Windows using normal controls. Tune camera comfort, landing clarity, prompts and audio from recorded observations.
+2. Run the existing benchmark on representative minimum/target hardware before further visual expansion. Use the packaged Ember observations to choose its next visible improvement.
+
+The native benchmark on the available host was deliberately stopped after the user reported mouse capture and ineffective Escape; it is **incomplete**, with no performance qualification. Automated rendered checks must use an isolated display or test guest. Current-candidate native-Windows human play, representative CPU/GPU benchmarks, real-controller focus and audible mix review remain **`NOT_RUN`**. The [complete roadmap](ROADMAP.md) retains every phase and open acceptance requirement.
 
 ## Run locally
 
