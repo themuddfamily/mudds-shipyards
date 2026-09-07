@@ -3277,7 +3277,10 @@ func _append_minimap_topology_node(
 
 func _get_minimap_topology_nodes_world() -> Array[Dictionary]:
 	var result: Array[Dictionary] = []
-	if not is_instance_valid(world):
+	# Retained topology is local to the station; it has no world-space positions
+	# while the station subtree is detached or retiring.
+	if not is_instance_valid(world) or not world.is_inside_tree() \
+			or world.is_queued_for_deletion():
 		return result
 	for local_record in _minimap_topology_nodes_local:
 		var local_position := local_record.get("local_position", Vector3.ZERO) as Vector3
