@@ -1,6 +1,7 @@
 class_name GameFlow
 extends Node3D
 
+const AuroraExpeditionType := preload("res://scripts/game/aurora_expedition.gd")
 const PlanetaryJourneyCoordinatorType := preload("res://scripts/game/planetary_journey_coordinator.gd")
 const ShipRestOverlayType := preload("res://scripts/ui/ship_rest_overlay.gd")
 
@@ -448,6 +449,7 @@ const RUNTIME_SETTING_KEYS: Array[StringName] = [
 ## One retained journey owner, constructed before the compatibility properties.
 ## Journey properties below preserve existing integrations without backing state;
 ## the coordinator alone stores caller clocks, requests and handoff fences.
+var _aurora_expedition := AuroraExpeditionType.new(self)
 var _planetary_journey := PlanetaryJourneyCoordinatorType.new(self)
 var world: Node3D
 var player: CharacterBody3D
@@ -989,6 +991,7 @@ func _enter_tree() -> void:
 
 
 func _exit_tree() -> void:
+	_aurora_expedition.cancel()
 	_detach_first_sortie_tutorial_presentation(&"game_flow_detached")
 	_planetary_journey.detach()
 	if not _pending_display_confirmation.is_empty() and runtime_settings != null:
@@ -2848,6 +2851,9 @@ func _process(delta: float) -> void:
 	_update_pending_regeneration(delta)
 	_update_music_bed_state()
 	_sync_halyard_crew_semantic_audio()
+	if _aurora_expedition.is_active() and not _station_seated:
+		_aurora_expedition.update_presentation()
+		return
 	if _heavy_breach_activity_is_presentable():
 		_heavy_breach_hud_refresh_elapsed += delta
 		if _heavy_breach_hud_refresh_elapsed >= HEAVY_BREACH_HUD_REFRESH_SECONDS:
@@ -3252,11 +3258,11 @@ func _initialize_planetary_destination_catalog() -> void:
 		"unavailable_reason": "",
 	})
 	var aurora_result := catalog.register_destination(AuroraWorldDefinition, {
-		"route_id": &"",
-		"route_available": false,
-		"orbital_distance_meters": -1.0,
-		"travel_summary": "ATMOSPHERIC FOUNDATION // ROUTE NOT COMMISSIONED",
-		"unavailable_reason": "NOT YET VISITABLE",
+		"route_id": &"aurora_exploration",
+		"route_available": true,
+		"orbital_distance_meters": 12000000.0,
+		"travel_summary": "JUMP // LAND // COASTAL EXPLORATION // RETURN",
+		"unavailable_reason": "",
 	})
 	if (
 		not bool(ember_result.get("accepted", false))
@@ -3653,6 +3659,9 @@ func _ensure_ember_surface_loop_host_bound(streaming_ready: bool) -> Dictionary:
 
 func _physics_process(delta: float) -> void:
 	if not _initialized:
+		return
+	if _aurora_expedition.is_active():
+		_aurora_expedition.physics_tick(delta)
 		return
 	if is_instance_valid(network_session) and _network_session_mode == &"server":
 		var composition_attachment := _attach_network_ship_authority_composition()
@@ -4855,6 +4864,8 @@ func _consume_ember_surface_reboard_interaction() -> bool:
 ## request. This observes already-authoritative lifecycle state only; it does
 ## not decide combat, landing, activity, or ship ownership.
 func _planetary_cruise_gate_reason(include_combat: bool = true) -> StringName:
+	if _aurora_expedition.is_active():
+		return &"activity_running"
 	if not is_inside_tree() or is_queued_for_deletion():
 		return &"main_unavailable"
 	if (
@@ -6745,6 +6756,8 @@ func _try_launch_armed_heavy_breach() -> bool:
 
 
 func _on_interact_requested() -> void:
+	if _aurora_expedition.is_active() and _aurora_expedition.interact():
+		return
 	if _consume_ember_surface_reboard_interaction():
 		return
 	if _piloting or _transition_busy:
@@ -7129,6 +7142,9 @@ func _reset_lifecycle_command_cursor() -> void:
 
 
 func _try_exit_ship() -> void:
+	if _aurora_expedition.is_active():
+		_aurora_expedition.request_exit()
+		return
 	if _transition_busy or not _piloting or not is_instance_valid(active_ship):
 		return
 	if phase not in [
@@ -7970,6 +7986,8 @@ func _ensure_network_landing_handoff_committed(
 
 
 func _on_landing_completed(source_ship: HeroShip = null) -> void:
+	if _aurora_expedition.is_active():
+		return
 	if _network_session_mode == &"client":
 		return
 	if source_ship != null and source_ship != active_ship:
@@ -8855,6 +8873,8 @@ func consume_planetary_return_receipt(
 
 
 func _on_landing_aborted(reason: StringName, source_ship: HeroShip = null) -> void:
+	if _aurora_expedition.is_active():
+		return
 	if _network_session_mode == &"client":
 		return
 	if source_ship != null and source_ship != active_ship:
@@ -10130,6 +10150,9 @@ func _get_active_landing_assist_report() -> Dictionary:
 
 
 func _try_request_landing() -> void:
+	if _aurora_expedition.is_active():
+		_aurora_expedition.request_landing()
+		return
 	if not is_instance_valid(active_ship):
 		return
 	if _network_session_mode == &"client":
@@ -13199,9 +13222,9 @@ func _on_hud_planetary_cruise_toggle_requested(request_serial: int) -> void:
 	_planetary_cruise_hud_toggle_active = false
 
 
-## Generic Destination Board ingress. Only catalog-routed Ember requests reach
-## the established expedition toggle; a disabled or forged world ID can neither
-## select a route nor mutate travel state. A well-formed rejected serial is
+## Destination Board ingress routes Ember cruise and the Aurora jump expedition.
+## Each journey retains its own live pilot and lifecycle gates; unknown IDs
+## cannot select a route or mutate travel state. A well-formed rejected serial is
 ## consumed so the retained HUD and GameFlow sequence cannot drift apart.
 func _on_hud_planetary_destination_requested(
 	destination_id: StringName,
@@ -13231,6 +13254,11 @@ func _on_hud_planetary_destination_requested(
 		_sync_planetary_cruise_hud()
 		return
 	_last_hud_planetary_cruise_toggle_serial = request_serial
+	if bool(route.get("accepted", false)) and destination_id == AuroraExpeditionType.DESTINATION_ID:
+		if not _aurora_expedition.request() and is_instance_valid(hud):
+			hud.toast("AURORA EXPEDITION UNAVAILABLE", str(_aurora_expedition.runtime_state().get("status_text", "Board your ship first")), 2.4)
+		_sync_planetary_cruise_hud()
+		return
 	_sync_planetary_cruise_hud()
 	if is_instance_valid(hud):
 		hud.toast(
@@ -14172,31 +14200,10 @@ func _sync_planetary_cruise_hud() -> void:
 	)
 
 
-func _sync_planetary_destination_hud(
-	cruise_presentation: Dictionary,
-) -> bool:
-	if (
-		_planetary_destination_catalog == null
-		or not is_instance_valid(hud)
-		or not hud.has_method(&"set_planetary_destination_snapshot")
-	):
+func _sync_planetary_destination_hud(_cruise_presentation: Dictionary) -> bool:
+	if _planetary_destination_catalog == null or not is_instance_valid(hud):
 		return false
-	var snapshot := _planetary_destination_catalog.get_presentation_snapshot({
-		EMBER_DESTINATION_ID: {
-			"status_id": StringName(
-				cruise_presentation.get("status_id", &"unavailable")
-			),
-			"status_text": str(cruise_presentation.get(
-				"status_text", "UNAVAILABLE — SYSTEM OFFLINE"
-			)),
-			"action_enabled": bool(cruise_presentation.get(
-				"toggle_enabled", false
-			)),
-			"engagement_requested": bool(cruise_presentation.get(
-				"engagement_requested", false
-			)),
-		},
-	})
+	var snapshot := get_planetary_destination_catalog_snapshot()
 	_sync_planetary_destination_console(snapshot)
 	return bool(hud.call(&"set_planetary_destination_snapshot", snapshot))
 
@@ -14229,26 +14236,19 @@ func get_planetary_destination_catalog_snapshot() -> Dictionary:
 	if _planetary_destination_catalog == null:
 		return {}
 	var presentation := _planetary_cruise_presentation()
-	return _planetary_destination_catalog.get_presentation_snapshot({
+	var snapshot := _planetary_destination_catalog.get_presentation_snapshot({
 		EMBER_DESTINATION_ID: {
-			"status_id": StringName(
-				presentation.get("status_id", &"unavailable")
-			),
-			"status_text": str(
-				presentation.get(
-					"status_text", "UNAVAILABLE — SYSTEM OFFLINE"
-				)
-			),
-			"action_enabled": bool(
-				presentation.get("toggle_enabled", false)
-			),
-			"engagement_requested": bool(
-				presentation.get(
-					"engagement_requested", false
-				)
-			),
+			"status_id": StringName(presentation.get("status_id", &"unavailable")),
+			"status_text": str(presentation.get("status_text", "UNAVAILABLE — SYSTEM OFFLINE")),
+			"action_enabled": bool(presentation.get("toggle_enabled", false)),
+			"engagement_requested": bool(presentation.get("engagement_requested", false)),
 		},
+		AuroraExpeditionType.DESTINATION_ID: _aurora_expedition.runtime_state(),
 	})
+	for row: Dictionary in snapshot.get("destinations", []):
+		if row.get("destination_id") == AuroraExpeditionType.DESTINATION_ID and _aurora_expedition.is_active():
+			row["action_text"] = "RETURN TO MUDDS" if bool(row.get("action_enabled", false)) else "RETURN REQUIRES PILOT SEAT"
+	return snapshot
 
 
 func _sync_cinder_loadmaster_hud_binding() -> void:

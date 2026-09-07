@@ -54,8 +54,8 @@ func _run() -> void:
 	var authority := report.get("authority", {}) as Dictionary
 	_check(
 		int(report.get("destination_count", 0)) == 2
-		and int(report.get("routed_destination_count", 0)) == 1
-		and str(report.get("status_text", "")) == "2 WORLDS // 1 ROUTE"
+		and int(report.get("routed_destination_count", 0)) == 2
+		and str(report.get("status_text", "")) == "2 WORLDS // 2 ROUTES"
 		and str(report.get("route_text", "")).begins_with("EMBER // ")
 		and authority.values().all(
 			func(value: Variant) -> bool: return value == false

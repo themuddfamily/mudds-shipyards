@@ -36,6 +36,7 @@ var _settlement_audio_binding: RefCounted
 var _terrain_clipmap: PlanetaryTerrainClipmapRenderer
 
 func _ready() -> void:
+	_build_exploration_landmarks()
 	set_process(false)
 	set_physics_process(false)
 	_terrain_clipmap = get_node_or_null(^"TerrainClipmap") \
@@ -259,3 +260,70 @@ func _orbital_origin() -> Dictionary:
 		"cell_z": 0,
 		"offset_meters": Vector3.ZERO,
 	}
+
+
+## Landmarks give the production excursion a readable walking destination.
+func _build_exploration_landmarks() -> void:
+	var landing := get_node("LandingRegion") as Node3D
+	var content := Node3D.new()
+	content.name = "CoastalExploration"
+	landing.add_child(content)
+	var stone := StandardMaterial3D.new()
+	stone.albedo_color = Color("536e73")
+	var foliage := StandardMaterial3D.new()
+	foliage.albedo_color = Color("237362")
+	var bark := StandardMaterial3D.new()
+	bark.albedo_color = Color("554e42")
+	for i in range(7):
+		var angle := float(i) * TAU / 7.0
+		var point := Vector3(39.0 + cos(angle) * 6.0, 0.0, -24.0 + sin(angle) * 6.0)
+		var rock := CylinderMesh.new()
+		rock.top_radius = 0.6
+		rock.bottom_radius = 1.2
+		rock.height = 2.5 + float(i % 3)
+		rock.radial_segments = 5
+		_exploration_prop(content, "StandingStone%d" % i, point + Vector3.UP * rock.height * 0.5, rock, stone, Vector3(1.5, rock.height, 1.5))
+	for i in range(12):
+		var point := Vector3(-36.0 + float(i % 4) * 21.0, 0.0, -39.0 + float(i / 4) * 72.0)
+		var trunk := CylinderMesh.new()
+		trunk.top_radius = 0.25
+		trunk.bottom_radius = 0.4
+		trunk.height = 3.0
+		_exploration_prop(content, "TreeTrunk%d" % i, point + Vector3.UP * 1.5, trunk, bark, Vector3(0.7, 3.0, 0.7))
+		var crown := CylinderMesh.new()
+		crown.top_radius = 0.0
+		crown.bottom_radius = 2.4
+		crown.height = 5.0
+		_exploration_prop(content, "TreeCrown%d" % i, point + Vector3.UP * 4.5, crown, foliage)
+	var sign := MeshInstance3D.new()
+	sign.name = "CoastalLookoutSign"
+	var lettering := TextMesh.new()
+	lettering.text = "AURORA\nCOASTAL LOOKOUT\nWELCOME, EXPLORER"
+	lettering.font_size = 64
+	lettering.pixel_size = 0.025
+	sign.mesh = lettering
+	sign.position = Vector3(38.0, 3.6, -15.0)
+	var ink := StandardMaterial3D.new()
+	ink.albedo_color = Color("95e7d7")
+	ink.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	sign.material_override = ink
+	content.add_child(sign)
+
+
+func _exploration_prop(parent: Node3D, prop_name: String, point: Vector3, mesh: Mesh, material: Material, collision_size: Vector3 = Vector3.ZERO) -> void:
+	var visual := MeshInstance3D.new()
+	visual.name = prop_name
+	visual.mesh = mesh
+	visual.material_override = material
+	visual.position = point
+	parent.add_child(visual)
+	if collision_size != Vector3.ZERO:
+		var body := StaticBody3D.new()
+		body.collision_layer = 1
+		body.collision_mask = 0
+		var collision := CollisionShape3D.new()
+		var shape := BoxShape3D.new()
+		shape.size = collision_size
+		collision.shape = shape
+		body.add_child(collision)
+		visual.add_child(body)

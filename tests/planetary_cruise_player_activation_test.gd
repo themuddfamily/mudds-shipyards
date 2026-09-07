@@ -109,7 +109,7 @@ func _run() -> void:
 		and not bool(initial.get("destination_selection_authority", true))
 		and not bool(initial_ember.get("action_enabled", true))
 		and initial_ember.get("distance_text") == "8,000 KM FROM MUDDS"
-		and initial_aurora.get("status_text") == "NOT YET VISITABLE"
+		and initial_aurora.get("status_text") == "TAKE A SHIP'S PILOT SEAT"
 		and not bool(initial_aurora.get("action_enabled", true)),
 		"startup is unavailable on foot while both authored destinations remain honestly catalogued",
 	)
