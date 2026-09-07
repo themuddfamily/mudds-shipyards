@@ -3235,6 +3235,7 @@ var _zenith_visual: Node3D
 var _authored_presentation: Node3D
 var _functional_cockpit: Node3D
 var _functional_canopy: Node3D
+var _modern_canopy_pivot: Node3D
 var _engine_plumes: Array[MeshInstance3D] = []
 var _plume_base_scales: Dictionary = {}
 var _close_plume_batch: MultiMeshInstance3D
@@ -3531,6 +3532,7 @@ func _set_canopy_open_fraction(open_fraction: float) -> void:
 	if _authored_presentation != null \
 		and _authored_presentation.has_method("set_canopy_fraction"):
 		_authored_presentation.call("set_canopy_fraction", clampf(open_fraction, 0.0, 1.0))
+	_sync_modern_canopy_pose()
 
 
 func _build_zenith_variant(_controller: HeroShip) -> bool:
@@ -3674,13 +3676,17 @@ func _build_modern_airframe(visual: Node3D) -> void:
 	hull.clearcoat_enabled = true
 	hull.clearcoat = 0.24
 	ShipSurfaceDetail.bind_manufactured_paint(hull)
+	hull.metallic = 0.08
+	hull.roughness = 0.90
+	hull.clearcoat_enabled = false
 	var panel := hull.duplicate() as StandardMaterial3D
 	panel.albedo_color = Color("637685")
-	panel.roughness = 0.52
+	panel.roughness = 0.88
 	var dark := hull.duplicate() as StandardMaterial3D
 	dark.albedo_color = Color("1c2932")
-	dark.metallic = 0.52
-	dark.roughness = 0.37
+	dark.metallic = 0.20
+	dark.roughness = 0.80
+	dark.cull_mode = BaseMaterial3D.CULL_DISABLED
 	var marking := hull.duplicate() as StandardMaterial3D
 	marking.albedo_color = Color("bb703d")
 	marking.metallic = 0.08
@@ -3705,8 +3711,8 @@ func _build_modern_airframe(visual: Node3D) -> void:
 			Vector3(side * 1.2, 0.65, -2.22), Vector3(side * 3.15, 0.38, 0.15),
 			Vector3(side * 3.28, 0.44, 3.45), Vector3(side * 1.62, 0.89, 3.60),
 		]), 0.33, hull)
-		_zenith_loft(airframe, prefix + "EngineCowling", Vector3(side * 2.20, 0.42, 0), PackedVector3Array([
-			Vector3(0.24, 0.20, 0.1), Vector3(0.74, 0.72, 1.6),
+		_zenith_loft(airframe, prefix + "EngineCowling", Vector3(side * 2.20, 0.80, 0), PackedVector3Array([
+			Vector3(0.65, 0.64, -0.40), Vector3(0.74, 0.72, 1.6),
 			Vector3(0.82, 0.80, 3.15), Vector3(0.72, 0.71, 4.40),
 		]), panel)
 		_zenith_panel(airframe, prefix + "LeadingEdgeHeatShield", PackedVector3Array([
@@ -3717,6 +3723,104 @@ func _build_modern_airframe(visual: Node3D) -> void:
 			Vector3(side * 5.62, 0.48, 1.92), Vector3(side * 5.94, 0.48, 1.87),
 			Vector3(side * 5.62, 0.50, 3.36), Vector3(side * 5.30, 0.50, 3.42),
 		]), 0.015, marking)
+
+		_hollow_intake(airframe.get_node(prefix + "EngineCowling"), dark)
+		_cut_pressure_panel(airframe.get_node(prefix + "EngineCowling"), prefix + "EngineServiceDoor", 6, 10, 3, 10, hull)
+	_cut_pressure_panel(airframe.get_node("BlendedPressureHull"), "PortDorsalServicePanel", 16, 22, 11, 15, panel)
+	_cut_pressure_panel(airframe.get_node("BlendedPressureHull"), "StarboardDorsalServicePanel", 16, 22, 1, 5, panel)
+	_cut_pressure_panel(airframe.get_node("BlendedPressureHull"), "DorsalThermalPanel", 22, 28, 6, 10, dark)
+	_cut_pressure_panel(airframe.get_node("BlendedPressureHull"), "RecessedPilotWell", 15, 19, 6, 10, dark, 0.72)
+	var upholstery := dark.duplicate() as StandardMaterial3D
+	upholstery.albedo_color = Color("3e484b")
+	upholstery.metallic = 0.0
+	upholstery.roughness = 0.95
+	_box(_functional_cockpit, "ModernSeatCushion", Vector3(0, 1.83, -0.55), Vector3(0.72, 0.18, 0.78), upholstery)
+	_box(_functional_cockpit, "ModernSeatBack", Vector3(0, 2.22, -0.08), Vector3(0.70, 0.74, 0.20), upholstery, Vector3(deg_to_rad(10), 0, 0))
+	_box(_functional_cockpit, "ModernHeadrest", Vector3(0, 2.68, 0.0), Vector3(0.43, 0.25, 0.19), upholstery)
+	_build_enclosed_canopy(visual)
+
+
+func _build_enclosed_canopy(visual: Node3D) -> void:
+	var reference_pivot := _authored_presentation.call("get_canopy_pivot") as Node3D
+	for old_surface in reference_pivot.find_children("*", "MeshInstance3D", true, false):
+		(old_surface as MeshInstance3D).visible = false
+	_modern_canopy_pivot = Node3D.new()
+	_modern_canopy_pivot.name = "ModernEnclosedCanopy"
+	_modern_canopy_pivot.set_meta("presentation_only", true)
+	visual.add_child(_modern_canopy_pivot)
+	var glass := StandardMaterial3D.new()
+	glass.albedo_color = Color("18313e")
+	glass.metallic = 0.40
+	glass.roughness = 0.23
+	glass.cull_mode = BaseMaterial3D.CULL_DISABLED
+	var glazing := _zenith_loft(_modern_canopy_pivot, "LaminatedCanopy", Vector3(0, -0.10, -0.98), PackedVector3Array([
+		Vector3(0.05, 0.04, -1.78), Vector3(0.53, 0.34, -1.10),
+		Vector3(0.91, 0.62, -0.15), Vector3(0.93, 0.62, 0.68),
+		Vector3(0.77, 0.44, 1.18),
+	]), glass, 0.78)
+	glazing.layers = COCKPIT_FRAME_EXTERIOR_VISUAL_MASK
+	var frame_material := glass.duplicate() as StandardMaterial3D
+	frame_material.albedo_color = Color("536169")
+	frame_material.metallic = 0.15
+	frame_material.roughness = 0.75
+	_fit_canopy_frame(glazing, 7, frame_material)
+	_fit_canopy_frame(glazing, 16, frame_material)
+	_sync_modern_canopy_pose()
+
+
+func _sync_modern_canopy_pose() -> void:
+	if is_instance_valid(_modern_canopy_pivot) and is_instance_valid(_authored_presentation):
+		var reference := _authored_presentation.call("get_canopy_pivot") as Node3D
+		_modern_canopy_pivot.global_transform = reference.global_transform
+
+
+## Replace the closed nacelle nose with a recessed intake, including a real
+## annular lip, duct walls and a dark rear termination one metre inside.
+func _hollow_intake(cowling: MeshInstance3D, material: Material) -> void:
+	var arrays := cowling.mesh.surface_get_arrays(0)
+	var vertices: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
+	var indices: PackedInt32Array = arrays[Mesh.ARRAY_INDEX]
+	var retained := PackedInt32Array()
+	var front_z := cowling.mesh.get_aabb().position.z
+	var uvs: PackedVector2Array = arrays[Mesh.ARRAY_TEX_UV]
+	var front_ring := {}
+	var front_center := -1
+	for vertex_index in vertices.size():
+		var point := vertices[vertex_index]
+		if not is_equal_approx(point.z, front_z):
+			continue
+		if absf(point.x) + absf(point.y) < 0.001:
+			front_center = vertex_index
+		else:
+			front_ring[roundi(uvs[vertex_index].x * 32.0)] = vertex_index
+	for triangle in range(0, indices.size(), 3):
+		if front_center in [indices[triangle], indices[triangle + 1], indices[triangle + 2]]:
+			continue
+		for corner in 3: retained.append(indices[triangle + corner])
+	arrays[Mesh.ARRAY_INDEX] = retained
+	var replacement := ArrayMesh.new()
+	replacement.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
+	replacement.surface_set_material(0, cowling.mesh.surface_get_material(0))
+	cowling.mesh = replacement
+	var duct := SurfaceTool.new()
+	duct.begin(Mesh.PRIMITIVE_TRIANGLES)
+	duct.set_material(material)
+	for ring in 32:
+		var next := (ring + 1) % 32
+		var a := vertices[int(front_ring[ring])]
+		var b := vertices[int(front_ring[next])]
+		var inner_a := Vector3(a.x * 0.83, a.y * 0.83, a.z + 0.04)
+		var inner_b := Vector3(b.x * 0.83, b.y * 0.83, b.z + 0.04)
+		var deep_a := inner_a + Vector3.BACK * 1.1
+		var deep_b := inner_b + Vector3.BACK * 1.1
+		for point in [a, inner_b, b, a, inner_a, inner_b, inner_a, deep_b, inner_b, inner_a, deep_a, deep_b, deep_a, Vector3(0, 0, deep_a.z), deep_b]:
+			duct.set_uv(Vector2(point.x, point.y))
+			duct.add_vertex(point)
+	duct.generate_normals()
+	var insert := MeshInstance3D.new()
+	insert.name = "RecessedIntakeDuct"
+	insert.mesh = duct.commit()
+	cowling.add_child(insert)
 
 
 ## Four-point bevelled armour plate: a shallow crown and inset perimeter give
@@ -3762,7 +3866,7 @@ func _zenith_triangle(tool: SurfaceTool, a: Vector3, b: Vector3, c: Vector3, cen
 		tool.add_vertex(point)
 
 
-func _zenith_loft(parent: Node3D, node_name: String, origin: Vector3, authored_sections: PackedVector3Array, material: Material) -> MeshInstance3D:
+func _zenith_loft(parent: Node3D, node_name: String, origin: Vector3, authored_sections: PackedVector3Array, material: Material, section_power: float = 0.40) -> MeshInstance3D:
 	var sections := PackedVector3Array()
 	for index in authored_sections.size() - 1:
 		var start := authored_sections[index]
@@ -3782,8 +3886,8 @@ func _zenith_loft(parent: Node3D, node_name: String, origin: Vector3, authored_s
 			var angle := TAU * float(ring_index) / float(RING_COUNT)
 			var cosine := cos(angle)
 			var sine := sin(angle)
-			var rounded_x := signf(cosine) * pow(absf(cosine), 0.40)
-			var rounded_y := signf(sine) * pow(absf(sine), 0.40)
+			var rounded_x := signf(cosine) * pow(absf(cosine), section_power)
+			var rounded_y := signf(sine) * pow(absf(sine), section_power)
 			tool.set_uv(Vector2(float(ring_index) / float(RING_COUNT), float(section_index) / float(maxi(1, sections.size() - 1))))
 			tool.add_vertex(Vector3(section.x * rounded_x, section.y * rounded_y, section.z))
 	for section_index in sections.size() - 1:
@@ -3818,6 +3922,7 @@ func _zenith_loft(parent: Node3D, node_name: String, origin: Vector3, authored_s
 	instance.position = origin
 	instance.mesh = tool.commit()
 	instance.set_meta("closed_loft_hull", true)
+	instance.set_meta("loft_section_count", sections.size())
 	parent.add_child(instance)
 	return instance
 
@@ -4428,6 +4533,7 @@ func _sync_zenith_canopy_immediately() -> void:
 	if _authored_presentation != null \
 		and _authored_presentation.has_method("set_canopy_fraction"):
 		_authored_presentation.call("set_canopy_fraction", 1.0 if is_canopy_open() else 0.0)
+	_sync_modern_canopy_pose()
 
 
 func _get_authored_audit() -> Dictionary:
@@ -4724,3 +4830,92 @@ static func _violation(
 	message: String
 ) -> void:
 	violations.append({"code": code, "path": path, "message": message})
+
+
+## Cut a bounded grid patch out of a loft and recess its replacement surface.
+## The exposed edge is a real sidewall; access panels follow hull curvature.
+func _cut_pressure_panel(shell: MeshInstance3D, panel_name: String, first_section: int, last_section: int, first_ring: int, last_ring: int, material: Material, recess_depth: float = 0.045) -> void:
+	var arrays := shell.mesh.surface_get_arrays(0)
+	var vertices: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
+	var normals: PackedVector3Array = arrays[Mesh.ARRAY_NORMAL]
+	var indices: PackedInt32Array = arrays[Mesh.ARRAY_INDEX]
+	var uvs: PackedVector2Array = arrays[Mesh.ARRAY_TEX_UV]
+	var section_count := int(shell.get_meta("loft_section_count"))
+	var logical_vertices := {}
+	for vertex_index in vertices.size():
+		if absf(vertices[vertex_index].x) + absf(vertices[vertex_index].y) < 0.001:
+			continue
+		var section := roundi(uvs[vertex_index].y * float(section_count - 1))
+		var ring := roundi(uvs[vertex_index].x * 32.0)
+		logical_vertices[section * 32 + ring] = vertex_index
+	var retained := PackedInt32Array()
+	var patch := SurfaceTool.new()
+	patch.begin(Mesh.PRIMITIVE_TRIANGLES)
+	patch.set_material(material)
+	for triangle in range(0, indices.size(), 3):
+		var belongs := true
+		for corner in 3:
+			var vertex_index := indices[triangle + corner]
+			var section := roundi(uvs[vertex_index].y * float(section_count - 1))
+			var ring := roundi(uvs[vertex_index].x * 32.0)
+			belongs = belongs and section >= first_section and section <= last_section and ring >= first_ring and ring <= last_ring
+		if belongs:
+			for corner in 3:
+				var vertex_index := indices[triangle + corner]
+				patch.set_uv(Vector2(vertices[vertex_index].x, vertices[vertex_index].z))
+				patch.add_vertex(vertices[vertex_index] - normals[vertex_index] * recess_depth)
+		else:
+			for corner in 3:
+				retained.append(indices[triangle + corner])
+	var boundary := PackedInt32Array()
+	for section in range(first_section, last_section): boundary.append(section * 32 + first_ring)
+	for ring in range(first_ring, last_ring): boundary.append(last_section * 32 + ring)
+	for section in range(last_section, first_section, -1): boundary.append(section * 32 + last_ring)
+	for ring in range(last_ring, first_ring, -1): boundary.append(first_section * 32 + ring)
+	for edge in boundary.size():
+		var a := int(logical_vertices[boundary[edge]])
+		var b := int(logical_vertices[boundary[(edge + 1) % boundary.size()]])
+		for point in [vertices[a], vertices[b], vertices[b] - normals[b] * recess_depth, vertices[a], vertices[b] - normals[b] * recess_depth, vertices[a] - normals[a] * recess_depth]:
+			patch.set_uv(Vector2(point.x, point.z))
+			patch.add_vertex(point)
+	arrays[Mesh.ARRAY_INDEX] = retained
+	var replacement := ArrayMesh.new()
+	replacement.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
+	replacement.surface_set_material(0, shell.mesh.surface_get_material(0))
+	shell.mesh = replacement
+	patch.generate_normals()
+	var insert := MeshInstance3D.new()
+	insert.name = panel_name
+	insert.mesh = patch.commit()
+	shell.add_child(insert)
+
+
+## Slim pressure-frame arches are fitted to the actual laminated shell rather
+## than suspended as straight rails above its curved roof.
+func _fit_canopy_frame(glazing: MeshInstance3D, section: int, material: Material) -> void:
+	var arrays := glazing.mesh.surface_get_arrays(0)
+	var vertices: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
+	var normals: PackedVector3Array = arrays[Mesh.ARRAY_NORMAL]
+	var uvs: PackedVector2Array = arrays[Mesh.ARRAY_TEX_UV]
+	var sections := int(glazing.get_meta("loft_section_count"))
+	var arch := {}
+	for vertex_index in vertices.size():
+		if roundi(uvs[vertex_index].y * float(sections - 1)) == section:
+			arch[roundi(uvs[vertex_index].x * 32.0)] = vertex_index
+	var tool := SurfaceTool.new()
+	tool.begin(Mesh.PRIMITIVE_TRIANGLES)
+	tool.set_material(material)
+	for ring in 16:
+		var a := int(arch[ring])
+		var b := int(arch[ring + 1])
+		var pa := vertices[a] + normals[a] * 0.018
+		var pb := vertices[b] + normals[b] * 0.018
+		for point in [pa + Vector3.FORWARD * 0.033, pb + Vector3.BACK * 0.033, pb + Vector3.FORWARD * 0.033, pa + Vector3.FORWARD * 0.033, pa + Vector3.BACK * 0.033, pb + Vector3.BACK * 0.033]:
+			tool.set_uv(Vector2(point.x, point.z))
+			tool.add_vertex(point)
+	tool.generate_normals()
+	var frame := MeshInstance3D.new()
+	frame.name = "PressureFrame%02d" % section
+	frame.mesh = tool.commit()
+	frame.layers = glazing.layers
+	glazing.add_child(frame)

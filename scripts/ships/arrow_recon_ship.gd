@@ -228,12 +228,12 @@ const PHASE9_ARROW_VISUAL_CENSUS := {
 	"auto_fallback_names": 23,
 }
 const EXPECTED_ARROW_VISUAL_CENSUS := {
-	"nodes": 197,
-	"mesh_instance_nodes": 172,
+	"nodes": 205,
+	"mesh_instance_nodes": 180,
 	"multi_mesh_instance_nodes": 3,
-	"geometry_submissions": 175,
-	"visible_geometry_copies": 179,
-	"unique_mesh_resource_allocations": 131,
+	"geometry_submissions": 183,
+	"visible_geometry_copies": 187,
+	"unique_mesh_resource_allocations": 139,
 	"auto_fallback_names": 20,
 }
 const RECON_PULSE_EMITTER_VISUAL_DELTA := {
@@ -685,6 +685,10 @@ func _build_arrow_variant(_controller: HeroShip) -> bool:
 	_build_engines_and_landing_gear()
 	_restyle_inherited_cockpit(cockpit, canopy)
 	_share_inherited_console_key_meshes(cockpit)
+	_cut_pressure_panel(_arrow_visual.get_node("ReconFuselage"), "PortAvionicsAccess", 5, 10, 11, 15, _arrow_materials.ceramic)
+	_cut_pressure_panel(_arrow_visual.get_node("ReconFuselage"), "StarboardAvionicsAccess", 5, 10, 1, 5, _arrow_materials.ceramic)
+	_cut_pressure_panel(_arrow_visual.get_node("PortShoulderFairing"), "PortShoulderAccess", 9, 14, 9, 14, _arrow_materials.graphite)
+	_cut_pressure_panel(_arrow_visual.get_node("StarboardShoulderFairing"), "StarboardShoulderAccess", 9, 14, 2, 7, _arrow_materials.graphite)
 	_replace_collision_and_markers()
 	if not replace_variant_visual_root(_arrow_visual):
 		return false
@@ -756,6 +760,9 @@ func _create_arrow_materials() -> void:
 	ShipSurfaceDetail.bind_structural_detail(_arrow_materials.pod, hull_normal, 1.6, 1.30)
 	for painted_shell: StandardMaterial3D in [_arrow_materials.pearl, _arrow_materials.ceramic]:
 		ShipSurfaceDetail.bind_manufactured_paint(painted_shell)
+		painted_shell.metallic = 0.10
+		painted_shell.roughness = 0.86
+		painted_shell.clearcoat_enabled = false
 
 
 func get_variant_materials() -> Dictionary:
@@ -787,7 +794,7 @@ func _build_slender_airframe() -> void:
 			Vector3(0.18, 0.12, -7.2),
 			Vector3(0.58, 0.30, -6.15),
 			Vector3(1.18, 0.56, -3.7),
-			Vector3(1.5, 0.86, -0.7),
+			Vector3(1.5, 1.00, -0.7),
 			Vector3(1.62, 0.82, 2.6),
 			Vector3(1.25, 0.7, 5.2),
 			Vector3(0.84, 0.55, 6.3),
@@ -899,11 +906,16 @@ func _build_slender_airframe() -> void:
 ## manufactured airframe. All shells are presentation-only and leave the
 ## controller's boarding route, canopy hinge and escape-pod modules intact.
 func _build_manufactured_fairings() -> void:
+	_loft_hull(_arrow_visual, "CockpitSillFairing", Vector3(0, 2.06, -0.8), PackedVector3Array([
+		Vector3(0.08, 0.02, -2.8), Vector3(0.78, 0.08, -2.2),
+		Vector3(1.26, 0.20, -1.2), Vector3(1.28, 0.20, 1.4),
+		Vector3(0.52, 0.06, 2.0),
+	]), _arrow_materials.ceramic)
 	for side in [-1.0, 1.0]:
 		var side_name := "Port" if side < 0.0 else "Starboard"
-		_loft_hull(_arrow_visual, side_name + "ShoulderFairing", Vector3(side * 1.14, 1.34, 0.0), PackedVector3Array([
+		_loft_hull(_arrow_visual, side_name + "ShoulderFairing", Vector3(side * 1.14, 1.48, 0.0), PackedVector3Array([
 			Vector3(0.07, 0.07, -4.2), Vector3(0.30, 0.22, -3.1),
-			Vector3(0.47, 0.50, -1.8), Vector3(0.48, 0.52, 0.6),
+			Vector3(0.55, 0.79, -1.8), Vector3(0.55, 0.76, 0.6),
 			Vector3(0.44, 0.28, 2.0), Vector3(0.16, 0.12, 3.0),
 		]), _arrow_materials.pearl)
 		_loft_hull(_arrow_visual, side_name + "EngineIntakeFairing", Vector3(side * 0.96, 1.10, 0.0), PackedVector3Array([
@@ -925,14 +937,14 @@ func _build_manufactured_fairings() -> void:
 func _build_recon_systems() -> void:
 	var mast := Node3D.new()
 	mast.name = "ReconSensorMast"
-	mast.position = Vector3(0, 2.5, 3.55)
+	mast.position = Vector3(0, 1.85, 3.55)
 	mast.set_meta("provisional_sensor_system", true)
 	_arrow_visual.add_child(mast)
 	_cylinder(mast, "MastPedestal", Vector3(0, 0.45, 0), 0.16, 0.9, _arrow_materials.titanium)
 	_cylinder(mast, "MastStem", Vector3(0, 1.15, 0), 0.08, 0.72, _arrow_materials.graphite)
 	_sensor_sweep = Node3D.new()
 	_sensor_sweep.name = "SensorSweep"
-	_sensor_sweep.position = Vector3(0, 1.48, 0)
+	_sensor_sweep.position = Vector3(0, 0.95, 0)
 	_sensor_sweep.set_meta("visual_only", true)
 	_sensor_sweep.set_meta("gameplay_authority", false)
 	mast.add_child(_sensor_sweep)
@@ -1003,6 +1015,18 @@ func _build_recon_systems() -> void:
 			_arrow_materials.sensor,
 			_lateral_array_curve_joint_mesh
 		)
+
+	# The retained sensor pivot still owns the sweep and failed-state cant.
+	# A low survey head replaces the toy gyroscope silhouette around that pivot.
+	_recon_primary_aperture.visible = false
+	_recon_secondary_aperture.visible = false
+	for part_name in ["MastPedestal", "MastStem"]:
+		(mast.get_node(part_name) as Node3D).visible = false
+	(_sensor_sweep.get_node("ArrayCrossbar") as Node3D).visible = false
+	_loft_hull(_sensor_sweep, "ConformalSurveyHead", Vector3.ZERO, PackedVector3Array([
+		Vector3(0.64, 0.10, -0.52), Vector3(0.94, 0.27, -0.30),
+		Vector3(0.94, 0.25, 0.28), Vector3(0.58, 0.12, 0.54),
+	]), _arrow_materials.graphite)
 
 
 func _build_recon_pulse_emitters() -> void:
@@ -1229,6 +1253,12 @@ func _build_engines_and_landing_gear() -> void:
 
 
 func _restyle_inherited_cockpit(cockpit: Node3D, canopy: Node3D) -> void:
+	# Former square sill walls and floating rails are retained controller-local
+	# nodes, dressed by the continuous pressure fairing and laminated canopy.
+	for obsolete_name in ["ForwardPressureWall", "RearPressureWall", "PortSill", "StarboardSill"]:
+		(cockpit.get_node(obsolete_name) as Node3D).visible = false
+	for obsolete_name in ["PortCanopyTopRail", "StarboardCanopyTopRail", "PortCanopyNoseFrame", "StarboardCanopyNoseFrame", "PortCanopyRearUpright", "StarboardCanopyRearUpright"]:
+		(canopy.get_node(obsolete_name) as Node3D).visible = false
 	if cockpit != null:
 		# Darker interior preserves high contrast behind the unusually clear canopy.
 		for node in cockpit.find_children("*", "MeshInstance3D", true, false):
@@ -1254,6 +1284,9 @@ func _restyle_inherited_cockpit(cockpit: Node3D, canopy: Node3D) -> void:
 				Vector3(1.15, 0.66, 1.79),
 			]), _arrow_materials.glass)
 			glass.mesh = shell.mesh
+			glass.set_meta("loft_section_count", shell.get_meta("loft_section_count"))
+			_fit_canopy_frame(glass, 7, _arrow_materials.graphite)
+			_fit_canopy_frame(glass, 16, _arrow_materials.graphite)
 			canopy.remove_child(shell)
 			shell.free()
 			# Retain the inherited physical canopy envelope. Enlarging the shell
@@ -2405,6 +2438,7 @@ func _loft_hull(parent: Node3D, node_name: String, origin: Vector3, authored_sec
 	instance.position = origin
 	instance.mesh = tool.commit()
 	instance.set_meta("closed_loft_hull", true)
+	instance.set_meta("loft_section_count", sections.size())
 	parent.add_child(instance)
 	return instance
 
@@ -3007,3 +3041,92 @@ func _torus(
 	instance.mesh = mesh
 	parent.add_child(instance)
 	return instance
+
+
+## Cut a bounded grid patch out of a loft and recess its replacement surface.
+## The exposed edge is a real sidewall; access panels follow hull curvature.
+func _cut_pressure_panel(shell: MeshInstance3D, panel_name: String, first_section: int, last_section: int, first_ring: int, last_ring: int, material: Material) -> void:
+	var arrays := shell.mesh.surface_get_arrays(0)
+	var vertices: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
+	var normals: PackedVector3Array = arrays[Mesh.ARRAY_NORMAL]
+	var indices: PackedInt32Array = arrays[Mesh.ARRAY_INDEX]
+	var uvs: PackedVector2Array = arrays[Mesh.ARRAY_TEX_UV]
+	var section_count := int(shell.get_meta("loft_section_count"))
+	var logical_vertices := {}
+	for vertex_index in vertices.size():
+		if absf(vertices[vertex_index].x) + absf(vertices[vertex_index].y) < 0.001:
+			continue
+		var section := roundi(uvs[vertex_index].y * float(section_count - 1))
+		var ring := roundi(uvs[vertex_index].x * 32.0)
+		logical_vertices[section * 32 + ring] = vertex_index
+	var retained := PackedInt32Array()
+	var patch := SurfaceTool.new()
+	patch.begin(Mesh.PRIMITIVE_TRIANGLES)
+	patch.set_material(material)
+	for triangle in range(0, indices.size(), 3):
+		var belongs := true
+		for corner in 3:
+			var vertex_index := indices[triangle + corner]
+			var section := roundi(uvs[vertex_index].y * float(section_count - 1))
+			var ring := roundi(uvs[vertex_index].x * 32.0)
+			belongs = belongs and section >= first_section and section <= last_section and ring >= first_ring and ring <= last_ring
+		if belongs:
+			for corner in 3:
+				var vertex_index := indices[triangle + corner]
+				patch.set_uv(Vector2(vertices[vertex_index].x, vertices[vertex_index].z))
+				patch.add_vertex(vertices[vertex_index] - normals[vertex_index] * 0.045)
+		else:
+			for corner in 3:
+				retained.append(indices[triangle + corner])
+	var boundary := PackedInt32Array()
+	for section in range(first_section, last_section): boundary.append(section * 32 + first_ring)
+	for ring in range(first_ring, last_ring): boundary.append(last_section * 32 + ring)
+	for section in range(last_section, first_section, -1): boundary.append(section * 32 + last_ring)
+	for ring in range(last_ring, first_ring, -1): boundary.append(first_section * 32 + ring)
+	for edge in boundary.size():
+		var a := int(logical_vertices[boundary[edge]])
+		var b := int(logical_vertices[boundary[(edge + 1) % boundary.size()]])
+		for point in [vertices[a], vertices[b], vertices[b] - normals[b] * 0.045, vertices[a], vertices[b] - normals[b] * 0.045, vertices[a] - normals[a] * 0.045]:
+			patch.set_uv(Vector2(point.x, point.z))
+			patch.add_vertex(point)
+	arrays[Mesh.ARRAY_INDEX] = retained
+	var replacement := ArrayMesh.new()
+	replacement.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
+	replacement.surface_set_material(0, shell.mesh.surface_get_material(0))
+	shell.mesh = replacement
+	patch.generate_normals()
+	var insert := MeshInstance3D.new()
+	insert.name = panel_name
+	insert.mesh = patch.commit()
+	shell.add_child(insert)
+
+
+## Slim pressure-frame arches are fitted to the actual laminated shell rather
+## than suspended as straight rails above its curved roof.
+func _fit_canopy_frame(glazing: MeshInstance3D, section: int, material: Material) -> void:
+	var arrays := glazing.mesh.surface_get_arrays(0)
+	var vertices: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
+	var normals: PackedVector3Array = arrays[Mesh.ARRAY_NORMAL]
+	var uvs: PackedVector2Array = arrays[Mesh.ARRAY_TEX_UV]
+	var sections := int(glazing.get_meta("loft_section_count"))
+	var arch := {}
+	for vertex_index in vertices.size():
+		if roundi(uvs[vertex_index].y * float(sections - 1)) == section:
+			arch[roundi(uvs[vertex_index].x * 32.0)] = vertex_index
+	var tool := SurfaceTool.new()
+	tool.begin(Mesh.PRIMITIVE_TRIANGLES)
+	tool.set_material(material)
+	for ring in 16:
+		var a := int(arch[ring])
+		var b := int(arch[ring + 1])
+		var pa := vertices[a] + normals[a] * 0.018
+		var pb := vertices[b] + normals[b] * 0.018
+		for point in [pa + Vector3.FORWARD * 0.033, pb + Vector3.BACK * 0.033, pb + Vector3.FORWARD * 0.033, pa + Vector3.FORWARD * 0.033, pa + Vector3.BACK * 0.033, pb + Vector3.BACK * 0.033]:
+			tool.set_uv(Vector2(point.x, point.z))
+			tool.add_vertex(point)
+	tool.generate_normals()
+	var frame := MeshInstance3D.new()
+	frame.name = "PressureFrame%02d" % section
+	frame.mesh = tool.commit()
+	frame.layers = glazing.layers
+	glazing.add_child(frame)
