@@ -146,6 +146,22 @@ func _test_production_encounter() -> void:
 		"the picket is damageable through the shared lifecycle adapter, not a private health store"
 	)
 
+	var authored_weapon := picket.get("_weapon_definition") as WeaponDefinition
+	picket.set("_weapon_definition", null)
+	var missing_weapon_audit := game.get_live_combat_source_roster_audit()
+	_check(
+		picket.get_weapon_profiles().is_empty() and not bool(missing_weapon_audit.valid)
+		and missing_weapon_audit.errors.has(
+			"reinforcement combat source registration is not exact: StandoffPicket"
+		),
+		"an active reinforcement with no authored weapon contract fails the composed audit"
+	)
+	picket.set("_weapon_definition", authored_weapon)
+	_check(
+		bool(game.get_live_combat_source_roster_audit().valid),
+		"restoring the authored lance contract restores exact composed ownership"
+	)
+
 	# ------------------------------------------------- one real lance shot ----
 	# Evidence control: the craft is pinned so the shot under test is the
 	# production weapon path rather than a navigation race. Attitude, telegraph,
