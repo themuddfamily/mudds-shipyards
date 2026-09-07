@@ -47,3 +47,13 @@ func _press_hatch(game: GameFlow, player: PlayerController, craft: HalyardCrewTr
 		await physics_frame
 		await process_frame
 	_check(craft.is_canopy_open() == expected_open, "real E toggles cabin hatch through ship canopy lifecycle")
+
+
+func _finish() -> void:
+	Input.action_release(&"move_forward")
+	if _failures.is_empty():
+		print("HALYARD_CABIN_HATCH_GAMEPLAY_TEST_OK: %d assertions" % _assertions)
+		quit(0)
+	else:
+		print("HALYARD_CABIN_HATCH_GAMEPLAY_TEST_FAILED: %s" % "; ".join(_failures))
+		quit(1)
