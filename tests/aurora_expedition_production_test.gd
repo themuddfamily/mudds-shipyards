@@ -14,10 +14,14 @@ func _run() -> void:
 	await physics_frame
 	game.start_shift()
 	await process_frame
-	var craft := game.get_node("HalyardCrewTransport") as HeroShip
+	var craft := game.get_node("HalyardCrewTransport") as HalyardCrewTransport
 	game.canopy_motion_time = 0.01
 	game.boarding_motion_time = 0.01
-	game.call(&"_board_ship", craft)
+	game.player.teleport_to(Transform3D(craft.global_basis, craft.get_boarding_position() + craft.global_basis.y * 0.01))
+	for i in range(6):
+		await physics_frame
+		await process_frame
+	await _press_interact()
 	for i in range(240):
 		await physics_frame
 		if game._piloting:
@@ -42,26 +46,45 @@ func _run() -> void:
 	var surface := owner.get("_surface") as Node3D
 	_check(craft.global_position.distance_to(home_position) > 10000.0 and berth.get_occupant() == craft and bool(craft.get_telemetry().get("landed", false)), "the same Halyard occupies the real Aurora surface berth")
 	_check(surface.get_node_or_null("LandingRegion/CoastalExploration/CoastalLookoutSign") != null, "the visited world contains explorable lookout and standing stones")
-	game.call(&"_try_exit_ship")
+	await _press_interact()
 	await _wait_state(owner, &"surface", 240)
 	for i in range(30):
 		await physics_frame
 	_check(owner.state == &"surface" and not game.player.is_seated() and game.player.is_control_enabled() and game.player.is_on_floor(), "exit restores ordinary walking and physical surface support")
-	var exit_position := game.player.global_position
-	# Ordinary move input drives locomotion; no journey completion is synthesized.
-	Input.action_press(&"move_right")
-	for i in range(45):
-		await physics_frame
-	Input.action_release(&"move_right")
-	_check(game.player.global_position.distance_to(exit_position) > 1.0, "the explorer can walk away from the ship with normal movement input")
 	_check(not bool(_row(game).get("action_enabled", true)), "return action asks the on-foot explorer to board first")
-	# Approach setup is bounded to the physical boarding volume; E still owns
-	# reservation and the complete animated embodiment transition.
-	var area := craft.get_node("ShipBoardingArea") as ShipBoardingArea
-	game.player.teleport_to(Transform3D(Basis.IDENTITY, area.global_position))
+	# From the planet apron, walk through the actual hatch and aft to the berth.
+	_check(await _walk_to_local(game.player, craft, Vector3(-3.1, 0.0, craft.AIRSTAIR_Z)), "walk from Aurora surface to the Halyard stair")
+	_check(await _walk_to_local(game.player, craft, Vector3(-1.35, 0.52, craft.AIRSTAIR_Z)), "walk through the open physical hatch")
+	_check(await _walk_to_local(game.player, craft, Vector3(0.0, 0.52, craft.AIRSTAIR_Z)), "enter the cabin aisle")
+	_check(await _walk_to_local(game.player, craft, Vector3(-0.45, 0.52, 6.6)), "walk aft to the liveaboard bunk")
+	var bunk := craft.get_node("WalkableInterior/AftSystemsBay/PortSleepingBerth/ShipBunkInteraction") as ShipBunk
+	_look_toward(game.player, bunk.global_position)
 	for i in range(4):
 		await physics_frame
-	game.call(&"_on_interact_requested")
+		await process_frame
+	_check(game.station_interaction_candidate == bunk, "the physical bunk is the interaction target on Aurora")
+	await _press_interact()
+	for i in range(120):
+		await physics_frame
+		await process_frame
+		if game.player.is_sleeping():
+			break
+	_check(game.player.is_sleeping() and game._station_seated and owner.state == &"surface", "E sleeps aboard the Halyard while visiting Aurora")
+	await _press_interact()
+	for i in range(120):
+		await physics_frame
+		await process_frame
+		if not game._station_seated and game.player.is_control_enabled() and game.player.is_on_floor():
+			break
+	_check(not game.player.is_sleeping() and game.player.is_control_enabled() and game.player.is_on_floor(), "E wakes onto the cabin floor with usable controls")
+	_check(await _walk_to_local(game.player, craft, Vector3(0.0, 0.52, craft.AIRSTAIR_Z)), "walk back from the bed to the hatch aisle")
+	_check(await _walk_to_local(game.player, craft, Vector3(-1.35, 0.52, craft.AIRSTAIR_Z)), "approach the inside hatch")
+	_check(await _walk_to_local(game.player, craft, craft.to_local(craft.get_boarding_position())), "walk down the airstair onto Aurora again")
+	var exit_position := game.player.global_position
+	_check(await _walk_to_local(game.player, craft, craft.to_local(exit_position) + Vector3(-3.0, 0.0, 0.0)), "explore the collidable ground beyond the ramp")
+	_check(game.player.global_position.distance_to(exit_position) > 1.0, "the explorer physically leaves the ramp")
+	_check(await _walk_to_local(game.player, craft, craft.to_local(craft.get_boarding_position())), "walk back to the same ship for return")
+	await _press_interact()
 	await _wait_state(owner, &"landed", 240)
 	_check(game.player.is_seated() and game._piloting and game.active_ship == craft, "E reboards the same physical craft")
 	_press_destination(game)
@@ -120,6 +143,34 @@ func _wait_state(owner: RefCounted, target: StringName, frames: int) -> void:
 			return
 	print("WAIT ENDED: ", owner.get("state"), " wanted ", target)
 
+func _press_interact() -> void:
+	Input.action_press(&"interact")
+	await physics_frame
+	await process_frame
+	Input.action_release(&"interact")
+	await physics_frame
+	await process_frame
+
+func _look_toward(player: PlayerController, target: Vector3) -> void:
+	var direction := player.global_basis.inverse() * (target - player.global_position)
+	(player.get_node("CameraRig/CameraYaw") as Node3D).rotation.y = atan2(-direction.x, -direction.z)
+
+func _walk_to_local(player: PlayerController, craft: HeroShip, target: Vector3) -> bool:
+	for i in range(360):
+		var local := craft.to_local(player.global_position)
+		if Vector2(local.x - target.x, local.z - target.z).length() < 0.22:
+			break
+		_look_toward(player, craft.to_global(target))
+		Input.action_press(&"move_forward")
+		await physics_frame
+		await process_frame
+	Input.action_release(&"move_forward")
+	for i in range(8):
+		await physics_frame
+		await process_frame
+	var final := craft.to_local(player.global_position)
+	return Vector2(final.x - target.x, final.z - target.z).length() < 0.8 and player.is_on_floor()
+
 func _check(ok: bool, message: String) -> void:
 	_assertions += 1
 	if not ok:
@@ -130,6 +181,8 @@ func _check(ok: bool, message: String) -> void:
 
 func _finish(game: GameFlow) -> void:
 	Input.action_release(&"move_right")
+	Input.action_release(&"move_forward")
+	Input.action_release(&"interact")
 	paused = false
 	game.queue_free()
 	await process_frame

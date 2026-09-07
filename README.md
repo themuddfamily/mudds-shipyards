@@ -1,6 +1,6 @@
 # Mudds Shipyards
 
-**Mudds Shipyards** is a native Godot 4 fan-remake prototype inspired by ZolarKeth's 2009 Roblox game **Keth Shipyards**. Walk the station, board one of **nine flyable craft**, launch, fight, land, disembark, and recover after a crash in the same world. The guided Torrent sortie sits alongside the fleet sandbox, bounded nearby activities, and an Ember Moon expedition.
+**Mudds Shipyards** is a native Godot 4 fan-remake prototype inspired by ZolarKeth's 2009 Roblox game **Keth Shipyards**. Walk the station, board one of **nine flyable craft**, launch, fight, land, disembark, and recover after a crash in the same world. The guided Torrent sortie sits alongside the fleet sandbox, bounded nearby activities, and expeditions to Ember Moon and Aurora.
 
 Repository: <https://github.com/themuddfamily/mudds-shipyards>
 
@@ -12,17 +12,20 @@ Source capabilities reviewed on **2026-09-07**; this inventory is not a new test
 
 - **Physical fleet loop:** independently reserved berths, automatic propulsion, guided combat and return, collision-backed station routes, landing assistance, destruction/recovery and craft regeneration. Cabin access and optional crew roles are craft-specific.
 - **Nine flyable craft:** Torrent, Arrow, Jovian, Zenith, Halyard Crew Transport, Bulwark Heavy Gunship, Cinder Cargo Hauler, Cinder Long-Range Bomber and Cinder Light Interceptor. The [ship definitions](assets/ships) and [production flow](scripts/game/game_flow.gd) define the roster; the Fleet Dock expansion occupies Dock 04/05/06.
+- **Live aboard the Halyard:** leave the pilot seat while idled in flight, walk through the cabin, and sleep in either aft bunk. The same interaction wakes you into the aisle. A landed hatch control also lets you walk up the airstair and inside from the station or a planet.
 - **Controls and accessibility:** persisted keyboard/mouse and gamepad remapping with conflict handling and reset, adjustable deadzones, linear/squared curves and hold/toggle processing, active-device keyboard/Xbox/PlayStation glyph presentation, controller menu focus, UI scaling, colour-vision presets, reduced motion/flash and audio captions. Physical controller validation remains open.
 - **Combat and crew:** bounded varied encounters, component damage and repair, gunner/engineer roles on supported craft, bomber payloads, and station-defence waves. These remain incomplete combat and multiplayer slices.
 - **Networking:** production ENet session integration, server-owned command/seat/combat paths, moving-interior replication and bounded role/projectile presentation exist. The deterministic and multiprocess harnesses cover specific contracts; a current native-Windows two-client review and sustained soak remain open. See [Phase 7](ROADMAP.md#phase-7--multiplayer).
 - **Nearby activities:** the streamed Cinder Reach cluster and Activity Board expose bounded race, patrol, cargo, mining/extraction, scan, beacon and defence routes with generation-bound progress and receipts. Package-level player validation remains open. See [Phase 8](ROADMAP.md#phase-8--nearby-world-and-activities).
 - **Ember Moon:** the Destination Board exposes the bounded Ember journey, physical cruise/final approach and streamed landing. Disembarking starts the mandatory survey; completing both checkpoints saves one reward before admitting return. The repaired physical route through pad crossing, reboarding, takeoff and orbit handoff passes in source and package checks. The catalog does not make every listed world visitable. Full planetary breadth, uninterrupted human expedition review and representative hardware performance remain open. See [Phase 10](ROADMAP.md#4-visitable-planets-with-complete-atmosphere-to-surface-loops).
 
+- **Aurora:** choose Aurora on the Destination Board while piloting a small or medium craft. A jump transition leads to an assisted physical landing; leave the ship, explore, reboard and choose the return action to dock at Mudds. The Halyard supports both planetary visits and sleeping aboard. Aurora is a bounded solo exploration site; its travel uses a jump transition.
+
 The historical evidence boundary is unchanged: Torrent's B5 link and Zenith's B7 link support bounded partial reconstructions, with recording/build provenance and continuity with 2009 unresolved. Zenith's Interceptor/Fighter naming conflict remains open. Arrow and Jovian have no name-to-model locks; their geometry and systems are modern candidates. Halyard, Bulwark and the three Cinder craft are original modern designs, not recovered historical ships. Station details, activities, audio and planetary content do not authenticate the original game. See the [research plan](ROADMAP.md#phase-1--research) and [asset record](ASSETS.md).
 
 ## Next milestone
 
-Review the stabilization candidate with normal Windows controls before further visual or content expansion.
+The current feature pass adds a second visitable world and a usable liveaboard cabin. Verify the combined Aurora landing → cabin → bunk → surface → home journey, then package the tested source. The stabilization results below describe the preceding candidate.
 
 Regression discovery now includes nested suites and registered graphical harnesses; CI runs the eight-suite core on changes and broader suites on a schedule. Failed diagnostic saves retain their records and back off between retries. The planetary journey coordinator now lives outside `GameFlow` and remains attached across Ember return cycles. Equivalent audio validators share one implementation.
 
@@ -35,7 +38,7 @@ The player now retains Ember floor contact with a 2 mm collision recovery margin
 The survey connection uses the existing reward and save authorities. Saving the opaque session identifier as text fixes a JSON precision failure without changing live admission or older readable saves. Physical verification completes the real survey, saves one reward, admits return and reaches the orbit handoff. Its initial approach is staged; an uninterrupted human station-to-Ember-to-home expedition remains unverified.
 
 1. Exercise boarding, combat, landing, disembarking, crash recovery and the Ember expedition on Windows using normal controls. Tune camera comfort, landing clarity, prompts and audio from recorded observations.
-2. Run the existing benchmark on representative minimum/target hardware before further visual expansion. Use the packaged Ember observations to choose its next visible improvement.
+2. Run the existing benchmark on representative minimum/target hardware as a separate follow-up. Use packaged expedition observations to choose the next visible improvement.
 
 The native benchmark on the available host was deliberately stopped after the user reported mouse capture and ineffective Escape; it is **incomplete**, with no performance qualification. Automated rendered checks must use an isolated display or test guest. Current-candidate native-Windows human play, representative CPU/GPU benchmarks, real-controller focus and audible mix review remain **`NOT_RUN`**. The [complete roadmap](ROADMAP.md) retains every phase and open acceptance requirement.
 
@@ -48,6 +51,14 @@ godot --headless --audio-driver Dummy --editor --path . --quit
 ```
 
 Run the project from the editor for interactive play. Press `E` on the title screen to begin, `F1` for controls, and `Esc` for the pause menu, Settings and activity/destination interfaces.
+
+## Visit Aurora and sleep aboard
+
+Board the Halyard at Fleet Dock, then open **Esc → Destination Board → Aurora**. The jump and landing are automatic. Press **E** to leave the ship after landing; walk up its port airstair to enter the cabin. If the hatch is closed, look at it near the top of the stair and press **E** to open it. Walk aft along the central aisle, look at either bunk and press **E** to sleep. Press the displayed wake control to stand up again.
+
+Walk back down the stair, explore the landing area, then return to the exterior boarding point and press **E** to take the pilot seat. Open the Destination Board again and select Aurora's return action to dock back at Mudds.
+
+To use the cabin in space, launch the Halyard while climbing away from its dock (`W` with `Up` or mouse pitch). Release the flight controls and let propulsion idle offline, then press **E** to leave the pilot seat. The cabin and bunks follow the drifting ship. Walk forward and press **E** at the cockpit to resume piloting. The wake screen respects remapped keyboard and controller bindings.
 
 ## Runtime settings
 
