@@ -15,6 +15,8 @@ func _run() -> void:
 	_test_duration_contract()
 	_test_metadata_and_representativeness_contract()
 	_test_schema_mutations()
+	await _test_emergency_input_guard()
+	await _test_live_abort()
 	await _test_live_smoke()
 	_finish()
 
@@ -186,6 +188,74 @@ func _test_schema_mutations() -> void:
 		_contains_fragment(RUNNER.validate_report(nonfinite_progress), "actor path did not advance"),
 		"non-finite progress fails closed instead of satisfying movement"
 	)
+
+
+func _test_emergency_input_guard() -> void:
+	var guard := RUNNER.BenchmarkInputGuard.new()
+	root.add_child(guard)
+	var was_paused := paused
+	paused = true
+	Input.action_press(&"move_forward")
+	if DisplayServer.get_name() != "headless":
+		Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
+	var escape := InputEventKey.new()
+	escape.physical_keycode = KEY_ESCAPE
+	escape.pressed = true
+	root.push_input(escape)
+	_check(guard.aborted and guard.reason == "Escape pressed", "physical Escape aborts before GUI handling even while the tree is paused")
+	_check(not Input.is_action_pressed(&"move_forward") and Input.mouse_mode == Input.MOUSE_MODE_VISIBLE,
+		"emergency abort releases injected movement and the cursor")
+	paused = was_paused
+	guard.free()
+	guard = RUNNER.BenchmarkInputGuard.new()
+	root.add_child(guard)
+	root.window_input.connect(guard._input)
+	escape.pressed = true
+	root.window_input.emit(escape)
+	escape.pressed = false
+	root.window_input.emit(escape)
+	_check(guard.aborted, "raw window input catches an Escape tap before scene or GUI consumption")
+	guard.free()
+	guard = RUNNER.BenchmarkInputGuard.new()
+	root.add_child(guard)
+	guard.on_close_requested()
+	_check(guard.aborted and guard.reason == "window close requested", "window close uses the same explicit abort path")
+	guard.free()
+	guard = RUNNER.BenchmarkInputGuard.new()
+	root.add_child(guard)
+	guard.on_focus_exited()
+	_check(guard.aborted and guard.reason == "benchmark window lost focus", "focus loss aborts instead of continuing a hidden benchmark")
+	guard.free()
+	if DisplayServer.get_name() != "headless":
+		guard = RUNNER.BenchmarkInputGuard.new()
+		root.add_child(guard)
+		var rendering_was_enabled := RenderingServer.render_loop_enabled
+		RenderingServer.render_loop_enabled = false
+		guard.call_deferred("request_abort", "hidden-window abort")
+		var resolution := await RUNNER.capture_resolution(self, Vector2i(640, 360), guard)
+		_check(guard.aborted and resolution.is_empty(), "disabled-render-loop framebuffer wait exits on abort without manufacturing capture evidence")
+		guard.free()
+		RenderingServer.render_loop_enabled = rendering_was_enabled
+
+
+func _test_live_abort() -> void:
+	var children_before := root.get_child_count()
+	var original_auto_quit := auto_accept_quit
+	call_deferred("_abort_next_benchmark")
+	var result := await RUNNER.run_benchmark(self, 1, 3, Vector2i(640, 360), 0, {}, true)
+	_check(bool(result.get("aborted", false)) and not result.has("scenarios") \
+		and not result.has("representativeness"), "aborted production startup produces no completed or qualifying report")
+	_check(root.get_child_count() == children_before and auto_accept_quit == original_auto_quit,
+		"abort frees Main and its input guard and restores window-close policy")
+
+
+func _abort_next_benchmark() -> void:
+	await process_frame
+	paused = true
+	var escape := InputEventKey.new()
+	escape.physical_keycode = KEY_ESCAPE
+	escape.pressed = true
+	root.window_input.emit(escape)
 
 
 func _test_live_smoke() -> void:

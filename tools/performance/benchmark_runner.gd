@@ -34,6 +34,44 @@ const MONITORS := {
 }
 
 
+class BenchmarkInputGuard extends Node:
+	var aborted := false
+	var reason := ""
+
+	func _init() -> void:
+		process_mode = Node.PROCESS_MODE_ALWAYS
+
+	func _input(event: InputEvent) -> void:
+		if event is InputEventKey and event.pressed and not event.echo \
+				and (event.physical_keycode == KEY_ESCAPE or event.keycode == KEY_ESCAPE):
+			request_abort("Escape pressed")
+			get_viewport().set_input_as_handled()
+
+	func request_abort(abort_reason: String) -> void:
+		if aborted:
+			return
+		aborted = true
+		reason = abort_reason
+		release_inputs()
+		Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
+		get_tree().paused = false
+
+	func on_close_requested() -> void:
+		request_abort("window close requested")
+
+	func on_focus_exited() -> void:
+		request_abort("benchmark window lost focus")
+
+
+	static func release_inputs() -> void:
+		for action in [
+			&"move_forward", &"move_back", &"move_left", &"move_right",
+			&"pitch_up", &"pitch_down", &"roll_left", &"roll_right",
+			&"sprint_boost", &"brake", &"hover", &"fire", &"barrel_roll",
+			&"landing_assist", &"interact",
+		]:
+			Input.action_release(action)
+
 func _initialize() -> void:
 	call_deferred("_run")
 
@@ -60,6 +98,10 @@ func _run() -> void:
 	var report := await run_benchmark(
 		self, warmup_frames, sample_frames, resolution, quality_level, target, smoke
 	)
+	if bool(report.get("aborted", false)):
+		printerr("PERFORMANCE_BENCHMARK_ABORTED: ", report.get("reason", "operator abort"))
+		quit(130)
+		return
 	var errors := validate_report(report)
 	if not errors.is_empty():
 		printerr("PERFORMANCE_BENCHMARK_SCHEMA_FAILED: ", "; ".join(errors))
@@ -93,6 +135,17 @@ static func run_benchmark(
 		target_profile: Dictionary = {},
 		smoke_run: bool = false
 	) -> Dictionary:
+	# Main's normal HUD-start path is bypassed by deterministic staging. Own an
+	# early physical Escape handler instead of relying on gameplay pause/input.
+	var input_guard := BenchmarkInputGuard.new()
+	tree.root.add_child(input_guard)
+	var original_paused := tree.paused
+	var original_auto_quit := tree.auto_accept_quit
+	tree.auto_accept_quit = false
+	tree.root.window_input.connect(input_guard._input)
+	tree.root.close_requested.connect(input_guard.on_close_requested)
+	tree.root.focus_exited.connect(input_guard.on_focus_exited)
+	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 	var original_root_size := tree.root.size
 	var original_content_mode := tree.root.content_scale_mode
 	var original_content_size := tree.root.content_scale_size
@@ -113,8 +166,11 @@ static func run_benchmark(
 			quality_level,
 			smoke_run,
 			durations,
-			requested_resolution
+			requested_resolution,
+			input_guard
 		))
+		if input_guard.aborted:
+			break
 	_release_inputs()
 	# Capture the live viewport before restoring the caller's display.
 	var observed := capture_environment(Vector2i(tree.root.get_visible_rect().size), quality_level)
@@ -123,6 +179,14 @@ static func run_benchmark(
 	tree.root.content_scale_factor = original_content_factor
 	tree.root.mode = original_window_mode
 	tree.root.size = original_root_size
+	var abort_reason := input_guard.reason
+	var aborted := input_guard.aborted
+	input_guard.free()
+	tree.auto_accept_quit = original_auto_quit
+	tree.paused = original_paused
+	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
+	if aborted:
+		return {"aborted": true, "reason": abort_reason}
 	var source := capture_source_state()
 	var representativeness := classify_representativeness(observed, target_profile)
 	var representativeness_reasons := (
@@ -173,7 +237,8 @@ static func _run_scenario(
 		quality_level: int,
 		smoke_run: bool,
 		durations: Dictionary,
-		requested_resolution: Vector2i
+		requested_resolution: Vector2i,
+		input_guard: BenchmarkInputGuard
 	) -> Dictionary:
 	_release_inputs()
 	seed(_scenario_seed(scenario_name))
@@ -195,6 +260,10 @@ static func _run_scenario(
 		game.queue_free()
 		await tree.process_frame
 		return {"name": String(scenario_name), "completed": false, "error": "production actors unavailable"}
+	if input_guard.aborted:
+		game.queue_free()
+		await tree.process_frame
+		return {"completed": false}
 	var quality_report := world.apply_visual_quality(quality_level)
 	# Main startup applies persisted display settings; benchmark sizing must win
 	# after that startup, with one render pixel per requested viewport pixel.
@@ -207,8 +276,12 @@ static func _run_scenario(
 		DisplayServer.window_set_size(requested_resolution)
 	await tree.process_frame
 	await tree.process_frame
-	var inputs := await _stage_scenario(tree, game, world, player, ship, scenario_name)
-	if not bool(inputs.get("staging_valid", false)):
+	if input_guard.aborted:
+		game.queue_free()
+		await tree.process_frame
+		return {"completed": false}
+	var inputs := await _stage_scenario(tree, game, world, player, ship, scenario_name, input_guard)
+	if input_guard.aborted or not bool(inputs.get("staging_valid", false)):
 		_release_inputs()
 		if is_instance_valid(ship):
 			ship.set_piloted(false)
@@ -221,11 +294,12 @@ static func _run_scenario(
 			"error": str(inputs.get("staging_error", "scenario staging failed")),
 			"deterministic_inputs": inputs,
 		}
-	var resolution_before := await capture_resolution(tree, requested_resolution)
+	var resolution_before := await capture_resolution(tree, requested_resolution, input_guard)
 	var progress_tracker := _begin_scenario_progress(player, ship, scenario_name, inputs, smoke_run)
 	# One declared activation tick guarantees that a short smoke actually offers
 	# its input to the production physics authority before timing continues.
-	_apply_scenario_input(scenario_name, 0, warmup_frames + sample_frames)
+	if not input_guard.aborted:
+		_apply_scenario_input(scenario_name, 0, warmup_frames + sample_frames)
 	await tree.physics_frame
 	await tree.process_frame
 	_update_scenario_progress(progress_tracker, player, ship, scenario_name)
@@ -234,7 +308,7 @@ static func _run_scenario(
 	var previous_tick := Time.get_ticks_usec()
 	var warmup_started := Time.get_ticks_usec()
 	var actual_warmup_frames := 0
-	while phase_incomplete(actual_warmup_frames, warmup_frames,
+	while not input_guard.aborted and phase_incomplete(actual_warmup_frames, warmup_frames,
 			float(Time.get_ticks_usec() - warmup_started) / 1_000_000.0, durations.warmup):
 		var route_frame := int(warmup_frames * phase_progress(actual_warmup_frames, warmup_frames,
 			float(Time.get_ticks_usec() - warmup_started) / 1_000_000.0, durations.warmup))
@@ -251,7 +325,7 @@ static func _run_scenario(
 		monitor_samples[monitor_name] = [] as Array[float]
 	var sample_started := Time.get_ticks_usec()
 	previous_tick = sample_started
-	while phase_incomplete(frame_deltas.size(), sample_frames,
+	while not input_guard.aborted and phase_incomplete(frame_deltas.size(), sample_frames,
 			float(Time.get_ticks_usec() - sample_started) / 1_000_000.0, durations.sample):
 		var route_frame := warmup_frames + int(sample_frames * phase_progress(frame_deltas.size(), sample_frames,
 			float(Time.get_ticks_usec() - sample_started) / 1_000_000.0, durations.sample))
@@ -264,7 +338,14 @@ static func _run_scenario(
 		_capture_monitor_sample(monitor_samples)
 
 	var sample_elapsed := float(Time.get_ticks_usec() - sample_started) / 1_000_000.0
-	var resolution_after := await capture_resolution(tree, requested_resolution)
+	if input_guard.aborted:
+		_release_inputs()
+		ship.set_piloted(false)
+		game.queue_free()
+		await tree.process_frame
+		await tree.process_frame
+		return {"completed": false}
+	var resolution_after := await capture_resolution(tree, requested_resolution, input_guard)
 	var progress := _finish_scenario_progress(progress_tracker, player, ship, scenario_name)
 	var progress_errors := validate_scenario_progress(scenario_name, progress)
 	_release_inputs()
@@ -489,7 +570,8 @@ static func _stage_scenario(
 		world: ShipyardWorld,
 		player: PlayerController,
 		ship: HeroShip,
-		scenario_name: StringName
+		scenario_name: StringName,
+		input_guard: BenchmarkInputGuard
 	) -> Dictionary:
 	if scenario_name == &"station_embodied_route":
 		game.start_shift()
@@ -532,7 +614,11 @@ static func _stage_scenario(
 	var cluster: NearbySectorCluster
 	for frame_index in STREAMING_READY_FRAME_BUDGET:
 		await tree.physics_frame
+		if input_guard.aborted:
+			return {"staging_valid": false, "staging_error": "benchmark aborted"}
 		await tree.process_frame
+		if input_guard.aborted:
+			return {"staging_valid": false, "staging_error": "benchmark aborted"}
 		cluster = bootstrap.get_loaded_instance() as NearbySectorCluster
 		if is_instance_valid(cluster):
 			break
@@ -569,11 +655,23 @@ static func _stage_scenario(
 	}
 
 
-static func capture_resolution(tree: SceneTree, requested: Vector2i) -> Dictionary:
+static func capture_resolution(
+		tree: SceneTree, requested: Vector2i, input_guard: BenchmarkInputGuard = null
+	) -> Dictionary:
 	var native_display := DisplayServer.get_name() != "headless"
 	var framebuffer := Vector2i.ZERO
 	if native_display:
-		await RenderingServer.frame_post_draw
+		# A hidden/minimized window may stop drawing. Keep operator abort live
+		# while waiting for the real framebuffer required by a successful report.
+		var drawn := [false]
+		var on_draw := func() -> void: drawn[0] = true
+		RenderingServer.frame_post_draw.connect(on_draw, CONNECT_ONE_SHOT)
+		while not drawn[0] and (input_guard == null or not input_guard.aborted):
+			await tree.process_frame
+		if RenderingServer.frame_post_draw.is_connected(on_draw):
+			RenderingServer.frame_post_draw.disconnect(on_draw)
+		if input_guard != null and input_guard.aborted:
+			return {}
 		var pixels := tree.root.get_texture().get_image()
 		if pixels != null:
 			framebuffer = pixels.get_size()
@@ -626,14 +724,7 @@ static func _apply_scenario_input(scenario_name: StringName, frame: int, total_f
 
 
 static func _release_inputs() -> void:
-	for action in [
-		&"move_forward", &"move_back", &"move_left", &"move_right",
-		&"pitch_up", &"pitch_down", &"roll_left", &"roll_right",
-		&"sprint_boost", &"brake", &"hover", &"fire", &"barrel_roll",
-		&"landing_assist", &"interact",
-	]:
-		Input.action_release(action)
-
+	BenchmarkInputGuard.release_inputs()
 
 static func _scenario_seed(scenario_name: StringName) -> int:
 	return 9001 if scenario_name == &"station_embodied_route" else 9002
