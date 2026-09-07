@@ -5919,7 +5919,7 @@ func _build_cockpit() -> void:
 			side_name + "CanopyTopRail",
 			Vector3(side * 0.72, 1.22, -1.58),
 			Vector3(0.065, 0.075, 2.9),
-			_materials.gold
+			_materials.structure
 		)
 		_box(
 			_canopy_pivot,
@@ -5931,7 +5931,7 @@ func _build_cockpit() -> void:
 	for side in [-1.0, 1.0]:
 		var side_name := "Port" if side < 0.0 else "Starboard"
 		_box(_canopy_pivot, side_name + "CanopyLowerRail", Vector3(side * 1.21, -0.02, -1.72), Vector3(0.13, 0.14, 3.45), _materials.dark)
-		_box(_canopy_pivot, side_name + "CanopyRearUpright", Vector3(side * 1.2, 0.6, -0.12), Vector3(0.14, 1.25, 0.14), _materials.gold)
+		_box(_canopy_pivot, side_name + "CanopyRearUpright", Vector3(side * 1.2, 0.6, -0.12), Vector3(0.14, 1.25, 0.14), _materials.structure)
 		_box(_canopy_pivot, side_name + "CanopyLowerPressureSeal", Vector3(side * 1.115, -0.105, -1.72), Vector3(0.085, 0.08, 3.32), _materials.seal)
 		_box(_canopy_pivot, side_name + "CanopyLaminateEdge", Vector3(side * 1.13, 0.02, -1.72), Vector3(0.04, 0.055, 3.28), _materials.mid)
 		_box(_canopy_pivot, side_name + "CanopyLatchHook", Vector3(side * 0.92, -0.14, -0.78), Vector3(0.16, 0.18, 0.24), _materials.hydraulic)
@@ -5942,7 +5942,7 @@ func _build_cockpit() -> void:
 	_tag_modern_interpretation(_visual_root.get_node("CanopyHingeBar"))
 	for side in [-1.0, 1.0]:
 		var side_name := "Port" if side < 0.0 else "Starboard"
-		var hinge_mount := _cylinder(_visual_root, side_name + "CanopyHingeMount", Vector3(side * 1.31, 2.42, 1.04), 0.21, 0.22, _materials.gold, Vector3(0.0, 0.0, 90.0))
+		var hinge_mount := _cylinder(_visual_root, side_name + "CanopyHingeMount", Vector3(side * 1.31, 2.42, 1.04), 0.21, 0.22, _materials.structure, Vector3(0.0, 0.0, 90.0))
 		_tag_modern_interpretation(hinge_mount)
 
 
@@ -6916,7 +6916,7 @@ func _create_materials() -> void:
 	_materials.upholstery_light = _material(Color("31515a"), 0.18, 0.68)
 	_materials.seat_red = _material(Color("a83227"), 0.08, 0.68)
 	_materials.seat_red_light = _material(Color("b54432"), 0.10, 0.58)
-	_materials.display_cyan = _material(Color("16383e"), 0.16, 0.25, KETH_CYAN, 2.8)
+	_materials.display_cyan = _material(Color("0a1820"), 0.08, 0.34, KETH_CYAN, 0.85)
 	_materials.display_substrate = _material(Color("07161c"), 0.08, 0.46, Color("0d2a30"), 0.08)
 	_materials.display_cyan_low = _material(Color("0b242a"), 0.10, 0.40, KETH_CYAN.darkened(0.25), 0.38)
 	_materials.display_gold_low = _material(
@@ -6931,7 +6931,7 @@ func _create_materials() -> void:
 		0.16,
 		0.28,
 		identification_accent,
-		2.4
+		0.9
 	)
 	_materials.panel = _material(Color("66777a"), 0.5, 0.48)
 	_materials.thermal = _material(Color("3b3431"), 0.72, 0.56)
@@ -6972,17 +6972,17 @@ func _create_materials() -> void:
 			hull_material.clearcoat = 0.58
 			hull_material.clearcoat_roughness = 0.24
 	var glass := StandardMaterial3D.new()
-	glass.albedo_color = Color(0.08, 0.46, 0.55, 0.22)
-	glass.metallic = 0.08
-	glass.roughness = 0.09
+	# Smoked laminated glazing reads as a continuous exterior pressure shell.
+	# Its outward faces remain culled from the pilot's inside view.
+	glass.albedo_color = Color(0.14, 0.22, 0.28, 0.62)
+	glass.metallic = 0.48
+	glass.roughness = 0.13
 	glass.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
 	# Render the outward canopy shell only. With back-face culling, a pilot
 	# physically inside the closed mesh does not look through two alpha layers,
 	# avoiding the opaque cyan wash that previously buried space and targets.
 	glass.cull_mode = BaseMaterial3D.CULL_BACK
-	glass.emission_enabled = true
-	glass.emission = Color("123e48")
-	glass.emission_energy_multiplier = 0.16
+	glass.emission_enabled = false
 	_materials.glass = glass
 	var neutral_glass := glass.duplicate(true) as StandardMaterial3D
 	neutral_glass.albedo_color = Color(0.62, 0.72, 0.70, 0.13)

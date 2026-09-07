@@ -173,21 +173,13 @@ func _pbr_material(
 	material.diffuse_mode = BaseMaterial3D.DIFFUSE_BURLEY
 	material.specular_mode = BaseMaterial3D.SPECULAR_SCHLICK_GGX
 	if use_hull_microdetail:
-		var albedo := load("res://assets/materials/torrent-hull-albedo-v1.png") as Texture2D
-		var normal := load("res://assets/materials/torrent-hull-normal-v1.png") as Texture2D
-		var roughness := load("res://assets/materials/torrent-hull-roughness-v1.png") as Texture2D
-		material.albedo_texture = albedo
-		material.normal_enabled = normal != null
-		material.normal_texture = normal
-		material.normal_scale = 0.18
-		material.roughness_texture = roughness
-		material.roughness_texture_channel = BaseMaterial3D.TEXTURE_CHANNEL_RED
+		ShipSurfaceDetail.bind_manufactured_paint(material)
 		material.uv1_triplanar = false
 		material.uv1_scale = Vector3.ONE
 		material.texture_filter = BaseMaterial3D.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS_ANISOTROPIC
 		material.clearcoat_enabled = true
-		material.clearcoat = 0.34
-		material.clearcoat_roughness = 0.30
+		material.clearcoat = 0.18
+		material.clearcoat_roughness = 0.38
 	return material
 
 
@@ -223,7 +215,7 @@ func _emissive_material(color: Color, emission: Color, energy: float) -> Standar
 
 
 func _canopy_material() -> StandardMaterial3D:
-	var material := _pbr_material(Color(0.09, 0.25, 0.28, 0.20), 0.12, 0.08)
+	var material := _pbr_material(Color(0.14, 0.22, 0.28, 0.62), 0.48, 0.13)
 	material.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
 	material.cull_mode = BaseMaterial3D.CULL_DISABLED
 	material.render_priority = 1
@@ -570,7 +562,7 @@ func get_asset_audit_report() -> Dictionary:
 	if (
 		canopy_material == null
 		or canopy_material.transparency != BaseMaterial3D.TRANSPARENCY_ALPHA
-		or canopy_material.albedo_color.a > 0.22
+		or not is_equal_approx(canopy_material.albedo_color.a, 0.62)
 		or canopy_glass.layers != EXTERIOR_CANOPY_VISUAL_LAYER_MASK
 	):
 		errors.append("close canopy material is not a bounded transparent glazing contract")
@@ -579,11 +571,11 @@ func get_asset_audit_report() -> Dictionary:
 		if (
 			hull_material == null
 			or hull_material.albedo_texture == null
-			or hull_material.albedo_texture.resource_path != "res://assets/materials/torrent-hull-albedo-v1.png"
+			or hull_material.albedo_texture.resource_path != ShipSurfaceDetail.PAINT_ALBEDO_PATH
 			or hull_material.normal_texture == null
-			or hull_material.normal_texture.resource_path != "res://assets/materials/torrent-hull-normal-v1.png"
+			or hull_material.normal_texture.resource_path != ShipSurfaceDetail.PAINT_NORMAL_PATH
 			or hull_material.roughness_texture == null
-			or hull_material.roughness_texture.resource_path != "res://assets/materials/torrent-hull-roughness-v1.png"
+			or hull_material.roughness_texture.resource_path != ShipSurfaceDetail.PAINT_ROUGHNESS_PATH
 			or hull_material.uv1_triplanar
 		):
 			errors.append("hull material is not using the registered UV0 PBR map set: %s" % hull_role)

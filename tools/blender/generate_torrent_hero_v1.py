@@ -29,6 +29,13 @@ MANIFEST_PATH = ROOT / "assets/models/torrent/hero/torrent_hero_asset_manifest.j
 CONCEPT_PATH = ROOT / "assets/concepts/torrent/torrent-hero-concept-multiview-v1.png"
 
 MATS: dict[str, bpy.types.Material] = {}
+HULL_STATIONS = [
+    (-4.80, .08, .42, .76), (-4.15, .44, .28, 1.10),
+    (-3.25, 1.00, .20, 1.66), (-2.10, 1.48, .16, 1.98),
+    (-.75, 1.72, .14, 2.08), (.75, 1.84, .16, 2.14),
+    (1.85, 1.80, .20, 2.04), (2.75, 1.62, .26, 1.84),
+    (3.42, 1.40, .36, 1.56),
+]
 OBJECTS: dict[str, list[str]] = {
     "LOD0": [],
     "LOD1": [],
@@ -81,7 +88,7 @@ EXPECTED_RUNTIME_MESH_COUNTS = {
     "CanopyPivot": 3,
     "SemanticAnchors": 0,
 }
-EXPECTED_RUNTIME_TRIANGLES = 87_392
+EXPECTED_RUNTIME_TRIANGLES = 88_170
 RUNTIME_MESH_INSTANCE_BUDGET = 36
 SOURCE_MESH_INSTANCE_BUDGET = 320
 CLOSE_TRIANGLE_RANGE = (70_000, 90_000)
@@ -331,8 +338,8 @@ def canopy_glass_shell(name: str, collection, mat):
         (-.22, .98, .94),
         (.02, .82, .66),
     )
-    arch = ((-1.0, 0.0), (-.82, .52), (-.46, .88), (0.0, 1.0),
-            (.46, .88), (.82, .52), (1.0, 0.0))
+    arch = tuple((math.cos(math.pi - math.pi * i / 16),
+                  math.sin(math.pi * i / 16)) for i in range(17))
     verts = [
         (x_factor * half_width, y_factor * height, z_value)
         for z_value, half_width, height in stations
@@ -349,7 +356,13 @@ def canopy_glass_shell(name: str, collection, mat):
     faces.append(tuple(reversed(range(ring))))
     final = (len(stations) - 1) * ring
     faces.append(tuple(final + index for index in range(ring)))
-    return wedge(name, collection, mat, verts, faces, .018)
+    # The arch runs clockwise in XY. Reverse its surface winding so the
+    # manufactured bubble has outward normals rather than a dark inside wall.
+    obj = wedge(name, collection, mat, verts,
+                [tuple(reversed(face)) for face in faces], .0)
+    for polygon in obj.data.polygons:
+        polygon.use_smooth = len(polygon.vertices) == 4
+    return obj
 
 
 def articulated_foot(name: str, loc, size, collection, mat):
@@ -553,8 +566,10 @@ def swept_plate(name: str, collection, mat, side: float, y: float, tier: int,
     """A tapered, swept side-plane shell with a real root and clipped tip."""
     tip_x = side * outer_x
     root_x = side * inner_x
-    tip_front = z_front + .34 + tier * .08
-    tip_back = z_back - .24 - tier * .06
+    # Swept leading edges and taper give the four bonded skins an airfoil read
+    # instead of a stack of nearly rectangular shelves.
+    tip_front = z_front + 1.48 + tier * .16
+    tip_back = z_back - .62 - tier * .08
     lower = y - thickness * .5
     upper = y + thickness * .5
     verts = [
@@ -620,6 +635,29 @@ def add_panel_details(collection, prefix, x_sign=1.0):
             (.018, .06, .20), collection, cyan, .008)
 
 
+def hull_station_at(z):
+    for start, end in zip(HULL_STATIONS, HULL_STATIONS[1:]):
+        if start[0] <= z <= end[0]:
+            t = (z - start[0]) / (end[0] - start[0])
+            return tuple(a + (b - a) * t for a, b in zip(start[1:], end[1:]))
+    raise ValueError(f"Hull panel outside pressure shell: {z}")
+
+
+def conforming_side_panel(name, collection, mat, side, front, back, low=.35, high=.67):
+    """A thin manufactured skin panel follows the actual loft shoulder."""
+    corners = []
+    for z, band in [(front, low), (back, low), (back, high), (front, high)]:
+        width, bottom, top = hull_station_at(z)
+        x = width * (1.0 - (band - .24) / .56 * .08)
+        corners.append((side * (x + .012), bottom + (top - bottom) * band, z))
+    vertices = corners + [(x - side * .018, y, z) for x, y, z in corners]
+    faces = [(0, 1, 2, 3), (7, 6, 5, 4), (0, 4, 5, 1),
+             (1, 5, 6, 2), (2, 6, 7, 3), (3, 7, 4, 0)]
+    if side > 0:
+        faces = [tuple(reversed(face)) for face in faces]
+    return wedge(name, collection, mat, vertices, faces, .006)
+
+
 def build_lod0(collection):
     ivory = MATS["WarmIvoryHull"]
     ivory2 = MATS["IvorySecondary"]
@@ -634,17 +672,7 @@ def build_lod0(collection):
     # One continuous faceted pressure shell provides the primary read. The
     # station widths change at every section so profile and three-quarter views
     # cannot collapse back into the former long rectangular slab.
-    lofted_fuselage("ContinuousPressureShell", collection, ivory, [
-        (-4.80, .08, .42, .76),
-        (-4.15, .58, .24, 1.05),
-        (-3.25, 1.22, .16, 1.48),
-        (-2.10, 1.55, .12, 1.82),
-        (-.75, 1.72, .10, 2.00),
-        (.75, 1.84, .12, 2.14),
-        (1.85, 1.92, .16, 2.12),
-        (2.75, 1.78, .22, 1.92),
-        (3.42, 1.56, .32, 1.70),
-    ], .075)
+    lofted_fuselage("ContinuousPressureShell", collection, ivory, HULL_STATIONS, .075)
     # A lower keel and tapered spine add purposeful longitudinal structure
     # without masking the continuous shell or turning the aft into a wall.
     tapered_box("VentralPressureKeel", collection, ivory2, -3.45, 2.95,
@@ -653,26 +681,28 @@ def build_lod0(collection):
                 (.42, .30), (.78, .48), 2.18, .075)
     for section in range(5):
         z = -2.65 + section * 1.18
-        box(f"DorsalPanelSeam{section:02d}", (0, 2.00 + section*.055, z),
-            (1.34 + section*.16, .028, .035), collection, graphite, .006)
+        width, _low, high = hull_station_at(z)
+        box(f"DorsalPanelSeam{section:02d}", (0, high + .008, z),
+            (width * .88, .012, .025), collection, graphite, .003)
     # Recessed service breaks and restrained warm livery interrupt the large
     # primary shell without changing the preserved pointed-nose macroform.
     dorsal_breaks = [
-        ((0, 2.055, z_value), (width, .018, .055))
-        for z_value, width in ((-3.38, .68), (-2.34, 1.22), (-1.16, 1.48),
-                               (.12, 1.62), (1.28, 1.54), (2.28, 1.22))
+        ((0, hull_station_at(z_value)[2] + .005, z_value),
+         (hull_station_at(z_value)[0] * .8, .01, .02))
+        for z_value in (-3.38, -2.34, -1.16, .12, 1.28, 2.28)
     ]
     compound_boxes("DorsalAccessBreaks", dorsal_breaks, collection, graphite, .004)
-    tapered_box("DorsalCrimsonLivery", collection, livery, -3.34, 1.96,
-                (.11, .020), (.18, .024), 2.075, .008)
+    # Short flush marking on the aft flat crown, rather than a long straight
+    # slab that floats above the falling nose and intersects the windshield.
+    tapered_box("DorsalCrimsonLivery", collection, livery, .8, 1.8,
+                (.11, .006), (.15, .006), 2.10, .003)
     for side in (-1, 1):
         s = "Port" if side < 0 else "Starboard"
-        tapered_box(f"{s}ShoulderLivery", collection, livery, -2.70, 2.18,
-                    (.045, .16), (.065, .21), 1.61, .012).location.x = side * 1.26
+        conforming_side_panel(f"{s}ShoulderLivery", collection, livery,
+                              side, -2.70, 2.18, .73, .79)
         for panel_index, z_value in enumerate((-2.90, -1.72, -.42, .88, 2.02)):
-            box(f"{s}FlushAccessPanel{panel_index:02d}",
-                (side * 1.405, 1.47 + .045 * (panel_index % 2), z_value),
-                (.016, .32, .58), collection, graphite, .004)
+            conforming_side_panel(f"{s}FlushAccessPanel{panel_index:02d}",
+                                  collection, ivory2, side, z_value - .25, z_value + .25)
 
     # Four source-recognisable tiers now use swept planform shells rooted into
     # the fuselage, rather than rotated cuboids floating alongside it.
@@ -680,7 +710,7 @@ def build_lod0(collection):
         side_name = "Port" if side < 0 else "Starboard"
         root_shadow_parts = []
         for tier in range(4):
-            y = .45 + tier * .29
+            y = .62 + tier * .17
             inner_x = 1.40 + tier * .05
             outer_x = 2.38 + tier * .31
             z_front = -2.65 + tier * .16
@@ -760,14 +790,14 @@ def build_lod0(collection):
         cylinder(f"{s}EngineCore", (x,1.10,3.73), .135,.024,collection,cyan,36,bevel=.008)
         cylinder(f"{s}EnginePlume", (x,1.10,4.01), .16,.52,collection,cyan,32, bevel=.01)
         tapered_box(f"{s}DominantAftRail", collection, ivory, 1.86, 2.80,
-                    (.15,1.10), (.22,.88), 2.50, .075).location.x = side*2.16
+                    (.15,.64), (.22,.36), 2.20, .075).location.x = side*2.05
         tapered_box(f"{s}RailGraphiteInset", collection, graphite, 1.82, 2.72,
-                    (.055,.65), (.075,.52), 2.515, .018).location.x = side*2.16
-        cylinder_between(f"{s}NacelleUpperBrace", (side*2.05,2.98,2.25),
+                    (.055,.40), (.075,.22), 2.215, .018).location.x = side*2.05
+        cylinder_between(f"{s}NacelleUpperBrace", (side*2.05,2.65,2.25),
                          (side*2.37,1.59,2.78), .045, collection, alloy, 20, .010)
         cylinder_between(f"{s}NacelleLowerBrace", (side*2.04,1.86,2.48),
                          (side*2.37,.73,2.78), .040, collection, graphite, 20, .008)
-    box("AftCrossbar", (0,3.57,2.36), (4.28,.22,.26), collection,alloy,.045)
+    box("AftCrossbar", (0,2.75,2.36), (4.28,.14,.42), collection,graphite,.045)
     for i in range(8):
         box(f"AftMachineryRib{i:02d}", (-1.35+i*.385,1.42,3.52),
             (.12,.70,.12), collection,alloy,.018)
@@ -996,15 +1026,15 @@ def build_lod1(collection):
     alloy = MATS["ExposedAlloy"]
     thermal = MATS["ThermalCeramic"]
     lofted_fuselage("LOD1ContinuousHull", collection, ivory, [
-        (-4.80,.08,.42,.76), (-3.25,1.22,.16,1.48),
-        (-.75,1.72,.10,2.00), (1.85,1.92,.16,2.12),
-        (3.42,1.56,.32,1.70),
+        (-4.80,.08,.42,.76), (-3.25,1.00,.20,1.66),
+        (-.75,1.72,.14,2.08), (1.85,1.80,.20,2.04),
+        (3.42,1.40,.36,1.56),
     ], .085)
     for side in (-1,1):
         s="Port" if side<0 else "Starboard"
         for tier in range(4):
             swept_plate(f"LOD1{s}Plane{tier+1}", collection, ivory, side,
-                        .45+tier*.29, tier, 1.40+tier*.05,
+                        .62+tier*.17, tier, 1.40+tier*.05,
                         2.38+tier*.31, -2.65+tier*.16,
                         2.62-tier*.12, .12)
         annular_shell(f"LOD1{s}Housing",collection,ivory2,(side*2.5,1.1),
@@ -1014,8 +1044,8 @@ def build_lod1(collection):
                       (3.30,3.53,3.67),(.40,.34,.29),(.28,.23,.19),28,.006)
         cylinder(f"LOD1{s}EnginePlume",(side*2.5,1.1,3.86),.15,.55,collection,cyan,24,bevel=.01)
         tapered_box(f"LOD1{s}Rail",collection,ivory,1.86,2.80,
-                    (.15,1.10),(.22,.88),2.50,.075).location.x=side*2.16
-    box("LOD1AftCrossbar",(0,3.57,2.36),(4.28,.22,.26),collection,ivory,.05)
+                    (.15,.64),(.22,.36),2.20,.075).location.x=side*2.05
+    box("LOD1AftCrossbar",(0,2.75,2.36),(4.28,.14,.42),collection,thermal,.05)
 
 
 def setup_scene() -> dict:
@@ -2307,16 +2337,16 @@ def main():
             "texture_coordinate": "UV0/TEXCOORD_0",
             "triplanar": False,
             "albedo": {
-                "path": "assets/materials/torrent-hull-albedo-v1.png",
-                "sha256": sha(ROOT / "assets/materials/torrent-hull-albedo-v1.png"),
+                "path": "assets/materials/manufactured-paint-albedo.png",
+                "sha256": sha(ROOT / "assets/materials/manufactured-paint-albedo.png"),
             },
             "normal": {
-                "path": "assets/materials/torrent-hull-normal-v1.png",
-                "sha256": sha(ROOT / "assets/materials/torrent-hull-normal-v1.png"),
+                "path": "assets/materials/manufactured-paint-normal.png",
+                "sha256": sha(ROOT / "assets/materials/manufactured-paint-normal.png"),
             },
             "roughness": {
-                "path": "assets/materials/torrent-hull-roughness-v1.png",
-                "sha256": sha(ROOT / "assets/materials/torrent-hull-roughness-v1.png"),
+                "path": "assets/materials/manufactured-paint-roughness.png",
+                "sha256": sha(ROOT / "assets/materials/manufactured-paint-roughness.png"),
             },
         },
         "uv0_contract": uv_contract,
