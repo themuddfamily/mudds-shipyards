@@ -73,7 +73,7 @@ jobs:
         env:
           LIBGL_ALWAYS_SOFTWARE: '1'
           LP_NUM_THREADS: '2'
-        run: xvfb-run -a -s '-screen 0 2560x1440x24' bash tools/release/run_test_matrix.sh --mode graphical --accepted-risk RENDER-001 --audio-driver Dummy --jobs 1 --timeout 300
+        run: xvfb-run -a -s '-screen 0 2560x1440x24' bash tools/release/run_test_matrix.sh --mode graphical --display-driver x11 --accepted-risk RENDER-001 --audio-driver Dummy --jobs 1 --timeout 300
       - uses: actions/upload-artifact@v4
         if: always()
         with:

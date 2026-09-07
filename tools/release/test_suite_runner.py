@@ -259,10 +259,15 @@ import os,sys,pathlib
 args=sys.argv[1:]
 assert args[args.index('--audio-driver')+1] == 'Dummy'
 if '--editor' in args:
+    assert '--headless' in args and '--display-driver' not in args
     pathlib.Path('import-seen').write_text('yes')
     sys.exit(0)
 script=args[args.index('--script')+1]
 assert ('--headless' in args) == ('/ui/' not in script)
+if '/ui/' in script:
+    assert args[args.index('--display-driver')+1] == 'x11'
+else:
+    assert '--display-driver' not in args
 user=pathlib.Path(os.environ['XDG_DATA_HOME'])
 assert not (user/'marker').exists()
 (user/'marker').write_text(script)
@@ -270,7 +275,7 @@ print('OK: fixture (2 assertions)')
 ''')
             fake.chmod(0o755)
             command = ['bash', str(release / 'run_test_matrix.sh'), '--godot', str(fake), '--jobs', '2', '--results-dir', str(root / 'results'), '--manifest-scope', 'tests', '--import-gate', 'always']
-            result = subprocess.run(command, cwd=root, env={**os.environ, 'TEST_MATRIX_RUN_ID': 'headless'}, text=True, capture_output=True, timeout=20)
+            result = subprocess.run(command, cwd=root, env={**os.environ, 'TEST_MATRIX_DISPLAY_DRIVER': 'x11', 'TEST_MATRIX_RUN_ID': 'headless'}, text=True, capture_output=True, timeout=20)
             self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
             self.assertIn('NOT_RUN (graphical;', result.stdout)
             self.assertTrue((root / 'import-seen').exists())
@@ -282,8 +287,15 @@ print('OK: fixture (2 assertions)')
             self.assertEqual([row['test_path'] for row in rows], ['tests/a/probe_test.gd', 'tests/b/probe_test.gd'])
             self.assertNotEqual(rows[0]['log_path'], rows[1]['log_path'])
             self.assertTrue(all(row['status'] == 'PASS' for row in rows))
-            result = subprocess.run(command + ['--mode', 'graphical'], cwd=root, env={**os.environ, 'DISPLAY': ':fixture', 'TEST_MATRIX_RUN_ID': 'graphical'}, text=True, capture_output=True, timeout=20)
+            result = subprocess.run(command + ['--mode', 'graphical'], cwd=root, env={**os.environ, 'TEST_MATRIX_DISPLAY_DRIVER': 'x11', 'DISPLAY': ':fixture', 'TEST_MATRIX_RUN_ID': 'graphical'}, text=True, capture_output=True, timeout=20)
             self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+            manifest = (root / 'results/graphical/run-manifest.txt').read_text()
+            self.assertIn('display_driver=x11\n', manifest)
+            # CLI wins over the inherited backend in a mixed run, without
+            # forwarding it to either headless children or the import gate.
+            result = subprocess.run(command + ['--mode', 'all', '--display-driver', 'x11'], cwd=root, env={**os.environ, 'TEST_MATRIX_DISPLAY_DRIVER': 'wayland', 'DISPLAY': ':fixture', 'TEST_MATRIX_RUN_ID': 'all'}, text=True, capture_output=True, timeout=20)
+            self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+            self.assertIn('display_driver=x11\n', (root / 'results/all/run-manifest.txt').read_text())
             result = subprocess.run(command + ['--mode', 'graphical'], cwd=root, env={**os.environ, 'DISPLAY': '', 'WAYLAND_DISPLAY': '', 'TEST_MATRIX_RUN_ID': 'no-display'}, text=True, capture_output=True, timeout=20)
             self.assertEqual(result.returncode, 2)
             self.assertIn('require DISPLAY', result.stdout)

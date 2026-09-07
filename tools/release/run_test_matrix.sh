@@ -11,6 +11,7 @@ TIMEOUT_SECONDS="${TEST_MATRIX_TIMEOUT_SECONDS:-180}"
 RUN_RESULTS_ROOT="${TEST_MATRIX_RESULTS_ROOT:-$PROJECT_ROOT/artifacts/test-matrix}"
 RUN_ID="${TEST_MATRIX_RUN_ID:-$(date -u +%Y%m%dT%H%M%SZ)}"
 AUDIO_DRIVER="${TEST_MATRIX_AUDIO_DRIVER:-Dummy}"
+DISPLAY_DRIVER="${TEST_MATRIX_DISPLAY_DRIVER:-}"
 MODE="${TEST_MATRIX_MODE:-headless}"
 LIST_ONLY=0
 ACCEPTED_RISK=""
@@ -46,7 +47,7 @@ DIAGNOSTIC_RE='^[[:space:]]*SCRIPT[[:space:]]+ERROR|^[[:space:]]*ERROR:|\bFATAL 
 usage() {
 	cat <<EOF
 Usage: $(basename "$0") [--godot PATH] [--timeout SECONDS] [--results-dir DIR]
-                        [--audio-driver NAME] [--jobs N] [--scope SPEC[,SPEC...]]
+                        [--audio-driver NAME] [--display-driver NAME] [--jobs N] [--scope SPEC[,SPEC...]]
                         [--manifest-scope PATH[,PATH...]] [--import-gate MODE]
 
 Recursively run tests/**/*_test.gd files under Godot, one isolated process per suite,
@@ -61,6 +62,8 @@ Options:
   --timeout SECONDS         Per-suite timeout (default: 180).
   --results-dir DIR         Results root (default: artifacts/test-matrix).
   --audio-driver NAME       Audio backend passed to --audio-driver (default: Dummy).
+  --display-driver NAME     Display backend for graphical suites only (default: engine choice).
+                            Use x11 under Xvfb; headless suites and imports stay headless.
   --accepted-risk ID        Opt in to exact trailing RENDER-001 shutdown warning;
                             raw logs remain intact; diagnostic_count excludes only this block.
                             Opt-in rows also report raw_diagnostic_count and accepted counts.
@@ -89,6 +92,7 @@ Environment variables:
   TEST_MATRIX_RESULTS_ROOT   Defaults to artifacts/test-matrix.
   TEST_MATRIX_TEST_FILTER    Extended-regular-expression filter applied to tests/**/*_test.gd paths.
   TEST_MATRIX_AUDIO_DRIVER   Audio backend passed to --audio-driver (defaults to Dummy).
+  TEST_MATRIX_DISPLAY_DRIVER Graphical display backend; --display-driver overrides it.
   TEST_MATRIX_RUN_ID         Override the timestamp label.
   TEST_MATRIX_JOBS           Default concurrency (same meaning as --jobs).
   TEST_MATRIX_SCOPE          Default scope specs (same meaning as --scope).
@@ -109,6 +113,7 @@ while [[ $# -gt 0 ]]; do
 			[[ "$2" == RENDER-001 ]] || { echo "Unknown accepted risk: $2"; exit 2; }
 			ACCEPTED_RISK="$2"; shift 2 ;;
 		--mode) MODE="$2"; shift 2 ;;
+		--display-driver) DISPLAY_DRIVER="$2"; shift 2 ;;
 		--list) LIST_ONLY=1; shift ;;
 		--godot)
 			GODOT_BIN="$2"
@@ -610,6 +615,8 @@ run_suite_worker() {
 	local GODOT_ARGS=("$GODOT_BIN" --path "$PROJECT_ROOT" --script "$res_path")
 	if [[ "${SUITE_MODES[$test_file]}" == headless ]]; then
 		GODOT_ARGS+=(--headless)
+	elif [[ -n "$DISPLAY_DRIVER" ]]; then
+		GODOT_ARGS+=(--display-driver "$DISPLAY_DRIVER")
 	fi
 	if [[ -n "$AUDIO_DRIVER" ]]; then
 		GODOT_ARGS+=(--audio-driver "$AUDIO_DRIVER")
@@ -921,6 +928,7 @@ run_completed_utc=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
 godot_binary=${GODOT_BIN}
 timeout_seconds=${TIMEOUT_SECONDS}
 audio_driver=${AUDIO_DRIVER}
+display_driver=${DISPLAY_DRIVER}
 project_root=${PROJECT_ROOT}
 overall_status=${overall_status}
 total_suites=${TOTAL_SUITES}
