@@ -591,7 +591,11 @@ func _free_game(game: GameFlow) -> void:
 		audio.get_parent().remove_child(audio)
 		audio.queue_free()
 		await process_frame
+	var director := game.get_node_or_null("EncounterScenarios") as EncounterScenarioDirector
 	root.remove_child(game)
+	if director != null:
+		_check(is_zero_approx(director.get_escape_progress()),
+			"detached encounter reports no world-space escape progress")
 	game.queue_free()
 	for _index in 12:
 		await process_frame

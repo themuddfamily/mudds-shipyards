@@ -343,7 +343,8 @@ func get_escape_progress() -> float:
 	if _scenario != SCENARIO_COURIER_INTERCEPT:
 		return 0.0
 	var courier := _get_courier()
-	if not is_instance_valid(courier) or escape_distance <= 0.0:
+	if not is_instance_valid(courier) or not courier.is_inside_tree() \
+			or courier.is_queued_for_deletion() or escape_distance <= 0.0:
 		return 0.0
 	return clampf(
 		courier.global_position.distance_to(_courier_launch_origin) / escape_distance,
