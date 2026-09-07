@@ -646,12 +646,12 @@ func _server_loop() -> void:
 func _finish(exit_code: int) -> void:
 	for child in root.get_children():
 		child.process_mode = Node.PROCESS_MODE_DISABLED
-	# Drain the graceful disconnect before destroying ENet's channel owners.
-	if _role != "server" and _adapter._peer != null:
-		_adapter._peer.disconnect_peer(Adapter.AUTHORITY_PEER_ID)
-	var disconnect_deadline := Time.get_ticks_msec() + 2000
+	# Close the host only after both clients finish their gameplay checks. Concurrent
+	# client disconnects can make SceneMultiplayer relay a departure to an ENet
+	# peer whose channels have already been destroyed in the same poll.
+	var disconnect_deadline := Time.get_ticks_msec() + 6000
 	while Time.get_ticks_msec() < disconnect_deadline:
-		if _role == "server" and _adapter._peer_generations.is_empty():
+		if _role == "server" and _clients_finished_gameplay():
 			break
 		if _role != "server" and not _adapter._configured:
 			break
@@ -663,6 +663,16 @@ func _finish(exit_code: int) -> void:
 	await process_frame
 	_log("PEER_FINISHED")
 	quit(exit_code)
+
+
+func _clients_finished_gameplay() -> bool:
+	for role in ["client_a", "client_b"]:
+		var path := _log_path.get_base_dir().path_join("%s.log" % role)
+		if not FileAccess.file_exists(path):
+			return false
+		if not FileAccess.get_file_as_string(path).contains("CLIENT_CLEAN"):
+			return false
+	return true
 
 
 func _client_loop() -> void:
