@@ -16,19 +16,21 @@ Source capabilities reviewed on **2026-09-07**; this inventory is not a new test
 - **Combat and crew:** bounded varied encounters, component damage and repair, gunner/engineer roles on supported craft, bomber payloads, and station-defence waves. These remain incomplete combat and multiplayer slices.
 - **Networking:** production ENet session integration, server-owned command/seat/combat paths, moving-interior replication and bounded role/projectile presentation exist. The deterministic and multiprocess harnesses cover specific contracts; a current native-Windows two-client review and sustained soak remain open. See [Phase 7](ROADMAP.md#phase-7--multiplayer).
 - **Nearby activities:** the streamed Cinder Reach cluster and Activity Board expose bounded race, patrol, cargo, mining/extraction, scan, beacon and defence routes with generation-bound progress and receipts. Package-level player validation remains open. See [Phase 8](ROADMAP.md#phase-8--nearby-world-and-activities).
-- **Ember Moon:** the Destination Board exposes the bounded Ember journey, physical cruise/final approach, streamed landing/surface survey and return to the craft's home berth. The catalog does not make every listed world visitable. Full planetary breadth, uninterrupted human expedition review and representative hardware performance remain open. See [Phase 10](ROADMAP.md#4-visitable-planets-with-complete-atmosphere-to-surface-loops).
+- **Ember Moon:** the Destination Board exposes the bounded Ember journey, physical cruise/final approach and streamed landing. Survey, reward persistence and home-berth return components exist, but their normal-controls survey/return connection is under repair; the current candidate does not establish a complete expedition. The catalog does not make every listed world visitable. Full planetary breadth, uninterrupted human expedition review and representative hardware performance remain open. See [Phase 10](ROADMAP.md#4-visitable-planets-with-complete-atmosphere-to-surface-loops).
 
 The historical evidence boundary is unchanged: Torrent's B5 link and Zenith's B7 link support bounded partial reconstructions, with recording/build provenance and continuity with 2009 unresolved. Zenith's Interceptor/Fighter naming conflict remains open. Arrow and Jovian have no name-to-model locks; their geometry and systems are modern candidates. Halyard, Bulwark and the three Cinder craft are original modern designs, not recovered historical ships. Station details, activities, audio and planetary content do not authenticate the original game. See the [research plan](ROADMAP.md#phase-1--research) and [asset record](ASSETS.md).
 
 ## Next milestone
 
-Review the source-pinned stabilization candidate with normal Windows controls:
+Complete the Ember survey/return connection, then review the replacement stabilization candidate with normal Windows controls.
 
 Regression discovery now includes nested suites and registered graphical harnesses; CI runs the eight-suite core on changes and broader suites on a schedule. Failed diagnostic saves retain their records and back off between retries. The planetary journey coordinator now lives outside `GameFlow` and remains attached across Ember return cycles. Equivalent audio validators share one implementation.
 
 The stabilization pass repairs physical boarding, moving-cabin collision alignment, doorway face winding, Cinder streaming fades, startup cleanup and network HUD revision handling, and stabilizes foot placement during extended play.
 
 Candidate **`2147039ad4d6167a787dd9c7aef8f4b4f9cab549`**, exported on 2026-09-07, passed the complete **927-suite regression** and all **four embedded-package probes**. The source-bound release record and `SHA256SUMS` accompany `MuddsShipyards-2147039.exe`. These results apply to that exact candidate, not later documentation or tooling commits. Package probes used Linux Godot; they do not establish native Windows playability.
+
+**Known candidate defect:** ordinary disembarking does not start the mandatory Ember survey or admit its authenticated return. The existing physical fixture manually started/retired the survey and supplied a return manifest, so its passing result covered terrain traversal and departure without proving the complete survey/reward/return path. The replacement will exercise that production connection.
 
 1. Exercise boarding, combat, landing, disembarking, crash recovery and the Ember expedition on Windows using normal controls. Tune camera comfort, landing clarity, prompts and audio from recorded observations.
 2. Run the existing benchmark on representative minimum/target hardware before further visual expansion. Use the packaged Ember observations to choose its next visible improvement.
@@ -129,8 +131,9 @@ godot --headless --audio-driver Dummy --path . --script res://tests/sandbox_loop
 # Headless regression; the runner reports graphical suites as NOT_RUN.
 tools/release/run_test_matrix.sh --audio-driver Dummy --mode headless
 
-# Complete roster, including graphical suites; requires a working display.
-tools/release/run_test_matrix.sh --audio-driver Dummy --mode all
+# Complete roster, with graphical suites on an isolated Xvfb display.
+env -u WAYLAND_DISPLAY xvfb-run -a \
+  tools/release/run_test_matrix.sh --audio-driver Dummy --display-driver x11 --mode all
 
 # Source-named Windows candidate from a clean exact commit; existing outputs are preserved.
 tools/release/export_windows_candidate.sh
