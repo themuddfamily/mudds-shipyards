@@ -1396,9 +1396,17 @@ func _test_checked_in_encounter_content() -> void:
 		),
 		"same-instance re-entry restores the exact revenge-dive generation, source, burst role, and retained telegraph nodes"
 	)
-	for _frame in 48:
-		await physics_frame
+	# Re-entry retains the outward momentum from the preceding peel. Allow the
+	# live acceleration enough physics time to reverse that velocity; render
+	# cadence changes the inherited momentum, so tick 48 is not a stable sample.
+	var reversal_seconds := (gamma.velocity.length() + gamma.chase_speed) / gamma.acceleration
+	var reversal_steps := ceili(reversal_seconds / PHYSICS_STEP) + 1
 	var gamma_to_core := (asset.global_position - gamma.global_position).normalized()
+	for _frame in reversal_steps:
+		await physics_frame
+		gamma_to_core = (asset.global_position - gamma.global_position).normalized()
+		if gamma.velocity.dot(gamma_to_core) > 4.0:
+			break
 	_check(
 		gamma.velocity.dot(gamma_to_core) > 4.0,
 		"the re-entered survivor executes live inward pressure instead of resuming the former wide orbit"
