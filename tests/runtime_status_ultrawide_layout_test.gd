@@ -17,12 +17,12 @@ func _run() -> void:
 	var ultrawide := HudType.compute_runtime_status_panel_rect(
 		Vector2(3440.0, 1440.0), Rect2(28.0, 0.0, 40.0, 0.0), 1.0
 	)
-	_check(standard.size.x >= 460.0 and standard.size.x <= 680.0, "16:9 status panel stays readable")
-	_check(ultrawide.size.x > standard.size.x, "21:9 status panel gains text width")
-	_check(ultrawide.size.x <= 680.0, "ultrawide width remains bounded")
-	var logical_width := 3440.0 - 28.0 - 40.0
+	_check(standard.size == Vector2(396.0, 112.0), "16:9 status panel stays readable")
+	_check(ultrawide.size == standard.size, "21:9 preserves the compact card typography instead of stretching its text")
+	_check(is_equal_approx(ultrawide.get_center().x, 28.0 + (3440.0 - 28.0 - 40.0) * 0.5 + 20.0), "ultrawide card retains its authored offset inside the inset-adjusted center")
+	var safe_right := 3440.0 - 40.0
 	_check(
-		ultrawide.position.x >= 28.0 and ultrawide.end.x <= logical_width,
+		ultrawide.position.x >= 28.0 and ultrawide.end.x <= safe_right,
 		"ultrawide status panel remains inside safe horizontal bounds"
 	)
 	if _failures.is_empty():

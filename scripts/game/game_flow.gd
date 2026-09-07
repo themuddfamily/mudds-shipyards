@@ -569,6 +569,9 @@ var _network_session_address := "127.0.0.1"
 var _network_session_port := NetworkSessionAdapterType.DEFAULT_PORT
 var _network_session_max_clients := NetworkSessionAdapterType.DEFAULT_MAX_CLIENTS
 var _network_hud_snapshot_generation := 0
+var _network_hud_session_epoch := 0
+var _network_hud_session_retired := false
+var _network_hud_migration_generation := 0
 var _network_damage_entities: Dictionary = {}
 var _network_damage_server_tick := 0
 var _network_landing_entities: Dictionary = {}
@@ -5121,9 +5124,23 @@ func _publish_network_session_snapshot(
 ) -> void:
 	if not is_instance_valid(hud) or not hud.has_method(&"update_network_session_status"):
 		return
+	# Publication order is not a new session. Keep authority/repair/landing
+	# cursors until an actual reconnect, session start, or migration changes epoch.
+	if _network_hud_session_epoch == 0 or (_network_hud_session_retired and state != &"disconnected"):
+		_network_hud_session_epoch += 1
+		_network_hud_session_retired = false
+		_network_hud_migration_generation = 0
+	var migration_generation := 0
+	if is_instance_valid(network_session):
+		migration_generation = int(network_session.get_migration_snapshot().get("migration_generation", 0))
+	if _network_hud_migration_generation > 0 and migration_generation > _network_hud_migration_generation:
+		_network_hud_session_epoch += 1
+	_network_hud_migration_generation = maxi(_network_hud_migration_generation, migration_generation)
 	_network_hud_snapshot_generation += 1
 	var presentation := _network_local_role_presentation()
-	presentation["generation"] = _network_hud_snapshot_generation
+	presentation["session_id"] = "game-flow-%d" % get_instance_id()
+	presentation["generation"] = _network_hud_session_epoch
+	presentation["sequence"] = _network_hud_snapshot_generation
 	presentation["state"] = state
 	presentation["role"] = role
 	presentation["detail"] = detail
@@ -5132,6 +5149,8 @@ func _publish_network_session_snapshot(
 		&"update_network_session_status",
 		presentation
 	)
+	if state == &"disconnected":
+		_network_hud_session_retired = true
 
 
 func _network_local_role_presentation() -> Dictionary:
@@ -5232,6 +5251,9 @@ func _publish_network_session_result(result: Dictionary, role: StringName) -> vo
 
 
 func _on_network_session_started(mode: StringName) -> void:
+	_network_hud_session_epoch += 1
+	_network_hud_session_retired = false
+	_network_hud_migration_generation = 0
 	_set_station_defense_network_presentation_only(mode == &"client")
 	if mode == &"server" and _bomber_payload_ship != null:
 		_ensure_bomber_payload_network_source()

@@ -26,6 +26,9 @@ func _run() -> void:
 	_check(restored.display_resolution == "2560x1440" and restored.vsync_mode == Settings.VSyncMode.ADAPTIVE, "display values round-trip")
 	var legacy := payload.duplicate(true)
 	legacy.schema_version = 7
+	# A historical payload contains only fields introduced by that schema.
+	for later_field in ["on_foot_first_person"]:
+		(legacy.values as Dictionary).erase(later_field)
 	(legacy.values as Dictionary).erase("display_resolution")
 	(legacy.values as Dictionary).erase("vsync_mode")
 	var migrated := Settings.new("user://runtime_settings_display_test_legacy.cfg")

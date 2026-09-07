@@ -12,7 +12,11 @@ var _failures: PackedStringArray = []
 
 class SessionProbe extends AdapterType:
 	var authoritative_snapshot: Dictionary = {}
+	var migration_generation := 1
 	var landing_entity: Dictionary = {}
+
+	func get_migration_snapshot() -> Dictionary:
+		return {"migration_generation": migration_generation}
 
 	func get_authoritative_snapshot() -> Dictionary:
 		return authoritative_snapshot.duplicate(true)
@@ -32,7 +36,7 @@ func _run() -> void:
 	var pilot := presenter.present_snapshot(_session_snapshot(2, 4, 2))
 	_check(pilot.ownership_text == "PILOT" and pilot.controlled_craft == "Cinder", "connected snapshot exposes pilot and controlled craft")
 	_check(pilot.ownership_rows.has("CRAFT CINDER // LOCAL PEER 2") and pilot.ownership_rows.has("PILOT CINDER_PILOT // LOCAL PEER 2"), "authoritative snapshot identifies local craft and pilot-seat ownership")
-	var stale := presenter.present_snapshot({"generation": 1, "state": &"disconnected", "local_role": &"observer", "controlled_craft": "Old Craft"})
+	var stale := presenter.present_snapshot({"generation": 0, "sequence": 1, "state": &"disconnected", "local_role": &"observer", "controlled_craft": "Old Craft"})
 	_check(stale.state == &"connected" and stale.ownership_text == "PILOT", "stale generation cannot overwrite role state")
 	var stale_authority := presenter.present_snapshot(_session_snapshot(3, 3, 7))
 	_check(stale_authority.ownership_rows.has("CRAFT CINDER // LOCAL PEER 2"), "stale authoritative revision cannot replace visible ownership")
@@ -213,6 +217,25 @@ func _run() -> void:
 		and bool(production_presentation.get("presentation_only", false))
 		and not production_presentation.has("landing_authority"),
 		"retry publication latch is visible without exposing landing mutation authority")
+	# A real session boundary must admit low revisions while dropping old views.
+	production_flow._publish_network_session_snapshot(&"disconnected", &"server", "Closed.")
+	production_flow._network_landing_handoffs.clear()
+	production_flow._network_landing_server_tick = 1
+	production_session.landing_entity = _landing_entity(production_ship_id, &"flying")
+	production_session.authoritative_snapshot = _authority_snapshot(1, production_ship_id, 1)
+	production_flow._publish_network_session_snapshot(&"connected", &"server", "Reconnected.")
+	detail = (production_hud.get("_runtime_status_detail") as Label).text
+	_check(detail.contains("LOCAL PEER 1") and detail.contains("LANDING // FLYING")
+		and not detail.contains("REMOTE PEER 7") and not detail.contains("CONTROL UNAVAILABLE"),
+		"actual disconnect/reconnect accepts fresh authority and landing revisions without old state")
+	production_session.authoritative_snapshot = _authority_snapshot(9, production_ship_id, 1)
+	production_flow._publish_network_session_snapshot(&"connected", &"server", "Current.")
+	production_session.migration_generation = 2
+	production_session.authoritative_snapshot = _authority_snapshot(1, production_ship_id, 7)
+	production_flow._publish_network_session_snapshot(&"connected", &"server", "Migrated.")
+	detail = (production_hud.get("_runtime_status_detail") as Label).text
+	_check(detail.contains("REMOTE PEER 7") and not detail.contains("TRANSFER //"),
+		"adapter migration epoch accepts restarted authority without transferring stale ownership")
 	production_flow.free()
 	production_bomber.queue_free()
 	production_session.queue_free()
@@ -233,9 +256,10 @@ func _check(condition: bool, message: String) -> void:
 		_failures.append("FAIL: " + message)
 
 
-func _session_snapshot(generation: int, revision: int, owner_peer_id: int) -> Dictionary:
+func _session_snapshot(sequence: int, revision: int, owner_peer_id: int) -> Dictionary:
 	return {
-		"generation": generation,
+		"generation": 1,
+		"sequence": sequence,
 		"state": &"connected",
 		"local_role": &"pilot",
 		"local_peer_id": 2,

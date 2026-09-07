@@ -24,8 +24,10 @@ func _run() -> void:
 	_check(flash.tooltip_text.contains("ON"), "reduced flash description updates live")
 	_check(intensity.tooltip_text.contains("Low"), "payload intensity description updates live")
 	hud.apply_bomber_payload_snapshot({"generation": 1, "active": true, "ammo": 1, "cooldown_remaining": 0.0})
-	var action_button := (hud.get("_runtime_status_actions") as HBoxContainer).get_child(0) as Button
-	_check(action_button.focus_mode == Control.FOCUS_ALL and action_button.tooltip_text.contains("Release bomber payload"), "bomber action exposes focused accessible description")
+	var action_row := hud.get("_bomber_status_actions") as HBoxContainer
+	_check(action_row.get_child_count() == 1, "bomber owns one dedicated payload action")
+	var action_button := action_row.get_child(0) as Button if action_row.get_child_count() == 1 else null
+	_check(action_button != null and action_button.focus_mode == Control.FOCUS_ALL and action_button.tooltip_text.contains("Release bomber payload"), "bomber action exposes focused accessible description")
 	hud.queue_free()
 	await process_frame
 	if _failures.is_empty():

@@ -99,9 +99,11 @@ func _run() -> void:
 		and (detached.get("repair_lifecycles", []) as Array).is_empty(),
 		"disconnect teardown clears all retained repair rows and cursors"
 	)
-	hud.update_network_session_status(_session_snapshot(3, 1, [
+	var fresh_session := _session_snapshot(3, 1, [
 		_repair_respawn(&"jovian_provisional", &"started", 0.0, 1, 1, 8, 6),
-	]))
+	])
+	fresh_session.generation = 3
+	hud.update_network_session_status(fresh_session)
 	var rejoined_presenter: RefCounted = hud.get("_network_status_presenter") as RefCounted
 	var rejoined: Dictionary = rejoined_presenter.call("get_snapshot") as Dictionary
 	_check(
@@ -126,9 +128,10 @@ func _run() -> void:
 	quit(1)
 
 
-func _session_snapshot(generation: int, revision: int, respawn: Array) -> Dictionary:
+func _session_snapshot(sequence: int, revision: int, respawn: Array) -> Dictionary:
 	return {
-		"generation": generation,
+		"generation": 1,
+		"sequence": sequence,
 		"state": &"connected",
 		"local_role": &"observer",
 		"local_peer_id": 2,

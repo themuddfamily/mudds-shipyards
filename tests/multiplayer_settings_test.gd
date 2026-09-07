@@ -35,6 +35,9 @@ func _run() -> void:
 	_check(roundtrip.to_dictionary().get("network_default_port") == 65535, "server-browser defaults are exposed in snapshots")
 	var legacy := payload.duplicate(true)
 	legacy.schema_version = 3
+	# A historical payload contains only fields introduced by that schema.
+	for later_field in ["on_foot_first_person", "display_resolution", "vsync_mode", "reduced_flash", "payload_visual_intensity"]:
+		(legacy.values as Dictionary).erase(later_field)
 	(legacy.values as Dictionary).erase("multiplayer_display_name")
 	(legacy.values as Dictionary).erase("network_default_port")
 	(legacy.values as Dictionary).erase("multiplayer_max_players")

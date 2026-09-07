@@ -14,16 +14,20 @@ func _run() -> void:
 	var rect := HudType.compute_runtime_status_panel_rect(
 		Vector2(1280.0, 720.0), Rect2(18.0, 14.0, 22.0, 16.0), 1.0
 	)
-	_check(rect.size.x >= 460.0, "minimum viewport keeps status text width")
-	_check(rect.size.y == 300.0, "minimum viewport retains readable status height")
-	var safe_center := Vector2(18.0 + (1280.0 - 18.0 - 22.0) * 0.5, 14.0 + (720.0 - 14.0 - 16.0) * 0.5)
-	_check(rect.get_center().is_equal_approx(safe_center), "panel centers inside narrow safe area")
+	_check(rect.size.x == 396.0, "minimum viewport keeps status text width")
+	_check(rect.size.y == 112.0, "minimum viewport retains readable status height")
+	var safe_center := Vector2(18.0 + (1280.0 - 18.0 - 22.0) * 0.5 + 20.0, 14.0 + 204.0 + 56.0)
+	_check(rect.get_center().is_equal_approx(safe_center), "compact public card sits below transcript with the authored 20 px center offset")
 	_check(rect.position.x >= 18.0 and rect.end.x <= 1280.0 - 22.0, "narrow panel stays inside horizontal safe bounds")
 	_check(rect.position.y >= 14.0 and rect.end.y <= 720.0 - 16.0, "narrow panel stays inside vertical safe bounds")
 	var scaled := HudType.compute_runtime_status_panel_rect(
 		Vector2(1280.0, 720.0), Rect2(18.0, 14.0, 22.0, 16.0), 1.25
 	)
-	_check(scaled.size.x >= 460.0 and scaled.size.y == 300.0, "text-scale layout remains bounded")
+	_check(scaled.size == Vector2(396.0, 112.0)
+		and scaled.position.x * 1.25 >= 18.0
+		and scaled.end.x * 1.25 <= 1280.0 - 22.0
+		and scaled.position.y * 1.25 >= 14.0
+		and scaled.end.y * 1.25 <= 720.0 - 16.0, "text-scale layout remains bounded")
 	if _failures.is_empty():
 		print("RUNTIME_STATUS_NARROW_LAYOUT_TEST_OK (%d assertions)" % _assertions)
 		quit(0)
