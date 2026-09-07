@@ -9,8 +9,9 @@ extends SceneTree
 ## the lips it must now mount, and the things it must still refuse to climb —
 ## against the real `scenes/player/player.tscn` capsule with real input actions.
 ##
-## Every case drives `move_forward` through the InputMap. Nothing is teleported
-## during a walk and `jump` is never pressed.
+## Step cases drive `move_forward` through the InputMap without jumping. The
+## Ember contact regression also checks a real jump and unsupported edge.
+## Nothing is teleported during a walk.
 
 const PLAYER_SCENE := preload("res://scenes/player/player.tscn")
 const MovingFrame := preload("res://scripts/physics/moving_interior_frame.gd")
@@ -33,6 +34,7 @@ func _run() -> void:
 	await _test_refuses_an_unwalkable_landing()
 	await _test_does_not_displace_on_open_ground()
 	await _test_steps_along_ship_local_up()
+	await _test_ember_pad_floor_contact()
 	_finish()
 
 
@@ -279,6 +281,73 @@ func _test_steps_along_ship_local_up() -> void:
 	coordinator.unregister_occupant(player, false, &"test_teardown")
 	rig.queue_free()
 	await process_frame
+
+
+## A naturally reached Ember pad pose exposed native capsule contact loss at the
+## default 1 mm recovery margin. Stage that recorded pose, then use continuous
+## collision motion; no position correction occurs during the walk.
+func _test_ember_pad_floor_contact() -> void:
+	var original_time_scale := Engine.time_scale
+	Engine.time_scale = 5.0
+	var rig := Node3D.new()
+	root.add_child(rig)
+	rig.add_child(_slab(Vector3(96.0, 0.5, 96.0), Vector3(0.0, -60.21875, -290.2366)))
+	var player := PLAYER_SCENE.instantiate() as PlayerController
+	player.position = Vector3(30.0, -59.96, -290.4699)
+	rig.add_child(player)
+	player.set_physics_process(false)
+	await physics_frame
+	for _settle in 11:
+		await physics_frame
+		player._apply_gravity(1.0 / 12.0)
+		player._move_in_interior_collision_frame(1.0 / 12.0)
+	player.position = Vector3(41.986328125, -59.967742919921875, -290.46990966796875)
+	var lost_floor := 0
+	var penetrated_floor := false
+	var direction := 1.0
+	for _frame in 80:
+		await physics_frame
+		player.velocity.x = player.walk_speed * direction
+		player._apply_gravity(1.0 / 12.0)
+		player._move_in_interior_collision_frame(1.0 / 12.0)
+		if not player.is_on_floor():
+			lost_floor += 1
+		penetrated_floor = penetrated_floor or player.position.y < -60.06875
+		if player.position.x > 46.0:
+			direction = -1.0
+		elif player.position.x < 30.0:
+			direction = 1.0
+	_check(lost_floor == 0 and not penetrated_floor,
+		"the recorded Ember pad contact stays grounded above the floor through repeated physical crossings")
+
+	player.velocity = Vector3.ZERO
+	player.set_physics_process(true)
+	var jump_start := player.position
+	Input.action_press(&"jump")
+	await physics_frame
+	await physics_frame
+	Input.action_release(&"jump")
+	_check(not player.is_on_floor() and player.position.y > jump_start.y + 0.1,
+		"the contact recovery margin preserves a real input-driven jump off the pad")
+	for _land in 90:
+		await physics_frame
+		if player.is_on_floor():
+			break
+	_check(player.is_on_floor(), "the jumping capsule lands on the same physical pad")
+	player.set_physics_process(false)
+	for _edge in 80:
+		await physics_frame
+		player.velocity.x = player.walk_speed
+		player._apply_gravity(1.0 / 12.0)
+		player._move_in_interior_collision_frame(1.0 / 12.0)
+		if player.position.x > 50.0 and player.position.y < -60.5:
+			break
+	_check(not player.is_on_floor() and player.position.x > 48.0
+		and player.position.y < -60.5,
+		"walking beyond the real pad edge loses support and falls instead of retaining false floor contact")
+	rig.queue_free()
+	await process_frame
+	Engine.time_scale = original_time_scale
 
 
 func _walks_up_lip(height: float) -> bool:
