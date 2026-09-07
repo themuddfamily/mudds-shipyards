@@ -423,7 +423,7 @@ func _navigation_light_material(color: Color, emission: Color) -> StandardMateri
 
 
 func _canopy_material() -> StandardMaterial3D:
-	var material := _pbr_material(Color(0.035, 0.16, 0.19, 0.22), 0.14, 0.07)
+	var material := _pbr_material(Color(0.025, 0.075, 0.12, 0.48), 0.14, 0.07)
 	material.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
 	material.cull_mode = BaseMaterial3D.CULL_DISABLED
 	material.render_priority = 1

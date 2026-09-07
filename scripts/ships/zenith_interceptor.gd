@@ -3633,6 +3633,7 @@ func _build_zenith_variant(_controller: HeroShip) -> bool:
 	_install_close_plume_batch()
 	_install_far_plume_batch()
 	_build_starboard_wing_damage_cue(staged_visual)
+	_build_modern_airframe(staged_visual)
 	for collision in inherited_collisions:
 		collision.queue_free()
 	if inherited_visual.get_parent() != null:
@@ -3640,6 +3641,185 @@ func _build_zenith_variant(_controller: HeroShip) -> bool:
 	inherited_visual.queue_free()
 	_identity_snapshot = _capture_runtime_identities()
 	return true
+
+
+## Modern visual retrofit around the preserved B7 reference package. Imported
+## allocation/evidence reports describe that retained reference only; these
+## shells are explicitly modern art, with no collision or gameplay authority.
+func _build_modern_airframe(visual: Node3D) -> void:
+	var reference := _authored_presentation.call("get_source_core_root") as Node3D
+	for candidate in reference.find_children("*", "MeshInstance3D", true, false):
+		(candidate as MeshInstance3D).visible = false
+	var modern_root := _authored_presentation.call("get_modern_systems_root") as Node3D
+	# The old raised wing battens and exposed fittings were a blockout. Canopy,
+	# engine hardware, navigation lamps and their animation remain independent.
+	for candidate in modern_root.find_children("*StaticBatch_GraphitePanel", "MeshInstance3D", true, false):
+		if "CanopyPivot" not in String(candidate.name):
+			(candidate as MeshInstance3D).visible = false
+	var airframe := Node3D.new()
+	airframe.name = "ModernManufacturedAirframe"
+	airframe.set_meta("presentation_only", true)
+	airframe.set_meta("historical_geometry", false)
+	visual.add_child(airframe)
+	var hull := StandardMaterial3D.new()
+	hull.albedo_color = Color("bac8d6")
+	hull.metallic = 0.32
+	hull.roughness = 0.48
+	hull.albedo_texture = load("res://assets/materials/torrent-hull-albedo-v1.png")
+	hull.normal_enabled = true
+	hull.normal_texture = load("res://assets/materials/torrent-hull-normal-v1.png")
+	hull.normal_scale = 0.16
+	hull.uv1_triplanar = true
+	hull.uv1_scale = Vector3.ONE * 0.22
+	hull.clearcoat_enabled = true
+	hull.clearcoat = 0.24
+	ShipSurfaceDetail.bind_manufactured_paint(hull)
+	var panel := hull.duplicate() as StandardMaterial3D
+	panel.albedo_color = Color("637685")
+	panel.roughness = 0.52
+	var dark := hull.duplicate() as StandardMaterial3D
+	dark.albedo_color = Color("1c2932")
+	dark.metallic = 0.52
+	dark.roughness = 0.37
+	var marking := hull.duplicate() as StandardMaterial3D
+	marking.albedo_color = Color("bb703d")
+	marking.metallic = 0.08
+	marking.roughness = 0.58
+	_zenith_loft(airframe, "BlendedPressureHull", Vector3(0, 0.76, 0), PackedVector3Array([
+		Vector3(0.035, 0.06, -5.32), Vector3(0.44, 0.25, -4.1),
+		Vector3(0.88, 0.63, -2.9), Vector3(1.17, 1.34, -1.1),
+		Vector3(1.39, 1.57, 0.8), Vector3(1.68, 1.34, 2.45),
+		Vector3(1.63, 0.52, 3.6), Vector3(1.32, 0.28, 4.35),
+	]), hull)
+	for side in [-1.0, 1.0]:
+		var prefix := "Port" if side < 0.0 else "Starboard"
+		_zenith_panel(airframe, prefix + "BlendedDeltaWing", PackedVector3Array([
+			Vector3(side * 0.95, 0.28, -3.05), Vector3(side * 7.17, 0.15, 0.87),
+			Vector3(side * 6.53, 0.17, 3.70), Vector3(side * 2.05, 0.28, 4.52),
+		]), 0.25, hull)
+		_zenith_panel(airframe, prefix + "SweptControlSurface", PackedVector3Array([
+			Vector3(side * 3.35, 0.46, 1.95), Vector3(side * 6.65, 0.34, 1.49),
+			Vector3(side * 6.19, 0.36, 3.34), Vector3(side * 3.28, 0.46, 3.91),
+		]), 0.07, panel)
+		_zenith_panel(airframe, prefix + "IntakeShoulder", PackedVector3Array([
+			Vector3(side * 1.2, 0.65, -2.22), Vector3(side * 3.15, 0.38, 0.15),
+			Vector3(side * 3.28, 0.44, 3.45), Vector3(side * 1.62, 0.89, 3.60),
+		]), 0.33, hull)
+		_zenith_loft(airframe, prefix + "EngineCowling", Vector3(side * 2.20, 0.42, 0), PackedVector3Array([
+			Vector3(0.24, 0.20, 0.1), Vector3(0.74, 0.72, 1.6),
+			Vector3(0.82, 0.80, 3.15), Vector3(0.72, 0.71, 4.40),
+		]), panel)
+		_zenith_panel(airframe, prefix + "LeadingEdgeHeatShield", PackedVector3Array([
+			Vector3(side * 1.96, 0.42, -2.14), Vector3(side * 6.85, 0.29, 0.95),
+			Vector3(side * 6.73, 0.31, 1.17), Vector3(side * 2.12, 0.45, -1.92),
+		]), 0.035, dark)
+		_zenith_panel(airframe, prefix + "SquadronMark", PackedVector3Array([
+			Vector3(side * 5.62, 0.48, 1.92), Vector3(side * 5.94, 0.48, 1.87),
+			Vector3(side * 5.62, 0.50, 3.36), Vector3(side * 5.30, 0.50, 3.42),
+		]), 0.015, marking)
+
+
+## Four-point bevelled armour plate: a shallow crown and inset perimeter give
+## the silhouette a proper leading edge instead of a uniformly extruded slab.
+func _zenith_panel(parent: Node3D, node_name: String, outline: PackedVector3Array, depth: float, material: Material) -> void:
+	var tool := SurfaceTool.new()
+	tool.begin(Mesh.PRIMITIVE_TRIANGLES)
+	tool.set_material(material)
+	var center := Vector3.ZERO
+	for point in outline:
+		center += point * 0.25
+	var rings: Array[PackedVector3Array] = []
+	for ring_index in 4:
+		var ring := PackedVector3Array()
+		for point in outline:
+			var inset := 0.045 if ring_index in [0, 3] else 0.0
+			var height := [-0.5, -0.25, 0.25, 0.5][ring_index] as float
+			ring.append(point.lerp(center, inset) + Vector3.UP * depth * height)
+		rings.append(ring)
+	for ring_index in 3:
+		for edge in 4:
+			var following := (edge + 1) % 4
+			_zenith_triangle(tool, rings[ring_index][edge], rings[ring_index + 1][edge], rings[ring_index + 1][following], center)
+			_zenith_triangle(tool, rings[ring_index][edge], rings[ring_index + 1][following], rings[ring_index][following], center)
+	for edge in 4:
+		var following := (edge + 1) % 4
+		_zenith_triangle(tool, center + Vector3.UP * depth * 0.5, rings[3][edge], rings[3][following], center)
+		_zenith_triangle(tool, center - Vector3.UP * depth * 0.5, rings[0][following], rings[0][edge], center)
+	tool.generate_normals()
+	var mesh := MeshInstance3D.new()
+	mesh.name = node_name
+	mesh.mesh = tool.commit()
+	parent.add_child(mesh)
+
+
+func _zenith_triangle(tool: SurfaceTool, a: Vector3, b: Vector3, c: Vector3, center: Vector3) -> void:
+	# Godot front faces wind clockwise; orient each bevel against its centroid.
+	var points := [a, b, c]
+	if (b - a).cross(c - a).dot((a + b + c) / 3.0 - center) > 0.0:
+		points = [a, c, b]
+	for point: Vector3 in points:
+		tool.set_uv(Vector2(point.x, point.z) * 0.2)
+		tool.add_vertex(point)
+
+
+func _zenith_loft(parent: Node3D, node_name: String, origin: Vector3, authored_sections: PackedVector3Array, material: Material) -> MeshInstance3D:
+	var sections := PackedVector3Array()
+	for index in authored_sections.size() - 1:
+		var start := authored_sections[index]
+		var finish := authored_sections[index + 1]
+		for sample_index in 5:
+			var t := float(sample_index) / 5.0
+			var curved := start.cubic_interpolate(finish, authored_sections[maxi(0, index - 1)], authored_sections[mini(authored_sections.size() - 1, index + 2)], t)
+			sections.append(Vector3(maxf(0.01, curved.x), maxf(0.01, curved.y), lerpf(start.z, finish.z, t)))
+	sections.append(authored_sections[-1])
+	const RING_COUNT := 32
+	var tool := SurfaceTool.new()
+	tool.begin(Mesh.PRIMITIVE_TRIANGLES)
+	tool.set_material(material)
+	for section_index in sections.size():
+		var section := sections[section_index]
+		for ring_index in RING_COUNT:
+			var angle := TAU * float(ring_index) / float(RING_COUNT)
+			var cosine := cos(angle)
+			var sine := sin(angle)
+			var rounded_x := signf(cosine) * pow(absf(cosine), 0.40)
+			var rounded_y := signf(sine) * pow(absf(sine), 0.40)
+			tool.set_uv(Vector2(float(ring_index) / float(RING_COUNT), float(section_index) / float(maxi(1, sections.size() - 1))))
+			tool.add_vertex(Vector3(section.x * rounded_x, section.y * rounded_y, section.z))
+	for section_index in sections.size() - 1:
+		for ring_index in RING_COUNT:
+			var next_ring := (ring_index + 1) % RING_COUNT
+			var current := section_index * RING_COUNT + ring_index
+			var current_next := section_index * RING_COUNT + next_ring
+			var following := (section_index + 1) * RING_COUNT + ring_index
+			var following_next := (section_index + 1) * RING_COUNT + next_ring
+			tool.add_index(current)
+			tool.add_index(following)
+			tool.add_index(following_next)
+			tool.add_index(current)
+			tool.add_index(following_next)
+			tool.add_index(current_next)
+	var front_center := sections.size() * RING_COUNT
+	tool.add_vertex(Vector3(0, 0, sections[0].z))
+	var rear_center := front_center + 1
+	tool.add_vertex(Vector3(0, 0, sections[sections.size() - 1].z))
+	for ring_index in RING_COUNT:
+		var next_ring := (ring_index + 1) % RING_COUNT
+		tool.add_index(front_center)
+		tool.add_index(ring_index)
+		tool.add_index(next_ring)
+		var rear_base := (sections.size() - 1) * RING_COUNT
+		tool.add_index(rear_center)
+		tool.add_index(rear_base + next_ring)
+		tool.add_index(rear_base + ring_index)
+	tool.generate_normals()
+	var instance := MeshInstance3D.new()
+	instance.name = node_name
+	instance.position = origin
+	instance.mesh = tool.commit()
+	instance.set_meta("closed_loft_hull", true)
+	parent.add_child(instance)
+	return instance
 
 
 func _build_starboard_wing_damage_cue(visual: Node3D) -> void:

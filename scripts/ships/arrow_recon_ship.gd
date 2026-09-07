@@ -228,12 +228,12 @@ const PHASE9_ARROW_VISUAL_CENSUS := {
 	"auto_fallback_names": 23,
 }
 const EXPECTED_ARROW_VISUAL_CENSUS := {
-	"nodes": 189,
-	"mesh_instance_nodes": 164,
+	"nodes": 197,
+	"mesh_instance_nodes": 172,
 	"multi_mesh_instance_nodes": 3,
-	"geometry_submissions": 167,
-	"visible_geometry_copies": 171,
-	"unique_mesh_resource_allocations": 123,
+	"geometry_submissions": 175,
+	"visible_geometry_copies": 179,
+	"unique_mesh_resource_allocations": 131,
 	"auto_fallback_names": 20,
 }
 const RECON_PULSE_EMITTER_VISUAL_DELTA := {
@@ -678,6 +678,7 @@ func _build_arrow_variant(_controller: HeroShip) -> bool:
 
 	_create_arrow_materials()
 	_build_slender_airframe()
+	_build_manufactured_fairings()
 	_build_recon_systems()
 	_build_recon_pulse_emitters()
 	_build_escape_pods()
@@ -693,8 +694,8 @@ func _build_arrow_variant(_controller: HeroShip) -> bool:
 func _create_arrow_materials() -> void:
 	# The `pearl`/`ceramic` material-family keys are the craft's stable public
 	# material API and are left alone; only the tints they carry changed.
-	_arrow_materials.pearl = _material(HULL_SLATE, 0.18, 0.28)
-	_arrow_materials.ceramic = _material(HULL_SLATE_SHADE, 0.12, 0.36)
+	_arrow_materials.pearl = _material(HULL_SLATE, 0.32, 0.43)
+	_arrow_materials.ceramic = _material(HULL_SLATE_SHADE, 0.30, 0.49)
 	# Secondary structure carries a deliberately wide material response. Before
 	# this pass titanium/graphite/pod sat at roughness 0.34/0.30/0.42 and
 	# metallic 0.58/0.64/0.20 — three surfaces a player could only tell apart by
@@ -703,12 +704,12 @@ func _create_arrow_materials() -> void:
 	# the same light. Colours are untouched; see the palette note above.
 	_arrow_materials.titanium = _material(TITANIUM, 0.72, 0.24)
 	_arrow_materials.graphite = _material(GRAPHITE, 0.30, 0.68)
-	_arrow_materials.sensor = _material(SENSOR_CYAN, 0.18, 0.22, SENSOR_CYAN, 1.7)
+	_arrow_materials.sensor = _material(Color("285057"), 0.40, 0.32, SENSOR_CYAN, 0.18)
 	_arrow_materials.pod = _material(POD_ORANGE, 0.10, 0.58)
 	_arrow_materials.engine = _material(ENGINE_CYAN, 0.1, 0.16, ENGINE_CYAN, 3.0)
 	_arrow_materials.nav_red = _material(ARROW_NAV_RED, 0.1, 0.2, ARROW_NAV_RED, 2.2)
 	_arrow_materials.nav_green = _material(ARROW_NAV_GREEN, 0.1, 0.2, ARROW_NAV_GREEN, 2.2)
-	_arrow_materials.glass = _transparent_material(Color(0.3, 0.68, 0.7, 0.09), 0.04, 0.08)
+	_arrow_materials.glass = _transparent_material(Color(0.045, 0.12, 0.17, 0.42), 0.04, 0.08)
 	var hull_albedo := load("res://assets/materials/arrow-hull-albedo-v1.png") as Texture2D
 	var hull_normal := load("res://assets/materials/arrow-hull-normal-v1.png") as Texture2D
 	var hull_roughness := load("res://assets/materials/arrow-hull-roughness-v1.png") as Texture2D
@@ -718,7 +719,7 @@ func _create_arrow_materials() -> void:
 		if hull_normal != null:
 			hull_material.normal_enabled = true
 			hull_material.normal_texture = hull_normal
-			hull_material.normal_scale = 0.62
+			hull_material.normal_scale = 0.16
 		if hull_roughness != null:
 			hull_material.roughness_texture = hull_roughness
 			hull_material.roughness_texture_channel = BaseMaterial3D.TEXTURE_CHANNEL_RED
@@ -728,7 +729,7 @@ func _create_arrow_materials() -> void:
 		hull_material.uv1_triplanar_sharpness = 4.0
 		hull_material.uv1_scale = Vector3(0.34, 0.34, 0.34)
 		hull_material.clearcoat_enabled = true
-		hull_material.clearcoat = 0.48
+		hull_material.clearcoat = 0.22
 		hull_material.clearcoat_roughness = 0.2
 	# Nacelles, wing-root ribs, wingtip pods, the sensor gimbal, the fuselage
 	# panel bands, gear feet and the mast pedestal all shared one flat slab of
@@ -753,6 +754,8 @@ func _create_arrow_materials() -> void:
 	# craft: a saturated flat orange blob beside a textured fuselage. A coarser
 	# projection than the hardware gives them shell seams at pod scale.
 	ShipSurfaceDetail.bind_structural_detail(_arrow_materials.pod, hull_normal, 1.6, 1.30)
+	for painted_shell: StandardMaterial3D in [_arrow_materials.pearl, _arrow_materials.ceramic]:
+		ShipSurfaceDetail.bind_manufactured_paint(painted_shell)
 
 
 func get_variant_materials() -> Dictionary:
@@ -782,8 +785,8 @@ func _build_slender_airframe() -> void:
 		Vector3(0, 1.22, -0.45),
 		PackedVector3Array([
 			Vector3(0.18, 0.12, -7.2),
-			Vector3(0.72, 0.46, -6.15),
-			Vector3(1.28, 0.72, -3.7),
+			Vector3(0.58, 0.30, -6.15),
+			Vector3(1.18, 0.56, -3.7),
 			Vector3(1.5, 0.86, -0.7),
 			Vector3(1.62, 0.82, 2.6),
 			Vector3(1.25, 0.7, 5.2),
@@ -811,8 +814,8 @@ func _build_slender_airframe() -> void:
 		var wing := _build_planform_surface(
 			"PortSensorWing" if side_index == 0 else "StarboardSensorWing",
 			PackedVector3Array([
-				Vector3(side * 0.9, 1.05, -1.6),
-				Vector3(side * 5.35, 0.92, 0.75),
+				Vector3(side * 0.9, 1.05, -2.8),
+				Vector3(side * 5.25, 0.92, 1.4),
 				Vector3(side * 5.75, 0.86, 3.65),
 				Vector3(side * 1.15, 0.98, 2.8),
 			]),
@@ -828,9 +831,9 @@ func _build_slender_airframe() -> void:
 			_arrow_visual,
 			"SensorLeadingEdge",
 			PackedVector3Array([
-				Vector3(side * 1.0, 1.19, -1.65),
-				Vector3(side * 3.4, 1.1, -0.55),
-				Vector3(side * 5.35, 1.02, 0.75),
+				Vector3(side * 1.0, 1.12, -2.65),
+				Vector3(side * 3.4, 1.03, -0.40),
+				Vector3(side * 5.25, 0.96, 1.4),
 			]),
 			SENSOR_LEADING_EDGE_CURVE_JOINT_RADIUS,
 			_arrow_materials.sensor,
@@ -890,6 +893,33 @@ func _build_slender_airframe() -> void:
 		panel_band.position = Vector3(0, FUSELAGE_PANEL_BAND_HEIGHT, seam_z)
 		panel_band.mesh = _fuselage_panel_band_mesh
 		_arrow_visual.add_child(panel_band)
+
+
+## Broad shoulder fairings join the cockpit sill and sensor wings into one
+## manufactured airframe. All shells are presentation-only and leave the
+## controller's boarding route, canopy hinge and escape-pod modules intact.
+func _build_manufactured_fairings() -> void:
+	for side in [-1.0, 1.0]:
+		var side_name := "Port" if side < 0.0 else "Starboard"
+		_loft_hull(_arrow_visual, side_name + "ShoulderFairing", Vector3(side * 1.14, 1.34, 0.0), PackedVector3Array([
+			Vector3(0.07, 0.07, -4.2), Vector3(0.30, 0.22, -3.1),
+			Vector3(0.47, 0.50, -1.8), Vector3(0.48, 0.52, 0.6),
+			Vector3(0.44, 0.28, 2.0), Vector3(0.16, 0.12, 3.0),
+		]), _arrow_materials.pearl)
+		_loft_hull(_arrow_visual, side_name + "EngineIntakeFairing", Vector3(side * 0.96, 1.10, 0.0), PackedVector3Array([
+			Vector3(0.38, 0.28, 3.95), Vector3(0.70, 0.62, 4.30),
+			Vector3(0.73, 0.63, 5.45), Vector3(0.58, 0.49, 6.40),
+		]), _arrow_materials.ceramic)
+		var inlay := _build_planform_surface(side_name + "WingInset", PackedVector3Array([
+			Vector3(side * 2.30, 1.13, -0.82), Vector3(side * 4.80, 1.01, 1.51),
+			Vector3(side * 5.18, 1.01, 3.18), Vector3(side * 2.50, 1.13, 2.63),
+		]), 0.025, _arrow_materials.graphite)
+		_arrow_visual.add_child(inlay)
+		var marking := _build_planform_surface(side_name + "SurveyRecognitionMark", PackedVector3Array([
+			Vector3(side * 3.58, 1.15, 1.30), Vector3(side * 3.79, 1.15, 1.49),
+			Vector3(side * 4.05, 1.13, 2.90), Vector3(side * 3.83, 1.13, 2.86),
+		]), 0.014, _arrow_materials.pod)
+		_arrow_visual.add_child(marking)
 
 
 func _build_recon_systems() -> void:
@@ -1208,7 +1238,24 @@ func _restyle_inherited_cockpit(cockpit: Node3D, canopy: Node3D) -> void:
 	if canopy != null:
 		var glass := canopy.get_node_or_null("CanopyGlass") as MeshInstance3D
 		if glass != null:
-			glass.material_override = _arrow_materials.glass
+			# A reflective exterior coating reads as glazing against empty space.
+			# The pilot camera omits this exterior-only layer, preserving its
+			# unobstructed physical eye point through the same animated canopy.
+			glass.material_override = _material(Color("162e3a"), 0.64, 0.21)
+			glass.layers = 1 << 18
+			var pilot_camera := cockpit.find_child("CockpitCamera", true, false) as Camera3D
+			if pilot_camera != null:
+				pilot_camera.set_cull_mask_value(19, false)
+			# Replace the inherited inward-wound wedge with the outward pressure
+			# shell; preserve the exact renderer and controller-owned hinge.
+			var shell := _loft_hull(canopy, "CanopyShellConstruction", Vector3.ZERO, PackedVector3Array([
+				Vector3(0.06, 0.06, -1.79), Vector3(0.61, 0.40, -1.20),
+				Vector3(1.04, 0.67, -0.30), Vector3(1.24, 0.775, 0.90),
+				Vector3(1.15, 0.66, 1.79),
+			]), _arrow_materials.glass)
+			glass.mesh = shell.mesh
+			canopy.remove_child(shell)
+			shell.free()
 			# Retain the inherited physical canopy envelope. Enlarging the shell
 			# independently of its private camera/hinge geometry creates a cyan first-
 			# person wash and overstates the high-visibility canopy from outside.
@@ -2165,12 +2212,12 @@ static func _lateral_array_curve_joint_transforms() -> Array[Transform3D]:
 
 static func _sensor_leading_edge_curve_joint_transforms() -> Array[Transform3D]:
 	return [
-		Transform3D(Basis.IDENTITY, Vector3(-1.0, 1.19, -1.65)),
-		Transform3D(Basis.IDENTITY, Vector3(-3.4, 1.1, -0.55)),
-		Transform3D(Basis.IDENTITY, Vector3(-5.35, 1.02, 0.75)),
-		Transform3D(Basis.IDENTITY, Vector3(1.0, 1.19, -1.65)),
-		Transform3D(Basis.IDENTITY, Vector3(3.4, 1.1, -0.55)),
-		Transform3D(Basis.IDENTITY, Vector3(5.35, 1.02, 0.75)),
+		Transform3D(Basis.IDENTITY, Vector3(-1.0, 1.12, -2.65)),
+		Transform3D(Basis.IDENTITY, Vector3(-3.4, 1.03, -0.40)),
+		Transform3D(Basis.IDENTITY, Vector3(-5.25, 0.96, 1.4)),
+		Transform3D(Basis.IDENTITY, Vector3(1.0, 1.12, -2.65)),
+		Transform3D(Basis.IDENTITY, Vector3(3.4, 1.03, -0.40)),
+		Transform3D(Basis.IDENTITY, Vector3(5.25, 0.96, 1.4)),
 	]
 
 
@@ -2302,8 +2349,17 @@ static func _transformed_mesh_bounds(
 	return result
 
 
-func _loft_hull(parent: Node3D, node_name: String, origin: Vector3, sections: PackedVector3Array, material: Material) -> MeshInstance3D:
-	const RING_COUNT := 20
+func _loft_hull(parent: Node3D, node_name: String, origin: Vector3, authored_sections: PackedVector3Array, material: Material) -> MeshInstance3D:
+	var sections := PackedVector3Array()
+	for index in authored_sections.size() - 1:
+		var start := authored_sections[index]
+		var finish := authored_sections[index + 1]
+		for sample_index in 5:
+			var t := float(sample_index) / 5.0
+			var curved := start.cubic_interpolate(finish, authored_sections[maxi(0, index - 1)], authored_sections[mini(authored_sections.size() - 1, index + 2)], t)
+			sections.append(Vector3(maxf(0.01, curved.x), maxf(0.01, curved.y), lerpf(start.z, finish.z, t)))
+	sections.append(authored_sections[-1])
+	const RING_COUNT := 32
 	var tool := SurfaceTool.new()
 	tool.begin(Mesh.PRIMITIVE_TRIANGLES)
 	tool.set_material(material)
