@@ -1,5 +1,9 @@
 extends SceneTree
 
+# Resolve the concrete subtype before shared HeroShip references to avoid
+# retaining inheritance script resources during headless process teardown.
+const ArrowShipType := preload("res://scripts/ships/arrow_recon_ship.gd")
+
 ## Front-face winding contract for the fleet's procedural mesh builders.
 ##
 ## `tests/station_surface_winding_test.gd` guards the station kit. It was written

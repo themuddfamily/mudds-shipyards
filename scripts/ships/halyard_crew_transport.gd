@@ -4437,7 +4437,8 @@ func _add_aperture_quad(
 		d: Vector3,
 		normal: Vector3
 	) -> void:
-	for vertex in [a, b, c, a, c, d]:
+	# Godot front faces wind clockwise, opposite the outward shading normal.
+	for vertex in [a, c, b, a, d, c]:
 		tool.set_normal(normal)
 		tool.add_vertex(vertex)
 

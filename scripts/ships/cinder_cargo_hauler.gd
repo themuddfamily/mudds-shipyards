@@ -1240,7 +1240,8 @@ static func _append_shell_quad(
 		return
 	var base := vertices.size()
 	var ordered := [a, b, c, d]
-	if (b - a).cross(c - a).dot(normal) < 0.0:
+	# Godot front faces wind clockwise, opposite the outward shading normal.
+	if (b - a).cross(c - a).dot(normal) > 0.0:
 		ordered = [a, d, c, b]
 	for vertex in ordered:
 		vertices.append(vertex)
