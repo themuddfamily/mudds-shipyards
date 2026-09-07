@@ -809,18 +809,18 @@ func get_symmetric_hull_box_allocation_audit() -> Dictionary:
 					continue
 				var instance := matching_nodes[0]
 				node_count += 1
-				var mesh := instance.mesh as BoxMesh
+				var mesh := instance.mesh as ArrayMesh
 				if mesh == null:
 					errors.append("symmetric_hull_box_mesh_type_drift:%s" % String(family_name))
 				else:
 					family_mesh_ids[mesh.get_instance_id()] = true
 					all_mesh_ids[mesh.get_instance_id()] = true
 					structural_submissions += mesh.get_surface_count()
-					if mesh.material != null:
-						all_material_ids[mesh.material.get_instance_id()] = true
+					if mesh.surface_get_material(0) != null:
+						all_material_ids[mesh.surface_get_material(0).get_instance_id()] = true
 					if (
-						not mesh.size.is_equal_approx(expected_size)
-						or mesh.material != expected_material
+						not mesh.get_aabb().size.is_equal_approx(expected_size)
+						or mesh.surface_get_material(0) != expected_material
 						or mesh.get_surface_count() != 1
 					):
 						errors.append(
@@ -2104,7 +2104,7 @@ func _build_interceptor() -> void:
 	_wedge(_visual_root, "AmberCanopy", Vector3(0.0, 0.93, -0.35), Vector3(1.46, 0.88, 2.8), _materials.glass)
 	_box(_visual_root, "DorsalFrame", Vector3(0.0, 1.16, 1.22), Vector3(0.4, 0.24, 2.5), _materials.frame)
 	_box(_visual_root, "AftCrossbar", Vector3(0.0, 0.05, 2.55), Vector3(7.3, 0.5, 1.2), _materials.shade)
-	_box(_visual_root, "AftCyanBand", Vector3(0.0, 0.36, 2.4), Vector3(6.5, 0.12, 0.34), _materials.cyan)
+	_box(_visual_root, "AftCyanBand", Vector3(0.0, 0.36, 2.4), Vector3(6.5, 0.055, 0.24), _materials.cyan)
 	var symmetric_box_meshes: Dictionary = {}
 	for spec in SYMMETRIC_HULL_BOX_SPECS:
 		var material := _materials.get(String(StringName(spec["material_key"]))) as Material
@@ -2132,7 +2132,7 @@ func _build_interceptor() -> void:
 				_visual_root,
 				String(family_name),
 				(spec["positions"] as Array)[side_index],
-				symmetric_box_meshes[family_name] as BoxMesh,
+				symmetric_box_meshes[family_name] as ArrayMesh,
 				(spec["rotations"] as Array)[side_index]
 			)
 		var lens := _sphere(
@@ -2176,6 +2176,7 @@ func _build_interceptor() -> void:
 	_warning_light.shadow_enabled = false
 	add_child(_warning_light)
 
+	_build_range_fittings()
 	_build_collision()
 	_build_damage_effects()
 
@@ -2406,22 +2407,23 @@ func _ensure_particle_meshes() -> void:
 
 
 func _create_materials() -> void:
-	_materials.ivory = _material(HULL_IVORY, 0.32, 0.5)
-	_materials.shade = _material(HULL_SHADE, 0.42, 0.46)
-	_materials.frame = _material(FRAME_DARK, 0.58, 0.35)
-	_materials.deep = _material(FRAME_DEEP, 0.62, 0.28)
-	_materials.cyan = _material(KETH_CYAN, 0.24, 0.3, KETH_CYAN, 1.15)
-	_materials.amber = _material(SIGNAL_AMBER, 0.3, 0.36)
+	_materials.ivory = _material(HULL_IVORY, 0.1, 0.6)
+	_materials.shade = _material(HULL_SHADE, 0.1, 0.62)
+	_materials.frame = _material(FRAME_DARK, 0.65, 0.43)
+	_materials.deep = _material(FRAME_DEEP, 0.15, 0.63)
+	_materials.cyan = _material(KETH_CYAN, 0.1, 0.58)
+	_materials.amber = _material(SIGNAL_AMBER, 0.1, 0.6)
 	_materials.amber_emissive = _material(SIGNAL_AMBER, 0.14, 0.24, SIGNAL_AMBER, 2.3)
 	_materials.engine = _material(ENGINE_BLUE, 0.08, 0.2, ENGINE_BLUE, 2.8)
 	_materials.spark = _material(DAMAGE_ORANGE, 0.08, 0.2, DAMAGE_ORANGE, 4.2)
 	var glass := StandardMaterial3D.new()
-	glass.albedo_color = Color(0.82, 0.45, 0.12, 0.76)
-	glass.metallic = 0.4
-	glass.roughness = 0.13
-	glass.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	glass.albedo_color = Color("312e28")
+	glass.metallic = 0.15
+	glass.roughness = 0.19
+	glass.clearcoat_enabled = true
+	glass.clearcoat = 0.85
 	glass.cull_mode = BaseMaterial3D.CULL_DISABLED
-	glass.emission_enabled = true
+	glass.emission_enabled = false
 	glass.emission = Color("9b4e18")
 	glass.emission_energy_multiplier = 0.85
 	_materials.glass = glass
@@ -2439,6 +2441,8 @@ func _material(color: Color, metallic: float, roughness: float, emission := Colo
 	material.albedo_color = color
 	material.metallic = metallic
 	material.roughness = roughness
+	if energy == 0.0 and metallic <= 0.3:
+		ShipSurfaceDetail.bind_manufactured_paint(material)
 	if energy > 0.0:
 		material.emission_enabled = true
 		material.emission = emission
@@ -2446,10 +2450,9 @@ func _material(color: Color, metallic: float, roughness: float, emission := Colo
 	return material
 
 
-func _make_box_mesh(size: Vector3, material: Material) -> BoxMesh:
-	var mesh := BoxMesh.new()
-	mesh.size = size
-	mesh.material = material
+func _make_box_mesh(size: Vector3, material: Material) -> ArrayMesh:
+	var mesh := _armour_mesh(size, material)
+	mesh.set_meta(&"stock_size", size)
 	return mesh
 
 
@@ -2457,7 +2460,7 @@ func _box_from_mesh(
 	parent: Node3D,
 	node_name: String,
 	position_value: Vector3,
-	mesh: BoxMesh,
+	mesh: Mesh,
 	rotation_value := Vector3.ZERO
 ) -> MeshInstance3D:
 	var instance := MeshInstance3D.new()
@@ -2477,7 +2480,7 @@ func _box(parent: Node3D, node_name: String, position_value: Vector3, size: Vect
 	var mesh := BoxMesh.new()
 	mesh.size = size
 	mesh.material = material
-	instance.mesh = mesh
+	instance.mesh = _armour_mesh(size, material) if node_name in ["HullBody", "AftCrossbar", "Keelplate", "SpineFairing", "SpineTrunk", "VentralKeel", "DorsalFrame"] else mesh
 	parent.add_child(instance)
 	return instance
 
@@ -2525,6 +2528,13 @@ func _sphere(
 
 ## Creates a crisp, tapered prism with its point toward local negative Z.
 func _wedge(parent: Node3D, node_name: String, position_value: Vector3, size: Vector3, material: Material, skew := 0.0) -> MeshInstance3D:
+	if node_name not in ["RearCrossDirectionVane", "RouteIntentHead"]:
+		var shell := MeshInstance3D.new()
+		shell.name = node_name
+		shell.position = position_value
+		shell.mesh = _armour_mesh(size, material, 0.08, skew)
+		parent.add_child(shell)
+		return shell
 	var half_width := size.x * 0.5
 	var half_height := size.y * 0.5
 	var half_length := size.z * 0.5
@@ -2556,3 +2566,100 @@ func _wedge(parent: Node3D, node_name: String, position_value: Vector3, size: Ve
 	instance.mesh = surface_tool.commit()
 	parent.add_child(instance)
 	return instance
+
+
+## Flat armour facets with a narrow edge break. Cross sections retain broad
+## planar faces: no smooth loft normals or ballooned corners. Collision remains
+## authored by the separate hull builders. UVs carry only fine coating grain.
+func _armour_mesh(size: Vector3, material: Material, nose_width := 0.88, skew := 0.0) -> ArrayMesh:
+	var stations := [Vector3(-0.5, nose_width, 0.7), Vector3(-0.38, 0.96 if nose_width > 0.5 else 0.34, 1.0), Vector3(0.32, 1.0, 1.0), Vector3(0.5, 0.88, 0.76)]
+	var rings: Array[PackedVector3Array] = []
+	for station: Vector3 in stations:
+		var w := size.x * 0.5 * station.y
+		var h := size.y * 0.5 * station.z
+		var bevel_x := minf(w * 0.22, size.y * 0.18)
+		var bevel_y := h * 0.3
+		var offset := skew * size.z * maxf(0.0, -station.x * 2.0)
+		var ring := PackedVector3Array()
+		for point: Vector2 in [Vector2(-w + bevel_x, h), Vector2(w - bevel_x, h), Vector2(w, h-bevel_y), Vector2(w, -h+bevel_y), Vector2(w-bevel_x,-h), Vector2(-w+bevel_x,-h), Vector2(-w,-h+bevel_y), Vector2(-w,h-bevel_y)]:
+			ring.append(Vector3(point.x + offset, point.y, station.x * size.z))
+		rings.append(ring)
+	var surface := SurfaceTool.new()
+	surface.begin(Mesh.PRIMITIVE_TRIANGLES)
+	surface.set_material(material)
+	for r in rings.size()-1:
+		for j in 8:
+			var k := (j+1)%8
+			_emit_armour_triangle(surface, rings[r][j], rings[r+1][j], rings[r+1][k])
+			_emit_armour_triangle(surface, rings[r][j], rings[r+1][k], rings[r][k])
+	for j in range(1,7):
+		_emit_armour_triangle(surface, rings[0][0], rings[0][j], rings[0][j+1])
+		_emit_armour_triangle(surface, rings[3][0], rings[3][j+1], rings[3][j])
+	surface.generate_tangents()
+	return surface.commit()
+
+
+func _emit_armour_triangle(surface: SurfaceTool, a: Vector3, b: Vector3, c: Vector3) -> void:
+	# Godot uses clockwise fronts; each triangle receives its own planar normal.
+	var normal := (b-a).cross(c-a).normalized()
+	for point in [a,c,b]:
+		surface.set_normal(normal)
+		if absf(normal.y) > 0.5:
+			surface.set_uv(Vector2(point.x, point.z))
+		elif absf(normal.x) > 0.5:
+			surface.set_uv(Vector2(point.z, point.y))
+		else:
+			surface.set_uv(Vector2(point.x, point.y))
+		surface.add_vertex(point)
+
+
+## Recipes are position, dimensions, material index, optional Euler rotation.
+## Joining immutable fitted parts keeps this detail to one node/three surfaces.
+func _fit_armour(recipes: Array, materials: Array) -> void:
+	var combined := ArrayMesh.new()
+	for material_index in materials.size():
+		var surface := SurfaceTool.new()
+		surface.begin(Mesh.PRIMITIVE_TRIANGLES)
+		surface.set_material(materials[material_index])
+		for recipe: Array in recipes:
+			if recipe[2] != material_index:
+				continue
+			var local_basis := Basis.from_euler(recipe[3]) if recipe.size() > 3 else Basis.IDENTITY
+			var piece := _armour_mesh(recipe[1], materials[material_index])
+			surface.append_from(piece, 0, Transform3D(local_basis, recipe[0]))
+		surface.commit(combined)
+	var fittings := MeshInstance3D.new()
+	fittings.name = "FittedArmourAndServices"
+	fittings.mesh = combined
+	_visual_root.add_child(fittings)
+
+
+func _build_range_fittings() -> void:
+	var parts: Array = []
+	# A pressure frame surrounds the smoked amber canopy; the glass stays inset.
+	parts.append([Vector3(0,0.82,-0.32), Vector3(1.68,0.35,2.92),0])
+	parts.append([Vector3(0,1.29,0.16), Vector3(0.075,0.06,1.65),2])
+	parts.append([Vector3(0,0.79,1.63), Vector3(1.28,0.19,1.1),1])
+	for side in [-1.0,1.0]:
+		# Stepped shoulder plates, forward intake recess and protective mouth.
+		parts.append([Vector3(side*1.02,0.56,1.08),Vector3(0.54,0.16,2.42),0])
+		parts.append([Vector3(side*1.62,0.25,2.18),Vector3(1.05,0.36,1.47),2])
+		parts.append([Vector3(side*1.62,0.46,2.18),Vector3(1.1,0.09,1.58),0])
+		for rib in 5:
+			parts.append([Vector3(side*1.62,0.46,1.61+rib*0.25),Vector3(0.82,0.075,0.07),1])
+		# Panels are discrete pieces with a shadow gap, not a repeated texture grid.
+		for panel in 3:
+			parts.append([Vector3(side*(1.38+panel*0.27),0.45,-1.9+panel*0.96),Vector3(0.52,0.075,0.8),0,Vector3(0,side*-0.14,0)])
+		parts.append([Vector3(side*2.67,0.69,2.81),Vector3(0.72,0.13,1.5),0])
+		parts.append([Vector3(side*2.67,-0.62,3.12),Vector3(0.76,0.11,1.35),1])
+		_add_nozzle_parts(parts,Vector3(side*2.67,0.05,3.99),0.56,0.56)
+	_fit_armour(parts,[_materials.ivory,_materials.frame,_materials.deep])
+
+
+## Segmented metal petals surround a dark exhaust cavity. The retained core,
+## thrust plume and damage anchors remain independently animated at their mounts.
+func _add_nozzle_parts(parts: Array, center: Vector3, radius: float, length: float) -> void:
+	for index in 12:
+		var angle := TAU*float(index)/12.0
+		var radial := Vector3(cos(angle),sin(angle),0)
+		parts.append([center+radial*radius+Vector3(0,0,length*0.34),Vector3(radius*0.44,0.09,length),1,Vector3(0,0,angle-PI*0.5)])

@@ -111,18 +111,18 @@ const WINGLET_FIN_ROTATIONS := [
 	Vector3(0.0, -0.16, 0.22),
 	Vector3(0.0, 0.16, -0.22),
 ]
-const PRESENTATION_DESCENDANT_NODE_COUNT := 32
-const PRESENTATION_VISUAL_NODE_COUNT := 21
-const PRESENTATION_MESH_INSTANCE_COUNT := 18
+const PRESENTATION_DESCENDANT_NODE_COUNT := 33
+const PRESENTATION_VISUAL_NODE_COUNT := 22
+const PRESENTATION_MESH_INSTANCE_COUNT := 19
 const PRESENTATION_LIGHT_NODE_COUNT := 5
 const PRESENTATION_COLLISION_SHAPE_COUNT := 3
 const PRESENTATION_PARTICLE_NODE_COUNT := 3
-const PRESENTATION_SURFACE_SUBMISSION_COUNT := 18
+const PRESENTATION_SURFACE_SUBMISSION_COUNT := 21
 const PRESENTATION_MATERIAL_RESOURCE_COUNT := 8
 const BASELINE_PRESENTATION_MESH_RESOURCE_COUNT := 16
-const PRESENTATION_MESH_RESOURCE_COUNT := 13
+const PRESENTATION_MESH_RESOURCE_COUNT := 14
 const BASELINE_PRESENTATION_BOX_MESH_RESOURCE_COUNT := 6
-const PRESENTATION_BOX_MESH_RESOURCE_COUNT := 4
+const PRESENTATION_BOX_MESH_RESOURCE_COUNT := 2
 const WING_INSTANCE_COUNT := 2
 const BASELINE_WING_MESH_RESOURCE_COUNT := 2
 const WING_MESH_RESOURCE_COUNT := 1
@@ -167,8 +167,8 @@ var _role_light: OmniLight3D
 var _muzzle_lens: MeshInstance3D
 var _shots_arc_denied := 0
 var _wing_mesh: ArrayMesh
-var _wing_chalk_band_mesh: BoxMesh
-var _winglet_fin_mesh: BoxMesh
+var _wing_chalk_band_mesh: ArrayMesh
+var _winglet_fin_mesh: ArrayMesh
 var _rear_cross_state: StringName = &"idle"
 var _rear_cross_started_at := 0.0
 var _rear_cross_destination_side := 1.0
@@ -506,7 +506,7 @@ func get_wing_chalk_band_resource_audit() -> Dictionary:
 				continue
 			mesh_instance_count += 1
 			mesh_resource_ids[mesh.get_instance_id()] = true
-			if mesh is BoxMesh:
+			if mesh.has_meta(&"stock_size"):
 				box_mesh_resource_ids[mesh.get_instance_id()] = true
 			for surface_index in mesh.get_surface_count():
 				surface_submission_count += 1
@@ -526,17 +526,17 @@ func get_wing_chalk_band_resource_audit() -> Dictionary:
 				continue
 			var band := matching_nodes[0]
 			band_instance_count += 1
-			var band_mesh := band.mesh as BoxMesh
+			var band_mesh := band.mesh as ArrayMesh
 			if band_mesh == null:
 				errors.append("wing_chalk_band_mesh_type_drift:%d" % slot_index)
 			else:
 				band_mesh_resource_ids[band_mesh.get_instance_id()] = true
 				band_submission_count += band_mesh.get_surface_count()
-				if band_mesh.material != null:
-					band_material_resource_ids[band_mesh.material.get_instance_id()] = true
+				if band_mesh.surface_get_material(0) != null:
+					band_material_resource_ids[band_mesh.surface_get_material(0).get_instance_id()] = true
 				if (
-					not band_mesh.size.is_equal_approx(WING_CHALK_BAND_SIZE)
-					or band_mesh.material != _materials.skirmisher_chalk
+					not band_mesh.get_aabb().size.is_equal_approx(WING_CHALK_BAND_SIZE)
+					or band_mesh.surface_get_material(0) != _materials.skirmisher_chalk
 					or band_mesh.get_surface_count() != 1
 				):
 					errors.append("wing_chalk_band_mesh_recipe_drift:%d" % slot_index)
@@ -655,17 +655,17 @@ func get_wing_chalk_band_resource_audit() -> Dictionary:
 				continue
 			var fin := matching_nodes[0]
 			fin_instance_count += 1
-			var fin_mesh := fin.mesh as BoxMesh
+			var fin_mesh := fin.mesh as ArrayMesh
 			if fin_mesh == null:
 				errors.append("winglet_fin_mesh_type_drift:%d" % slot_index)
 			else:
 				fin_mesh_resource_ids[fin_mesh.get_instance_id()] = true
 				fin_submission_count += fin_mesh.get_surface_count()
-				if fin_mesh.material != null:
-					fin_material_resource_ids[fin_mesh.material.get_instance_id()] = true
+				if fin_mesh.surface_get_material(0) != null:
+					fin_material_resource_ids[fin_mesh.surface_get_material(0).get_instance_id()] = true
 				if (
-					not fin_mesh.size.is_equal_approx(WINGLET_FIN_SIZE)
-					or fin_mesh.material != _materials.skirmisher_chalk
+					not fin_mesh.get_aabb().size.is_equal_approx(WINGLET_FIN_SIZE)
+					or fin_mesh.surface_get_material(0) != _materials.skirmisher_chalk
 					or fin_mesh.get_surface_count() != 1
 				):
 					errors.append("winglet_fin_mesh_recipe_drift:%d" % slot_index)
@@ -1380,6 +1380,7 @@ func _build_interceptor() -> void:
 	_warning_light.shadow_enabled = false
 	add_child(_warning_light)
 
+	_build_skirmisher_fittings()
 	_build_collision()
 	_build_damage_effects()
 
@@ -1419,9 +1420,9 @@ func _build_damage_effects() -> void:
 
 
 func _create_skirmisher_materials() -> void:
-	_materials.skirmisher_hull = _material(HULL_BASALT, 0.36, 0.44)
-	_materials.skirmisher_moss = _material(HULL_MOSS, 0.34, 0.48)
-	_materials.skirmisher_chalk = _material(HULL_CHALK, 0.22, 0.5)
+	_materials.skirmisher_hull = _material(HULL_BASALT, 0.1, 0.61)
+	_materials.skirmisher_moss = _material(HULL_MOSS, 0.1, 0.61)
+	_materials.skirmisher_chalk = _material(HULL_CHALK, 0.1, 0.61)
 	_materials.skirmisher_deep = _material(Color("161d20"), 0.6, 0.3)
 	_materials.skirmisher_engine = _material(SKIRMISHER_ENGINE, 0.08, 0.2, SKIRMISHER_ENGINE, 2.6)
 	_materials.skirmisher_muzzle = _material(ROLE_ANCHOR_LAMP, 0.12, 0.22, ROLE_ANCHOR_LAMP, 2.6)
@@ -1439,3 +1440,23 @@ func _create_skirmisher_materials() -> void:
 	# retints and re-energises it, and a material whose emission was never
 	# enabled would silently ignore both.
 	_materials.skirmisher_role_lamp = _material(ROLE_ANCHOR_LAMP, 0.1, 0.2, ROLE_ANCHOR_LAMP, 3.4)
+
+
+func _build_skirmisher_fittings() -> void:
+	var parts: Array = []
+	parts.append([Vector3(0,0.39,-0.98),Vector3(1.25,0.24,2.05),0])
+	parts.append([Vector3(0,0.69,-0.69),Vector3(0.055,0.05,1.15),1])
+	# Two raised intake shoulders separate the pressure pod from its delta wings.
+	for side in [-1.0,1.0]:
+		parts.append([Vector3(side*1.08,0.43,0.76),Vector3(0.7,0.12,2.18),0])
+		parts.append([Vector3(side*1.08,0.38,-0.18),Vector3(0.53,0.19,0.38),2])
+		parts.append([Vector3(side*1.08,0.49,-0.37),Vector3(0.66,0.045,0.12),1])
+		for slat in 5:
+			parts.append([Vector3(side*1.08,0.51,0.4+slat*0.23),Vector3(0.49,0.045,0.08),2])
+		# Swept replaceable wing skins and inset thermal strips follow the airframe.
+		for panel in 3:
+			parts.append([Vector3(side*(1.83+panel*0.46),0.08,0.86+panel*0.37),Vector3(0.42,0.035,1.18),0,Vector3(0,side*-0.28,0)])
+		parts.append([Vector3(side*3.12,0.12,1.8),Vector3(0.48,0.035,0.68),1])
+		parts.append([Vector3(side*1.0,0.32,2.38),Vector3(0.48,0.1,0.96),0])
+		_add_nozzle_parts(parts,Vector3(side*1.0,-0.02,3.08),0.3,0.42)
+	_fit_armour(parts,[_materials.skirmisher_moss,_materials.skirmisher_chalk,_materials.skirmisher_deep])

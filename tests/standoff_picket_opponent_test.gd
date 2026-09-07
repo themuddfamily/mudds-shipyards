@@ -129,23 +129,23 @@ func _test_contract_and_evidence() -> void:
 		bool(performance.valid)
 		and bool(performance.headless_safe)
 		and int(performance.baseline_visual_nodes) == 33
-		and int(performance.visual_nodes) == 29
+		and int(performance.visual_nodes) == 30
 		and int(performance.baseline_mesh_instances) == 31
-		and int(performance.mesh_instances) == 23
-		and int(performance.renderer_nodes) == 27
-		and int(performance.visible_geometry_copies) == 31
+		and int(performance.mesh_instances) == 24
+		and int(performance.renderer_nodes) == 28
+		and int(performance.visible_geometry_copies) == 32
 		and int(performance.baseline_surface_submissions) == 31
-		and int(performance.surface_submissions) == 27
+		and int(performance.surface_submissions) == 30
 		and int(performance.baseline_mesh_resources) == 27
-		and int(performance.mesh_resources) == 22
-		and int(performance.mesh_resource_delta) == -5
+		and int(performance.mesh_resources) == 23
+		and int(performance.mesh_resource_delta) == -4
 		and int(performance.baseline_box_mesh_resources) == 14
 		and int(performance.box_mesh_resources) == 9
 		and int(performance.box_instances) == 14
 		and int(performance.shared_box_families) == 5
 		and int(performance.material_resources) == 8
 		and int(performance.multimesh_batches) == 4,
-		"the four safe batches preserve 31 visible copies while renderer nodes/submissions fall 31 -> 27"
+		"four shared batches and the fitted armour retain 32 visible copies in 28 renderers and 30 material surfaces"
 	)
 
 	var engine_pods := visual.get_node_or_null("EnginePodBatch") as MultiMeshInstance3D \
@@ -275,15 +275,15 @@ func _test_contract_and_evidence() -> void:
 		for index in expected_vane_transforms.size():
 			var instance_bounds := (expected_vane_transforms[index] * vane_multi.mesh.get_aabb()).abs()
 			expected_vane_bounds = instance_bounds if index == 0 else expected_vane_bounds.merge(instance_bounds)
-	var vane_mesh := vane_multi.mesh as BoxMesh if vane_multi != null else null
+	var vane_mesh := vane_multi.mesh as ArrayMesh if vane_multi != null else null
 	_check(
 		vane_multi != null
 		and vane_multi.transform_format == MultiMesh.TRANSFORM_3D
 		and vane_multi.instance_count == 2
 		and vane_multi.visible_instance_count == -1
 		and vane_mesh != null
-		and vane_mesh.size.is_equal_approx(Vector3(3.7, 0.16, 3.1))
-		and vane_mesh.material == picket._materials.picket_bone
+		and vane_mesh.get_aabb().size.is_equal_approx(Vector3(3.7, 0.16, 3.1))
+		and vane_mesh.surface_get_material(0) == picket._materials.picket_bone
 		and vane_transforms == expected_vane_transforms
 		and vane_names == PackedStringArray(["PortRadiatorVane", "StarboardRadiatorVane"])
 		and vane_multi.custom_aabb.is_equal_approx(expected_vane_bounds)
@@ -328,17 +328,17 @@ func _test_contract_and_evidence() -> void:
 	for spec: Dictionary in pair_specs:
 		var port := _mesh_at_local_position(visual, spec.port_position as Vector3)
 		var starboard := _mesh_at_local_position(visual, spec.starboard_position as Vector3)
-		var port_mesh := port.mesh as BoxMesh if port != null else null
-		var starboard_mesh := starboard.mesh as BoxMesh if starboard != null else null
+		var port_mesh := port.mesh as ArrayMesh if port != null else null
+		var starboard_mesh := starboard.mesh as ArrayMesh if starboard != null else null
 		exact_shared_pairs = (
 			exact_shared_pairs
 			and port != null and starboard != null
 			and port_mesh != null and port_mesh == starboard_mesh
-			and port_mesh.size.is_equal_approx(spec.size as Vector3)
+			and port_mesh.get_aabb().size.is_equal_approx(spec.size as Vector3)
 			and port.rotation.is_equal_approx(spec.port_rotation as Vector3)
 			and starboard.rotation.is_equal_approx(spec.starboard_rotation as Vector3)
 			and port.scale == Vector3.ONE and starboard.scale == Vector3.ONE
-			and port_mesh.material != null
+			and port_mesh.surface_get_material(0) != null
 			and port.cast_shadow == GeometryInstance3D.SHADOW_CASTING_SETTING_ON
 			and starboard.cast_shadow == GeometryInstance3D.SHADOW_CASTING_SETTING_ON
 		)

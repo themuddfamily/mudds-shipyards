@@ -94,16 +94,16 @@ const MAX_PENDING_LANCE_RECEIPTS := 8
 # exact duplicates, so the cache retains one mesh per recipe; the broad static
 # radiator pair also shares one renderer submission without changing its copies.
 const BASELINE_PRESENTATION_VISUAL_NODE_COUNT := 33
-const PRESENTATION_VISUAL_NODE_COUNT := 29
+const PRESENTATION_VISUAL_NODE_COUNT := 30
 const BASELINE_PRESENTATION_MESH_INSTANCE_COUNT := 31
-const PRESENTATION_MESH_INSTANCE_COUNT := 23
-const PRESENTATION_RENDERER_NODE_COUNT := 27
-const PRESENTATION_VISIBLE_GEOMETRY_COPY_COUNT := 31
+const PRESENTATION_MESH_INSTANCE_COUNT := 24
+const PRESENTATION_RENDERER_NODE_COUNT := 28
+const PRESENTATION_VISIBLE_GEOMETRY_COPY_COUNT := 32
 const BASELINE_PRESENTATION_SURFACE_SUBMISSION_COUNT := 31
-const PRESENTATION_SURFACE_SUBMISSION_COUNT := 27
+const PRESENTATION_SURFACE_SUBMISSION_COUNT := 30
 const PRESENTATION_MATERIAL_RESOURCE_COUNT := 8
 const BASELINE_PRESENTATION_MESH_RESOURCE_COUNT := 27
-const PRESENTATION_MESH_RESOURCE_COUNT := 22
+const PRESENTATION_MESH_RESOURCE_COUNT := 23
 const BASELINE_PRESENTATION_BOX_MESH_RESOURCE_COUNT := 14
 const PRESENTATION_BOX_MESH_RESOURCE_COUNT := 9
 const PRESENTATION_BOX_INSTANCE_COUNT := 14
@@ -470,7 +470,7 @@ func get_presentation_performance_contract() -> Dictionary:
 				var visible_count := multi.visible_instance_count
 				visible_geometry_copies += multi.instance_count if visible_count < 0 else visible_count
 				mesh_resources[multi.mesh.get_instance_id()] = true
-				if multi.mesh is BoxMesh:
+				if _picket_box_mesh_cache.values().has(multi.mesh):
 					box_instances += multi.instance_count if visible_count < 0 else visible_count
 					box_mesh_resources[multi.mesh.get_instance_id()] = true
 				submissions += multi.mesh.get_surface_count()
@@ -488,7 +488,7 @@ func get_presentation_performance_contract() -> Dictionary:
 			mesh_instances += 1
 			visible_geometry_copies += 1
 			mesh_resources[mesh.get_instance_id()] = true
-			if mesh is BoxMesh:
+			if _picket_box_mesh_cache.values().has(mesh):
 				box_instances += 1
 				box_mesh_resources[mesh.get_instance_id()] = true
 			submissions += mesh.get_surface_count()
@@ -1660,6 +1660,7 @@ func _build_interceptor() -> void:
 	_warning_light.shadow_enabled = false
 	add_child(_warning_light)
 
+	_build_picket_fittings()
 	_build_collision()
 	_build_damage_effects()
 
@@ -1819,18 +1820,16 @@ func _picket_box(
 	return instance
 
 
-func _picket_box_mesh(size: Vector3, material: Material) -> BoxMesh:
+func _picket_box_mesh(size: Vector3, material: Material) -> Mesh:
 	var cache_key := "box:%0.4f:%0.4f:%0.4f:%d" % [
 		size.x,
 		size.y,
 		size.z,
 		0 if material == null else material.get_instance_id(),
 	]
-	var mesh := _picket_box_mesh_cache.get(cache_key) as BoxMesh
+	var mesh := _picket_box_mesh_cache.get(cache_key) as Mesh
 	if mesh == null:
-		mesh = BoxMesh.new()
-		mesh.size = size
-		mesh.material = material
+		mesh = _armour_mesh(size, material)
 		_picket_box_mesh_cache[cache_key] = mesh
 	return mesh
 
@@ -1880,11 +1879,36 @@ func _build_damage_effects() -> void:
 
 
 func _create_picket_materials() -> void:
-	_materials.picket_hull = _material(HULL_GRAPHITE, 0.34, 0.46)
-	_materials.picket_slate = _material(HULL_SLATE, 0.42, 0.4)
+	_materials.picket_hull = _material(HULL_GRAPHITE, 0.1, 0.61)
+	_materials.picket_slate = _material(HULL_SLATE, 0.1, 0.61)
 	_materials.picket_deep = _material(Color("2a3038"), 0.55, 0.32)
-	_materials.picket_bone = _material(HULL_BONE, 0.24, 0.5)
-	_materials.picket_magenta = _material(LANCE_MAGENTA, 0.2, 0.28, LANCE_MAGENTA, 2.4)
+	_materials.picket_bone = _material(HULL_BONE, 0.1, 0.61)
+	_materials.picket_magenta = _material(LANCE_MAGENTA, 0.1, 0.6, LANCE_MAGENTA, 0.45)
 	_materials.picket_magenta_emissive = _material(LANCE_MAGENTA, 0.1, 0.2, LANCE_MAGENTA, 3.1)
 	_materials.picket_violet_emissive = _material(LANCE_VIOLET, 0.12, 0.22, LANCE_VIOLET, 2.4)
 	_materials.picket_engine = _material(PICKET_ENGINE, 0.08, 0.2, PICKET_ENGINE, 2.6)
+
+
+func _build_picket_fittings() -> void:
+	var parts: Array = []
+	# Reinforced pressure spine, service hatch and a framed optical instrument.
+	parts.append([Vector3(0,0.55,0.4),Vector3(1.05,0.13,1.3),0])
+	parts.append([Vector3(0,0.58,2.85),Vector3(1.04,0.14,1.4),0])
+	parts.append([Vector3(0,0.83,-1.08),Vector3(0.6,0.12,1.0),2])
+	for side in [-1.0,1.0]:
+		parts.append([Vector3(side*0.63,0.0,1.4),Vector3(0.08,0.49,4.35),0])
+		for seam in 5:
+			parts.append([Vector3(side*0.69,-0.03,-0.28+seam*0.84),Vector3(0.035,0.4,0.038),2])
+		# Authored radiator channels follow each swept vane in its local plane.
+		var vane_basis := Basis.from_euler(Vector3(0,side*0.46,side*-0.12))
+		var vane_center := Vector3(side*2.3,0.12,2.9)
+		for rib in 9:
+			var local := Vector3(-1.45+rib*0.36,0.11,0)
+			parts.append([vane_center+vane_basis*local,Vector3(0.24,0.045,2.46),2,Vector3(0,side*0.46,side*-0.12)])
+		parts.append([vane_center+vane_basis*Vector3(0,0.115,-1.32),Vector3(3.3,0.05,0.11),1,Vector3(0,side*0.46,side*-0.12)])
+		parts.append([Vector3(side*0.86,0.35,4.22),Vector3(0.53,0.1,1.13),0])
+		_add_nozzle_parts(parts,Vector3(side*0.86,-0.02,5.06),0.34,0.43)
+	# Ceramic barrel shields leave the magenta charge rails and muzzle exposed.
+	for index in 5:
+		parts.append([Vector3(0,-0.35,-3.62-index*0.78),Vector3(0.39,0.08,0.63),1])
+	_fit_armour(parts,[_materials.picket_hull,_materials.picket_slate,_materials.picket_deep])

@@ -777,6 +777,7 @@ func _build_interceptor() -> void:
 	_warning_light.shadow_enabled = false
 	add_child(_warning_light)
 
+	_build_courier_fittings()
 	_build_collision()
 	_build_damage_effects()
 
@@ -826,10 +827,10 @@ func _adopt_shared_material_catalog() -> void:
 
 
 func _create_courier_materials() -> void:
-	_materials.courier_hull = _material(HULL_SAND, 0.18, 0.58)
-	_materials.courier_clay = _material(HULL_CLAY, 0.3, 0.52)
+	_materials.courier_hull = _material(HULL_SAND, 0.1, 0.61)
+	_materials.courier_clay = _material(HULL_CLAY, 0.1, 0.61)
 	_materials.courier_shadow = _material(HULL_SHADOW, 0.52, 0.38)
-	_materials.courier_rust = _material(CARGO_RUST, 0.24, 0.4, CARGO_RUST, 1.4)
+	_materials.courier_rust = _material(CARGO_RUST, 0.1, 0.62)
 	_materials.courier_lamp = _material(CARGO_RUST, 0.1, 0.2, CARGO_RUST, 2.2)
 	_materials.courier_muzzle = _material(CARGO_RUST, 0.12, 0.22, CARGO_RUST, 2.6)
 	_materials.courier_distress = _material(DISTRESS_RED, 0.08, 0.2, DISTRESS_RED, 5.0)
@@ -949,3 +950,28 @@ func _visual_material_binding_contract() -> Dictionary:
 				material.get_instance_id() if material != null else 0
 			)
 	return bindings
+
+
+func _build_courier_fittings() -> void:
+	var parts: Array = []
+	# Framed pressure cockpit ahead of a removable load spine.
+	parts.append([Vector3(0,0.71,-2.54),Vector3(1.39,0.22,1.95),0])
+	parts.append([Vector3(0,0.99,-2.18),Vector3(0.06,0.045,0.91),1])
+	for side in [-1.0,1.0]:
+		for panel in 4:
+			parts.append([Vector3(side*0.71,0.84,-1.24+panel*1.17),Vector3(0.53,0.085,1.03),0])
+		parts.append([Vector3(side*1.1,0.22,0.45),Vector3(0.06,0.74,5.14),2])
+		for panel in 4:
+			parts.append([Vector3(side*1.14,0.25,-1.4+panel*1.21),Vector3(0.08,0.62,1.08),0])
+		# Cargo cradles have an exposed clamp at each end and longitudinal rails.
+		for end in [-1.0,1.0]:
+			parts.append([Vector3(side*2.5,0.23,0.6+end*1.75),Vector3(1.15,0.17,0.24),1])
+			parts.append([Vector3(side*2.5,-0.96,0.6+end*1.75),Vector3(1.13,0.14,0.25),2])
+			parts.append([Vector3(side*3.09,-0.34,0.6+end*1.75),Vector3(0.14,1.1,0.23),2])
+		parts.append([Vector3(side*2.5,0.32,0.6),Vector3(0.38,0.07,3.7),0])
+		parts.append([Vector3(side*3.12,-0.25,0.6),Vector3(0.08,0.34,3.13),0])
+		parts.append([Vector3(side*1.15,0.68,3.86),Vector3(0.68,0.12,1.28),0])
+		for slot in 4:
+			parts.append([Vector3(side*1.15,0.75,3.41+slot*0.26),Vector3(0.5,0.025,0.1),2])
+		_add_nozzle_parts(parts,Vector3(side*1.15,0.05,4.86),0.53,0.61)
+	_fit_armour(parts,[_materials.courier_hull,_materials.courier_clay,_materials.courier_shadow])
