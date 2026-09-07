@@ -109,7 +109,7 @@ const SURFACE_KEYS := {
 		ZENITH_PRESENTATION_PATH,
 		"PaleFacetSecondary\": _hull_material\\(Color\\(\"[0-9a-fA-F]{6}\"\\), [0-9.]+, [0-9.]+, ([0-9.]+)\\)",
 	],
-	"normal_scale_station_panel": [FLEET_DOCK_COMB_PATH, "panel_material\\.normal_scale = ([0-9.]+)"],
+	"normal_scale_station_panel": ["res://scripts/world/station_surface_kit.gd", "const PANEL_NORMAL_SCALE := ([0-9.]+)"],
 	"clearcoat_torrent_procedural": [HERO_SHIP_PATH, "hull_material\\.clearcoat = ([0-9.]+)"],
 	"clearcoat_torrent_authored_hero": [TORRENT_HERO_PRESENTATION_PATH, "material\\.clearcoat = ([0-9.]+)"],
 	"clearcoat_arrow": [ARROW_PATH, "hull_material\\.clearcoat = ([0-9.]+)"],

@@ -53,17 +53,17 @@ func _run() -> void:
 		)
 		var report := craft.call("get_halyard_render_allocation_report") as Dictionary
 		_check(
-			int(report.drawn_copies) == 163
-			and int(report.geometry_submissions) == 116
-			and int(report.multimesh_batches) == 4
+			int(report.drawn_copies) == 168
+			and int(report.geometry_submissions) == 110
+			and int(report.multimesh_batches) == 8
 			and bool(report.exact_counts),
-			"the production allocation retains 163 visible copies in 116 geometry submissions"
+			"the production allocation retains 168 visible copies in 110 geometry submissions"
 		)
 		var original_visible_count := batch.multimesh.visible_instance_count
 		batch.multimesh.visible_instance_count = HalyardCrewTransport.GEAR_DAMPER_COPY_COUNT - 1
 		var mutated_report := craft.call("get_halyard_render_allocation_report") as Dictionary
 		_check(
-			int(mutated_report.drawn_copies) == 162 and not bool(mutated_report.exact_counts),
+			int(mutated_report.drawn_copies) == 167 and not bool(mutated_report.exact_counts),
 			"RED: hiding one damper copy is rejected by the frozen render allocation"
 		)
 		batch.multimesh.visible_instance_count = original_visible_count

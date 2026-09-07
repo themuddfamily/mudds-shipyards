@@ -85,7 +85,7 @@ func _run() -> void:
 			and int(report.get("multimesh_batches", -1)) == 8
 			and int(report.get("drawn_copies", -1)) == 168
 			and int(report.get("geometry_submissions", -1)) == 110
-			and int(report.get("unique_mesh_resources", -1)) == 67
+			and int(report.get("unique_mesh_resources", -1)) == 69
 			and bool(report.get("exact_counts", false)),
 		"the separate exterior allocation freeze remains exact"
 	)

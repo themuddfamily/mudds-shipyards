@@ -61,16 +61,16 @@ func _test_local_render_contract(world: ShipyardWorld, registry: Node3D) -> void
 	var report := world.get_modern_fleet_registry_render_contract()
 	_check(bool(report.get("valid", false)), "production modern-registry render contract is green: %s" % [report.get("errors", [])])
 	_check(
-		int(report.get("descendant_nodes", -1)) == 62
-		and int(report.get("mesh_instances", -1)) == 35
+		int(report.get("descendant_nodes", -1)) == 63
+		and int(report.get("mesh_instances", -1)) == 34
 		and int(report.get("multimesh_batches", -1)) == 1,
-		"local renderer nodes freeze at 65 -> 62, MeshInstances 39 -> 35, batches 0 -> 1"
+		"six readiness tiles and the retained column batch occupy 63 nodes, 34 MeshInstances and one batch"
 	)
 	_check(
-		int(report.get("drawn_copies", -1)) == 39
-		and int(report.get("geometry_submissions", -1)) == 36
+		int(report.get("drawn_copies", -1)) == 38
+		and int(report.get("geometry_submissions", -1)) == 35
 		and bool(report.get("exact_counts", false)),
-		"all 39 local copies remain drawn while structural submissions fall 39 -> 36"
+		"38 pod-local copies occupy 35 submissions; the two guide lenses render in world-owned batches"
 	)
 	_check(
 		int(report.get("physics_bodies", -1)) == 12
@@ -185,8 +185,8 @@ func _test_preserved_registry_paths(world: ShipyardWorld, registry: Node3D) -> v
 		) is MeshInstance3D
 	_check(
 		tile_roster_exact
-		and ShipyardWorld.SHIP_BERTH_FEEDBACK_BERTH_IDS.size() == 5,
-		"all five independently named readiness tiles remain outside the batch"
+		and ShipyardWorld.SHIP_BERTH_FEEDBACK_BERTH_IDS.size() == 6,
+		"all six independently named readiness tiles remain outside the batch"
 	)
 	var signs_exact := true
 	for path in PRESERVED_SIGN_PATHS:
@@ -308,5 +308,5 @@ func _finish() -> void:
 		print("MODERN_FLEET_REGISTRY_TEST_OK")
 		quit(0)
 	else:
-		push_error("MODERN_FLEET_REGISTRY_TEST_FAILED: %s" % _failures)
+		push_error("MODERN_FLEET_REGISTRY_TEST_FAILED: %s" % ["; ".join(_failures)])
 		quit(1)

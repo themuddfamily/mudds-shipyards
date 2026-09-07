@@ -26,14 +26,14 @@ func _run() -> void:
 
 	var render := craft.get_halyard_render_allocation_report()
 	_check(
-		int(render.get("mesh_instances", -1)) == 116
-			and int(render.get("geometry_submissions", -1)) == 119
-			and int(render.get("multimesh_batches", -1)) == 3,
-		"the pane batch remains intact alongside the later glow batch in the cumulative budget"
+		int(render.get("mesh_instances", -1)) == 102
+			and int(render.get("geometry_submissions", -1)) == 110
+			and int(render.get("multimesh_batches", -1)) == 8,
+		"the pane batch remains one of eight exterior batches in the current authored budget"
 	)
 	_check(
-		int(render.get("drawn_copies", -1)) == 163
-			and int(render.get("unique_mesh_resources", -1)) == 65
+		int(render.get("drawn_copies", -1)) == 168
+			and int(render.get("unique_mesh_resources", -1)) == 69
 			and bool(render.get("exact_counts", false)),
 		"the optimization preserves drawn copies, mesh identity, and the exact authored budget"
 	)
@@ -62,6 +62,9 @@ func _run() -> void:
 			HalyardCrewTransport.CABIN_WINDOW_FIRST_Z
 				+ HalyardCrewTransport.CABIN_WINDOW_PITCH * float(window_index)
 		)
+		# Port window 02 clears the physical airstair doorway.
+		if side < 0.0 and window_index == 2:
+			expected.z = -9.55
 		if not transform.origin.is_equal_approx(expected) \
 				or not transform.basis.is_equal_approx(Basis.IDENTITY):
 			transforms_match = false

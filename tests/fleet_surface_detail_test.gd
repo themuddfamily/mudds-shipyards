@@ -1,5 +1,9 @@
 extends SceneTree
 
+# Resolve the concrete subtype before shared HeroShip references to avoid
+# retaining inheritance script resources during headless process teardown.
+const ArrowShipType := preload("res://scripts/ships/arrow_recon_ship.gd")
+
 ## Freezes the fleet-wide surface treatment applied to secondary structure.
 ##
 ## The audited defect. Every craft rendered as two visual populations. Hull
@@ -67,31 +71,17 @@ const ZENITH_HULL_ROLES := [&"PaleCeramicHull", &"PaleFacetSecondary"]
 # Torrent 0.68. Frozen below all four so this can only be improved.
 const STRUCTURAL_ROUGHNESS_SPREAD_FLOOR := 0.40
 
-## Live chamfered-cylinder population per craft: `[surfaces, triangles]`.
-##
-## Frozen in the open, old -> new, after dropping the four lateral wall rings
-## every craft inherited from `CylinderMesh.rings`:
-##
-##   Torrent          51 surfaces  25,600 -> 12,544 tris
-##   Arrow            39 surfaces  22,464 -> 11,232 tris
-##   Jovian           85 surfaces  43,520 -> 21,760 tris
-##   RangeOpponent    12 surfaces   5,376 ->  2,688 tris
-##   StandoffPicket   12 surfaces   5,376 ->  2,688 tris
-##   Zenith            0 surfaces       0 ->      0 tris  (authored .glb)
-##
-## Whole-craft totals moved by exactly the same amounts: Torrent 152,556 ->
-## 139,500, Arrow 77,244 -> 66,012, Jovian 98,268 -> 76,508, RangeOpponent
-## 6,796 -> 4,108, StandoffPicket 7,432 -> 4,744, Zenith 52,686 unchanged. In
-## the live `scenes/main.tscn` the fleet's share of the change is 199 surfaces
-## and 1,374,466 -> 1,323,042 triangles, i.e. -51,424 (-3.74%).
-##
-## This freezes the population this pass touched rather than each craft's whole
-## triangle budget, so an unrelated ship edit is not forced through this suite;
-## a wall-subdivision regression still lands on it exactly.
+## Current chamfered-cylinder population per craft: `[drawn surfaces, triangles]`.
+## Count visible MultiMesh copies as well as standalone renderers, so the paired
+## opponent engine batches and Torrent gear batches remain covered. The current
+## craft also include Torrent's light pulse mounts, Arrow's paired recon emitters
+## and Jovian's developed defensive turrets. These authored additions supersede
+## the population frozen when the cylinder wall subdivisions were removed.
+## The suite's analytic wall-ring checks retain that optimization's geometry guard.
 const CHAMFERED_CYLINDER_POPULATION := {
-	"Torrent": [51, 12_544],
-	"Arrow": [39, 11_232],
-	"Jovian": [85, 21_760],
+	"Torrent": [57, 14_080],
+	"Arrow": [43, 12_384],
+	"Jovian": [91, 23_296],
 	"RangeOpponent": [12, 2_688],
 	"StandoffPicket": [12, 2_688],
 	"Zenith": [0, 0],
@@ -444,14 +434,25 @@ func _audit_cylinder_wall_population() -> void:
 		await physics_frame
 		var surfaces := 0
 		var triangles := 0
-		for candidate in craft.find_children("*", "MeshInstance3D", true, false):
-			var mesh := (candidate as MeshInstance3D).mesh
+		# Batched cylinders still draw their full visible population. Count each
+		# copy so a MultiMesh conversion cannot silently drop this geometry guard.
+		for candidate in craft.find_children("*", "GeometryInstance3D", true, false):
+			var mesh: Mesh
+			var copies := 1
+			if candidate is MeshInstance3D:
+				mesh = (candidate as MeshInstance3D).mesh
+			elif candidate is MultiMeshInstance3D:
+				var multi := (candidate as MultiMeshInstance3D).multimesh
+				if multi == null:
+					continue
+				mesh = multi.mesh
+				copies = multi.instance_count if multi.visible_instance_count < 0 else multi.visible_instance_count
 			if mesh == null or not (mesh is ArrayMesh):
 				continue
 			if mesh.resource_name != StationSurfaceKit.CHAMFERED_CYLINDER_RESOURCE_NAME:
 				continue
-			surfaces += mesh.get_surface_count()
-			triangles += _mesh_triangles(mesh)
+			surfaces += mesh.get_surface_count() * copies
+			triangles += _mesh_triangles(mesh) * copies
 		var frozen: Array = CHAMFERED_CYLINDER_POPULATION[label]
 		_evidence.append(
 			"%s chamfered cylinders: %d surfaces, %d triangles" % [label, surfaces, triangles]

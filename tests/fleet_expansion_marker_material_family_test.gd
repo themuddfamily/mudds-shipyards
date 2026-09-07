@@ -49,9 +49,9 @@ func _initialize() -> void:
 		bool(audit.get("valid", false)) \
 		and int(audit.get("static_bodies", -1)) == 6 \
 		and int(audit.get("collision_shapes", -1)) == 6 \
-		and int(audit.get("renderer_nodes", -1)) == 26 \
+		and int(audit.get("renderer_nodes", -1)) == 24 \
 		and int(audit.get("guide_lights", -1)) == 5 \
-		and int(audit.get("descendants", -1)) == 61,
+		and int(audit.get("descendants", -1)) == 59,
 		"material binding preserves FleetExpansionBerths layout, collision, renderer, light, and attachment-owner rosters"
 	)
 

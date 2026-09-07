@@ -839,7 +839,10 @@ func _test_render_allocations(craft: HeroShip) -> void:
 					HalyardCrewTransport.CABIN_WINDOW_FIRST_Z
 					+ float(window_index) * HalyardCrewTransport.CABIN_WINDOW_PITCH
 				)
-				if window_z < -9.30 or window_z > 2.10:
+				# The port pane moves forward to leave the real hatch opening clear.
+				if side < 0.0 and window_index == 2:
+					window_z = -9.55
+				if window_z < -9.80 or window_z > 2.10:
 					continue
 				expected_cabin_panes.append(Transform3D(
 					Basis.IDENTITY,

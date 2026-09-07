@@ -172,6 +172,11 @@ func _run() -> void:
 		"the real player begins grounded with Halyard available at its exterior boarding point"
 	)
 
+	# The port hatch now follows the production canopy lifecycle; walking
+	# through the closed pressure door is correctly blocked.
+	craft.set_canopy_open(true, 0.0)
+	await physics_frame
+	_check(craft.is_canopy_open(), "the production canopy lifecycle opens the physical port hatch")
 	var deck_report := await _walk_to(
 		player, craft, craft.get_interior_deck_marker().position, 360
 	)
