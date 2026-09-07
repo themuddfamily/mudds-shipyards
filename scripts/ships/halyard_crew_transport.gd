@@ -2614,6 +2614,7 @@ func _create_halyard_materials() -> void:
 	# Rendered at eye height in the aft bay, the first pass's 2.4 energy blew the
 	# side strips out into solid white bars that ate the bulkheads behind them.
 	_halyard_materials.interior_light = _halyard_material(CABIN_LIGHT, 0.0, 0.34, CABIN_LIGHT, 0.95)
+	_halyard_materials.reading_lamp = _halyard_material(Color("e8c493"), 0.0, 0.5, Color("ffd6a0"), 0.8)
 	# Cabin instruments do not use the identification accent. On this craft the
 	# accent is a deep aubergine chosen for at-a-glance hull separation, and a
 	# self-lit panel in it would be a black display. The Jovian makes the same
@@ -3428,7 +3429,7 @@ func _build_aft_systems_bay() -> void:
 	var bay_light := OmniLight3D.new()
 	bay_light.name = "AftBayPracticalLight"
 	bay_light.position = Vector3(0.0, 3.06, 5.85)
-	bay_light.light_color = Color("dcecdc")
+	bay_light.light_color = Color("f2dec3")
 	bay_light.light_energy = 0.9
 	bay_light.omni_range = 5.0
 	bay_light.shadow_enabled = true
@@ -3443,15 +3444,9 @@ func _build_liveaboard_berth(side: float, side_name: String) -> void:
 	_box(_aft_systems_bay, side_name + "BunkPillow", Vector3(side * 1.62, 1.40, 7.30), Vector3(0.82, 0.16, 0.38), linen)
 	_box(_aft_systems_bay, side_name + "BunkBlanket", Vector3(side * 1.62, 1.34, 6.30), Vector3(1.10, 0.07, 1.40), blanket)
 	_box(_aft_systems_bay, side_name + "BunkBlanketFold", Vector3(side * 1.62, 1.40, 6.96), Vector3(1.10, 0.08, 0.19), linen)
-	_box(_aft_systems_bay, side_name + "ReadingLampHousing", Vector3(side * 2.10, 2.00, 7.30), Vector3(0.12, 0.20, 0.28), _halyard_materials.trim)
-	var reading_light := OmniLight3D.new()
-	reading_light.name = side_name + "BunkReadingLight"
-	reading_light.position = Vector3(side * 1.97, 1.95, 7.30)
-	reading_light.light_color = Color("ffd6a0")
-	reading_light.light_energy = 0.55
-	reading_light.omni_range = 1.8
-	reading_light.shadow_enabled = false
-	_aft_systems_bay.add_child(reading_light)
+	# The existing aft practical lights the bedding. These warm emissive reading
+	# fixtures share one material and preserve the five-light interior budget.
+	_box(_aft_systems_bay, side_name + "ReadingLampHousing", Vector3(side * 2.10, 2.00, 7.30), Vector3(0.12, 0.20, 0.28), _halyard_materials.reading_lamp)
 	var berth_label := Label3D.new()
 	berth_label.name = side_name + "BerthLabel"
 	berth_label.text = "OFF WATCH\n" + side_name.to_upper() + " BERTH"
