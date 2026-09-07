@@ -1005,7 +1005,7 @@ func _test_scale_handling_and_presentation(jovian: JovianLightFreighter) -> void
 	var flight_deck := visual.get_node_or_null("ForwardFlightDeck") as MeshInstance3D
 	var shoulder := visual.get_node_or_null("PortCargoShoulder") as MeshInstance3D
 	_check(flight_deck != null and flight_deck.mesh is ArrayMesh and flight_deck.mesh.get_faces().size() > 650, "flight deck is a dense smooth loft")
-	_check(shoulder != null and shoulder.mesh is ArrayMesh and shoulder.mesh.get_faces().size() > 500, "split port cargo shoulder is a dense smooth loft")
+	_check(shoulder != null and shoulder.mesh is ArrayMesh and bool(shoulder.get_meta("closed_loft_hull", false)) and shoulder.mesh.get_faces().size() >= 288, "split port cargo shoulder is a closed chamfered armour shell")
 	if flight_deck != null and flight_deck.mesh != null:
 		var faces := flight_deck.mesh.get_faces()
 		var first_side_normal := (faces[1] - faces[0]).cross(faces[2] - faces[0]).normalized()

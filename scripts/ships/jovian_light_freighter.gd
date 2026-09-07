@@ -248,8 +248,8 @@ const PROVISIONAL_NOTE := (
 # HULL_COOL keeps its name because `hull_cool` is the craft's stable public
 # material-family key, asserted by tests/fleet_pbr_test.gd; it now carries the
 # subordinate shade of the same warm clay family rather than a cool grey.
-const HULL_WARM := Color("e0ab74")
-const HULL_COOL := Color("bd9270")
+const HULL_WARM := Color("a9977e")
+const HULL_COOL := Color("827766")
 const JOVIAN_STRUCTURE := Color("283c42")
 const JOVIAN_STRUCTURE_DARK := Color("0e2026")
 const FREIGHT_TEAL := Color("35bbb5")
@@ -3196,8 +3196,8 @@ func _build_jovian_variant(_controller: HeroShip) -> bool:
 
 
 func _create_jovian_materials() -> void:
-	_jovian_materials.hull_warm = _jovian_material(HULL_WARM, 0.16, 0.3)
-	_jovian_materials.hull_cool = _jovian_material(HULL_COOL.darkened(0.26), 0.22, 0.50)
+	_jovian_materials.hull_warm = _jovian_material(HULL_WARM, 0.08, 0.58)
+	_jovian_materials.hull_cool = _jovian_material(HULL_COOL, 0.10, 0.62)
 	# Freighter secondary structure. Before this pass structure/dark/amber sat at
 	# roughness 0.36/0.30/0.35 and cargo_blue/deck at 0.47/0.52 — the whole
 	# working half of the ship inside a 0.22 band, so the painted bulkheads, the
@@ -3217,7 +3217,7 @@ func _create_jovian_materials() -> void:
 	_jovian_materials.nav_green = _jovian_material(JOVIAN_NAV_GREEN, 0.08, 0.2, JOVIAN_NAV_GREEN, 2.4)
 	_jovian_materials.interior_light = _jovian_material(Color("d5f9ee"), 0.0, 0.24, Color("b7fff0"), 2.5)
 	_jovian_materials.display = _jovian_material(Color("183b40"), 0.18, 0.22, FREIGHT_TEAL, 2.8)
-	_jovian_materials.liner = _jovian_material(Color("8b9693"), 0.04, 0.85)
+	_jovian_materials.liner = _jovian_material(Color("686f6b"), 0.04, 0.85)
 	_jovian_materials.glass = _jovian_glass(Color(0.12, 0.48, 0.52, 0.2))
 	# Continuous paint over manufactured shell geometry. The old cargo-panel
 	# image stamped deep rectangular cells over every curve at the same scale.
@@ -3228,8 +3228,8 @@ func _create_jovian_materials() -> void:
 		hull_material.uv1_world_triplanar = false
 		hull_material.uv1_triplanar_sharpness = 4.5
 		hull_material.uv1_scale = Vector3.ONE * 0.24
-		hull_material.clearcoat = 0.12
-		hull_material.clearcoat_roughness = 0.48
+		hull_material.clearcoat = 0.04
+		hull_material.clearcoat_roughness = 0.58
 	# The working rails, cargo fittings and deck use the shared microtexture at
 	# their own scale. Their paint/steel roughness and colours remain distinct.
 	ShipSurfaceDetail.bind_structural_detail(_jovian_materials.structure, hull_normal, 2.0, 1.20)
@@ -3313,7 +3313,7 @@ func _build_exterior() -> void:
 		if side < 0.0:
 			# Two pressure-shell sections leave a true four-metre port aperture.
 			# The visual opening matches the split collision volumes below.
-			_loft_hull(
+			_armour_pod(
 				_jovian_visual,
 				"PortCargoShoulder",
 				Vector3(side * 6.9, 2.05, 0.0),
@@ -3326,7 +3326,7 @@ func _build_exterior() -> void:
 				_jovian_materials.hull_cool,
 				24
 			)
-			_loft_hull(
+			_armour_pod(
 				_jovian_visual,
 				"PortAftCargoShoulder",
 				Vector3(side * 6.9, 2.05, 0.0),
@@ -3340,7 +3340,7 @@ func _build_exterior() -> void:
 				24
 			)
 		else:
-			_loft_hull(
+			_armour_pod(
 				_jovian_visual,
 				"StarboardCargoShoulder",
 				Vector3(side * 6.9, 2.05, 0.0),
@@ -3402,8 +3402,39 @@ func _build_exterior() -> void:
 		PackedVector3Array([Vector3(0.70, -0.70, -9.65), Vector3(0.91, -0.12, -7.65), Vector3(1.0, 0.0, -4.05), Vector3(1.28, 0.30, -2.88)]),
 		0.12, _jovian_materials.hull_warm)
 	for side in [-1.0, 1.0]:
-		_loft_hull(_jovian_visual, "FlightDeckCheek", Vector3(side * 3.65, 1.92, 0.0),
+		_armour_pod(_jovian_visual, "FlightDeckCheek", Vector3(side * 3.65, 1.92, 0.0),
 			PackedVector3Array([Vector3(0.20, 0.55, -9.0), Vector3(0.29, 1.70, -7.5), Vector3(0.60, 1.87, -3.05)]), _jovian_materials.hull_cool, 24)
+	# A full-width raked pressure windscreen belongs to the freighter hull.
+	# The common functional seat/canopy stays inside this volume; boarding and
+	# flight-deck access still use the connected passenger/cargo route.
+	var screen_tool := SurfaceTool.new()
+	screen_tool.begin(Mesh.PRIMITIVE_TRIANGLES)
+	screen_tool.set_material(_jovian_glass(Color(0.10, 0.19, 0.21, 0.58)))
+	var screen_bottom_left := Vector3(-2.25, 0.94, -11.60)
+	var screen_top_left := Vector3(-2.48, 3.10, -9.65)
+	var screen_top_right := Vector3(2.48, 3.10, -9.65)
+	var screen_bottom_right := Vector3(2.25, 0.94, -11.60)
+	_skin_quad(screen_tool, screen_bottom_left, screen_top_left, screen_top_right, screen_bottom_right)
+	_skin_quad(screen_tool, screen_bottom_left, Vector3(-3.2, 0.60, -7.65), Vector3(-3.2, 3.65, -7.65), screen_top_left)
+	_skin_quad(screen_tool, screen_top_right, Vector3(3.2, 3.65, -7.65), Vector3(3.2, 0.60, -7.65), screen_bottom_right)
+	var screen := MeshInstance3D.new()
+	screen.name = "FreighterPressureWindscreen"
+	screen.mesh = screen_tool.commit()
+	_jovian_visual.add_child(screen)
+	_curve_tube(_jovian_visual, "FlightDeckWindscreenSeal", PackedVector3Array([
+		screen_bottom_left, screen_top_left, screen_top_right, screen_bottom_right, screen_bottom_left]), 0.075, _jovian_materials.structure)
+	_curve_tube(_jovian_visual, "FlightDeckWindscreenCentrePost", PackedVector3Array([
+		Vector3(0.0, 0.94, -11.60), Vector3(0.0, 3.10, -9.65)]), 0.045, _jovian_materials.structure)
+	for side in [-1.0, 1.0]:
+		_curve_tube(_jovian_visual, "FlightDeckQuarterlightSeal", PackedVector3Array([
+			Vector3(side * 2.25, 0.94, -11.60), Vector3(side * 3.2, 0.60, -7.65), Vector3(side * 3.2, 3.65, -7.65), Vector3(side * 2.48, 3.10, -9.65)]), 0.065, _jovian_materials.structure)
+	_pressed_roof(_jovian_visual, "FlightDeckWindscreenCowl", 2.25, 0.35, 0.10,
+		PackedVector3Array([Vector3(0.90, 0.0, -12.20), Vector3(1.0, 0.50, -11.60)]), 0.10, _jovian_materials.hull_cool)
+	# Sparse panel divisions follow the broad stamped crown, not a tiled image.
+	for seam_z in [0.2, 3.7, 7.2]:
+		_pressed_roof(_jovian_visual, "CargoPressureJoint", 5.75, 4.445, 0.38,
+			PackedVector3Array([Vector3(1.0, 0.0, seam_z - 0.026), Vector3(1.0, 0.0, seam_z + 0.026)]),
+			0.014, _jovian_materials.dark)
 	_dorsal_cargo_rib_joint_mesh = SphereMesh.new()
 	_dorsal_cargo_rib_joint_mesh.radius = DORSAL_CARGO_RIB_JOINT_RADIUS
 	_dorsal_cargo_rib_joint_mesh.height = DORSAL_CARGO_RIB_JOINT_RADIUS * 2.0
@@ -3801,8 +3832,8 @@ func _build_cargo_bay() -> void:
 		cargo_light.name = "CargoPracticalLight"
 		cargo_light.position = Vector3(0.0, 4.12, light_z)
 		cargo_light.light_color = Color("d7fff2")
-		cargo_light.light_energy = 1.1
-		cargo_light.omni_range = 6.8
+		cargo_light.light_energy = 0.72
+		cargo_light.omni_range = 7.4
 		cargo_light.shadow_enabled = true
 		_cargo_bay.add_child(cargo_light)
 	var ceiling_light_multimesh := MultiMesh.new()
@@ -3925,7 +3956,7 @@ func _build_passenger_cabin() -> void:
 	cabin_light.name = "PassengerPracticalLight"
 	cabin_light.position = Vector3(0.0, 3.52, -5.25)
 	cabin_light.light_color = Color("e8fff6")
-	cabin_light.light_energy = 0.95
+	cabin_light.light_energy = 0.68
 	cabin_light.omni_range = 5.2
 	cabin_light.shadow_enabled = true
 	_passenger_cabin.add_child(cabin_light)
@@ -4858,3 +4889,33 @@ func _skin_quad(tool: SurfaceTool, a: Vector3, b: Vector3, c: Vector3, d: Vector
 		tool.set_normal(normal)
 		tool.set_uv(Vector2(vertex.x, vertex.z))
 		tool.add_vertex(vertex)
+
+
+## Broad planar armour faces with two shallow corner facets. This is a sheet
+## assembly, not an inflated superellipse; every panel reflects light as a plane.
+func _armour_pod(parent: Node3D, node_name: String, origin: Vector3,
+		sections: PackedVector3Array, material: Material, _ring_count := 24) -> MeshInstance3D:
+	var tool := SurfaceTool.new()
+	tool.begin(Mesh.PRIMITIVE_TRIANGLES)
+	tool.set_material(material)
+	var rings: Array[PackedVector3Array] = []
+	for section in sections:
+		var ring := PackedVector3Array()
+		for xy in [Vector2(1.0, 0.68), Vector2(0.94, 0.90), Vector2(0.77, 1.0), Vector2(-0.77, 1.0), Vector2(-0.94, 0.90), Vector2(-1.0, 0.68), Vector2(-1.0, -0.68), Vector2(-0.94, -0.90), Vector2(-0.77, -1.0), Vector2(0.77, -1.0), Vector2(0.94, -0.90), Vector2(1.0, -0.68)]:
+			ring.append(Vector3(section.x * xy.x, section.y * xy.y, section.z))
+		rings.append(ring)
+	for station in rings.size() - 1:
+		for edge in 12:
+			var next := (edge + 1) % 12
+			_skin_quad(tool, rings[station][edge], rings[station][next], rings[station + 1][next], rings[station + 1][edge])
+	for edge in 12:
+		var next := (edge + 1) % 12
+		_skin_quad(tool, Vector3(0.0, 0.0, sections[0].z), rings[0][next], rings[0][edge], Vector3(0.0, 0.0, sections[0].z))
+		_skin_quad(tool, Vector3(0.0, 0.0, sections[-1].z), rings[-1][edge], rings[-1][next], Vector3(0.0, 0.0, sections[-1].z))
+	var instance := MeshInstance3D.new()
+	instance.name = node_name
+	instance.position = origin
+	instance.mesh = tool.commit()
+	instance.set_meta("closed_loft_hull", true)
+	parent.add_child(instance)
+	return instance

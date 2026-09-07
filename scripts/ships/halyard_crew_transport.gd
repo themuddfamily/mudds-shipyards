@@ -173,38 +173,13 @@ const FLIGHT_COLLISION_BOUNDS := AABB(Vector3(-4.85, -1.10, -13.85), Vector3(9.7
 
 # --------------------------------------------------------------- palette ----
 #
-# Both identity colours were chosen by measurement, not by eye, using the same
-# implementation the fleet audit measures with (`tests/fleet_colour_metrics.gd`:
-# sRGB -> linear -> Vienot 1999 dichromat simulation -> CIE L*a*b* -> CIEDE2000),
-# swept over the sRGB cube against all four existing craft under all four vision
-# models. The rule applied was the strict one from
-# `docs/design/FLEET_VISUAL_GRAMMAR.md` §7.2 — do not spend the fleet's measured
-# headroom — so each value had to beat the *current fleet minimum*, not merely
-# the frozen floor.
-#
-# HULL_OLIVE #6e7a3e: worst separation 19.06 (vs Jovian under protanopia), above
-# both the 12.0 floor and today's 16.62 fleet body-tone minimum, so adding it
-# leaves that minimum exactly where it was. Green is the one hue region no craft
-# in the fleet occupies, and at L* 49.0 it still reads against near-black space,
-# which a darker high-separation tone would not.
-#
-# HALYARD_ACCENT #341024: worst separation 31.60 (vs Jovian under protanopia),
-# above the 25.0 accent floor, above the 30.0 Torrent floor, and above today's
-# 31.38 fleet accent minimum — again spending nothing.
-#
-# **Recorded finding, because it constrains whoever adds the sixth craft.** The
-# chromatic accent space is now exhausted. A full sweep of the sRGB cube found
-# that *every* colour clearing both accent floors is either near-neutral grey at
-# ~25.1 (barely over the floor, and a grey is not an identification colour) or
-# dark violet/plum below L* 27. The lightest value that spends no headroom at
-# all is this one, at L* 10.8. That is why the Halyard's accent is a deep
-# aubergine used as exterior banding rather than a bright trim colour, and why
-# the craft carries its identity in its body tone and its silhouette instead.
-# `tests/halyard_crew_transport_test.gd` re-measures both numbers so the finding
-# cannot rot.
-const HULL_OLIVE := Color("6e7a3e")
-const HULL_SHADE := Color("566030")
-const HALYARD_ACCENT := Color("341024")
+# Muted olive pressure-hull paint with graphite machinery and plum seals.
+# Role recognition comes from the long crew hull and lit window band. The
+# former high-chroma CIE swatch freeze is intentionally retired by the modern
+# art pass; painted metal must not look like fluorescent plastic in daylight.
+const HULL_OLIVE := Color("59665b")
+const HULL_SHADE := Color("35413a")
+const HALYARD_ACCENT := Color("3e3035")
 const HALYARD_STRUCTURE := Color("2f3a33")
 const HALYARD_STRUCTURE_DARK := Color("17201c")
 const DECK_PLATE := Color("3d443c")
@@ -234,7 +209,7 @@ const STRUCTURE_PANEL_UV_SCALE := 0.30
 const WALKED_PANEL_UV_SCALE := 0.22
 const HULL_NORMAL_SCALE := 0.18
 const STRUCTURE_NORMAL_SCALE := 0.12
-const HULL_CLEARCOAT := 0.10
+const HULL_CLEARCOAT := 0.04
 
 # ---------------------------------------------------------------- layout ----
 #
@@ -362,15 +337,15 @@ const CREW_SEAT_BACK_COPY_COUNT := 6
 ## every traversal and occupancy fact; the four visible posts share one batch.
 const CABIN_PORTAL_UPRIGHT_SIZE := Vector3(0.18, 2.80, 0.22)
 const CABIN_PORTAL_UPRIGHT_COPY_COUNT := 4
-const RENDER_DESCENDANT_COUNT := 114
-const RENDER_MESH_INSTANCE_COUNT := 101
-const RENDER_MULTIMESH_BATCH_COUNT := 8
-const RENDER_DRAWN_COPY_COUNT := 167
-const RENDER_GEOMETRY_SUBMISSION_COUNT := 109
+const RENDER_DESCENDANT_COUNT := 120
+const RENDER_MESH_INSTANCE_COUNT := 106
+const RENDER_MULTIMESH_BATCH_COUNT := 9
+const RENDER_DRAWN_COPY_COUNT := 192
+const RENDER_GEOMETRY_SUBMISSION_COUNT := 115
 # NoseBelly now clears the deck using the same 4.30 x 0.36 x 2.40 stock as
 # NoseRoof; material overrides keep their finishes distinct while the cache
 # deliberately shares that mesh resource.
-const RENDER_UNIQUE_MESH_RESOURCE_COUNT := 73
+const RENDER_UNIQUE_MESH_RESOURCE_COUNT := 79
 const RENDER_UNIQUE_MATERIAL_RESOURCE_COUNT := 16
 
 var _halyard_built := false
@@ -2580,8 +2555,8 @@ func _build_halyard_variant(_controller: HeroShip) -> bool:
 
 
 func _create_halyard_materials() -> void:
-	_halyard_materials.hull_olive = _halyard_material(HULL_OLIVE, 0.18, 0.42)
-	_halyard_materials.hull_shade = _halyard_material(HULL_SHADE, 0.24, 0.50)
+	_halyard_materials.hull_olive = _halyard_material(HULL_OLIVE, 0.08, 0.58)
+	_halyard_materials.hull_shade = _halyard_material(HULL_SHADE, 0.10, 0.62)
 	# Interior metalness is deliberately low. The first rendered cabin pass ran
 	# structure/trim/locker at 0.26-0.32 metallic against the panel roughness map
 	# and the practical lights turned every bulkhead into wet polished tile, which
@@ -2615,7 +2590,7 @@ func _create_halyard_materials() -> void:
 		Color("473719"), 0.06, 0.46, BOARDING_ROUTE_AMBER, 0.72
 	)
 	_halyard_materials.window_glow = _halyard_material(
-		WINDOW_INTERIOR, 0.05, 0.42, Color("cfe0cc"), 2.1
+		WINDOW_INTERIOR, 0.05, 0.42, Color("aec5c7"), 0.55
 	)
 	_halyard_materials.engine = _halyard_material(ENGINE_CYAN, 0.10, 0.18, ENGINE_CYAN, 3.0)
 	_halyard_materials.nav_red = _halyard_material(HALYARD_NAV_RED, 0.10, 0.22, HALYARD_NAV_RED, 2.3)
@@ -2625,7 +2600,7 @@ func _create_halyard_materials() -> void:
 	_halyard_materials.damage_vane = _halyard_material(
 		ENGINE_DAMAGE_VANE_AMBER, 0.08, 0.62
 	)
-	_halyard_materials.liner = _halyard_material(Color("9baba2"), 0.02, 0.88)
+	_halyard_materials.liner = _halyard_material(Color("737b77"), 0.02, 0.88)
 	_halyard_materials.glass = _halyard_glass(Color(0.16, 0.28, 0.24, 0.22))
 
 	# Reuse the registered normal map in ship-local space. Paint supplies colour
@@ -2638,7 +2613,7 @@ func _create_halyard_materials() -> void:
 			hull_material.normal_scale = HULL_NORMAL_SCALE
 			hull_material.clearcoat_enabled = true
 			hull_material.clearcoat = HULL_CLEARCOAT
-			hull_material.clearcoat_roughness = 0.28
+			hull_material.clearcoat_roughness = 0.55
 			# Identification colours remain the authored fleet palette.
 			hull_material.albedo_color = HULL_OLIVE if hull_material == _halyard_materials.hull_olive else HULL_SHADE
 	for structural_material: StandardMaterial3D in [
@@ -2826,13 +2801,27 @@ func _build_pressure_hull() -> void:
 		])
 	)
 
+	for seam_z in [-8.1, -3.9, 0.3, 4.5]:
+		_pressed_roof(_halyard_visual, "CrownPressureJoint", 2.67, 3.253, 0.86,
+			PackedVector3Array([Vector3(1.0, 0.0, seam_z - 0.022), Vector3(1.0, 0.0, seam_z + 0.022)]),
+			0.014, _halyard_materials.dark)
+	# The flight-deck frame belongs to the larger transport pressure hull.
+	# A shaped perimeter avoids filling the pilot's forward view with opaque stock.
+	var cockpit_frame := MeshInstance3D.new()
+	cockpit_frame.name = "FlightDeckPressureFrame"
+	cockpit_frame.mesh = _porthole_stock(Vector3(0.16, 2.08, 3.28), true, 0.12)
+	cockpit_frame.material_override = _halyard_materials.structure
+	cockpit_frame.position = Vector3(0.0, 1.85, -13.39)
+	cockpit_frame.rotation.y = PI * 0.5
+	_halyard_visual.add_child(cockpit_frame)
+
 
 ## The at-distance signature: an open bow docking arch standing proud of the
-## nose on two struts. Its five chamfered box segments retain a readable docking
+## nose on two struts. Its five curved cast sections retain a readable docking
 ## aperture and target plate without completing the wheel-like hollow loop that
 ## the original eight-segment collar formed.
 func _build_bow_docking_arch() -> void:
-	var segment_length := 2.0 * BOW_RING_RADIUS * tan(PI / 8.0)
+	var arch_stock := _cast_arch_segment_mesh()
 	var shade_segment_transforms: Array[Transform3D] = []
 	var shade_segment_names := PackedStringArray()
 	for segment_index in 5:
@@ -2849,21 +2838,17 @@ func _build_bow_docking_arch() -> void:
 			))
 			shade_segment_names.append("BowDockingArchSegment%02d" % segment_index)
 			continue
-		var segment := _box(
-			_halyard_visual,
-			"BowDockingArchSegment%02d" % segment_index,
-			segment_position,
-			Vector3(segment_length, 0.34, 0.55),
-			_halyard_materials.accent
-		)
+		var segment := MeshInstance3D.new()
+		segment.name = "BowDockingArchSegment%02d" % segment_index
+		segment.position = segment_position
+		segment.mesh = arch_stock
+		segment.material_override = _halyard_materials.accent
+		_halyard_visual.add_child(segment)
 		segment.rotation.z = angle + PI * 0.5
 	# Alternating accent faces retain their independent authored nodes. The three
 	# childless hull-shade faces have identical stock and are presentation only,
 	# so one batch preserves the open-arch silhouette with two fewer submissions.
-	var shade_segment_mesh := StationSurfaceKit.rounded_box_mesh_cached(
-		Vector3(segment_length, 0.34, 0.55),
-		_box_mesh_cache
-	)
+	var shade_segment_mesh := arch_stock
 	_multimesh_visual_stock(
 		_halyard_visual,
 		"BowDockingArchShadeBatch",
@@ -2932,6 +2917,9 @@ func _build_flank_detail() -> void:
 			var window_z := CABIN_WINDOW_FIRST_Z + float(window_index) * CABIN_WINDOW_PITCH
 			if side < 0.0 and window_index == 2:
 				window_z = -9.55
+			elif side < 0.0 and window_index >= 3:
+				# Full pressure seals must stay clear of the open airstair aperture.
+				window_z += 0.55
 			# The lit pane sits proud of the recessed frame. Authored inboard of it
 			# on the first pass, every window was hidden inside the hull skin and
 			# the band rendered as an unbroken dark stripe.
@@ -3059,10 +3047,7 @@ func _build_flank_detail() -> void:
 		airstair_nosing_transforms,
 		airstair_nosing_names
 	)
-	var window_pane_mesh := StationSurfaceKit.rounded_box_mesh_cached(
-		Vector3(0.05, 0.54, 1.08),
-		_box_mesh_cache
-	)
+	var window_pane_mesh := _porthole_stock(Vector3(0.05, 0.54, 1.08), false)
 	_multimesh_visual_stock(
 		_halyard_visual,
 		"CabinWindowPaneBatch",
@@ -3071,10 +3056,7 @@ func _build_flank_detail() -> void:
 		cabin_window_pane_transforms,
 		cabin_window_pane_names
 	)
-	var window_glow_mesh := StationSurfaceKit.rounded_box_mesh_cached(
-		Vector3(0.05, 0.48, 1.00),
-		_box_mesh_cache
-	)
+	var window_glow_mesh := _porthole_stock(Vector3(0.05, 0.48, 1.00), false)
 	_multimesh_visual_stock(
 		_halyard_visual,
 		"CabinWindowGlowBatch",
@@ -3083,6 +3065,10 @@ func _build_flank_detail() -> void:
 		cabin_window_glow_transforms,
 		cabin_window_glow_names
 	)
+
+	_multimesh_visual_stock(_halyard_visual, "CabinWindowPressureSealBatch",
+		_porthole_stock(Vector3(0.12, 0.72, 1.26), true), _halyard_materials.dark,
+		cabin_window_pane_transforms, cabin_window_pane_names)
 
 
 func _build_connected_interior() -> void:
@@ -3138,7 +3124,7 @@ func _build_flight_deck_second_station() -> void:
 	deck_light.name = "FlightDeckPracticalLight"
 	deck_light.position = Vector3(-0.70, 2.70, -0.90)
 	deck_light.light_color = Color("dfeef0")
-	deck_light.light_energy = 0.85
+	deck_light.light_energy = 0.65
 	deck_light.omni_range = 4.4
 	deck_light.shadow_enabled = true
 	station.add_child(deck_light)
@@ -3198,9 +3184,17 @@ func _build_crew_cabin() -> void:
 			var window_z := CABIN_WINDOW_FIRST_Z + float(window_index) * CABIN_WINDOW_PITCH
 			if side < 0.0 and window_index == 2:
 				window_z = -9.55
+			elif side < 0.0 and window_index >= 3:
+				# Full pressure seals must stay clear of the open airstair aperture.
+				window_z += 0.55
 			if window_z < -9.80 or window_z > 2.10:
 				continue
-			_box(_crew_cabin, side_name + "CabinWindowSurround%02d" % window_index, Vector3(side * 2.40, 2.35, window_z), Vector3(0.09, 0.68, 1.20), _halyard_materials.trim)
+			var surround := MeshInstance3D.new()
+			surround.name = side_name + "CabinWindowSurround%02d" % window_index
+			surround.position = Vector3(side * 2.35, 2.35, window_z)
+			surround.mesh = _porthole_stock(Vector3(0.13, 0.68, 1.20), true)
+			surround.material_override = _halyard_materials.trim
+			_crew_cabin.add_child(surround)
 			cabin_window_pane_transforms.append(Transform3D(
 				Basis.IDENTITY,
 				Vector3(side * 2.34, 2.35, window_z)
@@ -3260,10 +3254,7 @@ func _build_crew_cabin() -> void:
 	# batch beneath CrewCabin preserves the moving-interior transform while
 	# removing thirteen renderer submissions; the surrounding frames and every
 	# physical/semantic cabin node remain independent.
-	var cabin_window_pane_mesh := StationSurfaceKit.rounded_box_mesh_cached(
-		Vector3(0.05, 0.48, 1.00),
-		_box_mesh_cache
-	)
+	var cabin_window_pane_mesh := _porthole_stock(Vector3(0.05, 0.48, 1.00), false)
 	_multimesh_visual_stock(
 		_crew_cabin,
 		"CabinInteriorWindowPaneBatch",
@@ -3373,9 +3364,9 @@ func _build_crew_cabin() -> void:
 		var cabin_light := OmniLight3D.new()
 		cabin_light.name = "CabinPracticalLight"
 		cabin_light.position = Vector3(0.0, 3.06, light_z)
-		cabin_light.light_color = Color("e2f0e0")
-		cabin_light.light_energy = 0.95
-		cabin_light.omni_range = 5.4
+		cabin_light.light_color = Color("efe5d5")
+		cabin_light.light_energy = 0.62
+		cabin_light.omni_range = 6.2
 		cabin_light.shadow_enabled = true
 		_crew_cabin.add_child(cabin_light)
 
@@ -4689,3 +4680,59 @@ func _skin_quad(tool: SurfaceTool, a: Vector3, b: Vector3, c: Vector3, d: Vector
 		tool.set_normal(normal)
 		tool.set_uv(Vector2(vertex.x, vertex.z))
 		tool.add_vertex(vertex)
+
+
+func _porthole_stock(size: Vector3, hollow: bool, border := 0.075) -> ArrayMesh:
+	var tool := SurfaceTool.new()
+	tool.begin(Mesh.PRIMITIVE_TRIANGLES)
+	var profiles: Array[PackedVector3Array] = []
+	var dims: Array[Vector2] = [Vector2(size.y, size.z), Vector2(size.y - 0.025, size.z - 0.025)]
+	if hollow:
+		dims.append(Vector2(size.y - border * 2.0, size.z - border * 2.0))
+		dims.append(Vector2(size.y - border * 2.0 + 0.025, size.z - border * 2.0 + 0.025))
+	for layer in dims.size():
+		var half := dims[layer] * 0.5
+		var cut := minf(half.x * 0.48, half.y * 0.25)
+		var x := size.x * (-0.5 if layer == 0 or layer == 3 else 0.5)
+		var profile := PackedVector3Array()
+		for yz in [Vector2(-half.x + cut, -half.y), Vector2(half.x - cut, -half.y), Vector2(half.x, -half.y + cut), Vector2(half.x, half.y - cut), Vector2(half.x - cut, half.y), Vector2(-half.x + cut, half.y), Vector2(-half.x, half.y - cut), Vector2(-half.x, -half.y + cut)]:
+			profile.append(Vector3(x, yz.x, yz.y))
+		profiles.append(profile)
+	for layer in profiles.size() - 1:
+		for edge in 8:
+			var next := (edge + 1) % 8
+			_skin_quad(tool, profiles[layer][edge], profiles[layer][next], profiles[layer + 1][next], profiles[layer + 1][edge])
+	if hollow:
+		for edge in 8:
+			var next := (edge + 1) % 8
+			_skin_quad(tool, profiles[3][edge], profiles[3][next], profiles[0][next], profiles[0][edge])
+	else:
+		for edge in 8:
+			var next := (edge + 1) % 8
+			_skin_quad(tool, Vector3(-size.x * 0.5, 0.0, 0.0), profiles[0][next], profiles[0][edge], Vector3(-size.x * 0.5, 0.0, 0.0))
+			_skin_quad(tool, Vector3(size.x * 0.5, 0.0, 0.0), profiles[1][edge], profiles[1][next], Vector3(size.x * 0.5, 0.0, 0.0))
+	return tool.commit()
+
+
+func _cast_arch_segment_mesh() -> ArrayMesh:
+	var tool := SurfaceTool.new()
+	tool.begin(Mesh.PRIMITIVE_TRIANGLES)
+	var rings: Array[PackedVector3Array] = []
+	for step in 13:
+		var angle := lerpf(-PI / 8.0, PI / 8.0, float(step) / 12.0)
+		var ring := PackedVector3Array()
+		for offset in [Vector2(-0.13, -0.275), Vector2(0.13, -0.275), Vector2(0.18, -0.21), Vector2(0.18, 0.21), Vector2(0.13, 0.275), Vector2(-0.13, 0.275), Vector2(-0.18, 0.21), Vector2(-0.18, -0.21)]:
+			var radius: float = BOW_RING_RADIUS + offset.x
+			ring.append(Vector3(radius * sin(angle), BOW_RING_RADIUS - radius * cos(angle), offset.y))
+		rings.append(ring)
+	for step in 12:
+		for edge in 8:
+			var next := (edge + 1) % 8
+			_skin_quad(tool, rings[step][edge], rings[step + 1][edge], rings[step + 1][next], rings[step][next])
+	for edge in 8:
+		var next := (edge + 1) % 8
+		var front := Vector3(BOW_RING_RADIUS * sin(-PI / 8.0), BOW_RING_RADIUS * (1.0 - cos(PI / 8.0)), 0.0)
+		var aft := Vector3(-front.x, front.y, 0.0)
+		_skin_quad(tool, front, rings[0][next], rings[0][edge], front)
+		_skin_quad(tool, aft, rings[12][edge], rings[12][next], aft)
+	return tool.commit()

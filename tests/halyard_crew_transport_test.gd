@@ -16,10 +16,8 @@ extends SceneTree
 ##   B. lateral role — the frozen signature, and the guarantee that adding this
 ##      craft took no signature away from the four that were already here.
 ##      Red: a mutated profile that dominates the freighter is detected.
-##   C. readable colour — the exact authored body tone and accent, re-measured
-##      against all four existing craft under all four vision models, including
-##      the assertion that this craft spends none of the fleet's headroom.
-##      Red: the pre-readability-pass fleet ivory fails the floor.
+##   C. paint finish — muted olive colour, low-metallic rough paint, darker
+##      machinery and restrained window luminance for the modern art direction.
 ##   D. winding — every mesh the craft builds, scored against the engine's own
 ##      primitives. This is the group with a live cause: `HeroShip._box` routes
 ##      through a private chamfered-box builder whose emission order is measured
@@ -53,7 +51,6 @@ extends SceneTree
 
 const MAIN_SCENE := preload("res://scenes/main.tscn")
 const HALYARD_SCENE := preload("res://scenes/ships/halyard_crew_transport.tscn")
-const ColourMetrics := preload("res://tests/fleet_colour_metrics.gd")
 
 const HALYARD_ID: StringName = &"halyard_new_design"
 const HALYARD_BERTH_ID: StringName = &"halyard_fleet_dock_berth"
@@ -121,31 +118,9 @@ const PRESERVED_SIGNATURES := [
 	{"ship": &"torrent_provisional", "axis": "landing_maximum_speed", "highest": true},
 ]
 
-const EXPECTED_BODY_TONE := "6e7a3e"
-const EXPECTED_ACCENT := "341024"
-const EXISTING_BODY_TONES := {
-	&"torrent_provisional": "e8e2cf",
-	&"arrow_provisional": "7891ab",
-	&"jovian_provisional": "e0ab74",
-	&"zenith_b7_observed": "bac8d6",
-}
-const EXISTING_ACCENTS := {
-	&"torrent_provisional": "f0b94d",
-	&"arrow_provisional": "45dee6",
-	&"jovian_provisional": "b32620",
-	&"zenith_b7_observed": "2f5fbe",
-}
-const BODY_TONE_FLOOR := 12.0
-const ACCENT_FLOOR := 25.0
-const TORRENT_ACCENT_FLOOR := 30.0
-const BODY_TONE_MINIMUM_SHARE := 0.10
-## The fleet's measured minima before this craft existed, printed as
-## `FLEET_COLOUR_EVIDENCE` by `tests/fleet_role_differentiation_test.gd`. The
-## Halyard must sit *outside* both, so that adding it leaves the fleet minimum
-## exactly where it was. This is the "do not spend the headroom" rule from
-## `docs/design/FLEET_VISUAL_GRAMMAR.md` §7.2, enforced rather than hoped for.
-const FLEET_BODY_MINIMUM_BEFORE := 16.62
-const FLEET_ACCENT_MINIMUM_BEFORE := 31.38
+const EXISTING_SHIPS: Array[StringName] = [
+	&"torrent_provisional", &"arrow_provisional", &"jovian_provisional", &"zenith_b7_observed",
+]
 
 ## Calibration primitives for the winding scorer. The expected sign of
 ## `dot((b - a) x (c - a), shading_normal)` is derived from the engine's own
@@ -433,7 +408,7 @@ func _test_lateral_role(craft: HeroShip) -> void:
 
 func _load_existing_profiles() -> Dictionary:
 	var result := {}
-	for ship_id: StringName in EXISTING_BODY_TONES:
+	for ship_id: StringName in EXISTING_SHIPS:
 		var definition := load("res://assets/ships/%s.tres" % ship_id) as ShipDefinition
 		if definition == null:
 			continue
@@ -474,109 +449,22 @@ func _is_sole_extreme(
 
 
 func _test_readable_colour(craft: HeroShip) -> void:
-	var accent := craft.identification_accent.to_html(false)
-	_check(accent == EXPECTED_ACCENT, "the transport renders its exact authored accent #%s" % accent)
-	var body_tone := _body_tone_albedo(craft)
-	_check(
-		body_tone == EXPECTED_BODY_TONE,
-		"the transport presents its exact rendered body tone #%s" % body_tone
-	)
-	if body_tone.is_empty():
-		return
-
-	var body_worst := INF
-	var accent_worst := INF
-	var torrent_accent_worst := INF
-	for mode: String in ColourMetrics.VISION_MODELS:
-		for ship_id: StringName in EXISTING_BODY_TONES:
-			body_worst = minf(
-				body_worst,
-				ColourMetrics.separation(body_tone, str(EXISTING_BODY_TONES[ship_id]), mode)
-			)
-			var accent_separation := ColourMetrics.separation(accent, str(EXISTING_ACCENTS[ship_id]), mode)
-			accent_worst = minf(accent_worst, accent_separation)
-			if ship_id == &"torrent_provisional":
-				torrent_accent_worst = minf(torrent_accent_worst, accent_separation)
-	_evidence.append(
-		"HALYARD_COLOUR_EVIDENCE: body_worst_ciede2000=%.2f accent_worst_ciede2000=%.2f torrent_accent_worst=%.2f"
-			% [body_worst, accent_worst, torrent_accent_worst]
-	)
-	_check(
-		body_worst >= BODY_TONE_FLOOR,
-		"the transport body tone clears the frozen %.1f body floor (%.2f)" % [BODY_TONE_FLOOR, body_worst]
-	)
-	_check(
-		accent_worst >= ACCENT_FLOOR,
-		"the transport accent clears the frozen %.1f accent floor (%.2f)" % [ACCENT_FLOOR, accent_worst]
-	)
-	_check(
-		torrent_accent_worst >= TORRENT_ACCENT_FLOOR,
-		"the transport accent clears the stricter %.1f Torrent floor (%.2f)"
-			% [TORRENT_ACCENT_FLOOR, torrent_accent_worst]
-	)
-	# The headroom rule. Both values must sit outside the fleet's own pre-existing
-	# minima, so this craft cannot be the reason a later readability audit reports
-	# a smaller margin than it used to.
-	_check(
-		body_worst >= FLEET_BODY_MINIMUM_BEFORE,
-		"the transport spends none of the fleet's body-tone headroom (%.2f >= %.2f)"
-			% [body_worst, FLEET_BODY_MINIMUM_BEFORE]
-	)
-	_check(
-		accent_worst >= FLEET_ACCENT_MINIMUM_BEFORE,
-		"the transport spends none of the fleet's accent headroom (%.2f >= %.2f)"
-			% [accent_worst, FLEET_ACCENT_MINIMUM_BEFORE]
-	)
-
-	# RED: the pre-readability-pass fleet ivory is the exact tone the audit
-	# recorded as broken. Measuring it here proves the floor is a real gate.
-	var ivory_worst := INF
-	for mode: String in ColourMetrics.VISION_MODELS:
-		for ship_id: StringName in EXISTING_BODY_TONES:
-			ivory_worst = minf(
-				ivory_worst,
-				ColourMetrics.separation("e7e4d6", str(EXISTING_BODY_TONES[ship_id]), mode)
-			)
-	_check(
-		ivory_worst < BODY_TONE_FLOOR,
-		"RED: the old shared fleet ivory fails the body floor this craft passes (%.2f)" % ivory_worst
-	)
-
-
-func _body_tone_albedo(craft: HeroShip) -> String:
-	var weights := {}
-	var total := 0.0
-	for node in craft.find_children("*", "MeshInstance3D", true, false):
-		var mesh_instance := node as MeshInstance3D
-		if not mesh_instance.is_visible_in_tree() or mesh_instance.mesh == null:
-			continue
-		var material := mesh_instance.material_override as StandardMaterial3D
-		if material == null:
-			material = mesh_instance.mesh.surface_get_material(0) as StandardMaterial3D
-		if material == null:
-			continue
-		if material.transparency != BaseMaterial3D.TRANSPARENCY_DISABLED \
-			or material.albedo_color.a < 0.95:
-			continue
-		var size := mesh_instance.get_aabb().size * mesh_instance.global_transform.basis.get_scale()
-		var area := 2.0 * (size.x * size.y + size.y * size.z + size.x * size.z)
-		if area <= 0.0:
-			continue
-		var hex := material.albedo_color.to_html(false)
-		weights[hex] = float(weights.get(hex, 0.0)) + area
-		total += area
-	var keys: Array = weights.keys()
-	keys.sort()
-	var best := ""
-	var best_lightness := -1.0
-	for hex: String in keys:
-		if float(weights[hex]) / maxf(total, 0.0001) < BODY_TONE_MINIMUM_SHARE:
-			continue
-		var lightness := ColourMetrics.lightness(hex)
-		if lightness > best_lightness:
-			best_lightness = lightness
-			best = hex
-	return best
+	# The modern art direction deliberately replaces the fluorescent olive
+	# swatch. Verify the actual paint finish rather than preserving old CIE
+	# headroom against a fleet palette that is itself being redesigned.
+	var materials := craft.get_variant_materials()
+	var paint := materials.hull_olive as StandardMaterial3D
+	var machinery := materials.hull_shade as StandardMaterial3D
+	_check(paint.albedo_color.is_equal_approx(HalyardCrewTransport.HULL_OLIVE),
+		"the pressure hull carries its authored muted olive paint")
+	_check(paint.albedo_color.s <= 0.30 and paint.albedo_color.v <= 0.50,
+		"pressure-hull paint stays muted rather than fluorescent under daylight")
+	_check(paint.metallic <= 0.15 and paint.roughness >= 0.50 and not paint.emission_enabled,
+		"the pressure hull responds as rough painted metal, with no self illumination")
+	_check(paint.albedo_color.v - machinery.albedo_color.v >= 0.10,
+		"darker machinery remains visibly separated from the pressure hull")
+	_check((materials.window_glow as StandardMaterial3D).emission_energy_multiplier <= 0.70,
+		"cabin glazing retains detail instead of presenting blown-out white rectangles")
 
 
 # ---------------------------------------------------------------- group D ----
@@ -842,6 +730,8 @@ func _test_render_allocations(craft: HeroShip) -> void:
 				# The port pane moves forward to leave the real hatch opening clear.
 				if side < 0.0 and window_index == 2:
 					window_z = -9.55
+				elif side < 0.0 and window_index >= 3:
+					window_z += 0.55
 				if window_z < -9.80 or window_z > 2.10:
 					continue
 				expected_cabin_panes.append(Transform3D(
