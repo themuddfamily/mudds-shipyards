@@ -30,7 +30,7 @@ extends HeroShip
 ## `tests/fleet_role_differentiation_test.gd` for the rule this satisfies, and
 ## `tests/halyard_crew_transport_test.gd` for the regression that holds it.
 ##
-## **The silhouette.** A long faceted octagonal pressure tube — the only craft in
+## **The silhouette.** A long pressure tube with a pressed crown — the only craft in
 ## the fleet whose dominant mass is a tube rather than a plate, wedge, delta or
 ## slab — carrying a proud open bow docking arch on two struts, a lit
 ## band of ten cabin windows down each flank, a dorsal service spine, and a
@@ -225,34 +225,16 @@ const ENGINE_DAMAGE_VANE_RED := Color("c94b38")
 
 # ------------------------------------------------------------- surfacing ----
 #
-# Every surface on this craft is built by `StationSurfaceKit`'s chamfered
-# builders and finished with the registered object-local triplanar panel recipe
-# (`StationSurfaceKit.apply_panel_triplanar`), which binds the registered
-# `procedural-panel-triplanar-*-v2` albedo/normal/roughness trio at
-# `normal_scale = 1.0`, triplanar projection, sharpness 4.0. The helper's
-# station-world projection is disabled after binding because this craft moves.
-#
-# One deliberate departure, with both rules named. `apply_panel_triplanar` sets
-# `normal_scale = 1.0`; that is the *station* family's relief, and
-# `docs/design/FLEET_VISUAL_GRAMMAR.md` §7.7 forbids a ship hull from using it
-# ("a ship hull at 1.0 reads as station plating"). The walked and structural
-# surfaces here — decks, bulkheads, the airstair, the bow collar, the yoke —
-# keep the registered 1.0, which is exactly where the station family belongs and
-# what `scripts/world/jovian_freight_berth.gd` already does for surfaces the
-# player stands on. The two *hull skin* materials keep the same registered maps,
-# projection and UV recipe but drop `normal_scale` to HULL_NORMAL_SCALE, inside
-# the fleet's 0.10-0.68 band, so the outside of the vessel does not read as a
-# bulkhead. Nothing else about the recipe changes.
-#
-# The hull UV scale is the finest in the fleet (Torrent 0.17, Jovian 0.24, Arrow
-# 0.34) because the Halyard's dominant mass is one very large uninterrupted
-# pressure tube: at station frequency a 19 m flank carries about four panel
-# features, which reads as a painted box rather than a plated hull.
+# Hull and walked structure retain the registered object-local normal texture,
+# with restrained relief over continuous paint. The old high-contrast tile
+# albedo and roughness maps made the small pressure hull read as a station wall.
+# Cabin liners and moulded seat backs use a separate matte composite finish.
 const HULL_PANEL_UV_SCALE := 0.26
 const STRUCTURE_PANEL_UV_SCALE := 0.30
 const WALKED_PANEL_UV_SCALE := 0.22
-const HULL_NORMAL_SCALE := 0.46
-const HULL_CLEARCOAT := 0.30
+const HULL_NORMAL_SCALE := 0.18
+const STRUCTURE_NORMAL_SCALE := 0.12
+const HULL_CLEARCOAT := 0.10
 
 # ---------------------------------------------------------------- layout ----
 #
@@ -380,15 +362,15 @@ const CREW_SEAT_BACK_COPY_COUNT := 6
 ## every traversal and occupancy fact; the four visible posts share one batch.
 const CABIN_PORTAL_UPRIGHT_SIZE := Vector3(0.18, 2.80, 0.22)
 const CABIN_PORTAL_UPRIGHT_COPY_COUNT := 4
-const RENDER_DESCENDANT_COUNT := 115
-const RENDER_MESH_INSTANCE_COUNT := 102
+const RENDER_DESCENDANT_COUNT := 114
+const RENDER_MESH_INSTANCE_COUNT := 101
 const RENDER_MULTIMESH_BATCH_COUNT := 8
-const RENDER_DRAWN_COPY_COUNT := 168
-const RENDER_GEOMETRY_SUBMISSION_COUNT := 110
+const RENDER_DRAWN_COPY_COUNT := 167
+const RENDER_GEOMETRY_SUBMISSION_COUNT := 109
 # NoseBelly now clears the deck using the same 4.30 x 0.36 x 2.40 stock as
 # NoseRoof; material overrides keep their finishes distinct while the cache
 # deliberately shares that mesh resource.
-const RENDER_UNIQUE_MESH_RESOURCE_COUNT := 69
+const RENDER_UNIQUE_MESH_RESOURCE_COUNT := 73
 const RENDER_UNIQUE_MATERIAL_RESOURCE_COUNT := 16
 
 var _halyard_built := false
@@ -2643,23 +2625,21 @@ func _create_halyard_materials() -> void:
 	_halyard_materials.damage_vane = _halyard_material(
 		ENGINE_DAMAGE_VANE_AMBER, 0.08, 0.62
 	)
+	_halyard_materials.liner = _halyard_material(Color("9baba2"), 0.02, 0.88)
 	_halyard_materials.glass = _halyard_glass(Color(0.16, 0.28, 0.24, 0.22))
 
-	# The registered station panel maps and triplanar recipe, applied through the
-	# shared kit. See the surfacing note at the top of this file for why the two
-	# hull skins step `normal_scale` back into the fleet band afterwards and the
-	# walked/structural surfaces keep the registered 1.0.
+	# Reuse the registered normal map in ship-local space. Paint supplies colour
+	# and roughness; large repeated station tiles no longer dominate the craft.
 	for hull_material: StandardMaterial3D in [
 		_halyard_materials.hull_olive, _halyard_materials.hull_shade
 	]:
 		if _apply_vehicle_panel_triplanar(hull_material, HULL_PANEL_UV_SCALE):
+			ShipSurfaceDetail.bind_manufactured_paint(hull_material)
 			hull_material.normal_scale = HULL_NORMAL_SCALE
 			hull_material.clearcoat_enabled = true
 			hull_material.clearcoat = HULL_CLEARCOAT
 			hull_material.clearcoat_roughness = 0.28
-			# The panel albedo is a greyscale plate pattern and multiplies the
-			# authored tint; the tint itself is untouched, so the body tone the
-			# fleet colour audit measures is exactly the authored HULL_OLIVE.
+			# Identification colours remain the authored fleet palette.
 			hull_material.albedo_color = HULL_OLIVE if hull_material == _halyard_materials.hull_olive else HULL_SHADE
 	for structural_material: StandardMaterial3D in [
 		_halyard_materials.structure, _halyard_materials.dark,
@@ -2667,8 +2647,7 @@ func _create_halyard_materials() -> void:
 		_halyard_materials.locker,
 	]:
 		_apply_vehicle_panel_triplanar(structural_material, STRUCTURE_PANEL_UV_SCALE)
-	# Surfaces the crew physically stands on take the walked panel scale, exactly
-	# as the freight berth's decks do.
+	# Deck grip uses the walked projection scale with the same restrained relief.
 	_apply_vehicle_panel_triplanar(_halyard_materials.deck, WALKED_PANEL_UV_SCALE)
 
 
@@ -2678,6 +2657,9 @@ func _apply_vehicle_panel_triplanar(material: StandardMaterial3D, uv_scale: floa
 	# Static station pieces need world-continuous projection. This moving craft
 	# must carry its projection with it so the panel pattern cannot swim in flight.
 	material.uv1_world_triplanar = false
+	material.normal_scale = STRUCTURE_NORMAL_SCALE
+	material.albedo_texture = null
+	material.roughness_texture = null
 	return true
 
 
@@ -2767,9 +2749,8 @@ func _relocate_and_restyle_cockpit(
 
 ## The dominant mass: a faceted octagonal pressure tube assembled from long
 ## chamfered boxes, stepped in at the crown and the belly. Deliberately not a
-## smooth loft — `docs/design/FLEET_VISUAL_GRAMMAR.md` §7.9 requires planar,
-## faceted, stepped construction, and a smoothly blended tube would be the one
-## organic hull in the fleet.
+## continuous pressed crown and a tapered ventral shell. The port aperture
+## retains its exact frame; all new skin stays outside the walked cabin.
 func _build_pressure_hull() -> void:
 	var length := TUBE_AFT_Z - TUBE_FORWARD_Z
 	var centre_z := (TUBE_AFT_Z + TUBE_FORWARD_Z) * 0.5
@@ -2783,10 +2764,13 @@ func _build_pressure_hull() -> void:
 		Vector2(2.10, PORT_AIRSTAIR_HATCH_APERTURE_WIDTH),
 		0.07
 	)
-	_box(_halyard_visual, "HullCrown", Vector3(0.0, 3.35, centre_z), Vector3(4.20, 1.00, length - 0.60), _halyard_materials.hull_olive)
-	_box(_halyard_visual, "HullCrownCap", Vector3(0.0, 3.90, centre_z), Vector3(2.60, 0.30, length - 1.40), _halyard_materials.hull_shade)
-	_box(_halyard_visual, "HullBelly", Vector3(0.0, 0.12, centre_z), Vector3(4.30, 0.80, length - 0.20), _halyard_materials.hull_shade)
-	_box(_halyard_visual, "HullKeel", Vector3(0.0, -0.45, centre_z + 0.20), Vector3(2.50, 0.55, length - 2.80), _halyard_materials.structure)
+	_pressed_roof(_halyard_visual, "HullCrown", 2.67, 3.24, 0.86,
+		PackedVector3Array([Vector3(0.83, -0.18, -11.50), Vector3(1.0, 0.0, -9.5), Vector3(1.0, 0.0, 6.8), Vector3(0.78, -0.35, 9.55)]),
+		0.10, _halyard_materials.hull_olive)
+	_manufactured_loft(_halyard_visual, "HullBelly", Vector3(0.0, 0.03, 0.0),
+		PackedVector3Array([Vector3(1.7, 0.18, -12.6), Vector3(2.5, 0.36, -9.0), Vector3(2.5, 0.36, 6.8), Vector3(1.8, 0.22, 9.35)]), _halyard_materials.hull_shade)
+	_manufactured_loft(_halyard_visual, "HullKeel", Vector3(0.0, -0.38, 0.0),
+		PackedVector3Array([Vector3(0.8, 0.12, -10.0), Vector3(1.25, 0.24, -7.5), Vector3(1.25, 0.24, 6.0), Vector3(0.8, 0.12, 8.0)]), _halyard_materials.structure)
 
 	# Stepped nose, built as a *shell* around the flight deck rather than as two
 	# solid blocks. The first rendered pass authored it solid, and the production
@@ -2797,11 +2781,13 @@ func _build_pressure_hull() -> void:
 	# narrower nose-cap ring rather than by filling the volume.
 	for side in [-1.0, 1.0]:
 		var side_name := "Port" if side < 0.0 else "Starboard"
-		_box(_halyard_visual, side_name + "NoseCheek", Vector3(side * 2.03, 1.80, -11.75), Vector3(0.34, 2.60, 2.40), _halyard_materials.hull_olive)
+		_manufactured_loft(_halyard_visual, side_name + "NoseCheek", Vector3(side * 2.03, 1.80, 0.0),
+			PackedVector3Array([Vector3(0.10, 0.86, -13.10), Vector3(0.21, 1.27, -12.40), Vector3(0.35, 1.45, -10.50)]), _halyard_materials.hull_olive)
 		_box(_halyard_visual, side_name + "NoseCapCheek", Vector3(side * 1.48, 1.72, -12.85), Vector3(0.30, 2.10, 0.90), _halyard_materials.hull_shade)
 		_box(_halyard_visual, side_name + "FlightDeckQuarterlight", Vector3(side * 1.66, 2.05, -12.55), Vector3(0.14, 1.05, 1.50), _halyard_materials.glass)
 		_box(_halyard_visual, side_name + "NoseChine", Vector3(side * 2.05, 0.72, -11.75), Vector3(0.44, 0.34, 2.30), _halyard_materials.accent)
-	_box(_halyard_visual, "NoseRoof", Vector3(0.0, 2.98, -11.75), Vector3(4.30, 0.36, 2.40), _halyard_materials.hull_olive)
+	_pressed_roof(_halyard_visual, "NoseRoof", 2.22, 2.93, 0.29,
+		PackedVector3Array([Vector3(0.72, -0.15, -13.25), Vector3(1.0, 0.0, -11.80), Vector3(1.12, 0.18, -10.4)]), 0.10, _halyard_materials.hull_olive)
 	# Keep the exterior lower silhouette at y=0.00/0.10, but stop its upper
 	# faces below the inherited cockpit floor (y=0.40..0.52 after COCKPIT_SHIFT).
 	# The former 0.56/0.58 m tops swallowed the entire deck plate where the two
@@ -3179,7 +3165,7 @@ func _build_crew_cabin() -> void:
 		_halyard_materials.boarding_route
 	)
 	_mark_boarding_route_cue(cabin_route_spine, &"cabin_spine")
-	_box(_crew_cabin, "CabinCeiling", Vector3(0.0, 3.34, -3.65), Vector3(4.86, 0.16, 12.50), _halyard_materials.trim)
+	_box(_crew_cabin, "CabinCeiling", Vector3(0.0, 3.34, -3.65), Vector3(4.86, 0.16, 12.50), _halyard_materials.liner)
 	var cabin_window_pane_transforms: Array[Transform3D] = []
 	var cabin_window_pane_names := PackedStringArray()
 	var crew_seat_leg_transforms: Array[Transform3D] = []
@@ -3220,6 +3206,11 @@ func _build_crew_cabin() -> void:
 				Vector3(side * 2.34, 2.35, window_z)
 			))
 			cabin_window_pane_names.append(side_name + "CabinWindowPane%02d" % window_index)
+		for panel_index in 6:
+			var panel_z := -8.7 + float(panel_index) * 2.05
+			if side < 0.0 and absf(panel_z - AIRSTAIR_Z) < 1.7:
+				continue
+			_box(_crew_cabin, side_name + "CabinLiner%02d" % panel_index, Vector3(side * 2.34, 1.25, panel_z), Vector3(0.08, 1.23, 1.96), _halyard_materials.liner)
 		_box(_crew_cabin, side_name + "CabinHandrail", Vector3(side * 2.28, 2.72, -3.65), Vector3(0.09, 0.09, 11.20), _halyard_materials.trim)
 		# Six forward-facing crew seats, three a side, either side of a 1.0 m
 		# aisle. Anchors are explicit contracts for the multi-crew work.
@@ -3229,6 +3220,11 @@ func _build_crew_cabin() -> void:
 			seat_root.position = Vector3(side * CREW_SEAT_HALF_SPACING, 0.0, CREW_SEAT_ROWS[row_index])
 			_crew_cabin.add_child(seat_root)
 			_box(seat_root, "SeatBase", Vector3(0.0, 0.92, 0.0), Vector3(0.68, 0.18, 0.76), _halyard_materials.cloth)
+			for arm_side in [-1.0, 1.0]:
+				_box(seat_root, "SeatArmrest", Vector3(arm_side * 0.38, 1.19, 0.05), Vector3(0.10, 0.12, 0.65), _halyard_materials.dark)
+			var back_shell := _manufactured_loft(seat_root, "SeatBackShell", Vector3(0.0, 1.44, 0.56),
+				PackedVector3Array([Vector3(0.22, 0.045, -0.53), Vector3(0.35, 0.07, -0.39), Vector3(0.39, 0.07, 0.27), Vector3(0.27, 0.045, 0.48)]), _halyard_materials.liner, 24)
+			back_shell.rotation.x = deg_to_rad(98.0)
 			_box(seat_root, "SeatHeadrest", Vector3(0.0, 1.98, 0.44), Vector3(0.48, 0.26, 0.18), _halyard_materials.trim)
 			_box(seat_root, "SeatHarness", Vector3(0.0, 1.44, 0.28), Vector3(0.11, 0.66, 0.05), _halyard_materials.accent)
 			crew_seat_back_transforms.append(Transform3D(
@@ -3257,7 +3253,7 @@ func _build_crew_cabin() -> void:
 		stowage.name = side_name + "OverheadStowage"
 		stowage.position = Vector3(side * 1.86, 2.98, -5.40)
 		stowage.mesh = cabin_stowage_mesh
-		stowage.material_override = _halyard_materials.hull_olive
+		stowage.material_override = _halyard_materials.liner
 		stowage.set_meta("orientation_cue", &"flight_deck_forward")
 		_crew_cabin.add_child(stowage)
 	# These inboard panes are repeated cabin illumination only. Keeping their
@@ -3548,7 +3544,8 @@ func _build_propulsion_and_gear() -> void:
 	# The yoke stands clear aft of the pressure hull. On the first rendered pass
 	# it sat at z 9.90, half buried behind the aft hull, and from abeam the craft
 	# read as one engine on a stick instead of four engines on a bar.
-	_box(_halyard_visual, "TailYoke", Vector3(0.0, 1.55, TAIL_YOKE_Z), Vector3(9.60, 1.15, 1.40), _halyard_materials.structure)
+	_manufactured_loft(_halyard_visual, "TailYoke", Vector3(0.0, 1.55, 0.0),
+		PackedVector3Array([Vector3(1.80, 0.30, 9.8), Vector3(4.70, 0.52, 10.9), Vector3(4.70, 0.48, 11.65), Vector3(3.90, 0.30, 12.0)]), _halyard_materials.structure)
 	_box(_halyard_visual, "TailYokeCap", Vector3(0.0, 2.24, TAIL_YOKE_Z), Vector3(8.80, 0.24, 1.20), _halyard_materials.hull_shade)
 	_box(_halyard_visual, "TailYokeBand", Vector3(0.0, 1.55, TAIL_YOKE_Z - 0.76), Vector3(9.00, 0.34, 0.14), _halyard_materials.accent)
 	_engine_damage_vane_material = _halyard_materials.damage_vane as StandardMaterial3D
@@ -3577,7 +3574,8 @@ func _build_propulsion_and_gear() -> void:
 		var offsets := [-3.75, -1.45, 1.45, 3.75]
 		var engine_x: float = offsets[engine_index]
 		var prefix := "Engine%02d" % engine_index
-		_cylinder(_halyard_visual, prefix + "Housing", Vector3(engine_x, 1.55, 12.20), 0.72, 2.10, _halyard_materials.structure, Vector3(90.0, 0.0, 0.0))
+		_manufactured_loft(_halyard_visual, prefix + "Housing", Vector3(engine_x, 1.55, 0.0),
+			PackedVector3Array([Vector3(0.52, 0.52, 10.7), Vector3(0.81, 0.81, 11.5), Vector3(0.81, 0.81, 12.65), Vector3(0.68, 0.68, 13.28)]), _halyard_materials.hull_shade)
 		_cylinder(_halyard_visual, prefix + "Collar", Vector3(engine_x, 1.55, 13.36), 0.86, 0.36, _halyard_materials.hull_shade, Vector3(90.0, 0.0, 0.0))
 		var core := _cylinder(_halyard_visual, prefix + "Core", Vector3(engine_x, 1.55, 13.56), 0.48, 0.18, _halyard_materials.engine, Vector3(90.0, 0.0, 0.0))
 		_engine_cores.append(core)
@@ -4592,3 +4590,102 @@ func _transformed_mesh_bounds(mesh_bounds: AABB, transforms: Array[Transform3D])
 		else:
 			result = result.merge(transformed)
 	return result
+
+
+func _manufactured_loft(
+		parent: Node3D,
+		node_name: String,
+		origin: Vector3,
+		sections: PackedVector3Array,
+		material: Material,
+		ring_count := 24
+	) -> MeshInstance3D:
+	var tool := SurfaceTool.new()
+	tool.begin(Mesh.PRIMITIVE_TRIANGLES)
+	tool.set_material(material)
+	for section_index in sections.size():
+		var section := sections[section_index]
+		for ring_index in ring_count:
+			var angle := TAU * float(ring_index) / float(ring_count)
+			var cosine := cos(angle)
+			var sine := sin(angle)
+			var rounded_x := signf(cosine) * pow(absf(cosine), 0.42)
+			var rounded_y := signf(sine) * pow(absf(sine), 0.42)
+			tool.set_uv(Vector2(float(ring_index) / float(ring_count), float(section_index) / float(maxi(1, sections.size() - 1))))
+			tool.add_vertex(Vector3(section.x * rounded_x, section.y * rounded_y, section.z))
+	for section_index in sections.size() - 1:
+		for ring_index in ring_count:
+			var next_ring := (ring_index + 1) % ring_count
+			var current := section_index * ring_count + ring_index
+			var current_next := section_index * ring_count + next_ring
+			var following := (section_index + 1) * ring_count + ring_index
+			var following_next := (section_index + 1) * ring_count + next_ring
+			tool.add_index(current)
+			tool.add_index(following)
+			tool.add_index(following_next)
+			tool.add_index(current)
+			tool.add_index(following_next)
+			tool.add_index(current_next)
+	var front_center := sections.size() * ring_count
+	tool.add_vertex(Vector3(0.0, 0.0, sections[0].z))
+	var rear_center := front_center + 1
+	tool.add_vertex(Vector3(0.0, 0.0, sections[sections.size() - 1].z))
+	for ring_index in ring_count:
+		var next_ring := (ring_index + 1) % ring_count
+		tool.add_index(front_center)
+		tool.add_index(ring_index)
+		tool.add_index(next_ring)
+		var rear_base := (sections.size() - 1) * ring_count
+		tool.add_index(rear_center)
+		tool.add_index(rear_base + next_ring)
+		tool.add_index(rear_base + ring_index)
+	tool.generate_normals()
+	var instance := MeshInstance3D.new()
+	instance.name = node_name
+	instance.position = origin
+	instance.mesh = tool.commit()
+	instance.set_meta("closed_loft_hull", true)
+	parent.add_child(instance)
+	return instance
+
+
+## Thin pressed skin over a transverse crown. The underside follows the same
+## profile; only the perimeter is closed, leaving the cabin volume empty.
+func _pressed_roof(parent: Node3D, node_name: String, half_width: float, base_y: float,
+		rise: float, sections: PackedVector3Array, thickness: float, material: Material) -> MeshInstance3D:
+	var tool := SurfaceTool.new()
+	tool.begin(Mesh.PRIMITIVE_TRIANGLES)
+	tool.set_material(material)
+	const STEPS := 16
+	for station in sections.size() - 1:
+		for step in STEPS:
+			var points: Array[Vector3] = []
+			for corner in [Vector2i(station, step), Vector2i(station + 1, step), Vector2i(station + 1, step + 1), Vector2i(station, step + 1)]:
+				var section := sections[corner.x]
+				var u := float(corner.y) / float(STEPS) * 2.0 - 1.0
+				points.append(Vector3(u * half_width * section.x, base_y + section.y + rise * pow(maxf(0.0, 1.0 - u * u), 0.60), section.z))
+			_skin_quad(tool, points[0], points[1], points[2], points[3])
+			var down := Vector3.DOWN * thickness
+			_skin_quad(tool, points[3] + down, points[2] + down, points[1] + down, points[0] + down)
+			if station == 0:
+				_skin_quad(tool, points[3], points[3] + down, points[0] + down, points[0])
+			if station == sections.size() - 2:
+				_skin_quad(tool, points[1], points[1] + down, points[2] + down, points[2])
+			if step == 0:
+				_skin_quad(tool, points[0], points[0] + down, points[1] + down, points[1])
+			if step == STEPS - 1:
+				_skin_quad(tool, points[2], points[2] + down, points[3] + down, points[3])
+	var instance := MeshInstance3D.new()
+	instance.name = node_name
+	instance.mesh = tool.commit()
+	instance.set_meta("visual_only", true)
+	parent.add_child(instance)
+	return instance
+
+
+func _skin_quad(tool: SurfaceTool, a: Vector3, b: Vector3, c: Vector3, d: Vector3) -> void:
+	var normal := (b - a).cross(c - a).normalized()
+	for vertex in [a, c, b, a, d, c]:
+		tool.set_normal(normal)
+		tool.set_uv(Vector2(vertex.x, vertex.z))
+		tool.add_vertex(vertex)

@@ -3197,7 +3197,7 @@ func _build_jovian_variant(_controller: HeroShip) -> bool:
 
 func _create_jovian_materials() -> void:
 	_jovian_materials.hull_warm = _jovian_material(HULL_WARM, 0.16, 0.3)
-	_jovian_materials.hull_cool = _jovian_material(HULL_COOL, 0.22, 0.38)
+	_jovian_materials.hull_cool = _jovian_material(HULL_COOL.darkened(0.26), 0.22, 0.50)
 	# Freighter secondary structure. Before this pass structure/dark/amber sat at
 	# roughness 0.36/0.30/0.35 and cargo_blue/deck at 0.47/0.52 — the whole
 	# working half of the ship inside a 0.22 band, so the painted bulkheads, the
@@ -3207,9 +3207,9 @@ func _create_jovian_materials() -> void:
 	# Colours are unchanged.
 	_jovian_materials.structure = _jovian_material(JOVIAN_STRUCTURE, 0.34, 0.66)
 	_jovian_materials.dark = _jovian_material(JOVIAN_STRUCTURE_DARK, 0.72, 0.22)
-	_jovian_materials.teal = _jovian_material(FREIGHT_TEAL, 0.28, 0.3, FREIGHT_TEAL, 0.75)
-	_jovian_materials.amber = _jovian_material(FREIGHT_AMBER, 0.14, 0.62)
-	_jovian_materials.cargo_blue = _jovian_material(CARGO_BLUE, 0.10, 0.70)
+	_jovian_materials.teal = _jovian_material(FREIGHT_TEAL.darkened(0.28), 0.24, 0.58)
+	_jovian_materials.amber = _jovian_material(FREIGHT_AMBER.darkened(0.22), 0.10, 0.72)
+	_jovian_materials.cargo_blue = _jovian_material(CARGO_BLUE.darkened(0.40), 0.10, 0.78)
 	_jovian_materials.cabin_cloth = _jovian_material(CABIN_CLOTH, 0.08, 0.78)
 	_jovian_materials.deck = _jovian_material(DECK_GREY, 0.40, 0.74)
 	_jovian_materials.engine = _jovian_material(ENGINE_AQUA, 0.1, 0.16, ENGINE_AQUA, 3.2)
@@ -3217,41 +3217,21 @@ func _create_jovian_materials() -> void:
 	_jovian_materials.nav_green = _jovian_material(JOVIAN_NAV_GREEN, 0.08, 0.2, JOVIAN_NAV_GREEN, 2.4)
 	_jovian_materials.interior_light = _jovian_material(Color("d5f9ee"), 0.0, 0.24, Color("b7fff0"), 2.5)
 	_jovian_materials.display = _jovian_material(Color("183b40"), 0.18, 0.22, FREIGHT_TEAL, 2.8)
+	_jovian_materials.liner = _jovian_material(Color("8b9693"), 0.04, 0.85)
 	_jovian_materials.glass = _jovian_glass(Color(0.12, 0.48, 0.52, 0.2))
-	# The freighter has its own larger-scale civilian service-panel finish. Reusing
-	# the Arrow's small ceramic pattern made two intentionally different classes
-	# read as the same procedural prop at normal viewing distance.
-	var hull_albedo := load("res://assets/materials/jovian-hull-albedo-v1.png") as Texture2D
-	var hull_normal := load("res://assets/materials/jovian-hull-normal-v1.png") as Texture2D
-	var hull_roughness := load("res://assets/materials/jovian-hull-roughness-v1.png") as Texture2D
+	# Continuous paint over manufactured shell geometry. The old cargo-panel
+	# image stamped deep rectangular cells over every curve at the same scale.
+	var hull_normal := load("res://assets/materials/manufactured-paint-normal.png") as Texture2D
 	for hull_material: StandardMaterial3D in [_jovian_materials.hull_warm, _jovian_materials.hull_cool]:
-		if hull_albedo != null:
-			hull_material.albedo_texture = hull_albedo
-		if hull_normal != null:
-			hull_material.normal_enabled = true
-			hull_material.normal_texture = hull_normal
-			hull_material.normal_scale = 0.68
-		if hull_roughness != null:
-			hull_material.roughness_texture = hull_roughness
-			hull_material.roughness_texture_channel = BaseMaterial3D.TEXTURE_CHANNEL_RED
+		ShipSurfaceDetail.bind_manufactured_paint(hull_material)
 		hull_material.uv1_triplanar = true
+		hull_material.uv1_world_triplanar = false
 		hull_material.uv1_triplanar_sharpness = 4.5
 		hull_material.uv1_scale = Vector3.ONE * 0.24
-		hull_material.clearcoat_enabled = true
-		hull_material.clearcoat = 0.42
-		hull_material.clearcoat_roughness = 0.25
-	# The cargo-aperture uprights, header, load rails and restraints were the
-	# most primitive-looking objects on the freighter: full-height flat yellow
-	# bars standing against a fully panelled hull in the baseline walk-up frame.
-	# The freighter's own registered normal map is reused on the working
-	# structure through triplanar projection at 8-20x the hull's frequency, so a
-	# bulkhead, a load rail and a deck plate each carry relief at their own
-	# scale. The 0.32 m aperture uprights need the highest frequency in the
-	# fleet precisely because they are narrow: at hull frequency less than one
-	# panel feature crosses the bar. See the honesty note on the Arrow about how
-	# small the relief contribution measures under current lighting. No albedo
-	# texture is bound anywhere here, so the hull, accent and cargo tints the
-	# fleet colour floors measure are exactly as authored.
+		hull_material.clearcoat = 0.12
+		hull_material.clearcoat_roughness = 0.48
+	# The working rails, cargo fittings and deck use the shared microtexture at
+	# their own scale. Their paint/steel roughness and colours remain distinct.
 	ShipSurfaceDetail.bind_structural_detail(_jovian_materials.structure, hull_normal, 2.0, 1.20)
 	ShipSurfaceDetail.bind_structural_detail(_jovian_materials.dark, hull_normal, 4.0, 0.90)
 	ShipSurfaceDetail.bind_structural_detail(_jovian_materials.amber, hull_normal, 5.0, 1.30)
@@ -3336,12 +3316,12 @@ func _build_exterior() -> void:
 			_loft_hull(
 				_jovian_visual,
 				"PortCargoShoulder",
-				Vector3(side * 6.25, 2.05, 0.0),
+				Vector3(side * 6.9, 2.05, 0.0),
 				PackedVector3Array([
 					Vector3(0.62, 0.52, -7.8),
-					Vector3(1.62, 1.72, -5.5),
-					Vector3(1.82, 2.02, 0.8),
-					Vector3(1.78, 1.98, 1.12),
+					Vector3(1.10, 1.72, -5.5),
+					Vector3(1.15, 2.02, 0.8),
+					Vector3(1.15, 1.98, 1.12),
 				]),
 				_jovian_materials.hull_cool,
 				24
@@ -3349,12 +3329,12 @@ func _build_exterior() -> void:
 			_loft_hull(
 				_jovian_visual,
 				"PortAftCargoShoulder",
-				Vector3(side * 6.25, 2.05, 0.0),
+				Vector3(side * 6.9, 2.05, 0.0),
 				PackedVector3Array([
-					Vector3(1.78, 1.98, 5.28),
-					Vector3(1.8, 2.0, 5.62),
-					Vector3(1.75, 1.92, 8.7),
-					Vector3(1.32, 1.52, 11.2),
+					Vector3(1.15, 1.98, 5.28),
+					Vector3(1.15, 2.0, 5.62),
+					Vector3(1.12, 1.92, 8.7),
+					Vector3(0.96, 1.52, 11.2),
 				]),
 				_jovian_materials.hull_cool,
 				24
@@ -3363,13 +3343,13 @@ func _build_exterior() -> void:
 			_loft_hull(
 				_jovian_visual,
 				"StarboardCargoShoulder",
-				Vector3(side * 6.25, 2.05, 0.0),
+				Vector3(side * 6.9, 2.05, 0.0),
 				PackedVector3Array([
 					Vector3(0.62, 0.52, -7.8),
-					Vector3(1.62, 1.72, -5.5),
-					Vector3(1.82, 2.02, 1.5),
-					Vector3(1.75, 1.92, 8.7),
-					Vector3(1.32, 1.52, 11.2),
+					Vector3(1.10, 1.72, -5.5),
+					Vector3(1.15, 2.02, 1.5),
+					Vector3(1.12, 1.92, 8.7),
+					Vector3(0.96, 1.52, 11.2),
 				]),
 				_jovian_materials.hull_cool,
 				24
@@ -3401,7 +3381,7 @@ func _build_exterior() -> void:
 				continue
 			var panel_z := -4.1 + float(panel_index) * 3.75
 			_service_panel_transforms.append(Transform3D(
-				Basis.IDENTITY, Vector3(side * 7.83, 2.12, panel_z)
+				Basis.IDENTITY, Vector3(side * 8.04, 2.12, panel_z)
 			))
 		_sphere(
 			_jovian_visual,
@@ -3413,18 +3393,17 @@ func _build_exterior() -> void:
 	_build_forward_cargo_guide_silhouette()
 
 	# Arched roof and keel members visually unify the load-bearing shoulders.
-	_planform_surface(
-		_jovian_visual,
-		"CargoRoofShell",
-		PackedVector3Array([
-			Vector3(-5.72, 4.55, -3.0),
-			Vector3(5.72, 4.55, -3.0),
-			Vector3(5.72, 4.48, 9.3),
-			Vector3(-5.72, 4.48, 9.3),
-		]),
-		0.24,
-		_jovian_materials.hull_warm
-	)
+	_pressed_roof(_jovian_visual, "CargoRoofShell", 5.75, 4.43, 0.38,
+		PackedVector3Array([Vector3(0.92, -0.20, -3.10), Vector3(1.0, 0.0, -1.8), Vector3(1.0, 0.0, 8.25), Vector3(0.86, -0.22, 9.35)]),
+		0.12, _jovian_materials.hull_warm)
+	# The cabin and flight deck now sit in one manufactured pressure fairing.
+	# Its cheeks remain outside the cabin walls and its crown clears the roof.
+	_pressed_roof(_jovian_visual, "ForwardCabinCrown", 3.56, 3.80, 0.43,
+		PackedVector3Array([Vector3(0.70, -0.70, -9.65), Vector3(0.91, -0.12, -7.65), Vector3(1.0, 0.0, -4.05), Vector3(1.28, 0.30, -2.88)]),
+		0.12, _jovian_materials.hull_warm)
+	for side in [-1.0, 1.0]:
+		_loft_hull(_jovian_visual, "FlightDeckCheek", Vector3(side * 3.65, 1.92, 0.0),
+			PackedVector3Array([Vector3(0.20, 0.55, -9.0), Vector3(0.29, 1.70, -7.5), Vector3(0.60, 1.87, -3.05)]), _jovian_materials.hull_cool, 24)
 	_dorsal_cargo_rib_joint_mesh = SphereMesh.new()
 	_dorsal_cargo_rib_joint_mesh.radius = DORSAL_CARGO_RIB_JOINT_RADIUS
 	_dorsal_cargo_rib_joint_mesh.height = DORSAL_CARGO_RIB_JOINT_RADIUS * 2.0
@@ -3734,6 +3713,12 @@ func _build_cargo_bay() -> void:
 	_box(_cargo_bay, "PortInnerWallForward", Vector3(-5.64, 2.5, -0.9), Vector3(0.18, 3.86, 3.65), _jovian_materials.structure)
 	_box(_cargo_bay, "PortInnerWallAft", Vector3(-5.64, 2.5, 7.15), Vector3(0.18, 3.86, 4.05), _jovian_materials.structure)
 	_box(_cargo_bay, "AftPressureWall", Vector3(0.0, 2.5, 9.17), Vector3(11.3, 3.86, 0.18), _jovian_materials.structure)
+	for bay_index in 4:
+		var bay_z := -1.35 + float(bay_index) * 2.65
+		_box(_cargo_bay, "CeilingAcousticCassette%02d" % bay_index, Vector3(0.0, 4.49, bay_z), Vector3(8.8, 0.08, 2.52), _jovian_materials.liner)
+		_box(_cargo_bay, "StarboardWallLiner%02d" % bay_index, Vector3(5.51, 2.53, bay_z), Vector3(0.07, 2.92, 2.52), _jovian_materials.liner)
+		if bay_index != 1 and bay_index != 2:
+			_box(_cargo_bay, "PortWallLiner%02d" % bay_index, Vector3(-5.51, 2.53, bay_z), Vector3(0.07, 2.92, 2.52), _jovian_materials.liner)
 	# Forward bulkhead wraps a 2.8 m passage to the passenger cabin.
 	for side in [-1.0, 1.0]:
 		_box(_cargo_bay, "ForwardBulkheadWing", Vector3(side * 3.55, 2.5, -2.88), Vector3(4.2, 3.86, 0.18), _jovian_materials.structure)
@@ -3786,6 +3771,13 @@ func _build_cargo_bay() -> void:
 		# roster is how they stayed permeable this long.
 		_box(_cargo_bay, "CargoPallet" + suffix, position + Vector3(0.0, CARGO_PALLET_OFFSET_Y, 0.0), CARGO_PALLET_SIZE, _jovian_materials.structure)
 		_box(_cargo_bay, "CargoContainer" + suffix, position + Vector3(0.0, CARGO_CONTAINER_OFFSET_Y, 0.0), CARGO_CONTAINER_SIZE, _jovian_materials.cargo_blue)
+		for corner_x in [-0.87, 0.87]:
+			for corner_z in [-0.98, 0.98]:
+				_box(_cargo_bay, "ContainerCorner" + suffix, position + Vector3(corner_x, 0.90, corner_z), Vector3(0.16, 1.24, 0.16), _jovian_materials.structure)
+		for face_z in [-1.079, 1.079]:
+			_box(_cargo_bay, "ContainerRecess" + suffix, position + Vector3(0.0, 0.91, face_z), Vector3(1.47, 0.85, 0.035), _jovian_materials.dark)
+			_box(_cargo_bay, "ContainerDataPlate" + suffix, position + Vector3(0.40, 1.07, face_z * 1.021), Vector3(0.43, 0.23, 0.02), _jovian_materials.liner)
+
 		for band_index in CARGO_RESTRAINT_BAND_Z.size():
 			_rounded_box_from_mesh(
 				_cargo_bay,
@@ -3894,6 +3886,9 @@ func _build_passenger_cabin() -> void:
 			_rounded_box_from_mesh(seat_root, "SeatBase", Vector3(0.0, 0.88, 0.0), _passenger_seat_base_mesh)
 			_rounded_box_from_mesh(seat_root, "SeatBack", Vector3(0.0, 1.42, 0.36), _passenger_seat_back_mesh, Vector3(deg_to_rad(8.0), 0.0, 0.0))
 			_rounded_box_from_mesh(seat_root, "Harness", Vector3(0.0, 1.42, 0.25), _passenger_seat_harness_mesh)
+			_box(seat_root, "SeatHeadrest", Vector3(0.0, 1.99, 0.44), Vector3(0.52, 0.25, 0.22), _jovian_materials.cabin_cloth)
+			for arm_side in [-1.0, 1.0]:
+				_box(seat_root, "SeatArmrest", Vector3(arm_side * 0.40, 1.12, 0.05), Vector3(0.10, 0.12, 0.66), _jovian_materials.dark)
 			var anchor := Marker3D.new()
 			anchor.name = "PassengerAnchor"
 			anchor.position = Vector3(0.0, 0.24, -0.02)
@@ -4008,7 +4003,8 @@ func _build_propulsion_and_gear() -> void:
 			var engine_y := 1.15 + float(vertical_index) * 2.25
 			var engine_x := side * (5.05 + float(vertical_index) * 1.35)
 			var prefix := side_name + ("Lower" if vertical_index == 0 else "Upper")
-			_cylinder(_jovian_visual, prefix + "EngineHousing", Vector3(engine_x, engine_y, 11.65), 0.84, 3.0, _jovian_materials.structure, Vector3(90.0, 0.0, 0.0))
+			_loft_hull(_jovian_visual, prefix + "EngineHousing", Vector3(engine_x, engine_y, 0.0),
+				PackedVector3Array([Vector3(0.64, 0.64, 9.65), Vector3(0.95, 0.95, 10.6), Vector3(0.95, 0.95, 12.1), Vector3(0.79, 0.79, 13.0)]), _jovian_materials.hull_cool, 32)
 			_cylinder(_jovian_visual, prefix + "EngineCollar", Vector3(engine_x, engine_y, 13.05), 1.02, 0.42, _jovian_materials.hull_cool, Vector3(90.0, 0.0, 0.0))
 			var core := _cylinder(_jovian_visual, prefix + "EngineCore", Vector3(engine_x, engine_y, 13.31), 0.57, 0.2, _jovian_materials.engine, Vector3(90.0, 0.0, 0.0))
 			_engine_cores.append(core)
@@ -4562,8 +4558,8 @@ func _loft_hull(
 			var angle := TAU * float(ring_index) / float(ring_count)
 			var cosine := cos(angle)
 			var sine := sin(angle)
-			var rounded_x := signf(cosine) * pow(absf(cosine), 0.7)
-			var rounded_y := signf(sine) * pow(absf(sine), 0.7)
+			var rounded_x := signf(cosine) * pow(absf(cosine), 0.42)
+			var rounded_y := signf(sine) * pow(absf(sine), 0.42)
 			tool.set_uv(Vector2(float(ring_index) / float(ring_count), float(section_index) / float(maxi(1, sections.size() - 1))))
 			tool.add_vertex(Vector3(section.x * rounded_x, section.y * rounded_y, section.z))
 	for section_index in sections.size() - 1:
@@ -4820,3 +4816,45 @@ func _emit_cargo_header_vertex(
 	tool.set_normal(normal)
 	tool.set_uv(uv)
 	tool.add_vertex(position)
+
+
+## Thin pressed skin over a transverse crown. The underside follows the same
+## profile; only the perimeter is closed, leaving the cabin volume empty.
+func _pressed_roof(parent: Node3D, node_name: String, half_width: float, base_y: float,
+		rise: float, sections: PackedVector3Array, thickness: float, material: Material) -> MeshInstance3D:
+	var tool := SurfaceTool.new()
+	tool.begin(Mesh.PRIMITIVE_TRIANGLES)
+	tool.set_material(material)
+	const STEPS := 16
+	for station in sections.size() - 1:
+		for step in STEPS:
+			var points: Array[Vector3] = []
+			for corner in [Vector2i(station, step), Vector2i(station + 1, step), Vector2i(station + 1, step + 1), Vector2i(station, step + 1)]:
+				var section := sections[corner.x]
+				var u := float(corner.y) / float(STEPS) * 2.0 - 1.0
+				points.append(Vector3(u * half_width * section.x, base_y + section.y + rise * pow(maxf(0.0, 1.0 - u * u), 0.60), section.z))
+			_skin_quad(tool, points[0], points[1], points[2], points[3])
+			var down := Vector3.DOWN * thickness
+			_skin_quad(tool, points[3] + down, points[2] + down, points[1] + down, points[0] + down)
+			if station == 0:
+				_skin_quad(tool, points[3], points[3] + down, points[0] + down, points[0])
+			if station == sections.size() - 2:
+				_skin_quad(tool, points[1], points[1] + down, points[2] + down, points[2])
+			if step == 0:
+				_skin_quad(tool, points[0], points[0] + down, points[1] + down, points[1])
+			if step == STEPS - 1:
+				_skin_quad(tool, points[2], points[2] + down, points[3] + down, points[3])
+	var instance := MeshInstance3D.new()
+	instance.name = node_name
+	instance.mesh = tool.commit()
+	instance.set_meta("visual_only", true)
+	parent.add_child(instance)
+	return instance
+
+
+func _skin_quad(tool: SurfaceTool, a: Vector3, b: Vector3, c: Vector3, d: Vector3) -> void:
+	var normal := (b - a).cross(c - a).normalized()
+	for vertex in [a, c, b, a, d, c]:
+		tool.set_normal(normal)
+		tool.set_uv(Vector2(vertex.x, vertex.z))
+		tool.add_vertex(vertex)

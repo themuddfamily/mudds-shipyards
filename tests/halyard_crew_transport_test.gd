@@ -200,7 +200,7 @@ const BOARDING_ROUTE_CUES := {
 const SMALL_CRAFT_ENVELOPE_MAXIMUM := 15.0
 
 const HULL_MATERIAL_KEYS := ["hull_olive", "hull_shade"]
-const STATION_PANEL_NORMAL_SCALE := 1.0
+const STRUCTURE_PANEL_NORMAL_SCALE := HalyardCrewTransport.STRUCTURE_NORMAL_SCALE
 const SHIP_NORMAL_SCALE_BAND := Vector2(0.10, 0.68)
 const PANEL_TRIPLANAR_SHARPNESS := 4.0
 
@@ -1575,8 +1575,9 @@ func _test_surfacing(craft: HeroShip) -> void:
 		_check(
 			material.albedo_texture != null
 			and material.normal_texture != null
-			and material.roughness_texture != null,
-			"%s binds the registered panel albedo/normal/roughness trio" % key
+			and material.roughness_texture != null
+			and material.normal_texture.resource_path == ShipSurfaceDetail.PAINT_NORMAL_PATH,
+			"%s binds the manufactured paint maps instead of the station tile pattern" % key
 		)
 		_check(
 			material.uv1_triplanar and not material.uv1_world_triplanar
@@ -1593,8 +1594,8 @@ func _test_surfacing(craft: HeroShip) -> void:
 		if untextured.size() < 4 and material.albedo_texture == null:
 			untextured.append(key)
 
-	# Walked and structural surfaces keep the registered station relief, which is
-	# exactly where that family belongs.
+	# Walked and structural surfaces retain local microrelief without the old
+	# exaggerated station-wall tile finish.
 	for key: String in ["deck", "structure", "dark", "accent", "trim", "locker"]:
 		var material := materials.get(key) as StandardMaterial3D
 		_check(material != null, "the transport publishes its %s surface material" % key)
@@ -1603,14 +1604,14 @@ func _test_surfacing(craft: HeroShip) -> void:
 		_check(
 			material.normal_texture != null and material.uv1_triplanar
 			and not material.uv1_world_triplanar
-			and is_equal_approx(material.normal_scale, STATION_PANEL_NORMAL_SCALE),
-			"%s keeps the ship-local panel recipe at normal_scale %.1f" % [key, STATION_PANEL_NORMAL_SCALE]
+			and is_equal_approx(material.normal_scale, STRUCTURE_PANEL_NORMAL_SCALE),
+			"%s keeps the ship-local panel recipe at normal_scale %.2f" % [key, STRUCTURE_PANEL_NORMAL_SCALE]
 		)
 
 	# RED: a stripped material must be detected by the same predicate.
 	var stripped := StandardMaterial3D.new()
 	_check(
-		stripped.albedo_texture == null and not stripped.uv1_world_triplanar,
+		stripped.normal_texture == null and not stripped.uv1_triplanar,
 		"RED: an unsurfaced material is detected as carrying no panel recipe"
 	)
 

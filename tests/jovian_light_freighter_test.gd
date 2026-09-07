@@ -294,13 +294,13 @@ func _test_service_panel_render_allocation(jovian: JovianLightFreighter) -> void
 			and bool(batch.get_meta("visual_detail_only", false))
 			and transforms.size() == 7
 			and (transforms[0] as Transform3D).origin.is_equal_approx(
-				Vector3(-7.83, 2.12, -4.1)
+				Vector3(-8.04, 2.12, -4.1)
 			)
 			and (transforms[2] as Transform3D).origin.is_equal_approx(
-				Vector3(-7.83, 2.12, 7.15)
+				Vector3(-8.04, 2.12, 7.15)
 			)
 			and (transforms[6] as Transform3D).origin.is_equal_approx(
-				Vector3(7.83, 2.12, 7.15)
+				Vector3(8.04, 2.12, 7.15)
 			),
 		"service-panel batch preserves the exact authored transforms and no authority"
 	)
