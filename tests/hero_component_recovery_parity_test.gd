@@ -1,5 +1,8 @@
 extends SceneTree
 
+# Resolve the concrete subtype before shared HeroShip references to avoid retained script resources.
+const ArrowShipType := preload("res://scripts/ships/arrow_recon_ship.gd")
+
 ## Focused Phase 6 recovery parity against the five production HeroShip scenes.
 ## It dirties the shared component model and every generic damage-presentation
 ## family, then proves one authoritative reuse restores the same physical craft.

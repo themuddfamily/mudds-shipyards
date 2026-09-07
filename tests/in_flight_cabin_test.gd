@@ -1,5 +1,8 @@
 extends SceneTree
 
+# Resolve the concrete subtype before shared HeroShip references to avoid retained script resources.
+const ArrowShipType := preload("res://scripts/ships/arrow_recon_ship.gd")
+
 ## Focused regression for leaving the pilot seat away from a berth and walking a
 ## craft's cabin under way.
 ##

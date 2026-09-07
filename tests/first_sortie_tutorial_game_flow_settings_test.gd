@@ -32,6 +32,8 @@ func _run() -> void:
 	flow.runtime_settings.show_tutorials = true
 	_check(flow.apply_first_sortie_tutorial_snapshot({"step_id": &"board"}), "valid live change re-enables prompts")
 	_check(GameFlowType.RUNTIME_SETTING_KEYS.has(&"show_tutorials"), "tutorial policy participates in validated setting changes")
+	flow.free()
+	hud.free()
 	if _failures.is_empty():
 		print("FIRST_SORTIE_TUTORIAL_GAME_FLOW_SETTINGS_TEST_OK (%d assertions)" % _assertions)
 		quit(0)

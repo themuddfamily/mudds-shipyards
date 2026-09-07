@@ -266,19 +266,22 @@ func _test_protected_asset_generation_renewal() -> void:
 	)
 
 	var renewal_observation := {}
+	# Signal callbacks must not keep their RefCounted emitter alive.
+	var activity_ref: WeakRef = weakref(activity)
 	activity.protected_asset_renewed.connect(
 		func(
 			snapshot: Dictionary,
 			emitted_old: Dictionary,
 			emitted_new: Dictionary
 			) -> void:
-			var committed_before := activity.get_snapshot()
-			var reentry := activity.renew_protected_asset_handle(
+			var emitter := activity_ref.get_ref() as StationDefenseActivity
+			var committed_before := emitter.get_snapshot()
+			var reentry := emitter.renew_protected_asset_handle(
 				emitted_old, emitted_new, int(snapshot.generation)
 			)
 			renewal_observation["reason"] = reentry.reason
 			renewal_observation["snapshot_unchanged"] = (
-				activity.get_snapshot() == committed_before
+				emitter.get_snapshot() == committed_before
 			)
 			(emitted_old as Dictionary).clear()
 			(emitted_new as Dictionary).clear()
@@ -377,32 +380,34 @@ func _test_signal_reentry_and_hud_snapshot_detachment() -> void:
 		30.0
 	) as StationDefenseContract
 	var activity := ActivityScript.new(contract) as StationDefenseActivity
+	# Signal callbacks must not keep their RefCounted emitter alive.
+	var activity_ref: WeakRef = weakref(activity)
 	var observations: Array[Dictionary] = []
 	activity.activity_started.connect(func(snapshot: Dictionary) -> void:
-		observations.append(_probe_reentry(&"started", activity, snapshot))
+		observations.append(_probe_reentry(&"started", activity_ref.get_ref() as StationDefenseActivity, snapshot))
 	)
 	activity.wave_started.connect(func(snapshot: Dictionary) -> void:
-		observations.append(_probe_reentry(&"wave_started", activity, snapshot))
+		observations.append(_probe_reentry(&"wave_started", activity_ref.get_ref() as StationDefenseActivity, snapshot))
 	)
 	activity.protected_asset_damage_accepted.connect(
 		func(snapshot: Dictionary, asset_handle: Dictionary, event_handle: Dictionary) -> void:
 			asset_handle.clear()
 			event_handle.clear()
-			observations.append(_probe_reentry(&"asset_damage", activity, snapshot))
+			observations.append(_probe_reentry(&"asset_damage", activity_ref.get_ref() as StationDefenseActivity, snapshot))
 	)
 	activity.hostile_destruction_accepted.connect(
 		func(snapshot: Dictionary, hostile_handle: Dictionary) -> void:
 			hostile_handle.clear()
-			observations.append(_probe_reentry(&"hostile", activity, snapshot))
+			observations.append(_probe_reentry(&"hostile", activity_ref.get_ref() as StationDefenseActivity, snapshot))
 	)
 	activity.wave_completed.connect(func(snapshot: Dictionary) -> void:
-		observations.append(_probe_reentry(&"wave_completed", activity, snapshot))
+		observations.append(_probe_reentry(&"wave_completed", activity_ref.get_ref() as StationDefenseActivity, snapshot))
 	)
 	activity.activity_completed.connect(func(snapshot: Dictionary) -> void:
-		observations.append(_probe_reentry(&"completed", activity, snapshot))
+		observations.append(_probe_reentry(&"completed", activity_ref.get_ref() as StationDefenseActivity, snapshot))
 	)
 	activity.activity_reset.connect(func(snapshot: Dictionary) -> void:
-		observations.append(_probe_reentry(&"reset", activity, snapshot))
+		observations.append(_probe_reentry(&"reset", activity_ref.get_ref() as StationDefenseActivity, snapshot))
 	)
 	var generation := int(activity.start(0).generation)
 	activity.protected_asset_damaged(
@@ -412,14 +417,15 @@ func _test_signal_reentry_and_hud_snapshot_detachment() -> void:
 	activity.reset(generation)
 
 	var failed_activity := ActivityScript.new(contract) as StationDefenseActivity
+	var failed_activity_ref: WeakRef = weakref(failed_activity)
 	failed_activity.protected_asset_destruction_accepted.connect(
 		func(snapshot: Dictionary, asset_handle: Dictionary, event_handle: Dictionary) -> void:
 			asset_handle.clear()
 			event_handle.clear()
-			observations.append(_probe_reentry(&"asset_destroyed", failed_activity, snapshot))
+			observations.append(_probe_reentry(&"asset_destroyed", failed_activity_ref.get_ref() as StationDefenseActivity, snapshot))
 	)
 	failed_activity.activity_failed.connect(func(snapshot: Dictionary) -> void:
-		observations.append(_probe_reentry(&"failed", failed_activity, snapshot))
+		observations.append(_probe_reentry(&"failed", failed_activity_ref.get_ref() as StationDefenseActivity, snapshot))
 	)
 	var failed_generation := int(failed_activity.start(0).generation)
 	failed_activity.protected_asset_destroyed(
@@ -427,8 +433,9 @@ func _test_signal_reentry_and_hud_snapshot_detachment() -> void:
 	)
 
 	var aborted_activity := ActivityScript.new(contract) as StationDefenseActivity
+	var aborted_activity_ref: WeakRef = weakref(aborted_activity)
 	aborted_activity.activity_aborted.connect(func(snapshot: Dictionary) -> void:
-		observations.append(_probe_reentry(&"aborted", aborted_activity, snapshot))
+		observations.append(_probe_reentry(&"aborted", aborted_activity_ref.get_ref() as StationDefenseActivity, snapshot))
 	)
 	var aborted_generation := int(aborted_activity.start(0).generation)
 	aborted_activity.abort(aborted_generation)

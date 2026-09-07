@@ -1,5 +1,8 @@
 extends SceneTree
 
+# Resolve the concrete subtype before shared HeroShip references to avoid retained script resources.
+const ArrowShipType := preload("res://scripts/ships/arrow_recon_ship.gd")
+
 ## Focused production binding for repair interruption. The shared HeroShip
 ## damage seam is exercised on the original five-craft fleet, then a real
 ## authority-admitted Jovian engineer repair proves immediate semantic/network

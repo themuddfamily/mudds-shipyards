@@ -1,5 +1,8 @@
 extends SceneTree
 
+# Resolve the concrete subtype before shared HeroShip references to avoid retained script resources.
+const ArrowShipType := preload("res://scripts/ships/arrow_recon_ship.gd")
+
 const TORRENT_SCENE := preload("res://scenes/ships/torrent_interceptor.tscn")
 const JOVIAN_SCENE := preload("res://scenes/ships/jovian_light_freighter.tscn")
 const ZENITH_SCENE := preload("res://scenes/ships/zenith_interceptor.tscn")

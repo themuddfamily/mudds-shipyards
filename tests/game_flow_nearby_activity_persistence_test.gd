@@ -88,6 +88,7 @@ func _run() -> void:
 	cluster.queue_free()
 	world.queue_free()
 	flow.free()
+	hud.free()
 	if _failures.is_empty():
 		print("GAME_FLOW_NEARBY_ACTIVITY_PERSISTENCE_TEST_OK (%d assertions)" % _assertions)
 		quit(0)
