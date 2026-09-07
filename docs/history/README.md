@@ -15,4 +15,4 @@ Useful historical entries:
 - [August 24 reconciliation](ROADMAP_CHECKPOINTS_20260906.md#wave-2930-production-reconciliation-checkpoint--2026-08-24)
 - [Old validation and export records](README_CHECKPOINTS_20260906.md#validation-and-export)
 
-Return to the [current README](../../README.md) and [active roadmap](../../ROADMAP.md#current-state-and-next-milestone--2026-09-06). Historical native execution, synthetic input, staged screenshots and Linux package probes never substitute for a new normal-controls human Windows playthrough, representative benchmark or audible review. Those current-candidate gates remain `NOT_RUN` until performed.
+Return to the [current README](../../README.md) and [active roadmap](../../ROADMAP.md). Historical native execution, synthetic input, staged screenshots and Linux package probes never substitute for a new normal-controls human Windows playthrough, representative benchmark or audible review. Those current-candidate gates remain `NOT_RUN` until performed.
