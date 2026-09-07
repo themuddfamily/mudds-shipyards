@@ -120,7 +120,7 @@ def inspect_source(repository):
 
 def inspect_godot(godot_path):
     resolved = _resolve_command(str(godot_path))
-    output = _run([str(resolved), "--version"]).strip()
+    output = _run([str(resolved), "--audio-driver", "Dummy", "--version"]).strip()
     if not output or "\n" in output or len(output) > 160:
         raise EvidenceError("Godot --version returned an invalid value")
     match = re.match(r"^(\d+)\.(\d+)\.(\d+)(?:[.-].*)?$", output)
