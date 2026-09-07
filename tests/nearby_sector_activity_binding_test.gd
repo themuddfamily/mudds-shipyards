@@ -87,7 +87,8 @@ func _run() -> void:
 		_check(bool(reset.get("accepted", false)), "the owner can reset the convoy without changing authored route data")
 		var race_started: Dictionary = binding.call("start_race")
 		_check(bool(race_started.get("accepted", false)), "the owner starts the existing authored beacon race")
-		var race_advanced: Dictionary = binding.call("advance_race", 0.25)
+		# Checkpoints become eligible after the authored three-second countdown.
+		var race_advanced: Dictionary = binding.call("advance_race", 3.0)
 		_check(bool(race_advanced.get("accepted", false)), "the owner advances the race on caller-supplied physics time")
 		var race_checkpoint: Dictionary = binding.call("submit_race_position", Vector3(16.0, -9.0, -240.0))
 		_check(bool(race_checkpoint.get("accepted", false)), "the owner submits the first authored beacon checkpoint")

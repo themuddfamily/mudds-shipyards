@@ -76,13 +76,15 @@ func _run() -> void:
 	root.add_child(fresh)
 	await process_frame
 	var fresh_snapshot := _structure_snapshot(fresh)
+	# The preallocated actor terrain collision body and shape add two nodes
+	# and one collision shape without adding relay renderers or triangles.
 	var fresh_audit := fresh.audit() as Dictionary
 	_check(
 		bool(fresh_audit.valid)
 			and fresh_snapshot == first_snapshot
-			and int(fresh_audit.performance.node_count) == 81
+			and int(fresh_audit.performance.node_count) == 83
 			and int(fresh_audit.performance.mesh_instances) == 22
-			and int(fresh_audit.performance.collision_shapes) == 26
+			and int(fresh_audit.performance.collision_shapes) == 27
 			and int(fresh_audit.performance.triangle_count) == first_triangles
 			and int(fresh_audit.performance.triangle_count) <= 60_000,
 		"fresh streaming generation resets the relay and bounded terrain within the retained scene budget"

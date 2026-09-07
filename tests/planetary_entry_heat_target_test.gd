@@ -6,7 +6,7 @@ const TARGET_SCENE := preload(
 const ProfileScript := preload(
 	"res://scripts/world/definitions/planetary_atmosphere_profile.gd"
 )
-const EXPECTED_ASSERTIONS := 35
+const EXPECTED_ASSERTIONS := 36
 const EXPECTED_BOUNDS := AABB(
 	Vector3(-4.0, -2.0, -7.0), Vector3(8.0, 4.0, 14.0)
 )
@@ -353,12 +353,21 @@ func _test_adapter_lifecycle(target: PlanetaryEntryHeatTarget) -> void:
 	root.add_child(target)
 	await process_frame
 	_check(
-		material.get_shader_parameter(OWNED_PARAMETER) == 1.0
+		material.get_shader_parameter(OWNED_PARAMETER) == 0.0
 		and compression.material_override == material
 		and presentation.get_generation() == generation
 		and presentation.get_state_snapshot().revision == revision
+		and bool(presentation.get_state_snapshot().requires_fresh_observation)
 		and bool(target.audit().valid),
-		"whole-target reentry reapplies retained intensity without duplication"
+		"whole-target reentry keeps the retained observation invisible until a fresh caller sample"
+	)
+	var fresh_observation := presentation.present_observation(10000.0, 340.0, generation)
+	_check(
+		bool(fresh_observation.accepted)
+		and material.get_shader_parameter(OWNED_PARAMETER) == 1.0
+		and presentation.get_generation() == generation
+		and not bool(presentation.get_state_snapshot().requires_fresh_observation),
+		"a fresh same-generation observation restores heat on the existing target"
 	)
 	var live_reset := presentation.reset_for_reuse(generation)
 	var reset_generation := presentation.get_generation()

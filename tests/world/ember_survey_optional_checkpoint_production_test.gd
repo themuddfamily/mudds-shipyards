@@ -299,7 +299,7 @@ func _run() -> void:
 			and bool(standalone_reentered.accepted)
 			and bool(standalone_restored.accepted)
 			and bool(standalone_started.accepted)
-			and bool(after_start.relay_survey.optional_checkpoint.eligible)
+			and not bool(after_start.relay_survey.optional_checkpoint.eligible)
 			and bool(after_start.relay_survey.optional_checkpoint.completed)
 			and not bool(after_start.relay_survey.optional_checkpoint.observation_held)
 			and after_start.relay_survey.optional_checkpoint.progress_text \

@@ -81,7 +81,7 @@ func _run() -> void:
 			and one_progress.silhouette == &"vertical_oval_return_ring"
 			and not relay_marker.visible and return_marker.visible
 			and return_marker.position == RETURN_ANCHOR
-			and return_marker.scale == Vector3(0.82, 1.28, 0.82)
+			and return_marker.scale == Vector3(0.78, 1.48, 0.78)
 			and after_relay.relay_survey_presentation.cue_mode \
 				== &"mandatory_return_checkpoint",
 		"accepted checkpoint 0 switches to a distinct oval return ring"
@@ -102,7 +102,7 @@ func _run() -> void:
 			and retained.relay_survey_presentation.mandatory_checkpoint_progress.progress_text \
 				== "1 / 2 MANDATORY"
 			and return_marker.visible
-			and return_marker.scale == Vector3(0.82, 1.28, 0.82),
+			and return_marker.scale == Vector3(0.78, 1.48, 0.78),
 		"same-generation re-entry restores the accepted 1/2 geometry state"
 	)
 
@@ -118,7 +118,7 @@ func _run() -> void:
 			and bool(with_optional.relay_survey_presentation.mandatory_checkpoint_progress.optional_pointer_preserved)
 			and relay_marker.visible and return_marker.visible
 			and relay_marker.position == RETURN_ANCHOR
-			and return_marker.scale == Vector3(0.82, 1.28, 0.82),
+			and return_marker.scale == Vector3(0.78, 1.48, 0.78),
 		"the optional return pyramid remains over the mandatory 1/2 ring"
 	)
 
@@ -136,9 +136,9 @@ func _run() -> void:
 			and two_progress.state == &"mandatory_route_complete"
 			and two_progress.progress_text == "2 / 2 MANDATORY"
 			and two_progress.silhouette == &"expanded_return_ring"
-			and two_progress.return_marker_scale == Vector3(1.35, 1.35, 1.35)
+			and two_progress.return_marker_scale == Vector3(1.52, 1.52, 1.52)
 			and not bool(route_complete.relay_survey_presentation.route_direction.active)
-			and return_marker.scale == Vector3(1.08, 1.08, 1.08)
+			and return_marker.scale == Vector3(1.05, 1.05, 1.05)
 			and bool(committed.accepted) and _reward_calls == 1
 			and rewarded.relay_survey_presentation.mandatory_checkpoint_progress.state \
 				== &"reward_confirmed"

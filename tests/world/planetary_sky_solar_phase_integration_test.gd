@@ -12,6 +12,7 @@ func _init() -> void:
 		"state": &"night", "sun_elevation_sine": -1.0,
 		"twilight_factor_unitless": 0.0,
 	})
+	presentation.free()
 	if not daylight.accepted or not night.accepted \
 			or daylight.sun_energy_unitless <= night.sun_energy_unitless \
 			or daylight.sky_exposure_unitless <= night.sky_exposure_unitless \

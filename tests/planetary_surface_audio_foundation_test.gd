@@ -187,6 +187,16 @@ func _test_binding_contract() -> void:
 	var exterior_result := binding.present_policy_result(
 		exterior_policy_result, 0.75, attachment_generation, 1001, 7, 11
 	)
+	var initial_fade := binding.get_state_snapshot().fade as Dictionary
+	_check(
+		bool(exterior_result.accepted)
+		and is_zero_approx(float(initial_fade.intensity_unitless))
+		and is_equal_approx(float(initial_fade.target_intensity_unitless), 0.8),
+		"first current exterior submission retains its target while starting silently"
+	)
+	exterior_result = binding.present_policy_result(
+		exterior_policy_result, 0.75, attachment_generation, 1001, 7, 11
+	)
 	var exterior_fade := binding.get_state_snapshot().fade as Dictionary
 	_check(
 		bool(exterior_result.accepted)
@@ -196,7 +206,7 @@ func _test_binding_contract() -> void:
 		and is_equal_approx(float(exterior_fade.intensity_unitless), 0.8)
 		and is_equal_approx(float(exterior_fade.exterior_route_weight_unitless), 1.0)
 		and is_equal_approx(float(exterior_fade.interior_route_weight_unitless), 0.0),
-		"one accepted exterior result reaches its exact equal-power endpoint"
+		"the next caller tick reaches the exact exterior equal-power endpoint"
 	)
 	var cabin_policy_result := _policy_result(policy, &"cabin")
 	var cabin_evaluation := cabin_policy_result.get("evaluation", {}) as Dictionary

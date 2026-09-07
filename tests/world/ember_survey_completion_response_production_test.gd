@@ -64,7 +64,7 @@ func _run() -> void:
 			and not bool(route_response.reward_committed)
 			and route_response.silhouette == &"expanded_return_ring"
 			and return_ring.visible
-			and return_ring.scale == Vector3(1.35, 1.35, 1.35)
+			and return_ring.scale == Vector3(1.52, 1.52, 1.52)
 			and not reward_seal.visible and _reward_calls == 0,
 		"mandatory route completion expands the existing return ring before reward"
 	)
@@ -83,7 +83,7 @@ func _run() -> void:
 			and bool(retained.relay_survey_presentation.completion_response.visible)
 			and retained.relay_survey_presentation.completion_response.state \
 				== &"route_complete_pending_reward"
-			and return_ring.scale == Vector3(1.35, 1.35, 1.35),
+			and return_ring.scale == Vector3(1.52, 1.52, 1.52),
 		"same-generation re-entry restores the pending route-complete response"
 	)
 
@@ -102,11 +102,11 @@ func _run() -> void:
 			and bool(reward_response.reward_committed)
 			and bool(reward_response.receipt_verified)
 			and reward_response.reward_id == &"ember_beacon_data"
-			and reward_response.silhouette == &"ring_and_expanded_diamond"
-			and return_ring.scale == Vector3(1.08, 1.08, 1.08)
+			and reward_response.silhouette == &"ring_and_inset_diamond"
+			and return_ring.scale == Vector3(1.05, 1.05, 1.05)
 			and reward_seal.visible
-			and reward_seal.scale == Vector3(1.18, 1.18, 1.18),
-		"the existing reward commit expands the diamond exactly once"
+			and reward_seal.scale == Vector3(0.94, 0.94, 0.94),
+		"the existing reward commit reveals the inset diamond exactly once"
 	)
 	var forged_receipt: Dictionary = {
 		"world_id": &"ember_moon",
@@ -148,7 +148,7 @@ func _run() -> void:
 			and restored_completed.relay_survey_presentation.completion_response.state \
 				== &"reward_confirmed"
 			and reward_seal.visible
-			and reward_seal.scale == Vector3(1.18, 1.18, 1.18),
+			and reward_seal.scale == Vector3(0.94, 0.94, 0.94),
 		"same-generation re-entry restores the committed reward response"
 	)
 

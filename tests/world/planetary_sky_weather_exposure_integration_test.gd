@@ -10,6 +10,7 @@ func _init() -> void:
 		"shelter_scalar": 0.75,
 		"wind_velocity_mps": Vector3(2000.0, 0.0, 0.0),
 	})
+	presentation.free()
 	if not mapped.accepted \
 			or mapped.fog_density_unitless < 0.0 or mapped.fog_density_unitless > 1.0 \
 			or mapped.cloud_visibility_unitless < 0.0 or mapped.cloud_visibility_unitless > 1.0 \

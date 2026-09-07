@@ -1,6 +1,10 @@
 extends SceneTree
 
+# Resolve the concrete subtype before shared HeroShip references to avoid retained script resources.
+const ArrowShipType := preload("res://scripts/ships/arrow_recon_ship.gd")
+
 const CLUSTER_SCENE := preload("res://scenes/world/components/nearby_sector_cluster.tscn")
+const JOVIAN_SCENE := preload("res://scenes/ships/jovian_light_freighter.tscn")
 const BINDING := preload("res://scripts/world/fleet_expansion_production_binding.gd")
 
 var _assertions := 0
@@ -15,6 +19,15 @@ func _initialize() -> void:
 	await process_frame
 	await process_frame
 	var activity := cluster.get_node_or_null(^"ActivityBinding") as Node
+	# The authored activity receives a manifest only from its occupied Jovian
+	# berth. Fleet forwarding must use that live authority, not an empty route.
+	var source_ship := JOVIAN_SCENE.instantiate() as HeroShip
+	root.add_child(source_ship)
+	await process_frame
+	var berth := cluster.get_cinder_cargo_access().get_berth() as ShipBerth
+	var lease := berth.try_reserve(source_ship, source_ship.get_ship_definition())
+	_check(not lease.is_empty() and berth.occupy(source_ship, lease),
+		"the real occupied Jovian berth supplies the activity manifest")
 	var bound: Dictionary = production.bind_cargo_activity(activity)
 	_check(bool(bound.get("accepted", false)), "Dock04 composes the existing cargo activity bridge")
 	var cargo := production.get_node(^"cinder_cargo_hauler") as Node
@@ -38,8 +51,12 @@ func _initialize() -> void:
 	_check(bool(restarted.get("accepted", false)), "re-entry starts a fresh fenced cargo generation")
 	var final_rows := production.get_fleet_snapshot().get("craft", []) as Array
 	_check(final_rows[1] == bomber_before and final_rows[2] == interceptor_before, "cargo activity lifecycle does not affect bomber or interceptor")
+	production.detach_craft(&"cinder_cargo_hauler")
+	berth.release(source_ship, lease)
 	production.queue_free()
+	source_ship.queue_free()
 	cluster.queue_free()
+	await process_frame
 	await process_frame
 	if _failures.is_empty():
 		print("PASS fleet_expansion_cargo_activity_integration_test (%d assertions)" % _assertions)

@@ -6,7 +6,7 @@ class FakeAdapter:
 	var sequence: Array = []
 	var discoveries: Array = []
 	var positions: Array = []
-	func start_surface_activity_sequence(ids: Array) -> Dictionary:
+	func start_activity_sequence(ids: Array) -> Dictionary:
 		sequence = ids.duplicate()
 		return {"accepted": true, "reason": &"sequence_started"}
 	func submit_activity_landmark_discovery(id: StringName, position: Vector3) -> Dictionary:

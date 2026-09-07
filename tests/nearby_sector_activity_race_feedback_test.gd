@@ -37,6 +37,7 @@ func _initialize() -> void:
 	if _failures.is_empty():
 		print("NEARBY_SECTOR_ACTIVITY_RACE_FEEDBACK_TEST_OK (%d assertions)" % _assertions)
 		quit(0)
+		return
 	for failure in _failures:
 		push_error(failure)
 	quit(1)
