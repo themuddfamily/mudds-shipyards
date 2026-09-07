@@ -7353,12 +7353,15 @@ func _wedge(parent: Node3D, node_name: String, position: Vector3, size: Vector3,
 			var front_b := section_index * RING_COUNT + next_ring
 			var rear_a := (section_index + 1) * RING_COUNT + ring_index
 			var rear_b := (section_index + 1) * RING_COUNT + next_ring
+			# The ring travels clockwise. Godot's front faces also use clockwise
+			# winding; reversing the old triangles restores outward normals and
+			# makes back-face-culled canopy glass visible from outside the ship.
 			surface_tool.add_index(front_a)
+			surface_tool.add_index(rear_b)
 			surface_tool.add_index(rear_a)
-			surface_tool.add_index(rear_b)
 			surface_tool.add_index(front_a)
-			surface_tool.add_index(rear_b)
 			surface_tool.add_index(front_b)
+			surface_tool.add_index(rear_b)
 
 	var nose_center_index := SECTION_COUNT * RING_COUNT
 	surface_tool.set_uv(Vector2(0.5, 0.0))
@@ -7369,12 +7372,12 @@ func _wedge(parent: Node3D, node_name: String, position: Vector3, size: Vector3,
 	for ring_index in RING_COUNT:
 		var next_ring := (ring_index + 1) % RING_COUNT
 		surface_tool.add_index(nose_center_index)
-		surface_tool.add_index(ring_index)
 		surface_tool.add_index(next_ring)
+		surface_tool.add_index(ring_index)
 		var rear_ring := (SECTION_COUNT - 1) * RING_COUNT
 		surface_tool.add_index(rear_center_index)
-		surface_tool.add_index(rear_ring + next_ring)
 		surface_tool.add_index(rear_ring + ring_index)
+		surface_tool.add_index(rear_ring + next_ring)
 	surface_tool.generate_normals()
 	var array_mesh := surface_tool.commit()
 	var mesh_instance := MeshInstance3D.new()

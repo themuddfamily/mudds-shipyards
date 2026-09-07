@@ -121,6 +121,22 @@ func _check_hero_builders(expected_sign: int) -> void:
 		hero.call("_trapezoid_prism_mesh", 1.0, 2.0, 1.5, 0.5, null) as ArrayMesh,
 		expected_sign
 	)
+	# A generated normal can agree with an inward triangle too. Check the loft
+	# against its volume, not only its own generated normals: canopy back-face
+	# culling otherwise exposes the far inside wall while hiding the near shell.
+	var holder := Node3D.new()
+	var loft := hero.call("_wedge", holder, "GlassProbe", Vector3.ZERO,
+		Vector3(2.0, 1.2, 4.0), null, 0.0) as MeshInstance3D
+	var arrays := loft.mesh.surface_get_arrays(0)
+	var vertices: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
+	var normals: PackedVector3Array = arrays[Mesh.ARRAY_NORMAL]
+	var outward := true
+	for i in range(16, 23 * 16):
+		var radial := Vector3(vertices[i].x, vertices[i].y, 0.0)
+		if normals[i].dot(radial) <= 0.0:
+			outward = false
+	_assert(outward, "HeroShip canopy loft normals face out of its pressure volume")
+	holder.free()
 	hero.free()
 
 
