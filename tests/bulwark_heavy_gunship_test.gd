@@ -119,8 +119,8 @@ func _test_armored_shoulder_batch(visual: Node3D) -> void:
 		and names == PackedStringArray(["PortArmoredShoulder", "StarboardArmoredShoulder"])
 		and material != null
 		and material.albedo_color.is_equal_approx(Color("101b2a"))
-		and is_equal_approx(material.metallic, 0.48)
-		and is_equal_approx(material.roughness, 0.52)
+		and is_equal_approx(material.metallic, 0.12)
+		and is_equal_approx(material.roughness, 0.62)
 		and mesh_bounds.size.is_equal_approx(Vector3(3.4, 1.9, 5.3))
 		and multi.custom_aabb.is_equal_approx(expected_bounds)
 		and batch.material_override == null
@@ -170,11 +170,11 @@ func _test_identity_band_batch(visual: Node3D) -> void:
 	)
 	_check(
 		material != null
-		and material.albedo_color.is_equal_approx(Color("e2a63c"))
+		and material.albedo_color.is_equal_approx(Color("957c4f"))
 		and is_equal_approx(material.metallic, 0.52)
 		and is_equal_approx(material.roughness, 0.31)
 		and material.emission_enabled
-		and material.emission.is_equal_approx(Color("e2a63c"))
+		and material.emission.is_equal_approx(Color("957c4f"))
 		and is_equal_approx(material.emission_energy_multiplier, 0.15)
 		and mesh_bounds.size.is_equal_approx(Vector3(0.16, 1.25, 3.2))
 		and multi.custom_aabb.is_equal_approx(expected_bounds)
@@ -226,8 +226,8 @@ func _test_cockpit_console_key_mesh_sharing(visual: Node3D) -> void:
 		shared_resources = shared_resources and keys[index].mesh == shared_mesh
 		var material := keys[index].material_override as StandardMaterial3D
 		var is_amber_key := index == 1 or index == 4
-		var expected_color := Color("e2a63c").darkened(0.68) if is_amber_key else Color("16383e")
-		var expected_emission := Color("e2a63c") if is_amber_key else Color("48dbe2")
+		var expected_color := Color("957c4f").darkened(0.68) if is_amber_key else Color("16383e")
+		var expected_emission := Color("957c4f") if is_amber_key else Color("48dbe2")
 		exact_materials = exact_materials and material != null \
 			and material.albedo_color.is_equal_approx(expected_color) \
 			and is_equal_approx(material.metallic, 0.16) \
@@ -283,11 +283,11 @@ func _test_navigation_lamp_mesh_sharing(visual: Node3D) -> void:
 		and port_material.emission.is_equal_approx(Color("8ae8bd"))
 		and is_equal_approx(port_material.emission_energy_multiplier, 1.2)
 		and starboard_material != null
-		and starboard_material.albedo_color.is_equal_approx(Color("e2a63c"))
+		and starboard_material.albedo_color.is_equal_approx(Color("957c4f"))
 		and is_equal_approx(starboard_material.metallic, 0.52)
 		and is_equal_approx(starboard_material.roughness, 0.31)
 		and starboard_material.emission_enabled
-		and starboard_material.emission.is_equal_approx(Color("e2a63c"))
+		and starboard_material.emission.is_equal_approx(Color("957c4f"))
 		and is_equal_approx(starboard_material.emission_energy_multiplier, 0.15)
 		and port.cast_shadow == GeometryInstance3D.SHADOW_CASTING_SETTING_ON
 		and starboard.cast_shadow == GeometryInstance3D.SHADOW_CASTING_SETTING_ON
@@ -333,8 +333,8 @@ func _test_engine_housing_batch(visual: Node3D) -> void:
 		and names == PackedStringArray(["PortEngineHousing", "StarboardEngineHousing"])
 		and material != null
 		and material.albedo_color.is_equal_approx(Color("101b2a"))
-		and is_equal_approx(material.metallic, 0.48)
-		and is_equal_approx(material.roughness, 0.52)
+		and is_equal_approx(material.metallic, 0.12)
+		and is_equal_approx(material.roughness, 0.62)
 		and is_equal_approx(mesh_bounds.size.x, 1.44)
 		and is_equal_approx(mesh_bounds.size.y, 2.8)
 		and is_equal_approx(mesh_bounds.size.z, 1.44)
@@ -387,8 +387,8 @@ func _test_gun_pod_housing_batch(visual: Node3D) -> void:
 		and names == PackedStringArray(["PortGunPodHousing", "StarboardGunPodHousing"])
 		and material != null
 		and material.albedo_color.is_equal_approx(Color("416b88"))
-		and is_equal_approx(material.metallic, 0.42)
-		and is_equal_approx(material.roughness, 0.48)
+		and is_equal_approx(material.metallic, 0.16)
+		and is_equal_approx(material.roughness, 0.58)
 		and is_equal_approx(mesh_bounds.size.x, 0.84)
 		and is_equal_approx(mesh_bounds.size.y, 2.15)
 		and is_equal_approx(mesh_bounds.size.z, 0.84)

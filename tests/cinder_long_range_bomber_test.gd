@@ -30,21 +30,21 @@ func _initialize() -> void:
 	var hull := visual.get_node_or_null(^"LongRangeHull") as MeshInstance3D
 	var fairing := visual.get_node_or_null(^"CockpitSupportFairing") as MeshInstance3D
 	var cockpit_floor := visual.get_node_or_null(^"CockpitInterior/CockpitFloor") as MeshInstance3D
-	var fairing_mesh := fairing.mesh as BoxMesh if fairing != null else null
+	var fairing_mesh := fairing.mesh as ArrayMesh if fairing != null else null
 	var hull_mesh := hull.mesh as ArrayMesh if hull != null else null
 	var cockpit_floor_mesh := cockpit_floor.mesh if cockpit_floor != null else null
 	_check(
 		fairing != null
 		and fairing_mesh != null
 		and fairing.position.is_equal_approx(CinderLongRangeBomber.COCKPIT_SUPPORT_FAIRING_POSITION)
-		and fairing_mesh.size.is_equal_approx(CinderLongRangeBomber.COCKPIT_SUPPORT_FAIRING_SIZE),
+		and fairing_mesh.get_aabb().size.is_equal_approx(Vector3(3.9, 0.41, 3.4)),
 		"the bomber builds the exact closed cockpit support fairing"
 	)
 	var hull_top := hull.position.y + hull_mesh.get_aabb().size.y * 0.5 \
 			if hull != null and hull_mesh != null else INF
-	var fairing_bottom := fairing.position.y - fairing_mesh.size.y * 0.5 \
+	var fairing_bottom := fairing.position.y - fairing_mesh.get_aabb().size.y * 0.5 \
 			if fairing != null and fairing_mesh != null else INF
-	var fairing_top := fairing.position.y + fairing_mesh.size.y * 0.5 \
+	var fairing_top := fairing.position.y + fairing_mesh.get_aabb().size.y * 0.5 \
 			if fairing != null and fairing_mesh != null else -INF
 	var cockpit_floor_bottom := cockpit_floor.position.y + cockpit_floor.get_aabb().position.y \
 			if cockpit_floor != null and cockpit_floor_mesh != null else -INF

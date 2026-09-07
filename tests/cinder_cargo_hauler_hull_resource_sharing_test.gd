@@ -39,8 +39,8 @@ func _initialize() -> void:
 			and not first_hull.mesh.resource_local_to_scene
 			and material != null
 			and material.albedo_color.is_equal_approx(Hauler.HULL_COLOR)
-			and is_equal_approx(material.metallic, 0.72)
-			and is_equal_approx(material.roughness, 0.42)
+			and is_equal_approx(material.metallic, 0.12)
+			and is_equal_approx(material.roughness, 0.62)
 			and not material.resource_local_to_scene,
 		"sharing preserves the IndustrialHull outer silhouette, opens the bounded port route, and retains its material and renderer policy"
 	)
@@ -71,8 +71,8 @@ func _initialize() -> void:
 			and not first_pod.mesh.resource_local_to_scene
 			and pod_material != null
 			and pod_material.albedo_color.is_equal_approx(Hauler.CARGO_COLOR)
-			and is_equal_approx(pod_material.metallic, 0.45)
-			and is_equal_approx(pod_material.roughness, 0.42)
+			and is_equal_approx(pod_material.metallic, 0.12)
+			and is_equal_approx(pod_material.roughness, 0.62)
 			and not pod_material.resource_local_to_scene,
 		"two production haulers retain exact cargo-pod bounds and an aligned port opening backed by one immutable geometry and paint recipe"
 	)

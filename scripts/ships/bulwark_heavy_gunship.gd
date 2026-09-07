@@ -38,7 +38,7 @@ const DESIGN_NOTE := (
 const ARMOR_DARK := Color("101b2a")
 const ARMOR_BLUE := Color("243f5b")
 const ARMOR_HIGHLIGHT := Color("416b88")
-const IDENTITY_AMBER := Color("e2a63c")
+const IDENTITY_AMBER := Color("957c4f")
 const IDENTITY_AMBER_EMISSION_ENERGY := 0.15
 const GUNNER_CYAN := Color("58d8df")
 const BOARDING_LIGHT := Color("8ae8bd")
@@ -344,9 +344,9 @@ func _build_bulwark_variant(_controller: HeroShip) -> bool:
 	_share_cockpit_console_key_meshes(cockpit)
 	_share_cockpit_display_bezel_meshes(cockpit)
 
-	var armor_dark := _material(ARMOR_DARK, 0.48, 0.52)
-	var armor_blue := _material(ARMOR_BLUE, 0.42, 0.53)
-	var armor_highlight := _material(ARMOR_HIGHLIGHT, 0.42, 0.48)
+	var armor_dark := _material(ARMOR_DARK, 0.12, 0.62)
+	var armor_blue := _material(ARMOR_BLUE, 0.12, 0.62)
+	var armor_highlight := _material(ARMOR_HIGHLIGHT, 0.16, 0.58)
 	for coating in [armor_dark, armor_blue, armor_highlight]:
 		ShipSurfaceDetail.bind_manufactured_paint(coating)
 	# Keep the existing amber bands and starboard navigation marker legible in
@@ -367,10 +367,10 @@ func _build_bulwark_variant(_controller: HeroShip) -> bool:
 	# full-height slab/spine occupied the same volume as the physical cockpit, so
 	# the production pilot-eye camera looked into solid blue armor instead of out
 	# through the canopy.
-	_wedge(_bulwark_visual, "ArmoredCentralSlab", Vector3(0.0, 0.9, 0.25), Vector3(6.4, 1.8, 8.5), armor_blue)
-	_wedge(_bulwark_visual, "ArmoredNose", Vector3(0.0, 0.9, -4.65), Vector3(5.8, 1.8, 3.9), armor_highlight, 0.0)
-	_wedge(_bulwark_visual, "CenterlineArmorSpine", Vector3(0.0, 2.0, 3.1), Vector3(1.35, 0.38, 3.1), armor_highlight)
-	_wedge(_bulwark_visual, "ChinArmor", Vector3(0.0, 0.02, -2.2), CHIN_COLLISION_SIZE, armor_dark)
+	_armor_shell(_bulwark_visual, "ArmoredCentralSlab", Vector3(0.0, 0.9, 0.25), Vector3(6.4, 1.8, 8.5), armor_blue)
+	_armor_shell(_bulwark_visual, "ArmoredNose", Vector3(0.0, 0.9, -4.65), Vector3(5.8, 1.8, 3.9), armor_highlight, 0.0)
+	_armor_shell(_bulwark_visual, "CenterlineArmorSpine", Vector3(0.0, 2.0, 3.1), Vector3(1.35, 0.38, 3.1), armor_highlight)
+	_armor_shell(_bulwark_visual, "ChinArmor", Vector3(0.0, 0.02, -2.2), CHIN_COLLISION_SIZE, armor_dark)
 	var armored_shoulder_transforms: Array[Transform3D] = []
 	var armored_shoulder_names := PackedStringArray()
 	var identity_band_transforms: Array[Transform3D] = []
@@ -565,12 +565,17 @@ func _build_bulwark_variant(_controller: HeroShip) -> bool:
 ## assembly: pressure body, stand-off plate, turbine and recessed combustion.
 func _build_bulwark_manufactured_details(visual: Node3D, armor: Material, dark: Material, edge: Material) -> void:
 	var metal := _material(Color("77858c"), 0.84, 0.3)
+	_pressure_panel(visual, "CockpitPressureTransition", Vector3(0, 1.6, -0.55), 2.1, 3.7, 0.56, 3.4, armor)
+	for z in [-4.65, -3.85]:
+		var plate := _pressure_panel(visual, "NoseArmorPanel" + str(z), Vector3(0, 1.825, z), 3.2, 3.65, 0.70, 0.055, armor)
+		plate.rotation.x = PI * 0.5
 	var hot := _material(Color("739eab"), 0.2, 0.35, Color("78afc2"), 0.6)
 	for side in [-1.0, 1.0]:
 		var tag := "Port" if side < 0 else "Starboard"
-		_wedge(visual, tag + "CheekPlate", Vector3(side * 2.15, 0.75, -2.1), Vector3(1.6, 1.4, 5.5), armor, side * 0.10)
-		_wedge(visual, tag + "ShoulderCrown", Vector3(side * 4.15, 1.55, 0.4), Vector3(2.9, 0.45, 5.4), edge)
-		_wedge(visual, tag + "ReactorShroud", Vector3(side * 2.65, 1.48, 3.4), Vector3(1.9, 1.55, 2.4), armor)
+		_service_bay(visual, tag + "ReactorCooling", Vector3(side * 1.5, 1.84, 2.2), 0.8, 1.45, armor, dark, metal)
+		_armor_shell(visual, tag + "CheekPlate", Vector3(side * 2.15, 0.75, -2.1), Vector3(1.6, 1.4, 5.5), armor, side * 0.10)
+		_armor_shell(visual, tag + "ShoulderCrown", Vector3(side * 4.15, 2.025, 0.5), Vector3(2.25, 0.075, 3.2), edge)
+		_armor_shell(visual, tag + "ReactorShroud", Vector3(side * 2.65, 1.48, 3.4), Vector3(1.9, 1.55, 2.4), armor)
 		_frustum(visual, tag + "ExhaustBell", Vector3(side * 2.65, 1.15, 5.72), 0.87, 0.62, 0.7, metal, Vector3(90, 0, 0), false, false)
 		_cylinder(visual, tag + "RecessedThroat", Vector3(side * 2.65, 1.15, 5.70), 0.53, 0.08, hot, Vector3(90, 0, 0))
 		_cylinder(visual, tag + "CannonBarrel", Vector3(side * 3.25, 1.0, -4.38), 0.19, 0.9, metal, Vector3(90, 0, 0))
@@ -2296,23 +2301,121 @@ func _apply_bulwark_metadata() -> void:
 	set_meta("content_note", DESIGN_NOTE)
 
 
-## Reuse the inherited closed loft recipe for shared immutable hull stock.
+
+## Chamfered pressure-shell stock reuses the inherited closed loft topology.
+## Broad planar stations carry armor panels; corner facets catch a narrow edge
+## highlight without inflating the entire silhouette like a superellipse.
 func _loft_mesh(size: Vector3, material: Material) -> ArrayMesh:
 	var scratch := Node3D.new()
 	var instance := _wedge(scratch, "LoftStock", Vector3.ZERO, size, material)
 	var source := instance.mesh as ArrayMesh
 	var arrays := source.surface_get_arrays(0)
 	var points: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
-	var normals: PackedVector3Array = arrays[Mesh.ARRAY_NORMAL]
-	var extent := source.get_aabb().size
-	var stretch := size / extent
+	var section := PackedVector2Array([
+		Vector2(0, 1), Vector2(0.72, 1), Vector2(1, 0.72), Vector2(1, 0.36),
+		Vector2(1, 0), Vector2(1, -0.36), Vector2(1, -0.72), Vector2(0.72, -1),
+		Vector2(0, -1), Vector2(-0.72, -1), Vector2(-1, -0.72), Vector2(-1, -0.36),
+		Vector2(-1, 0), Vector2(-1, 0.36), Vector2(-1, 0.72), Vector2(-0.72, 1),
+	])
+	# SurfaceTool reindexes vertices when it generates normals. UV station
+	# coordinates remain stable through that optimization; array order does not.
+	var uv: PackedVector2Array = arrays[Mesh.ARRAY_TEX_UV]
 	for index in points.size():
-		points[index] *= stretch
-		normals[index] = (normals[index] / stretch).normalized()
-	arrays[Mesh.ARRAY_VERTEX] = points
-	arrays[Mesh.ARRAY_NORMAL] = normals
-	var result := ArrayMesh.new()
-	result.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
-	result.surface_set_material(0, material)
+		if Vector2(points[index].x, points[index].y).length_squared() < 0.0000001:
+			continue
+		var progress := uv[index].y
+		var corner := roundi(uv[index].x * 16.0) % 16
+		var breadth := minf(1.0, lerpf(0.12, 1.0, progress / 0.43))
+		var depth := minf(1.0, lerpf(0.35, 1.0, progress / 0.28))
+		if progress > 0.83:
+			breadth = lerpf(1.0, 0.9, (progress - 0.83) / 0.17)
+			depth = lerpf(1.0, 0.8, (progress - 0.83) / 0.17)
+		points[index] = Vector3(
+			section[corner].x * size.x * 0.5 * breadth,
+			section[corner].y * size.y * 0.5 * depth,
+			lerpf(-size.z * 0.5, size.z * 0.5, progress)
+		)
+	# Split shading at the manufactured folds. A shared smooth normal across
+	# an entire broad plate makes even planar geometry read as inflated plastic.
+	var indices: PackedInt32Array = arrays[Mesh.ARRAY_INDEX]
+	var surface := SurfaceTool.new()
+	surface.begin(Mesh.PRIMITIVE_TRIANGLES)
+	surface.set_material(material)
+	for triangle in range(0, indices.size(), 3):
+		var a := points[indices[triangle]]
+		var b := points[indices[triangle + 1]]
+		var c := points[indices[triangle + 2]]
+		var normal := (c - a).cross(b - a).normalized()
+		var rings := []
+		for corner in 3:
+			rings.append(roundi(uv[indices[triangle + corner]].x * 16.0) % 16)
+		rings.sort()
+		var edge: int = rings[0]
+		if rings[2] - rings[0] > 8:
+			edge = 15
+		var groups := [0, 1, 2, 2, 2, 2, 3, 4, 4, 5, 6, 6, 6, 6, 7, 0]
+		var group: int = groups[edge] if absf(normal.z) < 0.999 else 8
+		surface.set_smooth_group(group)
+		for corner in 3:
+			var vertex_index := indices[triangle + corner]
+			surface.set_normal(normal)
+			surface.set_uv(uv[vertex_index])
+			surface.add_vertex(points[vertex_index])
+	surface.generate_normals()
+	surface.generate_tangents()
+	var result := surface.commit()
 	scratch.free()
 	return result
+
+
+func _armor_shell(parent: Node3D, node_name: String, at: Vector3, size: Vector3, coating: Material, skew: float = 0.0) -> MeshInstance3D:
+	var instance := MeshInstance3D.new()
+	instance.name = node_name
+	instance.position = at
+	instance.mesh = _loft_mesh(size, coating)
+	# Shear the assembly into the wing root without an intersecting box joint.
+	instance.transform.basis.z.x = -skew
+	parent.add_child(instance)
+	return instance
+
+
+func _service_bay(parent: Node3D, tag: String, at: Vector3, width: float, length: float, frame: Material, dark: Material, metal: Material) -> void:
+	_box(parent, tag + "Recess", at, Vector3(width, 0.035, length), dark)
+	for side in [-1.0, 1.0]:
+		_box(parent, tag + "Rim" + str(side), at + Vector3(side * (width * 0.5 + 0.045), 0.035, 0), Vector3(0.09, 0.07, length + 0.18), frame)
+	for index in 5:
+		_box(parent, tag + "Louver" + str(index), at + Vector3(0, 0.032, (float(index) / 4.0 - 0.5) * length * 0.78), Vector3(width * 0.82, 0.05, length * 0.07), metal, Vector3(0.18, 0, 0))
+
+
+func _pressure_panel(parent: Node3D, label: String, at: Vector3, top: float, bottom: float, height: float, depth: float, material: Material) -> MeshInstance3D:
+	var instance := MeshInstance3D.new()
+	instance.name = label
+	instance.position = at
+	instance.mesh = _pressure_mesh(top, bottom, height, depth, material)
+	parent.add_child(instance)
+	return instance
+
+
+func _pressure_mesh(top: float, bottom: float, height: float, depth: float, material: Material) -> ArrayMesh:
+	var source := _trapezoid_prism_mesh(top, bottom, height, depth, material)
+	var arrays := source.surface_get_arrays(0)
+	var points: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
+	var uv: PackedVector2Array = arrays[Mesh.ARRAY_TEX_UV]
+	var indices := PackedInt32Array()
+	if arrays[Mesh.ARRAY_INDEX] != null:
+		indices = arrays[Mesh.ARRAY_INDEX]
+	if indices.is_empty():
+		for index in points.size():
+			indices.append(index)
+	var surface := SurfaceTool.new()
+	surface.begin(Mesh.PRIMITIVE_TRIANGLES)
+	surface.set_material(material)
+	for triangle in range(0, indices.size(), 3):
+		var normal := (points[indices[triangle + 2]] - points[indices[triangle]]).cross(points[indices[triangle + 1]] - points[indices[triangle]]).normalized()
+		for corner in 3:
+			var index := indices[triangle + corner]
+			surface.set_normal(normal)
+			surface.set_uv(uv[index])
+			surface.add_vertex(points[index])
+	surface.generate_tangents()
+	return surface.commit()

@@ -1064,7 +1064,7 @@ func _build_hull(visual: Node3D) -> void:
 		)
 		_shared_hull_mesh.resource_local_to_scene = false
 	if _shared_hull_material == null:
-		_shared_hull_material = _material(HULL_COLOR, 0.72, 0.42)
+		_shared_hull_material = _material(HULL_COLOR, 0.12, 0.62)
 		ShipSurfaceDetail.bind_manufactured_paint(_shared_hull_material)
 		_shared_hull_material.uv1_triplanar = true
 		_shared_hull_material.uv1_scale = Vector3.ONE * 0.33
@@ -1085,7 +1085,7 @@ func _build_hull(visual: Node3D) -> void:
 		)
 		_shared_cargo_pod_mesh.resource_local_to_scene = false
 	if _shared_cargo_pod_material == null:
-		_shared_cargo_pod_material = _material(CARGO_COLOR, 0.45, 0.42)
+		_shared_cargo_pod_material = _material(CARGO_COLOR, 0.12, 0.62)
 		_shared_cargo_pod_material.resource_local_to_scene = false
 	cargo_pod.mesh = _shared_cargo_pod_mesh
 	cargo_pod.position = CARGO_POD_POSITION
@@ -1152,21 +1152,26 @@ func _build_hull(visual: Node3D) -> void:
 func _build_freight_pressure_fairings(visual: Node3D) -> void:
 	var dark := _material(Color("1b2931"), 0.5, 0.48)
 	var metal := _material(Color("73858c"), 0.82, 0.32)
+	_pressure_panel(visual, "CockpitPressureTransition", Vector3(0, 1.715, -0.55), 2.1, 3.1, 0.35, 3.4, _shared_hull_material)
+	for z in [2.0, 3.2]:
+		var plate := _pressure_panel(visual, "FreightRoofArmor" + str(z), Vector3(0, 1.635, z), 3.1, 3.3, 1.04, 0.05, dark)
+		plate.rotation.x = PI * 0.5
 	var hot := _material(Color("68959e"), 0.35, 0.3, Color("83c0cb"), 0.55)
-	var fore := _trapezoid_panel(visual, "ForwardPressureCap", Vector3(0, 0, -6.375), 4.6, 5.312, 0.75, 2.624, _shared_hull_material)
+	var fore := _pressure_panel(visual, "ForwardPressureCap", Vector3(0, 0, -6.375), 4.6, 5.312, 0.75, 2.624, _shared_hull_material)
 	fore.rotation.x = -PI * 0.5
-	var aft := _trapezoid_panel(visual, "AftPressureCap", Vector3(0, 0, 6.375), 4.6, 5.312, 0.75, 2.624, _shared_hull_material)
+	var aft := _pressure_panel(visual, "AftPressureCap", Vector3(0, 0, 6.375), 4.6, 5.312, 0.75, 2.624, _shared_hull_material)
 	aft.rotation.x = PI * 0.5
 	for side in [-1.0, 1.0]:
 		var tag := "Port" if side < 0 else "Starboard"
+		_service_bay(visual, tag + "FreightThermalService", Vector3(side * 2.3, 1.91, 0.4), 0.66, 1.5, _shared_hull_material, dark, metal)
 		# All side pods stop behind the protected boarding aperture (z > 2.30).
-		_wedge(visual, tag + "EnginePylon", Vector3(side * 3.12, 0.6, 4.05), Vector3(1.0, 1.65, 3.2), metal)
-		_wedge(visual, tag + "EngineShroud", Vector3(side * 3.75, 0.4, 4.5), Vector3(1.45, 1.5, 3.3), dark)
+		_armor_shell(visual, tag + "EnginePylon", Vector3(side * 3.12, 0.6, 4.05), Vector3(1.0, 1.65, 3.2), metal)
+		_armor_shell(visual, tag + "EngineShroud", Vector3(side * 3.75, 0.4, 4.5), Vector3(1.45, 1.5, 3.3), dark)
 		_frustum(visual, tag + "FreightExhaust", Vector3(side * 3.75, 0.4, 6.40), 0.75, 0.55, 0.65, metal, Vector3(90, 0, 0), false, false)
 		_cylinder(visual, tag + "RecessedThroat", Vector3(side * 3.75, 0.4, 6.20), 0.45, 0.08, hot, Vector3(90, 0, 0))
-		_wedge(visual, tag + "ForeShoulder", Vector3(side * 2.48, 1.25, -3.9), Vector3(1.15, 1.0, 3.4), _shared_cargo_pod_material)
-		_wedge(visual, tag + "RoofRail", Vector3(side * 2.3, 1.65, 0.0), Vector3(1.3, 0.45, 5.2), dark)
-		_wedge(visual, tag + "AftShoulder", Vector3(side * 2.48, 1.25, 3.9), Vector3(1.15, 1.0, 3.4), _shared_cargo_pod_material)
+		_armor_shell(visual, tag + "ForeShoulder", Vector3(side * 2.48, 1.25, -3.9), Vector3(1.15, 1.0, 3.4), _shared_cargo_pod_material)
+		_armor_shell(visual, tag + "RoofRail", Vector3(side * 2.3, 1.65, 0.0), Vector3(1.3, 0.45, 5.2), dark)
+		_armor_shell(visual, tag + "AftShoulder", Vector3(side * 2.48, 1.25, 3.9), Vector3(1.15, 1.0, 3.4), _shared_cargo_pod_material)
 
 
 ## One closed exterior surface with a bounded port aperture. The five intact
@@ -1763,3 +1768,121 @@ func _crew_role_result(accepted: bool, status: StringName) -> Dictionary:
 		"ship_id": get_ship_id(),
 		"station_id": LOADMASTER_STATION_SEAT_ID,
 	}.duplicate(true)
+
+## Chamfered pressure-shell stock reuses the inherited closed loft topology.
+## Broad planar stations carry armor panels; corner facets catch a narrow edge
+## highlight without inflating the entire silhouette like a superellipse.
+func _loft_mesh(size: Vector3, material: Material) -> ArrayMesh:
+	var scratch := Node3D.new()
+	var instance := _wedge(scratch, "LoftStock", Vector3.ZERO, size, material)
+	var source := instance.mesh as ArrayMesh
+	var arrays := source.surface_get_arrays(0)
+	var points: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
+	var section := PackedVector2Array([
+		Vector2(0, 1), Vector2(0.72, 1), Vector2(1, 0.72), Vector2(1, 0.36),
+		Vector2(1, 0), Vector2(1, -0.36), Vector2(1, -0.72), Vector2(0.72, -1),
+		Vector2(0, -1), Vector2(-0.72, -1), Vector2(-1, -0.72), Vector2(-1, -0.36),
+		Vector2(-1, 0), Vector2(-1, 0.36), Vector2(-1, 0.72), Vector2(-0.72, 1),
+	])
+	# SurfaceTool reindexes vertices when it generates normals. UV station
+	# coordinates remain stable through that optimization; array order does not.
+	var uv: PackedVector2Array = arrays[Mesh.ARRAY_TEX_UV]
+	for index in points.size():
+		if Vector2(points[index].x, points[index].y).length_squared() < 0.0000001:
+			continue
+		var progress := uv[index].y
+		var corner := roundi(uv[index].x * 16.0) % 16
+		var breadth := minf(1.0, lerpf(0.12, 1.0, progress / 0.43))
+		var depth := minf(1.0, lerpf(0.35, 1.0, progress / 0.28))
+		if progress > 0.83:
+			breadth = lerpf(1.0, 0.9, (progress - 0.83) / 0.17)
+			depth = lerpf(1.0, 0.8, (progress - 0.83) / 0.17)
+		points[index] = Vector3(
+			section[corner].x * size.x * 0.5 * breadth,
+			section[corner].y * size.y * 0.5 * depth,
+			lerpf(-size.z * 0.5, size.z * 0.5, progress)
+		)
+	# Split shading at the manufactured folds. A shared smooth normal across
+	# an entire broad plate makes even planar geometry read as inflated plastic.
+	var indices: PackedInt32Array = arrays[Mesh.ARRAY_INDEX]
+	var surface := SurfaceTool.new()
+	surface.begin(Mesh.PRIMITIVE_TRIANGLES)
+	surface.set_material(material)
+	for triangle in range(0, indices.size(), 3):
+		var a := points[indices[triangle]]
+		var b := points[indices[triangle + 1]]
+		var c := points[indices[triangle + 2]]
+		var normal := (c - a).cross(b - a).normalized()
+		var rings := []
+		for corner in 3:
+			rings.append(roundi(uv[indices[triangle + corner]].x * 16.0) % 16)
+		rings.sort()
+		var edge: int = rings[0]
+		if rings[2] - rings[0] > 8:
+			edge = 15
+		var groups := [0, 1, 2, 2, 2, 2, 3, 4, 4, 5, 6, 6, 6, 6, 7, 0]
+		var group: int = groups[edge] if absf(normal.z) < 0.999 else 8
+		surface.set_smooth_group(group)
+		for corner in 3:
+			var vertex_index := indices[triangle + corner]
+			surface.set_normal(normal)
+			surface.set_uv(uv[vertex_index])
+			surface.add_vertex(points[vertex_index])
+	surface.generate_normals()
+	surface.generate_tangents()
+	var result := surface.commit()
+	scratch.free()
+	return result
+
+
+func _armor_shell(parent: Node3D, node_name: String, at: Vector3, size: Vector3, coating: Material, skew: float = 0.0) -> MeshInstance3D:
+	var instance := MeshInstance3D.new()
+	instance.name = node_name
+	instance.position = at
+	instance.mesh = _loft_mesh(size, coating)
+	# Shear the assembly into the wing root without an intersecting box joint.
+	instance.transform.basis.z.x = -skew
+	parent.add_child(instance)
+	return instance
+
+
+func _service_bay(parent: Node3D, tag: String, at: Vector3, width: float, length: float, frame: Material, dark: Material, metal: Material) -> void:
+	_box(parent, tag + "Recess", at, Vector3(width, 0.035, length), dark)
+	for side in [-1.0, 1.0]:
+		_box(parent, tag + "Rim" + str(side), at + Vector3(side * (width * 0.5 + 0.045), 0.035, 0), Vector3(0.09, 0.07, length + 0.18), frame)
+	for index in 5:
+		_box(parent, tag + "Louver" + str(index), at + Vector3(0, 0.032, (float(index) / 4.0 - 0.5) * length * 0.78), Vector3(width * 0.82, 0.05, length * 0.07), metal, Vector3(0.18, 0, 0))
+
+
+func _pressure_panel(parent: Node3D, label: String, at: Vector3, top: float, bottom: float, height: float, depth: float, material: Material) -> MeshInstance3D:
+	var instance := MeshInstance3D.new()
+	instance.name = label
+	instance.position = at
+	instance.mesh = _pressure_mesh(top, bottom, height, depth, material)
+	parent.add_child(instance)
+	return instance
+
+
+func _pressure_mesh(top: float, bottom: float, height: float, depth: float, material: Material) -> ArrayMesh:
+	var source := _trapezoid_prism_mesh(top, bottom, height, depth, material)
+	var arrays := source.surface_get_arrays(0)
+	var points: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
+	var uv: PackedVector2Array = arrays[Mesh.ARRAY_TEX_UV]
+	var indices := PackedInt32Array()
+	if arrays[Mesh.ARRAY_INDEX] != null:
+		indices = arrays[Mesh.ARRAY_INDEX]
+	if indices.is_empty():
+		for index in points.size():
+			indices.append(index)
+	var surface := SurfaceTool.new()
+	surface.begin(Mesh.PRIMITIVE_TRIANGLES)
+	surface.set_material(material)
+	for triangle in range(0, indices.size(), 3):
+		var normal := (points[indices[triangle + 2]] - points[indices[triangle]]).cross(points[indices[triangle + 1]] - points[indices[triangle]]).normalized()
+		for corner in 3:
+			var index := indices[triangle + corner]
+			surface.set_normal(normal)
+			surface.set_uv(uv[index])
+			surface.add_vertex(points[index])
+	surface.generate_tangents()
+	return surface.commit()
