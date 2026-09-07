@@ -56,6 +56,7 @@ func _run() -> void:
 	await _test_craft_contract()
 	await _test_cabin_containment()
 	await _test_frame_relative_seat_transitions()
+	await _test_collision_frame_arrival()
 
 	_test_root.queue_free()
 	_test_root = null
@@ -428,6 +429,77 @@ func _check(condition: bool, description: String) -> void:
 	else:
 		_failures.append(description)
 		push_error("FAIL: " + description)
+
+
+func _test_collision_frame_arrival() -> void:
+	var jovian := JOVIAN_SCENE.instantiate() as JovianLightFreighter
+	_test_root.add_child(jovian)
+	jovian.set_physics_process(false)
+	jovian.global_position = Vector3(100, 30, 100)
+	var player := PLAYER_SCENE.instantiate() as PlayerController
+	_test_root.add_child(player)
+	player.set_physics_process(false)
+	var frame := jovian.get_in_flight_cabin_report().get("frame") as MovingInteriorFrame
+	frame.set_physics_process(false)
+	await physics_frame
+	await physics_frame
+	# Deliberately move the scene node between physics publications. At this
+	# 54 m/s coast increment, the stale seat back overlaps the carried avatar.
+	# The rotated case also requires query velocity and floor-up to be mapped.
+	for rotated in [false, true]:
+		frame.unregister_occupant(player, false)
+		jovian.global_transform = Transform3D(Basis.IDENTITY, Vector3(100, 30, 100))
+		await physics_frame
+		await physics_frame
+		player.global_transform = jovian.get_cabin_stand_transform()
+		player.velocity = Vector3.ZERO
+		frame.register_occupant(player, {"require_inside_bounds": false})
+		frame.reset_frame_tracking(true)
+		var published: Transform3D = PhysicsServer3D.body_get_state(
+			jovian.get_rid(), PhysicsServer3D.BODY_STATE_TRANSFORM
+		)
+		jovian.global_position.z -= 0.9
+		if rotated:
+			jovian.global_basis = Basis(Vector3.FORWARD, 0.12)
+		frame.step_frame(1.0 / 60.0, Engine.get_physics_frames() + 1)
+		var to_collision := frame.get_occupant_collision_transform(player)
+		_check(
+			not published.is_equal_approx(jovian.global_transform)
+			and (to_collision * jovian.global_transform).is_equal_approx(published),
+			"%s cabin walking uses the hull's actual published collision pose"
+				% ("rotated" if rotated else "translated")
+		)
+		for _tick in 8:
+			player.velocity -= jovian.global_basis.y * (18.0 / 60.0)
+			player.call("_move_in_interior_collision_frame", 1.0 / 60.0)
+		_check(
+			player.is_on_floor()
+			and jovian.to_local(player.global_position).distance_to(
+				JovianLightFreighter.CABIN_STAND_LOCAL_ORIGIN
+			) < 0.2
+			and player.up_direction.is_equal_approx(jovian.global_basis.y)
+			and player.velocity.length() < 0.01,
+			"%s collision-frame arrival keeps physical floor, standing pose and relative velocity"
+				% ("rotated" if rotated else "translated")
+		)
+		player.call("_update_grounded_foot_placement")
+		var support := player.get_grounded_foot_placement_snapshot()
+		var feet: Dictionary = support.get("feet", {})
+		var feet_supported := bool(support.get("active", false))
+		for side: StringName in [&"l", &"r"]:
+			var foot: Dictionary = feet.get(side, {})
+			feet_supported = feet_supported and bool(foot.get("active", false)) \
+				and float(foot.get("sole_error_m", INF)) <= 0.025 \
+				and (foot.get("support_normal", Vector3.ZERO) as Vector3).dot(jovian.global_basis.y) > 0.9999
+		_check(feet_supported, "%s cabin foot support returns to the carried presentation frame" % ("rotated" if rotated else "translated"))
+	frame.unregister_occupant(player, false)
+	_check(
+		frame.get_occupant_collision_transform(player) == Transform3D.IDENTITY,
+		"released cabin occupants receive no collision-frame remapping"
+	)
+	player.queue_free()
+	jovian.queue_free()
+	await process_frame
 
 
 func _finish() -> void:

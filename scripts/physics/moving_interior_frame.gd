@@ -504,6 +504,29 @@ func get_frame_gravity(occupant: CharacterBody3D = null) -> Vector3:
 	return -get_frame_up_direction() * magnitude
 
 
+## CharacterBody3D publishes its collision transform on the next physics step.
+## A carried controller must solve walking against that published hull pose,
+## then map the collision result back into the current carried frame.
+func get_occupant_collision_transform(occupant: CharacterBody3D) -> Transform3D:
+	if (
+		_tearing_down or is_queued_for_deletion() or not is_inside_tree()
+		or not is_occupant_registered(occupant)
+		or not _can_simulate_occupant(occupant)
+		or not is_instance_valid(_moving_frame)
+		or not _moving_frame is CharacterBody3D
+		or not _moving_frame.is_inside_tree()
+		or _moving_frame.is_queued_for_deletion()
+	):
+		return Transform3D.IDENTITY
+	var state: Dictionary = _occupants[occupant.get_instance_id()]
+	if not bool(state.get("simulation_prepared", false)):
+		return Transform3D.IDENTITY
+	var published_transform: Transform3D = PhysicsServer3D.body_get_state(
+		(_moving_frame as CharacterBody3D).get_rid(), PhysicsServer3D.BODY_STATE_TRANSFORM
+	)
+	return published_transform * _sample_frame_transform().affine_inverse()
+
+
 func get_frame_velocity_at_position(world_position: Vector3) -> Vector3:
 	if not is_instance_valid(_moving_frame):
 		return Vector3.ZERO

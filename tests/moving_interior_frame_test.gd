@@ -85,6 +85,7 @@ func _test_configuration_and_registration() -> void:
 	_check(occupant.platform_floor_layers == 0 and occupant.platform_wall_layers == 0, "registration disables built-in platform propagation to prevent double motion")
 	_check(occupant.platform_on_leave == CharacterBody3D.PLATFORM_ON_LEAVE_DO_NOTHING, "registration disables built-in exit inheritance")
 	_check(occupant.up_direction.is_equal_approx(frame.global_basis.y), "registration aligns floor classification to ship-local up")
+	_check(coordinator.get_occupant_collision_transform(occupant) == Transform3D.IDENTITY, "non-kinematic frames preserve the existing collision coordinate system")
 
 	var repeated: Dictionary = coordinator.register_occupant(occupant)
 	_check(bool(repeated.registered) and repeated.status == &"already_registered" and coordinator.get_occupant_count() == 1, "duplicate registration is idempotent")
@@ -297,7 +298,7 @@ func _test_multiplayer_authority_lifecycle() -> void:
 		return
 	api.multiplayer_peer = peer
 
-	var fixture := _manual_fixture()
+	var fixture := _manual_fixture(true)
 	var frame: Node3D = fixture.frame
 	var coordinator: MovingInteriorFrame = fixture.coordinator
 	var occupant: CharacterBody3D = fixture.occupant
@@ -314,6 +315,8 @@ func _test_multiplayer_authority_lifecycle() -> void:
 	var remote_step: Dictionary = coordinator.step_frame(0.5, _next_token())
 	_check(int(remote_step.occupants_applied) == 0 and occupant.global_position.is_equal_approx(remote_position), "remote authority never applies moving-frame compensation")
 
+	_check(coordinator.get_occupant_collision_transform(occupant) == Transform3D.IDENTITY, "remote occupants do not enter the kinematic collision frame")
+
 	coordinator.set_multiplayer_authority(1)
 	frame.global_position.x = 3.0
 	coordinator.step_frame(0.5, _next_token())
@@ -324,6 +327,7 @@ func _test_multiplayer_authority_lifecycle() -> void:
 	_check(occupant.global_position.is_equal_approx(authoritative_position + Vector3.RIGHT), "new authority begins compensation on the following frame")
 
 	coordinator.set_multiplayer_authority(2)
+	_check(coordinator.get_occupant_collision_transform(occupant) == Transform3D.IDENTITY, "authority loss stops collision-frame remapping before the next carry tick")
 	frame.global_position.x = 5.0
 	coordinator.step_frame(0.5, _next_token())
 	_check(not occupant.has_meta(MovingFrame.OWNER_META) and occupant.process_physics_priority == original_priority and occupant.platform_floor_layers == original_floor_layers, "authority loss restores local controller state without dropping replicated occupancy")
@@ -744,11 +748,11 @@ func _test_physical_standing_and_auto_volume() -> void:
 	await process_frame
 
 
-func _manual_fixture() -> Dictionary:
+func _manual_fixture(kinematic_frame: bool = false) -> Dictionary:
 	var root_node := Node3D.new()
 	root_node.name = "ManualMovingInteriorFixture"
 	root.add_child(root_node)
-	var frame := Node3D.new()
+	var frame: Node3D = CharacterBody3D.new() if kinematic_frame else Node3D.new()
 	frame.name = "MovingFrame"
 	frame.process_physics_priority = -20
 	root_node.add_child(frame)

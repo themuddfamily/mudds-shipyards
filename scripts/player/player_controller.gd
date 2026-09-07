@@ -383,15 +383,43 @@ func _physics_process(delta: float) -> void:
 		_decelerate_horizontal_velocity(delta)
 
 	_apply_gravity(delta)
-	var pre_move_transform := global_transform
-	var pre_move_velocity := velocity
-	move_and_slide()
-	_resolve_step_up(pre_move_transform, pre_move_velocity, delta)
+	_move_in_interior_collision_frame(delta)
 	_resolve_cabin_containment()
 	_update_facing(desired_direction, delta)
 	_update_authored_locomotion(is_sprinting)
 	_advance_motion_animation(delta)
 	_update_grounded_foot_placement()
+
+
+func _get_interior_collision_transform() -> Transform3D:
+	var collision_transform := Transform3D.IDENTITY
+	var owner_ref: Variant = (
+		get_meta(&"_moving_interior_frame_owner")
+		if has_meta(&"_moving_interior_frame_owner") else null
+	)
+	if owner_ref is WeakRef:
+		var frame_owner: Variant = (owner_ref as WeakRef).get_ref()
+		if is_instance_valid(frame_owner) and frame_owner.has_method("get_occupant_collision_transform"):
+			collision_transform = frame_owner.call("get_occupant_collision_transform", self)
+	return collision_transform
+
+
+func _move_in_interior_collision_frame(delta: float) -> void:
+	var collision_transform := _get_interior_collision_transform()
+	var shifted := not collision_transform.is_equal_approx(Transform3D.IDENTITY)
+	if shifted:
+		global_transform = collision_transform * global_transform
+		velocity = collision_transform.basis * velocity
+		up_direction = collision_transform.basis * up_direction
+	var pre_move_transform := global_transform
+	var pre_move_velocity := velocity
+	move_and_slide()
+	_resolve_step_up(pre_move_transform, pre_move_velocity, delta)
+	if shifted:
+		var carried_transform := collision_transform.affine_inverse()
+		global_transform = carried_transform * global_transform
+		velocity = carried_transform.basis * velocity
+		up_direction = carried_transform.basis * up_direction
 
 
 func _process(delta: float) -> void:
@@ -2458,6 +2486,9 @@ func _update_grounded_foot_placement() -> void:
 		_pilot_presentation.clear_foot_placement(generation, &"foot_anchors_unavailable")
 		return
 	var movement_up := _get_movement_up_direction()
+	var collision_transform := _get_interior_collision_transform()
+	var carried_transform := collision_transform.affine_inverse()
+	var collision_up := collision_transform.basis * movement_up
 	var walkable_normal_dot := cos(floor_max_angle)
 	var feet := {}
 	for side: StringName in [&"l", &"r"]:
@@ -2465,8 +2496,8 @@ func _update_grounded_foot_placement() -> void:
 		if not ankle is Vector3 or not (ankle as Vector3).is_finite():
 			continue
 		var query := PhysicsRayQueryParameters3D.create(
-			(ankle as Vector3) + movement_up * FOOT_SUPPORT_RAY_RISE_M,
-			(ankle as Vector3) - movement_up * FOOT_SUPPORT_RAY_DROP_M,
+			collision_transform * ((ankle as Vector3) + movement_up * FOOT_SUPPORT_RAY_RISE_M),
+			collision_transform * ((ankle as Vector3) - movement_up * FOOT_SUPPORT_RAY_DROP_M),
 			collision_mask
 		)
 		query.exclude = [get_rid()]
@@ -2482,12 +2513,12 @@ func _update_grounded_foot_placement() -> void:
 			and support_normal is Vector3
 			and (support_normal as Vector3).is_finite()
 			and not (support_normal as Vector3).is_zero_approx()
-			and (support_normal as Vector3).normalized().dot(movement_up)
+			and (support_normal as Vector3).normalized().dot(collision_up)
 				>= walkable_normal_dot
 		):
 			feet[side] = {
-				"position": support_position,
-				"normal": (support_normal as Vector3).normalized(),
+				"position": carried_transform * (support_position as Vector3),
+				"normal": (carried_transform.basis * (support_normal as Vector3)).normalized(),
 			}
 	_pilot_presentation.apply_foot_placement({
 		"physics_frame": Engine.get_physics_frames(),
