@@ -159,6 +159,9 @@ func _test_activity_board_console(game: GameFlow, player: PlayerController) -> v
 	player.teleport_to(Transform3D(Basis(Vector3.UP, PI), approach))
 	await physics_frame
 	await physics_frame
+	# process_frame resumes before node _process callbacks. Cross a completed
+	# idle pass so the ordinary prompt refresh sees the new physics overlaps.
+	await process_frame
 	await process_frame
 	_check(
 		game.station_interaction_candidate == console

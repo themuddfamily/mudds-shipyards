@@ -12,6 +12,11 @@ RESULTS_ROOT="${PACKAGE_PROBE_RESULTS_ROOT:-$PROJECT_ROOT/artifacts/package-prob
 RUN_ID="${PACKAGE_PROBE_RUN_ID:-$(date -u +%Y%m%dT%H%M%SZ)}"
 AUDIO_DRIVER="${PACKAGE_PROBE_AUDIO_DRIVER:-Dummy}"
 
+if [[ "$AUDIO_DRIVER" != Dummy ]]; then
+  echo "Automated package probe audio requires --audio-driver Dummy"
+  exit 2
+fi
+
 if ! [[ "$TIMEOUT_SECONDS" =~ ^[0-9]+$ ]]; then
   echo "Invalid timeout: $TIMEOUT_SECONDS"
   exit 2
@@ -47,6 +52,11 @@ count_sentinel() {
 RUN_DIR="$RESULTS_ROOT/$RUN_ID"
 LOG_DIR="$RUN_DIR/logs"
 mkdir -p "$LOG_DIR"
+
+# Keep every probe independent of caller saves and earlier interrupted probes.
+# Scratch remains outside the published results, matching the source matrix.
+PROBE_WORK_DIR="$(mktemp -d "${TMPDIR:-/tmp}/package-probes-XXXXXX")"
+trap 'rm -rf -- "$PROBE_WORK_DIR"' EXIT
 
 # Probe list can be overridden with a regex against file names (e.g. "*triplanar*").
 DEFAULT_PROBES=(
@@ -87,13 +97,13 @@ for test_file in "${PROBES[@]}"; do
   expected_pass="${base_upper}_PASS"
   log_path="$LOG_DIR/${base_name}.log"
 
+  probe_scratch="$PROBE_WORK_DIR/$base_name"
+  mkdir -p "$probe_scratch/data" "$probe_scratch/config" "$probe_scratch/cache"
   start_ms="$(date +%s%3N)"
   set +e
-  if [[ -n "$AUDIO_DRIVER" ]]; then
+  env XDG_DATA_HOME="$probe_scratch/data" \
+    XDG_CONFIG_HOME="$probe_scratch/config" XDG_CACHE_HOME="$probe_scratch/cache" \
     timeout "${TIMEOUT_SECONDS}s" "$GODOT_BIN" --headless --main-pack "$PACKAGE_PATH" --path "$PROJECT_ROOT" --audio-driver "$AUDIO_DRIVER" --script "res://$relative_test_path" > "$log_path" 2>&1
-  else
-    timeout "${TIMEOUT_SECONDS}s" "$GODOT_BIN" --headless --main-pack "$PACKAGE_PATH" --path "$PROJECT_ROOT" --script "res://$relative_test_path" > "$log_path" 2>&1
-  fi
   exit_code=$?
   set -e
 
