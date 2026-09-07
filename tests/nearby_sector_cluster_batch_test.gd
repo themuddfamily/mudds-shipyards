@@ -39,14 +39,16 @@ func _run() -> void:
 			and rails.find_children("*", "CollisionObject3D", true, false).is_empty(),
 			"the combined mesh retains presentation material while owning no shadows or collision"
 		)
+	# The 13 signs now contribute 20,566 triangles (508 fewer at font 47).
+	# The unchanged non-text meshes contribute the other 105,928 triangles.
 	var census := _census(cluster)
 	_check(
 		int(census["mesh_nodes"]) == 192
 		and int(census["batch_nodes"]) == 17
 		and int(census["submissions"]) == 209
 		and int(census["visible_copies"]) == 758
-		and int(census["triangles"]) == 127002,
-		"the combined rail trim keeps 209 submissions and 127002 triangles within 192 Mesh + 17 MultiMesh renderers"
+		and int(census["triangles"]) == 126494,
+		"the combined rail trim keeps 209 submissions and 126494 triangles within 192 Mesh + 17 MultiMesh renderers"
 	)
 	cluster.queue_free()
 	await process_frame

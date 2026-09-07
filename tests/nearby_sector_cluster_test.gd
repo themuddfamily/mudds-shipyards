@@ -121,7 +121,9 @@ const EXPECTED_LOCAL_MULTIMESH_NODES := 17
 const EXPECTED_LOCAL_RENDERER_NODES := 209
 const EXPECTED_LOCAL_VISIBLE_COPIES := 758
 const EXPECTED_LOCAL_SURFACE_SUBMISSIONS := 209
-const EXPECTED_LOCAL_TRIANGLES := 127002
+# The shared 48 -> 47 font recipe reduces the 13 local TextMeshes from
+# 21,074 to 20,566 triangles; the other geometry retains 105,928 triangles.
+const EXPECTED_LOCAL_TRIANGLES := 126494
 const EXPECTED_LOCAL_STATIC_BODIES := 61
 const EXPECTED_LOCAL_COLLISION_SHAPES := 62
 ## The dock gate's four fixed rails remain one renderer/submission, but now
@@ -871,7 +873,7 @@ func _test_processing_spine_rib_batch(cluster: NearbySectorCluster) -> void:
 		int(geometry["visible_copies"]) == EXPECTED_LOCAL_VISIBLE_COPIES
 		and int(geometry["surface_submissions"]) == EXPECTED_LOCAL_SURFACE_SUBMISSIONS
 		and int(geometry["triangles"]) == EXPECTED_LOCAL_TRIANGLES,
-		"the local census freezes 758 renderer copies, 127002 triangles, and 209 submissions"
+		"the local census freezes 758 renderer copies, 126494 triangles, and 209 submissions"
 	)
 	_check(
 		int(geometry["static_bodies"]) == EXPECTED_LOCAL_STATIC_BODIES
