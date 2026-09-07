@@ -710,6 +710,13 @@ func get_wing_chalk_band_resource_audit() -> Dictionary:
 
 		var descendants := find_children("*", "Node", true, false)
 		descendant_node_count = descendants.size()
+		# CombatAuthority attaches this exact lifecycle adapter in production.
+		# It owns damage admission, not mirrored-trim presentation geometry.
+		var damage_adapter := get_node_or_null("AuthoritativeDamageable") as LifecycleDamageableAdapter
+		if damage_adapter != null and damage_adapter.get_parent() == self \
+				and damage_adapter.target_entity_path == NodePath("..") \
+				and damage_adapter.lifecycle_kind == LifecycleDamageableAdapter.LifecycleKind.RANGE_OPPONENT:
+			descendant_node_count -= 1
 		for node in descendants:
 			if node is CollisionShape3D:
 				collision_shape_count += 1

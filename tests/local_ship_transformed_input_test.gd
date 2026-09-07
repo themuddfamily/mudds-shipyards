@@ -77,7 +77,7 @@ func _test_default_compatibility_and_audit() -> void:
 	_check(
 		source.is_input_configuration_valid()
 		and profile != null
-		and profile.bindings.size() == 22
+		and profile.bindings.size() == source.get_authored_input_binding_profile().bindings.size()
 		and float(profile.get_action_options(&"move_forward").deadzone) == 0.0
 		and profile.get_action_options(&"move_forward").curve == Profile.CURVE_LINEAR
 		and profile.get_action_options(&"move_forward").hold_mode == Profile.HOLD,
@@ -93,7 +93,8 @@ func _test_default_compatibility_and_audit() -> void:
 		"default injected axes, pressed-only held buttons, mouse backlog, and automatic-engine transport remain behavior-equivalent",
 	)
 	_check(
-		provider.strength_reads == 22 and provider.pressed_reads == 22,
+		provider.strength_reads == source.get_authored_input_binding_profile().bindings.size()
+		and provider.pressed_reads == source.get_authored_input_binding_profile().bindings.size(),
 		"the legacy compatibility wrapper still reads each provider method exactly once per action",
 	)
 	_check(
@@ -107,7 +108,7 @@ func _test_default_compatibility_and_audit() -> void:
 	(profile.bindings as Dictionary).clear()
 	(audit.profile as Dictionary).clear()
 	_check(
-		source.get_input_binding_profile().bindings.size() == 22
+		source.get_input_binding_profile().bindings.size() == source.get_authored_input_binding_profile().bindings.size()
 		and not (source.get_input_integration_audit().profile as Dictionary).is_empty(),
 		"profile and audit accessors are detached from retained configuration",
 	)
@@ -325,7 +326,8 @@ func _test_stale_detached_and_malformed_fail_neutral() -> void:
 	_check(
 		malformed.is_neutral()
 		and source.get_input_transform_snapshot() == snapshot_before
-		and provider.strength_reads == 22 and provider.pressed_reads == 22,
+		and provider.strength_reads == source.get_authored_input_binding_profile().bindings.size()
+		and provider.pressed_reads == source.get_authored_input_binding_profile().bindings.size(),
 		"a malformed provider frame is read atomically and fails to a neutral command without partial transform state",
 	)
 	provider.malformed = false

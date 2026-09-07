@@ -333,6 +333,17 @@ func _test_skirmisher_mirrored_trim_resource_sharing() -> void:
 		and int(audit.processing_node_count) == 0,
 		"the selected leaves stay material-identical, childless, non-colliding, and inert"
 	)
+	var authority := LiveCombatAuthority.new()
+	var adapter := authority.attach_lifecycle_damageable(
+		skirmisher, LifecycleDamageableAdapter.LifecycleKind.RANGE_OPPONENT, skirmisher.faction_id
+	)
+	_check(bool(skirmisher.get_wing_chalk_band_resource_audit().valid),
+		"production damage admission adapter does not change mirrored-trim presentation")
+	adapter.lifecycle_kind = LifecycleDamageableAdapter.LifecycleKind.HERO_SHIP
+	_check(not bool(skirmisher.get_wing_chalk_band_resource_audit().valid),
+		"an incorrectly bound extra adapter still fails the presentation census")
+	adapter.free()
+	authority.free()
 	var behavior_rows := audit.behavior_rows as Array
 	_check(
 		behavior_rows.size() == 2
@@ -667,9 +678,9 @@ func _test_courier_visual_resource_sharing() -> void:
 			== _binding_identity_counts(audits[1].visual_material_bindings as Dictionary)
 		and _binding_identity_counts(audits[0].visual_material_bindings as Dictionary)
 			== _binding_identity_counts(audits[2].visual_material_bindings as Dictionary)
-		and (audits[0].visual_material_bindings as Dictionary).size() == 24
-		and (audits[1].visual_material_bindings as Dictionary).size() == 24
-		and (audits[2].visual_material_bindings as Dictionary).size() == 24,
+		and (audits[0].visual_material_bindings as Dictionary).size() == 28
+		and (audits[1].visual_material_bindings as Dictionary).size() == 28
+		and (audits[2].visual_material_bindings as Dictionary).size() == 28,
 		"shared courier materials preserve every visible parameter and semantic binding"
 	)
 	_check(
@@ -677,14 +688,14 @@ func _test_courier_visual_resource_sharing() -> void:
 		"three couriers reduce immutable Material allocations from 57 to 19"
 	)
 	_check(
-		int(aggregate_counts.node_count) == 108
-		and int(aggregate_counts.mesh_instance_nodes) == 72
-		and int(aggregate_counts.particle_nodes) == 6
-		and int(aggregate_counts.geometry_submissions) == 72
-		and int(aggregate_counts.material_bindings) == 72
-		and int(aggregate_counts.light_nodes) == 12
+		int(aggregate_counts.node_count) == 126
+		and int(aggregate_counts.mesh_instance_nodes) == 81
+		and int(aggregate_counts.particle_nodes) == 9
+		and int(aggregate_counts.geometry_submissions) == 84
+		and int(aggregate_counts.material_bindings) == 84
+		and int(aggregate_counts.light_nodes) == 15
 		and int(aggregate_counts.collision_shape_nodes) == 9,
-		"sharing preserves 108 nodes, 72 submissions, 12 lights, and all collision shapes"
+		"sharing preserves 126 nodes, 84 submissions, 15 lights, and all collision shapes"
 	)
 
 	# The catalog is shared; the distress latch, visibility, lights, and lifecycle

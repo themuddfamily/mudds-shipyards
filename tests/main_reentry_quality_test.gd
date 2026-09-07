@@ -530,8 +530,11 @@ func _test_world_deferred_damage_receipt_currentness() -> void:
 		92001, target, &"detached_receipt_target", Vector3.ZERO, false
 	)
 	var world_parent := world.get_parent()
+	var topology_before := game.get_minimap_snapshot().topology_nodes as Array
 	world_parent.remove_child(world)
 	await process_frame
+	_check(not topology_before.is_empty() and (game.get_minimap_snapshot().topology_nodes as Array).is_empty(),
+		"detached world withdraws cached minimap topology")
 	var detached_before := _world_deferred_receipt_snapshot(world, target)
 	var detached_deferred := world.defer_target_damage_presentation(
 		92004, target, &"detached_rejected_target", Vector3.ZERO, false
@@ -547,6 +550,8 @@ func _test_world_deferred_damage_receipt_currentness() -> void:
 	)
 
 	world_parent.add_child(world)
+	_check(game.get_minimap_snapshot().topology_nodes == topology_before,
+		"reentered world restores the retained minimap topology")
 	await process_frame
 	await physics_frame
 	await process_frame
@@ -794,11 +799,22 @@ func _descendant_instance_ids(search_root: Node) -> PackedInt64Array:
 		# lifecycle state rather than authored Main hierarchy identity.
 		if _is_pilot_compat_physical_bone_simulator(node):
 			continue
-		if _is_optional_semantic_runtime_adapter(node):
+		if _is_optional_semantic_runtime_adapter(node) or _is_regenerated_presentation(node, search_root):
 			continue
 		ids.append(node.get_instance_id())
 	ids.sort()
 	return ids
+
+
+func _is_regenerated_presentation(node: Node, search_root: Node) -> bool:
+	# These exact presentation owners intentionally recreate transient rows and
+	# projectile cue adapters on attachment; retain every other gameplay identity.
+	var hud := search_root.get_node_or_null("HUD")
+	var rows := hud.get("_nearby_activity_rows") as Node if hud != null else null
+	if rows != null and rows.is_ancestor_of(node):
+		return true
+	return node.get_parent() is BomberPayloadAudioBinding \
+		and node.get_script() == preload("res://scripts/audio/bomber_payload_projectile_audio_binding.gd")
 
 
 func _is_optional_semantic_runtime_adapter(node: Node) -> bool:

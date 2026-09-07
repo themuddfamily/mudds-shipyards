@@ -57,7 +57,7 @@ func _run() -> void:
 	var loadmaster_binding := game.get("_cinder_loadmaster_hud_binding") as CinderLoadmasterHudBinding
 	_check(loadmaster_binding != null and loadmaster_binding.is_attached(), "GameFlow attaches Cinder loadmaster only for active Cinder")
 	var detail := hud.get("_runtime_status_detail") as Label
-	_check(detail != null and detail.text.contains("CRAFT // CINDER-CARGO-HAULER"), "Cinder binding publishes through the production HUD seam")
+	_check(detail != null and detail.text.contains("CRAFT // CINDER_CARGO_HAULER"), "Cinder binding publishes through the production HUD seam")
 	game.set("active_ship", game.get_guided_ship())
 	game.call("_sync_cinder_loadmaster_hud_binding")
 	_check(game.get("_cinder_loadmaster_hud_binding") == null, "switching away detaches Cinder loadmaster presentation")

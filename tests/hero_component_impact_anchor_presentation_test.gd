@@ -125,7 +125,7 @@ func _test_craft(craft: HeroShip) -> void:
 			and impact != null
 			and impact.get_child_count() == 3
 			and impact.get_node_or_null("ImpactSparks") is CPUParticles3D
-			and impact.get_node_or_null("ImpactFlash") is MeshInstance3D
+			and impact.get_node_or_null("ComponentImpactBrace" if deferred else "ImpactFlash") is MeshInstance3D
 			and impact.get_node_or_null("ImpactLight") is OmniLight3D,
 			"%s %s reuses the single existing four-node impact family" % [craft.name, impact_case.name]
 		)

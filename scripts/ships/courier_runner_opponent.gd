@@ -114,6 +114,10 @@ func _ready() -> void:
 		source_id = DEFAULT_SOURCE_ID
 	_apply_distress_presentation()
 	_apply_route_intent_presentation()
+	# Base _ready adds retained weapon/sensor damage feedback after hull build.
+	# Freeze the complete first attachment, never recapture drift on re-entry.
+	if _built_material_contracts.is_empty():
+		_capture_material_contracts()
 
 
 func _exit_tree() -> void:
@@ -775,7 +779,6 @@ func _build_interceptor() -> void:
 
 	_build_collision()
 	_build_damage_effects()
-	_capture_material_contracts()
 
 
 func _build_collision() -> void:

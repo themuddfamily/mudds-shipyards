@@ -331,8 +331,8 @@ func _test_hull_authority_is_untouched() -> void:
 	)
 
 	# The same preservation applies to a very close finite hit when no normal was
-	# supplied. It still derives a radial direction instead of collapsing to the
-	# presentation fallback merely because the offset is short.
+	# supplied. Placement follows the accepted core-system anchor, while direction
+	# stays radial to the original hit instead of collapsing to the fallback.
 	_hero.reset_for_reuse(Transform3D(Basis.IDENTITY, ARENA_ORIGIN))
 	var close_position := _hero.global_position + Vector3(0.0, 0.0, -0.01)
 	var close_effects_before := presentation.get_live_world_effect_count()
@@ -346,7 +346,9 @@ func _test_hull_authority_is_untouched() -> void:
 	_check(
 		presentation.get_live_world_effect_count() == close_effects_before + 1
 		and close_impact != null
-		and close_impact.global_position.is_equal_approx(close_position)
+		and close_impact.global_position.is_equal_approx(
+			_world_component_position(_hero, ShipComponentDamage.COMPONENT_CORE_SYSTEMS)
+		)
 		and close_sparks != null
 		and close_sparks.direction.is_equal_approx(Vector3.FORWARD),
 		"a close finite hit still derives its exact radial impact direction"

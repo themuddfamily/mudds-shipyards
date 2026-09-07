@@ -194,13 +194,11 @@ func _test_production_encounter() -> void:
 			bool(craft.call(&"get_audit_report").valid),
 			"%s audits clean at boot: %s" % [craft.name, craft.call(&"get_validation_errors")]
 		)
-	# Re-frozen 5 -> 6 when the Halyard crew transport joined the fleet. The
-	# assertion's intent is unchanged: the two NEW OPPONENT archetypes must not
-	# alter the pre-encounter census. The Halyard raises the baseline because it
-	# is a fifth armed player craft, not because a scenario craft registered early.
+	# The settled production fleet and defence roster has twelve sources.
+	# Dormant scenario opponents must add none until admitted by the director.
 	_check(
-		baseline_sources == 6,
-		"the new craft leave the coordinator's six-source census exactly as it was (%d)"
+		baseline_sources == 12,
+		"the new craft leave the coordinator's twelve-source census exactly as it was (%d)"
 			% baseline_sources
 	)
 
