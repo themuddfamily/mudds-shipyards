@@ -9483,7 +9483,8 @@ func _initialize_live_combat() -> void:
 ## Detached exact census of every source this production composition is allowed
 ## to own. Fleet and range-opponent identities remain GameFlow-owned; the
 ## station-defense content proves its private three-source roster through its
-## bounded contract. Exact total equality rejects arbitrary additional sources.
+## bounded contract. Authored reinforcements join only while active. Exact total
+## equality rejects arbitrary additional sources.
 func get_live_combat_source_roster_audit() -> Dictionary:
 	var errors := PackedStringArray()
 	var player_rows: Array[Dictionary] = []
@@ -9520,6 +9521,35 @@ func get_live_combat_source_roster_audit() -> Dictionary:
 	if seen_source_ids.has(OPPONENT_SOURCE_ID):
 		errors.append("range-opponent source ID collides with a player source")
 	seen_source_ids[OPPONENT_SOURCE_ID] = true
+	var reinforcement_rows: Array[Dictionary] = []
+	var authored_reinforcements: Array[Dictionary] = [
+		{"entity": get_node_or_null("StandoffPicket") as StandoffPicketOpponent, "source_id": 2102},
+		{"entity": get_node_or_null("WingSkirmisherLead") as FlankingSkirmisherOpponent, "source_id": 2103},
+		{"entity": get_node_or_null("WingSkirmisherWing") as FlankingSkirmisherOpponent, "source_id": 2104},
+		{"entity": get_node_or_null("CourierRunner") as CourierRunnerOpponent, "source_id": 2105},
+	]
+	for authored in authored_reinforcements:
+		var reinforcement := authored["entity"] as RangeOpponent
+		if not is_instance_valid(reinforcement) or not reinforcement.is_inside_tree() \
+				or reinforcement.is_queued_for_deletion() or not reinforcement.is_active():
+			continue
+		var source_id := int(authored["source_id"])
+		var profiles := reinforcement.call(&"get_weapon_profiles") as Dictionary
+		var exact := _combat_registration_matches(
+			reinforcement, source_id, OPPONENT_FACTION, profiles
+		)
+		if seen_source_ids.has(source_id):
+			errors.append("duplicate expected reinforcement source ID: %d" % source_id)
+		seen_source_ids[source_id] = true
+		if not exact:
+			errors.append("reinforcement combat source registration is not exact: %s" % reinforcement.name)
+		reinforcement_rows.append({
+			"entity_instance_id": reinforcement.get_instance_id(),
+			"source_id": source_id,
+			"faction_id": OPPONENT_FACTION,
+			"weapon_ids": profiles.keys(),
+			"exact": exact,
+		})
 
 	var encounter_present := false
 	var encounter_ready := false
@@ -9553,7 +9583,8 @@ func get_live_combat_source_roster_audit() -> Dictionary:
 	var actual_source_count := (
 		resolver.get_registered_source_count() if is_instance_valid(resolver) else 0
 	)
-	var expected_source_count := player_rows.size() + 1 + expected_encounter_sources
+	var expected_source_count := player_rows.size() + 1 + expected_encounter_sources \
+		+ reinforcement_rows.size()
 	if actual_source_count != expected_source_count:
 		errors.append(
 			"live source count differs from exact composed roster: %d != %d"
@@ -9574,6 +9605,8 @@ func get_live_combat_source_roster_audit() -> Dictionary:
 		"actual_source_count": actual_source_count,
 		"expected_player_source_count": player_rows.size(),
 		"expected_opponent_source_count": 1,
+		"expected_reinforcement_source_count": reinforcement_rows.size(),
+		"reinforcement_sources": reinforcement_rows,
 		"expected_station_defense_source_count": expected_encounter_sources,
 		"authored_station_defense_source_count": authored_encounter_sources,
 		"player_sources": player_rows,
