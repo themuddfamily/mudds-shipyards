@@ -34,12 +34,40 @@ func _init() -> void:
 
 func _run() -> void:
 	await _test_queued_loading_screen_public_mutators_are_inert()
+	await _test_prepared_main_frees_detached_children()
 	await _test_stager_rejects_stale_host_generation_after_yield()
 	await _test_detached_boot_joins_resource_worker()
 	await _test_detached_boot_cancels_stale_continuation()
 	await _test_boot_presents_before_it_builds()
 	await _test_direct_instantiation_is_unstaged()
 	_finish()
+
+
+func _test_prepared_main_frees_detached_children() -> void:
+	var main := MAIN_SCENE.instantiate() as GameFlow
+	var child_refs: Array[WeakRef] = []
+	for child in main.get_children():
+		child_refs.append(weakref(child))
+	var transferred := Node.new()
+	main.add_child(transferred)
+	_check(main.prepare_staged_startup(), "Main prepares detached children before entering the tree")
+	_check(main.get_child_count() == 0 and not child_refs.is_empty(),
+		"prepared Main transfers all authored children to the stager")
+	var new_owner := Node.new()
+	new_owner.add_child(transferred)
+	(child_refs[0].get_ref() as Node).queue_free()
+	var retained_stager := main.get("_startup_stager") as MainStartupStager
+	main.free()
+	await process_frame
+	var all_freed := true
+	for child_ref in child_refs:
+		all_freed = all_freed and child_ref.get_ref() == null
+	_check(all_freed, "freeing prepared Main releases every detached authored child with the stager retained")
+	_check(is_instance_valid(transferred) and transferred.get_parent() == new_owner,
+		"final stager disposal preserves children transferred to another parent")
+	new_owner.free()
+	retained_stager.dispose()
+	_check(not retained_stager.prepare(false), "disposed stager remains inert after repeated disposal")
 
 
 static func _short_worker_job() -> int:
@@ -79,6 +107,9 @@ func _test_stager_rejects_stale_host_generation_after_yield() -> void:
 	var host := Node3D.new()
 	var child := YieldingStagedChild.new()
 	host.add_child(child)
+	var tail := Node.new()
+	host.add_child(tail)
+	var tail_ref: WeakRef = weakref(tail)
 	var stale_stages: Array[String] = []
 	var stale_resolutions: Array[int] = []
 	var stale_startups: Array[int] = []
@@ -112,6 +143,12 @@ func _test_stager_rejects_stale_host_generation_after_yield() -> void:
 			and stale_startups.is_empty(),
 		"a detached-and-reentered staged host rejects its stale yielded continuation atomically"
 	)
+	_check(tail_ref.get_ref() == tail and tail.get_parent() == null,
+		"canceling a yielded run preserves detached children for reuse")
+	await stager.run(false)
+	_check(host.get_child_count() == 2 and tail.get_parent() == host
+		and stale_resolutions.size() == 1 and stale_startups.size() == 1,
+		"the same canceled stager resumes attached and detached children exactly once")
 	host.queue_free()
 	await process_frame
 
@@ -270,6 +307,10 @@ func _test_detached_boot_cancels_stale_continuation() -> void:
 		boot.queue_free()
 		await process_frame
 		return
+	var canceled_stager := boot.get_main().get("_startup_stager") as MainStartupStager
+	var canceled_child_refs: Array[WeakRef] = []
+	for pending_child in canceled_stager.get("_staged_children") as Array:
+		canceled_child_refs.append(weakref(pending_child))
 	root.remove_child(boot)
 	_check(
 		boot.get_main() == null
@@ -277,6 +318,13 @@ func _test_detached_boot_cancels_stale_continuation() -> void:
 			and boot.find_children("*", "GameFlow", false, false).is_empty(),
 		"detaching staged boot retires its incomplete Main before a completion exists"
 	)
+	await process_frame
+	await process_frame
+	var canceled_children_freed := not canceled_child_refs.is_empty()
+	for child_ref in canceled_child_refs:
+		canceled_children_freed = canceled_children_freed and child_ref.get_ref() == null
+	_check(canceled_children_freed,
+		"canceling Boot frees all staged Main children even while its stager is retained")
 	root.add_child(boot)
 	var fresh := await boot.run_startup()
 	await process_frame

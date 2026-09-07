@@ -2011,6 +2011,9 @@ func _notification(what: int) -> void:
 		return
 	if what != NOTIFICATION_PREDELETE:
 		return
+	if _startup_stager != null:
+		_startup_stager.dispose()
+		_startup_stager = null
 	_detach_caption_presentation()
 	_caption_presentation_service = null
 	if cargo_delivery_activity != null:

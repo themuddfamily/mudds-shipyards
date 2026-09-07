@@ -40,6 +40,28 @@ func _init(
 	_host.tree_exiting.connect(_on_host_tree_exiting)
 
 
+## The host calls this only during final destruction. Tree exit alone keeps the
+## transaction available for a later run on the same host.
+func dispose() -> void:
+	_run_generation += 1
+	_cancel_stale_run()
+	_prepared = false
+	var owned_children := _staged_children.duplicate()
+	_staged_children.clear()
+	_staged_child_owners.clear()
+	for child in owned_children:
+		# Attached children belong to their current parent; queued nodes already
+		# have a destruction owner. Only detached transaction nodes belong to us.
+		if is_instance_valid(child) and child.get_parent() == null \
+				and not child.is_queued_for_deletion():
+			child.free()
+	if is_instance_valid(_host) and _host.tree_exiting.is_connected(_on_host_tree_exiting):
+		_host.tree_exiting.disconnect(_on_host_tree_exiting)
+	_host = null
+	_resolve_scene_bindings = Callable()
+	_start_up = Callable()
+
+
 func is_prepared() -> bool:
 	return _prepared
 
@@ -52,7 +74,7 @@ func is_prepared() -> bool:
 ## has run and nothing is torn down here. Returns false - changing nothing - if
 ## the caller is too late, so the synchronous path stays the safe default.
 func prepare(initialized: bool) -> bool:
-	if _host.is_inside_tree() or initialized or _prepared:
+	if not is_instance_valid(_host) or _host.is_inside_tree() or initialized or _prepared:
 		return false
 	_prepared = true
 	for child in _host.get_children():
@@ -102,7 +124,14 @@ func run(initialized: bool, on_stage: Callable = Callable()) -> void:
 		if not _is_run_current(run_generation, host_tree_generation):
 			_cancel_stale_run()
 			return
-		_host.add_child(child)
+		if not is_instance_valid(child) or child.is_queued_for_deletion():
+			_cancel_stale_run()
+			return
+		if child.get_parent() == null:
+			_host.add_child(child)
+		elif child.get_parent() != _host:
+			_cancel_stale_run()
+			return
 		if not _is_run_current(run_generation, host_tree_generation):
 			_cancel_stale_run()
 			return
