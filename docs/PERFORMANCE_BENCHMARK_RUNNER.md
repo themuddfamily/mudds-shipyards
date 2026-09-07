@@ -193,7 +193,15 @@ desktop without explicit authorization for that desktop run. The benchmark
 activates production camera controls; a private user-data directory does not
 isolate mouse capture, keyboard focus or the displayed window.
 
-For routine checks, use headless Godot or a private Xvfb display on Linux.
+The runner owns an emergency abort independently of the game's pause menu:
+physical **Escape**, closing the window or losing window focus cancels the run,
+releases injected inputs and returns the cursor. The command-line runner exits
+with code `130` and writes no completed benchmark report after cancellation.
+This does not prevent production camera code from capturing the cursor during
+normal staging; display isolation is still required.
+
+For routine checks, use headless Godot or a private Xvfb display on Linux with
+`--display-driver x11` to avoid an inherited Wayland/WSLg desktop connection.
 A Windows Hyper-V guest can run headless commands and exchange files through
 [PowerShell Direct](https://learn.microsoft.com/en-us/windows-server/virtualization/hyper-v/powershell-direct)
 without opening VMConnect. Rendered guest tests need a working guest graphics
@@ -239,7 +247,8 @@ Verify the checkout is still clean after import. Do not discard source changes
 to force a passing identity check; resolve and commit genuine resource changes,
 then prepare a fresh checkout of that revision.
 
-Run in Windows PowerShell, using a new output directory each time:
+Run in Windows PowerShell, using a new output directory each time. The rendered
+full command requires the isolated guest or dedicated machine described above:
 
 ```powershell
 $launcher = 'C:\Temp\keth-benchmark\source\tools\performance\run_native_windows_benchmark.ps1'
@@ -248,8 +257,8 @@ $launcher = 'C:\Temp\keth-benchmark\source\tools\performance\run_native_windows_
   -OutputDirectory C:\Temp\keth-benchmark\preflight -PreflightOnly
 & $launcher -Godot C:\Temp\keth-benchmark\Godot_v4.7.1-stable_win64.exe `
   -Project C:\Temp\keth-benchmark\source `
-  -OutputDirectory C:\Temp\keth-benchmark\smoke -Smoke
-# After independent target-profile review and other tests have stopped:
+  -OutputDirectory C:\Temp\keth-benchmark\smoke -Smoke -Headless
+# On the isolated test guest or dedicated machine, after target-profile review:
 & $launcher -Godot C:\Temp\keth-benchmark\Godot_v4.7.1-stable_win64.exe `
   -Project C:\Temp\keth-benchmark\source `
   -OutputDirectory C:\Temp\keth-benchmark\full `

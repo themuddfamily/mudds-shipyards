@@ -12,6 +12,8 @@
 - Run automated checks headlessly or on an isolated display such as Xvfb. Run
   Windows graphical checks inside a dedicated test VM/session with its viewer
   closed, or on a dedicated test machine.
+- Under Xvfb, select Godot's `--display-driver x11` explicitly so an inherited
+  Wayland/WSLg connection cannot display the test on the user's desktop.
 - Do not launch rendered automation on the user's active desktop unless they
   explicitly authorize that desktop run. A benchmark request alone does not
   authorize taking their mouse or keyboard focus.
