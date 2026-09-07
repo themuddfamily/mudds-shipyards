@@ -17,7 +17,7 @@ env:
   TEST_MATRIX_AUDIO_DRIVER: Dummy
   TEST_MATRIX_JOBS: '1'
   # Each Godot worker owns a pool; ENet suites also use fixed loopback ports.
-  # Keep the broad jobs serial until those suites own independent ports.
+  # Keep hosted CI serial; local parallel runs serialize the network lane.
 jobs:
   core:
     runs-on: ubuntu-24.04

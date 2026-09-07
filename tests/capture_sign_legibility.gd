@@ -9,7 +9,8 @@ extends SceneTree
 ## because "legible" is not a number.
 ##
 ## Usage:
-##   godot --headless --audio-driver Dummy --script res://tests/capture_sign_legibility.gd
+##   godot --audio-driver Dummy --script res://tests/capture_sign_legibility.gd
+## Requires a rendered display; use xvfb-run for software-rendered captures.
 ##
 ## Optional environment variables:
 ##   KETH_SIGN_CAPTURE_DIR=res://path   output directory (default below).
