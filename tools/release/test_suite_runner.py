@@ -17,6 +17,7 @@ class SuiteRunnerTests(unittest.TestCase):
     def test_source_declared_completion_forms_and_fail_closed(self):
         cases = [
             ('print("OTHER_NAME_TEST_OK")', 'OTHER_NAME_TEST_OK', 0),
+            ('print("OTHER_NAME_TEST_PASSED")', 'OTHER_NAME_TEST_PASSED', 0),
             ('print("OK: ENet keepalive (%d assertions)" % _assertions)', 'OK: ENet keepalive (12 assertions)', 12),
             ('print("PASS local_test (%d assertions)" % _assertions)', 'PASS local_test (3 assertions)', 3),
             ('print("local_test: %d assertions" % _assertions)', 'local_test: 7 assertions', 7),
@@ -43,6 +44,18 @@ class SuiteRunnerTests(unittest.TestCase):
             for output in ('UNRELATED_TEST_OK', 'PASS: an assertion', 'CUE: 4 checks, 2 failures'):
                 log.write_text(output + '\n')
                 self.assertEqual(catalog.assess(script, log)[1], 0)
+
+    def test_assertion_summary_precedes_required_terminal_token(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            script = Path(temporary) / 'probe_test.gd'
+            log = Path(temporary) / 'log'
+            script.write_text('print("probe: %d assertions" % _assertions)\nprint("PROBE_TEST_OK")')
+            log.write_text('probe: 5 assertions\nPROBE_TEST_OK\n')
+            self.assertEqual(catalog.assess(script, log), ('PROBE_TEST_OK', 1, 'PROBE_TEST_OK', 5))
+            log.write_text('probe: 5 assertions\n')
+            self.assertEqual(catalog.assess(script, log)[1], 0)
+            log.write_text('probe: 5 assertions\nPROBE_TEST_OK\nPROBE_TEST_OK\n')
+            self.assertEqual(catalog.assess(script, log)[1], 2)
 
     def test_source_manifest_matches_shell_and_detects_drift(self):
         # Differential coverage of the former find/stat/sha256sum contract.

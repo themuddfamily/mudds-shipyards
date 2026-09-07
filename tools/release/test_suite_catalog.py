@@ -19,7 +19,7 @@ RENDER_MARKERS = (
     "viewport.get_texture()",
 )
 PRINT_LITERAL = re.compile(r'''\bprint\(\s*["']([^"'\n]+)["']''')
-TOKEN = re.compile(r"^([A-Z][A-Z0-9_]*(?:_OK|_PASS))(?=[:\s]|$)")
+TOKEN = re.compile(r"^([A-Z][A-Z0-9_]*(?:_OK|_PASSED|_PASS))(?=[:\s]|$)")
 
 
 def suites(root: Path):
@@ -79,16 +79,25 @@ def assess(path: Path, log: Path):
     patterns = completion_patterns(path)
     lines = [line.rstrip("\r") for line in log.read_text(encoding="utf-8", errors="replace").splitlines() if line.strip()]
     matches = [(i, name) for i, line in enumerate(lines) for name, pattern in patterns.items() if pattern.fullmatch(line)]
+    # Some suites print an assertion count immediately before their explicit
+    # terminal token. In that contract the count is metadata, not a second
+    # completion, and cannot stand in for a missing terminal token.
+    declared_tokens = {
+        match[1] for literal in PRINT_LITERAL.findall(path.read_text(encoding="utf-8"))
+        if (match := TOKEN.match(literal))
+    }
+    completion_matches = [(i, name) for i, name in matches if name in declared_tokens] if declared_tokens else matches
     # Several source declarations can describe the same token; count log lines once.
-    unique = dict(matches)
+    unique = dict(completion_matches)
     found = next(iter(unique.values()), "<none>")
     terminal = unique.get(len(lines) - 1, "<none>")
     assertions = sum(line.startswith("PASS:") and i not in unique for i, line in enumerate(lines))
     if not assertions and unique:
-        summary = lines[next(iter(unique))]
-        count = re.search(r"\b([0-9]+) (?:assertions|checks)\b", summary)
-        if count:
-            assertions = int(count[1])
+        for index, _name in matches:
+            count = re.search(r"\b([0-9]+) (?:assertions|checks)\b", lines[index])
+            if count:
+                assertions = int(count[1])
+                break
     return found, len(unique), terminal, assertions
 
 
