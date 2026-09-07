@@ -37,7 +37,7 @@ func _run() -> void:
 	actor.queue_free()
 	other.queue_free()
 	await process_frame
-	print("halyard_sleeping_berth_test: failures=", _failures)
+	print("HALYARD_SLEEPING_BERTH_TEST_OK" if _failures == 0 else "HALYARD_SLEEPING_BERTH_TEST_FAILED")
 	quit(1 if _failures else 0)
 
 func _check(ok: bool, message: String) -> void:

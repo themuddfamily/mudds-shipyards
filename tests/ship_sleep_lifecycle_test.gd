@@ -34,3 +34,12 @@ func _run() -> void:
 	await _clean_up(game)
 	print("REST_REVIEW_LIFECYCLE assertions=", _assertion_count, " failures=", _failures.size())
 	_finish()
+
+
+func _finish() -> void:
+	if _failures.is_empty():
+		print("SHIP_SLEEP_LIFECYCLE_TEST_OK: %d assertions" % _assertion_count)
+		quit(0)
+	else:
+		print("SHIP_SLEEP_LIFECYCLE_TEST_FAILED: %s" % "; ".join(_failures))
+		quit(1)

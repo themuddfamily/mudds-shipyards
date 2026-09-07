@@ -6800,6 +6800,8 @@ func _update_station_seat_flow() -> void:
 		hud.set_interaction("", false)
 		return
 	hud.set_interaction(_active_station_seat.get_seated_prompt())
+	if player.is_sleeping() and is_instance_valid(_ship_rest_overlay):
+		_ship_rest_overlay.set_wake_input(hud.get_action_prompt(&"interact"))
 
 
 func _sit_in_station_seat(seat: StationSeat) -> void:
@@ -6902,7 +6904,9 @@ func _set_seat_rest_context(seat: StationSeat, enabled: bool) -> void:
 				_ship_rest_overlay = ShipRestOverlayType.new()
 				_ship_rest_overlay.name = "ShipRestOverlay"
 				add_child(_ship_rest_overlay)
-			_ship_rest_overlay.begin_rest((seat as ShipBunk).get_ship().get_display_name())
+			_ship_rest_overlay.begin_rest(
+				(seat as ShipBunk).get_ship().get_display_name(), hud.get_action_prompt(&"interact")
+			)
 		else:
 			_end_ship_rest_presentation()
 	else:

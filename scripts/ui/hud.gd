@@ -1689,6 +1689,11 @@ func get_activity_objective_report() -> Dictionary:
 	return _activity_objective_report.duplicate(true)
 
 
+## Reuse the live binding/device label on other gameplay prompt surfaces.
+func get_action_prompt(action: StringName) -> String:
+	return _action_prompts([action])
+
+
 func set_interaction(text: String, is_visible: bool = true) -> void:
 	if not is_inside_tree() or is_queued_for_deletion():
 		return

@@ -5,6 +5,7 @@ extends CanvasLayer
 var _shade: ColorRect
 var _caption: Label
 var _elapsed := 0.0
+var _craft_name := ""
 
 
 func _ready() -> void:
@@ -26,12 +27,17 @@ func _ready() -> void:
 	set_process(false)
 
 
-func begin_rest(craft_name: String) -> void:
+func begin_rest(craft_name: String, wake_input: String = "E") -> void:
 	_elapsed = 0.0
-	_caption.text = "RESTING ABOARD %s\n\n[ E ]  WAKE UP" % craft_name.to_upper()
+	_craft_name = craft_name.to_upper()
+	set_wake_input(wake_input)
 	_shade.color.a = 0.0
 	show()
 	set_process(true)
+
+
+func set_wake_input(wake_input: String) -> void:
+	_caption.text = "RESTING ABOARD %s\n\n[ %s ]  WAKE UP" % [_craft_name, wake_input]
 
 
 func end_rest() -> void:
