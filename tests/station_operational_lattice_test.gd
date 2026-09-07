@@ -699,7 +699,7 @@ func _test_structural_contract(world: ShipyardWorld, dressings: Array[StationStr
 		total_nodes += int(counts.node_count)
 		total_meshes += int(counts.mesh_instances)
 		total_lights += int(counts.visible_lights)
-	_check(total_nodes <= 224 and total_meshes == 164 and total_lights == 4, "four dressings remain within 224 nodes / 164 meshes / four bounded lights")
+	_check(total_nodes <= 4 * int(StationStructuralServiceDressing.PERFORMANCE_BUDGET.node_count) and total_meshes == 4 * StationStructuralServiceDressing.BATCHED_MESH_INSTANCE_COUNT and total_lights == 4, "four dressings retain their current immutable batching budgets and four bounded lights")
 	world.apply_visual_quality(0)
 	var low_forwarded := true
 	for dressing in dressings:

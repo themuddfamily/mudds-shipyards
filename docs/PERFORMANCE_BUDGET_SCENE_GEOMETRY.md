@@ -152,10 +152,15 @@ the words “whole scene” hide two different live graphs. `station_resident` i
 the default and fails closed if any `NearbySectorCluster` is loaded.
 `cinder_loaded` moves the real guided ship to the documented clear approach and
 drives `CinderStreamingProductionBinding` until exactly one coordinator-owned
-Cinder generation is committed. Both paths wait for `Main` to apply saved
-settings, force the production HIGH visual-quality profile, take the same
+Cinder generation is committed. Baseline runs use fresh private user data, so
+recovery controls from an interrupted earlier session do not change the declared
+HUD graph. Both paths wait for `Main` to apply startup settings, force the
+production HIGH visual-quality profile, take the same
 eight-idle/one-physics/one-idle settle, and disable `Main` before synchronous
-geometry and retained-resource traversal.
+geometry and retained-resource traversal. Before measurement, the existing
+station activity and service-agent capture APIs seek their material-switching
+presentations to zero seconds. Frame counts settle construction but cannot
+freeze the same blink/readout material phase at different machine speeds.
 
 Every schema-v2 JSON report publishes `scenario` and
 `loaded_instance_count` both at top level and in run metadata. The whole-census
@@ -167,27 +172,34 @@ separate diagnostics rather than being recursively folded into the count
 fingerprint. Runtime fallback node names are normalized to stable
 class-and-sibling ordinals in both bucket paths and material origins.
 
-Focused production evidence on exact clean base `e61c951` after the bounded
-Aft/Habitat MultiMesh and immutable-resource trims, production Ember/cruise
-ownership, the pause-menu cruise row, streamed-berth binding, Arrow's passive
-entry-heat target, the immutable Observation LogisticsCase and Jovian
-passenger-seat sharing, StationServiceAgent pod sharing, Arrow BoardingStep
-sharing, and Aft RoofVentCollar sharing, using Godot 4.7.1,
-headless Forward+, Dummy audio and HIGH quality, freezes:
+The 2026-09-07 stabilization census measures the current nine-craft production
+composition: physical berth feedback, the embodied destination/activity/service
+boards, current combat presentation, Salvage work lighting, and the streamed
+Cinder berth/cargo fitout. Existing `geometry_census_scenario_test.gd` freezes
+both scenarios with Godot 4.7.1, headless Forward+, Dummy audio and HIGH quality.
+These are measured totals; the budgets above remain unchanged.
 
 | Schema-v2 metric | Station resident (0 loaded) | Cinder loaded (1 loaded) | Loaded delta |
 | --- | ---: | ---: | ---: |
-| Triangles | 1,685,281 | 1,802,738 | +117,457 |
-| Mesh renderer nodes | 5,685 | 5,851 | +166 |
-| Surfaces | 5,692 | 5,858 | +166 |
-| Unique meshes | 2,464 | 2,566 | +102 |
-| Bound-phase materials | 451 | 470 | +19 |
-| Retained/reachable materials | 640 | 659 | +19 |
-| Unique shaders | 2 | 2 | 0 |
-| Text triangles / instances | 57,153 / 28 | 75,702 / 39 | +18,549 / +11 |
-| Lights / shadow lights | 294 / 19 | 317 / 19 | +23 / 0 |
-| Particle systems | 25 | 25 | 0 |
-| Scene-tree nodes | 9,334 | 9,635 | +301 |
+| Triangles | 1,858,100 | 1,992,234 | +134,134 |
+| Mesh renderer nodes | 5,849 | 6,058 | +209 |
+| Surfaces | 5,868 | 6,077 | +209 |
+| Unique meshes | 2,737 | 2,877 | +140 |
+| Bound-phase materials | 606 | 648 | +42 |
+| Retained/reachable materials | 897 | 944 | +47 |
+| Unique shaders | 3 | 3 | 0 |
+| Text triangles / instances | 79,310 / 43 | 99,876 / 56 | +20,566 / +13 |
+| Lights / shadow lights | 335 / 20 | 362 / 20 | +27 / 0 |
+| Particle systems | 45 | 45 | 0 |
+| Scene-tree nodes | 10,719 | 11,142 | +423 |
+
+The retained union includes reachable unloaded content and presentation material
+catalogues; it is not the bound material set or a GPU residency measurement.
+The larger current roster does not reset any ceiling or imply performance
+acceptance on native hardware.
+
+The following bounded-change notes record earlier measurements and their local
+deltas; their historical totals are superseded by the current table above.
 
 The only geometry-census delta from this bounded Jovian slice is the unique-mesh
 row: the 20 existing joints beneath `WalkableInterior/CargoBay/CargoFrame00..03`
@@ -356,8 +368,9 @@ the loaded-minus-resident delta remains exactly `+301`.
 The production `CinderStreamedShipBerthBinding` contributes one further
 resident node in both scenarios. It has no renderer, material, light, particle,
 physics, audio, or process-loop contribution; its only purpose at this stage is
-to observe the real zero-berth Cinder generations and retain the unchanged five
-resident berth IDs without fabricating a streamed record.
+to observe the then-zero-berth Cinder generations and retain the then-five
+resident berth IDs without fabricating a streamed record. The current authored
+composition has nine resident berths and three real streamed Cinder berths.
 
 The Main-owned Ember bootstrap/binding and atomic common-world origin owner make
 the authored Ember PackedScene reachable from the production ownership graph
@@ -368,15 +381,15 @@ non-rendering scene node and adds no mesh, surface, light, particle, physics, or
 audio work.
 
 The loaded `CinderStreamingBootstrap` bucket independently accounts for exactly
-117,457 triangles, 166 mesh renderer nodes/surfaces, 524 visible MultiMesh
-copies, 23 lights and 304 nodes. Its extra three nodes beyond the whole-scene
-`+301` delta replace the resident bootstrap/coordinator shell nodes rather than
+134,134 triangles, 209 mesh renderer nodes/surfaces, 584 visible MultiMesh
+copies, 27 lights and 426 nodes. Its extra three nodes beyond the whole-scene
+`+423` delta replace the resident bootstrap/coordinator shell nodes rather than
 contradicting the total.
 
 The resident measurement fingerprint is
-`a480749183a4ee41ab803d14fec6f709f64c733046a8a21306fa1f68b5e9f507`;
+`bcbb692229c32e9f9471a5af197ac1820d0803157952de09e432ff2bdd50c7de`;
 the loaded fingerprint is
-`b8eec0999121e159f4e510f88b892e99537ad846b2edcd735ffec8370b160480`.
+`f05daf12f9bd60a1ada9dc6503a69b06a7a0b193ae27ddb9ab11ed6c682518a2`.
 `tests/geometry_census_scenario_test.gd` freezes both production scenarios,
 their exact totals/delta, sole-generation ownership, a resident-mismatch red
 mutation, and the separate fingerprints. These are renderer-independent live
@@ -447,36 +460,36 @@ silently include destination lighting. Both fields are also inputs to the
 measurement fingerprint; relabelling identical counts and contributor rows
 therefore produces a different hash.
 
-The production `Main` measured here is base `d6a3529` plus the bounded
-Fabrication paired-pool change, after Cinder Reach became streamed rather than
-always resident.
+The production `Main` measured here is the current nine-craft composition.
+The VIP sample follows its translated reception anchor at z=75.2; Salvage
+contributes its three authored shadowless work-bay lights.
 The roster fingerprint is
-`7bfe535a02a8e891ce9c9296d09223aa8dd99276fea14e716ce1db0050e9feca`.
+`43dabfe2e1cb3cc47caa41c34df8c71a2af9f955b8048d3c129ad5359491de07`.
 The station-resident complete scene/per-point/contributor fingerprint is
-`2362c050653c4f350f8fc76d66de08ff1fade101f6d5c23ee8e228611897ae8f`;
+`6ff23fb3dafda6c2d9a6728d1e9b5638f6b631196cf4e54e766847dc2ae1edb7`;
 the separately loaded fingerprint is
-`d8d1c16017f5fce3248b28ef339d3a1c8d806ba5f6510f57c5e2e0a6e181ace6`.
+`0ba07982b5c105655d224acd46480fc8c7244631dc35c02e7e31190a079c55e4`.
 Pulsing lights report the stable positive-energy predicate used for inclusion,
 not their clock-dependent instantaneous amplitude.
 
 | HIGH scenario / light roster | Total | Enabled at frozen phase | Shadow casting |
 | --- | ---: | ---: | ---: |
 | Station resident: `DirectionalLight3D` | 3 | 3 | reported in combined row |
-| Station resident: `OmniLight3D` | 280 | 228 | reported in combined row |
-| Station resident: `SpotLight3D` | 11 | 11 | reported in combined row |
-| **Station resident: all `Light3D`** | **294** | **242** | **19 total / 19 enabled** |
+| Station resident: `OmniLight3D` | 319 | 242 | reported in combined row |
+| Station resident: `SpotLight3D` | 13 | 13 | reported in combined row |
+| **Station resident: all `Light3D`** | **335** | **258** | **20 total / 20 enabled** |
 | Cinder loaded: `DirectionalLight3D` | 3 | 3 | reported in combined row |
-| Cinder loaded: `OmniLight3D` | 302 | 250 | reported in combined row |
-| Cinder loaded: `SpotLight3D` | 12 | 12 | reported in combined row |
-| **Cinder loaded: all `Light3D`** | **317** | **265** | **19 total / 19 enabled** |
+| Cinder loaded: `OmniLight3D` | 345 | 268 | reported in combined row |
+| Cinder loaded: `SpotLight3D` | 14 | 14 | reported in combined row |
+| **Cinder loaded: all `Light3D`** | **362** | **285** | **20 total / 20 enabled** |
 
-Streaming Cinder therefore adds exactly **22 enabled omnis and one enabled
-spot**, with no change to the 52 disabled lights, three directionals, or 19
+Streaming Cinder therefore adds exactly **26 enabled omnis and one enabled
+spot**, with no change to the 77 disabled lights, three directionals, or 20
 shadow casters. The loaded-instance count changes from zero to one.
 
 The maximum geometric overlap is **15 enabled lights** at
 `operate-aft-service-arm`; only one of those casts shadows. The largest shadow
-overlap is **3** at `board-halyard-berth`, where seven lights can influence the
+overlap is **3** at `board-halyard-berth`, where eight lights can influence the
 sample. Applying the live fade endpoints did not change any scalar row: every
 sampled local contributor that already passed its smaller illumination range
 also lies inside its light fade endpoint, and every sampled shadow contributor
@@ -992,6 +1005,18 @@ close-range terminal. `font_size = 32` was rendered too and is also legible; 48
 was kept because the extra 23,000 triangles is 1.4% of the scene and is not worth
 spending the whole quality margin of the one object class whose job is to be read,
 particularly above 1080p.
+
+The current 43-sign station reached 81,381 triangles, above the unchanged
+80,000 lettering ceiling. A bounded 48→47 adjustment brings that standalone
+world to 79,412 triangles; all per-sign, no-blanking, width/height, zero-depth
+and idempotence checks still pass. A tiny pixel-size clamp removes only font
+hinting growth beyond each legend's authored 64-point width (2.8 mm for the
+Cinder legend before node scale). Actual 3840×2160 same-camera Forward+ A/B
+images retain visible glyph clarity at the junction and Cinder reading positions.
+The Cinder frames share partial streaming transparency, so this comparison
+establishes the font change only; it is not whole-scene or native-hardware
+readability acceptance. The existing capture runner now sets its output size
+after Main's saved display settings and checks the image's actual dimensions.
 
 One deliberate behaviour change, photographed in the "back" shots: a flat sign has
 no back face, so a sign viewed from its non-reading side now shows nothing instead

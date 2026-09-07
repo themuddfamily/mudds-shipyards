@@ -604,8 +604,8 @@ func _test_every_flyable_ship_is_boardable_on_foot(
 			stranded.append("%s at %s" % [ship.name, str(boarding_position)])
 	print("STRANDED_SHIPS: ", stranded)
 	_check(
-		fleet.size() == 8,
-		"the production GameFlow exposes the complete eight-craft flyable roster"
+		fleet.size() == 9,
+		"the production GameFlow exposes the complete nine-craft flyable roster"
 	)
 	_check(
 		stranded.is_empty(),
@@ -1372,6 +1372,8 @@ func _test_boarding_prompt_is_offered_all_round_each_craft(
 	var arrow_prompted := 0
 	var halyard_standable := 0
 	var halyard_prompted := 0
+	var halyard_neighbor_handoffs := 0
+	var halyard_port_prompt := false
 	for entry in game.call("get_flyable_ships"):
 		var ship := entry as HeroShip
 		if ship == null:
@@ -1417,14 +1419,18 @@ func _test_boarding_prompt_is_offered_all_round_each_craft(
 				await physics_frame
 				await physics_frame
 				game.call("_refresh_interaction_targets")
+				if ship.name == "HalyardCrewTransport" and radius == 5.0 and sample == 8:
+					halyard_port_prompt = game.boarding_candidate == ship
 				if game.boarding_candidate == ship:
 					prompted += 1
+				elif ship.name == "HalyardCrewTransport" and _valid_halyard_neighbor_handoff(game, ship, player, radius, sample):
+					halyard_neighbor_handoffs += 1
 				else:
-					missed.append("r=%.0f a=%.0f at %s" % [radius, rad_to_deg(angle), str(Vector3(ground_x, floor_y, ground_z))])
-		summary.append("%s standable=%d prompted=%d" % [ship.name, standable, prompted])
-		if standable > 0 and prompted < standable:
+					missed.append("r=%.0f a=%.0f at %s selected=%s" % [radius, rad_to_deg(angle), str(Vector3(ground_x, floor_y, ground_z)), str(game.boarding_candidate.name) if is_instance_valid(game.boarding_candidate) else "none"])
+		summary.append("%s standable=%d prompted=%d neighbor_handoffs=%d" % [ship.name, standable, prompted, halyard_neighbor_handoffs if ship.name == "HalyardCrewTransport" else 0])
+		if not missed.is_empty():
 			silent.append("%s: %d of %d standable ring points offer no prompt %s" % [
-				ship.name, standable - prompted, standable, str(missed)
+				ship.name, missed.size(), standable, str(missed)
 			])
 		if ship.name == "ArrowReconShip":
 			arrow_standable = standable
@@ -1456,7 +1462,10 @@ func _test_boarding_prompt_is_offered_all_round_each_craft(
 		arrow_standable > 0 and arrow_prompted == arrow_standable,
 		"the Arrow offers its boarding prompt from every standable point on a ring around it"
 	)
-	# HALYARD-BOARDING-001. The Halyard is asserted all-round for the same reason
+	# HALYARD-BOARDING-001. The Halyard approach volume remains all-round.
+	# Occupied Dock 03 now supplies a nearer valid Bulwark candidate at five
+	# starboard samples; verify those exact handoffs without accepting silence.
+	# Originally the Halyard was asserted all-round for the same reason
 	# the Arrow is: its berth is a walk-around apron, not a one-sided pad, and the
 	# report is that the prompt never appeared. It measured 5 of 14 standable ring
 	# points before this pass — every silent one aft of the wing or on the wrong
@@ -1468,11 +1477,36 @@ func _test_boarding_prompt_is_offered_all_round_each_craft(
 		"the Halyard's berth apron offers a real ring of standing points around the parked craft"
 	)
 	_check(
-		halyard_standable > 0 and halyard_prompted == halyard_standable,
-		"the Halyard offers its boarding prompt from every standable point on a ring around it"
+		halyard_standable > 0 and halyard_prompted >= 9
+		and halyard_neighbor_handoffs == 5
+		and halyard_prompted + halyard_neighbor_handoffs == halyard_standable
+		and halyard_port_prompt,
+		"the Halyard retains its port airstair prompt and nine ring samples; five shared starboard samples select the exact nearer, boardable Bulwark"
 	)
 	player.teleport_to(Transform3D(Basis.IDENTITY, Vector3(0.0, 500.0, 0.0)))
 	await physics_frame
+
+
+func _valid_halyard_neighbor_handoff(
+		game: GameFlow, halyard: HeroShip, player: PlayerController,
+		radius: float, sample: int
+	) -> bool:
+	if not ((radius == 5.0 and sample in [0, 1, 2, 15]) or (radius == 7.0 and sample == 2)):
+		return false
+	var selected := game.boarding_candidate
+	if not is_instance_valid(selected) or selected.name != "BulwarkHeavyGunship":
+		return false
+	var selected_area := selected.get_node_or_null(^"ShipBoardingArea") as ShipBoardingArea
+	var halyard_area := halyard.get_node_or_null(^"ShipBoardingArea") as ShipBoardingArea
+	var origin := player.get_interaction_origin()
+	var selected_distance := origin.distance_to(selected.get_boarding_position())
+	return (
+		selected_area != null and selected_area.is_available_for(player)
+		and halyard_area != null and halyard_area.is_available_for(player)
+		and player.get_nearby_interactables().has(halyard_area)
+		and selected_distance <= GameFlow.BOARDING_FALLBACK_REACH
+		and selected_distance < origin.distance_to(halyard.get_boarding_position())
+	)
 
 
 func _test_aft_stair_base_is_not_fenced_off(player: PlayerController) -> void:

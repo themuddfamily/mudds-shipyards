@@ -10,6 +10,9 @@ extends SceneTree
 ## numbers are identical on the player's Windows GPU build, so they are the only
 ## honest budget currency available from here.
 ##
+## Baseline runs require fresh private user data. Recovery controls from an
+## interrupted session legitimately change the HUD node count.
+##
 ## Usage:
 ##   godot --headless --audio-driver Dummy --script res://tools/geometry_census.gd
 ##
@@ -338,7 +341,12 @@ func _run() -> void:
 	# Freeze the instantiated scene before either material view is taken. This
 	# makes "bound" a declared phase rather than whichever `_process()` callback
 	# happens to win while the tree is being walked.
-	game.process_mode = Node.PROCESS_MODE_DISABLED
+	if not freeze_production_phase(game):
+		printerr("census: deterministic presentation phase is unavailable")
+		game.queue_free()
+		await process_frame
+		quit(1)
+		return
 	var scenario_contract := inspect_production_scenario(game, scenario)
 	if not bool(scenario_contract.get("valid", false)):
 		printerr("census: invalid production scenario: %s" % scenario_contract)
@@ -376,6 +384,21 @@ static func force_high_visual_quality(game: GameFlow) -> bool:
 		return false
 	world.apply_visual_quality(HIGH_VISUAL_QUALITY_LEVEL)
 	return world.visual_quality_level == HIGH_VISUAL_QUALITY_LEVEL
+
+
+## Frame counts settle construction but do not fix elapsed simulation time.
+## Pin the existing material-switching station presentations to their public
+## paused-capture phase before either material view is measured.
+static func freeze_production_phase(game: GameFlow) -> bool:
+	if not is_instance_valid(game) or not game.is_inside_tree():
+		return false
+	game.process_mode = Node.PROCESS_MODE_DISABLED
+	var valid := true
+	for activity in game.find_children("*", "StationOperationsActivity", true, false):
+		valid = (activity as StationOperationsActivity).set_activity_time(0.0) and valid
+	for agent in game.find_children("*", "StationServiceAgent", true, false):
+		valid = (agent as StationServiceAgent).set_agent_time(0.0) and valid
+	return valid
 
 
 ## Loads one real Cinder generation through Main's production streaming
@@ -674,7 +697,7 @@ func _capture_run_metadata(
 			"idle_frames_before_freeze": settle_frames,
 			"physics_frames_before_freeze": 1,
 			"final_idle_frames_before_freeze": 1,
-			"freeze": "production scene root process_mode set to PROCESS_MODE_DISABLED before synchronous census",
+			"freeze": "production scene root disabled; station activity and service-agent presentation clocks seek to 0 seconds before synchronous census",
 		},
 		"frozen_phase": "after configured idle settle, one physics frame, and one final idle frame",
 	}

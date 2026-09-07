@@ -51,11 +51,6 @@ func _run() -> void:
 		"lacquered servery"
 	)
 	_check_finish(
-		suite, ^"Structure/Threshold/ThresholdThread", Color("c08a4c"), 0.95, 0.16,
-		0.40, StationSurfaceKit.TRIM_CLEARCOAT, StationSurfaceKit.TRIM_CLEARCOAT_ROUGHNESS,
-		"bronze route thread"
-	)
-	_check_finish(
 		suite, ^"Structure/CantileverFrame/CollarJambPort", Color("a5763f"), 0.90, 0.28,
 		0.40, StationSurfaceKit.TRIM_CLEARCOAT, StationSurfaceKit.TRIM_CLEARCOAT_ROUGHNESS,
 		"bronze collar"
@@ -75,6 +70,14 @@ func _run() -> void:
 		and is_equal_approx(red.emission_energy_multiplier, 1.05)
 		and red.albedo_texture == null,
 		"the suite's exact emissive landmark red remains outside the panel hierarchy"
+	)
+	var route_thread := suite.get_node_or_null(^"Structure/Threshold/ThresholdThread") as MeshInstance3D
+	_check(
+		route_thread != null and route_thread.material_override == red
+		and bool(route_thread.get_meta("presentation_only", false))
+		and bool(route_thread.get_meta("collision_free", false))
+		and route_thread.get_meta("route_landmark_role", &"") == &"vip_door_to_well_entry",
+		"the threshold route thread repeats the exact emissive landmark red as a collision-free door-to-well cue"
 	)
 	_check(
 		bool(suite.get_audit_report().valid) and bool(suite.get_render_batch_contract().exact_counts),

@@ -77,8 +77,6 @@ func _run() -> void:
 	DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path(output_dir))
 
 	var window := root
-	window.size = CAPTURE_RESOLUTION
-	window.content_scale_size = CAPTURE_RESOLUTION
 
 	var game := MAIN_SCENE.instantiate()
 	root.add_child(game)
@@ -87,6 +85,11 @@ func _run() -> void:
 	await physics_frame
 	if not await _load_cinder_through_production_binding(game):
 		_failures.append("production binding did not stream Cinder for its capture subject")
+
+	# Main applies saved display settings during startup. Set the capture size
+	# afterwards so the output does not silently inherit a saved 720p viewport.
+	window.size = CAPTURE_RESOLUTION
+	window.content_scale_size = CAPTURE_RESOLUTION
 
 	# The production main scene opens on its title layer. These are pictures of
 	# geometry, so every CanvasLayer is switched off rather than dismissed, and
@@ -132,6 +135,8 @@ func _run() -> void:
 				await process_frame
 			await RenderingServer.frame_post_draw
 			var image := get_root().get_texture().get_image()
+			if image.get_size() != CAPTURE_RESOLUTION:
+				_failures.append("capture resolution drift: %s" % image.get_size())
 			var path := "%s/%s_%s_%s.png" % [output_dir, tag, String(subject["key"]), String(shot[0])]
 			var error := image.save_png(path)
 			if error != OK:

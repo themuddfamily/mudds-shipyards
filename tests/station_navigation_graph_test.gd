@@ -36,7 +36,7 @@ const PLAYER_CAPSULE_HEIGHT := 1.94
 const REQUIRED_DECK_CLEARANCE := 2.3
 const MINIMUM_BERTH_GAP := 0.15
 const AFT_BOMBER_PAD_COLLIDER_PATH := NodePath(
-	"FleetExpansionProductionBinding/FleetExpansionBerths/dock_05_bomber/WalkablePadCollision"
+	"FleetExpansionProductionBinding/FleetExpansionBerths/AccessCirculation/Dock05BomberBridge"
 )
 
 ## The protected launch volume the operational-lattice suite already freezes.
@@ -1038,8 +1038,8 @@ func _test_production_clearance_and_authority(world: ShipyardWorld) -> void:
 		if agent.get_agent_id() == &"aft-junction-courier":
 			var pad_body := world.get_node_or_null(AFT_BOMBER_PAD_COLLIDER_PATH) as StaticBody3D
 			var pad_collision := (
-				pad_body.get_child(0) as CollisionShape3D
-				if pad_body != null and pad_body.get_child_count() == 1
+				pad_body.get_node_or_null(^"Collision") as CollisionShape3D
+				if pad_body != null and pad_body.get_child_count() > 0
 				else null
 			)
 			var pad_shape := pad_collision.shape as BoxShape3D if pad_collision != null else null
@@ -1047,8 +1047,8 @@ func _test_production_clearance_and_authority(world: ShipyardWorld) -> void:
 				pad_body != null
 				and pad_body.collision_layer == PhysicsLayers.WORLD
 				and pad_shape != null
-				and pad_shape.size.is_equal_approx(Vector3(28.0, 0.6, 42.0)),
-				"Dock 05 retains its exact player-support collider while the Aft courier clears it"
+				and pad_shape.size.is_equal_approx(Vector3(13.4, 0.6, 1.0)),
+				"Dock 05 retains its narrow authored access bridge collider while the Aft courier clears it"
 			)
 			if pad_shape != null:
 				var pad_half := pad_shape.size * 0.5

@@ -25,8 +25,12 @@ func _run() -> void:
 	print("JOVIAN_BATCH_CENSUS: ", census)
 	var apron := module.get_node("LoadingApron")
 	_check(
-		census == JovianFreightBerth.DOCK_GUIDE_BATCH_CENSUS_AFTER,
-		"standalone census freezes 899 nodes, 411 submissions, 477 visible copies, and collision exact"
+		census == {
+			"descendant_nodes": 893, "mesh_instance_nodes": 389, "multimesh_nodes": 16,
+			"geometry_submissions": 405, "visible_geometry_copies": 477,
+			"drawn_triangles": 77020, "static_bodies": 206, "collision_shapes": 209,
+		},
+		"current standalone census includes later immutable batches: 893 nodes, 405 submissions, 477 visible copies, and collision exact"
 	)
 	_test_apron_diagonal_batch(module, apron)
 	var contract := module.get_dock_guide_batch_contract()

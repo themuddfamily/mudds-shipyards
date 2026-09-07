@@ -4,9 +4,9 @@ extends SceneTree
 
 const CENSUS := preload("res://tools/station_light_overlap_census.gd")
 const MAIN_SCENE := preload("res://scenes/main.tscn")
-const ROSTER_FINGERPRINT := "7bfe535a02a8e891ce9c9296d09223aa8dd99276fea14e716ce1db0050e9feca"
-const STATION_RESIDENT_MEASUREMENT_FINGERPRINT := "2362c050653c4f350f8fc76d66de08ff1fade101f6d5c23ee8e228611897ae8f"
-const CINDER_LOADED_MEASUREMENT_FINGERPRINT := "d8d1c16017f5fce3248b28ef339d3a1c8d806ba5f6510f57c5e2e0a6e181ace6"
+const ROSTER_FINGERPRINT := "43dabfe2e1cb3cc47caa41c34df8c71a2af9f955b8048d3c129ad5359491de07"
+const STATION_RESIDENT_MEASUREMENT_FINGERPRINT := "6ff23fb3dafda6c2d9a6728d1e9b5638f6b631196cf4e54e766847dc2ae1edb7"
+const CINDER_LOADED_MEASUREMENT_FINGERPRINT := "0ba07982b5c105655d224acd46480fc8c7244631dc35c02e7e31190a079c55e4"
 const FABRICATION_LIGHT_PATHS := [
 	"ShipyardWorld/FabricationAnnex/GeneratedAnnex/PracticalPoolCentral",
 	"ShipyardWorld/FabricationAnnex/GeneratedAnnex/PracticalPoolPort",
@@ -294,25 +294,25 @@ func _test_production_main_roster_and_measurement() -> void:
 		int(report.schema_version) == CENSUS.SCHEMA_VERSION
 		and report.scenario == CENSUS.SCENARIO_STATION_RESIDENT
 		and int(report.loaded_instance_count) == 0
-		and int(scene_lights.total) == 294
-		and int(scene_lights.enabled) == 242
-		and int(scene_lights.disabled) == 52
-		and int(scene_lights.shadow_casting_total) == 19
-		and int(scene_lights.enabled_shadow_casting) == 19
+		and int(scene_lights.total) == 335
+		and int(scene_lights.enabled) == 258
+		and int(scene_lights.disabled) == 77
+		and int(scene_lights.shadow_casting_total) == 20
+		and int(scene_lights.enabled_shadow_casting) == 20
 		and int((by_type.directional as Dictionary).total) == 3
 		and int((by_type.directional as Dictionary).enabled) == 3
-		and int((by_type.omni as Dictionary).total) == 280
-		and int((by_type.omni as Dictionary).enabled) == 228
-		and int((by_type.spot as Dictionary).total) == 11
-		and int((by_type.spot as Dictionary).enabled) == 11,
-		"station-resident HIGH freezes 294 total / 242 enabled lights and exact type/shadow splits"
+		and int((by_type.omni as Dictionary).total) == 319
+		and int((by_type.omni as Dictionary).enabled) == 242
+		and int((by_type.spot as Dictionary).total) == 13
+		and int((by_type.spot as Dictionary).enabled) == 13,
+		"station-resident HIGH freezes 335 total / 258 enabled lights and exact type/shadow splits"
 	)
 	_test_expansion_light_provenance(game, report)
 	var expected_worst := [
 		[&"operate-aft-service-arm", 15, 1],
 		[&"walk-habitat-common", 11, 1],
 		[&"walk-aft-lower-junction", 10, 1],
-		[&"board-halyard-berth", 7, 3],
+		[&"board-halyard-berth", 8, 3],
 		[&"walk-vip-reception", 7, 1],
 	]
 	var worst_exact := (report.top_worst_points as Array).size() == expected_worst.size()
@@ -363,8 +363,13 @@ func _test_expansion_light_provenance(game: Node, report: Dictionary) -> void:
 		"Observation retains its six intended enabled shadowless practicals in the resident station"
 	)
 	_check(
-		salvage.is_empty(),
-		"Salvage Terrace contributes no dynamic lights, matching its zero-light module contract"
+		_light_paths(salvage) == [
+			"ShipyardWorld/SalvageTerrace/GeneratedRoot/LowerBayWorkLight",
+			"ShipyardWorld/SalvageTerrace/GeneratedRoot/SortingLineWorkLight",
+			"ShipyardWorld/SalvageTerrace/GeneratedRoot/UpperInspectionWorkLight",
+		]
+		and _all_enabled_shadowless_omni(salvage),
+		"Salvage Terrace contributes its three authored shadowless work-bay practicals"
 	)
 
 	var expansion_reaches_sample := false
@@ -439,32 +444,32 @@ func _test_cinder_loaded_production_scenario(
 	_check(
 		report.scenario == CENSUS.SCENARIO_CINDER_LOADED
 		and int(report.loaded_instance_count) == 1
-		and int(lights.total) == 317
-		and int(lights.enabled) == 265
-		and int(lights.disabled) == 52
-		and int(lights.shadow_casting_total) == 19
-		and int(lights.enabled_shadow_casting) == 19
+		and int(lights.total) == 362
+		and int(lights.enabled) == 285
+		and int(lights.disabled) == 77
+		and int(lights.shadow_casting_total) == 20
+		and int(lights.enabled_shadow_casting) == 20
 		and int((by_type.directional as Dictionary).total) == 3
 		and int((by_type.directional as Dictionary).enabled) == 3
-		and int((by_type.omni as Dictionary).total) == 302
-		and int((by_type.omni as Dictionary).enabled) == 250
-		and int((by_type.spot as Dictionary).total) == 12
-		and int((by_type.spot as Dictionary).enabled) == 12,
-		"Cinder-loaded HIGH freezes 317 total / 265 enabled lights and exact type/shadow splits"
+		and int((by_type.omni as Dictionary).total) == 345
+		and int((by_type.omni as Dictionary).enabled) == 268
+		and int((by_type.spot as Dictionary).total) == 14
+		and int((by_type.spot as Dictionary).enabled) == 14,
+		"Cinder-loaded HIGH freezes 362 total / 285 enabled lights and exact type/shadow splits"
 	)
 	_check(
-		int(lights.total) - int(resident_lights.total) == 23
-		and int(lights.enabled) - int(resident_lights.enabled) == 23
+		int(lights.total) - int(resident_lights.total) == 27
+		and int(lights.enabled) - int(resident_lights.enabled) == 27
 		and int(lights.disabled) - int(resident_lights.disabled) == 0
 		and int(lights.shadow_casting_total)
 			- int(resident_lights.shadow_casting_total) == 0
 		and int((by_type.omni as Dictionary).total)
-			- int((resident_by_type.omni as Dictionary).total) == 22
+			- int((resident_by_type.omni as Dictionary).total) == 26
 		and int((by_type.spot as Dictionary).total)
 			- int((resident_by_type.spot as Dictionary).total) == 1
 		and int((by_type.directional as Dictionary).total)
 			- int((resident_by_type.directional as Dictionary).total) == 0,
-		"streaming delta is exactly +22 omni and +1 spot with no disabled, directional, or shadow change"
+		"streaming delta is exactly +26 omni and +1 spot with no disabled, directional, or shadow change"
 	)
 	_check(
 		str(report.sample_roster_fingerprint) == ROSTER_FINGERPRINT

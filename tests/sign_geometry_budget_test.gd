@@ -115,8 +115,8 @@ func _check_world_size_is_preserved() -> void:
 
 		# Tolerances are relative, and they are not zero, because a font is
 		# hinted: advance widths and the ascent/descent box are rounded to whole
-		# font pixels, and 48 pixels round differently from 64. Measured drift is
-		# 0.2-0.4% narrower and 2.9% taller before node scale. On the widest sign
+		# font pixels, and 47 pixels round differently from 64. The existing bound is
+		# 0.5% width and 3.5% height before node scale. On the widest sign
 		# in the game that is 2 cm off the width; on the tallest lettering block
 		# it is 8 cm of extra height on a 3.4 m board. Both stay inside the panel
 		# each legend sits on, which is the property that actually matters, and a

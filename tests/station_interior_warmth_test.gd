@@ -193,21 +193,21 @@ func _test_exact_scene_contracts(aft: AftJunctionStack, habitat: HabitatSpine) -
 	_check(
 		int(aft_performance.lights) == 50
 		and int(aft_performance.budgets.lights) == 50
-		and int(aft_performance.mesh_instances) == 788
-		and int(aft_performance.budgets.mesh_instances) == 828
-		and int(aft_render.descendant_nodes) == 1182
-		and int(aft_render.renderer_nodes) == 800
+		and int(aft_performance.mesh_instances) == 723
+		and int(aft_performance.budgets.mesh_instances) == 838
+		and int(aft_render.descendant_nodes) == AftJunctionStack.RENDER_DESCENDANT_NODE_COUNT
+		and int(aft_render.renderer_nodes) == AftJunctionStack.RENDERER_NODE_COUNT
 		and bool(aft_performance.within_budget),
-		"Aft keeps exact 50-light, 788/828-mesh, 1182-node, and 800-renderer-node budgets"
+		"Aft keeps 50 lights and its current batched renderer budgets including the embodied console displays"
 	)
 	_check(
 		int(habitat_performance.lights) == 35
 		and int(habitat_performance.budgets.lights) == 35
-		and int(habitat_performance.mesh_instances) == 1216
-		and int(habitat_render.descendant_nodes) == 1874
-		and int(habitat_render.multimesh_batches) == 27
+		and int(habitat_performance.mesh_instances) == HabitatSpine.RENDER_MESH_INSTANCE_COUNT
+		and int(habitat_render.descendant_nodes) == HabitatSpine.RENDER_DESCENDANT_COUNT
+		and int(habitat_render.multimesh_batches) == HabitatSpine.RENDER_MULTIMESH_BATCH_COUNT
 		and bool(habitat_performance.within_budget),
-		"Habitat keeps exact 35-light, 1216-mesh, 1874-node, and 27-MultiMesh budgets"
+		"Habitat keeps 35 lights and its current immutable fitout batching budgets"
 	)
 	for module in [aft, habitat]:
 		var authority: Dictionary = module.get_authority_contract()
@@ -219,7 +219,7 @@ func _test_exact_scene_contracts(aft: AftJunctionStack, habitat: HabitatSpine) -
 		)
 	_check(
 		int(aft.get_collision_contract().body_count) == 106
-		and int(aft.get_collision_contract().shape_count) == 117
+		and int(aft.get_collision_contract().shape_count) == 119
 		and int(habitat.get_collision_contract().body_count) == 245
 		and int(habitat.get_collision_contract().shape_count) == 266,
 		"collision, layout, and navigation-facing scene bodies remain at their exact existing counts"

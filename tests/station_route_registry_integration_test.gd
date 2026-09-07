@@ -63,12 +63,20 @@ const EXPECTED_DEAD_END_ROUTES := {
 
 const EXPECTED_BERTH_IDS: Array[StringName] = [
 	&"arrow_recon_berth",
+	&"bulwark_fleet_dock_berth",
+	&"dock_04_cargo",
+	&"dock_05_bomber",
+	&"dock_06_interceptor",
 	&"central_berth",
 	&"halyard_fleet_dock_berth",
 	&"jovian_freight_berth",
 	&"zenith_fleet_dock_berth",
 ]
 const EXPECTED_BERTH_TRANSFORMS := {
+	&"bulwark_fleet_dock_berth": Transform3D(Basis.IDENTITY, Vector3(52.0, 7.68, 53.05)),
+	&"dock_04_cargo": Transform3D(Basis(Vector3.UP, PI * 0.5), Vector3(4.0, 8.2, 84.7)),
+	&"dock_05_bomber": Transform3D(Basis(Vector3.UP, PI * 0.5), Vector3(-6.0, 8.2, 34.3)),
+	&"dock_06_interceptor": Transform3D(Basis(Vector3.UP, PI * 0.5), Vector3(46.0, 8.2, 68.3)),
 	&"central_berth": Transform3D(Basis.IDENTITY, Vector3(0.0, 1.15, -10.0)),
 	&"arrow_recon_berth": Transform3D(Basis(Vector3.UP, PI * 0.5), Vector3(-43.0, 1.15, 15.5)),
 	&"jovian_freight_berth": Transform3D(Basis(Vector3.UP, PI), Vector3(-53.0, 1.63, 57.3)),
@@ -338,8 +346,8 @@ func _test_no_gameplay_authority_leak(world: ShipyardWorld) -> void:
 		berths_unchanged = berths_unchanged \
 			and berth != null \
 			and world.get_berth_transform(berth_id).is_equal_approx(EXPECTED_BERTH_TRANSFORMS[berth_id] as Transform3D)
-	_check(berth_roster_exact, "the world still owns exactly the five assigned physical berths")
-	_check(berths_unchanged, "all five authoritative berth identities and transforms are untouched by the route registry")
+	_check(berth_roster_exact, "the world still owns exactly the nine assigned physical berths")
+	_check(berths_unchanged, "all nine authoritative berth identities and transforms are untouched by the route registry")
 
 	var modules := report.get("modules", {}) as Dictionary
 	var modules_claim_nothing := true

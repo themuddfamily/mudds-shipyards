@@ -86,7 +86,7 @@ const FROZEN_SAMPLE_SPECS := [
 		"source_kind": &"node_path",
 		"source_path": NodePath("ShipyardWorld/VipReceptionSuite/ReceptionAnchor"),
 		"offset": Vector3(0, 1, 0),
-		"expected_world_position": Vector3(-6.45, 5.35, 73.2),
+		"expected_world_position": Vector3(-6.45, 5.35, 75.2),
 	},
 	{
 		"point_id": &"board-central-berth",

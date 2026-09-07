@@ -27,11 +27,12 @@ func _run() -> void:
 		batch != null
 		and batch.multimesh != null
 		and int(render.pre_downlight_housing_geometry_submissions) == 230
-		and int(render.geometry_submissions) == 227
+		and int(render.geometry_submissions) == VipReceptionSuite.RENDER_GEOMETRY_SUBMISSION_COUNT
 		and int(render.perimeter_downlight_housing_copies) == 4
 		and int(render.perimeter_downlight_housing_baseline_submissions) == 4
 		and int(render.perimeter_downlight_housing_submissions) == 1
-		and int(render.perimeter_downlight_housing_geometry_submissions_removed) == 3
+		and int(render.perimeter_downlight_housing_geometry_submissions_removed) == 230 - VipReceptionSuite.RENDER_GEOMETRY_SUBMISSION_COUNT
+		and int(render.perimeter_downlight_housing_baseline_submissions) - int(render.perimeter_downlight_housing_submissions) == 3
 		and int(render.perimeter_downlight_housing_renderer_buffer_floats) == 48
 		and bool(render.perimeter_downlight_housing_renderer_buffer_matches_authored)
 		and bool(render.perimeter_downlight_housing_bounds_match_authored)

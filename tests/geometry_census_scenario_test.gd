@@ -1,13 +1,18 @@
 extends SceneTree
 
 ## Focused production proof that the geometry/material census cannot mix the
-## resident station baseline with one streamed Cinder generation.
+## resident station baseline with one streamed Cinder generation. Run with fresh
+## private user data: saved recovery choices legitimately add HUD controls.
 
 const CENSUS := preload("res://tools/geometry_census.gd")
 const MAIN_SCENE := preload("res://scenes/main.tscn")
 
-const RESIDENT_FINGERPRINT := "a480749183a4ee41ab803d14fec6f709f64c733046a8a21306fa1f68b5e9f507"
-const CINDER_LOADED_FINGERPRINT := "b8eec0999121e159f4e510f88b892e99537ad846b2edcd735ffec8370b160480"
+# Current authored composition includes the nine-craft fleet, physical berth
+# feedback, embodied service/activity/destination boards, Salvage work lighting,
+# and the loaded Cinder berth/cargo presentation. This refresh changes no schema
+# or geometry budget; retained materials include unloaded reachable content.
+const RESIDENT_FINGERPRINT := "bcbb692229c32e9f9471a5af197ac1820d0803157952de09e432ff2bdd50c7de"
+const CINDER_LOADED_FINGERPRINT := "f05daf12f9bd60a1ada9dc6503a69b06a7a0b193ae27ddb9ab11ed6c682518a2"
 
 var _assertions := 0
 var _failures := PackedStringArray()
@@ -28,7 +33,7 @@ func _run() -> void:
 		"production HIGH geometry profile is explicit and independent of saved settings"
 	)
 	await _settle()
-	game.process_mode = Node.PROCESS_MODE_DISABLED
+	_check(CENSUS.freeze_production_phase(game), "material-switching station presentations freeze at the declared zero-second phase")
 
 	var resident_contract := CENSUS.inspect_production_scenario(
 		game,
@@ -56,23 +61,24 @@ func _run() -> void:
 		"resident report freezes schema, scenario identity, and exact loaded count"
 	)
 	_check(
-		int(resident.get("total_triangles", -1)) == 1685281
-			and int(resident.get("total_mesh_instances", -1)) == 5685
-			and int(resident.get("total_surfaces", -1)) == 5692
-			and int(resident.get("unique_meshes", -1)) == 2464,
-		"resident geometry freezes 1,685,281 triangles / 5,685 meshes / 5,692 surfaces / 2,464 unique meshes"
+		int(resident.get("total_triangles", -1)) == 1858100
+			and int(resident.get("total_mesh_instances", -1)) == 5849
+			and int(resident.get("total_surfaces", -1)) == 5868
+			and int(resident.get("unique_meshes", -1)) == 2737,
+		"resident geometry freezes 1,858,100 triangles / 5,849 meshes / 5,868 surfaces / 2,737 unique meshes"
 	)
 	_check(
-		int(resident.get("bound_phase_unique_materials", -1)) == 451
-			and int(resident.get("retained_reachable_unique_materials", -1)) == 640
-			and int(resident.get("lights", -1)) == 294
-			and int(resident.get("nodes", -1)) == 9334,
-		"resident resource roster freezes 451 bound / 640 retained materials, 294 lights, and 9,334 nodes"
+		int(resident.get("bound_phase_unique_materials", -1)) == 606
+			and int(resident.get("retained_reachable_unique_materials", -1)) == 897
+			and int(resident.get("lights", -1)) == 335
+			and int(resident.get("nodes", -1)) == 10719,
+		"resident resource roster freezes 606 bound / 897 retained materials, 335 lights, and 10,719 nodes"
 	)
 	_check(
 		str(resident.get("measurement_fingerprint", "")) == RESIDENT_FINGERPRINT,
 		"resident measurement fingerprint freezes the complete deterministic count contract"
 	)
+	print("GEOMETRY_CENSUS_RESIDENT_RESOURCES: ", _resource_counts(resident))
 	resident_census.free()
 
 	game.process_mode = Node.PROCESS_MODE_INHERIT
@@ -84,7 +90,7 @@ func _run() -> void:
 		"loaded scenario commits exactly one real Cinder generation through production streaming"
 	)
 	await _settle()
-	game.process_mode = Node.PROCESS_MODE_DISABLED
+	_check(CENSUS.freeze_production_phase(game), "material-switching station presentations freeze at the declared zero-second phase")
 	var loaded_contract := CENSUS.inspect_production_scenario(
 		game,
 		CENSUS.SCENARIO_CINDER_LOADED
@@ -122,38 +128,38 @@ func _run() -> void:
 		"loaded report freezes destination identity and one committed generation"
 	)
 	_check(
-		int(loaded.get("total_triangles", -1)) == 1802738
-			and int(loaded.get("total_mesh_instances", -1)) == 5851
-			and int(loaded.get("total_surfaces", -1)) == 5858
-			and int(loaded.get("unique_meshes", -1)) == 2566,
-		"loaded geometry freezes 1,802,738 triangles / 5,851 meshes / 5,858 surfaces / 2,566 unique meshes"
+		int(loaded.get("total_triangles", -1)) == 1992234
+			and int(loaded.get("total_mesh_instances", -1)) == 6058
+			and int(loaded.get("total_surfaces", -1)) == 6077
+			and int(loaded.get("unique_meshes", -1)) == 2877,
+		"loaded geometry freezes 1,992,234 triangles / 6,058 meshes / 6,077 surfaces / 2,877 unique meshes"
 	)
 	_check(
-		int(loaded.get("bound_phase_unique_materials", -1)) == 470
-			and int(loaded.get("retained_reachable_unique_materials", -1)) == 659
-			and int(loaded.get("lights", -1)) == 317
-			and int(loaded.get("nodes", -1)) == 9635,
-		"loaded resource roster freezes 470 bound / 659 retained materials, 317 lights, and 9,635 nodes"
+		int(loaded.get("bound_phase_unique_materials", -1)) == 648
+			and int(loaded.get("retained_reachable_unique_materials", -1)) == 944
+			and int(loaded.get("lights", -1)) == 362
+			and int(loaded.get("nodes", -1)) == 11142,
+		"loaded resource roster freezes 648 bound / 944 retained materials, 362 lights, and 11,142 nodes"
 	)
 	var cinder_bucket := (loaded.get("buckets", {}) as Dictionary).get(
 		"CinderStreamingBootstrap", {}
 	) as Dictionary
 	_check(
-		int(cinder_bucket.get("triangles", -1)) == 117457
-			and int(cinder_bucket.get("instances", -1)) == 166
-			and int(cinder_bucket.get("surfaces", -1)) == 166
-			and int(cinder_bucket.get("multimesh_instances", -1)) == 524
-			and int(cinder_bucket.get("lights", -1)) == 23
-			and int(cinder_bucket.get("nodes", -1)) == 304,
+		int(cinder_bucket.get("triangles", -1)) == 134134
+			and int(cinder_bucket.get("instances", -1)) == 209
+			and int(cinder_bucket.get("surfaces", -1)) == 209
+			and int(cinder_bucket.get("multimesh_instances", -1)) == 584
+			and int(cinder_bucket.get("lights", -1)) == 27
+			and int(cinder_bucket.get("nodes", -1)) == 426,
 		"the streamed Cinder bucket independently accounts for its exact renderer and node roster"
 	)
 	_check(
-		int(loaded.get("total_triangles", 0)) - int(resident.get("total_triangles", 0)) == 117457
-			and int(loaded.get("total_mesh_instances", 0)) - int(resident.get("total_mesh_instances", 0)) == 166
-			and int(loaded.get("unique_meshes", 0)) - int(resident.get("unique_meshes", 0)) == 102
-			and int(loaded.get("retained_reachable_unique_materials", 0)) - int(resident.get("retained_reachable_unique_materials", 0)) == 19
-			and int(loaded.get("lights", 0)) - int(resident.get("lights", 0)) == 23
-			and int(loaded.get("nodes", 0)) - int(resident.get("nodes", 0)) == 301,
+		int(loaded.get("total_triangles", 0)) - int(resident.get("total_triangles", 0)) == 134134
+			and int(loaded.get("total_mesh_instances", 0)) - int(resident.get("total_mesh_instances", 0)) == 209
+			and int(loaded.get("unique_meshes", 0)) - int(resident.get("unique_meshes", 0)) == 140
+			and int(loaded.get("retained_reachable_unique_materials", 0)) - int(resident.get("retained_reachable_unique_materials", 0)) == 47
+			and int(loaded.get("lights", 0)) - int(resident.get("lights", 0)) == 27
+			and int(loaded.get("nodes", 0)) - int(resident.get("nodes", 0)) == 423,
 		"loaded-minus-resident delta is exact across geometry, retained resources, lights, and nodes"
 	)
 	_check(
@@ -162,11 +168,19 @@ func _run() -> void:
 				!= str(resident.get("measurement_fingerprint", "")),
 		"loaded measurement has its own exact scenario-sensitive fingerprint"
 	)
+	print("GEOMETRY_CENSUS_LOADED_RESOURCES: ", _resource_counts(loaded))
 	loaded_census.free()
 
 	game.queue_free()
 	await process_frame
 	_finish()
+
+
+func _resource_counts(report: Dictionary) -> Dictionary:
+	var counts := {}
+	for key in ["bound_phase_unique_materials", "retained_reachable_unique_materials", "lights", "nodes", "unique_shaders", "unique_textures", "texture_bytes", "particle_systems"]:
+		counts[key] = report.get(key)
+	return counts
 
 
 func _settle() -> void:

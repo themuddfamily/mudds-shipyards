@@ -25,7 +25,8 @@ extends RefCounted
 ##    doubling `pixel_size` produces a glyph block of *identical* world
 ##    dimensions, tessellated with fewer segments per curve.
 ##
-## This class applies both, and only both. It does not change text, colour,
+## This class applies both and clamps fractional font-hinting width growth.
+## It does not change text, colour,
 ## alignment, position, rotation, material or node scale, so it cannot change
 ## what a sign says, where it is, which way it faces, or which colour cue it
 ## carries. The MAP-004 facing work and the colourblind-safe cue palette are
@@ -37,7 +38,7 @@ extends RefCounted
 ## Curve tessellation resolution for station lettering.
 ##
 ## Re-frozen in the open. Old: 64, the Godot `TextMesh` default, used by every
-## sign builder in the project. New: 48.
+## sign builder in the project. The first reduction selected 48.
 ##
 ## Reason, from rendered evidence rather than assumption. 64, 48 and 32 were each
 ## built into the live world and photographed at reading distance and at distance
@@ -46,7 +47,7 @@ extends RefCounted
 ## indistinguishable from 64; 32 is *also* legible, with only a hint of extra
 ## flattening on the `S` terminals under magnification.
 ##
-## 48 is chosen anyway. Going from 48 to 32 saves a further 23,000 triangles,
+## 48 was initially chosen. Going from 48 to 32 saves a further 23,000 triangles,
 ## which is 1.4% of the scene — and it spends the entire remaining quality margin
 ## on the one class of object in the game whose whole job is to be read. Glyph
 ## tessellation is fixed geometry, so the margin that looks generous at 1080p is
@@ -54,13 +55,20 @@ extends RefCounted
 ## Windows PC increasingly is. 48 keeps 80% of the available saving and keeps the
 ## margin. If lettering ever needs to be cheaper than this, the next move is LOD
 ## or baked quads, not a coarser curve.
-const FONT_SIZE := 48
+## The current 43-sign station exceeded its unchanged 80,000-triangle ceiling.
+## A bounded 48 -> 47 change restores it to 79,412 triangles (from 81,381).
+## Same-camera 3840x2160 Forward+ comparisons of the junction and Cinder legends
+## retain the visible contour/readability margin. This is a font comparison,
+## not a native-hardware performance or whole-scene readability acceptance.
+const FONT_SIZE := 47
+const AUTHORED_FONT_SIZE := 64
 
 ## Em-height in world metres before node scale: `font_size * pixel_size`.
 ##
 ## The project's authored value was `64 * 0.012 = 0.768`. This constant preserves
-## it exactly, so `pixel_size` is derived rather than authored and no sign
-## changes size. A sign authored at some other product keeps its own product;
+## its nominal scale, so `pixel_size` is derived rather than authored. A tiny
+## hinting correction can reduce that scale to prevent width growth. A sign
+## authored at some other product starts from its own product;
 ## see `apply`.
 const REFERENCE_EM_METRES := 0.768
 
@@ -95,17 +103,30 @@ static func build(text: String, em_metres := REFERENCE_EM_METRES) -> TextMesh:
 
 ## Applies the budget to one `TextMesh` in place at a given em-height.
 ##
-## `pixel_size` is derived so `font_size * pixel_size` stays at `em_metres`,
-## which is what actually determines the glyph block's world size.
+## `pixel_size` starts from the authored em-height, then removes only any
+## font-hinting excess beyond the original 64-point glyph block width.
 static func apply(mesh: TextMesh, em_metres := REFERENCE_EM_METRES) -> TextMesh:
 	if mesh == null:
 		return mesh
 	var em := em_metres
 	if em <= 0.0:
 		em = REFERENCE_EM_METRES
+	# Font hinting can make the lower-resolution glyph block fractionally wider
+	# despite the same nominal em. Keep the original 64-point authored width as
+	# a strict ceiling (the Cinder legend otherwise grows 2.8 mm before scale).
+	# Only that rounding excess is removed; node scale and placement stay owned
+	# by the builder, and already-budgeted tree sweeps remain no-ops.
+	var authored := mesh.duplicate() as TextMesh
+	authored.font_size = AUTHORED_FONT_SIZE
+	authored.pixel_size = em / float(AUTHORED_FONT_SIZE)
+	authored.depth = DEPTH
+	var authored_width := authored.get_aabb().size.x
 	mesh.font_size = FONT_SIZE
 	mesh.pixel_size = em / float(FONT_SIZE)
 	mesh.depth = DEPTH
+	var budgeted_width := mesh.get_aabb().size.x
+	if authored_width > 0.0 and budgeted_width > authored_width:
+		mesh.pixel_size *= authored_width / budgeted_width
 	return mesh
 
 

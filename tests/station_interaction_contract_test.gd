@@ -47,9 +47,9 @@ func _run() -> void:
 	_check(not bool(report.get("owns_interaction_authority", true)), "interaction contract remains separate from GameFlow and StationDoor authority")
 
 	var deferred := report.get("deferred_landmarks", []) as Array
-	_check(int(report.get("deferred_landmark_count", 0)) == 3, "deferred landmark roster contains the two internal pads and one empty dock")
+	_check(int(report.get("deferred_landmark_count", 0)) == 2, "deferred landmark roster contains the two internal pads; all three comb docks have external assignments")
 	_check(_count_kind(deferred, &"deferred_connection_route") == 2, "deferred internal routes remain explicitly non-connection routes")
-	_check(_count_kind(deferred, &"deferred_dock") == 1, "exactly one empty dock remains a deferred presentation landmark")
+	_check(_count_kind(deferred, &"deferred_dock") == 0, "no assigned production dock remains an empty deferred landmark")
 	for row in deferred:
 		_check((row as Dictionary).get("errors", PackedStringArray()).is_empty(), "every deferred landmark carries an explicit non-authoritative contract")
 
@@ -79,16 +79,24 @@ func _run() -> void:
 
 	# A deferred dock may remain visible as a landmark, but it may not quietly
 	# become a station endpoint or acquire berth authority.
+	# All production docks are now assigned. Preserve the negative authority
+	# probe with an explicit unassigned landmark fixture under the live module.
 	var comb := world.get_fleet_dock_comb()
-	var deferred_marker := comb.get_deferred_dock_marker(&"deferred-dock-03") if comb != null else null
-	_check(deferred_marker != null, "the deferred dock marker is available for the authority-boundary probe")
-	if deferred_marker != null:
-		deferred_marker.set_meta("station_connection_slot", &"forbidden-slot")
-		var deferred_red := contract.audit(world)
-		_check(not bool(deferred_red.get("valid", true)), "a deferred dock claiming a route slot turns the audit red")
-		deferred_marker.remove_meta("station_connection_slot")
-		var restored_deferred := contract.audit(world)
-		_check(bool(restored_deferred.get("valid", false)), "restoring the deferred dock declaration returns the audit to green")
+	var deferred_marker := Marker3D.new()
+	deferred_marker.name = "DeferredDockAuthorityFixture"
+	deferred_marker.set_meta("deferred_dock", true)
+	deferred_marker.set_meta("dock_status", &"deferred_empty")
+	deferred_marker.set_meta("ship_assignment", &"none")
+	deferred_marker.set_meta("owns_berth_authority", false)
+	comb.add_child(deferred_marker)
+	_check(bool(contract.audit(world).get("valid", false)), "an explicit empty dock fixture starts with a valid non-authoritative contract")
+	deferred_marker.set_meta("station_connection_slot", &"forbidden-slot")
+	var deferred_red := contract.audit(world)
+	_check(not bool(deferred_red.get("valid", true)), "a deferred dock claiming a route slot turns the audit red")
+	deferred_marker.remove_meta("station_connection_slot")
+	var restored_deferred := contract.audit(world)
+	_check(bool(restored_deferred.get("valid", false)), "restoring the deferred dock declaration returns the audit to green")
+	deferred_marker.free()
 
 	_check(registry_before == world.get_station_route_registry_report(), "all interaction probes leave the published route topology byte-for-byte equivalent")
 	game.queue_free()

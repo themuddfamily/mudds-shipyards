@@ -194,10 +194,17 @@ func _check_world_rings() -> void:
 			"" if faceted_large.is_empty() else ": " + "; ".join(faceted_large),
 		]
 	)
+	# The sweep covers ordinary renderers; batched tori are budgeted by their
+	# builders. Their full authored copy cost still belongs under the world cap.
+	var batched_triangles := 0
+	for candidate in world.find_children("*", "MultiMeshInstance3D", true, false):
+		var batch := candidate as MultiMeshInstance3D
+		if batch.multimesh != null and batch.multimesh.mesh is TorusMesh:
+			batched_triangles += TorusGeometryBudget.triangles_of(batch.multimesh.mesh as TorusMesh) * batch.multimesh.instance_count
 	_check(
-		total <= WORLD_TORUS_TRIANGLE_CEILING,
+		total + batched_triangles <= WORLD_TORUS_TRIANGLE_CEILING,
 		"world ring geometry stays inside its budget (%d triangles, ceiling %d)" % [
-			total, WORLD_TORUS_TRIANGLE_CEILING,
+			total + batched_triangles, WORLD_TORUS_TRIANGLE_CEILING,
 		]
 	)
 	_check(
@@ -226,25 +233,25 @@ func _check_world_rings() -> void:
 		TorusGeometryBudget.PROFILE_AFT_INTERFACE_COLLAR, {}
 	) as Dictionary
 	_check(
-		aft_interface_profiles == 26
-		and int(aft_report.get("resources", 0)) == 26
-		and int(aft_report.get("instances", 0)) == 26,
-		"the bounded Aft interface family remains 26 independent visual collars/resources"
+		aft_interface_profiles == 20
+		and int(aft_report.get("resources", 0)) == 5
+		and int(aft_report.get("instances", 0)) == 20,
+		"the ordinary Aft interface renderers retain 20 copies sharing five immutable recipes"
 	)
 	_check(
-		int(aft_report.get("triangles_baseline", 0)) == 19968
-		and int(aft_report.get("triangles_after", 0)) == 13312
-		and int(aft_report.get("surfaces", 0)) == 26,
-		"Aft interface collars freeze at 19968 -> 13312 triangles with 26 surfaces unchanged"
+		int(aft_report.get("triangles_baseline", 0)) == 15360
+		and int(aft_report.get("triangles_after", 0)) == 10240
+		and int(aft_report.get("surfaces", 0)) == 20,
+		"ordinary Aft interface collars retain 15360 -> 10240 triangles across 20 surfaces"
 	)
 	var freight_report := profiles.get(
 		TorusGeometryBudget.PROFILE_FREIGHT_RECESSED_LASHING_RING, {}
 	) as Dictionary
 	_check(
 		freight_lashing_profiles == 8
-		and int(freight_report.get("resources", 0)) == 8
+		and int(freight_report.get("resources", 0)) == 1
 		and int(freight_report.get("instances", 0)) == 8,
-		"the bounded freight lashing family remains eight independent visual rings/resources"
+		"the freight lashing family retains eight independent visuals sharing one immutable ring recipe"
 	)
 	_check(
 		int(freight_report.get("triangles_baseline", 0)) == 6144
@@ -253,9 +260,16 @@ func _check_world_rings() -> void:
 		"freight lashing rings freeze at 6144 -> 4096 triangles while eight instances/surfaces stay exact"
 	)
 	_check(
-		total == 135840 and rings.size() == 154,
-		"the production world-subtree torus census freezes 137888 -> 135840 triangles across 154 unchanged visible copies"
+		total == 105824 and rings.size() == 127,
+		"the ordinary world-subtree TorusMesh renderers retain 105824 triangles across 127 copies"
 	)
+
+	# Six console collars moved out of the sweep's ordinary MeshInstance roster.
+	# Their builder explicitly applies the same profile before batching; retain
+	# its exact copies, recipe, buffer and authority checks in this budget suite.
+	var aft := world.get_node("AftJunctionStack") as AftJunctionStack
+	var shock := aft.get_console_shock_collar_visual_allocation_audit()
+	_check(bool(shock.valid), "the six batched console shock collars preserve their exact reviewed profile and authored renderer contract")
 
 	world.queue_free()
 

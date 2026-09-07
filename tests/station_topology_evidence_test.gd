@@ -113,7 +113,7 @@ func _test_document_tables_parse(documented: Dictionary) -> void:
 	# habitat's `dead_ends` cell had to empty in the same edit or this would have
 	# gone red from the other side.
 	_check(deferred.size() == 7, "the documented deferred-landmark table publishes seven landmarks")
-	_check(berths.size() == 5, "the documented berth table publishes five production berths")
+	_check(berths.size() == 9, "the documented berth table publishes nine production berths")
 
 
 # 2. The core comparison. Any divergence is printed in full, then fails.

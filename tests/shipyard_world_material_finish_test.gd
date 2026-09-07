@@ -80,7 +80,7 @@ func _run() -> void:
 		_check(
 			bool(berth_audit.get("valid", false))
 			and int(berth_audit.get("runtime_mesh_count", 0)) == 8
-			and int(berth_audit.get("runtime_triangle_count", 0)) == 11508,
+			and int(berth_audit.get("runtime_triangle_count", 0)) == 11508 + CentralBerthHeroPresentation.APPROACH_FASCIA_RUNTIME_TRIANGLE_DELTA,
 			"material-only berth finish preserves the authored mesh and triangle contract",
 		)
 	world.queue_free()

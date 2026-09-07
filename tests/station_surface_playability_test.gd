@@ -6,18 +6,20 @@ extends SceneTree
 
 const MAIN_SCENE := preload("res://scenes/main.tscn")
 const WORLD_LAYER := PhysicsLayers.WORLD
+# Halyard now splits the port pressure wall around its operable hatch; include
+# the closed PortHatchDoorCollision in the full parked-flight collision roster.
 const PRODUCTION_SHIP_ROOT_SHAPE_COUNTS := {
 	&"ArrowReconShip": 2,
 	&"BulwarkHeavyGunship": 3,
 	&"cinder_cargo_hauler": 8,
 	&"cinder_light_interceptor": 1,
 	&"cinder_long_range_bomber": 1,
-	&"HalyardCrewTransport": 21,
+	&"HalyardCrewTransport": 22,
 	&"JovianLightFreighter": 31,
 	&"TorrentInterceptor": 7,
 	&"ZenithInterceptor": 24,
 }
-const PRODUCTION_SHIP_ROOT_SHAPE_TOTAL := 98
+const PRODUCTION_SHIP_ROOT_SHAPE_TOTAL := 99
 
 const WORLD_SURFACE_PATHS := [
 	"ExposedDockLattice/CentralJunction",
@@ -767,7 +769,7 @@ func _test_observation_logistics_siting(world: ShipyardWorld, ships: Array[HeroS
 		and sampled_shape_count == PRODUCTION_SHIP_ROOT_SHAPE_TOTAL \
 		and sample_count == PRODUCTION_SHIP_ROOT_SHAPE_TOTAL * 21 \
 		and overflight_intrusions.is_empty(),
-		"all 98 enabled physical shapes across the exact nine-ship production roster clear Spur, connector, and Fabrication along the sampled +X overflight line"
+		"all 99 enabled physical shapes across the exact nine-ship production roster clear Spur, connector, and Fabrication along the sampled +X overflight line"
 	)
 	_check(
 		root_height_clearance > 16.0 and camera_sphere_clearance > 15.0,
@@ -998,7 +1000,7 @@ func _test_salvage_terrace_siting(world: ShipyardWorld, ships: Array[HeroShip]) 
 		_production_ship_root_shape_roster_matches(ships) \
 		and craft_shape_count == PRODUCTION_SHIP_ROOT_SHAPE_TOTAL \
 		and craft_intrusions.is_empty(),
-		"all 98 enabled physical shapes across the exact nine-ship production roster clear Salvage and its connector"
+		"all 99 enabled physical shapes across the exact nine-ship production roster clear Salvage and its connector"
 	)
 	_check(
 		absf(smallest_berth_gap - 8.060792) <= 0.00001,
@@ -1010,7 +1012,7 @@ func _test_salvage_terrace_siting(world: ShipyardWorld, ships: Array[HeroShip]) 
 		and assist_intrusions.is_empty() \
 		and smallest_assist_gap > 10.0 \
 		and absf(smallest_assist_gap - 24.622694) <= 0.00001,
-		"all 21 Halyard shapes clear Salvage throughout 21 samples of the real staging-to-dock assist path by more than 10 m"
+		"all 22 Halyard shapes clear Salvage throughout 21 samples of the real staging-to-dock assist path by more than 10 m"
 	)
 	_check(
 		capture_overlap_count == 0 and absf(smallest_capture_gap - 4.919998) <= 0.00001,

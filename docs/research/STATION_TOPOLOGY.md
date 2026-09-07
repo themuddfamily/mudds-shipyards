@@ -198,7 +198,7 @@ continuity is a walkability fact, not a recorded graph edge.
 | `dangling_slot_count` | 0 |
 | `overclaimed_slot_count` | 0 |
 | `authority_claim_count` | 0 |
-| `production_berth_count` | 5 |
+| `production_berth_count` | 9 |
 | `deferred_or_dead_end_route_marker_count` | 7 |
 
 <!-- LIVE-GRAPH-TOTALS:END -->
@@ -255,10 +255,10 @@ deliberate dead end and never joins the adjacency graph.
 
 | Landmark | Module ID | Route marker | World origin | Live gate |
 | --- | --- | --- | --- | --- |
-| Aft VIP access | `aft-junction-stack` | `vip-landmark` | `(-5.15, 4.35, 66.9)` | `VIPAccess` door, open, onto `VipReceptionSuite` — a `modern_interpretation` interior at confidence `none` |
+| Aft VIP access | `aft-junction-stack` | `vip-landmark` | `(-5.15, 4.35, 68.9)` | `VIPAccess` door, open, onto `VipReceptionSuite` — a `modern_interpretation` interior at confidence `none` |
 | Comb dock 01 threshold | `fleet-dock-comb` | `dock-01-threshold` | `(22.0, 4.35, 59.05)` | marker `assigned-dock-01`, `assigned_external`, external berth `zenith_fleet_dock_berth` |
 | Comb dock 02 threshold | `fleet-dock-comb` | `dock-02-threshold` | `(37.0, 4.35, 59.05)` | marker `deferred-dock-02`, `assigned_external`, external berth `halyard_fleet_dock_berth` |
-| Comb dock 03 threshold | `fleet-dock-comb` | `dock-03-threshold` | `(52.0, 6.75, 59.05)` | marker `deferred-dock-03`, `deferred_empty` |
+| Comb dock 03 threshold | `fleet-dock-comb` | `dock-03-threshold` | `(52.0, 6.75, 59.05)` | marker `deferred-dock-03`, `assigned_external`, external berth `bulwark_fleet_dock_berth` |
 | Fabrication south service gate | `fabrication_annex` | `annex_starboard_service` | `(84.0, 0.53, 24.0)` | open internal route; no station slot declared |
 | Observation pad | `observation-logistics-spur` | `observation-pad` | `(124.5, 0.38, 44.75)` | deferred internal route; no station slot declared |
 | Logistics pad | `observation-logistics-spur` | `logistics-pad` | `(124.5, 0.38, 31.25)` | deferred internal route; no station slot declared |
@@ -308,6 +308,10 @@ boarding, or spawn authority, and the registry records zero authority claims.
 | `jovian_freight_berth` | `(-53.0, 1.63, 57.3)` | `180` |
 | `zenith_fleet_dock_berth` | `(22.0, 5.28, 53.3)` | `0` |
 | `halyard_fleet_dock_berth` | `(37.0, 5.28, 53.3)` | `0` |
+| `bulwark_fleet_dock_berth` | `(52.0, 7.68, 53.05)` | `0` |
+| `dock_04_cargo` | `(4.0, 8.2, 84.7)` | `90` |
+| `dock_05_bomber` | `(-6.0, 8.2, 34.3)` | `90` |
+| `dock_06_interceptor` | `(46.0, 8.2, 68.3)` | `90` |
 
 <!-- LIVE-GRAPH-BERTHS:END -->
 
@@ -327,8 +331,8 @@ Exact implementation anchors:
 | Observation Logistics Spur | The world-owned `ObservationLogisticsConnector/RouteAnchor (91, 0.53, 38)` begins on the Fabrication rear aisle, crosses the exact 2.0 m² connector, and publishes `observation-logistics-spur-origin`; Spur root `(92.5, 0.38, 38)`, yaw `90°`, claims it through `origin` and extends to `x=132` | Wholly NEW `modern_interpretation`; no source authenticates the observation/logistics functions, two-pad loop, placement, connector, or adjacency. The route anchor is owned by `ShipyardWorld`, not borrowed from the Fabrication subtree, and the Spur owns zero gameplay authority. |
 | Salvage Terrace | The world-owned `SalvageTerraceConnector/RouteAnchor (84, 0.53, 51.91)` begins 0.09 m inside Fabrication's live north-service floor, passes its exact internal marker `(84, 0.53, 52)`, crosses 3.9312 m² of connector, and publishes `hub-salvage-terrace`; Terrace root `(84, 0.38, 52.91)`, identity yaw, claims it through `connector` | Wholly NEW `modern_interpretation`; no source authenticates salvage space, function, placement, connector, or adjacency. The route anchor and connector are world-owned, the Fabrication marker stays internal, and the Terrace owns zero gameplay authority. |
 | Aft | Central → AftSpine → AftModuleConnector `(0, -0.62, 43.5)` → AftJunctionStack `(0, 0, 48)`, whose `approach` marker at `(0, 0.15, 46.3)` claims `hub-aft-junction` | Open spine/room/vertical motifs are supported; exact module graph is modern. |
-| Fleet dock comb | `FleetDockCombConnector` is a child of the world's `ExposedDockLattice`, physically continuing past the Aft upper deck; its `FleetDockCombConnectorDeck (6, 3.88, 68.3)` publishes `hub-fleet-dock-comb`, which FleetDockComb `(12, 4.2, 68.3)`, yaw `90°`, claims through its `approach` marker at `(13, 4.35, 68.3)`. Local `+Z` becomes the starboard outbound trunk, `48 m` long. Its Dock01 marker is externally assigned by `ShipyardWorld` to the modern Zenith berth `zenith_fleet_dock_berth` at `(22, 5.28, 53.3)` and its Dock02 marker to the modern Halyard berth `halyard_fleet_dock_berth` at `(37, 5.28, 53.3)`; Dock03 remains empty/deferred. All three markers and the module itself remain non-authoritative. | B2 supports a repeated thin-trunk/rung/broad-slab rhythm and voids. Exact count, dimensions, placement, ramp, style, adjacency, dock numbering, and both external assignments are modern; no source authenticates a historical class-to-berth topology. The comb's graph edge is to the station hub, not to the Aft module. |
-| Production berth registry | `ShipyardWorld` owns exactly five lease-bound production berths: Central/Torrent, Arrow, Jovian, Zenith, and Halyard. FleetDockComb owns none of their berth, lease, landing, boarding, or spawn authority. | The registry, exact placements, lease behavior, and class assignments are implementation facts and `modern_interpretation`, not source-authenticated topology. |
+| Fleet dock comb | `FleetDockCombConnector` is a child of the world's `ExposedDockLattice`, physically continuing past the Aft upper deck; its `FleetDockCombConnectorDeck (6, 3.88, 68.3)` publishes `hub-fleet-dock-comb`, which FleetDockComb `(12, 4.2, 68.3)`, yaw `90°`, claims through its `approach` marker at `(13, 4.35, 68.3)`. Local `+Z` becomes the starboard outbound trunk, `48 m` long. Its Dock01 marker is externally assigned by `ShipyardWorld` to the modern Zenith berth `zenith_fleet_dock_berth` at `(22, 5.28, 53.3)` and its Dock02 marker to the modern Halyard berth `halyard_fleet_dock_berth` at `(37, 5.28, 53.3)`; Dock03 is externally assigned to the modern Bulwark berth `bulwark_fleet_dock_berth` at `(52, 7.68, 53.05)`. All three markers and the module itself remain non-authoritative. | B2 supports a repeated thin-trunk/rung/broad-slab rhythm and voids. Exact count, dimensions, placement, ramp, style, adjacency, dock numbering, and all three external assignments are modern; no source authenticates a historical class-to-berth topology. The comb's graph edge is to the station hub, not to the Aft module. |
+| Production berth registry | `ShipyardWorld` owns exactly nine lease-bound production berths: Central/Torrent, Arrow, Jovian, Zenith, Halyard, Bulwark, and the three expansion cargo/bomber/interceptor berths. FleetDockComb owns none of their berth, lease, landing, boarding, or spawn authority. | The registry, exact placements, lease behavior, and class assignments are implementation facts and `modern_interpretation`, not source-authenticated topology. |
 | Operational overlay | Activities, ambience, and facade dressing at Central/Aft/Habitat/Freight | Entirely modern presentation; no topology authority. |
 
 ### Fabrication production integration audit
@@ -485,7 +489,7 @@ fixed-build attribution.
 | --- | --- | --- | --- | --- | --- |
 | A red VIP landmark is visible from the spawn deck | — (sightline only; nothing is built to reproduce it) | observed | B3 `00:04–00:52` "…and red VIP sightline" | `original_era_observed` | distance, elevation, whether any route reached it |
 | A red VIP area with an interior | — (deliberately not built) | fixed-era-inspired | C1 `03:20` "Red VIP area" | `later_source_only` | contents, plan, provenance, era |
-| Live VIP door and landmark | `AftJunctionStack/VIPAccess` plus `vip-landmark` `(-5.15, 4.35, 66.9)` | new | none | `modern_interpretation` | placement, elevation, adjacency to the operations room |
+| Live VIP door and landmark | `AftJunctionStack/VIPAccess` plus `vip-landmark` `(-5.15, 4.35, 68.9)` | new | none | `modern_interpretation` | placement, elevation, adjacency to the operations room |
 | Live VIP interior behind that door | `VipReceptionSuite` (threshold, reception lounge, outboard glazing), cantilevered off the aft upper deck | new | none | `modern_interpretation` at confidence `none` | everything: whether any original interior existed, its plan, contents, materials, lighting, scale and era |
 | Any traversable route from a spawn deck to a VIP interior | none exists | unknown | none | `unknown` | B3 gives a sightline, C1 gives an area; no source joins them |
 
