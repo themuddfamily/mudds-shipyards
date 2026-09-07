@@ -40,6 +40,7 @@ extends HeroShip
 ## rails and paired round housings; both are evidence-bounded reads and are not
 ## available to a modern design.
 
+const ShipCabinHatchType := preload("res://scripts/interaction/ship_cabin_hatch.gd")
 const ShipBunkType := preload("res://scripts/interaction/ship_bunk.gd")
 
 const SCHEMA_VERSION := 1
@@ -3116,6 +3117,7 @@ func _build_connected_interior() -> void:
 	_build_crew_cabin()
 	_build_aft_systems_bay()
 	_build_interior_route_and_markers()
+	ShipCabinHatchType.install(_walkable_interior, self, PORT_HATCH_DOOR_CLOSED_POSITION)
 
 
 ## The multi-crew half of the flight deck. The inherited common cockpit supplies
