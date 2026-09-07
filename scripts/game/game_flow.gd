@@ -2,6 +2,7 @@ class_name GameFlow
 extends Node3D
 
 const PlanetaryJourneyCoordinatorType := preload("res://scripts/game/planetary_journey_coordinator.gd")
+const ShipRestOverlayType := preload("res://scripts/ui/ship_rest_overlay.gd")
 
 const LiveCombatAuthorityType := preload("res://scripts/combat/live_combat_authority.gd")
 const ShotRequestType := preload("res://scripts/combat/shot_request.gd")
@@ -604,6 +605,7 @@ var _driving := false
 ## acquires no driving, piloting, berth, or network authority.
 var _station_seated := false
 var _active_station_seat: StationSeat
+var _ship_rest_overlay: CanvasLayer
 var _station_seat_recovery_transform := Transform3D.IDENTITY
 ## Which of the tow tractor's two independent safety guards last recalled the
 ## driver. Diagnostic only; nothing gameplay-facing reads it.
@@ -5830,10 +5832,15 @@ func _update_on_foot_flow() -> void:
 		hud.set_interaction("", false)
 		return
 	if phase == Phase.IN_FLIGHT_CABIN:
-		if _near_ship and boarding_candidate == _cabin_ship:
+		if station_interaction_candidate is ShipBunk:
+			hud.set_interaction(station_interaction_candidate.get_interaction_prompt())
+		elif _near_ship and boarding_candidate == _cabin_ship:
 			hud.set_interaction("[ E ]  TAKE THE PILOT SEAT")
 		else:
-			hud.set_interaction("WALK FORWARD TO THE COCKPIT", true)
+			hud.set_interaction(
+				"WALK AFT TO THE BUNKS  //  FORWARD TO THE COCKPIT"
+				if _cabin_ship is HalyardCrewTransport else "WALK FORWARD TO THE COCKPIT", true
+			)
 	elif is_instance_valid(station_interaction_candidate):
 		# A station console wins this press over a nearby boarding area. Retire the
 		# last proximity-only boarding card at the same boundary so it cannot stay
@@ -6780,6 +6787,15 @@ func _update_station_seat_flow() -> void:
 	if not is_instance_valid(_active_station_seat):
 		_recover_from_station_seat()
 		return
+	# A sleeping passenger follows the same live hull as the bunk. Keep recovery
+	# in that frame too, so deleting a berth never recalls them to stale space.
+	_station_seat_recovery_transform = _active_station_seat.get_exit_transform()
+	if _active_station_seat is ShipBunk:
+		var rest_ship := (_active_station_seat as ShipBunk).get_ship()
+		if not is_instance_valid(rest_ship) or rest_ship.is_destroyed():
+			_station_seat_recovery_transform = world.get_player_spawn()
+			_recover_from_station_seat()
+			return
 	if _transition_busy:
 		hud.set_interaction("", false)
 		return
@@ -6787,11 +6803,18 @@ func _update_station_seat_flow() -> void:
 
 
 func _sit_in_station_seat(seat: StationSeat) -> void:
+	var rest_ship: HeroShip = (seat as ShipBunk).get_ship() if seat is ShipBunk else null
+	var cabin_rest := seat is ShipBunk and phase == Phase.IN_FLIGHT_CABIN \
+		and is_instance_valid(rest_ship) and rest_ship == _cabin_ship
 	if (
 		_transition_busy
 		or _station_seated
 		or not is_instance_valid(seat)
-		or phase not in [Phase.APPROACH_SHIP, Phase.COMPLETE]
+		or (phase not in [Phase.APPROACH_SHIP, Phase.COMPLETE] and not cabin_rest)
+		or (seat is ShipBunk and (
+			not is_instance_valid(rest_ship) or rest_ship.is_destroyed()
+			or (not cabin_rest and not bool(rest_ship.get_telemetry().get("landed", false)))
+		))
 		or player.get_interaction_origin().distance_to(seat.get_entry_transform().origin) \
 			> STATION_SEAT_MAX_REACH
 		or not seat.try_reserve(player)
@@ -6804,7 +6827,8 @@ func _sit_in_station_seat(seat: StationSeat) -> void:
 	player.set_control_enabled(false)
 	hud.set_interaction("", false)
 	if not player.begin_boarding(
-		seat.get_entry_transform(), seat.get_seat_anchor(), minf(boarding_motion_time, 0.75)
+		seat.get_entry_transform(), seat.get_seat_anchor(), minf(boarding_motion_time, 0.75),
+		rest_ship
 	):
 		seat.cancel_reservation(player)
 		_active_station_seat = null
@@ -6825,7 +6849,7 @@ func _sit_in_station_seat(seat: StationSeat) -> void:
 		return
 	seat.finish_transition(player)
 	_station_seated = true
-	player.set_station_seated_context(true)
+	_set_seat_rest_context(seat, true)
 	player.set_control_enabled(true)
 	_transition_busy = false
 	audio.play_ui_confirm()
@@ -6843,11 +6867,14 @@ func _stand_from_station_seat() -> void:
 	_transition_busy = true
 	var generation := _begin_transition_generation()
 	player.set_control_enabled(false)
-	player.set_station_seated_context(false)
+	_set_seat_rest_context(seat, false)
 	hud.set_interaction("", false)
-	if not player.begin_disembark(seat.get_exit_transform(), minf(disembarking_motion_time, 0.65)):
+	var rest_ship: HeroShip = (seat as ShipBunk).get_ship() if seat is ShipBunk else null
+	if not player.begin_disembark(
+		seat.get_exit_transform(), minf(disembarking_motion_time, 0.65), rest_ship
+	):
 		seat.finish_transition(player)
-		player.set_station_seated_context(true)
+		_set_seat_rest_context(seat, true)
 		player.set_control_enabled(true)
 		_transition_busy = false
 		return
@@ -6867,7 +6894,28 @@ func _stand_from_station_seat() -> void:
 	audio.play_ui_confirm()
 
 
+func _set_seat_rest_context(seat: StationSeat, enabled: bool) -> void:
+	if seat is ShipBunk:
+		player.set_sleeping_context(enabled)
+		if enabled:
+			if not is_instance_valid(_ship_rest_overlay):
+				_ship_rest_overlay = ShipRestOverlayType.new()
+				_ship_rest_overlay.name = "ShipRestOverlay"
+				add_child(_ship_rest_overlay)
+			_ship_rest_overlay.begin_rest((seat as ShipBunk).get_ship().get_display_name())
+		else:
+			_end_ship_rest_presentation()
+	else:
+		player.set_station_seated_context(enabled)
+
+
+func _end_ship_rest_presentation() -> void:
+	if is_instance_valid(_ship_rest_overlay):
+		_ship_rest_overlay.end_rest()
+
+
 func _cancel_station_seat_for_detach() -> void:
+	_end_ship_rest_presentation()
 	if not _station_seated and not is_instance_valid(_active_station_seat):
 		return
 	_invalidate_transition_generation()
@@ -6882,6 +6930,7 @@ func _cancel_station_seat_for_detach() -> void:
 
 
 func _recover_from_station_seat() -> void:
+	_end_ship_rest_presentation()
 	_invalidate_transition_generation()
 	if is_instance_valid(_active_station_seat) and is_instance_valid(player):
 		_active_station_seat.cancel_reservation(player)
@@ -6890,6 +6939,9 @@ func _recover_from_station_seat() -> void:
 	_transition_busy = false
 	if is_instance_valid(player):
 		player.force_recovery_to_on_foot(_station_seat_recovery_transform)
+		if phase == Phase.IN_FLIGHT_CABIN and is_instance_valid(_cabin_ship) \
+				and not _cabin_ship.is_destroyed():
+			_bind_cabin_occupancy(_cabin_ship)
 		player.set_control_enabled(true)
 	if is_instance_valid(hud):
 		hud.set_interaction("", false)
@@ -10218,6 +10270,11 @@ func _on_ship_destroyed(
 	_publish_network_damage_state(source_ship, 0.0, true)
 	if source_ship.get_pending_terminal_damage_presentation_receipt_id() < 0:
 		combat_audio.play_explosion(world_position, source_ship.get_instance_id())
+	if _active_station_seat is ShipBunk \
+			and (_active_station_seat as ShipBunk).get_ship() == source_ship:
+		_cancel_station_seat_for_detach()
+		if phase != Phase.IN_FLIGHT_CABIN:
+			_recall_pilot_to_deck()
 	if source_ship == active_ship and _planetary_return_physical_arrival_armed:
 		_abort_planetary_return_physical_arrival(&"return_ship_destroyed")
 	_release_ship_berth(source_ship)
@@ -10240,6 +10297,7 @@ func _on_ship_destroyed(
 
 func _recover_from_destroyed_ship(destroyed_ship: HeroShip) -> void:
 	_recovering = true
+	_cancel_station_seat_for_detach()
 	_advance_first_sortie_tutorial_source(&"active_ship_destroyed")
 	# Losing the cabin is exactly the case the outer safety net exists for. Drop
 	# containment and occupancy before the avatar is teleported back to the deck,

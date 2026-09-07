@@ -242,6 +242,7 @@ var _embodiment_state := EmbodimentState.ON_FOOT
 ## input while locomotion remains suspended. Pilot and vehicle seats never set
 ## this flag and retain their existing external-camera/control ownership.
 var _station_seated_context := false
+var _sleeping_context := false
 var _station_disembark_pending := false
 var _seat_anchor: Node3D
 var _transition_start := Transform3D.IDENTITY
@@ -447,6 +448,8 @@ func _unhandled_input(event: InputEvent) -> void:
 	if event.is_action_pressed("pause"):
 		Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 		return
+	if _sleeping_context:
+		return
 
 	if event.is_action_pressed("toggle_first_person"):
 		toggle_camera_view_mode()
@@ -620,6 +623,7 @@ func force_recovery_to_on_foot(target: Transform3D) -> void:
 	var interrupted_state := _embodiment_state
 	_control_enabled = false
 	_station_seated_context = false
+	_sleeping_context = false
 	# Destructive recovery is world-space by definition: the craft that owned the
 	# frame and the cabin envelope is the thing that was just lost.
 	_clear_cabin_containment()
@@ -662,6 +666,23 @@ func set_station_seated_context(enabled: bool) -> void:
 
 func is_station_seated() -> bool:
 	return _station_seated_context and _embodiment_state == EmbodimentState.SEATED
+
+
+## A bunk uses the live anchor/transition machinery without granting pilot
+## controls. Its horizontal anchor lays the idle body on the mattress; E remains
+## available to wake, while look and locomotion stay suspended during rest.
+func set_sleeping_context(enabled: bool) -> void:
+	_sleeping_context = enabled and is_seated()
+	set_station_seated_context(enabled)
+	if is_seated():
+		_set_motion_state(
+			MOTION_IDLE if _sleeping_context else MOTION_SEATED_CONTROL,
+			0.0, 1.0, true, true
+		)
+
+
+func is_sleeping() -> bool:
+	return _sleeping_context and is_seated()
 
 
 func get_camera() -> Camera3D:
@@ -1113,6 +1134,7 @@ func _complete_disembark() -> void:
 	velocity = Vector3.ZERO
 	_seat_anchor = null
 	_station_seated_context = false
+	_sleeping_context = false
 	_station_disembark_pending = false
 	process_physics_priority = _standing_physics_priority
 	_reset_body_facing()
