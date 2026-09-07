@@ -22,15 +22,15 @@ The historical evidence boundary is unchanged: Torrent's B5 link and Zenith's B7
 
 ## Next milestone
 
-Qualify the Ember pad repair, then review the replacement stabilization candidate with normal Windows controls.
+Qualify the Ember pad and Cinder step repairs, then review the replacement stabilization candidate with normal Windows controls.
 
 Regression discovery now includes nested suites and registered graphical harnesses; CI runs the eight-suite core on changes and broader suites on a schedule. Failed diagnostic saves retain their records and back off between retries. The planetary journey coordinator now lives outside `GameFlow` and remains attached across Ember return cycles. Equivalent audio validators share one implementation.
 
 The stabilization pass repairs physical boarding, moving-cabin collision alignment, doorway face winding, Cinder streaming fades, startup cleanup and network HUD revision handling, and stabilizes foot placement during extended play.
 
-Candidate **`e558431991279ad04f8152bdeec4877591aa64b0`**, exported on 2026-09-07, was rejected by the station ramp check: a 1 cm player collision recovery margin put the capsule feet 0.1073 m above the ramp, beyond the existing 0.10 m limit. Its full matrix and physical Ember package probe were deliberately stopped for repair; this candidate is not qualified. All package probes used Linux Godot.
+Candidate **`7246612407458a74e74d366f405d66977fa8439d`**, exported on 2026-09-07, passed the four standard station package probes. Its broader regression run found the player stuck against a step in the Cinder cargo route. The full matrix and physical Ember package probe were deliberately stopped for repair; this candidate is not qualified. All package probes used Linux Godot.
 
-The source repair now increases the player's collision recovery margin from 1 mm to 2 mm, retaining floor contact at the exact reproduced Ember position while keeping ramp clearance at 0.0984 m. The extended movement suite passes all 20 checks, the unchanged station playability suite passes all 86 checks, and five repeated real-Host pad crossings pass. Host support guards remain intact. The replacement full matrix and package checks must pass before this repair qualifies the expedition.
+The source repair uses a 2 mm player collision recovery margin to retain Ember floor contact while keeping station ramp clearance within its existing limit. Step assistance now accepts the small movement attempted immediately after hitting a step; its landing-distance, height and capsule-clearance limits remain intact. The unchanged Cinder cargo and station playability suites pass. The replacement full matrix and package checks must pass before these repairs qualify the expedition.
 
 The survey connection now uses the existing reward and save authorities. Saving the opaque session identifier as text fixes a JSON precision failure without changing live admission or older readable saves. Physical verification now completes the real survey instead of manually retiring it and supplying a return manifest. Full departure, package and human acceptance remain pending.
 
