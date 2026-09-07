@@ -28,7 +28,6 @@ func _init() -> void:
 func _run() -> void:
 	_check(RenderingServer.get_current_rendering_method() == &"forward_plus", "capture uses the Forward+ renderer")
 	_check(DisplayServer.get_name() == "X11", "capture uses the display-backed X11 path")
-	_check(root.size == Vector2i(1600, 900), "capture viewport is exactly 1600x900")
 
 	var background := ColorRect.new()
 	background.color = Color("071321")
@@ -38,6 +37,16 @@ func _run() -> void:
 	hud.name = "CinderNavigatorPingProductionHud"
 	root.add_child(hud)
 	await process_frame
+	# Project window overrides start at 1280x720 despite 1600x900 content.
+	# Establish the capture's one-to-one pixel size after the production HUD is ready.
+	root.mode = Window.MODE_WINDOWED
+	root.content_scale_mode = Window.CONTENT_SCALE_MODE_DISABLED
+	root.content_scale_size = Vector2i.ZERO
+	root.content_scale_factor = 1.0
+	root.size = Vector2i(1600, 900)
+	DisplayServer.window_set_size(Vector2i(1600, 900))
+	await process_frame
+	_check(root.size == Vector2i(1600, 900), "capture viewport is exactly 1600x900")
 	# Enter the same public HUD layer that normal interact/jump input reveals.
 	# Reduced motion makes the production intro transition deterministic here.
 	hud.set("_reduced_motion", true)
