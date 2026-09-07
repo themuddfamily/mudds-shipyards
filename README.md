@@ -25,7 +25,7 @@ The historical evidence boundary is unchanged: Torrent's B5 link and Zenith's B7
 
 ## Next milestone
 
-The current feature pass adds a second visitable world and a usable liveaboard cabin. Verify the combined Aurora landing → cabin → bunk → surface → home journey, then package the tested source. The stabilization results below describe the preceding candidate.
+The current feature pass adds a second visitable world and a usable liveaboard cabin. Automated gameplay coverage follows Aurora landing → cabin → bunk → surface → home, and separately exercises sleeping aboard a drifting ship, waking, retaking the pilot seat and ship-loss recovery. The stabilization results below describe the preceding candidate.
 
 Regression discovery now includes nested suites and registered graphical harnesses; CI runs the eight-suite core on changes and broader suites on a schedule. Failed diagnostic saves retain their records and back off between retries. The planetary journey coordinator now lives outside `GameFlow` and remains attached across Ember return cycles. Equivalent audio validators share one implementation.
 

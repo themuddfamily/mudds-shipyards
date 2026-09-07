@@ -4,7 +4,7 @@ The current game has **nine flyable craft and implemented slices across Phases 2
 
 ## Current state and next milestone — 2026-09-07
 
-The current player-facing feature pass connects Aurora as a second visitable destination and makes the Halyard a liveaboard craft. Players can land, leave the ship, walk through its physical hatch to the aft bunks, sleep, wake and return to the surface or pilot seat. Combined gameplay and package validation are in progress; prior stabilization evidence below remains tied to its original source. Full planetary breadth and the external review/performance gates remain open.
+The current player-facing feature pass connects Aurora as a second visitable destination and makes the Halyard a liveaboard craft. Players can land, leave the ship, walk through its physical hatch to the aft bunks, sleep, wake and return to the surface or pilot seat. Combined gameplay tests cover the Aurora surface-to-bunk round trip and sleeping aboard a drifting ship; package results must be read against their exact source. Prior stabilization evidence below remains tied to its original source. Full planetary breadth and the external review/performance gates remain open.
 
 The [README capability inventory](README.md#current-prototype-slice) describes the running source. Recursive regression discovery, graphical registration, fast-core and scheduled broader CI, bounded diagnostic-save retries and the retained planetary journey extraction are implemented. Stabilization also fixes boarding, moving-cabin collision alignment, extended foot-placement drift, streaming, startup and network behavior.
 
