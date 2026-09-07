@@ -117,9 +117,9 @@ func _initialize() -> void:
 	craft.queue_free()
 	await process_frame
 	if _failures.is_empty():
-		print("PASS cinder_cargo_hauler_freight_frame_visual_test (%d assertions)" % _assertions)
 		if save_error == OK:
 			print("CINDER_CARGO_HAULER_FREIGHT_FRAME_CAPTURE %s" % capture_path)
+		print("PASS cinder_cargo_hauler_freight_frame_visual_test (%d assertions)" % _assertions)
 		quit(0)
 		return
 	for failure in _failures:
