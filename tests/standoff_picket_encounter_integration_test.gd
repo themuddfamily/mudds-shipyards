@@ -80,6 +80,7 @@ func _test_production_encounter() -> void:
 	)
 	_check(
 		resolver.get_registered_source_count() == 12
+		and bool(game.get_live_combat_source_roster_audit().valid)
 		and not picket.is_combat_source_registered(),
 		"a dormant picket leaves the coordinator's twelve-source census exactly as it was"
 	)
@@ -133,6 +134,7 @@ func _test_production_encounter() -> void:
 	)
 	_check(
 		resolver.get_registered_source_count() == 13
+		and bool(game.get_live_combat_source_roster_audit().valid)
 		and picket.is_combat_source_registered()
 		and authority.get_source_id(picket) == picket.source_id
 		and authority.get_source_id(defender) == GameFlow.OPPONENT_SOURCE_ID
@@ -268,6 +270,7 @@ func _test_production_encounter() -> void:
 	await process_frame
 	_check(
 		resolver.get_registered_source_count() == 13
+		and bool(game.get_live_combat_source_roster_audit().valid)
 		and picket.is_combat_source_registered()
 		and authority.get_source_id(picket) == picket.source_id,
 		"re-entry restores exactly one picket registration beside the twelve coordinator sources"
@@ -308,6 +311,7 @@ func _test_production_encounter() -> void:
 	_check(
 		not picket.is_combat_source_registered()
 		and resolver.get_registered_source_count() == 12
+		and bool(game.get_live_combat_source_roster_audit().valid)
 		and picket.get_pending_lance_receipt_count() == 0,
 		"withdrawal restores the coordinator's twelve-source census and strands no receipt"
 	)

@@ -88,6 +88,31 @@ func _test_paired_wing_scatter_scenario() -> void:
 	if flanker == null:
 		await _free_game(game)
 		return
+	var picket := game.get_node("StandoffPicket") as StandoffPicketOpponent
+	var picket_launched := await _advance_until(
+		func() -> bool: return picket.is_active(), SETTLE_FRAME_BUDGET
+	)
+	_check(
+		picket_launched and resolver.get_registered_source_count() == 15
+		and bool(game.get_live_combat_source_roster_audit().valid),
+		"the paired wing and picket compose exactly fifteen audited live sources"
+	)
+	root.remove_child(game)
+	await process_frame
+	_check(
+		resolver.get_registered_source_count() == 0,
+		"whole-Main detach unregisters the active paired wing and picket"
+	)
+	root.add_child(game)
+	await process_frame
+	await physics_frame
+	await process_frame
+	_check(
+		director.is_running() and coordinator.get_active_member_count() == 2
+		and resolver.get_registered_source_count() == 15
+		and bool(game.get_live_combat_source_roster_audit().valid),
+		"whole-Main reentry restores the running pair and picket with fifteen exact sources"
+	)
 	flanker.acceleration = 0.0
 	flanker.velocity = Vector3.ZERO
 	var rear_origin := target.global_position + target.global_basis.z * 48.0
@@ -197,7 +222,7 @@ func _test_production_encounter() -> void:
 	# The settled production fleet and defence roster has twelve sources.
 	# Dormant scenario opponents must add none until admitted by the director.
 	_check(
-		baseline_sources == 12,
+		baseline_sources == 12 and bool(game.get_live_combat_source_roster_audit().valid),
 		"the new craft leave the coordinator's twelve-source census exactly as it was (%d)"
 			% baseline_sources
 	)
@@ -255,6 +280,7 @@ func _test_production_encounter() -> void:
 	)
 	_check(
 		resolver.get_registered_source_count() == baseline_sources + 1
+		and bool(game.get_live_combat_source_roster_audit().valid)
 		and courier.is_combat_source_registered()
 		and authority.get_source_id(courier) == courier.source_id
 		and authority.get_source_id(defender) == GameFlow.OPPONENT_SOURCE_ID
@@ -359,7 +385,8 @@ func _test_production_encounter() -> void:
 		"both escorts launch and register their own combat identities"
 	)
 	_check(
-		resolver.get_registered_source_count() >= baseline_sources + 3,
+		resolver.get_registered_source_count() >= baseline_sources + 3
+		and bool(game.get_live_combat_source_roster_audit().valid),
 		"the escort adds its own identities without displacing any existing source"
 	)
 	await _advance_physics(2)
@@ -524,8 +551,9 @@ func _test_production_encounter() -> void:
 		"the withdrawn scenario releases its roster and empties the wing"
 	)
 	_check(
-		resolver.get_registered_source_count() <= baseline_sources + 1,
-		"the withdrawn scenario returns the source census to the fleet, the defender and the picket (%d)"
+		resolver.get_registered_source_count() == baseline_sources
+		and bool(game.get_live_combat_source_roster_audit().valid),
+		"the withdrawn scenario returns the source census to the twelve baseline sources (%d)"
 			% resolver.get_registered_source_count()
 	)
 	_check(
