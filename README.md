@@ -26,7 +26,7 @@ Deliver a source-pinned stabilization candidate for normal-controls Windows feed
 
 Regression discovery now includes nested suites and registered graphical harnesses; CI runs the eight-suite core on changes and broader suites on a schedule. Failed diagnostic saves retain their records and back off between retries. The planetary journey coordinator now lives outside `GameFlow` and remains attached across Ember return cycles. Equivalent audio validators share one implementation.
 
-The current stabilization pass also repairs physical boarding, moving-cabin collision alignment, doorway face winding, Cinder streaming fades, startup cleanup and network HUD revision handling. Focused checks have passed; the complete matrix must pass on the merged source before release qualification.
+The current stabilization pass also repairs physical boarding, moving-cabin collision alignment, stable foot placement during extended play, doorway face winding, Cinder streaming fades, startup cleanup and network HUD revision handling. Focused checks have passed; the complete matrix must pass on the merged source before release qualification.
 
 1. Finish the merged full regression and export its exact source revision.
 2. Exercise boarding, combat, landing, disembarking, crash recovery and the Ember expedition on Windows using normal controls. Tune camera comfort, landing clarity, prompts and audio from recorded observations.
