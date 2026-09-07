@@ -79,13 +79,14 @@ func _run() -> void:
 	# The tread family's original 269->266 reduction remains pinned by its exact
 	# local assertions. Later independent work reached 250/12/348/262 at this
 	# branch's parent; the portal batch alone then yields 246/13/348/259.
+	# Liveaboard bedding and reading fixtures add eight unbatched interior copies.
 	_check(
-		int(full_counts.renderers) == 259
-			and int(full_counts.mesh_instances) == 246
+		int(full_counts.renderers) == 267
+			and int(full_counts.mesh_instances) == 254
 			and int(full_counts.multimesh_batches) == 13
-			and int(full_counts.authored_copies) == 348
-			and int(full_counts.geometry_submissions) == 259,
-		"the exact current craft snapshot keeps all 348 visual copies across 259 allocations"
+			and int(full_counts.authored_copies) == 356
+			and int(full_counts.geometry_submissions) == 267,
+		"the exact current craft snapshot keeps all 356 visual copies across 267 allocations"
 	)
 
 	var collision_count := craft.find_children("*", "CollisionShape3D", true, false).size()
@@ -150,8 +151,8 @@ func _run() -> void:
 
 	print(
 		"HALYARD_AIRSTAIR_TREAD_BATCH_METRICS: local_renderers=269->266 "
-		+ "local_submissions=269->266 current_renderers=259 current_submissions=259 "
-		+ "current_exterior_submissions=110 current_authored_copies=348 visual_review=NOT_RUN"
+		+ "local_submissions=269->266 current_renderers=267 current_submissions=267 "
+		+ "current_exterior_submissions=110 current_authored_copies=356 visual_review=NOT_RUN"
 	)
 	_finish(craft)
 

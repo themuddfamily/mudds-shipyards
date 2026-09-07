@@ -90,12 +90,13 @@ func _run() -> void:
 		"the separate exterior allocation freeze remains exact"
 	)
 	var full_counts := _full_render_counts(craft)
+	# Liveaboard bedding and reading fixtures add eight unbatched interior copies.
 	_check(
-		int(full_counts.mesh_instances) == 246
+		int(full_counts.mesh_instances) == 254
 			and int(full_counts.multimesh_batches) == 13
-			and int(full_counts.drawn_copies) == 348
-			and int(full_counts.geometry_submissions) == 259,
-		"all 348 craft copies remain while full-craft nodes and submissions fall by three"
+			and int(full_counts.drawn_copies) == 356
+			and int(full_counts.geometry_submissions) == 267,
+		"all 356 craft copies remain while full-craft nodes and submissions fall by three"
 	)
 
 	craft.queue_free()

@@ -9,10 +9,12 @@ const MAIN_SCENE := preload("res://scenes/main.tscn")
 
 # Current authored composition includes the nine-craft fleet, physical berth
 # feedback, embodied service/activity/destination boards, Salvage work lighting,
-# and the loaded Cinder berth/cargo presentation. This refresh changes no schema
-# or geometry budget; retained materials include unloaded reachable content.
-const RESIDENT_FINGERPRINT := "bcbb692229c32e9f9471a5af197ac1820d0803157952de09e432ff2bdd50c7de"
-const CINDER_LOADED_FINGERPRINT := "f05daf12f9bd60a1ada9dc6503a69b06a7a0b193ae27ddb9ab11ed6c682518a2"
+# the loaded Cinder berth/cargo presentation, and Halyard liveaboard berths.
+# Bedding, emissive reading fixtures and berth labels add 10 renderers and five
+# materials while preserving the light budget. Retained materials include
+# unloaded reachable content; the existing schema and Cinder delta stay fixed.
+const RESIDENT_FINGERPRINT := "9ab2f092ead4bbd023e7e779e0bdf12192637838f9198aeef6d9bd396a36e3ca"
+const CINDER_LOADED_FINGERPRINT := "003d2cc18048fb35b68903b239beccc1d0edd1637a569ddba430955a321a3979"
 
 var _assertions := 0
 var _failures := PackedStringArray()
@@ -61,18 +63,18 @@ func _run() -> void:
 		"resident report freezes schema, scenario identity, and exact loaded count"
 	)
 	_check(
-		int(resident.get("total_triangles", -1)) == 1858100
-			and int(resident.get("total_mesh_instances", -1)) == 5849
-			and int(resident.get("total_surfaces", -1)) == 5868
-			and int(resident.get("unique_meshes", -1)) == 2737,
-		"resident geometry freezes 1,858,100 triangles / 5,849 meshes / 5,868 surfaces / 2,737 unique meshes"
+		int(resident.get("total_triangles", -1)) == 1859367
+			and int(resident.get("total_mesh_instances", -1)) == 5859
+			and int(resident.get("total_surfaces", -1)) == 5878
+			and int(resident.get("unique_meshes", -1)) == 2741,
+		"resident geometry freezes 1,859,367 triangles / 5,859 meshes / 5,878 surfaces / 2,741 unique meshes"
 	)
 	_check(
-		int(resident.get("bound_phase_unique_materials", -1)) == 606
-			and int(resident.get("retained_reachable_unique_materials", -1)) == 897
+		int(resident.get("bound_phase_unique_materials", -1)) == 611
+			and int(resident.get("retained_reachable_unique_materials", -1)) == 902
 			and int(resident.get("lights", -1)) == 335
-			and int(resident.get("nodes", -1)) == 10719,
-		"resident resource roster freezes 606 bound / 897 retained materials, 335 lights, and 10,719 nodes"
+			and int(resident.get("nodes", -1)) == 10741,
+		"resident resource roster freezes 611 bound / 902 retained materials, 335 lights, and 10,741 nodes"
 	)
 	_check(
 		str(resident.get("measurement_fingerprint", "")) == RESIDENT_FINGERPRINT,
@@ -128,18 +130,18 @@ func _run() -> void:
 		"loaded report freezes destination identity and one committed generation"
 	)
 	_check(
-		int(loaded.get("total_triangles", -1)) == 1992234
-			and int(loaded.get("total_mesh_instances", -1)) == 6058
-			and int(loaded.get("total_surfaces", -1)) == 6077
-			and int(loaded.get("unique_meshes", -1)) == 2877,
-		"loaded geometry freezes 1,992,234 triangles / 6,058 meshes / 6,077 surfaces / 2,877 unique meshes"
+		int(loaded.get("total_triangles", -1)) == 1993501
+			and int(loaded.get("total_mesh_instances", -1)) == 6068
+			and int(loaded.get("total_surfaces", -1)) == 6087
+			and int(loaded.get("unique_meshes", -1)) == 2881,
+		"loaded geometry freezes 1,993,501 triangles / 6,068 meshes / 6,087 surfaces / 2,881 unique meshes"
 	)
 	_check(
-		int(loaded.get("bound_phase_unique_materials", -1)) == 648
-			and int(loaded.get("retained_reachable_unique_materials", -1)) == 944
+		int(loaded.get("bound_phase_unique_materials", -1)) == 653
+			and int(loaded.get("retained_reachable_unique_materials", -1)) == 949
 			and int(loaded.get("lights", -1)) == 362
-			and int(loaded.get("nodes", -1)) == 11142,
-		"loaded resource roster freezes 648 bound / 944 retained materials, 362 lights, and 11,142 nodes"
+			and int(loaded.get("nodes", -1)) == 11164,
+		"loaded resource roster freezes 653 bound / 949 retained materials, 362 lights, and 11,164 nodes"
 	)
 	var cinder_bucket := (loaded.get("buckets", {}) as Dictionary).get(
 		"CinderStreamingBootstrap", {}
