@@ -4,7 +4,7 @@
 
 Repository: <https://github.com/themuddfamily/mudds-shipyards>
 
-This is an unofficial, research-led project with original code and newly produced assets unless noted otherwise. It is not affiliated with or endorsed by ZolarKeth, Roblox or the original rightsholders. No public-release or commercial-use permission is recorded, and the repository has no project `LICENSE` file. The permission and rights-review gate remains open.
+This is an unofficial, research-led project with original code and newly produced assets unless noted otherwise. The owner considers the creator-permission question settled following their direct contact with the original creator; the [research plan](ROADMAP.md#phase-1--research) records that account and the absence of a written grant. The repository has no project `LICENSE` file.
 
 ## Current prototype slice
 
@@ -31,6 +31,7 @@ The current stabilization pass also repairs physical boarding, doorway face wind
 1. Finish the merged full regression and export its exact source revision.
 2. Exercise boarding, combat, landing, disembarking, crash recovery and the Ember expedition on Windows using normal controls. Tune camera comfort, landing clarity, prompts and audio from recorded observations.
 3. Run the existing benchmark on representative minimum/target hardware before further visual expansion. Use the packaged Ember observations to choose its next visible improvement.
+
 Current-source full regression, packaging and package parity evidence are **pending**. Current-candidate native-Windows human play, representative CPU/GPU benchmarks, real-controller focus and audible mix review are **`NOT_RUN`** until actually performed. Historical native startup/capture records do not substitute for those gates. The [complete roadmap](ROADMAP.md) retains every phase and open acceptance requirement.
 
 ## Run locally
