@@ -79,15 +79,15 @@ const DAMAGE_VANE_COLOR := Color("ff6a36")
 # replacement, so retain one process-local recipe instead of allocating the
 # same meshes and materials for every copy. Renderer nodes, submissions,
 # transforms and physical authority remain per craft.
-static var _shared_hull_mesh: BoxMesh
+static var _shared_hull_mesh: ArrayMesh
 static var _shared_hull_material: StandardMaterial3D
 static var _shared_cockpit_support_fairing_mesh: BoxMesh
-static var _shared_ordnance_spine_mesh: BoxMesh
+static var _shared_ordnance_spine_mesh: ArrayMesh
 static var _shared_ordnance_spine_material: StandardMaterial3D
-static var _shared_strike_wing_mesh: BoxMesh
+static var _shared_strike_wing_mesh: ArrayMesh
 static var _shared_strike_wing_multimesh: MultiMesh
-static var _shared_aft_tailplane_mesh: BoxMesh
-static var _shared_aft_fin_mesh: BoxMesh
+static var _shared_aft_tailplane_mesh: ArrayMesh
+static var _shared_aft_fin_mesh: ArrayMesh
 static var _shared_sensor_mesh: SphereMesh
 static var _shared_sensor_material: StandardMaterial3D
 static var _shared_damage_scorch_mesh: BoxMesh
@@ -509,7 +509,7 @@ func get_strike_wing_visual_audit() -> Dictionary:
 		if _shared_strike_wing_multimesh.resource_local_to_scene:
 			errors.append("strike-wing batch became scene-local")
 	if _shared_strike_wing_mesh == null \
-			or not _shared_strike_wing_mesh.size.is_equal_approx(STRIKE_WING_SIZE) \
+			or not _shared_strike_wing_mesh.get_aabb().size.is_equal_approx(STRIKE_WING_SIZE) \
 			or _shared_strike_wing_mesh.resource_local_to_scene:
 		errors.append("strike-wing mesh recipe drifted")
 	return {
@@ -584,11 +584,11 @@ func get_aft_empennage_visual_audit() -> Dictionary:
 		if fin.get_child_count() != 0 or fin.get_script() != null:
 			errors.append("aft bomber fin gained semantic children or authority")
 	if _shared_aft_tailplane_mesh == null \
-			or not _shared_aft_tailplane_mesh.size.is_equal_approx(AFT_TAILPLANE_SIZE) \
+			or not _shared_aft_tailplane_mesh.get_aabb().size.is_equal_approx(AFT_TAILPLANE_SIZE) \
 			or _shared_aft_tailplane_mesh.resource_local_to_scene:
 		errors.append("aft tailplane mesh recipe drifted")
 	if _shared_aft_fin_mesh == null \
-			or not _shared_aft_fin_mesh.size.is_equal_approx(AFT_FIN_SIZE) \
+			or not _shared_aft_fin_mesh.get_aabb().size.is_equal_approx(AFT_FIN_SIZE) \
 			or _shared_aft_fin_mesh.resource_local_to_scene:
 		errors.append("aft bomber-fin mesh recipe drifted")
 	return {
@@ -617,10 +617,10 @@ func get_hull_resource_sharing_audit() -> Dictionary:
 	var errors := PackedStringArray()
 	var visual := get_variant_visual_root()
 	var hull := visual.get_node_or_null(^"LongRangeHull") as MeshInstance3D if visual != null else null
-	var mesh := hull.mesh as BoxMesh if hull != null else null
+	var mesh := hull.mesh as ArrayMesh if hull != null else null
 	var material := hull.material_override as StandardMaterial3D if hull != null else null
 	var ordnance := visual.get_node_or_null(^"OrdnanceSpine") as MeshInstance3D if visual != null else null
-	var ordnance_mesh := ordnance.mesh as BoxMesh if ordnance != null else null
+	var ordnance_mesh := ordnance.mesh as ArrayMesh if ordnance != null else null
 	var ordnance_material := ordnance.material_override as StandardMaterial3D if ordnance != null else null
 	if hull == null:
 		errors.append("LongRangeHull renderer is missing")
@@ -633,7 +633,7 @@ func get_hull_resource_sharing_audit() -> Dictionary:
 			errors.append("LongRangeHull gained semantic children or authority")
 	if mesh == null or mesh != _shared_hull_mesh:
 		errors.append("LongRangeHull shared mesh identity drifted")
-	elif not mesh.size.is_equal_approx(HULL_SIZE) or mesh.get_surface_count() != 1:
+	elif not mesh.get_aabb().size.is_equal_approx(HULL_SIZE) or mesh.get_surface_count() != 1:
 		errors.append("LongRangeHull mesh recipe drifted")
 	elif mesh.resource_local_to_scene:
 		errors.append("LongRangeHull mesh became scene-local")
@@ -641,8 +641,8 @@ func get_hull_resource_sharing_audit() -> Dictionary:
 		errors.append("LongRangeHull shared material identity drifted")
 	elif (
 		not material.albedo_color.is_equal_approx(HULL_COLOR)
-		or not is_equal_approx(material.metallic, 0.78)
-		or not is_equal_approx(material.roughness, 0.4)
+		or not is_equal_approx(material.metallic, 0.48)
+		or not is_equal_approx(material.roughness, 0.56)
 		or material.resource_local_to_scene
 	):
 		errors.append("LongRangeHull material recipe drifted")
@@ -659,7 +659,7 @@ func get_hull_resource_sharing_audit() -> Dictionary:
 			errors.append("OrdnanceSpine gained semantic children or authority")
 	if ordnance_mesh == null or ordnance_mesh != _shared_ordnance_spine_mesh:
 		errors.append("OrdnanceSpine shared mesh identity drifted")
-	elif not ordnance_mesh.size.is_equal_approx(ORDNANCE_SPINE_SIZE) \
+	elif not ordnance_mesh.get_aabb().size.is_equal_approx(ORDNANCE_SPINE_SIZE) \
 			or ordnance_mesh.get_surface_count() != 1:
 		errors.append("OrdnanceSpine mesh recipe drifted")
 	elif ordnance_mesh.resource_local_to_scene:
@@ -669,7 +669,7 @@ func get_hull_resource_sharing_audit() -> Dictionary:
 	elif (
 		not ordnance_material.albedo_color.is_equal_approx(ORDNANCE_COLOR)
 		or not is_equal_approx(ordnance_material.metallic, 0.52)
-		or not is_equal_approx(ordnance_material.roughness, 0.4)
+		or not is_equal_approx(ordnance_material.roughness, 0.56)
 		or ordnance_material.resource_local_to_scene
 	):
 		errors.append("OrdnanceSpine material recipe drifted")
@@ -753,12 +753,10 @@ func get_sensor_resource_sharing_audit() -> Dictionary:
 	if material == null or material != _shared_sensor_material:
 		errors.append("LongRangeSensor shared material identity drifted")
 	elif (
-		not material.albedo_color.is_equal_approx(SENSOR_COLOR)
-		or not is_equal_approx(material.metallic, 0.35)
-		or not is_equal_approx(material.roughness, 0.4)
-		or not material.emission_enabled
-		or not material.emission.is_equal_approx(SENSOR_COLOR)
-		or not is_equal_approx(material.emission_energy_multiplier, 1.8)
+		not material.albedo_color.is_equal_approx(SENSOR_COLOR.darkened(0.35))
+		or not is_equal_approx(material.metallic, 0.7)
+		or not is_equal_approx(material.roughness, 0.24)
+		or material.emission_enabled
 		or material.resource_local_to_scene
 	):
 		errors.append("LongRangeSensor material recipe drifted")
@@ -884,11 +882,11 @@ func _build_hull(visual: Node3D) -> void:
 	var hull := MeshInstance3D.new()
 	hull.name = "LongRangeHull"
 	if _shared_hull_mesh == null:
-		_shared_hull_mesh = BoxMesh.new()
-		_shared_hull_mesh.size = HULL_SIZE
+		_shared_hull_mesh = _loft_mesh(HULL_SIZE, null)
 		_shared_hull_mesh.resource_local_to_scene = false
 	if _shared_hull_material == null:
-		_shared_hull_material = _material(HULL_COLOR, 0.78, 0.4)
+		_shared_hull_material = _material(HULL_COLOR, 0.48, 0.56)
+		ShipSurfaceDetail.bind_manufactured_paint(_shared_hull_material)
 		_shared_hull_material.resource_local_to_scene = false
 	hull.mesh = _shared_hull_mesh
 	hull.material_override = _shared_hull_material
@@ -896,11 +894,10 @@ func _build_hull(visual: Node3D) -> void:
 	var ordnance := MeshInstance3D.new()
 	ordnance.name = "OrdnanceSpine"
 	if _shared_ordnance_spine_mesh == null:
-		_shared_ordnance_spine_mesh = BoxMesh.new()
-		_shared_ordnance_spine_mesh.size = ORDNANCE_SPINE_SIZE
+		_shared_ordnance_spine_mesh = _loft_mesh(ORDNANCE_SPINE_SIZE, null)
 		_shared_ordnance_spine_mesh.resource_local_to_scene = false
 	if _shared_ordnance_spine_material == null:
-		_shared_ordnance_spine_material = _material(ORDNANCE_COLOR, 0.52, 0.4)
+		_shared_ordnance_spine_material = _material(ORDNANCE_COLOR, 0.52, 0.56)
 		_shared_ordnance_spine_material.resource_local_to_scene = false
 	ordnance.mesh = _shared_ordnance_spine_mesh
 	ordnance.position = ORDNANCE_SPINE_POSITION
@@ -914,13 +911,31 @@ func _build_hull(visual: Node3D) -> void:
 		_shared_sensor_mesh.height = SENSOR_HEIGHT
 		_shared_sensor_mesh.resource_local_to_scene = false
 	if _shared_sensor_material == null:
-		_shared_sensor_material = _material(SENSOR_COLOR, 0.35, 0.4, SENSOR_COLOR, 1.8)
+		_shared_sensor_material = _material(SENSOR_COLOR.darkened(0.35), 0.7, 0.24)
 		_shared_sensor_material.resource_local_to_scene = false
 	sensor.mesh = _shared_sensor_mesh
 	sensor.position = SENSOR_POSITION
 	sensor.material_override = _shared_sensor_material
 	sensor.layers = EXTERIOR_SENSOR_VISUAL_LAYER
 	visual.add_child(sensor)
+	_build_bomber_propulsion(visual)
+	_box(visual, "CockpitPressurePlinth", Vector3(0, 1.25, -0.55), Vector3(2.35, 0.55, 3.4), _shared_hull_material)
+
+
+## Long paired propulsion trunks leave a centerline service valley and carry
+## the swept wings into the pressure body without a rectangular butt joint.
+func _build_bomber_propulsion(visual: Node3D) -> void:
+	var ceramic := _material(Color("1e2931"), 0.62, 0.43)
+	var metal := _material(Color("79848a"), 0.78, 0.30)
+	var hot := _material(Color("799da5"), 0.4, 0.28, Color("70aec0"), 0.65)
+	for side in [-1.0, 1.0]:
+		var tag := "Port" if side < 0 else "Starboard"
+		_wedge(visual, tag + "PressureShoulder", Vector3(side * 2.3, 0.38, 0.4), Vector3(2.0, 2.35, 12.8), _shared_hull_material)
+		_wedge(visual, tag + "WingRootFairing", Vector3(side * 3.9, -0.25, 1.2), Vector3(2.7, 0.85, 7.7), ceramic, side * -0.13)
+		_wedge(visual, tag + "OutboardArmor", Vector3(side * 5.6, -0.22, 1.8), Vector3(2.5, 0.18, 4.9), _shared_ordnance_spine_material, side * -0.16)
+		_cylinder(visual, tag + "TurbineCase", Vector3(side * 2.35, 0.1, 6.75), 0.92, 2.1, metal, Vector3(90, 0, 0))
+		_frustum(visual, tag + "ExhaustBell", Vector3(side * 2.35, 0.1, 8.10), 1.0, 0.70, 0.70, ceramic, Vector3(90, 0, 0), false, false)
+		_cylinder(visual, tag + "RecessedThroat", Vector3(side * 2.35, 0.1, 7.90), 0.62, 0.08, hot, Vector3(90, 0, 0))
 
 
 func _build_cockpit_support_fairing(visual: Node3D) -> void:
@@ -939,8 +954,7 @@ func _build_cockpit_support_fairing(visual: Node3D) -> void:
 
 func _build_strike_wings(visual: Node3D) -> void:
 	if _shared_strike_wing_mesh == null:
-		_shared_strike_wing_mesh = BoxMesh.new()
-		_shared_strike_wing_mesh.size = STRIKE_WING_SIZE
+		_shared_strike_wing_mesh = _loft_mesh(STRIKE_WING_SIZE, null)
 		_shared_strike_wing_mesh.resource_local_to_scene = false
 	if _shared_strike_wing_multimesh == null:
 		var transforms := _strike_wing_instance_transforms()
@@ -1011,8 +1025,7 @@ static func _strike_wing_bounds(transforms: Array[Transform3D]) -> AABB:
 
 func _build_aft_empennage(visual: Node3D) -> void:
 	if _shared_aft_tailplane_mesh == null:
-		_shared_aft_tailplane_mesh = BoxMesh.new()
-		_shared_aft_tailplane_mesh.size = AFT_TAILPLANE_SIZE
+		_shared_aft_tailplane_mesh = _loft_mesh(AFT_TAILPLANE_SIZE, null)
 		_shared_aft_tailplane_mesh.resource_local_to_scene = false
 	var tailplane := MeshInstance3D.new()
 	tailplane.name = "LongRangeTailplane"
@@ -1022,8 +1035,7 @@ func _build_aft_empennage(visual: Node3D) -> void:
 	visual.add_child(tailplane)
 
 	if _shared_aft_fin_mesh == null:
-		_shared_aft_fin_mesh = BoxMesh.new()
-		_shared_aft_fin_mesh.size = AFT_FIN_SIZE
+		_shared_aft_fin_mesh = _loft_mesh(AFT_FIN_SIZE, null)
 		_shared_aft_fin_mesh.resource_local_to_scene = false
 	for entry in [
 		["PortBomberFin", -AFT_FIN_OFFSET.x, AFT_FIN_CANT_DEGREES],
@@ -1139,3 +1151,25 @@ func _build_payload_hardpoints(visual: Node3D) -> void:
 		hardpoint.set_meta(&"ordnance_owner", COMPONENT_ID)
 		visual.add_child(hardpoint)
 		_payload_hardpoints.append(hardpoint)
+
+
+## Reuse the inherited closed loft recipe for shared immutable hull stock.
+func _loft_mesh(size: Vector3, material: Material) -> ArrayMesh:
+	var scratch := Node3D.new()
+	var instance := _wedge(scratch, "LoftStock", Vector3.ZERO, size, material)
+	var source := instance.mesh as ArrayMesh
+	var arrays := source.surface_get_arrays(0)
+	var points: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
+	var normals: PackedVector3Array = arrays[Mesh.ARRAY_NORMAL]
+	var extent := source.get_aabb().size
+	var stretch := size / extent
+	for index in points.size():
+		points[index] *= stretch
+		normals[index] = (normals[index] / stretch).normalized()
+	arrays[Mesh.ARRAY_VERTEX] = points
+	arrays[Mesh.ARRAY_NORMAL] = normals
+	var result := ArrayMesh.new()
+	result.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
+	result.surface_set_material(0, material)
+	scratch.free()
+	return result

@@ -39,7 +39,7 @@ const ARMOR_DARK := Color("101b2a")
 const ARMOR_BLUE := Color("243f5b")
 const ARMOR_HIGHLIGHT := Color("416b88")
 const IDENTITY_AMBER := Color("e2a63c")
-const IDENTITY_AMBER_EMISSION_ENERGY := 0.7
+const IDENTITY_AMBER_EMISSION_ENERGY := 0.15
 const GUNNER_CYAN := Color("58d8df")
 const BOARDING_LIGHT := Color("8ae8bd")
 const BULWARK_CREW_WEAPON_ID: StringName = &"picket_siege_lance"
@@ -344,9 +344,11 @@ func _build_bulwark_variant(_controller: HeroShip) -> bool:
 	_share_cockpit_console_key_meshes(cockpit)
 	_share_cockpit_display_bezel_meshes(cockpit)
 
-	var armor_dark := _material(ARMOR_DARK, 0.78, 0.32)
-	var armor_blue := _material(ARMOR_BLUE, 0.72, 0.28)
-	var armor_highlight := _material(ARMOR_HIGHLIGHT, 0.66, 0.25)
+	var armor_dark := _material(ARMOR_DARK, 0.48, 0.52)
+	var armor_blue := _material(ARMOR_BLUE, 0.42, 0.53)
+	var armor_highlight := _material(ARMOR_HIGHLIGHT, 0.42, 0.48)
+	for coating in [armor_dark, armor_blue, armor_highlight]:
+		ShipSurfaceDetail.bind_manufactured_paint(coating)
 	# Keep the existing amber bands and starboard navigation marker legible in
 	# shadow without adding lights or changing any physical/authority node.
 	var amber := _material(
@@ -365,10 +367,10 @@ func _build_bulwark_variant(_controller: HeroShip) -> bool:
 	# full-height slab/spine occupied the same volume as the physical cockpit, so
 	# the production pilot-eye camera looked into solid blue armor instead of out
 	# through the canopy.
-	_box(_bulwark_visual, "ArmoredCentralSlab", Vector3(0.0, 0.9, 0.25), Vector3(6.4, 1.8, 8.5), armor_blue)
+	_wedge(_bulwark_visual, "ArmoredCentralSlab", Vector3(0.0, 0.9, 0.25), Vector3(6.4, 1.8, 8.5), armor_blue)
 	_wedge(_bulwark_visual, "ArmoredNose", Vector3(0.0, 0.9, -4.65), Vector3(5.8, 1.8, 3.9), armor_highlight, 0.0)
-	_box(_bulwark_visual, "CenterlineArmorSpine", Vector3(0.0, 2.0, 3.1), Vector3(1.35, 0.38, 3.1), armor_highlight)
-	_box(_bulwark_visual, "ChinArmor", Vector3(0.0, 0.02, -2.2), CHIN_COLLISION_SIZE, armor_dark)
+	_wedge(_bulwark_visual, "CenterlineArmorSpine", Vector3(0.0, 2.0, 3.1), Vector3(1.35, 0.38, 3.1), armor_highlight)
+	_wedge(_bulwark_visual, "ChinArmor", Vector3(0.0, 0.02, -2.2), CHIN_COLLISION_SIZE, armor_dark)
 	var armored_shoulder_transforms: Array[Transform3D] = []
 	var armored_shoulder_names := PackedStringArray()
 	var identity_band_transforms: Array[Transform3D] = []
@@ -404,7 +406,7 @@ func _build_bulwark_variant(_controller: HeroShip) -> bool:
 		))
 		dorsal_bastion_crown_names.append(side_name + "DorsalBastionCrown")
 		gun_pod_housing_transforms.append(Transform3D(
-			Basis.from_euler(Vector3(0.0, deg_to_rad(90.0), 0.0)),
+			Basis.from_euler(Vector3(deg_to_rad(90.0), 0.0, 0.0)),
 			Vector3(side * 3.25, 1.0, -3.1)
 		))
 		gun_pod_housing_names.append(side_name + "GunPodHousing")
@@ -458,6 +460,7 @@ func _build_bulwark_variant(_controller: HeroShip) -> bool:
 		gun_pod_housing_names,
 		armor_highlight
 	)
+	_build_bulwark_manufactured_details(_bulwark_visual, armor_blue, armor_dark, armor_highlight)
 	_build_component_damage_cue(_bulwark_visual)
 
 	# Gunner station is physical ship-local presentation and interaction data;
@@ -556,6 +559,22 @@ func _build_bulwark_variant(_controller: HeroShip) -> bool:
 	add_child(_boarding_area)
 
 	return replace_variant_visual_root(_bulwark_visual)
+
+
+## Layered shoulder shells and open nozzles give the armor a structural
+## assembly: pressure body, stand-off plate, turbine and recessed combustion.
+func _build_bulwark_manufactured_details(visual: Node3D, armor: Material, dark: Material, edge: Material) -> void:
+	var metal := _material(Color("77858c"), 0.84, 0.3)
+	var hot := _material(Color("739eab"), 0.2, 0.35, Color("78afc2"), 0.6)
+	for side in [-1.0, 1.0]:
+		var tag := "Port" if side < 0 else "Starboard"
+		_wedge(visual, tag + "CheekPlate", Vector3(side * 2.15, 0.75, -2.1), Vector3(1.6, 1.4, 5.5), armor, side * 0.10)
+		_wedge(visual, tag + "ShoulderCrown", Vector3(side * 4.15, 1.55, 0.4), Vector3(2.9, 0.45, 5.4), edge)
+		_wedge(visual, tag + "ReactorShroud", Vector3(side * 2.65, 1.48, 3.4), Vector3(1.9, 1.55, 2.4), armor)
+		_frustum(visual, tag + "ExhaustBell", Vector3(side * 2.65, 1.15, 5.72), 0.87, 0.62, 0.7, metal, Vector3(90, 0, 0), false, false)
+		_cylinder(visual, tag + "RecessedThroat", Vector3(side * 2.65, 1.15, 5.70), 0.53, 0.08, hot, Vector3(90, 0, 0))
+		_cylinder(visual, tag + "CannonBarrel", Vector3(side * 3.25, 1.0, -4.38), 0.19, 0.9, metal, Vector3(90, 0, 0))
+		_frustum(visual, tag + "CannonMuzzle", Vector3(side * 3.25, 1.0, -4.87), 0.25, 0.20, 0.18, dark, Vector3(90, 0, 0), false, false)
 
 
 ## Builds exactly two steady renderer surfaces. They have no process callback,
@@ -784,7 +803,7 @@ func _add_armored_shoulder_batch(
 		authored_names: PackedStringArray,
 		material: Material
 ) -> MultiMeshInstance3D:
-	var mesh := _rounded_box_mesh(ARMORED_SHOULDER_SIZE, material)
+	var mesh := _loft_mesh(ARMORED_SHOULDER_SIZE, material)
 	var multi := MultiMesh.new()
 	multi.transform_format = MultiMesh.TRANSFORM_3D
 	multi.mesh = mesh
@@ -853,7 +872,7 @@ func _add_dorsal_silhouette_batch(
 		material: Material,
 		silhouette_role: StringName
 ) -> MultiMeshInstance3D:
-	var mesh := _rounded_box_mesh(size, material)
+	var mesh := _loft_mesh(size, material)
 	var multi := MultiMesh.new()
 	multi.transform_format = MultiMesh.TRANSFORM_3D
 	multi.mesh = mesh
@@ -2275,3 +2294,25 @@ func _apply_bulwark_metadata() -> void:
 	set_meta("combat_authority", &"HeroShip")
 	set_meta("lifecycle_authority", &"HeroShip")
 	set_meta("content_note", DESIGN_NOTE)
+
+
+## Reuse the inherited closed loft recipe for shared immutable hull stock.
+func _loft_mesh(size: Vector3, material: Material) -> ArrayMesh:
+	var scratch := Node3D.new()
+	var instance := _wedge(scratch, "LoftStock", Vector3.ZERO, size, material)
+	var source := instance.mesh as ArrayMesh
+	var arrays := source.surface_get_arrays(0)
+	var points: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
+	var normals: PackedVector3Array = arrays[Mesh.ARRAY_NORMAL]
+	var extent := source.get_aabb().size
+	var stretch := size / extent
+	for index in points.size():
+		points[index] *= stretch
+		normals[index] = (normals[index] / stretch).normalized()
+	arrays[Mesh.ARRAY_VERTEX] = points
+	arrays[Mesh.ARRAY_NORMAL] = normals
+	var result := ArrayMesh.new()
+	result.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
+	result.surface_set_material(0, material)
+	scratch.free()
+	return result

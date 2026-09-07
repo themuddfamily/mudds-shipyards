@@ -119,8 +119,8 @@ func _test_armored_shoulder_batch(visual: Node3D) -> void:
 		and names == PackedStringArray(["PortArmoredShoulder", "StarboardArmoredShoulder"])
 		and material != null
 		and material.albedo_color.is_equal_approx(Color("101b2a"))
-		and is_equal_approx(material.metallic, 0.78)
-		and is_equal_approx(material.roughness, 0.32)
+		and is_equal_approx(material.metallic, 0.48)
+		and is_equal_approx(material.roughness, 0.52)
 		and mesh_bounds.size.is_equal_approx(Vector3(3.4, 1.9, 5.3))
 		and multi.custom_aabb.is_equal_approx(expected_bounds)
 		and batch.material_override == null
@@ -175,7 +175,7 @@ func _test_identity_band_batch(visual: Node3D) -> void:
 		and is_equal_approx(material.roughness, 0.31)
 		and material.emission_enabled
 		and material.emission.is_equal_approx(Color("e2a63c"))
-		and is_equal_approx(material.emission_energy_multiplier, 0.7)
+		and is_equal_approx(material.emission_energy_multiplier, 0.15)
 		and mesh_bounds.size.is_equal_approx(Vector3(0.16, 1.25, 3.2))
 		and multi.custom_aabb.is_equal_approx(expected_bounds)
 		and batch.material_override == null
@@ -288,7 +288,7 @@ func _test_navigation_lamp_mesh_sharing(visual: Node3D) -> void:
 		and is_equal_approx(starboard_material.roughness, 0.31)
 		and starboard_material.emission_enabled
 		and starboard_material.emission.is_equal_approx(Color("e2a63c"))
-		and is_equal_approx(starboard_material.emission_energy_multiplier, 0.7)
+		and is_equal_approx(starboard_material.emission_energy_multiplier, 0.15)
 		and port.cast_shadow == GeometryInstance3D.SHADOW_CASTING_SETTING_ON
 		and starboard.cast_shadow == GeometryInstance3D.SHADOW_CASTING_SETTING_ON
 		and port.layers == 1
@@ -333,8 +333,8 @@ func _test_engine_housing_batch(visual: Node3D) -> void:
 		and names == PackedStringArray(["PortEngineHousing", "StarboardEngineHousing"])
 		and material != null
 		and material.albedo_color.is_equal_approx(Color("101b2a"))
-		and is_equal_approx(material.metallic, 0.78)
-		and is_equal_approx(material.roughness, 0.32)
+		and is_equal_approx(material.metallic, 0.48)
+		and is_equal_approx(material.roughness, 0.52)
 		and is_equal_approx(mesh_bounds.size.x, 1.44)
 		and is_equal_approx(mesh_bounds.size.y, 2.8)
 		and is_equal_approx(mesh_bounds.size.z, 1.44)
@@ -370,7 +370,7 @@ func _test_gun_pod_housing_batch(visual: Node3D) -> void:
 	)
 	if multi == null:
 		return
-	var pod_basis := Basis.from_euler(Vector3(0.0, deg_to_rad(90.0), 0.0))
+	var pod_basis := Basis.from_euler(Vector3(deg_to_rad(90.0), 0.0, 0.0))
 	var expected_transforms := [
 		Transform3D(pod_basis, Vector3(-3.25, 1.0, -3.1)),
 		Transform3D(pod_basis, Vector3(3.25, 1.0, -3.1)),
@@ -387,8 +387,8 @@ func _test_gun_pod_housing_batch(visual: Node3D) -> void:
 		and names == PackedStringArray(["PortGunPodHousing", "StarboardGunPodHousing"])
 		and material != null
 		and material.albedo_color.is_equal_approx(Color("416b88"))
-		and is_equal_approx(material.metallic, 0.66)
-		and is_equal_approx(material.roughness, 0.25)
+		and is_equal_approx(material.metallic, 0.42)
+		and is_equal_approx(material.roughness, 0.48)
 		and is_equal_approx(mesh_bounds.size.x, 0.84)
 		and is_equal_approx(mesh_bounds.size.y, 2.15)
 		and is_equal_approx(mesh_bounds.size.z, 0.84)

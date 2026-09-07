@@ -38,14 +38,14 @@ const LOADMASTER_MANIFEST_GENERATION_MAX := 1_000_000
 const LOADMASTER_INTERACTION_REACH := 1.20
 
 const HULL_COLOR := Color("536b73")
-const CARGO_COLOR := Color("b2773d")
+const CARGO_COLOR := Color("916c46")
 const ACCENT_COLOR := Color("42c9cf")
 const CARGO_SHOULDER_SIZE := Vector3(0.42, 0.72, 2.90)
 ## Repeated exterior load-frame ribs make the freight body legible from the
 ## normal side/rear approach. Their full bounds remain inside the existing
 ## 6.8 m-wide collision shell and clear the physical port boarding aperture.
 const CARGO_FRAME_RIB_SIZE := Vector3(0.14, 2.40, 0.34)
-const CARGO_FRAME_RIB_COLOR := Color("d8a258")
+const CARGO_FRAME_RIB_COLOR := Color("8b989d")
 const CARGO_FRAME_RIB_X := 3.28
 const CARGO_FRAME_RIB_Z := [-4.65, -2.75, 2.75, 4.65]
 const ENGINE_DAMAGE_SHOULDER_COLOR := Color("f0a24a")
@@ -1065,6 +1065,9 @@ func _build_hull(visual: Node3D) -> void:
 		_shared_hull_mesh.resource_local_to_scene = false
 	if _shared_hull_material == null:
 		_shared_hull_material = _material(HULL_COLOR, 0.72, 0.42)
+		ShipSurfaceDetail.bind_manufactured_paint(_shared_hull_material)
+		_shared_hull_material.uv1_triplanar = true
+		_shared_hull_material.uv1_scale = Vector3.ONE * 0.33
 		_shared_hull_material.resource_local_to_scene = false
 	hull.mesh = _shared_hull_mesh
 	hull.material_override = _shared_hull_material
@@ -1140,6 +1143,30 @@ func _build_hull(visual: Node3D) -> void:
 	_cargo_shoulders.set_meta(&"damage_authority", false)
 	_cargo_shoulders.set_meta(&"animated", false)
 	_cargo_shoulders.set_meta(&"damage_state", &"nominal")
+	_build_freight_pressure_fairings(visual)
+
+
+## The freight pressure vessel keeps its exact doorway and cabin. Shaped end
+## caps, segmented roof armor and isolated engine pods turn that necessary
+## rectangular interior into a manufactured transport exterior.
+func _build_freight_pressure_fairings(visual: Node3D) -> void:
+	var dark := _material(Color("1b2931"), 0.5, 0.48)
+	var metal := _material(Color("73858c"), 0.82, 0.32)
+	var hot := _material(Color("68959e"), 0.35, 0.3, Color("83c0cb"), 0.55)
+	var fore := _trapezoid_panel(visual, "ForwardPressureCap", Vector3(0, 0, -6.375), 4.6, 5.312, 0.75, 2.624, _shared_hull_material)
+	fore.rotation.x = -PI * 0.5
+	var aft := _trapezoid_panel(visual, "AftPressureCap", Vector3(0, 0, 6.375), 4.6, 5.312, 0.75, 2.624, _shared_hull_material)
+	aft.rotation.x = PI * 0.5
+	for side in [-1.0, 1.0]:
+		var tag := "Port" if side < 0 else "Starboard"
+		# All side pods stop behind the protected boarding aperture (z > 2.30).
+		_wedge(visual, tag + "EnginePylon", Vector3(side * 3.12, 0.6, 4.05), Vector3(1.0, 1.65, 3.2), metal)
+		_wedge(visual, tag + "EngineShroud", Vector3(side * 3.75, 0.4, 4.5), Vector3(1.45, 1.5, 3.3), dark)
+		_frustum(visual, tag + "FreightExhaust", Vector3(side * 3.75, 0.4, 6.40), 0.75, 0.55, 0.65, metal, Vector3(90, 0, 0), false, false)
+		_cylinder(visual, tag + "RecessedThroat", Vector3(side * 3.75, 0.4, 6.20), 0.45, 0.08, hot, Vector3(90, 0, 0))
+		_wedge(visual, tag + "ForeShoulder", Vector3(side * 2.48, 1.25, -3.9), Vector3(1.15, 1.0, 3.4), _shared_cargo_pod_material)
+		_wedge(visual, tag + "RoofRail", Vector3(side * 2.3, 1.65, 0.0), Vector3(1.3, 0.45, 5.2), dark)
+		_wedge(visual, tag + "AftShoulder", Vector3(side * 2.48, 1.25, 3.9), Vector3(1.15, 1.0, 3.4), _shared_cargo_pod_material)
 
 
 ## One closed exterior surface with a bounded port aperture. The five intact
@@ -1168,16 +1195,21 @@ static func _port_aperture_shell_mesh(
 	var vertices := PackedVector3Array()
 	var normals := PackedVector3Array()
 	var indices := PackedInt32Array()
-	# Intact outer faces.
-	_append_shell_quad(vertices, normals, indices,
-		Vector3(x0, y1, z0), Vector3(half.x, y1, z0),
-		Vector3(half.x, y1, z1), Vector3(x0, y1, z1), Vector3.UP)
-	_append_shell_quad(vertices, normals, indices,
-		Vector3(x0, y0, z0), Vector3(x0, y0, z1),
-		Vector3(half.x, y0, z1), Vector3(half.x, y0, z0), Vector3.DOWN)
-	_append_shell_quad(vertices, normals, indices,
-		Vector3(half.x, y0, z0), Vector3(half.x, y0, z1),
-		Vector3(half.x, y1, z1), Vector3(half.x, y1, z0), Vector3.RIGHT)
+	# Three pressure-shell bays preserve the full cabin section centrally,
+	# allowing only the sealed end bulkheads to taper into the manufactured caps.
+	var stations := [z0, maxf(z0, -3.0), minf(z1, 3.0), z1]
+	for bay in 3:
+		var fore_z: float = stations[bay]
+		var aft_z: float = stations[bay + 1]
+		_append_shell_quad(vertices, normals, indices,
+			Vector3(x0, y1, fore_z), Vector3(half.x, y1, fore_z),
+			Vector3(half.x, y1, aft_z), Vector3(x0, y1, aft_z), Vector3.UP)
+		_append_shell_quad(vertices, normals, indices,
+			Vector3(x0, y0, fore_z), Vector3(x0, y0, aft_z),
+			Vector3(half.x, y0, aft_z), Vector3(half.x, y0, fore_z), Vector3.DOWN)
+		_append_shell_quad(vertices, normals, indices,
+			Vector3(half.x, y0, fore_z), Vector3(half.x, y0, aft_z),
+			Vector3(half.x, y1, aft_z), Vector3(half.x, y1, fore_z), Vector3.RIGHT)
 	_append_shell_quad(vertices, normals, indices,
 		Vector3(x0, y0, z0), Vector3(half.x, y0, z0),
 		Vector3(half.x, y1, z0), Vector3(x0, y1, z0), Vector3.FORWARD)
@@ -1210,6 +1242,21 @@ static func _port_aperture_shell_mesh(
 	_append_shell_quad(vertices, normals, indices,
 		Vector3(x0, aperture_y_max, aperture_z_min), Vector3(x1, aperture_y_max, aperture_z_min),
 		Vector3(x1, aperture_y_max, aperture_z_max), Vector3(x0, aperture_y_max, aperture_z_max), Vector3.DOWN)
+	# End bulkheads taper into the pressure vessel rather than ending in a
+	# shipping-container face. The central cabin and door reveal vertices stay
+	# exactly where the established traversal contract places them.
+	for index in vertices.size():
+		var point := vertices[index]
+		if absf(point.z) > half.z - 0.01:
+			point.x *= 0.83
+			point.y *= 0.82
+			vertices[index] = point
+	for index in range(0, vertices.size(), 4):
+		var face_normal := (vertices[index + 1] - vertices[index]).cross(vertices[index + 2] - vertices[index]).normalized()
+		if face_normal.dot(normals[index]) < 0:
+			face_normal = -face_normal
+		for corner in 4:
+			normals[index + corner] = face_normal
 	var arrays := []
 	arrays.resize(Mesh.ARRAY_MAX)
 	arrays[Mesh.ARRAY_VERTEX] = vertices

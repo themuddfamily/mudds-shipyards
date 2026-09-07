@@ -15,8 +15,8 @@ const COMPONENT_ID: StringName = &"cinder_light_interceptor"
 const EVIDENCE_STATUS: StringName = &"NEW"
 const DISPLAY_NAME := "Cinder light interceptor"
 const HULL_SIZE := Vector3(4.8, 2.5, 8.8)
-const HULL_COLOR := Color("e0a43d")
-const CANOPY_COLOR := Color("55d5dc")
+const HULL_COLOR := Color("9c7140")
+const CANOPY_COLOR := Color("315b68")
 const CANOPY_RADIUS := 1.25
 const CANOPY_HEIGHT := 1.5
 const CANOPY_POSITION := Vector3(0.0, 1.1, -2.1)
@@ -26,7 +26,7 @@ const CANOPY_POSITION := Vector3(0.0, 1.1, -2.1)
 ## reads as a separate assembly floating above the interceptor hull.
 const COCKPIT_FAIRING_SIZE := Vector3(2.5, 0.62, 2.6)
 const COCKPIT_FAIRING_POSITION := Vector3(0.0, 1.56, -0.2)
-const WING_COLOR := Color("8b4a38")
+const WING_COLOR := Color("273641")
 ## Upper starboard aft shoulder: the full lens clears the hull silhouette in Y
 ## and the centreline recognition fin in X when viewed from behind the craft.
 const ENGINE_DAMAGE_BEACON_POSITION := Vector3(1.9, 1.54, 3.82)
@@ -96,12 +96,12 @@ const STATUS_REPEATER_NAMES := [
 # replacement can briefly retain multiple interceptors, so cache this exact
 # recipe across copies while renderer nodes, submissions, transforms, collision,
 # and all gameplay authority remain per craft.
-static var _shared_hull_mesh: BoxMesh
+static var _shared_hull_mesh: ArrayMesh
 static var _shared_hull_material: StandardMaterial3D
 # The broad response wing is likewise immutable exterior presentation stock.
 # Sharing its exact mesh and finish across briefly coexisting fleet copies saves
 # duplicate resources without merging renderer nodes or changing submissions.
-static var _shared_wing_mesh: BoxMesh
+static var _shared_wing_mesh: ArrayMesh
 static var _shared_wing_material: StandardMaterial3D
 # The swept aft fin makes the interceptor's heading readable in profile. It is
 # immutable visual stock, shared across briefly coexisting fleet copies without
@@ -367,11 +367,11 @@ func _build_hull(visual: Node3D) -> void:
 	var hull := MeshInstance3D.new()
 	hull.name = "HighVisibilityHull"
 	if _shared_hull_mesh == null:
-		_shared_hull_mesh = BoxMesh.new()
-		_shared_hull_mesh.size = HULL_SIZE
+		_shared_hull_mesh = _loft_mesh(HULL_SIZE, null)
 		_shared_hull_mesh.resource_local_to_scene = false
 	if _shared_hull_material == null:
-		_shared_hull_material = _material(HULL_COLOR, 0.62, 0.36)
+		_shared_hull_material = _material(HULL_COLOR, 0.42, 0.55)
+		ShipSurfaceDetail.bind_manufactured_paint(_shared_hull_material)
 		_shared_hull_material.resource_local_to_scene = false
 	hull.mesh = _shared_hull_mesh
 	hull.material_override = _shared_hull_material
@@ -392,14 +392,13 @@ func _build_hull(visual: Node3D) -> void:
 	var wing := MeshInstance3D.new()
 	wing.name = "RapidResponseWing"
 	if _shared_wing_mesh == null:
-		_shared_wing_mesh = BoxMesh.new()
-		_shared_wing_mesh.size = Vector3(12.0, 0.45, 2.4)
+		_shared_wing_mesh = _loft_mesh(Vector3(12.0, 0.55, 5.8), null)
 		_shared_wing_mesh.resource_local_to_scene = false
 	if _shared_wing_material == null:
 		_shared_wing_material = _material(WING_COLOR, 0.5, 0.36)
 		_shared_wing_material.resource_local_to_scene = false
 	wing.mesh = _shared_wing_mesh
-	wing.position = Vector3(0.0, -0.15, 0.8)
+	wing.position = Vector3(0.0, -0.15, 0.55)
 	wing.material_override = _shared_wing_material
 	visual.add_child(wing)
 	var aft_fin := MeshInstance3D.new()
@@ -422,12 +421,30 @@ func _build_hull(visual: Node3D) -> void:
 		_shared_canopy_mesh.height = CANOPY_HEIGHT
 		_shared_canopy_mesh.resource_local_to_scene = false
 	if _shared_canopy_material == null:
-		_shared_canopy_material = _material(CANOPY_COLOR, 0.15, 0.36, CANOPY_COLOR, 2.0)
+		_shared_canopy_material = _material(CANOPY_COLOR, 0.75, 0.18)
 		_shared_canopy_material.resource_local_to_scene = false
 	canopy.mesh = _shared_canopy_mesh
 	canopy.position = CANOPY_POSITION
 	canopy.material_override = _shared_canopy_material
 	visual.add_child(canopy)
+	_build_interceptor_propulsion(visual)
+	_box(visual, "CockpitPressurePlinth", Vector3(0, 1.08, -0.2), Vector3(2.5, 0.4, 2.6), _shared_hull_material)
+
+
+## The propulsion booms bridge the swept pressure shell and wing with an open
+## maintenance channel. Exhaust bells are hollow, with recessed hot throats.
+func _build_interceptor_propulsion(visual: Node3D) -> void:
+	var titanium := _material(Color("69727a"), 0.82, 0.29)
+	var ceramic := _material(Color("15222b"), 0.45, 0.48)
+	var hot := _material(Color("729da5"), 0.35, 0.25, Color("73b5c0"), 0.8)
+	for side in [-1.0, 1.0]:
+		var tag := "Port" if side < 0 else "Starboard"
+		_wedge(visual, tag + "IntakeShoulder", Vector3(side * 2.1, 0.25, 0.0), Vector3(1.35, 1.5, 5.8), _shared_hull_material)
+		_wedge(visual, tag + "EngineBoom", Vector3(side * 3.65, 0.0, 1.05), Vector3(1.25, 0.85, 4.4), ceramic, side * -0.08)
+		_cylinder(visual, tag + "TurbineCase", Vector3(side * 2.1, 0.2, 3.65), 0.60, 1.5, titanium, Vector3(90, 0, 0))
+		_frustum(visual, tag + "ExhaustBell", Vector3(side * 2.1, 0.2, 4.80), 0.72, 0.48, 0.65, ceramic, Vector3(90, 0, 0), false, false)
+		_cylinder(visual, tag + "RecessedThroat", Vector3(side * 2.1, 0.2, 4.52), 0.39, 0.08, hot, Vector3(90, 0, 0))
+		_wedge(visual, tag + "WingArmor", Vector3(side * 4.05, 0.1, 0.75), Vector3(2.45, 0.21, 3.7), _shared_hull_material, side * -0.16)
 
 
 func _build_speed_silhouette(visual: Node3D) -> void:
@@ -437,7 +454,7 @@ func _build_speed_silhouette(visual: Node3D) -> void:
 		_shared_speed_rail_mesh.resource_local_to_scene = false
 	if _shared_speed_rail_material == null:
 		_shared_speed_rail_material = _material(
-			CANOPY_COLOR.darkened(0.16), 0.24, 0.28, CANOPY_COLOR, 2.4
+			Color("87959b"), 0.68, 0.32
 		)
 		_shared_speed_rail_material.resource_local_to_scene = false
 	var rail_transforms: Array[Transform3D] = [
@@ -940,3 +957,25 @@ func _build_boarding_marker(visual: Node3D) -> void:
 	_interceptor_boarding_marker.position = Vector3(-2.7, -0.85, 0.0)
 	_interceptor_boarding_marker.set_meta(&"boarding_side", &"port")
 	visual.add_child(_interceptor_boarding_marker)
+
+
+## Reuse the inherited closed loft recipe for shared immutable hull stock.
+func _loft_mesh(size: Vector3, material: Material) -> ArrayMesh:
+	var scratch := Node3D.new()
+	var instance := _wedge(scratch, "LoftStock", Vector3.ZERO, size, material)
+	var source := instance.mesh as ArrayMesh
+	var arrays := source.surface_get_arrays(0)
+	var points: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
+	var normals: PackedVector3Array = arrays[Mesh.ARRAY_NORMAL]
+	var extent := source.get_aabb().size
+	var stretch := size / extent
+	for index in points.size():
+		points[index] *= stretch
+		normals[index] = (normals[index] / stretch).normalized()
+	arrays[Mesh.ARRAY_VERTEX] = points
+	arrays[Mesh.ARRAY_NORMAL] = normals
+	var result := ArrayMesh.new()
+	result.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
+	result.surface_set_material(0, material)
+	scratch.free()
+	return result

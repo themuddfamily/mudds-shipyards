@@ -206,11 +206,11 @@ func _initialize() -> void:
 			and cabin.get_node_or_null(^"NavigatorSeatBack") == null
 			and crew_consoles != null
 			and crew_consoles.multimesh.mesh.get_surface_count() == 1
-			and _visual_renderer_count(craft) == 103
-			and _visual_mesh_resource_count(craft) == 92
+			and _visual_renderer_count(craft) == 119
+			and _visual_mesh_resource_count(craft) == 106
 			and _visual_material_resource_count(craft) == 16
-			and _authored_visual_copy_count(craft) == 118,
-		"the optimized full craft retains 118 authored visual copies in 103 bounded renderers"
+			and _authored_visual_copy_count(craft) == 134,
+		"the optimized full craft retains 134 authored visual copies in 119 bounded renderers"
 	)
 	var geometry_hash := _two_box_geometry_hash(seat_backs)
 	var end_wall_geometry_hash := _two_box_geometry_hash(cabin_end_walls)
@@ -273,12 +273,12 @@ func _initialize() -> void:
 			and _anchor_snapshot(rebuilt) == anchor_snapshot
 			and rebuilt.find_children("*", "CollisionShape3D", true, false).size() == collision_count
 			and _authority_snapshot(rebuilt.get_audit_report()) == authority_snapshot
-			and _visual_renderer_count(rebuilt) == 103
-			and _authored_visual_copy_count(rebuilt) == 118,
+			and _visual_renderer_count(rebuilt) == 119
+			and _authored_visual_copy_count(rebuilt) == 134,
 		"detach and rebuild retain the exact optimized presentation and gameplay contract"
 	)
 	print(
-		"CINDER_CARGO_CONSOLE_BATCH_METRICS: renderers=104->103 meshes=93->92 materials=17->16 authored_copies=118->118 geometry_sha256=%s"
+		"CINDER_CARGO_VISUAL_METRICS: renderers=119 meshes=106 materials=16 authored_copies=134 console_geometry_sha256=%s"
 		% console_geometry_hash
 	)
 	rebuilt.queue_free()
