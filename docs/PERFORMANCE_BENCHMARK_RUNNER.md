@@ -34,10 +34,20 @@ target, and a positive, undestroyed hull throughout. A full flight must enter
 the 20 m endpoint radius; the short smoke is explicitly allowed to prove only
 bounded positive progress.
 
-Defaults are deliberately explicit: 3,600 warm-up frames and 18,000 measured
-frames per scenario, at 1920×1080 High. Those counts are configuration, not an
-assumption about achieved frame rate. A representative acceptance record should
-retain the defaults unless its record explains a different reviewed protocol.
+Full runs require both 3,600 warm-up frames **and at least 60 elapsed seconds**,
+then 18,000 measured frames **and at least 600 elapsed seconds**, per scenario,
+at 1920×1080 High. Larger `budgets.warmup_seconds` / `budgets.sample_seconds`
+values in the reviewed target extend these windows; smaller values cannot lower
+the production floors. Both phases use `Time.get_ticks_usec()` and record their
+actual frame counts and `warmup_elapsed_seconds` / `sample_elapsed_seconds`.
+A full run therefore takes at least 22 minutes for two scenarios, plus startup;
+low frame rates or larger reviewed budgets can extend it further.
+
+Route segments retain their original order and frame-quota proportions across
+warm-up and sampling. Within each phase, route progress follows the slower of
+frame-quota progress and elapsed-time progress, so fast frames cannot skip the
+movement or boost segments while the time window is still running. Smoke keeps
+its tiny frame-only windows and remains nonrepresentative.
 
 Frame delta is the wall interval, in milliseconds, between consecutive
 `process_frame` signals measured with `Time.get_ticks_usec()`. The JSON records
@@ -72,6 +82,9 @@ All fields must match exactly. Missing fields, mismatches, a headless display,
 or an adapter name containing `llvmpipe`, `softpipe`, `software`, or
 `swiftshader` force `hardware_match` and `representative_pass` false. A dirty
 source tree also refuses `representative_pass`. The report keeps every reason.
+The existing report validator rejects missing, non-finite, or short elapsed
+windows, even if the frame quota was met. The native benchmark-record acceptance
+consumer independently enforces the same floors and longer target durations.
 `performance_budget_pass` remains null: this runner
 does not turn route completion into proof that the proposed p95/p99/RAM budgets
 were met. A later native-Windows acceptance procedure must evaluate those
@@ -218,11 +231,10 @@ source without launching Godot. The launcher removes inherited benchmark
 protocol overrides for its child and restores the caller's environment after
 execution; full runs use the documented runner defaults.
 
-Review `benchmark.json` scenario completion and frame percentiles together with
-`process-summary.json`, logs, and the copied target profile. The target template's
-60-second warm-up / 600-second sample budgets are time requirements; the runner's
-3,600 / 18,000 frame counts do not guarantee those durations. A default run alone
-cannot establish that longer acceptance protocol. Process peak sampling covers
+Review `benchmark.json` scenario completion, recorded phase durations, and frame
+percentiles together with `process-summary.json`, logs, and the copied target
+profile. The default full runner now enforces the target template's 60-second
+warm-up / 600-second sampling floors alongside its frame minima. Process peak sampling covers
 startup and both scenarios and is separate from Godot's static-memory monitor.
 GPU frame-time tooling and per-process dedicated VRAM collection remain separate
 requirements for complete acceptance.

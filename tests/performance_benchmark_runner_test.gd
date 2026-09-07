@@ -12,6 +12,7 @@ func _init() -> void:
 
 func _run() -> void:
 	_test_percentile_contract()
+	_test_duration_contract()
 	_test_metadata_and_representativeness_contract()
 	_test_schema_mutations()
 	await _test_live_smoke()
@@ -37,6 +38,19 @@ func _test_percentile_contract() -> void:
 		"tail mutation changes both the percentile fingerprint and maximum"
 	)
 	_check(RUNNER.percentile([] as Array[float], 0.95) == -1.0, "empty samples cannot manufacture a percentile")
+
+
+func _test_duration_contract() -> void:
+	_check(RUNNER.phase_incomplete(18000, 18000, 300.0, 600.0), "fast frame quota cannot end a short sample")
+	_check(RUNNER.phase_incomplete(9000, 18000, 600.0, 600.0), "duration quota cannot bypass minimum sample frames")
+	_check(not RUNNER.phase_incomplete(18000, 18000, 600.0, 600.0), "both duration and frame minima complete the phase")
+	_check(RUNNER.required_phase_seconds({"budgets": {"warmup_seconds": 90, "sample_seconds": 900}}, false)
+		== {"warmup": 90.0, "sample": 900.0}, "longer reviewed duration budgets are retained")
+	_check(RUNNER.required_phase_seconds({"budgets": {"sample_seconds": 1}}, false).sample == 600.0,
+		"a short target cannot lower the production duration floor")
+	_check(RUNNER.required_phase_seconds({}, true) == {"warmup": 0.0, "sample": 0.0}, "smoke remains frame bounded")
+	_check(is_equal_approx(RUNNER.phase_progress(18000, 18000, 300.0, 600.0), 0.5),
+		"fast frames stretch route progression over the full measured window")
 
 
 func _test_metadata_and_representativeness_contract() -> void:
@@ -111,6 +125,10 @@ func _test_schema_mutations() -> void:
 		_contains_fragment(RUNNER.validate_report(invalid_percentiles), "frame_delta_ms summary is invalid"),
 		"non-monotonic percentile mutation makes the schema fixture fail"
 	)
+	var short_sample := report.duplicate(true)
+	short_sample.scenarios[0].sample_elapsed_seconds = 300.0
+	_check(_contains_fragment(RUNNER.validate_report(short_sample), "sample elapsed duration"),
+		"a claimed full record with only five sampled minutes fails qualification")
 	var false_pass := report.duplicate(true)
 	false_pass.representativeness.hardware_match = false
 	_check(
@@ -174,6 +192,8 @@ func _test_live_smoke() -> void:
 	for scenario_variant in report.scenarios:
 		var scenario := scenario_variant as Dictionary
 		_check(bool(scenario.completed), "%s live smoke completes" % scenario.name)
+		_check(float(scenario.warmup_elapsed_seconds) >= 0.0 and float(scenario.sample_elapsed_seconds) > 0.0,
+			"%s records monotonic elapsed warmup and sampling" % scenario.name)
 		_check(int(scenario.sample_count) == 3, "%s records the exact smoke sample count" % scenario.name)
 		_check(not (scenario.scene_counts as Dictionary).is_empty(), "%s records scene counts" % scenario.name)
 		_check(not (scenario.monitors as Dictionary).is_empty(), "%s records engine monitors" % scenario.name)
@@ -260,6 +280,8 @@ func _scenario_fixture(name: String) -> Dictionary:
 		"error": "",
 		"deterministic_inputs": {"fixture": true},
 		"scenario_progress": _progress_fixture(name),
+		"warmup_elapsed_seconds": 60.0,
+		"sample_elapsed_seconds": 600.0,
 		"warmup_frames": 2,
 		"sample_count": 4,
 		"frame_delta_ms": {"count": 4, "p50": 8.0, "p95": 12.0, "p99": 12.0, "max": 12.0},

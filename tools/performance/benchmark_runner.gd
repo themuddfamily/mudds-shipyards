@@ -10,6 +10,8 @@ const DEFAULT_RESOLUTION := Vector2i(1920, 1080)
 const DEFAULT_QUALITY_LEVEL := 2
 const DEFAULT_WARMUP_FRAMES := 3600
 const DEFAULT_SAMPLE_FRAMES := 18000
+const MINIMUM_WARMUP_SECONDS := 60.0
+const MINIMUM_SAMPLE_SECONDS := 600.0
 const SMOKE_WARMUP_FRAMES := 2
 const SMOKE_SAMPLE_FRAMES := 4
 const SCENARIO_NAMES := [&"station_embodied_route", &"nearby_sector_ship_flight_route"]
@@ -96,6 +98,7 @@ static func run_benchmark(
 	tree.root.size = requested_resolution
 	if DisplayServer.get_name() != "headless":
 		DisplayServer.window_set_size(requested_resolution)
+	var durations := required_phase_seconds(target_profile, smoke_run)
 	var scenarios: Array[Dictionary] = []
 	for scenario_name: StringName in SCENARIO_NAMES:
 		scenarios.append(await _run_scenario(
@@ -104,7 +107,8 @@ static func run_benchmark(
 			maxi(warmup_frames, 1),
 			maxi(sample_frames, 2),
 			quality_level,
-			smoke_run
+			smoke_run,
+			durations
 		))
 	_release_inputs()
 	tree.root.size = original_root_size
@@ -145,6 +149,8 @@ static func run_benchmark(
 			"physics_ticks_per_second": Engine.physics_ticks_per_second,
 			"engine_max_fps": Engine.max_fps,
 			"smoke_run": smoke_run,
+			"minimum_warmup_seconds": durations.warmup,
+			"minimum_sample_seconds": durations.sample,
 		}
 	)
 
@@ -155,7 +161,8 @@ static func _run_scenario(
 		warmup_frames: int,
 		sample_frames: int,
 		quality_level: int,
-		smoke_run: bool
+		smoke_run: bool,
+		durations: Dictionary
 	) -> Dictionary:
 	_release_inputs()
 	seed(_scenario_seed(scenario_name))
@@ -202,18 +209,30 @@ static func _run_scenario(
 
 	var total_frames := warmup_frames + sample_frames
 	var previous_tick := Time.get_ticks_usec()
-	for frame in warmup_frames:
-		_apply_scenario_input(scenario_name, frame, total_frames)
+	var warmup_started := Time.get_ticks_usec()
+	var actual_warmup_frames := 0
+	while phase_incomplete(actual_warmup_frames, warmup_frames,
+			float(Time.get_ticks_usec() - warmup_started) / 1_000_000.0, durations.warmup):
+		var route_frame := int(warmup_frames * phase_progress(actual_warmup_frames, warmup_frames,
+			float(Time.get_ticks_usec() - warmup_started) / 1_000_000.0, durations.warmup))
+		_apply_scenario_input(scenario_name, route_frame, total_frames)
 		await tree.process_frame
 		_update_scenario_progress(progress_tracker, player, ship, scenario_name)
 		previous_tick = Time.get_ticks_usec()
+		actual_warmup_frames += 1
+	var warmup_elapsed := float(Time.get_ticks_usec() - warmup_started) / 1_000_000.0
 
 	var frame_deltas: Array[float] = []
 	var monitor_samples: Dictionary = {}
 	for monitor_name in MONITORS:
 		monitor_samples[monitor_name] = [] as Array[float]
-	for sample_index in sample_frames:
-		_apply_scenario_input(scenario_name, warmup_frames + sample_index, total_frames)
+	var sample_started := Time.get_ticks_usec()
+	previous_tick = sample_started
+	while phase_incomplete(frame_deltas.size(), sample_frames,
+			float(Time.get_ticks_usec() - sample_started) / 1_000_000.0, durations.sample):
+		var route_frame := warmup_frames + int(sample_frames * phase_progress(frame_deltas.size(), sample_frames,
+			float(Time.get_ticks_usec() - sample_started) / 1_000_000.0, durations.sample))
+		_apply_scenario_input(scenario_name, route_frame, total_frames)
 		await tree.process_frame
 		_update_scenario_progress(progress_tracker, player, ship, scenario_name)
 		var now := Time.get_ticks_usec()
@@ -221,6 +240,7 @@ static func _run_scenario(
 		previous_tick = now
 		_capture_monitor_sample(monitor_samples)
 
+	var sample_elapsed := float(Time.get_ticks_usec() - sample_started) / 1_000_000.0
 	var progress := _finish_scenario_progress(progress_tracker, player, ship, scenario_name)
 	var progress_errors := validate_scenario_progress(scenario_name, progress)
 	_release_inputs()
@@ -230,7 +250,9 @@ static func _run_scenario(
 		"error": "; ".join(progress_errors),
 		"deterministic_inputs": inputs,
 		"scenario_progress": progress,
-		"warmup_frames": warmup_frames,
+		"warmup_frames": actual_warmup_frames,
+		"warmup_elapsed_seconds": warmup_elapsed,
+		"sample_elapsed_seconds": sample_elapsed,
 		"sample_count": frame_deltas.size(),
 		"frame_delta_ms": summarize_samples(frame_deltas),
 		"monitors": _summarize_monitors(monitor_samples),
@@ -521,6 +543,28 @@ static func _stage_scenario(
 	}
 
 
+static func required_phase_seconds(target: Dictionary, smoke_run: bool) -> Dictionary:
+	if smoke_run:
+		return {"warmup": 0.0, "sample": 0.0}
+	var budgets := target.get("budgets", {}) as Dictionary
+	var result := {"warmup": MINIMUM_WARMUP_SECONDS, "sample": MINIMUM_SAMPLE_SECONDS}
+	for phase: String in result:
+		var value: Variant = budgets.get(phase + "_seconds", result[phase])
+		if (value is int or value is float) and is_finite(float(value)):
+			result[phase] = maxf(result[phase], float(value))
+	return result
+
+
+static func phase_incomplete(frames: int, minimum_frames: int, elapsed: float, minimum_seconds: float) -> bool:
+	return frames < minimum_frames or elapsed < minimum_seconds
+
+
+static func phase_progress(frames: int, minimum_frames: int, elapsed: float, minimum_seconds: float) -> float:
+	var frame_progress := float(frames) / maxi(minimum_frames, 1)
+	var time_progress := elapsed / minimum_seconds if minimum_seconds > 0.0 else 1.0
+	return clampf(minf(frame_progress, time_progress), 0.0, 1.0)
+
+
 static func _apply_scenario_input(scenario_name: StringName, frame: int, total_frames: int) -> void:
 	_release_inputs()
 	Input.action_press(&"move_forward")
@@ -781,6 +825,11 @@ static func validate_report(report: Dictionary) -> PackedStringArray:
 		var endpoint_expected := not smoke_run and scenario_name == &"nearby_sector_ship_flight_route"
 		if bool(progress.get("endpoint_required", false)) != endpoint_expected:
 			errors.append("scenario %s endpoint requirement does not match configuration" % scenario_name)
+		var required := required_phase_seconds(report.get("target_profile", {}) as Dictionary, smoke_run)
+		for phase: String in required:
+			var elapsed := float(scenario.get(phase + "_elapsed_seconds", -1.0))
+			if not is_finite(elapsed) or elapsed < float(required[phase]):
+				errors.append("scenario %s %s elapsed duration is below required minimum" % [scenario_name, phase])
 		var frame_delta := scenario.get("frame_delta_ms", {}) as Dictionary
 		if not _valid_summary(frame_delta):
 			errors.append("scenario frame_delta_ms summary is invalid")

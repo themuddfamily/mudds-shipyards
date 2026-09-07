@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import math
 from pathlib import Path
 from typing import Any
 
@@ -123,6 +124,20 @@ def validate_record(report: dict[str, Any], target: dict[str, Any] | None = None
 
     selected_target = target if target is not None else report.get("target_profile")
     budgets = selected_target.get("budgets") if isinstance(selected_target, dict) else None
+    for phase, floor in (("warmup", 60.0), ("sample", 600.0)):
+        requested = budgets.get(f"{phase}_seconds") if isinstance(budgets, dict) else None
+        if not _number(requested) or not math.isfinite(requested) or requested <= 0:
+            errors.append(f"target budgets.{phase}_seconds must be finite and positive")
+            minimum = floor
+        else:
+            minimum = max(floor, requested)
+        for scenario in scenarios:
+            if not isinstance(scenario, dict):
+                continue
+            elapsed = scenario.get(f"{phase}_elapsed_seconds")
+            if not _number(elapsed) or not math.isfinite(elapsed) or elapsed < minimum:
+                errors.append(f"scenario {scenario.get('name', 'unknown')} {phase} elapsed duration is below required minimum")
+
     frame_budget = budgets.get("frame_time_ms") if isinstance(budgets, dict) else None
     if not isinstance(frame_budget, dict):
         errors.append("target budgets.frame_time_ms is required")

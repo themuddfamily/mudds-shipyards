@@ -27,6 +27,8 @@ def record():
         },
         "target_profile": {
             "budgets": {
+                "warmup_seconds": 60,
+                "sample_seconds": 600,
                 "frame_time_ms": {"p95": 16.7, "p99": 33.3, "max": 100.0},
                 "peak_working_set_bytes": 4 * 1024**3,
             }
@@ -35,6 +37,8 @@ def record():
             {
                 "name": name,
                 "completed": True,
+                "warmup_elapsed_seconds": 60.0,
+                "sample_elapsed_seconds": 600.0,
                 "frame_delta_ms": {"count": 10, "p50": 10.0, "p95": 15.0, "p99": 20.0, "max": 40.0},
                 "ram": {"static_peak_bytes": 1000},
             }
@@ -46,6 +50,20 @@ def record():
 class BenchmarkRecordValidatorTests(unittest.TestCase):
     def test_valid_record(self):
         self.assertEqual(validator.validate_record(record()), [])
+
+    def test_short_or_missing_elapsed_cannot_qualify(self):
+        for elapsed in (None, 300.0, float("nan"), float("inf")):
+            value = record()
+            value["scenarios"][0]["sample_elapsed_seconds"] = elapsed
+            self.assertTrue(any("sample elapsed duration" in error for error in validator.validate_record(value)))
+
+    def test_longer_reviewed_duration_and_warmup_are_enforced(self):
+        value = record()
+        value["target_profile"]["budgets"]["sample_seconds"] = 900
+        value["scenarios"][0]["warmup_elapsed_seconds"] = 59.9
+        errors = validator.validate_record(value)
+        self.assertTrue(any("warmup elapsed duration" in error for error in errors))
+        self.assertTrue(any("sample elapsed duration" in error for error in errors))
 
     def test_unavailable_gpu_is_blocking(self):
         value = record()
