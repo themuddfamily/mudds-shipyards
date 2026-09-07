@@ -8,7 +8,7 @@ This is an unofficial, research-led project with original code and newly produce
 
 ## Current prototype slice
 
-Source capabilities reviewed on **2026-09-06**; this inventory is not a new test or package result.
+Source capabilities reviewed on **2026-09-07**; this inventory is not a new test or package result.
 
 - **Physical fleet loop:** independently reserved berths, automatic propulsion, guided combat and return, collision-backed station routes, landing assistance, destruction/recovery and craft regeneration. Cabin access and optional crew roles are craft-specific.
 - **Nine flyable craft:** Torrent, Arrow, Jovian, Zenith, Halyard Crew Transport, Bulwark Heavy Gunship, Cinder Cargo Hauler, Cinder Long-Range Bomber and Cinder Light Interceptor. The [ship definitions](assets/ships) and [production flow](scripts/game/game_flow.gd) define the roster; the Fleet Dock expansion occupies Dock 04/05/06.
@@ -24,11 +24,13 @@ The historical evidence boundary is unchanged: Torrent's B5 link and Zenith's B7
 
 Deliver a source-pinned stabilization candidate for normal-controls Windows feedback:
 
-1. Repair recursive regression discovery and stale fleet/capture expectations; automate a fast core set and scheduled broader CI runs.
-2. Bound failed diagnostic-save retries while retaining pending records.
-3. Build from the tested source, then exercise boarding, combat, landing, disembarking, crash recovery and the Ember expedition on Windows using normal controls. Tune camera comfort, landing clarity, prompts and audio from recorded observations.
-4. Run the existing benchmark on representative minimum/target hardware before further visual expansion. Extract planetary journey coordination from `GameFlow` alongside the next visible Ember deliverable; consolidate validators only when their real consumers allow it.
+Regression discovery now includes nested suites and registered graphical harnesses; CI runs the eight-suite core on changes and broader suites on a schedule. Failed diagnostic saves retain their records and back off between retries. The planetary journey coordinator now lives outside `GameFlow` and remains attached across Ember return cycles. Equivalent audio validators share one implementation.
 
+The current stabilization pass also repairs physical boarding, doorway face winding, Cinder streaming fades, startup cleanup and network HUD revision handling. Focused checks have passed; the complete matrix must pass on the merged source before packaging.
+
+1. Finish the merged full regression and export its exact source revision.
+2. Exercise boarding, combat, landing, disembarking, crash recovery and the Ember expedition on Windows using normal controls. Tune camera comfort, landing clarity, prompts and audio from recorded observations.
+3. Run the existing benchmark on representative minimum/target hardware before further visual expansion. Use the packaged Ember observations to choose its next visible improvement.
 Current-source full regression, packaging and package parity evidence are **pending**. Current-candidate native-Windows human play, representative CPU/GPU benchmarks, real-controller focus and audible mix review are **`NOT_RUN`** until actually performed. Historical native startup/capture records do not substitute for those gates. The [complete roadmap](ROADMAP.md) retains every phase and open acceptance requirement.
 
 ## Run locally

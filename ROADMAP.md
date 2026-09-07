@@ -2,9 +2,11 @@
 
 The current game has **nine flyable craft and implemented slices across Phases 2–10**, including remapping/curves/glyphs, bounded ENet/crew integration, nearby activities and the Ember Moon expedition. Phase 1 authenticity research and the full station, fleet, combat, multiplayer, planetary and release scope remain open. A checked item records bounded implementation or research, never whole-phase completion or historical authentication.
 
-## Current state and next milestone — 2026-09-06
+## Current state and next milestone — 2026-09-07
 
-The [README capability inventory](README.md#current-prototype-slice) describes the running source. The next milestone is a source-pinned stabilization candidate: repair recursive regression discovery and stale fleet/capture expectations, add fast-core and scheduled broader CI, bound failed diagnostic-save retries, then package the tested source for normal-controls Windows feedback through boarding, combat, landing, disembarking, crash recovery and Ember. Tune camera comfort, landing clarity, prompts and audio from those observations. Run the existing benchmark on representative hardware before further visual expansion. Extract planetary journey coordination from `GameFlow` while delivering the next player-visible Ember improvement; consolidate validators only as their consumers permit.
+The [README capability inventory](README.md#current-prototype-slice) describes the running source. Recursive regression discovery, graphical registration, fast-core and scheduled broader CI, bounded diagnostic-save retries and the retained planetary journey extraction are implemented. Focused checks cover the resulting boarding, streaming, startup and network fixes; the merged full matrix remains the next gate.
+
+Finish that matrix and package its exact source for normal-controls Windows feedback through boarding, combat, landing, disembarking, crash recovery and Ember. Tune camera comfort, landing clarity, prompts and audio from those observations. Run the existing benchmark on representative hardware before further visual expansion, and choose the next player-visible Ember improvement from the packaged expedition review. Consolidate validators only as their consumers permit.
 
 **Current-source regression/package evidence: pending. Current-candidate native-Windows human play, representative benchmarks, real-controller review and audible mix: `NOT_RUN`.** Historical successes remain dated records. All native/human, signing, permission and full-phase gates stay open until actually satisfied.
 
@@ -59,7 +61,7 @@ The next expansion slice may begin only when one fresh, source-pinned Windows ca
 - Station floor/wall/stair materials use a coherent station material family with continuous metric mapping; ship-specific atlases stay on their registered ships. Authored UV0 surfaces have non-degenerate, consistent outward-view handedness and bounded texel-density distortion.
 - All nine production ships can be approached from collision-clear routes, boarded through the production reservation path, powered by same-tick flight demand, launched, flown, fired where their role supports it, returned with forgiving assist acquisition, strictly docked, idled automatically offline after exactly `1.5` neutral physics seconds, and exited. Destroy/recover/switch-craft reuse must not duplicate authority or strand a berth. Dock 04/05/06 are physical `ShipBerth` children owned by `FleetExpansionBerths` and indexed into the same world lease table as the original fleet.
 - The guided Torrent loop completes only after its actual combat, return, dock, automatic engine-offline, and disembark lifecycle, once per generation.
-- The complete sorted `tests/*_test.gd` matrix passes in isolated processes after a clean editor/import gate, with exact terminal sentinels and no unreviewed diagnostics.
+- The complete sorted `tests/**/*_test.gd` matrix passes in isolated processes after a clean editor/import gate, with exact terminal sentinels and no unreviewed diagnostics.
 - A human completes at least one uninterrupted packaged sortie using normal controls—no harness teleport, direct state mutation, or debugger shortcut—and records control, camera, collision, texture, prompt, audio, and performance observations.
 
 ### Content-slice cadence
