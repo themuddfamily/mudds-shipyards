@@ -1032,6 +1032,7 @@ var _guide_lens_mesh: SphereMesh
 var _guide_lens_material_cache: Dictionary = {}
 var _guide_lens_nodes: Array[Marker3D] = []
 var _guide_light_nodes: Array[OmniLight3D] = []
+var _shadowed_work_masts: Array[SpotLight3D] = []
 var _guide_lens_batches: Dictionary = {}
 var _landing_pad_deck_connector_mesh: TorusMesh
 var _tie_down_socket_mesh: TorusMesh
@@ -4573,6 +4574,12 @@ func _on_operational_door_motion_completed(
 
 
 func _apply_operational_dressing_quality() -> void:
+	# Low retains each mast's illumination but omits its local shadow pass.
+	for mast in _shadowed_work_masts:
+		if is_instance_valid(mast):
+			mast.shadow_enabled = visual_quality_level != 0
+	if is_instance_valid(jovian_freight_berth):
+		jovian_freight_berth.set_work_mast_shadows_enabled(visual_quality_level != 0)
 	for dressing in _station_structural_service_dressings:
 		if is_instance_valid(dressing):
 			dressing.set_quality_level(visual_quality_level)
@@ -6076,6 +6083,7 @@ func _build_environment() -> void:
 		light.spot_angle_attenuation = 0.55
 		light.spot_attenuation = 0.75
 		light.shadow_enabled = true
+		_shadowed_work_masts.append(light)
 		light.set_meta("central_berth_key_light", is_hero_work_light)
 		add_child(light)
 
@@ -6108,6 +6116,8 @@ func _build_environment() -> void:
 		light.spot_angle_attenuation = 0.55
 		light.spot_attenuation = 0.75
 		light.shadow_enabled = bool(mast[5])
+		if light.shadow_enabled:
+			_shadowed_work_masts.append(light)
 		light.set_meta("outer_node_work_mast", true)
 		add_child(light)
 

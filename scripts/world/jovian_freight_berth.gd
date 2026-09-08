@@ -308,6 +308,7 @@ const CONTENT_NOTE := (
 @onready var _route_cargo_rack: Marker3D = %RouteCargoRack
 
 var _materials: Dictionary = {}
+var _work_masts: Array[SpotLight3D] = []
 var _rounded_box_cache: Dictionary = {}
 var _chamfered_cylinder_cache: Dictionary = {}
 var _lashing_ring_mesh: TorusMesh
@@ -3288,6 +3289,13 @@ func _register_handling_fixture(fixture: Node3D, fixture_class: StringName) -> v
 	_handling_fixtures.append(fixture)
 
 
+## The station quality owner controls only the two authored apron shadows.
+func set_work_mast_shadows_enabled(enabled: bool) -> void:
+	for mast in _work_masts:
+		if is_instance_valid(mast):
+			mast.shadow_enabled = enabled
+
+
 func _build_lighting_and_signage() -> void:
 	var presentation := Node3D.new()
 	presentation.name = "FreightPresentation"
@@ -3324,6 +3332,7 @@ func _build_lighting_and_signage() -> void:
 		work_light.spot_angle_attenuation = 0.55
 		work_light.spot_attenuation = 0.75
 		work_light.shadow_enabled = true
+		_work_masts.append(work_light)
 		presentation.add_child(work_light, true)
 
 	var room_fill := OmniLight3D.new()

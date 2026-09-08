@@ -8,7 +8,7 @@ const SKY_SHADER := preload("res://scripts/rendering/deep_space_sky.gdshader")
 const RuntimeSettingsScript := preload(
 	"res://scripts/settings/runtime_settings.gd"
 )
-const EXPECTED_ASSERTIONS := 17
+const EXPECTED_ASSERTIONS := 29
 
 var _assertions := 0
 var _failures := PackedStringArray()
@@ -21,6 +21,7 @@ func _init() -> void:
 func _run() -> void:
 	_test_bounded_adapter()
 	await _test_production_world_lifecycle()
+	await _test_work_mast_quality()
 	_finish()
 
 
@@ -266,6 +267,65 @@ func _test_production_world_lifecycle() -> void:
 	await process_frame
 
 
+func _test_work_mast_quality() -> void:
+	var world := WORLD_SCENE.instantiate() as ShipyardWorld
+	world.visual_quality_level = 0
+	world.prepare_staged_construction()
+	root.add_child(world)
+	await world.run_staged_construction()
+	await process_frame
+	var masts: Array[SpotLight3D] = []
+	var other_shadows: Dictionary = {}
+	var illumination: Dictionary = {}
+	for node in world.find_children("*", "Light3D", true, false):
+		var light := node as Light3D
+		if light is SpotLight3D and (
+			(light.get_parent() == world and light.name != &"FleetDockMastSpot")
+			or String(light.name).begins_with("ApronWorkLight")
+		):
+			masts.append(light as SpotLight3D)
+		else:
+			other_shadows[light] = light.shadow_enabled
+		illumination[light] = _light_illumination(light)
+	_check(masts.size() == 9 and masts.all(func(mast): return not mast.shadow_enabled),
+		"initial staged Low construction omits exactly nine authored station work-mast shadows")
+	for quality in [2, 0, 1, 0, 2]:
+		world.apply_visual_quality(quality)
+		_check(masts.all(func(mast): return mast.shadow_enabled == (quality != 0)),
+			"runtime profile %d restores the authored work-mast shadow policy" % quality)
+		var unchanged := true
+		for light in illumination:
+			unchanged = unchanged and _light_illumination(light) == illumination[light]
+		for light in other_shadows:
+			unchanged = unchanged and light.shadow_enabled == other_shadows[light]
+		_check(unchanged,
+			"profile %d preserves all light illumination and every other shadow flag" % quality)
+	world.apply_visual_quality(0)
+	root.remove_child(world)
+	await process_frame
+	root.add_child(world)
+	await process_frame
+	_check(masts.all(func(mast): return not mast.shadow_enabled),
+		"station re-entry retains Low work-mast shadows without rebuilding lights")
+	world.queue_free()
+	await process_frame
+	await process_frame
+
+
+func _light_illumination(light: Light3D) -> Array:
+	var values := [light.transform, light.visible, light.light_color, light.light_energy,
+		light.light_specular, light.distance_fade_enabled, light.distance_fade_begin,
+		light.distance_fade_length, light.distance_fade_shadow]
+	if light is SpotLight3D:
+		var spot := light as SpotLight3D
+		values.append_array([spot.spot_range, spot.spot_angle, spot.spot_attenuation,
+			spot.spot_angle_attenuation])
+	elif light is OmniLight3D:
+		var omni := light as OmniLight3D
+		values.append_array([omni.omni_range, omni.omni_attenuation])
+	return values
+
+
 func _environment_values(environment: Environment) -> Dictionary:
 	var levels: Array[float] = []
 	for index in Presenter.GLOW_LEVEL_CAPS.size():
@@ -296,7 +356,7 @@ func _finish() -> void:
 			"expected %d assertions, ran %d" % [EXPECTED_ASSERTIONS, _assertions]
 		)
 	if _failures.is_empty():
-		print("STATION_SOLAR_READABILITY_PRESENTATION_TEST_OK: 17 assertions")
+		print("STATION_SOLAR_READABILITY_PRESENTATION_TEST_OK: %d assertions" % _assertions)
 		quit(0)
 		return
 	for failure in _failures:
