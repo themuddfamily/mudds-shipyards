@@ -892,7 +892,7 @@ func _build_hull(visual: Node3D) -> void:
 	var hull := MeshInstance3D.new()
 	hull.name = "LongRangeHull"
 	if _shared_hull_mesh == null:
-		_shared_hull_mesh = _loft_mesh(Vector3(5.6, 2.65, HULL_SIZE.z), null)
+		_shared_hull_mesh = _formed_pressure_mesh(Vector3(5.6, 2.65, HULL_SIZE.z), null)
 		_shared_hull_mesh.resource_local_to_scene = false
 	if _shared_hull_material == null:
 		_shared_hull_material = _material(HULL_COLOR, 0.12, 0.62)
@@ -951,8 +951,8 @@ func _build_bomber_propulsion(visual: Node3D) -> void:
 	for side in [-1.0, 1.0]:
 		var tag := "Port" if side < 0 else "Starboard"
 		_service_bay(visual, tag + "ThermalService", Vector3(side * 2.3, 1.212, 2.6), 0.9, 2.1, _shared_hull_material, ceramic, metal)
-		_armor_shell(visual, tag + "PressureShoulder", Vector3(side * 2.3, 0.28, 0.4), Vector3(1.85, 1.8, 12.8), _shared_hull_material)
-		_armor_shell(visual, tag + "WingRootFairing", Vector3(side * 3.9, -0.25, 1.2), Vector3(2.7, 0.58, 7.7), ceramic, side * -0.13)
+		_armor_shell(visual, tag + "PressureShoulder", Vector3(side * 2.3, 0.28, 0.4), Vector3(1.85, 1.8, 12.8), _shared_hull_material, 0.0, _formed_pressure_mesh(Vector3(1.85, 1.8, 12.8), _shared_hull_material))
+		_armor_shell(visual, tag + "WingRootFairing", Vector3(side * 3.9, -0.25, 1.2), Vector3(2.7, 0.58, 7.7), _shared_hull_material, side * -0.13, _formed_wing_root_mesh(side, _shared_hull_material))
 		_armor_shell(visual, tag + "OutboardArmor", Vector3(side * 5.6, -0.22, 1.8), Vector3(1.6, 0.08, 3.2), _shared_ordnance_spine_material, side * -0.16)
 		_cylinder(visual, tag + "TurbineCase", Vector3(side * 2.35, 0.1, 6.75), 0.92, 2.1, metal, Vector3(90, 0, 0))
 		_frustum(visual, tag + "ExhaustBell", Vector3(side * 2.35, 0.1, 8.10), 1.0, 0.70, 0.70, ceramic, Vector3(90, 0, 0), false, false)
@@ -1199,6 +1199,49 @@ func _loft_mesh(size: Vector3, material: Material) -> ArrayMesh:
 		Vector2(0, -1), Vector2(-0.94, -1), Vector2(-1, -0.94), Vector2(-1, -0.36),
 		Vector2(-1, 0), Vector2(-1, 0.36), Vector2(-1, 0.94), Vector2(-0.94, 1),
 	])
+	return _pressure_section_mesh(size, material, section)
+
+
+## Broad crowns carry the existing access panels; formed shoulders roll down
+## into the belly instead of ending in almost-square vertical walls. The nose
+## and afterbody retain their existing stations, length and maximum envelope.
+func _formed_pressure_mesh(size: Vector3, material: Material) -> ArrayMesh:
+	return _pressure_section_mesh(size, material, PackedVector2Array([
+		Vector2(0, 1), Vector2(0.60, 1), Vector2(0.82, 0.87), Vector2(0.96, 0.59),
+		Vector2(1, 0.24), Vector2(0.97, -0.32), Vector2(0.81, -0.78), Vector2(0.52, -1),
+		Vector2(0, -1), Vector2(-0.52, -1), Vector2(-0.81, -0.78), Vector2(-0.97, -0.32),
+		Vector2(-1, 0.24), Vector2(-0.96, 0.59), Vector2(-0.82, 0.87), Vector2(-0.60, 1),
+	]), true)
+
+
+## A cambered transition carries the nacelle's lower shoulder to the wing.
+## Its outboard shelf still seats the ordnance covers at their authored height.
+func _formed_wing_root_mesh(side: float, material: Material) -> ArrayMesh:
+	var mesh := _formed_pressure_mesh(Vector3(2.7, 0.58, 7.7), material)
+	var arrays := mesh.surface_get_arrays(0)
+	var vertices: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
+	var normals: PackedVector3Array = arrays[Mesh.ARRAY_NORMAL]
+	var uv: PackedVector2Array = arrays[Mesh.ARRAY_TEX_UV]
+	var surface := SurfaceTool.new()
+	surface.begin(Mesh.PRIMITIVE_TRIANGLES)
+	surface.set_material(material)
+	for index in vertices.size():
+		var point := vertices[index]
+		var span := clampf((point.x * side + 1.35) / 2.7, 0.0, 1.0)
+		# Inboard crown rises into the formed pressure trunk, then settles
+		# onto the thin outboard structure over the inner third of the span.
+		point.y += 0.48 * pow(1.0 - span, 3.0)
+		var slope := -0.48 * 3.0 * pow(1.0 - span, 2.0) * side / 2.7
+		var normal := normals[index]
+		normal.x -= slope * normal.y
+		surface.set_normal(normal.normalized())
+		surface.set_uv(uv[index])
+		surface.add_vertex(point)
+	surface.generate_tangents()
+	return surface.commit()
+
+
+func _pressure_section_mesh(size: Vector3, material: Material, section: PackedVector2Array, formed: bool = false) -> ArrayMesh:
 	var stations := [0.0, 0.28, 0.43, 0.83, 1.0]
 	var extents: Array[Vector2] = []
 	for t in stations:
@@ -1221,7 +1264,14 @@ func _loft_mesh(size: Vector3, material: Material) -> ArrayMesh:
 			# normals on the tapered chamfers rather than triangle fans.
 			for corner in [Vector2i(edge, bay), Vector2i(next, bay), Vector2i(next, bay + 1), Vector2i(edge, bay), Vector2i(next, bay + 1), Vector2i(edge, bay + 1)]:
 				var extent := extents[corner.y]
-				var around := Vector3(edge_direction.x * extent.x, edge_direction.y * extent.y, 0)
+				var tangent := edge_direction
+				if formed:
+					# Smooth only the formed skin around each section; longitudinal
+					# changes and the closed end bulkheads remain distinct surfaces.
+					tangent = section[(corner.x + 1) % 16] - section[(corner.x + 15) % 16]
+					if is_equal_approx(absf(section[corner.x].y), 1.0):
+						tangent = Vector2(section[corner.x].y, 0)
+				var around := Vector3(tangent.x * extent.x, tangent.y * extent.y, 0)
 				var along := Vector3(section[corner.x].x * extent_delta.x, section[corner.x].y * extent_delta.y, run)
 				var u := 1.0 if edge == 15 and corner.x == 0 else float(corner.x) / 16.0
 				surface.set_normal(along.cross(around).normalized())
@@ -1242,11 +1292,11 @@ func _loft_mesh(size: Vector3, material: Material) -> ArrayMesh:
 	return surface.commit()
 
 
-func _armor_shell(parent: Node3D, node_name: String, at: Vector3, size: Vector3, coating: Material, skew: float = 0.0) -> MeshInstance3D:
+func _armor_shell(parent: Node3D, node_name: String, at: Vector3, size: Vector3, coating: Material, skew: float = 0.0, formed_mesh: ArrayMesh = null) -> MeshInstance3D:
 	var instance := MeshInstance3D.new()
 	instance.name = node_name
 	instance.position = at
-	instance.mesh = _loft_mesh(size, coating)
+	instance.mesh = formed_mesh if formed_mesh != null else _loft_mesh(size, coating)
 	# Shear the assembly into the wing root without an intersecting box joint.
 	instance.transform.basis.z.x = -skew
 	parent.add_child(instance)
