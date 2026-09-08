@@ -4,8 +4,8 @@ const ShipComponentDamageType := preload("res://scripts/combat/ship_component_da
 
 const CRAFT_EXHAUST := {
 	"TorrentInterceptor": {"plumes": "_engine_glows", "lights": "_engine_lights", "axis": &"z"},
-	"ArrowReconShip": {"plumes": "_engine_plumes", "lights": "_arrow_engine_lights", "axis": &"z"},
-	"JovianLightFreighter": {"plumes": "_engine_plumes", "lights": "_jovian_engine_lights", "axis": &"z"},
+	"ArrowReconShip": {"plumes": "_engine_plumes", "lights": "_arrow_engine_lights", "axis": &"y"},
+	"JovianLightFreighter": {"plumes": "_engine_plumes", "lights": "_jovian_engine_lights", "axis": &"y"},
 	"ZenithInterceptor": {"plumes": "_engine_plumes", "lights": "", "axis": &"z"},
 	"HalyardCrewTransport": {"plumes": "_engine_plumes", "lights": "_halyard_engine_lights", "axis": &"y"},
 }
@@ -45,8 +45,10 @@ func _run() -> void:
 		var nominal_profile := craft.get_engine_exhaust_damage_presentation_profile()
 		var nominal_extent := _plume_extent(plumes[0] as MeshInstance3D, axis)
 		var original_overlays: Array[Material] = []
+		var original_meshes: Array[Mesh] = []
 		for plume_value in plumes:
 			original_overlays.append((plume_value as MeshInstance3D).material_overlay)
+			original_meshes.append((plume_value as MeshInstance3D).mesh)
 		_check(
 			nominal_profile.get("stage") == &"nominal"
 			and _visible_plume_count(plumes) == plumes.size()
@@ -79,13 +81,15 @@ func _run() -> void:
 		craft.call("_sync_engine_visuals_immediately")
 		var critical_profile := craft.get_engine_exhaust_damage_presentation_profile()
 		var critical_extent := _plume_extent(plumes[0] as MeshInstance3D, axis)
-		var critical_overlay := (plumes[0] as MeshInstance3D).material_overlay as StandardMaterial3D
+		var critical_overlay := (plumes[0] as MeshInstance3D).material_overlay as ShaderMaterial
 		_check(
 			critical_profile.get("stage") == &"critical"
 			and _visible_plume_count(plumes) == ceili(float(plumes.size()) * 0.5)
 			and critical_extent < nominal_extent
 			and critical_overlay != null
-			and critical_overlay.emission.is_equal_approx(Color("ff653a")),
+			and (critical_overlay.get_shader_parameter(&"exhaust_color") as Color).is_equal_approx(Color("ff653a"))
+			and bool(critical_overlay.get_shader_parameter(&"damage_pass"))
+			and is_equal_approx(float((plumes[0] as MeshInstance3D).get_instance_shader_parameter(&"plume_damage_mix")), 1.0),
 			"%s critical output is short red-orange exhaust on alternating propulsion mounts" % craft_name
 		)
 
@@ -93,14 +97,14 @@ func _run() -> void:
 		craft.call("_sync_engine_visuals_immediately")
 		var degraded_profile := craft.get_engine_exhaust_damage_presentation_profile()
 		var degraded_extent := _plume_extent(plumes[0] as MeshInstance3D, axis)
-		var degraded_overlay := (plumes[0] as MeshInstance3D).material_overlay as StandardMaterial3D
+		var degraded_overlay := (plumes[0] as MeshInstance3D).material_overlay as ShaderMaterial
 		_check(
 			degraded_profile.get("stage") == &"degraded"
 			and _visible_plume_count(plumes) == plumes.size()
 			and degraded_extent > critical_extent
 			and degraded_extent < nominal_extent
 			and degraded_overlay != null
-			and degraded_overlay.emission.is_equal_approx(Color("ffd166")),
+			and (degraded_overlay.get_shader_parameter(&"exhaust_color") as Color).is_equal_approx(Color("ffd166")),
 			"%s degraded output keeps all mounts but shortens, dims, and warms their exhaust" % craft_name
 		)
 		if not lights.is_empty():
@@ -115,7 +119,9 @@ func _run() -> void:
 		var overlays_restored := true
 		for index in plumes.size():
 			overlays_restored = overlays_restored \
-				and (plumes[index] as MeshInstance3D).material_overlay == original_overlays[index]
+				and (plumes[index] as MeshInstance3D).material_overlay == original_overlays[index] \
+				and (plumes[index] as MeshInstance3D).mesh == original_meshes[index] \
+				and is_zero_approx(float((plumes[index] as MeshInstance3D).get_instance_shader_parameter(&"plume_damage_mix")))
 		_check(
 			repaired_profile.get("stage") == &"nominal"
 			and _visible_plume_count(plumes) == plumes.size()

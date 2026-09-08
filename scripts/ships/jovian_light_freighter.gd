@@ -4036,6 +4036,7 @@ func _build_propulsion_and_gear() -> void:
 			var core := _cylinder(_jovian_visual, prefix + "EngineCore", Vector3(engine_x, engine_y, 13.31), 0.57, 0.2, _jovian_materials.engine, Vector3(90.0, 0.0, 0.0))
 			_engine_cores.append(core)
 			var plume := _cylinder(_jovian_visual, prefix + "EnginePlume", Vector3(engine_x, engine_y, 13.8), 0.38, 1.1, _jovian_materials.engine, Vector3(90.0, 0.0, 0.0))
+			EngineExhaustPresentation.install(plume, Vector3.UP, true)
 			_engine_plumes.append(plume)
 			var light := OmniLight3D.new()
 			light.name = prefix + "EngineLight"
@@ -4475,8 +4476,8 @@ func _update_jovian_presentation(delta: float) -> void:
 		core.visible = engine_active
 	for plume in _engine_plumes:
 		plume.visible = engine_level > 0.01
-		plume.scale.z = lerpf(
-			plume.scale.z,
+		plume.scale.y = lerpf(
+			plume.scale.y,
 			0.5 + engine_level * 1.25 * exhaust_geometry,
 			1.0 - exp(-6.0 * delta)
 		)
@@ -4501,7 +4502,7 @@ func _sync_jovian_engine_presentation_immediately() -> void:
 	for plume in _engine_plumes:
 		if is_instance_valid(plume):
 			plume.visible = active
-			plume.scale.z = 0.5 + engine_level * 1.25 * exhaust_geometry if active else 0.5
+			plume.scale.y = 0.5 + engine_level * 1.25 * exhaust_geometry if active else 0.5
 	for light in _jovian_engine_lights:
 		if is_instance_valid(light):
 			light.light_energy = engine_level * 2.6 if active else 0.0

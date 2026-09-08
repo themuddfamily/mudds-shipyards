@@ -1,6 +1,8 @@
 class_name HeroShip
 extends CharacterBody3D
 
+const EngineExhaustPresentation := preload("res://scripts/ships/engine_exhaust_presentation.gd")
+
 ## Flyable Torrent-class interceptor.
 ##
 ## The B5-observed Torrent macroform is a checked-in authored/imported asset.
@@ -225,13 +227,13 @@ const TORRENT_RENDER_MULTIMESH_BATCH_COUNT := 6
 const TORRENT_RENDER_DRAWN_COPY_COUNT := 268
 const TORRENT_RENDER_GEOMETRY_SUBMISSION_COUNT := 254
 const TORRENT_RENDER_UNIQUE_MESH_RESOURCE_COUNT := 220
-const TORRENT_RENDER_UNIQUE_MATERIAL_RESOURCE_COUNT := 39
+const TORRENT_RENDER_UNIQUE_MATERIAL_RESOURCE_COUNT := 41
 const TORRENT_MODERN_DESCENDANT_COUNT := 109
 const TORRENT_MODERN_MESH_INSTANCE_COUNT := 87
 const TORRENT_MODERN_DRAWN_COPY_COUNT := 107
 const TORRENT_MODERN_GEOMETRY_SUBMISSION_COUNT := 93
 const TORRENT_MODERN_UNIQUE_MESH_RESOURCE_COUNT := 73
-const TORRENT_MODERN_UNIQUE_MATERIAL_RESOURCE_COUNT := 11
+const TORRENT_MODERN_UNIQUE_MATERIAL_RESOURCE_COUNT := 12
 
 @export_category("Identity")
 @export var ship_id: StringName = &"torrent_test_article_01"
@@ -358,7 +360,7 @@ var _muzzle_right: Marker3D
 var _engine_glows: Array[MeshInstance3D] = []
 var _engine_core_glows: Array[MeshInstance3D] = []
 var _engine_lights: Array[OmniLight3D] = []
-var _engine_exhaust_damage_overlay: StandardMaterial3D
+var _engine_exhaust_damage_overlay: ShaderMaterial
 var _engine_exhaust_original_overlays: Dictionary = {}
 var _engine_exhaust_original_light_colors: Dictionary = {}
 var _weapon_component_emitters: Array[MeshInstance3D] = []
@@ -5799,6 +5801,7 @@ func _build_torrent_engine(parent: Node3D, side: float) -> Node3D:
 		)
 	_sphere(assembly, "RecessedIgniter", Vector3(0.0, 0.0, 1.59), 0.055, _materials.engine)
 	var plume := _frustum(assembly, "EnginePlume", Vector3(0.0, 0.0, 2.13), 0.10, 0.22, 0.88, _materials.engine, Vector3(90.0, 0.0, 0.0))
+	EngineExhaustPresentation.install(plume)
 	plume.visible = false
 	return assembly
 
@@ -6495,10 +6498,9 @@ func _apply_engine_exhaust_damage_presentation(
 	if stage in [&"degraded", &"critical"]:
 		_ensure_engine_exhaust_damage_overlay()
 		var color := profile.get("overlay_color", Color.WHITE) as Color
-		_engine_exhaust_damage_overlay.albedo_color = Color(color, 0.58)
-		_engine_exhaust_damage_overlay.emission = color
-		_engine_exhaust_damage_overlay.emission_energy_multiplier = (
-			1.8 if stage == &"critical" else 1.2
+		_engine_exhaust_damage_overlay.set_shader_parameter(&"exhaust_color", color)
+		_engine_exhaust_damage_overlay.set_shader_parameter(
+			&"intensity", 3.6 if stage == &"critical" else 3.0
 		)
 		overlay = _engine_exhaust_damage_overlay
 	for index in plumes.size():
@@ -6506,6 +6508,8 @@ func _apply_engine_exhaust_damage_presentation(
 		if not is_instance_valid(plume_value) or not plume_value is MeshInstance3D:
 			continue
 		var plume := plume_value as MeshInstance3D
+		EngineExhaustPresentation.sync_inlet(plume)
+		plume.set_instance_shader_parameter(&"plume_damage_mix", 1.0 if overlay != null else 0.0)
 		var instance_id := plume.get_instance_id()
 		if not _engine_exhaust_original_overlays.has(instance_id):
 			_engine_exhaust_original_overlays[instance_id] = plume.material_overlay
@@ -6535,12 +6539,7 @@ func _apply_engine_exhaust_damage_presentation(
 func _ensure_engine_exhaust_damage_overlay() -> void:
 	if _engine_exhaust_damage_overlay != null:
 		return
-	_engine_exhaust_damage_overlay = StandardMaterial3D.new()
-	_engine_exhaust_damage_overlay.resource_name = "EngineExhaustDamageOverlay"
-	_engine_exhaust_damage_overlay.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	_engine_exhaust_damage_overlay.blend_mode = BaseMaterial3D.BLEND_MODE_ADD
-	_engine_exhaust_damage_overlay.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	_engine_exhaust_damage_overlay.emission_enabled = true
+	_engine_exhaust_damage_overlay = EngineExhaustPresentation.create_damage_overlay()
 
 
 ## Static, authority-free grade for the weaker of the two wing-mounted weapon

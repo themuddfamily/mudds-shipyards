@@ -35,7 +35,7 @@ func _run() -> void:
 		forbidden += presentation.find_children("*", type_name, true, false).size()
 	_check(forbidden == 0, "imported visual subtree contains no collision, camera, audio, or animation authority")
 	_check(int(audit.get("forbidden_authority_node_count", -1)) == 0, "runtime audit independently rejects imported gameplay authority")
-	_check(int(audit.get("runtime_material_role_count", 0)) == 10, "runtime presentation owns the exact ten-role PBR material bank")
+	_check(int(audit.get("runtime_material_role_count", 0)) == 11, "runtime presentation owns ten PBR roles plus the shared soft exhaust role")
 	_check(str(audit.get("hull_texture_coordinate", "")) == "UV0/TEXCOORD_0" and not bool(audit.get("hull_triplanar", true)), "runtime hull material contract uses authored UV0 rather than triplanar projection")
 	_check(bool(audit.get("far_lod_unbounded", false)), "atomic mid/far LOD remains unbounded without a disappearing-ship hole")
 	_check(

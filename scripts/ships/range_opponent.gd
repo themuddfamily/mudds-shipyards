@@ -1,6 +1,8 @@
 class_name RangeOpponent
 extends CharacterBody3D
 
+const EngineExhaustPresentation := preload("res://scripts/ships/engine_exhaust_presentation.gd")
+
 const RangeOpponentDamageAdapterType := preload(
 	"res://scripts/combat/range_opponent_component_damage_adapter.gd"
 )
@@ -2765,5 +2767,6 @@ func _exhaust_plume(parent: Node3D, node_name: String, mount: Vector3, radius: f
 	plume.mesh = mesh
 	plume.position = mount
 	plume.rotation_degrees = rotation_value
+	EngineExhaustPresentation.install(plume)
 	parent.add_child(plume)
 	return plume

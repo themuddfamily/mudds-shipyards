@@ -3613,6 +3613,7 @@ func _build_propulsion_and_gear() -> void:
 		var core := _cylinder(_halyard_visual, prefix + "Core", Vector3(engine_x, 1.55, 13.56), 0.48, 0.18, _halyard_materials.engine, Vector3(90.0, 0.0, 0.0))
 		_engine_cores.append(core)
 		var plume := _cylinder(_halyard_visual, prefix + "Plume", Vector3(engine_x, 1.55, 14.02), 0.32, 0.94, _halyard_materials.engine, Vector3(90.0, 0.0, 0.0))
+		EngineExhaustPresentation.install(plume, Vector3.UP, true)
 		_engine_plumes.append(plume)
 		var light := OmniLight3D.new()
 		light.name = prefix + "Light"

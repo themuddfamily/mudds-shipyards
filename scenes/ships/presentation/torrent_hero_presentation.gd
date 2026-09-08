@@ -1,6 +1,8 @@
 class_name TorrentHeroPresentation
 extends Node3D
 
+const EngineExhaustPresentation := preload("res://scripts/ships/engine_exhaust_presentation.gd")
+
 signal lod_changed(lod_index: int)
 
 ## Runtime boundary for the production-intent Blender Torrent presentation.
@@ -113,6 +115,10 @@ func _build_once() -> void:
 	_canopy_pivot = _asset_root.get_node_or_null("CanopyPivot") as Node3D
 	_semantic_anchors = _asset_root.get_node_or_null("SemanticAnchors") as Node3D
 	_configure_runtime_materials()
+	for plume in get_engine_plumes():
+		EngineExhaustPresentation.install(plume, Vector3.BACK)
+		plume.set_meta("torrent_material_role", &"SoftEngineExhaust")
+		_runtime_materials[&"SoftEngineExhaust"] = plume.material_override
 	_configure_lod_ranges()
 	_capture_integrity_contract()
 
@@ -687,7 +693,7 @@ func _capture_integrity_contract() -> void:
 				"transparency": mesh_instance.transparency,
 			}
 	for role: StringName in _runtime_materials:
-		var material := _runtime_materials[role] as StandardMaterial3D
+		var material := _runtime_materials[role] as Material
 		_integrity_materials[role] = _material_signature(material)
 
 
@@ -747,7 +753,7 @@ func _append_integrity_errors(
 		if actual_count != int(_manifest_runtime_mesh_counts.get(root_name, -1)):
 			errors.append("runtime mesh count disagrees with manifest: %s" % root_name)
 	for role: StringName in _runtime_materials:
-		var material := _runtime_materials[role] as StandardMaterial3D
+		var material := _runtime_materials[role] as Material
 		if _material_signature(material) != _integrity_materials.get(role, {}):
 			errors.append("runtime material content drifted: %s" % role)
 
@@ -885,8 +891,19 @@ func _mesh_content_hash(mesh: Mesh) -> String:
 	return context.finish().hex_encode()
 
 
-func _material_signature(material: StandardMaterial3D) -> Dictionary:
+func _material_signature(material: Material) -> Dictionary:
 	if material == null:
+		return {}
+	if material is ShaderMaterial:
+		var plume_material := material as ShaderMaterial
+		return {
+			"shader": plume_material.shader,
+			"shader_code": plume_material.shader.code if plume_material.shader != null else "",
+			"exhaust_color": plume_material.get_shader_parameter(&"exhaust_color"),
+			"intensity": plume_material.get_shader_parameter(&"intensity"),
+			"damage_pass": plume_material.get_shader_parameter(&"damage_pass"),
+		}
+	if not material is StandardMaterial3D:
 		return {}
 	return {
 		"albedo": material.albedo_color,

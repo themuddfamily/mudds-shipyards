@@ -1291,6 +1291,7 @@ func _build_engines_and_landing_gear() -> void:
 			_engine_collar_mesh = engine_collar.mesh as TorusMesh
 		_engine_collars.append(engine_collar)
 		var plume := _cylinder(_arrow_visual, "PortEnginePlume" if side_index == 0 else "StarboardEnginePlume", Vector3(side * 0.92, 0.94, 6.92), 0.37, 0.78, _arrow_materials.engine, Vector3(90, 0, 0))
+		EngineExhaustPresentation.install(plume, Vector3.UP, true)
 		_engine_plumes.append(plume)
 		var light := OmniLight3D.new()
 		light.name = "PortEngineLight" if side_index == 0 else "StarboardEngineLight"
@@ -1571,8 +1572,8 @@ func _update_arrow_presentation(delta: float) -> void:
 	var exhaust_geometry := float(exhaust_profile.get("geometry_multiplier", 1.0))
 	for plume in _engine_plumes:
 		plume.visible = engine_level > 0.01
-		plume.scale.z = lerpf(
-			plume.scale.z,
+		plume.scale.y = lerpf(
+			plume.scale.y,
 			0.42 + engine_level * 1.3 * exhaust_geometry,
 			1.0 - exp(-8.0 * delta)
 		)
@@ -1643,7 +1644,7 @@ func _sync_arrow_engine_presentation_immediately() -> void:
 	for plume in _engine_plumes:
 		if is_instance_valid(plume):
 			plume.visible = active
-			plume.scale.z = 0.42 + engine_level * 1.3 * exhaust_geometry if active else 0.42
+			plume.scale.y = 0.42 + engine_level * 1.3 * exhaust_geometry if active else 0.42
 	for light in _arrow_engine_lights:
 		if is_instance_valid(light):
 			light.light_energy = engine_level * 2.2 if active else 0.0
