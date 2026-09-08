@@ -6579,10 +6579,18 @@ func _ensure_weapon_component_emitters() -> void:
 
 
 func _weapon_emitter_is_authored_visible(emitter: MeshInstance3D, visual: Node3D) -> bool:
+	var lod_hidden_container: Node3D = null
+	if _uses_torrent_reconstruction_presentation():
+		var presentation := _get_live_torrent_hero_presentation()
+		if presentation != null and presentation.get_active_lod() == 1:
+			lod_hidden_container = presentation.get_node_or_null("WeaponComponentLenses") as Node3D
 	var current: Node = emitter
 	while current != null:
 		if current is Node3D and not (current as Node3D).visible:
-			return false
+			# The live far-LOD gate hides fitted lenses without retiring them.
+			# Rediscovery must retain them instead of creating marker fallbacks.
+			if current != lod_hidden_container:
+				return false
 		if current == visual:
 			break
 		current = current.get_parent()

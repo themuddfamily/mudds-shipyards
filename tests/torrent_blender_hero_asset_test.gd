@@ -25,7 +25,7 @@ func _run() -> void:
 	_check(not bool(audit.get("gameplay_authority", true)), "imported art explicitly owns no gameplay authority")
 	_check(int(audit.get("lod0_triangle_count", 0)) == 65750 and int(audit.get("lod0_mesh_count", 999)) == 17, "LOD0 preserves its measured close topology inside the 18-node draw budget")
 	_check(int(audit.get("lod1_triangle_count", 0)) == 9866 and int(audit.get("lod1_mesh_count", 999)) == 5, "LOD1 preserves its complete silhouette at the exact five-node budget")
-	_check(int(audit.get("total_mesh_count", 999)) == 32 and int(audit.get("near_surface_count", 999)) == 27 and int(audit.get("far_surface_count", 999)) == 5, "runtime presentation owns the measured 27-near/5-far surface contract")
+	_check(int(audit.get("total_mesh_count", 999)) == 32 and int(audit.get("near_surface_count", 999)) == 27 and int(audit.get("far_surface_count", 999)) == 8, "runtime presentation owns the measured 27-near/8-far surface contract")
 	var root_art := presentation.get_asset_root()
 	_check(root_art != null and root_art.name == &"TorrentHeroArt", "imported hierarchy publishes one stable hero root")
 	for child_name in [&"LOD0", &"LOD1", &"CockpitArt", &"CanopyPivot", &"SemanticAnchors"]:
@@ -45,10 +45,23 @@ func _run() -> void:
 		"source checkout audits the physical authored GLB hash rather than an imported-resource remap"
 	)
 	_check(_runtime_uses_only_authored_whole_ship_lods(root_art), "Godot importer keeps every per-surface auto-LOD table empty so switching remains whole-ship atomic")
+	var canopy := root_art.get_node("CanopyPivot") as Node3D
+	var closed_canopy_transform := canopy.transform
+	presentation.set_canopy_fraction(1.0)
+	var open_canopy_transform := canopy.transform
 	presentation.update_lod_for_distance(1000.0)
 	_check(presentation.get_active_lod() == 1 and not presentation.get_lod0_root().visible and presentation.get_lod1_root().visible, "far distance atomically switches the complete craft to unbounded LOD1")
+	_check(canopy.is_visible_in_tree() and canopy.transform.is_equal_approx(open_canopy_transform)
+		and not canopy.transform.is_equal_approx(closed_canopy_transform),
+		"far craft retains the shared canopy silhouette and its open boarding hinge pose")
+	presentation.set_canopy_fraction(0.0)
+	_check(canopy.is_visible_in_tree() and canopy.transform.is_equal_approx(closed_canopy_transform)
+		and bool(presentation.get_asset_audit_report().get("valid", false)),
+		"canopy closes at far distance and remains valid in the production art audit")
 	presentation.update_lod_for_distance(0.0)
 	_check(presentation.get_active_lod() == 0 and presentation.get_lod0_root().visible and not presentation.get_lod1_root().visible, "near distance atomically restores the complete close craft")
+	_check(canopy.is_visible_in_tree() and canopy.transform.is_equal_approx(closed_canopy_transform),
+		"near return retains the same closed canopy pose")
 	var manifest := _read_json(MANIFEST_PATH)
 	_check(not manifest.is_empty() and int(manifest.get("schema_version", 0)) == 1, "checked-in asset manifest parses with stable schema")
 	_check(str(manifest.get("blender_version", "")).begins_with("4.0.2"), "manifest pins the actual Blender 4.0.2 tool")
@@ -65,7 +78,7 @@ func _run() -> void:
 	_check(str(manifest.get("glb_sha256", "")) == FileAccess.get_sha256("res://assets/models/torrent/hero/torrent_hero_art.glb"), "manifest pins the exact runtime GLB hash")
 	_check(str(manifest.get("blend_sha256", "")) == FileAccess.get_sha256("res://art_source/torrent/torrent_hero_v1.blend"), "manifest pins the exact editable Blender source")
 	var art_quality := manifest.get("art_quality_contract", {}) as Dictionary
-	_check(int(art_quality.get("close_triangle_count", 0)) == 79388 and int(art_quality.get("far_triangle_count", 0)) == 9866 and int(art_quality.get("total_triangle_count", 0)) == 89254, "manifest separates close cabin/canopy density from the complete far silhouette")
+	_check(int(art_quality.get("close_triangle_count", 0)) == 79388 and int(art_quality.get("far_triangle_count", 0)) == 12696 and int(art_quality.get("total_triangle_count", 0)) == 89254, "manifest separates close cabin/canopy density from the complete far silhouette")
 	_check(float(art_quality.get("pale_exterior_surface_ratio", 0.0)) >= 0.70 and float(art_quality.get("pale_exterior_surface_ratio", 1.0)) <= 0.80, "measured exterior surface area preserves the intended 70-80% warm pale palette")
 	_check(int(art_quality.get("propulsion_depth_layers", 0)) == 4 and int(art_quality.get("engine_stator_vanes_per_nacelle", 0)) == 8, "art contract records four propulsion depth layers and eight stator vanes per nacelle")
 	var uv_contract := manifest.get("uv0_contract", {}) as Dictionary
@@ -181,6 +194,12 @@ func _run() -> void:
 	hero.call("_sync_weapon_component_presentation")
 	_check(int(hero.get_weapon_component_emitter_snapshot().get("visible_emitter_count", -1)) == 0,
 		"far Torrent hides idle lenses with omitted barrels even after a component refresh")
+	(hero.get("_weapon_component_emitters") as Array).clear()
+	var far_discovery := hero.get_weapon_component_emitter_snapshot()
+	_check(int(far_discovery.get("emitter_count", 0)) == 2
+		and int(far_discovery.get("visible_emitter_count", -1)) == 0
+		and int(far_discovery.get("fallback_node_count", -1)) == 0,
+		"discovering emitters while far retains hidden fitted lenses without marker fallbacks")
 	live_presentation.update_lod_for_distance(0.0)
 	var restored_emitters := hero.get_weapon_component_emitter_snapshot()
 	_check(int(restored_emitters.get("visible_emitter_count", 0)) == 2
