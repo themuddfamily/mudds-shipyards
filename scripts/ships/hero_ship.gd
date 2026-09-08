@@ -2432,8 +2432,17 @@ func _count_cockpit_sight_obstructions(distance: float) -> int:
 					continue
 				var local_start := mesh_instance.to_local(world_start)
 				var local_end := mesh_instance.to_local(world_end)
-				if mesh_instance.get_aabb().intersects_segment(local_start, local_end) != null:
-					blocked = true
+				if mesh_instance.mesh == null or mesh_instance.get_aabb().intersects_segment(local_start, local_end) == null:
+					continue
+				# Curved windscreen frames can surround a clear sightline inside
+				# their bounds. Require opaque geometry after the broad-phase test.
+				var faces := mesh_instance.mesh.get_faces()
+				for face in range(0, faces.size(), 3):
+					if Geometry3D.segment_intersects_triangle(local_start, local_end,
+							faces[face], faces[face + 1], faces[face + 2]) != null:
+						blocked = true
+						break
+				if blocked:
 					break
 			if blocked:
 				break
@@ -5930,13 +5939,33 @@ func _build_cockpit() -> void:
 			Vector3(0.055, 0.055, 2.50),
 			_materials.structure
 		)
-		_box(
-			_canopy_pivot,
-			side_name + "CanopyNoseFrame",
-			Vector3(side * 0.42, 0.49, -3.56),
-			Vector3(0.045, 1.07, 0.055),
-			_materials.dark, Vector3(0.0, 0.0, side * deg_to_rad(29.0))
-		)
+		# Follow the windscreen perimeter instead of cutting a diagonal through
+		# its glass and the pilot's near-centre sight corridor. Each half stays
+		# one named mesh so variant visibility overrides and draw counts hold.
+		var frame_surface := SurfaceTool.new()
+		frame_surface.begin(Mesh.PRIMITIVE_TRIANGLES)
+		for segment in range(8):
+			var ends: Array[Vector3] = []
+			for step in [segment, segment + 1]:
+				var angle := PI * float(step) / 16.0
+				ends.append(Vector3(side * pow(cos(angle), 0.72) * 0.66,
+					-0.08 + pow(sin(angle), 0.72) * 1.34, -3.56))
+			var direction := ends[1] - ends[0]
+			var tube := CylinderMesh.new()
+			tube.top_radius = 0.025
+			tube.bottom_radius = 0.025
+			tube.height = direction.length()
+			tube.radial_segments = 12
+			tube.rings = 1
+			frame_surface.append_from(tube, 0, Transform3D(
+				Basis(Quaternion(Vector3.UP, direction.normalized())),
+				(ends[0] + ends[1]) * 0.5))
+		var frame := MeshInstance3D.new()
+		frame.name = side_name + "CanopyNoseFrame"
+		frame.mesh = frame_surface.commit()
+		frame.material_override = _materials.dark
+		_canopy_pivot.add_child(frame)
+
 	for side in [-1.0, 1.0]:
 		var side_name := "Port" if side < 0.0 else "Starboard"
 		_box(_canopy_pivot, side_name + "CanopyLowerRail", Vector3(side * 1.20, -0.04, -1.49), Vector3(0.085, 0.10, 2.82), _materials.dark)
@@ -7337,7 +7366,7 @@ func _cylinder_between(
 ## A pressure canopy keeps its full cockpit width at the forward windscreen.
 ## The hull loft pinches to a nose point and therefore cannot enclose the seat.
 func _canopy_pressure_shell_mesh(material: Material) -> ArrayMesh:
-	var stations := [Vector3(-3.56, 0.66, 1.02), Vector3(-2.92, 1.18, 1.30),
+	var stations := [Vector3(-3.56, 0.66, 1.34), Vector3(-2.92, 1.18, 1.30),
 		Vector3(-1.82, 1.25, 1.34), Vector3(-0.72, 1.24, 1.32), Vector3(-0.08, 1.20, 1.26)]
 	var rings: Array[PackedVector3Array] = []
 	for station: Vector3 in stations:
