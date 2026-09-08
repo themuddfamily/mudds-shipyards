@@ -56,7 +56,7 @@ func _run() -> void:
 				and posts.multimesh.instance_count == 2
 				and post_transforms.size() == 2
 				and (post_transforms[index] as Transform3D).is_equal_approx(
-					Transform3D(Basis.IDENTITY, boarding.position + Vector3(0.0, 1.02, -0.72 if index == 0 else 0.72))
+					Transform3D(Basis.IDENTITY, Vector3(-3.41, 0.15, -2.28 if index == 0 else 2.28))
 				),
 			"%s retains its exact presentation-only route cue in the two-post batch" % post_names[index]
 		)
@@ -66,9 +66,15 @@ func _run() -> void:
 			and header.get_meta("route_id", &"") == Hauler.CABIN_ROUTE_ID,
 		"CargoThresholdHeader is a presentation-only physical route cue"
 	)
+	for name in ["CargoPressureCollar", "CargoPressureRim"]:
+		var collar := visual.get_node_or_null(name) as MeshInstance3D
+		_check(collar != null and collar.mesh is ArrayMesh
+			and collar.get_meta("presentation_only", false)
+			and _entry_mesh_leaves_walkway_open(collar),
+			"%s frames the port opening without an opaque face across the walking route" % name)
 	if boarding != null and sign != null:
 		_check(
-			sign.global_position.distance_to(boarding.global_position) < 2.1,
+			sign.global_position.distance_to(boarding.global_position) < 2.6,
 			"the sign stays at the real boarding threshold"
 		)
 	_check(
@@ -95,3 +101,18 @@ func _check(condition: bool, message: String) -> void:
 	_assertions += 1
 	if not condition:
 		_failures.append(message)
+
+
+func _entry_mesh_leaves_walkway_open(renderer: MeshInstance3D) -> bool:
+	var arrays := renderer.mesh.surface_get_arrays(0)
+	var vertices: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
+	var indices: PackedInt32Array = arrays[Mesh.ARRAY_INDEX]
+	for height in [-0.8, 0.6]:
+		for lateral in [-0.45, 0.0, 0.45]:
+			var start := Vector3(-4.0, height, lateral)
+			var finish := Vector3(-2.2, height, lateral)
+			for index in range(0, indices.size(), 3):
+				if Geometry3D.segment_intersects_triangle(start, finish,
+					vertices[indices[index]], vertices[indices[index + 1]], vertices[indices[index + 2]]) != null:
+					return false
+	return true

@@ -32,10 +32,9 @@ func _initialize() -> void:
 	_check(craft.get_cargo_transfer_anchors().size() == 8 and craft.get_cargo_capacity() == 8, "the cargo hold exposes eight stable transfer anchors")
 	_check(bool(craft is HeroShip) and bool(audit.get("flight_authority", false)) and not bool(audit.get("cargo_transfer_authority", true)), "HeroShip owns flight while the component adds no duplicate cargo authority")
 	var threshold_posts := craft.get_node_or_null(^"CinderCargoVisual/CargoThresholdPostBatch") as MultiMeshInstance3D
-	var boarding_position := craft.get_boarding_marker().position
 	var expected_post_transforms: Array[Transform3D] = [
-		Transform3D(Basis.IDENTITY, boarding_position + Vector3(0.0, 1.02, -0.72)),
-		Transform3D(Basis.IDENTITY, boarding_position + Vector3(0.0, 1.02, 0.72)),
+		Transform3D(Basis.IDENTITY, Vector3(-3.41, 0.15, -2.28)),
+		Transform3D(Basis.IDENTITY, Vector3(-3.41, 0.15, 2.28)),
 	]
 	var authored_post_names := PackedStringArray()
 	var authored_post_transforms: Array = []
@@ -49,7 +48,7 @@ func _initialize() -> void:
 			and threshold_posts.multimesh.instance_count == 2
 			and threshold_posts.multimesh.visible_instance_count == -1
 			and threshold_posts.multimesh.mesh is BoxMesh
-			and (threshold_posts.multimesh.mesh as BoxMesh).size == Vector3(0.16, 2.05, 0.16)
+			and (threshold_posts.multimesh.mesh as BoxMesh).size == Vector3(0.09, 1.83, 0.08)
 			and authored_post_names == PackedStringArray(["CargoThresholdPostPort", "CargoThresholdPostStarboard"])
 			and authored_post_transforms == expected_post_transforms
 			and threshold_posts.get_meta(&"route_id", &"") == Hauler.CABIN_ROUTE_ID
@@ -60,9 +59,9 @@ func _initialize() -> void:
 			and is_zero_approx(threshold_posts.visibility_range_begin)
 			and is_zero_approx(threshold_posts.visibility_range_end)
 			and post_material != null
-			and post_material.albedo_color == Hauler.ACCENT_COLOR
-			and is_equal_approx(post_material.metallic, 0.42)
-			and is_equal_approx(post_material.roughness, 0.62),
+			and post_material.albedo_color == Color("89938f")
+			and is_equal_approx(post_material.metallic, 0.55)
+			and is_equal_approx(post_material.roughness, 0.38),
 		"two authored threshold-post copies retain exact visual, transform, route, shadow, and semantic identity"
 	)
 	_check(
@@ -122,8 +121,8 @@ func _initialize() -> void:
 		seat_bases != null
 			and seat_bases.multimesh.instance_count == 2
 			and seat_bases.multimesh.visible_instance_count == -1
-			and seat_bases.multimesh.mesh is BoxMesh
-			and (seat_bases.multimesh.mesh as BoxMesh).size == Vector3(0.86, 0.18, 0.82)
+			and seat_bases.multimesh.mesh is ArrayMesh
+			and seat_bases.multimesh.mesh.get_aabb().size.is_equal_approx(Vector3(0.86, 0.18, 0.82))
 			and seat_bases.get_meta(&"authored_visual_names", PackedStringArray())
 				== PackedStringArray(["LoadmasterSeatBase", "NavigatorSeatBase"])
 			and seat_bases.get_meta(&"authored_instance_transforms", [])
@@ -154,8 +153,8 @@ func _initialize() -> void:
 		seat_backs != null
 			and seat_backs.multimesh.instance_count == 2
 			and seat_backs.multimesh.visible_instance_count == -1
-			and seat_backs.multimesh.mesh is BoxMesh
-			and (seat_backs.multimesh.mesh as BoxMesh).size == Vector3(0.86, 1.0, 0.14)
+			and seat_backs.multimesh.mesh is ArrayMesh
+			and seat_backs.multimesh.mesh.get_aabb().size.is_equal_approx(Vector3(0.86, 1.0, 0.14))
 			and seat_backs.get_meta(&"authored_visual_names", PackedStringArray())
 				== PackedStringArray(["LoadmasterSeatBack", "NavigatorSeatBack"])
 			and seat_backs.get_meta(&"authored_instance_transforms", [])
@@ -180,8 +179,8 @@ func _initialize() -> void:
 		crew_consoles != null
 			and crew_consoles.multimesh.instance_count == 2
 			and crew_consoles.multimesh.visible_instance_count == -1
-			and crew_consoles.multimesh.mesh is BoxMesh
-			and (crew_consoles.multimesh.mesh as BoxMesh).size == Vector3(0.92, 0.58, 0.08)
+			and crew_consoles.multimesh.mesh is ArrayMesh
+			and crew_consoles.multimesh.mesh.get_aabb().size.is_equal_approx(Vector3(0.92, 0.58, 0.08))
 			and crew_consoles.get_meta(&"authored_visual_names", PackedStringArray())
 				== PackedStringArray(["LoadmasterConsole", "NavigatorConsole"])
 			and crew_consoles.get_meta(&"authored_instance_transforms", [])
@@ -211,9 +210,9 @@ func _initialize() -> void:
 			and _visual_renderer_count(craft) < _authored_visual_copy_count(craft),
 		"the fitted exterior and cabin retain fewer renderer submissions than authored copies"
 	)
-	var geometry_hash := _two_box_geometry_hash(seat_backs)
-	var end_wall_geometry_hash := _two_box_geometry_hash(cabin_end_walls)
-	var console_geometry_hash := _two_box_geometry_hash(crew_consoles)
+	var geometry_hash := _two_stock_geometry_hash(seat_backs)
+	var end_wall_geometry_hash := _two_stock_geometry_hash(cabin_end_walls)
+	var console_geometry_hash := _two_stock_geometry_hash(crew_consoles)
 	print(
 		"CINDER_CARGO_VISUAL_ACTUAL: renderers=%d meshes=%d materials=%d authored_copies=%d collisions=%d"
 		% [
@@ -243,9 +242,9 @@ func _initialize() -> void:
 	await process_frame
 	_check(
 		float(craft.get_telemetry().get("hull", 0.0)) < float(craft.get_telemetry().get("maximum_hull", 0.0))
-			and _two_box_geometry_hash(seat_backs) == geometry_hash
-			and _two_box_geometry_hash(cabin_end_walls) == end_wall_geometry_hash
-			and _two_box_geometry_hash(crew_consoles) == console_geometry_hash
+			and _two_stock_geometry_hash(seat_backs) == geometry_hash
+			and _two_stock_geometry_hash(cabin_end_walls) == end_wall_geometry_hash
+			and _two_stock_geometry_hash(crew_consoles) == console_geometry_hash
 			and _anchor_snapshot(craft) == anchor_snapshot
 			and craft.find_children("*", "CollisionShape3D", true, false).size() == collision_count
 			and _authority_snapshot(craft.get_audit_report()) == authority_snapshot,
@@ -264,9 +263,9 @@ func _initialize() -> void:
 	) as MultiMeshInstance3D
 	_check(
 		rebuilt_seat_backs != null
-			and _two_box_geometry_hash(rebuilt_seat_backs) == geometry_hash
-			and _two_box_geometry_hash(rebuilt_consoles) == console_geometry_hash
-			and _two_box_geometry_hash(rebuilt.get_node_or_null(
+			and _two_stock_geometry_hash(rebuilt_seat_backs) == geometry_hash
+			and _two_stock_geometry_hash(rebuilt_consoles) == console_geometry_hash
+			and _two_stock_geometry_hash(rebuilt.get_node_or_null(
 				^"WalkableInterior/LoadmasterCabin/CabinEndWallBatch"
 			) as MultiMeshInstance3D) == end_wall_geometry_hash
 			and _anchor_snapshot(rebuilt) == anchor_snapshot
@@ -340,14 +339,14 @@ func _authored_visual_copy_count(craft: Node) -> int:
 	return count
 
 
-func _two_box_geometry_hash(batch: MultiMeshInstance3D) -> String:
-	if batch == null or batch.multimesh == null or not batch.multimesh.mesh is BoxMesh:
+func _two_stock_geometry_hash(batch: MultiMeshInstance3D) -> String:
+	if batch == null or batch.multimesh == null or batch.multimesh.mesh == null:
 		return ""
 	var names := batch.get_meta(&"authored_visual_names", PackedStringArray()) as PackedStringArray
 	var transforms := batch.get_meta(&"authored_instance_transforms", []) as Array
 	if names.size() != 2 or transforms.size() != 2:
 		return ""
-	var mesh := batch.multimesh.mesh as BoxMesh
+	var size := batch.multimesh.mesh.get_aabb().size
 	var material := batch.material_override as StandardMaterial3D
 	if material == null:
 		return ""
@@ -357,7 +356,7 @@ func _two_box_geometry_hash(batch: MultiMeshInstance3D) -> String:
 		canonical += "%s|%.6f,%.6f,%.6f|%.6f,%.6f,%.6f|%s|%.6f|%.6f\n" % [
 			names[index],
 			transform.origin.x, transform.origin.y, transform.origin.z,
-			mesh.size.x, mesh.size.y, mesh.size.z,
+			size.x, size.y, size.z,
 			material.albedo_color.to_html(), material.metallic, material.roughness,
 		]
 	var hashing := HashingContext.new()

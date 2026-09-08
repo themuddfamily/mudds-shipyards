@@ -518,54 +518,17 @@ func _build_cargo_variant(_controller: HeroShip) -> bool:
 	boarding_shape.shape = boarding_sphere
 	boarding_area.add_child(boarding_shape)
 	add_child(boarding_area)
-	var lamp := MeshInstance3D.new()
-	lamp.name = "CargoBoardingLamp"
-	var lamp_mesh := BoxMesh.new()
-	lamp_mesh.size = Vector3(0.18, 0.18, 0.8)
-	lamp.mesh = lamp_mesh
-	lamp.position = _cargo_boarding_marker.position + Vector3(0.2, 0.5, 0.0)
-	lamp.material_override = _material(ACCENT_COLOR, 0.2, 0.42, ACCENT_COLOR, 1.8)
-	visual.add_child(lamp)
-	var boarding_step := _add_interior_box(
-		visual,
-		"CargoBoardingStep",
-		_cargo_boarding_marker.position + Vector3(0.0, 0.05, 0.0),
-		Vector3(0.72, 0.16, 1.65),
-		ACCENT_COLOR
-	)
-	boarding_step.set_meta(&"route_id", CABIN_ROUTE_ID)
-	var threshold_post_transforms: Array[Transform3D] = [
-		Transform3D(Basis.IDENTITY, _cargo_boarding_marker.position + Vector3(0.0, 1.02, -0.72)),
-		Transform3D(Basis.IDENTITY, _cargo_boarding_marker.position + Vector3(0.0, 1.02, 0.72)),
-	]
-	var threshold_posts := _add_visual_box_batch(
-		visual,
-		"CargoThresholdPostBatch",
-		Vector3(0.16, 2.05, 0.16),
-		threshold_post_transforms,
-		ACCENT_COLOR,
-		PackedStringArray(["CargoThresholdPostPort", "CargoThresholdPostStarboard"])
-	)
-	threshold_posts.set_meta(&"route_id", CABIN_ROUTE_ID)
-	var threshold_header := _add_interior_box(
-		visual,
-		"CargoThresholdHeader",
-		_cargo_boarding_marker.position + Vector3(0.0, 2.00, 0.0),
-		Vector3(0.16, 0.16, 1.60),
-		ACCENT_COLOR
-	)
-	threshold_header.set_meta(&"presentation_only", true)
-	threshold_header.set_meta(&"route_id", CABIN_ROUTE_ID)
+	_build_cargo_entry(visual)
 	_cargo_access_sign = Label3D.new()
 	_cargo_access_sign.name = "CargoAccessSign"
-	_cargo_access_sign.position = _cargo_boarding_marker.position + Vector3(-0.02, 1.48, 0.0)
-	_cargo_access_sign.rotation.y = PI * 0.5
+	_cargo_access_sign.position = Vector3(-3.43, 1.31, 0.0)
+	_cargo_access_sign.rotation.y = -PI * 0.5
 	_cargo_access_sign.font_size = 24
-	_cargo_access_sign.pixel_size = 0.0014
+	_cargo_access_sign.pixel_size = 0.0020
 	_cargo_access_sign.modulate = Color("f2ffff")
 	_cargo_access_sign.outline_modulate = Color("07111d")
 	_cargo_access_sign.outline_size = 8
-	_cargo_access_sign.no_depth_test = true
+	_cargo_access_sign.no_depth_test = false
 	_cargo_access_sign.text = "CARGO ACCESS\nLOADMASTER"
 	_cargo_access_sign.set_meta(&"presentation_only", true)
 	_cargo_access_sign.set_meta(&"route_id", CABIN_ROUTE_ID)
@@ -573,8 +536,8 @@ func _build_cargo_variant(_controller: HeroShip) -> bool:
 	visual.add_child(_cargo_access_sign)
 	_cargo_threshold_light = OmniLight3D.new()
 	_cargo_threshold_light.name = "CargoThresholdLight"
-	_cargo_threshold_light.position = _cargo_boarding_marker.position + Vector3(0.0, 1.35, 0.0)
-	_cargo_threshold_light.light_color = ACCENT_COLOR
+	_cargo_threshold_light.position = Vector3(-2.65, 0.85, 0.0)
+	_cargo_threshold_light.light_color = Color("d8e8e5")
 	_cargo_threshold_light.light_energy = 0.72
 	_cargo_threshold_light.omni_range = 4.2
 	_cargo_threshold_light.shadow_enabled = false
@@ -1608,6 +1571,103 @@ func _sync_engine_damage_shoulders() -> void:
 	)
 
 
+## A full-width pressure collar closes the nested shell reveal without placing
+## a decorative doorway in the middle of the physical boarding route. The
+## bevelled mouth, recessed seal and cabin-side liner are one open ring.
+func _build_cargo_entry(visual: Node3D) -> void:
+	var frame_finish := _material(Color("89938f"), 0.55, 0.38)
+	ShipSurfaceDetail.bind_manufactured_paint(frame_finish)
+	var liner_finish := _material(Color("35413f"), 0.35, 0.54)
+	var collar := MeshInstance3D.new()
+	collar.name = "CargoPressureCollar"
+	collar.mesh = _cargo_portal_mesh(-3.32, -2.40, 2.34, -1.04, 1.38, 2.14, -0.97, 1.23)
+	collar.material_override = liner_finish
+	collar.set_meta(&"presentation_only", true)
+	collar.set_meta(&"route_id", CABIN_ROUTE_ID)
+	visual.add_child(collar)
+	var rim := MeshInstance3D.new()
+	rim.name = "CargoPressureRim"
+	rim.mesh = _cargo_portal_mesh(-3.40, -3.28, 2.36, -1.05, 1.40, 2.23, -1.00, 1.24)
+	rim.material_override = frame_finish
+	rim.set_meta(&"presentation_only", true)
+	visual.add_child(rim)
+	var posts := _add_visual_box_batch(
+		visual, "CargoThresholdPostBatch", Vector3(0.09, 1.83, 0.08),
+		[
+			Transform3D(Basis.IDENTITY, Vector3(-3.41, 0.15, -2.28)),
+			Transform3D(Basis.IDENTITY, Vector3(-3.41, 0.15, 2.28)),
+		], Color("89938f"),
+		PackedStringArray(["CargoThresholdPostPort", "CargoThresholdPostStarboard"])
+	)
+	posts.material_override = frame_finish
+	posts.set_meta(&"route_id", CABIN_ROUTE_ID)
+	var header := _add_interior_box(visual, "CargoThresholdHeader",
+		Vector3(-3.33, 1.31, 0.0), Vector3(0.20, 0.17, 3.98), Color("35413f"))
+	header.mesh = _rounded_box_mesh(Vector3(0.20, 0.17, 3.98), null)
+	header.material_override = liner_finish
+	header.set_meta(&"presentation_only", true)
+	header.set_meta(&"route_id", CABIN_ROUTE_ID)
+	var step := _add_interior_box(visual, "CargoBoardingStep",
+		Vector3(-3.4, -1.05, 0.0), Vector3(0.72, 0.16, 1.65), Color("68716a"))
+	step.mesh = _rounded_box_mesh(Vector3(0.72, 0.16, 1.65), null)
+	step.material_override = frame_finish
+	step.set_meta(&"route_id", CABIN_ROUTE_ID)
+	var sill := _add_interior_box(visual, "CargoEntrySill",
+		Vector3(-2.77, -1.0, 0.0), Vector3(0.66, 0.12, 4.17), Color("68716a"))
+	sill.mesh = _rounded_box_mesh(Vector3(0.66, 0.12, 4.17), null)
+	sill.material_override = frame_finish
+	var tread_transforms: Array[Transform3D] = []
+	for x in [-3.65, -3.51, -3.37, -3.23]:
+		tread_transforms.append(Transform3D(Basis.IDENTITY, Vector3(x, -0.965, 0.0)))
+	_add_visual_box_batch(visual, "CargoBoardingGripBatch", Vector3(0.035, 0.012, 1.43),
+		tread_transforms, Color("25322f"), PackedStringArray())
+	var lamp := _add_interior_box(visual, "CargoBoardingLamp", Vector3(-3.18, 1.16, 0.0),
+		Vector3(0.065, 0.045, 1.32), Color("d8e8e5"))
+	lamp.material_override = _material(Color("d8e8e5"), 0.1, 0.42, Color("d8e8e5"), 0.9)
+
+
+## Closed chamfered rectangular ring extruded along X. All four surfaces are
+## authored explicitly so the aperture has inward-facing reveal walls as well
+## as an outward-facing rim; it never relies on double-sided material.
+func _cargo_portal_mesh(front: float, back: float, outer_z: float,
+		outer_bottom: float, outer_top: float, inner_z: float,
+		inner_bottom: float, inner_top: float) -> ArrayMesh:
+	var vertices := PackedVector3Array()
+	var normals := PackedVector3Array()
+	var indices := PackedInt32Array()
+	var outer := _cargo_portal_section(outer_z, outer_bottom, outer_top, 0.24)
+	var inner := _cargo_portal_section(inner_z, inner_bottom, inner_top, 0.16)
+	for edge in outer.size():
+		var next := (edge + 1) % outer.size()
+		var a := Vector3(front, outer[edge].y, outer[edge].x)
+		var b := Vector3(front, outer[next].y, outer[next].x)
+		var c := Vector3(front, inner[next].y, inner[next].x)
+		var d := Vector3(front, inner[edge].y, inner[edge].x)
+		var depth := Vector3(back - front, 0.0, 0.0)
+		_append_shell_quad(vertices, normals, indices, a, b, c, d, Vector3.LEFT)
+		_append_shell_quad(vertices, normals, indices, a + depth, d + depth, c + depth, b + depth, Vector3.RIGHT)
+		var outward := Vector3(0.0, (a.y + b.y) * 0.5 - 0.15, (a.z + b.z) * 0.5)
+		_append_shell_quad(vertices, normals, indices, a, a + depth, b + depth, b, outward)
+		_append_shell_quad(vertices, normals, indices, d, c, c + depth, d + depth, -outward)
+	var arrays := []
+	arrays.resize(Mesh.ARRAY_MAX)
+	arrays[Mesh.ARRAY_VERTEX] = vertices
+	arrays[Mesh.ARRAY_NORMAL] = normals
+	arrays[Mesh.ARRAY_INDEX] = indices
+	var mesh := ArrayMesh.new()
+	mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
+	return mesh
+
+
+func _cargo_portal_section(half_width: float, bottom: float, top: float, corner: float) -> PackedVector2Array:
+	return PackedVector2Array([
+		Vector2(-half_width + corner, bottom), Vector2(half_width - corner, bottom),
+		Vector2(half_width, bottom + corner), Vector2(half_width, top - corner),
+		Vector2(half_width - corner, top), Vector2(-half_width + corner, top),
+		Vector2(-half_width, top - corner), Vector2(-half_width, bottom + corner),
+	])
+
+
 func _build_cargo_hold(visual: Node3D) -> void:
 	_cargo_hold = Node3D.new()
 	_cargo_hold.name = "CargoHold"
@@ -1648,6 +1708,7 @@ func _build_cargo_interior() -> void:
 		HULL_COLOR,
 		PackedStringArray(["CabinForwardWall", "CabinAftWall"])
 	)
+	_build_cabin_construction()
 	# The port wall is intentionally open between the split outer shell pieces;
 	# this is the physical boarding route, not a teleport marker.
 	_add_visual_box_batch(
@@ -1690,6 +1751,7 @@ func _build_cargo_interior() -> void:
 		&"authored_station_ids",
 		PackedStringArray([LOADMASTER_STATION_SEAT_ID, NAVIGATOR_STATION_SEAT_ID])
 	)
+	_finish_cabin_stations()
 	_loadmaster_status_panel = _add_interior_box(
 		_cargo_cabin,
 		"LoadmasterStatusPanel",
@@ -1701,13 +1763,13 @@ func _build_cargo_interior() -> void:
 	_loadmaster_status_panel.set_meta(&"color_independent", true)
 	_loadmaster_status_display = Label3D.new()
 	_loadmaster_status_display.name = "LoadmasterStatusDisplay"
-	_loadmaster_status_display.position = Vector3(-0.15, 0.43, -2.33)
+	_loadmaster_status_display.position = Vector3(-0.15, 0.43, -2.235)
 	_loadmaster_status_display.font_size = 24
-	_loadmaster_status_display.pixel_size = 0.0012
+	_loadmaster_status_display.pixel_size = 0.0032
 	_loadmaster_status_display.modulate = Color("f2ffff")
 	_loadmaster_status_display.outline_modulate = Color("07111d")
 	_loadmaster_status_display.outline_size = 8
-	_loadmaster_status_display.no_depth_test = true
+	_loadmaster_status_display.no_depth_test = false
 	_loadmaster_status_display.set_meta(&"presentation_only", true)
 	_loadmaster_status_display.set_meta(&"color_independent", true)
 	_loadmaster_status_display.set_meta(&"station_id", LOADMASTER_STATION_SEAT_ID)
@@ -1782,6 +1844,85 @@ func _build_cargo_interior() -> void:
 	volume_box.size = INTERIOR_BOUNDS.size
 	volume_shape.shape = volume_box
 	_occupant_volume.add_child(volume_shape)
+
+
+func _build_cabin_construction() -> void:
+	var frame_material := _material(Color("626e69"), 0.48, 0.42)
+	var lining_material := _material(Color("87918a"), 0.16, 0.71)
+	ShipSurfaceDetail.bind_manufactured_paint(lining_material)
+	# Two end bulkhead rings turn ceiling, deck and sidewall into a continuous
+	# fabricated cabin. Their centres remain open; no collision is introduced.
+	var bulkhead_mesh := _cargo_portal_mesh(-0.07, 0.07, 2.39, -0.88, 1.25, 2.22, -0.86, 1.12)
+	var bulkheads := MultiMeshInstance3D.new()
+	bulkheads.name = "CabinBulkheadFrames"
+	bulkheads.multimesh = MultiMesh.new()
+	bulkheads.multimesh.transform_format = MultiMesh.TRANSFORM_3D
+	bulkheads.multimesh.mesh = bulkhead_mesh
+	bulkheads.multimesh.instance_count = 2
+	for index in 2:
+		bulkheads.multimesh.set_instance_transform(index,
+			Transform3D(Basis(Vector3.UP, PI * 0.5), Vector3(0.0, 0.0, -2.35 if index == 0 else 2.35)))
+	bulkheads.material_override = frame_material
+	bulkheads.set_meta(&"presentation_only", true)
+	_cargo_cabin.add_child(bulkheads)
+	var panels: Array[Transform3D] = []
+	for z in [-1.76, -0.59, 0.59, 1.76]:
+		panels.append(Transform3D(Basis.IDENTITY, Vector3(2.275, 0.20, z)))
+	var wall_panels := _add_visual_box_batch(_cargo_cabin, "CabinLiningPanels",
+		Vector3(0.06, 1.65, 1.10), panels, Color("87918a"), PackedStringArray())
+	wall_panels.multimesh.mesh = _rounded_box_mesh(Vector3(0.06, 1.65, 1.10), null)
+	wall_panels.material_override = lining_material
+	var deck := _cargo_cabin.get_node("CabinDeck") as MeshInstance3D
+	deck.material_override = _material(Color("303b37"), 0.24, 0.78)
+	var rail_transforms: Array[Transform3D] = []
+	for z in [-2.1, 2.1]:
+		rail_transforms.append(Transform3D(Basis.IDENTITY, Vector3(0.0, 1.14, z)))
+	var rails := _add_visual_box_batch(_cargo_cabin, "CabinCeilingConduits",
+		Vector3(4.38, 0.11, 0.12), rail_transforms, Color("626e69"), PackedStringArray())
+	rails.multimesh.mesh = _rounded_box_mesh(Vector3(4.38, 0.11, 0.12), null)
+	rails.material_override = frame_material
+	var pedestal_transforms: Array[Transform3D] = []
+	var console_legs: Array[Transform3D] = []
+	for x in [-0.95, 0.95]:
+		pedestal_transforms.append(Transform3D(Basis.IDENTITY, Vector3(x, -0.735, 1.1)))
+		console_legs.append(Transform3D(Basis.IDENTITY, Vector3(x, -0.435, 0.42)))
+	var pedestals := _add_visual_box_batch(_cargo_cabin, "CrewSeatPedestals",
+		Vector3(0.46, 0.25, 0.54), pedestal_transforms, Color("303b37"), PackedStringArray())
+	pedestals.multimesh.mesh = _rounded_box_mesh(Vector3(0.46, 0.25, 0.54), null)
+	var console_supports := _add_visual_box_batch(_cargo_cabin, "CrewConsoleSupports",
+		Vector3(0.54, 0.85, 0.16), console_legs, Color("303b37"), PackedStringArray())
+	console_supports.multimesh.mesh = _rounded_box_mesh(Vector3(0.54, 0.85, 0.16), null)
+
+
+func _finish_cabin_stations() -> void:
+	# Retain station transforms and batched ownership while forming the shells
+	# and giving seats soft inserts and consoles recessed instrument glass.
+	for stock in [
+		["CrewSeatBaseBatch", Vector3(0.86, 0.18, 0.82)],
+		["CrewSeatBackBatch", Vector3(0.86, 1.0, 0.14)],
+		["CrewConsoleBatch", Vector3(0.92, 0.58, 0.08)],
+	]:
+		var batch := _cargo_cabin.get_node(stock[0]) as MultiMeshInstance3D
+		batch.multimesh.mesh = _rounded_box_mesh(stock[1], null)
+	var seat_pads: Array[Transform3D] = []
+	var back_pads: Array[Transform3D] = []
+	var screens: Array[Transform3D] = []
+	for x in [-0.95, 0.95]:
+		seat_pads.append(Transform3D(Basis.IDENTITY, Vector3(x, -0.425, 1.06)))
+		back_pads.append(Transform3D(Basis.IDENTITY, Vector3(x, 0.08, 1.325)))
+		screens.append(Transform3D(Basis.IDENTITY, Vector3(x, 0.22, 0.37)))
+	var pads := _add_visual_box_batch(_cargo_cabin, "CrewSeatCushions",
+		Vector3(0.72, 0.10, 0.66), seat_pads, Color("283831"), PackedStringArray())
+	pads.multimesh.mesh = _rounded_box_mesh(Vector3(0.72, 0.10, 0.66), null)
+	pads.material_override = _material(Color("283831"), 0.0, 0.94)
+	var backs := _add_visual_box_batch(_cargo_cabin, "CrewBackCushions",
+		Vector3(0.70, 0.82, 0.10), back_pads, Color("283831"), PackedStringArray())
+	backs.multimesh.mesh = _rounded_box_mesh(Vector3(0.70, 0.82, 0.10), null)
+	backs.material_override = pads.material_override
+	var glass := _add_visual_box_batch(_cargo_cabin, "CrewInstrumentGlass",
+		Vector3(0.78, 0.40, 0.025), screens, Color("112b2d"), PackedStringArray())
+	glass.multimesh.mesh = _rounded_box_mesh(Vector3(0.78, 0.40, 0.025), null)
+	glass.material_override = _material(Color("112b2d"), 0.25, 0.24, Color("31565b"), 0.25)
 
 
 func _add_interior_box(
