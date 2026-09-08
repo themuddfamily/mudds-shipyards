@@ -183,6 +183,10 @@ func _test_stager_rejects_stale_host_generation_after_yield() -> void:
 func _test_world_stages_authored_children_and_rejects_stale_yield() -> void:
 	var world := (load("res://scenes/world/shipyard_world.tscn") as PackedScene).instantiate() as ShipyardWorld
 	var authored := world.get_children()
+	var authored_feedback := world.get_node("CentralBerth/BerthFeedback")
+	var feedback_owner := authored_feedback.owner
+	_check(feedback_owner == world,
+		"authored berth feedback belongs to the world across its instanced berth parent")
 	var owners: Dictionary = {}
 	for child in authored:
 		owners[child] = child.owner
@@ -234,6 +238,8 @@ func _test_world_stages_authored_children_and_rejects_stale_yield() -> void:
 			and child.owner == owners[child]
 	_check(authored_restored,
 		"resumed world restores every authored child in order with its original owner")
+	_check(authored_feedback.owner == feedback_owner,
+		"resumed world restores descendant ownership across an instanced subtree boundary")
 	_check(bool(world.get("_built")) and world.get_target_count() > 0
 		and world.player_spawn == world.get_node("PlayerSpawn")
 		and world.habitat_spine == world.get_node("HabitatSpine"),

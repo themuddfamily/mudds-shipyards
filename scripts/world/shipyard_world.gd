@@ -1047,7 +1047,7 @@ var _built := false
 ## this world enters the tree. Retained until every construction stage finishes.
 var _staged_construction := false
 var _staged_children: Array[Node] = []
-var _staged_child_owners: Dictionary = {}
+var _staged_node_owners: Dictionary = {}
 var _staged_child_index := 0
 var _staged_build_index := 0
 var _staged_tree_generation := 0
@@ -1121,7 +1121,7 @@ func _notification(what: int) -> void:
 				and not child.is_queued_for_deletion():
 			child.free()
 	_staged_children.clear()
-	_staged_child_owners.clear()
+	_staged_node_owners.clear()
 
 
 func _exit_tree() -> void:
@@ -1368,10 +1368,26 @@ func prepare_staged_construction() -> void:
 	# Deferring the root's builders alone still readies every authored module in
 	# one add_child call. Detach them before the world enters the tree as well.
 	for child in get_children():
-		_staged_child_owners[child] = child.owner
+		_capture_staged_node_owners(child)
 		child.owner = null
 		remove_child(child)
 		_staged_children.append(child)
+
+
+func _capture_staged_node_owners(node: Node) -> void:
+	# Authored overrides such as CentralBerth/BerthFeedback belong to this
+	# world, even though their direct parent is an instantiated berth scene.
+	# Removing that berth clears every owner outside its detached subtree.
+	_staged_node_owners[node] = node.owner
+	for child in node.get_children():
+		_capture_staged_node_owners(child)
+
+
+func _restore_staged_node_owners(node: Node) -> void:
+	if _staged_node_owners.has(node):
+		node.owner = _staged_node_owners[node] as Node
+	for child in node.get_children():
+		_restore_staged_node_owners(child)
 
 
 ## How many stages [method run_staged_construction] will report, so a loader can
@@ -1409,7 +1425,7 @@ func run_staged_construction(on_stage: Callable = Callable()) -> void:
 			return
 		if not _is_staged_run_current(generation):
 			return
-		child.owner = _staged_child_owners[child] as Node
+		_restore_staged_node_owners(child)
 		_staged_child_index += 1
 		if on_stage.is_valid():
 			on_stage.call("Preparing %s" % String(child.name).capitalize())
@@ -1448,7 +1464,7 @@ func run_staged_construction(on_stage: Callable = Callable()) -> void:
 		# already ran. Restore them only once the resumed world is complete.
 		_queue_built_world_reentry_restore()
 	_staged_children.clear()
-	_staged_child_owners.clear()
+	_staged_node_owners.clear()
 
 
 func _is_staged_run_current(generation: int) -> bool:
