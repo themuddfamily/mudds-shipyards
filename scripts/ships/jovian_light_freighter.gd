@@ -3210,7 +3210,7 @@ func _create_jovian_materials() -> void:
 	_jovian_materials.teal = _jovian_material(FREIGHT_TEAL.darkened(0.28), 0.24, 0.58)
 	_jovian_materials.amber = _jovian_material(FREIGHT_AMBER.darkened(0.22), 0.10, 0.72)
 	_jovian_materials.cargo_blue = _jovian_material(CARGO_BLUE.darkened(0.40), 0.10, 0.78)
-	_jovian_materials.cabin_cloth = _jovian_material(Color("374e50"), 0.0, 0.94)
+	_jovian_materials.cabin_cloth = _jovian_material(Color("536c6d"), 0.0, 0.88)
 	CabinTextile.apply(_jovian_materials.cabin_cloth)
 	_jovian_materials.cabin_shell = _jovian_material(Color("929488"), 0.08, 0.72)
 	_jovian_materials.cabin_liner = _jovian_material(Color("b0ada0"), 0.02, 0.91)
@@ -3931,9 +3931,9 @@ func _build_passenger_cabin() -> void:
 	_refresh_engineer_status_readout()
 	var cabin_light := OmniLight3D.new()
 	cabin_light.name = "PassengerPracticalLight"
-	cabin_light.position = Vector3(0.0, 3.52, -5.25)
-	cabin_light.light_color = Color("e8fff6")
-	cabin_light.light_energy = 0.68
+	cabin_light.position = Vector3(0.0, 3.34, -5.25)
+	cabin_light.light_color = Color("fff1db")
+	cabin_light.light_energy = 1.12
 	cabin_light.omni_range = 5.2
 	cabin_light.shadow_enabled = true
 	_passenger_cabin.add_child(cabin_light)
@@ -5108,13 +5108,14 @@ func _build_passenger_room_fitout() -> void:
 	# Continuous upper liner and a single cabinet run read as pressure-cabin
 	# construction; reveals coincide with seat stations and service access.
 	for side in [-1.0, 1.0]:
-		_fitout_stock(room, "cabin_liner", Vector3(side * 3.247, 2.44, -5.25), Vector3(0.035, 1.45, 4.37))
+		_fitout_stock(room, "cabin_liner", Vector3(side * 3.247, 2.025, -5.25), Vector3(0.035, 0.65, 4.37))
+		_build_cabin_formed_shoulder(room, side)
 		_fitout_stock(room, "cabin_shell", Vector3(side * 3.22, 1.12, -5.25), Vector3(0.075, 1.13, 4.37))
 		_fitout_stock(room, "structure", Vector3(side * 3.17, 0.69, -5.25), Vector3(0.10, 0.15, 4.33))
 		_fitout_stock(room, "cabin_shell", Vector3(side * 3.19, 3.59, -5.25), Vector3(0.20, 0.12, 4.36), Vector3(0, 0, side * -0.40))
 		_fitout_stock(room, "dark", Vector3(side * 3.20, 3.13, -5.25), Vector3(0.035, 0.028, 4.34))
 		for seam_z in [-5.9, -4.6]:
-			_fitout_stock(room, "structure", Vector3(side * 3.223, 2.44, seam_z), Vector3(0.018, 1.44, 0.018))
+			_fitout_stock(room, "structure", Vector3(side * 3.223, 2.025, seam_z), Vector3(0.018, 0.63, 0.018))
 		# Seat support rails sit below the cushion instead of floating furniture.
 		_fitout_stock(room, "structure", Vector3(side * 2.62, 0.66, -5.25), Vector3(0.50, 0.09, 3.9))
 		for seat_index in 3:
@@ -5143,17 +5144,46 @@ func _build_passenger_room_fitout() -> void:
 				(room[finish] as SurfaceTool).append_from((fittings[finish] as SurfaceTool).commit(), 0, seat_root.transform)
 	# A fitted overhead service spine and curved shoulder fillets leave the
 	# existing cabin roof and its load-bearing envelope intact.
-	_fitout_stock(room, "cabin_liner", Vector3(0, 3.708, -5.25), Vector3(5.92, 0.045, 4.33))
+	_fitout_stock(room, "cabin_liner", Vector3(0, 3.708, -5.25), Vector3(4.82, 0.045, 4.33))
 	_fitout_stock(room, "cabin_shell", Vector3(0, 3.65, -5.25), Vector3(0.58, 0.09, 4.3))
-	for seam_z in [-6.55, -5.25, -3.95]:
-		_fitout_stock(room, "structure", Vector3(0, 3.675, seam_z), Vector3(5.86, 0.012, 0.018))
+	# The existing single practical now sits immediately below a real central
+	# diffuser. The broad tray throws light across upholstery and the aisle.
+	_fitout_stock(room, "structure", Vector3(0, 3.56, -5.25), Vector3(1.05, 0.18, 2.90))
+	_fitout_stock(room, "interior_light", Vector3(0, 3.456, -5.25), Vector3(0.86, 0.025, 2.70))
+	for side in [-1.0, 1.0]:
+		_fitout_stock(room, "cabin_shell", Vector3(side * 0.54, 3.57, -5.25), Vector3(0.12, 0.20, 2.98), Vector3(0, 0, side * 0.22))
 	# Recessed floor runner, with two service joints and a narrow safety reveal.
 	_fitout_stock(room, "structure", Vector3(0, 0.594, -5.25), Vector3(2.56, 0.008, 4.26))
 	for side in [-1.0, 1.0]:
 		_fitout_stock(room, "cabin_shell", Vector3(side * 1.30, 0.597, -5.25), Vector3(0.035, 0.012, 4.27))
 	for seam_z in [-5.9, -4.6]:
 		_fitout_stock(room, "dark", Vector3(0, 0.603, seam_z), Vector3(2.53, 0.007, 0.018))
+	# The live engineer readout is suspended from the pressure-frame header.
+	# A continuous surround and rear spine give the existing screen a housing.
+	_fitout_stock(room, "cabin_shell", Vector3(0, 2.5, -3.19), Vector3(1.18, 0.72, 0.13))
+	_fitout_stock(room, "structure", Vector3(0, 3.17, -3.23), Vector3(0.20, 0.83, 0.16))
 	_finish_fitout(_passenger_cabin, room, "PassengerFitout")
+
+
+# One formed liner sweeps the wall into the roof, replacing the flat upper
+# panels. Its smooth shoulder is above the occupied seat envelope; the long
+# luminous strip is retained in a recessed cove behind the inward return.
+func _build_cabin_formed_shoulder(room: Dictionary, side: float) -> void:
+	var tool := room["cabin_liner"] as SurfaceTool
+	for segment in 16:
+		# Leave a continuous recessed aperture in front of the shared strip.
+		if segment in [9, 10]:
+			continue
+		var angle_a := float(segment) / 16.0 * PI * 0.5
+		var angle_b := float(segment + 1) / 16.0 * PI * 0.5
+		var a := Vector3(side * (2.42 + 0.81 * cos(angle_a)), 2.38 + 1.31 * sin(angle_a), -7.415)
+		var b := Vector3(side * (2.42 + 0.81 * cos(angle_b)), 2.38 + 1.31 * sin(angle_b), -7.415)
+		var length := Vector3(0, 0, 4.33)
+		if side > 0:
+			_skin_quad(tool, a, a + length, b + length, b)
+		else:
+			_skin_quad(tool, b, b + length, a + length, a)
+	_fitout_stock(room, "structure", Vector3(side * 3.29, 3.46, -5.25), Vector3(0.04, 0.25, 3.76))
 
 
 func _build_fitted_cargo_restraints(interior: Dictionary) -> void:
@@ -5195,7 +5225,14 @@ func _fitout_stock(batch: Dictionary, finish: String, at: Vector3, size: Vector3
 		tool.begin(Mesh.PRIMITIVE_TRIANGLES)
 		tool.set_material(_jovian_materials[finish])
 		batch[finish] = tool
-	var stock := StationSurfaceKit.rounded_box_mesh_cached(size, _fitout_mesh_cache)
+	var stock: ArrayMesh
+	if finish == "cabin_cloth":
+		var padding_key := "padding:" + str(size)
+		if not _fitout_mesh_cache.has(padding_key):
+			_fitout_mesh_cache[padding_key] = StationSurfaceKit.rounded_box_mesh_with_bevel(size, minf(0.045, minf(size.x, minf(size.y, size.z)) * 0.35))
+		stock = _fitout_mesh_cache[padding_key] as ArrayMesh
+	else:
+		stock = StationSurfaceKit.rounded_box_mesh_cached(size, _fitout_mesh_cache)
 	(batch[finish] as SurfaceTool).append_from(stock, 0,
 		Transform3D(Basis.from_euler(rotation_value), at))
 
