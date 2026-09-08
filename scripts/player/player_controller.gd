@@ -414,13 +414,61 @@ func _move_in_interior_collision_frame(delta: float) -> void:
 		up_direction = collision_transform.basis * up_direction
 	var pre_move_transform := global_transform
 	var pre_move_velocity := velocity
+	var was_on_floor := is_on_floor()
 	move_and_slide()
+	_recover_floor_snap_penetration(pre_move_transform, pre_move_velocity, was_on_floor)
 	_resolve_step_up(pre_move_transform, pre_move_velocity, delta)
 	if shifted:
 		var carried_transform := collision_transform.affine_inverse()
 		global_transform = carried_transform * global_transform
 		velocity = carried_transform.basis * velocity
 		up_direction = carried_transform.basis * up_direction
+
+
+## GodotPhysics can overestimate a capsule's downward snap sweep against a
+## broad, thin box: a 0.35 m snap has returned 0.175 m travel through Ember's
+## pad while still reporting floor contact. Validate only a descending snap
+## with a separate zero-motion penetration query, which uses overlap recovery
+## rather than the faulty directional sweep. Keep the authored snap distance.
+func _recover_floor_snap_penetration(
+		pre_move_transform: Transform3D,
+		pre_move_velocity: Vector3,
+		was_on_floor: bool
+	) -> void:
+	if not was_on_floor or not is_on_floor() or get_slide_collision_count() != 0:
+		return
+	var movement_up := _get_movement_up_direction()
+	var descent := (pre_move_transform.origin - global_position).dot(movement_up)
+	if descent <= safe_margin or pre_move_velocity.dot(movement_up) > 0.0:
+		return
+	var snapped := global_transform
+	var recovered := snapped
+	var collision := KinematicCollision3D.new()
+	# Each engine query performs bounded fractional overlap recovery. Probe to
+	# contact tolerance before committing; cap any lift at the pre-snap level
+	# plus contact tolerance. Never change tangent position or use this as a
+	# second step-up/climbing solver.
+	for _attempt in 4:
+		var overlapping := test_move(
+			recovered, Vector3.ZERO, collision, safe_margin, true, 4
+		)
+		var correction := collision.get_travel() if overlapping else Vector3.ZERO
+		if overlapping:
+			for contact_index in collision.get_collision_count():
+				if collision.get_normal(contact_index).dot(movement_up) < cos(floor_max_angle):
+					return
+		if correction.length() <= safe_margin:
+			if overlapping and collision.get_depth() > safe_margin:
+				return
+			if recovered.origin != snapped.origin:
+				global_transform = recovered
+			return
+		if correction.dot(movement_up) <= 0.0 \
+				or correction.slide(movement_up).length() > safe_margin:
+			return
+		recovered.origin += movement_up * correction.dot(movement_up)
+		if (recovered.origin - snapped.origin).length() > descent + safe_margin:
+			return
 
 
 func _process(delta: float) -> void:

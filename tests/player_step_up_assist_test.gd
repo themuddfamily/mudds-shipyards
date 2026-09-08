@@ -35,6 +35,9 @@ func _run() -> void:
 	await _test_does_not_displace_on_open_ground()
 	await _test_steps_along_ship_local_up()
 	await _test_ember_pad_floor_contact()
+	await _test_ember_pad_snap_penetration()
+	await _test_floor_snap_descends_walkable_slope()
+	await _test_floor_snap_recovery_requires_headroom()
 	_finish()
 
 
@@ -348,6 +351,113 @@ func _test_ember_pad_floor_contact() -> void:
 	rig.queue_free()
 	await process_frame
 	Engine.time_scale = original_time_scale
+
+
+## This pose and velocity were captured after a real terrain-to-pad return.
+## Native floor snapping moved the capsule down exactly 0.175 m through the
+## pad, with is_on_floor() true and no slide collisions. Stage the recorded
+## start after physical settling, then let the real motor perform the step.
+func _test_ember_pad_snap_penetration() -> void:
+	var original_time_scale := Engine.time_scale
+	Engine.time_scale = 5.0
+	var rig := Node3D.new()
+	root.add_child(rig)
+	rig.position.x = 12000.0
+	var pad := _slab(Vector3(96.0, 0.5, 96.0), Vector3(-12000.0, -60.21875, -297.4707))
+	rig.add_child(pad)
+	var player := PLAYER_SCENE.instantiate() as PlayerController
+	player.transform = Transform3D(
+		Basis(Vector3.UP, -PI / 2.0), Vector3(-11954.8798828125, -59.96, -297.704040527)
+	)
+	rig.add_child(player)
+	player.set_physics_process(false)
+	await physics_frame
+	for _settle in 11:
+		await physics_frame
+		player._apply_gravity(1.0 / 12.0)
+		player._move_in_interior_collision_frame(1.0 / 12.0)
+	player.global_position = Vector3(45.1201171875, -59.9664421081543, -297.704040527)
+	var contact := KinematicCollision3D.new()
+	_check(player.is_on_floor() and player.test_move(
+		player.global_transform, Vector3.DOWN * 0.01, contact, player.safe_margin, true
+	) and contact.get_collider() == pad and contact.get_normal().dot(Vector3.UP) > 0.99,
+		"recorded snap fixture starts with real capsule contact on the exact pad")
+	var minimum_feet_y := player.global_position.y
+	for _frame in 5:
+		await physics_frame
+		player.velocity = Vector3(-player.walk_speed, 0.0, 0.0)
+		player._apply_gravity(1.0 / 12.0)
+		player._move_in_interior_collision_frame(1.0 / 12.0)
+		minimum_feet_y = minf(minimum_feet_y, player.global_position.y)
+	_check(player.is_on_floor() and player.global_position.x < 43.0
+		and minimum_feet_y >= -59.96875 - player.safe_margin
+		and is_equal_approx(player.floor_snap_length, 0.35),
+		"real pad return keeps the capsule above the solid plane without shortening floor snap")
+	rig.queue_free()
+	await process_frame
+	Engine.time_scale = original_time_scale
+
+
+func _test_floor_snap_descends_walkable_slope() -> void:
+	var rig := Node3D.new()
+	root.add_child(rig)
+	var slope_angle := atan(0.05)
+	var ramp := _slab(Vector3(20.0, 0.5, 20.0), Vector3(0.0, -0.25 / cos(slope_angle), 0.0))
+	ramp.rotation.x = -slope_angle
+	rig.add_child(ramp)
+	var player := PLAYER_SCENE.instantiate() as PlayerController
+	rig.add_child(player)
+	await process_frame
+	player.teleport_to(Transform3D(Basis.IDENTITY, Vector3(0.0, 0.15, 2.0)))
+	for _settle in 15:
+		await physics_frame
+	var kept_floor := player.is_on_floor()
+	var initial_height := player.position.y
+	Input.action_press(&"move_forward")
+	for _frame in 90:
+		await physics_frame
+		kept_floor = kept_floor and player.is_on_floor()
+	Input.action_release(&"move_forward")
+	_check(kept_floor and player.position.z < -4.0 and initial_height - player.position.y > 0.30,
+		"floor snap keeps real contact while descending a walkable slope")
+	rig.queue_free()
+	await process_frame
+
+
+func _test_floor_snap_recovery_requires_headroom() -> void:
+	var rig := Node3D.new()
+	root.add_child(rig)
+	var pad := _slab(Vector3(96.0, 0.5, 96.0), Vector3(0.0, -60.21875, -297.4707))
+	rig.add_child(pad)
+	var player := PLAYER_SCENE.instantiate() as PlayerController
+	player.transform = Transform3D(
+		Basis(Vector3.UP, -PI / 2.0), Vector3(44.63671875, -59.9664421081543, -297.704040527)
+	)
+	rig.add_child(player)
+	player.set_physics_process(false)
+	await physics_frame
+	var before_snap := player.global_transform
+	player.apply_floor_snap()
+	var snapped := player.global_transform
+	_check(player.is_on_floor(), "blocked recovery fixture obtains real capsule floor contact")
+	if before_snap.origin.y - snapped.origin.y <= 0.1:
+		# An official engine repair may make this workaround unnecessary.
+		_check(snapped.origin.y >= -59.96875 - player.safe_margin,
+			"native floor snap already keeps the recorded capsule above the pad")
+		rig.queue_free()
+		await process_frame
+		return
+	# The current capsule fits below this ceiling, but a full upward recovery
+	# would pinch it. The speculative overlap solver must reject that position.
+	var ceiling := _slab(Vector3(4.0, 0.2, 4.0),
+		snapped.origin + Vector3(0.0, 1.94 + 0.02 + 0.1, 0.0))
+	rig.add_child(ceiling)
+	await physics_frame
+	player._recover_floor_snap_penetration(before_snap, Vector3.LEFT * player.walk_speed, true)
+	_check(player.global_transform == snapped,
+		"floor-snap recovery rejects a capsule pinched between floor and ceiling")
+	rig.queue_free()
+	await process_frame
 
 
 func _walks_up_lip(height: float) -> bool:
