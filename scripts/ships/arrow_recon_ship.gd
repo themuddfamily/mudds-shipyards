@@ -713,7 +713,7 @@ func _create_arrow_materials() -> void:
 	_arrow_materials.engine = _material(ENGINE_CYAN, 0.1, 0.16, ENGINE_CYAN, 3.0)
 	_arrow_materials.nav_red = _material(ARROW_NAV_RED, 0.1, 0.2, ARROW_NAV_RED, 2.2)
 	_arrow_materials.nav_green = _material(ARROW_NAV_GREEN, 0.1, 0.2, ARROW_NAV_GREEN, 2.2)
-	_arrow_materials.glass = _transparent_material(Color(0.045, 0.12, 0.17, 0.42), 0.04, 0.08)
+	_arrow_materials.glass = _transparent_material(Color(0.24, 0.38, 0.44, 0.30), 0.0, 0.09)
 	var hull_albedo := load("res://assets/materials/arrow-hull-albedo-v1.png") as Texture2D
 	var hull_normal := load("res://assets/materials/arrow-hull-normal-v1.png") as Texture2D
 	var hull_roughness := load("res://assets/materials/arrow-hull-roughness-v1.png") as Texture2D
@@ -1413,10 +1413,10 @@ func _restyle_inherited_cockpit(cockpit: Node3D, canopy: Node3D) -> void:
 	if canopy != null:
 		var glass := canopy.get_node_or_null("CanopyGlass") as MeshInstance3D
 		if glass != null:
-			# A reflective exterior coating reads as glazing against empty space.
+			# Transparent dielectric glazing reveals the physical recon cockpit.
 			# The pilot camera omits this exterior-only layer, preserving its
 			# unobstructed physical eye point through the same animated canopy.
-			glass.material_override = _material(Color("162e3a"), 0.64, 0.21)
+			glass.material_override = _arrow_materials.glass
 			glass.layers = 1 << 18
 			var pilot_camera := cockpit.find_child("CockpitCamera", true, false) as Camera3D
 			if pilot_camera != null:

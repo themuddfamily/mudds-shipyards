@@ -1399,6 +1399,16 @@ func _test_collision_boarding_and_cameras(arrow: ArrowReconShip) -> void:
 
 	var canopy := arrow.get_arrow_visual_root().get_node_or_null("CanopyHinge") as Node3D
 	_check(canopy != null, "functional inherited canopy pivot remains intact")
+	var glazing := canopy.get_node_or_null("CanopyGlass") as MeshInstance3D
+	var glazing_material := glazing.get_active_material(0) as StandardMaterial3D if glazing != null else null
+	_check(glazing_material == arrow.get_variant_materials().glass \
+		and glazing_material.transparency == BaseMaterial3D.TRANSPARENCY_ALPHA \
+		and glazing_material.albedo_color.a < 0.5 and is_zero_approx(glazing_material.metallic) \
+		and glazing_material.cull_mode == BaseMaterial3D.CULL_BACK,
+		"the recon canopy exposes its physical cockpit through dielectric glazing")
+	_check(glazing != null and glazing.layers == 1 << 18 \
+		and not cockpit_camera.get_cull_mask_value(19),
+		"exterior glazing retains the existing unobstructed pilot-camera layer policy")
 	var port_hinge_mount := arrow.get_arrow_visual_root().get_node_or_null("PortCanopyHingeMount") as MeshInstance3D
 	var starboard_hinge_mount := arrow.get_arrow_visual_root().get_node_or_null("StarboardCanopyHingeMount") as MeshInstance3D
 	_check(

@@ -221,7 +221,7 @@ func _emissive_material(color: Color, emission: Color, energy: float) -> Standar
 
 
 func _canopy_material() -> StandardMaterial3D:
-	var material := _pbr_material(Color(0.14, 0.22, 0.28, 0.92), 0.48, 0.13)
+	var material := _pbr_material(Color(0.24, 0.36, 0.40, 0.30), 0.0, 0.09)
 	material.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
 	material.cull_mode = BaseMaterial3D.CULL_BACK
 	material.render_priority = 1
@@ -568,7 +568,8 @@ func get_asset_audit_report() -> Dictionary:
 	if (
 		canopy_material == null
 		or canopy_material.transparency != BaseMaterial3D.TRANSPARENCY_ALPHA
-		or not is_equal_approx(canopy_material.albedo_color.a, 0.92)
+		or not is_equal_approx(canopy_material.albedo_color.a, 0.30)
+		or not is_zero_approx(canopy_material.metallic)
 		or canopy_glass.layers != EXTERIOR_CANOPY_VISUAL_LAYER_MASK
 	):
 		errors.append("close canopy material is not a bounded transparent glazing contract")

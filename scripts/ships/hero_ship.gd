@@ -7219,11 +7219,11 @@ func _create_materials() -> void:
 			hull_material.clearcoat = 0.58
 			hull_material.clearcoat_roughness = 0.24
 	var glass := StandardMaterial3D.new()
-	# Smoked laminated glazing reads as a continuous exterior pressure shell.
-	# Its outward faces remain culled from the pilot's inside view.
-	glass.albedo_color = Color(0.14, 0.22, 0.28, 0.92)
-	glass.metallic = 0.48
-	glass.roughness = 0.13
+	# Dielectric glazing carries restrained reflections while revealing the
+	# physical seat and controls. The near-opaque metallic finish hid that depth.
+	glass.albedo_color = Color(0.24, 0.36, 0.40, 0.30)
+	glass.metallic = 0.0
+	glass.roughness = 0.09
 	glass.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
 	# Render the outward canopy shell only. With back-face culling, a pilot
 	# physically inside the closed mesh does not look through two alpha layers,
