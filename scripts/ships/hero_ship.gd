@@ -6484,7 +6484,7 @@ func get_engine_exhaust_damage_presentation_profile() -> Dictionary:
 		"flashing": false,
 		"motion_animation_added": false,
 		"gameplay_authority": false,
-	}.duplicate(true)
+	}
 
 
 func _apply_engine_exhaust_damage_presentation(
@@ -6599,7 +6599,7 @@ func get_weapon_component_presentation_profile() -> Dictionary:
 		"motion_animation_added": false,
 		"collision_shapes": 0,
 		"fire_authority": false,
-	}.duplicate(true)
+	}
 
 
 func get_weapon_component_emitter_snapshot() -> Dictionary:
@@ -6703,9 +6703,10 @@ func _ensure_weapon_component_emitters() -> void:
 	var visual := get_variant_visual_root()
 	var all_lenses: Array[MeshInstance3D] = []
 	if visual != null:
-		for candidate in visual.find_children("*", "MeshInstance3D", true, false):
-			if String(candidate.name).ends_with("MuzzleLens"):
-				all_lenses.append(candidate as MeshInstance3D)
+		# Filter before materializing the result array. Craft without idle lenses
+		# still rediscover live additions every tick without enumerating all meshes.
+		for candidate in visual.find_children("*MuzzleLens", "MeshInstance3D", true, false):
+			all_lenses.append(candidate as MeshInstance3D)
 	for lens in all_lenses:
 		if _weapon_emitter_is_authored_visible(lens, visual):
 			_weapon_component_emitters.append(lens)
