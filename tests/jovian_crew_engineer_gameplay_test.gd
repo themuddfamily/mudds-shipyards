@@ -38,6 +38,7 @@ func _run() -> void:
 		craft.get_engineer_status_text() == "IDLE // REPAIR READY\nKITS // 6/6",
 		"the physical cabin panel boots with a text-readable finite repair stock"
 	)
+	_check_readout_fits(craft, "idle")
 	var console_boot: Dictionary = craft.get_engineer_console_presentation_snapshot()
 	_check(
 		bool(console_boot.get("attached", false))
@@ -158,10 +159,12 @@ func _run() -> void:
 			and (restarted.get("effect", {}) as Dictionary).get("status", &"") == &"repair_started",
 		"interruption preserves the resource so the engineer can retry"
 	)
+	_check_readout_fits(craft, "repairing")
 	for _frame in 60:
 		if StringName(craft.get_engineer_repair_state().get("status", &"")) == &"completed":
 			break
 		await physics_frame
+	_check_readout_fits(craft, "completed")
 	var completed: Dictionary = craft.get_engineer_repair_state()
 	var completion_receipt := completed.get("receipt", {}) as Dictionary
 	var completion_operation := completion_receipt.get("operation", {}) as Dictionary
@@ -312,9 +315,26 @@ func _run() -> void:
 		"reuse resets selection and restores the authored repair-kit budget"
 	)
 
+	_check_readout_fits(craft, "reuse")
+	root.remove_child(craft)
+	root.add_child(craft)
+	await process_frame
+	await process_frame
+	_check_readout_fits(craft, "subtree re-entry")
 	craft.queue_free()
 	await process_frame
 	_finish()
+
+
+func _check_readout_fits(craft: HeroShip, state: String) -> void:
+	var label := craft.get("_engineer_status_readout") as Label3D
+	var font := label.font if label.font != null else ThemeDB.fallback_font
+	var widest := 0.0
+	for line in label.text.split("\n"):
+		widest = maxf(widest, font.get_string_size(line, HORIZONTAL_ALIGNMENT_LEFT, -1, label.font_size).x)
+	_check(label.pixel_size > 0.0014 and label.pixel_size <= 0.003001
+		and (widest + label.outline_size * 2) * label.pixel_size <= 0.95001,
+		"live engineer type remains legible inside its display in " + state)
 
 
 func _build_authority():

@@ -1459,6 +1459,7 @@ func _refresh_engineer_status_readout(publish_work_presentations: bool = true) -
 			"sequence": _engineer_console_sequence,
 			"repair_snapshot": network_snapshot,
 		})
+	_fit_engineer_status_readout()
 	if not publish_work_presentations:
 		return
 	if _engineer_repair_presentation != null:
@@ -1476,6 +1477,24 @@ func _refresh_engineer_status_readout(publish_work_presentations: bool = true) -
 			)
 		)
 	_present_engineer_repair_audio_snapshot(network_snapshot)
+
+
+# Fit the real producer's current lines to the physical display after every
+# snapshot, including reset/rebind. Keep short states large without letting
+# longer component names or interruption reasons escape the bezel.
+func _fit_engineer_status_readout() -> void:
+	if not is_instance_valid(_engineer_status_readout):
+		return
+	var font := _engineer_status_readout.font
+	if font == null:
+		font = ThemeDB.fallback_font
+	var lines := _engineer_status_readout.text.split("\n")
+	var widest := 1.0
+	for line in lines:
+		widest = maxf(widest, font.get_string_size(line, HORIZONTAL_ALIGNMENT_LEFT, -1, _engineer_status_readout.font_size).x)
+	var outline := float(_engineer_status_readout.outline_size * 2)
+	var height := font.get_height(_engineer_status_readout.font_size) * lines.size() + outline
+	_engineer_status_readout.pixel_size = minf(0.003, minf(0.95 / (widest + outline), 0.48 / maxf(height, 1.0)))
 
 
 func _restart_engineer_console_presentation() -> void:
@@ -3919,10 +3938,10 @@ func _build_passenger_cabin() -> void:
 	_engineer_status_readout.name = "EngineerRepairReadout"
 	_engineer_status_readout.position = Vector3(0.0, 2.5, -3.10)
 	_engineer_status_readout.font_size = 28
-	_engineer_status_readout.pixel_size = 0.0014
+	_engineer_status_readout.pixel_size = 0.003
 	_engineer_status_readout.modulate = Color("b9f1e4")
 	_engineer_status_readout.outline_modulate = Color("07111d")
-	_engineer_status_readout.outline_size = 7
+	_engineer_status_readout.outline_size = 2
 	_engineer_status_readout.no_depth_test = false
 	_engineer_status_readout.set_meta("presentation_only", true)
 	_passenger_cabin.add_child(_engineer_status_readout)
