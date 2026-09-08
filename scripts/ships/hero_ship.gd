@@ -5881,7 +5881,16 @@ func _build_cockpit() -> void:
 	instrument_cluster.position = Vector3(0.0, 2.78, -1.52)
 	instrument_cluster.rotation.x = deg_to_rad(-13.0)
 	_cockpit_root.add_child(instrument_cluster)
-	_box(instrument_cluster, "InstrumentHood", Vector3.ZERO, Vector3(1.62, 0.62, 0.18), _materials.cockpit_anti_glare)
+	# A formed instrument enclosure runs into the forward pressure wall. Its
+	# clipped shoulders and sloping crown leave the original sight envelope
+	# clear, while the rear volume supports the displays above the pedal well.
+	var hood := MeshInstance3D.new()
+	hood.name = "InstrumentHood"
+	hood.mesh = _cockpit_formed_enclosure_mesh([
+		Vector4(1.36, -0.55, 0.12, -0.53),
+		Vector4(1.62, -0.31, 0.31, 0.085),
+	], _materials.cockpit_anti_glare, _materials.structure)
+	instrument_cluster.add_child(hood)
 	_box(instrument_cluster, "PrimaryFlightDisplay", Vector3(0.0, 0.06, 0.105), Vector3(0.72, 0.32, 0.035), _materials.display_substrate)
 	_box(instrument_cluster, "DisplayBezelTop", Vector3(0.0, 0.245, 0.125), Vector3(0.82, 0.055, 0.055), _materials.cockpit_anti_glare)
 	_box(instrument_cluster, "DisplayBezelBottom", Vector3(0.0, -0.125, 0.125), Vector3(0.82, 0.055, 0.055), _materials.cockpit_anti_glare)
@@ -5904,7 +5913,18 @@ func _build_cockpit() -> void:
 	for side in [-1.0, 1.0]:
 		var side_name := "Port" if side < 0.0 else "Starboard"
 		_cylinder(instrument_cluster, side_name + "StatusRepeater", Vector3(side * 0.57, 0.08, 0.11), 0.13, 0.035, _materials.display_substrate, Vector3(90.0, 0.0, 0.0))
-		_box(_cockpit_root, side_name + "SideConsole", Vector3(side * 0.79, 2.24, -0.52), Vector3(0.42, 0.28, 1.38), _materials.structure, Vector3(0.0, 0.0, side * deg_to_rad(-8.0)))
+		# The console is a floor-supported liner, rising into the instrument
+		# enclosure at its forward end instead of floating beside the seat.
+		# Controls keep their authored transforms and variant batching identities.
+		var console := MeshInstance3D.new()
+		console.name = side_name + "SideConsole"
+		console.position = Vector3(side * 0.79, 2.24, -0.52)
+		console.mesh = _cockpit_formed_enclosure_mesh([
+			Vector4(0.46, -0.25, 0.43, -1.04),
+			Vector4(0.46, -0.25, 0.16, -0.64),
+			Vector4(0.40, -0.25, 0.16, 0.72),
+		], _materials.structure)
+		_cockpit_root.add_child(console)
 		for light_index in 3:
 			_box(
 				_cockpit_root,
@@ -5994,6 +6014,73 @@ func _build_cockpit() -> void:
 		var side_name := "Port" if side < 0.0 else "Starboard"
 		var hinge_mount := _cylinder(_visual_root, side_name + "CanopyHingeMount", Vector3(side * 1.31, 2.42, 1.04), 0.21, 0.22, _materials.structure, Vector3(0.0, 0.0, 90.0))
 		_tag_modern_interpretation(hinge_mount)
+
+
+## Closed, clipped-corner pressings for the common cockpit. Each section gives
+## width, lower/upper height, and fore/aft station. Face-local UVs preserve the
+## anti-glare material's normal map on the sloping crown and side returns.
+func _cockpit_formed_enclosure_mesh(
+		sections: Array[Vector4], material: Material, casing_material: Material = null
+	) -> ArrayMesh:
+	var rings: Array[PackedVector3Array] = []
+	var center := Vector3.ZERO
+	for section in sections:
+		var half_width := section.x * 0.5
+		var chamfer := minf(0.10, minf(section.x, section.z - section.y) * 0.20)
+		var ring := PackedVector3Array([
+			Vector3(-half_width + chamfer, section.y, section.w),
+			Vector3(half_width - chamfer, section.y, section.w),
+			Vector3(half_width, section.y + chamfer, section.w),
+			Vector3(half_width, section.z - chamfer, section.w),
+			Vector3(half_width - chamfer, section.z, section.w),
+			Vector3(-half_width + chamfer, section.z, section.w),
+			Vector3(-half_width, section.z - chamfer, section.w),
+			Vector3(-half_width, section.y + chamfer, section.w),
+		])
+		rings.append(ring)
+		center += Vector3(0.0, (section.y + section.z) * 0.5, section.w)
+	center /= float(sections.size())
+	var faces: Array[PackedVector3Array] = [rings[0], rings[-1]]
+	for station in range(rings.size() - 1):
+		for corner in 8:
+			var next := (corner + 1) % 8
+			faces.append(PackedVector3Array([
+				rings[station][corner], rings[station][next],
+				rings[station + 1][next], rings[station + 1][corner],
+			]))
+	var mesh := ArrayMesh.new()
+	var finishes: Array[Material] = [material]
+	if casing_material != null:
+		finishes.append(casing_material)
+	for surface_index in finishes.size():
+		var tool := SurfaceTool.new()
+		tool.begin(Mesh.PRIMITIVE_TRIANGLES)
+		tool.set_material(finishes[surface_index])
+		for face in faces:
+			for triangle in range(1, face.size() - 1):
+				var vertices := PackedVector3Array([face[0], face[triangle], face[triangle + 1]])
+				var normal := (vertices[2] - vertices[0]).cross(vertices[1] - vertices[0]).normalized()
+				var face_center := (vertices[0] + vertices[1] + vertices[2]) / 3.0
+				if normal.dot(face_center - center) < 0.0:
+					vertices.reverse()
+					normal = -normal
+				# Keep the pilot-facing panel and crown matte; the side and rear
+				# returns expose the same structural finish as the fitted consoles.
+				var casing_face := normal.z < 0.5 and normal.y < 0.5
+				if casing_material != null and casing_face != (surface_index == 1):
+					continue
+				for vertex in vertices:
+					var uv := Vector2(vertex.x, vertex.y)
+					if absf(normal.y) >= maxf(absf(normal.x), absf(normal.z)):
+						uv = Vector2(vertex.x, vertex.z)
+					elif absf(normal.x) > absf(normal.z):
+						uv = Vector2(vertex.z, vertex.y)
+					tool.set_normal(normal)
+					tool.set_uv(uv)
+					tool.add_vertex(vertex)
+		tool.generate_tangents()
+		tool.commit(mesh)
+	return mesh
 
 
 func _tag_modern_interpretation(node: Node) -> void:
