@@ -788,15 +788,15 @@ func _test_visual_performance_batch(arrow: ArrowReconShip) -> void:
 		bool(report.valid)
 		and report.current == report.expected
 		and report.current == {
-			"nodes": 189,
-			"mesh_instance_nodes": 164,
+			"nodes": 216,
+			"mesh_instance_nodes": 191,
 			"multi_mesh_instance_nodes": 3,
-			"geometry_submissions": 167,
-			"visible_geometry_copies": 171,
-			"unique_mesh_resource_allocations": 123,
+			"geometry_submissions": 194,
+			"visible_geometry_copies": 198,
+			"unique_mesh_resource_allocations": 150,
 			"auto_fallback_names": 20,
 		},
-		"entry-complete Arrow freezes the exact 189-node, 167-submission, 123-mesh census with all 171 copies"
+		"entry-complete Arrow freezes the exact 216-node, 194-submission, 150-mesh census with all 198 copies"
 	)
 	_check(
 		report.phase9_before_entry_heat == {
@@ -932,7 +932,7 @@ func _test_visual_performance_batch(arrow: ArrowReconShip) -> void:
 		and int(report.fuselage_panel_band_mesh_sharing.resource_allocation_reduction) == 4
 		and StringName(report.fuselage_panel_band_mesh_sharing.mesh_kind) == &"BoxMesh"
 		and (report.fuselage_panel_band_mesh_sharing.mesh_size as Vector3).is_equal_approx(
-			Vector3(2.0, 0.045, 0.11)
+			Vector3(0.74, 0.024, 0.07)
 		)
 		and (report.fuselage_panel_band_mesh_sharing.node_paths as PackedStringArray).size() == 5
 		and str(report.fuselage_panel_band_mesh_sharing.node_paths[0]) == "FuselagePanelBand"
@@ -1000,7 +1000,7 @@ func _test_visual_performance_batch(arrow: ArrowReconShip) -> void:
 	)
 	detached_panel_transforms[0] = Transform3D.IDENTITY
 	_check(
-		int(arrow.get_arrow_visual_performance_report().current.nodes) == 189
+		int(arrow.get_arrow_visual_performance_report().current.nodes) == 216
 		and int(
 			arrow.get_arrow_visual_performance_report()
 				.lateral_array_curve_joint_sharing.primitive_mesh_allocations

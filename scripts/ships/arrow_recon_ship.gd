@@ -80,7 +80,7 @@ const LATERAL_ARRAY_CURVE_JOINT_PATHS := [
 	"StarboardLateralArray/@MeshInstance3D@16",
 	"StarboardLateralArray/@MeshInstance3D@17",
 ]
-const SENSOR_LEADING_EDGE_CURVE_JOINT_RADIUS := 0.105
+const SENSOR_LEADING_EDGE_CURVE_JOINT_RADIUS := 0.035
 const SENSOR_LEADING_EDGE_CURVE_JOINT_RADIAL_SEGMENTS := 28
 const SENSOR_LEADING_EDGE_CURVE_JOINT_RINGS := 14
 const SENSOR_LEADING_EDGE_CURVE_JOINT_VISIBLE_COPIES := 6
@@ -103,8 +103,8 @@ const DORSAL_DATA_CONDUIT_CURVE_JOINT_PATHS := [
 ]
 ## Five shallow dorsal seams break the Arrow fuselage into manufactured bays
 ## without wrapping the silhouette in wheel-like full-circumference tori.
-const FUSELAGE_PANEL_BAND_SIZE := Vector3(2.0, 0.045, 0.11)
-const FUSELAGE_PANEL_BAND_HEIGHT := 1.84
+const FUSELAGE_PANEL_BAND_SIZE := Vector3(0.74, 0.024, 0.07)
+const FUSELAGE_PANEL_BAND_HEIGHT := 1.67
 const FUSELAGE_PANEL_BAND_VISIBLE_COPIES := 5
 const FUSELAGE_PANEL_BAND_STABLE_PATH := "FuselagePanelBand"
 const ARRAY_RECEIVER_RADIUS := 0.15
@@ -228,12 +228,12 @@ const PHASE9_ARROW_VISUAL_CENSUS := {
 	"auto_fallback_names": 23,
 }
 const EXPECTED_ARROW_VISUAL_CENSUS := {
-	"nodes": 205,
-	"mesh_instance_nodes": 180,
+	"nodes": 216,
+	"mesh_instance_nodes": 191,
 	"multi_mesh_instance_nodes": 3,
-	"geometry_submissions": 183,
-	"visible_geometry_copies": 187,
-	"unique_mesh_resource_allocations": 139,
+	"geometry_submissions": 194,
+	"visible_geometry_copies": 198,
+	"unique_mesh_resource_allocations": 150,
 	"auto_fallback_names": 20,
 }
 const RECON_PULSE_EMITTER_VISUAL_DELTA := {
@@ -685,6 +685,7 @@ func _build_arrow_variant(_controller: HeroShip) -> bool:
 	_build_engines_and_landing_gear()
 	_restyle_inherited_cockpit(cockpit, canopy)
 	_share_inherited_console_key_meshes(cockpit)
+	_cut_pressure_panel(_arrow_visual.get_node("ReconFuselage"), "ReplaceableSurveyRadome", 0, 4, 1, 15, _arrow_materials.ceramic)
 	_cut_pressure_panel(_arrow_visual.get_node("ReconFuselage"), "PortAvionicsAccess", 5, 10, 11, 15, _arrow_materials.ceramic)
 	_cut_pressure_panel(_arrow_visual.get_node("ReconFuselage"), "StarboardAvionicsAccess", 5, 10, 1, 5, _arrow_materials.ceramic)
 	_cut_pressure_panel(_arrow_visual.get_node("PortShoulderFairing"), "PortShoulderAccess", 9, 14, 9, 14, _arrow_materials.graphite)
@@ -706,7 +707,7 @@ func _create_arrow_materials() -> void:
 	# hue. They are now bare machined alloy, matte painted composite, and a
 	# painted survival-orange shell, which is three different behaviours under
 	# the same light. Colours are untouched; see the palette note above.
-	_arrow_materials.titanium = _material(TITANIUM, 0.72, 0.24)
+	_arrow_materials.titanium = _material(TITANIUM, 0.62, 0.46)
 	_arrow_materials.graphite = _material(GRAPHITE, 0.30, 0.68)
 	_arrow_materials.sensor = _material(Color("285057"), 0.40, 0.32, SENSOR_CYAN, 0.18)
 	_arrow_materials.pod = _material(POD_ORANGE, 0.10, 0.58)
@@ -761,7 +762,7 @@ func _create_arrow_materials() -> void:
 	for painted_shell: StandardMaterial3D in [_arrow_materials.pearl, _arrow_materials.ceramic]:
 		ShipSurfaceDetail.bind_manufactured_paint(painted_shell)
 		painted_shell.metallic = 0.10
-		painted_shell.roughness = 0.86
+		painted_shell.roughness = 0.66
 		painted_shell.clearcoat_enabled = false
 
 
@@ -922,16 +923,31 @@ func _build_manufactured_fairings() -> void:
 			Vector3(0.38, 0.28, 3.95), Vector3(0.70, 0.62, 4.30),
 			Vector3(0.73, 0.63, 5.45), Vector3(0.58, 0.49, 6.40),
 		]), _arrow_materials.ceramic)
+		# Three individually fitted access skins and split trailing elevons sit
+		# against a darker structural substrate, separated by physical joins.
 		var inlay := _build_planform_surface(side_name + "WingInset", PackedVector3Array([
-			Vector3(side * 2.30, 1.13, -0.82), Vector3(side * 4.80, 1.01, 1.51),
-			Vector3(side * 5.18, 1.01, 3.18), Vector3(side * 2.50, 1.13, 2.63),
-		]), 0.025, _arrow_materials.graphite)
+			Vector3(side * 2.10, 1.10, -1.36), Vector3(side * 5.06, 1.00, 1.48),
+			Vector3(side * 5.49, 0.95, 3.40), Vector3(side * 2.36, 1.06, 2.74),
+		]), 0.035, _arrow_materials.graphite)
 		_arrow_visual.add_child(inlay)
-		var marking := _build_planform_surface(side_name + "SurveyRecognitionMark", PackedVector3Array([
-			Vector3(side * 3.58, 1.15, 1.30), Vector3(side * 3.79, 1.15, 1.49),
-			Vector3(side * 4.05, 1.13, 2.90), Vector3(side * 3.83, 1.13, 2.86),
-		]), 0.014, _arrow_materials.pod)
-		_arrow_visual.add_child(marking)
+		for bay in 3:
+			var t0 := float(bay) / 3.0 + 0.009
+			var t1 := float(bay + 1) / 3.0 - 0.009
+			var inner_front := Vector3(side * 2.16, 1.13, -1.25)
+			var outer_front := Vector3(side * 4.98, 1.03, 1.47)
+			var inner_rear := Vector3(side * 2.37, 1.10, 2.02)
+			var outer_rear := Vector3(side * 5.30, 1.01, 2.80)
+			var skin := _build_planform_surface(side_name + "SensorWingSkin" + str(bay), PackedVector3Array([
+				inner_front.lerp(outer_front, t0), inner_front.lerp(outer_front, t1),
+				inner_rear.lerp(outer_rear, t1), inner_rear.lerp(outer_rear, t0),
+			]), 0.05, _arrow_materials.ceramic if bay == 1 else _arrow_materials.pearl)
+			_arrow_visual.add_child(skin)
+		var elevon := _build_planform_surface(side_name + "SurveyRecognitionMark", PackedVector3Array([
+			Vector3(side * 2.40, 1.10, 2.09), Vector3(side * 5.30, 1.00, 2.87),
+			Vector3(side * 5.42, 0.98, 3.32), Vector3(side * 2.42, 1.08, 2.67),
+		]), 0.055, _arrow_materials.ceramic)
+		_arrow_visual.add_child(elevon)
+
 
 
 func _build_recon_systems() -> void:
@@ -1214,6 +1230,17 @@ func _build_engines_and_landing_gear() -> void:
 		_arrow_visual.add_child(light)
 		_arrow_engine_lights.append(light)
 
+	# Open both overlapping engine shells before fitting refractory nozzle
+	# petals. The retained functional collars still own the damage response.
+	for shell in _arrow_visual.get_children():
+		if shell is MeshInstance3D and (String(shell.name).begins_with("EfficientEngineHousing") or "EngineIntakeFairing" in String(shell.name) or (shell.mesh is ArrayMesh and shell.position.z == 5.0)):
+			_open_engine_tail(shell)
+	for side in [-1.0, 1.0]:
+		var prefix := "Port" if side < 0 else "Starboard"
+		var fairing := _arrow_visual.get_node(prefix + "EngineIntakeFairing") as MeshInstance3D
+		_cut_pressure_panel(fairing, prefix + "DriveServiceDoor", 4, 9, 3, 12, _arrow_materials.pearl)
+		_build_refractory_nozzle(prefix, Vector3(side * 0.92, 0.94, 6.05))
+
 	# Narrow tricycle gear suits the slender hull and keeps a stable parked pose.
 	for side in [-1.0, 1.0]:
 		_cylinder(_arrow_visual, "MainGearStrut", Vector3(side * 1.55, -0.05, 2.25), 0.07, 1.25, _arrow_materials.graphite, Vector3(0, 0, side * -8.0))
@@ -1252,12 +1279,57 @@ func _build_engines_and_landing_gear() -> void:
 	)
 
 
+func _open_engine_tail(shell: MeshInstance3D) -> void:
+	var arrays := shell.mesh.surface_get_arrays(0)
+	var vertices: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
+	var indices: PackedInt32Array = arrays[Mesh.ARRAY_INDEX]
+	var end_z := shell.mesh.get_aabb().end.z
+	var retained := PackedInt32Array()
+	for triangle in range(0, indices.size(), 3):
+		var cap := true
+		for corner in 3:
+			cap = cap and is_equal_approx(vertices[indices[triangle + corner]].z, end_z)
+		if not cap:
+			for corner in 3: retained.append(indices[triangle + corner])
+	arrays[Mesh.ARRAY_INDEX] = retained
+	var replacement := ArrayMesh.new()
+	replacement.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
+	replacement.surface_set_material(0, shell.mesh.surface_get_material(0))
+	shell.mesh = replacement
+
+
+func _build_refractory_nozzle(prefix: String, origin: Vector3) -> void:
+	var tool := SurfaceTool.new()
+	tool.begin(Mesh.PRIMITIVE_TRIANGLES)
+	tool.set_material(_arrow_materials.graphite)
+	for petal in 16:
+		var a0 := TAU * (float(petal) + 0.04) / 16.0
+		var a1 := TAU * (float(petal + 1) - 0.04) / 16.0
+		var profile := [Vector2(0.56, 0.0), Vector2(0.57, 0.24), Vector2(0.46, 0.88), Vector2(0.37, 0.88), Vector2(0.32, 0.08)]
+		for segment in profile.size() - 1:
+			var p: Vector2 = profile[segment]
+			var q: Vector2 = profile[segment + 1]
+			var a := Vector3(cos(a0) * p.x, sin(a0) * p.x, p.y)
+			var b := Vector3(cos(a1) * p.x, sin(a1) * p.x, p.y)
+			var c := Vector3(cos(a1) * q.x, sin(a1) * q.x, q.y)
+			var d := Vector3(cos(a0) * q.x, sin(a0) * q.x, q.y)
+			for point in [a, c, b, a, d, c]:
+				tool.set_uv(Vector2(point.x, point.z))
+				tool.add_vertex(point)
+	tool.generate_normals()
+	var nozzle := MeshInstance3D.new()
+	nozzle.name = prefix + "RefractoryNozzle"
+	nozzle.position = origin
+	nozzle.mesh = tool.commit()
+	_arrow_visual.add_child(nozzle)
+
+
 func _restyle_inherited_cockpit(cockpit: Node3D, canopy: Node3D) -> void:
 	# Former square sill walls and floating rails are retained controller-local
 	# nodes, dressed by the continuous pressure fairing and laminated canopy.
 	for obsolete_name in ["ForwardPressureWall", "RearPressureWall", "PortSill", "StarboardSill"]:
 		(cockpit.get_node(obsolete_name) as Node3D).visible = false
-	for obsolete_name in ["PortCanopyTopRail", "StarboardCanopyTopRail", "PortCanopyNoseFrame", "StarboardCanopyNoseFrame", "PortCanopyRearUpright", "StarboardCanopyRearUpright"]:
+	for obsolete_name in ["PortCanopyTopRail", "StarboardCanopyTopRail", "PortCanopyLowerRail", "StarboardCanopyLowerRail", "PortCanopyLowerPressureSeal", "StarboardCanopyLowerPressureSeal", "PortCanopyLaminateEdge", "StarboardCanopyLaminateEdge", "CanopyNosePressureSeal", "PortCanopyNoseFrame", "StarboardCanopyNoseFrame", "PortCanopyRearUpright", "StarboardCanopyRearUpright"]:
 		(canopy.get_node(obsolete_name) as Node3D).visible = false
 	if cockpit != null:
 		# Darker interior preserves high contrast behind the unusually clear canopy.
@@ -2443,39 +2515,45 @@ func _loft_hull(parent: Node3D, node_name: String, origin: Vector3, authored_sec
 	return instance
 
 
-func _build_planform_surface(node_name: String, outline: PackedVector3Array, thickness: float, material: Material) -> MeshInstance3D:
+func _build_planform_surface(node_name: String, outline: PackedVector3Array, depth: float, material: Material) -> MeshInstance3D:
 	var tool := SurfaceTool.new()
 	tool.begin(Mesh.PRIMITIVE_TRIANGLES)
 	tool.set_material(material)
-	var half_thickness := thickness * 0.5
+	var center := Vector3.ZERO
 	for point in outline:
-		tool.add_vertex(point + Vector3.UP * half_thickness)
-	for point in outline:
-		tool.add_vertex(point - Vector3.UP * half_thickness)
-	for triangle in [[0, 1, 2], [0, 2, 3]]:
-		tool.add_index(triangle[0])
-		tool.add_index(triangle[1])
-		tool.add_index(triangle[2])
-		tool.add_index(outline.size() + triangle[0])
-		tool.add_index(outline.size() + triangle[2])
-		tool.add_index(outline.size() + triangle[1])
-	for index in outline.size():
-		var next := (index + 1) % outline.size()
-		var top_a := index
-		var top_b := next
-		var bottom_a := outline.size() + index
-		var bottom_b := outline.size() + next
-		tool.add_index(top_a)
-		tool.add_index(bottom_a)
-		tool.add_index(bottom_b)
-		tool.add_index(top_a)
-		tool.add_index(bottom_b)
-		tool.add_index(top_b)
+		center += point * 0.25
+	var rings: Array[PackedVector3Array] = []
+	for ring_index in 4:
+		var ring := PackedVector3Array()
+		for point in outline:
+			var inset := 0.045 if ring_index in [0, 3] else 0.0
+			var height := [-0.5, -0.25, 0.25, 0.5][ring_index] as float
+			ring.append(point.lerp(center, inset) + Vector3.UP * depth * height)
+		rings.append(ring)
+	for ring_index in 3:
+		for edge in 4:
+			var following := (edge + 1) % 4
+			_arrow_panel_triangle(tool, rings[ring_index][edge], rings[ring_index + 1][edge], rings[ring_index + 1][following], center)
+			_arrow_panel_triangle(tool, rings[ring_index][edge], rings[ring_index + 1][following], rings[ring_index][following], center)
+	for edge in 4:
+		var following := (edge + 1) % 4
+		_arrow_panel_triangle(tool, center + Vector3.UP * depth * 0.5, rings[3][edge], rings[3][following], center)
+		_arrow_panel_triangle(tool, center - Vector3.UP * depth * 0.5, rings[0][following], rings[0][edge], center)
 	tool.generate_normals()
-	var instance := MeshInstance3D.new()
-	instance.name = node_name
-	instance.mesh = tool.commit()
-	return instance
+	var mesh := MeshInstance3D.new()
+	mesh.name = node_name
+	mesh.mesh = tool.commit()
+	return mesh
+
+
+func _arrow_panel_triangle(tool: SurfaceTool, a: Vector3, b: Vector3, c: Vector3, center: Vector3) -> void:
+	# Godot front faces wind clockwise; orient each bevel against its centroid.
+	var points := [a, b, c]
+	if (b - a).cross(c - a).dot((a + b + c) / 3.0 - center) > 0.0:
+		points = [a, c, b]
+	for point: Vector3 in points:
+		tool.set_uv(Vector2(point.x, point.z) * 0.2)
+		tool.add_vertex(point)
 
 
 func _curve_tube(

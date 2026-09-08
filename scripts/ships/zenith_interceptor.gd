@@ -3653,10 +3653,10 @@ func _build_modern_airframe(visual: Node3D) -> void:
 	for candidate in reference.find_children("*", "MeshInstance3D", true, false):
 		(candidate as MeshInstance3D).visible = false
 	var modern_root := _authored_presentation.call("get_modern_systems_root") as Node3D
-	# The old raised wing battens and exposed fittings were a blockout. Canopy,
-	# engine hardware, navigation lamps and their animation remain independent.
-	for candidate in modern_root.find_children("*StaticBatch_GraphitePanel", "MeshInstance3D", true, false):
-		if "CanopyPivot" not in String(candidate.name):
+	# Replace the old exposed fittings with integrated housings. Animated
+	# engine plumes, navigation lamps and the canopy remain independent.
+	for candidate in modern_root.find_children("*StaticBatch_*", "MeshInstance3D", true, false):
+		if "CanopyPivot" not in String(candidate.name) and ("GraphitePanel" in String(candidate.name) or "EngineGraphite" in String(candidate.name) or "ExposedAlloy" in String(candidate.name)):
 			(candidate as MeshInstance3D).visible = false
 	var airframe := Node3D.new()
 	airframe.name = "ModernManufacturedAirframe"
@@ -3677,20 +3677,16 @@ func _build_modern_airframe(visual: Node3D) -> void:
 	hull.clearcoat = 0.24
 	ShipSurfaceDetail.bind_manufactured_paint(hull)
 	hull.metallic = 0.08
-	hull.roughness = 0.90
+	hull.roughness = 0.66
 	hull.clearcoat_enabled = false
 	var panel := hull.duplicate() as StandardMaterial3D
 	panel.albedo_color = Color("637685")
-	panel.roughness = 0.88
+	panel.roughness = 0.73
 	var dark := hull.duplicate() as StandardMaterial3D
 	dark.albedo_color = Color("1c2932")
 	dark.metallic = 0.20
 	dark.roughness = 0.80
 	dark.cull_mode = BaseMaterial3D.CULL_DISABLED
-	var marking := hull.duplicate() as StandardMaterial3D
-	marking.albedo_color = Color("bb703d")
-	marking.metallic = 0.08
-	marking.roughness = 0.58
 	_zenith_loft(airframe, "BlendedPressureHull", Vector3(0, 0.76, 0), PackedVector3Array([
 		Vector3(0.035, 0.06, -5.32), Vector3(0.44, 0.25, -4.1),
 		Vector3(0.88, 0.63, -2.9), Vector3(1.17, 1.34, -1.1),
@@ -3703,33 +3699,72 @@ func _build_modern_airframe(visual: Node3D) -> void:
 			Vector3(side * 0.95, 0.28, -3.05), Vector3(side * 7.17, 0.15, 0.87),
 			Vector3(side * 6.53, 0.17, 3.70), Vector3(side * 2.05, 0.28, 4.52),
 		]), 0.25, hull)
-		_zenith_panel(airframe, prefix + "SweptControlSurface", PackedVector3Array([
-			Vector3(side * 3.35, 0.46, 1.95), Vector3(side * 6.65, 0.34, 1.49),
-			Vector3(side * 6.19, 0.36, 3.34), Vector3(side * 3.28, 0.46, 3.91),
-		]), 0.07, panel)
+		# Recessed substrate and three separate load-bearing skin panels. The
+		# control surfaces meet this skin across an actual shadow gap.
+		_zenith_panel(airframe, prefix + "WingStructure", PackedVector3Array([
+			Vector3(side * 2.04, 0.40, -2.23), Vector3(side * 7.03, 0.28, 0.92),
+			Vector3(side * 6.46, 0.29, 3.53), Vector3(side * 3.08, 0.40, 4.13),
+		]), 0.035, dark)
+		for bay in 3:
+			var t0 := float(bay) / 3.0 + 0.006
+			var t1 := float(bay + 1) / 3.0 - 0.006
+			var front_inner := Vector3(side * 2.15, 0.44, -2.10)
+			var front_outer := Vector3(side * 6.97, 0.32, 0.96)
+			var aft_inner := Vector3(side * 3.25, 0.44, 2.92)
+			var aft_outer := Vector3(side * 6.66, 0.32, 2.71)
+			_zenith_panel(airframe, prefix + "WingSkin" + str(bay), PackedVector3Array([
+				front_inner.lerp(front_outer, t0), front_inner.lerp(front_outer, t1),
+				aft_inner.lerp(aft_outer, t1), aft_inner.lerp(aft_outer, t0),
+			]), 0.06, hull if bay != 1 else panel)
+			_zenith_panel(airframe, prefix + "Elevon" + str(bay), PackedVector3Array([
+				aft_inner.lerp(aft_outer, t0) + Vector3.BACK * 0.055,
+				aft_inner.lerp(aft_outer, t1) + Vector3.BACK * 0.055,
+				Vector3(side * 3.10, 0.40, 4.09).lerp(Vector3(side * 6.40, 0.29, 3.47), t1),
+				Vector3(side * 3.10, 0.40, 4.09).lerp(Vector3(side * 6.40, 0.29, 3.47), t0),
+			]), 0.07, panel)
+
 		_zenith_panel(airframe, prefix + "IntakeShoulder", PackedVector3Array([
 			Vector3(side * 1.2, 0.65, -2.22), Vector3(side * 3.15, 0.38, 0.15),
 			Vector3(side * 3.28, 0.44, 3.45), Vector3(side * 1.62, 0.89, 3.60),
 		]), 0.33, hull)
 		_zenith_loft(airframe, prefix + "EngineCowling", Vector3(side * 2.20, 0.80, 0), PackedVector3Array([
-			Vector3(0.65, 0.64, -0.40), Vector3(0.74, 0.72, 1.6),
-			Vector3(0.82, 0.80, 3.15), Vector3(0.72, 0.71, 4.40),
-		]), panel)
+			Vector3(0.65, 0.60, -0.40), Vector3(0.66, 0.61, -0.12),
+			Vector3(0.74, 0.66, 1.6), Vector3(0.74, 0.66, 3.25),
+			Vector3(0.64, 0.56, 4.40),
+		]), panel, 0.26)
 		_zenith_panel(airframe, prefix + "LeadingEdgeHeatShield", PackedVector3Array([
 			Vector3(side * 1.96, 0.42, -2.14), Vector3(side * 6.85, 0.29, 0.95),
 			Vector3(side * 6.73, 0.31, 1.17), Vector3(side * 2.12, 0.45, -1.92),
 		]), 0.035, dark)
-		_zenith_panel(airframe, prefix + "SquadronMark", PackedVector3Array([
-			Vector3(side * 5.62, 0.48, 1.92), Vector3(side * 5.94, 0.48, 1.87),
-			Vector3(side * 5.62, 0.50, 3.36), Vector3(side * 5.30, 0.50, 3.42),
-		]), 0.015, marking)
+		var cowling := airframe.get_node(prefix + "EngineCowling") as MeshInstance3D
+		_hollow_intake(cowling, dark)
+		_cut_pressure_panel(cowling, prefix + "EngineServiceDoor", 6, 13, 3, 10, hull)
+		_cut_pressure_panel(cowling, prefix + "OutboardThermalDoor", 7, 15, 12 if side < 0 else 0, 16 if side < 0 else 3, dark)
+		# A splitter and a recessed compressor screen establish intake depth.
+		_box(airframe, prefix + "IntakeSplitter", Vector3(side * 2.20, 1.02, 0.03), Vector3(0.075, 0.50, 0.76), panel)
+		for vane in 4:
+			_box(airframe, prefix + "CompressorVane" + str(vane), Vector3(side * 2.20, 0.83 + vane * 0.12, 0.51), Vector3(0.99, 0.045, 0.18), dark, Vector3(-0.35, 0, 0))
+		_box(airframe, prefix + "IntakeFloor", Vector3(side * 2.20, 0.745, 0.14), Vector3(1.08, 0.06, 1.10), dark)
+		# Root-integrated cannon housings meet the unchanged gameplay muzzles.
+		_zenith_loft(airframe, prefix + "RecessedCannonHousing", Vector3(side * 1.25, 0.34, 0), PackedVector3Array([
+			Vector3(0.18, 0.15, -4.24), Vector3(0.28, 0.22, -3.86),
+			Vector3(0.38, 0.25, -2.96), Vector3(0.30, 0.13, -2.35),
+		]), dark, 0.28)
+		_box(airframe, prefix + "MuzzleLens", Vector3(side * 1.25, 0.34, -4.247), Vector3(0.22, 0.16, 0.022), dark)
+		_build_segmented_exhaust(airframe, prefix, Vector3(side * 2.20, 0.38, 4.08), dark, panel)
 
-		_hollow_intake(airframe.get_node(prefix + "EngineCowling"), dark)
-		_cut_pressure_panel(airframe.get_node(prefix + "EngineCowling"), prefix + "EngineServiceDoor", 6, 10, 3, 10, hull)
+	_cut_pressure_panel(airframe.get_node("BlendedPressureHull"), "ReplaceableNoseRadome", 0, 7, 1, 15, panel)
 	_cut_pressure_panel(airframe.get_node("BlendedPressureHull"), "PortDorsalServicePanel", 16, 22, 11, 15, panel)
 	_cut_pressure_panel(airframe.get_node("BlendedPressureHull"), "StarboardDorsalServicePanel", 16, 22, 1, 5, panel)
 	_cut_pressure_panel(airframe.get_node("BlendedPressureHull"), "DorsalThermalPanel", 22, 28, 6, 10, dark)
 	_cut_pressure_panel(airframe.get_node("BlendedPressureHull"), "RecessedPilotWell", 15, 19, 6, 10, dark, 0.72)
+	# The retired alloy batch also carried the landing struts. Rebuild the
+	# same three support locations as chamfered fork housings and broad pads.
+	for leg in [Vector3(-2.55, -0.30, 1.25), Vector3(2.55, -0.30, 1.25), Vector3(0, -0.34, -2.82)]:
+		var leg_name := "Port" if leg.x < 0 else ("Starboard" if leg.x > 0 else "Nose")
+		_box(airframe, leg_name + "GearFork", leg, Vector3(0.18, 1.08, 0.24), dark)
+		_box(airframe, leg_name + "GearDamper", leg + Vector3(0, -0.08, -0.14), Vector3(0.075, 0.65, 0.07), panel)
+		_box(airframe, leg_name + "LandingPad", Vector3(leg.x, -0.94, leg.z), Vector3(0.62, 0.16, 0.56), dark)
 	var upholstery := dark.duplicate() as StandardMaterial3D
 	upholstery.albedo_color = Color("3e484b")
 	upholstery.metallic = 0.0
@@ -3738,6 +3773,41 @@ func _build_modern_airframe(visual: Node3D) -> void:
 	_box(_functional_cockpit, "ModernSeatBack", Vector3(0, 2.22, -0.08), Vector3(0.70, 0.74, 0.20), upholstery, Vector3(deg_to_rad(10), 0, 0))
 	_box(_functional_cockpit, "ModernHeadrest", Vector3(0, 2.68, 0.0), Vector3(0.43, 0.25, 0.19), upholstery)
 	_build_enclosed_canopy(visual)
+
+
+## Faceted refractory petals form a deep nozzle around the existing animated
+## exhaust. Both material families share one mesh with two surface submissions.
+func _build_segmented_exhaust(parent: Node3D, prefix: String, origin: Vector3, dark: Material, alloy: Material) -> void:
+	var surfaces: Array[SurfaceTool] = []
+	for material in [dark, alloy]:
+		var surface := SurfaceTool.new()
+		surface.begin(Mesh.PRIMITIVE_TRIANGLES)
+		surface.set_material(material)
+		surfaces.append(surface)
+	for petal in 16:
+		var a0 := TAU * (float(petal) + 0.035) / 16.0
+		var a1 := TAU * (float(petal + 1) - 0.035) / 16.0
+		var tool := surfaces[1 if petal % 4 == 0 else 0]
+		var profile := [Vector2(0.68, 0.0), Vector2(0.67, 0.22), Vector2(0.53, 0.94), Vector2(0.43, 0.94), Vector2(0.39, 0.28)]
+		for segment in profile.size() - 1:
+			var p: Vector2 = profile[segment]
+			var q: Vector2 = profile[segment + 1]
+			var v0 := Vector3(cos(a0) * p.x, sin(a0) * p.x, p.y)
+			var v1 := Vector3(cos(a1) * p.x, sin(a1) * p.x, p.y)
+			var v2 := Vector3(cos(a1) * q.x, sin(a1) * q.x, q.y)
+			var v3 := Vector3(cos(a0) * q.x, sin(a0) * q.x, q.y)
+			for point in [v0, v2, v1, v0, v3, v2]:
+				tool.set_uv(Vector2(point.x, point.z))
+				tool.add_vertex(point)
+	var assembly := ArrayMesh.new()
+	for surface in surfaces:
+		surface.generate_normals()
+		surface.commit(assembly)
+	var mesh := MeshInstance3D.new()
+	mesh.name = prefix + "SegmentedExhaust"
+	mesh.position = origin
+	mesh.mesh = assembly
+	parent.add_child(mesh)
 
 
 func _build_enclosed_canopy(visual: Node3D) -> void:

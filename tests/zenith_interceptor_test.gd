@@ -3502,7 +3502,7 @@ func _test_boarding_collision_camera_and_canopy(zenith: ZenithInterceptor) -> vo
 	var visual := zenith.get_zenith_visual_root()
 	var functional_cockpit := visual.get_node_or_null("CockpitInterior") as Node3D
 	var functional_canopy := visual.get_node_or_null("CanopyHinge") as Node3D
-	_check(functional_cockpit != null and functional_cockpit.get_child_count() == 3, "only the inherited seat, entry and cockpit camera authority survive visual replacement")
+	_check(functional_cockpit != null and functional_cockpit.get_child_count() == 6 and functional_cockpit.has_node("ModernSeatCushion") and functional_cockpit.has_node("ModernSeatBack") and functional_cockpit.has_node("ModernHeadrest"), "inherited seat, entry and cockpit camera authority coexist with three presentation-only upholstery meshes")
 	_check(functional_canopy != null and functional_canopy.get_child_count() == 0, "hidden functional canopy hinge survives without Torrent art")
 	zenith.set_piloted(true)
 	zenith.set_cockpit_view(true)
