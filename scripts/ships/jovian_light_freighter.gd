@@ -3211,6 +3211,7 @@ func _create_jovian_materials() -> void:
 	_jovian_materials.amber = _jovian_material(FREIGHT_AMBER.darkened(0.22), 0.10, 0.72)
 	_jovian_materials.cargo_blue = _jovian_material(CARGO_BLUE.darkened(0.40), 0.10, 0.78)
 	_jovian_materials.cabin_cloth = _jovian_material(Color("374e50"), 0.0, 0.94)
+	CabinTextile.apply(_jovian_materials.cabin_cloth)
 	_jovian_materials.cabin_shell = _jovian_material(Color("929488"), 0.08, 0.72)
 	_jovian_materials.cabin_liner = _jovian_material(Color("b0ada0"), 0.02, 0.91)
 	_jovian_materials.webbing = _jovian_material(Color("666456"), 0.0, 0.98)

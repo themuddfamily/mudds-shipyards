@@ -23,6 +23,25 @@ func _run() -> void:
 	await physics_frame
 
 	var cabin := jovian.get_passenger_cabin_root()
+	# Textile authoring must preserve the existing one-mesh-per-seat-part reuse.
+	var cloth := jovian._jovian_materials.cabin_cloth as StandardMaterial3D
+	_check(cloth.normal_enabled and cloth.normal_texture == CabinTextile.NORMAL
+		and cloth.roughness_texture == CabinTextile.ROUGHNESS
+		and cloth.albedo_texture == CabinTextile.COLOR
+		and cloth.uv1_triplanar and not cloth.uv1_world_triplanar
+		and is_zero_approx(cloth.metallic),
+		"passenger cloth uses shared scanned PBR maps attached to the moving ship")
+	var original_tint := cloth.albedo_color
+	CabinTextile.apply(cloth)
+	_check(cloth.albedo_color.is_equal_approx(original_tint), "rebinding cloth preserves the original dye")
+	var seat_meshes := {}
+	for side in ["Port", "Starboard"]:
+		for index in 3:
+			var seat := cabin.get_node("%sPassengerSeat%02d/SeatBase" % [side, index]) as MeshInstance3D
+			seat_meshes[seat.mesh.get_instance_id()] = true
+			_check(seat.get_active_material(0) == cloth,
+				"passenger cushion binds the shared textile finish")
+	_check(seat_meshes.size() == 1, "scanned cloth retains one cushion mesh for all six passengers")
 	var upright_nodes: Array[MeshInstance3D] = []
 	if cabin != null:
 		for candidate in cabin.get_children():

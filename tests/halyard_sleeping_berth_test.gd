@@ -10,6 +10,13 @@ func _run() -> void:
 	var craft := CRAFT.instantiate() as HalyardCrewTransport
 	root.add_child(craft)
 	await process_frame
+	for finish in ["cloth", "upholstery", "blanket"]:
+		var cloth := craft._halyard_materials[finish] as StandardMaterial3D
+		_check(cloth.normal_enabled and cloth.normal_texture == CabinTextile.NORMAL
+			and cloth.albedo_texture == CabinTextile.COLOR
+			and cloth.roughness_texture == CabinTextile.ROUGHNESS
+			and cloth.uv1_triplanar and not cloth.uv1_world_triplanar,
+			"bedding and privacy cloth retain scanned textile maps in ship-local space")
 	var actor := Node3D.new()
 	root.add_child(actor)
 	var other := Node3D.new()

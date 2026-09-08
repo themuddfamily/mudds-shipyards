@@ -2611,6 +2611,9 @@ func _create_halyard_materials() -> void:
 	_halyard_materials.cabin_fitting.metallic_specular = 0.18
 	_halyard_materials.linen = _halyard_material(Color("ded4bc"), 0.0, 0.96)
 	_halyard_materials.blanket = _halyard_material(Color("506f76"), 0.0, 0.98)
+	for cloth: StandardMaterial3D in [_halyard_materials.cloth, _halyard_materials.upholstery]:
+		CabinTextile.apply(cloth)
+	CabinTextile.apply(_halyard_materials.blanket, 0.62)
 	_halyard_materials.glass = _halyard_glass(Color(0.16, 0.28, 0.24, 0.22))
 
 	# Reuse the registered normal map in ship-local space. Paint supplies colour

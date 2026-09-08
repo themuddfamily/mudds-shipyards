@@ -6974,6 +6974,8 @@ func _create_materials() -> void:
 	_materials.upholstery_light = _material(Color("31515a"), 0.18, 0.68)
 	_materials.seat_red = _material(Color("a83227"), 0.08, 0.68)
 	_materials.seat_red_light = _material(Color("b54432"), 0.10, 0.58)
+	for cloth: StandardMaterial3D in [_materials.upholstery, _materials.upholstery_light, _materials.seat_red, _materials.seat_red_light]:
+		CabinTextile.apply(cloth)
 	_materials.display_cyan = _material(Color("0a1820"), 0.08, 0.34, KETH_CYAN, 0.85)
 	_materials.display_substrate = _material(Color("07161c"), 0.08, 0.46, Color("0d2a30"), 0.08)
 	_materials.display_cyan_low = _material(Color("0b242a"), 0.10, 0.40, KETH_CYAN.darkened(0.25), 0.38)
