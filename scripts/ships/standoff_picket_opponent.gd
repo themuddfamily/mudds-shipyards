@@ -94,7 +94,7 @@ const MAX_PENDING_LANCE_RECEIPTS := 8
 # exact duplicates, so the cache retains one mesh per recipe; the broad static
 # radiator pair also shares one renderer submission without changing its copies.
 const BASELINE_PRESENTATION_VISUAL_NODE_COUNT := 33
-const PRESENTATION_VISUAL_NODE_COUNT := 30
+const PRESENTATION_VISUAL_NODE_COUNT := 34
 const BASELINE_PRESENTATION_MESH_INSTANCE_COUNT := 31
 const PRESENTATION_MESH_INSTANCE_COUNT := 24
 const PRESENTATION_RENDERER_NODE_COUNT := 28
@@ -1661,6 +1661,12 @@ func _build_interceptor() -> void:
 	add_child(_warning_light)
 
 	_build_picket_fittings()
+	# The narrow spine carries a registry below the magenta identification rail.
+	for side in [-1.0, 1.0]:
+		ShipSurfaceDetail.mark_surface(_visual_root, "PicketRegistry", "picket",
+			Vector3(side * 0.623, -0.13, 1.6), Vector2(1.6, 0.8), Vector3(side, 0, 0), Vector3.UP)
+		ShipSurfaceDetail.mark_surface(_visual_root, "SpineService", "service",
+			Vector3(side * 0.623, -0.13, 3.05), Vector2(0.8, 0.4), Vector3(side, 0, 0), Vector3.UP)
 	_build_collision()
 	_build_damage_effects()
 

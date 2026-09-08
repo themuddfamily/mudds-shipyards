@@ -111,8 +111,8 @@ const WINGLET_FIN_ROTATIONS := [
 	Vector3(0.0, -0.16, 0.22),
 	Vector3(0.0, 0.16, -0.22),
 ]
-const PRESENTATION_DESCENDANT_NODE_COUNT := 33
-const PRESENTATION_VISUAL_NODE_COUNT := 22
+const PRESENTATION_DESCENDANT_NODE_COUNT := 37
+const PRESENTATION_VISUAL_NODE_COUNT := 26
 const PRESENTATION_MESH_INSTANCE_COUNT := 19
 const PRESENTATION_LIGHT_NODE_COUNT := 5
 const PRESENTATION_COLLISION_SHAPE_COUNT := 3
@@ -1366,6 +1366,12 @@ func _build_interceptor() -> void:
 	add_child(_warning_light)
 
 	_build_skirmisher_fittings()
+	# Wing registration follows the broad rear skin; heat labels sit on engine lids.
+	for side in [-1.0, 1.0]:
+		ShipSurfaceDetail.mark_surface(_visual_root, "WingRegistry", "skirmisher",
+			Vector3(side * 2.55, 0.05, 2.4), Vector2(1.8, 0.9), Vector3.UP, Vector3.FORWARD)
+		ShipSurfaceDetail.mark_surface(_visual_root, "EngineHeat", "exhaust",
+			Vector3(side * 1.0, 0.37, 2.38), Vector2(0.8, 0.4), Vector3.UP, Vector3(side, 0, 0))
 	_build_collision()
 	_build_damage_effects()
 

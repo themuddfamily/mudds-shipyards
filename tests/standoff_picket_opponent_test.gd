@@ -129,7 +129,7 @@ func _test_contract_and_evidence() -> void:
 		bool(performance.valid)
 		and bool(performance.headless_safe)
 		and int(performance.baseline_visual_nodes) == 33
-		and int(performance.visual_nodes) == 30
+		and int(performance.visual_nodes) == 34
 		and int(performance.baseline_mesh_instances) == 31
 		and int(performance.mesh_instances) == 24
 		and int(performance.renderer_nodes) == 28

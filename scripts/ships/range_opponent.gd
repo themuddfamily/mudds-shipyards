@@ -2177,6 +2177,13 @@ func _build_interceptor() -> void:
 	add_child(_warning_light)
 
 	_build_range_fittings()
+	# Registry ink sits on the outer prong flanks; service labels identify the engine lids.
+	for side in [-1.0, 1.0]:
+		ShipSurfaceDetail.mark_surface(_visual_root, "RangeRegistry", "range",
+			Vector3(side * 3.20, -0.02, -0.6), Vector2(2.0, 1.0), Vector3(side, 0, 0), Vector3.UP)
+		var service_mark := ShipSurfaceDetail.mark_surface(_visual_root, "EngineService", "service",
+			Vector3(side * 2.67, 0.755, 2.8), Vector2(1.0, 0.5), Vector3.UP, Vector3(side, 0, 0))
+		service_mark.modulate = Color(0.3, 0.3, 0.3, 1.0)
 	_build_collision()
 	_build_damage_effects()
 

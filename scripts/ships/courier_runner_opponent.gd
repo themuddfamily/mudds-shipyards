@@ -778,6 +778,12 @@ func _build_interceptor() -> void:
 	add_child(_warning_light)
 
 	_build_courier_fittings()
+	# Freight registry occupies the uninterrupted pressure-hull sides above the pods.
+	for side in [-1.0, 1.0]:
+		ShipSurfaceDetail.mark_surface(_visual_root, "CourierRegistry", "courier",
+			Vector3(side * 1.10, 0.30, 0.65), Vector2(2.2, 1.1), Vector3(side, 0, 0), Vector3.UP)
+		ShipSurfaceDetail.mark_surface(_visual_root, "CrewRescue", "rescue",
+			Vector3(side * 1.10, 0.30, -1.7), Vector2(0.9, 0.45), Vector3(side, 0, 0), Vector3.UP)
 	_build_collision()
 	_build_damage_effects()
 
