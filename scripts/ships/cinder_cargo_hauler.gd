@@ -1110,9 +1110,12 @@ func _build_hull(visual: Node3D) -> void:
 	for side in [-1.0, 1.0]:
 		var side_name := "Port" if side < 0.0 else "Starboard"
 		for z_position in CARGO_FRAME_RIB_Z:
+			var end_ratio := clampf((absf(z_position) / 6.0 - 0.66) / 0.34, 0.0, 1.0)
+			var rib_x := HULL_SIZE.x * 0.5 * lerpf(1.0, 0.80, end_ratio) + CARGO_FRAME_RIB_X - HULL_SIZE.x * 0.5
+			var cant: float = -side * signf(z_position) * atan(0.64 / 2.04) if end_ratio > 0.0 else 0.0
 			frame_transforms.append(Transform3D(
-				Basis.IDENTITY,
-				Vector3(side * CARGO_FRAME_RIB_X, 0.20, z_position)
+				Basis(Vector3.UP, cant),
+				Vector3(side * rib_x, 0.20, z_position)
 			))
 			frame_names.append("CargoFrame%s%+03d" % [side_name, int(round(z_position * 10.0))])
 	_cargo_frame_ribs = _add_visual_box_batch(
@@ -1180,39 +1183,78 @@ func _build_freight_pressure_fairings(visual: Node3D) -> void:
 		for x in [-1.36, 1.36]:
 			_service_bay(bulkhead, "Latch" + str(x), Vector3(x, 0.05, 0), 0.35, 0.92, metal, dark, dark)
 		for side in [-1.0, 1.0]:
-			_box(visual, "CornerCrashBeam" + str(end) + str(side), Vector3(side * 2.13, -0.18, end * 6.0), Vector3(0.26, 2.12, 0.24), dark)
-			_box(visual, "CargoCornerTie" + str(end) + str(side), Vector3(side * 2.13, 0.43, end * 6.11), Vector3(0.32, 0.21, 0.17), metal)
-	for z in [-4.7, -3.6, 4.7]:
-		_deck_plate(visual, "RoofService" + str(z), Vector3(0, 1.638, z), 3.45, 0.88, _shared_hull_material, dark)
+			_box(visual, "CornerCrashBeam" + str(end) + str(side), Vector3(side * 2.02, -0.08, end * 6.0), Vector3(0.18, 1.90, 0.24), dark)
+			_box(visual, "CargoCornerTie" + str(end) + str(side), Vector3(side * 2.02, 0.43, end * 6.11), Vector3(0.32, 0.21, 0.17), metal)
+	for z in [-3.6, 3.7]:
+		_deck_plate(visual, "RoofService" + str(z), Vector3(0, 1.638, z), 3.45, 0.68, _shared_hull_material, dark)
 	var hot := _material(Color("68959e"), 0.35, 0.3, Color("83c0cb"), 0.55)
-	var fore := _pressure_panel(visual, "ForwardPressureCap", Vector3(0, 0, -6.03), 5.18, 5.38, 0.16, 2.76, _shared_hull_material)
+	var fore := _pressure_panel(visual, "ForwardPressureCap", Vector3(0, 0, -6.03), 4.0, 4.50, 0.16, 2.35, _shared_hull_material)
 	fore.rotation.x = -PI * 0.5
-	var aft := _pressure_panel(visual, "AftPressureCap", Vector3(0, 0, 6.03), 5.18, 5.38, 0.16, 2.76, _shared_hull_material)
+	var aft := _pressure_panel(visual, "AftPressureCap", Vector3(0, 0, 6.03), 4.0, 4.50, 0.16, 2.35, _shared_hull_material)
 	aft.rotation.x = PI * 0.5
 	for side in [-1.0, 1.0]:
 		var tag := "Port" if side < 0 else "Starboard"
+		var cradle := MeshInstance3D.new()
+		cradle.name = tag + "FreightCradle"
+		cradle.mesh = _freight_cradle_mesh(side)
+		cradle.material_override = dark
+		visual.add_child(cradle)
 		_service_bay(visual, tag + "FreightThermalService", Vector3(side * 2.3, 1.695, 0.4), 0.66, 1.5, _shared_hull_material, dark, metal)
 		# All side pods stop behind the protected boarding aperture (z > 2.30).
-		_armor_shell(visual, tag + "EnginePylon", Vector3(side * 3.12, 0.4, 4.05), Vector3(1.0, 1.0, 3.2), _shared_hull_material)
-		_armor_shell(visual, tag + "EngineShroud", Vector3(side * 3.75, 0.4, 4.5), Vector3(1.45, 1.5, 3.3), dark)
+		_armor_shell(visual, tag + "EnginePylon", Vector3(side * 3.07, 0.32, 4.25), Vector3(1.10, 0.80, 3.35), _shared_hull_material)
+		_armor_shell(visual, tag + "EngineShroud", Vector3(side * 3.75, 0.4, 4.45), Vector3(1.62, 1.62, 3.5), dark)
 		_frustum(visual, tag + "FreightExhaust", Vector3(side * 3.75, 0.4, 6.40), 0.75, 0.55, 0.65, metal, Vector3(90, 0, 0), false, false)
 		_cylinder(visual, tag + "RecessedThroat", Vector3(side * 3.75, 0.4, 6.20), 0.45, 0.08, dark, Vector3(90, 0, 0))
 		_engine_mechanics(visual, tag, Vector3(side * 3.75, 0.4, 6.59), 0.64, metal, dark, hot)
 		for z in [4.3, 5.15]:
-			_deck_plate(visual, tag + "NacelleAccess" + str(z), Vector3(side * 3.75, 1.17, z), 0.85, 0.65, _shared_hull_material, dark)
+			_deck_plate(visual, tag + "NacelleAccess" + str(z), Vector3(side * 3.75, 1.218 if z < 5.0 else 1.19, z), 0.85, 0.65, _shared_hull_material, dark)
 		var radiator := Node3D.new()
 		radiator.name = tag + "NacelleRadiator"
-		radiator.position = Vector3(side * 4.49, 0.48, 4.95)
+		radiator.position = Vector3(side * 4.565, 0.4, 4.60)
 		radiator.rotation.z = side * -PI * 0.5
 		visual.add_child(radiator)
-		_service_bay(radiator, "Cooling", Vector3.ZERO, 0.62, 1.20, metal, dark, dark)
-		_armor_shell(visual, tag + "ForeShoulder", Vector3(side * 2.48, 1.39, -3.9), Vector3(1.15, 0.52, 3.4), _shared_cargo_pod_material)
-		_armor_shell(visual, tag + "RoofRail", Vector3(side * 2.3, 1.59, 0.0), Vector3(1.3, 0.18, 5.2), dark)
-		_armor_shell(visual, tag + "AftShoulder", Vector3(side * 2.48, 1.39, 3.9), Vector3(1.15, 0.52, 3.4), _shared_cargo_pod_material)
+		_service_bay(radiator, "Cooling", Vector3.ZERO, 0.46, 1.05, metal, dark, dark)
 
 
-## One closed exterior surface with a bounded port aperture. The five intact
-## outer faces and the remaining port panels retain the exact box AABB; four
+## Continuous load rails follow the pressure roof's end taper. Their seating
+## faces stay on the skin rather than emerging from intersecting wedge stock.
+func _freight_cradle_mesh(side: float) -> ArrayMesh:
+	var vertices := PackedVector3Array()
+	var normals := PackedVector3Array()
+	var indices := PackedInt32Array()
+	var rings: Array[PackedVector3Array] = []
+	for z in [-5.72, -5.46, -3.96, 3.96, 5.46, 5.72]:
+		var end_ratio := clampf((absf(z) / 6.0 - 0.66) / 0.34, 0.0, 1.0)
+		var width_scale := lerpf(1.0, 0.80, end_ratio)
+		var y := 1.6 * lerpf(1.0, 0.82, end_ratio)
+		var center_x := side * 1.82 * width_scale
+		var width := 0.22 if absf(z) < 5.6 else 0.12
+		rings.append(PackedVector3Array([
+			Vector3(center_x - width * 0.5, y + 0.065, z),
+			Vector3(center_x + width * 0.5, y + 0.065, z),
+			Vector3(center_x + width * 0.5, y - 0.025, z),
+			Vector3(center_x - width * 0.5, y - 0.025, z),
+		]))
+	for bay in rings.size() - 1:
+		for edge in 4:
+			var next := (edge + 1) % 4
+			_append_shell_quad(vertices, normals, indices,
+				rings[bay][edge], rings[bay][next], rings[bay + 1][next], rings[bay + 1][edge],
+				[Vector3.UP, Vector3.RIGHT, Vector3.DOWN, Vector3.LEFT][edge])
+	for cap in [0, rings.size() - 1]:
+		_append_shell_quad(vertices, normals, indices, rings[cap][0], rings[cap][1], rings[cap][2], rings[cap][3], Vector3.FORWARD if cap == 0 else Vector3.BACK)
+	var arrays := []
+	arrays.resize(Mesh.ARRAY_MAX)
+	arrays[Mesh.ARRAY_VERTEX] = vertices
+	arrays[Mesh.ARRAY_NORMAL] = normals
+	arrays[Mesh.ARRAY_INDEX] = indices
+	var mesh := ArrayMesh.new()
+	mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
+	return mesh
+
+
+## One formed exterior surface with a bounded port aperture. The full cabin
+## stations retain the existing AABB while the sealed end bays taper; four
 ## reveal faces prevent a hollow/backface seam around the doorway. Cabin-local
 ## deck, ceiling, starboard and end walls remain the interior presentation.
 static func _port_aperture_shell_mesh(
@@ -1237,45 +1279,51 @@ static func _port_aperture_shell_mesh(
 	var vertices := PackedVector3Array()
 	var normals := PackedVector3Array()
 	var indices := PackedInt32Array()
-	# The pressure body uses one fitted eight-edge section with small edge
-	# breaks. Full-height cabin and doorway stations remain exact; only the
-	# sealed bow and stern taper. The aperture cuts the same port side strip.
-	var bevel := minf(0.12, maxf(0.0, (y1 - aperture_y_max) * 0.5))
+	# Full cabin width and the doorway are retained at the middle stations.
+	# Broad rolled shoulders and a radiused lower chine replace the box corners;
+	# sealed end bays neck down to fitted bulkheads without crossing the route.
+	var bevel := minf(0.30, maxf(0.0, y1 - aperture_y_max))
+	var lower_bevel := minf(0.50, maxf(0.0, aperture_y_min - y0))
 	var section := PackedVector2Array([
-		Vector2(x0 + bevel, y1), Vector2(half.x - bevel, y1),
-		Vector2(half.x, y1 - bevel), Vector2(half.x, y0 + bevel),
-		Vector2(half.x - bevel, y0), Vector2(x0 + bevel, y0),
-		Vector2(x0, y0 + bevel), Vector2(x0, y1 - bevel),
+		Vector2(x0 + 0.70, y1), Vector2(half.x - 0.70, y1),
+		Vector2(half.x - 0.20, y1 - bevel * 0.24), Vector2(half.x, y1 - bevel),
+		Vector2(half.x, y0 + lower_bevel), Vector2(half.x - 0.18, y0 + lower_bevel * 0.28),
+		Vector2(half.x - 0.65, y0), Vector2(x0 + 0.65, y0),
+		Vector2(x0 + 0.18, y0 + lower_bevel * 0.28), Vector2(x0, y0 + lower_bevel),
+		Vector2(x0, y1 - bevel), Vector2(x0 + 0.20, y1 - bevel * 0.24),
 	])
-	var stations: Array[float] = [z0, maxf(z0, -3.0), aperture_z_min, aperture_z_max, minf(z1, 3.0), z1]
+	var stations: Array[float] = [z0, z0 * 0.91, z0 * 0.66, aperture_z_min, aperture_z_max, z1 * 0.66, z1 * 0.91, z1]
 	stations.sort()
 	var rings: Array[PackedVector3Array] = []
 	for z in stations:
-		var end := is_equal_approx(z, z0) or is_equal_approx(z, z1)
+		var end_ratio := clampf((absf(z) / half.z - 0.66) / 0.34, 0.0, 1.0)
+		# Keep every aperture station at the full, unshifted cabin section.
+		if z >= aperture_z_min and z <= aperture_z_max:
+			end_ratio = 0.0
 		var ring := PackedVector3Array()
 		for point in section:
-			ring.append(Vector3(point.x * (0.83 if end else 1.0), point.y * (0.86 if end else 1.0), z))
+			ring.append(Vector3(point.x * lerpf(1.0, 0.80, end_ratio), point.y * lerpf(1.0, 0.82, end_ratio), z))
 		rings.append(ring)
 	for bay in stations.size() - 1:
 		var in_door := stations[bay] >= aperture_z_min and stations[bay + 1] <= aperture_z_max
-		for edge in 8:
-			if edge == 6 and in_door:
+		for edge in section.size():
+			if edge == 9 and in_door:
 				continue
-			var next := (edge + 1) % 8
+			var next := (edge + 1) % section.size()
 			var midpoint := (section[edge] + section[next]) * 0.5
 			_append_shell_quad(vertices, normals, indices,
 				rings[bay][edge], rings[bay][next], rings[bay + 1][next], rings[bay + 1][edge],
 				Vector3(midpoint.x / half.x, midpoint.y / half.y, 0).normalized())
 		if in_door:
-			for band in [Vector2(y0 + bevel, aperture_y_min), Vector2(aperture_y_max, y1 - bevel)]:
+			for band in [Vector2(y0 + lower_bevel, aperture_y_min), Vector2(aperture_y_max, y1 - bevel)]:
 				_append_shell_quad(vertices, normals, indices,
 					Vector3(x0, band.x, stations[bay]), Vector3(x0, band.y, stations[bay]),
 					Vector3(x0, band.y, stations[bay + 1]), Vector3(x0, band.x, stations[bay + 1]), Vector3.LEFT)
 	for cap in [0, rings.size() - 1]:
 		var ring := rings[cap]
 		var center := Vector3(0, 0, stations[cap])
-		for edge in 8:
-			var next := (edge + 1) % 8
+		for edge in section.size():
+			var next := (edge + 1) % section.size()
 			var triangle := [center, ring[next], ring[edge]] if cap == 0 else [center, ring[edge], ring[next]]
 			for point in triangle:
 				indices.append(vertices.size())
@@ -1824,10 +1872,10 @@ func _loft_mesh(size: Vector3, material: Material) -> ArrayMesh:
 	# stay continuous between those breaks instead of introducing redundant
 	# almost-coplanar strips along the manufactured edges.
 	var section := PackedVector2Array([
-		Vector2(0, 1), Vector2(0.94, 1), Vector2(1, 0.94), Vector2(1, 0.36),
-		Vector2(1, 0), Vector2(1, -0.36), Vector2(1, -0.94), Vector2(0.94, -1),
-		Vector2(0, -1), Vector2(-0.94, -1), Vector2(-1, -0.94), Vector2(-1, -0.36),
-		Vector2(-1, 0), Vector2(-1, 0.36), Vector2(-1, 0.94), Vector2(-0.94, 1),
+		Vector2(0, 1), Vector2(0.62, 1), Vector2(0.91, 0.80), Vector2(1, 0.40),
+		Vector2(1, 0), Vector2(1, -0.40), Vector2(0.91, -0.80), Vector2(0.62, -1),
+		Vector2(0, -1), Vector2(-0.62, -1), Vector2(-0.91, -0.80), Vector2(-1, -0.40),
+		Vector2(-1, 0), Vector2(-1, 0.40), Vector2(-0.91, 0.80), Vector2(-0.62, 1),
 	])
 	var stations := [0.0, 0.28, 0.43, 0.83, 1.0]
 	var extents: Array[Vector2] = []
