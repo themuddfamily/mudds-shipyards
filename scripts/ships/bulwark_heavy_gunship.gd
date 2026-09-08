@@ -582,31 +582,53 @@ func _build_gunner_station_furniture(armor: Material, frame: Material) -> void:
 	], _materials.upholstery)
 	var back_rotation := Vector3(deg_to_rad(-78.0), 0, 0)
 	_gunner_fitting("GunnerSeatBack", Vector3(0, 0.63, 0.30), [
-		Vector4(0.79, -0.09, 0.09, -0.50), Vector4(0.90, -0.11, 0.14, -0.33),
-		Vector4(0.82, -0.09, 0.10, 0.27), Vector4(0.66, -0.07, 0.07, 0.50),
+		Vector4(0.62, -0.09, 0.09, -0.50), Vector4(0.68, -0.11, 0.14, -0.33),
+		Vector4(0.61, -0.09, 0.07, 0.17), Vector4(0.52, -0.07, 0.07, 0.50),
 	], _materials.upholstery, back_rotation)
 	_gunner_fitting("GunnerSeatShell", Vector3(0, 0.63, 0.30), [
 		Vector4(0.84, -0.18, -0.10, -0.51), Vector4(0.95, -0.19, -0.11, -0.32),
 		Vector4(0.86, -0.17, -0.09, 0.28), Vector4(0.70, -0.14, -0.06, 0.53),
 	], armor, back_rotation)
-	_gunner_fitting("GunnerHeadrest", Vector3(0, 1.21, 0.44), [
-		Vector4(0.43, -0.12, 0.10, -0.10), Vector4(0.57, -0.14, 0.13, -0.04),
-		Vector4(0.57, -0.14, 0.13, 0.10), Vector4(0.46, -0.09, 0.09, 0.15),
-	], _materials.upholstery_light)
+	# The insert sits inside a continuous shell; raised side cushions cradle the
+	# torso instead of reading as one flat upholstered plate from the approach.
+	_gunner_fitting("GunnerLumbarCushion", Vector3(0, 0.63, 0.30), [
+		Vector4(0.50, 0.13, 0.15, -0.38), Vector4(0.59, 0.14, 0.20, -0.28),
+		Vector4(0.57, 0.12, 0.17, -0.15), Vector4(0.49, 0.10, 0.12, -0.09),
+	], _materials.upholstery_light, back_rotation)
+	_gunner_fitting("GunnerSeatPanShell", Vector3.ZERO, [
+		Vector4(0.85, -0.20, -0.10, -0.48), Vector4(1.02, -0.24, -0.10, -0.27),
+		Vector4(0.99, -0.23, -0.09, 0.30), Vector4(0.81, -0.18, -0.07, 0.44),
+	], armor)
+	_gunner_fitting("GunnerHeadrestShell", Vector3(0, 1.21, 0.45), [
+		Vector4(0.48, -0.13, -0.04, -0.14), Vector4(0.64, -0.14, -0.03, -0.05),
+		Vector4(0.59, -0.12, -0.04, 0.15), Vector4(0.47, -0.10, -0.03, 0.19),
+	], armor, back_rotation)
+	_gunner_fitting("GunnerHeadrest", Vector3(0, 1.21, 0.45), [
+		Vector4(0.42, -0.04, 0.06, -0.13), Vector4(0.56, -0.05, 0.12, -0.05),
+		Vector4(0.53, -0.04, 0.10, 0.12), Vector4(0.43, -0.03, 0.06, 0.17),
+	], _materials.upholstery_light, back_rotation)
 	for side in [-1.0, 1.0]:
 		var tag := "Port" if side < 0 else "Starboard"
-		_gunner_fitting(tag + "GunnerThighSupport", Vector3(side * 0.45, 0.04, -0.02), [
-			Vector4(0.10, -0.10, 0.12, -0.36), Vector4(0.17, -0.12, 0.17, -0.23),
-			Vector4(0.17, -0.12, 0.17, 0.24), Vector4(0.11, -0.08, 0.11, 0.34),
-		], _materials.upholstery)
-		_box(_gunner_station, tag + "GunnerSeatRail", Vector3(side * 0.30, -0.20, 0), Vector3(0.11, 0.16, 0.91), frame)
-		_box(_gunner_station, tag + "GunnerHeadrestPost", Vector3(side * 0.17, 1.10, 0.43), Vector3(0.04, 0.25, 0.05), frame)
+		_gunner_fitting(tag + "GunnerThighSupport", Vector3(side * 0.42, 0.04, -0.02), [
+			Vector4(0.10, -0.10, 0.12, -0.36), Vector4(0.18, -0.12, 0.17, -0.23),
+			Vector4(0.18, -0.12, 0.17, 0.24), Vector4(0.11, -0.08, 0.11, 0.34),
+		], _materials.upholstery_light)
+		_gunner_fitting(tag + "GunnerShoulderSupport", Vector3(side * 0.35, 0.63, 0.30), [
+			Vector4(0.10, -0.06, 0.13, -0.40), Vector4(0.17, -0.08, 0.22, -0.24),
+			Vector4(0.19, -0.05, 0.22, 0.19), Vector4(0.10, -0.03, 0.10, 0.40),
+		], _materials.upholstery_light, back_rotation)
+		_gunner_fitting(tag + "GunnerSeatRail", Vector3(side * 0.30, -0.20, 0), [
+			Vector4(0.11, -0.08, 0.01, -0.46), Vector4(0.14, -0.08, 0.08, -0.32),
+			Vector4(0.14, -0.08, 0.08, 0.32), Vector4(0.11, -0.08, 0.01, 0.46),
+		], frame)
+		_cylinder_between(_gunner_station, tag + "GunnerHeadrestPost", Vector3(side * 0.17, 1.03, 0.45), Vector3(side * 0.17, 1.24, 0.50), 0.025, frame)
+		_cylinder(_gunner_station, tag + "GunnerReclinePivot", Vector3(side * 0.48, 0.14, 0.31), 0.075, 0.035, frame, Vector3(0, 0, 90))
 	# The console's crown falls toward the gunner, leaving the entire display
 	# above it. Its pedestal meets the existing hull deck beneath the station.
 	_gunner_fitting("GunnerConsole", Vector3.ZERO, [
 		Vector4(1.34, 0.12, 0.50, -1.17), Vector4(1.55, 0.12, 0.53, -0.95),
 		Vector4(1.50, 0.12, 0.40, -0.40), Vector4(1.30, 0.10, 0.32, -0.22),
-	], _materials.cockpit_anti_glare)
+	], _materials.cockpit_anti_glare, Vector3.ZERO, armor)
 	_gunner_fitting("GunnerConsolePedestal", Vector3.ZERO, [
 		Vector4(0.86, -0.27, 0.15, -1.02), Vector4(1.08, -0.26, 0.15, -0.60),
 		Vector4(0.87, -0.24, 0.12, -0.31),
@@ -616,25 +638,72 @@ func _build_gunner_station_furniture(armor: Material, frame: Material) -> void:
 	display_mount.position = Vector3(0, 0.76, -1.02)
 	display_mount.rotation.x = deg_to_rad(-14.0)
 	_gunner_station.add_child(display_mount)
-	_box(display_mount, "DisplayUpperRail", Vector3(0, 0.228, 0), Vector3(1.19, 0.056, 0.105), armor)
-	_box(display_mount, "DisplayLowerRail", Vector3(0, -0.228, 0), Vector3(1.19, 0.056, 0.105), armor)
+	_build_gunner_display_housing(display_mount, armor)
 	for side in [-1.0, 1.0]:
 		var tag := "Port" if side < 0 else "Starboard"
-		_box(display_mount, tag + "DisplayRail", Vector3(side * 0.563, 0, 0), Vector3(0.076, 0.41, 0.105), armor)
-		_box(display_mount, tag + "DisplayFoot", Vector3(side * 0.43, -0.31, -0.01), Vector3(0.07, 0.22, 0.12), frame)
-		_cylinder(_gunner_station, tag + "GunnerGripMount", Vector3(side * 0.56, 0.43, -0.43), 0.08, 0.08, armor)
-		_cylinder_between(_gunner_station, tag + "GunnerControlGrip", Vector3(side * 0.56, 0.46, -0.43), Vector3(side * 0.55, 0.64, -0.46), 0.043, _materials.cockpit_anti_glare)
+		# Formed cheeks follow the control deck slope and carry both hand grips.
+		_gunner_fitting(tag + "GunnerControlCheek", Vector3(side * 0.56, 0, 0), [
+			Vector4(0.16, 0.34, 0.53, -0.78), Vector4(0.24, 0.30, 0.52, -0.54),
+			Vector4(0.24, 0.24, 0.45, -0.32), Vector4(0.16, 0.21, 0.33, -0.21),
+		], _materials.cockpit_anti_glare, Vector3.ZERO, armor)
+		_gunner_fitting(tag + "DisplayFoot", Vector3(side * 0.43, 0, 0), [
+			Vector4(0.10, 0.41, 0.52, -1.12), Vector4(0.10, 0.40, 0.64, -1.02),
+			Vector4(0.08, 0.41, 0.55, -0.91),
+		], frame)
+		_cylinder(_gunner_station, tag + "GunnerGripMount", Vector3(side * 0.56, 0.49, -0.43), 0.08, 0.08, armor)
+		_cylinder_between(_gunner_station, tag + "GunnerControlGrip", Vector3(side * 0.56, 0.52, -0.43), Vector3(side * 0.55, 0.70, -0.46), 0.043, _materials.cockpit_anti_glare)
 	_box(_gunner_station, "GunnerDisplay", Vector3(0, 0.76, -1.02), Vector3(1.05, 0.40, 0.06), _materials.display_substrate, Vector3(deg_to_rad(-14.0), 0, 0))
 
 
-func _gunner_fitting(label: String, at: Vector3, sections: Array[Vector4], finish: Material, angles: Vector3 = Vector3.ZERO) -> MeshInstance3D:
+func _gunner_fitting(label: String, at: Vector3, sections: Array[Vector4], finish: Material, angles: Vector3 = Vector3.ZERO, casing: Material = null) -> MeshInstance3D:
 	var fitting := MeshInstance3D.new()
 	fitting.name = label
 	fitting.position = at
 	fitting.rotation = angles
-	fitting.mesh = _cockpit_formed_enclosure_mesh(sections, finish)
+	fitting.mesh = _cockpit_formed_enclosure_mesh(sections, finish, casing)
 	_gunner_station.add_child(fitting)
 	return fitting
+
+
+## An extruded, chamfered perimeter leaves the retained two-sided screen open.
+## Its edge returns are one casing, avoiding intersecting box-rail corner seams.
+func _build_gunner_display_housing(mount: Node3D, finish: Material) -> void:
+	var rings: Array[PackedVector3Array] = []
+	for section in [
+		Vector4(0.606, 0.260, -0.070, 0.042), Vector4(0.616, 0.270, -0.035, 0.045),
+		Vector4(0.606, 0.260, 0.060, 0.042), Vector4(0.520, 0.195, 0.060, 0.008),
+		Vector4(0.520, 0.195, -0.070, 0.008),
+	]:
+		var x: float = section.x
+		var y: float = section.y
+		var z: float = section.z
+		var bevel: float = section.w
+		rings.append(PackedVector3Array([
+			Vector3(-x + bevel, -y, z), Vector3(x - bevel, -y, z),
+			Vector3(x, -y + bevel, z), Vector3(x, y - bevel, z),
+			Vector3(x - bevel, y, z), Vector3(-x + bevel, y, z),
+			Vector3(-x, y - bevel, z), Vector3(-x, -y + bevel, z),
+		]))
+	var surface := SurfaceTool.new()
+	surface.begin(Mesh.PRIMITIVE_TRIANGLES)
+	surface.set_material(finish)
+	for ring_index in rings.size():
+		var current := rings[ring_index]
+		var next := rings[(ring_index + 1) % rings.size()]
+		for edge in 8:
+			var next_edge := (edge + 1) % 8
+			var face := [current[edge], next[edge], next[next_edge], current[next_edge]]
+			var normal: Vector3 = (face[2] - face[0]).cross(face[1] - face[0]).normalized()
+			for vertex_index in [0, 1, 2, 0, 2, 3]:
+				var vertex: Vector3 = face[vertex_index]
+				surface.set_normal(normal)
+				surface.set_uv(Vector2(vertex.x, vertex.y + vertex.z))
+				surface.add_vertex(vertex)
+	surface.generate_tangents()
+	var housing := MeshInstance3D.new()
+	housing.name = "GunnerDisplayHousing"
+	housing.mesh = surface.commit()
+	mount.add_child(housing)
 
 
 ## Functional assemblies use broad continuous armor around recessed mechanics.
