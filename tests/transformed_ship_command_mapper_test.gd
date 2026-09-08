@@ -41,6 +41,7 @@ func _run() -> void:
 	_test_exact_flight_mapping()
 	_test_edge_and_toggle_semantics()
 	_test_fail_closed_validation()
+	_test_exact_schema_key_types()
 	_test_audit_and_source_boundary()
 	_finish()
 
@@ -235,6 +236,43 @@ func _test_fail_closed_validation() -> void:
 		and not injected_result.accepted and injected_result.reason == &"malformed_frame"
 		and (injected_result.command as ShipCommand).is_neutral(),
 		"noncanonical frame order and injected top-level authority fail the exact sampler-frame schema",
+	)
+
+
+func _test_exact_schema_key_types() -> void:
+	var fixture := _fixture()
+	var frame := (fixture.sampler as InputActionTransformSampler).sample_physics_frame(0.1, 0)
+	var mapper := fixture.mapper as TransformedShipCommandMapper
+	for level in ["frame", "action", "options"]:
+		var source: Dictionary = frame if level == "frame" else frame.actions[&"fire"]
+		if level == "options":
+			source = source.action_options
+		var exact := true
+		for key: String in source:
+			for replacement: Variant in [StringName(key), "unknown_" + key]:
+				var malformed := frame.duplicate(true)
+				var target: Dictionary = malformed if level == "frame" else malformed.actions[&"fire"]
+				if level == "options":
+					target = target.action_options
+				var value: Variant = target[key]
+				target.erase(key)
+				target[replacement] = value
+				var result := mapper.map_frame(malformed, 0, 10, 20, 2)
+				var reason := &"malformed_frame" if level == "frame" else &"malformed_action_snapshot"
+				exact = exact and not result.accepted and result.reason == reason
+				exact = exact and (result.command as ShipCommand).is_neutral()
+				if level != "frame":
+					exact = exact and result.failed_action == &"fire"
+		_check(exact, "%s schema rejects StringName and unknown keys at unchanged cardinality" % level)
+	var accepted := mapper.map_frame(frame, 0, 10, 20, 2)
+	frame.actions[&"fire"].action_options.deadzone = "invalid"
+	var mutated := mapper.map_frame(frame, 0, 10, 20, 2)
+	frame.actions[&"fire"].action_options.deadzone = 0.0
+	var repaired := mapper.map_frame(frame, 0, 10, 20, 2)
+	_check(
+		accepted.accepted and not mutated.accepted and mutated.reason == &"malformed_action_snapshot"
+		and mutated.failed_action == &"fire" and repaired.accepted,
+		"every call revalidates mutable snapshot options, including a previously accepted frame",
 	)
 
 

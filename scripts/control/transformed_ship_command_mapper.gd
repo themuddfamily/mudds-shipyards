@@ -31,18 +31,53 @@ const FLIGHT_ACTION_ORDER: Array[StringName] = [
 	&"toggle_ship_camera_view",
 ]
 
-const _FRAME_KEYS := [
-	"accepted", "reason", "generation", "physics_delta", "action_count",
-	"action_order", "actions",
+const _FRAME_KEYS := {
+	"accepted": true,
+	"reason": true,
+	"generation": true,
+	"physics_delta": true,
+	"action_count": true,
+	"action_order": true,
+	"actions": true,
+}
+const _ACTION_KEYS := {
+	"action_id": true,
+	"action_options": true,
+	"generation": true,
+	"attached": true,
+	"sample_count": true,
+	"elapsed_seconds": true,
+	"raw_scalar": true,
+	"raw_pressed": true,
+	"raw_scalar_was_clamped": true,
+	"transformed_scalar": true,
+	"physical_pressed": true,
+	"physical_just_pressed": true,
+	"physical_just_released": true,
+	"physical_hold_seconds": true,
+	"pressed": true,
+	"just_pressed": true,
+	"just_released": true,
+	"hold_seconds": true,
+	"value": true,
+	"toggle_latched": true,
+}
+const _OPTION_KEYS := {
+	"deadzone": true,
+	"curve": true,
+	"hold_mode": true,
+}
+
+const _NONNEGATIVE_INTEGER_FIELDS := ["generation", "sample_count"]
+const _FINITE_NUMBER_FIELDS := [
+	"elapsed_seconds", "raw_scalar", "transformed_scalar",
+	"physical_hold_seconds", "hold_seconds", "value",
 ]
-const _ACTION_KEYS := [
-	"action_id", "action_options", "generation", "attached", "sample_count",
-	"elapsed_seconds", "raw_scalar", "raw_pressed", "raw_scalar_was_clamped",
-	"transformed_scalar", "physical_pressed", "physical_just_pressed",
-	"physical_just_released", "physical_hold_seconds", "pressed",
-	"just_pressed", "just_released", "hold_seconds", "value", "toggle_latched",
+const _BOOLEAN_FIELDS := [
+	"raw_pressed", "raw_scalar_was_clamped", "physical_pressed",
+	"physical_just_pressed", "physical_just_released", "pressed",
+	"just_pressed", "just_released", "toggle_latched",
 ]
-const _OPTION_KEYS := ["deadzone", "curve", "hold_mode"]
 
 
 ## Maps one accepted sampler frame at the caller's exact bank generation.
@@ -253,31 +288,24 @@ func _validate_action_snapshot(candidate: Variant, expected_action: StringName) 
 	if (
 		not options.curve is StringName
 		or not options.hold_mode is StringName
-		or not options.curve in [ProfileType.CURVE_LINEAR, ProfileType.CURVE_SQUARED]
-		or not options.hold_mode in [ProfileType.HOLD, ProfileType.TOGGLE]
+		or (options.curve != ProfileType.CURVE_LINEAR and options.curve != ProfileType.CURVE_SQUARED)
+		or (options.hold_mode != ProfileType.HOLD and options.hold_mode != ProfileType.TOGGLE)
 	):
 		return {"accepted": false, "reason": &"malformed_action_snapshot"}
 
-	for key: String in ["generation", "sample_count"]:
+	for key: String in _NONNEGATIVE_INTEGER_FIELDS:
 		if not snapshot[key] is int or int(snapshot[key]) < 0:
 			return {"accepted": false, "reason": &"malformed_action_snapshot"}
 	if int(snapshot.sample_count) < 1:
 		return {"accepted": false, "reason": &"malformed_action_snapshot"}
 	if not snapshot.attached is bool or not bool(snapshot.attached):
 		return {"accepted": false, "reason": &"malformed_action_snapshot"}
-	for key: String in [
-		"elapsed_seconds", "raw_scalar", "transformed_scalar",
-		"physical_hold_seconds", "hold_seconds", "value",
-	]:
+	for key: String in _FINITE_NUMBER_FIELDS:
 		if not snapshot[key] is float and not snapshot[key] is int:
 			return {"accepted": false, "reason": &"malformed_action_snapshot"}
 		if not _is_finite(float(snapshot[key])):
 			return {"accepted": false, "reason": &"malformed_action_snapshot"}
-	for key: String in [
-		"raw_pressed", "raw_scalar_was_clamped", "physical_pressed",
-		"physical_just_pressed", "physical_just_released", "pressed",
-		"just_pressed", "just_released", "toggle_latched",
-	]:
+	for key: String in _BOOLEAN_FIELDS:
 		if not snapshot[key] is bool:
 			return {"accepted": false, "reason": &"malformed_action_snapshot"}
 
@@ -414,15 +442,13 @@ func _validation(
 	}
 
 
-func _has_exact_string_keys(dictionary: Dictionary, expected: Array) -> bool:
+func _has_exact_string_keys(dictionary: Dictionary, expected: Dictionary) -> bool:
 	if dictionary.size() != expected.size():
 		return false
+	# Equal cardinality and membership prove the exact schema in one pass.
+	# Keep the explicit String check: Dictionary also accepts StringName keys.
 	for key: Variant in dictionary:
-		if not key is String:
-			return false
-	# Equal cardinality plus every expected key excludes extra keys.
-	for key: String in expected:
-		if not dictionary.has(key):
+		if not key is String or not expected.has(key):
 			return false
 	return true
 
