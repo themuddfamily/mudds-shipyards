@@ -8,6 +8,8 @@ class FakeHost:
 	var generation := 4
 	var attachment_generation := 1
 	var phase_id: StringName = &"on_foot"
+	var attached := true
+	var player_instance_id := 101
 	var session := RefCounted.new()
 
 	func get_generation() -> int: return generation
@@ -16,15 +18,24 @@ class FakeHost:
 	func get_travel_session_observation_source() -> Object: return session
 	func get_snapshot() -> Dictionary:
 		snapshot_count += 1
+		return _report()
+	func _report() -> Dictionary:
 		return {
-			"host_id": &"ember_surface_loop", "attached": true,
+			"host_id": &"ember_surface_loop", "attached": attached,
 			"generation": generation,
 			"attachment_generation": attachment_generation,
 			"phase_id": phase_id,
 			"identities": {
-				"world_id": &"ember_moon", "player_instance_id": 101,
+				"world_id": &"ember_moon", "player_instance_id": player_instance_id,
 			},
 		}
+
+class FocusedHost:
+	extends FakeHost
+	var status_count := 0
+	func get_return_status_snapshot() -> Dictionary:
+		status_count += 1
+		return _report()
 
 class LegacyActivityAdapter:
 	extends RefCounted
@@ -57,6 +68,7 @@ func _init() -> void:
 	call_deferred("_run")
 
 func _run() -> void:
+	await _test_focused_host_status()
 	var host := FakeHost.new()
 	var director := DirectorScript.new()
 	root.add_child(director)
@@ -224,6 +236,50 @@ func _run() -> void:
 		return
 	print("EMBER_PLANETARY_SURFACE_PRODUCTION_BINDING_TEST_OK: %d assertions" % _assertions)
 	quit(0)
+
+func _test_focused_host_status() -> void:
+	var host := FocusedHost.new()
+	var director := DirectorScript.new()
+	var binding := BindingScript.new()
+	root.add_child(director)
+	root.add_child(binding)
+	_check(binding.configure(host, director, Callable(self, "_reward_sink"), 4).accepted,
+		"focused Host configures through the complete public identity contract")
+	var observation := {
+		"actor_instance_id": 101, "delta_seconds": 1.0,
+		"exposure_unitless": 1.0,
+		"position_body_local_m": Vector3(92.0, 120001.0, -5.0),
+		"surface_phase_id": &"on_foot",
+	}
+	var reads := host.snapshot_count
+	var result: Dictionary = binding.submit_authored_hazard_observation(observation, 4, 1)
+	_check(result.accepted and result.reason == &"hazard_zone_exposed"
+		and result.hud_presentation.attached and result.hud_presentation.actor_instance_id == 101
+		and host.snapshot_count == reads and host.status_count > 0,
+		"accepted hazard validation and HUD publication use fresh status without full Host reports")
+	binding.submit_surface_navigation_feedback(observation.position_body_local_m, 4, 1)
+	_check(host.snapshot_count == reads,
+		"direct navigation phase observation also avoids full Host diagnostics")
+	host.player_instance_id = 102
+	_check(binding.get_authored_hazard_presentation_snapshot().actor_instance_id == 102
+		and binding.submit_authored_hazard_observation(observation, 4, 1).reason
+			== &"hazard_actor_identity_mismatch",
+		"same-generation actor replacement updates presentation and rejects stale hazard evidence")
+	host.phase_id = &"boarding"
+	_check(not binding.get_authored_hazard_presentation_snapshot().attached
+		and binding.submit_surface_navigation_feedback(observation.position_body_local_m, 4, 1).reason
+			== &"surface_navigation_lifecycle_mismatch",
+		"same-generation phase changes immediately close navigation and hazard presentation")
+	host.attached = false
+	var detached: Dictionary = binding.get_authored_hazard_presentation_snapshot()
+	_check(not detached.attached and detached.reason == &"source_detached",
+		"focused status never retains an attached hazard view after Host detachment")
+	host.attachment_generation = 2
+	_check(binding.get_authored_hazard_presentation_snapshot().attachment_generation == 2,
+		"focused hazard envelopes retain fresh attachment generations")
+	binding.queue_free()
+	director.queue_free()
+	await process_frame
 
 func _reward_sink(_receipt: Dictionary) -> Dictionary:
 	_reward_calls += 1

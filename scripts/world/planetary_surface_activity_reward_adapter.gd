@@ -735,12 +735,20 @@ func _host_is_current() -> bool:
 		and _host.get_instance_id() == _host_instance_id
 
 
+## Read current lifecycle/actor evidence at each validation or presentation
+## boundary. Legacy injected Hosts keep their full public snapshot fallback.
+func _host_status_snapshot() -> Dictionary:
+	if _host.has_method(&"get_return_status_snapshot"):
+		return _host.call(&"get_return_status_snapshot") as Dictionary
+	return _host.call(&"get_snapshot") as Dictionary
+
+
 func _live_host_rejection() -> StringName:
 	if not _bound:
 		return &"adapter_unbound"
 	if not _host_is_current():
 		return &"host_unavailable"
-	var snapshot: Dictionary = _host.call(&"get_snapshot") as Dictionary
+	var snapshot: Dictionary = _host_status_snapshot()
 	if not bool(snapshot.get("attached", false)):
 		return &"host_not_attached"
 	return &""
@@ -752,7 +760,7 @@ func _live_activity_rejection() -> StringName:
 		return host_rejection
 	if _state not in [State.ACTIVE]:
 		return &"adapter_activity_not_active"
-	var snapshot: Dictionary = _host.call(&"get_snapshot") as Dictionary
+	var snapshot: Dictionary = _host_status_snapshot()
 	if StringName(snapshot.get("phase_id", &"")) != REQUIRED_PHASE:
 		return &"host_not_on_foot"
 	return &""

@@ -1,5 +1,14 @@
 extends SceneTree
 
+class LegacyHazardSource:
+	extends RefCounted
+	signal state_changed(snapshot: Dictionary)
+	var snapshot: Dictionary = {}
+	var snapshot_reads := 0
+	func get_authored_hazard_presentation_snapshot() -> Dictionary:
+		snapshot_reads += 1
+		return snapshot.duplicate(true)
+
 class FakeHost:
 	extends RefCounted
 	var snapshot: Dictionary = {
@@ -101,6 +110,9 @@ func _run() -> void:
 	_check(bool(binding_attach.get("accepted", false)), "real Ember binding attaches before HUD adapter")
 	var adapter := AdapterType.new()
 	_check(bool(adapter.attach(binding, hud, production).get("accepted", false)), "adapter attaches to existing HUD route and authored-hazard seam")
+	_check(production.state_changed.get_connections().is_empty()
+		and production.state_invalidated.get_connections().size() == 2,
+		"mounted status and hazard HUD observe invalidation without requesting diagnostic reports")
 	var detail := hud.get("_runtime_status_detail") as Label
 	var landing_marker := hud.get_offscreen_route_marker()
 	_check(
@@ -129,7 +141,7 @@ func _run() -> void:
 	}
 	production.set("_generation", 5)
 	planetary.snapshot.host_generation = 5
-	production.state_changed.emit({})
+	production._finish_late_signal(&"fixture_state_updated")
 	var relay_marker := hud.get_offscreen_route_marker()
 	_check(
 		detail.text.contains("NEXT // RELAY // 400.0 M")
@@ -151,7 +163,7 @@ func _run() -> void:
 	host.snapshot.generation = 6
 	production.set("_generation", 6)
 	planetary.snapshot.host_generation = 6
-	production.state_changed.emit({})
+	production._finish_late_signal(&"fixture_state_updated")
 	var return_marker := hud.get_offscreen_route_marker()
 	_check(
 		detail.text.contains("NEXT // RETURN ROUTE // 400.0 M")
@@ -166,7 +178,7 @@ func _run() -> void:
 	host.snapshot.generation = 5
 	production.set("_generation", 5)
 	planetary.snapshot.host_generation = 5
-	production.state_changed.emit({})
+	production._finish_late_signal(&"fixture_state_updated")
 	_check(detail.text == before_stale, "stale return generation cannot overwrite HUD")
 	var hazard_session := RefCounted.new()
 	host.snapshot.generation = 6
@@ -176,7 +188,7 @@ func _run() -> void:
 		host.get_instance_id(), 101, hazard_session.get_instance_id(),
 		2, 6, 1, &"warning", true, &"current"
 	)
-	production.state_changed.emit({})
+	production._finish_late_signal(&"fixture_state_updated")
 	_check(
 		detail.text.contains("HAZARD // EXPOSURE RISING")
 			and detail.text.contains("NEXT ACTION // MOVE CLEAR OF HAZARD")
@@ -198,7 +210,7 @@ func _run() -> void:
 		host.get_instance_id(), 101, hazard_session.get_instance_id(),
 		2, 6, 2, &"recovery_required", true, &"current"
 	)
-	production.state_changed.emit({})
+	production._finish_late_signal(&"fixture_state_updated")
 	var presented_hazard := (hud.get("_surface_route_presenter") as RefCounted).call(
 		"get_snapshot"
 	) as Dictionary
@@ -217,7 +229,7 @@ func _run() -> void:
 		host.get_instance_id(), 101, hazard_session.get_instance_id(),
 		2, 6, 3, &"clear", false, &"current"
 	)
-	production.state_changed.emit({})
+	production._finish_late_signal(&"fixture_state_updated")
 	_check(
 		detail.text.contains("NEXT // RETURN ROUTE")
 			and detail.text.contains("CACHE PROBE // LATEST ROUTE")
@@ -228,12 +240,12 @@ func _run() -> void:
 		host.get_instance_id(), 101, hazard_session.get_instance_id(),
 		2, 6, 4, &"warning", true, &"current"
 	)
-	production.state_changed.emit({})
+	production._finish_late_signal(&"fixture_state_updated")
 	planetary.hazard_snapshot = _hazard_envelope(
 		host.get_instance_id(), 0, hazard_session.get_instance_id(),
 		2, 6, 5, &"warning", false, &"source_identity_lost"
 	)
-	production.state_changed.emit({})
+	production._finish_late_signal(&"fixture_state_updated")
 	var runtime_panel := hud.get("_runtime_status_panel") as PanelContainer
 	_check(
 		not runtime_panel.visible and not bool(adapter.get_snapshot().hazard_active),
@@ -249,7 +261,7 @@ func _run() -> void:
 		host.get_instance_id(), 101, hazard_session.get_instance_id(),
 		3, 7, 1, &"warning", true, &"current"
 	)
-	production.state_changed.emit({})
+	production._finish_late_signal(&"fixture_state_updated")
 	_check(
 		runtime_panel.visible and detail.text.contains("HAZARD // EXPOSURE RISING")
 			and int(adapter.get_snapshot().authored_hazard.attachment_generation) == 3,
@@ -269,7 +281,7 @@ func _run() -> void:
 		host.get_instance_id(), 101, hazard_session.get_instance_id(),
 		3, 7, 2, &"clear", false, &"surface_lifecycle_inactive"
 	)
-	production.state_changed.emit({})
+	production._finish_late_signal(&"fixture_state_updated")
 	var takeoff_cue := adapter.get_snapshot().surface_route.get("next_action", {}) as Dictionary
 	_check(
 		detail.text.contains("NEXT // TAKE OFF // EMBER RETURN // REBOARDED")
@@ -287,7 +299,7 @@ func _run() -> void:
 	host.snapshot.phase_id = &"orbit_return"
 	production.set("_generation", 8)
 	planetary.snapshot.host_generation = 8
-	production.state_changed.emit({})
+	production._finish_late_signal(&"fixture_state_updated")
 	_check(detail.text == before_stale and not bool(adapter.get_snapshot().attached), "detached adapter ignores source updates")
 	_check(bool(adapter.attach(binding, hud).get("accepted", false)), "adapter re-entry reconnects to binding")
 	_check(
@@ -296,7 +308,25 @@ func _run() -> void:
 		"re-entry applies current detached presenter view"
 	)
 	adapter.detach()
+	var legacy_source := LegacyHazardSource.new()
+	_check(adapter.attach(binding, hud, legacy_source).accepted
+		and legacy_source.state_changed.get_connections().size() == 1,
+		"legacy hazard source retains its full-signal notification route")
+	legacy_source.snapshot = _hazard_envelope(
+		host.get_instance_id(), 101, hazard_session.get_instance_id(),
+		3, 8, 1, &"warning", true, &"current"
+	)
+	var legacy_reads := legacy_source.snapshot_reads
+	legacy_source.state_changed.emit({})
+	_check(legacy_source.snapshot_reads == legacy_reads + 1
+		and adapter.get_snapshot().authored_hazard == legacy_source.snapshot,
+		"legacy notifications still read current detached hazard presentation")
+	adapter.detach()
+	_check(legacy_source.state_changed.get_connections().is_empty(),
+		"detachment releases the legacy hazard observer")
 	binding.detach()
+	_check(production.state_invalidated.get_connections().is_empty(),
+		"status and hazard HUD detach their focused observers")
 	production.queue_free()
 	hud.queue_free()
 	await process_frame

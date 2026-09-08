@@ -45,7 +45,10 @@ func attach(binding: Object, hud: GameHUD, hazard_source: Object = null) -> Dict
 	_generation += 1
 	_binding.connect(&"presentation_changed", _on_presentation_changed)
 	if is_instance_valid(_hazard_source):
-		_hazard_source.connect(&"state_changed", _on_hazard_source_changed)
+		if _hazard_source.has_signal(&"state_invalidated"):
+			_hazard_source.connect(&"state_invalidated", _on_hazard_source_invalidated)
+		else:
+			_hazard_source.connect(&"state_changed", _on_hazard_source_changed)
 	_apply(binding.call(&"get_presenter_snapshot") as Dictionary)
 	_refresh_authored_hazard()
 	return {"accepted": true, "reason": &"bound", "generation": _generation, "presentation_only": true}
@@ -54,6 +57,10 @@ func attach(binding: Object, hud: GameHUD, hazard_source: Object = null) -> Dict
 func detach() -> Dictionary:
 	if is_instance_valid(_binding) and _binding.is_connected(&"presentation_changed", _on_presentation_changed):
 		_binding.disconnect(&"presentation_changed", _on_presentation_changed)
+	if is_instance_valid(_hazard_source) \
+			and _hazard_source.has_signal(&"state_invalidated") \
+			and _hazard_source.is_connected(&"state_invalidated", _on_hazard_source_invalidated):
+		_hazard_source.disconnect(&"state_invalidated", _on_hazard_source_invalidated)
 	if is_instance_valid(_hazard_source) \
 			and _hazard_source.is_connected(&"state_changed", _on_hazard_source_changed):
 		_hazard_source.disconnect(&"state_changed", _on_hazard_source_changed)
@@ -97,6 +104,10 @@ func _on_presentation_changed(view: Dictionary) -> void:
 
 
 func _on_hazard_source_changed(_snapshot: Dictionary) -> void:
+	_refresh_authored_hazard()
+
+
+func _on_hazard_source_invalidated() -> void:
 	_refresh_authored_hazard()
 
 

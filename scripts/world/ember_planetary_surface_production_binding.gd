@@ -694,7 +694,7 @@ func submit_surface_navigation_feedback(
 	if expected_attachment_generation != _attachment_generation \
 			or int(_host.call(&"get_attachment_generation")) != _attachment_generation:
 		return _result(false, &"stale_attachment_generation")
-	var host_snapshot := _host.call(&"get_snapshot") as Dictionary
+	var host_snapshot := _host_status_snapshot()
 	if StringName(host_snapshot.get("phase_id", &"")) != &"on_foot":
 		return _result(false, &"surface_navigation_lifecycle_mismatch")
 	if not position is Vector3 or not (position as Vector3).is_finite():
@@ -1092,7 +1092,7 @@ func _validate_authored_hazard_observation(observation: Variant) -> Dictionary:
 	for key in expected_keys:
 		if not evidence.has(key):
 			return {"accepted": false, "reason": &"hazard_observation_schema_mismatch"}
-	var host_snapshot := _host.call(&"get_snapshot") as Dictionary
+	var host_snapshot := _host_status_snapshot()
 	var identities := host_snapshot.get("identities", {}) as Dictionary
 	if not evidence.actor_instance_id is int \
 			or int(evidence.actor_instance_id) == 0 \
@@ -1205,8 +1205,16 @@ func _publish_authored_hazard_presentation() -> void:
 	authored_hazard_presentation_changed.emit(snapshot.duplicate(true))
 
 
+## Read current lifecycle/actor evidence at each validation or presentation
+## boundary. Legacy injected Hosts keep their full public snapshot fallback.
+func _host_status_snapshot() -> Dictionary:
+	if _host.has_method(&"get_return_status_snapshot"):
+		return _host.call(&"get_return_status_snapshot") as Dictionary
+	return _host.call(&"get_snapshot") as Dictionary
+
+
 func _authored_hazard_presentation_snapshot() -> Dictionary:
-	var host_snapshot := _host.call(&"get_snapshot") as Dictionary \
+	var host_snapshot := _host_status_snapshot() \
 		if _host != null and is_instance_valid(_host) else {}
 	var identities := host_snapshot.get("identities", {}) as Dictionary
 	var actor_instance_id := int(identities.get("player_instance_id", 0))

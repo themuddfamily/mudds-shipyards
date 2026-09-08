@@ -41,6 +41,13 @@ class FakeHost:
 	func get_phase() -> int:
 		return 8
 
+class FocusedHost:
+	extends FakeHost
+	var status_count := 0
+	func get_return_status_snapshot() -> Dictionary:
+		status_count += 1
+		return {"attached": attached, "phase_id": phase_id}
+
 
 var _assertions := 0
 var _failures := PackedStringArray()
@@ -53,6 +60,7 @@ func _init() -> void:
 
 func _run() -> void:
 	await _test_real_host_identity_bind()
+	await _test_focused_host_lifecycle()
 	await _test_host_activity_reward_path()
 	await _test_detached_reward_recovery()
 	await _test_failed_activity_requires_fresh_reentry()
@@ -67,6 +75,34 @@ func _run() -> void:
 	await _test_landmark_discovery_admits_activity_once()
 	await _test_settlement_entry_admits_once_across_reentry()
 	_finish()
+
+func _test_focused_host_lifecycle() -> void:
+	var host := FocusedHost.new()
+	var director := _director_with_activity()
+	var runtime := RuntimeScript.new()
+	var adapter := AdapterScript.new()
+	_check(adapter.bind(host, runtime, director, Callable(self, "_accept_reward")).accepted
+		and adapter.begin_activity(&"ember_beacon_survey").accepted,
+		"focused lifecycle Host retains full identity validation and starts the activity")
+	var reads := host.snapshot_count
+	var position: Dictionary = adapter.submit_activity_position(Vector3.ZERO)
+	_check(position.accepted and host.snapshot_count == reads + 1
+		and host.status_count > 0
+		and position.adapter.host == host.get_snapshot(),
+		"position validation avoids full reports while preserving the complete public adapter result")
+	host.attached = false
+	_check(adapter.submit_activity_position(Vector3(10.0, 0.0, 0.0)).reason == &"host_not_attached",
+		"same-generation detachment rejects the next activity position")
+	host.attached = true
+	host.phase_id = &"boarding"
+	_check(adapter.submit_activity_position(Vector3(10.0, 0.0, 0.0)).reason == &"host_not_on_foot",
+		"same-generation phase changes reject the next activity position")
+	host.phase_id = &"on_foot"
+	var completed: Dictionary = adapter.submit_activity_position(Vector3(10.0, 0.0, 0.0))
+	_check(completed.accepted and completed.adapter.activity_reward.state == &"awaiting_reward",
+		"restored live lifecycle admits the remaining checkpoint without cached rejection")
+	director.queue_free()
+	await process_frame
 
 
 func _test_real_host_identity_bind() -> void:
