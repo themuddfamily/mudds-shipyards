@@ -249,6 +249,31 @@ func _test_streamed_fade_lifecycle_and_baselines() -> void:
 		bool(cluster.get_streaming_transition_audit().get("valid", false)),
 		"the exact authored renderer, shadow, light, and visibility baselines audit green"
 	)
+	var live_renderer := renderers[0] as GeometryInstance3D
+	var live_light := lights[0] as Light3D
+	var original_transparency := live_renderer.transparency
+	var original_shadow := live_renderer.cast_shadow
+	var original_energy := live_light.light_energy
+	live_renderer.transparency = 0.42
+	live_renderer.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_DOUBLE_SIDED
+	live_light.light_energy = original_energy + 3.0
+	cluster.visible = false
+	cluster.advance_streaming_transition(0.0, 500.0, GENERATION)
+	_check(
+		live_renderer.transparency == original_transparency
+		and live_renderer.cast_shadow == original_shadow
+		and live_light.light_energy == original_energy and cluster.visible,
+		"unchanged opacity repairs live renderer, shadow, light and root visibility drift immediately"
+	)
+	cluster.set_cluster_enabled(false)
+	var disabled_immediately := not cluster.visible
+	cluster.advance_streaming_transition(0.0, 500.0, GENERATION)
+	var disabled_after_tick := not cluster.visible
+	cluster.set_cluster_enabled(true)
+	_check(
+		disabled_immediately and disabled_after_tick and cluster.visible,
+		"same-opacity ticks preserve immediate cluster disable and re-enable visibility"
+	)
 	var debris := cluster.get_node_or_null(^"DebrisField/DebrisChips") \
 		as MultiMeshInstance3D
 	cluster.set_detail_quality(NearbySectorCluster.DetailQuality.LOW)
@@ -275,6 +300,22 @@ func _test_streamed_fade_lifecycle_and_baselines() -> void:
 		and fading_out.get("phase") == &"fading_out"
 		and not bool(fading_out.get("retire_ready", true)),
 		"the first outside phase fades without granting streaming authority"
+	)
+	var pulse_light: Light3D
+	for candidate in lights:
+		if candidate.has_meta(&"pulse_phase"):
+			pulse_light = candidate as Light3D
+			break
+	cluster.call(&"_process", 0.125)
+	var pulse_elapsed := float(cluster.get("_elapsed"))
+	var pulse_base := float(pulse_light.get_meta(&"base_energy", 1.0))
+	var pulse_phase := float(pulse_light.get_meta(&"pulse_phase", 0.0))
+	var expected_pulse := pulse_base * (
+		0.62 + 0.38 * (0.5 + 0.5 * sin(pulse_elapsed * 1.9 + pulse_phase))
+	) * 0.5
+	_check(
+		is_equal_approx(pulse_light.light_energy, expected_pulse),
+		"authored pulse owner still composes its current energy with partial transition opacity"
 	)
 	var fading_out_opacity := float(fading_out.get("opacity", -1.0))
 	root.remove_child(cluster)

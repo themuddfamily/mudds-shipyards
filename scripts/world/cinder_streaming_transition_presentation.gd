@@ -71,6 +71,28 @@ const EXPECTED_INTEGRATED_BATCH_FINGERPRINT := (
 	+ "StreamingBeaconTrimRingBatch|cinder-streaming-beacon-trim-rings|4|4"
 )
 
+## Private bind-time baselines stay typed on the caller-physics path. Live
+## presentation values are still applied each tick; these are not output caches.
+class RendererBaseline extends RefCounted:
+	var node: GeometryInstance3D
+	var authored_transparency: float
+	var authored_cast_shadow: int
+
+	func _init(renderer: GeometryInstance3D) -> void:
+		node = renderer
+		authored_transparency = renderer.transparency
+		authored_cast_shadow = renderer.cast_shadow
+
+
+class LightBaseline extends RefCounted:
+	var node: Light3D
+	var authored_energy: float
+
+	func _init(light: Light3D) -> void:
+		node = light
+		authored_energy = light.light_energy
+
+
 var _content_root: Node3D
 var _generation := -1
 var _bound := false
@@ -84,8 +106,8 @@ var _retire_ready := false
 var _mutation_active := false
 var _authored_renderer_count := 0
 var _integrated_batch_fingerprint := ""
-var _renderers: Array[Dictionary] = []
-var _lights: Array[Dictionary] = []
+var _renderers: Array[RendererBaseline] = []
+var _lights: Array[LightBaseline] = []
 
 
 func bind_streamed_content(content_root: Node3D, generation: int) -> Dictionary:
@@ -157,17 +179,10 @@ func bind_streamed_content(content_root: Node3D, generation: int) -> Dictionary:
 	_lights.clear()
 	for candidate in renderers:
 		var renderer := candidate as GeometryInstance3D
-		_renderers.append({
-			"node": renderer,
-			"authored_transparency": renderer.transparency,
-			"authored_cast_shadow": renderer.cast_shadow,
-		})
+		_renderers.append(RendererBaseline.new(renderer))
 	for candidate in lights:
 		var light := candidate as Light3D
-		_lights.append({
-			"node": light,
-			"authored_energy": light.light_energy,
-		})
+		_lights.append(LightBaseline.new(light))
 	_bound = true
 	_opacity = 0.0
 	_phase = &"fading_in"
@@ -300,16 +315,16 @@ func audit() -> Dictionary:
 	if not is_finite(_opacity) or _opacity < 0.0 or _opacity > 1.0:
 		errors.append("opacity is outside the unit interval")
 	for record in _renderers:
-		var renderer := record.get("node") as GeometryInstance3D
+		var renderer := record.node
 		if not is_instance_valid(renderer):
 			errors.append("renderer baseline target was freed")
 			break
-		var authored := float(record.get("authored_transparency", -1.0))
+		var authored := record.authored_transparency
 		var expected := 1.0 - (1.0 - authored) * _opacity
 		if not is_equal_approx(renderer.transparency, expected):
 			errors.append("renderer transparency drifted")
 			break
-		var authored_shadow := int(record.get("authored_cast_shadow", -1))
+		var authored_shadow := record.authored_cast_shadow
 		var expected_shadow := authored_shadow if _opacity >= 1.0 else (
 			GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		)
@@ -317,11 +332,11 @@ func audit() -> Dictionary:
 			errors.append("renderer shadow state drifted")
 			break
 	for record in _lights:
-		var light := record.get("node") as Light3D
+		var light := record.node
 		if not is_instance_valid(light):
 			errors.append("light baseline target was freed")
 			break
-		var expected_energy := float(record.get("authored_energy", -1.0)) * _opacity
+		var expected_energy := record.authored_energy * _opacity
 		# Pulsing authored lights are refreshed from raw energy in the cluster's
 		# process callback, so only static lights have a fixed audit expectation.
 		if not light.has_meta(&"pulse_phase") \
@@ -367,20 +382,22 @@ func _apply_opacity() -> void:
 		cluster_enabled = bool(_content_root.call(&"is_cluster_enabled"))
 	_content_root.visible = cluster_enabled and _opacity > 0.0
 	for record in _renderers:
-		var renderer := record.get("node") as GeometryInstance3D
+		var renderer := record.node
 		if not is_instance_valid(renderer):
 			continue
-		var authored := float(record.get("authored_transparency", 0.0))
-		renderer.transparency = 1.0 - (1.0 - authored) * _opacity
-		renderer.cast_shadow = (
-			int(record.get("authored_cast_shadow", 0))
+		var authored := record.authored_transparency
+		var transparency := 1.0 - (1.0 - authored) * _opacity
+		var cast_shadow := (
+			record.authored_cast_shadow
 			if _opacity >= 1.0
 			else GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		)
+		renderer.transparency = transparency
+		renderer.cast_shadow = cast_shadow
 	for record in _lights:
-		var light := record.get("node") as Light3D
+		var light := record.node
 		if is_instance_valid(light):
-			light.light_energy = float(record.get("authored_energy", 0.0)) * _opacity
+			light.light_energy = record.authored_energy * _opacity
 
 
 ## The six collars share one platform-local batch before the streamed
