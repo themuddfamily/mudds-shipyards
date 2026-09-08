@@ -44,17 +44,17 @@ func _initialize() -> void:
 		var material := batch.multimesh.mesh.surface_get_material(0) as StandardMaterial3D
 		_check(
 			material != null
-				and material.albedo_color.is_equal_approx(Color("16383e"))
+				and material.albedo_color.is_equal_approx(Color("07161c"))
 				and material.emission_enabled
-				and material.emission.is_equal_approx(Color("48dbe2"))
-				and is_equal_approx(material.emission_energy_multiplier, 2.8)
+				and material.emission.is_equal_approx(Color("0d2a30"))
+				and is_equal_approx(material.emission_energy_multiplier, 0.08)
 				and batch.visible
 				and batch.cast_shadow == GeometryInstance3D.SHADOW_CASTING_SETTING_ON
 				and batch.layers == 1
 				and not batch.ignore_occlusion_culling
 				and is_equal_approx(batch.lod_bias, 1.0)
 				and is_equal_approx(batch.extra_cull_margin, 0.0),
-			"the cyan display finish, visibility, shadow, layer, LOD, and occlusion policy are unchanged"
+			"subdued instrument glass preserves visibility, shadow, layer, LOD, and occlusion policy"
 		)
 		_check(
 			batch.get_child_count() == 0

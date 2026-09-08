@@ -3795,7 +3795,7 @@ func _build_cargo_bay() -> void:
 	# Rear corner lockers add believable stowage without obstructing egress.
 	for side in [-1.0, 1.0]:
 		_box(_cargo_bay, "ServiceLocker", Vector3(side * 4.75, 1.52, 8.25), Vector3(1.25, 1.9, 1.15), _jovian_materials.hull_cool)
-		_box(_cargo_bay, "LockerDisplay", Vector3(side * 4.1, 1.62, 8.25), Vector3(0.03, 0.38, 0.52), _jovian_materials.display)
+		_box(_cargo_bay, "LockerDisplay", Vector3(side * 4.1, 1.62, 8.25), Vector3(0.03, 0.38, 0.52), _materials.display_substrate)
 	# Warm-neutral practicals illuminate the actual interior, not a detached set.
 	_cargo_ceiling_light_mesh = _rounded_box_mesh(
 		CARGO_CEILING_LIGHT_SIZE, _jovian_materials.interior_light
@@ -3912,17 +3912,16 @@ func _build_passenger_cabin() -> void:
 				_cabin_portal_upright_mesh
 			)
 		_box(_passenger_cabin, "CabinPortalHeader", Vector3(0.0, 3.68, bulkhead_z), Vector3(3.05, 0.18, 0.2), _jovian_materials.amber)
-	_box(_passenger_cabin, "CabinStatusPanel", Vector3(0.0, 2.5, -3.13), Vector3(1.05, 0.58, 0.04), _jovian_materials.display)
+	_box(_passenger_cabin, "CabinStatusPanel", Vector3(0.0, 2.5, -3.13), Vector3(1.05, 0.58, 0.04), _materials.display_substrate)
 	_engineer_status_readout = Label3D.new()
 	_engineer_status_readout.name = "EngineerRepairReadout"
-	_engineer_status_readout.position = Vector3(0.0, 2.5, -3.16)
-	_engineer_status_readout.rotation.y = PI
+	_engineer_status_readout.position = Vector3(0.0, 2.5, -3.10)
 	_engineer_status_readout.font_size = 28
-	_engineer_status_readout.pixel_size = 0.001
+	_engineer_status_readout.pixel_size = 0.0014
 	_engineer_status_readout.modulate = Color("b9f1e4")
 	_engineer_status_readout.outline_modulate = Color("07111d")
 	_engineer_status_readout.outline_size = 7
-	_engineer_status_readout.no_depth_test = true
+	_engineer_status_readout.no_depth_test = false
 	_engineer_status_readout.set_meta("presentation_only", true)
 	_passenger_cabin.add_child(_engineer_status_readout)
 	_engineer_repair_console = JovianEngineerRepairConsoleType.new()

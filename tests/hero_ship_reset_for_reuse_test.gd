@@ -44,6 +44,7 @@ func _run() -> void:
 	await process_frame
 	await physics_frame
 
+	await _test_adopted_instrument_readout(jovian)
 	_test_schema_invalid_and_cancel(torrent)
 	_test_dependency_currentness(torrent)
 	_test_damage_callback_reset_rejected(torrent)
@@ -59,6 +60,27 @@ func _run() -> void:
 	await process_frame
 	await physics_frame
 	_finish()
+
+
+func _test_adopted_instrument_readout(ship: JovianLightFreighter) -> void:
+	var readout := ship.find_child("FlightDataReadout", true, false) as Label3D
+	_check(readout != null and ship.get("_cockpit_readout") == readout,
+		"walkable-interior adoption retains the controller's live flight display")
+	if readout == null:
+		return
+	ship.velocity = Vector3(23.0, 0.0, 0.0)
+	ship.call("_update_presentation", 0.0, ShipCommand.new())
+	_check(readout.text.contains("SPD 023") and not readout.no_depth_test,
+		"the physical instrument displays authoritative velocity with normal depth occlusion")
+	readout.text = "STALE INSTRUMENT"
+	var receipt := ship.reset_for_reuse(ship.global_transform)
+	await process_frame
+	await physics_frame
+	_check(bool(receipt.get("accepted", false)) and is_instance_valid(readout)
+		and ship.get("_cockpit_readout") == readout
+		and ship.find_children("FlightDataReadout", "Label3D", true, false).size() == 1
+		and readout.text.contains("SPD 000") and not readout.text.contains("STALE"),
+		"reuse retains one adopted instrument and refreshes its reset flight state")
 
 
 func _test_schema_invalid_and_cancel(ship: HeroShip) -> void:

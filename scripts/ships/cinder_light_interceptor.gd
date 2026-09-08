@@ -845,7 +845,7 @@ func _batch_console_center_keys(visual: Node3D) -> void:
 	cockpit.add_child(_console_center_key_batch)
 
 
-## The mirrored cyan status repeaters are identical, childless display meshes
+## The mirrored status repeaters are identical, childless instrument faces
 ## under one immutable instrument cluster. One two-instance renderer preserves
 ## their exact positions, finish, and culling bounds while leaving the primary
 ## display, functional cockpit nodes, lights, and command authority untouched.

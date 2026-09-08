@@ -3990,9 +3990,8 @@ func _get_cockpit_system_readout() -> Dictionary:
 	}.duplicate(true)
 
 
-## Installs the common physical status display into a variant-owned cockpit
-## cluster. Variants opt in explicitly, so adding a truthful readout to one
-## craft does not alter the presentation hierarchy of any sibling craft.
+## Installs the common physical status display once. Variant system binders
+## reuse it when adding their own weapon state to the shared instrument cluster.
 func _install_variant_cockpit_system_readout(parent: Node3D) -> Label3D:
 	if parent == null or not is_instance_valid(parent):
 		return null
@@ -4006,7 +4005,7 @@ func _install_variant_cockpit_system_readout(parent: Node3D) -> Label3D:
 	_cockpit_readout.modulate = Color("8de8e4")
 	_cockpit_readout.outline_modulate = Color("07111d")
 	_cockpit_readout.outline_size = 10
-	_cockpit_readout.no_depth_test = true
+	_cockpit_readout.no_depth_test = false
 	_cockpit_readout.text = "SPD 000   THR +00\nOFFLINE  //  HOLD"
 	_cockpit_readout.set_meta("presentation_only", true)
 	_tag_modern_interpretation(_cockpit_readout)
@@ -4976,17 +4975,24 @@ func replace_variant_visual_root(new_root: Node3D) -> bool:
 		add_child(new_root)
 	elif not is_ancestor_of(new_root):
 		return false
+	var previous_visual := _visual_root
 	_visual_root = new_root
 	# Inherited Torrent plume references may belong to a queued replacement root.
 	# A variant animates its own engines; the base must never dereference freed nodes.
 	_engine_glows.clear()
 	_engine_core_glows.clear()
 	_engine_lights.clear()
-	# Torrent-only quality presentation is intentionally not part of a fleet
-	# variant. The preserved common cockpit remains functional, but the base must
-	# not keep updating freed/reparented source-specific readout or light objects.
-	if not _uses_torrent_reconstruction_presentation():
+	# Adopted cockpits may live under the replacement art or under the ship's
+	# walkable interior. Release only detached or retired presentation handles.
+	if (
+		not is_instance_valid(_cockpit_readout)
+		or not is_ancestor_of(_cockpit_readout)
+		or (is_instance_valid(previous_visual) and previous_visual != new_root
+			and previous_visual.is_ancestor_of(_cockpit_readout))
+	):
 		_cockpit_readout = null
+	# Source-specific Torrent lighting and forward-panel references are separate.
+	if not _uses_torrent_reconstruction_presentation():
 		_cockpit_practical_light = null
 		_torrent_unknown_function_panel = null
 	_visual_bank = new_root.rotation.z
@@ -5853,16 +5859,16 @@ func _build_cockpit() -> void:
 	# repeaters, side consoles, throttle, and a visibly articulated control stick.
 	var instrument_cluster := Node3D.new()
 	instrument_cluster.name = "InstrumentCluster"
-	instrument_cluster.position = Vector3(0.0, 2.5, -1.52)
+	instrument_cluster.position = Vector3(0.0, 2.78, -1.52)
 	instrument_cluster.rotation.x = deg_to_rad(-13.0)
 	_cockpit_root.add_child(instrument_cluster)
-	_box(instrument_cluster, "InstrumentHood", Vector3.ZERO, Vector3(1.62, 0.62, 0.18), _materials.dark)
-	_box(instrument_cluster, "PrimaryFlightDisplay", Vector3(0.0, 0.06, 0.105), Vector3(0.72, 0.32, 0.035), _materials.display_cyan)
-	_box(instrument_cluster, "DisplayBezelTop", Vector3(0.0, 0.245, 0.125), Vector3(0.82, 0.055, 0.055), _materials.mid)
-	_box(instrument_cluster, "DisplayBezelBottom", Vector3(0.0, -0.125, 0.125), Vector3(0.82, 0.055, 0.055), _materials.mid)
+	_box(instrument_cluster, "InstrumentHood", Vector3.ZERO, Vector3(1.62, 0.62, 0.18), _materials.cockpit_anti_glare)
+	_box(instrument_cluster, "PrimaryFlightDisplay", Vector3(0.0, 0.06, 0.105), Vector3(0.72, 0.32, 0.035), _materials.display_substrate)
+	_box(instrument_cluster, "DisplayBezelTop", Vector3(0.0, 0.245, 0.125), Vector3(0.82, 0.055, 0.055), _materials.cockpit_anti_glare)
+	_box(instrument_cluster, "DisplayBezelBottom", Vector3(0.0, -0.125, 0.125), Vector3(0.82, 0.055, 0.055), _materials.cockpit_anti_glare)
 	for side in [-1.0, 1.0]:
 		var side_name := "Port" if side < 0.0 else "Starboard"
-		_box(instrument_cluster, side_name + "DisplayBezelSide", Vector3(side * 0.385, 0.06, 0.125), Vector3(0.055, 0.32, 0.055), _materials.mid)
+		_box(instrument_cluster, side_name + "DisplayBezelSide", Vector3(side * 0.385, 0.06, 0.125), Vector3(0.055, 0.32, 0.055), _materials.cockpit_anti_glare)
 	for ladder_index in 5:
 		var ladder_width := 0.34 - absf(float(ladder_index) - 2.0) * 0.035
 		_box(
@@ -5871,11 +5877,14 @@ func _build_cockpit() -> void:
 			Vector3(0.0, -0.015 + float(ladder_index) * 0.04, 0.136),
 			Vector3(ladder_width, 0.012, 0.012),
 			_materials.display_gold if ladder_index == 2 else _materials.display_cyan
-		)
-	_box(instrument_cluster, "WarningStrip", Vector3(0.0, -0.2, 0.11), Vector3(1.22, 0.055, 0.035), _materials.display_gold)
+		).visible = false
+	# The illuminated text consumes actual flight and weapon state. Retain the
+	# old ladder identities for variants, but do not paint a fixed attitude over it.
+	_install_variant_cockpit_system_readout(instrument_cluster)
+	_box(instrument_cluster, "WarningStrip", Vector3(0.0, -0.2, 0.11), Vector3(1.22, 0.055, 0.035), _materials.display_gold_low)
 	for side in [-1.0, 1.0]:
 		var side_name := "Port" if side < 0.0 else "Starboard"
-		_cylinder(instrument_cluster, side_name + "StatusRepeater", Vector3(side * 0.57, 0.08, 0.11), 0.13, 0.035, _materials.display_cyan, Vector3(90.0, 0.0, 0.0))
+		_cylinder(instrument_cluster, side_name + "StatusRepeater", Vector3(side * 0.57, 0.08, 0.11), 0.13, 0.035, _materials.display_substrate, Vector3(90.0, 0.0, 0.0))
 		_box(_cockpit_root, side_name + "SideConsole", Vector3(side * 0.79, 2.24, -0.52), Vector3(0.42, 0.28, 1.38), _materials.structure, Vector3(0.0, 0.0, side * deg_to_rad(-8.0)))
 		for light_index in 3:
 			_box(
@@ -5927,49 +5936,33 @@ func _build_cockpit() -> void:
 	canopy_glass.set_meta("laminated_visual_edge", true)
 	canopy_glass.set_meta("closed_volume", true)
 	_box(_canopy_pivot, "CanopyRearFrame", Vector3(0.0, -0.06, -0.08), Vector3(2.42, 0.10, 0.12), _materials.dark)
-	# Split the former centre rail into two slim longitudinal members. The broad
-	# frame remains readable from outside while the pilot's reticle gets an
-	# unobstructed central sight channel instead of pointing through a solid bar.
+	# Frames share the glass profile, so the longitudinal members terminate
+	# on both windscreen bows instead of floating inside the pressure shell.
+	var pressure_rings := _canopy_pressure_rings()
 	for side in [-1.0, 1.0]:
 		var side_name := "Port" if side < 0.0 else "Starboard"
-		_box(
-			_canopy_pivot,
-			side_name + "CanopyTopRail",
-			Vector3(side * 0.70, 1.07, -1.58),
-			Vector3(0.055, 0.055, 2.50),
-			_materials.structure
-		)
-		# Follow the windscreen perimeter instead of cutting a diagonal through
-		# its glass and the pilot's near-centre sight corridor. Each half stays
-		# one named mesh so variant visibility overrides and draw counts hold.
-		var frame_surface := SurfaceTool.new()
-		frame_surface.begin(Mesh.PRIMITIVE_TRIANGLES)
-		for segment in range(8):
-			var ends: Array[Vector3] = []
-			for step in [segment, segment + 1]:
-				var angle := PI * float(step) / 16.0
-				ends.append(Vector3(side * pow(cos(angle), 0.72) * 0.66,
-					-0.08 + pow(sin(angle), 0.72) * 1.34, -3.56))
-			var direction := ends[1] - ends[0]
-			var tube := CylinderMesh.new()
-			tube.top_radius = 0.025
-			tube.bottom_radius = 0.025
-			tube.height = direction.length()
-			tube.radial_segments = 12
-			tube.rings = 1
-			frame_surface.append_from(tube, 0, Transform3D(
-				Basis(Quaternion(Vector3.UP, direction.normalized())),
-				(ends[0] + ends[1]) * 0.5))
-		var frame := MeshInstance3D.new()
-		frame.name = side_name + "CanopyNoseFrame"
-		frame.mesh = frame_surface.commit()
-		frame.material_override = _materials.dark
-		_canopy_pivot.add_child(frame)
+		var shoulder_index := 5 if side < 0.0 else 11
+		var rail_path := PackedVector3Array()
+		for ring: PackedVector3Array in pressure_rings:
+			rail_path.append(ring[shoulder_index])
+		var rail := MeshInstance3D.new()
+		rail.name = side_name + "CanopyTopRail"
+		rail.mesh = _canopy_frame_mesh(rail_path, 0.025)
+		rail.material_override = _materials.dark
+		_canopy_pivot.add_child(rail)
+		for end in [0, pressure_rings.size() - 1]:
+			var bow := PackedVector3Array()
+			for step in range(9):
+				bow.append(pressure_rings[end][step if side < 0.0 else 16 - step])
+			var frame := MeshInstance3D.new()
+			frame.name = side_name + ("CanopyNoseFrame" if end == 0 else "CanopyRearUpright")
+			frame.mesh = _canopy_frame_mesh(bow, 0.028, Vector3.RIGHT if side < 0.0 else Vector3.LEFT)
+			frame.material_override = _materials.dark
+			_canopy_pivot.add_child(frame)
 
 	for side in [-1.0, 1.0]:
 		var side_name := "Port" if side < 0.0 else "Starboard"
 		_box(_canopy_pivot, side_name + "CanopyLowerRail", Vector3(side * 1.20, -0.04, -1.49), Vector3(0.085, 0.10, 2.82), _materials.dark)
-		_box(_canopy_pivot, side_name + "CanopyRearUpright", Vector3(side * 0.98, 0.50, -0.12), Vector3(0.07, 1.14, 0.07), _materials.structure, Vector3(0.0, 0.0, side * deg_to_rad(28.0)))
 		_box(_canopy_pivot, side_name + "CanopyLowerPressureSeal", Vector3(side * 1.17, -0.105, -1.49), Vector3(0.07, 0.06, 2.80), _materials.seal)
 		_box(_canopy_pivot, side_name + "CanopyLaminateEdge", Vector3(side * 1.19, 0.0, -1.49), Vector3(0.035, 0.04, 2.80), _materials.mid)
 		_box(_canopy_pivot, side_name + "CanopyLatchHook", Vector3(side * 0.92, -0.14, -0.78), Vector3(0.16, 0.18, 0.24), _materials.hydraulic)
@@ -7362,24 +7355,77 @@ func _cylinder_between(
 	return mesh_instance
 
 
-## A smooth multi-section arrowhead loft with a rounded nose toward negative Z.
-## A pressure canopy keeps its full cockpit width at the forward windscreen.
-## The hull loft pinches to a nose point and therefore cannot enclose the seat.
-func _canopy_pressure_shell_mesh(material: Material) -> ArrayMesh:
+## Glass and frame use the same raked windscreen and shoulder stations.
+## The forward crest leans aft while the pressure seal and pilot stay fixed.
+func _canopy_pressure_rings() -> Array[PackedVector3Array]:
 	var stations := [Vector3(-3.56, 0.66, 1.34), Vector3(-2.92, 1.18, 1.30),
 		Vector3(-1.82, 1.25, 1.34), Vector3(-0.72, 1.24, 1.32), Vector3(-0.08, 1.20, 1.26)]
 	var rings: Array[PackedVector3Array] = []
 	for station: Vector3 in stations:
 		var ring := PackedVector3Array()
+		var rake := clampf((-station.x - 1.82) / 1.74, 0.0, 1.0) * 1.12
 		for step in range(17):
 			var angle := PI * float(step) / 16.0
-			# Broad shoulders support the fitted canopy rails; the lower edge
-			# seats in the existing pressure seal instead of bulging into the tub.
 			var x := -cos(angle)
-			var y := sin(angle)
+			var rise := pow(maxf(sin(angle), 0.0), 0.72)
 			ring.append(Vector3(signf(x) * pow(absf(x), 0.72) * station.y,
-				-0.08 + pow(maxf(y, 0.0), 0.72) * station.z, station.x))
+				-0.08 + rise * station.z, station.x + rise * rake))
 		rings.append(ring)
+	return rings
+
+
+## Continuous extruded seals keep a smooth joint at bends in a single mesh.
+func _canopy_frame_mesh(path: PackedVector3Array, radius: float, end_tangent := Vector3.ZERO) -> ArrayMesh:
+	const SIDES := 8
+	var rings: Array[PackedVector3Array] = []
+	var normals: Array[PackedVector3Array] = []
+	var directions := PackedVector3Array()
+	var distances := PackedFloat32Array([0.0])
+	for point in range(path.size()):
+		var before := path[maxi(0, point - 1)]
+		var after := path[mini(path.size() - 1, point + 1)]
+		var tangent := (after - before).normalized()
+		if point == path.size() - 1 and not end_tangent.is_zero_approx():
+			tangent = end_tangent.normalized()
+		directions.append(tangent)
+		var basis := Basis(Quaternion(Vector3.UP, tangent))
+		var ring := PackedVector3Array()
+		var ring_normals := PackedVector3Array()
+		for side in range(SIDES):
+			var angle := TAU * float(side) / float(SIDES)
+			var normal := basis.x * cos(angle) + basis.z * sin(angle)
+			ring.append(path[point] + normal * radius)
+			ring_normals.append(normal)
+		rings.append(ring)
+		normals.append(ring_normals)
+		if point > 0:
+			distances.append(distances[-1] + path[point].distance_to(path[point - 1]))
+	var surface := SurfaceTool.new()
+	surface.begin(Mesh.PRIMITIVE_TRIANGLES)
+	for point in range(path.size() - 1):
+		for side in range(SIDES):
+			var next := (side + 1) % SIDES
+			for index: Vector2i in [Vector2i(point, side), Vector2i(point, next), Vector2i(point + 1, next),
+				Vector2i(point, side), Vector2i(point + 1, next), Vector2i(point + 1, side)]:
+				surface.set_normal(normals[index.x][index.y])
+				var u := 1.0 if side == SIDES - 1 and index.y == 0 else float(index.y) / float(SIDES)
+				surface.set_uv(Vector2(u, distances[index.x]))
+				surface.add_vertex(rings[index.x][index.y])
+	for end in [0, path.size() - 1]:
+		surface.set_normal(directions[end] * (-1.0 if end == 0 else 1.0))
+		var cap_basis := Basis(Quaternion(Vector3.UP, directions[end]))
+		for side in range(SIDES):
+			var next := (side + 1) % SIDES
+			var vertices: Array = [path[end], rings[end][next], rings[end][side]] if end == 0 else [path[end], rings[end][side], rings[end][next]]
+			for vertex: Vector3 in vertices:
+				var offset := vertex - path[end]
+				surface.set_uv(Vector2(offset.dot(cap_basis.x), offset.dot(cap_basis.z)))
+				surface.add_vertex(vertex)
+	return surface.commit()
+
+
+func _canopy_pressure_shell_mesh(material: Material) -> ArrayMesh:
+	var rings := _canopy_pressure_rings()
 	var surface := SurfaceTool.new()
 	surface.begin(Mesh.PRIMITIVE_TRIANGLES)
 	surface.set_material(material)
@@ -7393,7 +7439,7 @@ func _canopy_pressure_shell_mesh(material: Material) -> ArrayMesh:
 				surface.add_vertex(vertex)
 	for cap in [0, rings.size() - 1]:
 		surface.set_smooth_group(-1)
-		var center := Vector3(0.0, -0.08, stations[cap].x)
+		var center := (rings[cap][0] + rings[cap][16]) * 0.5
 		for side in range(16):
 			var vertices: Array = [center, rings[cap][side + 1], rings[cap][side]] if cap == 0 else [center, rings[cap][side], rings[cap][side + 1]]
 			for vertex: Vector3 in vertices:

@@ -347,7 +347,8 @@ const RENDER_DRAWN_COPY_COUNT := 197
 const RENDER_GEOMETRY_SUBMISSION_COUNT := 120
 # The formed exterior adds one shoulder mesh. Identification ribbons follow
 # the pressure cheek profile, replacing the old shared rectangular stock.
-const RENDER_UNIQUE_MESH_RESOURCE_COUNT := 85
+# Fitted canopy rails and rear bows now have distinct port/starboard profiles.
+const RENDER_UNIQUE_MESH_RESOURCE_COUNT := 87
 const RENDER_UNIQUE_MATERIAL_RESOURCE_COUNT := 17
 
 var _halyard_built := false
@@ -2693,7 +2694,7 @@ func _relocate_and_restyle_cockpit(
 		for surface in cockpit.find_children("*Sill", "MeshInstance3D", true, false):
 			(surface as MeshInstance3D).material_override = _halyard_materials.accent
 		for display in cockpit.find_children("*Display", "MeshInstance3D", true, false):
-			(display as MeshInstance3D).material_override = _halyard_materials.display
+			(display as MeshInstance3D).material_override = _materials.display_substrate
 		for floor_plate in cockpit.find_children("CockpitFloor", "MeshInstance3D", true, false):
 			(floor_plate as MeshInstance3D).material_override = _halyard_materials.deck
 	if canopy != null:
@@ -3100,7 +3101,7 @@ func _build_flight_deck_second_station() -> void:
 	_box(station, "CoPilotHeadrest", Vector3(0.0, 2.06, 0.44), Vector3(0.50, 0.28, 0.20), _halyard_materials.trim)
 	_box(station, "CoPilotHarness", Vector3(0.0, 1.50, 0.28), Vector3(0.12, 0.68, 0.05), _halyard_materials.accent)
 	_box(station, "CoPilotConsole", Vector3(0.34, 1.18, -0.92), Vector3(0.92, 0.44, 0.60), _halyard_materials.structure, Vector3(deg_to_rad(-16.0), 0.0, 0.0))
-	_box(station, "CoPilotSystemsDisplay", Vector3(0.34, 1.36, -1.10), Vector3(0.62, 0.26, 0.04), _halyard_materials.display, Vector3(deg_to_rad(-16.0), 0.0, 0.0))
+	_box(station, "CoPilotSystemsDisplay", Vector3(0.34, 1.36, -1.10), Vector3(0.62, 0.26, 0.04), _materials.display_substrate, Vector3(deg_to_rad(-16.0), 0.0, 0.0))
 	_co_pilot_station_anchor = Marker3D.new()
 	_co_pilot_station_anchor.name = "CoPilotStationAnchor"
 	# Same feet-frame convention as `PilotSeatAnchor`: the controller carries its
@@ -3315,7 +3316,7 @@ func _build_crew_cabin() -> void:
 		"CabinStatusPanel",
 		Vector3(0.0, 2.35, 2.62),
 		Vector3(1.00, 0.54, 0.05),
-		_halyard_materials.display
+		_materials.display_substrate
 	)
 	_crew_status_display = HalyardCrewStatusDisplayType.new()
 	_crew_status_display.name = "HalyardCrewStatusDisplay"

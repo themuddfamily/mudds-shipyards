@@ -228,7 +228,7 @@ const PHASE9_ARROW_VISUAL_CENSUS := {
 	"auto_fallback_names": 23,
 }
 const EXPECTED_ARROW_VISUAL_CENSUS := {
-	"nodes": 261,
+	"nodes": 262,
 	"mesh_instance_nodes": 232,
 	"multi_mesh_instance_nodes": 3,
 	"geometry_submissions": 235,
@@ -1406,7 +1406,7 @@ func _restyle_inherited_cockpit(cockpit: Node3D, canopy: Node3D) -> void:
 		# Darker interior preserves high contrast behind the unusually clear canopy.
 		for node in cockpit.find_children("*", "MeshInstance3D", true, false):
 			var mesh_instance := node as MeshInstance3D
-			if "Display" in mesh_instance.name or "ConsoleKey" in mesh_instance.name:
+			if "ConsoleKey" in mesh_instance.name:
 				mesh_instance.material_override = _arrow_materials.sensor
 	if canopy != null:
 		var glass := canopy.get_node_or_null("CanopyGlass") as MeshInstance3D
