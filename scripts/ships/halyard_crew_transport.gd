@@ -344,7 +344,7 @@ const RENDER_DESCENDANT_COUNT := 128
 const RENDER_MESH_INSTANCE_COUNT := 111
 const RENDER_MULTIMESH_BATCH_COUNT := 9
 const RENDER_DRAWN_COPY_COUNT := 197
-const RENDER_GEOMETRY_SUBMISSION_COUNT := 120
+const RENDER_GEOMETRY_SUBMISSION_COUNT := 124
 # The formed exterior adds one shoulder mesh. Identification ribbons follow
 # the pressure cheek profile, replacing the old shared rectangular stock.
 # Fitted canopy rails and rear bows now have distinct port/starboard profiles.
@@ -3598,13 +3598,18 @@ func _build_propulsion_and_gear() -> void:
 		brace.rotation_degrees.y = side * 64.0
 		_manufactured_loft(_halyard_visual, side_name + "YokeTipFairing", Vector3(side * 4.72, 1.55, 0.0),
 			PackedVector3Array([Vector3(0.10, 0.35, TAIL_YOKE_Z - 0.80), Vector3(0.20, 0.58, TAIL_YOKE_Z - 0.46), Vector3(0.20, 0.58, TAIL_YOKE_Z + 0.40), Vector3(0.11, 0.36, TAIL_YOKE_Z + 0.80)]), _halyard_materials.hull_olive)
+	var nozzle_mesh := _engine_nozzle_mesh()
 	for engine_index in 4:
 		var offsets := [-3.75, -1.45, 1.45, 3.75]
 		var engine_x: float = offsets[engine_index]
 		var prefix := "Engine%02d" % engine_index
 		_manufactured_loft(_halyard_visual, prefix + "Housing", Vector3(engine_x, 1.55, 0.0),
 			PackedVector3Array([Vector3(0.50, 0.50, 10.70), Vector3(0.67, 0.67, 10.98), Vector3(0.81, 0.81, 11.48), Vector3(0.83, 0.83, 11.76), Vector3(0.83, 0.83, 12.62), Vector3(0.81, 0.81, 13.02), Vector3(0.80, 0.80, 13.28)]), _halyard_materials.hull_shade, 32, 0.86)
-		_cylinder(_halyard_visual, prefix + "Collar", Vector3(engine_x, 1.55, 13.36), 0.86, 0.36, _halyard_materials.hull_shade, Vector3(90.0, 0.0, 0.0))
+		var collar := MeshInstance3D.new()
+		collar.name = prefix + "Collar"
+		collar.position = Vector3(engine_x, 1.55, 13.36)
+		collar.mesh = nozzle_mesh
+		_halyard_visual.add_child(collar)
 		var core := _cylinder(_halyard_visual, prefix + "Core", Vector3(engine_x, 1.55, 13.56), 0.48, 0.18, _halyard_materials.engine, Vector3(90.0, 0.0, 0.0))
 		_engine_cores.append(core)
 		var plume := _cylinder(_halyard_visual, prefix + "Plume", Vector3(engine_x, 1.55, 14.02), 0.32, 0.94, _halyard_materials.engine, Vector3(90.0, 0.0, 0.0))
@@ -4742,6 +4747,35 @@ func _pressure_flank_skin(node_name: String, material: Material,
 		visual.set_meta("aperture_size", Vector2(2.36, PORT_AIRSTAIR_HATCH_APERTURE_WIDTH))
 	_halyard_visual.add_child(visual)
 	return visual
+
+
+## Open annular lips and recessed combustion throats share one two-finish mesh
+## across the four engines. The luminous cores retain their production anchors
+## ahead of the throat back wall; offline engines expose the dark recess.
+func _engine_nozzle_mesh() -> ArrayMesh:
+	var mesh := ArrayMesh.new()
+	var profiles := [
+		PackedVector2Array([Vector2(0.82, -0.18), Vector2(0.86, -0.14), Vector2(0.86, 0.14), Vector2(0.82, 0.18), Vector2(0.64, 0.18)]),
+		PackedVector2Array([Vector2(0.64, 0.18), Vector2(0.60, 0.12), Vector2(0.53, -0.06), Vector2(0.0, -0.06)])
+	]
+	for surface_index in profiles.size():
+		var tool := SurfaceTool.new()
+		tool.begin(Mesh.PRIMITIVE_TRIANGLES)
+		tool.set_material(_halyard_materials.hull_shade if surface_index == 0 else _halyard_materials.dark)
+		var profile: PackedVector2Array = profiles[surface_index]
+		for step in profile.size() - 1:
+			var front := profile[step]
+			var rear := profile[step + 1]
+			for segment in 32:
+				var angle := TAU * float(segment) / 32.0
+				var next_angle := TAU * float(segment + 1) / 32.0
+				_skin_quad(tool,
+					Vector3(cos(angle) * front.x, sin(angle) * front.x, front.y),
+					Vector3(cos(next_angle) * front.x, sin(next_angle) * front.x, front.y),
+					Vector3(cos(next_angle) * rear.x, sin(next_angle) * rear.x, rear.y),
+					Vector3(cos(angle) * rear.x, sin(angle) * rear.x, rear.y))
+		tool.commit(mesh)
+	return mesh
 
 
 func _manufactured_loft(
