@@ -772,7 +772,7 @@ func _build_slender_airframe() -> void:
 	_fuselage_panel_band_mesh = BoxMesh.new()
 	_fuselage_panel_band_mesh.size = FUSELAGE_PANEL_BAND_SIZE
 	_fuselage_panel_band_mesh.material = _arrow_materials.titanium
-	# Straight pressure-hull stations form a slender, chamfered reconnaissance airframe.
+	# Formed pressure stations carry a slender reconnaissance airframe.
 	_loft_hull(
 		_arrow_visual,
 		"ReconFuselage",
@@ -801,7 +801,7 @@ func _build_slender_airframe() -> void:
 		_arrow_materials.graphite
 	)
 
-	# Long swept sensor wings use curved planform lofts and inset titanium roots.
+	# Swept sensor wings use cambered skins and inset titanium roots.
 	var wing_root_rib_transforms: Array[Transform3D] = []
 	for side_index in 2:
 		var side := -1.0 if side_index == 0 else 1.0
@@ -972,7 +972,7 @@ func _fit_airframe_markings() -> void:
 		var prefix := "Port" if side < 0.0 else "Starboard"
 		var wing := _arrow_visual.get_node(prefix + "SensorWing") as Node3D
 		ShipSurfaceDetail.mark_surface(wing, prefix + "RegistrationPaint", "arrow",
-			Vector3(side * 3.7, 1.075, 1.5), Vector2(2.3, 1.15),
+			Vector3(side * 3.7, 1.075 + _sensor_wing_camber(Vector3(side * 3.7, 0, 1.5)), 1.5), Vector2(2.3, 1.15),
 			Vector3(side * 0.032, 1.0, 0.02), Vector3(-side * 0.69, 0, 0.72))
 	ShipSurfaceDetail.mark_surface(_arrow_visual.get_node("PortShoulderFairing"),
 		"CanopyRescuePaint", "rescue", Vector3(-0.53, 0.03, -0.75),
@@ -2531,13 +2531,21 @@ static func _transformed_mesh_bounds(
 
 func _loft_hull(parent: Node3D, node_name: String, origin: Vector3, authored_sections: PackedVector3Array, material: Material) -> MeshInstance3D:
 	var curved_pressure_shell := node_name == "CanopyShellConstruction"
+	# Only formed airframe skins get continuous curvature. Pressure-pod cases,
+	# saddles, removable covers and the cockpit sill retain their plate lands.
+	var formed_airframe := node_name in ["ReconFuselage", "GraphiteKeel", "DorsalSurveySpine", "WingtipSensorPod", "EfficientEngineHousing"] or node_name.ends_with("ShoulderFairing") or node_name.ends_with("EngineIntakeFairing")
 	var sections := PackedVector3Array()
 	for index in authored_sections.size() - 1:
 		var start := authored_sections[index]
 		var finish := authored_sections[index + 1]
 		for sample_index in 5:
 			var t := float(sample_index) / 5.0
-			var curved := start.cubic_interpolate(finish, authored_sections[maxi(0, index - 1)], authored_sections[mini(authored_sections.size() - 1, index + 2)], t) if curved_pressure_shell else start.lerp(finish, t)
+			var curved := start.cubic_interpolate(finish, authored_sections[maxi(0, index - 1)], authored_sections[mini(authored_sections.size() - 1, index + 2)], t) if curved_pressure_shell or formed_airframe else start.lerp(finish, t)
+			if formed_airframe:
+				# Keep authored extrema and all boarding/pod clearances. A cubic
+				# tangent may otherwise swell beyond adjacent pressure stations.
+				curved.x = clampf(curved.x, minf(start.x, finish.x), maxf(start.x, finish.x))
+				curved.y = clampf(curved.y, minf(start.y, finish.y), maxf(start.y, finish.y))
 			sections.append(Vector3(maxf(0.01, curved.x), maxf(0.01, curved.y), lerpf(start.z, finish.z, t)))
 	sections.append(authored_sections[-1])
 	const PLATE_QUADRANT := [
@@ -2548,7 +2556,7 @@ func _loft_hull(parent: Node3D, node_name: String, origin: Vector3, authored_sec
 	var tool := SurfaceTool.new()
 	tool.begin(Mesh.PRIMITIVE_TRIANGLES)
 	tool.set_material(material)
-	if not curved_pressure_shell:
+	if not curved_pressure_shell and not formed_airframe:
 		tool.set_smooth_group(-1)
 	for section_index in sections.size():
 		var section := sections[section_index]
@@ -2556,9 +2564,10 @@ func _loft_hull(parent: Node3D, node_name: String, origin: Vector3, authored_sec
 			var angle := TAU * float(ring_index) / float(RING_COUNT)
 			var cosine := cos(angle)
 			var sine := sin(angle)
-			var rounded_x := signf(cosine) * pow(absf(cosine), 0.72)
-			var rounded_y := signf(sine) * pow(absf(sine), 0.72)
-			if not curved_pressure_shell:
+			var exponent := 0.55 if formed_airframe else 0.72
+			var rounded_x := signf(cosine) * pow(absf(cosine), exponent)
+			var rounded_y := signf(sine) * pow(absf(sine), exponent)
+			if not curved_pressure_shell and not formed_airframe:
 				# Four broad faces joined by narrow two-step chamfers.
 				var quarter := ring_index / 8
 				var point: Vector2 = PLATE_QUADRANT[ring_index % 8]
@@ -2581,6 +2590,8 @@ func _loft_hull(parent: Node3D, node_name: String, origin: Vector3, authored_sec
 			tool.add_index(current)
 			tool.add_index(following_next)
 			tool.add_index(current_next)
+	if formed_airframe:
+		tool.set_smooth_group(-1)
 	var front_center := sections.size() * RING_COUNT
 	tool.add_vertex(Vector3(0, 0, sections[0].z))
 	var rear_center := front_center + 1
@@ -2607,31 +2618,54 @@ func _loft_hull(parent: Node3D, node_name: String, origin: Vector3, authored_sec
 	return instance
 
 
+## All nested wing skins follow one pressure contour, so access panels and
+## elevons stay seated as the large wing carries a shallow airfoil crown.
+func _sensor_wing_camber(point: Vector3) -> float:
+	var span := clampf((absf(point.x) - 0.9) / 4.85, 0.0, 1.0)
+	var leading_z := lerpf(-2.8, 1.4, span)
+	var trailing_z := lerpf(2.8, 3.65, span)
+	var chord := clampf((point.z - leading_z) / (trailing_z - leading_z), 0.0, 1.0)
+	return sin(chord * PI) * lerpf(0.20, 0.07, span)
+
+
 func _build_planform_surface(node_name: String, outline: PackedVector3Array, depth: float, material: Material) -> MeshInstance3D:
 	var tool := SurfaceTool.new()
 	tool.begin(Mesh.PRIMITIVE_TRIANGLES)
 	tool.set_material(material)
-	var center := Vector3.ZERO
-	for point in outline:
-		center += point * 0.25
-	var rings: Array[PackedVector3Array] = []
-	for ring_index in 4:
-		var ring := PackedVector3Array()
-		for point in outline:
-			var inset := 0.045 if ring_index in [0, 3] else 0.0
-			var height := [-0.5, -0.25, 0.25, 0.5][ring_index] as float
-			ring.append(point.lerp(center, inset) + Vector3.UP * depth * height)
-		rings.append(ring)
-	for ring_index in 3:
-		for edge in 4:
-			var following := (edge + 1) % 4
-			_arrow_panel_triangle(tool, rings[ring_index][edge], rings[ring_index + 1][edge], rings[ring_index + 1][following], center)
-			_arrow_panel_triangle(tool, rings[ring_index][edge], rings[ring_index + 1][following], rings[ring_index][following], center)
+	const SPAN_STEPS := 8
+	const CHORD_STEPS := 12
+	var center := (outline[0] + outline[1] + outline[2] + outline[3]) * 0.25
+	center.y += _sensor_wing_camber(center)
+	for face in 2:
+		tool.set_smooth_group(face)
+		var height := depth * (0.5 if face == 0 else -0.5)
+		for span_index in SPAN_STEPS:
+			for chord_index in CHORD_STEPS:
+				var quad := PackedVector3Array()
+				for corner in [Vector2i(0, 0), Vector2i(1, 0), Vector2i(1, 1), Vector2i(0, 1)]:
+					var span := float(span_index + corner.x) / SPAN_STEPS
+					var chord := float(chord_index + corner.y) / CHORD_STEPS
+					var point := outline[0].lerp(outline[1], span).lerp(outline[3].lerp(outline[2], span), chord)
+					point.y += _sensor_wing_camber(point) + height
+					quad.append(point)
+				# Orient against the local face, not the whole curved surface's
+				# centroid: a shallow crown can rise above the bottom centre.
+				var face_center := (quad[0] + quad[1] + quad[2] + quad[3]) * 0.25 - Vector3.UP * height
+				_arrow_panel_triangle(tool, quad[0], quad[1], quad[2], face_center)
+				_arrow_panel_triangle(tool, quad[0], quad[2], quad[3], face_center)
+	tool.set_smooth_group(-1)
 	for edge in 4:
-		var following := (edge + 1) % 4
-		_arrow_panel_triangle(tool, center + Vector3.UP * depth * 0.5, rings[3][edge], rings[3][following], center)
-		_arrow_panel_triangle(tool, center - Vector3.UP * depth * 0.5, rings[0][following], rings[0][edge], center)
+		var count := SPAN_STEPS if edge % 2 == 0 else CHORD_STEPS
+		for sample_index in count:
+			var a := outline[edge].lerp(outline[(edge + 1) % 4], float(sample_index) / count)
+			var b := outline[edge].lerp(outline[(edge + 1) % 4], float(sample_index + 1) / count)
+			a.y += _sensor_wing_camber(a)
+			b.y += _sensor_wing_camber(b)
+			var offset := Vector3.UP * depth * 0.5
+			_arrow_panel_triangle(tool, a - offset, a + offset, b + offset, center)
+			_arrow_panel_triangle(tool, a - offset, b + offset, b - offset, center)
 	tool.generate_normals()
+	tool.index()
 	var mesh := MeshInstance3D.new()
 	mesh.name = node_name
 	mesh.mesh = tool.commit()
