@@ -228,12 +228,12 @@ const PHASE9_ARROW_VISUAL_CENSUS := {
 	"auto_fallback_names": 23,
 }
 const EXPECTED_ARROW_VISUAL_CENSUS := {
-	"nodes": 230,
-	"mesh_instance_nodes": 201,
+	"nodes": 261,
+	"mesh_instance_nodes": 232,
 	"multi_mesh_instance_nodes": 3,
-	"geometry_submissions": 204,
-	"visible_geometry_copies": 208,
-	"unique_mesh_resource_allocations": 160,
+	"geometry_submissions": 235,
+	"visible_geometry_copies": 239,
+	"unique_mesh_resource_allocations": 191,
 	"auto_fallback_names": 20,
 }
 const RECON_PULSE_EMITTER_VISUAL_DELTA := {
@@ -742,8 +742,8 @@ func _create_arrow_materials() -> void:
 	# metal, so they take the matte end of the craft's roughness range while
 	# titanium takes the glossy end.
 	ShipSurfaceDetail.bind_structural_detail(_arrow_materials.graphite, hull_normal, 3.0, 1.10)
-	# Survival-orange pods retain a satin painted shell between alloy and
-	# composite in roughness. Their seams come from geometry, not the grain map.
+	# Survival hardware uses satin amber for release handles and end shields;
+	# the pressure cases share the ceramic airframe finish.
 	ShipSurfaceDetail.bind_structural_detail(_arrow_materials.pod, hull_normal, 1.6, 1.30)
 	for painted_shell: StandardMaterial3D in [_arrow_materials.pearl, _arrow_materials.ceramic]:
 		ShipSurfaceDetail.bind_manufactured_paint(painted_shell)
@@ -1078,6 +1078,26 @@ func _build_recon_systems() -> void:
 	_cut_pressure_panel(survey_head, "SurveyReceiverCover", 5, 10, 5, 11, _arrow_materials.graphite)
 	_box(survey_head, "SurveyFrontAperture", Vector3(0, 0, -0.53), Vector3(1.12, 0.18, 0.035), _arrow_materials.sensor)
 	(mast.get_node("MastPedestal") as Node3D).visible = true
+	_box(survey_head, "OpticalRecess", Vector3(0, 0, -0.535), Vector3(1.34, 0.30, 0.06), _arrow_materials.graphite)
+	(survey_head.get_node("SurveyFrontAperture") as Node3D).position.z = -0.571
+	for wing_sensor in _arrow_visual.get_children():
+		if wing_sensor is MeshInstance3D and wing_sensor.has_node("ForwardOpticalWindow"):
+			_box(wing_sensor, "OpticalRecess", Vector3(0, 0, -1.87), Vector3(0.40, 0.25, 0.06), _arrow_materials.graphite)
+			(wing_sensor.get_node("ForwardOpticalWindow") as Node3D).position.z = -1.907
+	# Armored cable raceways follow the retained conduit route exactly. The
+	# small exposed termini remain diagnostic cyan; broad spans are protected.
+	for route in _arrow_visual.get_children():
+		if route.has_node("CurveJoint") and (route.get_node("CurveJoint") as MeshInstance3D).mesh in [_sensor_leading_edge_curve_joint_mesh, _dorsal_data_conduit_curve_joint_mesh, _lateral_array_curve_joint_mesh]:
+			var points: Array[Vector3] = []
+			for part in route.get_children():
+				if part is MeshInstance3D and part.mesh is SphereMesh:
+					points.append(part.position)
+			for segment in points.size() - 1:
+				var start := points[segment]
+				var finish := points[segment + 1]
+				var raceway := _box(route, "CableRaceway%d" % segment, (start + finish) * 0.5, Vector3(0.15, 0.15, start.distance_to(finish) - 0.10), _arrow_materials.graphite)
+				raceway.look_at_from_position(raceway.position, finish, Vector3.UP)
+
 
 
 func _build_recon_pulse_emitters() -> void:
@@ -1172,18 +1192,34 @@ func _build_escape_pods() -> void:
 		pod.set_meta("release_mechanism_implemented", false)
 		_arrow_visual.add_child(pod)
 		_escape_pods.append(pod)
-		_loft_hull(
+		var pressure_case := _loft_hull(
 			pod,
 			"PodPressureShell",
 			Vector3.ZERO,
 			PackedVector3Array([
-				Vector3(0.08, 0.06, -1.45),
-				Vector3(0.52, 0.42, -0.82),
-				Vector3(0.58, 0.47, 0.72),
-				Vector3(0.24, 0.18, 1.32),
+				Vector3(0.37, 0.28, -1.30),
+				Vector3(0.53, 0.40, -1.02),
+				Vector3(0.53, 0.40, 0.94),
+				Vector3(0.37, 0.28, 1.24),
 			]),
-			_arrow_materials.pod
+			_arrow_materials.ceramic
 		)
+		# A removable pressure hatch is cut into the case skin. The amber
+		# release handle and end shields identify survival hardware without
+		# painting the entire pressure vessel like a flotation capsule.
+		_cut_pressure_panel(pressure_case, "PressureHatch", 5, 10, 5, 11, _arrow_materials.graphite)
+		_box(pod, "HatchRelease", Vector3(0, 0.405, 0.56), Vector3(0.30, 0.025, 0.10), _arrow_materials.pod)
+		for end_z in [-1.30, 1.24]:
+			_box(pod, "ForwardEmergencyEndShield" if end_z < 0 else "AftEmergencyEndShield", Vector3(0, 0, end_z), Vector3(0.61, 0.40, 0.025), _arrow_materials.pod)
+		# Twin saddles belong to the separable module so release/reset retain
+		# the existing complete pod identity and attachment transform.
+		for mount_z in [-0.78, 0.70]:
+			_box(pod, "ForwardPressureCaseSaddle" if mount_z < 0 else "AftPressureCaseSaddle", Vector3(0, -0.36, mount_z), Vector3(1.18, 0.18, 0.18), _arrow_materials.graphite)
+			_box(pod, "ForwardReleaseLatch" if mount_z < 0 else "AftReleaseLatch", Vector3(side * 0.55, -0.18, mount_z), Vector3(0.08, 0.24, 0.16), _arrow_materials.titanium)
+		_loft_hull(pod, "SeparationClampBed", Vector3.ZERO, PackedVector3Array([
+			Vector3(0.53, 0.40, -0.14), Vector3(0.55, 0.56, -0.065),
+			Vector3(0.55, 0.56, 0.065), Vector3(0.53, 0.40, 0.14),
+		]), _arrow_materials.graphite)
 		var separation_collar := _torus(
 			pod,
 			"PodSeparationCollar",
@@ -1198,7 +1234,7 @@ func _build_escape_pods() -> void:
 		if _pod_separation_collar_mesh == null:
 			_pod_separation_collar_mesh = separation_collar.mesh as TorusMesh
 		_pod_separation_collars.append(separation_collar)
-		_box(pod, "PodIdentityStripe", Vector3(side * 0.48, 0.02, -0.05), Vector3(0.06, 0.22, 1.55), _arrow_materials.sensor)
+		_box(pod, "PodIdentityStripe", Vector3(side * 0.537, 0.02, -0.05), Vector3(0.025, 0.14, 0.64), _arrow_materials.pod)
 		_sphere(
 			pod,
 			"PodStatusLight",
@@ -2494,7 +2530,7 @@ static func _transformed_mesh_bounds(
 
 
 func _loft_hull(parent: Node3D, node_name: String, origin: Vector3, authored_sections: PackedVector3Array, material: Material) -> MeshInstance3D:
-	var curved_pressure_shell := node_name in ["CanopyShellConstruction", "PodPressureShell"]
+	var curved_pressure_shell := node_name == "CanopyShellConstruction"
 	var sections := PackedVector3Array()
 	for index in authored_sections.size() - 1:
 		var start := authored_sections[index]
