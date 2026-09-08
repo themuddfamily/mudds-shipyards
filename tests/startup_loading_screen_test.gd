@@ -60,6 +60,7 @@ func _run() -> void:
 	await _test_queued_loading_screen_public_mutators_are_inert()
 	await _test_prepared_main_frees_detached_children()
 	await _test_stager_rejects_stale_host_generation_after_yield()
+	await _test_gameplay_startup_phases()
 	await _test_world_stages_authored_children_and_rejects_stale_yield()
 	await _test_detached_boot_joins_resource_worker()
 	await _test_detached_boot_cancels_stale_continuation()
@@ -204,6 +205,83 @@ func _test_stager_rejects_stale_host_generation_after_yield() -> void:
 	)
 	fresh_host.queue_free()
 	await process_frame
+
+
+func _test_gameplay_startup_phases() -> void:
+	var pending_host := Node3D.new()
+	var pending_calls: Array[String] = []
+	var pending_progress: Array[float] = []
+	var pending_stager := MainStartupStagerType.new(pending_host,
+		func() -> void: pending_calls.append("bindings"),
+		func() -> void: pending_calls.append("startup"))
+	_check(pending_stager.prepare(false), "legacy startup tail prepares")
+	root.add_child(pending_host)
+	pending_stager.run(false, func(_label: String, ratio: float) -> void: pending_progress.append(ratio))
+	_check(not await pending_stager.run(false), "a concurrent run cannot replace the pre-tail progress sink")
+	await process_frame
+	await process_frame
+	_check(pending_calls == ["bindings", "startup"] and pending_progress == [1.0],
+		"legacy startup retains its one callback and progress owner across the first tail yield")
+	pending_stager.dispose()
+	pending_host.queue_free()
+	await process_frame
+	for interruption in ["", "phase", "progress", "yield"]:
+		var host := Node3D.new()
+		var calls: Array[String] = []
+		var frames: Array[int] = []
+		var progress: Array[float] = []
+		var completed := {"initialized": false}
+		var first_phase := func() -> void:
+			calls.append("first")
+			frames.append(Engine.get_process_frames())
+			if interruption == "phase": _detach_and_reattach_startup_host(host)
+		var second_phase := func() -> void:
+			calls.append("second")
+			frames.append(Engine.get_process_frames())
+		var final_phase := func() -> void:
+			calls.append("final")
+			frames.append(Engine.get_process_frames())
+			completed.initialized = true
+		var startup_stages: Array[Dictionary] = [
+			{"label": "First phase", "run": first_phase},
+			{"label": "Second phase", "run": second_phase},
+			{"label": "Final phase", "run": final_phase},
+		]
+		var stager := MainStartupStagerType.new(host,
+			func() -> void: calls.append("bindings"),
+			func() -> void: calls.append("legacy startup"), startup_stages)
+		_check(stager.prepare(false), "gameplay phases prepare before tree attachment")
+		root.add_child(host)
+		var result := await stager.run(false, func(label: String, ratio: float) -> void:
+			progress.append(ratio)
+			_check(ratio < 1.0 or completed.initialized,
+				"startup progress cannot finish before gameplay startup completes")
+			if label == "First phase":
+				_check(not completed.initialized, "intermediate startup phase does not admit gameplay")
+				if interruption == "progress": _detach_and_reattach_startup_host(host)
+				elif interruption == "yield":
+					call_deferred("_detach_and_reattach_startup_host", host)
+		)
+		if interruption.is_empty():
+			_check(result and completed.initialized and not stager.is_prepared()
+				and calls == ["bindings", "first", "second", "final"]
+				and frames[0] < frames[1] and frames[1] < frames[2]
+				and progress.size() == 3 and is_equal_approx(progress[-1], 1.0),
+				"gameplay phases run once in order on separate loading frames")
+		else:
+			_check(not result and not completed.initialized and stager.is_prepared()
+				and calls == ["bindings", "first"],
+				"interrupted gameplay startup fails closed at " + interruption)
+			_check(not await stager.run(false) and calls == ["bindings", "first"],
+				"interrupted gameplay services cannot resume or replay after " + interruption)
+		stager.dispose()
+		host.queue_free()
+		await process_frame
+
+
+func _detach_and_reattach_startup_host(host: Node) -> void:
+	root.remove_child(host)
+	root.add_child(host)
 
 
 func _test_world_stages_authored_children_and_rejects_stale_yield() -> void:
@@ -609,6 +687,13 @@ func _test_boot_presents_before_it_builds() -> void:
 		if is_instance_valid(live):
 			samples.append(live.get_progress())
 			stages[live.get_stage_text()] = true
+		var live_main := boot.get_main() as GameFlow
+		if live_main != null:
+			var stager := live_main.get("_startup_stager") as MainStartupStager
+			if stager != null and stager.is_prepared() \
+					and bool(stager.get("_gameplay_startup_started")):
+				_check(not bool(live_main.get("_initialized")),
+					"real gameplay remains uninitialized between loading phases")
 	process_frame.connect(watcher)
 	var main := await boot.run_startup()
 	process_frame.disconnect(watcher)
@@ -643,6 +728,16 @@ func _test_boot_presents_before_it_builds() -> void:
 	)
 
 	var report := boot.get_startup_report()
+	var expected_tail := ["Restoring pilot settings", "Registering the fleet",
+		"Connecting yard activities", "Applying pilot settings", "Bringing systems online"]
+	var actual_tail: Array[String] = []
+	for row: Dictionary in report.get("stages", []):
+		if expected_tail.has(row.get("label", "")):
+			actual_tail.append(String(row.label))
+	_check(actual_tail == expected_tail, "real GameFlow completes each startup phase in its original order")
+	var settings_report := (main as GameFlow).get_runtime_settings_persistence_report()
+	_check(int(settings_report.load_attempt_count) == 1 and bool(settings_report.load_before_first_apply),
+		"staged gameplay loads settings once before their first application")
 	_check(
 		float(report["time_to_first_frame_ms"]) < float(report["time_to_interactive_ms"]),
 		"the window presents long before the world is interactive"
@@ -828,8 +923,9 @@ func _test_direct_instantiation_is_unstaged() -> void:
 		"a directly instantiated world is fully built the moment it enters the tree"
 	)
 	_check(
-		main.world != null and main.player != null and main.hud != null,
-		"a directly instantiated coordinator resolves its bindings in _ready()"
+		main.world != null and main.player != null and main.hud != null
+			and bool(main.get("_initialized")),
+		"a directly instantiated coordinator completes gameplay startup synchronously in _ready()"
 	)
 	_check(
 		not main.prepare_staged_startup(),

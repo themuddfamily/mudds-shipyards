@@ -2130,7 +2130,8 @@ func _get_startup_stager() -> MainStartupStagerType:
 		_startup_stager = MainStartupStagerType.new(
 			self,
 			Callable(self, &"_resolve_scene_bindings"),
-			Callable(self, &"_start_up")
+			Callable(self, &"_start_up"),
+			_gameplay_startup_stages()
 		)
 	return _startup_stager
 
@@ -2138,6 +2139,23 @@ func _get_startup_stager() -> MainStartupStagerType:
 ## The one-time gameplay startup. Identical on both construction paths; the only
 ## difference is when the authored subtree became complete.
 func _start_up() -> void:
+	for stage: Dictionary in _gameplay_startup_stages():
+		(stage.run as Callable).call()
+
+
+## Both startup paths execute these same synchronous phases in this order.
+## Only the loading-screen coordinator may yield between completed phases.
+func _gameplay_startup_stages() -> Array[Dictionary]:
+	return [
+		{"label": "Restoring pilot settings", "run": _start_up_persisted_state},
+		{"label": "Registering the fleet", "run": _start_up_fleet},
+		{"label": "Connecting yard activities", "run": _start_up_activities},
+		{"label": "Applying pilot settings", "run": _apply_all_runtime_settings},
+		{"label": "Bringing systems online", "run": _start_up_complete},
+	]
+
+
+func _start_up_persisted_state() -> void:
 	_initialize_runtime_settings()
 	_initialize_game_flow_reward_authority()
 	bind_planetary_return_persistence(ember_surface_loop_production_binding)
@@ -2150,9 +2168,15 @@ func _start_up() -> void:
 	player.teleport_to(world.get_player_spawn())
 	player.set_control_enabled(false)
 	player.set_camera_active(false)
+
+
+func _start_up_fleet() -> void:
 	_register_flyable_ships()
 	_resolve_ground_vehicle()
 	active_ship = ship
+
+
+func _start_up_activities() -> void:
 	_initialize_minimap_topology()
 	_initialize_planetary_destination_catalog()
 	_initialize_cargo_delivery_composition()
@@ -2164,11 +2188,11 @@ func _start_up() -> void:
 	_initialize_nearby_activity_audio()
 	_initialize_halyard_crew_semantic_audio()
 	_initialize_optional_semantic_audio()
-	# The atomic load above is complete before the first global, player, ship or
-	# HUD settings consumer sees a snapshot. In particular, the complete binding
-	# profile reaches InputMap and all retained local ship banks before gameplay
-	# signals can sample it.
-	_apply_all_runtime_settings()
+
+
+func _start_up_complete() -> void:
+	# The atomic load and whole settings application finish before gameplay
+	# signals can sample InputMap or any retained local ship command bank.
 	_connect_runtime_signals()
 	_sync_cinder_loadmaster_hud_binding()
 	_ensure_final_approach_hud_composition()

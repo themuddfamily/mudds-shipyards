@@ -1,12 +1,12 @@
 class_name MainStartupStager
 extends RefCounted
 
-## Construction-only coordinator for GameFlow's opt-in boot path.
+## Loading-frame coordinator for GameFlow's opt-in boot path.
 ##
 ## The boot loader still talks to GameFlow's public wrappers. This helper owns
-## only the detached-child transaction and its progress accounting, leaving
-## gameplay startup, runtime bindings, lifecycle authority, and every authored
-## node path with GameFlow.
+## the detached-child transaction, ordered synchronous startup phases and their
+## progress accounting. GameFlow retains gameplay startup, runtime bindings,
+## lifecycle authority, and every authored node path.
 
 ## Longest a run of cheap children may hold the main loop before it yields. Six
 ## of the authored children cost a couple of milliseconds each, and a yield
@@ -17,6 +17,8 @@ const STAGED_STARTUP_FRAME_BUDGET_USEC := 24_000
 var _host: Node3D
 var _resolve_scene_bindings: Callable
 var _start_up: Callable
+var _startup_stages: Array[Dictionary] = []
+var _gameplay_startup_started := false
 var _prepared := false
 var _staged_children: Array[Node] = []
 var _staged_child_owners: Dictionary = {}
@@ -32,11 +34,13 @@ var _active_host_tree_generation := 0
 func _init(
 		host: Node3D,
 		resolve_scene_bindings: Callable,
-		start_up: Callable
+		start_up: Callable,
+		startup_stages: Array[Dictionary] = []
 ) -> void:
 	_host = host
 	_resolve_scene_bindings = resolve_scene_bindings
 	_start_up = start_up
+	_startup_stages = startup_stages.duplicate()
 	_host.tree_exiting.connect(_on_host_tree_exiting)
 
 
@@ -60,6 +64,7 @@ func dispose() -> void:
 	_host = null
 	_resolve_scene_bindings = Callable()
 	_start_up = Callable()
+	_startup_stages.clear()
 
 
 func is_prepared() -> bool:
@@ -96,7 +101,11 @@ func prepare(initialized: bool) -> bool:
 ## `on_stage` is called as `on_stage.call(label: String, ratio: float)` where
 ## `ratio` is the fraction of real stages that have finished.
 func run(initialized: bool, on_stage: Callable = Callable()) -> bool:
-	if not _prepared or initialized:
+	# Leaving the tree detaches services initialized by a gameplay phase. Those
+	# side effects cannot be resumed or replayed as a construction transaction;
+	# an interrupted tail needs a fresh Main, which the loader already enforces.
+	if not _prepared or initialized or _gameplay_startup_started \
+			or _active_run_generation != 0:
 		return false
 	_run_generation += 1
 	var run_generation := _run_generation
@@ -108,9 +117,12 @@ func run(initialized: bool, on_stage: Callable = Callable()) -> bool:
 	var tree := _host.get_tree()
 	var pending := _staged_children.duplicate()
 	# One unit per child, plus one for each staged builder stage a child declares,
-	# plus one for the gameplay startup tail. Counting real work is what keeps the
-	# bar from completing in a single jump.
-	_staged_total = float(pending.size() + 1)
+	# plus one per gameplay startup phase. Legacy callers retain one synchronous
+	# tail callback; progress completes only after all of its work has returned.
+	var startup_stages := _startup_stages.duplicate()
+	if startup_stages.is_empty():
+		startup_stages.append({"label": "Bringing systems online", "run": _start_up})
+	_staged_total = float(pending.size() + startup_stages.size())
 	for child in pending:
 		if not _is_run_current(run_generation, host_tree_generation):
 			_cancel_stale_run()
@@ -165,21 +177,31 @@ func run(initialized: bool, on_stage: Callable = Callable()) -> bool:
 		return false
 	_staged_children.clear()
 	_staged_child_owners.clear()
-	_prepared = false
 	_resolve_scene_bindings.call()
 	if not _is_run_current(run_generation, host_tree_generation):
 		_cancel_stale_run()
 		return false
-	_staged_done = _staged_total
-	_advance_stage("Bringing systems online")
-	if not _is_run_current(run_generation, host_tree_generation):
-		_cancel_stale_run()
-		return false
+	for stage: Dictionary in startup_stages:
+		# Present the finished construction/previous phase before another costly
+		# phase. Direct Main startup executes the same callbacks without yielding.
+		await tree.process_frame
+		if not _is_run_current(run_generation, host_tree_generation):
+			_cancel_stale_run()
+			return false
+		_gameplay_startup_started = true
+		(stage.run as Callable).call()
+		if not _is_run_current(run_generation, host_tree_generation):
+			_cancel_stale_run()
+			return false
+		_advance_stage(String(stage.label))
+		if not _is_run_current(run_generation, host_tree_generation):
+			_cancel_stale_run()
+			return false
+	_prepared = false
 	_staged_sink = Callable()
 	_active_run_generation = 0
 	_active_host_tree_generation = 0
-	_start_up.call()
-	return _is_run_current(run_generation, host_tree_generation)
+	return true
 
 
 func _on_host_tree_exiting() -> void:
