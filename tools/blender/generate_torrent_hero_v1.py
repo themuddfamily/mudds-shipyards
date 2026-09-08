@@ -904,8 +904,12 @@ def build_lod0(collection):
             z_back = 2.62 - tier * .12
             swept_plate(f"{side_name}SteppedPlane{tier+1}", collection, ivory,
                         side, y, tier, inner_x, outer_x, z_front, z_back, .078)
+            tip_front = z_front + 1.48 + tier * .16
+            # The lens is inset into the outer wing wall, behind its swept
+            # leading corner. The old fixed Z positions left higher-tier
+            # lamps entirely ahead of their shortened tips.
             box(f"{side_name}PlaneTipLight{tier+1}",
-                (side*outer_x, y+.075, -1.16+tier*.13),
+                (side*(outer_x+.006), y, tip_front+.32),
                 (.030,.035,.42), collection, cyan, .006)
             # Thin root shadows make each tier read as a bonded airframe layer;
             # the warm strip provides one coherent livery sweep, not greeble dots.
@@ -914,14 +918,21 @@ def build_lod0(collection):
                 (.07, .028, 4.44 - tier * .16),
             ))
             box(f"{side_name}PlaneLiveryStrip{tier+1}",
-                (side * (inner_x + .22 + tier * .10), y + .068,
+                (side * (inner_x + .22 + tier * .10), y + .033,
                  -.86 + tier * .16),
                 (.055 + tier * .012, .018, 2.46 - tier * .14),
                 collection, livery, .006)
+            # Fit a shallow metal insert along the actual leading-edge sweep,
+            # with both ends supported by the upper skin.
+            edge_start = Vector((side*(inner_x+.08*(outer_x-inner_x)),
+                                 y+.032, z_front+.08*(tip_front-z_front)+.060))
+            edge_end = Vector((side*(inner_x+.68*(outer_x-inner_x)),
+                               y+.032, z_front+.68*(tip_front-z_front)+.060))
+            edge_vector = edge_end - edge_start
             box(f"{side_name}PlaneLeadingEdge{tier+1}",
-                (side * (inner_x + .35 + tier * .12), y + .025, z_front + .46),
-                (.56 + tier * .08, .028, .035), collection, alloy, .012,
-                rotation=(0, math.radians(side * (8 + tier * 2)), 0))
+                (edge_start + edge_end) * .5,
+                (edge_vector.length, .028, .035), collection, alloy, .012,
+                rotation=(0, -math.atan2(edge_vector.z, edge_vector.x), 0))
         compound_boxes(f"{side_name}PlaneRootShadows", root_shadow_parts,
                        collection, graphite, .006)
         # Broad root fairing visually joins the four tiers to the pressure shell.

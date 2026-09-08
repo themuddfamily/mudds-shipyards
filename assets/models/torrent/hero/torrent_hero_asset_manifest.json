@@ -46,14 +46,14 @@
       "CrimsonLivery": 5.606542,
       "CrimsonSeat": 4.92142,
       "CyanStatus": 5.064058,
-      "ExposedAlloy": 26.991919,
+      "ExposedAlloy": 27.522752,
       "GraphiteMachinery": 68.83514,
       "IvorySecondary": 130.325981,
       "NeutralCanopyGlass": 12.33585,
       "ThermalCeramic": 16.983373,
       "WarmIvoryHull": 322.21016
     },
-    "pale_exterior_surface_ratio": 0.735045,
+    "pale_exterior_surface_ratio": 0.733857,
     "pale_exterior_surface_ratio_range": [
       0.7,
       0.8
@@ -77,7 +77,7 @@
         "mesh_count": 39
       },
       "LOD0": {
-        "evaluated_surface_area_m2": 327.995177,
+        "evaluated_surface_area_m2": 328.526011,
         "evaluated_triangle_count": 72694,
         "evaluated_vertex_count": 36873,
         "mesh_count": 240
@@ -102,16 +102,16 @@
   "asset_id": "torrent_hero_art_v1",
   "authenticated_historical_geometry": false,
   "authorship": "original_script_assisted_blender",
-  "blend_sha256": "e5e50fc229b6e0672d16b14be5b8be72a0ecf5eb60e6968c5bab09b53d72a226",
+  "blend_sha256": "fcfd51cc60962e53c52690d1262089f02d7b5a83d7d52f73a3f84e3c1c42c305",
   "blender_version": "4.0.2",
   "bounds_blender_xyz": {
     "max": [
-      3.325000047683716,
+      3.3310000896453857,
       3.5999999046325684,
       4.270000457763672
     ],
     "min": [
-      -3.325000047683716,
+      -3.3310000896453857,
       -0.7549999952316284,
       -4.800000190734863
     ]
@@ -1037,12 +1037,12 @@
     "provenance": {
       "blender_version": "4.0.2",
       "evaluated_source_blend": "art_source/torrent/torrent_hero_v1.blend",
-      "evaluated_source_blend_sha256": "e5e50fc229b6e0672d16b14be5b8be72a0ecf5eb60e6968c5bab09b53d72a226",
-      "evaluated_source_semantic_sha256": "f6a2110dc7a352b19505f2f08bb103ceb69da75460cadd93c02a52dc799b6fb6",
+      "evaluated_source_blend_sha256": "fcfd51cc60962e53c52690d1262089f02d7b5a83d7d52f73a3f84e3c1c42c305",
+      "evaluated_source_semantic_sha256": "d5fe37d637b8d02fe955e466405f389b8211672000e33ba0e1a6a164dfc33e6f",
       "generator": "tools/blender/generate_torrent_hero_v1.py",
-      "generator_sha256": "7ec7e2d510ac6b45086dd451f39f0290b0b67fa9b0815e978d55691523eca4c4",
+      "generator_sha256": "70e49e0d09fc6d79a2aab34fd4866ee808f0ca70d82498eb8b2b30256cdb6a01",
       "runtime_glb": "assets/models/torrent/hero/torrent_hero_art.glb",
-      "runtime_glb_sha256": "61b9d41ff367cdf315e5258e7dcc0443b6d515262a09f2c4da5916c78b9ceca1"
+      "runtime_glb_sha256": "ef2276d4b07753136dcee0ddc808af4499e61126c2777963244c9cc0c10f8091"
     },
     "roots_explicitly_out_of_scope": [
       "LOD1"
@@ -1082,8 +1082,8 @@
     "up": "+Y in Godot"
   },
   "generator": "tools/blender/generate_torrent_hero_v1.py",
-  "generator_sha256": "7ec7e2d510ac6b45086dd451f39f0290b0b67fa9b0815e978d55691523eca4c4",
-  "glb_sha256": "61b9d41ff367cdf315e5258e7dcc0443b6d515262a09f2c4da5916c78b9ceca1",
+  "generator_sha256": "70e49e0d09fc6d79a2aab34fd4866ee808f0ca70d82498eb8b2b30256cdb6a01",
+  "glb_sha256": "ef2276d4b07753136dcee0ddc808af4499e61126c2777963244c9cc0c10f8091",
   "material_roles": [
     "AmberPanel",
     "CrimsonLivery",
@@ -1528,7 +1528,7 @@
     ]
   },
   "schema_version": 1,
-  "source_semantic_sha256": "f6a2110dc7a352b19505f2f08bb103ceb69da75460cadd93c02a52dc799b6fb6",
+  "source_semantic_sha256": "d5fe37d637b8d02fe955e466405f389b8211672000e33ba0e1a6a164dfc33e6f",
   "swept_plate_winding_contract": {
     "all_positive_outward_winding": true,
     "expected_object_count": 16,
@@ -1577,11 +1577,11 @@
     "all_materials": {
       "degenerate_triangle_count": 180,
       "mirrored_surface_area_m2": 0.095264,
-      "mirrored_surface_ratio": 0.000160423,
+      "mirrored_surface_ratio": 0.00016028,
       "mirrored_triangle_count": 113,
-      "positive_surface_area_m2": 593.732938,
+      "positive_surface_area_m2": 594.263773,
       "positive_triangle_count": 95905,
-      "surface_area_m2": 593.828203,
+      "surface_area_m2": 594.359038,
       "triangle_count": 96198
     },
     "by_material": {
@@ -1628,11 +1628,11 @@
       "ExposedAlloy": {
         "degenerate_triangle_count": 76,
         "mirrored_surface_area_m2": 0.023121,
-        "mirrored_surface_ratio": 0.000855168,
+        "mirrored_surface_ratio": 0.000838701,
         "mirrored_triangle_count": 16,
-        "positive_surface_area_m2": 27.013867,
+        "positive_surface_area_m2": 27.544702,
         "positive_triangle_count": 23860,
-        "surface_area_m2": 27.036988,
+        "surface_area_m2": 27.567823,
         "triangle_count": 23952
       },
       "GraphiteMachinery": {
