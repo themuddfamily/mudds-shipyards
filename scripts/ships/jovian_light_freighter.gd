@@ -3189,6 +3189,7 @@ func _build_jovian_variant(_controller: HeroShip) -> bool:
 	_build_connected_interior()
 	_build_propulsion_and_gear()
 	_build_fitted_freighter_details()
+	_build_hull_markings()
 	_build_engine_damage_cue()
 	_replace_collision_and_markers()
 	_bind_optional_interior_frame()
@@ -5037,3 +5038,16 @@ func _fitout_ring(batch: Dictionary, finish: String, at: Vector3,
 	ring_stock.deindex()
 	(batch[finish] as SurfaceTool).append_from(ring_stock.commit(), 0,
 		Transform3D(Basis(Vector3.RIGHT, PI * 0.5), at))
+
+
+func _build_hull_markings() -> void:
+	# Registration belongs to the broad cargo crown; service stencils fit inside
+	# the forward shoulder closures without reaching the open freight aperture.
+	var registration := ShipSurfaceDetail.mark_surface(_jovian_visual, "CargoCrownRegistration", "jovian",
+		Vector3(0.0, 4.79, 2.1), Vector2(4.8, 2.4), Vector3.UP, Vector3.FORWARD)
+	registration.modulate = Color(0.35, 0.35, 0.35, 1.0)
+	for side in [-1.0, 1.0]:
+		ShipSurfaceDetail.mark_surface(_jovian_visual,
+			"PortServiceStencil" if side < 0.0 else "StarboardServiceStencil", "service",
+			Vector3(side * 8.12, 2.12, -4.1), Vector2(0.8, 0.4),
+			Vector3(side, 0.0, 0.0), Vector3.UP)

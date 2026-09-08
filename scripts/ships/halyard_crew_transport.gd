@@ -338,8 +338,9 @@ const CREW_SEAT_BACK_COPY_COUNT := 6
 const CABIN_PORTAL_UPRIGHT_SIZE := Vector3(0.18, 2.80, 0.22)
 const CABIN_PORTAL_UPRIGHT_COPY_COUNT := 4
 # Four merged finish meshes contain the fitted shell closures, access supports
-# and engine hardware; cabin fittings remain on the moving interior root.
-const RENDER_DESCENDANT_COUNT := 124
+# and engine hardware; three hull decals share their retained visual root.
+# Cabin fittings remain on the moving interior root.
+const RENDER_DESCENDANT_COUNT := 127
 const RENDER_MESH_INSTANCE_COUNT := 110
 const RENDER_MULTIMESH_BATCH_COUNT := 9
 const RENDER_DRAWN_COPY_COUNT := 196
@@ -2550,6 +2551,7 @@ func _build_halyard_variant(_controller: HeroShip) -> bool:
 	_build_connected_interior()
 	_build_propulsion_and_gear()
 	_build_fitted_transport_details()
+	_build_hull_markings()
 	_replace_collision_and_markers()
 	_bind_optional_interior_frame()
 	if not replace_variant_visual_root(_halyard_visual):
@@ -4848,3 +4850,16 @@ func _fitout_ring(batch: Dictionary, finish: String, at: Vector3,
 	ring_stock.deindex()
 	(batch[finish] as SurfaceTool).append_from(ring_stock.commit(), 0,
 		Transform3D(Basis(Vector3.RIGHT, PI * 0.5), at))
+
+
+func _build_hull_markings() -> void:
+	# The lengthwise crown stencil clears the window band and defensive mounts.
+	# Small access graphics stay on solid skin beside the airstair and on the
+	# aft service closure, leaving its hinges and cabin glazing readable.
+	var registration := ShipSurfaceDetail.mark_surface(_halyard_visual, "CrewCrownRegistration", "halyard",
+		Vector3(-1.30, 3.93, 1.8), Vector2(3.6, 1.8), Vector3(-0.24, 1.0, 0.0), Vector3.RIGHT, 0.36)
+	registration.modulate = Color(0.35, 0.35, 0.35, 1.0)
+	ShipSurfaceDetail.mark_surface(_halyard_visual, "AirstairRescueStencil", "rescue",
+		Vector3(-2.64, 1.5, -6.03), Vector2(0.6, 0.3), Vector3.LEFT, Vector3.UP)
+	ShipSurfaceDetail.mark_surface(_halyard_visual, "AftServiceStencil", "service",
+		Vector3(-2.70, 1.38, 6.5), Vector2(0.7, 0.35), Vector3.LEFT, Vector3.UP)
