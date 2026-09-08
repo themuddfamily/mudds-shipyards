@@ -231,7 +231,8 @@ const EXPECTED_ARROW_VISUAL_CENSUS := {
 	"nodes": 262,
 	"mesh_instance_nodes": 232,
 	"multi_mesh_instance_nodes": 3,
-	"geometry_submissions": 235,
+	# The formed instrument hood separates its matte face from its casing.
+	"geometry_submissions": 236,
 	"visible_geometry_copies": 239,
 	"unique_mesh_resource_allocations": 191,
 	"auto_fallback_names": 20,

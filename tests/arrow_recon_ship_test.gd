@@ -791,12 +791,12 @@ func _test_visual_performance_batch(arrow: ArrowReconShip) -> void:
 			"nodes": 262,
 			"mesh_instance_nodes": 232,
 			"multi_mesh_instance_nodes": 3,
-			"geometry_submissions": 235,
+			"geometry_submissions": 236,
 			"visible_geometry_copies": 239,
 			"unique_mesh_resource_allocations": 191,
 			"auto_fallback_names": 20,
 		},
-		"entry-complete Arrow freezes the exact 262-node, 235-submission, 191-mesh census with all 239 copies"
+		"entry-complete Arrow retains 262 nodes, 236 submissions including the instrument casing, 191 meshes and all 239 copies"
 	)
 	_check(
 		report.phase9_before_entry_heat == {
