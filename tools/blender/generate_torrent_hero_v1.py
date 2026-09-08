@@ -30,8 +30,9 @@ CONCEPT_PATH = ROOT / "assets/concepts/torrent/torrent-hero-concept-multiview-v1
 
 MATS: dict[str, bpy.types.Material] = {}
 HULL_STATIONS = [
-    (-4.80, .08, .42, .76), (-4.15, .44, .28, 1.10),
-    (-3.25, 1.00, .20, 1.76), (-2.10, 1.48, .16, 2.28),
+    (-4.80, .08, .42, .68), (-4.15, .38, .28, .98),
+    (-3.70, .61, .23, 1.28), (-3.25, .88, .20, 1.63),
+    (-2.70, 1.18, .18, 1.98), (-2.10, 1.48, .16, 2.28),
     (-.75, 1.72, .14, 2.40), (.75, 1.84, .16, 2.40),
     (1.85, 1.80, .20, 2.22), (2.75, 1.62, .26, 1.94),
     (3.42, 1.40, .36, 1.56),
@@ -76,7 +77,7 @@ PROTECTED_MESHES_BY_ROOT: dict[str, tuple[str, ...]] = {
 }
 EXPECTED_SOURCE_MESH_COUNTS = {
     "LOD0": 240,
-    "LOD1": 18,
+    "LOD1": 20,
     "CockpitArt": 39,
     "CanopyPivot": 17,
     "SemanticAnchors": 0,
@@ -88,7 +89,7 @@ EXPECTED_RUNTIME_MESH_COUNTS = {
     "CanopyPivot": 3,
     "SemanticAnchors": 0,
 }
-EXPECTED_RUNTIME_TRIANGLES = 87_338
+EXPECTED_RUNTIME_TRIANGLES = 89_254
 RUNTIME_MESH_INSTANCE_BUDGET = 36
 SOURCE_MESH_INSTANCE_BUDGET = 320
 CLOSE_TRIANGLE_RANGE = (70_000, 90_000)
@@ -559,24 +560,30 @@ def tapered_box(name: str, collection, mat, z_front: float, z_back: float,
     return wedge(name, collection, mat, verts, faces, bevel)
 
 
+# Normalized transverse pressure-frame profile, from belly to crown. The
+# flank remains a manufactured mounting land; the shoulder is a rolled crown
+# with several genuine tangent transitions, rather than one giant chamfer.
+PRESSURE_PROFILE = [
+    (.00, .00), (.58, .00), (.78, .045), (.93, .15),
+    (1.00, .28), (.968, .50), (.942, .68), (.91, .79),
+    (.85, .88), (.76, .95), (.64, .988), (.52, 1.00), (.00, 1.00),
+]
+
+
+def pressure_side_x(width, band):
+    for (xa, ya), (xb, yb) in zip(PRESSURE_PROFILE, PRESSURE_PROFILE[1:]):
+        if ya <= band <= yb and yb > ya:
+            return width * (xa + (xb - xa) * (band - ya) / (yb - ya))
+    return width * .52
+
+
 def lofted_fuselage(name: str, collection, mat, stations, bevel=0.055):
-    """Build one continuous octagonal pressure shell from z/y/width stations."""
-    verts = []
-    for z, half_width, low_y, high_y in stations:
-        height = high_y - low_y
-        verts.extend([
-            (-half_width * .68, low_y, z),
-            (half_width * .68, low_y, z),
-            (half_width, low_y + height * .24, z),
-            (half_width * .92, high_y - height * .20, z),
-            (half_width * .55, high_y, z),
-            (-half_width * .55, high_y, z),
-            (-half_width * .92, high_y - height * .20, z),
-            (-half_width, low_y + height * .24, z),
-        ])
-    faces = []
-    ring = 8
-    faces.append(tuple(reversed(range(ring))))
+    """Loft rolled pressure frames with an uninterrupted mounting flank."""
+    profile = PRESSURE_PROFILE + [(-x, y) for x, y in reversed(PRESSURE_PROFILE[1:-1])]
+    verts = [(x * width, low + y * (high - low), z)
+             for z, width, low, high in stations for x, y in profile]
+    ring = len(profile)
+    faces = [tuple(reversed(range(ring)))]
     for station in range(len(stations) - 1):
         start = station * ring
         following = (station + 1) * ring
@@ -585,7 +592,51 @@ def lofted_fuselage(name: str, collection, mat, stations, bevel=0.055):
             faces.append((start + edge, start + nxt, following + nxt, following + edge))
     final = (len(stations) - 1) * ring
     faces.append(tuple(final + i for i in range(ring)))
-    return wedge(name, collection, mat, verts, faces, bevel)
+    obj = wedge(name, collection, mat, verts, faces, bevel)
+    for polygon in obj.data.polygons:
+        # Broad lands remain straight. Rolled shoulder strips receive continuous
+        # light across the actual curve without rounding cockpit-mill walls.
+        if polygon.index not in (0, len(faces)-1):
+            edge = (polygon.index-1) % ring
+            a, b = profile[edge], profile[(edge+1)%ring]
+            polygon.use_smooth = min(a[1], b[1]) >= .68 or max(a[1], b[1]) <= .15
+    return obj
+
+
+def wing_root_fairing(name, collection, mat, side):
+    """Load-bearing swept fillet: buried inner return, rolled shoulder, thin toe."""
+    stations = [
+        (-3.03, 1.30, .99, .76), (-2.60, 1.65, 1.18, .84),
+        (-1.80, 1.94, 1.40, .89), (-.55, 2.13, 1.51, .94),
+        (.80, 2.18, 1.53, .98), (1.85, 2.08, 1.43, 1.00),
+        (2.72, 1.80, 1.17, 1.04),
+    ]
+    profile = [(0,.00), (1,.00), (1,.10), (.92,.20),
+               (.70,.33), (.47,.57), (.27,.84), (.12,1), (0,1)]
+    verts = []
+    for z, outer, crown, toe in stations:
+        inner = min(hull_station_at(z)[0] * .81, outer - .18)
+        for x, y in profile:
+            verts.append((side * (inner + x * (outer-inner)),
+                          toe - .13 + y * (crown-toe+.13), z))
+    ring = len(profile)
+    faces = [tuple(reversed(range(ring)))]
+    for station in range(len(stations)-1):
+        for edge in range(ring):
+            nxt=(edge+1)%ring
+            a=station*ring
+            b=(station+1)*ring
+            faces.append((a+edge,a+nxt,b+nxt,b+edge))
+    faces.append(tuple((len(stations)-1)*ring+i for i in range(ring)))
+    if side < 0:
+        faces = [tuple(reversed(face)) for face in faces]
+    obj = wedge(name, collection, mat, verts, faces, .012)
+    obj.modifiers["ProductionBevel"].limit_method = "ANGLE"
+    obj.modifiers["ProductionBevel"].angle_limit = math.radians(25)
+    for polygon in obj.data.polygons:
+        if polygon.index not in (0,len(faces)-1):
+            polygon.use_smooth = 2 <= (polygon.index-1)%ring <= 6
+    return obj
 
 
 def swept_plate(name: str, collection, mat, side: float, y: float, tier: int,
@@ -677,7 +728,7 @@ def conforming_side_panel(name, collection, mat, side, front, back, low=.35, hig
     corners = []
     for z, band in [(front, low), (back, low), (back, high), (front, high)]:
         width, bottom, top = hull_station_at(z)
-        x = width * (1.0 - (band - .24) / .56 * .08)
+        x = pressure_side_x(width, band)
         corners.append((side * (x + .012), bottom + (top - bottom) * band, z))
     vertices = corners + [(x - side * .018, y, z) for x, y, z in corners]
     faces = [(0, 1, 2, 3), (7, 6, 5, 4), (0, 4, 5, 1),
@@ -743,7 +794,7 @@ def service_stencil(name, collection, mat, side, z_center, y_center, text, size)
                 y = y_center+q.y
                 w, low, high = hull_station_at(z)
                 band = (y-low)/(high-low)
-                x = w*(1-(band-.24)/.56*.08)
+                x = pressure_side_x(w, band)
                 # Clear the fitted access skins (12 mm offset plus edge bevel)
                 # so the registration remains a complete legible stroke face.
                 vertices.append((side*(x+.024),y,z))
@@ -767,9 +818,9 @@ def build_lod0(collection):
     livery = MATS["CrimsonLivery"]
     thermal = MATS["ThermalCeramic"]
 
-    # One continuous faceted pressure shell provides the primary read. The
-    # station widths change at every section so profile and three-quarter views
-    # cannot collapse back into the former long rectangular slab.
+    # Rolled pressure shoulders flow into the finer forebody stations. The
+    # shared close/far loft carries the silhouette and its continuous highlights;
+    # service hardware remains on the fitted side mounting lands.
     shell = lofted_fuselage("ContinuousPressureShell", collection, ivory, HULL_STATIONS, .022)
     cut_pressure_cockpit(shell)
     # A lower keel and tapered spine add purposeful longitudinal structure
@@ -838,8 +889,7 @@ def build_lod0(collection):
         compound_boxes(f"{side_name}PlaneRootShadows", root_shadow_parts,
                        collection, graphite, .006)
         # Broad root fairing visually joins the four tiers to the pressure shell.
-        tapered_box(f"{side_name}PlaneRootFairing", collection, ivory2,
-                    -2.85, 2.72, (.25,.45), (.42,.60), .83, .055).location.x = side*1.50
+        wing_root_fairing(f"{side_name}PlaneRootFairing", collection, ivory2, side)
 
     # Recessed weapons and service bays.
     for side in (-1, 1):
@@ -851,7 +901,7 @@ def build_lod0(collection):
             nozzle_z = -1.6 + port * 1.35
             width, low, high = hull_station_at(nozzle_z)
             band = (1.42 - low) / (high - low)
-            nozzle_x = width * (1.0 - (band - .24) / .56 * .08)
+            nozzle_x = pressure_side_x(width, band)
             cylinder(f"{s}RCSNozzle{port}", (side * nozzle_x,1.42,nozzle_z), .075, .12,
                      collection, graphite, 24, rotation=(0,math.pi/2,0))
         add_panel_details(collection, s, side)
@@ -1134,6 +1184,7 @@ def build_lod1(collection):
                         .88+tier*.065, tier, 1.40+tier*.05,
                         2.38+tier*.31, -2.65+tier*.16,
                         2.62-tier*.12, .078)
+        wing_root_fairing(f"LOD1{s}PlaneRootFairing", collection, ivory2, side)
         annular_shell(f"LOD1{s}Housing",collection,ivory2,(side*2.5,1.1),
                       (2.50,2.86,3.18,3.55),(.50,.62,.54,.34),
                       (.33,.40,.37,.22),32,.008)
