@@ -171,6 +171,22 @@ func _run() -> void:
 		exact_collision_roster = exact_collision_roster and hero.get_node_or_null(collision_name) is CollisionShape3D
 	_check(exact_collision_roster, "canonical seven-shape gameplay collision remains external to imported art")
 	_check(hero.get_node_or_null("TorrentVisual/TorrentHeroPresentation") is TorrentHeroPresentation, "production Torrent owns exactly one close presentation adapter")
+	var live_presentation := hero.get_node("TorrentVisual/TorrentHeroPresentation") as TorrentHeroPresentation
+	live_presentation.set_process(false)
+	live_presentation.update_lod_for_distance(0.0)
+	var near_emitters := hero.get_weapon_component_emitter_snapshot()
+	_check(int(near_emitters.get("visible_emitter_count", 0)) == 2,
+		"near Torrent shows its paired fitted cannon lenses")
+	live_presentation.update_lod_for_distance(1000.0)
+	hero.call("_sync_weapon_component_presentation")
+	_check(int(hero.get_weapon_component_emitter_snapshot().get("visible_emitter_count", -1)) == 0,
+		"far Torrent hides idle lenses with omitted barrels even after a component refresh")
+	live_presentation.update_lod_for_distance(0.0)
+	var restored_emitters := hero.get_weapon_component_emitter_snapshot()
+	_check(int(restored_emitters.get("visible_emitter_count", 0)) == 2
+		and restored_emitters.get("emitters", []) == near_emitters.get("emitters", []),
+		"returning to close art restores the same two fitted lenses")
+	live_presentation.set_process(true)
 	_check(hero.get_node_or_null("TorrentVisual/LegacyFarPresentation/TorrentAuthoredMacroform") != null, "trusted B5-observed macroform remains available as far/fallback art")
 	_check(hero.get_node_or_null("TorrentVisual/LegacyFarPresentation/ModernSystems") != null, "legacy systems remain isolated in the fallback gate")
 	_check(hero.find_child("CockpitArt", true, false) != null and hero.get_node_or_null("TorrentVisual/CanopyHinge") != null, "audited Blender cockpit and functional canopy roots coexist without duplicate art")

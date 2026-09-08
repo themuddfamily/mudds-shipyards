@@ -6627,6 +6627,11 @@ func _sync_torrent_close_overlay_visibility() -> void:
 	if presentation == null:
 		return
 	var close_visible := presentation.get_active_lod() == 0
+	# The far model omits the cannon barrels. Their fitted idle lenses must
+	# follow that visibility gate, including later component-state refreshes.
+	var weapon_lenses := presentation.get_node_or_null("WeaponComponentLenses") as Node3D
+	if weapon_lenses != null:
+		weapon_lenses.visible = close_visible
 	if _cockpit_readout != null:
 		_cockpit_readout.visible = close_visible
 	if _cockpit_practical_light != null:
