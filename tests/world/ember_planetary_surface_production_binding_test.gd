@@ -4,6 +4,7 @@ const BindingScript := preload("res://scripts/world/ember_planetary_surface_prod
 const DirectorScript := preload("res://scripts/activities/activity_director.gd")
 
 class FakeHost:
+	var snapshot_count := 0
 	var generation := 4
 	var attachment_generation := 1
 	var phase_id: StringName = &"on_foot"
@@ -14,6 +15,7 @@ class FakeHost:
 	func get_phase() -> int: return 8
 	func get_travel_session_observation_source() -> Object: return session
 	func get_snapshot() -> Dictionary:
+		snapshot_count += 1
 		return {
 			"host_id": &"ember_surface_loop", "attached": true,
 			"generation": generation,
@@ -37,8 +39,13 @@ func _run() -> void:
 	root.add_child(director)
 	var binding := BindingScript.new()
 	root.add_child(binding)
+	_check(binding.get_activity_reward_snapshot().is_empty(), "unconfigured composition has no activity evidence")
 	var configured := binding.configure(host, director, Callable(self, "_reward_sink"), 4)
 	_check(configured.accepted and configured.runtime.composition_generation == 1 and configured.runtime.navigation.state == &"idle" and configured.runtime.hazard.configured and configured.runtime.water.state == &"idle" and configured.runtime.landmarks.configured and configured.runtime.settlement.configured, "one generation-fenced Ember composition retains all planetary runtimes")
+	_check_activity_observation(binding, "bound")
+	var host_snapshot_count := host.snapshot_count
+	binding.get_activity_reward_snapshot()
+	_check(host.snapshot_count == host_snapshot_count, "activity observation does not construct Host diagnostics")
 	var hazard_anchor := Vector3(92.0, 120001.0, -5.0)
 	var staging_relay := Vector3(96.0, 120000.0, 0.0)
 	var base_observation := {
@@ -173,8 +180,10 @@ func _run() -> void:
 	var entered := binding.enter_settlement(&"ember_habitat_spine", Vector3(92.0, 120000.5, -18.0))
 	_check(discovered.accepted and entered.accepted and entered.receipt.route_id == &"ember_pad_to_settlement_spine", "production composition forwards authored discovery and entry")
 	_check(binding.detach().accepted and binding.get_snapshot().state == &"detached" and binding.get_snapshot().settlement.state == &"detached" and not binding.get_snapshot().hazard_zone_presentation.visible and not binding.get_snapshot().hazard_zone_presentation.recovery_cue.visible and binding.get_authored_hazard_status().state == &"clear", "detaching clears the hazard presentation/status and recovery cue with the surface composition")
+	_check_activity_observation(binding, "detached")
 	host.attachment_generation = 2
 	_check(binding.reenter().accepted and binding.get_snapshot().state == &"bound" and binding.get_snapshot().settlement.state == &"inside" and binding.get_snapshot().hazard_zone_presentation.visible and not binding.get_snapshot().hazard_zone_presentation.recovery_cue.visible and binding.get_authored_hazard_status().state == &"clear" and binding.enter_settlement(&"ember_habitat_spine", Vector3(92.0, 120000.5, -18.0)).reason == &"settlement_entry_already_consumed", "re-entry restores the clear hazard perimeter without replaying the recovery cue")
+	_check_activity_observation(binding, "reentered")
 	var reentered := binding.submit_authored_hazard_observation(base_observation, 4, 2)
 	_check(
 		reentered.accepted and reentered.status.state == &"warning"
@@ -199,3 +208,12 @@ func _reward_sink(_receipt: Dictionary) -> Dictionary:
 func _check(condition: bool, message: String) -> void:
 	_assertions += 1
 	if not condition: _failures.append(message)
+
+
+func _check_activity_observation(binding: Object, stage: String) -> void:
+	var expected: Dictionary = binding.get_snapshot().adapter.activity_reward
+	var observed: Dictionary = binding.get_activity_reward_snapshot()
+	_check(observed == expected, stage + " composition activity observation matches full diagnostics")
+	observed["state"] = &"tampered"
+	(observed.get("authority", {}) as Dictionary)["reward_store"] = true
+	_check(binding.get_activity_reward_snapshot() == expected, stage + " composition activity evidence is detached")

@@ -17,12 +17,14 @@ const SettlementScript := preload("res://scripts/world/planetary_settlement_inte
 const SettlementContractScript := preload("res://scripts/world/planetary_settlement_structure_contract.gd")
 
 class FakeHost:
+	var snapshot_count := 0
 	var generation := 7
 	var attachment_generation := 2
 	var phase_id: StringName = &"on_foot"
 	var attached := true
 
 	func get_snapshot() -> Dictionary:
+		snapshot_count += 1
 		return {
 			"host_id": &"ember_surface_loop",
 			"attached": attached,
@@ -93,11 +95,17 @@ func _test_host_activity_reward_path() -> void:
 	var director := _director_with_activity()
 	var runtime := RuntimeScript.new()
 	var adapter := AdapterScript.new()
+	_check(adapter.get_activity_reward_snapshot().is_empty(), "unbound adapter has no activity evidence")
 	_check(
 		adapter.bind(host, runtime, director, Callable(self, "_accept_reward")).accepted,
 		"the clean adapter binds the Host contract, ActivityDirector, and reward callback"
 	)
+	_check_activity_observation(adapter, "bound")
+	var host_snapshot_count := host.snapshot_count
+	adapter.get_activity_reward_snapshot()
+	_check(host.snapshot_count == host_snapshot_count, "activity observation does not construct Host diagnostics")
 	var started := adapter.begin_activity(&"ember_beacon_survey")
+	_check_activity_observation(adapter, "active")
 	_check(
 		started.accepted and started.adapter.state == &"active"
 			and started.adapter.activity_reward.state == &"active",
@@ -127,7 +135,9 @@ func _test_host_activity_reward_path() -> void:
 		"an attachment older than completion cannot claim the pending reward"
 	)
 	host.attachment_generation = 2
+	_check_activity_observation(adapter, "pending reward")
 	var reward := adapter.commit_activity_reward()
+	_check_activity_observation(adapter, "completed")
 	_check(
 		reward.accepted and reward.adapter.state == &"completed"
 			and _reward_calls == 1,
@@ -154,8 +164,10 @@ func _test_detached_reward_recovery() -> void:
 		adapter.detach().accepted,
 		"completed surface work can detach while its reward receipt remains pending"
 	)
+	_check_activity_observation(adapter, "detached")
 	host.attachment_generation = 3
 	var recovered := adapter.recover_pending_reward()
+	_check_activity_observation(adapter, "fresh attachment recovery")
 	_check(
 		recovered.accepted
 			and recovered.reason == &"reward_committed"
@@ -701,3 +713,13 @@ func _finish() -> void:
 		return
 	printerr("PLANETARY_SURFACE_ACTIVITY_REWARD_ADAPTER_TEST_FAIL: " + "; ".join(_failures))
 	quit(1)
+
+
+func _check_activity_observation(adapter: Object, stage: String) -> void:
+	var expected: Dictionary = adapter.get_snapshot().activity_reward
+	var observed: Dictionary = adapter.get_activity_reward_snapshot()
+	_check(observed == expected, stage + " activity observation matches full diagnostics")
+	observed["state"] = &"tampered"
+	(observed.get("authority", {}) as Dictionary)["reward_store"] = true
+	(observed.get("pending_reward", {}) as Dictionary)["tampered"] = true
+	_check(adapter.get_activity_reward_snapshot() == expected, stage + " activity evidence is detached")

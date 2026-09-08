@@ -333,9 +333,7 @@ func start_relay_survey() -> Dictionary:
 		result = _relay_survey.begin(_adapter, _navigation)
 	if bool(result.get("accepted", false)):
 		_restored_relay_survey_completion.clear()
-		var runtime := (
-			_adapter.get_snapshot().get("activity_reward", {}) as Dictionary
-		)
+		var runtime := get_activity_reward_snapshot()
 		var next_generation := int(runtime.get("activity_generation", -1))
 		var service := _survey_interaction.call(&"get_snapshot") as Dictionary
 		var terminal := service.get("service_terminal", {}) as Dictionary
@@ -528,7 +526,7 @@ func restore_relay_survey_persistence() -> Dictionary:
 	var loaded := _relay_survey_persistence.call(&"load") as Dictionary
 	if not bool(loaded.get("accepted", false)):
 		return loaded
-	var runtime := _adapter.get_snapshot().get("activity_reward", {}) as Dictionary
+	var runtime := get_activity_reward_snapshot()
 	if StringName(runtime.get("state", &"")) != &"ready":
 		return _result(false, &"survey_persistence_live_activity_present")
 	var completion := (
@@ -957,6 +955,11 @@ func accept_origin_rebase(receipt: Variant) -> Dictionary:
 	return _adapter.call(&"accept_origin_rebase", receipt)
 
 
+## Fresh detached activity evidence for the admitted caller and reward owner.
+func get_activity_reward_snapshot() -> Dictionary:
+	return _adapter.get_activity_reward_snapshot() if _adapter != null else {}
+
+
 func get_snapshot() -> Dictionary:
 	return {
 		"state": [&"idle", &"bound", &"detached"][_state],
@@ -1299,7 +1302,7 @@ func _hazard_zero_authority() -> Dictionary:
 func _apply_relay_survey_presentation() -> void:
 	if _relay_survey_presentation == null or _adapter == null:
 		return
-	var activity_snapshot: Dictionary = _adapter.get_snapshot().get("activity_reward", {}) as Dictionary
+	var activity_snapshot: Dictionary = get_activity_reward_snapshot()
 	var survey_snapshot := _relay_survey.get_snapshot(_adapter) as Dictionary
 	var checkpoint_snapshot := survey_snapshot.get("optional_checkpoint", {}) as Dictionary
 	var mandatory_route := survey_snapshot.get("mandatory_route", {}) as Dictionary
