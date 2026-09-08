@@ -1,9 +1,10 @@
 extends SceneTree
 
-## Temporary before/after startup measurement. Run under a real rendering device:
+## Startup measurement and menu-readiness acceptance check. For rendered checks:
 ##
 ##   VK_ICD_FILENAMES=/usr/share/vulkan/icd.d/lvp_icd.json xvfb-run -a godot \
-##     --path . --rendering-driver vulkan --script res://tools/startup_timing_probe.gd -- <mode>
+##     --path . --display-driver x11 --audio-driver Dummy --rendering-driver vulkan \
+##     --script res://tools/startup_timing_probe.gd -- <mode>
 ##
 ## `mode` is `legacy` (what the packaged build used to do: open straight onto
 ## scenes/main.tscn) or `staged` (the boot scene). Both report the wall-clock
@@ -19,6 +20,7 @@ var _watching := false
 ## Set from a signal handler. A bound method, not a lambda: GDScript lambdas
 ## capture locals by value, so a flag set inside one never reaches the caller.
 var _startup_finished := false
+var _exit_code := 0
 
 
 func _init() -> void:
@@ -43,7 +45,7 @@ func _run() -> void:
 	else:
 		await _run_staged()
 	_report_frames()
-	quit()
+	quit(_exit_code)
 
 
 func _begin_frame_watch() -> void:
@@ -123,7 +125,8 @@ func _run_staged() -> void:
 	var t0 := Time.get_ticks_usec()
 	_begin_frame_watch()
 	var packed := load("res://scenes/boot.tscn") as PackedScene
-	var boot := packed.instantiate() as StartupLoader
+	var boot := packed.instantiate()
+	boot.startup_completed.connect(_on_startup_completed)
 	root.add_child(boot)
 	if _has_render_device():
 		await RenderingServer.frame_post_draw
@@ -131,10 +134,13 @@ func _run_staged() -> void:
 		await process_frame
 	print("STAGED time_to_first_presented_frame_ms: %.1f" % ((Time.get_ticks_usec() - t0) / 1000.0))
 	var captured := false
-	boot.startup_completed.connect(_on_startup_completed)
 	var last_stage := ""
 	while not _startup_finished:
-		var screen := boot.get_loading_screen()
+		if Time.get_ticks_usec() - t0 > 600_000_000:
+			push_error("STARTUP_MENU_READY_FAILED: startup timed out")
+			_exit_code = 1
+			return
+		var screen: Variant = boot.get_loading_screen()
 		if is_instance_valid(screen) and str(screen.get_report()["detail"]) != last_stage:
 			last_stage = str(screen.get_report()["detail"])
 			print("  ...%6.0f ms  %.0f%%  %s" % [
@@ -146,8 +152,10 @@ func _run_staged() -> void:
 			captured = true
 			await _snapshot("loading_screen_mid")
 		await process_frame
+	while is_instance_valid(boot.get_loading_screen()):
+		await process_frame
 	await _await_settled("STAGED", t0)
-	var report := boot.get_startup_report()
+	var report: Dictionary = boot.get_startup_report()
 	print("STAGED time_to_first_frame_ms: %.1f" % float(report["time_to_first_frame_ms"]))
 	print("STAGED time_to_resources_ms: %.1f" % float(report["time_to_resources_ms"]))
 	print("STAGED time_to_interactive_ms: %.1f" % float(report["time_to_interactive_ms"]))
@@ -158,6 +166,16 @@ func _run_staged() -> void:
 			entry["label"], float(entry["elapsed_ms"]), float(entry["at_ms"])
 		])
 	await _snapshot("staged_title_screen")
+	var menu_ready := false
+	for button: Button in boot.find_children("*", "Button", true, false):
+		if button.text.begins_with("BEGIN SHIFT"):
+			menu_ready = button.is_visible_in_tree() and not button.disabled
+			break
+	if not menu_ready:
+		push_error("STARTUP_MENU_READY_FAILED: BEGIN SHIFT is not visible and enabled")
+		_exit_code = 1
+	else:
+		print("STARTUP_MENU_READY_OK: visible and enabled BEGIN SHIFT after startup_completed")
 
 
 func _snapshot(label: String) -> void:

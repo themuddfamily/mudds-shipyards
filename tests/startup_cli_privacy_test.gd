@@ -10,6 +10,21 @@ func _init() -> void:
 
 
 func _run() -> void:
+	_check(StartupLoaderType.cli_mode(PackedStringArray(["--startup-check"])) == &"", "package startup check follows the real boot path")
+	var menu := Control.new()
+	var button := Button.new()
+	button.text = "BEGIN SHIFT"
+	menu.add_child(button)
+	_check(not StartupLoaderType.is_title_menu_ready(menu), "detached menu cannot pass the package check")
+	root.add_child(menu)
+	button.disabled = true
+	_check(not StartupLoaderType.is_title_menu_ready(menu), "disabled menu cannot pass the package check")
+	button.disabled = false
+	menu.hide()
+	_check(not StartupLoaderType.is_title_menu_ready(menu), "hidden menu cannot pass the package check")
+	menu.show()
+	_check(StartupLoaderType.is_title_menu_ready(menu), "visible enabled menu passes the package check")
+	menu.free()
 	_check(
 		StartupLoaderType.cli_mode(PackedStringArray(["--version"])) == &"version",
 		"version flag selects the early version path"

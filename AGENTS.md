@@ -30,6 +30,9 @@
 - Use the existing safe export workflow from a clean commit, run the relevant
   focused checks and a silent isolated package smoke check, then put the EXE and
   a checkpoint ZIP in `/mnt/c/Users/themu/Downloads/` when that mount is available.
+- Package startup checks must use `--startup-check` and require both exit 0 and
+  `STARTUP_MENU_READY_OK`. A fixed `--quit-after` frame count does not establish
+  menu readiness. Export templates can ignore external `--script` overrides.
 - Include concise player-visible changes and actual validation in the build
   notes. A checkpoint build does not imply native Windows, GPU or full-release
   qualification; retain those gates until performed.

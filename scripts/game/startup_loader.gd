@@ -39,6 +39,7 @@ const MAIN_SCENE_PATH := "res://scenes/main.tscn"
 const CLI_VERSION := &"--version"
 const CLI_SUPPORT_INFO := &"--support-info"
 const CLI_SUPPORT_EXPORT := &"--support-export"
+const CLI_STARTUP_CHECK := &"--startup-check"
 
 ## Frames to present before any expensive work starts. Two, because the first
 ## one is where the loading screen's Controls take their layout.
@@ -93,6 +94,9 @@ func _ready() -> void:
 		call_deferred("_quit_after_cli_output")
 		return
 	_boot_usec = Time.get_ticks_usec()
+	print("STARTUP begin: renderer=%s device=%s" % [
+		RenderingServer.get_current_rendering_method(), RenderingServer.get_video_adapter_name()
+	])
 	# Nothing is playable yet, so nothing may own the cursor. This is also the
 	# backstop for a reloaded scene: `reload_current_scene()` returns here with
 	# whatever mouse mode gameplay left behind.
@@ -252,9 +256,44 @@ func run_startup() -> Node:
 	)
 	_interactive_usec = Time.get_ticks_usec()
 	_screen.dismiss()
+	_note_stage("handoff", "Opening title menu")
 	_finish_startup(startup_generation)
 	startup_completed.emit(_main)
+	if CLI_STARTUP_CHECK in OS.get_cmdline_args():
+		_check_presented_menu.call_deferred(startup_generation)
 	return _main
+
+
+## Export templates can disable external --script overrides. This explicit
+## package check follows the ordinary boot and only succeeds after the actual
+## title menu is presented. The launching harness still owns a wall-clock abort.
+func _check_presented_menu(startup_generation: int) -> void:
+	var tree := get_tree()
+	# The loading overlay intercepts mouse input until its dismissal finishes.
+	# A visible button behind that overlay is not an interactive menu yet.
+	while is_instance_valid(_screen) and _screen.is_inside_tree():
+		await tree.process_frame
+		if not is_inside_tree() or startup_generation != _startup_generation:
+			return
+	await tree.process_frame
+	if not is_inside_tree() or startup_generation != _startup_generation:
+		return
+	if not RenderingServer.get_video_adapter_name().is_empty():
+		await RenderingServer.frame_post_draw
+		if not is_inside_tree() or startup_generation != _startup_generation:
+			return
+	var ready := is_title_menu_ready(_main)
+	print("STARTUP_MENU_READY_%s: %s" % ["OK" if ready else "FAILED", JSON.stringify(get_startup_report())])
+	tree.quit(0 if ready else 1)
+
+
+static func is_title_menu_ready(main: Node) -> bool:
+	if not is_instance_valid(main) or not main.is_inside_tree():
+		return false
+	for button: Button in main.find_children("*", "Button", true, false):
+		if button.text.begins_with("BEGIN SHIFT"):
+			return button.is_visible_in_tree() and not button.disabled
+	return false
 
 
 func get_main() -> Node:
@@ -403,6 +442,10 @@ func _note_stage(phase: String, label: String) -> void:
 		"elapsed_ms": elapsed,
 		"at_ms": _ms_since_boot(now),
 	})
+	# Keep the last completed stage in the normal rotated engine log even if a
+	# native graphics fault prevents graceful shutdown. Release stdout is flushed
+	# by project.godot. These labels contain no saves, user paths or CLI arguments.
+	print("STARTUP %.0f ms (+%.0f ms): %s" % [_ms_since_boot(now), elapsed, label])
 
 
 func _release_mouse() -> void:
