@@ -2045,6 +2045,21 @@ func get_restored_activity_session() -> Dictionary:
 	return _restored_session.duplicate(true)
 
 
+## Fresh detached presentation for one caller-driven activity. Physics consumers
+## need its current lifecycle without rebuilding unrelated encounter/HUD state.
+func get_activity_snapshot(activity: StringName) -> Dictionary:
+	match activity:
+		&"cargo":
+			return _cargo_presentation_snapshot()
+		&"mining":
+			return _mining_presentation_snapshot()
+		&"structure_scan":
+			return _structure_scan_presentation_snapshot()
+		&"beacon_traversal":
+			return _beacon_traversal_presentation_snapshot()
+	return {}
+
+
 func get_snapshot() -> Dictionary:
 	return {
 		"schema_version": SCHEMA_VERSION,

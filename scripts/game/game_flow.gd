@@ -11459,14 +11459,11 @@ func _advance_cinder_cargo_run(
 	if (
 		not is_instance_valid(binding)
 		or not binding.has_method(&"advance_cargo_run_from_caller_sample")
-		or not binding.has_method(&"get_snapshot")
+		or not binding.has_method(&"get_activity_snapshot")
 	):
 		_cinder_cargo_hud_elapsed = 0.0
 		return {"accepted": false, "reason": &"cargo_binding_unavailable"}
-	var cargo := (
-		(binding.call(&"get_snapshot") as Dictionary).get("cargo", {})
-		as Dictionary
-	)
+	var cargo := binding.call(&"get_activity_snapshot", &"cargo") as Dictionary
 	if StringName(cargo.get("state_id", &"")) != &"active" \
 			or int(cargo.get("generation", 0)) < 1:
 		_cinder_cargo_hud_elapsed = 0.0
@@ -11513,14 +11510,11 @@ func _advance_cinder_mining_extraction(
 		not is_instance_valid(binding)
 		or not binding.has_method(&"advance_mining_activity_from_caller_sample")
 		or not binding.has_method(&"request_mining_reward")
-		or not binding.has_method(&"get_snapshot")
+		or not binding.has_method(&"get_activity_snapshot")
 	):
 		_cinder_mining_hud_elapsed = 0.0
 		return {"accepted": false, "reason": &"mining_binding_unavailable"}
-	var mining := (
-		(binding.call(&"get_snapshot") as Dictionary).get("mining", {})
-		as Dictionary
-	)
+	var mining := binding.call(&"get_activity_snapshot", &"mining") as Dictionary
 	if (
 		StringName(mining.get("state_id", &"")) != &"active"
 		or int(mining.get("generation", 0)) < 1
@@ -11570,11 +11564,10 @@ func _advance_cinder_structure_scan(
 		not is_instance_valid(binding)
 		or not binding.has_method(&"advance_structure_scan_from_caller_sample")
 		or not binding.has_method(&"request_structure_scan_reward")
-		or not binding.has_method(&"get_snapshot")
+		or not binding.has_method(&"get_activity_snapshot")
 	):
 		return {"accepted": false, "reason": &"structure_scan_binding_unavailable"}
-	var binding_snapshot := binding.call(&"get_snapshot") as Dictionary
-	var scan := binding_snapshot.get("structure_scan", {}) as Dictionary
+	var scan := binding.call(&"get_activity_snapshot", &"structure_scan") as Dictionary
 	if (
 		StringName(scan.get("state_id", &"")) != &"active"
 		or int(scan.get("generation", 0)) < 1
@@ -11619,12 +11612,11 @@ func _advance_cinder_beacon_traversal(
 		not is_instance_valid(binding)
 		or not binding.has_method(&"advance_beacon_traversal_from_caller_sample")
 		or not binding.has_method(&"request_beacon_traversal_reward")
-		or not binding.has_method(&"get_snapshot")
+		or not binding.has_method(&"get_activity_snapshot")
 	):
 		_cinder_beacon_hud_elapsed = 0.0
 		return {"accepted": false, "reason": &"beacon_traversal_binding_unavailable"}
-	var binding_snapshot := binding.call(&"get_snapshot") as Dictionary
-	var traversal := binding_snapshot.get("beacon_traversal", {}) as Dictionary
+	var traversal := binding.call(&"get_activity_snapshot", &"beacon_traversal") as Dictionary
 	if (
 		StringName(traversal.get("state_id", &"")) != &"active"
 		or int(traversal.get("generation", 0)) < 1

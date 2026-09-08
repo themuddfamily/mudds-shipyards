@@ -2,6 +2,7 @@ extends SceneTree
 
 const CLUSTER_SCENE := preload("res://scenes/world/components/nearby_sector_cluster.tscn")
 
+var _station_snapshot_calls := 0
 var _assertions := 0
 var _failures: Array[String] = []
 var _mining_presentations: Array[Dictionary] = []
@@ -20,6 +21,16 @@ func _run() -> void:
 	var binding := cluster.get_node_or_null(^"ActivityBinding") as NearbySectorActivityBinding
 	_check(binding != null, "the authored nearby-sector scene owns one activity binding")
 	if binding != null:
+		binding.bind_station_defense_snapshot_provider(Callable(self, "_station_snapshot_probe"))
+		var full := binding.get_snapshot()
+		var station_calls := _station_snapshot_calls
+		for activity: StringName in [&"cargo", &"mining", &"structure_scan", &"beacon_traversal"]:
+			var narrow := binding.get_activity_snapshot(activity)
+			_check(narrow == full.get(activity, {}), "narrow %s snapshot preserves the full presentation" % activity)
+			narrow["generation"] = -100
+			_check(binding.get_activity_snapshot(activity) == full.get(activity, {}), "narrow %s snapshot is detached" % activity)
+		_check(_station_snapshot_calls == station_calls, "activity physics reads do not rebuild unrelated station defense presentation")
+		_check(binding.get_activity_snapshot(&"unknown").is_empty(), "unknown activity has no snapshot")
 		var production_observers := binding.get_presentation_observer_snapshot()
 		_check(
 			int(production_observers.mining_observers) == 2
@@ -142,8 +153,10 @@ func _run() -> void:
 			"start_mining_activity", Vector3(60.0, -66.0, -605.0)
 		)
 		_check(bool(mining_start.get("accepted", false)), "the owner starts the bounded modern mining activity at its authored approach")
+		_check(binding.get_activity_snapshot(&"mining").get("state_id") == &"active", "narrow snapshot observes a same-frame activity start")
 		var mining_step: Dictionary = binding.call("advance_mining_activity", 6.0)
 		_check(bool(mining_step.get("accepted", false)), "the mining activity completes on caller-supplied extraction time")
+		_check(binding.get_activity_snapshot(&"mining").get("state_id") == &"complete", "narrow snapshot observes a same-frame activity completion")
 		var reward: Dictionary = binding.call("request_mining_reward")
 		_check(
 			bool(reward.get("accepted", false))
@@ -222,6 +235,11 @@ func _run() -> void:
 	cluster.queue_free()
 	await process_frame
 	_finish()
+
+
+func _station_snapshot_probe() -> Dictionary:
+	_station_snapshot_calls += 1
+	return {"host": {}}
 
 
 func _check(condition: bool, message: String) -> void:
