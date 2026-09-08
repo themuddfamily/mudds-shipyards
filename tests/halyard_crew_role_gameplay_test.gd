@@ -218,6 +218,16 @@ func _run() -> void:
 	var route_modifiers := craft.get_operational_modifiers()
 	var route := route_modifiers.get("engineer_power_route", {}) as Dictionary
 	_check(
+		is_equal_approx(
+			float(craft.get_telemetry().get("engine_power", -1.0)),
+			minf(
+				float(route_modifiers.get("mobility_multiplier", 0.0)),
+				craft.get_damage_presentation().get_engine_power_multiplier()
+			)
+		),
+		"telemetry preserves the fresh Halyard engineer route through the public modifier override"
+	)
+	_check(
 		StringName(selection.get("power_route", &"none")) == &"mobility_multiplier"
 			and StringName(route.get("channel", &"")) == &"mobility_multiplier"
 			and int(route.get("component_generation", 0)) == 1,

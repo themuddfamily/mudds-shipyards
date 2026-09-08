@@ -553,7 +553,9 @@ func _test_operational_modifiers_follow_damage_and_repair() -> void:
 	})
 	var model := ComponentDamageModelType.new(definitions) as ComponentDamageModel
 	_check(
-		model.get_operational_modifiers(ENGINE_ID, WEAPON_ID, SENSOR_ID).is_empty(),
+		model.get_operational_modifiers(ENGINE_ID, WEAPON_ID, SENSOR_ID).is_empty()
+		and model.get_component_performance_multiplier(ENGINE_ID) == -1.0
+		and model.is_component_disabled(ENGINE_ID),
 		"inactive ledgers publish no invented operational capability"
 	)
 	model.reset_for_reuse(0)
@@ -566,6 +568,8 @@ func _test_operational_modifiers_follow_damage_and_repair() -> void:
 	_check(
 		bool(damage.accepted)
 			and is_equal_approx(float(degraded.mobility_multiplier), 0.38)
+			and is_equal_approx(model.get_component_performance_multiplier(ENGINE_ID), 0.38)
+			and not model.is_component_disabled(ENGINE_ID)
 			and is_equal_approx(float(degraded.fire_multiplier), 0.55)
 			and is_equal_approx(float(degraded.targeting_multiplier), 0.64)
 			and not bool(degraded.mobility_disabled)
@@ -589,7 +593,9 @@ func _test_operational_modifiers_follow_damage_and_repair() -> void:
 	_check(
 		bool(failed_weapon.accepted)
 			and is_zero_approx(float(failed.fire_multiplier))
-			and bool(failed.fire_disabled),
+			and bool(failed.fire_disabled)
+			and model.is_component_disabled(WEAPON_ID)
+			and is_zero_approx(model.get_component_performance_multiplier(WEAPON_ID)),
 		"a resolved weapon failure publishes zero fire capability without firing authority"
 	)
 	var repairs := model.apply_component_repair_batch([
@@ -605,11 +611,15 @@ func _test_operational_modifiers_follow_damage_and_repair() -> void:
 			and is_equal_approx(float(restored.targeting_multiplier), 1.0)
 			and not bool(restored.mobility_disabled)
 			and not bool(restored.fire_disabled)
+			and not model.is_component_disabled(WEAPON_ID)
+			and is_equal_approx(model.get_component_performance_multiplier(WEAPON_ID), 1.0)
 			and not bool(restored.targeting_disabled),
 		"caller-authorized repair restores every operational modifier through the same ledger"
 	)
 	_check(
 		model.get_operational_modifiers(ENGINE_ID, WEAPON_ID, &"unknown_sensor").is_empty()
+			and model.get_component_performance_multiplier(&"unknown_sensor") == -1.0
+			and model.is_component_disabled(&"unknown_sensor")
 			and not bool(model.get_authority_report().gameplay),
 		"unknown bindings fail closed while movement, fire, and targeting authority stay external"
 	)

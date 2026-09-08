@@ -135,6 +135,8 @@ func _test_operational_modifiers_and_repair() -> void:
 	_degrade_to_impaired(model, ShipComponentDamageType.COMPONENT_ENGINE_BAY)
 	_degrade_to_impaired(model, ShipComponentDamageType.COMPONENT_PORT_WING)
 	_degrade_to_impaired(model, ShipComponentDamageType.COMPONENT_CORE_SYSTEMS)
+	(nominal.component_bindings.weapons as Array).clear()
+	nominal["mobility_multiplier"] = -100.0
 	var degraded := model.get_operational_modifiers()
 	_check(
 		is_equal_approx(float(degraded.mobility_multiplier), 0.62)

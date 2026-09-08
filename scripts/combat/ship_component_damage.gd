@@ -514,43 +514,32 @@ func get_component_states() -> Array[Dictionary]:
 func get_operational_modifiers() -> Dictionary:
 	if not is_configured():
 		return {}
-	var port := _ledger.get_operational_modifiers(
-		COMPONENT_ENGINE_BAY,
-		COMPONENT_PORT_WING,
-		COMPONENT_CORE_SYSTEMS
-	)
-	var starboard := _ledger.get_operational_modifiers(
-		COMPONENT_ENGINE_BAY,
-		COMPONENT_STARBOARD_WING,
-		COMPONENT_CORE_SYSTEMS
-	)
-	if port.is_empty() or starboard.is_empty():
+	var mobility := _ledger.get_component_performance_multiplier(COMPONENT_ENGINE_BAY)
+	var port_fire := _ledger.get_component_performance_multiplier(COMPONENT_PORT_WING)
+	var starboard_fire := _ledger.get_component_performance_multiplier(COMPONENT_STARBOARD_WING)
+	var targeting := _ledger.get_component_performance_multiplier(COMPONENT_CORE_SYSTEMS)
+	if mobility < 0.0 or port_fire < 0.0 or starboard_fire < 0.0 or targeting < 0.0:
 		return {}
+	# All values and the bindings below are fresh. No ledger-owned tree is copied
+	# merely to combine the two weapon sections into one ship channel.
 	return {
-		"generation": int(port.get("generation", 0)),
-		"revision": int(port.get("revision", 0)),
-		"mobility_multiplier": clampf(
-			float(port.get("mobility_multiplier", 0.0)), 0.0, 1.0
-		),
-		"fire_multiplier": minf(
-			clampf(float(port.get("fire_multiplier", 0.0)), 0.0, 1.0),
-			clampf(float(starboard.get("fire_multiplier", 0.0)), 0.0, 1.0)
-		),
-		"targeting_multiplier": clampf(
-			float(port.get("targeting_multiplier", 0.0)), 0.0, 1.0
-		),
-		"mobility_disabled": bool(port.get("mobility_disabled", true)),
+		"generation": _ledger.get_generation(),
+		"revision": _ledger.get_revision(),
+		"mobility_multiplier": clampf(mobility, 0.0, 1.0),
+		"fire_multiplier": minf(clampf(port_fire, 0.0, 1.0), clampf(starboard_fire, 0.0, 1.0)),
+		"targeting_multiplier": clampf(targeting, 0.0, 1.0),
+		"mobility_disabled": _ledger.is_component_disabled(COMPONENT_ENGINE_BAY),
 		"fire_disabled": (
-			bool(port.get("fire_disabled", true))
-			or bool(starboard.get("fire_disabled", true))
+			_ledger.is_component_disabled(COMPONENT_PORT_WING)
+			or _ledger.is_component_disabled(COMPONENT_STARBOARD_WING)
 		),
-		"targeting_disabled": bool(port.get("targeting_disabled", true)),
+		"targeting_disabled": _ledger.is_component_disabled(COMPONENT_CORE_SYSTEMS),
 		"component_bindings": {
 			"engine": COMPONENT_ENGINE_BAY,
 			"weapons": [COMPONENT_PORT_WING, COMPONENT_STARBOARD_WING],
 			"sensor": COMPONENT_CORE_SYSTEMS,
 		},
-	}.duplicate(true)
+	}
 
 
 func get_component_report() -> Dictionary:

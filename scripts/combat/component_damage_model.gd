@@ -375,6 +375,20 @@ func get_component_states() -> Array[Dictionary]:
 	return states
 
 
+## Fresh scalar reads for runtime adapters. No stage dictionary escapes the
+## model. An inactive/unknown component has no capability (-1) and is disabled.
+func get_component_performance_multiplier(component_id: StringName) -> float:
+	if _generation <= 0 or not _components.has(component_id):
+		return -1.0
+	return _stage_multiplier(_resolved_stage(component_id))
+
+
+func is_component_disabled(component_id: StringName) -> bool:
+	if _generation <= 0 or not _components.has(component_id):
+		return true
+	return bool(_resolved_stage(component_id).get("disabled", false))
+
+
 ## Returns bounded, data-only runtime consequences for caller-designated engine,
 ## weapon, and sensor components. The caller retains movement, fire, targeting,
 ## and component-role authority; this model only translates its resolved stages
@@ -702,10 +716,12 @@ func _stage_snapshot(stages: Array, stage_index: int) -> Dictionary:
 
 func _resolved_stage(component_id: StringName) -> Dictionary:
 	var component := _components[component_id] as Dictionary
-	return _stage_snapshot(
-		component.get("damage_stages", []) as Array,
-		int(component.get("stage_index", -1))
-	)
+	var stages := component.get("damage_stages", []) as Array
+	var stage_index := int(component.get("stage_index", -1))
+	if stage_index < 0 or stage_index >= stages.size():
+		return {}
+	# Private synchronous scalar consumers only; public snapshots use _stage_snapshot.
+	return stages[stage_index] as Dictionary
 
 
 func _stage_multiplier(stage: Dictionary) -> float:

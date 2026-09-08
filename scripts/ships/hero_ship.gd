@@ -2306,7 +2306,9 @@ func get_telemetry() -> Dictionary:
 	if is_inside_tree():
 		flight_forward_world = -global_basis.z.normalized()
 		altitude = maxf(0.0, global_position.y - 1.15)
-	var weapon_status := get_weapon_fire_status()
+	# Keep subclass power routing in this fresh, synchronous telemetry sample.
+	var modifiers := get_operational_modifiers()
+	var weapon_status := _get_weapon_fire_status_from_modifiers(modifiers)
 	return {
 		"speed": velocity.length(),
 		"velocity_world": velocity,
@@ -2329,8 +2331,8 @@ func get_telemetry() -> Dictionary:
 		"component_integrity": (
 			_component_damage.get_worst_integrity() if _component_damage != null else 1.0
 		),
-		"engine_power": _get_damage_engine_multiplier(),
-		"weapon_power": _get_damage_weapon_multiplier(),
+		"engine_power": _get_damage_engine_multiplier(modifiers),
+		"weapon_power": _get_damage_weapon_multiplier(modifiers),
 		"weapon_heat": _weapon_heat,
 		"weapon_heat_percent": roundi(_weapon_heat * 100.0),
 		"weapon_overheated": _weapon_overheated,
@@ -2339,7 +2341,7 @@ func get_telemetry() -> Dictionary:
 		"weapon_unavailable_reason": StringName(weapon_status.get("reason", &"weapon_unavailable")),
 		"weapon_cooldown_remaining": _weapon_timer,
 		"weapon_recovery_remaining": _weapon_overheat_remaining,
-		"targeting_power": _get_damage_targeting_multiplier(),
+		"targeting_power": _get_damage_targeting_multiplier(modifiers),
 		"engine_state": _engine_state,
 		"automatic_engine_idle_remaining": (
 			maxf(
@@ -3875,7 +3877,11 @@ func _clear_landing_authority_snapshot() -> void:
 ## Detached availability snapshot for the existing weapon consumer and HUD
 ## telemetry. It does not reserve a shot or resolve damage.
 func get_weapon_fire_status() -> Dictionary:
-	var reason := _get_weapon_unavailable_reason()
+	return _get_weapon_fire_status_from_modifiers({})
+
+
+func _get_weapon_fire_status_from_modifiers(modifiers: Dictionary) -> Dictionary:
+	var reason := _get_weapon_unavailable_reason(modifiers)
 	var status: StringName = &"ready"
 	if reason == &"weapon_overheated":
 		status = &"overheated"
@@ -3895,15 +3901,16 @@ func get_weapon_fire_status() -> Dictionary:
 	}.duplicate(true)
 
 
-func _get_weapon_unavailable_reason() -> StringName:
+func _get_weapon_unavailable_reason(modifiers: Dictionary = {}) -> StringName:
 	if _reset_for_reuse_mutation_blocked():
 		return &"reset_for_reuse_pending"
 	if _destroyed or _hull <= 0.0:
 		return &"ship_destroyed"
 	if _engine_state != ENGINE_ONLINE:
 		return &"engine_not_online"
-	var modifiers := get_operational_modifiers()
-	if _get_damage_weapon_multiplier() <= 0.0 or bool(modifiers.get("fire_disabled", false)):
+	if modifiers.is_empty():
+		modifiers = get_operational_modifiers()
+	if _get_damage_weapon_multiplier(modifiers) <= 0.0 or bool(modifiers.get("fire_disabled", false)):
 		return &"weapon_component_failed"
 	if _weapon_overheated:
 		return &"weapon_overheated"
@@ -4579,13 +4586,14 @@ func _resume_destroyed_hull_hide_after_reentry() -> void:
 	)
 
 
-func _get_damage_engine_multiplier() -> float:
+func _get_damage_engine_multiplier(modifiers: Dictionary = {}) -> float:
 	var presentation_power := (
 		clampf(_damage_presentation.get_engine_power_multiplier(), 0.0, 1.0)
 		if _damage_presentation != null
 		else 1.0
 	)
-	var modifiers := get_operational_modifiers()
+	if modifiers.is_empty():
+		modifiers = get_operational_modifiers()
 	var component_power := clampf(
 		float(modifiers.get("mobility_multiplier", 1.0)),
 		0.0,
@@ -4594,17 +4602,21 @@ func _get_damage_engine_multiplier() -> float:
 	return minf(presentation_power, component_power)
 
 
-func _get_damage_weapon_multiplier() -> float:
+func _get_damage_weapon_multiplier(modifiers: Dictionary = {}) -> float:
+	if modifiers.is_empty():
+		modifiers = get_operational_modifiers()
 	return clampf(
-		float(get_operational_modifiers().get("fire_multiplier", 1.0)),
+		float(modifiers.get("fire_multiplier", 1.0)),
 		0.0,
 		1.0
 	)
 
 
-func _get_damage_targeting_multiplier() -> float:
+func _get_damage_targeting_multiplier(modifiers: Dictionary = {}) -> float:
+	if modifiers.is_empty():
+		modifiers = get_operational_modifiers()
 	return clampf(
-		float(get_operational_modifiers().get("targeting_multiplier", 1.0)),
+		float(modifiers.get("targeting_multiplier", 1.0)),
 		0.0,
 		1.0
 	)
