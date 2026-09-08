@@ -366,14 +366,18 @@ func _build_bulwark_variant(_controller: HeroShip) -> bool:
 	# Continuous load-bearing keel and a descending forebody replace the blunt
 	# slab nose. Every upper section remains below the inherited cabin floor.
 	_profile_shell(_bulwark_visual, "ArmoredCentralSlab", Vector3(0, 0.82, 0.25), [
-		Vector4(-4.25, 2.22, 0.40, -0.10), Vector4(-2.25, 3.2, 0.76, 0),
-		Vector4(1.7, 3.2, 0.76, 0), Vector4(4.25, 2.5, 0.48, -0.12),
+		Vector4(-4.25, 2.22, 0.40, -0.10), Vector4(-2.25, 2.75, 0.76, 0),
+		Vector4(1.45, 2.75, 0.76, 0), Vector4(2.8, 2.16, 0.61, -0.10),
+		Vector4(4.25, 1.50, 0.33, -0.25),
 	], armor_blue)
 	_profile_shell(_bulwark_visual, "ArmoredNose", Vector3.ZERO, [
 		Vector4(-6.25, 1.05, 0.19, 0.48), Vector4(-5.4, 1.95, 0.33, 0.62),
 		Vector4(-3.25, 2.82, 0.62, 0.88), Vector4(-2.65, 2.82, 0.65, 0.9),
 	], armor_highlight)
-	_armor_shell(_bulwark_visual, "CenterlineArmorSpine", Vector3(0, 1.86, 3.1), Vector3(1.2, 0.20, 3.1), armor_blue)
+	_profile_shell(_bulwark_visual, "CenterlineArmorSpine", Vector3.ZERO, [
+		Vector4(1.55, 0.47, 0.09, 1.68), Vector4(2.40, 0.60, 0.12, 1.56),
+		Vector4(3.70, 0.48, 0.09, 1.19), Vector4(4.45, 0.31, 0.08, 0.94),
+	], armor_blue)
 	_armor_shell(_bulwark_visual, "ChinArmor", Vector3(0, 0.02, -2.2), Vector3(4.3, 0.86, 4.0), armor_dark)
 	var armored_shoulder_transforms: Array[Transform3D] = []
 	var armored_shoulder_names := PackedStringArray()
@@ -590,12 +594,19 @@ func _build_bulwark_manufactured_details(visual: Node3D, armor: Material, dark: 
 	coaming.rotation.z = PI * 0.5
 	for side in [-1.0, 1.0]:
 		var tag := "Port" if side < 0 else "Starboard"
-		_service_bay(visual, tag + "ReactorCooling", Vector3(side * 1.5, 1.60, 2.0), 0.70, 1.25, armor, dark, metal)
+		# Mount cooling cartridges on the actual falling aft deck, so their
+		# perimeter and louver bank follow its slope instead of hovering above it.
+		var cooling_mount := Node3D.new()
+		cooling_mount.name = tag + "ReactorCoolingMount"
+		cooling_mount.position = Vector3(side * 1.12, 1.472, 2.34)
+		cooling_mount.rotation.x = atan(0.25 / 1.35)
+		visual.add_child(cooling_mount)
+		_service_bay(cooling_mount, tag + "ReactorCooling", Vector3.ZERO, 0.62, 0.96, armor, dark, metal)
 		# One low armored shoulder cap follows the hull instead of a turret stack.
-		_service_bay(visual, tag + "BastionThermalFace", Vector3(side * 4.05, 2.37, 1.22), 1.06, 1.05, armor, dark, metal)
-		var skirt := _pressure_panel(visual, tag + "OutboardSkirt", Vector3(side * 5.80, 1.08, 1.05), 0.48, 0.64, 0.055, 2.6, armor)
+		_service_bay(visual, tag + "BastionThermalFace", Vector3(side * 4.05, 2.37, 1.03), 1.06, 1.05, armor, dark, metal)
+		var skirt := _pressure_panel(visual, tag + "OutboardSkirt", Vector3(side * 5.80, 1.08, 0.58), 0.48, 0.64, 0.055, 2.1, armor)
 		skirt.rotation.z = PI * 0.5
-		for z in [0.0, 2.1]:
+		for z in [-0.30, 1.46]:
 			_box(visual, tag + "SkirtClamp" + str(z), Vector3(side * 5.835, 1.08, z), Vector3(0.07, 0.46, 0.08), metal)
 		# Nacelle armor terminates before the separate dark nozzle throat and lip.
 		_frustum(visual, tag + "ExhaustBell", Vector3(side * 2.65, 1.15, 5.54), 0.63, 0.52, 0.46, metal, Vector3(90, 0, 0), false, false)
@@ -617,11 +628,11 @@ func _build_bulwark_manufactured_details(visual: Node3D, armor: Material, dark: 
 	# of shoulder joints, boarding hardware, vents and gunner controls.
 	for side in [-1.0, 1.0]:
 		var registration := ShipSurfaceDetail.mark_surface(visual, ("Port" if side < 0 else "Starboard") + "HullRegistration", "bulwark",
-			Vector3(side * 5.85, 1.05, 1.22), Vector2(2.0, 1.0), Vector3(side, 0, 0), Vector3.UP)
+			Vector3(side * 5.85, 1.05, 0.58), Vector2(1.65, 0.84), Vector3(side, 0, 0), Vector3.UP)
 		# This dark armor needs lighter stencil ink than the upper hull paint.
 		registration.modulate = Color(3.0, 3.0, 3.0, 1.0)
 	ShipSurfaceDetail.mark_surface(visual, "AftExhaustWarning", "exhaust",
-		Vector3(0, 0.70, 4.50), Vector2(2.0, 1.0), Vector3.BACK, Vector3.UP)
+		Vector3(0, 0.59, 4.50), Vector2(1.75, 0.62), Vector3.BACK, Vector3.UP)
 
 
 ## Builds exactly two steady renderer surfaces. They have no process callback,
@@ -850,7 +861,15 @@ func _add_armored_shoulder_batch(
 		authored_names: PackedStringArray,
 		material: Material
 ) -> MultiMeshInstance3D:
-	var mesh := _loft_mesh(ARMORED_SHOULDER_SIZE, material)
+	# A broad load-bearing middle narrows at both ends. The aft bevel closes
+	# toward the engine cradle instead of leaving a slab across the stern.
+	var mesh := _profile_mesh([
+		Vector4(-2.65, 0.38, 0.24, -0.04),
+		Vector4(-1.22, 1.70, 0.625, 0),
+		Vector4(1.35, 1.70, 0.625, 0),
+		Vector4(2.15, 1.25, 0.47, -0.12),
+		Vector4(2.65, 0.72, 0.29, -0.23),
+	], material)
 	var multi := MultiMesh.new()
 	multi.transform_format = MultiMesh.TRANSFORM_3D
 	multi.mesh = mesh
@@ -919,7 +938,13 @@ func _add_dorsal_silhouette_batch(
 		material: Material,
 		silhouette_role: StringName
 ) -> MultiMeshInstance3D:
-	var mesh := _loft_mesh(size, material)
+	var mesh := _profile_mesh([
+		Vector4(-2.075, 0.24, 0.15, -0.16),
+		Vector4(-0.92, 0.90, 0.41, 0),
+		Vector4(1.08, 0.90, 0.41, 0),
+		Vector4(1.47, 0.71, 0.29, -0.12),
+		Vector4(2.075, 0.37, 0.13, -0.28),
+	], material) if silhouette_role == &"heavy_gunship_dorsal_bastions" else _loft_mesh(size, material)
 	var multi := MultiMesh.new()
 	multi.transform_format = MultiMesh.TRANSFORM_3D
 	multi.mesh = mesh

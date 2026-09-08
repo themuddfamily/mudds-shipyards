@@ -40,8 +40,12 @@ func _run() -> void:
 			true
 		)
 
-		for shell_name in ["ArmoredCentralSlab", "ArmoredNose", "GunnerRearSplinterShield", "PortCannonBreech", "StarboardCannonBreech"]:
+		for shell_name in ["ArmoredCentralSlab", "ArmoredNose", "CenterlineArmorSpine", "GunnerRearSplinterShield", "PortCannonBreech", "StarboardCannonBreech"]:
 			_check_profile(visual.get_node_or_null(shell_name) as MeshInstance3D, shell_name)
+
+		for batch_name in ["ArmoredShoulderBatch", "DorsalBastionBatch"]:
+			var batch := visual.get_node_or_null(batch_name) as MultiMeshInstance3D
+			_check_mesh(batch.multimesh.mesh if batch != null else null, batch_name)
 
 	var definition := ship.get_ship_definition()
 	_check(
@@ -109,9 +113,13 @@ func _check_batch(
 
 
 func _check_profile(instance: MeshInstance3D, label: String) -> void:
-	var valid := instance != null and instance.mesh is ArrayMesh
+	_check_mesh(instance.mesh if instance != null else null, label)
+
+
+func _check_mesh(mesh: Mesh, label: String) -> void:
+	var valid := mesh is ArrayMesh
 	if valid:
-		var arrays := instance.mesh.surface_get_arrays(0)
+		var arrays := mesh.surface_get_arrays(0)
 		var vertices: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
 		var normals: PackedVector3Array = arrays[Mesh.ARRAY_NORMAL]
 		var uv: PackedVector2Array = arrays[Mesh.ARRAY_TEX_UV]
