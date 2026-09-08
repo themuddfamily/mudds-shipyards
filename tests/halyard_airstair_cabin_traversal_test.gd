@@ -89,6 +89,7 @@ func _test_hatch_geometry(craft: HalyardCrewTransport) -> void:
 	for aperture_path in [
 		^"HalyardTransportVisual/AirstairHatchSurround",
 		^"HalyardTransportVisual/HullCore",
+		^"HalyardTransportVisual/PressureBodyShoulders",
 		^"HalyardTransportVisual/PortWindowFrame",
 		^"HalyardTransportVisual/PortWindowSill",
 		^"HalyardTransportVisual/PortIdentificationBand",

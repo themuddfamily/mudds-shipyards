@@ -340,15 +340,14 @@ const CABIN_PORTAL_UPRIGHT_COPY_COUNT := 4
 # Four merged finish meshes contain the fitted shell closures, access supports
 # and engine hardware; three hull decals share their retained visual root.
 # Cabin fittings remain on the moving interior root.
-const RENDER_DESCENDANT_COUNT := 127
-const RENDER_MESH_INSTANCE_COUNT := 110
+const RENDER_DESCENDANT_COUNT := 128
+const RENDER_MESH_INSTANCE_COUNT := 111
 const RENDER_MULTIMESH_BATCH_COUNT := 9
-const RENDER_DRAWN_COPY_COUNT := 196
-const RENDER_GEOMETRY_SUBMISSION_COUNT := 119
-# NoseBelly now clears the deck using the same 4.30 x 0.36 x 2.40 stock as
-# NoseRoof; material overrides keep their finishes distinct while the cache
-# deliberately shares that mesh resource.
-const RENDER_UNIQUE_MESH_RESOURCE_COUNT := 83
+const RENDER_DRAWN_COPY_COUNT := 197
+const RENDER_GEOMETRY_SUBMISSION_COUNT := 120
+# The formed exterior adds one shoulder mesh. Identification ribbons follow
+# the pressure cheek profile, replacing the old shared rectangular stock.
+const RENDER_UNIQUE_MESH_RESOURCE_COUNT := 85
 const RENDER_UNIQUE_MATERIAL_RESOURCE_COUNT := 17
 
 var _halyard_built := false
@@ -2744,30 +2743,32 @@ func _build_pressure_hull() -> void:
 		Vector2(2.10, PORT_AIRSTAIR_HATCH_APERTURE_WIDTH),
 		0.07
 	)
-	_pressed_roof(_halyard_visual, "HullCrown", 2.67, 3.24, 0.86,
-		PackedVector3Array([Vector3(0.83, -0.18, -11.50), Vector3(1.0, 0.0, -9.5), Vector3(1.0, 0.0, 6.8), Vector3(0.78, -0.35, 9.55)]),
+	# The cabin liner remains the physical envelope. Pressed outer shoulders and
+	# lower pressure cheeks turn that envelope into a vessel, with the glazing
+	# set into a narrow waist between the two formed skins.
+	_pressure_flank_skin("PressureBodyShoulders", _halyard_materials.hull_olive,
+		PackedVector2Array([Vector2(2.57, 0.40), Vector2(2.78, 0.88),
+		Vector2(2.94, 1.58), Vector2(2.94, 1.80), Vector2(2.65, 1.99),
+		Vector2(2.65, 2.73), Vector2(2.94, 2.91), Vector2(2.85, 3.28)]))
+	_pressed_roof(_halyard_visual, "HullCrown", 2.85, 3.28, 0.82,
+		PackedVector3Array([Vector3(0.68, -0.58, -12.85), Vector3(0.92, -0.16, -11.5), Vector3(1.0, 0.0, -10.60), Vector3(1.0, 0.0, 6.8), Vector3(1.0, 0.0, 8.20), Vector3(0.79, -0.30, 9.72)]),
 		0.10, _halyard_materials.hull_olive)
 	_manufactured_loft(_halyard_visual, "HullBelly", Vector3(0.0, 0.03, 0.0),
-		PackedVector3Array([Vector3(1.7, 0.18, -12.6), Vector3(2.5, 0.36, -9.0), Vector3(2.5, 0.36, 6.8), Vector3(1.8, 0.22, 9.35)]), _halyard_materials.hull_shade)
+		PackedVector3Array([Vector3(1.7, 0.18, -12.6), Vector3(2.5, 0.36, -9.0), Vector3(2.5, 0.36, 6.8), Vector3(2.03, 0.08, 9.72)]), _halyard_materials.hull_shade)
 	_manufactured_loft(_halyard_visual, "HullKeel", Vector3(0.0, -0.38, 0.0),
 		PackedVector3Array([Vector3(0.8, 0.12, -10.0), Vector3(1.25, 0.24, -7.5), Vector3(1.25, 0.24, 6.0), Vector3(0.8, 0.12, 8.0)]), _halyard_materials.structure)
 
-	# Stepped nose, built as a *shell* around the flight deck rather than as two
-	# solid blocks. The first rendered pass authored it solid, and the production
-	# cockpit camera then looked straight into the inside of the hull: the pilot's
-	# own view was a wall of unlit panel. Roof, belly and cheeks now enclose the
-	# deck and the forward face is glazing, so the seated eye point has an
-	# uninterrupted forward view. Stepped construction is preserved by the second,
-	# narrower nose-cap ring rather than by filling the volume.
+	# Swept structural cheeks and a continuous crown join the smaller flight-deck
+	# pressure frame to the full cabin shoulders. All stock stays around the
+	# occupied deck; the forward face remains glazing for the seated pilot.
 	for side in [-1.0, 1.0]:
 		var side_name := "Port" if side < 0.0 else "Starboard"
-		_manufactured_loft(_halyard_visual, side_name + "NoseCheek", Vector3(side * 2.03, 1.80, 0.0),
-			PackedVector3Array([Vector3(0.10, 0.86, -13.10), Vector3(0.21, 1.27, -12.40), Vector3(0.35, 1.45, -10.50)]), _halyard_materials.hull_olive)
+		_bow_pressure_cheek(side_name + "NoseCheek", side)
 		_box(_halyard_visual, side_name + "NoseCapCheek", Vector3(side * 1.48, 1.72, -12.85), Vector3(0.30, 2.10, 0.90), _halyard_materials.hull_shade)
 		_box(_halyard_visual, side_name + "FlightDeckQuarterlight", Vector3(side * 1.66, 2.05, -12.55), Vector3(0.14, 1.05, 1.50), _halyard_materials.glass)
 		_box(_halyard_visual, side_name + "NoseChine", Vector3(side * 2.05, 0.72, -11.75), Vector3(0.44, 0.34, 2.30), _halyard_materials.accent)
 	_pressed_roof(_halyard_visual, "NoseRoof", 2.22, 2.93, 0.29,
-		PackedVector3Array([Vector3(0.72, -0.15, -13.25), Vector3(1.0, 0.0, -11.80), Vector3(1.12, 0.18, -10.4)]), 0.10, _halyard_materials.hull_olive)
+		PackedVector3Array([Vector3(0.80, -0.12, -13.25), Vector3(1.05, 0.14, -12.0), Vector3(1.28, 0.35, -10.60)]), 0.10, _halyard_materials.hull_olive)
 	# Keep the exterior lower silhouette at y=0.00/0.10, but stop its upper
 	# faces below the inherited cockpit floor (y=0.40..0.52 after COCKPIT_SHIFT).
 	# The former 0.56/0.58 m tops swallowed the entire deck plate where the two
@@ -2807,7 +2808,7 @@ func _build_pressure_hull() -> void:
 	)
 
 	for seam_z in [-8.1, -3.9, 0.3, 4.5]:
-		_pressed_roof(_halyard_visual, "CrownPressureJoint", 2.67, 3.253, 0.86,
+		_pressed_roof(_halyard_visual, "CrownPressureJoint", 2.85, 3.293, 0.82,
 			PackedVector3Array([Vector3(1.0, 0.0, seam_z - 0.022), Vector3(1.0, 0.0, seam_z + 0.022)]),
 			0.014, _halyard_materials.dark)
 	# The flight-deck frame belongs to the larger transport pressure hull.
@@ -2938,21 +2939,8 @@ func _build_flank_detail() -> void:
 				Vector3(side * (HULL_HALF_WIDTH + 0.13), 2.35, window_z)
 			))
 			cabin_window_pane_names.append(side_name + "WindowPane%02d" % window_index)
-		# A single continuous banding stripe in the identification accent, low on
-		# the flank where it is unbroken by windows or hardware.
-		if side < 0.0:
-			_port_aperture_box(
-				_halyard_visual,
-				side_name + "IdentificationBand",
-				Vector3(side * (HULL_HALF_WIDTH + 0.05), 0.92, -1.20),
-				Vector3(0.14, 0.36, 17.60),
-				_halyard_materials.accent,
-				Vector2(0.92, AIRSTAIR_Z),
-				Vector2(0.36, PORT_AIRSTAIR_HATCH_APERTURE_WIDTH),
-				0.14
-			)
-		else:
-			_box(_halyard_visual, side_name + "IdentificationBand", Vector3(side * (HULL_HALF_WIDTH + 0.05), 0.92, -1.20), Vector3(0.14, 0.36, 17.60), _halyard_materials.accent)
+		_pressure_flank_skin(side_name + "IdentificationBand", _halyard_materials.accent,
+			PackedVector2Array([Vector2(2.745, 0.76), Vector2(2.806, 0.96)]), side)
 		# Defensive pulse mount. The Halyard's cadence is the slowest in the
 		# fleet; this is self-defence hardware, not an armament.
 		var weapon_parts: Array[MeshInstance3D] = []
@@ -4588,6 +4576,109 @@ func _transformed_mesh_bounds(mesh_bounds: AABB, transforms: Array[Transform3D])
 	return result
 
 
+## A swept pressure cheek joins the flight-deck frame directly to the full
+## cabin shoulders. The eight-sided stock is hollow around the flight deck;
+## unlike the old constant-centre capsule it has no blunt, freestanding ear.
+func _bow_pressure_cheek(node_name: String, side: float) -> void:
+	var tool := SurfaceTool.new()
+	tool.begin(Mesh.PRIMITIVE_TRIANGLES)
+	tool.set_material(_halyard_materials.hull_olive)
+	var rings: Array[PackedVector3Array] = []
+	for station in [Vector3(1.66, 1.05, -13.28), Vector3(2.10, 1.27, -12.40), Vector3(2.72, 1.46, -10.59)]:
+		var ring := PackedVector3Array()
+		for xy in [Vector2(-0.13, -0.86), Vector2(-0.10, -1.0), Vector2(0.10, -1.0), Vector2(0.22, -0.80), Vector2(0.22, 0.80), Vector2(0.10, 1.0), Vector2(-0.10, 1.0), Vector2(-0.13, 0.86)]:
+			ring.append(Vector3(side * (station.x + xy.x), 1.80 + station.y * xy.y, station.z))
+		rings.append(ring)
+	for station in rings.size() - 1:
+		for edge in 8:
+			var next := (edge + 1) % 8
+			var a := rings[station][edge]
+			var b := rings[station + 1][edge]
+			var c := rings[station + 1][next]
+			var d := rings[station][next]
+			if side < 0.0:
+				_skin_quad(tool, a, b, c, d)
+			else:
+				_skin_quad(tool, d, c, b, a)
+	for edge in 8:
+		var next := (edge + 1) % 8
+		var front := Vector3(side * 1.66, 1.80, -13.28)
+		var aft := Vector3(side * 2.72, 1.80, -10.59)
+		if side > 0.0:
+			_skin_quad(tool, front, rings[0][next], rings[0][edge], front)
+			_skin_quad(tool, aft, rings[2][edge], rings[2][next], aft)
+		else:
+			_skin_quad(tool, front, rings[0][edge], rings[0][next], front)
+			_skin_quad(tool, aft, rings[2][next], rings[2][edge], aft)
+	var visual := MeshInstance3D.new()
+	visual.name = node_name
+	visual.mesh = tool.commit()
+	visual.set_meta("visual_only", true)
+	visual.set_meta("closed_loft_hull", true)
+	_halyard_visual.add_child(visual)
+
+
+## Formed longitudinal skins sit outside the retained pressure liner. The port
+## hatch interval is split at the actual aperture boundaries, including the
+## lower cheek; no triangle spans the boarding route.
+func _pressure_flank_skin(node_name: String, material: Material,
+		profile: PackedVector2Array, only_side := 0.0) -> MeshInstance3D:
+	var tool := SurfaceTool.new()
+	tool.begin(Mesh.PRIMITIVE_TRIANGLES)
+	tool.set_material(material)
+	var stations := PackedFloat32Array([TUBE_FORWARD_Z, -8.8,
+		AIRSTAIR_Z - PORT_AIRSTAIR_HATCH_APERTURE_WIDTH * 0.5,
+		AIRSTAIR_Z + PORT_AIRSTAIR_HATCH_APERTURE_WIDTH * 0.5, 3.2, 6.8, TUBE_AFT_Z, 9.72])
+	for side in [-1.0, 1.0]:
+		if only_side != 0.0 and side != only_side:
+			continue
+		for station in stations.size() - 1:
+			var z0 := stations[station]
+			var z1 := stations[station + 1]
+			for rib in profile.size() - 1:
+				var low := profile[rib]
+				var high := profile[rib + 1]
+				if side < 0.0 and station == 2 and low.y < 2.76:
+					if high.y <= 2.76:
+						continue
+					low = low.lerp(high, (2.76 - low.y) / (high.y - low.y))
+				var scale0 := 1.0 - maxf(0.0, z0 - TUBE_AFT_Z) / (9.72 - TUBE_AFT_Z) * 0.21
+				var scale1 := 1.0 - maxf(0.0, z1 - TUBE_AFT_Z) / (9.72 - TUBE_AFT_Z) * 0.21
+				var drop0 := maxf(0.0, z0 - TUBE_AFT_Z) / (9.72 - TUBE_AFT_Z) * 0.30
+				var drop1 := maxf(0.0, z1 - TUBE_AFT_Z) / (9.72 - TUBE_AFT_Z) * 0.30
+				var a := Vector3(side * low.x * scale0, low.y - drop0, z0)
+				var b := Vector3(side * low.x * scale1, low.y - drop1, z1)
+				var c := Vector3(side * high.x * scale1, high.y - drop1, z1)
+				var d := Vector3(side * high.x * scale0, high.y - drop0, z0)
+				if side < 0.0:
+					_skin_quad(tool, a, b, c, d)
+				else:
+					_skin_quad(tool, d, c, b, a)
+				if side < 0.0 and (station == 1 or station == 3) and low.y < 2.76:
+					var upper := high if high.y <= 2.76 else low.lerp(high, (2.76 - low.y) / (high.y - low.y))
+					var jamb_z := z1 if station == 1 else z0
+					var lower := low
+					if lower.x < HULL_HALF_WIDTH:
+						lower = low.lerp(upper, (HULL_HALF_WIDTH - low.x) / (upper.x - low.x))
+					var outer_low := Vector3(-lower.x, lower.y, jamb_z)
+					var outer_high := Vector3(-upper.x, upper.y, jamb_z)
+					var inner_low := Vector3(-HULL_HALF_WIDTH, lower.y, jamb_z)
+					var inner_high := Vector3(-HULL_HALF_WIDTH, upper.y, jamb_z)
+					if station == 1:
+						_skin_quad(tool, inner_low, inner_high, outer_high, outer_low)
+					else:
+						_skin_quad(tool, outer_low, outer_high, inner_high, inner_low)
+	var visual := MeshInstance3D.new()
+	visual.name = node_name
+	visual.mesh = tool.commit()
+	visual.set_meta("visual_only", true)
+	if only_side <= 0.0:
+		visual.set_meta("port_hatch_aperture", true)
+		visual.set_meta("aperture_size", Vector2(2.36, PORT_AIRSTAIR_HATCH_APERTURE_WIDTH))
+	_halyard_visual.add_child(visual)
+	return visual
+
+
 func _manufactured_loft(
 		parent: Node3D,
 		node_name: String,
@@ -4751,12 +4842,12 @@ func _build_fitted_transport_details() -> void:
 		for seam_z in [-8.1, -3.9, 0.3, 4.5]:
 			if side < 0.0 and absf(seam_z - AIRSTAIR_Z) < 1.05:
 				continue
-			_fitout_stock(exterior, "hull_shade", Vector3(side * 2.625, 1.88, seam_z), Vector3(0.022, 2.72, 0.038))
+			_fitout_stock(exterior, "hull_shade", Vector3(side * 2.901, 1.35, seam_z), Vector3(0.022, 0.66, 0.026), Vector3(0, 0, side * -0.225))
 		for bay_z in [-7.0, -1.9, 2.3, 6.5]:
-			_fitout_stock(exterior, "dark", Vector3(side * 2.644, 1.38, bay_z), Vector3(0.045, 0.68, 1.24))
-			_fitout_stock(exterior, "hull_shade", Vector3(side * 2.674, 1.38, bay_z), Vector3(0.036, 0.62, 1.16))
-			_fitout_stock(exterior, "structure", Vector3(side * 2.70, 1.39, bay_z - 0.36), Vector3(0.033, 0.15, 0.075))
-			_fitout_stock(exterior, "trim", Vector3(side * 2.72, 1.39, bay_z - 0.36), Vector3(0.018, 0.045, 0.095))
+			_fitout_stock(exterior, "dark", Vector3(side * 2.909, 1.38, bay_z), Vector3(0.045, 0.68, 1.24), Vector3(0, 0, side * -0.225))
+			_fitout_stock(exterior, "hull_shade", Vector3(side * 2.935, 1.38, bay_z), Vector3(0.036, 0.62, 1.16), Vector3(0, 0, side * -0.225))
+			_fitout_stock(exterior, "structure", Vector3(side * 2.974, 1.39, bay_z - 0.36), Vector3(0.033, 0.15, 0.075))
+			_fitout_stock(exterior, "trim", Vector3(side * 2.995, 1.39, bay_z - 0.36), Vector3(0.018, 0.045, 0.095))
 		# Inset cooling lamellae aft of the passenger pressure body.
 		_fitout_stock(exterior, "dark", Vector3(side * 2.166, 1.9, 8.85), Vector3(0.07, 1.20, 1.03))
 		for fin in 7:
@@ -4860,6 +4951,6 @@ func _build_hull_markings() -> void:
 		Vector3(-1.30, 3.93, 1.8), Vector2(3.6, 1.8), Vector3(-0.24, 1.0, 0.0), Vector3.RIGHT, 0.36)
 	registration.modulate = Color(0.35, 0.35, 0.35, 1.0)
 	ShipSurfaceDetail.mark_surface(_halyard_visual, "AirstairRescueStencil", "rescue",
-		Vector3(-2.64, 1.5, -6.03), Vector2(0.6, 0.3), Vector3.LEFT, Vector3.UP)
+		Vector3(-2.95, 1.5, -6.03), Vector2(0.6, 0.3), Vector3.LEFT, Vector3.UP)
 	ShipSurfaceDetail.mark_surface(_halyard_visual, "AftServiceStencil", "service",
-		Vector3(-2.70, 1.38, 6.5), Vector2(0.7, 0.35), Vector3.LEFT, Vector3.UP)
+		Vector3(-2.97, 1.38, 6.5), Vector2(0.7, 0.35), Vector3.LEFT, Vector3.UP)
