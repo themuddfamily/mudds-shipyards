@@ -9,7 +9,7 @@
       "hinges",
       "paired_latches"
     ],
-    "close_triangle_count": 77970,
+    "close_triangle_count": 78670,
     "close_triangle_range": [
       70000,
       90000
@@ -26,7 +26,7 @@
       "four_point_harness"
     ],
     "engine_stator_vanes_per_nacelle": 8,
-    "far_triangle_count": 8060,
+    "far_triangle_count": 8720,
     "far_triangle_range": [
       7000,
       12000
@@ -43,17 +43,17 @@
     ],
     "material_surface_area_m2": {
       "AmberPanel": 0.418447,
-      "CrimsonLivery": 5.848799,
+      "CrimsonLivery": 6.051412,
       "CrimsonSeat": 4.92142,
       "CyanStatus": 5.064058,
-      "ExposedAlloy": 27.947894,
-      "GraphiteMachinery": 70.227917,
-      "IvorySecondary": 141.072812,
+      "ExposedAlloy": 26.991919,
+      "GraphiteMachinery": 68.940187,
+      "IvorySecondary": 118.765462,
       "NeutralCanopyGlass": 12.33585,
-      "ThermalCeramic": 16.748309,
-      "WarmIvoryHull": 313.767112
+      "ThermalCeramic": 16.983373,
+      "WarmIvoryHull": 322.630935
     },
-    "pale_exterior_surface_ratio": 0.746771,
+    "pale_exterior_surface_ratio": 0.744909,
     "pale_exterior_surface_ratio_range": [
       0.7,
       0.8
@@ -71,21 +71,21 @@
         "mesh_count": 17
       },
       "CockpitArt": {
-        "evaluated_surface_area_m2": 48.492162,
-        "evaluated_triangle_count": 10620,
-        "evaluated_vertex_count": 5432,
+        "evaluated_surface_area_m2": 38.217774,
+        "evaluated_triangle_count": 10808,
+        "evaluated_vertex_count": 5528,
         "mesh_count": 39
       },
       "LOD0": {
-        "evaluated_surface_area_m2": 353.414863,
-        "evaluated_triangle_count": 64520,
-        "evaluated_vertex_count": 32738,
-        "mesh_count": 238
+        "evaluated_surface_area_m2": 342.833464,
+        "evaluated_triangle_count": 65032,
+        "evaluated_vertex_count": 33120,
+        "mesh_count": 242
       },
       "LOD1": {
-        "evaluated_surface_area_m2": 178.618653,
-        "evaluated_triangle_count": 8060,
-        "evaluated_vertex_count": 4058,
+        "evaluated_surface_area_m2": 184.224885,
+        "evaluated_triangle_count": 8720,
+        "evaluated_vertex_count": 4388,
         "mesh_count": 18
       },
       "SemanticAnchors": {
@@ -97,12 +97,12 @@
     },
     "source_mesh_instance_budget": 320,
     "total_triangle_budget": 105000,
-    "total_triangle_count": 86030
+    "total_triangle_count": 87390
   },
   "asset_id": "torrent_hero_art_v1",
   "authenticated_historical_geometry": false,
   "authorship": "original_script_assisted_blender",
-  "blend_sha256": "881a075e7f2c97e3aee0a92532daf7003499618af432e3e1154fa20c43bfa11e",
+  "blend_sha256": "7c61517abb9228e8d4a81147b56da11e079c2ea88f02db2019a57003389aa705",
   "blender_version": "4.0.2",
   "bounds_blender_xyz": {
     "max": [
@@ -189,12 +189,16 @@
       "DorsalAccessBreaks",
       "DorsalCrimsonLivery",
       "PortShoulderLivery",
+      "PortHullRegistration",
+      "PortLiftServiceStencil",
       "PortFlushAccessPanel00",
       "PortFlushAccessPanel01",
       "PortFlushAccessPanel02",
       "PortFlushAccessPanel03",
       "PortFlushAccessPanel04",
       "StarboardShoulderLivery",
+      "StarboardHullRegistration",
+      "StarboardLiftServiceStencil",
       "StarboardFlushAccessPanel00",
       "StarboardFlushAccessPanel01",
       "StarboardFlushAccessPanel02",
@@ -720,9 +724,9 @@
         ]
       },
       "primary_hull": {
-        "evaluated_vertex_count": 22092,
-        "maximum_uncovered_distance_m": 0.0,
-        "object_count": 214,
+        "evaluated_vertex_count": 22570,
+        "maximum_uncovered_distance_m": 0.010931969,
+        "object_count": 218,
         "objects": [
           "AftBayConduit00",
           "AftBayConduit01",
@@ -808,7 +812,9 @@
           "PortHullFastener06",
           "PortHullFastener07",
           "PortHullFastener08",
+          "PortHullRegistration",
           "PortLapHarness",
+          "PortLiftServiceStencil",
           "PortPlaneLeadingEdge1",
           "PortPlaneLeadingEdge2",
           "PortPlaneLeadingEdge3",
@@ -891,7 +897,9 @@
           "StarboardHullFastener06",
           "StarboardHullFastener07",
           "StarboardHullFastener08",
+          "StarboardHullRegistration",
           "StarboardLapHarness",
+          "StarboardLiftServiceStencil",
           "StarboardPlaneLeadingEdge1",
           "StarboardPlaneLeadingEdge2",
           "StarboardPlaneLeadingEdge3",
@@ -939,13 +947,13 @@
           "VentralPressureKeel",
           "WarningStatusRegion"
         ],
-        "uncovered_vertex_count": 0,
+        "uncovered_vertex_count": 24,
         "vertices_over_tolerance": 0,
-        "worst_object": "",
+        "worst_object": "ContinuousPressureShell",
         "worst_vertex_root_local_m": [
-          0.0,
-          0.0,
-          0.0
+          0.784314513,
+          2.235931873,
+          -2.194350958
         ]
       },
       "propulsion": {
@@ -1007,7 +1015,7 @@
       "units": "metres",
       "up": "+Y in Godot"
     },
-    "evaluated_vertex_count": 38792,
+    "evaluated_vertex_count": 39270,
     "evaluation_method": "evaluated_mesh_vertices_to_nearest_axis_aligned_box_euclidean_distance_v1",
     "evaluation_stage": "editable_source_before_export_only_static_batching",
     "excluded_object_count": 10,
@@ -1024,19 +1032,19 @@
       "StarboardPlaneTipLight4": "tiny decorative navigation-light fixture; intentionally non-contact"
     },
     "historical_geometry_claim": false,
-    "included_object_count": 284,
-    "maximum_uncovered_distance_m": 0.0,
+    "included_object_count": 288,
+    "maximum_uncovered_distance_m": 0.010931969,
     "objects_over_tolerance": [],
     "out_of_scope_reason": "LOD1 duplicates the audited close silhouette",
     "provenance": {
       "blender_version": "4.0.2",
       "evaluated_source_blend": "art_source/torrent/torrent_hero_v1.blend",
-      "evaluated_source_blend_sha256": "881a075e7f2c97e3aee0a92532daf7003499618af432e3e1154fa20c43bfa11e",
-      "evaluated_source_semantic_sha256": "af35cee3d946f264cd5ec38152507d7b93a4ba54cb9d0566de673477d309ff68",
+      "evaluated_source_blend_sha256": "7c61517abb9228e8d4a81147b56da11e079c2ea88f02db2019a57003389aa705",
+      "evaluated_source_semantic_sha256": "3ad8af2f0e5e35e254899a6d53a5b7305fb00c9e4ceb657de8d54e2235e68432",
       "generator": "tools/blender/generate_torrent_hero_v1.py",
-      "generator_sha256": "d7ca0f06ba3c1d4a91b3fbf7002e1ac1235e352bd64a6d5b50b06effe297901c",
+      "generator_sha256": "c5cdd63c2f1a18265750bdbc6d14c1589636062bdd259f5f9c8dcbc5bc8a970a",
       "runtime_glb": "assets/models/torrent/hero/torrent_hero_art.glb",
-      "runtime_glb_sha256": "86da6fa2fb1257bd23ccfae93183d19f42bb906f750fa3b3ab8e1b56d194a1db"
+      "runtime_glb_sha256": "a2421cafc527167e660a18b1cb334483d7332aee448af5db42e876e9df1436ed"
     },
     "roots_explicitly_out_of_scope": [
       "LOD1"
@@ -1060,10 +1068,10 @@
       "CockpitArt",
       "CanopyPivot"
     ],
-    "source_object_count": 294,
+    "source_object_count": 298,
     "source_root": "TorrentHeroArt",
     "tolerance_m": 0.02,
-    "uncovered_vertex_count": 0,
+    "uncovered_vertex_count": 24,
     "valid": true,
     "vertices_over_tolerance": 0
   },
@@ -1076,8 +1084,8 @@
     "up": "+Y in Godot"
   },
   "generator": "tools/blender/generate_torrent_hero_v1.py",
-  "generator_sha256": "d7ca0f06ba3c1d4a91b3fbf7002e1ac1235e352bd64a6d5b50b06effe297901c",
-  "glb_sha256": "86da6fa2fb1257bd23ccfae93183d19f42bb906f750fa3b3ab8e1b56d194a1db",
+  "generator_sha256": "c5cdd63c2f1a18265750bdbc6d14c1589636062bdd259f5f9c8dcbc5bc8a970a",
+  "glb_sha256": "a2421cafc527167e660a18b1cb334483d7332aee448af5db42e876e9df1436ed",
   "material_roles": [
     "AmberPanel",
     "CrimsonLivery",
@@ -1111,14 +1119,14 @@
     ],
     "triplanar": false
   },
-  "mesh_triangles_after_static_batching_in_blender": 86030,
-  "mesh_triangles_before_modifier_application": 20814,
-  "mesh_triangles_evaluated_in_blender": 86030,
-  "mesh_triangles_exported_runtime": 86030,
-  "mesh_vertices_after_static_batching_in_blender": 43682,
-  "mesh_vertices_before_modifier_application": 11074,
-  "mesh_vertices_evaluated_in_blender": 43682,
-  "mesh_vertices_exported_runtime": 140891,
+  "mesh_triangles_after_static_batching_in_blender": 87390,
+  "mesh_triangles_before_modifier_application": 23294,
+  "mesh_triangles_evaluated_in_blender": 87390,
+  "mesh_triangles_exported_runtime": 87390,
+  "mesh_vertices_after_static_batching_in_blender": 44490,
+  "mesh_vertices_before_modifier_application": 12442,
+  "mesh_vertices_evaluated_in_blender": 44490,
+  "mesh_vertices_exported_runtime": 143603,
   "motion_or_geometry_source": "project_original_modern_interpretation",
   "runtime_binary_canonicalization": {
     "applied": true,
@@ -1335,6 +1343,8 @@
           "PortHullFastener06",
           "PortHullFastener07",
           "PortHullFastener08",
+          "PortHullRegistration",
+          "PortLiftServiceStencil",
           "PortMainGearFoot",
           "PortNacelleLowerBrace",
           "PortPlaneRootShadows",
@@ -1361,6 +1371,8 @@
           "StarboardHullFastener06",
           "StarboardHullFastener07",
           "StarboardHullFastener08",
+          "StarboardHullRegistration",
+          "StarboardLiftServiceStencil",
           "StarboardMainGearFoot",
           "StarboardNacelleLowerBrace",
           "StarboardPlaneRootShadows",
@@ -1503,11 +1515,11 @@
       "SemanticAnchors": 0
     },
     "runtime_mesh_instance_budget": 36,
-    "source_mesh_count_total": 312,
+    "source_mesh_count_total": 316,
     "source_mesh_counts_by_root": {
       "CanopyPivot": 17,
       "CockpitArt": 39,
-      "LOD0": 238,
+      "LOD0": 242,
       "LOD1": 18,
       "SemanticAnchors": 0
     },
@@ -1518,30 +1530,30 @@
     ]
   },
   "schema_version": 1,
-  "source_semantic_sha256": "af35cee3d946f264cd5ec38152507d7b93a4ba54cb9d0566de673477d309ff68",
+  "source_semantic_sha256": "3ad8af2f0e5e35e254899a6d53a5b7305fb00c9e4ceb657de8d54e2235e68432",
   "swept_plate_winding_contract": {
     "all_positive_outward_winding": true,
     "expected_object_count": 16,
     "method": "closed_mesh_signed_tetrahedron_volume_v1",
-    "minimum_signed_volume_m3": 0.496272144,
+    "minimum_signed_volume_m3": 0.322576481,
     "schema_version": 1,
     "signed_volume_m3_by_object": {
-      "LOD1PortPlane1": 0.496272174,
-      "LOD1PortPlane2": 0.568416126,
-      "LOD1PortPlane3": 0.615599946,
-      "LOD1PortPlane4": 0.637824041,
-      "LOD1StarboardPlane1": 0.496272144,
-      "LOD1StarboardPlane2": 0.568416166,
-      "LOD1StarboardPlane3": 0.615600164,
-      "LOD1StarboardPlane4": 0.637824219,
-      "PortSteppedPlane1": 0.496272174,
-      "PortSteppedPlane2": 0.568416126,
-      "PortSteppedPlane3": 0.615599946,
-      "PortSteppedPlane4": 0.637824041,
-      "StarboardSteppedPlane1": 0.496272144,
-      "StarboardSteppedPlane2": 0.568416166,
-      "StarboardSteppedPlane3": 0.615600164,
-      "StarboardSteppedPlane4": 0.637824219
+      "LOD1PortPlane1": 0.322576543,
+      "LOD1PortPlane2": 0.369470601,
+      "LOD1PortPlane3": 0.400140008,
+      "LOD1PortPlane4": 0.414585617,
+      "LOD1StarboardPlane1": 0.322576481,
+      "LOD1StarboardPlane2": 0.369470473,
+      "LOD1StarboardPlane3": 0.400140001,
+      "LOD1StarboardPlane4": 0.414585188,
+      "PortSteppedPlane1": 0.322576543,
+      "PortSteppedPlane2": 0.369470601,
+      "PortSteppedPlane3": 0.400140008,
+      "PortSteppedPlane4": 0.414585617,
+      "StarboardSteppedPlane1": 0.322576481,
+      "StarboardSteppedPlane2": 0.369470473,
+      "StarboardSteppedPlane3": 0.400140001,
+      "StarboardSteppedPlane4": 0.414585188
     }
   },
   "uv0_contract": {
@@ -1549,17 +1561,17 @@
     "degenerate_polygon_count": 0,
     "editable_source_handedness": "negative",
     "fallback_polygon_count": 4,
-    "loop_count": 38270,
-    "mesh_count": 312,
+    "loop_count": 43242,
+    "mesh_count": 316,
     "method": "dominant_root_normal_axis_sign_corrected_projection_v3",
-    "polygon_count": 8728,
+    "polygon_count": 9974,
     "projection_axis_polygon_counts": {
-      "X": 2974,
-      "Y": 3204,
-      "Z": 2550
+      "X": 3444,
+      "Y": 3696,
+      "Z": 2834
     },
     "projection_axis_tie_policy": "lowest_root_axis_index",
-    "reflected_polygon_count": 4353,
+    "reflected_polygon_count": 4855,
     "runtime_glTF_handedness": "positive_after_Blender_V_conversion",
     "texture_coordinate": "TEXCOORD_0"
   },
@@ -1567,12 +1579,12 @@
     "all_materials": {
       "degenerate_triangle_count": 180,
       "mirrored_surface_area_m2": 0.095152,
-      "mirrored_surface_ratio": 0.000158985,
+      "mirrored_surface_ratio": 0.000163146,
       "mirrored_triangle_count": 110,
-      "positive_surface_area_m2": 598.402765,
-      "positive_triangle_count": 85740,
-      "surface_area_m2": 598.497918,
-      "triangle_count": 86030
+      "positive_surface_area_m2": 583.137629,
+      "positive_triangle_count": 87100,
+      "surface_area_m2": 583.232782,
+      "triangle_count": 87390
     },
     "by_material": {
       "AmberPanel": {
@@ -1590,9 +1602,9 @@
         "mirrored_surface_area_m2": 0.0,
         "mirrored_surface_ratio": 0.0,
         "mirrored_triangle_count": 0,
-        "positive_surface_area_m2": 5.849072,
+        "positive_surface_area_m2": 6.051719,
         "positive_triangle_count": 1428,
-        "surface_area_m2": 5.849072,
+        "surface_area_m2": 6.051719,
         "triangle_count": 1428
       },
       "CrimsonSeat": {
@@ -1618,32 +1630,32 @@
       "ExposedAlloy": {
         "degenerate_triangle_count": 76,
         "mirrored_surface_area_m2": 0.023121,
-        "mirrored_surface_ratio": 0.000825963,
+        "mirrored_surface_ratio": 0.000855168,
         "mirrored_triangle_count": 16,
-        "positive_surface_area_m2": 27.969842,
+        "positive_surface_area_m2": 27.013867,
         "positive_triangle_count": 23860,
-        "surface_area_m2": 27.992963,
+        "surface_area_m2": 27.036988,
         "triangle_count": 23952
       },
       "GraphiteMachinery": {
         "degenerate_triangle_count": 24,
         "mirrored_surface_area_m2": 0.009551,
-        "mirrored_surface_ratio": 0.000136026,
+        "mirrored_surface_ratio": 0.000138567,
         "mirrored_triangle_count": 8,
-        "positive_surface_area_m2": 70.203045,
-        "positive_triangle_count": 19220,
-        "surface_area_m2": 70.212596,
-        "triangle_count": 19252
+        "positive_surface_area_m2": 68.915268,
+        "positive_triangle_count": 19384,
+        "surface_area_m2": 68.924819,
+        "triangle_count": 19416
       },
       "IvorySecondary": {
         "degenerate_triangle_count": 0,
         "mirrored_surface_area_m2": 0.0,
         "mirrored_surface_ratio": 0.0,
         "mirrored_triangle_count": 0,
-        "positive_surface_area_m2": 141.072848,
-        "positive_triangle_count": 11840,
-        "surface_area_m2": 141.072848,
-        "triangle_count": 11840
+        "positive_surface_area_m2": 118.765498,
+        "positive_triangle_count": 12028,
+        "surface_area_m2": 118.765498,
+        "triangle_count": 12028
       },
       "NeutralCanopyGlass": {
         "degenerate_triangle_count": 0,
@@ -1658,22 +1670,22 @@
       "ThermalCeramic": {
         "degenerate_triangle_count": 56,
         "mirrored_surface_area_m2": 0.06248,
-        "mirrored_surface_ratio": 0.003714491,
+        "mirrored_surface_ratio": 0.003663308,
         "mirrored_triangle_count": 86,
-        "positive_surface_area_m2": 16.758202,
-        "positive_triangle_count": 14182,
-        "surface_area_m2": 16.820683,
-        "triangle_count": 14324
+        "positive_surface_area_m2": 16.993216,
+        "positive_triangle_count": 14262,
+        "surface_area_m2": 17.055697,
+        "triangle_count": 14404
       },
       "WarmIvoryHull": {
         "degenerate_triangle_count": 0,
         "mirrored_surface_area_m2": 0.0,
         "mirrored_surface_ratio": 0.0,
         "mirrored_triangle_count": 0,
-        "positive_surface_area_m2": 313.806156,
-        "positive_triangle_count": 5080,
-        "surface_area_m2": 313.806156,
-        "triangle_count": 5080
+        "positive_surface_area_m2": 322.654461,
+        "positive_triangle_count": 6008,
+        "surface_area_m2": 322.654461,
+        "triangle_count": 6008
       }
     },
     "glTF_export_v_conversion_accounted_for": true,
@@ -1685,10 +1697,10 @@
       "mirrored_surface_area_m2": 0.0,
       "mirrored_surface_ratio": 0.0,
       "mirrored_triangle_count": 0,
-      "positive_surface_area_m2": 454.879004,
-      "positive_triangle_count": 16920,
-      "surface_area_m2": 454.879004,
-      "triangle_count": 16920
+      "positive_surface_area_m2": 441.419959,
+      "positive_triangle_count": 18036,
+      "surface_area_m2": 441.419959,
+      "triangle_count": 18036
     },
     "textured_roles": [
       "IvorySecondary",

@@ -31,9 +31,9 @@ CONCEPT_PATH = ROOT / "assets/concepts/torrent/torrent-hero-concept-multiview-v1
 MATS: dict[str, bpy.types.Material] = {}
 HULL_STATIONS = [
     (-4.80, .08, .42, .76), (-4.15, .44, .28, 1.10),
-    (-3.25, 1.00, .20, 1.66), (-2.10, 1.48, .16, 1.98),
-    (-.75, 1.72, .14, 2.08), (.75, 1.84, .16, 2.14),
-    (1.85, 1.80, .20, 2.04), (2.75, 1.62, .26, 1.84),
+    (-3.25, 1.00, .20, 1.76), (-2.10, 1.48, .16, 2.28),
+    (-.75, 1.72, .14, 2.40), (.75, 1.84, .16, 2.40),
+    (1.85, 1.80, .20, 2.22), (2.75, 1.62, .26, 1.94),
     (3.42, 1.40, .36, 1.56),
 ]
 OBJECTS: dict[str, list[str]] = {
@@ -75,7 +75,7 @@ PROTECTED_MESHES_BY_ROOT: dict[str, tuple[str, ...]] = {
     ),
 }
 EXPECTED_SOURCE_MESH_COUNTS = {
-    "LOD0": 238,
+    "LOD0": 242,
     "LOD1": 18,
     "CockpitArt": 39,
     "CanopyPivot": 17,
@@ -88,7 +88,7 @@ EXPECTED_RUNTIME_MESH_COUNTS = {
     "CanopyPivot": 3,
     "SemanticAnchors": 0,
 }
-EXPECTED_RUNTIME_TRIANGLES = 86_030
+EXPECTED_RUNTIME_TRIANGLES = 87_390
 RUNTIME_MESH_INSTANCE_BUDGET = 36
 SOURCE_MESH_INSTANCE_BUDGET = 320
 CLOSE_TRIANGLE_RANGE = (70_000, 90_000)
@@ -615,7 +615,8 @@ def swept_plate(name: str, collection, mat, side: float, y: float, tier: int,
     # port copy so its closed shell retains positive volume and outward normals.
     if side < 0.0:
         faces = [tuple(reversed(face)) for face in faces]
-    return wedge(name, collection, mat, verts, faces, .045)
+    # Preserve a real side wall when a tier is thinner than the old bevel.
+    return wedge(name, collection, mat, verts, faces, min(.045, thickness * .24))
 
 
 def cylinder_between(name: str, start, end, radius, collection, mat,
@@ -686,6 +687,75 @@ def conforming_side_panel(name, collection, mat, side, front, back, low=.35, hig
     return wedge(name, collection, mat, vertices, faces, .006)
 
 
+def cut_pressure_cockpit(shell):
+    """Cut the real seat well before UV mapping and the final machined bevel."""
+    for modifier in list(shell.modifiers):
+        shell.modifiers.remove(modifier)
+    bpy.ops.mesh.primitive_cube_add(location=(0, 2.91, -.61))
+    cutter = bpy.context.object
+    cutter.name = "TemporaryCockpitMill"
+    cutter.scale = (1.025, 1.035, 1.58)
+    bpy.ops.object.transform_apply(location=False, rotation=False, scale=True)
+    modifier = shell.modifiers.new("MilledCockpitWell", "BOOLEAN")
+    modifier.operation = "DIFFERENCE"
+    modifier.solver = "EXACT"
+    modifier.object = cutter
+    bpy.context.view_layer.objects.active = shell
+    shell.select_set(True)
+    cutter.select_set(False)
+    bpy.ops.object.modifier_apply(modifier=modifier.name)
+    bpy.data.objects.remove(cutter, do_unlink=True)
+    for polygon in shell.data.polygons:
+        polygon.material_index = 0
+    bevel = shell.modifiers.new("MachinedPanelEdges", "BEVEL")
+    bevel.width = .022
+    bevel.segments = 3
+    # The milled opening creates new interior walls. Finish its bevel before
+    # UV projection so those faces receive their own non-collapsed islands.
+    bpy.context.view_layer.objects.active = shell
+    bpy.ops.object.modifier_apply(modifier=bevel.name)
+
+
+def service_stencil(name, collection, mat, side, z_center, y_center, text, size):
+    """Original stroke lettering conforms to the hull flank, without font assets."""
+    glyphs = {
+        "T": [((0,1),(1,1)),((.5,1),(.5,0))],
+        "X": [((0,0),(1,1)),((0,1),(1,0))],
+        "0": [((0,0),(0,1)),((0,1),(1,1)),((1,1),(1,0)),((1,0),(0,0))],
+        "9": [((0,1),(1,1)),((1,1),(1,0)),((0,1),(0,.55)),((0,.55),(1,.55))],
+        "-": [((.15,.48),(.85,.48))],
+        "L": [((0,1),(0,0)),((0,0),(1,0))],
+        "I": [((.5,1),(.5,0))],
+        "F": [((0,0),(0,1)),((0,1),(1,1)),((0,.55),(.8,.55))],
+        "E": [((0,0),(0,1)),((0,1),(1,1)),((0,.55),(.8,.55)),((0,0),(1,0))],
+    }
+    vertices, faces = [], []
+    advance = size*.85
+    for letter, symbol in enumerate(text):
+        for start, end in glyphs[symbol]:
+            a = Vector((start[0]*size*.62 + letter*advance, start[1]*size))
+            b = Vector((end[0]*size*.62 + letter*advance, end[1]*size))
+            d = b-a
+            n = Vector((-d.y,d.x)).normalized()*size*.037
+            base = len(vertices)
+            for q in (a-n,b-n,b+n,a+n):
+                z = z_center - side*(q.x - len(text)*advance*.5)
+                y = y_center+q.y
+                w, low, high = hull_station_at(z)
+                band = (y-low)/(high-low)
+                x = w*(1-(band-.24)/.56*.08)
+                # Clear the fitted access skins (12 mm offset plus edge bevel)
+                # so the registration remains a complete legible stroke face.
+                vertices.append((side*(x+.024),y,z))
+            face = (base,base+1,base+2,base+3)
+            # Source lettering has a single outward printed face.
+            pa,pb,pc = (Vector(vertices[i]) for i in face[:3])
+            if (pb-pa).cross(pc-pa).x * side < 0:
+                face = tuple(reversed(face))
+            faces.append(face)
+    return wedge(name,collection,mat,vertices,faces,0)
+
+
 def build_lod0(collection):
     ivory = MATS["WarmIvoryHull"]
     ivory2 = MATS["IvorySecondary"]
@@ -700,13 +770,14 @@ def build_lod0(collection):
     # One continuous faceted pressure shell provides the primary read. The
     # station widths change at every section so profile and three-quarter views
     # cannot collapse back into the former long rectangular slab.
-    lofted_fuselage("ContinuousPressureShell", collection, ivory, HULL_STATIONS, .075)
+    shell = lofted_fuselage("ContinuousPressureShell", collection, ivory, HULL_STATIONS, .022)
+    cut_pressure_cockpit(shell)
     # A lower keel and tapered spine add purposeful longitudinal structure
     # without masking the continuous shell or turning the aft into a wall.
     tapered_box("VentralPressureKeel", collection, ivory2, -3.45, 2.95,
                 (.72, .22), (1.15, .30), .18, .055)
-    tapered_box("RaisedSpine", collection, ivory2, -1.75, 2.48,
-                (.42, .30), (.78, .48), 2.18, .075)
+    tapered_box("RaisedSpine", collection, ivory2, 1.12, 2.60,
+                (.76, .15), (.55, .09), 2.18, .025)
     for section in range(5):
         z = -2.65 + section * 1.18
         width, _low, high = hull_station_at(z)
@@ -728,6 +799,8 @@ def build_lod0(collection):
         s = "Port" if side < 0 else "Starboard"
         conforming_side_panel(f"{s}ShoulderLivery", collection, livery,
                               side, -2.70, 2.18, .73, .79)
+        service_stencil(s+"HullRegistration",collection,graphite,side,.12,.98,"TX-09",.25)
+        service_stencil(s+"LiftServiceStencil",collection,graphite,side,1.77,1.02,"LIFT",.12)
         for panel_index, z_value in enumerate((-2.90, -1.72, -.42, .88, 2.02)):
             conforming_side_panel(f"{s}FlushAccessPanel{panel_index:02d}",
                                   collection, ivory2, side, z_value - .25, z_value + .25)
@@ -738,13 +811,13 @@ def build_lod0(collection):
         side_name = "Port" if side < 0 else "Starboard"
         root_shadow_parts = []
         for tier in range(4):
-            y = .62 + tier * .17
+            y = .88 + tier * .065
             inner_x = 1.40 + tier * .05
             outer_x = 2.38 + tier * .31
             z_front = -2.65 + tier * .16
             z_back = 2.62 - tier * .12
             swept_plate(f"{side_name}SteppedPlane{tier+1}", collection, ivory,
-                        side, y, tier, inner_x, outer_x, z_front, z_back)
+                        side, y, tier, inner_x, outer_x, z_front, z_back, .078)
             box(f"{side_name}PlaneTipLight{tier+1}",
                 (side*outer_x, y+.075, -1.16+tier*.13),
                 (.030,.035,.42), collection, cyan, .006)
@@ -760,8 +833,8 @@ def build_lod0(collection):
                 (.055 + tier * .012, .018, 2.46 - tier * .14),
                 collection, livery, .006)
             box(f"{side_name}PlaneLeadingEdge{tier+1}",
-                (side * (inner_x + .35 + tier * .12), y, z_front + .05),
-                (.56 + tier * .08, .07, .055), collection, alloy, .012,
+                (side * (inner_x + .35 + tier * .12), y + .025, z_front + .46),
+                (.56 + tier * .08, .028, .035), collection, alloy, .012,
                 rotation=(0, math.radians(side * (8 + tier * 2)), 0))
         compound_boxes(f"{side_name}PlaneRootShadows", root_shadow_parts,
                        collection, graphite, .006)
@@ -776,7 +849,11 @@ def build_lod0(collection):
         cylinder(f"{s}PulseCannonA", (side*1.48,.78,-3.25), .075, 1.12, collection, alloy, 28)
         cylinder(f"{s}PulseCannonB", (side*1.68,.78,-3.18), .065, .96, collection, alloy, 28)
         for port in range(3):
-            cylinder(f"{s}RCSNozzle{port}", (side*2.00,1.46,-1.6+port*1.35), .075, .12,
+            nozzle_z = -1.6 + port * 1.35
+            width, low, high = hull_station_at(nozzle_z)
+            band = (1.42 - low) / (high - low)
+            nozzle_x = width * (1.0 - (band - .24) / .56 * .08)
+            cylinder(f"{s}RCSNozzle{port}", (side * nozzle_x,1.42,nozzle_z), .075, .12,
                      collection, graphite, 24, rotation=(0,math.pi/2,0))
         add_panel_details(collection, s, side)
 
@@ -818,14 +895,15 @@ def build_lod0(collection):
         cylinder(f"{s}EngineCore", (x,1.10,3.73), .135,.024,collection,cyan,36,bevel=.008)
         cylinder(f"{s}EnginePlume", (x,1.10,4.01), .16,.52,collection,cyan,32, bevel=.01)
         tapered_box(f"{s}DominantAftRail", collection, ivory, 1.86, 2.80,
-                    (.15,.64), (.22,.36), 2.20, .075).location.x = side*2.05
+                    (.25,.18), (.25,.12), 1.94, .025).location.x = side*2.05
         tapered_box(f"{s}RailGraphiteInset", collection, graphite, 1.82, 2.72,
-                    (.055,.40), (.075,.22), 2.215, .018).location.x = side*2.05
-        cylinder_between(f"{s}NacelleUpperBrace", (side*2.05,2.65,2.25),
+                    (.13,.06), (.14,.055), 1.965, .012).location.x = side*2.05
+        cylinder_between(f"{s}NacelleUpperBrace", (side*2.05,2.08,2.25),
                          (side*2.37,1.59,2.78), .045, collection, alloy, 20, .010)
-        cylinder_between(f"{s}NacelleLowerBrace", (side*2.04,1.86,2.48),
+        cylinder_between(f"{s}NacelleLowerBrace", (side*2.04,1.57,2.48),
                          (side*2.37,.73,2.78), .040, collection, graphite, 20, .008)
-    box("AftCrossbar", (0,2.75,2.36), (4.28,.14,.42), collection,graphite,.045)
+    tapered_box("AftCrossbar", collection, graphite, 2.22, 2.70,
+                (1.92,.10), (1.68,.065), 2.00, .020)
     for i in range(8):
         box(f"AftMachineryRib{i:02d}", (-1.35+i*.385,1.42,3.52),
             (.12,.70,.12), collection,alloy,.018)
@@ -857,8 +935,9 @@ def build_lod0(collection):
     cockpit_collection = bpy.data.collections["CockpitArt"]
     tapered_box("CockpitFloorShell", cockpit_collection, graphite, -2.18, .88,
                 (.82,.075), (1.02,.095), 1.94, .055)
-    tapered_box("CockpitSideTub", cockpit_collection, ivory2, -2.06, .92,
-                (1.02,.22), (1.08,.29), 2.19, .065)
+    tub = tapered_box("CockpitSideTub", cockpit_collection, ivory2, -2.06, .92,
+                (1.08,.22), (1.11,.29), 2.19, .025)
+    cut_pressure_cockpit(tub)
     tapered_box("CrimsonSeatPan", cockpit_collection, red, -.40, .36,
                 (.34,.10), (.39,.13), 2.10, .075)
     tapered_box("CrimsonSeatBack", cockpit_collection, red, -.02, .48,
@@ -1045,18 +1124,17 @@ def build_lod1(collection):
     cyan = MATS["CyanStatus"]
     alloy = MATS["ExposedAlloy"]
     thermal = MATS["ThermalCeramic"]
-    lofted_fuselage("LOD1ContinuousHull", collection, ivory, [
-        (-4.80,.08,.42,.76), (-3.25,1.00,.20,1.66),
-        (-.75,1.72,.14,2.08), (1.85,1.80,.20,2.04),
-        (3.42,1.40,.36,1.56),
-    ], .085)
+    # Preserve the raised shoulders and open pilot well across whole-ship LOD
+    # changes. Material batching retains the same five runtime renderers.
+    shell = lofted_fuselage("LOD1ContinuousHull", collection, ivory, HULL_STATIONS, .022)
+    cut_pressure_cockpit(shell)
     for side in (-1,1):
         s="Port" if side<0 else "Starboard"
         for tier in range(4):
             swept_plate(f"LOD1{s}Plane{tier+1}", collection, ivory, side,
-                        .62+tier*.17, tier, 1.40+tier*.05,
+                        .88+tier*.065, tier, 1.40+tier*.05,
                         2.38+tier*.31, -2.65+tier*.16,
-                        2.62-tier*.12, .12)
+                        2.62-tier*.12, .078)
         annular_shell(f"LOD1{s}Housing",collection,ivory2,(side*2.5,1.1),
                       (2.50,2.86,3.18,3.55),(.50,.62,.54,.34),
                       (.33,.40,.37,.22),32,.008)
@@ -1064,8 +1142,9 @@ def build_lod1(collection):
                       (3.30,3.53,3.67),(.40,.34,.29),(.28,.23,.19),28,.006)
         cylinder(f"LOD1{s}EnginePlume",(side*2.5,1.1,3.86),.15,.55,collection,cyan,24,bevel=.01)
         tapered_box(f"LOD1{s}Rail",collection,ivory,1.86,2.80,
-                    (.15,.64),(.22,.36),2.20,.075).location.x=side*2.05
-    box("LOD1AftCrossbar",(0,2.75,2.36),(4.28,.14,.42),collection,thermal,.05)
+                    (.25,.18),(.25,.12),1.94,.025).location.x=side*2.05
+    tapered_box("LOD1AftCrossbar", collection, thermal, 2.22, 2.70,
+                (1.92,.10), (1.68,.065), 2.00,.020)
 
 
 def setup_scene() -> dict:
