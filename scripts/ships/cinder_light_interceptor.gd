@@ -40,13 +40,14 @@ const AFT_RECOGNITION_FIN_ROTATION_Y := PI * 0.5
 ## fast, directional planform at normal chase distance. Their transformed
 ## bounds stay inside the existing 12 m wing, 8.8 m hull and 2.5 m hull-height
 ## envelope: this is presentation detail, not a new berth-fit claim.
-const SPEED_RAIL_SIZE := Vector3(3.2, 0.16, 0.32)
-# The mirrored rail assembly retains its authored pose while its section
-# rolls into a narrow closure along the same local bounds.
-const SPEED_RAIL_OFFSET := Vector3(4.25, 0.155, 0.35)
+const SPEED_RAIL_SIZE := Vector3(3.2, 0.28, 0.32)
+# The deeper rail section seats below the skin while its crown clears the
+# service armor. A shallow mirrored span slope follows
+# its falling outboard skin, including the rail's thin terminal edges.
+const SPEED_RAIL_OFFSET := Vector3(4.25, 0.02, 0.35)
 const SPEED_RAIL_SWEEP_DEGREES := 22.0
 const WINGTIP_BLADE_SIZE := Vector3(0.28, 0.78, 2.6)
-const WINGTIP_BLADE_OFFSET := Vector3(5.52, 0.24, 0.72)
+const WINGTIP_BLADE_OFFSET := Vector3(5.52, 0.225, 0.72)
 const WINGTIP_BLADE_CANT_DEGREES := 10.0
 const WEAPON_ID: StringName = &"cinder_light_repeater"
 const CONSOLE_TOGGLE_VISIBLE_COPIES := 8
@@ -498,6 +499,11 @@ func _build_speed_silhouette(visual: Node3D) -> void:
 			SPEED_RAIL_OFFSET
 		),
 	]
+	# Keep one immutable rail mesh while each side follows the wing crown.
+	# This shear preserves the exact X/Z planform; the shallow end closures
+	# now embed into the wing instead of floating above it by up to 15 cm.
+	rail_transforms[0].basis.x.y = 0.04
+	rail_transforms[1].basis.x.y = -0.04
 	_speed_rail_batch = _build_visual_batch(
 		"InterceptorSpeedRailBatch",
 		_shared_speed_rail_mesh,

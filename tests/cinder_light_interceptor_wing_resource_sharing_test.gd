@@ -62,6 +62,41 @@ func _initialize() -> void:
 		_check(rolled_crown and thin_trailing_edge,
 			"the production response wing rolls from a load-bearing crown into a thin trailing closure")
 
+		var rails := first.get_variant_visual_root().get_node(^"InterceptorSpeedRailBatch") as MultiMeshInstance3D
+		var rail_contact := true
+		var rail_crown_visible := true
+		for placement: Transform3D in rails.get_meta(&"authored_instance_transforms"):
+			for span in [-1.5, -1.0, -0.5, 0.0, 0.5, 1.0, 1.5]:
+				for chord in [-0.025, 0.0, 0.025]:
+					var at := placement * Vector3(span, 0, chord)
+					var wing_hits := _vertical_hits(first_wing.mesh, first_wing.transform, at)
+					var rail_hits := _vertical_hits(rails.multimesh.mesh, placement, at)
+					rail_contact = rail_contact and not wing_hits.is_empty() and not rail_hits.is_empty()
+					if not wing_hits.is_empty() and not rail_hits.is_empty():
+						rail_contact = rail_contact and rail_hits.min() <= wing_hits.max() + 0.002
+						if is_zero_approx(span) and is_zero_approx(chord):
+							rail_crown_visible = rail_crown_visible and rail_hits.max() > wing_hits.max() + 0.085
+		_check(rail_contact and rail_crown_visible,
+			"both shared rails contact the real wing triangles along their span while their crowns remain visible")
+		var blades := first.get_variant_visual_root().get_node(^"InterceptorWingtipBladeBatch") as MultiMeshInstance3D
+		var blade_contact := true
+		var seated_stations := 0
+		var blade_points: PackedVector3Array = blades.multimesh.mesh.surface_get_arrays(0)[Mesh.ARRAY_VERTEX]
+		for placement: Transform3D in blades.get_meta(&"authored_instance_transforms"):
+			var roots := {}
+			for point in blade_points:
+				var world_point := placement * point
+				if not roots.has(point.z) or world_point.y < (roots[point.z] as Vector3).y:
+					roots[point.z] = world_point
+			for root_point: Vector3 in roots.values():
+				var hits := _vertical_hits(first_wing.mesh, first_wing.transform, root_point)
+				# The leading blade tip intentionally projects beyond the swept wing.
+				if not hits.is_empty():
+					seated_stations += 1
+					blade_contact = blade_contact and root_point.y <= hits.max() + 0.002
+		_check(blade_contact and seated_stations >= 20,
+			"both blade roots meet the wing through their supported length and trailing closure")
+
 	_check(
 		bool(first.get_audit_report().get("valid", false))
 			and bool(second.get_audit_report().get("valid", false))
@@ -103,3 +138,16 @@ func _check(condition: bool, message: String) -> void:
 	_assertions += 1
 	if not condition:
 		_failures.append(message)
+
+
+## Intersect the rendered triangles, including their formed section and actual
+## instance pose, so contact cannot pass by checking only nominal box bounds.
+func _vertical_hits(mesh: Mesh, placement: Transform3D, at: Vector3) -> Array[float]:
+	var points: PackedVector3Array = mesh.surface_get_arrays(0)[Mesh.ARRAY_VERTEX]
+	var hits: Array[float] = []
+	for index in range(0, points.size(), 3):
+		var hit = Geometry3D.segment_intersects_triangle(Vector3(at.x, 2, at.z), Vector3(at.x, -2, at.z),
+			placement * points[index], placement * points[index + 1], placement * points[index + 2])
+		if hit != null:
+			hits.append((hit as Vector3).y)
+	return hits
