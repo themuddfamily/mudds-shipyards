@@ -613,6 +613,16 @@ func _build_bulwark_manufactured_details(visual: Node3D, armor: Material, dark: 
 		_cylinder(visual, tag + "CannonBarrel", Vector3(side * 3.25, 1.0, -4.38), 0.19, 0.9, metal, Vector3(90, 0, 0))
 		_frustum(visual, tag + "CannonMuzzle", Vector3(side * 3.25, 1.0, -4.87), 0.25, 0.20, 0.18, dark, Vector3(90, 0, 0), false, false)
 
+	# Stencilled identification belongs on the continuous armored flank, clear
+	# of shoulder joints, boarding hardware, vents and gunner controls.
+	for side in [-1.0, 1.0]:
+		var registration := ShipSurfaceDetail.mark_surface(visual, ("Port" if side < 0 else "Starboard") + "HullRegistration", "bulwark",
+			Vector3(side * 5.85, 1.05, 1.22), Vector2(2.0, 1.0), Vector3(side, 0, 0), Vector3.UP)
+		# This dark armor needs lighter stencil ink than the upper hull paint.
+		registration.modulate = Color(3.0, 3.0, 3.0, 1.0)
+	ShipSurfaceDetail.mark_surface(visual, "AftExhaustWarning", "exhaust",
+		Vector3(0, 0.70, 4.50), Vector2(2.0, 1.0), Vector3.BACK, Vector3.UP)
+
 
 ## Builds exactly two steady renderer surfaces. They have no process callback,
 ## timer, light, particles, collision, interaction, health, damage, or repair
