@@ -214,7 +214,7 @@ const TORRENT_RCS_THRUSTER_PORT_COPY_COUNT := 8
 # Component-local render census retains all close art and semantic/system roots.
 # Two louvre and four RCS-port batches retain every source-local copy while
 # reducing fallback submissions; shared capture jaws retain their named paths.
-const TORRENT_RENDER_DESCENDANT_COUNT := 295
+const TORRENT_RENDER_DESCENDANT_COUNT := 299
 const TORRENT_RENDER_MESH_INSTANCE_COUNT := 233
 const TORRENT_RENDER_MULTIMESH_BATCH_COUNT := 6
 const TORRENT_RENDER_DRAWN_COPY_COUNT := 253
@@ -4793,6 +4793,12 @@ func _install_torrent_hero_presentation() -> void:
 	for core in presentation.get_engine_cores():
 		core.visible = false
 		_engine_core_glows.append(core)
+	for side in [-1.0, 1.0]:
+		var prefix := "Port" if side < 0.0 else "Starboard"
+		ShipSurfaceDetail.mark_surface(_visual_root, prefix + "HullRegistration", "torrent",
+			Vector3(side * 1.69, 1.70, -0.05), Vector2(2.0, 1.0), Vector3(side, 0.11, -0.08), Vector3.UP, 0.22)
+		ShipSurfaceDetail.mark_surface(_visual_root, prefix + "WingServiceStencil", "service",
+			Vector3(side * 2.44, 1.14, 0.52), Vector2(0.84, 0.42), Vector3.UP, Vector3.FORWARD, 0.20)
 	_visual_root.set_meta("construction_revision", &"torrent_blender_hero_v1")
 
 

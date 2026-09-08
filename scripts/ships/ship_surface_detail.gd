@@ -5,6 +5,33 @@ const PAINT_ALBEDO_PATH := "res://assets/materials/manufactured-paint-albedo.png
 const PAINT_NORMAL_PATH := "res://assets/materials/manufactured-paint-normal.png"
 const PAINT_ROUGHNESS_PATH := "res://assets/materials/manufactured-paint-roughness.png"
 
+
+## Printed hull graphics follow the actual surface, including chamfers and
+## curved fairings. Shallow projection avoids covering unrelated components;
+## the receiver mask also excludes the dedicated exterior glass layers.
+## `up` is the top of the artwork as seen from outside the hull.
+static func mark_surface(
+		parent: Node3D, node_name: String, graphic: String,
+		origin: Vector3, dimensions: Vector2, normal: Vector3, up: Vector3,
+		depth: float = 0.16
+	) -> Decal:
+	var outward := normal.normalized()
+	var upright := (up - outward * up.dot(outward)).normalized()
+	var marking := Decal.new()
+	marking.name = node_name
+	marking.transform = Transform3D(Basis(upright.cross(outward), outward, -upright), origin)
+	marking.size = Vector3(dimensions.x, depth, dimensions.y)
+	marking.texture_albedo = load("res://assets/ships/markings/" + graphic + ".svg") as Texture2D
+	marking.cull_mask = 1
+	marking.upper_fade = 0.0
+	marking.lower_fade = 0.0
+	marking.normal_fade = 0.60
+	marking.distance_fade_enabled = true
+	marking.distance_fade_begin = 90.0
+	marking.distance_fade_length = 35.0
+	parent.add_child(marking)
+	return marking
+
 ## A smooth manufactured coating. Authored seams come from actual geometry;
 ## these shared maps supply fine paint grain without stamping every component
 ## with the same large panel grid. Existing UV mapping and role tint stay owned

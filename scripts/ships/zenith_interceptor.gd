@@ -3788,6 +3788,14 @@ func _build_modern_airframe(visual: Node3D) -> void:
 	_box(_functional_cockpit, "ModernSeatBack", Vector3(0, 2.22, -0.08), Vector3(0.70, 0.74, 0.20), upholstery, Vector3(deg_to_rad(10), 0, 0))
 	_box(_functional_cockpit, "ModernHeadrest", Vector3(0, 2.68, 0.0), Vector3(0.43, 0.25, 0.19), upholstery)
 	_build_enclosed_canopy(visual)
+	for side in [-1.0, 1.0]:
+		var prefix := "Port" if side < 0.0 else "Starboard"
+		ShipSurfaceDetail.mark_surface(airframe, prefix + "WingRegistration", "zenith",
+			Vector3(side * 4.90, 0.54, 1.65), Vector2(2.0, 1.0), Vector3(side * 0.126, 1.0, 0.02), Vector3.BACK, 0.22).modulate = Color(0.35, 0.35, 0.35, 1.0)
+		ShipSurfaceDetail.mark_surface(airframe, prefix + "EngineServiceStencil", "service",
+			Vector3(side * 2.20, 1.755, 0.64), Vector2(1.22, 0.61), Vector3.UP, Vector3(side, 0, 0), 0.16)
+		ShipSurfaceDetail.mark_surface(airframe, prefix + "IntakeCautionStencil", "intake",
+			Vector3(side * 2.20, 1.73, -0.72), Vector2(0.88, 0.44), Vector3.UP, Vector3.FORWARD, 0.16)
 
 
 ## An eight-edge machined section: broad planes, small corner breaks. Each

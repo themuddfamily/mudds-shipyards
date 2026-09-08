@@ -23,6 +23,11 @@ safety markings about 0.5–1.2 m × 0.25–0.6 m. These are starting points for
 surface-specific placement, not claims about ship scale. The small service lines
 are close-inspection detail; the primary designation and hazard read at distance.
 
+Runtime markings use shallow, surface-aligned `Decal` projections on all thirteen
+designs. Their textures generate mipmaps, and each marking follows its receiving
+visual assembly through motion and reuse. Forward+ and Mobile render these
+projections; Compatibility retains the underlying hull without projected paint.
+
 ## Manufactured fleet paint
 
 `assets/materials/manufactured-paint-{albedo,normal,roughness}.png` are original

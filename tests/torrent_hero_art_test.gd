@@ -433,7 +433,7 @@ func _test_render_allocations(torrent: HeroShip) -> void:
 	var component := report.get("component", {}) as Dictionary
 	var fallback := report.get("modern_fallback", {}) as Dictionary
 	_check(
-		int(component.get("descendant_nodes", -1)) == 295
+		int(component.get("descendant_nodes", -1)) == 299
 		and int(component.get("mesh_instances", -1)) == 233
 		and int(component.get("multimesh_batches", -1)) == 6,
 		"Torrent-local renderer census batches eight RCS ports while retaining named clusters"

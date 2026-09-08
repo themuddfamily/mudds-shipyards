@@ -74,16 +74,16 @@ def write(name, content):
 
 
 CRAFT = [
-    ('torrent', 'TX-09', 'HEAVY INTERCEPTOR'),
-    ('arrow', 'AR-02', 'LIGHT INTERCEPTOR'),
+    ('torrent', 'TX-09', 'INTERCEPTOR'),
+    ('arrow', 'AR-02', 'RECONNAISSANCE'),
     ('zenith', 'ZI-07', 'STRIKE INTERCEPTOR'),
-    ('jovian', 'JV-14', 'HEAVY FREIGHT'),
-    ('halyard', 'HY-06', 'UTILITY HAULER'),
+    ('jovian', 'JV-14', 'LIGHT FREIGHT'),
+    ('halyard', 'HY-06', 'CREW TRANSPORT'),
     ('bulwark', 'BW-08', 'ARMORED ESCORT'),
     ('cinder-interceptor', 'CI-03', 'INTERCEPTOR'),
     ('cinder-bomber', 'CB-12', 'STRIKE BOMBER'),
     ('cinder-cargo', 'CH-05', 'CARGO HAULER'),
-    ('range', 'RN-21', 'LONG RANGE SCOUT'),
+    ('range', 'RN-21', 'RANGE TARGET'),
     ('skirmisher', 'SK-04', 'FAST ATTACK'),
     ('picket', 'PK-11', 'PATROL ESCORT'),
     ('courier', 'CR-17', 'EXPRESS COURIER'),
