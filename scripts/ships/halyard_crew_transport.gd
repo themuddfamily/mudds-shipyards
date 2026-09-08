@@ -3557,8 +3557,12 @@ func _build_propulsion_and_gear() -> void:
 	# read as one engine on a stick instead of four engines on a bar.
 	_manufactured_loft(_halyard_visual, "TailYoke", Vector3(0.0, 1.55, 0.0),
 		PackedVector3Array([Vector3(1.80, 0.30, 9.8), Vector3(4.70, 0.52, 10.9), Vector3(4.70, 0.48, 11.65), Vector3(3.90, 0.30, 12.0)]), _halyard_materials.structure)
-	_box(_halyard_visual, "TailYokeCap", Vector3(0.0, 2.24, TAIL_YOKE_Z), Vector3(8.80, 0.24, 1.20), _halyard_materials.hull_shade)
-	_box(_halyard_visual, "TailYokeBand", Vector3(0.0, 1.55, TAIL_YOKE_Z - 0.76), Vector3(9.00, 0.34, 0.14), _halyard_materials.accent)
+	# Pressed crown follows the swept casting instead of bridging it with a
+	# rectangular rail. The forward marking is inset into its narrow throat.
+	_manufactured_loft(_halyard_visual, "TailYokeCap", Vector3(0.0, 2.20, 0.0),
+		PackedVector3Array([Vector3(1.72, 0.07, 9.84), Vector3(4.48, 0.16, 10.92), Vector3(4.28, 0.16, 11.82), Vector3(3.88, 0.06, 11.98)]), _halyard_materials.hull_shade)
+	_manufactured_loft(_halyard_visual, "TailYokeBand", Vector3(0.0, 1.75, 0.0),
+		PackedVector3Array([Vector3(1.74, 0.08, 9.79), Vector3(2.07, 0.10, 9.94), Vector3(2.10, 0.08, 10.02)]), _halyard_materials.accent)
 	_engine_damage_vane_material = _halyard_materials.damage_vane as StandardMaterial3D
 	_engine_damage_vane = _box(
 		_halyard_visual,
@@ -3578,15 +3582,28 @@ func _build_propulsion_and_gear() -> void:
 	_engine_damage_vane.set_meta(&"damage_state", &"nominal")
 	for side in [-1.0, 1.0]:
 		var side_name := "Port" if side < 0.0 else "Starboard"
-		_box(_halyard_visual, side_name + "YokePylon", Vector3(side * 1.35, 1.55, 10.20), Vector3(0.55, 0.85, 2.60), _halyard_materials.structure)
-		_box(_halyard_visual, side_name + "YokeBrace", Vector3(side * 3.10, 1.20, 10.30), Vector3(3.60, 0.42, 0.60), _halyard_materials.structure, Vector3(0.0, side * deg_to_rad(-26.0), 0.0))
-		_box(_halyard_visual, side_name + "YokeTipFairing", Vector3(side * 4.72, 1.55, TAIL_YOKE_Z), Vector3(0.40, 1.25, 1.60), _halyard_materials.hull_olive)
+		if side > 0.0:
+			# Mirrored castings retain the port side's mesh/material resources.
+			for part in ["YokePylon", "YokeBrace", "YokeTipFairing"]:
+				var mirrored := _halyard_visual.get_node("Port" + part).duplicate() as MeshInstance3D
+				mirrored.name = side_name + part
+				mirrored.position.x = -mirrored.position.x
+				mirrored.rotation_degrees.y = -mirrored.rotation_degrees.y
+				_halyard_visual.add_child(mirrored)
+			continue
+		_manufactured_loft(_halyard_visual, side_name + "YokePylon", Vector3(side * 1.35, 1.55, 0.0),
+			PackedVector3Array([Vector3(0.22, 0.28, 8.90), Vector3(0.32, 0.42, 9.25), Vector3(0.30, 0.42, 10.66), Vector3(0.22, 0.30, 11.50)]), _halyard_materials.structure)
+		var brace := _manufactured_loft(_halyard_visual, side_name + "YokeBrace", Vector3(side * 3.10, 1.20, 10.30),
+			PackedVector3Array([Vector3(0.20, 0.15, -1.80), Vector3(0.30, 0.23, -1.50), Vector3(0.30, 0.23, 1.40), Vector3(0.21, 0.16, 1.80)]), _halyard_materials.structure)
+		brace.rotation_degrees.y = side * 64.0
+		_manufactured_loft(_halyard_visual, side_name + "YokeTipFairing", Vector3(side * 4.72, 1.55, 0.0),
+			PackedVector3Array([Vector3(0.10, 0.35, TAIL_YOKE_Z - 0.80), Vector3(0.20, 0.58, TAIL_YOKE_Z - 0.46), Vector3(0.20, 0.58, TAIL_YOKE_Z + 0.40), Vector3(0.11, 0.36, TAIL_YOKE_Z + 0.80)]), _halyard_materials.hull_olive)
 	for engine_index in 4:
 		var offsets := [-3.75, -1.45, 1.45, 3.75]
 		var engine_x: float = offsets[engine_index]
 		var prefix := "Engine%02d" % engine_index
 		_manufactured_loft(_halyard_visual, prefix + "Housing", Vector3(engine_x, 1.55, 0.0),
-			PackedVector3Array([Vector3(0.52, 0.52, 10.7), Vector3(0.81, 0.81, 11.5), Vector3(0.81, 0.81, 12.65), Vector3(0.68, 0.68, 13.28)]), _halyard_materials.hull_shade)
+			PackedVector3Array([Vector3(0.50, 0.50, 10.70), Vector3(0.67, 0.67, 10.98), Vector3(0.81, 0.81, 11.48), Vector3(0.83, 0.83, 11.76), Vector3(0.83, 0.83, 12.62), Vector3(0.81, 0.81, 13.02), Vector3(0.80, 0.80, 13.28)]), _halyard_materials.hull_shade, 32, 0.86)
 		_cylinder(_halyard_visual, prefix + "Collar", Vector3(engine_x, 1.55, 13.36), 0.86, 0.36, _halyard_materials.hull_shade, Vector3(90.0, 0.0, 0.0))
 		var core := _cylinder(_halyard_visual, prefix + "Core", Vector3(engine_x, 1.55, 13.56), 0.48, 0.18, _halyard_materials.engine, Vector3(90.0, 0.0, 0.0))
 		_engine_cores.append(core)
@@ -4733,7 +4750,8 @@ func _manufactured_loft(
 		origin: Vector3,
 		sections: PackedVector3Array,
 		material: Material,
-		ring_count := 24
+		ring_count := 24,
+		section_roundness := 0.42
 	) -> MeshInstance3D:
 	var tool := SurfaceTool.new()
 	tool.begin(Mesh.PRIMITIVE_TRIANGLES)
@@ -4744,8 +4762,8 @@ func _manufactured_loft(
 			var angle := TAU * float(ring_index) / float(ring_count)
 			var cosine := cos(angle)
 			var sine := sin(angle)
-			var rounded_x := signf(cosine) * pow(absf(cosine), 0.42)
-			var rounded_y := signf(sine) * pow(absf(sine), 0.42)
+			var rounded_x := signf(cosine) * pow(absf(cosine), section_roundness)
+			var rounded_y := signf(sine) * pow(absf(sine), section_roundness)
 			tool.set_uv(Vector2(float(ring_index) / float(ring_count), float(section_index) / float(maxi(1, sections.size() - 1))))
 			tool.add_vertex(Vector3(section.x * rounded_x, section.y * rounded_y, section.z))
 	for section_index in sections.size() - 1:
