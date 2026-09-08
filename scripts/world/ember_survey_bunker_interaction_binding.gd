@@ -135,7 +135,11 @@ func configure(host: Object, definition: Variant) -> Dictionary:
 
 
 func get_interaction_prompt() -> String:
-	if not _current():
+	return _interaction_prompt(_current())
+
+
+func _interaction_prompt(active: bool) -> String:
+	if not active:
 		return ""
 	if not _completed:
 		return PROMPT_READY
@@ -447,13 +451,16 @@ func restore_terminal_completion_presentation(completion: Variant) -> Dictionary
 
 
 func get_snapshot() -> Dictionary:
-	_apply_presentation()
+	# One fresh observation drives the report and its physical presentation.
+	# It is never retained across calls or reused after an interaction mutation.
+	var active := _current()
+	_apply_current_presentation(active)
 	return {
 		"configured": _configured,
 		"attached": _attached,
 		"interaction_id": INTERACTION_ID,
 		"position_body_local_m": position,
-		"prompt": get_interaction_prompt(),
+		"prompt": _interaction_prompt(active),
 		"completed": _completed,
 		"completion_attachment_generation": _completion_attachment_generation,
 		"last_receipt": _last_receipt.duplicate(true),
@@ -466,7 +473,7 @@ func get_snapshot() -> Dictionary:
 		"completion_response": {
 			"response_id": COMPLETION_RESPONSE_ID,
 			"kind": &"three_sided_service_alcove",
-			"revealed": _response_is_active(),
+			"revealed": active and _completed,
 			"collision_enabled": _response_body != null and _response_body.collision_layer == WORLD_LAYER,
 			"center_body_local_m": _response_center_body_local_m,
 			"open_route": true,
@@ -482,7 +489,7 @@ func get_snapshot() -> Dictionary:
 		"service_terminal": {
 			"terminal_id": SERVICE_TERMINAL_ID,
 			"terminal_generation": _service_terminal_generation,
-			"available": _current() and _completed \
+			"available": active and _completed \
 				and _service_terminal_generation > 0 and not _service_consumed,
 			"consumed": _service_consumed,
 			"request_sequence": _service_request_sequence,
@@ -523,22 +530,34 @@ func _service_status_text() -> String:
 func _current() -> bool:
 	if not _configured or not _attached or _host == null or not is_instance_valid(_host):
 		return false
-	var host_snapshot := _host.call(&"get_snapshot") as Dictionary
+	var host_snapshot := _host_snapshot()
 	return int(_host.call(&"get_generation")) == _host_generation \
 		and int(_host.call(&"get_attachment_generation")) == _attachment_generation \
 		and bool(host_snapshot.get("attached", false)) \
 		and StringName(host_snapshot.get("phase_id", &"")) == &"on_foot"
 
 
+## The Host supplies fresh phase/attachment/actor evidence without unrelated
+## diagnostics. Existing injected Hosts retain their original full-report seam.
+func _host_snapshot() -> Dictionary:
+	return _host.call(
+		&"get_return_status_snapshot" if _host.has_method(&"get_return_status_snapshot")
+		else &"get_snapshot"
+	) as Dictionary
+
+
 func _actor_is_current(actor: Node) -> bool:
 	if actor == null or not is_instance_valid(actor):
 		return false
-	var identities := (_host.call(&"get_snapshot") as Dictionary).get("identities", {}) as Dictionary
+	var identities := _host_snapshot().get("identities", {}) as Dictionary
 	return actor.get_instance_id() == int(identities.get("player_instance_id", 0))
 
 
 func _apply_presentation() -> void:
-	var presentation_active := _presentation_is_current()
+	_apply_current_presentation(_current())
+
+
+func _apply_current_presentation(presentation_active: bool) -> void:
 	collision_layer = INTERACTION_LAYER if presentation_active else 0
 	if _marker != null:
 		_marker.visible = presentation_active
@@ -554,7 +573,7 @@ func _apply_presentation() -> void:
 			else Color(0.95, 0.52, 0.18, 1.0)
 		_material.emission = _material.albedo_color
 		_material.emission_energy_multiplier = 1.2 if _completed else 0.7
-	var response_active := _response_is_active()
+	var response_active := presentation_active and _completed
 	if _response_body != null:
 		_response_body.collision_layer = WORLD_LAYER if response_active else 0
 		_response_body.collision_mask = 0
@@ -628,20 +647,6 @@ func _add_alcove_part(part_name: String, size: Vector3, local_position: Vector3)
 	shape_node.shape = shape
 	shape_node.position = local_position
 	_response_body.add_child(shape_node)
-
-
-func _response_is_active() -> bool:
-	return _presentation_is_current() and _completed
-
-
-func _presentation_is_current() -> bool:
-	if not _configured or not _attached or _host == null or not is_instance_valid(_host):
-		return false
-	var host_snapshot := _host.call(&"get_snapshot") as Dictionary
-	return int(_host.call(&"get_generation")) == _host_generation \
-		and int(_host.call(&"get_attachment_generation")) == _attachment_generation \
-		and bool(host_snapshot.get("attached", false)) \
-		and StringName(host_snapshot.get("phase_id", &"")) == &"on_foot"
 
 
 func _wayfinding_snapshot() -> Dictionary:

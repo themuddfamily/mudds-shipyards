@@ -26,6 +26,29 @@ class FakeHost:
 			},
 		}
 
+class LegacyActivityAdapter:
+	extends RefCounted
+	var snapshot_count := 0
+	var snapshot := {
+		"state": &"active",
+		"activity_reward": {
+			"state": &"active", "activity_id": &"ember_beacon_survey",
+			"activity_generation": 7,
+		},
+	}
+	func get_snapshot() -> Dictionary:
+		snapshot_count += 1
+		return snapshot.duplicate(true)
+
+class ObservedActivityAdapter:
+	extends LegacyActivityAdapter
+	var observation_count := 0
+	func get_state_id() -> StringName:
+		return snapshot.state
+	func get_activity_reward_snapshot() -> Dictionary:
+		observation_count += 1
+		return (snapshot.activity_reward as Dictionary).duplicate(true)
+
 var _assertions := 0
 var _failures := PackedStringArray()
 var _reward_calls := 0
@@ -42,6 +65,7 @@ func _run() -> void:
 	_check(binding.get_activity_reward_snapshot().is_empty(), "unconfigured composition has no activity evidence")
 	var configured := binding.configure(host, director, Callable(self, "_reward_sink"), 4)
 	_check(configured.accepted and configured.runtime.composition_generation == 1 and configured.runtime.navigation.state == &"idle" and configured.runtime.hazard.configured and configured.runtime.water.state == &"idle" and configured.runtime.landmarks.configured and configured.runtime.settlement.configured, "one generation-fenced Ember composition retains all planetary runtimes")
+	_check_sample_activity_observation(binding, host)
 	_check_activity_observation(binding, "bound")
 	var host_snapshot_count := host.snapshot_count
 	binding.get_activity_reward_snapshot()
@@ -208,6 +232,38 @@ func _reward_sink(_receipt: Dictionary) -> Dictionary:
 func _check(condition: bool, message: String) -> void:
 	_assertions += 1
 	if not condition: _failures.append(message)
+
+
+func _check_sample_activity_observation(binding: Object, host: FakeHost) -> void:
+	var original_adapter: Object = binding.get("_adapter")
+	var host_reads := host.snapshot_count
+	_check(not binding.call(&"_sample_rack_activity_is_current", 7),
+		"dormant production activity cannot activate the sample rack")
+	_check(host.snapshot_count == host_reads,
+		"actual production sample activity predicate builds no Host diagnostics")
+	for adapter: LegacyActivityAdapter in [LegacyActivityAdapter.new(), ObservedActivityAdapter.new()]:
+		binding.set("_adapter", adapter)
+		_check(binding.call(&"_sample_rack_activity_is_current", 7),
+			"sample rack admits exact active authoritative activity generation")
+		_check(not binding.call(&"_sample_rack_activity_is_current", 8),
+			"sample rack rejects foreign activity generation")
+		adapter.snapshot.activity_reward.activity_id = &"foreign_activity"
+		_check(not binding.call(&"_sample_rack_activity_is_current", 7),
+			"sample rack rejects foreign activity identity")
+		adapter.snapshot.activity_reward.activity_id = &"ember_beacon_survey"
+		adapter.snapshot.activity_reward.state = &"completed"
+		_check(not binding.call(&"_sample_rack_activity_is_current", 7),
+			"fresh terminal activity state rejects sample activation")
+		adapter.snapshot.activity_reward.state = &"active"
+		adapter.snapshot.state = &"detached"
+		_check(not binding.call(&"_sample_rack_activity_is_current", 7),
+			"fresh adapter detach rejects sample activation")
+		if adapter is ObservedActivityAdapter:
+			_check(adapter.snapshot_count == 0 and adapter.observation_count == 5,
+				"five focused sample activity checks build no full adapter diagnostics")
+		else:
+			_check(adapter.snapshot_count == 5, "legacy adapter retains its full report fallback")
+	binding.set("_adapter", original_adapter)
 
 
 func _check_activity_observation(binding: Object, stage: String) -> void:

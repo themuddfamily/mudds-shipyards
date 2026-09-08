@@ -11,21 +11,36 @@ class FakeHost:
 	var generation := 44
 	var attachment_generation := 1
 	var player_instance_id := 0
+	var snapshot_count := 0
+	var observation_count := 0
+	var phase_id := &"on_foot"
+	var attached := true
 	func get_generation() -> int: return generation
 	func get_attachment_generation() -> int: return attachment_generation
 	func get_snapshot() -> Dictionary:
+		snapshot_count += 1
+		return _observation()
+	func _observation() -> Dictionary:
 		return {
-			"attached": true,
-			"phase_id": &"on_foot",
+			"attached": attached,
+			"phase_id": phase_id,
 			"identities": {"player_instance_id": player_instance_id},
 		}
 
+class ObservedHost:
+	extends FakeHost
+	func get_return_status_snapshot() -> Dictionary:
+		observation_count += 1
+		return _observation()
+
 class FakeActivityAuthority:
+	var observation_count := 0
 	var active := true
 	var active_generation := 1
 	var accept_submissions := true
 	var admitted_receipts: Array[Dictionary] = []
 	func is_current(expected_activity_generation: int) -> bool:
+		observation_count += 1
 		return active and expected_activity_generation == active_generation
 	func submit(receipt: Dictionary) -> Dictionary:
 		if not accept_submissions:
@@ -42,11 +57,21 @@ func _init() -> void:
 
 
 func _run() -> void:
+	var legacy_views := await _exercise(FakeHost.new())
+	var narrow_views := await _exercise(ObservedHost.new())
+	_check(legacy_views == narrow_views, "focused and legacy Host observations preserve every interaction report")
+	for failure in _failures:
+		push_error(failure)
+	print("EMBER_SAMPLE_RACK_INTERACTION_BINDING_TEST_OK: %d assertions" % _assertions)
+	quit(0 if _failures.is_empty() else 1)
+
+
+func _exercise(host: FakeHost) -> Array:
+	var views: Array = []
 	var actor := Node3D.new()
 	root.add_child(actor)
 	var foreign_actor := Node3D.new()
 	root.add_child(foreign_actor)
-	var host := FakeHost.new()
 	host.player_instance_id = actor.get_instance_id()
 	var authority := FakeActivityAuthority.new()
 	var binding := BindingScript.new() as Area3D
@@ -57,7 +82,7 @@ func _run() -> void:
 		AuthoredSceneScript.get_sample_rack_interaction_definition(),
 		Callable(authority, "is_current"), Callable(authority, "submit")
 	)
-	var dormant := binding.call(&"get_snapshot") as Dictionary
+	var dormant := _observe(binding, host, authority, views)
 	_check(
 		bool(configured.accepted) and not bool(dormant.active)
 			and int(dormant.physical.collision_layer) == 0
@@ -69,7 +94,7 @@ func _run() -> void:
 	var activated: Dictionary = binding.call(
 		&"activate_for_activity_generation", 1
 	)
-	var ready := binding.call(&"get_snapshot") as Dictionary
+	var ready := _observe(binding, host, authority, views)
 	var marker := binding.get_node(^"SampleRackAnalysisMarker") as Label3D
 	_check(
 		bool(activated.accepted) and bool(ready.active)
@@ -96,7 +121,7 @@ func _run() -> void:
 	var duplicate: Dictionary = binding.call(
 		&"submit_interaction", actor, 44, 1, 1
 	)
-	var complete := binding.call(&"get_snapshot") as Dictionary
+	var complete := _observe(binding, host, authority, views)
 	var receipt := complete.last_receipt as Dictionary
 	_check(
 		not bool(stale.accepted) and not bool(foreign.accepted)
@@ -118,10 +143,10 @@ func _run() -> void:
 	)
 
 	var detached: Dictionary = binding.call(&"detach")
-	var hidden := binding.call(&"get_snapshot") as Dictionary
+	var hidden := _observe(binding, host, authority, views)
 	host.attachment_generation = 2
 	var reentered: Dictionary = binding.call(&"reenter", 2)
-	var retained := binding.call(&"get_snapshot") as Dictionary
+	var retained := _observe(binding, host, authority, views)
 	_check(
 		bool(detached.accepted) and not bool(hidden.physical.marker_visible)
 			and bool(reentered.accepted) and bool(retained.completed)
@@ -135,7 +160,7 @@ func _run() -> void:
 	var next_generation: Dictionary = binding.call(
 		&"activate_for_activity_generation", 2
 	)
-	var reset := binding.call(&"get_snapshot") as Dictionary
+	var reset := _observe(binding, host, authority, views)
 	_check(
 		bool(next_generation.accepted) and not bool(reset.completed)
 			and int(reset.activity_generation) == 2
@@ -147,12 +172,12 @@ func _run() -> void:
 	var rejected: Dictionary = binding.call(
 		&"submit_interaction", actor, 44, 2, 2
 	)
-	var after_rejection := binding.call(&"get_snapshot") as Dictionary
+	var after_rejection := _observe(binding, host, authority, views)
 	authority.active = false
 	var late_after_failure: Dictionary = binding.call(
 		&"submit_interaction", actor, 44, 2, 2
 	)
-	var inactive := binding.call(&"get_snapshot") as Dictionary
+	var inactive := _observe(binding, host, authority, views)
 	authority.active_generation = 3
 	var inactive_activation: Dictionary = binding.call(
 		&"activate_for_activity_generation", 3
@@ -162,7 +187,7 @@ func _run() -> void:
 	var reactivated: Dictionary = binding.call(
 		&"activate_for_activity_generation", 3
 	)
-	var fresh := binding.call(&"get_snapshot") as Dictionary
+	var fresh := _observe(binding, host, authority, views)
 	_check(
 		not bool(rejected.accepted) and bool(after_rejection.active)
 			and not bool(after_rejection.completed)
@@ -177,13 +202,45 @@ func _run() -> void:
 		"rejection and terminal activity state never manufacture local completion"
 	)
 
-	for failure in _failures:
-		push_error(failure)
-	print(
-		"EMBER_SAMPLE_RACK_INTERACTION_BINDING_TEST_OK: %d assertions"
-		% _assertions
-	)
-	quit(0 if _failures.is_empty() else 1)
+	var calls_before := authority.observation_count
+	host.phase_id = &"reboarded"
+	var off_foot := _observe(binding, host, authority, views)
+	_check(not off_foot.active and off_foot.prompt.is_empty()
+		and off_foot.physical.collision_layer == 0 and not off_foot.physical.marker_visible
+		and authority.observation_count == calls_before,
+		"fresh Host phase change hides prompt, marker and collision before reading activity")
+	host.phase_id = &"on_foot"
+	host.generation += 1
+	_check(not _observe(binding, host, authority, views).active,
+		"fresh Host generation change invalidates the next report")
+	host.generation -= 1
+	host.attached = false
+	_check(not _observe(binding, host, authority, views).active,
+		"fresh Host detach invalidates the next report")
+	host.attached = true
+	host.player_instance_id = foreign_actor.get_instance_id()
+	_check(not binding.can_interact(actor), "actor authentication reads the current Host identity")
+	binding.queue_free()
+	actor.queue_free()
+	foreign_actor.queue_free()
+	await process_frame
+	return views
+
+
+func _observe(binding: Object, host: FakeHost, authority: FakeActivityAuthority, views: Array) -> Dictionary:
+	var full_before := host.snapshot_count
+	var narrow_before := host.observation_count
+	var activity_before := authority.observation_count
+	var snapshot: Dictionary = binding.get_snapshot()
+	var expected_host_reads := 1 if snapshot.attached else 0
+	_check(host.snapshot_count - full_before + host.observation_count - narrow_before == expected_host_reads,
+		"one interaction report samples Host authority at most once")
+	_check(authority.observation_count - activity_before <= 1,
+		"one interaction report samples activity authority at most once")
+	if host is ObservedHost:
+		_check(host.snapshot_count == full_before, "focused interaction report builds no Host diagnostics")
+	views.append(snapshot.duplicate(true))
+	return snapshot
 
 
 func _check(condition: bool, message: String) -> void:

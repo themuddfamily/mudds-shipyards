@@ -1395,7 +1395,14 @@ func _on_survey_interaction_completed(receipt: Dictionary) -> void:
 func _sample_rack_activity_is_current(expected_activity_generation: int) -> bool:
 	if _relay_survey == null or _adapter == null:
 		return false
-	var adapter_snapshot := _adapter.call(&"get_snapshot") as Dictionary
+	var adapter_snapshot: Dictionary
+	if _adapter.has_method(&"get_state_id") and _adapter.has_method(&"get_activity_reward_snapshot"):
+		adapter_snapshot = {
+			"state": _adapter.call(&"get_state_id"),
+			"activity_reward": _adapter.call(&"get_activity_reward_snapshot"),
+		}
+	else:
+		adapter_snapshot = _adapter.call(&"get_snapshot") as Dictionary
 	var runtime := adapter_snapshot.get("activity_reward", {}) as Dictionary
 	return StringName(adapter_snapshot.get("state", &"")) == &"active" \
 		and StringName(runtime.get("state", &"")) == &"active" \

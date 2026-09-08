@@ -122,7 +122,11 @@ func activate_for_activity_generation(next_activity_generation: int) -> Dictiona
 
 
 func get_interaction_prompt() -> String:
-	if not _current():
+	return _interaction_prompt(_current())
+
+
+func _interaction_prompt(active: bool) -> String:
+	if not active:
 		return ""
 	return PROMPT_COMPLETE if _completed else PROMPT_READY
 
@@ -244,15 +248,18 @@ func restore_interrupted_completion(completion: Variant) -> Dictionary:
 
 
 func get_snapshot() -> Dictionary:
-	_apply_presentation()
+	# One fresh observation drives the report and its physical presentation.
+	# It is never retained across calls or reused after an interaction mutation.
+	var active := _current()
+	_apply_current_presentation(active)
 	return {
 		"configured": _configured,
 		"attached": _attached,
-		"active": _current(),
+		"active": active,
 		"checkpoint_id": CHECKPOINT_ID,
 		"interaction_id": INTERACTION_ID,
 		"position_body_local_m": position,
-		"prompt": get_interaction_prompt(),
+		"prompt": _interaction_prompt(active),
 		"activity_generation": _activity_generation,
 		"completed": _completed,
 		"completion_attachment_generation": _completion_attachment_generation,
@@ -283,7 +290,7 @@ func _current_host() -> bool:
 	if not _configured or not _attached or _host == null \
 			or not is_instance_valid(_host):
 		return false
-	var host_snapshot := _host.call(&"get_snapshot") as Dictionary
+	var host_snapshot := _host_snapshot()
 	return int(_host.call(&"get_generation")) == _host_generation \
 		and int(_host.call(&"get_attachment_generation")) \
 			== _attachment_generation \
@@ -302,19 +309,29 @@ func _authoritative_activity_current(expected_activity_generation: int) -> bool:
 	)
 
 
+## The Host supplies fresh phase/attachment/actor evidence without unrelated
+## diagnostics. Existing injected Hosts retain their original full-report seam.
+func _host_snapshot() -> Dictionary:
+	return _host.call(
+		&"get_return_status_snapshot" if _host.has_method(&"get_return_status_snapshot")
+		else &"get_snapshot"
+	) as Dictionary
+
+
 func _actor_is_current(actor: Node) -> bool:
 	if actor == null or not is_instance_valid(actor):
 		return false
-	var identities := (
-		_host.call(&"get_snapshot") as Dictionary
-	).get("identities", {}) as Dictionary
+	var identities := _host_snapshot().get("identities", {}) as Dictionary
 	return actor.get_instance_id() == int(
 		identities.get("player_instance_id", 0)
 	)
 
 
 func _apply_presentation() -> void:
-	var active := _current()
+	_apply_current_presentation(_current())
+
+
+func _apply_current_presentation(active: bool) -> void:
 	collision_layer = INTERACTION_LAYER if active else 0
 	if _marker != null:
 		_marker.visible = active

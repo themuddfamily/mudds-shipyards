@@ -7,18 +7,30 @@ class FakeHost:
 	var generation := 18
 	var attachment_generation := 1
 	var player_instance_id := 0
+	var snapshot_count := 0
+	var observation_count := 0
+	var phase_id := &"on_foot"
 	func get_generation() -> int: return generation
 	func get_attachment_generation() -> int: return attachment_generation
 	func get_phase() -> int: return 8
 	func get_snapshot() -> Dictionary:
+		snapshot_count += 1
+		return _observation()
+	func _observation() -> Dictionary:
 		return {
 			"host_id": &"ember_surface_loop", "attached": true,
-			"phase_id": &"on_foot",
+			"phase_id": phase_id,
 			"identities": {
 				"world_id": &"ember_moon",
 				"player_instance_id": player_instance_id,
 			},
 		}
+
+class ObservedHost:
+	extends FakeHost
+	func get_return_status_snapshot() -> Dictionary:
+		observation_count += 1
+		return _observation()
 
 var _assertions := 0
 var _failures := PackedStringArray()
@@ -30,9 +42,19 @@ func _init() -> void:
 
 
 func _run() -> void:
+	var legacy_views := await _exercise(FakeHost.new())
+	var narrow_views := await _exercise(ObservedHost.new())
+	_check(legacy_views == narrow_views, "focused Host reports preserve bunker presentation and persistence")
+	for failure in _failures:
+		push_error(failure)
+	print("EMBER_SURVEY_BUNKER_INTERACTION_PRODUCTION_TEST_OK: %d assertions" % _assertions)
+	quit(0 if _failures.is_empty() else 1)
+
+
+func _exercise(host: FakeHost) -> Array:
+	var views: Array = []
 	var actor := Node3D.new()
 	root.add_child(actor)
-	var host := FakeHost.new()
 	host.player_instance_id = actor.get_instance_id()
 	var director := DirectorScript.new()
 	root.add_child(director)
@@ -42,6 +64,7 @@ func _run() -> void:
 	var configured := binding.configure(host, director, Callable(self, "_reward_sink"), 18)
 	var interaction := binding.get_node("OwnedSurveyBunkerInteraction")
 	var ready := binding.get_snapshot().survey_interaction as Dictionary
+	_check_observation(interaction, host, ready, views)
 	var concealed_response := ready.completion_response as Dictionary
 	_check(
 		bool(configured.accepted)
@@ -57,6 +80,7 @@ func _run() -> void:
 	var completed: Dictionary = interaction.call(&"submit_interaction", actor, 18, 1)
 	var duplicate: Dictionary = interaction.call(&"submit_interaction", actor, 18, 1)
 	var completed_snapshot := binding.get_snapshot().survey_interaction as Dictionary
+	_check_observation(interaction, host, completed_snapshot, views)
 	var deployed_response := completed_snapshot.completion_response as Dictionary
 	var alcove := interaction.get_node("OwnedBunkerServiceAlcove") as StaticBody3D
 	var alcove_meshes := alcove.find_children("*Visual", "MeshInstance3D", false, false)
@@ -89,10 +113,12 @@ func _run() -> void:
 	)
 	var detached := binding.detach()
 	var while_detached := binding.get_snapshot().survey_interaction as Dictionary
+	_check_observation(interaction, host, while_detached, views)
 	var detached_response := while_detached.completion_response as Dictionary
 	host.attachment_generation = 2
 	var reentered := binding.reenter()
 	var retained := binding.get_snapshot().survey_interaction as Dictionary
+	_check_observation(interaction, host, retained, views)
 	var retained_response := retained.completion_response as Dictionary
 	_check(
 		bool(detached.accepted) and bool(reentered.accepted)
@@ -106,6 +132,7 @@ func _run() -> void:
 	)
 	var restored := binding.restore_session_snapshot(saved)
 	var after_restore := binding.get_snapshot().survey_interaction as Dictionary
+	_check_observation(interaction, host, after_restore, views)
 	var restored_response := after_restore.completion_response as Dictionary
 	_check(
 		bool(restored.accepted) and bool(after_restore.completed)
@@ -118,14 +145,34 @@ func _run() -> void:
 			and not bool(after_restore.authority.save),
 		"newer generation admits the saved completion without gaining adjacent authority"
 	)
+	host.phase_id = &"reboarded"
+	var hidden: Dictionary = interaction.get_snapshot()
+	_check_observation(interaction, host, hidden, views)
+	_check(hidden.prompt.is_empty() and hidden.physical.collision_layer == 0
+		and not hidden.physical.marker_visible and not hidden.completion_response.revealed
+		and not hidden.completion_response.collision_enabled and not hidden.service_terminal.available,
+		"fresh off-foot phase hides prompt, marker, alcove collision and service availability")
+	host.phase_id = &"on_foot"
+	var current: Dictionary = interaction.get_snapshot()
+	_check(current == after_restore, "returning to the same current phase restores the physical presentation")
 	binding.queue_free()
 	director.queue_free()
 	actor.queue_free()
 	await process_frame
-	for failure in _failures:
-		push_error(failure)
-	print("EMBER_SURVEY_BUNKER_INTERACTION_PRODUCTION_TEST_OK: %d assertions" % _assertions)
-	quit(0 if _failures.is_empty() else 1)
+	return views
+
+
+func _check_observation(interaction: Object, host: FakeHost, expected: Dictionary, views: Array) -> void:
+	var full_before := host.snapshot_count
+	var narrow_before := host.observation_count
+	var snapshot: Dictionary = interaction.get_snapshot()
+	var expected_reads := 1 if snapshot.attached else 0
+	_check(host.snapshot_count - full_before + host.observation_count - narrow_before == expected_reads,
+		"bunker report samples current Host once for prompt, marker, collision and service")
+	if host is ObservedHost:
+		_check(host.snapshot_count == full_before, "focused bunker report builds no Host diagnostics")
+	_check(snapshot == expected, "direct interaction report preserves the production-composed report")
+	views.append(snapshot.duplicate(true))
 
 
 func _reward_sink(_receipt: Dictionary) -> Dictionary:
