@@ -72,6 +72,7 @@ static var _shared_hull_material: StandardMaterial3D
 # geometry and paint recipe across simultaneously retained haulers.
 static var _shared_cargo_pod_mesh: ArrayMesh
 static var _shared_cargo_pod_material: StandardMaterial3D
+static var _shared_freight_load_frame: ArrayMesh
 
 
 class CinderLoadmasterInteraction:
@@ -1161,6 +1162,7 @@ func _build_hull(visual: Node3D) -> void:
 	_cargo_shoulders.set_meta(&"animated", false)
 	_cargo_shoulders.set_meta(&"damage_state", &"nominal")
 	_build_freight_pressure_fairings(visual)
+	_build_continuous_load_frame(visual)
 	ShipSurfaceDetail.mark_surface(visual, "ForwardFreightRegistration", "cinder-cargo", Vector3(0, 0, -6.135), Vector2(2.25, 1.125), Vector3.FORWARD, Vector3.UP)
 	ShipSurfaceDetail.mark_surface(visual, "AftFreightRegistration", "cinder-cargo", Vector3(0, 0, 6.135), Vector2(2.25, 1.125), Vector3.BACK, Vector3.UP)
 	ShipSurfaceDetail.mark_surface(visual, "CrewAccessMark", "rescue", Vector3(-3.34, 0.25, -3.75), Vector2(1.35, 0.675), Vector3.LEFT, Vector3.UP)
@@ -1204,7 +1206,7 @@ func _build_freight_pressure_fairings(visual: Node3D) -> void:
 		visual.add_child(cradle)
 		_service_bay(visual, tag + "FreightThermalService", Vector3(side * 2.3, 1.695, 0.4), 0.66, 1.5, _shared_hull_material, dark, metal)
 		# All side pods stop behind the protected boarding aperture (z > 2.30).
-		_armor_shell(visual, tag + "EnginePylon", Vector3(side * 3.07, 0.32, 4.25), Vector3(1.10, 0.80, 3.35), _shared_hull_material)
+		_armor_shell(visual, tag + "EnginePylon", Vector3(side * 3.03, 0.38, 4.12), Vector3(1.55, 1.20, 3.25), _shared_hull_material)
 		_armor_shell(visual, tag + "EngineShroud", Vector3(side * 3.75, 0.4, 4.45), Vector3(1.62, 1.62, 3.5), dark)
 		_frustum(visual, tag + "FreightExhaust", Vector3(side * 3.75, 0.4, 6.40), 0.75, 0.55, 0.65, metal, Vector3(90, 0, 0), false, false)
 		_cylinder(visual, tag + "RecessedThroat", Vector3(side * 3.75, 0.4, 6.20), 0.45, 0.08, dark, Vector3(90, 0, 0))
@@ -1217,6 +1219,64 @@ func _build_freight_pressure_fairings(visual: Node3D) -> void:
 		radiator.rotation.z = side * -PI * 0.5
 		visual.add_child(radiator)
 		_service_bay(radiator, "Cooling", Vector3.ZERO, 0.46, 1.05, metal, dark, dark)
+
+
+## Cargo restraints carry around the roof and into the lower side frame instead of
+## ending as isolated vertical trim. The same immutable frame stock is retained
+## by every hauler; it neither crosses the open port route nor owns collision.
+func _build_continuous_load_frame(visual: Node3D) -> void:
+	if _shared_freight_load_frame == null:
+		var vertices := PackedVector3Array()
+		var normals := PackedVector3Array()
+		var indices := PackedInt32Array()
+		for z in CARGO_FRAME_RIB_Z:
+			var end_ratio := clampf((absf(z) / 6.0 - 0.66) / 0.34, 0.0, 1.0)
+			var sx := lerpf(1.0, 0.80, end_ratio)
+			var sy := lerpf(1.0, 0.82, end_ratio)
+			var path := PackedVector2Array([
+				Vector2(-3.22 * sx, -1.04 * sy), Vector2(-3.22 * sx, 1.30 * sy),
+				Vector2(-3.03 * sx, 1.54 * sy), Vector2(-2.48 * sx, 1.65 * sy),
+				Vector2(2.48 * sx, 1.65 * sy), Vector2(3.03 * sx, 1.54 * sy),
+				Vector2(3.22 * sx, 1.30 * sy), Vector2(3.22 * sx, -1.04 * sy),
+			])
+			_append_load_band(vertices, normals, indices, path, z, 0.30)
+		var arrays := []
+		arrays.resize(Mesh.ARRAY_MAX)
+		arrays[Mesh.ARRAY_VERTEX] = vertices
+		arrays[Mesh.ARRAY_NORMAL] = normals
+		arrays[Mesh.ARRAY_INDEX] = indices
+		_shared_freight_load_frame = ArrayMesh.new()
+		_shared_freight_load_frame.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
+		_shared_freight_load_frame.resource_local_to_scene = false
+	var frame := MeshInstance3D.new()
+	frame.name = "ContinuousFreightLoadFrame"
+	frame.mesh = _shared_freight_load_frame
+	frame.material_override = _shared_hull_material
+	visual.add_child(frame)
+
+
+static func _append_load_band(vertices: PackedVector3Array, normals: PackedVector3Array,
+		indices: PackedInt32Array, path: PackedVector2Array, z: float, width: float) -> void:
+	var rings: Array[PackedVector3Array] = []
+	for i in path.size():
+		var tangent := (path[mini(i + 1, path.size() - 1)] - path[maxi(0, i - 1)]).normalized()
+		var out := Vector2(-tangent.y, tangent.x)
+		var point := path[i]
+		var inner := point - out * 0.045
+		var outer := point + out * 0.07
+		rings.append(PackedVector3Array([
+			Vector3(outer.x, outer.y, z - width * 0.5), Vector3(outer.x, outer.y, z + width * 0.5),
+			Vector3(inner.x, inner.y, z + width * 0.5), Vector3(inner.x, inner.y, z - width * 0.5),
+		]))
+	for i in rings.size() - 1:
+		var mid := (path[i] + path[i + 1]) * 0.5
+		var out := Vector3(mid.x, maxf(mid.y, 0.0), 0).normalized()
+		for edge in 4:
+			var next := (edge + 1) % 4
+			_append_shell_quad(vertices, normals, indices, rings[i][edge], rings[i][next], rings[i + 1][next], rings[i + 1][edge],
+				[out, Vector3.BACK, -out, Vector3.FORWARD][edge])
+	for cap in [0, rings.size() - 1]:
+		_append_shell_quad(vertices, normals, indices, rings[cap][0], rings[cap][1], rings[cap][2], rings[cap][3], Vector3.DOWN)
 
 
 ## Continuous load rails follow the pressure roof's end taper. Their seating
@@ -1295,7 +1355,7 @@ static func _port_aperture_shell_mesh(
 		Vector2(x0 + 0.18, y0 + lower_bevel * 0.28), Vector2(x0, y0 + lower_bevel),
 		Vector2(x0, y1 - bevel), Vector2(x0 + 0.20, y1 - bevel * 0.24),
 	])
-	var stations: Array[float] = [z0, z0 * 0.91, z0 * 0.66, aperture_z_min, aperture_z_max, z1 * 0.66, z1 * 0.91, z1]
+	var stations: Array[float] = [z0, z0 * 0.91, z0 * 0.66, aperture_z_min, 0.0, aperture_z_max, z1 * 0.66, z1 * 0.91, z1]
 	stations.sort()
 	var rings: Array[PackedVector3Array] = []
 	for z in stations:
@@ -1313,6 +1373,14 @@ static func _port_aperture_shell_mesh(
 			if edge == 9 and in_door:
 				continue
 			var next := (edge + 1) % section.size()
+			# Stamp the large freight faces into the pressure skin itself. The
+			# perimeter stays at the original shell bounds; recessed pans expose
+			# real angled reveals and leave the interior pressure wall intact.
+			if size == HULL_SIZE and (edge == 3 or edge == 9) and stations[bay + 1] - stations[bay] > 0.6:
+				_append_freight_pan(vertices, normals, indices,
+					rings[bay][edge], rings[bay][next], rings[bay + 1][next], rings[bay + 1][edge],
+					Vector3.RIGHT if edge == 3 else Vector3.LEFT)
+				continue
 			var midpoint := (section[edge] + section[next]) * 0.5
 			_append_shell_quad(vertices, normals, indices,
 				rings[bay][edge], rings[bay][next], rings[bay + 1][next], rings[bay + 1][edge],
@@ -1369,6 +1437,48 @@ static func _port_aperture_shell_mesh(
 	))
 	mesh.set_meta(&"closed_aperture_reveals", true)
 	return mesh
+
+
+## A deep pressed panel, including its surrounding skin and sloped reveal.
+## Sloped perimeter reveals catch light across the large flank surface.
+static func _append_freight_pan(vertices: PackedVector3Array, normals: PackedVector3Array,
+		indices: PackedInt32Array, a: Vector3, b: Vector3, c: Vector3, d: Vector3, outward: Vector3) -> void:
+	var outer := PackedVector2Array([
+		Vector2(0, 0), Vector2(1, 0), Vector2(1, 1), Vector2(0, 1),
+	])
+	var inner := PackedVector2Array([
+		Vector2(0.10, 0.13), Vector2(0.90, 0.13), Vector2(0.90, 0.87), Vector2(0.10, 0.87),
+	])
+	var border := PackedVector3Array()
+	var rim := PackedVector3Array()
+	var floor_ring := PackedVector3Array()
+	for i in 4:
+		var q := outer[i]
+		border.append(a.lerp(b, q.x).lerp(d.lerp(c, q.x), q.y))
+		q = inner[i]
+		rim.append(a.lerp(b, q.x).lerp(d.lerp(c, q.x), q.y))
+		q = q.lerp(Vector2(0.5, 0.5), 0.085)
+		floor_ring.append(a.lerp(b, q.x).lerp(d.lerp(c, q.x), q.y) - outward * 0.15)
+	for edge in 4:
+		var next := (edge + 1) % 4
+		_append_shell_quad(vertices, normals, indices, border[edge], border[next], rim[next], rim[edge], outward)
+		_append_shell_quad(vertices, normals, indices, rim[edge], rim[next], floor_ring[next], floor_ring[edge], outward)
+	# A shallow diamond pressing stiffens each broad pan. Its crown remains
+	# below the original outer skin, giving four deliberate light planes rather
+	# than leaving another featureless rectangular sheet inside the recess.
+	var crown := (floor_ring[0] + floor_ring[1] + floor_ring[2] + floor_ring[3]) * 0.25 + outward * 0.075
+	for edge in 4:
+		var next := (edge + 1) % 4
+		var first := floor_ring[edge]
+		var second := floor_ring[next]
+		var normal := (second - first).cross(crown - first).normalized()
+		if normal.dot(outward) < 0.0:
+			normal = -normal
+		var triangle := [first, second, crown] if (second - first).cross(crown - first).dot(normal) < 0.0 else [first, crown, second]
+		for point in triangle:
+			indices.append(vertices.size())
+			vertices.append(point)
+			normals.append(normal)
 
 
 static func _append_shell_quad(
