@@ -65,11 +65,11 @@ const LOADMASTER_MANIFEST_GENERATION_MAX := 1_000_000
 ## Normal aisle-to-seat reading distance for the first port-row role plaque.
 ## This is presentation scale only; it grants no interaction or route reach.
 const LOADMASTER_WAYFINDING_READABILITY_DISTANCE_M := 4.5
-const LOADMASTER_WAYFINDING_PANEL_SIZE := Vector3(1.46, 0.78, 0.04)
-const LOADMASTER_WAYFINDING_ROLE_KEY_SIZE := Vector3(0.14, 0.78, 0.055)
-const LOADMASTER_WAYFINDING_LOCAL_OFFSET := Vector3(0.30, 2.05, 0.66)
-const LOADMASTER_WAYFINDING_TEXT_OFFSET := Vector3(0.10, 0.0, 0.034)
-const LOADMASTER_WAYFINDING_ROLE_KEY_OFFSET := Vector3(-0.66, 0.0, 0.012)
+const LOADMASTER_WAYFINDING_PANEL_SIZE := Vector3(1.06, 0.58, 0.04)
+const LOADMASTER_WAYFINDING_ROLE_KEY_SIZE := Vector3(0.075, 0.58, 0.055)
+const LOADMASTER_WAYFINDING_LOCAL_OFFSET := Vector3(-0.22, 2.13, 0.66)
+const LOADMASTER_WAYFINDING_TEXT_OFFSET := Vector3(0.055, 0.0, 0.034)
+const LOADMASTER_WAYFINDING_ROLE_KEY_OFFSET := Vector3(-0.492, 0.0, 0.012)
 const ENGINEER_POWER_ROUTE_BONUS := 0.15
 const ENGINEER_REPAIR_DURATION_SECONDS := 0.4
 const ENGINEER_REPAIR_COOLDOWN_SECONDS := 0.75
@@ -741,7 +741,7 @@ func _build_loadmaster_station_display() -> void:
 	_loadmaster_station_sign = Label3D.new()
 	_loadmaster_station_sign.name = "LoadmasterStationSign"
 	_loadmaster_station_sign.font_size = 56
-	_loadmaster_station_sign.pixel_size = 0.0024
+	_loadmaster_station_sign.pixel_size = 0.0017
 	_loadmaster_station_sign.modulate = Color("b9f1d0")
 	_loadmaster_station_sign.outline_modulate = Color("07111d")
 	_loadmaster_station_sign.outline_size = 10
@@ -829,7 +829,16 @@ func _present_loadmaster_station_snapshot(source: Variant) -> void:
 			"LOADMASTER\n[%s]\nMANIFEST %s\nROUTE %s"
 			% [str(state).to_upper(), str(manifest_id) if not manifest_id.is_empty() else "--", str(route_id) if not route_id.is_empty() else "--"]
 		)
+		_fit_loadmaster_station_text()
 		_position_loadmaster_station_display()
+
+
+func _fit_loadmaster_station_text() -> void:
+	# Receipt identifiers vary in length; keep live text inside the fitted face.
+	var widest := 1.0
+	for line in _loadmaster_station_sign.text.split("\n"):
+		widest = maxf(widest, ThemeDB.fallback_font.get_string_size(line, HORIZONTAL_ALIGNMENT_LEFT, -1.0, _loadmaster_station_sign.font_size).x)
+	_loadmaster_station_sign.pixel_size = minf(0.0017, 0.86 / widest)
 
 
 func _clear_loadmaster_station_display(reason: StringName) -> void:
@@ -853,6 +862,7 @@ func _clear_loadmaster_station_display(reason: StringName) -> void:
 	}.duplicate(true)
 	if is_instance_valid(_loadmaster_station_sign):
 		_loadmaster_station_sign.text = "LOADMASTER\n[STANDBY]\nMANIFEST --\nROUTE --"
+		_fit_loadmaster_station_text()
 		_loadmaster_station_sign.visible = is_inside_tree()
 
 
@@ -3434,10 +3444,12 @@ func _build_liveaboard_berth(side: float, side_name: String) -> void:
 	var linen: Material = _halyard_materials.linen
 	var blanket: Material = _halyard_materials.blanket
 	var pillow := _box(_aft_systems_bay, side_name + "BunkPillow", Vector3(side * 1.62, 1.40, 7.30), Vector3(0.82, 0.16, 0.38), linen)
-	pillow.mesh = _cabin_cushion_mesh(Vector3(0.82, 0.16, 0.38))
+	pillow.mesh = _berth_fabric_mesh(&"pillow")
+	pillow.rotation.y = side * 0.075
 	var cover := _box(_aft_systems_bay, side_name + "BunkBlanket", Vector3(side * 1.62, 1.34, 6.30), Vector3(1.10, 0.07, 1.40), blanket)
-	cover.mesh = _cabin_cushion_mesh(Vector3(1.10, 0.07, 1.40))
-	_box(_aft_systems_bay, side_name + "BunkBlanketFold", Vector3(side * 1.62, 1.40, 6.96), Vector3(1.10, 0.08, 0.19), linen)
+	cover.mesh = _berth_fabric_mesh(&"blanket")
+	var fold := _box(_aft_systems_bay, side_name + "BunkBlanketFold", Vector3(side * 1.62, 1.38, 6.88), Vector3(1.10, 0.08, 0.19), linen)
+	fold.mesh = _berth_fabric_mesh(&"fold")
 	# The existing aft practical lights the bedding. These warm emissive reading
 	# fixtures share one material and preserve the five-light interior budget.
 	_box(_aft_systems_bay, side_name + "ReadingLampHousing", Vector3(side * 2.10, 2.00, 7.30), Vector3(0.12, 0.20, 0.28), _halyard_materials.reading_lamp)
@@ -4940,9 +4952,9 @@ func _build_fitted_transport_details() -> void:
 	# service back and one stowage-mounted hanger explain its raised placement
 	# when approaching from the flight deck, without duplicating display state.
 	var plaque_at := Vector3(-CREW_SEAT_HALF_SPACING, 0.20, CREW_SEAT_ROWS[0] - 0.04) + LOADMASTER_WAYFINDING_LOCAL_OFFSET
-	_fitout_stock(cabin, "liner", plaque_at + Vector3(0, 0, -0.040), Vector3(1.40, 0.72, 0.028))
-	_fitout_stock(cabin, "cabin_fitting", plaque_at + Vector3(0, 0, -0.060), Vector3(1.18, 0.47, 0.020))
-	_fitout_stock(cabin, "cabin_fitting", plaque_at + Vector3(-0.48, 0.41, -0.02), Vector3(0.09, 0.25, 0.13))
+	_fitout_stock(cabin, "liner", plaque_at + Vector3(0, 0, -0.040), Vector3(1.02, 0.54, 0.028))
+	_fitout_stock(cabin, "cabin_fitting", plaque_at + Vector3(0, 0, -0.060), Vector3(0.84, 0.34, 0.020))
+	_fitout_stock(cabin, "cabin_fitting", plaque_at + Vector3(-0.32, 0.35, -0.02), Vector3(0.065, 0.19, 0.10))
 	_finish_fitout(_crew_cabin, cabin, "CabinFitout")
 	_build_berth_joinery()
 
@@ -4964,18 +4976,71 @@ func _build_berth_joinery() -> void:
 		for support_z in [5.68, 7.52]:
 			_fitout_stock(fittings, "cabin_fitting", Vector3(side * 1.66, 1.04, support_z), Vector3(0.94, 0.07, 0.08), Vector3(0, 0, side * 0.16))
 			_fitout_stock(fittings, "structure", Vector3(side * 2.12, 1.12, support_z), Vector3(0.07, 0.24, 0.13))
-		# Gathered privacy cloth is held back at the foot, leaving the sleep
-		# affordance visible; soft strips merge into one textile submission.
-		for pleat in 7:
-			_fitout_soft_stock(fittings, "upholstery", Vector3(side * 1.075 + sin(pleat * PI * 0.5) * 0.022, 1.68, 5.56 + pleat * 0.043), Vector3(0.07, 0.88, 0.065))
-		_fitout_stock(fittings, "accent", Vector3(side * 1.03, 1.63, 5.70), Vector3(0.032, 0.085, 0.36))
+		# A continuous hanging sheet fans out below the gathered waist. Its folds
+		# narrow at the tie instead of reading as separate upholstered rods.
+		var curtain := _box(_aft_systems_bay, "PortPrivacyCurtain" if side < 0.0 else "StarboardPrivacyCurtain", Vector3(side * 1.09, 1.68, 5.72), Vector3.ONE, _halyard_materials.upholstery)
+		curtain.mesh = _berth_fabric_mesh(&"curtain")
+		curtain.scale.x = side
+		var tie := _box(curtain, "FabricTie", Vector3.ZERO, Vector3.ONE, _halyard_materials.accent)
+		tie.mesh = _berth_fabric_mesh(&"tie")
 		_fitout_stock(fittings, "dark", Vector3(side * 2.035, 2.005, 7.30), Vector3(0.055, 0.25, 0.35))
 		_fitout_stock(fittings, "reading_lamp", Vector3(side * 1.998, 1.98, 7.30), Vector3(0.025, 0.10, 0.22))
 		# A small shelf and retained book sit outboard of the resting body.
 		_fitout_stock(fittings, "cabin_fitting", Vector3(side * 1.94, 1.69, 7.58), Vector3(0.39, 0.045, 0.24))
 		_fitout_stock(fittings, "accent", Vector3(side * 1.93, 1.745, 7.58), Vector3(0.24, 0.06, 0.16))
-		_fitout_soft_stock(fittings, "linen", Vector3(side * 1.62, 1.415, 6.88), Vector3(1.08, 0.035, 0.24))
 	_finish_fitout(_aft_systems_bay, fittings, "BerthJoinery")
+
+
+# Ship-local continuous cloth surfaces preserve the scanned textile binding.
+# Two skins close the thin blanket/curtain edges; pillows inflate from a seam.
+func _berth_fabric_mesh(kind: StringName) -> ArrayMesh:
+	var key := "berth_fabric_" + str(kind)
+	if _box_mesh_cache.has(key):
+		return _box_mesh_cache[key] as ArrayMesh
+	var tool := SurfaceTool.new()
+	tool.begin(Mesh.PRIMITIVE_TRIANGLES)
+	for face in [1.0, -1.0]:
+		# Keep opposing seam normals separate when the thin skins meet.
+		tool.set_smooth_group(0 if face > 0.0 else 1)
+		for row in 24:
+			for column in 32:
+				var points: Array[Vector3] = []
+				for corner in [Vector2(0, 0), Vector2(1, 0), Vector2(1, 1), Vector2(0, 1)]:
+					var u: float = (column + corner.x) / 32.0
+					var v: float = (row + corner.y) / 24.0
+					points.append(_berth_fabric_point(kind, u, v, face))
+				if face < 0.0:
+					_skin_quad(tool, points[0], points[1], points[2], points[3])
+				else:
+					_skin_quad(tool, points[3], points[2], points[1], points[0])
+	tool.generate_normals()
+	var mesh := tool.commit()
+	_box_mesh_cache[key] = mesh
+	return mesh
+
+
+func _berth_fabric_point(kind: StringName, u: float, v: float, face: float) -> Vector3:
+	var edge := sin(PI * u) * sin(PI * v)
+	if kind == &"pillow":
+		var loft := pow(maxf(edge, 0.0), 0.48)
+		var wrinkle := sin(u * 31.0 + v * 8.0) * 0.009 * (1.0 - loft) * edge
+		return Vector3((u - 0.5) * 0.82, face * loft * 0.103 + wrinkle, (v - 0.5) * 0.38)
+	if kind == &"tie":
+		var tie_point := _berth_fabric_point(&"curtain", u, 0.49 + v * 0.08, face)
+		tie_point.x -= 0.007
+		return tie_point
+	if kind == &"curtain":
+		var gather := exp(-pow((v - 0.53) / 0.17, 2.0))
+		var width := 0.40 - 0.23 * gather
+		var fold := sin(u * TAU * 5.0 + v * 0.55) * (0.035 - 0.014 * gather)
+		return Vector3(fold + gather * 0.045 + face * 0.003 * edge, (v - 0.5) * 0.89 + sin(u * 18.0) * 0.014 * (1.0 - v), (u - 0.5) * width)
+	var x := (u - 0.5) * 1.10
+	var side_drop := pow(clampf((absf(x) - 0.43) / 0.12, 0.0, 1.0), 1.5) * 0.12
+	var ripple := sin(u * 18.0 + v * 5.0) * 0.012 + sin(v * 24.0 - u * 7.0) * 0.008
+	if kind == &"fold":
+		return Vector3(x, 0.018 + sin(v * PI) * 0.035 + ripple - side_drop + face * 0.006 * edge, (v - 0.5) * 0.25 + sin(u * 9.0) * 0.02)
+	var foot_drop := pow(clampf((0.10 - v) / 0.10, 0.0, 1.0), 1.4) * 0.07
+	return Vector3(x, 0.023 + ripple - side_drop - foot_drop + face * 0.006 * edge, (v - 0.5) * 1.40 + sin(u * 8.0) * 0.018)
 
 
 # Inflated superellipse stock gives cushions rolled edges and fitted corners.

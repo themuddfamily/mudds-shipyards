@@ -67,6 +67,11 @@ func _run() -> void:
 			and craft.get_loadmaster_station_display_readout().contains("MANIFEST manifest_display"),
 		"a detached ready receipt renders manifest and selected route at the seat"
 	)
+	var fitted_sign := craft.get_node("LoadmasterStationSign") as Label3D
+	var widest_line := 0.0
+	for line in fitted_sign.text.split("\n"):
+		widest_line = maxf(widest_line, ThemeDB.fallback_font.get_string_size(line, HORIZONTAL_ALIGNMENT_LEFT, -1.0, fitted_sign.font_size).x * fitted_sign.pixel_size)
+	_check(widest_line <= 0.861, "live manifest identifiers fit within the station display face")
 	var ready_snapshot := craft.get_loadmaster_station_display_snapshot()
 	_check(
 		ready_snapshot.get("state", &"") == &"ready"

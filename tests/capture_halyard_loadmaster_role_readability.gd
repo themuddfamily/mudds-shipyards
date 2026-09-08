@@ -50,11 +50,13 @@ func _run() -> void:
 	camera.current = true
 	world.add_child(camera)
 	var plaque_position := panel.global_position
-	var aisle_direction := anchor.global_basis.orthonormalized() * Vector3(0.0, 0.0, 1.0)
-	camera.global_position = plaque_position + aisle_direction \
-			* HalyardCrewTransport.LOADMASTER_WAYFINDING_READABILITY_DISTANCE_M \
-			+ Vector3(0.52, 0.0, 0.0)
-	camera.global_position.y = anchor.global_position.y + 1.60
+	var camera_local := craft.to_local(plaque_position)
+	var eye_y := craft.to_local(anchor.global_position).y + 1.60
+	var distance := HalyardCrewTransport.LOADMASTER_WAYFINDING_READABILITY_DISTANCE_M
+	# Keep the camera in the actual aisle and exactly 4.5 m from the plaque.
+	var along_aisle := sqrt(distance * distance - camera_local.x * camera_local.x - pow(eye_y - camera_local.y, 2.0))
+	camera_local = Vector3(0.0, eye_y, camera_local.z + along_aisle)
+	camera.global_position = craft.to_global(camera_local)
 	camera.look_at(plaque_position, Vector3.UP)
 
 	for _frame in 10:

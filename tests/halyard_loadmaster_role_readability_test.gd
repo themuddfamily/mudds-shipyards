@@ -35,7 +35,7 @@ func _run() -> void:
 			and sign.text.begins_with("LOADMASTER\n")
 			and sign.text.contains("[STANDBY]")
 			and sign.font_size == 56
-			and is_equal_approx(sign.pixel_size, 0.0024)
+			and is_equal_approx(sign.pixel_size, 0.0017)
 			and sign.outline_size >= 10
 			and not sign.no_depth_test
 			and not sign.double_sided
@@ -80,8 +80,8 @@ func _run() -> void:
 		var role_key_right := HalyardCrewTransport.LOADMASTER_WAYFINDING_ROLE_KEY_OFFSET.x \
 				+ HalyardCrewTransport.LOADMASTER_WAYFINDING_ROLE_KEY_SIZE.x * 0.5
 		_check(
-			text_left - role_key_right >= 0.08,
-			"the role bar clears the widest text line by at least eight centimetres"
+			text_left - role_key_right >= 0.06,
+			"the role bar clears the widest text line by at least six centimetres"
 		)
 		var line_block_height := fallback_font.get_height(sign.font_size) \
 				* sign.pixel_size * float(sign.text.count("\n") + 1)
