@@ -5853,23 +5853,63 @@ func _build_cockpit() -> void:
 	_box(_cockpit_root, "ForwardPressureWall", Vector3(0.0, 2.25, -2.05), Vector3(2.05, 0.55, 0.16), _materials.structure)
 	_box(_cockpit_root, "RearPressureWall", Vector3(0.0, 2.28, 0.94), Vector3(2.1, 0.65, 0.2), _materials.structure)
 
-	# A fully modelled pilot seat: shell, cushion, back, bolsters, headrest, and
-	# visible floor rails. The anchor is at the seated pelvis and remains a child
-	# of the moving ship rather than a detached world-space boarding shortcut.
+	# Fitted bucket construction: a tapered load shell wraps separate cushions,
+	# with raised thigh supports and a narrower shoulder/head restraint assembly.
+	# The seated pelvis, restraint mounts and boarding frame retain their anchors.
 	for side in [-1.0, 1.0]:
 		var side_name := "Port" if side < 0.0 else "Starboard"
 		_box(_cockpit_root, side_name + "SeatRail", Vector3(side * 0.31, 2.04, 0.08), Vector3(0.1, 0.1, 1.2), _materials.mid)
-		_box(_cockpit_root, side_name + "SeatBolster", Vector3(side * 0.43, 2.24, -0.02), Vector3(0.16, 0.34, 0.82), _materials.upholstery)
-	_box(_cockpit_root, "SeatPan", Vector3(0.0, 2.17, -0.02), Vector3(0.76, 0.22, 0.82), _materials.upholstery)
-	_box(
-		_cockpit_root,
-		"SeatBack",
-		Vector3(0.0, 2.55, 0.35),
-		Vector3(0.82, 0.92, 0.18),
-		_materials.upholstery,
-		Vector3(deg_to_rad(12.0), 0.0, 0.0)
-	)
-	_box(_cockpit_root, "Headrest", Vector3(0.0, 3.02, 0.48), Vector3(0.58, 0.32, 0.22), _materials.upholstery_light)
+		_cockpit_seat_fitting(side_name + "SeatBolster", Vector3(side * 0.40, 2.17, -0.02), [
+			Vector4(0.10, -0.04, 0.08, -0.40),
+			Vector4(0.18, -0.06, 0.20, -0.22),
+			Vector4(0.17, -0.04, 0.24, 0.23),
+			Vector4(0.12, 0.00, 0.18, 0.37),
+		], _materials.upholstery_light)
+		_cockpit_seat_fitting(side_name + "SeatShellReturn", Vector3(side * 0.46, 2.19, 0.0), [
+			Vector4(0.06, -0.10, 0.02, -0.40),
+			Vector4(0.08, -0.10, 0.16, -0.12),
+			Vector4(0.06, -0.08, 0.20, 0.38),
+		], _materials.mid)
+		_cylinder(_cockpit_root, side_name + "SeatReclinePivot", Vector3(side * 0.49, 2.29, 0.30), 0.075, 0.025, _materials.hydraulic, Vector3(0, 0, 90))
+	_cockpit_seat_fitting("SeatPanShell", Vector3(0.0, 2.11, -0.02), [
+		Vector4(0.70, -0.04, 0.04, -0.43),
+		Vector4(0.88, -0.06, 0.05, -0.22),
+		Vector4(0.85, -0.06, 0.06, 0.40),
+	], _materials.structure)
+	_cockpit_seat_fitting("SeatPan", Vector3(0.0, 2.17, -0.02), [
+		Vector4(0.58, -0.04, 0.05, -0.41),
+		Vector4(0.74, -0.08, 0.11, -0.31),
+		Vector4(0.66, -0.07, 0.09, 0.22),
+		Vector4(0.56, -0.04, 0.07, 0.37),
+	], _materials.upholstery)
+	var back_rotation := Vector3(deg_to_rad(-78.0), 0.0, 0.0)
+	_cockpit_seat_fitting("SeatBackShell", Vector3(0.0, 2.57, 0.46), [
+		Vector4(0.74, -0.09, 0.09, -0.46),
+		Vector4(0.88, -0.10, 0.10, 0.18),
+		Vector4(0.68, -0.08, 0.08, 0.45),
+	], _materials.structure, back_rotation)
+	_cockpit_seat_fitting("SeatBack", Vector3(0.0, 2.55, 0.35), [
+		Vector4(0.58, -0.06, 0.11, -0.44),
+		Vector4(0.70, -0.06, 0.14, -0.26),
+		Vector4(0.72, -0.06, 0.08, 0.16),
+		Vector4(0.54, -0.04, 0.07, 0.43),
+	], _materials.upholstery, back_rotation)
+	for side in [-1.0, 1.0]:
+		_cockpit_seat_fitting(("Port" if side < 0.0 else "Starboard") + "ShoulderSupport", Vector3(side * 0.35, 2.63, 0.30), [
+			Vector4(0.08, -0.03, 0.11, -0.30),
+			Vector4(0.15, -0.03, 0.17, 0.13),
+			Vector4(0.10, -0.02, 0.09, 0.30),
+		], _materials.upholstery_light, back_rotation)
+	_cockpit_seat_fitting("HeadrestShell", Vector3(0.0, 3.04, 0.52), [
+		Vector4(0.42, -0.10, 0.10, -0.17),
+		Vector4(0.64, -0.10, 0.13, -0.04),
+		Vector4(0.54, -0.08, 0.11, 0.17),
+	], _materials.mid, back_rotation)
+	_cockpit_seat_fitting("Headrest", Vector3(0.0, 3.02, 0.43), [
+		Vector4(0.38, -0.04, 0.09, -0.14),
+		Vector4(0.54, -0.07, 0.12, -0.04),
+		Vector4(0.48, -0.04, 0.09, 0.14),
+	], _materials.upholstery_light, back_rotation)
 	_box(_cockpit_root, "HarnessLeft", Vector3(-0.2, 2.62, 0.23), Vector3(0.09, 0.65, 0.06), _materials.gold, Vector3(0.0, 0.0, deg_to_rad(-14.0)))
 	_box(_cockpit_root, "HarnessRight", Vector3(0.2, 2.62, 0.23), Vector3(0.09, 0.65, 0.06), _materials.gold, Vector3(0.0, 0.0, deg_to_rad(14.0)))
 	# Layered webbing, lap restraint, and a central rotary buckle make the seat's
@@ -5960,10 +6000,26 @@ func _build_cockpit() -> void:
 		_cylinder(_cockpit_root, side_name + "ConsoleRotary", Vector3(side * 0.81, 2.44, 0.0), 0.07, 0.045, _materials.gold, Vector3(90.0, 0.0, 0.0))
 	_torus(_cockpit_root, "ControlStickGimbal", Vector3(0.0, 2.11, -0.66), 0.1, 0.17, _materials.mid)
 	_cylinder(_cockpit_root, "ControlStickShaft", Vector3(0.0, 2.38, -0.73), 0.055, 0.64, _materials.mid, Vector3(-14.0, 0.0, 0.0))
-	_cylinder(_cockpit_root, "ControlStickGrip", Vector3(0.0, 2.68, -0.8), 0.075, 0.32, _materials.upholstery, Vector3(90.0, 0.0, 0.0))
+	_cockpit_seat_fitting("ControlStickGrip", Vector3(0.0, 2.68, -0.8), [
+		Vector4(0.11, -0.04, 0.04, -0.16),
+		Vector4(0.16, -0.07, 0.08, -0.10),
+		Vector4(0.14, -0.06, 0.06, 0.10),
+		Vector4(0.10, -0.04, 0.04, 0.16),
+	], _materials.upholstery)
+	_cockpit_seat_fitting("ControlStickBoot", Vector3(0.0, 2.14, -0.67), [
+		Vector4(0.22, -0.02, 0.04, -0.10),
+		Vector4(0.16, -0.02, 0.10, 0.00),
+		Vector4(0.22, -0.02, 0.04, 0.10),
+	], _materials.restraint)
 	_box(_cockpit_root, "ControlStickTrigger", Vector3(0.0, 2.74, -0.97), Vector3(0.06, 0.12, 0.035), _materials.gold, Vector3(deg_to_rad(-12.0), 0.0, 0.0))
 	_box(_cockpit_root, "ThrottleGate", Vector3(-0.75, 2.4, -0.25), Vector3(0.22, 0.055, 0.62), _materials.dark)
 	_cylinder(_cockpit_root, "Throttle", Vector3(-0.75, 2.52, -0.25), 0.055, 0.4, _materials.gold, Vector3(0.0, 0.0, -18.0))
+	_cockpit_seat_fitting("ThrottlePalmGrip", Vector3(-0.69, 2.70, -0.25), [
+		Vector4(0.17, -0.04, 0.03, -0.13),
+		Vector4(0.25, -0.05, 0.07, -0.06),
+		Vector4(0.23, -0.04, 0.07, 0.08),
+		Vector4(0.16, -0.02, 0.03, 0.14),
+	], _materials.upholstery_light)
 	for side in [-1.0, 1.0]:
 		var side_name := "Port" if side < 0.0 else "Starboard"
 		_box(_cockpit_root, side_name + "RudderPedal", Vector3(side * 0.28, 2.1, -1.48), Vector3(0.28, 0.08, 0.36), _materials.mid, Vector3(deg_to_rad(-18.0), 0.0, 0.0))
@@ -6033,6 +6089,21 @@ func _build_cockpit() -> void:
 ## Closed, clipped-corner pressings for the common cockpit. Each section gives
 ## width, lower/upper height, and fore/aft station. Face-local UVs preserve the
 ## anti-glare material's normal map on the sloping crown and side returns.
+func _cockpit_seat_fitting(
+		fitting_name: String, fitting_position: Vector3, sections: Array[Vector4],
+		material: Material, fitting_rotation: Vector3 = Vector3.ZERO
+	) -> MeshInstance3D:
+	var fitting := MeshInstance3D.new()
+	fitting.name = fitting_name
+	fitting.position = fitting_position
+	fitting.rotation = fitting_rotation
+	fitting.mesh = _cockpit_formed_enclosure_mesh(sections, material)
+	# Variants recolour existing cushion identities through material_override.
+	fitting.material_override = material
+	_cockpit_root.add_child(fitting)
+	return fitting
+
+
 func _cockpit_formed_enclosure_mesh(
 		sections: Array[Vector4], material: Material, casing_material: Material = null
 	) -> ArrayMesh:
