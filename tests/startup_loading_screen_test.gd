@@ -241,24 +241,49 @@ func _test_world_stages_authored_children_and_rejects_stale_yield() -> void:
 		"reentering the world cannot revive its stale awaited construction")
 	var interrupted_build: Array[String] = []
 	var fleet_stage_frames: Array[int] = []
+	var lattice_counts: Array[int] = []
+	var retained_lattice_nodes: Dictionary = {}
+	var lattice_interruptions := [
+		"Preparing the central tow service",
+		"Preparing central berth ambience",
+		"Fitting the central berth fascia",
+	]
 	var interrupting_sink := func(label: String) -> void:
 		sink.call(label)
+		var stage_index := int(world.get("_staged_build_index")) - 1
+		if stage_index >= 0 and String(ShipyardWorld.BUILD_STAGES[stage_index][0]).begins_with("_build_lattice_"):
+			var component_count := 0
+			for container: String in ["Activities", "Ambience", "StructuralDressing"]:
+				component_count += world.get_node("OperationalLattice/" + container).get_child_count()
+			lattice_counts.append(component_count)
 		if label.begins_with("Preparing Cinder"):
 			fleet_stage_frames.append(Engine.get_process_frames())
 		if label == "Parking the provisional fleet":
 			var fleet := world.get_node("FleetExpansionProductionBinding") as FleetExpansionProductionBinding
 			_check(fleet.is_composition_ready(),
 				"world reports its fleet stage only after all Cinder craft settle and attach")
-		if label in ["Staffing the operations lattice", "Preparing Cinder Cargo Hauler", "Setting the signage"] \
+		if lattice_interruptions.has(label) and not interrupted_build.has(label):
+			interrupted_build.append(label)
+			for container: String in ["Activities", "Ambience", "StructuralDressing"]:
+				for child in world.get_node("OperationalLattice/" + container).get_children():
+					retained_lattice_nodes[world.get_path_to(child)] = child
+			# Cancel at this exact component boundary, independent of machine speed.
+			_detach_and_reattach_staged_world(world)
+		elif label in ["Preparing Cinder Cargo Hauler", "Setting the signage"] \
 				and not interrupted_build.has(label):
 			interrupted_build.append(label)
 			call_deferred("_detach_and_reattach_staged_world", world)
-	await world.run_staged_construction(interrupting_sink)
-	stage_count = stages.size()
-	await process_frame
-	_check(not bool(world.get("_built")) and stages.size() == stage_count
-		and stages.count("Mixing station materials") == 0,
-		"world stops its procedural builders after a detach during their frame yield")
+	for interruption: String in lattice_interruptions:
+		await world.run_staged_construction(interrupting_sink)
+		stage_count = stages.size()
+		await process_frame
+		_check(not bool(world.get("_built")) and stages.size() == stage_count
+			and stages.back() == interruption and stages.count("Mixing station materials") == 0,
+			"world cancels at partial lattice component boundary: %s" % interruption)
+		var retained := true
+		for path: NodePath in retained_lattice_nodes:
+			retained = retained and world.get_node_or_null(path) == retained_lattice_nodes[path]
+		_check(retained, "partial lattice resume retains earlier component identities: %s" % interruption)
 	await world.run_staged_construction(interrupting_sink)
 	var partial_fleet := world.get_node("FleetExpansionProductionBinding") as FleetExpansionProductionBinding
 	var partial_cargo := partial_fleet.get_node("cinder_cargo_hauler")
@@ -281,6 +306,13 @@ func _test_world_stages_authored_children_and_rejects_stale_yield() -> void:
 		separated_fleet_frames = separated_fleet_frames and fleet_stage_frames[index] > fleet_stage_frames[index - 1]
 	_check(separated_fleet_frames and stages.size() == expected_stage_count,
 		"world counts each actual fleet unit once and constructs it on a separate frame")
+	_check(lattice_counts == range(1, 19),
+		"lattice progress reports exactly one newly completed component for all 18 units")
+	var lattice_retained := true
+	for path: NodePath in retained_lattice_nodes:
+		lattice_retained = lattice_retained and world.get_node_or_null(path) == retained_lattice_nodes[path]
+	_check(lattice_retained and bool(world.get_operational_lattice_audit_report().valid),
+		"resumed lattice preserves its exact components and completes the live geometry, audio, and authority contract")
 	_check(bool(world.get_station_solar_readability_report().active),
 		"finishing a resumed world restores bindings retired after their builders completed")
 	var authored_restored := true

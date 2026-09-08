@@ -1168,8 +1168,8 @@ func _resolve_authored_bindings() -> void:
 ## The one-time procedural build, in order, as `[method, progress label]`.
 ##
 ## This is the same sequence `_ready` always ran, lifted into data so a boot
-## loader can walk it one stage per frame instead of paying for all of it inside
-## one main-loop iteration. The ordering is load-bearing:
+## loader can yield between bounded batches instead of paying for all of it
+## inside one main-loop iteration. The ordering is load-bearing:
 ##
 ## * `_build_module_reflection_probes` follows `_build_space_backdrop` so the
 ##   update-once bake sees the finished sky.
@@ -1185,7 +1185,25 @@ func _resolve_authored_bindings() -> void:
 ## * `_apply_sign_geometry_budget` runs last, once every module owns its signs.
 const BUILD_STAGES: Array[Array] = [
 	[&"_initialize_berths", "Surveying berths"],
-	[&"_build_operational_lattice_components", "Staffing the operations lattice"],
+	[&"_initialize_operational_lattice", "Preparing the operations lattice"],
+	[&"_build_lattice_central_tow_activity", "Preparing the central tow service"],
+	[&"_build_lattice_aft_operations_activity", "Preparing the aft service arm"],
+	[&"_build_lattice_habitat_patrol_activity", "Preparing the habitat patrol"],
+	[&"_build_lattice_freight_gantry_activity", "Preparing the freight gantry"],
+	[&"_build_lattice_central_cargo_activity", "Preparing the central cargo line"],
+	[&"_build_lattice_port_cargo_activity", "Preparing the port cargo line"],
+	[&"_build_lattice_starboard_cargo_activity", "Preparing the starboard cargo line"],
+	[&"_build_lattice_aft_crew_activity", "Preparing the aft crew post"],
+	[&"_build_lattice_habitat_skywatch_activity", "Preparing the habitat skywatch"],
+	[&"_build_lattice_freight_signage_activity", "Preparing the freight wayfinding"],
+	[&"_build_lattice_central_ambience", "Preparing central berth ambience"],
+	[&"_build_lattice_aft_ambience", "Preparing aft operations ambience"],
+	[&"_build_lattice_habitat_ambience", "Preparing habitat ambience"],
+	[&"_build_lattice_freight_ambience", "Preparing freight control ambience"],
+	[&"_build_lattice_central_dressing", "Fitting the central berth fascia"],
+	[&"_build_lattice_aft_dressing", "Fitting the aft operations fascia"],
+	[&"_build_lattice_habitat_dressing", "Fitting the habitat service dressing"],
+	[&"_build_lattice_freight_dressing", "Fitting the freight rack dressing"],
 	[&"_create_materials", "Mixing station materials"],
 	[&"_build_environment", "Lighting the yard"],
 	[&"_build_architecture", "Raising the structure"],
@@ -4062,7 +4080,11 @@ func _restore_operational_lattice_after_reentry() -> void:
 	set_station_activity_enabled(_station_activity_enabled)
 
 
-func _build_operational_lattice_components() -> void:
+## Each component below is an independent build stage: its ready callback may
+## build geometry or synthesize ambience. Keeping those calls separate lets the
+## existing frame budget yield and retain its next-stage index on interruption.
+## Both startup paths still create the same ordered hierarchy.
+func _initialize_operational_lattice() -> void:
 	var lattice := Node3D.new()
 	lattice.name = "OperationalLattice"
 	add_child(lattice)
@@ -4081,21 +4103,36 @@ func _build_operational_lattice_components() -> void:
 	service_agents.name = "ServiceAgents"
 	lattice.add_child(service_agents)
 
+
+func _build_lattice_central_tow_activity() -> void:
+	var activities := get_node(^"OperationalLattice/Activities") as Node3D
 	_add_station_activity(
 		activities, "CentralTowServiceActivity",
 		Transform3D(Basis(Vector3.UP, deg_to_rad(-90.0)), Vector3(6.8, 0.0, 14.0)),
 		StationOperationsActivity.ActivityProfile.FULL, 1103
 	)
+
+
+func _build_lattice_aft_operations_activity() -> void:
+	var activities := get_node(^"OperationalLattice/Activities") as Node3D
 	_add_station_activity(
 		activities, "AftOperationsActivity",
 		Transform3D(Basis(Vector3.UP, PI), Vector3(5.8, 4.99, 61.2)),
 		StationOperationsActivity.ActivityProfile.SERVICE_ARM, 2207
 	)
+
+
+func _build_lattice_habitat_patrol_activity() -> void:
+	var activities := get_node(^"OperationalLattice/Activities") as Node3D
 	_add_station_activity(
 		activities, "HabitatServicePatrol",
 		Transform3D(Basis(Vector3.UP, deg_to_rad(-90.0)), Vector3(59.15, 4.88, 15.5)),
 		StationOperationsActivity.ActivityProfile.DRONE_PATROL, 3301
 	)
+
+
+func _build_lattice_freight_gantry_activity() -> void:
+	var activities := get_node(^"OperationalLattice/Activities") as Node3D
 	# The exact source-audited mount stays fixed. When its four drawn columns became
 	# honest solids, the south/east post exposed that the adjacent approach rail
 	# overran the only vehicle handoff; the freight module shortens that rail at its
@@ -4106,6 +4143,9 @@ func _build_operational_lattice_components() -> void:
 		StationOperationsActivity.ActivityProfile.GANTRY, 4409
 	)
 
+
+func _build_lattice_central_cargo_activity() -> void:
+	var activities := get_node(^"OperationalLattice/Activities") as Node3D
 	# Station life. Cargo movement beside the Central berth, a crew work post at
 	# the head of the Aft upper stair, an observation instrument on the Habitat
 	# common roof, and wayfinding at the Freight approach.
@@ -4116,6 +4156,10 @@ func _build_operational_lattice_components() -> void:
 		Transform3D(Basis.IDENTITY, Vector3(-6.0, 0.0, 17.9)),
 		StationOperationsActivity.ActivityProfile.CARGO_LINE, 5507
 	)
+
+
+func _build_lattice_port_cargo_activity() -> void:
+	var activities := get_node(^"OperationalLattice/Activities") as Node3D
 	# Two 21.6 m transfer runs, one per branch arm. Different seeds so the two
 	# sleds and hoists are out of phase with each other and with the short line.
 	_add_station_activity(
@@ -4123,35 +4167,81 @@ func _build_operational_lattice_components() -> void:
 		Transform3D(Basis.IDENTITY, Vector3(-22.0, 0.0, 16.75)),
 		StationOperationsActivity.ActivityProfile.CARGO_LINE_LONG, 9931
 	)
+
+
+func _build_lattice_starboard_cargo_activity() -> void:
+	var activities := get_node(^"OperationalLattice/Activities") as Node3D
 	_add_station_activity(
 		activities, "StarboardBranchCargoLine",
 		Transform3D(Basis.IDENTITY, Vector3(23.3, 0.0, 16.75)),
 		StationOperationsActivity.ActivityProfile.CARGO_LINE_LONG, 10739
 	)
+
+
+func _build_lattice_aft_crew_activity() -> void:
+	var activities := get_node(^"OperationalLattice/Activities") as Node3D
 	_add_station_activity(
 		activities, "AftCrewWorkPost",
 		Transform3D(Basis.IDENTITY, Vector3(-7.0, 4.2, 65.0)),
 		StationOperationsActivity.ActivityProfile.CREW_WORKPOST, 6607
 	)
+
+
+func _build_lattice_habitat_skywatch_activity() -> void:
+	var activities := get_node(^"OperationalLattice/Activities") as Node3D
 	_add_station_activity(
 		activities, "HabitatSkywatchPost",
 		Transform3D(Basis(Vector3.UP, deg_to_rad(90.0)), Vector3(73.0, 5.08, 19.0)),
 		StationOperationsActivity.ActivityProfile.OBSERVATORY, 7703
 	)
+
+
+func _build_lattice_freight_signage_activity() -> void:
+	var activities := get_node(^"OperationalLattice/Activities") as Node3D
 	_add_station_activity(
 		activities, "FreightApproachSignage",
 		Transform3D(Basis(Vector3.UP, deg_to_rad(-90.0)), Vector3(-41.0, 6.18, 29.0)),
 		StationOperationsActivity.ActivityProfile.SIGNAGE_PYLON, 8821
 	)
 
+
+func _build_lattice_central_ambience() -> void:
+	var ambience := get_node(^"OperationalLattice/Ambience") as Node3D
 	_add_station_ambience(ambience, "CentralBerthUtilitiesAmbience", Vector3(10.65, 1.8, -19.25), &"central-berth-utilities", 4831, 44.0, 26.0, 4.0)
+
+
+func _build_lattice_aft_ambience() -> void:
+	var ambience := get_node(^"OperationalLattice/Ambience") as Node3D
 	_add_station_ambience(ambience, "AftOperationsAmbience", Vector3(10.0, 2.35, 60.55), &"aft-operations-service-wall", 7759, 52.0, 24.0, 3.5)
+
+
+func _build_lattice_habitat_ambience() -> void:
+	var ambience := get_node(^"OperationalLattice/Ambience") as Node3D
 	_add_station_ambience(ambience, "HabitatEnvironmentalAmbience", Vector3(59.15, 3.2, 20.95), &"habitat-environmental-main", 9127, 39.0, 22.0, 3.0)
+
+
+func _build_lattice_freight_ambience() -> void:
+	var ambience := get_node(^"OperationalLattice/Ambience") as Node3D
 	_add_station_ambience(ambience, "FreightControlAmbience", Vector3(-33.75, 2.58, 57.8), &"freight-control-machinery", 12203, 61.0, 28.0, 4.0)
 
+
+func _build_lattice_central_dressing() -> void:
+	var dressings := get_node(^"OperationalLattice/StructuralDressing") as Node3D
 	_add_station_dressing(dressings, "CentralBerthOuterFascia", Transform3D(Basis(Vector3.UP, deg_to_rad(90.0)), Vector3(13.5, -0.02, -10.0)), 20.0, StationStructuralServiceDressing.StructuralProfile.STANDARD)
+
+
+func _build_lattice_aft_dressing() -> void:
+	var dressings := get_node(^"OperationalLattice/StructuralDressing") as Node3D
 	_add_station_dressing(dressings, "AftOperationsOuterFascia", Transform3D(Basis(Vector3.UP, deg_to_rad(90.0)), Vector3(10.86, 4.6, 60.55)), 6.0, StationStructuralServiceDressing.StructuralProfile.LIGHT)
+
+
+func _build_lattice_habitat_dressing() -> void:
+	var dressings := get_node(^"OperationalLattice/StructuralDressing") as Node3D
 	_add_station_dressing(dressings, "HabitatOuterServiceDressing", Transform3D(Basis.IDENTITY, Vector3(59.15, 4.45, 21.94)), 12.0, StationStructuralServiceDressing.StructuralProfile.STANDARD)
+
+
+func _build_lattice_freight_dressing() -> void:
+	var dressings := get_node(^"OperationalLattice/StructuralDressing") as Node3D
 	_add_station_dressing(dressings, "FreightRackServiceDressing", Transform3D(Basis(Vector3.UP, deg_to_rad(-90.0)), Vector3(-75.34, 0.38, 56.8)), 20.0, StationStructuralServiceDressing.StructuralProfile.LIGHT)
 
 

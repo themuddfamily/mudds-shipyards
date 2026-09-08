@@ -252,12 +252,12 @@ func _test_pre_tree_lifecycle() -> void:
 	var staged_toggle := WORLD_SCENE.instantiate() as ShipyardWorld
 	staged_toggle.prepare_staged_construction()
 	root.add_child(staged_toggle)
-	var toggled_after_staffing := [false]
+	var toggled_after_first_activity := [false]
 	var toggle_saw_active := [false]
 	await staged_toggle.run_staged_construction(func(label: String) -> void:
-		if label == "Staffing the operations lattice":
+		if label == "Preparing the central tow service":
 			staged_toggle.set_station_activity_enabled(false)
-			toggled_after_staffing[0] = true
+			toggled_after_first_activity[0] = true
 		var staged_root := staged_toggle.get_node_or_null(^"OperationalLattice/ActivityCollision") as Node3D
 		if staged_root == null:
 			return
@@ -268,10 +268,10 @@ func _test_pre_tree_lifecycle() -> void:
 	await physics_frame
 	var toggled_collision := staged_toggle.get_station_activity_collision_audit_report()
 	_check(
-		bool(toggled_after_staffing[0]) and not bool(toggle_saw_active[0])
+		bool(toggled_after_first_activity[0]) and not bool(toggle_saw_active[0])
 		and bool(toggled_collision.valid)
 		and int(toggled_collision.active_body_count) == 0,
-		"staged true-to-false toggle after Staffing reaches live pre-index activities and never flashes a solid body"
+		"staged disable after the first activity reaches existing and later components without flashing a solid body"
 	)
 	staged_toggle.queue_free()
 	await process_frame
