@@ -112,7 +112,7 @@ static var _shared_canopy_mesh: ArrayMesh
 static var _shared_canopy_material: StandardMaterial3D
 static var _shared_cockpit_fairing_mesh: ArrayMesh
 
-static var _shared_engine_exhaust_mesh: ArrayMesh
+static var _shared_engine_exhaust_mesh: WeakRef
 
 var _interceptor_boarding_marker: Marker3D
 var _interceptor_built := false
@@ -1355,7 +1355,11 @@ func _cockpit_shoulder_mesh(origin: Vector3, crown: float, width: float, materia
 func _build_engine_exhaust(visual: Node3D) -> void:
 	var radius := 0.62
 	var nozzle := Vector3(2.1, 0.2, 4.98)
-	if _shared_engine_exhaust_mesh == null:
+	var plume_mesh := (
+		_shared_engine_exhaust_mesh.get_ref() as ArrayMesh
+		if _shared_engine_exhaust_mesh != null else null
+	)
+	if plume_mesh == null:
 		var envelope := CylinderMesh.new()
 		envelope.bottom_radius = radius * 0.78
 		envelope.top_radius = radius * 0.18
@@ -1365,14 +1369,15 @@ func _build_engine_exhaust(visual: Node3D) -> void:
 		surface.append_from(envelope, 0, Transform3D(
 			Basis(Vector3.RIGHT, PI * 0.5), Vector3(0.0, 0.0, envelope.height * 0.5)
 		))
-		_shared_engine_exhaust_mesh = surface.commit()
+		plume_mesh = surface.commit()
+		_shared_engine_exhaust_mesh = weakref(plume_mesh)
 	for index in 2:
 		var side := -1.0 if index == 0 else 1.0
 		var mouth := Vector3(nozzle.x * side, nozzle.y, nozzle.z + radius * 0.05)
 		var plume := MeshInstance3D.new()
 		plume.name = ("Port" if index == 0 else "Starboard") + "EnginePlume"
 		plume.transform = Transform3D(Basis.IDENTITY, mouth)
-		plume.mesh = _shared_engine_exhaust_mesh
+		plume.mesh = plume_mesh
 		plume.visible = false
 		visual.add_child(plume)
 		_engine_glows.append(plume)
