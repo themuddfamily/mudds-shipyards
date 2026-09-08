@@ -365,16 +365,24 @@ func get_snapshot() -> Dictionary:
 	}.duplicate(true)
 
 
-func audit() -> Dictionary:
+## Caller cadence needs current validity, not a detached diagnostic history.
+## Keep mutable frame, registration, topology, transform, sun and environment
+## checks live on every call. Only the stateless registry's configured datum is
+## reused; audit() still independently checks it and produces the full report.
+func is_runtime_contract_valid() -> bool:
+	return _collect_contract_errors(false).is_empty()
+
+
+func _collect_contract_errors(check_immutable_registry: bool = true) -> PackedStringArray:
 	var errors := PackedStringArray()
-	var registry_report := _registry.audit()
 	var frame_report := _coordinate_frame.audit()
 	var coordinator_report := _coordinator.audit() if is_instance_valid(_coordinator) else {}
 	var definition := _coordinator.get_definition(LOCATION_ID) \
 		if is_instance_valid(_coordinator) else null
 	if not _configured:
 		errors.append("checked Ember orbital streaming contract is not configured: %s" % _configuration_error)
-	if not bool(registry_report.get("valid", false)):
+	# The registry has no mutable state; configuration already validates its datum.
+	if check_immutable_registry and not bool(_registry.audit().get("valid", false)):
 		errors.append("nearby-sector orbital registry is invalid")
 	if not bool(frame_report.get("valid", false)):
 		errors.append("Ember coordinate frame is invalid")
@@ -428,6 +436,11 @@ func audit() -> Dictionary:
 				errors.append("authored environment presentation is invalid")
 	if airless_sun_rig_scene != _AIRLESS_SUN_RIG_SCENE:
 		errors.append("airless sun scene binding diverged")
+	return errors
+
+
+func audit() -> Dictionary:
+	var errors := _collect_contract_errors()
 	var owned_capabilities := {}
 	for key in OWNED_CAPABILITY_KEYS:
 		owned_capabilities[key] = true

@@ -401,7 +401,7 @@ func _validate_bound_identity() -> StringName:
 	var frame_snapshot := _coordinate_frame.get_snapshot()
 	if not (frame_snapshot.get("pending_rebase", {}) as Dictionary).is_empty():
 		return &"coordinate_frame_rebase_pending"
-	if not bool(_bootstrap.audit().get("valid", false)):
+	if not _bootstrap.is_runtime_contract_valid():
 		return &"bootstrap_audit_invalid"
 	return &""
 

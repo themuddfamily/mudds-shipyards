@@ -3,7 +3,7 @@ extends SceneTree
 const MAIN_SCENE := preload("res://scenes/main.tscn")
 const Store := preload("res://scripts/persistence/user_data_store.gd")
 const STORE_PATH := "memory://ember-streaming-production-settings.json"
-const EXPECTED_ASSERTIONS := 25
+const EXPECTED_ASSERTIONS := 32
 
 var _assertions := 0
 var _failures: Array[String] = []
@@ -89,6 +89,7 @@ func _run() -> void:
 
 	game.set_physics_process(false)
 	await _test_composition_and_absolute_observation(game, binding, bootstrap)
+	_test_live_contract_drift(binding, bootstrap)
 	await _test_rebase_preview_and_fail_closed_journey(game, binding, bootstrap)
 	await _test_queued_activation_currentness(binding)
 	await _test_detach_reentry(game, binding, bootstrap)
@@ -359,6 +360,51 @@ func _test_queued_activation_currentness(
 	)
 	await process_frame
 	await _cleanup(queued_game)
+
+
+## A valid observation must not hide topology or presentation drift on the next
+## caller tick, including while Ember is unloaded at the station.
+func _test_live_contract_drift(
+	binding: EmberMoonStreamingProductionBinding,
+	bootstrap: EmberMoonStreamingBootstrap,
+	) -> void:
+	var sample := _sample(Vector3(12.0, 3.0, -9.0), &"player", 101)
+	_check(bootstrap.is_runtime_contract_valid() and bootstrap.audit().valid,
+		"runtime validity and diagnostic audit agree before live drift")
+	var original_position := bootstrap.position
+	bootstrap.position += Vector3(100.0, 0.0, 0.0)
+	_check(binding.physics_tick_from_caller_sample(0.01, sample).reason == &"bootstrap_audit_invalid",
+		"caller rejects changed root alignment immediately")
+	bootstrap.position = original_position
+
+	var extra_child := Node.new()
+	bootstrap.add_child(extra_child)
+	_check(binding.physics_tick_from_caller_sample(0.01, sample).reason == &"bootstrap_audit_invalid",
+		"caller rejects an extra bootstrap child immediately")
+	extra_child.free()
+
+	var coordinator := bootstrap.get_node(^"WorldStreamingCoordinator") as WorldStreamingCoordinator
+	var extra_light := DirectionalLight3D.new()
+	coordinator.add_child(extra_light)
+	_check(binding.physics_tick_from_caller_sample(0.01, sample).reason == &"bootstrap_audit_invalid",
+		"caller rejects a stray light beneath the unloaded coordinator immediately")
+	extra_light.free()
+
+	var original_rig_scene := bootstrap.airless_sun_rig_scene
+	bootstrap.airless_sun_rig_scene = null
+	_check(binding.physics_tick_from_caller_sample(0.01, sample).reason == &"bootstrap_audit_invalid",
+		"caller rejects changed authored sun scene identity immediately")
+	bootstrap.airless_sun_rig_scene = original_rig_scene
+
+	var extra_definition := coordinator.get_definition(&"ember_moon")
+	extra_definition.location_id = &"unexpected_location"
+	coordinator.register_location(extra_definition)
+	_check(binding.physics_tick_from_caller_sample(0.01, sample).reason == &"bootstrap_audit_invalid",
+		"caller rejects changed private coordinator registrations immediately")
+	coordinator.unregister_location(&"unexpected_location")
+	_check(binding.physics_tick_from_caller_sample(0.01, sample).accepted
+			and bootstrap.audit().valid,
+		"restored live contract accepts the next sample without stale invalidity")
 
 
 func _sample(position: Vector3, kind: StringName, instance_id: int) -> Dictionary:
