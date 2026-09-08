@@ -72,6 +72,16 @@ func _run() -> void:
 			and nominal_profile.get("transition_policy") == &"static",
 			"%s nominal output keeps every real plume with a static accessibility-safe grade" % craft_name
 		)
+		if craft is HalyardCrewTransport:
+			var core_material := craft.get_variant_materials().engine as StandardMaterial3D
+			var idle_energy := core_material.emission_energy_multiplier
+			craft.velocity = Vector3.BACK * craft.maximum_speed
+			craft.call("_update_halyard_presentation", 0.0)
+			_check(core_material.emission_energy_multiplier > idle_energy \
+				and core_material.emission_energy_multiplier < 2.0,
+				"Halyard physical throat brightens with output without returning to full-white core glare")
+			craft.velocity = Vector3.ZERO
+			craft.call("_sync_engine_visuals_immediately")
 
 		var model := craft.get_component_damage()
 		var engine_position := _component_local_position(
@@ -92,6 +102,7 @@ func _run() -> void:
 			and not bool(failed_profile.get("gameplay_authority", true)),
 			"%s failed engine bay suppresses exhaust without changing engine ONLINE authority" % craft_name
 		)
+		_check_halyard_core_mounts(craft, HalyardCrewTransport.ENGINE_CYAN, 0)
 
 		_repair_engine_to(craft, 0.32)
 		craft.call("_sync_engine_visuals_immediately")
@@ -108,6 +119,7 @@ func _run() -> void:
 			and is_equal_approx(float((plumes[0] as MeshInstance3D).get_instance_shader_parameter(&"plume_damage_mix")), 1.0),
 			"%s critical output is short red-orange exhaust on alternating propulsion mounts" % craft_name
 		)
+		_check_halyard_core_mounts(craft, Color("ff653a"), 2)
 
 		_repair_engine_to(craft, 0.55)
 		craft.call("_sync_engine_visuals_immediately")
@@ -123,6 +135,7 @@ func _run() -> void:
 			and (degraded_overlay.get_shader_parameter(&"exhaust_color") as Color).is_equal_approx(Color("ffd166")),
 			"%s degraded output keeps all mounts but shortens, dims, and warms their exhaust" % craft_name
 		)
+		_check_halyard_core_mounts(craft, Color("ffd166"), 4)
 		if not lights.is_empty():
 			_check(
 				(lights[0] as OmniLight3D).light_color.is_equal_approx(Color("ffd166")),
@@ -148,6 +161,8 @@ func _run() -> void:
 			and int(repaired_profile.get("added_meshes", -1)) == 0,
 			"%s repair restores nominal geometry and authored materials with one retained overlay resource" % craft_name
 		)
+		if craft is HalyardCrewTransport:
+			_check_halyard_core_mounts(craft, HalyardCrewTransport.ENGINE_CYAN, 4)
 
 		craft.set("_engine_state", HeroShip.ENGINE_OFFLINE)
 		craft.call("_sync_engine_visuals_immediately")
@@ -195,10 +210,31 @@ func _run() -> void:
 			and _visible_plume_count(plumes) == 0,
 			"%s respawn/reuse restores nominal component grade with propulsion offline" % craft_name
 		)
+		_check_halyard_core_mounts(craft, HalyardCrewTransport.ENGINE_CYAN, 0)
 
 	game.queue_free()
 	await process_frame
 	_finish()
+
+
+func _check_halyard_core_mounts(craft: HeroShip, tint: Color, expected_visible: int) -> void:
+	if not craft is HalyardCrewTransport:
+		return
+	var cores := craft.get("_engine_cores") as Array
+	var plumes := craft.get("_engine_plumes") as Array
+	var lights := craft.get("_halyard_engine_lights") as Array
+	var material := craft.get_variant_materials().engine as StandardMaterial3D
+	var correct := _visible_plume_count(cores) == expected_visible
+	for index in cores.size():
+		var core := cores[index] as MeshInstance3D
+		correct = correct and core.visible == (plumes[index] as MeshInstance3D).visible \
+			and core.get_active_material(0) == material
+		if not core.visible:
+			correct = correct and is_zero_approx((lights[index] as OmniLight3D).light_energy)
+	if expected_visible > 0:
+		correct = correct and material.emission.is_equal_approx(tint)
+	_check(correct, "Halyard %s keeps its four physical cores and practicals aligned with the real exhaust mounts" \
+		% craft.get_engine_exhaust_damage_presentation_profile().stage)
 
 
 func _repair_engine_to(craft: HeroShip, target_integrity: float) -> void:

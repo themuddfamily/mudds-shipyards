@@ -349,7 +349,8 @@ const RENDER_GEOMETRY_SUBMISSION_COUNT := 124
 # the pressure cheek profile, replacing the old shared rectangular stock.
 # Fitted canopy rails and rear bows now have distinct port/starboard profiles.
 const RENDER_UNIQUE_MESH_RESOURCE_COUNT := 87
-const RENDER_UNIQUE_MATERIAL_RESOURCE_COUNT := 17
+# Includes the shared soft-exhaust ShaderMaterial installed on all four plumes.
+const RENDER_UNIQUE_MATERIAL_RESOURCE_COUNT := 18
 
 var _halyard_built := false
 var _halyard_visual: Node3D
@@ -2607,7 +2608,10 @@ func _create_halyard_materials() -> void:
 	_halyard_materials.window_glow = _halyard_material(
 		WINDOW_INTERIOR, 0.05, 0.42, Color("aec5c7"), 0.55
 	)
-	_halyard_materials.engine = _halyard_material(ENGINE_CYAN, 0.10, 0.18, ENGINE_CYAN, 3.0)
+	# The physical throat stays readable beneath the soft exhaust. Its retained
+	# material follows engine output and component damage instead of glowing at
+	# full cyan intensity even when that propulsion mount has been suppressed.
+	_halyard_materials.engine = _halyard_material(Color("153a3e"), 0.10, 0.42, ENGINE_CYAN, 1.0)
 	_halyard_materials.nav_red = _halyard_material(HALYARD_NAV_RED, 0.10, 0.22, HALYARD_NAV_RED, 2.3)
 	_halyard_materials.nav_green = _halyard_material(HALYARD_NAV_GREEN, 0.10, 0.22, HALYARD_NAV_GREEN, 2.3)
 	# Matte paint keeps the damage cue steady and physically readable without an
@@ -4345,15 +4349,25 @@ func _apply_engine_level(engine_level: float) -> void:
 			continue
 		plume.visible = engine_level > 0.02
 		plume.scale = Vector3(1.0, 0.35 + engine_level * 1.55 * exhaust_geometry, 1.0)
-	for core in _engine_cores:
-		if is_instance_valid(core):
-			core.visible = engine_level > 0.01
 	for light in _halyard_engine_lights:
 		if is_instance_valid(light):
 			light.light_energy = engine_level * 2.4
 	_apply_engine_exhaust_damage_presentation(
 		_engine_plumes, _halyard_engine_lights, engine_active, exhaust_profile
 	)
+	var core_material := _halyard_materials.get("engine") as StandardMaterial3D
+	if core_material != null:
+		var damaged: bool = exhaust_profile.get("stage", &"nominal") in [&"degraded", &"critical"]
+		core_material.emission = exhaust_profile.get("overlay_color", ENGINE_CYAN) if damaged else ENGINE_CYAN
+		core_material.emission_energy_multiplier = engine_level * 1.35
+	for index in _engine_cores.size():
+		var mount_active := index < _engine_plumes.size() \
+			and is_instance_valid(_engine_plumes[index]) and _engine_plumes[index].visible
+		if is_instance_valid(_engine_cores[index]):
+			_engine_cores[index].visible = mount_active
+		if index < _halyard_engine_lights.size() and is_instance_valid(_halyard_engine_lights[index]) \
+				and not mount_active:
+			_halyard_engine_lights[index].light_energy = 0.0
 
 
 func _sync_variant_engine_presentation_immediately() -> void:
