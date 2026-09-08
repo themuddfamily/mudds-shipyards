@@ -603,7 +603,7 @@ func _test_entry_heat_attachment(arrow: ArrowReconShip) -> void:
 		"explicit adapter reset restores zero while the unchanged Arrow host remains valid"
 	)
 	var loft := (visual.get_node("ReconFuselage") as MeshInstance3D).mesh
-	_check(loft is ArrayMesh and (loft as ArrayMesh).get_faces().size() > 700, "recon fuselage has a dense smooth loft rather than a box primitive")
+	_check(loft is ArrayMesh and (loft as ArrayMesh).get_faces().size() > 700, "recon fuselage has a manufactured plate loft with fitted access skins")
 
 	var arrow_weapon_cooldown := arrow.weapon_cooldown
 	var torrent := TORRENT_SCENE.instantiate() as HeroShip
@@ -788,15 +788,15 @@ func _test_visual_performance_batch(arrow: ArrowReconShip) -> void:
 		bool(report.valid)
 		and report.current == report.expected
 		and report.current == {
-			"nodes": 216,
-			"mesh_instance_nodes": 191,
+			"nodes": 226,
+			"mesh_instance_nodes": 201,
 			"multi_mesh_instance_nodes": 3,
-			"geometry_submissions": 194,
-			"visible_geometry_copies": 198,
-			"unique_mesh_resource_allocations": 150,
+			"geometry_submissions": 204,
+			"visible_geometry_copies": 208,
+			"unique_mesh_resource_allocations": 160,
 			"auto_fallback_names": 20,
 		},
-		"entry-complete Arrow freezes the exact 216-node, 194-submission, 150-mesh census with all 198 copies"
+		"entry-complete Arrow freezes the exact 226-node, 204-submission, 160-mesh census with all 208 copies"
 	)
 	_check(
 		report.phase9_before_entry_heat == {
@@ -1000,7 +1000,7 @@ func _test_visual_performance_batch(arrow: ArrowReconShip) -> void:
 	)
 	detached_panel_transforms[0] = Transform3D.IDENTITY
 	_check(
-		int(arrow.get_arrow_visual_performance_report().current.nodes) == 216
+		int(arrow.get_arrow_visual_performance_report().current.nodes) == 226
 		and int(
 			arrow.get_arrow_visual_performance_report()
 				.lateral_array_curve_joint_sharing.primitive_mesh_allocations

@@ -228,12 +228,12 @@ const PHASE9_ARROW_VISUAL_CENSUS := {
 	"auto_fallback_names": 23,
 }
 const EXPECTED_ARROW_VISUAL_CENSUS := {
-	"nodes": 216,
-	"mesh_instance_nodes": 191,
+	"nodes": 226,
+	"mesh_instance_nodes": 201,
 	"multi_mesh_instance_nodes": 3,
-	"geometry_submissions": 194,
-	"visible_geometry_copies": 198,
-	"unique_mesh_resource_allocations": 150,
+	"geometry_submissions": 204,
+	"visible_geometry_copies": 208,
+	"unique_mesh_resource_allocations": 160,
 	"auto_fallback_names": 20,
 }
 const RECON_PULSE_EMITTER_VISUAL_DELTA := {
@@ -688,8 +688,8 @@ func _build_arrow_variant(_controller: HeroShip) -> bool:
 	_cut_pressure_panel(_arrow_visual.get_node("ReconFuselage"), "ReplaceableSurveyRadome", 0, 4, 1, 15, _arrow_materials.ceramic)
 	_cut_pressure_panel(_arrow_visual.get_node("ReconFuselage"), "PortAvionicsAccess", 5, 10, 11, 15, _arrow_materials.ceramic)
 	_cut_pressure_panel(_arrow_visual.get_node("ReconFuselage"), "StarboardAvionicsAccess", 5, 10, 1, 5, _arrow_materials.ceramic)
-	_cut_pressure_panel(_arrow_visual.get_node("PortShoulderFairing"), "PortShoulderAccess", 9, 14, 9, 14, _arrow_materials.graphite)
-	_cut_pressure_panel(_arrow_visual.get_node("StarboardShoulderFairing"), "StarboardShoulderAccess", 9, 14, 2, 7, _arrow_materials.graphite)
+	_cut_pressure_panel(_arrow_visual.get_node("PortShoulderFairing"), "PortShoulderAccess", 10, 16, 5, 11, _arrow_materials.graphite)
+	_cut_pressure_panel(_arrow_visual.get_node("StarboardShoulderFairing"), "StarboardShoulderAccess", 10, 16, 5, 11, _arrow_materials.graphite)
 	_replace_collision_and_markers()
 	if not replace_variant_visual_root(_arrow_visual):
 		return false
@@ -771,7 +771,7 @@ func _build_slender_airframe() -> void:
 	_fuselage_panel_band_mesh = BoxMesh.new()
 	_fuselage_panel_band_mesh.size = FUSELAGE_PANEL_BAND_SIZE
 	_fuselage_panel_band_mesh.material = _arrow_materials.titanium
-	# A narrow 32-section elliptical fuselage, not the Torrent's broad delta.
+	# Straight pressure-hull stations form a slender, chamfered reconnaissance airframe.
 	_loft_hull(
 		_arrow_visual,
 		"ReconFuselage",
@@ -780,8 +780,8 @@ func _build_slender_airframe() -> void:
 			Vector3(0.18, 0.12, -7.2),
 			Vector3(0.58, 0.30, -6.15),
 			Vector3(1.18, 0.56, -3.7),
-			Vector3(1.5, 1.00, -0.7),
-			Vector3(1.62, 0.82, 2.6),
+			Vector3(1.38, 0.72, -0.7),
+			Vector3(1.48, 0.64, 2.6),
 			Vector3(1.25, 0.7, 5.2),
 			Vector3(0.84, 0.55, 6.3),
 		]),
@@ -832,18 +832,20 @@ func _build_slender_airframe() -> void:
 			_arrow_materials.sensor,
 			_sensor_leading_edge_curve_joint_mesh
 		)
-		_loft_hull(
+		var sensor_pod := _loft_hull(
 			_arrow_visual,
 			"WingtipSensorPod",
 			Vector3(side * 5.55, 1.0, 2.45),
 			PackedVector3Array([
-				Vector3(0.08, 0.06, -1.85),
-				Vector3(0.33, 0.24, -1.25),
-				Vector3(0.42, 0.28, 0.65),
-				Vector3(0.18, 0.14, 1.75),
+				Vector3(0.23, 0.17, -1.85),
+				Vector3(0.40, 0.23, -1.45),
+				Vector3(0.40, 0.23, 1.25),
+				Vector3(0.23, 0.17, 1.75),
 			]),
-			_arrow_materials.titanium
+			_arrow_materials.ceramic
 		)
+		_cut_pressure_panel(sensor_pod, "FlushPassiveAperture", 5, 10, 5, 11, _arrow_materials.graphite)
+		_box(sensor_pod, "ForwardOpticalWindow", Vector3(0, 0, -1.86), Vector3(0.32, 0.17, 0.035), _arrow_materials.sensor)
 		_sphere(_arrow_visual, "PortNavigationLight" if side_index == 0 else "StarboardNavigationLight", Vector3(side * 5.64, 1.04, 3.35), 0.115, _arrow_materials.nav_red if side < 0 else _arrow_materials.nav_green)
 	_multi_mesh_box(
 		_arrow_visual,
@@ -893,21 +895,22 @@ func _build_slender_airframe() -> void:
 ## controller's boarding route, canopy hinge and escape-pod modules intact.
 func _build_manufactured_fairings() -> void:
 	_loft_hull(_arrow_visual, "CockpitSillFairing", Vector3(0, 2.06, -0.8), PackedVector3Array([
-		Vector3(0.08, 0.02, -2.8), Vector3(0.78, 0.08, -2.2),
-		Vector3(1.26, 0.20, -1.2), Vector3(1.28, 0.20, 1.4),
-		Vector3(0.52, 0.06, 2.0),
+		Vector3(0.18, 0.035, -2.8), Vector3(0.76, 0.075, -2.2),
+		Vector3(1.23, 0.13, -1.2), Vector3(1.28, 0.13, 1.4),
+		Vector3(0.70, 0.09, 2.0),
 	]), _arrow_materials.ceramic)
 	for side in [-1.0, 1.0]:
 		var side_name := "Port" if side < 0.0 else "Starboard"
-		_loft_hull(_arrow_visual, side_name + "ShoulderFairing", Vector3(side * 1.14, 1.48, 0.0), PackedVector3Array([
-			Vector3(0.07, 0.07, -4.2), Vector3(0.30, 0.22, -3.1),
-			Vector3(0.55, 0.79, -1.8), Vector3(0.55, 0.76, 0.6),
-			Vector3(0.44, 0.28, 2.0), Vector3(0.16, 0.12, 3.0),
+		_loft_hull(_arrow_visual, side_name + "ShoulderFairing", Vector3(side * 1.24, 1.40, 0.0), PackedVector3Array([
+			Vector3(0.08, 0.10, -4.2), Vector3(0.32, 0.26, -3.1),
+			Vector3(0.53, 0.39, -1.8), Vector3(0.53, 0.39, 0.6),
+			Vector3(0.44, 0.28, 2.0), Vector3(0.30, 0.20, 3.0),
 		]), _arrow_materials.pearl)
 		_loft_hull(_arrow_visual, side_name + "EngineIntakeFairing", Vector3(side * 0.96, 1.10, 0.0), PackedVector3Array([
-			Vector3(0.38, 0.28, 3.95), Vector3(0.70, 0.62, 4.30),
-			Vector3(0.73, 0.63, 5.45), Vector3(0.58, 0.49, 6.40),
+			Vector3(0.54, 0.44, 3.65), Vector3(0.70, 0.56, 4.10),
+			Vector3(0.70, 0.56, 5.65), Vector3(0.58, 0.49, 6.40),
 		]), _arrow_materials.ceramic)
+		_build_survey_intake(side_name, Vector3(side * 1.24, 1.78, -1.82))
 		# Three individually fitted access skins and split trailing elevons sit
 		# against a darker structural substrate, separated by physical joins.
 		var inlay := _build_planform_surface(side_name + "WingInset", PackedVector3Array([
@@ -933,6 +936,32 @@ func _build_manufactured_fairings() -> void:
 		]), 0.055, _arrow_materials.ceramic)
 		_arrow_visual.add_child(elevon)
 
+
+
+## Recessed rectangular cooling ducts with a rolled metal lip and a dark back
+## wall. These mouths meet the shoulder roof rather than floating over it.
+func _build_survey_intake(prefix: String, origin: Vector3) -> void:
+	var tool := SurfaceTool.new()
+	tool.begin(Mesh.PRIMITIVE_TRIANGLES)
+	tool.set_material(_arrow_materials.titanium)
+	var outer := [Vector2(-0.39, -0.10), Vector2(-0.39, 0.12), Vector2(-0.30, 0.20), Vector2(0.30, 0.20), Vector2(0.39, 0.12), Vector2(0.39, -0.10)]
+	for edge in outer.size():
+		var a: Vector2 = outer[edge]
+		var b: Vector2 = outer[(edge + 1) % outer.size()]
+		var pa := Vector3(a.x, a.y, 0)
+		var pb := Vector3(b.x, b.y, 0)
+		var qa := Vector3(a.x * 0.79, a.y * 0.65, 0.065)
+		var qb := Vector3(b.x * 0.79, b.y * 0.65, 0.065)
+		for point in [pa, qa, qb, pa, qb, pb, qa, qa + Vector3.BACK * 0.32, qb + Vector3.BACK * 0.32, qa, qb + Vector3.BACK * 0.32, qb]:
+			tool.set_uv(Vector2(point.x, point.z))
+			tool.add_vertex(point)
+	tool.generate_normals()
+	var duct := MeshInstance3D.new()
+	duct.name = prefix + "SurveyCoolingDuct"
+	duct.position = origin
+	duct.mesh = tool.commit()
+	_arrow_visual.add_child(duct)
+	_box(duct, "RecessedIntake", Vector3(0, 0.035, 0.36), Vector3(0.64, 0.25, 0.035), _arrow_materials.graphite)
 
 
 func _build_recon_systems() -> void:
@@ -1024,10 +1053,13 @@ func _build_recon_systems() -> void:
 	for part_name in ["MastPedestal", "MastStem"]:
 		(mast.get_node(part_name) as Node3D).visible = false
 	(_sensor_sweep.get_node("ArrayCrossbar") as Node3D).visible = false
-	_loft_hull(_sensor_sweep, "ConformalSurveyHead", Vector3.ZERO, PackedVector3Array([
-		Vector3(0.64, 0.10, -0.52), Vector3(0.94, 0.27, -0.30),
-		Vector3(0.94, 0.25, 0.28), Vector3(0.58, 0.12, 0.54),
-	]), _arrow_materials.graphite)
+	var survey_head := _loft_hull(_sensor_sweep, "ConformalSurveyHead", Vector3(0, -0.08, 0), PackedVector3Array([
+		Vector3(0.68, 0.17, -0.52), Vector3(0.88, 0.22, -0.30),
+		Vector3(0.88, 0.22, 0.28), Vector3(0.68, 0.17, 0.54),
+	]), _arrow_materials.ceramic)
+	_cut_pressure_panel(survey_head, "SurveyReceiverCover", 5, 10, 5, 11, _arrow_materials.graphite)
+	_box(survey_head, "SurveyFrontAperture", Vector3(0, 0, -0.53), Vector3(1.12, 0.18, 0.035), _arrow_materials.sensor)
+	(mast.get_node("MastPedestal") as Node3D).visible = true
 
 
 func _build_recon_pulse_emitters() -> void:
@@ -2444,19 +2476,26 @@ static func _transformed_mesh_bounds(
 
 
 func _loft_hull(parent: Node3D, node_name: String, origin: Vector3, authored_sections: PackedVector3Array, material: Material) -> MeshInstance3D:
+	var curved_pressure_shell := node_name in ["CanopyShellConstruction", "PodPressureShell"]
 	var sections := PackedVector3Array()
 	for index in authored_sections.size() - 1:
 		var start := authored_sections[index]
 		var finish := authored_sections[index + 1]
 		for sample_index in 5:
 			var t := float(sample_index) / 5.0
-			var curved := start.cubic_interpolate(finish, authored_sections[maxi(0, index - 1)], authored_sections[mini(authored_sections.size() - 1, index + 2)], t)
+			var curved := start.cubic_interpolate(finish, authored_sections[maxi(0, index - 1)], authored_sections[mini(authored_sections.size() - 1, index + 2)], t) if curved_pressure_shell else start.lerp(finish, t)
 			sections.append(Vector3(maxf(0.01, curved.x), maxf(0.01, curved.y), lerpf(start.z, finish.z, t)))
 	sections.append(authored_sections[-1])
+	const PLATE_QUADRANT := [
+		Vector2(1.0, 0.0), Vector2(1.0, 0.3), Vector2(1.0, 0.6), Vector2(1.0, 0.88),
+		Vector2(0.97, 0.97), Vector2(0.88, 1.0), Vector2(0.6, 1.0), Vector2(0.3, 1.0),
+	]
 	const RING_COUNT := 32
 	var tool := SurfaceTool.new()
 	tool.begin(Mesh.PRIMITIVE_TRIANGLES)
 	tool.set_material(material)
+	if not curved_pressure_shell:
+		tool.set_smooth_group(-1)
 	for section_index in sections.size():
 		var section := sections[section_index]
 		for ring_index in RING_COUNT:
@@ -2465,6 +2504,14 @@ func _loft_hull(parent: Node3D, node_name: String, origin: Vector3, authored_sec
 			var sine := sin(angle)
 			var rounded_x := signf(cosine) * pow(absf(cosine), 0.72)
 			var rounded_y := signf(sine) * pow(absf(sine), 0.72)
+			if not curved_pressure_shell:
+				# Four broad faces joined by narrow two-step chamfers.
+				var quarter := ring_index / 8
+				var point: Vector2 = PLATE_QUADRANT[ring_index % 8]
+				for turn in quarter:
+					point = Vector2(-point.y, point.x)
+				rounded_x = point.x
+				rounded_y = point.y
 			tool.set_uv(Vector2(float(ring_index) / float(RING_COUNT), float(section_index) / float(maxi(1, sections.size() - 1))))
 			tool.add_vertex(Vector3(section.x * rounded_x, section.y * rounded_y, section.z))
 	for section_index in sections.size() - 1:
@@ -2494,6 +2541,8 @@ func _loft_hull(parent: Node3D, node_name: String, origin: Vector3, authored_sec
 		tool.add_index(rear_base + next_ring)
 		tool.add_index(rear_base + ring_index)
 	tool.generate_normals()
+	if not curved_pressure_shell:
+		tool.index()
 	var instance := MeshInstance3D.new()
 	instance.name = node_name
 	instance.position = origin
@@ -3115,10 +3164,15 @@ func _torus(
 func _cut_pressure_panel(shell: MeshInstance3D, panel_name: String, first_section: int, last_section: int, first_ring: int, last_ring: int, material: Material) -> void:
 	var arrays := shell.mesh.surface_get_arrays(0)
 	var vertices: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
-	var normals: PackedVector3Array = arrays[Mesh.ARRAY_NORMAL]
+	var normals: PackedVector3Array = (arrays[Mesh.ARRAY_NORMAL] as PackedVector3Array).duplicate()
 	var indices: PackedInt32Array = arrays[Mesh.ARRAY_INDEX]
 	var uvs: PackedVector2Array = arrays[Mesh.ARRAY_TEX_UV]
 	var section_count := int(shell.get_meta("loft_section_count"))
+	# Hard plate edges duplicate vertices with different face normals. Use one
+	# radial inset direction per position so each access skin stays watertight
+	# across those duplicates instead of opening tiny sawtooth cracks.
+	for vertex_index in vertices.size():
+		normals[vertex_index] = Vector3(vertices[vertex_index].x, vertices[vertex_index].y, 0.0).normalized()
 	var logical_vertices := {}
 	for vertex_index in vertices.size():
 		if absf(vertices[vertex_index].x) + absf(vertices[vertex_index].y) < 0.001:
