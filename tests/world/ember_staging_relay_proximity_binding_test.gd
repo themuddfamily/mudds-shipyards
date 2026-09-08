@@ -12,12 +12,30 @@ class FakeHost:
 	var phase_id: StringName = &"on_foot"
 	var player_instance_id := 0
 	var loaded_scene_instance_id := 777
+	var snapshot_calls := 0
 	func get_generation() -> int: return generation
 	func get_attachment_generation() -> int: return attachment_generation
 	func get_snapshot() -> Dictionary:
+		snapshot_calls += 1
 		return {
 			"attached": attached,
 			"phase_id": phase_id,
+			"identities": {
+				"player_instance_id": player_instance_id,
+				"loaded_scene_instance_id": loaded_scene_instance_id,
+			},
+		}
+
+class FocusedHost:
+	extends FakeHost
+	var focused_calls := 0
+	func get_return_status_snapshot() -> Dictionary:
+		focused_calls += 1
+		return {
+			"attached": attached,
+			"phase_id": phase_id,
+			"generation": generation,
+			"attachment_generation": attachment_generation,
 			"identities": {
 				"player_instance_id": player_instance_id,
 				"loaded_scene_instance_id": loaded_scene_instance_id,
@@ -152,6 +170,8 @@ func _run() -> void:
 		"a fresh production generation resets without acquiring adjacent authority"
 	)
 
+	_test_fresh_host_observations(actor)
+
 	for failure in _failures:
 		push_error(failure)
 	print(
@@ -159,6 +179,96 @@ func _run() -> void:
 		% _assertions
 	)
 	quit(0 if _failures.is_empty() else 1)
+
+
+func _test_fresh_host_observations(actor: Node3D) -> void:
+	var legacy := FakeHost.new()
+	var focused := FocusedHost.new()
+	var bindings: Array[Area3D] = []
+	for host in [legacy, focused]:
+		host.player_instance_id = actor.get_instance_id()
+		var binding := BindingScript.new() as Area3D
+		root.add_child(binding)
+		binding.call(&"configure", host, actor, 41, 7, 777)
+		bindings.append(binding)
+	legacy.snapshot_calls = 0
+	focused.snapshot_calls = 0
+	focused.focused_calls = 0
+	var legacy_result := bindings[0].call(&"refresh_authoritative_state") as Dictionary
+	var focused_result := bindings[1].call(&"refresh_authoritative_state") as Dictionary
+	_check(
+		legacy_result == focused_result and bool(focused_result.diagnostic.active)
+			and legacy.snapshot_calls == 3 and focused.snapshot_calls == 0
+			and focused.focused_calls == 3,
+		"focused and legacy refresh return identical full diagnostics at all three observation boundaries"
+	)
+	for mutation in [
+		[&"attached", false], [&"phase_id", &"landed"],
+		[&"generation", 42], [&"attachment_generation", 4],
+		[&"player_instance_id", actor.get_instance_id() + 1],
+		[&"loaded_scene_instance_id", 778],
+	]:
+		var property: StringName = mutation[0]
+		var original: Variant = legacy.get(property)
+		legacy.set(property, mutation[1])
+		focused.set(property, mutation[1])
+		legacy_result = bindings[0].call(&"refresh_authoritative_state") as Dictionary
+		focused_result = bindings[1].call(&"refresh_authoritative_state") as Dictionary
+		_check(
+			legacy_result == focused_result and not bool(focused_result.diagnostic.active)
+				and not bool(focused_result.diagnostic.physical.marker_visible)
+				and not bool(focused_result.diagnostic.physical.monitoring)
+				and int(focused_result.diagnostic.physical.area_collision_mask) == 0,
+			"same-frame %s drift fences the focused and legacy relay identically" % property
+		)
+		legacy.set(property, original)
+		focused.set(property, original)
+		legacy_result = bindings[0].call(&"refresh_authoritative_state") as Dictionary
+		focused_result = bindings[1].call(&"refresh_authoritative_state") as Dictionary
+		_check(
+			legacy_result == focused_result and bool(focused_result.diagnostic.active),
+			"same-frame %s restoration is immediately observed" % property
+		)
+	var visibility_results: Array[Dictionary] = []
+	var completion_results: Array[Dictionary] = []
+	for index in bindings.size():
+		var binding := bindings[index]
+		var host: FakeHost = legacy if index == 0 else focused
+		host.phase_id = &"landed"
+		binding.call(&"refresh_authoritative_state")
+		var marker := binding.get_node(^"StagingRelayDiagnosticMarker") as Label3D
+		var on_visible := func() -> void:
+			if marker.visible:
+				host.phase_id = &"landed"
+		marker.visibility_changed.connect(on_visible)
+		host.phase_id = &"on_foot"
+		visibility_results.append(binding.call(&"refresh_authoritative_state") as Dictionary)
+		marker.visibility_changed.disconnect(on_visible)
+		host.phase_id = &"on_foot"
+		binding.call(&"refresh_authoritative_state")
+		binding.connect(&"diagnostic_completed", func(_receipt: Dictionary) -> void:
+			host.attached = false
+		)
+		completion_results.append(binding.call(&"submit_proximity", actor, 41, 3, 7) as Dictionary)
+	_check(
+		visibility_results[0] == visibility_results[1]
+			and not bool(visibility_results[1].diagnostic.active)
+			and not bool(visibility_results[1].diagnostic.physical.marker_visible)
+			and not bool(visibility_results[1].diagnostic.physical.monitoring),
+		"synchronous visibility callbacks are observed before refresh reports its final physical state"
+	)
+	_check(
+		completion_results[0] == completion_results[1]
+			and bool(completion_results[1].accepted)
+			and bool(completion_results[1].diagnostic.completed)
+			and not bool(completion_results[1].diagnostic.active)
+			and not bool(completion_results[1].diagnostic.physical.marker_visible)
+			and int(completion_results[1].diagnostic.last_receipt.actor_instance_id) == actor.get_instance_id(),
+		"completion callback detach changes the returned diagnostic while retaining its exact receipt"
+	)
+	_check(focused.snapshot_calls == 0, "all focused same-frame and callback fences avoid full Host diagnostics")
+	for binding in bindings:
+		binding.queue_free()
 
 
 func _check(condition: bool, message: String) -> void:

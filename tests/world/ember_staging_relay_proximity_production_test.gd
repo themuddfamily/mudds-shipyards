@@ -12,6 +12,17 @@ const RELAY_PATH := ^"LandingRegion/SurfaceLandmarks/StagingRelay"
 const ACCESS_PATH := \
 	^"LandingRegion/SurfaceLandmarks/RouteMarkers/StagingRelayAccess"
 
+class CountingHost:
+	extends HostScript
+	var snapshot_calls := 0
+	var focused_calls := 0
+	func get_snapshot() -> Dictionary:
+		snapshot_calls += 1
+		return super.get_snapshot()
+	func get_return_status_snapshot() -> Dictionary:
+		focused_calls += 1
+		return super.get_return_status_snapshot()
+
 class FakeSurfaceComposition:
 	extends Node
 	var detach_calls := 0
@@ -54,7 +65,7 @@ func _run() -> void:
 	root.add_child(actor)
 	actor.set_process(false)
 	actor.set_physics_process(false)
-	var host := HostScript.new()
+	var host := CountingHost.new()
 	root.add_child(host)
 	host.set("_generation", 54)
 	host.set("_attachment_generation", 1)
@@ -97,6 +108,19 @@ func _run() -> void:
 			and not diagnostic.has_meta("station_interactable")
 			and bool((authored.audit() as Dictionary).valid),
 		"production attaches a non-solid Player-only diagnostic beside the authored scene"
+	)
+
+	host.snapshot_calls = 0
+	host.focused_calls = 0
+	var refreshes_current := true
+	for iteration in 12:
+		var refreshed := diagnostic.call(&"refresh_authoritative_state") as Dictionary
+		refreshes_current = refreshes_current and bool(refreshed.accepted) \
+			and bool(refreshed.diagnostic.active) \
+			and int(refreshed.diagnostic.loaded_scene_instance_id) == authored.get_instance_id()
+	_check(
+		refreshes_current and host.snapshot_calls == 0 and host.focused_calls == 36,
+		"twelve production relay refreshes use fresh focused observations without full Host diagnostics"
 	)
 
 	actor.global_position = diagnostic.global_position

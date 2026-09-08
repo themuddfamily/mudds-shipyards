@@ -242,7 +242,12 @@ func _current() -> bool:
 			or not is_instance_valid(_host) or _actor == null \
 			or not is_instance_valid(_actor):
 		return false
-	var host_snapshot := _host.call(&"get_snapshot") as Dictionary
+	# Keep each observation fresh across presentation setters and their signals.
+	# Older injected Hosts still provide the complete diagnostic contract.
+	var host_snapshot := _host.call(
+		&"get_return_status_snapshot" if _host.has_method(&"get_return_status_snapshot")
+		else &"get_snapshot"
+	) as Dictionary
 	var identities := host_snapshot.get("identities", {}) as Dictionary
 	return bool(host_snapshot.get("attached", false)) \
 		and StringName(host_snapshot.get("phase_id", &"")) == &"on_foot" \

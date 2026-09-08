@@ -1346,8 +1346,8 @@ func get_loaded_scene_instance_id() -> int:
 	return _loaded_scene_instance_id
 
 
-## Fresh actor positions and lifecycle evidence consumed by the built-in return
-## status presenter. Avoid constructing bootstrap, telemetry and physics audits.
+## Fresh actor positions and lifecycle evidence for built-in surface presenters.
+## Avoid constructing bootstrap, telemetry and physics audits.
 func get_return_status_snapshot() -> Dictionary:
 	return {
 		"host_id": HOST_ID,
@@ -1357,6 +1357,7 @@ func get_return_status_snapshot() -> Dictionary:
 		"attachment_generation": _attachment_generation,
 		"terminal_reason": _terminal_reason,
 		"identities": {
+			"loaded_scene_instance_id": _loaded_scene_instance_id,
 			"ship_instance_id": _ship_instance_id,
 			"player_instance_id": _player_instance_id,
 		},
