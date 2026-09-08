@@ -122,6 +122,10 @@ func _test_detached_boot_joins_resource_worker() -> void:
 		await process_frame
 		return
 	boot.set("_resource_worker", worker)
+	var temporary_texture := ImageTexture.new()
+	var temporary_ref: WeakRef = weakref(temporary_texture)
+	(boot.get("_startup_textures") as Array).append(temporary_texture)
+	temporary_texture = null
 	root.remove_child(boot)
 	_check(
 		boot.get("_resource_worker") == null
@@ -129,6 +133,9 @@ func _test_detached_boot_joins_resource_worker() -> void:
 		and not worker.is_alive(),
 		"detaching Boot joins and releases its in-flight resource worker"
 	)
+	_check((boot.get("_startup_textures") as Array).is_empty()
+		and temporary_ref.get_ref() == null,
+		"worker cancellation drops Boot's temporary texture ownership")
 	root.add_child(boot)
 	boot.queue_free()
 	await process_frame
@@ -607,6 +614,8 @@ func _test_detached_boot_cancels_stale_continuation() -> void:
 		boot.queue_free()
 		await process_frame
 		return
+	_check((boot.get("_startup_textures") as Array).size() == 3,
+		"staged Boot retains the worker's three hull textures until ship construction")
 	var canceled_stager := boot.get_main().get("_startup_stager") as MainStartupStager
 	var canceled_child_refs: Array[WeakRef] = []
 	for pending_child in canceled_stager.get("_staged_children") as Array:
@@ -620,6 +629,9 @@ func _test_detached_boot_cancels_stale_continuation() -> void:
 	)
 	await process_frame
 	await process_frame
+	_check((boot.get("_startup_textures") as Array).is_empty()
+		and boot.get("_resource_worker") == null,
+		"canceled construction releases warmed textures and stale continuation cannot adopt them")
 	var canceled_children_freed := not canceled_child_refs.is_empty()
 	for child_ref in canceled_child_refs:
 		canceled_children_freed = canceled_children_freed and child_ref.get_ref() == null
@@ -681,8 +693,12 @@ func _test_boot_presents_before_it_builds() -> void:
 	# Progress is sampled every frame for the whole of startup. A bar that jumps
 	# straight from nothing to done is the dishonest failure mode this guards.
 	var samples: Array[float] = []
+	var warmed_texture_refs: Array[WeakRef] = []
 	var stages := {}
 	var watcher := func() -> void:
+		if warmed_texture_refs.is_empty():
+			for texture: Texture2D in boot.get("_startup_textures") as Array:
+				warmed_texture_refs.append(weakref(texture))
 		var live := boot.get_loading_screen()
 		if is_instance_valid(live):
 			samples.append(live.get_progress())
@@ -707,6 +723,20 @@ func _test_boot_presents_before_it_builds() -> void:
 		boot.get("_resource_worker") == null,
 		"successful startup joins and releases its scene resource worker before construction"
 	)
+	_check(warmed_texture_refs.size() == 3 and (boot.get("_startup_textures") as Array).is_empty(),
+		"real Boot retains exactly three warmed textures then releases its owner after construction")
+	if warmed_texture_refs.size() == 3:
+		var materials := (main as GameFlow).ship.get_variant_materials()
+		var slots := ["albedo_texture", "normal_texture", "roughness_texture"]
+		var paths := ["res://assets/materials/torrent-hull-albedo-v1.png",
+			"res://assets/materials/torrent-hull-normal-v1.png",
+			"res://assets/materials/torrent-hull-roughness-v1.png"]
+		for index in range(3):
+			var texture := warmed_texture_refs[index].get_ref() as Texture2D
+			_check(texture != null and texture.resource_path == paths[index]
+				and materials.ivory.get(slots[index]) == texture
+				and materials.light.get(slots[index]) == texture,
+				"Torrent materials retain the exact worker-loaded resource after handoff: " + slots[index])
 
 	var distinct: Array[float] = []
 	var monotonic := true

@@ -35,6 +35,13 @@ const LoadingScreenType := preload("res://scripts/ui/loading_screen.gd")
 const SessionDiagnosticFileSinkType := preload("res://scripts/diagnostics/session_diagnostic_file_sink.gd")
 
 const MAIN_SCENE_PATH := "res://scenes/main.tscn"
+## These three lazy Torrent hull loads account for its cold material stall.
+## Warm only the ordinary Boot path; variant-only scene loads remain unchanged.
+const STARTUP_TEXTURE_PATHS := [
+	"res://assets/materials/torrent-hull-albedo-v1.png",
+	"res://assets/materials/torrent-hull-normal-v1.png",
+	"res://assets/materials/torrent-hull-roughness-v1.png",
+]
 
 const CLI_VERSION := &"--version"
 const CLI_SUPPORT_INFO := &"--support-info"
@@ -82,6 +89,9 @@ var _early_cli_exit_code := 0
 ## ResourceLoader, so no thread or returned Resource can outlive the scene that
 ## requested it.
 var _resource_worker: Thread
+## ResourceLoader's cache does not own these references. Keep the worker's
+## textures alive until construction transfers ownership to ship materials.
+var _startup_textures: Array[Texture2D] = []
 
 
 func _ready() -> void:
@@ -180,6 +190,7 @@ func _exit_tree() -> void:
 	_startup_generation += 1
 	_running = false
 	_retire_resource_worker()
+	_startup_textures.clear()
 	if interrupted_startup and is_instance_valid(_main):
 		var incomplete_main := _main
 		_main = null
@@ -258,6 +269,8 @@ func run_startup() -> Node:
 				tree.quit(1)
 			return null
 		_note_stage("construction", "Shipyard ready")
+
+	_startup_textures.clear()
 
 	# Suppressing 3D behind the opaque loading screen was measured and rejected:
 	# it does not remove the renderer's one-time warm-up, it collects all of it -
@@ -392,23 +405,36 @@ func _load_main_scene(startup_generation: int) -> PackedScene:
 	_resource_worker = null
 	if not _is_startup_current(startup_generation):
 		return null
+	var resources := loaded as Dictionary
+	_startup_textures.assign(resources.get("textures", []))
 	_screen.set_stage(
 		"Loading station data", PHASE_RESOURCES, "Station scene loaded",
 		"MUDDS SHIPYARDS", "Station data", 1, 3
 	)
 	_note_stage("resources", "Loading station data")
-	return loaded as PackedScene
+	return resources.get("scene") as PackedScene
 
 
-## ResourceLoader itself is thread-safe for a single isolated load. Keeping the
-## callable static is the lifetime boundary: the worker holds no Callable back
+## ResourceLoader runs serially on this one owned worker. Keeping the callable
+## static is the lifetime boundary: the worker holds no Callable back
 ## to Boot, and therefore cannot retain or touch a node after cancellation.
-static func _load_main_scene_resource() -> PackedScene:
-	return ResourceLoader.load(
+static func _load_main_scene_resource() -> Dictionary:
+	var scene := ResourceLoader.load(
 		MAIN_SCENE_PATH,
 		"PackedScene",
 		ResourceLoader.CACHE_MODE_REUSE
 	) as PackedScene
+	var textures: Array[Texture2D] = []
+	if scene != null:
+		for path: String in STARTUP_TEXTURE_PATHS:
+			var texture := ResourceLoader.load(
+				path, "Texture2D", ResourceLoader.CACHE_MODE_REUSE
+			) as Texture2D
+			if texture != null:
+				textures.append(texture)
+	# The result retains the resources until the owning main thread joins. This
+	# worker never instantiates scenes or changes a texture/material's state.
+	return {"scene": scene, "textures": textures}
 
 
 func _retire_resource_worker() -> void:
@@ -449,6 +475,7 @@ func _is_startup_current(startup_generation: int) -> bool:
 
 func _finish_startup(startup_generation: int) -> void:
 	if startup_generation == _startup_generation:
+		_startup_textures.clear()
 		_running = false
 
 
