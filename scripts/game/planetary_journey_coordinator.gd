@@ -673,12 +673,13 @@ func _consume_mudds_station_return_handoff_intent(
 			"accepted": false,
 			"reason": &"station_return_handoff_binding_unavailable",
 		}.duplicate(true)
-	var binding_snapshot := _flow.ember_surface_loop_production_binding.get_snapshot()
-	if not bool(binding_snapshot.get("station_return_handoff_pending", false)):
+	if not _flow.ember_surface_loop_production_binding.has_pending_station_return_handoff():
 		return {
 			"accepted": false,
 			"reason": &"station_return_handoff_not_pending",
 		}.duplicate(true)
+	# Preserve the detached pre-consumption context for the full handoff check.
+	var binding_snapshot := _flow.ember_surface_loop_production_binding.get_snapshot()
 	_mudds_station_return_intent_consumption_attempted = true
 	var taken := _flow.ember_surface_loop_production_binding.call(
 		&"take_planetary_station_return_handoff_intent",
@@ -811,8 +812,7 @@ func _advance_mudds_return_approach_handoff(
 	if not is_instance_valid(_flow.ember_surface_loop_production_binding) \
 			or not is_instance_valid(_flow.planetary_cruise_binding):
 		return {"accepted": false, "reason": &"return_approach_binding_unavailable"}
-	var surface_snapshot := _flow.ember_surface_loop_production_binding.get_snapshot()
-	if StringName(surface_snapshot.get("state_id", &"")) != &"handoff_pending":
+	if _flow.ember_surface_loop_production_binding.get_state() != EmberSurfaceLoopProductionBinding.State.HANDOFF_PENDING:
 		return {"accepted": false, "reason": &"return_approach_handoff_not_pending"}
 	_mudds_return_handback_consumption_attempted = true
 	var handback := _flow.ember_surface_loop_production_binding.take_completion_handback(

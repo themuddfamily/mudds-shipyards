@@ -14,8 +14,19 @@ class CompletedSurfaceBinding:
 	var intent: Dictionary = {}
 	var intent_delivered := false
 	var retained_session_instance_id := 7001
+	var snapshot_calls := 0
+	var snapshots_after_delivery := 0
+
+	func get_state() -> int:
+		return State.HANDOFF_PENDING
+
+	func has_pending_station_return_handoff() -> bool:
+		return not intent.is_empty() and not intent_delivered
 
 	func get_snapshot() -> Dictionary:
+		snapshot_calls += 1
+		if intent_delivered:
+			snapshots_after_delivery += 1
 		var host: Object = get("_host")
 		return {
 			"state_id": &"handoff_pending",
@@ -96,8 +107,13 @@ class CadenceSurfaceBinding:
 	var takeoff_calls := 0
 	var identities: Dictionary = {}
 	var retained_return_context: Dictionary = {}
+	var snapshot_calls := 0
+
+	func get_state() -> int:
+		return State.RUNNING
 
 	func get_snapshot() -> Dictionary:
+		snapshot_calls += 1
 		return {
 			"state_id": &"running",
 			"identities": identities.duplicate(true),
@@ -197,6 +213,23 @@ func _run() -> void:
 		"ship_instance_id": craft.get_instance_id(),
 	}
 	game.ember_surface_loop_production_binding = cadence
+	var idle_reports_match := true
+	for _index in 32:
+		idle_reports_match = idle_reports_match and (
+			game._consume_mudds_station_return_handoff_intent(frame.get_generation())
+			== {"accepted": false, "reason": &"station_return_handoff_not_pending"}
+		)
+		idle_reports_match = idle_reports_match and (
+			game._advance_mudds_return_approach_handoff(frame.get_generation())
+			== {"accepted": false, "reason": &"return_approach_handoff_not_pending"}
+		)
+	print("HANDOFF_DIAGNOSTIC_CALLS idle_pairs=32 snapshots=%d" % cadence.snapshot_calls)
+	_check(idle_reports_match
+		and not bool(game.get("_mudds_station_return_intent_consumption_attempted"))
+		and not bool(game.get("_mudds_return_handback_consumption_attempted")),
+		"idle handoff observations retain exact reports and leave both consumption fences open")
+	_check(cadence.snapshot_calls == 0,
+		"idle handoff polling does not construct full binding diagnostics")
 	game.set("_piloting", true)
 	game.set("_ember_surface_journey_active", true)
 	game.set("_ember_final_approach_handoff_ready", true)
@@ -365,6 +398,8 @@ func _run() -> void:
 	surface.intent_delivered = false
 	surface.intent_take_calls = 0
 	surface.abort_calls = 0
+	surface.snapshot_calls = 0
+	surface.snapshots_after_delivery = 0
 	var intent_consumed := game._consume_mudds_station_return_handoff_intent(
 		frame.get_generation()
 	)
@@ -376,6 +411,11 @@ func _run() -> void:
 	var armed := game._advance_mudds_return_approach_handoff(
 		frame.get_generation()
 	)
+	print("HANDOFF_DIAGNOSTIC_CALLS consumed_and_armed snapshots=%d after_delivery=%d" % [
+		surface.snapshot_calls, surface.snapshots_after_delivery,
+	])
+	_check(surface.snapshot_calls == 1 and surface.snapshots_after_delivery == 0,
+		"actual handoff retains one full detached pre-consumption report for authentication")
 	var target_result := game._build_mudds_return_approach_target()
 	var target := target_result.get("target", {}) as Dictionary
 	var fleet_bounds := target.get("fleet_collision_bounds", {}) as Dictionary

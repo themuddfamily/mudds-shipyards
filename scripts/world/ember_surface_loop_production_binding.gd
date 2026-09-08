@@ -1913,6 +1913,11 @@ func is_configured() -> bool:
 	return _configured
 
 
+## Live admission hint only; taking an intent still performs its full validation.
+func has_pending_station_return_handoff() -> bool:
+	return not _station_return_handoff_intent.is_empty() and not _station_return_handoff_delivered
+
+
 ## GameFlow observes these fields before preparing a tick, then keeps that
 ## observation through survey admission. All values are fresh detached copies;
 ## the complete diagnostic tree and per-tick signal payload remain unchanged.
@@ -2024,10 +2029,7 @@ func get_snapshot() -> Dictionary:
 		"completion_handback_delivered": _completion_handback_delivered,
 		"completion_handback": _completion_handback.duplicate(true),
 		"planetary_orbit_return_consumed": _planetary_orbit_return_consumed,
-		"station_return_handoff_pending": (
-			not _station_return_handoff_intent.is_empty()
-			and not _station_return_handoff_delivered
-		),
+		"station_return_handoff_pending": has_pending_station_return_handoff(),
 		"station_return_handoff_delivered": _station_return_handoff_delivered,
 		"station_return_handoff_intent": (
 			_station_return_handoff_intent.duplicate(true)

@@ -44,6 +44,7 @@ func _test_complete_evidence_publishes_once() -> void:
 	var session := fixture.session as PlanetaryTravelSession
 	var host := fixture.host as EmberSurfaceLoopHost
 	var binding := fixture.binding as EmberSurfaceLoopProductionBinding
+	_check(not binding.has_pending_station_return_handoff(), "fresh binding has no pending station handoff")
 	_publication_binding = binding
 	binding.station_return_handoff_ready.connect(_on_handoff_ready)
 	var stale_manifest := _manifest(session.get_attachment_generation() + 1)
@@ -91,9 +92,18 @@ func _test_complete_evidence_publishes_once() -> void:
 	var stale_take := binding.take_planetary_station_return_handoff_intent(
 		binding.get_generation() + 1
 	)
+	_check(binding.has_pending_station_return_handoff() and binding.get_snapshot().station_return_handoff_pending,
+		"live handoff admission follows publication and survives a stale take")
+	var before_delivery := binding.get_snapshot()
 	var taken := binding.take_planetary_station_return_handoff_intent(
 		binding.get_generation()
 	)
+	_check(not binding.has_pending_station_return_handoff() and not binding.get_snapshot().station_return_handoff_pending,
+		"live handoff admission clears immediately after delivery")
+	_check(before_delivery.station_return_handoff_pending
+		and not before_delivery.station_return_handoff_delivered
+		and before_delivery.station_return_handoff_intent == taken.intent,
+		"delivery preserves the detached pre-consumption diagnostic report")
 	var take_replay := binding.take_planetary_station_return_handoff_intent(
 		binding.get_generation()
 	)
