@@ -1042,7 +1042,17 @@ func _test_scale_handling_and_presentation(jovian: JovianLightFreighter) -> void
 	var flight_deck := visual.get_node_or_null("ForwardFlightDeck") as MeshInstance3D
 	var shoulder := visual.get_node_or_null("PortCargoShoulder") as MeshInstance3D
 	_check(flight_deck != null and flight_deck.mesh is ArrayMesh and flight_deck.mesh.get_faces().size() == 432, "flight deck is a folded bow apron with planar manufacturing breaks")
-	_check(shoulder != null and shoulder.mesh is ArrayMesh and bool(shoulder.get_meta("closed_loft_hull", false)) and shoulder.mesh.get_faces().size() == 192, "split port cargo shoulder is a closed pressed shell joining the freight crown")
+	_check(shoulder != null and shoulder.mesh is ArrayMesh and bool(shoulder.get_meta("closed_loft_hull", false)) and shoulder.mesh.get_faces().size() == 264 and shoulder.mesh.get_surface_count() == 3, "split port cargo shoulder joins the freight crown with a recessed thermal belt and lower rub strip")
+	# These service lids sit over the continuous pressure skin. Their underside
+	# must remain actually open, rather than merely dropping the closed-hull tag.
+	var service_lids: Array[Node] = visual.find_children("*RoofThermalCover*", "MeshInstance3D", false, false)
+	service_lids.append(visual.get_node("FlightDeckAvionicsBonnet"))
+	var open_lids := 0
+	for candidate in service_lids:
+		var lid := candidate as MeshInstance3D
+		if lid != null and not lid.has_meta("closed_loft_hull") and _mesh_open_boundary_edges(lid.mesh) > 0:
+			open_lids += 1
+	_check(open_lids == 9, "eight fitted thermal lids and the avionics bonnet have real open undersides over the pressure hull")
 	if flight_deck != null and flight_deck.mesh != null:
 		var faces := flight_deck.mesh.get_faces()
 		var first_side_normal := (faces[1] - faces[0]).cross(faces[2] - faces[0]).normalized()
@@ -1629,3 +1639,19 @@ func _finish() -> void:
 	else:
 		print("JOVIAN_LIGHT_FREIGHTER_TEST_FAILED: ", ", ".join(_failures))
 		quit(1)
+
+
+func _mesh_open_boundary_edges(mesh: Mesh) -> int:
+	var edges := {}
+	var faces := mesh.get_faces()
+	for triangle in range(0, faces.size(), 3):
+		for corner in 3:
+			var a := str(faces[triangle + corner])
+			var b := str(faces[triangle + (corner + 1) % 3])
+			var key := a + ":" + b if a < b else b + ":" + a
+			edges[key] = int(edges.get(key, 0)) + 1
+	var boundary_edges := 0
+	for count: int in edges.values():
+		if count == 1:
+			boundary_edges += 1
+	return boundary_edges

@@ -3236,6 +3236,7 @@ func _create_jovian_materials() -> void:
 	_jovian_materials.webbing = _jovian_material(Color("666456"), 0.0, 0.98)
 	_jovian_materials.freight_shell = _jovian_material(Color("65716d"), 0.12, 0.79)
 	_jovian_materials.deck = _jovian_material(DECK_GREY, 0.40, 0.74)
+	_jovian_materials.thermal_cover = _jovian_material(Color("697779"), 0.12, 0.77)
 	_jovian_materials.engine = _jovian_material(ENGINE_AQUA, 0.1, 0.16, ENGINE_AQUA, 3.2)
 	_jovian_materials.nav_red = _jovian_material(JOVIAN_NAV_RED, 0.08, 0.2, JOVIAN_NAV_RED, 2.4)
 	_jovian_materials.nav_green = _jovian_material(JOVIAN_NAV_GREEN, 0.08, 0.2, JOVIAN_NAV_GREEN, 2.4)
@@ -3246,7 +3247,7 @@ func _create_jovian_materials() -> void:
 	# Continuous paint over manufactured shell geometry. The old cargo-panel
 	# image stamped deep rectangular cells over every curve at the same scale.
 	var hull_normal := load("res://assets/materials/manufactured-paint-normal.png") as Texture2D
-	for hull_material: StandardMaterial3D in [_jovian_materials.hull_warm, _jovian_materials.hull_cool]:
+	for hull_material: StandardMaterial3D in [_jovian_materials.hull_warm, _jovian_materials.hull_cool, _jovian_materials.thermal_cover]:
 		ShipSurfaceDetail.bind_manufactured_paint(hull_material)
 		hull_material.uv1_triplanar = true
 		hull_material.uv1_world_triplanar = false
@@ -3432,6 +3433,7 @@ func _build_exterior() -> void:
 		_pressed_roof(_jovian_visual, "CargoPressureJoint", 5.75, 4.445, 0.38,
 			PackedVector3Array([Vector3(1.0, 0.0, seam_z - 0.026), Vector3(1.0, 0.0, seam_z + 0.026)]),
 			0.014, _jovian_materials.dark)
+	_build_pressure_shell_panels()
 	_dorsal_cargo_rib_joint_mesh = SphereMesh.new()
 	_dorsal_cargo_rib_joint_mesh.radius = DORSAL_CARGO_RIB_JOINT_RADIUS
 	_dorsal_cargo_rib_joint_mesh.height = DORSAL_CARGO_RIB_JOINT_RADIUS * 2.0
@@ -4961,7 +4963,9 @@ func _freighter_exhaust_collar(node_name: String, at: Vector3) -> void:
 ## x=5.75 at full section, preserving the actual freight-room volume.
 func _freighter_sponson(node_name: String, side: float, sections: PackedVector3Array) -> void:
 	var profile := PackedVector2Array([
-		Vector2(1.15, 0.90), Vector2(0.70, 1.72), Vector2(-0.85, 2.38),
+		Vector2(1.15, 0.90), Vector2(0.70, 1.72),
+		Vector2(0.42, 1.86), Vector2(0.34, 1.80),
+		Vector2(-0.68, 2.25), Vector2(-0.85, 2.38),
 		Vector2(-1.15, 2.38), Vector2(-1.15, -1.72),
 		Vector2(-0.80, -1.98), Vector2(0.65, -1.98), Vector2(1.15, -1.30)])
 	var rings: Array[PackedVector3Array] = []
@@ -4973,7 +4977,13 @@ func _freighter_sponson(node_name: String, side: float, sections: PackedVector3A
 		if side < 0.0:
 			ring.reverse()
 		rings.append(ring)
-	_formed_pressure_member(node_name, rings, _jovian_materials.hull_cool)
+	# The recessed upper service belt and lower rub strip are part of the
+	# section, so their highlights meet the pressure skin at real folded edges.
+	var edge_materials := {}
+	for edge in [2, 3, 4, 8, 9]:
+		var mirrored_edge: int = (profile.size() - 2 - edge + profile.size()) % profile.size() if side < 0.0 else edge
+		edge_materials[mirrored_edge] = _jovian_materials.thermal_cover if edge < 5 else _jovian_materials.structure
+	_formed_pressure_member(node_name, rings, _jovian_materials.hull_cool, edge_materials)
 
 
 ## The cabin is nested between these tapered shell wings. They join its roof
@@ -4999,14 +5009,23 @@ func _flight_deck_transition(side: float) -> void:
 
 ## Explicit folded sections keep panel normals flat at manufacturing breaks.
 ## Cap fans use real triangles rather than degenerate quads.
-func _formed_pressure_member(node_name: String, rings: Array[PackedVector3Array], material: Material) -> void:
+func _formed_pressure_member(node_name: String, rings: Array[PackedVector3Array], material: Material, edge_materials: Dictionary = {}, open_bottom_edge: int = -1) -> void:
 	var tool := SurfaceTool.new()
 	tool.begin(Mesh.PRIMITIVE_TRIANGLES)
 	tool.set_material(material)
+	var surface_tools := {material: tool}
 	for station in rings.size() - 1:
 		for edge in rings[station].size():
+			if edge == open_bottom_edge:
+				continue
+			var face_material: Material = edge_materials.get(edge, material)
+			if not surface_tools.has(face_material):
+				var face_tool := SurfaceTool.new()
+				face_tool.begin(Mesh.PRIMITIVE_TRIANGLES)
+				face_tool.set_material(face_material)
+				surface_tools[face_material] = face_tool
 			var next := (edge + 1) % rings[station].size()
-			_skin_quad(tool, rings[station][edge], rings[station][next],
+			_skin_quad(surface_tools[face_material], rings[station][edge], rings[station][next],
 				rings[station + 1][next], rings[station + 1][edge])
 	for end in [0, rings.size() - 1]:
 		var center := Vector3.ZERO
@@ -5023,10 +5042,72 @@ func _formed_pressure_member(node_name: String, rings: Array[PackedVector3Array]
 				tool.add_vertex(vertex)
 	var member := MeshInstance3D.new()
 	member.name = node_name
-	member.mesh = tool.commit()
+	var mesh := ArrayMesh.new()
+	for surface_tool: SurfaceTool in surface_tools.values():
+		surface_tool.commit(mesh)
+	member.mesh = mesh
 	member.set_meta("visual_only", true)
-	member.set_meta("closed_loft_hull", true)
+	# Service covers have an open underside over the existing pressure skin.
+	# Only closed load-bearing members publish the solid hull-volume contract.
+	if open_bottom_edge < 0:
+		member.set_meta("closed_loft_hull", true)
 	_jovian_visual.add_child(member)
+
+
+## Two longitudinal thermal-service fields sit between the structural ribs.
+## Each cover is a pressed lid with open underside, bevel and dark gasket;
+## the roof remains the interior pressure boundary beneath it.
+func _build_pressure_shell_panels() -> void:
+	for side in [-1.0, 1.0]:
+		for bay in 4:
+			var front := -2.12 + float(bay) * 2.72
+			var rear := front + 2.16
+			var side_name := "Port" if side < 0.0 else "Starboard"
+			_crown_service_panel(side_name + "RoofCoverSeal%02d" % bay, side,
+				1.80, 5.32, front, rear, 0.045, _jovian_materials.structure)
+			_crown_service_panel(side_name + "RoofThermalCover%02d" % bay, side,
+				1.86, 5.26, front + 0.055, rear - 0.055, 0.095, _jovian_materials.thermal_cover)
+	# A single tapered avionics bonnet carries the flight-deck roof into the
+	# cargo crown; its inset ends before the screen seal and passenger volume.
+	var bonnet_rings: Array[PackedVector3Array] = []
+	for section in [Vector3(0.92, 3.73, -9.03), Vector3(1.58, 4.20, -7.52),
+			Vector3(1.62, 4.28, -4.25), Vector3(1.14, 4.45, -3.34)]:
+		bonnet_rings.append(PackedVector3Array([
+			Vector3(section.x, section.y, section.z),
+			Vector3(section.x - 0.10, section.y + 0.07, section.z),
+			Vector3(-section.x + 0.10, section.y + 0.07, section.z),
+			Vector3(-section.x, section.y, section.z),
+			Vector3(-section.x, section.y - 0.04, section.z),
+			Vector3(section.x, section.y - 0.04, section.z)]))
+	_formed_pressure_member("FlightDeckAvionicsBonnet", bonnet_rings,
+		_jovian_materials.hull_cool, {1: _jovian_materials.thermal_cover}, 4)
+
+
+func _crown_service_panel(node_name: String, side: float, inner_x: float,
+		outer_x: float, front: float, rear: float, lift: float, material: Material) -> void:
+	var rings: Array[PackedVector3Array] = []
+	for station in [Vector3(inner_x + 0.22, outer_x - 0.22, front),
+			Vector3(inner_x, outer_x, front + 0.22),
+			Vector3(inner_x, outer_x, rear - 0.22),
+			Vector3(inner_x + 0.22, outer_x - 0.22, rear)]:
+		var ring := PackedVector3Array()
+		# The top runs outer to inner, with a bevel on either long edge.
+		for step in 9:
+			var x := lerpf(station.y, station.x, float(step) / 8.0)
+			var y := 4.43 + 0.38 * pow(maxf(0.0, 1.0 - pow(x / 5.75, 2.0)), 0.60)
+			# The leading roof station tapers below the main crown before z=-1.8.
+			if station.z < -1.8:
+				y -= (-1.8 - station.z) * (0.20 / 1.30)
+			var edge_drop := minf(lift * 0.6, 0.04) if step == 0 or step == 8 else 0.0
+			ring.append(Vector3(side * x, y + lift - edge_drop, station.z))
+		var inner_bottom := ring[-1] - Vector3.UP * lift
+		var outer_bottom := ring[0] - Vector3.UP * lift
+		ring.append(inner_bottom)
+		ring.append(outer_bottom)
+		if side < 0.0:
+			ring.reverse()
+		rings.append(ring)
+	_formed_pressure_member(node_name, rings, material, {}, 0 if side < 0.0 else rings[0].size() - 2)
 
 
 func _build_fitted_freighter_details() -> void:
@@ -5292,7 +5373,7 @@ func _build_hull_markings() -> void:
 	# Registration belongs to the broad cargo crown; service stencils fit inside
 	# the forward shoulder closures without reaching the open freight aperture.
 	var registration := ShipSurfaceDetail.mark_surface(_jovian_visual, "CargoCrownRegistration", "jovian",
-		Vector3(0.0, 4.79, 2.1), Vector2(4.8, 2.4), Vector3.UP, Vector3.FORWARD)
+		Vector3(0.0, 4.79, 2.1), Vector2(3.3, 1.65), Vector3.UP, Vector3.FORWARD)
 	registration.modulate = Color(0.35, 0.35, 0.35, 1.0)
 	for side in [-1.0, 1.0]:
 		ShipSurfaceDetail.mark_surface(_jovian_visual,
