@@ -954,7 +954,7 @@ func _build_bomber_propulsion(visual: Node3D) -> void:
 		_service_bay(visual, tag + "ThermalService", Vector3(side * 2.3, 1.212, 2.6), 0.9, 2.1, _shared_hull_material, ceramic, metal)
 		_armor_shell(visual, tag + "PressureShoulder", Vector3(side * 2.3, 0.28, 0.4), Vector3(1.85, 1.8, 12.8), _shared_hull_material, 0.0, _formed_pressure_mesh(Vector3(1.85, 1.8, 12.8), _shared_hull_material))
 		_armor_shell(visual, tag + "WingRootFairing", Vector3(side * 3.9, -0.25, 1.2), Vector3(2.7, 0.58, 7.7), _shared_hull_material, side * -0.13, _formed_wing_root_mesh(side, _shared_hull_material))
-		_armor_shell(visual, tag + "OutboardArmor", Vector3(side * 5.6, -0.22, 1.8), Vector3(1.6, 0.08, 3.2), _shared_ordnance_spine_material, side * -0.16)
+		_armor_shell(visual, tag + "OutboardArmor", Vector3(side * 5.6, -0.22, 1.8), Vector3(1.6, 0.08, 3.2), _shared_ordnance_spine_material, side * -0.16, _fitted_wing_armor_mesh(side, _shared_ordnance_spine_material))
 		_cylinder(visual, tag + "TurbineCase", Vector3(side * 2.35, 0.1, 6.75), 0.92, 2.1, metal, Vector3(90, 0, 0))
 		_frustum(visual, tag + "ExhaustBell", Vector3(side * 2.35, 0.1, 8.10), 1.0, 0.70, 0.70, ceramic, Vector3(90, 0, 0), false, false)
 		_cylinder(visual, tag + "RecessedThroat", Vector3(side * 2.35, 0.1, 7.90), 0.62, 0.08, ceramic, Vector3(90, 0, 0))
@@ -985,9 +985,105 @@ func _build_cockpit_support_fairing(visual: Node3D) -> void:
 	visual.add_child(fairing)
 
 
+## Formed skins retain the authored planform while rolling continuously from
+## a load-bearing crown into thin perimeter edges. Both wings still use one
+## immutable mesh/batch; the canted fins share the same vertical section stock.
+func _formed_aero_mesh(size: Vector3, vertical: bool = false) -> ArrayMesh:
+	var stations := PackedFloat32Array([0.0, 0.06, 0.14, 0.22, 0.28, 0.36, 0.43, 0.5, 0.62, 0.74, 0.83, 0.91, 0.97, 1.0])
+	var rings: Array[PackedVector3Array] = []
+	const SEGMENTS := 32
+	for t in stations:
+		var extent := _aero_section_extent(size, t, vertical)
+		var ring := PackedVector3Array()
+		for edge in SEGMENTS:
+			var angle := TAU * float(edge) / float(SEGMENTS)
+			var section := Vector2(sin(angle), cos(angle))
+			# Retain a narrow perimeter land for the rolled skin closure;
+			# a mathematically sharp ellipse would read as a paper edge.
+			if vertical:
+				section.y = clampf(section.y / 0.94, -1.0, 1.0)
+			else:
+				section.x = clampf(section.x / 0.94, -1.0, 1.0)
+			ring.append(Vector3(section.x * extent.x, section.y * extent.y, (t - 0.5) * size.z))
+		rings.append(ring)
+	var surface := SurfaceTool.new()
+	surface.begin(Mesh.PRIMITIVE_TRIANGLES)
+	for bay in stations.size() - 1:
+		for edge in SEGMENTS:
+			var next := (edge + 1) % SEGMENTS
+			for corner in [Vector2i(edge, bay), Vector2i(next, bay), Vector2i(next, bay + 1), Vector2i(edge, bay), Vector2i(next, bay + 1), Vector2i(edge, bay + 1)]:
+				var around := rings[corner.y][(corner.x + 1) % SEGMENTS] - rings[corner.y][(corner.x + SEGMENTS - 1) % SEGMENTS]
+				var along := rings[mini(corner.y + 1, stations.size() - 1)][corner.x] - rings[maxi(corner.y - 1, 0)][corner.x]
+				surface.set_normal(along.cross(around).normalized())
+				var u := 1.0 if edge == SEGMENTS - 1 and corner.x == 0 else float(corner.x) / float(SEGMENTS)
+				surface.set_uv(Vector2(u, stations[corner.y]))
+				surface.add_vertex(rings[corner.y][corner.x])
+	for cap in [0, stations.size() - 1]:
+		for edge in SEGMENTS:
+			var next := (edge + 1) % SEGMENTS
+			for corner in ([-1, next, edge] if cap == 0 else [-1, edge, next]):
+				var point := Vector3(0, 0, rings[cap][0].z) if corner < 0 else rings[cap][corner]
+				surface.set_normal(Vector3.FORWARD if cap == 0 else Vector3.BACK)
+				surface.set_uv(Vector2(point.x / size.x, point.y / size.y) + Vector2.ONE * 0.5)
+				surface.add_vertex(point)
+	surface.generate_tangents()
+	return surface.commit()
+
+
+func _aero_section_extent(size: Vector3, t: float, vertical: bool) -> Vector2:
+	# Preserve the original span/sweep stations in the horizontal planform,
+	# and the fin's leading rise and aft rake in the vertical planform.
+	var planform := minf(1.0, lerpf(0.35 if vertical else 0.12, 1.0, t / (0.28 if vertical else 0.43)))
+	if t > 0.83:
+		planform = lerpf(1.0, 0.8 if vertical else 0.9, (t - 0.83) / 0.17)
+	# A rounded leading closure feeds the full-depth spar section, then
+	# eases into a retained thin trailing edge instead of a squared slab.
+	var thickness := lerpf(0.18, 1.0, sin(minf(t / 0.43, 1.0) * PI * 0.5))
+	if t > 0.5:
+		thickness = lerpf(1.0, 0.12, smoothstep(0.5, 1.0, t))
+	return Vector2(size.x * thickness, size.y * planform) * 0.5 if vertical else Vector2(size.x * planform, size.y * thickness) * 0.5
+
+
+## The retained outboard armor follows the actual wing crown and trailing
+## taper. Its lower skin embeds into the wing rather than hovering above it.
+func _fitted_wing_armor_mesh(side: float, material: Material) -> ArrayMesh:
+	var source := _loft_mesh(Vector3(1.6, 0.08, 3.2), material)
+	var arrays := source.surface_get_arrays(0)
+	var vertices: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
+	var normals: PackedVector3Array = arrays[Mesh.ARRAY_NORMAL]
+	var uv: PackedVector2Array = arrays[Mesh.ARRAY_TEX_UV]
+	var surface := SurfaceTool.new()
+	surface.begin(Mesh.PRIMITIVE_TRIANGLES)
+	surface.set_material(material)
+	for index in vertices.size():
+		var point := vertices[index]
+		var height := _wing_armor_seat(point.x, point.z, side)
+		var dx := (_wing_armor_seat(point.x + 0.005, point.z, side) - _wing_armor_seat(point.x - 0.005, point.z, side)) / 0.01
+		var dz := (_wing_armor_seat(point.x, point.z + 0.005, side) - _wing_armor_seat(point.x, point.z - 0.005, side)) / 0.01
+		point.y = height + (point.y + 0.04) * 0.55 - 0.008
+		var normal := normals[index]
+		normal.y /= 0.55
+		normal.x -= dx * normal.y
+		normal.z -= dz * normal.y
+		surface.set_normal(normal.normalized())
+		surface.set_uv(uv[index])
+		surface.add_vertex(point)
+	surface.generate_tangents()
+	return surface.commit()
+
+
+func _wing_armor_seat(x: float, z: float, side: float) -> float:
+	var world_point := Vector3(side * 5.6 + x + side * 0.16 * z, 0, 1.8 + z)
+	var wing_point := Basis(Vector3.UP, deg_to_rad(side * STRIKE_WING_SWEEP_DEGREES)).inverse() * (world_point - Vector3(side * STRIKE_WING_OFFSET.x, STRIKE_WING_OFFSET.y, STRIKE_WING_OFFSET.z))
+	var t := clampf(wing_point.z / STRIKE_WING_SIZE.z + 0.5, 0.0, 1.0)
+	var extent := _aero_section_extent(STRIKE_WING_SIZE, t, false)
+	var crown := extent.y * sqrt(maxf(0.0, 1.0 - pow(wing_point.x * 0.94 / extent.x, 2.0)))
+	return STRIKE_WING_OFFSET.y + crown + 0.22
+
+
 func _build_strike_wings(visual: Node3D) -> void:
 	if _shared_strike_wing_mesh == null:
-		_shared_strike_wing_mesh = _loft_mesh(STRIKE_WING_SIZE, null)
+		_shared_strike_wing_mesh = _formed_aero_mesh(STRIKE_WING_SIZE)
 		_shared_strike_wing_mesh.resource_local_to_scene = false
 	if _shared_strike_wing_multimesh == null:
 		var transforms := _strike_wing_instance_transforms()
@@ -1058,7 +1154,7 @@ static func _strike_wing_bounds(transforms: Array[Transform3D]) -> AABB:
 
 func _build_aft_empennage(visual: Node3D) -> void:
 	if _shared_aft_tailplane_mesh == null:
-		_shared_aft_tailplane_mesh = _loft_mesh(AFT_TAILPLANE_SIZE, null)
+		_shared_aft_tailplane_mesh = _formed_aero_mesh(AFT_TAILPLANE_SIZE)
 		_shared_aft_tailplane_mesh.resource_local_to_scene = false
 	var tailplane := MeshInstance3D.new()
 	tailplane.name = "LongRangeTailplane"
@@ -1068,7 +1164,7 @@ func _build_aft_empennage(visual: Node3D) -> void:
 	visual.add_child(tailplane)
 
 	if _shared_aft_fin_mesh == null:
-		_shared_aft_fin_mesh = _loft_mesh(AFT_FIN_SIZE, null)
+		_shared_aft_fin_mesh = _formed_aero_mesh(AFT_FIN_SIZE, true)
 		_shared_aft_fin_mesh.resource_local_to_scene = false
 	for entry in [
 		["PortBomberFin", -AFT_FIN_OFFSET.x, AFT_FIN_CANT_DEGREES],
