@@ -274,8 +274,8 @@ func _check_craft(expected_sign: int) -> void:
 		% [fleet_triangles, procedural_craft]
 	)
 	_assert(
-		closed_lofts == 45,
-		"the normal-independent closed-loft guard covered all 45 manufactured pressure volumes across Arrow, Zenith, Jovian and Halyard"
+		closed_lofts == 47,
+		"the normal-independent closed-loft guard covered all 47 manufactured pressure volumes across Arrow, Zenith, Jovian and Halyard"
 	)
 
 
