@@ -152,7 +152,32 @@ static func apply_tree(node: Node) -> void:
 	_normalise_into(node, {}, false)
 
 
+## Applies one node from a caller-owned preorder cursor. Weak references allow
+## staged construction to yield without retaining removed subtrees. Reversing
+## child insertion preserves the synchronous sweep's authored sibling order.
+static func apply_tree_step(root: Node, pending: Array[WeakRef]) -> void:
+	if pending.is_empty():
+		return
+	var node := pending.pop_back().get_ref() as Node
+	if not is_instance_valid(node) or node.is_queued_for_deletion() \
+			or (node != root and not root.is_ancestor_of(node)):
+		return
+	_normalise_node(node, {}, false)
+	if not is_instance_valid(node) or node.is_queued_for_deletion() \
+			or (node != root and not root.is_ancestor_of(node)):
+		return
+	var children := node.get_children()
+	for index in range(children.size() - 1, -1, -1):
+		pending.append(weakref(children[index]))
+
+
 static func _normalise_into(node: Node, report: Dictionary, collect_triangles := true) -> void:
+	_normalise_node(node, report, collect_triangles)
+	for child in node.get_children():
+		_normalise_into(child, report, collect_triangles)
+
+
+static func _normalise_node(node: Node, report: Dictionary, collect_triangles: bool) -> void:
 	var instance := node as MeshInstance3D
 	if instance != null:
 		var mesh := instance.mesh as TextMesh
@@ -168,8 +193,6 @@ static func _normalise_into(node: Node, report: Dictionary, collect_triangles :=
 				report["signs"] = int(report["signs"]) + 1
 				report["triangles_before"] = int(report["triangles_before"]) + before
 				report["triangles_after"] = int(report["triangles_after"]) + triangles_of(mesh)
-	for child in node.get_children():
-		_normalise_into(child, report, collect_triangles)
 
 
 ## Triangle count of a mesh, read from its surface arrays.

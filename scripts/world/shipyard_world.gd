@@ -1053,6 +1053,8 @@ var _staged_child_index := 0
 var _staged_build_index := 0
 var _staged_tree_generation := 0
 var _staged_run_active := false
+var _staged_sign_sweep_started := false
+var _staged_sign_pending: Array[WeakRef] = []
 var _elapsed := 0.0
 var _destroyed_target_count := 0
 const MAX_PENDING_TARGET_PRESENTATIONS := 16
@@ -1123,6 +1125,7 @@ func _notification(what: int) -> void:
 			child.free()
 	_staged_children.clear()
 	_staged_node_owners.clear()
+	_staged_sign_pending.clear()
 
 
 func _exit_tree() -> void:
@@ -1464,7 +1467,11 @@ func run_staged_construction(on_stage: Callable = Callable()) -> bool:
 		if not _is_staged_run_current(generation):
 			return false
 		var stage: Array = BUILD_STAGES[_staged_build_index]
-		call(stage[0] as StringName)
+		if stage[0] == &"_apply_sign_geometry_budget":
+			if not await _apply_sign_geometry_budget_staged(generation):
+				return false
+		else:
+			call(stage[0] as StringName)
 		if not _is_staged_run_current(generation):
 			return false
 		if stage[0] == &"_build_provisional_fleet":
@@ -1531,6 +1538,33 @@ func _apply_sign_geometry_budget() -> void:
 	# Apply without tessellating old lettering for an unused triangle report.
 	SignGeometryBudget.apply_tree(self)
 	_finalize_guide_lens_batches()
+
+
+## The final sign sweep can exceed a loading frame on its own. Resume the same
+## preorder cursor at individual-node boundaries; the world stage and its one
+## progress report remain pending until all signs and guide lenses are ready.
+func _apply_sign_geometry_budget_staged(generation: int) -> bool:
+	if not _is_staged_run_current(generation):
+		return false
+	if not _staged_sign_sweep_started:
+		_staged_sign_pending.append(weakref(self))
+		_staged_sign_sweep_started = true
+	var tree := get_tree()
+	var budget_started := Time.get_ticks_usec()
+	while not _staged_sign_pending.is_empty():
+		if not _is_staged_run_current(generation):
+			return false
+		SignGeometryBudget.apply_tree_step(self, _staged_sign_pending)
+		if not _is_staged_run_current(generation):
+			return false
+		if not _staged_sign_pending.is_empty() \
+				and Time.get_ticks_usec() - budget_started >= STAGED_BUILD_FRAME_BUDGET_USEC:
+			await tree.process_frame
+			if not _is_staged_run_current(generation):
+				return false
+			budget_started = Time.get_ticks_usec()
+	_finalize_guide_lens_batches()
+	return _is_staged_run_current(generation)
 
 
 func _process(delta: float) -> void:

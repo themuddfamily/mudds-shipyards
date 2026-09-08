@@ -34,6 +34,7 @@ func _run() -> void:
 	_check_world_size_is_preserved()
 	_check_sweep_is_idempotent()
 	_check_apply_only_geometry_parity()
+	_check_cursor_skips_retired_nodes()
 	_finish()
 
 
@@ -167,6 +168,16 @@ func _check_apply_only_geometry_parity() -> void:
 	for already_budgeted in [false, true]:
 		var measured := _sign_parity_fixture(already_budgeted)
 		var applied := _sign_parity_fixture(already_budgeted)
+		var stepped := _sign_parity_fixture(already_budgeted)
+		var pending: Array[WeakRef] = [weakref(stepped)]
+		var visited: Array[Node] = []
+		while not pending.is_empty():
+			visited.append(pending.back().get_ref() as Node)
+			SignGeometryBudget.apply_tree_step(stepped, pending)
+		_check(visited == [stepped, stepped.get_child(0), stepped.get_child(0).get_child(0), stepped.get_child(1)],
+			"one-node cursor preserves root, nested and sibling preorder")
+		var stepped_signs: Array[MeshInstance3D] = []
+		_collect_signs(stepped, stepped_signs)
 		var report := SignGeometryBudget.normalise_tree(measured)
 		SignGeometryBudget.apply_tree(applied)
 		var measured_signs: Array[MeshInstance3D] = []
@@ -178,6 +189,11 @@ func _check_apply_only_geometry_parity() -> void:
 		for index in measured_signs.size():
 			var expected := measured_signs[index].mesh as TextMesh
 			var actual := applied_signs[index].mesh as TextMesh
+			var staged := stepped_signs[index].mesh as TextMesh
+			_check(staged.font_size == expected.font_size and staged.pixel_size == expected.pixel_size
+				and staged.depth == expected.depth and staged.get_aabb() == expected.get_aabb()
+				and staged.surface_get_arrays(0) == expected.surface_get_arrays(0),
+				"resumable cursor retains exact final budget, bounds and shared-mesh surface geometry")
 			_check(expected.text == actual.text and expected.font_size == actual.font_size
 				and expected.pixel_size == actual.pixel_size and expected.depth == actual.depth
 				and expected.horizontal_alignment == actual.horizontal_alignment
@@ -196,6 +212,29 @@ func _check_apply_only_geometry_parity() -> void:
 			"apply-only preserves report semantics and is idempotent on budgeted geometry")
 		measured.free()
 		applied.free()
+		stepped.free()
+
+
+func _check_cursor_skips_retired_nodes() -> void:
+	var holder := _sign_parity_fixture(false)
+	var moved := holder.get_child(0) as MeshInstance3D
+	var foreign := Node3D.new()
+	var queued := MeshInstance3D.new()
+	queued.mesh = TextMesh.new()
+	(queued.mesh as TextMesh).font_size = 64
+	holder.add_child(queued)
+	var pending: Array[WeakRef] = [weakref(holder)]
+	SignGeometryBudget.apply_tree_step(holder, pending)
+	holder.remove_child(moved)
+	foreign.add_child(moved)
+	holder.get_child(0).free()
+	queued.queue_free()
+	while not pending.is_empty():
+		SignGeometryBudget.apply_tree_step(holder, pending)
+	_check((moved.mesh as TextMesh).font_size == 32 and (queued.mesh as TextMesh).font_size == 64,
+		"cursor skips freed, queued and transferred-out nodes without budgeting foreign signs")
+	holder.free()
+	foreign.free()
 
 
 func _sign_parity_fixture(already_budgeted: bool) -> MeshInstance3D:

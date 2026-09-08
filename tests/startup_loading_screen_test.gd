@@ -376,6 +376,22 @@ func _test_world_stages_authored_children_and_rejects_stale_yield() -> void:
 		and stages.count("Parking the provisional fleet") == 0
 		and stages.count("Dressing the industrial deck") == 0,
 		"world retains its pending fleet build index when partial Cinder construction detaches")
+	var interrupted_sign_sweep := {"seen": false}
+	var sign_watcher := func() -> void:
+		if not interrupted_sign_sweep.seen and bool(world.get("_staged_sign_sweep_started")) \
+				and not (world.get("_staged_sign_pending") as Array).is_empty():
+			interrupted_sign_sweep.seen = true
+			_detach_and_reattach_staged_world(world)
+	process_frame.connect(sign_watcher)
+	await world.run_staged_construction(interrupting_sink)
+	process_frame.disconnect(sign_watcher)
+	var retained_sign_cursor := (world.get("_staged_sign_pending") as Array).duplicate()
+	await process_frame
+	_check(interrupted_sign_sweep.seen and not retained_sign_cursor.is_empty()
+		and world.get("_staged_sign_pending") == retained_sign_cursor
+		and not bool(world.get("_built")) and stages.count("Setting the signage") == 0
+		and (world.get("_guide_lens_batches") as Dictionary).is_empty(),
+		"mid-sign sweep cancellation stops its cursor and withholds lens finalization and stage completion")
 	await world.run_staged_construction(interrupting_sink)
 	_check(world.get_node("FleetExpansionProductionBinding") == partial_fleet
 		and partial_fleet.get_node("cinder_cargo_hauler") == partial_cargo
