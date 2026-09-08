@@ -463,6 +463,11 @@ func _build_interceptor_propulsion(visual: Node3D) -> void:
 		_armor_shell(visual, tag + "CannonMount", Vector3(side * 3.15, 0.08, -0.50), Vector3(0.58, 0.38, 2.85), ceramic)
 		_cylinder(visual, tag + "CannonSleeve", Vector3(side * 3.15, 0.05, -1.90), 0.16, 0.58, titanium, Vector3(90, 0, 0))
 		_frustum(visual, tag + "CannonBore", Vector3(side * 3.15, 0.05, -2.23), 0.19, 0.14, 0.18, ceramic, Vector3(90, 0, 0), false, false)
+		# A recessed, fitted lens supplies the inherited static weapon damage cue.
+		# Shot-clearance markers retain their existing combat-authoritative pose.
+		var lens := _cylinder(visual, tag + "MuzzleLens", Vector3(side * 3.15, 0.05, -2.30), 0.105, 0.012, _materials.cyan, Vector3(90, 0, 0))
+		lens.set_meta("presentation_only", true)
+		lens.set_meta("gameplay_authority", false)
 		for z in [-0.2, 0.6, 1.4]:
 			_deck_plate(visual, tag + "WingService" + str(z), Vector3(side * 4.46, 0.13, z + 0.70), 0.56, 0.63, _shared_wing_material, ceramic)
 		_armor_shell(visual, tag + "WingArmor", Vector3(side * 4.05, 0.1, 0.75), Vector3(1.65, 0.065, 2.4), _shared_hull_material, side * -0.16)

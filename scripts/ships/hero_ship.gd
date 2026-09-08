@@ -214,12 +214,13 @@ const TORRENT_RCS_THRUSTER_PORT_COPY_COUNT := 8
 # Component-local render census retains all close art and semantic/system roots.
 # Two louvre and four RCS-port batches retain every source-local copy while
 # reducing fallback submissions; shared capture jaws retain their named paths.
-const TORRENT_RENDER_DESCENDANT_COUNT := 299
-const TORRENT_RENDER_MESH_INSTANCE_COUNT := 233
+# Two fitted close cannon lenses share one mesh beneath their visual mount.
+const TORRENT_RENDER_DESCENDANT_COUNT := 302
+const TORRENT_RENDER_MESH_INSTANCE_COUNT := 235
 const TORRENT_RENDER_MULTIMESH_BATCH_COUNT := 6
-const TORRENT_RENDER_DRAWN_COPY_COUNT := 253
-const TORRENT_RENDER_GEOMETRY_SUBMISSION_COUNT := 239
-const TORRENT_RENDER_UNIQUE_MESH_RESOURCE_COUNT := 208
+const TORRENT_RENDER_DRAWN_COPY_COUNT := 255
+const TORRENT_RENDER_GEOMETRY_SUBMISSION_COUNT := 241
+const TORRENT_RENDER_UNIQUE_MESH_RESOURCE_COUNT := 209
 const TORRENT_RENDER_UNIQUE_MATERIAL_RESOURCE_COUNT := 37
 const TORRENT_MODERN_DESCENDANT_COUNT := 109
 const TORRENT_MODERN_MESH_INSTANCE_COUNT := 87
@@ -4707,6 +4708,7 @@ func _install_torrent_hero_presentation() -> void:
 		presentation.queue_free()
 		return
 	_torrent_hero_presentation = presentation
+	_build_torrent_weapon_lenses(presentation)
 	if not presentation.lod_changed.is_connected(_on_torrent_lod_changed):
 		presentation.lod_changed.connect(_on_torrent_lod_changed)
 	var hero_root := presentation.get_asset_root()
@@ -4808,6 +4810,23 @@ func _install_torrent_hero_presentation() -> void:
 		ShipSurfaceDetail.mark_surface(_visual_root, prefix + "WingServiceStencil", "service",
 			Vector3(side * 2.44, 1.14, 0.52), Vector2(0.84, 0.42), Vector3.UP, Vector3.FORWARD, 0.20)
 	_visual_root.set_meta("construction_revision", &"torrent_blender_hero_v1")
+
+
+## The imported cannon ends are distinct from the retained shot-clearance
+## markers. Fit the static component cue to CannonA's metal end cap, under the
+## visual rig so banking carries it with the barrel. Keep the audited imported
+## graph and the authoritative muzzle origins unchanged.
+func _build_torrent_weapon_lenses(presentation: TorrentHeroPresentation) -> void:
+	var lenses := Node3D.new()
+	lenses.name = "WeaponComponentLenses"
+	presentation.add_child(lenses)
+	for side in [-1.0, 1.0]:
+		var prefix := "Port" if side < 0.0 else "Starboard"
+		var lens := _cylinder(lenses, prefix + "MuzzleLens",
+			Vector3(side * 1.48, 0.78, -3.812), 0.052, 0.008,
+			_materials.cyan, Vector3(90.0, 0.0, 0.0))
+		lens.set_meta("presentation_only", true)
+		lens.set_meta("gameplay_authority", false)
 
 
 func _apply_torrent_2011_cockpit_presentation() -> void:
@@ -6488,6 +6507,12 @@ func _initialize_weapon_component_presentation() -> void:
 	_sync_weapon_component_presentation()
 
 
+## Variants without a physical idle charge housing can omit the synthetic
+## marker cue while retaining the component profile and all firing authority.
+func _uses_weapon_component_fallback_emitters() -> bool:
+	return true
+
+
 func _ensure_weapon_component_emitters() -> void:
 	# Component configuration can emit during HeroShip._ready(), before variant
 	# visuals have finished registering their authored lenses. Defer discovery
@@ -6513,6 +6538,8 @@ func _ensure_weapon_component_emitters() -> void:
 		if _weapon_emitter_is_authored_visible(lens, visual):
 			_weapon_component_emitters.append(lens)
 	if _weapon_component_emitters.size() < 2:
+		if not _uses_weapon_component_fallback_emitters():
+			return
 		_weapon_component_emitters.clear()
 		var reusable_mesh := all_lenses[0].mesh if not all_lenses.is_empty() else null
 		if reusable_mesh == null:

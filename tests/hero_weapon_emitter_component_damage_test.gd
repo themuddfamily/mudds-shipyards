@@ -4,12 +4,13 @@ const ShipComponentDamageType := preload("res://scripts/combat/ship_component_da
 
 const CRAFTS := [
 	"TorrentInterceptor",
+	"CinderLightInterceptor",
 	"ArrowReconShip",
 	"JovianLightFreighter",
 	"ZenithInterceptor",
 	"HalyardCrewTransport",
 ]
-const FALLBACK_CRAFTS := ["TorrentInterceptor", "ZenithInterceptor"]
+const FALLBACK_CRAFTS := ["ZenithInterceptor"]
 
 var _assertions := 0
 var _failures: PackedStringArray = []
@@ -27,12 +28,18 @@ func _run() -> void:
 		_finish()
 		return
 	root.add_child(game)
+	var cinder := load("res://scripts/ships/cinder_light_interceptor.gd").new() as HeroShip
+	cinder.name = "CinderLightInterceptor"
+	var cinder_audio := load("res://scenes/audio/ship_audio_rig.tscn").instantiate() as ShipAudioRig
+	cinder_audio.profile_id = &"efficient_twin_recon"
+	cinder.add_child(cinder_audio)
+	root.add_child(cinder)
 	await process_frame
 	await physics_frame
 
 	var retained_ids := {}
 	for craft_name: String in CRAFTS:
-		var craft := game.get_node(craft_name) as HeroShip
+		var craft := cinder if craft_name == "CinderLightInterceptor" else game.get_node(craft_name) as HeroShip
 		craft.set_physics_process(false)
 		craft.set("_landed", false)
 		craft.set("_engine_state", HeroShip.ENGINE_ONLINE)
@@ -49,20 +56,30 @@ func _run() -> void:
 			and int(nominal.get("fallback_mesh_count", -1)) <= 1
 			and nominal.get("transition_policy") == &"static"
 			and not bool(nominal.get("flashing", true)),
-			"%s nominal stage uses two static real-muzzle emitters within its bounded fallback budget" % craft_name
+			"%s nominal stage uses two static fitted weapon emitters within its bounded fallback budget" % craft_name
 		)
 		_check(
-			_emitters_align_to_muzzles(craft, nominal)
+			_emitters_fit_weapon_visuals(craft, nominal)
 			and craft.find_children("*", "ShipComponentDamage", true, false).size() == 1,
-			"%s presentation stays at authoritative muzzle anchors with one component ledger" % craft_name
+			"%s presentation fits the barrel geometry with one component ledger" % craft_name
 		)
+
+		if craft.name in ["TorrentInterceptor", "CinderLightInterceptor"]:
+			var visual := craft.get_variant_visual_root()
+			var base_basis := visual.basis
+			visual.rotate_z(0.2)
+			_check(_emitters_fit_weapon_visuals(craft, craft.get_weapon_component_emitter_snapshot()),
+				"%s fitted lenses follow the banking visual rig" % craft_name)
+			visual.basis = base_basis
 
 		var shots: Array[Vector3] = []
 		craft.projectile_fired.connect(
 			func(origin: Vector3, _direction: Vector3) -> void: shots.append(origin)
 		)
+		var shot_origin := (craft.get("_muzzle_left") as Marker3D).global_position
+		craft.set("_fire_from_left", true)
 		craft.call("_fire_weapon")
-		_check(shots.size() == 1, "%s nominal component state preserves existing fire dispatch" % craft_name)
+		_check(shots.size() == 1 and shots[0].is_equal_approx(shot_origin), "%s nominal component state preserves existing fire dispatch" % craft_name)
 
 		_fail_weapon_component(craft)
 		craft.call("_sync_weapon_component_presentation")
@@ -118,11 +135,13 @@ func _run() -> void:
 		retained_ids[craft_name] = _emitter_ids(repaired)
 
 	root.remove_child(game)
+	root.remove_child(cinder)
 	await process_frame
 	root.add_child(game)
+	root.add_child(cinder)
 	await process_frame
 	for craft_name: String in CRAFTS:
-		var craft := game.get_node(craft_name) as HeroShip
+		var craft := cinder if craft_name == "CinderLightInterceptor" else game.get_node(craft_name) as HeroShip
 		craft.call("_sync_weapon_component_presentation")
 		var reentered := craft.get_weapon_component_emitter_snapshot()
 		_check(
@@ -132,7 +151,7 @@ func _run() -> void:
 		)
 
 	for craft_name: String in CRAFTS:
-		var craft := game.get_node(craft_name) as HeroShip
+		var craft := cinder if craft_name == "CinderLightInterceptor" else game.get_node(craft_name) as HeroShip
 		_fail_weapon_component(craft)
 		craft.call("_sync_weapon_component_presentation")
 		var reset := craft.reset_for_reuse(craft.global_transform)
@@ -146,7 +165,21 @@ func _run() -> void:
 		)
 
 	game.queue_free()
+	cinder.queue_free()
 	await process_frame
+	for script_path: String in ["cinder_cargo_hauler", "cinder_long_range_bomber"]:
+		var craft := load("res://scripts/ships/" + script_path + ".gd").new() as HeroShip
+		root.add_child(craft)
+		await process_frame
+		var idle := craft.get_weapon_component_emitter_snapshot()
+		_check(int(idle.get("emitter_count", -1)) == 0
+			and int(idle.get("fallback_node_count", -1)) == 0
+			and idle.get("stage") == &"nominal",
+			"%s omits unmounted idle cue while retaining the weapon component profile" % script_path)
+		craft.reset_for_reuse(craft.global_transform)
+		_check(int(craft.get_weapon_component_emitter_snapshot().get("emitter_count", -1)) == 0,
+			"%s reuse does not recreate unmounted marker spheres" % script_path)
+		craft.free()
 	_finish()
 
 
@@ -181,11 +214,16 @@ func _component_local_position(craft: HeroShip, component_id: StringName) -> Vec
 	return Vector3.ZERO
 
 
-func _emitters_align_to_muzzles(craft: HeroShip, snapshot: Dictionary) -> bool:
+func _emitters_fit_weapon_visuals(craft: HeroShip, snapshot: Dictionary) -> bool:
+	var visual := craft.get_variant_visual_root()
 	var expected := [
 		(craft.get("_muzzle_left") as Marker3D).global_position,
 		(craft.get("_muzzle_right") as Marker3D).global_position,
 	]
+	if craft.name == "TorrentInterceptor":
+		expected = [visual.to_global(Vector3(-1.48, 0.78, -3.812)), visual.to_global(Vector3(1.48, 0.78, -3.812))]
+	elif craft.name == "CinderLightInterceptor":
+		expected = [visual.to_global(Vector3(-3.15, 0.05, -2.30)), visual.to_global(Vector3(3.15, 0.05, -2.30))]
 	for record in snapshot.get("emitters", []) as Array:
 		var position := (record as Dictionary).get("global_position", Vector3.INF) as Vector3
 		var aligned := false

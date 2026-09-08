@@ -112,6 +112,12 @@ func _init() -> void:
 	)
 
 
+# This hull has no authored idle cannon lens. A shot-clearance marker is
+# gameplay authority, not a mounting surface for a permanent cyan sphere.
+func _uses_weapon_component_fallback_emitters() -> bool:
+	return false
+
+
 func _uses_torrent_reconstruction_presentation() -> bool:
 	return false
 
