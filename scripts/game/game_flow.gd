@@ -3613,18 +3613,16 @@ func _get_active_route_minimap_marker(
 	}.duplicate(true)
 
 
-## Observes one detached snapshot from the streamed activity binding. Each
-## activity supplies its already-authoritative hold/route point only while it is
-## active; terminal or unloaded state therefore removes the HUD marker without
-## a second lifecycle owner or a repeated snapshot allocation per marker kind.
+## Reads only the four activities that supply hold/route points. Their fresh
+## presentation snapshots remove terminal or unloaded targets immediately,
+## without rebuilding unrelated encounter, reward and persistence reports.
 func _get_active_nearby_minimap_markers(
 	binding: Node,
 	coordinate_frame_generation: int = 0,
 	) -> Array[Dictionary]:
 	var markers: Array[Dictionary] = []
-	if not is_instance_valid(binding) or not binding.has_method(&"get_snapshot"):
+	if not is_instance_valid(binding) or not binding.has_method(&"get_activity_snapshot"):
 		return markers
-	var snapshot := binding.call(&"get_snapshot") as Dictionary
 	for profile: Dictionary in [
 		{
 			"snapshot_key": &"cargo",
@@ -3647,7 +3645,9 @@ func _get_active_nearby_minimap_markers(
 			"position_key": &"next_beacon_position",
 		},
 	]:
-		var activity := snapshot.get(profile.snapshot_key, {}) as Dictionary
+		var activity := binding.call(
+			&"get_activity_snapshot", profile.snapshot_key
+		) as Dictionary
 		if StringName(activity.get("state_id", &"")) != &"active":
 			continue
 		var position: Variant = activity.get(profile.position_key, null)
