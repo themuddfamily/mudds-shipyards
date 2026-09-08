@@ -2605,7 +2605,12 @@ func _create_halyard_materials() -> void:
 	_halyard_materials.damage_vane = _halyard_material(
 		ENGINE_DAMAGE_VANE_AMBER, 0.08, 0.62
 	)
-	_halyard_materials.liner = _halyard_material(Color("737b77"), 0.02, 0.88)
+	_halyard_materials.liner = _halyard_material(Color("85877a"), 0.02, 0.88)
+	_halyard_materials.upholstery = _halyard_material(Color("526458"), 0.0, 0.96)
+	_halyard_materials.cabin_fitting = _halyard_material(Color("626a5f"), 0.0, 0.94)
+	_halyard_materials.cabin_fitting.metallic_specular = 0.18
+	_halyard_materials.linen = _halyard_material(Color("ded4bc"), 0.0, 0.96)
+	_halyard_materials.blanket = _halyard_material(Color("506f76"), 0.0, 0.98)
 	_halyard_materials.glass = _halyard_glass(Color(0.16, 0.28, 0.24, 0.22))
 
 	# Reuse the registered normal map in ship-local space. Paint supplies colour
@@ -2629,6 +2634,10 @@ func _create_halyard_materials() -> void:
 		_apply_vehicle_panel_triplanar(structural_material, STRUCTURE_PANEL_UV_SCALE)
 	# Deck grip uses the walked projection scale with the same restrained relief.
 	_apply_vehicle_panel_triplanar(_halyard_materials.deck, WALKED_PANEL_UV_SCALE)
+	# Cabin flooring is a grip finish; the shared station clearcoat otherwise
+	# makes the practicals reflect as wet patches along the walked aisle.
+	_halyard_materials.deck.clearcoat = 0.025
+	_halyard_materials.deck.clearcoat_roughness = 0.82
 
 
 func _apply_vehicle_panel_triplanar(material: StandardMaterial3D, uv_scale: float) -> bool:
@@ -3198,7 +3207,7 @@ func _build_crew_cabin() -> void:
 			var panel_z := -8.7 + float(panel_index) * 2.05
 			if side < 0.0 and absf(panel_z - AIRSTAIR_Z) < 1.7:
 				continue
-			_box(_crew_cabin, side_name + "CabinLiner%02d" % panel_index, Vector3(side * 2.34, 1.25, panel_z), Vector3(0.08, 1.23, 1.96), _halyard_materials.liner)
+			_box(_crew_cabin, side_name + "CabinLiner%02d" % panel_index, Vector3(side * 2.34, 1.25, panel_z), Vector3(0.08, 0.88, 1.96), _halyard_materials.liner)
 		_box(_crew_cabin, side_name + "CabinHandrail", Vector3(side * 2.28, 2.72, -3.65), Vector3(0.09, 0.09, 11.20), _halyard_materials.trim)
 		# Six forward-facing crew seats, three a side, either side of a 1.0 m
 		# aisle. Anchors are explicit contracts for the multi-crew work.
@@ -3207,13 +3216,15 @@ func _build_crew_cabin() -> void:
 			seat_root.name = side_name + "CrewSeat%02d" % row_index
 			seat_root.position = Vector3(side * CREW_SEAT_HALF_SPACING, 0.0, CREW_SEAT_ROWS[row_index])
 			_crew_cabin.add_child(seat_root)
-			_box(seat_root, "SeatBase", Vector3(0.0, 0.92, 0.0), Vector3(0.68, 0.18, 0.76), _halyard_materials.cloth)
+			var cushion := _box(seat_root, "SeatBase", Vector3(0.0, 0.92, 0.0), Vector3(0.68, 0.18, 0.76), _halyard_materials.upholstery)
+			cushion.mesh = _cabin_cushion_mesh(Vector3(0.68, 0.18, 0.76))
 			for arm_side in [-1.0, 1.0]:
 				_box(seat_root, "SeatArmrest", Vector3(arm_side * 0.38, 1.19, 0.05), Vector3(0.10, 0.12, 0.65), _halyard_materials.dark)
 			var back_shell := _manufactured_loft(seat_root, "SeatBackShell", Vector3(0.0, 1.44, 0.56),
 				PackedVector3Array([Vector3(0.22, 0.045, -0.53), Vector3(0.35, 0.07, -0.39), Vector3(0.39, 0.07, 0.27), Vector3(0.27, 0.045, 0.48)]), _halyard_materials.liner, 24)
 			back_shell.rotation.x = deg_to_rad(98.0)
-			_box(seat_root, "SeatHeadrest", Vector3(0.0, 1.98, 0.44), Vector3(0.48, 0.26, 0.18), _halyard_materials.trim)
+			var headrest := _box(seat_root, "SeatHeadrest", Vector3(0.0, 1.98, 0.44), Vector3(0.48, 0.26, 0.18), _halyard_materials.upholstery)
+			headrest.mesh = _cabin_cushion_mesh(Vector3(0.48, 0.26, 0.18))
 			_box(seat_root, "SeatHarness", Vector3(0.0, 1.44, 0.28), Vector3(0.11, 0.66, 0.05), _halyard_materials.accent)
 			crew_seat_back_transforms.append(Transform3D(
 				Basis.from_euler(Vector3(deg_to_rad(8.0), 0.0, 0.0)),
@@ -3272,10 +3283,7 @@ func _build_crew_cabin() -> void:
 	# The six matching seat backs are presentation only. Their seat roots and
 	# anchors remain ordinary nodes for occupancy, roles and boarding; this batch
 	# solely replaces six identical one-surface renderer submissions with one.
-	var seat_back_mesh := StationSurfaceKit.rounded_box_mesh_cached(
-		CREW_SEAT_BACK_SIZE,
-		_box_mesh_cache
-	)
+	var seat_back_mesh := _cabin_cushion_mesh(CREW_SEAT_BACK_SIZE)
 	_multimesh_visual_stock(
 		_crew_cabin,
 		"CrewSeatBackBatch",
@@ -3371,7 +3379,7 @@ func _build_aft_systems_bay() -> void:
 	_aft_systems_bay.set_meta("space_id", &"aft_systems_bay")
 	_walkable_interior.add_child(_aft_systems_bay)
 	_box(_aft_systems_bay, "AftBayDeck", Vector3(0.0, 0.41, 5.85), Vector3(4.46, 0.18, 6.50), _halyard_materials.deck)
-	_box(_aft_systems_bay, "AftBayCeiling", Vector3(0.0, 3.34, 5.85), Vector3(4.46, 0.16, 6.50), _halyard_materials.trim)
+	_box(_aft_systems_bay, "AftBayCeiling", Vector3(0.0, 3.34, 5.85), Vector3(4.46, 0.16, 6.50), _halyard_materials.cabin_fitting)
 	var rack_panel_transforms: Array[Transform3D] = []
 	var rack_panel_names := PackedStringArray()
 	for side in [-1.0, 1.0]:
@@ -3420,10 +3428,12 @@ func _build_aft_systems_bay() -> void:
 func _build_liveaboard_berth(side: float, side_name: String) -> void:
 	# Dressing stays inside the existing mattress footprint, leaving the central
 	# walk from the flight deck to the pressure hatch unobstructed.
-	var linen := _halyard_material(Color("ded4bc"), 0.0, 0.96)
-	var blanket := _halyard_material(Color("506f76"), 0.0, 0.98)
-	_box(_aft_systems_bay, side_name + "BunkPillow", Vector3(side * 1.62, 1.40, 7.30), Vector3(0.82, 0.16, 0.38), linen)
-	_box(_aft_systems_bay, side_name + "BunkBlanket", Vector3(side * 1.62, 1.34, 6.30), Vector3(1.10, 0.07, 1.40), blanket)
+	var linen: Material = _halyard_materials.linen
+	var blanket: Material = _halyard_materials.blanket
+	var pillow := _box(_aft_systems_bay, side_name + "BunkPillow", Vector3(side * 1.62, 1.40, 7.30), Vector3(0.82, 0.16, 0.38), linen)
+	pillow.mesh = _cabin_cushion_mesh(Vector3(0.82, 0.16, 0.38))
+	var cover := _box(_aft_systems_bay, side_name + "BunkBlanket", Vector3(side * 1.62, 1.34, 6.30), Vector3(1.10, 0.07, 1.40), blanket)
+	cover.mesh = _cabin_cushion_mesh(Vector3(1.10, 0.07, 1.40))
 	_box(_aft_systems_bay, side_name + "BunkBlanketFold", Vector3(side * 1.62, 1.40, 6.96), Vector3(1.10, 0.08, 0.19), linen)
 	# The existing aft practical lights the bedding. These warm emissive reading
 	# fixtures share one material and preserve the five-light interior budget.
@@ -3431,7 +3441,7 @@ func _build_liveaboard_berth(side: float, side_name: String) -> void:
 	var berth_label := Label3D.new()
 	berth_label.name = side_name + "BerthLabel"
 	berth_label.text = "OFF WATCH\n" + side_name.to_upper() + " BERTH"
-	berth_label.position = Vector3(side * 2.12, 2.10, 6.65)
+	berth_label.position = Vector3(side * 2.12, 2.52, 6.65)
 	berth_label.rotation.y = -side * PI * 0.5
 	berth_label.font_size = 36
 	berth_label.pixel_size = 0.0025
@@ -4872,31 +4882,140 @@ func _build_fitted_transport_details() -> void:
 	# Flush luggage doors and small pull recesses replace uninterrupted trunks.
 	for side in [-1.0, 1.0]:
 		for door_z in [-7.95, -6.28, -4.61, -2.94]:
-			_fitout_stock(cabin, "trim", Vector3(side * 1.299, 2.985, door_z), Vector3(0.032, 0.39, 1.59))
+			_fitout_stock(cabin, "cabin_fitting", Vector3(side * 1.299, 2.985, door_z), Vector3(0.032, 0.39, 1.59))
 			_fitout_stock(cabin, "dark", Vector3(side * 1.274, 2.85, door_z), Vector3(0.025, 0.062, 0.32))
 			_fitout_stock(cabin, "liner", Vector3(side * 1.252, 2.84, door_z), Vector3(0.029, 0.024, 0.25))
-		for panel_z in [-8.7, -6.65, -2.55, -0.5, 1.55]:
-			if side < 0.0 and absf(panel_z - AIRSTAIR_Z) < 1.7:
-				continue
-			_fitout_stock(cabin, "dark", Vector3(side * 2.28, 0.72, panel_z), Vector3(0.026, 0.09, 1.83))
-			for vent in 6:
-				_fitout_stock(cabin, "trim", Vector3(side * 2.265, 0.72, panel_z - 0.67 + vent * 0.265), Vector3(0.025, 0.11, 0.025))
-		# Backshell inset is mechanically fitted to the existing reclined shell.
+		# Fitted seat shells have a thin recessed service lid, an elastic literature
+		# pocket, upholstered side bolsters and a supported cantilever underpan.
+		# All six sets are merged by finish into the existing cabin stock.
 		for seat_z in CREW_SEAT_ROWS:
 			var seat_at := Vector3(side * CREW_SEAT_HALF_SPACING, 0, seat_z)
-			_fitout_stock(cabin, "trim", seat_at + Vector3(0, 1.44, 0.668), Vector3(0.56, 0.55, 0.035), Vector3(0.14, 0, 0))
-			_fitout_stock(cabin, "dark", seat_at + Vector3(0, 1.66, 0.64), Vector3(0.17, 0.045, 0.035))
-			_fitout_stock(cabin, "cloth", seat_at + Vector3(0, 1.02, 0.73), Vector3(0.49, 0.15, 0.048))
-			_fitout_stock(cabin, "trim", seat_at + Vector3(0, 1.10, 0.765), Vector3(0.52, 0.028, 0.035))
+			_fitout_soft_stock(cabin, "dark", seat_at + Vector3(0, 1.44, 0.666), Vector3(0.54, 0.59, 0.035), Vector3(0.14, 0, 0))
+			_fitout_soft_stock(cabin, "cabin_fitting", seat_at + Vector3(0, 1.44, 0.69), Vector3(0.50, 0.55, 0.035), Vector3(0.14, 0, 0))
+			_fitout_stock(cabin, "dark", seat_at + Vector3(0, 1.66, 0.67), Vector3(0.16, 0.036, 0.035))
+			_fitout_soft_stock(cabin, "cloth", seat_at + Vector3(0, 1.04, 0.70), Vector3(0.46, 0.20, 0.085))
+			_fitout_stock(cabin, "upholstery", seat_at + Vector3(0, 1.13, 0.73), Vector3(0.45, 0.025, 0.022))
+			_fitout_soft_stock(cabin, "structure", seat_at + Vector3(0, 0.82, 0.035), Vector3(0.75, 0.12, 0.85))
+			for bolster_side in [-1.0, 1.0]:
+				_fitout_soft_stock(cabin, "upholstery", seat_at + Vector3(bolster_side * 0.265, 1.47, 0.30), Vector3(0.14, 0.72, 0.20), Vector3(0.14, 0, bolster_side * -0.09))
+				_fitout_soft_stock(cabin, "upholstery", seat_at + Vector3(bolster_side * 0.29, 1.015, 0.015), Vector3(0.11, 0.10, 0.60))
+				_fitout_soft_stock(cabin, "cabin_fitting", seat_at + Vector3(bolster_side * 0.38, 1.265, 0.025), Vector3(0.11, 0.07, 0.58))
+				_fitout_stock(cabin, "structure", seat_at + Vector3(bolster_side * 0.38, 1.04, 0.26), Vector3(0.07, 0.26, 0.065), Vector3(-0.18, 0, 0))
+				_fitout_stock(cabin, "dark", seat_at + Vector3(bolster_side * 0.16, 1.46, 0.235), Vector3(0.045, 0.70, 0.025), Vector3(0.14, 0, bolster_side * -0.08))
+			_fitout_stock(cabin, "cabin_fitting", seat_at + Vector3(0, 1.16, 0.165), Vector3(0.115, 0.085, 0.042))
+		# A formed sill and toe return turn the removable lower liner into a
+		# single pressure-wall section, with the airstair opening kept clear.
+		for panel_index in 6:
+			var panel_z := -8.7 + float(panel_index) * 2.05
+			if side < 0.0 and absf(panel_z - AIRSTAIR_Z) < 1.7:
+				continue
+			_fitout_stock(cabin, "liner", Vector3(side * 2.30, 1.76, panel_z), Vector3(0.10, 0.25, 1.96), Vector3(0, 0, side * 0.42))
+			_fitout_stock(cabin, "cabin_fitting", Vector3(side * 2.29, 0.73, panel_z), Vector3(0.10, 0.21, 1.96), Vector3(0, 0, side * -0.42))
+			_fitout_stock(cabin, "structure", Vector3(side * 2.285, 1.65, panel_z), Vector3(0.025, 0.025, 1.91))
+			_fitout_stock(cabin, "cabin_fitting", Vector3(side * 2.285, 1.47, panel_z - 0.74), Vector3(0.025, 0.105, 0.038))
 		# Recessed strip channel keeps the lamp from reading as a floating rod.
 		_fitout_stock(cabin, "dark", Vector3(side * 2.34, 3.21, -3.65), Vector3(0.10, 0.20, 11.68))
 	for bay_z in [-8.0, -5.85, -3.65, -1.48, 0.70]:
-		_fitout_stock(cabin, "trim", Vector3(0, 3.247, bay_z), Vector3(2.58, 0.018, 0.026))
-		_fitout_stock(cabin, "trim", Vector3(0, 0.505, bay_z), Vector3(4.65, 0.008, 0.022))
+		_fitout_stock(cabin, "cabin_fitting", Vector3(0, 3.247, bay_z), Vector3(2.58, 0.018, 0.026))
+		_fitout_stock(cabin, "cabin_fitting", Vector3(0, 0.505, bay_z), Vector3(4.65, 0.008, 0.022))
 	for light_z in [-8.0, -3.65, 0.70]:
 		_fitout_stock(cabin, "dark", Vector3(0, 3.235, light_z), Vector3(0.86, 0.035, 0.30))
 		_fitout_stock(cabin, "interior_light", Vector3(0, 3.208, light_z), Vector3(0.69, 0.025, 0.15))
+	# A central air-distribution spine and its recessed shoulder joints give the
+	# roof a constructed section. The cross ties meet it at actual lighting bays.
+	_fitout_stock(cabin, "cabin_fitting", Vector3(0, 3.255, -3.65), Vector3(1.02, 0.07, 12.35))
+	for side in [-1.0, 1.0]:
+		_fitout_stock(cabin, "dark", Vector3(side * 0.535, 3.246, -3.65), Vector3(0.022, 0.025, 12.3))
+		for bay_z in [-8.0, -3.65, 0.70]:
+			_fitout_stock(cabin, "liner", Vector3(side * 0.91, 3.205, bay_z), Vector3(0.72, 0.085, 0.14))
+			_fitout_stock(cabin, "dark", Vector3(side * 0.87, 3.157, bay_z), Vector3(0.32, 0.012, 0.055))
+		# Luggage trough undersides terminate against their doors rather than
+		# reading as an unsupported solid ceiling slab.
+		_fitout_stock(cabin, "cabin_fitting", Vector3(side * 1.40, 2.755, -5.30), Vector3(0.19, 0.06, 6.80))
+		_fitout_stock(cabin, "dark", Vector3(side * 1.54, 2.745, -5.30), Vector3(0.045, 0.035, 6.80))
+	# The role plaque retains its readable face and authored pose. A shallow
+	# service back and one stowage-mounted hanger explain its raised placement
+	# when approaching from the flight deck, without duplicating display state.
+	var plaque_at := Vector3(-CREW_SEAT_HALF_SPACING, 0.20, CREW_SEAT_ROWS[0] - 0.04) + LOADMASTER_WAYFINDING_LOCAL_OFFSET
+	_fitout_stock(cabin, "liner", plaque_at + Vector3(0, 0, -0.040), Vector3(1.40, 0.72, 0.028))
+	_fitout_stock(cabin, "cabin_fitting", plaque_at + Vector3(0, 0, -0.060), Vector3(1.18, 0.47, 0.020))
+	_fitout_stock(cabin, "cabin_fitting", plaque_at + Vector3(-0.48, 0.41, -0.02), Vector3(0.09, 0.25, 0.13))
 	_finish_fitout(_crew_cabin, cabin, "CabinFitout")
+	_build_berth_joinery()
+
+
+func _build_berth_joinery() -> void:
+	var fittings := {}
+	for side in [-1.0, 1.0]:
+		# Berth alcove has a padded head panel, retaining edge, folding support
+		# stays and a closed under-bed personal locker. The central wake lane and
+		# mattress anchors retain their authored clearances.
+		_fitout_soft_stock(fittings, "liner", Vector3(side * 2.105, 1.73, 6.66), Vector3(0.10, 0.79, 2.27))
+		_fitout_stock(fittings, "cabin_fitting", Vector3(side * 1.045, 1.235, 6.60), Vector3(0.035, 0.19, 2.13))
+		_fitout_stock(fittings, "locker", Vector3(side * 1.72, 0.86, 6.60), Vector3(0.92, 0.47, 1.90))
+		_fitout_stock(fittings, "dark", Vector3(side * 1.247, 0.90, 6.60), Vector3(0.025, 0.055, 0.32))
+		_fitout_stock(fittings, "cabin_fitting", Vector3(side * 1.224, 0.88, 6.60), Vector3(0.025, 0.025, 0.25))
+		for rail_end_z in [5.52, 7.68]:
+			_fitout_stock(fittings, "cabin_fitting", Vector3(side * 1.60, 2.16, rail_end_z), Vector3(1.12, 0.055, 0.07))
+			_fitout_stock(fittings, "structure", Vector3(side * 2.14, 2.16, rail_end_z), Vector3(0.07, 0.20, 0.16))
+		for support_z in [5.68, 7.52]:
+			_fitout_stock(fittings, "cabin_fitting", Vector3(side * 1.66, 1.04, support_z), Vector3(0.94, 0.07, 0.08), Vector3(0, 0, side * 0.16))
+			_fitout_stock(fittings, "structure", Vector3(side * 2.12, 1.12, support_z), Vector3(0.07, 0.24, 0.13))
+		# Gathered privacy cloth is held back at the foot, leaving the sleep
+		# affordance visible; soft strips merge into one textile submission.
+		for pleat in 7:
+			_fitout_soft_stock(fittings, "upholstery", Vector3(side * 1.075 + sin(pleat * PI * 0.5) * 0.022, 1.68, 5.56 + pleat * 0.043), Vector3(0.07, 0.88, 0.065))
+		_fitout_stock(fittings, "accent", Vector3(side * 1.03, 1.63, 5.70), Vector3(0.032, 0.085, 0.36))
+		_fitout_stock(fittings, "dark", Vector3(side * 2.035, 2.005, 7.30), Vector3(0.055, 0.25, 0.35))
+		_fitout_stock(fittings, "reading_lamp", Vector3(side * 1.998, 1.98, 7.30), Vector3(0.025, 0.10, 0.22))
+		# A small shelf and retained book sit outboard of the resting body.
+		_fitout_stock(fittings, "cabin_fitting", Vector3(side * 1.94, 1.69, 7.58), Vector3(0.39, 0.045, 0.24))
+		_fitout_stock(fittings, "accent", Vector3(side * 1.93, 1.745, 7.58), Vector3(0.24, 0.06, 0.16))
+		_fitout_soft_stock(fittings, "linen", Vector3(side * 1.62, 1.415, 6.88), Vector3(1.08, 0.035, 0.24))
+	_finish_fitout(_aft_systems_bay, fittings, "BerthJoinery")
+
+
+# Inflated superellipse stock gives cushions rolled edges and fitted corners.
+# Cache by dimensions so all repeated upholstery shares the same source mesh;
+# composite furniture details are subsequently merged by material.
+func _cabin_cushion_mesh(size: Vector3) -> ArrayMesh:
+	var key := "cabin_cushion_" + str(size)
+	if _box_mesh_cache.has(key):
+		return _box_mesh_cache[key] as ArrayMesh
+	var tool := SurfaceTool.new()
+	tool.begin(Mesh.PRIMITIVE_TRIANGLES)
+	var rings: Array[PackedVector3Array] = []
+	for section in [Vector2(-0.5, 0.76), Vector2(-0.38, 0.95), Vector2(0.0, 1.0), Vector2(0.38, 0.95), Vector2(0.5, 0.76)]:
+		var ring := PackedVector3Array()
+		for point in 24:
+			var angle := TAU * float(point) / 24.0
+			var cx := cos(angle)
+			var cy := sin(angle)
+			ring.append(Vector3(signf(cx) * pow(absf(cx), 0.34) * size.x * 0.5 * section.y, signf(cy) * pow(absf(cy), 0.34) * size.y * 0.5 * section.y, section.x * size.z))
+		rings.append(ring)
+	for section in 4:
+		for point in 24:
+			var next := (point + 1) % 24
+			_skin_quad(tool, rings[section][point], rings[section][next], rings[section + 1][next], rings[section + 1][point])
+	for point in 24:
+		var next := (point + 1) % 24
+		_skin_quad(tool, Vector3(0, 0, -size.z * 0.5), rings[0][next], rings[0][point], Vector3(0, 0, -size.z * 0.5))
+		_skin_quad(tool, Vector3(0, 0, size.z * 0.5), rings[4][point], rings[4][next], Vector3(0, 0, size.z * 0.5))
+	tool.generate_normals()
+	var mesh := tool.commit()
+	_box_mesh_cache[key] = mesh
+	return mesh
+
+
+func _fitout_soft_stock(batch: Dictionary, finish: String, at: Vector3, size: Vector3,
+		rotation_value := Vector3.ZERO) -> void:
+	if not batch.has(finish):
+		var tool := SurfaceTool.new()
+		tool.begin(Mesh.PRIMITIVE_TRIANGLES)
+		tool.set_material(_halyard_materials[finish])
+		batch[finish] = tool
+	(batch[finish] as SurfaceTool).append_from(_cabin_cushion_mesh(size), 0,
+		Transform3D(Basis.from_euler(rotation_value), at))
 
 
 # Fitted visual stock is merged by finish. The moving hull owns its transform;
