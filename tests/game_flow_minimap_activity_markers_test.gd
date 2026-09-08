@@ -14,6 +14,7 @@ func _run() -> void:
 	root.add_child(game)
 	await process_frame
 	await physics_frame
+	_test_minimap_frame_coalescing(game)
 	var snapshot := game.get_minimap_snapshot()
 	var markers := snapshot.get("objective_markers", []) as Array
 	_check(snapshot.has("objective_markers"), "production minimap snapshot publishes objective marker roster")
@@ -67,6 +68,13 @@ func _run() -> void:
 		_find_marker(terminal_markers, &"active_route_checkpoint").is_empty(),
 		"terminal activity state removes route guidance without retaining a stale target"
 	)
+	game._update_minimap({"available": true, "position": Vector3(999.0, 0.0, 999.0)})
+	root.remove_child(game)
+	_check(
+		not bool(game.get("_minimap_update_pending"))
+		and (game.get("_minimap_pending_actor_sample") as Dictionary).is_empty(),
+		"detach discards a pending minimap observation before retained reentry"
+	)
 	game.free()
 	await process_frame
 	if _failures.is_empty():
@@ -76,6 +84,28 @@ func _run() -> void:
 	for failure in _failures:
 		push_error(failure)
 	quit(1)
+
+
+func _test_minimap_frame_coalescing(game: GameFlow) -> void:
+	game._flush_minimap_update()
+	var minimap := game.hud.get("_minimap") as Control
+	var before := minimap.call(&"get_snapshot") as Dictionary
+	var latest := {}
+	for tick in range(8):
+		latest = {"available": true, "position": Vector3(float(tick), 0.0, 10.0)}
+		game._update_minimap(latest)
+	_check(minimap.call(&"get_snapshot") == before,
+		"catch-up physics observations do not rebuild the displayed minimap")
+	latest.position = Vector3.INF
+	game._process(0.0)
+	var displayed := minimap.call(&"get_snapshot") as Dictionary
+	_check(displayed.get("center_position") == Vector2(7.0, 10.0),
+		"one presentation update consumes the latest detached physics observation")
+	game._process(0.0)
+	_check(minimap.call(&"get_snapshot") == displayed,
+		"a frame without another physics observation retains its minimap")
+	game._update_minimap(game._capture_cinder_actor_sample())
+	game._flush_minimap_update()
 
 
 func _find_marker(markers: Array, marker_id: StringName) -> Dictionary:

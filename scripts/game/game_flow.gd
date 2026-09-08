@@ -978,6 +978,8 @@ var _last_planetary_return_physical_arrival_result: Dictionary:
 ## the presentation snapshot pinned to its pre-rebase global coordinates.
 var _minimap_topology_nodes_local: Array[Dictionary] = []
 var _minimap_topology_edges: Array[Dictionary] = []
+var _minimap_pending_actor_sample: Dictionary = {}
+var _minimap_update_pending := false
 
 
 func _enter_tree() -> void:
@@ -991,6 +993,8 @@ func _enter_tree() -> void:
 
 
 func _exit_tree() -> void:
+	_minimap_pending_actor_sample.clear()
+	_minimap_update_pending = false
 	_aurora_expedition.cancel()
 	_detach_first_sortie_tutorial_presentation(&"game_flow_detached")
 	_planetary_journey.detach()
@@ -2847,6 +2851,7 @@ func _process(delta: float) -> void:
 	# gameplay startup tail has run.
 	if not _initialized:
 		return
+	_flush_minimap_update()
 	_update_debug_overlay()
 	_update_pending_regeneration(delta)
 	_update_music_bed_state()
@@ -3069,6 +3074,19 @@ func _debug_cardinal(forward: Vector3) -> String:
 
 
 func _update_minimap(actor_sample: Dictionary) -> void:
+	# Several catch-up physics steps can precede one displayed frame. Retain the
+	# latest authoritative observation; build the presentation only when it can
+	# be displayed. The sample's fields are scalar values, not live actor state.
+	_minimap_pending_actor_sample = actor_sample.duplicate()
+	_minimap_update_pending = true
+
+
+func _flush_minimap_update() -> void:
+	if not _minimap_update_pending:
+		return
+	var actor_sample := _minimap_pending_actor_sample
+	_minimap_pending_actor_sample = {}
+	_minimap_update_pending = false
 	if not is_instance_valid(hud) or not hud.has_method(&"update_minimap"):
 		return
 	hud.call(&"update_minimap", get_minimap_snapshot(actor_sample))
