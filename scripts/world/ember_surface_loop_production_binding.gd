@@ -1952,6 +1952,32 @@ func _get_activity_reward_snapshot() -> Dictionary:
 	return (snapshot.get("adapter", {}).get("activity_reward", {}) as Dictionary).duplicate(true)
 
 
+## Detached current evidence for return UI authentication and presentation.
+## The public diagnostic snapshot and state_changed payload stay complete.
+func get_return_status_snapshot() -> Dictionary:
+	var planetary: Dictionary = {}
+	if _planetary_composition != null:
+		if _planetary_composition.has_method(&"get_return_status_snapshot"):
+			planetary = _planetary_composition.call(&"get_return_status_snapshot") as Dictionary
+		else:
+			# Legacy compositions may return retained dictionaries; preserve the
+			# full production report's detached ownership at this boundary.
+			planetary = (_planetary_composition.call(&"get_snapshot") as Dictionary).duplicate(true)
+	return {
+		"state_id": _state_id(_state),
+		"generation": _generation,
+		"configured": _configured,
+		"identities": {
+			"host_instance_id": _host_instance_id,
+			"ship_instance_id": _ship_instance_id,
+			"player_instance_id": _player_instance_id,
+		},
+		"completion_handback_pending": not _completion_handback.is_empty(),
+		"completion_handback": _completion_handback.duplicate(true),
+		"planetary_surface": planetary,
+	}
+
+
 func get_snapshot() -> Dictionary:
 	return {
 		"schema_version": SCHEMA_VERSION,

@@ -11,6 +11,7 @@ signal presentation_changed(view: Dictionary)
 var _production: Object
 var _host: Object
 var _presenter: Object
+var _uses_builtin_presenter := false
 var _attached := false
 var _generation := 0
 var _last_result: Dictionary = {}
@@ -36,6 +37,7 @@ func attach(production: Object, host: Object, presenter: Object = null, reduced_
 		return _reject(&"host_contract_missing")
 	_production = production
 	_host = host
+	_uses_builtin_presenter = presenter == null
 	_presenter = presenter if presenter != null else PresenterType.new()
 	_attached = true
 	_generation += 1
@@ -105,16 +107,22 @@ func _on_state_changed(_snapshot: Dictionary) -> void:
 
 
 func _on_completion(receipt: Dictionary) -> void:
-	if is_instance_valid(_production) and is_instance_valid(_host) \
-			and receipt == ((_production.call(&"get_snapshot") as Dictionary).get(
-				"completion_handback", {}
-			) as Dictionary) \
-			and _completed_return_is_current(
-				_production.call(&"get_snapshot") as Dictionary,
-				_host.call(&"get_snapshot") as Dictionary
-			):
-		_last_result = receipt.duplicate(true)
+	if is_instance_valid(_production) and is_instance_valid(_host):
+		var production_snapshot := _source_snapshot(_production)
+		var host_snapshot := _source_snapshot(_host)
+		if receipt == (production_snapshot.get("completion_handback", {}) as Dictionary) \
+				and _completed_return_is_current(production_snapshot, host_snapshot):
+			_last_result = receipt.duplicate(true)
 	_publish(_reduced_motion)
+
+
+## Always read the current sources, including when a signal supplies a payload.
+## Injected presenters may inspect arbitrary diagnostics, so retain their full
+## report contract. Older sources keep working through the same fallback.
+func _source_snapshot(source: Object) -> Dictionary:
+	if _uses_builtin_presenter and source.has_method(&"get_return_status_snapshot"):
+		return source.call(&"get_return_status_snapshot") as Dictionary
+	return source.call(&"get_snapshot") as Dictionary
 
 
 func _publish(reduced_motion: bool) -> Dictionary:
@@ -122,8 +130,8 @@ func _publish(reduced_motion: bool) -> Dictionary:
 		return _reject(&"detached")
 	if not is_instance_valid(_production) or not is_instance_valid(_host):
 		return _clear_view(&"source_lost", _generation, reduced_motion)
-	var production_snapshot := _production.call(&"get_snapshot") as Dictionary
-	var host_snapshot := _host.call(&"get_snapshot") as Dictionary
+	var production_snapshot := _source_snapshot(_production)
+	var host_snapshot := _source_snapshot(_host)
 	var host_generation := int(host_snapshot.get("generation", -1))
 	var production_generation := int(production_snapshot.get("generation", -1))
 	var attachment_generation := int(
@@ -523,8 +531,8 @@ func _return_manifest_receipt_rejection(receipt: Dictionary) -> StringName:
 	if not bool(receipt.get("accepted", false)) \
 			or StringName(receipt.get("reason", &"")) != &"return_manifest_ready":
 		return &"return_manifest_not_accepted"
-	var host_snapshot := _host.call(&"get_snapshot") as Dictionary
-	var production_snapshot := _production.call(&"get_snapshot") as Dictionary
+	var host_snapshot := _source_snapshot(_host)
+	var production_snapshot := _source_snapshot(_production)
 	var authentication_rejection := _source_authentication_rejection(
 		production_snapshot, host_snapshot, false
 	)

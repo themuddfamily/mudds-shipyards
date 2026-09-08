@@ -211,6 +211,13 @@ func _check(condition: bool, message: String) -> void:
 
 
 func _check_activity_observation(binding: Object, stage: String) -> void:
+	var full: Dictionary = binding.get_snapshot()
+	var status: Dictionary = binding.get_return_status_snapshot()
+	for key: Variant in status:
+		_check(status[key] == full.get(key), stage + " return status preserves " + str(key))
+	status.relay_survey.optional_checkpoints.clear()
+	_check(binding.get_return_status_snapshot().relay_survey == full.relay_survey,
+		stage + " return status checkpoint evidence is detached")
 	var expected: Dictionary = binding.get_snapshot().adapter.activity_reward
 	var observed: Dictionary = binding.get_activity_reward_snapshot()
 	_check(observed == expected, stage + " composition activity observation matches full diagnostics")

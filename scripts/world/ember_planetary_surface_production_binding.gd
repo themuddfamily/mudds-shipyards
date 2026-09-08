@@ -960,6 +960,22 @@ func get_activity_reward_snapshot() -> Dictionary:
 	return _adapter.get_activity_reward_snapshot() if _adapter != null else {}
 
 
+## Current return-card inputs without constructing unrelated surface systems.
+## Keep the relay's existing observation so optional checkpoint reconciliation
+## still runs against fresh authoritative activity evidence.
+func get_return_status_snapshot() -> Dictionary:
+	return {
+		"state": [&"idle", &"bound", &"detached"][_state],
+		"host_generation": _host_generation,
+		"attachment_generation": _attachment_generation,
+		"relay_survey": _relay_survey.get_snapshot(_adapter) if _relay_survey != null else {},
+		"relay_survey_presentation": _relay_survey_presentation.call(&"get_snapshot") if _relay_survey_presentation != null else {},
+		"survey_interaction": _survey_interaction.call(&"get_snapshot") if _survey_interaction != null else {},
+		"sample_rack_interaction": _sample_rack_interaction.call(&"get_snapshot") \
+			if _sample_rack_interaction != null else {},
+	}.duplicate(true)
+
+
 func get_snapshot() -> Dictionary:
 	return {
 		"state": [&"idle", &"bound", &"detached"][_state],

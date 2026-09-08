@@ -19,17 +19,21 @@ class FakeProduction:
 			},
 		},
 	}
+	var snapshot_count := 0
 	var manifest: Dictionary = {
 		"issued_generation": 8,
 		"activity_id": &"ember_beacon_survey",
 		"destination_id": &"mudds_shipyards",
 	}
-	func get_snapshot() -> Dictionary: return snapshot.duplicate(true)
+	func get_snapshot() -> Dictionary:
+		snapshot_count += 1
+		return snapshot.duplicate(true)
 	func get_planetary_relay_survey_return_manifest_snapshot() -> Dictionary:
 		return manifest.duplicate(true)
 
 class FakeHost:
 	extends RefCounted
+	var snapshot_count := 0
 	var snapshot: Dictionary = {
 		"attached": true,
 		"host_id": &"ember_surface_loop",
@@ -38,7 +42,59 @@ class FakeHost:
 		"phase_id": &"on_foot",
 		"identities": {"player_instance_id": 41, "ship_instance_id": 42},
 	}
-	func get_snapshot() -> Dictionary: return snapshot.duplicate(true)
+	func get_snapshot() -> Dictionary:
+		snapshot_count += 1
+		return snapshot.duplicate(true)
+
+class ObservedProduction:
+	extends FakeProduction
+	var observation_count := 0
+	func get_return_status_snapshot() -> Dictionary:
+		observation_count += 1
+		return snapshot.duplicate(true)
+
+class ObservedHost:
+	extends FakeHost
+	var observation_count := 0
+	func get_return_status_snapshot() -> Dictionary:
+		observation_count += 1
+		return snapshot.duplicate(true)
+
+class CountingHost:
+	extends EmberSurfaceLoopHost
+	var snapshot_count := 0
+	func get_snapshot() -> Dictionary:
+		snapshot_count += 1
+		return super.get_snapshot()
+
+class CountingProduction:
+	extends EmberSurfaceLoopProductionBinding
+	var snapshot_count := 0
+	func get_snapshot() -> Dictionary:
+		snapshot_count += 1
+		return super.get_snapshot()
+
+class CountingPlanetary:
+	extends EmberPlanetarySurfaceProductionBinding
+	var snapshot_count := 0
+	func get_snapshot() -> Dictionary:
+		snapshot_count += 1
+		return super.get_snapshot()
+
+class LegacyPlanetary:
+	extends Node
+	var snapshot := {"state": &"bound", "nested": {"value": 1}}
+	func get_snapshot() -> Dictionary:
+		return snapshot
+
+class DiagnosticPresenter:
+	extends EmberSurfaceReturnStatusPresenter
+	var saw_diagnostics := false
+	func present(snapshot: Dictionary, reduced_motion: bool = false) -> Dictionary:
+		saw_diagnostics = (snapshot.host as Dictionary).has("bootstrap") \
+			and (snapshot.binding as Dictionary).has("entry_presentation") \
+			and (snapshot.binding.planetary_surface as Dictionary).has("weather")
+		return super.present(snapshot, reduced_motion)
 
 const BindingType := preload("res://scripts/ui/ember_surface_return_status_binding.gd")
 var _assertions := 0
@@ -48,14 +104,34 @@ func _init() -> void:
 	call_deferred(&"_run")
 
 func _run() -> void:
-	var production := FakeProduction.new()
-	var host := FakeHost.new()
+	var legacy_production := FakeProduction.new()
+	var legacy_host := FakeHost.new()
+	var legacy_views := _run_contract(legacy_production, legacy_host)
+	var observed_production := ObservedProduction.new()
+	var observed_host := ObservedHost.new()
+	var observed_views := _run_contract(observed_production, observed_host)
+	_check(observed_views == legacy_views, "fresh observations preserve every full view across lifecycle and rejection cases")
+	_check(legacy_production.snapshot_count > 0 and legacy_host.snapshot_count > 0, "legacy sources retain full snapshot fallback")
+	_check(observed_production.snapshot_count == 0 and observed_host.snapshot_count == 0 \
+		and observed_production.observation_count > 0 and observed_host.observation_count > 0,
+		"status callbacks and receipt authentication skip full source diagnostics")
+	_test_production_observations()
+	if _failures.is_empty():
+		print("EMBER_SURFACE_RETURN_STATUS_BINDING_TEST_OK (%d assertions)" % _assertions)
+		quit(0)
+		return
+	for failure in _failures: push_error(failure)
+	quit(1)
+
+func _run_contract(production: FakeProduction, host: FakeHost) -> Array:
+	var views: Array = []
 	production.snapshot.identities = {
 		"host_instance_id": host.get_instance_id(),
 		"player_instance_id": 41,
 		"ship_instance_id": 42,
 	}
 	var binding = BindingType.new()
+	binding.presentation_changed.connect(func(view: Dictionary) -> void: views.append(view.duplicate(true)))
 	_check(
 		bool(binding.attach(production, host, null, true).get("accepted", false)),
 		"binding accepts one exact live Host/production identity tuple",
@@ -255,18 +331,96 @@ func _run() -> void:
 		"only the exact stored handback exposes terminal Mudds return",
 	)
 
+	production.completion_handback_ready.emit(unmatched_handback)
+	_check((binding.get_snapshot().last_result as Dictionary).is_empty(),
+		"forged completion signal cannot replace the stored exact handback")
+	production.completion_handback_ready.emit(completion)
+	_check(binding.get_snapshot().last_result == completion,
+		"completion signal observes the exact fresh authenticated handback")
+	completion.player_instance_id = 123
+	_check(binding.get_snapshot().last_result.player_instance_id == 41,
+		"accepted completion receipt is detached from the signal dictionary")
+
 	binding.detach()
 	_check(
 		not bool(binding.get_snapshot().attached)
 			and binding.get_presenter_snapshot().is_empty(),
 		"detach clears all status evidence",
 	)
-	if _failures.is_empty():
-		print("EMBER_SURFACE_RETURN_STATUS_BINDING_TEST_OK (%d assertions)" % _assertions)
-		quit(0)
-		return
-	for failure in _failures: push_error(failure)
-	quit(1)
+	return views
+
+func _test_production_observations() -> void:
+	var production := CountingProduction.new()
+	var host := CountingHost.new()
+	var planetary := CountingPlanetary.new()
+	production.set("_configured", true)
+	production.set("_generation", 4)
+	production.set("_host_instance_id", host.get_instance_id())
+	production.set("_player_instance_id", 41)
+	production.set("_ship_instance_id", 42)
+	production.set("_planetary_composition", planetary)
+	host.set("_generation", 4)
+	host.set("_attachment_generation", 2)
+	host.set("_attached", true)
+	host.set("_phase", EmberSurfaceLoopHost.Phase.ON_FOOT)
+	host.set("_player_instance_id", 41)
+	host.set("_ship_instance_id", 42)
+	planetary.set("_state", EmberPlanetarySurfaceProductionBinding.State.BOUND)
+	planetary.set("_host_generation", 4)
+	planetary.set("_attachment_generation", 2)
+	var status := BindingType.new()
+	_check(status.attach(production, host).accepted, "actual production observation methods authenticate the built-in status binding")
+	var initial_view := status.get_presenter_snapshot()
+	for index in range(5):
+		production.state_changed.emit({"generation": -99, "configured": false})
+	_check(status.get_presenter_snapshot() == initial_view, "forged signal payloads cannot replace fresh production observations")
+	_check(production.snapshot_count == 0 and host.snapshot_count == 0 and planetary.snapshot_count == 0,
+		"six built-in UI publications construct zero full production, Host or planetary diagnostics")
+	print("RETURN_STATUS_DIAGNOSTICS publications=6 production=0 host=0 planetary=0")
+	var production_full := production.get_snapshot()
+	var host_full := host.get_snapshot()
+	_check_projection(production.get_return_status_snapshot(), production_full, "production")
+	_check_projection(host.get_return_status_snapshot(), host_full, "Host")
+	var observed := production.get_return_status_snapshot()
+	observed.identities.player_instance_id = -1
+	observed.planetary_surface.state = &"tampered"
+	_check(production.get_return_status_snapshot().identities.player_instance_id == 41 \
+		and production.get_return_status_snapshot().planetary_surface.state == &"bound",
+		"fresh observations are detached from authoritative state")
+	var custom := DiagnosticPresenter.new()
+	var legacy_status := BindingType.new()
+	_check(legacy_status.attach(production, host, custom).accepted and custom.saw_diagnostics,
+		"custom presenter subclasses retain complete production and Host diagnostics")
+	_check(legacy_status.get_presenter_snapshot() == initial_view,
+		"actual narrow-source presentation equals the full diagnostic presentation")
+	legacy_status.detach()
+	_check(legacy_status.attach(production, host, EmberSurfaceReturnStatusPresenter.new()).accepted,
+		"explicitly injected built-in presenter retains the full-report contract")
+	var diagnostics_before := production.snapshot_count
+	production.state_changed.emit({})
+	_check(production.snapshot_count == diagnostics_before + 1,
+		"only the explicitly injected presenter constructs a full report on the shared signal")
+	legacy_status.detach()
+	status.detach()
+	var legacy_planetary := LegacyPlanetary.new()
+	production.set("_planetary_composition", legacy_planetary)
+	var legacy_observation := production.get_return_status_snapshot()
+	legacy_observation.planetary_surface.nested.value = -1
+	_check(legacy_planetary.snapshot.nested.value == 1,
+		"legacy composition fallback preserves detached nested data")
+	legacy_planetary.free()
+	production.set("_planetary_composition", null)
+	production.free()
+	host.free()
+	planetary.free()
+
+func _check_projection(observed: Dictionary, full: Dictionary, label: String) -> void:
+	for key: Variant in observed:
+		_check(full.has(key), label + " retains " + str(key))
+		if observed[key] is Dictionary and full.get(key) is Dictionary:
+			_check_projection(observed[key], full[key], label + "." + str(key))
+		else:
+			_check(observed[key] == full.get(key), label + "." + str(key) + " matches full diagnostics")
 
 func _manifest_receipt(activity_generation: int, attachment_generation: int) -> Dictionary:
 	return {

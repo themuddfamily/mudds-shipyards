@@ -1346,6 +1346,31 @@ func get_loaded_scene_instance_id() -> int:
 	return _loaded_scene_instance_id
 
 
+## Fresh actor positions and lifecycle evidence consumed by the built-in return
+## status presenter. Avoid constructing bootstrap, telemetry and physics audits.
+func get_return_status_snapshot() -> Dictionary:
+	return {
+		"host_id": HOST_ID,
+		"attached": _attached,
+		"phase_id": _phase_id(_phase),
+		"generation": _generation,
+		"attachment_generation": _attachment_generation,
+		"terminal_reason": _terminal_reason,
+		"identities": {
+			"ship_instance_id": _ship_instance_id,
+			"player_instance_id": _player_instance_id,
+		},
+		"actor_state": {
+			"ship_position": _ship.global_position if is_instance_valid(_ship) else Vector3.ZERO,
+			"player_position": _player.global_position if is_instance_valid(_player) else Vector3.ZERO,
+		},
+		"surface_route": {
+			"egress_anchor": _region_local_to_world(_REGION.surface_route_anchor_positions_region_local_m[0]),
+			"staging_anchor": _region_local_to_world(_REGION.surface_route_anchor_positions_region_local_m[1]),
+		},
+	}
+
+
 func get_snapshot() -> Dictionary:
 	var bootstrap_snapshot := _bootstrap.get_snapshot() \
 		if _node_is_current(_bootstrap) and _node_is_current(_scene) else {}
