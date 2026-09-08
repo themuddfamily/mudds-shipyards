@@ -3167,7 +3167,8 @@ func _build_crew_cabin() -> void:
 		_halyard_materials.boarding_route
 	)
 	_mark_boarding_route_cue(cabin_route_spine, &"cabin_spine")
-	_box(_crew_cabin, "CabinCeiling", Vector3(0.0, 3.34, -3.65), Vector3(4.86, 0.16, 12.50), _halyard_materials.liner)
+	var ceiling := _box(_crew_cabin, "CabinCeiling", Vector3.ZERO, Vector3.ONE, _halyard_materials.liner)
+	ceiling.mesh = _cabin_pressure_lining_mesh()
 	var cabin_window_pane_transforms: Array[Transform3D] = []
 	var cabin_window_pane_names := PackedStringArray()
 	var crew_seat_leg_transforms: Array[Transform3D] = []
@@ -3192,7 +3193,7 @@ func _build_crew_cabin() -> void:
 			)
 		else:
 			_box(_crew_cabin, side_name + "CabinSidewall", Vector3(side * 2.46, 1.92, -3.65), Vector3(0.18, 2.86, 12.50), _halyard_materials.structure)
-		_box(_crew_cabin, side_name + "CabinLightStrip", Vector3(side * 2.30, 3.22, -3.65), Vector3(0.05, 0.12, 11.60), _halyard_materials.interior_light)
+		_box(_crew_cabin, side_name + "CabinLightStrip", Vector3(side * 2.29, 2.86, -3.65), Vector3(0.05, 0.055, 11.60), _halyard_materials.interior_light)
 		# Inboard faces of the same ten windows. Without these the cabin sidewall
 		# is a blank bulkhead: the exterior band is outboard of it, so the first
 		# rendered pass produced a passenger cabin with no windows in it.
@@ -4491,46 +4492,67 @@ func _add_aperture_quad(
 		tool.add_vertex(vertex)
 
 
-## One shared six-face prism for the existing port/starboard overhead lockers.
-## The planform keeps the authored 1.10 x 7.20 m envelope at its aft end and
-## tapers both long sides to the narrower forward face. Generated normals keep
-## the existing non-emissive ship-local hull material stable across the diagonal
-## faces.
-func _cabin_forward_taper_mesh() -> ArrayMesh:
-	var half := CABIN_STOWAGE_SIZE * 0.5
-	var forward_half_width := half.x - CABIN_STOWAGE_FORWARD_INSET
-	var outline := PackedVector3Array([
-		Vector3(-half.x, 0.0, half.z),
-		Vector3(-forward_half_width, 0.0, -half.z),
-		Vector3(forward_half_width, 0.0, -half.z),
-		Vector3(half.x, 0.0, half.z),
+# A formed roof return meets the upper window band instead of ending in a
+# square wall/ceiling corner. The skin remains above window and hatch apertures;
+# the existing collision shell and moving-interior frame remain authoritative.
+func _cabin_pressure_lining_mesh() -> ArrayMesh:
+	var profile := PackedVector2Array([
+		Vector2(-2.43, 2.79), Vector2(-2.35, 2.83),
+		Vector2(-2.23, 2.95), Vector2(-2.02, 3.09),
+		Vector2(-1.72, 3.20), Vector2(-1.38, 3.25),
+		Vector2(0.0, 3.26), Vector2(1.38, 3.25),
+		Vector2(1.72, 3.20), Vector2(2.02, 3.09),
+		Vector2(2.23, 2.95), Vector2(2.35, 2.83), Vector2(2.43, 2.79),
 	])
 	var tool := SurfaceTool.new()
 	tool.begin(Mesh.PRIMITIVE_TRIANGLES)
-	var top_offset := Vector3.UP * half.y
-	var bottom_offset := Vector3.DOWN * half.y
-	for point in outline:
-		tool.add_vertex(point + top_offset)
-	for point in outline:
-		tool.add_vertex(point + bottom_offset)
-	# Top and bottom fans. The opposite winding keeps both broad faces outward.
-	for index in range(1, outline.size() - 1):
-		tool.add_index(0)
-		tool.add_index(index + 1)
-		tool.add_index(index)
-		tool.add_index(outline.size())
-		tool.add_index(outline.size() + index)
-		tool.add_index(outline.size() + index + 1)
-	# Vertical perimeter faces.
-	for index in outline.size():
-		var next := (index + 1) % outline.size()
-		tool.add_index(index)
-		tool.add_index(outline.size() + next)
-		tool.add_index(outline.size() + index)
-		tool.add_index(index)
-		tool.add_index(next)
-		tool.add_index(outline.size() + next)
-	tool.generate_normals()
+	# Leave shallow transverse joints between replaceable moulded roof sections.
+	for bay in 6:
+		var front := -9.90 + float(bay) * (12.50 / 6.0)
+		var rear := front + 12.50 / 6.0 - 0.016
+		for segment in range(profile.size() - 1):
+			var a := profile[segment]
+			var b := profile[segment + 1]
+			_skin_quad(tool, Vector3(a.x, a.y, front), Vector3(b.x, b.y, front),
+				Vector3(b.x, b.y, rear), Vector3(a.x, a.y, rear))
+			# Close the ends and rear skin rather than relying on two-sided material.
+			_skin_quad(tool, Vector3(a.x, 3.42, rear), Vector3(b.x, 3.42, rear),
+				Vector3(b.x, 3.42, front), Vector3(a.x, 3.42, front))
+			_skin_quad(tool, Vector3(a.x, a.y, rear), Vector3(b.x, b.y, rear),
+				Vector3(b.x, 3.42, rear), Vector3(a.x, 3.42, rear))
+			_skin_quad(tool, Vector3(a.x, 3.42, front), Vector3(b.x, 3.42, front),
+				Vector3(b.x, b.y, front), Vector3(a.x, a.y, front))
+		for side in [-1.0, 1.0]:
+			var a := Vector3(side * 2.43, 2.79, front)
+			var b := Vector3(side * 2.43, 2.79, rear)
+			if side < 0.0:
+				_skin_quad(tool, a, b, Vector3(b.x, 3.42, rear), Vector3(a.x, 3.42, front))
+			else:
+				_skin_quad(tool, b, a, Vector3(a.x, 3.42, front), Vector3(b.x, 3.42, rear))
+	return tool.commit()
+
+
+# The original forward taper and exact locker envelope now have folded lower
+# shoulders and radiused-looking end returns. Both sides still share one mesh.
+func _cabin_forward_taper_mesh() -> ArrayMesh:
+	var half := CABIN_STOWAGE_SIZE * 0.5
+	var tool := SurfaceTool.new()
+	tool.begin(Mesh.PRIMITIVE_TRIANGLES)
+	var rings: Array[PackedVector3Array] = []
+	for z in [-half.z, half.z]:
+		var width := half.x - (CABIN_STOWAGE_FORWARD_INSET if z < 0 else 0.0)
+		var ring := PackedVector3Array([
+			Vector3(-width + 0.08, -half.y, z), Vector3(width - 0.08, -half.y, z),
+			Vector3(width, -half.y + 0.06, z), Vector3(width, half.y - 0.06, z),
+			Vector3(width - 0.08, half.y, z), Vector3(-width + 0.08, half.y, z),
+			Vector3(-width, half.y - 0.06, z), Vector3(-width, -half.y + 0.06, z),
+		])
+		rings.append(ring)
+	for point in 8:
+		var next := (point + 1) % 8
+		_skin_quad(tool, rings[0][next], rings[1][next], rings[1][point], rings[0][point])
+		_skin_quad(tool, Vector3(0, 0, -half.z), rings[0][next], rings[0][point], Vector3(0, 0, -half.z))
+		_skin_quad(tool, Vector3(0, 0, half.z), rings[1][point], rings[1][next], Vector3(0, 0, half.z))
 	var mesh := tool.commit()
 	mesh.resource_name = "HalyardCabinForwardTaperStowage"
 	return mesh
@@ -4897,9 +4919,12 @@ func _build_fitted_transport_details() -> void:
 	# Flush luggage doors and small pull recesses replace uninterrupted trunks.
 	for side in [-1.0, 1.0]:
 		for door_z in [-7.95, -6.28, -4.61, -2.94]:
-			_fitout_stock(cabin, "cabin_fitting", Vector3(side * 1.299, 2.985, door_z), Vector3(0.032, 0.39, 1.59))
-			_fitout_stock(cabin, "dark", Vector3(side * 1.274, 2.85, door_z), Vector3(0.025, 0.062, 0.32))
-			_fitout_stock(cabin, "liner", Vector3(side * 1.252, 2.84, door_z), Vector3(0.029, 0.024, 0.25))
+			# Follow the actual tapered face so each door meets its casing.
+			var face_x: float = 1.31 + CABIN_STOWAGE_FORWARD_INSET * (1.0 - (door_z + 9.0) / 7.2)
+			var face_rotation := Vector3(0, -side * atan(CABIN_STOWAGE_FORWARD_INSET / 7.2), 0)
+			_fitout_soft_stock(cabin, "cabin_fitting", Vector3(side * (face_x - 0.014), 2.985, door_z), Vector3(0.04, 0.35, 1.59), face_rotation)
+			_fitout_stock(cabin, "dark", Vector3(side * (face_x - 0.04), 2.87, door_z), Vector3(0.025, 0.062, 0.32), face_rotation)
+			_fitout_stock(cabin, "liner", Vector3(side * (face_x - 0.06), 2.86, door_z), Vector3(0.029, 0.024, 0.25), face_rotation)
 		# Fitted seat shells have a thin recessed service lid, an elastic literature
 		# pocket, upholstered side bolsters and a supported cantilever underpan.
 		# All six sets are merged by finish into the existing cabin stock.
@@ -4929,7 +4954,7 @@ func _build_fitted_transport_details() -> void:
 			_fitout_stock(cabin, "structure", Vector3(side * 2.285, 1.65, panel_z), Vector3(0.025, 0.025, 1.91))
 			_fitout_stock(cabin, "cabin_fitting", Vector3(side * 2.285, 1.47, panel_z - 0.74), Vector3(0.025, 0.105, 0.038))
 		# Recessed strip channel keeps the lamp from reading as a floating rod.
-		_fitout_stock(cabin, "dark", Vector3(side * 2.34, 3.21, -3.65), Vector3(0.10, 0.20, 11.68))
+		_fitout_stock(cabin, "dark", Vector3(side * 2.33, 2.855, -3.65), Vector3(0.10, 0.13, 11.68))
 	for bay_z in [-8.0, -5.85, -3.65, -1.48, 0.70]:
 		_fitout_stock(cabin, "cabin_fitting", Vector3(0, 3.247, bay_z), Vector3(2.58, 0.018, 0.026))
 		_fitout_stock(cabin, "cabin_fitting", Vector3(0, 0.505, bay_z), Vector3(4.65, 0.008, 0.022))
