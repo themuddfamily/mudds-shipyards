@@ -24,6 +24,10 @@ func _run() -> void:
 			var glass := art.get_node("CanopyHinge/CanopyGlass") as MeshInstance3D
 			var camera := art.find_child("CockpitCamera", true, false) as Camera3D
 			_check(glass.layers == 1 << 18 and not camera.get_cull_mask_value(19), "Arrow reflective canopy remains outside the pilot's sight layer")
+			ship.set_canopy_open(false, 0.0)
+			var hood := art.find_child("InstrumentHood", true, false) as MeshInstance3D
+			var glazing_bounds := glass.mesh.get_aabb()
+			_check(glazing_bounds.has_point(glass.to_local(camera.global_position)) and glazing_bounds.has_point(glass.to_local(hood.global_position)), "Arrow closed glazing spans the pilot eye and forward instruments")
 			_check((ship as ArrowReconShip).get_escape_pod_count() == 2, "Arrow retains both independent escape pods")
 		else:
 			art = (ship as ZenithInterceptor).get_zenith_visual_root().get_node("ModernManufacturedAirframe")

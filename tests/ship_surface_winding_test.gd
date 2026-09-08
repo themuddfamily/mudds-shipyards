@@ -66,6 +66,7 @@ func _run() -> void:
 		return
 
 	_check_hero_builders(expected_sign)
+	_check_heavy_plate_builders(expected_sign)
 	await _check_craft(expected_sign)
 	_check_detects_reversal(expected_sign)
 	_finish()
@@ -123,7 +124,7 @@ func _check_hero_builders(expected_sign: int) -> void:
 	)
 	var prism := hero.call("_trapezoid_prism_mesh", 1.0, 2.0, 1.5, 0.5, null) as ArrayMesh
 	_assert_closed_mesh_faces_outward("HeroShip pressure-panel stock", prism, expected_sign)
-	_assert_uv_faces_have_area(prism)
+	_assert_uv_faces_have_area("HeroShip pressure-panel stock", prism)
 	# A generated normal can agree with an inward triangle too. Check the loft
 	# against its volume, not only its own generated normals: canopy back-face
 	# culling otherwise exposes the far inside wall while hiding the near shell.
@@ -151,6 +152,36 @@ func _check_hero_builders(expected_sign: int) -> void:
 	hero.free()
 
 
+## These four manufactured lofts have planar top/side plates. Smoothing across
+## their longitudinal folds produces triangular highlights even with correct
+## winding. Diagonal chamfers can twist along a taper and are not flat plates.
+func _check_heavy_plate_builders(expected_sign: int) -> void:
+	for label: String in ["Bulwark", "Cinder cargo hauler", "Cinder long-range bomber", "Cinder light interceptor"]:
+		var source: Resource = load(CRAFT_SOURCES[label])
+		var craft: Node = source.instantiate() if source is PackedScene else source.new()
+		var mesh: Mesh = craft.call("_loft_mesh", Vector3(2.7, 1.6, 4.8), null)
+		var arrays := mesh.surface_get_arrays(0)
+		var points: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
+		var normals: PackedVector3Array = arrays[Mesh.ARRAY_NORMAL]
+		var indices: PackedInt32Array = arrays[Mesh.ARRAY_INDEX] if arrays[Mesh.ARRAY_INDEX] != null else PackedInt32Array()
+		var count := indices.size() if not indices.is_empty() else points.size()
+		var distorted := 0
+		var planar := 0
+		for i in range(0, count, 3):
+			var a := indices[i] if not indices.is_empty() else i
+			var b := indices[i + 1] if not indices.is_empty() else i + 1
+			var c := indices[i + 2] if not indices.is_empty() else i + 2
+			var face := (points[b] - points[a]).cross(points[c] - points[a]).normalized() * expected_sign
+			if absf(face.x) > 0.0001 and absf(face.y) > 0.0001:
+				continue
+			planar += 1
+			if minf(normals[a].dot(face), minf(normals[b].dot(face), normals[c].dot(face))) < 0.9998:
+				distorted += 1
+		_assert(planar > 0 and distorted == 0, "%s armour preserves its planar plates through every taper fold (%d distorted triangles)" % [label, distorted])
+		_assert_uv_faces_have_area(label + " armour loft", mesh)
+		craft.free()
+
+
 ## Sweeps every mesh each craft actually builds, not a representative sample, so
 ## a craft that grows new geometry is covered the moment it is added.
 ##
@@ -164,10 +195,8 @@ func _check_hero_builders(expected_sign: int) -> void:
 ## therefore score as disagreeing; reporting the imported tally keeps that
 ## exclusion visible instead of silent.
 ##
-## The Zenith is entirely authored art and contributes no procedural geometry at
-## all. That is asserted explicitly rather than skipped, so if it ever starts
-## building meshes in script they land inside this contract instead of outside
-## it, and so a silent loss of its imported geometry still trips the suite.
+## Torrent and Zenith retain imported reference packages. Their added runtime
+## presentation meshes enter the procedural sweep just like the other craft.
 func _check_craft(expected_sign: int) -> void:
 	var fleet_triangles := 0
 	var procedural_craft := 0
@@ -277,8 +306,8 @@ func _check_craft(expected_sign: int) -> void:
 		% [fleet_triangles, procedural_craft]
 	)
 	_assert(
-		closed_lofts == 47,
-		"the normal-independent closed-loft guard covered all 47 manufactured pressure volumes across Arrow, Zenith, Jovian and Halyard"
+		closed_lofts == 48,
+		"the normal-independent closed-loft guard covered all 48 manufactured pressure volumes across Arrow, Zenith, Jovian and Halyard"
 	)
 
 
@@ -356,7 +385,7 @@ func _check_detects_reversal(expected_sign: int) -> void:
 
 ## Normal mapping needs two independent UV axes on every face, including
 ## side and top plates. XY-only projection collapses their tangent frames.
-func _assert_uv_faces_have_area(mesh: Mesh) -> void:
+func _assert_uv_faces_have_area(label: String, mesh: Mesh) -> void:
 	var arrays := mesh.surface_get_arrays(0)
 	var uv: PackedVector2Array = arrays[Mesh.ARRAY_TEX_UV]
 	var indices: PackedInt32Array = arrays[Mesh.ARRAY_INDEX] if arrays[Mesh.ARRAY_INDEX] != null else PackedInt32Array()
@@ -368,7 +397,7 @@ func _assert_uv_faces_have_area(mesh: Mesh) -> void:
 		var c := uv[indices[i + 2] if not indices.is_empty() else i + 2]
 		if absf((b - a).cross(c - a)) < 0.000001:
 			degenerate += 1
-	_assert(degenerate == 0, "every pressure-panel face has a usable normal-map tangent frame (%d degenerate triangles)" % degenerate)
+	_assert(count > 0 and degenerate == 0, "%s has a usable normal-map tangent frame on every face (%d degenerate triangles)" % [label, degenerate])
 
 
 func _assert_wound(label: String, mesh: Mesh, expected_sign: int) -> void:

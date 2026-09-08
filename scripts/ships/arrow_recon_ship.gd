@@ -1341,6 +1341,10 @@ func _restyle_inherited_cockpit(cockpit: Node3D, canopy: Node3D) -> void:
 				Vector3(1.15, 0.66, 1.79),
 			]), _arrow_materials.glass)
 			glass.mesh = shell.mesh
+			# This replacement loft is centred on its own body; the shared
+			# pressure canopy now emits hinge-local vertices instead. Own the
+			# offset explicitly so the glass still covers the pilot and console.
+			glass.position = Vector3(0.0, 0.46, -1.82)
 			glass.set_meta("loft_section_count", shell.get_meta("loft_section_count"))
 			_fit_canopy_frame(glass, 7, _arrow_materials.graphite)
 			_fit_canopy_frame(glass, 16, _arrow_materials.graphite)
