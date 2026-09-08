@@ -438,11 +438,12 @@ func _test_render_allocations(torrent: HeroShip) -> void:
 		and int(component.get("multimesh_batches", -1)) == 6,
 		"Torrent-local renderer census batches eight RCS ports while retaining named clusters"
 	)
+	# Fallback and imported plumes each share one colour-specific soft-exhaust material.
 	_check(
 		int(component.get("drawn_copies", -1)) == 268
 		and int(component.get("geometry_submissions", -1)) == 254
 		and int(component.get("unique_mesh_resources", -1)) == 220
-		and int(component.get("unique_material_resources", -1)) == 39,
+		and int(component.get("unique_material_resources", -1)) == 41,
 		"service-panel sharing removes one mesh allocation while preserving all visible copies and submissions"
 	)
 	_check(
