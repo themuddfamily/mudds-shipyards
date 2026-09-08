@@ -4528,6 +4528,7 @@ func _install_close_plume_batch() -> void:
 	batch.multimesh = multi
 	batch.material_override = port.material_override
 	batch.material_overlay = port.material_overlay
+	EngineExhaustPresentation.configure_geometry(batch, port.mesh, Vector3.BACK)
 	batch.cast_shadow = port.cast_shadow
 	batch.layers = port.layers
 	batch.extra_cull_margin = port.extra_cull_margin
@@ -4566,12 +4567,14 @@ func _sync_close_plume_batch() -> void:
 		var source := _close_plume_sources[index]
 		if not is_instance_valid(source):
 			return
-		_close_plume_batch.multimesh.set_instance_transform(index, source.transform)
 		authored_transforms.append(source.transform)
 		var instance_bounds := _transformed_aabb(batch_mesh.get_aabb(), source.transform)
 		batch_bounds = instance_bounds if index == 0 else batch_bounds.merge(instance_bounds)
 		any_visible = any_visible or source.visible
 		if source.visible:
+			# Failed engines can hide either source. Pack the visible transforms
+			# so a hidden port engine cannot take the starboard engine's slot.
+			_close_plume_batch.multimesh.set_instance_transform(visible_count, source.transform)
 			visible_count += 1
 	# Headless rendering has no readable MultiMesh buffer, so retain the exact
 	# CPU-authored transforms beside the renderer resource for focused checks.
@@ -4579,6 +4582,7 @@ func _sync_close_plume_batch() -> void:
 	_close_plume_batch.multimesh.custom_aabb = batch_bounds
 	_close_plume_batch.multimesh.visible_instance_count = visible_count
 	_close_plume_batch.material_overlay = _close_plume_sources[0].material_overlay
+	_close_plume_batch.set_instance_shader_parameter(&"plume_damage_mix", _close_plume_sources[0].get_instance_shader_parameter(&"plume_damage_mix"))
 	_close_plume_batch.visible = any_visible
 
 
@@ -4633,6 +4637,7 @@ func _install_far_plume_batch() -> void:
 	batch.multimesh = multi
 	batch.material_override = port.material_override
 	batch.material_overlay = port.material_overlay
+	EngineExhaustPresentation.configure_geometry(batch, port.mesh, Vector3.BACK)
 	batch.cast_shadow = port.cast_shadow
 	batch.layers = port.layers
 	batch.extra_cull_margin = port.extra_cull_margin
@@ -4668,17 +4673,18 @@ func _sync_far_plume_batch() -> void:
 		var source := _far_plume_sources[index]
 		if not is_instance_valid(source):
 			return
-		_far_plume_batch.multimesh.set_instance_transform(index, source.transform)
 		authored_transforms.append(source.transform)
 		var instance_bounds := _transformed_aabb(batch_mesh.get_aabb(), source.transform)
 		batch_bounds = instance_bounds if index == 0 else batch_bounds.merge(instance_bounds)
 		any_visible = any_visible or source.visible
 		if source.visible:
+			_far_plume_batch.multimesh.set_instance_transform(visible_count, source.transform)
 			visible_count += 1
 	_far_plume_batch.set_meta("authored_instance_transforms", authored_transforms)
 	_far_plume_batch.multimesh.custom_aabb = batch_bounds
 	_far_plume_batch.multimesh.visible_instance_count = visible_count
 	_far_plume_batch.material_overlay = _far_plume_sources[0].material_overlay
+	_far_plume_batch.set_instance_shader_parameter(&"plume_damage_mix", _far_plume_sources[0].get_instance_shader_parameter(&"plume_damage_mix"))
 	_far_plume_batch.visible = any_visible
 
 
@@ -4707,6 +4713,10 @@ static func _meshes_render_identically(
 
 
 static func _material_is_texture_free(material: Material) -> bool:
+	# The shared exhaust shader uses local volume coordinates and no UVs or
+	# textures. Only this exact shader is eligible for the UV-independent pair.
+	if material is ShaderMaterial:
+		return material.shader == EngineExhaustPresentation.PLUME_SHADER
 	if not material is StandardMaterial3D:
 		return false
 	for property_value: Variant in material.get_property_list():

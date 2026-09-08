@@ -7,6 +7,7 @@ extends SceneTree
 const PRESENTATION_SCENE := preload(
 	"res://scenes/ships/presentation/zenith_authored_presentation.tscn"
 )
+const EngineExhaustPresentation := preload("res://scripts/ships/engine_exhaust_presentation.gd")
 const EXPECTED_BOUNDS_MINIMUM := Vector3(-7.20, -1.05, -5.35)
 const EXPECTED_BOUNDS_MAXIMUM := Vector3(7.20, 3.20, 5.30)
 
@@ -29,15 +30,16 @@ func _run() -> void:
 		"production Zenith remains green after its distant engine-response polish"
 	)
 
-	var far_material: StandardMaterial3D
-	var close_material := presentation.get_runtime_material(&"EngineEmission")
+	var far_material: ShaderMaterial
+	var close_material: ShaderMaterial
+	var engine_palette := presentation.get_runtime_material(&"EngineEmission")
 	var far_names := PackedStringArray()
 	var far_nodes_valid := true
-	var close_nodes_unchanged := true
+	var close_nodes_shared := true
 	for plume in presentation.get_engine_plumes():
 		if String(plume.name).begins_with("LOD1"):
 			far_names.append(String(plume.name))
-			var plume_material := plume.material_override as StandardMaterial3D
+			var plume_material := plume.material_override as ShaderMaterial
 			if far_material == null:
 				far_material = plume_material
 			far_nodes_valid = far_nodes_valid \
@@ -49,7 +51,9 @@ func _run() -> void:
 				and plume.get_script() == null \
 				and plume.get_groups().is_empty()
 		else:
-			close_nodes_unchanged = close_nodes_unchanged \
+			if close_material == null:
+				close_material = plume.material_override as ShaderMaterial
+			close_nodes_shared = close_nodes_shared \
 				and plume.material_override == close_material
 	far_names.sort()
 	_check(
@@ -60,11 +64,13 @@ func _run() -> void:
 		and close_material != null
 		and far_material != close_material
 		and far_nodes_valid
-		and close_nodes_unchanged
-		and far_material.emission == close_material.emission
-		and is_equal_approx(far_material.emission_energy_multiplier, 4.8)
-		and far_material.emission_energy_multiplier > close_material.emission_energy_multiplier,
-		"two existing far faces strengthen the same cyan engine identity without adding authority"
+		and close_nodes_shared
+		and far_material.shader == EngineExhaustPresentation.PLUME_SHADER
+		and close_material.shader == EngineExhaustPresentation.PLUME_SHADER
+		and far_material.get_shader_parameter(&"exhaust_color") == engine_palette.emission
+		and close_material.get_shader_parameter(&"exhaust_color") == engine_palette.emission
+		and is_equal_approx(float(far_material.get_shader_parameter(&"intensity")) / float(close_material.get_shader_parameter(&"intensity")), 4.8 / 3.1),
+		"both LODs retain soft cyan exhaust, with stronger far intensity and no added authority"
 	)
 
 	presentation.update_lod_for_distance(80.0)

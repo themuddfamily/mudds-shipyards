@@ -22,6 +22,18 @@
 - VM, remote-display and software-renderer results establish behavior in those
   environments; they do not qualify native GPU performance on target hardware.
 
+## Checkpoint builds
+
+- Create a fresh Windows checkpoint build whenever a meaningful working
+  gameplay or graphics checkpoint is reached. Do not leave hours of completed
+  changes without a new playable build.
+- Use the existing safe export workflow from a clean commit, run the relevant
+  focused checks and a silent isolated package smoke check, then put the EXE and
+  a checkpoint ZIP in `/mnt/c/Users/themu/Downloads/` when that mount is available.
+- Include concise player-visible changes and actual validation in the build
+  notes. A checkpoint build does not imply native Windows, GPU or full-release
+  qualification; retain those gates until performed.
+
 ## Parallel-agent policy
 
 Use subagents deliberately when they materially shorten independent work. The

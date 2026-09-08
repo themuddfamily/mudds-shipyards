@@ -19,6 +19,7 @@ const EVIDENCE_SCOPE := &"B7_frames_373_467_only"
 const HULL_ALBEDO_PATH := "res://assets/materials/torrent-hull-albedo-v1.png"
 const HULL_NORMAL_PATH := "res://assets/materials/torrent-hull-normal-v1.png"
 const HULL_ROUGHNESS_PATH := "res://assets/materials/torrent-hull-roughness-v1.png"
+const EngineExhaustPresentation := preload("res://scripts/ships/engine_exhaust_presentation.gd")
 
 const EXPECTED_MINIMUM := Vector3(-7.20, -1.05, -5.35)
 const EXPECTED_MAXIMUM := Vector3(7.20, 3.20, 5.30)
@@ -183,6 +184,7 @@ func _build_once() -> void:
 				if imported_alias != null:
 					imported_alias.name = String(anchor_name)
 	_configure_runtime_materials()
+	_configure_soft_engine_exhaust()
 	_disable_per_surface_lod()
 	_authored_bounds = _runtime_bounds(_asset_root)
 	_canopy_base_transform = _canopy_pivot.transform if _canopy_pivot != null else Transform3D.IDENTITY
@@ -266,6 +268,22 @@ func _configure_far_engine_orientation_cue() -> void:
 		plume.set_meta(&"distant_orientation_cue", true)
 		plume.set_meta(&"presentation_only", true)
 		plume.set_meta(&"gameplay_authority", false)
+
+
+## The imported meshes keep their mounts, sharing and public material roles.
+## Install the optical plume before recording their runtime material identities.
+func _configure_soft_engine_exhaust() -> void:
+	var far_material: ShaderMaterial
+	var close_emission := _runtime_materials[&"EngineEmission"] as StandardMaterial3D
+	for plume in get_engine_plumes():
+		EngineExhaustPresentation.install(plume, Vector3.BACK)
+		if String(plume.name) in FAR_ENGINE_PLUME_NAMES:
+			if far_material == null:
+				far_material = plume.material_override.duplicate() as ShaderMaterial
+				far_material.resource_name = "ZenithFarSoftEngineExhaust"
+				var intensity := float(far_material.get_shader_parameter(&"intensity"))
+				far_material.set_shader_parameter(&"intensity", intensity * FAR_ENGINE_EMISSION_ENERGY / close_emission.emission_energy_multiplier)
+			plume.material_override = far_material
 
 
 ## The import already joins every static material family. The first remaining

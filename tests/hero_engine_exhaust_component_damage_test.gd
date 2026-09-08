@@ -8,6 +8,15 @@ const CRAFT_EXHAUST := {
 	"JovianLightFreighter": {"plumes": "_engine_plumes", "lights": "_jovian_engine_lights", "axis": &"y"},
 	"ZenithInterceptor": {"plumes": "_engine_plumes", "lights": "", "axis": &"z"},
 	"HalyardCrewTransport": {"plumes": "_engine_plumes", "lights": "_halyard_engine_lights", "axis": &"y"},
+	"BulwarkHeavyGunship": {"plumes": "_engine_glows", "lights": "_engine_lights", "axis": &"z"},
+	"CinderLightInterceptor": {"plumes": "_engine_glows", "lights": "_engine_lights", "axis": &"z"},
+	"CinderLongRangeBomber": {"plumes": "_engine_glows", "lights": "_engine_lights", "axis": &"z"},
+	"CinderCargoHauler": {"plumes": "_engine_glows", "lights": "_engine_lights", "axis": &"z"},
+}
+const STREAMED_CRAFT := {
+	"CinderLightInterceptor": preload("res://scripts/ships/cinder_light_interceptor.gd"),
+	"CinderLongRangeBomber": preload("res://scripts/ships/cinder_long_range_bomber.gd"),
+	"CinderCargoHauler": preload("res://scripts/ships/cinder_cargo_hauler.gd"),
 }
 
 var _assertions := 0
@@ -30,7 +39,14 @@ func _run() -> void:
 	await physics_frame
 
 	for craft_name: String in CRAFT_EXHAUST:
-		var craft := game.get_node(craft_name) as HeroShip
+		var craft := game.get_node_or_null(craft_name) as HeroShip
+		# Streamed craft are normally absent from the station fixture. Instantiate
+		# their production components here to exercise the same exhaust contract.
+		if craft == null and STREAMED_CRAFT.has(craft_name):
+			craft = STREAMED_CRAFT[craft_name].new() as HeroShip
+			craft.name = craft_name
+			game.add_child(craft)
+			await process_frame
 		var exhaust: Dictionary = CRAFT_EXHAUST[craft_name]
 		var plumes := craft.get(StringName(exhaust.plumes)) as Array
 		var lights: Array = [] if str(exhaust.lights).is_empty() else craft.get(
