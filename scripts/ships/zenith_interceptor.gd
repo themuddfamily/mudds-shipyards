@@ -3735,10 +3735,11 @@ func _build_modern_airframe(visual: Node3D) -> void:
 		], hull, false, intake_trim)
 		_build_hard_intake(airframe, prefix, side * 2.20, dark, panel)
 		# The access lid follows each roof station instead of cutting through the
-		# cambered cowling as one horizontal slab. Its skirt embeds in the skin.
+		# cambered cowling as one horizontal slab. A common embedded floor
+		# closes a convex lid volume below the curved roof and its visible skirt.
 		_zenith_hard_shell(airframe, prefix + "EngineServiceDoor", side * 2.20, [
-			Vector4(0.43, 1.7464, 1.7204, -0.34), Vector4(0.425, 1.788, 1.762, 0.45),
-			Vector4(0.413, 1.748, 1.722, 1.40), Vector4(0.41, 1.741, 1.715, 1.48),
+			Vector4(0.43, 1.7464, 1.715, -0.34), Vector4(0.425, 1.788, 1.715, 0.45),
+			Vector4(0.413, 1.748, 1.715, 1.40), Vector4(0.41, 1.741, 1.715, 1.48),
 		], panel)
 		for slot in 6:
 			_zenith_panel(airframe, prefix + "ThermalLouvre" + str(slot), PackedVector3Array([
