@@ -135,17 +135,17 @@ func _test_contract_and_evidence() -> void:
 		and int(performance.renderer_nodes) == 28
 		and int(performance.visible_geometry_copies) == 32
 		and int(performance.baseline_surface_submissions) == 31
-		and int(performance.surface_submissions) == 30
+		and int(performance.surface_submissions) == 31
 		and int(performance.baseline_mesh_resources) == 27
 		and int(performance.mesh_resources) == 23
 		and int(performance.mesh_resource_delta) == -4
 		and int(performance.baseline_box_mesh_resources) == 14
-		and int(performance.box_mesh_resources) == 8
-		and int(performance.box_instances) == 13
-		and int(performance.shared_box_families) == 5
-		and int(performance.material_resources) == 8
+		and int(performance.box_mesh_resources) == 7
+		and int(performance.box_instances) == 11
+		and int(performance.shared_box_families) == 4
+		and int(performance.material_resources) == 9
 		and int(performance.multimesh_batches) == 4,
-		"four shared batches and the fitted armour retain 32 visible copies in 28 renderers and 30 material surfaces"
+		"four shared batches and the fitted armour retain 32 visible copies in 28 renderers and 31 material surfaces"
 	)
 
 	var engine_pods := visual.get_node_or_null("EnginePodBatch") as MultiMeshInstance3D \
@@ -283,7 +283,9 @@ func _test_contract_and_evidence() -> void:
 		and vane_multi.visible_instance_count == -1
 		and vane_mesh != null
 		and vane_mesh.get_aabb().size.is_equal_approx(Vector3(3.7, 0.16, 3.1))
+		and vane_mesh.get_surface_count() == 2
 		and vane_mesh.surface_get_material(0) == picket._materials.picket_bone
+		and vane_mesh.surface_get_material(1) == picket._materials.picket_radiator
 		and vane_transforms == expected_vane_transforms
 		and vane_names == PackedStringArray(["PortRadiatorVane", "StarboardRadiatorVane"])
 		and vane_multi.custom_aabb.is_equal_approx(expected_vane_bounds)
@@ -291,7 +293,7 @@ func _test_contract_and_evidence() -> void:
 		and radiator_vanes.cast_shadow == GeometryInstance3D.SHADOW_CASTING_SETTING_ON
 		and is_zero_approx(radiator_vanes.extra_cull_margin)
 		and bool(radiator_vanes.get_meta(&"presentation_only", false)),
-		"radiator-vane batching preserves exact silhouette transforms, material, bounds, culling and shadows"
+		"radiator banks share a framed two-material assembly with retained transforms, bounds, culling and shadows"
 	)
 
 	var pair_specs: Array[Dictionary] = [
@@ -303,18 +305,18 @@ func _test_contract_and_evidence() -> void:
 			"starboard_rotation": Vector3.ZERO,
 		},
 		{
-			"port_position": Vector3(-1.15, 0.05, 2.3),
-			"starboard_position": Vector3(1.15, 0.05, 2.3),
+			"port_position": expected_vane_transforms[0] * Vector3(1.22, -0.20, -0.3),
+			"starboard_position": expected_vane_transforms[1] * Vector3(-1.22, -0.20, -0.3),
 			"size": Vector3(1.9, 0.28, 0.6),
-			"port_rotation": Vector3(0.0, -0.46, 0.0),
-			"starboard_rotation": Vector3(0.0, 0.46, 0.0),
+			"port_rotation": Vector3(0.0, -0.46, 0.12),
+			"starboard_rotation": Vector3(0.0, 0.46, -0.12),
 		},
 		{
-			"port_position": Vector3(-2.9, 0.22, 3.5),
-			"starboard_position": Vector3(2.9, 0.22, 3.5),
-			"size": Vector3(2.1, 0.06, 0.24),
-			"port_rotation": Vector3(0.0, -0.46, 0.0),
-			"starboard_rotation": Vector3(0.0, 0.46, 0.0),
+			"port_position": expected_vane_transforms[0] * Vector3(-1.79, 0.084, 0.0),
+			"starboard_position": expected_vane_transforms[1] * Vector3(1.79, 0.084, 0.0),
+			"size": Vector3(0.065, 0.018, 1.86),
+			"port_rotation": Vector3(0.0, -0.46, 0.12),
+			"starboard_rotation": Vector3(0.0, 0.46, -0.12),
 		},
 		{
 			"port_position": Vector3(-3.85, 0.5, 4.0),
@@ -344,7 +346,7 @@ func _test_contract_and_evidence() -> void:
 		)
 	_check(
 		exact_shared_pairs,
-		"the four retained per-node shared recipes preserve exact transforms, sizes, materials and shadows"
+		"the four per-node pairs share their fitted recipes, including spars below the radiator backing and stripes on its frame"
 	)
 
 	var spine_collision := picket.get_node_or_null("SpineCollision") as CollisionShape3D
@@ -374,7 +376,7 @@ func _test_contract_and_evidence() -> void:
 		mutation_target != null and retained_mesh != null
 		and not bool(red_performance.valid)
 		and int(red_performance.mesh_resources) == 24
-		and int(red_performance.box_mesh_resources) == 9
+		and int(red_performance.box_mesh_resources) == 8
 		and picket.get_validation_errors().has("picket presentation resource-sharing contract drifted"),
 		"RED A0: splitting one immutable pair turns exact mesh-resource sharing red without relying on renderer buffers"
 	)

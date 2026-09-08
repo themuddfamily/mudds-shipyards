@@ -90,9 +90,8 @@ const STANDOFF_INTENT_RAIL_THICKNESS := 0.22
 const MAX_PENDING_LANCE_RECEIPTS := 8
 
 # Component-local static presentation budget. The old build allocated one
-# BoxMesh for each of fourteen box nodes. Five mirrored recipes are immutable
-# exact duplicates, so the cache retains one mesh per recipe; the broad static
-# radiator pair also shares one renderer submission without changing its copies.
+# BoxMesh for each of fourteen box nodes. Four mirrored stock recipes remain
+# shared; the radiator pair reuses one constructed mesh with two material surfaces.
 const BASELINE_PRESENTATION_VISUAL_NODE_COUNT := 33
 const PRESENTATION_VISUAL_NODE_COUNT := 34
 const BASELINE_PRESENTATION_MESH_INSTANCE_COUNT := 31
@@ -100,15 +99,15 @@ const PRESENTATION_MESH_INSTANCE_COUNT := 24
 const PRESENTATION_RENDERER_NODE_COUNT := 28
 const PRESENTATION_VISIBLE_GEOMETRY_COPY_COUNT := 32
 const BASELINE_PRESENTATION_SURFACE_SUBMISSION_COUNT := 31
-const PRESENTATION_SURFACE_SUBMISSION_COUNT := 30
-const PRESENTATION_MATERIAL_RESOURCE_COUNT := 8
+const PRESENTATION_SURFACE_SUBMISSION_COUNT := 31
+const PRESENTATION_MATERIAL_RESOURCE_COUNT := 9
 const BASELINE_PRESENTATION_MESH_RESOURCE_COUNT := 27
 const PRESENTATION_MESH_RESOURCE_COUNT := 23
 const BASELINE_PRESENTATION_BOX_MESH_RESOURCE_COUNT := 14
-## The pressure spine replaces one stock box; repeated vane/stripe stock stays shared.
-const PRESENTATION_BOX_MESH_RESOURCE_COUNT := 8
-const PRESENTATION_BOX_INSTANCE_COUNT := 13
-const PRESENTATION_SHARED_BOX_FAMILY_COUNT := 5
+## The pressure spine and radiator assembly replace stock boxes; stripes stay shared.
+const PRESENTATION_BOX_MESH_RESOURCE_COUNT := 7
+const PRESENTATION_BOX_INSTANCE_COUNT := 11
+const PRESENTATION_SHARED_BOX_FAMILY_COUNT := 4
 const PRESENTATION_MULTIMESH_BATCH_COUNT := 4
 const ENGINE_POD_COPY_COUNT := 2
 const ENGINE_CORE_COPY_COUNT := 2
@@ -1635,8 +1634,15 @@ func _build_interceptor() -> void:
 
 	for side in [-1.0, 1.0]:
 		# Swept radiator vanes replace the defender's forward prongs entirely.
-		_picket_box(_visual_root, "VaneSpar", Vector3(side * 1.15, 0.05, 2.3), Vector3(1.9, 0.28, 0.6), _materials.picket_slate, Vector3(0.0, side * 0.46, 0.0))
-		_picket_box(_visual_root, "VaneStripe", Vector3(side * 2.9, 0.22, 3.5), Vector3(2.1, 0.06, 0.24), _materials.picket_magenta, Vector3(0.0, side * 0.46, 0.0))
+		var vane_rotation := Vector3(0, side * 0.46, side * -0.12)
+		var vane_center := Vector3(side * 2.3, 0.12, 2.9)
+		var vane_basis := Basis.from_euler(vane_rotation)
+		# The load spar meets the backing from below instead of breaking
+		# through the recessed radiator face at the outboard end.
+		_picket_box(_visual_root, "VaneSpar", vane_center + vane_basis * Vector3(-side * 1.22, -0.20, -0.3), Vector3(1.9, 0.28, 0.6), _materials.picket_slate, vane_rotation)
+		# The identification strip follows the outboard frame instead of lying
+		# across the heat-rejection faces at an unrelated roll angle.
+		_picket_box(_visual_root, "VaneStripe", vane_center + Basis.from_euler(vane_rotation) * Vector3(side * 1.79, 0.084, 0.0), Vector3(0.065, 0.018, 1.86), _materials.picket_magenta, vane_rotation)
 		_picket_box(_visual_root, "VaneTipFin", Vector3(side * 3.85, 0.5, 4.0), Vector3(0.18, 1.0, 1.5), _materials.picket_bone, Vector3(0.0, side * 0.24, side * -0.2))
 
 		var plume := _exhaust_plume(_visual_root, "EnginePlume", Vector3(side * 0.86, -0.02, 5.42), 0.17, 0.7, _materials.picket_engine, Vector3(90.0, 0.0, 0.0))
@@ -1788,7 +1794,7 @@ func _add_lance_rail_batch(parent: Node3D) -> MultiMeshInstance3D:
 ## collision remains in the independently authored vane CollisionShape3Ds, so
 ## batching only the visible pair cannot affect movement or hit resolution.
 func _add_radiator_vane_batch(parent: Node3D) -> MultiMeshInstance3D:
-	var mesh := _picket_box_mesh(Vector3(3.7, 0.16, 3.1), _materials.picket_bone)
+	var mesh := _radiator_vane_mesh()
 	var transforms: Array[Transform3D] = [
 		Transform3D(Basis.from_euler(Vector3(0.0, -0.46, 0.12)), Vector3(-2.3, 0.12, 2.9)),
 		Transform3D(Basis.from_euler(Vector3(0.0, 0.46, -0.12)), Vector3(2.3, 0.12, 2.9)),
@@ -1814,6 +1820,49 @@ func _add_radiator_vane_batch(parent: Node3D) -> MultiMeshInstance3D:
 	batch.set_meta(&"authored_instance_transforms", transforms.duplicate())
 	parent.add_child(batch)
 	return batch
+
+
+## Recessed graphite heat-rejection banks sit inside a continuous load frame.
+## Both sides reuse this two-surface assembly at the original vane transforms.
+## The lower backing and shallow formed channels stay within the old envelope.
+func _radiator_vane_mesh() -> ArrayMesh:
+	var frame_parts: Array = [
+		[Vector3(-1.79, 0, 0), Vector3(0.12, 0.16, 3.1)],
+		[Vector3(1.79, 0, 0), Vector3(0.12, 0.16, 3.1)],
+		[Vector3(0, 0, -1.49), Vector3(3.49, 0.16, 0.12)],
+		[Vector3(0, 0, 1.49), Vector3(3.49, 0.16, 0.12)],
+		[Vector3(0, 0.01, -0.48), Vector3(3.49, 0.14, 0.08)],
+		[Vector3(0, 0.01, 0.48), Vector3(3.49, 0.14, 0.08)],
+	]
+	var bank_parts: Array = [
+		[Vector3(0, -0.06, 0), Vector3(3.49, 0.04, 2.89)],
+	]
+	for bank_z in [-0.955, 0.0, 0.955]:
+		bank_parts.append([Vector3(0, -0.004, bank_z), Vector3(3.48, 0.075, 0.89)])
+		# Heat pipes run from the inboard collector along each panel. Their
+		# millimetre-scale crowns catch a quiet highlight, without raised grilles.
+		for channel in 4:
+			bank_parts.append([
+				Vector3(0, 0.032, bank_z - 0.315 + channel * 0.21),
+				Vector3(3.32, 0.012, 0.135),
+			])
+	var assembly := ArrayMesh.new()
+	var local_meshes: Dictionary = {}
+	for material_index in 2:
+		var surface := SurfaceTool.new()
+		surface.begin(Mesh.PRIMITIVE_TRIANGLES)
+		var material: Material = _materials.picket_bone if material_index == 0 else _materials.picket_radiator
+		var parts: Array = frame_parts if material_index == 0 else bank_parts
+		for part: Array in parts:
+			var size: Vector3 = part[1]
+			var piece := local_meshes.get(size) as ArrayMesh
+			if piece == null:
+				piece = StationSurfaceKit.rounded_box_mesh_with_bevel(size, minf(0.012, size.y * 0.35))
+				local_meshes[size] = piece
+			surface.append_from(piece, 0, Transform3D(Basis.IDENTITY, part[0]))
+		surface.set_material(material)
+		surface.commit(assembly)
+	return assembly
 
 
 ## Component-owned immutable primitive cache. Size and bound surface material
@@ -1899,6 +1948,13 @@ func _create_picket_materials() -> void:
 	_materials.picket_slate = _material(HULL_SLATE, 0.1, 0.61)
 	_materials.picket_deep = _material(Color("2a3038"), 0.55, 0.32)
 	_materials.picket_bone = _material(HULL_BONE, 0.1, 0.61)
+	# Uncoated graphite ceramic has a broad diffuse response, separate from the
+	# hull paint's clear layer and UV-based scuff map.
+	var radiator := StandardMaterial3D.new()
+	radiator.albedo_color = Color("273844")
+	radiator.metallic = 0.08
+	radiator.roughness = 0.86
+	_materials.picket_radiator = radiator
 	_materials.picket_magenta = _material(Color("884767"), 0.26, 0.43)
 	_materials.picket_magenta_emissive = _material(LANCE_MAGENTA, 0.1, 0.2, LANCE_MAGENTA, 3.1)
 	_materials.picket_violet_emissive = _material(LANCE_VIOLET, 0.12, 0.22, LANCE_VIOLET, 2.4)
@@ -1922,13 +1978,6 @@ func _build_picket_fittings() -> void:
 		parts.append([Vector3(side*0.63,0.0,1.4),Vector3(0.08,0.49,4.35),0])
 		for seam in 5:
 			parts.append([Vector3(side*0.69,-0.03,-0.28+seam*0.84),Vector3(0.035,0.4,0.038),2])
-		# Authored radiator channels follow each swept vane in its local plane.
-		var vane_basis := Basis.from_euler(Vector3(0,side*0.46,side*-0.12))
-		var vane_center := Vector3(side*2.3,0.12,2.9)
-		for rib in 9:
-			var local := Vector3(-1.45+rib*0.36,0.11,0)
-			parts.append([vane_center+vane_basis*local,Vector3(0.24,0.045,2.46),2,Vector3(0,side*0.46,side*-0.12)])
-		parts.append([vane_center+vane_basis*Vector3(0,0.115,-1.32),Vector3(3.3,0.05,0.11),1,Vector3(0,side*0.46,side*-0.12)])
 		parts.append([Vector3(side*0.86,0.35,4.22),Vector3(0.53,0.1,1.13),0])
 		_add_nozzle_parts(parts,Vector3(side*0.86,-0.02,5.06),0.34,0.43)
 	# Ceramic barrel shields leave the magenta charge rails and muzzle exposed.
@@ -1943,12 +1992,6 @@ func _build_picket_fittings() -> void:
 			parts.append([Vector3(side*0.29,0.10,z),Vector3(0.07,0.28,0.4),1])
 		parts.append([Vector3(0,0.29,z),Vector3(0.48,0.08,0.58),0])
 	for side in [-1.0,1.0]:
-		# Independent radiator banks with armored cross manifolds.
-		var rotation_value := Vector3(0,side*0.46,side*-0.12)
-		var vane_basis := Basis.from_euler(rotation_value)
-		var center := Vector3(side*2.3,0.12,2.9)
-		for row in [-0.83,0.0,0.83]:
-			parts.append([center+vane_basis*Vector3(0,0.15,row),Vector3(3.22,0.07,0.1),0,rotation_value])
 		parts.append([Vector3(side*0.4,0.84,1.9),Vector3(0.18,0.16,3.54),2])
 		for module in 4:
 			parts.append([Vector3(side*0.42,0.94,0.68+module*0.8),Vector3(0.18,0.035,0.55),1])
