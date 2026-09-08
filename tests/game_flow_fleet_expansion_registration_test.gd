@@ -7,6 +7,13 @@ const Store := preload("res://scripts/persistence/user_data_store.gd")
 const Adapter := preload("res://scripts/settings/runtime_settings_store_adapter.gd")
 
 
+class LegacyFleetBinding extends Node:
+	var snapshot := {"built": false, "craft": []}
+
+	func get_fleet_snapshot() -> Dictionary:
+		return snapshot.duplicate(true)
+
+
 class IsolatedFilesystem extends UserDataFilesystem:
 	var files: Dictionary = {}
 
@@ -119,6 +126,24 @@ func _initialize() -> void:
 		]:
 			expansion_count += 1
 	_check(expansion_count == 3, "all three production craft enter the flyable registry")
+	var expansion_binding: Node = flow.world.get_fleet_expansion_production_binding()
+	var impostor := HeroShip.new()
+	impostor.ship_id = cinder_bomber.get_ship_id()
+	_check(flow._get_expansion_flyable_snapshot_row(impostor, expansion_binding).is_empty(),
+		"a matching craft ID cannot substitute a different live instance")
+	impostor.free()
+	var legacy := LegacyFleetBinding.new()
+	_check(flow._get_fleet_registration_snapshot(legacy) == legacy.snapshot,
+		"bindings with only the full snapshot retain their registration fallback")
+	legacy.free()
+	_check(bool(flow._get_expansion_flyable_contract(cinder_bomber, expansion_binding).get("accepted", false)),
+		"live attached bomber passes the complete compatibility contract")
+	_check(bool(expansion_binding.detach_craft(GameFlow.CINDER_BOMBER_SHIP_ID).get("accepted", false))
+		and flow._get_expansion_flyable_contract(cinder_bomber, expansion_binding).is_empty(),
+		"detachment immediately prevents a previously accepted expansion contract")
+	_check(bool(expansion_binding.reattach_craft(GameFlow.CINDER_BOMBER_SHIP_ID).get("accepted", false))
+		and bool(flow._get_expansion_flyable_contract(cinder_bomber, expansion_binding).get("accepted", false)),
+		"reuse immediately restores the same bomber's validated contract")
 	_check(ids.size() == registered.size(), "registered ship IDs remain unique")
 	_check(berths.size() == registered.size(), "registered home berth IDs remain unique")
 	_check(registered.any(func(candidate: HeroShip) -> bool:

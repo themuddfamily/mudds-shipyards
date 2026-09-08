@@ -9262,7 +9262,7 @@ func _register_flyable_ships() -> void:
 		expansion_binding = world.call(&"get_fleet_expansion_production_binding") as Node
 	var fleet_snapshot: Dictionary = {}
 	if is_instance_valid(expansion_binding) and expansion_binding.has_method(&"get_fleet_snapshot"):
-		fleet_snapshot = expansion_binding.call(&"get_fleet_snapshot") as Dictionary
+		fleet_snapshot = _get_fleet_registration_snapshot(expansion_binding)
 		if bool(fleet_snapshot.get("built", false)):
 			# Staged startup gives the nested Dock 04/05/06 composition time to
 			# finish before GameFlow starts. In that ordering no deferred refresh
@@ -9382,7 +9382,7 @@ func _refresh_production_flyable_registry() -> void:
 	)
 	for _attempt in 120:
 		if is_instance_valid(expansion_binding) and expansion_binding.has_method(&"get_fleet_snapshot"):
-			var snapshot := expansion_binding.call(&"get_fleet_snapshot") as Dictionary
+			var snapshot := _get_fleet_registration_snapshot(expansion_binding)
 			if bool(snapshot.get("built", false)):
 				if world.has_method(&"refresh_deferred_fleet_expansion_berths") \
 						and not bool(world.call(&"refresh_deferred_fleet_expansion_berths")):
@@ -9487,11 +9487,19 @@ func _get_expansion_flyable_contract(candidate: HeroShip, binding: Node) -> Dict
 	return {}
 
 
+func _get_fleet_registration_snapshot(binding: Node) -> Dictionary:
+	# Keep support for other bindings that expose only the existing full report.
+	# Each query still reads current state; no roster or attachment is cached.
+	var method: StringName = &"get_fleet_registration_snapshot" \
+		if binding.has_method(&"get_fleet_registration_snapshot") else &"get_fleet_snapshot"
+	return binding.call(method) as Dictionary
+
+
 func _get_expansion_flyable_snapshot_row(candidate: HeroShip, binding: Node) -> Dictionary:
 	if not is_instance_valid(candidate) or not is_instance_valid(binding) \
 			or not binding.has_method(&"get_fleet_snapshot"):
 		return {}
-	var snapshot := binding.call(&"get_fleet_snapshot") as Dictionary
+	var snapshot := _get_fleet_registration_snapshot(binding)
 	for row_variant: Variant in snapshot.get("craft", []) as Array:
 		var row := row_variant as Dictionary
 		var craft_id := StringName(row.get("craft_id", &""))

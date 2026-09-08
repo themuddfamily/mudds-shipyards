@@ -498,18 +498,38 @@ func detach_cargo_activity() -> Dictionary:
 	return result
 
 
+## Fresh identity and attachment state for registry/boarding consumers. Audio
+## and cargo diagnostics belong to the full snapshot and are not prerequisites
+## for finding a craft; compatibility is still validated separately.
+func get_fleet_registration_snapshot() -> Dictionary:
+	var craft_snapshots: Array[Dictionary] = []
+	for spec in CRAFT_SPECS:
+		craft_snapshots.append(_get_craft_registration_row(spec))
+	return {
+		"built": _built,
+		"composition_error": _composition_error,
+		"craft": craft_snapshots,
+	}
+
+
+func _get_craft_registration_row(spec: Dictionary) -> Dictionary:
+	var craft := _craft_by_id.get(spec.craft_id) as Node3D
+	return {
+		"craft_id": spec.craft_id,
+		"pad_id": spec.pad_id,
+		"attached": bool((_berths.call("get_attachment_snapshot", spec.pad_id) if _berths != null else {}).get("attached", false)),
+		"instance_id": craft.get_instance_id() if is_instance_valid(craft) else 0,
+	}
+
+
 func get_fleet_snapshot() -> Dictionary:
 	var craft_snapshots: Array[Dictionary] = []
 	for spec in CRAFT_SPECS:
 		var craft := _craft_by_id.get(spec.craft_id) as Node3D
-		craft_snapshots.append({
-			"craft_id": spec.craft_id,
-			"pad_id": spec.pad_id,
-			"attached": bool((_berths.call("get_attachment_snapshot", spec.pad_id) if _berths != null else {}).get("attached", false)),
-			"instance_id": craft.get_instance_id() if is_instance_valid(craft) else 0,
-			"boarding_anchor": craft.call("get_boarding_marker").global_position if is_instance_valid(craft) else Vector3.INF,
-			"audio": (_audio_bindings[spec.craft_id] as RefCounted).get_snapshot() if _audio_bindings.has(spec.craft_id) else {},
-		})
+		var row := _get_craft_registration_row(spec)
+		row["boarding_anchor"] = craft.call("get_boarding_marker").global_position if is_instance_valid(craft) else Vector3.INF
+		row["audio"] = (_audio_bindings[spec.craft_id] as RefCounted).get_snapshot() if _audio_bindings.has(spec.craft_id) else {}
+		craft_snapshots.append(row)
 	return {
 		"built": _built,
 		"composition_error": _composition_error,

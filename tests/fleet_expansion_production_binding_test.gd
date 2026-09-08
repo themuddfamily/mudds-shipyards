@@ -8,12 +8,14 @@ var _failures: Array[String] = []
 
 func _initialize() -> void:
 	var binding := Binding.new()
+	_check_registration_snapshot(binding, "before construction")
 	root.add_child(binding)
 	await process_frame
 	await process_frame
 	var audit := binding.get_audit_report()
 	_check(bool(audit.get("valid", false)) and int(audit.get("fleet_count", 0)) == 3, "production binding composes three NEW craft and three typed berth slots")
 	var snapshot := binding.get_fleet_snapshot()
+	_check_registration_snapshot(binding, "after construction")
 	_check((snapshot.get("craft", []) as Array).size() == 3, "fleet snapshot publishes all composed craft")
 	var berths := binding.get_node_or_null(^"FleetExpansionBerths") as Node3D
 	var endpoint_paths := {
@@ -34,8 +36,10 @@ func _initialize() -> void:
 		)
 	var detached := binding.detach_craft(&"cinder_long_range_bomber")
 	_check(bool(detached.get("accepted", false)), "typed bomber detach succeeds")
+	_check_registration_snapshot(binding, "after detachment")
 	var reattached := binding.reattach_craft(&"cinder_long_range_bomber")
 	_check(bool(reattached.get("accepted", false)), "detached bomber can be safely reused")
+	_check_registration_snapshot(binding, "after reuse")
 	_check(bool(binding.get_audit_report().get("valid", false)), "detach/reuse leaves the composition valid")
 	binding.queue_free()
 	await process_frame
@@ -46,6 +50,29 @@ func _initialize() -> void:
 		for failure in _failures:
 			push_error(failure)
 		quit(1)
+
+
+func _check_registration_snapshot(binding: Node, phase: String) -> void:
+	var full: Dictionary = binding.get_fleet_snapshot()
+	var expected_rows: Array[Dictionary] = []
+	for full_row: Dictionary in full.craft:
+		expected_rows.append({
+			"craft_id": full_row.craft_id,
+			"pad_id": full_row.pad_id,
+			"attached": full_row.attached,
+			"instance_id": full_row.instance_id,
+		})
+	var expected := {
+		"built": full.built, "composition_error": full.composition_error,
+		"craft": expected_rows,
+	}
+	var registration: Dictionary = binding.get_fleet_registration_snapshot()
+	_check(registration == expected, "registration has the full report's current identity/attachment state " + phase)
+	registration.built = not registration.built
+	registration.craft[0].clear()
+	registration.craft.clear()
+	_check(binding.get_fleet_registration_snapshot() == expected,
+		"caller mutation cannot change subsequent registration state " + phase)
 
 
 func _check(condition: bool, message: String) -> void:
