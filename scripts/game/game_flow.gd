@@ -14210,10 +14210,10 @@ func _sync_planetary_cruise_hud() -> void:
 	)
 
 
-func _sync_planetary_destination_hud(_cruise_presentation: Dictionary) -> bool:
+func _sync_planetary_destination_hud(cruise_presentation: Dictionary) -> bool:
 	if _planetary_destination_catalog == null or not is_instance_valid(hud):
 		return false
-	var snapshot := get_planetary_destination_catalog_snapshot()
+	var snapshot := _make_planetary_destination_catalog_snapshot(cruise_presentation)
 	_sync_planetary_destination_console(snapshot)
 	return bool(hud.call(&"set_planetary_destination_snapshot", snapshot))
 
@@ -14245,7 +14245,12 @@ func _sync_planetary_destination_console(snapshot: Dictionary) -> void:
 func get_planetary_destination_catalog_snapshot() -> Dictionary:
 	if _planetary_destination_catalog == null:
 		return {}
-	var presentation := _planetary_cruise_presentation()
+	return _make_planetary_destination_catalog_snapshot(_planetary_cruise_presentation())
+
+
+## A HUD refresh already sampled cruise state. Reuse it for the destination row
+## so both controls describe one observation without repeating the live query.
+func _make_planetary_destination_catalog_snapshot(presentation: Dictionary) -> Dictionary:
 	var snapshot := _planetary_destination_catalog.get_presentation_snapshot({
 		EMBER_DESTINATION_ID: {
 			"status_id": StringName(presentation.get("status_id", &"unavailable")),
