@@ -57,19 +57,19 @@ func _run() -> void:
 	var source_counts := batching.get("source_mesh_counts_by_root", {}) as Dictionary
 	var runtime_counts := batching.get("runtime_mesh_counts_by_root", {}) as Dictionary
 	_check(str(batching.get("strategy", "")) == "per_semantic_root_per_material_static_join" and bool(batching.get("source_preserved_in_blend", false)), "manifest records export-only per-semantic-root/material batching while preserving the editable source")
-	_check(int(batching.get("source_mesh_count_total", 0)) == 317 and _mesh_counts_match(source_counts, {"CanopyPivot": 22, "CockpitArt": 39, "LOD0": 238, "LOD1": 18, "SemanticAnchors": 0}), "manifest pins the complete 317-mesh editable semantic roster")
+	_check(int(batching.get("source_mesh_count_total", 0)) == 312 and _mesh_counts_match(source_counts, {"CanopyPivot": 17, "CockpitArt": 39, "LOD0": 238, "LOD1": 18, "SemanticAnchors": 0}), "manifest pins the complete 312-mesh editable semantic roster")
 	_check(int(batching.get("runtime_mesh_count_total", 999)) == 32 and _mesh_counts_match(runtime_counts, {"CanopyPivot": 3, "CockpitArt": 7, "LOD0": 17, "LOD1": 5, "SemanticAnchors": 0}), "export-only batching reduces art to the exact 32-node runtime roster")
-	_check(runtime_triangles == 88170, "runtime GLB carries the measured 88,170-triangle production topology")
+	_check(runtime_triangles == 86030, "runtime GLB carries the measured 86,030-triangle production topology")
 	_check(runtime_triangles == int(manifest.get("mesh_triangles_evaluated_in_blender", -1)), "runtime GLB geometry exactly matches Blender's evaluated triangle count")
 	_check(_runtime_triangle_count(root_art) == runtime_triangles, "Godot's imported runtime meshes contain the exact manifest-pinned triangle count")
 	_check(str(manifest.get("glb_sha256", "")) == FileAccess.get_sha256("res://assets/models/torrent/hero/torrent_hero_art.glb"), "manifest pins the exact runtime GLB hash")
 	_check(str(manifest.get("blend_sha256", "")) == FileAccess.get_sha256("res://art_source/torrent/torrent_hero_v1.blend"), "manifest pins the exact editable Blender source")
 	var art_quality := manifest.get("art_quality_contract", {}) as Dictionary
-	_check(int(art_quality.get("close_triangle_count", 0)) == 80110 and int(art_quality.get("far_triangle_count", 0)) == 8060 and int(art_quality.get("total_triangle_count", 0)) == 88170, "manifest separates close cabin/canopy density from the complete far silhouette")
+	_check(int(art_quality.get("close_triangle_count", 0)) == 77970 and int(art_quality.get("far_triangle_count", 0)) == 8060 and int(art_quality.get("total_triangle_count", 0)) == 86030, "manifest separates close cabin/canopy density from the complete far silhouette")
 	_check(float(art_quality.get("pale_exterior_surface_ratio", 0.0)) >= 0.70 and float(art_quality.get("pale_exterior_surface_ratio", 1.0)) <= 0.80, "measured exterior surface area preserves the intended 70-80% warm pale palette")
 	_check(int(art_quality.get("propulsion_depth_layers", 0)) == 4 and int(art_quality.get("engine_stator_vanes_per_nacelle", 0)) == 8, "art contract records four propulsion depth layers and eight stator vanes per nacelle")
 	var uv_contract := manifest.get("uv0_contract", {}) as Dictionary
-	_check(bool(uv_contract.get("all_source_meshes_mapped", false)) and int(uv_contract.get("mesh_count", 0)) == 317 and int(uv_contract.get("degenerate_polygon_count", -1)) == 0, "every editable mesh owns finite non-degenerate UV0 before batching")
+	_check(bool(uv_contract.get("all_source_meshes_mapped", false)) and int(uv_contract.get("mesh_count", 0)) == 312 and int(uv_contract.get("degenerate_polygon_count", -1)) == 0, "every editable mesh owns finite non-degenerate UV0 before batching")
 	_check(
 		str(uv_contract.get("method", "")) == "dominant_root_normal_axis_sign_corrected_projection_v3"
 		and str(uv_contract.get("editable_source_handedness", "")) == "negative"
@@ -347,7 +347,7 @@ func _source_art_rosters_are_complete(manifest: Dictionary) -> bool:
 		"PortRudderPedal", "StarboardRudderPedal",
 	])
 	var required_canopy := PackedStringArray([
-		"CanopyGlass", "CanopyForwardFrame", "CanopyTopSpine", "CanopyRearFrame",
+		"CanopyGlass", "CanopyForwardFrame", "CanopyRearSeal", "CanopyRearFrame",
 		"PortCanopySill", "StarboardCanopySill", "PortCanopySideRail",
 		"StarboardCanopySideRail", "PortCanopySeal", "StarboardCanopySeal",
 		"PortCanopyHinge", "StarboardCanopyHinge", "CanopyHingeBar",

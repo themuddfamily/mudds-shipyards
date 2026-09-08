@@ -5905,10 +5905,13 @@ func _build_cockpit() -> void:
 	_canopy_pivot.position = Vector3(0.0, 2.42, 1.02)
 	_canopy_pivot.rotation.x = CANOPY_OPEN_ANGLE if _canopy_open else 0.0
 	_visual_root.add_child(_canopy_pivot)
-	var canopy_glass := _wedge(_canopy_pivot, "CanopyGlass", Vector3(0.0, 0.46, -1.82), Vector3(2.48, 1.55, 3.58), _materials.glass)
+	var canopy_glass := MeshInstance3D.new()
+	canopy_glass.name = "CanopyGlass"
+	canopy_glass.mesh = _canopy_pressure_shell_mesh(_materials.glass)
+	_canopy_pivot.add_child(canopy_glass)
 	canopy_glass.set_meta("laminated_visual_edge", true)
 	canopy_glass.set_meta("closed_volume", true)
-	_box(_canopy_pivot, "CanopyRearFrame", Vector3(0.0, 0.32, -0.08), Vector3(2.58, 0.18, 0.18), _materials.dark)
+	_box(_canopy_pivot, "CanopyRearFrame", Vector3(0.0, -0.06, -0.08), Vector3(2.42, 0.10, 0.12), _materials.dark)
 	# Split the former centre rail into two slim longitudinal members. The broad
 	# frame remains readable from outside while the pilot's reticle gets an
 	# unobstructed central sight channel instead of pointing through a solid bar.
@@ -5917,26 +5920,26 @@ func _build_cockpit() -> void:
 		_box(
 			_canopy_pivot,
 			side_name + "CanopyTopRail",
-			Vector3(side * 0.72, 1.22, -1.58),
-			Vector3(0.065, 0.075, 2.9),
+			Vector3(side * 0.70, 1.07, -1.58),
+			Vector3(0.055, 0.055, 2.50),
 			_materials.structure
 		)
 		_box(
 			_canopy_pivot,
 			side_name + "CanopyNoseFrame",
-			Vector3(side * 0.62, 0.49, -3.56),
-			Vector3(0.075, 1.08, 0.13),
-			_materials.dark
+			Vector3(side * 0.42, 0.49, -3.56),
+			Vector3(0.045, 1.07, 0.055),
+			_materials.dark, Vector3(0.0, 0.0, side * deg_to_rad(29.0))
 		)
 	for side in [-1.0, 1.0]:
 		var side_name := "Port" if side < 0.0 else "Starboard"
-		_box(_canopy_pivot, side_name + "CanopyLowerRail", Vector3(side * 1.21, -0.02, -1.72), Vector3(0.13, 0.14, 3.45), _materials.dark)
-		_box(_canopy_pivot, side_name + "CanopyRearUpright", Vector3(side * 1.2, 0.6, -0.12), Vector3(0.14, 1.25, 0.14), _materials.structure)
-		_box(_canopy_pivot, side_name + "CanopyLowerPressureSeal", Vector3(side * 1.115, -0.105, -1.72), Vector3(0.085, 0.08, 3.32), _materials.seal)
-		_box(_canopy_pivot, side_name + "CanopyLaminateEdge", Vector3(side * 1.13, 0.02, -1.72), Vector3(0.04, 0.055, 3.28), _materials.mid)
+		_box(_canopy_pivot, side_name + "CanopyLowerRail", Vector3(side * 1.20, -0.04, -1.49), Vector3(0.085, 0.10, 2.82), _materials.dark)
+		_box(_canopy_pivot, side_name + "CanopyRearUpright", Vector3(side * 0.98, 0.50, -0.12), Vector3(0.07, 1.14, 0.07), _materials.structure, Vector3(0.0, 0.0, side * deg_to_rad(28.0)))
+		_box(_canopy_pivot, side_name + "CanopyLowerPressureSeal", Vector3(side * 1.17, -0.105, -1.49), Vector3(0.07, 0.06, 2.80), _materials.seal)
+		_box(_canopy_pivot, side_name + "CanopyLaminateEdge", Vector3(side * 1.19, 0.0, -1.49), Vector3(0.035, 0.04, 2.80), _materials.mid)
 		_box(_canopy_pivot, side_name + "CanopyLatchHook", Vector3(side * 0.92, -0.14, -0.78), Vector3(0.16, 0.18, 0.24), _materials.hydraulic)
 		_box(_cockpit_root, side_name + "CanopyLatchStriker", Vector3(side * 0.92, 2.37, 0.24), Vector3(0.2, 0.13, 0.24), _materials.mid)
-	_box(_canopy_pivot, "CanopyNosePressureSeal", Vector3(0.0, 0.28, -3.55), Vector3(1.26, 0.075, 0.09), _materials.seal)
+	_box(_canopy_pivot, "CanopyNosePressureSeal", Vector3(0.0, -0.08, -3.55), Vector3(1.32, 0.06, 0.09), _materials.seal)
 	_box(_canopy_pivot, "CanopyRearPressureSeal", Vector3(0.0, 0.18, -0.16), Vector3(2.28, 0.075, 0.09), _materials.seal)
 	_cylinder(_visual_root, "CanopyHingeBar", Vector3(0.0, 2.42, 1.04), 0.12, 2.78, _materials.dark, Vector3(0.0, 0.0, 90.0))
 	_tag_modern_interpretation(_visual_root.get_node("CanopyHingeBar"))
@@ -6974,7 +6977,7 @@ func _create_materials() -> void:
 	var glass := StandardMaterial3D.new()
 	# Smoked laminated glazing reads as a continuous exterior pressure shell.
 	# Its outward faces remain culled from the pilot's inside view.
-	glass.albedo_color = Color(0.14, 0.22, 0.28, 0.62)
+	glass.albedo_color = Color(0.14, 0.22, 0.28, 0.92)
 	glass.metallic = 0.48
 	glass.roughness = 0.13
 	glass.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
@@ -7308,6 +7311,47 @@ func _cylinder_between(
 
 
 ## A smooth multi-section arrowhead loft with a rounded nose toward negative Z.
+## A pressure canopy keeps its full cockpit width at the forward windscreen.
+## The hull loft pinches to a nose point and therefore cannot enclose the seat.
+func _canopy_pressure_shell_mesh(material: Material) -> ArrayMesh:
+	var stations := [Vector3(-3.56, 0.66, 1.02), Vector3(-2.92, 1.18, 1.30),
+		Vector3(-1.82, 1.25, 1.34), Vector3(-0.72, 1.24, 1.32), Vector3(-0.08, 1.20, 1.26)]
+	var rings: Array[PackedVector3Array] = []
+	for station: Vector3 in stations:
+		var ring := PackedVector3Array()
+		for step in range(17):
+			var angle := PI * float(step) / 16.0
+			# Broad shoulders support the fitted canopy rails; the lower edge
+			# seats in the existing pressure seal instead of bulging into the tub.
+			var x := -cos(angle)
+			var y := sin(angle)
+			ring.append(Vector3(signf(x) * pow(absf(x), 0.72) * station.y,
+				-0.08 + pow(maxf(y, 0.0), 0.72) * station.z, station.x))
+		rings.append(ring)
+	var surface := SurfaceTool.new()
+	surface.begin(Mesh.PRIMITIVE_TRIANGLES)
+	surface.set_material(material)
+	surface.set_smooth_group(0)
+	for section in range(rings.size() - 1):
+		for side in range(17):
+			var following := (side + 1) % 17
+			for vertex: Vector3 in [rings[section][side], rings[section][following], rings[section + 1][following],
+				rings[section][side], rings[section + 1][following], rings[section + 1][side]]:
+				surface.set_uv(Vector2(vertex.x, vertex.z))
+				surface.add_vertex(vertex)
+	for cap in [0, rings.size() - 1]:
+		surface.set_smooth_group(-1)
+		var center := Vector3(0.0, -0.08, stations[cap].x)
+		for side in range(16):
+			var vertices: Array = [center, rings[cap][side + 1], rings[cap][side]] if cap == 0 else [center, rings[cap][side], rings[cap][side + 1]]
+			for vertex: Vector3 in vertices:
+				surface.set_uv(Vector2(vertex.x, vertex.y))
+				surface.add_vertex(vertex)
+	surface.generate_normals()
+	surface.generate_tangents()
+	return surface.commit()
+
+
 func _wedge(parent: Node3D, node_name: String, position: Vector3, size: Vector3, material: Material, skew := 0.0) -> MeshInstance3D:
 	var half_width := size.x * 0.5
 	var half_height := size.y * 0.5

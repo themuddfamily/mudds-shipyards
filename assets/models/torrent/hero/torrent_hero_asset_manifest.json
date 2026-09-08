@@ -3,13 +3,13 @@
     "canopy_features": [
       "single_shaped_transparent_shell",
       "continuous_perimeter_frame",
-      "top_spine",
+      "fitted_arches",
       "side_rails",
       "seals",
       "hinges",
       "paired_latches"
     ],
-    "close_triangle_count": 80110,
+    "close_triangle_count": 77970,
     "close_triangle_range": [
       70000,
       90000
@@ -46,8 +46,8 @@
       "CrimsonLivery": 5.848799,
       "CrimsonSeat": 4.92142,
       "CyanStatus": 5.064058,
-      "ExposedAlloy": 29.926869,
-      "GraphiteMachinery": 69.345615,
+      "ExposedAlloy": 27.947894,
+      "GraphiteMachinery": 70.227917,
       "IvorySecondary": 141.072812,
       "NeutralCanopyGlass": 12.33585,
       "ThermalCeramic": 16.748309,
@@ -65,10 +65,10 @@
     "propulsion_depth_layers": 4,
     "roots": {
       "CanopyPivot": {
-        "evaluated_surface_area_m2": 18.923614,
-        "evaluated_triangle_count": 4970,
-        "evaluated_vertex_count": 2534,
-        "mesh_count": 22
+        "evaluated_surface_area_m2": 17.82694,
+        "evaluated_triangle_count": 2830,
+        "evaluated_vertex_count": 1454,
+        "mesh_count": 17
       },
       "CockpitArt": {
         "evaluated_surface_area_m2": 48.492162,
@@ -97,12 +97,12 @@
     },
     "source_mesh_instance_budget": 320,
     "total_triangle_budget": 105000,
-    "total_triangle_count": 88170
+    "total_triangle_count": 86030
   },
   "asset_id": "torrent_hero_art_v1",
   "authenticated_historical_geometry": false,
   "authorship": "original_script_assisted_blender",
-  "blend_sha256": "b3bb6e69eb732b464248a8217784c6426161a7c23787c2583e1d6226c7fc05de",
+  "blend_sha256": "881a075e7f2c97e3aee0a92532daf7003499618af432e3e1154fa20c43bfa11e",
   "blender_version": "4.0.2",
   "bounds_blender_xyz": {
     "max": [
@@ -121,22 +121,17 @@
       "CanopyGlass",
       "CanopyForwardFrame",
       "PortCanopySill",
-      "PortCanopyUpright",
-      "PortCanopyForwardRake",
-      "PortCanopySideRail",
       "PortCanopySeal",
+      "PortCanopySideRail",
       "PortCanopyHinge",
       "PortCanopyLatch",
       "PortCanopyStriker",
       "StarboardCanopySill",
-      "StarboardCanopyUpright",
-      "StarboardCanopyForwardRake",
-      "StarboardCanopySideRail",
       "StarboardCanopySeal",
+      "StarboardCanopySideRail",
       "StarboardCanopyHinge",
       "StarboardCanopyLatch",
       "StarboardCanopyStriker",
-      "CanopyTopSpine",
       "CanopyRearFrame",
       "CanopyRearSeal",
       "CanopyHingeBar"
@@ -725,9 +720,9 @@
         ]
       },
       "primary_hull": {
-        "evaluated_vertex_count": 23172,
-        "maximum_uncovered_distance_m": 0.005000114,
-        "object_count": 219,
+        "evaluated_vertex_count": 22092,
+        "maximum_uncovered_distance_m": 0.0,
+        "object_count": 214,
         "objects": [
           "AftBayConduit00",
           "AftBayConduit01",
@@ -753,7 +748,6 @@
           "CanopyHingeBar",
           "CanopyRearFrame",
           "CanopyRearSeal",
-          "CanopyTopSpine",
           "CentralAftDockingCore",
           "CentralAftDockingMechanism",
           "CockpitFloorShell",
@@ -789,14 +783,12 @@
           "PortBoardingStep0",
           "PortBoardingStep1",
           "PortBoardingStep2",
-          "PortCanopyForwardRake",
           "PortCanopyHinge",
           "PortCanopyLatch",
           "PortCanopySeal",
           "PortCanopySideRail",
           "PortCanopySill",
           "PortCanopyStriker",
-          "PortCanopyUpright",
           "PortConsole",
           "PortConsoleKeyCluster",
           "PortConsoleRotary0",
@@ -874,14 +866,12 @@
           "StarboardAftVentLouver04",
           "StarboardAftVentLouver05",
           "StarboardAftVentLouver06",
-          "StarboardCanopyForwardRake",
           "StarboardCanopyHinge",
           "StarboardCanopyLatch",
           "StarboardCanopySeal",
           "StarboardCanopySideRail",
           "StarboardCanopySill",
           "StarboardCanopyStriker",
-          "StarboardCanopyUpright",
           "StarboardConsole",
           "StarboardConsoleKeyCluster",
           "StarboardConsoleRotary0",
@@ -949,13 +939,13 @@
           "VentralPressureKeel",
           "WarningStatusRegion"
         ],
-        "uncovered_vertex_count": 12,
+        "uncovered_vertex_count": 0,
         "vertices_over_tolerance": 0,
-        "worst_object": "CanopyForwardFrame",
+        "worst_object": "",
         "worst_vertex_root_local_m": [
-          -0.769999981,
-          2.440000057,
-          -2.15500021
+          0.0,
+          0.0,
+          0.0
         ]
       },
       "propulsion": {
@@ -1017,7 +1007,7 @@
       "units": "metres",
       "up": "+Y in Godot"
     },
-    "evaluated_vertex_count": 39872,
+    "evaluated_vertex_count": 38792,
     "evaluation_method": "evaluated_mesh_vertices_to_nearest_axis_aligned_box_euclidean_distance_v1",
     "evaluation_stage": "editable_source_before_export_only_static_batching",
     "excluded_object_count": 10,
@@ -1034,19 +1024,19 @@
       "StarboardPlaneTipLight4": "tiny decorative navigation-light fixture; intentionally non-contact"
     },
     "historical_geometry_claim": false,
-    "included_object_count": 289,
-    "maximum_uncovered_distance_m": 0.005000114,
+    "included_object_count": 284,
+    "maximum_uncovered_distance_m": 0.0,
     "objects_over_tolerance": [],
     "out_of_scope_reason": "LOD1 duplicates the audited close silhouette",
     "provenance": {
       "blender_version": "4.0.2",
       "evaluated_source_blend": "art_source/torrent/torrent_hero_v1.blend",
-      "evaluated_source_blend_sha256": "b3bb6e69eb732b464248a8217784c6426161a7c23787c2583e1d6226c7fc05de",
-      "evaluated_source_semantic_sha256": "4f6db29ce3e611c28014cd13ee0b79c42b2b4fc7111b0bfd5951593cc8efafec",
+      "evaluated_source_blend_sha256": "881a075e7f2c97e3aee0a92532daf7003499618af432e3e1154fa20c43bfa11e",
+      "evaluated_source_semantic_sha256": "af35cee3d946f264cd5ec38152507d7b93a4ba54cb9d0566de673477d309ff68",
       "generator": "tools/blender/generate_torrent_hero_v1.py",
-      "generator_sha256": "40be62926b998d33c7693badf8fcf0c9513ea19dff53092ffacbffdb75f7a009",
+      "generator_sha256": "d7ca0f06ba3c1d4a91b3fbf7002e1ac1235e352bd64a6d5b50b06effe297901c",
       "runtime_glb": "assets/models/torrent/hero/torrent_hero_art.glb",
-      "runtime_glb_sha256": "18277b31880aaf93bf7459cdc82f02cc421fde1e4230dd585f3de5870ddb3d98"
+      "runtime_glb_sha256": "86da6fa2fb1257bd23ccfae93183d19f42bb906f750fa3b3ab8e1b56d194a1db"
     },
     "roots_explicitly_out_of_scope": [
       "LOD1"
@@ -1070,10 +1060,10 @@
       "CockpitArt",
       "CanopyPivot"
     ],
-    "source_object_count": 299,
+    "source_object_count": 294,
     "source_root": "TorrentHeroArt",
     "tolerance_m": 0.02,
-    "uncovered_vertex_count": 12,
+    "uncovered_vertex_count": 0,
     "valid": true,
     "vertices_over_tolerance": 0
   },
@@ -1086,8 +1076,8 @@
     "up": "+Y in Godot"
   },
   "generator": "tools/blender/generate_torrent_hero_v1.py",
-  "generator_sha256": "40be62926b998d33c7693badf8fcf0c9513ea19dff53092ffacbffdb75f7a009",
-  "glb_sha256": "18277b31880aaf93bf7459cdc82f02cc421fde1e4230dd585f3de5870ddb3d98",
+  "generator_sha256": "d7ca0f06ba3c1d4a91b3fbf7002e1ac1235e352bd64a6d5b50b06effe297901c",
+  "glb_sha256": "86da6fa2fb1257bd23ccfae93183d19f42bb906f750fa3b3ab8e1b56d194a1db",
   "material_roles": [
     "AmberPanel",
     "CrimsonLivery",
@@ -1121,14 +1111,14 @@
     ],
     "triplanar": false
   },
-  "mesh_triangles_after_static_batching_in_blender": 88170,
-  "mesh_triangles_before_modifier_application": 20586,
-  "mesh_triangles_evaluated_in_blender": 88170,
-  "mesh_triangles_exported_runtime": 88170,
-  "mesh_vertices_after_static_batching_in_blender": 44762,
-  "mesh_vertices_before_modifier_application": 10970,
-  "mesh_vertices_evaluated_in_blender": 44762,
-  "mesh_vertices_exported_runtime": 146107,
+  "mesh_triangles_after_static_batching_in_blender": 86030,
+  "mesh_triangles_before_modifier_application": 20814,
+  "mesh_triangles_evaluated_in_blender": 86030,
+  "mesh_triangles_exported_runtime": 86030,
+  "mesh_vertices_after_static_batching_in_blender": 43682,
+  "mesh_vertices_before_modifier_application": 11074,
+  "mesh_vertices_evaluated_in_blender": 43682,
+  "mesh_vertices_exported_runtime": 140891,
   "motion_or_geometry_source": "project_original_modern_interpretation",
   "runtime_binary_canonicalization": {
     "applied": true,
@@ -1141,17 +1131,12 @@
         "CanopyPivotStaticBatch_ExposedAlloy": [
           "CanopyForwardFrame",
           "CanopyRearFrame",
-          "CanopyTopSpine",
-          "PortCanopyForwardRake",
           "PortCanopySideRail",
           "PortCanopySill",
           "PortCanopyStriker",
-          "PortCanopyUpright",
-          "StarboardCanopyForwardRake",
           "StarboardCanopySideRail",
           "StarboardCanopySill",
-          "StarboardCanopyStriker",
-          "StarboardCanopyUpright"
+          "StarboardCanopyStriker"
         ],
         "CanopyPivotStaticBatch_GraphiteMachinery": [
           "CanopyHingeBar",
@@ -1518,9 +1503,9 @@
       "SemanticAnchors": 0
     },
     "runtime_mesh_instance_budget": 36,
-    "source_mesh_count_total": 317,
+    "source_mesh_count_total": 312,
     "source_mesh_counts_by_root": {
-      "CanopyPivot": 22,
+      "CanopyPivot": 17,
       "CockpitArt": 39,
       "LOD0": 238,
       "LOD1": 18,
@@ -1533,7 +1518,7 @@
     ]
   },
   "schema_version": 1,
-  "source_semantic_sha256": "4f6db29ce3e611c28014cd13ee0b79c42b2b4fc7111b0bfd5951593cc8efafec",
+  "source_semantic_sha256": "af35cee3d946f264cd5ec38152507d7b93a4ba54cb9d0566de673477d309ff68",
   "swept_plate_winding_contract": {
     "all_positive_outward_winding": true,
     "expected_object_count": 16,
@@ -1564,30 +1549,30 @@
     "degenerate_polygon_count": 0,
     "editable_source_handedness": "negative",
     "fallback_polygon_count": 4,
-    "loop_count": 37406,
-    "mesh_count": 317,
+    "loop_count": 38270,
+    "mesh_count": 312,
     "method": "dominant_root_normal_axis_sign_corrected_projection_v3",
-    "polygon_count": 8410,
+    "polygon_count": 8728,
     "projection_axis_polygon_counts": {
-      "X": 2898,
-      "Y": 3072,
-      "Z": 2440
+      "X": 2974,
+      "Y": 3204,
+      "Z": 2550
     },
     "projection_axis_tie_policy": "lowest_root_axis_index",
-    "reflected_polygon_count": 4191,
+    "reflected_polygon_count": 4353,
     "runtime_glTF_handedness": "positive_after_Blender_V_conversion",
     "texture_coordinate": "TEXCOORD_0"
   },
   "uv_orientation_contract": {
     "all_materials": {
       "degenerate_triangle_count": 180,
-      "mirrored_surface_area_m2": 0.06248,
-      "mirrored_surface_ratio": 0.000104215,
-      "mirrored_triangle_count": 86,
-      "positive_surface_area_m2": 599.468632,
-      "positive_triangle_count": 87904,
-      "surface_area_m2": 599.531113,
-      "triangle_count": 88170
+      "mirrored_surface_area_m2": 0.095152,
+      "mirrored_surface_ratio": 0.000158985,
+      "mirrored_triangle_count": 110,
+      "positive_surface_area_m2": 598.402765,
+      "positive_triangle_count": 85740,
+      "surface_area_m2": 598.497918,
+      "triangle_count": 86030
     },
     "by_material": {
       "AmberPanel": {
@@ -1632,23 +1617,23 @@
       },
       "ExposedAlloy": {
         "degenerate_triangle_count": 76,
-        "mirrored_surface_area_m2": 0.0,
-        "mirrored_surface_ratio": 0.0,
-        "mirrored_triangle_count": 0,
-        "positive_surface_area_m2": 29.927098,
-        "positive_triangle_count": 25832,
-        "surface_area_m2": 29.927098,
-        "triangle_count": 25908
+        "mirrored_surface_area_m2": 0.023121,
+        "mirrored_surface_ratio": 0.000825963,
+        "mirrored_triangle_count": 16,
+        "positive_surface_area_m2": 27.969842,
+        "positive_triangle_count": 23860,
+        "surface_area_m2": 27.992963,
+        "triangle_count": 23952
       },
       "GraphiteMachinery": {
         "degenerate_triangle_count": 24,
-        "mirrored_surface_area_m2": 0.0,
-        "mirrored_surface_ratio": 0.0,
-        "mirrored_triangle_count": 0,
-        "positive_surface_area_m2": 69.311656,
-        "positive_triangle_count": 19412,
-        "surface_area_m2": 69.311656,
-        "triangle_count": 19436
+        "mirrored_surface_area_m2": 0.009551,
+        "mirrored_surface_ratio": 0.000136026,
+        "mirrored_triangle_count": 8,
+        "positive_surface_area_m2": 70.203045,
+        "positive_triangle_count": 19220,
+        "surface_area_m2": 70.212596,
+        "triangle_count": 19252
       },
       "IvorySecondary": {
         "degenerate_triangle_count": 0,

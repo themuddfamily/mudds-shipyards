@@ -78,7 +78,7 @@ EXPECTED_SOURCE_MESH_COUNTS = {
     "LOD0": 238,
     "LOD1": 18,
     "CockpitArt": 39,
-    "CanopyPivot": 22,
+    "CanopyPivot": 17,
     "SemanticAnchors": 0,
 }
 EXPECTED_RUNTIME_MESH_COUNTS = {
@@ -88,7 +88,7 @@ EXPECTED_RUNTIME_MESH_COUNTS = {
     "CanopyPivot": 3,
     "SemanticAnchors": 0,
 }
-EXPECTED_RUNTIME_TRIANGLES = 88_170
+EXPECTED_RUNTIME_TRIANGLES = 86_030
 RUNTIME_MESH_INSTANCE_BUDGET = 36
 SOURCE_MESH_INSTANCE_BUDGET = 320
 CLOSE_TRIANGLE_RANGE = (70_000, 90_000)
@@ -363,6 +363,34 @@ def canopy_glass_shell(name: str, collection, mat):
     for polygon in obj.data.polygons:
         polygon.use_smooth = len(polygon.vertices) == 4
     return obj
+
+
+def canopy_frame_path(name, points, collection, mat, radius=.025):
+    """Continuous extruded seal follows the pressure glazing, with no loose bars."""
+    verts, faces = [], []
+    for index, point in enumerate(points):
+        tangent = Vector(points[min(index + 1, len(points)-1)]) - Vector(points[max(0, index-1)])
+        tangent.normalize()
+        axis = Vector((0, 1, 0)) if abs(tangent.y) < .9 else Vector((1, 0, 0))
+        u = tangent.cross(axis).normalized()
+        v = tangent.cross(u).normalized()
+        for step in range(8):
+            a = math.tau * step / 8
+            verts.append(tuple(Vector(point) + radius * (math.cos(a)*u + math.sin(a)*v)))
+    for index in range(len(points)-1):
+        for step in range(8):
+            a, b = index*8+step, index*8+(step+1)%8
+            faces.append((a,b,b+8,a+8))
+    faces += [tuple(reversed(range(8))), tuple((len(points)-1)*8+i for i in range(8))]
+    obj = wedge(name, collection, mat, verts, faces, 0)
+    for face in obj.data.polygons:
+        face.use_smooth = len(face.vertices) == 4
+    return obj
+
+
+def canopy_arch(z, width, height):
+    return [(math.cos(math.pi - math.pi*i/16)*width,
+             math.sin(math.pi*i/16)*height, z) for i in range(17)]
 
 
 def articulated_foot(name: str, loc, size, collection, mat):
@@ -904,33 +932,25 @@ def build_lod0(collection):
     # Canopy art is exported under a separate functional pivot root.
     canopy_collection = bpy.data.collections["CanopyPivot"]
     canopy_glass_shell("CanopyGlass", canopy_collection, MATS["NeutralCanopyGlass"])
-    cylinder_between("CanopyForwardFrame", (-.78,.02,-3.13),(.78,.02,-3.13),.045,
-                     canopy_collection,alloy,24,.010)
+    canopy_frame_path("CanopyForwardFrame", canopy_arch(-3.14,.78,.54), canopy_collection,alloy,.027)
     for side in (-1,1):
         s = "Port" if side < 0 else "Starboard"
-        cylinder_between(f"{s}CanopySill", (side*.78,.02,-3.13),
-                         (side*.82,.02,.01),.040,canopy_collection,alloy,22,.010)
-        cylinder_between(f"{s}CanopyUpright", (side*.82,.02,.01),
-                         (side*.57,.66,.03),.040,canopy_collection,alloy,22,.010)
-        cylinder_between(f"{s}CanopyForwardRake", (side*.78,.02,-3.13),
-                         (side*.46,.54,-3.12),.040,canopy_collection,alloy,22,.010)
-        cylinder_between(f"{s}CanopySideRail", (side*.82,.02,-2.48),
-                         (side*.93,.83,-.36),.030,canopy_collection,alloy,20,.008)
-        cylinder_between(f"{s}CanopySeal", (side*.75,.015,-3.04),
-                         (side*.78,.015,-.04),.025,canopy_collection,graphite,18,.006)
-        cylinder(f"{s}CanopyHinge", (side*.62,.08,.03),.075,.20,
+        stations = ((-3.14,.78,.54),(-2.62,1.,1.02),(-1.78,1.1,1.18),
+                    (-.92,1.1,1.16),(-.22,.98,.94),(.02,.82,.66))
+        sill = [(side*w,.0,z) for z,w,h in stations]
+        canopy_frame_path(f"{s}CanopySill", sill, canopy_collection,alloy,.033)
+        canopy_frame_path(f"{s}CanopySeal", [(x,y-.016,z) for x,y,z in sill], canopy_collection,graphite,.044)
+        canopy_frame_path(f"{s}CanopySideRail", [(side*w*.92,h*.383,z) for z,w,h in stations],
+                          canopy_collection,alloy,.014)
+        cylinder(f"{s}CanopyHinge", (side*.62,.04,.03),.075,.20,
                  canopy_collection,graphite,24,rotation=(0,math.pi/2,0),bevel=.010)
-        box(f"{s}CanopyLatch", (side*.88,.16,-1.08),(.10,.18,.18),
-            canopy_collection,graphite,.025)
-        box(f"{s}CanopyStriker", (side*.92,.02,-1.08),(.12,.05,.24),
-            canopy_collection,alloy,.018)
-    cylinder_between("CanopyTopSpine", (0,.54,-3.12),(0,.66,.03),.035,
-                     canopy_collection,alloy,22,.008)
-    cylinder_between("CanopyRearFrame", (-.57,.66,.03),(.57,.66,.03),.040,
-                     canopy_collection,alloy,24,.010)
-    cylinder_between("CanopyRearSeal", (-.51,.62,.02),(.51,.62,.02),.025,
-                     canopy_collection,graphite,18,.006)
-    cylinder_between("CanopyHingeBar", (-.62,.08,.03),(.62,.08,.03),.035,
+        box(f"{s}CanopyLatch", (side*1.08,.025,-1.08),(.075,.10,.18),
+            canopy_collection,graphite,.016)
+        box(f"{s}CanopyStriker", (side*1.07,-.018,-1.08),(.09,.03,.24),
+            canopy_collection,alloy,.010)
+    canopy_frame_path("CanopyRearFrame", canopy_arch(.02,.82,.66),canopy_collection,alloy,.030)
+    canopy_frame_path("CanopyRearSeal", canopy_arch(.018,.80,.645),canopy_collection,graphite,.023)
+    cylinder_between("CanopyHingeBar", (-.62,.04,.03),(.62,.04,.03),.035,
                      canopy_collection,graphite,24,.008)
 
     # Mechanically legible tricycle gear. Every assembly has an upper pivot,
@@ -2372,7 +2392,7 @@ def main():
             ],
             "canopy_features": [
                 "single_shaped_transparent_shell", "continuous_perimeter_frame",
-                "top_spine", "side_rails", "seals", "hinges", "paired_latches",
+                "fitted_arches", "side_rails", "seals", "hinges", "paired_latches",
             ],
         },
         "collections": OBJECTS,

@@ -136,6 +136,14 @@ func _check_hero_builders(expected_sign: int) -> void:
 		if normals[i].dot(radial) <= 0.0:
 			outward = false
 	_assert(outward, "HeroShip canopy loft normals face out of its pressure volume")
+	var pressure_shell := hero.call("_canopy_pressure_shell_mesh", null) as ArrayMesh
+	_assert_wound("HeroShip fitted pressure canopy", pressure_shell, expected_sign)
+	var shell_vertices: PackedVector3Array = pressure_shell.surface_get_arrays(0)[Mesh.ARRAY_VERTEX]
+	var front_width := 0.0
+	for point: Vector3 in shell_vertices:
+		if is_equal_approx(point.z, -3.56):
+			front_width = maxf(front_width, absf(point.x) * 2.0)
+	_assert(front_width >= 1.3, "forward glazing encloses the cockpit instead of tapering to a hull nose")
 	holder.free()
 	hero.free()
 
@@ -245,7 +253,7 @@ func _check_craft(expected_sign: int) -> void:
 		_assert(
 			not opaque_procedural_materials.is_empty()
 			and culled_opaque_materials.is_empty(),
-			"%s keeps all %d opaque runtime-authored material resources two-sided (%s)"
+			"%s keeps all %d opaque runtime-authored materials facing outward (%s)"
 			% [
 				label,
 				opaque_procedural_materials.size(),
@@ -266,8 +274,8 @@ func _check_craft(expected_sign: int) -> void:
 		% [fleet_triangles, procedural_craft]
 	)
 	_assert(
-		closed_lofts == 14,
-		"the normal-independent closed-loft guard covered all 14 Arrow/Jovian hull volumes"
+		closed_lofts == 45,
+		"the normal-independent closed-loft guard covered all 45 manufactured pressure volumes across Arrow, Zenith, Jovian and Halyard"
 	)
 
 
@@ -288,7 +296,10 @@ func _collect_opaque_material_culling(
 		if standard.transparency != BaseMaterial3D.TRANSPARENCY_DISABLED:
 			continue
 		opaque_materials[standard.get_instance_id()] = true
-		if standard.cull_mode != BaseMaterial3D.CULL_DISABLED:
+		# Closed manufactured shells now use back-face culling. Every face
+		# was checked against its outward normal above; front culling would
+		# discard that verified exterior and show only the inside walls.
+		if standard.cull_mode == BaseMaterial3D.CULL_FRONT:
 			var finding := "%s[%d]=%s" % [label, surface_index, standard.resource_name]
 			if not culled_materials.has(finding):
 				culled_materials.append(finding)

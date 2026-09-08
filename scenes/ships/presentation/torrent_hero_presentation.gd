@@ -119,8 +119,8 @@ func _build_once() -> void:
 
 func _configure_runtime_materials() -> void:
 	_runtime_materials = {
-		&"WarmIvoryHull": _pbr_material(Color("e8e2cf"), 0.08, 0.48, true),
-		&"IvorySecondary": _pbr_material(Color("aeb2a5"), 0.16, 0.42, true),
+		&"WarmIvoryHull": _pbr_material(Color("c5c5b6"), 0.08, 0.63, true),
+		&"IvorySecondary": _pbr_material(Color("858f87"), 0.12, 0.57, true),
 		# Secondary structure. `docs/TORRENT_2011_RECONSTRUCTION_SPEC.md` puts the
 		# finish inside the modern boundary and explicitly welcomes subtle
 		# roughness and normal maps while forbidding dense noisy greebling that
@@ -132,8 +132,8 @@ func _configure_runtime_materials() -> void:
 		# baseline touchdown frame shows every one of them as a flat slab
 		# beside a panelled hull.
 		&"GraphiteMachinery": _structural_material(Color("10191c"), 0.36, 0.62, 3.0, 1.10),
-		&"ExposedAlloy": _structural_material(Color("434b4d"), 0.84, 0.18, 3.5, 0.90),
-		&"CyanStatus": _emissive_material(Color("0aa3b3"), Color("0cc6dc"), 2.2),
+		&"ExposedAlloy": _structural_material(Color("434b4d"), 0.76, 0.32, 3.5, 0.90),
+		&"CyanStatus": _emissive_material(Color("0aa3b3"), Color("0cc6dc"), 0.80),
 		&"AmberPanel": _amber_panel_material(),
 		&"CrimsonSeat": _structural_material(Color("8b1622"), 0.04, 0.78, 6.0, 0.90),
 		&"CrimsonLivery": _structural_material(Color("8f1723"), 0.06, 0.34, 3.0, 0.70),
@@ -153,7 +153,7 @@ func _configure_runtime_materials() -> void:
 			if role in [&"CyanStatus", &"NeutralCanopyGlass"]:
 				mesh_instance.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 			if role == &"NeutralCanopyGlass":
-				# The closed imported shell contains mixed-facing panes. Keep it on the
+				# The outward pressure shell stays on the
 				# globally dedicated Torrent exterior layer so only this glazing is
 				# omitted by the cockpit camera.
 				mesh_instance.layers = EXTERIOR_CANOPY_VISUAL_LAYER_MASK
@@ -199,9 +199,9 @@ func _structural_material(
 	var material := _pbr_material(color, metallic_value, roughness_value)
 	ShipSurfaceDetail.bind_structural_detail(
 		material,
-		load("res://assets/materials/torrent-hull-normal-v1.png") as Texture2D,
+		load(ShipSurfaceDetail.PAINT_NORMAL_PATH) as Texture2D,
 		texture_scale,
-		normal_strength
+		minf(normal_strength, 0.32)
 	)
 	return material
 
@@ -215,9 +215,9 @@ func _emissive_material(color: Color, emission: Color, energy: float) -> Standar
 
 
 func _canopy_material() -> StandardMaterial3D:
-	var material := _pbr_material(Color(0.14, 0.22, 0.28, 0.62), 0.48, 0.13)
+	var material := _pbr_material(Color(0.14, 0.22, 0.28, 0.92), 0.48, 0.13)
 	material.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	material.cull_mode = BaseMaterial3D.CULL_DISABLED
+	material.cull_mode = BaseMaterial3D.CULL_BACK
 	material.render_priority = 1
 	return material
 
@@ -562,7 +562,7 @@ func get_asset_audit_report() -> Dictionary:
 	if (
 		canopy_material == null
 		or canopy_material.transparency != BaseMaterial3D.TRANSPARENCY_ALPHA
-		or not is_equal_approx(canopy_material.albedo_color.a, 0.62)
+		or not is_equal_approx(canopy_material.albedo_color.a, 0.92)
 		or canopy_glass.layers != EXTERIOR_CANOPY_VISUAL_LAYER_MASK
 	):
 		errors.append("close canopy material is not a bounded transparent glazing contract")
