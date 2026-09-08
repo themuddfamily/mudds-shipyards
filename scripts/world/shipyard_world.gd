@@ -1014,16 +1014,16 @@ const SKY_DUST_SCALE := 3.4
 @export_category("Presentation")
 @export_enum("Low:0", "Medium:1", "High:2") var visual_quality_level := 2
 
-@onready var player_spawn: Marker3D = %PlayerSpawn
-@onready var ship_spawn: Marker3D = %ShipSpawn
-@onready var landing_zone: Marker3D = %LandingZone
-@onready var launch_gate: Marker3D = %LaunchGate
-@onready var habitat_spine: HabitatSpine = $HabitatSpine
-@onready var jovian_freight_berth: JovianFreightBerth = $JovianFreightBerth
-@onready var fleet_dock_comb: FleetDockComb = $FleetDockComb
-@onready var fabrication_annex: FabricationAnnex = $FabricationAnnex
-@onready var observation_logistics_spur: ObservationLogisticsSpur = $ObservationLogisticsSpur
-@onready var salvage_terrace: SalvageTerrace = $SalvageTerrace
+var player_spawn: Marker3D
+var ship_spawn: Marker3D
+var landing_zone: Marker3D
+var launch_gate: Marker3D
+var habitat_spine: HabitatSpine
+var jovian_freight_berth: JovianFreightBerth
+var fleet_dock_comb: FleetDockComb
+var fabrication_annex: FabricationAnnex
+var observation_logistics_spur: ObservationLogisticsSpur
+var salvage_terrace: SalvageTerrace
 
 var _materials: Dictionary = {}
 var _rounded_box_cache: Dictionary = {}
@@ -1044,8 +1044,14 @@ var _crane_trolley: Node3D
 var _crane_hook: Node3D
 var _built := false
 ## Set only by a boot loader, through `prepare_staged_construction()`, before
-## this world enters the tree. Cleared again the moment the staged build starts.
+## this world enters the tree. Retained until every construction stage finishes.
 var _staged_construction := false
+var _staged_children: Array[Node] = []
+var _staged_child_owners: Dictionary = {}
+var _staged_child_index := 0
+var _staged_build_index := 0
+var _staged_tree_generation := 0
+var _staged_run_active := false
 var _elapsed := 0.0
 var _destroyed_target_count := 0
 const MAX_PENDING_TARGET_PRESENTATIONS := 16
@@ -1094,14 +1100,33 @@ func _enter_tree() -> void:
 	# `_ready` runs only once. A detached/re-added built world restores its
 	# component lifecycle after every descendant has re-entered the tree.
 	if _built:
-		call_deferred("_restore_operational_lattice_after_reentry")
-		call_deferred("_bind_station_defense_external_owners")
-		call_deferred("_bind_heavy_breach_external_owners")
-		call_deferred("_restore_range_targets_after_reentry")
-		call_deferred("_restore_station_solar_readability_after_reentry")
+		_queue_built_world_reentry_restore()
+
+
+func _queue_built_world_reentry_restore() -> void:
+	call_deferred("_restore_operational_lattice_after_reentry")
+	call_deferred("_bind_station_defense_external_owners")
+	call_deferred("_bind_heavy_breach_external_owners")
+	call_deferred("_restore_range_targets_after_reentry")
+	call_deferred("_restore_station_solar_readability_after_reentry")
+
+
+func _notification(what: int) -> void:
+	if what != NOTIFICATION_PREDELETE:
+		return
+	# Children attached elsewhere have another owner; only the still-detached
+	# part of the startup transaction needs explicit destruction.
+	for child in _staged_children:
+		if is_instance_valid(child) and child.get_parent() == null \
+				and not child.is_queued_for_deletion():
+			child.free()
+	_staged_children.clear()
+	_staged_child_owners.clear()
 
 
 func _exit_tree() -> void:
+	_staged_tree_generation += 1
+	_staged_run_active = false
 	_retire_station_solar_readability(&"station_detached")
 	# Door signals target this long-lived world object. Explicitly remove the
 	# bound instance-ID callables so a streamed world never retains stale hooks.
@@ -1121,8 +1146,22 @@ func _ready() -> void:
 	if _staged_construction:
 		# A boot loader owns the build and will drive `run_staged_construction()`.
 		return
+	_resolve_authored_bindings()
 	_built = true
 	_run_build_stages()
+
+
+func _resolve_authored_bindings() -> void:
+	player_spawn = %PlayerSpawn
+	ship_spawn = %ShipSpawn
+	landing_zone = %LandingZone
+	launch_gate = %LaunchGate
+	habitat_spine = $HabitatSpine
+	jovian_freight_berth = $JovianFreightBerth
+	fleet_dock_comb = $FleetDockComb
+	fabrication_annex = $FabricationAnnex
+	observation_logistics_spur = $ObservationLogisticsSpur
+	salvage_terrace = $SalvageTerrace
 
 
 ## The one-time procedural build, in order, as `[method, progress label]`.
@@ -1323,22 +1362,26 @@ func _bind_heavy_breach_external_owners() -> void:
 ## every direct instantiation - which is every test suite - and for the
 ## detach/re-entry path, where `_built` is already true.
 func prepare_staged_construction() -> void:
-	if _built or is_inside_tree():
+	if _built or is_inside_tree() or _staged_construction:
 		return
 	_staged_construction = true
+	# Deferring the root's builders alone still readies every authored module in
+	# one add_child call. Detach them before the world enters the tree as well.
+	for child in get_children():
+		_staged_child_owners[child] = child.owner
+		child.owner = null
+		remove_child(child)
+		_staged_children.append(child)
 
 
 ## How many stages [method run_staged_construction] will report, so a loader can
 ## size its progress bar against real work rather than a guess.
 func get_staged_construction_stage_count() -> int:
-	return BUILD_STAGES.size()
+	return BUILD_STAGES.size() + _staged_children.size()
 
 
-## Longest the staged build will hold the main loop before yielding. Several of
-## these stages cost well under a millisecond, and a yield is not free - the
-## engine draws a whole frame of a half-built yard nobody can see - so cheap
-## stages are batched up to this budget and expensive ones yield immediately
-## after. 24 ms keeps the window repainting at better than 40 Hz throughout.
+## Batch budget checked between procedural builders. A single builder can still
+## exceed it; authored module subtrees get their own frames independently.
 const STAGED_BUILD_FRAME_BUDGET_USEC := 24_000
 
 
@@ -1347,22 +1390,70 @@ const STAGED_BUILD_FRAME_BUDGET_USEC := 24_000
 ## sequence is identical to the synchronous build; the only difference is that
 ## the main loop gets to draw and pump input in between.
 func run_staged_construction(on_stage: Callable = Callable()) -> void:
-	if _built or not _staged_construction:
+	if _built or not _staged_construction or _staged_run_active or not is_inside_tree():
 		return
-	_staged_construction = false
-	_built = true
+	var generation := _staged_tree_generation
+	_staged_run_active = true
 	var tree := get_tree()
+	while _staged_child_index < _staged_children.size():
+		if not _is_staged_run_current(generation):
+			return
+		var child := _staged_children[_staged_child_index]
+		if not is_instance_valid(child) or child.is_queued_for_deletion():
+			_staged_run_active = false
+			return
+		if child.get_parent() == null:
+			add_child(child)
+		elif child.get_parent() != self:
+			_staged_run_active = false
+			return
+		if not _is_staged_run_current(generation):
+			return
+		child.owner = _staged_child_owners[child] as Node
+		_staged_child_index += 1
+		if on_stage.is_valid():
+			on_stage.call("Preparing %s" % String(child.name).capitalize())
+		if not _is_staged_run_current(generation):
+			return
+		# Each module can trigger renderer work as well as its synchronous ready.
+		# Give that work a frame before admitting another authored subtree.
+		await tree.process_frame
+		if not _is_staged_run_current(generation):
+			return
+	_resolve_authored_bindings()
 	var budget_started := Time.get_ticks_usec()
-	for stage: Array in BUILD_STAGES:
+	while _staged_build_index < BUILD_STAGES.size():
+		if not _is_staged_run_current(generation):
+			return
+		var stage: Array = BUILD_STAGES[_staged_build_index]
 		call(stage[0] as StringName)
+		_staged_build_index += 1
+		if not _is_staged_run_current(generation):
+			return
 		if on_stage.is_valid():
 			on_stage.call(stage[1] as String)
-		if tree == null:
-			continue
+		if not _is_staged_run_current(generation):
+			return
 		if Time.get_ticks_usec() - budget_started < STAGED_BUILD_FRAME_BUDGET_USEC:
 			continue
 		await tree.process_frame
+		if not _is_staged_run_current(generation):
+			return
 		budget_started = Time.get_ticks_usec()
+	_built = true
+	_staged_construction = false
+	_staged_run_active = false
+	if generation > 0:
+		# A partial build may have lost bindings after their construction stages
+		# already ran. Restore them only once the resumed world is complete.
+		_queue_built_world_reentry_restore()
+	_staged_children.clear()
+	_staged_child_owners.clear()
+
+
+func _is_staged_run_current(generation: int) -> bool:
+	return generation == _staged_tree_generation and is_inside_tree() \
+		and not is_queued_for_deletion()
 
 
 ## Brings every sign in the world under one geometry budget.

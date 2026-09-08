@@ -36,6 +36,7 @@ func _run() -> void:
 	await _test_queued_loading_screen_public_mutators_are_inert()
 	await _test_prepared_main_frees_detached_children()
 	await _test_stager_rejects_stale_host_generation_after_yield()
+	await _test_world_stages_authored_children_and_rejects_stale_yield()
 	await _test_detached_boot_joins_resource_worker()
 	await _test_detached_boot_cancels_stale_continuation()
 	await _test_boot_presents_before_it_builds()
@@ -48,6 +49,9 @@ func _test_prepared_main_frees_detached_children() -> void:
 	var child_refs: Array[WeakRef] = []
 	for child in main.get_children():
 		child_refs.append(weakref(child))
+		if child is ShipyardWorld:
+			for authored_world_child in child.get_children():
+				child_refs.append(weakref(authored_world_child))
 	var transferred := Node.new()
 	main.add_child(transferred)
 	_check(main.prepare_staged_startup(), "Main prepares detached children before entering the tree")
@@ -174,6 +178,75 @@ func _test_stager_rejects_stale_host_generation_after_yield() -> void:
 	)
 	fresh_host.queue_free()
 	await process_frame
+
+
+func _test_world_stages_authored_children_and_rejects_stale_yield() -> void:
+	var world := (load("res://scenes/world/shipyard_world.tscn") as PackedScene).instantiate() as ShipyardWorld
+	var authored := world.get_children()
+	var owners: Dictionary = {}
+	for child in authored:
+		owners[child] = child.owner
+	world.prepare_staged_construction()
+	_check(world.get_child_count() == 0,
+		"prepared world defers authored modules before any of their ready callbacks")
+	root.add_child(world)
+	_check(world.get_child_count() == 0 and not bool(world.get("_built")),
+		"attaching a staged world performs no authored or procedural construction")
+	var stages: Array[String] = []
+	var sink := func(label: String) -> void:
+		stages.append(label)
+	world.run_staged_construction(sink)
+	_check(world.get_child_count() == 1 and stages.size() == 1,
+		"world gives the main loop a frame after one authored subtree")
+	root.remove_child(world)
+	root.add_child(world)
+	var stage_count := stages.size()
+	await process_frame
+	await process_frame
+	_check(world.get_child_count() == 1 and stages.size() == stage_count
+		and not bool(world.get("_built")),
+		"reentering the world cannot revive its stale awaited construction")
+	var interrupted_build: Array[String] = []
+	var interrupting_sink := func(label: String) -> void:
+		sink.call(label)
+		if label in ["Staffing the operations lattice", "Setting the signage"] \
+				and not interrupted_build.has(label):
+			interrupted_build.append(label)
+			call_deferred("_detach_and_reattach_staged_world", world)
+	await world.run_staged_construction(interrupting_sink)
+	stage_count = stages.size()
+	await process_frame
+	_check(not bool(world.get("_built")) and stages.size() == stage_count
+		and stages.count("Mixing station materials") == 0,
+		"world stops its procedural builders after a detach during their frame yield")
+	await world.run_staged_construction(interrupting_sink)
+	_check(not bool(world.get("_built"))
+		and not bool(world.get_station_solar_readability_report().active),
+		"late construction cancellation retires existing presentation bindings")
+	await world.run_staged_construction(sink)
+	await process_frame
+	_check(bool(world.get_station_solar_readability_report().active),
+		"finishing a resumed world restores bindings retired after their builders completed")
+	var authored_restored := true
+	for index in authored.size():
+		var child := authored[index]
+		authored_restored = authored_restored and world.get_child(index) == child \
+			and child.owner == owners[child]
+	_check(authored_restored,
+		"resumed world restores every authored child in order with its original owner")
+	_check(bool(world.get("_built")) and world.get_target_count() > 0
+		and world.player_spawn == world.get_node("PlayerSpawn")
+		and world.habitat_spine == world.get_node("HabitatSpine"),
+		"resumed world resolves authored bindings before completing procedural construction")
+	_check(stages.count("Surveying berths") == 1 and stages.count("Setting the signage") == 1,
+		"resumed construction completes the procedural sequence exactly once")
+	world.queue_free()
+	await process_frame
+
+
+func _detach_and_reattach_staged_world(world: ShipyardWorld) -> void:
+	root.remove_child(world)
+	root.add_child(world)
 
 
 func _test_queued_loading_screen_public_mutators_are_inert() -> void:
