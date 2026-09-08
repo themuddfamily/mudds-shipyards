@@ -574,10 +574,31 @@ func _build_bulwark_manufactured_details(visual: Node3D, armor: Material, dark: 
 		var tag := "Port" if side < 0 else "Starboard"
 		_service_bay(visual, tag + "ReactorCooling", Vector3(side * 1.5, 1.84, 2.2), 0.8, 1.45, armor, dark, metal)
 		_armor_shell(visual, tag + "CheekPlate", Vector3(side * 2.15, 0.75, -2.1), Vector3(1.6, 1.4, 5.5), armor, side * 0.10)
-		_armor_shell(visual, tag + "ShoulderCrown", Vector3(side * 4.15, 2.025, 0.5), Vector3(2.25, 0.075, 3.2), edge)
+		_armor_shell(visual, tag + "ShoulderCrown", Vector3(side * 4.15, 2.025, 0.5), Vector3(2.25, 0.075, 3.2), armor)
+		# A lowered dark chassis is visible between three separately fitted armor caps.
+		_armor_shell(visual, tag + "BastionCore", Vector3(side * 4.05, 2.60, 0.72), Vector3(1.30, 1.18, 3.15), dark)
+		for i in 3:
+			var z := -0.25 + float(i) * 1.02
+			_deck_plate(visual, tag + "PodDeck" + str(i), Vector3(side * 5.10, 1.995, z + 0.5), 0.62, 0.86, armor, dark)
+		var service := Node3D.new()
+		service.name = tag + "BastionThermalFace"
+		service.position = Vector3(side * 4.81, 2.74, 0.76)
+		service.rotation.z = side * -PI * 0.5
+		visual.add_child(service)
+		_service_bay(service, "HeatExchanger", Vector3.ZERO, 0.72, 2.35, edge, dark, metal)
+		var skirt := _pressure_panel(visual, tag + "OutboardSkirt", Vector3(side * 5.86, 1.0, 1.05), 0.75, 0.98, 0.07, 2.9, armor)
+		skirt.rotation.z = PI * 0.5
+		for z in [-0.1, 1.0, 2.1]:
+			_box(visual, tag + "SkirtClamp" + str(z), Vector3(side * 5.92, 1.0, z), Vector3(0.10, 0.72, 0.095), metal)
 		_armor_shell(visual, tag + "ReactorShroud", Vector3(side * 2.65, 1.48, 3.4), Vector3(1.9, 1.55, 2.4), armor)
 		_frustum(visual, tag + "ExhaustBell", Vector3(side * 2.65, 1.15, 5.72), 0.87, 0.62, 0.7, metal, Vector3(90, 0, 0), false, false)
-		_cylinder(visual, tag + "RecessedThroat", Vector3(side * 2.65, 1.15, 5.70), 0.53, 0.08, hot, Vector3(90, 0, 0))
+		_cylinder(visual, tag + "RecessedThroat", Vector3(side * 2.65, 1.15, 5.70), 0.53, 0.08, dark, Vector3(90, 0, 0))
+		_engine_mechanics(visual, tag, Vector3(side * 2.65, 1.15, 5.95), 0.75, metal, dark, hot)
+		_armor_shell(visual, tag + "CannonBreech", Vector3(side * 3.25, 1.17, -3.40), Vector3(1.1, 0.94, 2.35), armor)
+		_service_bay(visual, tag + "CannonCooling", Vector3(side * 3.25, 1.66, -2.95), 0.50, 0.85, armor, dark, metal)
+		for z in [-4.14, -4.43, -4.69]:
+			_frustum(visual, tag + "BarrelCollar" + str(z), Vector3(side * 3.25, 1.0, z), 0.26, 0.26, 0.12, dark, Vector3(90, 0, 0), false, false)
+		_cylinder(visual, tag + "MuzzleBore", Vector3(side * 3.25, 1.0, -4.965), 0.17, 0.025, dark, Vector3(90, 0, 0))
 		_cylinder(visual, tag + "CannonBarrel", Vector3(side * 3.25, 1.0, -4.38), 0.19, 0.9, metal, Vector3(90, 0, 0))
 		_frustum(visual, tag + "CannonMuzzle", Vector3(side * 3.25, 1.0, -4.87), 0.25, 0.20, 0.18, dark, Vector3(90, 0, 0), false, false)
 
@@ -877,7 +898,7 @@ func _add_dorsal_silhouette_batch(
 		material: Material,
 		silhouette_role: StringName
 ) -> MultiMeshInstance3D:
-	var mesh := _loft_mesh(size, material)
+	var mesh := _bastion_mesh(size, material) if batch_name == "DorsalBastionBatch" else _loft_mesh(Vector3(size.x * 0.52, size.y, size.z * 0.78), material)
 	var multi := MultiMesh.new()
 	multi.transform_format = MultiMesh.TRANSFORM_3D
 	multi.mesh = mesh
@@ -2418,4 +2439,55 @@ func _pressure_mesh(top: float, bottom: float, height: float, depth: float, mate
 			surface.set_uv(uv[index])
 			surface.add_vertex(points[index])
 	surface.generate_tangents()
+	return surface.commit()
+
+
+## Annular combustion channel, retained hub and guide vanes give an unlit
+## engine physical depth. Repeated vanes share one mesh and renderer.
+func _engine_mechanics(parent: Node3D, tag: String, at: Vector3, radius: float, metal: Material, dark: Material, hot: Material) -> void:
+	_cylinder(parent, tag + "ChamberBack", at + Vector3(0, 0, -0.22 * radius), radius * 0.86, radius * 0.08, dark, Vector3(90, 0, 0))
+	for ring in 2:
+		var torus := TorusMesh.new()
+		torus.inner_radius = radius * (0.44 if ring == 0 else 0.88)
+		torus.outer_radius = radius * (0.57 if ring == 0 else 1.02)
+		torus.rings = 40
+		torus.ring_segments = 8
+		var lip := MeshInstance3D.new()
+		lip.name = tag + ("CombustorAnnulus" if ring == 0 else "NozzleLip")
+		lip.mesh = torus
+		lip.material_override = hot if ring == 0 else metal
+		lip.position = at + Vector3(0, 0, (-0.14 if ring == 0 else 0.18) * radius)
+		lip.rotation.x = PI * 0.5
+		parent.add_child(lip)
+	_frustum(parent, tag + "ThrustPlug", at + Vector3(0, 0, -0.04 * radius), radius * 0.20, radius * 0.36, radius * 0.45, metal, Vector3(90, 0, 0))
+	var blades := MultiMesh.new()
+	blades.transform_format = MultiMesh.TRANSFORM_3D
+	blades.mesh = _rounded_box_mesh(Vector3(radius * 0.065, radius * 0.29, radius * 0.18), metal)
+	blades.instance_count = 12
+	for i in 12:
+		var angle := float(i) * TAU / 12.0
+		blades.set_instance_transform(i, Transform3D(Basis(Vector3.BACK, angle + 0.22), Vector3(-sin(angle), cos(angle), 0) * radius * 0.71))
+	var batch := MultiMeshInstance3D.new()
+	batch.name = tag + "GuideVanes"
+	batch.multimesh = blades
+	batch.position = at
+	batch.set_meta(&"presentation_only", true)
+	parent.add_child(batch)
+
+
+## Flush service plates have their own bevel and dark gasket; the narrow edge
+## catches light while a readable seam separates adjacent manufactured parts.
+func _deck_plate(parent: Node3D, tag: String, at: Vector3, width: float, length: float, paint: Material, gasket: Material) -> void:
+	_box(parent, tag + "Gasket", at, Vector3(width, 0.028, length), gasket)
+	_box(parent, tag + "Panel", at + Vector3(0, 0.022, 0), Vector3(width - 0.06, 0.032, length - 0.06), paint)
+
+
+func _bastion_mesh(size: Vector3, paint: Material) -> ArrayMesh:
+	var surface := SurfaceTool.new()
+	surface.begin(Mesh.PRIMITIVE_TRIANGLES)
+	surface.set_material(paint)
+	for i in 3:
+		var plate_size := Vector3(size.x, size.y * (0.88 if i == 0 else 1.0), size.z * 0.29)
+		var transform := Transform3D(Basis.IDENTITY, Vector3(0, 0, (float(i) - 1.0) * size.z * 0.335))
+		surface.append_from(_loft_mesh(plate_size, paint), 0, transform)
 	return surface.commit()

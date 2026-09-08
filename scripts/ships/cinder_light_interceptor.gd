@@ -19,7 +19,8 @@ const HULL_COLOR := Color("83775d")
 const CANOPY_COLOR := Color("315b68")
 const CANOPY_RADIUS := 1.25
 const CANOPY_HEIGHT := 1.5
-const CANOPY_POSITION := Vector3(0.0, 1.1, -2.1)
+const CANOPY_POSITION := Vector3(0.0, 1.10, -2.1)
+const CANOPY_SCALE := Vector3(0.70, 0.34, 0.80)
 ## Closed visual transition between the 1.25 m hull crown and the inherited
 ## cockpit floor's 1.87 m underside. The forward end overlaps the canopy dome;
 ## the aft end reaches the rear floor edge, so the complete cabin no longer
@@ -424,6 +425,7 @@ func _build_hull(visual: Node3D) -> void:
 		_shared_canopy_material.resource_local_to_scene = false
 	canopy.mesh = _shared_canopy_mesh
 	canopy.position = CANOPY_POSITION
+	canopy.scale = CANOPY_SCALE
 	canopy.material_override = _shared_canopy_material
 	visual.add_child(canopy)
 	_build_interceptor_propulsion(visual)
@@ -438,6 +440,7 @@ func _build_interceptor_propulsion(visual: Node3D) -> void:
 	for side in [-1.0, 1.0]:
 		var plate := _pressure_panel(visual, "DorsalServiceArmor" + str(side), Vector3(side * 0.82, 1.285, 2.2), 0.65, 0.72, 1.65, 0.045, ceramic)
 		plate.rotation.x = PI * 0.5
+	_armor_shell(visual, "ForwardSensorFairing", Vector3(0, 0.99, -2.35), Vector3(1.65, 0.25, 1.80), ceramic)
 	var hot := _material(Color("729da5"), 0.35, 0.25, Color("73b5c0"), 0.8)
 	for side in [-1.0, 1.0]:
 		var tag := "Port" if side < 0 else "Starboard"
@@ -446,7 +449,20 @@ func _build_interceptor_propulsion(visual: Node3D) -> void:
 		_armor_shell(visual, tag + "EngineBoom", Vector3(side * 3.65, 0.0, 1.05), Vector3(1.25, 0.85, 4.4), ceramic, side * -0.08)
 		_cylinder(visual, tag + "TurbineCase", Vector3(side * 2.1, 0.2, 3.65), 0.60, 1.5, titanium, Vector3(90, 0, 0))
 		_frustum(visual, tag + "ExhaustBell", Vector3(side * 2.1, 0.2, 4.80), 0.72, 0.48, 0.65, ceramic, Vector3(90, 0, 0), false, false)
-		_cylinder(visual, tag + "RecessedThroat", Vector3(side * 2.1, 0.2, 4.52), 0.39, 0.08, hot, Vector3(90, 0, 0))
+		_cylinder(visual, tag + "RecessedThroat", Vector3(side * 2.1, 0.2, 4.52), 0.39, 0.08, ceramic, Vector3(90, 0, 0))
+		_engine_mechanics(visual, tag, Vector3(side * 2.1, 0.2, 4.98), 0.62, titanium, ceramic, hot)
+		var intake := Node3D.new()
+		intake.name = tag + "InductionMouth"
+		intake.position = Vector3(side * 2.1, 0.32, -2.63)
+		intake.rotation.x = -PI * 0.5
+		visual.add_child(intake)
+		_service_bay(intake, "Intake", Vector3.ZERO, 0.69, 0.55, titanium, ceramic, ceramic)
+		_deck_plate(visual, tag + "RootService", Vector3(side * 2.09, 1.015, 1.99), 0.85, 0.64, _shared_hull_material, ceramic)
+		_armor_shell(visual, tag + "CannonMount", Vector3(side * 3.15, 0.08, -0.50), Vector3(0.70, 0.52, 2.85), ceramic)
+		_cylinder(visual, tag + "CannonSleeve", Vector3(side * 3.15, 0.05, -1.90), 0.16, 0.58, titanium, Vector3(90, 0, 0))
+		_frustum(visual, tag + "CannonBore", Vector3(side * 3.15, 0.05, -2.23), 0.19, 0.14, 0.18, ceramic, Vector3(90, 0, 0), false, false)
+		for z in [-0.2, 0.6, 1.4]:
+			_deck_plate(visual, tag + "WingService" + str(z), Vector3(side * 4.46, 0.13, z + 0.70), 0.56, 0.63, _shared_wing_material, ceramic)
 		_armor_shell(visual, tag + "WingArmor", Vector3(side * 4.05, 0.1, 0.75), Vector3(1.65, 0.065, 2.4), _shared_hull_material, side * -0.16)
 
 
@@ -1078,3 +1094,43 @@ func _pressure_mesh(top: float, bottom: float, height: float, depth: float, mate
 			surface.add_vertex(points[index])
 	surface.generate_tangents()
 	return surface.commit()
+
+
+## Annular combustion channel, retained hub and guide vanes give an unlit
+## engine physical depth. Repeated vanes share one mesh and renderer.
+func _engine_mechanics(parent: Node3D, tag: String, at: Vector3, radius: float, metal: Material, dark: Material, hot: Material) -> void:
+	_cylinder(parent, tag + "ChamberBack", at + Vector3(0, 0, -0.22 * radius), radius * 0.86, radius * 0.08, dark, Vector3(90, 0, 0))
+	for ring in 2:
+		var torus := TorusMesh.new()
+		torus.inner_radius = radius * (0.44 if ring == 0 else 0.88)
+		torus.outer_radius = radius * (0.57 if ring == 0 else 1.02)
+		torus.rings = 40
+		torus.ring_segments = 8
+		var lip := MeshInstance3D.new()
+		lip.name = tag + ("CombustorAnnulus" if ring == 0 else "NozzleLip")
+		lip.mesh = torus
+		lip.material_override = hot if ring == 0 else metal
+		lip.position = at + Vector3(0, 0, (-0.14 if ring == 0 else 0.18) * radius)
+		lip.rotation.x = PI * 0.5
+		parent.add_child(lip)
+	_frustum(parent, tag + "ThrustPlug", at + Vector3(0, 0, -0.04 * radius), radius * 0.20, radius * 0.36, radius * 0.45, metal, Vector3(90, 0, 0))
+	var blades := MultiMesh.new()
+	blades.transform_format = MultiMesh.TRANSFORM_3D
+	blades.mesh = _rounded_box_mesh(Vector3(radius * 0.065, radius * 0.29, radius * 0.18), metal)
+	blades.instance_count = 12
+	for i in 12:
+		var angle := float(i) * TAU / 12.0
+		blades.set_instance_transform(i, Transform3D(Basis(Vector3.BACK, angle + 0.22), Vector3(-sin(angle), cos(angle), 0) * radius * 0.71))
+	var batch := MultiMeshInstance3D.new()
+	batch.name = tag + "GuideVanes"
+	batch.multimesh = blades
+	batch.position = at
+	batch.set_meta(&"presentation_only", true)
+	parent.add_child(batch)
+
+
+## Flush service plates have their own bevel and dark gasket; the narrow edge
+## catches light while a readable seam separates adjacent manufactured parts.
+func _deck_plate(parent: Node3D, tag: String, at: Vector3, width: float, length: float, paint: Material, gasket: Material) -> void:
+	_box(parent, tag + "Gasket", at, Vector3(width, 0.028, length), gasket)
+	_box(parent, tag + "Panel", at + Vector3(0, 0.022, 0), Vector3(width - 0.06, 0.032, length - 0.06), paint)

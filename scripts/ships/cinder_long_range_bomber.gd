@@ -46,7 +46,8 @@ const AFT_FIN_OFFSET := Vector3(2.3, 1.25, 5.35)
 const AFT_FIN_CANT_DEGREES := 12.0
 const SENSOR_RADIUS := 0.62
 const SENSOR_HEIGHT := 1.24
-const SENSOR_POSITION := Vector3(0.0, 1.6, -5.2)
+const SENSOR_POSITION := Vector3(0.0, 1.44, -5.2)
+const SENSOR_SCALE := Vector3(1.0, 0.60, 1.0)
 ## The dorsal sensor remains visible to chase/world cameras, but its placement
 ## intersects the physical pilot's forward framing. A dedicated presentation
 ## layer lets the cockpit omit only this exterior emitter without moving it or
@@ -54,7 +55,7 @@ const SENSOR_POSITION := Vector3(0.0, 1.6, -5.2)
 const EXTERIOR_SENSOR_VISUAL_LAYER := 1 << 1
 const HULL_COLOR := Color("3e4d57")
 const ORDNANCE_COLOR := Color("74544b")
-const SENSOR_COLOR := Color("d6b45d")
+const SENSOR_COLOR := Color("17272e")
 ## Static presentation of an already-authoritative starboard-wing stage. The
 ## raised vane sits on the bomber's outboard upper surface, where the chase view
 ## sees both its hot face and its silhouette without crossing the central aim,
@@ -730,7 +731,7 @@ func get_sensor_resource_sharing_audit() -> Dictionary:
 	if sensor == null:
 		errors.append("LongRangeSensor renderer is missing")
 	else:
-		var expected_transform := Transform3D(Basis.IDENTITY, SENSOR_POSITION)
+		var expected_transform := Transform3D(Basis.IDENTITY.scaled(SENSOR_SCALE), SENSOR_POSITION)
 		if not sensor.transform.is_equal_approx(expected_transform):
 			errors.append("LongRangeSensor transform drifted")
 		if not sensor.visible \
@@ -753,8 +754,8 @@ func get_sensor_resource_sharing_audit() -> Dictionary:
 	if material == null or material != _shared_sensor_material:
 		errors.append("LongRangeSensor shared material identity drifted")
 	elif (
-		not material.albedo_color.is_equal_approx(SENSOR_COLOR.darkened(0.35))
-		or not is_equal_approx(material.metallic, 0.7)
+		not material.albedo_color.is_equal_approx(SENSOR_COLOR)
+		or not is_equal_approx(material.metallic, 0.35)
 		or not is_equal_approx(material.roughness, 0.24)
 		or material.emission_enabled
 		or material.resource_local_to_scene
@@ -911,10 +912,11 @@ func _build_hull(visual: Node3D) -> void:
 		_shared_sensor_mesh.height = SENSOR_HEIGHT
 		_shared_sensor_mesh.resource_local_to_scene = false
 	if _shared_sensor_material == null:
-		_shared_sensor_material = _material(SENSOR_COLOR.darkened(0.35), 0.7, 0.24)
+		_shared_sensor_material = _material(SENSOR_COLOR, 0.35, 0.24)
 		_shared_sensor_material.resource_local_to_scene = false
 	sensor.mesh = _shared_sensor_mesh
 	sensor.position = SENSOR_POSITION
+	sensor.scale = SENSOR_SCALE
 	sensor.material_override = _shared_sensor_material
 	sensor.layers = EXTERIOR_SENSOR_VISUAL_LAYER
 	visual.add_child(sensor)
@@ -930,6 +932,8 @@ func _build_bomber_propulsion(visual: Node3D) -> void:
 	for z in [2.0, 3.25, 4.5]:
 		var plate := _pressure_panel(visual, "DorsalOrdnanceArmor" + str(z), Vector3(0, 1.535, z), 2.0, 2.35, 1.12, 0.05, ceramic)
 		plate.rotation.x = PI * 0.5
+	var sensor_cowl := _armor_shell(visual, "SensorProtectiveCowl", SENSOR_POSITION + Vector3(0, -0.02, 0.10), Vector3(1.75, 0.42, 1.85), ceramic)
+	sensor_cowl.layers = EXTERIOR_SENSOR_VISUAL_LAYER
 	var hot := _material(Color("799da5"), 0.4, 0.28, Color("70aec0"), 0.65)
 	for side in [-1.0, 1.0]:
 		var tag := "Port" if side < 0 else "Starboard"
@@ -939,7 +943,19 @@ func _build_bomber_propulsion(visual: Node3D) -> void:
 		_armor_shell(visual, tag + "OutboardArmor", Vector3(side * 5.6, -0.22, 1.8), Vector3(1.6, 0.08, 3.2), _shared_ordnance_spine_material, side * -0.16)
 		_cylinder(visual, tag + "TurbineCase", Vector3(side * 2.35, 0.1, 6.75), 0.92, 2.1, metal, Vector3(90, 0, 0))
 		_frustum(visual, tag + "ExhaustBell", Vector3(side * 2.35, 0.1, 8.10), 1.0, 0.70, 0.70, ceramic, Vector3(90, 0, 0), false, false)
-		_cylinder(visual, tag + "RecessedThroat", Vector3(side * 2.35, 0.1, 7.90), 0.62, 0.08, hot, Vector3(90, 0, 0))
+		_cylinder(visual, tag + "RecessedThroat", Vector3(side * 2.35, 0.1, 7.90), 0.62, 0.08, ceramic, Vector3(90, 0, 0))
+		_engine_mechanics(visual, tag, Vector3(side * 2.35, 0.1, 8.31), 0.87, metal, ceramic, hot)
+		for z in [-1.1, 0.2, 4.85]:
+			_deck_plate(visual, tag + "EngineAccess" + str(z), Vector3(side * 2.3, 1.568, z), 1.1, 1.08, _shared_hull_material, ceramic)
+		for i in 3:
+			var z := -1.2 + float(i) * 1.52
+			_deck_plate(visual, tag + "OrdnanceCover" + str(i), Vector3(side * 4.50, 0.196, z + 1.2), 0.82, 1.30, _shared_hull_material, ceramic)
+		var intake := Node3D.new()
+		intake.name = tag + "RamScoop"
+		intake.position = Vector3(side * 2.3, 0.45, -5.55)
+		intake.rotation.x = -PI * 0.5
+		visual.add_child(intake)
+		_service_bay(intake, "Scoop", Vector3.ZERO, 0.75, 0.80, metal, ceramic, ceramic)
 
 
 func _build_cockpit_support_fairing(visual: Node3D) -> void:
@@ -1274,3 +1290,43 @@ func _pressure_mesh(top: float, bottom: float, height: float, depth: float, mate
 			surface.add_vertex(points[index])
 	surface.generate_tangents()
 	return surface.commit()
+
+
+## Annular combustion channel, retained hub and guide vanes give an unlit
+## engine physical depth. Repeated vanes share one mesh and renderer.
+func _engine_mechanics(parent: Node3D, tag: String, at: Vector3, radius: float, metal: Material, dark: Material, hot: Material) -> void:
+	_cylinder(parent, tag + "ChamberBack", at + Vector3(0, 0, -0.22 * radius), radius * 0.86, radius * 0.08, dark, Vector3(90, 0, 0))
+	for ring in 2:
+		var torus := TorusMesh.new()
+		torus.inner_radius = radius * (0.44 if ring == 0 else 0.88)
+		torus.outer_radius = radius * (0.57 if ring == 0 else 1.02)
+		torus.rings = 40
+		torus.ring_segments = 8
+		var lip := MeshInstance3D.new()
+		lip.name = tag + ("CombustorAnnulus" if ring == 0 else "NozzleLip")
+		lip.mesh = torus
+		lip.material_override = hot if ring == 0 else metal
+		lip.position = at + Vector3(0, 0, (-0.14 if ring == 0 else 0.18) * radius)
+		lip.rotation.x = PI * 0.5
+		parent.add_child(lip)
+	_frustum(parent, tag + "ThrustPlug", at + Vector3(0, 0, -0.04 * radius), radius * 0.20, radius * 0.36, radius * 0.45, metal, Vector3(90, 0, 0))
+	var blades := MultiMesh.new()
+	blades.transform_format = MultiMesh.TRANSFORM_3D
+	blades.mesh = _rounded_box_mesh(Vector3(radius * 0.065, radius * 0.29, radius * 0.18), metal)
+	blades.instance_count = 12
+	for i in 12:
+		var angle := float(i) * TAU / 12.0
+		blades.set_instance_transform(i, Transform3D(Basis(Vector3.BACK, angle + 0.22), Vector3(-sin(angle), cos(angle), 0) * radius * 0.71))
+	var batch := MultiMeshInstance3D.new()
+	batch.name = tag + "GuideVanes"
+	batch.multimesh = blades
+	batch.position = at
+	batch.set_meta(&"presentation_only", true)
+	parent.add_child(batch)
+
+
+## Flush service plates have their own bevel and dark gasket; the narrow edge
+## catches light while a readable seam separates adjacent manufactured parts.
+func _deck_plate(parent: Node3D, tag: String, at: Vector3, width: float, length: float, paint: Material, gasket: Material) -> void:
+	_box(parent, tag + "Gasket", at, Vector3(width, 0.028, length), gasket)
+	_box(parent, tag + "Panel", at + Vector3(0, 0.022, 0), Vector3(width - 0.06, 0.032, length - 0.06), paint)

@@ -1156,6 +1156,20 @@ func _build_freight_pressure_fairings(visual: Node3D) -> void:
 	for z in [2.0, 3.2]:
 		var plate := _pressure_panel(visual, "FreightRoofArmor" + str(z), Vector3(0, 1.635, z), 3.1, 3.3, 1.04, 0.05, dark)
 		plate.rotation.x = PI * 0.5
+	for end in [-1.0, 1.0]:
+		var bulkhead := Node3D.new()
+		bulkhead.name = "ForwardBulkhead" if end < 0 else "AftBulkhead"
+		bulkhead.position = Vector3(0, 0, end * 6.755)
+		bulkhead.rotation.x = end * PI * 0.5
+		visual.add_child(bulkhead)
+		_deck_plate(bulkhead, "PressureCover", Vector3.ZERO, 3.62, 1.51, _shared_hull_material, dark)
+		for x in [-1.36, 1.36]:
+			_service_bay(bulkhead, "Latch" + str(x), Vector3(x, 0.05, 0), 0.35, 0.92, metal, dark, dark)
+		for side in [-1.0, 1.0]:
+			_box(visual, "CornerCrashBeam" + str(end) + str(side), Vector3(side * 2.13, -0.18, end * 6.58), Vector3(0.26, 2.12, 0.24), dark)
+			_box(visual, "CargoCornerTie" + str(end) + str(side), Vector3(side * 2.13, 0.43, end * 6.74), Vector3(0.32, 0.21, 0.17), metal)
+	for z in [-4.7, -3.6, 4.7]:
+		_deck_plate(visual, "RoofService" + str(z), Vector3(0, 1.638, z), 3.45, 0.88, _shared_hull_material, dark)
 	var hot := _material(Color("68959e"), 0.35, 0.3, Color("83c0cb"), 0.55)
 	var fore := _pressure_panel(visual, "ForwardPressureCap", Vector3(0, 0, -6.375), 4.6, 5.312, 0.75, 2.624, _shared_hull_material)
 	fore.rotation.x = -PI * 0.5
@@ -1168,7 +1182,16 @@ func _build_freight_pressure_fairings(visual: Node3D) -> void:
 		_armor_shell(visual, tag + "EnginePylon", Vector3(side * 3.12, 0.6, 4.05), Vector3(1.0, 1.65, 3.2), metal)
 		_armor_shell(visual, tag + "EngineShroud", Vector3(side * 3.75, 0.4, 4.5), Vector3(1.45, 1.5, 3.3), dark)
 		_frustum(visual, tag + "FreightExhaust", Vector3(side * 3.75, 0.4, 6.40), 0.75, 0.55, 0.65, metal, Vector3(90, 0, 0), false, false)
-		_cylinder(visual, tag + "RecessedThroat", Vector3(side * 3.75, 0.4, 6.20), 0.45, 0.08, hot, Vector3(90, 0, 0))
+		_cylinder(visual, tag + "RecessedThroat", Vector3(side * 3.75, 0.4, 6.20), 0.45, 0.08, dark, Vector3(90, 0, 0))
+		_engine_mechanics(visual, tag, Vector3(side * 3.75, 0.4, 6.59), 0.64, metal, dark, hot)
+		for z in [4.3, 5.15]:
+			_deck_plate(visual, tag + "NacelleAccess" + str(z), Vector3(side * 3.75, 1.17, z), 0.85, 0.65, _shared_hull_material, dark)
+		var radiator := Node3D.new()
+		radiator.name = tag + "NacelleRadiator"
+		radiator.position = Vector3(side * 4.49, 0.48, 4.95)
+		radiator.rotation.z = side * -PI * 0.5
+		visual.add_child(radiator)
+		_service_bay(radiator, "Cooling", Vector3.ZERO, 0.62, 1.20, metal, dark, dark)
 		_armor_shell(visual, tag + "ForeShoulder", Vector3(side * 2.48, 1.25, -3.9), Vector3(1.15, 1.0, 3.4), _shared_cargo_pod_material)
 		_armor_shell(visual, tag + "RoofRail", Vector3(side * 2.3, 1.65, 0.0), Vector3(1.3, 0.45, 5.2), dark)
 		_armor_shell(visual, tag + "AftShoulder", Vector3(side * 2.48, 1.25, 3.9), Vector3(1.15, 1.0, 3.4), _shared_cargo_pod_material)
@@ -1886,3 +1909,43 @@ func _pressure_mesh(top: float, bottom: float, height: float, depth: float, mate
 			surface.add_vertex(points[index])
 	surface.generate_tangents()
 	return surface.commit()
+
+
+## Annular combustion channel, retained hub and guide vanes give an unlit
+## engine physical depth. Repeated vanes share one mesh and renderer.
+func _engine_mechanics(parent: Node3D, tag: String, at: Vector3, radius: float, metal: Material, dark: Material, hot: Material) -> void:
+	_cylinder(parent, tag + "ChamberBack", at + Vector3(0, 0, -0.22 * radius), radius * 0.86, radius * 0.08, dark, Vector3(90, 0, 0))
+	for ring in 2:
+		var torus := TorusMesh.new()
+		torus.inner_radius = radius * (0.44 if ring == 0 else 0.88)
+		torus.outer_radius = radius * (0.57 if ring == 0 else 1.02)
+		torus.rings = 40
+		torus.ring_segments = 8
+		var lip := MeshInstance3D.new()
+		lip.name = tag + ("CombustorAnnulus" if ring == 0 else "NozzleLip")
+		lip.mesh = torus
+		lip.material_override = hot if ring == 0 else metal
+		lip.position = at + Vector3(0, 0, (-0.14 if ring == 0 else 0.18) * radius)
+		lip.rotation.x = PI * 0.5
+		parent.add_child(lip)
+	_frustum(parent, tag + "ThrustPlug", at + Vector3(0, 0, -0.04 * radius), radius * 0.20, radius * 0.36, radius * 0.45, metal, Vector3(90, 0, 0))
+	var blades := MultiMesh.new()
+	blades.transform_format = MultiMesh.TRANSFORM_3D
+	blades.mesh = _rounded_box_mesh(Vector3(radius * 0.065, radius * 0.29, radius * 0.18), metal)
+	blades.instance_count = 12
+	for i in 12:
+		var angle := float(i) * TAU / 12.0
+		blades.set_instance_transform(i, Transform3D(Basis(Vector3.BACK, angle + 0.22), Vector3(-sin(angle), cos(angle), 0) * radius * 0.71))
+	var batch := MultiMeshInstance3D.new()
+	batch.name = tag + "GuideVanes"
+	batch.multimesh = blades
+	batch.position = at
+	batch.set_meta(&"presentation_only", true)
+	parent.add_child(batch)
+
+
+## Flush service plates have their own bevel and dark gasket; the narrow edge
+## catches light while a readable seam separates adjacent manufactured parts.
+func _deck_plate(parent: Node3D, tag: String, at: Vector3, width: float, length: float, paint: Material, gasket: Material) -> void:
+	_box(parent, tag + "Gasket", at, Vector3(width, 0.028, length), gasket)
+	_box(parent, tag + "Panel", at + Vector3(0, 0.022, 0), Vector3(width - 0.06, 0.032, length - 0.06), paint)

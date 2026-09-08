@@ -181,11 +181,11 @@ func _test_console_key_batch(craft: CinderLightInterceptor) -> void:
 	)
 	_check(
 		material != null
-		and material.albedo_color.is_equal_approx(Color("16383e"))
-		and is_equal_approx(material.metallic, 0.16)
-		and is_equal_approx(material.roughness, 0.25)
+		and material.albedo_color.is_equal_approx(Color("0a1820"))
+		and is_equal_approx(material.metallic, 0.08)
+		and is_equal_approx(material.roughness, 0.34)
 		and material.emission.is_equal_approx(Color("48dbe2"))
-		and is_equal_approx(material.emission_energy_multiplier, 2.8)
+		and is_equal_approx(material.emission_energy_multiplier, 0.85)
 		and batch.cast_shadow == GeometryInstance3D.SHADOW_CASTING_SETTING_ON
 		and batch.layers == 1
 		and batch.visible
@@ -246,7 +246,7 @@ func _test_console_center_key_batch(craft: CinderLightInterceptor) -> void:
 		and is_equal_approx(material.roughness, 0.28)
 		and material.emission_enabled
 		and material.emission.is_equal_approx(Color("f0b94d"))
-		and is_equal_approx(material.emission_energy_multiplier, 2.4)
+		and is_equal_approx(material.emission_energy_multiplier, 0.9)
 		and batch.cast_shadow == GeometryInstance3D.SHADOW_CASTING_SETTING_ON
 		and batch.layers == 1
 		and batch.visible

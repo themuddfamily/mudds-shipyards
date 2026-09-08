@@ -226,15 +226,15 @@ func _test_cockpit_console_key_mesh_sharing(visual: Node3D) -> void:
 		shared_resources = shared_resources and keys[index].mesh == shared_mesh
 		var material := keys[index].material_override as StandardMaterial3D
 		var is_amber_key := index == 1 or index == 4
-		var expected_color := Color("957c4f").darkened(0.68) if is_amber_key else Color("16383e")
+		var expected_color := Color("957c4f").darkened(0.68) if is_amber_key else Color("0a1820")
 		var expected_emission := Color("957c4f") if is_amber_key else Color("48dbe2")
 		exact_materials = exact_materials and material != null \
 			and material.albedo_color.is_equal_approx(expected_color) \
-			and is_equal_approx(material.metallic, 0.16) \
-			and is_equal_approx(material.roughness, 0.28 if is_amber_key else 0.25) \
+			and is_equal_approx(material.metallic, 0.16 if is_amber_key else 0.08) \
+			and is_equal_approx(material.roughness, 0.28 if is_amber_key else 0.34) \
 			and material.emission_enabled \
 			and material.emission.is_equal_approx(expected_emission) \
-			and is_equal_approx(material.emission_energy_multiplier, 2.4 if is_amber_key else 2.8)
+			and is_equal_approx(material.emission_energy_multiplier, 0.9 if is_amber_key else 0.85)
 	_check(
 		shared_resources
 		and shared_mesh != null

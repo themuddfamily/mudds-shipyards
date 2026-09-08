@@ -33,6 +33,8 @@ func _initialize() -> void:
 				and mesh.get_surface_count() == 1
 				and first_canopy.position.is_equal_approx(Interceptor.CANOPY_POSITION)
 				and second_canopy.position.is_equal_approx(Interceptor.CANOPY_POSITION)
+				and first_canopy.scale.is_equal_approx(Interceptor.CANOPY_SCALE)
+				and second_canopy.scale.is_equal_approx(Interceptor.CANOPY_SCALE)
 				and first_canopy.visible
 				and first_canopy.cast_shadow == GeometryInstance3D.SHADOW_CASTING_SETTING_ON
 				and first_canopy.layers == 1
@@ -44,17 +46,15 @@ func _initialize() -> void:
 		_check(
 			material != null
 				and material.albedo_color.is_equal_approx(Interceptor.CANOPY_COLOR)
-				and is_equal_approx(material.metallic, 0.15)
-				and is_equal_approx(material.roughness, 0.36)
-				and material.emission_enabled
-				and material.emission.is_equal_approx(Interceptor.CANOPY_COLOR)
-				and is_equal_approx(material.emission_energy_multiplier, 2.0)
+				and is_equal_approx(material.metallic, 0.75)
+				and is_equal_approx(material.roughness, 0.18)
+				and not material.emission_enabled
 				and material.shading_mode == BaseMaterial3D.SHADING_MODE_PER_PIXEL
 				and material.diffuse_mode == BaseMaterial3D.DIFFUSE_BURLEY
 				and material.specular_mode == BaseMaterial3D.SPECULAR_SCHLICK_GGX
 				and not mesh.resource_local_to_scene
 				and not material.resource_local_to_scene,
-			"the shared resources retain the authored emissive finish and renderer policy"
+			"the shared resources retain the recessed optical finish and renderer policy"
 		)
 
 	_check(

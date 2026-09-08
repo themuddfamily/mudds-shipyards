@@ -24,7 +24,7 @@ func _initialize() -> void:
 				== int(second_report.get("mesh_resource_id", -1))
 			and int(first_report.get("material_resource_id", 0)) \
 				== int(second_report.get("material_resource_id", -1)),
-		"two bomber copies share one sensor mesh and one emissive material identity"
+		"two bomber copies share one sensor mesh and one optical material identity"
 	)
 	var legacy := first_report.get("legacy_two_copy", {}) as Dictionary
 	var current := first_report.get("current_two_copy", {}) as Dictionary
@@ -47,15 +47,16 @@ func _initialize() -> void:
 	var sensor_mesh := first_sensor.mesh as SphereMesh
 	var sensor_material := first_sensor.material_override as StandardMaterial3D
 	_check(
-		first_sensor.position.is_equal_approx(Vector3(0.0, 1.6, -5.2))
-			and second_sensor.position.is_equal_approx(Vector3(0.0, 1.6, -5.2))
+		first_sensor.position.is_equal_approx(Bomber.SENSOR_POSITION)
+			and second_sensor.position.is_equal_approx(Bomber.SENSOR_POSITION)
+			and first_sensor.scale.is_equal_approx(Bomber.SENSOR_SCALE)
+			and second_sensor.scale.is_equal_approx(Bomber.SENSOR_SCALE)
 			and is_equal_approx(sensor_mesh.radius, 0.62)
 			and is_equal_approx(sensor_mesh.height, 1.24)
-			and sensor_material.albedo_color.is_equal_approx(Color("d6b45d"))
-			and sensor_material.emission_enabled
-			and sensor_material.emission.is_equal_approx(Color("d6b45d"))
-			and is_equal_approx(sensor_material.emission_energy_multiplier, 1.8),
-		"sharing preserves the sensor silhouette, placement, color and emission"
+			and sensor_material.albedo_color.is_equal_approx(Bomber.SENSOR_COLOR)
+			and not sensor_material.emission_enabled
+			and is_equal_approx(sensor_material.metallic, 0.35),
+		"sharing preserves the sensor silhouette, placement, color and nonemissive finish"
 	)
 	var first_cockpit := first.find_child("CockpitCamera", true, false) as Camera3D
 	var first_chase := first.find_child("ShipCamera", true, false) as Camera3D
