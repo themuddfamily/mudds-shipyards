@@ -368,7 +368,7 @@ func _build_hull(visual: Node3D) -> void:
 	var hull := MeshInstance3D.new()
 	hull.name = "HighVisibilityHull"
 	if _shared_hull_mesh == null:
-		_shared_hull_mesh = _loft_mesh(Vector3(3.7, 2.1, HULL_SIZE.z), null)
+		_shared_hull_mesh = _formed_pressure_mesh(Vector3(3.7, 2.1, HULL_SIZE.z), null)
 		_shared_hull_mesh.resource_local_to_scene = false
 	if _shared_hull_material == null:
 		_shared_hull_material = _material(HULL_COLOR, 0.12, 0.62)
@@ -447,15 +447,20 @@ func _build_interceptor_propulsion(visual: Node3D) -> void:
 	for side in [-1.0, 1.0]:
 		var tag := "Port" if side < 0 else "Starboard"
 		_service_bay(visual, tag + "InductionDuct", Vector3(side * 2.1, 0.92, 1.0), 0.68, 1.1, _shared_hull_material, ceramic, titanium)
-		_armor_shell(visual, tag + "IntakeShoulder", Vector3(side * 2.1, 0.22, 0.0), Vector3(1.26, 1.34, 5.8), _shared_hull_material)
-		_armor_shell(visual, tag + "EngineBoom", Vector3(side * 3.65, 0.0, 1.05), Vector3(1.0, 0.48, 4.4), ceramic, side * -0.08)
+		var nacelle_size := Vector3(1.26, 1.34, 5.8)
+		_armor_shell(visual, tag + "IntakeShoulder", Vector3(side * 2.1, 0.22, 0.0),
+			nacelle_size, _shared_hull_material, 0.0,
+			_formed_pressure_mesh(nacelle_size, _shared_hull_material, true))
+		_armor_shell(visual, tag + "EngineBoom", Vector3(side * 3.45, 0.0, 1.05),
+			Vector3(1.6, 0.38, 4.4), ceramic, side * -0.08, _formed_root_mesh(side, ceramic))
 		_cylinder(visual, tag + "TurbineCase", Vector3(side * 2.1, 0.2, 3.65), 0.60, 1.5, titanium, Vector3(90, 0, 0))
 		_frustum(visual, tag + "ExhaustBell", Vector3(side * 2.1, 0.2, 4.80), 0.72, 0.48, 0.65, ceramic, Vector3(90, 0, 0), false, false)
 		_cylinder(visual, tag + "RecessedThroat", Vector3(side * 2.1, 0.2, 4.52), 0.39, 0.08, ceramic, Vector3(90, 0, 0))
 		_engine_mechanics(visual, tag, Vector3(side * 2.1, 0.2, 4.98), 0.62, titanium, ceramic, hot)
 		var intake := Node3D.new()
 		intake.name = tag + "InductionMouth"
-		intake.position = Vector3(side * 2.1, 0.32, -2.63)
+		# Seat the retained louvered mouth on the new full inlet bulkhead.
+		intake.position = Vector3(side * 2.1, 0.22, -2.93)
 		intake.rotation.x = -PI * 0.5
 		visual.add_child(intake)
 		_service_bay(intake, "Intake", Vector3.ZERO, 0.69, 0.55, titanium, ceramic, ceramic)
@@ -997,6 +1002,50 @@ func _loft_mesh(size: Vector3, material: Material) -> ArrayMesh:
 		Vector2(0, -1), Vector2(-0.94, -1), Vector2(-1, -0.94), Vector2(-1, -0.36),
 		Vector2(-1, 0), Vector2(-1, 0.36), Vector2(-1, 0.94), Vector2(-0.94, 1),
 	])
+	return _section_loft_mesh(size, material, section)
+
+
+## The interceptor's narrow pressure body has a rolled shoulder and tucked
+## belly. Broad crowns still carry the fixed cockpit and access hardware.
+## Nacelles keep a full inlet section, swell into their duct, and terminate at
+## the turbine diameter instead of tapering to the same pointed stock nose.
+func _formed_pressure_mesh(size: Vector3, material: Material, nacelle: bool = false) -> ArrayMesh:
+	var section := PackedVector2Array([
+		Vector2(0, 1), Vector2(0.56, 1), Vector2(0.82, 0.86), Vector2(0.96, 0.58),
+		Vector2(1, 0.18), Vector2(0.95, -0.35), Vector2(0.76, -0.79), Vector2(0.44, -1),
+		Vector2(0, -1), Vector2(-0.44, -1), Vector2(-0.76, -0.79), Vector2(-0.95, -0.35),
+		Vector2(-1, 0.18), Vector2(-0.96, 0.58), Vector2(-0.82, 0.86), Vector2(-0.56, 1),
+	])
+	return _section_loft_mesh(size, material, section, true, nacelle)
+
+
+## The inboard boom crown rises into the intake shoulder and rolls out onto
+## the response wing. This replaces a separate skinny bar with a load-bearing
+## root shape while retaining the cannon and outboard recognition geometry.
+func _formed_root_mesh(side: float, material: Material) -> ArrayMesh:
+	var mesh := _formed_pressure_mesh(Vector3(1.6, 0.38, 4.4), material)
+	var arrays := mesh.surface_get_arrays(0)
+	var points: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
+	var normals: PackedVector3Array = arrays[Mesh.ARRAY_NORMAL]
+	var uv: PackedVector2Array = arrays[Mesh.ARRAY_TEX_UV]
+	var surface := SurfaceTool.new()
+	surface.begin(Mesh.PRIMITIVE_TRIANGLES)
+	surface.set_material(material)
+	for index in points.size():
+		var point := points[index]
+		var span := clampf((point.x * side + 0.8) / 1.6, 0.0, 1.0)
+		point.y += 0.30 * pow(1.0 - span, 3.0)
+		var slope := -0.5625 * side * pow(1.0 - span, 2.0)
+		var normal := normals[index]
+		normal.x -= slope * normal.y
+		surface.set_normal(normal.normalized())
+		surface.set_uv(uv[index])
+		surface.add_vertex(point)
+	surface.generate_tangents()
+	return surface.commit()
+
+
+func _section_loft_mesh(size: Vector3, material: Material, section: PackedVector2Array, formed: bool = false, nacelle: bool = false) -> ArrayMesh:
 	var stations := [0.0, 0.28, 0.43, 0.83, 1.0]
 	var extents: Array[Vector2] = []
 	for t in stations:
@@ -1005,6 +1054,9 @@ func _loft_mesh(size: Vector3, material: Material) -> ArrayMesh:
 		if t > 0.83:
 			width = lerpf(1.0, 0.9, (t - 0.83) / 0.17)
 			height = lerpf(1.0, 0.8, (t - 0.83) / 0.17)
+		if nacelle:
+			width = [0.72, 0.97, 1.0, 1.0, 1.2 / 1.26][extents.size()]
+			height = [0.58, 0.96, 1.0, 1.0, 1.2 / 1.34][extents.size()]
 		extents.append(Vector2(width * size.x * 0.5, height * size.y * 0.5))
 	var surface := SurfaceTool.new()
 	surface.begin(Mesh.PRIMITIVE_TRIANGLES)
@@ -1019,7 +1071,12 @@ func _loft_mesh(size: Vector3, material: Material) -> ArrayMesh:
 			# normals on the tapered chamfers rather than triangle fans.
 			for corner in [Vector2i(edge, bay), Vector2i(next, bay), Vector2i(next, bay + 1), Vector2i(edge, bay), Vector2i(next, bay + 1), Vector2i(edge, bay + 1)]:
 				var extent := extents[corner.y]
-				var around := Vector3(edge_direction.x * extent.x, edge_direction.y * extent.y, 0)
+				var tangent := edge_direction
+				if formed:
+					tangent = section[(corner.x + 1) % 16] - section[(corner.x + 15) % 16]
+					if is_equal_approx(absf(section[corner.x].y), 1.0):
+						tangent = Vector2(section[corner.x].y, 0)
+				var around := Vector3(tangent.x * extent.x, tangent.y * extent.y, 0)
 				var along := Vector3(section[corner.x].x * extent_delta.x, section[corner.x].y * extent_delta.y, run)
 				var u := 1.0 if edge == 15 and corner.x == 0 else float(corner.x) / 16.0
 				surface.set_normal(along.cross(around).normalized())
@@ -1040,11 +1097,11 @@ func _loft_mesh(size: Vector3, material: Material) -> ArrayMesh:
 	return surface.commit()
 
 
-func _armor_shell(parent: Node3D, node_name: String, at: Vector3, size: Vector3, coating: Material, skew: float = 0.0) -> MeshInstance3D:
+func _armor_shell(parent: Node3D, node_name: String, at: Vector3, size: Vector3, coating: Material, skew: float = 0.0, formed_mesh: ArrayMesh = null) -> MeshInstance3D:
 	var instance := MeshInstance3D.new()
 	instance.name = node_name
 	instance.position = at
-	instance.mesh = _loft_mesh(size, coating)
+	instance.mesh = formed_mesh if formed_mesh != null else _loft_mesh(size, coating)
 	# Shear the assembly into the wing root without an intersecting box joint.
 	instance.transform.basis.z.x = -skew
 	parent.add_child(instance)
