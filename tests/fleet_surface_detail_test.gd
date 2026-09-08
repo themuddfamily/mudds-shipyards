@@ -18,8 +18,8 @@ const ArrowShipType := preload("res://scripts/ships/arrow_recon_ship.gd")
 ## roughness spread before this pass was Arrow 0.12, Jovian 0.22, Zenith 0.28
 ## and Torrent 0.44 — and the Torrent figure is carried entirely by its seat
 ## and heat panels, with its four exterior structural surfaces sitting inside
-## 0.22 of each other. After the pass: Arrow 0.44, Zenith 0.50, Jovian 0.52,
-## Torrent 0.68.
+## 0.22 of each other. After the pass: Arrow 0.48, Zenith 0.50, Jovian 0.56,
+## Torrent 0.54.
 ##
 ## What this suite asserts.
 ##
@@ -67,8 +67,8 @@ const TORRENT_HULL_ROLES := [&"WarmIvoryHull", &"IvorySecondary"]
 const ZENITH_HULL_ROLES := [&"PaleCeramicHull", &"PaleFacetSecondary"]
 
 # Minimum difference between a craft's most matte and most glossy structural
-# surface. Measured after the pass: Arrow 0.44, Zenith 0.50, Jovian 0.52,
-# Torrent 0.68. Frozen below all four so this can only be improved.
+# surface. Measured after the pass: Arrow 0.48, Zenith 0.50, Jovian 0.56,
+# Torrent 0.54. Frozen below all four so this can only be improved.
 const STRUCTURAL_ROUGHNESS_SPREAD_FLOOR := 0.40
 
 ## Current chamfered-cylinder population per craft: `[drawn surfaces, triangles]`.
@@ -77,13 +77,16 @@ const STRUCTURAL_ROUGHNESS_SPREAD_FLOOR := 0.40
 ## craft also include Torrent's light pulse mounts, Arrow's paired recon emitters
 ## and Jovian's developed defensive turrets. These authored additions supersede
 ## the population frozen when the cylinder wall subdivisions were removed.
+## Jovian's pressure windscreen adds eleven seal/post segments while four
+## engine housings now use lofts: net +7 cylinders. Range/Picket retain their
+## ten solid cylinders; their two plumes now use open exhaust meshes instead.
 ## The suite's analytic wall-ring checks retain that optimization's geometry guard.
 const CHAMFERED_CYLINDER_POPULATION := {
 	"Torrent": [57, 14_080],
 	"Arrow": [43, 12_384],
-	"Jovian": [91, 23_296],
-	"RangeOpponent": [12, 2_688],
-	"StandoffPicket": [12, 2_688],
+	"Jovian": [98, 25_088],
+	"RangeOpponent": [10, 2_240],
+	"StandoffPicket": [10, 2_240],
 	"Zenith": [0, 0],
 }
 
