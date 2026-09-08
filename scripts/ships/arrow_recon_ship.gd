@@ -228,7 +228,7 @@ const PHASE9_ARROW_VISUAL_CENSUS := {
 	"auto_fallback_names": 23,
 }
 const EXPECTED_ARROW_VISUAL_CENSUS := {
-	"nodes": 226,
+	"nodes": 230,
 	"mesh_instance_nodes": 201,
 	"multi_mesh_instance_nodes": 3,
 	"geometry_submissions": 204,
@@ -684,6 +684,7 @@ func _build_arrow_variant(_controller: HeroShip) -> bool:
 	_build_escape_pods()
 	_build_engines_and_landing_gear()
 	_restyle_inherited_cockpit(cockpit, canopy)
+	_fit_airframe_markings()
 	_share_inherited_console_key_meshes(cockpit)
 	_cut_pressure_panel(_arrow_visual.get_node("ReconFuselage"), "ReplaceableSurveyRadome", 0, 4, 1, 15, _arrow_materials.ceramic)
 	_cut_pressure_panel(_arrow_visual.get_node("ReconFuselage"), "PortAvionicsAccess", 5, 10, 11, 15, _arrow_materials.ceramic)
@@ -962,6 +963,23 @@ func _build_survey_intake(prefix: String, origin: Vector3) -> void:
 	duct.mesh = tool.commit()
 	_arrow_visual.add_child(duct)
 	_box(duct, "RecessedIntake", Vector3(0, 0.035, 0.36), Vector3(0.64, 0.25, 0.035), _arrow_materials.graphite)
+
+
+## Registration follows the sweep of the actual wing skin. Emergency and
+## servicing stencils sit on the shoulder and drive-bay side plates.
+func _fit_airframe_markings() -> void:
+	for side in [-1.0, 1.0]:
+		var prefix := "Port" if side < 0.0 else "Starboard"
+		var wing := _arrow_visual.get_node(prefix + "SensorWing") as Node3D
+		ShipSurfaceDetail.mark_surface(wing, prefix + "RegistrationPaint", "arrow",
+			Vector3(side * 3.7, 1.075, 1.5), Vector2(2.3, 1.15),
+			Vector3(side * 0.032, 1.0, 0.02), Vector3(-side * 0.69, 0, 0.72))
+	ShipSurfaceDetail.mark_surface(_arrow_visual.get_node("PortShoulderFairing"),
+		"CanopyRescuePaint", "rescue", Vector3(-0.53, 0.03, -0.75),
+		Vector2(1.15, 0.575), Vector3.LEFT, Vector3.UP)
+	ShipSurfaceDetail.mark_surface(_arrow_visual.get_node("PortEngineIntakeFairing"),
+		"DriveServicePaint", "service", Vector3(-0.70, 0.0, 5.2),
+		Vector2(1.05, 0.525), Vector3.LEFT, Vector3.UP)
 
 
 func _build_recon_systems() -> void:
