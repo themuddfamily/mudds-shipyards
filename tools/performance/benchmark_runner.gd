@@ -19,6 +19,9 @@ const MINIMUM_SMOKE_MOVEMENT_METERS := 0.001
 const MINIMUM_FULL_STATION_PATH_METERS := 1.0
 const FLIGHT_ENDPOINT_RADIUS_METERS := 20.0
 const STREAMING_READY_FRAME_BUDGET := 24
+# Software-rendered startup may advance the production fade slowly. This wait
+# remains outside measurement and keeps the independent abort guard active.
+const BEGIN_SHIFT_READY_TIMEOUT_MS := 60_000
 
 const MONITORS := {
 	"engine_fps": Performance.TIME_FPS,
@@ -646,7 +649,7 @@ static func _stage_scenario(
 	hud.start_requested.connect(on_begin, CONNECT_ONE_SHOT)
 	hud._begin()
 	var begin_started := Time.get_ticks_msec()
-	while not began[0] and not input_guard.aborted and Time.get_ticks_msec() - begin_started < 5000:
+	while not began[0] and not input_guard.aborted and Time.get_ticks_msec() - begin_started < BEGIN_SHIFT_READY_TIMEOUT_MS:
 		await tree.process_frame
 	if hud.start_requested.is_connected(on_begin):
 		hud.start_requested.disconnect(on_begin)
