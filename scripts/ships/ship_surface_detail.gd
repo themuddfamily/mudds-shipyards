@@ -3,7 +3,7 @@ extends RefCounted
 
 const PAINT_ALBEDO_PATH := "res://assets/materials/manufactured-paint-albedo.png"
 const PAINT_NORMAL_PATH := "res://assets/materials/manufactured-paint-normal.png"
-const PAINT_ROUGHNESS_PATH := "res://assets/materials/manufactured-paint-roughness.png"
+const PAINT_ROUGHNESS_PATH := "res://assets/materials/coating-scuff-roughness.png"
 
 
 ## Printed hull graphics follow the actual surface, including chamfers and
@@ -33,9 +33,9 @@ static func mark_surface(
 	return marking
 
 ## A smooth manufactured coating. Authored seams come from actual geometry;
-## these shared maps supply fine paint grain without stamping every component
-## with the same large panel grid. Existing UV mapping and role tint stay owned
-## by the caller. The near-white roughness channel preserves its finish range.
+## these shared maps supply fine paint grain and scanned wear in the reflected
+## highlights. The roughness tile excludes the source photograph's panel joints.
+## Existing UV mapping, role tint and maximum roughness stay owned by the caller.
 static func bind_manufactured_paint(material: StandardMaterial3D) -> void:
 	if material == null:
 		return

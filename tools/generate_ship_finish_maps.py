@@ -1,8 +1,8 @@
-"""Bake the original seamless fleet paint finish (requires numpy and Pillow).
+"""Bake fleet coating channels (requires numpy and Pillow).
 
-Run from the repository root. These are analytic PBR channels, not image-derived
-normal maps: fine paint grain and broad roughness variation are deterministic
-seamless fields. Hull seams and hardware belong to the model, not a tiled grid.
+Run from the repository root. Fine paint grain uses analytic seamless fields;
+ship coating wear adapts a registered scanned roughness source. Hull seams and
+hardware belong to the model, not a tiled grid.
 """
 from pathlib import Path
 import numpy as np
@@ -45,6 +45,36 @@ def generate() -> None:
     Image.fromarray(((normal * 0.5 + 0.5) * 255).astype(np.uint8)).save(target / "manufactured-paint-normal.png")
     Image.fromarray(roughness.astype(np.uint8)).save(target / "manufactured-paint-roughness.png")
     print("Generated three seamless 512px fleet paint channels.")
+
+    # The scanned painted-steel roughness supplies actual scuffs and rubbed
+    # patches. Normalize its useful range as a modulation of each ship's own
+    # coating roughness; this is an artistic adaptation, not calibrated scan
+    # reflectance. Keep the original 16-bit source intact under art_source.
+    source = Path("art_source/materials/blue_metal_plate_rough_1k.png")
+    scan = np.asarray(Image.open(source), dtype=np.float64) / 65535.0
+    # Use the interior of one painted panel: the scan's actual plate joints
+    # must not become miniature fictitious joints on every hull component.
+    scan = scan[110:710, 330:750]
+    # Remove the smooth boundary mismatch to make the cropped wear field
+    # periodic without mirrored scratches or a blurred stripe at tile edges.
+    boundary = np.zeros_like(scan)
+    boundary[0, :] = scan[-1, :] - scan[0, :]
+    boundary[-1, :] = -boundary[0, :]
+    boundary[:, 0] += scan[:, -1] - scan[:, 0]
+    boundary[:, -1] -= scan[:, -1] - scan[:, 0]
+    fy = np.fft.fftfreq(scan.shape[0])[:, None]
+    fx = np.fft.fftfreq(scan.shape[1])[None, :]
+    laplacian = 2.0 * np.cos(2.0 * np.pi * fx) + 2.0 * np.cos(2.0 * np.pi * fy) - 4.0
+    laplacian[0, 0] = 1.0
+    smooth = np.fft.fft2(boundary) / laplacian
+    smooth[0, 0] = 0.0
+    scan -= np.fft.ifft2(smooth).real
+    low, high = np.percentile(scan, [5, 95])
+    coating = 0.40 + 0.60 * np.clip((scan - low) / (high - low), 0.0, 1.0)
+    Image.fromarray(np.rint(coating * 255.0).astype(np.uint8)).save(
+        target / "coating-scuff-roughness.png"
+    )
+    print("Adapted scanned coating scuffs to a 420x600 linear roughness tile.")
 
 
 if __name__ == "__main__":
