@@ -50,7 +50,7 @@ func _run() -> void:
 			and mesh.get_aabb().size.is_equal_approx(
 				JovianLightFreighter.CABIN_PORTAL_UPRIGHT_SIZE
 			)
-			and mesh.surface_get_material(0) == jovian.get_variant_materials().get("amber")
+			and mesh.surface_get_material(0) == jovian.get_variant_materials().get("cabin_shell")
 			and upright.material_override == null
 			and upright.material_overlay == null
 		)
@@ -78,7 +78,7 @@ func _run() -> void:
 	)
 	_check(
 		recipe_retained and mesh_ids.size() == 1,
-		"four identical amber rounded boxes share one exact mesh allocation"
+		"four identical painted portal uprights share one exact mesh allocation"
 	)
 	_check(
 		render_policy_retained and visual_only,

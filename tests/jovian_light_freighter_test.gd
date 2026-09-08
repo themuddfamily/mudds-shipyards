@@ -444,7 +444,7 @@ func _test_passenger_seat_mesh_allocation(jovian: JovianLightFreighter) -> void:
 		and int(delta.get("mesh_resource_allocations", 0)) == -15
 		and not bool(audit.get("batched", true))
 		and not bool(audit.get("collision_authority", true)),
-		"six passenger seats retain 18 rounded visual copies/submissions while exact mesh allocations fall 18 -> 3"
+		"six fitted passenger seats retain 18 shared visual copies/submissions while exact mesh allocations fall 18 -> 3"
 	)
 
 
@@ -464,6 +464,29 @@ func _test_passenger_seat_mesh_allocation(jovian: JovianLightFreighter) -> void:
 		and cabin.get_node(^"StarboardPassengerSeat02/PassengerAnchor") is Marker3D,
 		"seat family sharing preserves exact named visual paths and independent passenger anchors"
 	)
+	for anchor in jovian.get_passenger_seat_anchors():
+		var station := anchor.get_parent() as Node3D
+		var local_at := jovian.to_local(anchor.global_position)
+		var facing := jovian.global_basis.inverse() * -anchor.global_basis.z
+		_check(facing.dot(Vector3(-signf(local_at.x), 0, 0)) > 0.99
+			and is_equal_approx(absf(local_at.x), 2.64),
+			"passenger station faces the aisle and retains its ship-local centre: " + String(station.name))
+		for part in ["SeatBase", "SeatBack"]:
+			var visual := station.get_node(part) as MeshInstance3D
+			var shape_node := jovian.get_node(String(station.name) + part + "Collision") as CollisionShape3D
+			var shape := shape_node.shape as BoxShape3D
+			var bounds := visual.mesh.get_aabb()
+			_check(shape.size.is_equal_approx(bounds.size)
+				and shape_node.global_transform.is_equal_approx(visual.global_transform * Transform3D(Basis.IDENTITY, bounds.get_center())),
+				"passenger furniture collider follows the fitted cushion/back: " + String(station.name) + part)
+		var ray := PhysicsRayQueryParameters3D.create(
+			jovian.to_global(Vector3(0, 1.42, local_at.z)),
+			jovian.to_global(Vector3(signf(local_at.x) * 3.16, 1.42, local_at.z)),
+			PhysicsLayers.SHIP_BODY_LAYER)
+		var hit := jovian.get_world_3d().direct_space_state.intersect_ray(ray)
+		_check(not hit.is_empty() and hit.get("collider") == jovian
+			and absf(jovian.to_local(hit.get("position", Vector3.ZERO)).x) < 3.1,
+			"physical aisle probe meets the passenger back before the pressure wall: " + String(station.name))
 	var retained := starboard_base.mesh
 	starboard_base.mesh = (retained as ArrayMesh).duplicate() as ArrayMesh
 	_check(

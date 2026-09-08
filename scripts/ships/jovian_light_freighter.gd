@@ -79,9 +79,6 @@ const CARGO_RESTRAINT_BAND_Z: Array[float] = [-0.64, 0.64]
 const CARGO_RESTRAINT_SIZE := Vector3(2.02, 0.08, 0.1)
 const CARGO_RESTRAINT_COPY_COUNT := 8
 const PASSENGER_SEAT_COUNT := 6
-const PASSENGER_SEAT_BASE_SIZE := Vector3(0.72, 0.2, 0.82)
-const PASSENGER_SEAT_BACK_SIZE := Vector3(0.72, 0.95, 0.16)
-const PASSENGER_SEAT_HARNESS_SIZE := Vector3(0.13, 0.72, 0.04)
 const PASSENGER_CABIN_LIGHT_STRIP_SIZE := Vector3(0.04, 0.12, 3.55)
 # Three childless emissive ceiling strips share one immutable visual recipe.
 # Their separate OmniLight3D practicals remain authoritative for illumination;
@@ -2139,7 +2136,7 @@ func get_cargo_deck_lane_render_audit() -> Dictionary:
 
 
 ## Six passenger seats retain all 18 visible parts and submissions, while their
-## three exact rounded-box visual recipes share one immutable ArrayMesh each. Seat anchors and
+## three fitted cushion/webbing recipes share one immutable ArrayMesh each. Seat anchors and
 ## collision remain separately owned; this changes no authority or batching.
 func get_passenger_seat_mesh_allocation_audit() -> Dictionary:
 	var errors := PackedStringArray()
@@ -2155,7 +2152,7 @@ func get_passenger_seat_mesh_allocation_audit() -> Dictionary:
 	var expected_materials := {
 		&"SeatBase": _jovian_materials.get("cabin_cloth"),
 		&"SeatBack": _jovian_materials.get("cabin_cloth"),
-		&"Harness": _jovian_materials.get("amber"),
+		&"Harness": _jovian_materials.get("webbing"),
 	}
 	var expected_positions := {
 		&"SeatBase": Vector3(0.0, 0.88, 0.0),
@@ -3213,7 +3210,11 @@ func _create_jovian_materials() -> void:
 	_jovian_materials.teal = _jovian_material(FREIGHT_TEAL.darkened(0.28), 0.24, 0.58)
 	_jovian_materials.amber = _jovian_material(FREIGHT_AMBER.darkened(0.22), 0.10, 0.72)
 	_jovian_materials.cargo_blue = _jovian_material(CARGO_BLUE.darkened(0.40), 0.10, 0.78)
-	_jovian_materials.cabin_cloth = _jovian_material(CABIN_CLOTH, 0.08, 0.78)
+	_jovian_materials.cabin_cloth = _jovian_material(Color("374e50"), 0.0, 0.94)
+	_jovian_materials.cabin_shell = _jovian_material(Color("929488"), 0.08, 0.72)
+	_jovian_materials.cabin_liner = _jovian_material(Color("b0ada0"), 0.02, 0.91)
+	_jovian_materials.webbing = _jovian_material(Color("666456"), 0.0, 0.98)
+	_jovian_materials.freight_shell = _jovian_material(Color("65716d"), 0.12, 0.79)
 	_jovian_materials.deck = _jovian_material(DECK_GREY, 0.40, 0.74)
 	_jovian_materials.engine = _jovian_material(ENGINE_AQUA, 0.1, 0.16, ENGINE_AQUA, 3.2)
 	_jovian_materials.nav_red = _jovian_material(JOVIAN_NAV_RED, 0.08, 0.2, JOVIAN_NAV_RED, 2.4)
@@ -3729,7 +3730,7 @@ func _build_cargo_bay() -> void:
 	# Forward bulkhead wraps a 2.8 m passage to the passenger cabin.
 	for side in [-1.0, 1.0]:
 		_box(_cargo_bay, "ForwardBulkheadWing", Vector3(side * 3.55, 2.5, -2.88), Vector3(4.2, 3.86, 0.18), _jovian_materials.structure)
-	_box(_cargo_bay, "ForwardBulkheadHeader", Vector3(0.0, 4.12, -2.88), Vector3(2.95, 0.62, 0.18), _jovian_materials.amber)
+	_box(_cargo_bay, "ForwardBulkheadHeader", Vector3(0.0, 4.12, -2.88), Vector3(2.95, 0.62, 0.18), _jovian_materials.cabin_shell)
 	# Curved interior frames expose the true structural scale without closing the
 	# route. All fixtures are children of the moving ship.
 	_cargo_frame_joint_mesh = SphereMesh.new()
@@ -3777,7 +3778,7 @@ func _build_cargo_bay() -> void:
 		# ever be found as two by name — and an audit that can only see half a
 		# roster is how they stayed permeable this long.
 		_box(_cargo_bay, "CargoPallet" + suffix, position + Vector3(0.0, CARGO_PALLET_OFFSET_Y, 0.0), CARGO_PALLET_SIZE, _jovian_materials.structure)
-		_box(_cargo_bay, "CargoContainer" + suffix, position + Vector3(0.0, CARGO_CONTAINER_OFFSET_Y, 0.0), CARGO_CONTAINER_SIZE, _jovian_materials.cargo_blue)
+		_box(_cargo_bay, "CargoContainer" + suffix, position + Vector3(0.0, CARGO_CONTAINER_OFFSET_Y, 0.0), CARGO_CONTAINER_SIZE, _jovian_materials.freight_shell)
 		for corner_x in [-0.87, 0.87]:
 			for corner_z in [-0.98, 0.98]:
 				_box(_cargo_bay, "ContainerCorner" + suffix, position + Vector3(corner_x, 0.90, corner_z), Vector3(0.16, 1.24, 0.16), _jovian_materials.structure)
@@ -3862,14 +3863,12 @@ func _build_passenger_cabin() -> void:
 	_passenger_cabin.set_meta("space_id", &"passenger_cabin")
 	_passenger_cabin.set_meta("capacity_status", &"provisional")
 	_walkable_interior.add_child(_passenger_cabin)
-	_passenger_seat_base_mesh = _rounded_box_mesh(PASSENGER_SEAT_BASE_SIZE, _jovian_materials.cabin_cloth)
-	_passenger_seat_back_mesh = _rounded_box_mesh(PASSENGER_SEAT_BACK_SIZE, _jovian_materials.cabin_cloth)
-	_passenger_seat_harness_mesh = _rounded_box_mesh(PASSENGER_SEAT_HARNESS_SIZE, _jovian_materials.amber)
+	_build_fitted_passenger_seat_meshes()
 	_passenger_cabin_light_strip_mesh = _rounded_box_mesh(
 		PASSENGER_CABIN_LIGHT_STRIP_SIZE, _jovian_materials.interior_light
 	)
 	_cabin_portal_upright_mesh = _rounded_box_mesh(
-		CABIN_PORTAL_UPRIGHT_SIZE, _jovian_materials.amber
+		CABIN_PORTAL_UPRIGHT_SIZE, _jovian_materials.cabin_shell
 	)
 	_box(_passenger_cabin, "PassengerDeck", Vector3(0.0, 0.5, -5.25), Vector3(6.9, 0.18, 4.65), _jovian_materials.deck)
 	_box(_passenger_cabin, "PassengerRoof", Vector3(0.0, 3.82, -5.25), Vector3(6.9, 0.16, 4.65), _jovian_materials.hull_cool)
@@ -3888,7 +3887,8 @@ func _build_passenger_cabin() -> void:
 			var seat_root := Node3D.new()
 			seat_root.name = ("Port" if side < 0.0 else "Starboard") + "PassengerSeat%02d" % seat_index
 			seat_root.position = Vector3(side * 2.62, 0.0, seat_z)
-			seat_root.rotation.y = -side * PI * 0.5
+			# Local -Z faces the aisle; the old opposite yaw faced the wall.
+			seat_root.rotation.y = side * PI * 0.5
 			_passenger_cabin.add_child(seat_root)
 			_rounded_box_from_mesh(seat_root, "SeatBase", Vector3(0.0, 0.88, 0.0), _passenger_seat_base_mesh)
 			_rounded_box_from_mesh(seat_root, "SeatBack", Vector3(0.0, 1.42, 0.36), _passenger_seat_back_mesh, Vector3(deg_to_rad(8.0), 0.0, 0.0))
@@ -3898,7 +3898,8 @@ func _build_passenger_cabin() -> void:
 				_box(seat_root, "SeatArmrest", Vector3(arm_side * 0.40, 1.12, 0.05), Vector3(0.10, 0.12, 0.66), _jovian_materials.dark)
 			var anchor := Marker3D.new()
 			anchor.name = "PassengerAnchor"
-			anchor.position = Vector3(0.0, 0.24, -0.02)
+			# Compensate the reversed yaw to retain the ship-local seat centre.
+			anchor.position = Vector3(0.0, 0.24, 0.02)
 			anchor.set_meta("seat_id", StringName("passenger_%s_%02d" % ["port" if side < 0.0 else "starboard", seat_index]))
 			seat_root.add_child(anchor)
 			_passenger_seat_anchors.append(anchor)
@@ -3911,7 +3912,7 @@ func _build_passenger_cabin() -> void:
 				Vector3(side * 1.45, 2.1, bulkhead_z),
 				_cabin_portal_upright_mesh
 			)
-		_box(_passenger_cabin, "CabinPortalHeader", Vector3(0.0, 3.68, bulkhead_z), Vector3(3.05, 0.18, 0.2), _jovian_materials.amber)
+		_box(_passenger_cabin, "CabinPortalHeader", Vector3(0.0, 3.68, bulkhead_z), Vector3(3.05, 0.18, 0.2), _jovian_materials.cabin_shell)
 	_box(_passenger_cabin, "CabinStatusPanel", Vector3(0.0, 2.5, -3.13), Vector3(1.05, 0.58, 0.04), _materials.display_substrate)
 	_engineer_status_readout = Label3D.new()
 	_engineer_status_readout.name = "EngineerRepairReadout"
@@ -4228,6 +4229,12 @@ func _replace_collision_and_markers() -> void:
 		_add_visual_box_collision(
 			"PilotSeatBackCollision", cockpit.get_node_or_null(^"SeatBack") as MeshInstance3D
 		)
+	# Passenger cushions and backs are solid at their fitted local transforms.
+	# They remain outside the central passage and follow the moving ship body.
+	for anchor in _passenger_seat_anchors:
+		var seat := anchor.get_parent() as Node3D
+		for part in ["SeatBase", "SeatBack"]:
+			_add_visual_box_collision(String(seat.name) + part + "Collision", seat.get_node(part) as MeshInstance3D)
 	# Secured freight is solid. It was presentation-only for as long as the hold
 	# was scenery a chase camera flew past; once a crew member could leave the seat
 	# and walk it, a crate you walk through — and a chase boom pushed inside a
@@ -5040,7 +5047,7 @@ func _build_fitted_freighter_details() -> void:
 	for side in [-1.0, 1.0]:
 		# Pressure bulkhead wings have a shallow liner, kick plate and service
 		# access face. All remain outside the central door and cargo route.
-		_fitout_stock(interior, "liner", Vector3(side * 3.55, 2.58, -2.77), Vector3(3.8, 2.74, 0.045))
+		_fitout_stock(interior, "cabin_liner", Vector3(side * 3.55, 2.58, -2.77), Vector3(3.8, 2.74, 0.045))
 		_fitout_stock(interior, "dark", Vector3(side * 3.55, 0.93, -2.745), Vector3(3.82, 0.42, 0.055))
 		_fitout_stock(interior, "dark", Vector3(side * 2.7, 2.66, -2.724), Vector3(1.18, 1.60, 0.028))
 		_fitout_stock(interior, "hull_cool", Vector3(side * 2.7, 2.66, -2.698), Vector3(1.10, 1.52, 0.026))
@@ -5066,10 +5073,116 @@ func _build_fitted_freighter_details() -> void:
 	for at in CARGO_UNIT_ANCHORS:
 		for face in [-1.0, 1.0]:
 			for x in [-0.43, 0.43]:
-				_fitout_stock(interior, "cargo_blue", at + Vector3(x, 0.91, face * 1.102), Vector3(0.67, 0.72, 0.033))
+				_fitout_stock(interior, "freight_shell", at + Vector3(x, 0.91, face * 1.102), Vector3(0.67, 0.72, 0.033))
 				_fitout_stock(interior, "structure", at + Vector3(x, 0.91, face * 1.126), Vector3(0.048, 0.67, 0.035))
 				_fitout_stock(interior, "liner", at + Vector3(x + 0.065, 0.85, face * 1.15), Vector3(0.17, 0.045, 0.03))
+	_build_fitted_cargo_restraints(interior)
 	_finish_fitout(_cargo_bay, interior, "CargoFitout")
+	_build_passenger_room_fitout()
+
+
+# Padding is formed from a dished centre and raised lateral bolsters. Merging
+# the pieces preserves the three immutable meshes shared by all six stations.
+func _build_fitted_passenger_seat_meshes() -> void:
+	var cushion := {}
+	_fitout_stock(cushion, "cabin_cloth", Vector3(0, -0.014, -0.015), Vector3(0.55, 0.18, 0.78))
+	for side in [-1.0, 1.0]:
+		_fitout_stock(cushion, "cabin_cloth", Vector3(side * 0.31, 0.025, 0), Vector3(0.10, 0.22, 0.78), Vector3(0, 0, side * -0.10))
+	_passenger_seat_base_mesh = (cushion.cabin_cloth as SurfaceTool).commit()
+	var back := {}
+	_fitout_stock(back, "cabin_cloth", Vector3(0, -0.025, 0), Vector3(0.51, 0.83, 0.16))
+	_fitout_stock(back, "cabin_cloth", Vector3(0, -0.32, -0.045), Vector3(0.52, 0.17, 0.19), Vector3(-0.15, 0, 0))
+	for side in [-1.0, 1.0]:
+		_fitout_stock(back, "cabin_cloth", Vector3(side * 0.305, 0, -0.035), Vector3(0.105, 0.90, 0.23), Vector3(0, side * -0.20, side * 0.05))
+	_passenger_seat_back_mesh = (back.cabin_cloth as SurfaceTool).commit()
+	var straps := {}
+	for side in [-1.0, 1.0]:
+		_fitout_stock(straps, "webbing", Vector3(side * 0.16, 0.025, -0.052), Vector3(0.062, 0.82, 0.024), Vector3(0.14, 0, side * -0.12))
+		_fitout_stock(straps, "webbing", Vector3(side * 0.17, -0.365, -0.16), Vector3(0.36, 0.065, 0.022), Vector3(0, 0.18 * side, 0.12 * side))
+	_passenger_seat_harness_mesh = (straps.webbing as SurfaceTool).commit()
+
+
+func _build_passenger_room_fitout() -> void:
+	var room := {}
+	# Continuous upper liner and a single cabinet run read as pressure-cabin
+	# construction; reveals coincide with seat stations and service access.
+	for side in [-1.0, 1.0]:
+		_fitout_stock(room, "cabin_liner", Vector3(side * 3.247, 2.44, -5.25), Vector3(0.035, 1.45, 4.37))
+		_fitout_stock(room, "cabin_shell", Vector3(side * 3.22, 1.12, -5.25), Vector3(0.075, 1.13, 4.37))
+		_fitout_stock(room, "structure", Vector3(side * 3.17, 0.69, -5.25), Vector3(0.10, 0.15, 4.33))
+		_fitout_stock(room, "cabin_shell", Vector3(side * 3.19, 3.59, -5.25), Vector3(0.20, 0.12, 4.36), Vector3(0, 0, side * -0.40))
+		_fitout_stock(room, "dark", Vector3(side * 3.20, 3.13, -5.25), Vector3(0.035, 0.028, 4.34))
+		for seam_z in [-5.9, -4.6]:
+			_fitout_stock(room, "structure", Vector3(side * 3.223, 2.44, seam_z), Vector3(0.018, 1.44, 0.018))
+		# Seat support rails sit below the cushion instead of floating furniture.
+		_fitout_stock(room, "structure", Vector3(side * 2.62, 0.66, -5.25), Vector3(0.50, 0.09, 3.9))
+		for seat_index in 3:
+			var seat_root := _passenger_cabin.get_node(("Port" if side < 0 else "Starboard") + "PassengerSeat%02d" % seat_index) as Node3D
+			var fittings := {}
+			_fitout_stock(fittings, "cabin_shell", Vector3(0, 0.775, 0.015), Vector3(0.79, 0.12, 0.89))
+			_fitout_stock(fittings, "structure", Vector3(0, 0.655, 0.09), Vector3(0.40, 0.16, 0.40))
+			_fitout_stock(fittings, "cabin_shell", Vector3(0, 1.43, 0.49), Vector3(0.78, 1.08, 0.09), Vector3(0.14, 0, 0))
+			# Recessed rear shell insert, moulded edge wings and headrest carrier.
+			_fitout_stock(fittings, "structure", Vector3(0, 1.44, 0.557), Vector3(0.58, 0.67, 0.045), Vector3(0.14, 0, 0))
+			_fitout_stock(fittings, "cabin_shell", Vector3(0, 1.89, 0.48), Vector3(0.30, 0.28, 0.07))
+			_fitout_stock(fittings, "cabin_shell", Vector3(0, 1.99, 0.565), Vector3(0.55, 0.27, 0.055))
+			_fitout_stock(fittings, "structure", Vector3(0, 1.06, 0.04), Vector3(0.13, 0.12, 0.055))
+			_fitout_stock(fittings, "amber", Vector3(0, 1.065, 0.005), Vector3(0.067, 0.045, 0.022))
+			for edge in [-1.0, 1.0]:
+				_fitout_stock(fittings, "cabin_shell", Vector3(edge * 0.386, 1.39, 0.36), Vector3(0.065, 1.02, 0.22), Vector3(0.14, edge * -0.12, 0))
+				_fitout_stock(fittings, "structure", Vector3(edge * 0.40, 0.97, 0.26), Vector3(0.055, 0.28, 0.08))
+			# One merged mesh per finish for the whole room, using the existing
+			# station transform; the seat roots and anchors remain untouched.
+			for finish: String in fittings:
+				if not room.has(finish):
+					var tool := SurfaceTool.new()
+					tool.begin(Mesh.PRIMITIVE_TRIANGLES)
+					tool.set_material(_jovian_materials[finish])
+					room[finish] = tool
+				(room[finish] as SurfaceTool).append_from((fittings[finish] as SurfaceTool).commit(), 0, seat_root.transform)
+	# A fitted overhead service spine and curved shoulder fillets leave the
+	# existing cabin roof and its load-bearing envelope intact.
+	_fitout_stock(room, "cabin_liner", Vector3(0, 3.708, -5.25), Vector3(5.92, 0.045, 4.33))
+	_fitout_stock(room, "cabin_shell", Vector3(0, 3.65, -5.25), Vector3(0.58, 0.09, 4.3))
+	for seam_z in [-6.55, -5.25, -3.95]:
+		_fitout_stock(room, "structure", Vector3(0, 3.675, seam_z), Vector3(5.86, 0.012, 0.018))
+	# Recessed floor runner, with two service joints and a narrow safety reveal.
+	_fitout_stock(room, "structure", Vector3(0, 0.594, -5.25), Vector3(2.56, 0.008, 4.26))
+	for side in [-1.0, 1.0]:
+		_fitout_stock(room, "cabin_shell", Vector3(side * 1.30, 0.597, -5.25), Vector3(0.035, 0.012, 4.27))
+	for seam_z in [-5.9, -4.6]:
+		_fitout_stock(room, "dark", Vector3(0, 0.603, seam_z), Vector3(2.53, 0.007, 0.018))
+	_finish_fitout(_passenger_cabin, room, "PassengerFitout")
+
+
+func _build_fitted_cargo_restraints(interior: Dictionary) -> void:
+	for at in CARGO_UNIT_ANCHORS:
+		# Existing amber top restraints now continue down to pallet clevises.
+		# Faces are shallow additions around the unchanged solid freight volume.
+		for side in [-1.0, 1.0]:
+			for band_z in CARGO_RESTRAINT_BAND_Z:
+				_fitout_stock(interior, "webbing", at + Vector3(side * 0.99, 0.94, band_z), Vector3(0.028, 1.30, 0.10))
+				_fitout_stock(interior, "structure", at + Vector3(side * 1.012, 0.55, band_z), Vector3(0.047, 0.27, 0.18))
+				_fitout_stock(interior, "amber", at + Vector3(side * 1.04, 0.57, band_z), Vector3(0.025, 0.11, 0.09))
+			# Broad replaceable panels are inset between the two tension bands.
+			_fitout_stock(interior, "structure", at + Vector3(side * 0.978, 0.93, 0), Vector3(0.028, 0.80, 1.03))
+			_fitout_stock(interior, "freight_shell", at + Vector3(side * 0.997, 0.94, 0), Vector3(0.025, 0.69, 0.91))
+			for seam_y in [0.52, 1.34]:
+				_fitout_stock(interior, "cabin_shell", at + Vector3(side * 0.988, seam_y, 0), Vector3(0.028, 0.048, 1.83))
+			for foot_z in [-0.97, 0.97]:
+				_fitout_stock(interior, "cabin_shell", at + Vector3(side * 0.84, 0.30, foot_z), Vector3(0.24, 0.18, 0.20))
+		# Fitted lid edging explains the top bands' slight standoff.
+		for side in [-1.0, 1.0]:
+			_fitout_stock(interior, "cabin_shell", at + Vector3(side * 0.92, 1.55, 0), Vector3(0.085, 0.12, 2.05))
+	for side in [-1.0, 1.0]:
+		# Panel hinges and a flush latch complete the existing service-door faces.
+		for hinge_y in [2.11, 3.17]:
+			_fitout_stock(interior, "structure", Vector3(side * 3.20, hinge_y, -2.671), Vector3(0.06, 0.16, 0.035))
+		_fitout_stock(interior, "cabin_shell", Vector3(side * 2.32, 2.65, -2.650), Vector3(0.028, 0.14, 0.025))
+		# The portal is painted neutral with a restrained amber threshold cue.
+		_fitout_stock(interior, "amber", Vector3(side * 1.46, 0.82, -2.76), Vector3(0.15, 0.37, 0.04))
+		_fitout_stock(interior, "structure", Vector3(side * 1.64, 2.37, -2.725), Vector3(0.06, 3.34, 0.042))
+		_fitout_stock(interior, "dark", Vector3(side * 3.55, 3.64, -2.737), Vector3(3.70, 0.021, 0.024))
 
 
 # Fitted visual stock is merged by finish. The moving hull owns its transform;
