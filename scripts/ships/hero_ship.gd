@@ -7141,22 +7141,10 @@ static func _shape_local_bounds(shape: Shape3D) -> AABB:
 
 
 static func _transformed_local_aabb(transform_value: Transform3D, source: AABB) -> AABB:
-	var minimum := source.position
-	var maximum := source.end
-	var corners := PackedVector3Array([
-		Vector3(minimum.x, minimum.y, minimum.z),
-		Vector3(maximum.x, minimum.y, minimum.z),
-		Vector3(minimum.x, maximum.y, minimum.z),
-		Vector3(maximum.x, maximum.y, minimum.z),
-		Vector3(minimum.x, minimum.y, maximum.z),
-		Vector3(maximum.x, minimum.y, maximum.z),
-		Vector3(minimum.x, maximum.y, maximum.z),
-		Vector3(maximum.x, maximum.y, maximum.z),
-	])
-	var transformed := AABB(transform_value * corners[0], Vector3.ZERO)
-	for corner in corners:
-		transformed = transformed.expand(transform_value * corner)
-	return transformed
+	# The native operator encloses the transformed box, including rotation,
+	# nonuniform scale and shear, without allocating and expanding eight corners
+	# in GDScript for every live root shape on every camera physics tick.
+	return transform_value * source
 
 
 func _create_materials() -> void:

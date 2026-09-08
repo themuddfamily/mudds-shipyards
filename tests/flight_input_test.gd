@@ -76,6 +76,7 @@ func _run() -> void:
 	root.add_child(stage)
 	await _test_variant_launch_thresholds(stage)
 	await _test_fleet_chase_camera_boundaries(stage)
+	await _test_live_chase_collision_bounds(stage, ship_scene)
 	await _test_controller_only_command_path(stage, ship_scene)
 	var ship := ship_scene.instantiate() as CharacterBody3D
 	stage.add_child(ship)
@@ -504,6 +505,71 @@ func _test_controller_only_command_path(stage: Node3D, ship_scene: PackedScene) 
 
 	controller_ship.queue_free()
 	await process_frame
+	await process_frame
+
+
+func _test_live_chase_collision_bounds(stage: Node3D, ship_scene: PackedScene) -> void:
+	var craft := ship_scene.instantiate() as HeroShip
+	stage.add_child(craft)
+	craft.set_physics_process(false)
+	# Isolate the envelope while exercising the production collision report and
+	# boundary correction. Dormant cameras use the same live geometry contract.
+	for child in craft.get_children():
+		if child is CollisionShape3D:
+			(child as CollisionShape3D).disabled = true
+	var collision := CollisionShape3D.new()
+	var box := BoxShape3D.new()
+	box.size = Vector3(4.0, 2.0, 6.0)
+	collision.shape = box
+	craft.add_child(collision)
+	var mount := craft.get_node("CameraRig/CameraCollisionArm/CameraBoundaryMount") as Node3D
+	var cases := [
+		{
+			"label": "rotated, reflected and nonuniformly scaled",
+			"basis": Basis(Vector3(0.0, 2.0, 0.0), Vector3.RIGHT, Vector3(0.0, 0.0, -0.5)),
+			"origin": Vector3(3.0, 7.0, 1.0),
+			"size": Vector3(4.0, 2.0, 6.0),
+			"bounds": AABB(Vector3(2.0, 3.0, -0.5), Vector3(2.0, 8.0, 3.0)),
+		},
+		{
+			"label": "live sheared",
+			"basis": Basis(Vector3.RIGHT, Vector3(0.5, 1.0, 0.0), Vector3(0.0, 0.25, 1.0)),
+			"origin": Vector3(0.0, 5.0, 0.0),
+			"size": Vector3(4.0, 2.0, 6.0),
+			"bounds": AABB(Vector3(-2.5, 3.25, -3.0), Vector3(5.0, 3.5, 6.0)),
+		},
+		{
+			"label": "live resized sheared",
+			"basis": Basis(Vector3.RIGHT, Vector3(0.5, 1.0, 0.0), Vector3(0.0, 0.25, 1.0)),
+			"origin": Vector3(0.0, 5.0, 0.0),
+			"size": Vector3(8.0, 4.0, 12.0),
+			"bounds": AABB(Vector3(-5.0, 1.5, -6.0), Vector3(10.0, 7.0, 12.0)),
+		},
+	]
+	for specification: Dictionary in cases:
+		collision.transform = Transform3D(specification.basis, specification.origin)
+		box.size = specification.size
+		var expected: AABB = specification.bounds
+		var report := craft.get_landing_collision_report()
+		_check(
+			bool(report.valid) and (report.local_bounds as AABB).is_equal_approx(expected),
+			"%s root shape has its exact live collision envelope" % specification.label
+		)
+		mount.global_position = craft.to_global(expected.get_center())
+		craft.call("_enforce_chase_camera_self_hull_boundary")
+		var boundary := craft.get_chase_camera_self_hull_boundary_report()
+		_check(
+			bool(boundary.valid) and float(boundary.correction_m) > 0.0,
+			"%s root shape keeps the dormant camera near plane outside the hull" % specification.label
+		)
+	collision.disabled = true
+	craft.call("_enforce_chase_camera_self_hull_boundary")
+	_check(
+		not bool(craft.get_landing_collision_report().valid)
+		and craft.get_camera().global_position.is_equal_approx(mount.global_position),
+		"disabling the live collision envelope immediately clears camera correction"
+	)
+	craft.queue_free()
 	await process_frame
 
 
