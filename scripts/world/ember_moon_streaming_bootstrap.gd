@@ -375,8 +375,13 @@ func is_runtime_contract_valid() -> bool:
 
 func _collect_contract_errors(check_immutable_registry: bool = true) -> PackedStringArray:
 	var errors := PackedStringArray()
-	var frame_report := _coordinate_frame.audit()
-	var coordinator_report := _coordinator.audit() if is_instance_valid(_coordinator) else {}
+	var frame_valid := _coordinate_frame.is_runtime_contract_valid()
+	# Reconcile resident lifetimes before inspecting registration and presentation,
+	# as the previous coordinator audit did before returning its report.
+	if is_instance_valid(_coordinator):
+		_coordinator.get_loaded_ids()
+	var registered_ids := _coordinator.get_registered_ids() \
+		if is_instance_valid(_coordinator) else PackedStringArray()
 	var definition := _coordinator.get_definition(LOCATION_ID) \
 		if is_instance_valid(_coordinator) else null
 	if not _configured:
@@ -384,12 +389,12 @@ func _collect_contract_errors(check_immutable_registry: bool = true) -> PackedSt
 	# The registry has no mutable state; configuration already validates its datum.
 	if check_immutable_registry and not bool(_registry.audit().get("valid", false)):
 		errors.append("nearby-sector orbital registry is invalid")
-	if not bool(frame_report.get("valid", false)):
+	if not frame_valid:
 		errors.append("Ember coordinate frame is invalid")
 	if not is_instance_valid(_coordinator) or _coordinator.get_parent() != self \
 			or get_child_count() != 1:
 		errors.append("exactly one private child coordinator is required")
-	if coordinator_report.get("registered_ids") != PackedStringArray([str(LOCATION_ID)]):
+	if registered_ids != PackedStringArray([str(LOCATION_ID)]):
 		errors.append("coordinator must retain exactly the Ember registration")
 	if definition == null or not definition.is_definition_valid() \
 			or definition.location_id != LOCATION_ID \

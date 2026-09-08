@@ -222,7 +222,7 @@ func accept_committed_origin_rebase(
 			or int(r.get("target_generation", 0)) != target_generation \
 			or p.get("absolute_coordinate") != _last_absolute_coordinate \
 			or _coordinate_frame.get_generation() != target_generation \
-			or not (_coordinate_frame.get_snapshot().get("pending_rebase", {}) as Dictionary).is_empty():
+			or _coordinate_frame.has_pending_rebase():
 		return _result(false, &"committed_rebase_mismatch")
 	if not bool(sample.get("available", false)) \
 			or sample.get("actor_kind") != _last_actor_kind \
@@ -369,8 +369,7 @@ func _activate_scene_binding() -> void:
 	if generation != EXPECTED_INITIAL_FRAME_GENERATION:
 		_configuration_error = &"unexpected_initial_coordinate_frame_generation"
 		return
-	var frame_snapshot := _coordinate_frame.get_snapshot()
-	if not (frame_snapshot.get("pending_rebase", {}) as Dictionary).is_empty():
+	if _coordinate_frame.has_pending_rebase():
 		_configuration_error = &"coordinate_frame_rebase_pending"
 		return
 	_bootstrap_instance_id = _bootstrap.get_instance_id()
@@ -398,8 +397,7 @@ func _validate_bound_identity() -> StringName:
 		return &"coordinate_frame_identity_drift"
 	if _coordinate_frame.get_generation() != _bound_frame_generation:
 		return &"coordinate_frame_generation_drift"
-	var frame_snapshot := _coordinate_frame.get_snapshot()
-	if not (frame_snapshot.get("pending_rebase", {}) as Dictionary).is_empty():
+	if _coordinate_frame.has_pending_rebase():
 		return &"coordinate_frame_rebase_pending"
 	if not _bootstrap.is_runtime_contract_valid():
 		return &"bootstrap_audit_invalid"

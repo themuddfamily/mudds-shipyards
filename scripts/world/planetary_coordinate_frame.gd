@@ -169,6 +169,10 @@ func get_generation() -> int:
 	return _generation
 
 
+func has_pending_rebase() -> bool:
+	return not _pending_rebase.is_empty()
+
+
 ## Strictly validates and detaches an absolute orbital coordinate. Unlike local
 ## conversion results, a valid absolute coordinate survives origin rebases.
 func validate_orbital_coordinate(candidate: Variant) -> Dictionary:
@@ -526,7 +530,12 @@ func get_snapshot() -> Dictionary:
 	}.duplicate(true)
 
 
-func audit() -> Dictionary:
+## Same live checks as audit(), without copying diagnostic history.
+func is_runtime_contract_valid() -> bool:
+	return _collect_contract_errors().is_empty()
+
+
+func _collect_contract_errors() -> PackedStringArray:
 	var errors := PackedStringArray()
 	if not _configured:
 		errors.append("coordinate frame is not configured")
@@ -590,6 +599,11 @@ func audit() -> Dictionary:
 		or _rebase_cancel_count > _rebase_request_count \
 		or _rebase_commit_count + _rebase_cancel_count > _rebase_request_count:
 		errors.append("rebase counters are inconsistent")
+	return errors
+
+
+func audit() -> Dictionary:
+	var errors := _collect_contract_errors()
 	return {
 		"schema_version": SCHEMA_VERSION,
 		"valid": errors.is_empty(),

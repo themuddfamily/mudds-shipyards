@@ -145,9 +145,8 @@ func advance_world(delta: float, actor_sample: Dictionary) -> Dictionary:
 			)
 		else:
 			_planetary_cruise_caller_tick += 1
-			var location_generation := int(
-				_flow.ember_surface_loop_host.get_snapshot().get("location_generation", 0)
-			) if is_instance_valid(_flow.ember_surface_loop_host) else 0
+			var location_generation := _flow.ember_surface_loop_host.get_location_generation() \
+				if is_instance_valid(_flow.ember_surface_loop_host) else 0
 			var cruise_tick := _flow.planetary_cruise_binding.physics_tick_from_caller_sample(
 				_planetary_cruise_caller_tick,
 				actor_sample,
@@ -204,9 +203,9 @@ func _ensure_ember_surface_loop_host_bound(streaming_ready: bool) -> Dictionary:
 			or not is_instance_valid(_flow.ember_surface_berth) \
 			or not is_instance_valid(_flow.ember_surface_loop_production_binding):
 		return {"accepted": false, "reason": &"composition_missing"}
-	if bool(_flow.ember_surface_loop_host.get_snapshot().get("attached", false)):
+	if _flow.ember_surface_loop_host.is_attached():
 		return {"accepted": true, "reason": &"already_bound"}
-	if bool(_flow.ember_surface_loop_production_binding.get_snapshot().get("configured", false)):
+	if _flow.ember_surface_loop_production_binding.is_configured():
 		return {"accepted": true, "reason": &"already_configured"}
 	var loaded_scene := _flow.ember_streaming_bootstrap.get_loaded_instance() \
 			if is_instance_valid(_flow.ember_streaming_bootstrap) else null

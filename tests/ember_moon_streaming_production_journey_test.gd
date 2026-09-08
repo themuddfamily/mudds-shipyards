@@ -3,7 +3,7 @@ extends SceneTree
 const MAIN_SCENE := preload("res://scenes/main.tscn")
 const Store := preload("res://scripts/persistence/user_data_store.gd")
 const STORE_PATH := "memory://ember-streaming-production-settings.json"
-const EXPECTED_ASSERTIONS := 32
+const EXPECTED_ASSERTIONS := 35
 
 var _assertions := 0
 var _failures: Array[String] = []
@@ -371,6 +371,22 @@ func _test_live_contract_drift(
 	var sample := _sample(Vector3(12.0, 3.0, -9.0), &"player", 101)
 	_check(bootstrap.is_runtime_contract_valid() and bootstrap.audit().valid,
 		"runtime validity and diagnostic audit agree before live drift")
+	var frame := bootstrap.get_coordinate_frame_for_session()
+	var original_radius := float(frame.get("_body_radius_meters"))
+	frame.set("_body_radius_meters", -1.0)
+	_check(not frame.is_runtime_contract_valid() and not frame.audit().valid
+			and binding.physics_tick_from_caller_sample(0.01, sample).reason == &"bootstrap_audit_invalid",
+		"live frame validation rejects mutable frame drift without a cached audit")
+	frame.set("_body_radius_meters", original_radius)
+	var request := frame.request_rebase(Vector3(20_000.0, 0.0, 0.0), frame.get_generation())
+	_check(request.accepted and frame.has_pending_rebase()
+			and frame.is_runtime_contract_valid() and frame.audit().valid
+			and binding.physics_tick_from_caller_sample(0.01, sample).reason == &"coordinate_frame_rebase_pending",
+		"pending-rebase scalar preserves the caller gate while the frame remains valid")
+	frame.cancel_rebase(int(request.request.request_id), frame.get_generation())
+	_check(not frame.has_pending_rebase()
+			and binding.physics_tick_from_caller_sample(0.01, sample).accepted,
+		"cancelling the pending rebase immediately restores observation admission")
 	var original_position := bootstrap.position
 	bootstrap.position += Vector3(100.0, 0.0, 0.0)
 	_check(binding.physics_tick_from_caller_sample(0.01, sample).reason == &"bootstrap_audit_invalid",

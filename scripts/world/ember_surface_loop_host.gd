@@ -1329,6 +1329,15 @@ func get_travel_session_observation_source() -> Object:
 	return _session
 
 
+## Current scalar state for the production caller; diagnostics remain detached.
+func is_attached() -> bool:
+	return _attached
+
+
+func get_location_generation() -> int:
+	return _location_generation
+
+
 func get_snapshot() -> Dictionary:
 	var bootstrap_snapshot := _bootstrap.get_snapshot() \
 		if _node_is_current(_bootstrap) and _node_is_current(_scene) else {}

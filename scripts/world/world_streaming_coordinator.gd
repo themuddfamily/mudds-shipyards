@@ -323,6 +323,11 @@ func get_loaded_ids() -> PackedStringArray:
 	return _sorted_ids(_loaded)
 
 
+## Detached registration identities without constructing an operational report.
+func get_registered_ids() -> PackedStringArray:
+	return _sorted_ids(_definitions)
+
+
 func get_loading_ids() -> PackedStringArray:
 	return _sorted_ids(_loading)
 
@@ -353,7 +358,7 @@ func audit() -> Dictionary:
 		})
 	var report := {
 		"schema_version": SCHEMA_VERSION,
-		"registered_ids": _sorted_ids(_definitions),
+		"registered_ids": get_registered_ids(),
 		"loading_ids": get_loading_ids(),
 		"loaded_ids": get_loaded_ids(),
 		"loading_records": loading_records,
