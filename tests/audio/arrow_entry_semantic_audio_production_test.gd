@@ -1,7 +1,7 @@
 extends SceneTree
 
 const ProductionOwner := preload(
-	"res://scripts/world/ember_surface_loop_production_binding.gd"
+	"res://tests/audio/ember_audio_snapshot_fixture.gd"
 )
 const AudioBinding := preload(
 	"res://scripts/audio/ember_surface_loop_audio_production_binding.gd"
@@ -27,12 +27,12 @@ func _run() -> void:
 	_check(bool(audio.set_reduced_dynamic_range(true).accepted),
 		"reduced dynamic range is accepted")
 
-	owner.state_changed.emit(_entry_snapshot(
+	owner.publish(_entry_snapshot(
 		1, 1, 1, &"airless_descent", &"safe_descent"
 	))
 	_check(_entry_events.is_empty(),
 		"initial safe descent does not manufacture a recovery cue")
-	owner.state_changed.emit(_entry_snapshot(
+	owner.publish(_entry_snapshot(
 		1, 1, 2, &"entry_watch", &"safe_descent"
 	))
 	_check(
@@ -41,22 +41,22 @@ func _run() -> void:
 		and is_equal_approx(float(_entry_events[0].intensity), 0.4875),
 		"rising atmospheric heat emits one reduced-range transition cue",
 	)
-	owner.state_changed.emit(_entry_snapshot(
+	owner.publish(_entry_snapshot(
 		1, 1, 3, &"entry_watch", &"safe_descent"
 	))
-	owner.state_changed.emit(_entry_snapshot(
+	owner.publish(_entry_snapshot(
 		1, 1, 3, &"entry_watch", &"safe_descent"
 	))
-	owner.state_changed.emit(_entry_snapshot(
+	owner.publish(_entry_snapshot(
 		1, 1, 2, &"critical_entry", &"high_sink_rate"
 	))
 	_check(_entry_events.size() == 1,
 		"unchanged, duplicate, and stale observations emit no cue spam")
 
-	owner.state_changed.emit(_entry_snapshot(
+	owner.publish(_entry_snapshot(
 		1, 1, 4, &"critical_entry", &"high_sink_rate"
 	))
-	owner.state_changed.emit(_entry_snapshot(
+	owner.publish(_entry_snapshot(
 		1, 1, 5, &"landing_supported", &"safe_descent"
 	))
 	_check(
@@ -70,10 +70,10 @@ func _run() -> void:
 		"critical heat and its recovery each emit one fenced cue",
 	)
 
-	owner.state_changed.emit(_entry_snapshot(
+	owner.publish(_entry_snapshot(
 		1, 1, 6, &"airless_descent", &"high_sink_rate"
 	))
-	owner.state_changed.emit(_entry_snapshot(
+	owner.publish(_entry_snapshot(
 		1, 1, 7, &"airless_descent", &"climb_exit"
 	))
 	_check(
@@ -97,7 +97,7 @@ func _run() -> void:
 	)
 
 	_check(bool(audio.detach().accepted), "audio detaches cleanly")
-	owner.state_changed.emit(_entry_snapshot(
+	owner.publish(_entry_snapshot(
 		1, 1, 8, &"critical_entry", &"high_sink_rate"
 	))
 	var detached := audio.get_snapshot()
@@ -109,12 +109,18 @@ func _run() -> void:
 		"detach disconnects the owner and clears every entry fence",
 	)
 
-	_check(bool(audio.attach(owner, &"interior").accepted),
-		"audio re-enters with a fresh lifecycle")
-	owner.state_changed.emit(_entry_snapshot(
+	# The next owner generation exists before reattachment, as it does in game.
+	# Attach presents that current observation immediately.
+	owner.publish(_entry_snapshot(
 		2, 1, 1, &"critical_entry", &"high_sink_rate"
 	))
-	owner.state_changed.emit(_entry_snapshot(
+	_check(bool(audio.attach(owner, &"interior").accepted)
+		and _entry_events.size() == 6,
+		"audio re-enters and immediately presents the current owner generation")
+	owner.publish(_entry_snapshot(
+		2, 1, 1, &"critical_entry", &"high_sink_rate"
+	))
+	owner.publish(_entry_snapshot(
 		2, 1, 2, &"critical_entry", &"high_sink_rate"
 	))
 	_check(

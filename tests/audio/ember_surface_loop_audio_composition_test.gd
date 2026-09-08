@@ -1,7 +1,7 @@
 extends SceneTree
 
 const Director := preload("res://scripts/audio/audio_director.gd")
-const ProductionBinding := preload("res://scripts/world/ember_surface_loop_production_binding.gd")
+const ProductionBinding := preload("res://tests/audio/ember_audio_snapshot_fixture.gd")
 const Composition := preload("res://scripts/audio/ember_surface_loop_audio_composition.gd")
 
 class RetainedPlanetarySource:
@@ -30,7 +30,7 @@ func _run() -> void:
 	_check(bool(composition.attach(director, owner, &"interior").accepted), "real Ember production owner composes")
 	_check(composition.get_child_count() == 1, "composition owns one retained adapter child")
 	_check(director.get_semantic_audio_binding_count() == 2, "composition adds one planetary source")
-	owner.state_changed.emit({"generation": 1, "state_id": &"landed"})
+	owner.publish({"generation": 1, "state_id": &"landed"})
 	_check(_has(&"ember_surface_landed_interior"), "composed surface cue reaches AudioDirector")
 	var binding_snapshot: Dictionary = composition.get_snapshot().get("binding", {}) as Dictionary
 	_check(binding_snapshot.attached and int(binding_snapshot.maximum_simultaneous_voices) == 2, "composition retains one bounded adapter")
@@ -40,7 +40,7 @@ func _run() -> void:
 	_check(bool(composition.attach(director, owner, &"exterior").accepted), "composition re-enters")
 	_check(composition.get_child_count() == 1, "re-entry recreates one adapter child")
 	_check(director.get_semantic_audio_binding_count() == 2, "re-entry registers exactly one source")
-	owner.state_changed.emit({"generation": 2, "state_id": &"ascent"})
+	owner.publish({"generation": 2, "state_id": &"ascent"})
 	_check(_has(&"ember_surface_ascent_exterior"), "re-entry cue reaches director")
 	for failure in _failures:
 		push_error(failure)

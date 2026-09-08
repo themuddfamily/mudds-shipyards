@@ -1,7 +1,7 @@
 extends SceneTree
 
 const ProductionOwner := preload(
-	"res://scripts/world/ember_surface_loop_production_binding.gd"
+	"res://tests/audio/ember_audio_snapshot_fixture.gd"
 )
 const AudioBinding := preload(
 	"res://scripts/audio/ember_surface_loop_audio_production_binding.gd"
@@ -42,13 +42,13 @@ func _run() -> void:
 			"%s attaches through the retained production audio path" % craft_id,
 		)
 		audio.set_reduced_dynamic_range(false)
-		owner.state_changed.emit(_landing_snapshot(
+		owner.publish(_landing_snapshot(
 			generation, 1, craft_id, 0.25, ember_root
 		))
 		var low := audio.get_snapshot()
 		var low_bed := low.landing_bed as Dictionary
 		var low_voice := low.continuous_voice as Dictionary
-		owner.state_changed.emit(_landing_snapshot(
+		owner.publish(_landing_snapshot(
 			generation, 2, craft_id, 0.75, ember_root
 		))
 		var high := audio.get_snapshot()
@@ -112,7 +112,7 @@ func _run() -> void:
 			"%s reduced dynamic range caps the retained landing bed" % craft_id,
 		)
 
-		owner.state_changed.emit(_unsupported_snapshot(
+		owner.publish(_unsupported_snapshot(
 			generation, 3, craft_id, ember_root
 		))
 		var unsupported := audio.get_snapshot()
@@ -134,7 +134,7 @@ func _run() -> void:
 			generation, 4, craft_id, 0.0, ember_root
 		)
 		_set_atmospheric_entry(atmospheric_snapshot, craft_id)
-		owner.state_changed.emit(atmospheric_snapshot)
+		owner.publish(atmospheric_snapshot)
 		var atmospheric := audio.get_snapshot()
 		_check(
 			not bool((atmospheric.landing_bed as Dictionary).supported_airless_approach)
@@ -153,7 +153,7 @@ func _run() -> void:
 			generation, 5, craft_id, 0.75, ember_root
 		)
 		outside_phase["phase_id"] = &"descent"
-		owner.state_changed.emit(outside_phase)
+		owner.publish(outside_phase)
 		var outside := audio.get_snapshot().landing_bed as Dictionary
 		_check(
 			outside.reason == &"outside_landing_approach"
@@ -165,7 +165,7 @@ func _run() -> void:
 		_check(bool(audio.detach().accepted), "%s detaches cleanly" % craft_id)
 		var detached := audio.get_snapshot()
 		var detached_bed := detached.landing_bed as Dictionary
-		owner.state_changed.emit(_landing_snapshot(
+		owner.publish(_landing_snapshot(
 			generation, 6, craft_id, 1.0, ember_root
 		))
 		_check(

@@ -1,7 +1,7 @@
 extends SceneTree
 
 const ProductionOwner := preload(
-	"res://scripts/world/ember_surface_loop_production_binding.gd"
+	"res://tests/audio/ember_audio_snapshot_fixture.gd"
 )
 const AudioBinding := preload(
 	"res://scripts/audio/ember_surface_loop_audio_production_binding.gd"
@@ -36,13 +36,13 @@ func _run() -> void:
 			bool(audio.set_reduced_dynamic_range(false).accepted),
 			"%s accepts the normal dynamic-range profile" % craft_id,
 		)
-		owner.state_changed.emit(_entry_snapshot(
+		owner.publish(_entry_snapshot(
 			generation, 1, craft_id, &"atmospheric", 0.25
 		))
 		var low := audio.get_snapshot()
 		var low_bed := low.entry_bed as Dictionary
 		var low_voice := low.continuous_voice as Dictionary
-		owner.state_changed.emit(_entry_snapshot(
+		owner.publish(_entry_snapshot(
 			generation, 2, craft_id, &"atmospheric", 0.75
 		))
 		var high := audio.get_snapshot()
@@ -109,7 +109,7 @@ func _run() -> void:
 			generation, 3, craft_id, &"atmospheric", 0.75
 		)
 		phase_exit_snapshot["state_id"] = &"landed"
-		owner.state_changed.emit(phase_exit_snapshot)
+		owner.publish(phase_exit_snapshot)
 		var phase_exit := audio.get_snapshot()
 		_check(
 			not bool((phase_exit.entry_bed as Dictionary).entry_phase_active)
@@ -120,7 +120,7 @@ func _run() -> void:
 			"%s leaving the entry phase recovers the bed to silence" % craft_id,
 		)
 
-		owner.state_changed.emit(_entry_snapshot(
+		owner.publish(_entry_snapshot(
 			generation, 4, craft_id, &"airless", 0.0
 		))
 		var airless := audio.get_snapshot()
@@ -139,7 +139,7 @@ func _run() -> void:
 		_check(bool(audio.detach().accepted), "%s detaches cleanly" % craft_id)
 		var detached := audio.get_snapshot()
 		var detached_bed := detached.entry_bed as Dictionary
-		owner.state_changed.emit(_entry_snapshot(
+		owner.publish(_entry_snapshot(
 			generation, 5, craft_id, &"atmospheric", 1.0
 		))
 		_check(

@@ -1,6 +1,6 @@
 extends SceneTree
 
-const ProductionBinding := preload("res://scripts/world/ember_surface_loop_production_binding.gd")
+const ProductionBinding := preload("res://tests/audio/ember_audio_snapshot_fixture.gd")
 const AudioBinding := preload("res://scripts/audio/ember_surface_loop_audio_production_binding.gd")
 
 var _assertions := 0
@@ -10,6 +10,16 @@ var _events: Array[StringName] = []
 class FakeEmberRoot:
 	extends Node3D
 	func get_world_id() -> StringName: return &"ember_moon"
+
+class LegacyOwner:
+	extends Node
+	signal state_changed(snapshot: Dictionary)
+	var observation := {"generation": 0, "state_id": &"idle"}
+	func get_snapshot() -> Dictionary:
+		return observation.duplicate(true)
+	func publish(snapshot: Dictionary) -> void:
+		observation = snapshot.duplicate(true)
+		state_changed.emit(get_snapshot())
 
 func _init() -> void:
 	call_deferred("_run")
@@ -21,22 +31,22 @@ func _run() -> void:
 	root.add_child(audio)
 	audio.semantic_surface_cue_emitted.connect(_on_cue)
 	_check(bool(audio.attach(owner, &"interior").accepted), "real Ember production owner attaches")
-	owner.state_changed.emit({"generation": 1, "state_id": &"running"})
+	owner.publish({"generation": 1, "state_id": &"running"})
 	_check(_has(&"ember_surface_descent_interior"), "production running state maps to descent cue")
-	owner.state_changed.emit({"generation": 1, "state_id": &"descent"})
-	owner.state_changed.emit({"generation": 1, "state_id": &"landed"})
-	owner.state_changed.emit({"generation": 1, "state_id": &"on_foot"})
+	owner.publish({"generation": 1, "state_id": &"descent"})
+	owner.publish({"generation": 1, "state_id": &"landed"})
+	owner.publish({"generation": 1, "state_id": &"on_foot"})
 	_check(_has(&"ember_surface_descent_interior") and _has(&"ember_surface_landed_interior") and _has(&"ember_surface_on_foot_interior"), "descent/landing/on-foot cues emit")
 	_check(audio.present_snapshot({"generation": 0, "state_id": &"takeoff"}).reason == &"stale_generation", "stale generation is rejected")
 	_check(bool(audio.set_perspective(&"exterior").accepted), "exterior perspective is accepted")
-	owner.state_changed.emit({"generation": 2, "state_id": &"reboarded"})
-	owner.state_changed.emit({"generation": 2, "state_id": &"takeoff"})
-	owner.state_changed.emit({"generation": 2, "state_id": &"ascent"})
-	owner.state_changed.emit({"generation": 2, "state_id": &"orbit_return"})
+	owner.publish({"generation": 2, "state_id": &"reboarded"})
+	owner.publish({"generation": 2, "state_id": &"takeoff"})
+	owner.publish({"generation": 2, "state_id": &"ascent"})
+	owner.publish({"generation": 2, "state_id": &"orbit_return"})
 	_check(_has(&"ember_surface_reboard_exterior") and _has(&"ember_surface_orbit_return_exterior"), "reboard/takeoff/ascent/orbit-return cues emit")
-	owner.state_changed.emit({"generation": 2, "state_id": &"failed", "terminal_reason": &"caller_aborted"})
+	owner.publish({"generation": 2, "state_id": &"failed", "terminal_reason": &"caller_aborted"})
 	_check(_has(&"ember_surface_abort_exterior"), "abort cue emits")
-	owner.state_changed.emit({"generation": 2, "state_id": &"takeoff"})
+	owner.publish({"generation": 2, "state_id": &"takeoff"})
 	_check(_events.size() == 8, "duplicate phase is suppressed")
 	_check(int(audio.get_snapshot().maximum_simultaneous_voices) == 2, "two-voice ceiling is retained")
 	var ember_root := FakeEmberRoot.new()
@@ -126,11 +136,90 @@ func _run() -> void:
 	audio.free()
 	owner.free()
 	ember_root.free()
+	_test_observation_routes()
 	await process_frame
 	for failure in _failures:
 		push_error(failure)
 	print("EMBER_SURFACE_LOOP_AUDIO_PRODUCTION_TEST: %d assertions" % _assertions)
 	quit(0 if _failures.is_empty() else 1)
+
+func _test_observation_routes() -> void:
+	var focused := ProductionBinding.new()
+	var legacy := LegacyOwner.new()
+	var focused_audio := AudioBinding.new()
+	var legacy_audio := AudioBinding.new()
+	var ember_root := FakeEmberRoot.new()
+	for node in [focused, legacy, focused_audio, legacy_audio, ember_root]:
+		root.add_child(node)
+	var focused_cues: Array = []
+	var legacy_cues: Array = []
+	focused_audio.semantic_surface_cue_emitted.connect(
+		func(cue: StringName, intensity: float): focused_cues.append([cue, intensity]))
+	legacy_audio.semantic_surface_cue_emitted.connect(
+		func(cue: StringName, intensity: float): legacy_cues.append([cue, intensity]))
+	focused_audio.attach(focused)
+	legacy_audio.attach(legacy)
+	_check(focused.state_changed.get_connections().is_empty()
+		and focused.state_invalidated.get_connections().size() == 1
+		and legacy.state_changed.get_connections().size() == 1,
+		"audio selects lightweight invalidation or legacy payload according to owner capability")
+	var observations: Array[Dictionary] = [
+		_altitude_snapshot(1, ember_root, 20_000.0, 12.0, &"descent"),
+		_altitude_snapshot(1, ember_root, 5_000.0, 12.0, &"descent"),
+		_altitude_snapshot(1, ember_root, 0.0, 12.0, &"descent"),
+		_altitude_snapshot(1, ember_root, 0.0, 0.0, &"on_foot", &"player"),
+		_relay_reward_completion_snapshot(2, 12, 3, 7),
+		_relay_reward_completion_snapshot(2, 12, 3, 7),
+		{"generation": 3, "state_id": &"failed", "terminal_reason": &"caller_aborted"},
+	]
+	for observation in observations:
+		focused.publish(observation)
+		legacy.publish(observation)
+		_check(_comparable_audio(focused_audio) == _comparable_audio(legacy_audio)
+			and focused_cues == legacy_cues,
+			"focused and legacy notifications preserve complete audio state and cue ordering")
+	for audio in [focused_audio, legacy_audio]:
+		audio.set_perspective(&"interior")
+		audio.set_reduced_dynamic_range(true)
+	focused.publish(_relay_reward_completion_snapshot(4, 13, 4, 8))
+	legacy.publish(_relay_reward_completion_snapshot(4, 13, 4, 8))
+	_check(_comparable_audio(focused_audio) == _comparable_audio(legacy_audio)
+		and focused_cues == legacy_cues,
+		"focused notifications preserve perspective, accessibility and reward replay rules")
+	_check(focused.full_snapshot_reads == 0
+		and focused.audio_snapshot_reads == observations.size() + 2,
+		"attach and every invalidation read fresh audio evidence without full diagnostics")
+	var before := focused_audio.get_snapshot()
+	focused.state_changed.emit({"generation": 99, "state_id": &"takeoff"})
+	_check(focused_audio.get_snapshot() == before,
+		"focused owner does not also subscribe to legacy diagnostic payloads")
+	for audio in [focused_audio, legacy_audio]:
+		audio.detach()
+	_check(focused.state_invalidated.get_connections().is_empty()
+		and legacy.state_changed.get_connections().is_empty(),
+		"detach disconnects both supported notification routes")
+	focused_audio.attach(legacy)
+	legacy_audio.attach(focused)
+	focused.publish({"generation": 5, "state_id": &"on_foot"})
+	legacy.publish({"generation": 5, "state_id": &"on_foot"})
+	_check(_comparable_audio(focused_audio) == _comparable_audio(legacy_audio),
+		"reattaching across owner capabilities preserves lifecycle and presentation")
+	for audio in [focused_audio, legacy_audio]:
+		audio.detach()
+	for node in [focused_audio, legacy_audio, focused, legacy, ember_root]:
+		node.free()
+
+func _comparable_audio(audio: Node) -> Dictionary:
+	var snapshot: Dictionary = audio.get_snapshot()
+	# Each adapter owns its own voice and stream. Check their real handles before
+	# removing only those identities from the otherwise exact state comparison.
+	for field in ["entry_bed", "altitude_transition"]:
+		var layer: Dictionary = snapshot[field]
+		_check(int(layer.voice_instance_id) > 0 and int(layer.stream_instance_id) != 0,
+			"both observation routes retain a live voice and stream")
+		layer.erase("voice_instance_id")
+		layer.erase("stream_instance_id")
+	return snapshot
 
 func _on_cue(cue_id: StringName, intensity: float) -> void:
 	_events.append(cue_id)

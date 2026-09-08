@@ -79,6 +79,7 @@ const RELAY_SURVEY_REWARD_CUE: StringName = &"ember_relay_survey_reward_confirme
 
 var _owner: Node
 var _attached := false
+var _uses_focused_owner := false
 var _generation := 0
 var _last_owner_generation := -1
 var _last_key := ""
@@ -150,7 +151,11 @@ func attach(owner: Node, perspective: StringName = &"exterior") -> Dictionary:
 	_owner = owner
 	_perspective = perspective
 	_ensure_altitude_voice()
-	if owner.has_signal(&"state_changed"):
+	_uses_focused_owner = owner.has_signal(&"state_invalidated") \
+		and owner.has_method(&"get_audio_presentation_snapshot")
+	if _uses_focused_owner:
+		owner.connect(&"state_invalidated", _on_owner_invalidated)
+	elif owner.has_signal(&"state_changed"):
 		owner.connect(&"state_changed", _on_owner_snapshot)
 	if owner.has_signal(&"service_terminal_repair_feedback"):
 		owner.connect(
@@ -164,7 +169,7 @@ func attach(owner: Node, perspective: StringName = &"exterior") -> Dictionary:
 	_reset_entry_transition()
 	_reset_landing_bed()
 	_reset_takeoff_bed()
-	present_snapshot(owner.get_snapshot())
+	present_snapshot(_owner_snapshot())
 	return _result(true, &"attached")
 
 
@@ -187,7 +192,7 @@ func present_service_repair_feedback(feedback: Dictionary) -> Dictionary:
 			or (outcome as StringName) not in SERVICE_REPAIR_CUE_BY_OUTCOME \
 			or not (world_position as Vector3).is_finite():
 		return _result(false, &"invalid_service_repair_feedback")
-	var current_owner_generation := int(_owner.get_snapshot().get("generation", -1))
+	var current_owner_generation := int(_owner_snapshot().get("generation", -1))
 	if int(owner_generation) != current_owner_generation \
 			or int(owner_generation) < _last_service_owner_generation:
 		return _result(false, &"stale_service_owner_generation")
@@ -300,8 +305,11 @@ func present_snapshot(snapshot: Dictionary) -> Dictionary:
 func detach() -> Dictionary:
 	if not _attached:
 		return _result(true, &"already_detached")
-	if is_instance_valid(_owner) and _owner.is_connected(&"state_changed", _on_owner_snapshot):
-		_owner.disconnect(&"state_changed", _on_owner_snapshot)
+	if is_instance_valid(_owner):
+		if _uses_focused_owner and _owner.is_connected(&"state_invalidated", _on_owner_invalidated):
+			_owner.disconnect(&"state_invalidated", _on_owner_invalidated)
+		elif _owner.is_connected(&"state_changed", _on_owner_snapshot):
+			_owner.disconnect(&"state_changed", _on_owner_snapshot)
 	if is_instance_valid(_owner) and _owner.has_signal(&"service_terminal_repair_feedback") \
 			and _owner.is_connected(
 				&"service_terminal_repair_feedback", present_service_repair_feedback
@@ -310,6 +318,7 @@ func detach() -> Dictionary:
 			&"service_terminal_repair_feedback", present_service_repair_feedback
 		)
 	_owner = null
+	_uses_focused_owner = false
 	_attached = false
 	_generation += 1
 	_last_owner_generation = -1
@@ -479,6 +488,19 @@ func get_snapshot() -> Dictionary:
 		"authority": {"host": false, "travel": false, "movement": false,
 			"landing": false, "flight": false, "atmosphere": false,
 			"heat": false, "audio_cues": true}}.duplicate(true)
+
+## Built-in owners invalidate presentation under their mutation guard. Read
+## current audio evidence without constructing unrelated planetary diagnostics.
+func _owner_snapshot() -> Dictionary:
+	if _uses_focused_owner:
+		return _owner.call(&"get_audio_presentation_snapshot") as Dictionary
+	return _owner.get_snapshot()
+
+
+func _on_owner_invalidated() -> void:
+	if _attached and is_instance_valid(_owner):
+		present_snapshot(_owner_snapshot())
+
 
 func _on_owner_snapshot(snapshot: Dictionary) -> void:
 	present_snapshot(snapshot)
