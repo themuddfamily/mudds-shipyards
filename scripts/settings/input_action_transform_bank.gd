@@ -40,6 +40,10 @@ func get_generation() -> int:
 	return _generation
 
 
+func is_attached() -> bool:
+	return _attached
+
+
 func get_action_order() -> Array[StringName]:
 	return _action_order.duplicate()
 
@@ -233,15 +237,9 @@ func process_complete_frame(
 		if not _is_finite(scalar):
 			return _frame_result(false, &"non_finite_sample", delta, {}, {"failed_action": action_id})
 		var transform := _transforms[action_id] as InputActionTransform
-		var snapshot := transform.get_snapshot()
-		if int(snapshot.sample_count) == MAX_GENERATION:
-			return _frame_result(false, &"sample_count_exhausted", delta, {}, {"failed_action": action_id})
-		if (
-			not _finite_sum(float(snapshot.elapsed_seconds), delta)
-			or not _finite_sum(float(snapshot.physical_hold_seconds), delta)
-			or not _finite_sum(float(snapshot.hold_seconds), delta)
-		):
-			return _frame_result(false, &"non_finite_accumulation", delta, {}, {"failed_action": action_id})
+		var capacity_rejection := transform.get_frame_capacity_rejection(delta)
+		if not capacity_rejection.is_empty():
+			return _frame_result(false, capacity_rejection, delta, {}, {"failed_action": action_id})
 		normalized_samples[action_id] = {
 			"raw_scalar": scalar,
 			"raw_pressed": bool(raw.raw_pressed),
@@ -262,7 +260,8 @@ func process_complete_frame(
 		if not bool(transformed.accepted):
 			push_error("InputActionTransformBank complete-frame invariant failed for %s" % action_id)
 			return _frame_result(false, &"bank_corrupted", delta, {})
-		var action_snapshot := transformed.duplicate(true)
+		# Each result is already detached from its transform.
+		var action_snapshot := transformed
 		action_snapshot.erase("accepted")
 		action_snapshot.erase("reason")
 		action_snapshots[action_id] = action_snapshot
@@ -294,6 +293,7 @@ func get_snapshot() -> Dictionary:
 		"action_count": _action_order.size(),
 		"action_order": _action_order.duplicate(),
 		"profile": _profile.to_dictionary() if _profile != null else {},
+		# Complete-frame callers transfer fresh child snapshots; nothing is retained.
 		"actions": action_snapshots,
 	}
 
@@ -415,7 +415,7 @@ func _children_match_lifecycle(expected_attached: bool) -> bool:
 		var transform := _transforms[action_id] as InputActionTransform
 		if transform == null or not transform.is_configuration_valid():
 			return false
-		if bool(transform.get_snapshot().attached) != expected_attached:
+		if transform.is_attached() != expected_attached:
 			return false
 	return true
 
@@ -477,7 +477,8 @@ func _frame_result(
 		"physics_delta": physics_delta,
 		"action_count": _action_order.size(),
 		"action_order": _action_order.duplicate(),
-		"actions": action_snapshots.duplicate(true),
+		# Complete-frame callers transfer fresh child snapshots; nothing is retained.
+		"actions": action_snapshots,
 	}
 	for key: Variant in details:
 		var value: Variant = details[key]
@@ -498,12 +499,6 @@ static func _parse_frame_action_order(samples: Dictionary) -> Dictionary:
 		canonical_samples[action_id] = samples[raw_action]
 	action_order.sort()
 	return {"accepted": true, "action_order": action_order, "samples": canonical_samples}
-
-
-static func _finite_sum(current: float, delta: float) -> bool:
-	if not _is_finite(current):
-		return false
-	return _is_finite(current + delta)
 
 
 static func _is_finite(value: float) -> bool:

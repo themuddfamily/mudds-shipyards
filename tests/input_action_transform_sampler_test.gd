@@ -137,8 +137,10 @@ func _test_exact_complete_sampling() -> void:
 	)
 	(frame.action_order as Array)[0] = &"mutated"
 	(frame.actions[&"fire"] as Dictionary)["value"] = 99.0
+	(frame.actions[&"fire"].action_options as Dictionary)["deadzone"] = 0.99
 	_check(
 		bank.get_action_order() == ACTION_ORDER
+		and not is_equal_approx(float(bank.get_snapshot().actions[&"fire"].action_options.deadzone), 0.99)
 		and not is_equal_approx(float(bank.get_snapshot().actions[&"fire"].value), 99.0),
 		"returned action order and nested action snapshots are deeply detached"
 	)
@@ -147,6 +149,12 @@ func _test_exact_complete_sampling() -> void:
 	provider.strengths = {&"brake": 0.0, &"fire": 0.0, &"interact": 1.0}
 	provider.pressed = {&"brake": false, &"fire": false, &"interact": true}
 	var second := sampler.sample_physics_frame(0.1, 0)
+	_check(
+		float(frame.actions[&"fire"].value) == 99.0
+		and float(frame.actions[&"fire"].action_options.deadzone) == 0.99
+		and not is_equal_approx(float(second.actions[&"fire"].action_options.deadzone), 0.99),
+		"later sampling owns a separate frame and cannot rewrite or inherit a retained caller snapshot"
+	)
 	_check(
 		second.accepted
 		and _all_action_counts_equal(provider.strength_calls, 1)

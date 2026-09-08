@@ -46,8 +46,7 @@ func sample_physics_frame(
 		return _frame_result(false, &"invalid_configuration", 0.0, {})
 	if expected_generation != _bank.get_generation():
 		return _frame_result(false, &"stale_generation", 0.0, {})
-	var bank_snapshot := _bank.get_snapshot()
-	if not bool(bank_snapshot.attached):
+	if not _bank.is_attached():
 		return _frame_result(false, &"detached", 0.0, {})
 	if not physics_delta is float and not physics_delta is int:
 		return _frame_result(false, &"invalid_physics_delta", 0.0, {})
@@ -136,7 +135,8 @@ func sample_physics_frame(
 		expected_generation,
 		prime_physical_state,
 	)
-	return transformed.duplicate(true)
+	# The bank returns a detached frame and the sampler retains no reference.
+	return transformed
 
 
 ## The audit describes call cardinality and boundaries without exposing the

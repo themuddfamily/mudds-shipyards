@@ -67,6 +67,22 @@ func get_generation() -> int:
 	return _generation
 
 
+## Scalar lifecycle inspection avoids constructing a detached presentation tree.
+func is_attached() -> bool:
+	return _attached
+
+
+## The bank checks every child before committing any member of a complete frame.
+## Read live counters here without allocating a full action snapshot.
+func get_frame_capacity_rejection(delta: float) -> StringName:
+	if _sample_count == MAX_GENERATION:
+		return &"sample_count_exhausted"
+	for current: float in [_elapsed_seconds, _physical_hold_seconds, _hold_seconds]:
+		if not _is_finite(current) or not _is_finite(current + delta):
+			return &"non_finite_accumulation"
+	return &""
+
+
 func get_action_id() -> StringName:
 	return _action_id
 

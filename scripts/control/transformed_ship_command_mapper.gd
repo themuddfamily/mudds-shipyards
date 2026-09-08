@@ -227,7 +227,8 @@ func _validate_frame(frame: Variant, expected_generation: int) -> Dictionary:
 		"reason": &"valid",
 		"generation": generation,
 		"physics_delta": physics_delta,
-		"actions": actions.duplicate(true),
+		# Validation and mapping are synchronous and read-only; no frame escapes.
+		"actions": actions,
 	}
 
 
@@ -417,8 +418,9 @@ func _has_exact_string_keys(dictionary: Dictionary, expected: Array) -> bool:
 	if dictionary.size() != expected.size():
 		return false
 	for key: Variant in dictionary:
-		if not key is String or not key in expected:
+		if not key is String:
 			return false
+	# Equal cardinality plus every expected key excludes extra keys.
 	for key: String in expected:
 		if not dictionary.has(key):
 			return false
