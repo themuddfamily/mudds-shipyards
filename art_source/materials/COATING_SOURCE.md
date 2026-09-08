@@ -11,8 +11,10 @@ channel from **Blue Metal Plate**, by Rob Tuytel / Poly Haven.
 `tools/generate_ship_finish_maps.py` crops pixels x=330–749, y=110–709 inside one
 panel, then subtracts the smooth boundary mismatch to make a periodic tile
 without mirrored scratches. It maps the resulting 5th–95th percentile range
-to 0.40–1.00 and writes the 420×600, 8-bit runtime channel
+to 0.82–1.00 and writes the 420×600, 8-bit runtime channel
 `assets/materials/coating-scuff-roughness.png`. It modulates each ship's existing
-coating roughness. This is an artistic adaptation of the scan, not a claim of
-calibrated reflectance. Colour, small paint grain, hull joints and damage remain
-separate from this surface-wear channel.
+coating roughness. The restrained range retains satin paint between scuffs;
+the former 0.40 floor produced broad polished streaks on the hulls. This is an
+artistic adaptation of the scan, not a claim of calibrated reflectance. Colour,
+small paint grain, hull joints and damage remain separate from this surface-wear
+channel.

@@ -80,11 +80,13 @@ const STRUCTURAL_ROUGHNESS_SPREAD_FLOOR := 0.40
 ## Jovian's pressure windscreen adds eleven seal/post segments while four
 ## engine housings now use lofts: net +7 cylinders. Range/Picket retain their
 ## ten solid cylinders; their two plumes now use open exhaust meshes instead.
+## Fitted pilot seating adds two recline pivots and replaces the cylindrical grip:
+## net +1 cylinder on the three procedural cockpits.
 ## The suite's analytic wall-ring checks retain that optimization's geometry guard.
 const CHAMFERED_CYLINDER_POPULATION := {
-	"Torrent": [57, 14_080],
-	"Arrow": [43, 12_384],
-	"Jovian": [98, 25_088],
+	"Torrent": [58, 14_336],
+	"Arrow": [44, 12_672],
+	"Jovian": [99, 25_344],
 	"RangeOpponent": [10, 2_240],
 	"StandoffPicket": [10, 2_240],
 	"Zenith": [0, 0],

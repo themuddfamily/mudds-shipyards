@@ -70,7 +70,9 @@ def generate() -> None:
     smooth[0, 0] = 0.0
     scan -= np.fft.ifft2(smooth).real
     low, high = np.percentile(scan, [5, 95])
-    coating = 0.40 + 0.60 * np.clip((scan - low) / (high - low), 0.0, 1.0)
+    # Retain satin paint between scuffs. The former 0.40 floor turned broad
+    # rubbed patches into glossy streaks when multiplied by hull roughness.
+    coating = 0.82 + 0.18 * np.clip((scan - low) / (high - low), 0.0, 1.0)
     Image.fromarray(np.rint(coating * 255.0).astype(np.uint8)).save(
         target / "coating-scuff-roughness.png"
     )

@@ -351,6 +351,10 @@ func _build_bulwark_variant(_controller: HeroShip) -> bool:
 				sill.material_override = armor_dark
 	for coating in [armor_dark, armor_blue, armor_highlight]:
 		ShipSurfaceDetail.bind_manufactured_paint(coating)
+		# Metric local projection prevents long armor UVs stretching the wear.
+		coating.uv1_triplanar = true
+		coating.uv1_world_triplanar = false
+		coating.uv1_scale = Vector3.ONE * 0.5
 	# Keep the existing amber bands and starboard navigation marker legible in
 	# shadow without adding lights or changing any physical/authority node.
 	var amber := _material(

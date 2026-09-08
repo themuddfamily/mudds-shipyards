@@ -1107,7 +1107,7 @@
     },
     "roughness": {
       "path": "assets/materials/coating-scuff-roughness.png",
-      "sha256": "eb8f673d5ae91b2f761758fa98258430b69a2a48971415f3bf5448db29a601ce"
+      "sha256": "1f000d153f16346cde65648b7dd9d8c965ac4763f3c83364cfa590fb6cf93190"
     },
     "runtime_authority": "torrent_hero_presentation_standard_material_3d",
     "texture_coordinate": "UV0/TEXCOORD_0",
