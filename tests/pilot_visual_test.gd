@@ -1058,6 +1058,37 @@ func _test_motion_authority_intrusion_recovery(
 		and legacy.get_animation(&"idle").track_get_interpolation_loop_wrap(0) == stable_loop_wrap,
 		"legacy recovery detects and repairs silent interpolation loop-wrap edits"
 	)
+	# Exercise the ordinary hot-path fence repeatedly without yielding a frame.
+	# Edits in the final clip/track/key must remain immediately observable.
+	var tail_clip := &"disembark_recovery"
+	var tail_animation := legacy.get_animation(tail_clip)
+	var tail_track := tail_animation.get_track_count() - 1
+	var tail_key := tail_animation.track_get_key_count(tail_track) - 1
+	var tail_value: Variant = tail_animation.track_get_key_value(tail_track, tail_key)
+	tail_animation.track_set_key_value(tail_track, tail_key, tail_value + Vector3(0.1, 0.0, 0.0))
+	player.call("_ensure_motion_authority")
+	_check(
+		legacy.get_animation(tail_clip) != tail_animation
+		and legacy.get_animation(tail_clip).track_get_key_value(tail_track, tail_key) == tail_value,
+		"ordinary motion fence immediately restores a final-track key value edit"
+	)
+	tail_animation = legacy.get_animation(tail_clip)
+	var tail_transition := tail_animation.track_get_key_transition(tail_track, tail_key)
+	tail_animation.track_set_key_transition(tail_track, tail_key, tail_transition + 0.125)
+	player.call("_ensure_motion_authority")
+	_check(
+		legacy.get_animation(tail_clip) != tail_animation
+		and legacy.get_animation(tail_clip).track_get_key_transition(tail_track, tail_key) == tail_transition,
+		"a second same-frame motion fence immediately restores a key transition edit"
+	)
+	tail_animation = legacy.get_animation(tail_clip)
+	tail_animation.track_remove_key(tail_track, tail_key)
+	player.call("_ensure_motion_authority")
+	_check(
+		legacy.get_animation(tail_clip) != tail_animation
+		and legacy.get_animation(tail_clip).track_get_key_count(tail_track) == tail_key + 1,
+		"a third same-frame motion fence immediately restores a changed key roster"
+	)
 	imported.speed_scale = 0.0
 	var zero_rate_repaired := player.validate_pilot_motion_authority()
 	imported.play(&"walk")

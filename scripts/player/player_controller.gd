@@ -1547,6 +1547,54 @@ func _legacy_animation_contract(animation: Animation) -> Array:
 	return contract
 
 
+## Compare every live field against the captured contract without rebuilding
+## a temporary array on each motion-authority fence. Animation mutators do not
+## all emit changed, so neither resource identity nor a dirty flag is sufficient.
+func _legacy_animation_matches_contract(animation: Animation, contract: Array) -> bool:
+	if animation == null or contract.size() < 4:
+		return false
+	var track_count := animation.get_track_count()
+	if (
+		animation.length != contract[0]
+		or animation.loop_mode != contract[1]
+		or animation.step != contract[2]
+		or track_count != contract[3]
+	):
+		return false
+	var cursor := 4
+	for track_index in track_count:
+		if cursor + 8 > contract.size():
+			return false
+		var track_type := animation.track_get_type(track_index)
+		var key_count := animation.track_get_key_count(track_index)
+		if (
+			track_type != contract[cursor]
+			or animation.track_get_path(track_index) != contract[cursor + 1]
+			or animation.track_is_imported(track_index) != contract[cursor + 2]
+			or animation.track_is_enabled(track_index) != contract[cursor + 3]
+			or animation.track_get_interpolation_type(track_index) != contract[cursor + 4]
+			or animation.track_get_interpolation_loop_wrap(track_index) != contract[cursor + 5]
+			or (
+				animation.value_track_get_update_mode(track_index)
+				if track_type == Animation.TYPE_VALUE else -1
+			) != contract[cursor + 6]
+			or key_count != contract[cursor + 7]
+		):
+			return false
+		cursor += 8
+		if cursor + key_count * 3 > contract.size():
+			return false
+		for key_index in key_count:
+			if (
+				animation.track_get_key_time(track_index, key_index) != contract[cursor]
+				or animation.track_get_key_transition(track_index, key_index) != contract[cursor + 1]
+				or animation.track_get_key_value(track_index, key_index) != contract[cursor + 2]
+			):
+				return false
+			cursor += 3
+	return cursor == contract.size()
+
+
 func _legacy_motion_library_is_trusted() -> bool:
 	if (
 		_legacy_motion_animation_player == null
@@ -1592,8 +1640,9 @@ func _legacy_motion_library_is_trusted() -> bool:
 			animation == null
 			or animation.get_instance_id()
 				!= int(_legacy_motion_animation_ids.get(clip_name, 0))
-			or _legacy_animation_contract(animation)
-				!= _legacy_motion_animation_contract.get(clip_name, [])
+			or not _legacy_animation_matches_contract(
+				animation, _legacy_motion_animation_contract.get(clip_name, [])
+			)
 		):
 			return false
 	for required_path in _legacy_motion_node_contract:
