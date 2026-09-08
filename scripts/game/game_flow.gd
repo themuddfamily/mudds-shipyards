@@ -14701,7 +14701,11 @@ func _validate_safe_start_recommendation(recommendation: Dictionary) -> Dictiona
 func _advance_safe_start_recovery_physics(delta: float) -> void:
 	if _safe_start_production_recovery != null:
 		_safe_start_production_recovery.advance_physics(delta)
-		_publish_safe_start_recovery_status_to_hud()
+		if _safe_start_production_recovery.has_report_changed(
+				_safe_start_recovery_published_generation,
+				_safe_start_recovery_published_revision
+		):
+			_publish_safe_start_recovery_status_to_hud()
 
 
 func _adopt_production_runtime_settings_state() -> void:

@@ -491,6 +491,12 @@ func validate_recommendation(recommendation: Dictionary) -> Dictionary:
 	return _local_status(true, &"validated")
 
 
+## The HUD already uses this fence to suppress unchanged reports. Let its
+## physics caller check it without copying persistence receipts and settings.
+func has_report_changed(startup_generation: int, report_revision: int) -> bool:
+	return startup_generation != _startup_generation or report_revision != _report_revision
+
+
 func get_report() -> Dictionary:
 	var policy_snapshot := _policy.get_snapshot() if _policy != null else {}
 	return {

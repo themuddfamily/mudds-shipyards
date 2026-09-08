@@ -14,6 +14,7 @@ class RecoveryProbe extends SafeStartType:
 	var callable_validity: Array[bool] = []
 	var graphics_accept := true
 	var audio_accept := true
+	var report_reads := 0
 
 	func _init() -> void:
 		super(null, null, false)
@@ -58,7 +59,11 @@ class RecoveryProbe extends SafeStartType:
 		}.duplicate(true)
 
 	func get_report() -> Dictionary:
+		report_reads += 1
 		return report.duplicate(true)
+
+	func has_report_changed(generation: int, revision: int) -> bool:
+		return generation != int(report.startup_generation) or revision != int(report.report_revision)
 
 	func restore_prior_graphics_profile(persist_settings: Callable) -> Dictionary:
 		restore_calls.append("graphics")
@@ -124,6 +129,11 @@ func _run() -> void:
 		and (hud.get("_runtime_status_actions") as HBoxContainer).get_child_count() == 2,
 		"the current production report publishes through the dedicated keyed HUD source"
 	)
+	var published_reads := recovery.report_reads
+	for tick in range(120):
+		flow._advance_safe_start_recovery_physics(1.0 / 60.0)
+	_check(recovery.report_reads == published_reads,
+		"unchanged recovery ticks do not reconstruct the full diagnostic report")
 	var stale := flow._handle_safe_start_recovery_intent(
 		_intent(&"restore", 4, 7)
 	)
@@ -154,7 +164,7 @@ func _run() -> void:
 	recovery.callable_validity.clear()
 	recovery.graphics_accept = false
 	recovery.audio_accept = true
-	flow._publish_safe_start_recovery_status_to_hud()
+	flow._advance_safe_start_recovery_physics(1.0 / 60.0)
 	var partial := flow._handle_safe_start_recovery_intent(
 		_intent(&"restore", 5, 1)
 	)
