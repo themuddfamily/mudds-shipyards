@@ -571,6 +571,11 @@ func recover_pending_reward() -> Dictionary:
 	)
 
 
+## Current adapter lifecycle without constructing Host diagnostics.
+func get_state_id() -> StringName:
+	return _state_id()
+
+
 ## Fresh detached activity evidence without constructing Host diagnostics.
 func get_activity_reward_snapshot() -> Dictionary:
 	return _runtime.get_snapshot() if _runtime != null else {}
@@ -579,7 +584,7 @@ func get_activity_reward_snapshot() -> Dictionary:
 func get_snapshot() -> Dictionary:
 	return {
 		"schema_version": 1,
-		"state": _state_id(),
+		"state": get_state_id(),
 		"host_instance_id": _host_instance_id,
 		"host": _host.call(&"get_snapshot").duplicate(true) if _host_is_current() else {},
 		"activity_reward": get_activity_reward_snapshot(),

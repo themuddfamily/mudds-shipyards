@@ -102,8 +102,9 @@ func _test_host_activity_reward_path() -> void:
 	)
 	_check_activity_observation(adapter, "bound")
 	var host_snapshot_count := host.snapshot_count
+	adapter.get_state_id()
 	adapter.get_activity_reward_snapshot()
-	_check(host.snapshot_count == host_snapshot_count, "activity observation does not construct Host diagnostics")
+	_check(host.snapshot_count == host_snapshot_count, "lifecycle and activity observations do not construct Host diagnostics")
 	var started := adapter.begin_activity(&"ember_beacon_survey")
 	_check_activity_observation(adapter, "active")
 	_check(
@@ -716,9 +717,11 @@ func _finish() -> void:
 
 
 func _check_activity_observation(adapter: Object, stage: String) -> void:
-	var expected: Dictionary = adapter.get_snapshot().activity_reward
+	var full: Dictionary = adapter.get_snapshot()
+	var expected: Dictionary = full.activity_reward
 	var observed: Dictionary = adapter.get_activity_reward_snapshot()
-	_check(observed == expected, stage + " activity observation matches full diagnostics")
+	_check(observed == expected and adapter.get_state_id() == full.state,
+		stage + " lifecycle and activity observations match full diagnostics")
 	observed["state"] = &"tampered"
 	(observed.get("authority", {}) as Dictionary)["reward_store"] = true
 	(observed.get("pending_reward", {}) as Dictionary)["tampered"] = true
