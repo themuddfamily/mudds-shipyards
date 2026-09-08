@@ -75,7 +75,7 @@ PROTECTED_MESHES_BY_ROOT: dict[str, tuple[str, ...]] = {
     ),
 }
 EXPECTED_SOURCE_MESH_COUNTS = {
-    "LOD0": 242,
+    "LOD0": 240,
     "LOD1": 18,
     "CockpitArt": 39,
     "CanopyPivot": 17,
@@ -88,7 +88,7 @@ EXPECTED_RUNTIME_MESH_COUNTS = {
     "CanopyPivot": 3,
     "SemanticAnchors": 0,
 }
-EXPECTED_RUNTIME_TRIANGLES = 87_390
+EXPECTED_RUNTIME_TRIANGLES = 87_338
 RUNTIME_MESH_INSTANCE_BUDGET = 36
 SOURCE_MESH_INSTANCE_BUDGET = 320
 CLOSE_TRIANGLE_RANGE = (70_000, 90_000)
@@ -799,7 +799,6 @@ def build_lod0(collection):
         s = "Port" if side < 0 else "Starboard"
         conforming_side_panel(f"{s}ShoulderLivery", collection, livery,
                               side, -2.70, 2.18, .73, .79)
-        service_stencil(s+"HullRegistration",collection,graphite,side,.12,.98,"TX-09",.25)
         service_stencil(s+"LiftServiceStencil",collection,graphite,side,1.77,1.02,"LIFT",.12)
         for panel_index, z_value in enumerate((-2.90, -1.72, -.42, .88, 2.02)):
             conforming_side_panel(f"{s}FlushAccessPanel{panel_index:02d}",
