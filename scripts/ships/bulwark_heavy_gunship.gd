@@ -31,13 +31,11 @@ const DESIGN_NOTE := (
 	+ "name, role, systems, or continuity."
 )
 
-# A dark blue-black armored body with a high-visibility amber identity band is
-# intentionally unlike the fleet's recon slate, freighter clay, and interceptor
-# purple.  The broad shoulder plates and chin armor make the silhouette read as
-# a durable gunship rather than a stretched fighter.
-const ARMOR_DARK := Color("101b2a")
-const ARMOR_BLUE := Color("243f5b")
-const ARMOR_HIGHLIGHT := Color("416b88")
+# Desaturated gunmetal armor and small amber identification stripes support
+# the broad, low gunship silhouette without reading as blue plastic or gold trim.
+const ARMOR_DARK := Color("252b30")
+const ARMOR_BLUE := Color("414b52")
+const ARMOR_HIGHLIGHT := Color("687277")
 const IDENTITY_AMBER := Color("957c4f")
 const IDENTITY_AMBER_EMISSION_ENERGY := 0.15
 const GUNNER_CYAN := Color("58d8df")
@@ -70,25 +68,23 @@ const CHIN_COLLISION_SIZE := Vector3(4.8, 1.1, 4.0)
 ## capsule; the shared boarding/disembark authority continues to consume it.
 const FLEET_DOCK_EXIT_LOCAL_POSITION := Vector3(-5.5, -1.08, 5.7)
 const GUNNER_STATION_LOCAL_POSITION := Vector3(2.35, 1.55, 0.55)
-const ARMORED_SHOULDER_SIZE := Vector3(3.4, 1.9, 5.3)
+const ARMORED_SHOULDER_SIZE := Vector3(3.4, 1.25, 5.3)
 const ARMORED_SHOULDER_COPY_COUNT := 2
-const IDENTITY_BAND_SIZE := Vector3(0.16, 1.25, 3.2)
+const IDENTITY_BAND_SIZE := Vector3(0.22, 0.035, 1.8)
 const IDENTITY_BAND_COPY_COUNT := 2
-## Raised paired bastions turn the broad shoulder slab into a stepped armored
-## outline in the normal chase view. They stay inside the existing shoulder
+## Low paired weapon shoulders reinforce the armored outline without tall
+## stacks above the cockpit. They stay inside the existing shoulder
 ## footprint in X/Z and carry no collision, weapon, light, or component seam.
-const DORSAL_BASTION_SIZE := Vector3(1.45, 1.5, 3.4)
+const DORSAL_BASTION_SIZE := Vector3(1.8, 0.82, 4.15)
 const DORSAL_BASTION_COPY_COUNT := 2
-const DORSAL_BASTION_CROWN_SIZE := Vector3(1.08, 0.12, 2.55)
+const DORSAL_BASTION_CROWN_SIZE := Vector3(0.14, 0.026, 1.9)
 const DORSAL_BASTION_CROWN_COPY_COUNT := 2
 const COCKPIT_CONSOLE_KEY_COPY_COUNT := 6
 const COCKPIT_DISPLAY_BEZEL_PAIR_COUNT := 2
 const NAVIGATION_LAMP_RADIUS := 0.11
 const NAVIGATION_LAMP_COPY_COUNT := 2
-const ENGINE_HOUSING_RADIUS := 0.72
-const ENGINE_HOUSING_HEIGHT := 2.8
 const ENGINE_HOUSING_COPY_COUNT := 2
-const GUN_POD_HOUSING_RADIUS := 0.42
+const GUN_POD_HOUSING_RADIUS := 0.28
 const GUN_POD_HOUSING_HEIGHT := 2.15
 const GUN_POD_HOUSING_COPY_COUNT := 2
 ## A retained, static consequence of the existing starboard-wing component
@@ -347,6 +343,12 @@ func _build_bulwark_variant(_controller: HeroShip) -> bool:
 	var armor_dark := _material(ARMOR_DARK, 0.12, 0.62)
 	var armor_blue := _material(ARMOR_BLUE, 0.12, 0.62)
 	var armor_highlight := _material(ARMOR_HIGHLIGHT, 0.16, 0.58)
+	# Structural canopy sills use the hull finish; amber remains on controls.
+	if cockpit != null:
+		for sill_name in ["PortSill", "StarboardSill"]:
+			var sill := cockpit.get_node_or_null(sill_name) as MeshInstance3D
+			if sill != null:
+				sill.material_override = armor_dark
 	for coating in [armor_dark, armor_blue, armor_highlight]:
 		ShipSurfaceDetail.bind_manufactured_paint(coating)
 	# Keep the existing amber bands and starboard navigation marker legible in
@@ -361,16 +363,18 @@ func _build_bulwark_variant(_controller: HeroShip) -> bool:
 	var cyan := _material(GUNNER_CYAN, 0.25, 0.2, GUNNER_CYAN, 1.8)
 	var boarding := _material(BOARDING_LIGHT, 0.18, 0.22, BOARDING_LIGHT, 1.2)
 
-	# Armored slab, raised shoulders, chin keel, and rear engine housings form a
-	# broad, compact silhouette. Keep the central slab below the inherited cabin
-	# floor and terminate the dorsal spine behind its rear pressure wall. The old
-	# full-height slab/spine occupied the same volume as the physical cockpit, so
-	# the production pilot-eye camera looked into solid blue armor instead of out
-	# through the canopy.
-	_armor_shell(_bulwark_visual, "ArmoredCentralSlab", Vector3(0.0, 0.9, 0.25), Vector3(6.4, 1.8, 8.5), armor_blue)
-	_armor_shell(_bulwark_visual, "ArmoredNose", Vector3(0.0, 0.9, -4.65), Vector3(5.8, 1.8, 3.9), armor_highlight, 0.0)
-	_armor_shell(_bulwark_visual, "CenterlineArmorSpine", Vector3(0.0, 2.0, 3.1), Vector3(1.35, 0.38, 3.1), armor_highlight)
-	_armor_shell(_bulwark_visual, "ChinArmor", Vector3(0.0, 0.02, -2.2), CHIN_COLLISION_SIZE, armor_dark)
+	# Continuous load-bearing keel and a descending forebody replace the blunt
+	# slab nose. Every upper section remains below the inherited cabin floor.
+	_profile_shell(_bulwark_visual, "ArmoredCentralSlab", Vector3(0, 0.82, 0.25), [
+		Vector4(-4.25, 2.22, 0.40, -0.10), Vector4(-2.25, 3.2, 0.76, 0),
+		Vector4(1.7, 3.2, 0.76, 0), Vector4(4.25, 2.5, 0.48, -0.12),
+	], armor_blue)
+	_profile_shell(_bulwark_visual, "ArmoredNose", Vector3.ZERO, [
+		Vector4(-6.25, 1.05, 0.19, 0.48), Vector4(-5.4, 1.95, 0.33, 0.62),
+		Vector4(-3.25, 2.82, 0.62, 0.88), Vector4(-2.65, 2.82, 0.65, 0.9),
+	], armor_highlight)
+	_armor_shell(_bulwark_visual, "CenterlineArmorSpine", Vector3(0, 1.86, 3.1), Vector3(1.2, 0.20, 3.1), armor_blue)
+	_armor_shell(_bulwark_visual, "ChinArmor", Vector3(0, 0.02, -2.2), Vector3(4.3, 0.86, 4.0), armor_dark)
 	var armored_shoulder_transforms: Array[Transform3D] = []
 	var armored_shoulder_names := PackedStringArray()
 	var identity_band_transforms: Array[Transform3D] = []
@@ -390,19 +394,18 @@ func _build_bulwark_variant(_controller: HeroShip) -> bool:
 		)
 		armored_shoulder_names.append(side_name + "ArmoredShoulder")
 		identity_band_transforms.append(
-			Transform3D(Basis.IDENTITY, Vector3(side * 4.18, 1.55, -0.2))
+			Transform3D(Basis.IDENTITY, Vector3(side * 4.62, 1.685, 0.6))
 		)
 		identity_band_names.append(side_name + "IdentityBand")
-		# The slight mirrored roll creates an inward-braced stepped outline while
-		# preserving the shoulder's existing lateral and longitudinal envelope.
+		# Low continuous caps follow the armored shoulder envelope.
 		dorsal_bastion_transforms.append(Transform3D(
-			Basis.from_euler(Vector3(0.0, 0.0, side * deg_to_rad(-7.0))),
-			Vector3(side * 4.05, 2.72, 0.72)
+			Basis.IDENTITY,
+			Vector3(side * 4.05, 1.94, 0.60)
 		))
 		dorsal_bastion_names.append(side_name + "DorsalBastion")
 		dorsal_bastion_crown_transforms.append(Transform3D(
-			Basis.from_euler(Vector3(0.0, 0.0, side * deg_to_rad(-7.0))),
-			Vector3(side * 3.96, 3.48, 0.72)
+			Basis.IDENTITY,
+			Vector3(side * 4.05, 2.368, 0.60)
 		))
 		dorsal_bastion_crown_names.append(side_name + "DorsalBastionCrown")
 		gun_pod_housing_transforms.append(Transform3D(
@@ -411,8 +414,8 @@ func _build_bulwark_variant(_controller: HeroShip) -> bool:
 		))
 		gun_pod_housing_names.append(side_name + "GunPodHousing")
 		engine_housing_transforms.append(Transform3D(
-			Basis.from_euler(Vector3(deg_to_rad(90.0), 0.0, 0.0)),
-			Vector3(side * 2.65, 1.15, 4.25)
+			Basis.IDENTITY,
+			Vector3(side * 2.65, 1.15, 4.05)
 		))
 		engine_housing_names.append(side_name + "EngineHousing")
 	_add_navigation_lamps(_bulwark_visual, boarding, amber)
@@ -460,7 +463,7 @@ func _build_bulwark_variant(_controller: HeroShip) -> bool:
 		gun_pod_housing_names,
 		armor_highlight
 	)
-	_build_bulwark_manufactured_details(_bulwark_visual, armor_blue, armor_dark, armor_highlight)
+	_build_bulwark_manufactured_details(_bulwark_visual, armor_blue, armor_dark)
 	_build_component_damage_cue(_bulwark_visual)
 
 	# Gunner station is physical ship-local presentation and interaction data;
@@ -561,43 +564,51 @@ func _build_bulwark_variant(_controller: HeroShip) -> bool:
 	return replace_variant_visual_root(_bulwark_visual)
 
 
-## Layered shoulder shells and open nozzles give the armor a structural
-## assembly: pressure body, stand-off plate, turbine and recessed combustion.
-func _build_bulwark_manufactured_details(visual: Node3D, armor: Material, dark: Material, edge: Material) -> void:
-	var metal := _material(Color("77858c"), 0.84, 0.3)
-	_pressure_panel(visual, "CockpitPressureTransition", Vector3(0, 1.6, -0.55), 2.1, 3.7, 0.56, 3.4, armor)
-	for z in [-4.65, -3.85]:
-		var plate := _pressure_panel(visual, "NoseArmorPanel" + str(z), Vector3(0, 1.825, z), 3.2, 3.65, 0.70, 0.055, armor)
-		plate.rotation.x = PI * 0.5
+## Functional assemblies use broad continuous armor around recessed mechanics.
+## The weapon lanes and aft-port boarding gap keep their established clearance.
+func _build_bulwark_manufactured_details(visual: Node3D, armor: Material, dark: Material) -> void:
+	var metal := _material(Color("626a6d"), 0.78, 0.4)
 	var hot := _material(Color("739eab"), 0.2, 0.35, Color("78afc2"), 0.6)
+	_pressure_panel(visual, "CockpitPressureTransition", Vector3(0, 1.6, -0.55), 2.1, 3.7, 0.56, 3.4, armor)
+	# The central sensor is recessed into the descending nose, below the pilot's view.
+	_profile_shell(visual, "NoseSensorRecess", Vector3(0, 1.10, -4.8), [
+		Vector4(-0.65, 0.65, 0.06, -0.18), Vector4(0.65, 1.1, 0.06, 0.15),
+	], dark)
+	# Split the sloped glacis into two fitted panels around the sensor channel.
+	for side in [-1.0, 1.0]:
+		_profile_shell(visual, ("Port" if side < 0 else "Starboard") + "GlacisPanel", Vector3(side * 0.92, 0, 0), [
+			Vector4(-5.24, 0.40, 0.022, 1.018), Vector4(-4.2, 0.65, 0.022, 1.31),
+			Vector4(-3.38, 0.65, 0.022, 1.524),
+		], armor)
+	# A rear splinter shield and outboard coaming physically shelter the retained
+	# gunner seat; its interaction anchor and forward console remain accessible.
+	_profile_shell(visual, "GunnerRearSplinterShield", Vector3(2.35, 0, 0), [
+		Vector4(0.98, 0.61, 0.48, 2.12), Vector4(1.18, 0.72, 0.60, 2.0),
+		Vector4(1.75, 0.78, 0.36, 1.72),
+	], armor)
+	var coaming := _pressure_panel(visual, "GunnerOutboardCoaming", Vector3(3.02, 1.96, 0.28), 0.66, 1.15, 0.12, 2.15, armor)
+	coaming.rotation.z = PI * 0.5
 	for side in [-1.0, 1.0]:
 		var tag := "Port" if side < 0 else "Starboard"
-		_service_bay(visual, tag + "ReactorCooling", Vector3(side * 1.5, 1.84, 2.2), 0.8, 1.45, armor, dark, metal)
-		_armor_shell(visual, tag + "CheekPlate", Vector3(side * 2.15, 0.75, -2.1), Vector3(1.6, 1.4, 5.5), armor, side * 0.10)
-		_armor_shell(visual, tag + "ShoulderCrown", Vector3(side * 4.15, 2.025, 0.5), Vector3(2.25, 0.075, 3.2), armor)
-		# A lowered dark chassis is visible between three separately fitted armor caps.
-		_armor_shell(visual, tag + "BastionCore", Vector3(side * 4.05, 2.60, 0.72), Vector3(1.30, 1.18, 3.15), dark)
-		for i in 3:
-			var z := -0.25 + float(i) * 1.02
-			_deck_plate(visual, tag + "PodDeck" + str(i), Vector3(side * 5.10, 1.995, z + 0.5), 0.62, 0.86, armor, dark)
-		var service := Node3D.new()
-		service.name = tag + "BastionThermalFace"
-		service.position = Vector3(side * 4.81, 2.74, 0.76)
-		service.rotation.z = side * -PI * 0.5
-		visual.add_child(service)
-		_service_bay(service, "HeatExchanger", Vector3.ZERO, 0.72, 2.35, edge, dark, metal)
-		var skirt := _pressure_panel(visual, tag + "OutboardSkirt", Vector3(side * 5.86, 1.0, 1.05), 0.75, 0.98, 0.07, 2.9, armor)
+		_service_bay(visual, tag + "ReactorCooling", Vector3(side * 1.5, 1.60, 2.0), 0.70, 1.25, armor, dark, metal)
+		# One low armored shoulder cap follows the hull instead of a turret stack.
+		_service_bay(visual, tag + "BastionThermalFace", Vector3(side * 4.05, 2.37, 1.22), 1.06, 1.05, armor, dark, metal)
+		var skirt := _pressure_panel(visual, tag + "OutboardSkirt", Vector3(side * 5.80, 1.08, 1.05), 0.48, 0.64, 0.055, 2.6, armor)
 		skirt.rotation.z = PI * 0.5
-		for z in [-0.1, 1.0, 2.1]:
-			_box(visual, tag + "SkirtClamp" + str(z), Vector3(side * 5.92, 1.0, z), Vector3(0.10, 0.72, 0.095), metal)
-		_armor_shell(visual, tag + "ReactorShroud", Vector3(side * 2.65, 1.48, 3.4), Vector3(1.9, 1.55, 2.4), armor)
-		_frustum(visual, tag + "ExhaustBell", Vector3(side * 2.65, 1.15, 5.72), 0.87, 0.62, 0.7, metal, Vector3(90, 0, 0), false, false)
-		_cylinder(visual, tag + "RecessedThroat", Vector3(side * 2.65, 1.15, 5.70), 0.53, 0.08, dark, Vector3(90, 0, 0))
-		_engine_mechanics(visual, tag, Vector3(side * 2.65, 1.15, 5.95), 0.75, metal, dark, hot)
-		_armor_shell(visual, tag + "CannonBreech", Vector3(side * 3.25, 1.17, -3.40), Vector3(1.1, 0.94, 2.35), armor)
-		_service_bay(visual, tag + "CannonCooling", Vector3(side * 3.25, 1.66, -2.95), 0.50, 0.85, armor, dark, metal)
-		for z in [-4.14, -4.43, -4.69]:
-			_frustum(visual, tag + "BarrelCollar" + str(z), Vector3(side * 3.25, 1.0, z), 0.26, 0.26, 0.12, dark, Vector3(90, 0, 0), false, false)
+		for z in [0.0, 2.1]:
+			_box(visual, tag + "SkirtClamp" + str(z), Vector3(side * 5.835, 1.08, z), Vector3(0.07, 0.46, 0.08), metal)
+		# Nacelle armor terminates before the separate dark nozzle throat and lip.
+		_frustum(visual, tag + "ExhaustBell", Vector3(side * 2.65, 1.15, 5.54), 0.63, 0.52, 0.46, metal, Vector3(90, 0, 0), false, false)
+		_cylinder(visual, tag + "RecessedThroat", Vector3(side * 2.65, 1.15, 5.45), 0.48, 0.08, dark, Vector3(90, 0, 0))
+		_engine_mechanics(visual, tag, Vector3(side * 2.65, 1.15, 5.72), 0.55, metal, dark, hot)
+		_service_bay(visual, tag + "NacelleDorsalVent", Vector3(side * 2.65, 1.93, 3.68), 0.74, 1.25, armor, dark, metal)
+		_profile_shell(visual, tag + "CannonBreech", Vector3(side * 3.25, 1.06, -3.20), [
+			Vector4(-1.2, 0.30, 0.24, 0), Vector4(-0.6, 0.55, 0.43, 0),
+			Vector4(0.8, 0.68, 0.46, 0), Vector4(1.65, 0.65, 0.36, -0.08),
+		], armor)
+		_service_bay(visual, tag + "CannonCooling", Vector3(side * 3.25, 1.53, -2.75), 0.58, 0.80, armor, dark, metal)
+		for z in [-4.43, -4.69]:
+			_frustum(visual, tag + "BarrelCollar" + str(z), Vector3(side * 3.25, 1.0, z), 0.25, 0.25, 0.12, dark, Vector3(90, 0, 0), false, false)
 		_cylinder(visual, tag + "MuzzleBore", Vector3(side * 3.25, 1.0, -4.965), 0.17, 0.025, dark, Vector3(90, 0, 0))
 		_cylinder(visual, tag + "CannonBarrel", Vector3(side * 3.25, 1.0, -4.38), 0.19, 0.9, metal, Vector3(90, 0, 0))
 		_frustum(visual, tag + "CannonMuzzle", Vector3(side * 3.25, 1.0, -4.87), 0.25, 0.20, 0.18, dark, Vector3(90, 0, 0), false, false)
@@ -814,7 +825,7 @@ func _add_navigation_lamps(
 		var side := -1.0 if index == 0 else 1.0
 		var lamp := MeshInstance3D.new()
 		lamp.name = "PortNavigationLamp" if side < 0.0 else "StarboardNavigationLamp"
-		lamp.position = Vector3(side * 4.35, 1.8, -2.5)
+		lamp.position = Vector3(side * 4.05, 2.11, -1.15)
 		lamp.mesh = shared_mesh
 		lamp.material_override = materials[index]
 		parent.add_child(lamp)
@@ -884,7 +895,7 @@ func _add_identity_band_batch(
 	return batch
 
 
-## Two immutable renderer batches supply the Bulwark's stepped upper outline and
+## Two immutable renderer batches supply the Bulwark's low armored outline and
 ## its restrained amber crown read. They are deliberately childless and inert:
 ## heavy-gunship readability changes, but every gameplay envelope and authority
 ## remains owned by the pre-existing HeroShip/Bulwark nodes.
@@ -898,7 +909,7 @@ func _add_dorsal_silhouette_batch(
 		material: Material,
 		silhouette_role: StringName
 ) -> MultiMeshInstance3D:
-	var mesh := _bastion_mesh(size, material) if batch_name == "DorsalBastionBatch" else _loft_mesh(Vector3(size.x * 0.52, size.y, size.z * 0.78), material)
+	var mesh := _loft_mesh(size, material)
 	var multi := MultiMesh.new()
 	multi.transform_format = MultiMesh.TRANSFORM_3D
 	multi.mesh = mesh
@@ -927,24 +938,17 @@ func _add_dorsal_silhouette_batch(
 ## The mirrored rear engine housings are immutable exterior dressing: engine
 ## state remains owned by HeroShip and no component, light, particle, collision,
 ## or interaction node is attached to either renderer. Preserve their exact
-## chamfered cylinders and transforms in one bounded renderer submission.
+## tapered nacelle shells in one bounded renderer submission.
 func _add_engine_housing_batch(
 		parent: Node3D,
 		transforms: Array[Transform3D],
 		authored_names: PackedStringArray,
 		material: Material
 ) -> MultiMeshInstance3D:
-	var mesh := StationSurfaceKit.chamfered_cylinder_mesh_cached(
-		ENGINE_HOUSING_RADIUS,
-		ENGINE_HOUSING_RADIUS,
-		ENGINE_HOUSING_HEIGHT,
-		32,
-		_chamfered_cylinder_cache,
-		ShipSurfaceDetail.CYLINDER_WALL_RINGS,
-		true,
-		true,
-		material
-	)
+	var mesh := _profile_mesh([
+		Vector4(-1.75, 0.48, 0.48, -0.03), Vector4(-1.0, 0.85, 0.80, 0),
+		Vector4(0.55, 0.85, 0.80, 0), Vector4(1.28, 0.61, 0.59, 0),
+	], material)
 	var multi := MultiMesh.new()
 	multi.transform_format = MultiMesh.TRANSFORM_3D
 	multi.mesh = mesh
@@ -2297,7 +2301,7 @@ func get_bulwark_audit_report() -> Dictionary:
 		"role": get_role(),
 		"evidence": get_bulwark_evidence_report(),
 		"silhouette_role": &"armored_broad_shoulders",
-		"color_role": &"slate_blue_amber",
+		"color_role": &"gunmetal_amber",
 		"pilot_seat_present": get_pilot_seat_anchor() != null,
 		"boarding_marker_present": boarding_marker != null,
 		"boarding_area_present": is_instance_valid(_boarding_area),
@@ -2501,19 +2505,48 @@ func _engine_mechanics(parent: Node3D, tag: String, at: Vector3, radius: float, 
 	parent.add_child(batch)
 
 
-## Flush service plates have their own bevel and dark gasket; the narrow edge
-## catches light while a readable seam separates adjacent manufactured parts.
-func _deck_plate(parent: Node3D, tag: String, at: Vector3, width: float, length: float, paint: Material, gasket: Material) -> void:
-	_box(parent, tag + "Gasket", at, Vector3(width, 0.028, length), gasket)
-	_box(parent, tag + "Panel", at + Vector3(0, 0.022, 0), Vector3(width - 0.06, 0.032, length - 0.06), paint)
-
-
-func _bastion_mesh(size: Vector3, paint: Material) -> ArrayMesh:
+## Each station stores longitudinal position, half width, half height and rise.
+## Planar chines retain deliberate creases; bilinear side normals avoid diagonal
+## shading seams where successive sections change width and height together.
+func _profile_mesh(stations: Array, coating: Material) -> ArrayMesh:
+	var section := [Vector2(-0.72, 1), Vector2(0.72, 1), Vector2(1, 0.5), Vector2(1, -0.5), Vector2(0.72, -1), Vector2(-0.72, -1), Vector2(-1, -0.5), Vector2(-1, 0.5)]
 	var surface := SurfaceTool.new()
 	surface.begin(Mesh.PRIMITIVE_TRIANGLES)
-	surface.set_material(paint)
-	for i in 3:
-		var plate_size := Vector3(size.x, size.y * (0.88 if i == 0 else 1.0), size.z * 0.29)
-		var transform := Transform3D(Basis.IDENTITY, Vector3(0, 0, (float(i) - 1.0) * size.z * 0.335))
-		surface.append_from(_loft_mesh(plate_size, paint), 0, transform)
+	surface.set_material(coating)
+	var total_length: float = stations[-1].x - stations[0].x
+	for i in range(stations.size() - 1):
+		var a: Vector4 = stations[i]
+		var b: Vector4 = stations[i + 1]
+		for j in 8:
+			var p: Vector2 = section[j]
+			var q: Vector2 = section[(j + 1) % 8]
+			var points := [Vector3(p.x * a.y, p.y * a.z + a.w, a.x), Vector3(q.x * a.y, q.y * a.z + a.w, a.x), Vector3(q.x * b.y, q.y * b.z + b.w, b.x), Vector3(p.x * b.y, p.y * b.z + b.w, b.x)]
+			for corner in [0, 1, 2, 0, 2, 3]:
+				var station := a if corner < 2 else b
+				var ring := p if corner == 0 or corner == 3 else q
+				var around := Vector3((q.x - p.x) * station.y, (q.y - p.y) * station.z, 0)
+				var along := Vector3(ring.x * (b.y - a.y), ring.y * (b.z - a.z) + b.w - a.w, b.x - a.x)
+				surface.set_normal(along.cross(around).normalized())
+				surface.set_uv(Vector2(float(j + (1 if corner == 1 or corner == 2 else 0)) / 8.0, (station.x - stations[0].x) / total_length))
+				surface.add_vertex(points[corner])
+	for cap in [0, stations.size() - 1]:
+		var station: Vector4 = stations[cap]
+		for j in 8:
+			var p: Vector2 = section[j]
+			var q: Vector2 = section[(j + 1) % 8]
+			var ring_order := [Vector2.ZERO, q, p] if cap == 0 else [Vector2.ZERO, p, q]
+			for ring: Vector2 in ring_order:
+				surface.set_normal(Vector3.FORWARD if cap == 0 else Vector3.BACK)
+				surface.set_uv(ring * 0.5 + Vector2.ONE * 0.5)
+				surface.add_vertex(Vector3(ring.x * station.y, ring.y * station.z + station.w, station.x))
+	surface.generate_tangents()
 	return surface.commit()
+
+
+func _profile_shell(parent: Node3D, label: String, at: Vector3, stations: Array, coating: Material) -> MeshInstance3D:
+	var instance := MeshInstance3D.new()
+	instance.name = label
+	instance.position = at
+	instance.mesh = _profile_mesh(stations, coating)
+	parent.add_child(instance)
+	return instance

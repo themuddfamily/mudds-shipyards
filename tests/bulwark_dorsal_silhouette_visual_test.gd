@@ -25,20 +25,23 @@ func _run() -> void:
 	if visual != null:
 		_check_batch(
 			visual.get_node_or_null(^"DorsalBastionBatch") as MultiMeshInstance3D,
-			Vector3(1.45, 1.5, 3.4),
+			Vector3(1.8, 0.82, 4.15),
 			PackedStringArray(["PortDorsalBastion", "StarboardDorsalBastion"]),
 			&"heavy_gunship_dorsal_bastions",
-			Color("243f5b"),
+			Color("414b52"),
 			false
 		)
 		_check_batch(
 			visual.get_node_or_null(^"DorsalBastionCrownBatch") as MultiMeshInstance3D,
-			Vector3(1.08, 0.12, 2.55),
+			Vector3(0.14, 0.026, 1.9),
 			PackedStringArray(["PortDorsalBastionCrown", "StarboardDorsalBastionCrown"]),
 			&"heavy_gunship_orientation_crowns",
-			Color("e2a63c"),
+			Color("957c4f"),
 			true
 		)
+
+		for shell_name in ["ArmoredCentralSlab", "ArmoredNose", "GunnerRearSplinterShield", "PortCannonBreech", "StarboardCannonBreech"]:
+			_check_profile(visual.get_node_or_null(shell_name) as MeshInstance3D, shell_name)
 
 	var definition := ship.get_ship_definition()
 	_check(
@@ -103,6 +106,23 @@ func _check_batch(
 		and inert,
 		"%s is a bounded two-copy inert presentation batch" % expected_role
 	)
+
+
+func _check_profile(instance: MeshInstance3D, label: String) -> void:
+	var valid := instance != null and instance.mesh is ArrayMesh
+	if valid:
+		var arrays := instance.mesh.surface_get_arrays(0)
+		var vertices: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
+		var normals: PackedVector3Array = arrays[Mesh.ARRAY_NORMAL]
+		var uv: PackedVector2Array = arrays[Mesh.ARRAY_TEX_UV]
+		for triangle in range(0, vertices.size(), 3):
+			var geometric_normal := (vertices[triangle + 2] - vertices[triangle]).cross(vertices[triangle + 1] - vertices[triangle]).normalized()
+			var uv_a := uv[triangle + 1] - uv[triangle]
+			var uv_b := uv[triangle + 2] - uv[triangle]
+			valid = valid and absf(uv_a.cross(uv_b)) > 0.000001
+			for corner in 3:
+				valid = valid and normals[triangle + corner].is_finite() and geometric_normal.dot(normals[triangle + corner]) > 0.5
+	_check(valid, "%s has outward-facing shaded triangles and usable side/cap UVs" % label)
 
 
 func _check(condition: bool, message: String) -> void:

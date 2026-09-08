@@ -81,7 +81,7 @@ func _test_collision_and_authority_audit(ship: HeroShip) -> void:
 	_check(bool(audit.get("valid", false)), "fully constructed Bulwark passes its public audit")
 	_check(int(audit.get("collision_shape_count", 0)) >= 3, "audit sees the armored collision envelope")
 	_check(audit.get("silhouette_role", &"") == &"armored_broad_shoulders", "audit records the differentiated armored silhouette")
-	_check(audit.get("color_role", &"") == &"slate_blue_amber", "audit records the differentiated color role")
+	_check(audit.get("color_role", &"") == &"gunmetal_amber", "audit records the differentiated color role")
 	_check(audit.get("combat_authority", &"") == &"HeroShip", "audit preserves one combat authority")
 	_check(audit.get("lifecycle_authority", &"") == &"HeroShip", "audit preserves one lifecycle authority")
 	_check(not bool(audit.get("world_or_berth_registered", true)), "component remains unregistered with world and berth")
@@ -118,10 +118,10 @@ func _test_armored_shoulder_batch(visual: Node3D) -> void:
 		transforms == expected_transforms
 		and names == PackedStringArray(["PortArmoredShoulder", "StarboardArmoredShoulder"])
 		and material != null
-		and material.albedo_color.is_equal_approx(Color("101b2a"))
+		and material.albedo_color.is_equal_approx(Color("252b30"))
 		and is_equal_approx(material.metallic, 0.12)
 		and is_equal_approx(material.roughness, 0.62)
-		and mesh_bounds.size.is_equal_approx(Vector3(3.4, 1.9, 5.3))
+		and mesh_bounds.size.is_equal_approx(Vector3(3.4, 1.25, 5.3))
 		and multi.custom_aabb.is_equal_approx(expected_bounds)
 		and batch.material_override == null
 		and batch.cast_shadow == GeometryInstance3D.SHADOW_CASTING_SETTING_ON
@@ -155,8 +155,8 @@ func _test_identity_band_batch(visual: Node3D) -> void:
 	var names := batch.get_meta(&"authored_visual_names", PackedStringArray()) as PackedStringArray
 	_check(
 		transforms == [
-			Transform3D(Basis.IDENTITY, Vector3(-4.18, 1.55, -0.2)),
-			Transform3D(Basis.IDENTITY, Vector3(4.18, 1.55, -0.2)),
+			Transform3D(Basis.IDENTITY, Vector3(-4.62, 1.685, 0.6)),
+			Transform3D(Basis.IDENTITY, Vector3(4.62, 1.685, 0.6)),
 		]
 		and names == PackedStringArray(["PortIdentityBand", "StarboardIdentityBand"]),
 		"identity-band authored transforms and inspection names remain exact"
@@ -176,7 +176,7 @@ func _test_identity_band_batch(visual: Node3D) -> void:
 		and material.emission_enabled
 		and material.emission.is_equal_approx(Color("957c4f"))
 		and is_equal_approx(material.emission_energy_multiplier, 0.15)
-		and mesh_bounds.size.is_equal_approx(Vector3(0.16, 1.25, 3.2))
+		and mesh_bounds.size.is_equal_approx(Vector3(0.22, 0.035, 1.8))
 		and multi.custom_aabb.is_equal_approx(expected_bounds)
 		and batch.material_override == null
 		and batch.cast_shadow == GeometryInstance3D.SHADOW_CASTING_SETTING_ON
@@ -270,8 +270,8 @@ func _test_navigation_lamp_mesh_sharing(visual: Node3D) -> void:
 		and is_equal_approx(shared_mesh.height, 0.22)
 		and shared_mesh.radial_segments == 24
 		and shared_mesh.rings == 12
-		and port.position.is_equal_approx(Vector3(-4.35, 1.8, -2.5))
-		and starboard.position.is_equal_approx(Vector3(4.35, 1.8, -2.5)),
+		and port.position.is_equal_approx(Vector3(-4.05, 2.11, -1.15))
+		and starboard.position.is_equal_approx(Vector3(4.05, 2.11, -1.15)),
 		"two named navigation lamps retain exact geometry and transforms through one mesh resource"
 	)
 	_check(
@@ -316,10 +316,10 @@ func _test_engine_housing_batch(visual: Node3D) -> void:
 	)
 	if multi == null:
 		return
-	var engine_basis := Basis.from_euler(Vector3(deg_to_rad(90.0), 0.0, 0.0))
+	var engine_basis := Basis.IDENTITY
 	var expected_transforms := [
-		Transform3D(engine_basis, Vector3(-2.65, 1.15, 4.25)),
-		Transform3D(engine_basis, Vector3(2.65, 1.15, 4.25)),
+		Transform3D(engine_basis, Vector3(-2.65, 1.15, 4.05)),
+		Transform3D(engine_basis, Vector3(2.65, 1.15, 4.05)),
 	]
 	var transforms: Array = batch.get_meta(&"authored_instance_transforms", []) as Array
 	var names := batch.get_meta(&"authored_visual_names", PackedStringArray()) as PackedStringArray
@@ -332,12 +332,12 @@ func _test_engine_housing_batch(visual: Node3D) -> void:
 		transforms == expected_transforms
 		and names == PackedStringArray(["PortEngineHousing", "StarboardEngineHousing"])
 		and material != null
-		and material.albedo_color.is_equal_approx(Color("101b2a"))
+		and material.albedo_color.is_equal_approx(Color("252b30"))
 		and is_equal_approx(material.metallic, 0.12)
 		and is_equal_approx(material.roughness, 0.62)
-		and is_equal_approx(mesh_bounds.size.x, 1.44)
-		and is_equal_approx(mesh_bounds.size.y, 2.8)
-		and is_equal_approx(mesh_bounds.size.z, 1.44)
+		and is_equal_approx(mesh_bounds.size.x, 1.7)
+		and is_equal_approx(mesh_bounds.size.y, 1.6)
+		and is_equal_approx(mesh_bounds.size.z, 3.03)
 		and multi.custom_aabb.is_equal_approx(expected_bounds)
 		and batch.material_override == null
 		and batch.cast_shadow == GeometryInstance3D.SHADOW_CASTING_SETTING_ON
@@ -386,12 +386,12 @@ func _test_gun_pod_housing_batch(visual: Node3D) -> void:
 		transforms == expected_transforms
 		and names == PackedStringArray(["PortGunPodHousing", "StarboardGunPodHousing"])
 		and material != null
-		and material.albedo_color.is_equal_approx(Color("416b88"))
+		and material.albedo_color.is_equal_approx(Color("687277"))
 		and is_equal_approx(material.metallic, 0.16)
 		and is_equal_approx(material.roughness, 0.58)
-		and is_equal_approx(mesh_bounds.size.x, 0.84)
+		and is_equal_approx(mesh_bounds.size.x, 0.56)
 		and is_equal_approx(mesh_bounds.size.y, 2.15)
-		and is_equal_approx(mesh_bounds.size.z, 0.84)
+		and is_equal_approx(mesh_bounds.size.z, 0.56)
 		and multi.custom_aabb.is_equal_approx(expected_bounds)
 		and batch.material_override == null
 		and batch.cast_shadow == GeometryInstance3D.SHADOW_CASTING_SETTING_ON
