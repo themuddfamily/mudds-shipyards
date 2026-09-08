@@ -172,6 +172,7 @@ func _init() -> void:
 
 
 func _run() -> void:
+	_test_scalar_health_ratio()
 	_test_typed_configuration_snapshot()
 	_test_reset_and_ordered_stages()
 	_test_ordered_repair_and_shared_sequence()
@@ -187,6 +188,36 @@ func _run() -> void:
 	_test_detached_snapshots_and_audit()
 	_test_zero_authority_boundary()
 	_finish()
+
+
+func _test_scalar_health_ratio() -> void:
+	var model := _make_model()
+	_check(model.get_component_health_ratio(ENGINE_ID) == -1.0, "inactive scalar health uses -1")
+	model.reset_for_reuse(0)
+	_check(model.get_component_health_ratio(&"missing") == -1.0, "unknown scalar health uses -1")
+	_check(model.get_component_health_ratio(ENGINE_ID) == 1.0, "reset scalar health is full")
+	var transition_ratios: Array[float] = []
+	var observe_transition := func(_result: Dictionary) -> void:
+		transition_ratios.append(model.get_component_health_ratio(ENGINE_ID))
+	model.component_stage_changed.connect(observe_transition)
+	model.apply_component_damage(_damage_context(ENGINE_ID, 65.0, 1, 0))
+	var report := model.get_component_state(ENGINE_ID)
+	_check(model.get_component_health_ratio(ENGINE_ID) == report.health_ratio,
+		"damaged scalar health equals explicit report")
+	model.apply_component_repair(_repair_context(ENGINE_ID, 40.0, 1, 1))
+	_check(is_equal_approx(model.get_component_health_ratio(ENGINE_ID), 0.75),
+		"repair updates scalar health immediately")
+	_check(transition_ratios.size() == 2 and is_equal_approx(transition_ratios[0], 0.35)
+		and is_equal_approx(transition_ratios[1], 0.75), "transition callbacks read committed health")
+	_check(is_equal_approx(float(report.health_ratio), 0.35), "explicit report remains detached after repair")
+	report["health_ratio"] = 0.0
+	(report["stage"] as Dictionary).clear()
+	_check(is_equal_approx(model.get_component_health_ratio(ENGINE_ID), 0.75)
+		and not (model.get_component_state(ENGINE_ID).stage as Dictionary).is_empty(),
+		"mutating explicit reports cannot change live health or stage")
+	model.component_stage_changed.disconnect(observe_transition)
+	model.reset_for_reuse(1)
+	_check(model.get_component_health_ratio(ENGINE_ID) == 1.0, "reuse reads replacement health")
 
 
 func _test_typed_configuration_snapshot() -> void:

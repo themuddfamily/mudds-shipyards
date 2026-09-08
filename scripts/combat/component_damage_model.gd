@@ -343,6 +343,15 @@ func _operation_result(
 	return result
 
 
+## Read live health without constructing a detached stage/state report.
+## Unknown components, including an inactive ledger, use the adapter's sentinel.
+func get_component_health_ratio(component_id: StringName) -> float:
+	if not _components.has(component_id):
+		return -1.0
+	var component: Dictionary = _components[component_id]
+	return float(component["current_health"]) / float(component["maximum_health"])
+
+
 func get_component_state(component_id: StringName) -> Dictionary:
 	var component: Dictionary = _components.get(component_id, {})
 	if component.is_empty():

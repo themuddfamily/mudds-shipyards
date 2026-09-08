@@ -463,8 +463,7 @@ func _reset_for_reuse_unchecked() -> bool:
 func get_component_integrity(component_id: StringName) -> float:
 	if not is_configured():
 		return -1.0
-	var component := _ledger.get_component_state(component_id)
-	return float(component.get("health_ratio", -1.0)) if not component.is_empty() else -1.0
+	return _ledger.get_component_health_ratio(component_id)
 
 
 func get_component_state(component_id: StringName) -> int:

@@ -68,6 +68,7 @@ func _run() -> void:
 func _test_configuration() -> void:
 	var model := _make_model()
 	_check(model.is_configured(), "a valid envelope configures the model")
+	_check(model.get_component_integrity(&"missing") == -1.0, "unknown integrity uses exactly -1")
 	_check(
 		model.get_component_count() == ShipComponentDamageType.COMPONENT_ORDER.size(),
 		"the roster has exactly one entry per declared component id"
@@ -213,7 +214,7 @@ func _test_unconfigured_model_fails_closed() -> void:
 	)
 	_check(
 		model.get_component_states().is_empty()
-		and model.get_component_integrity(ShipComponentDamageType.COMPONENT_ENGINE_BAY) < 0.0
+		and model.get_component_integrity(ShipComponentDamageType.COMPONENT_ENGINE_BAY) == -1.0
 		and model.get_component_state(ShipComponentDamageType.COMPONENT_ENGINE_BAY) < 0,
 		"an unconfigured model reports an empty roster and sentinel lookups"
 	)
