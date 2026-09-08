@@ -57,9 +57,9 @@ func _test_closed_cockpit_fairing(craft: CinderLightInterceptor) -> void:
 		and cockpit_floor != null
 		and canopy != null
 		and fairing.mesh is ArrayMesh
-		and fairing.mesh.get_aabb().size.is_equal_approx(Vector3(3.5, 0.62, 2.6))
-		and is_equal_approx(fairing_bounds.position.y, hull_bounds.end.y)
-		and is_equal_approx(fairing_bounds.end.y, floor_bounds.position.y)
+		and fairing.mesh.get_aabb().size.is_equal_approx(Vector3(3.55, 1.542, 6.8))
+		and fairing_bounds.position.y < hull_bounds.end.y
+		and is_equal_approx(fairing_bounds.end.y, floor_bounds.position.y + 0.02)
 		and fairing_bounds.intersects(canopy_bounds)
 		and fairing.material_override == hull.material_override
 		and fairing.layers == 1

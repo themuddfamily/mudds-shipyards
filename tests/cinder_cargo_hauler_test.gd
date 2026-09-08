@@ -1,9 +1,9 @@
 extends SceneTree
 
 const Hauler := preload("res://scripts/ships/cinder_cargo_hauler.gd")
-const SEAT_BACK_GEOMETRY_SHA256 := "ea6f7d6c371d9cb11458d667cc86b2bdd346705e3a83fb60313615a3cb5a0ca1"
-const CABIN_END_WALL_GEOMETRY_SHA256 := "0bf3635e76ff6e2267bb9e7fd5579ca5e4f1fb0c5f3d49aa1155db416f582b67"
-const CREW_CONSOLE_GEOMETRY_SHA256 := "34266f123c5543edc45eef7564290f256c39519aec34b8525b34472f594b0daa"
+const SEAT_BACK_GEOMETRY_SHA256 := "e3c8e385f42692452bca7da77e79ac15862df6335ada6ae682b6ee7c872917e3"
+const CABIN_END_WALL_GEOMETRY_SHA256 := "6b79a88d618da841735a40414bbe9016d4dcb9d9f475680400206b9e14e3104f"
+const CREW_CONSOLE_GEOMETRY_SHA256 := "9812fe3ed5aa023ab3587d83443f05d1113d9f990c2ddcf9da23164dfd5b8ab2"
 
 var _assertions := 0
 var _failures: Array[String] = []

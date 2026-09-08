@@ -25,11 +25,11 @@ func _initialize() -> void:
 				and first_canopy.material_override == second_canopy.material_override,
 			"two interceptor copies share one immutable canopy mesh and material identity"
 		)
-		var mesh := first_canopy.mesh as SphereMesh
+		var mesh := first_canopy.mesh as ArrayMesh
 		_check(
 			mesh != null
-				and is_equal_approx(mesh.radius, Interceptor.CANOPY_RADIUS)
-				and is_equal_approx(mesh.height, Interceptor.CANOPY_HEIGHT)
+				and mesh.get_aabb().size.is_equal_approx(Vector3(0.95, 0.40, 0.035))
+				and is_equal_approx(first_canopy.rotation.x, PI * 0.25)
 				and mesh.get_surface_count() == 1
 				and first_canopy.position.is_equal_approx(Interceptor.CANOPY_POSITION)
 				and second_canopy.position.is_equal_approx(Interceptor.CANOPY_POSITION)

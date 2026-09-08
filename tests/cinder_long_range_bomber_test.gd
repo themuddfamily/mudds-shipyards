@@ -37,23 +37,23 @@ func _initialize() -> void:
 		fairing != null
 		and fairing_mesh != null
 		and fairing.position.is_equal_approx(CinderLongRangeBomber.COCKPIT_SUPPORT_FAIRING_POSITION)
-		and fairing_mesh.get_aabb().size.is_equal_approx(Vector3(3.9, 0.41, 3.4)),
+		and fairing_mesh.get_aabb().size.is_equal_approx(Vector3(3.9, 1.416, 6.8)),
 		"the bomber builds the exact closed cockpit support fairing"
 	)
 	var hull_top := hull.position.y + hull_mesh.get_aabb().size.y * 0.5 \
 			if hull != null and hull_mesh != null else INF
-	var fairing_bottom := fairing.position.y - fairing_mesh.get_aabb().size.y * 0.5 \
+	var fairing_bottom := fairing.position.y + fairing_mesh.get_aabb().position.y \
 			if fairing != null and fairing_mesh != null else INF
-	var fairing_top := fairing.position.y + fairing_mesh.get_aabb().size.y * 0.5 \
+	var fairing_top := fairing.position.y + fairing_mesh.get_aabb().end.y \
 			if fairing != null and fairing_mesh != null else -INF
 	var cockpit_floor_bottom := cockpit_floor.position.y + cockpit_floor.get_aabb().position.y \
 			if cockpit_floor != null and cockpit_floor_mesh != null else -INF
 	var hull_overlap := hull_top - fairing_bottom
 	var cockpit_overlap := fairing_top - cockpit_floor_bottom
 	_check(
-		absf(hull_overlap - 0.02) <= 0.0001
+		hull_overlap > 0.02
 		and absf(cockpit_overlap - 0.02) <= 0.0001,
-		"the closed fairing seats 20 mm into both hull and cockpit floor (%.4f m / %.4f m)" % [
+		"the continuous shoulder enters the hull and seats 20 mm into the cockpit floor (%.4f m / %.4f m)" % [
 			hull_overlap, cockpit_overlap
 		]
 	)

@@ -37,9 +37,9 @@ const NAVIGATOR_ROUTE_ID: StringName = &"cinder_navigator_console"
 const LOADMASTER_MANIFEST_GENERATION_MAX := 1_000_000
 const LOADMASTER_INTERACTION_REACH := 1.20
 
-const HULL_COLOR := Color("536b73")
-const CARGO_COLOR := Color("916c46")
-const ACCENT_COLOR := Color("42c9cf")
+const HULL_COLOR := Color("657373")
+const CARGO_COLOR := Color("5c6563")
+const ACCENT_COLOR := Color("79a1a5")
 const CARGO_SHOULDER_SIZE := Vector3(0.42, 0.72, 2.90)
 ## Repeated exterior load-frame ribs make the freight body legible from the
 ## normal side/rear approach. Their full bounds remain inside the existing
@@ -1051,6 +1051,11 @@ func _build_collision() -> void:
 
 
 func _build_hull(visual: Node3D) -> void:
+	var sill_finish := _material(Color("586569"), 0.48, 0.42)
+	for sill_name in ["PortSill", "StarboardSill"]:
+		var sill := visual.find_child(sill_name, true, false) as MeshInstance3D
+		if sill != null:
+			sill.material_override = sill_finish
 	var hull := MeshInstance3D.new()
 	hull.name = "IndustrialHull"
 	if _shared_hull_mesh == null:
@@ -1144,6 +1149,9 @@ func _build_hull(visual: Node3D) -> void:
 	_cargo_shoulders.set_meta(&"animated", false)
 	_cargo_shoulders.set_meta(&"damage_state", &"nominal")
 	_build_freight_pressure_fairings(visual)
+	ShipSurfaceDetail.mark_surface(visual, "ForwardFreightRegistration", "cinder-cargo", Vector3(0, 0, -6.135), Vector2(2.25, 1.125), Vector3.FORWARD, Vector3.UP)
+	ShipSurfaceDetail.mark_surface(visual, "AftFreightRegistration", "cinder-cargo", Vector3(0, 0, 6.135), Vector2(2.25, 1.125), Vector3.BACK, Vector3.UP)
+	ShipSurfaceDetail.mark_surface(visual, "CrewAccessMark", "rescue", Vector3(-3.34, 0.25, -3.75), Vector2(1.35, 0.675), Vector3.LEFT, Vector3.UP)
 
 
 ## The freight pressure vessel keeps its exact doorway and cabin. Shaped end
@@ -1159,27 +1167,27 @@ func _build_freight_pressure_fairings(visual: Node3D) -> void:
 	for end in [-1.0, 1.0]:
 		var bulkhead := Node3D.new()
 		bulkhead.name = "ForwardBulkhead" if end < 0 else "AftBulkhead"
-		bulkhead.position = Vector3(0, 0, end * 6.755)
+		bulkhead.position = Vector3(0, 0, end * 6.115)
 		bulkhead.rotation.x = end * PI * 0.5
 		visual.add_child(bulkhead)
 		_deck_plate(bulkhead, "PressureCover", Vector3.ZERO, 3.62, 1.51, _shared_hull_material, dark)
 		for x in [-1.36, 1.36]:
 			_service_bay(bulkhead, "Latch" + str(x), Vector3(x, 0.05, 0), 0.35, 0.92, metal, dark, dark)
 		for side in [-1.0, 1.0]:
-			_box(visual, "CornerCrashBeam" + str(end) + str(side), Vector3(side * 2.13, -0.18, end * 6.58), Vector3(0.26, 2.12, 0.24), dark)
-			_box(visual, "CargoCornerTie" + str(end) + str(side), Vector3(side * 2.13, 0.43, end * 6.74), Vector3(0.32, 0.21, 0.17), metal)
+			_box(visual, "CornerCrashBeam" + str(end) + str(side), Vector3(side * 2.13, -0.18, end * 6.0), Vector3(0.26, 2.12, 0.24), dark)
+			_box(visual, "CargoCornerTie" + str(end) + str(side), Vector3(side * 2.13, 0.43, end * 6.11), Vector3(0.32, 0.21, 0.17), metal)
 	for z in [-4.7, -3.6, 4.7]:
 		_deck_plate(visual, "RoofService" + str(z), Vector3(0, 1.638, z), 3.45, 0.88, _shared_hull_material, dark)
 	var hot := _material(Color("68959e"), 0.35, 0.3, Color("83c0cb"), 0.55)
-	var fore := _pressure_panel(visual, "ForwardPressureCap", Vector3(0, 0, -6.375), 4.6, 5.312, 0.75, 2.624, _shared_hull_material)
+	var fore := _pressure_panel(visual, "ForwardPressureCap", Vector3(0, 0, -6.03), 5.18, 5.38, 0.16, 2.76, _shared_hull_material)
 	fore.rotation.x = -PI * 0.5
-	var aft := _pressure_panel(visual, "AftPressureCap", Vector3(0, 0, 6.375), 4.6, 5.312, 0.75, 2.624, _shared_hull_material)
+	var aft := _pressure_panel(visual, "AftPressureCap", Vector3(0, 0, 6.03), 5.18, 5.38, 0.16, 2.76, _shared_hull_material)
 	aft.rotation.x = PI * 0.5
 	for side in [-1.0, 1.0]:
 		var tag := "Port" if side < 0 else "Starboard"
-		_service_bay(visual, tag + "FreightThermalService", Vector3(side * 2.3, 1.91, 0.4), 0.66, 1.5, _shared_hull_material, dark, metal)
+		_service_bay(visual, tag + "FreightThermalService", Vector3(side * 2.3, 1.695, 0.4), 0.66, 1.5, _shared_hull_material, dark, metal)
 		# All side pods stop behind the protected boarding aperture (z > 2.30).
-		_armor_shell(visual, tag + "EnginePylon", Vector3(side * 3.12, 0.6, 4.05), Vector3(1.0, 1.65, 3.2), metal)
+		_armor_shell(visual, tag + "EnginePylon", Vector3(side * 3.12, 0.4, 4.05), Vector3(1.0, 1.0, 3.2), _shared_hull_material)
 		_armor_shell(visual, tag + "EngineShroud", Vector3(side * 3.75, 0.4, 4.5), Vector3(1.45, 1.5, 3.3), dark)
 		_frustum(visual, tag + "FreightExhaust", Vector3(side * 3.75, 0.4, 6.40), 0.75, 0.55, 0.65, metal, Vector3(90, 0, 0), false, false)
 		_cylinder(visual, tag + "RecessedThroat", Vector3(side * 3.75, 0.4, 6.20), 0.45, 0.08, dark, Vector3(90, 0, 0))
@@ -1192,9 +1200,9 @@ func _build_freight_pressure_fairings(visual: Node3D) -> void:
 		radiator.rotation.z = side * -PI * 0.5
 		visual.add_child(radiator)
 		_service_bay(radiator, "Cooling", Vector3.ZERO, 0.62, 1.20, metal, dark, dark)
-		_armor_shell(visual, tag + "ForeShoulder", Vector3(side * 2.48, 1.25, -3.9), Vector3(1.15, 1.0, 3.4), _shared_cargo_pod_material)
-		_armor_shell(visual, tag + "RoofRail", Vector3(side * 2.3, 1.65, 0.0), Vector3(1.3, 0.45, 5.2), dark)
-		_armor_shell(visual, tag + "AftShoulder", Vector3(side * 2.48, 1.25, 3.9), Vector3(1.15, 1.0, 3.4), _shared_cargo_pod_material)
+		_armor_shell(visual, tag + "ForeShoulder", Vector3(side * 2.48, 1.39, -3.9), Vector3(1.15, 0.52, 3.4), _shared_cargo_pod_material)
+		_armor_shell(visual, tag + "RoofRail", Vector3(side * 2.3, 1.59, 0.0), Vector3(1.3, 0.18, 5.2), dark)
+		_armor_shell(visual, tag + "AftShoulder", Vector3(side * 2.48, 1.39, 3.9), Vector3(1.15, 0.52, 3.4), _shared_cargo_pod_material)
 
 
 ## One closed exterior surface with a bounded port aperture. The five intact
@@ -1223,40 +1231,50 @@ static func _port_aperture_shell_mesh(
 	var vertices := PackedVector3Array()
 	var normals := PackedVector3Array()
 	var indices := PackedInt32Array()
-	# Three pressure-shell bays preserve the full cabin section centrally,
-	# allowing only the sealed end bulkheads to taper into the manufactured caps.
-	var stations := [z0, maxf(z0, -3.0), minf(z1, 3.0), z1]
-	for bay in 3:
-		var fore_z: float = stations[bay]
-		var aft_z: float = stations[bay + 1]
-		_append_shell_quad(vertices, normals, indices,
-			Vector3(x0, y1, fore_z), Vector3(half.x, y1, fore_z),
-			Vector3(half.x, y1, aft_z), Vector3(x0, y1, aft_z), Vector3.UP)
-		_append_shell_quad(vertices, normals, indices,
-			Vector3(x0, y0, fore_z), Vector3(x0, y0, aft_z),
-			Vector3(half.x, y0, aft_z), Vector3(half.x, y0, fore_z), Vector3.DOWN)
-		_append_shell_quad(vertices, normals, indices,
-			Vector3(half.x, y0, fore_z), Vector3(half.x, y0, aft_z),
-			Vector3(half.x, y1, aft_z), Vector3(half.x, y1, fore_z), Vector3.RIGHT)
-	_append_shell_quad(vertices, normals, indices,
-		Vector3(x0, y0, z0), Vector3(half.x, y0, z0),
-		Vector3(half.x, y1, z0), Vector3(x0, y1, z0), Vector3.FORWARD)
-	_append_shell_quad(vertices, normals, indices,
-		Vector3(x0, y0, z1), Vector3(x0, y1, z1),
-		Vector3(half.x, y1, z1), Vector3(half.x, y0, z1), Vector3.BACK)
-	# Port face around the exact boarding aperture.
-	_append_shell_quad(vertices, normals, indices,
-		Vector3(x0, y0, z0), Vector3(x0, y1, z0),
-		Vector3(x0, y1, aperture_z_min), Vector3(x0, y0, aperture_z_min), Vector3.LEFT)
-	_append_shell_quad(vertices, normals, indices,
-		Vector3(x0, y0, aperture_z_max), Vector3(x0, y1, aperture_z_max),
-		Vector3(x0, y1, z1), Vector3(x0, y0, z1), Vector3.LEFT)
-	_append_shell_quad(vertices, normals, indices,
-		Vector3(x0, y0, aperture_z_min), Vector3(x0, aperture_y_min, aperture_z_min),
-		Vector3(x0, aperture_y_min, aperture_z_max), Vector3(x0, y0, aperture_z_max), Vector3.LEFT)
-	_append_shell_quad(vertices, normals, indices,
-		Vector3(x0, aperture_y_max, aperture_z_min), Vector3(x0, y1, aperture_z_min),
-		Vector3(x0, y1, aperture_z_max), Vector3(x0, aperture_y_max, aperture_z_max), Vector3.LEFT)
+	# The pressure body uses one fitted eight-edge section with small edge
+	# breaks. Full-height cabin and doorway stations remain exact; only the
+	# sealed bow and stern taper. The aperture cuts the same port side strip.
+	var bevel := minf(0.12, maxf(0.0, (y1 - aperture_y_max) * 0.5))
+	var section := PackedVector2Array([
+		Vector2(x0 + bevel, y1), Vector2(half.x - bevel, y1),
+		Vector2(half.x, y1 - bevel), Vector2(half.x, y0 + bevel),
+		Vector2(half.x - bevel, y0), Vector2(x0 + bevel, y0),
+		Vector2(x0, y0 + bevel), Vector2(x0, y1 - bevel),
+	])
+	var stations: Array[float] = [z0, maxf(z0, -3.0), aperture_z_min, aperture_z_max, minf(z1, 3.0), z1]
+	stations.sort()
+	var rings: Array[PackedVector3Array] = []
+	for z in stations:
+		var end := is_equal_approx(z, z0) or is_equal_approx(z, z1)
+		var ring := PackedVector3Array()
+		for point in section:
+			ring.append(Vector3(point.x * (0.83 if end else 1.0), point.y * (0.86 if end else 1.0), z))
+		rings.append(ring)
+	for bay in stations.size() - 1:
+		var in_door := stations[bay] >= aperture_z_min and stations[bay + 1] <= aperture_z_max
+		for edge in 8:
+			if edge == 6 and in_door:
+				continue
+			var next := (edge + 1) % 8
+			var midpoint := (section[edge] + section[next]) * 0.5
+			_append_shell_quad(vertices, normals, indices,
+				rings[bay][edge], rings[bay][next], rings[bay + 1][next], rings[bay + 1][edge],
+				Vector3(midpoint.x / half.x, midpoint.y / half.y, 0).normalized())
+		if in_door:
+			for band in [Vector2(y0 + bevel, aperture_y_min), Vector2(aperture_y_max, y1 - bevel)]:
+				_append_shell_quad(vertices, normals, indices,
+					Vector3(x0, band.x, stations[bay]), Vector3(x0, band.y, stations[bay]),
+					Vector3(x0, band.y, stations[bay + 1]), Vector3(x0, band.x, stations[bay + 1]), Vector3.LEFT)
+	for cap in [0, rings.size() - 1]:
+		var ring := rings[cap]
+		var center := Vector3(0, 0, stations[cap])
+		for edge in 8:
+			var next := (edge + 1) % 8
+			var triangle := [center, ring[next], ring[edge]] if cap == 0 else [center, ring[edge], ring[next]]
+			for point in triangle:
+				indices.append(vertices.size())
+				vertices.append(point)
+				normals.append(Vector3.FORWARD if cap == 0 else Vector3.BACK)
 	# Doorway reveals close the shell thickness from exterior to cabin.
 	_append_shell_quad(vertices, normals, indices,
 		Vector3(x0, aperture_y_min, aperture_z_min), Vector3(x1, aperture_y_min, aperture_z_min),
@@ -1270,25 +1288,21 @@ static func _port_aperture_shell_mesh(
 	_append_shell_quad(vertices, normals, indices,
 		Vector3(x0, aperture_y_max, aperture_z_min), Vector3(x1, aperture_y_max, aperture_z_min),
 		Vector3(x1, aperture_y_max, aperture_z_max), Vector3(x0, aperture_y_max, aperture_z_max), Vector3.DOWN)
-	# End bulkheads taper into the pressure vessel rather than ending in a
-	# shipping-container face. The central cabin and door reveal vertices stay
-	# exactly where the established traversal contract places them.
+	var uv := PackedVector2Array()
 	for index in vertices.size():
 		var point := vertices[index]
-		if absf(point.z) > half.z - 0.01:
-			point.x *= 0.83
-			point.y *= 0.82
-			vertices[index] = point
-	for index in range(0, vertices.size(), 4):
-		var face_normal := (vertices[index + 1] - vertices[index]).cross(vertices[index + 2] - vertices[index]).normalized()
-		if face_normal.dot(normals[index]) < 0:
-			face_normal = -face_normal
-		for corner in 4:
-			normals[index + corner] = face_normal
+		var normal := normals[index].abs()
+		if normal.z > normal.x and normal.z > normal.y:
+			uv.append(Vector2(point.x, point.y) * 0.3)
+		elif normal.y > normal.x:
+			uv.append(Vector2(point.x, point.z) * 0.3)
+		else:
+			uv.append(Vector2(point.y, point.z) * 0.3)
 	var arrays := []
 	arrays.resize(Mesh.ARRAY_MAX)
 	arrays[Mesh.ARRAY_VERTEX] = vertices
 	arrays[Mesh.ARRAY_NORMAL] = normals
+	arrays[Mesh.ARRAY_TEX_UV] = uv
 	arrays[Mesh.ARRAY_INDEX] = indices
 	var mesh := ArrayMesh.new()
 	mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
@@ -1313,6 +1327,10 @@ static func _append_shell_quad(
 	if (b - a).cross(c - a).length_squared() <= 0.000001 \
 			or (c - a).cross(d - a).length_squared() <= 0.000001:
 		return
+	var geometric := (b - a).cross(c - a).normalized()
+	if geometric.dot(normal) < 0.0:
+		geometric = -geometric
+	normal = geometric
 	var base := vertices.size()
 	var ordered := [a, b, c, d]
 	# Godot front faces wind clockwise, opposite the outward shading normal.
@@ -1796,92 +1814,56 @@ func _crew_role_result(accepted: bool, status: StringName) -> Dictionary:
 ## Broad planar stations carry armor panels; corner facets catch a narrow edge
 ## highlight without inflating the entire silhouette like a superellipse.
 func _loft_mesh(size: Vector3, material: Material) -> ArrayMesh:
-	var scratch := Node3D.new()
-	var instance := _wedge(scratch, "LoftStock", Vector3.ZERO, size, material)
-	var source := instance.mesh as ArrayMesh
-	var arrays := source.surface_get_arrays(0)
-	var points: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
+	# Use the actual profile breaks as stations. The broad pressure faces
+	# stay continuous between those breaks instead of introducing redundant
+	# almost-coplanar strips along the manufactured edges.
 	var section := PackedVector2Array([
-		Vector2(0, 1), Vector2(0.72, 1), Vector2(1, 0.72), Vector2(1, 0.36),
-		Vector2(1, 0), Vector2(1, -0.36), Vector2(1, -0.72), Vector2(0.72, -1),
-		Vector2(0, -1), Vector2(-0.72, -1), Vector2(-1, -0.72), Vector2(-1, -0.36),
-		Vector2(-1, 0), Vector2(-1, 0.36), Vector2(-1, 0.72), Vector2(-0.72, 1),
+		Vector2(0, 1), Vector2(0.94, 1), Vector2(1, 0.94), Vector2(1, 0.36),
+		Vector2(1, 0), Vector2(1, -0.36), Vector2(1, -0.94), Vector2(0.94, -1),
+		Vector2(0, -1), Vector2(-0.94, -1), Vector2(-1, -0.94), Vector2(-1, -0.36),
+		Vector2(-1, 0), Vector2(-1, 0.36), Vector2(-1, 0.94), Vector2(-0.94, 1),
 	])
-	# SurfaceTool reindexes vertices when it generates normals. UV station
-	# coordinates remain stable through that optimization; array order does not.
-	var uv: PackedVector2Array = arrays[Mesh.ARRAY_TEX_UV]
-	for index in points.size():
-		if Vector2(points[index].x, points[index].y).length_squared() < 0.0000001:
-			continue
-		var progress := uv[index].y
-		var corner := roundi(uv[index].x * 16.0) % 16
-		var breadth := minf(1.0, lerpf(0.12, 1.0, progress / 0.43))
-		var depth := minf(1.0, lerpf(0.35, 1.0, progress / 0.28))
-		if progress > 0.83:
-			breadth = lerpf(1.0, 0.9, (progress - 0.83) / 0.17)
-			depth = lerpf(1.0, 0.8, (progress - 0.83) / 0.17)
-		points[index] = Vector3(
-			section[corner].x * size.x * 0.5 * breadth,
-			section[corner].y * size.y * 0.5 * depth,
-			lerpf(-size.z * 0.5, size.z * 0.5, progress)
-		)
-	# The tapered chamfers are bilinear patches: width and height change at
-	# different rates, so each quad is twisted. Analytic patch normals avoid
-	# diagonal-weighted light fans while retaining the actual profile folds.
-	var indices: PackedInt32Array = arrays[Mesh.ARRAY_INDEX]
+	var stations := [0.0, 0.28, 0.43, 0.83, 1.0]
+	var extents: Array[Vector2] = []
+	for t in stations:
+		var width := minf(1.0, lerpf(0.12, 1.0, t / 0.43))
+		var height := minf(1.0, lerpf(0.35, 1.0, t / 0.28))
+		if t > 0.83:
+			width = lerpf(1.0, 0.9, (t - 0.83) / 0.17)
+			height = lerpf(1.0, 0.8, (t - 0.83) / 0.17)
+		extents.append(Vector2(width * size.x * 0.5, height * size.y * 0.5))
 	var surface := SurfaceTool.new()
 	surface.begin(Mesh.PRIMITIVE_TRIANGLES)
 	surface.set_material(material)
-	for triangle in range(0, indices.size(), 3):
-		var a := points[indices[triangle]]
-		var b := points[indices[triangle + 1]]
-		var c := points[indices[triangle + 2]]
-		var face_normal := (c - a).cross(b - a).normalized()
-		var is_cap := absf(face_normal.z) > 0.999
-		var rings: Array[int] = []
-		var first_t := 1.0
-		var last_t := 0.0
-		for corner in 3:
-			var coordinate := uv[indices[triangle + corner]]
-			rings.append(roundi(coordinate.x * 16.0) % 16)
-			first_t = minf(first_t, coordinate.y)
-			last_t = maxf(last_t, coordinate.y)
-		rings.sort()
-		var edge := 15 if rings[2] - rings[0] > 8 else rings[0]
-		var edge_direction := section[(edge + 1) % 16] - section[edge]
-		var extents: Array[Vector2] = []
-		for t in [first_t, last_t]:
-			var width := minf(1.0, lerpf(0.12, 1.0, t / 0.43))
-			var height := minf(1.0, lerpf(0.35, 1.0, t / 0.28))
-			if t > 0.83:
-				width = lerpf(1.0, 0.9, (t - 0.83) / 0.17)
-				height = lerpf(1.0, 0.8, (t - 0.83) / 0.17)
-			extents.append(Vector2(width * size.x * 0.5, height * size.y * 0.5))
-		var extent_delta := extents[1] - extents[0]
-		for corner in 3:
-			var vertex_index := indices[triangle + corner]
-			var texture_uv := uv[vertex_index]
-			var normal := face_normal
-			if is_cap:
-				# Station UVs collapse each end cap to a line. Project the cap
-				# on XY so its tangent and normal-map sampling remain defined.
-				texture_uv = Vector2(points[vertex_index].x / size.x, points[vertex_index].y / size.y) + Vector2.ONE * 0.5
-			else:
-				var ring := roundi(texture_uv.x * 16.0) % 16
-				var extent := extents[0] if is_equal_approx(texture_uv.y, first_t) else extents[1]
+	for bay in stations.size() - 1:
+		var extent_delta := extents[bay + 1] - extents[bay]
+		var run: float = size.z * (stations[bay + 1] - stations[bay])
+		for edge in 16:
+			var next := (edge + 1) % 16
+			var edge_direction := section[next] - section[edge]
+			# Clockwise exterior winding, with analytic bilinear-patch
+			# normals on the tapered chamfers rather than triangle fans.
+			for corner in [Vector2i(edge, bay), Vector2i(next, bay), Vector2i(next, bay + 1), Vector2i(edge, bay), Vector2i(next, bay + 1), Vector2i(edge, bay + 1)]:
+				var extent := extents[corner.y]
 				var around := Vector3(edge_direction.x * extent.x, edge_direction.y * extent.y, 0)
-				var along := Vector3(section[ring].x * extent_delta.x, section[ring].y * extent_delta.y, size.z * (last_t - first_t))
-				normal = along.cross(around).normalized()
-				# Duplicate U=0 as U=1 on the final wrapped sidewall strip.
-				if edge == 15 and ring == 0:
-					texture_uv.x = 1.0
-			surface.set_normal(normal)
-			surface.set_uv(texture_uv)
-			surface.add_vertex(points[vertex_index])
+				var along := Vector3(section[corner.x].x * extent_delta.x, section[corner.x].y * extent_delta.y, run)
+				var u := 1.0 if edge == 15 and corner.x == 0 else float(corner.x) / 16.0
+				surface.set_normal(along.cross(around).normalized())
+				surface.set_uv(Vector2(u, stations[corner.y]))
+				surface.add_vertex(Vector3(section[corner.x].x * extent.x, section[corner.x].y * extent.y, (stations[corner.y] - 0.5) * size.z))
+	for cap in [0, stations.size() - 1]:
+		var z: float = (stations[cap] - 0.5) * size.z
+		for edge in 16:
+			var next := (edge + 1) % 16
+			var order := [-1, next, edge] if cap == 0 else [-1, edge, next]
+			for corner in order:
+				var point := Vector3(0, 0, z) if corner < 0 else Vector3(section[corner].x * extents[cap].x, section[corner].y * extents[cap].y, z)
+				surface.set_normal(Vector3.FORWARD if cap == 0 else Vector3.BACK)
+				# XY cap projection retains a usable tangent frame.
+				surface.set_uv(Vector2(point.x / size.x, point.y / size.y) + Vector2.ONE * 0.5)
+				surface.add_vertex(point)
 	surface.generate_tangents()
-	var result := surface.commit()
-	scratch.free()
-	return result
+	return surface.commit()
 
 
 func _armor_shell(parent: Node3D, node_name: String, at: Vector3, size: Vector3, coating: Material, skew: float = 0.0) -> MeshInstance3D:

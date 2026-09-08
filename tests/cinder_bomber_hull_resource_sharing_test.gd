@@ -64,7 +64,7 @@ func _initialize() -> void:
 	_check(
 		first_spine.position.is_equal_approx(Vector3(0.0, -0.15, 1.5))
 			and second_spine.position.is_equal_approx(Vector3(0.0, -0.15, 1.5))
-			and (first_spine.mesh as BoxMesh).size.is_equal_approx(Vector3(2.2, 1.25, 8.4))
+			and first_spine.mesh.get_aabb().size.is_equal_approx(Vector3(2.2, 1.25, 8.4))
 			and first_spine.visible and second_spine.visible,
 		"resource sharing preserves the bomber's exact visible ordnance-spine silhouette and placement"
 	)

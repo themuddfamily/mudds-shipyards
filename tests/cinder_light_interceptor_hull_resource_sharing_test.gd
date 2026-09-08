@@ -29,8 +29,8 @@ func _initialize() -> void:
 		"resource sharing preserves the exact hull presentation recipe hash"
 	)
 	_check(
-		first_hull.mesh is BoxMesh
-			and (first_hull.mesh as BoxMesh).size.is_equal_approx(Interceptor.HULL_SIZE)
+		first_hull.mesh is ArrayMesh
+			and first_hull.mesh.get_aabb().size.is_equal_approx(Vector3(3.7, 2.1, Interceptor.HULL_SIZE.z))
 			and first_hull.mesh.get_surface_count() == 1
 			and first_hull.transform.is_equal_approx(Transform3D.IDENTITY)
 			and first_hull.visible
@@ -43,8 +43,8 @@ func _initialize() -> void:
 	_check(
 		material != null
 			and material.albedo_color.is_equal_approx(Interceptor.HULL_COLOR)
-			and is_equal_approx(material.metallic, 0.62)
-			and is_equal_approx(material.roughness, 0.36)
+			and is_equal_approx(material.metallic, 0.12)
+			and is_equal_approx(material.roughness, 0.62)
 			and not first_hull.mesh.resource_local_to_scene
 			and not material.resource_local_to_scene,
 		"the cached mesh/material retain the authored hull recipe and cross-copy lifetime"

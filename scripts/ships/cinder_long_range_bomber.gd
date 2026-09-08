@@ -26,10 +26,8 @@ const PAYLOAD_WEAPON_ID: StringName = &"bomber_payload_release"
 const PAYLOAD_PRESENTATION_ID: StringName = &"payload_release_flash"
 const PAYLOAD_AUDIO_ID: StringName = &"payload_release_audio"
 const HULL_SIZE := Vector3(7.0, 3.0, 15.5)
-## Bomber-local closed support beneath the inherited cockpit. The 0.41 m
-## height bridges hull top y=1.50 to cockpit-floor bottom y=1.87 while seating
-## 20 mm into each solid, so no lit angle can reveal the former air gap.
-const COCKPIT_SUPPORT_FAIRING_SIZE := Vector3(2.1, 0.41, 3.4)
+## Retain the cockpit support origin while its continuous shoulder ramps into
+## the narrower pressure body. The platform seats 20 mm into the fixed floor.
 const COCKPIT_SUPPORT_FAIRING_POSITION := Vector3(0.0, 1.685, -0.55)
 const ORDNANCE_SPINE_SIZE := Vector3(2.2, 1.25, 8.4)
 const ORDNANCE_SPINE_POSITION := Vector3(0.0, -0.15, 1.5)
@@ -54,7 +52,7 @@ const SENSOR_SCALE := Vector3(1.0, 0.60, 1.0)
 ## changing the bomber silhouette seen by every exterior camera.
 const EXTERIOR_SENSOR_VISUAL_LAYER := 1 << 1
 const HULL_COLOR := Color("3e4d57")
-const ORDNANCE_COLOR := Color("74544b")
+const ORDNANCE_COLOR := Color("444d50")
 const SENSOR_COLOR := Color("17272e")
 ## Static presentation of an already-authoritative starboard-wing stage. The
 ## raised vane sits on the bomber's outboard upper surface, where the chase view
@@ -634,7 +632,7 @@ func get_hull_resource_sharing_audit() -> Dictionary:
 			errors.append("LongRangeHull gained semantic children or authority")
 	if mesh == null or mesh != _shared_hull_mesh:
 		errors.append("LongRangeHull shared mesh identity drifted")
-	elif not mesh.get_aabb().size.is_equal_approx(HULL_SIZE) or mesh.get_surface_count() != 1:
+	elif not mesh.get_aabb().size.is_equal_approx(Vector3(5.6, 2.65, HULL_SIZE.z)) or mesh.get_surface_count() != 1:
 		errors.append("LongRangeHull mesh recipe drifted")
 	elif mesh.resource_local_to_scene:
 		errors.append("LongRangeHull mesh became scene-local")
@@ -880,14 +878,21 @@ func _build_collision() -> void:
 
 
 func _build_hull(visual: Node3D) -> void:
+	var sill_finish := _material(Color("586569"), 0.48, 0.42)
+	for sill_name in ["PortSill", "StarboardSill"]:
+		var sill := visual.find_child(sill_name, true, false) as MeshInstance3D
+		if sill != null:
+			sill.material_override = sill_finish
 	var hull := MeshInstance3D.new()
 	hull.name = "LongRangeHull"
 	if _shared_hull_mesh == null:
-		_shared_hull_mesh = _loft_mesh(HULL_SIZE, null)
+		_shared_hull_mesh = _loft_mesh(Vector3(5.6, 2.65, HULL_SIZE.z), null)
 		_shared_hull_mesh.resource_local_to_scene = false
 	if _shared_hull_material == null:
 		_shared_hull_material = _material(HULL_COLOR, 0.12, 0.62)
 		ShipSurfaceDetail.bind_manufactured_paint(_shared_hull_material)
+		_shared_hull_material.uv1_triplanar = true
+		_shared_hull_material.uv1_scale = Vector3.ONE * 0.33
 		_shared_hull_material.resource_local_to_scene = false
 	hull.mesh = _shared_hull_mesh
 	hull.material_override = _shared_hull_material
@@ -921,7 +926,9 @@ func _build_hull(visual: Node3D) -> void:
 	sensor.layers = EXTERIOR_SENSOR_VISUAL_LAYER
 	visual.add_child(sensor)
 	_build_bomber_propulsion(visual)
-	_pressure_panel(visual, "CockpitPressurePlinth", Vector3(0, 1.25, -0.55), 3.9, 4.6, 0.55, 3.4, _shared_hull_material)
+	for side in [-1.0, 1.0]:
+		ShipSurfaceDetail.mark_surface(visual, "PressureHullRegistration" + str(side), "cinder-bomber", Vector3(side * 1.52, 1.493, -0.42), Vector2(2.2, 1.1), Vector3(side * 0.62, 0.78, 0), Vector3.UP)
+	ShipSurfaceDetail.mark_surface(visual, "PayloadServiceMark", "service", Vector3(0, 1.27, 5.8), Vector2(1.8, 0.9), Vector3(0, 1, 0.113), Vector3.FORWARD)
 
 
 ## Long paired propulsion trunks leave a centerline service valley and carry
@@ -930,26 +937,26 @@ func _build_bomber_propulsion(visual: Node3D) -> void:
 	var ceramic := _material(Color("1e2931"), 0.62, 0.43)
 	var metal := _material(Color("79848a"), 0.78, 0.30)
 	for z in [2.0, 3.25, 4.5]:
-		var plate := _pressure_panel(visual, "DorsalOrdnanceArmor" + str(z), Vector3(0, 1.535, z), 2.0, 2.35, 1.12, 0.05, ceramic)
+		var plate := _pressure_panel(visual, "DorsalOrdnanceArmor" + str(z), Vector3(0, 1.355, z), 2.0, 2.35, 1.12, 0.05, ceramic)
 		plate.rotation.x = PI * 0.5
 	var sensor_cowl := _armor_shell(visual, "SensorProtectiveCowl", SENSOR_POSITION + Vector3(0, -0.02, 0.10), Vector3(1.75, 0.42, 1.85), ceramic)
 	sensor_cowl.layers = EXTERIOR_SENSOR_VISUAL_LAYER
 	var hot := _material(Color("799da5"), 0.4, 0.28, Color("70aec0"), 0.65)
 	for side in [-1.0, 1.0]:
 		var tag := "Port" if side < 0 else "Starboard"
-		_service_bay(visual, tag + "ThermalService", Vector3(side * 2.3, 1.585, 2.6), 0.9, 2.1, _shared_hull_material, ceramic, metal)
-		_armor_shell(visual, tag + "PressureShoulder", Vector3(side * 2.3, 0.38, 0.4), Vector3(2.0, 2.35, 12.8), _shared_hull_material)
-		_armor_shell(visual, tag + "WingRootFairing", Vector3(side * 3.9, -0.25, 1.2), Vector3(2.7, 0.85, 7.7), ceramic, side * -0.13)
+		_service_bay(visual, tag + "ThermalService", Vector3(side * 2.3, 1.212, 2.6), 0.9, 2.1, _shared_hull_material, ceramic, metal)
+		_armor_shell(visual, tag + "PressureShoulder", Vector3(side * 2.3, 0.28, 0.4), Vector3(1.85, 1.8, 12.8), _shared_hull_material)
+		_armor_shell(visual, tag + "WingRootFairing", Vector3(side * 3.9, -0.25, 1.2), Vector3(2.7, 0.58, 7.7), ceramic, side * -0.13)
 		_armor_shell(visual, tag + "OutboardArmor", Vector3(side * 5.6, -0.22, 1.8), Vector3(1.6, 0.08, 3.2), _shared_ordnance_spine_material, side * -0.16)
 		_cylinder(visual, tag + "TurbineCase", Vector3(side * 2.35, 0.1, 6.75), 0.92, 2.1, metal, Vector3(90, 0, 0))
 		_frustum(visual, tag + "ExhaustBell", Vector3(side * 2.35, 0.1, 8.10), 1.0, 0.70, 0.70, ceramic, Vector3(90, 0, 0), false, false)
 		_cylinder(visual, tag + "RecessedThroat", Vector3(side * 2.35, 0.1, 7.90), 0.62, 0.08, ceramic, Vector3(90, 0, 0))
 		_engine_mechanics(visual, tag, Vector3(side * 2.35, 0.1, 8.31), 0.87, metal, ceramic, hot)
 		for z in [-1.1, 0.2, 4.85]:
-			_deck_plate(visual, tag + "EngineAccess" + str(z), Vector3(side * 2.3, 1.568, z), 1.1, 1.08, _shared_hull_material, ceramic)
+			_deck_plate(visual, tag + "EngineAccess" + str(z), Vector3(side * 2.3, 1.202, z), 1.1, 1.08, _shared_hull_material, ceramic)
 		for i in 3:
 			var z := -1.2 + float(i) * 1.52
-			_deck_plate(visual, tag + "OrdnanceCover" + str(i), Vector3(side * 4.50, 0.196, z + 1.2), 0.82, 1.30, _shared_hull_material, ceramic)
+			_deck_plate(visual, tag + "OrdnanceCover" + str(i), Vector3(side * 4.50, 0.058, z + 1.2), 0.82, 1.30, _shared_hull_material, ceramic)
 		var intake := Node3D.new()
 		intake.name = tag + "RamScoop"
 		intake.position = Vector3(side * 2.3, 0.45, -5.55)
@@ -962,7 +969,7 @@ func _build_cockpit_support_fairing(visual: Node3D) -> void:
 	var fairing := MeshInstance3D.new()
 	fairing.name = "CockpitSupportFairing"
 	if _shared_cockpit_support_fairing_mesh == null:
-		_shared_cockpit_support_fairing_mesh = _pressure_mesh(2.1, 3.9, COCKPIT_SUPPORT_FAIRING_SIZE.y, COCKPIT_SUPPORT_FAIRING_SIZE.z, null)
+		_shared_cockpit_support_fairing_mesh = _cockpit_shoulder_mesh(COCKPIT_SUPPORT_FAIRING_POSITION, 1.32, 3.9, null)
 		_shared_cockpit_support_fairing_mesh.resource_local_to_scene = false
 	fairing.mesh = _shared_cockpit_support_fairing_mesh
 	fairing.position = COCKPIT_SUPPORT_FAIRING_POSITION
@@ -1177,92 +1184,56 @@ func _build_payload_hardpoints(visual: Node3D) -> void:
 ## Broad planar stations carry armor panels; corner facets catch a narrow edge
 ## highlight without inflating the entire silhouette like a superellipse.
 func _loft_mesh(size: Vector3, material: Material) -> ArrayMesh:
-	var scratch := Node3D.new()
-	var instance := _wedge(scratch, "LoftStock", Vector3.ZERO, size, material)
-	var source := instance.mesh as ArrayMesh
-	var arrays := source.surface_get_arrays(0)
-	var points: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
+	# Use the actual profile breaks as stations. The broad pressure faces
+	# stay continuous between those breaks instead of introducing redundant
+	# almost-coplanar strips along the manufactured edges.
 	var section := PackedVector2Array([
-		Vector2(0, 1), Vector2(0.72, 1), Vector2(1, 0.72), Vector2(1, 0.36),
-		Vector2(1, 0), Vector2(1, -0.36), Vector2(1, -0.72), Vector2(0.72, -1),
-		Vector2(0, -1), Vector2(-0.72, -1), Vector2(-1, -0.72), Vector2(-1, -0.36),
-		Vector2(-1, 0), Vector2(-1, 0.36), Vector2(-1, 0.72), Vector2(-0.72, 1),
+		Vector2(0, 1), Vector2(0.94, 1), Vector2(1, 0.94), Vector2(1, 0.36),
+		Vector2(1, 0), Vector2(1, -0.36), Vector2(1, -0.94), Vector2(0.94, -1),
+		Vector2(0, -1), Vector2(-0.94, -1), Vector2(-1, -0.94), Vector2(-1, -0.36),
+		Vector2(-1, 0), Vector2(-1, 0.36), Vector2(-1, 0.94), Vector2(-0.94, 1),
 	])
-	# SurfaceTool reindexes vertices when it generates normals. UV station
-	# coordinates remain stable through that optimization; array order does not.
-	var uv: PackedVector2Array = arrays[Mesh.ARRAY_TEX_UV]
-	for index in points.size():
-		if Vector2(points[index].x, points[index].y).length_squared() < 0.0000001:
-			continue
-		var progress := uv[index].y
-		var corner := roundi(uv[index].x * 16.0) % 16
-		var breadth := minf(1.0, lerpf(0.12, 1.0, progress / 0.43))
-		var depth := minf(1.0, lerpf(0.35, 1.0, progress / 0.28))
-		if progress > 0.83:
-			breadth = lerpf(1.0, 0.9, (progress - 0.83) / 0.17)
-			depth = lerpf(1.0, 0.8, (progress - 0.83) / 0.17)
-		points[index] = Vector3(
-			section[corner].x * size.x * 0.5 * breadth,
-			section[corner].y * size.y * 0.5 * depth,
-			lerpf(-size.z * 0.5, size.z * 0.5, progress)
-		)
-	# The tapered chamfers are bilinear patches: width and height change at
-	# different rates, so each quad is twisted. Analytic patch normals avoid
-	# diagonal-weighted light fans while retaining the actual profile folds.
-	var indices: PackedInt32Array = arrays[Mesh.ARRAY_INDEX]
+	var stations := [0.0, 0.28, 0.43, 0.83, 1.0]
+	var extents: Array[Vector2] = []
+	for t in stations:
+		var width := minf(1.0, lerpf(0.12, 1.0, t / 0.43))
+		var height := minf(1.0, lerpf(0.35, 1.0, t / 0.28))
+		if t > 0.83:
+			width = lerpf(1.0, 0.9, (t - 0.83) / 0.17)
+			height = lerpf(1.0, 0.8, (t - 0.83) / 0.17)
+		extents.append(Vector2(width * size.x * 0.5, height * size.y * 0.5))
 	var surface := SurfaceTool.new()
 	surface.begin(Mesh.PRIMITIVE_TRIANGLES)
 	surface.set_material(material)
-	for triangle in range(0, indices.size(), 3):
-		var a := points[indices[triangle]]
-		var b := points[indices[triangle + 1]]
-		var c := points[indices[triangle + 2]]
-		var face_normal := (c - a).cross(b - a).normalized()
-		var is_cap := absf(face_normal.z) > 0.999
-		var rings: Array[int] = []
-		var first_t := 1.0
-		var last_t := 0.0
-		for corner in 3:
-			var coordinate := uv[indices[triangle + corner]]
-			rings.append(roundi(coordinate.x * 16.0) % 16)
-			first_t = minf(first_t, coordinate.y)
-			last_t = maxf(last_t, coordinate.y)
-		rings.sort()
-		var edge := 15 if rings[2] - rings[0] > 8 else rings[0]
-		var edge_direction := section[(edge + 1) % 16] - section[edge]
-		var extents: Array[Vector2] = []
-		for t in [first_t, last_t]:
-			var width := minf(1.0, lerpf(0.12, 1.0, t / 0.43))
-			var height := minf(1.0, lerpf(0.35, 1.0, t / 0.28))
-			if t > 0.83:
-				width = lerpf(1.0, 0.9, (t - 0.83) / 0.17)
-				height = lerpf(1.0, 0.8, (t - 0.83) / 0.17)
-			extents.append(Vector2(width * size.x * 0.5, height * size.y * 0.5))
-		var extent_delta := extents[1] - extents[0]
-		for corner in 3:
-			var vertex_index := indices[triangle + corner]
-			var texture_uv := uv[vertex_index]
-			var normal := face_normal
-			if is_cap:
-				# Station UVs collapse each end cap to a line. Project the cap
-				# on XY so its tangent and normal-map sampling remain defined.
-				texture_uv = Vector2(points[vertex_index].x / size.x, points[vertex_index].y / size.y) + Vector2.ONE * 0.5
-			else:
-				var ring := roundi(texture_uv.x * 16.0) % 16
-				var extent := extents[0] if is_equal_approx(texture_uv.y, first_t) else extents[1]
+	for bay in stations.size() - 1:
+		var extent_delta := extents[bay + 1] - extents[bay]
+		var run: float = size.z * (stations[bay + 1] - stations[bay])
+		for edge in 16:
+			var next := (edge + 1) % 16
+			var edge_direction := section[next] - section[edge]
+			# Clockwise exterior winding, with analytic bilinear-patch
+			# normals on the tapered chamfers rather than triangle fans.
+			for corner in [Vector2i(edge, bay), Vector2i(next, bay), Vector2i(next, bay + 1), Vector2i(edge, bay), Vector2i(next, bay + 1), Vector2i(edge, bay + 1)]:
+				var extent := extents[corner.y]
 				var around := Vector3(edge_direction.x * extent.x, edge_direction.y * extent.y, 0)
-				var along := Vector3(section[ring].x * extent_delta.x, section[ring].y * extent_delta.y, size.z * (last_t - first_t))
-				normal = along.cross(around).normalized()
-				# Duplicate U=0 as U=1 on the final wrapped sidewall strip.
-				if edge == 15 and ring == 0:
-					texture_uv.x = 1.0
-			surface.set_normal(normal)
-			surface.set_uv(texture_uv)
-			surface.add_vertex(points[vertex_index])
+				var along := Vector3(section[corner.x].x * extent_delta.x, section[corner.x].y * extent_delta.y, run)
+				var u := 1.0 if edge == 15 and corner.x == 0 else float(corner.x) / 16.0
+				surface.set_normal(along.cross(around).normalized())
+				surface.set_uv(Vector2(u, stations[corner.y]))
+				surface.add_vertex(Vector3(section[corner.x].x * extent.x, section[corner.x].y * extent.y, (stations[corner.y] - 0.5) * size.z))
+	for cap in [0, stations.size() - 1]:
+		var z: float = (stations[cap] - 0.5) * size.z
+		for edge in 16:
+			var next := (edge + 1) % 16
+			var order := [-1, next, edge] if cap == 0 else [-1, edge, next]
+			for corner in order:
+				var point := Vector3(0, 0, z) if corner < 0 else Vector3(section[corner].x * extents[cap].x, section[corner].y * extents[cap].y, z)
+				surface.set_normal(Vector3.FORWARD if cap == 0 else Vector3.BACK)
+				# XY cap projection retains a usable tangent frame.
+				surface.set_uv(Vector2(point.x / size.x, point.y / size.y) + Vector2.ONE * 0.5)
+				surface.add_vertex(point)
 	surface.generate_tangents()
-	var result := surface.commit()
-	scratch.free()
-	return result
+	return surface.commit()
 
 
 func _armor_shell(parent: Node3D, node_name: String, at: Vector3, size: Vector3, coating: Material, skew: float = 0.0) -> MeshInstance3D:
@@ -1356,3 +1327,56 @@ func _engine_mechanics(parent: Node3D, tag: String, at: Vector3, radius: float, 
 func _deck_plate(parent: Node3D, tag: String, at: Vector3, width: float, length: float, paint: Material, gasket: Material) -> void:
 	_box(parent, tag + "Gasket", at, Vector3(width, 0.028, length), gasket)
 	_box(parent, tag + "Panel", at + Vector3(0, 0.022, 0), Vector3(width - 0.06, 0.032, length - 0.06), paint)
+
+
+## A continuous shoulder carries the fixed cockpit floor into the pressure
+## body. Its forward and aft ramps replace the stacked plinth silhouettes;
+## all pilot, canopy hinge and boarding transforms stay on their original rig.
+func _cockpit_shoulder_mesh(origin: Vector3, crown: float, width: float, material: Material) -> ArrayMesh:
+	var surface := SurfaceTool.new()
+	surface.begin(Mesh.PRIMITIVE_TRIANGLES)
+	surface.set_material(material)
+	var stations := [-3.7, -2.25, 1.15, 3.1]
+	var tops := [crown * 0.45, 1.89, 1.89, crown]
+	var widths := [0.6, width, width, width * 0.95]
+	var top_widths := [0.48, 2.18, 2.18, width * 0.85]
+	var rings: Array[PackedVector3Array] = []
+	for station in 4:
+		var top: float = tops[station]
+		var bottom := minf(crown - 0.24, top - 0.12)
+		var half: float = widths[station] * 0.5
+		var upper: float = top_widths[station] * 0.5
+		var bevel := minf(0.065, (top - bottom) * 0.22)
+		var z: float = stations[station]
+		rings.append(PackedVector3Array([
+			Vector3(-upper + bevel, top, z), Vector3(upper - bevel, top, z),
+			Vector3(upper, top - bevel, z), Vector3(half, bottom + bevel, z),
+			Vector3(half - bevel, bottom, z), Vector3(-half + bevel, bottom, z),
+			Vector3(-half, bottom + bevel, z), Vector3(-upper, top - bevel, z),
+		]))
+	for bay in 3:
+		for edge in 8:
+			var next := (edge + 1) % 8
+			var quad := [rings[bay][edge], rings[bay][next], rings[bay + 1][next], rings[bay + 1][edge]]
+			# Ring order is clockwise looking aft; side faces reverse the
+			# geometric cross product for Godot's clockwise front faces.
+			for triangle in [[0, 1, 2], [0, 2, 3]]:
+				var normal: Vector3 = (quad[triangle[2]] - quad[triangle[0]]).cross(quad[triangle[1]] - quad[triangle[0]]).normalized()
+				for corner in triangle:
+					var point: Vector3 = quad[corner]
+					surface.set_normal(normal)
+					surface.set_uv(Vector2(point.x if edge in [0, 4] else point.y, point.z) * 0.3)
+					surface.add_vertex(point - origin)
+	for cap in [0, 3]:
+		var center := Vector3.ZERO
+		for point in rings[cap]:
+			center += point / 8.0
+		for edge in 8:
+			var next := (edge + 1) % 8
+			var triangle := [center, rings[cap][next], rings[cap][edge]] if cap == 0 else [center, rings[cap][edge], rings[cap][next]]
+			for point in triangle:
+				surface.set_normal(Vector3.FORWARD if cap == 0 else Vector3.BACK)
+				surface.set_uv(Vector2(point.x, point.y) * 0.3)
+				surface.add_vertex(point - origin)
+	surface.generate_tangents()
+	return surface.commit()
