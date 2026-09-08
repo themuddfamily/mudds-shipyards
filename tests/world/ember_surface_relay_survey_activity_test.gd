@@ -53,6 +53,10 @@ func _run() -> void:
 	var started := activity.begin(adapter)
 	var discovered := activity.submit_landmark(adapter, activity.START_LANDMARK_ID, Vector3(180.0, 120009.0, -44.0))
 	var positioned := activity.submit_position(adapter, Vector3(200.0, 120010.0, -45.0))
+	var focused_position := activity.submit_position_for_production(adapter, Vector3(220.0, 120010.0, -45.0))
+	_check(focused_position == {"accepted": true, "reason": &"position_accepted"}
+		and adapter.positions.size() == 2,
+		"production submissions retain the legacy adapter mutation fallback")
 	var committed := activity.commit_reward(adapter)
 	var snapshot := activity.get_snapshot()
 	if not started.accepted or adapter.sequence != [activity.ACTIVITY_ID] or not discovered.accepted \

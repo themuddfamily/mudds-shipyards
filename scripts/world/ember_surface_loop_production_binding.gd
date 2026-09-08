@@ -2545,9 +2545,10 @@ func _forward_active_relay_position(envelope: Dictionary) -> StringName:
 	var position: Variant = envelope.get("position_body_local_m", Vector3.INF)
 	if not position is Vector3 or not (position as Vector3).is_finite():
 		return &"invalid_relay_position_sample"
-	var forwarded: Dictionary = _planetary_composition.call(
-		&"submit_relay_survey_position", position
-	)
+	var submit_method := &"submit_relay_survey_position_for_production" \
+		if _planetary_composition.has_method(&"submit_relay_survey_position_for_production") \
+		else &"submit_relay_survey_position"
+	var forwarded: Dictionary = _planetary_composition.call(submit_method, position)
 	if not bool(forwarded.get("accepted", false)):
 		# A valid observation between checkpoints keeps the route active.
 		if StringName(forwarded.get("reason", &"")) == &"outside_checkpoint":

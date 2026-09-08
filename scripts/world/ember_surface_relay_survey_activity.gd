@@ -122,9 +122,23 @@ func submit_landmark(adapter: Object, landmark_id: StringName, position: Vector3
 	return adapter.call(&"submit_activity_landmark_discovery", landmark_id, position)
 
 func submit_position(adapter: Object, position: Vector3) -> Dictionary:
+	return _submit_position(adapter, position, false)
+
+
+## Route progress still consumes the mutation result before production drops
+## everything except acceptance and reason. Injected legacy adapters fall back.
+func submit_position_for_production(adapter: Object, position: Vector3) -> Dictionary:
+	var result := _submit_position(adapter, position, true)
+	return {"accepted": bool(result.get("accepted", false)), "reason": result.get("reason", &"activity_position_rejected")}
+
+
+func _submit_position(adapter: Object, position: Vector3, focused: bool) -> Dictionary:
 	if adapter == null or not adapter.has_method(&"submit_activity_position") or not position.is_finite():
 		return {"accepted": false, "reason": &"invalid_relay_survey_position"}
-	var result := adapter.call(&"submit_activity_position", position) as Dictionary
+	var method := &"submit_activity_position_for_production" if focused \
+		and adapter.has_method(&"submit_activity_position_for_production") \
+		else &"submit_activity_position"
+	var result := adapter.call(method, position) as Dictionary
 	if bool(result.get("accepted", false)):
 		_apply_authoritative_route_result(result)
 	return result

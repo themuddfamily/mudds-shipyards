@@ -417,9 +417,20 @@ func submit_surface_route_landmark(
 
 
 func submit_activity_position(position: Vector3) -> Dictionary:
+	var result := _submit_activity_position(position)
+	return _with_adapter(result, bool(result.get("accepted", false)), result.get("reason", &"activity_position_rejected") as StringName)
+
+
+## Production relay progression consumes the authoritative runtime/checkpoint
+## result without materializing the discarded adapter and Host diagnostics.
+func submit_activity_position_for_production(position: Vector3) -> Dictionary:
+	return _submit_activity_position(position)
+
+
+func _submit_activity_position(position: Vector3) -> Dictionary:
 	var rejection := _live_activity_rejection()
 	if not rejection.is_empty():
-		return _reject(rejection)
+		return {"accepted": false, "reason": rejection}
 	var generations := _host_generations()
 	var runtime_snapshot := _runtime.get_snapshot()
 	var result := _runtime.submit_position(
@@ -431,7 +442,7 @@ func submit_activity_position(position: Vector3) -> Dictionary:
 	if bool(result.get("accepted", false)) \
 			and result.get("runtime", {}).get("state", &"") == &"awaiting_reward":
 		_state = State.ACTIVE
-	return _with_adapter(result, bool(result.get("accepted", false)), result.get("reason", &"activity_position_rejected") as StringName)
+	return result
 
 
 func commit_activity_reward() -> Dictionary:

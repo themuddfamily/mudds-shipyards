@@ -46,6 +46,12 @@ class FakeSurfaceComposition:
 	var reward_owner: Object
 	var activity: Dictionary
 	var full_snapshot_reads := 0
+	var public_position_calls := 0
+
+	func submit_relay_survey_position(_position: Vector3) -> Dictionary:
+		public_position_calls += 1
+		return {"accepted": true, "reason": &"position_accepted", "public_detail": {"retained": true}}
+
 
 	func get_snapshot() -> Dictionary:
 		full_snapshot_reads += 1
@@ -77,6 +83,14 @@ class FakeSurfaceComposition:
 		}.duplicate(true)
 
 
+class FocusedSurfaceComposition:
+	extends FakeSurfaceComposition
+	var focused_position_calls := 0
+	func submit_relay_survey_position_for_production(_position: Vector3) -> Dictionary:
+		focused_position_calls += 1
+		return {"accepted": true, "reason": &"position_accepted"}
+
+
 var _grant_calls := 0
 var _last_grant_request: Dictionary = {}
 
@@ -86,6 +100,7 @@ func _init() -> void:
 
 
 func _run() -> void:
+	_test_production_position_dispatch()
 	var binding := BindingScript.new()
 	_check_caller_snapshot(binding, null, "before configuration")
 	var methods := [
@@ -248,6 +263,23 @@ func _run() -> void:
 	_check_caller_snapshot(binding, composition, "after reentry")
 	print("EMBER_SURFACE_LOOP_RELAY_SURVEY_API_TEST_OK")
 	quit(0)
+
+
+func _test_production_position_dispatch() -> void:
+	var binding := BindingScript.new()
+	var legacy := FakeSurfaceComposition.new()
+	var focused := FocusedSurfaceComposition.new()
+	for composition in [legacy, focused]:
+		composition.activity = {"activity_id": &"ember_beacon_survey", "state": &"active"}
+		binding.set("_planetary_composition", composition)
+		_check(binding.call(&"_forward_active_relay_position", {"position_body_local_m": Vector3.ZERO}) == &"",
+			"production position dispatch accepts both focused and legacy compositions")
+	_check(legacy.public_position_calls == 1 and focused.public_position_calls == 0
+		and focused.focused_position_calls == 1,
+		"late production prefers focused mutation with working legacy fallback")
+	binding.free()
+	legacy.free()
+	focused.free()
 
 
 func _check_caller_snapshot(binding: Node, composition: Node, phase: String) -> void:

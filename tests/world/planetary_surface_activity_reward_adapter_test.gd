@@ -74,6 +74,7 @@ func _run() -> void:
 	await _test_surface_water_recovery_preserves_route()
 	await _test_landmark_discovery_admits_activity_once()
 	await _test_settlement_entry_admits_once_across_reentry()
+	await _test_production_position_parity()
 	_finish()
 
 func _test_focused_host_lifecycle() -> void:
@@ -102,6 +103,52 @@ func _test_focused_host_lifecycle() -> void:
 	_check(completed.accepted and completed.adapter.activity_reward.state == &"awaiting_reward",
 		"restored live lifecycle admits the remaining checkpoint without cached rejection")
 	director.queue_free()
+	await process_frame
+
+
+func _test_production_position_parity() -> void:
+	var host := FocusedHost.new()
+	var directors := [_director_with_activity(), _director_with_activity()]
+	var adapters := [AdapterScript.new(), AdapterScript.new()]
+	for index in range(2):
+		_check(adapters[index].bind(host, RuntimeScript.new(), directors[index], Callable(self, "_accept_reward")).accepted
+			and adapters[index].begin_activity(&"ember_beacon_survey").accepted,
+			"matched public and production adapters start")
+	var cases := [
+		{"position": Vector3.ZERO},
+		{"position": Vector3(500, 0, 0)},
+		{"attached": false},
+		{"attached": true, "phase_id": &"boarding"},
+		{"phase_id": &"on_foot", "generation": 8},
+		{"generation": 7, "attachment_generation": 3},
+		{"attachment_generation": 2, "position": Vector3(10, 0, 0)},
+	]
+	for sample: Dictionary in cases:
+		for key: String in sample:
+			if key != "position": host.set(key, sample[key])
+		var position: Vector3 = sample.get("position", Vector3(10, 0, 0))
+		var full: Dictionary = adapters[0].submit_activity_position(position)
+		var reads := host.snapshot_count
+		var status_reads := host.status_count
+		var focused: Dictionary = adapters[1].submit_activity_position_for_production(position)
+		_check(host.snapshot_count == reads and host.status_count > status_reads,
+			"production position validates live Host state without diagnostic reports")
+		var expected := full.duplicate(true)
+		expected.erase("adapter")
+		_check(focused == expected and adapters[0].get_snapshot() == adapters[1].get_snapshot(),
+			"production position preserves complete mutation result and live state: %s" % sample)
+		var retained: Dictionary = adapters[0].get_snapshot()
+		full.adapter.clear()
+		if full.has("runtime"): full.runtime.clear()
+		if focused.has("runtime"): focused.runtime.clear()
+		_check(adapters[0].get_snapshot() == retained and adapters[1].get_snapshot() == retained,
+			"public and production result mutation cannot change retained state")
+	var reward_calls := _reward_calls
+	for adapter in adapters:
+		_check(adapter.commit_activity_reward().accepted, "matched completion commits reward")
+		_check(not adapter.commit_activity_reward().accepted, "matched completion rejects reward replay")
+	_check(_reward_calls == reward_calls + 2, "one reward callback per completed route")
+	for director in directors: director.queue_free()
 	await process_frame
 
 

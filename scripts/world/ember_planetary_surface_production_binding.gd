@@ -479,10 +479,21 @@ func submit_relay_survey_landmark(landmark_id: StringName, position: Vector3) ->
 	return result
 
 func submit_relay_survey_position(position: Vector3) -> Dictionary:
+	return _submit_relay_survey_position(position, false)
+
+
+func submit_relay_survey_position_for_production(position: Vector3) -> Dictionary:
+	return _submit_relay_survey_position(position, true)
+
+
+func _submit_relay_survey_position(position: Vector3, focused: bool) -> Dictionary:
 	if not _live(): return _result(false, &"composition_detached")
 	if _interrupted_relay_survey_resume_blocked:
 		return _result(false, &"relay_survey_resume_relaunch_required")
-	var result: Dictionary = _relay_survey.submit_position(_adapter, position)
+	var method := &"submit_position_for_production" if focused \
+		and _relay_survey.has_method(&"submit_position_for_production") \
+		else &"submit_position"
+	var result: Dictionary = _relay_survey.call(method, _adapter, position)
 	_apply_relay_survey_presentation()
 	_refresh_sample_rack_presentation()
 	return result
