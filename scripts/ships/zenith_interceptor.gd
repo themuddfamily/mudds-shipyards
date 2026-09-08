@@ -3687,8 +3687,8 @@ func _build_modern_airframe(visual: Node3D) -> void:
 	dark.metallic = 0.20
 	dark.roughness = 0.80
 	dark.cull_mode = BaseMaterial3D.CULL_DISABLED
-	# Explicit planar chines replace the inflated superellipse skin. The low
-	# pressure keel, canopy coaming and engine shoulders share actual edges.
+	# Formed chines retain the pressure-body stations and open cockpit well.
+	# Curved shoulder breaks carry a continuous highlight from bow to aft keel.
 	_zenith_hard_shell(airframe, "BlendedPressureHull", 0.0, [
 		Vector4(0.05, 0.81, 0.69, -5.32), Vector4(0.43, 1.17, 0.55, -4.05),
 		Vector4(0.88, 1.93, 0.37, -2.78), Vector4(1.03, 2.30, 0.22, -2.22),
@@ -3720,48 +3720,25 @@ func _build_modern_airframe(visual: Node3D) -> void:
 				Vector3(side * 0.13, front_y, front_z), Vector3(side * 0.69, front_y, front_z),
 				Vector3(side * 0.74, rear_y, rear_z), Vector3(side * 0.13, rear_y, rear_z),
 			]), 0.02, panel)
-		# Compound wing root carries the engine rather than a box perched on a
-		# flat plate. Leading and trailing skins meet a thin structural edge.
-		_zenith_panel(airframe, prefix + "BlendedDeltaWing", PackedVector3Array([
-			Vector3(side * 0.82, 0.72, -3.12), Vector3(side * 7.17, 0.16, 0.87),
-			Vector3(side * 6.53, 0.17, 3.70), Vector3(side * 1.44, 0.66, 4.44),
-		]), 0.14, dark)
-		_zenith_panel(airframe, prefix + "WingLeadingSkin", PackedVector3Array([
-			Vector3(side * 1.04, 0.81, -2.88), Vector3(side * 7.10, 0.25, 0.90),
-			Vector3(side * 6.98, 0.28, 1.44), Vector3(side * 2.42, 0.82, -0.82),
-		]), 0.10, hull)
-		_zenith_panel(airframe, prefix + "WingOuterSkin", PackedVector3Array([
-			Vector3(side * 3.34, 0.75, -0.30), Vector3(side * 6.94, 0.29, 1.47),
-			Vector3(side * 6.68, 0.28, 2.85), Vector3(side * 3.39, 0.68, 2.84),
-		]), 0.11, hull)
-		_zenith_panel(airframe, prefix + "WingRootSkin", PackedVector3Array([
-			Vector3(side * 1.23, 1.19, -0.60), Vector3(side * 3.30, 0.77, 0.40),
-			Vector3(side * 3.35, 0.68, 3.60), Vector3(side * 1.51, 1.08, 3.88),
-		]), 0.16, hull)
-		for bay in 2:
-			var t0 := float(bay) * 0.5 + 0.008
-			var t1 := float(bay + 1) * 0.5 - 0.008
-			_zenith_panel(airframe, prefix + "Elevon" + str(bay), PackedVector3Array([
-				Vector3(side * 3.44, 0.67, 2.92).lerp(Vector3(side * 6.65, 0.27, 2.92), t0),
-				Vector3(side * 3.44, 0.67, 2.92).lerp(Vector3(side * 6.65, 0.27, 2.92), t1),
-				Vector3(side * 3.40, 0.48, 4.10).lerp(Vector3(side * 6.48, 0.24, 3.63), t1),
-				Vector3(side * 3.40, 0.48, 4.10).lerp(Vector3(side * 6.48, 0.24, 3.63), t0),
-			]), 0.08, panel)
+		# A single cambered skin rolls from the pressure-body shoulder into the
+		# thin delta edge. The structural lower skin closes on the same perimeter.
+		_build_cambered_wing(airframe, prefix, side, hull, dark, panel)
 		# Chamfered oblique intake lips lead into fully enclosed dark tunnels.
 		_zenith_hard_shell(airframe, prefix + "EngineCowling", side * 2.20, [
-			Vector4(0.62, 1.68, 0.86, -1.05), Vector4(0.73, 1.68, 0.35, -0.50),
-			Vector4(0.77, 1.73, 0.24, 1.40), Vector4(0.70, 1.41, 0.02, 3.70),
+			Vector4(0.62, 1.68, 0.86, -1.05), Vector4(0.70, 1.72, 0.54, -0.50),
+			Vector4(0.78, 1.77, 0.32, 0.45), Vector4(0.79, 1.73, 0.24, 1.40),
+			Vector4(0.76, 1.62, 0.13, 2.65), Vector4(0.70, 1.36, 0.02, 3.70),
 			Vector4(0.62, 1.02, -0.26, 4.24),
 		], hull, false)
 		_build_hard_intake(airframe, prefix, side * 2.20, dark, panel)
 		_zenith_panel(airframe, prefix + "EngineServiceDoor", PackedVector3Array([
-			Vector3(side * 1.77, 1.72, -0.34), Vector3(side * 2.63, 1.72, -0.34),
-			Vector3(side * 2.61, 1.71, 1.48), Vector3(side * 1.79, 1.71, 1.48),
+			Vector3(side * 1.77, 1.742, -0.34), Vector3(side * 2.63, 1.742, -0.34),
+			Vector3(side * 2.61, 1.741, 1.48), Vector3(side * 1.79, 1.741, 1.48),
 		]), 0.028, panel)
 		for slot in 6:
 			_zenith_panel(airframe, prefix + "ThermalLouvre" + str(slot), PackedVector3Array([
-				Vector3(side * 1.84, 1.688 - slot * 0.0264, 1.78 + slot * 0.19), Vector3(side * 2.56, 1.688 - slot * 0.0264, 1.78 + slot * 0.19),
-				Vector3(side * 2.55, 1.674 - slot * 0.0264, 1.88 + slot * 0.19), Vector3(side * 1.85, 1.674 - slot * 0.0264, 1.88 + slot * 0.19),
+				Vector3(side * 1.84, 1.704 - slot * 0.0167, 1.78 + slot * 0.19), Vector3(side * 2.56, 1.704 - slot * 0.0167, 1.78 + slot * 0.19),
+				Vector3(side * 2.55, 1.695 - slot * 0.0167, 1.88 + slot * 0.19), Vector3(side * 1.85, 1.695 - slot * 0.0167, 1.88 + slot * 0.19),
 			]), 0.018, dark)
 		# Slim barrels terminate at the preserved gameplay muzzle locations.
 		_zenith_hard_shell(airframe, prefix + "RecessedCannonHousing", side * 1.25, [
@@ -3798,6 +3775,91 @@ func _build_modern_airframe(visual: Node3D) -> void:
 			Vector3(side * 2.20, 1.73, -0.72), Vector2(0.88, 0.44), Vector3.UP, Vector3.FORWARD, 0.16)
 
 
+## Closed wing skins use matching span/chord samples; the camber and root
+## fillet are geometry, so reflections and the underside describe one airfoil.
+func _wing_skin_point(span: float, chord: float, side: float, upper: bool) -> Vector3:
+	var x := lerpf(0.82, 7.17, span) - 0.64 * chord * pow(span, 1.5)
+	var leading := lerpf(-3.12, 0.87, span)
+	var trailing := lerpf(4.44, 3.70, span)
+	var base := lerpf(0.72, 0.22, span)
+	var arch := sin(chord * PI)
+	var z := lerpf(leading, trailing, chord)
+	var root_fillet := 0.66 * pow(maxf(0.0, 1.0 - absf(x - 1.80) / 1.90), 2.0) * arch * smoothstep(-0.50, 1.10, z)
+	var camber := 0.27 * arch * (1.0 - span * 0.35)
+	var height := base + camber + root_fillet if upper else base - 0.055 - 0.12 * arch
+	return Vector3(side * x, height, lerpf(leading, trailing, chord))
+
+
+func _build_cambered_wing(parent: Node3D, prefix: String, side: float, hull: Material, dark: Material, panel: Material) -> void:
+	const SPAN_STEPS := 24
+	const CHORD_STEPS := 24
+	for skin_group in 3:
+		var upper := skin_group != 2
+		var tool := SurfaceTool.new()
+		tool.begin(Mesh.PRIMITIVE_TRIANGLES)
+		tool.set_material((hull if skin_group == 0 else panel) if upper else dark)
+		for span in SPAN_STEPS:
+			for chord in CHORD_STEPS:
+				var elevon := span >= 10 and chord >= 20
+				if upper and elevon != (skin_group == 1):
+					continue
+				var a := _wing_skin_point(float(span) / SPAN_STEPS, float(chord) / CHORD_STEPS, side, upper)
+				var b := _wing_skin_point(float(span + 1) / SPAN_STEPS, float(chord) / CHORD_STEPS, side, upper)
+				var c := _wing_skin_point(float(span + 1) / SPAN_STEPS, float(chord + 1) / CHORD_STEPS, side, upper)
+				var d := _wing_skin_point(float(span) / SPAN_STEPS, float(chord + 1) / CHORD_STEPS, side, upper)
+				var inside := (a + b + c + d) * 0.25 + Vector3.DOWN * (1.0 if upper else -1.0)
+				_zenith_triangle(tool, a, b, c, inside)
+				_zenith_triangle(tool, a, c, d, inside)
+		# Seal the root and tip where upper and lower camber differ.
+		if not upper:
+			for span in [0.0, 1.0]:
+				for chord in CHORD_STEPS:
+					var a := _wing_skin_point(span, float(chord) / CHORD_STEPS, side, true)
+					var b := _wing_skin_point(span, float(chord + 1) / CHORD_STEPS, side, true)
+					var c := _wing_skin_point(span, float(chord + 1) / CHORD_STEPS, side, false)
+					var d := _wing_skin_point(span, float(chord) / CHORD_STEPS, side, false)
+					var inside := (a + b + c + d) * 0.25 + Vector3(side * (1.0 if span == 0.0 else -1.0), 0, 0)
+					_zenith_triangle(tool, a, b, c, inside)
+					_zenith_triangle(tool, a, c, d, inside)
+			for chord in [0.0, 1.0]:
+				for span in SPAN_STEPS:
+					var a := _wing_skin_point(float(span) / SPAN_STEPS, chord, side, true)
+					var b := _wing_skin_point(float(span + 1) / SPAN_STEPS, chord, side, true)
+					var c := _wing_skin_point(float(span + 1) / SPAN_STEPS, chord, side, false)
+					var d := _wing_skin_point(float(span) / SPAN_STEPS, chord, side, false)
+					var inside := (a + b + c + d) * 0.25 + Vector3(0, 0, 1.0 if chord == 0.0 else -1.0)
+					_zenith_triangle(tool, a, b, c, inside)
+					_zenith_triangle(tool, a, c, d, inside)
+		tool.generate_normals()
+		tool.index()
+		var skin := MeshInstance3D.new()
+		skin.name = prefix + (["WingOuterSkin", "Elevons", "BlendedDeltaWing"][skin_group] as String)
+		skin.mesh = tool.commit()
+		parent.add_child(skin)
+
+
+## Rounded intake and cowling corners keep broad manufactured roof planes,
+## with enough curvature to carry a continuous highlight into the nozzle.
+func _cowling_section(section: Vector4) -> PackedVector3Array:
+	var w := section.x
+	var h := section.y - section.z
+	var corners := PackedVector3Array([
+		Vector3(w, section.z + h * 0.60, section.w), Vector3(w * 0.78, section.y, section.w),
+		Vector3(-w * 0.78, section.y, section.w), Vector3(-w, section.z + h * 0.60, section.w),
+		Vector3(-w * 0.88, section.z + h * 0.18, section.w), Vector3(-w * 0.60, section.z, section.w),
+		Vector3(w * 0.60, section.z, section.w), Vector3(w * 0.88, section.z + h * 0.18, section.w),
+	])
+	var ring := PackedVector3Array()
+	for corner in corners.size():
+		var point := corners[corner]
+		var before := point.lerp(corners[(corner + 7) % 8], 0.12)
+		var after := point.lerp(corners[(corner + 1) % 8], 0.12)
+		for sample in 4:
+			var t := float(sample) / 3.0
+			ring.append(before.lerp(point, t).lerp(point.lerp(after, t), t))
+	return ring
+
+
 ## An eight-edge machined section: broad planes, small corner breaks. Each
 ## station specifies half-width, roof, keel and longitudinal position.
 func _hard_section(section: Vector4) -> PackedVector3Array:
@@ -3825,9 +3887,11 @@ func _airframe_section(section: Vector4) -> PackedVector3Array:
 	var ring := PackedVector3Array()
 	for corner in corners.size():
 		var point := corners[corner]
-		for neighbour in [(corner + corners.size() - 1) % corners.size(), (corner + 1) % corners.size()]:
-			var delta := corners[neighbour] - point
-			ring.append(point + delta.normalized() * minf(0.04, delta.length() * 0.18))
+		var before := point.lerp(corners[(corner + 7) % 8], 0.20)
+		var after := point.lerp(corners[(corner + 1) % 8], 0.20)
+		for sample in 4:
+			var t := float(sample) / 3.0
+			ring.append(before.lerp(point, t).lerp(point.lerp(after, t), t))
 	return ring
 
 
@@ -3837,18 +3901,20 @@ func _zenith_hard_shell(parent: Node3D, node_name: String, lateral: float, secti
 	tool.set_material(material)
 	tool.set_smooth_group(-1)
 	for station in sections.size() - 1:
-		var a := _airframe_section(sections[station]) if node_name == "BlendedPressureHull" else _hard_section(sections[station])
-		var b := _airframe_section(sections[station + 1]) if node_name == "BlendedPressureHull" else _hard_section(sections[station + 1])
+		var a := _airframe_section(sections[station]) if node_name == "BlendedPressureHull" else (_cowling_section(sections[station]) if node_name.ends_with("EngineCowling") else _hard_section(sections[station]))
+		var b := _airframe_section(sections[station + 1]) if node_name == "BlendedPressureHull" else (_cowling_section(sections[station + 1]) if node_name.ends_with("EngineCowling") else _hard_section(sections[station + 1]))
 		var center := Vector3(0, (sections[station].y + sections[station].z + sections[station + 1].y + sections[station + 1].z) * 0.25, (sections[station].w + sections[station + 1].w) * 0.5)
 		for edge in a.size():
-			if node_name == "BlendedPressureHull" and edge == 3 and station >= 3 and station <= 5:
+			tool.set_smooth_group(0 if node_name.ends_with("EngineCowling") or node_name == "BlendedPressureHull" else edge)
+			if node_name == "BlendedPressureHull" and edge == 7 and station >= 3 and station <= 5:
 				continue
 			var following := (edge + 1) % a.size()
 			_zenith_triangle(tool, a[edge], b[edge], b[following], center)
 			_zenith_triangle(tool, a[edge], b[following], a[following], center)
+	tool.set_smooth_group(-1)
 	for end in [0, sections.size() - 1]:
 		if end == 0 and not cap_front: continue
-		var ring := _airframe_section(sections[end]) if node_name == "BlendedPressureHull" else _hard_section(sections[end])
+		var ring := _airframe_section(sections[end]) if node_name == "BlendedPressureHull" else (_cowling_section(sections[end]) if node_name.ends_with("EngineCowling") else _hard_section(sections[end]))
 		var center := Vector3(0, (sections[end].y + sections[end].z) * 0.5, sections[end].w)
 		var inward := center + Vector3.BACK * (0.1 if end == 0 else -0.1)
 		for edge in ring.size():
@@ -3864,14 +3930,14 @@ func _zenith_hard_shell(parent: Node3D, node_name: String, lateral: float, secti
 
 
 func _build_hard_intake(parent: Node3D, prefix: String, lateral: float, dark: Material, rim: Material) -> void:
-	var outer := _hard_section(Vector4(0.62, 1.68, 0.86, -1.05))
-	var inner := _hard_section(Vector4(0.53, 1.59, 0.95, -1.015))
-	var rear := _hard_section(Vector4(0.46, 1.49, 0.96, 0.20))
+	var outer := _cowling_section(Vector4(0.62, 1.68, 0.86, -1.05))
+	var inner := _cowling_section(Vector4(0.53, 1.59, 0.95, -1.015))
+	var rear := _cowling_section(Vector4(0.46, 1.49, 0.96, 0.20))
 	var tool := SurfaceTool.new()
 	tool.begin(Mesh.PRIMITIVE_TRIANGLES)
 	tool.set_material(rim)
-	for edge in 8:
-		var following := (edge + 1) % 8
+	for edge in outer.size():
+		var following := (edge + 1) % outer.size()
 		for point in [outer[edge], outer[following], inner[following], outer[edge], inner[following], inner[edge]]:
 			tool.set_uv(Vector2(point.x, point.y))
 			tool.add_vertex(point)
@@ -3884,8 +3950,8 @@ func _build_hard_intake(parent: Node3D, prefix: String, lateral: float, dark: Ma
 	var duct := SurfaceTool.new()
 	duct.begin(Mesh.PRIMITIVE_TRIANGLES)
 	duct.set_material(dark)
-	for edge in 8:
-		var following := (edge + 1) % 8
+	for edge in outer.size():
+		var following := (edge + 1) % outer.size()
 		for point in [inner[edge], inner[following], rear[following], inner[edge], rear[following], rear[edge], rear[edge], rear[following], Vector3(0, 1.23, 0.20)]:
 			duct.set_uv(Vector2(point.x, point.z))
 			duct.add_vertex(point)
