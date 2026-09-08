@@ -2563,6 +2563,7 @@ func _build_halyard_variant(_controller: HeroShip) -> bool:
 	_build_propulsion_and_gear()
 	_build_fitted_transport_details()
 	_build_hull_markings()
+	_configure_interior_furnishing_ranges()
 	_replace_collision_and_markers()
 	_bind_optional_interior_frame()
 	if not replace_variant_visual_root(_halyard_visual):
@@ -5234,3 +5235,34 @@ func _build_hull_markings() -> void:
 		Vector3(-2.95, 1.5, -6.03), Vector2(0.6, 0.3), Vector3.LEFT, Vector3.UP)
 	ShipSurfaceDetail.mark_surface(_halyard_visual, "AftServiceStencil", "service",
 		Vector3(-2.97, 1.38, 6.5), Vector2(0.7, 0.35), Vector3.LEFT, Vector3.UP)
+
+
+## Explicit furniture selection leaves the pressure enclosure, glazing, lights,
+## hatches, portals and route deck continuously rendered, including at distance.
+func _configure_interior_furnishing_ranges() -> void:
+	for side in ["Port", "Starboard"]:
+		for row in CREW_SEAT_ROWS.size():
+			_limit_interior_furnishing_range(_crew_cabin.get_node(
+				NodePath(side + "CrewSeat%02d" % row)) as Node3D)
+		_limit_interior_furnishing_range(_crew_cabin.get_node(
+			NodePath(side + "OverheadStowage")) as Node3D)
+		for suffix in ["CrewBunk", "BunkFrame", "BunkCurtainRail", "SystemsRack",
+			"BunkPillow", "BunkBlanket", "BunkBlanketFold", "BerthLabel"]:
+			_limit_interior_furnishing_range(_aft_systems_bay.get_node(
+				NodePath(side + suffix)) as Node3D)
+	for fixture in ["CrewSeatLegBatch", "CrewSeatBackBatch", "CabinFoldingTable"]:
+		_limit_interior_furnishing_range(_crew_cabin.get_node(NodePath(fixture)) as Node3D)
+	_limit_interior_furnishing_range(_aft_systems_bay.get_node(^"AftRackPanelBatch") as Node3D)
+
+
+## Native camera-distance culling affects rendering only; it never changes the
+## furniture's visibility flag, seat anchors, interactions or physics lifecycle.
+func _limit_interior_furnishing_range(furnishing: Node3D) -> void:
+	if furnishing is GeometryInstance3D:
+		var geometry := furnishing as GeometryInstance3D
+		geometry.visibility_range_end = 100.0
+		geometry.visibility_range_end_margin = 10.0
+		geometry.visibility_range_fade_mode = GeometryInstance3D.VISIBILITY_RANGE_FADE_DISABLED
+	for child in furnishing.get_children():
+		if child is Node3D:
+			_limit_interior_furnishing_range(child as Node3D)

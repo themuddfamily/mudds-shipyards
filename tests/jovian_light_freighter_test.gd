@@ -48,6 +48,7 @@ func _run() -> void:
 	_test_secured_freight_is_solid(jovian)
 	await _test_physical_player_traversal(jovian)
 	await _test_engine_weapon_damage_and_reuse(jovian)
+	await _test_interior_furnishing_ranges(jovian)
 	await _test_cleanup(jovian)
 	_finish()
 
@@ -1655,3 +1656,45 @@ func _mesh_open_boundary_edges(mesh: Mesh) -> int:
 		if count == 1:
 			boundary_edges += 1
 	return boundary_edges
+
+
+func _test_interior_furnishing_ranges(craft: HeroShip) -> void:
+	for enclosure_name in ["CargoDeck", "StarboardInnerWall", "AftPressureWall", "ForwardBulkheadHeader", "PassengerDeck", "PassengerRoof", "CargoContainerPort00", "CargoPalletPort00"]:
+		var enclosure := craft.find_child(enclosure_name, true, false) as GeometryInstance3D
+		_check(enclosure != null and enclosure.visibility_range_end == 0.0,
+			"opaque enclosure, windows and portal geometry stay unbounded: " + enclosure_name)
+	var retained := {}
+	var protected_enclosure_count := 0
+	for candidate in craft.find_children("*", "GeometryInstance3D", true, false):
+		var geometry := candidate as GeometryInstance3D
+		if geometry.visibility_range_end == 0.0:
+			protected_enclosure_count += 1
+			continue
+		_check(geometry.visibility_range_begin == 0.0
+			and geometry.visibility_range_end == 100.0
+			and geometry.visibility_range_end_margin == 10.0
+			and geometry.visibility_range_fade_mode == GeometryInstance3D.VISIBILITY_RANGE_FADE_DISABLED,
+			"interior furniture uses native 100 m range with 10 m hysteresis and no close limit")
+		var path := String(craft.get_path_to(geometry))
+		_check(path.contains("/CrewCabin/") or path.contains("/AftSystemsBay/")
+			or path.contains("/PassengerCabin/") or path.contains("/CargoBay/"),
+			"distance culling stays inside selected interior furnishing families")
+		retained[geometry] = [geometry.transform, geometry.visible, geometry.layers,
+			geometry.material_override, geometry.cast_shadow]
+	_check(retained.size() == 68, "explicit interior furnishing allocation")
+	_check(protected_enclosure_count > retained.size(), "shell and remaining presentation stay unbounded")
+	var parent := craft.get_parent()
+	parent.remove_child(craft)
+	parent.add_child(craft)
+	await process_frame
+	var bounded_count := 0
+	for candidate in craft.find_children("*", "GeometryInstance3D", true, false):
+		if (candidate as GeometryInstance3D).visibility_range_end > 0.0:
+			bounded_count += 1
+	_check(bounded_count == retained.size(), "reentry does not accumulate or lose bounded furniture")
+	for geometry: GeometryInstance3D in retained:
+		_check(is_instance_valid(geometry) and geometry.is_inside_tree()
+			and retained[geometry] == [geometry.transform, geometry.visible, geometry.layers,
+				geometry.material_override, geometry.cast_shadow]
+			and geometry.visibility_range_end == 100.0,
+			"reentry retains authored furniture identity, pose, material and visibility authority")

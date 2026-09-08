@@ -3206,6 +3206,7 @@ func _build_jovian_variant(_controller: HeroShip) -> bool:
 	_build_propulsion_and_gear()
 	_build_fitted_freighter_details()
 	_build_hull_markings()
+	_configure_interior_furnishing_ranges()
 	_build_engine_damage_cue()
 	_replace_collision_and_markers()
 	_bind_optional_interior_frame()
@@ -3803,10 +3804,10 @@ func _build_cargo_bay() -> void:
 		_box(_cargo_bay, "CargoContainer" + suffix, position + Vector3(0.0, CARGO_CONTAINER_OFFSET_Y, 0.0), CARGO_CONTAINER_SIZE, _jovian_materials.freight_shell)
 		for corner_x in [-0.87, 0.87]:
 			for corner_z in [-0.98, 0.98]:
-				_box(_cargo_bay, "ContainerCorner" + suffix, position + Vector3(corner_x, 0.90, corner_z), Vector3(0.16, 1.24, 0.16), _jovian_materials.structure)
+				_limit_interior_furnishing_range(_box(_cargo_bay, "ContainerCorner" + suffix, position + Vector3(corner_x, 0.90, corner_z), Vector3(0.16, 1.24, 0.16), _jovian_materials.structure))
 		for face_z in [-1.079, 1.079]:
-			_box(_cargo_bay, "ContainerRecess" + suffix, position + Vector3(0.0, 0.91, face_z), Vector3(1.47, 0.85, 0.035), _jovian_materials.dark)
-			_box(_cargo_bay, "ContainerDataPlate" + suffix, position + Vector3(0.40, 1.07, face_z * 1.021), Vector3(0.43, 0.23, 0.02), _jovian_materials.liner)
+			_limit_interior_furnishing_range(_box(_cargo_bay, "ContainerRecess" + suffix, position + Vector3(0.0, 0.91, face_z), Vector3(1.47, 0.85, 0.035), _jovian_materials.dark))
+			_limit_interior_furnishing_range(_box(_cargo_bay, "ContainerDataPlate" + suffix, position + Vector3(0.40, 1.07, face_z * 1.021), Vector3(0.43, 0.23, 0.02), _jovian_materials.liner))
 
 		for band_index in CARGO_RESTRAINT_BAND_Z.size():
 			_rounded_box_from_mesh(
@@ -5380,3 +5381,25 @@ func _build_hull_markings() -> void:
 			"PortServiceStencil" if side < 0.0 else "StarboardServiceStencil", "service",
 			Vector3(side * 8.12, 2.12, -4.1), Vector2(0.8, 0.4),
 			Vector3(side, 0.0, 0.0), Vector3.UP)
+
+
+## Seat furniture can disappear at distance without opening the passenger shell.
+## Cargo boxes, pallets, walls, curved frames, doors and lights stay unbounded.
+func _configure_interior_furnishing_ranges() -> void:
+	for side in ["Port", "Starboard"]:
+		for row in 3:
+			_limit_interior_furnishing_range(_passenger_cabin.get_node(
+				NodePath(side + "PassengerSeat%02d" % row)) as Node3D)
+
+
+## Native camera-distance culling affects rendering only; it never changes the
+## furniture's visibility flag, seat anchors, interactions or physics lifecycle.
+func _limit_interior_furnishing_range(furnishing: Node3D) -> void:
+	if furnishing is GeometryInstance3D:
+		var geometry := furnishing as GeometryInstance3D
+		geometry.visibility_range_end = 100.0
+		geometry.visibility_range_end_margin = 10.0
+		geometry.visibility_range_fade_mode = GeometryInstance3D.VISIBILITY_RANGE_FADE_DISABLED
+	for child in furnishing.get_children():
+		if child is Node3D:
+			_limit_interior_furnishing_range(child as Node3D)
