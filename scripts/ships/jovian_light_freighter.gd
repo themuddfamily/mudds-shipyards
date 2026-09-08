@@ -163,7 +163,7 @@ const DORSAL_CARGO_RIB_JOINT_XY: Array[Vector2] = [
 
 # The three shoulder service rails retain their exact Node3D roots, seven
 # ordinary MeshInstance3D joints, and seven surface submissions. The joint
-# recipe and teal material are identical, so only the immutable SphereMesh
+# recipe and structural finish are identical, so only the immutable SphereMesh
 # resource is shared.
 const SHOULDER_RAIL_JOINT_COPY_COUNT := 7
 const SHOULDER_RAIL_JOINT_RADIUS := 0.13
@@ -175,12 +175,12 @@ const SHOULDER_RAIL_NAMES: Array[StringName] = [
 	&"StarboardShoulderRail",
 ]
 const SHOULDER_RAIL_JOINT_POSITIONS: Array[Array] = [
-	[Vector3(-7.55, 3.2, -4.8), Vector3(-7.8, 3.34, 0.95)],
-	[Vector3(-7.78, 3.3, 5.48), Vector3(-7.5, 3.1, 8.7)],
+	[Vector3(-5.85, 4.42, -3.0), Vector3(-5.85, 4.42, 0.95)],
+	[Vector3(-5.85, 4.42, 5.48), Vector3(-5.85, 4.42, 8.1)],
 	[
-		Vector3(7.55, 3.2, -4.8),
-		Vector3(7.82, 3.35, 1.0),
-		Vector3(7.5, 3.1, 8.7),
+		Vector3(5.85, 4.42, -3.0),
+		Vector3(5.85, 4.42, 1.0),
+		Vector3(5.85, 4.42, 8.1),
 	],
 ]
 
@@ -2742,7 +2742,7 @@ func get_shoulder_rail_joint_allocation_audit() -> Dictionary:
 					or not is_equal_approx(sphere.height, SHOULDER_RAIL_JOINT_RADIUS * 2.0)
 					or sphere.radial_segments != SHOULDER_RAIL_JOINT_RADIAL_SEGMENTS
 					or sphere.rings != SHOULDER_RAIL_JOINT_RINGS
-					or sphere.material != _jovian_materials.get("teal")
+					or sphere.material != _jovian_materials.get("structure")
 					or sphere.get_surface_count() != 1
 				):
 					errors.append("shoulder_rail_joint_mesh_recipe_drift:%s/%s" % [
@@ -3265,8 +3265,10 @@ func _relocate_and_restyle_cockpit(
 			(surface as MeshInstance3D).material_override = _jovian_materials.structure
 		for surface in cockpit.find_children("*Sill", "MeshInstance3D", true, false):
 			(surface as MeshInstance3D).material_override = _jovian_materials.amber
-		for display in cockpit.find_children("*Display", "MeshInstance3D", true, false):
-			(display as MeshInstance3D).material_override = _jovian_materials.display
+		# Keep the shared flight display and its bezel as dark instrument faces.
+		# Only individual console keys receive the freighter emissive accent.
+		for key in cockpit.find_children("*ConsoleKey*", "MeshInstance3D", true, false):
+			(key as MeshInstance3D).material_override = _jovian_materials.display
 	if canopy != null:
 		canopy.position += COCKPIT_SHIFT
 		for glass in canopy.find_children("CanopyGlass", "MeshInstance3D", true, false):
@@ -3286,15 +3288,15 @@ func _relocate_and_restyle_cockpit(
 
 
 func _build_exterior() -> void:
-	# The flight deck is a smooth low nose supporting the retained physical
-	# cockpit. It does not enclose the cabin with a solid collision primitive.
-	_loft_hull(
+	# A folded bow apron supports the pressure glazing. Broad planar plates
+	# carry highlights cleanly through the chines without inflated loft shading.
+	_armour_pod(
 		_jovian_visual,
 		"ForwardFlightDeck",
 		Vector3(0.0, -0.02, 0.0),
 		PackedVector3Array([
-			Vector3(0.18, 0.08, -14.0),
-			Vector3(2.1, 0.3, -12.4),
+			Vector3(1.20, 0.12, -13.55),
+			Vector3(2.30, 0.32, -12.15),
 			Vector3(3.35, 0.43, -10.25),
 			Vector3(4.15, 0.54, -7.2),
 			Vector3(4.5, 0.48, -4.4),
@@ -3307,76 +3309,45 @@ func _build_exterior() -> void:
 	_shoulder_rail_joint_mesh.height = SHOULDER_RAIL_JOINT_RADIUS * 2.0
 	_shoulder_rail_joint_mesh.radial_segments = SHOULDER_RAIL_JOINT_RADIAL_SEGMENTS
 	_shoulder_rail_joint_mesh.rings = SHOULDER_RAIL_JOINT_RINGS
-	_shoulder_rail_joint_mesh.material = _jovian_materials.teal
-	# Long shoulder volumes carry load and engines outside the open central
-	# interior. Their dense lofts provide a materially larger, non-box silhouette.
+	_shoulder_rail_joint_mesh.material = _jovian_materials.structure
+	# The pressure crown folds directly into broad load-bearing sponsons. Their
+	# inboard faces stop at the cabin wall; the port sections retain the full
+	# boarding aperture rather than bridging it with a decorative solid.
 	for side_index in 2:
 		var side := -1.0 if side_index == 0 else 1.0
 		var side_name := "Port" if side < 0.0 else "Starboard"
 		if side < 0.0:
-			# Two pressure-shell sections leave a true four-metre port aperture.
-			# The visual opening matches the split collision volumes below.
-			_armour_pod(
-				_jovian_visual,
-				"PortCargoShoulder",
-				Vector3(side * 6.9, 2.05, 0.0),
-				PackedVector3Array([
-					Vector3(0.62, 0.52, -7.8),
-					Vector3(1.10, 1.72, -5.5),
-					Vector3(1.15, 2.02, 0.8),
-					Vector3(1.15, 1.98, 1.12),
-				]),
-				_jovian_materials.hull_cool,
-				24
-			)
-			_armour_pod(
-				_jovian_visual,
-				"PortAftCargoShoulder",
-				Vector3(side * 6.9, 2.05, 0.0),
-				PackedVector3Array([
-					Vector3(1.15, 1.98, 5.28),
-					Vector3(1.15, 2.0, 5.62),
-					Vector3(1.12, 1.92, 8.7),
-					Vector3(0.96, 1.52, 11.2),
-				]),
-				_jovian_materials.hull_cool,
-				24
-			)
+			_freighter_sponson("PortCargoShoulder", side, PackedVector3Array([
+				Vector3(0.46, 0.28, -8.2), Vector3(0.90, 0.74, -6.15),
+				Vector3(1.0, 1.0, -3.1), Vector3(1.0, 1.0, 1.12)]))
+			_freighter_sponson("PortAftCargoShoulder", side, PackedVector3Array([
+				Vector3(1.0, 1.0, 5.28), Vector3(1.0, 1.0, 8.25),
+				Vector3(0.90, 0.78, 10.7), Vector3(0.70, 0.62, 11.2)]))
 		else:
-			_armour_pod(
-				_jovian_visual,
-				"StarboardCargoShoulder",
-				Vector3(side * 6.9, 2.05, 0.0),
-				PackedVector3Array([
-					Vector3(0.62, 0.52, -7.8),
-					Vector3(1.10, 1.72, -5.5),
-					Vector3(1.15, 2.02, 1.5),
-					Vector3(1.12, 1.92, 8.7),
-					Vector3(0.96, 1.52, 11.2),
-				]),
-				_jovian_materials.hull_cool,
-				24
-			)
-		# Recessed service spine and panel strips break the broad fairing without
-		# covering the cargo aperture on the port side.
+			_freighter_sponson("StarboardCargoShoulder", side, PackedVector3Array([
+				Vector3(0.46, 0.28, -8.2), Vector3(0.90, 0.74, -6.15),
+				Vector3(1.0, 1.0, -3.1), Vector3(1.0, 1.0, 8.25),
+				Vector3(0.90, 0.78, 10.7), Vector3(0.70, 0.62, 11.2)]))
+		# Service rails follow the crown/shoulder joint. Relocating their whole
+		# shared recipe avoids exposed tube ends piercing the new sloping skin.
 		if side < 0.0:
 			_curve_tube(_jovian_visual, "PortForwardShoulderRail", PackedVector3Array([
-				Vector3(-7.55, 3.2, -4.8), Vector3(-7.8, 3.34, 0.95),
-			]), 0.13, _jovian_materials.teal, _shoulder_rail_joint_mesh)
+				Vector3(-5.85, 4.42, -3.0), Vector3(-5.85, 4.42, 0.95),
+			]), 0.13, _jovian_materials.structure, _shoulder_rail_joint_mesh)
 			_curve_tube(_jovian_visual, "PortAftShoulderRail", PackedVector3Array([
-				Vector3(-7.78, 3.3, 5.48), Vector3(-7.5, 3.1, 8.7),
-			]), 0.13, _jovian_materials.teal, _shoulder_rail_joint_mesh)
+				Vector3(-5.85, 4.42, 5.48), Vector3(-5.85, 4.42, 8.1),
+			]), 0.13, _jovian_materials.structure, _shoulder_rail_joint_mesh)
 		else:
 			_curve_tube(
 				_jovian_visual,
 				"StarboardShoulderRail",
 				PackedVector3Array([
-					Vector3(side * 7.55, 3.2, -4.8),
-					Vector3(side * 7.82, 3.35, 1.0),
-					Vector3(side * 7.5, 3.1, 8.7),
+					Vector3(side * 5.85, 4.42, -3.0),
+					Vector3(side * 5.85, 4.42, 1.0),
+					Vector3(side * 5.85, 4.42, 8.1),
 				]),
 				0.13,
-				_jovian_materials.teal,
+				_jovian_materials.structure,
 				_shoulder_rail_joint_mesh
 			)
 		for panel_index in 4:
@@ -3405,8 +3376,7 @@ func _build_exterior() -> void:
 		PackedVector3Array([Vector3(0.70, -0.70, -9.65), Vector3(0.91, -0.12, -7.65), Vector3(1.0, 0.0, -4.05), Vector3(1.28, 0.30, -2.88)]),
 		0.12, _jovian_materials.hull_warm)
 	for side in [-1.0, 1.0]:
-		_armour_pod(_jovian_visual, "FlightDeckCheek", Vector3(side * 3.65, 1.92, 0.0),
-			PackedVector3Array([Vector3(0.20, 0.55, -9.0), Vector3(0.29, 1.70, -7.5), Vector3(0.60, 1.87, -3.05)]), _jovian_materials.hull_cool, 24)
+		_flight_deck_transition(side)
 	# A full-width raked pressure windscreen belongs to the freighter hull.
 	# The common functional seat/canopy stays inside this volume; boarding and
 	# flight-deck access still use the connected passenger/cargo route.
@@ -3422,6 +3392,9 @@ func _build_exterior() -> void:
 	_skin_quad(screen_tool, screen_top_right, Vector3(3.2, 3.65, -7.65), Vector3(3.2, 0.60, -7.65), screen_bottom_right)
 	var screen := MeshInstance3D.new()
 	screen.name = "FreighterPressureWindscreen"
+	# The transparent pane does not cast an opaque dithered silhouette across
+	# the bow apron; the surrounding pressure frames cast the structural shadow.
+	screen.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	screen.mesh = screen_tool.commit()
 	_jovian_visual.add_child(screen)
 	_curve_tube(_jovian_visual, "FlightDeckWindscreenSeal", PackedVector3Array([
@@ -3466,7 +3439,7 @@ func _build_exterior() -> void:
 
 	# Aft machinery deck, tapered tail bridge, radiators, and restrained colour
 	# blocks make the class readable as a utility vessel rather than a fighter.
-	_loft_hull(
+	_armour_pod(
 		_jovian_visual,
 		"AftMachinerySpine",
 		Vector3(0.0, 2.25, 0.0),
@@ -4037,9 +4010,9 @@ func _build_propulsion_and_gear() -> void:
 			var engine_y := 1.15 + float(vertical_index) * 2.25
 			var engine_x := side * (5.05 + float(vertical_index) * 1.35)
 			var prefix := side_name + ("Lower" if vertical_index == 0 else "Upper")
-			_loft_hull(_jovian_visual, prefix + "EngineHousing", Vector3(engine_x, engine_y, 0.0),
+			_armour_pod(_jovian_visual, prefix + "EngineHousing", Vector3(engine_x, engine_y, 0.0),
 				PackedVector3Array([Vector3(0.64, 0.64, 9.65), Vector3(0.95, 0.95, 10.6), Vector3(0.95, 0.95, 12.1), Vector3(0.79, 0.79, 13.0)]), _jovian_materials.hull_cool, 32)
-			_cylinder(_jovian_visual, prefix + "EngineCollar", Vector3(engine_x, engine_y, 13.05), 1.02, 0.42, _jovian_materials.hull_cool, Vector3(90.0, 0.0, 0.0))
+			_freighter_exhaust_collar(prefix + "EngineCollar", Vector3(engine_x, engine_y, 13.05))
 			var core := _cylinder(_jovian_visual, prefix + "EngineCore", Vector3(engine_x, engine_y, 13.31), 0.57, 0.2, _jovian_materials.engine, Vector3(90.0, 0.0, 0.0))
 			_engine_cores.append(core)
 			var plume := _cylinder(_jovian_visual, prefix + "EnginePlume", Vector3(engine_x, engine_y, 13.8), 0.38, 1.1, _jovian_materials.engine, Vector3(90.0, 0.0, 0.0))
@@ -4922,6 +4895,111 @@ func _armour_pod(parent: Node3D, node_name: String, origin: Vector3,
 	instance.set_meta("closed_loft_hull", true)
 	parent.add_child(instance)
 	return instance
+
+
+## An open exhaust collar exposes a dark recessed throat while offline. The
+## existing emissive core and damage-controlled plume occupy the same aperture
+## while running; a solid hull-coloured cylinder cap no longer seals it shut.
+func _freighter_exhaust_collar(node_name: String, at: Vector3) -> void:
+	var tool := SurfaceTool.new()
+	tool.begin(Mesh.PRIMITIVE_TRIANGLES)
+	tool.set_material(_jovian_materials.structure)
+	for segment in 32:
+		var angle_a := TAU * float(segment) / 32.0
+		var angle_b := TAU * float(segment + 1) / 32.0
+		var radial_a := Vector3(cos(angle_a), sin(angle_a), 0.0)
+		var radial_b := Vector3(cos(angle_b), sin(angle_b), 0.0)
+		var forward := Vector3.FORWARD * 0.21
+		var aft := Vector3.BACK * 0.21
+		_skin_quad(tool, radial_a * 1.02 + forward, radial_b * 1.02 + forward,
+			radial_b * 0.98 + aft, radial_a * 0.98 + aft)
+		_skin_quad(tool, radial_b * 0.68 + forward, radial_a * 0.68 + forward,
+			radial_a * 0.82 + aft, radial_b * 0.82 + aft)
+		_skin_quad(tool, radial_b * 0.98 + aft, radial_b * 0.82 + aft,
+			radial_a * 0.82 + aft, radial_a * 0.98 + aft)
+		_skin_quad(tool, radial_a * 1.02 + forward, radial_a * 0.68 + forward,
+			radial_b * 0.68 + forward, radial_b * 1.02 + forward)
+	var collar := MeshInstance3D.new()
+	collar.name = node_name
+	collar.position = at
+	collar.mesh = tool.commit()
+	_jovian_visual.add_child(collar)
+	_cylinder(_jovian_visual, node_name + "RecessedThroat", at + Vector3.BACK * 0.03,
+		0.69, 0.04, _jovian_materials.dark, Vector3(90.0, 0.0, 0.0))
+
+
+## Asymmetric pressed shoulder: a broad sloping upper load face meets the
+## pressure crown, a straight outer service face carries the existing hatches,
+## and a tucked lower chine exposes the landing gear. The ring stays outside
+## x=5.75 at full section, preserving the actual freight-room volume.
+func _freighter_sponson(node_name: String, side: float, sections: PackedVector3Array) -> void:
+	var profile := PackedVector2Array([
+		Vector2(1.15, 0.90), Vector2(0.70, 1.72), Vector2(-0.85, 2.38),
+		Vector2(-1.15, 2.38), Vector2(-1.15, -1.72),
+		Vector2(-0.80, -1.98), Vector2(0.65, -1.98), Vector2(1.15, -1.30)])
+	var rings: Array[PackedVector3Array] = []
+	for section in sections:
+		var ring := PackedVector3Array()
+		for xy in profile:
+			ring.append(Vector3(side * (6.9 + xy.x * section.x),
+				2.05 + xy.y * section.y, section.z))
+		if side < 0.0:
+			ring.reverse()
+		rings.append(ring)
+	_formed_pressure_member(node_name, rings, _jovian_materials.hull_cool)
+
+
+## The cabin is nested between these tapered shell wings. They join its roof
+## and lower deck to the freight crown without filling the walking volume.
+func _flight_deck_transition(side: float) -> void:
+	var rings: Array[PackedVector3Array] = []
+	for station in [Vector3(3.72, 3.90, -7.60), Vector3(5.73, 4.43, -2.88)]:
+		var inner_x := 3.46
+		var outer_x: float = maxf(inner_x + 0.24, station.x)
+		var ring := PackedVector3Array([
+			Vector3(side * outer_x, station.y - 0.24, station.z),
+			Vector3(side * (outer_x - 0.12), station.y, station.z),
+			Vector3(side * inner_x, station.y, station.z),
+			Vector3(side * inner_x, 0.42, station.z),
+			Vector3(side * (outer_x - 0.06), 0.42, station.z),
+			Vector3(side * outer_x, 0.68, station.z)])
+		if side < 0.0:
+			ring.reverse()
+		rings.append(ring)
+	_formed_pressure_member("PortCabinTransition" if side < 0.0 else "StarboardCabinTransition",
+		rings, _jovian_materials.hull_warm)
+
+
+## Explicit folded sections keep panel normals flat at manufacturing breaks.
+## Cap fans use real triangles rather than degenerate quads.
+func _formed_pressure_member(node_name: String, rings: Array[PackedVector3Array], material: Material) -> void:
+	var tool := SurfaceTool.new()
+	tool.begin(Mesh.PRIMITIVE_TRIANGLES)
+	tool.set_material(material)
+	for station in rings.size() - 1:
+		for edge in rings[station].size():
+			var next := (edge + 1) % rings[station].size()
+			_skin_quad(tool, rings[station][edge], rings[station][next],
+				rings[station + 1][next], rings[station + 1][edge])
+	for end in [0, rings.size() - 1]:
+		var center := Vector3.ZERO
+		for point in rings[end]:
+			center += point
+		center /= float(rings[end].size())
+		for edge in rings[end].size():
+			var next := (edge + 1) % rings[end].size()
+			var normal := Vector3.FORWARD if end == 0 else Vector3.BACK
+			var vertices := [center, rings[end][edge], rings[end][next]] if end == 0 else [center, rings[end][next], rings[end][edge]]
+			for vertex: Vector3 in vertices:
+				tool.set_normal(normal)
+				tool.set_uv(Vector2(vertex.x, vertex.y))
+				tool.add_vertex(vertex)
+	var member := MeshInstance3D.new()
+	member.name = node_name
+	member.mesh = tool.commit()
+	member.set_meta("visual_only", true)
+	member.set_meta("closed_loft_hull", true)
+	_jovian_visual.add_child(member)
 
 
 func _build_fitted_freighter_details() -> void:
