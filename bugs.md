@@ -2,6 +2,16 @@
 
 This ledger contains only unresolved or explicitly accepted issues. Fixed and closed records are removed once their fixes are verified.
 
+## EMBER-RETURN-001 — Planetary test rejects the final walk back to boarding — **CANDIDATE**
+
+- Severity: **candidate P1**, pending comparison with unchanged current source. Owner: stabilization workstream. Observed 2026-09-08 during `tests/ember_surface_loop_production_binding_test.gd`.
+- Observed source: `6b9b974d90c6ae18aef83a3fd0f6f67c36f91b82` plus an uncommitted idle-handoff optimization in `/tmp/mudds-handoff-cost`. That optimization is withheld from the checkpoint. No packaged artifact or native playtest establishes this failure.
+- Configuration: Godot `4.7.1.stable.official.a13da4feb`, Linux/WSL, `--headless --audio-driver Dummy`, a private user-data profile, and the existing fixture's real Player, default cadence and synthetic controls. Native GPU and human reproduction: `NOT_RUN`.
+- Reproduction observed once after completing the real terrain survey, both mandatory checkpoints, authenticated completion, and the return to the fixed pad. The first `_walk_return` leg toward `x <= 18.5` failed to reach the exact BoardingArea; the retained-coordinator cadence assertion then failed. `Host.advance_physics` rejected while the host was on foot and the binding entered `FAILED`. The exact rejection reason was not logged.
+- Evidence: `/tmp/handoff-test-long.log`, first failure at line 83 and binding callback at line 93. The test then waited for another `state_changed` signal despite the failed binding; its owned process was stopped with exit 143. Earlier 120 s and 420 s attempts timed out while still progressing and do not establish a pass or failure at this boundary.
+- The fixture never invokes either changed coordinator handoff method. Its only executed candidate difference is an equivalent live pending-intent predicate used by `get_snapshot()`. This narrows investigation but does not establish baseline behavior or causality.
+- Next action: compare the unchanged current source with diagnostic logging of the exact host rejection at the post-rebase pad-return seam. Do not change movement, rebase or handoff authority to make the test pass without that evidence.
+
 ## RENDER-001 — Seven `Texture` RIDs leak at `RenderingDevice::finalize()` on every rendered run — **ACCEPTED_RISK**
 
 - Status: `ACCEPTED_RISK`. Severity: **P3**. Disposition: **accepted, engine-side, no code
