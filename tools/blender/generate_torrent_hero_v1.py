@@ -89,7 +89,7 @@ EXPECTED_RUNTIME_MESH_COUNTS = {
     "CanopyPivot": 3,
     "SemanticAnchors": 0,
 }
-EXPECTED_RUNTIME_TRIANGLES = 89_254
+EXPECTED_RUNTIME_TRIANGLES = 96_198
 RUNTIME_MESH_INSTANCE_BUDGET = 36
 SOURCE_MESH_INSTANCE_BUDGET = 320
 CLOSE_TRIANGLE_RANGE = (70_000, 90_000)
@@ -594,12 +594,12 @@ def lofted_fuselage(name: str, collection, mat, stations, bevel=0.055):
     faces.append(tuple(final + i for i in range(ring)))
     obj = wedge(name, collection, mat, verts, faces, bevel)
     for polygon in obj.data.polygons:
-        # Broad lands remain straight. Rolled shoulder strips receive continuous
-        # light across the actual curve without rounding cockpit-mill walls.
+        # Interpolate light along the whole formed shell. Flat shading each
+        # longitudinal cell made the continuous pressure skin look tiled,
+        # including the falling crown ahead of the cockpit. End caps stay
+        # sharp; the cockpit mill creates its own flat interior walls.
         if polygon.index not in (0, len(faces)-1):
-            edge = (polygon.index-1) % ring
-            a, b = profile[edge], profile[(edge+1)%ring]
-            polygon.use_smooth = min(a[1], b[1]) >= .68 or max(a[1], b[1]) <= .15
+            polygon.use_smooth = True
     return obj
 
 
@@ -724,18 +724,54 @@ def hull_station_at(z):
 
 
 def conforming_side_panel(name, collection, mat, side, front, back, low=.35, high=.67):
-    """A thin manufactured skin panel follows the actual loft shoulder."""
-    corners = []
-    for z, band in [(front, low), (back, low), (back, high), (front, high)]:
+    """A formed skin follows the milled hull, rather than its endpoint chord."""
+    longitudinal_steps = math.ceil((back - front) / .18)
+    transverse_steps = math.ceil((high - low) / .04)
+    z_values = sorted({front, back,
+                       *(z for z, *_ in HULL_STATIONS if front < z < back),
+                       *(front + (back - front) * i / longitudinal_steps
+                         for i in range(1, longitudinal_steps))})
+    bands = sorted({low, high,
+                    *(band for _, band in PRESSURE_PROFILE if low < band < high),
+                    *(low + (high - low) * i / transverse_steps
+                      for i in range(1, transverse_steps))})
+    shell = bpy.data.objects["ContinuousPressureShell"]
+    vertices = []
+    for z in z_values:
         width, bottom, top = hull_station_at(z)
-        x = pressure_side_x(width, band)
-        corners.append((side * (x + .012), bottom + (top - bottom) * band, z))
-    vertices = corners + [(x - side * .018, y, z) for x, y, z in corners]
-    faces = [(0, 1, 2, 3), (7, 6, 5, 4), (0, 4, 5, 1),
-             (1, 5, 6, 2), (2, 6, 7, 3), (3, 7, 4, 0)]
-    if side > 0:
+        for band in bands:
+            y = bottom + (top - bottom) * band
+            hit, point, _normal, _face = shell.ray_cast(
+                Vector((side * (width + 1.0), y, z)), Vector((-side, 0, 0)))
+            if not hit:
+                raise RuntimeError(f"Fitted skin misses its pressure shell: {name} at {y}, {z}")
+            vertices.append((point.x + side * .012, y, z))
+    outer_count = len(vertices)
+    vertices += [(x - side * .018, y, z) for x, y, z in vertices]
+    rows, columns = len(bands), len(z_values)
+    faces = []
+    for column in range(columns - 1):
+        for row in range(rows - 1):
+            a = column * rows + row
+            face = (a, a + 1, a + rows + 1, a + rows)
+            faces.append(face)
+            faces.append(tuple(index + outer_count for index in reversed(face)))
+    skin_face_count = len(faces)
+    boundary = (list(range(rows))
+                + [column * rows + rows - 1 for column in range(1, columns)]
+                + [(columns - 1) * rows + row for row in range(rows - 2, -1, -1)]
+                + [column * rows for column in range(columns - 2, 0, -1)])
+    for a, b in zip(boundary, boundary[1:] + boundary[:1]):
+        faces.append((b, a, a + outer_count, b + outer_count))
+    if side < 0:
         faces = [tuple(reversed(face)) for face in faces]
-    return wedge(name, collection, mat, vertices, faces, .006)
+    obj = wedge(name, collection, mat, vertices, faces, .003)
+    bevel = obj.modifiers["ProductionBevel"]
+    bevel.limit_method = "ANGLE"
+    bevel.angle_limit = math.radians(25)
+    for polygon in obj.data.polygons:
+        polygon.use_smooth = polygon.index < skin_face_count
+    return obj
 
 
 def cut_pressure_cockpit(shell):
@@ -849,7 +885,7 @@ def build_lod0(collection):
     for side in (-1, 1):
         s = "Port" if side < 0 else "Starboard"
         conforming_side_panel(f"{s}ShoulderLivery", collection, livery,
-                              side, -2.70, 2.18, .73, .79)
+                              side, -2.70, 2.18, .87, .90)
         service_stencil(s+"LiftServiceStencil",collection,graphite,side,1.77,1.02,"LIFT",.12)
         for panel_index, z_value in enumerate((-2.90, -1.72, -.42, .88, 2.02)):
             conforming_side_panel(f"{s}FlushAccessPanel{panel_index:02d}",
