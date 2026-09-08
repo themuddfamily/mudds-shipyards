@@ -3202,7 +3202,7 @@ const REQUIRED_PLUME_NAMES := [
 ## so the chase view reads the damage in silhouette without obscuring a control
 ## or interaction lane.
 const DAMAGE_CUE_COMPONENT_ID: StringName = &"starboard_wing"
-const DAMAGE_CUE_POSITION := Vector3(4.15, 0.28, 1.80)
+const DAMAGE_CUE_POSITION := Vector3(4.15, 0.665, 1.80)
 const DAMAGE_SCORCH_SIZE := Vector3(1.45, 0.05, 1.30)
 const DAMAGE_SCORCH_POSITION := Vector3(0.0, 0.025, 0.0)
 const DAMAGE_SPAR_SIZE := Vector3(0.16, 0.72, 1.08)
@@ -3687,86 +3687,99 @@ func _build_modern_airframe(visual: Node3D) -> void:
 	dark.metallic = 0.20
 	dark.roughness = 0.80
 	dark.cull_mode = BaseMaterial3D.CULL_DISABLED
-	_zenith_loft(airframe, "BlendedPressureHull", Vector3(0, 0.76, 0), PackedVector3Array([
-		Vector3(0.035, 0.06, -5.32), Vector3(0.44, 0.25, -4.1),
-		Vector3(0.88, 0.63, -2.9), Vector3(1.17, 1.34, -1.1),
-		Vector3(1.39, 1.57, 0.8), Vector3(1.68, 1.34, 2.45),
-		Vector3(1.63, 0.52, 3.6), Vector3(1.32, 0.28, 4.35),
-	]), hull)
+	# Explicit planar chines replace the inflated superellipse skin. The low
+	# pressure keel, canopy coaming and engine shoulders share actual edges.
+	_zenith_hard_shell(airframe, "BlendedPressureHull", 0.0, [
+		Vector4(0.05, 0.81, 0.69, -5.32), Vector4(0.43, 1.17, 0.55, -4.05),
+		Vector4(0.88, 1.93, 0.37, -2.78), Vector4(1.03, 2.30, 0.22, -2.22),
+		Vector4(1.15, 2.40, 0.12, -1.35), Vector4(1.22, 2.42, 0.10, -0.12),
+		Vector4(1.29, 2.43, 0.11, 0.34), Vector4(1.46, 2.12, 0.15, 1.54),
+		Vector4(1.56, 1.49, 0.22, 3.05), Vector4(1.10, 0.83, 0.35, 4.35),
+	], hull)
+	_zenith_hard_shell(airframe, "NoseSensorRadome", 0.0, [
+		Vector4(0.045, 0.822, 0.69, -5.33), Vector4(0.28, 1.06, 0.61, -4.53),
+	], panel)
+	# Open pilot tub: no solid roof crossing the seat. Coaming walls rise to
+	# the glazing edge while the forward instrument hood remains below the eye.
+	_zenith_panel(airframe, "PilotWellFloor", PackedVector3Array([
+		Vector3(-0.77, 1.62, -2.18), Vector3(0.77, 1.62, -2.18),
+		Vector3(0.85, 1.62, 0.30), Vector3(-0.85, 1.62, 0.30),
+	]), 0.07, dark)
 	for side in [-1.0, 1.0]:
 		var prefix := "Port" if side < 0.0 else "Starboard"
+		_zenith_panel(airframe, prefix + "CockpitSill", PackedVector3Array([
+			Vector3(side * 0.70, 2.30, -2.22), Vector3(side * 0.77, 2.30, -2.22),
+			Vector3(side * 0.95, 2.43, 0.34), Vector3(side * 0.87, 2.43, 0.34),
+		]), 0.05, panel)
+		for bay in 2:
+			var front_z := 0.50 if bay == 0 else 1.61
+			var rear_z := 1.48 if bay == 0 else 2.98
+			var front_y := 2.411 if bay == 0 else 2.113
+			var rear_y := 2.152 if bay == 0 else 1.541
+			_zenith_panel(airframe, prefix + "DorsalHeatShield" + str(bay), PackedVector3Array([
+				Vector3(side * 0.13, front_y, front_z), Vector3(side * 0.69, front_y, front_z),
+				Vector3(side * 0.74, rear_y, rear_z), Vector3(side * 0.13, rear_y, rear_z),
+			]), 0.02, panel)
+		# Compound wing root carries the engine rather than a box perched on a
+		# flat plate. Leading and trailing skins meet a thin structural edge.
 		_zenith_panel(airframe, prefix + "BlendedDeltaWing", PackedVector3Array([
-			Vector3(side * 0.95, 0.28, -3.05), Vector3(side * 7.17, 0.15, 0.87),
-			Vector3(side * 6.53, 0.17, 3.70), Vector3(side * 2.05, 0.28, 4.52),
-		]), 0.25, hull)
-		# Recessed substrate and three separate load-bearing skin panels. The
-		# control surfaces meet this skin across an actual shadow gap.
-		_zenith_panel(airframe, prefix + "WingStructure", PackedVector3Array([
-			Vector3(side * 2.04, 0.40, -2.23), Vector3(side * 7.03, 0.28, 0.92),
-			Vector3(side * 6.46, 0.29, 3.53), Vector3(side * 3.08, 0.40, 4.13),
-		]), 0.035, dark)
-		for bay in 3:
-			var t0 := float(bay) / 3.0 + 0.006
-			var t1 := float(bay + 1) / 3.0 - 0.006
-			var front_inner := Vector3(side * 2.15, 0.44, -2.10)
-			var front_outer := Vector3(side * 6.97, 0.32, 0.96)
-			var aft_inner := Vector3(side * 3.25, 0.44, 2.92)
-			var aft_outer := Vector3(side * 6.66, 0.32, 2.71)
-			_zenith_panel(airframe, prefix + "WingSkin" + str(bay), PackedVector3Array([
-				front_inner.lerp(front_outer, t0), front_inner.lerp(front_outer, t1),
-				aft_inner.lerp(aft_outer, t1), aft_inner.lerp(aft_outer, t0),
-			]), 0.06, hull if bay != 1 else panel)
+			Vector3(side * 0.82, 0.72, -3.12), Vector3(side * 7.17, 0.16, 0.87),
+			Vector3(side * 6.53, 0.17, 3.70), Vector3(side * 1.44, 0.66, 4.44),
+		]), 0.14, dark)
+		_zenith_panel(airframe, prefix + "WingLeadingSkin", PackedVector3Array([
+			Vector3(side * 1.04, 0.81, -2.88), Vector3(side * 7.10, 0.25, 0.90),
+			Vector3(side * 6.98, 0.28, 1.44), Vector3(side * 2.42, 0.82, -0.82),
+		]), 0.10, hull)
+		_zenith_panel(airframe, prefix + "WingOuterSkin", PackedVector3Array([
+			Vector3(side * 3.34, 0.75, -0.30), Vector3(side * 6.94, 0.29, 1.47),
+			Vector3(side * 6.68, 0.28, 2.85), Vector3(side * 3.39, 0.68, 2.84),
+		]), 0.11, hull)
+		_zenith_panel(airframe, prefix + "WingRootSkin", PackedVector3Array([
+			Vector3(side * 1.23, 1.19, -0.60), Vector3(side * 3.30, 0.77, 0.40),
+			Vector3(side * 3.35, 0.68, 3.60), Vector3(side * 1.51, 1.08, 3.88),
+		]), 0.16, hull)
+		for bay in 2:
+			var t0 := float(bay) * 0.5 + 0.008
+			var t1 := float(bay + 1) * 0.5 - 0.008
 			_zenith_panel(airframe, prefix + "Elevon" + str(bay), PackedVector3Array([
-				aft_inner.lerp(aft_outer, t0) + Vector3.BACK * 0.055,
-				aft_inner.lerp(aft_outer, t1) + Vector3.BACK * 0.055,
-				Vector3(side * 3.10, 0.40, 4.09).lerp(Vector3(side * 6.40, 0.29, 3.47), t1),
-				Vector3(side * 3.10, 0.40, 4.09).lerp(Vector3(side * 6.40, 0.29, 3.47), t0),
-			]), 0.07, panel)
-
-		_zenith_panel(airframe, prefix + "IntakeShoulder", PackedVector3Array([
-			Vector3(side * 1.2, 0.65, -2.22), Vector3(side * 3.15, 0.38, 0.15),
-			Vector3(side * 3.28, 0.44, 3.45), Vector3(side * 1.62, 0.89, 3.60),
-		]), 0.33, hull)
-		_zenith_loft(airframe, prefix + "EngineCowling", Vector3(side * 2.20, 0.80, 0), PackedVector3Array([
-			Vector3(0.65, 0.60, -0.40), Vector3(0.66, 0.61, -0.12),
-			Vector3(0.74, 0.66, 1.6), Vector3(0.74, 0.66, 3.25),
-			Vector3(0.64, 0.56, 4.40),
-		]), panel, 0.26)
-		_zenith_panel(airframe, prefix + "LeadingEdgeHeatShield", PackedVector3Array([
-			Vector3(side * 1.96, 0.42, -2.14), Vector3(side * 6.85, 0.29, 0.95),
-			Vector3(side * 6.73, 0.31, 1.17), Vector3(side * 2.12, 0.45, -1.92),
-		]), 0.035, dark)
-		var cowling := airframe.get_node(prefix + "EngineCowling") as MeshInstance3D
-		_hollow_intake(cowling, dark)
-		_cut_pressure_panel(cowling, prefix + "EngineServiceDoor", 6, 13, 3, 10, hull)
-		_cut_pressure_panel(cowling, prefix + "OutboardThermalDoor", 7, 15, 12 if side < 0 else 0, 16 if side < 0 else 3, dark)
-		# A splitter and a recessed compressor screen establish intake depth.
-		_box(airframe, prefix + "IntakeSplitter", Vector3(side * 2.20, 1.02, 0.03), Vector3(0.075, 0.50, 0.76), panel)
-		for vane in 4:
-			_box(airframe, prefix + "CompressorVane" + str(vane), Vector3(side * 2.20, 0.83 + vane * 0.12, 0.51), Vector3(0.99, 0.045, 0.18), dark, Vector3(-0.35, 0, 0))
-		_box(airframe, prefix + "IntakeFloor", Vector3(side * 2.20, 0.745, 0.14), Vector3(1.08, 0.06, 1.10), dark)
-		# Root-integrated cannon housings meet the unchanged gameplay muzzles.
-		_zenith_loft(airframe, prefix + "RecessedCannonHousing", Vector3(side * 1.25, 0.34, 0), PackedVector3Array([
-			Vector3(0.18, 0.15, -4.24), Vector3(0.28, 0.22, -3.86),
-			Vector3(0.38, 0.25, -2.96), Vector3(0.30, 0.13, -2.35),
-		]), dark, 0.28)
-		_box(airframe, prefix + "MuzzleLens", Vector3(side * 1.25, 0.34, -4.247), Vector3(0.22, 0.16, 0.022), dark)
+				Vector3(side * 3.44, 0.67, 2.92).lerp(Vector3(side * 6.65, 0.27, 2.92), t0),
+				Vector3(side * 3.44, 0.67, 2.92).lerp(Vector3(side * 6.65, 0.27, 2.92), t1),
+				Vector3(side * 3.40, 0.48, 4.10).lerp(Vector3(side * 6.48, 0.24, 3.63), t1),
+				Vector3(side * 3.40, 0.48, 4.10).lerp(Vector3(side * 6.48, 0.24, 3.63), t0),
+			]), 0.08, panel)
+		# Chamfered oblique intake lips lead into fully enclosed dark tunnels.
+		_zenith_hard_shell(airframe, prefix + "EngineCowling", side * 2.20, [
+			Vector4(0.62, 1.68, 0.86, -1.05), Vector4(0.73, 1.68, 0.35, -0.50),
+			Vector4(0.77, 1.73, 0.24, 1.40), Vector4(0.70, 1.41, 0.02, 3.70),
+			Vector4(0.62, 1.02, -0.26, 4.24),
+		], hull, false)
+		_build_hard_intake(airframe, prefix, side * 2.20, dark, panel)
+		_zenith_panel(airframe, prefix + "EngineServiceDoor", PackedVector3Array([
+			Vector3(side * 1.77, 1.72, -0.34), Vector3(side * 2.63, 1.72, -0.34),
+			Vector3(side * 2.61, 1.71, 1.48), Vector3(side * 1.79, 1.71, 1.48),
+		]), 0.028, panel)
+		for slot in 6:
+			_zenith_panel(airframe, prefix + "ThermalLouvre" + str(slot), PackedVector3Array([
+				Vector3(side * 1.84, 1.688 - slot * 0.0264, 1.78 + slot * 0.19), Vector3(side * 2.56, 1.688 - slot * 0.0264, 1.78 + slot * 0.19),
+				Vector3(side * 2.55, 1.674 - slot * 0.0264, 1.88 + slot * 0.19), Vector3(side * 1.85, 1.674 - slot * 0.0264, 1.88 + slot * 0.19),
+			]), 0.018, dark)
+		# Slim barrels terminate at the preserved gameplay muzzle locations.
+		_zenith_hard_shell(airframe, prefix + "RecessedCannonHousing", side * 1.25, [
+			Vector4(0.16, 0.49, 0.19, -4.25), Vector4(0.21, 0.63, 0.12, -3.70),
+			Vector4(0.34, 0.91, 0.17, -2.72), Vector4(0.33, 0.97, 0.24, -2.19),
+		], panel)
+		_box(airframe, prefix + "MuzzleBore", Vector3(side * 1.25, 0.34, -4.259), Vector3(0.19, 0.11, 0.018), dark)
 		_build_segmented_exhaust(airframe, prefix, Vector3(side * 2.20, 0.38, 4.08), dark, panel)
-
-	# The tip is only 35 mm wide: a standard 45 mm panel recess folds its
-	# triangles through the centreline. Keep this radome seam within the skin.
-	_cut_pressure_panel(airframe.get_node("BlendedPressureHull"), "ReplaceableNoseRadome", 0, 7, 1, 15, panel, 0.008)
-	_cut_pressure_panel(airframe.get_node("BlendedPressureHull"), "PortDorsalServicePanel", 16, 22, 11, 15, panel)
-	_cut_pressure_panel(airframe.get_node("BlendedPressureHull"), "StarboardDorsalServicePanel", 16, 22, 1, 5, panel)
-	_cut_pressure_panel(airframe.get_node("BlendedPressureHull"), "DorsalThermalPanel", 22, 28, 6, 10, dark)
-	_cut_pressure_panel(airframe.get_node("BlendedPressureHull"), "RecessedPilotWell", 15, 19, 6, 10, dark, 0.72)
-	# The retired alloy batch also carried the landing struts. Rebuild the
-	# same three support locations as chamfered fork housings and broad pads.
+	# Load-bearing landing assemblies use paired forks and separate dampers.
 	for leg in [Vector3(-2.55, -0.30, 1.25), Vector3(2.55, -0.30, 1.25), Vector3(0, -0.34, -2.82)]:
 		var leg_name := "Port" if leg.x < 0 else ("Starboard" if leg.x > 0 else "Nose")
-		_box(airframe, leg_name + "GearFork", leg, Vector3(0.18, 1.08, 0.24), dark)
-		_box(airframe, leg_name + "GearDamper", leg + Vector3(0, -0.08, -0.14), Vector3(0.075, 0.65, 0.07), panel)
-		_box(airframe, leg_name + "LandingPad", Vector3(leg.x, -0.94, leg.z), Vector3(0.62, 0.16, 0.56), dark)
+		for fork_side in [-1.0, 1.0]:
+			_box(airframe, leg_name + "GearFork" + str(fork_side), leg + Vector3(fork_side * 0.12, 0, 0), Vector3(0.065, 1.02, 0.17), dark, Vector3(0.12, 0, 0))
+		_box(airframe, leg_name + "GearDamper", leg + Vector3(0, 0.03, -0.10), Vector3(0.09, 0.59, 0.09), panel)
+		_zenith_hard_shell(airframe, leg_name + "LandingPad", leg.x, [
+			Vector4(0.21, -0.88, -1.02, leg.z - 0.37), Vector4(0.34, -0.82, -1.03, leg.z - 0.18),
+			Vector4(0.30, -0.84, -1.03, leg.z + 0.32),
+		], dark)
 	var upholstery := dark.duplicate() as StandardMaterial3D
 	upholstery.albedo_color = Color("3e484b")
 	upholstery.metallic = 0.0
@@ -3775,6 +3788,108 @@ func _build_modern_airframe(visual: Node3D) -> void:
 	_box(_functional_cockpit, "ModernSeatBack", Vector3(0, 2.22, -0.08), Vector3(0.70, 0.74, 0.20), upholstery, Vector3(deg_to_rad(10), 0, 0))
 	_box(_functional_cockpit, "ModernHeadrest", Vector3(0, 2.68, 0.0), Vector3(0.43, 0.25, 0.19), upholstery)
 	_build_enclosed_canopy(visual)
+
+
+## An eight-edge machined section: broad planes, small corner breaks. Each
+## station specifies half-width, roof, keel and longitudinal position.
+func _hard_section(section: Vector4) -> PackedVector3Array:
+	var w := section.x
+	var top := section.y
+	var bottom := section.z
+	var bevel := minf(0.09, (top - bottom) * 0.15)
+	return PackedVector3Array([
+		Vector3(w, top - bevel, section.w), Vector3(w - minf(w * 0.16, 0.10), top, section.w),
+		Vector3(-w + minf(w * 0.16, 0.10), top, section.w), Vector3(-w, top - bevel, section.w),
+		Vector3(-w, bottom + bevel, section.w), Vector3(-w + minf(w * 0.16, 0.10), bottom, section.w),
+		Vector3(w - minf(w * 0.16, 0.10), bottom, section.w), Vector3(w, bottom + bevel, section.w),
+	])
+
+
+func _airframe_section(section: Vector4) -> PackedVector3Array:
+	var w := section.x
+	var h := section.y - section.z
+	var corners := PackedVector3Array([
+		Vector3(w, section.z + h * 0.48, section.w), Vector3(w * 0.68, section.y, section.w),
+		Vector3(-w * 0.68, section.y, section.w), Vector3(-w, section.z + h * 0.48, section.w),
+		Vector3(-w * 0.75, section.z + h * 0.10, section.w), Vector3(-w * 0.50, section.z, section.w),
+		Vector3(w * 0.50, section.z, section.w), Vector3(w * 0.75, section.z + h * 0.10, section.w),
+	])
+	var ring := PackedVector3Array()
+	for corner in corners.size():
+		var point := corners[corner]
+		for neighbour in [(corner + corners.size() - 1) % corners.size(), (corner + 1) % corners.size()]:
+			var delta := corners[neighbour] - point
+			ring.append(point + delta.normalized() * minf(0.04, delta.length() * 0.18))
+	return ring
+
+
+func _zenith_hard_shell(parent: Node3D, node_name: String, lateral: float, sections: Array, material: Material, cap_front: bool = true) -> MeshInstance3D:
+	var tool := SurfaceTool.new()
+	tool.begin(Mesh.PRIMITIVE_TRIANGLES)
+	tool.set_material(material)
+	tool.set_smooth_group(-1)
+	for station in sections.size() - 1:
+		var a := _airframe_section(sections[station]) if node_name == "BlendedPressureHull" else _hard_section(sections[station])
+		var b := _airframe_section(sections[station + 1]) if node_name == "BlendedPressureHull" else _hard_section(sections[station + 1])
+		var center := Vector3(0, (sections[station].y + sections[station].z + sections[station + 1].y + sections[station + 1].z) * 0.25, (sections[station].w + sections[station + 1].w) * 0.5)
+		for edge in a.size():
+			if node_name == "BlendedPressureHull" and edge == 3 and station >= 3 and station <= 5:
+				continue
+			var following := (edge + 1) % a.size()
+			_zenith_triangle(tool, a[edge], b[edge], b[following], center)
+			_zenith_triangle(tool, a[edge], b[following], a[following], center)
+	for end in [0, sections.size() - 1]:
+		if end == 0 and not cap_front: continue
+		var ring := _airframe_section(sections[end]) if node_name == "BlendedPressureHull" else _hard_section(sections[end])
+		var center := Vector3(0, (sections[end].y + sections[end].z) * 0.5, sections[end].w)
+		var inward := center + Vector3.BACK * (0.1 if end == 0 else -0.1)
+		for edge in ring.size():
+			_zenith_triangle(tool, center, ring[edge], ring[(edge + 1) % ring.size()], inward)
+	tool.generate_normals()
+	var shell := MeshInstance3D.new()
+	shell.name = node_name
+	shell.position.x = lateral
+	shell.mesh = tool.commit()
+	shell.set_meta("closed_loft_hull", cap_front and node_name != "BlendedPressureHull")
+	parent.add_child(shell)
+	return shell
+
+
+func _build_hard_intake(parent: Node3D, prefix: String, lateral: float, dark: Material, rim: Material) -> void:
+	var outer := _hard_section(Vector4(0.62, 1.68, 0.86, -1.05))
+	var inner := _hard_section(Vector4(0.53, 1.59, 0.95, -1.015))
+	var rear := _hard_section(Vector4(0.46, 1.49, 0.96, 0.20))
+	var tool := SurfaceTool.new()
+	tool.begin(Mesh.PRIMITIVE_TRIANGLES)
+	tool.set_material(rim)
+	for edge in 8:
+		var following := (edge + 1) % 8
+		for point in [outer[edge], outer[following], inner[following], outer[edge], inner[following], inner[edge]]:
+			tool.set_uv(Vector2(point.x, point.y))
+			tool.add_vertex(point)
+	tool.generate_normals()
+	var mouth := MeshInstance3D.new()
+	mouth.name = prefix + "IntakeLip"
+	mouth.position.x = lateral
+	mouth.mesh = tool.commit()
+	parent.add_child(mouth)
+	var duct := SurfaceTool.new()
+	duct.begin(Mesh.PRIMITIVE_TRIANGLES)
+	duct.set_material(dark)
+	for edge in 8:
+		var following := (edge + 1) % 8
+		for point in [inner[edge], inner[following], rear[following], inner[edge], rear[following], rear[edge], rear[edge], rear[following], Vector3(0, 1.23, 0.20)]:
+			duct.set_uv(Vector2(point.x, point.z))
+			duct.add_vertex(point)
+	duct.generate_normals()
+	var tunnel := MeshInstance3D.new()
+	tunnel.name = prefix + "EnclosedIntakeTunnel"
+	tunnel.position.x = lateral
+	tunnel.mesh = duct.commit()
+	parent.add_child(tunnel)
+	_box(parent, prefix + "IntakeSplitter", Vector3(lateral, 1.24, -0.34), Vector3(0.045, 0.56, 1.24), rim)
+	for vane in 4:
+		_box(parent, prefix + "CompressorVane" + str(vane), Vector3(lateral, 1.02 + vane * 0.13, 0.11), Vector3(0.89, 0.03, 0.12), rim)
 
 
 ## Faceted refractory petals form a deep nozzle around the existing animated
@@ -3846,61 +3961,13 @@ func _sync_modern_canopy_pose() -> void:
 		_modern_canopy_pivot.global_transform = reference.global_transform
 
 
-## Replace the closed nacelle nose with a recessed intake, including a real
-## annular lip, duct walls and a dark rear termination one metre inside.
-func _hollow_intake(cowling: MeshInstance3D, material: Material) -> void:
-	var arrays := cowling.mesh.surface_get_arrays(0)
-	var vertices: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
-	var indices: PackedInt32Array = arrays[Mesh.ARRAY_INDEX]
-	var retained := PackedInt32Array()
-	var front_z := cowling.mesh.get_aabb().position.z
-	var uvs: PackedVector2Array = arrays[Mesh.ARRAY_TEX_UV]
-	var front_ring := {}
-	var front_center := -1
-	for vertex_index in vertices.size():
-		var point := vertices[vertex_index]
-		if not is_equal_approx(point.z, front_z):
-			continue
-		if absf(point.x) + absf(point.y) < 0.001:
-			front_center = vertex_index
-		else:
-			front_ring[roundi(uvs[vertex_index].x * 32.0)] = vertex_index
-	for triangle in range(0, indices.size(), 3):
-		if front_center in [indices[triangle], indices[triangle + 1], indices[triangle + 2]]:
-			continue
-		for corner in 3: retained.append(indices[triangle + corner])
-	arrays[Mesh.ARRAY_INDEX] = retained
-	var replacement := ArrayMesh.new()
-	replacement.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
-	replacement.surface_set_material(0, cowling.mesh.surface_get_material(0))
-	cowling.mesh = replacement
-	var duct := SurfaceTool.new()
-	duct.begin(Mesh.PRIMITIVE_TRIANGLES)
-	duct.set_material(material)
-	for ring in 32:
-		var next := (ring + 1) % 32
-		var a := vertices[int(front_ring[ring])]
-		var b := vertices[int(front_ring[next])]
-		var inner_a := Vector3(a.x * 0.83, a.y * 0.83, a.z + 0.04)
-		var inner_b := Vector3(b.x * 0.83, b.y * 0.83, b.z + 0.04)
-		var deep_a := inner_a + Vector3.BACK * 1.1
-		var deep_b := inner_b + Vector3.BACK * 1.1
-		for point in [a, inner_b, b, a, inner_a, inner_b, inner_a, deep_b, inner_b, inner_a, deep_a, deep_b, deep_a, Vector3(0, 0, deep_a.z), deep_b]:
-			duct.set_uv(Vector2(point.x, point.y))
-			duct.add_vertex(point)
-	duct.generate_normals()
-	var insert := MeshInstance3D.new()
-	insert.name = "RecessedIntakeDuct"
-	insert.mesh = duct.commit()
-	cowling.add_child(insert)
-
-
 ## Four-point bevelled armour plate: a shallow crown and inset perimeter give
 ## the silhouette a proper leading edge instead of a uniformly extruded slab.
 func _zenith_panel(parent: Node3D, node_name: String, outline: PackedVector3Array, depth: float, material: Material) -> void:
 	var tool := SurfaceTool.new()
 	tool.begin(Mesh.PRIMITIVE_TRIANGLES)
 	tool.set_material(material)
+	tool.set_smooth_group(-1)
 	var center := Vector3.ZERO
 	for point in outline:
 		center += point * 0.25
@@ -3908,7 +3975,7 @@ func _zenith_panel(parent: Node3D, node_name: String, outline: PackedVector3Arra
 	for ring_index in 4:
 		var ring := PackedVector3Array()
 		for point in outline:
-			var inset := 0.045 if ring_index in [0, 3] else 0.0
+			var inset := minf(0.014, depth * 0.10) if ring_index in [0, 3] else 0.0
 			var height := [-0.5, -0.25, 0.25, 0.5][ring_index] as float
 			ring.append(point.lerp(center, inset) + Vector3.UP * depth * height)
 		rings.append(ring)
@@ -4905,63 +4972,6 @@ static func _violation(
 
 
 ## Cut a bounded grid patch out of a loft and recess its replacement surface.
-## The exposed edge is a real sidewall; access panels follow hull curvature.
-func _cut_pressure_panel(shell: MeshInstance3D, panel_name: String, first_section: int, last_section: int, first_ring: int, last_ring: int, material: Material, recess_depth: float = 0.045) -> void:
-	var arrays := shell.mesh.surface_get_arrays(0)
-	var vertices: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
-	var normals: PackedVector3Array = arrays[Mesh.ARRAY_NORMAL]
-	var indices: PackedInt32Array = arrays[Mesh.ARRAY_INDEX]
-	var uvs: PackedVector2Array = arrays[Mesh.ARRAY_TEX_UV]
-	var section_count := int(shell.get_meta("loft_section_count"))
-	var logical_vertices := {}
-	for vertex_index in vertices.size():
-		if absf(vertices[vertex_index].x) + absf(vertices[vertex_index].y) < 0.001:
-			continue
-		var section := roundi(uvs[vertex_index].y * float(section_count - 1))
-		var ring := roundi(uvs[vertex_index].x * 32.0)
-		logical_vertices[section * 32 + ring] = vertex_index
-	var retained := PackedInt32Array()
-	var patch := SurfaceTool.new()
-	patch.begin(Mesh.PRIMITIVE_TRIANGLES)
-	patch.set_material(material)
-	for triangle in range(0, indices.size(), 3):
-		var belongs := true
-		for corner in 3:
-			var vertex_index := indices[triangle + corner]
-			var section := roundi(uvs[vertex_index].y * float(section_count - 1))
-			var ring := roundi(uvs[vertex_index].x * 32.0)
-			belongs = belongs and section >= first_section and section <= last_section and ring >= first_ring and ring <= last_ring
-		if belongs:
-			for corner in 3:
-				var vertex_index := indices[triangle + corner]
-				patch.set_uv(Vector2(vertices[vertex_index].x, vertices[vertex_index].z))
-				patch.add_vertex(vertices[vertex_index] - normals[vertex_index] * recess_depth)
-		else:
-			for corner in 3:
-				retained.append(indices[triangle + corner])
-	var boundary := PackedInt32Array()
-	for section in range(first_section, last_section): boundary.append(section * 32 + first_ring)
-	for ring in range(first_ring, last_ring): boundary.append(last_section * 32 + ring)
-	for section in range(last_section, first_section, -1): boundary.append(section * 32 + last_ring)
-	for ring in range(last_ring, first_ring, -1): boundary.append(first_section * 32 + ring)
-	for edge in boundary.size():
-		var a := int(logical_vertices[boundary[edge]])
-		var b := int(logical_vertices[boundary[(edge + 1) % boundary.size()]])
-		for point in [vertices[a], vertices[b], vertices[b] - normals[b] * recess_depth, vertices[a], vertices[b] - normals[b] * recess_depth, vertices[a] - normals[a] * recess_depth]:
-			patch.set_uv(Vector2(point.x, point.z))
-			patch.add_vertex(point)
-	arrays[Mesh.ARRAY_INDEX] = retained
-	var replacement := ArrayMesh.new()
-	replacement.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
-	replacement.surface_set_material(0, shell.mesh.surface_get_material(0))
-	shell.mesh = replacement
-	patch.generate_normals()
-	var insert := MeshInstance3D.new()
-	insert.name = panel_name
-	insert.mesh = patch.commit()
-	shell.add_child(insert)
-
-
 ## Slim pressure-frame arches are fitted to the actual laminated shell rather
 ## than suspended as straight rails above its curved roof.
 func _fit_canopy_frame(glazing: MeshInstance3D, section: int, material: Material) -> void:

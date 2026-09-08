@@ -220,14 +220,22 @@ func _cue_base_is_supported_by_starboard_wing(craft: ZenithInterceptor, bounds: 
 		return false
 	var points := (collision.shape as ConvexPolygonShape3D).points
 	var support_points := PackedVector2Array()
+	# The unchanged collision proxy owns the support footprint; the new
+	# sloping manufactured skin owns the visible mounting height.
 	var top_y := -INF
+	var skin := craft.get_zenith_visual_root().get_node("ModernManufacturedAirframe/StarboardWingOuterSkin") as MeshInstance3D
+	var ray_origin := Vector3(bounds.get_center().x, 10.0, bounds.get_center().z)
+	var faces := skin.mesh.get_faces()
+	for triangle in range(0, faces.size(), 3):
+		var hit: Variant = Geometry3D.ray_intersects_triangle(ray_origin, Vector3.DOWN, faces[triangle], faces[triangle + 1], faces[triangle + 2])
+		if hit != null:
+			top_y = maxf(top_y, (hit as Vector3).y)
 	for point in points:
-		top_y = maxf(top_y, point.y + collision.position.y)
 		support_points.append(Vector2(
 			point.x + collision.position.x,
 			point.z + collision.position.z
 		))
-	if absf(bounds.position.y - top_y) > 0.001:
+	if absf(bounds.position.y - top_y) > 0.03:
 		return false
 	var support_hull := Geometry2D.convex_hull(support_points)
 	for x in [bounds.position.x, bounds.end.x]:
