@@ -463,6 +463,17 @@ func _test_integrity_fail_closed(presentation: PilotSkinnedPresentation) -> void
 	suit.mesh = original_mesh.duplicate()
 	_expect_integrity_rejection(presentation, "substituted ArrayMesh resource fails closed")
 	suit.mesh = original_mesh
+	# Rebuild the same ArrayMesh from edited serialized surfaces. Dummy rendering
+	# does not apply GPU-region uploads, so use a mutation visible headlessly too.
+	var original_surfaces: Array = original_mesh.get("_surfaces")
+	var edited_surfaces := original_surfaces.duplicate(true)
+	var edited_data: PackedByteArray = edited_surfaces[0]["vertex_data"]
+	edited_data[0] = edited_data[0] ^ 128
+	edited_surfaces[0]["vertex_data"] = edited_data
+	original_mesh.set("_surfaces", edited_surfaces)
+	_expect_integrity_rejection(presentation, "in-place mesh vertex update invalidates the live signature")
+	original_mesh.set("_surfaces", original_surfaces)
+	_check(bool(presentation.get_asset_audit_report(false).get("valid", false)), "restored mesh vertex content becomes valid in the live probe")
 	var original_mesh_custom_aabb: AABB = original_mesh.custom_aabb
 	original_mesh.custom_aabb = AABB(
 		Vector3(1_000_000.0, 0.0, 1_000_000.0),
@@ -567,6 +578,25 @@ func _test_integrity_fail_closed(presentation: PilotSkinnedPresentation) -> void
 	_expect_integrity_rejection(presentation, "AnimationPlayer discrete-sampling drift fails closed")
 	animation_player.callback_mode_discrete = original_discrete_mode
 	var walk := animation_player.get_animation(&"walk")
+	var original_key_value: Variant = walk.track_get_key_value(0, 0)
+	walk.track_set_key_value(0, 0, (original_key_value as Vector3) + Vector3.UP * 0.1)
+	_expect_integrity_rejection(presentation, "in-place animation key mutation invalidates the live signature")
+	walk.track_set_key_value(0, 0, original_key_value)
+	presentation.get_asset_audit_report(false)
+	var original_key_time := walk.track_get_key_time(0, 0)
+	walk.track_set_key_time(0, 0, original_key_time + 0.0001)
+	_expect_integrity_rejection(presentation, "silent animation key-time mutation invalidates the live signature")
+	walk.track_set_key_time(0, 0, original_key_time)
+	presentation.get_asset_audit_report(false)
+	var precise_key_time := walk.track_get_key_time(0, 1)
+	walk.track_set_key_time(0, 1, precise_key_time + 0.0000000001)
+	_expect_integrity_rejection(presentation, "sub-float-precision key-time mutation invalidates the live signature")
+	walk.track_set_key_time(0, 1, precise_key_time)
+	presentation.get_asset_audit_report(false)
+	walk.track_set_imported(0, false)
+	_expect_integrity_rejection(presentation, "silent animation imported-flag mutation invalidates the live signature")
+	walk.track_set_imported(0, true)
+	presentation.get_asset_audit_report(false)
 	var original_walk_path := walk.track_get_path(0)
 	var animation_root := animation_player.get_node(NodePath(animation_player.root_node))
 	var presentation_path := animation_root.get_path_to(presentation)
@@ -719,6 +749,10 @@ func _expect_integrity_rejection(
 	presentation: PilotSkinnedPresentation,
 	description: String
 	) -> void:
+	# Exercise the cached live probe first: a full audit must not hide broken
+	# invalidation by refreshing the signatures before the runtime check.
+	var runtime_audit := presentation.get_asset_audit_report(false)
+	_check(not bool(runtime_audit.get("valid", true)), description + " (live probe)")
 	var audit := presentation.get_asset_audit_report()
 	_check(not bool(audit.get("valid", true)), description)
 	if bool(audit.get("valid", true)):

@@ -2078,7 +2078,7 @@ func _ensure_motion_authority(run_integrity_probe: bool = false) -> bool:
 			expected_imported.active = true
 		healthy = _imported_motion_authority_is_healthy()
 		if healthy and run_integrity_probe:
-			var asset_audit := _pilot_presentation.get_asset_audit_report()
+			var asset_audit := _pilot_presentation.get_asset_audit_report(false)
 			healthy = bool(asset_audit.get("valid", false))
 			if not healthy:
 				_imported_presentation_rejected = true

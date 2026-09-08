@@ -180,6 +180,11 @@ var _animation_player: AnimationPlayer
 var _harness_release_attachment: BoneAttachment3D
 var _harness_release: MeshInstance3D
 var _skinned_meshes: Array[MeshInstance3D] = []
+# Only resource content is cached. Hierarchy, rig, skin, material and motion
+# authority checks still observe the live graph on each runtime probe.
+var _mesh_signature_cache: Dictionary = {}
+var _animation_signature_cache: Dictionary = {}
+var _force_resource_scan := true
 var _built := false
 var _local_observer_culled := false
 var _integrity_contract: Dictionary = {}
@@ -191,6 +196,8 @@ var _foot_placement_snapshot: Dictionary = {}
 
 
 func _enter_tree() -> void:
+	_mesh_signature_cache.clear()
+	_animation_signature_cache.clear()
 	_foot_placement_attachment_generation += 1
 	_foot_placement_attached = true
 	_last_foot_placement_physics_frame = -1
@@ -619,7 +626,7 @@ func _append_integrity_errors(errors: PackedStringArray) -> void:
 	# raw .glb/.blend authoring files. Direct source hashes are therefore an
 	# editor/development assertion; exported builds retain the manifest and the
 	# exact live resource/content contract below.
-	if FileAccess.file_exists(ASSET_PATH) and FileAccess.file_exists(SOURCE_PATH):
+	if _force_resource_scan and FileAccess.file_exists(ASSET_PATH) and FileAccess.file_exists(SOURCE_PATH):
 		if FileAccess.get_sha256(ASSET_PATH) != str(_integrity_contract.get("asset_sha256", "")):
 			errors.append("checked-in pilot GLB changed after contract capture")
 		if (
@@ -1033,6 +1040,27 @@ func _resource_signature(resource: Resource) -> String:
 
 
 func _mesh_signature(mesh: Mesh, portable_source: bool = false) -> String:
+	var instance_id := mesh.get_instance_id()
+	# Metadata setters and deserialization through _surfaces can be silent.
+	# Compare the packed surface buffers directly, avoiding vertex decoding,
+	# Variant serialization and SHA work unless the actual content has changed.
+	var guard := [
+		mesh.get_surface_count(), mesh.get_blend_shape_mode(),
+		mesh.get_aabb(), mesh.custom_aabb,
+	]
+	for index in mesh.get_blend_shape_count():
+		guard.append(mesh.get_blend_shape_name(index))
+	if mesh is ArrayMesh:
+		guard.append(mesh.get("_surfaces"))
+		var shadow := (mesh as ArrayMesh).shadow_mesh
+		guard.append(shadow != null)
+		guard.append(shadow.resource_path if shadow != null else "")
+	var cached: Dictionary = _mesh_signature_cache.get(instance_id, {})
+	if not portable_source and not _force_resource_scan and cached.get("guard") == guard:
+		return str(cached.signature)
+	var invalidate := _invalidate_mesh_signature.bind(instance_id)
+	if not mesh.changed.is_connected(invalidate):
+		mesh.changed.connect(invalidate)
 	var content := [{
 		"aabb": mesh.get_aabb(),
 		"custom_aabb": mesh.custom_aabb,
@@ -1071,7 +1099,18 @@ func _mesh_signature(mesh: Mesh, portable_source: bool = false) -> String:
 	var signature_domain: StringName = (
 		&"pilot_source_mesh_v2" if portable_source else &"pilot_mesh_v2"
 	)
-	return _variant_sha256(signature_domain, content)
+	var signature := _variant_sha256(signature_domain, content)
+	if not portable_source:
+		_mesh_signature_cache[instance_id] = {"guard": guard, "signature": signature}
+	return signature
+
+
+func _invalidate_mesh_signature(instance_id: int) -> void:
+	_mesh_signature_cache.erase(instance_id)
+
+
+func _invalidate_animation_signature(instance_id: int) -> void:
+	_animation_signature_cache.erase(instance_id)
 
 
 func _canonical_source_surface_arrays(surface_arrays: Array) -> Array:
@@ -1098,6 +1137,27 @@ func _canonical_source_direction(value: float) -> float:
 
 
 func _animation_signature(animation: Animation) -> String:
+	var instance_id := animation.get_instance_id()
+	# Key-time and imported-flag setters can be silent. Serialized key arrays
+	# also catch property-based key replacement, without rebuilding per-key
+	# dictionaries and hashing every authored clip during normal movement.
+	var guard := [animation.length, animation.loop_mode, animation.step]
+	for index in animation.get_track_count():
+		guard.append(animation.track_is_imported(index))
+		guard.append(animation.get("tracks/%d/keys" % index))
+		# Serialized transform keys narrow times to real_t, while the live API
+		# stores doubles. Preserve exact detection of silent key-time edits.
+		var key_times := PackedFloat64Array()
+		key_times.resize(animation.track_get_key_count(index))
+		for key_index in key_times.size():
+			key_times[key_index] = animation.track_get_key_time(index, key_index)
+		guard.append(key_times)
+	var cached: Dictionary = _animation_signature_cache.get(instance_id, {})
+	if not _force_resource_scan and cached.get("guard") == guard:
+		return str(cached.signature)
+	var invalidate := _invalidate_animation_signature.bind(instance_id)
+	if not animation.changed.is_connected(invalidate):
+		animation.changed.connect(invalidate)
 	var content := {
 		"length": animation.length,
 		"loop_mode": animation.loop_mode,
@@ -1121,7 +1181,9 @@ func _animation_signature(animation: Animation) -> String:
 				"value": animation.track_get_key_value(track_index, key_index),
 			})
 		content.tracks.append(track)
-	return _variant_sha256(&"pilot_animation_v2", content)
+	var signature := _variant_sha256(&"pilot_animation_v2", content)
+	_animation_signature_cache[instance_id] = {"guard": guard, "signature": signature}
+	return signature
 
 
 func _variant_sha256(domain: StringName, value: Variant) -> String:
@@ -1132,7 +1194,10 @@ func _variant_sha256(domain: StringName, value: Variant) -> String:
 	return hashing.finish().hex_encode()
 
 
-func get_asset_audit_report() -> Dictionary:
+# Explicit audits always rescan source bytes and resources. The player uses a
+# live resource probe: disk source changes cannot alter an already loaded pilot.
+func get_asset_audit_report(full_resource_scan: bool = true) -> Dictionary:
+	_force_resource_scan = full_resource_scan
 	var errors := PackedStringArray()
 	_append_integrity_errors(errors)
 	if _import_root == null or not is_instance_valid(_import_root):
