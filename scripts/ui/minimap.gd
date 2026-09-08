@@ -32,6 +32,8 @@ var _danger_color := RED
 var _muted_color := MUTED
 var _offscreen_marker: Dictionary = {}
 var _marker_generations: Dictionary = {}
+var _objective_prefix_advances: Dictionary = {}
+var _objective_prefix_font: Font
 
 
 func _ready() -> void:
@@ -284,7 +286,15 @@ func _draw() -> void:
 		var glyph := str(marker.get("glyph", "◆"))
 		var label := str(marker.get("label", marker_id)).to_upper()
 		var distance: float = marker.position.distance_to(_snapshot.center_position as Vector2)
-		draw_string(ThemeDB.fallback_font, point + Vector2(7.0, 4.0), glyph + " " + label + "  %.0fM" % distance, HORIZONTAL_ALIGNMENT_LEFT, -1.0, 10, marker_color)
+		# Keep the static glyph/label shaped independently of the changing
+		# distance. Unicode fallback lookup otherwise repeats for every new
+		# distance string, even though the glyph and label never change.
+		var prefix := glyph + " " + label + "  "
+		var font := ThemeDB.fallback_font
+		var text_position := point + Vector2(7.0, 4.0)
+		draw_string(font, text_position, prefix, HORIZONTAL_ALIGNMENT_LEFT, -1.0, 10, marker_color)
+		text_position.x += _get_objective_prefix_advance(prefix, font)
+		draw_string(font, text_position, "%.0fM" % distance, HORIZONTAL_ALIGNMENT_LEFT, -1.0, 10, marker_color)
 	var legend_y := size.y - 12.0
 	for legend in get_visible_objective_marker_legend():
 		draw_string(ThemeDB.fallback_font, Vector2(10.0, legend_y), "%s %s" % [legend.get("glyph", ""), legend.get("label", "")], HORIZONTAL_ALIGNMENT_LEFT, -1.0, 9, _muted_color)
@@ -309,6 +319,30 @@ func _draw() -> void:
 		draw_colored_polygon(arrow, _nominal_color)
 	_draw_frame(center, radius)
 	_draw_offscreen_marker(center, radius)
+
+
+func _get_objective_prefix_advance(prefix: String, font: Font) -> float:
+	if _objective_prefix_font != font:
+		if is_instance_valid(_objective_prefix_font):
+			_objective_prefix_font.changed.disconnect(_clear_objective_prefix_advances)
+		_objective_prefix_font = font
+		_objective_prefix_font.changed.connect(_clear_objective_prefix_advances)
+		_objective_prefix_advances.clear()
+	if not _objective_prefix_advances.has(prefix):
+		var line := TextLine.new()
+		line.add_string(prefix, font, 10)
+		var advance := 0.0
+		# get_string_size rounds the width up; preserve the original full
+		# string's fractional pen position at the two-space boundary instead.
+		for glyph in TextServerManager.get_primary_interface().shaped_text_get_glyphs(line.get_rid()):
+			advance += float(glyph.advance) * int(glyph.repeat)
+		_objective_prefix_advances[prefix] = advance
+	return float(_objective_prefix_advances[prefix])
+
+
+func _clear_objective_prefix_advances() -> void:
+	_objective_prefix_advances.clear()
+	queue_redraw()
 
 
 ## Presents one caller-owned route/landing target that lies beyond the map

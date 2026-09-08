@@ -17,6 +17,8 @@ func _run() -> void:
 	root.add_child(minimap)
 	await process_frame
 
+	_check_objective_text_advances(minimap)
+
 	_check(minimap.mouse_filter == Control.MOUSE_FILTER_IGNORE, "minimap ignores pointer input")
 	_check(
 		minimap.set_palette(HUD_PALETTE.get_palette(HUD_PALETTE.MODE_DEUTERANOPIA)),
@@ -214,6 +216,31 @@ func _run() -> void:
 	minimap.queue_free()
 	await process_frame
 	_finish()
+
+
+func _check_objective_text_advances(minimap: Control) -> void:
+	var text_server := TextServerManager.get_primary_interface()
+	for legend in minimap.get_objective_marker_legend():
+		var prefix := "%s %s  " % [legend.glyph, legend.label]
+		var advance: float = minimap._get_objective_prefix_advance(prefix, ThemeDB.fallback_font)
+		var matches := true
+		for distance in ["0M", "1M", "380M", "100000M"]:
+			var full := TextLine.new()
+			full.add_string(prefix + distance, ThemeDB.fallback_font, 10)
+			var full_advance := 0.0
+			for glyph in text_server.shaped_text_get_glyphs(full.get_rid()):
+				if int(glyph.start) >= prefix.length():
+					break
+				full_advance += float(glyph.advance) * int(glyph.repeat)
+			matches = matches and is_equal_approx(advance, full_advance)
+		_check(matches, "%s distance retains the full string's fractional position" % legend.id)
+	# A replaced fallback font must invalidate widths even for identical text.
+	var alternate_font := SystemFont.new()
+	alternate_font.font_names = PackedStringArray(["serif"])
+	minimap._get_objective_prefix_advance("◆ DEFENSE BOARD  ", alternate_font)
+	_check(minimap._objective_prefix_font == alternate_font, "objective text follows fallback font replacement")
+	alternate_font.changed.emit()
+	_check(minimap._objective_prefix_advances.is_empty(), "objective text widths invalidate when the font changes")
 
 
 func _check(condition: bool, label: String) -> void:
