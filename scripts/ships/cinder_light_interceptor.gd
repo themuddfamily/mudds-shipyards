@@ -41,10 +41,8 @@ const AFT_RECOGNITION_FIN_ROTATION_Y := PI * 0.5
 ## bounds stay inside the existing 12 m wing, 8.8 m hull and 2.5 m hull-height
 ## envelope: this is presentation detail, not a new berth-fit claim.
 const SPEED_RAIL_SIZE := Vector3(3.2, 0.16, 0.32)
-# The 0.16 m rail section now seats its lower face exactly on the response
-# wing's y = 0.075 upper face. The former y = 0.160 centre left both rails
-# floating 5 mm above the wing, visible as a detached cyan seam at close chase
-# distance. This 5 mm seating correction leaves the planform unchanged.
+# The mirrored rail assembly retains its authored pose while its section
+# rolls into a narrow closure along the same local bounds.
 const SPEED_RAIL_OFFSET := Vector3(4.25, 0.155, 0.35)
 const SPEED_RAIL_SWEEP_DEGREES := 22.0
 const WINGTIP_BLADE_SIZE := Vector3(0.28, 0.78, 2.6)
@@ -102,7 +100,7 @@ static var _shared_wing_material: StandardMaterial3D
 # The swept aft fin makes the interceptor's heading readable in profile. It is
 # immutable visual stock, shared across briefly coexisting fleet copies without
 # adding collision, damage routing, or lifecycle ownership.
-static var _shared_aft_recognition_fin_mesh: PrismMesh
+static var _shared_aft_recognition_fin_mesh: ArrayMesh
 static var _shared_speed_rail_mesh: ArrayMesh
 static var _shared_speed_rail_material: StandardMaterial3D
 static var _shared_wingtip_blade_mesh: ArrayMesh
@@ -394,7 +392,7 @@ func _build_hull(visual: Node3D) -> void:
 	var wing := MeshInstance3D.new()
 	wing.name = "RapidResponseWing"
 	if _shared_wing_mesh == null:
-		_shared_wing_mesh = _loft_mesh(Vector3(12.0, 0.55, 5.8), null)
+		_shared_wing_mesh = _formed_aero_mesh(Vector3(12.0, 0.55, 5.8))
 		_shared_wing_mesh.resource_local_to_scene = false
 	if _shared_wing_material == null:
 		_shared_wing_material = _material(WING_COLOR, 0.12, 0.62)
@@ -406,8 +404,7 @@ func _build_hull(visual: Node3D) -> void:
 	var aft_fin := MeshInstance3D.new()
 	aft_fin.name = "AftRecognitionFin"
 	if _shared_aft_recognition_fin_mesh == null:
-		_shared_aft_recognition_fin_mesh = PrismMesh.new()
-		_shared_aft_recognition_fin_mesh.size = AFT_RECOGNITION_FIN_SIZE
+		_shared_aft_recognition_fin_mesh = _formed_recognition_fin_mesh()
 		_shared_aft_recognition_fin_mesh.resource_local_to_scene = false
 	aft_fin.mesh = _shared_aft_recognition_fin_mesh
 	aft_fin.position = AFT_RECOGNITION_FIN_POSITION
@@ -475,13 +472,16 @@ func _build_interceptor_propulsion(visual: Node3D) -> void:
 		lens.set_meta("presentation_only", true)
 		lens.set_meta("gameplay_authority", false)
 		for z in [-0.2, 0.6, 1.4]:
-			_deck_plate(visual, tag + "WingService" + str(z), Vector3(side * 4.46, 0.13, z + 0.70), 0.56, 0.63, _shared_wing_material, ceramic)
-		_armor_shell(visual, tag + "WingArmor", Vector3(side * 4.05, 0.1, 0.75), Vector3(1.65, 0.065, 2.4), _shared_hull_material, side * -0.16)
+			_wing_service_plate(visual, tag + "WingService" + str(z), Vector3(side * 4.46, 0.13, z + 0.70), 0.56, 0.63, _shared_wing_material, ceramic)
+		var armor := _armor_shell(visual, tag + "WingArmor", Vector3(side * 4.05, 0.1, 0.75), Vector3(1.65, 0.065, 2.4), _shared_hull_material, side * -0.16,
+			_formed_aero_mesh(Vector3(1.65, 0.065, 2.4)))
+		armor.mesh.surface_set_material(0, _shared_hull_material)
+		armor.mesh = _fit_wing_skin(armor.mesh, armor.transform, 0.0325, 0.7, -0.007)
 
 
 func _build_speed_silhouette(visual: Node3D) -> void:
 	if _shared_speed_rail_mesh == null:
-		_shared_speed_rail_mesh = _loft_mesh(SPEED_RAIL_SIZE, null)
+		_shared_speed_rail_mesh = _formed_aero_mesh(SPEED_RAIL_SIZE)
 		_shared_speed_rail_mesh.resource_local_to_scene = false
 	if _shared_speed_rail_material == null:
 		_shared_speed_rail_material = _material(
@@ -508,7 +508,7 @@ func _build_speed_silhouette(visual: Node3D) -> void:
 	visual.add_child(_speed_rail_batch)
 
 	if _shared_wingtip_blade_mesh == null:
-		_shared_wingtip_blade_mesh = _loft_mesh(WINGTIP_BLADE_SIZE, null)
+		_shared_wingtip_blade_mesh = _formed_aero_mesh(WINGTIP_BLADE_SIZE, true)
 		_shared_wingtip_blade_mesh.resource_local_to_scene = false
 	var blade_transforms: Array[Transform3D] = [
 		Transform3D(
@@ -988,6 +988,148 @@ func _build_boarding_marker(visual: Node3D) -> void:
 	_interceptor_boarding_marker.set_meta(&"boarding_side", &"port")
 	visual.add_child(_interceptor_boarding_marker)
 
+
+
+## Formed skins retain the authored planform while rolling continuously from
+## a load-bearing crown into thin perimeter edges. The response wing retains its
+## immutable mesh; the mirrored rails and blades retain their two batches.
+func _formed_aero_mesh(size: Vector3, vertical: bool = false) -> ArrayMesh:
+	var stations := PackedFloat32Array([0.0, 0.06, 0.14, 0.22, 0.28, 0.36, 0.43, 0.5, 0.62, 0.74, 0.83, 0.91, 0.97, 1.0])
+	var rings: Array[PackedVector3Array] = []
+	const SEGMENTS := 32
+	for t in stations:
+		var extent := _aero_section_extent(size, t, vertical)
+		var ring := PackedVector3Array()
+		for edge in SEGMENTS:
+			var angle := TAU * float(edge) / float(SEGMENTS)
+			var section := Vector2(sin(angle), cos(angle))
+			# Retain a narrow perimeter land for the rolled skin closure;
+			# a mathematically sharp ellipse would read as a paper edge.
+			if vertical:
+				section.y = clampf(section.y / 0.94, -1.0, 1.0)
+			else:
+				section.x = clampf(section.x / 0.94, -1.0, 1.0)
+			ring.append(Vector3(section.x * extent.x, section.y * extent.y, (t - 0.5) * size.z))
+		rings.append(ring)
+	var surface := SurfaceTool.new()
+	surface.begin(Mesh.PRIMITIVE_TRIANGLES)
+	for bay in stations.size() - 1:
+		for edge in SEGMENTS:
+			var next := (edge + 1) % SEGMENTS
+			for corner in [Vector2i(edge, bay), Vector2i(next, bay), Vector2i(next, bay + 1), Vector2i(edge, bay), Vector2i(next, bay + 1), Vector2i(edge, bay + 1)]:
+				var around := rings[corner.y][(corner.x + 1) % SEGMENTS] - rings[corner.y][(corner.x + SEGMENTS - 1) % SEGMENTS]
+				var along := rings[mini(corner.y + 1, stations.size() - 1)][corner.x] - rings[maxi(corner.y - 1, 0)][corner.x]
+				surface.set_normal(along.cross(around).normalized())
+				var u := 1.0 if edge == SEGMENTS - 1 and corner.x == 0 else float(corner.x) / float(SEGMENTS)
+				surface.set_uv(Vector2(u, stations[corner.y]))
+				surface.add_vertex(rings[corner.y][corner.x])
+	for cap in [0, stations.size() - 1]:
+		for edge in SEGMENTS:
+			var next := (edge + 1) % SEGMENTS
+			for corner in ([-1, next, edge] if cap == 0 else [-1, edge, next]):
+				var point := Vector3(0, 0, rings[cap][0].z) if corner < 0 else rings[cap][corner]
+				surface.set_normal(Vector3.FORWARD if cap == 0 else Vector3.BACK)
+				surface.set_uv(Vector2(point.x / size.x, point.y / size.y) + Vector2.ONE * 0.5)
+				surface.add_vertex(point)
+	surface.generate_tangents()
+	return surface.commit()
+
+
+func _aero_section_extent(size: Vector3, t: float, vertical: bool) -> Vector2:
+	# Preserve the original span/sweep stations in the horizontal planform,
+	# and the fin's leading rise and aft rake in the vertical planform.
+	var planform := minf(1.0, lerpf(0.35 if vertical else 0.12, 1.0, t / (0.28 if vertical else 0.43)))
+	if t > 0.83:
+		planform = lerpf(1.0, 0.8 if vertical else 0.9, (t - 0.83) / 0.17)
+	# A rounded leading closure feeds the full-depth spar section, then
+	# eases into a retained thin trailing edge instead of a squared slab.
+	var thickness := lerpf(0.18, 1.0, sin(minf(t / 0.43, 1.0) * PI * 0.5))
+	if t > 0.5:
+		thickness = lerpf(1.0, 0.12, smoothstep(0.5, 1.0, t))
+	return Vector2(size.x * thickness, size.y * planform) * 0.5 if vertical else Vector2(size.x * planform, size.y * thickness) * 0.5
+
+
+## The recognition fin keeps the exact triangular X/Y outline of its former
+## prism. A crowned skin thins toward all three welded perimeter lands.
+func _formed_recognition_fin_mesh() -> ArrayMesh:
+	var surface := SurfaceTool.new()
+	surface.begin(Mesh.PRIMITIVE_TRIANGLES)
+	const STEPS := 12
+	for side in [-1.0, 1.0]:
+		for row in STEPS:
+			for column in STEPS - row:
+				var a := Vector2(float(column), float(row)) / STEPS
+				var b := a + Vector2(1.0 / STEPS, 0)
+				var c := a + Vector2(0, 1.0 / STEPS)
+				var corners := [a, c, b] if side > 0 else [a, b, c]
+				if column + row < STEPS - 1:
+					var d := a + Vector2.ONE / STEPS
+					corners.append_array([b, c, d] if side > 0 else [b, d, c])
+				for uv: Vector2 in corners:
+					var u := uv.x
+					var v := uv.y
+					var w := 1.0 - u - v
+					var depth := 0.025 + 0.135 * 27.0 * u * v * w
+					var du := 0.135 * 27.0 * v * (w - u)
+					var dv := 0.135 * 27.0 * u * (w - v)
+					surface.set_normal(Vector3(-du / 2.7, -(dv - du * 0.5) / 1.8, side).normalized())
+					surface.set_uv(uv)
+					surface.add_vertex(Vector3(-1.35 + 2.7 * u + 1.35 * v, -0.9 + 1.8 * v, side * depth))
+	# Close the retained 5 cm perimeter land with crisp outward edge normals.
+	var outline := [Vector2(-1.35, -0.9), Vector2(1.35, -0.9), Vector2(0, 0.9)]
+	for edge in 3:
+		var a: Vector2 = outline[edge]
+		var b: Vector2 = outline[(edge + 1) % 3]
+		var direction := b - a
+		for corner in [Vector2i(0, 0), Vector2i(0, 1), Vector2i(1, 1), Vector2i(0, 0), Vector2i(1, 1), Vector2i(1, 0)]:
+			var xy := a if corner.x == 0 else b
+			surface.set_normal(Vector3(direction.y, -direction.x, 0).normalized())
+			surface.set_uv(Vector2(corner))
+			surface.add_vertex(Vector3(xy.x, xy.y, -0.025 if corner.y == 0 else 0.025))
+	surface.generate_tangents()
+	return surface.commit()
+
+
+## Existing armor and gasket renderers follow the response wing's crown.
+## Their transforms, names and submission count remain unchanged.
+func _fit_wing_skin(source: Mesh, placement: Transform3D, half_height: float, depth_scale: float, clearance: float) -> ArrayMesh:
+	var arrays := source.surface_get_arrays(0)
+	var vertices: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
+	var normals: PackedVector3Array = arrays[Mesh.ARRAY_NORMAL]
+	var uv: PackedVector2Array = arrays[Mesh.ARRAY_TEX_UV]
+	var indices: PackedInt32Array = arrays[Mesh.ARRAY_INDEX] if arrays[Mesh.ARRAY_INDEX] != null else PackedInt32Array()
+	var surface := SurfaceTool.new()
+	surface.begin(Mesh.PRIMITIVE_TRIANGLES)
+	surface.set_material(source.surface_get_material(0))
+	for element in (indices.size() if not indices.is_empty() else vertices.size()):
+		var index := indices[element] if not indices.is_empty() else element
+		var point := vertices[index]
+		var world_point := placement * point
+		var dx := (_wing_skin_height(world_point.x + 0.005, world_point.z) - _wing_skin_height(world_point.x - 0.005, world_point.z)) / 0.01
+		var dz := (_wing_skin_height(world_point.x, world_point.z + 0.005) - _wing_skin_height(world_point.x, world_point.z - 0.005)) / 0.01
+		point.y = _wing_skin_height(world_point.x, world_point.z) - placement.origin.y + (point.y + half_height) * depth_scale + clearance
+		var normal := normals[index]
+		normal.y /= depth_scale
+		normal.x -= dx * normal.y
+		normal.z -= (dz + dx * placement.basis.z.x) * normal.y
+		surface.set_normal(normal.normalized())
+		surface.set_uv(uv[index])
+		surface.add_vertex(point)
+	surface.generate_tangents()
+	return surface.commit()
+
+
+func _wing_skin_height(x: float, z: float) -> float:
+	var t := clampf((z - 0.55) / 5.8 + 0.5, 0.0, 1.0)
+	var extent := _aero_section_extent(Vector3(12.0, 0.55, 5.8), t, false)
+	return -0.15 + extent.y * sqrt(maxf(0.0, 1.0 - pow(x * 0.94 / extent.x, 2.0)))
+
+
+func _wing_service_plate(parent: Node3D, tag: String, at: Vector3, width: float, length: float, paint: Material, gasket: Material) -> void:
+	var seal := _box(parent, tag + "Gasket", at, Vector3(width, 0.028, length), gasket)
+	seal.mesh = _fit_wing_skin(seal.mesh, seal.transform, 0.014, 1.0, 0.022)
+	var panel := _box(parent, tag + "Panel", at + Vector3(0, 0.022, 0), Vector3(width - 0.06, 0.032, length - 0.06), paint)
+	panel.mesh = _fit_wing_skin(panel.mesh, panel.transform, 0.016, 1.0, 0.038)
 
 
 ## Chamfered pressure-shell stock reuses the inherited closed loft topology.

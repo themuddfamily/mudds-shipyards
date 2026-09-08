@@ -2,8 +2,8 @@ extends SceneTree
 
 const Interceptor := preload("res://scripts/ships/cinder_light_interceptor.gd")
 
-const WING_SIZE := Vector3(12.0, 0.45, 2.4)
-const WING_TRANSFORM := Transform3D(Basis.IDENTITY, Vector3(0.0, -0.15, 0.8))
+const WING_SIZE := Vector3(12.0, 0.55, 5.8)
+const WING_TRANSFORM := Transform3D(Basis.IDENTITY, Vector3(0.0, -0.15, 0.55))
 
 var _assertions := 0
 var _failures: Array[String] = []
@@ -30,8 +30,8 @@ func _initialize() -> void:
 		)
 		var material := first_wing.material_override as StandardMaterial3D
 		_check(
-			first_wing.mesh is BoxMesh
-				and (first_wing.mesh as BoxMesh).size.is_equal_approx(WING_SIZE)
+			first_wing.mesh is ArrayMesh
+				and first_wing.mesh.get_aabb().size.is_equal_approx(WING_SIZE)
 				and first_wing.mesh.get_surface_count() == 1
 				and first_wing.transform.is_equal_approx(WING_TRANSFORM)
 				and second_wing.transform.is_equal_approx(WING_TRANSFORM)
@@ -44,12 +44,23 @@ func _initialize() -> void:
 		_check(
 			material != null
 				and material.albedo_color.is_equal_approx(Interceptor.WING_COLOR)
-				and is_equal_approx(material.metallic, 0.5)
-				and is_equal_approx(material.roughness, 0.36)
+				and is_equal_approx(material.metallic, 0.12)
+				and is_equal_approx(material.roughness, 0.62)
 				and not first_wing.mesh.resource_local_to_scene
 				and not material.resource_local_to_scene,
 			"the shared resources retain the authored wing finish and cross-copy lifetime"
 		)
+
+		var vertices: PackedVector3Array = first_wing.mesh.surface_get_arrays(0)[Mesh.ARRAY_VERTEX]
+		var rolled_crown := false
+		var thin_trailing_edge := true
+		for point in vertices:
+			if absf(point.x) > 3.0 and absf(point.x) < 5.5 and point.z > -0.5 and point.z < 0.5:
+				rolled_crown = rolled_crown or (point.y > 0.08 and point.y < 0.24)
+			if is_equal_approx(point.z, WING_SIZE.z * 0.5):
+				thin_trailing_edge = thin_trailing_edge and absf(point.y) < 0.04
+		_check(rolled_crown and thin_trailing_edge,
+			"the production response wing rolls from a load-bearing crown into a thin trailing closure")
 
 	_check(
 		bool(first.get_audit_report().get("valid", false))
