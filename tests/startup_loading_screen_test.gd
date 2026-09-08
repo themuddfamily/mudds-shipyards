@@ -28,6 +28,30 @@ class YieldingStagedChild extends Node:
 		on_stage.call("Finishing yielded child")
 
 
+class InterruptedFleetLoader extends StartupLoader:
+	var queue_fleet := false
+	var interrupted_fleet: FleetExpansionProductionBinding
+	var owned_main_children: Array[WeakRef] = []
+
+	func _on_construction_stage(generation: int, label: String, ratio: float) -> void:
+		super._on_construction_stage(generation, label, ratio)
+		if label != "Preparing Cinder Cargo Hauler":
+			return
+		var main := get_main()
+		var stager := main.get("_startup_stager") as MainStartupStager
+		for child: Node in stager.get("_staged_children"):
+			owned_main_children.append(weakref(child))
+		interrupted_fleet = main.get_node(
+			"ShipyardWorld/FleetExpansionProductionBinding"
+		) as FleetExpansionProductionBinding
+		if queue_fleet:
+			# Retire after the sink returns, while the binding driver is awaiting
+			# its settle frame and Main itself remains live.
+			interrupted_fleet.queue_free.call_deferred()
+		else:
+			interrupted_fleet.get_parent().remove_child(interrupted_fleet)
+
+
 func _init() -> void:
 	call_deferred("_run")
 
@@ -40,6 +64,7 @@ func _run() -> void:
 	await _test_detached_boot_joins_resource_worker()
 	await _test_detached_boot_cancels_stale_continuation()
 	await _test_boot_presents_before_it_builds()
+	await _test_live_boot_rejects_incomplete_fleet()
 	await _test_direct_instantiation_is_unstaged()
 	await _test_atomic_graphics_profile_precedes_world_construction()
 	_finish()
@@ -194,6 +219,7 @@ func _test_world_stages_authored_children_and_rejects_stale_yield() -> void:
 	for child in authored:
 		owners[child] = child.owner
 	world.prepare_staged_construction()
+	var expected_stage_count := world.get_staged_construction_stage_count()
 	_check(world.get_child_count() == 0,
 		"prepared world defers authored modules before any of their ready callbacks")
 	root.add_child(world)
@@ -214,9 +240,16 @@ func _test_world_stages_authored_children_and_rejects_stale_yield() -> void:
 		and not bool(world.get("_built")),
 		"reentering the world cannot revive its stale awaited construction")
 	var interrupted_build: Array[String] = []
+	var fleet_stage_frames: Array[int] = []
 	var interrupting_sink := func(label: String) -> void:
 		sink.call(label)
-		if label in ["Staffing the operations lattice", "Setting the signage"] \
+		if label.begins_with("Preparing Cinder"):
+			fleet_stage_frames.append(Engine.get_process_frames())
+		if label == "Parking the provisional fleet":
+			var fleet := world.get_node("FleetExpansionProductionBinding") as FleetExpansionProductionBinding
+			_check(fleet.is_composition_ready(),
+				"world reports its fleet stage only after all Cinder craft settle and attach")
+		if label in ["Staffing the operations lattice", "Preparing Cinder Cargo Hauler", "Setting the signage"] \
 				and not interrupted_build.has(label):
 			interrupted_build.append(label)
 			call_deferred("_detach_and_reattach_staged_world", world)
@@ -227,11 +260,27 @@ func _test_world_stages_authored_children_and_rejects_stale_yield() -> void:
 		and stages.count("Mixing station materials") == 0,
 		"world stops its procedural builders after a detach during their frame yield")
 	await world.run_staged_construction(interrupting_sink)
+	var partial_fleet := world.get_node("FleetExpansionProductionBinding") as FleetExpansionProductionBinding
+	var partial_cargo := partial_fleet.get_node("cinder_cargo_hauler")
+	_check(not bool(world.get("_built")) and not partial_fleet.is_composition_ready()
+		and stages.count("Parking the provisional fleet") == 0
+		and stages.count("Dressing the industrial deck") == 0,
+		"world retains its pending fleet build index when partial Cinder construction detaches")
+	await world.run_staged_construction(interrupting_sink)
+	_check(world.get_node("FleetExpansionProductionBinding") == partial_fleet
+		and partial_fleet.get_node("cinder_cargo_hauler") == partial_cargo
+		and world.find_children("ProvisionalParkedFleet", "Node3D", false, false).size() == 1,
+		"world resumes its exact provisional fleet owner and craft without duplicates")
 	_check(not bool(world.get("_built"))
 		and not bool(world.get_station_solar_readability_report().active),
 		"late construction cancellation retires existing presentation bindings")
 	await world.run_staged_construction(sink)
 	await process_frame
+	var separated_fleet_frames := fleet_stage_frames.size() == 4
+	for index in range(1, fleet_stage_frames.size()):
+		separated_fleet_frames = separated_fleet_frames and fleet_stage_frames[index] > fleet_stage_frames[index - 1]
+	_check(separated_fleet_frames and stages.size() == expected_stage_count,
+		"world counts each actual fleet unit once and constructs it on a separate frame")
 	_check(bool(world.get_station_solar_readability_report().active),
 		"finishing a resumed world restores bindings retired after their builders completed")
 	var authored_restored := true
@@ -249,6 +298,11 @@ func _test_world_stages_authored_children_and_rejects_stale_yield() -> void:
 		"resumed world resolves authored bindings before completing procedural construction")
 	_check(stages.count("Surveying berths") == 1 and stages.count("Setting the signage") == 1,
 		"resumed construction completes the procedural sequence exactly once")
+	var completed_children := world.get_children()
+	var completed_stages := stages.duplicate()
+	var still_complete: bool = await world.run_staged_construction(sink)
+	_check(still_complete and world.get_children() == completed_children and stages == completed_stages,
+		"completed world accepts a resumed parent stager without rebuilding or repeating progress")
 	world.queue_free()
 	await process_frame
 
@@ -690,6 +744,45 @@ func _test_boot_presents_before_it_builds() -> void:
 	boot.queue_free()
 	await process_frame
 	await process_frame
+
+
+func _test_live_boot_rejects_incomplete_fleet() -> void:
+	for queue_fleet in [false, true]:
+		var boot := InterruptedFleetLoader.new()
+		boot.auto_start = false
+		boot.queue_fleet = queue_fleet
+		root.add_child(boot)
+		var completions: Array[Node] = []
+		boot.startup_completed.connect(func(main: Node) -> void: completions.append(main))
+		var main := await boot.run_startup()
+		var report := boot.get_startup_report()
+		var screen := boot.get_loading_screen()
+		var ready_published := false
+		for row: Dictionary in report.stages:
+			ready_published = ready_published or row.get("label", "") == "Shipyard ready"
+		_check(main == null and boot.get_main() == null and completions.is_empty()
+			and not bool(boot.get("_running")) and not ready_published
+			and float(report.time_to_interactive_ms) == 0.0
+			and screen.get_stage_text() == "Startup failed"
+			and not bool(screen.get_report().dismissed),
+			"%s fleet under a live Main leaves a failed loading screen without admitting gameplay" % ("queued" if queue_fleet else "detached"))
+		await process_frame
+		await process_frame
+		var freed := not boot.owned_main_children.is_empty()
+		for reference in boot.owned_main_children:
+			freed = freed and reference.get_ref() == null
+		_check(freed, "incomplete startup frees attached and still-staged Main children")
+		if queue_fleet:
+			_check(not is_instance_valid(boot.interrupted_fleet),
+				"failed startup releases its queued partial fleet")
+		else:
+			_check(is_instance_valid(boot.interrupted_fleet)
+				and boot.interrupted_fleet.get_child_count() == 2
+				and not boot.interrupted_fleet.is_composition_ready(),
+				"detached partial fleet remains with its caller and cannot continue construction")
+			boot.interrupted_fleet.free()
+		boot.queue_free()
+		await process_frame
 
 
 func _test_direct_instantiation_is_unstaged() -> void:

@@ -44,6 +44,13 @@ const RIG_PROFILE_BY_RECIPE := {
 var _berths: Node3D
 var _craft_by_id: Dictionary = {}
 var _built := false
+# Direct instances retain deferred, two-frame composition. Only the boot world
+# opts in before attachment and then drives the same construction units itself.
+var _staged_construction := false
+var _assembly_unit_index := 0
+var _assembly_needs_settle := false
+var _assembly_tree_generation := 0
+var _assembly_run_active := false
 var _composition_error: StringName = &""
 var _audio_bindings: Dictionary = {}
 var _reduced_dynamic_range := false
@@ -55,15 +62,20 @@ var _berth_audio_binding: RefCounted
 func _enter_tree() -> void:
 	if _built:
 		call_deferred("_restore_audio_bindings_after_reentry")
+	elif is_node_ready() and not _staged_construction:
+		call_deferred("_assemble")
 
 
 func _ready() -> void:
 	set_process(false)
 	set_physics_process(false)
-	call_deferred("_assemble")
+	if not _staged_construction:
+		call_deferred("_assemble")
 
 
 func _exit_tree() -> void:
+	_assembly_tree_generation += 1
+	_assembly_run_active = false
 	# FleetExpansionAudioBinding owns payload audio Nodes outside the scene tree.
 	# Release those caller-owned bindings while their rigs are still valid so
 	# their nested projectile bindings cannot outlive this production owner.
@@ -96,31 +108,109 @@ func _restore_audio_bindings_after_reentry() -> void:
 		binding.set_reduced_dynamic_range(_reduced_dynamic_range)
 
 
-func _assemble() -> void:
-	if _built or is_queued_for_deletion() or not is_inside_tree():
+static func get_staged_construction_stage_count() -> int:
+	return 1 + CRAFT_SPECS.size()
+
+
+## Must be selected before entering the tree, so no deferred construction can
+## race the startup world's explicitly awaited stages.
+func prepare_staged_construction() -> void:
+	if is_inside_tree() or _assembly_unit_index > 0 or _built:
 		return
-	_berths = Berths.new()
-	_berths.name = "FleetExpansionBerths"
-	add_child(_berths)
-	_berth_audio_binding = FleetBerthAudioBinding.new() as RefCounted
-	_berth_audio_binding.attach()
-	for spec in CRAFT_SPECS:
-		var craft := (spec.get("script") as GDScript).new() as Node3D
-		craft.name = String(spec.craft_id)
-		craft.set_meta(&"evidence_status", &"NEW")
-		var ship_audio_rig := ShipAudioRigScene.instantiate() as Node3D
-		ship_audio_rig.set("profile_id", RIG_PROFILE_BY_RECIPE[AUDIO_RECIPE_BY_CRAFT[spec.craft_id]])
-		craft.add_child(ship_audio_rig)
-		add_child(craft)
-		_craft_by_id[spec.craft_id] = craft
-	await get_tree().process_frame
+	_staged_construction = true
+
+
+func is_composition_ready() -> bool:
+	return _built and is_inside_tree() and not is_queued_for_deletion()
+
+
+## The script owns the awaited driver, not the disposable scene instance. A
+## queued/free binding can therefore report cancellation to its still-live
+## startup owner on the next frame instead of abandoning that owner's await.
+static func run_staged_construction(binding_ref: WeakRef, on_stage: Callable = Callable()) -> bool:
+	return await _run_assembly(binding_ref, true, on_stage)
+
+
+func _assemble() -> void:
+	_run_assembly(weakref(self), false)
+
+
+static func _run_assembly(binding_ref: WeakRef, staged: bool, on_stage: Callable = Callable()) -> bool:
+	var binding := binding_ref.get_ref() as FleetExpansionProductionBinding
+	if not is_instance_valid(binding):
+		return false
+	if binding._built:
+		return binding.is_composition_ready()
+	if binding._assembly_run_active or binding.is_queued_for_deletion() or not binding.is_inside_tree() \
+			or staged != binding._staged_construction or binding._composition_error != &"":
+		return false
+	var generation := binding._assembly_tree_generation
+	var tree := binding.get_tree()
+	binding._assembly_run_active = true
+	while binding._assembly_unit_index < get_staged_construction_stage_count() or binding._assembly_needs_settle:
+		if not _is_assembly_current(binding, generation):
+			return false
+		# Keep the pending settle across cancellation, including detachment from
+		# the final craft's progress callback before it ever reaches this await.
+		if binding._assembly_needs_settle and (staged or binding._assembly_unit_index == get_staged_construction_stage_count()):
+			binding = null
+			await tree.process_frame
+			binding = binding_ref.get_ref() as FleetExpansionProductionBinding
+			if not _is_assembly_current(binding, generation):
+				return false
+			binding._assembly_needs_settle = false
+			continue
+		var unit := binding._assembly_unit_index
+		binding._assembly_unit_index += 1
+		binding._assembly_needs_settle = true
+		binding._build_assembly_unit(unit)
+		if not _is_assembly_current(binding, generation):
+			return false
+		if staged and on_stage.is_valid():
+			on_stage.call(
+				"Preparing Cinder fleet berths" if unit == 0
+				else "Preparing %s" % String(CRAFT_SPECS[unit - 1].craft_id).capitalize()
+			)
+		if not _is_assembly_current(binding, generation):
+			return false
+	var accepted := binding._finish_assembly()
+	if _is_assembly_current(binding, generation):
+		binding._assembly_run_active = false
+	return accepted and _is_assembly_current(binding, generation)
+
+
+static func _is_assembly_current(binding: FleetExpansionProductionBinding, generation: int) -> bool:
+	return is_instance_valid(binding) and generation == binding._assembly_tree_generation \
+		and binding.is_inside_tree() and not binding.is_queued_for_deletion()
+
+
+func _build_assembly_unit(unit: int) -> void:
+	if unit == 0:
+		_berths = Berths.new()
+		_berths.name = "FleetExpansionBerths"
+		add_child(_berths)
+		_berth_audio_binding = FleetBerthAudioBinding.new() as RefCounted
+		_berth_audio_binding.attach()
+		return
+	var spec := CRAFT_SPECS[unit - 1]
+	var craft := (spec.get("script") as GDScript).new() as Node3D
+	craft.name = String(spec.craft_id)
+	craft.set_meta(&"evidence_status", &"NEW")
+	var ship_audio_rig := ShipAudioRigScene.instantiate() as Node3D
+	ship_audio_rig.set("profile_id", RIG_PROFILE_BY_RECIPE[AUDIO_RECIPE_BY_CRAFT[spec.craft_id]])
+	craft.add_child(ship_audio_rig)
+	_craft_by_id[spec.craft_id] = craft
+	add_child(craft)
+
+
+func _finish_assembly() -> bool:
 	for spec in CRAFT_SPECS:
 		var result: Dictionary = _berths.call(
 			"attach_craft", spec.pad_id, _craft_by_id[spec.craft_id], spec.craft_id
 		)
 		if not bool(result.get("accepted", false)):
 			_composition_error = StringName(result.get("reason", &"attachment_failed"))
-			return
+			return false
 		var handoff_result := _bind_pedestrian_handoff(
 			spec.craft_id, spec.pad_id, _craft_by_id[spec.craft_id]
 		)
@@ -128,13 +218,14 @@ func _assemble() -> void:
 			_composition_error = StringName(
 				handoff_result.get("reason", &"pedestrian_handoff_failed")
 			)
-			return
+			return false
 		var audio_result := _bind_craft_audio(spec.craft_id, _craft_by_id[spec.craft_id])
 		if not bool(audio_result.get("accepted", false)):
 			_composition_error = StringName(audio_result.get("reason", &"audio_binding_failed"))
-			return
+			return false
 		_berth_audio_binding.present_pad_snapshot(_berths.get_attachment_snapshot(spec.pad_id))
 	_built = true
+	return true
 
 
 func _bind_craft_audio(craft_id: StringName, craft: Node3D) -> Dictionary:

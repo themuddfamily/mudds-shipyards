@@ -1394,7 +1394,8 @@ func _restore_staged_node_owners(node: Node) -> void:
 ## How many stages [method run_staged_construction] will report, so a loader can
 ## size its progress bar against real work rather than a guess.
 func get_staged_construction_stage_count() -> int:
-	return BUILD_STAGES.size() + _staged_children.size()
+	return BUILD_STAGES.size() + _staged_children.size() \
+		+ FLEET_EXPANSION_BINDING.get_staged_construction_stage_count()
 
 
 ## Batch budget checked between procedural builders. A single builder can still
@@ -1406,56 +1407,76 @@ const STAGED_BUILD_FRAME_BUDGET_USEC := 24_000
 ## each and yielding to the main loop whenever the frame budget is spent. The
 ## sequence is identical to the synchronous build; the only difference is that
 ## the main loop gets to draw and pump input in between.
-func run_staged_construction(on_stage: Callable = Callable()) -> void:
-	if _built or not _staged_construction or _staged_run_active or not is_inside_tree():
-		return
+func run_staged_construction(on_stage: Callable = Callable()) -> bool:
+	if _built:
+		return is_inside_tree() and not is_queued_for_deletion()
+	if not _staged_construction or _staged_run_active or not is_inside_tree():
+		return false
 	var generation := _staged_tree_generation
 	_staged_run_active = true
 	var tree := get_tree()
 	while _staged_child_index < _staged_children.size():
 		if not _is_staged_run_current(generation):
-			return
+			return false
 		var child := _staged_children[_staged_child_index]
 		if not is_instance_valid(child) or child.is_queued_for_deletion():
 			_staged_run_active = false
-			return
+			return false
 		if child.get_parent() == null:
 			add_child(child)
 		elif child.get_parent() != self:
 			_staged_run_active = false
-			return
+			return false
 		if not _is_staged_run_current(generation):
-			return
+			return false
 		_restore_staged_node_owners(child)
 		_staged_child_index += 1
 		if on_stage.is_valid():
 			on_stage.call("Preparing %s" % String(child.name).capitalize())
 		if not _is_staged_run_current(generation):
-			return
+			return false
 		# Each module can trigger renderer work as well as its synchronous ready.
 		# Give that work a frame before admitting another authored subtree.
 		await tree.process_frame
 		if not _is_staged_run_current(generation):
-			return
+			return false
 	_resolve_authored_bindings()
 	var budget_started := Time.get_ticks_usec()
 	while _staged_build_index < BUILD_STAGES.size():
 		if not _is_staged_run_current(generation):
-			return
+			return false
 		var stage: Array = BUILD_STAGES[_staged_build_index]
 		call(stage[0] as StringName)
+		if not _is_staged_run_current(generation):
+			return false
+		if stage[0] == &"_build_provisional_fleet":
+			# This stage owns deferred child construction too: do not advance the
+			# world index until every Cinder is built, settled and attached.
+			var fleet := _fleet_expansion_production_binding
+			if not is_instance_valid(fleet) or fleet.get_parent() != self \
+					or fleet.is_queued_for_deletion():
+				_staged_run_active = false
+				return false
+			var fleet_ready: bool = await FLEET_EXPANSION_BINDING.run_staged_construction(weakref(fleet), on_stage)
+			if not _is_staged_run_current(generation):
+				return false
+			if not fleet_ready or not is_instance_valid(fleet) \
+					or fleet.get_parent() != self or not fleet.is_composition_ready():
+				_staged_run_active = false
+				return false
+			budget_started = Time.get_ticks_usec()
 		_staged_build_index += 1
 		if not _is_staged_run_current(generation):
-			return
+			return false
 		if on_stage.is_valid():
 			on_stage.call(stage[1] as String)
 		if not _is_staged_run_current(generation):
-			return
+			return false
 		if Time.get_ticks_usec() - budget_started < STAGED_BUILD_FRAME_BUDGET_USEC:
 			continue
 		await tree.process_frame
 		if not _is_staged_run_current(generation):
-			return
+			return false
 		budget_started = Time.get_ticks_usec()
 	_built = true
 	_staged_construction = false
@@ -1466,6 +1487,7 @@ func run_staged_construction(on_stage: Callable = Callable()) -> void:
 		_queue_built_world_reentry_restore()
 	_staged_children.clear()
 	_staged_node_owners.clear()
+	return true
 
 
 func _is_staged_run_current(generation: int) -> bool:
@@ -8549,19 +8571,26 @@ func get_modern_fleet_registry_render_contract() -> Dictionary:
 
 
 func _build_provisional_fleet() -> void:
+	# An interrupted staged binding retains its exact children. The world leaves
+	# this build index pending and resumes the same owner after re-entry.
+	if is_instance_valid(_fleet_expansion_production_binding):
+		return
 	# Several physically parked craft around separate nodes are source-supported;
 	# every silhouette below is an original modern blockout with no historic name
 	# assignment. Static collision keeps the ships tangible while their berths and
 	# the hero launch corridor remain clear.
-	var fleet := Node3D.new()
-	fleet.name = "ProvisionalParkedFleet"
-	add_child(fleet)
+	if not has_node(^"ProvisionalParkedFleet"):
+		var fleet := Node3D.new()
+		fleet.name = "ProvisionalParkedFleet"
+		add_child(fleet)
 	_fleet_expansion_production_binding = FLEET_EXPANSION_BINDING.new()
 	_fleet_expansion_production_binding.name = "FleetExpansionProductionBinding"
 	_fleet_expansion_production_binding.transform = Transform3D(
 		Basis(Vector3.UP, PI * 0.5),
 		Vector3(12.0, 4.2, 68.3)
 	)
+	if _staged_construction:
+		_fleet_expansion_production_binding.prepare_staged_construction()
 	add_child(_fleet_expansion_production_binding)
 	# The port node is now a second live berth. Its former static courier concept
 	# is intentionally omitted so a real flyable test article occupies the space.

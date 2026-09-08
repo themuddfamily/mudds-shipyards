@@ -235,11 +235,27 @@ func run_startup() -> Node:
 	var staged := flow != null and flow.prepare_staged_startup()
 	add_child(_main)
 	if staged:
-		await flow.run_staged_startup(
+		var construction_completed := await flow.run_staged_startup(
 			func(label: String, ratio: float) -> void:
 				_on_construction_stage(startup_generation, label, ratio)
 		)
 		if not _is_startup_current(startup_generation):
+			return null
+		if not construction_completed:
+			var incomplete_main := _main
+			_main = null
+			if is_instance_valid(incomplete_main):
+				if incomplete_main.get_parent() == self:
+					remove_child(incomplete_main)
+				incomplete_main.queue_free()
+			_screen.set_stage(
+				"Startup failed", _screen.get_progress(), "The shipyard could not finish loading.",
+				"MUDDS SHIPYARDS", "Startup interrupted", 1, 1
+			)
+			_finish_startup(startup_generation)
+			if CLI_STARTUP_CHECK in OS.get_cmdline_args():
+				print("STARTUP_MENU_READY_FAILED: incomplete shipyard construction")
+				tree.quit(1)
 			return null
 		_note_stage("construction", "Shipyard ready")
 

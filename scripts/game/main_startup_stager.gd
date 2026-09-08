@@ -95,14 +95,14 @@ func prepare(initialized: bool) -> bool:
 ##
 ## `on_stage` is called as `on_stage.call(label: String, ratio: float)` where
 ## `ratio` is the fraction of real stages that have finished.
-func run(initialized: bool, on_stage: Callable = Callable()) -> void:
+func run(initialized: bool, on_stage: Callable = Callable()) -> bool:
 	if not _prepared or initialized:
-		return
+		return false
 	_run_generation += 1
 	var run_generation := _run_generation
 	var host_tree_generation := _host_tree_generation
 	if not _is_run_current(run_generation, host_tree_generation):
-		return
+		return false
 	_active_run_generation = run_generation
 	_active_host_tree_generation = host_tree_generation
 	var tree := _host.get_tree()
@@ -114,7 +114,7 @@ func run(initialized: bool, on_stage: Callable = Callable()) -> void:
 	for child in pending:
 		if not _is_run_current(run_generation, host_tree_generation):
 			_cancel_stale_run()
-			return
+			return false
 		if child.has_method(&"get_staged_construction_stage_count"):
 			_staged_total += float(child.call(&"get_staged_construction_stage_count"))
 	_staged_done = 0.0
@@ -123,57 +123,63 @@ func run(initialized: bool, on_stage: Callable = Callable()) -> void:
 	for child in pending:
 		if not _is_run_current(run_generation, host_tree_generation):
 			_cancel_stale_run()
-			return
+			return false
 		if not is_instance_valid(child) or child.is_queued_for_deletion():
 			_cancel_stale_run()
-			return
+			return false
 		if child.get_parent() == null:
 			_host.add_child(child)
 		elif child.get_parent() != _host:
 			_cancel_stale_run()
-			return
+			return false
 		if not _is_run_current(run_generation, host_tree_generation):
 			_cancel_stale_run()
-			return
+			return false
 		if _staged_child_owners.has(child):
 			child.owner = _staged_child_owners[child] as Node
 		_advance_stage(_stage_label(child))
 		if not _is_run_current(run_generation, host_tree_generation):
 			_cancel_stale_run()
-			return
+			return false
 		if Time.get_ticks_usec() - budget_started >= STAGED_STARTUP_FRAME_BUDGET_USEC:
 			await tree.process_frame
 			if not _is_run_current(run_generation, host_tree_generation):
 				_cancel_stale_run()
-				return
+				return false
 			budget_started = Time.get_ticks_usec()
 		if child.has_method(&"run_staged_construction"):
 			# A bound method, not a lambda: GDScript lambdas capture locals by
 			# value, so a counter incremented inside one never advances.
-			await child.call(&"run_staged_construction", _advance_stage)
+			var completed: Variant = await child.call(&"run_staged_construction", _advance_stage)
+			# Legacy builders have no return value. A builder that reports a
+			# failed/incomplete transaction must not admit gameplay startup.
+			if completed is bool and not completed:
+				_cancel_stale_run()
+				return false
 			if not _is_run_current(run_generation, host_tree_generation):
 				_cancel_stale_run()
-				return
+				return false
 			budget_started = Time.get_ticks_usec()
 	if not _is_run_current(run_generation, host_tree_generation):
 		_cancel_stale_run()
-		return
+		return false
 	_staged_children.clear()
 	_staged_child_owners.clear()
 	_prepared = false
 	_resolve_scene_bindings.call()
 	if not _is_run_current(run_generation, host_tree_generation):
 		_cancel_stale_run()
-		return
+		return false
 	_staged_done = _staged_total
 	_advance_stage("Bringing systems online")
 	if not _is_run_current(run_generation, host_tree_generation):
 		_cancel_stale_run()
-		return
+		return false
 	_staged_sink = Callable()
 	_active_run_generation = 0
 	_active_host_tree_generation = 0
 	_start_up.call()
+	return _is_run_current(run_generation, host_tree_generation)
 
 
 func _on_host_tree_exiting() -> void:

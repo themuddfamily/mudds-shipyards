@@ -2119,10 +2119,10 @@ const STAGED_STARTUP_FRAME_BUDGET_USEC := (
 ##
 ## `on_stage` is called as `on_stage.call(label: String, ratio: float)` where
 ## `ratio` is the fraction of real stages that have finished.
-func run_staged_startup(on_stage: Callable = Callable()) -> void:
+func run_staged_startup(on_stage: Callable = Callable()) -> bool:
 	if _startup_stager == null:
-		return
-	await _startup_stager.run(_initialized, on_stage)
+		return false
+	return await _startup_stager.run(_initialized, on_stage)
 
 
 func _get_startup_stager() -> MainStartupStagerType:
