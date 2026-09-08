@@ -121,6 +121,9 @@ func _check_hero_builders(expected_sign: int) -> void:
 		hero.call("_trapezoid_prism_mesh", 1.0, 2.0, 1.5, 0.5, null) as ArrayMesh,
 		expected_sign
 	)
+	var prism := hero.call("_trapezoid_prism_mesh", 1.0, 2.0, 1.5, 0.5, null) as ArrayMesh
+	_assert_closed_mesh_faces_outward("HeroShip pressure-panel stock", prism, expected_sign)
+	_assert_uv_faces_have_area(prism)
 	# A generated normal can agree with an inward triangle too. Check the loft
 	# against its volume, not only its own generated normals: canopy back-face
 	# culling otherwise exposes the far inside wall while hiding the near shell.
@@ -349,6 +352,23 @@ func _check_detects_reversal(expected_sign: int) -> void:
 		("the normal-independent interior guard also rejects every triangle of the "
 		+ "deliberately reversed closed box (%d/%d)") % [interior_backwards, interior_triangles]
 	)
+
+
+## Normal mapping needs two independent UV axes on every face, including
+## side and top plates. XY-only projection collapses their tangent frames.
+func _assert_uv_faces_have_area(mesh: Mesh) -> void:
+	var arrays := mesh.surface_get_arrays(0)
+	var uv: PackedVector2Array = arrays[Mesh.ARRAY_TEX_UV]
+	var indices: PackedInt32Array = arrays[Mesh.ARRAY_INDEX] if arrays[Mesh.ARRAY_INDEX] != null else PackedInt32Array()
+	var count := indices.size() if not indices.is_empty() else uv.size()
+	var degenerate := 0
+	for i in range(0, count, 3):
+		var a := uv[indices[i] if not indices.is_empty() else i]
+		var b := uv[indices[i + 1] if not indices.is_empty() else i + 1]
+		var c := uv[indices[i + 2] if not indices.is_empty() else i + 2]
+		if absf((b - a).cross(c - a)) < 0.000001:
+			degenerate += 1
+	_assert(degenerate == 0, "every pressure-panel face has a usable normal-map tangent frame (%d degenerate triangles)" % degenerate)
 
 
 func _assert_wound(label: String, mesh: Mesh, expected_sign: int) -> void:

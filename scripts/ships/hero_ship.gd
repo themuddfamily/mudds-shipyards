@@ -7100,11 +7100,28 @@ func _trapezoid_prism_mesh(
 	var vertices := PackedVector3Array()
 	vertices.append_array(front)
 	vertices.append_array(back)
-	for index in triangles:
-		var vertex := vertices[index]
-		tool.set_uv(Vector2(vertex.x / maxf(bottom_width, 0.001) + 0.5, vertex.y / maxf(height, 0.001) + 0.5))
-		tool.add_vertex(vertex)
-	tool.generate_normals()
+	# Keep each plate planar and face outward. The original index table is
+	# counterclockwise outside; Godot's front faces are clockwise.
+	for triangle in range(0, triangles.size(), 3):
+		var ids := [triangles[triangle], triangles[triangle + 2], triangles[triangle + 1]]
+		var a := vertices[ids[0]]
+		var b := vertices[ids[1]]
+		var c := vertices[ids[2]]
+		var normal := (c - a).cross(b - a).normalized()
+		for index: int in ids:
+			var vertex := vertices[index]
+			var uv := Vector2.ZERO
+			# Project on the face plane. A single XY projection collapses
+			# top and side faces to a line, corrupting normal-map tangents.
+			if absf(normal.z) >= maxf(absf(normal.x), absf(normal.y)):
+				uv = Vector2(vertex.x / maxf(bottom_width, 0.001), vertex.y / maxf(height, 0.001))
+			elif absf(normal.y) >= absf(normal.x):
+				uv = Vector2(vertex.x / maxf(bottom_width, 0.001), vertex.z / maxf(depth, 0.001))
+			else:
+				uv = Vector2(vertex.z / maxf(depth, 0.001), vertex.y / maxf(height, 0.001))
+			tool.set_normal(normal)
+			tool.set_uv(uv + Vector2.ONE * 0.5)
+			tool.add_vertex(vertex)
 	tool.generate_tangents()
 	return tool.commit()
 
