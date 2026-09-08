@@ -9,7 +9,7 @@
       "hinges",
       "paired_latches"
     ],
-    "close_triangle_count": 86332,
+    "close_triangle_count": 86976,
     "close_triangle_range": [
       70000,
       90000
@@ -45,10 +45,10 @@
       "AmberPanel": 0.418447,
       "CrimsonLivery": 5.606542,
       "CrimsonSeat": 4.92142,
-      "CyanStatus": 5.064058,
+      "CyanStatus": 4.649768,
       "ExposedAlloy": 27.522752,
-      "GraphiteMachinery": 68.83514,
-      "IvorySecondary": 130.325981,
+      "GraphiteMachinery": 67.921929,
+      "IvorySecondary": 130.325979,
       "NeutralCanopyGlass": 12.33585,
       "ThermalCeramic": 16.983373,
       "WarmIvoryHull": 322.21016
@@ -71,9 +71,9 @@
         "mesh_count": 17
       },
       "CockpitArt": {
-        "evaluated_surface_area_m2": 38.217774,
-        "evaluated_triangle_count": 10808,
-        "evaluated_vertex_count": 5528,
+        "evaluated_surface_area_m2": 36.890271,
+        "evaluated_triangle_count": 11452,
+        "evaluated_vertex_count": 5856,
         "mesh_count": 39
       },
       "LOD0": {
@@ -97,12 +97,12 @@
     },
     "source_mesh_instance_budget": 320,
     "total_triangle_budget": 105000,
-    "total_triangle_count": 96198
+    "total_triangle_count": 96842
   },
   "asset_id": "torrent_hero_art_v1",
   "authenticated_historical_geometry": false,
   "authorship": "original_script_assisted_blender",
-  "blend_sha256": "fcfd51cc60962e53c52690d1262089f02d7b5a83d7d52f73a3f84e3c1c42c305",
+  "blend_sha256": "350cac9bb153e0c08d3a344c98bd89de016b600a9e408d116646c746adc3f591",
   "blender_version": "4.0.2",
   "bounds_blender_xyz": {
     "max": [
@@ -724,7 +724,7 @@
         ]
       },
       "primary_hull": {
-        "evaluated_vertex_count": 26323,
+        "evaluated_vertex_count": 26651,
         "maximum_uncovered_distance_m": 0.002207518,
         "object_count": 216,
         "objects": [
@@ -1013,7 +1013,7 @@
       "units": "metres",
       "up": "+Y in Godot"
     },
-    "evaluated_vertex_count": 43023,
+    "evaluated_vertex_count": 43351,
     "evaluation_method": "evaluated_mesh_vertices_to_nearest_axis_aligned_box_euclidean_distance_v1",
     "evaluation_stage": "editable_source_before_export_only_static_batching",
     "excluded_object_count": 10,
@@ -1037,12 +1037,12 @@
     "provenance": {
       "blender_version": "4.0.2",
       "evaluated_source_blend": "art_source/torrent/torrent_hero_v1.blend",
-      "evaluated_source_blend_sha256": "fcfd51cc60962e53c52690d1262089f02d7b5a83d7d52f73a3f84e3c1c42c305",
-      "evaluated_source_semantic_sha256": "d5fe37d637b8d02fe955e466405f389b8211672000e33ba0e1a6a164dfc33e6f",
+      "evaluated_source_blend_sha256": "350cac9bb153e0c08d3a344c98bd89de016b600a9e408d116646c746adc3f591",
+      "evaluated_source_semantic_sha256": "1e5cb8c4d8906942c6825bc215b813707c4feed266af2a91463a2a95c8fcfc44",
       "generator": "tools/blender/generate_torrent_hero_v1.py",
-      "generator_sha256": "70e49e0d09fc6d79a2aab34fd4866ee808f0ca70d82498eb8b2b30256cdb6a01",
+      "generator_sha256": "221cd0f6a71431d595a969e3155e45cd7be363c1155b1bd25e36e81508121d16",
       "runtime_glb": "assets/models/torrent/hero/torrent_hero_art.glb",
-      "runtime_glb_sha256": "ef2276d4b07753136dcee0ddc808af4499e61126c2777963244c9cc0c10f8091"
+      "runtime_glb_sha256": "ea8d607034e109ad077b2714484232fac80d34b89f9830008d8fd7cc6095f743"
     },
     "roots_explicitly_out_of_scope": [
       "LOD1"
@@ -1082,8 +1082,8 @@
     "up": "+Y in Godot"
   },
   "generator": "tools/blender/generate_torrent_hero_v1.py",
-  "generator_sha256": "70e49e0d09fc6d79a2aab34fd4866ee808f0ca70d82498eb8b2b30256cdb6a01",
-  "glb_sha256": "ef2276d4b07753136dcee0ddc808af4499e61126c2777963244c9cc0c10f8091",
+  "generator_sha256": "221cd0f6a71431d595a969e3155e45cd7be363c1155b1bd25e36e81508121d16",
+  "glb_sha256": "ea8d607034e109ad077b2714484232fac80d34b89f9830008d8fd7cc6095f743",
   "material_roles": [
     "AmberPanel",
     "CrimsonLivery",
@@ -1117,14 +1117,14 @@
     ],
     "triplanar": false
   },
-  "mesh_triangles_after_static_batching_in_blender": 96198,
-  "mesh_triangles_before_modifier_application": 26462,
-  "mesh_triangles_evaluated_in_blender": 96198,
-  "mesh_triangles_exported_runtime": 96198,
-  "mesh_vertices_after_static_batching_in_blender": 48820,
-  "mesh_vertices_before_modifier_application": 13952,
-  "mesh_vertices_evaluated_in_blender": 48820,
-  "mesh_vertices_exported_runtime": 152276,
+  "mesh_triangles_after_static_batching_in_blender": 96842,
+  "mesh_triangles_before_modifier_application": 26498,
+  "mesh_triangles_evaluated_in_blender": 96842,
+  "mesh_triangles_exported_runtime": 96842,
+  "mesh_vertices_after_static_batching_in_blender": 49148,
+  "mesh_vertices_before_modifier_application": 13976,
+  "mesh_vertices_evaluated_in_blender": 49148,
+  "mesh_vertices_exported_runtime": 153596,
   "motion_or_geometry_source": "project_original_modern_interpretation",
   "runtime_binary_canonicalization": {
     "applied": true,
@@ -1528,7 +1528,7 @@
     ]
   },
   "schema_version": 1,
-  "source_semantic_sha256": "d5fe37d637b8d02fe955e466405f389b8211672000e33ba0e1a6a164dfc33e6f",
+  "source_semantic_sha256": "1e5cb8c4d8906942c6825bc215b813707c4feed266af2a91463a2a95c8fcfc44",
   "swept_plate_winding_contract": {
     "all_positive_outward_winding": true,
     "expected_object_count": 16,
@@ -1559,17 +1559,17 @@
     "degenerate_polygon_count": 0,
     "editable_source_handedness": "negative",
     "fallback_polygon_count": 4,
-    "loop_count": 49450,
+    "loop_count": 49522,
     "mesh_count": 316,
     "method": "dominant_root_normal_axis_sign_corrected_projection_v3",
-    "polygon_count": 11494,
+    "polygon_count": 11512,
     "projection_axis_polygon_counts": {
-      "X": 4436,
-      "Y": 3962,
-      "Z": 3096
+      "X": 4442,
+      "Y": 3968,
+      "Z": 3102
     },
     "projection_axis_tie_policy": "lowest_root_axis_index",
-    "reflected_polygon_count": 5606,
+    "reflected_polygon_count": 5615,
     "runtime_glTF_handedness": "positive_after_Blender_V_conversion",
     "texture_coordinate": "TEXCOORD_0"
   },
@@ -1577,12 +1577,12 @@
     "all_materials": {
       "degenerate_triangle_count": 180,
       "mirrored_surface_area_m2": 0.095264,
-      "mirrored_surface_ratio": 0.00016028,
+      "mirrored_surface_ratio": 0.000160639,
       "mirrored_triangle_count": 113,
-      "positive_surface_area_m2": 594.263773,
-      "positive_triangle_count": 95905,
-      "surface_area_m2": 594.359038,
-      "triangle_count": 96198
+      "positive_surface_area_m2": 592.93626,
+      "positive_triangle_count": 96549,
+      "surface_area_m2": 593.031525,
+      "triangle_count": 96842
     },
     "by_material": {
       "AmberPanel": {
@@ -1616,14 +1616,14 @@
         "triangle_count": 700
       },
       "CyanStatus": {
-        "degenerate_triangle_count": 0,
+        "degenerate_triangle_count": 24,
         "mirrored_surface_area_m2": 0.0,
         "mirrored_surface_ratio": 0.0,
         "mirrored_triangle_count": 0,
-        "positive_surface_area_m2": 5.064091,
-        "positive_triangle_count": 9156,
-        "surface_area_m2": 5.064091,
-        "triangle_count": 9156
+        "positive_surface_area_m2": 4.649798,
+        "positive_triangle_count": 9024,
+        "surface_area_m2": 4.649798,
+        "triangle_count": 9048
       },
       "ExposedAlloy": {
         "degenerate_triangle_count": 76,
@@ -1636,23 +1636,23 @@
         "triangle_count": 23952
       },
       "GraphiteMachinery": {
-        "degenerate_triangle_count": 24,
+        "degenerate_triangle_count": 0,
         "mirrored_surface_area_m2": 0.009551,
-        "mirrored_surface_ratio": 0.000138779,
+        "mirrored_surface_ratio": 0.000140645,
         "mirrored_triangle_count": 8,
-        "positive_surface_area_m2": 68.810222,
-        "positive_triangle_count": 19332,
-        "surface_area_m2": 68.819772,
-        "triangle_count": 19364
+        "positive_surface_area_m2": 67.897004,
+        "positive_triangle_count": 20108,
+        "surface_area_m2": 67.906554,
+        "triangle_count": 20116
       },
       "IvorySecondary": {
         "degenerate_triangle_count": 0,
         "mirrored_surface_area_m2": 0.000111,
         "mirrored_surface_ratio": 8.52e-07,
         "mirrored_triangle_count": 2,
-        "positive_surface_area_m2": 130.344474,
+        "positive_surface_area_m2": 130.344472,
         "positive_triangle_count": 18458,
-        "surface_area_m2": 130.344585,
+        "surface_area_m2": 130.344583,
         "triangle_count": 18460
       },
       "NeutralCanopyGlass": {
@@ -1695,9 +1695,9 @@
       "mirrored_surface_area_m2": 0.000111,
       "mirrored_surface_ratio": 2.45e-07,
       "mirrored_triangle_count": 2,
-      "positive_surface_area_m2": 452.565463,
+      "positive_surface_area_m2": 452.565461,
       "positive_triangle_count": 24598,
-      "surface_area_m2": 452.565574,
+      "surface_area_m2": 452.565572,
       "triangle_count": 24600
     },
     "textured_roles": [

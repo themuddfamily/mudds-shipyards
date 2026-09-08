@@ -89,7 +89,7 @@ EXPECTED_RUNTIME_MESH_COUNTS = {
     "CanopyPivot": 3,
     "SemanticAnchors": 0,
 }
-EXPECTED_RUNTIME_TRIANGLES = 96_198
+EXPECTED_RUNTIME_TRIANGLES = 96_842
 RUNTIME_MESH_INSTANCE_BUDGET = 36
 SOURCE_MESH_INSTANCE_BUDGET = 320
 CLOSE_TRIANGLE_RANGE = (70_000, 90_000)
@@ -1050,14 +1050,24 @@ def build_lod0(collection):
                          (side*.08,2.20,-.30), .026, cockpit_collection,alloy,16,.008)
     box("HarnessBuckle", (0,2.22,-.26), (.16,.08,.12), cockpit_collection,alloy,.020)
 
-    tapered_box("InstrumentHood", cockpit_collection, graphite, -1.75, -1.06,
-                (.66,.13), (.82,.19), 2.70, .065)
+    # The screen faces the pilot along +Z. Keep its supporting hood behind
+    # the tilted face; the old solid hood extended through the pilot sightline.
+    tapered_box("InstrumentHood", cockpit_collection, graphite, -1.94, -1.58,
+                (.66,.13), (.82,.19), 2.70, .040)
     tapered_box("InstrumentBinnacle", cockpit_collection, ivory2, -1.82, -1.00,
-                (.78,.18), (.91,.24), 2.55, .060)
-    box("PrimaryDisplay", (0,2.72,-1.55), (.74,.25,.025), cockpit_collection,cyan,.012,
+                (.78,.18), (.91,.24), 2.38, .060)
+    box("PrimaryDisplay", (0,2.72,-1.55), (.74,.25,.025), cockpit_collection,graphite,.012,
         rotation=(math.radians(-16),0,0))
-    box("PrimaryDisplayBezel", (0,2.70,-1.54), (.94,.34,.045),
-        cockpit_collection,graphite,.025,rotation=(math.radians(-16),0,0))
+    # Four fitted rails leave a real aperture around the .74 x .25 display.
+    # Build in screen-local coordinates so the opening follows its exact tilt.
+    bezel = compound_boxes("PrimaryDisplayBezel", [
+        ((0, .1525, 0), (.94, .035, .045)),
+        ((0, -.1525, 0), (.94, .035, .045)),
+        ((-.4275, 0, 0), (.085, .27, .045)),
+        ((.4275, 0, 0), (.085, .27, .045)),
+    ], cockpit_collection, graphite, .008)
+    bezel.location = (0, 2.72, -1.55)
+    bezel.rotation_euler = (math.radians(-16), 0, 0)
     for side in (-1, 1):
         s = "Port" if side < 0 else "Starboard"
         box(f"{s}StatusDisplay", (side*.58,2.69,-1.45), (.28,.18,.022),
@@ -1066,7 +1076,7 @@ def build_lod0(collection):
             ((side*(.46+repeater*.11),2.82,-1.31),(.065,.035,.018))
             for repeater in range(3)
         ],cockpit_collection,cyan,.006)
-    box("WarningStatusRegion", (0,2.84,-1.32), (.32,.035,.018),
+    box("WarningStatusRegion", (0,2.866,-1.563), (.32,.015,.010),
         cockpit_collection,cyan,.006,rotation=(math.radians(-16),0,0))
 
     tapered_box("PortConsole", cockpit_collection, graphite, -1.48, .18,

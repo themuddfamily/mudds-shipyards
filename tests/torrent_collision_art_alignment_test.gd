@@ -116,7 +116,7 @@ func _test_provenance(manifest: Dictionary, alignment: Dictionary) -> void:
 	var semantic_hash := str(manifest.get("source_semantic_sha256", ""))
 	_check(semantic_hash.length() == 64 and semantic_hash.is_valid_hex_number(false), "manifest publishes a canonical 256-bit editable-source semantic digest")
 	_check(str(provenance.get("evaluated_source_semantic_sha256", "")) == semantic_hash, "coverage provenance and source-preservation contract share the exact semantic digest")
-	_check(int(manifest.get("mesh_triangles_evaluated_in_blender", 0)) == 96198 and int(manifest.get("mesh_triangles_exported_runtime", -1)) == 96198, "collision proof preserves the exact 96,198-triangle source/runtime contract")
+	_check(int(manifest.get("mesh_triangles_evaluated_in_blender", 0)) == 96842 and int(manifest.get("mesh_triangles_exported_runtime", -1)) == 96842, "collision proof preserves the exact 96,842-triangle source/runtime contract")
 	var batching := manifest.get("runtime_static_batching", {}) as Dictionary
 	_check(int(batching.get("source_mesh_count_total", 0)) == 316 and int(batching.get("runtime_mesh_count_total", 0)) == 32, "collision proof preserves 316 editable semantic meshes and the 32-node runtime budget")
 	var protected := batching.get("protected_meshes_by_root", {}) as Dictionary
@@ -185,7 +185,7 @@ func _test_evaluated_coverage(manifest: Dictionary, alignment: Dictionary) -> vo
 		"primary, propulsion, and parked-gear categories form an exact one-to-one source partition"
 	)
 
-	_check(int(primary_hull.get("object_count", -1)) == 216 and int(primary_hull.get("evaluated_vertex_count", -1)) == 26323, "primary hull audits 216 objects and 26,323 evaluated vertices")
+	_check(int(primary_hull.get("object_count", -1)) == 216 and int(primary_hull.get("evaluated_vertex_count", -1)) == 26651, "primary hull audits 216 objects and 26,651 evaluated vertices")
 	_check(int(propulsion.get("object_count", -1)) == 36 and int(propulsion.get("evaluated_vertex_count", -1)) == 11904, "propulsion audits 36 objects and 11,904 evaluated vertices")
 	_check(int(parked_gear.get("object_count", -1)) == 34 and int(parked_gear.get("evaluated_vertex_count", -1)) == 4796, "parked gear audits 34 objects and 4,796 evaluated vertices")
 	_check(int(primary_hull.get("uncovered_vertex_count", -1)) == 6 and is_equal_approx(float(primary_hull.get("maximum_uncovered_distance_m", -1.0)), 0.002207518), "primary-hull maximum uncovered distance is the measured 2.21 mm")
@@ -213,7 +213,7 @@ func _test_evaluated_coverage(manifest: Dictionary, alignment: Dictionary) -> vo
 	var independently_valid := (
 		is_equal_approx(tolerance, 0.02)
 		and category_object_sum == 286
-		and category_vertex_sum == 43023
+		and category_vertex_sum == 43351
 		and category_over_sum == 0
 		and (alignment.get("objects_over_tolerance", []) as Array).is_empty()
 		and category_maximum <= tolerance + COVERAGE_EPSILON_M
@@ -225,7 +225,7 @@ func _test_evaluated_coverage(manifest: Dictionary, alignment: Dictionary) -> vo
 	var published_checks := self_audit.get("checks", {}) as Dictionary
 	var independently_derived_checks := {
 		"exact_source_roster_accounted_for": source_names.size() == 296 and expected_included.size() + exclusion_names.size() == source_names.size(),
-		"category_partition_is_complete": category_object_sum == 286 and category_vertex_sum == 43023 and _unique_strings(category_partition) == expected_included,
+		"category_partition_is_complete": category_object_sum == 286 and category_vertex_sum == 43351 and _unique_strings(category_partition) == expected_included,
 		"category_totals_match_overall": category_object_sum == int(alignment.get("included_object_count", -1)) and category_vertex_sum == int(alignment.get("evaluated_vertex_count", -1)) and category_over_sum == int(alignment.get("vertices_over_tolerance", -1)),
 		"maximum_matches_category_maximum": is_equal_approx(category_maximum, float(alignment.get("maximum_uncovered_distance_m", -1.0))),
 		"no_evaluated_vertex_exceeds_tolerance": category_over_sum == 0 and (alignment.get("objects_over_tolerance", []) as Array).is_empty(),
