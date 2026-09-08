@@ -758,7 +758,11 @@ func _test_real_scheduler_complete_loop() -> void:
 	if not returned_to_pad:
 		await _cleanup(world)
 		return
-	_check(await _walk_return(fixture), "real Player returns to the exact BoardingArea")
+	var returned_to_boarding := await _walk_return(fixture)
+	_check(returned_to_boarding, "real Player returns to the exact BoardingArea")
+	if not returned_to_boarding:
+		await _cleanup(world)
+		return
 	_check(
 		early.journey_cadence_samples > 100
 			and int(early.journey_flow.get("_ember_surface_caller_serial"))
@@ -1258,6 +1262,10 @@ func _walk_until(fixture: Dictionary, action: StringName, reached: Callable, bud
 		if budget >= 750 and _index % 120 == 0:
 			print("Ember walk: action=", action, " step=", _index, " position=", landing.to_local(player.global_position), " phase=", (fixture.host as EmberSurfaceLoopHost).get_phase())
 		if is_instance_valid(_active_production) and _active_production.get_state() == EmberSurfaceLoopProductionBinding.State.FAILED:
+			print("Ember walk rejected: action=", action, " step=", _index,
+				" position=", landing.to_local(player.global_position),
+				" on_floor=", player.is_on_floor(),
+				" reason=", _active_production.get_snapshot().last_late_result.get("reason", &""))
 			Input.action_release(action)
 			return false
 		await _one_physics()
@@ -1297,7 +1305,8 @@ func _consume_origin(
 
 
 func _one_physics(expect_late_completion: bool = true) -> void:
-	if expect_late_completion and is_instance_valid(_active_production):
+	if expect_late_completion and is_instance_valid(_active_production) \
+			and _active_production.get_state() != EmberSurfaceLoopProductionBinding.State.FAILED:
 		await _active_production.state_changed
 		return
 	await physics_frame
