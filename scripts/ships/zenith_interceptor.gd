@@ -3753,7 +3753,9 @@ func _build_modern_airframe(visual: Node3D) -> void:
 		_box(airframe, prefix + "MuzzleLens", Vector3(side * 1.25, 0.34, -4.247), Vector3(0.22, 0.16, 0.022), dark)
 		_build_segmented_exhaust(airframe, prefix, Vector3(side * 2.20, 0.38, 4.08), dark, panel)
 
-	_cut_pressure_panel(airframe.get_node("BlendedPressureHull"), "ReplaceableNoseRadome", 0, 7, 1, 15, panel)
+	# The tip is only 35 mm wide: a standard 45 mm panel recess folds its
+	# triangles through the centreline. Keep this radome seam within the skin.
+	_cut_pressure_panel(airframe.get_node("BlendedPressureHull"), "ReplaceableNoseRadome", 0, 7, 1, 15, panel, 0.008)
 	_cut_pressure_panel(airframe.get_node("BlendedPressureHull"), "PortDorsalServicePanel", 16, 22, 11, 15, panel)
 	_cut_pressure_panel(airframe.get_node("BlendedPressureHull"), "StarboardDorsalServicePanel", 16, 22, 1, 5, panel)
 	_cut_pressure_panel(airframe.get_node("BlendedPressureHull"), "DorsalThermalPanel", 22, 28, 6, 10, dark)
