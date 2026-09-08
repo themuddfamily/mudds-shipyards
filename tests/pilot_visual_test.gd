@@ -864,6 +864,24 @@ func _test_motion_authority_intrusion_recovery(
 	var imported := presentation.get_animation_player()
 	var skeleton := presentation.get_skeleton()
 	var legacy := player.get_node("MotionAnimationPlayer") as AnimationPlayer
+	var visual_mount := player.get_node("VisualRoot") as Node3D
+	var body_mount := player.get_node("VisualRoot/BodyPivot") as Node3D
+	visual_mount.position.x = 0.0000001
+	presentation.position.z = 0.0000001
+	body_mount.position.y = 0.0000001
+	_check(
+		bool(player.call("_ensure_motion_authority"))
+		and visual_mount.transform == Transform3D.IDENTITY
+		and presentation.transform == Transform3D.IDENTITY
+		and body_mount.position == Vector3.ZERO,
+		"the motion hot path still exactly repairs mount drift below approximate audit tolerance"
+	)
+	body_mount.rotation.y += 0.25
+	_check(
+		bool(player.call("_ensure_motion_authority"))
+		and body_mount.rotation == Vector3(0.0, player.call("_get_body_pivot_target_yaw"), 0.0),
+		"the motion hot path restores the controller-owned facing yaw before returning"
+	)
 	var sibling := AnimationPlayer.new()
 	sibling.name = "InjectedPilotAnimationAuthority"
 	var injected_library := AnimationLibrary.new()
@@ -1021,6 +1039,24 @@ func _test_motion_authority_intrusion_recovery(
 		and player.validate_pilot_motion_authority()
 		and legacy.get_animation(&"idle").value_track_get_update_mode(0) == stable_update_mode,
 		"legacy recovery trust pins behaviorally relevant update modes and restores drift"
+	)
+	var precise_legacy_idle := legacy.get_animation(&"idle")
+	var precise_key_time := precise_legacy_idle.track_get_key_time(0, 1)
+	precise_legacy_idle.track_set_key_time(0, 1, precise_key_time + 0.0000000001)
+	_check(
+		not bool(player.get_pilot_motion_audit().get("legacy_library_trusted", true))
+		and player.validate_pilot_motion_authority()
+		and legacy.get_animation(&"idle").track_get_key_time(0, 1) == precise_key_time,
+		"legacy recovery detects and repairs key-time edits below float32 precision"
+	)
+	var wrapped_legacy_idle := legacy.get_animation(&"idle")
+	var stable_loop_wrap := wrapped_legacy_idle.track_get_interpolation_loop_wrap(0)
+	wrapped_legacy_idle.track_set_interpolation_loop_wrap(0, not stable_loop_wrap)
+	_check(
+		not bool(player.get_pilot_motion_audit().get("legacy_library_trusted", true))
+		and player.validate_pilot_motion_authority()
+		and legacy.get_animation(&"idle").track_get_interpolation_loop_wrap(0) == stable_loop_wrap,
+		"legacy recovery detects and repairs silent interpolation loop-wrap edits"
 	)
 	imported.speed_scale = 0.0
 	var zero_rate_repaired := player.validate_pilot_motion_authority()

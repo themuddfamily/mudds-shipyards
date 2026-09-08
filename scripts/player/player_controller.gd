@@ -2033,6 +2033,29 @@ func _ensure_motion_authority(run_integrity_probe: bool = false) -> bool:
 	if _ensuring_motion_authority:
 		return _motion_animation_player != null and is_instance_valid(_motion_animation_player)
 	_ensuring_motion_authority = true
+	# A healthy imported driver needs no writes. Recheck its complete authority
+	# contract on every call, but avoid stop()/mount setters and a second legacy
+	# audit when all state those setters would restore is already exact.
+	if (
+		_using_imported_pilot_presentation
+		and _imported_mount_contract_is_live()
+		and is_finite(_target_body_yaw)
+		and _visual_root.transform == Transform3D.IDENTITY
+		and _body_pivot.position == Vector3.ZERO
+		and _body_pivot.scale == Vector3.ONE
+		and _body_pivot.rotation == Vector3(0.0, _get_body_pivot_target_yaw(), 0.0)
+		and _pilot_presentation.transform == Transform3D.IDENTITY
+		and _imported_motion_authority_is_healthy()
+	):
+		var imported_healthy := true
+		if run_integrity_probe:
+			var asset_audit := _pilot_presentation.get_asset_audit_report(false)
+			imported_healthy = bool(asset_audit.get("valid", false))
+			if not imported_healthy:
+				_imported_presentation_rejected = true
+				imported_healthy = _select_fallback_motion_authority()
+		_ensuring_motion_authority = false
+		return imported_healthy
 	_repair_pilot_mount_contract()
 	_quarantine_unexpected_animation_players()
 	var healthy := false
