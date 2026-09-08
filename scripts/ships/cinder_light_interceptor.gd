@@ -1010,8 +1010,9 @@ func _loft_mesh(size: Vector3, material: Material) -> ArrayMesh:
 			section[corner].y * size.y * 0.5 * depth,
 			lerpf(-size.z * 0.5, size.z * 0.5, progress)
 		)
-	# Split shading at the manufactured folds. A shared smooth normal across
-	# an entire broad plate makes even planar geometry read as inflated plastic.
+	# The tapered chamfers are bilinear patches: width and height change at
+	# different rates, so each quad is twisted. Analytic patch normals avoid
+	# diagonal-weighted light fans while retaining the actual profile folds.
 	var indices: PackedInt32Array = arrays[Mesh.ARRAY_INDEX]
 	var surface := SurfaceTool.new()
 	surface.begin(Mesh.PRIMITIVE_TRIANGLES)
@@ -1020,23 +1021,48 @@ func _loft_mesh(size: Vector3, material: Material) -> ArrayMesh:
 		var a := points[indices[triangle]]
 		var b := points[indices[triangle + 1]]
 		var c := points[indices[triangle + 2]]
-		var normal := (c - a).cross(b - a).normalized()
-		var rings := []
+		var face_normal := (c - a).cross(b - a).normalized()
+		var is_cap := absf(face_normal.z) > 0.999
+		var rings: Array[int] = []
+		var first_t := 1.0
+		var last_t := 0.0
 		for corner in 3:
-			rings.append(roundi(uv[indices[triangle + corner]].x * 16.0) % 16)
+			var coordinate := uv[indices[triangle + corner]]
+			rings.append(roundi(coordinate.x * 16.0) % 16)
+			first_t = minf(first_t, coordinate.y)
+			last_t = maxf(last_t, coordinate.y)
 		rings.sort()
-		var edge: int = rings[0]
-		if rings[2] - rings[0] > 8:
-			edge = 15
-		var groups := [0, 1, 2, 2, 2, 2, 3, 4, 4, 5, 6, 6, 6, 6, 7, 0]
-		var group: int = groups[edge] if absf(normal.z) < 0.999 else 8
-		surface.set_smooth_group(group)
+		var edge := 15 if rings[2] - rings[0] > 8 else rings[0]
+		var edge_direction := section[(edge + 1) % 16] - section[edge]
+		var extents: Array[Vector2] = []
+		for t in [first_t, last_t]:
+			var width := minf(1.0, lerpf(0.12, 1.0, t / 0.43))
+			var height := minf(1.0, lerpf(0.35, 1.0, t / 0.28))
+			if t > 0.83:
+				width = lerpf(1.0, 0.9, (t - 0.83) / 0.17)
+				height = lerpf(1.0, 0.8, (t - 0.83) / 0.17)
+			extents.append(Vector2(width * size.x * 0.5, height * size.y * 0.5))
+		var extent_delta := extents[1] - extents[0]
 		for corner in 3:
 			var vertex_index := indices[triangle + corner]
+			var texture_uv := uv[vertex_index]
+			var normal := face_normal
+			if is_cap:
+				# Station UVs collapse each end cap to a line. Project the cap
+				# on XY so its tangent and normal-map sampling remain defined.
+				texture_uv = Vector2(points[vertex_index].x / size.x, points[vertex_index].y / size.y) + Vector2.ONE * 0.5
+			else:
+				var ring := roundi(texture_uv.x * 16.0) % 16
+				var extent := extents[0] if is_equal_approx(texture_uv.y, first_t) else extents[1]
+				var around := Vector3(edge_direction.x * extent.x, edge_direction.y * extent.y, 0)
+				var along := Vector3(section[ring].x * extent_delta.x, section[ring].y * extent_delta.y, size.z * (last_t - first_t))
+				normal = along.cross(around).normalized()
+				# Duplicate U=0 as U=1 on the final wrapped sidewall strip.
+				if edge == 15 and ring == 0:
+					texture_uv.x = 1.0
 			surface.set_normal(normal)
-			surface.set_uv(uv[vertex_index])
+			surface.set_uv(texture_uv)
 			surface.add_vertex(points[vertex_index])
-	surface.generate_normals()
 	surface.generate_tangents()
 	var result := surface.commit()
 	scratch.free()
