@@ -33,6 +33,7 @@ func _run() -> void:
 	await _check_world_signs()
 	_check_world_size_is_preserved()
 	_check_sweep_is_idempotent()
+	_check_apply_only_geometry_parity()
 	_finish()
 
 
@@ -160,6 +161,73 @@ func _check_sweep_is_idempotent() -> void:
 		"a second sweep is a no-op rather than a further reduction"
 	)
 	holder.free()
+
+
+func _check_apply_only_geometry_parity() -> void:
+	for already_budgeted in [false, true]:
+		var measured := _sign_parity_fixture(already_budgeted)
+		var applied := _sign_parity_fixture(already_budgeted)
+		var report := SignGeometryBudget.normalise_tree(measured)
+		SignGeometryBudget.apply_tree(applied)
+		var measured_signs: Array[MeshInstance3D] = []
+		var applied_signs: Array[MeshInstance3D] = []
+		_collect_signs(measured, measured_signs)
+		_collect_signs(applied, applied_signs)
+		_check(int(report.signs) == 3 and measured_signs.size() == applied_signs.size(),
+			"both sweep paths include the root sign, nested sign and shared-mesh copy")
+		for index in measured_signs.size():
+			var expected := measured_signs[index].mesh as TextMesh
+			var actual := applied_signs[index].mesh as TextMesh
+			_check(expected.text == actual.text and expected.font_size == actual.font_size
+				and expected.pixel_size == actual.pixel_size and expected.depth == actual.depth
+				and expected.horizontal_alignment == actual.horizontal_alignment
+				and expected.vertical_alignment == actual.vertical_alignment
+				and measured_signs[index].transform == applied_signs[index].transform
+				and expected.get_aabb() == actual.get_aabb(),
+				"apply-only retains exact measured sign properties, transform and final bounds")
+			var arrays_match := expected.get_surface_count() == actual.get_surface_count()
+			for surface in expected.get_surface_count():
+				arrays_match = arrays_match and expected.surface_get_arrays(surface) == actual.surface_get_arrays(surface)
+			_check(arrays_match, "apply-only emits identical final surface arrays")
+		var repeated := SignGeometryBudget.normalise_tree(applied)
+		SignGeometryBudget.apply_tree(applied)
+		_check(int(repeated.triangles_before) == int(report.triangles_after)
+			and int(repeated.triangles_after) == int(report.triangles_after),
+			"apply-only preserves report semantics and is idempotent on budgeted geometry")
+		measured.free()
+		applied.free()
+
+
+func _sign_parity_fixture(already_budgeted: bool) -> MeshInstance3D:
+	var holder := MeshInstance3D.new()
+	var root_mesh := TextMesh.new()
+	root_mesh.text = "MUDDS  //  REGENERATION DECK"
+	root_mesh.font_size = 64
+	root_mesh.pixel_size = 0.012
+	root_mesh.depth = 0.025
+	holder.mesh = root_mesh
+	holder.scale = Vector3.ONE * 0.4
+	var nested := MeshInstance3D.new()
+	var nested_mesh := TextMesh.new()
+	nested_mesh.text = "CINDER REACH\nDOCK GATE"
+	nested_mesh.font_size = 32
+	nested_mesh.pixel_size = 0.018
+	nested_mesh.depth = 0.03
+	nested_mesh.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+	nested_mesh.vertical_alignment = VERTICAL_ALIGNMENT_BOTTOM
+	nested.mesh = nested_mesh
+	nested.position = Vector3(1.0, 2.0, 3.0)
+	holder.add_child(nested)
+	var shared := MeshInstance3D.new()
+	shared.mesh = nested_mesh
+	nested.add_child(shared)
+	var non_sign := MeshInstance3D.new()
+	non_sign.mesh = BoxMesh.new()
+	holder.add_child(non_sign)
+	if already_budgeted:
+		SignGeometryBudget.apply(root_mesh, root_mesh.font_size * root_mesh.pixel_size)
+		SignGeometryBudget.apply(nested_mesh, nested_mesh.font_size * nested_mesh.pixel_size)
+	return holder
 
 
 func _collect_signs(node: Node, into: Array[MeshInstance3D]) -> void:

@@ -1488,7 +1488,8 @@ func _is_staged_run_current(generation: int) -> bool:
 ## position and rotation are untouched, so MAP-004 sign facing and the
 ## colourblind-safe cue palette cannot be affected by it.
 func _apply_sign_geometry_budget() -> void:
-	SignGeometryBudget.normalise_tree(self)
+	# Apply without tessellating old lettering for an unused triangle report.
+	SignGeometryBudget.apply_tree(self)
 	_finalize_guide_lens_batches()
 
 

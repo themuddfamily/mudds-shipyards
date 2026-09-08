@@ -145,23 +145,31 @@ static func normalise_tree(node: Node) -> Dictionary:
 	return report
 
 
-static func _normalise_into(node: Node, report: Dictionary) -> void:
+## Applies the same tree budget without measuring triangle savings. Production
+## callers that discard the report should not force the old, extruded meshes
+## to tessellate just to count geometry that is about to be replaced.
+static func apply_tree(node: Node) -> void:
+	_normalise_into(node, {}, false)
+
+
+static func _normalise_into(node: Node, report: Dictionary, collect_triangles := true) -> void:
 	var instance := node as MeshInstance3D
 	if instance != null:
 		var mesh := instance.mesh as TextMesh
 		if mesh != null:
-			var before := triangles_of(mesh)
+			var before := triangles_of(mesh) if collect_triangles else 0
 			var already_budgeted := mesh.font_size == FONT_SIZE and is_equal_approx(mesh.depth, DEPTH)
 			if not already_budgeted:
 				# Preserve whatever em-height this sign was authored at, so a
 				# module that deliberately letters larger or smaller keeps its
 				# world size to the millimetre.
 				apply(mesh, float(mesh.font_size) * mesh.pixel_size)
-			report["signs"] = int(report["signs"]) + 1
-			report["triangles_before"] = int(report["triangles_before"]) + before
-			report["triangles_after"] = int(report["triangles_after"]) + triangles_of(mesh)
+			if collect_triangles:
+				report["signs"] = int(report["signs"]) + 1
+				report["triangles_before"] = int(report["triangles_before"]) + before
+				report["triangles_after"] = int(report["triangles_after"]) + triangles_of(mesh)
 	for child in node.get_children():
-		_normalise_into(child, report)
+		_normalise_into(child, report, collect_triangles)
 
 
 ## Triangle count of a mesh, read from its surface arrays.
