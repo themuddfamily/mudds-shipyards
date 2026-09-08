@@ -335,6 +335,8 @@ class CinderNavigatorInteraction:
 		_avatar_id = &""
 		_claim_request_sequence = -1
 
+static var _shared_engine_exhaust_mesh: ArrayMesh
+
 var _cargo_cockpit_seat: Marker3D
 var _cargo_boarding_marker: Marker3D
 var _cargo_shoulders: MultiMeshInstance3D
@@ -497,6 +499,7 @@ func _build_cargo_variant(_controller: HeroShip) -> bool:
 	visual.set_meta(&"geometry_status", EVIDENCE_STATUS)
 	visual.set_meta(&"historically_supported", false)
 	_build_hull(visual)
+	_build_engine_exhaust(visual)
 	_cargo_boarding_marker = Marker3D.new()
 	_cargo_boarding_marker.name = "CargoBoardingMarker"
 	_cargo_boarding_marker.position = Vector3(-3.4, -1.1, 0.0)
@@ -2011,3 +2014,34 @@ func _engine_mechanics(parent: Node3D, tag: String, at: Vector3, radius: float, 
 func _deck_plate(parent: Node3D, tag: String, at: Vector3, width: float, length: float, paint: Material, gasket: Material) -> void:
 	_box(parent, tag + "Gasket", at, Vector3(width, 0.028, length), gasket)
 	_box(parent, tag + "Panel", at + Vector3(0, 0.022, 0), Vector3(width - 0.06, 0.032, length - 0.06), paint)
+
+
+## Add the missing propulsion presentation at this hull's nozzle mouths. The
+## envelope is baked along local +Z with its base at zero, so HeroShip's axial
+## throttle/damage scaling cannot widen the plume or pull it out of its mount.
+func _build_engine_exhaust(visual: Node3D) -> void:
+	var radius := 0.64
+	var nozzle := Vector3(3.75, 0.4, 6.59)
+	if _shared_engine_exhaust_mesh == null:
+		var envelope := CylinderMesh.new()
+		envelope.bottom_radius = radius * 0.78
+		envelope.top_radius = radius * 0.18
+		envelope.height = radius * 2.8
+		envelope.radial_segments = 24
+		var surface := SurfaceTool.new()
+		surface.append_from(envelope, 0, Transform3D(
+			Basis(Vector3.RIGHT, PI * 0.5), Vector3(0.0, 0.0, envelope.height * 0.5)
+		))
+		_shared_engine_exhaust_mesh = surface.commit()
+	for index in 2:
+		var side := -1.0 if index == 0 else 1.0
+		var mouth := Vector3(nozzle.x * side, nozzle.y, nozzle.z + radius * 0.05)
+		var plume := MeshInstance3D.new()
+		plume.name = ("Port" if index == 0 else "Starboard") + "EnginePlume"
+		plume.transform = Transform3D(Basis.IDENTITY, mouth)
+		plume.mesh = _shared_engine_exhaust_mesh
+		plume.visible = false
+		visual.add_child(plume)
+		_engine_glows.append(plume)
+		EngineExhaustPresentation.install(plume, Vector3.BACK)
+	_sync_engine_visuals_immediately()
