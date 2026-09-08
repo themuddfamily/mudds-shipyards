@@ -993,6 +993,20 @@ func _test_cargo_frame_joint_allocation(jovian: JovianLightFreighter) -> void:
 
 
 func _test_scale_handling_and_presentation(jovian: JovianLightFreighter) -> void:
+	# Mixing indexed torus stock once dropped the earlier unindexed fittings.
+	# Retain both their intended finish and actually drawn forward triangles.
+	for finish in ["dark", "structure"]:
+		var fitted := jovian.get_jovian_visual_root().get_node_or_null(
+			"FreighterServiceFittings" + finish.capitalize()) as MeshInstance3D
+		_check(fitted != null and fitted.get_active_material(0) == jovian.get_variant_materials()[finish],
+			"merged engine and service fittings retain their %s finish" % finish)
+		var has_forward_fittings := false
+		if fitted != null:
+			for vertex in fitted.mesh.get_faces():
+				if vertex.z < 0.0:
+					has_forward_fittings = true
+					break
+		_check(has_forward_fittings, "appending engine rings preserves drawn forward %s fittings" % finish)
 	var torrent := TORRENT_SCENE.instantiate() as HeroShip
 	var arrow := ARROW_SCENE.instantiate() as ArrowReconShip
 	_test_root.add_child(torrent)

@@ -337,16 +337,18 @@ const CREW_SEAT_BACK_COPY_COUNT := 6
 ## every traversal and occupancy fact; the four visible posts share one batch.
 const CABIN_PORTAL_UPRIGHT_SIZE := Vector3(0.18, 2.80, 0.22)
 const CABIN_PORTAL_UPRIGHT_COPY_COUNT := 4
-const RENDER_DESCENDANT_COUNT := 120
-const RENDER_MESH_INSTANCE_COUNT := 106
+# Four merged finish meshes contain the fitted shell closures, access supports
+# and engine hardware; cabin fittings remain on the moving interior root.
+const RENDER_DESCENDANT_COUNT := 124
+const RENDER_MESH_INSTANCE_COUNT := 110
 const RENDER_MULTIMESH_BATCH_COUNT := 9
-const RENDER_DRAWN_COPY_COUNT := 192
-const RENDER_GEOMETRY_SUBMISSION_COUNT := 115
+const RENDER_DRAWN_COPY_COUNT := 196
+const RENDER_GEOMETRY_SUBMISSION_COUNT := 119
 # NoseBelly now clears the deck using the same 4.30 x 0.36 x 2.40 stock as
 # NoseRoof; material overrides keep their finishes distinct while the cache
 # deliberately shares that mesh resource.
-const RENDER_UNIQUE_MESH_RESOURCE_COUNT := 79
-const RENDER_UNIQUE_MATERIAL_RESOURCE_COUNT := 16
+const RENDER_UNIQUE_MESH_RESOURCE_COUNT := 83
+const RENDER_UNIQUE_MATERIAL_RESOURCE_COUNT := 17
 
 var _halyard_built := false
 var _halyard_visual: Node3D
@@ -2547,6 +2549,7 @@ func _build_halyard_variant(_controller: HeroShip) -> bool:
 	_build_flank_detail()
 	_build_connected_interior()
 	_build_propulsion_and_gear()
+	_build_fitted_transport_details()
 	_replace_collision_and_markers()
 	_bind_optional_interior_frame()
 	if not replace_variant_visual_root(_halyard_visual):
@@ -3009,7 +3012,7 @@ func _build_flank_detail() -> void:
 					tread_centre + Vector3(-0.20, 0.085, 0.0)
 				))
 				airstair_nosing_names.append("AirstairNosing%02d" % tread_index)
-			_box(_halyard_visual, "AirstairStringer", Vector3(-3.60, -0.36, AIRSTAIR_Z), Vector3(2.00, 0.16, 0.14), _halyard_materials.structure, Vector3(0.0, 0.0, deg_to_rad(-46.0)))
+			_box(_halyard_visual, "AirstairStringer", Vector3(-3.49, -0.48, AIRSTAIR_Z), Vector3(1.82, 0.10, 0.14), _halyard_materials.structure, Vector3(0.0, 0.0, deg_to_rad(46.0)))
 			_port_aperture_box(
 				_halyard_visual,
 				"AirstairHatchSurround",
@@ -4736,3 +4739,112 @@ func _cast_arch_segment_mesh() -> ArrayMesh:
 		_skin_quad(tool, front, rings[0][next], rings[0][edge], front)
 		_skin_quad(tool, aft, rings[12][edge], rings[12][next], aft)
 	return tool.commit()
+
+
+func _build_fitted_transport_details() -> void:
+	var exterior := {}
+	# Pressure-bay seams wrap into the actual roof joints. Narrow sill drains
+	# and quarter-turn service closures explain how the passenger shell is built.
+	for side in [-1.0, 1.0]:
+		for seam_z in [-8.1, -3.9, 0.3, 4.5]:
+			if side < 0.0 and absf(seam_z - AIRSTAIR_Z) < 1.05:
+				continue
+			_fitout_stock(exterior, "hull_shade", Vector3(side * 2.625, 1.88, seam_z), Vector3(0.022, 2.72, 0.038))
+		for bay_z in [-7.0, -1.9, 2.3, 6.5]:
+			_fitout_stock(exterior, "dark", Vector3(side * 2.644, 1.38, bay_z), Vector3(0.045, 0.68, 1.24))
+			_fitout_stock(exterior, "hull_shade", Vector3(side * 2.674, 1.38, bay_z), Vector3(0.036, 0.62, 1.16))
+			_fitout_stock(exterior, "structure", Vector3(side * 2.70, 1.39, bay_z - 0.36), Vector3(0.033, 0.15, 0.075))
+			_fitout_stock(exterior, "trim", Vector3(side * 2.72, 1.39, bay_z - 0.36), Vector3(0.018, 0.045, 0.095))
+		# Inset cooling lamellae aft of the passenger pressure body.
+		_fitout_stock(exterior, "dark", Vector3(side * 2.166, 1.9, 8.85), Vector3(0.07, 1.20, 1.03))
+		for fin in 7:
+			_fitout_stock(exterior, "structure", Vector3(side * 2.21, 1.43 + fin * 0.15, 8.85), Vector3(0.075, 0.055, 0.95), Vector3(0, 0, side * 0.25))
+	# Boarding gear reads as an attached access assembly, with its actuators
+	# beneath the steps and a pressure-seal service track beside the aperture.
+	for edge_z in [AIRSTAIR_Z - 0.87, AIRSTAIR_Z + 0.87]:
+		_fitout_stock(exterior, "structure", Vector3(-3.49, -0.48, edge_z), Vector3(1.82, 0.10, 0.12), Vector3(0, 0, deg_to_rad(46.0)))
+	_fitout_stock(exterior, "hull_shade", Vector3(-2.71, 2.84, AIRSTAIR_Z + 0.93), Vector3(0.16, 0.16, 3.76))
+	_fitout_stock(exterior, "dark", Vector3(-2.81, 2.82, AIRSTAIR_Z + 0.93), Vector3(0.045, 0.052, 3.56))
+	for engine_x in [-3.75, -1.45, 1.45, 3.75]:
+		for ring_z in [11.57, 12.55]:
+			_fitout_ring(exterior, "dark", Vector3(engine_x, 1.55, ring_z), 0.77, 0.855)
+		_fitout_ring(exterior, "structure", Vector3(engine_x, 1.55, 13.43), 0.69, 0.88)
+		for fin in 12:
+			var angle := TAU * float(fin) / 12.0
+			_fitout_stock(exterior, "structure", Vector3(engine_x + sin(angle) * 0.803, 1.55 + cos(angle) * 0.803, 12.08), Vector3(0.075, 0.09, 0.76), Vector3(0, 0, -angle))
+	_finish_fitout(_halyard_visual, exterior, "PressureShellFittings")
+
+	var cabin := {}
+	# Flush luggage doors and small pull recesses replace uninterrupted trunks.
+	for side in [-1.0, 1.0]:
+		for door_z in [-7.95, -6.28, -4.61, -2.94]:
+			_fitout_stock(cabin, "trim", Vector3(side * 1.299, 2.985, door_z), Vector3(0.032, 0.39, 1.59))
+			_fitout_stock(cabin, "dark", Vector3(side * 1.274, 2.85, door_z), Vector3(0.025, 0.062, 0.32))
+			_fitout_stock(cabin, "liner", Vector3(side * 1.252, 2.84, door_z), Vector3(0.029, 0.024, 0.25))
+		for panel_z in [-8.7, -6.65, -2.55, -0.5, 1.55]:
+			if side < 0.0 and absf(panel_z - AIRSTAIR_Z) < 1.7:
+				continue
+			_fitout_stock(cabin, "dark", Vector3(side * 2.28, 0.72, panel_z), Vector3(0.026, 0.09, 1.83))
+			for vent in 6:
+				_fitout_stock(cabin, "trim", Vector3(side * 2.265, 0.72, panel_z - 0.67 + vent * 0.265), Vector3(0.025, 0.11, 0.025))
+		# Backshell inset is mechanically fitted to the existing reclined shell.
+		for seat_z in CREW_SEAT_ROWS:
+			var seat_at := Vector3(side * CREW_SEAT_HALF_SPACING, 0, seat_z)
+			_fitout_stock(cabin, "trim", seat_at + Vector3(0, 1.44, 0.668), Vector3(0.56, 0.55, 0.035), Vector3(0.14, 0, 0))
+			_fitout_stock(cabin, "dark", seat_at + Vector3(0, 1.66, 0.64), Vector3(0.17, 0.045, 0.035))
+			_fitout_stock(cabin, "cloth", seat_at + Vector3(0, 1.02, 0.73), Vector3(0.49, 0.15, 0.048))
+			_fitout_stock(cabin, "trim", seat_at + Vector3(0, 1.10, 0.765), Vector3(0.52, 0.028, 0.035))
+		# Recessed strip channel keeps the lamp from reading as a floating rod.
+		_fitout_stock(cabin, "dark", Vector3(side * 2.34, 3.21, -3.65), Vector3(0.10, 0.20, 11.68))
+	for bay_z in [-8.0, -5.85, -3.65, -1.48, 0.70]:
+		_fitout_stock(cabin, "trim", Vector3(0, 3.247, bay_z), Vector3(2.58, 0.018, 0.026))
+		_fitout_stock(cabin, "trim", Vector3(0, 0.505, bay_z), Vector3(4.65, 0.008, 0.022))
+	for light_z in [-8.0, -3.65, 0.70]:
+		_fitout_stock(cabin, "dark", Vector3(0, 3.235, light_z), Vector3(0.86, 0.035, 0.30))
+		_fitout_stock(cabin, "interior_light", Vector3(0, 3.208, light_z), Vector3(0.69, 0.025, 0.15))
+	_finish_fitout(_crew_cabin, cabin, "CabinFitout")
+
+
+# Fitted visual stock is merged by finish. The moving hull owns its transform;
+# gameplay seats, hatch, route markers and colliders retain their own authority.
+func _fitout_stock(batch: Dictionary, finish: String, at: Vector3, size: Vector3,
+		rotation_value := Vector3.ZERO) -> void:
+	if not batch.has(finish):
+		var tool := SurfaceTool.new()
+		tool.begin(Mesh.PRIMITIVE_TRIANGLES)
+		tool.set_material(_halyard_materials[finish])
+		batch[finish] = tool
+	var stock := StationSurfaceKit.rounded_box_mesh_cached(size, _box_mesh_cache)
+	(batch[finish] as SurfaceTool).append_from(stock, 0,
+		Transform3D(Basis.from_euler(rotation_value), at))
+
+
+func _finish_fitout(parent: Node3D, batch: Dictionary, prefix: String) -> void:
+	for finish: String in batch:
+		var visual := MeshInstance3D.new()
+		visual.name = prefix + finish.capitalize()
+		visual.mesh = (batch[finish] as SurfaceTool).commit()
+		visual.material_override = _halyard_materials[finish]
+		visual.set_meta("visual_detail_only", true)
+		parent.add_child(visual)
+
+
+func _fitout_ring(batch: Dictionary, finish: String, at: Vector3,
+		inside: float, outside: float) -> void:
+	if not batch.has(finish):
+		var tool := SurfaceTool.new()
+		tool.begin(Mesh.PRIMITIVE_TRIANGLES)
+		tool.set_material(_halyard_materials[finish])
+		batch[finish] = tool
+	var ring := TorusMesh.new()
+	ring.inner_radius = inside
+	ring.outer_radius = outside
+	ring.rings = 48
+	ring.ring_segments = 8
+	# Stock panels are unindexed; mixing indexed torus geometry into the same
+	# SurfaceTool leaves the earlier panels outside its index buffer.
+	var ring_stock := SurfaceTool.new()
+	ring_stock.create_from(ring, 0)
+	ring_stock.deindex()
+	(batch[finish] as SurfaceTool).append_from(ring_stock.commit(), 0,
+		Transform3D(Basis(Vector3.RIGHT, PI * 0.5), at))

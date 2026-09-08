@@ -1443,6 +1443,19 @@ func _test_in_flight_cabin(craft: HeroShip) -> void:
 
 func _test_surfacing(craft: HeroShip) -> void:
 	var materials := craft.get_variant_materials()
+	# Primitive rings must not replace the darker merged mechanical finish.
+	for finish in ["dark", "structure"]:
+		var fitted := craft.get_variant_visual_root().get_node_or_null(
+			"PressureShellFittings" + finish.capitalize()) as MeshInstance3D
+		_check(fitted != null and fitted.get_active_material(0) == materials[finish],
+			"merged engine and pressure-shell fittings retain the authored %s finish" % finish)
+		var has_forward_fittings := false
+		if fitted != null:
+			for vertex in fitted.mesh.get_faces():
+				if vertex.z < 0.0:
+					has_forward_fittings = true
+					break
+		_check(has_forward_fittings, "appending engine rings preserves drawn forward %s fittings" % finish)
 	var raw_primitives := PackedStringArray()
 	var untextured := PackedStringArray()
 	for node in craft.find_children("*", "MeshInstance3D", true, false):

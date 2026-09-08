@@ -295,6 +295,7 @@ const DEFENSIVE_TURRET_PART_SUFFIXES: Array[StringName] = [
 	&"DefensiveTurretMuzzleLens",
 ]
 
+var _fitout_mesh_cache: Dictionary = {}
 var _jovian_built := false
 var _jovian_visual: Node3D
 var _jovian_materials: Dictionary = {}
@@ -3187,6 +3188,7 @@ func _build_jovian_variant(_controller: HeroShip) -> bool:
 	_build_exterior()
 	_build_connected_interior()
 	_build_propulsion_and_gear()
+	_build_fitted_freighter_details()
 	_build_engine_damage_cue()
 	_replace_collision_and_markers()
 	_bind_optional_interior_frame()
@@ -4919,3 +4921,119 @@ func _armour_pod(parent: Node3D, node_name: String, origin: Vector3,
 	instance.set_meta("closed_loft_hull", true)
 	parent.add_child(instance)
 	return instance
+
+
+func _build_fitted_freighter_details() -> void:
+	var exterior := {}
+	# The shoulder service doors are fitted inside their existing dark bezels:
+	# perimeter reveals, hinge pins and a recessed pull replace blank blue tiles.
+	for side in [-1.0, 1.0]:
+		for panel_index in 4:
+			if side < 0.0 and panel_index == 2:
+				continue
+			var at := Vector3(side * 8.09, 2.12, -4.1 + panel_index * 3.75)
+			_fitout_stock(exterior, "hull_cool", at, Vector3(0.035, 1.20, 1.75))
+			_fitout_stock(exterior, "dark", at + Vector3(side * 0.025, 0, -0.54), Vector3(0.025, 0.26, 0.10))
+			_fitout_stock(exterior, "structure", at + Vector3(side * 0.045, 0, -0.54), Vector3(0.035, 0.14, 0.045))
+			for hinge_y in [-0.43, 0.43]:
+				_fitout_stock(exterior, "structure", at + Vector3(side * 0.025, hinge_y, 0.76), Vector3(0.065, 0.15, 0.085))
+			for seam_y in [0.84, -0.86]:
+				_fitout_stock(exterior, "structure", at + Vector3(-side * 0.045, seam_y, 0), Vector3(0.024, 0.025, 2.42))
+		# A structural apron meets the pressure glazing instead of ending in air.
+		_fitout_stock(exterior, "structure", Vector3(side * 2.8, 0.77, -9.48), Vector3(0.15, 0.12, 3.9), Vector3(0, side * 0.22, 0))
+	for side in [-1.0, 1.0]:
+		for tier in 2:
+			var engine_x: float = side * (5.05 + tier * 1.35)
+			var engine_y := 1.15 + tier * 2.25
+			for ring_z in [10.72, 11.96]:
+				_fitout_ring(exterior, "dark", Vector3(engine_x, engine_y, ring_z), 0.91, 0.988)
+			_fitout_ring(exterior, "structure", Vector3(engine_x, engine_y, 13.17), 0.80, 1.05)
+			for fin in 12:
+				var angle := TAU * float(fin) / 12.0
+				_fitout_stock(exterior, "structure", Vector3(engine_x + sin(angle) * 0.95, engine_y + cos(angle) * 0.95, 11.34), Vector3(0.065, 0.09, 0.94), Vector3(0, 0, -angle))
+	_finish_fitout(_jovian_visual, exterior, "FreighterServiceFittings")
+
+	var interior := {}
+	# Segmented load-bearing deck plates, with removable centre service covers.
+	for bay_z in [-1.85, 0.15, 2.15, 4.15, 6.15, 8.15]:
+		_fitout_stock(interior, "structure", Vector3(0, 0.596, bay_z), Vector3(10.96, 0.009, 0.023))
+		for x in [-4.18, 4.18]:
+			_fitout_stock(interior, "dark", Vector3(x, 0.597, bay_z + 0.18), Vector3(0.32, 0.009, 0.055))
+	for side in [-1.0, 1.0]:
+		# Pressure bulkhead wings have a shallow liner, kick plate and service
+		# access face. All remain outside the central door and cargo route.
+		_fitout_stock(interior, "liner", Vector3(side * 3.55, 2.58, -2.77), Vector3(3.8, 2.74, 0.045))
+		_fitout_stock(interior, "dark", Vector3(side * 3.55, 0.93, -2.745), Vector3(3.82, 0.42, 0.055))
+		_fitout_stock(interior, "dark", Vector3(side * 2.7, 2.66, -2.724), Vector3(1.18, 1.60, 0.028))
+		_fitout_stock(interior, "hull_cool", Vector3(side * 2.7, 2.66, -2.698), Vector3(1.10, 1.52, 0.026))
+		_fitout_stock(interior, "structure", Vector3(side * 2.32, 2.66, -2.677), Vector3(0.085, 0.23, 0.024))
+		for bay_index in 4:
+			if side < 0.0 and bay_index in [1, 2]:
+				continue
+			var bay_z := -1.35 + bay_index * 2.65
+			_fitout_stock(interior, "structure", Vector3(side * 5.452, 1.04, bay_z), Vector3(0.033, 0.24, 2.46))
+			_fitout_stock(interior, "dark", Vector3(side * 5.451, 3.66, bay_z), Vector3(0.028, 0.21, 2.20))
+			for slat in 8:
+				_fitout_stock(interior, "structure", Vector3(side * 5.43, 3.66, bay_z - 0.92 + slat * 0.26), Vector3(0.03, 0.22, 0.04))
+		# Ceiling cable trays live at the frame springline, with hangers aligned
+		# to pressure bays rather than arbitrary blocks over the roof surface.
+		_fitout_stock(interior, "structure", Vector3(side * 4.52, 4.16, 3.05), Vector3(0.30, 0.16, 11.60))
+		_fitout_stock(interior, "dark", Vector3(side * 4.52, 4.068, 3.05), Vector3(0.19, 0.027, 11.52))
+	for light_z in [-1.25, 2.85, 6.95]:
+		_fitout_stock(interior, "structure", Vector3(0, 4.44, light_z), Vector3(2.62, 0.08, 0.66))
+		for edge in [-1.27, 1.27]:
+			_fitout_stock(interior, "dark", Vector3(edge, 4.355, light_z), Vector3(0.045, 0.11, 0.65))
+	# Container door cassettes have rolled stiffeners, paired lockbars and
+	# hinges within the existing restrained crate/collider envelope.
+	for at in CARGO_UNIT_ANCHORS:
+		for face in [-1.0, 1.0]:
+			for x in [-0.43, 0.43]:
+				_fitout_stock(interior, "cargo_blue", at + Vector3(x, 0.91, face * 1.102), Vector3(0.67, 0.72, 0.033))
+				_fitout_stock(interior, "structure", at + Vector3(x, 0.91, face * 1.126), Vector3(0.048, 0.67, 0.035))
+				_fitout_stock(interior, "liner", at + Vector3(x + 0.065, 0.85, face * 1.15), Vector3(0.17, 0.045, 0.03))
+	_finish_fitout(_cargo_bay, interior, "CargoFitout")
+
+
+# Fitted visual stock is merged by finish. The moving hull owns its transform;
+# gameplay seats, hatch, route markers and colliders retain their own authority.
+func _fitout_stock(batch: Dictionary, finish: String, at: Vector3, size: Vector3,
+		rotation_value := Vector3.ZERO) -> void:
+	if not batch.has(finish):
+		var tool := SurfaceTool.new()
+		tool.begin(Mesh.PRIMITIVE_TRIANGLES)
+		tool.set_material(_jovian_materials[finish])
+		batch[finish] = tool
+	var stock := StationSurfaceKit.rounded_box_mesh_cached(size, _fitout_mesh_cache)
+	(batch[finish] as SurfaceTool).append_from(stock, 0,
+		Transform3D(Basis.from_euler(rotation_value), at))
+
+
+func _finish_fitout(parent: Node3D, batch: Dictionary, prefix: String) -> void:
+	for finish: String in batch:
+		var visual := MeshInstance3D.new()
+		visual.name = prefix + finish.capitalize()
+		visual.mesh = (batch[finish] as SurfaceTool).commit()
+		visual.material_override = _jovian_materials[finish]
+		visual.set_meta("visual_detail_only", true)
+		parent.add_child(visual)
+
+
+func _fitout_ring(batch: Dictionary, finish: String, at: Vector3,
+		inside: float, outside: float) -> void:
+	if not batch.has(finish):
+		var tool := SurfaceTool.new()
+		tool.begin(Mesh.PRIMITIVE_TRIANGLES)
+		tool.set_material(_jovian_materials[finish])
+		batch[finish] = tool
+	var ring := TorusMesh.new()
+	ring.inner_radius = inside
+	ring.outer_radius = outside
+	ring.rings = 48
+	ring.ring_segments = 8
+	# Stock panels are unindexed; mixing indexed torus geometry into the same
+	# SurfaceTool leaves the earlier panels outside its index buffer.
+	var ring_stock := SurfaceTool.new()
+	ring_stock.create_from(ring, 0)
+	ring_stock.deindex()
+	(batch[finish] as SurfaceTool).append_from(ring_stock.commit(), 0,
+		Transform3D(Basis(Vector3.RIGHT, PI * 0.5), at))
