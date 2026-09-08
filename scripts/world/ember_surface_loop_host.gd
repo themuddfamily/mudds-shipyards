@@ -1338,6 +1338,14 @@ func get_location_generation() -> int:
 	return _location_generation
 
 
+func get_coordinate_frame_generation() -> int:
+	return _coordinate_frame_generation
+
+
+func get_loaded_scene_instance_id() -> int:
+	return _loaded_scene_instance_id
+
+
 func get_snapshot() -> Dictionary:
 	var bootstrap_snapshot := _bootstrap.get_snapshot() \
 		if _node_is_current(_bootstrap) and _node_is_current(_scene) else {}

@@ -45,9 +45,14 @@ class FakeSurfaceComposition:
 
 	var reward_owner: Object
 	var activity: Dictionary
+	var full_snapshot_reads := 0
 
 	func get_snapshot() -> Dictionary:
+		full_snapshot_reads += 1
 		return {"adapter": {"activity_reward": activity.duplicate(true)}}
+
+	func get_activity_reward_snapshot() -> Dictionary:
+		return activity.duplicate(true)
 
 	func commit_relay_survey_reward() -> Dictionary:
 		var pending := activity.get("pending_reward", {}) as Dictionary
@@ -82,6 +87,7 @@ func _init() -> void:
 
 func _run() -> void:
 	var binding := BindingScript.new()
+	_check_caller_snapshot(binding, null, "before configuration")
 	var methods := [
 		&"start_planetary_relay_survey",
 		&"submit_planetary_relay_survey_position",
@@ -140,6 +146,7 @@ func _run() -> void:
 	binding.set("_relay_survey_persistence_store", RefCounted.new())
 	binding.set("_relay_survey_persistence_slot", &"ember_relay_survey_completion")
 	binding.set("_planetary_reward_authority", Callable(self, &"_grant_reward"))
+	_check_caller_snapshot(binding, composition, "awaiting reward")
 	await physics_frame
 	var current_frame := int(Engine.get_physics_frames())
 	binding.set("_last_consumed_caller_serial", 9)
@@ -202,6 +209,7 @@ func _run() -> void:
 		&"_commit_pending_relay_reward", envelope, composition.activity
 	) as StringName
 	var committed_snapshot := binding.get_snapshot().relay_reward_commit as Dictionary
+	_check_caller_snapshot(binding, composition, "after reward persistence")
 	_check(
 		commit_reason.is_empty() and _grant_calls == 1
 			and int(committed_snapshot.authority_commit_count) == 1
@@ -226,6 +234,7 @@ func _run() -> void:
 		"a same-generation reward replay cannot call authority or persistence",
 	)
 	root.remove_child(binding)
+	_check_caller_snapshot(binding, composition, "while detached")
 	root.add_child(binding)
 	var reentered := binding.get_snapshot().relay_reward_commit as Dictionary
 	_check(
@@ -236,8 +245,45 @@ func _run() -> void:
 		"whole-binding detach/re-entry retains the exactly-once commit fence",
 	)
 
-	print("EMBER_SURFACE_LOOP_RELAY_SURVEY_API_TEST_OK: 8 assertions")
+	_check_caller_snapshot(binding, composition, "after reentry")
+	print("EMBER_SURFACE_LOOP_RELAY_SURVEY_API_TEST_OK")
 	quit(0)
+
+
+func _check_caller_snapshot(binding: Node, composition: Node, phase: String) -> void:
+	var full: Dictionary = binding.get_snapshot()
+	var expected := {
+		"state_id": full.state_id,
+		"generation": full.generation,
+		"identities": {
+			"host_instance_id": full.identities.host_instance_id,
+			"player_instance_id": full.identities.player_instance_id,
+			"ship_instance_id": full.identities.ship_instance_id,
+			"location_generation": full.identities.location_generation,
+		},
+		"planetary_surface": {"adapter": {
+			"activity_reward": full.planetary_surface.get("adapter", {}).get("activity_reward", {}),
+		}},
+		"retained_return_context": full.retained_return_context,
+		"relay_reward_commit": {"commit_receipt": full.relay_reward_commit.commit_receipt},
+		"pending_envelope": full.pending_envelope,
+		"pending_intent": full.pending_intent,
+		"last_intent_serial": full.last_intent_serial,
+	}
+	var diagnostic_reads := int(composition.full_snapshot_reads) if composition != null else 0
+	var caller: Dictionary = binding.get_caller_snapshot()
+	_check(caller == expected, "caller observation retains exact live evidence " + phase)
+	if composition != null:
+		_check(composition.full_snapshot_reads == diagnostic_reads,
+			"caller observation avoids unrelated composition diagnostics " + phase)
+	caller.identities.clear()
+	caller.planetary_surface.adapter.activity_reward.clear()
+	caller.retained_return_context.clear()
+	caller.relay_reward_commit.commit_receipt.clear()
+	caller.pending_envelope.clear()
+	caller.pending_intent.clear()
+	_check(binding.get_caller_snapshot() == expected,
+		"caller mutation leaves retained state intact " + phase)
 
 
 func _grant_reward(request: Dictionary) -> Dictionary:

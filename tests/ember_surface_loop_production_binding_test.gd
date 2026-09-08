@@ -179,6 +179,10 @@ class PartialReceiptHost:
 	func get_generation() -> int: return fake_generation
 	func get_attachment_generation() -> int: return fake_attachment_generation
 	func get_phase() -> int: return fake_phase
+	func get_location_generation() -> int: return 1
+	func get_coordinate_frame_generation() -> int: return fake_coordinate_generation
+	func get_loaded_scene_instance_id() -> int:
+		return int(fake_identities.get("loaded_scene_instance_id", 0))
 	func get_snapshot() -> Dictionary:
 		return {
 			"attached": fake_attached,

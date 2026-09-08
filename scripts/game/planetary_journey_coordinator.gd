@@ -254,7 +254,7 @@ func _advance_ember_surface_loop_cadence(
 			or not is_instance_valid(_flow.active_ship) \
 			or not is_instance_valid(_flow.player):
 		return {"accepted": false, "reason": &"ember_surface_cadence_unavailable"}
-	var binding_snapshot := _flow.ember_surface_loop_production_binding.get_snapshot()
+	var binding_snapshot := _flow.ember_surface_loop_production_binding.get_caller_snapshot()
 	if StringName(binding_snapshot.get("state_id", &"")) \
 			not in [&"idle", &"start_pending", &"running"]:
 		return {"accepted": false, "reason": &"ember_surface_cadence_inactive"}
@@ -371,7 +371,7 @@ func _advance_ember_survey_lifecycle(binding_snapshot: Dictionary) -> Dictionary
 			# with no start context; the existing facade owns repeat/retry.
 			var started := binding.start_planetary_relay_survey()
 			if bool(started.get("accepted", false)) \
-					and _ember_survey_context(binding.get_snapshot()) == context:
+					and _ember_survey_context(binding.get_caller_snapshot()) == context:
 				_ember_survey_start_context = context.duplicate(true)
 			return started
 	if _ember_survey_start_context != context \
@@ -400,7 +400,7 @@ func _advance_ember_survey_lifecycle(binding_snapshot: Dictionary) -> Dictionary
 func _queue_ember_surface_intent(intent_id: StringName) -> Dictionary:
 	if not is_instance_valid(_flow.ember_surface_loop_production_binding):
 		return {"accepted": false, "reason": &"ember_surface_binding_unavailable"}
-	var snapshot := _flow.ember_surface_loop_production_binding.get_snapshot()
+	var snapshot := _flow.ember_surface_loop_production_binding.get_caller_snapshot()
 	if StringName(snapshot.get("state_id", &"")) != &"running":
 		return {"accepted": false, "reason": &"ember_surface_intent_out_of_order"}
 	var pending := snapshot.get("pending_envelope", {}) as Dictionary

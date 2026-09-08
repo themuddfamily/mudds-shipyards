@@ -110,6 +110,9 @@ class CadenceSurfaceBinding:
 			"pending_intent": {},
 		}.duplicate(true)
 
+	func get_caller_snapshot() -> Dictionary:
+		return get_snapshot()
+
 	func get_generation() -> int:
 		return 9
 

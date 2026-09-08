@@ -1653,11 +1653,12 @@ func prepare_early_tick(
 	var identity_rejection := _identity_rejection()
 	if not identity_rejection.is_empty():
 		return _fail_guarded(identity_rejection)
-	var host_snapshot := _host.get_snapshot()
+	var host_location_generation := _host.get_location_generation()
+	var host_coordinate_frame_generation := _host.get_coordinate_frame_generation()
 	if current_coordinate_frame_generation != _frame.get_generation():
 		return _finish(false, &"stale_coordinate_frame_generation")
 	if current_location_generation != _location_generation \
-			or int(host_snapshot.get("location_generation", 0)) != _location_generation:
+			or host_location_generation != _location_generation:
 		return _finish(false, &"stale_location_generation")
 	var sample_validation := _validate_actor_sample(actor_sample)
 	if not bool(sample_validation.get("accepted", false)):
@@ -1683,8 +1684,7 @@ func prepare_early_tick(
 			return _fail_guarded(&"host_origin_adoption_rejected")
 		adopted = true
 		_origin_adoption_count += 1
-	elif int(host_snapshot.get("coordinate_frame_generation", 0)) \
-			!= current_coordinate_frame_generation:
+	elif host_coordinate_frame_generation != current_coordinate_frame_generation:
 		return _finish(false, &"host_coordinate_frame_not_adopted")
 
 	# Authored surface geometry is body-local. Freeze its position in the same
@@ -1911,6 +1911,45 @@ func get_host_phase() -> int:
 
 func is_configured() -> bool:
 	return _configured
+
+
+## GameFlow observes these fields before preparing a tick, then keeps that
+## observation through survey admission. All values are fresh detached copies;
+## the complete diagnostic tree and per-tick signal payload remain unchanged.
+func get_caller_snapshot() -> Dictionary:
+	return {
+		"state_id": _state_id(_state),
+		"generation": _generation,
+		"identities": {
+			"host_instance_id": _host_instance_id,
+			"player_instance_id": _player_instance_id,
+			"ship_instance_id": _ship_instance_id,
+			"location_generation": _location_generation,
+		},
+		"planetary_surface": {"adapter": {"activity_reward": _get_activity_reward_snapshot()}},
+		"retained_return_context": {
+			"host_instance_id": _retained_return_host_instance_id,
+			"host_generation": _retained_return_host_generation,
+			"host_attachment_generation": _retained_return_host_attachment_generation,
+			"session_instance_id": _retained_return_session_instance_id,
+			"actor_instance_id": _retained_return_actor_instance_id,
+			"craft_instance_id": _retained_return_craft_instance_id,
+		},
+		"relay_reward_commit": {"commit_receipt": _relay_reward_commit_receipt.duplicate(true)},
+		"pending_envelope": _pending_envelope.duplicate(true),
+		"pending_intent": _pending_intent.duplicate(true),
+		"last_intent_serial": _last_intent_serial,
+	}
+
+
+func _get_activity_reward_snapshot() -> Dictionary:
+	if _planetary_composition == null:
+		return {}
+	if _planetary_composition.has_method(&"get_activity_reward_snapshot"):
+		return _planetary_composition.call(&"get_activity_reward_snapshot") as Dictionary
+	# Other composition implementations can retain their full-report interface.
+	var snapshot: Dictionary = _planetary_composition.call(&"get_snapshot")
+	return (snapshot.get("adapter", {}).get("activity_reward", {}) as Dictionary).duplicate(true)
 
 
 func get_snapshot() -> Dictionary:
@@ -2386,8 +2425,7 @@ func _physics_process(_engine_delta: float) -> void:
 func _forward_active_relay_position(envelope: Dictionary) -> StringName:
 	if _planetary_composition == null:
 		return &""
-	var surface_snapshot: Dictionary = _planetary_composition.call(&"get_snapshot")
-	var activity: Dictionary = surface_snapshot.get("adapter", {}).get("activity_reward", {}) as Dictionary
+	var activity := _get_activity_reward_snapshot()
 	if StringName(activity.get("activity_id", &"")) != &"ember_beacon_survey":
 		return &""
 	var activity_state := StringName(activity.get("state", &""))
@@ -2406,10 +2444,7 @@ func _forward_active_relay_position(envelope: Dictionary) -> StringName:
 		if StringName(forwarded.get("reason", &"")) == &"outside_checkpoint":
 			return &""
 		return &"relay_position_forward_rejected"
-	var updated: Dictionary = _planetary_composition.call(&"get_snapshot")
-	var updated_activity := (
-		updated.get("adapter", {}).get("activity_reward", {}) as Dictionary
-	)
+	var updated_activity := _get_activity_reward_snapshot()
 	if StringName(updated_activity.get("state", &"")) == &"awaiting_reward":
 		return _commit_pending_relay_reward(envelope, updated_activity)
 	return &""
@@ -2899,10 +2934,8 @@ func _identity_rejection() -> StringName:
 	if not is_instance_valid(_frame) or _frame.get_instance_id() != _frame_instance_id \
 			or _bootstrap.get_coordinate_frame_for_session() != _frame:
 		return &"coordinate_frame_identity_mismatch"
-	var host_snapshot := _host.get_snapshot()
-	var identities := host_snapshot.get("identities", {}) as Dictionary
-	if int(identities.get("loaded_scene_instance_id", 0)) != _loaded_scene_instance_id \
-			or int(host_snapshot.get("location_generation", 0)) != _location_generation:
+	if _host.get_loaded_scene_instance_id() != _loaded_scene_instance_id \
+			or _host.get_location_generation() != _location_generation:
 		return &"loaded_location_identity_mismatch"
 	return &""
 
