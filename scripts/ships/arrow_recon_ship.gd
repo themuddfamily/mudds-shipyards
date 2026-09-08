@@ -228,13 +228,13 @@ const PHASE9_ARROW_VISUAL_CENSUS := {
 	"auto_fallback_names": 23,
 }
 const EXPECTED_ARROW_VISUAL_CENSUS := {
-	"nodes": 262,
-	"mesh_instance_nodes": 232,
+	"nodes": 269,
+	"mesh_instance_nodes": 234,
 	"multi_mesh_instance_nodes": 3,
-	# The formed instrument hood separates its matte face from its casing.
-	"geometry_submissions": 236,
-	"visible_geometry_copies": 239,
-	"unique_mesh_resource_allocations": 191,
+	# Includes the formed instrument casing and two shared live gauge faces.
+	"geometry_submissions": 238,
+	"visible_geometry_copies": 241,
+	"unique_mesh_resource_allocations": 192,
 	"auto_fallback_names": 20,
 }
 const RECON_PULSE_EMITTER_VISUAL_DELTA := {

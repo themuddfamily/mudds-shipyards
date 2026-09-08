@@ -788,15 +788,15 @@ func _test_visual_performance_batch(arrow: ArrowReconShip) -> void:
 		bool(report.valid)
 		and report.current == report.expected
 		and report.current == {
-			"nodes": 262,
-			"mesh_instance_nodes": 232,
+			"nodes": 269,
+			"mesh_instance_nodes": 234,
 			"multi_mesh_instance_nodes": 3,
-			"geometry_submissions": 236,
-			"visible_geometry_copies": 239,
-			"unique_mesh_resource_allocations": 191,
+			"geometry_submissions": 238,
+			"visible_geometry_copies": 241,
+			"unique_mesh_resource_allocations": 192,
 			"auto_fallback_names": 20,
 		},
-		"entry-complete Arrow retains 262 nodes, 236 submissions including the instrument casing, 191 meshes and all 239 copies"
+		"entry-complete Arrow retains 269 nodes, 238 submissions including the live gauges, 192 meshes and all 241 copies"
 	)
 	_check(
 		report.phase9_before_entry_heat == {
@@ -1000,7 +1000,7 @@ func _test_visual_performance_batch(arrow: ArrowReconShip) -> void:
 	)
 	detached_panel_transforms[0] = Transform3D.IDENTITY
 	_check(
-		int(arrow.get_arrow_visual_performance_report().current.nodes) == 262
+		int(arrow.get_arrow_visual_performance_report().current.nodes) == 269
 		and int(
 			arrow.get_arrow_visual_performance_report()
 				.lateral_array_curve_joint_sharing.primitive_mesh_allocations
