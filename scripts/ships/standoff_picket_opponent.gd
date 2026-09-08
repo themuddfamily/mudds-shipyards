@@ -1661,10 +1661,11 @@ func _build_interceptor() -> void:
 	add_child(_warning_light)
 
 	_build_picket_fittings()
-	# The narrow spine carries a registry below the magenta identification rail.
+	# The forward spine flank keeps the registry clear of radiator spars and aft seams.
 	for side in [-1.0, 1.0]:
-		ShipSurfaceDetail.mark_surface(_visual_root, "PicketRegistry", "picket",
-			Vector3(side * 0.623, -0.13, 1.6), Vector2(1.6, 0.8), Vector3(side, 0, 0), Vector3.UP)
+		var registry := ShipSurfaceDetail.mark_surface(_visual_root, "PicketRegistry", "picket",
+			Vector3(side * 0.4818, -0.10, -1.8), Vector2(1.1, 0.55), Vector3(side, 0, -0.1004), Vector3.UP)
+		registry.modulate = Color(3.0, 3.0, 3.0, 1.0)
 		ShipSurfaceDetail.mark_surface(_visual_root, "SpineService", "service",
 			Vector3(side * 0.623, -0.13, 3.05), Vector2(0.8, 0.4), Vector3(side, 0, 0), Vector3.UP)
 	_build_collision()
