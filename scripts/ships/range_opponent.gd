@@ -22,11 +22,11 @@ const WORLD_LAYER := PhysicsLayers.WORLD
 const SHIP_LAYER := PhysicsLayers.SHIP
 const TARGET_LAYER := PhysicsLayers.TARGET
 
-const HULL_IVORY := Color("f0eee2")
-const HULL_SHADE := Color("aab7b4")
+const HULL_IVORY := Color("b8b9b1")
+const HULL_SHADE := Color("667879")
 const FRAME_DARK := Color("10242c")
 const FRAME_DEEP := Color("06141b")
-const KETH_CYAN := Color("48dbe2")
+const KETH_CYAN := Color("2a8994")
 const SIGNAL_AMBER := Color("f4b94f")
 const ENGINE_BLUE := Color("63efff")
 const DAMAGE_ORANGE := Color("ff8b3d")
@@ -2147,7 +2147,7 @@ func _build_interceptor() -> void:
 
 		_cylinder(_visual_root, "EngineCollar", Vector3(side * 2.67, 0.05, 3.82), 0.68, 0.26, _materials.shade, Vector3(90.0, 0.0, 0.0))
 		_cylinder(_visual_root, "EngineCore", Vector3(side * 2.67, 0.05, 3.99), 0.39, 0.15, _materials.engine, Vector3(90.0, 0.0, 0.0))
-		var plume := _cylinder(_visual_root, "EnginePlume", Vector3(side * 2.67, 0.05, 4.42), 0.24, 0.78, _materials.engine, Vector3(90.0, 0.0, 0.0))
+		var plume := _exhaust_plume(_visual_root, "EnginePlume", Vector3(side * 2.67, 0.05, 4.42), 0.24, 0.78, _materials.engine, Vector3(90.0, 0.0, 0.0))
 		_engine_glows.append(plume)
 		var engine_light := OmniLight3D.new()
 		engine_light.name = "EngineLight"
@@ -2653,6 +2653,23 @@ func _build_range_fittings() -> void:
 		parts.append([Vector3(side*2.67,0.69,2.81),Vector3(0.72,0.13,1.5),0])
 		parts.append([Vector3(side*2.67,-0.62,3.12),Vector3(0.76,0.11,1.35),1])
 		_add_nozzle_parts(parts,Vector3(side*2.67,0.05,3.99),0.56,0.56)
+	# Recessed gun service decks sit over the cyan inlay, leaving short status windows.
+	for side in [-1.0,1.0]:
+		for bay in 4:
+			var z := -2.8+bay*1.03
+			parts.append([Vector3(side*2.65,0.49,z),Vector3(0.57,0.085,0.84),1])
+			parts.append([Vector3(side*2.65,0.545,z+0.07),Vector3(0.36,0.035,0.55),0])
+			parts.append([Vector3(side*2.65,0.56,z-0.26),Vector3(0.22,0.045,0.075),2])
+		# Flank-mounted vane access cover, hinges and root load spreader.
+		parts.append([Vector3(side*3.8,0.74,1.98),Vector3(0.065,0.85,1.78),1,Vector3(0,side*-0.1,side*-0.17)])
+		parts.append([Vector3(side*3.85,0.76,1.98),Vector3(0.035,0.62,1.48),2,Vector3(0,side*-0.1,side*-0.17)])
+		for z in [1.43,2.48]:
+			parts.append([Vector3(side*3.88,0.78,z),Vector3(0.07,0.36,0.09),0])
+		parts.append([Vector3(side*3.51,0.22,2.42),Vector3(0.64,0.35,1.2),1])
+	# Aft pressure bulkhead with recessed heat-exchanger slots.
+	parts.append([Vector3(0,0.1,3.63),Vector3(1.42,0.62,0.07),2])
+	for rib in 5:
+		parts.append([Vector3(-0.52+rib*0.26,0.1,3.68),Vector3(0.12,0.47,0.07),1])
 	_fit_armour(parts,[_materials.ivory,_materials.frame,_materials.deep])
 
 
@@ -2663,3 +2680,25 @@ func _add_nozzle_parts(parts: Array, center: Vector3, radius: float, length: flo
 		var angle := TAU*float(index)/12.0
 		var radial := Vector3(cos(angle),sin(angle),0)
 		parts.append([center+radial*radius+Vector3(0,0,length*0.34),Vector3(radius*0.44,0.09,length),1,Vector3(0,0,angle-PI*0.5)])
+
+
+## Tapered exhaust keeps the metallic nozzle cavity readable from aft.
+## Local Y stays the length axis for the inherited thrust/damage animation.
+func _exhaust_plume(parent: Node3D, node_name: String, mount: Vector3, radius: float, length: float, material: Material, rotation_value: Vector3) -> MeshInstance3D:
+	var plume := MeshInstance3D.new()
+	plume.name = node_name
+	var cache_key := "plume:%s:%s:%s" % [radius, length, material.get_instance_id()]
+	var mesh := _chamfered_cylinder_cache.get(cache_key) as CylinderMesh
+	if mesh == null:
+		mesh = CylinderMesh.new()
+		mesh.top_radius = radius * 0.08
+		mesh.bottom_radius = radius * 0.72
+		mesh.height = length * 0.62
+		mesh.radial_segments = 32
+		mesh.material = material
+		_chamfered_cylinder_cache[cache_key] = mesh
+	plume.mesh = mesh
+	plume.position = mount
+	plume.rotation_degrees = rotation_value
+	parent.add_child(plume)
+	return plume

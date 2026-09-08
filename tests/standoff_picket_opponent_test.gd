@@ -373,7 +373,7 @@ func _test_contract_and_evidence() -> void:
 	_check(
 		mutation_target != null and retained_mesh != null
 		and not bool(red_performance.valid)
-		and int(red_performance.mesh_resources) == 23
+		and int(red_performance.mesh_resources) == 24
 		and int(red_performance.box_mesh_resources) == 10
 		and picket.get_validation_errors().has("picket presentation resource-sharing contract drifted"),
 		"RED A0: splitting one immutable pair turns exact mesh-resource sharing red without relying on renderer buffers"

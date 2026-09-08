@@ -69,7 +69,7 @@ const STATE_RELOCATING: StringName = &"relocating"
 ## silhouette against the black backdrop at standoff distance.
 const HULL_GRAPHITE := Color("5a6472")
 const HULL_SLATE := Color("7d879a")
-const HULL_BONE := Color("d5dae2")
+const HULL_BONE := Color("909cac")
 const LANCE_MAGENTA := Color("ff54d7")
 const LANCE_VIOLET := Color("8a5bff")
 const PICKET_ENGINE := Color("9ce8ff")
@@ -470,7 +470,7 @@ func get_presentation_performance_contract() -> Dictionary:
 				var visible_count := multi.visible_instance_count
 				visible_geometry_copies += multi.instance_count if visible_count < 0 else visible_count
 				mesh_resources[multi.mesh.get_instance_id()] = true
-				if _picket_box_mesh_cache.values().has(multi.mesh):
+				if multi.mesh.has_meta(&"picket_box_recipe"):
 					box_instances += multi.instance_count if visible_count < 0 else visible_count
 					box_mesh_resources[multi.mesh.get_instance_id()] = true
 				submissions += multi.mesh.get_surface_count()
@@ -488,7 +488,7 @@ func get_presentation_performance_contract() -> Dictionary:
 			mesh_instances += 1
 			visible_geometry_copies += 1
 			mesh_resources[mesh.get_instance_id()] = true
-			if _picket_box_mesh_cache.values().has(mesh):
+			if mesh.has_meta(&"picket_box_recipe"):
 				box_instances += 1
 				box_mesh_resources[mesh.get_instance_id()] = true
 			submissions += mesh.get_surface_count()
@@ -1631,7 +1631,7 @@ func _build_interceptor() -> void:
 		_picket_box(_visual_root, "VaneStripe", Vector3(side * 2.9, 0.22, 3.5), Vector3(2.1, 0.06, 0.24), _materials.picket_magenta, Vector3(0.0, side * 0.46, 0.0))
 		_picket_box(_visual_root, "VaneTipFin", Vector3(side * 3.85, 0.5, 4.0), Vector3(0.18, 1.0, 1.5), _materials.picket_bone, Vector3(0.0, side * 0.24, side * -0.2))
 
-		var plume := _cylinder(_visual_root, "EnginePlume", Vector3(side * 0.86, -0.02, 5.42), 0.17, 0.7, _materials.picket_engine, Vector3(90.0, 0.0, 0.0))
+		var plume := _exhaust_plume(_visual_root, "EnginePlume", Vector3(side * 0.86, -0.02, 5.42), 0.17, 0.7, _materials.picket_engine, Vector3(90.0, 0.0, 0.0))
 		_engine_glows.append(plume)
 		var engine_light := OmniLight3D.new()
 		engine_light.name = "EngineLight"
@@ -1830,6 +1830,7 @@ func _picket_box_mesh(size: Vector3, material: Material) -> Mesh:
 	var mesh := _picket_box_mesh_cache.get(cache_key) as Mesh
 	if mesh == null:
 		mesh = _armour_mesh(size, material)
+		mesh.set_meta(&"picket_box_recipe", size)
 		_picket_box_mesh_cache[cache_key] = mesh
 	return mesh
 
@@ -1883,7 +1884,7 @@ func _create_picket_materials() -> void:
 	_materials.picket_slate = _material(HULL_SLATE, 0.1, 0.61)
 	_materials.picket_deep = _material(Color("2a3038"), 0.55, 0.32)
 	_materials.picket_bone = _material(HULL_BONE, 0.1, 0.61)
-	_materials.picket_magenta = _material(LANCE_MAGENTA, 0.1, 0.6, LANCE_MAGENTA, 0.45)
+	_materials.picket_magenta = _material(Color("884767"), 0.26, 0.43)
 	_materials.picket_magenta_emissive = _material(LANCE_MAGENTA, 0.1, 0.2, LANCE_MAGENTA, 3.1)
 	_materials.picket_violet_emissive = _material(LANCE_VIOLET, 0.12, 0.22, LANCE_VIOLET, 2.4)
 	_materials.picket_engine = _material(PICKET_ENGINE, 0.08, 0.2, PICKET_ENGINE, 2.6)
@@ -1911,4 +1912,25 @@ func _build_picket_fittings() -> void:
 	# Ceramic barrel shields leave the magenta charge rails and muzzle exposed.
 	for index in 5:
 		parts.append([Vector3(0,-0.35,-3.62-index*0.78),Vector3(0.39,0.08,0.63),1])
+	# Lance induction modules enclose the long exposed rod; narrow breaks retain
+	# the role colour while gun-state lamps keep their original animation owner.
+	for module in 5:
+		var z := -4.0-module*0.76
+		for side in [-1.0,1.0]:
+			parts.append([Vector3(side*0.25,0.08,z),Vector3(0.16,0.42,0.58),2])
+			parts.append([Vector3(side*0.29,0.10,z),Vector3(0.07,0.28,0.4),1])
+		parts.append([Vector3(0,0.29,z),Vector3(0.48,0.08,0.58),0])
+	for side in [-1.0,1.0]:
+		# Independent radiator banks with armored cross manifolds.
+		var rotation_value := Vector3(0,side*0.46,side*-0.12)
+		var vane_basis := Basis.from_euler(rotation_value)
+		var center := Vector3(side*2.3,0.12,2.9)
+		for row in [-0.83,0.0,0.83]:
+			parts.append([center+vane_basis*Vector3(0,0.15,row),Vector3(3.22,0.07,0.1),0,rotation_value])
+		parts.append([Vector3(side*0.4,0.84,1.9),Vector3(0.18,0.16,3.54),2])
+		for module in 4:
+			parts.append([Vector3(side*0.42,0.94,0.68+module*0.8),Vector3(0.18,0.035,0.55),1])
+	parts.append([Vector3(0,0.04,4.52),Vector3(0.94,0.62,0.08),2])
+	for rib in 4:
+		parts.append([Vector3(-0.3+rib*0.2,0.04,4.58),Vector3(0.1,0.44,0.055),1])
 	_fit_armour(parts,[_materials.picket_hull,_materials.picket_slate,_materials.picket_deep])

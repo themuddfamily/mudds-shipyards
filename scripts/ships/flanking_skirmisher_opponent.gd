@@ -69,7 +69,7 @@ const SKIRMISHER_AUDIO_PROFILE: StringName = CombatAudioPresentation.WEAPON_PROF
 ## picket's long graphite spine: this reads small and close-in at a glance.
 const HULL_BASALT := Color("2f3a3f")
 const HULL_MOSS := Color("55665c")
-const HULL_CHALK := Color("cfd6cc")
+const HULL_CHALK := Color("9ba79d")
 const ROLE_ANCHOR_LAMP := Color("ffb347")
 const ROLE_FLANKER_LAMP := Color("58ff9b")
 const SKIRMISHER_ENGINE := Color("b6ffe3")
@@ -167,6 +167,7 @@ var _role_light: OmniLight3D
 var _muzzle_lens: MeshInstance3D
 var _shots_arc_denied := 0
 var _wing_mesh: ArrayMesh
+var _wing_recipe_vertices := PackedVector3Array()
 var _wing_chalk_band_mesh: ArrayMesh
 var _winglet_fin_mesh: ArrayMesh
 var _rear_cross_state: StringName = &"idle"
@@ -851,33 +852,17 @@ func _wing_mesh_matches_recipe(mesh: ArrayMesh) -> bool:
 		or mesh.surface_get_material(0) != _materials.skirmisher_moss
 	):
 		return false
-	var half_width := WING_SIZE.x * 0.5
-	var half_height := WING_SIZE.y * 0.5
-	var half_length := WING_SIZE.z * 0.5
-	var nose_x := WING_PORT_SKEW * WING_SIZE.z
-	var recipe_vertices := PackedVector3Array([
-		Vector3(nose_x, -half_height, -half_length),
-		Vector3(-half_width, -half_height, half_length),
-		Vector3(half_width, -half_height, half_length),
-		Vector3(nose_x, half_height, -half_length),
-		Vector3(-half_width, half_height, half_length),
-		Vector3(half_width, half_height, half_length),
-	])
-	var recipe_indices := PackedInt32Array([
-		0, 2, 1,
-		3, 4, 5,
-		0, 3, 5, 0, 5, 2,
-		0, 1, 4, 0, 4, 3,
-		1, 2, 5, 1, 5, 4,
-	])
-	var arrays := mesh.surface_get_arrays(0)
-	var actual_vertices: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
-	if actual_vertices.size() != recipe_indices.size():
+	# The beveled four-station airframe replaced the original six-point prism.
+	# Keep an independent canonical vertex recipe for drift checks without
+	# rebuilding reference mesh resources on every encounter audit.
+	if _wing_recipe_vertices.is_empty():
+		var recipe := _armour_mesh(WING_SIZE, _materials.skirmisher_moss, 0.08, WING_PORT_SKEW)
+		_wing_recipe_vertices = recipe.surface_get_arrays(0)[Mesh.ARRAY_VERTEX]
+	var actual_vertices: PackedVector3Array = mesh.surface_get_arrays(0)[Mesh.ARRAY_VERTEX]
+	if actual_vertices.size() != _wing_recipe_vertices.size():
 		return false
 	for vertex_index in actual_vertices.size():
-		if not actual_vertices[vertex_index].is_equal_approx(
-			recipe_vertices[recipe_indices[vertex_index]]
-		):
+		if not actual_vertices[vertex_index].is_equal_approx(_wing_recipe_vertices[vertex_index]):
 			return false
 	return true
 
@@ -1316,7 +1301,7 @@ func _build_interceptor() -> void:
 		_box_from_mesh(_visual_root, "WingChalkBand", Vector3(side * 2.5, 0.06, 0.4), _wing_chalk_band_mesh)
 		_box_from_mesh(_visual_root, "WingletFin", Vector3(side * 3.7, 0.36, 1.9), _winglet_fin_mesh, Vector3(0.0, side * 0.16, side * -0.22))
 		_cylinder(_visual_root, "EnginePod", Vector3(side * 1.0, -0.02, 2.5), 0.36, 1.3, _materials.skirmisher_deep, Vector3(90.0, 0.0, 0.0))
-		var plume := _cylinder(_visual_root, "EnginePlume", Vector3(side * 1.0, -0.02, 3.42), 0.2, 0.8, _materials.skirmisher_engine, Vector3(90.0, 0.0, 0.0))
+		var plume := _exhaust_plume(_visual_root, "EnginePlume", Vector3(side * 1.0, -0.02, 3.42), 0.2, 0.8, _materials.skirmisher_engine, Vector3(90.0, 0.0, 0.0))
 		_engine_glows.append(plume)
 		var engine_light := OmniLight3D.new()
 		engine_light.name = "EngineLight"
@@ -1459,4 +1444,18 @@ func _build_skirmisher_fittings() -> void:
 		parts.append([Vector3(side*3.12,0.12,1.8),Vector3(0.48,0.035,0.68),1])
 		parts.append([Vector3(side*1.0,0.32,2.38),Vector3(0.48,0.1,0.96),0])
 		_add_nozzle_parts(parts,Vector3(side*1.0,-0.02,3.08),0.3,0.42)
+	# Angled leading-edge service bays and segmented wing-root reinforcement.
+	for side in [-1.0,1.0]:
+		parts.append([Vector3(side*0.66,0.30,-1.53),Vector3(0.42,0.10,1.39),2,Vector3(0,side*-0.25,0)])
+		parts.append([Vector3(side*0.7,0.37,-1.35),Vector3(0.3,0.04,0.72),0,Vector3(0,side*-0.25,0)])
+		for bay in 3:
+			parts.append([Vector3(side*(1.82+bay*0.49),0.13,0.27+bay*0.34),Vector3(0.39,0.06,0.56),2,Vector3(0,side*-0.28,0)])
+			parts.append([Vector3(side*(1.82+bay*0.49),0.17,0.35+bay*0.34),Vector3(0.27,0.025,0.28),1,Vector3(0,side*-0.28,0)])
+		parts.append([Vector3(side*3.78,0.38,1.9),Vector3(0.05,0.54,0.89),2,Vector3(0,side*0.16,side*-0.22)])
+		parts.append([Vector3(side*1.0,-0.2,2.6),Vector3(0.78,0.11,0.66),0])
+		for rib in 3:
+			parts.append([Vector3(side*0.45,0.62,0.5+rib*0.39),Vector3(0.12,0.1,0.22),2])
+	parts.append([Vector3(0,-0.02,2.72),Vector3(1.09,0.5,0.09),2])
+	for rib in 4:
+		parts.append([Vector3(-0.36+rib*0.24,-0.02,2.78),Vector3(0.11,0.36,0.06),0])
 	_fit_armour(parts,[_materials.skirmisher_moss,_materials.skirmisher_chalk,_materials.skirmisher_deep])

@@ -677,7 +677,7 @@ func _build_interceptor() -> void:
 	# read as freight that has been made to go fast, not as a warship.
 	_wedge(_visual_root, "BluntNose", Vector3(0.0, 0.0, -3.4), Vector3(2.0, 1.5, 2.6), _materials.courier_hull)
 	_box(_visual_root, "HullBody", Vector3(0.0, 0.0, 0.2), Vector3(2.2, 1.7, 7.4), _materials.courier_hull)
-	_box(_visual_root, "SpineTrunk", Vector3(0.0, 0.98, 0.6), Vector3(1.2, 0.34, 5.4), _materials.courier_clay)
+	_box(_visual_root, "SpineTrunk", Vector3(0.0, 0.98, 0.6), Vector3(0.64, 0.22, 5.4), _materials.courier_shadow)
 	_box(_visual_root, "CargoStripe", Vector3(0.0, 0.9, -0.4), Vector3(1.5, 0.06, 6.8), _materials.courier_rust)
 	_wedge(_visual_root, "Canopy", Vector3(0.0, 0.72, -2.6), Vector3(1.15, 0.5, 1.8), _materials.glass)
 	_box(_visual_root, "VentralKeel", Vector3(0.0, -0.94, 0.6), Vector3(1.5, 0.34, 6.0), _materials.courier_shadow)
@@ -729,7 +729,7 @@ func _build_interceptor() -> void:
 
 		_cylinder(_visual_root, "EnginePod", Vector3(side * 1.15, 0.05, 3.9), 0.62, 1.8, _materials.courier_shadow, Vector3(90.0, 0.0, 0.0))
 		_cylinder(_visual_root, "EngineCore", Vector3(side * 1.15, 0.05, 4.86), 0.42, 0.18, _materials.courier_engine, Vector3(90.0, 0.0, 0.0))
-		var plume := _cylinder(_visual_root, "EnginePlume", Vector3(side * 1.15, 0.05, 5.4), 0.3, 1.1, _materials.courier_engine, Vector3(90.0, 0.0, 0.0))
+		var plume := _exhaust_plume(_visual_root, "EnginePlume", Vector3(side * 1.15, 0.05, 5.4), 0.3, 1.1, _materials.courier_engine, Vector3(90.0, 0.0, 0.0))
 		_engine_glows.append(plume)
 		var engine_light := OmniLight3D.new()
 		engine_light.name = "EngineLight"
@@ -974,4 +974,23 @@ func _build_courier_fittings() -> void:
 		for slot in 4:
 			parts.append([Vector3(side*1.15,0.75,3.41+slot*0.26),Vector3(0.5,0.025,0.1),2])
 		_add_nozzle_parts(parts,Vector3(side*1.15,0.05,4.86),0.53,0.61)
+	# Separate removable service cassettes replace the featureless dorsal slab.
+	for bay in 5:
+		var z := -1.48+bay*1.04
+		parts.append([Vector3(0,1.1,z),Vector3(1.08,0.15,0.91),1])
+		parts.append([Vector3(0,1.195,z),Vector3(0.76,0.045,0.66),0])
+		parts.append([Vector3(0,1.225,z-0.18),Vector3(0.43,0.035,0.12),2])
+	for side in [-1.0,1.0]:
+		# End bulkheads protect the load valves instead of ending in plain discs.
+		parts.append([Vector3(side*2.5,-0.37,-1.77),Vector3(0.61,0.64,0.11),2])
+		parts.append([Vector3(side*2.5,-0.37,-1.85),Vector3(0.37,0.4,0.075),0])
+		for station in 3:
+			var z := -0.63+station*1.2
+			parts.append([Vector3(side*3.12,-0.28,z),Vector3(0.09,0.62,0.83),1])
+			parts.append([Vector3(side*3.18,-0.28,z),Vector3(0.035,0.34,0.58),2])
+		parts.append([Vector3(side*0.66,0.36,-3.72),Vector3(0.24,0.11,0.58),2,Vector3(0,side*-0.24,0)])
+	parts.append([Vector3(0,-0.07,3.93),Vector3(1.32,1.05,0.09),2])
+	parts.append([Vector3(0,-0.07,3.99),Vector3(0.91,0.78,0.07),0])
+	for rib in 4:
+		parts.append([Vector3(0,-0.32+rib*0.17,4.04),Vector3(0.65,0.07,0.05),2])
 	_fit_armour(parts,[_materials.courier_hull,_materials.courier_clay,_materials.courier_shadow])
