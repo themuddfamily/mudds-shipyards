@@ -41,6 +41,7 @@ func _run() -> void:
 	await _test_detached_boot_cancels_stale_continuation()
 	await _test_boot_presents_before_it_builds()
 	await _test_direct_instantiation_is_unstaged()
+	await _test_atomic_graphics_profile_precedes_world_construction()
 	_finish()
 
 
@@ -182,6 +183,8 @@ func _test_stager_rejects_stale_host_generation_after_yield() -> void:
 
 func _test_world_stages_authored_children_and_rejects_stale_yield() -> void:
 	var world := (load("res://scenes/world/shipyard_world.tscn") as PackedScene).instantiate() as ShipyardWorld
+	_check(world.visual_quality_level == RuntimeSettings.GraphicsProfile.HIGH,
+		"authored world keeps High as the default graphics profile")
 	var authored := world.get_children()
 	var authored_feedback := world.get_node("CentralBerth/BerthFeedback")
 	var feedback_owner := authored_feedback.owner
@@ -253,6 +256,60 @@ func _test_world_stages_authored_children_and_rejects_stale_yield() -> void:
 func _detach_and_reattach_staged_world(world: ShipyardWorld) -> void:
 	root.remove_child(world)
 	root.add_child(world)
+
+
+func _test_atomic_graphics_profile_precedes_world_construction() -> void:
+	var path := RuntimeSettingsStoreAdapter.DEFAULT_STORE_PATH
+	var original_files: Dictionary = {}
+	for suffix in ["", ".bak", ".tmp", ".recovery"]:
+		if FileAccess.file_exists(path + suffix):
+			original_files[suffix] = FileAccess.get_file_as_bytes(path + suffix)
+			DirAccess.remove_absolute(ProjectSettings.globalize_path(path + suffix))
+	var retained_process_settings := GameFlow._production_runtime_settings_state
+	GameFlow._production_runtime_settings_state = {}
+	var settings := RuntimeSettings.new()
+	settings.graphics_profile = RuntimeSettings.GraphicsProfile.LOW
+	var store := UserDataStore.new(path)
+	store.load()
+	var committed := store.commit({
+		RuntimeSettingsStoreAdapter.SETTINGS_PAYLOAD_KEY: settings.to_user_data_payload(),
+	}, 0, "startup-low-fixture")
+	_check(bool(committed.accepted), "startup fixture stores validated atomic Low settings")
+	var stored_bytes := FileAccess.get_file_as_bytes(path)
+	var stored_payload: Dictionary = (JSON.parse_string(stored_bytes.get_string_from_utf8()) as Dictionary).payload.runtime_settings
+	var boot := BOOT_SCENE.instantiate() as StartupLoader
+	boot.auto_start = false
+	root.add_child(boot)
+	_check(FileAccess.get_file_as_bytes(path) == stored_bytes,
+		"Boot's settings preview preserves atomic bytes before normal gameplay startup")
+	boot.run_startup()
+	var staged := await _wait_for_staged_main(boot)
+	var flow := boot.get_main() as GameFlow
+	var world := flow.get_node_or_null("ShipyardWorld") as ShipyardWorld if flow != null else null
+	_check(staged and world != null and world.visual_quality_level == RuntimeSettings.GraphicsProfile.LOW
+		and world.get_node_or_null("ShipyardEnvironment") == null,
+		"stored atomic Low reaches the staged world before environment construction")
+	if staged:
+		await boot.startup_completed
+	_check(flow != null and flow.runtime_settings.graphics_profile == RuntimeSettings.GraphicsProfile.LOW,
+		"normal GameFlow authority retains the stored Low graphics profile")
+	_check(flow != null and int(flow.get("_runtime_settings_load_attempt_count")) == 1,
+		"boot preserves the normal single GameFlow authority load")
+	var after_store := UserDataStore.new(path)
+	after_store.load_read_only()
+	_check(after_store.get_snapshot().get(RuntimeSettingsStoreAdapter.SETTINGS_PAYLOAD_KEY) == stored_payload,
+		"full startup preserves the runtime settings payload while normal diagnostics may save")
+	boot.queue_free()
+	await process_frame
+	await process_frame
+	GameFlow._production_runtime_settings_state = retained_process_settings
+	for suffix in ["", ".bak", ".tmp", ".recovery"]:
+		if FileAccess.file_exists(path + suffix):
+			DirAccess.remove_absolute(ProjectSettings.globalize_path(path + suffix))
+		if original_files.has(suffix):
+			var file := FileAccess.open(path + suffix, FileAccess.WRITE)
+			file.store_buffer(original_files[suffix])
+			file.close()
 
 
 func _test_queued_loading_screen_public_mutators_are_inert() -> void:

@@ -45,7 +45,16 @@ func _init(path: String, filesystem: UserDataFilesystem = null) -> void:
 
 ## Loads the valid primary, otherwise the valid last-known-good backup. A stale
 ## temporary sibling is never promoted by load. Failure leaves no partial state.
+## Read-only boot previews suppress quarantine writes while retaining validation.
 func load() -> Dictionary:
+	return _load(false)
+
+
+func load_read_only() -> Dictionary:
+	return _load(true)
+
+
+func _load(read_only: bool) -> Dictionary:
 	var previous := _state_record()
 	_recovery_receipt = {}
 	var primary := _read_document(_path)
@@ -79,7 +88,7 @@ func load() -> Dictionary:
 		return _load_result(true, &"ok", &"primary", primary, {})
 	if bool(backup.valid):
 		_install_document(backup.document as Dictionary, &"backup")
-		if bool(primary.exists) and not bool(primary.valid):
+		if not read_only and bool(primary.exists) and not bool(primary.valid):
 			_recovery_receipt = _quarantine_corrupt_primary(primary)
 		var result := _load_result(true, &"primary_invalid_backup_loaded", &"backup", primary, backup)
 		result["recovery_receipt"] = _recovery_receipt.duplicate(true)

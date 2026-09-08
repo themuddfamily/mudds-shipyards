@@ -49,14 +49,25 @@ func load() -> Dictionary:
 	return result
 
 
-func _load() -> Dictionary:
+## Startup presentation reads the same validated settings without claiming
+## persistence authority or migrating, repairing, or quarantining user files.
+func load_read_only() -> Dictionary:
+	if _operation_active:
+		return _reentrant_status()
+	_operation_active = true
+	var result := _load(true)
+	_operation_active = false
+	return result
+
+
+func _load(read_only: bool = false) -> Dictionary:
 	if _settings == null or _store == null:
 		return _status(false, &"invalid_owner", false, false, {})
-	var store_load := _store.load()
+	var store_load := _store.load_read_only() if read_only else _store.load()
 	if not bool(store_load.accepted):
 		return _status(false, &"store_load_failed", false, false, store_load)
 	if _is_genuinely_empty(store_load):
-		return _load_empty_store(store_load)
+		return _load_empty_store(store_load, read_only)
 	var payload := _store.get_snapshot()
 	if not payload.has(SETTINGS_PAYLOAD_KEY):
 		return _status(false, &"settings_missing", false, false, store_load)
@@ -122,11 +133,11 @@ func _save(commit_id: String, confirmed_display: Dictionary) -> Dictionary:
 	return _status(true, &"saved", false, false, committed)
 
 
-func _load_empty_store(store_load: Dictionary) -> Dictionary:
+func _load_empty_store(store_load: Dictionary, read_only: bool = false) -> Dictionary:
 	if not _legacy_artifact_exists():
 		return _status(true, &"empty", false, false, store_load)
 	var staged := RuntimeSettings.new(_legacy_path)
-	var legacy_error := staged.load_from_file()
+	var legacy_error := staged.load_from_file("", read_only)
 	if legacy_error != OK:
 		return _status(false, &"legacy_load_failed", false, false, store_load, {
 			"legacy_error": legacy_error,
@@ -137,6 +148,9 @@ func _load_empty_store(store_load: Dictionary) -> Dictionary:
 		return _status(false, &"legacy_payload_invalid", false, false, store_load, {
 			"payload_reason": validated.reason,
 		})
+	if read_only:
+		var preview := _settings.apply_user_data_payload(legacy_payload)
+		return _status(bool(preview.accepted), &"legacy_preview", bool(preview.accepted), false, store_load)
 	var committed := _store.commit(
 		{SETTINGS_PAYLOAD_KEY: legacy_payload},
 		_store.get_generation(),

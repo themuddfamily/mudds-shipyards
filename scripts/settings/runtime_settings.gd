@@ -842,11 +842,23 @@ func save_to_file(path_override: String = "") -> Error:
 ## in a valid file fall back to authored defaults; numeric values are clamped.
 ## A malformed, incomplete, or newly conflicting input profile likewise falls
 ## back as one unit to the captured project bindings and is never applied here.
-func load_from_file(path_override: String = "") -> Error:
+func load_from_file(path_override: String = "", read_only: bool = false) -> Error:
 	var target_path := _resolve_path(path_override)
-	var recovery_error := _recover_interrupted_save(target_path)
-	if recovery_error != OK:
-		return recovery_error
+	if read_only:
+		# Select the same valid legacy generation as recovery, without promoting
+		# a sibling, deleting remnants, or replacing the primary during boot.
+		for suffix in [_STAGING_SUFFIX, _BACKUP_SUFFIX]:
+			if DirAccess.dir_exists_absolute(ProjectSettings.globalize_path(target_path + suffix)):
+				return ERR_ALREADY_EXISTS
+		if not _is_supported_config_file(target_path):
+			for suffix in [_BACKUP_SUFFIX, _STAGING_SUFFIX]:
+				if _is_supported_config_file(target_path + suffix):
+					target_path += suffix
+					break
+	else:
+		var recovery_error := _recover_interrupted_save(target_path)
+		if recovery_error != OK:
+			return recovery_error
 	var config := ConfigFile.new()
 	var load_error := config.load(target_path)
 	if load_error != OK:

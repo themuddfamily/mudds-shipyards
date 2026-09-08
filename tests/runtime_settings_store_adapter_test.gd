@@ -68,6 +68,7 @@ func _run() -> void:
 	_cleanup_legacy()
 	_test_json_round_trip_and_payload_composition()
 	_test_legacy_import_is_empty_store_only()
+	_test_read_only_startup_settings()
 	_test_failed_writes_preserve_live_and_disk()
 	_test_corrupt_and_newer_authority_is_preserved()
 	_test_typed_payload_rejection_is_atomic()
@@ -174,6 +175,55 @@ func _test_legacy_import_is_empty_store_only() -> void:
 		and filesystem.files[STORE_PATH] == before_bytes,
 		"skipped legacy import preserves both live state and atomic bytes"
 	)
+
+
+func _test_read_only_startup_settings() -> void:
+	_cleanup_legacy()
+	var filesystem := FakeFilesystem.new()
+	var settings := Settings.new(_legacy_path)
+	var empty := Adapter.new(settings, Store.new(STORE_PATH, filesystem), _legacy_path).load_read_only()
+	_check(bool(empty.accepted) and settings.graphics_profile == Settings.GraphicsProfile.HIGH
+		and filesystem.files.is_empty(), "read-only empty startup retains High without creating settings")
+	var legacy := Settings.new(_legacy_path)
+	legacy.graphics_profile = Settings.GraphicsProfile.LOW
+	_check(legacy.save_to_file() == OK, "read-only fixture writes a legacy Low preference")
+	var legacy_bytes := FileAccess.get_file_as_bytes(_legacy_path)
+	# Preview a valid backup without promoting it or cleaning transaction files.
+	DirAccess.rename_absolute(ProjectSettings.globalize_path(_legacy_path),
+		ProjectSettings.globalize_path(_legacy_path + ".bak"))
+	var preview := Adapter.new(settings, Store.new(STORE_PATH, filesystem), _legacy_path).load_read_only()
+	_check(bool(preview.accepted) and not bool(preview.migrated_legacy)
+		and settings.graphics_profile == Settings.GraphicsProfile.LOW
+		and filesystem.files.is_empty() and not FileAccess.file_exists(_legacy_path)
+		and FileAccess.get_file_as_bytes(_legacy_path + ".bak") == legacy_bytes,
+		"read-only legacy fallback selects Low without migration, promotion, or cleanup")
+	var store := Store.new(STORE_PATH, filesystem)
+	store.load()
+	var atomic := Settings.new()
+	atomic.graphics_profile = Settings.GraphicsProfile.MEDIUM
+	store.commit({Adapter.SETTINGS_PAYLOAD_KEY: atomic.to_user_data_payload()}, 0, "preview-medium")
+	atomic.graphics_profile = Settings.GraphicsProfile.LOW
+	store.commit({Adapter.SETTINGS_PAYLOAD_KEY: atomic.to_user_data_payload()}, 1, "preview-low")
+	var before := filesystem.files.duplicate(true)
+	settings = Settings.new(_legacy_path)
+	preview = Adapter.new(settings, Store.new(STORE_PATH, filesystem), _legacy_path).load_read_only()
+	_check(bool(preview.accepted) and settings.graphics_profile == Settings.GraphicsProfile.LOW
+		and filesystem.files == before, "read-only atomic Low uses validated authority without changing bytes")
+	filesystem.files[STORE_PATH] = "invalid-primary".to_utf8_buffer()
+	before = filesystem.files.duplicate(true)
+	settings = Settings.new(_legacy_path)
+	preview = Adapter.new(settings, Store.new(STORE_PATH, filesystem), _legacy_path).load_read_only()
+	_check(bool(preview.accepted) and settings.graphics_profile == Settings.GraphicsProfile.MEDIUM
+		and filesystem.files == before and not filesystem.files.has(STORE_PATH + ".recovery"),
+		"read-only backup selection preserves a corrupt primary without quarantine writes")
+	filesystem.files.erase(STORE_PATH + ".bak")
+	before = filesystem.files.duplicate(true)
+	settings = Settings.new(_legacy_path)
+	preview = Adapter.new(settings, Store.new(STORE_PATH, filesystem), _legacy_path).load_read_only()
+	_check(not bool(preview.accepted) and settings.graphics_profile == Settings.GraphicsProfile.HIGH
+		and filesystem.files == before,
+		"malformed atomic authority remains untouched and never falls back to legacy Low")
+	_cleanup_legacy()
 
 
 func _test_failed_writes_preserve_live_and_disk() -> void:

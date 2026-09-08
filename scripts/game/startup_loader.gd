@@ -75,6 +75,7 @@ var _mouse_was_free := true
 var _worst_frame_ms := 0.0
 var _last_frame_usec := 0
 var _display_settings_report: Dictionary = {}
+var _startup_graphics_profile := RuntimeSettings.DEFAULT_GRAPHICS_PROFILE
 var _early_cli_exit_code := 0
 ## The scene resource load has one explicit owner. Keeping this handle on Boot
 ## lets `_exit_tree()` join it even if Boot is cancelled while the worker is in
@@ -225,6 +226,11 @@ func run_startup() -> Node:
 		_main.queue_free()
 		_main = null
 		return null
+	# The saved profile must shape the first environment and renderer work, not
+	# arrive after the whole fleet has already warmed the authored High profile.
+	var world := _main.get_node_or_null(^"ShipyardWorld") as ShipyardWorld
+	if world != null:
+		world.visual_quality_level = _startup_graphics_profile
 	var flow := _main as GameFlow
 	var staged := flow != null and flow.prepare_staged_startup()
 	add_child(_main)
@@ -476,16 +482,17 @@ func _process(_delta: float) -> void:
 		Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 
 
-## Reads the stored accessibility preferences without constructing any gameplay.
-## `RuntimeSettings` is documented as side-effect free to load, so this cannot
-## disturb the presets `GameFlow` applies for real a moment later; the one global
-## it does apply is the window mode, so the player who chose fullscreen sees the
-## loading screen in fullscreen instead of a window that jumps afterwards.
+## Reads validated atomic settings (or the eligible legacy fallback) without
+## writing user files. Display preferences shape the loading window, and the
+## retained graphics profile shapes the world's first construction frames.
+## GameFlow still owns the normal settings load and persistence lifecycle.
 func _read_accessibility_descriptor() -> Dictionary:
 	var settings := RuntimeSettings.new()
-	var error := settings.load_from_file()
-	if error != OK and error != ERR_FILE_NOT_FOUND:
-		push_warning("Startup could not read stored settings: %s" % error_string(error))
+	var loaded := RuntimeSettingsStoreAdapter.new(settings).load_read_only()
+	_startup_graphics_profile = settings.graphics_profile
+	print("STARTUP graphics profile=%s" % settings.get_graphics_profile_id())
+	if not bool(loaded.get("accepted", false)):
+		push_warning("Startup could not read stored settings: %s" % str(loaded.get("reason", &"unknown")))
 		_display_settings_report = {"applied": false, "reason": &"settings_load_failed"}
 		return {}
 	var window_report := settings.apply_window_mode()
@@ -507,6 +514,7 @@ func get_display_settings_report() -> Dictionary:
 ## detached report. Tests and alternate boot owners can provide their already
 ## loaded settings without coupling this loader to persistence.
 func apply_runtime_settings(settings: RuntimeSettings) -> Dictionary:
+	_startup_graphics_profile = settings.graphics_profile
 	var window_report := settings.apply_window_mode()
 	var display_report := settings.apply_display_settings()
 	_display_settings_report = {
