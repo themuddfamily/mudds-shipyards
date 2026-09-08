@@ -23,39 +23,11 @@ static func bind_manufactured_paint(material: StandardMaterial3D) -> void:
 	material.clearcoat_roughness = 0.38
 	material.texture_filter = BaseMaterial3D.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS_ANISOTROPIC
 
-## Shared surface treatment for the fleet's secondary structure.
-##
-## Every craft in the fleet renders as two visual populations. Hull lofts and
-## authored hull shells are bound to a registered albedo/normal/roughness map
-## family and read as manufactured plate. Secondary structure — engine
-## housings, landing gear, collars, sensor masts, escape pods, cargo hardware,
-## deck plate, thermal panels — was left on a flat scalar `albedo_color` with
-## no maps at all and with every craft's structural roughness clustered inside
-## a band roughly 0.1 wide, so those parts differed from one another in hue and
-## in nothing else. Flat colour plus one shared specular response is what reads
-## as an untextured primitive.
-##
-## `bind_structural_detail` closes that gap without inventing a second look. It
-## binds the craft's own already-registered normal map — and, for machined
-## metal, its roughness map — to a structural material through triplanar
-## projection at a finer scale than that craft's hull uses, so the secondary
-## structure gains surface relief and a varying specular response while staying
-## inside its own registered material family.
-##
-## What it deliberately does not do:
-##
-## - It never binds an albedo texture. The scalar `albedo_color` is the value
-##   `tests/fleet_role_differentiation_test.gd` measures for the frozen
-##   CIEDE2000 body and accent floors, and it stays exactly as authored.
-## - It authors no UVs and moves no vertex, so no silhouette changes and no
-##   craft's evidence-bounded macroform is touched.
-## - It leaves `uv1_triplanar` alone on hull materials, whose UV0 texture-
-##   coordinate authority is declared in the Torrent and Zenith presentation
-##   audits.
-##
-## Provenance: the bound maps are the project's existing procedurally generated
-## material maps, reused here at a second projection scale. Nothing in this
-## helper is authored, baked or scanned surface art.
+## Secondary structure uses the same seam-free microrelief as the coating.
+## Geometry owns seams and hardware; projecting a hull-panel normal map onto
+## collars and small fittings stamps miniature panels over their actual shape.
+## Structural tint, scalar roughness, projection scale and relief strength stay
+## caller-owned. No albedo or roughness map is added to these materials.
 
 
 ## Lateral wall subdivision for every chamfered cylinder and frustum the fleet
@@ -130,24 +102,11 @@ static func bind_manufactured_paint(material: StandardMaterial3D) -> void:
 const CYLINDER_WALL_RINGS := 0
 
 
-## Binds a structural material to its craft's registered relief maps.
-##
-## `texture_scale` is a triplanar `uv1_scale`, so a larger number tiles the map
-## more times per world metre and yields smaller features; every caller passes
-## a value above its craft's hull scale so secondary structure reads at a
-## machined-part frequency rather than at hull-plate frequency.
-##
-## Only the normal map is bound, never a roughness map. The registered
-## roughness maps average roughly 0.44 and multiply the scalar, so a structural
-## material carrying one renders at less than half its authored roughness and
-## can never exceed about 0.6 however high the scalar goes. Leaving them off
-## keeps `roughness` on these materials equal to the roughness the player
-## actually sees, which is what makes the fleet-wide spread in
-## `tests/fleet_surface_detail_test.gd` a meaningful measurement rather than a
-## number that has to be mentally multiplied per craft.
-##
-## Returns `true` when the material was actually treated, so callers can audit
-## the treatment rather than assume it.
+## Binds seam-free structural relief with the caller's projection and strength.
+## The legacy normal_map argument remains required for API compatibility with
+## callers that validate their source material family before applying detail.
+## Its large panel features are intentionally replaced by the shared micrograin.
+## Scalar roughness stays unmodified and receives no multiplicative texture.
 static func bind_structural_detail(
 		material: StandardMaterial3D,
 		normal_map: Texture2D,
@@ -158,7 +117,7 @@ static func bind_structural_detail(
 	if material == null or normal_map == null:
 		return false
 	material.normal_enabled = true
-	material.normal_texture = normal_map
+	material.normal_texture = load(PAINT_NORMAL_PATH) as Texture2D
 	material.normal_scale = normal_strength
 	material.uv1_triplanar = true
 	material.uv1_triplanar_sharpness = triplanar_sharpness

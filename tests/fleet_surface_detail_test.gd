@@ -24,8 +24,8 @@ const ArrowShipType := preload("res://scripts/ships/arrow_recon_ship.gd")
 ## What this suite asserts.
 ##
 ## 1. Every named structural material on all four craft carries the shared
-##    treatment from `ShipSurfaceDetail`: relief from its own craft's
-##    registered normal map, projected triplanar so no UV is authored.
+##    treatment from `ShipSurfaceDetail`: relief from shared
+##    seam-free paint micrograin, projected triplanar so no UV is authored.
 ## 2. No structural material binds an albedo texture. The scalar colours are
 ##    what `tests/fleet_role_differentiation_test.gd` measures for the frozen
 ##    CIEDE2000 body and accent floors, and this suite is the guard that a
@@ -312,10 +312,25 @@ func _audit_helper_contract() -> void:
 	_check(
 		ShipSurfaceDetail.bind_structural_detail(treated, normal_map, 1.25, 0.6)
 		and ShipSurfaceDetail.has_structural_detail(treated)
+		and treated.normal_texture.resource_path == ShipSurfaceDetail.PAINT_NORMAL_PATH
 		and treated.uv1_triplanar
 		and is_equal_approx(treated.uv1_scale.x, 1.25)
 		and is_equal_approx(treated.normal_scale, 0.6),
-		"binding applies exactly the requested triplanar scale and relief strength"
+		"binding replaces hull-panel relief with micrograin and preserves requested scale and strength"
+	)
+	var paint := StandardMaterial3D.new()
+	paint.albedo_color = Color(0.3, 0.4, 0.5)
+	paint.roughness = 0.65
+	paint.metallic = 0.08
+	paint.uv1_scale = Vector3(0.6, 0.9, 1.2)
+	ShipSurfaceDetail.bind_manufactured_paint(paint)
+	_check(
+		paint.albedo_color == Color(0.3, 0.4, 0.5)
+		and is_equal_approx(paint.roughness, 0.65)
+		and is_equal_approx(paint.metallic, 0.08)
+		and paint.uv1_scale == Vector3(0.6, 0.9, 1.2)
+		and not paint.uv1_triplanar,
+		"manufactured finish preserves caller tint, scalar response and authored UV authority"
 	)
 	# Structured red: each of the three properties the audit depends on must be
 	# load-bearing on its own.
