@@ -107,7 +107,7 @@ func _run() -> void:
 	_check((flow.call("_ensure_ember_surface_presentations") as Dictionary).reason == &"already_attached" and director.get_semantic_audio_binding_count() == 1, "repeated ensure cannot duplicate the planetary source")
 
 	host.set("_phase", HostType.Phase.DESCENT)
-	production.state_changed.emit(production.get_snapshot())
+	production._finish_late_signal(&"integration_phase_changed")
 	_check(detail.text.contains("DESCENT // ENTERING"), "surface descent overrides the existing route row")
 	_check(_cues.count(&"ember_surface_descent_exterior") == 1, "surface descent reaches AudioDirector once")
 	hud.update_surface_route_status({
@@ -141,7 +141,7 @@ func _run() -> void:
 	_check([audio_composition.get_instance_id(), status_binding.get_instance_id(), hud_adapter.get_instance_id()] == identities, "re-entry preserves all three exact presentation identities")
 	_check(director.get_semantic_audio_binding_count() == 1, "re-entry restores exactly one planetary semantic source")
 	host.set("_phase", HostType.Phase.ASCENT)
-	production.state_changed.emit(production.get_snapshot())
+	production._finish_late_signal(&"integration_phase_changed")
 	_check(detail.text.contains("EMBER RETURN // ASCENT"), "fresh re-entry updates the surface HUD once")
 	_check(_cues.count(&"ember_surface_ascent_exterior") == 1, "fresh re-entry reaches AudioDirector once")
 	_test_in_range_minimap_markers()

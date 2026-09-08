@@ -55,6 +55,8 @@ class ObservedProduction:
 
 class ObservedHost:
 	extends FakeHost
+	func get_generation() -> int: return int(snapshot.generation)
+	func get_attachment_generation() -> int: return int(snapshot.attachment_generation)
 	var observation_count := 0
 	func get_return_status_snapshot() -> Dictionary:
 		observation_count += 1
@@ -116,6 +118,7 @@ func _run() -> void:
 		and observed_production.observation_count > 0 and observed_host.observation_count > 0,
 		"status callbacks and receipt authentication skip full source diagnostics")
 	_test_production_observations()
+	_test_owner_notifications()
 	if _failures.is_empty():
 		print("EMBER_SURFACE_RETURN_STATUS_BINDING_TEST_OK (%d assertions)" % _assertions)
 		quit(0)
@@ -371,8 +374,10 @@ func _test_production_observations() -> void:
 	var status := BindingType.new()
 	_check(status.attach(production, host).accepted, "actual production observation methods authenticate the built-in status binding")
 	var initial_view := status.get_presenter_snapshot()
+	_check(not production.state_changed.has_connections() and production.state_invalidated.has_connections(),
+		"built-in status uses only lightweight invalidation")
 	for index in range(5):
-		production.state_changed.emit({"generation": -99, "configured": false})
+		production._finish_late_signal(&"test_observation")
 	_check(status.get_presenter_snapshot() == initial_view, "forged signal payloads cannot replace fresh production observations")
 	_check(production.snapshot_count == 0 and host.snapshot_count == 0 and planetary.snapshot_count == 0,
 		"six built-in UI publications construct zero full production, Host or planetary diagnostics")
@@ -380,6 +385,7 @@ func _test_production_observations() -> void:
 	var production_full := production.get_snapshot()
 	var host_full := host.get_snapshot()
 	_check_projection(production.get_return_status_snapshot(), production_full, "production")
+	_check_projection(production.get_audio_presentation_snapshot(), production_full, "audio")
 	_check_projection(host.get_return_status_snapshot(), host_full, "Host")
 	var observed := production.get_return_status_snapshot()
 	observed.identities.player_instance_id = -1
@@ -402,6 +408,8 @@ func _test_production_observations() -> void:
 		"only the explicitly injected presenter constructs a full report on the shared signal")
 	legacy_status.detach()
 	status.detach()
+	_check(not production.state_invalidated.has_connections() and not production.state_changed.has_connections(),
+		"detach releases both notification routes")
 	var legacy_planetary := LegacyPlanetary.new()
 	production.set("_planetary_composition", legacy_planetary)
 	var legacy_observation := production.get_return_status_snapshot()
@@ -413,6 +421,71 @@ func _test_production_observations() -> void:
 	production.free()
 	host.free()
 	planetary.free()
+
+func _test_owner_notifications() -> void:
+	var production := CountingProduction.new()
+	var planetary := CountingPlanetary.new()
+	var host := ObservedHost.new()
+	var bunker := EmberSurveyBunkerInteractionBinding.new()
+	var rack := EmberSampleRackInteractionBinding.new()
+	var bunker_marker := MeshInstance3D.new()
+	var rack_marker := Label3D.new()
+	var response_body := StaticBody3D.new()
+	bunker.add_child(bunker_marker)
+	bunker.add_child(response_body)
+	rack.add_child(rack_marker)
+	for interaction: Node in [bunker, rack]:
+		interaction.set("_configured", true)
+		interaction.set("_attached", true)
+		interaction.set("_host", host)
+		interaction.set("_host_generation", 4)
+		interaction.set("_attachment_generation", 2)
+	bunker.set("_marker", bunker_marker)
+	bunker.set("_response_body", response_body)
+	bunker.set("_completed", true)
+	rack.set("_marker", rack_marker)
+	rack.set("_activity_generation", 1)
+	rack.set("_activity_state_source", func(generation: int) -> bool: return generation == 1)
+	planetary.set("_survey_interaction", bunker)
+	planetary.set("_sample_rack_interaction", rack)
+	production.set("_planetary_composition", planetary)
+	production._finish_late_signal(&"host_advanced")
+	_check(bunker.collision_layer == bunker.INTERACTION_LAYER and bunker_marker.visible \
+		and response_body.collision_layer == bunker.WORLD_LAYER \
+		and rack.collision_layer == rack.INTERACTION_LAYER and rack_marker.visible,
+		"unobserved late boundary activates current bunker, alcove and rack physical presentation")
+	host.snapshot.phase_id = &"reboarded"
+	production._finish_late_signal(&"host_advanced")
+	_check(bunker.collision_layer == 0 and not bunker_marker.visible \
+		and response_body.collision_layer == 0 and rack.collision_layer == 0 and not rack_marker.visible,
+		"unobserved phase exit clears marker and collision state before any diagnostic read")
+	_check(production.snapshot_count == 0 and planetary.snapshot_count == 0,
+		"owner physical refresh constructs no full binding or composition diagnostics")
+	var nested: Array = []
+	var invalidated := func() -> void:
+		nested.append(production.queue_disembark_intent(1, production.get_generation()))
+	production.state_invalidated.connect(invalidated)
+	production._fail_late(&"test_failure")
+	_check(nested.size() == 1 and nested[0].reason == &"reentrant_call" \
+		and nested[0].state_id == &"failed",
+		"failure invalidation rejects nested mutation under the original dispatch guard")
+	production.state_invalidated.disconnect(invalidated)
+	var reports: Array = []
+	var listener := func(report: Dictionary) -> void: reports.append(report)
+	production.state_changed.connect(listener)
+	var full_before := production.snapshot_count
+	production._finish_late_signal(&"test_observed")
+	_check(production.snapshot_count == full_before + 1 and reports.size() == 1 \
+		and reports[0].has("entry_presentation") and reports[0].planetary_surface.has("weather"),
+		"actual full-report listener receives one complete diagnostic payload")
+	reports[0].pending_envelope["tampered"] = true
+	_check((production.get("_pending_envelope") as Dictionary).is_empty(),
+		"observed signal dictionary remains detached from live state")
+	production.state_changed.disconnect(listener)
+	production.free()
+	planetary.free()
+	bunker.free()
+	rack.free()
 
 func _check_projection(observed: Dictionary, full: Dictionary, label: String) -> void:
 	for key: Variant in observed:

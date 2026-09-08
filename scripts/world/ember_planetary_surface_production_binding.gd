@@ -1452,6 +1452,17 @@ func _restore_interrupted_optional_progress() -> Dictionary:
 	return restored
 
 
+## Owner-driven refresh at early/late/lifecycle boundaries, independent of HUD
+## and diagnostic observation. These focused reports reconcile the optional
+## checkpoint markers and interaction collision against current activity state.
+func refresh_interaction_presentation() -> void:
+	if _relay_survey != null:
+		_relay_survey.get_snapshot(_adapter)
+	if _survey_interaction != null:
+		_survey_interaction.call(&"get_snapshot")
+	_refresh_sample_rack_presentation()
+
+
 func _refresh_sample_rack_presentation() -> void:
 	if _sample_rack_interaction != null:
 		_sample_rack_interaction.call(&"get_snapshot")

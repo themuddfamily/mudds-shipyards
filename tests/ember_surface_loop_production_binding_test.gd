@@ -15,6 +15,14 @@ var _original_time_scale := 1.0
 var _active_production: EmberSurfaceLoopProductionBinding
 
 
+class CountingProduction:
+	extends EmberSurfaceLoopProductionBinding
+	var snapshot_count := 0
+	func get_snapshot() -> Dictionary:
+		snapshot_count += 1
+		return super.get_snapshot()
+
+
 class EarlyCaller:
 	extends Node
 
@@ -30,6 +38,9 @@ class EarlyCaller:
 	var player: PlayerController
 	var enabled := false
 	var journey_flow: GameFlow
+	var facade_probe_enabled := false
+	var facade_probe_full_reports := -1
+	var facade_probe_physical_refreshed := false
 	var journey_cadence_enabled := false
 	var journey_cadence_samples := 0
 	var actor_kind: StringName = &"ship"
@@ -121,6 +132,30 @@ class EarlyCaller:
 				)
 			frame_offset_red = 0
 			retry_after_frame_red = false
+		elif facade_probe_enabled:
+			# Seed presentation left over from an on-foot attachment, then inspect
+			# physical nodes immediately after early admission, before late/report reads.
+			var planetary := production.get("_planetary_composition") as Node
+			var bunker := planetary.get("_survey_interaction") as Area3D
+			var rack := planetary.get("_sample_rack_interaction") as Area3D
+			var bunker_marker := bunker.get("_marker") as MeshInstance3D
+			var rack_marker := rack.get("_marker") as Label3D
+			var response := bunker.get("_response_body") as StaticBody3D
+			bunker.collision_layer = 8
+			rack.collision_layer = 8
+			bunker_marker.visible = true
+			rack_marker.visible = true
+			response.collision_layer = PhysicsLayers.WORLD_BODY_LAYER
+			var reports_before := int(production.get("snapshot_count"))
+			last_prepare = production.advance_from_caller_sample(
+				serial, CALLER_DELTA, actor_kind, actor.get_instance_id(), ship.get_instance_id(),
+				last_sample.position, ship.velocity, false, false, false, last_origin,
+				current_generation, 1, production.get_generation()
+			)
+			facade_probe_full_reports = int(production.get("snapshot_count")) - reports_before
+			facade_probe_physical_refreshed = bunker.collision_layer == 0 \
+				and rack.collision_layer == 0 and not bunker_marker.visible \
+				and not rack_marker.visible and response.collision_layer == 0
 		elif journey_cadence_enabled:
 			last_prepare = journey_flow._advance_ember_surface_loop_cadence(
 				CALLER_DELTA, last_sample, last_origin, current_generation,
@@ -340,7 +375,7 @@ func _test_real_scheduler_complete_loop() -> void:
 	var player := fixture.player as PlayerController
 	var area := fixture.area as ShipBoardingArea
 	var original_source := fixture.original_source as ShipCommandSource
-	var production := EmberSurfaceLoopProductionBinding.new()
+	var production := CountingProduction.new()
 	production.name = "EmberSurfaceLoopProductionBinding"
 	world.add_child(production)
 	_active_production = production
@@ -370,6 +405,8 @@ func _test_real_scheduler_complete_loop() -> void:
 	early.enabled = true
 	await early.nested_probe_finished
 	early.enabled = false
+	_check(early.last_prepare.has("entry_presentation") and early.last_prepare.has("identities"),
+		"public accepted prepare preserves the complete diagnostic report")
 	var start_snapshot := production.get_snapshot()
 	_check(
 		early.last_prepare.accepted and production.get_state() == EmberSurfaceLoopProductionBinding.State.RUNNING
@@ -507,7 +544,17 @@ func _test_real_scheduler_complete_loop() -> void:
 		"binding owns only its audited late physics callback",
 	)
 	early.enabled = true
+	early.facade_probe_enabled = true
 	await _one_physics()
+	early.facade_probe_enabled = false
+	_check(early.last_prepare.accepted and early.facade_probe_full_reports == 0,
+		"real accepted caller facade constructs zero discarded full binding reports")
+	_check(early.facade_probe_physical_refreshed,
+		"accepted early facade clears stale optional marker and collision state before late or diagnostic observation")
+	var facade_evidence := early.last_prepare.envelope as Dictionary
+	facade_evidence.actor_sample.position = Vector3.INF
+	_check(((production.get("_last_prepared_evidence") as Dictionary).actor_sample.position as Vector3).is_finite(),
+		"focused caller receipt keeps admitted evidence detached")
 	_check(
 		int((host.get_snapshot().command_source as Dictionary).sample_count) >= 1
 			and int(production.get_snapshot().advance_count) == 1,
@@ -526,6 +573,7 @@ func _test_real_scheduler_complete_loop() -> void:
 	await _one_physics()
 	_check(
 		early.reentrant_probe.reason == &"stale_coordinate_frame_generation"
+			and early.reentrant_probe.has("entry_presentation")
 			and early.last_prepare.accepted,
 		"N+1 frame forgery rejects before the same-frame current-N retry",
 	)
@@ -534,6 +582,7 @@ func _test_real_scheduler_complete_loop() -> void:
 	await _one_physics()
 	_check(
 		early.reentrant_probe.reason == &"stale_coordinate_frame_generation"
+			and early.reentrant_probe.has("entry_presentation")
 			and early.last_prepare.accepted,
 		"N+2 frame forgery rejects without consuming the current serial",
 	)

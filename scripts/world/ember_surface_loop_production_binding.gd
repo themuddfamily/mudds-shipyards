@@ -9,6 +9,8 @@ extends Node
 ## only after production actors have consumed the command visible at tick entry.
 
 signal state_changed(snapshot: Dictionary)
+## Fresh-state notification for observers that read their own focused source.
+signal state_invalidated
 signal completion_handback_ready(receipt: Dictionary)
 signal service_terminal_repair_feedback(feedback: Dictionary)
 signal station_return_handoff_ready(intent: Dictionary)
@@ -424,7 +426,7 @@ func _on_authored_hazard_presentation_changed(_snapshot: Dictionary) -> void:
 	if _mutation_active or _signal_dispatch_active:
 		return
 	_signal_dispatch_active = true
-	state_changed.emit(get_snapshot())
+	_publish_state_change()
 	_signal_dispatch_active = false
 
 
@@ -1627,6 +1629,27 @@ func prepare_early_tick(
 	current_location_generation: int,
 	expected_generation: int
 ) -> Dictionary:
+	var prepared := _prepare_early_tick(
+		caller_serial, delta, actor_sample, origin_result,
+		current_coordinate_frame_generation, current_location_generation,
+		expected_generation
+	)
+	if not bool(prepared.get("accepted", false)):
+		return prepared
+	return _finish(true, &"early_tick_prepared")
+
+
+## Shared admission/mutation core. Only the public legacy prepare API constructs
+## the full accepted report; the production facade consumes this small receipt.
+func _prepare_early_tick(
+	caller_serial: int,
+	delta: float,
+	actor_sample: Variant,
+	origin_result: Variant,
+	current_coordinate_frame_generation: int,
+	current_location_generation: int,
+	expected_generation: int
+) -> Dictionary:
 	if _mutation_active or _signal_dispatch_active:
 		return _reject(&"reentrant_call")
 	_mutation_active = true
@@ -1712,7 +1735,9 @@ func prepare_early_tick(
 	_prepared_count += 1
 	if _state == State.IDLE:
 		_state = State.START_PENDING
-	return _finish(true, &"early_tick_prepared")
+	_mutation_active = false
+	_last_result = {"accepted": true, "reason": &"early_tick_prepared"}
+	return _last_result.duplicate(true)
 
 
 ## Explicit caller-sample facade for production owners that already hold the
@@ -1745,12 +1770,15 @@ func advance_from_caller_sample(
 		"available": true,
 		"position": position,
 	}
-	var prepared := prepare_early_tick(
+	var prepared := _prepare_early_tick(
 		caller_serial, delta, sample, origin_result,
 		coordinate_frame_generation, location_generation, expected_generation
 	)
 	if not bool(prepared.get("accepted", false)):
 		return prepared
+	# The discarded legacy prepare report also refreshed optional interactions.
+	# Keep that owner-side boundary even with no HUD or diagnostic subscriber.
+	_refresh_planetary_interaction_presentation()
 	_pending_envelope["caller_kinematics"] = {
 		"craft_instance_id": craft_instance_id,
 		"velocity_mps": velocity_mps,
@@ -1981,6 +2009,59 @@ func get_return_status_snapshot() -> Dictionary:
 		"completion_handback": _completion_handback.duplicate(true),
 		"planetary_surface": planetary,
 	}
+
+
+## Fresh audio-owner inputs, preserving the complete consumed entry and reward
+## reports without constructing surface, navigation, weather or hazard diagnostics.
+func get_audio_presentation_snapshot() -> Dictionary:
+	return {
+		"generation": _generation,
+		"state_id": _state_id(_state),
+		"identities": {
+			"host_instance_id": _host_instance_id,
+			"composition_root_instance_id": _composition_root_instance_id,
+			"bootstrap_instance_id": _bootstrap_instance_id,
+			"origin_owner_instance_id": _origin_owner_instance_id,
+			"origin_binding_instance_id": _origin_binding_instance_id,
+			"coordinate_frame_instance_id": _frame_instance_id,
+			"ship_instance_id": _ship_instance_id,
+			"player_instance_id": _player_instance_id,
+			"loaded_scene_instance_id": _loaded_scene_instance_id,
+			"location_generation": _location_generation,
+		}.duplicate(true),
+		"last_prepared_evidence": _last_prepared_evidence.duplicate(true),
+		"relay_reward_commit": {
+			"authority_commit_count": _relay_reward_authority_commit_count,
+			"persistence_commit_count": _relay_reward_persistence_commit_count,
+			"authority_in_flight": _relay_reward_authority_in_flight,
+			"authority_receipt": _relay_reward_authority_receipt.duplicate(true),
+			"commit_receipt": _relay_reward_commit_receipt.duplicate(true),
+			"last_result": _last_relay_reward_commit_result.duplicate(true),
+			"automatic_late_commit": true,
+			"owns_reward_authority": false,
+			"owns_reward_store": false,
+		}.duplicate(true),
+		"entry_presentation": _entry_presentation_binding.get_snapshot() \
+			if _entry_presentation_binding != null else {"attached": false},
+		"last_entry_presentation_result": _last_entry_presentation_result.duplicate(true),
+		"fleet_landing_wash_presentation": (
+			_fleet_landing_wash_binding.call(&"get_snapshot")
+			if _fleet_landing_wash_binding != null else {
+				"attached": false,
+				"delegated_to_arrow_entry": _ship is ArrowReconShip,
+			}
+		),
+		"last_fleet_landing_wash_result": (
+			_last_fleet_landing_wash_result.duplicate(true)
+		),
+		"fleet_entry_envelope_presentation": (
+			_fleet_entry_envelope_binding.call(&"get_snapshot")
+			if _fleet_entry_envelope_binding != null else {
+				"attached": false,
+				"delegated_to_arrow_entry": _ship is ArrowReconShip,
+			}
+		),
+	}.duplicate(true)
 
 
 func get_snapshot() -> Dictionary:
@@ -2720,7 +2801,7 @@ func _complete_handback_late() -> void:
 	_last_late_result = returned.duplicate(true)
 	_mutation_active = false
 	_signal_dispatch_active = true
-	state_changed.emit(get_snapshot())
+	_publish_state_change()
 	completion_handback_ready.emit(_completion_handback.duplicate(true))
 	_signal_dispatch_active = false
 
@@ -3019,10 +3100,31 @@ func _rollback_planetary_surface_start_configuration() -> void:
 	_atmosphere_composition = null
 
 
+## Refresh physical interaction visibility/collision without observing the full
+## composition. Legacy injected compositions retain their snapshot behavior.
+func _refresh_planetary_interaction_presentation() -> void:
+	if not is_instance_valid(_planetary_composition):
+		return
+	if _planetary_composition.has_method(&"refresh_interaction_presentation"):
+		_planetary_composition.call(&"refresh_interaction_presentation")
+	else:
+		_planetary_composition.call(&"get_snapshot")
+
+
+## Call only inside the existing signal-dispatch guard. Full diagnostics remain
+## fresh and detached for actual listeners, including awaiters and audio owners.
+func _publish_state_change() -> void:
+	if state_changed.has_connections():
+		state_changed.emit(get_snapshot())
+	else:
+		_refresh_planetary_interaction_presentation()
+	state_invalidated.emit()
+
+
 func _finish_late_signal(_reason: StringName) -> void:
 	_mutation_active = false
 	_signal_dispatch_active = true
-	state_changed.emit(get_snapshot())
+	_publish_state_change()
 	_signal_dispatch_active = false
 
 

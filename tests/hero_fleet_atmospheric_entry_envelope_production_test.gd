@@ -22,7 +22,7 @@ class ProductionProbe:
 
 	var probe_phase := EmberSurfaceLoopHost.Phase.DESCENT
 
-	func prepare_early_tick(
+	func _prepare_early_tick(
 			caller_serial: int, _delta: float, _actor_sample: Variant,
 			_origin_result: Variant, _frame_generation: int,
 			_location_generation: int, _expected_generation: int

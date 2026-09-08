@@ -47,7 +47,10 @@ func attach(production: Object, host: Object, presenter: Object = null, reduced_
 	_last_attachment_generation = -1
 	_survey_scope_attachment_generation = -1
 	_last_manifest_activity_generation = -1
-	_production.connect(&"state_changed", _on_state_changed)
+	if _uses_builtin_presenter and _production.has_signal(&"state_invalidated"):
+		_production.connect(&"state_invalidated", _on_state_invalidated)
+	else:
+		_production.connect(&"state_changed", _on_state_changed)
 	_production.connect(&"completion_handback_ready", _on_completion)
 	var published := _publish(reduced_motion)
 	if not bool(published.get("accepted", false)):
@@ -59,6 +62,9 @@ func attach(production: Object, host: Object, presenter: Object = null, reduced_
 
 func detach() -> Dictionary:
 	if is_instance_valid(_production):
+		if _production.has_signal(&"state_invalidated") \
+				and _production.is_connected(&"state_invalidated", _on_state_invalidated):
+			_production.disconnect(&"state_invalidated", _on_state_invalidated)
 		if _production.is_connected(&"state_changed", _on_state_changed):
 			_production.disconnect(&"state_changed", _on_state_changed)
 		if _production.is_connected(&"completion_handback_ready", _on_completion):
@@ -100,6 +106,10 @@ func get_snapshot() -> Dictionary:
 
 func get_presenter_snapshot() -> Dictionary:
 	return _view.duplicate(true)
+
+
+func _on_state_invalidated() -> void:
+	_publish(_reduced_motion)
 
 
 func _on_state_changed(_snapshot: Dictionary) -> void:
