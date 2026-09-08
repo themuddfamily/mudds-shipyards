@@ -93,7 +93,7 @@ EXPECTED_RUNTIME_TRIANGLES = 89_254
 RUNTIME_MESH_INSTANCE_BUDGET = 36
 SOURCE_MESH_INSTANCE_BUDGET = 320
 CLOSE_TRIANGLE_RANGE = (70_000, 90_000)
-FAR_TRIANGLE_RANGE = (7_000, 12_000)
+FAR_TRIANGLE_RANGE = (7_000, 13_000)
 TOTAL_TRIANGLE_BUDGET = 105_000
 
 # Gameplay collision remains Godot-owned, but these exact boxes are audited
@@ -1486,13 +1486,16 @@ def evaluated_art_quality_metrics() -> dict:
         }
     close_roots = ("LOD0", "CockpitArt", "CanopyPivot")
     close_triangles = sum(roots[name]["evaluated_triangle_count"] for name in close_roots)
-    far_triangles = roots["LOD1"]["evaluated_triangle_count"]
+    # The same articulated canopy is rendered with either hull LOD. Count it
+    # in each visible state, but only once in the unique exported geometry.
+    far_triangles = sum(roots[name]["evaluated_triangle_count"]
+                        for name in ("LOD1", "CanopyPivot"))
     exterior_area = roots["LOD0"]["evaluated_surface_area_m2"]
     return {
         "roots": roots,
         "close_triangle_count": close_triangles,
         "far_triangle_count": far_triangles,
-        "total_triangle_count": close_triangles + far_triangles,
+        "total_triangle_count": sum(root["evaluated_triangle_count"] for root in roots.values()),
         "material_surface_area_m2": {
             name: round(value, 6) for name, value in sorted(material_area.items())
         },
@@ -2494,8 +2497,8 @@ def main():
                 "sha256": sha(ROOT / "assets/materials/manufactured-paint-normal.png"),
             },
             "roughness": {
-                "path": "assets/materials/manufactured-paint-roughness.png",
-                "sha256": sha(ROOT / "assets/materials/manufactured-paint-roughness.png"),
+                "path": "assets/materials/coating-scuff-roughness.png",
+                "sha256": sha(ROOT / "assets/materials/coating-scuff-roughness.png"),
             },
         },
         "uv0_contract": uv_contract,

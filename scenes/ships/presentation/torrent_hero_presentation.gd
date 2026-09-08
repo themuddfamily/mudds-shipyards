@@ -274,12 +274,12 @@ func _apply_lod(lod_index: int) -> void:
 		_lod0.visible = _active_lod == 0
 	if _lod1 != null:
 		_lod1.visible = _active_lod == 1
-	# The detailed cabin/canopy belong to the close presentation. LOD1 carries
-	# the complete unbounded flight silhouette, so no legacy fallback is needed.
+	# Cabin detail drops at distance. The shared authored glazing and frame are
+	# part of both silhouettes and retain the same live boarding hinge transform.
 	if _cockpit_art != null:
 		_cockpit_art.visible = _active_lod == 0
 	if _canopy_pivot != null:
-		_canopy_pivot.visible = _active_lod == 0
+		_canopy_pivot.visible = true
 	if _active_lod != previous_lod:
 		lod_changed.emit(_active_lod)
 
@@ -462,14 +462,14 @@ func get_asset_audit_report() -> Dictionary:
 	var lod1_triangles := _subtree_triangle_count(live_lod1)
 	var total_mesh_count := live_asset_root.find_children("*", "MeshInstance3D", true, false).size() if live_asset_root != null else 0
 	var near_surface_count := _subtree_surface_count(live_lod0) + _subtree_surface_count(live_cockpit) + _subtree_surface_count(live_canopy)
-	var far_surface_count := _subtree_surface_count(live_lod1)
+	var far_surface_count := _subtree_surface_count(live_lod1) + _subtree_surface_count(live_canopy)
 	if lod0_triangles < 45000:
 		errors.append("close-range LOD0 lacks the authored triangle-density contract")
 	if lod1_triangles < 6000:
 		errors.append("mid-range LOD1 lacks the authored silhouette-density contract")
 	if lod0_meshes.size() > 18 or lod1_meshes.size() > 5:
 		errors.append("runtime LOD draw-node budget was exceeded")
-	if total_mesh_count > 36 or near_surface_count > 32 or far_surface_count > 5:
+	if total_mesh_count > 36 or near_surface_count > 32 or far_surface_count > 8:
 		errors.append("runtime presentation surface budget was exceeded")
 	if live_canopy == null:
 		errors.append("articulated canopy pivot is missing")
@@ -548,8 +548,8 @@ func get_asset_audit_report() -> Dictionary:
 		errors.append("LOD1 visibility disagrees with the atomic LOD state")
 	if live_cockpit != null and live_cockpit.visible != (_active_lod == 0):
 		errors.append("cockpit visibility disagrees with the atomic LOD state")
-	if live_canopy != null and live_canopy.visible != (_active_lod == 0):
-		errors.append("canopy visibility disagrees with the atomic LOD state")
+	if live_canopy != null and not live_canopy.visible:
+		errors.append("shared canopy silhouette is hidden across the atomic LOD state")
 	_append_integrity_errors(errors, raw_source_glb_path, raw_source_glb_sha256)
 	var canopy_glass := (
 		live_canopy.get_node_or_null("CanopyGlass") as MeshInstance3D
