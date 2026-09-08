@@ -34,7 +34,7 @@ func begin(adapter: Object, navigation: RefCounted = null) -> Dictionary:
 	if adapter == null:
 		return {"accepted": false, "reason": &"activity_adapter_unavailable"}
 	var adapter_state := StringName(
-		(adapter.call(&"get_snapshot") as Dictionary).get("state", &"")
+		_adapter_observation(adapter).get("state", &"")
 	) if adapter.has_method(&"get_snapshot") else &""
 	var restarted: Dictionary = {}
 	if adapter_state == &"completed" and adapter.has_method(&"repeat_activity"):
@@ -43,7 +43,7 @@ func begin(adapter: Object, navigation: RefCounted = null) -> Dictionary:
 		restarted = adapter.call(&"retry_activity", ACTIVITY_ID)
 	if not restarted.is_empty():
 		if bool(restarted.get("accepted", false)):
-			_reconcile_optional_checkpoint_generation(adapter)
+			_reconcile_optional_checkpoint_generation(_adapter_observation(adapter))
 			_apply_authoritative_route_result(restarted)
 			_admit_deferred_bunker_checkpoint(adapter)
 		return restarted
@@ -56,7 +56,7 @@ func begin(adapter: Object, navigation: RefCounted = null) -> Dictionary:
 	else:
 		return {"accepted": false, "reason": &"activity_adapter_unavailable"}
 	if bool(started.get("accepted", false)):
-		_reconcile_optional_checkpoint_generation(adapter)
+		_reconcile_optional_checkpoint_generation(_adapter_observation(adapter))
 		_apply_authoritative_route_result(started)
 		_admit_deferred_bunker_checkpoint(adapter)
 	return started
@@ -85,7 +85,7 @@ func resume_mandatory_route(adapter: Object, route_identity: Variant) -> Diction
 		&"resume_active_activity_sequence", ids, state
 	) as Dictionary
 	if bool(resumed.get("accepted", false)):
-		_reconcile_optional_checkpoint_generation(adapter)
+		_reconcile_optional_checkpoint_generation(_adapter_observation(adapter))
 		_apply_authoritative_route_result(resumed)
 		# Current main can retain a harmless bunker observation made before
 		# survey admission. Use its existing promotion hook after a restored
@@ -138,8 +138,8 @@ func commit_reward(adapter: Object) -> Dictionary:
 func submit_optional_checkpoint(adapter: Object, receipt: Variant) -> Dictionary:
 	if adapter == null or not adapter.has_method(&"get_snapshot") or not receipt is Dictionary:
 		return _checkpoint_result(false, &"invalid_optional_checkpoint_evidence", adapter)
-	_reconcile_optional_checkpoint_generation(adapter)
-	var adapter_snapshot := adapter.call(&"get_snapshot") as Dictionary
+	var adapter_snapshot := _adapter_observation(adapter)
+	_reconcile_optional_checkpoint_generation(adapter_snapshot)
 	var runtime := adapter_snapshot.get("activity_reward", {}) as Dictionary
 	var evidence := receipt as Dictionary
 	var interaction_id := StringName(evidence.get("interaction_id", &""))
@@ -223,7 +223,8 @@ func submit_optional_checkpoint(adapter: Object, receipt: Variant) -> Dictionary
 
 
 func get_persistence_snapshot(adapter: Object = null) -> Dictionary:
-	var checkpoint := _optional_checkpoint_snapshot(adapter)
+	var observation := _reconciled_adapter_observation(adapter)
+	var checkpoint := _optional_checkpoint_snapshot(observation)
 	var current := adapter.call(&"get_session_snapshot") as Dictionary \
 		if adapter != null and adapter.has_method(&"get_session_snapshot") else {}
 	return {
@@ -281,7 +282,7 @@ func restore_persistence_snapshot(snapshot: Variant, adapter: Object) -> Diction
 func capture_interrupted_optional_progress(adapter: Object) -> Dictionary:
 	if adapter == null or not adapter.has_method(&"get_snapshot"):
 		return {"accepted": false, "reason": &"optional_progress_runtime_unavailable"}
-	var adapter_snapshot := adapter.call(&"get_snapshot") as Dictionary
+	var adapter_snapshot := _adapter_observation(adapter)
 	var runtime := adapter_snapshot.get("activity_reward", {}) as Dictionary
 	if StringName(adapter_snapshot.get("state", &"")) != &"active" \
 			or StringName(runtime.get("state", &"")) not in [&"active", &"awaiting_reward"] \
@@ -381,10 +382,7 @@ func restore_interrupted_optional_progress(
 	if adapter == null or not adapter.has_method(&"get_snapshot"):
 		return {"accepted": false, "reason": &"optional_progress_runtime_unavailable"}
 	var saved := candidate as Dictionary
-	var runtime := (
-		(adapter.call(&"get_snapshot") as Dictionary).get("activity_reward", {}) \
-		as Dictionary
-	)
+	var runtime := _adapter_observation(adapter).get("activity_reward", {}) as Dictionary
 	if StringName(runtime.get("state", &"")) != &"active" \
 			or StringName(runtime.get("activity_id", &"")) != ACTIVITY_ID \
 			or int(runtime.get("activity_generation", -1)) \
@@ -418,8 +416,9 @@ func restore_interrupted_optional_progress(
 
 
 func get_snapshot(adapter: Object = null) -> Dictionary:
-	var bunker := _optional_checkpoint_snapshot(adapter)
-	var sample_rack := _sample_rack_optional_checkpoint_snapshot(adapter)
+	var observation := _reconciled_adapter_observation(adapter)
+	var bunker := _optional_checkpoint_snapshot(observation)
+	var sample_rack := _sample_rack_optional_checkpoint_snapshot(observation)
 	return {
 		"activity_id": ACTIVITY_ID,
 		"start_landmark_id": START_LANDMARK_ID,
@@ -446,12 +445,30 @@ func get_snapshot(adapter: Object = null) -> Dictionary:
 	}.duplicate(true)
 
 
-func _optional_checkpoint_snapshot(adapter: Object) -> Dictionary:
-	_reconcile_optional_checkpoint_generation(adapter)
+## This observation belongs only to the current call. Read it again after an
+## adapter mutation so lifecycle and generation changes remain authoritative.
+func _adapter_observation(adapter: Object) -> Dictionary:
+	if adapter == null or not adapter.has_method(&"get_snapshot"):
+		return {}
+	if adapter.has_method(&"get_state_id") \
+			and adapter.has_method(&"get_activity_reward_snapshot"):
+		return {
+			"state": adapter.call(&"get_state_id"),
+			"activity_reward": adapter.call(&"get_activity_reward_snapshot"),
+		}
+	return adapter.call(&"get_snapshot") as Dictionary
+
+
+func _reconciled_adapter_observation(adapter: Object) -> Dictionary:
+	var observation := _adapter_observation(adapter)
+	_reconcile_optional_checkpoint_generation(observation)
+	return observation
+
+
+func _optional_checkpoint_snapshot(adapter_snapshot: Dictionary) -> Dictionary:
 	var eligible := false
 	var current_activity_generation := -1
-	if adapter != null and adapter.has_method(&"get_snapshot"):
-		var adapter_snapshot := adapter.call(&"get_snapshot") as Dictionary
+	if not adapter_snapshot.is_empty():
 		var runtime := adapter_snapshot.get("activity_reward", {}) as Dictionary
 		eligible = not _optional_checkpoint_completed \
 			and StringName(adapter_snapshot.get("state", &"")) == &"active" \
@@ -487,12 +504,10 @@ func _optional_checkpoint_snapshot(adapter: Object) -> Dictionary:
 	}.duplicate(true)
 
 
-func _sample_rack_optional_checkpoint_snapshot(adapter: Object) -> Dictionary:
-	_reconcile_optional_checkpoint_generation(adapter)
+func _sample_rack_optional_checkpoint_snapshot(adapter_snapshot: Dictionary) -> Dictionary:
 	var eligible := false
 	var current_activity_generation := -1
-	if adapter != null and adapter.has_method(&"get_snapshot"):
-		var adapter_snapshot := adapter.call(&"get_snapshot") as Dictionary
+	if not adapter_snapshot.is_empty():
 		var runtime := adapter_snapshot.get("activity_reward", {}) as Dictionary
 		eligible = not _sample_rack_completed \
 			and StringName(adapter_snapshot.get("state", &"")) == &"active" \
@@ -526,12 +541,10 @@ func _sample_rack_optional_checkpoint_snapshot(adapter: Object) -> Dictionary:
 	}.duplicate(true)
 
 
-func _reconcile_optional_checkpoint_generation(adapter: Object) -> void:
+func _reconcile_optional_checkpoint_generation(adapter_snapshot: Dictionary) -> void:
 	if (not _optional_checkpoint_completed and not _sample_rack_completed) \
-			or adapter == null \
-			or not adapter.has_method(&"get_snapshot"):
+			or adapter_snapshot.is_empty():
 		return
-	var adapter_snapshot := adapter.call(&"get_snapshot") as Dictionary
 	var runtime := adapter_snapshot.get("activity_reward", {}) as Dictionary
 	if StringName(adapter_snapshot.get("state", &"")) != &"active" \
 			or StringName(runtime.get("state", &"")) != &"active" \
@@ -558,7 +571,7 @@ func _admit_deferred_bunker_checkpoint(adapter: Object) -> void:
 	if _deferred_bunker_receipt.is_empty() or adapter == null \
 			or not adapter.has_method(&"get_snapshot"):
 		return
-	var adapter_snapshot := adapter.call(&"get_snapshot") as Dictionary
+	var adapter_snapshot := _adapter_observation(adapter)
 	var runtime := adapter_snapshot.get("activity_reward", {}) as Dictionary
 	var run_generation := int(runtime.get("run_generation", -1))
 	var attachment_generation := int(runtime.get("attachment_generation", -1))
@@ -670,10 +683,11 @@ func _checkpoint_result(
 		adapter: Object,
 		checkpoint_id: StringName = OPTIONAL_CHECKPOINT_ID
 	) -> Dictionary:
+	var observation := _reconciled_adapter_observation(adapter)
 	return {
 		"accepted": accepted,
 		"reason": reason,
-		"checkpoint": _optional_checkpoint_snapshot(adapter) \
+		"checkpoint": _optional_checkpoint_snapshot(observation) \
 			if checkpoint_id == OPTIONAL_CHECKPOINT_ID \
-			else _sample_rack_optional_checkpoint_snapshot(adapter),
+			else _sample_rack_optional_checkpoint_snapshot(observation),
 	}.duplicate(true)
