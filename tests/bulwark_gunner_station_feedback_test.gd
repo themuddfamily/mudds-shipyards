@@ -42,6 +42,9 @@ func _run() -> void:
 			and station_anchor != null
 			and not readout.double_sided
 			and not engineer_readout.double_sided
+			and not readout.no_depth_test
+			and not engineer_readout.no_depth_test
+			and engineer_readout.global_basis.z.normalized().dot(-readout.global_basis.z.normalized()) > 0.999
 			and readout.position.is_equal_approx(Vector3(0.0, 0.76, -0.985))
 			and readout.rotation.is_equal_approx(Vector3(deg_to_rad(-14.0), 0.0, 0.0))
 			and readout.global_basis.z.normalized().dot(
@@ -49,7 +52,7 @@ func _run() -> void:
 			) > 0.8
 			and feedback.get("roster_state", &"") == &"detached"
 			and readout.text.contains("[DETACHED]"),
-		"an unbound station sees the exact front face and DETACHED token without reverse-label bleed"
+		"an unbound station sees the exact front face and DETACHED token, with both depth-tested readouts facing their own screen side"
 	)
 
 	var authority := Authority.new(1)

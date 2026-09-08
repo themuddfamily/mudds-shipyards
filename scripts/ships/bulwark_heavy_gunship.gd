@@ -360,7 +360,6 @@ func _build_bulwark_variant(_controller: HeroShip) -> bool:
 		IDENTITY_AMBER,
 		IDENTITY_AMBER_EMISSION_ENERGY
 	)
-	var cyan := _material(GUNNER_CYAN, 0.25, 0.2, GUNNER_CYAN, 1.8)
 	var boarding := _material(BOARDING_LIGHT, 0.18, 0.22, BOARDING_LIGHT, 1.2)
 
 	# Continuous load-bearing keel and a descending forebody replace the blunt
@@ -480,20 +479,17 @@ func _build_bulwark_variant(_controller: HeroShip) -> bool:
 	_gunner_station.set_meta("visual_only_weapon_fit", false)
 	_gunner_station.set_meta("authenticated_historical_role", false)
 	_bulwark_visual.add_child(_gunner_station)
-	_box(_gunner_station, "GunnerSeat", Vector3.ZERO, Vector3(0.95, 0.32, 0.95), armor_dark)
-	_box(_gunner_station, "GunnerSeatBack", Vector3(0.0, 0.62, 0.28), Vector3(1.0, 1.1, 0.2), armor_dark, Vector3(deg_to_rad(10.0), 0.0, 0.0))
-	_box(_gunner_station, "GunnerConsole", Vector3(0.0, 0.62, -0.65), Vector3(1.7, 0.16, 0.75), armor_highlight, Vector3(deg_to_rad(-14.0), 0.0, 0.0))
-	_box(_gunner_station, "GunnerDisplay", Vector3(0.0, 0.76, -1.02), Vector3(0.82, 0.34, 0.06), cyan, Vector3(deg_to_rad(-14.0), 0.0, 0.0))
+	_build_gunner_station_furniture(armor_dark, armor_highlight)
 	_engineer_status_readout = Label3D.new()
 	_engineer_status_readout.name = "EngineerRepairReadout"
 	_engineer_status_readout.position = Vector3(0.0, 0.76, -1.06)
-	_engineer_status_readout.rotation = Vector3(deg_to_rad(-14.0), PI, 0.0)
-	_engineer_status_readout.font_size = 24
-	_engineer_status_readout.pixel_size = 0.0008
+	_engineer_status_readout.rotation = Vector3(deg_to_rad(14.0), PI, 0.0)
+	_engineer_status_readout.font_size = 28
+	_engineer_status_readout.pixel_size = 0.0011
 	_engineer_status_readout.modulate = Color("d7ffff")
 	_engineer_status_readout.outline_modulate = Color("07111d")
 	_engineer_status_readout.outline_size = 6
-	_engineer_status_readout.no_depth_test = true
+	_engineer_status_readout.no_depth_test = false
 	_engineer_status_readout.double_sided = false
 	_engineer_status_readout.set_meta("presentation_only", true)
 	_gunner_station.add_child(_engineer_status_readout)
@@ -566,6 +562,70 @@ func _build_bulwark_variant(_controller: HeroShip) -> bool:
 	add_child(_boarding_area)
 
 	return replace_variant_visual_root(_bulwark_visual)
+
+
+## A supported bucket and a formed console replace the exposed chair/desk
+## primitives. Both retained readouts remain on opposite physical screen faces.
+func _build_gunner_station_furniture(armor: Material, frame: Material) -> void:
+	_gunner_fitting("GunnerSeat", Vector3.ZERO, [
+		Vector4(0.78, -0.12, 0.08, -0.47), Vector4(0.93, -0.15, 0.14, -0.32),
+		Vector4(0.89, -0.15, 0.12, 0.30), Vector4(0.78, -0.10, 0.10, 0.43),
+	], _materials.upholstery)
+	var back_rotation := Vector3(deg_to_rad(-78.0), 0, 0)
+	_gunner_fitting("GunnerSeatBack", Vector3(0, 0.63, 0.30), [
+		Vector4(0.79, -0.09, 0.09, -0.50), Vector4(0.90, -0.11, 0.14, -0.33),
+		Vector4(0.82, -0.09, 0.10, 0.27), Vector4(0.66, -0.07, 0.07, 0.50),
+	], _materials.upholstery, back_rotation)
+	_gunner_fitting("GunnerSeatShell", Vector3(0, 0.63, 0.30), [
+		Vector4(0.84, -0.18, -0.10, -0.51), Vector4(0.95, -0.19, -0.11, -0.32),
+		Vector4(0.86, -0.17, -0.09, 0.28), Vector4(0.70, -0.14, -0.06, 0.53),
+	], armor, back_rotation)
+	_gunner_fitting("GunnerHeadrest", Vector3(0, 1.21, 0.44), [
+		Vector4(0.43, -0.12, 0.10, -0.10), Vector4(0.57, -0.14, 0.13, -0.04),
+		Vector4(0.57, -0.14, 0.13, 0.10), Vector4(0.46, -0.09, 0.09, 0.15),
+	], _materials.upholstery_light)
+	for side in [-1.0, 1.0]:
+		var tag := "Port" if side < 0 else "Starboard"
+		_gunner_fitting(tag + "GunnerThighSupport", Vector3(side * 0.45, 0.04, -0.02), [
+			Vector4(0.10, -0.10, 0.12, -0.36), Vector4(0.17, -0.12, 0.17, -0.23),
+			Vector4(0.17, -0.12, 0.17, 0.24), Vector4(0.11, -0.08, 0.11, 0.34),
+		], _materials.upholstery)
+		_box(_gunner_station, tag + "GunnerSeatRail", Vector3(side * 0.30, -0.20, 0), Vector3(0.11, 0.16, 0.91), frame)
+		_box(_gunner_station, tag + "GunnerHeadrestPost", Vector3(side * 0.17, 1.10, 0.43), Vector3(0.04, 0.25, 0.05), frame)
+	# The console's crown falls toward the gunner, leaving the entire display
+	# above it. Its pedestal meets the existing hull deck beneath the station.
+	_gunner_fitting("GunnerConsole", Vector3.ZERO, [
+		Vector4(1.34, 0.12, 0.50, -1.17), Vector4(1.55, 0.12, 0.53, -0.95),
+		Vector4(1.50, 0.12, 0.40, -0.40), Vector4(1.30, 0.10, 0.32, -0.22),
+	], _materials.cockpit_anti_glare)
+	_gunner_fitting("GunnerConsolePedestal", Vector3.ZERO, [
+		Vector4(0.86, -0.27, 0.15, -1.02), Vector4(1.08, -0.26, 0.15, -0.60),
+		Vector4(0.87, -0.24, 0.12, -0.31),
+	], armor)
+	var display_mount := Node3D.new()
+	display_mount.name = "GunnerDisplayMount"
+	display_mount.position = Vector3(0, 0.76, -1.02)
+	display_mount.rotation.x = deg_to_rad(-14.0)
+	_gunner_station.add_child(display_mount)
+	_box(display_mount, "DisplayUpperRail", Vector3(0, 0.228, 0), Vector3(1.19, 0.056, 0.105), armor)
+	_box(display_mount, "DisplayLowerRail", Vector3(0, -0.228, 0), Vector3(1.19, 0.056, 0.105), armor)
+	for side in [-1.0, 1.0]:
+		var tag := "Port" if side < 0 else "Starboard"
+		_box(display_mount, tag + "DisplayRail", Vector3(side * 0.563, 0, 0), Vector3(0.076, 0.41, 0.105), armor)
+		_box(display_mount, tag + "DisplayFoot", Vector3(side * 0.43, -0.31, -0.01), Vector3(0.07, 0.22, 0.12), frame)
+		_cylinder(_gunner_station, tag + "GunnerGripMount", Vector3(side * 0.56, 0.43, -0.43), 0.08, 0.08, armor)
+		_cylinder_between(_gunner_station, tag + "GunnerControlGrip", Vector3(side * 0.56, 0.46, -0.43), Vector3(side * 0.55, 0.64, -0.46), 0.043, _materials.cockpit_anti_glare)
+	_box(_gunner_station, "GunnerDisplay", Vector3(0, 0.76, -1.02), Vector3(1.05, 0.40, 0.06), _materials.display_substrate, Vector3(deg_to_rad(-14.0), 0, 0))
+
+
+func _gunner_fitting(label: String, at: Vector3, sections: Array[Vector4], finish: Material, angles: Vector3 = Vector3.ZERO) -> MeshInstance3D:
+	var fitting := MeshInstance3D.new()
+	fitting.name = label
+	fitting.position = at
+	fitting.rotation = angles
+	fitting.mesh = _cockpit_formed_enclosure_mesh(sections, finish)
+	_gunner_station.add_child(fitting)
+	return fitting
 
 
 ## Functional assemblies use broad continuous armor around recessed mechanics.
