@@ -34,11 +34,15 @@ const ArrowShipType := preload("res://scripts/ships/arrow_recon_ship.gd")
 
 const ENGINE_CALIBRATION_MESHES := ["BoxMesh", "CylinderMesh", "SphereMesh"]
 
-## Every production flyable. Packed craft use their shipping scene; the three
+## Every production flyable and encounter craft. Packed craft use their shipping scene; the three
 ## Cinder craft use the same script construction path as the production fleet
 ## binding. All are swept whole so new procedural geometry enters this contract
 ## immediately instead of repeating a craft-specific inside-out regression.
 const CRAFT_SOURCES := {
+	"Range defender": "res://scenes/ships/range_opponent.tscn",
+	"Flanking skirmisher": "res://scenes/ships/flanking_skirmisher_opponent.tscn",
+	"Standoff picket": "res://scenes/ships/standoff_picket_opponent.tscn",
+	"Courier runner": "res://scenes/ships/courier_runner_opponent.tscn",
 	"Torrent (HeroShip)": "res://scenes/ships/torrent_interceptor.tscn",
 	"Arrow": "res://scenes/ships/arrow_recon_ship.tscn",
 	"Zenith": "res://scenes/ships/zenith_interceptor.tscn",

@@ -105,8 +105,9 @@ const PRESENTATION_MATERIAL_RESOURCE_COUNT := 8
 const BASELINE_PRESENTATION_MESH_RESOURCE_COUNT := 27
 const PRESENTATION_MESH_RESOURCE_COUNT := 23
 const BASELINE_PRESENTATION_BOX_MESH_RESOURCE_COUNT := 14
-const PRESENTATION_BOX_MESH_RESOURCE_COUNT := 9
-const PRESENTATION_BOX_INSTANCE_COUNT := 14
+## The pressure spine replaces one stock box; repeated vane/stripe stock stays shared.
+const PRESENTATION_BOX_MESH_RESOURCE_COUNT := 8
+const PRESENTATION_BOX_INSTANCE_COUNT := 13
 const PRESENTATION_SHARED_BOX_FAMILY_COUNT := 5
 const PRESENTATION_MULTIMESH_BATCH_COUNT := 4
 const ENGINE_POD_COPY_COUNT := 2
@@ -1595,8 +1596,15 @@ func _build_interceptor() -> void:
 
 	# A long dark spine with a single forward lance barrel. Deliberately the
 	# opposite read from the defender's broad ivory forked dart.
-	_wedge(_visual_root, "SpineNose", Vector3(0.0, 0.0, -2.6), Vector3(1.15, 0.9, 5.4), _materials.picket_hull)
-	_picket_box(_visual_root, "SpineBody", Vector3(0.0, 0.0, 1.4), Vector3(1.25, 1.0, 6.2), _materials.picket_hull)
+	# The lance socket flares into a continuous narrow pressure spine.
+	_pressure_body(_visual_root, "SpineNose", Vector3(0, 0, -2.6), [
+		Vector4(-2.7, 0.18, 0.25, -0.06), Vector4(-1.4, 0.4, 0.39, -0.02),
+		Vector4(0.1, 0.56, 0.47, 0), Vector4(1.4, 0.625, 0.5, 0),
+	], _materials.picket_hull)
+	_pressure_body(_visual_root, "SpineBody", Vector3(0, 0, 1.4), [
+		Vector4(-2.6, 0.625, 0.5, 0), Vector4(0.8, 0.625, 0.5, 0),
+		Vector4(2.3, 0.625, 0.5, 0), Vector4(3.1, 0.52, 0.35, -0.02),
+	], _materials.picket_hull)
 	_picket_box(_visual_root, "SpineKeel", Vector3(0.0, -0.62, 1.6), Vector3(0.8, 0.34, 5.4), _materials.picket_deep)
 	_picket_box(_visual_root, "DorsalRail", Vector3(0.0, 0.66, 1.9), Vector3(0.42, 0.3, 4.6), _materials.picket_slate)
 	# A continuous dorsal identification stripe. This is the identity read that
@@ -1899,6 +1907,13 @@ func _create_picket_materials() -> void:
 
 func _build_picket_fittings() -> void:
 	var parts: Array = []
+	# Swept manifold housings visibly carry the radiator banks into the spine;
+	# vanes, charge rails and the long lance retain their distinctive outlines.
+	for side in [-1.0, 1.0]:
+		parts.append([Vector3(side * 0.82, 0.02, 2.9), Vector3.ZERO, 1, Vector3(0, side * -0.25, 0), [
+			Vector4(-1.45, 0.14, 0.17, 0), Vector4(-0.55, 0.55, 0.34, 0),
+			Vector4(0.65, 0.67, 0.36, 0), Vector4(1.55, 0.35, 0.24, -0.03),
+		]])
 	# Reinforced pressure spine, service hatch and a framed optical instrument.
 	parts.append([Vector3(0,0.55,0.4),Vector3(1.05,0.13,1.3),0])
 	parts.append([Vector3(0,0.58,2.85),Vector3(1.04,0.14,1.4),0])

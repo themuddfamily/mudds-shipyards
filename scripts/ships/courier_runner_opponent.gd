@@ -675,10 +675,22 @@ func _build_interceptor() -> void:
 
 	# A blunt utility hull with slung cargo pods and oversized engines. It has to
 	# read as freight that has been made to go fast, not as a warship.
-	_wedge(_visual_root, "BluntNose", Vector3(0.0, 0.0, -3.4), Vector3(2.0, 1.5, 2.6), _materials.courier_hull)
-	_box(_visual_root, "HullBody", Vector3(0.0, 0.0, 0.2), Vector3(2.2, 1.7, 7.4), _materials.courier_hull)
+	# Freight pressure vessel: full sidewalls remain available for the load
+	# hatches, with a formed bow and tapered aft machinery shoulder.
+	_pressure_body(_visual_root, "BluntNose", Vector3(0, 0, -3.4), [
+		Vector4(-1.3, 0.42, 0.5, -0.04), Vector4(-1.0, 0.72, 0.65, -0.02),
+		Vector4(-0.35, 0.98, 0.79, 0), Vector4(1.4, 1.1, 0.85, 0),
+	], _materials.courier_hull)
+	_pressure_body(_visual_root, "HullBody", Vector3(0, 0, 0.2), [
+		Vector4(-2.2, 1.1, 0.85, 0), Vector4(1.9, 1.1, 0.85, 0),
+		Vector4(2.9, 1.03, 0.78, -0.01), Vector4(3.7, 0.82, 0.58, -0.04),
+	], _materials.courier_hull)
 	_box(_visual_root, "SpineTrunk", Vector3(0.0, 0.98, 0.6), Vector3(0.64, 0.22, 5.4), _materials.courier_shadow)
-	_box(_visual_root, "CargoStripe", Vector3(0.0, 0.9, -0.4), Vector3(1.5, 0.06, 6.8), _materials.courier_rust)
+	_pressure_body(_visual_root, "CargoStripe", Vector3(0, 0.85, -0.4), [
+		Vector4(-3.4, 0.24, 0.022, -0.13), Vector4(-2.4, 0.67, 0.028, -0.035),
+		Vector4(-1.6, 0.7, 0.03, 0.02), Vector4(2.4, 0.7, 0.03, 0.02),
+		Vector4(3.4, 0.42, 0.022, -0.08),
+	], _materials.courier_rust)
 	_wedge(_visual_root, "Canopy", Vector3(0.0, 0.72, -2.6), Vector3(1.15, 0.5, 1.8), _materials.glass)
 	_box(_visual_root, "VentralKeel", Vector3(0.0, -0.94, 0.6), Vector3(1.5, 0.34, 6.0), _materials.courier_shadow)
 
@@ -960,6 +972,12 @@ func _visual_material_binding_contract() -> Dictionary:
 
 func _build_courier_fittings() -> void:
 	var parts: Array = []
+	# Formed nacelle roots blend the aft pressure bulkhead into engine housings.
+	for side in [-1.0, 1.0]:
+		parts.append([Vector3(side * 0.92, 0.05, 3.1), Vector3.ZERO, 0, Vector3.ZERO, [
+			Vector4(-1.25, 0.24, 0.48, 0), Vector4(-0.5, 0.59, 0.61, 0),
+			Vector4(0.55, 0.67, 0.64, 0), Vector4(1.1, 0.5, 0.52, 0),
+		]])
 	# Framed pressure cockpit ahead of a removable load spine.
 	parts.append([Vector3(0,0.71,-2.54),Vector3(1.39,0.22,1.95),0])
 	parts.append([Vector3(0,0.99,-2.18),Vector3(0.06,0.045,0.91),1])

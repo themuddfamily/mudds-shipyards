@@ -244,6 +244,7 @@ var _muzzle_port: Marker3D
 var _muzzle_starboard: Marker3D
 var _warning_light: OmniLight3D
 var _warning_lenses: Array[MeshInstance3D] = []
+var _pressure_shell_meshes: Dictionary = {}
 var _weapon_telegraph_mesh: SphereMesh
 var _engine_glows: Array[MeshInstance3D] = []
 var _engine_lights: Array[OmniLight3D] = []
@@ -2099,11 +2100,20 @@ func _build_interceptor() -> void:
 
 	# A narrow forked dart distinguishes this range defender from the hero's
 	# broad Torrent arrowhead. Twin forward prongs frame a warm amber cockpit.
-	_wedge(_visual_root, "CentralKeel", Vector3(0.0, 0.18, 0.1), Vector3(2.25, 1.15, 7.2), _materials.ivory)
+	# Formed pressure shell: the forebody rises into the cockpit shoulder, then
+	# carries a full section back to the engine bridge without a block junction.
+	_pressure_body(_visual_root, "CentralKeel", Vector3(0, 0.18, 0.1), [
+		Vector4(-3.6, 0.13, 0.31, -0.08), Vector4(-3.0, 0.48, 0.43, -0.03),
+		Vector4(-1.65, 0.94, 0.55, 0), Vector4(0.7, 1.125, 0.575, 0),
+		Vector4(2.65, 1.08, 0.55, 0), Vector4(3.6, 0.84, 0.39, -0.08),
+	], _materials.ivory)
 	_wedge(_visual_root, "DarkUnderkeel", Vector3(0.0, -0.45, 0.7), Vector3(1.55, 0.48, 5.8), _materials.deep)
 	_wedge(_visual_root, "AmberCanopy", Vector3(0.0, 0.93, -0.35), Vector3(1.46, 0.88, 2.8), _materials.glass)
 	_box(_visual_root, "DorsalFrame", Vector3(0.0, 1.16, 1.22), Vector3(0.4, 0.24, 2.5), _materials.frame)
-	_box(_visual_root, "AftCrossbar", Vector3(0.0, 0.05, 2.55), Vector3(7.3, 0.5, 1.2), _materials.shade)
+	_pressure_body(_visual_root, "AftCrossbar", Vector3(0, 0.05, 2.55), [
+		Vector4(-0.6, 2.85, 0.13, 0), Vector4(-0.34, 3.5, 0.25, 0),
+		Vector4(0.3, 3.65, 0.25, 0), Vector4(0.6, 3.15, 0.13, 0),
+	], _materials.shade)
 	_box(_visual_root, "AftCyanBand", Vector3(0.0, 0.36, 2.4), Vector3(6.5, 0.055, 0.24), _materials.cyan)
 	var symmetric_box_meshes: Dictionary = {}
 	for spec in SYMMETRIC_HULL_BOX_SPECS:
@@ -2575,6 +2585,48 @@ func _wedge(parent: Node3D, node_name: String, position_value: Vector3, size: Ve
 	return instance
 
 
+## Authored sections are (longitudinal position, half width, half height,
+## vertical centre). Broad formed shoulders join the pressure body to its
+## machinery; this helper never changes collision or presentation anchors.
+## Identical bilateral recipes reuse immutable mesh resources before batching.
+func _pressure_body(parent: Node3D, node_name: String, origin: Vector3, sections: Array, material: Material) -> MeshInstance3D:
+	return _box_from_mesh(parent, node_name, origin, _pressure_mesh(sections, material))
+
+
+func _pressure_mesh(sections: Array, material: Material) -> ArrayMesh:
+	var key := str(sections) + ":" + str(material.get_instance_id())
+	if _pressure_shell_meshes.has(key):
+		return _pressure_shell_meshes[key] as ArrayMesh
+	var rings: Array[PackedVector3Array] = []
+	# Two shoulder facets soften the transition into a broad planar sidewall.
+	var profile := PackedVector2Array([
+		Vector2(-0.64, 1), Vector2(0.64, 1), Vector2(0.87, 0.86),
+		Vector2(1, 0.48), Vector2(1, -0.48), Vector2(0.87, -0.86),
+		Vector2(0.64, -1), Vector2(-0.64, -1), Vector2(-0.87, -0.86),
+		Vector2(-1, -0.48), Vector2(-1, 0.48), Vector2(-0.87, 0.86),
+	])
+	for section: Vector4 in sections:
+		var ring := PackedVector3Array()
+		for point: Vector2 in profile:
+			ring.append(Vector3(point.x * section.y, point.y * section.z + section.w, section.x))
+		rings.append(ring)
+	var surface := SurfaceTool.new()
+	surface.begin(Mesh.PRIMITIVE_TRIANGLES)
+	surface.set_material(material)
+	for r in rings.size() - 1:
+		for j in profile.size():
+			var k := (j + 1) % profile.size()
+			_emit_armour_triangle(surface, rings[r][j], rings[r + 1][j], rings[r + 1][k])
+			_emit_armour_triangle(surface, rings[r][j], rings[r + 1][k], rings[r][k])
+	for j in range(1, profile.size() - 1):
+		_emit_armour_triangle(surface, rings[0][0], rings[0][j], rings[0][j + 1])
+		_emit_armour_triangle(surface, rings[-1][0], rings[-1][j + 1], rings[-1][j])
+	surface.generate_tangents()
+	var mesh := surface.commit()
+	_pressure_shell_meshes[key] = mesh
+	return mesh
+
+
 ## Flat armour facets with a narrow edge break. Cross sections retain broad
 ## planar faces: no smooth loft normals or ballooned corners. Collision remains
 ## authored by the separate hull builders. UVs carry only fine coating grain.
@@ -2620,7 +2672,8 @@ func _emit_armour_triangle(surface: SurfaceTool, a: Vector3, b: Vector3, c: Vect
 		surface.add_vertex(point)
 
 
-## Recipes are position, dimensions, material index, optional Euler rotation.
+## Recipes are position, dimensions, material index, optional Euler rotation,
+## and optional pressure sections (which replace stock dimensions).
 ## Joining immutable fitted parts keeps this detail to one node/three surfaces.
 func _fit_armour(recipes: Array, materials: Array) -> void:
 	var combined := ArrayMesh.new()
@@ -2632,7 +2685,7 @@ func _fit_armour(recipes: Array, materials: Array) -> void:
 			if recipe[2] != material_index:
 				continue
 			var local_basis := Basis.from_euler(recipe[3]) if recipe.size() > 3 else Basis.IDENTITY
-			var piece := _armour_mesh(recipe[1], materials[material_index])
+			var piece := _pressure_mesh(recipe[4], materials[material_index]) if recipe.size() > 4 else _armour_mesh(recipe[1], materials[material_index])
 			surface.append_from(piece, 0, Transform3D(local_basis, recipe[0]))
 		surface.commit(combined)
 	var fittings := MeshInstance3D.new()
@@ -2643,6 +2696,11 @@ func _fit_armour(recipes: Array, materials: Array) -> void:
 
 func _build_range_fittings() -> void:
 	var parts: Array = []
+	for side in [-1.0, 1.0]:
+		parts.append([Vector3(side * 1.72, 0.05, 1.9), Vector3.ZERO, 0, Vector3(0, side * -0.2, 0), [
+			Vector4(-1.65, 0.18, 0.16, 0), Vector4(-0.75, 0.64, 0.37, 0),
+			Vector4(0.65, 0.82, 0.45, 0), Vector4(1.35, 0.54, 0.28, -0.04),
+		]])
 	# A pressure frame surrounds the smoked amber canopy; the glass stays inset.
 	parts.append([Vector3(0,0.82,-0.32), Vector3(1.68,0.35,2.92),0])
 	parts.append([Vector3(0,1.29,0.16), Vector3(0.075,0.06,1.65),2])

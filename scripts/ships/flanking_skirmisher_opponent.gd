@@ -1276,8 +1276,16 @@ func _build_interceptor() -> void:
 
 	# A short, wide, low delta. Half the defender's length and none of the
 	# picket's reach: it has to read as something that lives inside your turn.
-	_wedge(_visual_root, "DeltaNose", Vector3(0.0, 0.0, -1.9), Vector3(2.6, 0.72, 4.2), _materials.skirmisher_hull)
-	_wedge(_visual_root, "DeltaBody", Vector3(0.0, -0.02, 0.9), Vector3(3.4, 0.86, 3.6), _materials.skirmisher_hull)
+	# Matching sections at Z=-0.55 turn the nose/body intersection into a
+	# continuous low pressure pod; the broad delta remains a separate wing skin.
+	_pressure_body(_visual_root, "DeltaNose", Vector3(0, 0, -1.9), [
+		Vector4(-2.1, 0.12, 0.16, -0.04), Vector4(-1.55, 0.43, 0.24, -0.02),
+		Vector4(-0.4, 0.96, 0.34, 0), Vector4(1.35, 1.3, 0.39, -0.01),
+	], _materials.skirmisher_hull)
+	_pressure_body(_visual_root, "DeltaBody", Vector3(0, -0.02, 0.9), [
+		Vector4(-1.45, 1.3, 0.39, 0.01), Vector4(-0.45, 1.7, 0.43, 0),
+		Vector4(0.85, 1.66, 0.43, 0), Vector4(1.8, 1.25, 0.31, -0.03),
+	], _materials.skirmisher_hull)
 	_box(_visual_root, "Keelplate", Vector3(0.0, -0.44, 0.6), Vector3(2.2, 0.24, 4.4), _materials.skirmisher_deep)
 	_wedge(_visual_root, "Canopy", Vector3(0.0, 0.44, -1.0), Vector3(1.05, 0.5, 1.9), _materials.glass)
 	_box(_visual_root, "SpineFairing", Vector3(0.0, 0.42, 1.1), Vector3(0.62, 0.36, 2.6), _materials.skirmisher_moss)
@@ -1437,6 +1445,12 @@ func _build_skirmisher_fittings() -> void:
 	var parts: Array = []
 	parts.append([Vector3(0,0.39,-0.98),Vector3(1.25,0.24,2.05),0])
 	parts.append([Vector3(0,0.69,-0.69),Vector3(0.055,0.05,1.15),1])
+	# Swept root fairings carry the wing load into the full pressure section.
+	for side in [-1.0, 1.0]:
+		parts.append([Vector3(side * 1.5, -0.02, 0.7), Vector3.ZERO, 0, Vector3(0, side * -0.24, 0), [
+			Vector4(-1.45, 0.16, 0.1, 0), Vector4(-0.4, 0.72, 0.3, 0),
+			Vector4(0.65, 0.86, 0.28, 0), Vector4(1.55, 0.6, 0.14, -0.02),
+		]])
 	# Two raised intake shoulders separate the pressure pod from its delta wings.
 	for side in [-1.0,1.0]:
 		parts.append([Vector3(side*1.08,0.43,0.76),Vector3(0.7,0.12,2.18),0])
