@@ -933,7 +933,8 @@ func _build_hull(visual: Node3D) -> void:
 	visual.add_child(sensor)
 	_build_bomber_propulsion(visual)
 	for side in [-1.0, 1.0]:
-		ShipSurfaceDetail.mark_surface(visual, "PressureHullRegistration" + str(side), "cinder-bomber", Vector3(side * 1.52, 1.493, -0.42), Vector2(2.2, 1.1), Vector3(side * 0.62, 0.78, 0), Vector3.UP)
+		# The marking follows the rolled skin instead of its former flat flank.
+		ShipSurfaceDetail.mark_surface(visual, "PressureHullRegistration" + str(side), "cinder-bomber", Vector3(side * 1.679, 1.672, -0.42), Vector2(2.2, 0.9), Vector3(side * 0.628, 0.779, 0), Vector3.UP, 0.32)
 	ShipSurfaceDetail.mark_surface(visual, "PayloadServiceMark", "service", Vector3(0, 1.27, 5.8), Vector2(1.8, 0.9), Vector3(0, 1, 0.113), Vector3.FORWARD)
 
 
@@ -1389,50 +1390,4 @@ func _deck_plate(parent: Node3D, tag: String, at: Vector3, width: float, length:
 ## body. Its forward and aft ramps replace the stacked plinth silhouettes;
 ## all pilot, canopy hinge and boarding transforms stay on their original rig.
 func _cockpit_shoulder_mesh(origin: Vector3, crown: float, width: float, material: Material) -> ArrayMesh:
-	var surface := SurfaceTool.new()
-	surface.begin(Mesh.PRIMITIVE_TRIANGLES)
-	surface.set_material(material)
-	var stations := [-3.7, -2.25, 1.15, 3.1]
-	var tops := [crown * 0.45, 1.89, 1.89, crown]
-	var widths := [0.6, width, width, width * 0.95]
-	var top_widths := [0.48, 2.18, 2.18, width * 0.85]
-	var rings: Array[PackedVector3Array] = []
-	for station in 4:
-		var top: float = tops[station]
-		var bottom := minf(crown - 0.24, top - 0.12)
-		var half: float = widths[station] * 0.5
-		var upper: float = top_widths[station] * 0.5
-		var bevel := minf(0.065, (top - bottom) * 0.22)
-		var z: float = stations[station]
-		rings.append(PackedVector3Array([
-			Vector3(-upper + bevel, top, z), Vector3(upper - bevel, top, z),
-			Vector3(upper, top - bevel, z), Vector3(half, bottom + bevel, z),
-			Vector3(half - bevel, bottom, z), Vector3(-half + bevel, bottom, z),
-			Vector3(-half, bottom + bevel, z), Vector3(-upper, top - bevel, z),
-		]))
-	for bay in 3:
-		for edge in 8:
-			var next := (edge + 1) % 8
-			var quad := [rings[bay][edge], rings[bay][next], rings[bay + 1][next], rings[bay + 1][edge]]
-			# Ring order is clockwise looking aft; side faces reverse the
-			# geometric cross product for Godot's clockwise front faces.
-			for triangle in [[0, 1, 2], [0, 2, 3]]:
-				var normal: Vector3 = (quad[triangle[2]] - quad[triangle[0]]).cross(quad[triangle[1]] - quad[triangle[0]]).normalized()
-				for corner in triangle:
-					var point: Vector3 = quad[corner]
-					surface.set_normal(normal)
-					surface.set_uv(Vector2(point.x if edge in [0, 4] else point.y, point.z) * 0.3)
-					surface.add_vertex(point - origin)
-	for cap in [0, 3]:
-		var center := Vector3.ZERO
-		for point in rings[cap]:
-			center += point / 8.0
-		for edge in 8:
-			var next := (edge + 1) % 8
-			var triangle := [center, rings[cap][next], rings[cap][edge]] if cap == 0 else [center, rings[cap][edge], rings[cap][next]]
-			for point in triangle:
-				surface.set_normal(Vector3.FORWARD if cap == 0 else Vector3.BACK)
-				surface.set_uv(Vector2(point.x, point.y) * 0.3)
-				surface.add_vertex(point - origin)
-	surface.generate_tangents()
-	return surface.commit()
+	return preload("res://scripts/ships/cinder_cockpit_pressure_fairing.gd").build(origin, crown, width, material)
