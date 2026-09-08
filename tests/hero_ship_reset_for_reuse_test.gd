@@ -68,10 +68,31 @@ func _test_adopted_instrument_readout(ship: JovianLightFreighter) -> void:
 		"walkable-interior adoption retains the controller's live flight display")
 	if readout == null:
 		return
+	var speed := readout.get_node("LiveFlightInstruments/SpeedReadout") as Label3D
+	var instruments := readout.get_node("LiveFlightInstruments")
+	var throttle := instruments.get_node("LiveStatusRepeaters/ThrottleGauge") as MeshInstance3D
+	var hull := instruments.get_node("LiveStatusRepeaters/HullGauge") as MeshInstance3D
+	var dial_mesh := throttle.mesh
+	var dial_material := throttle.material_override
 	ship.velocity = Vector3(23.0, 0.0, 0.0)
+	ship.set("_throttle", -0.65)
+	ship.set("_hull", ship.maximum_hull * 0.25)
 	ship.call("_update_presentation", 0.0, ShipCommand.new())
-	_check(readout.text.contains("SPD 023") and not readout.no_depth_test,
+	_check(speed.text.contains("SPD 023") and not speed.no_depth_test and not readout.no_depth_test,
 		"the physical instrument displays authoritative velocity with normal depth occlusion")
+	_check(is_equal_approx(float(throttle.get_instance_shader_parameter("fill")), 0.65)
+		and is_equal_approx(float(hull.get_instance_shader_parameter("fill")), 0.25)
+		and (instruments.get_node("LiveStatusRepeaters/ThrottleReadout") as Label3D).text.contains("-65")
+		and (instruments.get_node("LiveStatusRepeaters/HullReadout") as Label3D).text.contains("025"),
+		"physical repeater arcs and numbers consume real signed throttle and hull state")
+	_check(throttle.mesh == hull.mesh and throttle.material_override == hull.material_override,
+		"independent live readings share a single dial mesh and material")
+	var instruments_id := instruments.get_instance_id()
+	_test_root.remove_child(ship)
+	await process_frame
+	_test_root.add_child(ship)
+	_check(instruments.get_instance_id() == instruments_id,
+		"cockpit detach and re-entry retain one instrument owner")
 	readout.text = "STALE INSTRUMENT"
 	var receipt := ship.reset_for_reuse(ship.global_transform)
 	await process_frame
@@ -79,7 +100,11 @@ func _test_adopted_instrument_readout(ship: JovianLightFreighter) -> void:
 	_check(bool(receipt.get("accepted", false)) and is_instance_valid(readout)
 		and ship.get("_cockpit_readout") == readout
 		and ship.find_children("FlightDataReadout", "Label3D", true, false).size() == 1
-		and readout.text.contains("SPD 000") and not readout.text.contains("STALE"),
+		and speed.text.contains("SPD 000") and not readout.text.contains("STALE")
+		and is_equal_approx(float(throttle.get_instance_shader_parameter("fill")), 0.0)
+		and is_equal_approx(float(hull.get_instance_shader_parameter("fill")), 1.0)
+		and throttle.mesh == dial_mesh and throttle.material_override == dial_material
+		and ship.find_children("LiveFlightInstruments", "Node3D", true, false).size() == 1,
 		"reuse retains one adopted instrument and refreshes its reset flight state")
 
 

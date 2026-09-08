@@ -41,6 +41,8 @@ class ChaseCameraBoundaryMount:
 			controller.call(&"_enforce_chase_camera_self_hull_boundary")
 
 
+const CockpitFlightInstruments := preload("res://scripts/ships/cockpit_flight_instruments.gd")
+
 const ENGINE_OFFLINE: StringName = &"OFFLINE"
 const ENGINE_STARTING: StringName = &"STARTING"
 const ENGINE_ONLINE: StringName = &"ONLINE"
@@ -215,13 +217,15 @@ const TORRENT_RCS_THRUSTER_PORT_COPY_COUNT := 8
 # Two louvre and four RCS-port batches retain every source-local copy while
 # reducing fallback submissions; shared capture jaws retain their named paths.
 # Two fitted close cannon lenses share one mesh beneath their visual mount.
-const TORRENT_RENDER_DESCENDANT_COUNT := 302
-const TORRENT_RENDER_MESH_INSTANCE_COUNT := 235
+# The retained live instrument subtree adds two shared-resource dial meshes
+# (hidden on the imported face) and three labels; labels are not mesh instances.
+const TORRENT_RENDER_DESCENDANT_COUNT := 309
+const TORRENT_RENDER_MESH_INSTANCE_COUNT := 237
 const TORRENT_RENDER_MULTIMESH_BATCH_COUNT := 6
-const TORRENT_RENDER_DRAWN_COPY_COUNT := 255
-const TORRENT_RENDER_GEOMETRY_SUBMISSION_COUNT := 241
-const TORRENT_RENDER_UNIQUE_MESH_RESOURCE_COUNT := 209
-const TORRENT_RENDER_UNIQUE_MATERIAL_RESOURCE_COUNT := 37
+const TORRENT_RENDER_DRAWN_COPY_COUNT := 257
+const TORRENT_RENDER_GEOMETRY_SUBMISSION_COUNT := 243
+const TORRENT_RENDER_UNIQUE_MESH_RESOURCE_COUNT := 210
+const TORRENT_RENDER_UNIQUE_MATERIAL_RESOURCE_COUNT := 38
 const TORRENT_MODERN_DESCENDANT_COUNT := 109
 const TORRENT_MODERN_MESH_INSTANCE_COUNT := 87
 const TORRENT_MODERN_DRAWN_COPY_COUNT := 107
@@ -4002,15 +4006,16 @@ func _install_variant_cockpit_system_readout(parent: Node3D) -> Label3D:
 	_cockpit_readout.name = "FlightDataReadout"
 	_cockpit_readout.position = Vector3(0.0, 0.015, 0.164)
 	_cockpit_readout.font_size = 42
-	_cockpit_readout.pixel_size = 0.00082
+	_cockpit_readout.pixel_size = 0.00090
 	_cockpit_readout.modulate = Color("8de8e4")
 	_cockpit_readout.outline_modulate = Color("07111d")
-	_cockpit_readout.outline_size = 10
+	_cockpit_readout.outline_size = 4
 	_cockpit_readout.no_depth_test = false
-	_cockpit_readout.text = "SPD 000   THR +00\nOFFLINE  //  HOLD"
+	_cockpit_readout.text = "OFFLINE  //  HOLD"
 	_cockpit_readout.set_meta("presentation_only", true)
 	_tag_modern_interpretation(_cockpit_readout)
 	parent.add_child(_cockpit_readout)
+	_cockpit_readout.add_child(CockpitFlightInstruments.new())
 	return _cockpit_readout
 
 
@@ -4102,14 +4107,21 @@ func _update_presentation(delta: float, command: ShipCommand) -> void:
 	if _cockpit_readout != null:
 		var system_readout := _get_cockpit_system_readout()
 		var system_color: Variant = system_readout.get("color", Color("8de8e4"))
-		_cockpit_readout.text = "SPD %03d   THR %+03d\n%s  //  %s\n%s" % [
-			roundi(velocity.length()),
-			roundi(_throttle * 100.0),
+		# The primary speed and round throttle/hull instruments have their own
+		# hierarchy; this retained Label3D owns engine and variant system status.
+		# Break the existing system descriptor at its authored separators so
+		# bomber ammunition/release state fits without shrinking the whole panel.
+		_cockpit_readout.text = "%s  //  %s\n%s" % [
 			str(_engine_state),
 			"PATH" if velocity.length() >= 1.5 else "HOLD",
-			str(system_readout.get("text", "! SYSTEM UNAVAILABLE")),
+			str(system_readout.get("text", "! SYSTEM UNAVAILABLE")).replace("  //  ", "\n"),
 		]
+		# Reserve the upper speed strip even for the longer bomber descriptor.
+		_cockpit_readout.font_size = mini(42, floori(150.0 / _cockpit_readout.text.get_slice_count("\n")))
 		_cockpit_readout.modulate = system_color if system_color is Color else Color("8de8e4")
+		var instruments := _cockpit_readout.get_node_or_null("LiveFlightInstruments") as CockpitFlightInstruments
+		if instruments != null:
+			instruments.update_readings(velocity.length(), _throttle, _hull / maxf(maximum_hull, 0.001))
 	if _cockpit_practical_light != null:
 		var practical_energy := 0.04
 		if _engine_state == ENGINE_STARTING:
@@ -4747,12 +4759,14 @@ func _install_torrent_hero_presentation() -> void:
 		_cockpit_readout.reparent(_cockpit_root, true)
 		_torrent_fallback_readout_transform = _cockpit_readout.transform
 		# The imported screen has a different position and tilt from the retained
-		# fallback cluster. Mount the live three-line readout on its physical face.
+		# fallback cluster. Mount the live instruments on its physical face.
 		var imported_display := imported_cockpit.get_node_or_null("PrimaryDisplay") as MeshInstance3D
 		if imported_display != null:
 			_cockpit_readout.global_transform = imported_display.global_transform.translated_local(
-				Vector3(0.0, 0.0, imported_display.get_aabb().end.z + 0.004)
+				Vector3(0.0, -0.022, imported_display.get_aabb().end.z + 0.004)
 			)
+			_cockpit_readout.pixel_size = 0.00072
+			(_cockpit_readout.get_node("LiveFlightInstruments") as CockpitFlightInstruments).set_compact(true)
 	var imported_seat := imported_cockpit.get_node_or_null("CrimsonSeatPan") as MeshInstance3D
 	if imported_seat != null:
 		imported_seat.set_meta("historically_observed_colour", true)
@@ -6761,6 +6775,8 @@ func _get_live_torrent_hero_presentation() -> TorrentHeroPresentation:
 		_cockpit_readout.visible = true
 		if _legacy_torrent_cockpit_art != null and is_instance_valid(_legacy_torrent_cockpit_art):
 			_cockpit_readout.transform = _torrent_fallback_readout_transform
+			_cockpit_readout.pixel_size = 0.00090
+			(_cockpit_readout.get_node("LiveFlightInstruments") as CockpitFlightInstruments).set_compact(false)
 	if _cockpit_practical_light != null and is_instance_valid(_cockpit_practical_light):
 		_cockpit_practical_light.visible = true
 	return null

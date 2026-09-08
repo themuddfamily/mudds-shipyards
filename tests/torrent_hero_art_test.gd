@@ -433,16 +433,16 @@ func _test_render_allocations(torrent: HeroShip) -> void:
 	var component := report.get("component", {}) as Dictionary
 	var fallback := report.get("modern_fallback", {}) as Dictionary
 	_check(
-		int(component.get("descendant_nodes", -1)) == 302
-		and int(component.get("mesh_instances", -1)) == 235
+		int(component.get("descendant_nodes", -1)) == 309
+		and int(component.get("mesh_instances", -1)) == 237
 		and int(component.get("multimesh_batches", -1)) == 6,
 		"Torrent-local renderer census batches eight RCS ports while retaining named clusters"
 	)
 	_check(
-		int(component.get("drawn_copies", -1)) == 255
-		and int(component.get("geometry_submissions", -1)) == 241
-		and int(component.get("unique_mesh_resources", -1)) == 209
-		and int(component.get("unique_material_resources", -1)) == 37,
+		int(component.get("drawn_copies", -1)) == 257
+		and int(component.get("geometry_submissions", -1)) == 243
+		and int(component.get("unique_mesh_resources", -1)) == 210
+		and int(component.get("unique_material_resources", -1)) == 38,
 		"service-panel sharing removes one mesh allocation while preserving all visible copies and submissions"
 	)
 	_check(
@@ -660,13 +660,18 @@ func _test_cockpit_canopy_and_contracts(torrent: HeroShip) -> void:
 	var text_on_screen := readout != null and screen != null
 	if text_on_screen:
 		var screen_bounds := screen.get_aabb()
-		for corner in 8:
-			var point := screen.to_local(readout.to_global(readout.get_aabb().get_endpoint(corner)))
-			text_on_screen = text_on_screen \
-				and point.x >= screen_bounds.position.x and point.x <= screen_bounds.end.x \
-				and point.y >= screen_bounds.position.y and point.y <= screen_bounds.end.y \
-				and point.z > screen_bounds.end.z and point.z < screen_bounds.end.z + 0.01
-	_check(text_on_screen, "live three-line telemetry fits on the imported physical screen face")
+		var speed := readout.get_node("LiveFlightInstruments/SpeedReadout") as Label3D
+		for label in [readout, speed]:
+			for corner in 8:
+				var point := screen.to_local(label.to_global(label.get_aabb().get_endpoint(corner)))
+				text_on_screen = text_on_screen \
+					and point.x >= screen_bounds.position.x and point.x <= screen_bounds.end.x \
+					and point.y >= screen_bounds.position.y and point.y <= screen_bounds.end.y \
+					and point.z > screen_bounds.end.z and point.z < screen_bounds.end.z + 0.01
+		_check(speed.text.contains("SPD") and speed.text.contains("THR")
+			and not (readout.get_node("LiveFlightInstruments/LiveStatusRepeaters") as Node3D).visible,
+			"compact imported display retains speed and throttle without duplicate round gauges")
+	_check(text_on_screen, "live primary and system telemetry fit on the imported physical screen face")
 	var art_manifest := _read_json("res://assets/models/torrent/hero/torrent_hero_asset_manifest.json")
 	var art_batching := art_manifest.get("runtime_static_batching", {}) as Dictionary
 	var cockpit_batches := (art_batching.get("batch_member_map", {}) as Dictionary).get(
