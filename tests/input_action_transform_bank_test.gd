@@ -196,7 +196,26 @@ func _test_atomic_complete_frame() -> void:
 		and bank.get_snapshot() == initial,
 		"malformed/nonfinite samples and delta reject the whole frame without partial mutation"
 	)
-	var sampled := bank.process_complete_frame(_complete_samples(), 0.25, 0)
+	var raw_samples := _complete_samples()
+	# Integer strengths must still normalize at commit without writing into the
+	# caller-owned frame, which may be reused by the next sample.
+	raw_samples[&"interact"].raw_scalar = 1
+	var original_samples := raw_samples.duplicate(true)
+	var sampled := bank.process_complete_frame(raw_samples, 0.25, 0)
+	_check(
+		raw_samples == original_samples and raw_samples[&"interact"].raw_scalar is int,
+		"complete-frame normalization leaves the caller's raw samples unchanged",
+	)
+	var retained_snapshot := bank.get_snapshot()
+	raw_samples[&"interact"].raw_scalar = "invalid"
+	var reused_rejection := bank.process_complete_frame(raw_samples, 0.25, 0)
+	_check(
+		not reused_rejection.accepted
+		and reused_rejection.reason == &"malformed_frame"
+		and reused_rejection.failed_action == &"interact"
+		and bank.get_snapshot() == retained_snapshot,
+		"reusing and corrupting a previously accepted late-roster sample still rejects atomically",
+	)
 	_check(
 		sampled.accepted
 		and sampled.action_order == ACTION_ORDER

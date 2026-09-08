@@ -96,9 +96,11 @@ func map_frame(
 	var safe_sequence := int(sequence)
 	var safe_timestamp := int(timestamp_usec)
 	var safe_stream := int(stream_id)
-	var neutral := _neutral_command(safe_sequence, safe_timestamp, safe_stream)
 	if not expected_frame_generation is int or int(expected_frame_generation) < 0:
-		return _result(false, &"invalid_expected_generation", -1, 0.0, neutral)
+		return _result(
+			false, &"invalid_expected_generation", -1, 0.0,
+			_neutral_command(safe_sequence, safe_timestamp, safe_stream),
+		)
 
 	var validated := _validate_frame(frame, int(expected_frame_generation))
 	if not bool(validated.accepted):
@@ -107,7 +109,7 @@ func map_frame(
 			StringName(validated.reason),
 			int(validated.get("generation", -1)),
 			float(validated.get("physics_delta", 0.0)),
-			neutral,
+			_neutral_command(safe_sequence, safe_timestamp, safe_stream),
 			validated.get("details", {}),
 		)
 
@@ -146,7 +148,7 @@ func map_frame(
 			&"command_construction_failed",
 			int(validated.generation),
 			float(validated.physics_delta),
-			neutral,
+			_neutral_command(safe_sequence, safe_timestamp, safe_stream),
 		)
 	return _result(
 		true,
@@ -248,11 +250,11 @@ func _validate_frame(frame: Variant, expected_generation: int) -> Dictionary:
 
 	var actions := raw.actions as Dictionary
 	for action_id: StringName in action_order:
-		var action_validation := _validate_action_snapshot(actions[action_id], action_id)
-		if not bool(action_validation.accepted):
+		var action_rejection := _get_action_snapshot_rejection(actions[action_id], action_id)
+		if not action_rejection.is_empty():
 			return _validation(
 				false,
-				StringName(action_validation.reason),
+				action_rejection,
 				generation,
 				physics_delta,
 				{"failed_action": action_id},
@@ -267,47 +269,49 @@ func _validate_frame(frame: Variant, expected_generation: int) -> Dictionary:
 	}
 
 
-func _validate_action_snapshot(candidate: Variant, expected_action: StringName) -> Dictionary:
+## An empty reason means this current snapshot passed every check. Avoid a
+## temporary result dictionary per action; public rejections are built by the caller.
+func _get_action_snapshot_rejection(candidate: Variant, expected_action: StringName) -> StringName:
 	if not candidate is Dictionary:
-		return {"accepted": false, "reason": &"malformed_action_snapshot"}
+		return &"malformed_action_snapshot"
 	var snapshot := candidate as Dictionary
 	if not _has_exact_string_keys(snapshot, _ACTION_KEYS):
-		return {"accepted": false, "reason": &"malformed_action_snapshot"}
+		return &"malformed_action_snapshot"
 	if not snapshot.action_id is StringName or snapshot.action_id != expected_action:
-		return {"accepted": false, "reason": &"malformed_action_snapshot"}
+		return &"malformed_action_snapshot"
 	if not snapshot.action_options is Dictionary:
-		return {"accepted": false, "reason": &"malformed_action_snapshot"}
+		return &"malformed_action_snapshot"
 	var options := snapshot.action_options as Dictionary
 	if not _has_exact_string_keys(options, _OPTION_KEYS):
-		return {"accepted": false, "reason": &"malformed_action_snapshot"}
+		return &"malformed_action_snapshot"
 	if not options.deadzone is float and not options.deadzone is int:
-		return {"accepted": false, "reason": &"malformed_action_snapshot"}
+		return &"malformed_action_snapshot"
 	var deadzone := float(options.deadzone)
 	if not _is_finite(deadzone) or deadzone < 0.0 or deadzone > 1.0:
-		return {"accepted": false, "reason": &"malformed_action_snapshot"}
+		return &"malformed_action_snapshot"
 	if (
 		not options.curve is StringName
 		or not options.hold_mode is StringName
 		or (options.curve != ProfileType.CURVE_LINEAR and options.curve != ProfileType.CURVE_SQUARED)
 		or (options.hold_mode != ProfileType.HOLD and options.hold_mode != ProfileType.TOGGLE)
 	):
-		return {"accepted": false, "reason": &"malformed_action_snapshot"}
+		return &"malformed_action_snapshot"
 
 	for key: String in _NONNEGATIVE_INTEGER_FIELDS:
 		if not snapshot[key] is int or int(snapshot[key]) < 0:
-			return {"accepted": false, "reason": &"malformed_action_snapshot"}
+			return &"malformed_action_snapshot"
 	if int(snapshot.sample_count) < 1:
-		return {"accepted": false, "reason": &"malformed_action_snapshot"}
+		return &"malformed_action_snapshot"
 	if not snapshot.attached is bool or not bool(snapshot.attached):
-		return {"accepted": false, "reason": &"malformed_action_snapshot"}
+		return &"malformed_action_snapshot"
 	for key: String in _FINITE_NUMBER_FIELDS:
 		if not snapshot[key] is float and not snapshot[key] is int:
-			return {"accepted": false, "reason": &"malformed_action_snapshot"}
+			return &"malformed_action_snapshot"
 		if not _is_finite(float(snapshot[key])):
-			return {"accepted": false, "reason": &"malformed_action_snapshot"}
+			return &"malformed_action_snapshot"
 	for key: String in _BOOLEAN_FIELDS:
 		if not snapshot[key] is bool:
-			return {"accepted": false, "reason": &"malformed_action_snapshot"}
+			return &"malformed_action_snapshot"
 
 	var raw_scalar := float(snapshot.raw_scalar)
 	var transformed := float(snapshot.transformed_scalar)
@@ -323,7 +327,7 @@ func _validate_action_snapshot(candidate: Variant, expected_action: StringName) 
 		or physical_hold < 0.0 or physical_hold > elapsed
 		or logical_hold < 0.0 or logical_hold > elapsed
 	):
-		return {"accepted": false, "reason": &"invalid_action_snapshot"}
+		return &"invalid_action_snapshot"
 	var expected_transform := _transform_scalar(raw_scalar, deadzone, StringName(options.curve))
 	var physical_pressed := bool(snapshot.raw_pressed) and not is_zero_approx(expected_transform)
 	if (
@@ -338,7 +342,7 @@ func _validate_action_snapshot(candidate: Variant, expected_action: StringName) 
 		or (bool(snapshot.just_pressed) and bool(snapshot.just_released))
 		or (not bool(snapshot.pressed) and not is_zero_approx(logical_hold))
 	):
-		return {"accepted": false, "reason": &"invalid_action_snapshot"}
+		return &"invalid_action_snapshot"
 	if options.hold_mode == ProfileType.HOLD:
 		var expected_value := transformed if physical_pressed else 0.0
 		if (
@@ -348,15 +352,15 @@ func _validate_action_snapshot(candidate: Variant, expected_action: StringName) 
 			or bool(snapshot.toggle_latched)
 			or not is_equal_approx(value, expected_value)
 		):
-			return {"accepted": false, "reason": &"invalid_action_snapshot"}
+			return &"invalid_action_snapshot"
 	else:
 		var latched := bool(snapshot.toggle_latched)
 		if (
 			bool(snapshot.pressed) != latched
 			or not is_equal_approx(value, 1.0 if latched else 0.0)
 		):
-			return {"accepted": false, "reason": &"invalid_action_snapshot"}
-	return {"accepted": true, "reason": &"valid"}
+			return &"invalid_action_snapshot"
+	return &""
 
 
 func _axis(actions: Dictionary, negative: StringName, positive: StringName) -> float:

@@ -221,7 +221,6 @@ func process_complete_frame(
 	if not _children_match_lifecycle(true):
 		return _frame_result(false, &"bank_corrupted", delta, {})
 
-	var normalized_samples := {}
 	for action_id: StringName in _action_order:
 		var candidate: Variant = canonical_samples[action_id]
 		if not candidate is Dictionary:
@@ -240,15 +239,13 @@ func process_complete_frame(
 		var capacity_rejection := transform.get_frame_capacity_rejection(delta)
 		if not capacity_rejection.is_empty():
 			return _frame_result(false, capacity_rejection, delta, {}, {"failed_action": action_id})
-		normalized_samples[action_id] = {
-			"raw_scalar": scalar,
-			"raw_pressed": bool(raw.raw_pressed),
-		}
 
 	var action_snapshots := {}
 	for action_id: StringName in _action_order:
 		var transform := _transforms[action_id] as InputActionTransform
-		var sample := normalized_samples[action_id] as Dictionary
+		# The synchronous preflight above validated these exact samples. No
+		# provider callback can mutate them between preflight and commit.
+		var sample := canonical_samples[action_id] as Dictionary
 		var transformed := transform.process_sample(
 			float(sample.raw_scalar),
 			bool(sample.raw_pressed),
