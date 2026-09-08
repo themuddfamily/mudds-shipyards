@@ -72,6 +72,44 @@ class BenchmarkInputGuard extends Node:
 		]:
 			Input.action_release(action)
 
+## Refresh before the ship's physics authority, including physics catch-up ticks
+## between rendered frames. Only normal local Input actions drive the craft.
+class BenchmarkFlightPilot extends Node:
+	var ship: HeroShip
+	var guard: BenchmarkInputGuard
+	var target := Vector3.ZERO
+	var start := Vector3.ZERO
+	var returning := false
+	var direction := Vector3.FORWARD
+	var route_frame := 0
+	var total_frames := 1
+
+	func _physics_process(_delta: float) -> void:
+		apply_input()
+
+	func apply_input() -> void:
+		BenchmarkInputGuard.release_inputs()
+		if guard.aborted or not is_instance_valid(ship) or ship.is_destroyed():
+			return
+		var destination := start if returning else target
+		var leg_direction := -direction if returning else direction
+		var remaining := (destination - ship.global_position).dot(leg_direction)
+		var speed := ship.velocity.dot(leg_direction)
+		if ship.velocity.length() < 1.0 and remaining <= FLIGHT_ENDPOINT_RADIUS_METERS:
+			returning = not returning
+			Input.action_press(&"brake")
+			return
+		# Allow for the production throttle response after releasing thrust, plus
+		# a small stand-off inside the endpoint aperture's accepted radius.
+		var stopping_distance := speed * speed / (2.0 * maxf(ship.brake_acceleration, 1.0)) + absf(speed) * 0.3 + 3.0
+		if speed < -0.5 or remaining <= stopping_distance:
+			Input.action_press(&"brake")
+			return
+		Input.action_press(&"move_back" if returning else &"move_forward")
+		if not returning and route_frame >= total_frames / 4 and route_frame < total_frames * 3 / 4:
+			Input.action_press(&"sprint_boost")
+
+
 func _initialize() -> void:
 	call_deferred("_run")
 
@@ -135,8 +173,8 @@ static func run_benchmark(
 		target_profile: Dictionary = {},
 		smoke_run: bool = false
 	) -> Dictionary:
-	# Main's normal HUD-start path is bypassed by deterministic staging. Own an
-	# early physical Escape handler instead of relying on gameplay pause/input.
+	# Keep physical Escape available through startup and deterministic staging,
+	# independently of gameplay pause/input.
 	var input_guard := BenchmarkInputGuard.new()
 	tree.root.add_child(input_guard)
 	var original_paused := tree.paused
@@ -247,6 +285,9 @@ static func _run_scenario(
 	var instantiated_ms := float(Time.get_ticks_usec() - instantiate_started) / 1000.0
 	if game == null:
 		return {"name": String(scenario_name), "completed": false, "error": "Main failed to instantiate"}
+	var startup_world := game.get_node_or_null("ShipyardWorld") as ShipyardWorld
+	if startup_world != null:
+		startup_world.visual_quality_level = quality_level
 	var ready_started := Time.get_ticks_usec()
 	tree.root.add_child(game)
 	await tree.process_frame
@@ -296,10 +337,21 @@ static func _run_scenario(
 		}
 	var resolution_before := await capture_resolution(tree, requested_resolution, input_guard)
 	var progress_tracker := _begin_scenario_progress(player, ship, scenario_name, inputs, smoke_run)
+	var flight_pilot: BenchmarkFlightPilot
+	if scenario_name == &"nearby_sector_ship_flight_route":
+		flight_pilot = BenchmarkFlightPilot.new()
+		flight_pilot.ship = ship
+		flight_pilot.guard = input_guard
+		flight_pilot.target = progress_tracker.route_target as Vector3
+		flight_pilot.start = ship.global_position
+		flight_pilot.direction = (flight_pilot.target - ship.global_position).normalized()
+		flight_pilot.total_frames = warmup_frames + sample_frames
+		flight_pilot.process_physics_priority = ship.process_physics_priority - 1
+		game.add_child(flight_pilot)
 	# One declared activation tick guarantees that a short smoke actually offers
 	# its input to the production physics authority before timing continues.
 	if not input_guard.aborted:
-		_apply_scenario_input(scenario_name, 0, warmup_frames + sample_frames)
+		_apply_scenario_input(scenario_name, 0, warmup_frames + sample_frames, flight_pilot)
 	await tree.physics_frame
 	await tree.process_frame
 	_update_scenario_progress(progress_tracker, player, ship, scenario_name)
@@ -312,7 +364,7 @@ static func _run_scenario(
 			float(Time.get_ticks_usec() - warmup_started) / 1_000_000.0, durations.warmup):
 		var route_frame := int(warmup_frames * phase_progress(actual_warmup_frames, warmup_frames,
 			float(Time.get_ticks_usec() - warmup_started) / 1_000_000.0, durations.warmup))
-		_apply_scenario_input(scenario_name, route_frame, total_frames)
+		_apply_scenario_input(scenario_name, route_frame, total_frames, flight_pilot)
 		await tree.process_frame
 		_update_scenario_progress(progress_tracker, player, ship, scenario_name)
 		previous_tick = Time.get_ticks_usec()
@@ -323,13 +375,14 @@ static func _run_scenario(
 	var monitor_samples: Dictionary = {}
 	for monitor_name in MONITORS:
 		monitor_samples[monitor_name] = [] as Array[float]
+	var sample_path_start := float(progress_tracker.path_distance_m)
 	var sample_started := Time.get_ticks_usec()
 	previous_tick = sample_started
 	while not input_guard.aborted and phase_incomplete(frame_deltas.size(), sample_frames,
 			float(Time.get_ticks_usec() - sample_started) / 1_000_000.0, durations.sample):
 		var route_frame := warmup_frames + int(sample_frames * phase_progress(frame_deltas.size(), sample_frames,
 			float(Time.get_ticks_usec() - sample_started) / 1_000_000.0, durations.sample))
-		_apply_scenario_input(scenario_name, route_frame, total_frames)
+		_apply_scenario_input(scenario_name, route_frame, total_frames, flight_pilot)
 		await tree.process_frame
 		_update_scenario_progress(progress_tracker, player, ship, scenario_name)
 		var now := Time.get_ticks_usec()
@@ -338,6 +391,9 @@ static func _run_scenario(
 		_capture_monitor_sample(monitor_samples)
 
 	var sample_elapsed := float(Time.get_ticks_usec() - sample_started) / 1_000_000.0
+	if flight_pilot != null:
+		flight_pilot.set_physics_process(false)
+		_release_inputs()
 	if input_guard.aborted:
 		_release_inputs()
 		ship.set_piloted(false)
@@ -347,6 +403,8 @@ static func _run_scenario(
 		return {"completed": false}
 	var resolution_after := await capture_resolution(tree, requested_resolution, input_guard)
 	var progress := _finish_scenario_progress(progress_tracker, player, ship, scenario_name)
+	if flight_pilot != null:
+		progress["sample_path_distance_m"] = float(progress_tracker.path_distance_m) - sample_path_start
 	var progress_errors := validate_scenario_progress(scenario_name, progress)
 	_release_inputs()
 	var result := {
@@ -555,6 +613,11 @@ static func validate_scenario_progress(
 		or bool(progress.get("destroyed_end", true)) \
 		or float(progress.get("minimum_hull", 0.0)) <= 0.0:
 		errors.append("ship did not remain healthy")
+	if bool(progress.get("endpoint_required", false)) and (
+		not _finite_number(progress.get("sample_path_distance_m"))
+		or float(progress.get("sample_path_distance_m", 0.0)) <= MINIMUM_SMOKE_MOVEMENT_METERS
+	):
+		errors.append("flight did not move during sampling")
 	if bool(progress.get("endpoint_required", false)) \
 		and (
 			not _finite_number(progress.get("minimum_target_distance_m"))
@@ -573,8 +636,23 @@ static func _stage_scenario(
 		scenario_name: StringName,
 		input_guard: BenchmarkInputGuard
 	) -> Dictionary:
+	# Use the production Begin Shift transition: calling GameFlow directly leaves
+	# the opaque intro over the world and never reveals the gameplay HUD.
+	var hud := game.get_node_or_null("HUD") as GameHUD
+	if hud == null:
+		return {"staging_valid": false, "staging_error": "production HUD unavailable"}
+	var began := [false]
+	var on_begin := func() -> void: began[0] = true
+	hud.start_requested.connect(on_begin, CONNECT_ONE_SHOT)
+	hud._begin()
+	var begin_started := Time.get_ticks_msec()
+	while not began[0] and not input_guard.aborted and Time.get_ticks_msec() - begin_started < 5000:
+		await tree.process_frame
+	if hud.start_requested.is_connected(on_begin):
+		hud.start_requested.disconnect(on_begin)
+	if input_guard.aborted or not began[0]:
+		return {"staging_valid": false, "staging_error": "benchmark aborted" if input_guard.aborted else "Begin Shift transition did not complete"}
 	if scenario_name == &"station_embodied_route":
-		game.start_shift()
 		player.teleport_to(world.get_player_spawn())
 		player.set_control_enabled(true)
 		return {
@@ -640,7 +718,16 @@ static func _stage_scenario(
 		direction = Vector3.FORWARD
 	ship.global_transform = Transform3D(Basis.looking_at(direction, Vector3.UP), route_start)
 	ship.velocity = Vector3.ZERO
+	# Match the completed boarding ownership before offering flight input.
+	player.set_control_enabled(false)
+	player.set_camera_active(false)
+	game._piloting = true
+	game.phase = GameFlow.Phase.FREE_FLIGHT
 	ship.set_piloted(true)
+	ship.get_camera().current = true
+	hud.set_mode("piloting")
+	hud.bind_hero_component_ship(ship)
+	game.audio.set_on_foot(false)
 	return {
 		"staging_valid": true,
 		"actor": "production TorrentInterceptor and LocalShipInputSource",
@@ -651,7 +738,7 @@ static func _stage_scenario(
 		"global_rng_seed": _scenario_seed(scenario_name),
 		"start_transform": _transform_record(ship.global_transform),
 		"route_target": [route_target.x, route_target.y, route_target.z],
-		"sequence": "forward thrust throughout; boost during middle half",
+		"sequence": "continuous forward/reverse approach-lane shuttle with velocity-based braking at both endpoints",
 	}
 
 
@@ -710,7 +797,14 @@ static func phase_progress(frames: int, minimum_frames: int, elapsed: float, min
 	return clampf(minf(frame_progress, time_progress), 0.0, 1.0)
 
 
-static func _apply_scenario_input(scenario_name: StringName, frame: int, total_frames: int) -> void:
+static func _apply_scenario_input(
+		scenario_name: StringName, frame: int, total_frames: int,
+		flight_pilot: BenchmarkFlightPilot = null
+	) -> void:
+	if flight_pilot != null:
+		flight_pilot.route_frame = frame
+		flight_pilot.apply_input()
+		return
 	_release_inputs()
 	Input.action_press(&"move_forward")
 	if scenario_name == &"station_embodied_route":

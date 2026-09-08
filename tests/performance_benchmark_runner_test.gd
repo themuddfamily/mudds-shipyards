@@ -18,6 +18,7 @@ func _run() -> void:
 	await _test_emergency_input_guard()
 	await _test_live_abort()
 	await _test_live_smoke()
+	await _test_live_flight_shuttle()
 	_finish()
 
 
@@ -162,6 +163,10 @@ func _test_schema_mutations() -> void:
 		and _contains_fragment(RUNNER.validate_report(idle_flight), "no progress toward"),
 		"a flight with no accepted propulsion or target progress fails closed"
 	)
+	var idle_sample := report.duplicate(true)
+	idle_sample.scenarios[1].scenario_progress.sample_path_distance_m = 0.0
+	_check(_contains_fragment(RUNNER.validate_report(idle_sample), "did not move during sampling"),
+		"warm-up-only flight motion cannot qualify a full benchmark sample")
 	var unhealthy_flight := report.duplicate(true)
 	unhealthy_flight.scenarios[1].scenario_progress.healthy_throughout = false
 	_check(
@@ -259,7 +264,34 @@ func _abort_next_benchmark() -> void:
 
 
 func _test_live_smoke() -> void:
+	var visibility := {"station": 0, "flight": 0, "valid": true, "flight_ownership": true}
+	var observe_gameplay := func() -> void:
+		if not Input.is_action_pressed(&"move_forward"):
+			return
+		var game := root.get_node_or_null("Main")
+		if game == null:
+			return
+		var hud := game.get_node("HUD") as GameHUD
+		visibility.valid = bool(visibility.valid) and not hud._intro.visible and hud._hud.visible
+		var scenario := "station"
+		for child in game.get_children():
+			if child is RUNNER.BenchmarkFlightPilot:
+				scenario = "flight"
+				var player := game.get_node("Player") as PlayerController
+				visibility.flight_ownership = bool(visibility.flight_ownership) and (
+					game._piloting and game.phase == GameFlow.Phase.FREE_FLIGHT
+					and not player.is_control_enabled() and not player.get_camera().current
+					and child.ship.get_camera().current and hud._state_mode == GameHUD.MODE_PILOTING
+					and hud._hero_component_hud_binding._ship_reference.get_ref() == child.ship
+				)
+		visibility[scenario] = int(visibility[scenario]) + 1
+	process_frame.connect(observe_gameplay)
 	var report := await RUNNER.run_benchmark(self, 1, 3, Vector2i(640, 360), 0, {}, true)
+	process_frame.disconnect(observe_gameplay)
+	_check(bool(visibility.valid) and int(visibility.station) > 0 and int(visibility.flight) > 0,
+		"both active scenarios hide the intro and display the gameplay HUD")
+	_check(bool(visibility.flight_ownership) and int(visibility.flight) > 0,
+		"flight stages piloting flow, ship camera and component HUD with on-foot controls disabled")
 	var errors := RUNNER.validate_report(report)
 	_check(errors.is_empty(), "short production-Main smoke emits a valid report: %s" % "; ".join(errors))
 	_check(report.scenarios.size() == 2, "live smoke executes both named scenarios")
@@ -328,6 +360,30 @@ func _test_live_smoke() -> void:
 	]))
 
 
+func _test_live_flight_shuttle() -> void:
+	var guard := RUNNER.BenchmarkInputGuard.new()
+	root.add_child(guard)
+	# Exercise endpoint-required progress without a ten-minute hardware timing
+	# run. This outlasts the old pilot's terminal collision and station respawn.
+	var report := await RUNNER._run_scenario(
+		self, &"nearby_sector_ship_flight_route", 60, 240, 0, false,
+		{"warmup": 3.0, "sample": 20.0}, Vector2i(640, 360), guard
+	)
+	var progress := report.scenario_progress as Dictionary
+	_check(bool(report.completed), "sustained flight completes its endpoint-required route: %s" % report.error)
+	_check(bool(progress.endpoint_required) and bool(progress.accepted_propulsion_observed)
+		and bool(progress.engine_online_observed), "sustained route retains full endpoint and production propulsion requirements")
+	_check(float(progress.minimum_hull) == float(progress.start_hull)
+		and bool(progress.healthy_throughout), "sustained flight shuttles without collision damage or respawn")
+	_check(float(progress.minimum_target_distance_m) <= RUNNER.FLIGHT_ENDPOINT_RADIUS_METERS
+		and float(progress.sample_path_distance_m) > float(progress.start_target_distance_m),
+		"sustained flight travels during sampling and visits its endpoint")
+	_check(not Input.is_action_pressed(&"move_forward") and not Input.is_action_pressed(&"move_back")
+		and not Input.is_action_pressed(&"brake") and not Input.is_action_pressed(&"sprint_boost"), "completed flight releases thrust, brake and boost")
+	print("PERFORMANCE_BENCHMARK_FLIGHT_SHUTTLE_PROGRESS: ", JSON.stringify(progress))
+	guard.free()
+
+
 func _environment_fixture(adapter: String, os_name: String, display: String, resolution: Array) -> Dictionary:
 	return {
 		"godot_version": "4.7.1.stable.official",
@@ -389,6 +445,7 @@ func _progress_fixture(name: String) -> Dictionary:
 		return common
 	common.merge({
 		"actor_type": "HeroShip",
+		"sample_path_distance_m": 2.0,
 		"endpoint_required": true,
 		"route_target": [0.0, 0.0, -100.0],
 		"start_target_distance_m": 100.0,
