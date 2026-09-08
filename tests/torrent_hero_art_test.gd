@@ -433,16 +433,16 @@ func _test_render_allocations(torrent: HeroShip) -> void:
 	var component := report.get("component", {}) as Dictionary
 	var fallback := report.get("modern_fallback", {}) as Dictionary
 	_check(
-		int(component.get("descendant_nodes", -1)) == 309
-		and int(component.get("mesh_instances", -1)) == 237
+		int(component.get("descendant_nodes", -1)) == 320
+		and int(component.get("mesh_instances", -1)) == 248
 		and int(component.get("multimesh_batches", -1)) == 6,
 		"Torrent-local renderer census batches eight RCS ports while retaining named clusters"
 	)
 	_check(
-		int(component.get("drawn_copies", -1)) == 257
-		and int(component.get("geometry_submissions", -1)) == 243
-		and int(component.get("unique_mesh_resources", -1)) == 210
-		and int(component.get("unique_material_resources", -1)) == 38,
+		int(component.get("drawn_copies", -1)) == 268
+		and int(component.get("geometry_submissions", -1)) == 254
+		and int(component.get("unique_mesh_resources", -1)) == 220
+		and int(component.get("unique_material_resources", -1)) == 39,
 		"service-panel sharing removes one mesh allocation while preserving all visible copies and submissions"
 	)
 	_check(

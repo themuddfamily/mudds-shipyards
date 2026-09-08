@@ -219,13 +219,13 @@ const TORRENT_RCS_THRUSTER_PORT_COPY_COUNT := 8
 # Two fitted close cannon lenses share one mesh beneath their visual mount.
 # The retained live instrument subtree adds two shared-resource dial meshes
 # (hidden on the imported face) and three labels; labels are not mesh instances.
-const TORRENT_RENDER_DESCENDANT_COUNT := 309
-const TORRENT_RENDER_MESH_INSTANCE_COUNT := 237
+const TORRENT_RENDER_DESCENDANT_COUNT := 320
+const TORRENT_RENDER_MESH_INSTANCE_COUNT := 248
 const TORRENT_RENDER_MULTIMESH_BATCH_COUNT := 6
-const TORRENT_RENDER_DRAWN_COPY_COUNT := 257
-const TORRENT_RENDER_GEOMETRY_SUBMISSION_COUNT := 243
-const TORRENT_RENDER_UNIQUE_MESH_RESOURCE_COUNT := 210
-const TORRENT_RENDER_UNIQUE_MATERIAL_RESOURCE_COUNT := 38
+const TORRENT_RENDER_DRAWN_COPY_COUNT := 268
+const TORRENT_RENDER_GEOMETRY_SUBMISSION_COUNT := 254
+const TORRENT_RENDER_UNIQUE_MESH_RESOURCE_COUNT := 220
+const TORRENT_RENDER_UNIQUE_MATERIAL_RESOURCE_COUNT := 39
 const TORRENT_MODERN_DESCENDANT_COUNT := 109
 const TORRENT_MODERN_MESH_INSTANCE_COUNT := 87
 const TORRENT_MODERN_DRAWN_COPY_COUNT := 107
@@ -6086,9 +6086,7 @@ func _build_cockpit() -> void:
 		_tag_modern_interpretation(hinge_mount)
 
 
-## Closed, clipped-corner pressings for the common cockpit. Each section gives
-## width, lower/upper height, and fore/aft station. Face-local UVs preserve the
-## anti-glare material's normal map on the sloping crown and side returns.
+## Adds a fitted seat or control component within the retained cockpit root.
 func _cockpit_seat_fitting(
 		fitting_name: String, fitting_position: Vector3, sections: Array[Vector4],
 		material: Material, fitting_rotation: Vector3 = Vector3.ZERO
@@ -6104,6 +6102,9 @@ func _cockpit_seat_fitting(
 	return fitting
 
 
+## Closed, clipped-corner pressings for the common cockpit. Each section gives
+## width, lower/upper height, and fore/aft station. Face-local UVs preserve the
+## anti-glare material's normal map on the sloping crown and side returns.
 func _cockpit_formed_enclosure_mesh(
 		sections: Array[Vector4], material: Material, casing_material: Material = null
 	) -> ArrayMesh:

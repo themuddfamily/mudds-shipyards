@@ -228,13 +228,13 @@ const PHASE9_ARROW_VISUAL_CENSUS := {
 	"auto_fallback_names": 23,
 }
 const EXPECTED_ARROW_VISUAL_CENSUS := {
-	"nodes": 269,
-	"mesh_instance_nodes": 234,
+	"nodes": 280,
+	"mesh_instance_nodes": 245,
 	"multi_mesh_instance_nodes": 3,
-	# Includes the formed instrument casing and two shared live gauge faces.
-	"geometry_submissions": 238,
-	"visible_geometry_copies": 241,
-	"unique_mesh_resource_allocations": 192,
+	# Includes fitted seat shells, controls and the live instrument faces.
+	"geometry_submissions": 249,
+	"visible_geometry_copies": 252,
+	"unique_mesh_resource_allocations": 202,
 	"auto_fallback_names": 20,
 }
 const RECON_PULSE_EMITTER_VISUAL_DELTA := {
