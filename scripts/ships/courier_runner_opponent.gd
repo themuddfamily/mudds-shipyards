@@ -712,6 +712,8 @@ func _build_interceptor() -> void:
 	var cargo_pylon_mesh := _make_box_mesh(
 		CARGO_PYLON_SIZE, _materials.courier_shadow
 	)
+	var engine_pod_mesh := _courier_engine_mesh(false)
+	var engine_collar_mesh := _courier_engine_mesh(true)
 	for side in [-1.0, 1.0]:
 		# Slung cargo pods on external pylons: the silhouette detail that says
 		# this craft is carrying something and would rather not stop.
@@ -738,8 +740,9 @@ func _build_interceptor() -> void:
 		)
 		_cargo_lamps.append(lamp)
 
-		_cylinder(_visual_root, "EnginePod", Vector3(side * 1.15, 0.05, 3.9), 0.62, 1.8, _materials.courier_shadow, Vector3(90.0, 0.0, 0.0))
-		_cylinder(_visual_root, "EngineCore", Vector3(side * 1.15, 0.05, 4.86), 0.42, 0.18, _materials.courier_engine, Vector3(90.0, 0.0, 0.0))
+		_box_from_mesh(_visual_root, "EnginePod", Vector3(side * 1.15, 0.05, 3.9), engine_pod_mesh)
+		# Retain the renderer slot as a passive external retaining collar.
+		_box_from_mesh(_visual_root, "EngineCore", Vector3(side * 1.15, 0.05, 3.9), engine_collar_mesh)
 		var plume := _exhaust_plume(_visual_root, "EnginePlume", Vector3(side * 1.15, 0.05, 5.4), 0.3, 1.1, _materials.courier_engine, Vector3(90.0, 0.0, 0.0))
 		_engine_glows.append(plume)
 		var engine_light := OmniLight3D.new()
@@ -846,6 +849,7 @@ func _adopt_shared_material_catalog() -> void:
 func _create_courier_materials() -> void:
 	_materials.courier_hull = _material(HULL_SAND, 0.1, 0.61)
 	_materials.courier_clay = _material(HULL_CLAY, 0.1, 0.61)
+	_materials.courier_clay.vertex_color_use_as_albedo = true
 	_materials.courier_shadow = _material(HULL_SHADOW, 0.52, 0.38)
 	_materials.courier_rust = _material(CARGO_RUST, 0.1, 0.62)
 	_materials.courier_lamp = _material(CARGO_RUST, 0.1, 0.2, CARGO_RUST, 2.2)
@@ -991,7 +995,7 @@ func _build_courier_fittings() -> void:
 		parts.append([Vector3(side*1.15,0.68,3.86),Vector3(0.68,0.12,1.28),0])
 		for slot in 4:
 			parts.append([Vector3(side*1.15,0.75,3.41+slot*0.26),Vector3(0.5,0.025,0.1),2])
-		_add_nozzle_parts(parts,Vector3(side*1.15,0.05,4.86),0.53,0.61)
+		# The dorsal service saddle contacts the shell above its clear throat.
 	# Flush locks and hinges belong to the three broad dorsal access covers.
 	for bay in 3:
 		var z := -0.70 + bay * 1.40
@@ -1096,3 +1100,64 @@ func _courier_upper_mesh(stations: Array, bottom: float, material: Material) -> 
 		_emit_armour_triangle(surface,rings[-1][0],rings[-1][edge+1],rings[-1][edge])
 	surface.generate_tangents()
 	return surface.commit()
+
+
+## Continuous rolled nacelle, recessed passive liner and external retention ring.
+## Both sides share stock; only existing plume/light owners emit engine light.
+func _courier_engine_mesh(collar: bool) -> ArrayMesh:
+	var profile := PackedVector2Array([
+		Vector2(0.0, -0.9), Vector2(0.46, -0.9),
+		Vector2(0.59, -0.78), Vector2(0.62, -0.62),
+		Vector2(0.62, 0.47), Vector2(0.60, 0.59),
+		Vector2(0.57, 0.96), Vector2(0.55, 1.06),
+		Vector2(0.47, 1.06), Vector2(0.44, 0.96),
+		Vector2(0.35, 0.57), Vector2(0.28, 0.40),
+		Vector2(0.0, 0.40),
+	])
+	if collar:
+		profile = PackedVector2Array([
+			Vector2(0.619, 0.30), Vector2(0.66, 0.33),
+			Vector2(0.66, 0.43), Vector2(0.62, 0.49),
+			Vector2(0.619, 0.30),
+		])
+	var surface := SurfaceTool.new()
+	surface.begin(Mesh.PRIMITIVE_TRIANGLES)
+	surface.set_material(_materials.courier_clay)
+	var distance := 0.0
+	const SEGMENTS := 64
+	for section in profile.size() - 1:
+		var start := profile[section]
+		var end := profile[section + 1]
+		var slope := end - start
+		var tint := Color(0.27, 0.29, 0.30)
+		if collar or section in [6, 7]:
+			tint = Color(0.72, 0.67, 0.58)
+		elif section >= 8:
+			tint = Color(0.035, 0.04, 0.045)
+		for segment in SEGMENTS:
+			var a := TAU * float(segment) / float(SEGMENTS)
+			var b := TAU * float(segment + 1) / float(SEGMENTS)
+			var points := PackedVector3Array([
+				Vector3(cos(a) * start.x, sin(a) * start.x, start.y),
+				Vector3(cos(b) * start.x, sin(b) * start.x, start.y),
+				Vector3(cos(b) * end.x, sin(b) * end.x, end.y),
+				Vector3(cos(a) * end.x, sin(a) * end.x, end.y),
+			])
+			for triangle in [[0, 2, 1], [0, 3, 2]]:
+				if (points[triangle[2]] - points[triangle[0]]).cross(points[triangle[1]] - points[triangle[0]]).length_squared() < 1e-12:
+					continue
+				for index in triangle:
+					var point := points[index]
+					var radial := Vector2(point.x, point.y).normalized()
+					surface.set_normal(Vector3(slope.y * radial.x, slope.y * radial.y, -slope.x).normalized())
+					surface.set_color(tint)
+					if not collar and section in [0, 11]:
+						surface.set_uv(Vector2(point.x, point.y))
+					else:
+						surface.set_uv(Vector2(float(segment + (1 if index in [1, 2] else 0)) / float(SEGMENTS), distance + (slope.length() if index in [2, 3] else 0.0)))
+					surface.add_vertex(point)
+		distance += slope.length()
+	surface.generate_tangents()
+	var mesh := surface.commit()
+	mesh.resource_local_to_scene = false
+	return mesh

@@ -27,6 +27,44 @@ func _initialize() -> void:
 	_check(_upperworks_surface_is_valid(collar, true),
 		"closed upperworks fittings face out of their pressure volume with valid texture frames")
 
+	var engines: Array[MeshInstance3D] = []
+	var collars: Array[MeshInstance3D] = []
+	for child in first.get_node(^"ContractCourierVisual").get_children():
+		if child is MeshInstance3D and child.mesh == first.get_node(^"ContractCourierVisual/EnginePod").mesh:
+			engines.append(child)
+		elif child is MeshInstance3D and child.mesh == first.get_node(^"ContractCourierVisual/EngineCore").mesh:
+			collars.append(child)
+	_check(engines.size() == 2 and collars.size() == 2
+		and engines[0].mesh == engines[1].mesh and collars[0].mesh == collars[1].mesh,
+		"bilateral recessed nacelles and passive retention collars share stock in existing renderer slots")
+	for engine in engines + collars:
+		_check(_upperworks_surface_is_valid(engine.mesh),
+			"engine shell and collar have valid winding, UVs and tangent frames")
+		var finish := engine.mesh.surface_get_material(0) as StandardMaterial3D
+		_check(not finish.emission_enabled and finish.vertex_color_use_as_albedo,
+			"no permanent engine cap emission; passive liner uses vertex finish tint")
+		var vertices: PackedVector3Array = engine.mesh.surface_get_arrays(0)[Mesh.ARRAY_VERTEX]
+		var clear_throat := true
+		for vertex in vertices:
+			if vertex.z > 0.41 and Vector2(vertex.x, vertex.y).length() < 0.279:
+				clear_throat = false
+		_check(clear_throat, "no shell or retention collar crosses the recessed throat axis")
+
+	var fittings_clear := true
+	for node_name in ["HullBody", "FittedArmourAndServices"]:
+		var structure := first.get_node("ContractCourierVisual/" + node_name) as MeshInstance3D
+		var faces := structure.mesh.get_faces()
+		for side in [-1.0, 1.0]:
+			for offset in [Vector2.ZERO, Vector2(0.2,0), Vector2(-0.2,0), Vector2(0,0.2), Vector2(0,-0.2)]:
+				var start := Vector3(side*1.15+offset.x,0.05+offset.y,4.95)
+				var finish := Vector3(start.x,start.y,4.32)
+				for index in range(0,faces.size(),3):
+					if Geometry3D.segment_intersects_triangle(start,finish,
+						structure.transform*faces[index],structure.transform*faces[index+1],
+						structure.transform*faces[index+2]) != null:
+						fittings_clear = false
+	_check(fittings_clear, "actual hull and fitted support triangles leave both recessed throat interiors clear")
+
 	var first_bands := _pod_bands(first)
 	var second_bands := _pod_bands(second)
 	_check(
