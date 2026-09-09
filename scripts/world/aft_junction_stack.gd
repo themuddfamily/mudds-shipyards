@@ -370,6 +370,36 @@ var _route_markers: Dictionary = {}
 var _chair_nodes: Array[Node3D] = []
 var _console_nodes: Array[Node3D] = []
 var _built := false
+var _staged_construction := false
+var _staged_tree_generation := 0
+var _staged_run_active := false
+var _staged_phase_index := 0
+var _staged_needs_settle := false
+var _staged_failed := false
+## Original construction order, with a loading frame between each bounded builder.
+const STAGED_BUILD_PHASES := [
+	[&"_build_open_lower_deck", ^"Structure", "Opening the Aft lower deck"],
+	[&"_build_stair_and_upper_structure", ^"Structure", "Raising the Aft stair and upper deck"],
+	[&"_build_stair_head_muster", ^"Structure/UpperOpenDeck", "Fitting the Aft stair muster"],
+	[&"_build_operations_shell", ^"Structure/OperationsRoom", "Opening the Aft Operations room"],
+	[&"_build_operations_shell_detail", ^"Structure/OperationsRoom", "Sealing the Aft Operations shell"],
+	[&"_build_operations_console", ^"Structure/OperationsRoom", "Fitting Aft Operations console 1", 0],
+	[&"_build_operations_console", ^"Structure/OperationsRoom", "Fitting Aft Operations console 2", 1],
+	[&"_build_operations_console", ^"Structure/OperationsRoom", "Fitting Aft Operations console 3", 2],
+	[&"_build_operations_chairs", ^"Structure/OperationsRoom", "Seating the Aft Operations crew"],
+	[&"_build_service_wall", ^"Structure/OperationsRoom", "Connecting Aft Operations services"],
+	[&"_build_operations_lighting", ^"Structure/OperationsRoom", "Lighting Aft Operations"],
+	[&"_build_watch_rack_bank", ^"Structure/OperationsRoom/OperationsContent", "Fitting the Aft watch racks"],
+	[&"_build_module_status_board", ^"Structure/OperationsRoom/OperationsContent", "Posting the Aft module status"],
+	[&"_build_traffic_plot_table", ^"Structure/OperationsRoom/OperationsContent", "Setting the Aft traffic plot"],
+	[&"_build_coordinator_desk", ^"Structure/OperationsRoom/OperationsContent", "Fitting the Aft coordinator desk"],
+	[&"_build_chart_press", ^"Structure/OperationsRoom/OperationsContent", "Fitting the Aft chart press"],
+	[&"_build_refreshment_stand", ^"Structure/OperationsRoom/OperationsContent", "Stocking the Aft refreshment stand"],
+	[&"_build_console_line_traces", ^"Structure/OperationsRoom/OperationsContent", "Connecting the Aft console line"],
+	[&"_build_operations_sign", ^"Structure/OperationsRoom", "Marking Aft Operations"],
+	[&"_build_vip_landmark", ^"Structure", "Opening the Aft VIP approach"],
+	[&"_build_open_structure_details", ^"Structure", "Finishing the Aft junction"],
+]
 var _module_enabled := true
 ## Content-pass animation state. See `_process` / `_update_operations_content`.
 var _content_clock := 0.0
@@ -379,6 +409,9 @@ var _content_lens_specs: Array[Dictionary] = []
 
 
 func _ready() -> void:
+	if _staged_construction and not _built:
+		set_process(false)
+		return
 	if not _built:
 		_built = true
 		_create_materials()
@@ -390,6 +423,110 @@ func _ready() -> void:
 	# Reconcile the real node state against `_module_enabled` on every ready, so a
 	# scene-authored or externally drifted layer/visibility cannot survive.
 	_apply_enabled_state()
+
+
+func prepare_staged_construction() -> void:
+	if not _built and not is_inside_tree():
+		_staged_construction = true
+
+
+static func get_staged_construction_stage_count() -> int:
+	return STAGED_BUILD_PHASES.size()
+
+
+func is_construction_complete() -> bool:
+	return _built and is_inside_tree() and not is_queued_for_deletion()
+
+
+func _exit_tree() -> void:
+	_staged_tree_generation += 1
+	_staged_run_active = false
+
+
+## A static driver can report a freed/queued module to its still-live world.
+## A retained module resumes its next phase/settle without rebuilding any room.
+static func run_staged_construction(module_ref: WeakRef, on_stage: Callable = Callable()) -> bool:
+	var module := module_ref.get_ref() as AftJunctionStack
+	if not is_instance_valid(module):
+		return false
+	if module._built:
+		return module.is_construction_complete()
+	if not module._staged_construction or module._staged_run_active or module._staged_failed \
+			or not module.is_inside_tree() or module.is_queued_for_deletion():
+		return false
+	var generation := module._staged_tree_generation
+	var tree := module.get_tree()
+	module._staged_run_active = true
+	while module._staged_phase_index < STAGED_BUILD_PHASES.size() or module._staged_needs_settle:
+		if not _is_staged_current(module, generation):
+			return false
+		if module._staged_needs_settle:
+			module = null
+			await tree.process_frame
+			module = module_ref.get_ref() as AftJunctionStack
+			if not _is_staged_current(module, generation):
+				return false
+			module._staged_needs_settle = false
+			continue
+		var phase := module._staged_phase_index
+		module._staged_phase_index += 1
+		module._staged_needs_settle = true
+		if not module._build_staged_phase(phase):
+			module._staged_failed = true
+			module._staged_run_active = false
+			return false
+		if not _is_staged_current(module, generation):
+			return false
+		if on_stage.is_valid():
+			on_stage.call(STAGED_BUILD_PHASES[phase][2] as String)
+		if not _is_staged_current(module, generation):
+			return false
+	module._style_access_landmarks()
+	module._apply_operations_entrance_header_curve()
+	module._apply_metadata()
+	if not _is_staged_current(module, generation):
+		return false
+	module._built = true
+	module._apply_enabled_state()
+	module._staged_construction = false
+	module._staged_run_active = false
+	return true
+
+
+static func _is_staged_current(module: AftJunctionStack, generation: int) -> bool:
+	return is_instance_valid(module) and generation == module._staged_tree_generation \
+		and module.is_inside_tree() and not module.is_queued_for_deletion()
+
+
+func _build_staged_phase(index: int) -> bool:
+	if index == 0:
+		_create_materials()
+		_index_routes()
+		_create_structure()
+	var phase: Array = STAGED_BUILD_PHASES[index]
+	if phase[0] == &"_build_operations_shell":
+		var structure := get_node_or_null(^"Structure") as Node3D
+		if structure == null or structure.is_queued_for_deletion():
+			return false
+		_create_operations_room(structure)
+	if phase[0] == &"_build_watch_rack_bank":
+		var room := get_node_or_null(^"Structure/OperationsRoom") as Node3D
+		if room == null or room.is_queued_for_deletion():
+			return false
+		_create_operations_content(room)
+	var parent := get_node_or_null(phase[1] as NodePath) as Node3D
+	if parent == null or parent.is_queued_for_deletion():
+		return false
+	if phase[0] == &"_build_operations_console":
+		var bay_index: int = phase[3]
+		if bay_index == 0:
+			_prepare_operations_consoles()
+		_build_operations_console(parent, bay_index)
+		if bay_index == 2:
+			_finish_operations_consoles(parent)
+	else:
+		call(phase[0] as StringName, parent)
+	return true
 
 
 func get_module_id() -> StringName:
@@ -2978,10 +3115,15 @@ func _create_materials() -> void:
 		)
 
 
-func _build_structure() -> void:
+func _create_structure() -> Node3D:
 	var structure := Node3D.new()
 	structure.name = "Structure"
 	add_child(structure)
+	return structure
+
+
+func _build_structure() -> void:
+	var structure := _create_structure()
 
 	_build_open_lower_deck(structure)
 	_build_stair_and_upper_deck(structure)
@@ -3208,6 +3350,11 @@ func _build_open_lower_deck(structure: Node3D) -> void:
 
 
 func _build_stair_and_upper_deck(structure: Node3D) -> void:
+	_build_stair_and_upper_structure(structure)
+	_build_stair_head_muster(structure.get_node(^"UpperOpenDeck") as Node3D)
+
+
+func _build_stair_and_upper_structure(structure: Node3D) -> void:
 	var circulation := Node3D.new()
 	circulation.name = "Circulation"
 	structure.add_child(circulation)
@@ -3379,7 +3526,6 @@ func _build_stair_and_upper_deck(structure: Node3D) -> void:
 		_beam_between(upper, "UpperDiagonalBrace", Vector3(support_x, 3.5, 13.0), Vector3(support_x, 2.35, 15.1), 0.1, _materials["mid_grey"], false)
 		_beam_between(upper, "UpperDiagonalBraceReturn", Vector3(support_x, 3.5, 20.0), Vector3(support_x, 2.35, 17.9), 0.1, _materials["mid_grey"], false)
 
-	_build_stair_head_muster(upper)
 
 
 ## The cyan deck ribbon ends at the stair-base marker, but from the lower
@@ -3496,10 +3642,26 @@ func _build_upper_transfer_gate(upper: Node3D) -> void:
 
 
 func _build_operations_room(structure: Node3D) -> void:
+	var room := _create_operations_room(structure)
+	_build_operations_shell(room)
+	_build_operations_shell_detail(room)
+	_build_operations_consoles(room)
+	_build_operations_chairs(room)
+	_build_service_wall(room)
+	_build_operations_lighting(room)
+	_build_operations_content(room)
+	_build_operations_sign(room)
+
+
+func _create_operations_room(structure: Node3D) -> Node3D:
 	var room := Node3D.new()
 	room.name = "OperationsRoom"
 	structure.add_child(room)
 
+	return room
+
+
+func _build_operations_shell(room: Node3D) -> void:
 	_box(room, "OperationsFloor", Vector3(5.6, -0.32, 13.2), Vector3(10.4, 0.64, 8.2), _materials["off_white_floor"])
 	_box(room, "OperationsCeiling", Vector3(5.6, 4.75, 13.2), Vector3(10.4, 0.48, 8.2), _materials["warm_grey"])
 	_box(room, "WestWall", Vector3(0.4, 2.38, 13.25), Vector3(0.38, 4.75, 7.8), _materials["warm_grey"])
@@ -3561,8 +3723,16 @@ func _build_operations_room(structure: Node3D) -> void:
 		_box(room, "WindowLowerFrame%02d" % pane_index, Vector3(pane_x, 0.83, 17.08), Vector3(3.0, 0.12, 0.18), _materials["hull_dark"], false)
 		_box(room, "WindowUpperFrame%02d" % pane_index, Vector3(pane_x, 4.0, 17.08), Vector3(3.0, 0.12, 0.18), _materials["hull_dark"], false)
 
-	_build_operations_shell_detail(room)
 
+
+func _build_operations_consoles(room: Node3D) -> void:
+	_prepare_operations_consoles()
+	for bay_index in 3:
+		_build_operations_console(room, bay_index)
+	_finish_operations_consoles(room)
+
+
+func _prepare_operations_consoles() -> void:
 	# Three operator stations face the broad exterior sightline.
 	_console_shock_collar_mesh = _torus_mesh(
 		CONSOLE_SHOCK_COLLAR_INNER_RADIUS,
@@ -3580,94 +3750,99 @@ func _build_operations_room(structure: Node3D) -> void:
 		1.0,
 		TorusGeometryBudget.PROFILE_AFT_INTERFACE_COLLAR
 	)
-	for bay_index in 3:
-		var bay := Node3D.new()
-		bay.name = "ConsoleBay%02d" % (bay_index + 1)
-		bay.position = Vector3(3.15 + float(bay_index) * 2.85, 0.0, 15.7)
-		bay.set_meta("station_console_bay", true)
-		bay.set_meta("console_index", bay_index)
-		room.add_child(bay)
-		_console_nodes.append(bay)
-		_box(bay, "ConsolePlinth", Vector3(0, 0.66, 0), Vector3(2.25, 1.32, 0.9), _materials["mid_grey"])
-		_box(bay, "PlinthKick", Vector3(0, 0.18, -0.47), Vector3(1.82, 0.28, 0.12), _materials["rubber"], false)
-		_box(bay, "PlinthInset", Vector3(0, 0.7, -0.47), Vector3(1.72, 0.48, 0.08), _materials["hull_dark"], false)
-		for support_x in [-0.86, 0.86]:
-			_cylinder(bay, "ConsoleShockMount", Vector3(float(support_x), 0.23, 0.34), 0.085, 0.38, _materials["copper"], false)
-			var collar_anchor := Marker3D.new()
-			collar_anchor.name = "ConsoleShockCollar"
-			collar_anchor.position = Vector3(float(support_x), 0.08, 0.34)
-			collar_anchor.rotation_degrees = Vector3(90.0, 0.0, 0.0)
-			bay.add_child(collar_anchor)
-		_box(bay, "AngledConsole", Vector3(0, 1.26, -0.1), Vector3(2.18, 0.28, 1.0), _materials["graphite"], true, Vector3(-12, 0, 0))
-		_box(bay, "ConsoleEdgeRail", Vector3(0, 1.43, -0.56), Vector3(2.18, 0.09, 0.09), _materials["panel_light"], false, Vector3(-12, 0, 0))
-		_box(bay, "PrimaryDisplay", Vector3(0, 1.43, -0.18), Vector3(1.55, 0.035, 0.56), _materials["screen"], false, Vector3(-12, 0, 0))
-		for display_index in 3:
-			_box(
-				bay,
-				"DisplayDataBand",
-				Vector3(0, 1.454 + float(display_index) * 0.005, -0.33 + float(display_index) * 0.16),
-				Vector3(1.25 - float(display_index) * 0.15, 0.012, 0.035),
-				_materials["screen_dark"],
-				false,
-				Vector3(-12, 0, 0)
-			)
-		for lamp_index in 3:
-			var accent: Material = _materials["cyan"] if lamp_index < 2 else _materials["gold"]
-			_cylinder(bay, "ControlLamp", Vector3(-0.56 + float(lamp_index) * 0.56, 1.5, -0.03), 0.06, 0.04, accent, false, Vector3(90, 0, 0))
-		# One practical per bay, not one per lamp. The display, its three data
-		# bands and the three control lamps are a single luminaire from any
-		# distance a player reads this room from; three lights per bay would be
-		# three copies of one pool over a 2.2 m console. Placed just above and in
-		# front of the glass so it washes the console top, the edge rail and the
-		# operator's chair back rather than the ceiling.
-		#
-		# Range 2.6 -> 3.4, energy unchanged. This is the only light in the room in
-		# front of a seated operator's face, and the face is 1.83 m away, where a
-		# 2.6 m range window was cutting 43% of it. Widening the window leaves the
-		# console top — 0.4 m away, where the window reads 1.00 either way —
-		# exactly as lit as it was, which is why this is a range change and not an
-		# energy change: the panel is what an energy raise would have blown first.
-		_fixture_practical(
+
+
+func _build_operations_console(room: Node3D, bay_index: int) -> void:
+	var bay := Node3D.new()
+	bay.name = "ConsoleBay%02d" % (bay_index + 1)
+	bay.position = Vector3(3.15 + float(bay_index) * 2.85, 0.0, 15.7)
+	bay.set_meta("station_console_bay", true)
+	bay.set_meta("console_index", bay_index)
+	room.add_child(bay)
+	_console_nodes.append(bay)
+	_box(bay, "ConsolePlinth", Vector3(0, 0.66, 0), Vector3(2.25, 1.32, 0.9), _materials["mid_grey"])
+	_box(bay, "PlinthKick", Vector3(0, 0.18, -0.47), Vector3(1.82, 0.28, 0.12), _materials["rubber"], false)
+	_box(bay, "PlinthInset", Vector3(0, 0.7, -0.47), Vector3(1.72, 0.48, 0.08), _materials["hull_dark"], false)
+	for support_x in [-0.86, 0.86]:
+		_cylinder(bay, "ConsoleShockMount", Vector3(float(support_x), 0.23, 0.34), 0.085, 0.38, _materials["copper"], false)
+		var collar_anchor := Marker3D.new()
+		collar_anchor.name = "ConsoleShockCollar"
+		collar_anchor.position = Vector3(float(support_x), 0.08, 0.34)
+		collar_anchor.rotation_degrees = Vector3(90.0, 0.0, 0.0)
+		bay.add_child(collar_anchor)
+	_box(bay, "AngledConsole", Vector3(0, 1.26, -0.1), Vector3(2.18, 0.28, 1.0), _materials["graphite"], true, Vector3(-12, 0, 0))
+	_box(bay, "ConsoleEdgeRail", Vector3(0, 1.43, -0.56), Vector3(2.18, 0.09, 0.09), _materials["panel_light"], false, Vector3(-12, 0, 0))
+	_box(bay, "PrimaryDisplay", Vector3(0, 1.43, -0.18), Vector3(1.55, 0.035, 0.56), _materials["screen"], false, Vector3(-12, 0, 0))
+	for display_index in 3:
+		_box(
 			bay,
-			"ConsoleGlow",
-			Vector3(0.0, 1.74, -0.36),
-			Color("93e4ea"),
-			0.42,
-			3.4
+			"DisplayDataBand",
+			Vector3(0, 1.454 + float(display_index) * 0.005, -0.33 + float(display_index) * 0.16),
+			Vector3(1.25 - float(display_index) * 0.15, 0.012, 0.035),
+			_materials["screen_dark"],
+			false,
+			Vector3(-12, 0, 0)
 		)
-		# The first authored workstation is the physical navigation entry point.
-		# It opens the retained Destination Board through GameFlow and owns no
-		# route selection, travel, streaming, or movement authority.
-		if bay_index == 0:
-			var destination_console = PlanetaryDestinationConsoleType.new()
-			destination_console.name = "PlanetaryDestinationConsole"
-			bay.add_child(destination_console)
-		# One existing console is an embodied entry point to the Activity Board.
-		# The adapter adds only proximity discovery; GameFlow and HUD retain the
-		# selection and activity lifecycle authority.
-		elif bay_index == 1:
-			var activity_board_console := ActivityBoardConsole.new()
-			activity_board_console.name = "ActivityBoardConsole"
-			bay.add_child(activity_board_console)
-		# The adjacent authored workstation is the physical return point for the
-		# finite engineer-kit loop. It owns only proximity and presentation;
-		# GameFlow selects the last active craft and that craft's existing repair
-		# authority owns the actual restock.
-		elif bay_index == 2:
-			var ship_service_console = ShipServiceConsoleType.new()
-			ship_service_console.name = "ShipServiceConsole"
-			bay.add_child(ship_service_console)
-		# The bay's one warm lamp gets its own tiny pool. It is the only warm
-		# source on the console line and it is what stops three identical cyan
-		# consoles reading as one extruded strip.
-		_fixture_practical(
-			bay,
-			"ControlLampSpill",
-			Vector3(0.56, 1.58, -0.1),
-			Color("f2c07f"),
-			0.24,
-			1.25
-		)
+	for lamp_index in 3:
+		var accent: Material = _materials["cyan"] if lamp_index < 2 else _materials["gold"]
+		_cylinder(bay, "ControlLamp", Vector3(-0.56 + float(lamp_index) * 0.56, 1.5, -0.03), 0.06, 0.04, accent, false, Vector3(90, 0, 0))
+	# One practical per bay, not one per lamp. The display, its three data
+	# bands and the three control lamps are a single luminaire from any
+	# distance a player reads this room from; three lights per bay would be
+	# three copies of one pool over a 2.2 m console. Placed just above and in
+	# front of the glass so it washes the console top, the edge rail and the
+	# operator's chair back rather than the ceiling.
+	#
+	# Range 2.6 -> 3.4, energy unchanged. This is the only light in the room in
+	# front of a seated operator's face, and the face is 1.83 m away, where a
+	# 2.6 m range window was cutting 43% of it. Widening the window leaves the
+	# console top — 0.4 m away, where the window reads 1.00 either way —
+	# exactly as lit as it was, which is why this is a range change and not an
+	# energy change: the panel is what an energy raise would have blown first.
+	_fixture_practical(
+		bay,
+		"ConsoleGlow",
+		Vector3(0.0, 1.74, -0.36),
+		Color("93e4ea"),
+		0.42,
+		3.4
+	)
+	# The first authored workstation is the physical navigation entry point.
+	# It opens the retained Destination Board through GameFlow and owns no
+	# route selection, travel, streaming, or movement authority.
+	if bay_index == 0:
+		var destination_console = PlanetaryDestinationConsoleType.new()
+		destination_console.name = "PlanetaryDestinationConsole"
+		bay.add_child(destination_console)
+	# One existing console is an embodied entry point to the Activity Board.
+	# The adapter adds only proximity discovery; GameFlow and HUD retain the
+	# selection and activity lifecycle authority.
+	elif bay_index == 1:
+		var activity_board_console := ActivityBoardConsole.new()
+		activity_board_console.name = "ActivityBoardConsole"
+		bay.add_child(activity_board_console)
+	# The adjacent authored workstation is the physical return point for the
+	# finite engineer-kit loop. It owns only proximity and presentation;
+	# GameFlow selects the last active craft and that craft's existing repair
+	# authority owns the actual restock.
+	elif bay_index == 2:
+		var ship_service_console = ShipServiceConsoleType.new()
+		ship_service_console.name = "ShipServiceConsole"
+		bay.add_child(ship_service_console)
+	# The bay's one warm lamp gets its own tiny pool. It is the only warm
+	# source on the console line and it is what stops three identical cyan
+	# consoles reading as one extruded strip.
+	_fixture_practical(
+		bay,
+		"ControlLampSpill",
+		Vector3(0.56, 1.58, -0.1),
+		Color("f2c07f"),
+		0.24,
+		1.25
+	)
+
+
+func _finish_operations_consoles(room: Node3D) -> void:
 	_console_shock_collar_batch = _multimesh_torus(
 		room,
 		"ConsoleShockCollarRenderBatch",
@@ -3676,6 +3851,9 @@ func _build_operations_room(structure: Node3D) -> void:
 		_console_shock_collar_transforms()
 	)
 
+
+
+func _build_operations_chairs(room: Node3D) -> void:
 	# Three operator chairs plus a side-facing coordinator chair.
 	#
 	# The three operator chairs are yawed 180, which is a fix rather than a
@@ -3711,9 +3889,9 @@ func _build_operations_room(structure: Node3D) -> void:
 			chair_yaw = -72.0
 		_build_chair(room, chair_index, chair_position, chair_yaw)
 
-	_build_service_wall(room)
-	_build_operations_lighting(room)
-	_build_operations_content(room)
+
+
+func _build_operations_sign(room: Node3D) -> void:
 	_text_sign(room, "AFT OPERATIONS", Vector3(7.2, 3.7, 9.31), Vector3(0, 180, 0), 0.29, _materials["cyan"])
 	# A lit sign that does not light the wall it hangs on is a sticker. This is a
 	# wide, weak wash placed a little in front of and below the legend, so the
@@ -4119,10 +4297,15 @@ func _build_operations_lighting(room: Node3D) -> void:
 ## tell at a glance which rack is out. The same idea runs the annunciator row on
 ## the status board — flags stand up or hang down — and the plot tokens, whose
 ## pins stand proud for inbound traffic and sit flush for a berthed hull.
-func _build_operations_content(room: Node3D) -> void:
+func _create_operations_content(room: Node3D) -> Node3D:
 	var content := Node3D.new()
 	content.name = "OperationsContent"
 	room.add_child(content)
+	return content
+
+
+func _build_operations_content(room: Node3D) -> void:
+	var content := _create_operations_content(room)
 	_build_watch_rack_bank(content)
 	_build_module_status_board(content)
 	_build_traffic_plot_table(content)

@@ -31,6 +31,9 @@ func _run() -> void:
 	module.rotation_degrees.y = 27.0
 	_test_root.add_child(module)
 	_test_synchronous_parent_validation(module)
+	module.set_process(false)
+	await _test_staged_construction(module)
+	module.set_process(true)
 	await process_frame
 	await physics_frame
 	await physics_frame
@@ -109,6 +112,109 @@ func _test_synchronous_parent_validation(module: AftJunctionStack) -> void:
 		and module.get_validation_errors().is_empty(),
 		"the complete public Aft contract is valid on the synchronous parent-validation stack"
 	)
+
+
+func _test_staged_construction(reference: AftJunctionStack) -> void:
+	var module := MODULE_SCENE.instantiate() as AftJunctionStack
+	module.transform = reference.transform
+	module.prepare_staged_construction()
+	_test_root.add_child(module)
+	_check(not module.is_construction_complete() and not module.is_processing()
+		and module.get_node_or_null(^"Structure") == null,
+		"prepared Aft defers its structure and animation to its loading owner")
+	var labels: Array[String] = []
+	var frames: Array[int] = []
+	var interrupted: Array[String] = []
+	var sink := func(label: String) -> void:
+		labels.append(label)
+		frames.append(Engine.get_process_frames())
+		_check(not module.is_construction_complete() and not module.is_processing()
+			and is_zero_approx(float(module.get("_content_clock"))),
+			"Aft phase progress leaves incomplete services and animation inactive")
+		if not interrupted.has(label) and label == "Fitting Aft Operations console 3":
+			interrupted.append(label)
+			_detach_and_readd_staged_aft(module)
+		elif not interrupted.has(label) and label == "Finishing the Aft junction":
+			interrupted.append(label)
+			call_deferred("_detach_and_readd_staged_aft", module)
+	AftJunctionStack.run_staged_construction(weakref(module), sink)
+	_check(not await AftJunctionStack.run_staged_construction(weakref(module), sink),
+		"concurrent Aft construction cannot replace its active owner")
+	var structure := module.get_node(^"Structure")
+	_detach_and_readd_staged_aft(module)
+	await process_frame
+	await process_frame
+	_check(labels.size() == 1 and module.get_node(^"Structure") == structure,
+		"retired first settle cannot advance or repeat Aft setup")
+	_check(not await AftJunctionStack.run_staged_construction(weakref(module), sink),
+		"Aft rejects a generation retired by its console-phase callback")
+	var consoles := module.get_node(^"Structure/OperationsRoom/ConsoleShockCollarRenderBatch")
+	_check(module.get_console_bay_count() == 3 and module.get_chair_count() == 0,
+		"console phase retains its three stations and batch before seating the crew")
+	_check(not await AftJunctionStack.run_staged_construction(weakref(module), sink)
+		and labels.size() == AftJunctionStack.get_staged_construction_stage_count()
+		and not module.is_construction_complete() and not module.is_processing(),
+		"final Aft settle still gates metadata, door finalization and animation")
+	_check(await AftJunctionStack.run_staged_construction(weakref(module), sink),
+		"retained Aft resumes its final settle and completes")
+	var expected_labels: Array[String] = []
+	for phase: Array in AftJunctionStack.STAGED_BUILD_PHASES: expected_labels.append(phase[2] as String)
+	var ordered_frames := frames.size() == expected_labels.size()
+	for index in range(1, frames.size()): ordered_frames = ordered_frames and frames[index] > frames[index - 1]
+	_check(ordered_frames and labels == expected_labels and module.get_node(^"Structure") == structure
+		and module.get_node(^"Structure/OperationsRoom/ConsoleShockCollarRenderBatch") == consoles,
+		"all Aft phases retain their original order and owned geometry on separate loading frames")
+	_check(module.is_processing() and is_zero_approx(float(module.get("_content_clock"))),
+		"completed Aft starts its original animation only after finalization")
+	_test_synchronous_parent_validation(module)
+	_check(bool(module.get_audit_report().valid), "staged Aft passes its complete public audit")
+	_check(module.get_pod_corner_collar_visual_allocation_audit().current
+		== reference.get_pod_corner_collar_visual_allocation_audit().current,
+		"staged and direct Aft retain identical live mesh and material allocation counts")
+	_check(_staged_collision_snapshot(module) == _staged_collision_snapshot(reference),
+		"staged Aft retains direct body order, authored paths, transforms, masks and shape state")
+	_check(await AftJunctionStack.run_staged_construction(weakref(module), sink)
+		and labels == expected_labels, "completed Aft cannot replay phases or progress")
+	module.queue_free()
+	await process_frame
+
+
+func _detach_and_readd_staged_aft(module: AftJunctionStack) -> void:
+	_test_root.remove_child(module)
+	module.request_ready()
+	_test_root.add_child(module)
+
+
+func _staged_collision_snapshot(module: AftJunctionStack) -> Array[Dictionary]:
+	var result: Array[Dictionary] = []
+	for body: StaticBody3D in StationModuleContract.collect_static_bodies(module):
+		var shapes: Array[Dictionary] = []
+		for child in body.get_children():
+			if child is CollisionShape3D:
+				var collision := child as CollisionShape3D
+				shapes.append({
+					"path": _stable_module_path(body, collision), "transform": collision.transform,
+					"disabled": collision.disabled, "type": collision.shape.get_class(),
+					"bounds": collision.shape.get_debug_mesh().get_aabb(),
+				})
+		result.append({
+			"path": _stable_module_path(module, body), "transform": body.transform,
+			"layer": body.collision_layer, "mask": body.collision_mask,
+			"visible": body.visible, "shapes": shapes,
+		})
+	return result
+
+
+func _stable_module_path(module: Node, node: Node) -> NodePath:
+	var segments := PackedStringArray()
+	while node != module:
+		var segment := String(node.name)
+		if segment.begins_with("@") and segment.get_slice_count("@") == 3 \
+				and segment.get_slice("@", 2).is_valid_int():
+			segment = "@%s@%d" % [node.get_class(), node.get_index()]
+		segments.insert(0, segment)
+		node = node.get_parent()
+	return NodePath("/".join(segments))
 
 
 func _test_identity_evidence_and_audit(module: AftJunctionStack) -> void:

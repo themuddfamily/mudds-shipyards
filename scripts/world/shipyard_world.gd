@@ -1396,6 +1396,8 @@ func prepare_staged_construction() -> void:
 		_staged_children.append(child)
 		if child is HabitatSpine:
 			(child as HabitatSpine).prepare_staged_construction()
+		elif child is AftJunctionStack:
+			(child as AftJunctionStack).prepare_staged_construction()
 
 
 func _capture_staged_node_owners(node: Node) -> void:
@@ -1422,6 +1424,8 @@ func get_staged_construction_stage_count() -> int:
 	for child in _staged_children:
 		if child is HabitatSpine:
 			count += HabitatSpine.get_staged_construction_stage_count()
+		elif child is AftJunctionStack:
+			count += AftJunctionStack.get_staged_construction_stage_count()
 	return count
 
 
@@ -1463,6 +1467,14 @@ func run_staged_construction(on_stage: Callable = Callable()) -> bool:
 				return false
 			if not habitat_ready or not is_instance_valid(child) or child.get_parent() != self \
 					or not (child as HabitatSpine).is_construction_complete():
+				_staged_run_active = false
+				return false
+		elif child is AftJunctionStack:
+			var aft_ready := await AftJunctionStack.run_staged_construction(weakref(child), on_stage)
+			if not _is_staged_run_current(generation):
+				return false
+			if not aft_ready or not is_instance_valid(child) or child.get_parent() != self \
+					or not (child as AftJunctionStack).is_construction_complete():
 				_staged_run_active = false
 				return false
 		_staged_child_index += 1
