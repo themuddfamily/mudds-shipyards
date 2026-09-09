@@ -211,6 +211,7 @@ func _run() -> void:
 	_test_readable_colour(craft)
 	_test_winding(craft)
 	_test_bow_docking_arch(craft)
+	_test_bow_pressure_cheeks(craft)
 	_test_render_allocations(craft)
 	_test_weapon_presentation(craft)
 	_test_cockpit_and_boarding(craft)
@@ -763,6 +764,59 @@ func _test_bow_docking_arch(craft: HeroShip) -> void:
 			and collision_box != null and collision_box.size.is_equal_approx(Vector3(5.30, 5.30, 0.60)),
 		"five-piece open bow docking arch leaves no lower arch segments while preserving its target, mirrored supports and gameplay envelope"
 	)
+
+
+func _test_bow_pressure_cheeks(craft: HeroShip) -> void:
+	var visual := craft.call("get_halyard_visual_root") as Node3D
+	for side in [-1.0, 1.0]:
+		var label := "Port" if side < 0.0 else "Starboard"
+		var cheek := visual.get_node(label + "NoseCheek") as MeshInstance3D
+		var bounds := cheek.mesh.get_aabb()
+		var expected_min := Vector3(-2.94 if side < 0.0 else 1.53, 0.34, -13.28)
+		_check(bounds.position.is_equal_approx(expected_min)
+			and bounds.size.is_equal_approx(Vector3(1.41, 2.92, 2.69)),
+			label + " formed cheek preserves the flight-deck and cabin envelope")
+		var arrays := cheek.mesh.surface_get_arrays(0)
+		var vertices: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
+		var normals: PackedVector3Array = arrays[Mesh.ARRAY_NORMAL]
+		var uvs: PackedVector2Array = arrays[Mesh.ARRAY_TEX_UV]
+		var tangents: PackedFloat32Array = arrays[Mesh.ARRAY_TANGENT]
+		var valid := normals.size() == vertices.size() and uvs.size() == vertices.size() \
+			and tangents.size() == vertices.size() * 4
+		var edges := {}
+		var stations := {}
+		var outer_face_normals := {}
+		for triangle in range(0, vertices.size(), 3):
+			var a := vertices[triangle]
+			var b := vertices[triangle + 1]
+			var c := vertices[triangle + 2]
+			var geometric := (b - a).cross(c - a)
+			valid = valid and geometric.length_squared() > 0.0000000001 \
+				and absf((uvs[triangle + 1] - uvs[triangle]).cross(uvs[triangle + 2] - uvs[triangle])) > 0.00000001
+			var outward := -geometric.normalized()
+			if outward.x * side > 0.5:
+				outer_face_normals[outward.snapped(Vector3.ONE * 0.01)] = true
+			for corner in 3:
+				var index := triangle + corner
+				var vertex := vertices[index]
+				var liner_x := lerpf(1.66, 2.10, (vertex.z + 13.28) / 0.88) if vertex.z < -12.40 else lerpf(2.10, 2.72, (vertex.z + 12.40) / 1.81)
+				valid = valid and absf(vertex.x) >= liner_x - 0.13001
+				var tangent := Vector3(tangents[index * 4], tangents[index * 4 + 1], tangents[index * 4 + 2])
+				valid = valid and normals[index].is_finite() and tangent.is_finite() \
+					and absf(tangent.length() - 1.0) < 0.01 \
+					and absf(normals[index].dot(tangent)) < 0.01
+				stations[snappedf(vertex.z, 0.00001)] = true
+				var first := vertex.snapped(Vector3.ONE * 0.00001)
+				var second := vertices[triangle + (corner + 1) % 3].snapped(Vector3.ONE * 0.00001)
+				var key := [first, second] if first < second else [second, first]
+				edges[key] = int(edges.get(key, 0)) + 1
+		var closed := true
+		for count: int in edges.values():
+			closed = closed and count == 2
+		_check(valid and closed,
+			label + " cheek clears the liner and is closed with nondegenerate caps, UVs and usable normal-map tangents")
+		_check(stations.size() >= 16 and outer_face_normals.size() >= 24,
+			label + " shoulder curvature exists in the silhouette and mesh, beyond smoothing coarse faces")
 
 
 func _test_render_allocations(craft: HeroShip) -> void:

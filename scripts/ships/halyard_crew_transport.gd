@@ -4729,40 +4729,85 @@ func _transformed_mesh_bounds(mesh_bounds: AABB, transforms: Array[Transform3D])
 	return result
 
 
-## A swept pressure cheek joins the flight-deck frame directly to the full
-## cabin shoulders. The eight-sided stock is hollow around the flight deck;
-## unlike the old constant-centre capsule it has no blunt, freestanding ear.
+## A formed pressure cheek sweeps from the flight-deck frame into the cabin.
+## The rounded outer shoulder stays within the original cross-section bounds;
+## the inner liner and the narrow upper/lower lands retain their deliberate chines.
 func _bow_pressure_cheek(node_name: String, side: float) -> void:
 	var tool := SurfaceTool.new()
 	tool.begin(Mesh.PRIMITIVE_TRIANGLES)
 	tool.set_material(_halyard_materials.hull_olive)
+	var profile := PackedVector2Array()
+	# An elliptical outer return replaces the tall flat octagonal side face.
+	# Its maximum width and the top/bottom lands match the previous stock.
+	var outer_angles := PackedFloat32Array([-asin(0.80), asin(0.80)])
+	for point in 25:
+		outer_angles.append(-PI * 0.5 + PI * float(point) / 24.0)
+	outer_angles.sort()
+	for angle in outer_angles:
+		profile.append(Vector2(0.10 + 0.12 * cos(angle), sin(angle)))
+	var outer_edges := profile.size() - 1
+	profile.append_array(PackedVector2Array([
+		Vector2(-0.10, 1.0), Vector2(-0.13, 0.86),
+		Vector2(-0.13, -0.86), Vector2(-0.10, -1.0),
+	]))
+	var perimeter := PackedFloat32Array([0.0])
+	for point in profile.size():
+		var next := (point + 1) % profile.size()
+		perimeter.append(perimeter[-1] + profile[point].distance_to(profile[next]))
 	var rings: Array[PackedVector3Array] = []
-	for station in [Vector3(1.66, 1.05, -13.28), Vector3(2.10, 1.27, -12.40), Vector3(2.72, 1.46, -10.59)]:
+	var front := Vector3(1.66, 1.05, -13.28)
+	var middle := Vector3(2.10, 1.27, -12.40)
+	var aft := Vector3(2.72, 1.46, -10.59)
+	var middle_t := (middle.z - front.z) / (aft.z - front.z)
+	# A quadratic sweep passes through all three authored stations without
+	# the former angular join. It grows monotonically away from the glazing.
+	var control := (middle - front * pow(1.0 - middle_t, 2.0)
+		- aft * middle_t * middle_t) / (2.0 * middle_t * (1.0 - middle_t))
+	for sample in 25:
+		var t := float(sample) / 24.0
+		var station := front * (1.0 - t) * (1.0 - t) + control * 2.0 * t * (1.0 - t) + aft * t * t
+		var mating_station := front.lerp(middle, t / middle_t) if t < middle_t else middle.lerp(aft, (t - middle_t) / (1.0 - middle_t))
 		var ring := PackedVector3Array()
-		for xy in [Vector2(-0.13, -0.86), Vector2(-0.10, -1.0), Vector2(0.10, -1.0), Vector2(0.22, -0.80), Vector2(0.22, 0.80), Vector2(0.10, 1.0), Vector2(-0.10, 1.0), Vector2(-0.13, 0.86)]:
-			ring.append(Vector3(side * (station.x + xy.x), 1.80 + station.y * xy.y, station.z))
+		for point in profile.size():
+			var xy := profile[point]
+			if point <= outer_edges:
+				# Return to the exact faceted mating outline at the cabin seam.
+				# The formed skin blends into that land without exposing the roof edge.
+				var mating_x := minf(0.22, 0.10 + 0.60 * (1.0 - absf(xy.y)))
+				xy.x = lerpf(xy.x, mating_x, smoothstep(0.65, 1.0, t))
+			# Preserve the authored roof and lower-chine contact lands.
+			var formed_station := mating_station if point > outer_edges else station.lerp(mating_station, smoothstep(0.75, 1.0, absf(xy.y)))
+			ring.append(Vector3(side * (formed_station.x + xy.x), 1.80 + formed_station.y * xy.y, station.z))
 		rings.append(ring)
 	for station in rings.size() - 1:
-		for edge in 8:
-			var next := (edge + 1) % 8
-			var a := rings[station][edge]
-			var b := rings[station + 1][edge]
-			var c := rings[station + 1][next]
-			var d := rings[station][next]
-			if side < 0.0:
-				_skin_quad(tool, a, b, c, d)
-			else:
-				_skin_quad(tool, d, c, b, a)
-	for edge in 8:
-		var next := (edge + 1) % 8
-		var front := Vector3(side * 1.66, 1.80, -13.28)
-		var aft := Vector3(side * 2.72, 1.80, -10.59)
-		if side > 0.0:
-			_skin_quad(tool, front, rings[0][next], rings[0][edge], front)
-			_skin_quad(tool, aft, rings[2][edge], rings[2][next], aft)
-		else:
-			_skin_quad(tool, front, rings[0][edge], rings[0][next], front)
-			_skin_quad(tool, aft, rings[2][next], rings[2][edge], aft)
+		for edge in profile.size():
+			var next := (edge + 1) % profile.size()
+			# One smooth outer return; each inner land keeps its formed edge.
+			tool.set_smooth_group(0 if edge < outer_edges else edge - outer_edges + 1)
+			var vertices := [rings[station][edge], rings[station + 1][edge],
+				rings[station + 1][next], rings[station][next]]
+			var uv := [Vector2(perimeter[edge], rings[station][edge].z),
+				Vector2(perimeter[edge], rings[station + 1][edge].z),
+				Vector2(perimeter[edge + 1], rings[station + 1][next].z),
+				Vector2(perimeter[edge + 1], rings[station][next].z)]
+			for corner in ([0, 2, 1, 0, 3, 2] if side < 0.0 else [0, 1, 2, 0, 2, 3]):
+				tool.set_uv(uv[corner])
+				tool.add_vertex(vertices[corner])
+	# Real triangles close each end. Independent flat cap normals and XY UVs
+	# prevent a folded normal or collapsed texture basis at the cabin join.
+	tool.set_smooth_group(-1)
+	for end in [0, rings.size() - 1]:
+		var centre := Vector3(side * (front.x if end == 0 else aft.x), 1.80, rings[end][0].z)
+		for edge in profile.size():
+			var next := (edge + 1) % profile.size()
+			var corners := [centre, rings[end][edge], rings[end][next]]
+			if (side < 0.0) == (end == 0):
+				corners.reverse()
+			for vertex: Vector3 in corners:
+				tool.set_uv(Vector2(vertex.x, vertex.y))
+				tool.add_vertex(vertex)
+	tool.generate_normals()
+	tool.generate_tangents()
 	var visual := MeshInstance3D.new()
 	visual.name = node_name
 	visual.mesh = tool.commit()
