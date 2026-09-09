@@ -43,6 +43,12 @@ var _throttle: MeshInstance3D
 var _hull: MeshInstance3D
 var _throttle_text: Label3D
 var _hull_text: Label3D
+# These belong to this cockpit, even though its mesh and material are shared.
+var _readings_submitted := false
+var _submitted_throttle_fill := 0.0
+var _submitted_hull_fill := 0.0
+var _submitted_throttle_color := Color()
+var _submitted_hull_color := Color()
 
 
 func _init() -> void:
@@ -101,12 +107,29 @@ func update_readings(speed: float, throttle: float, hull_fraction: float) -> voi
 	_hull_text.text = "%03d\nHULL %%" % roundi(hull_fraction * 100.0)
 	var throttle_color := AMBER if throttle < 0.0 else CYAN
 	var hull_color := RED if hull_fraction <= 0.30 else CYAN
-	_throttle.set_instance_shader_parameter(&"fill", clampf(absf(throttle), 0.0, 1.0))
-	_throttle.set_instance_shader_parameter(&"ink", throttle_color)
-	_hull.set_instance_shader_parameter(&"fill", clampf(hull_fraction, 0.0, 1.0))
-	_hull.set_instance_shader_parameter(&"ink", hull_color)
+	var throttle_fill := clampf(absf(throttle), 0.0, 1.0)
+	var hull_fill := clampf(hull_fraction, 0.0, 1.0)
+	# The engine setter dirties instance buffers even when the value is unchanged.
+	# Compare exact derived values so every live change still reaches the dial.
+	if not _readings_submitted or throttle_fill != _submitted_throttle_fill:
+		_submit_dial_parameter(_throttle, &"fill", throttle_fill)
+		_submitted_throttle_fill = throttle_fill
+	if not _readings_submitted or throttle_color != _submitted_throttle_color:
+		_submit_dial_parameter(_throttle, &"ink", throttle_color)
+		_submitted_throttle_color = throttle_color
+	if not _readings_submitted or hull_fill != _submitted_hull_fill:
+		_submit_dial_parameter(_hull, &"fill", hull_fill)
+		_submitted_hull_fill = hull_fill
+	if not _readings_submitted or hull_color != _submitted_hull_color:
+		_submit_dial_parameter(_hull, &"ink", hull_color)
+		_submitted_hull_color = hull_color
+	_readings_submitted = true
 	_throttle_text.modulate = throttle_color
 	_hull_text.modulate = hull_color
+
+
+func _submit_dial_parameter(dial: MeshInstance3D, parameter: StringName, value: Variant) -> void:
+	dial.set_instance_shader_parameter(parameter, value)
 
 
 func _label(node_name: String, size: int, pixels: float) -> Label3D:

@@ -33,6 +33,16 @@ const HERO_MATERIAL_ROLE_MEMBERS := [
 ]
 const HERO_MATERIAL_ROLE_NODE_COUNTS := [8, 14, 4]
 
+class ObservedInstruments:
+	extends "res://scripts/ships/cockpit_flight_instruments.gd"
+
+	var submissions: Array[Array] = []
+
+	func _submit_dial_parameter(dial: MeshInstance3D, parameter: StringName, value: Variant) -> void:
+		submissions.append([dial.name, parameter, value])
+		super._submit_dial_parameter(dial, parameter, value)
+
+
 var _failures: Array[String] = []
 var _test_root: Node3D
 
@@ -53,6 +63,7 @@ func _run() -> void:
 	_test_root.add_child(torrent)
 	await process_frame
 	await physics_frame
+	_test_instrument_uniform_updates()
 	_test_construction_audit(torrent)
 	_test_airframe_and_surface_materials(torrent)
 	_test_authored_material_roles(torrent)
@@ -67,6 +78,63 @@ func _run() -> void:
 	_test_root.queue_free()
 	await process_frame
 	_finish()
+
+
+func _test_instrument_uniform_updates() -> void:
+	var instruments := ObservedInstruments.new()
+	var other := ObservedInstruments.new()
+	_test_root.add_child(instruments)
+	_test_root.add_child(other)
+	var throttle := instruments.get_node("LiveStatusRepeaters/ThrottleGauge") as MeshInstance3D
+	var hull := instruments.get_node("LiveStatusRepeaters/HullGauge") as MeshInstance3D
+	_check(instruments.submissions == [
+		[&"ThrottleGauge", &"fill", 0.0], [&"ThrottleGauge", &"ink", instruments.CYAN],
+		[&"HullGauge", &"fill", 1.0], [&"HullGauge", &"ink", instruments.CYAN],
+	] and other.submissions == instruments.submissions,
+		"each cockpit submits all four initial dial uniforms")
+	instruments.submissions.clear()
+	instruments.update_readings(17.0, 0.0, 1.0)
+	_check(instruments.submissions.is_empty()
+		and (instruments.get_node("SpeedReadout") as Label3D).text == "SPD 017",
+		"unchanged dial readings submit nothing while speed text stays live")
+	instruments.update_readings(17.0, -1.5, 0.30)
+	_check(instruments.submissions == [
+		[&"ThrottleGauge", &"fill", 1.0], [&"ThrottleGauge", &"ink", instruments.AMBER],
+		[&"HullGauge", &"fill", 0.30], [&"HullGauge", &"ink", instruments.RED],
+	] and throttle.get_instance_shader_parameter(&"fill") == 1.0
+		and hull.get_instance_shader_parameter(&"ink") == instruments.RED,
+		"changed readings immediately submit clamped fills and threshold colors")
+	_check((other.get_node("LiveStatusRepeaters/ThrottleGauge") as MeshInstance3D)
+		.get_instance_shader_parameter(&"fill") == 0.0
+		and (other.get_node("LiveStatusRepeaters/HullGauge") as MeshInstance3D)
+		.get_instance_shader_parameter(&"ink") == instruments.CYAN,
+		"shared dial resources preserve independent cockpit readings")
+	instruments.submissions.clear()
+	instruments.update_readings(18.0, -2.0, 0.30)
+	_check(instruments.submissions.is_empty()
+		and (instruments.get_node("LiveStatusRepeaters/ThrottleReadout") as Label3D).text == "-200\nTHR %",
+		"raw changes with identical derived uniforms retain live labels without GPU writes")
+	instruments.set_compact(true)
+	instruments.update_readings(19.0, 2.0, 0.300001)
+	_check(instruments.submissions == [
+		[&"ThrottleGauge", &"ink", instruments.CYAN],
+		[&"HullGauge", &"fill", 0.300001], [&"HullGauge", &"ink", instruments.CYAN],
+	] and (instruments.get_node("SpeedReadout") as Label3D).text == "SPD 019   THR +200",
+		"compact dials retain immediate sign and tiny hull threshold transitions")
+	instruments.submissions.clear()
+	_test_root.remove_child(instruments)
+	_test_root.add_child(instruments)
+	instruments.set_compact(false)
+	instruments.update_readings(0.0, 0.0, 1.0)
+	_check(instruments.submissions == [
+		[&"ThrottleGauge", &"fill", 0.0], [&"HullGauge", &"fill", 1.0],
+	] and (instruments.get_node("LiveStatusRepeaters") as Node3D).visible
+		and throttle.get_instance_shader_parameter(&"fill") == 0.0
+		and hull.get_instance_shader_parameter(&"fill") == 1.0
+		and (instruments.get_node("SpeedReadout") as Label3D).text == "SPD 000",
+		"retained cockpit restores full gauges and fresh readings after compact detach and reuse")
+	instruments.free()
+	other.free()
 
 
 func _test_construction_audit(torrent: HeroShip) -> void:
