@@ -711,6 +711,7 @@ func _build_gunner_display_housing(mount: Node3D, finish: Material) -> void:
 func _build_bulwark_manufactured_details(visual: Node3D, armor: Material, dark: Material) -> void:
 	var metal := _material(Color("626a6d"), 0.78, 0.4)
 	var hot := _material(Color("739eab"), 0.2, 0.35, Color("78afc2"), 0.6)
+	_build_propulsion_cradles(visual, metal, dark)
 	_pressure_panel(visual, "CockpitPressureTransition", Vector3(0, 1.6, -0.55), 2.1, 3.7, 0.56, 3.4, armor)
 	# The central sensor is recessed into the descending nose, below the pilot's view.
 	_profile_shell(visual, "NoseSensorRecess", Vector3(0, 1.10, -4.8), [
@@ -1116,18 +1117,31 @@ func _add_dorsal_silhouette_batch(
 
 ## The mirrored rear engine housings are immutable exterior dressing: engine
 ## state remains owned by HeroShip and no component, light, particle, collision,
-## or interaction node is attached to either renderer. Preserve their exact
-## tapered nacelle shells in one bounded renderer submission.
+## or interaction node is attached to either renderer. Forward armor and aft
+## protective saddles share one bounded renderer at the retained nacelle mounts.
 func _add_engine_housing_batch(
 		parent: Node3D,
 		transforms: Array[Transform3D],
 		authored_names: PackedStringArray,
 		material: Material
 ) -> MultiMeshInstance3D:
-	var mesh := _profile_mesh([
+	# Forward armor carries the existing vent. Its aft face steps down to a
+	# separate upper saddle, exposing the thrust barrel and retention collars
+	# below it instead of burying the whole powerplant inside a solid pod.
+	var front := _profile_mesh([
 		Vector4(-1.75, 0.48, 0.48, -0.03), Vector4(-1.0, 0.85, 0.80, 0),
-		Vector4(0.55, 0.85, 0.80, 0), Vector4(1.28, 0.61, 0.59, 0),
+		Vector4(-0.10, 0.85, 0.80, 0), Vector4(0.10, 0.76, 0.72, 0),
 	], material)
+	var saddle := _profile_mesh([
+		Vector4(0.12, 0.76, 0.19, 0.53), Vector4(0.30, 0.73, 0.19, 0.55),
+		Vector4(0.94, 0.64, 0.16, 0.58), Vector4(1.28, 0.49, 0.11, 0.58),
+	], material)
+	var surface := SurfaceTool.new()
+	surface.begin(Mesh.PRIMITIVE_TRIANGLES)
+	surface.set_material(material)
+	surface.append_from(front, 0, Transform3D.IDENTITY)
+	surface.append_from(saddle, 0, Transform3D.IDENTITY)
+	var mesh := surface.commit()
 	var multi := MultiMesh.new()
 	multi.transform_format = MultiMesh.TRANSFORM_3D
 	multi.mesh = mesh
@@ -2649,6 +2663,60 @@ func _pressure_mesh(top: float, bottom: float, height: float, depth: float, mate
 			surface.add_vertex(points[index])
 	surface.generate_tangents()
 	return surface.commit()
+
+
+## The exposed aft thrust cartridges sit inside the existing nacelle envelope.
+## Each immutable part family is shared across both engines; neither the nozzle
+## mouths nor their independently driven exhaust meshes move with this dressing.
+func _build_propulsion_cradles(parent: Node3D, metal: Material, dark: Material) -> void:
+	var barrel := StationSurfaceKit.chamfered_cylinder_mesh_cached(
+		0.60, 0.60, 1.22, 32, _chamfered_cylinder_cache,
+		ShipSurfaceDetail.CYLINDER_WALL_RINGS, true, true, metal
+	)
+	var collar := TorusMesh.new()
+	collar.inner_radius = 0.575
+	collar.outer_radius = 0.685
+	collar.rings = 40
+	collar.ring_segments = 8
+	collar.material = metal
+	var rail := _profile_mesh([
+		Vector4(-0.41, 0.038, 0.030, 0), Vector4(-0.35, 0.0525, 0.045, 0),
+		Vector4(0.35, 0.0525, 0.045, 0), Vector4(0.41, 0.038, 0.030, 0),
+	], dark)
+	var barrels: Array[Transform3D] = []
+	var collars: Array[Transform3D] = []
+	var rails: Array[Transform3D] = []
+	for side in [-1.0, 1.0]:
+		var center := Vector3(side * 2.65, 1.15, 4.66)
+		barrels.append(Transform3D(Basis(Vector3.RIGHT, PI * 0.5), center))
+		for z in [4.27, 5.17]:
+			collars.append(Transform3D(Basis(Vector3.RIGHT, PI * 0.5), Vector3(center.x, center.y, z)))
+		# Broad axial cooling rails tie the collars together on the exposed
+		# flanks. The upper saddle covers the top of the cartridge.
+		for degrees in [-125.0, -55.0, 55.0, 125.0]:
+			var angle := deg_to_rad(degrees)
+			rails.append(Transform3D(Basis(Vector3.BACK, -angle), center + Vector3(sin(angle), cos(angle), 0) * 0.61))
+	_add_propulsion_part_batch(parent, "ThrustCartridgeBatch", barrel, barrels)
+	_add_propulsion_part_batch(parent, "ThrustRetentionCollarBatch", collar, collars)
+	_add_propulsion_part_batch(parent, "ThrustCoolingRailBatch", rail, rails)
+
+
+func _add_propulsion_part_batch(parent: Node3D, label: String, mesh: Mesh, poses: Array[Transform3D]) -> void:
+	var multi := MultiMesh.new()
+	multi.transform_format = MultiMesh.TRANSFORM_3D
+	multi.mesh = mesh
+	multi.instance_count = poses.size()
+	var bounds := AABB()
+	for index in poses.size():
+		multi.set_instance_transform(index, poses[index])
+		var part_bounds := poses[index] * mesh.get_aabb()
+		bounds = part_bounds if index == 0 else bounds.merge(part_bounds)
+	multi.custom_aabb = bounds
+	var batch := MultiMeshInstance3D.new()
+	batch.name = label
+	batch.multimesh = multi
+	batch.set_meta(&"presentation_only", true)
+	parent.add_child(batch)
 
 
 ## Annular combustion channel, retained hub and guide vanes give an unlit
