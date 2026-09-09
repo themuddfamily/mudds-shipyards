@@ -1615,10 +1615,27 @@ func _build_interceptor() -> void:
 	_sphere(_visual_root, "SensorBlister", Vector3(0.0, 0.78, -1.9), 0.26, _materials.picket_magenta)
 
 	# Forward lance barrel. The charge lens is the long-range read.
-	_cylinder(_visual_root, "LanceBarrel", Vector3(0.0, -0.06, -5.6), 0.3, 5.6, _materials.picket_slate, Vector3(90.0, 0.0, 0.0))
-	_cylinder(_visual_root, "LanceCollar", Vector3(0.0, -0.06, -3.2), 0.46, 0.5, _materials.picket_deep, Vector3(90.0, 0.0, 0.0))
+	# A machined tube carries three narrow retention bands; the formed receiver
+	# transfers their load into the pressure spine instead of stacking loose clamps.
+	_box_from_mesh(_visual_root, "LanceBarrel", Vector3(0, -0.06, 0),
+		_lance_turned_mesh([
+			PackedVector2Array([Vector2(-3.0, 0.3), Vector2(-5.3, 0.3),
+				Vector2(-5.55, 0.265), Vector2(-7.82, 0.265), Vector2(-8.34, 0.24),
+				Vector2(-8.34, 0.19), Vector2(-3.0, 0.19)]),
+		], _materials.picket_slate))
+	_pressure_body(_visual_root, "LanceCollar", Vector3(0, -0.06, 0), [
+		Vector4(-5.4, 0.315, 0.30, 0), Vector4(-5.12, 0.405, 0.36, -0.015),
+		Vector4(-4.15, 0.46, 0.39, -0.025), Vector4(-3.0, 0.43, 0.37, 0),
+	], _materials.picket_deep)
 	_add_lance_rail_batch(_visual_root)
-	_cylinder(_visual_root, "LanceMuzzleRing", Vector3(0.0, -0.06, -8.15), 0.38, 0.32, _materials.picket_deep, Vector3(90.0, 0.0, 0.0))
+	# The open, bevelled muzzle has a real bore around the retained emitter.
+	# Its forward lip stops behind the lens and the authoritative muzzle marker.
+	_box_from_mesh(_visual_root, "LanceMuzzleRing", Vector3(0, -0.06, 0),
+		_lance_turned_mesh([
+			PackedVector2Array([Vector2(-7.72, 0.29), Vector2(-7.92, 0.39),
+				Vector2(-8.34, 0.39), Vector2(-8.46, 0.34), Vector2(-8.46, 0.235),
+				Vector2(-8.35, 0.205), Vector2(-7.72, 0.205)]),
+		], _materials.picket_deep))
 	_lance_emitter = _cylinder(
 		_visual_root, "LanceEmitter", Vector3(0.0, -0.06, -8.4), 0.17, 0.4,
 		_materials.picket_violet_emissive, Vector3(90.0, 0.0, 0.0)
@@ -1986,6 +2003,35 @@ func _create_picket_materials() -> void:
 	_materials.picket_engine = _material(PICKET_ENGINE, 0.08, 0.2, PICKET_ENGINE, 2.6)
 
 
+## Closed lathe profiles form the tube and an actually open muzzle housing.
+## Each profile point is (longitudinal position, radius); profile edges retain
+## machined creases while the 32-sided circumference uses analytic normals.
+## UVs are measured in metres and tangents are generated for the hull finish.
+func _lance_turned_mesh(profiles: Array, material: Material) -> ArrayMesh:
+	var surface := SurfaceTool.new()
+	surface.begin(Mesh.PRIMITIVE_TRIANGLES)
+	surface.set_material(material)
+	for profile: PackedVector2Array in profiles:
+		var distance := 0.0
+		for edge in profile.size():
+			var a := profile[edge]
+			var b := profile[(edge + 1) % profile.size()]
+			var direction := (b - a).normalized()
+			var edge_length := a.distance_to(b)
+			for segment in 32:
+				for address: Vector2i in [Vector2i(0, 0), Vector2i(1, 1), Vector2i(1, 0),
+					Vector2i(0, 0), Vector2i(0, 1), Vector2i(1, 1)]:
+					var station := a if address.x == 0 else b
+					var angle := TAU * float(segment + address.y) / 32.0
+					var radial := Vector3(cos(angle), sin(angle), 0)
+					surface.set_normal(radial * -direction.x + Vector3(0, 0, direction.y))
+					surface.set_uv(Vector2(angle * 0.39, distance + edge_length * address.x))
+					surface.add_vertex(radial * station.y + Vector3(0, 0, station.x))
+			distance += edge_length
+	surface.generate_tangents()
+	return surface.commit()
+
+
 func _build_picket_fittings() -> void:
 	var parts: Array = []
 	# Swept manifold housings visibly carry the radiator banks into the spine;
@@ -2005,17 +2051,31 @@ func _build_picket_fittings() -> void:
 			parts.append([Vector3(side*0.69,-0.03,-0.28+seam*0.84),Vector3(0.035,0.4,0.038),2])
 		parts.append([Vector3(side*0.86,0.35,4.22),Vector3(0.53,0.1,1.13),0])
 		_add_nozzle_parts(parts,Vector3(side*0.86,-0.02,5.06),0.34,0.43)
-	# Ceramic barrel shields leave the magenta charge rails and muzzle exposed.
-	for index in 5:
-		parts.append([Vector3(0,-0.35,-3.62-index*0.78),Vector3(0.39,0.08,0.63),1])
-	# Lance induction modules enclose the long exposed rod; narrow breaks retain
-	# the role colour while gun-state lamps keep their original animation owner.
-	for module in 5:
-		var z := -4.0-module*0.76
-		for side in [-1.0,1.0]:
-			parts.append([Vector3(side*0.25,0.08,z),Vector3(0.16,0.42,0.58),2])
-			parts.append([Vector3(side*0.29,0.10,z),Vector3(0.07,0.28,0.4),1])
-		parts.append([Vector3(0,0.29,z),Vector3(0.48,0.08,0.58),0])
+	# Receiver cheeks follow the housing taper, terminating in narrow load rails.
+	# The top stays open so the magenta rails and spine charge witness remain clear.
+	for side in [-1.0, 1.0]:
+		parts.append([Vector3(side * 0.355, -0.16, 0), Vector3.ZERO, 1, Vector3.ZERO, [
+			Vector4(-5.38, 0.055, 0.13, 0), Vector4(-5.06, 0.08, 0.23, 0),
+			Vector4(-4.35, 0.10, 0.26, 0), Vector4(-3.65, 0.065, 0.20, 0),
+		]])
+		# One longitudinal retention beam connects all three tube supports.
+		parts.append([Vector3(side * 0.275, -0.19, -6.46), Vector3(0.11, 0.13, 2.75), 1])
+		for z in [-5.48, -6.48, -7.48]:
+			parts.append([Vector3(side * 0.30, -0.10, z), Vector3(0.13, 0.32, 0.18), 2])
+			parts.append([Vector3(side * 0.37, -0.10, z), Vector3(0.045, 0.14, 0.10), 1])
+		# Recessed receiver service panel and two flush fasteners.
+		parts.append([Vector3(side * 0.454, -0.10, -4.49), Vector3(0.018, 0.21, 0.55), 2])
+		for z in [-4.69, -4.29]:
+			parts.append([Vector3(side * 0.466, -0.10, z), Vector3(0.018, 0.06, 0.06), 1])
+	# Three shallow saddles seat the beam assembly under the tube, leaving the
+	# exposed barrel continuous and the two magenta charge rails readable above.
+	for z in [-5.48, -6.48, -7.48]:
+		parts.append([Vector3(0, -0.345, z), Vector3(0.51, 0.09, 0.18), 2])
+	# Tapered muzzle heat shields sit on the outer casing, leaving its bore open.
+	for index in 6:
+		var angle := TAU * float(index) / 6.0
+		parts.append([Vector3(cos(angle) * 0.365, -0.06 + sin(angle) * 0.365, -8.09),
+			Vector3(0.19, 0.065, 0.48), 1, Vector3(0, 0, angle - PI * 0.5)])
 	for side in [-1.0,1.0]:
 		parts.append([Vector3(side*0.4,0.84,1.9),Vector3(0.18,0.16,3.54),2])
 		for module in 4:

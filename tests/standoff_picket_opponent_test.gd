@@ -124,6 +124,7 @@ func _test_contract_and_evidence() -> void:
 		"the picket presentation and lance muzzle are built while dormant"
 	)
 	var visual := picket.get_node_or_null("StandoffPicketVisual") as Node3D
+	_check_lance_construction(picket, visual)
 	var performance := audit.presentation_performance as Dictionary
 	_check(
 		bool(performance.valid)
@@ -1586,6 +1587,45 @@ func _place_target(target: RangeOpponent, origin: Vector3) -> void:
 		target.activate(Transform3D(Basis.IDENTITY, origin))
 	target.global_position = origin
 	target.velocity = Vector3.ZERO
+
+
+## New machined surfaces must keep a real axial opening and usable normal-map
+## frames. The retained gameplay witnesses stay independently animated.
+func _check_lance_construction(picket: StandoffPicketOpponent, visual: Node3D) -> void:
+	for node_name in ["LanceBarrel", "LanceMuzzleRing"]:
+		var instance := visual.get_node(node_name) as MeshInstance3D
+		var arrays := instance.mesh.surface_get_arrays(0)
+		var vertices: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
+		var normals: PackedVector3Array = arrays[Mesh.ARRAY_NORMAL]
+		var uv: PackedVector2Array = arrays[Mesh.ARRAY_TEX_UV]
+		var tangents: PackedFloat32Array = arrays[Mesh.ARRAY_TANGENT]
+		var valid := not vertices.is_empty() and uv.size() == vertices.size() \
+			and tangents.size() == vertices.size() * 4
+		var open_bore := true
+		if valid:
+			for index in vertices.size():
+				var tangent := Vector3(tangents[index * 4], tangents[index * 4 + 1], tangents[index * 4 + 2])
+				valid = valid and uv[index].is_finite() and tangent.is_finite() \
+					and absf(tangent.length() - 1.0) < 0.01 \
+					and absf(tangent.dot(normals[index])) < 0.01
+			for index in range(0, vertices.size(), 3):
+				var uv_cross := (uv[index + 1] - uv[index]).cross(uv[index + 2] - uv[index])
+				valid = valid and absf(uv_cross) > 0.000001
+				open_bore = open_bore and Geometry3D.ray_intersects_triangle(
+					Vector3(0, 0, -9), Vector3.BACK,
+					vertices[index], vertices[index + 1], vertices[index + 2]) == null
+		_check(valid and open_bore, "%s has an unobstructed bore and finite nondegenerate UV/tangent frames" % node_name)
+	var emitter := visual.get_node("LanceEmitter") as MeshInstance3D
+	var lens := visual.get_node("LanceChargeLens") as MeshInstance3D
+	var witness := visual.get_node("LanceSpineLens") as MeshInstance3D
+	_check(picket._lance_emitter == emitter and picket._lance_lens == lens
+		and picket._warning_lenses == [emitter, lens, witness]
+		and emitter.position.is_equal_approx(Vector3(0, -0.06, -8.4))
+		and lens.position.is_equal_approx(Vector3(0, -0.06, -8.62))
+		and witness.position.is_equal_approx(Vector3(0, 0.34, -3.4))
+		and picket._muzzle_port == picket._muzzle_starboard
+		and picket._muzzle_port.position.is_equal_approx(Vector3(0, -0.06, -8.75)),
+		"receiver and open muzzle retain charge animation owners and the authoritative firing anchor")
 
 
 func _mesh_at_local_position(parent: Node3D, position_value: Vector3) -> MeshInstance3D:
