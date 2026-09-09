@@ -4952,6 +4952,8 @@ func _cast_arch_segment_mesh() -> ArrayMesh:
 
 func _build_fitted_transport_details() -> void:
 	var exterior := {}
+	# Twelve fittings use only two immutable, material-free ring recipes.
+	var ring_stocks := {}
 	# Pressure-bay seams wrap into the actual roof joints. Narrow sill drains
 	# and quarter-turn service closures explain how the passenger shell is built.
 	for side in [-1.0, 1.0]:
@@ -4976,12 +4978,13 @@ func _build_fitted_transport_details() -> void:
 	_fitout_stock(exterior, "dark", Vector3(-2.81, 2.82, AIRSTAIR_Z + 0.93), Vector3(0.045, 0.052, 3.56))
 	for engine_x in [-3.75, -1.45, 1.45, 3.75]:
 		for ring_z in [11.57, 12.55]:
-			_fitout_ring(exterior, "dark", Vector3(engine_x, 1.55, ring_z), 0.77, 0.855)
-		_fitout_ring(exterior, "structure", Vector3(engine_x, 1.55, 13.43), 0.69, 0.88)
+			_fitout_ring(exterior, "dark", Vector3(engine_x, 1.55, ring_z), 0.77, 0.855, ring_stocks)
+		_fitout_ring(exterior, "structure", Vector3(engine_x, 1.55, 13.43), 0.69, 0.88, ring_stocks)
 		for fin in 12:
 			var angle := TAU * float(fin) / 12.0
 			_fitout_stock(exterior, "structure", Vector3(engine_x + sin(angle) * 0.803, 1.55 + cos(angle) * 0.803, 12.08), Vector3(0.075, 0.09, 0.76), Vector3(0, 0, -angle))
 	_finish_fitout(_halyard_visual, exterior, "PressureShellFittings")
+	ring_stocks.clear()
 
 	var cabin := {}
 	# Flush luggage doors and small pull recesses replace uninterrupted trunks.
@@ -5095,17 +5098,22 @@ func _berth_fabric_mesh(kind: StringName) -> ArrayMesh:
 	for face in [1.0, -1.0]:
 		# Keep opposing seam normals separate when the thin skins meet.
 		tool.set_smooth_group(0 if face > 0.0 else 1)
+		# Adjacent quads evaluate the same corners. Retain their exact Vector3
+		# values once per face while emitting the original unindexed quad order.
+		var points: Array[Vector3] = []
+		points.resize(33 * 25)
+		for row in 25:
+			for column in 33:
+				var u: float = (column + 0.0) / 32.0
+				var v: float = (row + 0.0) / 24.0
+				points[row * 33 + column] = _berth_fabric_point(kind, u, v, face)
 		for row in 24:
 			for column in 32:
-				var points: Array[Vector3] = []
-				for corner in [Vector2(0, 0), Vector2(1, 0), Vector2(1, 1), Vector2(0, 1)]:
-					var u: float = (column + corner.x) / 32.0
-					var v: float = (row + corner.y) / 24.0
-					points.append(_berth_fabric_point(kind, u, v, face))
+				var corner := row * 33 + column
 				if face < 0.0:
-					_skin_quad(tool, points[0], points[1], points[2], points[3])
+					_skin_quad(tool, points[corner], points[corner + 1], points[corner + 34], points[corner + 33])
 				else:
-					_skin_quad(tool, points[3], points[2], points[1], points[0])
+					_skin_quad(tool, points[corner + 33], points[corner + 34], points[corner + 1], points[corner])
 	tool.generate_normals()
 	var mesh := tool.commit()
 	_box_mesh_cache[key] = mesh
@@ -5204,23 +5212,26 @@ func _finish_fitout(parent: Node3D, batch: Dictionary, prefix: String) -> void:
 
 
 func _fitout_ring(batch: Dictionary, finish: String, at: Vector3,
-		inside: float, outside: float) -> void:
+		inside: float, outside: float, ring_stocks: Dictionary) -> void:
 	if not batch.has(finish):
 		var tool := SurfaceTool.new()
 		tool.begin(Mesh.PRIMITIVE_TRIANGLES)
 		tool.set_material(_halyard_materials[finish])
 		batch[finish] = tool
-	var ring := TorusMesh.new()
-	ring.inner_radius = inside
-	ring.outer_radius = outside
-	ring.rings = 48
-	ring.ring_segments = 8
-	# Stock panels are unindexed; mixing indexed torus geometry into the same
-	# SurfaceTool leaves the earlier panels outside its index buffer.
-	var ring_stock := SurfaceTool.new()
-	ring_stock.create_from(ring, 0)
-	ring_stock.deindex()
-	(batch[finish] as SurfaceTool).append_from(ring_stock.commit(), 0,
+	var key := Vector2(inside, outside)
+	if not ring_stocks.has(key):
+		var ring := TorusMesh.new()
+		ring.inner_radius = inside
+		ring.outer_radius = outside
+		ring.rings = 48
+		ring.ring_segments = 8
+		# Stock panels are unindexed; mixing indexed torus geometry into the same
+		# SurfaceTool leaves the earlier panels outside its index buffer.
+		var ring_stock := SurfaceTool.new()
+		ring_stock.create_from(ring, 0)
+		ring_stock.deindex()
+		ring_stocks[key] = ring_stock.commit()
+	(batch[finish] as SurfaceTool).append_from(ring_stocks[key] as ArrayMesh, 0,
 		Transform3D(Basis(Vector3.RIGHT, PI * 0.5), at))
 
 
