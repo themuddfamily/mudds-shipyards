@@ -30,6 +30,7 @@ func _run() -> void:
 	_test_distinct_presentation(arrow)
 	_test_recon_pulse_emitter_assemblies(arrow)
 	await _test_entry_heat_attachment(arrow)
+	_test_airframe_shadow_batch(arrow)
 	_test_visual_performance_batch(arrow)
 	_test_engine_collar_mesh_sharing(arrow)
 	_test_main_gear_foot_mesh_sharing(arrow)
@@ -693,6 +694,85 @@ func _test_escape_pods_and_sensors(arrow: ArrowReconShip) -> void:
 	)
 
 
+
+func _test_airframe_shadow_batch(arrow: ArrowReconShip) -> void:
+	var visual := arrow.get_arrow_visual_root()
+	var batch := visual.get_node_or_null("OpaqueEnvelopeShadowBatch") as MeshInstance3D
+	var sources: Array[MeshInstance3D] = arrow._airframe_shadow_sources
+	_check(batch != null and sources.size() == 28, "Arrow builds one shadow renderer from exactly 28 constructor-owned rigid airframe sources")
+	if batch == null or sources.size() != 28:
+		return
+	var expected_names := PackedStringArray([
+		"ReconFuselage", "GraphiteKeel", "PortSensorWing", "StarboardSensorWing",
+		"WingtipSensorPod", "StarboardWingtipSensorPod", "DorsalSurveySpine", "CockpitSillFairing",
+		"PortShoulderFairing", "StarboardShoulderFairing", "PortEngineIntakeFairing", "StarboardEngineIntakeFairing",
+		"PortSurveyCoolingDuct", "StarboardSurveyCoolingDuct", "PortWingInset", "StarboardWingInset",
+		"PortSensorWingSkin0", "PortSensorWingSkin1", "PortSensorWingSkin2",
+		"StarboardSensorWingSkin0", "StarboardSensorWingSkin1", "StarboardSensorWingSkin2",
+		"PortSurveyRecognitionMark", "StarboardSurveyRecognitionMark",
+		"EfficientEngineHousing", "StarboardEfficientEngineHousing", "PortRefractoryNozzle", "StarboardRefractoryNozzle",
+	])
+	var names := PackedStringArray()
+	var merged := batch.mesh.surface_get_arrays(0)
+	var vertices: PackedVector3Array = merged[Mesh.ARRAY_VERTEX]
+	var normals: PackedVector3Array = merged[Mesh.ARRAY_NORMAL]
+	var indices: PackedInt32Array = merged[Mesh.ARRAY_INDEX]
+	var vertex_offset := 0
+	var index_offset := 0
+	var positions_match := true
+	var indices_match := true
+	var renderers_match := true
+	var normal_error := 0.0
+	var bounds := AABB()
+	for source in sources:
+		var source_name := str(source.name)
+		if source_name.begins_with("@"):
+			if source.position.is_equal_approx(Vector3(5.55, 1.0, 2.45)):
+				source_name = "StarboardWingtipSensorPod"
+			elif source.position.is_equal_approx(Vector3(0.92, 0.94, 5.0)):
+				source_name = "StarboardEfficientEngineHousing"
+		names.append(source_name)
+		renderers_match = renderers_match and source.get_parent() == visual and source.visible \
+			and source.cast_shadow == GeometryInstance3D.SHADOW_CASTING_SETTING_OFF \
+			and source.material_override == null and arrow.get_variant_materials().values().has(source.get_active_material(0))
+		var arrays := source.mesh.surface_get_arrays(0)
+		var source_vertices: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
+		var source_normals: PackedVector3Array = arrays[Mesh.ARRAY_NORMAL]
+		var source_indices := PackedInt32Array()
+		if arrays[Mesh.ARRAY_INDEX] != null:
+			source_indices = arrays[Mesh.ARRAY_INDEX]
+		if source_indices.is_empty():
+			for index in source_vertices.size():
+				source_indices.append(index)
+		var normal_basis := source.basis.inverse().transposed()
+		for index in source_vertices.size():
+			var expected_vertex := source.transform * source_vertices[index]
+			positions_match = positions_match and vertices[vertex_offset + index].is_equal_approx(expected_vertex)
+			normal_error = maxf(normal_error, normals[vertex_offset + index].distance_to((normal_basis * source_normals[index]).normalized()))
+			bounds = AABB(expected_vertex, Vector3.ZERO) if vertex_offset + index == 0 else bounds.expand(expected_vertex)
+		for index in source_indices.size():
+			indices_match = indices_match and indices[index_offset + index] == vertex_offset + source_indices[index]
+		vertex_offset += source_vertices.size()
+		index_offset += source_indices.size()
+	names.sort()
+	expected_names.sort()
+	_check(names == expected_names and renderers_match, "the exact 28 finalized shell sources retain their original colour materials, parents and visibility")
+	_check(positions_match and indices_match and vertices.size() == vertex_offset and indices.size() == index_offset and normal_error <= 0.0002, "merged shadow triangles preserve finalized vertices/index order and packed normal directions")
+	_check(batch.transform == Transform3D.IDENTITY and batch.mesh.get_aabb().is_equal_approx(bounds) \
+		and batch.cast_shadow == GeometryInstance3D.SHADOW_CASTING_SETTING_SHADOWS_ONLY \
+		and batch.material_override == sources[0].get_active_material(0) and batch.get_child_count() == 0,
+		"the single shadow-only batch retains tight source bounds and opaque material semantics without children or physics")
+	var original_rotation := visual.rotation
+	visual.rotation.z = deg_to_rad(13.0)
+	var banking_matches := batch.global_transform.is_equal_approx(visual.global_transform)
+	for source in sources:
+		banking_matches = banking_matches and source.global_transform.is_equal_approx(visual.global_transform * source.transform)
+	visual.rotation = original_rotation
+	_check(banking_matches, "the batch and retained colour geometry share the inherited banked visual root")
+	print("ARROW_AIRFRAME_SHADOW_PARITY: sources=", sources.size(), " vertices=", vertex_offset, " triangles=", index_offset / 3, " bounds=", bounds, " max_normal_error=", normal_error)
+
+
+
 func _test_visual_performance_batch(arrow: ArrowReconShip) -> void:
 	var report := arrow.get_arrow_visual_performance_report()
 	if not bool(report.valid):
@@ -788,15 +868,15 @@ func _test_visual_performance_batch(arrow: ArrowReconShip) -> void:
 		bool(report.valid)
 		and report.current == report.expected
 		and report.current == {
-			"nodes": 280,
-			"mesh_instance_nodes": 245,
+			"nodes": 281,
+			"mesh_instance_nodes": 246,
 			"multi_mesh_instance_nodes": 3,
-			"geometry_submissions": 249,
+			"geometry_submissions": 250,
 			"visible_geometry_copies": 252,
-			"unique_mesh_resource_allocations": 202,
+			"unique_mesh_resource_allocations": 203,
 			"auto_fallback_names": 20,
 		},
-		"entry-complete Arrow retains 280 nodes, 249 submissions including fitted seating, 202 meshes and all 252 copies"
+		"entry-complete Arrow retains 281 nodes, 250 submissions including one shadow-only renderer, 203 meshes and all 252 copies"
 	)
 	_check(
 		report.phase9_before_entry_heat == {
@@ -1000,7 +1080,7 @@ func _test_visual_performance_batch(arrow: ArrowReconShip) -> void:
 	)
 	detached_panel_transforms[0] = Transform3D.IDENTITY
 	_check(
-		int(arrow.get_arrow_visual_performance_report().current.nodes) == 280
+		int(arrow.get_arrow_visual_performance_report().current.nodes) == 281
 		and int(
 			arrow.get_arrow_visual_performance_report()
 				.lateral_array_curve_joint_sharing.primitive_mesh_allocations
@@ -1432,6 +1512,13 @@ func _test_collision_boarding_and_cameras(arrow: ArrowReconShip) -> void:
 
 
 func _test_engine_weapon_and_lifecycle(arrow: ArrowReconShip) -> void:
+	var airframe_batch := arrow.get_arrow_visual_root().get_node("OpaqueEnvelopeShadowBatch") as MeshInstance3D
+	var airframe_mesh := airframe_batch.mesh
+	var airframe_sources := arrow._airframe_shadow_sources.duplicate()
+	var excluded_casts := {}
+	for candidate in arrow.get_arrow_visual_root().find_children("*", "GeometryInstance3D", true, false):
+		if candidate != airframe_batch and not (candidate is MeshInstance3D and airframe_sources.has(candidate)):
+			excluded_casts[candidate] = (candidate as GeometryInstance3D).cast_shadow
 	var rib_batch := arrow.get_arrow_visual_root().get_node_or_null(
 		"WingRootRibBatch"
 	) as MultiMeshInstance3D
@@ -1514,6 +1601,7 @@ func _test_engine_weapon_and_lifecycle(arrow: ArrowReconShip) -> void:
 	arrow.apply_damage(arrow.maximum_hull + 1.0, arrow.global_position, Vector3.UP)
 	for index in 15:
 		await physics_frame
+	_check(not airframe_batch.is_visible_in_tree() and not (airframe_sources[0] as MeshInstance3D).is_visible_in_tree(), "destruction hides both the airframe shadow batch and its retained colour sources")
 	_check(arrow.is_destroyed(), "Arrow participates in inherited damage/destruction lifecycle")
 	_check(arrow.collision_layer == 0 and arrow.collision_mask == 0, "destroyed Arrow disables physical collision")
 	_check(
@@ -1552,6 +1640,16 @@ func _test_engine_weapon_and_lifecycle(arrow: ArrowReconShip) -> void:
 		) == 1,
 		"damage/reset preserves one exact target, shared resources, exclusive material, and zero baseline"
 	)
+
+	var excluded_unchanged := true
+	for candidate: GeometryInstance3D in excluded_casts:
+		excluded_unchanged = excluded_unchanged and candidate.cast_shadow == int(excluded_casts[candidate])
+	_check(airframe_batch == arrow.get_arrow_visual_root().get_node("OpaqueEnvelopeShadowBatch") \
+		and airframe_batch.mesh == airframe_mesh and airframe_batch.is_visible_in_tree() \
+		and arrow._airframe_shadow_sources == airframe_sources and excluded_unchanged \
+		and _count_named(arrow.get_arrow_visual_root(), "OpaqueEnvelopeShadowBatch") == 1,
+		"detach/re-entry and damage/reset retain one batch and its sources while every excluded renderer keeps its shadow behavior")
+	_test_airframe_shadow_batch(arrow)
 
 
 func _test_cleanup(arrow: ArrowReconShip) -> void:

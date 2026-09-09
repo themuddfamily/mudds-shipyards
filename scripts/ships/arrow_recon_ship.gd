@@ -14,6 +14,8 @@ extends HeroShip
 ## supplies already-tested flight, cameras, boarding, landing, damage,
 ## destruction, and reuse behavior.
 
+const StaticShadowBatch = preload("res://scripts/world/static_shadow_batch.gd")
+
 const SCHEMA_VERSION := 1
 const EVIDENCE_STATUS: StringName = &"provisional"
 const EVIDENCE_SCOPE: StringName = &"name_role_pod_count_only"
@@ -228,13 +230,13 @@ const PHASE9_ARROW_VISUAL_CENSUS := {
 	"auto_fallback_names": 23,
 }
 const EXPECTED_ARROW_VISUAL_CENSUS := {
-	"nodes": 280,
-	"mesh_instance_nodes": 245,
+	"nodes": 281,
+	"mesh_instance_nodes": 246,
 	"multi_mesh_instance_nodes": 3,
-	# Includes fitted seat shells, controls and the live instrument faces.
-	"geometry_submissions": 249,
+	# Includes fitted seating/controls and one rigid airframe shadow renderer.
+	"geometry_submissions": 250,
 	"visible_geometry_copies": 252,
-	"unique_mesh_resource_allocations": 202,
+	"unique_mesh_resource_allocations": 203,
 	"auto_fallback_names": 20,
 }
 const RECON_PULSE_EMITTER_VISUAL_DELTA := {
@@ -261,6 +263,9 @@ var _arrow_visual: Node3D
 var _entry_heat_target: PlanetaryEntryHeatTarget
 var _arrow_materials: Dictionary = {}
 var _escape_pods: Array[Node3D] = []
+# Explicit construction roster; all sources remain under the banked visual root.
+# Nested panels, separable pods and animated/damage-responsive parts stay outside.
+var _airframe_shadow_sources: Array[MeshInstance3D] = []
 var _engine_plumes: Array[MeshInstance3D] = []
 var _arrow_engine_lights: Array[OmniLight3D] = []
 var _sensor_sweep: Node3D
@@ -677,6 +682,7 @@ func _build_arrow_variant(_controller: HeroShip) -> bool:
 	for mount in hinge_mounts:
 		(mount as Node3D).reparent(_arrow_visual, true)
 
+	_airframe_shadow_sources.clear()
 	_create_arrow_materials()
 	_build_slender_airframe()
 	_build_manufactured_fairings()
@@ -692,6 +698,9 @@ func _build_arrow_variant(_controller: HeroShip) -> bool:
 	_cut_pressure_panel(_arrow_visual.get_node("ReconFuselage"), "StarboardAvionicsAccess", 5, 10, 1, 5, _arrow_materials.ceramic)
 	_cut_pressure_panel(_arrow_visual.get_node("PortShoulderFairing"), "PortShoulderAccess", 10, 16, 5, 11, _arrow_materials.graphite)
 	_cut_pressure_panel(_arrow_visual.get_node("StarboardShoulderFairing"), "StarboardShoulderAccess", 10, 16, 5, 11, _arrow_materials.graphite)
+	# Freeze only after tail openings, access-panel cuts and final styling. The
+	# original colour meshes and nested panel/marking renderers remain intact.
+	StaticShadowBatch.build(_arrow_visual, _airframe_shadow_sources)
 	_replace_collision_and_markers()
 	if not replace_variant_visual_root(_arrow_visual):
 		return false
@@ -774,7 +783,7 @@ func _build_slender_airframe() -> void:
 	_fuselage_panel_band_mesh.size = FUSELAGE_PANEL_BAND_SIZE
 	_fuselage_panel_band_mesh.material = _arrow_materials.titanium
 	# Formed pressure stations carry a slender reconnaissance airframe.
-	_loft_hull(
+	_airframe_shadow_sources.append(_loft_hull(
 		_arrow_visual,
 		"ReconFuselage",
 		Vector3(0, 1.22, -0.45),
@@ -788,8 +797,8 @@ func _build_slender_airframe() -> void:
 			Vector3(0.84, 0.55, 6.3),
 		]),
 		_arrow_materials.pearl
-	)
-	_loft_hull(
+	))
+	_airframe_shadow_sources.append(_loft_hull(
 		_arrow_visual,
 		"GraphiteKeel",
 		Vector3(0, 0.5, -0.1),
@@ -800,7 +809,7 @@ func _build_slender_airframe() -> void:
 			Vector3(0.68, 0.3, 5.3),
 		]),
 		_arrow_materials.graphite
-	)
+	))
 
 	# Swept sensor wings use cambered skins and inset titanium roots.
 	var wing_root_rib_transforms: Array[Transform3D] = []
@@ -818,6 +827,7 @@ func _build_slender_airframe() -> void:
 			_arrow_materials.ceramic
 		)
 		_arrow_visual.add_child(wing)
+		_airframe_shadow_sources.append(wing)
 		wing_root_rib_transforms.append(Transform3D(
 			Basis.from_euler(Vector3(0, side * -0.08, 0)),
 			Vector3(side * 1.45, 1.03, 1.0)
@@ -846,6 +856,7 @@ func _build_slender_airframe() -> void:
 			]),
 			_arrow_materials.ceramic
 		)
+		_airframe_shadow_sources.append(sensor_pod)
 		_cut_pressure_panel(sensor_pod, "FlushPassiveAperture", 5, 10, 5, 11, _arrow_materials.graphite)
 		_box(sensor_pod, "ForwardOpticalWindow", Vector3(0, 0, -1.86), Vector3(0.32, 0.17, 0.035), _arrow_materials.sensor)
 		_sphere(_arrow_visual, "PortNavigationLight" if side_index == 0 else "StarboardNavigationLight", Vector3(side * 5.64, 1.04, 3.35), 0.115, _arrow_materials.nav_red if side < 0 else _arrow_materials.nav_green)
@@ -860,7 +871,7 @@ func _build_slender_airframe() -> void:
 
 	# Layered dorsal shell follows the long recon fuselage rather than adding a
 	# blocky superstructure. Panel seams are slim and restrained.
-	_loft_hull(
+	_airframe_shadow_sources.append(_loft_hull(
 		_arrow_visual,
 		"DorsalSurveySpine",
 		Vector3(0, 2.08, 1.55),
@@ -871,7 +882,7 @@ func _build_slender_airframe() -> void:
 			Vector3(0.44, 0.22, 3.0),
 		]),
 		_arrow_materials.ceramic
-	)
+	))
 	_curve_tube(
 		_arrow_visual,
 		"DorsalDataConduit",
@@ -896,22 +907,22 @@ func _build_slender_airframe() -> void:
 ## manufactured airframe. All shells are presentation-only and leave the
 ## controller's boarding route, canopy hinge and escape-pod modules intact.
 func _build_manufactured_fairings() -> void:
-	_loft_hull(_arrow_visual, "CockpitSillFairing", Vector3(0, 2.06, -0.8), PackedVector3Array([
+	_airframe_shadow_sources.append(_loft_hull(_arrow_visual, "CockpitSillFairing", Vector3(0, 2.06, -0.8), PackedVector3Array([
 		Vector3(0.18, 0.035, -2.8), Vector3(0.76, 0.075, -2.2),
 		Vector3(1.23, 0.13, -1.2), Vector3(1.28, 0.13, 1.4),
 		Vector3(0.70, 0.09, 2.0),
-	]), _arrow_materials.ceramic)
+	]), _arrow_materials.ceramic))
 	for side in [-1.0, 1.0]:
 		var side_name := "Port" if side < 0.0 else "Starboard"
-		_loft_hull(_arrow_visual, side_name + "ShoulderFairing", Vector3(side * 1.24, 1.40, 0.0), PackedVector3Array([
+		_airframe_shadow_sources.append(_loft_hull(_arrow_visual, side_name + "ShoulderFairing", Vector3(side * 1.24, 1.40, 0.0), PackedVector3Array([
 			Vector3(0.08, 0.10, -4.2), Vector3(0.32, 0.26, -3.1),
 			Vector3(0.53, 0.39, -1.8), Vector3(0.53, 0.39, 0.6),
 			Vector3(0.44, 0.28, 2.0), Vector3(0.30, 0.20, 3.0),
-		]), _arrow_materials.pearl)
-		_loft_hull(_arrow_visual, side_name + "EngineIntakeFairing", Vector3(side * 0.96, 1.10, 0.0), PackedVector3Array([
+		]), _arrow_materials.pearl))
+		_airframe_shadow_sources.append(_loft_hull(_arrow_visual, side_name + "EngineIntakeFairing", Vector3(side * 0.96, 1.10, 0.0), PackedVector3Array([
 			Vector3(0.54, 0.44, 3.65), Vector3(0.70, 0.56, 4.10),
 			Vector3(0.70, 0.56, 5.65), Vector3(0.58, 0.49, 6.40),
-		]), _arrow_materials.ceramic)
+		]), _arrow_materials.ceramic))
 		_build_survey_intake(side_name, Vector3(side * 1.24, 1.78, -1.82))
 		# Three individually fitted access skins and split trailing elevons sit
 		# against a darker structural substrate, separated by physical joins.
@@ -920,6 +931,7 @@ func _build_manufactured_fairings() -> void:
 			Vector3(side * 5.49, 0.95, 3.40), Vector3(side * 2.36, 1.06, 2.74),
 		]), 0.035, _arrow_materials.graphite)
 		_arrow_visual.add_child(inlay)
+		_airframe_shadow_sources.append(inlay)
 		for bay in 3:
 			var t0 := float(bay) / 3.0 + 0.009
 			var t1 := float(bay + 1) / 3.0 - 0.009
@@ -932,11 +944,13 @@ func _build_manufactured_fairings() -> void:
 				inner_rear.lerp(outer_rear, t1), inner_rear.lerp(outer_rear, t0),
 			]), 0.05, _arrow_materials.ceramic if bay == 1 else _arrow_materials.pearl)
 			_arrow_visual.add_child(skin)
+			_airframe_shadow_sources.append(skin)
 		var elevon := _build_planform_surface(side_name + "SurveyRecognitionMark", PackedVector3Array([
 			Vector3(side * 2.40, 1.10, 2.09), Vector3(side * 5.30, 1.00, 2.87),
 			Vector3(side * 5.42, 0.98, 3.32), Vector3(side * 2.42, 1.08, 2.67),
 		]), 0.055, _arrow_materials.ceramic)
 		_arrow_visual.add_child(elevon)
+		_airframe_shadow_sources.append(elevon)
 
 
 
@@ -963,6 +977,7 @@ func _build_survey_intake(prefix: String, origin: Vector3) -> void:
 	duct.position = origin
 	duct.mesh = tool.commit()
 	_arrow_visual.add_child(duct)
+	_airframe_shadow_sources.append(duct)
 	_box(duct, "RecessedIntake", Vector3(0, 0.035, 0.36), Vector3(0.64, 0.25, 0.035), _arrow_materials.graphite)
 
 
@@ -1264,7 +1279,7 @@ func _build_engines_and_landing_gear() -> void:
 	_main_gear_foot_mesh = null
 	for side_index in 2:
 		var side := -1.0 if side_index == 0 else 1.0
-		_loft_hull(
+		_airframe_shadow_sources.append(_loft_hull(
 			_arrow_visual,
 			"EfficientEngineHousing",
 			Vector3(side * 0.92, 0.94, 5.0),
@@ -1275,7 +1290,7 @@ func _build_engines_and_landing_gear() -> void:
 				Vector3(0.54, 0.44, 1.6),
 			]),
 			_arrow_materials.titanium
-		)
+		))
 		var engine_collar := _torus(
 			_arrow_visual,
 			"EngineCollar",
@@ -1395,6 +1410,7 @@ func _build_refractory_nozzle(prefix: String, origin: Vector3) -> void:
 	nozzle.position = origin
 	nozzle.mesh = tool.commit()
 	_arrow_visual.add_child(nozzle)
+	_airframe_shadow_sources.append(nozzle)
 
 
 func _restyle_inherited_cockpit(cockpit: Node3D, canopy: Node3D) -> void:
@@ -1692,12 +1708,14 @@ func _collect_arrow_visual_census() -> Dictionary:
 		var instance := candidate as MeshInstance3D
 		if instance.mesh != null:
 			unique_mesh_resources[instance.mesh.get_instance_id()] = true
-	var visible_geometry_copies := mesh_instances.size()
+	var visible_geometry_copies := 0
 	var geometry_submissions := 0
 	for candidate in mesh_instances:
 		var instance := candidate as MeshInstance3D
 		if instance.mesh != null:
 			geometry_submissions += instance.mesh.get_surface_count()
+		if instance.cast_shadow != GeometryInstance3D.SHADOW_CASTING_SETTING_SHADOWS_ONLY:
+			visible_geometry_copies += 1
 	for candidate in multi_mesh_instances:
 		var instance := candidate as MultiMeshInstance3D
 		if instance.multimesh == null:
