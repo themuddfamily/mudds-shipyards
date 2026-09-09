@@ -1301,6 +1301,7 @@ func _build_interceptor() -> void:
 
 	_wing_chalk_band_mesh = _make_box_mesh(WING_CHALK_BAND_SIZE, _materials.skirmisher_chalk)
 	_winglet_fin_mesh = _make_box_mesh(WINGLET_FIN_SIZE, _materials.skirmisher_chalk)
+	var engine_pod_mesh := _skirmisher_engine_pod_mesh()
 	for side in [-1.0, 1.0]:
 		if side < 0.0:
 			var port_wing := _wedge(
@@ -1317,7 +1318,11 @@ func _build_interceptor() -> void:
 			_visual_root.add_child(starboard_wing)
 		_box_from_mesh(_visual_root, "WingChalkBand", Vector3(side * 2.5, 0.06, 0.4), _wing_chalk_band_mesh)
 		_box_from_mesh(_visual_root, "WingletFin", Vector3(side * 3.7, 0.36, 1.9), _winglet_fin_mesh, Vector3(0.0, side * 0.16, side * -0.22))
-		_cylinder(_visual_root, "EnginePod", Vector3(side * 1.0, -0.02, 2.5), 0.36, 1.3, _materials.skirmisher_deep, Vector3(90.0, 0.0, 0.0))
+		var engine_pod := MeshInstance3D.new()
+		engine_pod.name = "EnginePod"
+		engine_pod.position = Vector3(side * 1.0, -0.02, 2.5)
+		engine_pod.mesh = engine_pod_mesh
+		_visual_root.add_child(engine_pod)
 		var plume := _exhaust_plume(_visual_root, "EnginePlume", Vector3(side * 1.0, -0.02, 3.42), 0.2, 0.8, _materials.skirmisher_engine, Vector3(90.0, 0.0, 0.0))
 		_engine_glows.append(plume)
 		var engine_light := OmniLight3D.new()
@@ -1431,6 +1436,7 @@ func _create_skirmisher_materials() -> void:
 	_materials.skirmisher_hull = _material(HULL_BASALT, 0.1, 0.61)
 	_materials.skirmisher_moss = _material(HULL_MOSS, 0.1, 0.61)
 	_materials.skirmisher_chalk = _material(HULL_CHALK, 0.1, 0.61)
+	_materials.skirmisher_chalk.vertex_color_use_as_albedo = true
 	_materials.skirmisher_deep = _material(Color("161d20"), 0.6, 0.3)
 	_materials.skirmisher_engine = _material(SKIRMISHER_ENGINE, 0.08, 0.2, SKIRMISHER_ENGINE, 2.6)
 	_materials.skirmisher_muzzle = _material(ROLE_ANCHOR_LAMP, 0.12, 0.22, ROLE_ANCHOR_LAMP, 2.6)
@@ -1480,19 +1486,78 @@ func _build_skirmisher_fittings() -> void:
 			parts.append([Vector3(side * 1.08, 0.604, 0.1 + slat * 0.21), Vector3(0.46, 0.035, 0.06), 0])
 		_add_skirmisher_wing_fittings(parts, side)
 		parts.append([Vector3(side*1.0,0.32,2.38),Vector3(0.48,0.1,0.96),0])
-		_add_nozzle_parts(parts,Vector3(side*1.0,-0.02,3.08),0.3,0.42)
 	# Forward service bays and winglet inset faces.
 	for side in [-1.0,1.0]:
 		parts.append([Vector3(side*0.66,0.30,-1.53),Vector3(0.42,0.10,1.39),2,Vector3(0,side*-0.25,0)])
 		parts.append([Vector3(side*0.7,0.37,-1.35),Vector3(0.3,0.04,0.72),0,Vector3(0,side*-0.25,0)])
 		parts.append([Vector3(side*3.78,0.38,1.9),Vector3(0.05,0.54,0.89),2,Vector3(0,side*0.16,side*-0.22)])
-		parts.append([Vector3(side*1.0,-0.2,2.6),Vector3(0.78,0.11,0.66),0])
+		# The lower saddle meets the outside of the nacelle, below its bore.
+		parts.append([Vector3(side*1.0,-0.43,2.6),Vector3(0.78,0.13,0.66),0])
 		for rib in 3:
 			parts.append([Vector3(side*0.45,0.62,0.5+rib*0.39),Vector3(0.12,0.1,0.22),2])
 	parts.append([Vector3(0,-0.02,2.72),Vector3(1.09,0.5,0.09),2])
 	for rib in 4:
 		parts.append([Vector3(-0.36+rib*0.24,-0.02,2.78),Vector3(0.11,0.36,0.06),0])
 	_fit_armour(parts,[_materials.skirmisher_moss,_materials.skirmisher_chalk,_materials.skirmisher_deep])
+
+
+## A continuous nacelle and recessed throat replace the closed cylinder and
+## detached block petals. Both engines share one stock and one existing finish;
+## vertex tint separates the dark liner, shell and narrow retaining lands.
+func _skirmisher_engine_pod_mesh() -> ArrayMesh:
+	var profile := PackedVector2Array([
+		Vector2(0.0, -0.65), Vector2(0.27, -0.65),
+		Vector2(0.34, -0.58), Vector2(0.36, -0.48),
+		Vector2(0.36, 0.38), Vector2(0.38, 0.43),
+		Vector2(0.38, 0.49), Vector2(0.34, 0.58),
+		Vector2(0.32, 0.84), Vector2(0.30, 0.88),
+		Vector2(0.265, 0.88), Vector2(0.245, 0.81),
+		Vector2(0.22, 0.48), Vector2(0.17, 0.32),
+		Vector2(0.0, 0.32),
+	])
+	var surface := SurfaceTool.new()
+	surface.begin(Mesh.PRIMITIVE_TRIANGLES)
+	surface.set_material(_materials.skirmisher_chalk)
+	var distance := 0.0
+	const SEGMENTS := 64
+	for section in profile.size() - 1:
+		var start := profile[section]
+		var end := profile[section + 1]
+		var slope := end - start
+		var tint := Color(0.12, 0.16, 0.18)
+		if section in [4, 5, 6, 8, 9]:
+			tint = Color(0.65, 0.68, 0.70)
+		elif section == 7:
+			tint = Color(0.34, 0.39, 0.42)
+		elif section >= 10:
+			tint = Color(0.025, 0.035, 0.04)
+		for segment in SEGMENTS:
+			var a := TAU * float(segment) / float(SEGMENTS)
+			var b := TAU * float(segment + 1) / float(SEGMENTS)
+			var points := PackedVector3Array([
+				Vector3(cos(a) * start.x, sin(a) * start.x, start.y),
+				Vector3(cos(b) * start.x, sin(b) * start.x, start.y),
+				Vector3(cos(b) * end.x, sin(b) * end.x, end.y),
+				Vector3(cos(a) * end.x, sin(a) * end.x, end.y),
+			])
+			for triangle in [[0, 2, 1], [0, 3, 2]]:
+				if (points[triangle[2]] - points[triangle[0]]).cross(points[triangle[1]] - points[triangle[0]]).length_squared() < 1e-12:
+					continue
+				for index in triangle:
+					var point := points[index]
+					var radial := Vector2(point.x, point.y).normalized()
+					surface.set_normal(Vector3(slope.y * radial.x, slope.y * radial.y, -slope.x).normalized())
+					surface.set_color(tint)
+					if section in [0, 13]:
+						surface.set_uv(Vector2(point.x, point.y))
+					else:
+						surface.set_uv(Vector2(float(segment + (1 if index in [1, 2] else 0)) / float(SEGMENTS), distance + (slope.length() if index in [2, 3] else 0.0)))
+					surface.add_vertex(point)
+		distance += slope.length()
+	surface.generate_tangents()
+	var mesh := surface.commit()
+	mesh.resource_local_to_scene = false
+	return mesh
 
 
 ## Formed load paths, sealed access lids and trailing elevons all join the

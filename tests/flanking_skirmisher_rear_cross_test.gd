@@ -44,6 +44,7 @@ func _run() -> void:
 	var starting_health := skirmisher.get_health()
 	var tactic_profile_before := skirmisher.get_tactics_profile()
 	var visual := skirmisher.get_node(^"WingSkirmisherVisual") as Node3D
+	_test_recessed_engine_stock(visual)
 	var intent_vane := visual.get_node(^"RoleLamp/RearCrossDirectionVane") as MeshInstance3D
 	var intent_material := intent_vane.get_active_material(0) as StandardMaterial3D
 	var nominal_cue := skirmisher.get_rear_cross_intent_cue_snapshot()
@@ -418,6 +419,45 @@ func _run() -> void:
 	host.queue_free()
 	await process_frame
 	_finish()
+
+
+func _test_recessed_engine_stock(visual: Node3D) -> void:
+	var pods: Array[MeshInstance3D] = []
+	for child in visual.get_children():
+		if child is MeshInstance3D and is_equal_approx(absf(child.position.x), 1.0) \
+				and is_equal_approx(child.position.y, -0.02) and is_equal_approx(child.position.z, 2.5):
+			pods.append(child)
+	_check(pods.size() == 2 and pods[0].mesh == pods[1].mesh \
+		and pods[0].mesh is ArrayMesh and pods[0].mesh.get_surface_count() == 1,
+		"both engine nacelles retain one shared single-surface manufactured stock")
+	if pods.size() != 2:
+		return
+	var mesh := pods[0].mesh as ArrayMesh
+	var faces := mesh.get_faces()
+	var pressure_body := visual.get_node("DeltaBody") as MeshInstance3D
+	var body_aft := pressure_body.position.z + pressure_body.mesh.get_aabb().end.z
+	var fittings := visual.get_node("FittedArmourAndServices") as MeshInstance3D
+	var fittings_faces := fittings.mesh.get_faces()
+	var open_throat := true
+	for offset in [Vector2.ZERO, Vector2(0.15, 0.0), Vector2(-0.15, 0.0), Vector2(0.0, 0.15), Vector2(0.0, -0.15)]:
+		var first_hit := -INF
+		for triangle in range(0, faces.size(), 3):
+			var hit: Variant = Geometry3D.ray_intersects_triangle(Vector3(offset.x, offset.y, 1.4),
+				Vector3.FORWARD, faces[triangle], faces[triangle + 1], faces[triangle + 2])
+			if hit is Vector3:
+				first_hit = maxf(first_hit, hit.z)
+		open_throat = open_throat and is_finite(first_hit) and first_hit <= 0.34 \
+			and pods[0].position.z + first_hit > body_aft + 0.01
+		for pod in pods:
+			for triangle in range(0, fittings_faces.size(), 3):
+				var hit: Variant = Geometry3D.ray_intersects_triangle(pod.position + Vector3(offset.x, offset.y, 1.4),
+					Vector3.FORWARD, fittings.transform * fittings_faces[triangle],
+					fittings.transform * fittings_faces[triangle + 1], fittings.transform * fittings_faces[triangle + 2])
+				if hit is Vector3 and hit.z > pod.position.z + 0.34:
+					open_throat = false
+	var finish := mesh.surface_get_material(0) as StandardMaterial3D
+	_check(open_throat and finish != null and not finish.emission_enabled,
+		"the exhaust has a real deep unlit throat clear of the pressure hull and fitted saddles")
 
 
 func _check(condition: bool, message: String) -> void:
