@@ -14,6 +14,8 @@ func _initialize() -> void:
 	root.add_child(craft)
 	await process_frame
 	_test_recessed_exhaust(craft)
+	_test_cockpit_fairing(craft)
+	var fairing_stock: Mesh = craft.get_node("CinderCargoVisual/CockpitPressureTransition").mesh
 	var original_renderer_count := _visual_renderer_count(craft)
 	var original_copy_count := _authored_visual_copy_count(craft)
 	var audit := craft.get_audit_report()
@@ -260,6 +262,8 @@ func _initialize() -> void:
 	var rebuilt_seat_backs := rebuilt.get_node_or_null(
 		^"WalkableInterior/LoadmasterCabin/CrewSeatBackBatch"
 	) as MultiMeshInstance3D
+	_check(rebuilt.get_node("CinderCargoVisual/CockpitPressureTransition").mesh == fairing_stock,
+		"rebuilt cargo cockpit reuses its immutable formed fairing stock")
 	var rebuilt_consoles := rebuilt.get_node_or_null(
 		^"WalkableInterior/LoadmasterCabin/CrewConsoleBatch"
 	) as MultiMeshInstance3D
@@ -391,6 +395,24 @@ func _authority_snapshot(audit: Dictionary) -> Dictionary:
 		"game_flow_authority": audit.get("game_flow_authority"),
 		"network_authority": audit.get("network_authority"),
 	}
+
+
+func _test_cockpit_fairing(craft: HeroShip) -> void:
+	var skin := craft.get_node("CinderCargoVisual/CockpitPressureTransition") as MeshInstance3D
+	var bounds := skin.transform * skin.mesh.get_aabb()
+	_check(bounds.position.z > -2.60 and bounds.end.z < 1.74
+		and is_equal_approx(bounds.end.y, 1.89) and skin.mesh.get_surface_count() == 1,
+		"formed cockpit skin retains floor height and clears the forward load band and aft roof panel")
+	var seated_caps := true
+	var curved_shoulder := false
+	for vertex: Vector3 in skin.mesh.surface_get_arrays(0)[Mesh.ARRAY_VERTEX]:
+		var point := skin.transform * vertex
+		if is_equal_approx(point.z, bounds.position.z) or is_equal_approx(point.z, bounds.end.z):
+			seated_caps = seated_caps and point.y < 1.60
+		if is_equal_approx(point.z, -0.55) and point.x > 1.40 and point.y > 1.68:
+			curved_shoulder = true
+	_check(seated_caps and curved_shoulder,
+		"rolled cockpit shoulders curve outside the old wedge and both ends seat below the freight roof")
 
 
 func _test_recessed_exhaust(craft: HeroShip) -> void:

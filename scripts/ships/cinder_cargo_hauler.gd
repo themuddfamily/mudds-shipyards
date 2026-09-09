@@ -74,6 +74,7 @@ static var _shared_cargo_pod_mesh: ArrayMesh
 static var _shared_cargo_pod_material: StandardMaterial3D
 static var _shared_freight_load_frame: ArrayMesh
 static var _shared_engine_mounts: ArrayMesh
+static var _shared_cockpit_fairing: ArrayMesh
 
 
 class CinderLoadmasterInteraction:
@@ -1138,7 +1139,22 @@ func _build_hull(visual: Node3D) -> void:
 func _build_freight_pressure_fairings(visual: Node3D) -> void:
 	var dark := _material(Color("1b2931"), 0.5, 0.48)
 	var metal := _material(Color("73858c"), 0.82, 0.32)
-	_pressure_panel(visual, "CockpitPressureTransition", Vector3(0, 1.715, -0.55), 2.1, 3.1, 0.35, 3.4, _shared_hull_material)
+	# Rolled shoulders retain the cockpit floor contact, then ease into the
+	# roof between the forward load band and the first aft service panel.
+	var cockpit_fairing := MeshInstance3D.new()
+	cockpit_fairing.name = "CockpitPressureTransition"
+	cockpit_fairing.position = Vector3(0, 1.715, -0.55)
+	if _shared_cockpit_fairing == null:
+		_shared_cockpit_fairing = preload("res://scripts/ships/cinder_cockpit_pressure_fairing.gd").build(
+			cockpit_fairing.position, 1.60, 3.1, _shared_hull_material, {
+				"stations": [-2.58, -2.25, 1.15, 1.70],
+				"tops": [1.58, 1.89, 1.89, 1.58],
+				"widths": [2.50, 3.10, 3.10, 2.50],
+				"top_widths": [2.25, 2.18, 2.18, 2.25],
+			})
+		_shared_cockpit_fairing.resource_local_to_scene = false
+	cockpit_fairing.mesh = _shared_cockpit_fairing
+	visual.add_child(cockpit_fairing)
 	for z in [2.0, 3.2]:
 		var plate := _pressure_panel(visual, "FreightRoofArmor" + str(z), Vector3(0, 1.635, z), 3.1, 3.3, 1.04, 0.05, dark)
 		plate.rotation.x = PI * 0.5

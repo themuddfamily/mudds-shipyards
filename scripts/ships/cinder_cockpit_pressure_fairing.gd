@@ -1,6 +1,6 @@
 extends RefCounted
 
-## Shared formed skin beneath the two fixed Cinder cockpit rigs. The flat
+## Shared formed skin beneath the fixed Cinder cockpit rigs. The flat
 ## crown still meets the cockpit floor; rolled sides and eased fore/aft runs
 ## join that crown to the lower pressure body without a trapezoidal plinth.
 static func build(origin: Vector3, crown: float, width: float, material: Material, profile: Dictionary = {}) -> ArrayMesh:
