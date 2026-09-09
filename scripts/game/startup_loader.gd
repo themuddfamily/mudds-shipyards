@@ -35,6 +35,7 @@ const LoadingScreenType := preload("res://scripts/ui/loading_screen.gd")
 const SessionDiagnosticFileSinkType := preload("res://scripts/diagnostics/session_diagnostic_file_sink.gd")
 
 const MAIN_SCENE_PATH := "res://scenes/main.tscn"
+const MAIN_HANDOFF_SCRIPT_PATH := "res://scripts/game/startup_main_handoff.gd"
 ## These three lazy Torrent hull loads account for its cold material stall.
 ## Warm only the ordinary Boot path; variant-only scene loads remain unchanged.
 const STARTUP_TEXTURE_PATHS := [
@@ -232,6 +233,21 @@ func run_startup() -> Node:
 		_finish_startup(startup_generation)
 		return null
 
+	# Resolving GameFlow/ShipyardWorld while this script compiles pulls their
+	# preloaded ships in before Boot can draw. Resolve that typed handoff only
+	# now, after the owned worker has finished loading Main's dependencies.
+	var handoff_script := load(MAIN_HANDOFF_SCRIPT_PATH) as GDScript
+	if handoff_script == null or not handoff_script.can_instantiate():
+		_screen.set_stage(
+			"Startup failed", _screen.get_progress(), "The shipyard could not prepare its startup.",
+			"MUDDS SHIPYARDS", "Startup interrupted", 1, 1
+		)
+		_finish_startup(startup_generation)
+		if CLI_STARTUP_CHECK in OS.get_cmdline_args():
+			print("STARTUP_MENU_READY_FAILED: startup handoff unavailable")
+			tree.quit(1)
+		return null
+	var handoff: RefCounted = handoff_script.new()
 	_main = packed.instantiate()
 	if not _is_startup_current(startup_generation):
 		_main.queue_free()
@@ -239,14 +255,10 @@ func run_startup() -> Node:
 		return null
 	# The saved profile must shape the first environment and renderer work, not
 	# arrive after the whole fleet has already warmed the authored High profile.
-	var world := _main.get_node_or_null(^"ShipyardWorld") as ShipyardWorld
-	if world != null:
-		world.visual_quality_level = _startup_graphics_profile
-	var flow := _main as GameFlow
-	var staged := flow != null and flow.prepare_staged_startup()
+	var staged: bool = handoff.call(&"prepare", _main, _startup_graphics_profile)
 	add_child(_main)
 	if staged:
-		var construction_completed := await flow.run_staged_startup(
+		var construction_completed: bool = await handoff.call(&"run_staged",
 			func(label: String, ratio: float) -> void:
 				_on_construction_stage(startup_generation, label, ratio)
 		)

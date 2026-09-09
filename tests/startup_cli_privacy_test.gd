@@ -10,6 +10,13 @@ func _init() -> void:
 
 
 func _run() -> void:
+	for script_path in [
+		"res://scripts/game/game_flow.gd",
+		"res://scripts/world/shipyard_world.gd",
+		"res://scripts/ships/hero_ship.gd",
+	]:
+		_check(not ResourceLoader.has_cached(script_path),
+			"early Boot and CLI compilation leaves %s for the Main worker" % script_path.get_file())
 	_check(StartupLoaderType.cli_mode(PackedStringArray(["--startup-check"])) == &"", "package startup check follows the real boot path")
 	var menu := Control.new()
 	var button := Button.new()
