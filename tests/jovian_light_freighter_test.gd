@@ -1115,7 +1115,7 @@ func _test_scale_handling_and_presentation(jovian: JovianLightFreighter) -> void
 	var flight_deck := visual.get_node_or_null("ForwardFlightDeck") as MeshInstance3D
 	var shoulder := visual.get_node_or_null("PortCargoShoulder") as MeshInstance3D
 	_check(flight_deck != null and flight_deck.mesh is ArrayMesh and flight_deck.mesh.get_faces().size() == 432, "flight deck is a folded bow apron with planar manufacturing breaks")
-	_check(shoulder != null and shoulder.mesh is ArrayMesh and bool(shoulder.get_meta("closed_loft_hull", false)) and shoulder.mesh.get_faces().size() == 264 and shoulder.mesh.get_surface_count() == 3, "split port cargo shoulder joins the freight crown with a recessed thermal belt and lower rub strip")
+	_check(shoulder != null and shoulder.mesh is ArrayMesh and bool(shoulder.get_meta("closed_loft_hull", false)) and shoulder.mesh.get_faces().size() == 1320 and shoulder.mesh.get_surface_count() == 3, "split port cargo shoulder joins the freight crown with radius bends, a recessed thermal belt and lower rub strip")
 	# These service lids sit over the continuous pressure skin. Their underside
 	# must remain actually open, rather than merely dropping the closed-hull tag.
 	var service_lids: Array[Node] = visual.find_children("*RoofThermalCover*", "MeshInstance3D", false, false)

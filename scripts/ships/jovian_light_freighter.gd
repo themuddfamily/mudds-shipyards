@@ -4865,15 +4865,25 @@ func _pressed_roof(parent: Node3D, node_name: String, half_width: float, base_y:
 	var tool := SurfaceTool.new()
 	tool.begin(Mesh.PRIMITIVE_TRIANGLES)
 	tool.set_material(material)
-	const STEPS := 16
+	const STEPS := 32
 	for station in sections.size() - 1:
 		for step in STEPS:
 			var points: Array[Vector3] = []
+			var normals: Array[Vector3] = []
 			for corner in [Vector2i(station, step), Vector2i(station + 1, step), Vector2i(station + 1, step + 1), Vector2i(station, step + 1)]:
 				var section := sections[corner.x]
 				var u := float(corner.y) / float(STEPS) * 2.0 - 1.0
 				points.append(Vector3(u * half_width * section.x, base_y + section.y + rise * pow(maxf(0.0, 1.0 - u * u), 0.60), section.z))
-			_skin_quad(tool, points[0], points[1], points[2], points[3])
+				# A pressed crown is continuously curved across its width. Keep the
+				# longitudinal station breaks, but do not shade each transverse
+				# tessellation strip as a separate folded plate.
+				var safe_u := clampf(u, -0.995, 0.995)
+				var slope := -1.2 * rise * safe_u * pow(1.0 - safe_u * safe_u, -0.40)
+				var across := Vector3(half_width * section.x, slope, 0.0)
+				var section_delta := sections[station + 1] - sections[station]
+				var along := Vector3(u * half_width * section_delta.x, section_delta.y, section_delta.z)
+				normals.append(along.cross(across).normalized())
+			_skin_curved_quad(tool, points, normals)
 			var down := Vector3.DOWN * thickness
 			_skin_quad(tool, points[3] + down, points[2] + down, points[1] + down, points[0] + down)
 			if station == 0:
@@ -4890,6 +4900,13 @@ func _pressed_roof(parent: Node3D, node_name: String, half_width: float, base_y:
 	instance.set_meta("visual_only", true)
 	parent.add_child(instance)
 	return instance
+
+
+func _skin_curved_quad(tool: SurfaceTool, points: Array[Vector3], normals: Array[Vector3]) -> void:
+	for index in [0, 2, 1, 0, 3, 2]:
+		tool.set_normal(normals[index])
+		tool.set_uv(Vector2(points[index].x, points[index].z))
+		tool.add_vertex(points[index])
 
 
 func _skin_quad(tool: SurfaceTool, a: Vector3, b: Vector3, c: Vector3, d: Vector3) -> void:
@@ -4972,21 +4989,40 @@ func _freighter_sponson(node_name: String, side: float, sections: PackedVector3A
 		Vector2(-0.68, 2.25), Vector2(-0.85, 2.38),
 		Vector2(-1.15, 2.38), Vector2(-1.15, -1.72),
 		Vector2(-0.80, -1.98), Vector2(0.65, -1.98), Vector2(1.15, -1.30)])
+	# Form a small bend radius at every fold instead of an infinitely sharp
+	# extrusion. Straight runs stay planar; the radius is contained within the
+	# old outline, so the pressure-room and cargo-aperture clearances stay put.
+	var rounded_profile := PackedVector2Array()
+	var profile_materials: Array[Material] = []
+	for corner in profile.size():
+		var previous := profile[(corner - 1 + profile.size()) % profile.size()]
+		var at := profile[corner]
+		var next := profile[(corner + 1) % profile.size()]
+		var bend := minf(0.16, minf(at.distance_to(previous), at.distance_to(next)) * 0.30)
+		var start := at + (previous - at).normalized() * bend
+		var finish := at + (next - at).normalized() * bend
+		var face_material: Material = _jovian_materials.hull_cool
+		if corner in [2, 3, 4]:
+			face_material = _jovian_materials.thermal_cover
+		elif corner in [8, 9]:
+			face_material = _jovian_materials.structure
+		for step in 5:
+			var t := float(step) / 4.0
+			rounded_profile.append(start.lerp(at, t).lerp(at.lerp(finish, t), t))
+			profile_materials.append(face_material)
 	var rings: Array[PackedVector3Array] = []
 	for section in sections:
 		var ring := PackedVector3Array()
-		for xy in profile:
+		for xy in rounded_profile:
 			ring.append(Vector3(side * (6.9 + xy.x * section.x),
 				2.05 + xy.y * section.y, section.z))
 		if side < 0.0:
 			ring.reverse()
 		rings.append(ring)
-	# The recessed upper service belt and lower rub strip are part of the
-	# section, so their highlights meet the pressure skin at real folded edges.
 	var edge_materials := {}
-	for edge in [2, 3, 4, 8, 9]:
-		var mirrored_edge: int = (profile.size() - 2 - edge + profile.size()) % profile.size() if side < 0.0 else edge
-		edge_materials[mirrored_edge] = _jovian_materials.thermal_cover if edge < 5 else _jovian_materials.structure
+	for edge in rounded_profile.size():
+		var mirrored_edge: int = (rounded_profile.size() - 2 - edge + rounded_profile.size()) % rounded_profile.size() if side < 0.0 else edge
+		edge_materials[mirrored_edge] = profile_materials[edge]
 	_formed_pressure_member(node_name, rings, _jovian_materials.hull_cool, edge_materials)
 
 
@@ -5013,7 +5049,7 @@ func _flight_deck_transition(side: float) -> void:
 
 ## Explicit folded sections keep panel normals flat at manufacturing breaks.
 ## Cap fans use real triangles rather than degenerate quads.
-func _formed_pressure_member(node_name: String, rings: Array[PackedVector3Array], material: Material, edge_materials: Dictionary = {}, open_bottom_edge: int = -1) -> void:
+func _formed_pressure_member(node_name: String, rings: Array[PackedVector3Array], material: Material, edge_materials: Dictionary = {}, open_bottom_edge: int = -1, curved_crown: bool = false) -> void:
 	var tool := SurfaceTool.new()
 	tool.begin(Mesh.PRIMITIVE_TRIANGLES)
 	tool.set_material(material)
@@ -5029,8 +5065,21 @@ func _formed_pressure_member(node_name: String, rings: Array[PackedVector3Array]
 				face_tool.set_material(face_material)
 				surface_tools[face_material] = face_tool
 			var next := (edge + 1) % rings[station].size()
-			_skin_quad(surface_tools[face_material], rings[station][edge], rings[station][next],
-				rings[station + 1][next], rings[station + 1][edge])
+			var points: Array[Vector3] = [rings[station][edge], rings[station][next],
+				rings[station + 1][next], rings[station + 1][edge]]
+			var crown_edge := edge >= 1 and edge <= 6
+			if rings[station][0].x < 0.0:
+				crown_edge = edge >= 3 and edge <= 8
+			if curved_crown and crown_edge:
+				var normals: Array[Vector3] = []
+				for point in points:
+					var u := point.x / 5.75
+					var slope := -1.2 * 0.38 * u * pow(maxf(0.001, 1.0 - u * u), -0.40) / 5.75
+					var longitudinal_slope := 0.20 / 1.30 if point.z < -1.8 else 0.0
+					normals.append(Vector3(-slope, 1.0, -longitudinal_slope).normalized())
+				_skin_curved_quad(surface_tools[face_material], points, normals)
+			else:
+				_skin_quad(surface_tools[face_material], points[0], points[1], points[2], points[3])
 	for end in [0, rings.size() - 1]:
 		var center := Vector3.ZERO
 		for point in rings[end]:
@@ -5111,7 +5160,7 @@ func _crown_service_panel(node_name: String, side: float, inner_x: float,
 		if side < 0.0:
 			ring.reverse()
 		rings.append(ring)
-	_formed_pressure_member(node_name, rings, material, {}, 0 if side < 0.0 else rings[0].size() - 2)
+	_formed_pressure_member(node_name, rings, material, {}, 0 if side < 0.0 else rings[0].size() - 2, true)
 
 
 func _build_fitted_freighter_details() -> void:
