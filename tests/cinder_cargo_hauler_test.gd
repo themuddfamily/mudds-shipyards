@@ -251,6 +251,7 @@ func _initialize() -> void:
 			and _authority_snapshot(craft.get_audit_report()) == authority_snapshot,
 		"damage remains component-owned without mutating batched geometry, anchors, collision, tags, or authority"
 	)
+	_check_service_cassettes(craft)
 	craft.queue_free()
 	await process_frame
 	var rebuilt := Hauler.new()
@@ -413,3 +414,49 @@ func _test_recessed_exhaust(craft: HeroShip) -> void:
 		and not (hub.material_override as StandardMaterial3D).emission_enabled
 		and port.get_script() == null and hub.get_script() == null,
 		"unpowered machinery has a passive metallic finish and adds no engine-state controller")
+
+
+func _check_service_cassettes(craft: Node3D) -> void:
+	var vanes := craft.find_children("*Vanes", "MeshInstance3D", true, false)
+	var stocks := {}
+	var seated := vanes.size() == 8
+	for blade_node: MeshInstance3D in vanes:
+		var frame := blade_node.get_parent().get_node_or_null(String(blade_node.name).trim_suffix("Vanes") + "Frame") as MeshInstance3D
+		seated = seated and frame != null and frame.position == blade_node.position
+		if frame == null:
+			continue
+		seated = seated and blade_node.mesh.get_aabb().end.y < frame.mesh.get_aabb().end.y and blade_node.mesh.get_aabb().position.y > 0.0425
+		stocks[blade_node.mesh] = true
+		stocks[frame.mesh] = true
+	_check(seated, "eight service cassettes retain seated vanes below the frame lips and above the recessed backing")
+	_check(stocks.size() == 6, "three cassette sizes share six material-free frame and vane stocks across eight assemblies")
+	var valid := true
+	var closed := true
+	for mesh: ArrayMesh in stocks:
+		var arrays := mesh.surface_get_arrays(0)
+		var vertices: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
+		var normals: PackedVector3Array = arrays[Mesh.ARRAY_NORMAL]
+		var uvs: PackedVector2Array = arrays[Mesh.ARRAY_TEX_UV]
+		var tangents: PackedFloat32Array = arrays[Mesh.ARRAY_TANGENT]
+		var indices: PackedInt32Array = arrays[Mesh.ARRAY_INDEX]
+		valid = valid and mesh.surface_get_material(0) == null and normals.size() == vertices.size() and uvs.size() == vertices.size() and tangents.size() == vertices.size() * 4
+		if not valid:
+			continue
+		for index in vertices.size():
+			var tangent := Vector3(tangents[index * 4], tangents[index * 4 + 1], tangents[index * 4 + 2])
+			valid = valid and tangent.is_finite() and absf(tangent.length() - 1.0) < 0.001 and absf(normals[index].dot(tangent)) < 0.001
+		var edges := {}
+		for triangle in range(0, indices.size(), 3):
+			var a := indices[triangle]
+			var b := indices[triangle + 1]
+			var c := indices[triangle + 2]
+			valid = valid and (vertices[b] - vertices[a]).cross(vertices[c] - vertices[a]).length_squared() > 1e-14 and absf((uvs[b] - uvs[a]).cross(uvs[c] - uvs[a])) > 1e-10
+			for pair in [[a,b],[b,c],[c,a]]:
+				var keys := [str(vertices[pair[0]].snapped(Vector3.ONE * 0.00001)), str(vertices[pair[1]].snapped(Vector3.ONE * 0.00001))]
+				keys.sort()
+				var key: String = keys[0] + ":" + keys[1]
+				edges[key] = int(edges.get(key, 0)) + 1
+		for count in edges.values():
+			closed = closed and count == 2
+	_check(valid, "cassette stocks have nondegenerate geometry/UVs and finite orthonormal tangent frames")
+	_check(closed, "frames and curved vanes form closed welded solids without missing ends")
