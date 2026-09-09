@@ -139,7 +139,7 @@ func _test_armored_shoulder_batch(visual: Node3D) -> void:
 		and material != null
 		and material.albedo_color.is_equal_approx(Color("252b30"))
 		and is_equal_approx(material.metallic, 0.12)
-		and is_equal_approx(material.roughness, 0.62)
+		and is_equal_approx(material.roughness, 0.72)
 		and mesh_bounds.size.is_equal_approx(Vector3(3.4, 1.25, 5.3))
 		and multi.custom_aabb.is_equal_approx(expected_bounds)
 		and batch.material_override == null
@@ -353,7 +353,7 @@ func _test_engine_housing_batch(visual: Node3D) -> void:
 		and material != null
 		and material.albedo_color.is_equal_approx(Color("252b30"))
 		and is_equal_approx(material.metallic, 0.12)
-		and is_equal_approx(material.roughness, 0.62)
+		and is_equal_approx(material.roughness, 0.72)
 		and is_equal_approx(mesh_bounds.size.x, 1.7)
 		and is_equal_approx(mesh_bounds.size.y, 1.6)
 		and is_equal_approx(mesh_bounds.size.z, 3.03)
@@ -407,7 +407,7 @@ func _test_gun_pod_housing_batch(visual: Node3D) -> void:
 		and material != null
 		and material.albedo_color.is_equal_approx(Color("687277"))
 		and is_equal_approx(material.metallic, 0.16)
-		and is_equal_approx(material.roughness, 0.58)
+		and is_equal_approx(material.roughness, 0.72)
 		and is_equal_approx(mesh_bounds.size.x, 1.26)
 		and is_equal_approx(mesh_bounds.size.y, 2.31)
 		and is_equal_approx(mesh_bounds.size.z, 0.92)
