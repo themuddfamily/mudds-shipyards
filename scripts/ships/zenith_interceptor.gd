@@ -3774,6 +3774,7 @@ func _build_modern_airframe(visual: Node3D) -> void:
 	_box(_functional_cockpit, "ModernSeatCushion", Vector3(0, 1.83, -0.55), Vector3(0.72, 0.18, 0.78), upholstery)
 	_box(_functional_cockpit, "ModernSeatBack", Vector3(0, 2.22, -0.08), Vector3(0.70, 0.74, 0.20), upholstery, Vector3(deg_to_rad(10), 0, 0))
 	_box(_functional_cockpit, "ModernHeadrest", Vector3(0, 2.68, 0.0), Vector3(0.43, 0.25, 0.19), upholstery)
+	_build_pilot_instrument_binnacle(dark, panel)
 	_build_enclosed_canopy(visual)
 	for side in [-1.0, 1.0]:
 		var prefix := "Port" if side < 0.0 else "Starboard"
@@ -3783,6 +3784,67 @@ func _build_modern_airframe(visual: Node3D) -> void:
 			Vector3(side * 2.20, 1.755, 0.64), Vector2(1.22, 0.61), Vector3.UP, Vector3(side, 0, 0), 0.16)
 		ShipSurfaceDetail.mark_surface(airframe, prefix + "IntakeCautionStencil", "intake",
 			Vector3(side * 2.20, 1.73, -0.72), Vector2(0.88, 0.44), Vector3.UP, Vector3.FORWARD, 0.16)
+
+
+## The preserved physical eye looks over this fitted flight deck. Opaque stock
+## is one retained mesh with three material surfaces; the inherited controller
+## updates its existing instrument child, with no additional process or light.
+func _build_pilot_instrument_binnacle(dark: StandardMaterial3D, trim: StandardMaterial3D) -> void:
+	var binnacle := Node3D.new()
+	binnacle.name = "PilotInstrumentBinnacle"
+	# Compact face fits behind the narrowing closed glazing; the lower side
+	# shelves retain a separate physical hand height below the instrument face.
+	binnacle.position = Vector3(0.0, 2.57, -1.35)
+	binnacle.rotation.x = deg_to_rad(-25.0)
+	binnacle.scale = Vector3.ONE * 0.56
+	binnacle.set_meta("presentation_only", true)
+	_functional_cockpit.add_child(binnacle)
+	var screen := StandardMaterial3D.new()
+	screen.albedo_color = Color("07131a")
+	screen.roughness = 0.68
+	var materials: Array[Material] = [dark, trim, screen]
+	var surfaces: Array[SurfaceTool] = []
+	for material in materials:
+		var surface := SurfaceTool.new()
+		surface.begin(Mesh.PRIMITIVE_TRIANGLES)
+		surface.set_material(material)
+		surfaces.append(surface)
+	# Closed chamfered housing, recessed display and a projecting glare lip.
+	_zenith_console_stock(surfaces[0], Vector3(0, 0.015, -0.05), Vector3(1.46, 0.53, 0.30), dark)
+	_zenith_console_stock(surfaces[1], Vector3(0, 0.06, 0.101), Vector3(1.35, 0.37, 0.035), trim)
+	_zenith_console_stock(surfaces[2], Vector3(0, 0.06, 0.123), Vector3(1.27, 0.31, 0.022), screen)
+	_zenith_console_stock(surfaces[0], Vector3(0, 0.29, 0.04), Vector3(1.52, 0.07, 0.36), dark)
+	# A service rail and recessed keys sit below the glass, within arm reach.
+	_zenith_console_stock(surfaces[1], Vector3(0, -0.175, 0.108), Vector3(1.28, 0.095, 0.035), trim)
+	for key in 8:
+		_zenith_console_stock(surfaces[2], Vector3(-0.49 + key * 0.14, -0.175, 0.13), Vector3(0.095, 0.047, 0.032), screen)
+	for side in [-1.0, 1.0]:
+		# Stanchions meet the tub floor; side shelves support throttle and stick.
+		_zenith_console_stock(surfaces[0], Vector3(side * 0.51, -0.97, -0.20), Vector3(0.12, 1.60, 0.15), dark)
+		_zenith_console_stock(surfaces[0], Vector3(side * 0.56, -0.94, 0.48), Vector3(0.25, 0.17, 0.72), dark)
+		_zenith_console_stock(surfaces[1], Vector3(side * 0.56, -0.84, 0.47), Vector3(0.20, 0.025, 0.59), trim)
+		for key in 3:
+			_zenith_console_stock(surfaces[2], Vector3(side * 0.56, -0.817, 0.27 + key * 0.075), Vector3(0.12, 0.022, 0.045), screen)
+		_zenith_console_stock(surfaces[2], Vector3(side * 0.56, -0.817, 0.64), Vector3(0.13, 0.026, 0.20), screen)
+	_zenith_console_stock(surfaces[1], Vector3(-0.56, -0.72, 0.63), Vector3(0.045, 0.20, 0.055), trim)
+	_zenith_console_stock(surfaces[0], Vector3(-0.56, -0.61, 0.63), Vector3(0.19, 0.085, 0.095), dark)
+	_zenith_console_stock(surfaces[1], Vector3(0.56, -0.72, 0.63), Vector3(0.045, 0.20, 0.045), trim)
+	_zenith_console_stock(surfaces[0], Vector3(0.56, -0.60, 0.65), Vector3(0.075, 0.16, 0.11), dark)
+	var assembly := ArrayMesh.new()
+	for surface in surfaces:
+		surface.commit(assembly)
+	var stock := MeshInstance3D.new()
+	stock.name = "BinnacleAndControls"
+	stock.mesh = assembly
+	binnacle.add_child(stock)
+	var readout := _install_variant_cockpit_system_readout(binnacle)
+	readout.position = Vector3(0, 0.015, 0.139)
+	readout.scale = Vector3.ONE * 0.82
+
+
+func _zenith_console_stock(surface: SurfaceTool, origin: Vector3, size: Vector3, material: Material) -> void:
+	# Reuse the fleet's closed bevel stock and preserve its face UVs/normals.
+	surface.append_from(_rounded_box_mesh(size, material), 0, Transform3D(Basis.IDENTITY, origin))
 
 
 ## Closed wing skins use matching span/chord samples; the camber and root
@@ -3962,6 +4024,14 @@ func _airframe_section(section: Vector4) -> PackedVector3Array:
 		for sample in 4:
 			var t := float(sample) / 3.0
 			ring.append(before.lerp(point, t).lerp(point.lerp(after, t), t))
+	if section.w >= -2.22 and section.w <= 0.34:
+		# The open well ends at the coaming crest, not at the inward end of
+		# the rolled roof shoulder. Leaving the roof roll here cut white strips
+		# through the pilot's controls despite removing the central roof face.
+		for sample in 3:
+			var x: float = w * [0.716, 0.695, 0.68][sample]
+			ring[5 + sample].x = x
+			ring[10 - sample].x = -x
 	return ring
 
 

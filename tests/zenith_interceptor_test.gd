@@ -3209,6 +3209,7 @@ func _run() -> void:
 	_test_definition_and_evidence(zenith)
 	_test_authored_asset_and_runtime_authority(zenith)
 	await _test_boarding_collision_camera_and_canopy(zenith)
+	_test_pilot_instruments(zenith)
 	_test_handling_difference(zenith)
 	await _test_engine_flight_weapon_damage_reuse(zenith)
 	await _test_strict_berth_fit_capture_and_landing(zenith)
@@ -3502,7 +3503,7 @@ func _test_boarding_collision_camera_and_canopy(zenith: ZenithInterceptor) -> vo
 	var visual := zenith.get_zenith_visual_root()
 	var functional_cockpit := visual.get_node_or_null("CockpitInterior") as Node3D
 	var functional_canopy := visual.get_node_or_null("CanopyHinge") as Node3D
-	_check(functional_cockpit != null and functional_cockpit.get_child_count() == 6 and functional_cockpit.has_node("ModernSeatCushion") and functional_cockpit.has_node("ModernSeatBack") and functional_cockpit.has_node("ModernHeadrest"), "inherited seat, entry and cockpit camera authority coexist with three presentation-only upholstery meshes")
+	_check(functional_cockpit != null and functional_cockpit.get_child_count() == 7 and functional_cockpit.has_node("ModernSeatCushion") and functional_cockpit.has_node("ModernSeatBack") and functional_cockpit.has_node("ModernHeadrest"), "inherited seat, entry and eye authority coexist with upholstery and physical instruments")
 	_check(functional_canopy != null and functional_canopy.get_child_count() == 0, "hidden functional canopy hinge survives without Torrent art")
 	zenith.set_piloted(true)
 	zenith.set_cockpit_view(true)
@@ -3524,6 +3525,48 @@ func _test_boarding_collision_camera_and_canopy(zenith: ZenithInterceptor) -> vo
 	_check(functional_canopy.get_instance_id() == functional_canopy_id and authored_canopy.get_instance_id() == authored_canopy_id, "canopy motion preserves both controller and authored identities")
 
 
+func _test_pilot_instruments(zenith: ZenithInterceptor) -> void:
+	var binnacle := zenith.get_zenith_visual_root().get_node("CockpitInterior/PilotInstrumentBinnacle") as Node3D
+	var stock := binnacle.get_node("BinnacleAndControls") as MeshInstance3D
+	var readout := binnacle.get_node("FlightDataReadout") as Label3D
+	_check(readout == zenith.get("_cockpit_readout") and readout.has_node("LiveFlightInstruments"), "physical Zenith display is bound to the existing controller and flight instruments")
+	_check(not readout.no_depth_test and readout.billboard == BaseMaterial3D.BILLBOARD_DISABLED, "Zenith readout uses real cockpit depth and orientation")
+	_check(binnacle.find_children("*", "CollisionObject3D", true, false).is_empty() and binnacle.find_children("*", "Light3D", true, false).is_empty(), "instrument fittings add no collision or lighting authority")
+	var stock_valid := stock.mesh.get_surface_count() == 3
+	var below_eye := true
+	for surface in stock.mesh.get_surface_count():
+		var arrays := stock.mesh.surface_get_arrays(surface)
+		var vertices: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
+		var normals: PackedVector3Array = arrays[Mesh.ARRAY_NORMAL]
+		var uvs: PackedVector2Array = arrays[Mesh.ARRAY_TEX_UV]
+		stock_valid = stock_valid and normals.size() == vertices.size() and uvs.size() == vertices.size()
+		for index in vertices.size():
+			stock_valid = stock_valid and vertices[index].is_finite() and normals[index].is_finite() and normals[index].length() > 0.99 and uvs[index].is_finite()
+			below_eye = below_eye and (binnacle.transform * vertices[index]).y < EXPECTED_ANCHORS[&"CockpitCamera"].y - 0.05
+		var indices := PackedInt32Array()
+		if arrays[Mesh.ARRAY_INDEX] != null:
+			indices = arrays[Mesh.ARRAY_INDEX]
+		else:
+			for index in vertices.size():
+				indices.append(index)
+		for index in range(0, indices.size(), 3):
+			var a := indices[index]
+			var b := indices[index + 1]
+			var c := indices[index + 2]
+			stock_valid = stock_valid and absf((uvs[b] - uvs[a]).cross(uvs[c] - uvs[a])) > 0.00000001
+			stock_valid = stock_valid and (vertices[b] - vertices[a]).cross(vertices[c] - vertices[a]).dot(normals[a] + normals[b] + normals[c]) < 0.0
+	_check(stock_valid, "three batched opaque instrument surfaces retain finite unit normals and nonsingular face UVs")
+	_check(below_eye, "entire instrument housing and controls clear the existing forward aiming axis")
+	var hull := zenith.get_zenith_visual_root().get_node("ModernManufacturedAirframe/BlendedPressureHull") as MeshInstance3D
+	var controls_clear := true
+	for surface in hull.mesh.get_surface_count():
+		var vertices: PackedVector3Array = hull.mesh.surface_get_arrays(surface)[Mesh.ARRAY_VERTEX]
+		for vertex in vertices:
+			if vertex.z > -2.15 and vertex.z < -0.2 and vertex.y > 2.27:
+				controls_clear = controls_clear and absf(vertex.x) > 0.70
+	_check(controls_clear, "pressure-hull shoulders leave the fitted instrument and control shelves clear inside the pilot well")
+
+
 func _test_handling_difference(zenith: ZenithInterceptor) -> void:
 	var torrent := TORRENT_SCENE.instantiate() as HeroShip
 	_test_root.add_child(torrent)
@@ -3536,6 +3579,11 @@ func _test_handling_difference(zenith: ZenithInterceptor) -> void:
 
 
 func _test_engine_flight_weapon_damage_reuse(zenith: ZenithInterceptor) -> void:
+	var readout := zenith.get("_cockpit_readout") as Label3D
+	var readout_id := readout.get_instance_id()
+	var instruments := readout.get_node("LiveFlightInstruments") as Node3D
+	var instruments_id := instruments.get_instance_id()
+	_check(readout.text.contains("OFFLINE"), "physical instruments report offline engine state")
 	var fired_events: Array[Dictionary] = []
 	zenith.projectile_fired.connect(func(origin: Vector3, direction: Vector3) -> void:
 		fired_events.append({"origin": origin, "direction": direction})
@@ -3550,6 +3598,7 @@ func _test_engine_flight_weapon_damage_reuse(zenith: ZenithInterceptor) -> void:
 		await physics_frame
 	_check(str(zenith.get_telemetry().engine_state) == "ONLINE", "Zenith completes inherited engine startup")
 	_check(_all_plumes_visible(zenith, true), "all close/far plumes remain enabled online")
+	_check(readout.text.contains("ONLINE") and readout.text.contains("WPN READY"), "physical instruments report running engine and ready weapon state")
 	var online_asset_root := zenith.get_zenith_authored_presentation().call("get_asset_root") as Node3D
 	var online_batch := online_asset_root.get_node_or_null(
 		"ModernSystems/LOD0/CloseEnginePlumeBatch"
@@ -3581,6 +3630,7 @@ func _test_engine_flight_weapon_damage_reuse(zenith: ZenithInterceptor) -> void:
 	Input.action_release("roll_right")
 	_check(zenith.velocity.length() > 0.5 and zenith.global_position.distance_to(start_position) > 0.01, "real flight input accelerates and moves Zenith")
 	_check(zenith.global_basis.x.distance_to(start_basis.x) > 0.01, "real roll input changes Zenith attitude")
+	_check((instruments.get_node("SpeedReadout") as Label3D).text != "SPD 000" and (instruments.get_node("LiveStatusRepeaters/ThrottleReadout") as Label3D).text != "+00\nTHR %", "physical speed and throttle instruments follow real flight input")
 
 	var expected_left_origin := (zenith.get_node("LeftMuzzle") as Marker3D).global_position
 	Input.action_press("fire")
@@ -3604,6 +3654,7 @@ func _test_engine_flight_weapon_damage_reuse(zenith: ZenithInterceptor) -> void:
 	zenith.apply_damage(18.0, zenith.to_global(Vector3(-4.55, 0.18, 0.2)), Vector3.UP)
 	await physics_frame
 	_check(float(zenith.get_telemetry().hull) < hull_before and not zenith.is_destroyed(), "partial damage reduces Zenith hull without destroying it")
+	_check((instruments.get_node("LiveStatusRepeaters/HullReadout") as Label3D).text != "100\nHULL %", "physical hull instrument follows real damage")
 	zenith.apply_damage(zenith.maximum_hull + 1.0, zenith.global_position, Vector3.UP)
 	await physics_frame
 	_check(zenith.is_destroyed(), "lethal damage enters inherited destroyed lifecycle")
@@ -3622,6 +3673,7 @@ func _test_engine_flight_weapon_damage_reuse(zenith: ZenithInterceptor) -> void:
 	_check(bool(zenith.get_zenith_runtime_identity_report().stable), "reset preserves all pinned runtime/resource identities")
 	_check((zenith.get_zenith_runtime_identity_report().current as Dictionary) == identity_before, "reset reuses the exact authored, collision, damage, audio and definition resources")
 	_check(bool(zenith.get_zenith_audit_report().valid), "reset returns the complete Zenith audit to green")
+	_check(readout.get_instance_id() == readout_id and instruments.get_instance_id() == instruments_id and readout.text.contains("OFFLINE"), "reset reuses the instrument hierarchy and restores its offline readout")
 
 
 func _test_strict_berth_fit_capture_and_landing(zenith: ZenithInterceptor) -> void:
