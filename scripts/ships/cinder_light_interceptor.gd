@@ -375,6 +375,7 @@ func _build_hull(visual: Node3D) -> void:
 	if _shared_hull_material == null:
 		_shared_hull_material = _material(HULL_COLOR, 0.12, 0.62)
 		ShipSurfaceDetail.bind_manufactured_paint(_shared_hull_material)
+		_shared_hull_material.vertex_color_use_as_albedo = true
 		_shared_hull_material.uv1_triplanar = true
 		_shared_hull_material.uv1_scale = Vector3.ONE * 0.33
 		_shared_hull_material.resource_local_to_scene = false
@@ -1162,12 +1163,21 @@ func _loft_mesh(size: Vector3, material: Material) -> ArrayMesh:
 ## Nacelles keep a full inlet section, swell into their duct, and terminate at
 ## the turbine diameter instead of tapering to the same pointed stock nose.
 func _formed_pressure_mesh(size: Vector3, material: Material, nacelle: bool = false) -> ArrayMesh:
-	var section := PackedVector2Array([
-		Vector2(0, 1), Vector2(0.56, 1), Vector2(0.82, 0.86), Vector2(0.96, 0.58),
-		Vector2(1, 0.18), Vector2(0.95, -0.35), Vector2(0.76, -0.79), Vector2(0.44, -1),
-		Vector2(0, -1), Vector2(-0.44, -1), Vector2(-0.76, -0.79), Vector2(-0.95, -0.35),
-		Vector2(-1, 0.18), Vector2(-0.96, 0.58), Vector2(-0.82, 0.86), Vector2(-0.56, 1),
-	])
+	# Flat crown and belly lands support the existing cockpit and service
+	# panels. Elliptical shoulders meet those lands tangentially, so a close
+	# highlight describes a rolled shell instead of sixteen straight facets.
+	var right := PackedVector2Array([Vector2(0, 1), Vector2(0.56, 1)])
+	const ARC_STEPS := 12
+	for step in range(1, ARC_STEPS + 1):
+		var angle := float(step) / ARC_STEPS * PI * 0.5
+		right.append(Vector2(0.56 + 0.44 * sin(angle), 0.18 + 0.82 * cos(angle)))
+	for step in range(1, ARC_STEPS + 1):
+		var angle := float(step) / ARC_STEPS * PI * 0.5
+		right.append(Vector2(0.44 + 0.56 * cos(angle), 0.18 - 1.18 * sin(angle)))
+	right.append(Vector2(0, -1))
+	var section := right.duplicate()
+	for index in range(right.size() - 2, 0, -1):
+		section.append(Vector2(-right[index].x, right[index].y))
 	return _section_loft_mesh(size, material, section, true, nacelle)
 
 
@@ -1197,27 +1207,84 @@ func _formed_root_mesh(side: float, material: Material) -> ArrayMesh:
 	return surface.commit()
 
 
+## Monotone Hermite profile retains the original station envelopes, inlet and
+## turbine interfaces while rolling the skin into its straight midbody. Zero
+## tangents at flat spans prevent overshoot beyond the fixed collision bounds.
+func _pressure_extent(t: float, nacelle: bool, formed: bool) -> Vector2:
+	var knots := PackedFloat32Array([0.0, 0.28, 0.43, 0.83, 1.0])
+	var widths := PackedFloat32Array([0.12, lerpf(0.12, 1.0, 0.28 / 0.43), 1.0, 1.0, 0.9])
+	var heights := PackedFloat32Array([0.35, 1.0, 1.0, 1.0, 0.8])
+	if nacelle:
+		widths = PackedFloat32Array([0.72, 0.97, 1.0, 1.0, 1.2 / 1.26])
+		heights = PackedFloat32Array([0.58, 0.96, 1.0, 1.0, 1.2 / 1.34])
+	var extent := Vector2(_pressure_profile(t, knots, widths, formed), _pressure_profile(t, knots, heights, formed))
+	if nacelle and formed:
+		extent *= 1.0 - 0.045 * _nacelle_joint_depth(t)
+	return extent
+
+
+## Two recessed joints separate the inlet collar and removable aft cowl from
+## the pressure jacket. They are built into its single retained skin surface.
+func _nacelle_joint_depth(t: float) -> float:
+	var depth := 0.0
+	for centre in [0.19, 0.92]:
+		depth = maxf(depth, 1.0 - smoothstep(0.004, 0.012, absf(t - centre)))
+	return depth
+
+
+func _pressure_profile(t: float, knots: PackedFloat32Array, values: PackedFloat32Array, curved: bool) -> float:
+	var bay := 0
+	while bay < knots.size() - 2 and t > knots[bay + 1]:
+		bay += 1
+	var run := knots[bay + 1] - knots[bay]
+	var u := clampf((t - knots[bay]) / run, 0.0, 1.0)
+	if not curved:
+		return lerpf(values[bay], values[bay + 1], u)
+	var slopes := PackedFloat32Array()
+	for index in range(bay, bay + 2):
+		var before := maxi(index - 1, 0)
+		var after := mini(index + 1, knots.size() - 1)
+		var left := (values[index] - values[before]) / (knots[index] - knots[before]) if before != index else (values[after] - values[index]) / (knots[after] - knots[index])
+		var right := (values[after] - values[index]) / (knots[after] - knots[index]) if after != index else left
+		slopes.append(2.0 * left * right / (left + right) if left * right > 0.0 else 0.0)
+	var u2 := u * u
+	var u3 := u2 * u
+	return (
+		(2.0 * u3 - 3.0 * u2 + 1.0) * values[bay]
+		+ (u3 - 2.0 * u2 + u) * run * slopes[0]
+		+ (-2.0 * u3 + 3.0 * u2) * values[bay + 1]
+		+ (u3 - u2) * run * slopes[1]
+	)
+
+
 func _section_loft_mesh(size: Vector3, material: Material, section: PackedVector2Array, formed: bool = false, nacelle: bool = false) -> ArrayMesh:
-	var stations := [0.0, 0.28, 0.43, 0.83, 1.0]
+	var stations := PackedFloat32Array([0.0, 0.28, 0.43, 0.83, 1.0])
+	if formed:
+		stations = PackedFloat32Array([0.0, 0.04, 0.08, 0.14, 0.20, 0.28, 0.36, 0.43, 0.52, 0.64, 0.74, 0.83, 0.90, 0.95, 1.0])
+	if formed and nacelle:
+		for centre in [0.19, 0.92]:
+			for offset in [-0.012, -0.008, -0.004, 0.0, 0.004, 0.008, 0.012]:
+				stations.append(centre + offset)
+		stations.sort()
 	var extents: Array[Vector2] = []
+	var slopes: Array[Vector2] = []
 	for t in stations:
-		var width := minf(1.0, lerpf(0.12, 1.0, t / 0.43))
-		var height := minf(1.0, lerpf(0.35, 1.0, t / 0.28))
-		if t > 0.83:
-			width = lerpf(1.0, 0.9, (t - 0.83) / 0.17)
-			height = lerpf(1.0, 0.8, (t - 0.83) / 0.17)
-		if nacelle:
-			width = [0.72, 0.97, 1.0, 1.0, 1.2 / 1.26][extents.size()]
-			height = [0.58, 0.96, 1.0, 1.0, 1.2 / 1.34][extents.size()]
-		extents.append(Vector2(width * size.x * 0.5, height * size.y * 0.5))
+		var extent := _pressure_extent(t, nacelle, formed)
+		extents.append(Vector2(extent.x * size.x * 0.5, extent.y * size.y * 0.5))
+		if formed:
+			var lo := maxf(0.0, t - 0.0005)
+			var hi := minf(1.0, t + 0.0005)
+			var derivative := (_pressure_extent(hi, nacelle, true) - _pressure_extent(lo, nacelle, true)) / (hi - lo)
+			slopes.append(Vector2(derivative.x * size.x, derivative.y * size.y) / (2.0 * size.z))
+	var count := section.size()
 	var surface := SurfaceTool.new()
 	surface.begin(Mesh.PRIMITIVE_TRIANGLES)
 	surface.set_material(material)
 	for bay in stations.size() - 1:
 		var extent_delta := extents[bay + 1] - extents[bay]
 		var run: float = size.z * (stations[bay + 1] - stations[bay])
-		for edge in 16:
-			var next := (edge + 1) % 16
+		for edge in count:
+			var next := (edge + 1) % count
 			var edge_direction := section[next] - section[edge]
 			# Clockwise exterior winding, with analytic bilinear-patch
 			# normals on the tapered chamfers rather than triangle fans.
@@ -1225,23 +1292,27 @@ func _section_loft_mesh(size: Vector3, material: Material, section: PackedVector
 				var extent := extents[corner.y]
 				var tangent := edge_direction
 				if formed:
-					tangent = section[(corner.x + 1) % 16] - section[(corner.x + 15) % 16]
+					tangent = section[(corner.x + 1) % count] - section[(corner.x + count - 1) % count]
 					if is_equal_approx(absf(section[corner.x].y), 1.0):
 						tangent = Vector2(section[corner.x].y, 0)
 				var around := Vector3(tangent.x * extent.x, tangent.y * extent.y, 0)
-				var along := Vector3(section[corner.x].x * extent_delta.x, section[corner.x].y * extent_delta.y, run)
-				var u := 1.0 if edge == 15 and corner.x == 0 else float(corner.x) / 16.0
+				var slope := slopes[corner.y] if formed else extent_delta / run
+				var along := Vector3(section[corner.x].x * slope.x, section[corner.x].y * slope.y, 1.0)
+				var u := 1.0 if edge == count - 1 and corner.x == 0 else float(corner.x) / float(count)
 				surface.set_normal(along.cross(around).normalized())
 				surface.set_uv(Vector2(u, stations[corner.y]))
+				var joint := _nacelle_joint_depth(stations[corner.y]) if nacelle else 0.0
+				surface.set_color(Color.WHITE.lerp(Color(0.19, 0.23, 0.26), joint))
 				surface.add_vertex(Vector3(section[corner.x].x * extent.x, section[corner.x].y * extent.y, (stations[corner.y] - 0.5) * size.z))
 	for cap in [0, stations.size() - 1]:
 		var z: float = (stations[cap] - 0.5) * size.z
-		for edge in 16:
-			var next := (edge + 1) % 16
+		for edge in count:
+			var next := (edge + 1) % count
 			var order := [-1, next, edge] if cap == 0 else [-1, edge, next]
 			for corner in order:
 				var point := Vector3(0, 0, z) if corner < 0 else Vector3(section[corner].x * extents[cap].x, section[corner].y * extents[cap].y, z)
 				surface.set_normal(Vector3.FORWARD if cap == 0 else Vector3.BACK)
+				surface.set_color(Color.WHITE)
 				# XY cap projection retains a usable tangent frame.
 				surface.set_uv(Vector2(point.x / size.x, point.y / size.y) + Vector2.ONE * 0.5)
 				surface.add_vertex(point)
