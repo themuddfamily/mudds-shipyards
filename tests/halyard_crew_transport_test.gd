@@ -818,6 +818,48 @@ func _test_bow_pressure_cheeks(craft: HeroShip) -> void:
 		_check(stations.size() >= 16 and outer_face_normals.size() >= 24,
 			label + " shoulder curvature exists in the silhouette and mesh, beyond smoothing coarse faces")
 
+		var cap := visual.get_node(label + "NoseCapCheek") as MeshInstance3D
+		var cap_edges := {}
+		var cap_valid := cap.mesh is ArrayMesh and cap.mesh.get_surface_count() == 2
+		var signed_volume := 0.0
+		var eye_level_aft_x := INF
+		for surface in cap.mesh.get_surface_count():
+			var cap_arrays := cap.mesh.surface_get_arrays(surface)
+			var cap_vertices: PackedVector3Array = cap_arrays[Mesh.ARRAY_VERTEX]
+			var cap_normals: PackedVector3Array = cap_arrays[Mesh.ARRAY_NORMAL]
+			var cap_uvs: PackedVector2Array = cap_arrays[Mesh.ARRAY_TEX_UV]
+			var cap_tangents: PackedFloat32Array = cap_arrays[Mesh.ARRAY_TANGENT]
+			cap_valid = cap_valid and cap_normals.size() == cap_vertices.size() \
+				and cap_uvs.size() == cap_vertices.size() and cap_tangents.size() == cap_vertices.size() * 4
+			for triangle in range(0, cap_vertices.size(), 3):
+				var a := cap_vertices[triangle]
+				var b := cap_vertices[triangle + 1]
+				var c := cap_vertices[triangle + 2]
+				var geometric := (b - a).cross(c - a)
+				signed_volume -= a.dot(b.cross(c)) / 6.0
+				cap_valid = cap_valid and geometric.length_squared() > 0.0000000001 \
+					and absf((cap_uvs[triangle + 1] - cap_uvs[triangle]).cross(cap_uvs[triangle + 2] - cap_uvs[triangle])) > 0.00000001
+				for corner in 3:
+					var index := triangle + corner
+					var vertex := cap_vertices[index]
+					var tangent := Vector3(cap_tangents[index * 4], cap_tangents[index * 4 + 1], cap_tangents[index * 4 + 2])
+					cap_valid = cap_valid and cap_normals[index].is_finite() and tangent.is_finite() \
+						and cap_normals[index].dot(-geometric.normalized()) > 0.9 \
+						and absf(tangent.length() - 1.0) < 0.01 and absf(cap_normals[index].dot(tangent)) < 0.01
+					if vertex.y > 1.4 and vertex.y < 2.2 and vertex.z > -12.6:
+						eye_level_aft_x = minf(eye_level_aft_x, absf(vertex.x))
+					var first := vertex.snapped(Vector3.ONE * 0.00001)
+					var second := cap_vertices[triangle + (corner + 1) % 3].snapped(Vector3.ONE * 0.00001)
+					var key := [first, second] if first < second else [second, first]
+					cap_edges[key] = int(cap_edges.get(key, 0)) + 1
+		for count: int in cap_edges.values():
+			cap_valid = cap_valid and count == 2
+		_check(cap_valid and signed_volume > 0.1,
+			label + " windshield jamb and liner form one closed outward-wound pressure cap with usable UVs and tangents")
+		_check(is_finite(eye_level_aft_x) and eye_level_aft_x > 1.85 \
+			and cap.mesh.surface_get_material(1) == craft.call("get_variant_materials").cabin_fitting,
+			label + " lined windshield cap sweeps outward at pilot eye height instead of extending a slab into the cockpit")
+
 
 func _test_render_allocations(craft: HeroShip) -> void:
 	var visual := craft.call("get_halyard_visual_root") as Node3D

@@ -2797,7 +2797,7 @@ func _build_pressure_hull() -> void:
 	for side in [-1.0, 1.0]:
 		var side_name := "Port" if side < 0.0 else "Starboard"
 		_bow_pressure_cheek(side_name + "NoseCheek", side)
-		_box(_halyard_visual, side_name + "NoseCapCheek", Vector3(side * 1.48, 1.72, -12.85), Vector3(0.30, 2.10, 0.90), _halyard_materials.hull_shade)
+		_windshield_cap(side_name + "NoseCapCheek", side)
 		_box(_halyard_visual, side_name + "FlightDeckQuarterlight", Vector3(side * 1.66, 2.05, -12.55), Vector3(0.14, 1.05, 1.50), _halyard_materials.glass)
 		_box(_halyard_visual, side_name + "NoseChine", Vector3(side * 2.05, 0.72, -11.75), Vector3(0.44, 0.34, 2.30), _halyard_materials.accent)
 	_pressed_roof(_halyard_visual, "NoseRoof", 2.22, 2.93, 0.29,
@@ -4727,6 +4727,73 @@ func _transformed_mesh_bounds(mesh_bounds: AABB, transforms: Array[Transform3D])
 		else:
 			result = result.merge(transformed)
 	return result
+
+
+## The windshield jamb follows the nose sweep instead of extending a square
+## block aft into the pilot's peripheral view. Its inward faces are the fitted
+## cockpit liner; rounded head/sill returns seat into the existing cap lands.
+func _windshield_cap(node_name: String, side: float) -> void:
+	var shell := SurfaceTool.new()
+	var liner := SurfaceTool.new()
+	shell.begin(Mesh.PRIMITIVE_TRIANGLES)
+	liner.begin(Mesh.PRIMITIVE_TRIANGLES)
+	shell.set_material(_halyard_materials.hull_shade)
+	liner.set_material(_halyard_materials.cabin_fitting)
+	# Clockwise perimeter in X/Z: glazing seal, outer pressure cheek, then the
+	# inboard lining and its turned edges. The aft end buries in the nose cheek.
+	var profile := PackedVector2Array([
+		Vector2(1.49, -13.32), Vector2(1.54, -13.36),
+		Vector2(1.70, -13.29), Vector2(2.13, -12.43),
+		Vector2(2.08, -12.38), Vector2(1.97, -12.40),
+		Vector2(1.90, -12.50), Vector2(1.52, -13.23),
+	])
+	var rings: Array[PackedVector3Array] = []
+	var perimeter := PackedFloat32Array([0.0])
+	for edge in profile.size():
+		perimeter.append(perimeter[-1] + profile[edge].distance_to(profile[(edge + 1) % profile.size()]))
+	for sample in 17:
+		var t := float(sample) / 16.0
+		var return_depth := 0.09 * pow(absf(t * 2.0 - 1.0), 4.0)
+		var ring := PackedVector3Array()
+		for point in profile:
+			ring.append(Vector3(side * (point.x - return_depth), lerpf(0.67, 2.77, t), point.y))
+		rings.append(ring)
+	for station in rings.size() - 1:
+		for edge in profile.size():
+			var tool := liner if edge >= 5 else shell
+			tool.set_smooth_group(edge)
+			var next := (edge + 1) % profile.size()
+			var vertices := [rings[station][edge], rings[station + 1][edge],
+				rings[station + 1][next], rings[station][next]]
+			var uv := [Vector2(perimeter[edge], vertices[0].y),
+				Vector2(perimeter[edge], vertices[1].y),
+				Vector2(perimeter[edge + 1], vertices[2].y),
+				Vector2(perimeter[edge + 1], vertices[3].y)]
+			for corner in ([0, 2, 1, 0, 3, 2] if side > 0.0 else [0, 1, 2, 0, 2, 3]):
+				tool.set_uv(uv[corner])
+				tool.add_vertex(vertices[corner])
+	shell.set_smooth_group(-1)
+	for end in [0, rings.size() - 1]:
+		var centre := Vector3.ZERO
+		for vertex in rings[end]:
+			centre += vertex / float(profile.size())
+		for edge in profile.size():
+			var vertices := [centre, rings[end][edge], rings[end][(edge + 1) % profile.size()]]
+			if (side > 0.0) == (end == 0):
+				vertices.reverse()
+			for vertex: Vector3 in vertices:
+				shell.set_uv(Vector2(vertex.x, vertex.z))
+				shell.add_vertex(vertex)
+	var mesh := ArrayMesh.new()
+	for tool in [shell, liner]:
+		tool.generate_normals()
+		tool.generate_tangents()
+		tool.commit(mesh)
+	var visual := MeshInstance3D.new()
+	visual.name = node_name
+	visual.mesh = mesh
+	visual.set_meta("visual_only", true)
+	_halyard_visual.add_child(visual)
 
 
 ## A formed pressure cheek sweeps from the flight-deck frame into the cabin.
