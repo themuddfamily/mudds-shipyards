@@ -4863,17 +4863,29 @@ func _pressed_roof(parent: Node3D, node_name: String, half_width: float, base_y:
 	var tool := SurfaceTool.new()
 	tool.begin(Mesh.PRIMITIVE_TRIANGLES)
 	tool.set_material(material)
-	const STEPS := 16
+	const STEPS := 32
 	for station in sections.size() - 1:
+		var along := sections[station + 1] - sections[station]
+		var width_slope := half_width * along.x / along.z
+		var height_slope := along.y / along.z
 		for step in STEPS:
 			var points: Array[Vector3] = []
+			var normals: Array[Vector3] = []
 			for corner in [Vector2i(station, step), Vector2i(station + 1, step), Vector2i(station + 1, step + 1), Vector2i(station, step + 1)]:
 				var section := sections[corner.x]
 				var u := float(corner.y) / float(STEPS) * 2.0 - 1.0
 				points.append(Vector3(u * half_width * section.x, base_y + section.y + rise * pow(maxf(0.0, 1.0 - u * u), 0.60), section.z))
-			_skin_quad(tool, points[0], points[1], points[2], points[3])
+				# Exact tangents of the formed roof produce a continuous highlight
+				# across its width. Keep longitudinal station creases and end caps.
+				if absf(u) >= 1.0:
+					normals.append(Vector3(signf(u), 0.0, -width_slope).normalized())
+				else:
+					var slope := -1.20 * rise * u * pow(1.0 - u * u, -0.40)
+					var width := half_width * section.x
+					normals.append(Vector3(-slope, width, u * width_slope * slope - height_slope * width).normalized())
+			_roof_skin_quad(tool, points, normals, 0.0, false)
 			var down := Vector3.DOWN * thickness
-			_skin_quad(tool, points[3] + down, points[2] + down, points[1] + down, points[0] + down)
+			_roof_skin_quad(tool, points, normals, thickness, true)
 			if station == 0:
 				_skin_quad(tool, points[3], points[3] + down, points[0] + down, points[0])
 			if station == sections.size() - 2:
@@ -4888,6 +4900,14 @@ func _pressed_roof(parent: Node3D, node_name: String, half_width: float, base_y:
 	instance.set_meta("visual_only", true)
 	parent.add_child(instance)
 	return instance
+
+
+func _roof_skin_quad(tool: SurfaceTool, points: Array[Vector3], normals: Array[Vector3], thickness: float, underside: bool) -> void:
+	for index in ([0, 1, 2, 0, 2, 3] if underside else [0, 2, 1, 0, 3, 2]):
+		var point := points[index] - Vector3.UP * thickness
+		tool.set_normal(normals[index] * (-1.0 if underside else 1.0))
+		tool.set_uv(Vector2(point.x, point.z))
+		tool.add_vertex(point)
 
 
 func _skin_quad(tool: SurfaceTool, a: Vector3, b: Vector3, c: Vector3, d: Vector3) -> void:
