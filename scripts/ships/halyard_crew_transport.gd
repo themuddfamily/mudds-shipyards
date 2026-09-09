@@ -2901,19 +2901,21 @@ func _build_bow_docking_arch() -> void:
 		shade_segment_transforms,
 		shade_segment_names
 	)
+	var strut_stock := _cast_arch_strut_mesh()
 	for strut_index in 2:
 		var strut_angle := PI * (2.0 * float(strut_index) + 1.0) / 4.0
-		_box(
-			_halyard_visual,
-			"BowDockingArchStrut%02d" % strut_index,
-			Vector3(
-				(BOW_RING_RADIUS - 0.42) * cos(strut_angle) * 0.92,
-				BOW_RING_CENTRE_Y + (BOW_RING_RADIUS - 0.42) * sin(strut_angle) * 0.92,
-				-12.94
-			),
-			Vector3(0.24, 0.24, 1.05),
-			_halyard_materials.structure
+		var strut := MeshInstance3D.new()
+		strut.name = "BowDockingArchStrut%02d" % strut_index
+		strut.mesh = strut_stock
+		strut.material_override = _halyard_materials.structure
+		strut.position = Vector3(
+			(BOW_RING_RADIUS - 0.42) * cos(strut_angle) * 0.92,
+			BOW_RING_CENTRE_Y + (BOW_RING_RADIUS - 0.42) * sin(strut_angle) * 0.92,
+			-12.94
 		)
+		strut.scale.x = 1.0 if strut_index == 0 else -1.0
+		_halyard_visual.add_child(strut)
+
 	_box(_halyard_visual, "BowDockingTargetPlate", Vector3(0.0, BOW_RING_CENTRE_Y - 2.05, BOW_RING_Z), Vector3(1.30, 0.22, 0.70), _halyard_materials.dark)
 
 
@@ -5041,28 +5043,104 @@ func _porthole_stock(size: Vector3, hollow: bool, border := 0.075) -> ArrayMesh:
 	return tool.commit()
 
 
+## Sweep the casting with analytic normals along the arc. Separate vertices at
+## each octagonal profile edge retain the machined face/bevel creases, while
+## neighbouring sweep stations share the same normal and continuous UVs.
 func _cast_arch_segment_mesh() -> ArrayMesh:
+	const STEPS := 24
+	var profile := PackedVector2Array([
+		Vector2(-0.13, -0.275), Vector2(0.13, -0.275),
+		Vector2(0.18, -0.21), Vector2(0.18, 0.21),
+		Vector2(0.13, 0.275), Vector2(-0.13, 0.275),
+		Vector2(-0.18, 0.21), Vector2(-0.18, -0.21),
+	])
 	var tool := SurfaceTool.new()
 	tool.begin(Mesh.PRIMITIVE_TRIANGLES)
 	var rings: Array[PackedVector3Array] = []
-	for step in 13:
-		var angle := lerpf(-PI / 8.0, PI / 8.0, float(step) / 12.0)
+	for step in STEPS + 1:
+		var angle := lerpf(-PI / 8.0, PI / 8.0, float(step) / STEPS)
 		var ring := PackedVector3Array()
-		for offset in [Vector2(-0.13, -0.275), Vector2(0.13, -0.275), Vector2(0.18, -0.21), Vector2(0.18, 0.21), Vector2(0.13, 0.275), Vector2(-0.13, 0.275), Vector2(-0.18, 0.21), Vector2(-0.18, -0.21)]:
-			var radius: float = BOW_RING_RADIUS + offset.x
+		for offset in profile:
+			var radius := BOW_RING_RADIUS + offset.x
 			ring.append(Vector3(radius * sin(angle), BOW_RING_RADIUS - radius * cos(angle), offset.y))
 		rings.append(ring)
-	for step in 12:
-		for edge in 8:
-			var next := (edge + 1) % 8
-			_skin_quad(tool, rings[step][edge], rings[step + 1][edge], rings[step + 1][next], rings[step][next])
-	for edge in 8:
-		var next := (edge + 1) % 8
-		var front := Vector3(BOW_RING_RADIUS * sin(-PI / 8.0), BOW_RING_RADIUS * (1.0 - cos(PI / 8.0)), 0.0)
-		var aft := Vector3(-front.x, front.y, 0.0)
-		_skin_quad(tool, front, rings[0][next], rings[0][edge], front)
-		_skin_quad(tool, aft, rings[12][edge], rings[12][next], aft)
+	var perimeter := 0.0
+	for edge in profile.size():
+		var next := (edge + 1) % profile.size()
+		var across := profile[next] - profile[edge]
+		for step in STEPS:
+			for corner in [Vector2i(step, edge), Vector2i(step + 1, next), Vector2i(step + 1, edge),
+					Vector2i(step, edge), Vector2i(step, next), Vector2i(step + 1, next)]:
+				var angle := lerpf(-PI / 8.0, PI / 8.0, float(corner.x) / STEPS)
+				var radial := Vector3(sin(angle), -cos(angle), 0.0)
+				tool.set_normal((radial * across.y - Vector3.BACK * across.x).normalized())
+				tool.set_uv(Vector2((angle + PI / 8.0) * BOW_RING_RADIUS,
+					perimeter + (across.length() if corner.y == next else 0.0)))
+				tool.add_vertex(rings[corner.x][corner.y])
+		perimeter += across.length()
+	for end in [0, STEPS]:
+		var angle := -PI / 8.0 if end == 0 else PI / 8.0
+		var normal := Vector3(cos(angle), sin(angle), 0.0) * (-1.0 if end == 0 else 1.0)
+		var centre := Vector3(BOW_RING_RADIUS * sin(angle), BOW_RING_RADIUS * (1.0 - cos(angle)), 0.0)
+		for edge in profile.size():
+			var next := (edge + 1) % profile.size()
+			_cast_cap_triangle(tool, centre, rings[end][edge], rings[end][next],
+				normal, Vector2.ZERO, profile[edge], profile[next])
+	tool.generate_tangents()
 	return tool.commit()
+
+
+## Flared arch sockets lean down into broad roof feet. Both sides share one
+## closed casting, mirrored at the original support origins; no gameplay anchor
+## or collision changes are needed for these seated presentation fittings.
+func _cast_arch_strut_mesh() -> ArrayMesh:
+	var tool := SurfaceTool.new()
+	tool.begin(Mesh.PRIMITIVE_TRIANGLES)
+	var centres := PackedVector3Array([
+		Vector3(0.40, 0.40, -0.52), Vector3(0.36, 0.34, -0.35),
+		Vector3(0.08, 0.015, 0.24), Vector3(0.0, -0.075, 0.66),
+	])
+	var sizes := PackedVector2Array([Vector2(0.34, 0.32), Vector2(0.25, 0.25),
+		Vector2(0.23, 0.22), Vector2(0.48, 0.18)])
+	var rings: Array[PackedVector3Array] = []
+	var profile := PackedVector2Array([Vector2(-0.7, -1), Vector2(0.7, -1),
+		Vector2(1, -0.7), Vector2(1, 0.7), Vector2(0.7, 1),
+		Vector2(-0.7, 1), Vector2(-1, 0.7), Vector2(-1, -0.7)])
+	for station in centres.size():
+		var ring := PackedVector3Array()
+		for point in profile:
+			ring.append(centres[station] + Vector3(point.x * sizes[station].x, point.y * sizes[station].y, 0) * 0.5)
+		rings.append(ring)
+	for station in centres.size() - 1:
+		for edge in profile.size():
+			var next := (edge + 1) % profile.size()
+			var a := rings[station][edge]
+			var b := rings[station][next]
+			var c := rings[station + 1][next]
+			var d := rings[station + 1][edge]
+			var normal := (b - a).cross(c - a).normalized()
+			for corner in [0, 2, 1, 0, 3, 2]:
+				tool.set_normal(normal)
+				tool.set_uv([Vector2(0, 0), Vector2(a.distance_to(b), 0),
+					Vector2(a.distance_to(b), b.distance_to(c)), Vector2(0, a.distance_to(d))][corner])
+				tool.add_vertex([a, b, c, d][corner])
+	for end in [0, centres.size() - 1]:
+		for edge in profile.size():
+			var next := (edge + 1) % profile.size()
+			_cast_cap_triangle(tool, centres[end], rings[end][edge], rings[end][next],
+				Vector3.FORWARD if end == 0 else Vector3.BACK,
+				Vector2.ZERO, profile[edge] * sizes[end], profile[next] * sizes[end])
+	tool.generate_tangents()
+	return tool.commit()
+
+
+func _cast_cap_triangle(tool: SurfaceTool, a: Vector3, b: Vector3, c: Vector3,
+		normal: Vector3, uv_a: Vector2, uv_b: Vector2, uv_c: Vector2) -> void:
+	var order := [0, 2, 1] if (b - a).cross(c - a).dot(normal) > 0.0 else [0, 1, 2]
+	for corner in order:
+		tool.set_normal(normal)
+		tool.set_uv([uv_a, uv_b, uv_c][corner])
+		tool.add_vertex([a, b, c][corner])
 
 
 func _build_fitted_transport_details() -> void:
