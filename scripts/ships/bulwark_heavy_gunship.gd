@@ -1004,6 +1004,12 @@ func _add_armored_shoulder_batch(
 	var mesh := _profile_mesh([
 		Vector4(-2.65, 0.38, 0.24, -0.04),
 		Vector4(-1.22, 1.70, 0.625, 0),
+		# Recessed assembly joints divide the heavy shoulder armor into fitted
+		# sections. The middle plate retains the registration and damage mount.
+		Vector4(-0.96, 1.70, 0.625, 0), Vector4(-0.92, 1.655, 0.580, 0),
+		Vector4(-0.88, 1.70, 0.625, 0),
+		Vector4(0.91, 1.70, 0.625, 0), Vector4(0.95, 1.655, 0.580, 0),
+		Vector4(0.99, 1.70, 0.625, 0),
 		Vector4(1.35, 1.70, 0.625, 0),
 		Vector4(2.15, 1.25, 0.47, -0.12),
 		Vector4(2.65, 0.72, 0.29, -0.23),
@@ -2682,7 +2688,20 @@ func _engine_mechanics(parent: Node3D, tag: String, at: Vector3, radius: float, 
 ## Planar chines retain deliberate creases; bilinear side normals avoid diagonal
 ## shading seams where successive sections change width and height together.
 func _profile_mesh(stations: Array, coating: Material) -> ArrayMesh:
-	var section := [Vector2(-0.72, 1), Vector2(0.72, 1), Vector2(1, 0.5), Vector2(1, -0.5), Vector2(0.72, -1), Vector2(-0.72, -1), Vector2(-1, -0.5), Vector2(-1, 0.5)]
+	var corners := [Vector2(-0.72, 1), Vector2(0.72, 1), Vector2(1, 0.5), Vector2(1, -0.5), Vector2(0.72, -1), Vector2(-0.72, -1), Vector2(-1, -0.5), Vector2(-1, 0.5)]
+	var section: Array[Vector2] = []
+	var tangents: Array[Vector2] = []
+	# Small quadratic corner breaks leave the broad armor planes intact.
+	# Their tangents join those planes continuously, avoiding a soft inflatable
+	# hull or sharp polygon edges with no manufactured highlight.
+	for index in corners.size():
+		var corner: Vector2 = corners[index]
+		var before := corner.lerp(corners[(index + 7) % 8], 0.14)
+		var after := corner.lerp(corners[(index + 1) % 8], 0.14)
+		for sample in 5:
+			var t := float(sample) / 4.0
+			section.append(before.lerp(corner, t).lerp(corner.lerp(after, t), t))
+			tangents.append((corner - before).lerp(after - corner, t).normalized())
 	var surface := SurfaceTool.new()
 	surface.begin(Mesh.PRIMITIVE_TRIANGLES)
 	surface.set_material(coating)
@@ -2690,23 +2709,24 @@ func _profile_mesh(stations: Array, coating: Material) -> ArrayMesh:
 	for i in range(stations.size() - 1):
 		var a: Vector4 = stations[i]
 		var b: Vector4 = stations[i + 1]
-		for j in 8:
+		for j in section.size():
 			var p: Vector2 = section[j]
-			var q: Vector2 = section[(j + 1) % 8]
+			var q: Vector2 = section[(j + 1) % section.size()]
 			var points := [Vector3(p.x * a.y, p.y * a.z + a.w, a.x), Vector3(q.x * a.y, q.y * a.z + a.w, a.x), Vector3(q.x * b.y, q.y * b.z + b.w, b.x), Vector3(p.x * b.y, p.y * b.z + b.w, b.x)]
 			for corner in [0, 1, 2, 0, 2, 3]:
 				var station := a if corner < 2 else b
 				var ring := p if corner == 0 or corner == 3 else q
-				var around := Vector3((q.x - p.x) * station.y, (q.y - p.y) * station.z, 0)
+				var tangent := tangents[j if corner == 0 or corner == 3 else (j + 1) % section.size()]
+				var around := Vector3(tangent.x * station.y, tangent.y * station.z, 0)
 				var along := Vector3(ring.x * (b.y - a.y), ring.y * (b.z - a.z) + b.w - a.w, b.x - a.x)
 				surface.set_normal(along.cross(around).normalized())
-				surface.set_uv(Vector2(float(j + (1 if corner == 1 or corner == 2 else 0)) / 8.0, (station.x - stations[0].x) / total_length))
+				surface.set_uv(Vector2(float(j + (1 if corner == 1 or corner == 2 else 0)) / float(section.size()), (station.x - stations[0].x) / total_length))
 				surface.add_vertex(points[corner])
 	for cap in [0, stations.size() - 1]:
 		var station: Vector4 = stations[cap]
-		for j in 8:
+		for j in section.size():
 			var p: Vector2 = section[j]
-			var q: Vector2 = section[(j + 1) % 8]
+			var q: Vector2 = section[(j + 1) % section.size()]
 			var ring_order := [Vector2.ZERO, q, p] if cap == 0 else [Vector2.ZERO, p, q]
 			for ring: Vector2 in ring_order:
 				surface.set_normal(Vector3.FORWARD if cap == 0 else Vector3.BACK)
