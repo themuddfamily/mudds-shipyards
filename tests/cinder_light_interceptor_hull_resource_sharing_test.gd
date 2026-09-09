@@ -39,6 +39,20 @@ func _initialize() -> void:
 			and first_hull.get_script() == null,
 		"hull silhouette, transform, renderer state, and presentation-only ownership remain exact"
 	)
+	var bow_cap := AABB()
+	var cap_seeded := false
+	var shoulder_half_width := 0.0
+	var hull_points: PackedVector3Array = first_hull.mesh.surface_get_arrays(0)[Mesh.ARRAY_VERTEX]
+	for point in hull_points:
+		if is_equal_approx(point.z, -Interceptor.HULL_SIZE.z * 0.5):
+			bow_cap = bow_cap.expand(point) if cap_seeded else AABB(point, Vector3.ZERO)
+			cap_seeded = true
+		if is_equal_approx(point.z, -Interceptor.HULL_SIZE.z * 0.30):
+			shoulder_half_width = maxf(shoulder_half_width, absf(point.x))
+	_check(cap_seeded and bow_cap.size.y < 0.20 and bow_cap.position.y > 0.20,
+		"the raised primary forefoot ends in a shallow bow instead of the former tall vertical blade")
+	_check(shoulder_half_width > 1.30 and shoulder_half_width < 1.40,
+		"the forward primary shoulder has substantial curved volume beneath the narrow cockpit fairing")
 	var material := first_hull.material_override as StandardMaterial3D
 	_check(
 		material != null

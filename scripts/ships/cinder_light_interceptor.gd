@@ -370,7 +370,7 @@ func _build_hull(visual: Node3D) -> void:
 	var hull := MeshInstance3D.new()
 	hull.name = "HighVisibilityHull"
 	if _shared_hull_mesh == null:
-		_shared_hull_mesh = _formed_pressure_mesh(Vector3(3.7, 2.1, HULL_SIZE.z), null)
+		_shared_hull_mesh = _formed_pressure_mesh(Vector3(3.7, 2.1, HULL_SIZE.z), null, false, true)
 		_shared_hull_mesh.resource_local_to_scene = false
 	if _shared_hull_material == null:
 		_shared_hull_material = _material(HULL_COLOR, 0.12, 0.62)
@@ -1217,7 +1217,7 @@ func _loft_mesh(size: Vector3, material: Material) -> ArrayMesh:
 ## belly. Broad crowns still carry the fixed cockpit and access hardware.
 ## Nacelles keep a full inlet section, swell into their duct, and terminate at
 ## the turbine diameter instead of tapering to the same pointed stock nose.
-func _formed_pressure_mesh(size: Vector3, material: Material, nacelle: bool = false) -> ArrayMesh:
+func _formed_pressure_mesh(size: Vector3, material: Material, nacelle: bool = false, primary_bow: bool = false) -> ArrayMesh:
 	# Flat crown and belly lands support the existing cockpit and service
 	# panels. Elliptical shoulders meet those lands tangentially, so a close
 	# highlight describes a rolled shell instead of sixteen straight facets.
@@ -1233,7 +1233,7 @@ func _formed_pressure_mesh(size: Vector3, material: Material, nacelle: bool = fa
 	var section := right.duplicate()
 	for index in range(right.size() - 2, 0, -1):
 		section.append(Vector2(-right[index].x, right[index].y))
-	return _section_loft_mesh(size, material, section, true, nacelle)
+	return _section_loft_mesh(size, material, section, true, nacelle, primary_bow)
 
 
 ## The inboard boom crown rises into the intake shoulder and rolls out onto
@@ -1265,7 +1265,7 @@ func _formed_root_mesh(side: float, material: Material) -> ArrayMesh:
 ## Monotone Hermite profile retains the original station envelopes, inlet and
 ## turbine interfaces while rolling the skin into its straight midbody. Zero
 ## tangents at flat spans prevent overshoot beyond the fixed collision bounds.
-func _pressure_extent(t: float, nacelle: bool, formed: bool) -> Vector2:
+func _pressure_extent(t: float, nacelle: bool, formed: bool, primary_bow: bool = false) -> Vector2:
 	var knots := PackedFloat32Array([0.0, 0.28, 0.43, 0.83, 1.0])
 	var widths := PackedFloat32Array([0.12, lerpf(0.12, 1.0, 0.28 / 0.43), 1.0, 1.0, 0.9])
 	var heights := PackedFloat32Array([0.35, 1.0, 1.0, 1.0, 0.8])
@@ -1273,9 +1273,21 @@ func _pressure_extent(t: float, nacelle: bool, formed: bool) -> Vector2:
 		widths = PackedFloat32Array([0.72, 0.97, 1.0, 1.0, 1.2 / 1.26])
 		heights = PackedFloat32Array([0.58, 0.96, 1.0, 1.0, 1.2 / 1.34])
 	var extent := Vector2(_pressure_profile(t, knots, widths, formed), _pressure_profile(t, knots, heights, formed))
+	if primary_bow:
+		# The primary shell carries a full ogive shoulder beneath the cockpit,
+		# while its forefoot rises into a small rounded bow instead of a tall
+		# cut-off blade. The crown stays at the existing fairing seating height.
+		extent.x = _pressure_profile(t, PackedFloat32Array([0.0, 0.08, 0.20, 0.32, 0.43, 0.83, 1.0]), PackedFloat32Array([0.12, 0.40, 0.72, 0.93, 1.0, 1.0, 0.9]), true)
+		extent.y -= _primary_bow_lift(t)
 	if nacelle and formed:
 		extent *= 1.0 - 0.045 * _nacelle_joint_depth(t)
 	return extent
+
+
+## Half-height removed from the belly is added to the section centre, retaining
+## the upper crown height for the existing fairing and sensor assembly.
+func _primary_bow_lift(t: float) -> float:
+	return 0.28 * (1.0 - smoothstep(0.0, 0.28, t))
 
 
 ## Two recessed joints separate the inlet collar and removable aft cowl from
@@ -1312,10 +1324,13 @@ func _pressure_profile(t: float, knots: PackedFloat32Array, values: PackedFloat3
 	)
 
 
-func _section_loft_mesh(size: Vector3, material: Material, section: PackedVector2Array, formed: bool = false, nacelle: bool = false) -> ArrayMesh:
+func _section_loft_mesh(size: Vector3, material: Material, section: PackedVector2Array, formed: bool = false, nacelle: bool = false, primary_bow: bool = false) -> ArrayMesh:
 	var stations := PackedFloat32Array([0.0, 0.28, 0.43, 0.83, 1.0])
 	if formed:
 		stations = PackedFloat32Array([0.0, 0.04, 0.08, 0.14, 0.20, 0.28, 0.36, 0.43, 0.52, 0.64, 0.74, 0.83, 0.90, 0.95, 1.0])
+	if primary_bow:
+		stations.append_array(PackedFloat32Array([0.015, 0.025, 0.06, 0.11, 0.17, 0.24, 0.32, 0.39]))
+		stations.sort()
 	if formed and nacelle:
 		for centre in [0.19, 0.92]:
 			for offset in [-0.012, -0.008, -0.004, 0.0, 0.004, 0.008, 0.012]:
@@ -1324,12 +1339,12 @@ func _section_loft_mesh(size: Vector3, material: Material, section: PackedVector
 	var extents: Array[Vector2] = []
 	var slopes: Array[Vector2] = []
 	for t in stations:
-		var extent := _pressure_extent(t, nacelle, formed)
+		var extent := _pressure_extent(t, nacelle, formed, primary_bow)
 		extents.append(Vector2(extent.x * size.x * 0.5, extent.y * size.y * 0.5))
 		if formed:
 			var lo := maxf(0.0, t - 0.0005)
 			var hi := minf(1.0, t + 0.0005)
-			var derivative := (_pressure_extent(hi, nacelle, true) - _pressure_extent(lo, nacelle, true)) / (hi - lo)
+			var derivative := (_pressure_extent(hi, nacelle, true, primary_bow) - _pressure_extent(lo, nacelle, true, primary_bow)) / (hi - lo)
 			slopes.append(Vector2(derivative.x * size.x, derivative.y * size.y) / (2.0 * size.z))
 	var count := section.size()
 	var surface := SurfaceTool.new()
@@ -1353,12 +1368,17 @@ func _section_loft_mesh(size: Vector3, material: Material, section: PackedVector
 				var around := Vector3(tangent.x * extent.x, tangent.y * extent.y, 0)
 				var slope := slopes[corner.y] if formed else extent_delta / run
 				var along := Vector3(section[corner.x].x * slope.x, section[corner.x].y * slope.y, 1.0)
+				if primary_bow:
+					var t := stations[corner.y]
+					var lo := maxf(0.0, t - 0.0005)
+					var hi := minf(1.0, t + 0.0005)
+					along.y += (_primary_bow_lift(hi) - _primary_bow_lift(lo)) / (hi - lo) * size.y / (2.0 * size.z)
 				var u := 1.0 if edge == count - 1 and corner.x == 0 else float(corner.x) / float(count)
 				surface.set_normal(along.cross(around).normalized())
 				surface.set_uv(Vector2(u, stations[corner.y]))
 				var joint := _nacelle_joint_depth(stations[corner.y]) if nacelle else 0.0
 				surface.set_color(Color.WHITE.lerp(Color(0.19, 0.23, 0.26), joint))
-				surface.add_vertex(Vector3(section[corner.x].x * extent.x, section[corner.x].y * extent.y, (stations[corner.y] - 0.5) * size.z))
+				surface.add_vertex(Vector3(section[corner.x].x * extent.x, section[corner.x].y * extent.y + (_primary_bow_lift(stations[corner.y]) * size.y * 0.5 if primary_bow else 0.0), (stations[corner.y] - 0.5) * size.z))
 	for cap in [0, stations.size() - 1]:
 		var z: float = (stations[cap] - 0.5) * size.z
 		for edge in count:
@@ -1366,6 +1386,8 @@ func _section_loft_mesh(size: Vector3, material: Material, section: PackedVector
 			var order := [-1, next, edge] if cap == 0 else [-1, edge, next]
 			for corner in order:
 				var point := Vector3(0, 0, z) if corner < 0 else Vector3(section[corner].x * extents[cap].x, section[corner].y * extents[cap].y, z)
+				if primary_bow:
+					point.y += _primary_bow_lift(stations[cap]) * size.y * 0.5
 				surface.set_normal(Vector3.FORWARD if cap == 0 else Vector3.BACK)
 				surface.set_color(Color.WHITE)
 				# XY cap projection retains a usable tangent frame.
