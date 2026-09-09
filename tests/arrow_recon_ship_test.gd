@@ -33,6 +33,7 @@ func _run() -> void:
 	_test_airframe_shadow_batch(arrow)
 	_test_visual_performance_batch(arrow)
 	_test_engine_collar_mesh_sharing(arrow)
+	_test_refractory_nozzle_stock(arrow)
 	_test_main_gear_foot_mesh_sharing(arrow)
 	_test_pod_separation_collar_mesh_sharing(arrow)
 	_test_boarding_step_mesh_sharing(arrow)
@@ -157,6 +158,32 @@ func _test_engine_collar_mesh_sharing(arrow: ArrowReconShip) -> void:
 			bool(arrow.get_arrow_visual_performance_report().valid),
 			"restoring the shared immutable collar mesh restores the Arrow audit"
 		)
+
+
+func _test_refractory_nozzle_stock(arrow: ArrowReconShip) -> void:
+	var visual := arrow.get_arrow_visual_root()
+	var port := visual.get_node("PortRefractoryNozzle") as MeshInstance3D
+	var starboard := visual.get_node("StarboardRefractoryNozzle") as MeshInstance3D
+	_check(port.mesh == starboard.mesh and port.mesh is ArrayMesh and port.mesh.get_surface_count() == 1,
+		"both refractory nozzles share one formed stock without adding renderers or surfaces")
+	var arrays := port.mesh.surface_get_arrays(0)
+	var vertices: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
+	var normals: PackedVector3Array = arrays[Mesh.ARRAY_NORMAL]
+	var uvs: PackedVector2Array = arrays[Mesh.ARRAY_TEX_UV]
+	var tangents: PackedFloat32Array = arrays[Mesh.ARRAY_TANGENT]
+	var valid := normals.size() == vertices.size() and uvs.size() == vertices.size() and tangents.size() == vertices.size() * 4
+	for i in vertices.size():
+		valid = valid and vertices[i].is_finite() and normals[i].is_finite() and is_equal_approx(normals[i].length(), 1.0)
+	for i in range(0, vertices.size(), 3):
+		valid = valid and absf((uvs[i + 1] - uvs[i]).cross(uvs[i + 2] - uvs[i])) > 1e-10
+	_check(valid, "curved petal faces and closed side returns retain complete normals, UVs and tangent frames")
+	var faces := port.mesh.get_faces()
+	var first_hit := -INF
+	for i in range(0, faces.size(), 3):
+		var hit: Variant = Geometry3D.ray_intersects_triangle(Vector3(0, 0, 1.2), Vector3.FORWARD, faces[i], faces[i + 1], faces[i + 2])
+		if hit is Vector3:
+			first_hit = maxf(first_hit, hit.z)
+	_check(is_equal_approx(first_hit, 0.055), "the dark backing sits deeply behind the open nozzle mouth")
 
 
 func _test_main_gear_foot_mesh_sharing(arrow: ArrowReconShip) -> void:
@@ -874,10 +901,10 @@ func _test_visual_performance_batch(arrow: ArrowReconShip) -> void:
 			"multi_mesh_instance_nodes": 3,
 			"geometry_submissions": 253,
 			"visible_geometry_copies": 255,
-			"unique_mesh_resource_allocations": 206,
+			"unique_mesh_resource_allocations": 205,
 			"auto_fallback_names": 20,
 		},
-		"entry-complete Arrow retains 284 nodes, 253 submissions including one shadow-only renderer and three fitted nose service renderers, 206 meshes and all 255 copies"
+		"entry-complete Arrow retains 284 nodes, 253 submissions including one shadow-only renderer and three fitted nose service renderers, 205 meshes with shared nozzle stock and all 255 copies"
 	)
 	_check(
 		report.phase9_before_entry_heat == {

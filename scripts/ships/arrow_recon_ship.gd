@@ -236,7 +236,7 @@ const EXPECTED_ARROW_VISUAL_CENSUS := {
 	# Includes fitted seating/controls and one rigid airframe shadow renderer.
 	"geometry_submissions": 253,
 	"visible_geometry_copies": 255,
-	"unique_mesh_resource_allocations": 206,
+	"unique_mesh_resource_allocations": 205,
 	"auto_fallback_names": 20,
 }
 const RECON_PULSE_EMITTER_VISUAL_DELTA := {
@@ -283,6 +283,7 @@ var _array_receiver_mesh: SphereMesh
 var _boarding_step_mesh: ArrayMesh
 var _cockpit_console_key_mesh: BoxMesh
 var _engine_collar_mesh: TorusMesh
+var _refractory_nozzle_mesh: ArrayMesh
 var _engine_collars: Array[MeshInstance3D] = []
 var _main_gear_foot_mesh: TorusMesh
 var _main_gear_feet: Array[MeshInstance3D] = []
@@ -1267,6 +1268,7 @@ func _build_engines_and_landing_gear() -> void:
 	_arrow_engine_lights.clear()
 	_engine_collars.clear()
 	_engine_collar_mesh = null
+	_refractory_nozzle_mesh = null
 	if _shared_engine_damage_collar_material == null:
 		_shared_engine_damage_collar_material = _material(
 			ENGINE_DAMAGE_COLLAR_COLOR,
@@ -1388,30 +1390,80 @@ func _open_engine_tail(shell: MeshInstance3D) -> void:
 
 
 func _build_refractory_nozzle(prefix: String, origin: Vector3) -> void:
-	var tool := SurfaceTool.new()
-	tool.begin(Mesh.PRIMITIVE_TRIANGLES)
-	tool.set_material(_arrow_materials.graphite)
-	for petal in 16:
-		var a0 := TAU * (float(petal) + 0.04) / 16.0
-		var a1 := TAU * (float(petal + 1) - 0.04) / 16.0
-		var profile := [Vector2(0.56, 0.0), Vector2(0.57, 0.24), Vector2(0.46, 0.88), Vector2(0.37, 0.88), Vector2(0.32, 0.08)]
-		for segment in profile.size() - 1:
-			var p: Vector2 = profile[segment]
-			var q: Vector2 = profile[segment + 1]
-			var a := Vector3(cos(a0) * p.x, sin(a0) * p.x, p.y)
-			var b := Vector3(cos(a1) * p.x, sin(a1) * p.x, p.y)
-			var c := Vector3(cos(a1) * q.x, sin(a1) * q.x, q.y)
-			var d := Vector3(cos(a0) * q.x, sin(a0) * q.x, q.y)
-			for point in [a, c, b, a, d, c]:
-				tool.set_uv(Vector2(point.x, point.z))
-				tool.add_vertex(point)
-	tool.generate_normals()
+	if _refractory_nozzle_mesh == null:
+		_refractory_nozzle_mesh = _formed_refractory_nozzle_mesh()
 	var nozzle := MeshInstance3D.new()
 	nozzle.name = prefix + "RefractoryNozzle"
 	nozzle.position = origin
-	nozzle.mesh = tool.commit()
+	nozzle.mesh = _refractory_nozzle_mesh
 	_arrow_visual.add_child(nozzle)
 	_airframe_shadow_sources.append(nozzle)
+
+
+## Six curved slices per petal preserve the sixteen expansion joints without
+## flat fan blades. Closed side returns give each petal real wall thickness;
+## a recessed dark backplate prevents the open engine shell showing through.
+func _formed_refractory_nozzle_mesh() -> ArrayMesh:
+	var tool := SurfaceTool.new()
+	tool.begin(Mesh.PRIMITIVE_TRIANGLES)
+	tool.set_material(_arrow_materials.graphite)
+	var profile := PackedVector2Array([
+		Vector2(0.56, 0.0), Vector2(0.57, 0.24),
+		Vector2(0.47, 0.83), Vector2(0.46, 0.88),
+		Vector2(0.37, 0.88), Vector2(0.35, 0.82),
+		Vector2(0.32, 0.08),
+	])
+	var caps := Geometry2D.triangulate_polygon(profile)
+	for petal in 16:
+		var a0 := TAU * (float(petal) + 0.01) / 16.0
+		var a1 := TAU * (float(petal + 1) - 0.01) / 16.0
+		var distance := 0.0
+		for section in profile.size():
+			var p := profile[section]
+			var q := profile[(section + 1) % profile.size()]
+			var slope := q - p
+			for slice in 6:
+				var a := lerpf(a0, a1, float(slice) / 6.0)
+				var b := lerpf(a0, a1, float(slice + 1) / 6.0)
+				var points := PackedVector3Array([
+					Vector3(cos(a) * p.x, sin(a) * p.x, p.y),
+					Vector3(cos(b) * p.x, sin(b) * p.x, p.y),
+					Vector3(cos(b) * q.x, sin(b) * q.x, q.y),
+					Vector3(cos(a) * q.x, sin(a) * q.x, q.y),
+				])
+				for index in [0, 2, 1, 0, 3, 2]:
+					var point := points[index]
+					var radial := Vector2(point.x, point.y).normalized()
+					tool.set_normal(Vector3(slope.y * radial.x, slope.y * radial.y, -slope.x).normalized())
+					tool.set_uv(Vector2(float(petal) + float(slice + (1 if index in [1, 2] else 0)) / 6.0,
+						distance + (slope.length() if index in [2, 3] else 0.0)))
+					tool.add_vertex(point)
+			distance += slope.length()
+		for angle in [a0, a1]:
+			var normal := Vector3(-sin(angle), cos(angle), 0.0) * (-1.0 if angle == a0 else 1.0)
+			for triangle in range(0, caps.size(), 3):
+				var points := PackedVector3Array()
+				for corner in 3:
+					var point := profile[caps[triangle + corner]]
+					points.append(Vector3(cos(angle) * point.x, sin(angle) * point.x, point.y))
+				if (points[2] - points[0]).cross(points[1] - points[0]).dot(normal) < 0.0:
+					points.reverse()
+				for point in points:
+					tool.set_normal(normal)
+					tool.set_uv(Vector2(Vector2(point.x, point.y).length(), point.z))
+					tool.add_vertex(point)
+	# The backing is ahead of the nozzle mouth, behind the retained live plume.
+	for segment in 96:
+		var a := TAU * float(segment) / 96.0
+		var b := TAU * float(segment + 1) / 96.0
+		for point in [Vector3(0, 0, 0.055), Vector3(cos(b) * 0.325, sin(b) * 0.325, 0.055), Vector3(cos(a) * 0.325, sin(a) * 0.325, 0.055)]:
+			tool.set_normal(Vector3.BACK)
+			tool.set_uv(Vector2(point.x, point.y))
+			tool.add_vertex(point)
+	tool.generate_tangents()
+	var mesh := tool.commit()
+	mesh.resource_local_to_scene = false
+	return mesh
 
 
 func _restyle_inherited_cockpit(cockpit: Node3D, canopy: Node3D) -> void:
