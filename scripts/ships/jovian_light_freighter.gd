@@ -3319,9 +3319,9 @@ func _relocate_and_restyle_cockpit(
 
 
 func _build_exterior() -> void:
-	# A folded bow apron supports the pressure glazing. Broad planar plates
-	# carry highlights cleanly through the chines without inflated loft shading.
-	_armour_pod(
+	# A rolled bow apron supports the pressure glazing. Its deck stays flat
+	# across the ship while the rim follows a continuous manufactured radius.
+	_forward_bow_apron(
 		_jovian_visual,
 		"ForwardFlightDeck",
 		Vector3(0.0, -0.02, 0.0),
@@ -3332,8 +3332,7 @@ func _build_exterior() -> void:
 			Vector3(4.15, 0.54, -7.2),
 			Vector3(4.5, 0.48, -4.4),
 		]),
-		_jovian_materials.hull_warm,
-		28
+		_jovian_materials.hull_warm
 	)
 	_shoulder_rail_joint_mesh = SphereMesh.new()
 	_shoulder_rail_joint_mesh.radius = SHOULDER_RAIL_JOINT_RADIUS
@@ -5157,7 +5156,7 @@ func _freighter_sponson(node_name: String, side: float, sections: PackedVector3A
 		var previous := profile[(corner - 1 + profile.size()) % profile.size()]
 		var at := profile[corner]
 		var next := profile[(corner + 1) % profile.size()]
-		var bend := minf(0.16, minf(at.distance_to(previous), at.distance_to(next)) * 0.30)
+		var bend := minf(0.40, minf(at.distance_to(previous), at.distance_to(next)) * 0.45)
 		var start := at + (previous - at).normalized() * bend
 		var finish := at + (next - at).normalized() * bend
 		var face_material: Material = _jovian_materials.hull_cool
@@ -5170,7 +5169,7 @@ func _freighter_sponson(node_name: String, side: float, sections: PackedVector3A
 			rounded_profile.append(start.lerp(at, t).lerp(at.lerp(finish, t), t))
 			profile_materials.append(face_material)
 	var rings: Array[PackedVector3Array] = []
-	for section in sections:
+	for section in _pressure_loft_stations(sections):
 		var ring := PackedVector3Array()
 		for xy in rounded_profile:
 			ring.append(Vector3(side * (6.9 + xy.x * section.x),
@@ -5182,28 +5181,151 @@ func _freighter_sponson(node_name: String, side: float, sections: PackedVector3A
 	for edge in rounded_profile.size():
 		var mirrored_edge: int = (rounded_profile.size() - 2 - edge + rounded_profile.size()) % rounded_profile.size() if side < 0.0 else edge
 		edge_materials[mirrored_edge] = profile_materials[edge]
-	_formed_pressure_member(node_name, rings, _jovian_materials.hull_cool, edge_materials)
+	_curved_pressure_member(_jovian_visual, node_name, rings, _jovian_materials.hull_cool, edge_materials)
 
 
 ## The cabin is nested between these tapered shell wings. They join its roof
 ## and lower deck to the freight crown without filling the walking volume.
 func _flight_deck_transition(side: float) -> void:
 	var rings: Array[PackedVector3Array] = []
-	for station in [Vector3(3.72, 3.90, -7.60), Vector3(5.73, 4.43, -2.88)]:
+	var sections := PackedVector3Array([
+		Vector3(3.72, 3.90, -7.60), Vector3(6.00, 4.00, -6.35),
+		Vector3(6.00, 4.10, -4.75), Vector3(5.73, 4.43, -2.88)])
+	for station in _pressure_loft_stations(sections, 0.12):
 		var inner_x := 3.46
-		var outer_x: float = maxf(inner_x + 0.24, station.x)
-		var ring := PackedVector3Array([
-			Vector3(side * outer_x, station.y - 0.24, station.z),
-			Vector3(side * (outer_x - 0.12), station.y, station.z),
-			Vector3(side * inner_x, station.y, station.z),
-			Vector3(side * inner_x, 0.42, station.z),
-			Vector3(side * (outer_x - 0.06), 0.42, station.z),
-			Vector3(side * outer_x, 0.68, station.z)])
+		var width := station.x - inner_x
+		var bottom := 0.42
+		var height := station.y - bottom
+		var ring := PackedVector3Array()
+		# A quarter-ellipse rolls the broad crown into the outer cheek. The
+		# inboard pressure wall remains exactly at the cabin clearance plane.
+		var radius_x := width * 0.72
+		var radius_y := height * 0.50
+		for step in 33:
+			var angle := float(step) / 32.0 * PI * 0.5
+			ring.append(Vector3(side * (station.x - radius_x + radius_x * cos(angle)),
+				station.y - radius_y + radius_y * sin(angle), station.z))
+		ring.append(Vector3(side * inner_x, station.y, station.z))
+		ring.append(Vector3(side * inner_x, bottom, station.z))
+		for step in 32:
+			var angle := PI * 1.5 + float(step) / 32.0 * PI * 0.5
+			ring.append(Vector3(side * (station.x - radius_x + radius_x * cos(angle)),
+				bottom + radius_y + radius_y * sin(angle), station.z))
+		# An integral machined landing under the unchanged defensive bearing
+		# blends into the pressure cheek; it is part of this skin, not a pad
+		# layered over it. The full support footprint meets y=3.37.
+		for index in ring.size():
+			var point := ring[index]
+			var distance := Vector2(absf(point.x) - 5.15, point.z + 5.55).length()
+			var radial_weight := 1.0 - smoothstep(0.78, 1.65, distance)
+			var upper_weight := smoothstep(bottom + radius_y - 0.70,
+				bottom + radius_y + 0.10, point.y)
+			point.y = lerpf(point.y, 3.37, radial_weight * upper_weight)
+			ring[index] = point
 		if side < 0.0:
 			ring.reverse()
 		rings.append(ring)
-	_formed_pressure_member("PortCabinTransition" if side < 0.0 else "StarboardCabinTransition",
+	_curved_pressure_member(_jovian_visual,
+		"PortCabinTransition" if side < 0.0 else "StarboardCabinTransition",
 		rings, _jovian_materials.hull_warm)
+
+
+## Sample only where the authored station profile bends; straight cargo runs
+## stay single spans. Monotone interpolation preserves their physical envelope.
+func _pressure_loft_stations(sections: PackedVector3Array, spacing := 0.30) -> PackedVector3Array:
+	var sampled := PackedVector3Array()
+	for station in sections.size() - 1:
+		var steps := _roof_span_steps(sections, sections[station].z, sections[station + 1].z)
+		if spacing < 0.30:
+			steps = ceili((sections[station + 1].z - sections[station].z) / spacing)
+		for step in steps:
+			sampled.append(_roof_profile(sections, lerpf(sections[station].z,
+				sections[station + 1].z, float(step) / steps))[0])
+	sampled.append(sections[-1])
+	return sampled
+
+
+func _forward_bow_apron(parent: Node3D, node_name: String, origin: Vector3,
+		sections: PackedVector3Array, material: Material) -> void:
+	var rings: Array[PackedVector3Array] = []
+	for station in _pressure_loft_stations(sections):
+		var ring := PackedVector3Array()
+		# Flat upper/lower deck faces terminate in a rolled elliptical edge.
+		for side in [1.0, -1.0]:
+			for step in 17:
+				var angle := -PI * 0.5 + float(step) / 16.0 * PI
+				ring.append(Vector3(side * (station.x * 0.86 + station.x * 0.14 * cos(angle)),
+					side * station.y * sin(angle), station.z))
+		rings.append(ring)
+	var member := _curved_pressure_member(parent, node_name, rings, material)
+	member.position = origin
+
+
+## Smooth side normals come from the actual loft tangents. Caps keep their
+## hard tooling seam; sharp pressure-wall corners retain their planar normals.
+func _curved_pressure_member(parent: Node3D, node_name: String,
+		rings: Array[PackedVector3Array], material: Material, edge_materials: Dictionary = {}) -> MeshInstance3D:
+	var surface_tools := {}
+	var normals: Array[PackedVector3Array] = []
+	for station in rings.size():
+		var ring_normals := PackedVector3Array()
+		for edge in rings[station].size():
+			var count := rings[station].size()
+			var at := rings[station][edge]
+			var before := (at - rings[station][(edge - 1 + count) % count]).normalized()
+			var after := (rings[station][(edge + 1) % count] - at).normalized()
+			var along := rings[mini(station + 1, rings.size() - 1)][edge] - rings[maxi(0, station - 1)][edge]
+			ring_normals.append((before + after).cross(along).normalized())
+		normals.append(ring_normals)
+	for station in rings.size() - 1:
+		for edge in rings[station].size():
+			var face_material: Material = edge_materials.get(edge, material)
+			if not surface_tools.has(face_material):
+				var tool := SurfaceTool.new()
+				tool.begin(Mesh.PRIMITIVE_TRIANGLES)
+				tool.set_material(face_material)
+				surface_tools[face_material] = tool
+			var next := (edge + 1) % rings[station].size()
+			var points: Array[Vector3] = [rings[station][edge], rings[station][next],
+				rings[station + 1][next], rings[station + 1][edge]]
+			var face_normals: Array[Vector3] = [normals[station][edge], normals[station][next],
+				normals[station + 1][next], normals[station + 1][edge]]
+			# Preserve intentional hard corners at the inner pressure wall.
+			# The sampled radius tangents remain smooth regardless of span size.
+			for corner in 4:
+				var ring_index := station if corner < 2 else station + 1
+				var point_index := edge if corner in [0, 3] else next
+				var ring := rings[ring_index]
+				var prev := (point_index - 1 + ring.size()) % ring.size()
+				var following := (point_index + 1) % ring.size()
+				var incoming := (ring[point_index] - ring[prev]).normalized()
+				var outgoing := (ring[following] - ring[point_index]).normalized()
+				if incoming.dot(outgoing) < 0.5:
+					face_normals[corner] = (points[1] - points[0]).cross(points[3] - points[0]).normalized()
+			_skin_curved_quad(surface_tools[face_material], points, face_normals)
+	var cap_tool: SurfaceTool = surface_tools[material]
+	for end in [0, rings.size() - 1]:
+		var center := Vector3.ZERO
+		for point in rings[end]:
+			center += point
+		center /= rings[end].size()
+		for edge in rings[end].size():
+			var next := (edge + 1) % rings[end].size()
+			var vertices := [center, rings[end][edge], rings[end][next]] if end == 0 else [center, rings[end][next], rings[end][edge]]
+			for vertex: Vector3 in vertices:
+				cap_tool.set_normal(Vector3.FORWARD if end == 0 else Vector3.BACK)
+				cap_tool.set_uv(Vector2(vertex.x, vertex.y))
+				cap_tool.add_vertex(vertex)
+	var mesh := ArrayMesh.new()
+	for tool: SurfaceTool in surface_tools.values():
+		tool.commit(mesh)
+	var member := MeshInstance3D.new()
+	member.name = node_name
+	member.mesh = mesh
+	member.set_meta("visual_only", true)
+	member.set_meta("closed_loft_hull", true)
+	parent.add_child(member)
+	return member
 
 
 ## Explicit folded sections keep panel normals flat at manufacturing breaks.

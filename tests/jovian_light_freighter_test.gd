@@ -32,6 +32,7 @@ func _run() -> void:
 
 	_test_fitout_cpu_surface_parity(jovian)
 	_test_formed_roof(jovian)
+	_test_formed_forward_shell(jovian)
 	_test_open_engine_module_sharing(jovian)
 	_test_definition_and_evidence(jovian)
 	_test_defensive_weapon_visual(jovian)
@@ -1191,8 +1192,8 @@ func _test_scale_handling_and_presentation(jovian: JovianLightFreighter) -> void
 	_check(str(visual.get_meta("geometry_status", "")) == "provisional", "visual root publishes provisional geometry status")
 	var flight_deck := visual.get_node_or_null("ForwardFlightDeck") as MeshInstance3D
 	var shoulder := visual.get_node_or_null("PortCargoShoulder") as MeshInstance3D
-	_check(flight_deck != null and flight_deck.mesh is ArrayMesh and flight_deck.mesh.get_faces().size() == 432, "flight deck is a folded bow apron with planar manufacturing breaks")
-	_check(shoulder != null and shoulder.mesh is ArrayMesh and bool(shoulder.get_meta("closed_loft_hull", false)) and shoulder.mesh.get_faces().size() == 1320 and shoulder.mesh.get_surface_count() == 3, "split port cargo shoulder joins the freight crown with radius bends, a recessed thermal belt and lower rub strip")
+	_check(flight_deck != null and flight_deck.mesh is ArrayMesh and bool(flight_deck.get_meta("closed_loft_hull", false)), "flight deck is a closed rolled bow apron")
+	_check(shoulder != null and shoulder.mesh is ArrayMesh and bool(shoulder.get_meta("closed_loft_hull", false)) and shoulder.mesh.get_surface_count() == 3, "split port cargo shoulder retains its three authored finishes over the curved pressure skin")
 	# Service construction remains an open overlay on the pressure skin and
 	# batches repeated lids, louvers and hardware into two assemblies.
 	var service_lids: Array[Node] = [visual.get_node("RoofServiceAssembly"), visual.get_node("FlightDeckAvionicsBonnet")]
@@ -1893,3 +1894,64 @@ func _test_formed_roof(ship: JovianLightFreighter) -> void:
 			valid_triangles = valid_triangles and absf((uvs[index + 1] - uvs[index]).cross(uvs[index + 2] - uvs[index])) > 1e-8
 	_check(valid_frames, "both formed skins have complete finite orthonormal tangent frames")
 	_check(valid_triangles, "roof faces and perimeter returns have nondegenerate triangles and UVs")
+
+
+func _test_formed_forward_shell(ship: JovianLightFreighter) -> void:
+	var visual := ship.get_jovian_visual_root()
+	for label in ["ForwardFlightDeck", "PortCargoShoulder", "PortAftCargoShoulder",
+			"StarboardCargoShoulder", "PortCabinTransition", "StarboardCabinTransition"]:
+		var member := visual.get_node(NodePath(label)) as MeshInstance3D
+		var valid_faces := true
+		var longitudinal_stations := {}
+		for surface in member.mesh.get_surface_count():
+			var arrays := member.mesh.surface_get_arrays(surface)
+			var vertices: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
+			var normals: PackedVector3Array = arrays[Mesh.ARRAY_NORMAL]
+			for index in range(0, vertices.size(), 3):
+				var cross_product := (vertices[index + 1] - vertices[index]).cross(vertices[index + 2] - vertices[index])
+				valid_faces = valid_faces and cross_product.length_squared() > 1e-14
+				for corner in 3:
+					valid_faces = valid_faces and normals[index + corner].is_finite() \
+						and absf(normals[index + corner].length() - 1.0) < 0.001 \
+						and cross_product.dot(normals[index + corner]) < 0.0
+					longitudinal_stations[snappedf(vertices[index + corner].z, 0.0001)] = true
+		_check(valid_faces and _mesh_open_boundary_edges(member.mesh) == 0,
+			"%s is closed with finite smooth normals, nondegenerate triangles and outward clockwise winding" % label)
+		_check(longitudinal_stations.size() > 10,
+			"%s contains actual longitudinal curvature beyond the former station facets" % label)
+	# The original bearing is seated over the actual triangles, including its
+	# full bottom-flange circumference. No collision proxy substitutes for skin.
+	for side in [-1.0, 1.0]:
+		var prefix := "Port" if side < 0.0 else "Starboard"
+		var cheek := visual.get_node(NodePath(prefix + "CabinTransition")) as MeshInstance3D
+		var base := visual.get_node(NodePath(prefix + "DefensiveTurretBase")) as MeshInstance3D
+		var faces := cheek.mesh.get_faces()
+		var seated := true
+		var skin_min := INF
+		var skin_max := -INF
+		for sample in 33:
+			var angle := TAU * float(sample) / 32.0
+			var radius := 0.0 if sample == 32 else 0.60
+			var origin := base.position + Vector3(cos(angle) * radius, 3.0, sin(angle) * radius)
+			var skin_y := -INF
+			for triangle in range(0, faces.size(), 3):
+				var hit: Variant = Geometry3D.ray_intersects_triangle(origin, Vector3.DOWN,
+					faces[triangle], faces[triangle + 1], faces[triangle + 2])
+				if hit != null:
+					skin_y = maxf(skin_y, (hit as Vector3).y)
+			skin_min = minf(skin_min, skin_y)
+			skin_max = maxf(skin_max, skin_y)
+			seated = seated and skin_y >= base.position.y - 0.19 and skin_y <= base.position.y - 0.14
+		_check(seated, "%s bearing bottom seats into the integral cheek landing without reaching its moving collar" % prefix)
+		print("JOVIAN_FORWARD_BEARING_CONTACT ", prefix, " skin_y=", skin_min, "..", skin_max)
+		var bounds := cheek.mesh.get_aabb()
+		var inner_x := absf(bounds.end.x) if side < 0.0 else bounds.position.x
+		_check(is_equal_approx(inner_x, 3.46) and is_equal_approx(bounds.position.y, 0.42)
+			and bounds.position.z >= -7.601 and bounds.end.z <= -2.879,
+			"%s cheek retains cabin wall, floor and portal clearance boundaries" % prefix)
+		# Front shoulder stops before the unchanged cargo-ramp opening.
+		if side < 0.0:
+			var front := visual.get_node(^"PortCargoShoulder") as MeshInstance3D
+			var aft := visual.get_node(^"PortAftCargoShoulder") as MeshInstance3D
+			_check(front.mesh.get_aabb().end.z < 1.121 and aft.mesh.get_aabb().position.z > 5.279,
+				"curved port shoulders retain the full boarding aperture")
