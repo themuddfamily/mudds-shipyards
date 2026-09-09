@@ -146,6 +146,7 @@ func _check_hero_builders(expected_sign: int) -> void:
 	_assert(outward, "HeroShip canopy loft normals face out of its pressure volume")
 	var pressure_shell := hero.call("_canopy_pressure_shell_mesh", null) as ArrayMesh
 	_assert_wound("HeroShip fitted pressure canopy", pressure_shell, expected_sign)
+	_check_canopy_profile(hero, pressure_shell, expected_sign)
 	var shell_vertices: PackedVector3Array = pressure_shell.surface_get_arrays(0)[Mesh.ARRAY_VERTEX]
 	var front_width := 0.0
 	for point: Vector3 in shell_vertices:
@@ -154,6 +155,69 @@ func _check_hero_builders(expected_sign: int) -> void:
 	_assert(front_width >= 1.3, "forward glazing encloses the cockpit instead of tapering to a hull nose")
 	holder.free()
 	hero.free()
+
+
+## The pilot sees these curves at arm's length. Guard the smooth fitted bows,
+## their shared glass contact points and the authored envelope independently of
+## the implementation's chosen subdivision counts.
+func _check_canopy_profile(hero: HeroShip, shell: ArrayMesh, expected_sign: int) -> void:
+	var rings: Array = hero.call("_canopy_pressure_rings")
+	var bounds := shell.get_aabb()
+	_assert(bounds.position.is_equal_approx(Vector3(-1.25, -0.08, -3.56))
+		and bounds.size.is_equal_approx(Vector3(2.5, 1.34, 3.48)),
+		"smooth pressure glazing retains the authored width, height, nose seal and rear hinge envelope")
+	var anchors := [Vector3(-3.56, 0.66, 1.34), Vector3(-2.92, 1.18, 1.30),
+		Vector3(-1.82, 1.25, 1.34), Vector3(-0.72, 1.24, 1.32), Vector3(-0.08, 1.20, 1.26)]
+	var fitted := true
+	for anchor: Vector3 in anchors:
+		var found := false
+		for ring: PackedVector3Array in rings:
+			if is_equal_approx(ring[0].z, anchor.x):
+				found = ring[0].is_equal_approx(Vector3(-anchor.y, -0.08, anchor.x)) \
+					and is_equal_approx(ring[ring.size() / 2].y, anchor.z - 0.08)
+		fitted = fitted and found
+	_assert(fitted, "canopy interpolation passes through all five authored seal and crest stations")
+	_assert_closed_mesh_faces_outward("pressure glazing", shell, expected_sign)
+	_assert_uv_faces_have_area("pressure glazing including underside and both caps", shell)
+	_assert_complete_canopy_geometry("pressure glazing", shell)
+	var max_bow_turn := 0.0
+	for end in [0, rings.size() - 1]:
+		var ring: PackedVector3Array = rings[end]
+		for point in range(1, ring.size() - 1):
+			max_bow_turn = maxf(max_bow_turn,
+				(ring[point] - ring[point - 1]).angle_to(ring[point + 1] - ring[point]))
+		for side in [-1, 1]:
+			var path := PackedVector3Array()
+			for step in range(ring.size() / 2 + 1):
+				path.append(ring[step if side < 0 else ring.size() - 1 - step])
+			var bow := hero.call("_canopy_frame_mesh", path, 0.028,
+				Vector3.RIGHT if side < 0 else Vector3.LEFT) as ArrayMesh
+			_assert_wound("fitted canopy bow %d/%d" % [end, side], bow, expected_sign)
+			_assert_uv_faces_have_area("fitted canopy bow %d/%d" % [end, side], bow)
+			_assert_complete_canopy_geometry("fitted canopy bow %d/%d" % [end, side], bow)
+	_assert(max_bow_turn < deg_to_rad(10.0),
+		"pilot-visible canopy bows turn smoothly through their shoulders (largest chord turn %.2f degrees)" % rad_to_deg(max_bow_turn))
+	for fraction in [5.0 / 16.0, 11.0 / 16.0]:
+		var path := PackedVector3Array()
+		for ring: PackedVector3Array in rings:
+			path.append(ring[roundi(float(ring.size() - 1) * fraction)])
+		var rail := hero.call("_canopy_frame_mesh", path, 0.025) as ArrayMesh
+		_assert_wound("fitted canopy shoulder rail", rail, expected_sign)
+		_assert_uv_faces_have_area("fitted canopy shoulder rail", rail)
+		_assert_complete_canopy_geometry("fitted canopy shoulder rail", rail)
+
+
+func _assert_complete_canopy_geometry(label: String, mesh: ArrayMesh) -> void:
+	var arrays := mesh.surface_get_arrays(0)
+	var vertices: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
+	var normals: PackedVector3Array = arrays[Mesh.ARRAY_NORMAL]
+	var complete := vertices.size() == normals.size() and mesh.get_surface_count() == 1
+	for normal: Vector3 in normals:
+		complete = complete and normal.is_finite() and absf(normal.length() - 1.0) < 0.001
+	# _score rejects zero-area faces and missing/zero shading normals. Requiring
+	# every emitted triangle to be scored prevents a dense curve hiding them.
+	complete = complete and int(_score(mesh).triangles) * 3 == vertices.size()
+	_assert(complete, label + " has finite unit normals and no degenerate triangles in its single surface")
 
 
 ## These four manufactured lofts have planar top/side plates. Smoothing across

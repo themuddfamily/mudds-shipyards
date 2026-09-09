@@ -179,6 +179,10 @@ const CHASE_CAMERA_PITCH := 0.0
 const CHASE_CAMERA_SELF_HULL_CLEARANCE := 0.02
 const CHASE_CAMERA_BOUNDARY_EPSILON := 0.0001
 const CANOPY_OPEN_ANGLE := deg_to_rad(63.0)
+# Only the close-up pressure glazing and its fitted bows need these curved
+# samples; straight lower rails and the rest of the fleet keep their budgets.
+const CANOPY_ARC_STEPS := 48
+const CANOPY_STATION_STEPS := 4
 const CAMERA_VIEW_ACTION: StringName = &"toggle_ship_camera_view"
 const CAMERA_VIEW_CHASE: StringName = &"CHASE"
 const CAMERA_VIEW_COCKPIT: StringName = &"COCKPIT"
@@ -6083,7 +6087,7 @@ func _build_cockpit() -> void:
 	var pressure_rings := _canopy_pressure_rings()
 	for side in [-1.0, 1.0]:
 		var side_name := "Port" if side < 0.0 else "Starboard"
-		var shoulder_index := 5 if side < 0.0 else 11
+		var shoulder_index := CANOPY_ARC_STEPS * (5 if side < 0.0 else 11) / 16
 		var rail_path := PackedVector3Array()
 		for ring: PackedVector3Array in pressure_rings:
 			rail_path.append(ring[shoulder_index])
@@ -6094,8 +6098,8 @@ func _build_cockpit() -> void:
 		_canopy_pivot.add_child(rail)
 		for end in [0, pressure_rings.size() - 1]:
 			var bow := PackedVector3Array()
-			for step in range(9):
-				bow.append(pressure_rings[end][step if side < 0.0 else 16 - step])
+			for step in range(CANOPY_ARC_STEPS / 2 + 1):
+				bow.append(pressure_rings[end][step if side < 0.0 else CANOPY_ARC_STEPS - step])
 			var frame := MeshInstance3D.new()
 			frame.name = side_name + ("CanopyNoseFrame" if end == 0 else "CanopyRearUpright")
 			frame.mesh = _canopy_frame_mesh(bow, 0.028, Vector3.RIGHT if side < 0.0 else Vector3.LEFT)
@@ -7709,21 +7713,49 @@ func _cylinder_between(
 	return mesh_instance
 
 
-## Glass and frame use the same raked windscreen and shoulder stations.
-## The forward crest leans aft while the pressure seal and pilot stay fixed.
+## Glass, bows and shoulders share a single smooth pressure profile. The five
+## authored stations and their extrema remain exact; monotone Hermite slopes
+## round the longitudinal bends without overshooting the fitted cockpit volume.
 func _canopy_pressure_rings() -> Array[PackedVector3Array]:
 	var stations := [Vector3(-3.56, 0.66, 1.34), Vector3(-2.92, 1.18, 1.30),
 		Vector3(-1.82, 1.25, 1.34), Vector3(-0.72, 1.24, 1.32), Vector3(-0.08, 1.20, 1.26)]
-	var rings: Array[PackedVector3Array] = []
+	var profiles: Array[Vector3] = []
 	for station: Vector3 in stations:
+		profiles.append(Vector3(station.y, station.z,
+			clampf((-station.x - 1.82) / 1.74, 0.0, 1.0) * 1.12))
+	var slopes: Array[Vector3] = []
+	for index in range(stations.size()):
+		var before := maxi(0, index - 1)
+		var after := mini(stations.size() - 1, index + 1)
+		var incoming := (profiles[index] - profiles[before]) / maxf(stations[index].x - stations[before].x, 0.001)
+		var outgoing := (profiles[after] - profiles[index]) / maxf(stations[after].x - stations[index].x, 0.001)
+		var slope := Vector3.ZERO
+		for axis in range(3):
+			if index == 0:
+				slope[axis] = outgoing[axis]
+			elif index == stations.size() - 1:
+				slope[axis] = incoming[axis]
+			elif incoming[axis] * outgoing[axis] > 0.0:
+				# Harmonic mean is bounded by twice the smaller chord slope.
+				slope[axis] = 2.0 * incoming[axis] * outgoing[axis] / (incoming[axis] + outgoing[axis])
+		slopes.append(slope)
+	var rings: Array[PackedVector3Array] = []
+	for sample in range((stations.size() - 1) * CANOPY_STATION_STEPS + 1):
+		var section := mini(sample / CANOPY_STATION_STEPS, stations.size() - 2)
+		var t := float(sample - section * CANOPY_STATION_STEPS) / float(CANOPY_STATION_STEPS)
+		var length: float = stations[section + 1].x - stations[section].x
+		var profile := (2.0 * t * t * t - 3.0 * t * t + 1.0) * profiles[section] \
+			+ (t * t * t - 2.0 * t * t + t) * length * slopes[section] \
+			+ (-2.0 * t * t * t + 3.0 * t * t) * profiles[section + 1] \
+			+ (t * t * t - t * t) * length * slopes[section + 1]
+		var station_z: float = lerpf(stations[section].x, stations[section + 1].x, t)
 		var ring := PackedVector3Array()
-		var rake := clampf((-station.x - 1.82) / 1.74, 0.0, 1.0) * 1.12
-		for step in range(17):
-			var angle := PI * float(step) / 16.0
+		for step in range(CANOPY_ARC_STEPS + 1):
+			var angle := PI * float(step) / float(CANOPY_ARC_STEPS)
 			var x := -cos(angle)
 			var rise := pow(maxf(sin(angle), 0.0), 0.72)
-			ring.append(Vector3(signf(x) * pow(absf(x), 0.72) * station.y,
-				-0.08 + rise * station.z, station.x + rise * rake))
+			ring.append(Vector3(signf(x) * pow(absf(x), 0.72) * profile.x,
+				-0.08 + rise * profile.y, station_z + rise * profile.z))
 		rings.append(ring)
 	return rings
 
@@ -7783,18 +7815,25 @@ func _canopy_pressure_shell_mesh(material: Material) -> ArrayMesh:
 	var surface := SurfaceTool.new()
 	surface.begin(Mesh.PRIMITIVE_TRIANGLES)
 	surface.set_material(material)
-	surface.set_smooth_group(0)
 	for section in range(rings.size() - 1):
-		for side in range(17):
-			var following := (side + 1) % 17
-			for vertex: Vector3 in [rings[section][side], rings[section][following], rings[section + 1][following],
-				rings[section][side], rings[section + 1][following], rings[section + 1][side]]:
-				surface.set_uv(Vector2(vertex.x, vertex.z))
+		for side in range(CANOPY_ARC_STEPS + 1):
+			var following := (side + 1) % (CANOPY_ARC_STEPS + 1)
+			# The flat underside closes the pressure volume at the lower seal;
+			# its hard edge must not pull the curved glazing's normals downward.
+			var underside := side == CANOPY_ARC_STEPS
+			surface.set_smooth_group(-1 if underside else 0)
+			for index: Vector2i in [Vector2i(section, side), Vector2i(section, following), Vector2i(section + 1, following),
+				Vector2i(section, side), Vector2i(section + 1, following), Vector2i(section + 1, side)]:
+				var vertex := rings[index.x][index.y]
+				# Unwrap the curved side by its cross-section coordinate. XZ
+				# projection collapses tangent space on near-vertical glazing.
+				surface.set_uv(Vector2(vertex.x, vertex.z) if underside else
+					Vector2(float(index.y) / float(CANOPY_ARC_STEPS), rings[index.x][0].z))
 				surface.add_vertex(vertex)
 	for cap in [0, rings.size() - 1]:
 		surface.set_smooth_group(-1)
-		var center := (rings[cap][0] + rings[cap][16]) * 0.5
-		for side in range(16):
+		var center := (rings[cap][0] + rings[cap][CANOPY_ARC_STEPS]) * 0.5
+		for side in range(CANOPY_ARC_STEPS):
 			var vertices: Array = [center, rings[cap][side + 1], rings[cap][side]] if cap == 0 else [center, rings[cap][side], rings[cap][side + 1]]
 			for vertex: Vector3 in vertices:
 				surface.set_uv(Vector2(vertex.x, vertex.y))
