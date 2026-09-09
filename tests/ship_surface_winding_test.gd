@@ -312,8 +312,12 @@ func _check_craft(expected_sign: int) -> void:
 	_assert(
 		# Jovian's four engine modules are now open annular cowls; they remain
 		# covered by the full triangle/normal sweep above, not a solid-loft test.
-		closed_lofts == 56,
-		"the normal-independent closed-loft guard covered all 56 manufactured closed volumes across Arrow, Zenith, Jovian and Halyard"
+		# Six Halyard seatbacks now contain concave tray wells; their cavity
+		# walls cannot be scored against one AABB centre. The focused seat
+		# test covers their recess and mesh frames; the general sweep still
+		# checks every seat-shell triangle above.
+		closed_lofts == 50,
+		"the normal-independent closed-loft guard covered all 50 centre-testable manufactured closed volumes across Arrow, Zenith, Jovian and Halyard"
 	)
 
 
