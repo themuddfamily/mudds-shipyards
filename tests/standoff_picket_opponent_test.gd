@@ -217,11 +217,35 @@ func _test_contract_and_evidence() -> void:
 		and core_names == PackedStringArray(["PortEngineCore", "StarboardEngineCore"])
 		and core_multi.custom_aabb.is_equal_approx(expected_core_bounds)
 		and engine_cores.cast_shadow == GeometryInstance3D.SHADOW_CASTING_SETTING_ON
-		and core_material == picket._materials.picket_engine
+		and core_material == picket._materials.picket_slate
+		and not core_material.emission_enabled
 		and picket._engine_glows.size() == 2
 		and bool(engine_cores.get_meta(&"presentation_only", false)),
 		"engine-core batching preserves exact transforms, material, bounds and shadows while animated plumes stay independent"
 	)
+
+	# Both retained batch meshes must leave real depth behind the exit lip.
+	# Mesh-local Y maps to aft Z through the preserved batch transforms.
+	var bore_clear := true
+	var liner_vertices := 0
+	if core_multi != null and pod_multi != null:
+		for mesh: Mesh in [core_multi.mesh, pod_multi.mesh]:
+			var arrays := mesh.surface_get_arrays(0)
+			var vertices: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
+			var normals: PackedVector3Array = arrays[Mesh.ARRAY_NORMAL]
+			for index in vertices.size():
+				var vertex := vertices[index]
+				var radial := Vector3(vertex.x, 0, vertex.z)
+				if mesh == core_multi.mesh:
+					bore_clear = bore_clear and radial.length() >= 0.189
+					if radial.normalized().dot(normals[index]) < -0.5:
+						liner_vertices += 1
+				elif vertex.y > 0.201:
+					bore_clear = bore_clear and radial.length() >= 0.259
+	else:
+		bore_clear = false
+	_check(bore_clear and liner_vertices > 0,
+		"formed nozzles retain an inward-facing liner and pod caps stay behind the recessed throat")
 
 	var lance_rails := visual.get_node_or_null("LanceRailBatch") as MultiMeshInstance3D \
 		if visual != null else null

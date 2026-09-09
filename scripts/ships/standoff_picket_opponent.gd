@@ -1709,13 +1709,18 @@ func _build_interceptor() -> void:
 	_build_damage_effects()
 
 
-## The mirrored pod shells are immutable presentation only. Their animated core
-## and plume peers remain independent MeshInstance3Ds in the engine-glow arrays.
+## The mirrored pod shells are immutable presentation only. Animated plumes
+## remain independent MeshInstance3Ds in the engine-glow arrays.
 func _add_engine_pod_batch(parent: Node3D) -> MultiMeshInstance3D:
-	var mesh := StationSurfaceKit.chamfered_cylinder_mesh_cached(
-		0.4, 0.4, 1.5, 28, _chamfered_cylinder_cache,
-		ShipSurfaceDetail.CYLINDER_WALL_RINGS, true, true, _materials.picket_deep
-	)
+	# The aft pod is a continuous open casing; a primitive end cap here would
+	# fill the new nozzle throat when the animated exhaust clears. The recessed
+	# bulkhead stops forward fittings showing through, 0.92 m behind the exit.
+	var mesh := _lance_turned_mesh([
+		PackedVector2Array([Vector2(0.75, 0.37), Vector2(0.65, 0.4),
+			Vector2(-0.66, 0.4), Vector2(-0.75, 0.34), Vector2(-0.75, 0.0),
+			Vector2(0.20, 0.0), Vector2(0.20, 0.26),
+			Vector2(0.66, 0.30), Vector2(0.75, 0.32)]),
+	], _materials.picket_deep, Basis(Vector3.RIGHT, -PI * 0.5))
 	var transforms: Array[Transform3D] = [
 		Transform3D(Basis.from_euler(Vector3(deg_to_rad(90.0), 0.0, 0.0)), Vector3(-0.86, -0.02, 4.3)),
 		Transform3D(Basis.from_euler(Vector3(deg_to_rad(90.0), 0.0, 0.0)), Vector3(0.86, -0.02, 4.3)),
@@ -1742,14 +1747,20 @@ func _add_engine_pod_batch(parent: Node3D) -> MultiMeshInstance3D:
 	return batch
 
 
-## The mirrored engine cores are static visual caps. The independently retained
-## plumes remain in `_engine_glows`, so thrust animation and reuse reset keep
-## their existing per-side lifecycle while this immutable pair submits once.
+## Retain the batched core owners as passive, formed nozzle hardware. Only the
+## independently retained plumes emit and follow thrust/damage/reset lifecycle.
 func _add_engine_core_batch(parent: Node3D) -> MultiMeshInstance3D:
-	var mesh := StationSurfaceKit.chamfered_cylinder_mesh_cached(
-		0.27, 0.27, 0.16, 28, _chamfered_cylinder_cache,
-		ShipSurfaceDetail.CYLINDER_WALL_RINGS, true, true, _materials.picket_engine
-	)
+	var mesh := _lance_turned_mesh([
+		# Rolled exit lip, tapered shell and recessed converging liner.
+		PackedVector2Array([Vector2(0.40, 0.34), Vector2(0.35, 0.37),
+			Vector2(-0.10, 0.39), Vector2(-0.25, 0.34), Vector2(-0.31, 0.22),
+			Vector2(-0.31, 0.19), Vector2(-0.08, 0.23), Vector2(0.30, 0.29),
+			Vector2(0.40, 0.30)]),
+		# One seated retention collar, with bevelled shoulders, replaces petals.
+		PackedVector2Array([Vector2(0.02, 0.39), Vector2(-0.01, 0.42),
+			Vector2(-0.12, 0.42), Vector2(-0.16, 0.39),
+			Vector2(-0.16, 0.365), Vector2(0.02, 0.365)]),
+	], _materials.picket_slate, Basis(Vector3.RIGHT, -PI * 0.5))
 	var core_basis := Basis.from_euler(Vector3(deg_to_rad(90.0), 0.0, 0.0))
 	var transforms: Array[Transform3D] = [
 		Transform3D(core_basis, Vector3(-0.86, -0.02, 5.02)),
@@ -2003,11 +2014,11 @@ func _create_picket_materials() -> void:
 	_materials.picket_engine = _material(PICKET_ENGINE, 0.08, 0.2, PICKET_ENGINE, 2.6)
 
 
-## Closed lathe profiles form the tube and an actually open muzzle housing.
+## Closed lathe profiles form the lance tube, muzzle and recessed engine housings.
 ## Each profile point is (longitudinal position, radius); profile edges retain
 ## machined creases while the 32-sided circumference uses analytic normals.
 ## UVs are measured in metres and tangents are generated for the hull finish.
-func _lance_turned_mesh(profiles: Array, material: Material) -> ArrayMesh:
+func _lance_turned_mesh(profiles: Array, material: Material, mesh_basis: Basis = Basis.IDENTITY) -> ArrayMesh:
 	var surface := SurfaceTool.new()
 	surface.begin(Mesh.PRIMITIVE_TRIANGLES)
 	surface.set_material(material)
@@ -2016,17 +2027,25 @@ func _lance_turned_mesh(profiles: Array, material: Material) -> ArrayMesh:
 		for edge in profile.size():
 			var a := profile[edge]
 			var b := profile[(edge + 1) % profile.size()]
+			# A bulkhead closes with a triangle fan, without collapsed axis quads.
+			if is_zero_approx(a.y) and is_zero_approx(b.y):
+				continue
+			var corners: Array[Vector2i] = [Vector2i(0, 0), Vector2i(1, 1), Vector2i(1, 0),
+				Vector2i(0, 0), Vector2i(0, 1), Vector2i(1, 1)]
+			if is_zero_approx(a.y):
+				corners = [Vector2i(0, 0), Vector2i(1, 1), Vector2i(1, 0)]
+			elif is_zero_approx(b.y):
+				corners = [Vector2i(0, 0), Vector2i(0, 1), Vector2i(1, 1)]
 			var direction := (b - a).normalized()
 			var edge_length := a.distance_to(b)
 			for segment in 32:
-				for address: Vector2i in [Vector2i(0, 0), Vector2i(1, 1), Vector2i(1, 0),
-					Vector2i(0, 0), Vector2i(0, 1), Vector2i(1, 1)]:
+				for address: Vector2i in corners:
 					var station := a if address.x == 0 else b
 					var angle := TAU * float(segment + address.y) / 32.0
 					var radial := Vector3(cos(angle), sin(angle), 0)
-					surface.set_normal(radial * -direction.x + Vector3(0, 0, direction.y))
+					surface.set_normal(mesh_basis * (radial * -direction.x + Vector3(0, 0, direction.y)))
 					surface.set_uv(Vector2(angle * 0.39, distance + edge_length * address.x))
-					surface.add_vertex(radial * station.y + Vector3(0, 0, station.x))
+					surface.add_vertex(mesh_basis * (radial * station.y + Vector3(0, 0, station.x)))
 			distance += edge_length
 	surface.generate_tangents()
 	return surface.commit()
@@ -2050,7 +2069,6 @@ func _build_picket_fittings() -> void:
 		for seam in 5:
 			parts.append([Vector3(side*0.69,-0.03,-0.28+seam*0.84),Vector3(0.035,0.4,0.038),2])
 		parts.append([Vector3(side*0.86,0.35,4.22),Vector3(0.53,0.1,1.13),0])
-		_add_nozzle_parts(parts,Vector3(side*0.86,-0.02,5.06),0.34,0.43)
 	# Receiver cheeks follow the housing taper, terminating in narrow load rails.
 	# The top stays open so the magenta rails and spine charge witness remain clear.
 	for side in [-1.0, 1.0]:
