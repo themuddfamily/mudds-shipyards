@@ -297,7 +297,7 @@ const DEFENSIVE_VISUAL_PARTS_PER_MOUNT := 5
 ## damage, weapon, audio, lifecycle or evidence contract names one of them. They
 ## retain one authored copy at each original transform, but share one renderer
 ## submission through a ship-local MultiMesh.
-const SPINE_RIB_SIZE := Vector3(1.90, 0.22, 0.28)
+const SPINE_RIB_SIZE := Vector3(1.90, 0.425, 0.28)
 const SPINE_RIB_COPY_COUNT := 7
 ## The three hull-shade faces of the five-piece bow docking arch are immutable
 ## silhouette geometry. The target plate and struts remain separate docking
@@ -2820,14 +2820,19 @@ func _build_pressure_hull() -> void:
 	_box(_halyard_visual, "AftHull", Vector3(0.0, 1.85, 8.90), Vector3(4.30, 2.80, 1.60), _halyard_materials.hull_olive)
 	_box(_halyard_visual, "AftPressureCap", Vector3(0.0, 1.85, 9.72), Vector3(3.40, 2.20, 0.28), _halyard_materials.structure)
 
-	# Dorsal service spine with periodic ribs: a long low conduit that gives the
-	# crown a readable direction from above and from the chase camera.
-	_box(_halyard_visual, "DorsalServiceSpine", Vector3(0.0, 4.20, centre_z), Vector3(0.55, 0.34, length - 2.40), _halyard_materials.structure)
+	# Pressed service conduit seats continuously into the pressure crown. The
+	# tapered boots follow the fore/aft shell falloff rather than ending in a
+	# floating square rail; removable formed saddles bridge onto the roof skin.
+	_pressed_roof(_halyard_visual, "DorsalServiceSpine", 0.52, 4.09, 0.30,
+		PackedVector3Array([Vector3(0.32, -0.40, -11.50),
+			Vector3(0.70, -0.05, -10.85), Vector3(1.0, 0.0, -10.15),
+			Vector3(1.0, 0.0, 7.60), Vector3(0.72, -0.07, 8.55),
+			Vector3(0.30, -0.50, 9.30)]), 0.31, _halyard_materials.structure)
 	_spine_rib_transforms.clear()
 	for rib_index in SPINE_RIB_COPY_COUNT:
 		var rib_z := TUBE_FORWARD_Z + 1.80 + float(rib_index) * 2.55
 		_spine_rib_transforms.append(Transform3D(Basis.IDENTITY, Vector3(0.0, 4.10, rib_z)))
-	_spine_rib_mesh = StationSurfaceKit.rounded_box_mesh_cached(SPINE_RIB_SIZE, _box_mesh_cache)
+	_spine_rib_mesh = _service_spine_saddle_mesh()
 	_spine_rib_batch = _multimesh_visual_stock(
 		_halyard_visual,
 		"SpineRibs",
@@ -4852,6 +4857,36 @@ func _engine_nozzle_mesh() -> ArrayMesh:
 					Vector3(cos(angle) * rear.x, sin(angle) * rear.x, rear.y))
 		tool.commit(mesh)
 	return mesh
+
+
+## A closed pressed saddle: a roof-following foot and a raised conduit clamp.
+## One stock mesh is shared by all seven visual-only copies.
+func _service_spine_saddle_mesh() -> ArrayMesh:
+	var profile := PackedVector2Array([
+		Vector2(-0.95, -0.055), Vector2(-0.65, 0.015),
+		Vector2(-0.40, 0.26), Vector2(-0.22, 0.335),
+		Vector2(0.22, 0.335), Vector2(0.40, 0.26),
+		Vector2(0.65, 0.015), Vector2(0.95, -0.055),
+		Vector2(0.95, -0.09), Vector2(0.65, -0.05),
+		Vector2(0.40, -0.035), Vector2(-0.40, -0.035),
+		Vector2(-0.65, -0.05), Vector2(-0.95, -0.09),
+	])
+	var tool := SurfaceTool.new()
+	tool.begin(Mesh.PRIMITIVE_TRIANGLES)
+	for index in profile.size():
+		var a := profile[index]
+		var b := profile[(index + 1) % profile.size()]
+		_skin_quad(tool, Vector3(a.x, a.y, -0.14), Vector3(a.x, a.y, 0.14),
+			Vector3(b.x, b.y, 0.14), Vector3(b.x, b.y, -0.14))
+	var triangles := Geometry2D.triangulate_polygon(profile)
+	for end in [-1.0, 1.0]:
+		for index in range(0, triangles.size(), 3):
+			for corner in ([2, 1, 0] if end > 0.0 else [0, 1, 2]):
+				var point := profile[triangles[index + corner]]
+				tool.set_normal(Vector3(0.0, 0.0, end))
+				tool.set_uv(point)
+				tool.add_vertex(Vector3(point.x, point.y, end * 0.14))
+	return tool.commit()
 
 
 func _manufactured_loft(

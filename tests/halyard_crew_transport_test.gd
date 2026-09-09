@@ -852,13 +852,14 @@ func _test_render_allocations(craft: HeroShip) -> void:
 		"batch preserves all seven authored rib transforms, ordering and visual names"
 	)
 	_check(
-		multi.mesh != null
-		and multi.mesh.get_aabb().size.is_equal_approx(HalyardCrewTransport.SPINE_RIB_SIZE)
+		multi.mesh is ArrayMesh
+		and multi.mesh.get_aabb().size.is_equal_approx(Vector3(1.90, 0.425, 0.28))
+		and is_equal_approx(multi.mesh.get_aabb().position.y, -0.09)
 		and multi.mesh.get_surface_count() == 1
 		and batch.material_override == craft.get_variant_materials().get("hull_shade")
 		and batch.cast_shadow == GeometryInstance3D.SHADOW_CASTING_SETTING_ON
 		and batch.layers == 1,
-		"batch preserves rib extent, surface, material identity, shadows and render layer"
+		"formed saddle stock retains crown-seated extent, surface, material identity, shadows and render layer"
 	)
 	var old_rib_nodes := 0
 	for raw_node in visual.get_children():
