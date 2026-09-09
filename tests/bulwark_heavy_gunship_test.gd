@@ -77,6 +77,7 @@ func _test_collision_and_authority_audit(ship: HeroShip) -> void:
 	_test_navigation_lamp_mesh_sharing(visual)
 	_test_engine_housing_batch(visual)
 	_test_gun_pod_housing_batch(visual)
+	_test_service_cassettes(visual)
 	var audit: Dictionary = ship.call("get_bulwark_audit_report")
 	_check(bool(audit.get("valid", false)), "fully constructed Bulwark passes its public audit")
 	_check(int(audit.get("collision_shape_count", 0)) >= 3, "audit sees the armored collision envelope")
@@ -469,3 +470,28 @@ func _check(condition: bool, message: String) -> void:
 	else:
 		_failures += 1
 		push_error("FAIL: %s" % message)
+
+
+func _test_service_cassettes(visual: Node3D) -> void:
+	for kind in ["ReactorCooling", "BastionThermalFace", "NacelleDorsalVent", "CannonCooling"]:
+		for part in ["Recess", "Frame", "Vanes"]:
+			var port := visual.find_child("Port" + kind + part, true, false) as MeshInstance3D
+			var starboard := visual.find_child("Starboard" + kind + part, true, false) as MeshInstance3D
+			_check(port != null and starboard != null, kind + part + " exists on both sides")
+			if port == null or starboard == null:
+				continue
+			_check(port.mesh == starboard.mesh, kind + part + " shares paired cassette geometry")
+			_check(port.get_meta(&"presentation_only", false) and starboard.get_meta(&"presentation_only", false), kind + part + " remains passive presentation")
+		_check(visual.find_child("Port" + kind + "Louver0", true, false) == null, kind + " replaces separate box louvers")
+	var nacelle := visual.find_child("PortNacelleDorsalVentFrame", true, false) as MeshInstance3D
+	if nacelle != null:
+		var bounds := nacelle.transform * nacelle.mesh.get_aabb()
+		_check(bounds.position.z >= 3.05 and bounds.end.z <= 3.95, "nacelle cassette stays on flat forward armor before the saddle step")
+		_check(bounds.position.y <= 1.95 and bounds.position.y >= 1.92 and bounds.end.y > 1.95, "nacelle cassette foot seats into armor while its mouth stays exposed")
+	var cannon := visual.find_child("PortCannonCoolingFrame", true, false) as MeshInstance3D
+	if cannon != null:
+		var pose: Transform3D = cannon.get_parent().transform * cannon.transform
+		var bounds := pose * cannon.mesh.get_aabb()
+		_check(bounds.position.z >= -3.47 and bounds.end.z < -2.37, "cannon cassette stays on receiver ahead of removable cover joint")
+		var roof_y := 1.45 + (pose.origin.z + 3.47) * 0.01 / 0.91
+		_check(absf(pose.origin.y - roof_y) < 0.001 and absf(pose.basis.z.y - 0.01 / 0.91) < 0.001, "cannon cassette follows the shallow receiver roof")

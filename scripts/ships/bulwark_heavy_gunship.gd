@@ -9,6 +9,7 @@ extends HeroShip
 ## damage, boarding lifecycle, and reuse; optional gunner fire is admitted by
 ## the seat authority and resolved by the shared combat authority.
 
+const ShipServiceCassette := preload("res://scripts/ships/ship_service_cassette.gd")
 const ModernRoleProfile := preload("res://scripts/fleet/modern_role_profile.gd")
 const CrewSeatRoleAuthorityType := preload("res://scripts/ships/crew_seat_role_authority.gd")
 const CrewRoleGameplayProfileType := preload("res://scripts/fleet/crew_role_gameplay_profile.gd")
@@ -729,9 +730,9 @@ func _build_bulwark_manufactured_details(visual: Node3D, armor: Material, dark: 
 		cooling_mount.position = Vector3(side * 1.12, 1.472, 2.34)
 		cooling_mount.rotation.x = atan(0.25 / 1.35)
 		visual.add_child(cooling_mount)
-		_service_bay(cooling_mount, tag + "ReactorCooling", Vector3.ZERO, 0.62, 0.96, armor, dark, metal)
+		ShipServiceCassette.install(cooling_mount, tag + "ReactorCooling", Vector3.ZERO, 0.62, 0.96, armor, dark, metal)
 		# One low armored shoulder cap follows the hull instead of a turret stack.
-		_service_bay(visual, tag + "BastionThermalFace", Vector3(side * 4.05, 2.37, 1.03), 1.06, 1.05, armor, dark, metal)
+		ShipServiceCassette.install(visual, tag + "BastionThermalFace", Vector3(side * 4.05, 2.37, 1.03), 1.06, 1.05, armor, dark, metal)
 		var skirt := _pressure_panel(visual, tag + "OutboardSkirt", Vector3(side * 5.80, 1.08, 0.58), 0.48, 0.64, 0.055, 2.1, armor)
 		skirt.rotation.z = PI * 0.5
 		for z in [-0.30, 1.46]:
@@ -740,8 +741,15 @@ func _build_bulwark_manufactured_details(visual: Node3D, armor: Material, dark: 
 		_frustum(visual, tag + "ExhaustBell", Vector3(side * 2.65, 1.15, 5.54), 0.63, 0.52, 0.46, metal, Vector3(90, 0, 0), false, false)
 		_cylinder(visual, tag + "RecessedThroat", Vector3(side * 2.65, 1.15, 5.45), 0.48, 0.08, dark, Vector3(90, 0, 0))
 		_engine_mechanics(visual, tag, Vector3(side * 2.65, 1.15, 5.72), 0.55, metal, dark, hot)
-		_service_bay(visual, tag + "NacelleDorsalVent", Vector3(side * 2.65, 1.93, 3.68), 0.74, 1.25, armor, dark, metal)
-		_service_bay(visual, tag + "CannonCooling", Vector3(side * 3.25, 1.53, -2.75), 0.58, 0.80, armor, dark, metal)
+		# Keep the vent wholly on the flat forward nacelle pad, clear of its step.
+		ShipServiceCassette.install(visual, tag + "NacelleDorsalVent", Vector3(side * 2.65, 1.95, 3.50), 0.74, 0.74, armor, dark, metal)
+		# The cannon cassette follows the receiver roof before its removable cover.
+		var cannon_mount := Node3D.new()
+		cannon_mount.name = tag + "CannonCoolingMount"
+		cannon_mount.position = Vector3(side * 3.25, 1.45665, -2.95)
+		cannon_mount.rotation.x = -atan(0.01 / 0.91)
+		visual.add_child(cannon_mount)
+		ShipServiceCassette.install(cannon_mount, tag + "CannonCooling", Vector3.ZERO, 0.58, 0.80, armor, dark, metal)
 	_build_cannon_construction(visual, armor, dark, metal)
 
 	# Stencilled identification belongs on the continuous armored flank, clear
@@ -2754,14 +2762,6 @@ func _armor_shell(parent: Node3D, node_name: String, at: Vector3, size: Vector3,
 	instance.transform.basis.z.x = -skew
 	parent.add_child(instance)
 	return instance
-
-
-func _service_bay(parent: Node3D, tag: String, at: Vector3, width: float, length: float, frame: Material, dark: Material, metal: Material) -> void:
-	_box(parent, tag + "Recess", at, Vector3(width, 0.035, length), dark)
-	for side in [-1.0, 1.0]:
-		_box(parent, tag + "Rim" + str(side), at + Vector3(side * (width * 0.5 + 0.045), 0.035, 0), Vector3(0.09, 0.07, length + 0.18), frame)
-	for index in 5:
-		_box(parent, tag + "Louver" + str(index), at + Vector3(0, 0.032, (float(index) / 4.0 - 0.5) * length * 0.78), Vector3(width * 0.82, 0.05, length * 0.07), metal, Vector3(0.18, 0, 0))
 
 
 func _pressure_panel(parent: Node3D, label: String, at: Vector3, top: float, bottom: float, height: float, depth: float, material: Material) -> MeshInstance3D:
