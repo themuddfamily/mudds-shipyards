@@ -40,10 +40,39 @@ func _run() -> void:
 	_test_escape_pods_and_sensors(arrow)
 	_test_instrument_construction(arrow)
 	_test_cockpit_fairing(arrow)
+	_test_shared_seat_cushions(arrow)
 	_test_collision_boarding_and_cameras(arrow)
 	await _test_engine_weapon_and_lifecycle(arrow)
 	await _test_cleanup(arrow)
 	_finish()
+
+
+func _test_shared_seat_cushions(arrow: ArrowReconShip) -> void:
+	var cockpit := arrow.get_arrow_visual_root().get_node("CockpitInterior") as Node3D
+	var expected := {
+		"SeatPan": AABB(Vector3(-0.37, -0.08, -0.41), Vector3(0.74, 0.19, 0.78)),
+		"SeatBack": AABB(Vector3(-0.36, -0.06, -0.44), Vector3(0.72, 0.20, 0.87)),
+		"Headrest": AABB(Vector3(-0.27, -0.07, -0.14), Vector3(0.54, 0.19, 0.28)),
+	}
+	for cushion_name in expected:
+		var cushion := cockpit.get_node(NodePath(cushion_name)) as MeshInstance3D
+		var mesh := cushion.mesh
+		_check(mesh.get_aabb().is_equal_approx(expected[cushion_name]),
+			"%s foam retains its occupied envelope" % cushion_name)
+		_check(mesh.get_surface_count() == 1 and mesh.surface_get_material(0) == cushion.material_override,
+			"%s keeps one renderer surface and its existing upholstery material" % cushion_name)
+		var vertices: PackedVector3Array = mesh.surface_get_arrays(0)[Mesh.ARRAY_VERTEX]
+		var front := mesh.get_aabb().position.z
+		var front_vertices := PackedVector3Array()
+		for vertex in vertices:
+			if is_equal_approx(vertex.z, front):
+				front_vertices.append(vertex)
+		var closed_roll := not front_vertices.is_empty()
+		for vertex in front_vertices:
+			closed_roll = closed_roll and is_zero_approx(vertex.x)
+		_check(closed_roll, "%s front foam rolls continuously into a closed tip" % cushion_name)
+	_check(arrow.get_pilot_seat_anchor().position.is_equal_approx(Vector3(0.0, 1.56, -0.02)),
+		"cushion refit keeps the physical seated feet frame")
 
 
 func _test_boarding_step_mesh_sharing(arrow: ArrowReconShip) -> void:

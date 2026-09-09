@@ -6132,11 +6132,78 @@ func _cockpit_seat_fitting(
 	fitting.name = fitting_name
 	fitting.position = fitting_position
 	fitting.rotation = fitting_rotation
-	fitting.mesh = _cockpit_formed_enclosure_mesh(sections, material)
+	var upholstered := fitting_name in ["SeatPan", "SeatBack", "Headrest", "PortShoulderSupport", "StarboardShoulderSupport"]
+	var seat_shell := fitting_name in ["SeatPanShell", "SeatBackShell", "HeadrestShell"]
+	fitting.mesh = _cockpit_cushion_mesh(sections, material, seat_shell) if upholstered or seat_shell else _cockpit_formed_enclosure_mesh(sections, material)
 	# Variants recolour existing cushion identities through material_override.
 	fitting.material_override = material
 	_cockpit_root.add_child(fitting)
 	return fitting
+
+
+## A padded section has a broad crowned contact face and a continuous rolled
+## edge, rather than the enclosure helper's planar crown and clipped corners.
+## Interpolating within authored stations retains the occupied envelope; short
+## elliptical end rolls tuck the upholstery into its existing supporting shell.
+func _cockpit_cushion_mesh(sections: Array[Vector4], material: Material, shell: bool) -> ArrayMesh:
+	const ARC_STEPS := 32
+	const SPAN_STEPS := 4
+	var samples: Array[Vector4] = []
+	for station in range(sections.size() - 1):
+		for step in SPAN_STEPS:
+			var t := float(step) / float(SPAN_STEPS)
+			var shape_t := t * t * (3.0 - 2.0 * t)
+			var section := sections[station].lerp(sections[station + 1], shape_t)
+			section.w = lerpf(sections[station].w, sections[station + 1].w, t)
+			samples.append(section)
+	samples.append(sections[-1])
+	# Extra cap stations make the front waterfall and top headrest edge part
+	# of the foam volume, not an added trim strip or another renderer.
+	var end_depth := minf(0.045, (sections[-1].w - sections[0].w) * 0.12)
+	for end in [0, 1]:
+		var section := sections[0] if end == 0 else sections[-1]
+		for fraction in [0.12, 0.4, 0.75]:
+			var cap := section
+			cap.w += end_depth * fraction * (1.0 if end == 0 else -1.0)
+			samples.append(cap)
+	samples.sort_custom(func(a: Vector4, b: Vector4) -> bool: return a.w < b.w)
+	var rings: Array[PackedVector3Array] = []
+	for section in samples:
+		var distance_to_end := minf(section.w - sections[0].w, sections[-1].w - section.w)
+		var end_t := clampf(distance_to_end / end_depth, 0.0, 1.0)
+		var roll := sqrt(maxf(0.0, 1.0 - pow(1.0 - end_t, 2.0)))
+		var ring := PackedVector3Array()
+		var middle := (section.y + section.z) * 0.5
+		for step in ARC_STEPS:
+			var angle := TAU * float(step) / float(ARC_STEPS)
+			var x := cos(angle)
+			var y := sin(angle)
+			# Shells are firmer and flatter, cushions carry a generous foam crown.
+			var x_shape := signf(x) * pow(absf(x), 0.36 if shell else 0.52)
+			var y_shape := signf(y) * pow(absf(y), 0.36 if shell else 0.72)
+			ring.append(Vector3(x_shape * section.x * 0.5 * roll,
+				middle + y_shape * (section.z - section.y) * 0.5 * roll, section.w))
+		rings.append(ring)
+	var tool := SurfaceTool.new()
+	tool.begin(Mesh.PRIMITIVE_TRIANGLES)
+	tool.set_material(material)
+	for station in range(rings.size() - 1):
+		for step in ARC_STEPS:
+			var next := (step + 1) % ARC_STEPS
+			var quad := [rings[station][step], rings[station][next], rings[station + 1][next], rings[station + 1][step]]
+			for triangle in [[0, 2, 1], [0, 3, 2]]:
+				var a: Vector3 = quad[triangle[0]]
+				var b: Vector3 = quad[triangle[1]]
+				var c: Vector3 = quad[triangle[2]]
+				if (b - a).cross(c - a).length_squared() < 0.000000000001:
+					continue
+				for point: Vector3 in [a, b, c]:
+					tool.set_uv(Vector2(point.x, point.z))
+					tool.add_vertex(point)
+	tool.index()
+	tool.generate_normals()
+	tool.generate_tangents()
+	return tool.commit()
 
 
 ## Refit the inherited renderer owners, retaining the live readout subtree and
