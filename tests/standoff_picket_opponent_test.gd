@@ -319,11 +319,12 @@ func _test_contract_and_evidence() -> void:
 			"starboard_rotation": Vector3(0.0, 0.46, -0.12),
 		},
 		{
-			"port_position": Vector3(-3.85, 0.5, 4.0),
-			"starboard_position": Vector3(3.85, 0.5, 4.0),
-			"size": Vector3(0.18, 1.0, 1.5),
-			"port_rotation": Vector3(0.0, -0.24, 0.2),
-			"starboard_rotation": Vector3(0.0, 0.24, -0.2),
+			"port_position": expected_vane_transforms[0] * Vector3(-1.79, 0.55, 0.05),
+			"starboard_position": expected_vane_transforms[1] * Vector3(1.79, 0.55, 0.05),
+			# Sweeping the bevelled end caps contracts the measured chord.
+			"size": Vector3(0.18, 1.0, 1.3671),
+			"port_rotation": Vector3(0.0, -0.46, 0.12),
+			"starboard_rotation": Vector3(0.0, 0.46, -0.12),
 		},
 	]
 	var exact_shared_pairs := visual != null
@@ -346,7 +347,7 @@ func _test_contract_and_evidence() -> void:
 		)
 	_check(
 		exact_shared_pairs,
-		"the four per-node pairs share their fitted recipes, including spars below the radiator backing and stripes on its frame"
+		"the four per-node pairs share their fitted recipes, including spars below the radiator backing and swept fins seated on its frame"
 	)
 
 	var spine_collision := picket.get_node_or_null("SpineCollision") as CollisionShape3D

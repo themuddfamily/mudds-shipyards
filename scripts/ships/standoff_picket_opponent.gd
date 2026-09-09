@@ -1643,7 +1643,13 @@ func _build_interceptor() -> void:
 		# The identification strip follows the outboard frame instead of lying
 		# across the heat-rejection faces at an unrelated roll angle.
 		_picket_box(_visual_root, "VaneStripe", vane_center + Basis.from_euler(vane_rotation) * Vector3(side * 1.79, 0.084, 0.0), Vector3(0.065, 0.018, 1.86), _materials.picket_magenta, vane_rotation)
-		_picket_box(_visual_root, "VaneTipFin", Vector3(side * 3.85, 0.5, 4.0), Vector3(0.18, 1.0, 1.5), _materials.picket_bone, Vector3(0.0, side * 0.24, side * -0.2))
+		# The stabilizer grows out of the radiator's outboard load frame. Its
+		# swept, shorter crown follows the aft machinery rather than presenting
+		# a rectangular plate detached from the bank's rotated perimeter.
+		_picket_box(_visual_root, "VaneTipFin",
+			vane_center + vane_basis * Vector3(side * 1.79, 0.55, 0.05),
+			Vector3(0.18, 1.0, 1.5), _materials.picket_bone, vane_rotation,
+			Vector2(0.4, 0.38))
 
 		var plume := _exhaust_plume(_visual_root, "EnginePlume", Vector3(side * 0.86, -0.02, 5.42), 0.17, 0.7, _materials.picket_engine, Vector3(90.0, 0.0, 0.0))
 		_engine_glows.append(plume)
@@ -1874,26 +1880,45 @@ func _picket_box(
 		size: Vector3,
 		material: Material,
 		rotation_value := Vector3.ZERO,
+		upper_chord := Vector2(1.0, 0.0),
 	) -> MeshInstance3D:
 	var instance := MeshInstance3D.new()
 	instance.name = node_name
 	instance.position = position_value
 	instance.rotation = rotation_value
-	instance.mesh = _picket_box_mesh(size, material)
+	instance.mesh = _picket_box_mesh(size, material, upper_chord)
 	parent.add_child(instance)
 	return instance
 
 
-func _picket_box_mesh(size: Vector3, material: Material) -> Mesh:
+## The optional upper chord is (length fraction, aft offset). It forms a
+## swept stabilizer from the same bevelled solid without adding render nodes.
+func _picket_box_mesh(size: Vector3, material: Material, upper_chord := Vector2(1.0, 0.0)) -> Mesh:
 	var cache_key := "box:%0.4f:%0.4f:%0.4f:%d" % [
 		size.x,
 		size.y,
 		size.z,
 		0 if material == null else material.get_instance_id(),
 	]
+	cache_key += ":%0.4f:%0.4f" % [upper_chord.x, upper_chord.y]
 	var mesh := _picket_box_mesh_cache.get(cache_key) as Mesh
 	if mesh == null:
 		mesh = _armour_mesh(size, material)
+		if upper_chord != Vector2(1.0, 0.0):
+			var arrays := mesh.surface_get_arrays(0)
+			var vertices: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
+			for index in vertices.size():
+				var height_fraction := clampf(vertices[index].y / size.y + 0.5, 0.0, 1.0)
+				vertices[index].z = vertices[index].z * lerpf(1.0, upper_chord.x, height_fraction) + upper_chord.y * height_fraction
+			arrays[Mesh.ARRAY_VERTEX] = vertices
+			var formed := ArrayMesh.new()
+			formed.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
+			var surface := SurfaceTool.new()
+			surface.create_from(formed, 0)
+			surface.generate_normals()
+			surface.generate_tangents()
+			surface.set_material(material)
+			mesh = surface.commit()
 		mesh.set_meta(&"picket_box_recipe", size)
 		_picket_box_mesh_cache[cache_key] = mesh
 	return mesh
