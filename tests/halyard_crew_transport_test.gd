@@ -205,6 +205,7 @@ func _run() -> void:
 	await physics_frame
 
 	await _test_interior_furnishing_ranges(craft)
+	_test_fitout_surface_parity(craft as HalyardCrewTransport)
 	_test_identity_and_evidence(craft)
 	_test_lateral_role(craft)
 	_test_readable_colour(craft)
@@ -219,6 +220,8 @@ func _run() -> void:
 	# intentionally asks the shared damage presenter to add transient shards.
 	_test_surfacing(craft)
 	await _test_in_flight_cabin(craft)
+	_check((craft.get("_fitout_surface_cache") as Dictionary).is_empty(),
+		"damage/reset and moving-cabin reuse do not retain CPU staging surfaces")
 
 	craft.queue_free()
 	await process_frame
@@ -238,6 +241,60 @@ func _run() -> void:
 	for line in _evidence:
 		print(line)
 	_finish()
+
+
+func _test_fitout_surface_parity(craft: HalyardCrewTransport) -> void:
+	var surfaces: Dictionary = craft.get("_fitout_surface_cache")
+	var sources: Dictionary = craft.get("_box_mesh_cache")
+	var retained_sources := sources.duplicate()
+	_check(surfaces.is_empty(), "construction releases Halyard CPU surfaces after their final consumer")
+	var materials := craft.get_variant_materials()
+	var actual := {}
+	var ring_stocks := {}
+	var reference_stock_cache := {}
+	for finish in ["structure", "upholstery"]:
+		var reference := SurfaceTool.new()
+		reference.begin(Mesh.PRIMITIVE_TRIANGLES)
+		reference.set_material(materials[finish])
+		for index in 3:
+			var at := Vector3(index * 1.2, 0.7, -2.3)
+			var rotation_value := Vector3(0.15 * index, -0.37, 0.21)
+			var placement := Transform3D(Basis.from_euler(rotation_value), at)
+			var size := Vector3(0.72, 0.18, 0.63)
+			craft._fitout_stock(actual, finish, at, size, rotation_value)
+			reference.append_from(StationSurfaceKit.rounded_box_mesh_cached(size, reference_stock_cache), 0, placement)
+			# Inflated cushions have generated smooth normals, unlike flat stock.
+			craft._fitout_soft_stock(actual, finish, at, size, rotation_value)
+			reference.append_from(craft._cabin_cushion_mesh(size), 0, placement)
+			craft._fitout_ring(actual, finish, at, 0.77, 0.855, ring_stocks)
+			var ring := TorusMesh.new()
+			ring.inner_radius = 0.77
+			ring.outer_radius = 0.855
+			ring.rings = 48
+			ring.ring_segments = 8
+			var ring_stock := SurfaceTool.new()
+			ring_stock.create_from(ring, 0)
+			ring_stock.deindex()
+			reference.append_from(ring_stock.commit(), 0,
+				Transform3D(Basis(Vector3.RIGHT, PI * 0.5), at))
+		var result := (actual[finish] as SurfaceTool).commit()
+		var expected := reference.commit()
+		_check(result.surface_get_arrays(0) == expected.surface_get_arrays(0),
+			"cached %s mixed stock, smooth cushions and rings retain exact vertices/normals/tangents/UVs/index order" % finish)
+		_check(result.surface_get_arrays(0)[Mesh.ARRAY_INDEX] == null,
+			"cached %s mixed fitout keeps all stock and rings unindexed" % finish)
+		_check(result.surface_get_material(0) == materials[finish]
+			and result.get_aabb() == expected.get_aabb(),
+			"cached %s fitout retains material ownership and bounds" % finish)
+	_check(surfaces.size() == 3, "repeated Halyard stock, soft stock and rings share three decoded surfaces")
+	var source_cache_preserved := true
+	for key: Variant in retained_sources:
+		source_cache_preserved = source_cache_preserved and sources.get(key) == retained_sources[key]
+	_check(source_cache_preserved, "CPU staging preserves every existing renderer source mesh")
+	var retained_ring: Mesh = ring_stocks[Vector2(0.77, 0.855)]
+	ring_stocks.clear()
+	_check(surfaces.has(retained_ring), "construction cache keeps source ownership safe after the local ring cache clears")
+	surfaces.clear()
 
 
 # ---------------------------------------------------------------- group A ----

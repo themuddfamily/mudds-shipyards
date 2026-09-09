@@ -12,24 +12,7 @@ extends HeroShip
 ## The cargo deck, passenger cabin, cockpit, and exterior ramp are one physical
 ## ship-local hierarchy; no detached or teleported interior is involved.
 
-# CPU staging only: never attached to a renderer. Keeping the decoded surface
-# lets native SurfaceTool.append_from preserve its packing/transform semantics
-# without reading the same ArrayMesh back from the rendering server per fitting.
-class FitoutSurfaceData extends Mesh:
-	var arrays: Array
-
-	func _init(source: Mesh) -> void:
-		arrays = source.surface_get_arrays(0)
-
-	func _get_surface_count() -> int:
-		return 1
-
-	func _surface_get_arrays(_surface: int) -> Array:
-		return arrays
-
-	func _surface_get_primitive_type(_surface: int) -> int:
-		return Mesh.PRIMITIVE_TRIANGLES
-
+const FitoutSurfaceData := preload("res://scripts/rendering/construction_surface_data.gd")
 
 const SCHEMA_VERSION := 1
 const CrewSeatRoleAuthorityType := preload("res://scripts/ships/crew_seat_role_authority.gd")

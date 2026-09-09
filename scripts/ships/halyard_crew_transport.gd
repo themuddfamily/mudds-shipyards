@@ -43,6 +43,7 @@ extends HeroShip
 const ShipCabinHatchType := preload("res://scripts/interaction/ship_cabin_hatch.gd")
 const ShipBunkType := preload("res://scripts/interaction/ship_bunk.gd")
 
+const ConstructionSurfaceData := preload("res://scripts/rendering/construction_surface_data.gd")
 const SCHEMA_VERSION := 1
 const EVIDENCE_STATUS: StringName = &"modern_interpretation"
 const EVIDENCE_SCOPE: StringName = &"original_design"
@@ -356,6 +357,8 @@ var _halyard_built := false
 var _halyard_visual: Node3D
 var _halyard_materials: Dictionary = {}
 var _box_mesh_cache: Dictionary = {}
+# Separate from renderer-owned meshes; released after the final fitout consumer.
+var _fitout_surface_cache: Dictionary = {}
 var _walkable_interior: Node3D
 var _crew_cabin: Node3D
 var _port_hatch_door: MeshInstance3D
@@ -2562,6 +2565,7 @@ func _build_halyard_variant(_controller: HeroShip) -> bool:
 	_build_connected_interior()
 	_build_propulsion_and_gear()
 	_build_fitted_transport_details()
+	_fitout_surface_cache.clear()
 	_build_hull_markings()
 	_configure_interior_furnishing_ranges()
 	_replace_collision_and_markers()
@@ -5176,6 +5180,14 @@ func _cabin_cushion_mesh(size: Vector3) -> ArrayMesh:
 	return mesh
 
 
+# Mesh keys retain source identity even after a local ring cache is cleared.
+# SurfaceTool still owns all append transforms and final material assignment.
+func _fitout_surface(source: Mesh) -> Mesh:
+	if not _fitout_surface_cache.has(source):
+		_fitout_surface_cache[source] = ConstructionSurfaceData.new(source)
+	return _fitout_surface_cache[source] as Mesh
+
+
 func _fitout_soft_stock(batch: Dictionary, finish: String, at: Vector3, size: Vector3,
 		rotation_value := Vector3.ZERO) -> void:
 	if not batch.has(finish):
@@ -5183,7 +5195,7 @@ func _fitout_soft_stock(batch: Dictionary, finish: String, at: Vector3, size: Ve
 		tool.begin(Mesh.PRIMITIVE_TRIANGLES)
 		tool.set_material(_halyard_materials[finish])
 		batch[finish] = tool
-	(batch[finish] as SurfaceTool).append_from(_cabin_cushion_mesh(size), 0,
+	(batch[finish] as SurfaceTool).append_from(_fitout_surface(_cabin_cushion_mesh(size)), 0,
 		Transform3D(Basis.from_euler(rotation_value), at))
 
 
@@ -5197,7 +5209,7 @@ func _fitout_stock(batch: Dictionary, finish: String, at: Vector3, size: Vector3
 		tool.set_material(_halyard_materials[finish])
 		batch[finish] = tool
 	var stock := StationSurfaceKit.rounded_box_mesh_cached(size, _box_mesh_cache)
-	(batch[finish] as SurfaceTool).append_from(stock, 0,
+	(batch[finish] as SurfaceTool).append_from(_fitout_surface(stock), 0,
 		Transform3D(Basis.from_euler(rotation_value), at))
 
 
@@ -5231,7 +5243,7 @@ func _fitout_ring(batch: Dictionary, finish: String, at: Vector3,
 		ring_stock.create_from(ring, 0)
 		ring_stock.deindex()
 		ring_stocks[key] = ring_stock.commit()
-	(batch[finish] as SurfaceTool).append_from(ring_stocks[key] as ArrayMesh, 0,
+	(batch[finish] as SurfaceTool).append_from(_fitout_surface(ring_stocks[key] as ArrayMesh), 0,
 		Transform3D(Basis(Vector3.RIGHT, PI * 0.5), at))
 
 
