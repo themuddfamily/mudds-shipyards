@@ -104,9 +104,9 @@ const PRESENTATION_MATERIAL_RESOURCE_COUNT := 9
 const BASELINE_PRESENTATION_MESH_RESOURCE_COUNT := 27
 const PRESENTATION_MESH_RESOURCE_COUNT := 23
 const BASELINE_PRESENTATION_BOX_MESH_RESOURCE_COUNT := 14
-## The pressure spine and radiator assembly replace stock boxes; stripes stay shared.
-const PRESENTATION_BOX_MESH_RESOURCE_COUNT := 7
-const PRESENTATION_BOX_INSTANCE_COUNT := 11
+## Pressure spine, dorsal instruments and radiators replace stock boxes; flank stripes stay shared.
+const PRESENTATION_BOX_MESH_RESOURCE_COUNT := 5
+const PRESENTATION_BOX_INSTANCE_COUNT := 9
 const PRESENTATION_SHARED_BOX_FAMILY_COUNT := 4
 const PRESENTATION_MULTIMESH_BATCH_COUNT := 4
 const ENGINE_POD_COPY_COUNT := 2
@@ -1605,13 +1605,29 @@ func _build_interceptor() -> void:
 		Vector4(2.3, 0.625, 0.5, 0), Vector4(3.1, 0.52, 0.35, -0.02),
 	], _materials.picket_hull)
 	_picket_box(_visual_root, "SpineKeel", Vector3(0.0, -0.62, 1.6), Vector3(0.8, 0.34, 5.4), _materials.picket_deep)
-	_picket_box(_visual_root, "DorsalRail", Vector3(0.0, 0.66, 1.9), Vector3(0.42, 0.3, 4.6), _materials.picket_slate)
-	# A continuous dorsal identification stripe. This is the identity read that
-	# survives at standoff distance where hull tone alone does not.
-	_picket_box(_visual_root, "DorsalStripe", Vector3(0.0, 0.83, 1.2), Vector3(0.2, 0.06, 7.4), _materials.picket_magenta)
+	# The instrument raceway rises out of the sensor saddle and closes back into
+	# the pressure hull. Its broad shoulders seat the existing service fittings.
+	_pressure_body(_visual_root, "DorsalRail", Vector3.ZERO, [
+		Vector4(-0.4, 0.33, 0.14, 0.68), Vector4(0.1, 0.41, 0.20, 0.71),
+		Vector4(3.45, 0.41, 0.20, 0.71), Vector4(3.85, 0.30, 0.13, 0.63),
+		Vector4(4.2, 0.13, 0.065, 0.46),
+	], _materials.picket_slate)
+	# The magenta identification inlay follows the instrument crown, then drops
+	# onto the hull at each end instead of floating past it as a straight ruler.
+	_pressure_body(_visual_root, "DorsalStripe", Vector3.ZERO, [
+		Vector4(-2.5, 0.035, 0.012, 0.50), Vector4(-2.15, 0.08, 0.018, 0.75),
+		Vector4(-1.45, 0.10, 0.018, 0.95), Vector4(-0.55, 0.10, 0.018, 0.95),
+		Vector4(0.1, 0.10, 0.018, 0.91), Vector4(3.45, 0.10, 0.018, 0.91),
+		Vector4(3.85, 0.08, 0.018, 0.76), Vector4(4.2, 0.05, 0.015, 0.525),
+		Vector4(4.43, 0.025, 0.012, 0.35),
+	], _materials.picket_magenta)
 	_picket_box(_visual_root, "FlankStripePort", Vector3(-0.64, 0.2, 1.2), Vector3(0.06, 0.16, 6.6), _materials.picket_magenta)
 	_picket_box(_visual_root, "FlankStripeStarboard", Vector3(0.64, 0.2, 1.2), Vector3(0.06, 0.16, 6.6), _materials.picket_magenta)
-	_wedge(_visual_root, "SensorCowl", Vector3(0.0, 0.68, -1.1), Vector3(0.9, 0.5, 2.4), _materials.picket_slate)
+	_pressure_body(_visual_root, "SensorCowl", Vector3.ZERO, [
+		Vector4(-2.3, 0.16, 0.11, 0.55), Vector4(-2.15, 0.26, 0.17, 0.58),
+		Vector4(-1.45, 0.45, 0.23, 0.72), Vector4(-0.55, 0.45, 0.23, 0.72),
+		Vector4(0.1, 0.41, 0.20, 0.71),
+	], _materials.picket_slate)
 	_sphere(_visual_root, "SensorBlister", Vector3(0.0, 0.78, -1.9), 0.26, _materials.picket_magenta)
 
 	# Forward lance barrel. The charge lens is the long-range read.

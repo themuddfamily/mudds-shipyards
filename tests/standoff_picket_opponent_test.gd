@@ -125,6 +125,7 @@ func _test_contract_and_evidence() -> void:
 	)
 	var visual := picket.get_node_or_null("StandoffPicketVisual") as Node3D
 	_check_lance_construction(picket, visual)
+	_check_dorsal_instruments(picket, visual)
 	var performance := audit.presentation_performance as Dictionary
 	_check(
 		bool(performance.valid)
@@ -141,8 +142,8 @@ func _test_contract_and_evidence() -> void:
 		and int(performance.mesh_resources) == 23
 		and int(performance.mesh_resource_delta) == -4
 		and int(performance.baseline_box_mesh_resources) == 14
-		and int(performance.box_mesh_resources) == 7
-		and int(performance.box_instances) == 11
+		and int(performance.box_mesh_resources) == 5
+		and int(performance.box_instances) == 9
 		and int(performance.shared_box_families) == 4
 		and int(performance.material_resources) == 9
 		and int(performance.multimesh_batches) == 4,
@@ -402,7 +403,7 @@ func _test_contract_and_evidence() -> void:
 		mutation_target != null and retained_mesh != null
 		and not bool(red_performance.valid)
 		and int(red_performance.mesh_resources) == 24
-		and int(red_performance.box_mesh_resources) == 8
+		and int(red_performance.box_mesh_resources) == 6
 		and picket.get_validation_errors().has("picket presentation resource-sharing contract drifted"),
 		"RED A0: splitting one immutable pair turns exact mesh-resource sharing red without relying on renderer buffers"
 	)
@@ -1615,6 +1616,45 @@ func _place_target(target: RangeOpponent, origin: Vector3) -> void:
 
 ## New machined surfaces must keep a real axial opening and usable normal-map
 ## frames. The retained gameplay witnesses stay independently animated.
+func _check_dorsal_instruments(picket: StandoffPicketOpponent, visual: Node3D) -> void:
+	var rail := visual.get_node("DorsalRail") as MeshInstance3D
+	var cowl := visual.get_node("SensorCowl") as MeshInstance3D
+	var stripe := visual.get_node("DorsalStripe") as MeshInstance3D
+	var rail_join := PackedVector3Array()
+	var cowl_join := PackedVector3Array()
+	for pair: Array in [[rail, rail_join], [cowl, cowl_join]]:
+		var vertices: PackedVector3Array = pair[0].mesh.surface_get_arrays(0)[Mesh.ARRAY_VERTEX]
+		var ring: PackedVector3Array = pair[1]
+		for vertex: Vector3 in vertices:
+			if is_equal_approx(vertex.z, 0.1) and not ring.has(vertex):
+				ring.append(vertex)
+		if pair[0] == rail:
+			rail_join = ring
+		else:
+			cowl_join = ring
+	var matching_join := rail_join.size() >= 36 and rail_join.size() == cowl_join.size()
+	for vertex: Vector3 in rail_join:
+		matching_join = matching_join and cowl_join.has(vertex)
+	_check(matching_join, "sensor saddle and dorsal raceway meet at the same manufactured cross section")
+	var stripe_vertices: PackedVector3Array = stripe.mesh.surface_get_arrays(0)[Mesh.ARRAY_VERTEX]
+	var nose_tip := 0.0
+	var tail_tip := 0.0
+	var crown := 0.0
+	for vertex: Vector3 in stripe_vertices:
+		if is_equal_approx(vertex.z, -2.5):
+			nose_tip = maxf(nose_tip, vertex.y)
+		if is_equal_approx(vertex.z, 4.43):
+			tail_tip = maxf(tail_tip, vertex.y)
+		crown = maxf(crown, vertex.y)
+	_check(nose_tip < 0.52 and nose_tip > 0.5 and tail_tip < 0.37 and tail_tip > 0.35
+		and crown > 0.96 and crown < 0.98,
+		"dorsal identity inlay follows the raised crown and returns to the hull at both ends")
+	_check(rail.mesh.surface_get_material(0) == picket._materials.picket_slate
+		and cowl.mesh.surface_get_material(0) == picket._materials.picket_slate
+		and stripe.mesh.surface_get_material(0) == picket._materials.picket_magenta,
+		"formed dorsal instruments retain the shared slate finish and magenta identity material")
+
+
 func _check_lance_construction(picket: StandoffPicketOpponent, visual: Node3D) -> void:
 	for node_name in ["LanceBarrel", "LanceMuzzleRing"]:
 		var instance := visual.get_node(node_name) as MeshInstance3D
