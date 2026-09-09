@@ -761,13 +761,32 @@ func _build_gunner_crew_surround(visual: Node3D, armor: Material) -> void:
 	visual.add_child(surround)
 
 
+## A formed pressure crown supports the retained cabin floor at y=1.87.
+## The rolled shoulders disappear into the armored deck; eased ends avoid
+## an exposed straight pedestal wall beneath the canopy. This is one static
+## skin, with no changes to the physical cabin, boarding lane or gunner rig.
+func _build_cockpit_pressure_transition(visual: Node3D, armor: Material) -> void:
+	var origin := Vector3(0.0, 1.6, -0.55)
+	var fairing := MeshInstance3D.new()
+	fairing.name = "CockpitPressureTransition"
+	fairing.position = origin
+	fairing.mesh = preload("res://scripts/ships/cinder_cockpit_pressure_fairing.gd").build(
+		origin, 1.56, 3.45, armor, {
+			"stations": [-2.80, -2.18, 1.08, 1.40],
+			"tops": [1.55, 1.88, 1.88, 1.58],
+			"widths": [2.60, 3.45, 3.45, 2.50],
+			"top_widths": [2.10, 2.12, 2.12, 2.05],
+		})
+	visual.add_child(fairing)
+
+
 ## Functional assemblies use broad continuous armor around recessed mechanics.
 ## The weapon lanes and aft-port boarding gap keep their established clearance.
 func _build_bulwark_manufactured_details(visual: Node3D, armor: Material, dark: Material) -> void:
 	var metal := _material(Color("626a6d"), 0.78, 0.4)
 	var hot := _material(Color("739eab"), 0.2, 0.35, Color("78afc2"), 0.6)
 	_build_propulsion_cradles(visual, metal, dark)
-	_pressure_panel(visual, "CockpitPressureTransition", Vector3(0, 1.6, -0.55), 2.1, 3.7, 0.56, 3.4, armor)
+	_build_cockpit_pressure_transition(visual, armor)
 	_build_nose_avionics(visual, armor, dark, metal)
 	_build_gunner_crew_surround(visual, armor)
 	for side in [-1.0, 1.0]:

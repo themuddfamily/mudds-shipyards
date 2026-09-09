@@ -78,6 +78,7 @@ func _test_collision_and_authority_audit(ship: HeroShip) -> void:
 	_test_engine_housing_batch(visual)
 	_test_gun_pod_housing_batch(visual)
 	_test_service_cassettes(visual)
+	_test_cockpit_pressure_transition(visual)
 	var audit: Dictionary = ship.call("get_bulwark_audit_report")
 	_check(bool(audit.get("valid", false)), "fully constructed Bulwark passes its public audit")
 	_check(int(audit.get("collision_shape_count", 0)) >= 3, "audit sees the armored collision envelope")
@@ -87,6 +88,23 @@ func _test_collision_and_authority_audit(ship: HeroShip) -> void:
 	_check(audit.get("lifecycle_authority", &"") == &"HeroShip", "audit preserves one lifecycle authority")
 	_check(not bool(audit.get("world_or_berth_registered", true)), "component remains unregistered with world and berth")
 	_check(not bool(ship.get_meta("authenticated_historical_silhouette", true)), "root metadata denies historical silhouette authentication")
+
+
+func _test_cockpit_pressure_transition(visual: Node3D) -> void:
+	var fairing := visual.get_node("CockpitPressureTransition") as MeshInstance3D
+	var floor := visual.get_node("CockpitInterior/CockpitFloor") as MeshInstance3D
+	var fairing_bounds := fairing.transform * fairing.get_aabb()
+	var floor_bounds := (floor.get_parent() as Node3D).transform * (floor.transform * floor.get_aabb())
+	_check(fairing.mesh is ArrayMesh and fairing.mesh.get_surface_count() == 1,
+		"formed cockpit fairing remains one static render surface")
+	_check(fairing_bounds.end.y >= floor_bounds.position.y
+		and fairing_bounds.end.y <= floor_bounds.position.y + 0.02,
+		"pressure crown meets the retained floor underside without entering the cabin")
+	_check(fairing_bounds.position.z < floor_bounds.position.z
+		and fairing_bounds.end.z > floor_bounds.end.z,
+		"pressure skin extends past both ends of the retained floor into the deck")
+	_check(fairing_bounds.size.x < 3.7 and fairing_bounds.position.y <= 1.33,
+		"rolled pressure shoulders narrow the former plinth and remain seated inside the deck")
 
 
 func _test_armored_shoulder_batch(visual: Node3D) -> void:
