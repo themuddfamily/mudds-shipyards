@@ -261,10 +261,16 @@ func _apply_load(
 	_thruster_scale = 1.0 + _presentation_load * thruster_scale_delta
 	_intensity = _dust_opacity
 	if _dust != null:
+		var clearing_burst := _dust.emitting and _intensity <= 0.0
 		_set_retained_particles_active(
 			_dust, _intensity > 0.0 and is_inside_tree()
 		)
-		_dust.amount = maxi(1, roundi(6.0 + 18.0 * _presentation_load))
+		# Even an unchanged amount resets CPUParticles3D's live particles and
+		# requests render-buffer allocation. Keep the burst between count changes;
+		# clearing an active wash must still discard its particles once.
+		var dust_amount := maxi(1, roundi(6.0 + 18.0 * _presentation_load))
+		if _dust.amount != dust_amount or clearing_burst:
+			_dust.amount = dust_amount
 		_dust.color = Color(1.0, 1.0, 1.0, _dust_opacity)
 		_dust.scale = Vector3(
 			_dust_scale * _footprint_lateral_scale,

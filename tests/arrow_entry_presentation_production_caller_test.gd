@@ -195,6 +195,9 @@ func _run() -> void:
 		"low Ember descent reaches the HUD, cockpit, and wash with exact-zero exterior heat",
 	)
 
+	await _test_retained_dust_continuity(production, physical_dust)
+	var normal_dust_amount := physical_dust.amount
+
 	hud.set_reduced_flash(true)
 	hud.set_reduced_motion(true)
 	var reduced := production.advance_from_caller_sample(
@@ -265,6 +268,7 @@ func _run() -> void:
 	).get("exterior_envelope", {}) as Dictionary
 	_check(
 		bool(high_sink_airless.get("accepted", false))
+		and physical_dust.amount == 24 and physical_dust.amount > normal_dust_amount
 		and high_sink_cockpit.get("text") \
 			== "AIRLESS | [!!] HIGH SINK | E[####-] 4/5"
 		and high_sink_cockpit.get("symbol") == &"[!!]"
@@ -318,6 +322,7 @@ func _run() -> void:
 			"presentation_load", -1.0
 		)))
 		and not physical_dust.emitting
+		and physical_dust.amount == 6
 		and not physical_dust.visible
 		and unsupported_wash.get("dust_renderer_visible") == false
 		and physical_dust.scale.is_equal_approx(Vector3.ONE)
@@ -680,7 +685,7 @@ func _run() -> void:
 	composition.queue_free()
 	await process_frame
 	if _failures.is_empty():
-		print("ARROW_ENTRY_PRESENTATION_PRODUCTION_CALLER_TEST_OK: 12 assertions")
+		print("ARROW_ENTRY_PRESENTATION_PRODUCTION_CALLER_TEST_OK: 14 assertions")
 		quit(0)
 		return
 	for failure in _failures:
@@ -691,3 +696,49 @@ func _run() -> void:
 func _check(condition: bool, message: String) -> void:
 	if not condition:
 		_failures.append(message)
+
+
+func _test_retained_dust_continuity(production: ProductionProbe, dust: CPUParticles3D) -> void:
+	# Exercise the production presenter's retained live emitter. Reassigning an
+	# unchanged CPUParticles3D.amount clears its particles; finished then fires
+	# in a birth gap even though the continuous dust burst should still be alive.
+	var premature_finished := [0]
+	dust.use_fixed_seed = true
+	dust.seed = 4701
+	var on_finished := func() -> void: premature_finished[0] += 1
+	dust.finished.connect(on_finished)
+	dust.restart(true)
+	for frame in 3:
+		await physics_frame
+	for frame in 12:
+		production._present_entry_observation(Vector3(0.0, -12.0, 340.0).length(), -12.0, true)
+		await physics_frame
+	_check(premature_finished[0] == 0 and dust.emitting and dust.visible,
+		"repeated identical production descent observations preserve the live dust burst")
+	print("LANDING_DUST_CONTINUITY: premature_finished=", premature_finished[0])
+	dust.finished.disconnect(on_finished)
+	# A tiny positive load and zero both round to six particles. Clearing must
+	# still retire the old burst even though its count does not change.
+	production.set("_last_planetary_altitude_m", 349.0)
+	production._present_entry_observation(340.0, -12.0, true)
+	dust.restart(true)
+	for frame in 3:
+		await physics_frame
+	var cleared_finished := [0]
+	var on_cleared := func() -> void: cleared_finished[0] += 1
+	dust.finished.connect(on_cleared)
+	production._present_entry_observation(340.0, -12.0, false)
+	var cleared_count := dust.amount
+	var cleared_hidden := not dust.visible and not dust.emitting
+	# Let the native simulator observe the cleared state. A retained old particle
+	# would still be alive here: only ~0.1 seconds of its 0.72-second life passed.
+	dust.visible = true
+	for frame in 3:
+		await physics_frame
+	dust.visible = false
+	dust.finished.disconnect(on_cleared)
+	_check(cleared_count == 6 and cleared_hidden and cleared_finished[0] == 1,
+		"zero load clears a live six-particle burst even when the target count is unchanged")
+	print("LANDING_DUST_CLEAR: count=", cleared_count, " finished=", cleared_finished[0])
+	production.set("_last_planetary_altitude_m", 100.0)
+	production._present_entry_observation(Vector3(0.0, -12.0, 340.0).length(), -12.0, true)
