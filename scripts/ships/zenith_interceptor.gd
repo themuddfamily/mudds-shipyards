@@ -3697,14 +3697,15 @@ func _build_modern_airframe(visual: Node3D) -> void:
 	# Formed chines retain the pressure-body stations and open cockpit well.
 	# Curved shoulder breaks carry a continuous highlight from bow to aft keel.
 	_zenith_hard_shell(airframe, "BlendedPressureHull", 0.0, [
-		Vector4(0.05, 0.81, 0.69, -5.32), Vector4(0.43, 1.17, 0.55, -4.05),
-		Vector4(0.88, 1.93, 0.37, -2.78), Vector4(1.03, 2.30, 0.22, -2.22),
+		Vector4(0.28, 1.11, 0.56, -4.53), Vector4(0.57, 1.53, 0.40, -3.65),
+		Vector4(0.88, 1.98, 0.27, -2.78), Vector4(1.03, 2.30, 0.22, -2.22),
 		Vector4(1.15, 2.40, 0.12, -1.35), Vector4(1.22, 2.42, 0.10, -0.12),
 		Vector4(1.29, 2.43, 0.11, 0.34), Vector4(1.46, 2.12, 0.15, 1.54),
 		Vector4(1.56, 1.49, 0.22, 3.05), Vector4(1.10, 0.83, 0.35, 4.35),
 	], hull, true, panel)
 	_zenith_hard_shell(airframe, "NoseSensorRadome", 0.0, [
-		Vector4(0.045, 0.822, 0.69, -5.33), Vector4(0.28, 1.06, 0.61, -4.53),
+		Vector4(0.035, 0.81, 0.69, -5.33), Vector4(0.13, 0.91, 0.64, -4.96),
+		Vector4(0.28, 1.11, 0.56, -4.53),
 	], panel)
 	# Open pilot tub: no solid roof crossing the seat. Coaming walls rise to
 	# the glazing edge while the forward instrument hood remains below the eye.
@@ -4014,31 +4015,36 @@ func _hard_section(section: Vector4) -> PackedVector3Array:
 	])
 
 
+## A pressure-formed cross-section, with a curved shoulder all the way from
+## the wing-root chine to the canopy coaming. The crown becomes an open pilot
+## well at the original sill; aft of it the flat dorsal mounting land remains.
+## Rings share the same samples at the radome joint, so no cuff overlaps the bow.
 func _airframe_section(section: Vector4) -> PackedVector3Array:
 	var w := section.x
 	var h := section.y - section.z
-	var corners := PackedVector3Array([
-		Vector3(w, section.z + h * 0.48, section.w), Vector3(w * 0.68, section.y, section.w),
-		Vector3(-w * 0.68, section.y, section.w), Vector3(-w, section.z + h * 0.48, section.w),
-		Vector3(-w * 0.75, section.z + h * 0.10, section.w), Vector3(-w * 0.50, section.z, section.w),
-		Vector3(w * 0.50, section.z, section.w), Vector3(w * 0.75, section.z + h * 0.10, section.w),
-	])
+	var forward_crown := 1.0 - smoothstep(-3.20, -2.22, section.w)
+	var chine_width := w * (1.0 + 0.24 * (1.0 - smoothstep(0.34, 1.54, section.w)))
+	var chine_y := section.z + h * 0.38
+	var coaming_width := w * 0.70
+	var coaming_y := section.y - h * 0.16 * forward_crown
 	var ring := PackedVector3Array()
-	for corner in corners.size():
-		var point := corners[corner]
-		var before := point.lerp(corners[(corner + 7) % 8], 0.20)
-		var after := point.lerp(corners[(corner + 1) % 8], 0.20)
-		for sample in 4:
-			var t := float(sample) / 3.0
-			ring.append(before.lerp(point, t).lerp(point.lerp(after, t), t))
-	if section.w >= -2.22 and section.w <= 0.34:
-		# The open well ends at the coaming crest, not at the inward end of
-		# the rolled roof shoulder. Leaving the roof roll here cut white strips
-		# through the pilot's controls despite removing the central roof face.
-		for sample in 3:
-			var x: float = w * [0.716, 0.695, 0.68][sample]
-			ring[5 + sample].x = x
-			ring[10 - sample].x = -x
+	# Right shoulder: an ellipse supplies continuously changing curvature,
+	# replacing the original long diagonal plane with only tiny corner rolls.
+	for sample in 12:
+		var angle := float(sample) / 11.0 * PI * 0.5
+		ring.append(Vector3(coaming_width + (chine_width - coaming_width) * cos(angle),
+			chine_y + (coaming_y - chine_y) * sin(angle), section.w))
+	for sample in range(1, 13):
+		var t := float(sample) / 13.0
+		ring.append(Vector3(lerpf(coaming_width, -coaming_width, t),
+			coaming_y + h * 0.16 * forward_crown * pow(sin(t * PI), 2.0), section.w))
+	for sample in 12:
+		var point := ring[11 - sample]
+		ring.append(Vector3(-point.x, point.y, point.z))
+	for sample in range(1, 13):
+		var angle := float(sample) / 13.0 * PI
+		ring.append(Vector3(-chine_width * cos(angle),
+			chine_y - (chine_y - section.z) * sin(angle), section.w))
 	return ring
 
 
@@ -4067,7 +4073,7 @@ func _formed_pressure_stations(control: Array) -> Array:
 
 
 func _zenith_hard_shell(parent: Node3D, node_name: String, lateral: float, sections: Array, material: Material, cap_front: bool = true, shoulder_material: Material = null) -> MeshInstance3D:
-	if node_name == "BlendedPressureHull":
+	if node_name in ["BlendedPressureHull", "NoseSensorRadome"]:
 		sections = _formed_pressure_stations(sections)
 	var tool := SurfaceTool.new()
 	tool.begin(Mesh.PRIMITIVE_TRIANGLES)
@@ -4079,21 +4085,20 @@ func _zenith_hard_shell(parent: Node3D, node_name: String, lateral: float, secti
 		shoulder.begin(Mesh.PRIMITIVE_TRIANGLES)
 		shoulder.set_material(shoulder_material)
 	for station in sections.size() - 1:
-		var a := _airframe_section(sections[station]) if node_name == "BlendedPressureHull" else (_cowling_section(sections[station]) if node_name.ends_with("EngineCowling") else _hard_section(sections[station]))
-		var b := _airframe_section(sections[station + 1]) if node_name == "BlendedPressureHull" else (_cowling_section(sections[station + 1]) if node_name.ends_with("EngineCowling") else _hard_section(sections[station + 1]))
+		var a := _airframe_section(sections[station]) if node_name in ["BlendedPressureHull", "NoseSensorRadome"] else (_cowling_section(sections[station]) if node_name.ends_with("EngineCowling") else _hard_section(sections[station]))
+		var b := _airframe_section(sections[station + 1]) if node_name in ["BlendedPressureHull", "NoseSensorRadome"] else (_cowling_section(sections[station + 1]) if node_name.ends_with("EngineCowling") else _hard_section(sections[station + 1]))
 		var center := Vector3(0, (sections[station].y + sections[station].z + sections[station + 1].y + sections[station + 1].z) * 0.25, (sections[station].w + sections[station + 1].w) * 0.5)
 		for edge in a.size():
 			# A full intake collar rolls into paired shoulder panels. These are
 			# faces of the cowling itself, so their edges cannot float or overlap.
 			var face_tool := shoulder if shoulder != null and (station == 0 or (station <= 2 and (edge <= 6 or (edge >= 8 and edge <= 14)))) else tool
 			if node_name == "BlendedPressureHull":
-				# The upper cover follows the nose into the open pilot well. Lower
-				# chine faces expose the darker load-bearing pressure structure.
-				var upper_cover := edge >= 4 and edge <= 10 and center.z < -2.22
-				var lower_structure := edge >= 12 and edge <= 31
-				face_tool = shoulder if shoulder != null and (upper_cover or lower_structure) else tool
-			face_tool.set_smooth_group(0 if node_name.ends_with("EngineCowling") or node_name == "BlendedPressureHull" else edge)
-			if node_name == "BlendedPressureHull" and edge == 7 and center.z > -2.22 and center.z < 0.34:
+				# One pale pressure skin flows from the bow to the coaming.
+				# The material boundary follows only the lower structural chine.
+				var lower_structure := edge >= 35
+				face_tool = shoulder if shoulder != null and lower_structure else tool
+			face_tool.set_smooth_group(0 if node_name.ends_with("EngineCowling") or node_name in ["BlendedPressureHull", "NoseSensorRadome"] else edge)
+			if node_name == "BlendedPressureHull" and edge >= 11 and edge <= 23 and center.z > -2.22 and center.z < 0.34:
 				continue
 			var following := (edge + 1) % a.size()
 			_zenith_triangle(face_tool, a[edge], b[edge], b[following], center)
@@ -4101,7 +4106,7 @@ func _zenith_hard_shell(parent: Node3D, node_name: String, lateral: float, secti
 	tool.set_smooth_group(-1)
 	for end in [0, sections.size() - 1]:
 		if end == 0 and not cap_front: continue
-		var ring := _airframe_section(sections[end]) if node_name == "BlendedPressureHull" else (_cowling_section(sections[end]) if node_name.ends_with("EngineCowling") else _hard_section(sections[end]))
+		var ring := _airframe_section(sections[end]) if node_name in ["BlendedPressureHull", "NoseSensorRadome"] else (_cowling_section(sections[end]) if node_name.ends_with("EngineCowling") else _hard_section(sections[end]))
 		var center := Vector3(0, (sections[end].y + sections[end].z) * 0.5, sections[end].w)
 		var inward := center + Vector3.BACK * (0.1 if end == 0 else -0.1)
 		for edge in ring.size():

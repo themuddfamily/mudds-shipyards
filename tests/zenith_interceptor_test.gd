@@ -3210,6 +3210,7 @@ func _run() -> void:
 	_test_authored_asset_and_runtime_authority(zenith)
 	await _test_boarding_collision_camera_and_canopy(zenith)
 	_test_pilot_instruments(zenith)
+	_test_forward_pressure_skin(zenith)
 	_test_nacelle_cooling_fit(zenith)
 	_test_handling_difference(zenith)
 	await _test_engine_flight_weapon_damage_reuse(zenith)
@@ -3524,6 +3525,50 @@ func _test_boarding_collision_camera_and_canopy(zenith: ZenithInterceptor) -> vo
 	zenith.set_canopy_open(false, 0.0)
 	_check(not zenith.is_canopy_open() and absf(functional_canopy.rotation.x) < 0.01 and absf(authored_canopy.rotation.x) < 0.01, "common canopy lifecycle reseals both hinges")
 	_check(functional_canopy.get_instance_id() == functional_canopy_id and authored_canopy.get_instance_id() == authored_canopy_id, "canopy motion preserves both controller and authored identities")
+
+
+func _test_forward_pressure_skin(zenith: ZenithInterceptor) -> void:
+	var airframe := zenith.get_zenith_visual_root().get_node("ModernManufacturedAirframe")
+	var hull := airframe.get_node("BlendedPressureHull") as MeshInstance3D
+	var radome := airframe.get_node("NoseSensorRadome") as MeshInstance3D
+	var seam_rings: Array[PackedVector3Array] = []
+	var shoulder := PackedVector3Array()
+	var coaming_seated := false
+	for skin in [hull, radome]:
+		var seam := PackedVector3Array()
+		for surface in skin.mesh.get_surface_count():
+			for vertex: Vector3 in skin.mesh.surface_get_arrays(surface)[Mesh.ARRAY_VERTEX]:
+				if absf(vertex.z + 4.53) < 0.0001:
+					seam.append(vertex)
+				if skin == hull and absf(vertex.z + 2.78) < 0.0001 and vertex.x > 0.61 and vertex.y > 0.90:
+					shoulder.append(vertex)
+				# Front sill's physical footprint is x=.70..77 and top y=2.30.
+				if skin == hull and vertex.distance_to(Vector3(0.721, 2.30, -2.22)) < 0.0001:
+					coaming_seated = true
+		seam_rings.append(seam)
+	var seam_matches := not seam_rings[0].is_empty() and not seam_rings[1].is_empty()
+	for ring_index in 2:
+		for vertex in seam_rings[ring_index]:
+			var found := false
+			for other in seam_rings[1 - ring_index]:
+				if vertex.distance_to(other) < 0.0001:
+					found = true
+					break
+			seam_matches = seam_matches and found
+	_check(seam_matches and absf(hull.mesh.get_aabb().position.z - radome.mesh.get_aabb().end.z) < 0.0001,
+		"formed radome and pressure skin share their entire rim without an overlapping square cuff")
+	var lower := Vector3.ZERO
+	var upper := Vector3.ZERO
+	for vertex in shoulder:
+		if lower == Vector3.ZERO or vertex.y < lower.y: lower = vertex
+		if vertex.y > upper.y: upper = vertex
+	var curvature := 0.0
+	if lower.distance_to(upper) > 0.1:
+		for vertex in shoulder:
+			curvature = maxf(curvature, (vertex - lower).cross(upper - lower).length() / lower.distance_to(upper))
+	_check(curvature > 0.12 and lower.x > 1.08,
+		"forward shoulder curves through its full height and reaches the wing-root chine instead of a long wedge plane")
+	_check(coaming_seated, "formed pressure skin reaches the retained front cockpit sill footprint at its original height")
 
 
 func _test_nacelle_cooling_fit(zenith: ZenithInterceptor) -> void:
