@@ -280,3 +280,33 @@ func _test_recessed_exhaust(craft: HeroShip) -> void:
 		and not (hub.material_override as StandardMaterial3D).emission_enabled
 		and port.get_script() == null and hub.get_script() == null,
 		"unpowered machinery has a passive metallic finish and adds no engine-state controller")
+	for node in [hub, annulus, bell, visual.get_node("PortChamberBack")]:
+		_test_exhaust_surface(node.mesh, node.name)
+	_test_exhaust_surface(port.multimesh.mesh, port.name)
+
+
+func _test_exhaust_surface(mesh: ArrayMesh, label: String) -> void:
+	var arrays := mesh.surface_get_arrays(0)
+	var points: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
+	var uv: PackedVector2Array = arrays[Mesh.ARRAY_TEX_UV] if arrays[Mesh.ARRAY_TEX_UV] != null else PackedVector2Array()
+	var normals: PackedVector3Array = arrays[Mesh.ARRAY_NORMAL]
+	var tangents: PackedFloat32Array = arrays[Mesh.ARRAY_TANGENT] if arrays[Mesh.ARRAY_TANGENT] != null else PackedFloat32Array()
+	var indices: PackedInt32Array = arrays[Mesh.ARRAY_INDEX]
+	var valid_frames := uv.size() == points.size() and normals.size() == points.size() and tangents.size() == points.size() * 4
+	if valid_frames:
+		for index in points.size():
+			var tangent := Vector3(tangents[index * 4], tangents[index * 4 + 1], tangents[index * 4 + 2])
+			valid_frames = valid_frames and uv[index].is_finite() and tangent.is_finite() \
+				and is_equal_approx(tangent.length(), 1.0) and absf(tangent.dot(normals[index])) < 0.001 \
+				and is_equal_approx(absf(tangents[index * 4 + 3]), 1.0)
+	_check(valid_frames, label + " has complete finite orthonormal UV/tangent frames")
+	var valid_triangles := not indices.is_empty() and indices.size() % 3 == 0
+	var valid_uv := uv.size() == points.size()
+	for offset in range(0, indices.size(), 3):
+		var a := indices[offset]
+		var b := indices[offset + 1]
+		var c := indices[offset + 2]
+		valid_triangles = valid_triangles and (points[b] - points[a]).cross(points[c] - points[a]).length_squared() > 0.000000000001
+		if valid_uv:
+			valid_uv = absf((uv[b] - uv[a]).cross(uv[c] - uv[a])) > 0.00000001
+	_check(valid_triangles and valid_uv, label + " has no collapsed geometric or UV triangles, including cap poles")

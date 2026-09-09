@@ -83,15 +83,28 @@ static func _turned(profile: PackedVector2Array) -> ArrayMesh:
 	surface.begin(Mesh.PRIMITIVE_TRIANGLES)
 	for row in profile.size() - 1:
 		var next := row + 1
+		var planar_uv := is_zero_approx(profile[row].x) or is_zero_approx(profile[next].x) \
+			or is_equal_approx(profile[row].y, profile[next].y)
+		var uv_radius := maxf(profile[row].x, profile[next].x)
 		for segment in 96:
-			for corner in [Vector2i(row, segment), Vector2i(next, segment + 1), Vector2i(row, segment + 1), Vector2i(row, segment), Vector2i(next, segment), Vector2i(next, segment + 1)]:
+			# The pole is one vertex, so only the surviving fan triangle is
+			# emitted there; a collapsed half-quad has no valid tangent frame.
+			var corners: Array[Vector2i] = []
+			if not is_zero_approx(profile[row].x):
+				corners.append_array([Vector2i(row, segment), Vector2i(next, segment + 1), Vector2i(row, segment + 1)])
+			if not is_zero_approx(profile[next].x):
+				corners.append_array([Vector2i(row, segment), Vector2i(next, segment), Vector2i(next, segment + 1)])
+			for corner in corners:
 				var angle := float(corner.y) * TAU / 96.0
 				var p := profile[corner.x]
 				var before := profile[maxi(corner.x - 1, 0)]
 				var after := profile[mini(corner.x + 1, profile.size() - 1)]
 				var tangent := (after - before).normalized()
 				surface.set_normal(Vector3(cos(angle) * tangent.y, sin(angle) * tangent.y, -tangent.x))
-				surface.set_uv(Vector2(float(corner.y) / 96.0, float(corner.x) / float(profile.size() - 1)))
+				if planar_uv:
+					surface.set_uv(Vector2(cos(angle), sin(angle)) * p.x / (2.0 * uv_radius) + Vector2.ONE * 0.5)
+				else:
+					surface.set_uv(Vector2(float(corner.y) / 96.0, float(corner.x) / float(profile.size() - 1)))
 				surface.add_vertex(Vector3(cos(angle) * p.x, sin(angle) * p.x, p.y))
 	surface.generate_tangents()
 	surface.index()
@@ -115,14 +128,20 @@ static func _vane() -> ArrayMesh:
 		rings.append(ring)
 	for row in 8:
 		for segment in 16:
-			var next := (segment + 1) % 16
-			for point in [rings[row][segment], rings[row + 1][next], rings[row][next], rings[row][segment], rings[row + 1][segment], rings[row + 1][next]]:
-				surface.add_vertex(point)
+			for corner in [Vector2i(row, segment), Vector2i(row + 1, segment + 1), Vector2i(row, segment + 1), Vector2i(row, segment), Vector2i(row + 1, segment), Vector2i(row + 1, segment + 1)]:
+				surface.set_smooth_group(0)
+				surface.set_uv(Vector2(float(corner.y) / 16.0, float(corner.x) / 8.0))
+				surface.add_vertex(rings[corner.x][corner.y % 16])
+	# Planar root caps use a separate normal/UV seam from the smooth airfoil.
 	for row in [0, 8]:
 		for segment in range(1, 15):
 			var indices := [0, segment, segment + 1] if row == 0 else [0, segment + 1, segment]
 			for index in indices:
-				surface.add_vertex(rings[row][index])
+				var point := rings[row][index]
+				surface.set_smooth_group(-1)
+				surface.set_uv(Vector2(point.x, point.z) / 0.5 + Vector2.ONE * 0.5)
+				surface.add_vertex(point)
 	surface.generate_normals()
+	surface.generate_tangents()
 	surface.index()
 	return surface.commit()
