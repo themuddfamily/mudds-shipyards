@@ -1306,12 +1306,30 @@ func _loft_mesh(size: Vector3, material: Material) -> ArrayMesh:
 ## into the belly instead of ending in almost-square vertical walls. The nose
 ## and afterbody retain their existing stations, length and maximum envelope.
 func _formed_pressure_mesh(size: Vector3, material: Material) -> ArrayMesh:
-	return _pressure_section_mesh(size, material, PackedVector2Array([
-		Vector2(0, 1), Vector2(0.60, 1), Vector2(0.82, 0.87), Vector2(0.96, 0.59),
-		Vector2(1, 0.24), Vector2(0.97, -0.32), Vector2(0.81, -0.78), Vector2(0.52, -1),
-		Vector2(0, -1), Vector2(-0.52, -1), Vector2(-0.81, -0.78), Vector2(-0.97, -0.32),
-		Vector2(-1, 0.24), Vector2(-0.96, 0.59), Vector2(-0.82, 0.87), Vector2(-0.60, 1),
-	]), true)
+	var section := PackedVector2Array([Vector2(0, 1)])
+	var tangents := PackedVector2Array([Vector2.RIGHT])
+	# Elliptical shoulders meet the flat service crown and belly tangentially.
+	# Keep the original width, crown height and lower hardware landing intact.
+	for lower in [false, true]:
+		for step in 17:
+			if lower and step == 0:
+				continue
+			var angle := float(step) / 16.0 * PI * 0.5
+			var center := 0.6 if not lower else 0.52
+			var radius := 0.4 if not lower else 0.48
+			var rise := 0.76 if not lower else 1.24
+			var theta := PI * 0.5 - angle if not lower else -angle
+			var point := Vector2(center + radius * cos(theta), 0.24 + rise * sin(theta))
+			var tangent := Vector2(radius * sin(theta), -rise * cos(theta))
+			section.append(point)
+			tangents.append(tangent)
+	var starboard_count := section.size()
+	section.append(Vector2(0, -1))
+	tangents.append(Vector2.LEFT)
+	for index in range(starboard_count - 1, 0, -1):
+		section.append(Vector2(-section[index].x, section[index].y))
+		tangents.append(Vector2(tangents[index].x, -tangents[index].y))
+	return _pressure_section_mesh(size, material, section, true, tangents)
 
 
 ## A cambered transition carries the nacelle's lower shoulder to the wing.
@@ -1341,7 +1359,7 @@ func _formed_wing_root_mesh(side: float, material: Material) -> ArrayMesh:
 	return surface.commit()
 
 
-func _pressure_section_mesh(size: Vector3, material: Material, section: PackedVector2Array, formed: bool = false) -> ArrayMesh:
+func _pressure_section_mesh(size: Vector3, material: Material, section: PackedVector2Array, formed: bool = false, tangents: PackedVector2Array = PackedVector2Array()) -> ArrayMesh:
 	var stations := [0.0, 0.28, 0.43, 0.83, 1.0]
 	var extents: Array[Vector2] = []
 	for t in stations:
@@ -1357,8 +1375,8 @@ func _pressure_section_mesh(size: Vector3, material: Material, section: PackedVe
 	for bay in stations.size() - 1:
 		var extent_delta := extents[bay + 1] - extents[bay]
 		var run: float = size.z * (stations[bay + 1] - stations[bay])
-		for edge in 16:
-			var next := (edge + 1) % 16
+		for edge in section.size():
+			var next := (edge + 1) % section.size()
 			var edge_direction := section[next] - section[edge]
 			# Clockwise exterior winding, with analytic bilinear-patch
 			# normals on the tapered chamfers rather than triangle fans.
@@ -1368,19 +1386,21 @@ func _pressure_section_mesh(size: Vector3, material: Material, section: PackedVe
 				if formed:
 					# Smooth only the formed skin around each section; longitudinal
 					# changes and the closed end bulkheads remain distinct surfaces.
-					tangent = section[(corner.x + 1) % 16] - section[(corner.x + 15) % 16]
+					tangent = section[(corner.x + 1) % section.size()] - section[(corner.x + section.size() - 1) % section.size()]
 					if is_equal_approx(absf(section[corner.x].y), 1.0):
 						tangent = Vector2(section[corner.x].y, 0)
+				if not tangents.is_empty():
+					tangent = tangents[corner.x]
 				var around := Vector3(tangent.x * extent.x, tangent.y * extent.y, 0)
 				var along := Vector3(section[corner.x].x * extent_delta.x, section[corner.x].y * extent_delta.y, run)
-				var u := 1.0 if edge == 15 and corner.x == 0 else float(corner.x) / 16.0
+				var u := 1.0 if edge == section.size() - 1 and corner.x == 0 else float(corner.x) / float(section.size())
 				surface.set_normal(along.cross(around).normalized())
 				surface.set_uv(Vector2(u, stations[corner.y]))
 				surface.add_vertex(Vector3(section[corner.x].x * extent.x, section[corner.x].y * extent.y, (stations[corner.y] - 0.5) * size.z))
 	for cap in [0, stations.size() - 1]:
 		var z: float = (stations[cap] - 0.5) * size.z
-		for edge in 16:
-			var next := (edge + 1) % 16
+		for edge in section.size():
+			var next := (edge + 1) % section.size()
 			var order := [-1, next, edge] if cap == 0 else [-1, edge, next]
 			for corner in order:
 				var point := Vector3(0, 0, z) if corner < 0 else Vector3(section[corner].x * extents[cap].x, section[corner].y * extents[cap].y, z)
