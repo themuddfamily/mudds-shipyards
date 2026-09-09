@@ -146,8 +146,8 @@ func _run() -> void:
 			and int(full_counts.mesh_instances) == 327
 			and int(full_counts.multimesh_batches) == 14
 			and int(full_counts.authored_copies) == 449
-			and int(full_counts.geometry_submissions) == 346,
-		"the exact current craft snapshot keeps all 449 visual copies across 341 allocations and 346 surfaces"
+			and int(full_counts.geometry_submissions) == 348,
+		"the exact current craft snapshot keeps all 449 visual copies across 341 allocations and 348 surfaces"
 	)
 
 	var collision_count := craft.find_children("*", "CollisionShape3D", true, false).size()
@@ -199,8 +199,8 @@ func _run() -> void:
 
 	print(
 		"HALYARD_BOW_DOCKING_ARCH_BATCH_METRICS: local_renderers=266->264 "
-		+ "local_submissions=266->264 current_renderers=341 current_submissions=346 "
-		+ "current_exterior_submissions=128 current_authored_copies=449 visual_review=NOT_RUN"
+		+ "local_submissions=266->264 current_renderers=341 current_submissions=348 "
+		+ "current_exterior_submissions=130 current_authored_copies=449 visual_review=NOT_RUN"
 	)
 	_finish(craft)
 

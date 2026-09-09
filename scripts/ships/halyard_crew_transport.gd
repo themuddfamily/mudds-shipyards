@@ -346,11 +346,12 @@ const RENDER_DESCENDANT_COUNT := 132
 const RENDER_MESH_INSTANCE_COUNT := 115
 const RENDER_MULTIMESH_BATCH_COUNT := 9
 const RENDER_DRAWN_COPY_COUNT := 201
-const RENDER_GEOMETRY_SUBMISSION_COUNT := 128
+const RENDER_GEOMETRY_SUBMISSION_COUNT := 130
 # The formed exterior adds one shoulder mesh. Identification ribbons follow
 # the pressure cheek profile, replacing the old shared rectangular stock.
-# Fitted canopy rails and rear bows now have distinct port/starboard profiles.
-const RENDER_UNIQUE_MESH_RESOURCE_COUNT := 91
+# Fitted canopy rails, rear bows and lined windshield jambs have distinct
+# port/starboard profiles; each jamb carries shell and liner surfaces.
+const RENDER_UNIQUE_MESH_RESOURCE_COUNT := 92
 # Includes the shared soft-exhaust ShaderMaterial installed on all four plumes.
 const RENDER_UNIQUE_MATERIAL_RESOURCE_COUNT := 18
 
