@@ -691,7 +691,6 @@ func _build_interceptor() -> void:
 		Vector4(-1.6, 0.7, 0.03, 0.02), Vector4(2.4, 0.7, 0.03, 0.02),
 		Vector4(3.4, 0.42, 0.022, -0.08),
 	], _materials.courier_rust)
-	_wedge(_visual_root, "Canopy", Vector3(0.0, 0.72, -2.6), Vector3(1.15, 0.5, 1.8), _materials.glass)
 	_box(_visual_root, "VentralKeel", Vector3(0.0, -0.94, 0.6), Vector3(1.5, 0.34, 6.0), _materials.courier_shadow)
 
 	# Rolled freight vessels and their conforming straps each share a bilateral
@@ -978,12 +977,7 @@ func _build_courier_fittings() -> void:
 			Vector4(-1.25, 0.24, 0.48, 0), Vector4(-0.5, 0.59, 0.61, 0),
 			Vector4(0.55, 0.67, 0.64, 0), Vector4(1.1, 0.5, 0.52, 0),
 		]])
-	# Framed pressure cockpit ahead of a removable load spine.
-	parts.append([Vector3(0,0.71,-2.54),Vector3(1.39,0.22,1.95),0])
-	parts.append([Vector3(0,0.99,-2.18),Vector3(0.06,0.045,0.91),1])
 	for side in [-1.0,1.0]:
-		for panel in 4:
-			parts.append([Vector3(side*0.71,0.84,-1.24+panel*1.17),Vector3(0.53,0.085,1.03),0])
 		parts.append([Vector3(side*1.1,0.22,0.45),Vector3(0.06,0.74,5.14),2])
 		for panel in 4:
 			parts.append([Vector3(side*1.14,0.25,-1.4+panel*1.21),Vector3(0.08,0.62,1.08),0])
@@ -998,12 +992,12 @@ func _build_courier_fittings() -> void:
 		for slot in 4:
 			parts.append([Vector3(side*1.15,0.75,3.41+slot*0.26),Vector3(0.5,0.025,0.1),2])
 		_add_nozzle_parts(parts,Vector3(side*1.15,0.05,4.86),0.53,0.61)
-	# Separate removable service cassettes replace the featureless dorsal slab.
-	for bay in 5:
-		var z := -1.48+bay*1.04
-		parts.append([Vector3(0,1.1,z),Vector3(1.08,0.15,0.91),1])
-		parts.append([Vector3(0,1.195,z),Vector3(0.76,0.045,0.66),0])
-		parts.append([Vector3(0,1.225,z-0.18),Vector3(0.43,0.035,0.12),2])
+	# Flush locks and hinges belong to the three broad dorsal access covers.
+	for bay in 3:
+		var z := -0.70 + bay * 1.40
+		parts.append([Vector3(0,1.123,z+0.32),Vector3(0.3,0.035,0.12),2])
+		for side in [-1.0,1.0]:
+			parts.append([Vector3(side*0.62,1.072,z-0.35),Vector3(0.13,0.055,0.26),1])
 	for side in [-1.0,1.0]:
 		# End bulkheads protect the load valves instead of ending in plain discs.
 		parts.append([Vector3(side*2.5,-0.37,-1.77),Vector3(0.61,0.64,0.11),2])
@@ -1018,3 +1012,87 @@ func _build_courier_fittings() -> void:
 	for rib in 4:
 		parts.append([Vector3(0,-0.32+rib*0.17,4.04),Vector3(0.65,0.07,0.05),2])
 	_fit_armour(parts,[_materials.courier_hull,_materials.courier_clay,_materials.courier_shadow])
+	_build_courier_upperworks()
+
+
+## The flight cab has a sloped windscreen, side glazing, a weather roof and a
+## pressure collar. Roof covers share the hull's shoulders instead of floating
+## above the stripe on individual slabs. All opaque pieces join the existing
+## material batches; only the glazing keeps its own renderer.
+func _build_courier_upperworks() -> void:
+	var opaque: Array = [[], [], []]
+	# Collar closes the cab into the pressure shell, leaving a painted sill.
+	opaque[0].append(_courier_upper_mesh([
+		Vector4(-3.55,0.40,0.35,0.88), Vector4(-3.13,0.71,0.62,1.00),
+		Vector4(-1.83,0.77,0.67,1.00), Vector4(-1.56,0.75,0.61,0.96),
+	], 0.74, _materials.courier_hull))
+	_box_from_mesh(_visual_root, "Canopy", Vector3.ZERO, _courier_upper_mesh([
+		Vector4(-3.40,0.36,0.32,0.965), Vector4(-2.95,0.63,0.49,1.42),
+		Vector4(-2.02,0.67,0.51,1.44), Vector4(-1.76,0.63,0.50,1.15),
+	], 0.94, _materials.glass))
+	# The opaque aft pressure frame and roof are shaped to the same cab stations.
+	opaque[0].append(_courier_upper_mesh([
+		Vector4(-2.00,0.69,0.53,1.46), Vector4(-1.79,0.66,0.52,1.25),
+		Vector4(-1.56,0.73,0.63,1.04),
+	], 0.89, _materials.courier_hull))
+	opaque[0].append(_courier_upper_mesh([
+		Vector4(-3.00,0.50,0.47,1.46), Vector4(-2.88,0.54,0.48,1.50),
+		Vector4(-2.03,0.56,0.50,1.52), Vector4(-1.94,0.54,0.51,1.47),
+	], 1.40, _materials.courier_hull))
+	# A centre mullion and two raked corner posts trace the windscreen edges.
+	for side in [-1.0, 0.0, 1.0]:
+		var start := Vector3(side*0.34,0.955,-3.40)
+		var finish := Vector3(side*0.50,1.45,-2.97)
+		var beam := _armour_mesh(Vector3(0.055,0.052,start.distance_to(finish)), _materials.courier_clay)
+		var surface := SurfaceTool.new()
+		surface.begin(Mesh.PRIMITIVE_TRIANGLES)
+		surface.set_material(_materials.courier_clay)
+		surface.append_from(beam,0,Transform3D(Basis.looking_at(finish-start), (start+finish)*0.5))
+		opaque[1].append(surface.commit())
+	# A continuous dark gasket under three shallow formed access lids makes the
+	# seams read as openings in one load spine, not a stack of loose packages.
+	opaque[2].append(_courier_upper_mesh([
+		Vector4(-1.55,0.88,0.68,1.035), Vector4(2.87,0.88,0.68,1.035),
+		Vector4(3.08,0.74,0.59,0.99),
+	], 0.80, _materials.courier_shadow))
+	for bay in 3:
+		var z := -1.38 + bay*1.40
+		opaque[0].append(_courier_upper_mesh([
+			Vector4(z,0.85,0.64,1.075), Vector4(z+0.12,0.87,0.66,1.11),
+			Vector4(z+1.23,0.87,0.66,1.11), Vector4(z+1.35,0.85,0.64,1.075),
+		],0.89,_materials.courier_hull))
+	var fittings := _visual_root.get_node(^"FittedArmourAndServices") as MeshInstance3D
+	var combined := ArrayMesh.new()
+	for material_index in 3:
+		var surface := SurfaceTool.new()
+		surface.begin(Mesh.PRIMITIVE_TRIANGLES)
+		surface.set_material(fittings.mesh.surface_get_material(material_index))
+		surface.append_from(fittings.mesh,material_index,Transform3D.IDENTITY)
+		for piece: ArrayMesh in opaque[material_index]:
+			surface.append_from(piece,0,Transform3D.IDENTITY)
+		surface.commit(combined)
+	fittings.mesh = combined
+
+
+## Closed planar pressure fittings: stations contain z, lower half-width,
+## upper half-width and crown height. The bottom remains seated on its mount.
+func _courier_upper_mesh(stations: Array, bottom: float, material: Material) -> ArrayMesh:
+	var rings: Array[PackedVector3Array] = []
+	for station: Vector4 in stations:
+		rings.append(PackedVector3Array([
+			Vector3(-station.z,station.w,station.x), Vector3(station.z,station.w,station.x),
+			Vector3(station.y,bottom,station.x), Vector3(-station.y,bottom,station.x),
+		]))
+	var surface := SurfaceTool.new()
+	surface.begin(Mesh.PRIMITIVE_TRIANGLES)
+	surface.set_material(material)
+	for station in rings.size()-1:
+		for edge in 4:
+			var next := (edge+1)%4
+			_emit_armour_triangle(surface,rings[station][edge],rings[station+1][edge],rings[station+1][next])
+			_emit_armour_triangle(surface,rings[station][edge],rings[station+1][next],rings[station][next])
+	for edge in range(1,3):
+		_emit_armour_triangle(surface,rings[0][0],rings[0][edge],rings[0][edge+1])
+		_emit_armour_triangle(surface,rings[-1][0],rings[-1][edge+1],rings[-1][edge])
+	surface.generate_tangents()
+	return surface.commit()

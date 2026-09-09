@@ -15,6 +15,18 @@ func _initialize() -> void:
 	host.add_child(second)
 	await process_frame
 
+	var canopy := first.get_node(^"ContractCourierVisual/Canopy") as MeshInstance3D
+	_check(canopy.mesh is ArrayMesh and _upperworks_surface_is_valid(canopy.mesh),
+		"fitted courier cab has nondegenerate glazing with usable UVs and tangent frames")
+	var fitted := first.get_node(^"ContractCourierVisual/FittedArmourAndServices") as MeshInstance3D
+	_check(fitted.mesh.get_surface_count() == 3,
+		"courier pressure frames and formed roof covers retain three opaque material batches")
+	var collar := first._courier_upper_mesh([
+		Vector4(-1.0,0.8,0.5,1.0), Vector4(1.0,0.8,0.5,1.0),
+	],0.5,null)
+	_check(_upperworks_surface_is_valid(collar, true),
+		"closed upperworks fittings face out of their pressure volume with valid texture frames")
+
 	var first_bands := _pod_bands(first)
 	var second_bands := _pod_bands(second)
 	_check(
@@ -160,3 +172,26 @@ func _check(condition: bool, message: String) -> void:
 	_assertions += 1
 	if not condition:
 		_failures.append(message)
+
+
+func _upperworks_surface_is_valid(mesh: ArrayMesh, check_outward := false) -> bool:
+	var arrays := mesh.surface_get_arrays(0)
+	var vertices: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
+	var normals: PackedVector3Array = arrays[Mesh.ARRAY_NORMAL]
+	var uvs: PackedVector2Array = arrays[Mesh.ARRAY_TEX_UV]
+	var tangents: PackedFloat32Array = arrays[Mesh.ARRAY_TANGENT]
+	if vertices.is_empty() or uvs.size() != vertices.size() or tangents.size() != vertices.size()*4:
+		return false
+	var centre := mesh.get_aabb().get_center()
+	for index in range(0,vertices.size(),3):
+		var face := (vertices[index+1]-vertices[index]).cross(vertices[index+2]-vertices[index])
+		var uv_area := (uvs[index+1]-uvs[index]).cross(uvs[index+2]-uvs[index])
+		if face.length_squared() < 0.0000000001 or face.dot(normals[index]) >= 0.0 or absf(uv_area) < 0.00000001:
+			return false
+		if check_outward and normals[index].dot(vertices[index]-centre) <= 0.0:
+			return false
+	for index in vertices.size():
+		var tangent := Vector3(tangents[index*4],tangents[index*4+1],tangents[index*4+2])
+		if not tangent.is_finite() or absf(tangent.length()-1.0) > 0.01 or absf(tangent.dot(normals[index])) > 0.01:
+			return false
+	return true
