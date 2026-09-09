@@ -230,13 +230,13 @@ const PHASE9_ARROW_VISUAL_CENSUS := {
 	"auto_fallback_names": 23,
 }
 const EXPECTED_ARROW_VISUAL_CENSUS := {
-	"nodes": 281,
-	"mesh_instance_nodes": 246,
+	"nodes": 284,
+	"mesh_instance_nodes": 249,
 	"multi_mesh_instance_nodes": 3,
 	# Includes fitted seating/controls and one rigid airframe shadow renderer.
-	"geometry_submissions": 250,
-	"visible_geometry_copies": 252,
-	"unique_mesh_resource_allocations": 203,
+	"geometry_submissions": 253,
+	"visible_geometry_copies": 255,
+	"unique_mesh_resource_allocations": 206,
 	"auto_fallback_names": 20,
 }
 const RECON_PULSE_EMITTER_VISUAL_DELTA := {
@@ -693,6 +693,7 @@ func _build_arrow_variant(_controller: HeroShip) -> bool:
 	_restyle_inherited_cockpit(cockpit, canopy)
 	_fit_airframe_markings()
 	_share_inherited_console_key_meshes(cockpit)
+	_fit_nose_survey_service_bay()
 	_cut_pressure_panel(_arrow_visual.get_node("ReconFuselage"), "ReplaceableSurveyRadome", 0, 4, 1, 15, _arrow_materials.ceramic)
 	_cut_pressure_panel(_arrow_visual.get_node("ReconFuselage"), "PortAvionicsAccess", 5, 10, 11, 15, _arrow_materials.ceramic)
 	_cut_pressure_panel(_arrow_visual.get_node("ReconFuselage"), "StarboardAvionicsAccess", 5, 10, 1, 5, _arrow_materials.ceramic)
@@ -3265,6 +3266,89 @@ func _torus(
 	instance.mesh = mesh
 	parent.add_child(instance)
 	return instance
+
+
+## The survey electronics have two removable dorsal lids, with a continuous
+## recessed gasket and flush quarter-turn latch lands. Sample the actual formed
+## hull triangles: these skins sit in its opening, rather than floating above
+## the nose as boxes or straight strips. All fittings reuse fleet materials.
+func _fit_nose_survey_service_bay() -> void:
+	var shell := _arrow_visual.get_node("ReconFuselage") as MeshInstance3D
+	var arrays := shell.mesh.surface_get_arrays(0)
+	var vertices: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
+	var uvs: PackedVector2Array = arrays[Mesh.ARRAY_TEX_UV]
+	var stations := int(shell.get_meta("loft_section_count"))
+	var grid := {}
+	for index in vertices.size():
+		var station := roundi(uvs[index].y * float(stations - 1))
+		var ring := roundi(uvs[index].x * 32.0)
+		if vertices[index].y > 0.0:
+			grid[Vector2i(station, ring)] = vertices[index]
+	_cut_pressure_panel(shell, "SurveyServiceGasket", 5, 12, 5, 11, _arrow_materials.graphite)
+	var covers := SurfaceTool.new()
+	covers.begin(Mesh.PRIMITIVE_TRIANGLES)
+	covers.set_material(_arrow_materials.ceramic)
+	var latches := SurfaceTool.new()
+	latches.begin(Mesh.PRIMITIVE_TRIANGLES)
+	latches.set_material(_arrow_materials.titanium)
+	for span: Vector2 in [Vector2(5.12, 8.85), Vector2(9.05, 11.88)]:
+		_nose_surface_patch(covers, grid, span, Vector2(5.15, 10.85), -0.008, 0.037)
+		for station in [span.x + 0.32, span.y - 0.32]:
+			for ring in [5.7, 10.3]:
+				_nose_surface_patch(latches, grid, Vector2(station - 0.10, station + 0.10), Vector2(ring - 0.16, ring + 0.16), -0.003)
+	for spec: Array in [["SurveyServiceCovers", covers], ["SurveyServiceLatches", latches]]:
+		var tool := spec[1] as SurfaceTool
+		tool.generate_normals()
+		tool.index()
+		tool.generate_tangents()
+		var fitting := MeshInstance3D.new()
+		fitting.name = spec[0]
+		fitting.mesh = tool.commit()
+		shell.add_child(fitting)
+
+
+## Sample vertices on the original hull triangles, subdividing at their cells.
+## Narrow border cells approximate the contour between samples; their small
+## triangulation difference fits within the recessed gasket clearance.
+func _nose_surface_patch(tool: SurfaceTool, grid: Dictionary, span: Vector2, rings: Vector2, inset: float, edge_depth := 0.0) -> void:
+	var station_samples: Array[float] = [span.x]
+	for station in range(ceili(span.x), ceili(span.y)):
+		station_samples.append(float(station))
+	station_samples.append(span.y)
+	var ring_samples: Array[float] = [rings.x]
+	for ring in range(ceili(rings.x), ceili(rings.y)):
+		ring_samples.append(float(ring))
+	ring_samples.append(rings.y)
+	for station in station_samples.size() - 1:
+		for ring in ring_samples.size() - 1:
+			var quad := PackedVector3Array()
+			for uv: Vector2 in [Vector2(station_samples[station], ring_samples[ring]), Vector2(station_samples[station + 1], ring_samples[ring]), Vector2(station_samples[station + 1], ring_samples[ring + 1]), Vector2(station_samples[station], ring_samples[ring + 1])]:
+				var cell := Vector2i(floori(uv.x), floori(uv.y))
+				var fraction := uv - Vector2(cell)
+				var a: Vector3 = grid[cell]
+				var b: Vector3 = grid[cell + Vector2i(1, 0)]
+				var c: Vector3 = grid[cell + Vector2i(1, 1)]
+				var d: Vector3 = grid[cell + Vector2i(0, 1)]
+				var point := a + (b - a) * fraction.x + (c - b) * fraction.y if fraction.x >= fraction.y else a + (c - d) * fraction.x + (d - a) * fraction.y
+				point += Vector3(point.x, point.y, 0).normalized() * inset
+				quad.append(point)
+			tool.set_smooth_group(0)
+			for corner in [0, 1, 2, 0, 2, 3]:
+				tool.set_uv(Vector2(quad[corner].x, quad[corner].z))
+				tool.add_vertex(quad[corner])
+			if edge_depth > 0.0:
+				tool.set_smooth_group(-1)
+				var boundaries := [ring == 0, station == station_samples.size() - 2, ring == ring_samples.size() - 2, station == 0]
+				for edge in 4:
+					if not boundaries[edge]:
+						continue
+					var a := quad[edge]
+					var b := quad[(edge + 1) % 4]
+					var lower_a := a - Vector3(a.x, a.y, 0).normalized() * edge_depth
+					var lower_b := b - Vector3(b.x, b.y, 0).normalized() * edge_depth
+					for point in [a, lower_a, lower_b, a, lower_b, b]:
+						tool.set_uv(Vector2(point.x, point.z))
+						tool.add_vertex(point)
 
 
 ## Cut a bounded grid patch out of a loft and recess its replacement surface.
