@@ -694,10 +694,10 @@ func _build_interceptor() -> void:
 	_wedge(_visual_root, "Canopy", Vector3(0.0, 0.72, -2.6), Vector3(1.15, 0.5, 1.8), _materials.glass)
 	_box(_visual_root, "VentralKeel", Vector3(0.0, -0.94, 0.6), Vector3(1.5, 0.34, 6.0), _materials.courier_shadow)
 
-	# The port and starboard bands have one immutable visual recipe. Keep their
-	# transforms and renderer nodes independent, but submit both through one mesh
-	# Resource instead of allocating the same BoxMesh twice for every courier.
-	var pod_band_mesh := _make_box_mesh(POD_BAND_SIZE, _materials.courier_rust)
+	# Rolled freight vessels and their conforming straps each share a bilateral
+	# immutable mesh recipe. Runtime lamps and collision retain their own nodes.
+	var cargo_shell_mesh := MaterialCatalog.make_cargo_shell(_materials.courier_clay)
+	var pod_band_mesh := MaterialCatalog.make_cargo_strap(_materials.courier_rust)
 	# The marker lamps are likewise a bilateral immutable visual family. Their
 	# MeshInstance3D nodes remain independent because lifecycle presentation
 	# toggles visibility per lamp, but their identical sphere geometry is shared.
@@ -722,7 +722,7 @@ func _build_interceptor() -> void:
 			Vector3(side * 1.5, -0.2, 0.6),
 			cargo_pylon_mesh
 		)
-		_cylinder(_visual_root, "CargoPod", Vector3(side * 2.5, -0.34, 0.6), 0.62, 4.6, _materials.courier_clay, Vector3(90.0, 0.0, 0.0))
+		_box_from_mesh(_visual_root, "CargoPod", Vector3(side * 2.5, -0.34, 0.6), cargo_shell_mesh)
 		_box_from_mesh(
 			_visual_root,
 			"PodBand",

@@ -21,8 +21,8 @@ func _initialize() -> void:
 		first_bands.size() == 2 and second_bands.size() == 2,
 		"both production couriers retain port and starboard cargo bands"
 	)
-	var first_mesh := first_bands[0].mesh as BoxMesh if first_bands.size() == 2 else null
-	var second_mesh := second_bands[0].mesh as BoxMesh if second_bands.size() == 2 else null
+	var first_mesh := first_bands[0].mesh as ArrayMesh if first_bands.size() == 2 else null
+	var second_mesh := second_bands[0].mesh as ArrayMesh if second_bands.size() == 2 else null
 	_check(
 		first_mesh != null
 			and second_mesh != null
@@ -32,12 +32,22 @@ func _initialize() -> void:
 	)
 	_check(
 		first_mesh != second_mesh
-			and first_mesh.size.is_equal_approx(CourierRunnerOpponent.POD_BAND_SIZE)
-			and second_mesh.size.is_equal_approx(CourierRunnerOpponent.POD_BAND_SIZE)
+			and first_mesh.get_aabb().size.is_equal_approx(CourierRunnerOpponent.POD_BAND_SIZE)
+			and second_mesh.get_aabb().size.is_equal_approx(CourierRunnerOpponent.POD_BAND_SIZE)
 			and first_mesh.get_surface_count() == 1
 			and second_mesh.get_surface_count() == 1,
-		"the shared family stays instance-owned and retains the exact box silhouette"
+		"the shared family stays instance-owned and retains the outer envelope with a formed circular strap"
 	)
+	_check(_formed_strap_is_valid(first_mesh),
+		"rolled strap has a clear vessel aperture, outward normals and no degenerate faces")
+	var pods: Array[MeshInstance3D] = []
+	for child in first.get_node(^"ContractCourierVisual").get_children():
+		if child is MeshInstance3D and child.mesh is ArrayMesh and child.mesh.get_aabb().size.is_equal_approx(Vector3(1.24, 1.24, 4.6)):
+			pods.append(child)
+	_check(pods.size() == 2 and pods[0].mesh == pods[1].mesh
+		and pods[0].mesh is ArrayMesh
+		and pods[0].mesh.get_aabb().size.is_equal_approx(Vector3(1.24, 1.24, 4.6)),
+		"formed pressure vessels share a mesh and preserve their collision envelope")
 	var rust_id := int((first.get_visual_resource_audit().identity_by_key as Dictionary).get(&"courier_rust", 0))
 	_check(
 		first_mesh != null
@@ -110,10 +120,29 @@ func _pod_bands(courier: CourierRunnerOpponent) -> Array[MeshInstance3D]:
 		if child is not MeshInstance3D:
 			continue
 		var candidate := child as MeshInstance3D
-		var box := candidate.mesh as BoxMesh
-		if box != null and box.size.is_equal_approx(CourierRunnerOpponent.POD_BAND_SIZE):
+		var strap := candidate.mesh as ArrayMesh
+		if strap != null and strap.get_aabb().size.is_equal_approx(CourierRunnerOpponent.POD_BAND_SIZE):
 			bands.append(candidate)
 	return bands
+
+
+func _formed_strap_is_valid(mesh: ArrayMesh) -> bool:
+	if mesh == null:
+		return false
+	var arrays := mesh.surface_get_arrays(0)
+	var vertices: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
+	var normals: PackedVector3Array = arrays[Mesh.ARRAY_NORMAL]
+	for vertex in vertices:
+		var radial := Vector2(vertex.x, vertex.y).length()
+		if radial < 0.622 or radial > 0.676:
+			return false
+	for index in range(0, vertices.size(), 3):
+		var cross_product := (vertices[index + 1] - vertices[index]).cross(
+			vertices[index + 2] - vertices[index])
+		var average_normal := normals[index] + normals[index + 1] + normals[index + 2]
+		if cross_product.length_squared() < 0.0000000001 or cross_product.dot(average_normal) >= 0.0:
+			return false
+	return true
 
 
 func _positions_are_exact(bands: Array[MeshInstance3D]) -> bool:
