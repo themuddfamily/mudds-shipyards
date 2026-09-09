@@ -247,19 +247,32 @@ const APPROACH_EDGE_COLLAR_COPY_COUNT := 6
 # display meshes (seven descendants); the Activity Board receipt adds one mesh.
 # Those five displays each own one mesh and material. Include the same +8 nodes
 # and +5 renderers/copies/meshes/materials in both sharing comparison rosters.
-const BASELINE_RENDER_DESCENDANT_NODE_COUNT := 1191
-const RENDER_DESCENDANT_NODE_COUNT := 1156
-const BASELINE_RENDERER_NODE_COUNT := 867
-const RENDERER_NODE_COUNT := 753
-const BASELINE_DRAWN_COPY_COUNT := 877
-const DRAWN_COPY_COUNT := 893
-const BASELINE_SURFACE_SUBMISSION_COUNT := 867
-const SURFACE_SUBMISSION_COUNT := 753
-const BASELINE_MESH_RESOURCE_COUNT := 331
-const MESH_RESOURCE_COUNT := 307
+# The independent pressure-envelope shadow mesh adds one node, renderer and
+# mesh to both rosters, shares a material, and adds no colour-pass surface.
+const BASELINE_RENDER_DESCENDANT_NODE_COUNT := 1192
+const RENDER_DESCENDANT_NODE_COUNT := 1157
+const BASELINE_RENDERER_NODE_COUNT := 868
+const RENDERER_NODE_COUNT := 754
+const BASELINE_DRAWN_COPY_COUNT := 878
+const DRAWN_COPY_COUNT := 894
+const BASELINE_SURFACE_SUBMISSION_COUNT := 868
+const SURFACE_SUBMISSION_COUNT := 754
+const BASELINE_MESH_RESOURCE_COUNT := 332
+const MESH_RESOURCE_COUNT := 308
 const BASELINE_MATERIAL_RESOURCE_COUNT := 39
 const MATERIAL_RESOURCE_COUNT := 39
 
+# This authored exterior group has no independent visibility, motion or damage
+# state. Keep the existing colour geometry and combine only its opaque shadows.
+const STATIC_SHADOW_BATCH = preload("res://scripts/world/static_shadow_batch.gd")
+const PRESSURE_ENVELOPE_SHADOW_SOURCE_COUNT := 67
+const PRESSURE_ENVELOPE_SHADOW_FAMILIES := [
+	"RoofCassette", "RoofServiceSpine", "RoofVent", "SideCladding", "SideReveal",
+	"SideShellRail", "EntryFacadePanel", "FacadeReveal", "EntryHeaderTube",
+	"WindowEyebrow", "WindowOuterFrame", "UndersideKeel", "UnderfloorCrossMember",
+	"UnderfloorBracePort", "UnderfloorBraceStarboard", "ExteriorCopperFeed",
+	"ExteriorWorklightHousing", "ExteriorWorklightLens",
+]
 const LOWER_FLOOR_ELEVATION := 0.0
 const UPPER_FLOOR_ELEVATION := 4.2
 ## Width of the presentation-only route ribbon. The lower ribbon retains its
@@ -358,6 +371,8 @@ var _console_shock_collar_batch: MultiMeshInstance3D
 var _cabinet_fastener_batch: MultiMeshInstance3D
 var _ceiling_luminaire_lens_batch: MultiMeshInstance3D
 var _roof_vent_louvre_batch: MultiMeshInstance3D
+var _pressure_envelope_shadow_sources: Array[MeshInstance3D] = []
+var _pressure_envelope_shadow_batch: MeshInstance3D
 var _approach_edge_collar_batch: MultiMeshInstance3D
 var _exterior_pipe_clamp_mesh: TorusMesh
 var _spine_clamp_mesh: TorusMesh
@@ -419,6 +434,7 @@ func _ready() -> void:
 		_build_structure()
 		_style_access_landmarks()
 		_apply_operations_entrance_header_curve()
+		_build_pressure_envelope_shadow_batch()
 		_apply_metadata()
 	# Reconcile the real node state against `_module_enabled` on every ready, so a
 	# scene-authored or externally drifted layer/visibility cannot survive.
@@ -483,6 +499,7 @@ static func run_staged_construction(module_ref: WeakRef, on_stage: Callable = Ca
 			return false
 	module._style_access_landmarks()
 	module._apply_operations_entrance_header_curve()
+	module._build_pressure_envelope_shadow_batch()
 	module._apply_metadata()
 	if not _is_staged_current(module, generation):
 		return false
@@ -868,7 +885,8 @@ func get_performance_contract() -> Dictionary:
 		# mesh resources are far fewer than the added instances.
 		# The adjacent physical Ship Services workstation adds three literal
 		# display meshes to the retained ConsoleBay03; no hidden headroom is used.
-		"mesh_instances": 838,
+		# One additional renderer carries only the retained envelope shadows.
+		"mesh_instances": 839,
 		# Unchanged at 120 against 103 built, up from 87. The content pass added
 		# sixteen colliders and every one of them is a piece of furniture a player
 		# can walk into: three rack frames, the plot table's base, two pedestals and
@@ -4076,6 +4094,30 @@ func _build_operations_shell_detail(room: Node3D) -> void:
 		)
 
 
+func _register_pressure_envelope_shadow_source(
+	parent: Node3D, authored_name: String, source: MeshInstance3D
+) -> void:
+	if parent.name != &"VisualPressureEnvelope":
+		return
+	# Duplicate scene names are engine-renamed. Match the authored constructor
+	# name here, before any scene-name suffix can obscure the explicit roster.
+	var family := authored_name
+	if authored_name.begins_with("RoofCassette"):
+		family = "RoofCassette"
+	if family in PRESSURE_ENVELOPE_SHADOW_FAMILIES:
+		_pressure_envelope_shadow_sources.append(source)
+
+
+func _build_pressure_envelope_shadow_batch() -> void:
+	if _pressure_envelope_shadow_batch != null \
+			or _pressure_envelope_shadow_sources.size() != PRESSURE_ENVELOPE_SHADOW_SOURCE_COUNT:
+		return
+	var envelope := get_node_or_null(^"Structure/OperationsRoom/VisualPressureEnvelope") as Node3D
+	_pressure_envelope_shadow_batch = STATIC_SHADOW_BATCH.build(
+		envelope, _pressure_envelope_shadow_sources
+	)
+
+
 ## Operations-room lighting.
 ##
 ## This room was the clearest case of the two defects this pass exists to fix.
@@ -5399,6 +5441,8 @@ func _box(
 		var mesh_instance := container as MeshInstance3D
 		mesh_instance.mesh = mesh
 		mesh_instance.material_override = material
+	if not collidable:
+		_register_pressure_envelope_shadow_source(parent, node_name, container as MeshInstance3D)
 	return container
 
 
@@ -5530,6 +5574,8 @@ func _cylinder(
 		var mesh_instance := container as MeshInstance3D
 		mesh_instance.mesh = cylinder_mesh
 		mesh_instance.material_override = material
+	if not collidable:
+		_register_pressure_envelope_shadow_source(parent, node_name, container as MeshInstance3D)
 	return container
 
 

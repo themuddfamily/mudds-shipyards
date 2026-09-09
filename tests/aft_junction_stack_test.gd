@@ -49,6 +49,7 @@ func _run() -> void:
 	_test_approach_edge_collar_batch(module)
 	await _test_operations_door_and_room(module)
 	_test_operations_contents(module)
+	_test_pressure_envelope_shadow_batch(module)
 	_test_manufactured_material_roles(module)
 	_test_ceiling_luminaire_lens_batch(module)
 	_test_pod_corner_collar_visual_resource_sharing(module)
@@ -167,6 +168,7 @@ func _test_staged_construction(reference: AftJunctionStack) -> void:
 	_check(module.is_processing() and is_zero_approx(float(module.get("_content_clock"))),
 		"completed Aft starts its original animation only after finalization")
 	_test_synchronous_parent_validation(module)
+	_test_pressure_envelope_shadow_batch(module)
 	_check(bool(module.get_audit_report().valid), "staged Aft passes its complete public audit")
 	_check(module.get_pod_corner_collar_visual_allocation_audit().current
 		== reference.get_pod_corner_collar_visual_allocation_audit().current,
@@ -854,6 +856,106 @@ func _test_ceiling_luminaire_lens_batch(module: AftJunctionStack) -> void:
 	)
 
 
+func _test_pressure_envelope_shadow_batch(module: AftJunctionStack) -> void:
+	var sources: Array[MeshInstance3D] = module.get("_pressure_envelope_shadow_sources")
+	var batch := module.get_node_or_null(
+		^"Structure/OperationsRoom/VisualPressureEnvelope/OpaqueEnvelopeShadowBatch"
+	) as MeshInstance3D
+	_check(sources.size() == 67 and batch != null,
+		"the explicit static envelope roster retains 67 colour meshes and one shadow renderer")
+	if batch == null:
+		return
+	var arrays := batch.mesh.surface_get_arrays(0)
+	var vertices: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
+	var normals: PackedVector3Array = arrays[Mesh.ARRAY_NORMAL]
+	var indices: PackedInt32Array = arrays[Mesh.ARRAY_INDEX]
+	var vertex_offset := 0
+	var index_offset := 0
+	var exact_geometry := true
+	var max_vertex_error := 0.0
+	# Godot octahedrally packs normals on ArrayMesh upload. Re-encoding a rotated
+	# normal introduces up to ~0.000121 vector error here (under 0.007 degrees).
+	var max_normal_error := 0.0
+	var colour_preserved := true
+	for source in sources:
+		colour_preserved = colour_preserved and source.visible \
+			and source.cast_shadow == GeometryInstance3D.SHADOW_CASTING_SETTING_OFF \
+			and source.get_parent() == batch.get_parent() \
+			and source.material_override is StandardMaterial3D
+		var original := source.mesh.surface_get_arrays(0)
+		var original_vertices: PackedVector3Array = original[Mesh.ARRAY_VERTEX]
+		var original_normals: PackedVector3Array = original[Mesh.ARRAY_NORMAL]
+		var original_indices := PackedInt32Array()
+		if original[Mesh.ARRAY_INDEX] != null:
+			original_indices = original[Mesh.ARRAY_INDEX]
+		else:
+			for index in original_vertices.size():
+				original_indices.append(index)
+		var normal_transform := source.transform.basis.inverse().transposed()
+		for index in original_vertices.size():
+			max_vertex_error = maxf(max_vertex_error, vertices[vertex_offset + index].distance_to(source.transform * original_vertices[index]))
+			max_normal_error = maxf(max_normal_error, normals[vertex_offset + index].distance_to((normal_transform * original_normals[index]).normalized()))
+			exact_geometry = exact_geometry \
+				and vertices[vertex_offset + index].is_equal_approx(source.transform * original_vertices[index]) \
+				and normals[vertex_offset + index].distance_to(
+					(normal_transform * original_normals[index]).normalized()) < 0.0002
+		for index in original_indices:
+			exact_geometry = exact_geometry and indices[index_offset] == vertex_offset + index
+			index_offset += 1
+		vertex_offset += original_vertices.size()
+	print("AFT_SHADOW_ARRAY_ERROR vertices=", max_vertex_error, " normals=", max_normal_error)
+	_check(exact_geometry and vertex_offset == vertices.size() and index_offset == indices.size(),
+		"shadow batch retains triangles, winding and transformed normal directions within packing precision")
+	_check(colour_preserved and batch.transform == Transform3D.IDENTITY \
+		and batch.cast_shadow == GeometryInstance3D.SHADOW_CASTING_SETTING_SHADOWS_ONLY \
+		and batch.material_override == sources[0].material_override,
+		"original opaque colour surfaces stay intact beside a parent-local shadow-only mesh")
+	module.set_module_enabled(false)
+	_check(not batch.is_visible_in_tree() and not sources[0].is_visible_in_tree(),
+		"disabling the module hides both shadow batch and original colour geometry")
+	module.set_module_enabled(true)
+	_check(batch.is_visible_in_tree() and sources[0].is_visible_in_tree(),
+		"enabling the module restores shadow and colour geometry together")
+	print("AFT_ENVELOPE_SHADOW_BATCH sources=", sources.size(),
+		" triangles=", indices.size() / 3, " bounds=", batch.mesh.get_aabb())
+
+	var rebuilt_parent := Node3D.new()
+	_test_root.add_child(rebuilt_parent)
+	var rebuilt_sources: Array[MeshInstance3D] = []
+	for source in sources:
+		var copy := MeshInstance3D.new()
+		copy.mesh = source.mesh
+		copy.material_override = source.material_override
+		copy.transform = source.transform
+		rebuilt_parent.add_child(copy)
+		rebuilt_sources.append(copy)
+	var build_started := Time.get_ticks_usec()
+	var rebuilt := AftJunctionStack.STATIC_SHADOW_BATCH.build(rebuilt_parent, rebuilt_sources)
+	print("AFT_ENVELOPE_SHADOW_BUILD_USEC=", Time.get_ticks_usec() - build_started)
+	_check(rebuilt != null and rebuilt.mesh.get_aabb().is_equal_approx(batch.mesh.get_aabb()),
+		"a fresh static source roster produces the same bounded shadow mesh")
+	rebuilt_parent.free()
+
+	# Reject a late unsupported member transactionally, after a valid member was
+	# already inspected. Neither original may lose its shadow on this failure.
+	var fixture := Node3D.new()
+	_test_root.add_child(fixture)
+	var candidates: Array[MeshInstance3D] = []
+	for index in 2:
+		var source := MeshInstance3D.new()
+		source.mesh = sources[0].mesh
+		source.material_override = StandardMaterial3D.new()
+		fixture.add_child(source)
+		candidates.append(source)
+	(candidates[1].material_override as StandardMaterial3D).transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	_check(AftJunctionStack.STATIC_SHADOW_BATCH.build(fixture, candidates) == null \
+		and fixture.get_child_count() == 2 \
+		and candidates[0].cast_shadow == GeometryInstance3D.SHADOW_CASTING_SETTING_ON \
+		and candidates[1].cast_shadow == GeometryInstance3D.SHADOW_CASTING_SETTING_ON,
+		"unsupported late alpha source leaves the complete original shadow roster untouched")
+	fixture.free()
+
+
 func _test_pod_corner_collar_visual_resource_sharing(
 		module: AftJunctionStack
 	) -> void:
@@ -875,11 +977,11 @@ func _test_pod_corner_collar_visual_resource_sharing(
 		bool(report.valid)
 		and StringName(report.selected_family) == &"pod_corner_collars"
 		and report.legacy == {
-			"descendant_nodes": 1191,
-			"renderer_nodes": 867,
-			"drawn_copies": 877,
-			"surface_submissions": 867,
-			"mesh_resource_allocations": 331,
+			"descendant_nodes": 1192,
+			"renderer_nodes": 868,
+			"drawn_copies": 878,
+			"surface_submissions": 868,
+			"mesh_resource_allocations": 332,
 			"material_resource_allocations": 39,
 			"family_visual_nodes": 4,
 			"family_visible_copies": 4,
@@ -887,18 +989,18 @@ func _test_pod_corner_collar_visual_resource_sharing(
 			"family_mesh_resource_allocations": 4,
 		}
 		and report.current == {
-			"descendant_nodes": 1156,
-			"renderer_nodes": 753,
-			"drawn_copies": 893,
-			"surface_submissions": 753,
-			"mesh_resource_allocations": 307,
+			"descendant_nodes": 1157,
+			"renderer_nodes": 754,
+			"drawn_copies": 894,
+			"surface_submissions": 754,
+			"mesh_resource_allocations": 308,
 			"material_resource_allocations": 39,
 			"family_visual_nodes": 4,
 			"family_visible_copies": 4,
 			"family_surface_submissions": 4,
 			"family_mesh_resource_allocations": 1,
 		},
-		"shared collar families plus all three station consoles freeze 1156 descendants, 753 renderers/submissions, 893 copies, and 307 mesh allocations"
+		"shared collar families plus all three station consoles freeze 1157 descendants, 754 renderers/submissions, 894 copies, and 308 mesh allocations"
 	)
 	_check(
 		report.reductions == {
@@ -978,7 +1080,7 @@ func _test_pod_corner_collar_visual_resource_sharing(
 	(report.behavior_rows as Array).clear()
 	var detached := module.get_pod_corner_collar_visual_allocation_audit()
 	_check(
-		int(detached.current.mesh_resource_allocations) == 307
+		int(detached.current.mesh_resource_allocations) == 308
 		and (detached.behavior_rows as Array).size() == 4,
 		"component-local allocation and transform evidence is deeply detached"
 	)
@@ -1020,7 +1122,7 @@ func _test_pod_corner_collar_visual_resource_sharing(
 		and (identity_red.errors as PackedStringArray).has(
 			"pod_corner_collar_mesh_identity_not_shared"
 		)
-		and int(identity_red.current.mesh_resource_allocations) == 308
+		and int(identity_red.current.mesh_resource_allocations) == 309
 		and int(identity_red.current.family_mesh_resource_allocations) == 2,
 		"RED identity mutation rejects an exact-looking private collar mesh allocation"
 	)
