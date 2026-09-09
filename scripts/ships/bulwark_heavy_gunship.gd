@@ -705,6 +705,62 @@ func _build_gunner_display_housing(mount: Node3D, finish: Material) -> void:
 	mount.add_child(housing)
 
 
+## One swept armor casting joins the rear shield to the outboard shoulder.
+## Its flared foot penetrates the existing slab/shoulder; the crown falls below
+## the display at the forward end. The entire inboard seat approach stays open.
+## Furniture, physical anchors and the coarse gameplay hull remain independent.
+func _build_gunner_crew_surround(visual: Node3D, armor: Material) -> void:
+	# Ship-local X/Z, crown height and foot height. The rear ring follows the
+	# former shield footprint, then turns into the former outboard coaming.
+	var sections := [
+		Vector4(1.88, 1.37, 2.28, 1.35),
+		Vector4(2.08, 1.37, 2.60, 1.35),
+		Vector4(2.70, 1.37, 2.60, 1.35),
+		Vector4(3.00, 1.09, 2.56, 1.35),
+		Vector4(3.08, 0.66, 2.52, 1.42),
+		Vector4(3.08, -0.48, 2.40, 1.42),
+		Vector4(3.02, -0.96, 1.98, 1.40),
+	]
+	var outward := [Vector3.BACK, Vector3.BACK, Vector3.BACK,
+		Vector3(0.707107, 0, 0.707107), Vector3.RIGHT, Vector3.RIGHT, Vector3.RIGHT]
+	var rings: Array[PackedVector3Array] = []
+	for index in sections.size():
+		var section: Vector4 = sections[index]
+		var center := Vector3(section.x, 0, section.y)
+		var crown := section.z
+		var foot := section.w
+		var ring := PackedVector3Array()
+		# A broad armor root, chamfered crown and recessed inner face give the
+		# crew pocket a supported sill instead of a thin freestanding plate.
+		for corner in [Vector2(-0.25, foot), Vector2(0.30, foot),
+			Vector2(0.34, foot + 0.08), Vector2(0.16, crown - 0.06),
+			Vector2(0.10, crown), Vector2(-0.10, crown),
+			Vector2(-0.16, crown - 0.06), Vector2(-0.25, foot + 0.08)]:
+			ring.append(center + outward[index] * corner.x + Vector3.UP * corner.y)
+		rings.append(ring)
+	var surface := SurfaceTool.new()
+	surface.begin(Mesh.PRIMITIVE_TRIANGLES)
+	surface.set_material(armor)
+	for index in range(rings.size() - 1):
+		for edge in 8:
+			var next := (edge + 1) % 8
+			_profile_quad(surface, rings[index][edge], rings[index + 1][edge],
+				rings[index + 1][next], rings[index][next])
+	# Quad fans close both exposed ends with the same metric projection.
+	for index in [0, rings.size() - 1]:
+		var ring := rings[index]
+		for edge in [1, 3, 5]:
+			if index == 0:
+				_profile_quad(surface, ring[0], ring[edge], ring[edge + 1], ring[edge + 2])
+			else:
+				_profile_quad(surface, ring[0], ring[edge + 2], ring[edge + 1], ring[edge])
+	surface.generate_tangents()
+	var surround := MeshInstance3D.new()
+	surround.name = "GunnerRearSplinterShield"
+	surround.mesh = surface.commit()
+	visual.add_child(surround)
+
+
 ## Functional assemblies use broad continuous armor around recessed mechanics.
 ## The weapon lanes and aft-port boarding gap keep their established clearance.
 func _build_bulwark_manufactured_details(visual: Node3D, armor: Material, dark: Material) -> void:
@@ -713,14 +769,7 @@ func _build_bulwark_manufactured_details(visual: Node3D, armor: Material, dark: 
 	_build_propulsion_cradles(visual, metal, dark)
 	_pressure_panel(visual, "CockpitPressureTransition", Vector3(0, 1.6, -0.55), 2.1, 3.7, 0.56, 3.4, armor)
 	_build_nose_avionics(visual, armor, dark, metal)
-	# A rear splinter shield and outboard coaming physically shelter the retained
-	# gunner seat; its interaction anchor and forward console remain accessible.
-	_profile_shell(visual, "GunnerRearSplinterShield", Vector3(2.35, 0, 0), [
-		Vector4(0.98, 0.61, 0.48, 2.12), Vector4(1.18, 0.72, 0.60, 2.0),
-		Vector4(1.75, 0.78, 0.36, 1.72),
-	], armor)
-	var coaming := _pressure_panel(visual, "GunnerOutboardCoaming", Vector3(3.02, 1.96, 0.28), 0.66, 1.15, 0.12, 2.15, armor)
-	coaming.rotation.z = PI * 0.5
+	_build_gunner_crew_surround(visual, armor)
 	for side in [-1.0, 1.0]:
 		var tag := "Port" if side < 0 else "Starboard"
 		# Mount cooling cartridges on the actual falling aft deck, so their

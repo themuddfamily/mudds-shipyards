@@ -44,6 +44,7 @@ func _run() -> void:
 			_check_profile(visual.get_node_or_null(shell_name) as MeshInstance3D, shell_name)
 
 		_check_nose_installation(visual)
+		_check_gunner_surround(ship, visual)
 
 		for batch_name in ["ArmoredShoulderBatch", "DorsalBastionBatch", "GunPodHousingBatch"]:
 			var batch := visual.get_node_or_null(batch_name) as MultiMeshInstance3D
@@ -67,6 +68,54 @@ func _run() -> void:
 	ship.queue_free()
 	await process_frame
 	_finish()
+
+
+func _check_gunner_surround(ship: BulwarkHeavyGunship, visual: Node3D) -> void:
+	var surround := visual.get_node_or_null("GunnerRearSplinterShield") as MeshInstance3D
+	if surround == null:
+		_check(false, "gunner crew surround exists")
+		return
+	_check(visual.get_node_or_null("GunnerOutboardCoaming") == null
+		and surround.mesh.get_surface_count() == 1 and surround.get_child_count() == 0,
+		"rear shield and outboard coaming share one static armor surface")
+	var vertices: PackedVector3Array = surround.mesh.surface_get_arrays(0)[Mesh.ARRAY_VERTEX]
+	_check(_surround_blocks(vertices, Vector3(2.35, 2.2, 0.55), Vector3(3.6, 2.2, 0.55))
+		and _surround_blocks(vertices, Vector3(2.35, 2.2, 0.55), Vector3(2.35, 2.2, 1.9)),
+		"the fitted casting shields the seated gunner on its outboard and rear faces")
+	# These paths cross the newly authored surface only: a cosmetic wall must
+	# not suggest a closed route where gameplay still admits the crew member.
+	_check(not _surround_blocks(vertices, Vector3(1.4, 1.95, 0.55), Vector3(2.35, 1.95, 0.55))
+		and not _surround_blocks(vertices, Vector3(2.35, 2.1, -1.8), Vector3(2.35, 2.1, 0.55)),
+		"inboard seat entry and forward engineer approach remain open")
+	var anchor := ship.get_gunner_station_anchor()
+	var station := anchor.get_parent() as Node3D
+	var eye := ship.to_local(anchor.to_global(Vector3(0, 0.65, 0.18)))
+	var gunner_display := station.get_node("GunnerStatusReadout") as Label3D
+	var engineer_display := station.get_node("EngineerRepairReadout") as Label3D
+	var clear := true
+	for offset in [Vector3.ZERO, Vector3(-0.48, -0.16, 0), Vector3(0.48, -0.16, 0),
+		Vector3(-0.48, 0.16, 0), Vector3(0.48, 0.16, 0)]:
+		clear = clear and not _surround_blocks(vertices, eye,
+			ship.to_local(gunner_display.to_global(offset)))
+		clear = clear and not _surround_blocks(vertices, Vector3(2.35, 2.6, -2.4),
+			ship.to_local(engineer_display.to_global(offset)))
+	_check(clear, "both physical readout faces remain clear at their center and corners")
+	_check(anchor.position.is_equal_approx(Vector3(0, 0.4, 0))
+		and station.position.is_equal_approx(Vector3(2.35, 1.55, 0.55)),
+		"the public physical seat and station anchors retain their exact placement")
+	# Horizontal probes below each existing deck crown prove the armor foot
+	# reaches into supporting hull, rather than stopping above it as a plate.
+	_check(_surround_blocks(vertices, Vector3(2.35, 1.45, 0.9), Vector3(2.35, 1.45, 1.9))
+		and _surround_blocks(vertices, Vector3(2.7, 1.6, 0.1), Vector3(3.6, 1.6, 0.1)),
+		"the rear and outboard armor roots overlap the slab and shoulder deck heights")
+
+
+func _surround_blocks(vertices: PackedVector3Array, from: Vector3, to: Vector3) -> bool:
+	for triangle in range(0, vertices.size(), 3):
+		if Geometry3D.segment_intersects_triangle(from, to,
+			vertices[triangle], vertices[triangle + 1], vertices[triangle + 2]) is Vector3:
+			return true
+	return false
 
 
 func _check_nose_installation(visual: Node3D) -> void:
