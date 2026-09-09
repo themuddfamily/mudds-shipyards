@@ -29,7 +29,7 @@ func _initialize() -> void:
 		_check(
 			mesh != null
 				and mesh.get_aabb().size.is_equal_approx(Vector3(0.95, 0.40, 0.035))
-				and is_equal_approx(first_canopy.rotation.x, PI * 0.25)
+				and is_equal_approx(first_canopy.rotation.x, deg_to_rad(49.0))
 				and mesh.get_surface_count() == 1
 				and first_canopy.position.is_equal_approx(Interceptor.CANOPY_POSITION)
 				and second_canopy.position.is_equal_approx(Interceptor.CANOPY_POSITION)

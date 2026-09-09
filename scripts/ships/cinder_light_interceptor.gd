@@ -17,7 +17,7 @@ const DISPLAY_NAME := "Cinder light interceptor"
 const HULL_SIZE := Vector3(4.8, 2.5, 8.8)
 const HULL_COLOR := Color("6d7777")
 const CANOPY_COLOR := Color("315b68")
-const CANOPY_POSITION := Vector3(0.0, 1.205, -3.0)
+const CANOPY_POSITION := Vector3(0.0, 1.505, -3.0)
 const CANOPY_SCALE := Vector3.ONE
 ## The fixed cockpit support origin is retained; a continuous shoulder now
 ## ramps from the nose into the floor platform and back down to the aft hull.
@@ -428,7 +428,7 @@ func _build_hull(visual: Node3D) -> void:
 	canopy.mesh = _shared_canopy_mesh
 	canopy.position = CANOPY_POSITION
 	canopy.scale = CANOPY_SCALE
-	canopy.rotation.x = PI * 0.25
+	canopy.rotation.x = deg_to_rad(49.0)
 	canopy.material_override = _shared_canopy_material
 	visual.add_child(canopy)
 	_build_interceptor_propulsion(visual)
@@ -1436,7 +1436,17 @@ func _deck_plate(parent: Node3D, tag: String, at: Vector3, width: float, length:
 ## body. Its forward and aft ramps replace the stacked plinth silhouettes;
 ## all pilot, canopy hinge and boarding transforms stay on their original rig.
 func _cockpit_shoulder_mesh(origin: Vector3, crown: float, width: float, material: Material) -> ArrayMesh:
-	return preload("res://scripts/ships/cinder_cockpit_pressure_fairing.gd").build(origin, crown, width, material)
+	# The interceptor carries its cockpit in a long, narrow formed bow. Its
+	# upper crown still supports the unchanged floor; the lower rolled return
+	# seats inside the primary body instead of projecting a separate plinth.
+	return preload("res://scripts/ships/cinder_cockpit_pressure_fairing.gd").build(origin, crown, width, material, {
+		"stations": [-4.35, -2.25, 1.15, 3.1],
+		"tops": [0.36, 1.89, 1.89, crown],
+		"widths": [0.4, width, width, width * 0.95],
+		"top_widths": [0.24, 2.18, 2.18, width * 0.85],
+		"tucked_return": true,
+		"bow_tangent": 0.45,
+	})
 
 
 ## Add the missing propulsion presentation at this hull's nozzle mouths. The

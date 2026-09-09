@@ -3,24 +3,30 @@ extends RefCounted
 ## Shared formed skin beneath the two fixed Cinder cockpit rigs. The flat
 ## crown still meets the cockpit floor; rolled sides and eased fore/aft runs
 ## join that crown to the lower pressure body without a trapezoidal plinth.
-static func build(origin: Vector3, crown: float, width: float, material: Material) -> ArrayMesh:
-	var stations := [-3.7, -2.25, 1.15, 3.1]
-	var tops := [crown * 0.45, 1.89, 1.89, crown]
-	var widths := [0.6, width, width, width * 0.95]
-	var top_widths := [0.48, 2.18, 2.18, width * 0.85]
+static func build(origin: Vector3, crown: float, width: float, material: Material, profile: Dictionary = {}) -> ArrayMesh:
+	var stations: Array = profile.get("stations", [-3.7, -2.25, 1.15, 3.1])
+	var tops: Array = profile.get("tops", [crown * 0.45, 1.89, 1.89, crown])
+	var widths: Array = profile.get("widths", [0.6, width, width, width * 0.95])
+	var top_widths: Array = profile.get("top_widths", [0.48, 2.18, 2.18, width * 0.85])
+	var tucked_return: bool = profile.get("tucked_return", false)
 	var rings: Array[PackedVector3Array] = []
 	const RUN_STEPS := 6
 	for bay in 3:
 		for sample_index in RUN_STEPS:
 			var t := float(sample_index) / RUN_STEPS
 			var eased := smoothstep(0.0, 1.0, t)
+			# An optional nonzero bow tangent meets a rising primary nose;
+			# the cockpit end remains horizontal under the fixed floor.
+			var top_eased := eased
+			if bay == 0:
+				top_eased += float(profile.get("bow_tangent", 0.0)) * t * (1.0 - t) * (1.0 - t)
 			rings.append(_section(
 				lerpf(stations[bay], stations[bay + 1], t),
-				lerpf(tops[bay], tops[bay + 1], eased),
+				lerpf(tops[bay], tops[bay + 1], top_eased),
 				lerpf(widths[bay], widths[bay + 1], eased),
-				lerpf(top_widths[bay], top_widths[bay + 1], eased), crown
+				lerpf(top_widths[bay], top_widths[bay + 1], eased), crown, tucked_return
 			))
-	rings.append(_section(stations[-1], tops[-1], widths[-1], top_widths[-1], crown))
+	rings.append(_section(stations[-1], tops[-1], widths[-1], top_widths[-1], crown, tucked_return))
 	var perimeter_uvs: Array[PackedFloat32Array] = []
 	for ring in rings:
 		var distances := PackedFloat32Array([0.0])
@@ -59,7 +65,7 @@ static func build(origin: Vector3, crown: float, width: float, material: Materia
 	return surface.commit()
 
 
-static func _section(z: float, top: float, width: float, top_width: float, crown: float) -> PackedVector3Array:
+static func _section(z: float, top: float, width: float, top_width: float, crown: float, tucked_return: bool = false) -> PackedVector3Array:
 	var bottom := minf(crown - 0.24, top - 0.12)
 	var half := width * 0.5
 	var bevel := minf(0.065, (top - bottom) * 0.22)
@@ -76,6 +82,15 @@ static func _section(z: float, top: float, width: float, top_width: float, crown
 	for sample_index in range(1, 4):
 		var angle := PI * 0.5 * float(sample_index) / 3.0
 		side.append(Vector3(half - bevel + bevel * cos(angle), bottom + bevel - bevel * sin(angle), z))
+	if tucked_return:
+		# The interceptor's lower shell return sits inside its narrow pressure
+		# body. Keep the upper rolled crown, but turn the skirt inward below
+		# the shoulder instead of leaving a shelf over the pointed hull.
+		for index in range(1, side.size()):
+			var depth := clampf((top - side[index].y) / (top - bottom), 0.0, 1.0)
+			var tuck := smoothstep(0.45, 1.0, depth)
+			side[index].x *= 1.0 - 0.44 * tuck
+			side[index].y -= 0.46 * tuck * smoothstep(0.4, 1.1, top)
 	var ring := PackedVector3Array([Vector3(-upper, top, z)])
 	ring.append_array(side)
 	for index in range(side.size() - 1, 0, -1):

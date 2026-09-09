@@ -59,7 +59,9 @@ func _test_closed_cockpit_fairing(craft: CinderLightInterceptor) -> void:
 		and cockpit_floor != null
 		and canopy != null
 		and fairing.mesh is ArrayMesh
-		and fairing.mesh.get_aabb().size.is_equal_approx(Vector3(3.55, 1.542, 6.8))
+		and fairing_bounds.size.x <= 3.55
+		and is_equal_approx(fairing_bounds.position.z, -4.35)
+		and is_equal_approx(fairing_bounds.end.z, 3.1)
 		and fairing_bounds.position.y < hull_bounds.end.y
 		and is_equal_approx(fairing_bounds.end.y, floor_bounds.position.y + 0.02)
 		and fairing_bounds.intersects(canopy_bounds)
@@ -72,6 +74,44 @@ func _test_closed_cockpit_fairing(craft: CinderLightInterceptor) -> void:
 		and fairing.find_children("*", "CollisionObject3D", true, false).is_empty(),
 		"one closed visual-only fairing joins the hull crown, canopy and cockpit floor without collision authority"
 	)
+
+	var cap_seated := true
+	var fairing_points: PackedVector3Array = fairing.mesh.surface_get_arrays(0)[Mesh.ARRAY_VERTEX]
+	for point in fairing_points:
+		var at := fairing.transform * point
+		if is_equal_approx(at.z, fairing_bounds.position.z):
+			cap_seated = cap_seated and at.y < _skin_height(hull, at)
+	_check(cap_seated, "the elongated fairing's forward cap remains buried inside the primary nose skin")
+	var plate_seated := true
+	var plate_exposed := true
+	var plate_points: PackedVector3Array = canopy.mesh.surface_get_arrays(0)[Mesh.ARRAY_VERTEX]
+	for point in plate_points:
+		var at := canopy.transform * point
+		var gap := at.y - _skin_height(fairing, at)
+		if point.z > 0.0:
+			plate_seated = plate_seated and gap >= -0.01 and gap <= 0.005
+		else:
+			plate_exposed = plate_exposed and gap > 0.025 and gap < 0.055
+	_check(plate_seated and plate_exposed, "all four optical-plate underside corners seat in the formed ramp while its front face remains exposed")
+
+
+func _skin_height(skin: MeshInstance3D, at: Vector3) -> float:
+	var arrays := skin.mesh.surface_get_arrays(0)
+	var points: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
+	var indices: PackedInt32Array = arrays[Mesh.ARRAY_INDEX] if arrays[Mesh.ARRAY_INDEX] != null else PackedInt32Array()
+	if indices.is_empty():
+		for index in points.size():
+			indices.append(index)
+	var height := -INF
+	for triangle in range(0, indices.size(), 3):
+		var hit = Geometry3D.ray_intersects_triangle(
+			Vector3(at.x, 8.0, at.z), Vector3.DOWN,
+			skin.transform * points[indices[triangle]],
+			skin.transform * points[indices[triangle + 1]],
+			skin.transform * points[indices[triangle + 2]])
+		if hit != null:
+			height = maxf(height, hit.y)
+	return height
 
 
 func _test_console_toggle_batch(craft: CinderLightInterceptor) -> void:
