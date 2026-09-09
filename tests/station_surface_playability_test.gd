@@ -126,6 +126,7 @@ func _init() -> void:
 
 
 func _run() -> void:
+	_test_shadow_only_mesh_is_not_drawn_support()
 	var game := MAIN_SCENE.instantiate() as GameFlow
 	_check(game != null, "production Main instantiates for station surface playability")
 	if game == null:
@@ -1491,7 +1492,7 @@ func _test_discovered_walkable_surface_support(world: ShipyardWorld) -> void:
 	var space := world.get_world_3d().direct_space_state
 	for candidate in world.find_children("*", "MeshInstance3D", true, false):
 		var mesh_instance := candidate as MeshInstance3D
-		if mesh_instance.mesh == null or not mesh_instance.is_visible_in_tree():
+		if not _is_drawn_support_mesh(mesh_instance):
 			continue
 		var exclusion_reason := _intentional_non_walkable_reason(mesh_instance, world)
 		if not exclusion_reason.is_empty():
@@ -1618,7 +1619,7 @@ func _test_no_station_collision_without_visible_geometry(world: ShipyardWorld) -
 	var buckets := {}
 	for candidate in world.find_children("*", "MeshInstance3D", true, false):
 		var mesh_instance := candidate as MeshInstance3D
-		if mesh_instance.mesh == null or not mesh_instance.is_visible_in_tree():
+		if not _is_drawn_support_mesh(mesh_instance):
 			continue
 		var box := (mesh_instance.global_transform * mesh_instance.mesh.get_aabb()).abs()
 		_bucket_drawn_aabb(buckets, box)
@@ -2199,3 +2200,18 @@ func _finish() -> void:
 	else:
 		print("STATION_SURFACE_PLAYABILITY_TEST_FAILED: ", "; ".join(_failures))
 		quit(1)
+
+
+func _is_drawn_support_mesh(mesh_instance: MeshInstance3D) -> bool:
+	return mesh_instance.mesh != null and mesh_instance.is_visible_in_tree() \
+		and mesh_instance.cast_shadow != GeometryInstance3D.SHADOW_CASTING_SETTING_SHADOWS_ONLY
+
+
+func _test_shadow_only_mesh_is_not_drawn_support() -> void:
+	var mesh := MeshInstance3D.new()
+	mesh.mesh = BoxMesh.new()
+	root.add_child(mesh)
+	_check(_is_drawn_support_mesh(mesh), "visible colour geometry remains eligible for both support sweeps")
+	mesh.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_SHADOWS_ONLY
+	_check(not _is_drawn_support_mesh(mesh), "shadow-only aggregate bounds cannot establish walkable or visible collision support")
+	mesh.free()

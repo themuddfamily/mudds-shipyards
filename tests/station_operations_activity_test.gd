@@ -77,6 +77,7 @@ func _run() -> void:
 	_check(int(counts.collision_nodes) == 0, "component contains no body, area, shape, or collision polygon")
 	_check(int(counts.lights) == 0 and int(counts.particle_emitters) == 0, "beacons use bounded emissive meshes without dynamic lights or particles")
 	_check(not bool(performance.uses_external_assets), "component requires no external art assets")
+	_check_fixed_shell_shadow_batch(activity)
 	_check_gantry_safety_band_batch(activity, false)
 	_check_gantry_rail_fastener_batch(activity, false)
 	_check_gantry_guide_wheel_batch(activity)
@@ -237,6 +238,7 @@ func _run() -> void:
 			_check_gantry_rail_fastener_batch(profiled, true)
 			_check_gantry_guide_wheel_batch(profiled)
 			_check_gantry_rail_face_batch(profiled)
+		_check_fixed_shell_shadow_batch(profiled)
 		var first_seek := profiled.set_activity_time(6.75)
 		var seek_state := profiled.get_activity_state()
 		profiled.set_activity_time(14.0)
@@ -271,10 +273,10 @@ func _run() -> void:
 		"shared catalog preserves the exact visible material-key roster"
 	)
 	_check(
-		int(roster_catalog.bound_material_references) == 378
+		int(roster_catalog.bound_material_references) == 383
 		and int(roster_catalog.dynamic_lens_count) == 57
 		and bool(roster_catalog.dynamic_lens_bindings_valid),
-		"sharing leaves all 378 real renderer bindings and 57 per-instance dynamic lens bindings intact"
+		"sharing leaves all 383 real renderer bindings and 57 per-instance dynamic lens bindings intact"
 	)
 	var frame_parameters := visible_parameters.frame as Dictionary
 	var amber_parameters := visible_parameters.amber_lit as Dictionary
@@ -320,15 +322,15 @@ func _run() -> void:
 	# family-local batches: nodes/submissions -6, MeshInstances -9, batches +3.
 	# Two presentation-only wayfinding labels then move nodes 493 -> 495 without
 	# changing geometry copies, materials, collision, or activity authority.
-	_check(int((roster_audit.counts as Dictionary).node_count) == 495, "ten production placements have the exact 495-node aggregate")
-	_check(int((roster_audit.counts as Dictionary).mesh_instances) == 354, "ten production placements have the exact 354 MeshInstance aggregate")
+	_check(int((roster_audit.counts as Dictionary).node_count) == 500, "ten production placements have the exact 500-node aggregate")
+	_check(int((roster_audit.counts as Dictionary).mesh_instances) == 359, "ten production placements have the exact 359 MeshInstance aggregate")
 	_check(
 		int((roster_audit.counts as Dictionary).multimesh_batches) == 24
 		and int((roster_audit.counts as Dictionary).multimesh_instances) == 107,
 		"instanced structure is reported exactly rather than vanishing from the mesh count"
 	)
 	_check(
-		int((roster_audit.counts as Dictionary).geometry_submissions) == 378
+		int((roster_audit.counts as Dictionary).geometry_submissions) == 383
 		and int((roster_audit.counts as Dictionary).drawn_copies) == 461,
 		"production retains all 461 visible geometry copies without proxy renderers"
 	)
@@ -1083,11 +1085,11 @@ func _check_gantry_safety_band_batch(
 	var counts := performance.counts as Dictionary
 	var is_full := activity.get_activity_profile() == StationOperationsActivity.ActivityProfile.FULL
 	_check(
-		int(counts.node_count) == (82 if is_full else 45)
-		and int(counts.mesh_instances) == (61 if is_full else 30)
+		int(counts.node_count) == (83 if is_full else 46)
+		and int(counts.mesh_instances) == (62 if is_full else 31)
 		and int(counts.multimesh_batches) == 4
 		and int(counts.multimesh_instances) == 18
-		and int(counts.geometry_submissions) == (65 if is_full else 34)
+		and int(counts.geometry_submissions) == (66 if is_full else 35)
 		and int(counts.drawn_copies) == (79 if is_full else 48),
 		"%s freezes nodes -3, MeshInstances -4, batches +1 and submissions -3 without dropping a copy" % activity.get_activity_profile_id()
 	)
@@ -1187,11 +1189,11 @@ func _check_gantry_rail_fastener_batch(
 	var counts := activity.get_performance_audit().counts as Dictionary
 	var is_full := activity.get_activity_profile() == StationOperationsActivity.ActivityProfile.FULL
 	_check(
-		int(counts.node_count) == (82 if is_full else 45)
-		and int(counts.mesh_instances) == (61 if is_full else 30)
+		int(counts.node_count) == (83 if is_full else 46)
+		and int(counts.mesh_instances) == (62 if is_full else 31)
 		and int(counts.multimesh_batches) == 4
 		and int(counts.multimesh_instances) == 18
-		and int(counts.geometry_submissions) == (65 if is_full else 34)
+		and int(counts.geometry_submissions) == (66 if is_full else 35)
 		and int(counts.drawn_copies) == (79 if is_full else 48),
 		"%s freezes rail fasteners at 8 -> 1 submissions while retaining all eight visible copies" % activity.get_activity_profile_id()
 	)
@@ -1289,11 +1291,11 @@ func _check_gantry_guide_wheel_batch(activity: StationOperationsActivity) -> voi
 	var counts := activity.get_performance_audit().counts as Dictionary
 	var is_full := activity.get_activity_profile() == StationOperationsActivity.ActivityProfile.FULL
 	_check(
-		int(counts.node_count) == (82 if is_full else 45)
-		and int(counts.mesh_instances) == (61 if is_full else 30)
+		int(counts.node_count) == (83 if is_full else 46)
+		and int(counts.mesh_instances) == (62 if is_full else 31)
 		and int(counts.multimesh_batches) == 4
 		and int(counts.multimesh_instances) == 18
-		and int(counts.geometry_submissions) == (65 if is_full else 34)
+		and int(counts.geometry_submissions) == (66 if is_full else 35)
 		and int(counts.drawn_copies) == (79 if is_full else 48),
 		"%s guide wheels fall 4 -> 1 submissions while all four moving copies remain" % activity.get_activity_profile_id()
 	)
@@ -1355,11 +1357,11 @@ func _check_gantry_rail_face_batch(activity: StationOperationsActivity) -> void:
 	var counts := activity.get_performance_audit().counts as Dictionary
 	var is_full := activity.get_activity_profile() == StationOperationsActivity.ActivityProfile.FULL
 	_check(
-		int(counts.node_count) == (82 if is_full else 45)
-		and int(counts.mesh_instances) == (61 if is_full else 30)
+		int(counts.node_count) == (83 if is_full else 46)
+		and int(counts.mesh_instances) == (62 if is_full else 31)
 		and int(counts.multimesh_batches) == 4
 		and int(counts.multimesh_instances) == 18
-		and int(counts.geometry_submissions) == (65 if is_full else 34)
+		and int(counts.geometry_submissions) == (66 if is_full else 35)
 		and int(counts.drawn_copies) == (79 if is_full else 48),
 		"%s rail faces fall 2 -> 1 submissions while both visible copies remain" % activity.get_activity_profile_id()
 	)
@@ -1596,3 +1598,91 @@ func _finish() -> void:
 	else:
 		print("STATION_OPERATIONS_ACTIVITY_TEST_FAILED: ", "; ".join(_failures))
 		quit(1)
+
+
+func _check_fixed_shell_shadow_batch(activity: StationOperationsActivity) -> void:
+	var assembly_name := ""
+	var expected_families := {}
+	match activity.activity_profile:
+		StationOperationsActivity.ActivityProfile.FULL, StationOperationsActivity.ActivityProfile.GANTRY:
+			assembly_name = "MaintenanceGantry"
+			expected_families = {"FootPad": 4, "Column": 4, "ColumnEdge": 4, "OverheadRail": 2, "BridgeBeam": 1}
+		StationOperationsActivity.ActivityProfile.CARGO_LINE:
+			assembly_name = "CargoTransferLine"
+			expected_families = {"RailBeam": 2, "RailStop": 2, "PalletDeckPort": 1, "CrateLower": 1, "CrateLowerAlt": 1, "CrateUpper": 1, "CrateManifest": 1, "PalletDeckStarboard": 1, "CrateOutbound": 1, "CrateOutboundSmall": 1, "HoistPost": 2, "HoistBeam": 1, "ControlPedestal": 1, "ControlHousing": 1}
+		StationOperationsActivity.ActivityProfile.CARGO_LINE_LONG:
+			assembly_name = "LongCargoTransferLine"
+			expected_families = {"RailBeam": 2, "RailStop": 2, "HoistPost": 4, "HoistRail": 2, "PalletDeckInbound": 1, "CrateInboundPort": 1, "CrateInboundStarboard": 1, "CrateInboundTop": 1, "CrateManifest": 1, "PalletDeckOutbound": 1, "CrateOutboundPort": 1, "CrateOutboundStarboard": 1, "CrateOutboundTop": 1, "ControlPedestal": 1, "ControlHousing": 1}
+		_:
+			_check(activity.find_children("OpaqueEnvelopeShadowBatch", "MeshInstance3D", true, false).is_empty(), "unrelated profiles gain no shadow batch")
+			return
+	var assembly := activity.get_node("PresentationRoot/" + assembly_name) as Node3D
+	var batch := assembly.get_node_or_null("OpaqueEnvelopeShadowBatch") as MeshInstance3D
+	_check(batch != null, assembly_name + " constructs its fixed-shell shadow batch synchronously")
+	if batch == null:
+		return
+	var expected_names := PackedStringArray()
+	for family: String in expected_families:
+		for index in int(expected_families[family]):
+			expected_names.append(family + (str(index + 1) if index > 0 else ""))
+	var sources: Array[MeshInstance3D] = []
+	for child in assembly.get_children():
+		if expected_names.has(str(child.name)):
+			sources.append(child as MeshInstance3D)
+	_check(sources.size() == expected_names.size(), assembly_name + " retains its exact named colour roster")
+	var merged := batch.mesh.surface_get_arrays(0)
+	var vertices: PackedVector3Array = merged[Mesh.ARRAY_VERTEX]
+	var normals: PackedVector3Array = merged[Mesh.ARRAY_NORMAL]
+	var indices: PackedInt32Array = merged[Mesh.ARRAY_INDEX]
+	var vertex_offset := 0
+	var index_offset := 0
+	var geometry_matches := true
+	var materials_unchanged := true
+	var normal_error := 0.0
+	var bounds := AABB()
+	var transforms := {}
+	for source in sources:
+		transforms[source.name] = source.transform
+		var arrays := source.mesh.surface_get_arrays(0)
+		var source_vertices: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
+		var source_normals: PackedVector3Array = arrays[Mesh.ARRAY_NORMAL]
+		var source_indices := PackedInt32Array()
+		if arrays[Mesh.ARRAY_INDEX] != null:
+			source_indices = arrays[Mesh.ARRAY_INDEX]
+		else:
+			for index in source_vertices.size():
+				source_indices.append(index)
+		var normal_basis := source.basis.inverse().transposed()
+		materials_unchanged = materials_unchanged and activity._materials.values().has(source.material_override)
+		geometry_matches = geometry_matches and source.visible and source.cast_shadow == GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		for index in source_vertices.size():
+			var expected_vertex := source.transform * source_vertices[index]
+			geometry_matches = geometry_matches and vertices[vertex_offset + index].is_equal_approx(expected_vertex)
+			normal_error = maxf(normal_error, normals[vertex_offset + index].distance_to((normal_basis * source_normals[index]).normalized()))
+			bounds = AABB(expected_vertex, Vector3.ZERO) if vertex_offset + index == 0 else bounds.expand(expected_vertex)
+		for index in source_indices.size():
+			geometry_matches = geometry_matches and indices[index_offset + index] == source_indices[index] + vertex_offset
+		vertex_offset += source_vertices.size()
+		index_offset += source_indices.size()
+	_check(geometry_matches and vertices.size() == vertex_offset and indices.size() == index_offset and normal_error <= 0.0002, assembly_name + " retains exact triangles/index order and transformed positions/normal directions")
+	_check(materials_unchanged and batch.material_override == sources[0].material_override and batch.mesh.get_aabb().is_equal_approx(bounds) and batch.transform == Transform3D.IDENTITY and batch.cast_shadow == GeometryInstance3D.SHADOW_CASTING_SETTING_SHADOWS_ONLY, assembly_name + " retains original colour materials and tight parent-local shadow bounds")
+	# The world consumes only the authored solid roster, independent of the new
+	# aggregate AABB. Removing the renderer cannot change a single physical spec.
+	var solids := activity.get_solid_volume_contract()
+	assembly.remove_child(batch)
+	_check(solids == activity.get_solid_volume_contract(), assembly_name + " shadow aggregate adds no solid, walkable surface or blocked void")
+	assembly.add_child(batch)
+	var excluded_unchanged := true
+	for child in assembly.find_children("*", "GeometryInstance3D", true, false):
+		if child == batch or (child is MeshInstance3D and sources.has(child)):
+			continue
+		excluded_unchanged = excluded_unchanged and (child as GeometryInstance3D).cast_shadow == GeometryInstance3D.SHADOW_CASTING_SETTING_ON
+	activity.set_activity_time(8.25)
+	for source in sources:
+		excluded_unchanged = excluded_unchanged and source.transform == transforms[source.name]
+	_check(excluded_unchanged and bool(activity.get_audit_report().valid), assembly_name + " leaves moving branches, pulsing materials and existing batches under their original live contracts")
+	activity.set_activity_enabled(false)
+	_check(not batch.is_visible_in_tree() and not sources[0].is_visible_in_tree(), assembly_name + " colour and shadows hide together")
+	activity.set_activity_enabled(true)
+	_check(batch.is_visible_in_tree() and sources[0].is_visible_in_tree() and bool(activity.get_audit_report().valid), assembly_name + " colour and shadows resume without rebuilding")
+	print("FIXED_SHELL_SHADOW_PARITY: ", assembly_name, " sources=", sources.size(), " triangles=", indices.size() / 3, " bounds=", bounds, " max_normal_error=", normal_error)

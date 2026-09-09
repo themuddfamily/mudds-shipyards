@@ -6,6 +6,8 @@ extends RefCounted
 ## caches while returning the exact materials, movers, lenses, and authored
 ## MultiMesh transform rosters that the activity audits and animates.
 
+const StaticShadowBatch = preload("res://scripts/world/static_shadow_batch.gd")
+
 const PROFILE_FULL: StringName = &"full"
 const PROFILE_GANTRY: StringName = &"gantry"
 const PROFILE_SERVICE_ARM: StringName = &"service_arm"
@@ -238,20 +240,21 @@ func _build_gantry() -> void:
 	var gantry := Node3D.new()
 	gantry.name = "MaintenanceGantry"
 	_presentation_root.add_child(gantry)
+	var shadow_sources: Array[MeshInstance3D] = []
 	var safety_band_transforms: Array[Transform3D] = []
 	for x_side in [-1.0, 1.0]:
 		for z_side in [-1.0, 1.0]:
 			var x: float = float(x_side) * 4.3
 			var z: float = float(z_side) * 2.72
-			_box(gantry, "FootPad", Vector3(x, 0.11, z), Vector3(0.92, 0.22, 1.05), _materials["graphite"])
+			shadow_sources.append(_box(gantry, "FootPad", Vector3(x, 0.11, z), Vector3(0.92, 0.22, 1.05), _materials["graphite"]))
 			# Recorded in `bugs.md` as an unconfirmed observation and confirmed here:
 			# the column stopped at y = 5.53 while `OverheadRail` starts at y = 5.61,
 			# so the rail pair and `BridgeBeam` hung as one rigid unit 0.08 m clear of
 			# all four columns with nothing joining them. The column is lengthened by
 			# exactly that 0.08 m to meet the rail underside. The rail, the carriage
 			# travel (`GANTRY_ELEVATION`) and the footprint are unchanged.
-			_box(gantry, "Column", Vector3(x, 2.86, z), Vector3(0.42, 5.5, 0.5), _materials["frame"])
-			_box(gantry, "ColumnEdge", Vector3(x - x_side * 0.19, 2.82, z), Vector3(0.055, 5.0, 0.34), _materials["frame_edge"])
+			shadow_sources.append(_box(gantry, "Column", Vector3(x, 2.86, z), Vector3(0.42, 5.5, 0.5), _materials["frame"]))
+			shadow_sources.append(_box(gantry, "ColumnEdge", Vector3(x - x_side * 0.19, 2.82, z), Vector3(0.055, 5.0, 0.34), _materials["frame_edge"]))
 			safety_band_transforms.append(Transform3D(
 				Basis.IDENTITY, Vector3(x, 0.72, z - z_side * 0.27)
 			))
@@ -275,7 +278,7 @@ func _build_gantry() -> void:
 	]))
 	var rail_face_transforms: Array[Transform3D] = []
 	for z_side in [-1.0, 1.0]:
-		_box(gantry, "OverheadRail", Vector3(0.0, 5.82, z_side * 2.72), Vector3(9.08, 0.42, 0.48), _materials["frame"])
+		shadow_sources.append(_box(gantry, "OverheadRail", Vector3(0.0, 5.82, z_side * 2.72), Vector3(9.08, 0.42, 0.48), _materials["frame"]))
 		rail_face_transforms.append(Transform3D(
 			Basis.IDENTITY, Vector3(0.0, 5.83, z_side * 2.46)
 		))
@@ -314,7 +317,12 @@ func _build_gantry() -> void:
 		"RailFastener", "RailFastener2", "RailFastener3", "RailFastener4",
 		"RailFastener5", "RailFastener6", "RailFastener7", "RailFastener8",
 	]))
-	_box(gantry, "BridgeBeam", Vector3(0.0, 5.65, 0.0), Vector3(0.34, 0.32, 5.25), _materials["frame_edge"])
+	shadow_sources.append(_box(gantry, "BridgeBeam", Vector3(0.0, 5.65, 0.0), Vector3(0.34, 0.32, 5.25), _materials["frame_edge"]))
+
+	# Only the constructor-owned fixed shell casts through this batch. Colour
+	# nodes retain their materials and solid-volume anchors; movers, existing
+	# MultiMeshes and pulsing readouts keep their own shadow/lifecycle behavior.
+	StaticShadowBatch.build(gantry, shadow_sources)
 
 	_gantry_carriage = Node3D.new()
 	_gantry_carriage.name = "AnimatedGantryCarriage"
@@ -426,9 +434,10 @@ func _build_cargo_transfer_line() -> void:
 	var line := Node3D.new()
 	line.name = "CargoTransferLine"
 	_presentation_root.add_child(line)
+	var shadow_sources: Array[MeshInstance3D] = []
 
 	for z_side in [-1.0, 1.0]:
-		_box(line, "RailBeam", Vector3(0.0, 0.16, z_side * 0.62), Vector3(8.6, 0.14, 0.28), _materials["frame_edge"])
+		shadow_sources.append(_box(line, "RailBeam", Vector3(0.0, 0.16, z_side * 0.62), Vector3(8.6, 0.14, 0.28), _materials["frame_edge"]))
 	# Instanced without moving anything. The five ties keep the same mesh, sizes,
 	# positions and material they were drawn with; what changes is that they are
 	# one draw submission instead of five. Only stock that is never given
@@ -438,28 +447,33 @@ func _build_cargo_transfer_line() -> void:
 		tie_transforms.append(Transform3D(Basis.IDENTITY, Vector3(x, 0.07, 0.0)))
 	_box_batch(line, "RailTies", Vector3(0.5, 0.14, 1.9), tie_transforms, _materials["graphite"])
 	for x_side in [-1.0, 1.0]:
-		_box(line, "RailStop", Vector3(x_side * 4.34, 0.26, 0.0), Vector3(0.24, 0.52, 1.7), _materials["orange"])
+		shadow_sources.append(_box(line, "RailStop", Vector3(x_side * 4.34, 0.26, 0.0), Vector3(0.24, 0.52, 1.7), _materials["orange"]))
 
-	_box(line, "PalletDeckPort", Vector3(-2.9, 0.09, 1.85), Vector3(2.3, 0.18, 1.25), _materials["graphite"])
-	_box(line, "CrateLower", Vector3(-3.4, 0.55, 1.85), Vector3(1.05, 0.74, 1.0), _materials["crate"])
-	_box(line, "CrateLowerAlt", Vector3(-2.35, 0.55, 1.85), Vector3(0.95, 0.74, 1.0), _materials["crate_alt"])
-	_box(line, "CrateUpper", Vector3(-2.9, 1.24, 1.85), Vector3(1.5, 0.64, 1.05), _materials["crate"])
-	_box(line, "CrateManifest", Vector3(-2.9, 1.3, 1.33), Vector3(0.62, 0.2, 0.04), _materials["sign_lit"])
+	shadow_sources.append(_box(line, "PalletDeckPort", Vector3(-2.9, 0.09, 1.85), Vector3(2.3, 0.18, 1.25), _materials["graphite"]))
+	shadow_sources.append(_box(line, "CrateLower", Vector3(-3.4, 0.55, 1.85), Vector3(1.05, 0.74, 1.0), _materials["crate"]))
+	shadow_sources.append(_box(line, "CrateLowerAlt", Vector3(-2.35, 0.55, 1.85), Vector3(0.95, 0.74, 1.0), _materials["crate_alt"]))
+	shadow_sources.append(_box(line, "CrateUpper", Vector3(-2.9, 1.24, 1.85), Vector3(1.5, 0.64, 1.05), _materials["crate"]))
+	shadow_sources.append(_box(line, "CrateManifest", Vector3(-2.9, 1.3, 1.33), Vector3(0.62, 0.2, 0.04), _materials["sign_lit"]))
 
-	_box(line, "PalletDeckStarboard", Vector3(3.0, 0.09, -1.9), Vector3(2.0, 0.18, 1.2), _materials["graphite"])
-	_box(line, "CrateOutbound", Vector3(2.65, 0.52, -1.9), Vector3(1.1, 0.68, 0.98), _materials["crate_alt"])
-	_box(line, "CrateOutboundSmall", Vector3(3.62, 0.44, -1.9), Vector3(0.7, 0.52, 0.8), _materials["crate"])
+	shadow_sources.append(_box(line, "PalletDeckStarboard", Vector3(3.0, 0.09, -1.9), Vector3(2.0, 0.18, 1.2), _materials["graphite"]))
+	shadow_sources.append(_box(line, "CrateOutbound", Vector3(2.65, 0.52, -1.9), Vector3(1.1, 0.68, 0.98), _materials["crate_alt"]))
+	shadow_sources.append(_box(line, "CrateOutboundSmall", Vector3(3.62, 0.44, -1.9), Vector3(0.7, 0.52, 0.8), _materials["crate"]))
 
 	var band_transforms: Array[Transform3D] = []
 	for z_side in [-1.0, 1.0]:
-		_box(line, "HoistPost", Vector3(0.0, 1.45, z_side * 1.55), Vector3(0.26, 2.9, 0.3), _materials["frame"])
+		shadow_sources.append(_box(line, "HoistPost", Vector3(0.0, 1.45, z_side * 1.55), Vector3(0.26, 2.9, 0.3), _materials["frame"]))
 		band_transforms.append(Transform3D(Basis.IDENTITY, Vector3(0.0, 0.6, z_side * 1.55)))
 	_box_batch(line, "HoistPostBands", Vector3(0.3, 0.22, 0.34), band_transforms, _materials["orange"])
-	_box(line, "HoistBeam", Vector3(0.0, 2.78, 0.0), Vector3(0.3, 0.26, 3.4), _materials["frame_edge"])
+	shadow_sources.append(_box(line, "HoistBeam", Vector3(0.0, 2.78, 0.0), Vector3(0.3, 0.26, 3.4), _materials["frame_edge"]))
 
-	_cylinder(line, "ControlPedestal", Vector3(-4.15, 0.5, -1.7), 0.22, 1.0, _materials["frame_edge"])
-	_box(line, "ControlHousing", Vector3(-4.15, 1.08, -1.7), Vector3(0.5, 0.3, 0.36), _materials["graphite"])
+	shadow_sources.append(_cylinder(line, "ControlPedestal", Vector3(-4.15, 0.5, -1.7), 0.22, 1.0, _materials["frame_edge"]))
+	shadow_sources.append(_box(line, "ControlHousing", Vector3(-4.15, 1.08, -1.7), Vector3(0.5, 0.3, 0.36), _materials["graphite"]))
 	var readout := _box(line, "ControlReadout", Vector3(-4.15, 1.2, -1.89), Vector3(0.36, 0.16, 0.04), _materials["green_dim"])
+
+	# Only the constructor-owned fixed shell casts through this batch. Colour
+	# nodes retain their materials and solid-volume anchors; movers, existing
+	# MultiMeshes and pulsing readouts keep their own shadow/lifecycle behavior.
+	StaticShadowBatch.build(line, shadow_sources)
 
 	var sled := _add_station_life_mover(line, "AnimatedCargoSled")
 	_box(sled, "SledDeck", Vector3.ZERO, Vector3(1.9, 0.2, 1.5), _materials["frame_edge"])
@@ -516,9 +530,10 @@ func _build_long_cargo_transfer_line() -> void:
 	var line := Node3D.new()
 	line.name = "LongCargoTransferLine"
 	_presentation_root.add_child(line)
+	var shadow_sources: Array[MeshInstance3D] = []
 
 	for z_side in [-1.0, 1.0]:
-		_box(line, "RailBeam", Vector3(0.0, 0.16, z_side * 0.62), Vector3(21.6, 0.14, 0.28), _materials["frame_edge"])
+		shadow_sources.append(_box(line, "RailBeam", Vector3(0.0, 0.16, z_side * 0.62), Vector3(21.6, 0.14, 0.28), _materials["frame_edge"]))
 	var tie_transforms: Array[Transform3D] = []
 	for index in 12:
 		tie_transforms.append(
@@ -526,7 +541,7 @@ func _build_long_cargo_transfer_line() -> void:
 		)
 	_box_batch(line, "RailTies", Vector3(0.5, 0.14, 1.9), tie_transforms, _materials["graphite"])
 	for x_side in [-1.0, 1.0]:
-		_box(line, "RailStop", Vector3(x_side * 11.0, 0.26, 0.0), Vector3(0.24, 0.52, 1.7), _materials["orange"])
+		shadow_sources.append(_box(line, "RailStop", Vector3(x_side * 11.0, 0.26, 0.0), Vector3(0.24, 0.52, 1.7), _materials["orange"]))
 
 	# Overhead gantry. The post heads reach y = 2.90 and the rail undersides sit
 	# at y = 2.76, so the rails bear on the posts rather than hanging beside them.
@@ -540,42 +555,47 @@ func _build_long_cargo_transfer_line() -> void:
 	var band_transforms: Array[Transform3D] = []
 	for x_side in [-1.0, 1.0]:
 		for z_side in [-1.0, 1.0]:
-			_box(
+			shadow_sources.append(_box(
 				line,
 				"HoistPost",
 				Vector3(x_side * 10.4, 1.45, z_side * 1.35),
 				Vector3(0.26, 2.9, 0.3),
 				_materials["frame"]
-			)
+			))
 			band_transforms.append(
 				Transform3D(Basis.IDENTITY, Vector3(x_side * 10.4, 0.6, z_side * 1.35))
 			)
 	_box_batch(line, "HoistPostBands", Vector3(0.3, 0.22, 0.34), band_transforms, _materials["orange"])
 	for z_side in [-1.0, 1.0]:
-		_box(line, "HoistRail", Vector3(0.0, 2.86, z_side * 1.35), Vector3(21.2, 0.2, 0.26), _materials["frame_edge"])
+		shadow_sources.append(_box(line, "HoistRail", Vector3(0.0, 2.86, z_side * 1.35), Vector3(21.2, 0.2, 0.26), _materials["frame_edge"]))
 
 	# Inbound stack. Two crates on the pallet deck and one wide crate bridging
 	# both of them, so every box rests on the box or the deck below it. The stacks
 	# are 0.8 m deep and set at z = +/-1.30, which leaves the sled's 1.5 m body a
 	# 0.15 m lane past them; at 0.95 m deep the sled's container clipped the
 	# manifest plate by a centimetre on every pass.
-	_box(line, "PalletDeckInbound", Vector3(-8.6, 0.09, 1.3), Vector3(3.2, 0.18, 0.8), _materials["graphite"])
-	_box(line, "CrateInboundPort", Vector3(-9.5, 0.54, 1.3), Vector3(1.0, 0.72, 0.8), _materials["crate"])
-	_box(line, "CrateInboundStarboard", Vector3(-7.9, 0.54, 1.3), Vector3(1.0, 0.72, 0.8), _materials["crate_alt"])
-	_box(line, "CrateInboundTop", Vector3(-8.7, 1.19, 1.3), Vector3(1.5, 0.6, 0.8), _materials["crate"])
-	_box(line, "CrateManifest", Vector3(-8.7, 1.25, 0.88), Vector3(0.62, 0.2, 0.04), _materials["sign_lit"])
+	shadow_sources.append(_box(line, "PalletDeckInbound", Vector3(-8.6, 0.09, 1.3), Vector3(3.2, 0.18, 0.8), _materials["graphite"]))
+	shadow_sources.append(_box(line, "CrateInboundPort", Vector3(-9.5, 0.54, 1.3), Vector3(1.0, 0.72, 0.8), _materials["crate"]))
+	shadow_sources.append(_box(line, "CrateInboundStarboard", Vector3(-7.9, 0.54, 1.3), Vector3(1.0, 0.72, 0.8), _materials["crate_alt"]))
+	shadow_sources.append(_box(line, "CrateInboundTop", Vector3(-8.7, 1.19, 1.3), Vector3(1.5, 0.6, 0.8), _materials["crate"]))
+	shadow_sources.append(_box(line, "CrateManifest", Vector3(-8.7, 1.25, 0.88), Vector3(0.62, 0.2, 0.04), _materials["sign_lit"]))
 
-	_box(line, "PalletDeckOutbound", Vector3(8.2, 0.09, -1.3), Vector3(2.8, 0.18, 0.8), _materials["graphite"])
-	_box(line, "CrateOutboundPort", Vector3(7.5, 0.54, -1.3), Vector3(0.9, 0.72, 0.8), _materials["crate_alt"])
-	_box(line, "CrateOutboundStarboard", Vector3(8.9, 0.54, -1.3), Vector3(1.0, 0.72, 0.8), _materials["crate"])
-	_box(line, "CrateOutboundTop", Vector3(8.2, 1.19, -1.3), Vector3(1.3, 0.6, 0.8), _materials["crate_alt"])
+	shadow_sources.append(_box(line, "PalletDeckOutbound", Vector3(8.2, 0.09, -1.3), Vector3(2.8, 0.18, 0.8), _materials["graphite"]))
+	shadow_sources.append(_box(line, "CrateOutboundPort", Vector3(7.5, 0.54, -1.3), Vector3(0.9, 0.72, 0.8), _materials["crate_alt"]))
+	shadow_sources.append(_box(line, "CrateOutboundStarboard", Vector3(8.9, 0.54, -1.3), Vector3(1.0, 0.72, 0.8), _materials["crate"]))
+	shadow_sources.append(_box(line, "CrateOutboundTop", Vector3(8.2, 1.19, -1.3), Vector3(1.3, 0.6, 0.8), _materials["crate_alt"]))
 
 	# Mid-run, on the apron side. Every outboard position collided with something
 	# that has to be there: at x = -11.0 with the corner beacon, at x = -10.2 with
 	# the gantry post.
-	_cylinder(line, "ControlPedestal", Vector3(-6.0, 0.5, -1.15), 0.22, 1.0, _materials["frame_edge"])
-	_box(line, "ControlHousing", Vector3(-6.0, 1.08, -1.15), Vector3(0.5, 0.3, 0.36), _materials["graphite"])
+	shadow_sources.append(_cylinder(line, "ControlPedestal", Vector3(-6.0, 0.5, -1.15), 0.22, 1.0, _materials["frame_edge"]))
+	shadow_sources.append(_box(line, "ControlHousing", Vector3(-6.0, 1.08, -1.15), Vector3(0.5, 0.3, 0.36), _materials["graphite"]))
 	var readout := _box(line, "ControlReadout", Vector3(-6.0, 1.2, -1.34), Vector3(0.36, 0.16, 0.04), _materials["green_dim"])
+
+	# Only the constructor-owned fixed shell casts through this batch. Colour
+	# nodes retain their materials and solid-volume anchors; movers, existing
+	# MultiMeshes and pulsing readouts keep their own shadow/lifecycle behavior.
+	StaticShadowBatch.build(line, shadow_sources)
 
 	var sled := _add_station_life_mover(line, "AnimatedLongCargoSled")
 	_box(sled, "SledDeck", Vector3.ZERO, Vector3(1.9, 0.2, 1.5), _materials["frame_edge"])

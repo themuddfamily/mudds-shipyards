@@ -176,30 +176,32 @@ static var _shared_visual_mesh_catalog: Dictionary = {}
 ## family independently. It keeps the three meshes, materials and tight family
 ## bounds while moving 9 visual leaves to 3 batches: nodes 44 -> 38,
 ## MeshInstances 33 -> 24, submissions 33 -> 27 and visible copies stay 33.
+## Fixed shells add one shadow-only renderer to FULL, GANTRY and each cargo
+## profile. Original colour copies, materials and declared solids stay unchanged.
 const PROFILE_PERFORMANCE_BUDGETS := {
 	ActivityProfile.FULL: {
-		"node_count": 82,
-		"mesh_instances": 61,
+		"node_count": 83,
+		"mesh_instances": 62,
 		"unique_materials": 17,
 		"lights": 0,
 		"particle_emitters": 0,
 		"collision_nodes": 0,
 		"multimesh_batches": 4,
 		"multimesh_instances": 18,
-		"geometry_submissions": 65,
+		"geometry_submissions": 66,
 		"drawn_copies": 79,
 		"animated_assemblies": 5,
 	},
 	ActivityProfile.GANTRY: {
-		"node_count": 45,
-		"mesh_instances": 30,
+		"node_count": 46,
+		"mesh_instances": 31,
 		"unique_materials": 17,
 		"lights": 0,
 		"particle_emitters": 0,
 		"collision_nodes": 0,
 		"multimesh_batches": 4,
 		"multimesh_instances": 18,
-		"geometry_submissions": 34,
+		"geometry_submissions": 35,
 		"drawn_copies": 48,
 		"animated_assemblies": 1,
 	},
@@ -230,15 +232,15 @@ const PROFILE_PERFORMANCE_BUDGETS := {
 		"animated_assemblies": 2,
 	},
 	ActivityProfile.CARGO_LINE: {
-		"node_count": 49,
-		"mesh_instances": 34,
+		"node_count": 50,
+		"mesh_instances": 35,
 		"unique_materials": 17,
 		"lights": 0,
 		"particle_emitters": 0,
 		"collision_nodes": 0,
 		"multimesh_batches": 4,
 		"multimesh_instances": 13,
-		"geometry_submissions": 38,
+		"geometry_submissions": 39,
 		"drawn_copies": 47,
 		"animated_assemblies": 2,
 	},
@@ -282,15 +284,15 @@ const PROFILE_PERFORMANCE_BUDGETS := {
 		"animated_assemblies": 2,
 	},
 	ActivityProfile.CARGO_LINE_LONG: {
-		"node_count": 54,
-		"mesh_instances": 39,
+		"node_count": 55,
+		"mesh_instances": 40,
 		"unique_materials": 17,
 		"lights": 0,
 		"particle_emitters": 0,
 		"collision_nodes": 0,
 		"multimesh_batches": 4,
 		"multimesh_instances": 22,
-		"geometry_submissions": 43,
+		"geometry_submissions": 44,
 		"drawn_copies": 61,
 		"animated_assemblies": 2,
 	},
@@ -342,17 +344,19 @@ const PROFILE_PERFORMANCE_BUDGETS := {
 ## wayfinding pylon finally move the node roster 493 -> 495 without changing
 ## meshes, materials, submissions, collision, activity authority, or any
 ## existing transform. All 461 visible copies remain.
+## Five fixed-shell shadow renderers add five nodes/submissions; visible
+## copies remain 461 and all 89 original colour renderers remain present.
 const RECOMMENDED_PRODUCTION_ROSTER_BUDGET := {
 	"instance_count": 10,
-	"node_count": 495,
-	"mesh_instances": 354,
+	"node_count": 500,
+	"mesh_instances": 359,
 	"unique_materials": 17,
 	"lights": 0,
 	"particle_emitters": 0,
 	"collision_nodes": 0,
 	"multimesh_batches": 24,
 	"multimesh_instances": 107,
-	"geometry_submissions": 378,
+	"geometry_submissions": 383,
 	"drawn_copies": 461,
 	"animated_assemblies": 21,
 }
@@ -1212,9 +1216,6 @@ func get_performance_audit(instance_count: int = 1) -> Dictionary:
 	_count_runtime_resources(self, counts, material_ids)
 	counts["geometry_submissions"] = (
 		int(counts.mesh_instances) + int(counts.multimesh_batches)
-	)
-	counts["drawn_copies"] = (
-		int(counts.mesh_instances) + int(counts.multimesh_instances)
 	)
 	# Retained but momentarily unassigned beacon variants still consume memory.
 	# Count every component-owned material instead of reporting only the current
@@ -2375,10 +2376,15 @@ func _count_runtime_resources(node: Node, counts: Dictionary, material_ids: Dict
 			counts["multimesh_instances"] = (
 				int(counts.multimesh_instances) + batch.multimesh.instance_count
 			)
+			if batch.cast_shadow != GeometryInstance3D.SHADOW_CASTING_SETTING_SHADOWS_ONLY:
+				counts["drawn_copies"] = int(counts.drawn_copies) + batch.multimesh.instance_count
 		if batch.material_override != null:
 			material_ids[batch.material_override.get_instance_id()] = true
 	elif node is MeshInstance3D:
 		counts["mesh_instances"] = int(counts.mesh_instances) + 1
+		# Shadow-only triangles are renderer work, not additional visible solids.
+		if (node as MeshInstance3D).cast_shadow != GeometryInstance3D.SHADOW_CASTING_SETTING_SHADOWS_ONLY:
+			counts["drawn_copies"] = int(counts.drawn_copies) + 1
 		var material := (node as MeshInstance3D).material_override
 		if material != null:
 			material_ids[material.get_instance_id()] = true

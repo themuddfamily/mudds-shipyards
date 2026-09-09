@@ -42,13 +42,13 @@ func _run() -> void:
 		first_unique_ids[mesh.get_instance_id()] = true
 
 	_check(
-		first_meshes.size() == 65 and all_corresponding_resources_shared,
-		"two FULL activities keep all 65 geometry submissions while corresponding immutable meshes share one allocation"
+		first_meshes.size() == 66 and all_corresponding_resources_shared,
+		"two FULL activities keep all 66 geometry submissions while corresponding immutable meshes share one allocation"
 	)
 	_check(
 		retained_resource_ids.size() == first_unique_ids.size()
-		and retained_resource_ids.size() == 35,
-		"two FULL activities retain 35 meshes rather than 69: the second adds zero instead of 34 allocations"
+		and retained_resource_ids.size() == 36,
+		"two FULL activities retain 36 meshes including the shared shadow batch: the second adds zero allocations"
 	)
 	var first_counts := first.get_performance_audit().counts as Dictionary
 	var peer_counts := peer.get_performance_audit().counts as Dictionary
@@ -56,13 +56,13 @@ func _run() -> void:
 		bool(first.get_audit_report().valid)
 		and bool(peer.get_audit_report().valid)
 		and first_counts == peer_counts
-		and int(first_counts.geometry_submissions) == 65
+		and int(first_counts.geometry_submissions) == 66
 		and int(first_counts.drawn_copies) == 79,
 		"sharing preserves the complete activity contract and exact visible/submission budgets"
 	)
 
 	print(
-		"METRIC: two FULL activities retain %d unique meshes for %d visual references (34 allocations removed)"
+		"METRIC: two FULL activities retain %d unique meshes for %d visual references (corresponding resources shared)"
 		% [retained_resource_ids.size(), first_meshes.size() + peer_meshes.size()]
 	)
 	if _failures.is_empty():
