@@ -3779,9 +3779,7 @@ func _build_modern_airframe(visual: Node3D) -> void:
 	upholstery.albedo_color = Color("3e484b")
 	upholstery.metallic = 0.0
 	upholstery.roughness = 0.95
-	_box(_functional_cockpit, "ModernSeatCushion", Vector3(0, 1.83, -0.55), Vector3(0.72, 0.18, 0.78), upholstery)
-	_box(_functional_cockpit, "ModernSeatBack", Vector3(0, 2.22, -0.08), Vector3(0.70, 0.74, 0.20), upholstery, Vector3(deg_to_rad(10), 0, 0))
-	_box(_functional_cockpit, "ModernHeadrest", Vector3(0, 2.68, 0.0), Vector3(0.43, 0.25, 0.19), upholstery)
+	_build_contoured_pilot_seat(upholstery, dark)
 	_build_pilot_instrument_binnacle(dark, panel)
 	_build_enclosed_canopy(visual)
 	for side in [-1.0, 1.0]:
@@ -3792,6 +3790,105 @@ func _build_modern_airframe(visual: Node3D) -> void:
 			Vector3(side * 2.20, 1.755, 0.64), Vector2(1.22, 0.61), Vector3.UP, Vector3(side, 0, 0), 0.16)
 		ShipSurfaceDetail.mark_surface(airframe, prefix + "IntakeCautionStencil", "intake",
 			Vector3(side * 2.20, 1.73, -0.72), Vector2(0.88, 0.44), Vector3.UP, Vector3.FORWARD, 0.16)
+
+
+## Three retained meshes replace the old cuboid pads. The cushion has a rolled
+## front edge and raised thigh bolsters; the reclined back narrows at the lumbar
+## support and broadens at the shoulders. All stock stays inside the original
+## seat envelope, behind the preserved physical eye and clear of the canopy.
+func _build_contoured_pilot_seat(upholstery: StandardMaterial3D, shell: StandardMaterial3D) -> void:
+	var insert := upholstery.duplicate() as StandardMaterial3D
+	insert.albedo_color = Color("59666b")
+	var names := ["ModernSeatCushion", "ModernSeatBack", "ModernHeadrest"]
+	for part in 3:
+		var pads := SurfaceTool.new()
+		pads.begin(Mesh.PRIMITIVE_TRIANGLES)
+		pads.set_material(insert)
+		var bolsters := SurfaceTool.new()
+		bolsters.begin(Mesh.PRIMITIVE_TRIANGLES)
+		bolsters.set_material(upholstery)
+		var structure := SurfaceTool.new()
+		structure.begin(Mesh.PRIMITIVE_TRIANGLES)
+		structure.set_material(shell)
+		var origin := Vector3(0, 1.83, -0.55)
+		var basis := Basis.IDENTITY
+		if part == 0:
+			_seat_pad(pads, Vector3(0, -0.025, 0), [
+				Vector3(0.19, 0.025, -0.385), Vector3(0.25, 0.065, -0.33),
+				Vector3(0.24, 0.055, 0.0), Vector3(0.21, 0.05, 0.32), Vector3(0.18, 0.025, 0.38)])
+			for side in [-1.0, 1.0]:
+				_seat_pad(bolsters, Vector3(side * 0.285, 0.005, 0), [
+					Vector3(0.035, 0.025, -0.37), Vector3(0.075, 0.07, -0.26),
+					Vector3(0.07, 0.085, 0.12), Vector3(0.04, 0.035, 0.36)])
+			_seat_pad(structure, Vector3(0, -0.07, 0), [
+				Vector3(0.27, 0.012, -0.35), Vector3(0.35, 0.02, -0.27),
+				Vector3(0.32, 0.02, 0.30), Vector3(0.25, 0.012, 0.38)])
+		elif part == 1:
+			origin = Vector3(0, 2.22, -0.08)
+			basis = Basis(Vector3.RIGHT, deg_to_rad(-80))
+			# In this local frame +Y faces the pilot and +Z rises along the back.
+			_seat_pad(pads, Vector3(0, 0.035, 0), [
+				Vector3(0.17, 0.025, -0.36), Vector3(0.21, 0.06, -0.27),
+				Vector3(0.20, 0.065, -0.12), Vector3(0.22, 0.045, 0.15),
+				Vector3(0.21, 0.035, 0.29), Vector3(0.17, 0.02, 0.36)])
+			for side in [-1.0, 1.0]:
+				_seat_pad(bolsters, Vector3(side * 0.275, 0.025, 0), [
+					Vector3(0.035, 0.035, -0.35), Vector3(0.055, 0.075, -0.22),
+					Vector3(0.065, 0.07, 0.14), Vector3(0.075, 0.055, 0.27),
+					Vector3(0.025, 0.02, 0.36)])
+			_seat_pad(structure, Vector3(0, -0.04, 0), [
+				Vector3(0.22, 0.02, -0.36), Vector3(0.30, 0.025, -0.25),
+				Vector3(0.35, 0.025, 0.25), Vector3(0.25, 0.015, 0.37)])
+		else:
+			origin = Vector3(0, 2.68, 0)
+			basis = Basis(Vector3.RIGHT, deg_to_rad(-90))
+			_seat_pad(pads, Vector3(0, 0.035, 0), [
+				Vector3(0.14, 0.025, -0.11), Vector3(0.19, 0.06, -0.065),
+				Vector3(0.19, 0.06, 0.065), Vector3(0.14, 0.025, 0.12)])
+			_seat_pad(bolsters, Vector3(0, -0.015, 0), [
+				Vector3(0.15, 0.025, -0.125), Vector3(0.215, 0.06, -0.075),
+				Vector3(0.215, 0.06, 0.075), Vector3(0.15, 0.025, 0.125)])
+			_zenith_console_stock(structure, Vector3(0, -0.03, -0.13), Vector3(0.13, 0.055, 0.13), shell)
+		var mesh := ArrayMesh.new()
+		for surface in [pads, bolsters, structure]:
+			surface.generate_normals()
+			surface.index()
+			surface.commit(mesh)
+		var stock := MeshInstance3D.new()
+		stock.name = names[part]
+		stock.mesh = mesh
+		stock.transform = Transform3D(basis, origin)
+		stock.set_meta(&"presentation_only", true)
+		_functional_cockpit.add_child(stock)
+
+
+## Closed low-resolution superellipse sections give the foam rounded edges
+## without an imported asset, extra instances, or a per-frame deformation.
+func _seat_pad(surface: SurfaceTool, origin: Vector3, sections: Array) -> void:
+	const SIDES := 16
+	surface.set_smooth_group(0)
+	var rings: Array[PackedVector3Array] = []
+	for section: Vector3 in sections:
+		var ring := PackedVector3Array()
+		for sample in SIDES:
+			var angle := TAU * float(sample) / SIDES
+			var x := cos(angle)
+			var y := sin(angle)
+			ring.append(origin + Vector3(section.x * signf(x) * pow(absf(x), 0.55),
+				section.y * signf(y) * pow(absf(y), 0.55), section.z))
+		rings.append(ring)
+	for section in rings.size() - 1:
+		var center := origin + Vector3(0, 0, (sections[section].z + sections[section + 1].z) * 0.5)
+		for sample in SIDES:
+			var next := (sample + 1) % SIDES
+			_zenith_triangle(surface, rings[section][sample], rings[section + 1][sample], rings[section + 1][next], center)
+			_zenith_triangle(surface, rings[section][sample], rings[section + 1][next], rings[section][next], center)
+	surface.set_smooth_group(-1)
+	for end in [0, rings.size() - 1]:
+		var center := origin + Vector3(0, 0, sections[end].z)
+		var inside := center + Vector3(0, 0, 0.01 if end == 0 else -0.01)
+		for sample in SIDES:
+			_zenith_triangle(surface, center, rings[end][sample], rings[end][(sample + 1) % SIDES], inside)
 
 
 ## The preserved physical eye looks over this fitted flight deck. Opaque stock
