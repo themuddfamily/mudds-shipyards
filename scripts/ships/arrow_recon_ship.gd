@@ -760,7 +760,10 @@ func _create_arrow_materials() -> void:
 	for painted_shell: StandardMaterial3D in [_arrow_materials.pearl, _arrow_materials.ceramic]:
 		ShipSurfaceDetail.bind_manufactured_paint(painted_shell)
 		painted_shell.metallic = 0.10
-		painted_shell.roughness = 0.66
+		# The hull needs a satin coating, not the deep glossy patches of the
+		# high-contrast scuff tile. Retain paint grain and authored panel seams.
+		painted_shell.roughness_texture = load("res://assets/materials/manufactured-paint-roughness.png")
+		painted_shell.roughness = 0.72
 		painted_shell.clearcoat_enabled = false
 
 
