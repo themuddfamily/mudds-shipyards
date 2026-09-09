@@ -1276,24 +1276,29 @@ func _build_interceptor() -> void:
 
 	# A short, wide, low delta. Half the defender's length and none of the
 	# picket's reach: it has to read as something that lives inside your turn.
-	# Matching sections at Z=-0.55 turn the nose/body intersection into a
-	# continuous low pressure pod; the broad delta remains a separate wing skin.
-	_pressure_body(_visual_root, "DeltaNose", Vector3(0, 0, -1.9), [
-		Vector4(-2.1, 0.12, 0.16, -0.04), Vector4(-1.55, 0.43, 0.24, -0.02),
-		Vector4(-0.4, 0.96, 0.34, 0), Vector4(1.35, 1.3, 0.39, -0.01),
-	], _materials.skirmisher_hull)
-	_pressure_body(_visual_root, "DeltaBody", Vector3(0, -0.02, 0.9), [
+	# A crowned foredeck grows into the cockpit shoulders; the broad delta
+	# remains a separate sharp wing skin with its existing mounting stations.
+	_box_from_mesh(_visual_root, "DeltaNose", Vector3(0, 0, -1.9), _skirmisher_forward_shell([
+		Vector4(-2.1, 0.12, 0.16, -0.04), Vector4(-1.88, 0.25, 0.205, -0.03),
+		Vector4(-1.55, 0.44, 0.26, -0.02), Vector4(-1.1, 0.68, 0.32, -0.005),
+		Vector4(-0.55, 0.91, 0.37, 0.005), Vector4(0.0, 1.08, 0.4, 0),
+		Vector4(0.55, 1.19, 0.4, -0.005), Vector4(1.05, 1.27, 0.395, -0.01),
+		Vector4(1.35, 1.3, 0.39, -0.01),
+	], _materials.skirmisher_hull))
+	_box_from_mesh(_visual_root, "DeltaBody", Vector3(0, -0.02, 0.9), _skirmisher_forward_shell([
 		Vector4(-1.45, 1.3, 0.39, 0.01), Vector4(-0.45, 1.7, 0.43, 0),
 		Vector4(0.85, 1.66, 0.43, 0), Vector4(1.8, 1.25, 0.31, -0.03),
-	], _materials.skirmisher_hull)
+	], _materials.skirmisher_hull))
 	_box(_visual_root, "Keelplate", Vector3(0.0, -0.44, 0.6), Vector3(2.2, 0.24, 4.4), _materials.skirmisher_deep)
 	# Glazing sits in a tapered saddle instead of on a rectangular plinth. The
 	# raised aft shoulder gives the cockpit a pressure volume with a clear sill.
-	_pressure_body(_visual_root, "Canopy", Vector3(0.0, 0.43, -1.0), [
-		Vector4(-1.03, 0.1, 0.055, 0.0), Vector4(-0.62, 0.37, 0.18, 0.05),
-		Vector4(0.22, 0.52, 0.25, 0.08), Vector4(0.76, 0.43, 0.22, 0.045),
+	_box_from_mesh(_visual_root, "Canopy", Vector3(0.0, 0.43, -1.0), _skirmisher_forward_shell([
+		Vector4(-1.03, 0.1, 0.055, 0.0), Vector4(-0.84, 0.235, 0.12, 0.025),
+		Vector4(-0.62, 0.37, 0.18, 0.05), Vector4(-0.25, 0.48, 0.235, 0.075),
+		Vector4(0.05, 0.52, 0.255, 0.08), Vector4(0.35, 0.51, 0.25, 0.075),
+		Vector4(0.58, 0.47, 0.24, 0.06), Vector4(0.76, 0.43, 0.22, 0.045),
 		Vector4(0.97, 0.33, 0.09, -0.025),
-	], _materials.glass)
+	], _materials.glass))
 	_pressure_body(_visual_root, "SpineFairing", Vector3(0.0, 0.42, 1.1), [
 		Vector4(-1.3, 0.39, 0.13, 0.0), Vector4(-0.72, 0.32, 0.18, 0.0),
 		Vector4(0.42, 0.31, 0.18, 0.0), Vector4(1.3, 0.19, 0.075, -0.1),
@@ -1396,6 +1401,75 @@ func _build_interceptor() -> void:
 			Vector3(side * 1.0, 0.37, 2.38), Vector2(0.8, 0.4), Vector3.UP, Vector3(side, 0, 0))
 	_build_collision()
 	_build_damage_effects()
+
+
+## Formed forward pressure volume; retains the authored bounds and shared finishes.
+func _skirmisher_forward_shell(sections: Array, material: Material) -> ArrayMesh:
+	var key := "skirmisher_crown:" + str(sections) + ":" + str(material.get_instance_id())
+	if _pressure_shell_meshes.has(key):
+		return _pressure_shell_meshes[key] as ArrayMesh
+	var rings: Array[PackedVector3Array] = []
+	var normals: Array[PackedVector3Array] = []
+	var profile := PackedVector2Array()
+	var tangents := PackedVector2Array()
+	# A continuously crowned deck and glazing replace the broad mounting flat.
+	# Superellipse shoulders keep the low, chined delta rather than a round tube.
+	for j in 64:
+		var angle := PI * 0.5 - float(j) * TAU / 64.0
+		var c := cos(angle)
+		var v := sin(angle)
+		profile.append(Vector2(signf(c) * pow(absf(c), 0.65), signf(v) * pow(absf(v), 0.65)))
+	for j in profile.size():
+		tangents.append((profile[(j + 1) % profile.size()] - profile[(j + profile.size() - 1) % profile.size()]).normalized())
+	# Keep coating coordinates in metres. Use one reference perimeter throughout
+	# the shell so tapering stations cannot make the finish drift along its axis.
+	var reference_size := Vector2.ZERO
+	for section: Vector4 in sections:
+		reference_size = reference_size.max(Vector2(section.y, section.z))
+	var arc_distances := PackedFloat32Array([0.0])
+	for j in profile.size():
+		var span := (profile[(j + 1) % profile.size()] - profile[j]) * reference_size
+		arc_distances.append(arc_distances[-1] + span.length())
+	for r in sections.size():
+		var section: Vector4 = sections[r]
+		var previous: Vector4 = sections[maxi(0, r - 1)]
+		var next: Vector4 = sections[mini(sections.size() - 1, r + 1)]
+		var slope := (next - previous) / (next.x - previous.x)
+		var ring := PackedVector3Array()
+		var ring_normals := PackedVector3Array()
+		for j in profile.size():
+			var point := profile[j]
+			ring.append(Vector3(point.x * section.y, point.y * section.z + section.w, section.x))
+			var around := Vector3(tangents[j].x * section.y, tangents[j].y * section.z, 0)
+			var along := Vector3(point.x * slope.y, point.y * slope.z + slope.w, 1)
+			# Shared analytic side normals remove triangle diagonals and continue
+			# through authored stations. End caps still have crisp planar normals.
+			ring_normals.append(along.cross(around).normalized())
+		rings.append(ring)
+		normals.append(ring_normals)
+	var surface := SurfaceTool.new()
+	surface.begin(Mesh.PRIMITIVE_TRIANGLES)
+	surface.set_material(material)
+	for r in rings.size() - 1:
+		for j in profile.size():
+			var k := (j + 1) % profile.size()
+			# Clockwise fronts, matching the armour emitter; the pressure skin
+			# alone interpolates vertex normals across each formed shoulder.
+			for address: Vector2i in [Vector2i(r, j), Vector2i(r + 1, k), Vector2i(r + 1, j), Vector2i(r, j), Vector2i(r, k), Vector2i(r + 1, k)]:
+				var point := rings[address.x][address.y]
+				var normal := normals[address.x][address.y]
+				surface.set_normal(normal)
+				# A continuous wrap avoids projection switches across the shoulder.
+				var around_index := profile.size() if address.y == 0 and j == profile.size() - 1 else address.y
+				surface.set_uv(Vector2(arc_distances[around_index], point.z))
+				surface.add_vertex(point)
+	for j in range(1, profile.size() - 1):
+		_emit_armour_triangle(surface, rings[0][0], rings[0][j], rings[0][j + 1])
+		_emit_armour_triangle(surface, rings[-1][0], rings[-1][j + 1], rings[-1][j])
+	surface.generate_tangents()
+	var mesh := surface.commit()
+	_pressure_shell_meshes[key] = mesh
+	return mesh
 
 
 func _build_collision() -> void:
