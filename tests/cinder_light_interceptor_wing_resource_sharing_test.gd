@@ -97,6 +97,40 @@ func _initialize() -> void:
 		_check(blade_contact and seated_stations >= 20,
 			"both blade roots meet the wing through their supported length and trailing closure")
 
+		var lids_seated := true
+		var carrier_seated := true
+		var lids_clear_of_rail := true
+		for side in [-1.0, 1.0]:
+			var tag := "Port" if side < 0 else "Starboard"
+			var visual := first.get_variant_visual_root()
+			var carrier := visual.get_node(tag + "WingArmor") as MeshInstance3D
+			for index in 3:
+				var station: float = [-0.08, 0.90, 1.48][index]
+				var old_name := tag + "WingService" + str([-0.2, 0.6, 1.4][index]).replace(".", "_")
+				var seal := visual.get_node(old_name + "Gasket") as MeshInstance3D
+				var lid := visual.get_node(old_name + "Panel") as MeshInstance3D
+				var at := Vector3(side * 4.39, 0, station)
+				var wing_hits := _vertical_hits(first_wing.mesh, first_wing.transform, at)
+				var carrier_hits := _vertical_hits(carrier.mesh, carrier.transform, at)
+				var seal_hits := _vertical_hits(seal.mesh, seal.transform, at)
+				var lid_hits := _vertical_hits(lid.mesh, lid.transform, at)
+				var frame_hits := _vertical_hits(carrier.mesh, carrier.transform, at + Vector3(side * 0.34, 0, 0))
+				var frame_wing_hits := _vertical_hits(first_wing.mesh, first_wing.transform, at + Vector3(side * 0.34, 0, 0))
+				var has_contact_geometry := not frame_wing_hits.is_empty() and not wing_hits.is_empty() and not carrier_hits.is_empty() and not seal_hits.is_empty() and not lid_hits.is_empty() and not frame_hits.is_empty()
+				lids_seated = lids_seated and has_contact_geometry
+				carrier_seated = carrier_seated and has_contact_geometry
+				if has_contact_geometry:
+					carrier_seated = carrier_seated and carrier_hits.min() <= wing_hits.max() + 0.002
+					lids_seated = lids_seated and seal_hits.min() <= carrier_hits.max() + 0.003 and lid_hits.min() <= seal_hits.max() and lid_hits.max() - wing_hits.max() < frame_hits.max() - frame_wing_hits.max()
+				for span in [-0.27, 0.0, 0.27]:
+					for chord in [-0.18, 0.0, 0.18]:
+						for placement: Transform3D in rails.get_meta(&"authored_instance_transforms"):
+							lids_clear_of_rail = lids_clear_of_rail and _vertical_hits(rails.multimesh.mesh, placement, at + Vector3(span, 0, chord)).is_empty()
+		_check(carrier_seated and lids_seated,
+			"all six service lids nest below the formed carrier rims with connected wing/carrier/seal/lid interfaces")
+		_check(lids_clear_of_rail,
+			"the structural response rails leave all six removable service lids accessible")
+
 	_check(
 		bool(first.get_audit_report().get("valid", false))
 			and bool(second.get_audit_report().get("valid", false))

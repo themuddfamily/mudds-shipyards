@@ -476,12 +476,17 @@ func _build_interceptor_propulsion(visual: Node3D) -> void:
 		var lens := _cylinder(visual, tag + "MuzzleLens", Vector3(side * 3.15, 0.05, -2.30), 0.105, 0.012, _materials.cyan, Vector3(90, 0, 0))
 		lens.set_meta("presentation_only", true)
 		lens.set_meta("gameplay_authority", false)
-		for z in [-0.2, 0.6, 1.4]:
-			_wing_service_plate(visual, tag + "WingService" + str(z), Vector3(side * 4.46, 0.13, z + 0.70), 0.56, 0.63, _shared_wing_material, ceramic)
-		var armor := _armor_shell(visual, tag + "WingArmor", Vector3(side * 4.05, 0.1, 0.75), Vector3(1.65, 0.065, 2.4), _shared_hull_material, side * -0.16,
-			_formed_aero_mesh(Vector3(1.65, 0.065, 2.4)))
-		armor.mesh.surface_set_material(0, _shared_hull_material)
-		armor.mesh = _fit_wing_skin(armor.mesh, armor.transform, 0.0325, 0.7, -0.007)
+		# A continuous load-spreading cover runs under all three service lids.
+		# Its skirt embeds in the wing; the inboard edge meets the engine boom.
+		var armor := _armor_shell(visual, tag + "WingArmor", Vector3(side * 4.05, 0.1, 0.75),
+			Vector3(1.65, 0.065, 2.4), _shared_hull_material)
+		armor.mesh = _wing_fitting_mesh(armor.position, 1.65, 2.4, -0.014, 0.083, 0.13, _shared_hull_material, side)
+		# The wider forward gap leaves the structural response rail clear of lids.
+		var stations := [-0.2, 0.6, 1.4]
+		for index in stations.size():
+			_wing_service_plate(visual, tag + "WingService" + str(stations[index]),
+				Vector3(side * 4.39, 0.13, [-0.08, 0.90, 1.48][index]), 0.61, 0.43, _shared_wing_material, ceramic)
+
 
 
 func _build_speed_silhouette(visual: Node3D) -> void:
@@ -1100,46 +1105,92 @@ func _formed_recognition_fin_mesh() -> ArrayMesh:
 	return surface.commit()
 
 
-## Existing armor and gasket renderers follow the response wing's crown.
-## Their transforms, names and submission count remain unchanged.
-func _fit_wing_skin(source: Mesh, placement: Transform3D, half_height: float, depth_scale: float, clearance: float) -> ArrayMesh:
-	var arrays := source.surface_get_arrays(0)
-	var vertices: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
-	var normals: PackedVector3Array = arrays[Mesh.ARRAY_NORMAL]
-	var uv: PackedVector2Array = arrays[Mesh.ARRAY_TEX_UV]
-	var indices: PackedInt32Array = arrays[Mesh.ARRAY_INDEX] if arrays[Mesh.ARRAY_INDEX] != null else PackedInt32Array()
-	var surface := SurfaceTool.new()
-	surface.begin(Mesh.PRIMITIVE_TRIANGLES)
-	surface.set_material(source.surface_get_material(0))
-	for element in (indices.size() if not indices.is_empty() else vertices.size()):
-		var index := indices[element] if not indices.is_empty() else element
-		var point := vertices[index]
-		var world_point := placement * point
-		var dx := (_wing_skin_height(world_point.x + 0.005, world_point.z) - _wing_skin_height(world_point.x - 0.005, world_point.z)) / 0.01
-		var dz := (_wing_skin_height(world_point.x, world_point.z + 0.005) - _wing_skin_height(world_point.x, world_point.z - 0.005)) / 0.01
-		point.y = _wing_skin_height(world_point.x, world_point.z) - placement.origin.y + (point.y + half_height) * depth_scale + clearance
-		var normal := normals[index]
-		normal.y /= depth_scale
-		normal.x -= dx * normal.y
-		normal.z -= (dz + dx * placement.basis.z.x) * normal.y
-		surface.set_normal(normal.normalized())
-		surface.set_uv(uv[index])
-		surface.add_vertex(point)
-	surface.generate_tangents()
-	return surface.commit()
-
-
 func _wing_skin_height(x: float, z: float) -> float:
 	var t := clampf((z - 0.55) / 5.8 + 0.5, 0.0, 1.0)
 	var extent := _aero_section_extent(Vector3(12.0, 0.55, 5.8), t, false)
 	return -0.15 + extent.y * sqrt(maxf(0.0, 1.0 - pow(x * 0.94 / extent.x, 2.0)))
 
 
+## The dark seal is a narrow seated perimeter, with a beveled lid nested into
+## it. All surfaces use the same wing crown, so no panel floats across curvature.
 func _wing_service_plate(parent: Node3D, tag: String, at: Vector3, width: float, length: float, paint: Material, gasket: Material) -> void:
-	var seal := _box(parent, tag + "Gasket", at, Vector3(width, 0.028, length), gasket)
-	seal.mesh = _fit_wing_skin(seal.mesh, seal.transform, 0.014, 1.0, 0.022)
-	var panel := _box(parent, tag + "Panel", at + Vector3(0, 0.022, 0), Vector3(width - 0.06, 0.032, length - 0.06), paint)
-	panel.mesh = _fit_wing_skin(panel.mesh, panel.transform, 0.016, 1.0, 0.038)
+	var seal := _box(parent, tag + "Gasket", at, Vector3.ONE, gasket)
+	seal.mesh = _wing_fitting_mesh(at, width, length, 0.016, 0.049, 0.045, gasket)
+	var panel := _box(parent, tag + "Panel", at, Vector3.ONE, paint)
+	panel.mesh = _wing_fitting_mesh(at, width - 0.024, length - 0.024, 0.043, 0.067, 0.040, paint)
+
+
+## Chamfered planform with a rolled-down perimeter and a sampled wing crown.
+## The carrier, seal and lid share this construction instead of stacking flat
+## boxes. Closed undersides intersect their supporting skin or seal by design.
+func _wing_fitting_mesh(at: Vector3, width: float, length: float, bottom: float, top: float, bevel: float, coating: Material, carrier_side: float = 0.0) -> ArrayMesh:
+	var surface := SurfaceTool.new()
+	surface.begin(Mesh.PRIMITIVE_TRIANGLES)
+	surface.set_material(coating)
+	var rings: Array[PackedVector3Array] = []
+	# Explicit perimeter bevel stations keep the central access land flat.
+	var spans := PackedFloat32Array([-0.5, -0.5 + bevel / width, -0.25, 0.0, 0.25, 0.5 - bevel / width, 0.5])
+	var chords := PackedFloat32Array([-0.5, -0.5 + bevel / length, -0.25, 0.0, 0.25, 0.5 - bevel / length, 0.5])
+	if not is_zero_approx(carrier_side):
+		for edge in [-0.305, -0.270, 0.270, 0.305]:
+			spans.append((carrier_side * 0.34 + edge) / width)
+		for station in [-0.08, 0.90, 1.48]:
+			for edge in [-0.215, -0.180, 0.180, 0.215]:
+				chords.append((station - at.z + edge) / length)
+		spans.sort()
+		chords.sort()
+	var columns := spans.size()
+	var rows := chords.size()
+	for layer in 2:
+		var points := PackedVector3Array()
+		for z in chords:
+			var corner_cut := maxf(0.0, bevel - (0.5 - absf(z)) * length)
+			for x in spans:
+				var point := Vector3(x * (width - 2.0 * corner_cut), 0, z * length)
+				var edge := minf((0.5 - absf(x)) * width, (0.5 - absf(z)) * length)
+				var height := bottom if layer == 0 else lerpf(bottom + (top - bottom) * 0.32, top, clampf(edge / bevel, 0.0, 1.0))
+				if layer == 1 and not is_zero_approx(carrier_side):
+					for station in [-0.08, 0.90, 1.48]:
+						var slot_edge := minf(0.305 - absf(at.x + point.x - carrier_side * 4.39), 0.215 - absf(at.z + point.z - station))
+						height -= 0.061 * clampf(slot_edge / 0.035, 0.0, 1.0)
+				point.y = _wing_skin_height(at.x + point.x, at.z + point.z) - at.y + height
+				points.append(point)
+		rings.append(points)
+	for layer in 2:
+		surface.set_smooth_group(layer)
+		for row in range(rows - 1):
+			for col in range(columns - 1):
+				var a := row * columns + col
+				var corners := [a, a + 1, a + columns + 1, a + columns]
+				if layer == 0:
+					corners.reverse()
+				_wing_fitting_quad(surface, rings[layer][corners[0]], rings[layer][corners[1]], rings[layer][corners[2]], rings[layer][corners[3]])
+	var perimeter: Array[int] = []
+	for col in columns:
+		perimeter.append(col)
+	for row in range(1, rows):
+		perimeter.append(row * columns + columns - 1)
+	for col in range(columns - 2, -1, -1):
+		perimeter.append((rows - 1) * columns + col)
+	for row in range(rows - 2, 0, -1):
+		perimeter.append(row * columns)
+	surface.set_smooth_group(2)
+	for index in perimeter.size():
+		var a := perimeter[index]
+		var b := perimeter[(index + 1) % perimeter.size()]
+		_wing_fitting_quad(surface, rings[1][a], rings[0][a], rings[0][b], rings[1][b])
+	surface.generate_normals()
+	surface.generate_tangents()
+	return surface.commit()
+
+
+func _wing_fitting_quad(surface: SurfaceTool, a: Vector3, b: Vector3, c: Vector3, d: Vector3) -> void:
+	for triangle in [[a, b, c], [a, c, d]]:
+		var normal: Vector3 = (triangle[2] - triangle[0]).cross(triangle[1] - triangle[0]).normalized()
+		for point: Vector3 in triangle:
+			surface.set_normal(normal)
+			surface.set_uv(Vector2(point.x, point.z))
+			surface.add_vertex(point)
 
 
 ## Chamfered pressure-shell stock reuses the inherited closed loft topology.
