@@ -4990,8 +4990,8 @@ func _freighter_sponson(node_name: String, side: float, sections: PackedVector3A
 		Vector2(-1.15, 2.38), Vector2(-1.15, -1.72),
 		Vector2(-0.80, -1.98), Vector2(0.65, -1.98), Vector2(1.15, -1.30)])
 	# Form a small bend radius at every fold instead of an infinitely sharp
-	# extrusion. Straight runs stay planar; the radius is contained within the
-	# old outline, so the pressure-room and cargo-aperture clearances stay put.
+	# extrusion. Straight runs stay planar; bends retain the profile extrema
+	# and inner pressure-room boundary, preserving cargo-aperture clearance.
 	var rounded_profile := PackedVector2Array()
 	var profile_materials: Array[Material] = []
 	for corner in profile.size():
