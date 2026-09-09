@@ -6148,10 +6148,8 @@ func _build_environment() -> void:
 	# key is raised in step so the ratio between a lit face and a shaded one is
 	# wider than before, not narrower.
 	#
-	# `light_angular_distance` gives the sun a finite apparent size, so shadow
-	# edges soften with distance from the caster instead of staying razor sharp at
-	# every depth. A perfectly hard edge at 40 m is one of the tells that reads as
-	# untextured primitives; this costs nothing but the existing shadow map.
+	# Forward+ uses the sun's finite angular size for PCSS soft shadows (with
+	# additional filtering cost). Compatibility and Mobile ignore angular size.
 	#
 	# `directional_shadow_max_distance` came down from 180 m. The same shadow
 	# atlas now covers 130 m, so the near field where the player actually walks
@@ -6184,6 +6182,12 @@ func _build_environment() -> void:
 	key_light.directional_shadow_split_3 = 0.42
 	key_light.directional_shadow_blend_splits = true
 	key_light.directional_shadow_max_distance = 130.0
+	if RenderingServer.get_current_rendering_method() == &"gl_compatibility":
+		# Compatibility's default normal offset leaves false shadow bands across
+		# cockpit side strips and teeth on curved ship shoulders. Increase only
+		# the receiver's normal offset; retain depth bias, atlas, cascades and
+		# caster policy without adding shadow passes.
+		key_light.shadow_normal_bias = 4.0
 	add_child(key_light)
 
 	var counter_fill := DirectionalLight3D.new()
