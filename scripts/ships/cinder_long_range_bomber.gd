@@ -1023,7 +1023,7 @@ func _build_bomber_propulsion(visual: Node3D) -> void:
 	for z in [2.0, 3.25, 4.5]:
 		var plate := _pressure_panel(visual, "DorsalOrdnanceArmor" + str(z), Vector3(0, 1.355, z), 2.0, 2.35, 1.12, 0.05, ceramic)
 		plate.rotation.x = PI * 0.5
-	var hot := _material(Color("799da5"), 0.4, 0.28, Color("70aec0"), 0.65)
+
 	for side in [-1.0, 1.0]:
 		var tag := "Port" if side < 0 else "Starboard"
 		_service_bay(visual, tag + "ThermalService", Vector3(side * 2.3, 1.212, 2.6), 0.9, 2.1, _shared_hull_material, ceramic, metal)
@@ -1031,9 +1031,9 @@ func _build_bomber_propulsion(visual: Node3D) -> void:
 		_armor_shell(visual, tag + "WingRootFairing", Vector3(side * 3.9, -0.25, 1.2), Vector3(2.7, 0.58, 7.7), _shared_hull_material, side * -0.13, _formed_wing_root_mesh(side, _shared_hull_material))
 		_armor_shell(visual, tag + "OutboardArmor", Vector3(side * 5.6, -0.22, 1.8), Vector3(1.6, 0.08, 3.2), _shared_ordnance_spine_material, side * -0.16, _fitted_wing_armor_mesh(side, _shared_ordnance_spine_material))
 		_cylinder(visual, tag + "TurbineCase", Vector3(side * 2.35, 0.1, 6.75), 0.92, 2.1, metal, Vector3(90, 0, 0))
-		_frustum(visual, tag + "ExhaustBell", Vector3(side * 2.35, 0.1, 8.10), 1.0, 0.70, 0.70, ceramic, Vector3(90, 0, 0), false, false)
+		preload("res://scripts/ships/cinder_exhaust_machinery.gd").bell(visual, tag + "ExhaustBell", Vector3(side * 2.35, 0.1, 8.10), 1.0, 0.70, 0.70, ceramic)
 		_cylinder(visual, tag + "RecessedThroat", Vector3(side * 2.35, 0.1, 7.90), 0.62, 0.08, ceramic, Vector3(90, 0, 0))
-		_engine_mechanics(visual, tag, Vector3(side * 2.35, 0.1, 8.31), 0.87, metal, ceramic, hot)
+		_engine_mechanics(visual, tag, Vector3(side * 2.35, 0.1, 8.31), 0.87, metal, ceramic)
 		for z in [-1.1, 0.2, 4.85]:
 			_deck_plate(visual, tag + "EngineAccess" + str(z), Vector3(side * 2.3, 1.202, z), 1.1, 1.08, _shared_hull_material, ceramic)
 		_build_ordnance_service_cassette(visual, tag, side, ceramic, metal)
@@ -1593,37 +1593,9 @@ func _pressure_mesh(top: float, bottom: float, height: float, depth: float, mate
 	return surface.commit()
 
 
-## Annular combustion channel, retained hub and guide vanes give an unlit
-## engine physical depth. Repeated vanes share one mesh and renderer.
-func _engine_mechanics(parent: Node3D, tag: String, at: Vector3, radius: float, metal: Material, dark: Material, hot: Material) -> void:
-	_cylinder(parent, tag + "ChamberBack", at + Vector3(0, 0, -0.22 * radius), radius * 0.86, radius * 0.08, dark, Vector3(90, 0, 0))
-	for ring in 2:
-		var torus := TorusMesh.new()
-		torus.inner_radius = radius * (0.44 if ring == 0 else 0.88)
-		torus.outer_radius = radius * (0.57 if ring == 0 else 1.02)
-		torus.rings = 40
-		torus.ring_segments = 8
-		var lip := MeshInstance3D.new()
-		lip.name = tag + ("CombustorAnnulus" if ring == 0 else "NozzleLip")
-		lip.mesh = torus
-		lip.material_override = hot if ring == 0 else metal
-		lip.position = at + Vector3(0, 0, (-0.14 if ring == 0 else 0.18) * radius)
-		lip.rotation.x = PI * 0.5
-		parent.add_child(lip)
-	_frustum(parent, tag + "ThrustPlug", at + Vector3(0, 0, -0.04 * radius), radius * 0.20, radius * 0.36, radius * 0.45, metal, Vector3(90, 0, 0))
-	var blades := MultiMesh.new()
-	blades.transform_format = MultiMesh.TRANSFORM_3D
-	blades.mesh = _rounded_box_mesh(Vector3(radius * 0.065, radius * 0.29, radius * 0.18), metal)
-	blades.instance_count = 12
-	for i in 12:
-		var angle := float(i) * TAU / 12.0
-		blades.set_instance_transform(i, Transform3D(Basis(Vector3.BACK, angle + 0.22), Vector3(-sin(angle), cos(angle), 0) * radius * 0.71))
-	var batch := MultiMeshInstance3D.new()
-	batch.name = tag + "GuideVanes"
-	batch.multimesh = blades
-	batch.position = at
-	batch.set_meta(&"presentation_only", true)
-	parent.add_child(batch)
+## Recessed stator and turned hub share the Cinder family machinery meshes.
+func _engine_mechanics(parent: Node3D, tag: String, at: Vector3, radius: float, metal: Material, dark: Material) -> void:
+	preload("res://scripts/ships/cinder_exhaust_machinery.gd").install(parent, tag, at, radius, metal, dark)
 
 
 ## Flush service plates have their own bevel and dark gasket; the narrow edge

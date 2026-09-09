@@ -13,6 +13,7 @@ func _initialize() -> void:
 	var craft := Hauler.new()
 	root.add_child(craft)
 	await process_frame
+	_test_recessed_exhaust(craft)
 	var original_renderer_count := _visual_renderer_count(craft)
 	var original_copy_count := _authored_visual_copy_count(craft)
 	var audit := craft.get_audit_report()
@@ -389,3 +390,26 @@ func _authority_snapshot(audit: Dictionary) -> Dictionary:
 		"game_flow_authority": audit.get("game_flow_authority"),
 		"network_authority": audit.get("network_authority"),
 	}
+
+
+func _test_recessed_exhaust(craft: HeroShip) -> void:
+	var visual: Node3D = craft.call("get_variant_visual_root")
+	var port := visual.get_node("PortGuideVanes") as MultiMeshInstance3D
+	var starboard := visual.get_node("StarboardGuideVanes") as MultiMeshInstance3D
+	var hub := visual.get_node("PortThrustPlug") as MeshInstance3D
+	var lip := visual.get_node("PortNozzleLip") as MeshInstance3D
+	var annulus := visual.get_node("PortCombustorAnnulus") as MeshInstance3D
+	var bell := visual.get_node("PortFreightExhaust") as MeshInstance3D
+	var opposite_bell := visual.get_node("StarboardFreightExhaust") as MeshInstance3D
+	_check(port.multimesh.mesh is ArrayMesh and port.multimesh.instance_count == 12
+		and port.multimesh.mesh == starboard.multimesh.mesh and bell.mesh == opposite_bell.mesh,
+		"formed bells and twelve curved stator vanes retain immutable mesh sharing across paired engines")
+	var vane_bounds := port.transform * port.multimesh.mesh.get_aabb()
+	var hub_bounds := hub.transform * hub.mesh.get_aabb()
+	_check(vane_bounds.end.z < lip.position.z and hub_bounds.end.z < lip.position.z
+		and vane_bounds.size.z > port.scale.z * 0.2,
+		"thick stator airfoils and the turned hub remain recessed inside the open bell")
+	_check(not (annulus.material_override as StandardMaterial3D).emission_enabled
+		and not (hub.material_override as StandardMaterial3D).emission_enabled
+		and port.get_script() == null and hub.get_script() == null,
+		"unpowered machinery has a passive metallic finish and adds no engine-state controller")

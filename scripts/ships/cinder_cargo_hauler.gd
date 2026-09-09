@@ -1156,7 +1156,7 @@ func _build_freight_pressure_fairings(visual: Node3D) -> void:
 			_box(visual, "CargoCornerTie" + str(end) + str(side), Vector3(side * 2.02, 0.43, end * 6.11), Vector3(0.32, 0.21, 0.17), metal)
 	for z in [-3.6, 3.7]:
 		_deck_plate(visual, "RoofService" + str(z), Vector3(0, 1.638, z), 3.45, 0.68, _shared_hull_material, dark)
-	var hot := _material(Color("68959e"), 0.35, 0.3, Color("83c0cb"), 0.55)
+
 	var fore := _pressure_panel(visual, "ForwardPressureCap", Vector3(0, 0, -6.03), 4.0, 4.50, 0.16, 2.35, _shared_hull_material)
 	fore.rotation.x = -PI * 0.5
 	var aft := _pressure_panel(visual, "AftPressureCap", Vector3(0, 0, 6.03), 4.0, 4.50, 0.16, 2.35, _shared_hull_material)
@@ -1172,9 +1172,9 @@ func _build_freight_pressure_fairings(visual: Node3D) -> void:
 		# All side pods stop behind the protected boarding aperture (z > 2.30).
 		_armor_shell(visual, tag + "EnginePylon", Vector3(side * 3.03, 0.38, 4.12), Vector3(1.55, 1.20, 3.25), _shared_hull_material)
 		_armor_shell(visual, tag + "EngineShroud", Vector3(side * 3.75, 0.4, 4.45), Vector3(1.62, 1.62, 3.5), dark)
-		_frustum(visual, tag + "FreightExhaust", Vector3(side * 3.75, 0.4, 6.40), 0.75, 0.55, 0.65, metal, Vector3(90, 0, 0), false, false)
+		preload("res://scripts/ships/cinder_exhaust_machinery.gd").bell(visual, tag + "FreightExhaust", Vector3(side * 3.75, 0.4, 6.40), 0.75, 0.55, 0.65, metal)
 		_cylinder(visual, tag + "RecessedThroat", Vector3(side * 3.75, 0.4, 6.20), 0.45, 0.08, dark, Vector3(90, 0, 0))
-		_engine_mechanics(visual, tag, Vector3(side * 3.75, 0.4, 6.59), 0.64, metal, dark, hot)
+		_engine_mechanics(visual, tag, Vector3(side * 3.75, 0.4, 6.59), 0.64, metal, dark)
 		for z in [4.15, 5.15]:
 			_deck_plate(visual, tag + "NacelleAccess" + str(z), Vector3(side * 3.75, 1.218 if z < 5.0 else 1.19, z), 0.85, 0.65, _shared_hull_material, dark)
 		var radiator := Node3D.new()
@@ -2366,37 +2366,9 @@ func _pressure_mesh(top: float, bottom: float, height: float, depth: float, mate
 	return surface.commit()
 
 
-## Annular combustion channel, retained hub and guide vanes give an unlit
-## engine physical depth. Repeated vanes share one mesh and renderer.
-func _engine_mechanics(parent: Node3D, tag: String, at: Vector3, radius: float, metal: Material, dark: Material, hot: Material) -> void:
-	_cylinder(parent, tag + "ChamberBack", at + Vector3(0, 0, -0.22 * radius), radius * 0.86, radius * 0.08, dark, Vector3(90, 0, 0))
-	for ring in 2:
-		var torus := TorusMesh.new()
-		torus.inner_radius = radius * (0.44 if ring == 0 else 0.88)
-		torus.outer_radius = radius * (0.57 if ring == 0 else 1.02)
-		torus.rings = 40
-		torus.ring_segments = 8
-		var lip := MeshInstance3D.new()
-		lip.name = tag + ("CombustorAnnulus" if ring == 0 else "NozzleLip")
-		lip.mesh = torus
-		lip.material_override = hot if ring == 0 else metal
-		lip.position = at + Vector3(0, 0, (-0.14 if ring == 0 else 0.18) * radius)
-		lip.rotation.x = PI * 0.5
-		parent.add_child(lip)
-	_frustum(parent, tag + "ThrustPlug", at + Vector3(0, 0, -0.04 * radius), radius * 0.20, radius * 0.36, radius * 0.45, metal, Vector3(90, 0, 0))
-	var blades := MultiMesh.new()
-	blades.transform_format = MultiMesh.TRANSFORM_3D
-	blades.mesh = _rounded_box_mesh(Vector3(radius * 0.065, radius * 0.29, radius * 0.18), metal)
-	blades.instance_count = 12
-	for i in 12:
-		var angle := float(i) * TAU / 12.0
-		blades.set_instance_transform(i, Transform3D(Basis(Vector3.BACK, angle + 0.22), Vector3(-sin(angle), cos(angle), 0) * radius * 0.71))
-	var batch := MultiMeshInstance3D.new()
-	batch.name = tag + "GuideVanes"
-	batch.multimesh = blades
-	batch.position = at
-	batch.set_meta(&"presentation_only", true)
-	parent.add_child(batch)
+## Recessed stator and turned hub share the Cinder family machinery meshes.
+func _engine_mechanics(parent: Node3D, tag: String, at: Vector3, radius: float, metal: Material, dark: Material) -> void:
+	preload("res://scripts/ships/cinder_exhaust_machinery.gd").install(parent, tag, at, radius, metal, dark)
 
 
 ## Flush service plates have their own bevel and dark gasket; the narrow edge

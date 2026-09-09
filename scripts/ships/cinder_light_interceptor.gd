@@ -446,7 +446,7 @@ func _build_interceptor_propulsion(visual: Node3D) -> void:
 	for side in [-1.0, 1.0]:
 		var plate := _pressure_panel(visual, "DorsalServiceArmor" + str(side), Vector3(side * 0.82, 1.073, 2.2), 0.65, 0.72, 1.65, 0.045, ceramic)
 		plate.rotation.x = PI * 0.5
-	var hot := _material(Color("729da5"), 0.35, 0.25, Color("73b5c0"), 0.8)
+
 	for side in [-1.0, 1.0]:
 		var tag := "Port" if side < 0 else "Starboard"
 		_service_bay(visual, tag + "InductionDuct", Vector3(side * 2.1, 0.92, 1.0), 0.68, 1.1, _shared_hull_material, ceramic, titanium)
@@ -457,9 +457,9 @@ func _build_interceptor_propulsion(visual: Node3D) -> void:
 		_armor_shell(visual, tag + "EngineBoom", Vector3(side * 3.45, 0.0, 1.05),
 			Vector3(1.6, 0.38, 4.4), ceramic, side * -0.08, _formed_root_mesh(side, ceramic))
 		_cylinder(visual, tag + "TurbineCase", Vector3(side * 2.1, 0.2, 3.65), 0.60, 1.5, titanium, Vector3(90, 0, 0))
-		_frustum(visual, tag + "ExhaustBell", Vector3(side * 2.1, 0.2, 4.80), 0.72, 0.48, 0.65, ceramic, Vector3(90, 0, 0), false, false)
+		preload("res://scripts/ships/cinder_exhaust_machinery.gd").bell(visual, tag + "ExhaustBell", Vector3(side * 2.1, 0.2, 4.80), 0.72, 0.48, 0.65, ceramic)
 		_cylinder(visual, tag + "RecessedThroat", Vector3(side * 2.1, 0.2, 4.52), 0.39, 0.08, ceramic, Vector3(90, 0, 0))
-		_engine_mechanics(visual, tag, Vector3(side * 2.1, 0.2, 4.98), 0.62, titanium, ceramic, hot)
+		_engine_mechanics(visual, tag, Vector3(side * 2.1, 0.2, 4.98), 0.62, titanium, ceramic)
 		var intake := Node3D.new()
 		intake.name = tag + "InductionMouth"
 		# Seat the retained louvered mouth on the new full inlet bulkhead.
@@ -1424,37 +1424,9 @@ func _pressure_mesh(top: float, bottom: float, height: float, depth: float, mate
 	return surface.commit()
 
 
-## Annular combustion channel, retained hub and guide vanes give an unlit
-## engine physical depth. Repeated vanes share one mesh and renderer.
-func _engine_mechanics(parent: Node3D, tag: String, at: Vector3, radius: float, metal: Material, dark: Material, hot: Material) -> void:
-	_cylinder(parent, tag + "ChamberBack", at + Vector3(0, 0, -0.22 * radius), radius * 0.86, radius * 0.08, dark, Vector3(90, 0, 0))
-	for ring in 2:
-		var torus := TorusMesh.new()
-		torus.inner_radius = radius * (0.44 if ring == 0 else 0.88)
-		torus.outer_radius = radius * (0.57 if ring == 0 else 1.02)
-		torus.rings = 40
-		torus.ring_segments = 8
-		var lip := MeshInstance3D.new()
-		lip.name = tag + ("CombustorAnnulus" if ring == 0 else "NozzleLip")
-		lip.mesh = torus
-		lip.material_override = hot if ring == 0 else metal
-		lip.position = at + Vector3(0, 0, (-0.14 if ring == 0 else 0.18) * radius)
-		lip.rotation.x = PI * 0.5
-		parent.add_child(lip)
-	_frustum(parent, tag + "ThrustPlug", at + Vector3(0, 0, -0.04 * radius), radius * 0.20, radius * 0.36, radius * 0.45, metal, Vector3(90, 0, 0))
-	var blades := MultiMesh.new()
-	blades.transform_format = MultiMesh.TRANSFORM_3D
-	blades.mesh = _rounded_box_mesh(Vector3(radius * 0.065, radius * 0.29, radius * 0.18), metal)
-	blades.instance_count = 12
-	for i in 12:
-		var angle := float(i) * TAU / 12.0
-		blades.set_instance_transform(i, Transform3D(Basis(Vector3.BACK, angle + 0.22), Vector3(-sin(angle), cos(angle), 0) * radius * 0.71))
-	var batch := MultiMeshInstance3D.new()
-	batch.name = tag + "GuideVanes"
-	batch.multimesh = blades
-	batch.position = at
-	batch.set_meta(&"presentation_only", true)
-	parent.add_child(batch)
+## Recessed stator and turned hub share the Cinder family machinery meshes.
+func _engine_mechanics(parent: Node3D, tag: String, at: Vector3, radius: float, metal: Material, dark: Material) -> void:
+	preload("res://scripts/ships/cinder_exhaust_machinery.gd").install(parent, tag, at, radius, metal, dark)
 
 
 ## Flush service plates have their own bevel and dark gasket; the narrow edge

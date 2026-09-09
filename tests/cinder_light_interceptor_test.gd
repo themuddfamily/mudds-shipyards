@@ -10,6 +10,7 @@ func _initialize() -> void:
 	var craft := Interceptor.new()
 	root.add_child(craft)
 	await process_frame
+	_test_recessed_exhaust(craft)
 	var audit := craft.get_audit_report()
 	_check(bool(audit.get("valid", false)), "the interceptor builds a valid collision and lifecycle contract")
 	_check(audit.get("evidence_status", &"") == &"NEW" and not bool(audit.get("historically_supported", true)), "the interceptor makes no historical claim")
@@ -256,3 +257,26 @@ func _test_console_center_key_batch(craft: CinderLightInterceptor) -> void:
 		and batch.multimesh.custom_aabb.is_equal_approx(expected_bounds),
 		"gold key material, renderer policy, and exact aggregate culling bounds are unchanged"
 	)
+
+
+func _test_recessed_exhaust(craft: HeroShip) -> void:
+	var visual: Node3D = craft.call("get_variant_visual_root")
+	var port := visual.get_node("PortGuideVanes") as MultiMeshInstance3D
+	var starboard := visual.get_node("StarboardGuideVanes") as MultiMeshInstance3D
+	var hub := visual.get_node("PortThrustPlug") as MeshInstance3D
+	var lip := visual.get_node("PortNozzleLip") as MeshInstance3D
+	var annulus := visual.get_node("PortCombustorAnnulus") as MeshInstance3D
+	var bell := visual.get_node("PortExhaustBell") as MeshInstance3D
+	var opposite_bell := visual.get_node("StarboardExhaustBell") as MeshInstance3D
+	_check(port.multimesh.mesh is ArrayMesh and port.multimesh.instance_count == 12
+		and port.multimesh.mesh == starboard.multimesh.mesh and bell.mesh == opposite_bell.mesh,
+		"formed bells and twelve curved stator vanes retain immutable mesh sharing across paired engines")
+	var vane_bounds := port.transform * port.multimesh.mesh.get_aabb()
+	var hub_bounds := hub.transform * hub.mesh.get_aabb()
+	_check(vane_bounds.end.z < lip.position.z and hub_bounds.end.z < lip.position.z
+		and vane_bounds.size.z > port.scale.z * 0.2,
+		"thick stator airfoils and the turned hub remain recessed inside the open bell")
+	_check(not (annulus.material_override as StandardMaterial3D).emission_enabled
+		and not (hub.material_override as StandardMaterial3D).emission_enabled
+		and port.get_script() == null and hub.get_script() == null,
+		"unpowered machinery has a passive metallic finish and adds no engine-state controller")
