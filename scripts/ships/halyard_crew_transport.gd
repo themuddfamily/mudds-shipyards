@@ -340,16 +340,17 @@ const CABIN_PORTAL_UPRIGHT_SIZE := Vector3(0.18, 2.80, 0.22)
 const CABIN_PORTAL_UPRIGHT_COPY_COUNT := 4
 # Four merged finish meshes contain the fitted shell closures, access supports
 # and engine hardware; three hull decals share their retained visual root.
-# Cabin fittings remain on the moving interior root.
-const RENDER_DESCENDANT_COUNT := 128
-const RENDER_MESH_INSTANCE_COUNT := 111
+# A further four finish meshes carry all four nacelles' cooling and service
+# hardware. Cabin fittings remain on the moving interior root.
+const RENDER_DESCENDANT_COUNT := 132
+const RENDER_MESH_INSTANCE_COUNT := 115
 const RENDER_MULTIMESH_BATCH_COUNT := 9
-const RENDER_DRAWN_COPY_COUNT := 197
-const RENDER_GEOMETRY_SUBMISSION_COUNT := 124
+const RENDER_DRAWN_COPY_COUNT := 201
+const RENDER_GEOMETRY_SUBMISSION_COUNT := 128
 # The formed exterior adds one shoulder mesh. Identification ribbons follow
 # the pressure cheek profile, replacing the old shared rectangular stock.
 # Fitted canopy rails and rear bows now have distinct port/starboard profiles.
-const RENDER_UNIQUE_MESH_RESOURCE_COUNT := 87
+const RENDER_UNIQUE_MESH_RESOURCE_COUNT := 91
 # Includes the shared soft-exhaust ShaderMaterial installed on all four plumes.
 const RENDER_UNIQUE_MATERIAL_RESOURCE_COUNT := 18
 
@@ -3634,6 +3635,8 @@ func _build_propulsion_and_gear() -> void:
 		_halyard_visual.add_child(light)
 		_halyard_engine_lights.append(light)
 
+	_build_engine_service_fitout()
+
 	# Shared fleet navigation convention: red to port, green to starboard.
 	_box(_halyard_visual, "PortNavLight", Vector3(-4.96, 1.55, TAIL_YOKE_Z), Vector3(0.16, 0.34, 0.60), _halyard_materials.nav_red)
 	_box(_halyard_visual, "StarboardNavLight", Vector3(4.96, 1.55, TAIL_YOKE_Z), Vector3(0.16, 0.34, 0.60), _halyard_materials.nav_green)
@@ -3690,6 +3693,54 @@ func _build_propulsion_and_gear() -> void:
 		gear_damper_transforms,
 		gear_damper_names
 	)
+
+
+## Four removable cooling cassettes per nacelle, retaining straps and attached
+## supply covers make the transverse engine row read as serviced machinery.
+## Hardware stands proud of the nacelles within the overall craft clearances
+## and is merged by finish. Cores, plumes and the damage vane stay separate.
+func _build_engine_service_fitout() -> void:
+	var fittings := {}
+	var ring_stocks := {}
+	for engine_x: float in [-3.75, -1.45, 1.45, 3.75]:
+		# The aft retaining strap sits ahead of the open nozzle. Its split clamp
+		# and fasteners make the casing joint readable without sealing the throat.
+		_fitout_ring(fittings, "accent", Vector3(engine_x, 1.55, 12.97), 0.82, 0.89, ring_stocks)
+		_fitout_ring(fittings, "trim", Vector3(engine_x, 1.55, 13.00), 0.84, 0.90, ring_stocks)
+		for angle: float in [0.0, PI * 0.5, PI, PI * 1.5]:
+			var radial := Vector3(sin(angle), cos(angle), 0.0)
+			var tangent := Vector3(cos(angle), -sin(angle), 0.0)
+			var origin := Vector3(engine_x, 1.55, 12.48)
+			var rotation_value := Vector3(0.0, 0.0, -angle)
+			# An actual recessed dark channel, bordered by raised rails, carries
+			# angled cooling vanes with visible air gaps between them.
+			_fitout_stock(fittings, "dark", origin + radial * 0.84,
+				Vector3(0.58, 0.065, 0.85), rotation_value)
+			for edge: float in [-1.0, 1.0]:
+				_fitout_stock(fittings, "hull_olive", origin + radial * 0.87 + tangent * edge * 0.31,
+					Vector3(0.065, 0.08, 0.92), rotation_value)
+			for fin in 7:
+				var fin_origin := origin + radial * 0.895 + Vector3(0.0, 0.0, -0.33 + float(fin) * 0.11)
+				_fitout_stock(fittings, "trim", fin_origin, Vector3(0.54, 0.045, 0.065),
+					Vector3(0.30, 0.0, -angle))
+			# A captive clamp bridges the rear strap; the dark centre separates
+			# its two ears and is large enough to read beside the cooling cassette.
+			_fitout_stock(fittings, "dark", Vector3(engine_x, 1.55, 13.0) + radial * 0.90,
+				Vector3(0.23, 0.065, 0.22), rotation_value)
+			for edge: float in [-1.0, 1.0]:
+				_fitout_stock(fittings, "trim", Vector3(engine_x, 1.55, 13.0) + radial * 0.94 + tangent * edge * 0.078,
+					Vector3(0.055, 0.045, 0.16), rotation_value)
+		# Paired rigid supply covers bridge the casting onto each cooling deck.
+		# Their forward ends are seated in the yoke cap, aft ends on the nacelle.
+		for offset: float in [-0.19, 0.19]:
+			_fitout_stock(fittings, "dark", Vector3(engine_x + offset, 2.37, 11.65),
+				Vector3(0.13, 0.11, 0.94))
+			_fitout_stock(fittings, "trim", Vector3(engine_x + offset, 2.43, 11.65),
+				Vector3(0.07, 0.05, 0.85))
+			for saddle_z: float in [11.34, 11.94]:
+				_fitout_stock(fittings, "hull_olive", Vector3(engine_x + offset, 2.45, saddle_z),
+					Vector3(0.20, 0.055, 0.085))
+	_finish_fitout(_halyard_visual, fittings, "EngineServiceHardware")
 
 
 func _on_halyard_component_damage_changed(
