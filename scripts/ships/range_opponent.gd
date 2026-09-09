@@ -2110,8 +2110,11 @@ func _build_interceptor() -> void:
 		Vector4(2.65, 1.08, 0.55, 0), Vector4(3.6, 0.84, 0.39, -0.08),
 	], _materials.ivory)
 	_wedge(_visual_root, "DarkUnderkeel", Vector3(0.0, -0.45, 0.7), Vector3(1.55, 0.48, 5.8), _materials.deep)
-	_wedge(_visual_root, "AmberCanopy", Vector3(0.0, 0.93, -0.35), Vector3(1.46, 0.88, 2.8), _materials.glass)
-	_box(_visual_root, "DorsalFrame", Vector3(0.0, 1.16, 1.22), Vector3(0.4, 0.24, 2.5), _materials.frame)
+	_build_defender_canopy()
+	_pressure_body(_visual_root, "DorsalFrame", Vector3.ZERO, [
+		Vector4(0.75, 0.28, 0.11, 1.05), Vector4(1.15, 0.4, 0.18, 0.99),
+		Vector4(1.7, 0.34, 0.13, 0.91), Vector4(2.5, 0.14, 0.045, 0.755),
+	], _materials.frame)
 	_pressure_body(_visual_root, "AftCrossbar", Vector3(0, 0.05, 2.55), [
 		Vector4(-0.6, 2.85, 0.13, 0), Vector4(-0.34, 3.5, 0.25, 0),
 		Vector4(0.3, 3.65, 0.25, 0), Vector4(0.6, 3.15, 0.13, 0),
@@ -2198,6 +2201,51 @@ func _build_interceptor() -> void:
 		service_mark.modulate = Color(0.3, 0.3, 0.3, 1.0)
 	_build_collision()
 	_build_damage_effects()
+
+
+## Defender-only formed glazing: an arched section rises from the perimeter
+## seal, with a low windscreen and a narrowing rear crown under the spine.
+func _build_defender_canopy() -> void:
+	var sections := [
+		Vector4(-1.75, 0.12, 0.035, 0.81), Vector4(-1.47, 0.36, 0.17, 0.85),
+		Vector4(-1.0, 0.6, 0.38, 0.88), Vector4(-0.3, 0.685, 0.5, 0.89),
+		Vector4(0.42, 0.63, 0.46, 0.895), Vector4(0.9, 0.47, 0.32, 0.9),
+		Vector4(1.2, 0.2, 0.08, 0.905),
+	]
+	var surface := SurfaceTool.new()
+	surface.begin(Mesh.PRIMITIVE_TRIANGLES)
+	surface.set_material(_materials.glass)
+	var rings: Array[PackedVector3Array] = []
+	var normals: Array[PackedVector3Array] = []
+	var origin := Vector3(0.0, 0.93, -0.35)
+	for index in sections.size():
+		var section: Vector4 = sections[index]
+		var previous: Vector4 = sections[maxi(0, index - 1)]
+		var next: Vector4 = sections[mini(sections.size() - 1, index + 1)]
+		var slope := (next - previous) / (next.x - previous.x)
+		var ring := PackedVector3Array()
+		var ring_normals := PackedVector3Array()
+		for step in 25:
+			var angle := PI * float(step) / 24.0
+			var around := Vector3(-sin(angle) * section.y, cos(angle) * section.z, 0)
+			var along := Vector3(cos(angle) * slope.y, sin(angle) * slope.z + slope.w, 1)
+			ring.append(Vector3(cos(angle) * section.y, section.w + sin(angle) * section.z, section.x) - origin)
+			ring_normals.append(around.cross(along).normalized())
+		rings.append(ring)
+		normals.append(ring_normals)
+	for index in rings.size() - 1:
+		for step in 24:
+			for address: Vector2i in [Vector2i(index, step), Vector2i(index + 1, step), Vector2i(index + 1, step + 1), Vector2i(index, step), Vector2i(index + 1, step + 1), Vector2i(index, step + 1)]:
+				surface.set_normal(normals[address.x][address.y])
+				surface.set_uv(Vector2(float(address.y) / 24.0, sections[address.x].x))
+				surface.add_vertex(rings[address.x][address.y])
+		_emit_armour_triangle(surface, rings[index][0], rings[index + 1][0], rings[index + 1][-1])
+		_emit_armour_triangle(surface, rings[index][0], rings[index + 1][-1], rings[index][-1])
+	for step in range(1, 24):
+		_emit_armour_triangle(surface, rings[0][0], rings[0][step + 1], rings[0][step])
+		_emit_armour_triangle(surface, rings[-1][0], rings[-1][step], rings[-1][step + 1])
+	surface.generate_tangents()
+	_box_from_mesh(_visual_root, "AmberCanopy", origin, surface.commit())
 
 
 func _add_shared_forward_prong(
@@ -2737,10 +2785,20 @@ func _build_range_fittings() -> void:
 			Vector4(-1.65, 0.18, 0.16, 0), Vector4(-0.75, 0.64, 0.37, 0),
 			Vector4(0.65, 0.82, 0.45, 0), Vector4(1.35, 0.54, 0.28, -0.04),
 		]])
-	# A pressure frame surrounds the smoked amber canopy; the glass stays inset.
-	parts.append([Vector3(0,0.82,-0.32), Vector3(1.68,0.35,2.92),0])
-	parts.append([Vector3(0,1.29,0.16), Vector3(0.075,0.06,1.65),2])
-	parts.append([Vector3(0,0.79,1.63), Vector3(1.28,0.19,1.1),1])
+	# The cockpit saddle follows the canopy's tapered footprint and settles
+	# directly into the keel shoulders. The dark seal leaves a thin fitted rim.
+	parts.append([Vector3.ZERO, Vector3.ZERO, 0, Vector3.ZERO, [
+		Vector4(-1.94, 0.18, 0.055, 0.7), Vector4(-1.62, 0.46, 0.085, 0.745),
+		Vector4(-1.12, 0.73, 0.105, 0.78), Vector4(-0.3, 0.83, 0.11, 0.79),
+		Vector4(0.5, 0.77, 0.105, 0.8), Vector4(1.08, 0.55, 0.095, 0.83),
+		Vector4(1.7, 0.36, 0.09, 0.8), Vector4(2.32, 0.17, 0.035, 0.735),
+	]])
+	parts.append([Vector3.ZERO, Vector3.ZERO, 2, Vector3.ZERO, [
+		Vector4(-1.8, 0.16, 0.025, 0.805), Vector4(-1.5, 0.4, 0.035, 0.83),
+		Vector4(-1.05, 0.65, 0.035, 0.865), Vector4(-0.3, 0.735, 0.035, 0.875),
+		Vector4(0.5, 0.675, 0.035, 0.88), Vector4(1.06, 0.43, 0.035, 0.9),
+		Vector4(1.23, 0.23, 0.025, 0.9),
+	]])
 	for side in [-1.0,1.0]:
 		# Stepped shoulder plates, forward intake recess and protective mouth.
 		parts.append([Vector3(side*1.02,0.56,1.08),Vector3(0.54,0.16,2.42),0])
