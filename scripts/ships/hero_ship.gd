@@ -6029,6 +6029,8 @@ func _build_cockpit() -> void:
 				Vector3(0.0, 0.0, side * 12.0)
 			)
 		_cylinder(_cockpit_root, side_name + "ConsoleRotary", Vector3(side * 0.81, 2.44, 0.0), 0.07, 0.045, _materials.gold, Vector3(90.0, 0.0, 0.0))
+	if not _uses_torrent_reconstruction_presentation():
+		_fit_shared_instrument_housing(instrument_cluster)
 	_torus(_cockpit_root, "ControlStickGimbal", Vector3(0.0, 2.11, -0.66), 0.1, 0.17, _materials.mid)
 	_cylinder(_cockpit_root, "ControlStickShaft", Vector3(0.0, 2.38, -0.73), 0.055, 0.64, _materials.mid, Vector3(-14.0, 0.0, 0.0))
 	_cockpit_seat_fitting("ControlStickGrip", Vector3(0.0, 2.68, -0.8), [
@@ -6131,6 +6133,120 @@ func _cockpit_seat_fitting(
 	fitting.material_override = material
 	_cockpit_root.add_child(fitting)
 	return fitting
+
+
+## Refit the inherited renderer owners, retaining the live readout subtree and
+## the mirrored transforms consumed by variant batching. Arrow subsequently
+## replaces these meshes with its own binnacle; Torrent keeps its original fallback.
+func _fit_shared_instrument_housing(cluster: Node3D) -> void:
+	var hood := cluster.get_node("InstrumentHood") as MeshInstance3D
+	hood.mesh = _cockpit_formed_enclosure_mesh([
+		Vector4(1.28, -0.53, 0.06, -0.53),
+		Vector4(1.64, -0.31, 0.285, -0.06),
+		Vector4(1.64, -0.29, 0.285, 0.065),
+		Vector4(1.58, -0.26, 0.255, 0.095),
+	], _materials.cockpit_anti_glare, _materials.structure)
+	# A shallow chamfered metal surround seats the existing display. Its crown
+	# stays below the hood; a short lip clears the pilot's oblique sightline.
+	var bezel_finish := _material(Color(0.18, 0.21, 0.24), 0.20, 0.76)
+	bezel_finish.vertex_color_use_as_albedo = true
+	var bezel_meshes := [_shared_display_rail_mesh(0.82, false, bezel_finish),
+		_shared_display_rail_mesh(0.32, true, bezel_finish)]
+	for bezel_name in ["DisplayBezelTop", "DisplayBezelBottom", "PortDisplayBezelSide", "StarboardDisplayBezelSide"]:
+		var bezel := cluster.get_node(bezel_name) as MeshInstance3D
+		bezel.position.z = 0.145
+		bezel.mesh = bezel_meshes[1 if bezel_name.ends_with("Side") else 0]
+		# The paired rails have mirrored inner lips. Arrow's later replacement
+		# stock is centrosymmetric, so these half turns leave its shape intact.
+		if bezel_name in ["DisplayBezelBottom", "StarboardDisplayBezelSide"]:
+			bezel.rotation.z = PI
+	var socket_mesh := _shared_instrument_socket_mesh()
+	for side_name in ["Port", "Starboard"]:
+		var socket := cluster.get_node(side_name + "StatusRepeater") as MeshInstance3D
+		socket.mesh = socket_mesh
+	# The caution lens belongs to the center module, inside the lower sill.
+	var caution := cluster.get_node("WarningStrip") as MeshInstance3D
+	caution.scale.x = 0.56
+
+
+func _shared_display_rail_mesh(length: float, vertical: bool, material: Material) -> ArrayMesh:
+	# Broad matte returns meet without clipped bar-end holes. Only the 8 mm
+	# inner land exposes satin metal; it seats the screen beneath a short lip.
+	var profile := [Vector2(-0.0275, -0.045), Vector2(0.0275, -0.045),
+		Vector2(0.0275, -0.025), Vector2(-0.012, 0.035),
+		Vector2(-0.020, 0.035), Vector2(-0.0275, 0.022)]
+	var tool := SurfaceTool.new()
+	tool.begin(Mesh.PRIMITIVE_TRIANGLES)
+	tool.set_material(material)
+	var faces: Array[PackedVector3Array] = []
+	for end in [-1.0, 1.0]:
+		var face := PackedVector3Array()
+		for point in profile:
+			face.append(Vector3(end * length * 0.5, point.x, point.y))
+		faces.append(face)
+	for index in profile.size():
+		var next := (index + 1) % profile.size()
+		faces.append(PackedVector3Array([faces[0][index], faces[1][index], faces[1][next], faces[0][next]]))
+	var center := Vector3(0.0, 0.0, -0.015)
+	for face_index in faces.size():
+		var face := faces[face_index]
+		for triangle in range(1, face.size() - 1):
+			var points := PackedVector3Array([face[0], face[triangle], face[triangle + 1]])
+			var normal := (points[2] - points[0]).cross(points[1] - points[0]).normalized()
+			if normal.dot((points[0] + points[1] + points[2]) / 3.0 - center) < 0.0:
+				points.reverse()
+				normal = -normal
+			for point in points:
+				tool.set_normal(Vector3(-normal.y, normal.x, normal.z) if vertical else normal)
+				tool.set_color(Color(0.85, 0.88, 0.90) if face_index == 5 else Color(0.24, 0.28, 0.32))
+				tool.set_uv(Vector2(point.y, point.z) if face_index < 2 else Vector2(point.x, point.y if absf(normal.z) > 0.5 else point.z))
+				tool.add_vertex(Vector3(-point.y, point.x, point.z) if vertical else point)
+	tool.generate_tangents()
+	return tool.commit()
+
+
+func _shared_instrument_socket_mesh() -> ArrayMesh:
+	# One closed turned part: dark backing, bore, chamfer, satin rim and a
+	# flared mounting foot. The live 0.245 m dial clears the 0.280 m aperture.
+	var profile := [Vector2(0.0, 0.044), Vector2(0.138, 0.044),
+		Vector2(0.140, 0.052), Vector2(0.145, 0.058),
+		Vector2(0.153, 0.058), Vector2(0.158, 0.050),
+		Vector2(0.167, -0.015), Vector2(0.160, -0.035),
+		Vector2(0.0, -0.035)]
+	var finish := _material(Color(0.52, 0.57, 0.60), 0.24, 0.70)
+	finish.vertex_color_use_as_albedo = true
+	var tool := SurfaceTool.new()
+	tool.begin(Mesh.PRIMITIVE_TRIANGLES)
+	tool.set_material(finish)
+	for station in profile.size() - 1:
+		var start: Vector2 = profile[station]
+		var end: Vector2 = profile[station + 1]
+		var slope := end - start
+		for segment in 48:
+			var a := TAU * float(segment) / 48.0
+			var b := TAU * float(segment + 1) / 48.0
+			var points := [Vector3(cos(a) * start.x, sin(a) * start.x, start.y),
+				Vector3(cos(b) * start.x, sin(b) * start.x, start.y),
+				Vector3(cos(b) * end.x, sin(b) * end.x, end.y),
+				Vector3(cos(a) * end.x, sin(a) * end.x, end.y)]
+			for triangle in [[0, 1, 2], [0, 2, 3]]:
+				if (points[triangle[2]] - points[triangle[0]]).cross(points[triangle[1]] - points[triangle[0]]).length_squared() < 0.0000000001:
+					continue
+				for index in triangle:
+					var point: Vector3 = points[index]
+					var radial := Vector2(point.x, point.y).normalized()
+					var normal := Vector3(-slope.y * radial.x, -slope.y * radial.y, slope.x).normalized()
+					# Retain the cylinder owner's X=90 degree transform used by
+					# Cinder's paired batch. Rotate vertices/normals into its frame.
+					tool.set_normal(Vector3(normal.x, normal.z, -normal.y))
+					tool.set_color(Color(0.46, 0.49, 0.52) if station in [3, 4] else (Color(0.06, 0.10, 0.12) if station == 0 else Color(0.24, 0.28, 0.30)))
+					if station in [0, 7]:
+						tool.set_uv(Vector2(point.x, point.y) / 0.334 + Vector2.ONE * 0.5)
+					else:
+						tool.set_uv(Vector2(float(segment + (1 if index in [1, 2] else 0)) / 48.0, float(station + (1 if index in [2, 3] else 0)) / 8.0))
+					tool.add_vertex(Vector3(point.x, point.z, -point.y))
+	tool.generate_tangents()
+	return tool.commit()
 
 
 ## Closed, clipped-corner pressings for the common cockpit. Each section gives
