@@ -3188,6 +3188,7 @@ func _build_crew_cabin() -> void:
 	var cabin_portal_upright_transforms: Array[Transform3D] = []
 	var cabin_portal_upright_names := PackedStringArray()
 	var cabin_stowage_mesh := _cabin_forward_taper_mesh()
+	var seat_shell_mesh := _cabin_seat_shell_mesh()
 	for side in [-1.0, 1.0]:
 		var side_name := "Port" if side < 0.0 else "Starboard"
 		if side < 0.0:
@@ -3244,9 +3245,13 @@ func _build_crew_cabin() -> void:
 			cushion.mesh = _cabin_cushion_mesh(Vector3(0.68, 0.18, 0.76))
 			for arm_side in [-1.0, 1.0]:
 				_box(seat_root, "SeatArmrest", Vector3(arm_side * 0.38, 1.19, 0.05), Vector3(0.10, 0.12, 0.65), _halyard_materials.dark)
-			var back_shell := _manufactured_loft(seat_root, "SeatBackShell", Vector3(0.0, 1.44, 0.56),
-				PackedVector3Array([Vector3(0.22, 0.045, -0.53), Vector3(0.35, 0.07, -0.39), Vector3(0.39, 0.07, 0.27), Vector3(0.27, 0.045, 0.48)]), _halyard_materials.liner, 24)
-			back_shell.rotation.x = deg_to_rad(98.0)
+			var back_shell := MeshInstance3D.new()
+			back_shell.name = "SeatBackShell"
+			back_shell.position = Vector3(0.0, 1.44, 0.56)
+			back_shell.rotation.x = deg_to_rad(8.0)
+			back_shell.mesh = seat_shell_mesh
+			back_shell.material_override = _halyard_materials.liner
+			seat_root.add_child(back_shell)
 			var headrest := _box(seat_root, "SeatHeadrest", Vector3(0.0, 1.98, 0.44), Vector3(0.48, 0.26, 0.18), _halyard_materials.upholstery)
 			headrest.mesh = _cabin_cushion_mesh(Vector3(0.48, 0.26, 0.18))
 			_box(seat_root, "SeatHarness", Vector3(0.0, 1.44, 0.28), Vector3(0.11, 0.66, 0.05), _halyard_materials.accent)
@@ -5071,14 +5076,21 @@ func _build_fitted_transport_details() -> void:
 			_fitout_soft_stock(cabin, "cabin_fitting", Vector3(side * (face_x - 0.014), 2.985, door_z), Vector3(0.04, 0.35, 1.59), face_rotation)
 			_fitout_stock(cabin, "dark", Vector3(side * (face_x - 0.04), 2.87, door_z), Vector3(0.025, 0.062, 0.32), face_rotation)
 			_fitout_stock(cabin, "liner", Vector3(side * (face_x - 0.06), 2.86, door_z), Vector3(0.029, 0.024, 0.25), face_rotation)
-		# Fitted seat shells have a thin recessed service lid, an elastic literature
-		# pocket, upholstered side bolsters and a supported cantilever underpan.
-		# All six sets are merged by finish into the existing cabin stock.
+		# Stowed trays sit inside the moulded shell well. A top release and two
+		# lower hinge knuckles make their construction legible from the aisle.
+		# Hardware shares the existing finish batches; none grants interaction.
 		for seat_z in CREW_SEAT_ROWS:
 			var seat_at := Vector3(side * CREW_SEAT_HALF_SPACING, 0, seat_z)
-			_fitout_soft_stock(cabin, "dark", seat_at + Vector3(0, 1.44, 0.666), Vector3(0.54, 0.59, 0.035), Vector3(0.14, 0, 0))
-			_fitout_soft_stock(cabin, "cabin_fitting", seat_at + Vector3(0, 1.44, 0.69), Vector3(0.50, 0.55, 0.035), Vector3(0.14, 0, 0))
-			_fitout_stock(cabin, "dark", seat_at + Vector3(0, 1.66, 0.67), Vector3(0.16, 0.036, 0.035))
+			var back_basis := Basis(Vector3.RIGHT, deg_to_rad(8.0))
+			var back_at := seat_at + Vector3(0, 1.44, 0.56)
+			var back_tilt := Vector3(deg_to_rad(8.0), 0, 0)
+			_fitout_stock(cabin, "dark", back_at + back_basis * Vector3(0, -0.035, 0.047), Vector3(0.518, 0.518, 0.018), back_tilt)
+			_fitout_stock(cabin, "cabin_fitting", back_at + back_basis * Vector3(0, -0.035, 0.065), Vector3(0.49, 0.49, 0.022), back_tilt)
+			_fitout_stock(cabin, "dark", back_at + back_basis * Vector3(0, 0.226, 0.094), Vector3(0.13, 0.08, 0.020), back_tilt)
+			_fitout_stock(cabin, "structure", back_at + back_basis * Vector3(0, 0.216, 0.109), Vector3(0.082, 0.034, 0.020), back_tilt)
+			for hinge_side in [-1.0, 1.0]:
+				_fitout_stock(cabin, "dark", back_at + back_basis * Vector3(hinge_side * 0.18, -0.293, 0.091), Vector3(0.105, 0.057, 0.043), back_tilt)
+				_fitout_soft_stock(cabin, "structure", back_at + back_basis * Vector3(hinge_side * 0.18, -0.293, 0.105), Vector3(0.069, 0.042, 0.042), back_tilt)
 			_fitout_soft_stock(cabin, "cloth", seat_at + Vector3(0, 1.04, 0.70), Vector3(0.46, 0.20, 0.085))
 			_fitout_stock(cabin, "upholstery", seat_at + Vector3(0, 1.13, 0.73), Vector3(0.45, 0.025, 0.022))
 			_fitout_soft_stock(cabin, "structure", seat_at + Vector3(0, 0.82, 0.035), Vector3(0.75, 0.12, 0.85))
@@ -5217,6 +5229,68 @@ func _berth_fabric_point(kind: StringName, u: float, v: float, face: float) -> V
 		return Vector3(x, 0.018 + sin(v * PI) * 0.035 + ripple - side_drop + face * 0.006 * edge, (v - 0.5) * 0.25 + sin(u * 9.0) * 0.02)
 	var foot_drop := pow(clampf((0.10 - v) / 0.10, 0.0, 1.0), 1.4) * 0.07
 	return Vector3(x, 0.023 + ripple - side_drop - foot_drop + face * 0.006 * edge, (v - 0.5) * 1.40 + sin(u * 8.0) * 0.018)
+
+
+## One shared, closed moulding for all six seats: rolled outer edge, swept
+## shoulders and a 7 cm deep tray well. The well is part of the shell topology,
+## so the fitted tray cannot read as another cushion pasted onto a solid slab.
+func _cabin_seat_shell_mesh() -> ArrayMesh:
+	var tool := SurfaceTool.new()
+	tool.begin(Mesh.PRIMITIVE_TRIANGLES)
+	var rings: Array[PackedVector3Array] = []
+	for layer in 5:
+		var ring := PackedVector3Array()
+		for point in 32:
+			var angle := TAU * float(point) / 32.0
+			var cx := cos(angle)
+			var cy := sin(angle)
+			var x := signf(cx) * pow(absf(cx), 0.40)
+			var y := signf(cy) * pow(absf(cy), 0.40)
+			if layer < 3:
+				# Shoulder width falls into a narrower lumbar base; the aft face
+				# wraps toward the cushion at its outer edges instead of ending square.
+				var width := 0.355 - 0.025 * maxf(0.0, -y) - 0.032 * pow(absf(y), 8.0)
+				var edge_scale := 0.97 if layer == 0 else 1.0
+				var z := -0.045 if layer == 0 else (0.006 if layer == 1 else 0.095)
+				if layer == 2:
+					edge_scale = 0.93
+					z += 0.020 * maxf(0.0, y)
+				ring.append(Vector3(x * width * edge_scale, y * 0.49 * edge_scale, z))
+			else:
+				var half_size := 0.28 if layer == 3 else 0.26
+				ring.append(Vector3(x * half_size, y * half_size - 0.035, 0.108 if layer == 3 else 0.038))
+		rings.append(ring)
+	for layer in rings.size() - 1:
+		# Smooth around the rolled edge while retaining the tray-well creases.
+		tool.set_smooth_group(maxi(0, layer - 1))
+		for point in 32:
+			var next := (point + 1) % 32
+			_seat_shell_triangle(tool, rings[layer][point], rings[layer][next], rings[layer + 1][next])
+			_seat_shell_triangle(tool, rings[layer][point], rings[layer + 1][next], rings[layer + 1][point])
+	tool.set_smooth_group(-1)
+	for point in 32:
+		var next := (point + 1) % 32
+		_seat_shell_triangle(tool, Vector3(0, 0, -0.045), rings[0][next], rings[0][point])
+		_seat_shell_triangle(tool, Vector3(0, -0.035, 0.038), rings[4][point], rings[4][next])
+	tool.generate_normals()
+	tool.generate_tangents()
+	return tool.commit()
+
+
+# Each face projects onto its dominant plane, including the XY tray-well cap.
+# This keeps both geometric and UV triangles usable by normal-mapped finishes.
+func _seat_shell_triangle(tool: SurfaceTool, a: Vector3, b: Vector3, c: Vector3) -> void:
+	var normal := (b - a).cross(c - a).normalized()
+	var axis := normal.abs().max_axis_index()
+	for vertex in [a, c, b]:
+		tool.set_normal(normal)
+		if axis == Vector3.AXIS_X:
+			tool.set_uv(Vector2(vertex.y, vertex.z))
+		elif axis == Vector3.AXIS_Y:
+			tool.set_uv(Vector2(vertex.x, vertex.z))
+		else:
+			tool.set_uv(Vector2(vertex.x, vertex.y))
+		tool.add_vertex(vertex)
 
 
 # Inflated superellipse stock gives cushions rolled edges and fitted corners.

@@ -124,6 +124,27 @@ func _run() -> void:
 		"the renderer buffer is exact while every seat root and anchor remains available"
 	)
 
+	var shell_stock: Mesh
+	var shared_shells := true
+	var contained_shells := true
+	for side_name in ["Port", "Starboard"]:
+		for row_index in 3:
+			var shell := cabin.get_node("%sCrewSeat%02d/SeatBackShell" % [side_name, row_index]) as MeshInstance3D
+			if shell_stock == null:
+				shell_stock = shell.mesh
+			shared_shells = shared_shells and shell.mesh == shell_stock and shell.get_child_count() == 0
+			var bounds := shell.transform * shell.mesh.get_aabb()
+			contained_shells = contained_shells and AABB(Vector3(-0.39, 0.89, 0.41), Vector3(0.78, 1.09, 0.35)).encloses(bounds)
+	_check(shared_shells and contained_shells,
+		"six moulded shells share one stock mesh inside the existing seat envelope")
+	_check(_shell_surface_is_usable(shell_stock),
+		"shell faces have nondegenerate geometry and UVs, outward normals and valid tangents")
+
+	var well_depth := _rear_shell_depth(shell_stock, Vector2(0, -0.035))
+	var shoulder_depth := _rear_shell_depth(shell_stock, Vector2(0, 0.36))
+	_check(is_finite(well_depth) and is_finite(shoulder_depth) and shoulder_depth - well_depth > 0.045,
+		"the tray well is physically recessed into the shell, with at least 4.5 cm of relief")
+
 	_check(craft.get_loadmaster_station_anchor() != null, "the loadmaster seat anchor survives the seat-leg batch")
 	var authority := Authority.new(1)
 	_check(bool(authority.register_halyard_roster().get("accepted", false)), "the role roster remains available")
@@ -192,3 +213,40 @@ func _encode_multimesh_transforms(transforms: Array) -> PackedFloat32Array:
 		buffer[offset + 10] = value.basis.z.z
 		buffer[offset + 11] = value.origin.z
 	return buffer
+
+
+func _rear_shell_depth(mesh: Mesh, at: Vector2) -> float:
+	var vertices: PackedVector3Array = mesh.surface_get_arrays(0)[Mesh.ARRAY_VERTEX]
+	var rear_depth := -INF
+	for triangle in range(0, vertices.size(), 3):
+		var hit: Variant = Geometry3D.ray_intersects_triangle(Vector3(at.x, at.y, 1), Vector3.FORWARD,
+			vertices[triangle], vertices[triangle + 1], vertices[triangle + 2])
+		if hit is Vector3:
+			rear_depth = maxf(rear_depth, (hit as Vector3).z)
+	return rear_depth
+
+
+func _shell_surface_is_usable(mesh: Mesh) -> bool:
+	var arrays := mesh.surface_get_arrays(0)
+	var vertices: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
+	var normals: PackedVector3Array = arrays[Mesh.ARRAY_NORMAL]
+	var uvs: PackedVector2Array = arrays[Mesh.ARRAY_TEX_UV]
+	var tangents: PackedFloat32Array = arrays[Mesh.ARRAY_TANGENT]
+	if tangents.size() != vertices.size() * 4:
+		return false
+	for triangle in range(0, vertices.size(), 3):
+		var cross := (vertices[triangle + 1] - vertices[triangle]).cross(vertices[triangle + 2] - vertices[triangle])
+		var uv_area := (uvs[triangle + 1] - uvs[triangle]).cross(uvs[triangle + 2] - uvs[triangle])
+		if cross.length_squared() < 1e-16 or absf(uv_area) < 1e-10:
+			return false
+		for corner in 3:
+			var index := triangle + corner
+			var normal := normals[index]
+			var tangent := Vector3(tangents[index * 4], tangents[index * 4 + 1], tangents[index * 4 + 2])
+			if not normal.is_finite() or not tangent.is_finite() or cross.normalized().dot(normal) > -0.05:
+				return false
+			if absf(normal.length() - 1.0) > 0.001 or absf(tangent.length() - 1.0) > 0.001 or absf(normal.dot(tangent)) > 0.001:
+				return false
+			if absf(absf(tangents[index * 4 + 3]) - 1.0) > 0.001:
+				return false
+	return true
