@@ -6183,11 +6183,12 @@ func _build_environment() -> void:
 	key_light.directional_shadow_blend_splits = true
 	key_light.directional_shadow_max_distance = 130.0
 	if RenderingServer.get_current_rendering_method() == &"gl_compatibility":
-		# Compatibility's default normal offset leaves false shadow bands across
-		# cockpit side strips and teeth on curved ship shoulders. Increase only
-		# the receiver's normal offset; retain depth bias, atlas, cascades and
-		# caster policy without adding shadow passes.
-		key_light.shadow_normal_bias = 4.0
+		# Compatibility needs extra receiver normal offset to limit self-shadow
+		# teeth where the closed canopy shades a curved shoulder. Six reduces
+		# those bands while retaining the tested landing contacts; larger offsets
+		# distort nearby frame shadows. Keep depth bias, atlas, cascades and
+		# caster policy so this does not add shadow passes.
+		key_light.shadow_normal_bias = 6.0
 	add_child(key_light)
 
 	var counter_fill := DirectionalLight3D.new()
