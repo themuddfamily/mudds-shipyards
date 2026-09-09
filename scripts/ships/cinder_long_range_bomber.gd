@@ -1026,7 +1026,7 @@ func _build_bomber_propulsion(visual: Node3D) -> void:
 
 	for side in [-1.0, 1.0]:
 		var tag := "Port" if side < 0 else "Starboard"
-		_service_bay(visual, tag + "ThermalService", Vector3(side * 2.3, 1.212, 2.6), 0.9, 2.1, _shared_hull_material, ceramic, metal)
+		_service_bay(visual, tag + "ThermalService", Vector3(side * 2.3, 1.195, 2.6), 0.9, 2.1, _shared_hull_material, ceramic, metal)
 		_armor_shell(visual, tag + "PressureShoulder", Vector3(side * 2.3, 0.28, 0.4), Vector3(1.85, 1.8, 12.8), _shared_hull_material, 0.0, _formed_pressure_mesh(Vector3(1.85, 1.8, 12.8), _shared_hull_material))
 		_armor_shell(visual, tag + "WingRootFairing", Vector3(side * 3.9, -0.25, 1.2), Vector3(2.7, 0.58, 7.7), _shared_hull_material, side * -0.13, _formed_wing_root_mesh(side, _shared_hull_material))
 		_armor_shell(visual, tag + "OutboardArmor", Vector3(side * 5.6, -0.22, 1.8), Vector3(1.6, 0.08, 3.2), _shared_ordnance_spine_material, side * -0.16, _fitted_wing_armor_mesh(side, _shared_ordnance_spine_material))
@@ -1039,8 +1039,8 @@ func _build_bomber_propulsion(visual: Node3D) -> void:
 		_build_ordnance_service_cassette(visual, tag, side, ceramic, metal)
 		var intake := Node3D.new()
 		intake.name = tag + "RamScoop"
-		intake.position = Vector3(side * 2.3, 0.45, -5.55)
-		intake.rotation.x = -PI * 0.5
+		# Seat the intake on the flat forward shoulder crown, behind its tapered nose.
+		intake.position = Vector3(side * 2.3, 1.18, -2.25)
 		visual.add_child(intake)
 		_service_bay(intake, "Scoop", Vector3.ZERO, 0.75, 0.80, metal, ceramic, ceramic)
 
@@ -1552,11 +1552,7 @@ func _armor_shell(parent: Node3D, node_name: String, at: Vector3, size: Vector3,
 
 
 func _service_bay(parent: Node3D, tag: String, at: Vector3, width: float, length: float, frame: Material, dark: Material, metal: Material) -> void:
-	_box(parent, tag + "Recess", at, Vector3(width, 0.035, length), dark)
-	for side in [-1.0, 1.0]:
-		_box(parent, tag + "Rim" + str(side), at + Vector3(side * (width * 0.5 + 0.045), 0.035, 0), Vector3(0.09, 0.07, length + 0.18), frame)
-	for index in 5:
-		_box(parent, tag + "Louver" + str(index), at + Vector3(0, 0.032, (float(index) / 4.0 - 0.5) * length * 0.78), Vector3(width * 0.82, 0.05, length * 0.07), metal, Vector3(0.18, 0, 0))
+	preload("res://scripts/ships/ship_service_cassette.gd").install(parent, tag, at, width, length, frame, dark, metal)
 
 
 func _pressure_panel(parent: Node3D, label: String, at: Vector3, top: float, bottom: float, height: float, depth: float, material: Material) -> MeshInstance3D:

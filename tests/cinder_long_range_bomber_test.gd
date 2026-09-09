@@ -11,6 +11,7 @@ func _initialize() -> void:
 	root.add_child(bomber)
 	await process_frame
 	_test_recessed_exhaust(bomber)
+	_test_service_cassettes(bomber)
 	var audit := bomber.get_audit_report()
 	var definition := bomber.get_ship_definition()
 	_check(bool(audit.get("valid", false)), "the bomber builds a valid collision and payload contract")
@@ -116,3 +117,28 @@ func _test_recessed_exhaust(craft: HeroShip) -> void:
 		and not (hub.material_override as StandardMaterial3D).emission_enabled
 		and port.get_script() == null and hub.get_script() == null,
 		"unpowered machinery has a passive metallic finish and adds no engine-state controller")
+
+
+func _test_service_cassettes(craft: HeroShip) -> void:
+	var visual: Node3D = craft.call("get_variant_visual_root")
+	for tag in ["ThermalService", "RamScoop/Scoop"]:
+		var port := visual.get_node("Port" + tag + "Frame") as MeshInstance3D
+		var starboard := visual.get_node("Starboard" + tag + "Frame") as MeshInstance3D
+		var vanes := visual.get_node("Port" + tag + "Vanes") as MeshInstance3D
+		var opposite_vanes := visual.get_node("Starboard" + tag + "Vanes") as MeshInstance3D
+		var backing := visual.get_node("Port" + tag + "Recess") as MeshInstance3D
+		_check(port.mesh is ArrayMesh and vanes.mesh is ArrayMesh
+			and port.mesh == starboard.mesh and vanes.mesh == opposite_vanes.mesh
+			and backing.mesh == (visual.get_node("Starboard" + tag + "Recess") as MeshInstance3D).mesh,
+			"paired %s cassettes share their three immutable renderer stocks" % tag)
+		_check(vanes.mesh.get_faces().size() == 960 and port.mesh.get_faces().size() > 36
+			and port.material_override != null and vanes.material_override != null
+			and port.get_script() == null and port.get_child_count() == 0,
+			"%s has five closed curved vanes and a continuous frame without gameplay nodes" % tag)
+		var foot := visual.global_transform.affine_inverse() * port.global_transform * port.mesh.get_aabb()
+		_check(foot.position.y < 1.18 and foot.end.y > 1.18
+			and foot.position.z > -2.8 and foot.end.z < 3.8,
+			"%s frame foot seats into the shoulder crown clear of nose optics and payload lanes" % tag)
+	_check(visual.find_children("*Louver*", "MeshInstance3D", true, false).is_empty()
+		and visual.find_children("*ThermalServiceRim*", "MeshInstance3D", true, false).is_empty(),
+		"service grilles replace the former stacked bars and separate rails")
