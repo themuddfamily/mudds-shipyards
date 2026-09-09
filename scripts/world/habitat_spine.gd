@@ -127,6 +127,7 @@ const RENDER_GEOMETRY_SUBMISSION_COUNT := 1242
 # The shallow, interior-visible common-room ribs resolve through two symmetric
 # cached cylinder lengths rather than the former seven-length exterior curve.
 # All 70 copies remain, while unique generated mesh recipes fall 345 -> 340.
+# The 27 independent shadow-only arch meshes bring the live allocation to 367.
 const RENDER_UNIQUE_MESH_RESOURCE_COUNT := 367
 const RENDER_UNIQUE_MATERIAL_RESOURCE_COUNT := 33
 const OBSERVATION_BACKREST_COLOR := Color("365c63")
@@ -259,6 +260,8 @@ var _hatch_fastener_mesh: Mesh
 # geometry participates. Each arch retains its own tight shadow culling bounds.
 var _arch_shadow_sources: Array[Array] = []
 var _arch_shadow_batches: Array[MeshInstance3D] = []
+var _arch_shadow_next_index := 0
+var _arch_shadow_needs_settle := false
 var _hatch_fastener_batch: MultiMeshInstance3D
 var _hatch_fastener_transforms: Array[Transform3D] = []
 var _nutrient_tank_band_mesh: TorusMesh
@@ -368,7 +371,22 @@ static func run_staged_construction(module_ref: WeakRef, on_stage: Callable = Ca
 		if not _is_staged_current(module, generation):
 			return false
 	module._style_access_landmarks()
-	module._build_arch_shadow_batches()
+	# Each exact triangle merge is bounded to one arch. Retain both the next
+	# roster and its pending frame across detach/reentry, just like room phases.
+	if module._arch_shadow_sources.size() == ARCH_SHADOW_BATCH_COUNT:
+		while module._arch_shadow_next_index < ARCH_SHADOW_BATCH_COUNT or module._arch_shadow_needs_settle:
+			if not _is_staged_current(module, generation):
+				return false
+			if module._arch_shadow_needs_settle:
+				module = null
+				await tree.process_frame
+				module = module_ref.get_ref() as HabitatSpine
+				if not _is_staged_current(module, generation):
+					return false
+				module._arch_shadow_needs_settle = false
+				continue
+			module._arch_shadow_needs_settle = true
+			module._build_next_arch_shadow_batch()
 	module._apply_metadata()
 	module._apply_enabled_state()
 	if not _is_staged_current(module, generation):
@@ -4089,15 +4107,20 @@ func _build_common_soft_goods(common: Node3D) -> void:
 
 
 func _build_arch_shadow_batches() -> void:
-	if not _arch_shadow_batches.is_empty() \
-			or _arch_shadow_sources.size() != ARCH_SHADOW_BATCH_COUNT:
+	if _arch_shadow_sources.size() != ARCH_SHADOW_BATCH_COUNT:
 		return
-	for sources: Array[MeshInstance3D] in _arch_shadow_sources:
-		if sources.size() != ARCH_SHADOW_SEGMENTS_PER_BATCH:
-			continue
-		var batch := STATIC_SHADOW_BATCH.build(sources[0].get_parent() as Node3D, sources)
-		if batch != null:
-			_arch_shadow_batches.append(batch)
+	while _arch_shadow_next_index < ARCH_SHADOW_BATCH_COUNT:
+		_build_next_arch_shadow_batch()
+
+
+func _build_next_arch_shadow_batch() -> void:
+	var sources: Array[MeshInstance3D] = _arch_shadow_sources[_arch_shadow_next_index]
+	_arch_shadow_next_index += 1
+	if sources.size() != ARCH_SHADOW_SEGMENTS_PER_BATCH:
+		return
+	var batch := STATIC_SHADOW_BATCH.build(sources[0].get_parent() as Node3D, sources)
+	if batch != null:
+		_arch_shadow_batches.append(batch)
 
 
 func _style_access_landmarks() -> void:

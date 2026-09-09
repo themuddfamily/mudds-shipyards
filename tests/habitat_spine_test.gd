@@ -111,7 +111,32 @@ func _test_staged_construction(reference: HabitatSpine) -> void:
 	_check(not await HabitatSpine.run_staged_construction(weakref(module), sink)
 		and labels.size() == HabitatSpine.get_staged_construction_stage_count()
 		and not module.is_construction_complete(), "final Habitat phase still requires a live settle before completion")
-	_check(await HabitatSpine.run_staged_construction(weakref(module), sink), "retained Habitat finishes after its final settle resumes")
+	HabitatSpine.run_staged_construction(weakref(module), sink)
+	while (module.get("_arch_shadow_batches") as Array).is_empty():
+		await process_frame
+	var first_batch := (module.get("_arch_shadow_batches") as Array)[0] as MeshInstance3D
+	_check((module.get("_arch_shadow_batches") as Array).size() == 1 \
+		and not module.is_construction_complete() \
+		and not await HabitatSpine.run_staged_construction(weakref(module), sink),
+		"staged Habitat yields after its first arch without admitting another construction owner")
+	_detach_and_readd_staged_habitat(module)
+	await process_frame
+	await process_frame
+	_check((module.get("_arch_shadow_batches") as Array).size() == 1 \
+		and not module.is_construction_complete(),
+		"a retired shadow-batching generation cannot advance or mark the module complete")
+	var batch_counts: Array[int] = []
+	var observe_batches := func() -> void:
+		batch_counts.append((module.get("_arch_shadow_batches") as Array).size())
+	process_frame.connect(observe_batches)
+	_check(await HabitatSpine.run_staged_construction(weakref(module), sink),
+		"retained Habitat resumes its pending arch settle and completes remaining batches")
+	process_frame.disconnect(observe_batches)
+	var bounded_frames := batch_counts.size() >= 26
+	for index in range(1, batch_counts.size()):
+		bounded_frames = bounded_frames and batch_counts[index] - batch_counts[index - 1] <= 1
+	_check(bounded_frames and (module.get("_arch_shadow_batches") as Array)[0] == first_batch,
+		"staged arch merges remain one per frame and retain completed meshes across reentry")
 	var ordered_frames := frames.size() == HabitatSpine.get_staged_construction_stage_count()
 	for index in range(1, frames.size()):
 		ordered_frames = ordered_frames and frames[index] > frames[index - 1]
@@ -140,6 +165,21 @@ func _test_staged_construction(reference: HabitatSpine) -> void:
 		and labels == expected_labels, "completed Habitat cannot replay its setup or phase progress")
 	module.queue_free()
 	await process_frame
+	var queued := MODULE_SCENE.instantiate() as HabitatSpine
+	queued.prepare_staged_construction()
+	_test_root.add_child(queued)
+	var queued_ref: WeakRef = weakref(queued)
+	var completion: Array[bool] = []
+	var run_queued := func() -> void:
+		completion.append(await HabitatSpine.run_staged_construction(queued_ref))
+	run_queued.call()
+	while (queued.get("_arch_shadow_batches") as Array).is_empty():
+		await process_frame
+	queued.queue_free()
+	await process_frame
+	await process_frame
+	_check(queued_ref.get_ref() == null and completion == [false],
+		"queued teardown during shadow batching returns failure without continuing or finishing")
 
 
 func _detach_and_readd_staged_habitat(module: HabitatSpine) -> void:
