@@ -3697,7 +3697,7 @@ func _build_modern_airframe(visual: Node3D) -> void:
 		Vector4(1.15, 2.40, 0.12, -1.35), Vector4(1.22, 2.42, 0.10, -0.12),
 		Vector4(1.29, 2.43, 0.11, 0.34), Vector4(1.46, 2.12, 0.15, 1.54),
 		Vector4(1.56, 1.49, 0.22, 3.05), Vector4(1.10, 0.83, 0.35, 4.35),
-	], hull)
+	], hull, true, panel)
 	_zenith_hard_shell(airframe, "NoseSensorRadome", 0.0, [
 		Vector4(0.045, 0.822, 0.69, -5.33), Vector4(0.28, 1.06, 0.61, -4.53),
 	], panel)
@@ -3725,6 +3725,7 @@ func _build_modern_airframe(visual: Node3D) -> void:
 		# A single cambered skin rolls from the pressure-body shoulder into the
 		# thin delta edge. The structural lower skin closes on the same perimeter.
 		_build_cambered_wing(airframe, prefix, side, hull, dark, panel)
+		_build_wing_thermal_bank(airframe, prefix, side, panel)
 		# Chamfered oblique intake lips lead into fully enclosed dark tunnels.
 		_zenith_hard_shell(airframe, prefix + "EngineCowling", side * 2.20, [
 			Vector4(0.62, 1.68, 0.86, -1.05), Vector4(0.65, 1.695, 0.74, -0.84),
@@ -3799,6 +3800,11 @@ func _wing_skin_point(span: float, chord: float, side: float, upper: bool) -> Ve
 		var hinge := maxf(0.0, 1.0 - absf(chord - 0.822) / 0.004) if span >= 0.42 else 0.0
 		var span_joint := maxf(maxf(0.0, 1.0 - absf(span - 0.42) / 0.003), maxf(0.0, 1.0 - absf(span - 0.82) / 0.003))
 		span_joint *= smoothstep(0.07, 0.09, chord) * (1.0 - smoothstep(0.97, 1.0, chord))
+		# Heat-exchanger wells are pressed into the wing skin, with a shallow
+		# bevel around their perimeter and solid lower skin beneath them.
+		var well_span := smoothstep(0.50, 0.515, span) * (1.0 - smoothstep(0.725, 0.74, span))
+		var well_chord := smoothstep(0.10, 0.115, chord) * (1.0 - smoothstep(0.425, 0.44, chord))
+		height -= 0.085 * well_span * well_chord
 		height -= maxf(leading_joint * 0.014, maxf(hinge * 0.028, span_joint * 0.018))
 	return Vector3(side * x, height, lerpf(leading, trailing, chord))
 
@@ -3806,8 +3812,8 @@ func _wing_skin_point(span: float, chord: float, side: float, upper: bool) -> Ve
 func _build_cambered_wing(parent: Node3D, prefix: String, side: float, hull: Material, dark: Material, panel: Material) -> void:
 	# Samples follow the fabricated leading edge, two assembly joints and the
 	# elevon hinge. Broad bays keep the camber; narrow troughs carry real depth.
-	const SPANS := [0.0, 0.08, 0.16, 0.24, 0.32, 0.417, 0.42, 0.423, 0.50, 0.58, 0.66, 0.74, 0.817, 0.82, 0.823, 0.90, 1.0]
-	const CHORDS := [0.0, 0.035, 0.08, 0.084, 0.088, 0.16, 0.24, 0.32, 0.40, 0.48, 0.56, 0.64, 0.72, 0.818, 0.822, 0.826, 0.90, 0.97, 1.0]
+	const SPANS := [0.0, 0.08, 0.16, 0.24, 0.32, 0.417, 0.42, 0.423, 0.50, 0.515, 0.58, 0.66, 0.725, 0.74, 0.817, 0.82, 0.823, 0.90, 1.0]
+	const CHORDS := [0.0, 0.035, 0.08, 0.084, 0.088, 0.10, 0.115, 0.16, 0.24, 0.32, 0.40, 0.425, 0.44, 0.48, 0.56, 0.64, 0.72, 0.818, 0.822, 0.826, 0.90, 0.97, 1.0]
 	var edge_material := (hull as StandardMaterial3D).duplicate() as StandardMaterial3D
 	edge_material.albedo_color = Color("8095a5")
 	edge_material.roughness = 0.58
@@ -3827,7 +3833,8 @@ func _build_cambered_wing(parent: Node3D, prefix: String, side: float, hull: Mat
 				var elevon := mid_span > 0.423 and mid_chord >= 0.826 and not joint
 				if upper and elevon != (skin_group == 1):
 					continue
-				var tool := surfaces[2 if joint else (1 if mid_chord <= 0.08 else 0)] if skin_group == 0 else surfaces[0]
+				var thermal_well := mid_span > 0.50 and mid_span < 0.74 and mid_chord > 0.10 and mid_chord < 0.44
+				var tool := surfaces[2 if joint or thermal_well else (1 if mid_chord <= 0.08 else 0)] if skin_group == 0 else surfaces[0]
 				var a := _wing_skin_point(SPANS[span], CHORDS[chord], side, upper)
 				var b := _wing_skin_point(SPANS[span + 1], CHORDS[chord], side, upper)
 				var c := _wing_skin_point(SPANS[span + 1], CHORDS[chord + 1], side, upper)
@@ -3865,6 +3872,37 @@ func _build_cambered_wing(parent: Node3D, prefix: String, side: float, hull: Mat
 		skin.name = prefix + (["WingOuterSkin", "Elevons", "BlendedDeltaWing"][skin_group] as String)
 		skin.mesh = assembly
 		parent.add_child(skin)
+
+
+## One banked mesh per wing: closed formed vanes follow the recessed skin.
+func _build_wing_thermal_bank(parent: Node3D, prefix: String, side: float, material: Material) -> void:
+	var tool := SurfaceTool.new()
+	tool.begin(Mesh.PRIMITIVE_TRIANGLES)
+	tool.set_material(material)
+	tool.set_smooth_group(-1)
+	for vane in 7:
+		var chord := 0.133 + float(vane) * 0.045
+		for segment in 4:
+			var span_a := lerpf(0.522, 0.718, float(segment) / 4.0)
+			var span_b := lerpf(0.522, 0.718, float(segment + 1) / 4.0)
+			var corners := PackedVector3Array([
+				_wing_skin_point(span_a, chord, side, true) + Vector3.UP * 0.048,
+				_wing_skin_point(span_b, chord, side, true) + Vector3.UP * 0.048,
+				_wing_skin_point(span_b, chord + 0.018, side, true) + Vector3.UP * 0.020,
+				_wing_skin_point(span_a, chord + 0.018, side, true) + Vector3.UP * 0.020,
+			])
+			for vertex in 4:
+				corners.append(corners[vertex] - Vector3.UP * 0.014)
+			var center := (corners[0] + corners[2] + corners[4] + corners[6]) * 0.25
+			for face in [[0, 1, 2, 3], [7, 6, 5, 4], [0, 4, 5, 1], [1, 5, 6, 2], [2, 6, 7, 3], [3, 7, 4, 0]]:
+				_zenith_triangle(tool, corners[face[0]], corners[face[1]], corners[face[2]], center)
+				_zenith_triangle(tool, corners[face[0]], corners[face[2]], corners[face[3]], center)
+	tool.generate_normals()
+	tool.index()
+	var bank := MeshInstance3D.new()
+	bank.name = prefix + "WingThermalBank"
+	bank.mesh = tool.commit()
+	parent.add_child(bank)
 
 
 ## Rounded intake and cowling corners keep broad manufactured roof planes,
@@ -3924,7 +3962,33 @@ func _airframe_section(section: Vector4) -> PackedVector3Array:
 	return ring
 
 
+## Interpolate the pressure-body stations without extending their envelope.
+## Retaining each original station keeps the canopy sill and dorsal interfaces
+## exact; intermediate sections remove the long straight pyramid facets.
+func _formed_pressure_stations(control: Array) -> Array:
+	var formed: Array = []
+	for index in control.size() - 1:
+		var a: Vector4 = control[index]
+		var b: Vector4 = control[index + 1]
+		var before: Vector4 = control[maxi(index - 1, 0)]
+		var after: Vector4 = control[mini(index + 2, control.size() - 1)]
+		for sample in 6:
+			var t := float(sample) / 6.0
+			var shape := Vector3(a.x, a.y, a.z).cubic_interpolate(
+				Vector3(b.x, b.y, b.z), Vector3(before.x, before.y, before.z),
+				Vector3(after.x, after.y, after.z), t)
+			formed.append(Vector4(
+				clampf(shape.x, minf(a.x, b.x), maxf(a.x, b.x)),
+				clampf(shape.y, minf(a.y, b.y), maxf(a.y, b.y)),
+				clampf(shape.z, minf(a.z, b.z), maxf(a.z, b.z)),
+				lerpf(a.w, b.w, t)))
+	formed.append(control[-1])
+	return formed
+
+
 func _zenith_hard_shell(parent: Node3D, node_name: String, lateral: float, sections: Array, material: Material, cap_front: bool = true, shoulder_material: Material = null) -> MeshInstance3D:
+	if node_name == "BlendedPressureHull":
+		sections = _formed_pressure_stations(sections)
 	var tool := SurfaceTool.new()
 	tool.begin(Mesh.PRIMITIVE_TRIANGLES)
 	tool.set_material(material)
@@ -3942,8 +4006,14 @@ func _zenith_hard_shell(parent: Node3D, node_name: String, lateral: float, secti
 			# A full intake collar rolls into paired shoulder panels. These are
 			# faces of the cowling itself, so their edges cannot float or overlap.
 			var face_tool := shoulder if shoulder != null and (station == 0 or (station <= 2 and (edge <= 6 or (edge >= 8 and edge <= 14)))) else tool
+			if node_name == "BlendedPressureHull":
+				# The upper cover follows the nose into the open pilot well. Lower
+				# chine faces expose the darker load-bearing pressure structure.
+				var upper_cover := edge >= 4 and edge <= 10 and center.z < -2.22
+				var lower_structure := edge >= 12 and edge <= 31
+				face_tool = shoulder if shoulder != null and (upper_cover or lower_structure) else tool
 			face_tool.set_smooth_group(0 if node_name.ends_with("EngineCowling") or node_name == "BlendedPressureHull" else edge)
-			if node_name == "BlendedPressureHull" and edge == 7 and station >= 3 and station <= 5:
+			if node_name == "BlendedPressureHull" and edge == 7 and center.z > -2.22 and center.z < 0.34:
 				continue
 			var following := (edge + 1) % a.size()
 			_zenith_triangle(face_tool, a[edge], b[edge], b[following], center)
