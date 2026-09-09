@@ -1462,12 +1462,6 @@ func _build_skirmisher_fittings() -> void:
 	parts.append([Vector3(0, 0.43, -0.22), Vector3.ZERO, 1, Vector3.ZERO, [
 		Vector4(-0.04, 0.44, 0.23, 0.045), Vector4(0.04, 0.43, 0.22, 0.045),
 	]])
-	# Swept root fairings carry the wing load into the full pressure section.
-	for side in [-1.0, 1.0]:
-		parts.append([Vector3(side * 1.5, -0.02, 0.7), Vector3.ZERO, 0, Vector3(0, side * -0.24, 0), [
-			Vector4(-1.45, 0.16, 0.1, 0), Vector4(-0.4, 0.72, 0.3, 0),
-			Vector4(0.65, 0.86, 0.28, 0), Vector4(1.55, 0.6, 0.14, -0.02),
-		]])
 	# Formed intake ducts carry the cockpit shoulders into the engine pods.
 	# Split cheeks and a raised lip surround an inset dark mouth; the radiator
 	# bed sits below the housing rim instead of floating on a flat rectangular lid.
@@ -1484,19 +1478,13 @@ func _build_skirmisher_fittings() -> void:
 		parts.append([Vector3(side * 1.08, 0.576, 0.53), Vector3(0.52, 0.03, 1.13), 2])
 		for slat in 5:
 			parts.append([Vector3(side * 1.08, 0.604, 0.1 + slat * 0.21), Vector3(0.46, 0.035, 0.06), 0])
-		# Swept replaceable wing skins and inset thermal strips follow the airframe.
-		for panel in 3:
-			parts.append([Vector3(side*(1.83+panel*0.46),0.08,0.86+panel*0.37),Vector3(0.42,0.035,1.18),0,Vector3(0,side*-0.28,0)])
-		parts.append([Vector3(side*3.12,0.12,1.8),Vector3(0.48,0.035,0.68),1])
+		_add_skirmisher_wing_fittings(parts, side)
 		parts.append([Vector3(side*1.0,0.32,2.38),Vector3(0.48,0.1,0.96),0])
 		_add_nozzle_parts(parts,Vector3(side*1.0,-0.02,3.08),0.3,0.42)
-	# Angled leading-edge service bays and segmented wing-root reinforcement.
+	# Forward service bays and winglet inset faces.
 	for side in [-1.0,1.0]:
 		parts.append([Vector3(side*0.66,0.30,-1.53),Vector3(0.42,0.10,1.39),2,Vector3(0,side*-0.25,0)])
 		parts.append([Vector3(side*0.7,0.37,-1.35),Vector3(0.3,0.04,0.72),0,Vector3(0,side*-0.25,0)])
-		for bay in 3:
-			parts.append([Vector3(side*(1.82+bay*0.49),0.13,0.27+bay*0.34),Vector3(0.39,0.06,0.56),2,Vector3(0,side*-0.28,0)])
-			parts.append([Vector3(side*(1.82+bay*0.49),0.17,0.35+bay*0.34),Vector3(0.27,0.025,0.28),1,Vector3(0,side*-0.28,0)])
 		parts.append([Vector3(side*3.78,0.38,1.9),Vector3(0.05,0.54,0.89),2,Vector3(0,side*0.16,side*-0.22)])
 		parts.append([Vector3(side*1.0,-0.2,2.6),Vector3(0.78,0.11,0.66),0])
 		for rib in 3:
@@ -1505,3 +1493,58 @@ func _build_skirmisher_fittings() -> void:
 	for rib in 4:
 		parts.append([Vector3(-0.36+rib*0.24,-0.02,2.78),Vector3(0.11,0.36,0.06),0])
 	_fit_armour(parts,[_materials.skirmisher_moss,_materials.skirmisher_chalk,_materials.skirmisher_deep])
+
+
+## Formed load paths, sealed access lids and trailing elevons all join the
+## existing three-material fittings batch. The retained mirrored wing skins,
+## markings, fin anchors and combat cue geometry keep their original contracts.
+func _add_skirmisher_wing_fittings(parts: Array, side: float) -> void:
+	# Spanwise shoulder falls from the pressure pod onto the thin wing skin.
+	# The chord narrows outboard, so this reads as a fitted root rather than a
+	# second longitudinal engine pod resting on a flat plate.
+	parts.append([Vector3(side * 1.38, 0.0, 1.13), Vector3.ZERO, 0,
+		Vector3(0, side * PI * 0.5, 0), [
+			Vector4(0.0, 1.43, 0.29, 0.015),
+			Vector4(0.42, 1.34, 0.255, 0.01),
+			Vector4(0.9, 1.03, 0.12, 0.015),
+			Vector4(1.5, 0.74, 0.025, 0.033),
+		]])
+	# A single flush, swept maintenance lid sits in a dark gasket on the
+	# shoulder. Two short captive latches replace the isolated square bumps.
+	var lid_rotation := Vector3(0, side * -0.16, side * -0.14)
+	parts.append([Vector3(side * 2.46, 0.126, 1.19),
+		Vector3(0.65, 0.016, 1.19), 2, lid_rotation])
+	parts.append([Vector3(side * 2.46, 0.139, 1.19),
+		Vector3(0.59, 0.016, 1.11), 0, lid_rotation])
+	for latch_z in [0.78, 1.59]:
+		parts.append([Vector3(side * 2.48, 0.159, latch_z),
+			Vector3(0.18, 0.018, 0.048), 1, lid_rotation])
+	# Trailing elevons have a continuous hinge recess and two fitted leaves.
+	# Slightly raised skins reveal their perimeter without changing silhouette.
+	parts.append([Vector3(side * 2.79, 0.064, 2.36),
+		Vector3(1.66, 0.025, 0.067), 2])
+	for leaf in 2:
+		var leaf_x := side * (2.38 + leaf * 0.79)
+		parts.append([Vector3(leaf_x, 0.063, 2.61),
+			Vector3(0.76, 0.018, 0.45), 2])
+		parts.append([Vector3(leaf_x, 0.083, 2.625),
+			Vector3(0.705, 0.027, 0.395), 0])
+		# Short metal hinge straps tie the leaves into the fixed rear spar.
+		parts.append([Vector3(leaf_x, 0.09, 2.35),
+			Vector3(0.12, 0.045, 0.145), 1])
+	# A tapered actuator shroud meets the hinge, and the fin grows from a
+	# spreader shoe. Both are low formed parts with no exposed floating blocks.
+	parts.append([Vector3(side * 2.06, 0.057, 2.14), Vector3.ZERO, 0,
+		Vector3.ZERO, [
+			Vector4(-0.46, 0.045, 0.025, 0),
+			Vector4(-0.18, 0.11, 0.065, 0.015),
+			Vector4(0.23, 0.105, 0.055, 0.01),
+			Vector4(0.34, 0.055, 0.025, 0),
+		]])
+	parts.append([Vector3(side * 3.64, 0.025, 1.94), Vector3.ZERO, 0,
+		Vector3(0, side * 0.16, 0), [
+			Vector4(-0.75, 0.07, 0.025, 0),
+			Vector4(-0.39, 0.2, 0.09, 0.015),
+			Vector4(0.49, 0.2, 0.09, 0.015),
+			Vector4(0.71, 0.09, 0.025, 0),
+		]])
