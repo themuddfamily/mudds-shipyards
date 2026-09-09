@@ -12,6 +12,7 @@ func _initialize() -> void:
 	await process_frame
 	_test_recessed_exhaust(bomber)
 	_test_service_cassettes(bomber)
+	_test_forward_pressure_body(bomber)
 	var audit := bomber.get_audit_report()
 	var definition := bomber.get_ship_definition()
 	_check(bool(audit.get("valid", false)), "the bomber builds a valid collision and payload contract")
@@ -142,3 +143,39 @@ func _test_service_cassettes(craft: HeroShip) -> void:
 	_check(visual.find_children("*Louver*", "MeshInstance3D", true, false).is_empty()
 		and visual.find_children("*ThermalServiceRim*", "MeshInstance3D", true, false).is_empty(),
 		"service grilles replace the former stacked bars and separate rails")
+
+
+func _test_forward_pressure_body(craft: HeroShip) -> void:
+	var visual: Node3D = craft.call("get_variant_visual_root")
+	var hull := visual.get_node("LongRangeHull") as MeshInstance3D
+	var cowl := visual.get_node("SensorProtectiveCowl") as MeshInstance3D
+	var optics := visual.get_node("LongRangeSensor") as MeshInstance3D
+	var hull_faces := hull.mesh.get_faces()
+	# The four existing saddle feet must enter the pressure skin, with their
+	# tops exposed. A bounding box alone cannot detect the old floating nose.
+	for side in [-1.0, 1.0]:
+		for local_z in [-0.46, 0.75]:
+			var at := cowl.position + Vector3(side * 0.82, -0.10, local_z)
+			var skin_y := _pressure_skin_height(hull_faces, at.x, at.z)
+			_check(skin_y > at.y - 0.065 and skin_y < at.y + 0.065,
+				"forward pressure skin seats the targeting saddle foot at %s (skin %.4f)" % [at, skin_y])
+	var lenses_clear := true
+	for vertex in optics.mesh.get_faces():
+		var point: Vector3 = optics.transform * vertex
+		lenses_clear = lenses_clear and point.y > _pressure_skin_height(hull_faces, point.x, point.z) + 0.015
+	_check(lenses_clear, "both recessed targeting lenses remain fully above the formed nose skin")
+	_check(hull.mesh.get_aabb().size.is_equal_approx(Vector3(5.6, 2.65, 15.5))
+		and hull.mesh.get_surface_count() == 1
+		and hull.transform.is_equal_approx(Transform3D.IDENTITY),
+		"the formed bow retains the original primary hull envelope and single renderer surface")
+
+
+func _pressure_skin_height(faces: PackedVector3Array, x: float, z: float) -> float:
+	var highest := -INF
+	var above := Vector3(x, 3.0, z)
+	var below := Vector3(x, -3.0, z)
+	for index in range(0, faces.size(), 3):
+		var hit = Geometry3D.segment_intersects_triangle(above, below, faces[index], faces[index + 1], faces[index + 2])
+		if hit != null:
+			highest = maxf(highest, hit.y)
+	return highest
