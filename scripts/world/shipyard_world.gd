@@ -8825,6 +8825,7 @@ func _build_industrial_details() -> void:
 
 	# Short colour-coded utility runs cling to the central and branch keels. They
 	# add modern operational detail without recreating the deleted bay walls.
+	var coupler_transforms: Array = [[], [], []]
 	for side in [-1.0, 1.0]:
 		for pipe_index in 3:
 			var x_position: float = float(side) * (2.15 + float(pipe_index) * 0.36)
@@ -8841,16 +8842,34 @@ func _build_industrial_details() -> void:
 				Vector3(90, 0, 0)
 			)
 			for z_position in range(-30, 38, 8):
-				_cylinder(
-					infrastructure,
-					"PipeCoupler",
-					Vector3(x_position, y_position, float(z_position)),
-					0.32 + pipe_index * 0.04,
-					0.35,
-					_materials["ivory"],
-					false,
-					Vector3(90, 0, 0)
-				)
+				coupler_transforms[pipe_index].append(Transform3D(
+					Basis.from_euler(Vector3(deg_to_rad(90.0), 0.0, 0.0)),
+					Vector3(x_position, y_position, float(z_position))
+				))
+
+	# These collider-free rings share three exact chamfered-cylinder recipes.
+	# Keep every local pose and the full shadow geometry, with one submission
+	# per radius instead of one for each of the 54 repeated couplers.
+	for pipe_index in 3:
+		var transforms: Array[Transform3D] = []
+		transforms.assign(coupler_transforms[pipe_index])
+		var radius := 0.32 + pipe_index * 0.04
+		var multi := MultiMesh.new()
+		multi.transform_format = MultiMesh.TRANSFORM_3D
+		multi.mesh = StationSurfaceKit.chamfered_cylinder_mesh_cached(
+			radius, radius, 0.35, 24, _chamfered_cylinder_cache
+		)
+		multi.instance_count = transforms.size()
+		multi.buffer = _encode_multimesh_transforms(transforms)
+		multi.custom_aabb = _transformed_mesh_bounds(multi.mesh.get_aabb(), transforms)
+		var batch := MultiMeshInstance3D.new()
+		batch.name = "PipeCouplers%02d" % pipe_index
+		batch.multimesh = multi
+		batch.material_override = _materials["ivory"]
+		batch.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON
+		batch.set_meta("visual_detail_only", true)
+		batch.set_meta("authored_instance_transforms", transforms.duplicate())
+		infrastructure.add_child(batch)
 
 	# The old aft jib and exchanger blockout was removed when the authored Aft
 	# Junction Stack took ownership of this volume.

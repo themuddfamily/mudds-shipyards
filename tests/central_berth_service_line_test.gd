@@ -67,11 +67,117 @@ func _run() -> void:
 	_test_lanes_stay_clear(world)
 	_test_state_is_carried_by_hardware(world)
 	_test_practicals_follow_the_fixture_idiom(world)
+	await _test_industrial_coupler_batches(game, world)
 
 	game.queue_free()
 	await process_frame
 	await process_frame
 	_finish()
+
+
+func _test_industrial_coupler_batches(game: GameFlow, world: ShipyardWorld) -> void:
+	var infrastructure := world.get_node_or_null(^"IndustrialInfrastructure") as Node3D
+	_check(infrastructure != null, "production industrial infrastructure is present")
+	if infrastructure == null:
+		return
+	var batches := infrastructure.find_children("*", "MultiMeshInstance3D", false, false)
+	var pipes := infrastructure.find_children("*", "MeshInstance3D", false, false)
+	_check(
+		batches.size() == 3 and pipes.size() == 6 and infrastructure.get_child_count() == 9,
+		"six unchanged pipes and three coupler batches replace 60 ordinary renderers with nine"
+	)
+	_check(
+		infrastructure.find_children("*", "CollisionObject3D", true, false).is_empty()
+		and infrastructure.find_children("*", "CollisionShape3D", true, false).is_empty()
+		and infrastructure.find_children("*", "Light3D", true, false).is_empty(),
+		"industrial dressing remains collider-free and owns no lights"
+	)
+	var materials := world.get("_materials") as Dictionary
+	var mesh_cache: Dictionary = {}
+	var retained: Array[MultiMeshInstance3D] = []
+	var buffers: Array[PackedFloat32Array] = []
+	for pipe_index in 3:
+		var batch := infrastructure.get_node_or_null(NodePath("PipeCouplers%02d" % pipe_index)) as MultiMeshInstance3D
+		_check(batch != null and batch.multimesh != null, "coupler radius %d resolves its batch" % pipe_index)
+		if batch == null or batch.multimesh == null:
+			continue
+		var multi := batch.multimesh
+		var expected: Array[Transform3D] = []
+		for side in [-1.0, 1.0]:
+			for z_position in [-30.0, -22.0, -14.0, -6.0, 2.0, 10.0, 18.0, 26.0, 34.0]:
+				expected.append(Transform3D(
+					Basis.from_euler(Vector3(PI / 2.0, 0.0, 0.0)),
+					Vector3(side * (2.15 + pipe_index * 0.36), -1.35 - pipe_index * 0.24, z_position)
+				))
+		var payload := multi.buffer
+		var transforms_match := payload.size() == 18 * 12
+		if transforms_match:
+			for index in 18:
+				var offset := index * 12
+				var actual := Transform3D(Basis(
+					Vector3(payload[offset], payload[offset + 4], payload[offset + 8]),
+					Vector3(payload[offset + 1], payload[offset + 5], payload[offset + 9]),
+					Vector3(payload[offset + 2], payload[offset + 6], payload[offset + 10])
+				), Vector3(payload[offset + 3], payload[offset + 7], payload[offset + 11]))
+				transforms_match = transforms_match and actual.is_equal_approx(expected[index])
+				if not RenderingServer.get_video_adapter_name().is_empty():
+					transforms_match = transforms_match and multi.get_instance_transform(index).is_equal_approx(expected[index])
+		_check(
+			transforms_match and multi.instance_count == 18 and multi.visible_instance_count == -1
+			and multi.transform_format == MultiMesh.TRANSFORM_3D,
+			"radius %d retains all 18 original rendered transforms, including both sides and all nine stations" % pipe_index
+		)
+		var radius := 0.32 + pipe_index * 0.04
+		var original_mesh := StationSurfaceKit.chamfered_cylinder_mesh_cached(radius, radius, 0.35, 24, mesh_cache)
+		_check(
+			multi.mesh != null and multi.mesh.get_surface_count() == 1
+			and var_to_bytes(multi.mesh.surface_get_arrays(0)) == var_to_bytes(original_mesh.surface_get_arrays(0))
+			and batch.material_override == materials.get("ivory"),
+			"radius %d preserves original chamfered vertices, normals, tangents, UVs, indices and shared ivory material" % pipe_index
+		)
+		_check(
+			multi.custom_aabb.is_equal_approx(_transformed_bounds(original_mesh.get_aabb(), expected))
+			and batch.transform.is_equal_approx(Transform3D.IDENTITY)
+			and batch.cast_shadow == GeometryInstance3D.SHADOW_CASTING_SETTING_ON
+			and batch.layers == 1 and batch.get_child_count() == 0
+			and batch.visibility_range_begin == 0.0 and batch.visibility_range_end == 0.0,
+			"radius %d preserves full shadow geometry, visibility and exact parent-local culling bounds" % pipe_index
+		)
+		retained.append(batch)
+		buffers.append(payload.duplicate())
+	# These static renderers inherit visibility and transforms from their mount;
+	# activity enable/disable must not accidentally retire them.
+	world.set_station_activity_enabled(false)
+	infrastructure.hide()
+	var hidden := true
+	for batch in retained:
+		hidden = hidden and not batch.is_visible_in_tree()
+	infrastructure.show()
+	world.set_station_activity_enabled(true)
+	var visible := true
+	for batch in retained:
+		visible = visible and batch.is_visible_in_tree()
+	_check(hidden and visible, "coupler batches inherit mount visibility and survive activity disable/enable")
+	var original_transform := infrastructure.transform
+	infrastructure.position += Vector3(-10000.0, 4000.0, 7000.0)
+	var rebased := true
+	for batch in retained:
+		rebased = rebased and batch.global_transform.is_equal_approx(infrastructure.global_transform)
+	infrastructure.transform = original_transform
+	_check(rebased, "all coupler batches follow the world-local mount across a large origin shift")
+	root.remove_child(game)
+	await process_frame
+	root.add_child(game)
+	await process_frame
+	await process_frame
+	var restored := infrastructure.get_child_count() == 9
+	for index in retained.size():
+		var batch := retained[index]
+		restored = restored and batch.is_inside_tree() and batch.is_visible_in_tree() \
+			and batch.multimesh.buffer == buffers[index]
+	_check(restored, "whole-Main re-entry retains the same three batches and all 54 poses without rebuilding")
+	_check(bool(world.get_central_berth_service_line_report().get("valid", false)),
+		"public adjacent berth service-line physical contracts remain valid after re-entry")
 
 
 func _test_report_and_roster(world: ShipyardWorld) -> void:
