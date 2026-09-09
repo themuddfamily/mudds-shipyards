@@ -3660,6 +3660,12 @@ func _build_propulsion_and_gear() -> void:
 	# four feet sit inside the 12 m Fleet Dock 02 slab (0.8 m and 1.2 m of slab
 	# to spare fore and aft) while the bow collar and the tail yoke overhang it,
 	# the way a long aircraft overhangs its stand.
+	var gear_strut_mesh := _landing_gear_casting_mesh([
+		Vector3(0.16, -0.44, 0.16), Vector3(0.18, -0.39, 0.18),
+		Vector3(0.125, -0.28, 0.125), Vector3(0.125, 0.25, 0.125),
+		Vector3(0.23, 0.32, 0.23), Vector3(0.23, 0.40, 0.23),
+		Vector3(0.18, 0.44, 0.18),
+	])
 	var gear_damper_transforms: Array[Transform3D] = []
 	var gear_damper_names := PackedStringArray()
 	var gear_foot_transforms: Array[Transform3D] = []
@@ -3667,7 +3673,14 @@ func _build_propulsion_and_gear() -> void:
 	for side in [-1.0, 1.0]:
 		for leg_z in [-5.20, 4.80]:
 			var leg_name := ("Port" if side < 0.0 else "Starboard") + ("Forward" if leg_z < 0.0 else "Aft")
-			_box(_halyard_visual, leg_name + "GearStrut", Vector3(side * 1.95, -0.37, leg_z), Vector3(0.30, 0.88, 0.30), _halyard_materials.dark, Vector3(0.0, 0.0, side * deg_to_rad(-6.0)))
+			var strut := MeshInstance3D.new()
+			strut.name = leg_name + "GearStrut"
+			strut.mesh = gear_strut_mesh
+			strut.material_override = _halyard_materials.dark
+			strut.position = Vector3(side * 1.95, -0.37, leg_z)
+			strut.rotation.z = side * deg_to_rad(-6.0)
+			strut.set_meta("visual_only", true)
+			_halyard_visual.add_child(strut)
 			gear_foot_transforms.append(Transform3D(
 				Basis.IDENTITY,
 				Vector3(side * 2.08, -0.98, leg_z)
@@ -3678,10 +3691,15 @@ func _build_propulsion_and_gear() -> void:
 	# These four landing pads are visual-only siblings with one equal mesh and
 	# material. Their authored identities and transforms remain on the batch for
 	# inspection; the unchanged LandingGearCollision still owns physical contact.
-	var gear_foot_mesh := StationSurfaceKit.rounded_box_mesh_cached(
-		LANDING_GEAR_FOOT_SIZE,
-		_box_mesh_cache
-	)
+	# A continuous casting rolls the sole into a recessed shoulder, then rises
+	# into the strut shoe. Its underside and plan extents retain pad contact;
+	# the raised shoe closes the old gap beneath the load-bearing strut.
+	var gear_foot_mesh := _landing_gear_casting_mesh([
+		Vector3(0.55, -0.10, 0.775), Vector3(0.60, -0.06, 0.825),
+		Vector3(0.60, 0.025, 0.825), Vector3(0.53, 0.10, 0.755),
+		Vector3(0.43, 0.075, 0.60), Vector3(0.30, 0.24, 0.28),
+		Vector3(0.23, 0.29, 0.23),
+	])
 	_multimesh_visual_stock(
 		_halyard_visual,
 		"LandingGearFootBatch",
@@ -3706,6 +3724,39 @@ func _build_propulsion_and_gear() -> void:
 		gear_damper_transforms,
 		gear_damper_names
 	)
+
+
+## Closed eight-sided horizontal sections give cast gear hardware broad flats
+## and bevelled corners. Adjacent rings share a contour: no stacked tile trim.
+func _landing_gear_casting_mesh(sections: Array[Vector3]) -> ArrayMesh:
+	var perimeter := PackedVector2Array([
+		Vector2(-0.72, -1.0), Vector2(0.72, -1.0),
+		Vector2(1.0, -0.72), Vector2(1.0, 0.72),
+		Vector2(0.72, 1.0), Vector2(-0.72, 1.0),
+		Vector2(-1.0, 0.72), Vector2(-1.0, -0.72),
+	])
+	var tool := SurfaceTool.new()
+	tool.begin(Mesh.PRIMITIVE_TRIANGLES)
+	for ring in sections.size() - 1:
+		var low := sections[ring]
+		var high := sections[ring + 1]
+		for index in perimeter.size():
+			var a := perimeter[index]
+			var b := perimeter[(index + 1) % perimeter.size()]
+			_skin_quad(tool, Vector3(a.x * low.x, low.y, a.y * low.z),
+				Vector3(a.x * high.x, high.y, a.y * high.z),
+				Vector3(b.x * high.x, high.y, b.y * high.z),
+				Vector3(b.x * low.x, low.y, b.y * low.z))
+	for end in [0, sections.size() - 1]:
+		var section := sections[end]
+		for index in perimeter.size():
+			var a := perimeter[index]
+			var b := perimeter[(index + 1) % perimeter.size()]
+			tool.set_normal(Vector3.DOWN if end == 0 else Vector3.UP)
+			for point in ([Vector2.ZERO, b, a] if end == 0 else [Vector2.ZERO, a, b]):
+				tool.set_uv(point)
+				tool.add_vertex(Vector3(point.x * section.x, section.y, point.y * section.z))
+	return tool.commit()
 
 
 ## Four removable cooling cassettes per nacelle, retaining straps and attached

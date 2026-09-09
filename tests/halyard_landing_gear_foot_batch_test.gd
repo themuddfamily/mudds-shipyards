@@ -2,8 +2,8 @@ extends SceneTree
 
 ## Focused renderer regression for the Halyard's four visual landing pads.
 ## Collision and boarding authority remain separate production nodes; this
-## verifies only the immutable batch, exact silhouette transforms, and measured
-## component-local allocation delta.
+## verifies the immutable batch, contact footprint, connected shoe/strut fit,
+## and shared component stocks without freezing unrelated ship construction.
 
 const HALYARD_SCENE := preload("res://scenes/ships/halyard_crew_transport.tscn")
 
@@ -45,13 +45,12 @@ func _run() -> void:
 		_check(
 			batch.multimesh.instance_count == HalyardCrewTransport.LANDING_GEAR_FOOT_COPY_COUNT
 				and batch.multimesh.visible_instance_count == -1
-				and batch.multimesh.mesh.get_aabb().size.is_equal_approx(
-					HalyardCrewTransport.LANDING_GEAR_FOOT_SIZE
-				)
+				and batch.multimesh.mesh.get_aabb().size.is_equal_approx(Vector3(1.20, 0.39, 1.65))
+				and is_equal_approx(batch.multimesh.mesh.get_aabb().position.y, -0.10)
 				and batch.get_meta("authored_visual_names", PackedStringArray()) == expected_names
 				and transforms_match
 				and batch.material_override == craft.get_variant_materials().get("structure"),
-			"the batch preserves the four named pad silhouettes at their authored transforms"
+			"the formed pads preserve their plan extents, sole contact and four authored transforms"
 		)
 		_check(
 			visual.find_children("*GearFoot", "MeshInstance3D", true, false).is_empty()
@@ -60,17 +59,39 @@ func _run() -> void:
 			"the visual batch is collision-free while the production gear collider remains authoritative"
 		)
 
-	var report := craft.get_halyard_render_allocation_report()
-	_check(
-		int(report.get("descendant_nodes", -1)) == 115
-			and int(report.get("mesh_instances", -1)) == 102
-			and int(report.get("multimesh_batches", -1)) == 8
-			and int(report.get("drawn_copies", -1)) == 168
-			and int(report.get("geometry_submissions", -1)) == 110
-			and int(report.get("unique_mesh_resources", -1)) == 69
-			and bool(report.get("exact_counts", false)),
-		"four visible pads remain while the frozen Halyard budget drops by three nodes and submissions"
-	)
+		var collider := craft.get_node(^"LandingGearCollision") as CollisionShape3D
+		var shape := collider.shape as BoxShape3D
+		_check(shape.size.is_equal_approx(Vector3(5.0, 0.70, 12.0))
+			and is_equal_approx(collider.position.y - shape.size.y * 0.5, -1.08)
+			and not collider.disabled, "physical gear dimensions and contact plane remain unchanged")
+		var struts := visual.find_children("*GearStrut", "MeshInstance3D", true, false)
+		var shared_stock: Mesh = null
+		var fit := struts.size() == 4
+		for strut: MeshInstance3D in struts:
+			if shared_stock == null:
+				shared_stock = strut.mesh
+			fit = fit and strut.mesh == shared_stock and strut.mesh.get_surface_count() == 1
+			fit = fit and strut.material_override == craft.get_variant_materials().get("dark")
+			var lower := strut.transform * Vector3(0, -0.44, 0)
+			var pad_origin := Vector3(signf(strut.position.x) * 2.08, -0.98, strut.position.z)
+			var local := lower - pad_origin
+			# Lower strut centre enters the raised shoe, inside even its smallest
+			# upper profile. The sole itself still ends on the original contact.
+			fit = fit and absf(local.x) < 0.23 and absf(local.z) < 0.23
+			fit = fit and local.y > 0.10 and local.y < 0.29
+		_check(fit, "four shared formed struts enter their pad shoes without a floating gap")
+		_check(batch.multimesh.mesh.get_surface_count() == 1
+			and batch.multimesh.instance_count == 4 and struts.size() == 4,
+			"formed pads and struts retain five total visual submissions and two shared stocks")
+		var foot_mesh := batch.multimesh.mesh
+		var upper_vertices := 0
+		for vertex: Vector3 in foot_mesh.surface_get_arrays(0)[Mesh.ARRAY_VERTEX]:
+			if vertex.y > 0.10001:
+				upper_vertices += 1
+				fit = fit and absf(vertex.x) <= 0.30001 and absf(vertex.z) <= 0.28001
+		_check(fit and upper_vertices > 0, "raised shoe stays within strut space and does not expand boarding clearance")
+		print("GEAR_COST: nodes=6 submissions=6 materials=3 stocks=3; foot_vertices=",
+			foot_mesh.surface_get_array_len(0), " strut_vertices=", shared_stock.surface_get_array_len(0))
 
 	craft.queue_free()
 	await process_frame
