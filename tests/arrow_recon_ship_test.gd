@@ -37,6 +37,7 @@ func _run() -> void:
 	_test_pod_separation_collar_mesh_sharing(arrow)
 	_test_boarding_step_mesh_sharing(arrow)
 	_test_escape_pods_and_sensors(arrow)
+	_test_instrument_construction(arrow)
 	_test_collision_boarding_and_cameras(arrow)
 	await _test_engine_weapon_and_lifecycle(arrow)
 	await _test_cleanup(arrow)
@@ -1444,6 +1445,45 @@ func _test_visual_performance_batch(arrow: ArrowReconShip) -> void:
 	)
 
 
+func _test_instrument_construction(arrow: ArrowReconShip) -> void:
+	var cluster := arrow.get_arrow_visual_root().get_node("CockpitInterior/InstrumentCluster") as Node3D
+	var readout := cluster.get_node("FlightDataReadout") as Label3D
+	_check(readout == arrow.get("_cockpit_readout") and readout.has_node("LiveFlightInstruments") and not readout.no_depth_test,
+		"recessed instruments retain the controller-owned physical live readout")
+	var port := cluster.get_node("PortStatusRepeater") as MeshInstance3D
+	var starboard := cluster.get_node("StarboardStatusRepeater") as MeshInstance3D
+	_check(port.mesh == starboard.mesh and port.mesh.get_surface_count() == 1,
+		"both recessed dial sockets share one immutable single-surface mesh")
+	var camera := arrow.get("_cockpit_camera") as Camera3D
+	var geometry_valid := true
+	var clear_dials := true
+	for node_name in ["InstrumentHood", "DisplayBezelTop", "DisplayBezelBottom", "PortDisplayBezelSide", "StarboardDisplayBezelSide", "PortStatusRepeater", "StarboardStatusRepeater"]:
+		var stock := cluster.get_node(node_name) as MeshInstance3D
+		for surface in stock.mesh.get_surface_count():
+			var arrays := stock.mesh.surface_get_arrays(surface)
+			var vertices: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
+			var normals: PackedVector3Array = arrays[Mesh.ARRAY_NORMAL]
+			var uvs: PackedVector2Array = arrays[Mesh.ARRAY_TEX_UV]
+			geometry_valid = geometry_valid and normals.size() == vertices.size() and uvs.size() == vertices.size()
+			for index in vertices.size():
+				geometry_valid = geometry_valid and vertices[index].is_finite() and normals[index].is_finite() and normals[index].length() > 0.99 and uvs[index].is_finite()
+			for index in range(0, vertices.size(), 3):
+				var a := vertices[index]
+				var b := vertices[index + 1]
+				var c := vertices[index + 2]
+				geometry_valid = geometry_valid and (b - a).cross(c - a).dot(normals[index]) < 0.0
+				geometry_valid = geometry_valid and absf((uvs[index + 1] - uvs[index]).cross(uvs[index + 2] - uvs[index])) > 0.00000001
+				# Sample the outer dial ticks from the real pilot eye, including
+				# the off-axis far rim, against every new opaque mounting face.
+				for side in [-1.0, 1.0]:
+					for sample in 24:
+						var angle := TAU * float(sample) / 24.0
+						var target := cluster.to_global(Vector3(side * 0.57 + cos(angle) * 0.116, 0.08 + sin(angle) * 0.116, 0.165))
+						clear_dials = clear_dials and Geometry3D.segment_intersects_triangle(stock.to_local(camera.global_position), stock.to_local(target), a, b, c) == null
+	_check(geometry_valid, "instrument stock retains outward winding, finite unit normals and nonsingular UVs")
+	_check(clear_dials, "both complete dial sweeps clear the new mounting geometry from the authored pilot eye")
+
+
 func _test_collision_boarding_and_cameras(arrow: ArrowReconShip) -> void:
 	_check(arrow.collision_layer == SHIP_LAYER, "Arrow uses canonical Ship physics layer")
 	_check(arrow.collision_mask == PhysicsLayers.SHIP_BODY_MASK, "Arrow collides with world, players, and ships")
@@ -1562,6 +1602,7 @@ func _test_engine_weapon_and_lifecycle(arrow: ArrowReconShip) -> void:
 		await physics_frame
 	var telemetry := arrow.get_telemetry()
 	_check(str(telemetry.engine_state) == "ONLINE", "Arrow completes the inherited engine-start lifecycle")
+	_check((arrow.get("_cockpit_readout") as Label3D).text.contains("ONLINE"), "recessed flight display follows real engine startup")
 	_check(str(telemetry.ship_id) == "arrow_provisional" and str(telemetry.role) == "Reconnaissance ship", "telemetry carries Arrow identity and role")
 	var plumes: Array[MeshInstance3D] = []
 	var port_plume := arrow.get_arrow_visual_root().get_node_or_null("PortEnginePlume") as MeshInstance3D

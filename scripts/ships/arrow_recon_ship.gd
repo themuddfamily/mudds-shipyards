@@ -1422,6 +1422,7 @@ func _restyle_inherited_cockpit(cockpit: Node3D, canopy: Node3D) -> void:
 	for obsolete_name in ["PortCanopyTopRail", "StarboardCanopyTopRail", "PortCanopyLowerRail", "StarboardCanopyLowerRail", "PortCanopyLowerPressureSeal", "StarboardCanopyLowerPressureSeal", "PortCanopyLaminateEdge", "StarboardCanopyLaminateEdge", "CanopyNosePressureSeal", "PortCanopyNoseFrame", "StarboardCanopyNoseFrame", "PortCanopyRearUpright", "StarboardCanopyRearUpright"]:
 		(canopy.get_node(obsolete_name) as Node3D).visible = false
 	if cockpit != null:
+		_fit_arrow_instrument_binnacle(cockpit)
 		# Darker interior preserves high contrast behind the unusually clear canopy.
 		for node in cockpit.find_children("*", "MeshInstance3D", true, false):
 			var mesh_instance := node as MeshInstance3D
@@ -1463,6 +1464,92 @@ func _restyle_inherited_cockpit(cockpit: Node3D, canopy: Node3D) -> void:
 			(frame as MeshInstance3D).material_override = _arrow_materials.graphite
 		for rail in canopy.find_children("*Canopy*Rail", "MeshInstance3D", true, false):
 			(rail as MeshInstance3D).material_override = _arrow_materials.ceramic
+
+
+## The existing live faces sit inside machined wells, beneath a shallow brow.
+## Keep the authored eye point, control identities and readout tree: this is
+## replacement construction on the inherited renderers, not another HUD.
+func _fit_arrow_instrument_binnacle(cockpit: Node3D) -> void:
+	var cluster := cockpit.get_node("InstrumentCluster") as Node3D
+	var hood := cluster.get_node("InstrumentHood") as MeshInstance3D
+	hood.mesh = _cockpit_formed_enclosure_mesh([
+		Vector4(1.20, -0.53, 0.06, -0.53),
+		Vector4(1.56, -0.32, 0.285, -0.08),
+		Vector4(1.56, -0.30, 0.285, 0.07),
+	], _arrow_materials.graphite, _arrow_materials.titanium)
+	# A projecting perimeter makes the unchanged flight display a recessed
+	# removable module. Its top remains below the original hood crown.
+	for bezel_name in ["DisplayBezelTop", "DisplayBezelBottom", "PortDisplayBezelSide", "StarboardDisplayBezelSide"]:
+		var bezel := cluster.get_node(bezel_name) as MeshInstance3D
+		bezel.position.z = 0.15
+		var size := bezel.mesh.get_aabb().size
+		size.z = 0.12
+		bezel.mesh = _cockpit_formed_enclosure_mesh([
+			Vector4(size.x, -size.y * 0.5, size.y * 0.5, -size.z * 0.5),
+			Vector4(size.x, -size.y * 0.5, size.y * 0.5, size.z * 0.5),
+		], _arrow_materials.titanium)
+	# Both round sockets share one turned profile; their lit dial/text stays
+	# at its original depth, behind the outer lip and ahead of the backing.
+	var socket_mesh := _arrow_instrument_socket_mesh()
+	for side_name in ["Port", "Starboard"]:
+		var socket := cluster.get_node(side_name + "StatusRepeater") as MeshInstance3D
+		socket.mesh = socket_mesh
+		socket.rotation = Vector3.ZERO
+		socket.material_override = null
+	# The old broad glowing strip becomes an inset caution lens below
+	# the display, supported by the lower sill instead of spanning both dials.
+	var caution := cluster.get_node("WarningStrip") as MeshInstance3D
+	caution.scale.x = 0.48
+	caution.position.z = 0.115
+	for side_name in ["Port", "Starboard"]:
+		var console := cockpit.get_node(side_name + "SideConsole") as MeshInstance3D
+		console.material_override = _arrow_materials.graphite
+
+
+func _arrow_instrument_socket_mesh() -> ArrayMesh:
+	# Radius/depth stations: backing, recessed bore, chamfer, lip, outer case.
+	# Closed ends and explicit per-face UVs keep this valid for lit materials.
+	var profile := [Vector2(0.0, 0.022), Vector2(0.128, 0.022),
+		Vector2(0.130, 0.055), Vector2(0.134, 0.077),
+		Vector2(0.141, 0.077), Vector2(0.146, 0.060),
+		Vector2(0.146, -0.045), Vector2(0.0, -0.045)]
+	var tool := SurfaceTool.new()
+	tool.begin(Mesh.PRIMITIVE_TRIANGLES)
+	var finish := (_arrow_materials.titanium as StandardMaterial3D).duplicate() as StandardMaterial3D
+	finish.vertex_color_use_as_albedo = true
+	finish.roughness = 0.72
+	finish.metallic = 0.25
+	tool.set_material(finish)
+	for station in profile.size() - 1:
+		for segment in 48:
+			var a := TAU * float(segment) / 48.0
+			var b := TAU * float(segment + 1) / 48.0
+			var start: Vector2 = profile[station]
+			var end: Vector2 = profile[station + 1]
+			var points := [Vector3(cos(a) * start.x, sin(a) * start.x, start.y),
+				Vector3(cos(b) * start.x, sin(b) * start.x, start.y),
+				Vector3(cos(b) * end.x, sin(b) * end.x, end.y),
+				Vector3(cos(a) * end.x, sin(a) * end.x, end.y)]
+			for triangle in [[0, 1, 2], [0, 2, 3]]:
+				var normal: Vector3 = (points[triangle[2]] - points[triangle[0]]).cross(points[triangle[1]] - points[triangle[0]])
+				if normal.length_squared() < 0.0000000001:
+					continue
+				for index in triangle:
+					var point: Vector3 = points[index]
+					# Analytic turned normals stay smooth around the axis while
+					# each profile station retains its machined edge.
+					var radial := Vector2(point.x, point.y).normalized()
+					if radial == Vector2.ZERO:
+						radial = Vector2(cos(a), sin(a))
+					var slope := end - start
+					tool.set_normal(Vector3(-slope.y * radial.x, -slope.y * radial.y, slope.x).normalized())
+					tool.set_color(Color(0.84, 0.84, 0.84) if station in [3, 4] else Color(0.30, 0.34, 0.36))
+					# Each annular strip unwraps around the axis, including the
+					# cylindrical bore where planar UVs would collapse.
+					tool.set_uv(Vector2(float(segment + (1 if index in [1, 2] else 0)) / 48.0, float(station + (1 if index in [2, 3] else 0)) / 7.0))
+					tool.add_vertex(point)
+	tool.generate_tangents()
+	return tool.commit()
 
 
 func _share_inherited_console_key_meshes(cockpit: Node3D) -> void:
