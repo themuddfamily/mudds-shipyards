@@ -74,6 +74,32 @@ func _run() -> void:
 			ordinary_pods += 1
 	_check(ordinary_pods == 0, "the retired ordinary pod renderers do not remain alongside the batch")
 
+	var collars: Array[MeshInstance3D] = []
+	var throats: Array[MeshInstance3D] = []
+	for child in visual.get_children():
+		if child is MeshInstance3D:
+			var mesh_node := child as MeshInstance3D
+			if mesh_node.mesh is ArrayMesh and mesh_node.mesh.get_aabb().position.z > 3.6:
+				if mesh_node.get_active_material(0) == (opponent.get("_materials") as Dictionary).shade:
+					collars.append(mesh_node)
+				elif mesh_node.get_active_material(0) == (opponent.get("_materials") as Dictionary).deep:
+					throats.append(mesh_node)
+	_check(collars.size() == 2 and throats.size() == 2
+		and collars[0].mesh == collars[1].mesh and throats[0].mesh == throats[1].mesh,
+		"paired retained collar and throat renderers share their manufactured meshes")
+	if throats.size() == 2:
+		var throat_material := throats[0].get_active_material(0) as StandardMaterial3D
+		var arrays := throats[0].mesh.surface_get_arrays(0)
+		var vertices: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
+		var mouth_is_open := true
+		var mouth_z := throats[0].mesh.get_aabb().end.z
+		for vertex in vertices:
+			if is_equal_approx(vertex.z, mouth_z) and Vector2(vertex.x, vertex.y).length() < 0.4:
+				mouth_is_open = false
+		_check(mouth_is_open and throats[0].mesh.get_aabb().size.z > 0.25
+			and throat_material != null and not throat_material.emission_enabled,
+			"exhaust mouths have recessed non-emissive interiors instead of luminous end caps")
+
 	var colliders := opponent.find_children("*", "CollisionShape3D", false, false)
 	var plume_count := 0
 	var engine_light_count := 0

@@ -2135,6 +2135,19 @@ func _build_interceptor() -> void:
 	_add_charge_lens_batch(_visual_root)
 	_add_range_engine_pod_batch(_visual_root)
 
+	# Both engines share manufactured nozzle meshes; the only emissive exhaust
+	# remains the existing damage-controlled plume, so dormant throats stay dark.
+	var exhaust_collar := _defender_exhaust_profile([
+		Vector2(3.63, 0.575), Vector2(3.67, 0.625),
+		Vector2(3.75, 0.625), Vector2(3.79, 0.585),
+		Vector2(3.99, 0.585), Vector2(4.03, 0.625),
+		Vector2(4.10, 0.625), Vector2(4.15, 0.58),
+		Vector2(4.15, 0.475), Vector2(4.105, 0.445),
+	], _materials.shade)
+	var exhaust_throat := _defender_exhaust_profile([
+		Vector2(4.105, 0.445), Vector2(3.96, 0.405),
+		Vector2(3.86, 0.30), Vector2(3.84, 0.28), Vector2(3.84, 0.0),
+	], _materials.deep)
 	var forward_prong_mesh: Mesh
 	for side_index in 2:
 		var side := -1.0 if side_index == 0 else 1.0
@@ -2160,8 +2173,12 @@ func _build_interceptor() -> void:
 		)
 		_warning_lenses.append(lens)
 
-		_cylinder(_visual_root, "EngineCollar", Vector3(side * 2.67, 0.05, 3.82), 0.68, 0.26, _materials.shade, Vector3(90.0, 0.0, 0.0))
-		_cylinder(_visual_root, "EngineCore", Vector3(side * 2.67, 0.05, 3.99), 0.39, 0.15, _materials.engine, Vector3(90.0, 0.0, 0.0))
+		for part in [["EngineCollar", exhaust_collar], ["EngineCore", exhaust_throat]]:
+			var nozzle := MeshInstance3D.new()
+			nozzle.name = part[0]
+			nozzle.mesh = part[1]
+			nozzle.position = Vector3(side * 2.67, 0.05, 0)
+			_visual_root.add_child(nozzle)
 		var plume := _exhaust_plume(_visual_root, "EnginePlume", Vector3(side * 2.67, 0.05, 4.42), 0.24, 0.78, _materials.engine, Vector3(90.0, 0.0, 0.0))
 		_engine_glows.append(plume)
 		var engine_light := OmniLight3D.new()
@@ -2333,6 +2350,28 @@ func _add_charge_lens_batch(parent: Node3D) -> MultiMeshInstance3D:
 	batch.set_meta(&"authored_instance_transforms", transforms.duplicate())
 	parent.add_child(batch)
 	return batch
+
+
+## Defender-only lathed nozzle. Each axial profile edge owns its normal, keeping
+## machined shoulders crisp while smoothing all 48 segments around the bore.
+## The profile runs aft along the outside, then forward into the open throat.
+func _defender_exhaust_profile(profile: Array, material: Material) -> ArrayMesh:
+	var surface := SurfaceTool.new()
+	surface.begin(Mesh.PRIMITIVE_TRIANGLES)
+	surface.set_material(material)
+	for edge in profile.size() - 1:
+		var first: Vector2 = profile[edge]
+		var last: Vector2 = profile[edge + 1]
+		var slope := (last - first).normalized()
+		for segment in 48:
+			for address: Vector2i in [Vector2i(0, 0), Vector2i(1, 0), Vector2i(1, 1), Vector2i(0, 0), Vector2i(1, 1), Vector2i(0, 1)]:
+				var ring: Vector2 = first if address.x == 0 else last
+				var angle := TAU * float(segment + address.y) / 48.0
+				var radial := Vector3(cos(angle), sin(angle), 0)
+				surface.set_normal(radial * slope.x + Vector3(0, 0, -slope.y))
+				surface.set_uv(Vector2(float(segment + address.y) / 48.0, ring.x))
+				surface.add_vertex(radial * ring.y + Vector3(0, 0, ring.x))
+	return surface.commit()
 
 
 func _add_range_engine_pod_batch(parent: Node3D) -> MultiMeshInstance3D:
@@ -2808,7 +2847,6 @@ func _build_range_fittings() -> void:
 			parts.append([Vector3(side*1.62,0.46,1.61+rib*0.25),Vector3(0.82,0.075,0.07),1])
 		parts.append([Vector3(side*2.67,0.69,2.81),Vector3(0.72,0.13,1.5),0])
 		parts.append([Vector3(side*2.67,-0.62,3.12),Vector3(0.76,0.11,1.35),1])
-		_add_nozzle_parts(parts,Vector3(side*2.67,0.05,3.99),0.56,0.56)
 	# One formed service spine beds into each prong rather than stacking loose
 	# square caps above it. Its narrow footprint exposes the cyan inlay as two
 	# continuous edge rails; tapered ends run down into the prong top.
