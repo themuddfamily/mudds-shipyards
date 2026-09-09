@@ -50,6 +50,21 @@ func _run() -> void:
 		"the proper mirrored transform preserves both exact authored silhouette bounds and winding"
 	)
 
+	# The nose stock must actually enter the barrel on both mirrored copies.
+	# AABB overlap alone allowed the old broad slab corners to project past it.
+	var vertices: PackedVector3Array = prongs[0].mesh.surface_get_arrays(0)[Mesh.ARRAY_VERTEX]
+	var neck_vertices := 0
+	var neck_seated := true
+	for vertex in vertices:
+		if vertex.z <= -3.35:
+			neck_vertices += 1
+			for prong in prongs:
+				var fitted := prong.transform * vertex
+				var barrel_centre := Vector2(prong.position.x, -0.08)
+				neck_seated = neck_seated and Vector2(fitted.x, fitted.y).distance_to(barrel_centre) < 0.31
+	_check(neck_vertices > 0 and neck_seated,
+		"both formed necks fit inside their gun cylinder without projecting ivory corners")
+
 	var material := prongs[0].mesh.surface_get_material(0) as StandardMaterial3D
 	_check(
 		material != null

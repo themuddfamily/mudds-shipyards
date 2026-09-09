@@ -180,7 +180,7 @@ const RANGE_ENGINE_POD_POSITIONS := [
 ]
 const RANGE_ENGINE_POD_NAMES := ["PortEnginePod", "StarboardEnginePod"]
 
-## The forward prongs are the same y-symmetric wedge reflected across X. A
+## The forward prongs are the same y-symmetric formed spar reflected across X. A
 ## 180-degree Z rotation performs that reflection together with an invisible Y
 ## reflection, retaining proper winding/normals while both ordinary renderers
 ## share the port-authored immutable ArrayMesh.
@@ -2271,14 +2271,25 @@ func _add_shared_forward_prong(
 	shared_mesh: Mesh
 	) -> Mesh:
 	if side_index == 0:
-		return _wedge(
-			parent,
-			"ForwardProng",
-			FORWARD_PRONG_POSITIONS[0],
-			FORWARD_PRONG_SIZE,
-			_materials.ivory,
-			-FORWARD_PRONG_SKEW
-		).mesh
+		# A broad mounting shoulder narrows into a rounded load-bearing spar.
+		# The flat crown stays at the existing cyan inlay's bedding height, while
+		# the curved flanks carry the change in section down to the gun socket.
+		# The small forward neck fits inside the existing cylindrical housing;
+		# it replaces the old pointed slab projecting beside the barrel.
+		return _pressure_body(parent, "ForwardProng", FORWARD_PRONG_POSITIONS[0], [
+			Vector4(-4.175, 0.12, 0.12, 0),
+			Vector4(-3.72, 0.16, 0.16, 0),
+			Vector4(-3.35, 0.20, 0.20, 0),
+			Vector4(-3.05, 0.38, 0.345, 0),
+			Vector4(-2.65, 0.43, 0.36, 0),
+			Vector4(-1.8, 0.455, 0.36, 0),
+			Vector4(0.30, 0.48, 0.36, 0),
+			Vector4(1.25, 0.53, 0.36, 0),
+			Vector4(2.1, 0.585, 0.36, 0),
+			Vector4(2.7, 0.59, 0.36, 0),
+			Vector4(3.35, 0.565, 0.34, 0),
+			Vector4(4.175, 0.47, 0.285, 0),
+		], _materials.ivory).mesh
 	var starboard := MeshInstance3D.new()
 	starboard.name = "ForwardProng"
 	starboard.position = FORWARD_PRONG_POSITIONS[1]
