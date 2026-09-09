@@ -16,6 +16,9 @@ const EVIDENCE_STATUS: StringName = &"fixed_era_inspired_modern_interpretation"
 ## endpoint; the pair is what `StationRouteRegistry` records as one graph edge.
 const HUB_CONNECTION_SLOT: StringName = &"hub-starboard-habitat"
 const WORLD_LAYER := PhysicsLayers.WORLD
+const STATIC_SHADOW_BATCH = preload("res://scripts/world/static_shadow_batch.gd")
+const ARCH_SHADOW_BATCH_COUNT := 27
+const ARCH_SHADOW_SEGMENTS_PER_BATCH := 14
 
 ## Physical size of one station panel plate in this module, in metres of world
 ## space per texture repeat. Frozen.
@@ -36,7 +39,7 @@ const CORRIDOR_CLEAR_WIDTH := 4.6
 const MINIMUM_HEAD_CLEARANCE := 4.0
 const BUNK_ALCOVE_COUNT := 6
 const COMMON_CHAIR_COUNT := 8
-## The common room keeps the same five pressure-rib silhouettes and renderer
+## The common room keeps the same five pressure-rib silhouettes and colour renderer
 ## allocation, but three of them now carry the Habitat's established brass trim
 ## as route-scale waypoints. From the corridor they read as a warm nested cadence:
 ## arrival, room centre, observation glazing. The two dark structural ribs between
@@ -101,28 +104,30 @@ const MESS_TRESTLE_FOOT_COPY_COUNT := 2
 const GARDEN_RACK_CROWN_COPY_COUNT := 5
 const MESS_MUG_COPY_COUNT := 3
 const BERTH_BOOT_COPY_COUNT := 8
-const PRE_MESS_MUG_GEOMETRY_SUBMISSION_COUNT := 1230
-const PRE_GALLEY_MUG_GEOMETRY_SUBMISSION_COUNT := 1221
-const PRE_GARDEN_RACK_CROWN_GEOMETRY_SUBMISSION_COUNT := 1234
-const PRE_COMMON_CEILING_LIGHT_BODY_GEOMETRY_SUBMISSION_COUNT := 1243
-const PRE_DECK_SEAM_GEOMETRY_SUBMISSION_COUNT := 1251
-const PRE_GALLEY_DOOR_PULL_GEOMETRY_SUBMISSION_COUNT := 1240
-const PRE_MESS_BENCH_LEG_GEOMETRY_SUBMISSION_COUNT := 1237
+# Include the independent 27 shadow-only arch renderers in both sides of
+# existing family comparisons. Their colour surfaces and materials stay intact.
+const PRE_MESS_MUG_GEOMETRY_SUBMISSION_COUNT := 1257
+const PRE_GALLEY_MUG_GEOMETRY_SUBMISSION_COUNT := 1248
+const PRE_GARDEN_RACK_CROWN_GEOMETRY_SUBMISSION_COUNT := 1261
+const PRE_COMMON_CEILING_LIGHT_BODY_GEOMETRY_SUBMISSION_COUNT := 1270
+const PRE_DECK_SEAM_GEOMETRY_SUBMISSION_COUNT := 1278
+const PRE_GALLEY_DOOR_PULL_GEOMETRY_SUBMISSION_COUNT := 1267
+const PRE_MESS_BENCH_LEG_GEOMETRY_SUBMISSION_COUNT := 1264
 ## Each of the two reusable StationDoors owns one two-copy frame-post batch in
 ## addition to its indicator batch. Those runtime children are part of this
 ## module's live renderer census even though their implementation is shared.
-const RENDER_DESCENDANT_COUNT := 1855
-const RENDER_MESH_INSTANCE_COUNT := 1192
+const RENDER_DESCENDANT_COUNT := 1882
+const RENDER_MESH_INSTANCE_COUNT := 1219
 const RENDER_MULTIMESH_BATCH_COUNT := 32
 ## One reusable StationDoor renderer owns a shared MultiMesh resource across the
 ## module's two door instances; all other batches own their component buffer.
 const RENDER_UNIQUE_MULTIMESH_RESOURCE_COUNT := 31
-const RENDER_DRAWN_COPY_COUNT := 1385
-const RENDER_GEOMETRY_SUBMISSION_COUNT := 1215
+const RENDER_DRAWN_COPY_COUNT := 1412
+const RENDER_GEOMETRY_SUBMISSION_COUNT := 1242
 # The shallow, interior-visible common-room ribs resolve through two symmetric
 # cached cylinder lengths rather than the former seven-length exterior curve.
 # All 70 copies remain, while unique generated mesh recipes fall 345 -> 340.
-const RENDER_UNIQUE_MESH_RESOURCE_COUNT := 340
+const RENDER_UNIQUE_MESH_RESOURCE_COUNT := 367
 const RENDER_UNIQUE_MATERIAL_RESOURCE_COUNT := 33
 const OBSERVATION_BACKREST_COLOR := Color("365c63")
 const OBSERVATION_BACKREST_METALLIC := 0.02
@@ -250,6 +255,10 @@ const STAGED_BUILD_PHASES: Array[Array] = [
 ]
 var _module_enabled := true
 var _hatch_fastener_mesh: Mesh
+# Constructor-owned immutable rosters; no scene scan or independently moving
+# geometry participates. Each arch retains its own tight shadow culling bounds.
+var _arch_shadow_sources: Array[Array] = []
+var _arch_shadow_batches: Array[MeshInstance3D] = []
 var _hatch_fastener_batch: MultiMeshInstance3D
 var _hatch_fastener_transforms: Array[Transform3D] = []
 var _nutrient_tank_band_mesh: TorusMesh
@@ -295,6 +304,7 @@ func _ready() -> void:
 		_index_semantics()
 		_build_structure()
 		_style_access_landmarks()
+		_build_arch_shadow_batches()
 		_apply_metadata()
 	# Reconcile the real node state against `_module_enabled` on every ready, so a
 	# scene-authored or externally drifted layer/visibility cannot survive.
@@ -358,6 +368,7 @@ static func run_staged_construction(module_ref: WeakRef, on_stage: Callable = Ca
 		if not _is_staged_current(module, generation):
 			return false
 	module._style_access_landmarks()
+	module._build_arch_shadow_batches()
 	module._apply_metadata()
 	module._apply_enabled_state()
 	if not _is_staged_current(module, generation):
@@ -4077,6 +4088,18 @@ func _build_common_soft_goods(common: Node3D) -> void:
 	_box(goods, "ObservationThrow", Vector3(5.0, 1.14, 25.20), Vector3(0.86, 0.62, 0.30), _materials["blanket"], false, Vector3(-6, 0, 0))
 
 
+func _build_arch_shadow_batches() -> void:
+	if not _arch_shadow_batches.is_empty() \
+			or _arch_shadow_sources.size() != ARCH_SHADOW_BATCH_COUNT:
+		return
+	for sources: Array[MeshInstance3D] in _arch_shadow_sources:
+		if sources.size() != ARCH_SHADOW_SEGMENTS_PER_BATCH:
+			continue
+		var batch := STATIC_SHADOW_BATCH.build(sources[0].get_parent() as Node3D, sources)
+		if batch != null:
+			_arch_shadow_batches.append(batch)
+
+
 func _style_access_landmarks() -> void:
 	if _main_access != null:
 		_apply_door_material(_main_access, _materials["teal"], _materials["teal"])
@@ -4440,7 +4463,8 @@ func _arch_across_x(
 	parent.add_child(arch)
 	var half_width := (x_maximum - x_minimum) * 0.5
 	var center_x := (x_minimum + x_maximum) * 0.5
-	var segment_count := 14
+	var segment_count := ARCH_SHADOW_SEGMENTS_PER_BATCH
+	var shadow_sources: Array[MeshInstance3D] = []
 	var previous := Vector3(x_minimum, spring_height, z_position)
 	for segment_index in segment_count:
 		var progress := float(segment_index + 1) / float(segment_count)
@@ -4448,8 +4472,16 @@ func _arch_across_x(
 		var normalized_x := (x_position - center_x) / half_width
 		var curve_height := spring_height + (crown_height - spring_height) * sqrt(maxf(0.0, 1.0 - normalized_x * normalized_x))
 		var current := Vector3(x_position, curve_height, z_position)
-		_beam_between(arch, "TubeSegment%02d" % segment_index, previous, current, radius, material, false)
+		shadow_sources.append(_beam_between(
+			arch, "TubeSegment%02d" % segment_index, previous, current, radius, material, false
+		) as MeshInstance3D)
 		previous = current
+	# These four authored families are static pressure-shell or privacy ribs.
+	# No glass, seats, fixtures, hidden anchors or pre-existing batch is included.
+	if node_name == "PrivacyArch" or node_name.begins_with("ConnectorPressureRib") \
+			or node_name.begins_with("HabitatPressureRib") \
+			or node_name.begins_with("CommonPressureRib"):
+		_arch_shadow_sources.append(shadow_sources)
 	return arch
 
 
