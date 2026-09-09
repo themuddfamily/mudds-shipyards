@@ -113,4 +113,3 @@ static func _service_stock_triangle(tool: SurfaceTool, a: Vector3, b: Vector3, c
 	for index in order:
 		tool.set_uv([uv_a, uv_b, uv_c][index])
 		tool.add_vertex([a, b, c][index])
-
