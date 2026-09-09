@@ -310,8 +310,10 @@ func _check_craft(expected_sign: int) -> void:
 		% [fleet_triangles, procedural_craft]
 	)
 	_assert(
-		closed_lofts == 60,
-		"the normal-independent closed-loft guard covered all 60 manufactured closed volumes across Arrow, Zenith, Jovian and Halyard"
+		# Jovian's four engine modules are now open annular cowls; they remain
+		# covered by the full triangle/normal sweep above, not a solid-loft test.
+		closed_lofts == 56,
+		"the normal-independent closed-loft guard covered all 56 manufactured closed volumes across Arrow, Zenith, Jovian and Halyard"
 	)
 
 
