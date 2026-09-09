@@ -89,7 +89,7 @@ EXPECTED_RUNTIME_MESH_COUNTS = {
     "CanopyPivot": 3,
     "SemanticAnchors": 0,
 }
-EXPECTED_RUNTIME_TRIANGLES = 96_842
+EXPECTED_RUNTIME_TRIANGLES = 99_226
 RUNTIME_MESH_INSTANCE_BUDGET = 36
 SOURCE_MESH_INSTANCE_BUDGET = 320
 CLOSE_TRIANGLE_RANGE = (70_000, 90_000)
@@ -1000,30 +1000,78 @@ def build_lod0(collection):
                          (side*2.37,.73,2.78), .040, collection, graphite, 20, .008)
     tapered_box("AftCrossbar", collection, graphite, 2.22, 2.70,
                 (1.92,.10), (1.68,.065), 2.00, .020)
+    # The machinery cassette is a formed inset across the falling aft shell.
+    # Its stepped perimeter and raked fins replace the freestanding box grille;
+    # all parts retain their semantic names and existing material join batches.
     for i in range(8):
-        box(f"AftMachineryRib{i:02d}", (-1.35+i*.385,1.42,3.52),
-            (.12,.70,.12), collection,alloy,.018)
-    # A deep graphite engine/service recess breaks the old blank aft wall and
-    # visually connects the paired nozzles to one credible machinery bay.
-    box("AftMachineryRecess", (0,1.22,3.15), (2.68,1.04,.56), collection,graphite,.04)
-    box("AftBayFrameTop", (0,1.76,3.60), (2.78,.10,.13), collection,alloy,.018)
-    box("AftBayFrameLower", (0,.69,3.60), (2.78,.10,.13), collection,alloy,.018)
-    box("AftBayFramePort", (-1.34,1.22,3.60), (.10,1.02,.13), collection,alloy,.018)
-    box("AftBayFrameStarboard", (1.34,1.22,3.60), (.10,1.02,.13), collection,alloy,.018)
-    for conduit_index, y_value in enumerate((.88, 1.10, 1.34, 1.56)):
-        conduit_z = 3.47 + conduit_index * .030
-        cylinder_between(f"AftBayConduit{conduit_index:02d}", (-1.18,y_value,conduit_z),
-                         (1.18,y_value,conduit_z), .025, collection,
-                         cyan if conduit_index == 1 else alloy, 18, .006)
+        x = -1.05 + i * .30
+        box(f"AftMachineryRib{i:02d}", (x, 1.29, 3.51),
+            (.10, .54, .12), collection, alloy, .018,
+            rotation=(math.radians(-16), 0, 0))
+    cassette_outline = [(-1.31,.93), (-1.12,.76), (1.12,.76), (1.31,.93),
+                        (1.31,1.53), (1.12,1.69), (-1.12,1.69), (-1.31,1.53)]
+    # A tapered cast surround seats inside the shell at its forward station.
+    verts = [(x*.90, 1.23+(y-1.23)*.88, 3.08) for x,y in cassette_outline]
+    verts += [(x,y,3.47) for x,y in cassette_outline]
+    faces = [tuple(reversed(range(8))), tuple(range(8,16))]
+    faces += [(i,(i+1)%8,(i+1)%8+8,i+8) for i in range(8)]
+    wedge("AftMachineryRecess", collection, graphite, verts, faces, .024)
+    tapered_box("AftBayFrameTop", collection, alloy, 3.36, 3.56,
+                (1.15,.055), (1.11,.028), 1.68, .012)
+    tapered_box("AftBayFrameLower", collection, alloy, 3.36, 3.54,
+                (1.15,.050), (.98,.026), .79, .012)
+    for side, suffix in ((-1,"Port"),(1,"Starboard")):
+        # One continuous return follows all three shoulder facets, rather than
+        # straight extruded stock with open-looking right-angle corners.
+        profile = [(side*1.09,.79),(side*1.27,.95),
+                   (side*1.27,1.51),(side*1.09,1.68)]
+        vv = [(x+side*offset,y,z) for z,offset in
+              ((3.39,-.04),(3.54,0),(3.54,.065),(3.39,.065))
+              for x,y in profile]
+        ff = []
+        for ring in range(4):
+            nxt = (ring+1)%4
+            for edge in range(3):
+                ff.append((ring*4+edge,ring*4+edge+1,nxt*4+edge+1,nxt*4+edge))
+        ff += [(0,4,8,12),(3,15,11,7)]
+        if side < 0:
+            ff = [tuple(reversed(face)) for face in ff]
+        wedge("AftBayFrame"+suffix,collection,alloy,vv,ff,.009)
+    for conduit_index, y_value in enumerate((.94, 1.11, 1.31, 1.51)):
+        cylinder_between(f"AftBayConduit{conduit_index:02d}", (-1.13,y_value,3.48),
+                         (1.13,y_value,3.48), .018, collection,
+                         cyan if conduit_index == 1 else alloy, 18, .005)
     annular_shell("CentralAftDockingMechanism", collection, alloy, (0,.78),
-                  (3.50,3.62,3.72), (.39,.38,.33), (.24,.23,.20), 40,.007)
-    cylinder("CentralAftDockingCore", (0,.78,3.69), .18,.05,collection,thermal,32,bevel=.008)
+                  (3.40,3.52,3.60), (.34,.32,.29), (.24,.23,.20), 40,.007)
+    cylinder("CentralAftDockingCore", (0,.78,3.55), .18,.05,collection,thermal,32,bevel=.008)
     for side in (-1,1):
         s="Port" if side<0 else "Starboard"
-        box(f"{s}AftShoulderCutout",(side*1.48,1.25,3.58),(.58,.72,.22),collection,graphite,.05)
+        # A recessed common connector well replaces the broad black shoulder
+        # block. Status faces sit behind its lip instead of glowing cyan pegs.
+        well_vertices = []
+        # Traverse outer shell, lip and inner recess as one watertight cup.
+        # The graphite floor protects the status contacts from hull bleed-through.
+        for z_value,radius in ((3.26,.34),(3.43,.32),(3.57,.29),
+                               (3.57,.235),(3.43,.22)):
+            for segment in range(24):
+                angle = math.tau * segment / 24
+                well_vertices.append((side*1.52+math.cos(angle)*radius,
+                                      1.24+math.sin(angle)*radius*.84,z_value))
+        well_faces = [tuple(reversed(range(24))), tuple(range(96,120))]
+        for ring in range(4):
+            for segment in range(24):
+                following = (segment+1)%24
+                well_faces.append((ring*24+segment,ring*24+following,
+                                   (ring+1)*24+following,(ring+1)*24+segment))
+        well = wedge(f"{s}AftShoulderCutout",collection,graphite,
+                     well_vertices,well_faces,.006)
+        for polygon in well.data.polygons:
+            polygon.use_smooth = abs(polygon.normal.z) < .82
         for i in range(4):
-            cylinder(f"{s}AftServiceCoupling{i}",(side*(1.25+i*.13),1.42,3.75),.045,.08,
-                     collection,cyan,18,bevel=.008)
+            angle = math.tau * i / 4.0 + math.pi/4
+            cylinder(f"{s}AftServiceCoupling{i}",
+                     (side*1.52+math.cos(angle)*.10,1.24+math.sin(angle)*.09,3.45),
+                     .037,.025,collection,cyan,18,bevel=.004)
 
     # One authored cockpit visual authority. These live under CockpitArt so the
     # runtime adapter can mount them beneath the existing functional cockpit
