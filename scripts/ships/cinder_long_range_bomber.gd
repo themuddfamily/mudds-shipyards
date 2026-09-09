@@ -42,10 +42,8 @@ const AFT_TAILPLANE_POSITION := Vector3(0.0, 0.2, 5.3)
 const AFT_FIN_SIZE := Vector3(0.34, 2.2, 3.3)
 const AFT_FIN_OFFSET := Vector3(2.3, 1.25, 5.35)
 const AFT_FIN_CANT_DEGREES := 12.0
-const SENSOR_RADIUS := 0.62
-const SENSOR_HEIGHT := 1.24
 const SENSOR_POSITION := Vector3(0.0, 1.44, -5.2)
-const SENSOR_SCALE := Vector3(1.0, 0.60, 1.0)
+const SENSOR_SCALE := Vector3.ONE
 ## The dorsal sensor remains visible to chase/world cameras, but its placement
 ## intersects the physical pilot's forward framing. A dedicated presentation
 ## layer lets the cockpit omit only this exterior emitter without moving it or
@@ -87,7 +85,8 @@ static var _shared_strike_wing_mesh: ArrayMesh
 static var _shared_strike_wing_multimesh: MultiMesh
 static var _shared_aft_tailplane_mesh: ArrayMesh
 static var _shared_aft_fin_mesh: ArrayMesh
-static var _shared_sensor_mesh: SphereMesh
+static var _shared_sensor_mesh: ArrayMesh
+static var _shared_sensor_cowl_mesh: ArrayMesh
 static var _shared_sensor_material: StandardMaterial3D
 static var _shared_damage_scorch_mesh: BoxMesh
 static var _shared_damage_scorch_material: StandardMaterial3D
@@ -735,7 +734,7 @@ func get_sensor_resource_sharing_audit() -> Dictionary:
 	var visual := get_variant_visual_root()
 	var sensor := visual.get_node_or_null(^"LongRangeSensor") as MeshInstance3D \
 			if visual != null else null
-	var mesh := sensor.mesh as SphereMesh if sensor != null else null
+	var mesh := sensor.mesh as ArrayMesh if sensor != null else null
 	var material := sensor.material_override as StandardMaterial3D if sensor != null else null
 	if sensor == null:
 		errors.append("LongRangeSensor renderer is missing")
@@ -753,9 +752,7 @@ func get_sensor_resource_sharing_audit() -> Dictionary:
 	if mesh == null or mesh != _shared_sensor_mesh:
 		errors.append("LongRangeSensor shared mesh identity drifted")
 	elif (
-		not is_equal_approx(mesh.radius, SENSOR_RADIUS)
-		or not is_equal_approx(mesh.height, SENSOR_HEIGHT)
-		or mesh.get_surface_count() != 1
+		mesh.get_surface_count() != 1
 	):
 		errors.append("LongRangeSensor mesh recipe drifted")
 	elif mesh.resource_local_to_scene:
@@ -922,14 +919,10 @@ func _build_hull(visual: Node3D) -> void:
 	visual.add_child(ordnance)
 	var sensor := MeshInstance3D.new()
 	sensor.name = "LongRangeSensor"
-	if _shared_sensor_mesh == null:
-		_shared_sensor_mesh = SphereMesh.new()
-		_shared_sensor_mesh.radius = SENSOR_RADIUS
-		_shared_sensor_mesh.height = SENSOR_HEIGHT
-		_shared_sensor_mesh.resource_local_to_scene = false
 	if _shared_sensor_material == null:
 		_shared_sensor_material = _material(SENSOR_COLOR, 0.35, 0.24)
 		_shared_sensor_material.resource_local_to_scene = false
+	_build_forward_targeting_assembly(visual)
 	sensor.mesh = _shared_sensor_mesh
 	sensor.position = SENSOR_POSITION
 	sensor.scale = SENSOR_SCALE
@@ -943,6 +936,85 @@ func _build_hull(visual: Node3D) -> void:
 	ShipSurfaceDetail.mark_surface(visual, "PayloadServiceMark", "service", Vector3(0, 1.27, 5.8), Vector2(1.8, 0.9), Vector3(0, 1, 0.113), Vector3.FORWARD)
 
 
+## Low armored cheeks carry a recessed dual-aperture targeting head on a
+## gasketed deck saddle. The aft service lid, cooling slots and captive bolts
+## explain how the unit is installed without filling the pilot's forward view.
+## Static construction uses three shared mounting surfaces plus one optical
+## surface; the existing sensor renderer/layer remains the presentation seam.
+func _build_forward_targeting_assembly(visual: Node3D) -> void:
+	if _shared_sensor_cowl_mesh == null:
+		var coating := SurfaceTool.new()
+		var gasket := SurfaceTool.new()
+		var hardware := SurfaceTool.new()
+		var optics := SurfaceTool.new()
+		for surface: SurfaceTool in [coating, gasket, hardware, optics]:
+			surface.begin(Mesh.PRIMITIVE_TRIANGLES)
+		coating.set_material(_shared_hull_material)
+		gasket.set_material(_material(Color("111d23"), 0.32, 0.58))
+		hardware.set_material(_material(Color("66787d"), 0.72, 0.36))
+		# Broad bottom lands embed in the hull crown; pointed forward ends
+		# carry the side shells down into the nose instead of a square box.
+		gasket.append_from(_formed_pressure_mesh(Vector3(2.0, 0.16, 2.8), null), 0, Transform3D(Basis.IDENTITY, Vector3(0, -0.15, 0.12)))
+		for side in [-1.0, 1.0]:
+			coating.append_from(_formed_pressure_mesh(Vector3(0.44, 0.50, 2.65), null), 0, Transform3D(Basis.IDENTITY, Vector3(side * 0.69, -0.005, 0.10)))
+			_append_service_block(hardware, Vector3(side * 0.72, 0.18, 0.41), Vector3(0.065, 0.04, 0.82))
+			for z in [-0.46, 0.75]:
+				_append_service_block(coating, Vector3(side * 0.82, -0.10, z), Vector3(0.35, 0.13, 0.28))
+				var bolt := CylinderMesh.new()
+				bolt.top_radius = 0.068
+				bolt.bottom_radius = 0.068
+				bolt.height = 0.038
+				bolt.radial_segments = 6
+				hardware.append_from(bolt, 0, Transform3D(Basis.IDENTITY, Vector3(side * 0.91, -0.012, z)))
+		_append_service_block(gasket, Vector3(0, 0.025, 0.63), Vector3(1.04, 0.21, 0.82))
+		_append_service_block(coating, Vector3(0, 0.15, 0.64), Vector3(0.98, 0.10, 0.79))
+		for index in 5:
+			_append_service_block(gasket, Vector3(0, 0.214, 0.41 + float(index) * 0.10), Vector3(0.61, 0.024, 0.043))
+		# Aperture axes look forward and above the nose. The cover ring sits
+		# ahead of each nonemissive lens, exposing a dark recessed inner wall.
+		var tilt := Basis(Vector3.RIGHT, -PI / 3.0)
+		coating.append_from(_rounded_box_mesh(Vector3(1.16, 0.20, 0.70), null), 0, Transform3D(tilt, Vector3(0, 0.035, -0.16)))
+		for index in 2:
+			var radius := 0.255 if index == 0 else 0.165
+			var center := Vector3(-0.245 if index == 0 else 0.30, 0.065, -0.28)
+			var socket := CylinderMesh.new()
+			socket.top_radius = radius + 0.072
+			socket.bottom_radius = radius + 0.072
+			socket.height = 0.22
+			socket.radial_segments = 32
+			gasket.append_from(socket, 0, Transform3D(tilt, center))
+			var rim := TorusMesh.new()
+			rim.inner_radius = radius
+			rim.outer_radius = radius + 0.08
+			rim.rings = 32
+			rim.ring_segments = 8
+			hardware.append_from(rim, 0, Transform3D(tilt, center + tilt.y * 0.17))
+			var lens := CylinderMesh.new()
+			lens.top_radius = radius * 0.94
+			lens.bottom_radius = lens.top_radius
+			lens.height = 0.012
+			lens.radial_segments = 32
+			optics.append_from(lens, 0, Transform3D(tilt, center + tilt.y * 0.118))
+			# A small upper hood shades the rim and connects the optical head
+			# to its rear service deck, leaving both front apertures exposed.
+			_append_service_block(coating, center + Vector3(0, radius + 0.015, 0.09), Vector3(radius * 2.0 + 0.12, 0.08, 0.37))
+		_shared_sensor_cowl_mesh = ArrayMesh.new()
+		for surface: SurfaceTool in [coating, gasket, hardware]:
+			surface.generate_tangents()
+			surface.commit(_shared_sensor_cowl_mesh)
+		optics.generate_tangents()
+		_shared_sensor_mesh = optics.commit()
+		_shared_sensor_cowl_mesh.resource_local_to_scene = false
+		_shared_sensor_mesh.resource_local_to_scene = false
+	var cowl := MeshInstance3D.new()
+	cowl.name = "SensorProtectiveCowl"
+	cowl.mesh = _shared_sensor_cowl_mesh
+	cowl.position = SENSOR_POSITION
+	cowl.layers = EXTERIOR_SENSOR_VISUAL_LAYER
+	cowl.set_meta(&"presentation_only", true)
+	visual.add_child(cowl)
+
+
 ## Long paired propulsion trunks leave a centerline service valley and carry
 ## the swept wings into the pressure body without a rectangular butt joint.
 func _build_bomber_propulsion(visual: Node3D) -> void:
@@ -951,8 +1023,6 @@ func _build_bomber_propulsion(visual: Node3D) -> void:
 	for z in [2.0, 3.25, 4.5]:
 		var plate := _pressure_panel(visual, "DorsalOrdnanceArmor" + str(z), Vector3(0, 1.355, z), 2.0, 2.35, 1.12, 0.05, ceramic)
 		plate.rotation.x = PI * 0.5
-	var sensor_cowl := _armor_shell(visual, "SensorProtectiveCowl", SENSOR_POSITION + Vector3(0, -0.02, 0.10), Vector3(1.75, 0.42, 1.85), ceramic)
-	sensor_cowl.layers = EXTERIOR_SENSOR_VISUAL_LAYER
 	var hot := _material(Color("799da5"), 0.4, 0.28, Color("70aec0"), 0.65)
 	for side in [-1.0, 1.0]:
 		var tag := "Port" if side < 0 else "Starboard"
