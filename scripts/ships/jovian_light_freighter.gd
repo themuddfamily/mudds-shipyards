@@ -4891,42 +4891,104 @@ func _emit_cargo_header_vertex(
 	tool.add_vertex(position)
 
 
-## Thin pressed skin over a transverse crown. The underside follows the same
-## profile; only the perimeter is closed, leaving the cabin volume empty.
+## Monotone station slopes preserve each authored width/height and never swell
+## beyond adjacent stations. A shared derivative makes the formed crown C1 at
+## station joins, including the flat cargo run, without rounding its perimeter.
+func _roof_station_slope(sections: PackedVector3Array, station: int) -> Vector3:
+	if station == 0:
+		return (sections[1] - sections[0]) / (sections[1].z - sections[0].z)
+	if station == sections.size() - 1:
+		return (sections[station] - sections[station - 1]) / (sections[station].z - sections[station - 1].z)
+	var before := sections[station].z - sections[station - 1].z
+	var after := sections[station + 1].z - sections[station].z
+	var left := (sections[station] - sections[station - 1]) / before
+	var right := (sections[station + 1] - sections[station]) / after
+	var slope := Vector3(0.0, 0.0, 1.0)
+	for axis in [0, 1]:
+		if left[axis] * right[axis] > 0.0:
+			var w_left := 2.0 * after + before
+			var w_right := after + 2.0 * before
+			slope[axis] = (w_left + w_right) / (w_left / left[axis] + w_right / right[axis])
+	return slope
+
+
+## Position and d(position)/dz on the same bounded cubic used by roof fittings.
+func _roof_profile(sections: PackedVector3Array, z: float) -> PackedVector3Array:
+	z = clampf(z, sections[0].z, sections[-1].z)
+	for station in sections.size() - 1:
+		if z > sections[station + 1].z:
+			continue
+		var a := sections[station]
+		var b := sections[station + 1]
+		var length := b.z - a.z
+		var t := (z - a.z) / length
+		var start := _roof_station_slope(sections, station)
+		var end := _roof_station_slope(sections, station + 1)
+		var section := (2.0 * t * t * t - 3.0 * t * t + 1.0) * a \
+			+ (t * t * t - 2.0 * t * t + t) * length * start \
+			+ (-2.0 * t * t * t + 3.0 * t * t) * b \
+			+ (t * t * t - t * t) * length * end
+		var derivative := (6.0 * t * t - 6.0 * t) * (a - b) / length \
+			+ (3.0 * t * t - 4.0 * t + 1.0) * start + (3.0 * t * t - 2.0 * t) * end
+		section.z = z
+		derivative.z = 1.0
+		return PackedVector3Array([section, derivative])
+	return PackedVector3Array([sections[-1], _roof_station_slope(sections, sections.size() - 1)])
+
+
+## Flat or linear spans need no additional tessellation. Curved spans use a
+## bounded physical spacing, shared by the pressure skin and its fitted covers.
+func _roof_span_steps(sections: PackedVector3Array, front: float, rear: float) -> int:
+	var a := _roof_profile(sections, front)
+	var b := _roof_profile(sections, rear)
+	var secant := (b[0] - a[0]) / (rear - front)
+	if a[1].is_equal_approx(secant) and b[1].is_equal_approx(secant):
+		return 1
+	return maxi(1, ceili((rear - front) / 0.30))
+
+
+## Thin pressed skin curved in both directions. Its underside shares the
+## profile and opposite normals; sharp closing folds only occur at the perimeter.
 func _pressed_roof(parent: Node3D, node_name: String, half_width: float, base_y: float,
 		rise: float, sections: PackedVector3Array, thickness: float, material: Material) -> MeshInstance3D:
 	var tool := SurfaceTool.new()
 	tool.begin(Mesh.PRIMITIVE_TRIANGLES)
 	tool.set_material(material)
 	const STEPS := 32
+	var profiles: Array[PackedVector3Array] = []
 	for station in sections.size() - 1:
+		var count := _roof_span_steps(sections, sections[station].z, sections[station + 1].z)
+		for sample in count:
+			profiles.append(_roof_profile(sections, lerpf(sections[station].z, sections[station + 1].z, float(sample) / count)))
+	profiles.append(_roof_profile(sections, sections[-1].z))
+	for station in profiles.size() - 1:
 		for step in STEPS:
 			var points: Array[Vector3] = []
 			var normals: Array[Vector3] = []
 			for corner in [Vector2i(station, step), Vector2i(station + 1, step), Vector2i(station + 1, step + 1), Vector2i(station, step + 1)]:
-				var section := sections[corner.x]
+				var section := profiles[corner.x][0]
+				var derivative := profiles[corner.x][1]
 				var u := float(corner.y) / float(STEPS) * 2.0 - 1.0
 				points.append(Vector3(u * half_width * section.x, base_y + section.y + rise * pow(maxf(0.0, 1.0 - u * u), 0.60), section.z))
-				# A pressed crown is continuously curved across its width. Keep the
-				# longitudinal station breaks, but do not shade each transverse
-				# tessellation strip as a separate folded plate.
 				var safe_u := clampf(u, -0.995, 0.995)
 				var slope := -1.2 * rise * safe_u * pow(1.0 - safe_u * safe_u, -0.40)
 				var across := Vector3(half_width * section.x, slope, 0.0)
-				var section_delta := sections[station + 1] - sections[station]
-				var along := Vector3(u * half_width * section_delta.x, section_delta.y, section_delta.z)
+				var along := Vector3(u * half_width * derivative.x, derivative.y, 1.0)
 				normals.append(along.cross(across).normalized())
 			_skin_curved_quad(tool, points, normals)
 			var down := Vector3.DOWN * thickness
-			_skin_quad(tool, points[3] + down, points[2] + down, points[1] + down, points[0] + down)
+			var inner: Array[Vector3] = [points[3] + down, points[2] + down, points[1] + down, points[0] + down]
+			var inner_normals: Array[Vector3] = [-normals[3], -normals[2], -normals[1], -normals[0]]
+			_skin_curved_quad(tool, inner, inner_normals)
 			if station == 0:
-				_skin_quad(tool, points[3], points[3] + down, points[0] + down, points[0])
-			if station == sections.size() - 2:
-				_skin_quad(tool, points[1], points[1] + down, points[2] + down, points[2])
+				_roof_service_quad(tool, points[3], points[3] + down, points[0] + down, points[0], false)
+			if station == profiles.size() - 2:
+				_roof_service_quad(tool, points[1], points[1] + down, points[2] + down, points[2], false)
 			if step == 0:
-				_skin_quad(tool, points[0], points[0] + down, points[1] + down, points[1])
+				_roof_service_quad(tool, points[0], points[0] + down, points[1] + down, points[1], false)
 			if step == STEPS - 1:
-				_skin_quad(tool, points[2], points[2] + down, points[3] + down, points[3])
+				_roof_service_quad(tool, points[2], points[2] + down, points[3] + down, points[3], false)
+	tool.generate_tangents()
 	var instance := MeshInstance3D.new()
 	instance.name = node_name
 	instance.mesh = tool.commit()
@@ -5274,16 +5336,12 @@ func _roof_service_height(x: float, z: float, cabin: bool) -> float:
 		half_width = 3.56
 		base_y = 3.80
 		rise = 0.43
-	for station in sections.size() - 1:
-		if z <= sections[station + 1].z:
-			var t := inverse_lerp(sections[station].z, sections[station + 1].z, z)
-			var section := sections[station].lerp(sections[station + 1], t)
-			return base_y + section.y + rise * pow(maxf(0.0, 1.0 - pow(x / (half_width * section.x), 2)), 0.60)
-	return base_y
+	var section := _roof_profile(PackedVector3Array(sections), z)[0]
+	return base_y + section.y + rise * pow(maxf(0.0, 1.0 - pow(x / (half_width * section.x), 2)), 0.60)
 
 
 ## A shallow pressed patch with a rolled edge and an open underside. Station
-## cuts include each pressure-shell break so a long frame cannot bridge in air.
+## cuts follow the formed pressure shell so long frames cannot bridge in air.
 func _roof_service_patch(batch: Dictionary, finish: String, side: float, inner: float,
 		outer: float, front: float, rear: float, lift: float, cabin := false) -> void:
 	if not batch.has(finish):
@@ -5298,8 +5356,15 @@ func _roof_service_patch(batch: Dictionary, finish: String, side: float, inner: 
 		if split > front + bevel and split < rear - bevel:
 			stations.append(split)
 	stations.sort()
+	var fitted_stations: Array[float] = []
+	var roof_sections := PackedVector3Array(CABIN_ROOF_SECTIONS if cabin else CARGO_ROOF_SECTIONS)
+	for station in stations.size() - 1:
+		var count := _roof_span_steps(roof_sections, stations[station], stations[station + 1])
+		for sample in count:
+			fitted_stations.append(lerpf(stations[station], stations[station + 1], float(sample) / count))
+	fitted_stations.append(stations[-1])
 	var rings: Array[PackedVector3Array] = []
-	for z in stations:
+	for z in fitted_stations:
 		var end := is_equal_approx(z, front) or is_equal_approx(z, rear)
 		var xmin := inner + (bevel if end else 0.0)
 		var xmax := outer - (bevel if end else 0.0)

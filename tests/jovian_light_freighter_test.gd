@@ -31,6 +31,7 @@ func _run() -> void:
 	await physics_frame
 
 	_test_fitout_cpu_surface_parity(jovian)
+	_test_formed_roof(jovian)
 	_test_open_engine_module_sharing(jovian)
 	_test_definition_and_evidence(jovian)
 	_test_defensive_weapon_visual(jovian)
@@ -1849,3 +1850,46 @@ func _test_interior_furnishing_ranges(craft: HeroShip) -> void:
 				geometry.material_override, geometry.cast_shadow]
 			and geometry.visibility_range_end == 100.0,
 			"reentry retains authored furniture identity, pose, material and visibility authority")
+
+
+func _test_formed_roof(ship: JovianLightFreighter) -> void:
+	var bounded := true
+	var continuous := true
+	for authored in [JovianLightFreighter.CARGO_ROOF_SECTIONS, JovianLightFreighter.CABIN_ROOF_SECTIONS]:
+		var sections := PackedVector3Array(authored)
+		for station in sections.size():
+			bounded = bounded and ship._roof_profile(sections, sections[station].z)[0].is_equal_approx(sections[station])
+			if station > 0 and station < sections.size() - 1:
+				var left := ship._roof_profile(sections, sections[station].z - 0.0001)[1]
+				var right := ship._roof_profile(sections, sections[station].z + 0.0001)[1]
+				continuous = continuous and left.distance_to(right) < 0.001
+		for station in sections.size() - 1:
+			for step in 41:
+				var point := ship._roof_profile(sections, lerpf(sections[station].z, sections[station + 1].z, float(step) / 40.0))[0]
+				for axis in [0, 1]:
+					bounded = bounded and point[axis] >= minf(sections[station][axis], sections[station + 1][axis]) - 0.00001 and point[axis] <= maxf(sections[station][axis], sections[station + 1][axis]) + 0.00001
+	_check(bounded, "formed roof retains authored stations without width or height overshoot")
+	_check(continuous, "formed roof derivatives remain continuous at the former highlight breaks")
+	var valid_frames := true
+	var valid_triangles := true
+	for label in ["CargoRoofShell", "ForwardCabinCrown"]:
+		var node := ship.find_child(label, true, false) as MeshInstance3D
+		if node == null:
+			valid_frames = false
+			continue
+		var arrays := node.mesh.surface_get_arrays(0)
+		var vertices: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
+		var normals: PackedVector3Array = arrays[Mesh.ARRAY_NORMAL]
+		var uvs: PackedVector2Array = arrays[Mesh.ARRAY_TEX_UV]
+		var tangents: PackedFloat32Array = arrays[Mesh.ARRAY_TANGENT]
+		valid_frames = valid_frames and normals.size() == vertices.size() and uvs.size() == vertices.size() and tangents.size() == vertices.size() * 4
+		if not valid_frames:
+			continue
+		for index in vertices.size():
+			var tangent := Vector3(tangents[index * 4], tangents[index * 4 + 1], tangents[index * 4 + 2])
+			valid_frames = valid_frames and tangent.is_finite() and absf(tangent.length() - 1.0) < 0.001 and absf(normals[index].dot(tangent)) < 0.001
+		for index in range(0, vertices.size(), 3):
+			valid_triangles = valid_triangles and (vertices[index + 1] - vertices[index]).cross(vertices[index + 2] - vertices[index]).length_squared() > 1e-12
+			valid_triangles = valid_triangles and absf((uvs[index + 1] - uvs[index]).cross(uvs[index + 2] - uvs[index])) > 1e-8
+	_check(valid_frames, "both formed skins have complete finite orthonormal tangent frames")
+	_check(valid_triangles, "roof faces and perimeter returns have nondegenerate triangles and UVs")
