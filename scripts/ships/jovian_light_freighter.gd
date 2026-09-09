@@ -12,6 +12,25 @@ extends HeroShip
 ## The cargo deck, passenger cabin, cockpit, and exterior ramp are one physical
 ## ship-local hierarchy; no detached or teleported interior is involved.
 
+# CPU staging only: never attached to a renderer. Keeping the decoded surface
+# lets native SurfaceTool.append_from preserve its packing/transform semantics
+# without reading the same ArrayMesh back from the rendering server per fitting.
+class FitoutSurfaceData extends Mesh:
+	var arrays: Array
+
+	func _init(source: Mesh) -> void:
+		arrays = source.surface_get_arrays(0)
+
+	func _get_surface_count() -> int:
+		return 1
+
+	func _surface_get_arrays(_surface: int) -> Array:
+		return arrays
+
+	func _surface_get_primitive_type(_surface: int) -> int:
+		return Mesh.PRIMITIVE_TRIANGLES
+
+
 const SCHEMA_VERSION := 1
 const CrewSeatRoleAuthorityType := preload("res://scripts/ships/crew_seat_role_authority.gd")
 const CrewRoleGameplayProfileType := preload("res://scripts/fleet/crew_role_gameplay_profile.gd")
@@ -3205,6 +3224,7 @@ func _build_jovian_variant(_controller: HeroShip) -> bool:
 	_build_connected_interior()
 	_build_propulsion_and_gear()
 	_build_fitted_freighter_details()
+	_fitout_mesh_cache.clear()
 	_build_hull_markings()
 	_configure_interior_furnishing_ranges()
 	_build_engine_damage_cue()
@@ -5327,15 +5347,14 @@ func _fitout_stock(batch: Dictionary, finish: String, at: Vector3, size: Vector3
 		tool.begin(Mesh.PRIMITIVE_TRIANGLES)
 		tool.set_material(_jovian_materials[finish])
 		batch[finish] = tool
-	var stock: ArrayMesh
-	if finish == "cabin_cloth":
-		var padding_key := "padding:" + str(size)
-		if not _fitout_mesh_cache.has(padding_key):
-			_fitout_mesh_cache[padding_key] = StationSurfaceKit.rounded_box_mesh_with_bevel(size, minf(0.045, minf(size.x, minf(size.y, size.z)) * 0.35))
-		stock = _fitout_mesh_cache[padding_key] as ArrayMesh
-	else:
-		stock = StationSurfaceKit.rounded_box_mesh_cached(size, _fitout_mesh_cache)
-	(batch[finish] as SurfaceTool).append_from(stock, 0,
+	var stock_key := "padding:" + str(size) if finish == "cabin_cloth" else \
+		"%0.4f:%0.4f:%0.4f" % [size.x, size.y, size.z]
+	if not _fitout_mesh_cache.has(stock_key):
+		var bevel := minf(0.045, minf(size.x, minf(size.y, size.z)) * 0.35) \
+			if finish == "cabin_cloth" else StationSurfaceKit.bevel_for_size(size)
+		var stock := StationSurfaceKit.rounded_box_mesh_with_bevel(size, bevel)
+		_fitout_mesh_cache[stock_key] = FitoutSurfaceData.new(stock)
+	(batch[finish] as SurfaceTool).append_from(_fitout_mesh_cache[stock_key], 0,
 		Transform3D(Basis.from_euler(rotation_value), at))
 
 
@@ -5356,17 +5375,20 @@ func _fitout_ring(batch: Dictionary, finish: String, at: Vector3,
 		tool.begin(Mesh.PRIMITIVE_TRIANGLES)
 		tool.set_material(_jovian_materials[finish])
 		batch[finish] = tool
-	var ring := TorusMesh.new()
-	ring.inner_radius = inside
-	ring.outer_radius = outside
-	ring.rings = 48
-	ring.ring_segments = 8
-	# Stock panels are unindexed; mixing indexed torus geometry into the same
-	# SurfaceTool leaves the earlier panels outside its index buffer.
-	var ring_stock := SurfaceTool.new()
-	ring_stock.create_from(ring, 0)
-	ring_stock.deindex()
-	(batch[finish] as SurfaceTool).append_from(ring_stock.commit(), 0,
+	var ring_key := Vector2(inside, outside)
+	if not _fitout_mesh_cache.has(ring_key):
+		var ring := TorusMesh.new()
+		ring.inner_radius = inside
+		ring.outer_radius = outside
+		ring.rings = 48
+		ring.ring_segments = 8
+		# Stock panels are unindexed; mixing indexed torus geometry into the same
+		# SurfaceTool leaves the earlier panels outside its index buffer.
+		var ring_stock := SurfaceTool.new()
+		ring_stock.create_from(ring, 0)
+		ring_stock.deindex()
+		_fitout_mesh_cache[ring_key] = FitoutSurfaceData.new(ring_stock.commit())
+	(batch[finish] as SurfaceTool).append_from(_fitout_mesh_cache[ring_key], 0,
 		Transform3D(Basis(Vector3.RIGHT, PI * 0.5), at))
 
 

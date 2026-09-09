@@ -30,6 +30,7 @@ func _run() -> void:
 	await physics_frame
 	await physics_frame
 
+	_test_fitout_cpu_surface_parity(jovian)
 	_test_definition_and_evidence(jovian)
 	_test_defensive_weapon_visual(jovian)
 	_test_load_mark_render_allocation(jovian)
@@ -51,6 +52,77 @@ func _run() -> void:
 	await _test_interior_furnishing_ranges(jovian)
 	await _test_cleanup(jovian)
 	_finish()
+
+
+func _test_fitout_cpu_surface_parity(jovian: JovianLightFreighter) -> void:
+	var cache: Dictionary = jovian.get("_fitout_mesh_cache")
+	_check(cache.is_empty(), "construction releases decoded fitout surfaces after their final consumer")
+	var materials: Dictionary = jovian.get("_jovian_materials")
+	var actual: Dictionary = {}
+	var expected: Dictionary = {}
+	var old_cache: Dictionary = {}
+	# Rotated textile padding uses a different bevel recipe. The solid batch
+	# interleaves stock and deindexed rings, including repeated cache hits.
+	for finish in ["cabin_cloth", "structure"]:
+		var reference := SurfaceTool.new()
+		reference.begin(Mesh.PRIMITIVE_TRIANGLES)
+		reference.set_material(materials[finish])
+		expected[finish] = reference
+		for index in 3:
+			var size := Vector3(0.72, 0.18, 0.63)
+			var at := Vector3(index * 1.2, 0.7, -2.3)
+			var rotation_value := Vector3(0.15 * index, -0.37, 0.21)
+			jovian._fitout_stock(actual, finish, at, size, rotation_value)
+			var stock := StationSurfaceKit.rounded_box_mesh_with_bevel(size,
+				minf(0.045, minf(size.x, minf(size.y, size.z)) * 0.35)) \
+				if finish == "cabin_cloth" else StationSurfaceKit.rounded_box_mesh_cached(size, old_cache)
+			reference.append_from(stock, 0, Transform3D(Basis.from_euler(rotation_value), at))
+			if finish == "structure":
+				jovian._fitout_ring(actual, finish, at, 0.32, 0.45)
+				var ring := TorusMesh.new()
+				ring.inner_radius = 0.32
+				ring.outer_radius = 0.45
+				ring.rings = 48
+				ring.ring_segments = 8
+				var ring_stock := SurfaceTool.new()
+				ring_stock.create_from(ring, 0)
+				ring_stock.deindex()
+				reference.append_from(ring_stock.commit(), 0,
+					Transform3D(Basis(Vector3.RIGHT, PI * 0.5), at))
+	_check(cache.size() == 3, "repeated fitout recipes share three CPU surface snapshots")
+	for finish: String in expected:
+		var result := (actual[finish] as SurfaceTool).commit()
+		var reference := (expected[finish] as SurfaceTool).commit()
+		var result_arrays := result.surface_get_arrays(0)
+		var reference_arrays := reference.surface_get_arrays(0)
+		var arrays_match := result_arrays.size() == reference_arrays.size()
+		for channel in reference_arrays.size():
+			arrays_match = arrays_match and result_arrays[channel] == reference_arrays[channel]
+		_check(arrays_match,
+			"cached %s fitout retains exact decoded vertices, normals, tangents, UVs and index order" % finish)
+		_check(result.surface_get_material(0) == materials[finish]
+			and result.get_aabb() == reference.get_aabb(),
+			"cached %s fitout retains material ownership and bounds" % finish)
+		_check(result_arrays[Mesh.ARRAY_INDEX] == null,
+			"mixed %s fitout remains entirely unindexed" % finish)
+		# Passenger fittings commit locally, then append into the cabin batch.
+		# Preserve this second packing boundary and the real sideways seat pose.
+		var cabin := jovian.get("_passenger_cabin") as Node3D
+		var seat := cabin.get_node("PortPassengerSeat00") as Node3D
+		var room_result := SurfaceTool.new()
+		room_result.begin(Mesh.PRIMITIVE_TRIANGLES)
+		room_result.set_material(materials[finish])
+		room_result.append_from(result, 0, seat.transform)
+		var room_reference := SurfaceTool.new()
+		room_reference.begin(Mesh.PRIMITIVE_TRIANGLES)
+		room_reference.set_material(materials[finish])
+		room_reference.append_from(reference, 0, seat.transform)
+		var room_mesh := room_result.commit()
+		var room_expected := room_reference.commit()
+		_check(room_mesh.surface_get_arrays(0) == room_expected.surface_get_arrays(0)
+			and room_mesh.surface_get_material(0) == materials[finish],
+			"cached %s fitout retains exact channels through the passenger room transform" % finish)
+	cache.clear()
 
 
 func _test_landing_bogie_foot_batch(jovian: JovianLightFreighter) -> void:
