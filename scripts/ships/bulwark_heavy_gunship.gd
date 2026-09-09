@@ -378,7 +378,7 @@ func _build_bulwark_variant(_controller: HeroShip) -> bool:
 	_profile_shell(_bulwark_visual, "ArmoredNose", Vector3.ZERO, [
 		Vector4(-6.25, 1.05, 0.19, 0.48), Vector4(-5.4, 1.95, 0.33, 0.62),
 		Vector4(-3.25, 2.82, 0.62, 0.88), Vector4(-2.65, 2.82, 0.65, 0.9),
-	], armor_highlight)
+	], armor_highlight, true)
 	_profile_shell(_bulwark_visual, "CenterlineArmorSpine", Vector3.ZERO, [
 		Vector4(1.55, 0.47, 0.09, 1.68), Vector4(2.40, 0.60, 0.12, 1.56),
 		Vector4(3.70, 0.48, 0.09, 1.19), Vector4(4.45, 0.31, 0.08, 0.94),
@@ -713,16 +713,7 @@ func _build_bulwark_manufactured_details(visual: Node3D, armor: Material, dark: 
 	var hot := _material(Color("739eab"), 0.2, 0.35, Color("78afc2"), 0.6)
 	_build_propulsion_cradles(visual, metal, dark)
 	_pressure_panel(visual, "CockpitPressureTransition", Vector3(0, 1.6, -0.55), 2.1, 3.7, 0.56, 3.4, armor)
-	# The central sensor is recessed into the descending nose, below the pilot's view.
-	_profile_shell(visual, "NoseSensorRecess", Vector3(0, 1.10, -4.8), [
-		Vector4(-0.65, 0.65, 0.06, -0.18), Vector4(0.65, 1.1, 0.06, 0.15),
-	], dark)
-	# Split the sloped glacis into two fitted panels around the sensor channel.
-	for side in [-1.0, 1.0]:
-		_profile_shell(visual, ("Port" if side < 0 else "Starboard") + "GlacisPanel", Vector3(side * 0.92, 0, 0), [
-			Vector4(-5.24, 0.40, 0.022, 1.018), Vector4(-4.2, 0.65, 0.022, 1.31),
-			Vector4(-3.38, 0.65, 0.022, 1.524),
-		], armor)
+	_build_nose_avionics(visual, armor, dark, metal)
 	# A rear splinter shield and outboard coaming physically shelter the retained
 	# gunner seat; its interaction anchor and forward console remain accessible.
 	_profile_shell(visual, "GunnerRearSplinterShield", Vector3(2.35, 0, 0), [
@@ -772,6 +763,54 @@ func _build_bulwark_manufactured_details(visual: Node3D, armor: Material, dark: 
 		registration.modulate = Color(3.0, 3.0, 3.0, 1.0)
 	ShipSurfaceDetail.mark_surface(visual, "AftExhaustWarning", "exhaust",
 		Vector3(0, 0.59, 4.50), Vector2(1.75, 0.62), Vector3.BACK, Vector3.UP)
+
+
+## A removable avionics cassette seats below the glacis, inside an opening in
+## ArmoredNose itself. The single sloped mount keeps all fittings on that plane.
+func _build_nose_avionics(visual: Node3D, armor: Material, dark: Material, metal: Material) -> void:
+	var bay := Node3D.new()
+	bay.name = "NoseAvionicsBay"
+	bay.position = Vector3(0, 1.065, -4.325)
+	bay.rotation.x = -atan(0.55 / 2.15)
+	visual.add_child(bay)
+	var liner_surface := SurfaceTool.new()
+	liner_surface.begin(Mesh.PRIMITIVE_TRIANGLES)
+	liner_surface.set_material(dark)
+	_profile_quad(liner_surface, Vector3(-0.77, 0.008, -1.095), Vector3(0.77, 0.008, -1.095),
+		Vector3(1.23, 0.008, 1.095), Vector3(-1.23, 0.008, 1.095))
+	liner_surface.generate_tangents()
+	var liner := MeshInstance3D.new()
+	liner.name = "ServicePocketLiner"
+	liner.mesh = liner_surface.commit()
+	bay.add_child(liner)
+	var cover_mesh := _profile_mesh([
+		Vector4(-0.90, 0.16, 0.065, 0.085),
+		Vector4(-0.68, 0.22, 0.09, 0.095),
+		Vector4(0.73, 0.33, 0.09, 0.095),
+		Vector4(0.91, 0.26, 0.065, 0.085),
+	], armor)
+	var covers: Array[Transform3D] = []
+	var retainers: Array[Transform3D] = []
+	for side in [-1.0, 1.0]:
+		covers.append(Transform3D(Basis.IDENTITY, Vector3(side * 0.60, 0, 0)))
+		for z in [-0.64, 0.66]:
+			retainers.append(Transform3D(Basis.IDENTITY, Vector3(side * 0.60, 0.189, z)))
+	_add_propulsion_part_batch(bay, "ArmoredServiceCoverBatch", cover_mesh, covers)
+	_add_propulsion_part_batch(bay, "CaptiveRetainerBatch", _rounded_box_mesh(Vector3(0.17, 0.035, 0.07), metal), retainers)
+	_profile_shell(bay, "AvionicsCartridge", Vector3.ZERO, [
+		Vector4(-0.98, 0.21, 0.12, 0.12),
+		Vector4(-0.70, 0.30, 0.16, 0.16),
+		Vector4(0.60, 0.30, 0.16, 0.16),
+		Vector4(0.85, 0.23, 0.10, 0.10),
+	], dark)
+	# The forward-facing optical window sits behind a protective lower lip.
+	var lens := _material(Color("294c58"), 0.56, 0.2)
+	_box(bay, "RecessedOpticalWindow", Vector3(0, 0.145, -0.988), Vector3(0.29, 0.105, 0.025), lens)
+	_box(bay, "OpticalWindowGuard", Vector3(0, 0.04, -1.015), Vector3(0.48, 0.075, 0.11), armor)
+	var ribs: Array[Transform3D] = []
+	for index in 6:
+		ribs.append(Transform3D(Basis.IDENTITY, Vector3(0, 0.325, -0.41 + float(index) * 0.16)))
+	_add_propulsion_part_batch(bay, "AvionicsCoolingRibBatch", _rounded_box_mesh(Vector3(0.37, 0.035, 0.055), metal), ribs)
 
 
 ## Builds exactly two steady renderer surfaces. They have no process callback,
@@ -2755,7 +2794,7 @@ func _engine_mechanics(parent: Node3D, tag: String, at: Vector3, radius: float, 
 ## Each station stores longitudinal position, half width, half height and rise.
 ## Planar chines retain deliberate creases; bilinear side normals avoid diagonal
 ## shading seams where successive sections change width and height together.
-func _profile_mesh(stations: Array, coating: Material) -> ArrayMesh:
+func _profile_mesh(stations: Array, coating: Material, nose_service_pocket: bool = false) -> ArrayMesh:
 	var corners := [Vector2(-0.72, 1), Vector2(0.72, 1), Vector2(1, 0.5), Vector2(1, -0.5), Vector2(0.72, -1), Vector2(-0.72, -1), Vector2(-1, -0.5), Vector2(-1, 0.5)]
 	var section: Array[Vector2] = []
 	var tangents: Array[Vector2] = []
@@ -2781,6 +2820,22 @@ func _profile_mesh(stations: Array, coating: Material) -> ArrayMesh:
 			var p: Vector2 = section[j]
 			var q: Vector2 = section[(j + 1) % section.size()]
 			var points := [Vector3(p.x * a.y, p.y * a.z + a.w, a.x), Vector3(q.x * a.y, q.y * a.z + a.w, a.x), Vector3(q.x * b.y, q.y * b.z + b.w, b.x), Vector3(p.x * b.y, p.y * b.z + b.w, b.x)]
+			# Only the broad top face of the nose's middle span is opened. Its
+			# perimeter stays continuous with the original load-bearing shell.
+			if nose_service_pocket and i == 1 and j == 4:
+				var front_left := Vector3(-0.78, a.z + a.w, a.x)
+				var front_right := Vector3(0.78, a.z + a.w, a.x)
+				var rear_left := Vector3(-1.24, b.z + b.w, b.x)
+				var rear_right := Vector3(1.24, b.z + b.w, b.x)
+				var drop := Vector3(0, -0.16, 0)
+				_profile_quad(surface, points[0], front_left, rear_left, points[3])
+				_profile_quad(surface, front_right, points[1], points[2], rear_right)
+				_profile_quad(surface, front_left, front_left + drop, rear_left + drop, rear_left)
+				_profile_quad(surface, front_right + drop, front_right, rear_right, rear_right + drop)
+				_profile_quad(surface, front_left + drop, front_right + drop, rear_right + drop, rear_left + drop)
+				_profile_quad(surface, front_left, front_right, front_right + drop, front_left + drop)
+				_profile_quad(surface, rear_left + drop, rear_right + drop, rear_right, rear_left)
+				continue
 			for corner in [0, 1, 2, 0, 2, 3]:
 				var station := a if corner < 2 else b
 				var ring := p if corner == 0 or corner == 3 else q
@@ -2804,11 +2859,22 @@ func _profile_mesh(stations: Array, coating: Material) -> ArrayMesh:
 	return surface.commit()
 
 
-func _profile_shell(parent: Node3D, label: String, at: Vector3, stations: Array, coating: Material) -> MeshInstance3D:
+## Clockwise flat quads with metric planar UVs, also valid on pocket walls.
+func _profile_quad(surface: SurfaceTool, a: Vector3, b: Vector3, c: Vector3, d: Vector3) -> void:
+	var normal := (c - a).cross(b - a).normalized()
+	var u := (b - a).normalized()
+	var v := u.cross(normal).normalized()
+	for point: Vector3 in [a, b, c, a, c, d]:
+		surface.set_normal(normal)
+		surface.set_uv(Vector2((point - a).dot(u), (point - a).dot(v)))
+		surface.add_vertex(point)
+
+
+func _profile_shell(parent: Node3D, label: String, at: Vector3, stations: Array, coating: Material, nose_service_pocket: bool = false) -> MeshInstance3D:
 	var instance := MeshInstance3D.new()
 	instance.name = label
 	instance.position = at
-	instance.mesh = _profile_mesh(stations, coating)
+	instance.mesh = _profile_mesh(stations, coating, nose_service_pocket)
 	parent.add_child(instance)
 	return instance
 

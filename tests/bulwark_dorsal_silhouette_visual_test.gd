@@ -43,6 +43,8 @@ func _run() -> void:
 		for shell_name in ["ArmoredCentralSlab", "ArmoredNose", "CenterlineArmorSpine", "GunnerRearSplinterShield", "PortCannonBreech", "StarboardCannonBreech"]:
 			_check_profile(visual.get_node_or_null(shell_name) as MeshInstance3D, shell_name)
 
+		_check_nose_installation(visual)
+
 		for batch_name in ["ArmoredShoulderBatch", "DorsalBastionBatch"]:
 			var batch := visual.get_node_or_null(batch_name) as MultiMeshInstance3D
 			_check_mesh(batch.multimesh.mesh if batch != null else null, batch_name)
@@ -65,6 +67,35 @@ func _run() -> void:
 	ship.queue_free()
 	await process_frame
 	_finish()
+
+
+func _check_nose_installation(visual: Node3D) -> void:
+	var shell := visual.get_node_or_null("ArmoredNose") as MeshInstance3D
+	var bay := visual.get_node_or_null("NoseAvionicsBay") as Node3D
+	_check(bay != null, "avionics assembly has a common sloped service mount")
+	if shell == null or bay == null:
+		return
+	# A downward ray through the center must hit the lowered shell floor, not
+	# an intact glacis hidden under cosmetic panels.
+	var vertices: PackedVector3Array = shell.mesh.surface_get_arrays(0)[Mesh.ARRAY_VERTEX]
+	var floor_height := -INF
+	for triangle in range(0, vertices.size(), 3):
+		var hit: Variant = Geometry3D.ray_intersects_triangle(Vector3(0, 3, -4.3), Vector3.DOWN,
+			vertices[triangle], vertices[triangle + 1], vertices[triangle + 2])
+		if hit is Vector3:
+			floor_height = maxf(floor_height, hit.y)
+	_check(is_equal_approx(floor_height, 0.95 + (1.1 / 2.15) * 0.55 - 0.16),
+		"nose shell contains a real 0.16 m service recess below its original glacis")
+	for part in ["ServicePocketLiner", "AvionicsCartridge"]:
+		_check_profile(bay.get_node_or_null(part) as MeshInstance3D, part)
+	for spec in [["ArmoredServiceCoverBatch", 2], ["CaptiveRetainerBatch", 4], ["AvionicsCoolingRibBatch", 6]]:
+		var batch := bay.get_node_or_null(spec[0]) as MultiMeshInstance3D
+		_check(batch != null and batch.multimesh.instance_count == spec[1],
+			"%s retains one renderer for repeated hardware" % spec[0])
+		if batch != null:
+			_check_mesh(batch.multimesh.mesh, spec[0])
+	_check(bay.find_children("*", "CollisionObject3D", true, false).is_empty()
+		and bay.position.z < -3.0, "service hardware stays forward of crew access with no new collision authority")
 
 
 func _check_batch(
