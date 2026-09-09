@@ -317,6 +317,24 @@ func _test_defensive_weapon_visual(jovian: JovianLightFreighter) -> void:
 				and component.get_child_count() == 0,
 				"%s %s is a metadata-scoped presentation-only detail" % [prefix, suffix]
 			)
+	for suffix in expected_suffixes:
+		var port := visual.get_node(NodePath("Port" + suffix)) as MeshInstance3D
+		var starboard := visual.get_node(NodePath("Starboard" + suffix)) as MeshInstance3D
+		_check(port.mesh is ArrayMesh and port.mesh == starboard.mesh
+			and port.mesh.get_surface_count() == 1,
+			"paired %s uses one shared formed mesh and one surface per owner" % suffix)
+	var receiver := visual.get_node(^"PortDefensiveTurretReceiver") as MeshInstance3D
+	var bearing := visual.get_node(^"PortDefensiveTurretRotationCollar") as MeshInstance3D
+	_check(bearing.position.y < receiver.position.y
+		and bearing.position.y + bearing.mesh.get_aabb().end.y > receiver.position.y - 0.24,
+		"the crown bearing supports and overlaps the receiver underneath the cartridge")
+	var bore := visual.get_node(^"PortDefensivePulseBarrel") as MeshInstance3D
+	var bore_vertices: PackedVector3Array = bore.mesh.surface_get_arrays(0)[Mesh.ARRAY_VERTEX]
+	var front_is_open := true
+	for vertex in bore_vertices:
+		if is_equal_approx(vertex.y, -0.775) and Vector2(vertex.x, vertex.z).length() < 0.174:
+			front_is_open = false
+	_check(front_is_open, "open barrel mouth leaves the fixed teal lens firing plane free of a coplanar cap")
 	var left_muzzle := jovian.get_node(^"LeftMuzzle") as Marker3D
 	var right_muzzle := jovian.get_node(^"RightMuzzle") as Marker3D
 	var port_lens := visual.get_node(^"PortDefensiveTurretMuzzleLens") as MeshInstance3D

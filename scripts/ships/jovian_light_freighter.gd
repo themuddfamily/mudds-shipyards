@@ -4103,51 +4103,73 @@ func _build_propulsion_and_gear() -> void:
 	)
 	_jovian_visual.add_child(_landing_bogie_foot_batch)
 
-	# Twin defensive pulse mounts communicate capability without turning the
-	# freighter into a gunship. Their broad bases and compact receivers read as
-	# ship-scale defensive hardware, while the barrels stop exactly at the fixed
-	# muzzle plane. The common weapon lifecycle continues to use root markers.
+	# Fitted defensive cartridges sit in a low turned crown bearing. The seven
+	# semantic owners remain separate, with one shared mesh for each paired part.
+	var turret_meshes: Dictionary = {}
 	for side in [-1.0, 1.0]:
 		var prefix := "Port" if side < 0.0 else "Starboard"
-		_mark_defensive_weapon_detail(_cylinder(
-			_jovian_visual, prefix + "DefensiveTurretBase",
-			Vector3(side * 5.15, 3.72, -5.55),
-			DEFENSIVE_TURRET_BASE_RADIUS, DEFENSIVE_TURRET_BASE_HEIGHT,
-			_jovian_materials.structure
-		), &"mount_base")
-		_mark_defensive_weapon_detail(_cylinder(
-			_jovian_visual, prefix + "DefensiveTurretRotationCollar",
-			Vector3(side * 5.15, 3.96, -5.55), 0.5, 0.16,
-			_jovian_materials.hull_cool
-		), &"rotation_collar")
-		_mark_defensive_weapon_detail(_box(
-			_jovian_visual, prefix + "DefensiveTurretReceiver",
-			Vector3(side * 5.15, 3.78, -5.72), Vector3(0.76, 0.48, 0.7),
-			_jovian_materials.structure
-		), &"receiver")
-		_mark_defensive_weapon_detail(_box(
-			_jovian_visual, prefix + "DefensiveTurretBarrelShroud",
-			Vector3(side * 5.15, 3.76, -6.02), Vector3(0.56, 0.46, 0.72),
-			_jovian_materials.hull_cool
-		), &"barrel_shroud")
-		_mark_defensive_weapon_detail(_cylinder(
-			_jovian_visual, prefix + "DefensivePulseBarrel",
-			Vector3(side * 5.15, 3.76, -6.175),
-			DEFENSIVE_TURRET_BARREL_RADIUS, DEFENSIVE_TURRET_BARREL_LENGTH,
-			_jovian_materials.dark, Vector3(90.0, 0.0, 0.0)
-		), &"pulse_barrel")
-		_mark_defensive_weapon_detail(_cylinder(
-			_jovian_visual, prefix + "DefensiveTurretMuzzleCollar",
-			Vector3(side * 5.15, 3.76, -6.79), 0.27, 0.2,
-			_jovian_materials.structure, Vector3(90.0, 0.0, 0.0)
-		), &"muzzle_collar")
-		# Its forward face, not its centre, coincides with the firing marker so
-		# the new detail does not extend the weapon's visible firing profile.
-		_mark_defensive_weapon_detail(_cylinder(
-			_jovian_visual, prefix + "DefensiveTurretMuzzleLens",
-			Vector3(side * 5.15, 3.76, -6.92), 0.17, 0.06,
-			_jovian_materials.teal, Vector3(90.0, 0.0, 0.0)
-		), &"muzzle_lens")
+		var parts := [
+			["DefensiveTurretBase", Vector3(side * 5.15, 3.54, -5.55), &"mount_base"],
+			["DefensiveTurretRotationCollar", Vector3(side * 5.15, 3.77, -5.55), &"rotation_collar"],
+			["DefensiveTurretReceiver", Vector3(side * 5.15, 3.78, -5.72), &"receiver"],
+			["DefensiveTurretBarrelShroud", Vector3(side * 5.15, 3.76, -6.02), &"barrel_shroud"],
+			["DefensivePulseBarrel", Vector3(side * 5.15, 3.76, -6.175), &"pulse_barrel"],
+			["DefensiveTurretMuzzleCollar", Vector3(side * 5.15, 3.76, -6.79), &"muzzle_collar"],
+			["DefensiveTurretMuzzleLens", Vector3(side * 5.15, 3.76, -6.92), &"muzzle_lens"],
+		]
+		for part in parts:
+			var suffix: String = part[0]
+			var component: MeshInstance3D
+			if turret_meshes.has(suffix):
+				component = _rounded_box_from_mesh(_jovian_visual, prefix + suffix, part[1], turret_meshes[suffix])
+			elif suffix == "DefensiveTurretReceiver":
+				# Broad rear trunnion cheeks neck down into the barrel saddle.
+				component = _loft_hull(_jovian_visual, prefix + suffix, part[1], PackedVector3Array([
+					Vector3(0.25, 0.16, -0.35), Vector3(0.34, 0.22, -0.27),
+					Vector3(0.38, 0.24, -0.08), Vector3(0.38, 0.24, 0.20),
+					Vector3(0.30, 0.18, 0.35)]), _jovian_materials.structure)
+			elif suffix == "DefensiveTurretBarrelShroud":
+				component = _loft_hull(_jovian_visual, prefix + suffix, part[1], PackedVector3Array([
+					Vector3(0.21, 0.18, -0.36), Vector3(0.24, 0.20, -0.29),
+					Vector3(0.28, 0.23, 0.12), Vector3(0.28, 0.23, 0.26),
+					Vector3(0.24, 0.19, 0.36)]), _jovian_materials.hull_cool)
+			else:
+				var profile := PackedVector2Array()
+				var material: Material = _jovian_materials.structure
+				match suffix:
+					"DefensiveTurretBase":
+						profile = PackedVector2Array([Vector2(0, -0.19), Vector2(0.60, -0.19), Vector2(0.66, -0.16), Vector2(0.68, -0.12), Vector2(0.68, -0.07), Vector2(0.64, -0.03), Vector2(0.54, 0.15), Vector2(0.49, 0.19), Vector2(0, 0.19)])
+					"DefensiveTurretRotationCollar":
+						profile = PackedVector2Array([Vector2(0, -0.08), Vector2(0.46, -0.08), Vector2(0.5, -0.05), Vector2(0.5, 0.03), Vector2(0.47, 0.07), Vector2(0.43, 0.08), Vector2(0, 0.08)])
+						material = _jovian_materials.hull_cool
+					"DefensivePulseBarrel":
+						profile = PackedVector2Array([Vector2(0.175, -0.775), Vector2(0.19, -0.745), Vector2(0.19, 0.72), Vector2(0.17, 0.775), Vector2(0.15, 0.775), Vector2(0.15, -0.74), Vector2(0.175, -0.775)])
+						# An open bore avoids a coplanar barrel cap fighting the lens.
+						material = _jovian_materials.dark
+					"DefensiveTurretMuzzleCollar":
+						# Open rolled seat: the teal lens remains its own live material owner.
+						profile = PackedVector2Array([Vector2(0.19, -0.10), Vector2(0.24, -0.10), Vector2(0.265, -0.075), Vector2(0.27, -0.035), Vector2(0.255, 0.04), Vector2(0.22, 0.10), Vector2(0.19, 0.10), Vector2(0.19, -0.10)])
+					"DefensiveTurretMuzzleLens":
+						profile = PackedVector2Array([Vector2(0, -0.03), Vector2(0.16, -0.03), Vector2(0.17, -0.02), Vector2(0.17, 0.02), Vector2(0.16, 0.03), Vector2(0, 0.03)])
+						material = _jovian_materials.teal
+				component = _rounded_box_from_mesh(_jovian_visual, prefix + suffix, part[1], _defensive_turned_mesh(profile, material))
+			if suffix in ["DefensiveTurretReceiver", "DefensiveTurretBarrelShroud"]:
+				component.set_meta("closed_loft_hull", true)
+			if suffix in ["DefensivePulseBarrel", "DefensiveTurretMuzzleCollar", "DefensiveTurretMuzzleLens"]:
+				component.rotation_degrees.x = 90.0
+			turret_meshes[suffix] = component.mesh
+			_mark_defensive_weapon_detail(component, part[2])
+
+
+## Turn a profile around local Y, matching the former cylinders' local bounds.
+## Reuse the authored radial normals and metric UVs of the engine lathe.
+func _defensive_turned_mesh(profile: PackedVector2Array, material: Material) -> ArrayMesh:
+	var axial := ArrayMesh.new()
+	_engine_module_surface(axial, profile, material, 24)
+	var tool := SurfaceTool.new()
+	tool.append_from(axial, 0, Transform3D(Basis(Vector3.RIGHT, -PI * 0.5), Vector3.ZERO))
+	tool.set_material(material)
+	return tool.commit()
 
 
 func _build_engine_damage_cue() -> void:
@@ -4981,11 +5003,10 @@ func _freighter_engine_module_mesh() -> ArrayMesh:
 	return mesh
 
 
-func _engine_module_surface(mesh: ArrayMesh, profile: PackedVector2Array, material: Material) -> void:
+func _engine_module_surface(mesh: ArrayMesh, profile: PackedVector2Array, material: Material, segments := 48) -> void:
 	var tool := SurfaceTool.new()
 	tool.begin(Mesh.PRIMITIVE_TRIANGLES)
 	tool.set_material(material)
-	const SEGMENTS := 48
 	var profile_distance := 0.0
 	var wrap_radius := 0.0
 	for point in profile:
@@ -4995,9 +5016,9 @@ func _engine_module_surface(mesh: ArrayMesh, profile: PackedVector2Array, materi
 		var rear := profile[station + 1]
 		var next_distance := profile_distance + front.distance_to(rear)
 		var along := Vector2(rear.y - front.y, front.x - rear.x).normalized()
-		for segment in SEGMENTS:
-			var a := TAU * float(segment) / float(SEGMENTS)
-			var b := TAU * float(segment + 1) / float(SEGMENTS)
+		for segment in segments:
+			var a := TAU * float(segment) / float(segments)
+			var b := TAU * float(segment + 1) / float(segments)
 			var radial_a := Vector3(cos(a), sin(a), 0.0)
 			var radial_b := Vector3(cos(b), sin(b), 0.0)
 			var normal_a := radial_a * along.x + Vector3.BACK * along.y

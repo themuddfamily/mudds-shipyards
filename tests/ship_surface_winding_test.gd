@@ -380,8 +380,8 @@ func _check_craft(expected_sign: int) -> void:
 		# walls cannot be scored against one AABB centre. The focused seat
 		# test covers their recess and mesh frames; the general sweep still
 		# checks every seat-shell triangle above.
-		closed_lofts == 50,
-		"the normal-independent closed-loft guard covered all 50 centre-testable manufactured closed volumes across Arrow, Zenith, Jovian and Halyard"
+		closed_lofts == 54,
+		"the normal-independent closed-loft guard covered all 54 centre-testable manufactured closed volumes across Arrow, Zenith, Jovian and Halyard"
 	)
 
 
