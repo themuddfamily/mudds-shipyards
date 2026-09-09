@@ -8,6 +8,8 @@ extends HeroShip
 ## flight, damage, audio, weapons, boarding, docking and every numeric handling
 ## value remain modern gameplay authority owned by this node and HeroShip.
 
+const ServiceCassette := preload("res://scripts/ships/ship_service_cassette.gd")
+
 const ShipComponentDamageType := preload("res://scripts/combat/ship_component_damage.gd")
 
 const SCHEMA_VERSION := 1
@@ -3745,11 +3747,16 @@ func _build_modern_airframe(visual: Node3D) -> void:
 			Vector4(0.43, 1.7464, 1.715, -0.34), Vector4(0.425, 1.788, 1.715, 0.45),
 			Vector4(0.413, 1.748, 1.715, 1.40), Vector4(0.41, 1.741, 1.715, 1.48),
 		], panel)
-		for slot in 6:
-			_zenith_panel(airframe, prefix + "ThermalLouvre" + str(slot), PackedVector3Array([
-				Vector3(side * 1.84, 1.704 - slot * 0.0167, 1.78 + slot * 0.19), Vector3(side * 2.56, 1.704 - slot * 0.0167, 1.78 + slot * 0.19),
-				Vector3(side * 2.55, 1.695 - slot * 0.0167, 1.88 + slot * 0.19), Vector3(side * 1.85, 1.695 - slot * 0.0167, 1.88 + slot * 0.19),
-			]), 0.018, dark)
+		# Seat the complete frame in the uninterrupted central roof station.
+		# Its aft foot ends before z=2.65, where the cowling slope steepens.
+		var cooling_mount := Node3D.new()
+		cooling_mount.name = prefix + "NacelleCoolingMount"
+		cooling_mount.position = Vector3(side * 2.20, 1.73 - (2.13 - 1.40) * 0.088 + 0.020, 2.13)
+		cooling_mount.rotation.x = atan(0.088)
+		cooling_mount.set_meta(&"presentation_only", true)
+		airframe.add_child(cooling_mount)
+		ServiceCassette.install(cooling_mount, prefix + "NacelleCooling", Vector3.ZERO,
+			0.72, 0.86, panel, dark, intake_trim)
 		# Slim barrels terminate at the preserved gameplay muzzle locations.
 		_zenith_hard_shell(airframe, prefix + "RecessedCannonHousing", side * 1.25, [
 			Vector4(0.16, 0.49, 0.19, -4.25), Vector4(0.21, 0.63, 0.12, -3.70),

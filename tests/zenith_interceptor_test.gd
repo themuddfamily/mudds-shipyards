@@ -3210,6 +3210,7 @@ func _run() -> void:
 	_test_authored_asset_and_runtime_authority(zenith)
 	await _test_boarding_collision_camera_and_canopy(zenith)
 	_test_pilot_instruments(zenith)
+	_test_nacelle_cooling_fit(zenith)
 	_test_handling_difference(zenith)
 	await _test_engine_flight_weapon_damage_reuse(zenith)
 	await _test_strict_berth_fit_capture_and_landing(zenith)
@@ -3523,6 +3524,51 @@ func _test_boarding_collision_camera_and_canopy(zenith: ZenithInterceptor) -> vo
 	zenith.set_canopy_open(false, 0.0)
 	_check(not zenith.is_canopy_open() and absf(functional_canopy.rotation.x) < 0.01 and absf(authored_canopy.rotation.x) < 0.01, "common canopy lifecycle reseals both hinges")
 	_check(functional_canopy.get_instance_id() == functional_canopy_id and authored_canopy.get_instance_id() == authored_canopy_id, "canopy motion preserves both controller and authored identities")
+
+
+func _test_nacelle_cooling_fit(zenith: ZenithInterceptor) -> void:
+	var airframe := zenith.get_zenith_visual_root().get_node("ModernManufacturedAirframe")
+	var port_frame: Mesh
+	var port_vanes: Mesh
+	for side in [-1.0, 1.0]:
+		var prefix := "Port" if side < 0.0 else "Starboard"
+		var mount := airframe.get_node(prefix + "NacelleCoolingMount") as Node3D
+		var frame := mount.get_node(prefix + "NacelleCoolingFrame") as MeshInstance3D
+		var vanes := mount.get_node(prefix + "NacelleCoolingVanes") as MeshInstance3D
+		var shading_valid := true
+		for stock: Mesh in [frame.mesh, vanes.mesh]:
+			var arrays := stock.surface_get_arrays(0)
+			var vertices: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
+			var normals: PackedVector3Array = arrays[Mesh.ARRAY_NORMAL]
+			var tangents: PackedFloat32Array = arrays[Mesh.ARRAY_TANGENT]
+			var uvs: PackedVector2Array = arrays[Mesh.ARRAY_TEX_UV]
+			shading_valid = shading_valid and normals.size() == vertices.size() and tangents.size() == vertices.size() * 4 and uvs.size() == vertices.size()
+			if not shading_valid:
+				break
+			for index in vertices.size():
+				var tangent := Vector3(tangents[index * 4], tangents[index * 4 + 1], tangents[index * 4 + 2])
+				shading_valid = shading_valid and vertices[index].is_finite() and uvs[index].is_finite() and normals[index].is_finite() and tangent.is_finite()
+				shading_valid = shading_valid and absf(normals[index].length() - 1.0) < 0.001 and absf(tangent.length() - 1.0) < 0.001 and absf(tangent.dot(normals[index])) < 0.001
+		_check(shading_valid, prefix + " curved cooling stock retains finite orthonormal normal-map frames")
+		var seated := true
+		var foot_vertices := 0
+		for vertex: Vector3 in frame.mesh.surface_get_arrays(0)[Mesh.ARRAY_VERTEX]:
+			var point := mount.transform * vertex
+			# This uninterrupted roof section spans the production cowling's
+			# 1.40 / 2.65 stations, before its steeper aft taper.
+			seated = seated and point.z > 1.40 and point.z < 2.65
+			seated = seated and absf(point.x - side * 2.20) < 0.50
+			if vertex.y < -0.024:
+				foot_vertices += 1
+				var roof_y := lerpf(1.73, 1.62, (point.z - 1.40) / 1.25)
+				seated = seated and point.y < roof_y and point.y > roof_y - 0.01
+		_check(seated and foot_vertices > 30, prefix + " cooling frame seats its entire foot in the cowling roof without bridging its aft break")
+		_check(mount.find_children("*", "CollisionObject3D", true, false).is_empty() and mount.find_children("*", "Light3D", true, false).is_empty(), prefix + " passive cassette adds no collision or lights")
+		if side < 0.0:
+			port_frame = frame.mesh
+			port_vanes = vanes.mesh
+		else:
+			_check(port_frame == frame.mesh and port_vanes == vanes.mesh, "paired cooling cassettes share continuous frame and curved vane stock")
 
 
 func _test_pilot_instruments(zenith: ZenithInterceptor) -> void:
