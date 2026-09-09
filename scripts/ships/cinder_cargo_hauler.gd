@@ -73,6 +73,7 @@ static var _shared_hull_material: StandardMaterial3D
 static var _shared_cargo_pod_mesh: ArrayMesh
 static var _shared_cargo_pod_material: StandardMaterial3D
 static var _shared_freight_load_frame: ArrayMesh
+static var _shared_frame_rib_mesh: ArrayMesh
 static var _shared_engine_mounts: ArrayMesh
 static var _shared_cockpit_fairing: ArrayMesh
 
@@ -1095,6 +1096,10 @@ func _build_hull(visual: Node3D) -> void:
 		CARGO_FRAME_RIB_COLOR,
 		frame_names
 	)
+	if _shared_frame_rib_mesh == null:
+		_shared_frame_rib_mesh = _rounded_box_mesh(CARGO_FRAME_RIB_SIZE, null)
+		_shared_frame_rib_mesh.resource_local_to_scene = false
+	_cargo_frame_ribs.multimesh.mesh = _shared_frame_rib_mesh
 	_cargo_frame_ribs.set_meta(&"silhouette_role", &"cargo_load_frame")
 	_cargo_frame_ribs.set_meta(&"color_independent", true)
 	_cargo_frame_ribs.set_meta(&"animated", false)
@@ -1307,12 +1312,18 @@ func _build_continuous_load_frame(visual: Node3D) -> void:
 			var end_ratio := clampf((absf(z) / 6.0 - 0.66) / 0.34, 0.0, 1.0)
 			var sx := lerpf(1.0, 0.80, end_ratio)
 			var sy := lerpf(1.0, 0.82, end_ratio)
-			var path := PackedVector2Array([
-				Vector2(-3.22 * sx, -1.04 * sy), Vector2(-3.22 * sx, 1.30 * sy),
-				Vector2(-3.03 * sx, 1.54 * sy), Vector2(-2.48 * sx, 1.65 * sy),
-				Vector2(2.48 * sx, 1.65 * sy), Vector2(3.03 * sx, 1.54 * sy),
-				Vector2(3.22 * sx, 1.30 * sy), Vector2(3.22 * sx, -1.04 * sy),
-			])
+			# Follow the pressure shell's rolled upper shoulder, with the strap
+			# seating slightly into the skin rather than bridging its curve.
+			var path := PackedVector2Array([Vector2(-3.20 * sx, -1.04 * sy)])
+			for step in 9:
+				var angle := PI - float(step) / 8.0 * PI * 0.5
+				path.append(Vector2((-2.50 + cos(angle) * 0.70) * sx,
+					(1.30 + sin(angle) * 0.30) * sy))
+			for step in 9:
+				var angle := PI * 0.5 - float(step) / 8.0 * PI * 0.5
+				path.append(Vector2((2.50 + cos(angle) * 0.70) * sx,
+					(1.30 + sin(angle) * 0.30) * sy))
+			path.append(Vector2(3.20 * sx, -1.04 * sy))
 			_append_load_band(vertices, normals, indices, path, z, 0.30)
 		var arrays := []
 		arrays.resize(Mesh.ARRAY_MAX)
@@ -1331,26 +1342,42 @@ func _build_continuous_load_frame(visual: Node3D) -> void:
 
 static func _append_load_band(vertices: PackedVector3Array, normals: PackedVector3Array,
 		indices: PackedInt32Array, path: PackedVector2Array, z: float, width: float) -> void:
+	# A broad crown and narrow turned edges read as formed restraint stock.
+	# The buried back face prevents light leaks where the belt seats on skin.
+	var profile := PackedVector2Array([
+		Vector2(-width * 0.5 + 0.035, 0.11), Vector2(width * 0.5 - 0.035, 0.11),
+		Vector2(width * 0.5, 0.075), Vector2(width * 0.5, -0.005),
+		Vector2(width * 0.5 - 0.02, -0.025), Vector2(-width * 0.5 + 0.02, -0.025),
+		Vector2(-width * 0.5, -0.005), Vector2(-width * 0.5, 0.075),
+	])
 	var rings: Array[PackedVector3Array] = []
+	var center_ratio := clampf((absf(z) / 6.0 - 0.66) / 0.34, 0.0, 1.0)
 	for i in path.size():
 		var tangent := (path[mini(i + 1, path.size() - 1)] - path[maxi(0, i - 1)]).normalized()
+		# At the roof tangent, the long straight span must not overpower the
+		# short arc segment when estimating the surface normal.
+		if i > 0 and i < path.size() - 1:
+			tangent = ((path[i] - path[i - 1]).normalized() + (path[i + 1] - path[i]).normalized()).normalized()
 		var out := Vector2(-tangent.y, tangent.x)
-		var point := path[i]
-		var inner := point - out * 0.045
-		var outer := point + out * 0.07
-		rings.append(PackedVector3Array([
-			Vector3(outer.x, outer.y, z - width * 0.5), Vector3(outer.x, outer.y, z + width * 0.5),
-			Vector3(inner.x, inner.y, z + width * 0.5), Vector3(inner.x, inner.y, z - width * 0.5),
-		]))
+		var ring := PackedVector3Array()
+		for corner in profile:
+			var point := path[i] + out * corner.y
+			var edge_ratio := clampf((absf(z + corner.x) / 6.0 - 0.66) / 0.34, 0.0, 1.0)
+			point.x *= lerpf(1.0, 0.80, edge_ratio) / lerpf(1.0, 0.80, center_ratio)
+			point.y *= lerpf(1.0, 0.82, edge_ratio) / lerpf(1.0, 0.82, center_ratio)
+			ring.append(Vector3(point.x, point.y, z + corner.x))
+		rings.append(ring)
 	for i in rings.size() - 1:
-		var mid := (path[i] + path[i + 1]) * 0.5
-		var out := Vector3(mid.x, maxf(mid.y, 0.0), 0).normalized()
-		for edge in 4:
-			var next := (edge + 1) % 4
-			_append_shell_quad(vertices, normals, indices, rings[i][edge], rings[i][next], rings[i + 1][next], rings[i + 1][edge],
-				[out, Vector3.BACK, -out, Vector3.FORWARD][edge])
+		var tangent := (path[i + 1] - path[i]).normalized()
+		var out := Vector3(-tangent.y, tangent.x, 0)
+		for edge in profile.size():
+			var next := (edge + 1) % profile.size()
+			var direction := profile[next] - profile[edge]
+			var normal := (out * direction.x - Vector3.BACK * direction.y).normalized()
+			_append_shell_quad(vertices, normals, indices, rings[i][edge], rings[i][next], rings[i + 1][next], rings[i + 1][edge], normal)
 	for cap in [0, rings.size() - 1]:
-		_append_shell_quad(vertices, normals, indices, rings[cap][0], rings[cap][1], rings[cap][2], rings[cap][3], Vector3.DOWN)
+		for edge in range(1, profile.size() - 2, 2):
+			_append_shell_quad(vertices, normals, indices, rings[cap][0], rings[cap][edge], rings[cap][edge + 1], rings[cap][edge + 2], Vector3.DOWN)
 
 
 ## Continuous load rails follow the pressure roof's end taper. Their seating
@@ -1367,19 +1394,22 @@ func _freight_cradle_mesh(side: float) -> ArrayMesh:
 		var center_x := side * 1.82 * width_scale
 		var width := 0.22 if absf(z) < 5.6 else 0.12
 		rings.append(PackedVector3Array([
-			Vector3(center_x - width * 0.5, y + 0.065, z),
-			Vector3(center_x + width * 0.5, y + 0.065, z),
+			Vector3(center_x - width * 0.5 + 0.025, y + 0.095, z),
+			Vector3(center_x + width * 0.5 - 0.025, y + 0.095, z),
+			Vector3(center_x + width * 0.5, y + 0.070, z),
 			Vector3(center_x + width * 0.5, y - 0.025, z),
 			Vector3(center_x - width * 0.5, y - 0.025, z),
+			Vector3(center_x - width * 0.5, y + 0.070, z),
 		]))
 	for bay in rings.size() - 1:
-		for edge in 4:
-			var next := (edge + 1) % 4
+		for edge in 6:
+			var next := (edge + 1) % 6
 			_append_shell_quad(vertices, normals, indices,
 				rings[bay][edge], rings[bay][next], rings[bay + 1][next], rings[bay + 1][edge],
-				[Vector3.UP, Vector3.RIGHT, Vector3.DOWN, Vector3.LEFT][edge])
+				[Vector3.UP, Vector3(1, 1, 0), Vector3.RIGHT, Vector3.DOWN, Vector3.LEFT, Vector3(-1, 1, 0)][edge])
 	for cap in [0, rings.size() - 1]:
-		_append_shell_quad(vertices, normals, indices, rings[cap][0], rings[cap][1], rings[cap][2], rings[cap][3], Vector3.FORWARD if cap == 0 else Vector3.BACK)
+		for edge in [1, 3]:
+			_append_shell_quad(vertices, normals, indices, rings[cap][0], rings[cap][edge], rings[cap][edge + 1], rings[cap][edge + 2], Vector3.FORWARD if cap == 0 else Vector3.BACK)
 	var arrays := []
 	arrays.resize(Mesh.ARRAY_MAX)
 	arrays[Mesh.ARRAY_VERTEX] = vertices

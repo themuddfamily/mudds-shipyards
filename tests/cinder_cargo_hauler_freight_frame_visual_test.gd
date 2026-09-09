@@ -26,13 +26,13 @@ func _initialize() -> void:
 		^"CinderCargoVisual/CargoFrameRibBatch"
 	) as MultiMeshInstance3D
 	var multi := batch.multimesh if batch != null else null
-	var mesh := multi.mesh as BoxMesh if multi != null else null
+	var mesh := multi.mesh as ArrayMesh if multi != null else null
 	_check(
 		batch != null
 			and multi != null
 			and multi.instance_count == 8
 			and mesh != null
-			and mesh.size.is_equal_approx(Hauler.CARGO_FRAME_RIB_SIZE)
+			and mesh.get_aabb().size.is_equal_approx(Hauler.CARGO_FRAME_RIB_SIZE)
 			and batch.cast_shadow == GeometryInstance3D.SHADOW_CASTING_SETTING_ON,
 		"one eight-piece freight-frame batch is present on the production hauler"
 	)
@@ -58,13 +58,13 @@ func _initialize() -> void:
 		port_count += 1 if transform.origin.x < 0.0 else 0
 		starboard_count += 1 if transform.origin.x > 0.0 else 0
 		bounded = bounded \
-			and absf(transform.origin.x) + mesh.size.x * 0.5 <= 3.40 \
-			and transform.origin.y - mesh.size.y * 0.5 >= -1.16 \
-			and transform.origin.y + mesh.size.y * 0.5 <= 1.57 \
-			and absf(transform.origin.z) + mesh.size.z * 0.5 <= 6.0
+			and absf(transform.origin.x) + mesh.get_aabb().size.x * 0.5 <= 3.40 \
+			and transform.origin.y - mesh.get_aabb().size.y * 0.5 >= -1.16 \
+			and transform.origin.y + mesh.get_aabb().size.y * 0.5 <= 1.57 \
+			and absf(transform.origin.z) + mesh.get_aabb().size.z * 0.5 <= 6.0
 		aperture_clear = aperture_clear \
 			and (transform.origin.x > 0.0 \
-				or absf(transform.origin.z) - mesh.size.z * 0.5 >= 2.30)
+				or absf(transform.origin.z) - mesh.get_aabb().size.z * 0.5 >= 2.30)
 	_check(
 		bounded and aperture_clear and port_count == 4 and starboard_count == 4,
 		"the mirrored ribs stay inside the exact shell and clear the port aperture"
@@ -99,6 +99,27 @@ func _initialize() -> void:
 			and port_mount.get_meta(&"presentation_only", false) \
 			and port_mount.find_children("*", "CollisionObject3D", true, false).is_empty()
 	_check(mounts_valid, "paired engine saddles share geometry across craft and stay behind the boarding opening")
+	var retained_ribs := other.get_node_or_null(^"CinderCargoVisual/CargoFrameRibBatch") as MultiMeshInstance3D
+	var belt := craft.get_node_or_null(^"CinderCargoVisual/ContinuousFreightLoadFrame") as MeshInstance3D
+	var retained_belt := other.get_node_or_null(^"CinderCargoVisual/ContinuousFreightLoadFrame") as MeshInstance3D
+	_check(retained_ribs != null and retained_ribs.multimesh.mesh == mesh
+		and belt != null and retained_belt != null and belt.mesh == retained_belt.mesh,
+		"formed ribs and continuous belts retain immutable shared stock across haulers")
+	var belts_valid := belt != null
+	if belts_valid:
+		var arrays := belt.mesh.surface_get_arrays(0)
+		var points: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
+		var normals: PackedVector3Array = arrays[Mesh.ARRAY_NORMAL]
+		var indices: PackedInt32Array = arrays[Mesh.ARRAY_INDEX]
+		for triangle in range(0, indices.size(), 3):
+			var a := indices[triangle]
+			var b := indices[triangle + 1]
+			var c := indices[triangle + 2]
+			var outward := (points[c] - points[a]).cross(points[b] - points[a]).normalized()
+			belts_valid = belts_valid and outward.dot(normals[a]) > 0.98
+		for point in points:
+			belts_valid = belts_valid and point.is_finite() and absf(point.z) >= Hauler.PORT_APERTURE_Z_MAX
+	_check(belts_valid, "formed belts have exterior winding and leave the boarding bay clear")
 	other.queue_free()
 	var surfaces_valid := mounts_valid
 	if mounts_valid:
