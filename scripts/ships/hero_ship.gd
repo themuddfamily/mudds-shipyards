@@ -4780,7 +4780,23 @@ func _install_torrent_hero_presentation() -> void:
 				Vector3(0.0, -0.022, imported_display.get_aabb().end.z + 0.004)
 			)
 			_cockpit_readout.pixel_size = 0.00072
-			(_cockpit_readout.get_node("LiveFlightInstruments") as CockpitFlightInstruments).set_compact(true)
+			var instruments := _cockpit_readout.get_node("LiveFlightInstruments") as CockpitFlightInstruments
+			instruments.set_compact(true)
+			var repeaters := instruments.get_node("LiveStatusRepeaters") as Node3D
+			repeaters.visible = true
+			# Match the two graphite faces authored in generate_torrent_hero_v1.py.
+			# They remain material-batched; no second instrument owner or polling.
+			for side in [-1.0, 1.0]:
+				var prefix := "Throttle" if side < 0.0 else "Hull"
+				var face := imported_display.global_transform
+				face.origin = imported_cockpit.to_global(Vector3(side * 0.58, 2.69, -1.45))
+				for suffix in ["Gauge", "Readout"]:
+					var instrument := repeaters.get_node(prefix + suffix) as Node3D
+					instrument.set_meta("torrent_fallback_transform", instrument.transform)
+					var fit := 0.64 if suffix == "Gauge" else 0.72
+					instrument.global_transform = face.translated_local(
+						Vector3(0.0, 0.0, 0.016 if suffix == "Gauge" else 0.018)
+					).scaled_local(Vector3.ONE * fit)
 	var imported_seat := imported_cockpit.get_node_or_null("CrimsonSeatPan") as MeshInstance3D
 	if imported_seat != null:
 		imported_seat.set_meta("historically_observed_colour", true)
@@ -6860,7 +6876,12 @@ func _get_live_torrent_hero_presentation() -> TorrentHeroPresentation:
 		if _legacy_torrent_cockpit_art != null and is_instance_valid(_legacy_torrent_cockpit_art):
 			_cockpit_readout.transform = _torrent_fallback_readout_transform
 			_cockpit_readout.pixel_size = 0.00090
-			(_cockpit_readout.get_node("LiveFlightInstruments") as CockpitFlightInstruments).set_compact(false)
+			var instruments := _cockpit_readout.get_node("LiveFlightInstruments") as CockpitFlightInstruments
+			instruments.set_compact(false)
+			for instrument in instruments.get_node("LiveStatusRepeaters").get_children():
+				if instrument is Node3D and instrument.has_meta("torrent_fallback_transform"):
+					instrument.transform = instrument.get_meta("torrent_fallback_transform")
+					instrument.remove_meta("torrent_fallback_transform")
 	if _cockpit_practical_light != null and is_instance_valid(_cockpit_practical_light):
 		_cockpit_practical_light.visible = true
 	return null

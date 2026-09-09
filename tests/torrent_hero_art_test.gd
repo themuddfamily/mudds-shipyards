@@ -70,6 +70,7 @@ func _run() -> void:
 	_test_propulsion_and_hardware(torrent)
 	_test_render_allocations(torrent)
 	await _test_cockpit_canopy_and_contracts(torrent)
+	await _test_live_status_displays(torrent)
 	await _test_detached_presentation_adapter_reentry(torrent)
 	await _test_stale_presentation_adapter_recovery(torrent)
 	await _test_variant_seams()
@@ -738,14 +739,17 @@ func _test_cockpit_canopy_and_contracts(torrent: HeroShip) -> void:
 					and point.y >= screen_bounds.position.y and point.y <= screen_bounds.end.y \
 					and point.z > screen_bounds.end.z and point.z < screen_bounds.end.z + 0.01
 		_check(speed.text.contains("SPD") and speed.text.contains("THR")
-			and not (readout.get_node("LiveFlightInstruments/LiveStatusRepeaters") as Node3D).visible,
-			"compact imported display retains speed and throttle without duplicate round gauges")
+			and (readout.get_node("LiveFlightInstruments/LiveStatusRepeaters") as Node3D).visible,
+			"compact primary display retains speed while its live repeaters occupy the side displays")
 	_check(text_on_screen, "live primary and system telemetry fit on the imported physical screen face")
 	var art_manifest := _read_json("res://assets/models/torrent/hero/torrent_hero_asset_manifest.json")
 	var art_batching := art_manifest.get("runtime_static_batching", {}) as Dictionary
 	var cockpit_batches := (art_batching.get("batch_member_map", {}) as Dictionary).get(
 		"CockpitArt", {}
 	) as Dictionary
+	var dark_faces := cockpit_batches.get("CockpitArtStaticBatch_GraphiteMachinery", []) as Array
+	_check(dark_faces.has("PortStatusDisplay") and dark_faces.has("StarboardStatusDisplay"),
+		"both status faces share the existing dark graphite material batch")
 	var canopy_batches := (art_batching.get("batch_member_map", {}) as Dictionary).get(
 		"CanopyPivot", {}
 	) as Dictionary
@@ -817,6 +821,61 @@ func _test_cockpit_canopy_and_contracts(torrent: HeroShip) -> void:
 	_check((torrent.get_node("LeftMuzzle") as Marker3D).transform.is_equal_approx(left_muzzle_before) and (torrent.get_node("RightMuzzle") as Marker3D).transform.is_equal_approx(right_muzzle_before), "weapon marker transforms are preserved")
 
 
+func _test_live_status_displays(torrent: HeroShip) -> void:
+	var readout := torrent.get("_cockpit_readout") as Label3D
+	var instruments := readout.get_node("LiveFlightInstruments") as Node3D
+	var repeaters := instruments.get_node("LiveStatusRepeaters") as Node3D
+	var throttle := repeaters.get_node("ThrottleGauge") as MeshInstance3D
+	var hull := repeaters.get_node("HullGauge") as MeshInstance3D
+	var throttle_text := repeaters.get_node("ThrottleReadout") as Label3D
+	var hull_text := repeaters.get_node("HullReadout") as Label3D
+	var original_id := instruments.get_instance_id()
+	var dial_mesh := throttle.mesh
+	var dial_material := throttle.material_override
+	var cockpit := torrent.find_child("CockpitArt", true, false) as Node3D
+	var primary := cockpit.get_node("PrimaryDisplay") as MeshInstance3D
+	var fitted := true
+	for side in [-1.0, 1.0]:
+		var prefix := "Throttle" if side < 0.0 else "Hull"
+		var face := primary.global_transform
+		face.origin = cockpit.to_global(Vector3(side * 0.58, 2.69, -1.45))
+		for suffix in ["Gauge", "Readout"]:
+			var visual := repeaters.get_node(prefix + suffix) as VisualInstance3D
+			for corner in 8:
+				var point := face.affine_inverse() * visual.to_global(visual.get_aabb().get_endpoint(corner))
+				fitted = fitted and absf(point.x) < 0.14 and absf(point.y) < 0.09 \
+					and point.z > 0.011 and point.z < 0.021
+	_check(fitted and repeaters.is_visible_in_tree(), "retained throttle and hull gauges and labels fit the two dark physical side faces")
+	torrent.engine_start_time = 0.04
+	torrent.set_piloted(true)
+	torrent.request_engine_start()
+	torrent.call("_update_presentation", 0.0, ShipCommand.new())
+	_check(readout.text.contains("STARTING"), "Torrent physical engine panel reports actual startup")
+	for _frame in 8:
+		await physics_frame
+	_check(readout.text.contains("ONLINE"), "Torrent physical engine panel follows actual online transition")
+	Input.action_press("move_forward")
+	for _frame in 8:
+		await physics_frame
+	Input.action_release("move_forward")
+	var telemetry := torrent.get_telemetry()
+	_check(float(telemetry.throttle) > 0.0 and throttle_text.text == "%+03d\nTHR %%" % roundi(float(telemetry.throttle) * 100.0),
+		"Torrent side throttle value follows real pilot input")
+	torrent.apply_damage(torrent.maximum_hull * 0.8, torrent.global_position, Vector3.UP)
+	await physics_frame
+	_check(hull_text.text == "%03d\nHULL %%" % roundi(float(torrent.get_telemetry().hull) / torrent.maximum_hull * 100.0)
+		and hull_text.modulate == Color("ff6b5f") and float(hull.get_instance_shader_parameter("fill")) <= 0.30,
+		"Torrent side hull value and red arc follow real critical damage")
+	var reset := torrent.reset_for_reuse(Transform3D.IDENTITY)
+	await physics_frame
+	_check(bool(reset.get("accepted", false)) and instruments.get_instance_id() == original_id
+		and throttle.mesh == dial_mesh and hull.mesh == dial_mesh
+		and throttle.material_override == dial_material and hull.material_override == dial_material
+		and hull_text.text == "100\nHULL %" and throttle_text.text == "+00\nTHR %"
+		and readout.text.contains("OFFLINE") and repeaters.visible,
+		"reuse restores healthy offline readings on the same fitted instrument nodes and shared resources")
+
+
 func _test_stale_presentation_adapter_recovery(torrent: HeroShip) -> void:
 	var visual := torrent.get_variant_visual_root()
 	var adapter := visual.get_node_or_null("TorrentHeroPresentation") as TorrentHeroPresentation if visual != null else null
@@ -829,8 +888,16 @@ func _test_stale_presentation_adapter_recovery(torrent: HeroShip) -> void:
 	if adapter == null or legacy_far == null or legacy_cockpit == null \
 			or legacy_canopy == null or readout == null or practical == null:
 		return
+	var repeaters := readout.get_node("LiveFlightInstruments/LiveStatusRepeaters") as Node3D
+	var expected_transforms := {}
+	for instrument in repeaters.get_children():
+		expected_transforms[instrument.name] = instrument.get_meta("torrent_fallback_transform")
 	adapter.queue_free()
 	torrent.set_canopy_open(true, 0.0)
+	var restored := repeaters.visible
+	for instrument in repeaters.get_children():
+		restored = restored and instrument.transform.is_equal_approx(expected_transforms[instrument.name])
+	_check(restored, "adapter failure restores the original fallback dial and label transforms on the same nodes")
 	_check(
 		adapter.is_queued_for_deletion()
 		and legacy_far.visible and legacy_cockpit.visible and legacy_canopy.visible
@@ -906,6 +973,11 @@ func _test_variant_seams() -> void:
 	_check(arrow.get_node_or_null("TorrentVisual") == null and arrow.get_node_or_null("ArrowHullCollision") is CollisionShape3D, "Arrow replacement seam does not retain Torrent exterior or collision")
 	_check(jovian.get_jovian_visual_root() != null and jovian.get_jovian_visual_root().name == &"JovianFreighterVisual", "Jovian still replaces the enhanced Torrent presentation")
 	_check(jovian.get_node_or_null("TorrentVisual") == null and jovian.get_node_or_null("CargoDeckCollision") is CollisionShape3D, "Jovian replacement seam retains its dedicated collision/interior")
+	var arrow_repeaters := arrow.find_child("LiveStatusRepeaters", true, false) as Node3D
+	var untouched_arrow := arrow_repeaters != null
+	for instrument in arrow_repeaters.get_children():
+		untouched_arrow = untouched_arrow and not instrument.has_meta("torrent_fallback_transform")
+	_check(untouched_arrow, "Torrent display fitting does not run on Arrow instruments")
 	_check(arrow.get_pilot_seat_anchor() != null and jovian.get_pilot_seat_anchor() != null, "both subclasses retain inherited cockpit anchor APIs")
 	arrow.queue_free()
 	jovian.queue_free()

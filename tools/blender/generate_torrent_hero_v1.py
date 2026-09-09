@@ -1118,12 +1118,14 @@ def build_lod0(collection):
     bezel.rotation_euler = (math.radians(-16), 0, 0)
     for side in (-1, 1):
         s = "Port" if side < 0 else "Starboard"
+        # Dark physical faces accept the retained live THR/HULL instruments.
+        # Share the graphite batch; keep cyan limited to the small lamps.
         box(f"{s}StatusDisplay", (side*.58,2.69,-1.45), (.28,.18,.022),
-            cockpit_collection,cyan,.010,rotation=(math.radians(-16),0,side*math.radians(4)))
+            cockpit_collection,graphite,.010,rotation=(math.radians(-16),0,0))
         compound_boxes(f"{s}StatusRepeaterCluster", [
-            ((side*(.46+repeater*.11),2.82,-1.31),(.065,.035,.018))
+            ((side*(.53+repeater*.05),2.80,-1.476),(.018,.009,.006))
             for repeater in range(3)
-        ],cockpit_collection,cyan,.006)
+        ],cockpit_collection,cyan,.002)
     box("WarningStatusRegion", (0,2.866,-1.563), (.32,.015,.010),
         cockpit_collection,cyan,.006,rotation=(math.radians(-16),0,0))
 

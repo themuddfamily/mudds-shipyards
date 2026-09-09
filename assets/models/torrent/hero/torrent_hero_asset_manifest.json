@@ -45,9 +45,9 @@
       "AmberPanel": 0.418447,
       "CrimsonLivery": 5.606542,
       "CrimsonSeat": 4.92142,
-      "CyanStatus": 4.378142,
+      "CyanStatus": 4.116654,
       "ExposedAlloy": 26.046298,
-      "GraphiteMachinery": 65.110018,
+      "GraphiteMachinery": 65.333662,
       "IvorySecondary": 130.325979,
       "NeutralCanopyGlass": 12.33585,
       "ThermalCeramic": 16.983373,
@@ -71,7 +71,7 @@
         "mesh_count": 17
       },
       "CockpitArt": {
-        "evaluated_surface_area_m2": 36.890271,
+        "evaluated_surface_area_m2": 36.852427,
         "evaluated_triangle_count": 11452,
         "evaluated_vertex_count": 5856,
         "mesh_count": 39
@@ -102,7 +102,7 @@
   "asset_id": "torrent_hero_art_v1",
   "authenticated_historical_geometry": false,
   "authorship": "original_script_assisted_blender",
-  "blend_sha256": "af6ebe4785b291e07dd39a8a5a491198498c53894768ec770feaa6488e533995",
+  "blend_sha256": "2cf60be5ab57a110e8164636b8b66333f5e873cefa35245a48527371ede56ebf",
   "blender_version": "4.0.2",
   "bounds_blender_xyz": {
     "max": [
@@ -1037,12 +1037,12 @@
     "provenance": {
       "blender_version": "4.0.2",
       "evaluated_source_blend": "art_source/torrent/torrent_hero_v1.blend",
-      "evaluated_source_blend_sha256": "af6ebe4785b291e07dd39a8a5a491198498c53894768ec770feaa6488e533995",
-      "evaluated_source_semantic_sha256": "c9e753dff7b665f0050868eb61bc50b7bbec73bfd53692e300d66e8777b18047",
+      "evaluated_source_blend_sha256": "2cf60be5ab57a110e8164636b8b66333f5e873cefa35245a48527371ede56ebf",
+      "evaluated_source_semantic_sha256": "6e7a801be7817a38be34d19664ce93a3ea0a9d323c19128d7763c26196af6a5c",
       "generator": "tools/blender/generate_torrent_hero_v1.py",
-      "generator_sha256": "7f704335ea3c8e7e7e261739adef3d9c7d361009a9c014ec8b9a02c3e6fb2168",
+      "generator_sha256": "62a1c9988dd12a4c55c79a1a260d25111da6882198c0db3543ea69922ad607ba",
       "runtime_glb": "assets/models/torrent/hero/torrent_hero_art.glb",
-      "runtime_glb_sha256": "ae848b9dad4e373ea732ee5732499994bcb97a4999ceefcef3108d15c3e8bc8d"
+      "runtime_glb_sha256": "c3dc38704cdc7ba7850299cceb9972ca7d0d73696d94ad9ecc0b769a9e8c6c82"
     },
     "roots_explicitly_out_of_scope": [
       "LOD1"
@@ -1082,8 +1082,8 @@
     "up": "+Y in Godot"
   },
   "generator": "tools/blender/generate_torrent_hero_v1.py",
-  "generator_sha256": "7f704335ea3c8e7e7e261739adef3d9c7d361009a9c014ec8b9a02c3e6fb2168",
-  "glb_sha256": "ae848b9dad4e373ea732ee5732499994bcb97a4999ceefcef3108d15c3e8bc8d",
+  "generator_sha256": "62a1c9988dd12a4c55c79a1a260d25111da6882198c0db3543ea69922ad607ba",
+  "glb_sha256": "c3dc38704cdc7ba7850299cceb9972ca7d0d73696d94ad9ecc0b769a9e8c6c82",
   "material_roles": [
     "AmberPanel",
     "CrimsonLivery",
@@ -1164,10 +1164,8 @@
         ],
         "CockpitArtStaticBatch_CyanStatus": [
           "PortConsoleStatusLamps",
-          "PortStatusDisplay",
           "PortStatusRepeaterCluster",
           "StarboardConsoleStatusLamps",
-          "StarboardStatusDisplay",
           "StarboardStatusRepeaterCluster",
           "WarningStatusRegion"
         ],
@@ -1194,9 +1192,11 @@
           "InstrumentHood",
           "PortConsole",
           "PortRudderPedal",
+          "PortStatusDisplay",
           "PrimaryDisplayBezel",
           "StarboardConsole",
           "StarboardRudderPedal",
+          "StarboardStatusDisplay",
           "ThrottleGrip"
         ],
         "CockpitArtStaticBatch_IvorySecondary": [
@@ -1528,7 +1528,7 @@
     ]
   },
   "schema_version": 1,
-  "source_semantic_sha256": "c9e753dff7b665f0050868eb61bc50b7bbec73bfd53692e300d66e8777b18047",
+  "source_semantic_sha256": "6e7a801be7817a38be34d19664ce93a3ea0a9d323c19128d7763c26196af6a5c",
   "swept_plate_winding_contract": {
     "all_positive_outward_winding": true,
     "expected_object_count": 16,
@@ -1577,11 +1577,11 @@
     "all_materials": {
       "degenerate_triangle_count": 180,
       "mirrored_surface_area_m2": 0.095264,
-      "mirrored_surface_ratio": 0.000161883,
+      "mirrored_surface_ratio": 0.000161894,
       "mirrored_triangle_count": 113,
-      "positive_surface_area_m2": 588.376179,
+      "positive_surface_area_m2": 588.338335,
       "positive_triangle_count": 98933,
-      "surface_area_m2": 588.471444,
+      "surface_area_m2": 588.4336,
       "triangle_count": 99226
     },
     "by_material": {
@@ -1620,10 +1620,10 @@
         "mirrored_surface_area_m2": 0.0,
         "mirrored_surface_ratio": 0.0,
         "mirrored_triangle_count": 0,
-        "positive_surface_area_m2": 4.378172,
-        "positive_triangle_count": 9024,
-        "surface_area_m2": 4.378172,
-        "triangle_count": 9048
+        "positive_surface_area_m2": 4.11668,
+        "positive_triangle_count": 8808,
+        "surface_area_m2": 4.11668,
+        "triangle_count": 8832
       },
       "ExposedAlloy": {
         "degenerate_triangle_count": 76,
@@ -1638,12 +1638,12 @@
       "GraphiteMachinery": {
         "degenerate_triangle_count": 0,
         "mirrored_surface_area_m2": 0.009551,
-        "mirrored_surface_ratio": 0.000146721,
+        "mirrored_surface_ratio": 0.000146218,
         "mirrored_triangle_count": 8,
-        "positive_surface_area_m2": 65.085014,
-        "positive_triangle_count": 21788,
-        "surface_area_m2": 65.094564,
-        "triangle_count": 21796
+        "positive_surface_area_m2": 65.308662,
+        "positive_triangle_count": 22004,
+        "surface_area_m2": 65.318212,
+        "triangle_count": 22012
       },
       "IvorySecondary": {
         "degenerate_triangle_count": 0,

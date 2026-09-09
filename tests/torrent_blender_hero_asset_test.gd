@@ -168,6 +168,8 @@ func _run() -> void:
 	await process_frame
 	_check(_primary_display_sightlines_are_clear(hero),
 		"the fixed pilot eye has unobstructed physical sightlines through the fitted bezel to the primary display")
+	_check(_primary_display_sightlines_are_clear(hero, true),
+		"the fixed pilot eye sees both live side displays without the authored repeater lamps obstructing them")
 	var hero_audit := hero.get_torrent_art_audit_report()
 	_check(bool(hero_audit.get("valid", false)), "production Torrent delegates to close art and far-fallback audits")
 	_check(
@@ -472,7 +474,7 @@ func _finish() -> void:
 		quit(1)
 
 
-func _primary_display_sightlines_are_clear(hero: HeroShip) -> bool:
+func _primary_display_sightlines_are_clear(hero: HeroShip, side_displays: bool = false) -> bool:
 	var screen := hero.find_child("PrimaryDisplay", true, false) as MeshInstance3D
 	var cockpit := hero.find_child("CockpitArt", true, false) as Node3D
 	var camera := hero.find_child("CockpitCamera", true, false) as Camera3D
@@ -480,9 +482,19 @@ func _primary_display_sightlines_are_clear(hero: HeroShip) -> bool:
 		return false
 	# Sample the text-bearing face just in front of its own surface. Testing
 	# actual imported triangles catches a solid hood/bezel even after batching.
-	for sample in [Vector2.ZERO, Vector2(-0.33, -0.10), Vector2(0.33, -0.10),
-		Vector2(-0.33, 0.10), Vector2(0.33, 0.10)]:
-		var target := screen.to_global(Vector3(sample.x, sample.y, screen.get_aabb().end.z + 0.003))
+	var targets: Array[Vector3] = []
+	if side_displays:
+		for side in [-1.0, 1.0]:
+			var face := screen.global_transform
+			face.origin = cockpit.to_global(Vector3(side * 0.58, 2.69, -1.45))
+			for sample in [Vector2.ZERO, Vector2(-0.06, -0.06), Vector2(0.06, -0.06),
+				Vector2(-0.06, 0.06), Vector2(0.06, 0.06)]:
+				targets.append(face * Vector3(sample.x, sample.y, 0.016))
+	else:
+		for sample in [Vector2.ZERO, Vector2(-0.33, -0.10), Vector2(0.33, -0.10),
+			Vector2(-0.33, 0.10), Vector2(0.33, 0.10)]:
+			targets.append(screen.to_global(Vector3(sample.x, sample.y, screen.get_aabb().end.z + 0.003)))
+	for target in targets:
 		for node in cockpit.find_children("*", "MeshInstance3D", true, false):
 			var mesh_instance := node as MeshInstance3D
 			if mesh_instance == screen or mesh_instance.mesh == null:
@@ -493,6 +505,6 @@ func _primary_display_sightlines_are_clear(hero: HeroShip) -> bool:
 			for index in range(0, faces.size(), 3):
 				if Geometry3D.segment_intersects_triangle(eye_local, target_local,
 					faces[index], faces[index + 1], faces[index + 2]) != null:
-					print("Primary display sightline blocked by ", mesh_instance.name, " at ", sample)
+					print("Display sightline blocked by ", mesh_instance.name, " at ", target)
 					return false
 	return true
