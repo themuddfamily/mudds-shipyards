@@ -1383,11 +1383,7 @@ func _armor_shell(parent: Node3D, node_name: String, at: Vector3, size: Vector3,
 
 
 func _service_bay(parent: Node3D, tag: String, at: Vector3, width: float, length: float, frame: Material, dark: Material, metal: Material) -> void:
-	_box(parent, tag + "Recess", at, Vector3(width, 0.035, length), dark)
-	for side in [-1.0, 1.0]:
-		_box(parent, tag + "Rim" + str(side), at + Vector3(side * (width * 0.5 + 0.045), 0.035, 0), Vector3(0.09, 0.07, length + 0.18), frame)
-	for index in 5:
-		_box(parent, tag + "Louver" + str(index), at + Vector3(0, 0.032, (float(index) / 4.0 - 0.5) * length * 0.78), Vector3(width * 0.82, 0.05, length * 0.07), metal, Vector3(0.18, 0, 0))
+	preload("res://scripts/ships/ship_service_cassette.gd").install(parent, tag, at, width, length, frame, dark, metal)
 
 
 func _pressure_panel(parent: Node3D, label: String, at: Vector3, top: float, bottom: float, height: float, depth: float, material: Material) -> MeshInstance3D:

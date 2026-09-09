@@ -10,6 +10,7 @@ func _initialize() -> void:
 	var craft := Interceptor.new()
 	root.add_child(craft)
 	await process_frame
+	_test_induction_cassettes(craft)
 	_test_recessed_exhaust(craft)
 	var audit := craft.get_audit_report()
 	_check(bool(audit.get("valid", false)), "the interceptor builds a valid collision and lifecycle contract")
@@ -310,3 +311,24 @@ func _test_exhaust_surface(mesh: ArrayMesh, label: String) -> void:
 		if valid_uv:
 			valid_uv = absf((uv[b] - uv[a]).cross(uv[c] - uv[a])) > 0.00000001
 	_check(valid_triangles and valid_uv, label + " has no collapsed geometric or UV triangles, including cap poles")
+
+
+func _test_induction_cassettes(craft: Node3D) -> void:
+	var valid := true
+	for tag in ["InductionDuct", "InductionMouth/Intake"]:
+		var port: MeshInstance3D
+		var starboard: MeshInstance3D
+		if tag.contains("/"):
+			port = craft.find_child("PortInductionMouth", true, false).get_node("IntakeFrame")
+			starboard = craft.find_child("StarboardInductionMouth", true, false).get_node("IntakeFrame")
+		else:
+			port = craft.find_child("PortInductionDuctFrame", true, false)
+			starboard = craft.find_child("StarboardInductionDuctFrame", true, false)
+		valid = valid and port != null and starboard != null and port.mesh == starboard.mesh and port.mesh.surface_get_material(0) == null
+		if port != null:
+			var prefix := String(port.name).trim_suffix("Frame")
+			var vanes := port.get_parent().get_node(prefix + "Vanes") as MeshInstance3D
+			var back := port.get_parent().get_node(prefix + "Recess") as MeshInstance3D
+			valid = valid and vanes != null and back != null and vanes.position == port.position and back.position.is_equal_approx(port.position + Vector3(0, 0.025, 0))
+	_check(valid, "paired roof and forward induction cassettes share their fitted material-free stocks and recessed backing")
+	_check(craft.find_children("*Louver*", "MeshInstance3D", true, false).is_empty(), "formed induction assemblies replace all twenty isolated louver bars")
