@@ -2600,26 +2600,60 @@ func _pressure_mesh(sections: Array, material: Material) -> ArrayMesh:
 	if _pressure_shell_meshes.has(key):
 		return _pressure_shell_meshes[key] as ArrayMesh
 	var rings: Array[PackedVector3Array] = []
-	# Two shoulder facets soften the transition into a broad planar sidewall.
-	var profile := PackedVector2Array([
-		Vector2(-0.64, 1), Vector2(0.64, 1), Vector2(0.87, 0.86),
-		Vector2(1, 0.48), Vector2(1, -0.48), Vector2(0.87, -0.86),
-		Vector2(0.64, -1), Vector2(-0.64, -1), Vector2(-0.87, -0.86),
-		Vector2(-1, -0.48), Vector2(-1, 0.48), Vector2(-0.87, 0.86),
-	])
+	var normals: Array[PackedVector3Array] = []
+	var profile := PackedVector2Array()
+	var tangents := PackedVector2Array()
+	# Elliptical shoulders meet the original mounting flats tangentially. Each
+	# quarter uses eight real segments so the silhouette also follows the curve.
+	# The four long straight spans retain x = +/-1 and y = +/-1 exactly.
+	for corner in 4:
+		var centre := Vector2(0.64 if corner < 2 else -0.64, 0.48 if corner in [0, 3] else -0.48)
+		for step in 9:
+			var angle := PI * 0.5 - (float(corner) + float(step) / 8.0) * PI * 0.5
+			profile.append(centre + Vector2(0.36 * cos(angle), 0.52 * sin(angle)))
+			tangents.append(Vector2(0.36 * sin(angle), -0.52 * cos(angle)))
+	# Keep coating coordinates in metres. Use one reference perimeter throughout
+	# the shell so tapering stations cannot make the finish drift along its axis.
+	var reference_size := Vector2.ZERO
 	for section: Vector4 in sections:
+		reference_size = reference_size.max(Vector2(section.y, section.z))
+	var arc_distances := PackedFloat32Array([0.0])
+	for j in profile.size():
+		var span := (profile[(j + 1) % profile.size()] - profile[j]) * reference_size
+		arc_distances.append(arc_distances[-1] + span.length())
+	for r in sections.size():
+		var section: Vector4 = sections[r]
+		var previous: Vector4 = sections[maxi(0, r - 1)]
+		var next: Vector4 = sections[mini(sections.size() - 1, r + 1)]
+		var slope := (next - previous) / (next.x - previous.x)
 		var ring := PackedVector3Array()
-		for point: Vector2 in profile:
+		var ring_normals := PackedVector3Array()
+		for j in profile.size():
+			var point := profile[j]
 			ring.append(Vector3(point.x * section.y, point.y * section.z + section.w, section.x))
+			var around := Vector3(tangents[j].x * section.y, tangents[j].y * section.z, 0)
+			var along := Vector3(point.x * slope.y, point.y * slope.z + slope.w, 1)
+			# Shared analytic side normals remove triangle diagonals and continue
+			# through authored stations. End caps still have crisp planar normals.
+			ring_normals.append(along.cross(around).normalized())
 		rings.append(ring)
+		normals.append(ring_normals)
 	var surface := SurfaceTool.new()
 	surface.begin(Mesh.PRIMITIVE_TRIANGLES)
 	surface.set_material(material)
 	for r in rings.size() - 1:
 		for j in profile.size():
 			var k := (j + 1) % profile.size()
-			_emit_armour_triangle(surface, rings[r][j], rings[r + 1][j], rings[r + 1][k])
-			_emit_armour_triangle(surface, rings[r][j], rings[r + 1][k], rings[r][k])
+			# Clockwise fronts, matching the armour emitter; the pressure skin
+			# alone interpolates vertex normals across each formed shoulder.
+			for address: Vector2i in [Vector2i(r, j), Vector2i(r + 1, k), Vector2i(r + 1, j), Vector2i(r, j), Vector2i(r, k), Vector2i(r + 1, k)]:
+				var point := rings[address.x][address.y]
+				var normal := normals[address.x][address.y]
+				surface.set_normal(normal)
+				# A continuous wrap avoids projection switches across the shoulder.
+				var around_index := profile.size() if address.y == 0 and j == profile.size() - 1 else address.y
+				surface.set_uv(Vector2(arc_distances[around_index], point.z))
+				surface.add_vertex(point)
 	for j in range(1, profile.size() - 1):
 		_emit_armour_triangle(surface, rings[0][0], rings[0][j], rings[0][j + 1])
 		_emit_armour_triangle(surface, rings[-1][0], rings[-1][j + 1], rings[-1][j])
