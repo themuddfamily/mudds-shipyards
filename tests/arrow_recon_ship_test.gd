@@ -39,6 +39,7 @@ func _run() -> void:
 	_test_boarding_step_mesh_sharing(arrow)
 	_test_escape_pods_and_sensors(arrow)
 	_test_instrument_construction(arrow)
+	_test_cockpit_fairing(arrow)
 	_test_collision_boarding_and_cameras(arrow)
 	await _test_engine_weapon_and_lifecycle(arrow)
 	await _test_cleanup(arrow)
@@ -1509,6 +1510,61 @@ func _test_instrument_construction(arrow: ArrowReconShip) -> void:
 						clear_dials = clear_dials and Geometry3D.segment_intersects_triangle(stock.to_local(camera.global_position), stock.to_local(target), a, b, c) == null
 	_check(geometry_valid, "instrument stock retains outward winding, finite unit normals and nonsingular UVs")
 	_check(clear_dials, "both complete dial sweeps clear the new mounting geometry from the authored pilot eye")
+
+
+func _test_cockpit_fairing(arrow: ArrowReconShip) -> void:
+	var visual := arrow.get_arrow_visual_root()
+	var fairing := visual.get_node("CockpitSillFairing") as MeshInstance3D
+	var bounds := fairing.transform * fairing.mesh.get_aabb()
+	_check(fairing.mesh.get_surface_count() == 1
+		and fairing.mesh.surface_get_material(0) == arrow.get_variant_materials().ceramic
+		and bounds.end.y <= 2.19 and bounds.end.z <= 1.20 + 0.00001,
+		"formed cockpit sill retains one ceramic skin within the previous cockpit crown and aft clearance")
+	var nose := visual.get_node("ReconFuselage") as MeshInstance3D
+	var forward_cap_seated := true
+	for vertex: Vector3 in fairing.mesh.surface_get_arrays(0)[Mesh.ARRAY_VERTEX]:
+		var point := fairing.transform * vertex
+		if absf(point.z - bounds.position.z) > 0.00001:
+			continue
+		var nose_span := _mesh_vertical_span(nose, Vector2(point.x, point.z), true)
+		forward_cap_seated = forward_cap_seated and nose_span.size() >= 2
+		if nose_span.size() >= 2:
+			forward_cap_seated = forward_cap_seated and point.y > nose_span[0] and point.y < nose_span[-1]
+	_check(forward_cap_seated, "the entire forward fairing cap is buried within the retained nose shell")
+	# At each join the closed fairing must actually overlap its supporting
+	# shell. A shallow loft above the roof passes bounds/winding but floats.
+	var joins_seated := true
+	for sample: Array in [
+		["ReconFuselage", Vector2(0.0, -2.90)],
+		["PortShoulderFairing", Vector2(-1.10, -1.80)],
+		["StarboardShoulderFairing", Vector2(1.10, -1.80)],
+	]:
+		var shell := visual.get_node(sample[0]) as MeshInstance3D
+		var sill_span := _mesh_vertical_span(fairing, sample[1])
+		var shell_span := _mesh_vertical_span(shell, sample[1])
+		joins_seated = joins_seated and sill_span.size() >= 2 and shell_span.size() >= 2
+		if sill_span.size() >= 2 and shell_span.size() >= 2:
+			joins_seated = joins_seated and sill_span[0] < shell_span[-1] and shell_span[0] < sill_span[-1]
+	_check(joins_seated, "cockpit fairing side returns and forward transition seat into both shoulders and the nose")
+
+
+func _mesh_vertical_span(stock: MeshInstance3D, sample: Vector2, include_fittings := false) -> Array[float]:
+	var heights: Array[float] = []
+	var faces := stock.mesh.get_faces()
+	if include_fittings:
+		# These fitted skins replace the nose roof removed by its service bay.
+		for name in ["SurveyServiceCovers", "SurveyServiceGasket"]:
+			var child := stock.get_node(name) as MeshInstance3D
+			for vertex: Vector3 in child.mesh.get_faces():
+				faces.append(child.transform * vertex)
+	var start := stock.transform.affine_inverse() * Vector3(sample.x, 4.0, sample.y)
+	var finish := stock.transform.affine_inverse() * Vector3(sample.x, 0.0, sample.y)
+	for index in range(0, faces.size(), 3):
+		var hit: Variant = Geometry3D.segment_intersects_triangle(start, finish, faces[index], faces[index + 1], faces[index + 2])
+		if hit != null:
+			heights.append((stock.transform * (hit as Vector3)).y)
+	heights.sort()
+	return heights
 
 
 func _test_collision_boarding_and_cameras(arrow: ArrowReconShip) -> void:

@@ -912,10 +912,13 @@ func _build_slender_airframe() -> void:
 ## manufactured airframe. All shells are presentation-only and leave the
 ## controller's boarding route, canopy hinge and escape-pod modules intact.
 func _build_manufactured_fairings() -> void:
-	_airframe_shadow_sources.append(_loft_hull(_arrow_visual, "CockpitSillFairing", Vector3(0, 2.06, -0.8), PackedVector3Array([
-		Vector3(0.18, 0.035, -2.8), Vector3(0.76, 0.075, -2.2),
-		Vector3(1.23, 0.13, -1.2), Vector3(1.28, 0.13, 1.4),
-		Vector3(0.70, 0.09, 2.0),
+	# The sill is a formed upper fuselage, with deep side returns seated in
+	# the nose and shoulders. Its forward crown rises from the service-bay
+	# roof; the cockpit land stays below the previous 2.19 m sill crown.
+	_airframe_shadow_sources.append(_loft_hull(_arrow_visual, "CockpitSillFairing", Vector3(0, 1.60, 0), PackedVector3Array([
+		Vector3(0.75, 0.23, -3.10), Vector3(1.00, 0.37, -2.65),
+		Vector3(1.23, 0.57, -1.80), Vector3(1.28, 0.57, 0.60),
+		Vector3(0.70, 0.51, 1.20),
 	]), _arrow_materials.ceramic))
 	for side in [-1.0, 1.0]:
 		var side_name := "Port" if side < 0.0 else "Starboard"
@@ -2695,8 +2698,8 @@ static func _transformed_mesh_bounds(
 func _loft_hull(parent: Node3D, node_name: String, origin: Vector3, authored_sections: PackedVector3Array, material: Material) -> MeshInstance3D:
 	var curved_pressure_shell := node_name == "CanopyShellConstruction"
 	# Only formed airframe skins get continuous curvature. Pressure-pod cases,
-	# saddles, removable covers and the cockpit sill retain their plate lands.
-	var formed_airframe := node_name in ["ReconFuselage", "GraphiteKeel", "DorsalSurveySpine", "WingtipSensorPod", "EfficientEngineHousing"] or node_name.ends_with("ShoulderFairing") or node_name.ends_with("EngineIntakeFairing")
+	# saddles and removable covers retain their plate lands.
+	var formed_airframe := node_name in ["ReconFuselage", "GraphiteKeel", "DorsalSurveySpine", "WingtipSensorPod", "EfficientEngineHousing", "CockpitSillFairing"] or node_name.ends_with("ShoulderFairing") or node_name.ends_with("EngineIntakeFairing")
 	var sections := PackedVector3Array()
 	for index in authored_sections.size() - 1:
 		var start := authored_sections[index]
