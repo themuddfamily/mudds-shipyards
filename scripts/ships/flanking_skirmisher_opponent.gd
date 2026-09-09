@@ -1492,7 +1492,12 @@ func _build_skirmisher_fittings() -> void:
 		parts.append([Vector3(side*0.7,0.37,-1.35),Vector3(0.3,0.04,0.72),0,Vector3(0,side*-0.25,0)])
 		parts.append([Vector3(side*3.78,0.38,1.9),Vector3(0.05,0.54,0.89),2,Vector3(0,side*0.16,side*-0.22)])
 		# The lower saddle meets the outside of the nacelle, below its bore.
-		parts.append([Vector3(side*1.0,-0.43,2.6),Vector3(0.78,0.13,0.66),0])
+		parts.append([Vector3(side * 1.0, -0.43, 2.6), Vector3.ZERO, 0, Vector3.ZERO, [
+			Vector4(-0.40, 0.16, 0.055, 0.035),
+			Vector4(-0.24, 0.31, 0.075, 0.025),
+			Vector4(0.20, 0.32, 0.065, 0.0),
+			Vector4(0.34, 0.20, 0.030, 0.035),
+		]])
 		for rib in 3:
 			parts.append([Vector3(side*0.45,0.62,0.5+rib*0.39),Vector3(0.12,0.1,0.22),2])
 	parts.append([Vector3(0,-0.02,2.72),Vector3(1.09,0.5,0.09),2])
