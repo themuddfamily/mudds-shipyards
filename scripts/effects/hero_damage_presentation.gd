@@ -1386,11 +1386,16 @@ func _apply_resolved_damage_severity() -> void:
 		0.0,
 		1.0
 	)
-	_damage_sparks.amount = roundi(lerpf(
+	# CPUParticles3D.set_amount resets active particles and requests render-buffer
+	# allocation even for the same count. Preserve live bursts between actual
+	# integer density changes, including the per-tick healthy/offline updates.
+	var hull_amount := roundi(lerpf(
 		float(HULL_SPARK_DAMAGED_AMOUNT),
 		float(HULL_SPARK_CRITICAL_AMOUNT),
 		hull_severity
 	))
+	if _damage_sparks.amount != hull_amount:
+		_damage_sparks.amount = hull_amount
 	_damage_sparks.lifetime = lerpf(0.72, 1.02, hull_severity)
 	_damage_sparks.initial_velocity_min = lerpf(2.2, 3.6, hull_severity)
 	_damage_sparks.initial_velocity_max = lerpf(4.6, 7.4, hull_severity)
@@ -1400,19 +1405,23 @@ func _apply_resolved_damage_severity() -> void:
 		0.0,
 		1.0
 	)
-	_engine_failure_sparks.amount = roundi(lerpf(
+	var engine_amount := roundi(lerpf(
 		float(ENGINE_SPARK_CRITICAL_AMOUNT),
 		float(ENGINE_SPARK_SEVERE_AMOUNT),
 		failure_severity
 	))
+	if _engine_failure_sparks.amount != engine_amount:
+		_engine_failure_sparks.amount = engine_amount
 	_engine_failure_sparks.lifetime = lerpf(0.46, 0.72, failure_severity)
 	_engine_failure_sparks.initial_velocity_min = lerpf(1.72, 2.8, failure_severity)
 	_engine_failure_sparks.initial_velocity_max = lerpf(3.6, 5.8, failure_severity)
-	_engine_smoke.amount = roundi(lerpf(
+	var smoke_amount := roundi(lerpf(
 		float(ENGINE_SMOKE_CRITICAL_AMOUNT),
 		float(ENGINE_SMOKE_SEVERE_AMOUNT),
 		failure_severity
 	))
+	if _engine_smoke.amount != smoke_amount:
+		_engine_smoke.amount = smoke_amount
 	_engine_smoke.lifetime = lerpf(1.65, 2.25, failure_severity)
 	_engine_smoke.initial_velocity_max = lerpf(1.9, 2.8, failure_severity)
 	_engine_smoke.scale_amount_max = lerpf(1.45, 2.05, failure_severity)
