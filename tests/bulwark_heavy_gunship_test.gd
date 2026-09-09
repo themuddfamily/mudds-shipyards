@@ -79,6 +79,7 @@ func _test_collision_and_authority_audit(ship: HeroShip) -> void:
 	_test_gun_pod_housing_batch(visual)
 	_test_service_cassettes(visual)
 	_test_cockpit_pressure_transition(visual)
+	_test_primary_armor_landings(visual)
 	var audit: Dictionary = ship.call("get_bulwark_audit_report")
 	_check(bool(audit.get("valid", false)), "fully constructed Bulwark passes its public audit")
 	_check(int(audit.get("collision_shape_count", 0)) >= 3, "audit sees the armored collision envelope")
@@ -105,6 +106,61 @@ func _test_cockpit_pressure_transition(visual: Node3D) -> void:
 		"pressure skin extends past both ends of the retained floor into the deck")
 	_check(fairing_bounds.size.x < 3.7 and fairing_bounds.position.y <= 1.33,
 		"rolled pressure shoulders narrow the former plinth and remain seated inside the deck")
+
+
+## Sample the actual triangle skin: an unchanged AABB would not detect a
+## curved crown closing the service recess or lifting armor into the cabin.
+func _test_primary_armor_landings(visual: Node3D) -> void:
+	var nose := visual.get_node("ArmoredNose") as MeshInstance3D
+	var pocket_clear := true
+	var pocket_lips_seated := true
+	for z in [-5.2, -4.325, -3.45]:
+		var progress: float = (z + 5.4) / 2.15
+		var deck := lerpf(0.95, 1.50, progress)
+		var width := lerpf(0.78, 1.24, progress)
+		pocket_clear = pocket_clear and is_equal_approx(_armor_surface_height(nose, Vector2(0, z)), deck - 0.16)
+		for side in [-1.0, 1.0]:
+			pocket_lips_seated = pocket_lips_seated and is_equal_approx(_armor_surface_height(nose, Vector2(side * (width + 0.025), z)), deck)
+	_check(pocket_clear and pocket_lips_seated,
+		"formed nose preserves the open recessed avionics floor and exact sloping equipment lips")
+	var hull := visual.get_node("ArmoredCentralSlab") as MeshInstance3D
+	var cabin_clear := true
+	var floor := visual.get_node("CockpitInterior/CockpitFloor") as MeshInstance3D
+	var floor_bounds := (floor.get_parent() as Node3D).transform * (floor.transform * floor.get_aabb())
+	for across in 5:
+		for along in 5:
+			var x := lerpf(floor_bounds.position.x, floor_bounds.end.x, float(across) / 4.0)
+			var z := lerpf(floor_bounds.position.z, floor_bounds.end.z, float(along) / 4.0)
+			var height := _armor_surface_height(hull, Vector2(x, z))
+			cabin_clear = cabin_clear and is_finite(height) and height < floor_bounds.position.y
+	_check(cabin_clear, "the entire retained cabin footprint has hull below its floor and no crown intrusion")
+	var fairing := visual.get_node("CockpitPressureTransition") as MeshInstance3D
+	var fairing_vertices: PackedVector3Array = fairing.mesh.surface_get_arrays(0)[Mesh.ARRAY_VERTEX]
+	var fairing_seated := true
+	var foot_samples := 0
+	for vertex in fairing_vertices:
+		var point := fairing.transform * vertex
+		if not is_equal_approx(point.y, 1.32): continue
+		foot_samples += 1
+		fairing_seated = fairing_seated and _armor_surface_height(hull, Vector2(point.x, point.z)) > point.y + 0.02
+	_check(fairing_seated and foot_samples >= 38,
+		"every sampled pressure-fairing foot remains embedded in the formed primary hull")
+	var shoulders := visual.get_node("ArmoredShoulderBatch") as MultiMeshInstance3D
+	var triangles := 0
+	for mesh in [nose.mesh, hull.mesh, shoulders.multimesh.mesh]:
+		triangles += mesh.surface_get_array_len(0) / 3 * (2 if mesh == shoulders.multimesh.mesh else 1)
+	_check(triangles <= 4800, "three primary armor shells retain a bounded combined visible triangle budget")
+
+
+func _armor_surface_height(instance: MeshInstance3D, at: Vector2) -> float:
+	var arrays := instance.mesh.surface_get_arrays(0)
+	var vertices: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
+	var height := -INF
+	for index in range(0, vertices.size(), 3):
+		var hit: Variant = Geometry3D.ray_intersects_triangle(Vector3(at.x, 10, at.y), Vector3.DOWN,
+			instance.transform * vertices[index], instance.transform * vertices[index + 1], instance.transform * vertices[index + 2])
+		if hit != null: height = maxf(height, (hit as Vector3).y)
+	return height
 
 
 func _test_armored_shoulder_batch(visual: Node3D) -> void:

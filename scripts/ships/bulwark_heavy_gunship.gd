@@ -377,11 +377,11 @@ func _build_bulwark_variant(_controller: HeroShip) -> bool:
 		Vector4(-4.25, 2.22, 0.40, -0.10), Vector4(-2.25, 2.75, 0.76, 0),
 		Vector4(1.45, 2.75, 0.76, 0), Vector4(2.8, 2.16, 0.61, -0.10),
 		Vector4(4.25, 1.50, 0.33, -0.25),
-	], armor_blue)
+	], armor_blue, false, true)
 	_profile_shell(_bulwark_visual, "ArmoredNose", Vector3.ZERO, [
 		Vector4(-6.25, 1.05, 0.19, 0.48), Vector4(-5.4, 1.95, 0.33, 0.62),
 		Vector4(-3.25, 2.82, 0.62, 0.88), Vector4(-2.65, 2.82, 0.65, 0.9),
-	], armor_highlight, true)
+	], armor_highlight, true, true)
 	_profile_shell(_bulwark_visual, "CenterlineArmorSpine", Vector3.ZERO, [
 		Vector4(1.55, 0.47, 0.09, 1.68), Vector4(2.40, 0.60, 0.12, 1.56),
 		Vector4(3.70, 0.48, 0.09, 1.19), Vector4(4.45, 0.31, 0.08, 0.94),
@@ -1111,7 +1111,7 @@ func _add_armored_shoulder_batch(
 ) -> MultiMeshInstance3D:
 	# A broad load-bearing middle narrows at both ends. The aft bevel closes
 	# toward the engine cradle instead of leaving a slab across the stern.
-	var mesh := _profile_mesh([
+	var mesh := _primary_armor_mesh([
 		Vector4(-2.65, 0.38, 0.24, -0.04),
 		Vector4(-1.22, 1.70, 0.625, 0),
 		# Recessed assembly joints divide the heavy shoulder armor into fitted
@@ -2957,6 +2957,125 @@ func _engine_mechanics(parent: Node3D, tag: String, at: Vector3, radius: float, 
 	parent.add_child(batch)
 
 
+## Primary armor is a broad formed crown, rather than a chamfered slab. The
+## central landing remains planar for the pressure fairing and avionics pocket;
+## the outer half of each crown rolls into a vertical belt and angular keel.
+## Longitudinal Hermite stations stay inside their authored extrema. Shared
+## station derivatives carry highlights through the cast taper, while the
+## short shoulder assembly grooves retain their deliberate hard breaks.
+func _primary_armor_mesh(stations: Array, coating: Material, nose_pocket: bool = false) -> ArrayMesh:
+	var section: Array[Vector2] = [Vector2(-0.52, 1), Vector2(0.52, 1)]
+	var tangents: Array[Vector2] = [Vector2.RIGHT, Vector2.RIGHT]
+	var crown: Array[Vector2] = []
+	var crown_tangents: Array[Vector2] = []
+	var p0 := Vector2(0.52, 1)
+	var p1 := Vector2(0.82, 1)
+	var p2 := Vector2(1, 0.66)
+	var p3 := Vector2(1, 0.20)
+	for sample in range(1, 9):
+		var t := float(sample) / 8.0
+		var u := 1.0 - t
+		crown.append(p0 * u * u * u + p1 * 3.0 * u * u * t + p2 * 3.0 * u * t * t + p3 * t * t * t)
+		crown_tangents.append(((p1 - p0) * u * u + (p2 - p1) * 2.0 * u * t + (p3 - p2) * t * t).normalized())
+	section.append_array(crown)
+	tangents.append_array(crown_tangents)
+	# The lower belt and keel remain angular armor, with modest corner breaks.
+	for point in [Vector2(1, -0.48), Vector2(0.96, -0.60), Vector2(0.76, -0.96), Vector2(0.68, -1), Vector2(-0.68, -1), Vector2(-0.76, -0.96), Vector2(-0.96, -0.60), Vector2(-1, -0.48)]:
+		section.append(point)
+		tangents.append(Vector2.ZERO)
+	for sample in range(7, -1, -1):
+		section.append(Vector2(-crown[sample].x, crown[sample].y))
+		tangents.append(Vector2(crown_tangents[sample].x, -crown_tangents[sample].y))
+	for index in section.size():
+		if tangents[index] == Vector2.ZERO:
+			tangents[index] = (section[(index + 1) % section.size()] - section[(index - 1 + section.size()) % section.size()]).normalized()
+	var derivatives: Array[Vector4] = []
+	for index in stations.size():
+		var before: Vector4 = stations[maxi(0, index - 1)]
+		var current: Vector4 = stations[index]
+		var after: Vector4 = stations[mini(stations.size() - 1, index + 1)]
+		var slope := Vector4.ZERO
+		for axis in range(1, 4):
+			var incoming: float = (current[axis] - before[axis]) / (current.x - before.x) if index > 0 else (after[axis] - current[axis]) / (after.x - current.x)
+			var outgoing: float = (after[axis] - current[axis]) / (after.x - current.x) if index < stations.size() - 1 else incoming
+			# Monotone harmonic slopes cannot overshoot a flat equipment deck.
+			slope[axis] = 2.0 * incoming * outgoing / (incoming + outgoing) if incoming * outgoing > 0.0 else 0.0
+		derivatives.append(slope)
+	var surface := SurfaceTool.new()
+	surface.begin(Mesh.PRIMITIVE_TRIANGLES)
+	surface.set_material(coating)
+	for span in range(stations.size() - 1):
+		var a: Vector4 = stations[span]
+		var b: Vector4 = stations[span + 1]
+		var length := b.x - a.x
+		var samples := 4 if length > 0.15 else 1
+		var pocket_span := nose_pocket and is_equal_approx(a.x, -5.4) and is_equal_approx(b.x, -3.25)
+		for step in samples:
+			var rings: Array[Vector4] = []
+			var slopes: Array[Vector4] = []
+			for end in 2:
+				var t := float(step + end) / float(samples)
+				var station := a * (2*t*t*t - 3*t*t + 1) + derivatives[span] * length * (t*t*t - 2*t*t + t) + b * (-2*t*t*t + 3*t*t) + derivatives[span + 1] * length * (t*t*t - t*t)
+				var slope := (a * (6*t*t - 6*t) + derivatives[span] * length * (3*t*t - 4*t + 1) + b * (-6*t*t + 6*t) + derivatives[span + 1] * length * (3*t*t - 2*t)) / length
+				station.x = lerpf(a.x, b.x, t)
+				# The existing service liner and cartridge sit on this exact plane.
+				if pocket_span:
+					station.z = lerpf(a.z, b.z, t)
+					station.w = lerpf(a.w, b.w, t)
+					slope.z = (b.z - a.z) / length
+					slope.w = (b.w - a.w) / length
+				if samples == 1:
+					station = a.lerp(b, t)
+					slope = (b - a) / length
+				rings.append(station)
+				slopes.append(slope)
+			for edge in section.size():
+				var next := (edge + 1) % section.size()
+				var points: Array[Vector3] = []
+				for corner in 4:
+					var ring := section[edge if corner == 0 or corner == 3 else next]
+					var station := rings[0 if corner < 2 else 1]
+					points.append(Vector3(ring.x * station.y, ring.y * station.z + station.w, station.x))
+				if pocket_span and edge == 0:
+					var widths := Vector2(lerpf(0.78, 1.24, float(step) / samples), lerpf(0.78, 1.24, float(step + 1) / samples))
+					var fl := Vector3(-widths.x, rings[0].z + rings[0].w, rings[0].x)
+					var fr := Vector3(widths.x, fl.y, fl.z)
+					var rl := Vector3(-widths.y, rings[1].z + rings[1].w, rings[1].x)
+					var rr := Vector3(widths.y, rl.y, rl.z)
+					var drop := Vector3(0, -0.16, 0)
+					_profile_quad(surface, points[0], fl, rl, points[3])
+					_profile_quad(surface, fr, points[1], points[2], rr)
+					_profile_quad(surface, fl, fl + drop, rl + drop, rl)
+					_profile_quad(surface, fr + drop, fr, rr, rr + drop)
+					_profile_quad(surface, fl + drop, fr + drop, rr + drop, rl + drop)
+					if step == 0: _profile_quad(surface, fl, fr, fr + drop, fl + drop)
+					if step == samples - 1: _profile_quad(surface, rl + drop, rr + drop, rr, rl)
+					continue
+				for corner in [0, 1, 2, 0, 2, 3]:
+					var index := edge if corner == 0 or corner == 3 else next
+					var end := 0 if corner < 2 else 1
+					var station := rings[end]
+					var slope := slopes[end]
+					var ring := section[index]
+					var tangent := tangents[index]
+					var around := Vector3(tangent.x * station.y, tangent.y * station.z, 0)
+					var along := Vector3(ring.x * slope.y, ring.y * slope.z + slope.w, 1)
+					surface.set_normal(along.cross(around).normalized())
+					surface.set_uv(Vector2(float(edge + (1 if corner == 1 or corner == 2 else 0)) / section.size(), (station.x - stations[0].x) / (stations[-1].x - stations[0].x)))
+					surface.add_vertex(points[corner])
+	for cap in [0, stations.size() - 1]:
+		var station: Vector4 = stations[cap]
+		for edge in section.size():
+			var p := section[edge]
+			var q := section[(edge + 1) % section.size()]
+			for ring: Vector2 in ([Vector2.ZERO, q, p] if cap == 0 else [Vector2.ZERO, p, q]):
+				surface.set_normal(Vector3.FORWARD if cap == 0 else Vector3.BACK)
+				surface.set_uv(ring * 0.5 + Vector2.ONE * 0.5)
+				surface.add_vertex(Vector3(ring.x * station.y, ring.y * station.z + station.w, station.x))
+	surface.generate_tangents()
+	return surface.commit()
+
+
 ## Each station stores longitudinal position, half width, half height and rise.
 ## Planar chines retain deliberate creases; bilinear side normals avoid diagonal
 ## shading seams where successive sections change width and height together.
@@ -3036,11 +3155,11 @@ func _profile_quad(surface: SurfaceTool, a: Vector3, b: Vector3, c: Vector3, d: 
 		surface.add_vertex(point)
 
 
-func _profile_shell(parent: Node3D, label: String, at: Vector3, stations: Array, coating: Material, nose_service_pocket: bool = false) -> MeshInstance3D:
+func _profile_shell(parent: Node3D, label: String, at: Vector3, stations: Array, coating: Material, nose_service_pocket: bool = false, primary_casting: bool = false) -> MeshInstance3D:
 	var instance := MeshInstance3D.new()
 	instance.name = label
 	instance.position = at
-	instance.mesh = _profile_mesh(stations, coating, nose_service_pocket)
+	instance.mesh = _primary_armor_mesh(stations, coating, nose_service_pocket) if primary_casting else _profile_mesh(stations, coating, nose_service_pocket)
 	parent.add_child(instance)
 	return instance
 
