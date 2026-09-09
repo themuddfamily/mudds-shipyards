@@ -1318,6 +1318,34 @@ static func _port_aperture_shell_mesh(
 		Vector2(x0 + 0.18, y0 + lower_bevel * 0.28), Vector2(x0, y0 + lower_bevel),
 		Vector2(x0, y1 - bevel), Vector2(x0 + 0.20, y1 - bevel * 0.24),
 	])
+	var section_normals := PackedVector2Array()
+	var starboard_wall := 3
+	var port_wall := 9
+	if size == HULL_SIZE:
+		# Form the outer pressure shell with tangent elliptical bends. Eight
+		# segments per bend replace the two broad chamfer facets; the roof,
+		# stamped side walls and cabin aperture keep their authored bounds.
+		section.clear()
+		section.append(Vector2(x0 + 0.70, y1))
+		section_normals.append(Vector2(0, 1))
+		for corner in 4:
+			var upper := corner == 0 or corner == 3
+			var radius := Vector2(0.70 if upper else 0.65, bevel if upper else lower_bevel)
+			var center := Vector2(
+				half.x - radius.x if corner < 2 else x0 + radius.x,
+				y1 - radius.y if upper else y0 + radius.y)
+			for step in 9:
+				# The final top-left endpoint is already the first section point.
+				if corner == 3 and step == 8:
+					continue
+				var angle := PI * 0.5 - float(corner) * PI * 0.5 - float(step) / 8.0 * PI * 0.5
+				var radial := Vector2(cos(angle), sin(angle))
+				section.append(center + radial * radius)
+				section_normals.append(Vector2(radial.x / radius.x, radial.y / radius.y).normalized())
+			if corner == 0:
+				starboard_wall = section.size() - 1
+			elif corner == 2:
+				port_wall = section.size() - 1
 	var stations: Array[float] = [z0, z0 * 0.91, z0 * 0.66, aperture_z_min, 0.0, aperture_z_max, z1 * 0.66, z1 * 0.91, z1]
 	stations.sort()
 	var rings: Array[PackedVector3Array] = []
@@ -1333,21 +1361,37 @@ static func _port_aperture_shell_mesh(
 	for bay in stations.size() - 1:
 		var in_door := stations[bay] >= aperture_z_min and stations[bay + 1] <= aperture_z_max
 		for edge in section.size():
-			if edge == 9 and in_door:
+			if edge == port_wall and in_door:
 				continue
 			var next := (edge + 1) % section.size()
 			# Stamp the large freight faces into the pressure skin itself. The
 			# perimeter stays at the original shell bounds; recessed pans expose
 			# real angled reveals and leave the interior pressure wall intact.
-			if size == HULL_SIZE and (edge == 3 or edge == 9) and stations[bay + 1] - stations[bay] > 0.6:
+			if size == HULL_SIZE and (edge == starboard_wall or edge == port_wall) and stations[bay + 1] - stations[bay] > 0.6:
 				_append_freight_pan(vertices, normals, indices,
 					rings[bay][edge], rings[bay][next], rings[bay + 1][next], rings[bay + 1][edge],
-					Vector3.RIGHT if edge == 3 else Vector3.LEFT)
+					Vector3.RIGHT if edge == starboard_wall else Vector3.LEFT)
 				continue
+			var vertex_start := vertices.size()
 			var midpoint := (section[edge] + section[next]) * 0.5
 			_append_shell_quad(vertices, normals, indices,
 				rings[bay][edge], rings[bay][next], rings[bay + 1][next], rings[bay + 1][edge],
 				Vector3(midpoint.x / half.x, midpoint.y / half.y, 0).normalized())
+			if not section_normals.is_empty() and vertices.size() == vertex_start + 4:
+				# Preserve clockwise triangles while giving each bend endpoint its
+				# analytic normal. Longitudinal taper joints stay deliberate folds.
+				for vertex_index in range(vertex_start, vertices.size()):
+					var point := vertices[vertex_index]
+					var at_start := is_equal_approx(point.z, stations[bay])
+					var ring_index := bay if at_start else bay + 1
+					var section_index := edge if point.is_equal_approx(rings[ring_index][edge]) else next
+					var across := section_normals[section_index]
+					var along := rings[bay + 1][section_index] - rings[bay][section_index]
+					var scale_x := rings[ring_index][section_index].x / section[section_index].x
+					var scale_y := rings[ring_index][section_index].y / section[section_index].y
+					var nx := across.x / scale_x
+					var ny := across.y / scale_y
+					normals[vertex_index] = Vector3(nx, ny, -(nx * along.x + ny * along.y) / along.z).normalized()
 		if in_door:
 			for band in [Vector2(y0 + lower_bevel, aperture_y_min), Vector2(aperture_y_max, y1 - bevel)]:
 				_append_shell_quad(vertices, normals, indices,
