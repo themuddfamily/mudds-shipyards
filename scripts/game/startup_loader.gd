@@ -105,6 +105,12 @@ func _ready() -> void:
 		print(format_cli_output(early_cli_mode))
 		call_deferred("_quit_after_cli_output")
 		return
+	if "--frame-capture" in command_line:
+		var capture := load("res://scripts/diagnostics/frame_capture.gd").new() as Node
+		capture.name = "FrameCapture"
+		add_child(capture)
+		startup_completed.connect(capture.on_startup_completed)
+		capture.start_capture()
 	_boot_usec = Time.get_ticks_usec()
 	print("STARTUP begin: renderer=%s device=%s" % [
 		RenderingServer.get_current_rendering_method(), RenderingServer.get_video_adapter_name()
