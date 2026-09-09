@@ -15,6 +15,27 @@ func _initialize() -> void:
 	host.add_child(second)
 	await process_frame
 
+	var bow := first.get_node(^"ContractCourierVisual/BluntNose") as MeshInstance3D
+	var bow_bounds := bow.transform * bow.mesh.get_aabb()
+	_check(bow_bounds.position.is_equal_approx(Vector3(-1.1,-0.85,-4.7))
+		and bow_bounds.end.is_equal_approx(Vector3(1.1,0.85,-2.0)),
+		"formed courier bow retains its nose station, beam and pressure-body join envelope")
+	var stations := {}
+	var bow_faces := bow.mesh.get_faces()
+	for point in bow_faces:
+		var z := snappedf(point.z, 0.0001)
+		var extent: Vector2 = stations.get(z, Vector2.ZERO)
+		stations[z] = extent.max(Vector2(absf(point.x), absf(point.y)))
+	var ordered := stations.keys()
+	ordered.sort()
+	var tip: Vector2 = stations[ordered[0]]
+	var shoulder: Vector2 = stations[ordered[ordered.size()/2]]
+	_check(ordered.size() >= 12 and tip.x < 0.15 and tip.y < 0.15
+		and shoulder.x > 0.65 and shoulder.y > 0.48,
+		"the actual bow rounds in plan and profile into a small nose face instead of a freight slab")
+	_check(bow_faces.size()/3 <= 1800 and bow.mesh.get_surface_count() == 1,
+		"rounded forebody stays bounded to one existing renderer and fewer than 1800 triangles")
+
 	var canopy := first.get_node(^"ContractCourierVisual/Canopy") as MeshInstance3D
 	_check(canopy.mesh is ArrayMesh and _upperworks_surface_is_valid(canopy.mesh),
 		"fitted courier cab has nondegenerate glazing with usable UVs and tangent frames")

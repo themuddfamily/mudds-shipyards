@@ -677,17 +677,26 @@ func _build_interceptor() -> void:
 	# read as freight that has been made to go fast, not as a warship.
 	# Freight pressure vessel: full sidewalls remain available for the load
 	# hatches, with a formed bow and tapered aft machinery shoulder.
-	_pressure_body(_visual_root, "BluntNose", Vector3(0, 0, -3.4), [
-		Vector4(-1.3, 0.42, 0.5, -0.04), Vector4(-1.0, 0.72, 0.65, -0.02),
-		Vector4(-0.35, 0.98, 0.79, 0), Vector4(1.4, 1.1, 0.85, 0),
-	], _materials.courier_hull)
+	# A quarter-elliptical bow continues the mounting flats into a drawn
+	# pressure dome. These longitudinal stations shape both the plan and keel,
+	# rather than only softening the edges of the old broad frontal slab.
+	var bow_sections: Array = []
+	for station in 21:
+		var angle := lerpf(0.025, PI * 0.5, float(station) / 20.0)
+		var longitudinal := (cos(0.025) - cos(angle)) / cos(0.025)
+		bow_sections.append(Vector4(
+			-1.3 + 2.7 * longitudinal,
+			1.1 * sin(angle), 0.85 * sin(angle), -0.04 * (1.0 - sin(angle))
+		))
+	_pressure_body(_visual_root, "BluntNose", Vector3(0, 0, -3.4), bow_sections, _materials.courier_hull)
 	_pressure_body(_visual_root, "HullBody", Vector3(0, 0, 0.2), [
 		Vector4(-2.2, 1.1, 0.85, 0), Vector4(1.9, 1.1, 0.85, 0),
 		Vector4(2.9, 1.03, 0.78, -0.01), Vector4(3.7, 0.82, 0.58, -0.04),
 	], _materials.courier_hull)
 	_box(_visual_root, "SpineTrunk", Vector3(0.0, 0.98, 0.6), Vector3(0.64, 0.22, 5.4), _materials.courier_shadow)
 	_pressure_body(_visual_root, "CargoStripe", Vector3(0, 0.85, -0.4), [
-		Vector4(-3.4, 0.24, 0.022, -0.13), Vector4(-2.4, 0.67, 0.028, -0.035),
+		Vector4(-3.4, 0.24, 0.022, -0.21), Vector4(-2.9, 0.48, 0.025, -0.09),
+		Vector4(-2.4, 0.67, 0.028, -0.035),
 		Vector4(-1.6, 0.7, 0.03, 0.02), Vector4(2.4, 0.7, 0.03, 0.02),
 		Vector4(3.4, 0.42, 0.022, -0.08),
 	], _materials.courier_rust)
@@ -1027,9 +1036,10 @@ func _build_courier_upperworks() -> void:
 	var opaque: Array = [[], [], []]
 	# Collar closes the cab into the pressure shell, leaving a painted sill.
 	opaque[0].append(_courier_upper_mesh([
-		Vector4(-3.55,0.40,0.35,0.88), Vector4(-3.13,0.71,0.62,1.00),
+		Vector4(-3.78,0.30,0.24,0.76), Vector4(-3.55,0.48,0.39,0.88),
+		Vector4(-3.30,0.64,0.54,0.97), Vector4(-3.13,0.71,0.62,1.00),
 		Vector4(-1.83,0.77,0.67,1.00), Vector4(-1.56,0.75,0.61,0.96),
-	], 0.74, _materials.courier_hull))
+	], 0.60, _materials.courier_hull))
 	_box_from_mesh(_visual_root, "Canopy", Vector3.ZERO, _courier_upper_mesh([
 		Vector4(-3.40,0.36,0.32,0.965), Vector4(-2.95,0.63,0.49,1.42),
 		Vector4(-2.02,0.67,0.51,1.44), Vector4(-1.76,0.63,0.50,1.15),
