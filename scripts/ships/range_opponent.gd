@@ -2806,19 +2806,25 @@ func _build_range_fittings() -> void:
 		parts.append([Vector3(side*1.62,0.46,2.18),Vector3(1.1,0.09,1.58),0])
 		for rib in 5:
 			parts.append([Vector3(side*1.62,0.46,1.61+rib*0.25),Vector3(0.82,0.075,0.07),1])
-		# Panels are discrete pieces with a shadow gap, not a repeated texture grid.
-		for panel in 3:
-			parts.append([Vector3(side*(1.38+panel*0.27),0.45,-1.9+panel*0.96),Vector3(0.52,0.075,0.8),0,Vector3(0,side*-0.14,0)])
 		parts.append([Vector3(side*2.67,0.69,2.81),Vector3(0.72,0.13,1.5),0])
 		parts.append([Vector3(side*2.67,-0.62,3.12),Vector3(0.76,0.11,1.35),1])
 		_add_nozzle_parts(parts,Vector3(side*2.67,0.05,3.99),0.56,0.56)
-	# Recessed gun service decks sit over the cyan inlay, leaving short status windows.
+	# One formed service spine beds into each prong rather than stacking loose
+	# square caps above it. Its narrow footprint exposes the cyan inlay as two
+	# continuous edge rails; tapered ends run down into the prong top.
 	for side in [-1.0,1.0]:
-		for bay in 4:
-			var z := -2.8+bay*1.03
-			parts.append([Vector3(side*2.65,0.49,z),Vector3(0.57,0.085,0.84),1])
-			parts.append([Vector3(side*2.65,0.545,z+0.07),Vector3(0.36,0.035,0.55),0])
-			parts.append([Vector3(side*2.65,0.56,z-0.26),Vector3(0.22,0.045,0.075),2])
+		parts.append([Vector3(side * 2.65, 0, 0), Vector3.ZERO, 1, Vector3.ZERO, [
+			Vector4(-3.35, 0.09, 0.035, 0.325), Vector4(-3.04, 0.19, 0.09, 0.385),
+			Vector4(-2.75, 0.21, 0.10, 0.39), Vector4(0.65, 0.21, 0.10, 0.39),
+			Vector4(0.98, 0.18, 0.075, 0.365), Vector4(1.16, 0.09, 0.03, 0.32),
+		]])
+		# Two long access lids sit within the housing crown, with a fine dark
+		# perimeter and a central service joint instead of a row of raised tiles.
+		for z in [-1.99, -0.27]:
+			parts.append([Vector3(side * 2.65, 0, z), Vector3.ZERO, 0, Vector3.ZERO, [
+				Vector4(-0.79, 0.10, 0.025, 0.458), Vector4(-0.65, 0.165, 0.033, 0.469),
+				Vector4(0.65, 0.165, 0.033, 0.469), Vector4(0.79, 0.10, 0.025, 0.458),
+			]])
 		# Flank-mounted vane access cover, hinges and root load spreader.
 		parts.append([Vector3(side*3.8,0.74,1.98),Vector3(0.065,0.85,1.78),1,Vector3(0,side*-0.1,side*-0.17)])
 		parts.append([Vector3(side*3.85,0.76,1.98),Vector3(0.035,0.62,1.48),2,Vector3(0,side*-0.1,side*-0.17)])
