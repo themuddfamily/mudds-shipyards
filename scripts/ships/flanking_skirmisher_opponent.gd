@@ -1287,8 +1287,17 @@ func _build_interceptor() -> void:
 		Vector4(0.85, 1.66, 0.43, 0), Vector4(1.8, 1.25, 0.31, -0.03),
 	], _materials.skirmisher_hull)
 	_box(_visual_root, "Keelplate", Vector3(0.0, -0.44, 0.6), Vector3(2.2, 0.24, 4.4), _materials.skirmisher_deep)
-	_wedge(_visual_root, "Canopy", Vector3(0.0, 0.44, -1.0), Vector3(1.05, 0.5, 1.9), _materials.glass)
-	_box(_visual_root, "SpineFairing", Vector3(0.0, 0.42, 1.1), Vector3(0.62, 0.36, 2.6), _materials.skirmisher_moss)
+	# Glazing sits in a tapered saddle instead of on a rectangular plinth. The
+	# raised aft shoulder gives the cockpit a pressure volume with a clear sill.
+	_pressure_body(_visual_root, "Canopy", Vector3(0.0, 0.43, -1.0), [
+		Vector4(-1.03, 0.1, 0.055, 0.0), Vector4(-0.62, 0.37, 0.18, 0.05),
+		Vector4(0.22, 0.52, 0.25, 0.08), Vector4(0.76, 0.43, 0.22, 0.045),
+		Vector4(0.97, 0.33, 0.09, -0.025),
+	], _materials.glass)
+	_pressure_body(_visual_root, "SpineFairing", Vector3(0.0, 0.42, 1.1), [
+		Vector4(-1.3, 0.39, 0.13, 0.0), Vector4(-0.72, 0.32, 0.18, 0.0),
+		Vector4(0.42, 0.31, 0.18, 0.0), Vector4(1.3, 0.19, 0.075, -0.1),
+	], _materials.skirmisher_moss)
 
 	_wing_chalk_band_mesh = _make_box_mesh(WING_CHALK_BAND_SIZE, _materials.skirmisher_chalk)
 	_winglet_fin_mesh = _make_box_mesh(WINGLET_FIN_SIZE, _materials.skirmisher_chalk)
@@ -1443,21 +1452,38 @@ func _create_skirmisher_materials() -> void:
 
 func _build_skirmisher_fittings() -> void:
 	var parts: Array = []
-	parts.append([Vector3(0,0.39,-0.98),Vector3(1.25,0.24,2.05),0])
-	parts.append([Vector3(0,0.69,-0.69),Vector3(0.055,0.05,1.15),1])
+	# The sill follows the glazing, sinking its lower edge into the pressure hull.
+	parts.append([Vector3(0, 0.32, -1.0), Vector3.ZERO, 0, Vector3.ZERO, [
+		Vector4(-1.12, 0.17, 0.09, -0.01), Vector4(-0.62, 0.46, 0.14, 0),
+		Vector4(0.22, 0.61, 0.15, 0), Vector4(0.82, 0.52, 0.14, 0),
+		Vector4(1.08, 0.35, 0.09, -0.025),
+	]])
+	# A transverse pressure hoop terminates the canopy at the dorsal spine.
+	parts.append([Vector3(0, 0.43, -0.22), Vector3.ZERO, 1, Vector3.ZERO, [
+		Vector4(-0.04, 0.44, 0.23, 0.045), Vector4(0.04, 0.43, 0.22, 0.045),
+	]])
 	# Swept root fairings carry the wing load into the full pressure section.
 	for side in [-1.0, 1.0]:
 		parts.append([Vector3(side * 1.5, -0.02, 0.7), Vector3.ZERO, 0, Vector3(0, side * -0.24, 0), [
 			Vector4(-1.45, 0.16, 0.1, 0), Vector4(-0.4, 0.72, 0.3, 0),
 			Vector4(0.65, 0.86, 0.28, 0), Vector4(1.55, 0.6, 0.14, -0.02),
 		]])
-	# Two raised intake shoulders separate the pressure pod from its delta wings.
-	for side in [-1.0,1.0]:
-		parts.append([Vector3(side*1.08,0.43,0.76),Vector3(0.7,0.12,2.18),0])
-		parts.append([Vector3(side*1.08,0.38,-0.18),Vector3(0.53,0.19,0.38),2])
-		parts.append([Vector3(side*1.08,0.49,-0.37),Vector3(0.66,0.045,0.12),1])
+	# Formed intake ducts carry the cockpit shoulders into the engine pods.
+	# Split cheeks and a raised lip surround an inset dark mouth; the radiator
+	# bed sits below the housing rim instead of floating on a flat rectangular lid.
+	for side in [-1.0, 1.0]:
+		parts.append([Vector3(side * 1.08, 0.32, 0.83), Vector3.ZERO, 0, Vector3.ZERO, [
+			Vector4(-1.24, 0.34, 0.16, 0), Vector4(-0.9, 0.46, 0.27, 0),
+			Vector4(0.35, 0.44, 0.24, 0), Vector4(1.13, 0.32, 0.19, -0.035),
+			Vector4(1.8, 0.25, 0.12, -0.15),
+		]])
+		parts.append([Vector3(side * 1.08, 0.35, -0.425), Vector3(0.55, 0.25, 0.055), 2])
+		parts.append([Vector3(side * 1.08, 0.5, -0.42), Vector3(0.67, 0.06, 0.2), 1])
+		for cheek in [-1.0, 1.0]:
+			parts.append([Vector3(side * 1.08 + cheek * 0.31, 0.36, -0.4), Vector3(0.07, 0.27, 0.19), 0])
+		parts.append([Vector3(side * 1.08, 0.576, 0.53), Vector3(0.52, 0.03, 1.13), 2])
 		for slat in 5:
-			parts.append([Vector3(side*1.08,0.51,0.4+slat*0.23),Vector3(0.49,0.045,0.08),2])
+			parts.append([Vector3(side * 1.08, 0.604, 0.1 + slat * 0.21), Vector3(0.46, 0.035, 0.06), 0])
 		# Swept replaceable wing skins and inset thermal strips follow the airframe.
 		for panel in 3:
 			parts.append([Vector3(side*(1.83+panel*0.46),0.08,0.86+panel*0.37),Vector3(0.42,0.035,1.18),0,Vector3(0,side*-0.28,0)])
