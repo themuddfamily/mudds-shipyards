@@ -4029,6 +4029,8 @@ func _build_interior_route_and_markers() -> void:
 
 
 func _build_propulsion_and_gear() -> void:
+	# All four replaceable propulsion modules use the same immutable shell.
+	var nacelle_mesh := _freighter_engine_module_mesh()
 	for side_index in 2:
 		var side := -1.0 if side_index == 0 else 1.0
 		var side_name := "Port" if side < 0.0 else "Starboard"
@@ -4036,8 +4038,12 @@ func _build_propulsion_and_gear() -> void:
 			var engine_y := 1.15 + float(vertical_index) * 2.25
 			var engine_x := side * (5.05 + float(vertical_index) * 1.35)
 			var prefix := side_name + ("Lower" if vertical_index == 0 else "Upper")
-			_armour_pod(_jovian_visual, prefix + "EngineHousing", Vector3(engine_x, engine_y, 0.0),
-				PackedVector3Array([Vector3(0.64, 0.64, 9.65), Vector3(0.95, 0.95, 10.6), Vector3(0.95, 0.95, 12.1), Vector3(0.79, 0.79, 13.0)]), _jovian_materials.hull_cool, 32)
+			var housing := MeshInstance3D.new()
+			housing.name = prefix + "EngineHousing"
+			housing.position = Vector3(engine_x, engine_y, 0.0)
+			housing.mesh = nacelle_mesh
+			housing.set_meta("visual_only", true)
+			_jovian_visual.add_child(housing)
 			_freighter_exhaust_collar(prefix + "EngineCollar", Vector3(engine_x, engine_y, 13.05))
 			var core := _cylinder(_jovian_visual, prefix + "EngineCore", Vector3(engine_x, engine_y, 13.31), 0.57, 0.2, _jovian_materials.engine, Vector3(90.0, 0.0, 0.0))
 			_engine_cores.append(core)
@@ -4947,6 +4953,71 @@ func _armour_pod(parent: Node3D, node_name: String, origin: Vector3,
 	return instance
 
 
+## A removable forward cowl surrounds the narrow power cartridge. Its rolled
+## trailing lip ends ahead of the exposed cooling stack; both surfaces are open
+## along the exhaust axis, so neither seals the existing live exhaust aperture.
+## This mesh is built once and shared by the four engine nodes on each ship.
+func _freighter_engine_module_mesh() -> ArrayMesh:
+	var mesh := ArrayMesh.new()
+	_engine_module_surface(mesh, PackedVector2Array([
+		Vector2(0.61, 9.65), Vector2(0.84, 9.98),
+		Vector2(0.94, 10.16), Vector2(0.97, 10.30),
+		Vector2(0.97, 11.06), Vector2(0.95, 11.16),
+		Vector2(0.90, 11.22), Vector2(0.83, 11.22),
+		Vector2(0.82, 11.15), Vector2(0.86, 10.30),
+		Vector2(0.54, 9.65), Vector2(0.61, 9.65)]),
+		_jovian_materials.hull_cool)
+	_engine_module_surface(mesh, PackedVector2Array([
+		Vector2(0.68, 10.94), Vector2(0.72, 11.15),
+		Vector2(0.72, 12.63), Vector2(0.80, 12.76),
+		Vector2(0.83, 12.94), Vector2(0.68, 12.94),
+		Vector2(0.63, 12.70), Vector2(0.63, 10.94),
+		Vector2(0.68, 10.94)]), _jovian_materials.dark)
+	return mesh
+
+
+func _engine_module_surface(mesh: ArrayMesh, profile: PackedVector2Array, material: Material) -> void:
+	var tool := SurfaceTool.new()
+	tool.begin(Mesh.PRIMITIVE_TRIANGLES)
+	tool.set_material(material)
+	const SEGMENTS := 48
+	var profile_distance := 0.0
+	var wrap_radius := 0.0
+	for point in profile:
+		wrap_radius = maxf(wrap_radius, point.x)
+	for station in profile.size() - 1:
+		var front := profile[station]
+		var rear := profile[station + 1]
+		var next_distance := profile_distance + front.distance_to(rear)
+		var along := Vector2(rear.y - front.y, front.x - rear.x).normalized()
+		for segment in SEGMENTS:
+			var a := TAU * float(segment) / float(SEGMENTS)
+			var b := TAU * float(segment + 1) / float(SEGMENTS)
+			var radial_a := Vector3(cos(a), sin(a), 0.0)
+			var radial_b := Vector3(cos(b), sin(b), 0.0)
+			var normal_a := radial_a * along.x + Vector3.BACK * along.y
+			var normal_b := radial_b * along.x + Vector3.BACK * along.y
+			var points := [radial_a * front.x + Vector3.BACK * front.y,
+				radial_b * front.x + Vector3.BACK * front.y,
+				radial_b * rear.x + Vector3.BACK * rear.y,
+				radial_a * rear.x + Vector3.BACK * rear.y]
+			var normals := [normal_a, normal_b, normal_b, normal_a]
+			# Unwrap by arc length and accumulated section distance. The seam
+			# has separate 0/TAU vertices; the rolled lips retain useful UV area
+			# and tangent space instead of collapsing under roof-style X/Z UVs.
+			var uvs := [Vector2(a * wrap_radius, profile_distance),
+				Vector2(b * wrap_radius, profile_distance),
+				Vector2(b * wrap_radius, next_distance),
+				Vector2(a * wrap_radius, next_distance)]
+			for index in [0, 2, 1, 0, 3, 2]:
+				tool.set_normal(normals[index])
+				tool.set_uv(uvs[index])
+				tool.add_vertex(points[index])
+		profile_distance = next_distance
+	tool.generate_tangents()
+	tool.commit(mesh)
+
+
 ## An open exhaust collar exposes a dark recessed throat while offline. The
 ## existing emissive core and damage-controlled plume occupy the same aperture
 ## while running; a solid hull-coloured cylinder cap no longer seals it shut.
@@ -5185,12 +5256,27 @@ func _build_fitted_freighter_details() -> void:
 		for tier in 2:
 			var engine_x: float = side * (5.05 + tier * 1.35)
 			var engine_y := 1.15 + tier * 2.25
-			for ring_z in [10.72, 11.96]:
-				_fitout_ring(exterior, "dark", Vector3(engine_x, engine_y, ring_z), 0.91, 0.988)
-			_fitout_ring(exterior, "structure", Vector3(engine_x, engine_y, 13.17), 0.80, 1.05)
-			for fin in 12:
-				var angle := TAU * float(fin) / 12.0
-				_fitout_stock(exterior, "structure", Vector3(engine_x + sin(angle) * 0.95, engine_y + cos(angle) * 0.95, 11.34), Vector3(0.065, 0.09, 0.94), Vector3(0, 0, -angle))
+			# Exposed heat exchanger fins sit around the actual service barrel.
+			# The forward cowl stops ahead of them, leaving a dark reveal and
+			# clearance for longitudinal tie rods and the aft retaining flange.
+			for ring_z in [11.40, 11.58, 11.76, 11.94, 12.12, 12.30, 12.48]:
+				_fitout_ring(exterior, "structure", Vector3(engine_x, engine_y, ring_z), 0.73, 0.86)
+			for ring_z in [11.25, 12.70]:
+				_fitout_ring(exterior, "structure", Vector3(engine_x, engine_y, ring_z), 0.78, 0.96)
+			for rod in 4:
+				var angle := TAU * float(rod) / 4.0 + PI * 0.25
+				var offset := Vector3(sin(angle), cos(angle), 0.0)
+				_fitout_stock(exterior, "thermal_cover", Vector3(engine_x, engine_y, 11.97) + offset * 0.88,
+					Vector3(0.11, 0.12, 1.70), Vector3(0, 0, -angle))
+				for flange_z in [11.25, 12.70]:
+					_fitout_stock(exterior, "hull_cool", Vector3(engine_x, engine_y, flange_z) + offset * 0.88,
+						Vector3(0.21, 0.20, 0.20), Vector3(0, 0, -angle))
+			# The upper service lid and amber latch are visibly mounted on the
+			# forward nacelle, instead of surface lines cutting through armour.
+			_fitout_stock(exterior, "dark", Vector3(engine_x, engine_y + 0.95, 10.64), Vector3(0.70, 0.07, 0.70))
+			_fitout_stock(exterior, "thermal_cover", Vector3(engine_x, engine_y + 0.985, 10.64), Vector3(0.61, 0.065, 0.60))
+			_fitout_stock(exterior, "amber", Vector3(engine_x, engine_y + 1.025, 10.82), Vector3(0.22, 0.035, 0.085))
+
 	_finish_fitout(_jovian_visual, exterior, "FreighterServiceFittings")
 
 	var interior := {}

@@ -31,6 +31,7 @@ func _run() -> void:
 	await physics_frame
 
 	_test_fitout_cpu_surface_parity(jovian)
+	_test_open_engine_module_sharing(jovian)
 	_test_definition_and_evidence(jovian)
 	_test_defensive_weapon_visual(jovian)
 	_test_load_mark_render_allocation(jovian)
@@ -52,6 +53,28 @@ func _run() -> void:
 	await _test_interior_furnishing_ranges(jovian)
 	await _test_cleanup(jovian)
 	_finish()
+
+
+func _test_open_engine_module_sharing(jovian: JovianLightFreighter) -> void:
+	var housings := jovian.find_children("*EngineHousing", "MeshInstance3D", true, false)
+	_check(housings.size() == 4, "four replaceable propulsion housings remain present")
+	var shared: Mesh
+	for housing: MeshInstance3D in housings:
+		if shared == null:
+			shared = housing.mesh
+		_check(housing.mesh == shared and housing.get_meta("visual_only", false),
+			"propulsion cowls share their immutable visual mesh")
+	_check(shared != null and shared.get_surface_count() == 2,
+		"engine module retains separate armour cowl and dark cartridge surfaces")
+	if shared == null:
+		return
+	var aperture_open := true
+	for surface in shared.get_surface_count():
+		var vertices: PackedVector3Array = shared.surface_get_arrays(surface)[Mesh.ARRAY_VERTEX]
+		for triangle in range(0, vertices.size(), 3):
+			var centre := (vertices[triangle] + vertices[triangle + 1] + vertices[triangle + 2]) / 3.0
+			aperture_open = aperture_open and Vector2(centre.x, centre.y).length() > 0.50
+	_check(aperture_open, "engine cowl and cartridge remain open along the live exhaust axis")
 
 
 func _test_fitout_cpu_surface_parity(jovian: JovianLightFreighter) -> void:
