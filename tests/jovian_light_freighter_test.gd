@@ -232,7 +232,7 @@ func _test_landing_bogie_foot_batch(jovian: JovianLightFreighter) -> void:
 		and batch.get_child_count() == 0
 		and batch.get_script() == null
 		and bool(batch.get_meta("visual_detail_only", false)),
-		"four visual-only landing-bogie feet retain exact geometry, material, transforms, bounds and shadow state in one batch"
+		"four visual-only landing-bogie feet retain formed geometry, material, transforms, bounds and shadow state in one batch"
 	)
 	_check(
 		visual.find_children("LandingBogieFoot", "MeshInstance3D", true, false).is_empty()
@@ -245,6 +245,52 @@ func _test_landing_bogie_foot_batch(jovian: JovianLightFreighter) -> void:
 		and batch.find_children("*", "Light3D", true, false).is_empty(),
 		"landing-foot allocation falls from four renderer nodes, submissions and meshes to one without gaining gameplay authority"
 	)
+
+	# Godot assigns generated sibling names; identify remaining shared copies by mesh.
+	var strut := visual.get_node("LandingBogieStrut") as MeshInstance3D
+	var damper := visual.get_node("LandingDamper") as MeshInstance3D
+	var strut_copies := 0
+	var damper_copies := 0
+	var fitted := true
+	for child in visual.get_children():
+		if not child is MeshInstance3D:
+			continue
+		if child.mesh == strut.mesh:
+			strut_copies += 1
+			var foot_origin := Vector3(signf(child.position.x) * 5.05, -1.14, child.position.z)
+			# At shoe height the leg's lower shaft is enclosed by the casting;
+			# its bottom also remains above the sole's original contact plane.
+			var lower_tip: Vector3 = child.transform * Vector3(0, -0.75, 0)
+			var entry: Vector3 = child.transform * Vector3(0, -0.34, 0) - foot_origin
+			fitted = fitted and absf(entry.x) + 0.17 < 0.46 and absf(entry.z) < 0.01 \
+				and lower_tip.y > -1.23 and entry.y > 0.37 and entry.y < 0.40
+		elif child.mesh == damper.mesh:
+			damper_copies += 1
+	var formed_profile := true
+	var sole_vertices := 0
+	var rim_vertices := 0
+	var shoe_vertices := 0
+	var vertices: PackedVector3Array = multi.mesh.surface_get_arrays(0)[Mesh.ARRAY_VERTEX]
+	for point in vertices:
+		formed_profile = formed_profile and point.y >= -0.09001 \
+			and absf(point.x) <= 0.82501 and absf(point.z) <= 1.10001
+		if absf(point.y + 0.09) < 0.0001:
+			sole_vertices += 1
+		if absf(point.y - 0.025) < 0.0001:
+			rim_vertices += 1
+		if point.y >= 0.3399:
+			shoe_vertices += 1
+	var pin_end_indices := 0
+	var indices: PackedInt32Array = multi.mesh.surface_get_arrays(0)[Mesh.ARRAY_INDEX]
+	for index in indices:
+		if absf(absf(vertices[index].x) - 0.61) < 0.0001 and vertices[index].y > 0.16:
+			pin_end_indices += 1
+	_check(pin_end_indices >= 48, "transverse shoe pin caps have submitted triangles outside both casting cheeks")
+	_check(formed_profile and sole_vertices >= 24 and rim_vertices >= 24 and shoe_vertices >= 24,
+		"formed landing soles retain their contact plane and footprint while supporting a rolled rim and raised shoe")
+	_check(fitted and strut_copies == 4 and damper_copies == 4 \
+		and multi.mesh.get_surface_count() == 1,
+		"all four mirrored leg shafts fit the shared foot shoe; struts and dampers each reuse one static mesh")
 
 
 func _test_definition_and_evidence(jovian: JovianLightFreighter) -> void:

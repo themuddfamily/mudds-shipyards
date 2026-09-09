@@ -143,7 +143,7 @@ const SERVICE_PANEL_SIZE := Vector3(0.1, 1.48, 2.45)
 ## batch preserves all four drawn copies while removing three renderer nodes,
 ## submissions and private rounded-box mesh allocations.
 const LANDING_BOGIE_FOOT_COPY_COUNT := 4
-const LANDING_BOGIE_FOOT_SIZE := Vector3(1.65, 0.18, 2.2)
+const LANDING_BOGIE_FOOT_SIZE := Vector3(1.65, 0.56, 2.2)
 
 # Phase 9 allocation boundary. The five dorsal ribs each retain five ordinary
 # MeshInstance3D curve joints and therefore all 25 authored draw submissions.
@@ -4064,18 +4064,28 @@ func _build_propulsion_and_gear() -> void:
 			_jovian_visual.add_child(light)
 			_jovian_engine_lights.append(light)
 
-	# Four wide landing bogies support the heavier visual mass and establish a
-	# stable parked contact plane at y=-1.25 relative to the ship root.
+	# Shared, static load-bearing assemblies. The formed sole keeps the original
+	# footprint and bottom plane; its raised shoe receives the lower strut end.
+	var strut_mesh := _defensive_turned_mesh(PackedVector2Array([
+		Vector2(0, -0.75), Vector2(0.15, -0.75), Vector2(0.17, -0.70),
+		Vector2(0.17, -0.30), Vector2(0.23, -0.27), Vector2(0.24, -0.22),
+		Vector2(0.24, -0.12), Vector2(0.21, -0.08), Vector2(0.21, 0.58),
+		Vector2(0.26, 0.62), Vector2(0.26, 0.71), Vector2(0.22, 0.75),
+		Vector2(0, 0.75)]), _jovian_materials.dark)
+	var damper_mesh := _defensive_turned_mesh(PackedVector2Array([
+		Vector2(0, -0.625), Vector2(0.08, -0.625), Vector2(0.09, -0.58),
+		Vector2(0.09, -0.22), Vector2(0.14, -0.19), Vector2(0.14, -0.12),
+		Vector2(0.13, -0.09), Vector2(0.13, 0.52), Vector2(0.15, 0.55),
+		Vector2(0.15, 0.59), Vector2(0.11, 0.625), Vector2(0, 0.625)
+	]), _jovian_materials.amber)
 	for side in [-1.0, 1.0]:
 		for z_position in [-5.8, 7.3]:
-			_box(_jovian_visual, "LandingBogieStrut", Vector3(side * 4.85, -0.42, z_position), Vector3(0.34, 1.5, 0.34), _jovian_materials.dark, Vector3(0.0, 0.0, side * deg_to_rad(-7.0)))
+			_rounded_box_from_mesh(_jovian_visual, "LandingBogieStrut", Vector3(side * 4.85, -0.42, z_position), strut_mesh, Vector3(0, 0, side * deg_to_rad(-7.0)))
 			_landing_bogie_foot_transforms.append(Transform3D(
 				Basis.IDENTITY, Vector3(side * 5.05, -1.14, z_position)
 			))
-			_cylinder(_jovian_visual, "LandingDamper", Vector3(side * 4.64, -0.22, z_position), 0.13, 1.25, _jovian_materials.amber)
-	_landing_bogie_foot_mesh = _rounded_box_mesh(
-		LANDING_BOGIE_FOOT_SIZE, _jovian_materials.structure
-	)
+			_rounded_box_from_mesh(_jovian_visual, "LandingDamper", Vector3(side * 4.64, -0.22, z_position), damper_mesh)
+	_landing_bogie_foot_mesh = _landing_formed_foot_mesh()
 	var landing_bogie_feet := MultiMesh.new()
 	landing_bogie_feet.transform_format = MultiMesh.TRANSFORM_3D
 	landing_bogie_feet.mesh = _landing_bogie_foot_mesh
@@ -4158,6 +4168,37 @@ func _build_propulsion_and_gear() -> void:
 				component.rotation_degrees.x = 90.0
 			turret_meshes[suffix] = component.mesh
 			_mark_defensive_weapon_detail(component, part[2])
+
+
+## One closed casting: a chamfered sole, rolled perimeter and tapered load shoe.
+## Local Y=-0.09 and X/Z extrema are the original contact footprint. Only the
+## upper shoe grows into the existing leg volume. The transverse pin uses the
+## same surface/material, so the four feet still submit as one shared batch.
+func _landing_formed_foot_mesh() -> ArrayMesh:
+	var temporary := Node3D.new()
+	var casting := _loft_hull(temporary, "Casting", Vector3.ZERO, PackedVector3Array([
+		Vector3(0.75, 1.02, -0.09), Vector3(0.81, 1.085, -0.065),
+		Vector3(0.825, 1.1, -0.02), Vector3(0.825, 1.1, 0.025),
+		Vector3(0.79, 1.06, 0.075), Vector3(0.67, 0.89, 0.09),
+		Vector3(0.54, 0.58, 0.16), Vector3(0.50, 0.40, 0.34),
+		Vector3(0.46, 0.33, 0.40)
+	]), _jovian_materials.structure, 24)
+	var casting_surface := SurfaceTool.new()
+	casting_surface.create_from(casting.mesh, 0)
+	casting_surface.deindex()
+	var tool := SurfaceTool.new()
+	tool.append_from(casting_surface.commit(), 0, Transform3D(Basis(Vector3.RIGHT, -PI * 0.5), Vector3.ZERO))
+	var pin := _defensive_turned_mesh(PackedVector2Array([
+		Vector2(0, -0.61), Vector2(0.13, -0.61), Vector2(0.17, -0.58),
+		Vector2(0.17, -0.53), Vector2(0.14, -0.50), Vector2(0.14, 0.50),
+		Vector2(0.17, 0.53), Vector2(0.17, 0.58), Vector2(0.13, 0.61),
+		Vector2(0, 0.61)]), _jovian_materials.structure)
+	tool.append_from(pin, 0, Transform3D(Basis(Vector3.FORWARD, PI * 0.5), Vector3(0, 0.30, 0)))
+	tool.set_material(_jovian_materials.structure)
+	tool.index()
+	var mesh := tool.commit()
+	temporary.free()
+	return mesh
 
 
 ## Turn a profile around local Y, matching the former cylinders' local bounds.
