@@ -389,9 +389,9 @@ func _test_gun_pod_housing_batch(visual: Node3D) -> void:
 		and material.albedo_color.is_equal_approx(Color("687277"))
 		and is_equal_approx(material.metallic, 0.16)
 		and is_equal_approx(material.roughness, 0.58)
-		and is_equal_approx(mesh_bounds.size.x, 0.56)
-		and is_equal_approx(mesh_bounds.size.y, 2.15)
-		and is_equal_approx(mesh_bounds.size.z, 0.56)
+		and is_equal_approx(mesh_bounds.size.x, 1.26)
+		and is_equal_approx(mesh_bounds.size.y, 2.31)
+		and is_equal_approx(mesh_bounds.size.z, 0.92)
 		and multi.custom_aabb.is_equal_approx(expected_bounds)
 		and batch.material_override == null
 		and batch.cast_shadow == GeometryInstance3D.SHADOW_CASTING_SETTING_ON
@@ -403,6 +403,45 @@ func _test_gun_pod_housing_batch(visual: Node3D) -> void:
 		and visual.get_node_or_null("StarboardGunPodHousing") == null,
 		"legacy gun-pod housing renderer submissions are removed"
 	)
+	for label in ["CannonRetentionSocketBatch", "CannonRecessedBarrelBatch", "CannonOpenMuzzleBatch"]:
+		var fitting := visual.get_node_or_null(label) as MultiMeshInstance3D
+		_check(fitting != null and fitting.multimesh.instance_count == 2,
+			"%s pairs share one immutable mesh" % label)
+		if fitting == null:
+			continue
+		var arrays := fitting.multimesh.mesh.surface_get_arrays(0)
+		var vertices: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
+		var normals: PackedVector3Array = arrays[Mesh.ARRAY_NORMAL]
+		var uvs: PackedVector2Array = arrays[Mesh.ARRAY_TEX_UV]
+		var tangents: PackedFloat32Array = arrays[Mesh.ARRAY_TANGENT]
+		var complete_frames := tangents.size() == vertices.size() * 4
+		var smooth_wall := false
+		for index in vertices.size():
+			if not complete_frames:
+				break
+			var tangent := Vector3(tangents[index * 4], tangents[index * 4 + 1], tangents[index * 4 + 2])
+			complete_frames = tangent.is_finite() and absf(tangent.length() - 1.0) < 0.001 \
+				and absf(tangent.dot(normals[index])) < 0.001 and absf(tangents[index * 4 + 3]) == 1.0
+		for triangle in range(0, vertices.size(), 3):
+			complete_frames = complete_frames and absf((uvs[triangle + 1] - uvs[triangle]).cross(uvs[triangle + 2] - uvs[triangle])) > 0.000001
+			if absf(normals[triangle].z) < 0.99 and not normals[triangle].is_equal_approx(normals[triangle + 2]):
+				smooth_wall = true
+		_check(complete_frames and smooth_wall, "%s keeps smooth radial normals and complete nondegenerate UV/tangent frames" % label)
+		var axis_blocked := false
+		var wall_hit := false
+		var radius := 0.26 if label == "CannonOpenMuzzleBatch" else (0.32 if label == "CannonRetentionSocketBatch" else 0.18)
+		for triangle in range(0, vertices.size(), 3):
+			axis_blocked = axis_blocked or Geometry3D.ray_intersects_triangle(Vector3(0, 0, -3), Vector3.BACK,
+				vertices[triangle], vertices[triangle + 1], vertices[triangle + 2]) is Vector3
+			wall_hit = wall_hit or Geometry3D.ray_intersects_triangle(Vector3(radius, 0.01, -3), Vector3.BACK,
+				vertices[triangle], vertices[triangle + 1], vertices[triangle + 2]) is Vector3
+		_check(not axis_blocked and wall_hit, "%s has a physical open bore with retained annular walls" % label)
+	_check(visual.get_node_or_null("PortCannonBreech") == null
+		and visual.get_node_or_null("StarboardCannonBreech") == null
+		and visual.get_node_or_null("PortMuzzleBore") == null
+		and visual.get_node_or_null("StarboardMuzzleBore") == null,
+		"overlapping breech solids and muzzle closure disks are removed")
+
 	print(
 		"BULWARK_GUN_POD_HOUSING_BATCH: nodes 2->1 visible_copies 2->2 "
 		+ "submissions 2->1"

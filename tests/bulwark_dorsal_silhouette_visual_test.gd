@@ -40,12 +40,12 @@ func _run() -> void:
 			true
 		)
 
-		for shell_name in ["ArmoredCentralSlab", "ArmoredNose", "CenterlineArmorSpine", "GunnerRearSplinterShield", "PortCannonBreech", "StarboardCannonBreech"]:
+		for shell_name in ["ArmoredCentralSlab", "ArmoredNose", "CenterlineArmorSpine", "GunnerRearSplinterShield"]:
 			_check_profile(visual.get_node_or_null(shell_name) as MeshInstance3D, shell_name)
 
 		_check_nose_installation(visual)
 
-		for batch_name in ["ArmoredShoulderBatch", "DorsalBastionBatch"]:
+		for batch_name in ["ArmoredShoulderBatch", "DorsalBastionBatch", "GunPodHousingBatch"]:
 			var batch := visual.get_node_or_null(batch_name) as MultiMeshInstance3D
 			_check_mesh(batch.multimesh.mesh if batch != null else null, batch_name)
 

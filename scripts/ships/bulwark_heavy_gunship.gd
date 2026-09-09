@@ -84,8 +84,6 @@ const COCKPIT_DISPLAY_BEZEL_PAIR_COUNT := 2
 const NAVIGATION_LAMP_RADIUS := 0.11
 const NAVIGATION_LAMP_COPY_COUNT := 2
 const ENGINE_HOUSING_COPY_COUNT := 2
-const GUN_POD_HOUSING_RADIUS := 0.28
-const GUN_POD_HOUSING_HEIGHT := 2.15
 const GUN_POD_HOUSING_COPY_COUNT := 2
 ## A retained, static consequence of the existing starboard-wing component
 ## ledger. The breach sits on the upper aft weapon shoulder: it breaks the
@@ -743,16 +741,8 @@ func _build_bulwark_manufactured_details(visual: Node3D, armor: Material, dark: 
 		_cylinder(visual, tag + "RecessedThroat", Vector3(side * 2.65, 1.15, 5.45), 0.48, 0.08, dark, Vector3(90, 0, 0))
 		_engine_mechanics(visual, tag, Vector3(side * 2.65, 1.15, 5.72), 0.55, metal, dark, hot)
 		_service_bay(visual, tag + "NacelleDorsalVent", Vector3(side * 2.65, 1.93, 3.68), 0.74, 1.25, armor, dark, metal)
-		_profile_shell(visual, tag + "CannonBreech", Vector3(side * 3.25, 1.06, -3.20), [
-			Vector4(-1.2, 0.30, 0.24, 0), Vector4(-0.6, 0.55, 0.43, 0),
-			Vector4(0.8, 0.68, 0.46, 0), Vector4(1.65, 0.65, 0.36, -0.08),
-		], armor)
 		_service_bay(visual, tag + "CannonCooling", Vector3(side * 3.25, 1.53, -2.75), 0.58, 0.80, armor, dark, metal)
-		for z in [-4.43, -4.69]:
-			_frustum(visual, tag + "BarrelCollar" + str(z), Vector3(side * 3.25, 1.0, z), 0.25, 0.25, 0.12, dark, Vector3(90, 0, 0), false, false)
-		_cylinder(visual, tag + "MuzzleBore", Vector3(side * 3.25, 1.0, -4.965), 0.17, 0.025, dark, Vector3(90, 0, 0))
-		_cylinder(visual, tag + "CannonBarrel", Vector3(side * 3.25, 1.0, -4.38), 0.19, 0.9, metal, Vector3(90, 0, 0))
-		_frustum(visual, tag + "CannonMuzzle", Vector3(side * 3.25, 1.0, -4.87), 0.25, 0.20, 0.18, dark, Vector3(90, 0, 0), false, false)
+	_build_cannon_construction(visual, armor, dark, metal)
 
 	# Stencilled identification belongs on the continuous armored flank, clear
 	# of shoulder joints, boarding hardware, vents and gunner controls.
@@ -1203,26 +1193,34 @@ func _add_engine_housing_batch(
 	return batch
 
 
-## The mirrored gun-pod housings are childless exterior armor with no collision,
-## weapon, damage, or interaction ownership. Keep both authored poses and the
-## inherited chamfered-cylinder surface in one renderer submission.
+## Paired receiver castings and removable aft covers share one renderer. Their
+## narrow transverse joint is a real break in the shell, backed by a dark seal.
+## All weapon, damage and muzzle authority stays on the inherited ship nodes.
 func _add_gun_pod_housing_batch(
 		parent: Node3D,
 		transforms: Array[Transform3D],
 		authored_names: PackedStringArray,
 		material: Material
 ) -> MultiMeshInstance3D:
-	var mesh := StationSurfaceKit.chamfered_cylinder_mesh_cached(
-		GUN_POD_HOUSING_RADIUS,
-		GUN_POD_HOUSING_RADIUS,
-		GUN_POD_HOUSING_HEIGHT,
-		32,
-		_chamfered_cylinder_cache,
-		ShipSurfaceDetail.CYLINDER_WALL_RINGS,
-		true,
-		true,
-		material
-	)
+	var receiver := _profile_mesh([
+		Vector4(-0.76, 0.38, 0.31, 0.04),
+		Vector4(-0.37, 0.56, 0.43, 0.02),
+		Vector4(0.54, 0.63, 0.46, 0),
+		Vector4(0.73, 0.63, 0.46, 0),
+	], material)
+	var rear_cover := _profile_mesh([
+		Vector4(0.77, 0.63, 0.46, 0),
+		Vector4(1.24, 0.57, 0.38, -0.04),
+		Vector4(1.55, 0.43, 0.26, -0.08),
+	], material)
+	var surface := SurfaceTool.new()
+	surface.begin(Mesh.PRIMITIVE_TRIANGLES)
+	surface.set_material(material)
+	# Keep the retained batch poses, authoring the new castings along ship Z.
+	var into_mount := Transform3D(Basis(Vector3.RIGHT, -PI * 0.5), Vector3.ZERO)
+	surface.append_from(receiver, 0, into_mount)
+	surface.append_from(rear_cover, 0, into_mount)
+	var mesh := surface.commit()
 	var multi := MultiMesh.new()
 	multi.transform_format = MultiMesh.TRANSFORM_3D
 	multi.mesh = mesh
@@ -1243,6 +1241,102 @@ func _add_gun_pod_housing_batch(
 	batch.set_meta(&"authored_instance_transforms", transforms.duplicate())
 	parent.add_child(batch)
 	return batch
+
+
+## The barrel has a recessed bore, front retention flange and a tapered muzzle
+## lip. Annular surfaces leave visible air around the barrel at its socket;
+## the former closed muzzle disk and overlapping narrow pod solid are gone.
+func _build_cannon_construction(parent: Node3D, armor: Material, dark: Material, metal: Material) -> void:
+	var poses: Array[Transform3D] = []
+	var barrel_poses: Array[Transform3D] = []
+	for side in [-1.0, 1.0]:
+		poses.append(Transform3D(Basis.IDENTITY, Vector3(side * 3.25, 1.0, -3.1)))
+		# Fit the bore to the unchanged functional muzzle and its damage cue.
+		barrel_poses.append(Transform3D(Basis.IDENTITY, Vector3(side * 3.2, 1.08, -3.1)))
+	var gasket := _profile_mesh([
+		Vector4(0.71, 0.605, 0.435, 0), Vector4(0.79, 0.605, 0.435, 0),
+	], dark)
+	_add_propulsion_part_batch(parent, "CannonReceiverSealBatch", gasket, poses)
+	var socket := _cannon_annulus_mesh([
+		Vector3(-1.19, 0.33, 0.245), Vector3(-1.15, 0.36, 0.245),
+		Vector3(-0.83, 0.43, 0.245), Vector3(-0.73, 0.43, 0.245),
+	], metal)
+	_add_propulsion_part_batch(parent, "CannonRetentionSocketBatch", socket, barrel_poses)
+	var barrel := _cannon_annulus_mesh([
+		Vector3(-1.81, 0.19, 0.135), Vector3(-1.37, 0.19, 0.135),
+		Vector3(-1.34, 0.21, 0.135), Vector3(-0.77, 0.21, 0.135),
+	], dark)
+	_add_propulsion_part_batch(parent, "CannonRecessedBarrelBatch", barrel, barrel_poses)
+	var muzzle := _cannon_annulus_mesh([
+		Vector3(-1.88, 0.25, 0.175), Vector3(-1.84, 0.275, 0.155),
+		Vector3(-1.69, 0.275, 0.155), Vector3(-1.63, 0.21, 0.155),
+	], metal)
+	_add_propulsion_part_batch(parent, "CannonOpenMuzzleBatch", muzzle, barrel_poses)
+	# Paired longitudinal guides belong to the casting's lower load path,
+	# terminating at the socket instead of stacking another slab on its crown.
+	var guides: Array[Transform3D] = []
+	var guide := _profile_mesh([
+		Vector4(-1.05, 0.055, 0.055, 0), Vector4(-0.55, 0.075, 0.07, 0),
+		Vector4(0.62, 0.075, 0.07, 0), Vector4(0.69, 0.055, 0.045, 0),
+	], armor)
+	for pose in poses:
+		for flank in [-1.0, 1.0]:
+			guides.append(pose * Transform3D(Basis.IDENTITY, Vector3(flank * 0.30, -0.29, 0)))
+	_add_propulsion_part_batch(parent, "CannonLowerGuideBatch", guide, guides)
+
+
+## Closed-wall lathe along Z: outer wall, inward-facing bore and annular ends.
+## No center fan closes the opening, and no double-sided material hides winding.
+func _cannon_annulus_mesh(stations: Array[Vector3], coating: Material) -> ArrayMesh:
+	var surface := SurfaceTool.new()
+	surface.begin(Mesh.PRIMITIVE_TRIANGLES)
+	surface.set_material(coating)
+	for ring in range(stations.size() - 1):
+		var a := stations[ring]
+		var b := stations[ring + 1]
+		for segment in 32:
+			var angle := TAU * float(segment) / 32.0
+			var next_angle := TAU * float(segment + 1) / 32.0
+			var p := Vector3(cos(angle), sin(angle), 0)
+			var q := Vector3(cos(next_angle), sin(next_angle), 0)
+			var front := Vector3(0, 0, a.x)
+			var rear := Vector3(0, 0, b.x)
+
+			var outer_slope := (b.y - a.y) / (b.x - a.x)
+			var inner_slope := (b.z - a.z) / (b.x - a.x)
+			var outer_p := (p + Vector3(0, 0, -outer_slope)).normalized()
+			var outer_q := (q + Vector3(0, 0, -outer_slope)).normalized()
+			var inner_p := -(p + Vector3(0, 0, -inner_slope)).normalized()
+			var inner_q := -(q + Vector3(0, 0, -inner_slope)).normalized()
+			# Circumferential normals remain smooth; each authored axial span
+			# keeps its own slope so machined shoulders retain a deliberate break.
+			_cannon_surface_quad(surface,
+				[p * a.y + front, p * b.y + rear, q * b.y + rear, q * a.y + front],
+				[outer_p, outer_p, outer_q, outer_q],
+				[Vector2(angle, a.x), Vector2(angle, b.x), Vector2(next_angle, b.x), Vector2(next_angle, a.x)])
+			_cannon_surface_quad(surface,
+				[q * a.z + front, q * b.z + rear, p * b.z + rear, p * a.z + front],
+				[inner_q, inner_q, inner_p, inner_p],
+				[Vector2(next_angle, a.x), Vector2(next_angle, b.x), Vector2(angle, b.x), Vector2(angle, a.x)])
+			if ring == 0:
+				_cannon_surface_quad(surface,
+					[p * a.z + front, p * a.y + front, q * a.y + front, q * a.z + front],
+					[Vector3.FORWARD, Vector3.FORWARD, Vector3.FORWARD, Vector3.FORWARD],
+					[Vector2(p.x, p.y) * a.z, Vector2(p.x, p.y) * a.y, Vector2(q.x, q.y) * a.y, Vector2(q.x, q.y) * a.z])
+			if ring == stations.size() - 2:
+				_cannon_surface_quad(surface,
+					[q * b.z + rear, q * b.y + rear, p * b.y + rear, p * b.z + rear],
+					[Vector3.BACK, Vector3.BACK, Vector3.BACK, Vector3.BACK],
+					[Vector2(q.x, q.y) * b.z, Vector2(q.x, q.y) * b.y, Vector2(p.x, p.y) * b.y, Vector2(p.x, p.y) * b.z])
+	surface.generate_tangents()
+	return surface.commit()
+
+
+func _cannon_surface_quad(surface: SurfaceTool, points: Array[Vector3], normals: Array[Vector3], uvs: Array[Vector2]) -> void:
+	for corner in [0, 1, 2, 0, 2, 3]:
+		surface.set_normal(normals[corner])
+		surface.set_uv(uvs[corner])
+		surface.add_vertex(points[corner])
 
 
 func get_gunner_station_anchor() -> Marker3D:
