@@ -40,7 +40,7 @@ func _initialize() -> void:
 			and material != null
 			and material.albedo_color.is_equal_approx(Hauler.HULL_COLOR)
 			and is_equal_approx(material.metallic, 0.12)
-			and is_equal_approx(material.roughness, 0.62)
+			and is_equal_approx(material.roughness, 0.72)
 			and not material.resource_local_to_scene,
 		"sharing preserves the IndustrialHull outer silhouette, opens the bounded port route, and retains its material and renderer policy"
 	)

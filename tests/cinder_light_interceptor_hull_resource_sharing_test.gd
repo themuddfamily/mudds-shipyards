@@ -44,7 +44,7 @@ func _initialize() -> void:
 		material != null
 			and material.albedo_color.is_equal_approx(Interceptor.HULL_COLOR)
 			and is_equal_approx(material.metallic, 0.12)
-			and is_equal_approx(material.roughness, 0.62)
+			and is_equal_approx(material.roughness, 0.72)
 			and not first_hull.mesh.resource_local_to_scene
 			and not material.resource_local_to_scene,
 		"the cached mesh/material retain the authored hull recipe and cross-copy lifetime"

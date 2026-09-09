@@ -1047,6 +1047,10 @@ func _build_hull(visual: Node3D) -> void:
 	if _shared_hull_material == null:
 		_shared_hull_material = _material(HULL_COLOR, 0.12, 0.62)
 		ShipSurfaceDetail.bind_manufactured_paint(_shared_hull_material)
+		# Satin freight/combat coating retains grain without broad glossy scuff patches.
+		_shared_hull_material.roughness_texture = load("res://assets/materials/manufactured-paint-roughness.png")
+		_shared_hull_material.roughness = 0.72
+		_shared_hull_material.clearcoat_enabled = false
 		_shared_hull_material.uv1_triplanar = true
 		_shared_hull_material.uv1_scale = Vector3.ONE * 0.33
 		_shared_hull_material.resource_local_to_scene = false
