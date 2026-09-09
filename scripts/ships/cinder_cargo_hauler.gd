@@ -73,6 +73,7 @@ static var _shared_hull_material: StandardMaterial3D
 static var _shared_cargo_pod_mesh: ArrayMesh
 static var _shared_cargo_pod_material: StandardMaterial3D
 static var _shared_freight_load_frame: ArrayMesh
+static var _shared_engine_mounts: ArrayMesh
 
 
 class CinderLoadmasterInteraction:
@@ -1174,7 +1175,7 @@ func _build_freight_pressure_fairings(visual: Node3D) -> void:
 		_frustum(visual, tag + "FreightExhaust", Vector3(side * 3.75, 0.4, 6.40), 0.75, 0.55, 0.65, metal, Vector3(90, 0, 0), false, false)
 		_cylinder(visual, tag + "RecessedThroat", Vector3(side * 3.75, 0.4, 6.20), 0.45, 0.08, dark, Vector3(90, 0, 0))
 		_engine_mechanics(visual, tag, Vector3(side * 3.75, 0.4, 6.59), 0.64, metal, dark, hot)
-		for z in [4.3, 5.15]:
+		for z in [4.15, 5.15]:
 			_deck_plate(visual, tag + "NacelleAccess" + str(z), Vector3(side * 3.75, 1.218 if z < 5.0 else 1.19, z), 0.85, 0.65, _shared_hull_material, dark)
 		var radiator := Node3D.new()
 		radiator.name = tag + "NacelleRadiator"
@@ -1182,6 +1183,100 @@ func _build_freight_pressure_fairings(visual: Node3D) -> void:
 		radiator.rotation.z = side * -PI * 0.5
 		visual.add_child(radiator)
 		_service_bay(radiator, "Cooling", Vector3.ZERO, 0.46, 1.05, metal, dark, dark)
+	_build_engine_mounts(visual)
+
+
+## Two retained saddles transfer each nacelle into the freight structure. Their
+## collars follow the existing tapered shroud; closed shear webs seat on the
+## pressure roof, leaving the service panels and the failed shoulder rails free.
+## Both sides and simultaneous craft reuse the same immutable mounting stock.
+func _build_engine_mounts(visual: Node3D) -> void:
+	if _shared_engine_mounts == null:
+		var surface := SurfaceTool.new()
+		surface.begin(Mesh.PRIMITIVE_TRIANGLES)
+		var section := PackedVector2Array([
+			Vector2(0.62, 1), Vector2(0.91, 0.80), Vector2(1, 0.40),
+			Vector2(1, -0.40), Vector2(0.91, -0.80), Vector2(0.62, -1),
+			Vector2(-0.62, -1), Vector2(-0.91, -0.80), Vector2(-1, -0.40),
+			Vector2(-1, 0.40), Vector2(-0.91, 0.80), Vector2(-0.62, 1),
+		])
+		for z in [3.65, 4.65]:
+			# Two annular stations produce an open collar, never an opaque
+			# plug through the engine. Every face has a metric UV projection.
+			var rings: Array[PackedVector3Array] = []
+			for station in [z - 0.12, z + 0.12]:
+				var t: float = (station - 2.70) / 3.5
+				var width := minf(1.0, lerpf(0.12, 1.0, t / 0.43)) * 0.81
+				var height := minf(1.0, lerpf(0.35, 1.0, t / 0.28)) * 0.81
+				for offset in [-0.015, 0.075]:
+					var ring := PackedVector3Array()
+					for point in section:
+						ring.append(Vector3(3.75 + point.x * (width + offset), 0.4 + point.y * (height + offset), station))
+					rings.append(ring)
+			for edge in section.size():
+				var next := (edge + 1) % section.size()
+				_mount_quad(surface, rings[1][edge], rings[1][next], rings[3][next], rings[3][edge])
+				_mount_quad(surface, rings[0][next], rings[0][edge], rings[2][edge], rings[2][next])
+				_mount_quad(surface, rings[0][edge], rings[0][next], rings[1][next], rings[1][edge])
+				_mount_quad(surface, rings[3][edge], rings[3][next], rings[2][next], rings[2][edge])
+			var taper := clampf((z / 6.0 - 0.66) / 0.34, 0.0, 1.0)
+			var root_x := 2.78
+			var shoulder_x := root_x / lerpf(1.0, 0.80, taper)
+			var shoulder_arc := (shoulder_x - 2.5) / 0.70
+			var root_y := (1.3 + 0.30 * sqrt(1.0 - shoulder_arc * shoulder_arc)) * lerpf(1.0, 0.82, taper)
+			# A broad top flange and sloping web span the pylon joint; the
+			# root is embedded in the static roof, never the damage shoulders.
+			var web := PackedVector2Array([
+				Vector2(root_x, root_y - 0.07), Vector2(root_x, root_y + 0.13),
+				Vector2(root_x + 0.27, root_y + 0.13), Vector2(3.58, 1.31),
+				Vector2(3.93, 1.29), Vector2(3.93, 1.13), Vector2(3.48, 1.13),
+			])
+			for edge in web.size():
+				var next := (edge + 1) % web.size()
+				_mount_quad(surface, Vector3(web[edge].x, web[edge].y, z - 0.12),
+					Vector3(web[next].x, web[next].y, z - 0.12),
+					Vector3(web[next].x, web[next].y, z + 0.12), Vector3(web[edge].x, web[edge].y, z + 0.12))
+			var triangles := Geometry2D.triangulate_polygon(web)
+			for end in [-1.0, 1.0]:
+				for triangle in range(0, triangles.size(), 3):
+					var order := [0, 1, 2] if end < 0 else [2, 1, 0]
+					for corner in order:
+						var point := web[triangles[triangle + corner]]
+						surface.set_normal(Vector3(0, 0, end))
+						surface.set_uv(point)
+						surface.add_vertex(Vector3(point.x, point.y, z + end * 0.12))
+		# Bake the mirror with reversed winding and reflected normals. A
+		# negative renderer scale produces inverted lighting on this stock.
+		var starboard := surface.commit()
+		var arrays := starboard.surface_get_arrays(0)
+		var points: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
+		var normals: PackedVector3Array = arrays[Mesh.ARRAY_NORMAL]
+		var uv: PackedVector2Array = arrays[Mesh.ARRAY_TEX_UV]
+		for triangle in range(0, points.size(), 3):
+			for corner in [0, 2, 1]:
+				var i: int = triangle + corner
+				surface.set_normal(normals[i] * Vector3(-1, 1, 1))
+				surface.set_uv(uv[i])
+				surface.add_vertex(points[i] * Vector3(-1, 1, 1))
+		surface.generate_tangents()
+		_shared_engine_mounts = surface.commit()
+		_shared_engine_mounts.resource_local_to_scene = false
+	var mounts := MeshInstance3D.new()
+	mounts.name = "EngineRetentionSaddles"
+	mounts.mesh = _shared_engine_mounts
+	mounts.material_override = _shared_hull_material
+	mounts.set_meta(&"presentation_only", true)
+	visual.add_child(mounts)
+
+
+static func _mount_quad(surface: SurfaceTool, a: Vector3, b: Vector3, c: Vector3, d: Vector3) -> void:
+	var normal := (c - a).cross(b - a).normalized()
+	var u_axis := (b - a).normalized()
+	var v_axis := normal.cross(u_axis)
+	for point in [a, b, c, a, c, d]:
+		surface.set_normal(normal)
+		surface.set_uv(Vector2((point - a).dot(u_axis), (point - a).dot(v_axis)))
+		surface.add_vertex(point)
 
 
 ## Cargo restraints carry around the roof and into the lower side frame instead of

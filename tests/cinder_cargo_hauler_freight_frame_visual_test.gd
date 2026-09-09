@@ -88,6 +88,36 @@ func _initialize() -> void:
 		"boarding, cargo seams, collision, authority, and NEW status remain unchanged"
 	)
 
+	var port_mount := craft.get_node_or_null(^"CinderCargoVisual/EngineRetentionSaddles") as MeshInstance3D
+	var other := Hauler.new() as CinderCargoHauler
+	stage.add_child(other)
+	var retained_mount := other.get_node_or_null(^"CinderCargoVisual/EngineRetentionSaddles") as MeshInstance3D
+	var mounts_valid := port_mount != null and retained_mount != null
+	if mounts_valid:
+		mounts_valid = port_mount.mesh == retained_mount.mesh \
+			and port_mount.mesh.get_aabb().position.z > Hauler.PORT_APERTURE_Z_MAX \
+			and port_mount.get_meta(&"presentation_only", false) \
+			and port_mount.find_children("*", "CollisionObject3D", true, false).is_empty()
+	_check(mounts_valid, "paired engine saddles share geometry across craft and stay behind the boarding opening")
+	other.queue_free()
+	var surfaces_valid := mounts_valid
+	if mounts_valid:
+		var arrays := port_mount.mesh.surface_get_arrays(0)
+		var points: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
+		var normals: PackedVector3Array = arrays[Mesh.ARRAY_NORMAL]
+		var uv: PackedVector2Array = arrays[Mesh.ARRAY_TEX_UV]
+		var tangents: PackedFloat32Array = arrays[Mesh.ARRAY_TANGENT]
+		surfaces_valid = uv.size() == points.size() and tangents.size() == points.size() * 4
+		for triangle in range(0, points.size(), 3):
+			var outward := (points[triangle + 2] - points[triangle]).cross(points[triangle + 1] - points[triangle]).normalized()
+			surfaces_valid = surfaces_valid and outward.dot(normals[triangle]) > 0.99
+			for corner in 3:
+				var i := triangle + corner
+				var tangent := Vector3(tangents[i * 4], tangents[i * 4 + 1], tangents[i * 4 + 2])
+				surfaces_valid = surfaces_valid and tangent.is_finite() and tangent.length() > 0.9 \
+					and absf(normals[i].dot(tangent)) < 0.01
+	_check(surfaces_valid, "mounting collars and closed shear webs have exterior winding, UVs and usable tangents")
+
 	var camera := Camera3D.new()
 	camera.fov = 48.0
 	camera.near = 0.1
