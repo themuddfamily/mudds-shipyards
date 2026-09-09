@@ -76,7 +76,7 @@ PROTECTED_MESHES_BY_ROOT: dict[str, tuple[str, ...]] = {
     ),
 }
 EXPECTED_SOURCE_MESH_COUNTS = {
-    "LOD0": 240,
+    "LOD0": 242,
     "LOD1": 20,
     "CockpitArt": 39,
     "CanopyPivot": 17,
@@ -89,7 +89,7 @@ EXPECTED_RUNTIME_MESH_COUNTS = {
     "CanopyPivot": 3,
     "SemanticAnchors": 0,
 }
-EXPECTED_RUNTIME_TRIANGLES = 99_226
+EXPECTED_RUNTIME_TRIANGLES = 99_682
 RUNTIME_MESH_INSTANCE_BUDGET = 36
 SOURCE_MESH_INSTANCE_BUDGET = 320
 CLOSE_TRIANGLE_RANGE = (70_000, 90_000)
@@ -327,6 +327,25 @@ def annular_shell(name: str, collection, mat, center_xy, z_values,
     for polygon in obj.data.polygons:
         polygon.use_smooth = abs(polygon.normal.z) < .82
     return obj
+
+
+def fitted_weapon_receiver(name, collection, mat, side):
+    """Chamfered receiver follows the existing bay envelope and cannon axes."""
+    # Ring stations narrow onto the two sleeves at the forward end and nest
+    # into the shoulder at the rear; the original hardpoint stays unchanged.
+    profile = ((-.5,-.30),(-.30,-.5),(.30,-.5),(.5,-.30),
+               (.5,.30),(.30,.5),(-.30,.5),(-.5,.30))
+    stations = ((-3.225,.34,.29),(-3.02,.38,.48),
+                (-2.20,.38,.48),(-1.875,.28,.32))
+    vertices = [(side*1.55 + x*width, .78 + y*height, z)
+                for z,width,height in stations for x,y in profile]
+    faces = [tuple(reversed(range(8)))]
+    for ring in range(len(stations)-1):
+        for j in range(8):
+            faces.append((ring*8+j,ring*8+(j+1)%8,
+                          (ring+1)*8+(j+1)%8,(ring+1)*8+j))
+    faces.append(tuple(range(24,32)))
+    return wedge(name,collection,mat,vertices,faces,.008)
 
 
 def canopy_glass_shell(name: str, collection, mat):
@@ -941,9 +960,19 @@ def build_lod0(collection):
     # Recessed weapons and service bays.
     for side in (-1, 1):
         s = "Port" if side < 0 else "Starboard"
-        box(f"{s}WeaponBay", (side*1.55,.78,-2.55), (.38,.48,1.35), collection, graphite, .05)
-        cylinder(f"{s}PulseCannonA", (side*1.48,.78,-3.25), .075, 1.12, collection, alloy, 28)
-        cylinder(f"{s}PulseCannonB", (side*1.68,.78,-3.18), .065, .96, collection, alloy, 28)
+        fitted_weapon_receiver(f"{s}WeaponBay", collection, graphite, side)
+        # A small fitted armour lid provides a readable hull-to-mechanism joint.
+        box(f"{s}WeaponReceiverLid", (side*1.55,.999,-2.55),
+            (.27,.028,.70), collection, ivory2, .012)
+        for suffix, axis, tip, rear, radius in (
+                ("A",1.48,-3.81,-2.69,.075),
+                ("B",1.68,-3.66,-2.70,.065)):
+            # The stepped sleeve and its deep bore are one closed annular mesh.
+            # The original barrel footprint and firing lanes are retained.
+            annular_shell(f"{s}PulseCannon{suffix}", collection, alloy,
+                (side*axis,.78), (tip,tip+.09,tip+.18,rear),
+                (radius*.88,radius,radius*.76,radius*.76),
+                (radius*.55,radius*.55,radius*.51,radius*.51),12,0)
         for port in range(3):
             nozzle_z = -1.6 + port * 1.35
             width, low, high = hull_station_at(nozzle_z)

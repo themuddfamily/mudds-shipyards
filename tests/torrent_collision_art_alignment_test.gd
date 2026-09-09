@@ -116,9 +116,9 @@ func _test_provenance(manifest: Dictionary, alignment: Dictionary) -> void:
 	var semantic_hash := str(manifest.get("source_semantic_sha256", ""))
 	_check(semantic_hash.length() == 64 and semantic_hash.is_valid_hex_number(false), "manifest publishes a canonical 256-bit editable-source semantic digest")
 	_check(str(provenance.get("evaluated_source_semantic_sha256", "")) == semantic_hash, "coverage provenance and source-preservation contract share the exact semantic digest")
-	_check(int(manifest.get("mesh_triangles_evaluated_in_blender", 0)) == 96842 and int(manifest.get("mesh_triangles_exported_runtime", -1)) == 96842, "collision proof preserves the exact 96,842-triangle source/runtime contract")
+	_check(int(manifest.get("mesh_triangles_evaluated_in_blender", 0)) == 99682 and int(manifest.get("mesh_triangles_exported_runtime", -1)) == 99682, "collision proof preserves the exact 99,682-triangle source/runtime contract")
 	var batching := manifest.get("runtime_static_batching", {}) as Dictionary
-	_check(int(batching.get("source_mesh_count_total", 0)) == 316 and int(batching.get("runtime_mesh_count_total", 0)) == 32, "collision proof preserves 316 editable semantic meshes and the 32-node runtime budget")
+	_check(int(batching.get("source_mesh_count_total", 0)) == 318 and int(batching.get("runtime_mesh_count_total", 0)) == 32, "collision proof preserves 318 editable semantic meshes and the 32-node runtime budget")
 	var protected := batching.get("protected_meshes_by_root", {}) as Dictionary
 	var protected_lod0 := _sorted_strings(protected.get("LOD0", []))
 	_check(protected_lod0.has("AmberUnknownFunctionPanel") and int((batching.get("runtime_mesh_counts_by_root", {}) as Dictionary).get("LOD0", 0)) == 17, "standalone Amber panel and exact LOD0 batching survive regeneration")
@@ -150,7 +150,7 @@ func _test_evaluated_coverage(manifest: Dictionary, alignment: Dictionary) -> vo
 		for object_name: Variant in manifest_collections.get(collection_name, [] as Array):
 			source_names.append(str(object_name))
 	var unique_source_names := _unique_strings(source_names)
-	_check(source_names.size() == 296 and unique_source_names.size() == 296, "three evaluated source collections publish 296 unique semantic meshes")
+	_check(source_names.size() == 298 and unique_source_names.size() == 298, "three evaluated source collections publish 298 unique semantic meshes")
 	_check(int(alignment.get("source_object_count", -1)) == source_names.size(), "coverage source count agrees with the semantic manifest roster")
 
 	var exclusions := alignment.get("excluded_objects", {}) as Dictionary
@@ -169,7 +169,7 @@ func _test_evaluated_coverage(manifest: Dictionary, alignment: Dictionary) -> vo
 		if not exclusion_names.has(source_name):
 			expected_included.append(source_name)
 	expected_included.sort()
-	_check(expected_included.size() == 286 and int(alignment.get("included_object_count", -1)) == expected_included.size(), "coverage includes all 286 non-effect close meshes")
+	_check(expected_included.size() == 288 and int(alignment.get("included_object_count", -1)) == expected_included.size(), "coverage includes all 288 non-effect close meshes")
 
 	var categories := alignment.get("categories", {}) as Dictionary
 	_check(_sorted_strings(categories) == PackedStringArray(["parked_gear", "primary_hull", "propulsion"]), "coverage partitions geometry into the exact three required categories")
@@ -185,7 +185,7 @@ func _test_evaluated_coverage(manifest: Dictionary, alignment: Dictionary) -> vo
 		"primary, propulsion, and parked-gear categories form an exact one-to-one source partition"
 	)
 
-	_check(int(primary_hull.get("object_count", -1)) == 216 and int(primary_hull.get("evaluated_vertex_count", -1)) == 26651, "primary hull audits 216 objects and 26,651 evaluated vertices")
+	_check(int(primary_hull.get("object_count", -1)) == 218 and int(primary_hull.get("evaluated_vertex_count", -1)) == 28067, "primary hull audits 218 objects and 28,067 evaluated vertices")
 	_check(int(propulsion.get("object_count", -1)) == 36 and int(propulsion.get("evaluated_vertex_count", -1)) == 11904, "propulsion audits 36 objects and 11,904 evaluated vertices")
 	_check(int(parked_gear.get("object_count", -1)) == 34 and int(parked_gear.get("evaluated_vertex_count", -1)) == 4796, "parked gear audits 34 objects and 4,796 evaluated vertices")
 	_check(int(primary_hull.get("uncovered_vertex_count", -1)) == 6 and is_equal_approx(float(primary_hull.get("maximum_uncovered_distance_m", -1.0)), 0.002207518), "primary-hull maximum uncovered distance is the measured 2.21 mm")
@@ -212,8 +212,8 @@ func _test_evaluated_coverage(manifest: Dictionary, alignment: Dictionary) -> vo
 	var tolerance := float(alignment.get("tolerance_m", -1.0))
 	var independently_valid := (
 		is_equal_approx(tolerance, 0.02)
-		and category_object_sum == 286
-		and category_vertex_sum == 43351
+		and category_object_sum == 288
+		and category_vertex_sum == 44767
 		and category_over_sum == 0
 		and (alignment.get("objects_over_tolerance", []) as Array).is_empty()
 		and category_maximum <= tolerance + COVERAGE_EPSILON_M
@@ -224,8 +224,8 @@ func _test_evaluated_coverage(manifest: Dictionary, alignment: Dictionary) -> vo
 	var self_audit := alignment.get("self_audit", {}) as Dictionary
 	var published_checks := self_audit.get("checks", {}) as Dictionary
 	var independently_derived_checks := {
-		"exact_source_roster_accounted_for": source_names.size() == 296 and expected_included.size() + exclusion_names.size() == source_names.size(),
-		"category_partition_is_complete": category_object_sum == 286 and category_vertex_sum == 43351 and _unique_strings(category_partition) == expected_included,
+		"exact_source_roster_accounted_for": source_names.size() == 298 and expected_included.size() + exclusion_names.size() == source_names.size(),
+		"category_partition_is_complete": category_object_sum == 288 and category_vertex_sum == 44767 and _unique_strings(category_partition) == expected_included,
 		"category_totals_match_overall": category_object_sum == int(alignment.get("included_object_count", -1)) and category_vertex_sum == int(alignment.get("evaluated_vertex_count", -1)) and category_over_sum == int(alignment.get("vertices_over_tolerance", -1)),
 		"maximum_matches_category_maximum": is_equal_approx(category_maximum, float(alignment.get("maximum_uncovered_distance_m", -1.0))),
 		"no_evaluated_vertex_exceeds_tolerance": category_over_sum == 0 and (alignment.get("objects_over_tolerance", []) as Array).is_empty(),

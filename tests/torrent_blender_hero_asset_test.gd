@@ -23,7 +23,7 @@ func _run() -> void:
 	_check(str(audit.get("authorship", "")) == "original_script_assisted_blender", "asset reports honest Blender authorship")
 	_check(not bool(audit.get("historical_geometry_authenticated", true)), "modern hero asset makes no authenticated historical-geometry claim")
 	_check(not bool(audit.get("gameplay_authority", true)), "imported art explicitly owns no gameplay authority")
-	_check(int(audit.get("lod0_triangle_count", 0)) == 75078 and int(audit.get("lod0_mesh_count", 999)) == 17, "LOD0 preserves its measured close topology inside the 18-node draw budget")
+	_check(int(audit.get("lod0_triangle_count", 0)) == 75534 and int(audit.get("lod0_mesh_count", 999)) == 17, "LOD0 preserves its measured close topology inside the 18-node draw budget")
 	_check(int(audit.get("lod1_triangle_count", 0)) == 9866 and int(audit.get("lod1_mesh_count", 999)) == 5, "LOD1 preserves its complete silhouette at the exact five-node budget")
 	_check(int(audit.get("total_mesh_count", 999)) == 32 and int(audit.get("near_surface_count", 999)) == 27 and int(audit.get("far_surface_count", 999)) == 8, "runtime presentation owns the measured 27-near/8-far surface contract")
 	var root_art := presentation.get_asset_root()
@@ -70,19 +70,19 @@ func _run() -> void:
 	var source_counts := batching.get("source_mesh_counts_by_root", {}) as Dictionary
 	var runtime_counts := batching.get("runtime_mesh_counts_by_root", {}) as Dictionary
 	_check(str(batching.get("strategy", "")) == "per_semantic_root_per_material_static_join" and bool(batching.get("source_preserved_in_blend", false)), "manifest records export-only per-semantic-root/material batching while preserving the editable source")
-	_check(int(batching.get("source_mesh_count_total", 0)) == 316 and _mesh_counts_match(source_counts, {"CanopyPivot": 17, "CockpitArt": 39, "LOD0": 240, "LOD1": 20, "SemanticAnchors": 0}), "manifest pins the complete 316-mesh editable semantic roster")
+	_check(int(batching.get("source_mesh_count_total", 0)) == 318 and _mesh_counts_match(source_counts, {"CanopyPivot": 17, "CockpitArt": 39, "LOD0": 242, "LOD1": 20, "SemanticAnchors": 0}), "manifest pins the complete 318-mesh editable semantic roster")
 	_check(int(batching.get("runtime_mesh_count_total", 999)) == 32 and _mesh_counts_match(runtime_counts, {"CanopyPivot": 3, "CockpitArt": 7, "LOD0": 17, "LOD1": 5, "SemanticAnchors": 0}), "export-only batching reduces art to the exact 32-node runtime roster")
-	_check(runtime_triangles == 99226, "runtime GLB carries the measured 99,226-triangle production topology")
+	_check(runtime_triangles == 99682, "runtime GLB carries the measured 99,682-triangle production topology")
 	_check(runtime_triangles == int(manifest.get("mesh_triangles_evaluated_in_blender", -1)), "runtime GLB geometry exactly matches Blender's evaluated triangle count")
 	_check(_runtime_triangle_count(root_art) == runtime_triangles, "Godot's imported runtime meshes contain the exact manifest-pinned triangle count")
 	_check(str(manifest.get("glb_sha256", "")) == FileAccess.get_sha256("res://assets/models/torrent/hero/torrent_hero_art.glb"), "manifest pins the exact runtime GLB hash")
 	_check(str(manifest.get("blend_sha256", "")) == FileAccess.get_sha256("res://art_source/torrent/torrent_hero_v1.blend"), "manifest pins the exact editable Blender source")
 	var art_quality := manifest.get("art_quality_contract", {}) as Dictionary
-	_check(int(art_quality.get("close_triangle_count", 0)) == 89360 and int(art_quality.get("far_triangle_count", 0)) == 12696 and int(art_quality.get("total_triangle_count", 0)) == 99226, "manifest separates close cabin/canopy density from the complete far silhouette")
+	_check(int(art_quality.get("close_triangle_count", 0)) == 89816 and int(art_quality.get("far_triangle_count", 0)) == 12696 and int(art_quality.get("total_triangle_count", 0)) == 99682, "manifest separates close cabin/canopy density from the complete far silhouette")
 	_check(float(art_quality.get("pale_exterior_surface_ratio", 0.0)) >= 0.70 and float(art_quality.get("pale_exterior_surface_ratio", 1.0)) <= 0.80, "measured exterior surface area preserves the intended 70-80% warm pale palette")
 	_check(int(art_quality.get("propulsion_depth_layers", 0)) == 4 and int(art_quality.get("engine_stator_vanes_per_nacelle", 0)) == 8, "art contract records four propulsion depth layers and eight stator vanes per nacelle")
 	var uv_contract := manifest.get("uv0_contract", {}) as Dictionary
-	_check(bool(uv_contract.get("all_source_meshes_mapped", false)) and int(uv_contract.get("mesh_count", 0)) == 316 and int(uv_contract.get("degenerate_polygon_count", -1)) == 0, "every editable mesh owns finite non-degenerate UV0 before batching")
+	_check(bool(uv_contract.get("all_source_meshes_mapped", false)) and int(uv_contract.get("mesh_count", 0)) == 318 and int(uv_contract.get("degenerate_polygon_count", -1)) == 0, "every editable mesh owns finite non-degenerate UV0 before batching")
 	_check(
 		str(uv_contract.get("method", "")) == "dominant_root_normal_axis_sign_corrected_projection_v3"
 		and str(uv_contract.get("editable_source_handedness", "")) == "negative"
@@ -99,14 +99,14 @@ func _run() -> void:
 	_check(
 		str(uv_orientation.get("method", "")) == "indexed_triangle_geometric_normal_uv_determinant_v1"
 		and bool(uv_orientation.get("glTF_export_v_conversion_accounted_for", false))
-		and int(textured_orientation.get("triangle_count", 0)) == 24600
+		and int(textured_orientation.get("triangle_count", 0)) == 24816
 		and int(textured_orientation.get("degenerate_triangle_count", -1)) == 0
 		and float(textured_orientation.get("mirrored_surface_ratio", 1.0)) <= 0.00002,
-		"actual GLB keeps all 24,600 textured hull triangles in one UV orientation apart from bounded float32 bevel slivers"
+		"actual GLB keeps all 24,816 textured hull triangles in one UV orientation apart from bounded float32 bevel slivers"
 	)
 	var live_uv_orientation := _runtime_textured_uv_orientation(root_art)
 	_check(
-		int(live_uv_orientation.get("triangle_count", 0)) == 24600
+		int(live_uv_orientation.get("triangle_count", 0)) == 24816
 		and int(live_uv_orientation.get("degenerate_triangle_count", -1)) == 0
 		and float(live_uv_orientation.get("mirrored_surface_ratio", 1.0)) <= 0.00002,
 		"Godot's imported textured hull arrays preserve the measured non-mirrored GLB tangent-frame orientation"
