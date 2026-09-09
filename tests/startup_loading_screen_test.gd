@@ -52,6 +52,17 @@ class InterruptedFleetLoader extends StartupLoader:
 			interrupted_fleet.get_parent().remove_child(interrupted_fleet)
 
 
+class InterruptedHabitatLoader extends StartupLoader:
+	var retired_habitat: WeakRef
+
+	func _on_construction_stage(generation: int, label: String, ratio: float) -> void:
+		super._on_construction_stage(generation, label, ratio)
+		if label != "Opening the Habitat connector": return
+		var habitat := get_main().get_node("ShipyardWorld/HabitatSpine") as HabitatSpine
+		retired_habitat = weakref(habitat)
+		habitat.queue_free.call_deferred()
+
+
 func _init() -> void:
 	call_deferred("_run")
 
@@ -66,6 +77,7 @@ func _run() -> void:
 	await _test_detached_boot_cancels_stale_continuation()
 	await _test_boot_presents_before_it_builds()
 	await _test_live_boot_rejects_incomplete_fleet()
+	await _test_live_boot_rejects_incomplete_habitat()
 	await _test_direct_instantiation_is_unstaged()
 	await _test_atomic_graphics_profile_precedes_world_construction()
 	_finish()
@@ -343,6 +355,10 @@ func _test_world_stages_authored_children_and_rejects_stale_yield() -> void:
 			lattice_counts.append(component_count)
 		if label.begins_with("Preparing Cinder"):
 			fleet_stage_frames.append(Engine.get_process_frames())
+		if label == "Preparing Habitat Spine":
+			var habitat := world.get_node("HabitatSpine") as HabitatSpine
+			_check(habitat.is_construction_complete() and bool(habitat.get_render_allocation_report().exact_counts),
+				"world advances its Habitat child only after all module phases and final state complete")
 		if label == "Parking the provisional fleet":
 			var fleet := world.get_node("FleetExpansionProductionBinding") as FleetExpansionProductionBinding
 			_check(fleet.is_composition_ready(),
@@ -956,6 +972,26 @@ func _test_live_boot_rejects_incomplete_fleet() -> void:
 			boot.interrupted_fleet.free()
 		boot.queue_free()
 		await process_frame
+
+
+func _test_live_boot_rejects_incomplete_habitat() -> void:
+	var boot := InterruptedHabitatLoader.new()
+	boot.auto_start = false
+	root.add_child(boot)
+	var completions: Array[Node] = []
+	boot.startup_completed.connect(func(main: Node) -> void: completions.append(main))
+	var main := await boot.run_startup()
+	var advanced := false
+	for row: Dictionary in boot.get_startup_report().stages:
+		advanced = advanced or row.get("label", "") in ["Preparing Habitat Spine", "Surveying berths", "Shipyard ready"]
+	_check(main == null and boot.get_main() == null and completions.is_empty() and not advanced
+		and boot.get_loading_screen().get_stage_text() == "Startup failed",
+		"a freed Habitat returns failure to its live world without advancing child progress or admitting gameplay")
+	await process_frame
+	_check(boot.retired_habitat != null and boot.retired_habitat.get_ref() == null,
+		"interrupted Habitat construction leaves no retained partial module")
+	boot.queue_free()
+	await process_frame
 
 
 func _test_direct_instantiation_is_unstaged() -> void:

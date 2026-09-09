@@ -222,6 +222,32 @@ var _chair_nodes: Array[Node3D] = []
 var _service_nodes: Array[Node3D] = []
 var _window_panes: Array[Node3D] = []
 var _built := false
+var _staged_construction := false
+var _staged_phase_index := 0
+var _staged_needs_settle := false
+var _staged_tree_generation := 0
+var _staged_run_active := false
+var _staged_failed := false
+
+## Ordered existing builders, with room creation attached to its first builder.
+## Bunk dressing and its one boot batch stay in the same construction phase.
+const STAGED_BUILD_PHASES: Array[Array] = [
+	[&"_build_connector", ^"Structure", "Opening the Habitat connector"],
+	[&"_build_habitat_corridor", ^"Structure", "Building the Habitat corridor"],
+	[&"_build_observation_common", ^"Structure", "Opening the Habitat common room"],
+	[&"_build_service_detail", ^"Structure", "Fitting Habitat services"],
+	[&"_build_branch_link", ^"Structure/SideBranchGarden", "Connecting the Habitat garden"],
+	[&"_build_garden_shell", ^"Structure/SideBranchGarden", "Raising the Habitat garden shell"],
+	[&"_build_garden_column", ^"Structure/SideBranchGarden", "Planting the Habitat garden column"],
+	[&"_build_garden_racks", ^"Structure/SideBranchGarden", "Fitting Habitat garden racks"],
+	[&"_build_garden_service", ^"Structure/SideBranchGarden", "Connecting Habitat garden services"],
+	[&"_build_bunk_berth_group", ^"Structure/PressurizedHabitatCorridor", "Dressing the Habitat bunks"],
+	[&"_build_entry_vestibule_life", ^"Structure/PressurizedHabitatCorridor", "Fitting the Habitat vestibule"],
+	[&"_build_common_galley", ^"Structure/ObservationCommon", "Opening the Habitat galley"],
+	[&"_build_common_mess", ^"Structure/ObservationCommon", "Setting the Habitat mess"],
+	[&"_build_common_berth_roster", ^"Structure/ObservationCommon", "Posting the Habitat berth roster"],
+	[&"_build_common_soft_goods", ^"Structure/ObservationCommon", "Finishing the Habitat common room"],
+]
 var _module_enabled := true
 var _hatch_fastener_mesh: Mesh
 var _hatch_fastener_batch: MultiMeshInstance3D
@@ -261,6 +287,8 @@ var _berth_boot_batch: MultiMeshInstance3D
 
 
 func _ready() -> void:
+	if _staged_construction and not _built:
+		return
 	if not _built:
 		_built = true
 		_create_materials()
@@ -271,6 +299,96 @@ func _ready() -> void:
 	# Reconcile the real node state against `_module_enabled` on every ready, so a
 	# scene-authored or externally drifted layer/visibility cannot survive.
 	_apply_enabled_state()
+
+
+func prepare_staged_construction() -> void:
+	if not _built and not is_inside_tree():
+		_staged_construction = true
+
+
+static func get_staged_construction_stage_count() -> int:
+	return STAGED_BUILD_PHASES.size()
+
+
+func is_construction_complete() -> bool:
+	return _built and is_inside_tree() and not is_queued_for_deletion()
+
+
+func _exit_tree() -> void:
+	_staged_tree_generation += 1
+	_staged_run_active = false
+
+
+## A static driver can report a freed/queued module to its still-live world.
+## A retained module resumes its next phase/settle without rebuilding any room.
+static func run_staged_construction(module_ref: WeakRef, on_stage: Callable = Callable()) -> bool:
+	var module := module_ref.get_ref() as HabitatSpine
+	if not is_instance_valid(module):
+		return false
+	if module._built:
+		return module.is_construction_complete()
+	if not module._staged_construction or module._staged_run_active or module._staged_failed \
+			or not module.is_inside_tree() or module.is_queued_for_deletion():
+		return false
+	var generation := module._staged_tree_generation
+	var tree := module.get_tree()
+	module._staged_run_active = true
+	while module._staged_phase_index < STAGED_BUILD_PHASES.size() or module._staged_needs_settle:
+		if not _is_staged_current(module, generation):
+			return false
+		if module._staged_needs_settle:
+			module = null
+			await tree.process_frame
+			module = module_ref.get_ref() as HabitatSpine
+			if not _is_staged_current(module, generation):
+				return false
+			module._staged_needs_settle = false
+			continue
+		var phase := module._staged_phase_index
+		module._staged_phase_index += 1
+		module._staged_needs_settle = true
+		if not module._build_staged_phase(phase):
+			module._staged_failed = true
+			module._staged_run_active = false
+			return false
+		if not _is_staged_current(module, generation):
+			return false
+		if on_stage.is_valid():
+			on_stage.call(STAGED_BUILD_PHASES[phase][2] as String)
+		if not _is_staged_current(module, generation):
+			return false
+	module._style_access_landmarks()
+	module._apply_metadata()
+	module._apply_enabled_state()
+	if not _is_staged_current(module, generation):
+		return false
+	module._built = true
+	module._staged_construction = false
+	module._staged_run_active = false
+	return true
+
+
+static func _is_staged_current(module: HabitatSpine, generation: int) -> bool:
+	return is_instance_valid(module) and generation == module._staged_tree_generation \
+		and module.is_inside_tree() and not module.is_queued_for_deletion()
+
+
+func _build_staged_phase(index: int) -> bool:
+	if index == 0:
+		_create_materials()
+		_index_semantics()
+		_create_structure()
+	if index == 4:
+		var structure := get_node_or_null(^"Structure") as Node3D
+		if structure == null or structure.is_queued_for_deletion():
+			return false
+		_create_side_branch(structure)
+	var phase: Array = STAGED_BUILD_PHASES[index]
+	var parent := get_node_or_null(phase[1] as NodePath) as Node3D
+	if parent == null or parent.is_queued_for_deletion():
+		return false
+	call(phase[0] as StringName, parent)
+	return true
 
 
 func get_module_id() -> StringName:
@@ -2117,10 +2235,15 @@ func _create_habitat_life_materials() -> void:
 	_materials["grow_light"] = _material(Color("ffb3d8"), 0.02, 0.22, Color("ff5fae"), 0.95)
 
 
-func _build_structure() -> void:
+func _create_structure() -> Node3D:
 	var structure := Node3D.new()
 	structure.name = "Structure"
 	add_child(structure)
+	return structure
+
+
+func _build_structure() -> void:
+	var structure := _create_structure()
 	_build_connector(structure)
 	_build_habitat_corridor(structure)
 	_build_observation_common(structure)
@@ -2756,7 +2879,7 @@ func _register_service(node: Node3D, service_class: StringName) -> void:
 ## station interior can make that people live in it, and this module is the one
 ## place on the station where that is the subject. It is also the only saturated
 ## colour and the only organic silhouette anywhere in the build.
-func _build_side_branch(structure: Node3D) -> void:
+func _create_side_branch(structure: Node3D) -> Node3D:
 	var branch := Node3D.new()
 	branch.name = "SideBranchGarden"
 	branch.set_meta("station_room", true)
@@ -2764,6 +2887,11 @@ func _build_side_branch(structure: Node3D) -> void:
 	branch.set_meta("content_status", &"modern_interpretation_no_source")
 	branch.set_meta("evidence_status", EVIDENCE_STATUS)
 	structure.add_child(branch)
+	return branch
+
+
+func _build_side_branch(structure: Node3D) -> void:
+	var branch := _create_side_branch(structure)
 	_build_branch_link(branch)
 	_build_garden_shell(branch)
 	_build_garden_column(branch)
@@ -3336,6 +3464,15 @@ func _build_habitat_life(structure: Node3D) -> void:
 	var common := structure.get_node_or_null("ObservationCommon") as Node3D
 	if corridor == null or common == null:
 		return
+	_build_bunk_berth_group(corridor)
+	_build_entry_vestibule_life(corridor)
+	_build_common_galley(common)
+	_build_common_mess(common)
+	_build_common_berth_roster(common)
+	_build_common_soft_goods(common)
+
+
+func _build_bunk_berth_group(corridor: Node3D) -> void:
 	_berth_boot_transforms.clear()
 	for index in _bunk_nodes.size():
 		_build_bunk_berth_life(_bunk_nodes[index], index)
@@ -3347,11 +3484,6 @@ func _build_habitat_life(structure: Node3D) -> void:
 		_berth_boot_transforms,
 		&"BerthBoot"
 	)
-	_build_entry_vestibule_life(corridor)
-	_build_common_galley(common)
-	_build_common_mess(common)
-	_build_common_berth_roster(common)
-	_build_common_soft_goods(common)
 
 
 ## One bunk alcove, dressed as somebody's berth.

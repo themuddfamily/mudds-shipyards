@@ -47,6 +47,7 @@ func _run() -> void:
 		and int(synchronous_render.get("unique_material_resources", -1)) == 33,
 		"Habitat is allocation-green synchronously before its ShipyardWorld parent can validate it"
 	)
+	await _test_staged_construction(module)
 	await process_frame
 	await physics_frame
 	await physics_frame
@@ -69,6 +70,79 @@ func _run() -> void:
 	await _test_lifecycle(module)
 	await _test_cleanup(module)
 	_finish()
+
+
+func _test_staged_construction(reference: HabitatSpine) -> void:
+	var module := MODULE_SCENE.instantiate() as HabitatSpine
+	module.transform = reference.transform
+	module.prepare_staged_construction()
+	_test_root.add_child(module)
+	_check(not module.is_construction_complete() and module.get_node_or_null(^"Structure") == null,
+		"prepared Habitat leaves structure construction to its loading owner")
+	var labels: Array[String] = []
+	var frames: Array[int] = []
+	var interrupted: Array[String] = []
+	var sink := func(label: String) -> void:
+		labels.append(label)
+		frames.append(Engine.get_process_frames())
+		_check(not module.is_construction_complete(), "Habitat phase progress does not admit unfinished metadata or collision state")
+		if not interrupted.has(label) and label == "Dressing the Habitat bunks":
+			interrupted.append(label)
+			_detach_and_readd_staged_habitat(module)
+		elif not interrupted.has(label) and label == "Finishing the Habitat common room":
+			interrupted.append(label)
+			call_deferred("_detach_and_readd_staged_habitat", module)
+	HabitatSpine.run_staged_construction(weakref(module), sink)
+	_check(not await HabitatSpine.run_staged_construction(weakref(module), sink),
+		"concurrent Habitat construction cannot replace the active phase owner")
+	var structure := module.get_node(^"Structure")
+	_detach_and_readd_staged_habitat(module)
+	await process_frame
+	await process_frame
+	_check(labels.size() == 1 and module.get_node(^"Structure") == structure
+		and not module.is_construction_complete(), "detached first settle cannot advance or duplicate Habitat setup")
+	_check(not await HabitatSpine.run_staged_construction(weakref(module), sink),
+		"Habitat rejects a generation retired by its bunk-phase callback")
+	var boots := module.get_node(^"Structure/PressurizedHabitatCorridor/BerthBoots")
+	_check(labels.size() == 10 and module.get_bunk_markers().size() == 6
+		and module.get_node(^"Structure") == structure,
+		"bunk dressing and its boot batch finish once after the five garden phases")
+	_check(not await HabitatSpine.run_staged_construction(weakref(module), sink)
+		and labels.size() == HabitatSpine.get_staged_construction_stage_count()
+		and not module.is_construction_complete(), "final Habitat phase still requires a live settle before completion")
+	_check(await HabitatSpine.run_staged_construction(weakref(module), sink), "retained Habitat finishes after its final settle resumes")
+	var ordered_frames := frames.size() == HabitatSpine.get_staged_construction_stage_count()
+	for index in range(1, frames.size()):
+		ordered_frames = ordered_frames and frames[index] > frames[index - 1]
+	var expected_labels: Array[String] = []
+	for phase: Array in HabitatSpine.STAGED_BUILD_PHASES: expected_labels.append(phase[2] as String)
+	_check(ordered_frames and labels == expected_labels and module.get_node(^"Structure") == structure
+		and module.get_node(^"Structure/PressurizedHabitatCorridor/BerthBoots") == boots,
+		"all Habitat phases retain their original order and owned rooms on separate loading frames")
+	var staged_render := module.get_render_allocation_report()
+	var direct_render := reference.get_render_allocation_report()
+	# Only engine-generated numeric name segments differ between instances.
+	# Keep authored names and sibling positions in the full report comparison.
+	for fixture: HabitatSpine in [module, reference]:
+		var report: Dictionary = staged_render if fixture == module else direct_render
+		var column := fixture.get_node(^"Structure/SideBranchGarden/GardenColumn")
+		var paths := report.garden_column_collar_mesh_sharing.node_paths as PackedStringArray
+		for index in paths.size():
+			paths[index] = String(_stable_module_path(column, column.get_node(NodePath(paths[index]))))
+		report.garden_column_collar_mesh_sharing.node_paths = paths
+	_check(staged_render == direct_render, "staged Habitat matches the direct render allocation report")
+	_check(bool(module.get_audit_report().valid), "staged Habitat passes the complete public audit: %s" % module.get_audit_report().errors)
+	_check(_lifecycle_snapshot(module, true) == _lifecycle_snapshot(reference, true),
+		"staged Habitat matches direct ordered body paths, layers, masks and collision shape state")
+	_check(await HabitatSpine.run_staged_construction(weakref(module), sink)
+		and labels == expected_labels, "completed Habitat cannot replay its setup or phase progress")
+	module.queue_free()
+	await process_frame
+
+
+func _detach_and_readd_staged_habitat(module: HabitatSpine) -> void:
+	_test_root.remove_child(module)
+	_test_root.add_child(module)
 
 
 func _test_identity_evidence_and_audit(module: HabitatSpine) -> void:
@@ -2483,16 +2557,41 @@ func _test_lifecycle(module: HabitatSpine) -> void:
 	)
 
 
-func _lifecycle_snapshot(module: HabitatSpine) -> Dictionary:
+func _stable_module_path(module: Node, node: Node) -> NodePath:
+	var segments := PackedStringArray()
+	while node != module:
+		var segment := String(node.name)
+		if segment.begins_with("@") and segment.get_slice_count("@") == 3 \
+				and segment.get_slice("@", 2).is_valid_int():
+			segment = "@%s@%d" % [node.get_class(), node.get_index()]
+		segments.insert(0, segment)
+		node = node.get_parent()
+	return NodePath("/".join(segments))
+
+
+func _lifecycle_snapshot(module: HabitatSpine, canonical_paths := false) -> Dictionary:
 	var body_states: Array[Dictionary] = []
 	for raw_body in StationModuleContract.collect_static_bodies(module):
 		var body := raw_body as StaticBody3D
-		body_states.append({
-			"path": module.get_path_to(body),
+		var state := {
+			"path": _stable_module_path(module, body) if canonical_paths else module.get_path_to(body),
 			"visible": body.visible,
 			"collision_layer": body.collision_layer,
 			"collision_mask": body.collision_mask,
-		})
+		}
+		if canonical_paths:
+			var shapes: Array[Dictionary] = []
+			for child in body.get_children():
+				if child is CollisionShape3D:
+					var collision := child as CollisionShape3D
+					shapes.append({
+						"path": _stable_module_path(body, collision), "transform": collision.transform,
+						"disabled": collision.disabled,
+						"type": collision.shape.get_class() if collision.shape != null else "",
+						"bounds": collision.shape.get_debug_mesh().get_aabb() if collision.shape != null else AABB(),
+					})
+			state["shapes"] = shapes
+		body_states.append(state)
 	body_states.sort_custom(
 		func(first: Dictionary, second: Dictionary) -> bool:
 			return str(first.path) < str(second.path)

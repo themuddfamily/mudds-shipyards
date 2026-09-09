@@ -1394,6 +1394,8 @@ func prepare_staged_construction() -> void:
 		child.owner = null
 		remove_child(child)
 		_staged_children.append(child)
+		if child is HabitatSpine:
+			(child as HabitatSpine).prepare_staged_construction()
 
 
 func _capture_staged_node_owners(node: Node) -> void:
@@ -1415,8 +1417,12 @@ func _restore_staged_node_owners(node: Node) -> void:
 ## How many stages [method run_staged_construction] will report, so a loader can
 ## size its progress bar against real work rather than a guess.
 func get_staged_construction_stage_count() -> int:
-	return BUILD_STAGES.size() + _staged_children.size() \
+	var count := BUILD_STAGES.size() + _staged_children.size() \
 		+ FLEET_EXPANSION_BINDING.get_staged_construction_stage_count()
+	for child in _staged_children:
+		if child is HabitatSpine:
+			count += HabitatSpine.get_staged_construction_stage_count()
+	return count
 
 
 ## Batch budget checked between procedural builders. A single builder can still
@@ -1451,6 +1457,14 @@ func run_staged_construction(on_stage: Callable = Callable()) -> bool:
 		if not _is_staged_run_current(generation):
 			return false
 		_restore_staged_node_owners(child)
+		if child is HabitatSpine:
+			var habitat_ready := await HabitatSpine.run_staged_construction(weakref(child), on_stage)
+			if not _is_staged_run_current(generation):
+				return false
+			if not habitat_ready or not is_instance_valid(child) or child.get_parent() != self \
+					or not (child as HabitatSpine).is_construction_complete():
+				_staged_run_active = false
+				return false
 		_staged_child_index += 1
 		if on_stage.is_valid():
 			on_stage.call("Preparing %s" % String(child.name).capitalize())
