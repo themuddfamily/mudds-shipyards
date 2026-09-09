@@ -47,6 +47,18 @@ func _run() -> void:
 		and batch.layers == 1 and port.layers == 0 and starboard.layers == 0,
 		"the existing close plume MultiMesh still renders two copies in one submission"
 	)
+	# Imported solid emission cores used to remain cyan even with engines off.
+	# The manufactured throat replaces them at both distances; active engine
+	# indication still belongs to the independently controlled plume batches.
+	for distance in [0.0, 1000.0, 0.0]:
+		zenith.update_zenith_lod_for_distance(distance)
+		for lod in ["LOD0", "LOD1"]:
+			var core := asset_root.get_node(
+				"ModernSystems/%s/ModernSystems%sStaticBatch_EngineEmission" % [lod, lod]
+			) as MeshInstance3D
+			_check(not core.visible, "solid engine cores stay hidden through near/far LOD cycling")
+		_check(not batch.visible and not port.visible and not starboard.visible,
+			"offline nozzles have no running plume indication")
 	zenith.engine_start_time = 0.01
 	zenith.set_piloted(true)
 	zenith.request_engine_start()

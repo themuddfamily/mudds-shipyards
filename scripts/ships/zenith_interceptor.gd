@@ -3654,9 +3654,12 @@ func _build_modern_airframe(visual: Node3D) -> void:
 		(candidate as MeshInstance3D).visible = false
 	var modern_root := _authored_presentation.call("get_modern_systems_root") as Node3D
 	# Replace the old exposed fittings with integrated housings. Animated
-	# engine plumes, navigation lamps and the canopy remain independent.
+	# engine plumes, navigation lamps and the canopy remain independent. The
+	# old solid cyan cores are static emission batches in both LODs; their
+	# replacement is a recessed unlit throat, with the retained state-controlled
+	# plumes providing the active indication at either distance.
 	for candidate in modern_root.find_children("*StaticBatch_*", "MeshInstance3D", true, false):
-		if "CanopyPivot" not in String(candidate.name) and ("GraphitePanel" in String(candidate.name) or "EngineGraphite" in String(candidate.name) or "ExposedAlloy" in String(candidate.name)):
+		if "CanopyPivot" not in String(candidate.name) and ("GraphitePanel" in String(candidate.name) or "EngineGraphite" in String(candidate.name) or "ExposedAlloy" in String(candidate.name) or "EngineEmission" in String(candidate.name)):
 			(candidate as MeshInstance3D).visible = false
 	var airframe := Node3D.new()
 	airframe.name = "ModernManufacturedAirframe"
@@ -4078,8 +4081,10 @@ func _build_hard_intake(parent: Node3D, prefix: String, lateral: float, dark: Ma
 		_box(parent, prefix + "CompressorVane" + str(vane), Vector3(lateral, 1.02 + vane * 0.13, 0.11), Vector3(0.89, 0.03, 0.12), rim)
 
 
-## Faceted refractory petals form a deep nozzle around the existing animated
-## exhaust. Both material families share one mesh with two surface submissions.
+## A continuous mounting collar seats the refractory nozzle inside the cowling.
+## Narrow formed petal joints lead into a rolled lip and a genuinely recessed
+## chamber. Both existing material families remain one two-surface submission;
+## the retained animated plumes alone supply engine light and damage feedback.
 func _build_segmented_exhaust(parent: Node3D, prefix: String, origin: Vector3, dark: Material, alloy: Material) -> void:
 	var surfaces: Array[SurfaceTool] = []
 	for material in [dark, alloy]:
@@ -4087,24 +4092,61 @@ func _build_segmented_exhaust(parent: Node3D, prefix: String, origin: Vector3, d
 		surface.begin(Mesh.PRIMITIVE_TRIANGLES)
 		surface.set_material(material)
 		surfaces.append(surface)
-	for petal in 16:
-		var a0 := TAU * (float(petal) + 0.035) / 16.0
-		var a1 := TAU * (float(petal + 1) - 0.035) / 16.0
-		var tool := surfaces[1 if petal % 4 == 0 else 0]
-		var profile := [Vector2(0.68, 0.0), Vector2(0.67, 0.22), Vector2(0.53, 0.94), Vector2(0.43, 0.94), Vector2(0.39, 0.28)]
-		for segment in profile.size() - 1:
-			var p: Vector2 = profile[segment]
-			var q: Vector2 = profile[segment + 1]
-			var v0 := Vector3(cos(a0) * p.x, sin(a0) * p.x, p.y)
-			var v1 := Vector3(cos(a1) * p.x, sin(a1) * p.x, p.y)
-			var v2 := Vector3(cos(a1) * q.x, sin(a1) * q.x, q.y)
-			var v3 := Vector3(cos(a0) * q.x, sin(a0) * q.x, q.y)
-			for point in [v0, v2, v1, v0, v3, v2]:
-				tool.set_uv(Vector2(point.x, point.z))
+	# Radius / aft distance from the existing nozzle mount. The chamber floor
+	# is 0.66 m behind the lip, beyond the cowling's closed rear bulkhead.
+	var profile := [
+		Vector2(0.65, 0.00), Vector2(0.675, 0.12),
+		Vector2(0.675, 0.19), Vector2(0.665, 0.22),
+		Vector2(0.63, 0.25), Vector2(0.60, 0.46),
+		Vector2(0.555, 0.79), Vector2(0.53, 0.90),
+		Vector2(0.515, 0.94), Vector2(0.47, 0.94),
+		Vector2(0.45, 0.91), Vector2(0.435, 0.82),
+		Vector2(0.325, 0.37), Vector2(0.31, 0.28),
+		Vector2(0.0, 0.28),
+	]
+	var profile_distance := 0.0
+	for segment in profile.size() - 1:
+		var p: Vector2 = profile[segment]
+		var q: Vector2 = profile[segment + 1]
+		var tool := surfaces[1 if segment in [1, 2, 8, 9] else 0]
+		for slice in 96:
+			var a0 := TAU * float(slice) / 96.0
+			var a1 := TAU * float(slice + 1) / 96.0
+			# Four samples per petal curve the shell; shallow pressed seams
+			# replace open cracks and the old alternating broad alloy stripes.
+			var r0 := -0.012 if slice % 4 == 0 else 0.0
+			var r1 := -0.012 if (slice + 1) % 4 == 0 else 0.0
+			var p_joint := 1.0 if segment >= 4 and segment <= 7 else 0.0
+			var q_joint := 1.0 if segment + 1 >= 4 and segment + 1 <= 7 else 0.0
+			var vertices := [
+				Vector3(cos(a0) * (p.x + r0 * p_joint), sin(a0) * (p.x + r0 * p_joint), p.y),
+				Vector3(cos(a1) * (p.x + r1 * p_joint), sin(a1) * (p.x + r1 * p_joint), p.y),
+				Vector3(cos(a1) * (q.x + r1 * q_joint), sin(a1) * (q.x + r1 * q_joint), q.y),
+				Vector3(cos(a0) * (q.x + r0 * q_joint), sin(a0) * (q.x + r0 * q_joint), q.y),
+			]
+			var slope := Vector2(q.y - p.y, p.x - q.x).normalized()
+			var indices := [0, 2, 1] if is_zero_approx(q.x) else [0, 2, 1, 0, 3, 2]
+			for index: int in indices:
+				var angle := a0 if index in [0, 3] else a1
+				var joint := p_joint if index in [0, 1] else q_joint
+				var radius := p.x if index in [0, 1] else q.x
+				var tangent := -(r1 - r0) * joint / ((a1 - a0) * maxf(radius, 0.01))
+				tool.set_normal(Vector3(
+					(cos(angle) - sin(angle) * tangent) * slope.x,
+					(sin(angle) + cos(angle) * tangent) * slope.x, slope.y
+				).normalized())
+				var point: Vector3 = vertices[index]
+				# Arc length / profile distance keep collar and lip UVs
+				# nonsingular too. The chamber floor uses a planar disk.
+				tool.set_uv(Vector2(point.x, point.y) if is_zero_approx(q.x) else Vector2(
+					angle * 0.58,
+					profile_distance + (p.distance_to(q) if index in [2, 3] else 0.0)
+				))
 				tool.add_vertex(point)
+		profile_distance += p.distance_to(q)
 	var assembly := ArrayMesh.new()
 	for surface in surfaces:
-		surface.generate_normals()
+		surface.generate_tangents()
 		surface.commit(assembly)
 	var mesh := MeshInstance3D.new()
 	mesh.name = prefix + "SegmentedExhaust"
