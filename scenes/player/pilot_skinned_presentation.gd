@@ -184,6 +184,8 @@ var _skinned_meshes: Array[MeshInstance3D] = []
 # authority checks still observe the live graph on each runtime probe.
 var _mesh_signature_cache: Dictionary = {}
 var _animation_signature_cache: Dictionary = {}
+# Cache material metadata only; signatures still read every live storage value.
+var _material_property_names_cache: Dictionary = {}
 var _force_resource_scan := true
 var _built := false
 var _local_observer_culled := false
@@ -196,6 +198,7 @@ var _foot_placement_snapshot: Dictionary = {}
 
 
 func _enter_tree() -> void:
+	_clear_material_property_names_cache()
 	_mesh_signature_cache.clear()
 	_animation_signature_cache.clear()
 	_foot_placement_attachment_generation += 1
@@ -205,6 +208,7 @@ func _enter_tree() -> void:
 
 
 func _exit_tree() -> void:
+	_clear_material_property_names_cache()
 	_foot_placement_attached = false
 	_last_foot_placement_physics_frame = -1
 	_foot_placement_snapshot = _empty_foot_placement_snapshot(&"detached")
@@ -1019,13 +1023,7 @@ func _resource_signature(resource: Resource) -> String:
 	if resource == null:
 		return ""
 	var properties := {}
-	for property in resource.get_property_list():
-		var usage := int(property.get("usage", 0))
-		if (usage & PROPERTY_USAGE_STORAGE) == 0:
-			continue
-		var property_name := StringName(property.get("name", &""))
-		if property_name in [&"resource_path", &"resource_name", &"resource_local_to_scene"]:
-			continue
+	for property_name in _resource_storage_property_names(resource):
 		var value: Variant = resource.get(property_name)
 		if value is Resource:
 			var child_resource := value as Resource
@@ -1037,6 +1035,64 @@ func _resource_signature(resource: Resource) -> String:
 		else:
 			properties[property_name] = value
 	return _variant_sha256(&"pilot_resource_v2", properties)
+
+
+func _resource_storage_property_names(resource: Resource) -> Array[StringName]:
+	# Scripted/custom resources can change storage usage without notification.
+	# Built-in BaseMaterial3D setters notify property-list changes synchronously.
+	if (
+		_force_resource_scan
+		or resource.get_class() != &"StandardMaterial3D"
+		or resource.get_script() != null
+	):
+		return _scan_resource_storage_property_names(resource)
+	var physical_light_units := bool(ProjectSettings.get_setting(
+		"rendering/lights_and_shadows/use_physical_light_units", false
+	))
+	var instance_id := resource.get_instance_id()
+	var cached: Dictionary = _material_property_names_cache.get(instance_id, {})
+	if not cached.is_empty() and (cached["resource"] as WeakRef).get_ref() == resource:
+		if cached["names"] != null and cached["physical_light_units"] == physical_light_units:
+			return cached["names"]
+	var names := _scan_resource_storage_property_names(resource)
+	var invalidate := _invalidate_material_property_names.bind(instance_id)
+	if not resource.property_list_changed.is_connected(invalidate):
+		resource.property_list_changed.connect(invalidate)
+	_material_property_names_cache[instance_id] = {
+		"resource": weakref(resource), "names": names,
+		"physical_light_units": physical_light_units,
+	}
+	return names
+
+
+func _scan_resource_storage_property_names(resource: Resource) -> Array[StringName]:
+	var names: Array[StringName] = []
+	for property in resource.get_property_list():
+		if (int(property.get("usage", 0)) & PROPERTY_USAGE_STORAGE) == 0:
+			continue
+		var property_name := StringName(property.get("name", &""))
+		if property_name not in [&"resource_path", &"resource_name", &"resource_local_to_scene"]:
+			names.append(property_name)
+	return names
+
+
+func _invalidate_material_property_names(instance_id: int) -> void:
+	# Retain the weak reference so detach can disconnect even invalidated entries.
+	if _material_property_names_cache.has(instance_id):
+		_material_property_names_cache[instance_id]["names"] = null
+
+
+func _clear_material_property_names_cache() -> void:
+	for instance_id: int in _material_property_names_cache:
+		var resource := (
+			_material_property_names_cache[instance_id]["resource"] as WeakRef
+		).get_ref() as Resource
+		if resource == null:
+			continue
+		var invalidate := _invalidate_material_property_names.bind(instance_id)
+		if resource.property_list_changed.is_connected(invalidate):
+			resource.property_list_changed.disconnect(invalidate)
+	_material_property_names_cache.clear()
 
 
 func _mesh_signature(mesh: Mesh, portable_source: bool = false) -> String:

@@ -31,6 +31,17 @@ const LOOPING := [&"idle", &"walk", &"run", &"airborne", &"seated_control"]
 ## change the source graph without changing the armature or nine authored clips.
 const SOURCE_CONTENT_SIGNATURE := "79d93a27f1cf2524a0439d426cf6d9a45debf8ced0655989fb44dd2154d30665"
 
+
+class MaterialPropertyProbe extends PilotSkinnedPresentation:
+	var property_list_scans := 0
+
+	func _ready() -> void:
+		pass
+
+	func _scan_resource_storage_property_names(resource: Resource) -> Array[StringName]:
+		property_list_scans += 1
+		return super._scan_resource_storage_property_names(resource)
+
 var _failures: Array[String] = []
 var _assertions := 0
 
@@ -54,6 +65,7 @@ func _run() -> void:
 	_test_exact_rig_and_skin(presentation)
 	_test_imported_motion_library(presentation)
 	_test_authored_deformation(presentation)
+	_test_material_property_metadata(presentation)
 	await _test_integrity_fail_closed(presentation)
 	_test_manifest()
 
@@ -388,6 +400,89 @@ func _test_authored_deformation(presentation: PilotSkinnedPresentation) -> void:
 	_check(skeleton.get_bone_pose_rotation(left_thigh).angle_to(Quaternion.IDENTITY) > 1.1, "boarding ends in a compact authored seated thigh pose")
 	_check(skeleton.get_bone_pose_rotation(right_thigh).angle_to(Quaternion.IDENTITY) > 1.1, "boarding deforms both legs rather than moving a rigid avatar")
 	player.stop()
+
+
+func _test_material_property_metadata(presentation: PilotSkinnedPresentation) -> void:
+	var probe := MaterialPropertyProbe.new()
+	root.add_child(probe)
+	var suit := presentation.get_visual_root().find_child("PilotSuit", true, false) as MeshInstance3D
+	var material := suit.get_active_material(0).duplicate() as StandardMaterial3D
+	probe._force_resource_scan = false
+	var baseline := probe._resource_signature(material)
+	var scans := probe.property_list_scans
+	_check(probe._resource_signature(material) == baseline and probe.property_list_scans == scans,
+		"unchanged built-in material reuses property metadata with the exact signature")
+
+	material.albedo_color = Color(0.17, 0.31, 0.43, 1.0)
+	var changed := probe._resource_signature(material)
+	_check(changed != baseline, "cached material metadata still reads live color values immediately")
+	probe._force_resource_scan = true
+	_check(probe._resource_signature(material) == changed and probe.property_list_scans > scans,
+		"explicit resource scans enumerate and reproduce the live material signature")
+	probe._force_resource_scan = false
+
+	material.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA_SCISSOR
+	scans = probe.property_list_scans
+	var feature_changed := probe._resource_signature(material)
+	_check(feature_changed != changed and probe.property_list_scans == scans + 1,
+		"material feature changes synchronously invalidate property metadata")
+	probe._force_resource_scan = true
+	_check(probe._resource_signature(material) == feature_changed,
+		"feature-dependent storage metadata matches a complete fresh scan")
+	probe._force_resource_scan = false
+
+	for setting in [
+		[&"alpha_antialiasing_mode", BaseMaterial3D.ALPHA_ANTIALIASING_ALPHA_TO_COVERAGE],
+		[&"billboard_mode", BaseMaterial3D.BILLBOARD_PARTICLES],
+		[&"heightmap_deep_parallax", true],
+		[&"subsurf_scatter_skin_mode", true],
+		[&"shading_mode", BaseMaterial3D.SHADING_MODE_UNSHADED],
+	]:
+		material.set(setting[0], setting[1])
+		var cached_signature := probe._resource_signature(material)
+		probe._force_resource_scan = true
+		_check(probe._resource_signature(material) == cached_signature,
+			"storage-changing %s matches a complete fresh scan" % setting[0])
+		probe._force_resource_scan = false
+
+	var child := StandardMaterial3D.new()
+	material.next_pass = child
+	var child_baseline := probe._resource_signature(material)
+	child.resource_name = "ChangedNestedMaterial"
+	_check(probe._resource_signature(material) != child_baseline,
+		"cached material metadata reads nested resource metadata on every signature")
+	var replacement := material.duplicate() as StandardMaterial3D
+	scans = probe.property_list_scans
+	probe._resource_signature(replacement)
+	_check(probe.property_list_scans == scans + 1,
+		"replacement material receives its own property metadata scan")
+
+	var injected_script := GDScript.new()
+	injected_script.source_code = "extends StandardMaterial3D\n@export var audit_value: int = 1\n"
+	_check(injected_script.reload() == OK, "material script mutation fixture compiles")
+	material.set_script(injected_script)
+	var scripted := probe._resource_signature(material)
+	material.set("audit_value", 2)
+	scans = probe.property_list_scans
+	_check(probe._resource_signature(material) != scripted and probe.property_list_scans == scans + 1,
+		"script attachment bypasses cached metadata and detects live script storage changes")
+	material.set_script(null)
+	var unscripted := probe._resource_signature(material)
+	probe._force_resource_scan = true
+	_check(probe._resource_signature(material) == unscripted,
+		"script removal restores the exact built-in material signature")
+	probe._force_resource_scan = false
+
+	material.notify_property_list_changed()
+	root.remove_child(probe)
+	_check(material.property_list_changed.get_connections().is_empty(),
+		"detaching the wrapper disconnects invalidated material metadata subscriptions")
+	root.add_child(probe)
+	scans = probe.property_list_scans
+	probe._resource_signature(material)
+	_check(probe.property_list_scans == scans + 1,
+		"reattaching the wrapper starts with fresh material metadata")
+	probe.free()
 
 
 func _test_integrity_fail_closed(presentation: PilotSkinnedPresentation) -> void:
