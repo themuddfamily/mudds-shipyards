@@ -39,6 +39,11 @@ const ENGINEER_REPAIR_DURATION_SECONDS := 0.4
 const ENGINEER_REPAIR_COOLDOWN_SECONDS := 0.75
 const ENGINEER_REPAIR_RESOURCE_ID: StringName = &"jovian_repair_tool"
 const ENGINEER_REPAIR_RESOURCE_CAPACITY := 6
+# Shared stations keep fitted service assemblies on the pressure-skin profile.
+const CARGO_ROOF_SECTIONS: Array[Vector3] = [Vector3(0.92, -0.20, -3.10), Vector3(1.0, 0.0, -1.8),
+	Vector3(1.0, 0.0, 8.25), Vector3(0.86, -0.22, 9.35)]
+const CABIN_ROOF_SECTIONS: Array[Vector3] = [Vector3(0.70, -0.70, -9.65), Vector3(0.91, -0.12, -7.65),
+	Vector3(1.0, 0.0, -4.05), Vector3(1.28, 0.30, -2.88)]
 const INTERIOR_BOUNDS := AABB(Vector3(-5.72, 0.0, -8.0), Vector3(11.44, 4.6, 17.25))
 ## Ship-local envelope a crew member may occupy while the freighter is under way.
 ##
@@ -3394,12 +3399,12 @@ func _build_exterior() -> void:
 
 	# Arched roof and keel members visually unify the load-bearing shoulders.
 	_pressed_roof(_jovian_visual, "CargoRoofShell", 5.75, 4.43, 0.38,
-		PackedVector3Array([Vector3(0.92, -0.20, -3.10), Vector3(1.0, 0.0, -1.8), Vector3(1.0, 0.0, 8.25), Vector3(0.86, -0.22, 9.35)]),
+		PackedVector3Array(CARGO_ROOF_SECTIONS),
 		0.12, _jovian_materials.hull_warm)
 	# The cabin and flight deck now sit in one manufactured pressure fairing.
 	# Its cheeks remain outside the cabin walls and its crown clears the roof.
 	_pressed_roof(_jovian_visual, "ForwardCabinCrown", 3.56, 3.80, 0.43,
-		PackedVector3Array([Vector3(0.70, -0.70, -9.65), Vector3(0.91, -0.12, -7.65), Vector3(1.0, 0.0, -4.05), Vector3(1.28, 0.30, -2.88)]),
+		PackedVector3Array(CABIN_ROOF_SECTIONS),
 		0.12, _jovian_materials.hull_warm)
 	for side in [-1.0, 1.0]:
 		_flight_deck_transition(side)
@@ -5178,60 +5183,157 @@ func _formed_pressure_member(node_name: String, rings: Array[PackedVector3Array]
 	_jovian_visual.add_child(member)
 
 
-## Two longitudinal thermal-service fields sit between the structural ribs.
-## Each cover is a pressed lid with open underside, bevel and dark gasket;
-## the roof remains the interior pressure boundary beneath it.
+## The roof carries two continuous service frames. Recessed thermal fields and
+## gasketed access doors share these frames, which land directly on the curved
+## pressure skin. Geometry is collected by finish, not one draw per fitting.
 func _build_pressure_shell_panels() -> void:
+	var roof := {}
 	for side in [-1.0, 1.0]:
+		var inner := 1.82
+		var outer := 5.31
+		_roof_service_patch(roof, "structure", side, inner, outer, -2.18, 8.27, 0.048)
+		# Continuous edge folds join the existing transverse cargo ribs.
+		for edge in [inner + 0.025, outer - 0.15]:
+			_roof_service_patch(roof, "hull_cool", side, edge, edge + 0.125, -2.14, 8.23, 0.11)
 		for bay in 4:
-			var front := -2.12 + float(bay) * 2.72
-			var rear := front + 2.16
-			var side_name := "Port" if side < 0.0 else "Starboard"
-			_crown_service_panel(side_name + "RoofCoverSeal%02d" % bay, side,
-				1.80, 5.32, front, rear, 0.045, _jovian_materials.structure)
-			_crown_service_panel(side_name + "RoofThermalCover%02d" % bay, side,
-				1.86, 5.26, front + 0.055, rear - 0.055, 0.095, _jovian_materials.thermal_cover)
-	# A single tapered avionics bonnet carries the flight-deck roof into the
-	# cargo crown; its inset ends before the screen seal and passenger volume.
-	var bonnet_rings: Array[PackedVector3Array] = []
-	for section in [Vector3(0.92, 3.73, -9.03), Vector3(1.58, 4.20, -7.52),
-			Vector3(1.62, 4.28, -4.25), Vector3(1.14, 4.45, -3.34)]:
-		bonnet_rings.append(PackedVector3Array([
-			Vector3(section.x, section.y, section.z),
-			Vector3(section.x - 0.10, section.y + 0.07, section.z),
-			Vector3(-section.x + 0.10, section.y + 0.07, section.z),
-			Vector3(-section.x, section.y, section.z),
-			Vector3(-section.x, section.y - 0.04, section.z),
-			Vector3(section.x, section.y - 0.04, section.z)]))
-	_formed_pressure_member("FlightDeckAvionicsBonnet", bonnet_rings,
-		_jovian_materials.hull_cool, {1: _jovian_materials.thermal_cover}, 4)
+			var front := -2.08 + float(bay) * 2.72
+			var rear := front + 2.06
+			# The dark thermal well sits lower than its rolled edge and louvers.
+			_roof_service_patch(roof, "dark", side, 2.00, 3.02, front, rear, 0.057)
+			for lip in [2.00, 2.94]:
+				_roof_service_patch(roof, "hull_cool", side, lip, lip + 0.08, front, rear, 0.12)
+			for slat in 9:
+				var slat_z := front + 0.12 + float(slat) * 0.215
+				_roof_service_patch(roof, "thermal_cover", side, 2.075, 2.945,
+					slat_z, slat_z + 0.115, 0.103)
+			# A framed access opening occupies the outer half of each bay.
+			_roof_service_patch(roof, "hull_cool", side, 3.13, 5.12, front, rear, 0.12)
+			_roof_service_patch(roof, "dark", side, 3.22, 5.03, front + 0.09, rear - 0.09, 0.125)
+			_roof_service_patch(roof, "hull_warm", side, 3.265, 4.985, front + 0.135, rear - 0.135, 0.137)
+			# Folded stiffening channel is part of the lid, with a seated root.
+			_roof_service_patch(roof, "hull_cool", side, 4.48, 4.60, front + 0.24, rear - 0.24, 0.164)
+			for hinge_z in [front + 0.36, rear - 0.36]:
+				_roof_service_patch(roof, "structure", side, 4.92, 5.11, hinge_z, hinge_z + 0.19, 0.166)
+			_roof_service_patch(roof, "dark", side, 3.39, 3.64, front + 0.86, front + 1.17, 0.142)
+			_roof_service_patch(roof, "structure", side, 3.465, 3.565, front + 0.905, front + 1.12, 0.16)
+			# Cross straps meet the perimeter folds at the load-bearing ribs.
+			if bay < 3:
+				_roof_service_patch(roof, "hull_cool", side, inner + 0.025, outer - 0.025,
+					rear + 0.12, rear + 0.32, 0.085)
+	_finish_roof_service_mesh(roof, "RoofServiceAssembly")
+
+	# The avionics fairing now follows the passenger crown exactly, with a
+	# narrow service lid and a paired recessed cooling field behind the glass.
+	var avionics := {}
+	_roof_service_patch(avionics, "structure", 1.0, -1.46, 1.46, -8.90, -3.43, 0.055, true)
+	_roof_service_patch(avionics, "hull_cool", 1.0, -1.40, 1.40, -8.82, -3.49, 0.135, true)
+	_roof_service_patch(avionics, "dark", 1.0, -1.18, 1.18, -7.36, -4.13, 0.14, true)
+	_roof_service_patch(avionics, "thermal_cover", 1.0, -1.115, 1.115, -7.285, -4.205, 0.151, true)
+	for side in [-1.0, 1.0]:
+		_roof_service_patch(avionics, "dark", side, 0.26, 1.07, -8.53, -7.63, 0.14, true)
+		for slat in 5:
+			var z := -8.47 + float(slat) * 0.16
+			_roof_service_patch(avionics, "structure", side, 0.28, 1.05, z, z + 0.075, 0.172, true)
+		for z in [-6.96, -4.73]:
+			_roof_service_patch(avionics, "structure", side, 1.06, 1.31, z, z + 0.22, 0.18, true)
+	_roof_service_patch(avionics, "dark", 1.0, -0.25, 0.25, -4.70, -4.43, 0.16, true)
+	_roof_service_patch(avionics, "hull_cool", 1.0, -0.17, 0.17, -4.64, -4.49, 0.18, true)
+	_finish_roof_service_mesh(avionics, "FlightDeckAvionicsBonnet")
 
 
-func _crown_service_panel(node_name: String, side: float, inner_x: float,
-		outer_x: float, front: float, rear: float, lift: float, material: Material) -> void:
+## Evaluate the same transverse crown and longitudinal stations as the actual
+## pressure roof. Even at the taper, every perimeter returns to this surface.
+func _roof_service_height(x: float, z: float, cabin: bool) -> float:
+	var sections := CARGO_ROOF_SECTIONS
+	var half_width := 5.75
+	var base_y := 4.43
+	var rise := 0.38
+	if cabin:
+		sections = CABIN_ROOF_SECTIONS
+		half_width = 3.56
+		base_y = 3.80
+		rise = 0.43
+	for station in sections.size() - 1:
+		if z <= sections[station + 1].z:
+			var t := inverse_lerp(sections[station].z, sections[station + 1].z, z)
+			var section := sections[station].lerp(sections[station + 1], t)
+			return base_y + section.y + rise * pow(maxf(0.0, 1.0 - pow(x / (half_width * section.x), 2)), 0.60)
+	return base_y
+
+
+## A shallow pressed patch with a rolled edge and an open underside. Station
+## cuts include each pressure-shell break so a long frame cannot bridge in air.
+func _roof_service_patch(batch: Dictionary, finish: String, side: float, inner: float,
+		outer: float, front: float, rear: float, lift: float, cabin := false) -> void:
+	if not batch.has(finish):
+		var tool := SurfaceTool.new()
+		tool.begin(Mesh.PRIMITIVE_TRIANGLES)
+		tool.set_material(_jovian_materials[finish])
+		batch[finish] = tool
+	var tool: SurfaceTool = batch[finish]
+	var bevel := minf(0.10, minf((outer - inner) * 0.22, (rear - front) * 0.22))
+	var stations: Array[float] = [front, front + bevel, rear - bevel, rear]
+	for split in [-7.65, -4.05, -1.8, 8.25]:
+		if split > front + bevel and split < rear - bevel:
+			stations.append(split)
+	stations.sort()
 	var rings: Array[PackedVector3Array] = []
-	for station in [Vector3(inner_x + 0.22, outer_x - 0.22, front),
-			Vector3(inner_x, outer_x, front + 0.22),
-			Vector3(inner_x, outer_x, rear - 0.22),
-			Vector3(inner_x + 0.22, outer_x - 0.22, rear)]:
+	for z in stations:
+		var end := is_equal_approx(z, front) or is_equal_approx(z, rear)
+		var xmin := inner + (bevel if end else 0.0)
+		var xmax := outer - (bevel if end else 0.0)
 		var ring := PackedVector3Array()
-		# The top runs outer to inner, with a bevel on either long edge.
-		for step in 9:
-			var x := lerpf(station.y, station.x, float(step) / 8.0)
-			var y := 4.43 + 0.38 * pow(maxf(0.0, 1.0 - pow(x / 5.75, 2.0)), 0.60)
-			# The leading roof station tapers below the main crown before z=-1.8.
-			if station.z < -1.8:
-				y -= (-1.8 - station.z) * (0.20 / 1.30)
-			var edge_drop := minf(lift * 0.6, 0.04) if step == 0 or step == 8 else 0.0
-			ring.append(Vector3(side * x, y + lift - edge_drop, station.z))
-		var inner_bottom := ring[-1] - Vector3.UP * lift
-		var outer_bottom := ring[0] - Vector3.UP * lift
-		ring.append(inner_bottom)
-		ring.append(outer_bottom)
-		if side < 0.0:
-			ring.reverse()
+		for step in 13:
+			var x := side * lerpf(xmin, xmax, float(step) / 12.0)
+			var edge := end or step == 0 or step == 12
+			ring.append(Vector3(x, _roof_service_height(x, z, cabin) + lift - (minf(lift * 0.3, 0.035) if edge else 0.0), z))
 		rings.append(ring)
-	_formed_pressure_member(node_name, rings, material, {}, 0 if side < 0.0 else rings[0].size() - 2, true)
+	for station in rings.size() - 1:
+		for step in 12:
+			_roof_service_quad(tool, rings[station][step], rings[station + 1][step],
+				rings[station + 1][step + 1], rings[station][step + 1], side < 0)
+		for edge in [0, 12]:
+			var a := rings[station][edge]
+			var b := rings[station + 1][edge]
+			var c := Vector3(b.x, _roof_service_height(b.x, b.z, cabin), b.z)
+			var d := Vector3(a.x, _roof_service_height(a.x, a.z, cabin), a.z)
+			_roof_service_quad(tool, a, d, c, b, (edge == 12) != (side < 0))
+	for end in [0, rings.size() - 1]:
+		for step in 12:
+			var a := rings[end][step]
+			var b := rings[end][step + 1]
+			var c := Vector3(b.x, _roof_service_height(b.x, b.z, cabin), b.z)
+			var d := Vector3(a.x, _roof_service_height(a.x, a.z, cabin), a.z)
+			_roof_service_quad(tool, a, b, c, d, (end != 0) != (side < 0))
+
+
+func _roof_service_quad(tool: SurfaceTool, a: Vector3, b: Vector3, c: Vector3,
+		d: Vector3, reverse: bool) -> void:
+	var points := [a, d, c, b] if reverse else [a, b, c, d]
+	var normal: Vector3 = (points[1] - points[0]).cross(points[2] - points[0]).normalized()
+	for index in [0, 2, 1, 0, 3, 2]:
+		var point: Vector3 = points[index]
+		tool.set_normal(normal)
+		# Side walls need their own projection to preserve UV area/tangents.
+		var uv := Vector2(point.x, point.z)
+		if absf(normal.x) > absf(normal.y):
+			uv = Vector2(point.z, point.y)
+		elif absf(normal.z) > absf(normal.y):
+			uv = Vector2(point.x, point.y)
+		tool.set_uv(uv)
+		tool.add_vertex(point)
+
+
+func _finish_roof_service_mesh(batch: Dictionary, node_name: String) -> void:
+	var mesh := ArrayMesh.new()
+	for tool: SurfaceTool in batch.values():
+		tool.generate_tangents()
+		tool.commit(mesh)
+	var instance := MeshInstance3D.new()
+	instance.name = node_name
+	instance.mesh = mesh
+	instance.set_meta("visual_only", true)
+	_jovian_visual.add_child(instance)
 
 
 func _build_fitted_freighter_details() -> void:

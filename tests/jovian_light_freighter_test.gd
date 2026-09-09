@@ -55,6 +55,41 @@ func _run() -> void:
 	_finish()
 
 
+func _test_roof_service_construction(jovian: JovianLightFreighter, lid: MeshInstance3D) -> void:
+	var cabin := lid.name == "FlightDeckAvionicsBonnet"
+	_check(lid.mesh.get_surface_count() == (4 if cabin else 5), "%s batches construction by finish" % lid.name)
+	var seated_vertices := 0
+	var outside_pressure_skin := true
+	var valid_tangent_space := true
+	var outward_winding := true
+	for surface in lid.mesh.get_surface_count():
+		var arrays := lid.mesh.surface_get_arrays(surface)
+		var vertices: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
+		var normals: PackedVector3Array = arrays[Mesh.ARRAY_NORMAL]
+		var tangents: PackedFloat32Array = arrays[Mesh.ARRAY_TANGENT]
+		var uvs: PackedVector2Array = arrays[Mesh.ARRAY_TEX_UV]
+		valid_tangent_space = valid_tangent_space and tangents.size() == vertices.size() * 4
+		for index in vertices.size():
+			var point := vertices[index]
+			var clearance := point.y - jovian._roof_service_height(point.x, point.z, cabin)
+			outside_pressure_skin = outside_pressure_skin and clearance >= -0.0001 and clearance <= 0.181
+			if absf(clearance) < 0.0001:
+				seated_vertices += 1
+		for triangle in range(0, vertices.size(), 3):
+			var a := vertices[triangle]
+			var b := vertices[triangle + 1]
+			var c := vertices[triangle + 2]
+			outward_winding = outward_winding and (b - a).cross(c - a).dot(normals[triangle]) < -0.00000001
+			var uv_area := (uvs[triangle + 1] - uvs[triangle]).cross(uvs[triangle + 2] - uvs[triangle])
+			valid_tangent_space = valid_tangent_space and absf(uv_area) > 0.00000001
+		for tangent in tangents:
+			valid_tangent_space = valid_tangent_space and is_finite(tangent)
+	_check(outside_pressure_skin and seated_vertices > 100,
+		"%s seats perimeter folds on the curved roof without occupying the cabin" % lid.name)
+	_check(outward_winding, "%s has outward clockwise faces" % lid.name)
+	_check(valid_tangent_space, "%s has nondegenerate UVs and finite generated tangents" % lid.name)
+
+
 func _test_open_engine_module_sharing(jovian: JovianLightFreighter) -> void:
 	var housings := jovian.find_children("*EngineHousing", "MeshInstance3D", true, false)
 	_check(housings.size() == 4, "four replaceable propulsion housings remain present")
@@ -1139,16 +1174,19 @@ func _test_scale_handling_and_presentation(jovian: JovianLightFreighter) -> void
 	var shoulder := visual.get_node_or_null("PortCargoShoulder") as MeshInstance3D
 	_check(flight_deck != null and flight_deck.mesh is ArrayMesh and flight_deck.mesh.get_faces().size() == 432, "flight deck is a folded bow apron with planar manufacturing breaks")
 	_check(shoulder != null and shoulder.mesh is ArrayMesh and bool(shoulder.get_meta("closed_loft_hull", false)) and shoulder.mesh.get_faces().size() == 1320 and shoulder.mesh.get_surface_count() == 3, "split port cargo shoulder joins the freight crown with radius bends, a recessed thermal belt and lower rub strip")
-	# These service lids sit over the continuous pressure skin. Their underside
-	# must remain actually open, rather than merely dropping the closed-hull tag.
-	var service_lids: Array[Node] = visual.find_children("*RoofThermalCover*", "MeshInstance3D", false, false)
-	service_lids.append(visual.get_node("FlightDeckAvionicsBonnet"))
+	# Service construction remains an open overlay on the pressure skin and
+	# batches repeated lids, louvers and hardware into two assemblies.
+	var service_lids: Array[Node] = [visual.get_node("RoofServiceAssembly"), visual.get_node("FlightDeckAvionicsBonnet")]
 	var open_lids := 0
 	for candidate in service_lids:
 		var lid := candidate as MeshInstance3D
 		if lid != null and not lid.has_meta("closed_loft_hull") and _mesh_open_boundary_edges(lid.mesh) > 0:
 			open_lids += 1
-	_check(open_lids == 9, "eight fitted thermal lids and the avionics bonnet have real open undersides over the pressure hull")
+		if lid != null:
+			_test_roof_service_construction(jovian, lid)
+	_check(open_lids == 2, "batched thermal-service carriers and avionics bonnet have real open undersides")
+	_check(visual.find_children("*RoofThermalCover*", "MeshInstance3D", false, false).is_empty(),
+		"service frames replace the isolated roof tiles")
 	if flight_deck != null and flight_deck.mesh != null:
 		var faces := flight_deck.mesh.get_faces()
 		var first_side_normal := (faces[1] - faces[0]).cross(faces[2] - faces[0]).normalized()
