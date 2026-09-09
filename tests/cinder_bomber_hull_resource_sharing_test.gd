@@ -77,6 +77,32 @@ func _initialize() -> void:
 			and second.get_boarding_marker() != null,
 		"sharing leaves collision, payload hardpoints and boarding anchors intact"
 	)
+	var service_mesh: ArrayMesh
+	var service_stock_shared := true
+	for craft in [first, second]:
+		for side in ["Port", "Starboard"]:
+			var cassette := craft.get_variant_visual_root().get_node(side + "OrdnanceServiceCassette") as MeshInstance3D
+			if service_mesh == null:
+				service_mesh = cassette.mesh as ArrayMesh
+			service_stock_shared = service_stock_shared and cassette.mesh == service_mesh \
+				and cassette.get_child_count() == 0 and cassette.get_script() == null \
+				and bool(cassette.get_meta(&"presentation_only", false))
+	_check(service_stock_shared and not service_mesh.resource_local_to_scene,
+		"both wing service cassettes share immutable stock across bomber copies without gameplay nodes")
+	var service_uv_valid := true
+	var service_tangents_valid := true
+	for surface_index in service_mesh.get_surface_count():
+		var arrays := service_mesh.surface_get_arrays(surface_index)
+		var vertices: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
+		var uvs: PackedVector2Array = arrays[Mesh.ARRAY_TEX_UV]
+		var tangents: PackedFloat32Array = arrays[Mesh.ARRAY_TANGENT]
+		service_uv_valid = service_uv_valid and uvs.size() == vertices.size()
+		service_tangents_valid = service_tangents_valid and tangents.size() == vertices.size() * 4
+		for offset in range(0, tangents.size(), 4):
+			var tangent := Vector3(tangents[offset], tangents[offset + 1], tangents[offset + 2])
+			service_tangents_valid = service_tangents_valid and tangent.is_finite() and tangent.length_squared() > 0.5
+	_check(service_uv_valid and service_tangents_valid,
+		"assembled loading lids and hardware retain complete UVs and usable tangent frames")
 	var first_audit: Dictionary = first.get_audit_report()
 	var second_audit: Dictionary = second.get_audit_report()
 	_check(

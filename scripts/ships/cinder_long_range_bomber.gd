@@ -94,6 +94,8 @@ static var _shared_damage_scorch_material: StandardMaterial3D
 static var _shared_damage_vane_mesh: BoxMesh
 static var _shared_damage_vane_material: StandardMaterial3D
 
+static var _shared_ordnance_service_mesh: ArrayMesh
+
 static var _shared_engine_exhaust_mesh: WeakRef
 
 var _bomber_boarding_marker: Marker3D
@@ -964,15 +966,71 @@ func _build_bomber_propulsion(visual: Node3D) -> void:
 		_engine_mechanics(visual, tag, Vector3(side * 2.35, 0.1, 8.31), 0.87, metal, ceramic, hot)
 		for z in [-1.1, 0.2, 4.85]:
 			_deck_plate(visual, tag + "EngineAccess" + str(z), Vector3(side * 2.3, 1.202, z), 1.1, 1.08, _shared_hull_material, ceramic)
-		for i in 3:
-			var z := -1.2 + float(i) * 1.52
-			_deck_plate(visual, tag + "OrdnanceCover" + str(i), Vector3(side * 4.50, 0.058, z + 1.2), 0.82, 1.30, _shared_hull_material, ceramic)
+		_build_ordnance_service_cassette(visual, tag, side, ceramic, metal)
 		var intake := Node3D.new()
 		intake.name = tag + "RamScoop"
 		intake.position = Vector3(side * 2.3, 0.45, -5.55)
 		intake.rotation.x = -PI * 0.5
 		visual.add_child(intake)
 		_service_bay(intake, "Scoop", Vector3.ZERO, 0.75, 0.80, metal, ceramic, ceramic)
+
+
+## Three retained loading lids sit inside one structural cradle on each wing
+## root. The dark channel, end bulkheads, hinge barrels and captive quarter-turn
+## locks make the covers read as removable machinery at normal flight distance.
+## Both cassettes and subsequent bomber copies share one three-surface mesh;
+## the service hardware is entirely above the existing payload release lanes.
+func _build_ordnance_service_cassette(visual: Node3D, tag: String, side: float, gasket: Material, metal: Material) -> void:
+	if _shared_ordnance_service_mesh == null:
+		var coating_surface := SurfaceTool.new()
+		var gasket_surface := SurfaceTool.new()
+		var hardware_surface := SurfaceTool.new()
+		for surface: SurfaceTool in [coating_surface, gasket_surface, hardware_surface]:
+			surface.begin(Mesh.PRIMITIVE_TRIANGLES)
+		coating_surface.set_material(_shared_hull_material)
+		gasket_surface.set_material(gasket)
+		hardware_surface.set_material(metal)
+		_append_service_block(gasket_surface, Vector3(0, 0.008, 0), Vector3(1.06, 0.045, 4.64))
+		for edge in [-1.0, 1.0]:
+			_append_service_block(coating_surface, Vector3(edge * 0.515, 0.055, 0), Vector3(0.13, 0.15, 4.78))
+			_append_service_block(hardware_surface, Vector3(edge * 0.515, 0.135, 0), Vector3(0.045, 0.024, 4.48))
+			_append_service_block(coating_surface, Vector3(0, 0.055, edge * 2.32), Vector3(1.13, 0.15, 0.15))
+		var hinge := CylinderMesh.new()
+		hinge.top_radius = 0.065
+		hinge.bottom_radius = 0.065
+		hinge.height = 0.23
+		hinge.radial_segments = 16
+		var lock := CylinderMesh.new()
+		lock.top_radius = 0.10
+		lock.bottom_radius = 0.10
+		lock.height = 0.035
+		lock.radial_segments = 16
+		for index in 3:
+			var z := (float(index) - 1.0) * 1.52
+			_append_service_block(coating_surface, Vector3(0, 0.080, z), Vector3(0.84, 0.105, 1.22))
+			# A pressed stiffener leaves a broad perimeter land for the seal,
+			# hinge knuckles and lock instead of a second full-size floating lid.
+			_append_service_block(coating_surface, Vector3(0, 0.142, z + 0.04), Vector3(0.59, 0.045, 0.73))
+			for edge in [-1.0, 1.0]:
+				hardware_surface.append_from(hinge, 0, Transform3D(Basis(Vector3.BACK, PI * 0.5), Vector3(edge * 0.265, 0.143, z + 0.60)))
+				_append_service_block(coating_surface, Vector3(edge * 0.265, 0.071, z + 0.65), Vector3(0.15, 0.11, 0.20))
+			hardware_surface.append_from(lock, 0, Transform3D(Basis.IDENTITY, Vector3(0, 0.153, z - 0.45)))
+			_append_service_block(gasket_surface, Vector3(0, 0.173, z - 0.45), Vector3(0.12, 0.008, 0.023))
+		_shared_ordnance_service_mesh = ArrayMesh.new()
+		for surface: SurfaceTool in [coating_surface, gasket_surface, hardware_surface]:
+			surface.generate_tangents()
+			surface.commit(_shared_ordnance_service_mesh)
+		_shared_ordnance_service_mesh.resource_local_to_scene = false
+	var cassette := MeshInstance3D.new()
+	cassette.name = tag + "OrdnanceServiceCassette"
+	cassette.mesh = _shared_ordnance_service_mesh
+	cassette.position = Vector3(side * 4.50, 0.025, 1.52)
+	cassette.set_meta(&"presentation_only", true)
+	visual.add_child(cassette)
+
+
+func _append_service_block(surface: SurfaceTool, at: Vector3, size: Vector3) -> void:
+	surface.append_from(_rounded_box_mesh(size, null), 0, Transform3D(Basis.IDENTITY, at))
 
 
 func _build_cockpit_support_fairing(visual: Node3D) -> void:
