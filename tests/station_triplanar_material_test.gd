@@ -881,7 +881,7 @@ func _test_four_ship_material_identity(game: GameFlow) -> void:
 						and _texture_path(material.normal_texture) == ShipSurfaceDetail.PAINT_NORMAL_PATH \
 						and material.roughness_texture == null \
 						and material.normal_enabled \
-						and is_equal_approx(material.normal_scale, 0.32) \
+						and is_equal_approx(material.normal_scale, 0.12) \
 						and material.albedo_color.is_equal_approx(spec[1] as Color) \
 						and material.uv1_triplanar == bool(spec[2]) \
 						and not material.uv1_world_triplanar \
