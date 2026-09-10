@@ -693,7 +693,8 @@ func _build_interceptor() -> void:
 		Vector4(-2.2, 1.1, 0.85, 0), Vector4(1.9, 1.1, 0.85, 0),
 		Vector4(2.9, 1.03, 0.78, -0.01), Vector4(3.7, 0.82, 0.58, -0.04),
 	], _materials.courier_hull)
-	_box(_visual_root, "SpineTrunk", Vector3(0.0, 0.98, 0.6), Vector3(0.64, 0.22, 5.4), _materials.courier_shadow)
+	_box_from_mesh(_visual_root, "SpineTrunk", Vector3.ZERO,
+		_courier_roof_mesh(-1.55, 3.02, 0.0, _materials.courier_shadow))
 	_pressure_body(_visual_root, "CargoStripe", Vector3(0, 0.85, -0.4), [
 		Vector4(-3.4, 0.24, 0.022, -0.21), Vector4(-2.9, 0.48, 0.025, -0.09),
 		Vector4(-2.4, 0.67, 0.028, -0.035),
@@ -1008,9 +1009,9 @@ func _build_courier_fittings() -> void:
 	# Flush locks and hinges belong to the three broad dorsal access covers.
 	for bay in 3:
 		var z := -0.70 + bay * 1.40
-		parts.append([Vector3(0,1.123,z+0.32),Vector3(0.3,0.035,0.12),2])
+		parts.append([Vector3(0,_courier_roof_height(0.0,z+0.32)+0.118,z+0.32),Vector3(0.3,0.035,0.12),2])
 		for side in [-1.0,1.0]:
-			parts.append([Vector3(side*0.62,1.072,z-0.35),Vector3(0.13,0.055,0.26),1])
+			parts.append([Vector3(side*0.62,_courier_roof_height(side*0.62,z-0.35)+0.082,z-0.35),Vector3(0.13,0.055,0.26),1])
 	for side in [-1.0,1.0]:
 		# End bulkheads protect the load valves instead of ending in plain discs.
 		parts.append([Vector3(side*2.5,-0.37,-1.77),Vector3(0.61,0.64,0.11),2])
@@ -1063,18 +1064,11 @@ func _build_courier_upperworks() -> void:
 		surface.set_material(_materials.courier_clay)
 		surface.append_from(beam,0,Transform3D(Basis.looking_at(finish-start), (start+finish)*0.5))
 		opaque[1].append(surface.commit())
-	# A continuous dark gasket under three shallow formed access lids makes the
-	# seams read as openings in one load spine, not a stack of loose packages.
-	opaque[2].append(_courier_upper_mesh([
-		Vector4(-1.55,0.88,0.68,1.035), Vector4(2.87,0.88,0.68,1.035),
-		Vector4(3.08,0.74,0.59,0.99),
-	], 0.80, _materials.courier_shadow))
+	# Three thin removable skins follow the pressure roof into its shoulders.
+	# Their narrow transverse gaps reveal the continuous recessed service seal.
 	for bay in 3:
-		var z := -1.38 + bay*1.40
-		opaque[0].append(_courier_upper_mesh([
-			Vector4(z,0.85,0.64,1.075), Vector4(z+0.12,0.87,0.66,1.11),
-			Vector4(z+1.23,0.87,0.66,1.11), Vector4(z+1.35,0.85,0.64,1.075),
-		],0.89,_materials.courier_hull))
+		var z := -1.51 + bay*1.51
+		opaque[0].append(_courier_roof_mesh(z, z+1.465, 0.024, _materials.courier_hull))
 	var fittings := _visual_root.get_node(^"FittedArmourAndServices") as MeshInstance3D
 	var combined := ArrayMesh.new()
 	for material_index in 3:
@@ -1086,6 +1080,94 @@ func _build_courier_upperworks() -> void:
 			surface.append_from(piece,0,Transform3D.IDENTITY)
 		surface.commit(combined)
 	fittings.mesh = combined
+
+
+## Exact roof profile of HullBody, including its aft taper and eight-segment
+## quarter shoulders. Covers stop partway round that shoulder, not on a flat
+## platform above it. Coordinates remain in the production visual root.
+func _courier_roof_height(x: float, z: float) -> float:
+	var taper := clampf((z-2.1), 0.0, 1.0)
+	var width := lerpf(1.1, 1.03, taper)
+	var height := lerpf(0.85, 0.78, taper)
+	var offset := -0.01*taper
+	var fraction := absf(x)/width
+	if fraction <= 0.64:
+		return height+offset
+	for step in 8:
+		var a := PI*0.5-float(step)*PI/16.0
+		var b := a-PI/16.0
+		var start := Vector2(0.64+0.36*cos(a),0.48+0.52*sin(a))
+		var finish := Vector2(0.64+0.36*cos(b),0.48+0.52*sin(b))
+		if fraction <= finish.x:
+			return lerpf(start.y,finish.y,(fraction-start.x)/(finish.x-start.x))*height+offset
+	return 0.48*height+offset
+
+
+## A closed pressed service skin: a gently crowned centre and curved shoulders,
+## with a 35 mm returned edge seated into the hull. The underlying seal uses
+## the same profile, so each cover gap exposes a recess without a raised shelf.
+func _courier_roof_mesh(start_z: float, end_z: float, lift: float, material: Material) -> ArrayMesh:
+	var fractions := PackedFloat32Array()
+	for side in [-1.0,1.0]:
+		for step in 7:
+			var angle := PI*0.5-float(step)*PI/16.0
+			fractions.append(side*(0.64+0.36*cos(angle)))
+	fractions.append(0.0)
+	fractions.sort()
+	var stations := PackedFloat32Array([start_z,end_z])
+	if start_z < 2.1 and end_z > 2.1:
+		stations.insert(1,2.1)
+	var rings: Array[PackedVector3Array] = []
+	for z in stations:
+		var width := lerpf(1.1,1.03,clampf(z-2.1,0.0,1.0))
+		var ring := PackedVector3Array()
+		for fraction in fractions:
+			var x := fraction*width
+			var crown := 0.083*(1.0-pow(absf(fraction)/fractions[-1],2.0))
+			ring.append(Vector3(x,_courier_roof_height(x,z)+0.009+crown+lift,z))
+		for index in range(fractions.size()-1,-1,-1):
+			var point := ring[index]
+			point.y -= 0.035
+			ring.append(point)
+		rings.append(ring)
+	var surface := SurfaceTool.new()
+	surface.begin(Mesh.PRIMITIVE_TRIANGLES)
+	surface.set_material(material)
+	for station in rings.size()-1:
+		for edge in rings[station].size():
+			var next := (edge+1)%rings[station].size()
+			if edge == fractions.size()-1 or next == 0:
+				_emit_armour_triangle(surface,rings[station][edge],rings[station+1][edge],rings[station+1][next])
+				_emit_armour_triangle(surface,rings[station][edge],rings[station+1][next],rings[station][next])
+				continue
+			# Smooth the rolled skin across profile stations while keeping its thin
+			# cut ends and returned edges crisp. The silhouette still has real arcs.
+			var first := 0 if edge < fractions.size() else fractions.size()
+			var last := fractions.size()-1 if first == 0 else rings[station].size()-1
+			for address: Vector2i in [Vector2i(station,edge),Vector2i(station+1,next),Vector2i(station+1,edge),
+				Vector2i(station,edge),Vector2i(station,next),Vector2i(station+1,next)]:
+				var point := rings[address.x][address.y]
+				var around := rings[address.x][mini(last,address.y+1)]-rings[address.x][maxi(first,address.y-1)]
+				var along := rings[mini(rings.size()-1,address.x+1)][address.y]-rings[maxi(0,address.x-1)][address.y]
+				surface.set_normal(along.cross(around).normalized())
+				surface.set_uv(Vector2(point.x,point.z))
+				surface.add_vertex(point)
+	# Cap each wafer as a strip: a fan would overlap this concave section.
+	for end in [0,rings.size()-1]:
+		var ring := rings[end]
+		for edge in fractions.size()-1:
+			var a := ring[edge]
+			var b := ring[edge+1]
+			var c := ring[ring.size()-2-edge]
+			var d := ring[ring.size()-1-edge]
+			if end == 0:
+				_emit_armour_triangle(surface,a,b,c)
+				_emit_armour_triangle(surface,a,c,d)
+			else:
+				_emit_armour_triangle(surface,a,c,b)
+				_emit_armour_triangle(surface,a,d,c)
+	surface.generate_tangents()
+	return surface.commit()
 
 
 ## Closed planar pressure fittings: stations contain z, lower half-width,

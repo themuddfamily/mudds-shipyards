@@ -48,6 +48,8 @@ func _initialize() -> void:
 	_check(_upperworks_surface_is_valid(collar, true),
 		"closed upperworks fittings face out of their pressure volume with valid texture frames")
 
+	_check_roof_construction(first, fitted)
+
 	var engines: Array[MeshInstance3D] = []
 	var collars: Array[MeshInstance3D] = []
 	for child in first.get_node(^"ContractCourierVisual").get_children():
@@ -254,3 +256,61 @@ func _upperworks_surface_is_valid(mesh: ArrayMesh, check_outward := false) -> bo
 		if not tangent.is_finite() or absf(tangent.length()-1.0) > 0.01 or absf(tangent.dot(normals[index])) > 0.01:
 			return false
 	return true
+
+
+func _check_roof_construction(courier: CourierRunnerOpponent, fitted: MeshInstance3D) -> void:
+	var hull := courier.get_node(^"ContractCourierVisual/HullBody") as MeshInstance3D
+	var seal := courier.get_node(^"ContractCourierVisual/SpineTrunk") as MeshInstance3D
+	_check(seal.mesh is ArrayMesh and _upperworks_surface_is_valid(seal.mesh),
+		"continuous recessed seal has valid skin, edge-return and end-cap geometry/UV/tangents")
+	var fitted_vertices: PackedVector3Array = fitted.mesh.surface_get_arrays(0)[Mesh.ARRAY_VERTEX]
+	var actual_vertices := {}
+	for vertex in fitted_vertices:
+		actual_vertices[vertex.snapped(Vector3.ONE*0.00001)] = true
+	var hull_faces := hull.mesh.get_faces()
+	for index in hull_faces.size():
+		hull_faces[index] = hull.transform*hull_faces[index]
+	for bay in 3:
+		var start := -1.51+bay*1.51
+		var cover := courier._courier_roof_mesh(start,start+1.465,0.024,null)
+		_check(_upperworks_surface_is_valid(cover),
+			"formed cover %d has valid curved skin, returned edges, end caps and texture frames" % bay)
+		var installed := true
+		var cover_vertices: PackedVector3Array = cover.surface_get_arrays(0)[Mesh.ARRAY_VERTEX]
+		for vertex in cover_vertices:
+			installed = installed and actual_vertices.has(vertex.snapped(Vector3.ONE*0.00001))
+		_check(installed, "checked cover %d is installed in the actual production material batch" % bay)
+		var seated := true
+		for z in [start+0.001,start+0.73,start+1.464]:
+			var width := lerpf(1.1,1.03,clampf(z-2.1,0.0,1.0))
+			for fraction in [0.0,-0.64,0.64,-0.97259,0.97259]:
+				var x: float = fraction*width
+				var hull_hits := _roof_vertical_hits(hull_faces,x,z)
+				var skin_hits := _roof_vertical_hits(cover.get_faces(),x,z)
+				if hull_hits.is_empty() or skin_hits.size() < 2:
+					seated = false
+					continue
+				var clearance: float = skin_hits[-1]-hull_hits[-1]
+				seated = seated and clearance > 0.032 and clearance < 0.117
+				if absf(fraction) > 0.97:
+					var return_depth: float = skin_hits[0]-hull_hits[-1]
+					seated = seated and return_depth >= -0.0021 and return_depth <= 0.0001
+		_check(seated, "actual cover %d clears hull triangles and its thin returns seat within 2 mm at both shoulders and aft taper" % bay)
+		_check(cover.get_aabb().position.z >= -1.51 and cover.get_aabb().end.z <= 2.976,
+			"service cover remains behind the cab pressure frame and before the aft machinery")
+	for z in [-0.025,1.49]:
+		var seal_hits := _roof_vertical_hits(seal.mesh.get_faces(),0.0,z)
+		var fitted_hits := _roof_vertical_hits(fitted.mesh.get_faces(),0.0,z)
+		_check(not seal_hits.is_empty() and (fitted_hits.is_empty() or fitted_hits[-1] < seal_hits[-1]),
+			"the actual transverse cover gap exposes the continuous recessed seal")
+
+
+func _roof_vertical_hits(faces: PackedVector3Array, x: float, z: float) -> Array[float]:
+	var heights: Array[float] = []
+	for index in range(0,faces.size(),3):
+		var hit = Geometry3D.segment_intersects_triangle(Vector3(x,2.0,z),Vector3(x,0.2,z),
+			faces[index],faces[index+1],faces[index+2])
+		if hit != null:
+			heights.append(hit.y)
+	heights.sort()
+	return heights
