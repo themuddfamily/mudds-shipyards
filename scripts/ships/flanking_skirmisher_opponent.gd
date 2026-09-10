@@ -1404,8 +1404,8 @@ func _build_interceptor() -> void:
 
 
 ## Formed forward pressure volume; retains the authored bounds and shared finishes.
-func _skirmisher_forward_shell(sections: Array, material: Material) -> ArrayMesh:
-	var key := "skirmisher_crown:" + str(sections) + ":" + str(material.get_instance_id())
+func _skirmisher_forward_shell(sections: Array, material: Material, open_front := false, segments := 64) -> ArrayMesh:
+	var key := "skirmisher_crown:" + str(sections) + ":" + str(material.get_instance_id()) + ":" + str(open_front) + ":" + str(segments)
 	if _pressure_shell_meshes.has(key):
 		return _pressure_shell_meshes[key] as ArrayMesh
 	var rings: Array[PackedVector3Array] = []
@@ -1414,8 +1414,8 @@ func _skirmisher_forward_shell(sections: Array, material: Material) -> ArrayMesh
 	var tangents := PackedVector2Array()
 	# A continuously crowned deck and glazing replace the broad mounting flat.
 	# Superellipse shoulders keep the low, chined delta rather than a round tube.
-	for j in 64:
-		var angle := PI * 0.5 - float(j) * TAU / 64.0
+	for j in segments:
+		var angle := PI * 0.5 - float(j) * TAU / float(segments)
 		var c := cos(angle)
 		var v := sin(angle)
 		profile.append(Vector2(signf(c) * pow(absf(c), 0.65), signf(v) * pow(absf(v), 0.65)))
@@ -1464,7 +1464,8 @@ func _skirmisher_forward_shell(sections: Array, material: Material) -> ArrayMesh
 				surface.set_uv(Vector2(arc_distances[around_index], point.z))
 				surface.add_vertex(point)
 	for j in range(1, profile.size() - 1):
-		_emit_armour_triangle(surface, rings[0][0], rings[0][j], rings[0][j + 1])
+		if not open_front:
+			_emit_armour_triangle(surface, rings[0][0], rings[0][j], rings[0][j + 1])
 		_emit_armour_triangle(surface, rings[-1][0], rings[-1][j + 1], rings[-1][j])
 	surface.generate_tangents()
 	var mesh := surface.commit()
@@ -1542,22 +1543,8 @@ func _build_skirmisher_fittings() -> void:
 	parts.append([Vector3(0, 0.43, -0.22), Vector3.ZERO, 1, Vector3.ZERO, [
 		Vector4(-0.04, 0.44, 0.23, 0.045), Vector4(0.04, 0.43, 0.22, 0.045),
 	]])
-	# Formed intake ducts carry the cockpit shoulders into the engine pods.
-	# Split cheeks and a raised lip surround an inset dark mouth; the radiator
-	# bed sits below the housing rim instead of floating on a flat rectangular lid.
+	# The crowned ducts are joined into this same three-finish batch below.
 	for side in [-1.0, 1.0]:
-		parts.append([Vector3(side * 1.08, 0.32, 0.83), Vector3.ZERO, 0, Vector3.ZERO, [
-			Vector4(-1.24, 0.34, 0.16, 0), Vector4(-0.9, 0.46, 0.27, 0),
-			Vector4(0.35, 0.44, 0.24, 0), Vector4(1.13, 0.32, 0.19, -0.035),
-			Vector4(1.8, 0.25, 0.12, -0.15),
-		]])
-		parts.append([Vector3(side * 1.08, 0.35, -0.425), Vector3(0.55, 0.25, 0.055), 2])
-		parts.append([Vector3(side * 1.08, 0.5, -0.42), Vector3(0.67, 0.06, 0.2), 1])
-		for cheek in [-1.0, 1.0]:
-			parts.append([Vector3(side * 1.08 + cheek * 0.31, 0.36, -0.4), Vector3(0.07, 0.27, 0.19), 0])
-		parts.append([Vector3(side * 1.08, 0.576, 0.53), Vector3(0.52, 0.03, 1.13), 2])
-		for slat in 5:
-			parts.append([Vector3(side * 1.08, 0.604, 0.1 + slat * 0.21), Vector3(0.46, 0.035, 0.06), 0])
 		_add_skirmisher_wing_fittings(parts, side)
 		parts.append([Vector3(side*1.0,0.32,2.38),Vector3(0.48,0.1,0.96),0])
 	# Forward service bays and winglet inset faces.
@@ -1578,6 +1565,132 @@ func _build_skirmisher_fittings() -> void:
 	for rib in 4:
 		parts.append([Vector3(-0.36+rib*0.24,-0.02,2.78),Vector3(0.11,0.36,0.06),0])
 	_fit_armour(parts,[_materials.skirmisher_moss,_materials.skirmisher_chalk,_materials.skirmisher_deep])
+	var fittings := _visual_root.get_node("FittedArmourAndServices") as MeshInstance3D
+	var combined := ArrayMesh.new()
+	for finish in 3:
+		var surface := SurfaceTool.new()
+		surface.begin(Mesh.PRIMITIVE_TRIANGLES)
+		surface.set_material(fittings.mesh.surface_get_material(finish))
+		surface.append_from(fittings.mesh, finish, Transform3D.IDENTITY)
+		var duct := _skirmisher_intake_mesh(finish)
+		for side in [-1.0, 1.0]:
+			surface.append_from(duct, 0, Transform3D(Basis.IDENTITY, Vector3(side * 1.08, 0, 0)))
+		surface.commit(combined)
+	fittings.mesh = combined
+
+
+## The intake rolls into a broad shoulder, then narrows and falls onto the
+## existing turned exhaust. Stations are in the craft's longitudinal frame;
+## the shared superellipse gives this duct a crown instead of a mounting flat.
+const INTAKE_SECTIONS := [
+	Vector4(-0.48, 0.34, 0.125, 0.47),
+	Vector4(-0.32, 0.375, 0.16, 0.445),
+	Vector4(-0.08, 0.43, 0.23, 0.39),
+	Vector4(0.20, 0.46, 0.285, 0.36),
+	Vector4(0.65, 0.455, 0.28, 0.35),
+	Vector4(1.10, 0.42, 0.26, 0.33),
+	Vector4(1.48, 0.37, 0.225, 0.30),
+	Vector4(1.88, 0.32, 0.19, 0.265),
+	Vector4(2.24, 0.285, 0.15, 0.225),
+	Vector4(2.63, 0.25, 0.12, 0.17),
+]
+
+
+func _skirmisher_intake_mesh(finish: int) -> ArrayMesh:
+	var materials := [_materials.skirmisher_moss, _materials.skirmisher_chalk, _materials.skirmisher_deep]
+	var surface := SurfaceTool.new()
+	surface.begin(Mesh.PRIMITIVE_TRIANGLES)
+	surface.set_material(materials[finish])
+	if finish == 0:
+		surface.append_from(_skirmisher_forward_shell(INTAKE_SECTIONS, materials[0], true, 32), 0, Transform3D.IDENTITY)
+		# Five pressed louvers follow the housing crown over a fitted dark bed.
+		for slat in 5:
+			_skirmisher_grille_patch(surface, 0.05 + slat * 0.21, 0.115 + slat * 0.21, 0.215, 0.018)
+	elif finish == 1:
+		# A single continuous rolled lip replaces the separate top and cheeks.
+		_skirmisher_intake_band(surface, Vector4(-0.48, 0.34, 0.125, 0.47), Vector4(-0.505, 0.30, 0.065, 0.47))
+	else:
+		# The mouth is open: an inward-facing liner reaches a recessed bulkhead.
+		_skirmisher_intake_band(surface, Vector4(-0.505, 0.30, 0.065, 0.47), Vector4(-0.24, 0.27, 0.05, 0.485))
+		var ring := _skirmisher_intake_ring(Vector4(-0.24, 0.27, 0.05, 0.485))
+		for j in range(1, ring.size() - 1):
+			_emit_armour_triangle(surface, ring[0], ring[j], ring[j + 1])
+		_skirmisher_grille_patch(surface, -0.035, 1.04, 0.255, 0.009)
+	surface.generate_tangents()
+	return surface.commit()
+
+
+func _skirmisher_intake_ring(section: Vector4) -> PackedVector3Array:
+	var ring := PackedVector3Array()
+	for j in 32:
+		var angle := PI * 0.5 - float(j) * TAU / 32.0
+		var c := cos(angle)
+		var v := sin(angle)
+		ring.append(Vector3(signf(c) * pow(absf(c), 0.65) * section.y,
+			signf(v) * pow(absf(v), 0.65) * section.z + section.w, section.x))
+	return ring
+
+
+func _skirmisher_intake_band(surface: SurfaceTool, start: Vector4, end: Vector4) -> void:
+	var a := _skirmisher_intake_ring(start)
+	var b := _skirmisher_intake_ring(end)
+	for j in a.size():
+		var k := (j + 1) % a.size()
+		_emit_armour_triangle(surface, a[j], b[k], b[j])
+		_emit_armour_triangle(surface, a[j], a[k], b[k])
+
+
+func _skirmisher_intake_crown(x: float, z: float) -> float:
+	for i in INTAKE_SECTIONS.size() - 1:
+		var a: Vector4 = INTAKE_SECTIONS[i]
+		var b: Vector4 = INTAKE_SECTIONS[i + 1]
+		if z <= b.x:
+			var section := a.lerp(b, clampf((z - a.x) / (b.x - a.x), 0.0, 1.0))
+			return section.w + section.z * pow(maxf(0.0, 1.0 - pow(absf(x) / section.y, 2.0 / 0.65)), 0.65 / 2.0)
+	return 0.29
+
+
+## The grille has real transverse curvature and clipped ends. Its sampled
+## stations include every underlying shell seam so no face crosses the crown.
+func _skirmisher_grille_patch(surface: SurfaceTool, start: float, end: float, half_width: float, lift: float) -> void:
+	var stations := PackedFloat32Array([start, start + 0.025])
+	for section: Vector4 in INTAKE_SECTIONS:
+		if section.x > start + 0.025 and section.x < end - 0.025:
+			stations.append(section.x)
+	stations.append(end - 0.025)
+	stations.append(end)
+	for row in stations.size() - 1:
+		for step in 16:
+			var points := PackedVector3Array()
+			for address in [Vector2i(row, step), Vector2i(row + 1, step), Vector2i(row + 1, step + 1), Vector2i(row, step + 1)]:
+				var z := stations[address.x]
+				var width := half_width * (0.86 if address.x in [0, stations.size() - 1] else 1.0)
+				var x := width * (float(address.y) / 8.0 - 1.0)
+				points.append(Vector3(x, _skirmisher_intake_crown(x, z) + lift, z))
+			_emit_armour_triangle(surface, points[0], points[1], points[2])
+			_emit_armour_triangle(surface, points[0], points[2], points[3])
+
+	# Fold the perimeter down into its supporting skin. Both the bed and the
+	# raised louvers are closed at grazing angles, with no hovering open edges.
+	var perimeter := PackedVector3Array()
+	for step in 17:
+		var x := half_width * 0.86 * (float(step) / 8.0 - 1.0)
+		perimeter.append(Vector3(x, _skirmisher_intake_crown(x, start) + lift, start))
+	for row in range(1, stations.size()):
+		var x := half_width * (0.86 if row == stations.size() - 1 else 1.0)
+		perimeter.append(Vector3(x, _skirmisher_intake_crown(x, stations[row]) + lift, stations[row]))
+	for step in range(15, -1, -1):
+		var x := half_width * 0.86 * (float(step) / 8.0 - 1.0)
+		perimeter.append(Vector3(x, _skirmisher_intake_crown(x, end) + lift, end))
+	for row in range(stations.size() - 2, 0, -1):
+		var x := -half_width
+		perimeter.append(Vector3(x, _skirmisher_intake_crown(x, stations[row]) + lift, stations[row]))
+	var depth := lift - (0.006 if lift > 0.01 else -0.003)
+	for i in perimeter.size():
+		var a := perimeter[i]
+		var b := perimeter[(i + 1) % perimeter.size()]
+		_emit_armour_triangle(surface, a, b, b - Vector3.UP * depth)
+		_emit_armour_triangle(surface, a, b - Vector3.UP * depth, a - Vector3.UP * depth)
 
 
 ## A continuous nacelle and recessed throat replace the closed cylinder and

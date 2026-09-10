@@ -45,6 +45,7 @@ func _run() -> void:
 	var tactic_profile_before := skirmisher.get_tactics_profile()
 	var visual := skirmisher.get_node(^"WingSkirmisherVisual") as Node3D
 	_test_recessed_engine_stock(visual)
+	_test_fitted_intakes(skirmisher, visual)
 	var intent_vane := visual.get_node(^"RoleLamp/RearCrossDirectionVane") as MeshInstance3D
 	var intent_material := intent_vane.get_active_material(0) as StandardMaterial3D
 	var nominal_cue := skirmisher.get_rear_cross_intent_cue_snapshot()
@@ -458,6 +459,71 @@ func _test_recessed_engine_stock(visual: Node3D) -> void:
 	var finish := mesh.surface_get_material(0) as StandardMaterial3D
 	_check(open_throat and finish != null and not finish.emission_enabled,
 		"the exhaust has a real deep unlit throat clear of the pressure hull and fitted saddles")
+
+
+func _test_fitted_intakes(ship: FlankingSkirmisherOpponent, visual: Node3D) -> void:
+	var sound_frames := true
+	var outward_faces := true
+	for finish in 3:
+		var mesh: ArrayMesh = ship.call("_skirmisher_intake_mesh", finish)
+		var arrays := mesh.surface_get_arrays(0)
+		var points: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
+		var normals: PackedVector3Array = arrays[Mesh.ARRAY_NORMAL]
+		var uv: PackedVector2Array = arrays[Mesh.ARRAY_TEX_UV]
+		var tangents: PackedFloat32Array = arrays[Mesh.ARRAY_TANGENT]
+		sound_frames = sound_frames and points.size() > 0 and normals.size() == points.size() \
+			and uv.size() == points.size() and tangents.size() == points.size() * 4
+		for i in points.size():
+			var tangent := Vector3(tangents[i * 4], tangents[i * 4 + 1], tangents[i * 4 + 2])
+			sound_frames = sound_frames and points[i].is_finite() and uv[i].is_finite() \
+				and normals[i].is_finite() and absf(normals[i].length() - 1.0) < 0.001 \
+				and tangent.is_finite() and absf(tangent.length() - 1.0) < 0.001 \
+				and absf(tangent.dot(normals[i])) < 0.001 and absf(absf(tangents[i * 4 + 3]) - 1.0) < 0.001
+		for i in range(0, points.size(), 3):
+			var face := (points[i + 1] - points[i]).cross(points[i + 2] - points[i])
+			outward_faces = outward_faces and face.length_squared() > 1e-14 \
+				and face.dot(normals[i] + normals[i + 1] + normals[i + 2]) < 0.0
+			sound_frames = sound_frames and absf((uv[i + 1] - uv[i]).cross(uv[i + 2] - uv[i])) > 1e-9
+	_check(sound_frames and outward_faces,
+		"formed intake skins, rolled lips, liners and closed grille edges have outward winding and finite UV/tangent frames")
+
+	# Shoot through the actual assembled mouths, including every hull and
+	# fitting triangle. A perfect isolated duct can still be filled by the bow.
+	var clear_mouths := true
+	for side in [-1.0, 1.0]:
+		for offset in [Vector2.ZERO, Vector2(-0.18, 0), Vector2(0.18, 0), Vector2(0, -0.025), Vector2(0, 0.025)]:
+			var origin := Vector3(side * 1.08 + offset.x, 0.485 + offset.y, -0.8)
+			var nearest := INF
+			for candidate in visual.find_children("*", "MeshInstance3D", true, false):
+				var node := candidate as MeshInstance3D
+				if not node.visible:
+					continue
+				var faces := node.mesh.get_faces()
+				for i in range(0, faces.size(), 3):
+					var hit: Variant = Geometry3D.ray_intersects_triangle(origin, Vector3.BACK,
+						node.transform * faces[i], node.transform * faces[i + 1], node.transform * faces[i + 2])
+					if hit is Vector3:
+						nearest = minf(nearest, hit.z)
+			clear_mouths = clear_mouths and is_equal_approx(nearest, -0.24)
+	_check(clear_mouths, "both assembled mouths remain clear of the foredeck until their recessed dark bulkheads")
+
+	# Calibrate the concave liner against rays leaving its air volume, without
+	# consulting shading normals (which can agree with an inside-out face).
+	var liner: ArrayMesh = ship.call("_skirmisher_intake_mesh", 2)
+	var liner_faces := liner.get_faces()
+	var inward_liner := true
+	for direction in [Vector3.LEFT, Vector3.RIGHT, Vector3.UP, Vector3.DOWN]:
+		var closest := INF
+		var faces_air := false
+		var origin := Vector3(0, 0.478, -0.38)
+		for i in range(0, liner_faces.size(), 3):
+			var hit: Variant = Geometry3D.ray_intersects_triangle(origin, direction,
+				liner_faces[i], liner_faces[i + 1], liner_faces[i + 2])
+			if hit is Vector3 and origin.distance_to(hit) < closest:
+				closest = origin.distance_to(hit)
+				faces_air = (liner_faces[i + 1] - liner_faces[i]).cross(liner_faces[i + 2] - liner_faces[i]).dot(direction) > 0.0
+		inward_liner = inward_liner and is_finite(closest) and faces_air
+	_check(inward_liner, "all four throat walls face the intake air volume independently of authored normals")
 
 
 func _check(condition: bool, message: String) -> void:
