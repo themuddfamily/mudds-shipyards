@@ -119,7 +119,7 @@ func _run() -> void:
 		and (plate_winding.get("signed_volume_m3_by_object", {}) as Dictionary).size() == 16,
 		"all sixteen close/far swept plates publish positive signed volume and outward winding on both sides"
 	)
-	_check(_hull_runtime_materials_use_registered_maps(root_art), "both pale runtime material families bind the registered albedo/normal/roughness maps through UV0")
+	_check(_hull_runtime_materials_use_registered_maps(root_art), "both pale runtime material families bind registered albedo/normal maps through UV0 with uniform scalar roughness")
 	var texture_contract := manifest.get("material_texture_contract", {}) as Dictionary
 	_check(str(texture_contract.get("texture_coordinate", "")) == "UV0/TEXCOORD_0" and not bool(texture_contract.get("triplanar", true)), "manifest and live material agree on the UV0 texture-coordinate authority")
 	_check(_source_art_rosters_are_complete(manifest), "editable source publishes the shaped cockpit, canopy, propulsion, gear, panel, and livery feature rosters")
