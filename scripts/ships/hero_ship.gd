@@ -5945,17 +5945,44 @@ func _build_cockpit() -> void:
 		Vector4(0.54, -0.07, 0.12, -0.04),
 		Vector4(0.48, -0.04, 0.09, 0.14),
 	], _materials.upholstery_light, back_rotation)
-	_box(_cockpit_root, "HarnessLeft", Vector3(-0.2, 2.62, 0.23), Vector3(0.09, 0.65, 0.06), _materials.gold, Vector3(0.0, 0.0, deg_to_rad(-14.0)))
-	_box(_cockpit_root, "HarnessRight", Vector3(0.2, 2.62, 0.23), Vector3(0.09, 0.65, 0.06), _materials.gold, Vector3(0.0, 0.0, deg_to_rad(14.0)))
-	# Layered webbing, lap restraint, and a central rotary buckle make the seat's
-	# occupant-retention system legible from both cockpit and exterior views.
+	# Thin continuous webbing follows the padded back before turning into the
+	# rotary release. The former duplicate harness bars are now attached tabs.
 	for side in [-1.0, 1.0]:
 		var side_name := "Left" if side < 0.0 else "Right"
-		_box(_cockpit_root, "ShoulderBelt" + side_name, Vector3(side * 0.19, 2.62, 0.19), Vector3(0.075, 0.68, 0.035), _materials.restraint, Vector3(0.0, 0.0, side * deg_to_rad(14.0)))
-		_box(_cockpit_root, "LapBelt" + side_name, Vector3(side * 0.22, 2.31, -0.03), Vector3(0.38, 0.075, 0.045), _materials.restraint, Vector3(0.0, side * deg_to_rad(5.0), side * deg_to_rad(-11.0)))
+		_cockpit_harness_webbing("Harness" + side_name, [
+			Vector3(side * 0.30, 2.91, 0.32), Vector3(side * 0.27, 2.92, 0.26),
+			Vector3(side * 0.24, 2.88, 0.24),
+		], 0.065)
+		_cockpit_harness_webbing("ShoulderBelt" + side_name, [
+			Vector3(side * 0.24, 2.88, 0.24), Vector3(side * 0.23, 2.75, 0.22),
+			Vector3(side * 0.20, 2.59, 0.12), Vector3(side * 0.15, 2.46, 0.025),
+			Vector3(side * 0.055, 2.37, -0.085),
+		], 0.068)
+		_cockpit_harness_webbing("LapBelt" + side_name, [
+			Vector3(side * 0.43, 2.27, 0.07), Vector3(side * 0.35, 2.31, 0.035),
+			Vector3(side * 0.22, 2.32, -0.04), Vector3(side * 0.065, 2.37, -0.085),
+		], 0.075)
 		_cylinder(_cockpit_root, "HarnessAnchor" + side_name, Vector3(side * 0.3, 2.91, 0.33), 0.055, 0.08, _materials.mid, Vector3(90.0, 0.0, 0.0))
-	_box(_cockpit_root, "BeltAntiSub", Vector3(0.0, 2.26, -0.16), Vector3(0.09, 0.34, 0.045), _materials.restraint, Vector3(deg_to_rad(18.0), 0.0, 0.0))
-	_cylinder(_cockpit_root, "HarnessBuckle", Vector3(0.0, 2.37, -0.08), 0.12, 0.055, _materials.gold, Vector3(90.0, 0.0, 0.0))
+	_cockpit_harness_webbing("BeltAntiSub", [
+		Vector3(0.0, 2.22, -0.27), Vector3(0.0, 2.28, -0.22),
+		Vector3(0.0, 2.31, -0.13), Vector3(0.0, 2.37, -0.085),
+	], 0.07)
+	var buckle := _cylinder(_cockpit_root, "HarnessBuckle", Vector3(0.0, 2.37, -0.08), 0.095, 0.032, _materials.hydraulic, Vector3(90.0, 0.0, 0.0))
+	# One existing renderer carries the recessed release face and raised handle.
+	var release := SurfaceTool.new()
+	release.begin(Mesh.PRIMITIVE_TRIANGLES)
+	release.set_material(_materials.hydraulic)
+	release.append_from(buckle.mesh, 0, Transform3D.IDENTITY)
+	var face := CylinderMesh.new()
+	face.top_radius = 0.070
+	face.bottom_radius = 0.070
+	face.height = 0.007
+	face.radial_segments = 24
+	release.append_from(face, 0, Transform3D(Basis.IDENTITY, Vector3(0.0, -0.020, 0.0)))
+	var handle := BoxMesh.new()
+	handle.size = Vector3(0.083, 0.012, 0.024)
+	release.append_from(handle, 0, Transform3D(Basis(Vector3.UP, -0.32), Vector3(0.0, -0.028, 0.0)))
+	buckle.mesh = release.commit()
 	_pilot_seat_anchor = Marker3D.new()
 	_pilot_seat_anchor.name = "PilotSeatAnchor"
 	# PlayerController treats its root as a feet-frame; its hips are 0.72 m
@@ -6124,6 +6151,58 @@ func _build_cockpit() -> void:
 
 
 ## Adds a fitted seat or control component within the retained cockpit root.
+## Four-millimetre woven tape swept along authored contact stations. Rounded
+## transitions keep it pliable; metric UVs retain the shared fabric detail.
+func _cockpit_harness_webbing(belt_name: String, stations: Array[Vector3], width: float) -> void:
+	var points: Array[Vector3] = []
+	for index in range(stations.size() - 1):
+		for step in 4:
+			var t := float(step) / 4.0
+			points.append(stations[index].cubic_interpolate(stations[index + 1],
+				stations[maxi(0, index - 1)], stations[mini(stations.size() - 1, index + 2)], t))
+	points.append(stations[-1])
+	var tool := SurfaceTool.new()
+	tool.begin(Mesh.PRIMITIVE_TRIANGLES)
+	tool.set_material(_materials.restraint)
+	var rings: Array[PackedVector3Array] = []
+	for index in points.size():
+		var tangent := (points[mini(index + 1, points.size() - 1)] - points[maxi(index - 1, 0)]).normalized()
+		var across := tangent.cross(Vector3.FORWARD).normalized()
+		if across.length_squared() < 0.01:
+			across = Vector3.RIGHT
+		var normal := across.cross(tangent).normalized()
+		var ring := PackedVector3Array()
+		for corner in [Vector2(-1,-1), Vector2(1,-1), Vector2(1,1), Vector2(-1,1)]:
+			ring.append(points[index] + across * corner.x * width * 0.5 + normal * corner.y * 0.002)
+		rings.append(ring)
+	var distance := 0.0
+	for index in range(rings.size() - 1):
+		var next_distance := distance + points[index].distance_to(points[index + 1])
+		for edge in 4:
+			var next := (edge + 1) % 4
+			var quad := [rings[index][edge], rings[index][next], rings[index + 1][next], rings[index + 1][edge]]
+			var edge_width := width if edge % 2 == 0 else 0.004
+			var uvs := [Vector2(0.0, distance), Vector2(edge_width, distance),
+				Vector2(edge_width, next_distance), Vector2(0.0, next_distance)]
+			for vertex in [0, 1, 2, 0, 2, 3]:
+				tool.set_uv(uvs[vertex])
+				tool.add_vertex(quad[vertex])
+		distance = next_distance
+	var cap_uvs := [Vector2(0.0, 0.0), Vector2(width, 0.0), Vector2(width, 0.004), Vector2(0.0, 0.004)]
+	for end in [0, rings.size() - 1]:
+		for vertex in ([0, 2, 1, 0, 3, 2] if end == 0 else [0, 1, 2, 0, 2, 3]):
+			tool.set_uv(cap_uvs[vertex])
+			tool.add_vertex(rings[end][vertex])
+	tool.index()
+	tool.generate_normals()
+	tool.generate_tangents()
+	var belt := MeshInstance3D.new()
+	belt.name = belt_name
+	belt.mesh = tool.commit()
+	belt.material_override = _materials.restraint
+	_cockpit_root.add_child(belt)
+
+
 func _cockpit_seat_fitting(
 		fitting_name: String, fitting_position: Vector3, sections: Array[Vector4],
 		material: Material, fitting_rotation: Vector3 = Vector3.ZERO
@@ -7394,6 +7473,7 @@ func _create_materials() -> void:
 	_materials.hydraulic = _material(Color("b9c4c1"), 0.76, 0.2)
 	_materials.seal = _material(Color("081015"), 0.06, 0.88)
 	_materials.restraint = _material(Color("c7a647"), 0.08, 0.72)
+	CabinTextile.apply(_materials.restraint, 0.24)
 	var anti_glare := _material(Color(0.18, 0.20, 0.22), 0.04, 0.82)
 	anti_glare.albedo_texture = load("res://assets/materials/cockpit-anti-glare-composite-v1.png") as Texture2D
 	anti_glare.uv1_triplanar = true
