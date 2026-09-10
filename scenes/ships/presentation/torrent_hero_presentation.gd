@@ -581,11 +581,10 @@ func get_asset_audit_report() -> Dictionary:
 			or hull_material.albedo_texture.resource_path != ShipSurfaceDetail.PAINT_ALBEDO_PATH
 			or hull_material.normal_texture == null
 			or hull_material.normal_texture.resource_path != ShipSurfaceDetail.PAINT_NORMAL_PATH
-			or hull_material.roughness_texture == null
-			or hull_material.roughness_texture.resource_path != ShipSurfaceDetail.PAINT_ROUGHNESS_PATH
+			or hull_material.roughness_texture != null
 			or hull_material.uv1_triplanar
 		):
-			errors.append("hull material is not using the registered UV0 PBR map set: %s" % hull_role)
+			errors.append("hull material is not using UV0 albedo/normal maps with uniform scalar roughness: %s" % hull_role)
 	return {
 		"schema_version": SCHEMA_VERSION,
 		"valid": errors.is_empty(),

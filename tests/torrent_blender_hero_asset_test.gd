@@ -342,8 +342,7 @@ func _hull_runtime_materials_use_registered_maps(asset_root: Node3D) -> bool:
 			or not material.normal_enabled
 			or material.normal_texture == null
 			or material.normal_texture.resource_path != ShipSurfaceDetail.PAINT_NORMAL_PATH
-			or material.roughness_texture == null
-			or material.roughness_texture.resource_path != ShipSurfaceDetail.PAINT_ROUGHNESS_PATH
+			or material.roughness_texture != null
 			or material.uv1_triplanar
 			or not material.uv1_scale.is_equal_approx(Vector3.ONE)
 		):

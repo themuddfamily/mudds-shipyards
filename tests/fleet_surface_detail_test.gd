@@ -326,16 +326,18 @@ func _audit_helper_contract() -> void:
 	var paint := StandardMaterial3D.new()
 	paint.albedo_color = Color(0.3, 0.4, 0.5)
 	paint.roughness = 0.65
+	paint.roughness_texture = normal_map
 	paint.metallic = 0.08
 	paint.uv1_scale = Vector3(0.6, 0.9, 1.2)
 	ShipSurfaceDetail.bind_manufactured_paint(paint)
 	_check(
 		paint.albedo_color == Color(0.3, 0.4, 0.5)
 		and is_equal_approx(paint.roughness, 0.65)
+		and paint.roughness_texture == null
 		and is_equal_approx(paint.metallic, 0.08)
 		and paint.uv1_scale == Vector3(0.6, 0.9, 1.2)
 		and not paint.uv1_triplanar,
-		"manufactured finish preserves caller tint, scalar response and authored UV authority"
+		"manufactured finish clears cloudy roughness variation and preserves caller tint, scalar response and authored UV authority"
 	)
 	# Structured red: each of the three properties the audit depends on must be
 	# load-bearing on its own.

@@ -879,7 +879,7 @@ func _test_four_ship_material_identity(game: GameFlow) -> void:
 					correct_recipe = correct_recipe \
 						and _texture_path(material.albedo_texture) == SHIP_PAINT_PATH \
 						and _texture_path(material.normal_texture) == ShipSurfaceDetail.PAINT_NORMAL_PATH \
-						and _texture_path(material.roughness_texture) == ShipSurfaceDetail.PAINT_ROUGHNESS_PATH \
+						and material.roughness_texture == null \
 						and material.normal_enabled \
 						and is_equal_approx(material.normal_scale, 0.32) \
 						and material.albedo_color.is_equal_approx(spec[1] as Color) \

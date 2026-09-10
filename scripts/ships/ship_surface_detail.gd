@@ -33,9 +33,10 @@ static func mark_surface(
 	return marking
 
 ## A smooth manufactured coating. Authored seams come from actual geometry;
-## these shared maps supply fine paint grain and scanned wear in the reflected
-## highlights. The roughness tile excludes the source photograph's panel joints.
-## Existing UV mapping, role tint and maximum roughness stay owned by the caller.
+## the shared albedo and normal maps supply fine paint grain. Broad variation
+## in the wear/roughness tiles reads as dents on otherwise flat hull panels,
+## so coated paint uses the caller's uniform roughness. Existing UV mapping,
+## role tint and scalar roughness stay owned by the caller.
 static func bind_manufactured_paint(material: StandardMaterial3D) -> void:
 	if material == null:
 		return
@@ -43,7 +44,7 @@ static func bind_manufactured_paint(material: StandardMaterial3D) -> void:
 	material.normal_enabled = true
 	material.normal_texture = load(PAINT_NORMAL_PATH) as Texture2D
 	material.normal_scale = 0.32
-	material.roughness_texture = load(PAINT_ROUGHNESS_PATH) as Texture2D
+	material.roughness_texture = null
 	material.roughness_texture_channel = BaseMaterial3D.TEXTURE_CHANNEL_RED
 	material.clearcoat_enabled = true
 	material.clearcoat = 0.18

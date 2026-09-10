@@ -353,7 +353,6 @@ func _build_bulwark_variant(_controller: HeroShip) -> bool:
 	for coating in [armor_dark, armor_blue, armor_highlight]:
 		ShipSurfaceDetail.bind_manufactured_paint(coating)
 		# Armor uses satin paint; broad glossy scuff patches obscure its formed surfaces.
-		coating.roughness_texture = load("res://assets/materials/manufactured-paint-roughness.png")
 		coating.roughness = 0.72
 		coating.clearcoat_enabled = false
 		# Metric local projection prevents long armor UVs stretching the wear.

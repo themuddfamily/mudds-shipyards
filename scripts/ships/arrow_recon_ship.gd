@@ -762,7 +762,6 @@ func _create_arrow_materials() -> void:
 		painted_shell.metallic = 0.10
 		# The hull needs a satin coating, not the deep glossy patches of the
 		# high-contrast scuff tile. Retain paint grain and authored panel seams.
-		painted_shell.roughness_texture = load("res://assets/materials/manufactured-paint-roughness.png")
 		painted_shell.roughness = 0.72
 		painted_shell.clearcoat_enabled = false
 
