@@ -8,7 +8,7 @@ const SKY_SHADER := preload("res://scripts/rendering/deep_space_sky.gdshader")
 const RuntimeSettingsScript := preload(
 	"res://scripts/settings/runtime_settings.gd"
 )
-const EXPECTED_ASSERTIONS := 29
+const EXPECTED_ASSERTIONS := 39
 
 var _assertions := 0
 var _failures := PackedStringArray()
@@ -225,7 +225,10 @@ func _test_production_world_lifecycle() -> void:
 	)
 	settings.reduced_flash = true
 	var parent := world.get_parent()
+	var atlas_before_detach := world._station_shadow_atlas_size
 	parent.remove_child(world)
+	_check(world._station_shadow_atlas_size == 0,
+		"detaching the High atlas owner releases its enlargement")
 	await process_frame
 	var detached_report := world.get_station_solar_readability_report()
 	_check(
@@ -237,6 +240,8 @@ func _test_production_world_lifecycle() -> void:
 	parent.add_child(world)
 	await process_frame
 	await process_frame
+	_check(world._station_shadow_atlas_size == atlas_before_detach,
+		"re-entering High restores the directional atlas without rebuilding station lights")
 	report = world.get_station_solar_readability_report()
 	presentation = report.presentation as Dictionary
 	_check(
@@ -289,8 +294,16 @@ func _test_work_mast_quality() -> void:
 		illumination[light] = _light_illumination(light)
 	_check(masts.size() == 9 and masts.all(func(mast): return not mast.shadow_enabled),
 		"initial staged Low construction omits exactly nine authored station work-mast shadows")
+	var atlas_override_available := DisplayServer.get_name() != "headless" \
+		and RenderingServer.get_current_rendering_method() == &"gl_compatibility" \
+		and int(ProjectSettings.get_setting("rendering/lights_and_shadows/directional_shadow/size")) < 8192
+	_check(world._station_shadow_atlas_size == 0,
+		"initial Low leaves the global directional shadow atlas at its authored budget")
 	for quality in [2, 0, 1, 0, 2]:
 		world.apply_visual_quality(quality)
+		var expected_atlas := 8192 if atlas_override_available and quality == 2 else 0
+		_check(world._station_shadow_atlas_size == expected_atlas,
+			"profile %d enlarges only rendered Compatibility High; other profiles restore its atlas" % quality)
 		_check(masts.all(func(mast): return mast.shadow_enabled == (quality != 0)),
 			"runtime profile %d restores the authored work-mast shadow policy" % quality)
 		var unchanged := true
@@ -300,7 +313,17 @@ func _test_work_mast_quality() -> void:
 			unchanged = unchanged and light.shadow_enabled == other_shadows[light]
 		_check(unchanged,
 			"profile %d preserves all light illumination and every other shadow flag" % quality)
+	world.apply_visual_quality(2)
+	var atlas_before := world._station_shadow_atlas_size
+	world.apply_visual_quality(2)
+	var unrelated := ShipyardWorld.new()
+	unrelated._restore_station_shadow_atlas()
+	unrelated.free()
+	_check(world._station_shadow_atlas_size == atlas_before,
+		"repeated High and an uninitialized secondary world preserve the active atlas owner")
 	world.apply_visual_quality(0)
+	_check(world._station_shadow_atlas_size == 0,
+		"returning to Low releases the High directional atlas budget")
 	root.remove_child(world)
 	await process_frame
 	root.add_child(world)

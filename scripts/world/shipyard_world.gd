@@ -1033,6 +1033,9 @@ var _guide_lens_material_cache: Dictionary = {}
 var _guide_lens_nodes: Array[Marker3D] = []
 var _guide_light_nodes: Array[OmniLight3D] = []
 var _shadowed_work_masts: Array[SpotLight3D] = []
+# The directional atlas is global; only the station which enlarged it may restore it.
+static var _station_shadow_atlas_owner: WeakRef
+var _station_shadow_atlas_size := 0
 var _guide_lens_batches: Dictionary = {}
 var _landing_pad_deck_connector_mesh: TorusMesh
 var _tie_down_socket_mesh: TorusMesh
@@ -1132,6 +1135,7 @@ func _exit_tree() -> void:
 	_staged_tree_generation += 1
 	_staged_run_active = false
 	_retire_station_solar_readability(&"station_detached")
+	_restore_station_shadow_atlas()
 	# Door signals target this long-lived world object. Explicitly remove the
 	# bound instance-ID callables so a streamed world never retains stale hooks.
 	_disconnect_operational_lattice_audio()
@@ -4746,7 +4750,43 @@ func _on_operational_door_motion_completed(
 		ambience.play_cue(&"latch", 0.72)
 
 
+func _apply_station_shadow_quality() -> void:
+	if not is_inside_tree() or DisplayServer.get_name() == "headless" \
+			or RenderingServer.get_current_rendering_method() != &"gl_compatibility":
+		return
+	if visual_quality_level != VisualQualityController.QualityLevel.HIGH:
+		_restore_station_shadow_atlas()
+		return
+	var owner: Object = _station_shadow_atlas_owner.get_ref() if _station_shadow_atlas_owner != null else null
+	if is_instance_valid(owner) and owner != self:
+		return
+	var authored_size := int(ProjectSettings.get_setting(
+		"rendering/lights_and_shadows/directional_shadow/size"))
+	var target_size := maxi(8192, authored_size)
+	if target_size == authored_size or _station_shadow_atlas_size == target_size:
+		return
+	# Compatibility's fixed PCF kernel cannot use the sun's angular size. High
+	# doubles each cascade's resolution instead: finer hull/wing cast edges while
+	# retaining the four blended cascades, 130 m coverage and every shadow caster.
+	# This costs four times the atlas texels; Low/Medium retain the authored size.
+	RenderingServer.directional_shadow_atlas_set_size(target_size, bool(ProjectSettings.get_setting(
+		"rendering/lights_and_shadows/directional_shadow/16_bits")))
+	_station_shadow_atlas_owner = weakref(self)
+	_station_shadow_atlas_size = target_size
+
+
+func _restore_station_shadow_atlas() -> void:
+	if _station_shadow_atlas_owner == null or _station_shadow_atlas_owner.get_ref() != self:
+		return
+	RenderingServer.directional_shadow_atlas_set_size(
+		int(ProjectSettings.get_setting("rendering/lights_and_shadows/directional_shadow/size")),
+		bool(ProjectSettings.get_setting("rendering/lights_and_shadows/directional_shadow/16_bits")))
+	_station_shadow_atlas_owner = null
+	_station_shadow_atlas_size = 0
+
+
 func _apply_operational_dressing_quality() -> void:
+	_apply_station_shadow_quality()
 	# Low retains each mast's illumination but omits its local shadow pass.
 	for mast in _shadowed_work_masts:
 		if is_instance_valid(mast):
@@ -6186,8 +6226,8 @@ func _build_environment() -> void:
 		# Compatibility needs extra receiver normal offset to limit self-shadow
 		# teeth where the closed canopy shades a curved shoulder. Six reduces
 		# those bands while retaining the tested landing contacts; larger offsets
-		# distort nearby frame shadows. Keep depth bias, atlas, cascades and
-		# caster policy so this does not add shadow passes.
+		# distort nearby frame shadows. Keep depth bias, cascades and caster
+		# policy; the High profile separately allocates a finer directional atlas.
 		key_light.shadow_normal_bias = 6.0
 	add_child(key_light)
 
