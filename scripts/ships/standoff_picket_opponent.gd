@@ -1595,15 +1595,12 @@ func _build_interceptor() -> void:
 
 	# A long dark spine with a single forward lance barrel. Deliberately the
 	# opposite read from the defender's broad ivory forked dart.
-	# The lance socket flares into a continuous narrow pressure spine.
-	_pressure_body(_visual_root, "SpineNose", Vector3(0, 0, -2.6), [
-		Vector4(-2.7, 0.18, 0.25, -0.06), Vector4(-1.4, 0.4, 0.39, -0.02),
-		Vector4(0.1, 0.56, 0.47, 0), Vector4(1.4, 0.625, 0.5, 0),
-	], _materials.picket_hull)
-	_pressure_body(_visual_root, "SpineBody", Vector3(0, 0, 1.4), [
-		Vector4(-2.6, 0.625, 0.5, 0), Vector4(0.8, 0.625, 0.5, 0),
-		Vector4(2.3, 0.625, 0.5, 0), Vector4(3.1, 0.52, 0.35, -0.02),
-	], _materials.picket_hull)
+	# One formed shell runs from the lance receiver to the aft machinery. The
+	# two retained nodes share an exact section and derivative at their join.
+	_box_from_mesh(_visual_root, "SpineNose", Vector3(0, 0, -2.6),
+		_picket_primary_hull_mesh(3, 5, Vector3(0, 0, -2.6), _materials.picket_hull))
+	_box_from_mesh(_visual_root, "SpineBody", Vector3(0, 0, 1.4),
+		_picket_primary_hull_mesh(5, 8, Vector3(0, 0, 1.4), _materials.picket_hull))
 	_picket_box(_visual_root, "SpineKeel", Vector3(0.0, -0.62, 1.6), Vector3(0.8, 0.34, 5.4), _materials.picket_deep)
 	# The instrument raceway rises out of the sensor saddle and closes back into
 	# the pressure hull. Its broad shoulders seat the existing service fittings.
@@ -1639,10 +1636,8 @@ func _build_interceptor() -> void:
 				Vector2(-5.55, 0.265), Vector2(-7.82, 0.265), Vector2(-8.34, 0.24),
 				Vector2(-8.34, 0.19), Vector2(-3.0, 0.19)]),
 		], _materials.picket_slate))
-	_pressure_body(_visual_root, "LanceCollar", Vector3(0, -0.06, 0), [
-		Vector4(-5.4, 0.315, 0.30, 0), Vector4(-5.12, 0.405, 0.36, -0.015),
-		Vector4(-4.15, 0.46, 0.39, -0.025), Vector4(-3.0, 0.43, 0.37, 0),
-	], _materials.picket_deep)
+	_box_from_mesh(_visual_root, "LanceCollar", Vector3(0, -0.06, 0),
+		_picket_primary_hull_mesh(0, 3, Vector3(0, -0.06, 0), _materials.picket_deep))
 	_add_lance_rail_batch(_visual_root)
 	# The open, bevelled muzzle has a real bore around the retained emitter.
 	# Its forward lip stops behind the lens and the authoritative muzzle marker.
@@ -2028,6 +2023,113 @@ func _create_picket_materials() -> void:
 	_materials.picket_magenta_emissive = _material(LANCE_MAGENTA, 0.1, 0.2, LANCE_MAGENTA, 3.1)
 	_materials.picket_violet_emissive = _material(LANCE_VIOLET, 0.12, 0.22, LANCE_VIOLET, 2.4)
 	_materials.picket_engine = _material(PICKET_ENGINE, 0.08, 0.2, PICKET_ENGINE, 2.6)
+
+
+## A narrow equipment deck rolls into broad shoulders above the retained flank
+## mounting flats. A crisp lower chine carries the skin into the keel, keeping
+## the picket a formed structural spine instead of an inflated round capsule.
+## Monotone Hermite interpolation supplies both positions and exact derivatives:
+## receiver, nose and body highlights continue through their uncapped joins.
+func _picket_primary_hull_mesh(first_span: int, end_span: int, origin: Vector3, material: Material) -> ArrayMesh:
+	var stations: Array[Vector4] = [
+		Vector4(-5.4, 0.315, 0.30, -0.06), Vector4(-5.12, 0.405, 0.36, -0.075),
+		Vector4(-4.15, 0.46, 0.39, -0.085), Vector4(-3.0, 0.48, 0.405, -0.04),
+		Vector4(-2.25, 0.58, 0.48, 0),
+		Vector4(-1.2, 0.625, 0.5, 0), Vector4(2.2, 0.625, 0.5, 0),
+		Vector4(3.7, 0.625, 0.5, 0), Vector4(4.5, 0.52, 0.35, -0.02),
+	]
+	var slopes: Array[Vector4] = []
+	for index in stations.size():
+		var current := stations[index]
+		var previous := stations[maxi(0, index - 1)]
+		var next := stations[mini(stations.size() - 1, index + 1)]
+		var slope := Vector4.ZERO
+		for axis in range(1, 4):
+			var incoming: float = (current[axis] - previous[axis]) / (current.x - previous.x) if index > 0 else (next[axis] - current[axis]) / (next.x - current.x)
+			var outgoing: float = (next[axis] - current[axis]) / (next.x - current.x) if index < stations.size() - 1 else incoming
+			slope[axis] = 2.0 * incoming * outgoing / (incoming + outgoing) if incoming * outgoing > 0.0 else 0.0
+		slopes.append(slope)
+
+	var profile := PackedVector2Array([Vector2(-0.46, 1), Vector2(0.46, 1)])
+	var around := PackedVector2Array([Vector2.RIGHT, Vector2.RIGHT])
+	var crown := PackedVector2Array()
+	var crown_tangents := PackedVector2Array()
+	var a := Vector2(0.46, 1)
+	var b := Vector2(0.74, 1)
+	var c := Vector2(1, 0.84)
+	var d := Vector2(1, 0.48)
+	for step in range(1, 9):
+		var t := float(step) / 8.0
+		var u := 1.0 - t
+		crown.append(a*u*u*u + b*3*u*u*t + c*3*u*t*t + d*t*t*t)
+		crown_tangents.append(((b-a)*u*u + (c-b)*2*u*t + (d-c)*t*t).normalized())
+	profile.append_array(crown)
+	around.append_array(crown_tangents)
+	# Tangent zero marks a machined chine: the adjoining faces own their normals.
+	for point in [Vector2(1, -0.48), Vector2(0.97, -0.58), Vector2(0.73, -0.96),
+		Vector2(0.65, -1), Vector2(-0.65, -1), Vector2(-0.73, -0.96),
+		Vector2(-0.97, -0.58), Vector2(-1, -0.48)]:
+		profile.append(point)
+		around.append(Vector2.ZERO)
+	for step in range(7, -1, -1):
+		profile.append(Vector2(-crown[step].x, crown[step].y))
+		around.append(Vector2(crown_tangents[step].x, -crown_tangents[step].y))
+	var perimeter := PackedFloat32Array([0.0])
+	for edge in profile.size():
+		perimeter.append(perimeter[-1] + ((profile[(edge+1) % profile.size()] - profile[edge]) * Vector2(0.625, 0.5)).length())
+
+	var rings: Array[Vector4] = []
+	var derivatives: Array[Vector4] = []
+	for span in range(first_span, end_span):
+		var start := stations[span]
+		var finish := stations[span+1]
+		var length := finish.x - start.x
+		# Straight equipment landings need no extra polygons; curved transitions
+		# sample at 25 cm so their silhouettes follow the analytic skin.
+		var count := 1 if start.y == finish.y and start.z == finish.z and start.w == finish.w else ceili(length / 0.25)
+		for step in range(count + 1):
+			if span > first_span and step == 0:
+				continue
+			var t := float(step) / float(count)
+			var section := start*(2*t*t*t-3*t*t+1) + slopes[span]*length*(t*t*t-2*t*t+t) + finish*(-2*t*t*t+3*t*t) + slopes[span+1]*length*(t*t*t-t*t)
+			var derivative := (start*(6*t*t-6*t) + slopes[span]*length*(3*t*t-4*t+1) + finish*(-6*t*t+6*t) + slopes[span+1]*length*(3*t*t-2*t)) / length
+			section.x = lerpf(start.x, finish.x, t)
+			rings.append(section)
+			derivatives.append(derivative)
+
+	var surface := SurfaceTool.new()
+	surface.begin(Mesh.PRIMITIVE_TRIANGLES)
+	surface.set_material(material)
+	for ring in rings.size() - 1:
+		for edge in profile.size():
+			var next := (edge + 1) % profile.size()
+			for address: Vector2i in [Vector2i(ring, edge), Vector2i(ring+1, next), Vector2i(ring+1, edge), Vector2i(ring, edge), Vector2i(ring, next), Vector2i(ring+1, next)]:
+				var section := rings[address.x]
+				var derivative := derivatives[address.x]
+				var point := profile[address.y]
+				var tangent := around[address.y] if around[address.y] != Vector2.ZERO else (profile[next] - profile[edge]).normalized()
+				var across := Vector3(tangent.x * section.y, tangent.y * section.z, 0)
+				var along := Vector3(point.x * derivative.y, point.y * derivative.z + derivative.w, 1)
+				surface.set_normal(along.cross(across).normalized())
+				var uv_edge := profile.size() if address.y == 0 and edge == profile.size()-1 else address.y
+				surface.set_uv(Vector2(perimeter[uv_edge], section.x))
+				surface.add_vertex(Vector3(point.x * section.y, point.y * section.z + section.w, section.x) - origin)
+	# Only the receiver and aft end close; the shared internal section has no
+	# coincident caps or duplicate shadow-casting surfaces.
+	if first_span == 0 or end_span == stations.size() - 1:
+		var cap := rings[0] if first_span == 0 else rings[-1]
+		var centre := Vector3(0, cap.w, cap.x) - origin
+		for edge in profile.size():
+			var p := profile[edge]
+			var q := profile[(edge+1) % profile.size()]
+			var p3 := Vector3(p.x*cap.y, p.y*cap.z+cap.w, cap.x) - origin
+			var q3 := Vector3(q.x*cap.y, q.y*cap.z+cap.w, cap.x) - origin
+			if first_span == 0:
+				_emit_armour_triangle(surface, centre, p3, q3)
+			else:
+				_emit_armour_triangle(surface, centre, q3, p3)
+	surface.generate_tangents()
+	return surface.commit()
 
 
 ## Closed lathe profiles form the lance tube, muzzle and recessed engine housings.

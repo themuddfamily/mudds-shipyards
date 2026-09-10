@@ -126,6 +126,7 @@ func _test_contract_and_evidence() -> void:
 	var visual := picket.get_node_or_null("StandoffPicketVisual") as Node3D
 	_check_lance_construction(picket, visual)
 	_check_dorsal_instruments(picket, visual)
+	_check_primary_pressure_hull(picket, visual)
 	var performance := audit.presentation_performance as Dictionary
 	_check(
 		bool(performance.valid)
@@ -1612,6 +1613,94 @@ func _place_target(target: RangeOpponent, origin: Vector3) -> void:
 		target.activate(Transform3D(Basis.IDENTITY, origin))
 	target.global_position = origin
 	target.velocity = Vector3.ZERO
+
+
+## The pressure shell must remain watertight across its retained node split,
+## carry valid painted-surface frames, and preserve the equipment landing.
+func _check_primary_pressure_hull(picket: StandoffPicketOpponent, visual: Node3D) -> void:
+	var joins: Array[Dictionary] = []
+	var receiver_joins: Array[Dictionary] = []
+	var nose_stations: Array[float] = []
+	for node_name in ["SpineNose", "SpineBody", "LanceCollar"]:
+		var instance := visual.get_node(node_name) as MeshInstance3D
+		var arrays := instance.mesh.surface_get_arrays(0)
+		var vertices: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
+		var normals: PackedVector3Array = arrays[Mesh.ARRAY_NORMAL]
+		var uv: PackedVector2Array = arrays[Mesh.ARRAY_TEX_UV]
+		var tangents: PackedFloat32Array = arrays[Mesh.ARRAY_TANGENT]
+		var frames_valid := normals.size() == vertices.size() and uv.size() == vertices.size() and tangents.size() == vertices.size()*4
+		var winding_valid := true
+		var join := {}
+		var receiver_join := {}
+		if frames_valid:
+			for index in vertices.size():
+				var vertex := instance.position + vertices[index]
+				var normal := normals[index]
+				var tangent := Vector3(tangents[index*4], tangents[index*4+1], tangents[index*4+2])
+				frames_valid = frames_valid and vertex.is_finite() and normal.is_finite() and uv[index].is_finite() and tangent.is_finite() \
+					and absf(normal.length()-1.0) < 0.01 and absf(tangent.length()-1.0) < 0.01 and absf(tangent.dot(normal)) < 0.01
+				if is_equal_approx(vertex.z, -1.2):
+					# Sharp lower chines can carry more than one normal per point.
+					var key := Vector2(snappedf(vertex.x, 0.00001), snappedf(vertex.y, 0.00001))
+					if not join.has(key):
+						join[key] = []
+					if not join[key].has(normal):
+						join[key].append(normal)
+				if is_equal_approx(vertex.z, -3.0):
+					var key := Vector2(snappedf(vertex.x, 0.00001), snappedf(vertex.y, 0.00001))
+					if not receiver_join.has(key):
+						receiver_join[key] = []
+					if not receiver_join[key].has(normal):
+						receiver_join[key].append(normal)
+				if node_name == "SpineNose" and not nose_stations.has(vertex.z):
+					nose_stations.append(vertex.z)
+			for index in range(0, vertices.size(), 3):
+				var outward := (vertices[index+2]-vertices[index]).cross(vertices[index+1]-vertices[index])
+				winding_valid = winding_valid and outward.length_squared() > 0.0000000001
+				for corner in 3:
+					winding_valid = winding_valid and outward.dot(normals[index+corner]) > 0.0
+				frames_valid = frames_valid and absf((uv[index+1]-uv[index]).cross(uv[index+2]-uv[index])) > 0.000001
+		var material: Material = picket._materials.picket_deep if node_name == "LanceCollar" else picket._materials.picket_hull
+		_check(frames_valid and winding_valid and instance.mesh.surface_get_material(0) == material,
+			"%s keeps outward nondegenerate triangles and finite orthonormal coating frames" % node_name)
+		if not join.is_empty():
+			joins.append(join)
+		if not receiver_join.is_empty():
+			receiver_joins.append(receiver_join)
+	var joined := joins[0].size() >= 20 and joins[0].size() == joins[1].size()
+	for vertex: Vector2 in joins[0]:
+		joined = joined and joins[1].has(vertex)
+		if not joins[1].has(vertex):
+			continue
+		for normal: Vector3 in joins[0][vertex]:
+			var matching := false
+			for other: Vector3 in joins[1][vertex]:
+				matching = matching or normal.is_equal_approx(other)
+			joined = joined and matching and absf(normal.z) < 0.001
+	_check(joined, "nose and body share positions and tangent normals without coincident internal caps")
+	var receiver_seated := receiver_joins.size() == 2 and receiver_joins[0].size() >= 20
+	if receiver_seated:
+		for vertex: Vector2 in receiver_joins[0]:
+			receiver_seated = receiver_seated and receiver_joins[1].has(vertex)
+			if not receiver_joins[1].has(vertex):
+				continue
+			for normal: Vector3 in receiver_joins[0][vertex]:
+				var matching := false
+				for other: Vector3 in receiver_joins[1][vertex]:
+					matching = matching or normal.is_equal_approx(other)
+				receiver_seated = receiver_seated and matching and absf(normal.z) < 0.99
+	var nose := visual.get_node("SpineNose") as MeshInstance3D
+	var collar := visual.get_node("LanceCollar") as MeshInstance3D
+	_check(receiver_seated and is_equal_approx(nose.position.z + nose.mesh.get_aabb().position.z, -3.0)
+		and is_equal_approx(collar.position.z + collar.mesh.get_aabb().end.z, -3.0),
+		"receiver and pressure hull meet at one matching section without overlapping pointed skin or an internal cap")
+
+	var body := visual.get_node("SpineBody") as MeshInstance3D
+	var bounds := body.position + body.mesh.get_aabb().position
+	var landing := joins[1].has(Vector2(0.625, 0.24)) and joins[1].has(Vector2(-0.625, 0.24))
+	_check(nose_stations.size() >= 9 and landing and is_equal_approx(bounds.y, -0.5)
+		and is_equal_approx(body.mesh.get_aabb().size.x, 1.25),
+		"curved nose resolves its silhouette while the slender body keeps exact flank landing width and keel depth")
 
 
 ## New machined surfaces must keep a real axial opening and usable normal-map
