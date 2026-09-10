@@ -169,6 +169,36 @@ func _test_forward_pressure_body(craft: HeroShip) -> void:
 		and hull.transform.is_equal_approx(Transform3D.IDENTITY),
 		"the formed bow retains the original primary hull envelope and single renderer surface")
 
+	var shoulder_drop := _pressure_skin_height(hull_faces, 0.0, -1.0) - _pressure_skin_height(hull_faces, 1.8, -1.0)
+	_check(shoulder_drop > 0.12 and shoulder_drop < 0.3,
+		"the primary shoulder curves below its central equipment landing rather than retaining a slab crown")
+	var terminal_seal_small := true
+	for point in hull_faces:
+		if is_equal_approx(point.z, -7.75):
+			terminal_seal_small = terminal_seal_small and absf(point.x) < 0.02 and absf(point.y) < 0.025
+	_check(terminal_seal_small and hull_faces.size() / 3 <= 2200,
+		"the rounded bow closes with a small terminal seal within the 2200-triangle primary skin budget")
+	for side in ["Port", "Starboard"]:
+		var shoulder := visual.get_node(side + "PressureShoulder") as MeshInstance3D
+		var cap_embedded := true
+		for local in shoulder.mesh.get_faces():
+			if is_equal_approx(local.z, -6.4):
+				var point: Vector3 = shoulder.transform * local
+				cap_embedded = cap_embedded and point.y < _pressure_skin_height(hull_faces, point.x, point.z) - 0.01
+		_check(cap_embedded, "%s nacelle nose cap enters the rolled main skin without a detached tooth" % side)
+	var arrays := hull.mesh.surface_get_arrays(0)
+	var vertices: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
+	var normals: PackedVector3Array = arrays[Mesh.ARRAY_NORMAL]
+	var uvs: PackedVector2Array = arrays[Mesh.ARRAY_TEX_UV]
+	var tangents: PackedFloat32Array = arrays[Mesh.ARRAY_TANGENT]
+	var frames_valid := normals.size() == vertices.size() and uvs.size() == vertices.size() and tangents.size() == vertices.size() * 4
+	for index in vertices.size():
+		var tangent := Vector3(tangents[index * 4], tangents[index * 4 + 1], tangents[index * 4 + 2])
+		frames_valid = frames_valid and normals[index].is_finite() and normals[index].length_squared() > 0.99 \
+			and uvs[index].is_finite() and tangent.is_finite() and tangent.length_squared() > 0.99 \
+			and absf(tangent.dot(normals[index])) < 0.01
+	_check(frames_valid, "formed bow and shoulders retain complete UVs and finite orthogonal normal/tangent frames")
+
 
 func _pressure_skin_height(faces: PackedVector3Array, x: float, z: float) -> float:
 	var highest := -INF

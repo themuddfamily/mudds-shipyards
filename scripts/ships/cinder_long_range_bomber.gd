@@ -894,7 +894,7 @@ func _build_hull(visual: Node3D) -> void:
 	var hull := MeshInstance3D.new()
 	hull.name = "LongRangeHull"
 	if _shared_hull_mesh == null:
-		_shared_hull_mesh = _formed_pressure_mesh(Vector3(5.6, 2.65, HULL_SIZE.z), null, true)
+		_shared_hull_mesh = _formed_pressure_mesh(Vector3(5.6, 2.65, HULL_SIZE.z), null, true, 0.0, true)
 		_shared_hull_mesh.resource_local_to_scene = false
 	if _shared_hull_material == null:
 		_shared_hull_material = _material(HULL_COLOR, 0.12, 0.62)
@@ -1030,7 +1030,8 @@ func _build_bomber_propulsion(visual: Node3D) -> void:
 	for side in [-1.0, 1.0]:
 		var tag := "Port" if side < 0 else "Starboard"
 		_service_bay(visual, tag + "ThermalService", Vector3(side * 2.3, 1.195, 2.6), 0.9, 2.1, _shared_hull_material, ceramic, metal)
-		_armor_shell(visual, tag + "PressureShoulder", Vector3(side * 2.3, 0.28, 0.4), Vector3(1.85, 1.8, 12.8), _shared_hull_material, 0.0, _formed_pressure_mesh(Vector3(1.85, 1.8, 12.8), _shared_hull_material, true, -side * 0.68))
+		# Bury the forward nacelle bulkhead in the narrower rolled trunk.
+		_armor_shell(visual, tag + "PressureShoulder", Vector3(side * 2.3, 0.28, 0.4), Vector3(1.85, 1.8, 12.8), _shared_hull_material, 0.0, _formed_pressure_mesh(Vector3(1.85, 1.8, 12.8), _shared_hull_material, true, -side * 1.12))
 		_armor_shell(visual, tag + "WingRootFairing", Vector3(side * 3.9, -0.25, 1.2), Vector3(2.7, 0.58, 7.7), _shared_hull_material, side * -0.13, _formed_wing_root_mesh(side, _shared_hull_material))
 		_armor_shell(visual, tag + "OutboardArmor", Vector3(side * 5.6, -0.22, 1.8), Vector3(1.6, 0.08, 3.2), _shared_ordnance_spine_material, side * -0.16, _fitted_wing_armor_mesh(side, _shared_ordnance_spine_material))
 		_cylinder(visual, tag + "TurbineCase", Vector3(side * 2.35, 0.1, 6.75), 0.92, 2.1, metal, Vector3(90, 0, 0))
@@ -1436,7 +1437,7 @@ func _loft_mesh(size: Vector3, material: Material) -> ArrayMesh:
 ## Broad crowns carry the existing access panels; formed shoulders roll down
 ## into the belly instead of ending in almost-square vertical walls. The main
 ## forebody also curves along its length, inside the existing maximum envelope.
-func _formed_pressure_mesh(size: Vector3, material: Material, forward_body: bool = false, nose_sweep: float = 0.0) -> ArrayMesh:
+func _formed_pressure_mesh(size: Vector3, material: Material, forward_body: bool = false, nose_sweep: float = 0.0, pressure_trunk: bool = false) -> ArrayMesh:
 	var section := PackedVector2Array([Vector2(0, 1)])
 	var tangents := PackedVector2Array([Vector2.RIGHT])
 	# Elliptical shoulders meet the flat service crown and belly tangentially.
@@ -1449,8 +1450,16 @@ func _formed_pressure_mesh(size: Vector3, material: Material, forward_body: bool
 			var center := 0.6 if not lower else 0.52
 			var radius := 0.4 if not lower else 0.48
 			var rise := 0.76 if not lower else 1.24
+			var waist := 0.24
+			if pressure_trunk:
+				# The central pressure body has a narrow equipment landing and
+				# a deep rolled shoulder, distinct from the flat nacelle decks.
+				center = 0.36
+				radius = 0.64
+				waist = -0.05
+				rise = 1.05 if not lower else 0.95
 			var theta := PI * 0.5 - angle if not lower else -angle
-			var point := Vector2(center + radius * cos(theta), 0.24 + rise * sin(theta))
+			var point := Vector2(center + radius * cos(theta), waist + rise * sin(theta))
 			var tangent := Vector2(radius * sin(theta), -rise * cos(theta))
 			section.append(point)
 			tangents.append(tangent)
@@ -1460,7 +1469,7 @@ func _formed_pressure_mesh(size: Vector3, material: Material, forward_body: bool
 	for index in range(starboard_count - 1, 0, -1):
 		section.append(Vector2(-section[index].x, section[index].y))
 		tangents.append(Vector2(tangents[index].x, -tangents[index].y))
-	return _pressure_section_mesh(size, material, section, true, tangents, forward_body, nose_sweep)
+	return _pressure_section_mesh(size, material, section, true, tangents, forward_body, nose_sweep, pressure_trunk)
 
 
 ## A cambered transition carries the nacelle's lower shoulder to the wing.
@@ -1490,7 +1499,7 @@ func _formed_wing_root_mesh(side: float, material: Material) -> ArrayMesh:
 	return surface.commit()
 
 
-func _pressure_section_mesh(size: Vector3, material: Material, section: PackedVector2Array, formed: bool = false, tangents: PackedVector2Array = PackedVector2Array(), forward_body: bool = false, nose_sweep: float = 0.0) -> ArrayMesh:
+func _pressure_section_mesh(size: Vector3, material: Material, section: PackedVector2Array, formed: bool = false, tangents: PackedVector2Array = PackedVector2Array(), forward_body: bool = false, nose_sweep: float = 0.0, pressure_trunk: bool = false) -> ArrayMesh:
 	var stations := [0.0, 0.28, 0.43, 0.83, 1.0]
 	# The trunk and nacelles use longitudinally formed bow skin. Keep the
 	# original flat service deck and afterbody stations; small accessory stock
@@ -1498,6 +1507,8 @@ func _pressure_section_mesh(size: Vector3, material: Material, section: PackedVe
 	# targeting saddle, while nacelle noses sweep into that common forebody.
 	if forward_body:
 		stations = [0.0, 0.018, 0.045, 0.08, 0.12, 0.14, 0.18, 0.24, 0.28, 0.35, 0.43, 0.83, 1.0]
+	if pressure_trunk:
+		stations = [0.0, 0.0045, 0.009, 0.018, 0.03, 0.045, 0.08, 0.12, 0.14, 0.18, 0.24, 0.28, 0.35, 0.43, 0.83, 1.0]
 	var extents: Array[Vector2] = []
 	var derivatives: Array[Vector2] = []
 	var offsets: Array[float] = []
@@ -1527,6 +1538,16 @@ func _pressure_section_mesh(size: Vector3, material: Material, section: PackedVe
 				var remaining: float = 1.0 - t / 0.28
 				sweep = nose_sweep * remaining * remaining
 				sweep_derivative = -2.0 * nose_sweep * remaining / 0.28
+		if pressure_trunk and t < 0.045:
+			# Close the bow with an elliptical rolled end instead of a broad
+			# planar cut. Its tiny terminal seal avoids singular UVs/normals;
+			# the easing rejoins the original sensor landing tangentially.
+			var u: float = 0.00045 + 0.99955 * t / 0.045
+			var rounding := sqrt(1.0 - (1.0 - u) * (1.0 - u))
+			var rounding_derivative := (1.0 - u) * 0.99955 / (0.045 * rounding)
+			derivative = derivative * rounding + Vector2(width, height) * rounding_derivative
+			width *= rounding
+			height *= rounding
 		extents.append(Vector2(width * size.x * 0.5, height * size.y * 0.5))
 		derivatives.append(derivative * Vector2(size.x, size.y) * 0.5)
 		offsets.append(sweep)
