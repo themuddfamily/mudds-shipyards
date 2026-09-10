@@ -43,7 +43,8 @@ static func bind_manufactured_paint(material: StandardMaterial3D) -> void:
 	material.albedo_texture = load(PAINT_ALBEDO_PATH) as Texture2D
 	material.normal_enabled = true
 	material.normal_texture = load(PAINT_NORMAL_PATH) as Texture2D
-	material.normal_scale = 0.32
+	# Keep grazing station highlights smooth while retaining the fine paint grain.
+	material.normal_scale = 0.12
 	material.roughness_texture = null
 	material.roughness_texture_channel = BaseMaterial3D.TEXTURE_CHANNEL_RED
 	material.clearcoat_enabled = true
