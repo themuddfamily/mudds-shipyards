@@ -3604,12 +3604,70 @@ func _test_forward_pressure_skin(zenith: ZenithInterceptor) -> void:
 
 
 
+## Query the rendered cowling triangles, including shoulder curvature, rather
+## than assuming that a mount transform alone proves its stock is supported.
+func _cowling_roof_at(stock: MeshInstance3D, point: Vector3) -> float:
+	var roof := -INF
+	var ray := point - stock.position + Vector3.UP * 3.0
+	for surface in stock.mesh.get_surface_count():
+		var arrays := stock.mesh.surface_get_arrays(surface)
+		var vertices: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
+		var indices: PackedInt32Array = arrays[Mesh.ARRAY_INDEX]
+		for index in range(0, indices.size(), 3):
+			var hit = Geometry3D.ray_intersects_triangle(ray, Vector3.DOWN,
+				vertices[indices[index]], vertices[indices[index + 1]], vertices[indices[index + 2]])
+			if hit != null:
+				roof = maxf(roof, hit.y + stock.position.y)
+	return roof
+
+
 func _test_nacelle_cooling_fit(zenith: ZenithInterceptor) -> void:
 	var airframe := zenith.get_zenith_visual_root().get_node("ModernManufacturedAirframe")
 	var port_frame: Mesh
 	var port_vanes: Mesh
 	for side in [-1.0, 1.0]:
 		var prefix := "Port" if side < 0.0 else "Starboard"
+		var cowling := airframe.get_node(prefix + "EngineCowling") as MeshInstance3D
+		var cowling_valid := cowling.mesh.get_surface_count() == 2
+		var stations := {}
+		for surface in cowling.mesh.get_surface_count():
+			var arrays := cowling.mesh.surface_get_arrays(surface)
+			var vertices: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
+			var normals: PackedVector3Array = arrays[Mesh.ARRAY_NORMAL]
+			var tangents: PackedFloat32Array = arrays[Mesh.ARRAY_TANGENT]
+			var uvs: PackedVector2Array = arrays[Mesh.ARRAY_TEX_UV]
+			var indices: PackedInt32Array = arrays[Mesh.ARRAY_INDEX]
+			cowling_valid = cowling_valid and normals.size() == vertices.size() and tangents.size() == vertices.size() * 4 and uvs.size() == vertices.size()
+			for vertex in vertices.size():
+				stations[snappedf(vertices[vertex].z, 0.00001)] = true
+				var tangent := Vector3(tangents[vertex * 4], tangents[vertex * 4 + 1], tangents[vertex * 4 + 2])
+				cowling_valid = cowling_valid and vertices[vertex].is_finite() and uvs[vertex].is_finite() and normals[vertex].is_finite() and tangent.is_finite()
+				cowling_valid = cowling_valid and absf(normals[vertex].length() - 1.0) < 0.001 and absf(tangent.length() - 1.0) < 0.001 and absf(tangent.dot(normals[vertex])) < 0.001
+			for triangle in range(0, indices.size(), 3):
+				var a := indices[triangle]
+				var b := indices[triangle + 1]
+				var c := indices[triangle + 2]
+				cowling_valid = cowling_valid and (vertices[b] - vertices[a]).cross(vertices[c] - vertices[a]).dot(normals[a] + normals[b] + normals[c]) < -0.0000001
+				cowling_valid = cowling_valid and absf((uvs[b] - uvs[a]).cross(uvs[c] - uvs[a])) > 0.00000001
+		_check(cowling_valid and stations.size() > 30, prefix + " formed cowling has continuous longitudinal stock, outward winding and usable UV/tangent frames in its retained two surfaces")
+		var lip := airframe.get_node(prefix + "IntakeLip") as MeshInstance3D
+		var rim_fits := true
+		for surface in cowling.mesh.get_surface_count():
+			for vertex: Vector3 in cowling.mesh.surface_get_arrays(surface)[Mesh.ARRAY_VERTEX]:
+				if absf(vertex.z + 1.05) < 0.00001:
+					var matched := false
+					for lip_vertex: Vector3 in lip.mesh.surface_get_arrays(0)[Mesh.ARRAY_VERTEX]:
+						matched = matched or vertex.distance_to(lip_vertex) < 0.00001
+					rim_fits = rim_fits and matched
+		_check(rim_fits, prefix + " formed cowling preserves the complete production intake rim")
+		var lid := airframe.get_node(prefix + "EngineServiceDoor") as MeshInstance3D
+		var lid_seated := true
+		for surface in lid.mesh.get_surface_count():
+			for vertex: Vector3 in lid.mesh.surface_get_arrays(surface)[Mesh.ARRAY_VERTEX]:
+				if vertex.y < 1.716:
+					var point := vertex + lid.position
+					lid_seated = lid_seated and _cowling_roof_at(cowling, point) > point.y
+		_check(lid_seated, prefix + " service lid floor remains embedded in the actual formed cowling roof")
 		var mount := airframe.get_node(prefix + "NacelleCoolingMount") as Node3D
 		var frame := mount.get_node(prefix + "NacelleCoolingFrame") as MeshInstance3D
 		var vanes := mount.get_node(prefix + "NacelleCoolingVanes") as MeshInstance3D
@@ -3638,7 +3696,7 @@ func _test_nacelle_cooling_fit(zenith: ZenithInterceptor) -> void:
 			seated = seated and absf(point.x - side * 2.20) < 0.50
 			if vertex.y < -0.024:
 				foot_vertices += 1
-				var roof_y := lerpf(1.73, 1.62, (point.z - 1.40) / 1.25)
+				var roof_y := _cowling_roof_at(cowling, point)
 				seated = seated and point.y < roof_y and point.y > roof_y - 0.01
 		_check(seated and foot_vertices > 30, prefix + " cooling frame seats its entire foot in the cowling roof without bridging its aft break")
 		_check(mount.find_children("*", "CollisionObject3D", true, false).is_empty() and mount.find_children("*", "Light3D", true, false).is_empty(), prefix + " passive cassette adds no collision or lights")

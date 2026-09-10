@@ -4075,6 +4075,30 @@ func _build_wing_thermal_bank(parent: Node3D, prefix: String, side: float, mater
 	parent.add_child(bank)
 
 
+## The intake rim is retained verbatim. Away from either mounting ring, a
+## lower shoulder chine and a longer corner roll form a broad angled land;
+## the central roof and lower wing-intersection stock retain their old fit.
+func _formed_cowling_section(section: Vector4) -> PackedVector3Array:
+	var ring := _cowling_section(section)
+	var amount := smoothstep(-1.05, -0.50, section.w) * (1.0 - smoothstep(3.70, 4.24, section.w))
+	var height := section.y - section.z
+	# A broad sloping land lies between a small lower chine roll and the
+	# roof roll. The final sample is the original flat-roof boundary, so the
+	# complete service lid and cassette footprint remain supported.
+	var shoulder := PackedVector2Array([
+		Vector2(0.980, 0.44), Vector2(1.000, 0.50),
+		Vector2(0.980, 0.57), Vector2(0.930, 0.67),
+		Vector2(0.875, 0.78), Vector2(0.800, 0.91),
+		Vector2(0.720, 0.98), Vector2(0.5928, 1.00),
+	])
+	for index in 8:
+		var point := Vector3(section.x * shoulder[index].x,
+			section.z + height * shoulder[index].y, section.w)
+		ring[index] = ring[index].lerp(point, amount)
+		ring[15 - index] = ring[15 - index].lerp(Vector3(-point.x, point.y, point.z), amount)
+	return ring
+
+
 ## Rounded intake and cowling corners keep broad manufactured roof planes,
 ## with enough curvature to carry a continuous highlight into the nozzle.
 func _cowling_section(section: Vector4) -> PackedVector3Array:
@@ -4195,9 +4219,53 @@ func _formed_pressure_stations(control: Array) -> Array:
 	return formed
 
 
+## Subdivide the longitudinal fairing with the same non-overshooting slopes
+## as the pressure body. Preserve the service lid and cooling cassette roof
+## planes exactly; only the free fore/aft roof transitions are interpolated.
+func _formed_cowling_stations(control: Array) -> Array:
+	var formed := _formed_pressure_stations(control)
+	for index in formed.size() - 1:
+		var section: Vector4 = formed[index]
+		var bay := floori(float(index) / 6.0)
+		var a: Vector4 = control[bay]
+		var b: Vector4 = control[bay + 1]
+		var t := (section.w - a.w) / (b.w - a.w)
+		if section.w >= -0.50 and section.w <= 2.65:
+			section.y = lerpf(a.y, b.y, t)
+		elif b.w == -0.50 or a.w == 2.65:
+			# Match the adjoining mounting plane's slope as the free roof
+			# enters or leaves it, avoiding a crease at either end of the deck.
+			var slope_a := _pressure_station_slope(control, bay, 1)
+			var slope_b := _pressure_station_slope(control, bay + 1, 1)
+			if a.w == 2.65:
+				slope_a = (a.y - control[bay - 1].y) / (a.w - control[bay - 1].w)
+			if b.w == -0.50:
+				slope_b = (control[bay + 2].y - b.y) / (control[bay + 2].w - b.w)
+			section.y = a.y * (2.0 * t * t * t - 3.0 * t * t + 1.0) \
+				+ slope_a * (b.w - a.w) * (t * t * t - 2.0 * t * t + t) \
+				+ b.y * (-2.0 * t * t * t + 3.0 * t * t) \
+				+ slope_b * (b.w - a.w) * (t * t * t - t * t)
+		formed[index] = section
+	return formed
+
+
+func _cowling_triangle(tool: SurfaceTool, a: Vector3, b: Vector3, c: Vector3, uv_a: Vector2, uv_b: Vector2, uv_c: Vector2, center: Vector3) -> void:
+	var vertices := [a, b, c]
+	var uvs := [uv_a, uv_b, uv_c]
+	if (b - a).cross(c - a).dot((a + b + c) / 3.0 - center) > 0.0:
+		vertices = [a, c, b]
+		uvs = [uv_a, uv_c, uv_b]
+	for index in 3:
+		tool.set_uv(uvs[index])
+		tool.add_vertex(vertices[index])
+
+
 func _zenith_hard_shell(parent: Node3D, node_name: String, lateral: float, sections: Array, material: Material, cap_front: bool = true, shoulder_material: Material = null) -> MeshInstance3D:
 	if node_name in ["BlendedPressureHull", "NoseSensorRadome"]:
 		sections = _formed_pressure_stations(sections)
+	var is_cowling := node_name.ends_with("EngineCowling")
+	if is_cowling:
+		sections = _formed_cowling_stations(sections)
 	var tool := SurfaceTool.new()
 	tool.begin(Mesh.PRIMITIVE_TRIANGLES)
 	tool.set_material(material)
@@ -4208,13 +4276,15 @@ func _zenith_hard_shell(parent: Node3D, node_name: String, lateral: float, secti
 		shoulder.begin(Mesh.PRIMITIVE_TRIANGLES)
 		shoulder.set_material(shoulder_material)
 	for station in sections.size() - 1:
-		var a := _airframe_section(sections[station]) if node_name in ["BlendedPressureHull", "NoseSensorRadome"] else (_cowling_section(sections[station]) if node_name.ends_with("EngineCowling") else _hard_section(sections[station]))
-		var b := _airframe_section(sections[station + 1]) if node_name in ["BlendedPressureHull", "NoseSensorRadome"] else (_cowling_section(sections[station + 1]) if node_name.ends_with("EngineCowling") else _hard_section(sections[station + 1]))
+		var a := _airframe_section(sections[station]) if node_name in ["BlendedPressureHull", "NoseSensorRadome"] else (_formed_cowling_section(sections[station]) if is_cowling else _hard_section(sections[station]))
+		var b := _airframe_section(sections[station + 1]) if node_name in ["BlendedPressureHull", "NoseSensorRadome"] else (_formed_cowling_section(sections[station + 1]) if is_cowling else _hard_section(sections[station + 1]))
 		var center := Vector3(0, (sections[station].y + sections[station].z + sections[station + 1].y + sections[station + 1].z) * 0.25, (sections[station].w + sections[station + 1].w) * 0.5)
 		for edge in a.size():
 			# A full intake collar rolls into paired shoulder panels. These are
 			# faces of the cowling itself, so their edges cannot float or overlap.
 			var face_tool := shoulder if shoulder != null and (station == 0 or (station <= 2 and (edge <= 6 or (edge >= 8 and edge <= 14)))) else tool
+			if is_cowling:
+				face_tool = shoulder if shoulder != null and (sections[station].w < -0.84 or (sections[station].w < 0.45 and (edge <= 6 or (edge >= 8 and edge <= 14)))) else tool
 			if node_name == "BlendedPressureHull":
 				# One pale pressure skin flows from the bow to the coaming.
 				# The material boundary follows only the lower structural chine.
@@ -4224,23 +4294,39 @@ func _zenith_hard_shell(parent: Node3D, node_name: String, lateral: float, secti
 			if node_name == "BlendedPressureHull" and edge >= 11 and edge <= 23 and center.z > -2.22 and center.z < 0.34:
 				continue
 			var following := (edge + 1) % a.size()
-			_zenith_triangle(face_tool, a[edge], b[edge], b[following], center)
-			_zenith_triangle(face_tool, a[edge], b[following], a[following], center)
+			if is_cowling:
+				var u := float(edge) / float(a.size())
+				var next_u := float(edge + 1) / float(a.size())
+				_cowling_triangle(face_tool, a[edge], b[edge], b[following], Vector2(u, a[edge].z), Vector2(u, b[edge].z), Vector2(next_u, b[following].z), center)
+				_cowling_triangle(face_tool, a[edge], b[following], a[following], Vector2(u, a[edge].z), Vector2(next_u, b[following].z), Vector2(next_u, a[following].z), center)
+			else:
+				_zenith_triangle(face_tool, a[edge], b[edge], b[following], center)
+				_zenith_triangle(face_tool, a[edge], b[following], a[following], center)
 	tool.set_smooth_group(-1)
 	for end in [0, sections.size() - 1]:
 		if end == 0 and not cap_front: continue
-		var ring := _airframe_section(sections[end]) if node_name in ["BlendedPressureHull", "NoseSensorRadome"] else (_cowling_section(sections[end]) if node_name.ends_with("EngineCowling") else _hard_section(sections[end]))
+		var ring := _airframe_section(sections[end]) if node_name in ["BlendedPressureHull", "NoseSensorRadome"] else (_formed_cowling_section(sections[end]) if is_cowling else _hard_section(sections[end]))
 		var center := Vector3(0, (sections[end].y + sections[end].z) * 0.5, sections[end].w)
 		var inward := center + Vector3.BACK * (0.1 if end == 0 else -0.1)
 		for edge in ring.size():
-			_zenith_triangle(tool, center, ring[edge], ring[(edge + 1) % ring.size()], inward)
+			if is_cowling:
+				var a := ring[edge]
+				var b := ring[(edge + 1) % ring.size()]
+				_cowling_triangle(tool, center, a, b, Vector2(center.x, center.y), Vector2(a.x, a.y), Vector2(b.x, b.y), inward)
+			else:
+				_zenith_triangle(tool, center, ring[edge], ring[(edge + 1) % ring.size()], inward)
 	tool.generate_normals()
+	if is_cowling:
+		tool.generate_tangents()
+		tool.index()
 	var shell := MeshInstance3D.new()
 	shell.name = node_name
 	shell.position.x = lateral
 	var assembly := tool.commit()
 	if shoulder != null:
 		shoulder.generate_normals()
+		if is_cowling:
+			shoulder.generate_tangents()
 		shoulder.index()
 		shoulder.commit(assembly)
 	shell.mesh = assembly
