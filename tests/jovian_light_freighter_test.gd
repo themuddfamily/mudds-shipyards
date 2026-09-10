@@ -33,6 +33,7 @@ func _run() -> void:
 	_test_fitout_cpu_surface_parity(jovian)
 	_test_formed_roof(jovian)
 	_test_formed_forward_shell(jovian)
+	_test_formed_aft_machinery_housing(jovian)
 	_test_open_engine_module_sharing(jovian)
 	_test_definition_and_evidence(jovian)
 	_test_defensive_weapon_visual(jovian)
@@ -90,6 +91,56 @@ func _test_roof_service_construction(jovian: JovianLightFreighter, lid: MeshInst
 		"%s seats perimeter folds on the curved roof without occupying the cabin" % lid.name)
 	_check(outward_winding, "%s has outward clockwise faces" % lid.name)
 	_check(valid_tangent_space, "%s has nondegenerate UVs and finite generated tangents" % lid.name)
+
+
+func _test_formed_aft_machinery_housing(jovian: JovianLightFreighter) -> void:
+	var housing := jovian.get_jovian_visual_root().get_node("AftMachinerySpine") as MeshInstance3D
+	_check(housing.mesh.get_surface_count() == 1 and housing.position == Vector3(0, 2.25, 0),
+		"formed aft casing retains one material surface and the original machinery transform")
+	var arrays := housing.mesh.surface_get_arrays(0)
+	var vertices: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
+	var normals: PackedVector3Array = arrays[Mesh.ARRAY_NORMAL]
+	var uvs: PackedVector2Array = arrays[Mesh.ARRAY_TEX_UV]
+	var tangents: PackedFloat32Array = arrays[Mesh.ARRAY_TANGENT]
+	var edges := {}
+	var valid_faces := true
+	var valid_uvs := uvs.size() == vertices.size() and tangents.size() == vertices.size() * 4
+	var nose_seated := 0
+	var cover_seated := 0
+	var split_seated := 0
+	for triangle in range(0, vertices.size(), 3):
+		var a := vertices[triangle]
+		var b := vertices[triangle + 1]
+		var c := vertices[triangle + 2]
+		valid_faces = valid_faces and (b - a).cross(c - a).dot(normals[triangle]) < -0.00000001
+		valid_uvs = valid_uvs and absf((uvs[triangle + 1] - uvs[triangle]).cross(uvs[triangle + 2] - uvs[triangle])) > 0.00000001
+		for corner in 3:
+			var point := vertices[triangle + corner]
+			var next := vertices[triangle + (corner + 1) % 3]
+			var key_a := str(Vector3i((point * 10000.0).round()))
+			var key_b := str(Vector3i((next * 10000.0).round()))
+			var key := key_a + ":" + key_b if key_a < key_b else key_b + ":" + key_a
+			edges[key] = edges.get(key, 0) + 1
+			if is_equal_approx(point.z, 8.4):
+				nose_seated += 1
+			if is_equal_approx(point.z, 13.32) and absf(point.x) <= 2.0801 and absf(point.y) <= 0.6001:
+				cover_seated += 1
+			if is_equal_approx(point.z, 11.75) or is_equal_approx(point.z, 11.83):
+				split_seated += 1
+	for tangent in tangents:
+		valid_uvs = valid_uvs and is_finite(tangent)
+	var closed := true
+	for count in edges.values():
+		closed = closed and count == 2
+	_check(closed and valid_faces, "formed aft casing is watertight with nondegenerate outward clockwise faces")
+	_check(valid_uvs, "formed aft casing has usable UV area and finite tangents across its folds and cover")
+	_check(nose_seated > 100 and cover_seated > 100 and split_seated > 100,
+		"aft casing keeps its forward body overlap and physically seated rear cover and service rebate")
+	_check(vertices.size() == 6480, "formed aft casing stays at 2160 triangles in its existing renderer")
+	var bounds := housing.mesh.get_aabb()
+	_check(bounds.position.is_equal_approx(Vector3(-4.85, -1.42, 8.4))
+		and bounds.end.is_equal_approx(Vector3(4.85, 1.42, 13.35)),
+		"aft casing retains the authored machinery envelope clear of the freight room")
 
 
 func _test_open_engine_module_sharing(jovian: JovianLightFreighter) -> void:

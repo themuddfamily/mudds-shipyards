@@ -3470,7 +3470,7 @@ func _build_exterior() -> void:
 
 	# Aft machinery deck, tapered tail bridge, radiators, and restrained colour
 	# blocks make the class readable as a utility vessel rather than a fighter.
-	_armour_pod(
+	_aft_machinery_housing(
 		_jovian_visual,
 		"AftMachinerySpine",
 		Vector3(0.0, 2.25, 0.0),
@@ -3480,8 +3480,7 @@ func _build_exterior() -> void:
 			Vector3(3.9, 1.15, 12.25),
 			Vector3(2.2, 0.72, 13.35),
 		]),
-		_jovian_materials.hull_cool,
-		24
+		_jovian_materials.hull_cool
 	)
 	for side in [-1.0, 1.0]:
 		_planform_surface(
@@ -5052,32 +5051,103 @@ func _skin_quad(tool: SurfaceTool, a: Vector3, b: Vector3, c: Vector3, d: Vector
 		tool.add_vertex(vertex)
 
 
-## Broad planar armour faces with two shallow corner facets. This is a sheet
-## assembly, not an inflated superellipse; every panel reflects light as a plane.
-func _armour_pod(parent: Node3D, node_name: String, origin: Vector3,
-		sections: PackedVector3Array, material: Material, _ring_count := 24) -> MeshInstance3D:
+## Formed central machinery casing. The original overall envelope and forward
+## body overlap stay fixed; bounded cubic tapers replace broad diagonal facets.
+## Quarter-ellipse shoulders join the planar load faces tangentially. A shallow
+## circumferential split and rolled, recessed rear cover belong to this casting,
+## so the assembly retains its single surface, material and renderer.
+func _aft_machinery_housing(parent: Node3D, node_name: String, origin: Vector3,
+		sections: PackedVector3Array, material: Material) -> MeshInstance3D:
 	var tool := SurfaceTool.new()
 	tool.begin(Mesh.PRIMITIVE_TRIANGLES)
 	tool.set_material(material)
+	var stations: Array[PackedVector3Array] = []
+	for station in sections.size() - 1:
+		var count := ceili((sections[station + 1].z - sections[station].z) / 0.24)
+		for sample in count:
+			var z := lerpf(sections[station].z, sections[station + 1].z, float(sample) / count)
+			if z < 13.20 and (z < 11.70 or z > 11.88):
+				stations.append(_roof_profile(sections, z))
+	# The removable rear section seats in a 24 mm-deep machined rebate.
+	# Explicit edge stations retain a crisp service split amid the smooth taper.
+	for spec in [Vector2(11.70, 0.0), Vector2(11.75, 0.024),
+			Vector2(11.83, 0.024), Vector2(11.88, 0.0)]:
+		var profile := _roof_profile(sections, spec.x)
+		profile[0].x -= spec.y
+		profile[0].y -= spec.y
+		stations.append(profile)
+	stations.sort_custom(func(a: PackedVector3Array, b: PackedVector3Array) -> bool: return a[0].z < b[0].z)
+	# A rolled perimeter turns into the rear cover's recessed seating face.
+	for section in [Vector3(2.45, 0.79, 13.20), Vector3(2.35, 0.77, 13.29),
+			Vector3(2.22, 0.72, 13.35), Vector3(2.12, 0.64, 13.35),
+			Vector3(2.08, 0.60, 13.32)]:
+		stations.append(PackedVector3Array([section, Vector3.ZERO]))
 	var rings: Array[PackedVector3Array] = []
-	for section in sections:
+	var perimeter_normals: Array[PackedVector3Array] = []
+	for station in stations:
+		var section := station[0]
 		var ring := PackedVector3Array()
-		for xy in [Vector2(1.0, 0.68), Vector2(0.94, 0.90), Vector2(0.77, 1.0), Vector2(-0.77, 1.0), Vector2(-0.94, 0.90), Vector2(-1.0, 0.68), Vector2(-1.0, -0.68), Vector2(-0.94, -0.90), Vector2(-0.77, -1.0), Vector2(0.77, -1.0), Vector2(0.94, -0.90), Vector2(1.0, -0.68)]:
-			ring.append(Vector3(section.x * xy.x, section.y * xy.y, section.z))
+		var normals := PackedVector3Array()
+		for corner in 4:
+			var sx := 1.0 if corner == 0 or corner == 3 else -1.0
+			var sy := 1.0 if corner < 2 else -1.0
+			for step in 9:
+				var angle := float(corner) * PI * 0.5 + float(step) * PI / 16.0
+				var xy := Vector2(sx * 0.77 + cos(angle) * 0.23,
+					sy * 0.68 + sin(angle) * 0.32)
+				ring.append(Vector3(section.x * xy.x, section.y * xy.y, section.z))
+				var across_normal := Vector3(cos(angle) / (section.x * 0.23),
+					sin(angle) / (section.y * 0.32), 0.0).normalized()
+				across_normal.z = -across_normal.x * xy.x * station[1].x - across_normal.y * xy.y * station[1].y
+				normals.append(across_normal.normalized())
 		rings.append(ring)
+		perimeter_normals.append(normals)
+	var distances := PackedFloat32Array()
+	distances.resize(36)
 	for station in rings.size() - 1:
-		for edge in 12:
-			var next := (edge + 1) % 12
-			_skin_quad(tool, rings[station][edge], rings[station][next], rings[station + 1][next], rings[station + 1][edge])
-	for edge in 12:
-		var next := (edge + 1) % 12
-		_skin_quad(tool, Vector3(0.0, 0.0, sections[0].z), rings[0][next], rings[0][edge], Vector3(0.0, 0.0, sections[0].z))
-		_skin_quad(tool, Vector3(0.0, 0.0, sections[-1].z), rings[-1][edge], rings[-1][next], Vector3(0.0, 0.0, sections[-1].z))
+		var next_distances := distances.duplicate()
+		for edge in 36:
+			next_distances[edge] += rings[station][edge].distance_to(rings[station + 1][edge])
+		var perimeter := 0.0
+		for edge in 36:
+			var next := (edge + 1) % 36
+			var width := rings[0][edge].distance_to(rings[0][next])
+			var points := [rings[station][edge], rings[station][next], rings[station + 1][next], rings[station + 1][edge]]
+			var normals := [perimeter_normals[station][edge], perimeter_normals[station][next],
+				perimeter_normals[station + 1][next], perimeter_normals[station + 1][edge]]
+			# The split and cover retain their real machined edges. Curved taper
+			# normals remain shared across the original longitudinal stations.
+			var at_split := stations[station][0].z >= 11.69 and stations[station + 1][0].z <= 11.89
+			if at_split or stations[station + 1][1] == Vector3.ZERO:
+				for corner in 4:
+					var outward: Vector3 = normals[corner]
+					var tangent := Vector3(-outward.y, outward.x, 0.0)
+					var along: Vector3 = points[3] - points[0] if corner == 0 or corner == 3 else points[2] - points[1]
+					normals[corner] = tangent.cross(along).normalized()
+			var uvs := [Vector2(perimeter, distances[edge]), Vector2(perimeter + width, distances[next]),
+				Vector2(perimeter + width, next_distances[next]), Vector2(perimeter, next_distances[edge])]
+			for index in [0, 2, 1, 0, 3, 2]:
+				tool.set_normal(normals[index])
+				tool.set_uv(uvs[index])
+				tool.add_vertex(points[index])
+			perimeter += width
+		distances = next_distances
+	for end in [0, rings.size() - 1]:
+		var normal := Vector3.FORWARD if end == 0 else Vector3.BACK
+		for edge in 36:
+			var next := (edge + 1) % 36
+			var cap := [Vector3(0, 0, stations[end][0].z), rings[end][edge], rings[end][next]]
+			for index in ([0, 1, 2] if end == 0 else [0, 2, 1]):
+				tool.set_normal(normal)
+				tool.set_uv(Vector2(cap[index].x, cap[index].y))
+				tool.add_vertex(cap[index])
+	tool.generate_tangents()
 	var instance := MeshInstance3D.new()
 	instance.name = node_name
 	instance.position = origin
 	instance.mesh = tool.commit()
 	instance.set_meta("closed_loft_hull", true)
+	instance.set_meta("visual_only", true)
 	parent.add_child(instance)
 	return instance
 
