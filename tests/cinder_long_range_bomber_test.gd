@@ -173,19 +173,27 @@ func _test_forward_pressure_body(craft: HeroShip) -> void:
 	_check(shoulder_drop > 0.12 and shoulder_drop < 0.3,
 		"the primary shoulder curves below its central equipment landing rather than retaining a slab crown")
 	var terminal_seal_small := true
+	var terminal_vertices := 0
 	for point in hull_faces:
 		if is_equal_approx(point.z, -7.75):
+			terminal_vertices += 1
 			terminal_seal_small = terminal_seal_small and absf(point.x) < 0.02 and absf(point.y) < 0.025
-	_check(terminal_seal_small and hull_faces.size() / 3 <= 2200,
+	_check(terminal_vertices > 0 and terminal_seal_small and hull_faces.size() / 3 <= 2200,
 		"the rounded bow closes with a small terminal seal within the 2200-triangle primary skin budget")
+	var mirrored_faces := hull_faces.duplicate()
+	for index in mirrored_faces.size():
+		mirrored_faces[index].y = -mirrored_faces[index].y
 	for side in ["Port", "Starboard"]:
 		var shoulder := visual.get_node(side + "PressureShoulder") as MeshInstance3D
 		var cap_embedded := true
+		var cap_vertices := 0
 		for local in shoulder.mesh.get_faces():
 			if is_equal_approx(local.z, -6.4):
+				cap_vertices += 1
 				var point: Vector3 = shoulder.transform * local
-				cap_embedded = cap_embedded and point.y < _pressure_skin_height(hull_faces, point.x, point.z) - 0.01
-		_check(cap_embedded, "%s nacelle nose cap enters the rolled main skin without a detached tooth" % side)
+				cap_embedded = cap_embedded and point.y < _pressure_skin_height(hull_faces, point.x, point.z) - 0.01 \
+					and point.y > -_pressure_skin_height(mirrored_faces, point.x, point.z) + 0.01
+		_check(cap_vertices > 0 and cap_embedded, "%s nacelle nose cap enters the rolled main skin without a detached tooth" % side)
 	var arrays := hull.mesh.surface_get_arrays(0)
 	var vertices: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
 	var normals: PackedVector3Array = arrays[Mesh.ARRAY_NORMAL]
