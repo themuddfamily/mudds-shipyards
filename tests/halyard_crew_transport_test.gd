@@ -1633,9 +1633,9 @@ func _test_surfacing(craft: HeroShip) -> void:
 		_check(
 			material.albedo_texture != null
 			and material.normal_texture != null
-			and material.roughness_texture != null
+			and material.roughness_texture == null
 			and material.normal_texture.resource_path == ShipSurfaceDetail.PAINT_NORMAL_PATH,
-			"%s binds the manufactured paint maps instead of the station tile pattern" % key
+			"%s retains manufactured paint colour and normal maps with uniform roughness" % key
 		)
 		_check(
 			material.uv1_triplanar and not material.uv1_world_triplanar
