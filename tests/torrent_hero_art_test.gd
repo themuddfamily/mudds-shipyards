@@ -512,7 +512,7 @@ func _test_render_allocations(torrent: HeroShip) -> void:
 		int(component.get("drawn_copies", -1)) == 268
 		and int(component.get("geometry_submissions", -1)) == 254
 		and int(component.get("unique_mesh_resources", -1)) == 220
-		and int(component.get("unique_material_resources", -1)) == 41,
+		and int(component.get("unique_material_resources", -1)) == 40,
 		"service-panel sharing removes one mesh allocation while preserving all visible copies and submissions"
 	)
 	_check(
