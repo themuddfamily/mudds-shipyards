@@ -3695,7 +3695,7 @@ func _build_modern_airframe(visual: Node3D) -> void:
 	dark.roughness = 0.80
 	dark.cull_mode = BaseMaterial3D.CULL_DISABLED
 	# Formed chines retain the pressure-body stations and open cockpit well.
-	# Curved shoulder breaks carry a continuous highlight from bow to aft keel.
+	# Broad shoulder lands carry narrow formed highlights from bow to aft keel.
 	_zenith_hard_shell(airframe, "BlendedPressureHull", 0.0, [
 		Vector4(0.28, 1.11, 0.56, -4.53), Vector4(0.57, 1.53, 0.40, -3.65),
 		Vector4(0.88, 1.98, 0.27, -2.78), Vector4(1.03, 2.30, 0.22, -2.22),
@@ -4112,10 +4112,10 @@ func _hard_section(section: Vector4) -> PackedVector3Array:
 	])
 
 
-## A pressure-formed cross-section, with a curved shoulder all the way from
-## the wing-root chine to the canopy coaming. The crown becomes an open pilot
-## well at the original sill; aft of it the flat dorsal mounting land remains.
-## Rings share the same samples at the radome joint, so no cuff overlaps the bow.
+## The pressure skin has a broad shoulder land between small formed chine and
+## coaming rolls. Shared samples retain the open pilot well and radome rim.
+## The nose crown is shallow: its flat central land does not inflate into the
+## shoulder when the roof climbs to the cockpit sill.
 func _airframe_section(section: Vector4) -> PackedVector3Array:
 	var w := section.x
 	var h := section.y - section.z
@@ -4123,18 +4123,24 @@ func _airframe_section(section: Vector4) -> PackedVector3Array:
 	var chine_width := w * (1.0 + 0.24 * (1.0 - smoothstep(0.34, 1.54, section.w)))
 	var chine_y := section.z + h * 0.38
 	var coaming_width := w * 0.70
-	var coaming_y := section.y - h * 0.16 * forward_crown
+	var coaming_y := section.y - h * 0.055 * forward_crown
 	var ring := PackedVector3Array()
-	# Right shoulder: an ellipse supplies continuously changing curvature,
-	# replacing the original long diagonal plane with only tiny corner rolls.
-	for sample in 12:
-		var angle := float(sample) / 11.0 * PI * 0.5
-		ring.append(Vector3(coaming_width + (chine_width - coaming_width) * cos(angle),
-			chine_y + (coaming_y - chine_y) * sin(angle), section.w))
+	# Normalized shoulder travel / rise. Samples 3..8 form one structural
+	# land; only the narrow joins to the chine and coaming turn its normal.
+	var shoulder_profile := PackedVector2Array([
+		Vector2(0.0, 0.0), Vector2(0.008, 0.060), Vector2(0.038, 0.130),
+		Vector2(0.105, 0.215), Vector2(0.235, 0.345), Vector2(0.365, 0.475),
+		Vector2(0.495, 0.605), Vector2(0.625, 0.735), Vector2(0.755, 0.865),
+		Vector2(0.835, 0.940), Vector2(0.915, 0.985), Vector2(1.0, 1.0),
+	])
+	for sample: Vector2 in shoulder_profile:
+		ring.append(Vector3(lerpf(chine_width, coaming_width, sample.x),
+			lerpf(chine_y, coaming_y, sample.y), section.w))
 	for sample in range(1, 13):
 		var t := float(sample) / 13.0
+		var crown := smoothstep(0.0, 0.25, minf(t, 1.0 - t))
 		ring.append(Vector3(lerpf(coaming_width, -coaming_width, t),
-			coaming_y + h * 0.16 * forward_crown * pow(sin(t * PI), 2.0), section.w))
+			coaming_y + h * 0.055 * forward_crown * crown, section.w))
 	for sample in 12:
 		var point := ring[11 - sample]
 		ring.append(Vector3(-point.x, point.y, point.z))
@@ -4145,26 +4151,46 @@ func _airframe_section(section: Vector4) -> PackedVector3Array:
 	return ring
 
 
-## Interpolate the pressure-body stations without extending their envelope.
-## Retaining each original station keeps the canopy sill and dorsal interfaces
-## exact; intermediate sections remove the long straight pyramid facets.
+## Shape-preserving Hermite slopes use physical station spacing. Uniform
+## Catmull-Rom tangents followed by clamping create flat spots and slope jumps
+## at these unevenly spaced stations, visible as dents in the shoulder light.
+func _pressure_station_slope(control: Array, index: int, axis: int) -> float:
+	if index == 0:
+		return (control[1][axis] - control[0][axis]) / (control[1].w - control[0].w)
+	if index == control.size() - 1:
+		return (control[index][axis] - control[index - 1][axis]) / (control[index].w - control[index - 1].w)
+	var before: float = control[index].w - control[index - 1].w
+	var after: float = control[index + 1].w - control[index].w
+	var incoming: float = (control[index][axis] - control[index - 1][axis]) / before
+	var outgoing: float = (control[index + 1][axis] - control[index][axis]) / after
+	if incoming * outgoing <= 0.0:
+		return 0.0
+	var weight_in := 2.0 * after + before
+	var weight_out := after + 2.0 * before
+	return (weight_in + weight_out) / (weight_in / incoming + weight_out / outgoing)
+
+
+## Retain each station and its exact sill/dorsal interface, without overshoot.
 func _formed_pressure_stations(control: Array) -> Array:
 	var formed: Array = []
 	for index in control.size() - 1:
 		var a: Vector4 = control[index]
 		var b: Vector4 = control[index + 1]
-		var before: Vector4 = control[maxi(index - 1, 0)]
-		var after: Vector4 = control[mini(index + 2, control.size() - 1)]
+		var span := b.w - a.w
+		var tangent_a := Vector3.ZERO
+		var tangent_b := Vector3.ZERO
+		for axis in 3:
+			tangent_a[axis] = _pressure_station_slope(control, index, axis) * span
+			tangent_b[axis] = _pressure_station_slope(control, index + 1, axis) * span
 		for sample in 6:
 			var t := float(sample) / 6.0
-			var shape := Vector3(a.x, a.y, a.z).cubic_interpolate(
-				Vector3(b.x, b.y, b.z), Vector3(before.x, before.y, before.z),
-				Vector3(after.x, after.y, after.z), t)
-			formed.append(Vector4(
-				clampf(shape.x, minf(a.x, b.x), maxf(a.x, b.x)),
-				clampf(shape.y, minf(a.y, b.y), maxf(a.y, b.y)),
-				clampf(shape.z, minf(a.z, b.z), maxf(a.z, b.z)),
-				lerpf(a.w, b.w, t)))
+			var t2 := t * t
+			var t3 := t2 * t
+			var shape := Vector3(a.x, a.y, a.z) * (2.0 * t3 - 3.0 * t2 + 1.0) \
+				+ tangent_a * (t3 - 2.0 * t2 + t) \
+				+ Vector3(b.x, b.y, b.z) * (-2.0 * t3 + 3.0 * t2) \
+				+ tangent_b * (t3 - t2)
+			formed.append(Vector4(shape.x, shape.y, shape.z, lerpf(a.w, b.w, t)))
 	formed.append(control[-1])
 	return formed
 

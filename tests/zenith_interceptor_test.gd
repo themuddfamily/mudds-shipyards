@@ -3532,7 +3532,7 @@ func _test_forward_pressure_skin(zenith: ZenithInterceptor) -> void:
 	var hull := airframe.get_node("BlendedPressureHull") as MeshInstance3D
 	var radome := airframe.get_node("NoseSensorRadome") as MeshInstance3D
 	var seam_rings: Array[PackedVector3Array] = []
-	var shoulder := PackedVector3Array()
+	var shoulder: Array[Vector3] = []
 	var coaming_seated := false
 	for skin in [hull, radome]:
 		var seam := PackedVector3Array()
@@ -3541,7 +3541,8 @@ func _test_forward_pressure_skin(zenith: ZenithInterceptor) -> void:
 				if absf(vertex.z + 4.53) < 0.0001:
 					seam.append(vertex)
 				if skin == hull and absf(vertex.z + 2.78) < 0.0001 and vertex.x > 0.61 and vertex.y > 0.90:
-					shoulder.append(vertex)
+					if not shoulder.has(vertex):
+						shoulder.append(vertex)
 				# Front sill's physical footprint is x=.70..77 and top y=2.30.
 				if skin == hull and vertex.distance_to(Vector3(0.721, 2.30, -2.22)) < 0.0001:
 					coaming_seated = true
@@ -3557,18 +3558,50 @@ func _test_forward_pressure_skin(zenith: ZenithInterceptor) -> void:
 			seam_matches = seam_matches and found
 	_check(seam_matches and absf(hull.mesh.get_aabb().position.z - radome.mesh.get_aabb().end.z) < 0.0001,
 		"formed radome and pressure skin share their entire rim without an overlapping square cuff")
-	var lower := Vector3.ZERO
-	var upper := Vector3.ZERO
+	shoulder.sort_custom(func(a: Vector3, b: Vector3) -> bool: return a.y < b.y)
+	var longest_land := 0.0
+	var land_segments := 0
+	var current_land := 0.0
+	var current_segments := 0
+	var largest_break := 0.0
+	var previous_direction := Vector3.ZERO
+	for sample in range(1, shoulder.size()):
+		var segment := shoulder[sample] - shoulder[sample - 1]
+		var direction := segment.normalized()
+		if previous_direction != Vector3.ZERO:
+			largest_break = maxf(largest_break, direction.angle_to(previous_direction))
+			if direction.dot(previous_direction) > 0.9999:
+				current_land += segment.length()
+				current_segments += 1
+			else:
+				current_land = segment.length()
+				current_segments = 1
+		else:
+			current_land = segment.length()
+			current_segments = 1
+		if current_land > longest_land:
+			longest_land = current_land
+			land_segments = current_segments
+		previous_direction = direction
+	_check(longest_land > 0.50 and land_segments >= 4 and largest_break > 0.15 and largest_break < 0.90,
+		"forward shoulder has a broad multi-sample land with finite rolled breaks, rather than an inflated ellipse or sharp wedge")
+	var section_seated := not shoulder.is_empty()
 	for vertex in shoulder:
-		if lower == Vector3.ZERO or vertex.y < lower.y: lower = vertex
-		if vertex.y > upper.y: upper = vertex
-	var curvature := 0.0
-	if lower.distance_to(upper) > 0.1:
-		for vertex in shoulder:
-			curvature = maxf(curvature, (vertex - lower).cross(upper - lower).length() / lower.distance_to(upper))
-	_check(curvature > 0.12 and lower.x > 1.08,
-		"forward shoulder curves through its full height and reaches the wing-root chine instead of a long wedge plane")
+		section_seated = section_seated and vertex.x >= 0.615 and vertex.x <= 1.092 and vertex.y >= 0.919 and vertex.y <= 1.981
+	_check(section_seated and shoulder[0].x > 1.08, "formed shoulder stays within its retained chine, roof and coaming envelope")
 	_check(coaming_seated, "formed pressure skin reaches the retained front cockpit sill footprint at its original height")
+	# A linear taper must remain linear even where bulkheads are unevenly
+	# spaced; uniform Catmull-Rom tangents used to introduce local waves here.
+	var linear_taper: Array = []
+	for z in [-4.53, -3.65, -2.78, -2.22, -1.35]:
+		linear_taper.append(Vector4(1.5 + z * 0.2, 2.5 + z * 0.3, 0.1 - z * 0.1, z))
+	var taper_straight := true
+	for section: Vector4 in zenith.call("_formed_pressure_stations", linear_taper):
+		taper_straight = taper_straight and absf(section.x - (1.5 + section.w * 0.2)) < 0.00001 \
+			and absf(section.y - (2.5 + section.w * 0.3)) < 0.00001 \
+			and absf(section.z - (0.1 - section.w * 0.1)) < 0.00001
+	_check(taper_straight, "uneven pressure-body bulkhead spacing does not introduce waviness into a straight taper")
+
 
 
 func _test_nacelle_cooling_fit(zenith: ZenithInterceptor) -> void:
