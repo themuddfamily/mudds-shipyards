@@ -6069,12 +6069,12 @@ func _build_cockpit() -> void:
 		Vector4(0.16, -0.07, 0.08, -0.10),
 		Vector4(0.14, -0.06, 0.06, 0.10),
 		Vector4(0.10, -0.04, 0.04, 0.16),
-	], _materials.upholstery)
+	], _materials.seal)
 	_cockpit_seat_fitting("ControlStickBoot", Vector3(0.0, 2.14, -0.67), [
 		Vector4(0.22, -0.02, 0.04, -0.10),
 		Vector4(0.16, -0.02, 0.10, 0.00),
 		Vector4(0.22, -0.02, 0.04, 0.10),
-	], _materials.restraint)
+	], _materials.seal)
 	_box(_cockpit_root, "ControlStickTrigger", Vector3(0.0, 2.74, -0.97), Vector3(0.06, 0.12, 0.035), _materials.gold, Vector3(deg_to_rad(-12.0), 0.0, 0.0))
 	_box(_cockpit_root, "ThrottleGate", Vector3(-0.75, 2.4, -0.25), Vector3(0.22, 0.055, 0.62), _materials.dark)
 	_cylinder(_cockpit_root, "Throttle", Vector3(-0.75, 2.52, -0.25), 0.055, 0.4, _materials.gold, Vector3(0.0, 0.0, -18.0))
@@ -6083,7 +6083,7 @@ func _build_cockpit() -> void:
 		Vector4(0.25, -0.05, 0.07, -0.06),
 		Vector4(0.23, -0.04, 0.07, 0.08),
 		Vector4(0.16, -0.02, 0.03, 0.14),
-	], _materials.upholstery_light)
+	], _materials.seal)
 	for side in [-1.0, 1.0]:
 		var side_name := "Port" if side < 0.0 else "Starboard"
 		_box(_cockpit_root, side_name + "RudderPedal", Vector3(side * 0.28, 2.1, -1.48), Vector3(0.28, 0.08, 0.36), _materials.mid, Vector3(deg_to_rad(-18.0), 0.0, 0.0))
@@ -6213,11 +6213,90 @@ func _cockpit_seat_fitting(
 	fitting.rotation = fitting_rotation
 	var upholstered := fitting_name in ["SeatPan", "SeatBack", "Headrest", "PortShoulderSupport", "StarboardShoulderSupport"]
 	var seat_shell := fitting_name in ["SeatPanShell", "SeatBackShell", "HeadrestShell"]
-	fitting.mesh = _cockpit_cushion_mesh(sections, material, seat_shell) if upholstered or seat_shell else _cockpit_formed_enclosure_mesh(sections, material)
+	if fitting_name in ["ControlStickGrip", "ThrottlePalmGrip", "ControlStickBoot"]:
+		fitting.mesh = _cockpit_control_mesh(sections, material, fitting_name == "ControlStickBoot")
+	else:
+		fitting.mesh = _cockpit_cushion_mesh(sections, material, seat_shell) if upholstered or seat_shell else _cockpit_formed_enclosure_mesh(sections, material)
 	# Variants recolour existing cushion identities through material_override.
 	fitting.material_override = material
 	_cockpit_root.add_child(fitting)
 	return fitting
+
+
+## Rounded hand contact volumes and a concentric folded rubber gimbal boot.
+## Both retain their renderer and authored control envelope, using shared rubber.
+func _cockpit_control_mesh(sections: Array[Vector4], material: Material, boot: bool) -> ArrayMesh:
+	const SIDES := 16
+	var rings: Array[PackedVector3Array] = []
+	if boot:
+		# Alternating crests and roots taper onto the shaft. The small aft-to-fore
+		# offset follows its lean, instead of leaving a solid wedge on the gimbal.
+		var folds := [Vector2(-0.02, 0.0), Vector2(-0.02, 0.11),
+			Vector2(-0.007, 0.11), Vector2(0.006, 0.081),
+			Vector2(0.02, 0.101), Vector2(0.033, 0.072),
+			Vector2(0.047, 0.087), Vector2(0.060, 0.063),
+			Vector2(0.074, 0.073), Vector2(0.087, 0.064),
+			Vector2(0.10, 0.070), Vector2(0.10, 0.0)]
+		for fold: Vector2 in folds:
+			var ring := PackedVector3Array()
+			for step in SIDES:
+				var angle := TAU * float(step) / float(SIDES)
+				ring.append(Vector3(cos(angle) * fold.y, fold.x,
+					-sin(angle) * fold.y * 0.90 - (fold.x + 0.02) * 0.17))
+			rings.append(ring)
+	else:
+		# Elliptical transverse sections crown the palm face and roll the sides.
+		# Only three samples per authored span are needed at this control scale.
+		var samples: Array[Vector4] = []
+		for station in range(sections.size() - 1):
+			for step in 3:
+				var t := float(step) / 3.0
+				var section := sections[station].lerp(sections[station + 1], t * t * (3.0 - 2.0 * t))
+				section.w = lerpf(sections[station].w, sections[station + 1].w, t)
+				samples.append(section)
+		samples.append(sections[-1])
+		for end in [0, 1]:
+			var cap := sections[0] if end == 0 else sections[-1]
+			cap.w += 0.009 * (1.0 if end == 0 else -1.0)
+			samples.append(cap)
+		samples.sort_custom(func(a: Vector4, b: Vector4) -> bool: return a.w < b.w)
+		for section in samples:
+			var edge := minf(section.w - sections[0].w, sections[-1].w - section.w)
+			var roll := sqrt(1.0 - pow(1.0 - clampf(edge / 0.025, 0.0, 1.0), 2.0))
+			var ring := PackedVector3Array()
+			for step in SIDES:
+				var angle := TAU * float(step) / float(SIDES)
+				ring.append(Vector3(cos(angle) * section.x * 0.5 * roll,
+					(section.y + section.z) * 0.5 + sin(angle) * (section.z - section.y) * 0.5 * roll,
+					section.w))
+			rings.append(ring)
+	var tool := SurfaceTool.new()
+	tool.begin(Mesh.PRIMITIVE_TRIANGLES)
+	tool.set_material(material)
+	for station in range(rings.size() - 1):
+		for step in SIDES:
+			var next := (step + 1) % SIDES
+			var quad := [rings[station][step], rings[station][next], rings[station + 1][next], rings[station + 1][step]]
+			var uv := [Vector2(float(step) / SIDES, float(station) / rings.size()),
+				Vector2(float(step + 1) / SIDES, float(station) / rings.size()),
+				Vector2(float(step + 1) / SIDES, float(station + 1) / rings.size()),
+				Vector2(float(step) / SIDES, float(station + 1) / rings.size())]
+			for triangle in [[0, 2, 1], [0, 3, 2]]:
+				var a: Vector3 = quad[triangle[0]]
+				var b: Vector3 = quad[triangle[1]]
+				var c: Vector3 = quad[triangle[2]]
+				if (b - a).cross(c - a).length_squared() < 0.000000000001:
+					continue
+				for corner: int in triangle:
+					var point: Vector3 = quad[corner]
+					# End fans use planar UVs; the swept wall unwraps around the
+					# circumference so no cap or axial face collapses in UV space.
+					tool.set_uv(Vector2(point.x, point.z if boot else point.y) if station == 0 or station == rings.size() - 2 else uv[corner])
+					tool.add_vertex(point)
+	tool.index()
+	tool.generate_normals()
+	tool.generate_tangents()
+	return tool.commit()
 
 
 ## A padded section has a broad crowned contact face and a continuous rolled

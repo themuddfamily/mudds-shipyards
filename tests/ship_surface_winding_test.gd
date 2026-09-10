@@ -304,6 +304,15 @@ func _check_craft(expected_sign: int) -> void:
 				opaque_procedural_materials,
 				culled_opaque_materials
 			)
+			if label == "Arrow" and instance.name in ["ControlStickGrip", "ControlStickBoot", "ThrottlePalmGrip"]:
+				_assert_uv_faces_have_area(str(instance.name), instance.mesh)
+				var control_arrays := instance.mesh.surface_get_arrays(0)
+				var tangents: PackedFloat32Array = control_arrays[Mesh.ARRAY_TANGENT]
+				var valid_tangents := not tangents.is_empty()
+				for tangent_index in range(0, tangents.size(), 4):
+					var tangent := Vector3(tangents[tangent_index], tangents[tangent_index + 1], tangents[tangent_index + 2])
+					valid_tangents = valid_tangents and tangent.is_finite() and absf(tangent.length() - 1.0) < 0.001 and absf(absf(tangents[tangent_index + 3]) - 1.0) < 0.001
+				_assert(valid_tangents, "%s has finite unit tangents and valid handedness" % instance.name)
 			meshes += 1
 			var report := _score(instance.mesh)
 			var mesh_triangles := int(report["triangles"])
