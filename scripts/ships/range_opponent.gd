@@ -2300,10 +2300,41 @@ func _add_shared_forward_prong(
 
 
 func _add_gun_housing_batch(parent: Node3D) -> MultiMeshInstance3D:
-	var mesh := StationSurfaceKit.chamfered_cylinder_mesh_cached(
-		0.31, 0.31, 1.0, 28, _chamfered_cylinder_cache,
-		ShipSurfaceDetail.CYLINDER_WALL_RINGS, true, true, _materials.frame
-	)
+	# The fixed lens seats inside an open muzzle lip. Keep the original local
+	# Y axis so the two authored transforms and weapon markers stay unchanged.
+	var profile: Array[Vector2] = [
+		Vector2(-0.45, 0.195), Vector2(-0.64, 0.195),
+		Vector2(-0.66, 0.23), Vector2(-0.66, 0.29),
+		Vector2(-0.62, 0.34), Vector2(-0.48, 0.34),
+		Vector2(-0.43, 0.28), Vector2(-0.10, 0.28),
+		Vector2(-0.04, 0.36), Vector2(0.40, 0.36),
+		Vector2(0.50, 0.29), Vector2(0.50, 0.0),
+	]
+	var surface := SurfaceTool.new()
+	surface.begin(Mesh.PRIMITIVE_TRIANGLES)
+	surface.set_material(_materials.frame)
+	var profile_distance := 0.0
+	for edge in profile.size() - 1:
+		var edge_length := profile[edge].distance_to(profile[edge + 1])
+		var slope := (profile[edge + 1] - profile[edge]).normalized()
+		var corners: Array[Vector2i] = [Vector2i(0, 0), Vector2i(1, 1), Vector2i(1, 0), Vector2i(0, 0), Vector2i(0, 1), Vector2i(1, 1)]
+		if is_zero_approx(profile[edge + 1].y):
+			corners = corners.slice(3)
+		for segment in 28:
+			for address: Vector2i in corners:
+				var ring := profile[edge + address.x]
+				var angle := TAU * float(segment + address.y) / 28.0
+				var radial := Vector3(cos(angle), 0, sin(angle))
+				surface.set_normal(radial * slope.x + Vector3(0, -slope.y, 0))
+				if is_zero_approx(profile[edge + 1].y):
+					surface.set_uv(Vector2(radial.x, radial.z) * ring.y + Vector2(0.5, 0.5))
+				else:
+					surface.set_uv(Vector2(float(segment + address.y) / 28.0,
+						profile_distance + edge_length * float(address.x)))
+				surface.add_vertex(radial * ring.y + Vector3(0, ring.x, 0))
+		profile_distance += edge_length
+	surface.generate_tangents()
+	var mesh := surface.commit()
 	var rotation_basis := Basis.from_euler(Vector3(deg_to_rad(90.0), 0.0, 0.0))
 	var transforms: Array[Transform3D] = []
 	var bounds := AABB()

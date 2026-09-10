@@ -58,12 +58,45 @@ func _run() -> void:
 			and batch.cast_shadow == GeometryInstance3D.SHADOW_CASTING_SETTING_ON
 			and material != null
 			and material.albedo_color.is_equal_approx(RangeOpponent.FRAME_DARK)
-			and is_equal_approx(material.metallic, 0.58)
-			and is_equal_approx(material.roughness, 0.35)
+			and is_equal_approx(material.metallic, 0.65)
+			and is_equal_approx(material.roughness, 0.43)
 			and bool(batch.get_meta(&"presentation_only", false))
 			and batch.get_child_count() == 0,
 		"material, render layers, shadow policy and authority-free ownership remain exact"
 	)
+
+	# The one surface contains a real open lip, a recessed bore, and a wider
+	# mounting shoulder, with outward winding and complete tangent-space data.
+	var arrays := multi.mesh.surface_get_arrays(0)
+	var vertices: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
+	var normals: PackedVector3Array = arrays[Mesh.ARRAY_NORMAL]
+	var uvs: PackedVector2Array = arrays[Mesh.ARRAY_TEX_UV]
+	var tangents: PackedFloat32Array = arrays[Mesh.ARRAY_TANGENT]
+	var geometry_valid := vertices.size() == 1764 and normals.size() == vertices.size() \
+		and uvs.size() == vertices.size() and tangents.size() == vertices.size() * 4
+	var bore_vertices := 0
+	var shoulder_vertices := 0
+	for index in vertices.size():
+		var vertex := vertices[index]
+		var radius := Vector2(vertex.x, vertex.z).length()
+		if vertex.y < -0.45 and is_equal_approx(radius, 0.195):
+			bore_vertices += 1
+		if is_equal_approx(radius, 0.36):
+			shoulder_vertices += 1
+		geometry_valid = geometry_valid and vertex.is_finite() and normals[index].is_normalized()
+		var tangent := Vector3(tangents[index * 4], tangents[index * 4 + 1], tangents[index * 4 + 2])
+		geometry_valid = geometry_valid and tangent.is_finite() and tangent.is_normalized() \
+			and absf(tangent.dot(normals[index])) < 0.001 \
+			and is_equal_approx(absf(tangents[index * 4 + 3]), 1.0)
+	for index in range(0, vertices.size(), 3):
+		var clockwise := (vertices[index + 2] - vertices[index]).cross(vertices[index + 1] - vertices[index])
+		geometry_valid = geometry_valid and clockwise.dot(normals[index]) > 0.00001
+		var uv_edge_a := uvs[index + 1] - uvs[index]
+		var uv_edge_b := uvs[index + 2] - uvs[index]
+		geometry_valid = geometry_valid and absf(uv_edge_a.cross(uv_edge_b)) > 0.000001
+
+	_check(geometry_valid and bore_vertices > 0 and shoulder_vertices > 0,
+		"machined shell retains one modest surface with open lens bore, shoulder, outward winding, UVs and tangents")
 
 	var ordinary_housings := 0
 	for child in visual.get_children():
