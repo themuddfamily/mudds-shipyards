@@ -41,6 +41,7 @@ func _run() -> void:
 	_test_instrument_construction(arrow)
 	_test_cockpit_fairing(arrow)
 	_test_shared_seat_cushions(arrow)
+	_test_arrow_cabin_opening(arrow)
 	_test_collision_boarding_and_cameras(arrow)
 	await _test_engine_weapon_and_lifecycle(arrow)
 	await _test_cleanup(arrow)
@@ -1575,6 +1576,118 @@ func _test_cockpit_fairing(arrow: ArrowReconShip) -> void:
 		if sill_span.size() >= 2 and shell_span.size() >= 2:
 			joins_seated = joins_seated and sill_span[0] < shell_span[-1] and shell_span[0] < sill_span[-1]
 	_check(joins_seated, "cockpit fairing side returns and forward transition seat into both shoulders and the nose")
+
+
+func _test_arrow_cabin_opening(arrow: ArrowReconShip) -> void:
+	var visual := arrow.get_arrow_visual_root()
+	var fairing := visual.get_node("CockpitSillFairing") as MeshInstance3D
+	var floor := visual.get_node("CockpitInterior/CockpitFloor") as MeshInstance3D
+	var floor_bounds := visual.global_transform.affine_inverse() * floor.global_transform * floor.mesh.get_aabb()
+	var cabin_clear := true
+	var floor_sealed := true
+	# Use intersections with the final production triangles across the whole
+	# usable cabin, including the seat pan, lower back and pedal well.
+	for x_step in 19:
+		for z_step in 27:
+			var sample := Vector2(lerpf(-0.96, 0.96, float(x_step) / 18.0), lerpf(-1.94, 0.81, float(z_step) / 26.0))
+			var span := _mesh_vertical_span(fairing, sample)
+			cabin_clear = cabin_clear and span.size() >= 2 and span[-1] <= 1.931
+			floor_sealed = floor_sealed and span.size() >= 2 and span[-1] >= floor_bounds.position.y and span[-1] <= floor_bounds.end.y
+	_check(cabin_clear, "the entire Arrow cabin footprint clears actual fairing triangles above the recessed floor")
+	_check(floor_sealed, "the closed cabin-well bottom overlaps the retained floor without a daylight gap")
+	var faces := fairing.mesh.get_faces()
+	var walls_closed := true
+	for sample in 17:
+		var z := lerpf(-1.93, 0.80, float(sample) / 16.0)
+		for side in [-1.0, 1.0]:
+			var from := fairing.transform.affine_inverse() * Vector3(0, 1.94, z)
+			var to := fairing.transform.affine_inverse() * Vector3(side * 1.02, 1.94, z)
+			var found := false
+			for triangle in range(0, faces.size(), 3):
+				var hit: Variant = Geometry3D.segment_intersects_triangle(from, to, faces[triangle], faces[triangle + 1], faces[triangle + 2])
+				if hit != null:
+					found = found or absf(absf((hit as Vector3).x) - 0.99) < 0.00001
+			walls_closed = walls_closed and found
+	for z in [-1.97, 0.84]:
+		for x_step in 17:
+			var x := lerpf(-0.96, 0.96, float(x_step) / 16.0)
+			var from := fairing.transform.affine_inverse() * Vector3(x, 1.94, -0.55)
+			var to := fairing.transform.affine_inverse() * Vector3(x, 1.94, z + (-0.02 if z < 0 else 0.02))
+			var found := false
+			for triangle in range(0, faces.size(), 3):
+				var hit: Variant = Geometry3D.segment_intersects_triangle(from, to, faces[triangle], faces[triangle + 1], faces[triangle + 2])
+				if hit != null:
+					found = found or absf((hit as Vector3).z - z) < 0.00001
+			walls_closed = walls_closed and found
+	_check(walls_closed, "all four fairing inner returns close the cabin pocket below the retained pressure walls")
+	var cabin := visual.get_node("CockpitInterior")
+	var canopy := visual.get_node("CanopyHinge")
+	var outside_faces := PackedVector3Array()
+	for node: MeshInstance3D in visual.find_children("*", "MeshInstance3D", true, false):
+		if cabin.is_ancestor_of(node) or canopy.is_ancestor_of(node) or not node.visible or node.cast_shadow == GeometryInstance3D.SHADOW_CASTING_SETTING_SHADOWS_ONLY:
+			continue
+		var transform := visual.global_transform.affine_inverse() * node.global_transform
+		var bounds := transform * node.mesh.get_aabb()
+		if not bounds.intersects(AABB(Vector3(-0.55, 1.995, -0.48), Vector3(1.1, 1.16, 1.20))):
+			continue
+		for vertex: Vector3 in node.mesh.get_faces():
+			outside_faces.append(transform * vertex)
+	var seat_space_clear := true
+	for x_step in 13:
+		for z_step in 15:
+			var x := lerpf(-0.55, 0.55, float(x_step) / 12.0)
+			var z := lerpf(-0.48, 0.72, float(z_step) / 14.0)
+			for triangle in range(0, outside_faces.size(), 3):
+				seat_space_clear = seat_space_clear and Geometry3D.segment_intersects_triangle(Vector3(x, 3.15, z), Vector3(x, 1.995, z), outside_faces[triangle], outside_faces[triangle + 1], outside_faces[triangle + 2]) == null
+	_check(seat_space_clear, "every exterior opaque fitting clears the complete seat, lapbelt and lower-back volume")
+	var spine := visual.get_node("DorsalSurveySpine") as MeshInstance3D
+	var cap_faces := spine.mesh.get_faces()
+	var cap_closed := true
+	for x_step in 9:
+		for y_step in 9:
+			var from := spine.transform.affine_inverse() * Vector3(lerpf(-0.4, 0.4, float(x_step) / 8.0), lerpf(1.95, 2.30, float(y_step) / 8.0), 0.80)
+			var to := from + Vector3.BACK * 0.08
+			var found := false
+			for triangle in range(0, cap_faces.size(), 3):
+				var hit: Variant = Geometry3D.segment_intersects_triangle(from, to, cap_faces[triangle], cap_faces[triangle + 1], cap_faces[triangle + 2])
+				if hit != null:
+					found = found or absf((spine.transform * (hit as Vector3)).z - 0.84) < 0.00001
+			cap_closed = cap_closed and found
+	_check(cap_closed, "the retained aft survey spine has a closed front cap behind the complete seat")
+	var geometry_valid := true
+	var cavity_winding := true
+	var cavity_faces := [0, 0, 0, 0, 0]
+	for stock: MeshInstance3D in [fairing, spine]:
+		var arrays := stock.mesh.surface_get_arrays(0)
+		var vertices: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
+		var normals: PackedVector3Array = arrays[Mesh.ARRAY_NORMAL]
+		var uvs: PackedVector2Array = arrays[Mesh.ARRAY_TEX_UV]
+		var tangents: PackedFloat32Array = arrays[Mesh.ARRAY_TANGENT]
+		var indices: PackedInt32Array = arrays[Mesh.ARRAY_INDEX]
+		geometry_valid = geometry_valid and normals.size() == vertices.size() and uvs.size() == vertices.size() and tangents.size() == vertices.size() * 4
+		for index in vertices.size():
+			geometry_valid = geometry_valid and vertices[index].is_finite() and normals[index].is_finite() and absf(normals[index].length() - 1.0) < 0.001 and uvs[index].is_finite()
+		for index in range(0, indices.size(), 3):
+			var a := indices[index]
+			var b := indices[index + 1]
+			var c := indices[index + 2]
+			var cross := (vertices[b] - vertices[a]).cross(vertices[c] - vertices[a])
+			if stock == fairing:
+				# Independent geometry directions: material normals could agree
+				# with an accidentally reversed inner wall, so never trust them.
+				var points := [stock.transform * vertices[a], stock.transform * vertices[b], stock.transform * vertices[c]]
+				var pocket_planes: Array[Plane] = [Plane(Vector3.RIGHT, 0.99), Plane(Vector3.LEFT, 0.99), Plane(Vector3.FORWARD, 1.97), Plane(Vector3.BACK, 0.84), Plane(Vector3.DOWN, -1.93)]
+				for plane_index in pocket_planes.size():
+					var plane := pocket_planes[plane_index]
+					if absf(plane.distance_to(points[0])) < 0.00001 and absf(plane.distance_to(points[1])) < 0.00001 and absf(plane.distance_to(points[2])) < 0.00001:
+						# Godot's clockwise cross points into the material, opposite
+						# the desired inner normal (-plane.normal, or +Y at floor).
+						cavity_winding = cavity_winding and cross.dot(plane.normal) > 0.0
+						cavity_faces[plane_index] += 1
+			geometry_valid = geometry_valid and cross.dot(normals[a]) < 0.0 and cross.dot(normals[b]) < 0.0 and cross.dot(normals[c]) < 0.0
+			geometry_valid = geometry_valid and absf((uvs[b] - uvs[a]).cross(uvs[c] - uvs[a])) > 0.000000001
+	_check(cavity_winding and not cavity_faces.has(0), "geometric winding points all four inner walls toward the cabin and the entire bottom upward")
+	_check(geometry_valid, "both cabin shells keep finite unit normals, complete tangents, outward winding and nonsingular UVs on every triangle")
 
 
 func _mesh_vertical_span(stock: MeshInstance3D, sample: Vector2, include_fittings := false) -> Array[float]:

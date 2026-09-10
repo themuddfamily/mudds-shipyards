@@ -892,7 +892,7 @@ func _build_slender_airframe() -> void:
 		_arrow_visual,
 		"DorsalDataConduit",
 		PackedVector3Array([
-			Vector3(0, 2.52, -0.6),
+			Vector3(0, 2.52, 0.94),
 			Vector3(0, 2.65, 1.45),
 			Vector3(0, 2.42, 3.8),
 		]),
@@ -915,11 +915,14 @@ func _build_manufactured_fairings() -> void:
 	# The sill is a formed upper fuselage, with deep side returns seated in
 	# the nose and shoulders. Its forward crown rises from the service-bay
 	# roof; the cockpit land stays below the previous 2.19 m sill crown.
-	_airframe_shadow_sources.append(_loft_hull(_arrow_visual, "CockpitSillFairing", Vector3(0, 1.60, 0), PackedVector3Array([
+	var sill := _loft_hull(_arrow_visual, "CockpitSillFairing", Vector3(0, 1.60, 0), PackedVector3Array([
 		Vector3(0.75, 0.23, -3.10), Vector3(1.00, 0.37, -2.65),
 		Vector3(1.23, 0.57, -1.80), Vector3(1.28, 0.57, 0.60),
 		Vector3(0.70, 0.51, 1.20),
-	]), _arrow_materials.ceramic))
+	]), _arrow_materials.ceramic)
+	_recess_cockpit_fairing(sill)
+	_close_dorsal_cabin_overlap(_arrow_visual.get_node("DorsalSurveySpine"))
+	_airframe_shadow_sources.append(sill)
 	for side in [-1.0, 1.0]:
 		var side_name := "Port" if side < 0.0 else "Starboard"
 		_airframe_shadow_sources.append(_loft_hull(_arrow_visual, side_name + "ShoulderFairing", Vector3(side * 1.24, 1.40, 0.0), PackedVector3Array([
@@ -959,6 +962,137 @@ func _build_manufactured_fairings() -> void:
 		]), 0.055, _arrow_materials.ceramic)
 		_arrow_visual.add_child(elevon)
 		_airframe_shadow_sources.append(elevon)
+
+
+## Cut the actual crown around the retained cabin, then close the cut with
+## inner returns and a recessed bottom. The floor overlaps that bottom by
+## 6 cm; the original side returns, nose cap and canopy sill remain intact.
+## Keeping this in the original mesh also keeps the static shadow batch honest.
+func _recess_cockpit_fairing(sill: MeshInstance3D) -> void:
+	var floor_y := 1.93 - sill.position.y
+	var planes: Array[Plane] = [
+		Plane(Vector3.RIGHT, 0.99), Plane(Vector3.LEFT, 0.99),
+		Plane(Vector3.FORWARD, 1.97 + sill.position.z), Plane(Vector3.BACK, 0.84 - sill.position.z),
+		Plane(Vector3.DOWN, -floor_y),
+	]
+	var arrays := sill.mesh.surface_get_arrays(0)
+	var vertices: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
+	var normals: PackedVector3Array = arrays[Mesh.ARRAY_NORMAL]
+	var indices: PackedInt32Array = arrays[Mesh.ARRAY_INDEX]
+	var tool := SurfaceTool.new()
+	tool.begin(Mesh.PRIMITIVE_TRIANGLES)
+	tool.set_material(_arrow_materials.ceramic)
+	var rim: Array[PackedVector3Array] = []
+	for triangle in range(0, indices.size(), 3):
+		var remaining: Array[Dictionary] = []
+		for corner in 3:
+			var index := indices[triangle + corner]
+			remaining.append({"point": vertices[index], "normal": normals[index]})
+		# Successive half-space cuts retain each outside fragment exactly once.
+		for plane in planes:
+			if remaining.is_empty():
+				break
+			var outside := _clip_cabin_polygon(remaining, plane, false)
+			_emit_cabin_polygon(tool, outside)
+			remaining = _clip_cabin_polygon(remaining, plane, true)
+		# A triangle outside the opening can clip down to a line exactly on
+		# an authored loft station. It has no removed area and no cavity rim.
+		var removed_area := Vector3.ZERO
+		for corner in range(1, remaining.size() - 1):
+			removed_area += ((remaining[corner].point as Vector3) - (remaining[0].point as Vector3)).cross((remaining[corner + 1].point as Vector3) - (remaining[0].point as Vector3))
+		if removed_area.length_squared() < 0.000000000001:
+			continue
+		for edge in remaining.size():
+			var a: Vector3 = remaining[edge].point
+			var b: Vector3 = remaining[(edge + 1) % remaining.size()].point
+			if a.distance_squared_to(b) < 0.0000000001:
+				continue
+			for plane_index in 4:
+				if absf(planes[plane_index].distance_to(a)) < 0.000001 and absf(planes[plane_index].distance_to(b)) < 0.000001:
+					rim.append(PackedVector3Array([a, b]))
+					break
+	for edge in rim:
+		var a := edge[0]
+		var b := edge[1]
+		var lower_a := Vector3(a.x, floor_y, a.z)
+		var lower_b := Vector3(b.x, floor_y, b.z)
+		_emit_cabin_face(tool, PackedVector3Array([a, b, lower_b]))
+		_emit_cabin_face(tool, PackedVector3Array([a, lower_b, lower_a]))
+		_emit_cabin_face(tool, PackedVector3Array([Vector3(0, floor_y, -0.55), lower_a, lower_b]))
+	tool.generate_tangents()
+	tool.index()
+	sill.mesh = tool.commit()
+	# A recessed well is closed but no longer a loft surrounding its AABB
+	# centre. The cabin checks validate its inward-facing returns directly.
+	sill.remove_meta("closed_loft_hull")
+	sill.remove_meta("loft_section_count")
+
+
+## The narrow spine originally continued forward through the lower seat back.
+## Terminate that hidden end at the cabin rear bulkhead with a sealed cap; all
+## aft surface triangles stay on their original contour and shading normals.
+func _close_dorsal_cabin_overlap(spine: MeshInstance3D) -> void:
+	var plane := Plane(Vector3.BACK, 0.84 - spine.position.z)
+	var arrays := spine.mesh.surface_get_arrays(0)
+	var vertices: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
+	var normals: PackedVector3Array = arrays[Mesh.ARRAY_NORMAL]
+	var indices: PackedInt32Array = arrays[Mesh.ARRAY_INDEX]
+	var tool := SurfaceTool.new()
+	tool.begin(Mesh.PRIMITIVE_TRIANGLES)
+	tool.set_material(_arrow_materials.ceramic)
+	for triangle in range(0, indices.size(), 3):
+		var polygon: Array[Dictionary] = []
+		for corner in 3:
+			var index := indices[triangle + corner]
+			polygon.append({"point": vertices[index], "normal": normals[index]})
+		var retained := _clip_cabin_polygon(polygon, plane, false)
+		_emit_cabin_polygon(tool, retained)
+		for edge in retained.size():
+			var a: Vector3 = retained[edge].point
+			var b: Vector3 = retained[(edge + 1) % retained.size()].point
+			if absf(plane.distance_to(a)) < 0.000001 and absf(plane.distance_to(b)) < 0.000001:
+				_emit_cabin_face(tool, PackedVector3Array([Vector3(0, 0, plane.d), b, a]))
+	tool.generate_tangents()
+	tool.index()
+	spine.mesh = tool.commit()
+
+
+func _clip_cabin_polygon(polygon: Array[Dictionary], plane: Plane, inside: bool) -> Array[Dictionary]:
+	var result: Array[Dictionary] = []
+	for edge in polygon.size():
+		var a := polygon[edge]
+		var b := polygon[(edge + 1) % polygon.size()]
+		var da := plane.distance_to(a.point)
+		var db := plane.distance_to(b.point)
+		var keep_a := da <= 0.0 if inside else da >= 0.0
+		var keep_b := db <= 0.0 if inside else db >= 0.0
+		if keep_a:
+			result.append(a)
+		if keep_a != keep_b:
+			var t := da / (da - db)
+			result.append({"point": (a.point as Vector3).lerp(b.point, t), "normal": (a.normal as Vector3).lerp(b.normal, t).normalized()})
+	return result
+
+
+func _emit_cabin_polygon(tool: SurfaceTool, polygon: Array[Dictionary]) -> void:
+	for corner in range(1, polygon.size() - 1):
+		var points := PackedVector3Array([polygon[0].point, polygon[corner].point, polygon[corner + 1].point])
+		var normals := PackedVector3Array([polygon[0].normal, polygon[corner].normal, polygon[corner + 1].normal])
+		_emit_cabin_face(tool, points, normals)
+
+
+func _emit_cabin_face(tool: SurfaceTool, points: PackedVector3Array, normals := PackedVector3Array()) -> void:
+	var face_normal := (points[2] - points[0]).cross(points[1] - points[0])
+	if face_normal.length_squared() < 0.000000000001:
+		return
+	face_normal = face_normal.normalized()
+	var uv_axis := face_normal.abs().max_axis_index()
+	for corner in 3:
+		var point := points[corner]
+		tool.set_normal(face_normal if normals.is_empty() else normals[corner])
+		# Project onto the face's dominant plane, including vertical returns.
+		tool.set_uv(Vector2(point.y, point.z) if uv_axis == 0 else (Vector2(point.x, point.z) if uv_axis == 1 else Vector2(point.x, point.y)))
+		tool.add_vertex(point)
 
 
 
@@ -2569,7 +2703,7 @@ static func _sensor_leading_edge_curve_joint_transforms() -> Array[Transform3D]:
 
 static func _dorsal_data_conduit_curve_joint_transforms() -> Array[Transform3D]:
 	return [
-		Transform3D(Basis.IDENTITY, Vector3(0.0, 2.52, -0.6)),
+		Transform3D(Basis.IDENTITY, Vector3(0.0, 2.52, 0.94)),
 		Transform3D(Basis.IDENTITY, Vector3(0.0, 2.65, 1.45)),
 		Transform3D(Basis.IDENTITY, Vector3(0.0, 2.42, 3.8)),
 	]

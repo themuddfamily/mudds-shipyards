@@ -380,8 +380,10 @@ func _check_craft(expected_sign: int) -> void:
 		# walls cannot be scored against one AABB centre. The focused seat
 		# test covers their recess and mesh frames; the general sweep still
 		# checks every seat-shell triangle above.
-		closed_lofts == 54,
-		"the normal-independent closed-loft guard covered all 54 centre-testable manufactured closed volumes across Arrow, Zenith, Jovian and Halyard"
+		# Arrow's recessed cabin is concave: its inward walls and upward floor
+		# have independent geometric winding checks in arrow_recon_ship_test.
+		closed_lofts == 53,
+		"the normal-independent closed-loft guard covered all 53 centre-testable manufactured closed volumes across Arrow, Zenith, Jovian and Halyard"
 	)
 
 
