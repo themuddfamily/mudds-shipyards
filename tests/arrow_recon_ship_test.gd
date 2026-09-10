@@ -38,6 +38,7 @@ func _run() -> void:
 	_test_pod_separation_collar_mesh_sharing(arrow)
 	_test_boarding_step_mesh_sharing(arrow)
 	_test_escape_pods_and_sensors(arrow)
+	_test_wingtip_sensor_housings(arrow)
 	_test_instrument_construction(arrow)
 	_test_cockpit_fairing(arrow)
 	_test_shared_seat_cushions(arrow)
@@ -46,6 +47,71 @@ func _run() -> void:
 	await _test_engine_weapon_and_lifecycle(arrow)
 	await _test_cleanup(arrow)
 	_finish()
+
+
+func _test_wingtip_sensor_housings(arrow: ArrowReconShip) -> void:
+	var visual := arrow.get_arrow_visual_root()
+	var pods := 0
+	var attached := true
+	var geometry_valid := true
+	var fitted := true
+	for child in visual.get_children():
+		if not child is MeshInstance3D or not child.has_node("ForwardOpticalWindow"):
+			continue
+		pods += 1
+		var pod := child as MeshInstance3D
+		var side := signf(pod.position.x)
+		var wing := visual.get_node("PortSensorWing" if side < 0.0 else "StarboardSensorWing") as MeshInstance3D
+		for point in [Vector2(5.24, 1.65), Vector2(5.38, 2.30), Vector2(5.58, 3.40)]:
+			var sample := Vector2(side * point.x, point.y)
+			var hull_span := _mesh_vertical_span(pod, sample, true)
+			var wing_span := _mesh_vertical_span(wing, sample)
+			attached = attached and hull_span.size() >= 2 and wing_span.size() >= 2
+			if hull_span.size() >= 2 and wing_span.size() >= 2:
+				attached = attached and hull_span[0] < wing_span[-1] and wing_span[0] < hull_span[-1]
+		var aperture := pod.get_node("FlushPassiveAperture") as MeshInstance3D
+		var optic := pod.get_node("ForwardOpticalWindow") as MeshInstance3D
+		var recess := pod.get_node("OpticalRecess") as MeshInstance3D
+		var optic_box := optic.transform * optic.mesh.get_aabb()
+		fitted = fitted and is_equal_approx(aperture.mesh.get_aabb().position.z, -0.58) and is_equal_approx(aperture.mesh.get_aabb().end.z, 0.75)
+		fitted = fitted and optic_box.position.z > pod.mesh.get_aabb().position.z and optic_box.end.z < recess.mesh.get_aabb().end.z
+		# The shell really opens in front of the optic, and the dark well has
+		# an actual back wall. Bounds alone cannot detect a hidden old cap.
+		for stock: MeshInstance3D in [pod, recess, optic]:
+			var hits := 0
+			var relative := Transform3D.IDENTITY if stock == pod else stock.transform
+			var faces := stock.mesh.get_faces()
+			for triangle in range(0, faces.size(), 3):
+				if Geometry3D.segment_intersects_triangle(Vector3(0.03, 0.02, -2), Vector3(0.03, 0.02, -1.70), relative * faces[triangle], relative * faces[triangle + 1], relative * faces[triangle + 2]) != null:
+					hits += 1
+			fitted = fitted and hits == (0 if stock == pod else (1 if stock == recess else 2))
+		for stock: MeshInstance3D in [pod, aperture, recess, optic]:
+			var arrays := stock.mesh.surface_get_arrays(0)
+			var vertices: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
+			var normals: PackedVector3Array = arrays[Mesh.ARRAY_NORMAL]
+			var uvs: PackedVector2Array = arrays[Mesh.ARRAY_TEX_UV]
+			var tangents: PackedFloat32Array = arrays[Mesh.ARRAY_TANGENT]
+			var indices: PackedInt32Array = arrays[Mesh.ARRAY_INDEX]
+			geometry_valid = geometry_valid and normals.size() == vertices.size() and uvs.size() == vertices.size() and tangents.size() == vertices.size() * 4
+			for index in vertices.size():
+				geometry_valid = geometry_valid and vertices[index].is_finite() and normals[index].is_finite() and absf(normals[index].length() - 1.0) < 0.001 and uvs[index].is_finite()
+			for index in range(0, tangents.size(), 4):
+				var tangent := Vector3(tangents[index], tangents[index + 1], tangents[index + 2])
+				geometry_valid = geometry_valid and tangent.is_finite() and absf(tangent.length() - 1.0) < 0.001 and absf(tangent.dot(normals[index / 4])) < 0.001 and absf(absf(tangents[index + 3]) - 1.0) < 0.001
+			if indices.is_empty():
+				for index in vertices.size(): indices.append(index)
+			for triangle in range(0, indices.size(), 3):
+				var a := indices[triangle]
+				var b := indices[triangle + 1]
+				var c := indices[triangle + 2]
+				var cross := (vertices[b] - vertices[a]).cross(vertices[c] - vertices[a])
+				if stock == recess:
+					var centre := (vertices[a] + vertices[b] + vertices[c]) / 3.0
+					geometry_valid = geometry_valid and cross.dot(Vector3(0, 0, -1.90) - centre) < 0.0
+				geometry_valid = geometry_valid and cross.dot(normals[a] + normals[b] + normals[c]) < 0.0 and absf((uvs[b] - uvs[a]).cross(uvs[c] - uvs[a])) > 0.000000001
+	_check(pods == 2 and attached, "both formed sensor shoulders overlap the actual wing triangles along their complete junction")
+	_check(pods == 2 and fitted, "both passive apertures fit their new equipment lands and both optical windows sit inside open front recesses")
+	_check(pods == 2 and geometry_valid, "sensor skins, inset returns and optical wells retain outward winding, nonsingular UVs and finite unit tangent frames")
 
 
 func _test_shared_seat_cushions(arrow: ArrowReconShip) -> void:
@@ -1694,9 +1760,11 @@ func _mesh_vertical_span(stock: MeshInstance3D, sample: Vector2, include_fitting
 	var heights: Array[float] = []
 	var faces := stock.mesh.get_faces()
 	if include_fittings:
-		# These fitted skins replace the nose roof removed by its service bay.
-		for name in ["SurveyServiceCovers", "SurveyServiceGasket"]:
-			var child := stock.get_node(name) as MeshInstance3D
+		# Fitted inserts close the removed service-bay and sensor-roof skins.
+		for name in ["SurveyServiceCovers", "SurveyServiceGasket", "FlushPassiveAperture"]:
+			var child := stock.get_node_or_null(name) as MeshInstance3D
+			if child == null:
+				continue
 			for vertex: Vector3 in child.mesh.get_faces():
 				faces.append(child.transform * vertex)
 	var start := stock.transform.affine_inverse() * Vector3(sample.x, 4.0, sample.y)

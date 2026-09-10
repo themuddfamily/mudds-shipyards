@@ -853,16 +853,27 @@ func _build_slender_airframe() -> void:
 			"WingtipSensorPod",
 			Vector3(side * 5.55, 1.0, 2.45),
 			PackedVector3Array([
-				Vector3(0.23, 0.17, -1.85),
-				Vector3(0.40, 0.23, -1.45),
-				Vector3(0.40, 0.23, 1.25),
-				Vector3(0.23, 0.17, 1.75),
+				# Sixteen actual stations keep the original sampling density. The
+				# optic land grows through a fore radome into the equipment
+				# shoulder; the wing root carries into a longer aft fairing.
+				Vector3(0.23, 0.17, -1.85), Vector3(0.248, 0.182, -1.72),
+				Vector3(0.29, 0.202, -1.50), Vector3(0.34, 0.221, -1.22),
+				Vector3(0.382, 0.234, -0.90), Vector3(0.40, 0.24, -0.58),
+				Vector3(0.40, 0.24, -0.25), Vector3(0.40, 0.24, 0.10),
+				Vector3(0.40, 0.24, 0.45), Vector3(0.395, 0.238, 0.75),
+				Vector3(0.375, 0.227, 1.02), Vector3(0.33, 0.20, 1.24),
+				Vector3(0.262, 0.168, 1.42), Vector3(0.19, 0.129, 1.57),
+				Vector3(0.125, 0.092, 1.69), Vector3(0.10, 0.08, 1.75),
 			]),
-			_arrow_materials.ceramic
+			_arrow_materials.ceramic,
+			true
 		)
 		_airframe_shadow_sources.append(sensor_pod)
-		_cut_pressure_panel(sensor_pod, "FlushPassiveAperture", 5, 10, 5, 11, _arrow_materials.graphite)
-		_box(sensor_pod, "ForwardOpticalWindow", Vector3(0, 0, -1.86), Vector3(0.32, 0.17, 0.035), _arrow_materials.sensor)
+		# These are direct station indices: the inset occupies the actual
+		# equipment shoulder from z=-0.58 to +0.75, ahead of the tail roll.
+		_cut_pressure_panel(sensor_pod, "FlushPassiveAperture", 5, 9, 5, 11, _arrow_materials.graphite)
+		_fit_wingtip_optical_recess(sensor_pod)
+		_box(sensor_pod, "ForwardOpticalWindow", Vector3(0, 0, -1.79), Vector3(0.32, 0.17, 0.035), _arrow_materials.sensor)
 		_sphere(_arrow_visual, "PortNavigationLight" if side_index == 0 else "StarboardNavigationLight", Vector3(side * 5.64, 1.04, 3.35), 0.115, _arrow_materials.nav_red if side < 0 else _arrow_materials.nav_green)
 	_multi_mesh_box(
 		_arrow_visual,
@@ -1237,10 +1248,6 @@ func _build_recon_systems() -> void:
 	(mast.get_node("MastPedestal") as Node3D).visible = true
 	_box(survey_head, "OpticalRecess", Vector3(0, 0, -0.535), Vector3(1.34, 0.30, 0.06), _arrow_materials.graphite)
 	(survey_head.get_node("SurveyFrontAperture") as Node3D).position.z = -0.571
-	for wing_sensor in _arrow_visual.get_children():
-		if wing_sensor is MeshInstance3D and wing_sensor.has_node("ForwardOpticalWindow"):
-			_box(wing_sensor, "OpticalRecess", Vector3(0, 0, -1.87), Vector3(0.40, 0.25, 0.06), _arrow_materials.graphite)
-			(wing_sensor.get_node("ForwardOpticalWindow") as Node3D).position.z = -1.907
 	# Armored cable raceways follow the retained conduit route exactly. The
 	# small exposed termini remain diagnostic cyan; broad spans are protected.
 	for route in _arrow_visual.get_children():
@@ -2828,25 +2835,26 @@ static func _transformed_mesh_bounds(
 	return result
 
 
-func _loft_hull(parent: Node3D, node_name: String, origin: Vector3, authored_sections: PackedVector3Array, material: Material) -> MeshInstance3D:
+func _loft_hull(parent: Node3D, node_name: String, origin: Vector3, authored_sections: PackedVector3Array, material: Material, direct_stations := false) -> MeshInstance3D:
 	var curved_pressure_shell := node_name == "CanopyShellConstruction"
 	# Only formed airframe skins get continuous curvature. Pressure-pod cases,
 	# saddles and removable covers retain their plate lands.
 	var formed_airframe := node_name in ["ReconFuselage", "GraphiteKeel", "DorsalSurveySpine", "WingtipSensorPod", "EfficientEngineHousing", "CockpitSillFairing"] or node_name.ends_with("ShoulderFairing") or node_name.ends_with("EngineIntakeFairing")
-	var sections := PackedVector3Array()
-	for index in authored_sections.size() - 1:
-		var start := authored_sections[index]
-		var finish := authored_sections[index + 1]
-		for sample_index in 5:
-			var t := float(sample_index) / 5.0
-			var curved := start.cubic_interpolate(finish, authored_sections[maxi(0, index - 1)], authored_sections[mini(authored_sections.size() - 1, index + 2)], t) if curved_pressure_shell or formed_airframe else start.lerp(finish, t)
-			if formed_airframe:
-				# Keep authored extrema and all boarding/pod clearances. A cubic
-				# tangent may otherwise swell beyond adjacent pressure stations.
-				curved.x = clampf(curved.x, minf(start.x, finish.x), maxf(start.x, finish.x))
-				curved.y = clampf(curved.y, minf(start.y, finish.y), maxf(start.y, finish.y))
-			sections.append(Vector3(maxf(0.01, curved.x), maxf(0.01, curved.y), lerpf(start.z, finish.z, t)))
-	sections.append(authored_sections[-1])
+	var sections := authored_sections if direct_stations else PackedVector3Array()
+	if not direct_stations:
+		for index in authored_sections.size() - 1:
+			var start := authored_sections[index]
+			var finish := authored_sections[index + 1]
+			for sample_index in 5:
+				var t := float(sample_index) / 5.0
+				var curved := start.cubic_interpolate(finish, authored_sections[maxi(0, index - 1)], authored_sections[mini(authored_sections.size() - 1, index + 2)], t) if curved_pressure_shell or formed_airframe else start.lerp(finish, t)
+				if formed_airframe:
+					# Keep authored extrema and all boarding/pod clearances. A cubic
+					# tangent may otherwise swell beyond adjacent pressure stations.
+					curved.x = clampf(curved.x, minf(start.x, finish.x), maxf(start.x, finish.x))
+					curved.y = clampf(curved.y, minf(start.y, finish.y), maxf(start.y, finish.y))
+				sections.append(Vector3(maxf(0.01, curved.x), maxf(0.01, curved.y), lerpf(start.z, finish.z, t)))
+		sections.append(authored_sections[-1])
 	const PLATE_QUADRANT := [
 		Vector2(1.0, 0.0), Vector2(1.0, 0.3), Vector2(1.0, 0.6), Vector2(1.0, 0.88),
 		Vector2(0.97, 0.97), Vector2(0.88, 1.0), Vector2(0.6, 1.0), Vector2(0.3, 1.0),
@@ -2915,6 +2923,85 @@ func _loft_hull(parent: Node3D, node_name: String, origin: Vector3, authored_sec
 	instance.set_meta("loft_section_count", sections.size())
 	parent.add_child(instance)
 	return instance
+
+
+## Replace the front disk with a machined annulus and a real recessed well.
+## The graphite well takes the existing OpticalRecess renderer; no backing box
+## projects beyond the radome. Both caps get planar UVs for valid tangents.
+func _fit_wingtip_optical_recess(shell: MeshInstance3D) -> void:
+	var arrays := shell.mesh.surface_get_arrays(0)
+	var vertices: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
+	var normals: PackedVector3Array = arrays[Mesh.ARRAY_NORMAL]
+	var uvs: PackedVector2Array = arrays[Mesh.ARRAY_TEX_UV]
+	var indices: PackedInt32Array = arrays[Mesh.ARRAY_INDEX]
+	var skin := SurfaceTool.new()
+	skin.begin(Mesh.PRIMITIVE_TRIANGLES)
+	skin.set_material(_arrow_materials.ceramic)
+	for triangle in range(0, indices.size(), 3):
+		var front := true
+		var rear := true
+		for corner in 3:
+			front = front and is_equal_approx(vertices[indices[triangle + corner]].z, -1.85)
+			rear = rear and is_equal_approx(vertices[indices[triangle + corner]].z, 1.75)
+		if front:
+			continue
+		for corner in 3:
+			var index := indices[triangle + corner]
+			var point := vertices[index]
+			skin.set_normal(Vector3.BACK if rear else normals[index])
+			skin.set_uv(Vector2(point.x, point.y) if rear else uvs[index])
+			skin.add_vertex(point)
+	var well := SurfaceTool.new()
+	well.begin(Mesh.PRIMITIVE_TRIANGLES)
+	well.set_material(_arrow_materials.graphite)
+	for ring in 32:
+		var edges: Array[Vector3] = []
+		for ring_index in [ring, (ring + 1) % 32]:
+			var angle := TAU * float(ring_index) / 32.0
+			var contour := Vector2(signf(cos(angle)) * pow(absf(cos(angle)), 0.55), signf(sin(angle)) * pow(absf(sin(angle)), 0.55))
+			edges.append(Vector3(contour.x * 0.23, contour.y * 0.17, -1.85))
+			edges.append(Vector3(contour.x * 0.20, contour.y * 0.125, -1.85))
+			edges.append(Vector3(contour.x * 0.18, contour.y * 0.103, -1.765))
+		for index in [0, 3, 4, 0, 4, 1]:
+			var point := edges[index]
+			skin.set_normal(Vector3.FORWARD)
+			skin.set_uv(Vector2(point.x, point.y))
+			skin.add_vertex(point)
+		for index in [1, 4, 5, 1, 5, 2]:
+			var point := edges[index]
+			well.set_uv(Vector2(point.x, point.y))
+			well.add_vertex(point)
+		for point in [Vector3(0, 0, -1.765), edges[2], edges[5]]:
+			well.set_uv(Vector2(point.x, point.y))
+			well.add_vertex(point)
+	skin.generate_tangents()
+	skin.index()
+	shell.mesh = skin.commit()
+	well.generate_normals()
+	well.generate_tangents()
+	well.index()
+	var recess := MeshInstance3D.new()
+	recess.name = "OpticalRecess"
+	recess.mesh = well.commit()
+	shell.add_child(recess)
+	# The inset side returns need their own projection: XZ collapses the
+	# narrow walls at each station boundary and cannot generate tangents.
+	var aperture := shell.get_node("FlushPassiveAperture") as MeshInstance3D
+	var aperture_faces := aperture.mesh.get_faces()
+	var fitted := SurfaceTool.new()
+	fitted.begin(Mesh.PRIMITIVE_TRIANGLES)
+	fitted.set_material(_arrow_materials.graphite)
+	for triangle in range(0, aperture_faces.size(), 3):
+		var normal := -(aperture_faces[triangle + 1] - aperture_faces[triangle]).cross(aperture_faces[triangle + 2] - aperture_faces[triangle]).normalized()
+		var axis := normal.abs().max_axis_index()
+		for corner in 3:
+			var point := aperture_faces[triangle + corner]
+			fitted.set_normal(normal)
+			fitted.set_uv(Vector2(point.y, point.z) if axis == 0 else (Vector2(point.x, point.z) if axis == 1 else Vector2(point.x, point.y)))
+			fitted.add_vertex(point)
+	fitted.generate_tangents()
+	fitted.index()
+	aperture.mesh = fitted.commit()
 
 
 ## All nested wing skins follow one pressure contour, so access panels and
