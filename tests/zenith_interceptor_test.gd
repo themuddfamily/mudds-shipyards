@@ -3209,6 +3209,7 @@ func _run() -> void:
 	_test_definition_and_evidence(zenith)
 	_test_authored_asset_and_runtime_authority(zenith)
 	await _test_boarding_collision_camera_and_canopy(zenith)
+	_test_fitted_canopy(zenith)
 	_test_pilot_instruments(zenith)
 	_test_forward_pressure_skin(zenith)
 	_test_nacelle_cooling_fit(zenith)
@@ -3525,6 +3526,86 @@ func _test_boarding_collision_camera_and_canopy(zenith: ZenithInterceptor) -> vo
 	zenith.set_canopy_open(false, 0.0)
 	_check(not zenith.is_canopy_open() and absf(functional_canopy.rotation.x) < 0.01 and absf(authored_canopy.rotation.x) < 0.01, "common canopy lifecycle reseals both hinges")
 	_check(functional_canopy.get_instance_id() == functional_canopy_id and authored_canopy.get_instance_id() == authored_canopy_id, "canopy motion preserves both controller and authored identities")
+
+
+## Intersect emitted triangles in ship coordinates, independently of the
+## canopy builder's stations, UVs and metadata.
+func _canopy_triangle_hits(zenith: ZenithInterceptor, stock: MeshInstance3D, origin: Vector3, direction: Vector3) -> PackedVector3Array:
+	var hits := PackedVector3Array()
+	var transform := zenith.global_transform.affine_inverse() * stock.global_transform
+	var faces := stock.mesh.get_faces()
+	for index in range(0, faces.size(), 3):
+		var hit = Geometry3D.ray_intersects_triangle(origin, direction,
+			transform * faces[index], transform * faces[index + 1], transform * faces[index + 2])
+		if hit != null:
+			hits.append(hit)
+	return hits
+
+
+func _test_fitted_canopy(zenith: ZenithInterceptor) -> void:
+	zenith.set_canopy_open(false, 0.0)
+	var visual := zenith.get_zenith_visual_root()
+	var pivot := visual.get_node("ModernEnclosedCanopy") as Node3D
+	var glass := pivot.get_node("LaminatedCanopy") as MeshInstance3D
+	var hull := visual.get_node("ModernManufacturedAirframe/BlendedPressureHull") as MeshInstance3D
+	var transform := zenith.global_transform.affine_inverse() * glass.global_transform
+	var faces := glass.mesh.get_faces()
+	var edges := {}
+	for index in range(0, faces.size(), 3):
+		for edge in 3:
+			var a := transform * faces[index + edge]
+			var b := transform * faces[index + (edge + 1) % 3]
+			var key := [a, b] if a < b else [b, a]
+			edges[key] = int(edges.get(key, 0)) + 1
+	var contacts := 0
+	var rim_seated := true
+	for edge: Array in edges:
+		if int(edges[edge]) != 1:
+			continue
+		# Sample the center as well as both endpoints of every open edge.
+		for point: Vector3 in [edge[0], edge[1], (edge[0] + edge[1]) * 0.5]:
+			var outward := Vector3(signf(point.x) * 0.0005, 0, 0)
+			if point.z < -2.2199:
+				outward = Vector3.FORWARD * 0.0005
+			elif point.z > 0.3399:
+				outward = Vector3.BACK * 0.0005
+			var hits := _canopy_triangle_hits(zenith, hull, point + outward + Vector3.UP * 0.02, Vector3.DOWN)
+			var seated := false
+			for hit in hits:
+				seated = seated or absf(hit.y - point.y) < 0.001
+			rim_seated = rim_seated and seated
+			contacts += 1
+	_check(contacts > 100 and rim_seated, "every emitted canopy boundary edge seats on the pressure hull within 1 mm, including the broad front windscreen")
+	var head_clear := true
+	for x in [-0.16, 0.0, 0.16]:
+		for z in [-0.71, -0.55, -0.39]:
+			var hits := _canopy_triangle_hits(zenith, glass, Vector3(x, 1.7, z), Vector3.UP)
+			head_clear = head_clear and not hits.is_empty()
+			for hit in hits:
+				head_clear = head_clear and hit.y > 3.09
+	_check(head_clear, "actual canopy triangles clear the preserved seated head by at least 50 mm without a lower glass skin through the pilot")
+	var eye_hits := _canopy_triangle_hits(zenith, glass, EXPECTED_ANCHORS[&"CockpitCamera"], Vector3.UP)
+	_check(not eye_hits.is_empty() and eye_hits[0].y > EXPECTED_ANCHORS[&"CockpitCamera"].y + 0.15,
+		"physical cockpit eye remains inside the fitted canopy with overhead clearance")
+	var mesh_id := glass.mesh.get_instance_id()
+	var frame := glass.get_node("CanopyPressureFrame") as MeshInstance3D
+	var frame_id := frame.mesh.get_instance_id()
+	var reference := zenith.get_zenith_authored_presentation().call("get_canopy_pivot") as Node3D
+	var follows_hinge := true
+	for fraction in [0.0, 0.35, 0.70, 1.0]:
+		zenith.call("_set_canopy_open_fraction", fraction)
+		follows_hinge = follows_hinge and pivot.global_transform.is_equal_approx(reference.global_transform)
+		follows_hinge = follows_hinge and glass.mesh.get_instance_id() == mesh_id and frame.mesh.get_instance_id() == frame_id
+	zenith.set_canopy_open(true, 0.0)
+	var aperture_clear := true
+	for x in [-0.45, 0.0, 0.45]:
+		for z in [-1.8, -1.1, -0.55]:
+			for stock in [glass, frame]:
+				for hit in _canopy_triangle_hits(zenith, stock, Vector3(x, 1.7, z), Vector3.UP):
+					aperture_clear = aperture_clear and hit.y > 3.5
+	_check(follows_hinge, "modern glass and fitted frame follow every common hinge fraction without rebuilding resources")
+	_check(aperture_clear, "fully open glazing and frame clear the boarding aperture above the retained seat")
+	zenith.set_canopy_open(false, 0.0)
 
 
 func _test_forward_pressure_skin(zenith: ZenithInterceptor) -> void:

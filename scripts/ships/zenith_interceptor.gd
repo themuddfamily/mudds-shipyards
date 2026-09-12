@@ -3783,7 +3783,7 @@ func _build_modern_airframe(visual: Node3D) -> void:
 	upholstery.roughness = 0.95
 	_build_contoured_pilot_seat(upholstery, dark)
 	_build_pilot_instrument_binnacle(dark, panel)
-	_build_enclosed_canopy(visual)
+	_build_enclosed_canopy(visual, pressure_stations)
 	for side in [-1.0, 1.0]:
 		var prefix := "Port" if side < 0.0 else "Starboard"
 		ShipSurfaceDetail.mark_surface(airframe, prefix + "WingRegistration", "zenith",
@@ -4464,7 +4464,7 @@ func _build_segmented_exhaust(parent: Node3D, prefix: String, origin: Vector3, d
 	parent.add_child(mesh)
 
 
-func _build_enclosed_canopy(visual: Node3D) -> void:
+func _build_enclosed_canopy(visual: Node3D, pressure_stations: Array) -> void:
 	var reference_pivot := _authored_presentation.call("get_canopy_pivot") as Node3D
 	for old_surface in reference_pivot.find_children("*", "MeshInstance3D", true, false):
 		(old_surface as MeshInstance3D).visible = false
@@ -4477,18 +4477,18 @@ func _build_enclosed_canopy(visual: Node3D) -> void:
 	glass.metallic = 0.40
 	glass.roughness = 0.23
 	glass.cull_mode = BaseMaterial3D.CULL_DISABLED
-	var glazing := _zenith_loft(_modern_canopy_pivot, "LaminatedCanopy", Vector3(0, -0.10, -0.98), PackedVector3Array([
-		Vector3(0.05, 0.04, -1.78), Vector3(0.53, 0.34, -1.10),
-		Vector3(0.91, 0.62, -0.15), Vector3(0.93, 0.62, 0.68),
-		Vector3(0.77, 0.44, 1.18),
-	]), glass, 0.78)
+	# Use the pressure body's actual coaming stations, including their adjacent
+	# slope controls. The glass ends on this rim; there is no lower bubble inside
+	# the pilot well. All points are authored closed, relative to the common hinge.
+	var stations := _formed_pressure_stations(pressure_stations).filter(
+		func(station: Vector4) -> bool: return station.w >= -2.22001 and station.w <= 0.34001)
+	var glazing := _build_fitted_canopy_glazing(stations, glass)
 	glazing.layers = COCKPIT_FRAME_EXTERIOR_VISUAL_MASK
 	var frame_material := glass.duplicate() as StandardMaterial3D
 	frame_material.albedo_color = Color("536169")
 	frame_material.metallic = 0.15
 	frame_material.roughness = 0.75
-	_fit_canopy_frame(glazing, 7, frame_material)
-	_fit_canopy_frame(glazing, 16, frame_material)
+	_fit_canopy_frame(glazing, frame_material)
 	_sync_modern_canopy_pose()
 
 
@@ -4540,67 +4540,6 @@ func _zenith_triangle(tool: SurfaceTool, a: Vector3, b: Vector3, c: Vector3, cen
 	for point: Vector3 in points:
 		tool.set_uv(Vector2(point.x, point.z) * 0.2)
 		tool.add_vertex(point)
-
-
-func _zenith_loft(parent: Node3D, node_name: String, origin: Vector3, authored_sections: PackedVector3Array, material: Material, section_power: float = 0.40) -> MeshInstance3D:
-	var sections := PackedVector3Array()
-	for index in authored_sections.size() - 1:
-		var start := authored_sections[index]
-		var finish := authored_sections[index + 1]
-		for sample_index in 5:
-			var t := float(sample_index) / 5.0
-			var curved := start.cubic_interpolate(finish, authored_sections[maxi(0, index - 1)], authored_sections[mini(authored_sections.size() - 1, index + 2)], t)
-			sections.append(Vector3(maxf(0.01, curved.x), maxf(0.01, curved.y), lerpf(start.z, finish.z, t)))
-	sections.append(authored_sections[-1])
-	const RING_COUNT := 32
-	var tool := SurfaceTool.new()
-	tool.begin(Mesh.PRIMITIVE_TRIANGLES)
-	tool.set_material(material)
-	for section_index in sections.size():
-		var section := sections[section_index]
-		for ring_index in RING_COUNT:
-			var angle := TAU * float(ring_index) / float(RING_COUNT)
-			var cosine := cos(angle)
-			var sine := sin(angle)
-			var rounded_x := signf(cosine) * pow(absf(cosine), section_power)
-			var rounded_y := signf(sine) * pow(absf(sine), section_power)
-			tool.set_uv(Vector2(float(ring_index) / float(RING_COUNT), float(section_index) / float(maxi(1, sections.size() - 1))))
-			tool.add_vertex(Vector3(section.x * rounded_x, section.y * rounded_y, section.z))
-	for section_index in sections.size() - 1:
-		for ring_index in RING_COUNT:
-			var next_ring := (ring_index + 1) % RING_COUNT
-			var current := section_index * RING_COUNT + ring_index
-			var current_next := section_index * RING_COUNT + next_ring
-			var following := (section_index + 1) * RING_COUNT + ring_index
-			var following_next := (section_index + 1) * RING_COUNT + next_ring
-			tool.add_index(current)
-			tool.add_index(following)
-			tool.add_index(following_next)
-			tool.add_index(current)
-			tool.add_index(following_next)
-			tool.add_index(current_next)
-	var front_center := sections.size() * RING_COUNT
-	tool.add_vertex(Vector3(0, 0, sections[0].z))
-	var rear_center := front_center + 1
-	tool.add_vertex(Vector3(0, 0, sections[sections.size() - 1].z))
-	for ring_index in RING_COUNT:
-		var next_ring := (ring_index + 1) % RING_COUNT
-		tool.add_index(front_center)
-		tool.add_index(ring_index)
-		tool.add_index(next_ring)
-		var rear_base := (sections.size() - 1) * RING_COUNT
-		tool.add_index(rear_center)
-		tool.add_index(rear_base + next_ring)
-		tool.add_index(rear_base + ring_index)
-	tool.generate_normals()
-	var instance := MeshInstance3D.new()
-	instance.name = node_name
-	instance.position = origin
-	instance.mesh = tool.commit()
-	instance.set_meta("closed_loft_hull", true)
-	instance.set_meta("loft_section_count", sections.size())
-	parent.add_child(instance)
-	return instance
 
 
 func _build_starboard_wing_damage_cue(visual: Node3D) -> void:
@@ -5518,33 +5457,90 @@ static func _violation(
 	violations.append({"code": code, "path": path, "message": message})
 
 
-## Cut a bounded grid patch out of a loft and recess its replacement surface.
-## Slim pressure-frame arches are fitted to the actual laminated shell rather
-## than suspended as straight rails above its curved roof.
-func _fit_canopy_frame(glazing: MeshInstance3D, section: int, material: Material) -> void:
-	var arrays := glazing.mesh.surface_get_arrays(0)
-	var vertices: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
-	var normals: PackedVector3Array = arrays[Mesh.ARRAY_NORMAL]
-	var uvs: PackedVector2Array = arrays[Mesh.ARRAY_TEX_UV]
-	var sections := int(glazing.get_meta("loft_section_count"))
-	var arch := {}
-	for vertex_index in vertices.size():
-		if roundi(uvs[vertex_index].y * float(sections - 1)) == section:
-			arch[roundi(uvs[vertex_index].x * 32.0)] = vertex_index
+## Open-bottom glazing seated on the pressure body's existing cockpit aperture.
+## The broad windscreen rises from the entire forward coaming; an aft pane
+## closes the rear arch on the dorsal land without crossing the pilot volume.
+func _build_fitted_canopy_glazing(stations: Array, material: Material) -> MeshInstance3D:
+	const ARCH_SEGMENTS := 24
+	const CLOSED_HINGE := Vector3(0.0, 2.65, 0.55)
 	var tool := SurfaceTool.new()
 	tool.begin(Mesh.PRIMITIVE_TRIANGLES)
 	tool.set_material(material)
-	for ring in 16:
-		var a := int(arch[ring])
-		var b := int(arch[ring + 1])
-		var pa := vertices[a] + normals[a] * 0.018
-		var pb := vertices[b] + normals[b] * 0.018
-		for point in [pa + Vector3.FORWARD * 0.033, pb + Vector3.BACK * 0.033, pb + Vector3.FORWARD * 0.033, pa + Vector3.FORWARD * 0.033, pa + Vector3.BACK * 0.033, pb + Vector3.BACK * 0.033]:
-			tool.set_uv(Vector2(point.x, point.z))
-			tool.add_vertex(point)
+	for station_index in stations.size():
+		var station: Vector4 = stations[station_index]
+		var travel := (station.w + 2.22) / 2.56
+		var rise := 0.80 * sin(travel * PI * 0.72)
+		for arch in ARCH_SEGMENTS + 1:
+			var angle := PI * float(arch) / ARCH_SEGMENTS
+			var point := Vector3(station.x * 0.70 * cos(angle),
+				station.y + rise * pow(maxf(0.0, sin(angle)), 0.80), station.w)
+			tool.set_uv(Vector2(float(arch) / ARCH_SEGMENTS, travel))
+			tool.add_vertex(point - CLOSED_HINGE)
+	for station in stations.size() - 1:
+		for arch in ARCH_SEGMENTS:
+			var a := station * (ARCH_SEGMENTS + 1) + arch
+			var b := a + ARCH_SEGMENTS + 1
+			for index in [a, b, b + 1, a, b + 1, a + 1]:
+				tool.add_index(index)
+	# Only the rear pane is capped. The forward ring is already flat on the
+	# forward hull edge, and the entire underside remains open for boarding.
+	var rear_center := stations.size() * (ARCH_SEGMENTS + 1)
+	var rear: Vector4 = stations[-1]
+	tool.set_uv(Vector2(0.5, 1.0))
+	tool.add_vertex(Vector3(0, rear.y, rear.w) - CLOSED_HINGE)
+	for arch in ARCH_SEGMENTS:
+		tool.add_index(rear_center)
+		tool.add_index((stations.size() - 1) * (ARCH_SEGMENTS + 1) + arch + 1)
+		tool.add_index((stations.size() - 1) * (ARCH_SEGMENTS + 1) + arch)
 	tool.generate_normals()
+	var glazing := MeshInstance3D.new()
+	glazing.name = "LaminatedCanopy"
+	glazing.mesh = tool.commit()
+	_modern_canopy_pivot.add_child(glazing)
+	return glazing
+
+
+## One retained frame mesh: closed perimeter stock and two curved pressure
+## arches follow the emitted glazing vertices instead of hovering over a dome.
+func _fit_canopy_frame(glazing: MeshInstance3D, material: Material) -> void:
+	const ARCH_SEGMENTS := 24
+	var vertices: PackedVector3Array = glazing.mesh.surface_get_arrays(0)[Mesh.ARRAY_VERTEX]
+	var rows := (vertices.size() - 1) / (ARCH_SEGMENTS + 1)
+	var tool := SurfaceTool.new()
+	tool.begin(Mesh.PRIMITIVE_TRIANGLES)
+	tool.set_material(material)
+	tool.set_smooth_group(-1)
+	for row in rows - 1:
+		for end in [0, ARCH_SEGMENTS]:
+			_canopy_frame_stock(tool, vertices[row * (ARCH_SEGMENTS + 1) + end],
+				vertices[(row + 1) * (ARCH_SEGMENTS + 1) + end], 0.045)
+	for row in [0, rows - 1]:
+		_canopy_frame_stock(tool, vertices[row * (ARCH_SEGMENTS + 1)],
+			vertices[row * (ARCH_SEGMENTS + 1) + ARCH_SEGMENTS], 0.045)
+	for row in [6, rows - 1]:
+		for arch in ARCH_SEGMENTS:
+			_canopy_frame_stock(tool, vertices[row * (ARCH_SEGMENTS + 1) + arch],
+				vertices[row * (ARCH_SEGMENTS + 1) + arch + 1], 0.032)
+	tool.generate_normals()
+	tool.index()
 	var frame := MeshInstance3D.new()
-	frame.name = "PressureFrame%02d" % section
+	frame.name = "CanopyPressureFrame"
 	frame.mesh = tool.commit()
 	frame.layers = glazing.layers
 	glazing.add_child(frame)
+
+
+func _canopy_frame_stock(tool: SurfaceTool, a: Vector3, b: Vector3, width: float) -> void:
+	var tangent := (b - a).normalized()
+	var side := tangent.cross(Vector3.UP).normalized()
+	if side.length_squared() < 0.01:
+		side = Vector3.RIGHT
+	var up := side.cross(tangent).normalized()
+	var corners := PackedVector3Array()
+	for center in [a, b]:
+		for offset in [side + up, -side + up, -side - up, side - up]:
+			corners.append(center + offset * width * 0.5)
+	for face in [[0, 1, 2, 3], [4, 7, 6, 5], [0, 4, 5, 1], [1, 5, 6, 2], [2, 6, 7, 3], [3, 7, 4, 0]]:
+		var center := (a + b) * 0.5
+		_zenith_triangle(tool, corners[face[0]], corners[face[1]], corners[face[2]], center)
+		_zenith_triangle(tool, corners[face[0]], corners[face[2]], corners[face[3]], center)
