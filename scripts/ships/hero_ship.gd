@@ -6909,6 +6909,11 @@ func _apply_engine_exhaust_damage_presentation(
 		profile: Dictionary
 	) -> void:
 	var stage := StringName(profile.get("stage", &"nominal"))
+	# Read the already accepted flight command. A static density change makes
+	# boost legible without flicker, extra geometry or a dependency on audio.
+	var boosting := engine_active and _engine_state == ENGINE_ONLINE \
+		and _piloted and not _landing_active and not _docked_latch \
+		and _throttle > 0.05 and _last_ship_command.boost and stage == &"nominal"
 	var overlay: Material = null
 	if stage in [&"degraded", &"critical"]:
 		_ensure_engine_exhaust_damage_overlay()
@@ -6923,6 +6928,7 @@ func _apply_engine_exhaust_damage_presentation(
 		if not is_instance_valid(plume_value) or not plume_value is MeshInstance3D:
 			continue
 		var plume := plume_value as MeshInstance3D
+		plume.set_instance_shader_parameter(&"plume_boost", 1.0 if boosting else 0.0)
 		EngineExhaustPresentation.sync_inlet(plume)
 		plume.set_instance_shader_parameter(&"plume_damage_mix", 1.0 if overlay != null else 0.0)
 		var instance_id := plume.get_instance_id()

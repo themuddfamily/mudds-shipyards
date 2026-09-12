@@ -8,6 +8,7 @@ instance uniform vec3 plume_center = vec3(0.0);
 instance uniform vec3 plume_half_size = vec3(0.5);
 instance uniform vec3 plume_axis = vec3(0.0, 1.0, 0.0);
 instance uniform float plume_damage_mix = 0.0;
+instance uniform float plume_boost = 0.0;
 
 varying vec3 volume_position;
 varying vec3 volume_camera;
@@ -22,12 +23,22 @@ vec2 density_at(vec3 point) {
 	float axial = dot(point, plume_axis);
 	float along = clamp(axial * 0.5 + 0.5, 0.0, 1.0);
 	vec3 radial = point - plume_axis * axial;
-	float radius = 0.88 * (1.0 - along * 0.78);
+	// Boost keeps a longer pressure column inside the authored envelope.
+	// Two shallow compression cells are stationary, including reduced motion.
+	float boost = damage_pass ? 0.0 : plume_boost;
+	float compression = 0.0;
+	// The per-instance branch keeps cruise and damage off the boost-only
+	// trigonometric path across all eight interior samples.
+	if (boost > 0.0) {
+		compression = sin(along * 12.56637) * sin(along * 3.14159);
+	}
+	float radius = 0.88 * (1.0 - along * mix(0.78, 0.74, boost));
+	radius *= 1.0 + boost * compression * 0.10;
 	float radial_squared = dot(radial, radial) / (radius * radius);
-	float fade = smoothstep(0.0, 0.07, along) * (1.0 - smoothstep(0.30, 1.0, along));
+	float fade = smoothstep(0.0, 0.07, along) * (1.0 - smoothstep(mix(0.30, 0.72, boost), 1.0, along));
 	float soft_edge = 1.0 - smoothstep(0.25, 1.0, radial_squared);
 	float density = exp(-1.8 * radial_squared) * soft_edge * fade;
-	return vec2(density, density * exp(-9.0 * radial_squared));
+	return vec2(density, density * exp(-9.0 * radial_squared) * (1.0 + boost * 0.16 * compression));
 }
 
 // Eight fixed interior samples soften the radial edge and remove the solid

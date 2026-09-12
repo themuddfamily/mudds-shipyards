@@ -19,6 +19,13 @@ const STREAMED_CRAFT := {
 	"CinderCargoHauler": preload("res://scripts/ships/cinder_cargo_hauler.gd"),
 }
 
+class ExhaustCommandSource:
+	extends ShipCommandSource
+	var controls: Dictionary = {}
+	func _sample_controls() -> Dictionary:
+		return controls
+
+
 var _assertions := 0
 var _failures: PackedStringArray = []
 
@@ -83,6 +90,8 @@ func _run() -> void:
 			craft.velocity = Vector3.ZERO
 			craft.call("_sync_engine_visuals_immediately")
 
+		_check_boost_command_presentation(game, craft, plumes)
+
 		var model := craft.get_component_damage()
 		var engine_position := _component_local_position(
 			craft, ShipComponentDamageType.COMPONENT_ENGINE_BAY
@@ -97,6 +106,7 @@ func _run() -> void:
 		_check(
 			failed_profile.get("stage") == &"failed"
 			and _visible_plume_count(plumes) == 0
+			and is_zero_approx(float((plumes[0] as MeshInstance3D).get_instance_shader_parameter(&"plume_boost")))
 			and is_zero_approx(float(failed_profile.get("intensity_multiplier", 1.0)))
 			and StringName(craft.get_telemetry().get("engine_state", &"")) == HeroShip.ENGINE_ONLINE
 			and not bool(failed_profile.get("gameplay_authority", true)),
@@ -207,7 +217,8 @@ func _run() -> void:
 		_check(
 			bool(reset.get("accepted", false))
 			and craft.get_engine_exhaust_damage_presentation_profile().get("stage") == &"nominal"
-			and _visible_plume_count(plumes) == 0,
+			and _visible_plume_count(plumes) == 0
+			and is_zero_approx(float((plumes[0] as MeshInstance3D).get_instance_shader_parameter(&"plume_boost"))),
 			"%s respawn/reuse restores nominal component grade with propulsion offline" % craft_name
 		)
 		_check_halyard_core_mounts(craft, HalyardCrewTransport.ENGINE_CYAN, 0)
@@ -215,6 +226,71 @@ func _run() -> void:
 	game.queue_free()
 	await process_frame
 	_finish()
+
+
+func _check_boost_command_presentation(game: GameFlow, craft: HeroShip, plumes: Array) -> void:
+	var original_source := craft.get_command_source()
+	var source := ExhaustCommandSource.new()
+	craft.add_child(source)
+	craft.set_piloted(true)
+	craft.set_command_source(source)
+	craft.set("_throttle", 1.0)
+	var plume := plumes[0] as MeshInstance3D
+	var mesh_before := plume.mesh
+	var material_before := plume.material_override
+	var nodes_before := craft.find_children("*", "", true, false).size()
+	var retained_meshes: Dictionary = {}
+	var retained_materials: Dictionary = {}
+	for plume_value in plumes:
+		var retained := plume_value as MeshInstance3D
+		retained_meshes[retained.mesh.get_instance_id()] = true
+		retained_materials[retained.material_override.get_instance_id()] = true
+	source.controls = {"throttle": 1.0, "boost": false}
+	craft.call("_physics_process", 0.0)
+	_check(is_zero_approx(float(plume.get_instance_shader_parameter(&"plume_boost"))),
+		"%s full-throttle cruise retains the ordinary plume" % craft.name)
+	source.controls.boost = true
+	craft.call("_physics_process", 0.0)
+	_check(craft.get_last_ship_command().boost \
+		and is_equal_approx(float(plume.get_instance_shader_parameter(&"plume_boost")), 1.0),
+		"%s accepted positive-throttle boost lights the retained pressure column" % craft.name)
+	if craft is ZenithInterceptor:
+		for batch_name in ["_close_plume_batch", "_far_plume_batch"]:
+			var batch := craft.get(batch_name) as MultiMeshInstance3D
+			_check(batch != null and is_equal_approx(float(batch.get_instance_shader_parameter(&"plume_boost")), 1.0),
+				"Zenith %s propagates boost to its rendered batch" % batch_name)
+	var settings := game.get_runtime_settings()
+	var previous_reduced_motion := settings.reduced_motion
+	settings.reduced_motion = true
+	game.call("_apply_runtime_settings_to_fleet_ship", craft)
+	craft.call("_physics_process", 0.0)
+	_check(is_zero_approx(craft.maximum_chase_camera_rotation_lag_degrees) \
+		and is_equal_approx(float(plume.get_instance_shader_parameter(&"plume_boost")), 1.0),
+		"%s reduced motion keeps the same static boost tell" % craft.name)
+	settings.reduced_motion = previous_reduced_motion
+	game.call("_apply_runtime_settings_to_fleet_ship", craft)
+	for throttle in [0.0, -1.0]:
+		craft.set("_throttle", throttle)
+		source.controls.throttle = throttle
+		craft.call("_physics_process", 0.0)
+		_check(is_zero_approx(float(plume.get_instance_shader_parameter(&"plume_boost"))),
+			"%s held boost at throttle %.1f cannot show forward boost exhaust" % [craft.name, throttle])
+	craft.set("_throttle", 1.0)
+	source.controls = {"throttle": 1.0, "boost": false}
+	craft.call("_physics_process", 0.0)
+	_check(is_zero_approx(float(plume.get_instance_shader_parameter(&"plume_boost"))) \
+		and plume.mesh == mesh_before and plume.material_override == material_before \
+		and craft.find_children("*", "", true, false).size() == nodes_before,
+		"%s boost release restores cruise with unchanged nodes, mesh and shared material" % craft.name)
+	print("BOOST_RETAINED_RESOURCES %s: nodes=%d plume_meshes=%d plume_materials=%d added=0" % [
+		craft.name, nodes_before, retained_meshes.size(), retained_materials.size()])
+	craft.set_piloted(false)
+	craft.set_command_source(original_source)
+	craft.remove_child(source)
+	source.free()
+	craft.velocity = Vector3.ZERO
+	craft.set("_engine_state", HeroShip.ENGINE_ONLINE)
+	craft.call("_sync_engine_visuals_immediately")
 
 
 func _check_halyard_core_mounts(craft: HeroShip, tint: Color, expected_visible: int) -> void:

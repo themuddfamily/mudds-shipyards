@@ -4961,6 +4961,7 @@ func _sync_close_plume_batch() -> void:
 	_close_plume_batch.multimesh.visible_instance_count = visible_count
 	_close_plume_batch.material_overlay = _close_plume_sources[0].material_overlay
 	_close_plume_batch.set_instance_shader_parameter(&"plume_damage_mix", _close_plume_sources[0].get_instance_shader_parameter(&"plume_damage_mix"))
+	_close_plume_batch.set_instance_shader_parameter(&"plume_boost", _close_plume_sources[0].get_instance_shader_parameter(&"plume_boost"))
 	_close_plume_batch.visible = any_visible
 
 
@@ -5063,6 +5064,7 @@ func _sync_far_plume_batch() -> void:
 	_far_plume_batch.multimesh.visible_instance_count = visible_count
 	_far_plume_batch.material_overlay = _far_plume_sources[0].material_overlay
 	_far_plume_batch.set_instance_shader_parameter(&"plume_damage_mix", _far_plume_sources[0].get_instance_shader_parameter(&"plume_damage_mix"))
+	_far_plume_batch.set_instance_shader_parameter(&"plume_boost", _far_plume_sources[0].get_instance_shader_parameter(&"plume_boost"))
 	_far_plume_batch.visible = any_visible
 
 

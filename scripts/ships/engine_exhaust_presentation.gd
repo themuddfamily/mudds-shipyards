@@ -44,6 +44,7 @@ static func configure_geometry(renderer: GeometryInstance3D, mesh: Mesh, axis: V
 	renderer.set_instance_shader_parameter(&"plume_half_size", bounds.size * 0.5)
 	renderer.set_instance_shader_parameter(&"plume_axis", axis)
 	renderer.set_instance_shader_parameter(&"plume_damage_mix", 0.0)
+	renderer.set_instance_shader_parameter(&"plume_boost", 0.0)
 
 
 static func create_damage_overlay() -> ShaderMaterial:
