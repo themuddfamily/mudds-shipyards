@@ -3142,6 +3142,7 @@ func _build_flight_deck_second_station() -> void:
 	_box(station, "CoPilotHarness", Vector3(0.0, 1.50, 0.28), Vector3(0.12, 0.68, 0.05), _halyard_materials.accent)
 	_box(station, "CoPilotConsole", Vector3(0.34, 1.18, -0.92), Vector3(0.92, 0.44, 0.60), _halyard_materials.structure, Vector3(deg_to_rad(-16.0), 0.0, 0.0))
 	_box(station, "CoPilotSystemsDisplay", Vector3(0.34, 1.36, -1.10), Vector3(0.62, 0.26, 0.04), _materials.display_substrate, Vector3(deg_to_rad(-16.0), 0.0, 0.0))
+	_fit_co_pilot_station(station)
 	_co_pilot_station_anchor = Marker3D.new()
 	_co_pilot_station_anchor.name = "CoPilotStationAnchor"
 	# Same feet-frame convention as `PilotSeatAnchor`: the controller carries its
@@ -3163,6 +3164,94 @@ func _build_flight_deck_second_station() -> void:
 	deck_light.shadow_enabled = true
 	station.add_child(deck_light)
 	_box(station, "FlightDeckLightStrip", Vector3(-0.70, 2.96, -0.90), Vector3(1.70, 0.06, 0.16), _halyard_materials.interior_light)
+
+
+## Refit the seven existing renderer owners; the station feet frame, display,
+## practical light and every physical route remain owned by the original nodes.
+func _fit_co_pilot_station(station: Node3D) -> void:
+	var pan := station.get_node("CoPilotSeatBase") as MeshInstance3D
+	pan.mesh = _cockpit_cushion_mesh([
+		Vector4(0.56, -0.06, 0.04, -0.40),
+		Vector4(0.70, -0.10, 0.10, -0.29),
+		Vector4(0.66, -0.10, 0.07, 0.21),
+		Vector4(0.54, -0.08, 0.04, 0.40),
+	], _halyard_materials.cloth, false)
+	# A tapered plinth joins the cushion underside to the existing deck. It is
+	# folded into the same upholstered base mesh, not another draw or collider.
+	var support := _cockpit_formed_enclosure_mesh([
+		Vector4(0.44, -0.44, -0.08, -0.24),
+		Vector4(0.38, -0.44, -0.08, 0.28),
+	], _halyard_materials.cloth)
+	pan.mesh = _co_pilot_join_meshes([pan.mesh, support], [Transform3D.IDENTITY, Transform3D.IDENTITY], _halyard_materials.cloth)
+	var back := station.get_node("CoPilotSeatBack") as MeshInstance3D
+	var upright := Basis(Vector3.RIGHT, -PI * 0.5)
+	var back_sections: Array[Vector4] = [
+		Vector4(0.52, -0.08, 0.09, -0.55),
+		Vector4(0.62, -0.08, 0.14, -0.29),
+		Vector4(0.66, -0.08, 0.09, 0.20),
+		Vector4(0.50, -0.06, 0.07, 0.48),
+	]
+	var back_parts: Array[Mesh] = [_cockpit_cushion_mesh(back_sections, _halyard_materials.cloth, false)]
+	var back_transforms: Array[Transform3D] = [Transform3D(upright, Vector3.ZERO)]
+	for side in [-1.0, 1.0]:
+		back_parts.append(_cockpit_cushion_mesh([
+			Vector4(0.08, -0.01, 0.15, -0.33),
+			Vector4(0.12, -0.02, 0.20, 0.15),
+			Vector4(0.08, -0.01, 0.10, 0.36),
+		], _halyard_materials.cloth, false))
+		back_transforms.append(Transform3D(upright, Vector3(side * 0.28, 0.0, 0.0)))
+	back.mesh = _co_pilot_join_meshes(back_parts, back_transforms, _halyard_materials.cloth)
+	var head := station.get_node("CoPilotHeadrest") as MeshInstance3D
+	head.mesh = _co_pilot_join_meshes([_cockpit_cushion_mesh([
+		Vector4(0.38, -0.10, 0.10, -0.14),
+		Vector4(0.50, -0.10, 0.13, -0.02),
+		Vector4(0.42, -0.08, 0.10, 0.14),
+	], _halyard_materials.trim, false)], [Transform3D(upright, Vector3.ZERO)], _halyard_materials.trim)
+	# Sample the actual crown stations: the restraint sits on the foam instead
+	# of hanging vertically in front of a reclining back. A small overlap seats
+	# the webbing across the crown's rounded width.
+	var belt_sections: Array[Vector4] = []
+	for index in range(back_sections.size() - 1):
+		for step in 4:
+			var t := float(step) / 4.0
+			var section := back_sections[index].lerp(back_sections[index + 1], t * t * (3.0 - 2.0 * t))
+			section.w = lerpf(back_sections[index].w, back_sections[index + 1].w, t)
+			if section.w < -0.36 or section.w > 0.36:
+				continue
+			belt_sections.append(Vector4(0.12, section.z - 0.003, section.z + 0.005, section.w))
+	var belt := station.get_node("CoPilotHarness") as MeshInstance3D
+	belt.mesh = _co_pilot_join_meshes([
+		_cockpit_formed_enclosure_mesh(belt_sections, _halyard_materials.accent),
+	], [belt.transform.affine_inverse() * back.transform * Transform3D(upright, Vector3.ZERO)], _halyard_materials.accent)
+	var console := station.get_node("CoPilotConsole") as MeshInstance3D
+	console.mesh = _cockpit_formed_enclosure_mesh([
+		Vector4(0.76, -0.22, 0.16, -0.30),
+		Vector4(0.92, -0.22, 0.22, -0.14),
+		Vector4(0.88, -0.22, 0.12, 0.22),
+		Vector4(0.78, -0.18, 0.08, 0.30),
+	], _halyard_materials.structure)
+	# The pedestal is expressed in station space so it lands squarely on the
+	# deck while the housing retains its original sixteen-degree control rake.
+	var console_support := _cockpit_formed_enclosure_mesh([
+		Vector4(0.42, 0.50, 1.10, -0.16),
+		Vector4(0.36, 0.50, 1.10, 0.14),
+	], _halyard_materials.structure)
+	console.mesh = _co_pilot_join_meshes([console.mesh, console_support], [
+		Transform3D.IDENTITY,
+		console.transform.affine_inverse() * Transform3D(Basis.IDENTITY, Vector3(0.34, 0.0, -0.92)),
+	], _halyard_materials.structure)
+
+
+func _co_pilot_join_meshes(parts: Array[Mesh], transforms: Array[Transform3D], material: Material) -> ArrayMesh:
+	var tool := SurfaceTool.new()
+	tool.begin(Mesh.PRIMITIVE_TRIANGLES)
+	for index in parts.size():
+		var indexed := SurfaceTool.new()
+		indexed.create_from(parts[index], 0)
+		indexed.index()
+		tool.append_from(indexed.commit(), 0, transforms[index])
+	tool.set_material(material)
+	return tool.commit()
 
 
 func _build_crew_cabin() -> void:
