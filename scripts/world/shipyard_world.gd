@@ -6229,6 +6229,12 @@ func _build_environment() -> void:
 		# distort nearby frame shadows. Keep depth bias, cascades and caster
 		# policy; the High profile separately allocates a finer directional atlas.
 		key_light.shadow_normal_bias = 6.0
+		# Compatibility adds shadowed direct light in a separate tonemapped sRGB
+		# pass. Fully occluded panels otherwise collapse to near-black despite
+		# the retained ambient/reflection fill. Keep a quarter of this light in
+		# its shadowed region so the fleet's curved shoulders retain their form;
+		# lit surfaces, shadow geometry and the Forward+ light stay unchanged.
+		key_light.shadow_opacity = 0.75
 	add_child(key_light)
 
 	var counter_fill := DirectionalLight3D.new()

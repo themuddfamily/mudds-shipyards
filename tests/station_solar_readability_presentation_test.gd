@@ -8,7 +8,7 @@ const SKY_SHADER := preload("res://scripts/rendering/deep_space_sky.gdshader")
 const RuntimeSettingsScript := preload(
 	"res://scripts/settings/runtime_settings.gd"
 )
-const EXPECTED_ASSERTIONS := 39
+const EXPECTED_ASSERTIONS := 40
 
 var _assertions := 0
 var _failures := PackedStringArray()
@@ -279,6 +279,10 @@ func _test_work_mast_quality() -> void:
 	root.add_child(world)
 	await world.run_staged_construction()
 	await process_frame
+	var key := world.get_node("SpaceKeyLight") as DirectionalLight3D
+	var compatibility := RenderingServer.get_current_rendering_method() == &"gl_compatibility"
+	_check(key.shadow_enabled and is_equal_approx(key.shadow_opacity, 0.75 if compatibility else 1.0),
+		"station key retains cast shadows with bounded Compatibility opacity and the authored opacity elsewhere")
 	var masts: Array[SpotLight3D] = []
 	var other_shadows: Dictionary = {}
 	var illumination: Dictionary = {}
@@ -337,7 +341,7 @@ func _test_work_mast_quality() -> void:
 
 func _light_illumination(light: Light3D) -> Array:
 	var values := [light.transform, light.visible, light.light_color, light.light_energy,
-		light.light_specular, light.distance_fade_enabled, light.distance_fade_begin,
+		light.light_specular, light.shadow_opacity, light.distance_fade_enabled, light.distance_fade_begin,
 		light.distance_fade_length, light.distance_fade_shadow]
 	if light is SpotLight3D:
 		var spot := light as SpotLight3D
