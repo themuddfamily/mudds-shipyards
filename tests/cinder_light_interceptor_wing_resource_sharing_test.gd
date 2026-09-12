@@ -131,6 +131,28 @@ func _initialize() -> void:
 		_check(lids_clear_of_rail,
 			"the structural response rails leave all six removable service lids accessible")
 
+		var fairings_valid := true
+		var fairings_connected := true
+		for side in [-1.0, 1.0]:
+			var tag := "Port" if side < 0 else "Starboard"
+			var visual := first.get_variant_visual_root()
+			var fairing := visual.get_node(tag + "EngineBoom") as MeshInstance3D
+			var armor := visual.get_node(tag + "WingArmor") as MeshInstance3D
+			var cannon := visual.get_node(tag + "CannonMount") as MeshInstance3D
+			var nacelle := visual.get_node(tag + "IntakeShoulder") as MeshInstance3D
+			fairings_valid = fairings_valid and _fairing_geometry_valid(fairing.mesh)
+			for z in [0.5, 1.1, 1.7]:
+				var at := Vector3(side * 3.6, 0, z)
+				fairings_connected = fairings_connected and _skins_overlap(fairing, first_wing, at) and _skins_overlap(fairing, armor, at)
+			for z in [-0.75, -0.2, 0.4]:
+				fairings_connected = fairings_connected and _skins_overlap(fairing, cannon, Vector3(side * 3.15, 0, z))
+			for z in [0.9, 1.5]:
+				fairings_connected = fairings_connected and _skins_overlap(fairing, nacelle, Vector3(side * 2.71, 0, z))
+		_check(fairings_valid,
+			"both crowned saddle fairings have outward triangles, finite unit normals, UVs and tangent frames, a rounded thin aft closure and the retained span")
+		_check(fairings_connected,
+			"both fairings intersect the real wing, service carrier, cannon cradle and nacelle skins at their structural interfaces")
+
 	_check(
 		bool(first.get_audit_report().get("valid", false))
 			and bool(second.get_audit_report().get("valid", false))
@@ -185,3 +207,45 @@ func _vertical_hits(mesh: Mesh, placement: Transform3D, at: Vector3) -> Array[fl
 		if hit != null:
 			hits.append((hit as Vector3).y)
 	return hits
+
+
+func _skins_overlap(first: MeshInstance3D, second: MeshInstance3D, at: Vector3) -> bool:
+	var a := _vertical_hits(first.mesh, first.transform, at)
+	var b := _vertical_hits(second.mesh, second.transform, at)
+	return not a.is_empty() and not b.is_empty() and a.min() <= b.max() + 0.002 and b.min() <= a.max() + 0.002
+
+
+func _fairing_geometry_valid(mesh: Mesh) -> bool:
+	if mesh.get_surface_count() != 1 or mesh.get_aabb().size.x > 1.601:
+		return false
+	var arrays := mesh.surface_get_arrays(0)
+	var points: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
+	var normals: PackedVector3Array = arrays[Mesh.ARRAY_NORMAL]
+	var uv: PackedVector2Array = arrays[Mesh.ARRAY_TEX_UV]
+	var tangents: PackedFloat32Array = arrays[Mesh.ARRAY_TANGENT]
+	var aft_min := Vector3(INF, INF, INF)
+	var aft_max := Vector3(-INF, -INF, -INF)
+	for point in points:
+		if is_equal_approx(point.z, 2.2):
+			aft_min = aft_min.min(point)
+			aft_max = aft_max.max(point)
+	if not aft_min.is_finite() or aft_max.x - aft_min.x > 0.081 or aft_max.y - aft_min.y > 0.061:
+		return false
+	if points.is_empty() or points.size() % 3 != 0 or points.size() != normals.size() or points.size() != uv.size() or tangents.size() != points.size() * 4:
+		return false
+	for index in range(0, points.size(), 3):
+		var face := (points[index + 2] - points[index]).cross(points[index + 1] - points[index])
+		if face.length_squared() < 0.0000000001:
+			return false
+		for corner in 3:
+			var vertex := index + corner
+			var normal := normals[vertex]
+			var tangent := Vector3(tangents[vertex * 4], tangents[vertex * 4 + 1], tangents[vertex * 4 + 2])
+			if not points[vertex].is_finite() or not normal.is_finite() or not uv[vertex].is_finite() or not tangent.is_finite():
+				return false
+			var handedness := tangents[vertex * 4 + 3]
+			if not is_equal_approx(normal.length(), 1.0) or not is_equal_approx(tangent.length(), 1.0) or face.dot(normal) <= 0.0:
+				return false
+			if absf(normal.dot(tangent)) > 0.002 or not is_finite(handedness) or not is_equal_approx(absf(handedness), 1.0):
+				return false
+	return true

@@ -1235,30 +1235,65 @@ func _formed_pressure_mesh(size: Vector3, material: Material, nacelle: bool = fa
 	return _section_loft_mesh(size, material, section, true, nacelle, primary_bow)
 
 
-## The inboard boom crown rises into the intake shoulder and rolls out onto
-## the response wing. This replaces a separate skinny bar with a load-bearing
-## root shape while retaining the cannon and outboard recognition geometry.
+## Swept saddle fairings carry the engine loads into the wing. A narrow rounded
+## forefoot widens around the cannon cradle, then rolls down into an aft feather
+## edge. The continuously crowned section replaces the former flat shelf; the
+## fixed renderer, shear, cannon and engine interfaces remain unchanged.
 func _formed_root_mesh(side: float, material: Material) -> ArrayMesh:
-	var mesh := _formed_pressure_mesh(Vector3(1.6, 0.38, 4.4), material)
-	var arrays := mesh.surface_get_arrays(0)
-	var points: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
-	var normals: PackedVector3Array = arrays[Mesh.ARRAY_NORMAL]
-	var uv: PackedVector2Array = arrays[Mesh.ARRAY_TEX_UV]
+	var stations := PackedFloat32Array([0.0, 0.02, 0.04, 0.07, 0.12, 0.18, 0.24, 0.30, 0.34, 0.40, 0.46, 0.52, 0.56, 0.62, 0.68, 0.74, 0.78, 0.83, 0.88, 0.92, 0.95, 0.975, 0.99, 1.0])
+	const SEGMENTS := 32
+	var points: Array[PackedVector3Array] = []
+	var normals: Array[PackedVector3Array] = []
+	for t in stations:
+		var ring := PackedVector3Array()
+		var ring_normals := PackedVector3Array()
+		for edge in SEGMENTS:
+			var angle := TAU * float(edge) / float(SEGMENTS)
+			ring.append(_root_fairing_point(t, angle, side))
+			var around := _root_fairing_point(t, angle + 0.001, side) - _root_fairing_point(t, angle - 0.001, side)
+			var along := _root_fairing_point(minf(t + 0.001, 1.0), angle, side) - _root_fairing_point(maxf(t - 0.001, 0.0), angle, side)
+			ring_normals.append(along.cross(around).normalized())
+		points.append(ring)
+		normals.append(ring_normals)
 	var surface := SurfaceTool.new()
 	surface.begin(Mesh.PRIMITIVE_TRIANGLES)
 	surface.set_material(material)
-	for index in points.size():
-		var point := points[index]
-		var span := clampf((point.x * side + 0.8) / 1.6, 0.0, 1.0)
-		point.y += 0.30 * pow(1.0 - span, 3.0)
-		var slope := -0.5625 * side * pow(1.0 - span, 2.0)
-		var normal := normals[index]
-		normal.x -= slope * normal.y
-		surface.set_normal(normal.normalized())
-		surface.set_uv(uv[index])
-		surface.add_vertex(point)
+	for bay in stations.size() - 1:
+		for edge in SEGMENTS:
+			for corner in [Vector2i(edge, bay), Vector2i(edge + 1, bay), Vector2i(edge + 1, bay + 1), Vector2i(edge, bay), Vector2i(edge + 1, bay + 1), Vector2i(edge, bay + 1)]:
+				surface.set_normal(normals[corner.y][corner.x % SEGMENTS])
+				surface.set_uv(Vector2(float(corner.x) / float(SEGMENTS), stations[corner.y]))
+				surface.add_vertex(points[corner.y][corner.x % SEGMENTS])
+	for cap in [0.0, 1.0]:
+		var centre := (_root_fairing_point(cap, 0.0, side) + _root_fairing_point(cap, PI, side)) * 0.5
+		for edge in SEGMENTS:
+			for corner in ([-1, edge + 1, edge] if cap == 0.0 else [-1, edge, edge + 1]):
+				var point := centre if corner < 0 else _root_fairing_point(cap, TAU * float(corner) / float(SEGMENTS), side)
+				surface.set_normal(Vector3.FORWARD if cap == 0.0 else Vector3.BACK)
+				surface.set_uv(Vector2(point.x / 1.6, point.y / 0.7) + Vector2.ONE * 0.5)
+				surface.add_vertex(point)
 	surface.generate_tangents()
 	return surface.commit()
+
+
+func _root_fairing_point(t: float, angle: float, side: float) -> Vector3:
+	var knots := PackedFloat32Array([0.0, 0.12, 0.34, 0.56, 0.78, 1.0])
+	var inner := _pressure_profile(t, knots, PackedFloat32Array([-0.38, -0.58, -0.79, -0.80, -0.80, -0.80]), true)
+	var outer := _pressure_profile(t, knots, PackedFloat32Array([-0.18, 0.14, 0.65, 0.80, 0.72, 0.72]), true)
+	var width := (outer - inner) * 0.5
+	var centre := (outer + inner) * 0.5
+	# An elliptical aft planform turns through the final shoulder instead of
+	# terminating the broad saddle with a straight transverse cut.
+	if t > 0.78:
+		var aft := (t - 0.78) / 0.22
+		width = 0.04 + 0.72 * sqrt(maxf(0.0, 1.0 - aft * aft))
+	var depth := _pressure_profile(t, knots, PackedFloat32Array([0.045, 0.12, 0.19, 0.19, 0.14, 0.025]), true)
+	var x := side * centre + width * sin(angle)
+	var span := clampf((x * side + 0.8) / 1.6, 0.0, 1.0)
+	# The raised inboard saddle feeds the nacelle. Across the exposed span the
+	# ellipse turns the highlight continuously into the lower perimeter return.
+	var y := depth * cos(angle) + 0.30 * pow(1.0 - span, 3.0)
+	return Vector3(x, y, (t - 0.5) * 4.4)
 
 
 ## Monotone Hermite profile retains the original station envelopes, inlet and
