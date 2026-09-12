@@ -2063,6 +2063,19 @@ func _flight_deck_ray_hits(faces: PackedVector3Array, origin: Vector3, direction
 	return false
 
 
+func _point_on_pressure_triangle(point: Vector3, a: Vector3, b: Vector3, c: Vector3) -> bool:
+	var ab := b - a
+	var ac := c - a
+	var normal := ab.cross(ac)
+	if normal.length_squared() < 1e-12 or absf(normal.normalized().dot(point - a)) > 0.00001:
+		return false
+	var offset := point - a
+	var denominator := ab.length_squared() * ac.length_squared() - pow(ab.dot(ac), 2)
+	var u := (ac.length_squared() * offset.dot(ab) - ab.dot(ac) * offset.dot(ac)) / denominator
+	var v := (ab.length_squared() * offset.dot(ac) - ab.dot(ac) * offset.dot(ab)) / denominator
+	return u >= -0.00001 and v >= -0.00001 and u + v <= 1.00001
+
+
 func _test_freighter_windscreen(ship: JovianLightFreighter) -> void:
 	var visual := ship.get_jovian_visual_root()
 	var hinge := visual.get_node("CanopyHinge") as Node3D
@@ -2088,6 +2101,35 @@ func _test_freighter_windscreen(ship: JovianLightFreighter) -> void:
 		if member_name in ["FreighterPressureWindscreen", "ForwardCabinCrown"]:
 			for vertex: Vector3 in (member as MeshInstance3D).mesh.get_faces():
 				enclosure_faces.append(ship.to_local(member.to_global(vertex)))
+	# Inspect emitted meshes, independently of the shared profile evaluator.
+	# Every top glass edge (including midpoints) must lie on the actual roof
+	# underside triangles, so an analytic curve against a coarse chord fails.
+	var glass := visual.get_node("FreighterPressureWindscreen") as MeshInstance3D
+	var crown := visual.get_node("ForwardCabinCrown") as MeshInstance3D
+	var crown_faces := crown.mesh.get_faces()
+	var glass_faces := glass.mesh.get_faces()
+	var upper_points := {}
+	var joined := true
+	var edge_samples := 0
+	for triangle in range(0, glass_faces.size(), 3):
+		for edge in 3:
+			var a := glass_faces[triangle + edge]
+			var b := glass_faces[triangle + (edge + 1) % 3]
+			if a.y < 2.9 or b.y < 2.9:
+				continue
+			upper_points[a] = true
+			upper_points[b] = true
+			for point in [a, a.lerp(b, 0.5), b]:
+				var seated := false
+				for roof_triangle in range(0, crown_faces.size(), 3):
+					if _point_on_pressure_triangle(point, crown_faces[roof_triangle],
+						crown_faces[roof_triangle + 1], crown_faces[roof_triangle + 2]):
+						seated = true
+						break
+				joined = joined and seated
+				edge_samples += 1
+	_check(joined and upper_points.size() == 47 and edge_samples >= 138,
+		"all 47 glass crown joins and edge midpoints seat on emitted roof triangles without a daylight chord")
 	var enclosed := true
 	var samples := 0
 	for member_name in ["InstrumentCluster/InstrumentHood", "PortSideConsole", "StarboardSideConsole"]:

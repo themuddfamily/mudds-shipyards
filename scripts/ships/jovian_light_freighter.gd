@@ -40,6 +40,7 @@ const ENGINEER_REPAIR_COOLDOWN_SECONDS := 0.75
 const ENGINEER_REPAIR_RESOURCE_ID: StringName = &"jovian_repair_tool"
 const ENGINEER_REPAIR_RESOURCE_CAPACITY := 6
 # Shared stations keep fitted service assemblies on the pressure-skin profile.
+const ROOF_ACROSS_STEPS := 32
 const CARGO_ROOF_SECTIONS: Array[Vector3] = [Vector3(0.92, -0.20, -3.10), Vector3(1.0, 0.0, -1.8),
 	Vector3(1.0, 0.0, 8.25), Vector3(0.86, -0.22, 9.35)]
 const CABIN_ROOF_SECTIONS: Array[Vector3] = [Vector3(0.70, -0.70, -9.65), Vector3(0.91, -0.12, -7.65),
@@ -3423,13 +3424,45 @@ func _build_exterior() -> void:
 	var screen_tool := SurfaceTool.new()
 	screen_tool.begin(Mesh.PRIMITIVE_TRIANGLES)
 	screen_tool.set_material(_jovian_glass(Color(0.10, 0.19, 0.21, 0.58)))
+	var roof_sections := PackedVector3Array(CABIN_ROOF_SECTIONS)
+	var front_edge := PackedVector3Array()
+	# Share every tessellation station with the crown's actual underside. A
+	# straight chord (even one sampled from the analytic roof) leaves daylight.
+	for step in ROOF_ACROSS_STEPS + 1:
+		front_edge.append(_roof_skin_point(3.56, 3.80, 0.43, roof_sections[0],
+			float(step) / ROOF_ACROSS_STEPS * 2.0 - 1.0) + Vector3.DOWN * 0.12)
 	var screen_bottom_left := Vector3(-2.25, 0.94, -11.60)
-	var screen_top_left := Vector3(-2.48, 3.10, -9.65)
-	var screen_top_right := Vector3(2.48, 3.10, -9.65)
 	var screen_bottom_right := Vector3(2.25, 0.94, -11.60)
-	_skin_quad(screen_tool, screen_bottom_left, screen_top_left, screen_top_right, screen_bottom_right)
-	_skin_quad(screen_tool, screen_bottom_left, Vector3(-3.2, 0.60, -7.65), Vector3(-3.2, 3.65, -7.65), screen_top_left)
-	_skin_quad(screen_tool, screen_top_right, Vector3(3.2, 3.65, -7.65), Vector3(3.2, 0.60, -7.65), screen_bottom_right)
+	for step in ROOF_ACROSS_STEPS:
+		_skin_quad(screen_tool, screen_bottom_left.lerp(screen_bottom_right, float(step) / ROOF_ACROSS_STEPS),
+			front_edge[step], front_edge[step + 1],
+			screen_bottom_left.lerp(screen_bottom_right, float(step + 1) / ROOF_ACROSS_STEPS))
+	var perimeter := PackedVector3Array([screen_bottom_left])
+	perimeter.append_array(front_edge)
+	perimeter.append_array(PackedVector3Array([screen_bottom_right, screen_bottom_left]))
+	_fitted_pressure_seal("FlightDeckWindscreenSeal", perimeter, 0.075, Vector3.FORWARD)
+	_curve_tube(_jovian_visual, "FlightDeckWindscreenCentrePost", PackedVector3Array([
+		Vector3(0.0, 0.94, -11.60), front_edge[ROOF_ACROSS_STEPS / 2]]), 0.045, _jovian_materials.structure)
+	var side_steps := _roof_span_steps(roof_sections, roof_sections[0].z, roof_sections[1].z)
+	for side in [-1.0, 1.0]:
+		var front_bottom := Vector3(side * 2.25, 0.94, -11.60)
+		var rear_bottom := Vector3(side * 3.2, 0.60, -7.65)
+		var upper_edge := PackedVector3Array()
+		for step in side_steps + 1:
+			var z := lerpf(roof_sections[0].z, roof_sections[1].z, float(step) / side_steps)
+			upper_edge.append(_roof_skin_point(3.56, 3.80, 0.43,
+				_roof_profile(roof_sections, z)[0], side) + Vector3.DOWN * 0.12)
+		for step in side_steps:
+			var lower_a := front_bottom.lerp(rear_bottom, float(step) / side_steps)
+			var lower_b := front_bottom.lerp(rear_bottom, float(step + 1) / side_steps)
+			if side < 0.0:
+				_skin_quad(screen_tool, lower_a, lower_b, upper_edge[step + 1], upper_edge[step])
+			else:
+				_skin_quad(screen_tool, lower_b, lower_a, upper_edge[step], upper_edge[step + 1])
+		var quarter_perimeter := PackedVector3Array([front_bottom, rear_bottom])
+		upper_edge.reverse()
+		quarter_perimeter.append_array(upper_edge)
+		_fitted_pressure_seal("FlightDeckQuarterlightSeal", quarter_perimeter, 0.065, Vector3(side, 0, 0))
 	var screen := MeshInstance3D.new()
 	screen.name = "FreighterPressureWindscreen"
 	# The transparent pane does not cast an opaque dithered silhouette across
@@ -3437,13 +3470,6 @@ func _build_exterior() -> void:
 	screen.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	screen.mesh = screen_tool.commit()
 	_jovian_visual.add_child(screen)
-	_curve_tube(_jovian_visual, "FlightDeckWindscreenSeal", PackedVector3Array([
-		screen_bottom_left, screen_top_left, screen_top_right, screen_bottom_right, screen_bottom_left]), 0.075, _jovian_materials.structure)
-	_curve_tube(_jovian_visual, "FlightDeckWindscreenCentrePost", PackedVector3Array([
-		Vector3(0.0, 0.94, -11.60), Vector3(0.0, 3.10, -9.65)]), 0.045, _jovian_materials.structure)
-	for side in [-1.0, 1.0]:
-		_curve_tube(_jovian_visual, "FlightDeckQuarterlightSeal", PackedVector3Array([
-			Vector3(side * 2.25, 0.94, -11.60), Vector3(side * 3.2, 0.60, -7.65), Vector3(side * 3.2, 3.65, -7.65), Vector3(side * 2.48, 3.10, -9.65)]), 0.065, _jovian_materials.structure)
 	_pressed_roof(_jovian_visual, "FlightDeckWindscreenCowl", 2.25, 0.35, 0.10,
 		PackedVector3Array([Vector3(0.90, 0.0, -12.20), Vector3(1.0, 0.50, -11.60)]), 0.10, _jovian_materials.hull_cool)
 	# Sparse panel divisions follow the broad stamped crown, not a tiled image.
@@ -4758,6 +4784,45 @@ func _planform_surface(
 	return instance
 
 
+## One continuous manufactured seal per existing owner. Shared rings avoid
+## separate ball joints and cylinders at every sample of the formed roof edge.
+func _fitted_pressure_seal(node_name: String, points: PackedVector3Array,
+		radius: float, plane_normal: Vector3) -> void:
+	var tool := SurfaceTool.new()
+	tool.begin(Mesh.PRIMITIVE_TRIANGLES)
+	tool.set_material(_jovian_materials.structure)
+	var rings: Array[PackedVector3Array] = []
+	var closed := points[0].is_equal_approx(points[-1])
+	for index in points.size():
+		var before := points[maxi(index - 1, 0)]
+		var after := points[mini(index + 1, points.size() - 1)]
+		if closed and (index == 0 or index == points.size() - 1):
+			before = points[-2]
+			after = points[1]
+		var direction := ((points[index] - before).normalized() + (after - points[index]).normalized()).normalized()
+		var across := direction.cross(plane_normal).normalized()
+		var normal := across.cross(direction).normalized()
+		var ring := PackedVector3Array()
+		for segment in 8:
+			var angle := TAU * float(segment) / 8.0
+			ring.append(points[index] + radius * (across * cos(angle) + normal * sin(angle)))
+		rings.append(ring)
+	for index in points.size() - 1:
+		for segment in 8:
+			var next := (segment + 1) % 8
+			var vertices: Array[Vector3] = [rings[index][segment], rings[index + 1][segment],
+				rings[index + 1][next], rings[index][next]]
+			var normals: Array[Vector3] = [(vertices[0] - points[index]).normalized(),
+				(vertices[1] - points[index + 1]).normalized(),
+				(vertices[2] - points[index + 1]).normalized(), (vertices[3] - points[index]).normalized()]
+			_skin_curved_quad(tool, vertices, normals)
+	# Quarterlight ends terminate inside the existing main windscreen seal.
+	var instance := MeshInstance3D.new()
+	instance.name = node_name
+	instance.mesh = tool.commit()
+	_jovian_visual.add_child(instance)
+
+
 func _curve_tube(
 		parent: Node3D,
 		node_name: String,
@@ -4996,6 +5061,12 @@ func _roof_span_steps(sections: PackedVector3Array, front: float, rear: float) -
 	return maxi(1, ceili((rear - front) / 0.30))
 
 
+func _roof_skin_point(half_width: float, base_y: float, rise: float,
+		section: Vector3, u: float) -> Vector3:
+	return Vector3(u * half_width * section.x,
+		base_y + section.y + rise * pow(maxf(0.0, 1.0 - u * u), 0.60), section.z)
+
+
 ## Thin pressed skin curved in both directions. Its underside shares the
 ## profile and opposite normals; sharp closing folds only occur at the perimeter.
 func _pressed_roof(parent: Node3D, node_name: String, half_width: float, base_y: float,
@@ -5003,7 +5074,7 @@ func _pressed_roof(parent: Node3D, node_name: String, half_width: float, base_y:
 	var tool := SurfaceTool.new()
 	tool.begin(Mesh.PRIMITIVE_TRIANGLES)
 	tool.set_material(material)
-	const STEPS := 32
+	const STEPS := ROOF_ACROSS_STEPS
 	var profiles: Array[PackedVector3Array] = []
 	for station in sections.size() - 1:
 		var count := _roof_span_steps(sections, sections[station].z, sections[station + 1].z)
@@ -5018,7 +5089,7 @@ func _pressed_roof(parent: Node3D, node_name: String, half_width: float, base_y:
 				var section := profiles[corner.x][0]
 				var derivative := profiles[corner.x][1]
 				var u := float(corner.y) / float(STEPS) * 2.0 - 1.0
-				points.append(Vector3(u * half_width * section.x, base_y + section.y + rise * pow(maxf(0.0, 1.0 - u * u), 0.60), section.z))
+				points.append(_roof_skin_point(half_width, base_y, rise, section, u))
 				var safe_u := clampf(u, -0.995, 0.995)
 				var slope := -1.2 * rise * safe_u * pow(1.0 - safe_u * safe_u, -0.40)
 				var across := Vector3(half_width * section.x, slope, 0.0)
@@ -5323,13 +5394,13 @@ func _flight_deck_transition(side: float) -> void:
 		var radius_x := width * 0.72
 		var radius_y := height * 0.50
 		for step in 33:
-			var angle := float(step) / 32.0 * PI * 0.5
+			var angle := float(step) / ROOF_ACROSS_STEPS * PI * 0.5
 			ring.append(Vector3(side * (station.x - radius_x + radius_x * cos(angle)),
 				station.y - radius_y + radius_y * sin(angle), station.z))
 		ring.append(Vector3(side * inner_x, station.y, station.z))
 		ring.append(Vector3(side * inner_x, bottom, station.z))
 		for step in 32:
-			var angle := PI * 1.5 + float(step) / 32.0 * PI * 0.5
+			var angle := PI * 1.5 + float(step) / ROOF_ACROSS_STEPS * PI * 0.5
 			ring.append(Vector3(side * (station.x - radius_x + radius_x * cos(angle)),
 				bottom + radius_y + radius_y * sin(angle), station.z))
 		# An integral machined landing under the unchanged defensive bearing
