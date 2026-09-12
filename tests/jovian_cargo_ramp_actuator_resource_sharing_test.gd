@@ -1,7 +1,6 @@
 extends SceneTree
 
 const JOVIAN_SCENE := preload("res://scenes/ships/jovian_light_freighter.tscn")
-const RAMP_ROTATION := Vector3(0.0, 0.0, deg_to_rad(20.0))
 
 var _failures := PackedStringArray()
 var _assertions := 0
@@ -17,15 +16,12 @@ func _run() -> void:
 	await process_frame
 	await physics_frame
 
-	var expected_transforms := _expected_transforms()
-	var ramp := jovian.find_child("PortCargoRamp", true, false) as MeshInstance3D
-	var visual_root: Node = ramp.get_parent() if ramp != null else null
-	var actuators: Array[MeshInstance3D] = []
-	if visual_root != null:
-		for candidate in visual_root.get_children():
-			var actuator := candidate as MeshInstance3D
-			if actuator != null and _contains_transform(expected_transforms, actuator.transform):
-				actuators.append(actuator)
+	jovian.set_physics_process(false)
+	var actuators: Array[MeshInstance3D] = jovian.get("_cargo_ramp_actuators")
+	var rods: Array[MeshInstance3D] = jovian.get("_cargo_ramp_rods")
+	var expected_transforms: Array[Transform3D] = []
+	for actuator in actuators:
+		expected_transforms.append(actuator.transform)
 	var mesh_ids: Dictionary = {}
 	var actual_transforms: Array[Transform3D] = []
 	var recipe_retained := actuators.size() \
@@ -73,8 +69,8 @@ func _run() -> void:
 
 	_check(
 		actuators.size() == JovianLightFreighter.CARGO_RAMP_ACTUATOR_COPY_COUNT
-			and _transforms_match(actual_transforms, expected_transforms),
-		"both cargo-ramp actuators retain their exact ramp-aligned transforms",
+			and rods.size() == actuators.size(),
+		"both cargo-ramp actuators retain paired telescoping rods",
 	)
 	_check(
 		recipe_retained and mesh_ids.size() == 1,
@@ -86,12 +82,33 @@ func _run() -> void:
 	)
 	_check(
 		common_parent != null
-			and common_parent.get_node_or_null(^"PortCargoRamp") is MeshInstance3D
+			and common_parent.get_node_or_null(^"CargoRampHinge/PortCargoRamp") is MeshInstance3D
 			and jovian.get_interior_access_marker().position.is_equal_approx(
 				Vector3(-10.05, -1.08, 3.2)
 			),
-		"actuators remain visual siblings of the unchanged physical ramp and boarding marker",
+		"actuators share the cargo access assembly and preserve the physical boarding marker",
 	)
+
+	var rod_mesh: Mesh = rods[0].mesh if rods.size() == 2 else null
+	_check(rod_mesh != null and rods[1].mesh == rod_mesh
+		and rod_mesh != actuators[0].mesh
+		and rod_mesh.surface_get_material(0) == jovian.get_variant_materials().get("structure"),
+		"both telescoping rods share a separate immutable mesh and the existing structural finish")
+	var resources_retained := recipe_retained and rods.size() == 2
+	var moved := false
+	for fraction in [0.25, 0.5, 0.75, 1.0]:
+		jovian.call("_set_cargo_ramp_fraction", fraction)
+		for index in actuators.size():
+			resources_retained = resources_retained and mesh_ids.has(actuators[index].mesh.get_instance_id()) \
+				and rods[index].mesh == rod_mesh
+			moved = moved or not actuators[index].transform.is_equal_approx(expected_transforms[index])
+	jovian.reset_for_reuse(jovian.global_transform)
+	await physics_frame
+	actual_transforms.clear()
+	for actuator in actuators:
+		actual_transforms.append(actuator.transform)
+	_check(resources_retained and moved and _transforms_match(actual_transforms, expected_transforms),
+		"folding moves the actuator assemblies without replacing meshes, and reset restores their deployed poses")
 
 	jovian.queue_free()
 	await process_frame
@@ -106,13 +123,6 @@ func _run() -> void:
 	quit(1)
 
 
-func _expected_transforms() -> Array[Transform3D]:
-	return [
-		Transform3D(Basis.from_euler(RAMP_ROTATION), Vector3(-6.1, 0.12, 1.3)),
-		Transform3D(Basis.from_euler(RAMP_ROTATION), Vector3(-6.1, 0.12, 5.1)),
-	]
-
-
 func _transforms_match(left: Array[Transform3D], right: Array[Transform3D]) -> bool:
 	if left.size() != right.size():
 		return false
@@ -125,13 +135,6 @@ func _transforms_match(left: Array[Transform3D], right: Array[Transform3D]) -> b
 		if not matched:
 			return false
 	return true
-
-
-func _contains_transform(transforms: Array[Transform3D], target: Transform3D) -> bool:
-	for transform in transforms:
-		if transform.is_equal_approx(target):
-			return true
-	return false
 
 
 func _check(condition: bool, description: String) -> void:

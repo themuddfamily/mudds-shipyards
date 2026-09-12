@@ -36,6 +36,7 @@ func _run() -> void:
 	await _test_freighter_windscreen(jovian)
 	await _test_pilot_doorway(jovian)
 	await _test_pilot_access_stowage(jovian)
+	await _test_cargo_ramp_closure(jovian)
 	_test_formed_aft_machinery_housing(jovian)
 	_test_open_engine_module_sharing(jovian)
 	_test_definition_and_evidence(jovian)
@@ -2456,6 +2457,166 @@ func _test_pilot_access_stowage(ship: JovianLightFreighter) -> void:
 		_check(mesh.mesh == resources[mesh] and mesh.global_transform.is_equal_approx(deployed[mesh]),
 			"folding and reset preserve resources and exact deployed pose: %s" % mesh.get_path())
 	ship.set_physics_process(prior_physics)
+
+
+func _test_cargo_ramp_closure(ship: JovianLightFreighter) -> void:
+	var processing := ship.is_physics_processing()
+	ship.set_physics_process(false)
+	ship.reset_for_reuse(ship.global_transform)
+	await physics_frame
+	var access := ship.get_jovian_visual_root().get_node("CargoAccess") as Node3D
+	var hinge := access.get_node("CargoRampHinge") as Node3D
+	var wedge := ship.get_node("PortCargoRampCollision") as CollisionShape3D
+	var door := ship.get_node("CargoDoorCollision") as CollisionShape3D
+	var report := ship.get_landing_collision_report()
+	var resources: Dictionary = {}
+	var original_transforms: Dictionary = {}
+	for mesh: MeshInstance3D in access.find_children("*", "MeshInstance3D", true, false):
+		resources[mesh] = mesh.mesh
+		original_transforms[mesh] = mesh.transform
+	var leaf_triangles := 0
+	var good_normals := true
+	var top_samples := 0
+	for path in ["PortCargoRamp", "CargoToeHinge/CargoRampToe"]:
+		var mesh := hinge.get_node(path) as MeshInstance3D
+		var arrays := mesh.mesh.surface_get_arrays(0)
+		var vertices: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
+		var normals: PackedVector3Array = arrays[Mesh.ARRAY_NORMAL]
+		leaf_triangles += vertices.size() / 3
+		for index in range(0, vertices.size(), 3):
+			good_normals = good_normals and normals[index].is_normalized() and (vertices[index + 1] - vertices[index]).cross(vertices[index + 2] - vertices[index]).dot(normals[index]) < -0.000001
+			if normals[index].y > 0.9:
+				for corner in 3:
+					var point: Vector3 = ship.to_local(mesh.to_global(vertices[index + corner]))
+					var expected_y := -1.25 + (point.x + 10.45) * 1.73 / 4.725
+					good_normals = good_normals and absf(point.y - expected_y) < 0.00001
+					top_samples += 1
+	_check(good_normals and leaf_triangles == 20 and top_samples == 12,
+		"both thin cargo leaves preserve the deployed walking plane with nondegenerate outward faces, including the tapered toe")
+	_check(not wedge.disabled and door.disabled, "spawn/reset enables the original ramp wedge and disables the folded-door collider")
+	# Existing mesh probes include the actual adjacent shoulders, deck and header.
+	var geometry := Node3D.new()
+	_test_root.add_child(geometry)
+	var corridor := AABB(Vector3(-11.0, -1.5, 1.0), Vector3(7.0, 7.0, 4.4))
+	for node in ship.find_children("*", "GeometryInstance3D", true, false):
+		if not node.is_visible_in_tree() or access.is_ancestor_of(node):
+			continue
+		if node is MeshInstance3D and node.mesh != null:
+			_add_doorway_mesh_probe(geometry, ship, corridor, node.mesh, node.global_transform, node.name)
+		elif node is MultiMeshInstance3D and node.multimesh != null and node.multimesh.mesh != null:
+			var count: int = node.multimesh.instance_count if node.multimesh.visible_instance_count < 0 else node.multimesh.visible_instance_count
+			for index in count:
+				_add_doorway_mesh_probe(geometry, ship, corridor, node.multimesh.mesh, node.global_transform * node.multimesh.get_instance_transform(index), node.name)
+	await physics_frame
+	await physics_frame
+	var hits: Dictionary = {}
+	var min_y := INF
+	var actuator_connected := true
+	var bodies: Array = ship.get("_cargo_ramp_actuators")
+	var rods: Array = ship.get("_cargo_ramp_rods")
+	for sample in 81:
+		ship.call("_set_cargo_ramp_fraction", float(sample) / 80.0)
+		for mesh: MeshInstance3D in access.find_children("*", "MeshInstance3D", true, false):
+			if access.get_node("CargoRampMounts").is_ancestor_of(mesh):
+				continue
+			var vertices := mesh.mesh.get_faces()
+			for point in vertices:
+				min_y = minf(min_y, ship.to_local(mesh.to_global(point)).y)
+			for triangle in range(0, vertices.size(), 3):
+				for edge in 3:
+					var query := PhysicsRayQueryParameters3D.create(mesh.to_global(vertices[triangle + edge]), mesh.to_global(vertices[triangle + (edge + 1) % 3]), 1 << 25)
+					query.hit_back_faces = true
+					var hit := ship.get_world_3d().direct_space_state.intersect_ray(query)
+					if not hit.is_empty():
+						hits[str(hit.collider.name)] = sample
+		for index in 2:
+			var z := 1.70 if index == 0 else 4.70
+			var fixed := Vector3(-5.95, 0.10, z)
+			var moving := hinge.transform * (JovianLightFreighter.CARGO_RAMP_DIRECTION * 0.80 - JovianLightFreighter.CARGO_RAMP_NORMAL * 0.12)
+			moving.z = z
+			actuator_connected = actuator_connected and (bodies[index].transform * Vector3(0.0, 0.0, -0.675)).is_equal_approx(fixed) and (rods[index].transform * Vector3(0.0, 0.0, 0.5)).is_equal_approx(moving)
+	_check(hits.is_empty() and min_y >= -1.25001, "81 complete cargo fold poses clear actual hull/deck/header and add no below-plane geometry: %s minimum %.5f" % [hits, min_y])
+	_check(actuator_connected, "both telescoping actuators stay joined to fixed mounts and moving leaf throughout closure")
+	geometry.queue_free()
+	var self_geometry := Node3D.new()
+	_test_root.add_child(self_geometry)
+	var main_probes: Dictionary = {}
+	var toe_hinge := hinge.get_node("CargoToeHinge") as Node3D
+	for mesh: MeshInstance3D in hinge.find_children("*", "MeshInstance3D", true, false):
+		if toe_hinge.is_ancestor_of(mesh):
+			continue
+		_add_doorway_mesh_probe(self_geometry, ship, corridor, mesh.mesh, mesh.global_transform, mesh.name)
+		main_probes[self_geometry.get_child(self_geometry.get_child_count() - 1)] = mesh
+	for mesh: MeshInstance3D in access.get_node("CargoRampMounts").get_children():
+		_add_doorway_mesh_probe(self_geometry, ship, corridor, mesh.mesh, mesh.global_transform, mesh.name)
+	var attachment_shape := SphereShape3D.new()
+	attachment_shape.radius = 0.09
+	var attachment_query := PhysicsShapeQueryParameters3D.new()
+	attachment_query.shape = attachment_shape
+	attachment_query.collision_mask = 1 << 25
+	var anchors_join_geometry := true
+	var self_hits: Dictionary = {}
+	var samples: Array = range(17, 54)
+	samples.append(80)
+	for sample in samples:
+		ship.call("_set_cargo_ramp_fraction", float(sample) / 80.0)
+		for body: Node3D in main_probes:
+			body.global_transform = (main_probes[body] as Node3D).global_transform
+		await physics_frame
+		for index in 2:
+			var z := 1.70 if index == 0 else 4.70
+			var fixed := Vector3(-5.95, 0.10, z)
+			var moving := hinge.transform * (JovianLightFreighter.CARGO_RAMP_DIRECTION * 0.80 - JovianLightFreighter.CARGO_RAMP_NORMAL * 0.12)
+			moving.z = z
+			for anchor in [fixed, moving]:
+				attachment_query.transform = Transform3D(Basis.IDENTITY, ship.to_global(anchor))
+				anchors_join_geometry = anchors_join_geometry and not ship.get_world_3d().direct_space_state.intersect_shape(attachment_query, 1).is_empty()
+		for mesh: MeshInstance3D in toe_hinge.find_children("*", "MeshInstance3D", true, false):
+			var vertices := mesh.mesh.get_faces()
+			for triangle in range(0, vertices.size(), 3):
+				for edge in 3:
+					var edge_query := PhysicsRayQueryParameters3D.create(mesh.to_global(vertices[triangle + edge]), mesh.to_global(vertices[triangle + (edge + 1) % 3]), 1 << 25)
+					edge_query.hit_back_faces = true
+					var contact := ship.get_world_3d().direct_space_state.intersect_ray(edge_query)
+					if not contact.is_empty():
+						var at_joint: Vector3 = hinge.to_local(contact.position) - (JovianLightFreighter.CARGO_RAMP_TOE_HINGE - JovianLightFreighter.CARGO_RAMP_INNER)
+						if sample == 80 or Vector2(at_joint.x, at_joint.y).length() > 0.235:
+							self_hits[str(contact.collider.name)] = sample
+	_check(anchors_join_geometry, "actuator rod tips and fixed pivots join actual emitted clevis/mount surfaces throughout movement")
+	_check(self_hits.is_empty(), "toe swing and folded stack clear main panel, rails and underside crossmembers outside their real hinge seam: %s" % self_hits)
+	self_geometry.queue_free()
+	ship.set("_landed", false)
+	ship.call("_update_cargo_ramp_presentation", 3.0)
+	await physics_frame
+	_check(wedge.disabled and not door.disabled, "flight removes the deployed wedge and enables the real moving door collider")
+	var closed := ship.get_landing_collision_report()
+	_check(closed.valid and closed.local_bounds == report.local_bounds and closed.shape_count == report.shape_count,
+		"closed door retains the deployed resource-derived landing envelope, contact plane and enabled-only shape count")
+	var query := PhysicsRayQueryParameters3D.create(ship.to_global(Vector3(-4.8, 2.0, 3.2)), ship.to_global(Vector3(-6.5, 2.0, 3.2)), PhysicsLayers.SHIP_BODY_LAYER)
+	var hit := ship.get_world_3d().direct_space_state.intersect_ray(query)
+	_check(not hit.is_empty() and hit.collider == ship and ship.to_local(hit.position).x < -5.6,
+		"closed cargo door physically blocks the central cabin-to-exterior aperture")
+	ship.set("_landing_active", true)
+	ship.call("_update_cargo_ramp_presentation", 0.5)
+	_check(ship.get("_cargo_ramp_close_fraction") < 1.0, "existing landing approach reverses cargo deployment")
+	ship.set("_landing_active", false)
+	ship.call("_update_cargo_ramp_presentation", 3.0)
+	_check(is_equal_approx(ship.get("_cargo_ramp_close_fraction"), 1.0), "aborted landing restores the closed flight target")
+	ship.set("_landed", true)
+	ship.call("_update_cargo_ramp_presentation", 0.0)
+	await physics_frame
+	_check(not wedge.disabled and door.disabled and is_zero_approx(ship.get("_cargo_ramp_close_fraction")), "touchdown restores the supported cargo route without waiting for another access command")
+	ship.reset_for_reuse(ship.global_transform)
+	await physics_frame
+	_check(not wedge.disabled and door.disabled, "repeated already-deployed reset restores the complementary collider pair")
+	ship.set("_landed", false)
+	ship.call("_update_cargo_ramp_presentation", 0.2)
+	ship.reset_for_reuse(ship.global_transform)
+	await physics_frame
+	_check(not wedge.disabled and door.disabled, "reset overrides a queued flight collision update")
+	for mesh: MeshInstance3D in resources:
+		_check(mesh.mesh == resources[mesh] and mesh.transform.is_equal_approx(original_transforms[mesh]), "cargo reset preserves mesh resources and deployed transforms: %s" % mesh.name)
+	ship.set_physics_process(processing)
 
 
 func _add_doorway_mesh_probe(parent: Node3D, ship: JovianLightFreighter, corridor: AABB,

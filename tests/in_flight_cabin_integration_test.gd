@@ -366,8 +366,9 @@ func _test_cabin_loop(
 	)
 
 	# --- group C: the pilot cannot be stranded -------------------------------
-	# Walk back into the aperture band, then drive at the one real opening in the
-	# hull with real sprinting input, for as long as it would take to get out.
+	# Walk back into the aperture band, then sprint at the physically closed
+	# cargo door for long enough to establish contact instead of relying on the
+	# outer containment envelope.
 	# Stop between the two rows of secured freight, so the push at the aperture
 	# is a clean run at the opening rather than a scrape past cargo.
 	await _walk_until(
@@ -378,18 +379,33 @@ func _test_cabin_loop(
 	var reached_aperture := await _walk_until(
 		&"move_right",
 		true,
-		func() -> bool: return jovian.to_local(player.global_position).x < -5.5
+		func() -> bool: return jovian.to_local(player.global_position).x < -5.0
 	)
+	var clamps_before := int(player.get_cabin_containment_report().get("clamp_count",0))
+	var door_contacts := 0
+	Input.action_press(&"move_right")
+	Input.action_press(&"sprint_boost")
+	for tick in 60:
+		await physics_frame
+		await process_frame
+		for index in player.get_slide_collision_count():
+			var collision := player.get_slide_collision(index)
+			if collision.get_collider() == jovian:
+				if collision.get_collider_shape() == jovian.get_node("CargoDoorCollision"):
+					door_contacts += 1
+	Input.action_release(&"move_right")
+	Input.action_release(&"sprint_boost")
 	var pushed := player.get_cabin_containment_report()
 	var pushed_local := jovian.to_local(player.global_position)
 	_check(
 		bool(pushed.get("contained", false))
 		and pushed_local.x >= JovianLightFreighter.CABIN_MOVEMENT_BOUNDS.position.x,
-		"sprinting at the open cargo aperture of a moving hull cannot put the pilot outside it"
+		"sprinting at the closed cargo door of a moving hull cannot put the pilot outside it"
 	)
 	_check(
-		reached_aperture and int(pushed.get("clamp_count", 0)) > 0,
-		"the pilot really does reach the aperture and is held at its threshold"
+		reached_aperture and door_contacts > 0 and int(pushed.get("clamp_count", 0)) == clamps_before
+		and pushed_local.x > -5.5 and pushed_local.x < -5.0,
+		"actual closed-door collision stops the standing pilot before the containment clamp while preserving cabin movement ownership"
 	)
 
 	var recalls_before := int(player.get_cabin_containment_report().get("recall_count", 0))

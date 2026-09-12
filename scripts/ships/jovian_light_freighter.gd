@@ -120,16 +120,21 @@ const CARGO_APERTURE_HEADER_SIZE := Vector3(0.34, 0.30, 4.20)
 const CARGO_APERTURE_HEADER_END_RADIUS := 0.15
 const CARGO_APERTURE_HEADER_CURVE_SEGMENTS := 8
 
-# Two childless amber edge rails retain their named renderer nodes and exact
-# ramp-aligned transforms. They own no collision, boarding, interaction, or
-# lifecycle authority, so one immutable rounded-box recipe supplies both.
-const CARGO_RAMP_EDGE_RAIL_COPY_COUNT := 2
-const CARGO_RAMP_EDGE_RAIL_SIZE := Vector3(5.15, 0.24, 0.16)
-
-# Two childless structure-dark ramp actuators retain their ordinary named
-# renderers and exact ramp-aligned transforms. Boarding and collision remain on
-# the adjacent ramp and ship-root shapes; these cosmetic leaves can therefore
-# share one immutable rounded-box recipe without acquiring route authority.
+# Two pairs of shared rails follow the folding main and toe leaves.
+const CARGO_RAMP_INNER := Vector3(-5.725, 0.48, 3.2)
+const CARGO_RAMP_OUTER := Vector3(-10.45, -1.25, 3.2)
+const CARGO_RAMP_LENGTH := sqrt(4.725 * 4.725 + 1.73 * 1.73)
+const CARGO_RAMP_DIRECTION := Vector3(-4.725, -1.73, 0.0) / CARGO_RAMP_LENGTH
+const CARGO_RAMP_NORMAL := Vector3(-1.73, 4.725, 0.0) / CARGO_RAMP_LENGTH
+const CARGO_RAMP_MAIN_LENGTH := 3.50
+const CARGO_RAMP_TOE_LENGTH := CARGO_RAMP_LENGTH - CARGO_RAMP_MAIN_LENGTH
+const CARGO_RAMP_SPLIT := CARGO_RAMP_INNER + CARGO_RAMP_DIRECTION * CARGO_RAMP_MAIN_LENGTH
+const CARGO_RAMP_TOE_HINGE := CARGO_RAMP_SPLIT - CARGO_RAMP_NORMAL * 0.22
+const CARGO_RAMP_CLOSE_ANGLE := -PI * 0.5 - atan2(1.73, 4.725)
+const CARGO_RAMP_MOTION_SECONDS := 2.0
+const CARGO_RAMP_EDGE_RAIL_COPY_COUNT := 4
+const CARGO_RAMP_EDGE_RAIL_SIZE := Vector3(CARGO_RAMP_MAIN_LENGTH - 0.22, 0.18, 0.12)
+const CARGO_RAMP_TOE_RAIL_SIZE := Vector3(CARGO_RAMP_TOE_LENGTH, 0.18, 0.12)
 const CARGO_RAMP_ACTUATOR_COPY_COUNT := 2
 const CARGO_RAMP_ACTUATOR_SIZE := Vector3(0.24, 0.24, 1.35)
 
@@ -343,6 +348,16 @@ var _passenger_seat_back_mesh: ArrayMesh
 var _passenger_seat_harness_mesh: ArrayMesh
 var _passenger_cabin_light_strip_mesh: ArrayMesh
 var _cabin_portal_upright_mesh: ArrayMesh
+var _cargo_ramp_hinge: Node3D
+var _cargo_ramp_toe_hinge: Node3D
+var _cargo_ramp_walking_collision: CollisionShape3D
+var _cargo_door_collision: CollisionShape3D
+var _cargo_ramp_deployed_bounds := AABB()
+var _cargo_ramp_close_fraction := 0.0
+var _cargo_ramp_walking_disabled := false
+var _cargo_ramp_actuators: Array[MeshInstance3D] = []
+var _cargo_ramp_rods: Array[MeshInstance3D] = []
+var _cargo_ramp_toe_rail_mesh: ArrayMesh
 var _cargo_ramp_edge_rail_mesh: ArrayMesh
 var _cargo_ramp_actuator_mesh: ArrayMesh
 var _cargo_ceiling_light_mesh: ArrayMesh
@@ -591,6 +606,7 @@ func _physics_process(delta: float) -> void:
 	_elapsed_jovian += delta
 	_update_jovian_presentation(delta)
 	_update_pilot_access_stowage(delta)
+	_update_cargo_ramp_presentation(delta)
 
 
 func apply_damage(
@@ -631,6 +647,11 @@ func _commit_variant_reset_for_reuse(context: Dictionary) -> void:
 	_set_interior_operational(true)
 	_set_pilot_access_fold(0.0)
 	_sync_pilot_stair_collision()
+	_set_cargo_ramp_fraction(0.0)
+	_sync_cargo_ramp_collision()
+	# Hero reset enables every root shape; restore this complementary pair
+	# even when the presentation was already fully deployed.
+	call_deferred("_apply_cargo_ramp_collision")
 	if _moving_interior_component != null:
 		_moving_interior_component.configure(self, INTERIOR_BOUNDS, _occupant_volume)
 		_moving_interior_component.reset_frame_tracking(true)
@@ -3922,57 +3943,191 @@ func _build_exterior() -> void:
 	_load_mark_batch.set_meta("authored_instance_transforms", _load_mark_transforms.duplicate())
 	_jovian_visual.add_child(_load_mark_batch)
 
-	# The deployed ramp and frame are deliberately obvious from the berth. The
-	# opening remains geometrically clear all the way to the cargo deck.
-	# A 20-degree rise gives the wedge's walkable upper surface y=-1.25 at
-	# x=-10.45 and y=+0.48 at the cargo-deck threshold x=-5.725. Unlike a
-	# rotated box, its flat underside never extends below the landing plane.
-	var ramp_angle := deg_to_rad(20.0)
-	_ramp_wedge(
-		_jovian_visual,
-		"PortCargoRamp",
-		-10.45,
-		-5.725,
-		-1.25,
-		-1.25,
-		0.48,
-		3.2,
-		1.7,
-		_jovian_materials.deck
-	)
-	_cargo_ramp_edge_rail_mesh = _rounded_box_mesh(
-		CARGO_RAMP_EDGE_RAIL_SIZE, _jovian_materials.amber
-	)
-	for rail_z in [1.62, 4.78]:
-		_rounded_box_from_mesh(
-			_jovian_visual,
-			"CargoRampEdgeRail",
-			Vector3(-7.9, -0.22, rail_z),
-			_cargo_ramp_edge_rail_mesh,
-			Vector3(0.0, 0.0, ramp_angle)
-		)
+	_build_folding_cargo_ramp()
+
+
+func _build_folding_cargo_ramp() -> void:
+	var access := Node3D.new()
+	access.name = "CargoAccess"
+	_jovian_visual.add_child(access)
+	_cargo_ramp_hinge = Node3D.new()
+	_cargo_ramp_hinge.name = "CargoRampHinge"
+	access.add_child(_cargo_ramp_hinge)
+	_cargo_ramp_toe_hinge = Node3D.new()
+	_cargo_ramp_toe_hinge.name = "CargoToeHinge"
+	_cargo_ramp_hinge.add_child(_cargo_ramp_toe_hinge)
+	_cargo_ramp_edge_rail_mesh = _rounded_box_mesh(CARGO_RAMP_EDGE_RAIL_SIZE, _jovian_materials.amber)
+	_cargo_ramp_toe_rail_mesh = _rounded_box_mesh(CARGO_RAMP_TOE_RAIL_SIZE, _jovian_materials.amber)
+	for toe in [false, true]:
+		var parent := _cargo_ramp_toe_hinge if toe else _cargo_ramp_hinge
+		var inner := CARGO_RAMP_SPLIT if toe else CARGO_RAMP_INNER
+		var outer := CARGO_RAMP_OUTER if toe else CARGO_RAMP_SPLIT
+		var pivot := CARGO_RAMP_TOE_HINGE if toe else CARGO_RAMP_INNER
+		var panel := MeshInstance3D.new()
+		panel.name = "CargoRampToe" if toe else "PortCargoRamp"
+		panel.mesh = _cargo_ramp_leaf_mesh(outer, inner)
+		panel.position = -pivot
+		parent.add_child(panel)
+		var frame := Node3D.new()
+		frame.name = "ToeFrame" if toe else "MainFrame"
+		parent.add_child(frame)
+		for z in [-1.58, 1.58]:
+			_rounded_box_from_mesh(frame, "CargoToeEdgeRail" if toe else "CargoRampEdgeRail",
+				(inner + outer) * 0.5 + CARGO_RAMP_DIRECTION * (0.0 if toe else 0.11) + CARGO_RAMP_NORMAL * 0.09 + Vector3(0.0, 0.0, z),
+				_cargo_ramp_toe_rail_mesh if toe else _cargo_ramp_edge_rail_mesh,
+				Vector3(0.0, 0.0, atan2(1.73, 4.725)))
+		for fraction in ([0.18, 0.50] if toe else [0.12, 0.50, 0.88]):
+			_box(frame, "RampCrossmember", inner.lerp(outer, fraction) - CARGO_RAMP_NORMAL * 0.14,
+				Vector3(0.10, 0.10, 3.16), _jovian_materials.structure, Vector3(0.0, 0.0, atan2(1.73, 4.725)))
+		if not toe:
+			for z in [-1.50, 1.50]:
+				_box(frame, "CargoActuatorClevis", CARGO_RAMP_INNER + CARGO_RAMP_DIRECTION * 0.80 - CARGO_RAMP_NORMAL * 0.12 + Vector3(0.0, 0.0, z),
+					Vector3(0.22, 0.16, 0.24), _jovian_materials.structure, Vector3(0.0, 0.0, atan2(1.73, 4.725)))
+			for z in [-1.58, 1.58]:
+				_cargo_ramp_knuckle(frame, CARGO_RAMP_TOE_HINGE + Vector3(0.0, 0.0, z), 0.08)
+				_box(frame, "ToeHingeCheek", CARGO_RAMP_SPLIT - CARGO_RAMP_NORMAL * 0.11 + Vector3(0.0, 0.0, z),
+					Vector3(0.08, 0.22, 0.10), _jovian_materials.structure, Vector3(0.0, 0.0, atan2(1.73, 4.725)))
+		_batch_pilot_access_meshes(frame)
+		frame.position = -pivot
+	var fixed := Node3D.new()
+	fixed.name = "CargoRampMounts"
+	access.add_child(fixed)
+	for z in [-1.78, 1.78]:
+		_cargo_ramp_knuckle(fixed, CARGO_RAMP_INNER + Vector3(0.0, 0.0, z), 0.18)
+	for z in [1.70, 4.70]:
+		_box(fixed, "CargoActuatorFixedMount", Vector3(-5.72, 0.26, z), Vector3(0.65, 0.34, 0.30), _jovian_materials.structure)
+	# Fixed jamb seals span the small clearance around the existing amber frame.
+	for z in [1.45, 4.95]:
+		_box(fixed, "CargoDoorSideSeal", Vector3(-5.735, 2.265, z), Vector3(0.12, 3.57, 0.10), _jovian_materials.structure)
+	_box(fixed, "CargoDoorHeadSeal", Vector3(-5.735, 4.015, 3.2), Vector3(0.12, 0.11, 3.60), _jovian_materials.structure)
+	_batch_pilot_access_meshes(fixed)
 	for vertical_z in [1.25, 5.15]:
 		_box(_jovian_visual, "CargoApertureUpright", Vector3(-5.78, 2.38, vertical_z), Vector3(0.32, 3.75, 0.3), _jovian_materials.amber)
-	_cargo_aperture_capsule_header(
-		_jovian_visual,
-		"CargoApertureHeader",
-		Vector3(-5.78, 4.22, 3.2),
-		CARGO_APERTURE_HEADER_SIZE,
-		_jovian_materials.amber,
-		CARGO_APERTURE_HEADER_END_RADIUS,
-		CARGO_APERTURE_HEADER_CURVE_SEGMENTS
-	)
-	_cargo_ramp_actuator_mesh = _rounded_box_mesh(
-		CARGO_RAMP_ACTUATOR_SIZE, _jovian_materials.structure
-	)
-	for actuator_z in [1.3, 5.1]:
-		_rounded_box_from_mesh(
-			_jovian_visual,
-			"CargoRampActuator",
-			Vector3(-6.1, 0.12, actuator_z),
-			_cargo_ramp_actuator_mesh,
-			Vector3(0.0, 0.0, ramp_angle)
-		)
+	_cargo_aperture_capsule_header(_jovian_visual, "CargoApertureHeader", Vector3(-5.78, 4.22, 3.2),
+		CARGO_APERTURE_HEADER_SIZE, _jovian_materials.amber, CARGO_APERTURE_HEADER_END_RADIUS, CARGO_APERTURE_HEADER_CURVE_SEGMENTS)
+	_cargo_ramp_actuator_mesh = _rounded_box_mesh(CARGO_RAMP_ACTUATOR_SIZE, _jovian_materials.structure)
+	var rod_mesh := _rounded_box_mesh(Vector3(0.10, 0.10, 1.0), _jovian_materials.structure)
+	_cargo_ramp_actuators.clear()
+	_cargo_ramp_rods.clear()
+	for side in 2:
+		_cargo_ramp_actuators.append(_rounded_box_from_mesh(access, "CargoRampActuator", Vector3.ZERO, _cargo_ramp_actuator_mesh))
+		_cargo_ramp_rods.append(_rounded_box_from_mesh(access, "CargoRampActuatorRod", Vector3.ZERO, rod_mesh))
+	_set_cargo_ramp_fraction(0.0)
+
+
+func _cargo_ramp_leaf_points(outer: Vector3, inner: Vector3) -> PackedVector3Array:
+	var points := PackedVector3Array()
+	for z in [-1.7, 1.7]:
+		for point in [outer, inner]:
+			points.append(point + Vector3(0.0, 0.0, z))
+			# The toe tapers to the original contact plane instead of sinking a
+			# panel thickness below the berth deck.
+			points.append(Vector3(point.x, maxf(-1.25, point.y - 0.10), point.z + z))
+	return points
+
+
+func _cargo_ramp_leaf_mesh(outer: Vector3, inner: Vector3) -> ArrayMesh:
+	var points := _cargo_ramp_leaf_points(outer, inner)
+	var tool := SurfaceTool.new()
+	tool.begin(Mesh.PRIMITIVE_TRIANGLES)
+	tool.set_material(_jovian_materials.deck)
+	for face in [[0, 4, 6, 2], [1, 3, 7, 5], [0, 1, 5, 4], [2, 6, 7, 3], [0, 2, 3, 1], [4, 5, 7, 6]]:
+		for triangle in [[0, 2, 1], [0, 3, 2]]:
+			var a := points[face[triangle[0]]]
+			var b := points[face[triangle[1]]]
+			var c := points[face[triangle[2]]]
+			var normal := (c - a).cross(b - a)
+			# The tapered toe has no outer wall and one triangle on each side.
+			if normal.length_squared() < 0.00000001:
+				continue
+			normal = normal.normalized()
+			for point in [a, b, c]:
+				tool.set_normal(normal)
+				tool.set_uv(Vector2(point.x, point.z) if absf(normal.y) > 0.5 else
+					(Vector2(point.x, point.y) if absf(normal.z) > 0.5 else Vector2(point.z, point.y)))
+				tool.add_vertex(point)
+	tool.generate_tangents()
+	return tool.commit()
+
+
+func _cargo_ramp_knuckle(parent: Node3D, center: Vector3, radius: float) -> void:
+	var drum := CylinderMesh.new()
+	drum.top_radius = radius
+	drum.bottom_radius = radius
+	drum.height = 0.14
+	drum.radial_segments = 12
+	drum.rings = 1
+	drum.material = _jovian_materials.structure
+	var tool := SurfaceTool.new()
+	tool.create_from(drum, 0)
+	tool.deindex()
+	var knuckle := MeshInstance3D.new()
+	knuckle.name = "CargoRampKnuckle"
+	knuckle.mesh = tool.commit()
+	knuckle.position = center
+	knuckle.rotation.x = PI * 0.5
+	parent.add_child(knuckle)
+
+
+func _update_cargo_ramp_presentation(delta: float) -> void:
+	var target := 0.0 if _landed or _landing_active else 1.0
+	var next := 0.0 if _landed else move_toward(_cargo_ramp_close_fraction, target, maxf(delta, 0.0) / CARGO_RAMP_MOTION_SECONDS)
+	if not is_equal_approx(next, _cargo_ramp_close_fraction):
+		_set_cargo_ramp_fraction(next)
+	_sync_cargo_ramp_collision()
+
+
+func _set_cargo_ramp_fraction(fraction: float) -> void:
+	_cargo_ramp_close_fraction = clampf(fraction, 0.0, 1.0)
+	if not is_instance_valid(_cargo_ramp_hinge):
+		return
+	_cargo_ramp_hinge.position = CARGO_RAMP_INNER
+	# Lift clear of the pad before folding the toe underneath; the folded
+	# extension remains outside the closed pressure door and cabin fittings.
+	var clearance_angle := deg_to_rad(-25.0)
+	_cargo_ramp_hinge.rotation.z = clearance_angle * smoothstep(0.0, 0.20, _cargo_ramp_close_fraction) \
+		+ (CARGO_RAMP_CLOSE_ANGLE - clearance_angle) * smoothstep(0.65, 1.0, _cargo_ramp_close_fraction)
+	_cargo_ramp_toe_hinge.position = CARGO_RAMP_TOE_HINGE - CARGO_RAMP_INNER
+	_cargo_ramp_toe_hinge.rotation.z = PI * smoothstep(0.20, 0.65, _cargo_ramp_close_fraction)
+	for index in _cargo_ramp_actuators.size():
+		var z := 1.70 if index == 0 else 4.70
+		var fixed := Vector3(-5.95, 0.10, z)
+		var moving := _cargo_ramp_hinge.transform * (CARGO_RAMP_DIRECTION * 0.80 - CARGO_RAMP_NORMAL * 0.12)
+		moving.z = z
+		var direction := (moving - fixed).normalized()
+		var basis := Basis(Vector3.FORWARD.cross(direction), Vector3.FORWARD, direction)
+		_cargo_ramp_actuators[index].transform = Transform3D(basis.scaled_local(Vector3(1.0, 1.0, 0.36 / CARGO_RAMP_ACTUATOR_SIZE.z)), fixed + direction * 0.18)
+		var rod_start := fixed + direction * 0.26
+		_cargo_ramp_rods[index].transform = Transform3D(basis.scaled_local(Vector3(1.0, 1.0, rod_start.distance_to(moving))), (rod_start + moving) * 0.5)
+	if is_instance_valid(_cargo_door_collision):
+		_cargo_door_collision.transform = _cargo_ramp_hinge.transform * Transform3D(Basis.IDENTITY, -CARGO_RAMP_INNER)
+
+
+func _sync_cargo_ramp_collision() -> void:
+	if not is_instance_valid(_cargo_ramp_walking_collision):
+		return
+	var disabled := not _landed or not is_zero_approx(_cargo_ramp_close_fraction)
+	if disabled != _cargo_ramp_walking_disabled:
+		_cargo_ramp_walking_disabled = disabled
+		call_deferred("_apply_cargo_ramp_collision")
+
+
+func _apply_cargo_ramp_collision() -> void:
+	if is_instance_valid(_cargo_ramp_walking_collision) and is_instance_valid(_cargo_door_collision):
+		var deployed := _landed and is_zero_approx(_cargo_ramp_close_fraction)
+		_cargo_ramp_walking_collision.disabled = not deployed
+		_cargo_door_collision.disabled = deployed
+
+
+## Berth reservation, final landing acceptance and chase framing must reserve
+## the deployed ramp's operating envelope even when its walking wedge is off.
+## Derive that conservative clearance from the retained physical resource;
+## actual obstruction sweeps still query only the currently enabled shapes.
+func get_landing_collision_report() -> Dictionary:
+	var report := super.get_landing_collision_report()
+	if bool(report.get("valid", false)) and _cargo_ramp_deployed_bounds.has_volume():
+		report["local_bounds"] = (report["local_bounds"] as AABB).merge(_cargo_ramp_deployed_bounds)
+	return report
 
 
 func _build_forward_cargo_guide_silhouette() -> void:
@@ -4742,7 +4897,7 @@ func _replace_collision_and_markers() -> void:
 			CARGO_CONTAINER_SIZE
 		)
 	# The ramp is a real sloped ship-owned collider, aligned with its visual.
-	_add_ramp_wedge_collision(
+	_cargo_ramp_walking_collision = _add_ramp_wedge_collision(
 		"PortCargoRampCollision",
 		-10.45,
 		-5.725,
@@ -4753,6 +4908,17 @@ func _replace_collision_and_markers() -> void:
 		1.7
 	)
 
+	_cargo_ramp_deployed_bounds = _transformed_local_aabb(_cargo_ramp_walking_collision.transform, _shape_local_bounds(_cargo_ramp_walking_collision.shape))
+	_cargo_door_collision = CollisionShape3D.new()
+	_cargo_door_collision.name = "CargoDoorCollision"
+	var door_shape := ConvexPolygonShape3D.new()
+	door_shape.points = _cargo_ramp_leaf_points(CARGO_RAMP_SPLIT, CARGO_RAMP_INNER)
+	_cargo_door_collision.shape = door_shape
+	_cargo_door_collision.disabled = true
+	add_child(_cargo_door_collision)
+	_cargo_ramp_walking_disabled = false
+	_set_cargo_ramp_fraction(_cargo_ramp_close_fraction)
+	_sync_cargo_ramp_collision()
 	_build_pilot_access_collision()
 	var boarding := get_node_or_null("BoardingPoint") as Marker3D
 	var exit := get_node_or_null("ExitPoint") as Marker3D
