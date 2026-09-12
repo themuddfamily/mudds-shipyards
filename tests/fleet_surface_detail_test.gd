@@ -716,5 +716,20 @@ func _audit_multimesh_markings() -> void:
 		await process_frame
 		await process_frame
 		_check(receiver.get_child_count() == 0, "Removing a batch marking releases its patch")
+		var surviving_marking := ShipSurfaceDetail.mark_surface(fixture, "ReceiverFirstRegistration", "service",
+			Vector3(0, 0.1, 0), Vector2.ONE, Vector3.UP, Vector3.FORWARD)
+		await process_frame
+		await process_frame
+		_check(receiver.get_child_count() == 1, "Receiver-first cleanup starts with a retained batch patch")
+		var released_patch := receiver.get_child(0) if receiver.get_child_count() == 1 else null
+		receiver.queue_free()
+		await process_frame
+		await process_frame
+		surviving_marking.hide()
+		surviving_marking.show()
+		_check(not is_instance_valid(receiver) and not is_instance_valid(released_patch) and surviving_marking.is_inside_tree(), "Deleting the receiver releases its ink while its marking survives processing and visibility changes")
+		surviving_marking.queue_free()
+		await process_frame
+		await process_frame
 	fixture.queue_free()
 	await process_frame

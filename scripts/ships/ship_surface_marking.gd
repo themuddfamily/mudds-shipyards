@@ -210,10 +210,11 @@ func _process(_delta: float) -> void:
 
 func _sync_instance_patches() -> void:
 	for entry in _instance_patches:
+		# Freed object references cannot be assigned to typed object locals.
+		if not is_instance_valid(entry.patch) or not is_instance_valid(entry.receiver):
+			continue
 		var patch: MeshInstance3D = entry.patch
 		var receiver: MultiMeshInstance3D = entry.receiver
-		if not is_instance_valid(patch) or not is_instance_valid(receiver):
-			continue
 		var batch := receiver.multimesh
 		var index: int = entry.index
 		var present := batch != null and index < batch.instance_count
