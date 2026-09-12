@@ -116,9 +116,9 @@ func _test_provenance(manifest: Dictionary, alignment: Dictionary) -> void:
 	var semantic_hash := str(manifest.get("source_semantic_sha256", ""))
 	_check(semantic_hash.length() == 64 and semantic_hash.is_valid_hex_number(false), "manifest publishes a canonical 256-bit editable-source semantic digest")
 	_check(str(provenance.get("evaluated_source_semantic_sha256", "")) == semantic_hash, "coverage provenance and source-preservation contract share the exact semantic digest")
-	_check(int(manifest.get("mesh_triangles_evaluated_in_blender", 0)) == 100080 and int(manifest.get("mesh_triangles_exported_runtime", -1)) == 100080, "collision proof preserves the exact 100,080-triangle source/runtime contract")
+	_check(int(manifest.get("mesh_triangles_evaluated_in_blender", 0)) == 100108 and int(manifest.get("mesh_triangles_exported_runtime", -1)) == 100108, "collision proof preserves the exact 100,108-triangle source/runtime contract")
 	var batching := manifest.get("runtime_static_batching", {}) as Dictionary
-	_check(int(batching.get("source_mesh_count_total", 0)) == 318 and int(batching.get("runtime_mesh_count_total", 0)) == 32, "collision proof preserves 318 editable semantic meshes and the 32-node runtime budget")
+	_check(int(batching.get("source_mesh_count_total", 0)) == 319 and int(batching.get("runtime_mesh_count_total", 0)) == 32, "collision proof preserves 319 editable semantic meshes and the 32-node runtime budget")
 	var protected := batching.get("protected_meshes_by_root", {}) as Dictionary
 	var protected_lod0 := _sorted_strings(protected.get("LOD0", []))
 	_check(protected_lod0.has("AmberUnknownFunctionPanel") and int((batching.get("runtime_mesh_counts_by_root", {}) as Dictionary).get("LOD0", 0)) == 17, "standalone Amber panel and exact LOD0 batching survive regeneration")

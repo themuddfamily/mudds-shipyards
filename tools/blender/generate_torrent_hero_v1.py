@@ -78,7 +78,7 @@ PROTECTED_MESHES_BY_ROOT: dict[str, tuple[str, ...]] = {
 }
 EXPECTED_SOURCE_MESH_COUNTS = {
     "LOD0": 242,
-    "LOD1": 20,
+    "LOD1": 21,
     "CockpitArt": 39,
     "CanopyPivot": 17,
     "SemanticAnchors": 0,
@@ -90,7 +90,7 @@ EXPECTED_RUNTIME_MESH_COUNTS = {
     "CanopyPivot": 3,
     "SemanticAnchors": 0,
 }
-EXPECTED_RUNTIME_TRIANGLES = 100_080
+EXPECTED_RUNTIME_TRIANGLES = 100_108
 RUNTIME_MESH_INSTANCE_BUDGET = 36
 SOURCE_MESH_INSTANCE_BUDGET = 320
 CLOSE_TRIANGLE_RANGE = (70_000, 90_000)
@@ -1454,6 +1454,16 @@ def build_lod1(collection):
                     (.25,.18),(.25,.12),1.94,.025).location.x=side*2.05
     tapered_box("LOD1AftCrossbar", collection, thermal, 2.22, 2.70,
                 (1.92,.10), (1.68,.065), 2.00,.020)
+    # Retain the close cassette's dark inset at the 46 m whole-ship handoff.
+    # Its octagonal outline is enough at this distance; omit ribs, conduits and
+    # surround trim and join the prism into the existing far thermal batch.
+    cassette_outline = [(-1.31,.93), (-1.12,.76), (1.12,.76), (1.31,.93),
+                        (1.31,1.53), (1.12,1.69), (-1.12,1.69), (-1.31,1.53)]
+    verts = [(x*.90, 1.23+(y-1.23)*.88, 3.08) for x,y in cassette_outline]
+    verts += [(x,y,3.47) for x,y in cassette_outline]
+    faces = [tuple(reversed(range(8))), tuple(range(8,16))]
+    faces += [(i,(i+1)%8,(i+1)%8+8,i+8) for i in range(8)]
+    wedge("LOD1AftMachineryRecess", collection, thermal, verts, faces, 0.0)
 
 
 def setup_scene() -> dict:
