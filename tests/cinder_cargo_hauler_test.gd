@@ -15,6 +15,7 @@ func _initialize() -> void:
 	await process_frame
 	_test_recessed_exhaust(craft)
 	_test_cockpit_fairing(craft)
+	_test_fitted_canopy(craft)
 	_test_pressure_endcaps(craft)
 	var endcap_stock: Mesh = craft.get_node("CinderCargoVisual/ForwardPressureCap").mesh
 	var fairing_stock: Mesh = craft.get_node("CinderCargoVisual/CockpitPressureTransition").mesh
@@ -399,6 +400,112 @@ func _authority_snapshot(audit: Dictionary) -> Dictionary:
 		"game_flow_authority": audit.get("game_flow_authority"),
 		"network_authority": audit.get("network_authority"),
 	}
+
+
+func _test_fitted_canopy(craft: HeroShip) -> void:
+	var hinge := craft.get_node("CinderCargoVisual/CanopyHinge") as Node3D
+	var glass := hinge.get_node("CanopyGlass") as MeshInstance3D
+	var arrays := glass.mesh.surface_get_arrays(0)
+	var vertices: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
+	var normals: PackedVector3Array = arrays[Mesh.ARRAY_NORMAL]
+	var no_floor := true
+	var outward_winding := true
+	var edges: Dictionary = {}
+	for index in range(0, vertices.size(), 3):
+		var a := vertices[index]
+		var b := vertices[index + 1]
+		var c := vertices[index + 2]
+		var clockwise := (c - a).cross(b - a).normalized()
+		outward_winding = outward_winding and clockwise.dot(normals[index] + normals[index + 1] + normals[index + 2]) > 0.0
+		no_floor = no_floor and clockwise.y > -0.95
+		for pair in [[a, b], [b, c], [c, a]]:
+			var start: Vector3 = pair[0]
+			var end: Vector3 = pair[1]
+			var key := [start, end] if start < end else [end, start]
+			edges[key] = int(edges.get(key, 0)) + 1
+	var rim_faces := PackedVector3Array()
+	for stock_name in ["PortSill", "StarboardSill", "ForwardPressureWall", "RearPressureWall", "PortSidewall", "StarboardSidewall"]:
+		var stock := craft.get_node("CinderCargoVisual/CockpitInterior/" + stock_name) as MeshInstance3D
+		for vertex: Vector3 in stock.mesh.get_faces():
+			rim_faces.append(stock.transform * vertex - hinge.position)
+	var perimeter_only := true
+	var seated := true
+	var maximum_gap := 0.0
+	for edge: Array in edges:
+		if int(edges[edge]) == 1:
+			for step in 5:
+				var point: Vector3 = edge[0].lerp(edge[1], float(step) / 4.0)
+				perimeter_only = perimeter_only and point.y <= 0.106
+				var distance := INF
+				for index in range(0, rim_faces.size(), 3):
+					distance = minf(distance, _canopy_triangle_distance(point, rim_faces[index], rim_faces[index + 1], rim_faces[index + 2]))
+				var frame_radius := 0.045
+				if is_equal_approx(point.z, 0.015):
+					frame_radius = 0.032
+				maximum_gap = maxf(maximum_gap, distance - frame_radius)
+				seated = seated and distance <= frame_radius + 0.001
+		else:
+			perimeter_only = perimeter_only and int(edges[edge]) == 2
+	_check(no_floor and perimeter_only and outward_winding,
+		"cargo glazing has outward winding and a single open lower perimeter, with no glass floor crossing the hood or opening sweep")
+	_check(seated, "every emitted open glass edge seats on retained rim triangles within the frame radius (maximum uncovered gap %.5f m)" % maximum_gap)
+	var front := hinge.get_node("PortCanopyNoseFrame") as MeshInstance3D
+	var broad_pillar := true
+	var sampled_pillar := false
+	for vertex: Vector3 in front.mesh.surface_get_arrays(0)[Mesh.ARRAY_VERTEX]:
+		var point := hinge.position + vertex
+		if point.y > 2.90 and point.y < 3.45:
+			sampled_pillar = true
+			broad_pillar = broad_pillar and absf(point.x) > 1.025
+	_check(sampled_pillar and broad_pillar and glass.mesh.get_aabb().end.y > 1.39,
+		"broad windscreen keeps its physical pillars outside the forward instrument view and its crown above the pilot")
+	var windscreen_point := Vector3.ZERO
+	var windscreen_normal := Vector3.ZERO
+	for index in range(0, vertices.size(), 3):
+		if normals[index].z < -0.9:
+			windscreen_point = vertices[index]
+			windscreen_normal = normals[index]
+			break
+	var controls_inside := not windscreen_normal.is_zero_approx()
+	var minimum_clearance := INF
+	var cockpit := craft.get_node("CinderCargoVisual/CockpitInterior")
+	for part: MeshInstance3D in cockpit.find_children("*", "MeshInstance3D", true, false):
+		if not part.is_visible_in_tree():
+			continue
+		var to_hinge := hinge.global_transform.affine_inverse() * part.global_transform
+		for vertex: Vector3 in part.mesh.get_faces():
+			var point := to_hinge * vertex
+			if point.y < 0.12:
+				continue
+			var clearance := -(point - windscreen_point).dot(windscreen_normal)
+			minimum_clearance = minf(minimum_clearance, clearance)
+			controls_inside = controls_inside and clearance >= 0.0
+	_check(controls_inside, "all emitted upper cockpit stock remains behind the actual raked windscreen plane (minimum %.5f m)" % minimum_clearance)
+	print("CINDER_CARGO_CANOPY_FIT: maximum_uncovered_rim_gap=%.5f minimum_windscreen_clearance=%.5f" % [maximum_gap, minimum_clearance])
+	var glass_stock := glass.mesh
+	var keeper := hinge.get_node("PortCanopyLatchHook") as MeshInstance3D
+	var keeper_bounds := keeper.mesh.get_aabb()
+	_check(keeper_bounds.position.x < -1.17 and keeper_bounds.end.x > -0.93
+		and keeper_bounds.end.y > 0.10,
+		"the moving latch keeper reaches from the lower lid rail to the retained striker contact")
+	craft.set_canopy_open(true, 0.0)
+	_check(hinge.rotation.x > 1.0 and glass.mesh == glass_stock and glass.is_visible_in_tree()
+		and keeper.is_visible_in_tree(), "the common hinge opens the complete cargo lid and attached latch keepers")
+	craft.set_canopy_open(false, 0.0)
+
+
+func _canopy_triangle_distance(point: Vector3, a: Vector3, b: Vector3, c: Vector3) -> float:
+	var normal := (b - a).cross(c - a)
+	var closest := INF
+	for edge in [[a, b], [b, c], [c, a]]:
+		closest = minf(closest, point.distance_to(Geometry3D.get_closest_point_to_segment(point, edge[0], edge[1])))
+	if normal.length_squared() > 0.000000001:
+		var projected := point - normal * (point - a).dot(normal) / normal.length_squared()
+		if (b - a).cross(projected - a).dot(normal) >= -0.00000001 \
+				and (c - b).cross(projected - b).dot(normal) >= -0.00000001 \
+				and (a - c).cross(projected - c).dot(normal) >= -0.00000001:
+			closest = minf(closest, point.distance_to(projected))
+	return closest
 
 
 func _test_cockpit_fairing(craft: HeroShip) -> void:
