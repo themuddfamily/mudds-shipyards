@@ -1640,7 +1640,7 @@ func _skirmisher_fin_shell(sections: Array, material: Material) -> ArrayMesh:
 
 
 ## Root boot and captive covers join the existing three-finish services batch.
-## The covers are swept, shallow closed shells on both faces, so neither mirror
+## The covers are swept skins with embedded folded returns on both faces, so neither mirror
 ## needs negative scale or a dark rectangular plate protruding beyond the tip.
 func _skirmisher_fin_fittings(finish: int) -> ArrayMesh:
 	if finish == 1:
