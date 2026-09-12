@@ -3212,6 +3212,7 @@ func _run() -> void:
 	_test_fitted_canopy(zenith)
 	_test_pilot_instruments(zenith)
 	_test_forward_pressure_skin(zenith)
+	_test_formed_wing_shell(zenith)
 	_test_nacelle_cooling_fit(zenith)
 	_test_handling_difference(zenith)
 	await _test_engine_flight_weapon_damage_reuse(zenith)
@@ -3721,6 +3722,60 @@ func _test_forward_pressure_skin(zenith: ZenithInterceptor) -> void:
 			and absf(section.y - (2.5 + section.w * 0.3)) < 0.00001 \
 			and absf(section.z - (0.1 - section.w * 0.1)) < 0.00001
 	_check(taper_straight, "uneven pressure-body bulkhead spacing does not introduce waviness into a straight taper")
+
+
+func _test_formed_wing_shell(zenith: ZenithInterceptor) -> void:
+	var airframe := zenith.get_zenith_visual_root().get_node("ModernManufacturedAirframe")
+	for side in [-1.0, 1.0]:
+		var prefix := "Port" if side < 0.0 else "Starboard"
+		var faces := PackedVector3Array()
+		for part in ["WingOuterSkin", "Elevons", "BlendedDeltaWing"]:
+			faces.append_array((airframe.get_node(prefix + part) as MeshInstance3D).mesh.get_faces())
+		var edges := {}
+		var tip_radii := {}
+		var valid := not faces.is_empty()
+		for index in range(0, faces.size(), 3):
+			valid = valid and (faces[index + 1] - faces[index]).cross(faces[index + 2] - faces[index]).length_squared() > 0.0000000001
+			for edge in 3:
+				var a := faces[index + edge].snapped(Vector3.ONE * 0.00001)
+				var b := faces[index + (edge + 1) % 3].snapped(Vector3.ONE * 0.00001)
+				var pair := [str(a), str(b)]
+				pair.sort()
+				var key: String = pair[0] + ":" + pair[1]
+				edges[key] = int(edges.get(key, 0)) + 1
+		for count: int in edges.values():
+			valid = valid and count == 2
+		for vertex: Vector3 in faces:
+			# Mid-chord section of the actual tip: a straight cut has one X
+			# station; the return must curve inboard within the original planform.
+			if absf(vertex.z - 2.2284) < 0.00001 and absf(vertex.x) > 6.70:
+				tip_radii[roundi(absf(vertex.x) * 100000.0)] = true
+		_check(valid, prefix + " rolled wing remains watertight across every skin, elevon, corner and material boundary")
+		_check(tip_radii.size() == 3 and tip_radii.has(686280), prefix + " tip has a curved return inside the retained outer outline")
+		var outward := true
+		for probe in [
+			[Vector3(side * 7.8, 0.22, 2.2284), Vector3(-side, 0, 0)],
+			[Vector3(side * 4.5, 0.40, -4), Vector3.BACK],
+			[Vector3(side * 4.5, 0.375, 6), Vector3.FORWARD],
+			[Vector3(side * 0.2, 0.6, 1.4), Vector3(side, 0, 0)],
+		]:
+			var hit := _wing_shell_ray(faces, probe[0], probe[1])
+			outward = outward and not hit.is_empty() and (hit["normal"] as Vector3).dot(probe[1]) < -0.1
+		_check(outward, prefix + " tip, leading, trailing and root closure face the outside independently of generated normals")
+		var root_floor := _wing_shell_ray(faces, Vector3(side * 2.2, -1, 1.4), Vector3.UP)
+		_check(not root_floor.is_empty() and (root_floor["point"] as Vector3).y < 0.35,
+			prefix + " lower wing root carries structural depth beneath the nacelle")
+
+
+func _wing_shell_ray(faces: PackedVector3Array, origin: Vector3, direction: Vector3) -> Dictionary:
+	var closest := INF
+	var result := {}
+	for index in range(0, faces.size(), 3):
+		var hit: Variant = Geometry3D.ray_intersects_triangle(origin, direction, faces[index], faces[index + 1], faces[index + 2])
+		if hit != null and origin.distance_to(hit) < closest:
+			closest = origin.distance_to(hit)
+			result = {"point": hit, "normal": -(faces[index + 1] - faces[index]).cross(faces[index + 2] - faces[index]).normalized()}
+	return result
 
 
 

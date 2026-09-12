@@ -3962,8 +3962,10 @@ func _wing_skin_point(span: float, chord: float, side: float, upper: bool) -> Ve
 	var arch := sin(chord * PI)
 	var z := lerpf(leading, trailing, chord)
 	var root_fillet := 0.66 * pow(maxf(0.0, 1.0 - absf(x - 1.80) / 1.90), 2.0) * arch * smoothstep(-0.50, 1.10, z)
-	var camber := 0.27 * arch * (1.0 - span * 0.35)
-	var height := base + camber + root_fillet if upper else base - 0.055 - 0.12 * arch
+	var tip_roll := smoothstep(0.90, 1.0, span)
+	var camber := 0.27 * arch * (1.0 - span * 0.35) * lerpf(1.0, 0.60, tip_roll)
+	var root_depth := 0.26 * arch * (1.0 - smoothstep(0.16, 0.42, span)) * smoothstep(-0.50, 1.10, z)
+	var height := base + camber + root_fillet if upper else base - 0.055 - 0.12 * arch * lerpf(1.0, 0.55, tip_roll) - root_depth
 	if upper:
 		# Recess the actual skin at assembly joints; no coplanar strip overlays.
 		var leading_joint := maxf(0.0, 1.0 - absf(chord - 0.084) / 0.004)
@@ -3976,13 +3978,30 @@ func _wing_skin_point(span: float, chord: float, side: float, upper: bool) -> Ve
 		var well_chord := smoothstep(0.10, 0.115, chord) * (1.0 - smoothstep(0.425, 0.44, chord))
 		height -= 0.085 * well_span * well_chord
 		height -= maxf(leading_joint * 0.014, maxf(hinge * 0.028, span_joint * 0.018))
-	return Vector3(side * x, height, lerpf(leading, trailing, chord))
+	# Pull the skin's perimeter inside the original planform. The rolled
+	# closure reaches that same outline halfway between upper and lower skin.
+	x -= 0.07 * tip_roll
+	z += 0.045 * (1.0 - smoothstep(0.0, 0.035, chord)) - 0.03 * smoothstep(0.97, 1.0, chord)
+	return Vector3(side * x, height, z)
+
+
+func _wing_edge_point(span: float, chord: float, side: float, roll: int) -> Vector3:
+	var top := _wing_skin_point(span, chord, side, true)
+	var bottom := _wing_skin_point(span, chord, side, false)
+	if roll == 0:
+		return top
+	if roll == 4:
+		return bottom
+	var angle := float(roll) * PI * 0.25
+	var outward := Vector3(side * 0.07 if span == 1.0 else 0.0, 0.0,
+		-0.045 if chord == 0.0 else (0.03 if chord == 1.0 else 0.0))
+	return top.lerp(bottom, (1.0 - cos(angle)) * 0.5) + outward * sin(angle)
 
 
 func _build_cambered_wing(parent: Node3D, prefix: String, side: float, hull: Material, dark: Material, panel: Material) -> void:
 	# Samples follow the fabricated leading edge, two assembly joints and the
 	# elevon hinge. Broad bays keep the camber; narrow troughs carry real depth.
-	const SPANS := [0.0, 0.08, 0.16, 0.24, 0.32, 0.417, 0.42, 0.423, 0.50, 0.515, 0.58, 0.66, 0.725, 0.74, 0.817, 0.82, 0.823, 0.90, 1.0]
+	const SPANS := [0.0, 0.08, 0.16, 0.24, 0.32, 0.417, 0.42, 0.423, 0.50, 0.515, 0.58, 0.66, 0.725, 0.74, 0.817, 0.82, 0.823, 0.90, 0.94, 0.98, 1.0]
 	const CHORDS := [0.0, 0.035, 0.08, 0.084, 0.088, 0.10, 0.115, 0.16, 0.24, 0.32, 0.40, 0.425, 0.44, 0.48, 0.56, 0.64, 0.72, 0.818, 0.822, 0.826, 0.90, 0.97, 1.0]
 	var edge_material := (hull as StandardMaterial3D).duplicate() as StandardMaterial3D
 	edge_material.albedo_color = Color("8095a5")
@@ -4012,27 +4031,28 @@ func _build_cambered_wing(parent: Node3D, prefix: String, side: float, hull: Mat
 				var inside := (a + b + c + d) * 0.25 + Vector3.DOWN * (1.0 if upper else -1.0)
 				_zenith_triangle(tool, a, b, c, inside)
 				_zenith_triangle(tool, a, c, d, inside)
-		# Close both skins on their shared perimeter, including the thin edge cap.
-		if not upper:
-			var tool := surfaces[0]
-			for span in [0.0, 1.0]:
-				for chord in CHORDS.size() - 1:
-					var a := _wing_skin_point(span, CHORDS[chord], side, true)
-					var b := _wing_skin_point(span, CHORDS[chord + 1], side, true)
-					var c := _wing_skin_point(span, CHORDS[chord + 1], side, false)
-					var d := _wing_skin_point(span, CHORDS[chord], side, false)
-					var inside := (a + b + c + d) * 0.25 + Vector3(side * (1.0 if span == 0.0 else -1.0), 0, 0)
-					_zenith_triangle(tool, a, b, c, inside)
-					_zenith_triangle(tool, a, c, d, inside)
-			for chord in [0.0, 1.0]:
-				for span in SPANS.size() - 1:
-					var a := _wing_skin_point(SPANS[span], chord, side, true)
-					var b := _wing_skin_point(SPANS[span + 1], chord, side, true)
-					var c := _wing_skin_point(SPANS[span + 1], chord, side, false)
-					var d := _wing_skin_point(SPANS[span], chord, side, false)
-					var inside := (a + b + c + d) * 0.25 + Vector3(0, 0, 1.0 if chord == 0.0 else -1.0)
-					_zenith_triangle(tool, a, b, c, inside)
-					_zenith_triangle(tool, a, c, d, inside)
+		# One continuous rolled closure replaces the exposed vertical cut edge.
+		# Its upper half shares the leading-edge coating; the lower half joins
+		# the structural underside. Both use identical samples at every corner.
+		if skin_group != 1:
+			var tool := surfaces[1] if upper else surfaces[0]
+			for span_edge in [true, false]:
+				var stations: Array = CHORDS if span_edge else SPANS
+				for fixed in [0.0, 1.0]:
+					for station in stations.size() - 1:
+						var span_a: float = fixed if span_edge else stations[station]
+						var span_b: float = fixed if span_edge else stations[station + 1]
+						var chord_a: float = stations[station] if span_edge else fixed
+						var chord_b: float = stations[station + 1] if span_edge else fixed
+						for roll in range(0 if upper else 2, 2 if upper else 4):
+							var a := _wing_edge_point(span_a, chord_a, side, roll)
+							var b := _wing_edge_point(span_b, chord_b, side, roll)
+							var c := _wing_edge_point(span_b, chord_b, side, roll + 1)
+							var d := _wing_edge_point(span_a, chord_a, side, roll + 1)
+							var inward := Vector3(side * (1.0 if fixed == 0.0 else -1.0), 0, 0) if span_edge else Vector3(0, 0, 1.0 if fixed == 0.0 else -1.0)
+							var inside := (a + b + c + d) * 0.25 + inward
+							_zenith_triangle(tool, a, b, c, inside)
+							_zenith_triangle(tool, a, c, d, inside)
 		var assembly := ArrayMesh.new()
 		for surface in surfaces:
 			surface.generate_normals()
