@@ -9,6 +9,7 @@ extends HeroShip
 ## damage, boarding lifecycle, and reuse; optional gunner fire is admitted by
 ## the seat authority and resolved by the shared combat authority.
 
+const FittedCanopy := preload("res://scripts/ships/cinder_fitted_canopy.gd")
 const ShipServiceCassette := preload("res://scripts/ships/ship_service_cassette.gd")
 const ModernRoleProfile := preload("res://scripts/fleet/modern_role_profile.gd")
 const CrewSeatRoleAuthorityType := preload("res://scripts/ships/crew_seat_role_authority.gd")
@@ -342,6 +343,11 @@ func _build_bulwark_variant(_controller: HeroShip) -> bool:
 	# housing and depth-tested readouts fitted together beneath the glazing.
 	if cockpit != null:
 		_fit_pilot_instrument_mount(cockpit)
+	# The shared broad lid seats on the retained HeroShip pressure walls and
+	# sill stock, enclosing the fitted upper instruments with attached keepers.
+	# Existing frame, seal and glazing renderers retain their Bulwark finishes.
+	if canopy != null:
+		FittedCanopy.install(canopy, Callable(self, "_canopy_frame_mesh"))
 	_share_cockpit_console_key_meshes(cockpit)
 	_share_cockpit_display_bezel_meshes(cockpit)
 
