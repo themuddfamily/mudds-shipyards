@@ -28,7 +28,7 @@ func _run() -> void:
 			Vector3(1.8, 0.82, 4.15),
 			PackedStringArray(["PortDorsalBastion", "StarboardDorsalBastion"]),
 			&"heavy_gunship_dorsal_bastions",
-			Color("414b52"),
+			Color("304f68"),
 			false
 		)
 		_check_batch(

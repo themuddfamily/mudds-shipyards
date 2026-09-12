@@ -33,11 +33,11 @@ const DESIGN_NOTE := (
 	+ "name, role, systems, or continuity."
 )
 
-# Desaturated gunmetal armor and small amber identification stripes support
-# the broad, low gunship silhouette without reading as blue plastic or gold trim.
-const ARMOR_DARK := Color("252b30")
-const ARMOR_BLUE := Color("414b52")
-const ARMOR_HIGHLIGHT := Color("687277")
+# Blue-black structure, naval-blue primary armor and cool-grey replacement
+# cowls separate the broad gunship layers; amber stays on small identifiers.
+const ARMOR_DARK := Color("172b3a")
+const ARMOR_BLUE := Color("304f68")
+const ARMOR_HIGHLIGHT := Color("8b9aa5")
 const IDENTITY_AMBER := Color("957c4f")
 const IDENTITY_AMBER_EMISSION_ENERGY := 0.15
 const GUNNER_CYAN := Color("58d8df")

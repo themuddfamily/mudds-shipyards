@@ -237,7 +237,7 @@ func _test_armored_shoulder_batch(visual: Node3D) -> void:
 		transforms == expected_transforms
 		and names == PackedStringArray(["PortArmoredShoulder", "StarboardArmoredShoulder"])
 		and material != null
-		and material.albedo_color.is_equal_approx(Color("252b30"))
+		and material.albedo_color.is_equal_approx(Color("172b3a"))
 		and is_equal_approx(material.metallic, 0.12)
 		and is_equal_approx(material.roughness, 0.72)
 		and mesh_bounds.size.is_equal_approx(Vector3(3.4, 1.25, 5.3))
@@ -451,7 +451,7 @@ func _test_engine_housing_batch(visual: Node3D) -> void:
 		transforms == expected_transforms
 		and names == PackedStringArray(["PortEngineHousing", "StarboardEngineHousing"])
 		and material != null
-		and material.albedo_color.is_equal_approx(Color("252b30"))
+		and material.albedo_color.is_equal_approx(Color("172b3a"))
 		and is_equal_approx(material.metallic, 0.12)
 		and is_equal_approx(material.roughness, 0.72)
 		and is_equal_approx(mesh_bounds.size.x, 1.7)
@@ -505,7 +505,7 @@ func _test_gun_pod_housing_batch(visual: Node3D) -> void:
 		transforms == expected_transforms
 		and names == PackedStringArray(["PortGunPodHousing", "StarboardGunPodHousing"])
 		and material != null
-		and material.albedo_color.is_equal_approx(Color("687277"))
+		and material.albedo_color.is_equal_approx(Color("8b9aa5"))
 		and is_equal_approx(material.metallic, 0.16)
 		and is_equal_approx(material.roughness, 0.72)
 		and is_equal_approx(mesh_bounds.size.x, 1.26)
