@@ -12,6 +12,7 @@ extends HeroShip
 ## The cargo deck, passenger cabin, cockpit, and exterior ramp are one physical
 ## ship-local hierarchy; no detached or teleported interior is involved.
 
+const FittedCanopy := preload("res://scripts/ships/cinder_fitted_canopy.gd")
 const FitoutSurfaceData := preload("res://scripts/rendering/construction_surface_data.gd")
 
 const SCHEMA_VERSION := 1
@@ -3305,6 +3306,7 @@ func _relocate_and_restyle_cockpit(
 			(key as MeshInstance3D).material_override = _jovian_materials.display
 	if canopy != null:
 		canopy.position += COCKPIT_SHIFT
+		_fit_jovian_canopy(canopy)
 		for glass in canopy.find_children("CanopyGlass", "MeshInstance3D", true, false):
 			(glass as MeshInstance3D).material_override = _jovian_materials.glass
 		for frame in canopy.find_children("*Canopy*Frame", "MeshInstance3D", true, false):
@@ -3319,6 +3321,40 @@ func _relocate_and_restyle_cockpit(
 		mount_3d.position += COCKPIT_SHIFT
 		if mount_3d is MeshInstance3D:
 			(mount_3d as MeshInstance3D).material_override = _jovian_materials.amber
+
+
+## The forward glazing uses the common fitted sill profile, but this flight
+## deck opens into a passenger cabin. Its aft arch must remain an open portal:
+## the hidden former pressure wall cannot carry a new glass cap or cross-sill.
+func _fit_jovian_canopy(canopy: Node3D) -> void:
+	FittedCanopy.install(canopy, _canopy_frame_mesh)
+	var glass := canopy.get_node("CanopyGlass") as MeshInstance3D
+	var rings := FittedCanopy._rings()
+	var surface := SurfaceTool.new()
+	surface.begin(Mesh.PRIMITIVE_TRIANGLES)
+	surface.set_material(glass.mesh.surface_get_material(0))
+	for section in range(rings.size() - 1):
+		surface.set_smooth_group(0)
+		for side in 32:
+			for index: Vector2i in [Vector2i(section, side), Vector2i(section, side + 1), Vector2i(section + 1, side + 1),
+				Vector2i(section, side), Vector2i(section + 1, side + 1), Vector2i(section + 1, side)]:
+				surface.set_uv(Vector2(float(index.y) / 32.0, float(index.x) / 16.0))
+				surface.add_vertex(rings[index.x][index.y])
+	# Only the broad raked windscreen is capped. The underside and rear remain
+	# open, clearing both the controls during lift and the standing cabin route.
+	surface.set_smooth_group(-1)
+	var center := (rings[0][0] + rings[0][32]) * 0.5
+	for side in 32:
+		for vertex: Vector3 in [center, rings[0][side + 1], rings[0][side]]:
+			surface.set_uv(Vector2(vertex.x, vertex.y))
+			surface.add_vertex(vertex)
+	surface.generate_normals()
+	surface.generate_tangents()
+	glass.mesh = surface.commit()
+	# The two half bows already form the supported rear arch. Retire only
+	# the redundant transverse stock that would otherwise bisect its opening.
+	canopy.get_node("CanopyRearFrame").hide()
+	canopy.get_node("CanopyRearPressureSeal").hide()
 
 
 func _build_exterior() -> void:

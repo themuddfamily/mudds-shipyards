@@ -33,6 +33,7 @@ func _run() -> void:
 	_test_fitout_cpu_surface_parity(jovian)
 	_test_formed_roof(jovian)
 	_test_formed_forward_shell(jovian)
+	_test_fitted_canopy(jovian)
 	_test_formed_aft_machinery_housing(jovian)
 	_test_open_engine_module_sharing(jovian)
 	_test_definition_and_evidence(jovian)
@@ -2052,3 +2053,126 @@ func _test_formed_forward_shell(ship: JovianLightFreighter) -> void:
 			var aft := visual.get_node(^"PortAftCargoShoulder") as MeshInstance3D
 			_check(front.mesh.get_aabb().end.z < 1.121 and aft.mesh.get_aabb().position.z > 5.279,
 				"curved port shoulders retain the full boarding aperture")
+
+
+func _canopy_ray_hits(faces: PackedVector3Array, origin: Vector3, direction: Vector3, distance_limit := INF) -> bool:
+	for triangle in range(0, faces.size(), 3):
+		var hit: Variant = Geometry3D.ray_intersects_triangle(origin, direction,
+			faces[triangle], faces[triangle + 1], faces[triangle + 2])
+		if hit != null and origin.distance_to(hit as Vector3) <= distance_limit:
+			return true
+	return false
+
+
+func _test_fitted_canopy(ship: JovianLightFreighter) -> void:
+	var hinge := ship.get_jovian_visual_root().get_node("CanopyHinge") as Node3D
+	var cockpit := ship.get_interior_root().get_node("CockpitInterior") as Node3D
+	var glass := hinge.get_node("CanopyGlass") as MeshInstance3D
+	var faces := glass.mesh.get_faces()
+	var upper_only := true
+	var edges := {}
+	for triangle in range(0, faces.size(), 3):
+		var normal := (faces[triangle + 2] - faces[triangle]).cross(faces[triangle + 1] - faces[triangle]).normalized()
+		upper_only = upper_only and normal.y > -0.95
+		for corner in 3:
+			var a := faces[triangle + corner]
+			var b := faces[triangle + (corner + 1) % 3]
+			var key := str(a) + ":" + str(b) if str(a) < str(b) else str(b) + ":" + str(a)
+			if not edges.has(key):
+				edges[key] = {"count": 0, "a": a, "b": b}
+			edges[key].count += 1
+	_check(upper_only and faces.size() / 3 == 1056,
+		"fitted Jovian glass has a broad front, an open underside and no rear cap")
+	var pillar := hinge.get_node("PortCanopyNoseFrame") as MeshInstance3D
+	var broad := true
+	var pillar_samples := 0
+	for vertex: Vector3 in pillar.mesh.get_faces():
+		if vertex.y > 0.48 and vertex.y < 1.03:
+			pillar_samples += 1
+			broad = broad and absf(vertex.x) > 1.025
+	_check(broad and pillar_samples > 0, "windscreen bow stays outside the pilot's forward instrument sightline")
+
+	# Check actual hood/console vertices above the coaming against emitted
+	# glass triangles. Upward exits must hit the lid; a profile AABB alone
+	# would accept the old narrow glazing cutting through the forward module.
+	var enclosed := true
+	var enclosure_samples := 0
+	for member_name in ["InstrumentCluster/InstrumentHood", "PortSideConsole", "StarboardSideConsole"]:
+		var member := cockpit.get_node(member_name) as MeshInstance3D
+		var unique := {}
+		for vertex: Vector3 in member.mesh.get_faces():
+			var point := hinge.to_local(member.to_global(vertex))
+			if point.y < 0.13 or unique.has(point):
+				continue
+			unique[point] = true
+			enclosure_samples += 1
+			for direction in [Vector3.UP, Vector3.LEFT, Vector3.RIGHT, Vector3.FORWARD]:
+				enclosed = enclosed and _canopy_ray_hits(faces, point, direction)
+	_check(enclosed and enclosure_samples > 30, "actual upper hood and console shoulders fit inside the emitted glazing")
+
+	# Only currently visible retained pressure structure may support the
+	# lower rim. The rear opening has an arch, with no cross-sill to validate.
+	var support_faces := PackedVector3Array()
+	for member_name in ["PortSill", "StarboardSill", "ForwardPressureWall", "PortSidewall", "StarboardSidewall"]:
+		var member := cockpit.get_node(member_name) as MeshInstance3D
+		if member.is_visible_in_tree():
+			for vertex: Vector3 in member.mesh.get_faces():
+				support_faces.append(hinge.to_local(member.to_global(vertex)))
+	var seated := true
+	var rim_samples := 0
+	for edge: Dictionary in edges.values():
+		var a: Vector3 = edge.a
+		var b: Vector3 = edge.b
+		if int(edge.count) != 1 or a.y > 0.12 or b.y > 0.12:
+			continue
+		for step in 5:
+			var point := a.lerp(b, float(step) / 4.0)
+			var supported := false
+			# The 45 mm channel bridges the existing wall/sill corner reveal.
+			for x in [-0.042, 0.0, 0.042]:
+				for z in [-0.042, 0.0, 0.042]:
+					if Vector2(x, z).length() > 0.045:
+						continue
+					supported = supported or _canopy_ray_hits(support_faces,
+						point + Vector3(x, 0.05, z), Vector3.DOWN, 0.085)
+			rim_samples += 1
+			seated = seated and supported
+	_check(seated and rim_samples >= 160 and not cockpit.get_node("RearPressureWall").visible,
+		"emitted lower glass boundary seats on visible front wall and sills without using the hidden rear wall")
+
+	var moving_faces := PackedVector3Array()
+	var visible_renderers := 0
+	var triangles := 0
+	var materials := {}
+	for candidate in hinge.find_children("*", "MeshInstance3D", true, false):
+		var member := candidate as MeshInstance3D
+		if not member.is_visible_in_tree():
+			continue
+		visible_renderers += 1
+		triangles += member.mesh.get_faces().size() / 3
+		for surface in member.mesh.get_surface_count():
+			materials[member.get_active_material(surface)] = true
+		for vertex: Vector3 in member.mesh.get_faces():
+			moving_faces.append(hinge.to_local(member.to_global(vertex)))
+	var passage_clear := true
+	# Cast along the real central approach at torso/head heights, stopping
+	# ahead of the aft arch; this would hit either the old rear cap or a sill.
+	for x in [-0.45, 0.0, 0.45]:
+		for y in [0.26, 0.55, 0.85, 1.20]:
+			passage_clear = passage_clear and not _canopy_ray_hits(moving_faces,
+				Vector3(x, y, 0.60), Vector3.FORWARD, 1.05)
+	_check(passage_clear, "actual rear glass and frame triangles leave the passenger approach open at torso and head heights")
+	_check(visible_renderers == 16 and triangles == 4480,
+		"fitted moving canopy retains sixteen visible renderers and 4480 triangles")
+	print("JOVIAN_FITTED_CANOPY_COST renderers=", visible_renderers, " triangles=", triangles, " materials=", materials.size(),
+		" upper_enclosure_samples=", enclosure_samples, " supported_rim_samples=", rim_samples)
+	for side in ["Port", "Starboard"]:
+		var keeper := hinge.get_node(side + "CanopyLatchHook") as MeshInstance3D
+		var bounds := keeper.transform * keeper.mesh.get_aabb()
+		_check(bounds.end.y > 0.10 and bounds.position.y <= -0.119 and bounds.size.x > 0.30,
+			"%s keeper remains attached from the fitted lid to its retained striker" % side)
+	var stock := glass.mesh
+	ship.set_canopy_open(true, 0.0)
+	_check(hinge.rotation.x > 1.0 and glass.mesh == stock and glass.is_visible_in_tree(),
+		"common hinge lifts the complete upper canopy without rebuilding glass")
+	ship.set_canopy_open(false, 0.0)
