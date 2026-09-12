@@ -185,7 +185,7 @@ const RANGE_ENGINE_POD_NAMES := ["PortEnginePod", "StarboardEnginePod"]
 ## 180-degree Z rotation performs that reflection together with an invisible Y
 ## reflection, retaining proper winding/normals while both ordinary renderers
 ## share the port-authored immutable ArrayMesh.
-const FORWARD_PRONG_SIZE := Vector3(1.18, 0.72, 8.35)
+const FORWARD_PRONG_SIZE := Vector3(1.18, 0.72, 8.115)
 const FORWARD_PRONG_SKEW := 0.025
 const FORWARD_PRONG_POSITIONS := [
 	Vector3(-2.65, -0.02, -0.65),
@@ -2314,10 +2314,10 @@ func _add_shared_forward_prong(
 		# A broad mounting shoulder narrows into a rounded load-bearing spar.
 		# The flat crown stays at the existing cyan inlay's bedding height, while
 		# the curved flanks carry the change in section down to the gun socket.
-		# The small forward neck fits inside the existing cylindrical housing;
-		# it replaces the old pointed slab projecting beside the barrel.
+		# The small forward neck ends behind the muzzle cavity back wall;
+		# no ivory stock projects into the open charge-emitter recess.
 		return _pressure_body(parent, "ForwardProng", FORWARD_PRONG_POSITIONS[0], [
-			Vector4(-4.175, 0.12, 0.12, 0),
+			Vector4(-3.94, 0.12, 0.12, 0),
 			Vector4(-3.72, 0.16, 0.16, 0),
 			Vector4(-3.35, 0.20, 0.20, 0),
 			Vector4(-3.05, 0.38, 0.345, 0),
@@ -2340,15 +2340,18 @@ func _add_shared_forward_prong(
 
 
 func _add_gun_housing_batch(parent: Node3D) -> MultiMeshInstance3D:
-	# The fixed lens seats inside an open muzzle lip. Keep the original local
-	# Y axis so the two authored transforms and weapon markers stay unchanged.
+	# One tapered shroud carries the shoulder into a small machined muzzle lip,
+	# without the former narrow waist between two bulky cylindrical collars.
+	# The bore clears the unchanged suppression telegraph at its pulse peak:
+	# .16 * (.8 + 1.45 * .55) * 1.42 = .362952, inside the .37-radius bore
+	# even at its 28-sided inscribed radius. Keep the original local Y axis,
+	# front plane, fixed lens and authoritative weapon-marker transforms.
 	var profile: Array[Vector2] = [
-		Vector2(-0.45, 0.195), Vector2(-0.64, 0.195),
-		Vector2(-0.66, 0.23), Vector2(-0.66, 0.29),
-		Vector2(-0.62, 0.34), Vector2(-0.48, 0.34),
-		Vector2(-0.43, 0.28), Vector2(-0.10, 0.28),
-		Vector2(-0.04, 0.36), Vector2(0.40, 0.36),
-		Vector2(0.50, 0.29), Vector2(0.50, 0.0),
+		Vector2(-0.25, 0.0), Vector2(-0.25, 0.37), Vector2(-0.64, 0.37),
+		Vector2(-0.66, 0.385), Vector2(-0.66, 0.40),
+		Vector2(-0.60, 0.415), Vector2(0.25, 0.44),
+		Vector2(0.40, 0.44), Vector2(0.50, 0.36),
+		Vector2(0.50, 0.0),
 	]
 	var surface := SurfaceTool.new()
 	surface.begin(Mesh.PRIMITIVE_TRIANGLES)
@@ -2358,7 +2361,9 @@ func _add_gun_housing_batch(parent: Node3D) -> MultiMeshInstance3D:
 		var edge_length := profile[edge].distance_to(profile[edge + 1])
 		var slope := (profile[edge + 1] - profile[edge]).normalized()
 		var corners: Array[Vector2i] = [Vector2i(0, 0), Vector2i(1, 1), Vector2i(1, 0), Vector2i(0, 0), Vector2i(0, 1), Vector2i(1, 1)]
-		if is_zero_approx(profile[edge + 1].y):
+		if is_zero_approx(profile[edge].y):
+			corners = corners.slice(0, 3)
+		elif is_zero_approx(profile[edge + 1].y):
 			corners = corners.slice(3)
 		for segment in 28:
 			for address: Vector2i in corners:
@@ -2366,7 +2371,7 @@ func _add_gun_housing_batch(parent: Node3D) -> MultiMeshInstance3D:
 				var angle := TAU * float(segment + address.y) / 28.0
 				var radial := Vector3(cos(angle), 0, sin(angle))
 				surface.set_normal(radial * slope.x + Vector3(0, -slope.y, 0))
-				if is_zero_approx(profile[edge + 1].y):
+				if is_zero_approx(profile[edge].y) or is_zero_approx(profile[edge + 1].y):
 					surface.set_uv(Vector2(radial.x, radial.z) * ring.y + Vector2(0.5, 0.5))
 				else:
 					surface.set_uv(Vector2(float(segment + address.y) / 28.0,

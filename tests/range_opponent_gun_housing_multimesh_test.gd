@@ -72,16 +72,16 @@ func _run() -> void:
 	var normals: PackedVector3Array = arrays[Mesh.ARRAY_NORMAL]
 	var uvs: PackedVector2Array = arrays[Mesh.ARRAY_TEX_UV]
 	var tangents: PackedFloat32Array = arrays[Mesh.ARRAY_TANGENT]
-	var geometry_valid := vertices.size() == 1764 and normals.size() == vertices.size() \
+	var geometry_valid := vertices.size() == 1344 and normals.size() == vertices.size() \
 		and uvs.size() == vertices.size() and tangents.size() == vertices.size() * 4
 	var bore_vertices := 0
 	var shoulder_vertices := 0
 	for index in vertices.size():
 		var vertex := vertices[index]
 		var radius := Vector2(vertex.x, vertex.z).length()
-		if vertex.y < -0.45 and is_equal_approx(radius, 0.195):
+		if vertex.y < -0.25 and is_equal_approx(radius, 0.37):
 			bore_vertices += 1
-		if is_equal_approx(radius, 0.36):
+		if is_equal_approx(radius, 0.44):
 			shoulder_vertices += 1
 		geometry_valid = geometry_valid and vertex.is_finite() and normals[index].is_normalized()
 		var tangent := Vector3(tangents[index * 4], tangents[index * 4 + 1], tangents[index * 4 + 2])
@@ -97,6 +97,85 @@ func _run() -> void:
 
 	_check(geometry_valid and bore_vertices > 0 and shoulder_vertices > 0,
 		"machined shell retains one modest surface with open lens bore, shoulder, outward winding, UVs and tangents")
+
+	# Read the actual inward-facing mesh rings, including the front chamfer.
+	# The full charge sphere must clear every axial section of the aperture,
+	# including between vertices and halfway around each faceted bore panel.
+	var bore_rings: Dictionary = {}
+	for index in vertices.size():
+		var vertex := vertices[index]
+		var radial := Vector3(vertex.x, 0.0, vertex.z).normalized()
+		if normals[index].dot(radial) < -0.01:
+			var radius := Vector2(vertex.x, vertex.z).length()
+			bore_rings[vertex.y] = minf(radius, float(bore_rings.get(vertex.y, INF)))
+	var bore_stations := bore_rings.keys()
+	bore_stations.sort()
+	_check(bore_stations.size() == 3,
+		"the open bore has a continuous inner wall and a chamfered front edge")
+	opponent.activate(Transform3D.IDENTITY)
+	opponent.set_process(false)
+	opponent.set_physics_process(false)
+	var target := Node3D.new()
+	root.add_child(target)
+	target.position = Vector3(0, 0, -100)
+	opponent.set_target(target)
+	var fired_origins: Array[Vector3] = []
+	opponent.projectile_fired.connect(func(origin: Vector3, _direction: Vector3): fired_origins.append(origin))
+	for pattern: StringName in [RangeOpponent.FIRE_PATTERN_SINGLE_SHOT,
+		RangeOpponent.FIRE_PATTERN_SHORT_BURST, RangeOpponent.FIRE_PATTERN_SPACED_SUPPRESSION]:
+		opponent.configure_firing_pattern(pattern)
+		opponent.set("_cooldown_remaining", 0.0)
+		opponent.call("_update_weapon", target.position, Vector3.FORWARD, 100.0, 0.0)
+		var charge_clear := true
+		var first_radius := 0.0
+		var peak_radius := 0.0
+		for step in 17:
+			if step > 0:
+				var delta := opponent.telegraph_time / 16.0 - (0.00001 if step == 16 else 0.0)
+				opponent.call("_update_weapon", target.position, Vector3.FORWARD, 100.0, delta)
+			# Sample the upper sine envelope at every real charging timestep.
+			opponent.set("_elapsed", PI / 68.0)
+			opponent.call("_update_presentation", 0.0)
+			var lenses: Array = opponent.get("_warning_lenses")
+			for side in lenses.size():
+				var lens := lenses[side] as MeshInstance3D
+				var radius := (lens.mesh as SphereMesh).radius * lens.scale.x
+				var local_centre := expected_transforms[side].affine_inverse() * lens.position
+				charge_clear = charge_clear and lens.visible and local_centre.y - radius < float(bore_stations[0])
+				charge_clear = charge_clear and local_centre.y + radius < float(bore_stations[-1])
+				for ring_index in bore_stations.size() - 1:
+					for sample in 33:
+						var fraction := float(sample) / 32.0
+						var axial := lerpf(float(bore_stations[ring_index]), float(bore_stations[ring_index + 1]), fraction)
+						var wall_radius := lerpf(float(bore_rings[bore_stations[ring_index]]), float(bore_rings[bore_stations[ring_index + 1]]), fraction) * cos(PI / 28.0)
+						var sphere_section := sqrt(maxf(0.0, radius * radius - pow(axial - local_centre.y, 2)))
+						charge_clear = charge_clear and sphere_section < wall_radius
+				if step == 0:
+					first_radius = maxf(first_radius, radius)
+				if step == 16:
+					peak_radius = maxf(peak_radius, radius)
+		_check(charge_clear and peak_radius > first_radius * 1.5,
+			"%s charge grows visibly through its full cycle without intersecting the bore" % pattern)
+		var before_fire := fired_origins.size()
+		opponent.call("_update_weapon", target.position, Vector3.FORWARD, 100.0, 0.001)
+		_check(fired_origins.size() == before_fire + 1
+			and fired_origins[-1] in [Vector3(-2.65, -0.08, -5.03), Vector3(2.65, -0.08, -5.03)],
+			"%s still dispatches from an unchanged authoritative muzzle after charging" % pattern)
+	target.queue_free()
+	opponent.deactivate()
+
+	var back_wall_vertices := 0
+	for index in vertices.size():
+		if is_equal_approx(vertices[index].y, -0.25) and normals[index].dot(Vector3.DOWN) > 0.9999:
+			back_wall_vertices += 1
+	var fixed_lenses := visual.get_node(^"ChargeLensBatch") as MultiMeshInstance3D
+	var lens_seated := back_wall_vertices == 84
+	for side in 2:
+		var fixed_bounds: AABB = (expected_transforms[side].affine_inverse()
+			* (fixed_lenses.get_meta(&"authored_instance_transforms") as Array)[side] * fixed_lenses.multimesh.mesh.get_aabb()).abs()
+		lens_seated = lens_seated and fixed_bounds.position.y > -0.66 and fixed_bounds.end.y < -0.25
+	_check(lens_seated,
+		"a complete back wall closes the cavity behind both unchanged recessed fixed lenses")
 
 	var ordinary_housings := 0
 	for child in visual.get_children():

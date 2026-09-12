@@ -35,8 +35,8 @@ func _run() -> void:
 		"two visible prong renderers retain two submissions while mesh allocations fall 2 -> 1"
 	)
 
-	var expected_port_aabb := AABB(Vector3(-3.24, -0.38, -4.825), Vector3(1.18, 0.72, 8.35))
-	var expected_starboard_aabb := AABB(Vector3(2.06, -0.38, -4.825), Vector3(1.18, 0.72, 8.35))
+	var expected_port_aabb := AABB(Vector3(-3.24, -0.38, -4.59), Vector3(1.18, 0.72, 8.115))
+	var expected_starboard_aabb := AABB(Vector3(2.06, -0.38, -4.59), Vector3(1.18, 0.72, 8.115))
 	var port_aabb := (prongs[0].transform * prongs[0].mesh.get_aabb()).abs()
 	var starboard_aabb := (prongs[1].transform * prongs[1].mesh.get_aabb()).abs()
 	_check(
@@ -64,6 +64,22 @@ func _run() -> void:
 				neck_seated = neck_seated and Vector2(fitted.x, fitted.y).distance_to(barrel_centre) < 0.31
 	_check(neck_vertices > 0 and neck_seated,
 		"both formed necks fit inside their gun cylinder without projecting ivory corners")
+
+	var housing := visual.get_node(^"GunHousingBatch") as MultiMeshInstance3D
+	var housing_vertices: PackedVector3Array = housing.multimesh.mesh.surface_get_arrays(0)[Mesh.ARRAY_VERTEX]
+	var cavity_back := INF
+	for vertex in housing_vertices:
+		if Vector2(vertex.x, vertex.z).length() < 0.0001:
+			# The front-facing recess floor is the foremost central cap.
+			cavity_back = minf(cavity_back, vertex.y)
+	var hidden_tips := is_finite(cavity_back)
+	for side in prongs.size():
+		var socket_inverse := ((housing.get_meta(&"authored_instance_transforms") as Array)[side] as Transform3D).affine_inverse()
+		for vertex in vertices:
+			var socket_vertex := socket_inverse * prongs[side].transform * vertex
+			hidden_tips = hidden_tips and socket_vertex.y > cavity_back
+	_check(hidden_tips,
+		"both ivory prong noses terminate behind the actual muzzle recess floor")
 
 	var material := prongs[0].mesh.surface_get_material(0) as StandardMaterial3D
 	_check(
