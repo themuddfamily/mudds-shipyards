@@ -5592,31 +5592,36 @@ func _build_pressure_shell_panels() -> void:
 		# Continuous edge folds join the existing transverse cargo ribs.
 		for edge in [inner + 0.025, outer - 0.15]:
 			_roof_service_patch(roof, "hull_cool", side, edge, edge + 0.125, -2.14, 8.23, 0.11)
-		for bay in 4:
-			var front := -2.08 + float(bay) * 2.72
-			var rear := front + 2.06
-			# The dark thermal well sits lower than its rolled edge and louvers.
-			_roof_service_patch(roof, "dark", side, 2.00, 3.02, front, rear, 0.057)
-			for lip in [2.00, 2.94]:
-				_roof_service_patch(roof, "hull_cool", side, lip, lip + 0.08, front, rear, 0.12)
-			for slat in 9:
-				var slat_z := front + 0.12 + float(slat) * 0.215
-				_roof_service_patch(roof, "thermal_cover", side, 2.075, 2.945,
-					slat_z, slat_z + 0.115, 0.103)
-			# A framed access opening occupies the outer half of each bay.
-			_roof_service_patch(roof, "hull_cool", side, 3.13, 5.12, front, rear, 0.12)
-			_roof_service_patch(roof, "dark", side, 3.22, 5.03, front + 0.09, rear - 0.09, 0.125)
-			_roof_service_patch(roof, "hull_warm", side, 3.265, 4.985, front + 0.135, rear - 0.135, 0.137)
+		# One long cooling field reads as a ship system instead of four tiled
+		# grille/hatch pairs. Its rolled edges remain seated along the crown.
+		_roof_service_patch(roof, "dark", side, 2.00, 3.32, -2.08, 8.10, 0.057)
+		for lip in [2.00, 3.24]:
+			_roof_service_patch(roof, "hull_cool", side, lip, lip + 0.08, -2.08, 8.10, 0.12)
+		for slat in 28:
+			var slat_z := -1.94 + float(slat) * 0.365
+			_roof_service_patch(roof, "thermal_cover", side, 2.075, 3.245,
+				slat_z, slat_z + 0.14, 0.103)
+		# A continuous outboard service cover gives the central cargo span a
+		# quiet broad face; access is concentrated at the two system ends.
+		_roof_service_patch(roof, "hull_cool", side, 3.43, 5.12, -2.08, 8.10, 0.10)
+		for access_span: Vector2 in [Vector2(-1.97, 0.08), Vector2(5.68, 7.99)]:
+			var front := access_span.x
+			var rear := access_span.y
+			_roof_service_patch(roof, "dark", side, 3.51, 5.03, front, rear, 0.125)
+			_roof_service_patch(roof, "hull_warm", side, 3.555, 4.985, front + 0.045, rear - 0.045, 0.137)
 			# Folded stiffening channel is part of the lid, with a seated root.
-			_roof_service_patch(roof, "hull_cool", side, 4.48, 4.60, front + 0.24, rear - 0.24, 0.164)
-			for hinge_z in [front + 0.36, rear - 0.36]:
+			_roof_service_patch(roof, "hull_cool", side, 4.48, 4.60, front + 0.15, rear - 0.15, 0.164)
+			for hinge_z in [front + 0.27, rear - 0.27]:
 				_roof_service_patch(roof, "structure", side, 4.92, 5.11, hinge_z, hinge_z + 0.19, 0.166)
-			_roof_service_patch(roof, "dark", side, 3.39, 3.64, front + 0.86, front + 1.17, 0.142)
-			_roof_service_patch(roof, "structure", side, 3.465, 3.565, front + 0.905, front + 1.12, 0.16)
-			# Cross straps meet the perimeter folds at the load-bearing ribs.
-			if bay < 3:
-				_roof_service_patch(roof, "hull_cool", side, inner + 0.025, outer - 0.025,
-					rear + 0.12, rear + 0.32, 0.085)
+			var latch_z := (front + rear) * 0.5
+			_roof_service_patch(roof, "dark", side, 3.67, 3.92, latch_z - 0.155, latch_z + 0.155, 0.142)
+			_roof_service_patch(roof, "structure", side, 3.745, 3.845, latch_z - 0.11, latch_z + 0.105, 0.16)
+		# The cover straps land at the existing transverse rib stations while
+		# the inboard thermal field continues uninterrupted past them.
+		for strap_z in [0.10, 2.82, 5.54]:
+			_roof_service_patch(roof, "hull_cool", side, 3.43, outer - 0.025,
+				strap_z, strap_z + 0.20, 0.12)
+
 	_finish_roof_service_mesh(roof, "RoofServiceAssembly")
 
 	# The avionics fairing now follows the passenger crown exactly, with a
