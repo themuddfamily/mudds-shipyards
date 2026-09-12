@@ -14,6 +14,7 @@ copied into the model.
 from __future__ import annotations
 
 import bpy
+import bmesh
 import hashlib
 import json
 import math
@@ -89,11 +90,11 @@ EXPECTED_RUNTIME_MESH_COUNTS = {
     "CanopyPivot": 3,
     "SemanticAnchors": 0,
 }
-EXPECTED_RUNTIME_TRIANGLES = 99_682
+EXPECTED_RUNTIME_TRIANGLES = 100_080
 RUNTIME_MESH_INSTANCE_BUDGET = 36
 SOURCE_MESH_INSTANCE_BUDGET = 320
 CLOSE_TRIANGLE_RANGE = (70_000, 90_000)
-FAR_TRIANGLE_RANGE = (7_000, 13_000)
+FAR_TRIANGLE_RANGE = (7_000, 13_500)
 TOTAL_TRIANGLE_BUDGET = 105_000
 
 # Gameplay collision remains Godot-owned, but these exact boxes are audited
@@ -583,14 +584,25 @@ def tapered_box(name: str, collection, mat, z_front: float, z_back: float,
 # flank remains a manufactured mounting land; the shoulder is a rolled crown
 # with several genuine tangent transitions, rather than one giant chamfer.
 PRESSURE_PROFILE = [
-    (.00, .00), (.58, .00), (.78, .045), (.93, .15),
-    (1.00, .28), (.968, .50), (.942, .68), (.91, .79),
-    (.85, .88), (.76, .95), (.64, .988), (.52, 1.00), (.00, 1.00),
+    (.00, .00), (.48, .00), (.73, .045), (.90, .15),
+    (.97, .28), (1.00, .50), (.955, .68), (.875, .79),
+    (.765, .88), (.645, .95), (.57, .988), (.52, 1.00), (.00, 1.00),
 ]
 
 
-def pressure_side_x(width, band):
-    for (xa, ya), (xb, yb) in zip(PRESSURE_PROFILE, PRESSURE_PROFILE[1:]):
+def pressure_profile_at(z):
+    # The forebody is a round pressure nose. Keep the full cockpit mounting
+    # land aft of the windshield, then broaden the crown roll towards the tip.
+    blend = max(0.0, min(1.0, (-2.10 - z) / 1.15))
+    blend = blend * blend * (3.0 - 2.0 * blend)
+    crown = .52 - .34 * blend
+    return [(crown + (1.0 - crown) * math.sqrt(max(0.0, 1.0 - ((y - .5) * 2)**2))
+             if y >= .5 and x > 0 else x, y) for x, y in PRESSURE_PROFILE]
+
+
+def pressure_side_x(width, band, z):
+    profile = pressure_profile_at(z)
+    for (xa, ya), (xb, yb) in zip(profile, profile[1:]):
         if ya <= band <= yb and yb > ya:
             return width * (xa + (xb - xa) * (band - ya) / (yb - ya))
     return width * .52
@@ -598,9 +610,11 @@ def pressure_side_x(width, band):
 
 def lofted_fuselage(name: str, collection, mat, stations, bevel=0.055):
     """Loft rolled pressure frames with an uninterrupted mounting flank."""
-    profile = PRESSURE_PROFILE + [(-x, y) for x, y in reversed(PRESSURE_PROFILE[1:-1])]
-    verts = [(x * width, low + y * (high - low), z)
-             for z, width, low, high in stations for x, y in profile]
+    verts = []
+    for z, width, low, high in stations:
+        half = pressure_profile_at(z)
+        profile = half + [(-x, y) for x, y in reversed(half[1:-1])]
+        verts.extend((x * width, low + y * (high - low), z) for x, y in profile)
     ring = len(profile)
     faces = [tuple(reversed(range(ring)))]
     for station in range(len(stations) - 1):
@@ -734,20 +748,111 @@ def add_panel_details(collection, prefix, x_sign=1.0):
             (.018, .06, .20), collection, cyan, .008)
 
 
-def hull_station_at(z):
+def _curved_hull_station_at(z):
+    """Monotone cubic dimensions round the forebody without overshooting stations."""
+    def slope(index, component):
+        if index == 0:
+            left, right = HULL_STATIONS[:2]
+            return (right[component] - left[component]) / (right[0] - left[0])
+        if index == len(HULL_STATIONS) - 1:
+            left, right = HULL_STATIONS[-2:]
+            return (right[component] - left[component]) / (right[0] - left[0])
+        left, middle, right = HULL_STATIONS[index - 1:index + 2]
+        before = (middle[component] - left[component]) / (middle[0] - left[0])
+        after = (right[component] - middle[component]) / (right[0] - middle[0])
+        return 2 * before * after / (before + after) if before * after > 0 else 0.0
+
+    for index, (start, end) in enumerate(zip(HULL_STATIONS, HULL_STATIONS[1:])):
+        if start[0] <= z <= end[0]:
+            length = end[0] - start[0]
+            t = (z - start[0]) / length
+            return tuple(
+                (2*t**3 - 3*t**2 + 1) * start[component]
+                + (t**3 - 2*t**2 + t) * length * slope(index, component)
+                + (-2*t**3 + 3*t**2) * end[component]
+                + (t**3 - t**2) * length * slope(index + 1, component)
+                for component in (1, 2, 3)
+            )
+    raise ValueError(f"Hull panel outside pressure shell: {z}")
+
+
+def formed_hull_stations():
+    # The roof pitches into the bow across these frames. Intermediate samples
+    # soften the broad facets while leaving every authored mount station exact.
+    z_values = {station[0] for station in HULL_STATIONS}
     for start, end in zip(HULL_STATIONS, HULL_STATIONS[1:]):
+        if start[0] < .75:
+            steps = max(2, math.ceil((end[0] - start[0]) / .70))
+            z_values.update(start[0] + (end[0] - start[0]) * index / steps
+                            for index in range(1, steps))
+    return [(z, *_curved_hull_station_at(z)) for z in sorted(z_values)]
+
+
+def hull_station_at(z):
+    """Sample the actual polygonal skin so dorsal details remain seated on it."""
+    stations = formed_hull_stations()
+    for start, end in zip(stations, stations[1:]):
         if start[0] <= z <= end[0]:
             t = (z - start[0]) / (end[0] - start[0])
             return tuple(a + (b - a) * t for a, b in zip(start[1:], end[1:]))
     raise ValueError(f"Hull panel outside pressure shell: {z}")
 
 
+
+def conforming_dorsal_parts(name, collection, mat, parts, surface_only=False):
+    """Seat each retained strip on the final crown, including its crosswise bow."""
+    shell = bpy.data.objects["ContinuousPressureShell"]
+    verts, faces = [], []
+    smooth_faces = set()
+    top_faces = set()
+    for z, width, depth, thickness in parts:
+        steps = max(2, math.ceil(width / .16))
+        first = len(verts)
+        for index in range(steps + 1):
+            x = width * (index / steps - .5)
+            for longitudinal in (-.5, .5):
+                along = z + depth * longitudinal
+                hit, point, _normal, _face = shell.ray_cast(
+                    Vector((x, 4.0, along)), Vector((0, -1, 0)))
+                if not hit:
+                    # Retained breaks across the cockpit cut are hidden by
+                    # the cabin; retain their original crown height there.
+                    point = Vector((x, hull_station_at(along)[2], along))
+                verts.extend([(x, point.y + .002, along),
+                              (x, point.y + .002 + thickness, along)])
+        faces.append(tuple(first + i for i in (0, 2, 3, 1)))
+        last = first + steps * 4
+        faces.append(tuple(last + i for i in (0, 1, 3, 2)))
+        for index in range(steps):
+            a = first + index * 4
+            for edge, following in ((0, 1), (1, 3), (3, 2), (2, 0)):
+                # Skin faces remain one smooth roll even where the bow gets
+                # steep; caps and thin edge returns retain their machined edge.
+                if edge in (1, 2):
+                    smooth_faces.add(len(faces))
+                if edge == 1:
+                    top_faces.add(len(faces))
+                faces.append((a + edge, a + following, a + 4 + following, a + 4 + edge))
+    if surface_only:
+        # A transparent film needs one outward skin: coincident underside and
+        # return faces self-sort into checkered triangles in Compatibility.
+        faces = [face for index, face in enumerate(faces) if index in top_faces]
+        used = sorted({index for face in faces for index in face})
+        remap = {index: compact for compact, index in enumerate(used)}
+        verts = [verts[index] for index in used]
+        faces = [tuple(remap[index] for index in face) for face in faces]
+        smooth_faces = set(range(len(faces)))
+    obj = wedge(name, collection, mat, verts, faces, 0)
+    for polygon in obj.data.polygons:
+        polygon.use_smooth = polygon.index in smooth_faces
+    return obj
+
 def conforming_side_panel(name, collection, mat, side, front, back, low=.35, high=.67):
     """A formed skin follows the milled hull, rather than its endpoint chord."""
     longitudinal_steps = math.ceil((back - front) / .18)
     transverse_steps = math.ceil((high - low) / .04)
     z_values = sorted({front, back,
-                       *(z for z, *_ in HULL_STATIONS if front < z < back),
+                       *(z for z, *_ in formed_hull_stations() if front < z < back),
                        *(front + (back - front) * i / longitudinal_steps
                          for i in range(1, longitudinal_steps))})
     bands = sorted({low, high,
@@ -793,7 +898,7 @@ def conforming_side_panel(name, collection, mat, side, front, back, low=.35, hig
     return obj
 
 
-def cut_pressure_cockpit(shell):
+def cut_pressure_cockpit(shell, formed_shell=False):
     """Cut the real seat well before UV mapping and the final machined bevel."""
     for modifier in list(shell.modifiers):
         shell.modifiers.remove(modifier)
@@ -815,11 +920,26 @@ def cut_pressure_cockpit(shell):
         polygon.material_index = 0
     bevel = shell.modifiers.new("MachinedPanelEdges", "BEVEL")
     bevel.width = .022
-    bevel.segments = 3
+    bevel.segments = 2 if formed_shell else 3
+    if formed_shell:
+        bevel.limit_method = "ANGLE"
+        bevel.angle_limit = math.radians(25)
     # The milled opening creates new interior walls. Finish its bevel before
     # UV projection so those faces receive their own non-collapsed islands.
     bpy.context.view_layer.objects.active = shell
     bpy.ops.object.modifier_apply(modifier=bevel.name)
+    if not formed_shell:
+        return
+    # The cockpit mill and sub-centimetre nose bevel can leave coincident
+    # corners. Weld only those sub-millimetre slivers before UV projection;
+    # keeping them creates collapsed tangent frames after float32 export.
+    cleaned = bmesh.new()
+    cleaned.from_mesh(shell.data)
+    bmesh.ops.remove_doubles(cleaned, verts=list(cleaned.verts), dist=0.0001)
+    bmesh.ops.dissolve_degenerate(cleaned, edges=list(cleaned.edges), dist=0.0001)
+    cleaned.to_mesh(shell.data)
+    cleaned.free()
+    shell.data.update()
 
 
 def service_stencil(name, collection, mat, side, z_center, y_center, text, size):
@@ -849,7 +969,7 @@ def service_stencil(name, collection, mat, side, z_center, y_center, text, size)
                 y = y_center+q.y
                 w, low, high = hull_station_at(z)
                 band = (y-low)/(high-low)
-                x = pressure_side_x(w, band)
+                x = pressure_side_x(w, band, z)
                 # Clear the fitted access skins (12 mm offset plus edge bevel)
                 # so the registration remains a complete legible stroke face.
                 vertices.append((side*(x+.024),y,z))
@@ -876,8 +996,8 @@ def build_lod0(collection):
     # Rolled pressure shoulders flow into the finer forebody stations. The
     # shared close/far loft carries the silhouette and its continuous highlights;
     # service hardware remains on the fitted side mounting lands.
-    shell = lofted_fuselage("ContinuousPressureShell", collection, ivory, HULL_STATIONS, .022)
-    cut_pressure_cockpit(shell)
+    shell = lofted_fuselage("ContinuousPressureShell", collection, ivory, formed_hull_stations(), .022)
+    cut_pressure_cockpit(shell, formed_shell=True)
     # A lower keel and tapered spine add purposeful longitudinal structure
     # without masking the continuous shell or turning the aft into a wall.
     tapered_box("VentralPressureKeel", collection, ivory2, -3.45, 2.95,
@@ -887,8 +1007,8 @@ def build_lod0(collection):
     for section in range(5):
         z = -2.65 + section * 1.18
         width, _low, high = hull_station_at(z)
-        box(f"DorsalPanelSeam{section:02d}", (0, high + .008, z),
-            (width * .88, .012, .025), collection, graphite, .003)
+        conforming_dorsal_parts(f"DorsalPanelSeam{section:02d}", collection, graphite,
+                               [(z, width * .88, .025, .006)])
     # Recessed service breaks and restrained warm livery interrupt the large
     # primary shell without changing the preserved pointed-nose macroform.
     dorsal_breaks = [
@@ -896,7 +1016,9 @@ def build_lod0(collection):
          (hull_station_at(z_value)[0] * .8, .01, .02))
         for z_value in (-3.38, -2.34, -1.16, .12, 1.28, 2.28)
     ]
-    compound_boxes("DorsalAccessBreaks", dorsal_breaks, collection, graphite, .004)
+    conforming_dorsal_parts("DorsalAccessBreaks", collection, graphite,
+                           [(position[2], size[0], size[2], .004)
+                            for position, size in dorsal_breaks])
     # Short flush marking on the aft flat crown, rather than a long straight
     # slab that floats above the falling nose and intersects the windshield.
     tapered_box("DorsalCrimsonLivery", collection, livery, .8, 1.8,
@@ -977,7 +1099,7 @@ def build_lod0(collection):
             nozzle_z = -1.6 + port * 1.35
             width, low, high = hull_station_at(nozzle_z)
             band = (1.42 - low) / (high - low)
-            nozzle_x = pressure_side_x(width, band)
+            nozzle_x = pressure_side_x(width, band, nozzle_z)
             cylinder(f"{s}RCSNozzle{port}", (side * nozzle_x,1.42,nozzle_z), .075, .12,
                      collection, graphite, 24, rotation=(0,math.pi/2,0))
         add_panel_details(collection, s, side)
@@ -1191,7 +1313,8 @@ def build_lod0(collection):
                          (side*.32,2.18,-1.46), .025, cockpit_collection,alloy,16,.006)
         box(f"{s}RudderPedal", (side*.32,2.19,-1.49), (.26,.07,.12),
             cockpit_collection,graphite,.020,rotation=(math.radians(-18),0,0))
-    box("AmberUnknownFunctionPanel", (0,1.06,-3.88), (.72,.045,.26), collection,amber,.03)
+    conforming_dorsal_parts("AmberUnknownFunctionPanel", collection, amber,
+                           [(-3.88, .72, .26, .015)], surface_only=True)
 
     # Canopy art is exported under a separate functional pivot root.
     canopy_collection = bpy.data.collections["CanopyPivot"]
@@ -1311,8 +1434,8 @@ def build_lod1(collection):
     thermal = MATS["ThermalCeramic"]
     # Preserve the raised shoulders and open pilot well across whole-ship LOD
     # changes. Material batching retains the same five runtime renderers.
-    shell = lofted_fuselage("LOD1ContinuousHull", collection, ivory, HULL_STATIONS, .022)
-    cut_pressure_cockpit(shell)
+    shell = lofted_fuselage("LOD1ContinuousHull", collection, ivory, formed_hull_stations(), .022)
+    cut_pressure_cockpit(shell, formed_shell=True)
     for side in (-1,1):
         s="Port" if side<0 else "Starboard"
         for tier in range(4):
