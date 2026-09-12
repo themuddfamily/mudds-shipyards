@@ -463,6 +463,21 @@ func _test_swept_fins(ship: FlankingSkirmisherOpponent, visual: Node3D) -> void:
 	var fittings := visual.get_node(^"FittedArmourAndServices") as MeshInstance3D
 	_check(fittings.mesh.get_surface_count() == 3 and bool(ship.get_wing_chalk_band_resource_audit().valid),
 		"fin finish stays inside the existing renderers, resources, materials and physics budget")
+	var wing: MeshInstance3D
+	for candidate in visual.get_children():
+		if candidate is MeshInstance3D and candidate.mesh == ship.get("_wing_mesh"):
+			wing = candidate
+			break
+	if wing != null:
+		var impostor := MeshInstance3D.new()
+		impostor.set_meta("surface_marking_patch", true)
+		impostor.set_meta("surface_marking_owner", ship.get_instance_id())
+		wing.add_child(impostor)
+		_check(not bool(ship.get_wing_chalk_band_resource_audit().valid),
+			"marking metadata cannot excuse an unowned child on inert wing stock")
+		impostor.free()
+		_check(bool(ship.get_wing_chalk_band_resource_audit().valid),
+			"removing the impostor restores the real receiver-owned ink contract")
 
 
 func _fin_first_hit(faces: PackedVector3Array, y: float, z: float) -> float:

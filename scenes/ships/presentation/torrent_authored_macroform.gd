@@ -121,6 +121,11 @@ func get_torrent_authored_asset_audit_report() -> Dictionary:
 			errors.append("LOD1 is not materially lower than the authored LOD0")
 	var manifest_sha256 := _sha256(MANIFEST_PATH)
 	var fingerprint := _fingerprint(manifest_sha256, lod_reports, materials)
+	var total_surface_count := 0
+	for candidate in find_children("*", "MeshInstance3D", true, false):
+		var instance := candidate as MeshInstance3D
+		if instance.mesh != null:
+			total_surface_count += instance.mesh.get_surface_count()
 	return {
 		"schema_version": SCHEMA_VERSION,
 		"valid": errors.is_empty(),
@@ -133,6 +138,9 @@ func get_torrent_authored_asset_audit_report() -> Dictionary:
 		"manifest_sha256": manifest_sha256,
 		"determinism_fingerprint": fingerprint,
 		"node_contract": _node_contract(),
+		"surface_marking_costs": ShipSurfaceDetail.get_surface_marking_costs(self),
+		"total_visual_instance_count": find_children("*", "VisualInstance3D", true, false).size(),
+		"total_surface_count": total_surface_count,
 		"resource_contract": {
 			"visual_instance_count": 26,
 			"mesh_instance_count": 26,
@@ -292,7 +300,10 @@ func _audit_exact_hierarchy(errors: PackedStringArray) -> void:
 			if lod_root.get_child_count() > component_index and lod_root.get_child(component_index) != instance:
 				errors.append("LOD%d semantic component order drifted at %s" % [lod, component])
 			expected_visual_ids[instance.get_instance_id()] = true
-	var visual_instances := find_children("*", "VisualInstance3D", true, false)
+	var visual_instances: Array[Node] = []
+	for candidate in find_children("*", "VisualInstance3D", true, false):
+		if not ShipSurfaceDetail.is_surface_marking_patch(candidate):
+			visual_instances.append(candidate)
 	if visual_instances.size() != 26:
 		errors.append("presentation must contain exactly 26 authored VisualInstance3D nodes")
 	for candidate: Node in visual_instances:

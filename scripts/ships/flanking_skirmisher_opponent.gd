@@ -492,6 +492,7 @@ func get_wing_chalk_band_resource_audit() -> Dictionary:
 	var metadata_entry_count := 0
 	var processing_node_count := 0
 	var visual := _visual_root
+	var marking_costs := ShipSurfaceDetail.get_surface_marking_costs(visual)
 	if visual == null or not is_instance_valid(visual) or visual.name != &"WingSkirmisherVisual":
 		errors.append("wing_skirmisher_visual_root_unavailable")
 	else:
@@ -557,7 +558,9 @@ func get_wing_chalk_band_resource_audit() -> Dictionary:
 			metadata_entry_count += band.get_meta_list().size()
 			if band.is_processing() or band.is_physics_processing():
 				processing_node_count += 1
-			child_node_count += band.get_child_count()
+			for direct_child in band.get_children():
+				if not ShipSurfaceDetail.is_surface_marking_patch(direct_child):
+					child_node_count += 1
 			for child in band.find_children("*", "Node", true, false):
 				if child.get_script() != null:
 					scripted_node_count += 1
@@ -620,7 +623,9 @@ func get_wing_chalk_band_resource_audit() -> Dictionary:
 			metadata_entry_count += wing.get_meta_list().size()
 			if wing.is_processing() or wing.is_physics_processing():
 				processing_node_count += 1
-			child_node_count += wing.get_child_count()
+			for direct_child in wing.get_children():
+				if not ShipSurfaceDetail.is_surface_marking_patch(direct_child):
+					child_node_count += 1
 			for child in wing.find_children("*", "Node", true, false):
 				if child.get_script() != null:
 					scripted_node_count += 1
@@ -686,7 +691,9 @@ func get_wing_chalk_band_resource_audit() -> Dictionary:
 			metadata_entry_count += fin.get_meta_list().size()
 			if fin.is_processing() or fin.is_physics_processing():
 				processing_node_count += 1
-			child_node_count += fin.get_child_count()
+			for direct_child in fin.get_children():
+				if not ShipSurfaceDetail.is_surface_marking_patch(direct_child):
+					child_node_count += 1
 			for child in fin.find_children("*", "Node", true, false):
 				if child.get_script() != null:
 					scripted_node_count += 1
@@ -770,7 +777,7 @@ func get_wing_chalk_band_resource_audit() -> Dictionary:
 		errors.append("wing_skirmisher_box_mesh_resource_count_drift")
 	if material_resource_ids.size() != PRESENTATION_MATERIAL_RESOURCE_COUNT:
 		errors.append("wing_skirmisher_material_resource_count_drift")
-	if descendant_node_count != PRESENTATION_DESCENDANT_NODE_COUNT:
+	if descendant_node_count != PRESENTATION_DESCENDANT_NODE_COUNT + int(marking_costs.nodes):
 		errors.append("wing_skirmisher_descendant_node_count_drift")
 	if light_node_count != PRESENTATION_LIGHT_NODE_COUNT:
 		errors.append("wing_skirmisher_light_node_count_drift")
@@ -791,6 +798,14 @@ func get_wing_chalk_band_resource_audit() -> Dictionary:
 		"valid": errors.is_empty(),
 		"errors": errors,
 		"scope": &"wing_skirmisher_mirrored_childless_trim",
+		"surface_marking_costs": marking_costs,
+		"total_presentation_allocations": {
+			"nodes": visual_node_count + int(marking_costs.nodes),
+			"mesh_instances": mesh_instance_count + int(marking_costs.mesh_instances),
+			"geometry_submissions": surface_submission_count + int(marking_costs.geometry_submissions),
+			"unique_mesh_resources": mesh_resource_ids.size() + int(marking_costs.unique_mesh_resources),
+			"unique_material_resources": material_resource_ids.size() + int(marking_costs.unique_material_resources),
+		},
 		"descendant_nodes_old": PRESENTATION_DESCENDANT_NODE_COUNT,
 		"descendant_nodes_new": descendant_node_count,
 		"visual_nodes_old": PRESENTATION_VISUAL_NODE_COUNT,

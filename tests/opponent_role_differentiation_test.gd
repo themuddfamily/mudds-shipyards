@@ -261,6 +261,8 @@ func _test_skirmisher_mirrored_trim_resource_sharing() -> void:
 	await physics_frame
 
 	var audit := skirmisher.get_wing_chalk_band_resource_audit()
+	_check(int(audit.total_presentation_allocations.mesh_instances) == int(audit.mesh_instance_nodes_new) + int(audit.surface_marking_costs.mesh_instances),
+		"Skirmisher total allocations include receiver-owned marking meshes")
 	var allocation_evidence := {
 		"mesh_resources_old": int(audit.mesh_resources_old),
 		"mesh_resources_new": int(audit.mesh_resources_new),
@@ -300,7 +302,7 @@ func _test_skirmisher_mirrored_trim_resource_sharing() -> void:
 	)
 	_check(
 		int(audit.descendant_nodes_old) == 32
-		and int(audit.descendant_nodes_new) == 32
+		and int(audit.descendant_nodes_new) == 32 + int(audit.surface_marking_costs.nodes)
 		and int(audit.visual_nodes_old) == 21
 		and int(audit.visual_nodes_new) == 21
 		and int(audit.mesh_instance_nodes_old) == 18

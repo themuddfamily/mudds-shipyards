@@ -5089,22 +5089,24 @@ func get_torrent_render_allocation_report() -> Dictionary:
 	)
 	var visual_census := _collect_torrent_render_census(visual)
 	var modern_census := _collect_torrent_render_census(modern)
+	var visual_base := _torrent_census_without_markings(visual_census, visual)
+	var modern_base := _torrent_census_without_markings(modern_census, modern)
 	var exact_counts := (
-		int(visual_census.get("descendant_nodes", -1)) == TORRENT_RENDER_DESCENDANT_COUNT
-		and int(visual_census.get("mesh_instances", -1)) == TORRENT_RENDER_MESH_INSTANCE_COUNT
-		and int(visual_census.get("multimesh_batches", -1)) == TORRENT_RENDER_MULTIMESH_BATCH_COUNT
-		and int(visual_census.get("drawn_copies", -1)) == TORRENT_RENDER_DRAWN_COPY_COUNT
-		and int(visual_census.get("geometry_submissions", -1)) == TORRENT_RENDER_GEOMETRY_SUBMISSION_COUNT
-		and int(visual_census.get("unique_mesh_resources", -1)) == TORRENT_RENDER_UNIQUE_MESH_RESOURCE_COUNT
-		and int(visual_census.get("unique_material_resources", -1)) == TORRENT_RENDER_UNIQUE_MATERIAL_RESOURCE_COUNT
-		and int(visual_census.get("multimesh_resources", -1)) == TORRENT_RENDER_MULTIMESH_BATCH_COUNT
-		and int(modern_census.get("descendant_nodes", -1)) == TORRENT_MODERN_DESCENDANT_COUNT
-		and int(modern_census.get("mesh_instances", -1)) == TORRENT_MODERN_MESH_INSTANCE_COUNT
-		and int(modern_census.get("multimesh_batches", -1)) == TORRENT_RENDER_MULTIMESH_BATCH_COUNT
-		and int(modern_census.get("drawn_copies", -1)) == TORRENT_MODERN_DRAWN_COPY_COUNT
-		and int(modern_census.get("geometry_submissions", -1)) == TORRENT_MODERN_GEOMETRY_SUBMISSION_COUNT
-		and int(modern_census.get("unique_mesh_resources", -1)) == TORRENT_MODERN_UNIQUE_MESH_RESOURCE_COUNT
-		and int(modern_census.get("unique_material_resources", -1)) == TORRENT_MODERN_UNIQUE_MATERIAL_RESOURCE_COUNT
+		int(visual_base.get("descendant_nodes", -1)) == TORRENT_RENDER_DESCENDANT_COUNT
+		and int(visual_base.get("mesh_instances", -1)) == TORRENT_RENDER_MESH_INSTANCE_COUNT
+		and int(visual_base.get("multimesh_batches", -1)) == TORRENT_RENDER_MULTIMESH_BATCH_COUNT
+		and int(visual_base.get("drawn_copies", -1)) == TORRENT_RENDER_DRAWN_COPY_COUNT
+		and int(visual_base.get("geometry_submissions", -1)) == TORRENT_RENDER_GEOMETRY_SUBMISSION_COUNT
+		and int(visual_base.get("unique_mesh_resources", -1)) == TORRENT_RENDER_UNIQUE_MESH_RESOURCE_COUNT
+		and int(visual_base.get("unique_material_resources", -1)) == TORRENT_RENDER_UNIQUE_MATERIAL_RESOURCE_COUNT
+		and int(visual_base.get("multimesh_resources", -1)) == TORRENT_RENDER_MULTIMESH_BATCH_COUNT
+		and int(modern_base.get("descendant_nodes", -1)) == TORRENT_MODERN_DESCENDANT_COUNT
+		and int(modern_base.get("mesh_instances", -1)) == TORRENT_MODERN_MESH_INSTANCE_COUNT
+		and int(modern_base.get("multimesh_batches", -1)) == TORRENT_RENDER_MULTIMESH_BATCH_COUNT
+		and int(modern_base.get("drawn_copies", -1)) == TORRENT_MODERN_DRAWN_COPY_COUNT
+		and int(modern_base.get("geometry_submissions", -1)) == TORRENT_MODERN_GEOMETRY_SUBMISSION_COUNT
+		and int(modern_base.get("unique_mesh_resources", -1)) == TORRENT_MODERN_UNIQUE_MESH_RESOURCE_COUNT
+		and int(modern_base.get("unique_material_resources", -1)) == TORRENT_MODERN_UNIQUE_MATERIAL_RESOURCE_COUNT
 	)
 
 	var expected_transforms := _torrent_vent_louver_transforms()
@@ -5294,6 +5296,10 @@ func get_torrent_render_allocation_report() -> Dictionary:
 		"errors": errors,
 		"component": visual_census.duplicate(true),
 		"modern_fallback": modern_census.duplicate(true),
+		"component_without_markings": visual_base,
+		"modern_fallback_without_markings": modern_base,
+		"surface_marking_costs": ShipSurfaceDetail.get_surface_marking_costs(visual),
+		"modern_fallback_marking_costs": ShipSurfaceDetail.get_surface_marking_costs(modern),
 		"vent_louver_batches": _torrent_vent_louver_batches.size(),
 		"vent_louver_copies": TORRENT_VENT_LOUVER_COPY_COUNT,
 		"vent_louver_shared_mesh_resources": 1 if _torrent_vent_louver_mesh != null else 0,
@@ -5327,6 +5333,22 @@ func get_torrent_render_allocation_report() -> Dictionary:
 			"unique_mesh_resources": 1,
 		},
 	}
+
+
+## Retain the frozen base roster while reporting every Compatibility ink allocation
+## in the total census above. Only helper-owned inert patches qualify as overhead.
+func _torrent_census_without_markings(census: Dictionary, search_root: Node) -> Dictionary:
+	var base := census.duplicate(true)
+	var costs := ShipSurfaceDetail.get_surface_marking_costs(search_root)
+	var fields := {
+		"descendant_nodes": "nodes", "mesh_instances": "mesh_instances",
+		"drawn_copies": "mesh_instances", "geometry_submissions": "geometry_submissions",
+		"unique_mesh_resources": "unique_mesh_resources", "unique_material_resources": "unique_material_resources",
+	}
+	for field: String in fields:
+		if base.has(field):
+			base[field] -= int(costs[fields[field]])
+	return base
 
 
 func _collect_torrent_render_census(search_root: Node) -> Dictionary:

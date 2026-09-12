@@ -504,8 +504,12 @@ func _test_render_allocations(torrent: HeroShip) -> void:
 			)
 
 	var report := torrent.get_torrent_render_allocation_report()
-	var component := report.get("component", {}) as Dictionary
-	var fallback := report.get("modern_fallback", {}) as Dictionary
+	var total := report.get("component", {}) as Dictionary
+	var costs := report.get("surface_marking_costs", {}) as Dictionary
+	_check(int(total.mesh_instances) == int(report.component_without_markings.mesh_instances) + int(costs.mesh_instances),
+		"total Torrent allocation includes every Compatibility marking patch")
+	var component := report.get("component_without_markings", {}) as Dictionary
+	var fallback := report.get("modern_fallback_without_markings", {}) as Dictionary
 	_check(
 		int(component.get("descendant_nodes", -1)) == 320
 		and int(component.get("mesh_instances", -1)) == 248
@@ -623,7 +627,10 @@ func _test_authored_material_roles(torrent: HeroShip) -> void:
 		_check(not bool(material_contract.get("final_hand_authored_pbr", true)), "authored audit does not mislabel the image-derived proxy atlas as final hand-authored PBR")
 		_check(not bool(material_contract.get("flat_study_bound", true)), "authored audit confirms that the unverified flat study is not bound")
 
-	var semantic_meshes := authored_root.find_children("*", "MeshInstance3D", true, false)
+	var semantic_meshes: Array[Node] = []
+	for candidate in authored_root.find_children("*", "MeshInstance3D", true, false):
+		if not ShipSurfaceDetail.is_surface_marking_patch(candidate):
+			semantic_meshes.append(candidate)
 	_check(semantic_meshes.size() == 26, "authored macroform exposes the exact 13-component roster at both LODs")
 	var role_material_ids: Array[Dictionary] = [{}, {}, {}]
 	var role_node_counts := [0, 0, 0]

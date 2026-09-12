@@ -548,8 +548,17 @@ func get_arrow_visual_performance_report() -> Dictionary:
 		}.duplicate(true)
 
 	var current := _collect_arrow_visual_census()
-	for key: String in EXPECTED_ARROW_VISUAL_CENSUS:
-		if int(current.get(key, -1)) != int(EXPECTED_ARROW_VISUAL_CENSUS[key]):
+	var marking_costs := ShipSurfaceDetail.get_surface_marking_costs(_arrow_visual)
+	var expected := EXPECTED_ARROW_VISUAL_CENSUS.duplicate(true)
+	var marking_fields := {
+		"nodes": "nodes", "mesh_instance_nodes": "mesh_instances",
+		"geometry_submissions": "geometry_submissions", "visible_geometry_copies": "mesh_instances",
+		"unique_mesh_resource_allocations": "unique_mesh_resources",
+	}
+	for key: String in marking_fields:
+		expected[key] += int(marking_costs[marking_fields[key]])
+	for key: String in expected:
+		if int(current.get(key, -1)) != int(expected[key]):
 			errors.append("whole visual census drift: %s" % key)
 	var batch := _inspect_wing_root_rib_batch()
 	if not bool(batch.valid):
@@ -592,7 +601,9 @@ func get_arrow_visual_performance_report() -> Dictionary:
 		"errors": errors,
 		"legacy": LEGACY_ARROW_VISUAL_CENSUS.duplicate(true),
 		"phase9_before_entry_heat": PHASE9_ARROW_VISUAL_CENSUS.duplicate(true),
-		"expected": EXPECTED_ARROW_VISUAL_CENSUS.duplicate(true),
+		"expected": expected,
+		"expected_without_markings": EXPECTED_ARROW_VISUAL_CENSUS.duplicate(true),
+		"surface_marking_costs": marking_costs,
 		"recon_pulse_emitter_delta": RECON_PULSE_EMITTER_VISUAL_DELTA.duplicate(true),
 		"current": current,
 		"entry_heat_target_delta": ENTRY_HEAT_TARGET_VISUAL_DELTA.duplicate(true),

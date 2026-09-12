@@ -400,6 +400,8 @@ func _test_contract_and_evidence() -> void:
 	if mutation_target != null and retained_mesh != null:
 		mutation_target.mesh = retained_mesh.duplicate() as Mesh
 	var red_performance := picket.get_presentation_performance_contract()
+	_check(int(red_performance.total_presentation_allocations.mesh_instances) == int(red_performance.mesh_instances) + int(red_performance.surface_marking_costs.mesh_instances),
+		"Picket total allocations include nested receiver-owned markings")
 	_check(
 		mutation_target != null and retained_mesh != null
 		and not bool(red_performance.valid)

@@ -460,13 +460,18 @@ func get_asset_audit_report() -> Dictionary:
 			errors.append("required imported root identity was substituted: %s" % required_name)
 	var lod0_meshes: Array[Node] = []
 	if live_lod0 != null:
-		lod0_meshes = live_lod0.find_children("*", "MeshInstance3D", true, false)
+		lod0_meshes = _authored_mesh_nodes(live_lod0)
 	var lod1_meshes: Array[Node] = []
 	if live_lod1 != null:
-		lod1_meshes = live_lod1.find_children("*", "MeshInstance3D", true, false)
+		lod1_meshes = _authored_mesh_nodes(live_lod1)
 	var lod0_triangles := _subtree_triangle_count(live_lod0)
 	var lod1_triangles := _subtree_triangle_count(live_lod1)
-	var total_mesh_count := live_asset_root.find_children("*", "MeshInstance3D", true, false).size() if live_asset_root != null else 0
+	var total_mesh_count := _authored_mesh_nodes(live_asset_root).size()
+	var marking_costs := ShipSurfaceDetail.get_surface_marking_costs(live_asset_root)
+	var near_marking_costs := ShipSurfaceDetail.get_surface_marking_costs(live_lod0)
+	var cockpit_marking_costs := ShipSurfaceDetail.get_surface_marking_costs(live_cockpit)
+	var canopy_marking_costs := ShipSurfaceDetail.get_surface_marking_costs(live_canopy)
+	var far_marking_costs := ShipSurfaceDetail.get_surface_marking_costs(live_lod1)
 	var near_surface_count := _subtree_surface_count(live_lod0) + _subtree_surface_count(live_cockpit) + _subtree_surface_count(live_canopy)
 	var far_surface_count := _subtree_surface_count(live_lod1) + _subtree_surface_count(live_canopy)
 	if lod0_triangles < 45000:
@@ -530,6 +535,8 @@ func get_asset_audit_report() -> Dictionary:
 		if root == null:
 			continue
 		for visual in root.find_children("*", "GeometryInstance3D", true, false):
+			if ShipSurfaceDetail.is_surface_marking_patch(visual):
+				continue
 			var geometry := visual as GeometryInstance3D
 			if (
 				not is_zero_approx(geometry.visibility_range_begin)
@@ -598,6 +605,10 @@ func get_asset_audit_report() -> Dictionary:
 		"lod0_mesh_count": lod0_meshes.size(),
 		"lod1_mesh_count": lod1_meshes.size(),
 		"total_mesh_count": total_mesh_count,
+		"surface_marking_costs": marking_costs,
+		"total_mesh_count_with_markings": total_mesh_count + int(marking_costs.mesh_instances),
+		"near_surface_count_with_markings": near_surface_count + int(near_marking_costs.geometry_submissions) + int(cockpit_marking_costs.geometry_submissions) + int(canopy_marking_costs.geometry_submissions),
+		"far_surface_count_with_markings": far_surface_count + int(far_marking_costs.geometry_submissions) + int(canopy_marking_costs.geometry_submissions),
 		"lod0_triangle_count": lod0_triangles,
 		"lod1_triangle_count": lod1_triangles,
 		"near_surface_count": near_surface_count,
@@ -665,7 +676,9 @@ func _capture_integrity_contract() -> void:
 	if _asset_root == null:
 		return
 	var nodes: Array[Node] = [_asset_root]
-	nodes.append_array(_asset_root.find_children("*", "Node", true, false))
+	for descendant in _asset_root.find_children("*", "Node", true, false):
+		if not ShipSurfaceDetail.is_surface_marking_patch(descendant):
+			nodes.append(descendant)
 	for candidate in nodes:
 		var relative_path := str(_asset_root.get_path_to(candidate))
 		_integrity_nodes[relative_path] = {
@@ -712,7 +725,9 @@ func _append_integrity_errors(
 	):
 		errors.append("runtime GLB hash does not match its checked-in manifest")
 	var nodes: Array[Node] = [_asset_root]
-	nodes.append_array(_asset_root.find_children("*", "Node", true, false))
+	for descendant in _asset_root.find_children("*", "Node", true, false):
+		if not ShipSurfaceDetail.is_surface_marking_patch(descendant):
+			nodes.append(descendant)
 	if nodes.size() != _integrity_nodes.size():
 		errors.append("imported hero node roster size drifted")
 	for candidate in nodes:
@@ -749,7 +764,7 @@ func _append_integrity_errors(
 		errors.append("runtime static-batching manifest contract is invalid")
 	for root_name: String in ["LOD0", "LOD1", "CockpitArt", "CanopyPivot"]:
 		var root_node := _asset_root.get_node_or_null(NodePath(root_name)) if _asset_root != null else null
-		var actual_count := root_node.find_children("*", "MeshInstance3D", true, false).size() if root_node != null else 0
+		var actual_count := _authored_mesh_nodes(root_node).size()
 		if actual_count != int(_manifest_runtime_mesh_counts.get(root_name, -1)):
 			errors.append("runtime mesh count disagrees with manifest: %s" % root_name)
 	for role: StringName in _runtime_materials:
@@ -847,11 +862,22 @@ func _runtime_triangle_count() -> int:
 	return _subtree_triangle_count(_asset_root)
 
 
+## Asset manifests describe the preserved imported geometry. Compatibility ink is
+## attached at runtime and reported as explicit extra allocation in the audit.
+func _authored_mesh_nodes(node: Node) -> Array[Node]:
+	var meshes: Array[Node] = []
+	if node != null:
+		for candidate in node.find_children("*", "MeshInstance3D", true, false):
+			if not ShipSurfaceDetail.is_surface_marking_patch(candidate):
+				meshes.append(candidate)
+	return meshes
+
+
 func _subtree_triangle_count(node: Node) -> int:
 	if node == null:
 		return 0
 	var total := 0
-	for candidate in node.find_children("*", "MeshInstance3D", true, false):
+	for candidate in _authored_mesh_nodes(node):
 		total += _mesh_triangle_count((candidate as MeshInstance3D).mesh)
 	return total
 
@@ -860,7 +886,7 @@ func _subtree_surface_count(node: Node) -> int:
 	if node == null:
 		return 0
 	var total := 0
-	for candidate in node.find_children("*", "MeshInstance3D", true, false):
+	for candidate in _authored_mesh_nodes(node):
 		var mesh := (candidate as MeshInstance3D).mesh
 		if mesh != null:
 			total += mesh.get_surface_count()

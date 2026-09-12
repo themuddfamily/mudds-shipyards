@@ -496,6 +496,7 @@ func get_presentation_performance_contract() -> Dictionary:
 				var material := mesh.surface_get_material(surface_index)
 				if material != null:
 					material_resources[material.get_instance_id()] = true
+	var marking_costs := ShipSurfaceDetail.get_surface_marking_costs(_visual_root)
 	var valid := (
 		visual_nodes == PRESENTATION_VISUAL_NODE_COUNT
 		and mesh_instances == PRESENTATION_MESH_INSTANCE_COUNT
@@ -513,6 +514,14 @@ func get_presentation_performance_contract() -> Dictionary:
 		"valid": valid,
 		"headless_safe": true,
 		"scope": &"StandoffPicketVisual_static_geometry",
+		"surface_marking_costs": marking_costs,
+		"total_presentation_allocations": {
+			"nodes": visual_nodes + int(marking_costs.nodes),
+			"mesh_instances": mesh_instances + int(marking_costs.mesh_instances),
+			"geometry_submissions": submissions + int(marking_costs.geometry_submissions),
+			"unique_mesh_resources": mesh_resources.size() + int(marking_costs.unique_mesh_resources),
+			"unique_material_resources": material_resources.size() + int(marking_costs.unique_material_resources),
+		},
 		"baseline_visual_nodes": BASELINE_PRESENTATION_VISUAL_NODE_COUNT,
 		"visual_nodes": visual_nodes,
 		"baseline_mesh_instances": BASELINE_PRESENTATION_MESH_INSTANCE_COUNT,

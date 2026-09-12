@@ -1043,7 +1043,7 @@ func _test_visual_performance_batch(arrow: ArrowReconShip) -> void:
 	_check(
 		bool(report.valid)
 		and report.current == report.expected
-		and report.current == {
+		and report.expected_without_markings == {
 			"nodes": 278,
 			"mesh_instance_nodes": 243,
 			"multi_mesh_instance_nodes": 3,
@@ -1256,7 +1256,7 @@ func _test_visual_performance_batch(arrow: ArrowReconShip) -> void:
 	)
 	detached_panel_transforms[0] = Transform3D.IDENTITY
 	_check(
-		int(arrow.get_arrow_visual_performance_report().current.nodes) == 278
+		int(arrow.get_arrow_visual_performance_report().current.nodes) == 278 + int(report.surface_marking_costs.nodes)
 		and int(
 			arrow.get_arrow_visual_performance_report()
 				.lateral_array_curve_joint_sharing.primitive_mesh_allocations
@@ -2016,8 +2016,11 @@ func _test_engine_weapon_and_lifecycle(arrow: ArrowReconShip) -> void:
 	var airframe_batch := arrow.get_arrow_visual_root().get_node("OpaqueEnvelopeShadowBatch") as MeshInstance3D
 	var airframe_mesh := airframe_batch.mesh
 	var airframe_sources := arrow._airframe_shadow_sources.duplicate()
+	var marking_costs := ShipSurfaceDetail.get_surface_marking_costs(arrow.get_arrow_visual_root())
 	var excluded_casts := {}
 	for candidate in arrow.get_arrow_visual_root().find_children("*", "GeometryInstance3D", true, false):
+		if ShipSurfaceDetail.is_surface_marking_patch(candidate):
+			continue
 		if candidate != airframe_batch and not (candidate is MeshInstance3D and airframe_sources.has(candidate)):
 			excluded_casts[candidate] = (candidate as GeometryInstance3D).cast_shadow
 	var rib_batch := arrow.get_arrow_visual_root().get_node_or_null(
@@ -2143,6 +2146,8 @@ func _test_engine_weapon_and_lifecycle(arrow: ArrowReconShip) -> void:
 		"damage/reset preserves one exact target, shared resources, exclusive material, and zero baseline"
 	)
 
+	_check(ShipSurfaceDetail.get_surface_marking_costs(arrow.get_arrow_visual_root()) == marking_costs,
+		"detach/re-entry restores the same marking allocation without retaining retired patches")
 	var excluded_unchanged := true
 	for candidate: GeometryInstance3D in excluded_casts:
 		excluded_unchanged = excluded_unchanged and candidate.cast_shadow == int(excluded_casts[candidate])
