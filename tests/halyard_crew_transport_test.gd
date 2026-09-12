@@ -216,6 +216,7 @@ func _run() -> void:
 	_test_weapon_presentation(craft)
 	_test_cockpit_and_boarding(craft)
 	_test_interior(craft)
+	_test_flight_deck_aperture(craft)
 	_test_boarding_route_readability(craft)
 	# Inspect authored Halyard surfacing before the destruction red-control below
 	# intentionally asks the shared damage presenter to add transient shards.
@@ -1353,6 +1354,39 @@ func _test_interior(craft: HeroShip) -> void:
 			mutated_gap > DECK_JOIN_TOLERANCE,
 			"RED: a shifted deck plate is detected as a gap (%.3f m)" % mutated_gap
 		)
+
+
+## The physical connector must not pass through an opaque pressure-hull cap.
+## Test emitted triangles: a hollow-looking bounding box cannot prove a doorway.
+func _test_flight_deck_aperture(craft: HeroShip) -> void:
+	var hull := craft.get_node("HalyardTransportVisual/HullCore") as MeshInstance3D
+	var faces := hull.mesh.get_faces()
+	var clear_rays := 0
+	for x in [-1.18, 0.0, 1.18]:
+		for y in [0.51, 1.80, 3.04]:
+			if not _hull_cap_intersects(craft, hull, faces, Vector2(x, y)):
+				clear_rays += 1
+	_check(clear_rays == 9,
+		"HullCore triangles leave the full 2.38 m by 2.55 m flight-deck portal clear (%d/9 rays)" % clear_rays)
+	var stock_rays := 0
+	for point in [Vector2(-1.20, 1.80), Vector2(1.20, 1.80),
+			Vector2(0.0, 0.49), Vector2(0.0, 3.06)]:
+		if _hull_cap_intersects(craft, hull, faces, point):
+			stock_rays += 1
+	_check(stock_rays == 4,
+		"the forward cap retains opaque stock beside, above and below the portal (%d/4 rays)" % stock_rays)
+	_evidence.append("HALYARD_FLIGHT_DECK_APERTURE: clear_rays=%d/9 retained_stock=%d/4 hull_triangles=%d" % [clear_rays, stock_rays, faces.size() / 3])
+
+
+func _hull_cap_intersects(craft: HeroShip, hull: MeshInstance3D,
+		faces: PackedVector3Array, point: Vector2) -> bool:
+	var from := hull.to_local(craft.to_global(Vector3(point.x, point.y, -10.40)))
+	var to := hull.to_local(craft.to_global(Vector3(point.x, point.y, -10.80)))
+	for index in range(0, faces.size(), 3):
+		if Geometry3D.segment_intersects_triangle(from, to,
+				faces[index], faces[index + 1], faces[index + 2]) != null:
+			return true
+	return false
 
 
 func _test_boarding_route_readability(craft: HeroShip) -> void:

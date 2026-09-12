@@ -2775,7 +2775,10 @@ func _build_pressure_hull() -> void:
 		_halyard_materials.hull_olive,
 		Vector2(1.55, AIRSTAIR_Z),
 		Vector2(2.10, PORT_AIRSTAIR_HATCH_APERTURE_WIDTH),
-		0.07
+		0.07,
+		# Match the cabin portal's clear span and deck height. The former full
+		# forward cap crossed the connector as an opaque, non-physical wall.
+		Rect2(-1.19, 0.50, 2.38, 2.55)
 	)
 	# The cabin liner remains the physical envelope. Pressed outer shoulders and
 	# lower pressure cheeks turn that envelope into a vessel, with the glazing
@@ -4678,7 +4681,7 @@ func _box(
 	return instance
 
 
-## One closed box shell with a rectangular opening through its port (-X) face.
+## A box shell with a port (-X) hatch and an optional forward (-Z) doorway.
 ## The four reveal faces close the jamb, sill and header back to the next skin,
 ## so opening the hatch cannot expose backfaces or a hollow hull edge. This is
 ## used by the aligned exterior surround, hull skin and cabin wall without
@@ -4691,7 +4694,8 @@ func _port_aperture_box(
 		material: Material,
 		aperture_center_yz: Vector2,
 		aperture_size_yz: Vector2,
-		reveal_depth: float
+		reveal_depth: float,
+		forward_aperture_xy := Rect2()
 	) -> MeshInstance3D:
 	var half := size * 0.5
 	var min_x := -half.x
@@ -4709,8 +4713,8 @@ func _port_aperture_box(
 	var reveal_x := minf(min_x + reveal_depth, max_x)
 	var tool := SurfaceTool.new()
 	tool.begin(Mesh.PRIMITIVE_TRIANGLES)
-	# Five complete outer faces. The port face is emitted as four rectangles
-	# around the aperture below.
+	# Retain the outer faces around the port hatch. HullCore also cuts the
+	# optional forward doorway; the other callers keep their complete end cap.
 	if reveal_depth < size.x - 0.001:
 		_add_aperture_quad(tool, Vector3(max_x, min_y, min_z), Vector3(max_x, max_y, min_z), Vector3(max_x, max_y, max_z), Vector3(max_x, min_y, max_z), Vector3.RIGHT)
 	else:
@@ -4722,7 +4726,26 @@ func _port_aperture_box(
 		_add_aperture_quad(tool, Vector3(max_x, aperture_min_y, aperture_max_z), Vector3(max_x, aperture_max_y, aperture_max_z), Vector3(max_x, aperture_max_y, max_z), Vector3(max_x, aperture_min_y, max_z), Vector3.RIGHT)
 	_add_aperture_quad(tool, Vector3(min_x, max_y, min_z), Vector3(min_x, max_y, max_z), Vector3(max_x, max_y, max_z), Vector3(max_x, max_y, min_z), Vector3.UP)
 	_add_aperture_quad(tool, Vector3(min_x, min_y, max_z), Vector3(min_x, min_y, min_z), Vector3(max_x, min_y, min_z), Vector3(max_x, min_y, max_z), Vector3.DOWN)
-	_add_aperture_quad(tool, Vector3(min_x, min_y, min_z), Vector3(min_x, max_y, min_z), Vector3(max_x, max_y, min_z), Vector3(max_x, min_y, min_z), Vector3.FORWARD)
+	if forward_aperture_xy.has_area():
+		# Only HullCore has this second opening. Split its forward pressure cap
+		# into four lands, leaving the existing cabin-to-flight-deck route open.
+		var left := forward_aperture_xy.position.x - box_position.x
+		var right := forward_aperture_xy.end.x - box_position.x
+		var bottom := forward_aperture_xy.position.y - box_position.y
+		var top := forward_aperture_xy.end.y - box_position.y
+		var reveal_z := min_z + reveal_depth
+		_add_aperture_quad(tool, Vector3(min_x, min_y, min_z), Vector3(min_x, max_y, min_z), Vector3(left, max_y, min_z), Vector3(left, min_y, min_z), Vector3.FORWARD)
+		_add_aperture_quad(tool, Vector3(right, min_y, min_z), Vector3(right, max_y, min_z), Vector3(max_x, max_y, min_z), Vector3(max_x, min_y, min_z), Vector3.FORWARD)
+		_add_aperture_quad(tool, Vector3(left, min_y, min_z), Vector3(left, bottom, min_z), Vector3(right, bottom, min_z), Vector3(right, min_y, min_z), Vector3.FORWARD)
+		_add_aperture_quad(tool, Vector3(left, top, min_z), Vector3(left, max_y, min_z), Vector3(right, max_y, min_z), Vector3(right, top, min_z), Vector3.FORWARD)
+		# Short inward-facing reveals give the jambs, sill and header thickness
+		# without adding nodes, materials, or collision across the opening.
+		_add_aperture_quad(tool, Vector3(left, bottom, min_z), Vector3(left, top, min_z), Vector3(left, top, reveal_z), Vector3(left, bottom, reveal_z), Vector3.RIGHT)
+		_add_aperture_quad(tool, Vector3(right, bottom, reveal_z), Vector3(right, top, reveal_z), Vector3(right, top, min_z), Vector3(right, bottom, min_z), Vector3.LEFT)
+		_add_aperture_quad(tool, Vector3(left, bottom, min_z), Vector3(left, bottom, reveal_z), Vector3(right, bottom, reveal_z), Vector3(right, bottom, min_z), Vector3.UP)
+		_add_aperture_quad(tool, Vector3(left, top, reveal_z), Vector3(left, top, min_z), Vector3(right, top, min_z), Vector3(right, top, reveal_z), Vector3.DOWN)
+	else:
+		_add_aperture_quad(tool, Vector3(min_x, min_y, min_z), Vector3(min_x, max_y, min_z), Vector3(max_x, max_y, min_z), Vector3(max_x, min_y, min_z), Vector3.FORWARD)
 	_add_aperture_quad(tool, Vector3(max_x, min_y, max_z), Vector3(max_x, max_y, max_z), Vector3(min_x, max_y, max_z), Vector3(min_x, min_y, max_z), Vector3.BACK)
 	_add_aperture_quad(tool, Vector3(min_x, min_y, min_z), Vector3(min_x, min_y, max_z), Vector3(min_x, aperture_min_y, max_z), Vector3(min_x, aperture_min_y, min_z), Vector3.LEFT)
 	_add_aperture_quad(tool, Vector3(min_x, aperture_max_y, min_z), Vector3(min_x, aperture_max_y, max_z), Vector3(min_x, max_y, max_z), Vector3(min_x, max_y, min_z), Vector3.LEFT)
