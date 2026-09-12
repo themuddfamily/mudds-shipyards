@@ -32,6 +32,62 @@ void fragment() {
 }
 """
 
+# The existing opaque face owns this finish: no overlay, texture viewport or
+# moving scanlines. Model-space bounds keep Zenith's batched touch keys plain.
+const SCREEN_SHADER := """
+shader_type spatial;
+render_mode unshaded;
+uniform vec2 face_size = vec2(0.72, 0.32);
+uniform vec2 face_center = vec2(0.0);
+uniform bool wide_face = false;
+varying vec3 stock_position;
+varying vec3 stock_normal;
+void vertex() {
+	stock_position = VERTEX;
+	stock_normal = NORMAL;
+}
+void fragment() {
+	vec2 p = (stock_position.xy - face_center) / face_size + 0.5;
+	p.y = 1.0 - p.y;
+	vec2 aa = max(fwidth(p), vec2(0.0005));
+	float face = step(0.99, stock_normal.z)
+		* step(0.0, p.x) * step(p.x, 1.0) * step(0.0, p.y) * step(p.y, 1.0);
+	vec2 edge = min(p, 1.0-p);
+	float inset = smoothstep(0.018, 0.018 + aa.x, edge.x)
+		* smoothstep(0.038, 0.038 + aa.y, edge.y);
+	float center = wide_face ? step(0.28, p.x) * step(p.x, 0.72) : 1.0;
+	float header = (1.0-smoothstep(0.385, 0.385 + aa.y, p.y)) * center;
+	// Quiet luminous glass, a recessed black perimeter and a speed/status rule.
+	vec3 glass = mix(vec3(0.025, 0.070, 0.090), vec3(0.035, 0.115, 0.140), header);
+	glass *= 0.80 + 0.20 * (1.0-p.y);
+	float rule = (1.0-smoothstep(0.002, 0.002+aa.y, abs(p.y-0.39))) * center;
+	float columns = wide_face ? (1.0-smoothstep(0.0015, 0.0015+aa.x,
+		min(abs(p.x-0.28), abs(p.x-0.72)))) : 0.0;
+	glass = mix(glass, vec3(0.065, 0.18, 0.20), max(rule, columns));
+	ALBEDO = mix(vec3(0.003, 0.007, 0.009), glass, face * inset);
+}
+"""
+
+static var _screen_materials: Dictionary = {}
+
+
+static func screen_material(wide_face: bool = false) -> ShaderMaterial:
+	if not _screen_materials.has(wide_face):
+		var material := ShaderMaterial.new()
+		if _screen_materials.is_empty():
+			var shader := Shader.new()
+			shader.code = SCREEN_SHADER
+			material.shader = shader
+		else:
+			material.shader = (_screen_materials.values()[0] as ShaderMaterial).shader
+		material.set_shader_parameter(&"wide_face", wide_face)
+		if wide_face:
+			material.set_shader_parameter(&"face_size", Vector2(1.27, 0.31))
+			material.set_shader_parameter(&"face_center", Vector2(0.0, 0.06))
+		_screen_materials[wide_face] = material
+	return _screen_materials[wide_face]
+
+
 static var _instance_count := 0
 static var _dial_mesh: QuadMesh
 static var _dial_material: ShaderMaterial
@@ -88,6 +144,7 @@ func _notification(what: int) -> void:
 			# when its last cockpit dies, before the rendering server shuts down.
 			_dial_mesh = null
 			_dial_material = null
+			_screen_materials.clear()
 
 
 func set_compact(compact: bool) -> void:

@@ -3904,9 +3904,7 @@ func _build_pilot_instrument_binnacle(dark: StandardMaterial3D, trim: StandardMa
 	binnacle.scale = Vector3.ONE * 0.56
 	binnacle.set_meta("presentation_only", true)
 	_functional_cockpit.add_child(binnacle)
-	var screen := StandardMaterial3D.new()
-	screen.albedo_color = Color("07131a")
-	screen.roughness = 0.68
+	var screen := CockpitFlightInstruments.screen_material(true)
 	var materials: Array[Material] = [dark, trim, screen]
 	var surfaces: Array[SurfaceTool] = []
 	for material in materials:

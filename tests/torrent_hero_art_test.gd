@@ -86,6 +86,11 @@ func _test_instrument_uniform_updates() -> void:
 	var other := ObservedInstruments.new()
 	_test_root.add_child(instruments)
 	_test_root.add_child(other)
+	var screen := instruments.screen_material()
+	var wide_screen := instruments.screen_material(true)
+	_check(screen == other.screen_material() and wide_screen == other.screen_material(true)
+		and screen.shader == wide_screen.shader and screen != wide_screen,
+		"fleet glass shares one shader and one retained material per physical face layout")
 	var throttle := instruments.get_node("LiveStatusRepeaters/ThrottleGauge") as MeshInstance3D
 	var hull := instruments.get_node("LiveStatusRepeaters/HullGauge") as MeshInstance3D
 	_check(instruments.submissions == [

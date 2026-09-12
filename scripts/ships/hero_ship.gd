@@ -6370,6 +6370,8 @@ func _cockpit_cushion_mesh(sections: Array[Vector4], material: Material, shell: 
 ## the mirrored transforms consumed by variant batching. Arrow subsequently
 ## replaces these meshes with its own binnacle; Torrent keeps its original fallback.
 func _fit_shared_instrument_housing(cluster: Node3D) -> void:
+	var display := cluster.get_node("PrimaryFlightDisplay") as MeshInstance3D
+	display.material_override = CockpitFlightInstruments.screen_material()
 	var hood := cluster.get_node("InstrumentHood") as MeshInstance3D
 	hood.mesh = _cockpit_formed_enclosure_mesh([
 		Vector4(1.28, -0.53, 0.06, -0.53),
