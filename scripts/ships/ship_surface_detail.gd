@@ -1,6 +1,8 @@
 class_name ShipSurfaceDetail
 extends RefCounted
 
+const COMPATIBILITY_MARKING := preload("res://scripts/ships/ship_surface_marking.gd")
+
 const PAINT_ALBEDO_PATH := "res://assets/materials/manufactured-paint-albedo.png"
 const PAINT_NORMAL_PATH := "res://assets/materials/manufactured-paint-normal.png"
 const PAINT_ROUGHNESS_PATH := "res://assets/materials/coating-scuff-roughness.png"
@@ -17,7 +19,9 @@ static func mark_surface(
 	) -> Decal:
 	var outward := normal.normalized()
 	var upright := (up - outward * up.dot(outward)).normalized()
-	var marking := Decal.new()
+	var marking: Decal = Decal.new()
+	if RenderingServer.get_current_rendering_method() == "gl_compatibility":
+		marking.set_script(COMPATIBILITY_MARKING)
 	marking.name = node_name
 	marking.transform = Transform3D(Basis(upright.cross(outward), outward, -upright), origin)
 	marking.size = Vector3(dimensions.x, depth, dimensions.y)
@@ -31,6 +35,41 @@ static func mark_surface(
 	marking.distance_fade_length = 35.0
 	parent.add_child(marking)
 	return marking
+
+
+## Allocation reports distinguish renderer-owned ink from authored structure,
+## while retaining its real mesh, resource and submission costs in total counts.
+static func is_surface_marking_patch(node: Node) -> bool:
+	if not node is MeshInstance3D or not node.has_meta("surface_marking_owner"):
+		return false
+	var owner_id: int = node.get_meta("surface_marking_owner")
+	if not is_instance_id_valid(owner_id):
+		return false
+	var marking := instance_from_id(owner_id) as Decal
+	return marking != null and marking.get_script() == COMPATIBILITY_MARKING and marking.owns_patch(node)
+
+
+static func get_surface_marking_costs(root: Node) -> Dictionary:
+	var costs := {"nodes": 0, "mesh_instances": 0, "geometry_submissions": 0,
+		"unique_mesh_resources": 0, "unique_material_resources": 0}
+	if root == null:
+		return costs
+	var meshes := {}
+	var materials := {}
+	var pending: Array[Node] = [root]
+	while not pending.is_empty():
+		var node := pending.pop_back() as Node
+		if is_surface_marking_patch(node):
+			var patch := node as MeshInstance3D
+			costs.nodes += 1
+			costs.mesh_instances += 1
+			costs.geometry_submissions += patch.mesh.get_surface_count()
+			meshes[patch.mesh.get_instance_id()] = true
+			materials[patch.material_override.get_instance_id()] = true
+		pending.append_array(node.get_children())
+	costs.unique_mesh_resources = meshes.size()
+	costs.unique_material_resources = materials.size()
+	return costs
 
 ## A smooth manufactured coating. Authored seams come from actual geometry;
 ## the shared albedo and normal maps supply fine paint grain. Broad variation

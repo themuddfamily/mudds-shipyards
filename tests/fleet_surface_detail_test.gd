@@ -110,6 +110,13 @@ func _run() -> void:
 	_test_root.name = "FleetSurfaceDetailTestRoot"
 	root.add_child(_test_root)
 
+	await _audit_surface_markings()
+	if "--markings-only" in OS.get_cmdline_user_args():
+		_test_root.queue_free()
+		await process_frame
+		_finish()
+		return
+
 	await _audit_procedural_craft(ARROW_SCENE, "Arrow", ARROW_STRUCTURAL_KEYS, ARROW_HULL_KEYS, true)
 	await _audit_procedural_craft(
 		JOVIAN_SCENE, "Jovian", JOVIAN_STRUCTURAL_KEYS, JOVIAN_HULL_KEYS, true
@@ -535,3 +542,120 @@ func _finish() -> void:
 	else:
 		print("FLEET_SURFACE_DETAIL_TEST_FAILED: ", ", ".join(_failures))
 		quit(1)
+
+
+## Protects the fallback's production contract with a curved, mirrored receiver
+## and a late mesh replacement, plus glass and sibling access-skin witnesses.
+func _audit_surface_markings() -> void:
+	var fixture := Node3D.new()
+	_test_root.add_child(fixture)
+	var hull := MeshInstance3D.new()
+	hull.mesh = BoxMesh.new()
+	hull.scale = Vector3(-1.0, 1.0, 1.0)
+	fixture.add_child(hull)
+	var marking := ShipSurfaceDetail.mark_surface(hull, "FixtureRegistration", "arrow",
+		Vector3(-1.0, 0, 0), Vector2(0.8, 0.8), Vector3.LEFT, Vector3.UP, 0.5)
+	marking.modulate = Color(0.4, 0.5, 0.6, 1.0)
+	marking.size.z = 0.7
+	var sphere := SphereMesh.new()
+	sphere.radius = 1.0
+	sphere.height = 2.0
+	sphere.radial_segments = 24
+	sphere.rings = 12
+	hull.mesh = sphere
+	var glass_layer := MeshInstance3D.new()
+	glass_layer.mesh = sphere
+	glass_layer.layers = 2
+	fixture.add_child(glass_layer)
+	var glass_material := MeshInstance3D.new()
+	glass_material.mesh = sphere
+	var glass := StandardMaterial3D.new()
+	glass.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	glass_material.material_override = glass
+	fixture.add_child(glass_material)
+	var shadow_proxy := MeshInstance3D.new()
+	shadow_proxy.mesh = sphere
+	shadow_proxy.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_SHADOWS_ONLY
+	fixture.add_child(shadow_proxy)
+	var sibling := MeshInstance3D.new()
+	var plate := BoxMesh.new()
+	plate.size = Vector3(0.01, 0.12, 0.12)
+	sibling.mesh = plate
+	sibling.position.x = 1.02
+	fixture.add_child(sibling)
+	await process_frame
+	await process_frame
+	var patches: Array[MeshInstance3D] = []
+	for candidate in fixture.find_children("*", "MeshInstance3D", true, false):
+		if ShipSurfaceDetail.is_surface_marking_patch(candidate):
+			patches.append(candidate)
+	if RenderingServer.get_current_rendering_method() != "gl_compatibility":
+		_check(patches.is_empty() and marking.get_script() == null, "Forward+ and Mobile retain the native Decal path")
+	else:
+		var costs := ShipSurfaceDetail.get_surface_marking_costs(fixture)
+		_check(costs.nodes == 2 and costs.mesh_instances == 2 and costs.geometry_submissions == 2 and costs.unique_mesh_resources == 2 and costs.unique_material_resources == 1, "Allocation accounting includes actual patches and shared ink material")
+		var impostor := MeshInstance3D.new()
+		impostor.set_meta("surface_marking_owner", marking.get_instance_id())
+		hull.add_child(impostor)
+		_check(not ShipSurfaceDetail.is_surface_marking_patch(impostor), "A metadata-only node cannot claim renderer-owned allocation")
+		impostor.free()
+		_check(patches.size() == 2, "Compatibility projects onto finalized curved hull and sibling skin only")
+		_check(glass_layer.get_child_count() == 0 and glass_material.get_child_count() == 0, "Both glass layers and transparent materials reject hull ink")
+		_check(shadow_proxy.get_child_count() == 0, "Shadow-only batch does not duplicate visible ink")
+		var hull_patch: MeshInstance3D
+		for patch in patches:
+			_check((patch.material_override as StandardMaterial3D).albedo_color == marking.modulate, "Deferred ink retains caller modulation")
+			_check(patch.cast_shadow == GeometryInstance3D.SHADOW_CASTING_SETTING_OFF, "Hull ink adds no shadow submission")
+			if patch.get_parent() == hull:
+				hull_patch = patch
+		_check(hull_patch != null, "Mirrored curved receiver has a surface patch")
+		if hull_patch != null:
+			var arrays := hull_patch.mesh.surface_get_arrays(0)
+			var points: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
+			var normals: PackedVector3Array = arrays[Mesh.ARRAY_NORMAL]
+			var faces := sphere.get_faces()
+			var conforms := true
+			var clipped := true
+			for vertex in points.size():
+				var point := points[vertex] - normals[vertex] * 0.002
+				clipped = clipped and absf(point.x) <= marking.size.x * 0.5 + 0.0001 and absf(point.z) <= marking.size.z * 0.5 + 0.0001 and absf(point.y) <= marking.size.y * 0.5 + 0.0001
+				var local_point := hull_patch.transform * point
+				var on_triangle := false
+				for triangle in range(0, faces.size(), 3):
+					if _point_on_triangle(local_point, faces[triangle], faces[triangle + 1], faces[triangle + 2]):
+						on_triangle = true
+						break
+				conforms = conforms and on_triangle
+			_check(conforms, "Every curved ink vertex rests on an actual finalized receiver triangle plus a 2 mm offset")
+			_check(clipped, "Ink geometry stays within caller-adjusted shallow projection bounds")
+			hull.hide()
+			_check(not hull_patch.is_visible_in_tree(), "Ink follows pooled receiver visibility")
+			hull.show()
+			marking.hide()
+			_check(not hull_patch.is_visible_in_tree(), "Ink follows marking visibility")
+			marking.show()
+			_check(hull_patch.is_visible_in_tree(), "Ink returns when its receiver and marking are visible")
+		hull.remove_child(marking)
+		await process_frame
+		hull.add_child(marking)
+		await process_frame
+		await process_frame
+		_check(sibling.get_child_count() == 1 and hull.get_child_count() == 2, "Remove/re-add rebuilds each receiver patch exactly once")
+		marking.queue_free()
+		await process_frame
+		await process_frame
+		_check(sibling.get_child_count() == 0 and hull.get_child_count() == 0, "Removing a marking releases its receiver patches")
+	fixture.queue_free()
+	await process_frame
+
+
+func _point_on_triangle(point: Vector3, a: Vector3, b: Vector3, c: Vector3) -> bool:
+	var ab := b - a
+	var ac := c - a
+	var normal := ab.cross(ac)
+	if normal.length_squared() < 0.00000001 or absf(normal.normalized().dot(point - a)) > 0.0001:
+		return false
+	var denominator := ab.dot(ab) * ac.dot(ac) - ab.dot(ac) * ab.dot(ac)
+	var u := (ac.dot(ac) * ab.dot(point - a) - ab.dot(ac) * ac.dot(point - a)) / denominator
+	var v := (ab.dot(ab) * ac.dot(point - a) - ab.dot(ac) * ab.dot(point - a)) / denominator
+	return u >= -0.0001 and v >= -0.0001 and u + v <= 1.0001
