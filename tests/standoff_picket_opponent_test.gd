@@ -1811,6 +1811,24 @@ func _check_lance_construction(picket: StandoffPicketOpponent, visual: Node3D) -
 		and emitter.scale.is_equal_approx(Vector3.ONE * (lens.scale.x / StandoffPicketOpponent.LANCE_LENS_CHARGE_SCALE.x)
 			* StandoffPicketOpponent.LANCE_EMITTER_CHARGE_SCALE),
 		"charge retains the inherited warning expansion and projects the bright emitter beyond the finished housing")
+	# Bound the scaled optic against the narrowest authored sleeve radius,
+	# including the maximum inherited pulse. This catches an opaque disc
+	# growing through the casing without baking in the optic's chosen radius.
+	var bore_radius := INF
+	for vertex: Vector3 in housing_faces:
+		bore_radius = minf(bore_radius, Vector2(vertex.x, vertex.y).length())
+	var elapsed_before := picket._elapsed
+	picket._elapsed = PI / (2.0 * 34.0)
+	for remaining_fraction: float in [0.95, 0.2, 0.0001]:
+		picket._telegraph_remaining = picket.telegraph_time * remaining_fraction
+		picket._update_presentation(0.0)
+		var lens_inside := true
+		for vertex: Vector3 in lens.mesh.get_faces():
+			var scaled_vertex := lens.basis * vertex
+			lens_inside = lens_inside and Vector2(scaled_vertex.x, scaled_vertex.y).length() < bore_radius - 0.005
+		_check(lens_inside and lens.visible and emitter.visible and witness.visible,
+			"charge optic stays inside the sleeve with visible witnesses at %.2f charge" % (1.0 - remaining_fraction))
+	picket._elapsed = elapsed_before
 	picket._active = false
 	picket._telegraph_remaining = 0.0
 	picket._update_presentation(0.0)

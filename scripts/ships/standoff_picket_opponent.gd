@@ -1656,11 +1656,13 @@ func _build_interceptor() -> void:
 	)
 	_warning_lenses.append(_lance_emitter)
 	# A shallow domed optic replaces the exposed spherical bulb. Its retained
-	# centre, radius, emission and inherited charge scaling stay unchanged.
+	# centre, emission and inherited charge scaling stay unchanged. The optic
+	# radius leaves clearance inside the bore even at the peak charge pulse;
+	# the forward violet emitter remains the prominent growing weapon cue.
 	_lance_lens = _box_from_mesh(_visual_root, "LanceChargeLens", Vector3(0.0, -0.06, -8.62),
 		_lance_turned_mesh([
-			PackedVector2Array([Vector2(0.05, 0), Vector2(0.04, 0.16),
-				Vector2(0, 0.22), Vector2(-0.025, 0.21), Vector2(-0.055, 0)]),
+			PackedVector2Array([Vector2(0.05, 0), Vector2(0.04, 0.067),
+				Vector2(0, 0.092), Vector2(-0.025, 0.088), Vector2(-0.055, 0)]),
 		], _materials.picket_magenta_emissive))
 	_warning_lenses.append(_lance_lens)
 	var spine_lens := _sphere(_visual_root, "LanceSpineLens", Vector3(0.0, 0.34, -3.4), 0.15, _materials.picket_magenta_emissive)
