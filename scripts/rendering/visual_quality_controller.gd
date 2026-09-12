@@ -45,19 +45,11 @@ const RENDERER_COMPATIBILITY := &"gl_compatibility"
 ## range this scene actually occupies moves them to roughly 0.11 and puts deck
 ## seams, edge lips and previously black service dressing back on screen.
 ##
-## The High grade is re-tuned by the global art pass. Exposure comes *down* from
-## 1.4 to 1.24 while the AgX white point narrows further from 9.0 to 6.6 and AgX
-## contrast rises from 1.30 to 1.52. This is the opposite trade to the previous
-## one and it is deliberate: the world scene now supplies more light than it did,
-## from a sky that carries a dust band and a sun halo, so the shortage that
-## exposure was compensating for is gone. What the frames had left was slope --
-## a 16.29-then-9.0 white point spends most of AgX's range on highlights this
-## scene never reaches, so everything real was crushed into a narrow, milky band
-## and blacks sat lifted around 0.04 in shots that are mostly empty vacuum. A
-## tighter white point puts the curve's steep section on the luminances the
-## station actually occupies. Measured across ten frames the trade holds: frame
-## mean falls on nine of them while the contrast of the lit structure holds or
-## rises on nine of them.
+## High retains the narrow AgX white point and authored exposure, but uses a
+## neutral contrast curve. The former 1.52 contrast crushed shaded fleet hulls
+## and engine rims into black even when they received ambient light. At 1.0 the
+## existing shadow gradients remain visible alongside the lit roof and canopy
+## highlights; no additional lights or exposure gain are needed.
 ##
 ## `fog_aerial_perspective` rises from 0.12 to 0.55. The world scene's depth fog
 ## is now strong enough to separate the far field, and at 0.12 that haze was one
@@ -216,7 +208,7 @@ const _PROFILES := {
 		"tonemap_exposure": 1.24,
 		"tonemap_white": 4.0,
 		"tonemap_agx_white": 6.6,
-		"tonemap_agx_contrast": 1.52,
+		"tonemap_agx_contrast": 1.0,
 		"adjustment_enabled": true,
 		"adjustment_brightness": 1.0,
 		"adjustment_contrast": 1.07,
