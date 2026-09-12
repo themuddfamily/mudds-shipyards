@@ -2103,11 +2103,17 @@ func _build_interceptor() -> void:
 
 	# A narrow forked dart distinguishes this range defender from the hero's
 	# broad Torrent arrowhead. Twin forward prongs frame a warm amber cockpit.
-	# Formed pressure shell: the forebody rises into the cockpit shoulder, then
-	# carries a full section back to the engine bridge without a block junction.
+	# The bow rolls up from a small rounded tip into the cockpit shoulder.
+	# Closely spaced nose stations form the silhouette and carry the highlight
+	# around its end; the full-height vertical cap is no longer the bow face.
+	# The cockpit bed and all aft mounting stations retain their authored shape.
 	_pressure_body(_visual_root, "CentralKeel", Vector3(0, 0.18, 0.1), [
-		Vector4(-3.6, 0.13, 0.31, -0.08), Vector4(-3.0, 0.48, 0.43, -0.03),
-		Vector4(-1.65, 0.94, 0.55, 0), Vector4(0.7, 1.125, 0.575, 0),
+		Vector4(-3.6, 0.025, 0.035, -0.06), Vector4(-3.58, 0.09, 0.11, -0.06),
+		Vector4(-3.52, 0.165, 0.19, -0.055), Vector4(-3.4, 0.26, 0.28, -0.045),
+		Vector4(-3.22, 0.38, 0.37, -0.03), Vector4(-3.0, 0.51, 0.44, -0.015),
+		Vector4(-2.72, 0.65, 0.487, -0.008), Vector4(-2.4, 0.776, 0.523, -0.003),
+		Vector4(-2.05, 0.87, 0.543, 0), Vector4(-1.65, 0.94, 0.55, 0),
+		Vector4(0.7, 1.125, 0.575, 0),
 		Vector4(2.65, 1.08, 0.55, 0), Vector4(3.6, 0.84, 0.39, -0.08),
 	], _materials.ivory)
 	_wedge(_visual_root, "DarkUnderkeel", Vector3(0.0, -0.45, 0.7), Vector3(1.55, 0.48, 5.8), _materials.deep)

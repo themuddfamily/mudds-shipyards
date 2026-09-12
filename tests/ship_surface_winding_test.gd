@@ -250,6 +250,73 @@ func _check_heavy_plate_builders(expected_sign: int) -> void:
 		craft.free()
 
 
+## The bow must be formed in its vertices, and its reshaped shoulder must
+## still support the existing saddle, seal and glazing as a continuous stack.
+func _check_defender_forebody(craft: Node) -> void:
+	var keel := craft.get_node("RangeInterceptorVisual/CentralKeel") as MeshInstance3D
+	var canopy := craft.get_node("RangeInterceptorVisual/AmberCanopy") as MeshInstance3D
+	var fittings := craft.get_node("RangeInterceptorVisual/FittedArmourAndServices") as MeshInstance3D
+	var bounds := keel.transform * keel.mesh.get_aabb()
+	_assert(bounds.position.is_equal_approx(Vector3(-1.125, -0.395, -3.5))
+		and bounds.size.is_equal_approx(Vector3(2.25, 1.15, 7.2)),
+		"defender formed bow retains the full keel envelope and exact front reach")
+	var rings: Dictionary = {}
+	for point: Vector3 in keel.mesh.surface_get_arrays(0)[Mesh.ARRAY_VERTEX]:
+		var ring: Vector3 = rings.get(point.z, Vector3(0, INF, -INF))
+		rings[point.z] = Vector3(maxf(ring.x, absf(point.x)), minf(ring.y, point.y), maxf(ring.z, point.y))
+	var stations := rings.keys()
+	stations.sort()
+	var nose: Vector3 = rings[stations[0]]
+	var forward_sections := 0
+	var formed := nose.x < 0.04 and nose.z - nose.y < 0.1
+	var previous_width := 0.0
+	var previous_height := 0.0
+	var crown_slopes: Array[float] = []
+	var bottom_slopes: Array[float] = []
+	for index in stations.size():
+		if float(stations[index]) > -1.65:
+			break
+		var ring: Vector3 = rings[stations[index]]
+		formed = formed and ring.x > previous_width and ring.z - ring.y > previous_height
+		previous_width = ring.x
+		previous_height = ring.z - ring.y
+		forward_sections += 1
+		if index > 0:
+			var previous: Vector3 = rings[stations[index - 1]]
+			var span := float(stations[index]) - float(stations[index - 1])
+			crown_slopes.append((ring.z - previous.z) / span)
+			bottom_slopes.append((ring.y - previous.y) / span)
+	for index in range(1, crown_slopes.size()):
+		formed = formed and crown_slopes[index] < crown_slopes[index - 1] \
+			and bottom_slopes[index] > bottom_slopes[index - 1]
+	_assert(formed and forward_sections >= 8,
+		"defender nose has real widening sections and curved crown/underside instead of a tall planar cap")
+	var seated := true
+	for z: float in [-1.65, -1.2, -0.6, 0.0, 0.6, 1.1]:
+		var hull := _vertical_mesh_span(keel, 0, z)
+		var saddle := _vertical_mesh_span(fittings, 0, z)
+		var seal := _vertical_mesh_span(fittings, 2, z)
+		var glass := _vertical_mesh_span(canopy, 0, z)
+		seated = seated and hull.x <= hull.y and saddle.x <= saddle.y \
+			and seal.x <= seal.y and glass.x <= glass.y \
+			and hull.y >= saddle.x and saddle.y >= seal.x and seal.y >= glass.x
+	_assert(seated, "defender real keel, cockpit saddle, seal and glass remain in overlapping contact")
+
+
+func _vertical_mesh_span(instance: MeshInstance3D, surface: int, z: float) -> Vector2:
+	var vertices: PackedVector3Array = instance.mesh.surface_get_arrays(surface)[Mesh.ARRAY_VERTEX]
+	var span := Vector2(INF, -INF)
+	for index in range(0, vertices.size(), 3):
+		var hit: Variant = Geometry3D.segment_intersects_triangle(
+			Vector3(0, 2, z), Vector3(0, -2, z),
+			instance.transform * vertices[index], instance.transform * vertices[index + 1],
+			instance.transform * vertices[index + 2])
+		if hit != null:
+			span.x = minf(span.x, (hit as Vector3).y)
+			span.y = maxf(span.y, (hit as Vector3).y)
+	return span
+
+
 ## Sweeps every mesh each craft actually builds, not a representative sample, so
 ## a craft that grows new geometry is covered the moment it is added.
 ##
@@ -282,6 +349,9 @@ func _check_craft(expected_sign: int) -> void:
 		root.add_child(craft)
 		await process_frame
 		await process_frame
+
+		if label == "Range defender":
+			_check_defender_forebody(craft)
 
 		var triangles := 0
 		var backwards := 0
