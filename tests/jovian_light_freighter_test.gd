@@ -35,6 +35,7 @@ func _run() -> void:
 	_test_formed_forward_shell(jovian)
 	await _test_freighter_windscreen(jovian)
 	await _test_pilot_doorway(jovian)
+	await _test_pilot_access_stowage(jovian)
 	_test_formed_aft_machinery_housing(jovian)
 	_test_open_engine_module_sharing(jovian)
 	_test_definition_and_evidence(jovian)
@@ -2242,8 +2243,8 @@ func _test_pilot_doorway(ship: JovianLightFreighter) -> void:
 	ship.canopy_motion_finished.disconnect(listener)
 	_check(pane.mesh == closed_mesh and (hinge.get_node("PilotDoorFrame") as MeshInstance3D).mesh == closed_frame,
 		"door motion and reset retain the fitted glass/frame mesh resources")
-	_check(visual.get_node("PilotAccessSteps").get_child_count() == 2,
-		"static pilot companionway submits exactly two existing material finishes")
+	_check(visual.get_node("PilotAccessSteps").find_children("*", "MeshInstance3D", true, false).size() == 5,
+		"fixed threshold and two folding flights submit five batches using existing finishes")
 
 	# Probe actual emitted mesh triangles, including nearby MultiMesh members.
 	# A collision-only test would miss the former 2.4 m connector panel, console
@@ -2333,6 +2334,128 @@ func _test_pilot_doorway(ship: JovianLightFreighter) -> void:
 	ship.set_physics_process(prior_physics)
 	await process_frame
 	await physics_frame
+
+
+func _test_pilot_access_stowage(ship: JovianLightFreighter) -> void:
+	var prior_physics := ship.is_physics_processing()
+	ship.set_physics_process(false)
+	ship.reset_for_reuse(ship.global_transform)
+	await physics_frame
+	var steps := ship.get_jovian_visual_root().get_node("PilotAccessSteps") as Node3D
+	var collision := ship.get_node("PilotStairCollision") as CollisionShape3D
+	var threshold := ship.get_node("PilotThresholdCollision") as CollisionShape3D
+	var bounds: AABB = ship.get_landing_collision_report().local_bounds
+	var resources: Dictionary = {}
+	var deployed: Dictionary = {}
+	var access_triangles := 0
+	for mesh: MeshInstance3D in steps.find_children("*", "MeshInstance3D", true, false):
+		resources[mesh] = mesh.mesh
+		deployed[mesh] = mesh.global_transform
+		access_triangles += mesh.mesh.get_faces().size() / 3
+	_check(access_triangles == 3168, "access batches retain every original tread face plus split stringers, guides and knuckles")
+	ship.set("_landed", false)
+	ship.call("_update_pilot_access_stowage", 0.35)
+	await physics_frame
+	_check(collision.disabled and not threshold.disabled and ship.get("_pilot_stair_fold") > 0.0,
+		"departure folds the real stair flights and clears only their ship-root walking wedge")
+	ship.call("_update_pilot_access_stowage", 2.0)
+	await physics_frame
+	_check(is_equal_approx(ship.get("_pilot_stair_fold"), 1.0) and ship.get_landing_collision_report().local_bounds == bounds,
+		"fully stowed stairs retain the freighter's existing landing envelope and contact plane")
+	# Reuse the doorway's actual emitted-mesh probe for the nearby solid hull.
+	# The apron leaves no empty horizontal bay under the threshold: a folded
+	# stack must stay outside it, including every intermediate swing sample.
+	var geometry := Node3D.new()
+	_test_root.add_child(geometry)
+	var corridor := AABB(Vector3(-7.5, -1.5, -9.6), Vector3(7.0, 4.0, 2.3))
+	for node in ship.find_children("*", "GeometryInstance3D", true, false):
+		if not node.is_visible_in_tree() or steps.is_ancestor_of(node):
+			continue
+		if node is MeshInstance3D and node.mesh != null:
+			_add_doorway_mesh_probe(geometry, ship, corridor, node.mesh, node.global_transform, node.name)
+		elif node is MultiMeshInstance3D and node.multimesh != null and node.multimesh.mesh != null:
+			var count: int = node.multimesh.instance_count if node.multimesh.visible_instance_count < 0 else node.multimesh.visible_instance_count
+			for index in count:
+				_add_doorway_mesh_probe(geometry, ship, corridor, node.multimesh.mesh,
+					node.global_transform * node.multimesh.get_instance_transform(index), node.name)
+	await physics_frame
+	await physics_frame
+	var min_y := INF
+	var deployed_min_y := INF
+	var mesh_hits: Dictionary = {}
+	for index in 81:
+		ship.call("_set_pilot_access_fold", float(index) / 80.0)
+		for mesh: MeshInstance3D in resources:
+			var relative := ship.global_transform.affine_inverse() * mesh.global_transform
+			var vertices := mesh.mesh.get_faces()
+			for vertex in vertices:
+				min_y = minf(min_y, (relative * vertex).y)
+			if not steps.get_node("UpperFlight").is_ancestor_of(mesh):
+				continue
+			for triangle in range(0, vertices.size(), 3):
+				for edge in 3:
+					var query := PhysicsRayQueryParameters3D.create(
+						mesh.global_transform * vertices[triangle + edge],
+						mesh.global_transform * vertices[triangle + (edge + 1) % 3], 1 << 25)
+					query.hit_back_faces = true
+					var hit := ship.get_world_3d().direct_space_state.intersect_ray(query)
+					if not hit.is_empty():
+						mesh_hits[str(hit.collider.name)] = index
+		if index == 0:
+			deployed_min_y = min_y
+	_check(min_y >= deployed_min_y - 0.001,
+		"full fold/deploy trajectory adds no penetration below actual deployed toe/stringer art: %.3f >= %.3f" % [min_y, deployed_min_y])
+	_check(mesh_hits.is_empty(), "81 fold/deploy poses clear actual apron, shoulder and cabin mesh triangles: %s" % mesh_hits)
+	geometry.queue_free()
+	# The two flights also need clearance from each other. Only the small
+	# offset knuckle is an intentional mechanical engagement volume.
+	var stack_geometry := Node3D.new()
+	_test_root.add_child(stack_geometry)
+	var upper := steps.get_node("UpperFlight") as Node3D
+	for mesh in upper.get_children():
+		if mesh is MeshInstance3D:
+			_add_doorway_mesh_probe(stack_geometry, ship, corridor, mesh.mesh, mesh.global_transform, mesh.name)
+	await physics_frame
+	await physics_frame
+	var stack_hits: Dictionary = {}
+	for mesh: MeshInstance3D in upper.get_node("LowerFlight").get_children():
+		var vertices := mesh.mesh.get_faces()
+		for triangle in range(0, vertices.size(), 3):
+			for edge in 3:
+				var query := PhysicsRayQueryParameters3D.create(mesh.global_transform * vertices[triangle + edge],
+					mesh.global_transform * vertices[triangle + (edge + 1) % 3], 1 << 25)
+				query.hit_back_faces = true
+				var hit := ship.get_world_3d().direct_space_state.intersect_ray(query)
+				if not hit.is_empty():
+					var local: Vector3 = upper.to_local(hit.position) - (JovianLightFreighter.PILOT_STAIR_FOLD_HINGE - JovianLightFreighter.PILOT_STAIR_UPPER_HINGE)
+					if Vector2(local.x, local.y).length() > 0.271 or absf(absf(local.z) - 0.65) > 0.041:
+						stack_hits[str(hit.collider.name)] = hit.position
+	_check(stack_hits.is_empty(), "stowed flights have no intersecting tread/stringer faces outside their actual knuckle: %s" % stack_hits)
+	stack_geometry.queue_free()
+	ship.set("_landing_active", true)
+	ship.call("_update_pilot_access_stowage", 0.35)
+	_check(ship.get("_pilot_stair_fold") < 1.0 and collision.disabled,
+		"existing landing approach begins deployment while airborne collision stays clear")
+	ship.set("_landing_active", false)
+	ship.call("_update_pilot_access_stowage", 2.0)
+	_check(is_equal_approx(ship.get("_pilot_stair_fold"), 1.0), "aborted approach reverses to stowed using existing controller state")
+	ship.set("_landed", true)
+	ship.set_canopy_open(true, 0.0)
+	await physics_frame
+	_check(is_zero_approx(ship.get("_pilot_stair_fold")) and not collision.disabled,
+		"same-tick touchdown hatch opening settles supported exterior exit before its completion")
+	ship.set_canopy_open(false, 0.0)
+	ship.set("_landed", false)
+	ship.call("_update_pilot_access_stowage", 0.1)
+	ship.reset_for_reuse(ship.global_transform)
+	await process_frame
+	await physics_frame
+	_check(not collision.disabled and is_zero_approx(ship.get("_pilot_stair_fold")),
+		"reset overrides a queued airborne disable and immediately restores deployed support")
+	for mesh: MeshInstance3D in resources:
+		_check(mesh.mesh == resources[mesh] and mesh.global_transform.is_equal_approx(deployed[mesh]),
+			"folding and reset preserve resources and exact deployed pose: %s" % mesh.get_path())
+	ship.set_physics_process(prior_physics)
 
 
 func _add_doorway_mesh_probe(parent: Node3D, ship: JovianLightFreighter, corridor: AABB,

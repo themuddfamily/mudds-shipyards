@@ -53,6 +53,12 @@ const PILOT_LANDING_Y := 0.76
 const PILOT_STAIR_OUTER_X := -6.7
 const PILOT_STAIR_INNER_X := -4.35
 const PILOT_STAIR_BOTTOM_Y := -1.25
+const PILOT_STAIR_FOLD_SECONDS := 1.4
+const PILOT_STAIR_UPPER_HINGE := Vector3(PILOT_STAIR_INNER_X, PILOT_LANDING_Y, PILOT_DOOR_ROUTE_Z)
+const PILOT_STAIR_MID_HINGE := Vector3((PILOT_STAIR_OUTER_X + PILOT_STAIR_INNER_X) * 0.5,
+	(PILOT_STAIR_BOTTOM_Y + PILOT_LANDING_Y) * 0.5, PILOT_DOOR_ROUTE_Z)
+# Offset knuckle keeps the tread faces apart when the lower flight folds back.
+const PILOT_STAIR_FOLD_HINGE := PILOT_STAIR_MID_HINGE + Vector3(-0.15, 0.18, 0.0)
 const INTERIOR_BOUNDS := AABB(Vector3(-5.72, 0.0, -8.0), Vector3(11.44, 4.6, 17.25))
 ## Ship-local envelope a crew member may occupy while the freighter is under way.
 ##
@@ -354,6 +360,11 @@ var _landing_bogie_foot_transforms: Array[Transform3D] = []
 var _cargo_deck_lane_mesh: ArrayMesh
 var _cargo_deck_lane_batch: MultiMeshInstance3D
 var _cargo_deck_lane_transforms: Array[Transform3D] = []
+var _pilot_stair_upper: Node3D
+var _pilot_stair_lower: Node3D
+var _pilot_stair_collision: CollisionShape3D
+var _pilot_stair_fold := 0.0
+var _pilot_stair_collision_disabled := false
 var _pilot_door_pivot: Node3D
 var _pilot_door_blocker: CollisionShape3D
 var _pilot_door_collision_points := PackedVector3Array()
@@ -579,6 +590,7 @@ func _physics_process(delta: float) -> void:
 	_cleanup_detached_engineer_state()
 	_elapsed_jovian += delta
 	_update_jovian_presentation(delta)
+	_update_pilot_access_stowage(delta)
 
 
 func apply_damage(
@@ -617,6 +629,8 @@ func _commit_variant_reset_for_reuse(context: Dictionary) -> void:
 	_clear_copilot_navigation_state(&"ship_reused")
 	_copilot_navigation_generation = 1
 	_set_interior_operational(true)
+	_set_pilot_access_fold(0.0)
+	_sync_pilot_stair_collision()
 	if _moving_interior_component != null:
 		_moving_interior_component.configure(self, INTERIOR_BOUNDS, _occupant_volume)
 		_moving_interior_component.reset_frame_tracking(true)
@@ -3430,26 +3444,103 @@ func _build_pilot_access_steps() -> void:
 	steps.name = "PilotAccessSteps"
 	_jovian_visual.add_child(steps)
 	_box(steps, "PilotThreshold", Vector3(-3.0, PILOT_LANDING_Y - 0.10, PILOT_DOOR_ROUTE_Z), Vector3(2.70, 0.20, 1.28), _jovian_materials.structure)
-	var toe := _box(steps, "PilotGroundToe", Vector3(PILOT_STAIR_OUTER_X - 0.175, PILOT_STAIR_BOTTOM_Y + 0.08, PILOT_DOOR_ROUTE_Z),
+	# Short fixed carriage guides join the existing threshold to both stringer
+	# hinges through their small outboard/forward clearance travel.
+	for z in [-0.62, 0.62]:
+		_box(steps, "PilotStairGuide", PILOT_STAIR_UPPER_HINGE + Vector3(-0.075, -0.08, z - 0.20),
+			Vector3(0.40, 0.12, 0.60), _jovian_materials.structure)
+	_batch_pilot_access_meshes(steps)
+	_pilot_stair_upper = Node3D.new()
+	_pilot_stair_upper.name = "UpperFlight"
+	steps.add_child(_pilot_stair_upper)
+	_pilot_stair_lower = Node3D.new()
+	_pilot_stair_lower.name = "LowerFlight"
+	# Author each rigid section in the existing ship-local coordinates, then
+	# rebase its finished batch onto the two mechanical hinge locations.
+	steps.add_child(_pilot_stair_lower)
+	var toe := _box(_pilot_stair_lower, "PilotGroundToe", Vector3(PILOT_STAIR_OUTER_X - 0.175, PILOT_STAIR_BOTTOM_Y + 0.08, PILOT_DOOR_ROUTE_Z),
 		Vector3(0.40, 0.06, 1.28), _jovian_materials.structure)
 	toe.rotation.z = atan2(0.20, 0.35)
-	# A compact companionway remains inside the freighter's existing beam.
 	for index in 10:
+		var section := _pilot_stair_lower if index < 5 else _pilot_stair_upper
 		var fraction := float(index + 1) / 10.0
 		var x := lerpf(PILOT_STAIR_OUTER_X, PILOT_STAIR_INNER_X, (float(index) + 0.5) / 10.0)
 		var y := lerpf(PILOT_STAIR_BOTTOM_Y, PILOT_LANDING_Y, fraction)
-		_box(steps, "PilotStairTread%02d" % index, Vector3(x, y - 0.065, PILOT_DOOR_ROUTE_Z), Vector3(0.25, 0.13, 1.28), _jovian_materials.structure)
-		_box(steps, "PilotStairNosing%02d" % index, Vector3(x - 0.10, y + 0.004, PILOT_DOOR_ROUTE_Z), Vector3(0.025, 0.02, 1.22), _jovian_materials.amber)
-	for z in [PILOT_DOOR_ROUTE_Z - 0.62, PILOT_DOOR_ROUTE_Z + 0.62]:
-		var start := Vector3(PILOT_STAIR_OUTER_X, PILOT_STAIR_BOTTOM_Y - 0.12, z)
-		var end := Vector3(PILOT_STAIR_INNER_X, PILOT_LANDING_Y - 0.12, z)
-		var member := _box(steps, "PilotStairStringer", (start + end) * 0.5, Vector3(start.distance_to(end), 0.15, 0.08), _jovian_materials.structure)
-		member.rotation.z = atan2(end.y - start.y, end.x - start.x)
-	_batch_pilot_access_meshes(steps)
+		_box(section, "PilotStairTread%02d" % index, Vector3(x, y - 0.065, PILOT_DOOR_ROUTE_Z), Vector3(0.25, 0.13, 1.28), _jovian_materials.structure)
+		_box(section, "PilotStairNosing%02d" % index, Vector3(x - 0.10, y + 0.004, PILOT_DOOR_ROUTE_Z), Vector3(0.025, 0.02, 1.22), _jovian_materials.amber)
+	for section: Node3D in [_pilot_stair_lower, _pilot_stair_upper]:
+		var start := Vector3(PILOT_STAIR_OUTER_X, PILOT_STAIR_BOTTOM_Y, PILOT_DOOR_ROUTE_Z) if section == _pilot_stair_lower else PILOT_STAIR_MID_HINGE
+		var end := PILOT_STAIR_MID_HINGE if section == _pilot_stair_lower else PILOT_STAIR_UPPER_HINGE
+		for z in [-0.62, 0.62]:
+			var member := _box(section, "PilotStairStringer", (start + end) * 0.5 + Vector3(0.0, -0.12, z), Vector3(start.distance_to(end), 0.15, 0.08), _jovian_materials.structure)
+			member.rotation.z = atan2(end.y - start.y, end.x - start.x)
+		if section == _pilot_stair_upper:
+			for z in [-0.65, 0.65]:
+				var knuckle := MeshInstance3D.new()
+				knuckle.name = "PilotStairKnuckle"
+				var drum := CylinderMesh.new()
+				drum.top_radius = 0.27
+				drum.bottom_radius = 0.27
+				drum.height = 0.08
+				drum.radial_segments = 12
+				drum.rings = 1
+				drum.material = _jovian_materials.structure
+				# Match the non-indexed tread batches before merging surfaces.
+				var drum_tool := SurfaceTool.new()
+				drum_tool.create_from(drum, 0)
+				drum_tool.deindex()
+				knuckle.mesh = drum_tool.commit()
+				knuckle.position = PILOT_STAIR_FOLD_HINGE + Vector3(0.0, 0.0, z)
+				knuckle.rotation.x = PI * 0.5
+				section.add_child(knuckle)
+		_batch_pilot_access_meshes(section)
+		var hinge := PILOT_STAIR_FOLD_HINGE if section == _pilot_stair_lower else PILOT_STAIR_UPPER_HINGE
+		for mesh: Node3D in section.get_children():
+			mesh.position = -hinge
+	_pilot_stair_lower.reparent(_pilot_stair_upper, false)
+	_set_pilot_access_fold(0.0)
 
 
-## This small static assembly submits once per finish. Moving door hardware
-## stays outside the batch and keeps its independent transform.
+## Presentation follows the controller's existing landed/approach state. There
+## is no separate access command, timer authority or boarding availability flag.
+func _update_pilot_access_stowage(delta: float) -> void:
+	var target := 0.0 if _landed or _landing_active else 1.0
+	var next := move_toward(_pilot_stair_fold, target, maxf(delta, 0.0) / PILOT_STAIR_FOLD_SECONDS)
+	if not is_equal_approx(next, _pilot_stair_fold):
+		_set_pilot_access_fold(next)
+	_sync_pilot_stair_collision()
+
+
+func _set_pilot_access_fold(fraction: float) -> void:
+	_pilot_stair_fold = clampf(fraction, 0.0, 1.0)
+	if not is_instance_valid(_pilot_stair_upper):
+		return
+	# Fold the toe up first, then turn the shortened pair into a vertical
+	# external stack beside the apron. The short guide travel clears the aft
+	# shoulder; no stair is hidden inside the solid bow or swept under the pad.
+	var lower_fold := smoothstep(0.0, 0.48, _pilot_stair_fold)
+	var upper_fold := smoothstep(0.48, 1.0, _pilot_stair_fold)
+	_pilot_stair_lower.position = PILOT_STAIR_FOLD_HINGE - PILOT_STAIR_UPPER_HINGE
+	_pilot_stair_lower.rotation.z = -PI * lower_fold
+	_pilot_stair_upper.position = PILOT_STAIR_UPPER_HINGE + Vector3(-0.15 * upper_fold, 0.0, -0.40 * smoothstep(0.0, 0.18, _pilot_stair_fold))
+	_pilot_stair_upper.rotation.z = deg_to_rad(50.0) * upper_fold
+
+
+func _sync_pilot_stair_collision() -> void:
+	if not is_instance_valid(_pilot_stair_collision):
+		return
+	var disabled := not _landed or not is_zero_approx(_pilot_stair_fold)
+	if disabled != _pilot_stair_collision_disabled:
+		_pilot_stair_collision_disabled = disabled
+		call_deferred("_apply_pilot_stair_collision")
+
+
+func _apply_pilot_stair_collision() -> void:
+	if is_instance_valid(_pilot_stair_collision):
+		_pilot_stair_collision.disabled = not _landed or not is_zero_approx(_pilot_stair_fold)
+
+
+## Each rigid access section submits once per finish and keeps its hinge transform.
 func _batch_pilot_access_meshes(parent: Node3D) -> void:
 	var finishes: Dictionary = {}
 	for child: MeshInstance3D in parent.get_children():
@@ -3475,6 +3566,9 @@ func _build_pilot_access_collision() -> void:
 	# controller can climb a companionway without a new stair locomotion mode.
 	_add_ramp_wedge_collision("PilotStairCollision", PILOT_STAIR_OUTER_X - 0.35, PILOT_STAIR_INNER_X,
 		PILOT_STAIR_BOTTOM_Y, PILOT_STAIR_BOTTOM_Y, PILOT_LANDING_Y + 0.02, PILOT_DOOR_ROUTE_Z, 0.64)
+	_pilot_stair_collision = get_node("PilotStairCollision") as CollisionShape3D
+	_pilot_stair_collision_disabled = false
+	_sync_pilot_stair_collision()
 	_pilot_door_blocker = CollisionShape3D.new()
 	_pilot_door_blocker.name = "PilotDoorCollision"
 	var shape := ConvexPolygonShape3D.new()
@@ -3485,6 +3579,11 @@ func _build_pilot_access_collision() -> void:
 
 
 func _set_canopy_open_unchecked(open: bool, duration: float) -> void:
+	# A landed exit can request the hatch on the exact touchdown tick. Settle
+	# its support before the inherited doorway completion can release a player.
+	if open and _landed:
+		_set_pilot_access_fold(0.0)
+		_sync_pilot_stair_collision()
 	super._set_canopy_open_unchecked(open, duration)
 	# Close requests become solid before the first Tween sample; a target-open
 	# flag alone is never enough to clear an in-motion doorway.
