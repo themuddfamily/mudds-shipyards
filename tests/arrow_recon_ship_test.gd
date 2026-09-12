@@ -39,6 +39,7 @@ func _run() -> void:
 	_test_boarding_step_mesh_sharing(arrow)
 	_test_escape_pods_and_sensors(arrow)
 	_test_wingtip_sensor_housings(arrow)
+	_test_formed_raceways(arrow)
 	_test_instrument_construction(arrow)
 	_test_formed_coaming(arrow)
 	_test_cockpit_fairing(arrow)
@@ -49,6 +50,54 @@ func _run() -> void:
 	await _test_engine_weapon_and_lifecycle(arrow)
 	await _test_cleanup(arrow)
 	_finish()
+
+
+func _test_formed_raceways(arrow: ArrowReconShip) -> void:
+	var resources: Dictionary = {}
+	var covers := 0
+	var closed := true
+	var fitted := true
+	var frames_valid := true
+	for route in arrow.get_arrow_visual_root().get_children():
+		var cover := route.get_node_or_null("CableRaceway0") as MeshInstance3D
+		if cover == null:
+			continue
+		covers += 1
+		resources[cover.mesh] = true
+		closed = closed and cover.basis.determinant() > 0.999 and cover.mesh is ArrayMesh and cover.mesh.get_surface_count() == 1 and not route.has_node("CableRaceway1")
+		var faces := cover.mesh.get_faces()
+		var edges: Dictionary = {}
+		for triangle in range(0, faces.size(), 3):
+			for edge in 3:
+				var a := str(faces[triangle + edge].snapped(Vector3.ONE * 0.00001))
+				var b := str(faces[triangle + (edge + 1) % 3].snapped(Vector3.ONE * 0.00001))
+				var key := a + ":" + b if a < b else b + ":" + a
+				edges[key] = int(edges.get(key, 0)) + 1
+		for count in edges.values():
+			closed = closed and count == 2
+		var joints: Array[Vector3] = []
+		for child in route.get_children():
+			if child is MeshInstance3D and child.mesh is SphereMesh:
+				joints.append(child.position)
+		# A ray from the retained elbow must exit one enclosing wall. Separate
+		# capped bars leave this anchor exposed and cannot satisfy this check.
+		var origin := cover.transform.affine_inverse() * joints[1]
+		var hits := 0
+		for triangle in range(0, faces.size(), 3):
+			if Geometry3D.segment_intersects_triangle(origin, origin + Vector3(0.039, 0.27, 0.06), faces[triangle], faces[triangle + 1], faces[triangle + 2]) != null:
+				hits += 1
+		fitted = fitted and hits == 1 and cover.mesh.surface_get_material(0) == arrow.get_variant_materials().graphite
+		var arrays := cover.mesh.surface_get_arrays(0)
+		var vertices: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
+		var normals: PackedVector3Array = arrays[Mesh.ARRAY_NORMAL]
+		var tangents: PackedFloat32Array = arrays[Mesh.ARRAY_TANGENT]
+		frames_valid = frames_valid and normals.size() == vertices.size() and tangents.size() == vertices.size() * 4
+		for index in vertices.size():
+			var tangent := Vector3(tangents[index * 4], tangents[index * 4 + 1], tangents[index * 4 + 2])
+			frames_valid = frames_valid and vertices[index].is_finite() and normals[index].is_finite() and absf(normals[index].length() - 1.0) < 0.001 and tangent.is_finite() and absf(tangent.length() - 1.0) < 0.001 and absf(tangent.dot(normals[index])) < 0.001
+	_check(covers == 5 and resources.size() == 3, "five continuous raceway covers share mirrored stock in three meshes and halve the former casing surfaces")
+	_check(closed and fitted, "raceway casings are closed around retained elbow anchors with fitted returns and the existing graphite finish")
+	_check(frames_valid, "formed raceways retain finite unit normals and nonsingular tangent frames")
 
 
 func _test_wingtip_sensor_housings(arrow: ArrowReconShip) -> void:
@@ -995,15 +1044,15 @@ func _test_visual_performance_batch(arrow: ArrowReconShip) -> void:
 		bool(report.valid)
 		and report.current == report.expected
 		and report.current == {
-			"nodes": 283,
-			"mesh_instance_nodes": 248,
+			"nodes": 278,
+			"mesh_instance_nodes": 243,
 			"multi_mesh_instance_nodes": 3,
-			"geometry_submissions": 252,
-			"visible_geometry_copies": 254,
-			"unique_mesh_resource_allocations": 203,
+			"geometry_submissions": 247,
+			"visible_geometry_copies": 249,
+			"unique_mesh_resource_allocations": 196,
 			"auto_fallback_names": 20,
 		},
-		"entry-complete Arrow retains 283 nodes, 252 submissions including one shadow-only renderer and three fitted nose service renderers, 203 meshes with shared nozzle and coaming stock and all 254 copies"
+		"entry-complete Arrow retains 278 nodes, 247 submissions including one shadow-only renderer, 196 meshes with shared formed raceways and 249 copies"
 	)
 	_check(
 		report.phase9_before_entry_heat == {
@@ -1207,7 +1256,7 @@ func _test_visual_performance_batch(arrow: ArrowReconShip) -> void:
 	)
 	detached_panel_transforms[0] = Transform3D.IDENTITY
 	_check(
-		int(arrow.get_arrow_visual_performance_report().current.nodes) == 283
+		int(arrow.get_arrow_visual_performance_report().current.nodes) == 278
 		and int(
 			arrow.get_arrow_visual_performance_report()
 				.lateral_array_curve_joint_sharing.primitive_mesh_allocations

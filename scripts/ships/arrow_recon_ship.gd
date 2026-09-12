@@ -230,13 +230,13 @@ const PHASE9_ARROW_VISUAL_CENSUS := {
 	"auto_fallback_names": 23,
 }
 const EXPECTED_ARROW_VISUAL_CENSUS := {
-	"nodes": 283,
-	"mesh_instance_nodes": 248,
+	"nodes": 278,
+	"mesh_instance_nodes": 243,
 	"multi_mesh_instance_nodes": 3,
 	# Includes fitted seating/controls and one rigid airframe shadow renderer.
-	"geometry_submissions": 252,
-	"visible_geometry_copies": 254,
-	"unique_mesh_resource_allocations": 203,
+	"geometry_submissions": 247,
+	"visible_geometry_copies": 249,
+	"unique_mesh_resource_allocations": 196,
 	"auto_fallback_names": 20,
 }
 const RECON_PULSE_EMITTER_VISUAL_DELTA := {
@@ -1248,19 +1248,89 @@ func _build_recon_systems() -> void:
 	(mast.get_node("MastPedestal") as Node3D).visible = true
 	_box(survey_head, "OpticalRecess", Vector3(0, 0, -0.535), Vector3(1.34, 0.30, 0.06), _arrow_materials.graphite)
 	(survey_head.get_node("SurveyFrontAperture") as Node3D).position.z = -0.571
-	# Armored cable raceways follow the retained conduit route exactly. The
-	# small exposed termini remain diagnostic cyan; broad spans are protected.
+	# Each formed cover carries through the elbow as one closed piece. Mirrored
+	# routes share stock; the retained cyan conduit and its anchors stay intact.
+	var raceway_meshes: Dictionary = {}
 	for route in _arrow_visual.get_children():
 		if route.has_node("CurveJoint") and (route.get_node("CurveJoint") as MeshInstance3D).mesh in [_sensor_leading_edge_curve_joint_mesh, _dorsal_data_conduit_curve_joint_mesh, _lateral_array_curve_joint_mesh]:
 			var points: Array[Vector3] = []
 			for part in route.get_children():
 				if part is MeshInstance3D and part.mesh is SphereMesh:
 					points.append(part.position)
-			for segment in points.size() - 1:
-				var start := points[segment]
-				var finish := points[segment + 1]
-				var raceway := _box(route, "CableRaceway%d" % segment, (start + finish) * 0.5, Vector3(0.15, 0.15, start.distance_to(finish) - 0.10), _arrow_materials.graphite)
-				raceway.look_at_from_position(raceway.position, finish, Vector3.UP)
+			var stock: Mesh = (route.get_node("CurveJoint") as MeshInstance3D).mesh
+			# A proper rotation maps each three-anchor plane into common stock.
+			# This shares mirrored covers without a negative render scale.
+			var along := (points[1] - points[0]).normalized()
+			var normal := along.cross(points[2] - points[1]).normalized()
+			var across := normal.cross(along)
+			var placement := Transform3D(Basis(along, across, normal), points[0])
+			if not raceway_meshes.has(stock):
+				var canonical: Array[Vector3] = []
+				for point in points:
+					canonical.append(placement.affine_inverse() * point)
+				raceway_meshes[stock] = _formed_raceway_mesh(canonical)
+			var raceway := MeshInstance3D.new()
+			raceway.name = "CableRaceway0"
+			raceway.mesh = raceway_meshes[stock]
+			raceway.transform = placement
+			route.add_child(raceway)
+
+
+## A chamfered section sweeps around the retained route's bend. The end lands
+## taper down around the diagnostic conduit instead of stopping as square bars.
+func _formed_raceway_mesh(points: Array[Vector3]) -> ArrayMesh:
+	var incoming := (points[1] - points[0]).normalized()
+	var outgoing := (points[2] - points[1]).normalized()
+	var stations: Array[Vector3] = [points[0] + incoming * 0.055, points[0] + incoming * 0.17]
+	var directions: Array[Vector3] = [incoming, incoming]
+	var widths: Array[float] = [0.72, 1.0]
+	var elbow_start := points[1] - incoming * 0.12
+	var elbow_end := points[1] + outgoing * 0.12
+	for sample in 5:
+		var t := float(sample) / 4.0
+		stations.append(elbow_start.lerp(points[1], t).lerp(points[1].lerp(elbow_end, t), t))
+		directions.append(incoming.lerp(outgoing, t).normalized())
+		widths.append(1.0)
+	stations.append_array([points[2] - outgoing * 0.17, points[2] - outgoing * 0.055])
+	directions.append_array([outgoing, outgoing])
+	widths.append_array([1.0, 0.72])
+	var section := PackedVector2Array([
+		Vector2(-0.056, -0.082), Vector2(0.056, -0.082),
+		Vector2(0.082, -0.056), Vector2(0.082, 0.056),
+		Vector2(0.056, 0.082), Vector2(-0.056, 0.082),
+		Vector2(-0.082, 0.056), Vector2(-0.082, -0.056),
+	])
+	var rings: Array[PackedVector3Array] = []
+	for station in stations.size():
+		var across := directions[station].cross(Vector3.UP).normalized()
+		var up := across.cross(directions[station]).normalized()
+		var ring := PackedVector3Array()
+		for corner in section:
+			ring.append(stations[station] + (across * corner.x + up * corner.y) * widths[station])
+		rings.append(ring)
+	var tool := SurfaceTool.new()
+	tool.begin(Mesh.PRIMITIVE_TRIANGLES)
+	tool.set_material(_arrow_materials.graphite)
+	for station in stations.size() - 1:
+		var centre := (stations[station] + stations[station + 1]) * 0.5
+		for corner in section.size():
+			var next := (corner + 1) % section.size()
+			_emit_raceway_face(tool, rings[station][corner], rings[station + 1][corner], rings[station + 1][next], centre)
+			_emit_raceway_face(tool, rings[station][corner], rings[station + 1][next], rings[station][next], centre)
+	for end in [0, stations.size() - 1]:
+		var inside := stations[end] + directions[end] * (0.01 if end == 0 else -0.01)
+		for corner in section.size():
+			_emit_raceway_face(tool, stations[end], rings[end][corner], rings[end][(corner + 1) % section.size()], inside)
+	tool.generate_tangents()
+	tool.index()
+	return tool.commit()
+
+
+func _emit_raceway_face(tool: SurfaceTool, a: Vector3, b: Vector3, c: Vector3, inside: Vector3) -> void:
+	var face := PackedVector3Array([a, b, c])
+	if (b - a).cross(c - a).dot((a + b + c) / 3.0 - inside) > 0.0:
+		face = PackedVector3Array([a, c, b])
+	_emit_cabin_face(tool, face)
 
 
 
