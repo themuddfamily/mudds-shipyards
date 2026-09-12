@@ -3694,19 +3694,21 @@ func _build_modern_airframe(visual: Node3D) -> void:
 	dark.metallic = 0.20
 	dark.roughness = 0.80
 	dark.cull_mode = BaseMaterial3D.CULL_DISABLED
-	# Formed chines retain the pressure-body stations and open cockpit well.
-	# Broad shoulder lands carry narrow formed highlights from bow to aft keel.
-	_zenith_hard_shell(airframe, "BlendedPressureHull", 0.0, [
+	# Share neighboring bulkheads across the material seam so the formed
+	# radome and forward pressure body meet with the same longitudinal slope.
+	var pressure_stations := [
 		Vector4(0.28, 1.11, 0.56, -4.53), Vector4(0.57, 1.53, 0.40, -3.65),
 		Vector4(0.88, 1.98, 0.27, -2.78), Vector4(1.03, 2.30, 0.22, -2.22),
 		Vector4(1.15, 2.40, 0.12, -1.35), Vector4(1.22, 2.42, 0.10, -0.12),
 		Vector4(1.29, 2.43, 0.11, 0.34), Vector4(1.46, 2.12, 0.15, 1.54),
 		Vector4(1.56, 1.49, 0.22, 3.05), Vector4(1.10, 0.83, 0.35, 4.35),
-	], hull, true, panel)
-	_zenith_hard_shell(airframe, "NoseSensorRadome", 0.0, [
+	]
+	var radome_stations := [
 		Vector4(0.035, 0.81, 0.69, -5.33), Vector4(0.13, 0.91, 0.64, -4.96),
 		Vector4(0.28, 1.11, 0.56, -4.53),
-	], panel)
+	]
+	_zenith_hard_shell(airframe, "BlendedPressureHull", 0.0, pressure_stations, hull, true, panel, radome_stations[-2])
+	_zenith_hard_shell(airframe, "NoseSensorRadome", 0.0, radome_stations, panel, true, null, pressure_stations[1])
 	# Open pilot tub: no solid roof crossing the seat. Coaming walls rise to
 	# the glazing edge while the forward instrument hood remains below the eye.
 	_zenith_panel(airframe, "PilotWellFloor", PackedVector3Array([
@@ -4134,35 +4136,42 @@ func _hard_section(section: Vector4) -> PackedVector3Array:
 	])
 
 
-## The pressure skin has a broad shoulder land between small formed chine and
-## coaming rolls. Shared samples retain the open pilot well and radome rim.
-## The nose crown is shallow: its flat central land does not inflate into the
-## shoulder when the roof climbs to the cockpit sill.
+## Ahead of the pilot well, a drawn shoulder turns continuously into a vaulted
+## crown. The crown stays below the existing roof envelope; the chine and exact
+## open-well section are retained. Hull and radome use the same rim profile.
 func _airframe_section(section: Vector4) -> PackedVector3Array:
 	var w := section.x
 	var h := section.y - section.z
-	var forward_crown := 1.0 - smoothstep(-3.20, -2.22, section.w)
+	var forward_crown := 1.0 - smoothstep(-3.65, -2.22, section.w)
 	var chine_width := w * (1.0 + 0.24 * (1.0 - smoothstep(0.34, 1.54, section.w)))
 	var chine_y := section.z + h * 0.38
 	var coaming_width := w * 0.70
-	var coaming_y := section.y - h * 0.055 * forward_crown
+	var crown_depth := h * 0.14 * forward_crown
+	var coaming_y := section.y - crown_depth
 	var ring := PackedVector3Array()
-	# Normalized shoulder travel / rise. Samples 3..8 form one structural
-	# land; only the narrow joins to the chine and coaming turn its normal.
+	# Retained aft shoulder travel / rise. Its structural land and narrow
+	# coaming roll remain exact where the forward forming fades out.
 	var shoulder_profile := PackedVector2Array([
 		Vector2(0.0, 0.0), Vector2(0.008, 0.060), Vector2(0.038, 0.130),
 		Vector2(0.105, 0.215), Vector2(0.235, 0.345), Vector2(0.365, 0.475),
 		Vector2(0.495, 0.605), Vector2(0.625, 0.735), Vector2(0.755, 0.865),
 		Vector2(0.835, 0.940), Vector2(0.915, 0.985), Vector2(1.0, 1.0),
 	])
-	for sample: Vector2 in shoulder_profile:
+	for index in shoulder_profile.size():
+		var t := float(index) / float(shoulder_profile.size() - 1)
+		# Cubic drawn section: near-vertical chine tangent, broad convex
+		# shoulder, then a shallow tangent flowing into the parabolic crown.
+		# Preserve the machined aft section and its cockpit attachment land.
+		var formed := Vector2(0.0, 0.50) * (3.0 * (1.0 - t) * (1.0 - t) * t) \
+			+ Vector2(0.50, 0.765) * (3.0 * (1.0 - t) * t * t) + Vector2.ONE * t * t * t
+		var sample := shoulder_profile[index].lerp(formed, forward_crown)
 		ring.append(Vector3(lerpf(chine_width, coaming_width, sample.x),
 			lerpf(chine_y, coaming_y, sample.y), section.w))
 	for sample in range(1, 13):
 		var t := float(sample) / 13.0
-		var crown := smoothstep(0.0, 0.25, minf(t, 1.0 - t))
+		var crown := 4.0 * t * (1.0 - t)
 		ring.append(Vector3(lerpf(coaming_width, -coaming_width, t),
-			coaming_y + h * 0.055 * forward_crown * crown, section.w))
+			coaming_y + crown_depth * crown, section.w))
 	for sample in 12:
 		var point := ring[11 - sample]
 		ring.append(Vector3(-point.x, point.y, point.z))
@@ -4217,6 +4226,17 @@ func _formed_pressure_stations(control: Array) -> Array:
 	return formed
 
 
+## Compute each side of the radome seam from its actual neighboring bulkhead.
+## Both meshes retain the same rim and tangent without a trim ring masking a kink.
+func _formed_airframe_stations(control: Array, rim_neighbor: Vector4, is_radome: bool) -> Array:
+	var connected := control.duplicate()
+	if is_radome:
+		connected.append(rim_neighbor)
+		return _formed_pressure_stations(connected).slice(0, (control.size() - 1) * 6 + 1)
+	connected.push_front(rim_neighbor)
+	return _formed_pressure_stations(connected).slice(6)
+
+
 ## Subdivide the longitudinal fairing with the same non-overshooting slopes
 ## as the pressure body. Preserve the service lid and cooling cassette roof
 ## planes exactly; only the free fore/aft roof transitions are interpolated.
@@ -4258,9 +4278,9 @@ func _cowling_triangle(tool: SurfaceTool, a: Vector3, b: Vector3, c: Vector3, uv
 		tool.add_vertex(vertices[index])
 
 
-func _zenith_hard_shell(parent: Node3D, node_name: String, lateral: float, sections: Array, material: Material, cap_front: bool = true, shoulder_material: Material = null) -> MeshInstance3D:
+func _zenith_hard_shell(parent: Node3D, node_name: String, lateral: float, sections: Array, material: Material, cap_front: bool = true, shoulder_material: Material = null, rim_neighbor: Vector4 = Vector4.ZERO) -> MeshInstance3D:
 	if node_name in ["BlendedPressureHull", "NoseSensorRadome"]:
-		sections = _formed_pressure_stations(sections)
+		sections = _formed_airframe_stations(sections, rim_neighbor, node_name == "NoseSensorRadome")
 	var is_cowling := node_name.ends_with("EngineCowling")
 	if is_cowling:
 		sections = _formed_cowling_stations(sections)

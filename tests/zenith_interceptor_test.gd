@@ -3534,6 +3534,8 @@ func _test_forward_pressure_skin(zenith: ZenithInterceptor) -> void:
 	var seam_rings: Array[PackedVector3Array] = []
 	var shoulder: Array[Vector3] = []
 	var coaming_seated := false
+	var crown_min := INF
+	var crown_max := -INF
 	for skin in [hull, radome]:
 		var seam := PackedVector3Array()
 		for surface in skin.mesh.get_surface_count():
@@ -3543,6 +3545,9 @@ func _test_forward_pressure_skin(zenith: ZenithInterceptor) -> void:
 				if skin == hull and absf(vertex.z + 2.78) < 0.0001 and vertex.x > 0.61 and vertex.y > 0.90:
 					if not shoulder.has(vertex):
 						shoulder.append(vertex)
+				if skin == hull and absf(vertex.z + 3.65) < 0.0001 and absf(vertex.x) <= 0.400 and vertex.y > 1.3:
+					crown_min = minf(crown_min, vertex.y)
+					crown_max = maxf(crown_max, vertex.y)
 				# Front sill's physical footprint is x=.70..77 and top y=2.30.
 				if skin == hull and vertex.distance_to(Vector3(0.721, 2.30, -2.22)) < 0.0001:
 					coaming_seated = true
@@ -3583,8 +3588,10 @@ func _test_forward_pressure_skin(zenith: ZenithInterceptor) -> void:
 			longest_land = current_land
 			land_segments = current_segments
 		previous_direction = direction
-	_check(longest_land > 0.50 and land_segments >= 4 and largest_break > 0.15 and largest_break < 0.90,
-		"forward shoulder has a broad multi-sample land with finite rolled breaks, rather than an inflated ellipse or sharp wedge")
+	_check(longest_land < 0.35 and land_segments <= 2 and largest_break > 0.04 and largest_break < 0.90,
+		"forward shoulder turns continuously without a broad triangular planar land")
+	_check(crown_max - crown_min > 0.14 and crown_max <= 1.531,
+		"nose crown has physical transverse vaulting inside its retained roof envelope")
 	var section_seated := not shoulder.is_empty()
 	for vertex in shoulder:
 		section_seated = section_seated and vertex.x >= 0.615 and vertex.x <= 1.092 and vertex.y >= 0.919 and vertex.y <= 1.981
