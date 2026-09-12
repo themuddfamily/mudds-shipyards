@@ -1772,6 +1772,16 @@ func get_boarding_entry_transform() -> Transform3D:
 	return _boarding_entry_marker.global_transform
 
 
+## Optional exterior threshold poses, in world space. Empty preserves the
+## fighter's existing direct climb. Cabin-to-seat transitions do not use these.
+func get_exterior_boarding_waypoints(_from_position: Vector3 = Vector3.INF) -> Array[Transform3D]:
+	return []
+
+
+func get_exterior_exit_waypoints() -> Array[Transform3D]:
+	return []
+
+
 ## Opens or closes the complete framed canopy around its physical aft hinge.
 func set_canopy_open(open: bool, duration: float = 0.65) -> void:
 	if _reset_for_reuse_mutation_blocked():

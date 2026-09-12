@@ -34,6 +34,7 @@ func _run() -> void:
 	_test_formed_roof(jovian)
 	_test_formed_forward_shell(jovian)
 	await _test_freighter_windscreen(jovian)
+	await _test_pilot_doorway(jovian)
 	_test_formed_aft_machinery_housing(jovian)
 	_test_open_engine_module_sharing(jovian)
 	_test_definition_and_evidence(jovian)
@@ -1707,6 +1708,23 @@ func _test_physical_player_traversal(jovian: JovianLightFreighter) -> void:
 		) < 0.08,
 		"pilot hatch exit is supported and clear of the hull"
 	)
+	_check(player.get_nearby_interactables().has(boarding_area) and boarding_area.is_available_for(player),
+		"supported stair-foot exit discovers the same public flight-deck interaction as the cabin")
+	Input.action_press("move_forward")
+	for index in 80:
+		await physics_frame
+	Input.action_release("move_forward")
+	var stair_top := jovian.to_local(player.global_position)
+	_check(player.is_on_floor() and stair_top.x > -4.3 and stair_top.y > 0.60,
+		"on-foot player climbs the supported pilot companionway without jumping: %s" % stair_top)
+	_check(stair_top.x < -2.7, "closed pilot leaf physically stops the walking player at its threshold")
+	Input.action_press("move_back")
+	for index in 80:
+		await physics_frame
+	Input.action_release("move_back")
+	hatch_exit_local = jovian.to_local(player.global_position)
+	_check(player.is_on_floor() and hatch_exit_local.x < -6.8,
+		"on-foot player descends the companionway onto supported berth ground")
 	Input.action_press("move_left")
 	for index in 20:
 		await physics_frame
@@ -2067,8 +2085,10 @@ func _point_on_pressure_triangle(point: Vector3, a: Vector3, b: Vector3, c: Vect
 	var ab := b - a
 	var ac := c - a
 	var normal := ab.cross(ac)
-	if normal.length_squared() < 1e-12 or absf(normal.normalized().dot(point - a)) > 0.00001:
+	if normal.length_squared() < 1e-12 or absf(normal.normalized().dot(point - a)) > 0.000025:
 		return false
+	# The clipped door/crown seam differs by at most 18.5 micrometres after
+	# float32 mesh interpolation; keep a 25 micrometre geometric tolerance.
 	var offset := point - a
 	var denominator := ab.length_squared() * ac.length_squared() - pow(ab.dot(ac), 2)
 	var u := (ac.length_squared() * offset.dot(ab) - ab.dot(ac) * offset.dot(ac)) / denominator
@@ -2101,6 +2121,9 @@ func _test_freighter_windscreen(ship: JovianLightFreighter) -> void:
 		if member_name in ["FreighterPressureWindscreen", "ForwardCabinCrown"]:
 			for vertex: Vector3 in (member as MeshInstance3D).mesh.get_faces():
 				enclosure_faces.append(ship.to_local(member.to_global(vertex)))
+	var door_glass := visual.get_node("PilotDoorHinge/PilotDoorGlass") as MeshInstance3D
+	for vertex: Vector3 in door_glass.mesh.get_faces():
+		enclosure_faces.append(ship.to_local(door_glass.to_global(vertex)))
 	# Inspect emitted meshes, independently of the shared profile evaluator.
 	# Every top glass edge (including midpoints) must lie on the actual roof
 	# underside triangles, so an analytic curve against a coarse chord fails.
@@ -2108,28 +2131,43 @@ func _test_freighter_windscreen(ship: JovianLightFreighter) -> void:
 	var crown := visual.get_node("ForwardCabinCrown") as MeshInstance3D
 	var crown_faces := crown.mesh.get_faces()
 	var glass_faces := glass.mesh.get_faces()
-	var upper_points := {}
-	var joined := true
-	var edge_samples := 0
+	glass_faces.append_array(door_glass.mesh.get_faces())
+	# Only silhouette boundary edges meet the crown. Splitting a door creates
+	# new vertices inside the pane above y=2.9, which are not roof joins.
+	var edges := {}
 	for triangle in range(0, glass_faces.size(), 3):
 		for edge in 3:
 			var a := glass_faces[triangle + edge]
 			var b := glass_faces[triangle + (edge + 1) % 3]
-			if a.y < 2.9 or b.y < 2.9:
-				continue
-			upper_points[a] = true
-			upper_points[b] = true
-			for point in [a, a.lerp(b, 0.5), b]:
-				var seated := false
-				for roof_triangle in range(0, crown_faces.size(), 3):
-					if _point_on_pressure_triangle(point, crown_faces[roof_triangle],
-						crown_faces[roof_triangle + 1], crown_faces[roof_triangle + 2]):
-						seated = true
-						break
-				joined = joined and seated
-				edge_samples += 1
-	_check(joined and upper_points.size() == 47 and edge_samples >= 138,
-		"all 47 glass crown joins and edge midpoints seat on emitted roof triangles without a daylight chord")
+			var endpoints := [str(a.snapped(Vector3.ONE * 0.00001)), str(b.snapped(Vector3.ONE * 0.00001))]
+			endpoints.sort()
+			var key: String = endpoints[0] + "/" + endpoints[1]
+			if edges.has(key):
+				edges[key].count += 1
+			else:
+				edges[key] = {"a": a, "b": b, "count": 1}
+	var upper_points := {}
+	var joined := true
+	var edge_samples := 0
+	for edge: Dictionary in edges.values():
+		var a: Vector3 = edge.a
+		var b: Vector3 = edge.b
+		if edge.count != 1 or a.y < 2.9 or b.y < 2.9:
+			continue
+		upper_points[a] = true
+		upper_points[b] = true
+		for point in [a, a.lerp(b, 0.5), b]:
+			var seated := false
+			for roof_triangle in range(0, crown_faces.size(), 3):
+				if _point_on_pressure_triangle(point, crown_faces[roof_triangle],
+					crown_faces[roof_triangle + 1], crown_faces[roof_triangle + 2]):
+					seated = true
+					break
+			joined = joined and seated
+			edge_samples += 1
+
+	_check(joined and upper_points.size() >= 47 and edge_samples >= 138,
+		"all fixed and closed-door glass crown joins and edge midpoints seat on emitted roof triangles without a daylight chord")
 	var enclosed := true
 	var samples := 0
 	for member_name in ["InstrumentCluster/InstrumentHood", "PortSideConsole", "StarboardSideConsole"]:
@@ -2164,3 +2202,180 @@ func _test_freighter_windscreen(ship: JovianLightFreighter) -> void:
 			state = [member.mesh, member.transform, member.material_override]
 		_check(member.is_visible_in_tree() and retained[member] == state,
 			"common hatch motion leaves the real fixed pressure enclosure intact")
+
+
+func _test_pilot_doorway(ship: JovianLightFreighter) -> void:
+	var visual := ship.get_jovian_visual_root()
+	var hinge := visual.get_node("PilotDoorHinge") as Node3D
+	var pane := hinge.get_node("PilotDoorGlass") as MeshInstance3D
+	var blocker := ship.get_node("PilotDoorCollision") as CollisionShape3D
+	var closed_mesh := pane.mesh
+	var closed_frame := (hinge.get_node("PilotDoorFrame") as MeshInstance3D).mesh
+	var signals: Array[bool] = []
+	var listener := func(open: bool) -> void: signals.append(open)
+	ship.canopy_motion_finished.connect(listener)
+	ship.set_canopy_open(true, 1.0)
+	var opening_motion := ship.get("_canopy_tween") as Tween
+	opening_motion.pause()
+	opening_motion.custom_step(0.25)
+	await physics_frame
+	_check(hinge.rotation.y > 0.0 and hinge.rotation.y < JovianLightFreighter.PILOT_DOOR_OPEN_ANGLE and not blocker.disabled,
+		"pilot leaf moves with inherited timer while partial opening remains solid")
+	ship.set_canopy_open(false, 0.03)
+	await ship.canopy_motion_finished
+	_check(signals == [false] and is_zero_approx(hinge.rotation.y) and not blocker.disabled,
+		"reversed pilot door cancels stale open completion and closes its actual leaf")
+	ship.set_canopy_open(true, 0.0)
+	await ship.canopy_motion_finished
+	await physics_frame
+	_check(blocker.disabled and is_equal_approx(hinge.rotation.y, JovianLightFreighter.PILOT_DOOR_OPEN_ANGLE),
+		"settled open leaf clears the ship-owned physical doorway")
+	ship.set_canopy_open(false, 0.10)
+	await process_frame
+	_check(not blocker.disabled, "closing request restores door collision before it settles")
+	ship.set_canopy_open(true, 0.0)
+	ship.reset_for_reuse(ship.global_transform)
+	await process_frame
+	await physics_frame
+	_check(not blocker.disabled and not ship.is_canopy_open() and is_zero_approx(hinge.rotation.y),
+		"reset after queued open restores leaf and blocker without a stale deferred reopen")
+	ship.canopy_motion_finished.disconnect(listener)
+	_check(pane.mesh == closed_mesh and (hinge.get_node("PilotDoorFrame") as MeshInstance3D).mesh == closed_frame,
+		"door motion and reset retain the fitted glass/frame mesh resources")
+	_check(visual.get_node("PilotAccessSteps").get_child_count() == 2,
+		"static pilot companionway submits exactly two existing material finishes")
+
+	# Probe actual emitted mesh triangles, including nearby MultiMesh members.
+	# A collision-only test would miss the former 2.4 m connector panel, console
+	# controls and the open leaf itself, which previously crossed this route.
+	var prior_physics := ship.is_physics_processing()
+	ship.set_physics_process(false)
+	ship.set_canopy_open(true, 0.0)
+	await process_frame
+	var geometry := Node3D.new()
+	_test_root.add_child(geometry)
+	var corridor := AABB(Vector3(-7.7, -1.4, -9.3), Vector3(8.4, 5.0, 2.1))
+	var geometry_count := 0
+	for node in ship.find_children("*", "GeometryInstance3D", true, false):
+		if not (node as GeometryInstance3D).is_visible_in_tree():
+			continue
+		if node is MeshInstance3D:
+			var mesh_node := node as MeshInstance3D
+			if mesh_node.mesh != null:
+				geometry_count += _add_doorway_mesh_probe(geometry, ship, corridor, mesh_node.mesh, mesh_node.global_transform, mesh_node.name)
+		elif node is MultiMeshInstance3D:
+			var batch := node as MultiMeshInstance3D
+			if batch.multimesh == null or batch.multimesh.mesh == null:
+				continue
+			var count := batch.multimesh.instance_count if batch.multimesh.visible_instance_count < 0 else batch.multimesh.visible_instance_count
+			for index in count:
+				geometry_count += _add_doorway_mesh_probe(geometry, ship, corridor, batch.multimesh.mesh,
+					batch.global_transform * batch.multimesh.get_instance_transform(index), batch.name)
+	_check(geometry_count > 30, "doorway sweep includes actual nearby hull, leaf, interior fittings and batch triangles")
+	var player := PLAYER_SCENE.instantiate() as PlayerController
+	_test_root.add_child(player)
+	player.set_physics_process(false)
+	player.global_position = ship.get_boarding_position()
+	var skeleton := player.get_pilot_visual_root().find_child("*Skeleton*", true, false) as Skeleton3D
+	var capsule := (player.get_node("PlayerCollision") as CollisionShape3D).shape
+	var capsule_query := PhysicsShapeQueryParameters3D.new()
+	capsule_query.shape = capsule
+	capsule_query.collision_mask = 1 << 25
+	capsule_query.margin = 0.005
+	var body_query := PhysicsShapeQueryParameters3D.new()
+	var body_sphere := SphereShape3D.new()
+	body_sphere.radius = 0.20
+	body_query.shape = body_sphere
+	body_query.collision_mask = 1 << 25
+	body_query.margin = 0.003
+	await physics_frame
+	await physics_frame
+	var accepted := player.begin_boarding(ship.get_boarding_entry_transform(), ship.get_pilot_seat_anchor(),
+		2.0, ship, ship.get_exterior_boarding_waypoints())
+	_check(accepted, "public timed pilot boarding accepts the actual exterior threshold route")
+	var board_sweep := _sample_pilot_doorway_motion(ship, player, skeleton, capsule_query, body_query, PlayerController.EmbodimentState.BOARDING)
+	_check(player.is_seated() and board_sweep.frames >= 120 and board_sweep.capsule_frames > 20 and board_sweep.hits.is_empty(),
+		"boarding sweeps the full standing capsule through the doorway and animated chest/head into the seat: %s" % board_sweep)
+	accepted = player.begin_disembark(ship.get_exit_transform(), 2.0, ship, ship.get_exterior_exit_waypoints())
+	_check(accepted, "public timed pilot exit accepts the reverse supported threshold route")
+	var exit_sweep := _sample_pilot_doorway_motion(ship, player, skeleton, capsule_query, body_query, PlayerController.EmbodimentState.DISEMBARKING)
+	_check(not player.is_seated() and exit_sweep.frames >= 120 and exit_sweep.capsule_frames > 20 and exit_sweep.hits.is_empty(),
+		"exit sweeps animated chest/head and full standing capsule clear of real hull and stair geometry: %s" % exit_sweep)
+	_check((player.get("_transition_waypoints") as Array).is_empty(), "completed doorway exit clears retained route state")
+	for start in [Vector3(-5.5, 0.25, -8.52), Vector3(-4.0, 0.82, -8.52), Vector3(-2.3, 0.82, -8.52), Vector3(-1.2, 0.78, -8.52)]:
+		player.force_recovery_to_on_foot(ship.global_transform * Transform3D(Basis.IDENTITY, start))
+		var route := ship.get_exterior_boarding_waypoints(player.global_position)
+		accepted = player.begin_boarding(ship.get_boarding_entry_transform(), ship.get_pilot_seat_anchor(), 2.0, ship, route)
+		_check(accepted and not route.is_empty() and ship.to_local(route[0].origin).x >= start.x - 0.01,
+			"reachable stair/landing/interior-side start continues forward: %s" % start)
+		var sweep := _sample_pilot_doorway_motion(ship, player, skeleton, capsule_query, body_query, PlayerController.EmbodimentState.BOARDING)
+		_check(sweep.frames >= 120 and sweep.hits.is_empty(), "accepted doorway start clears actual mesh triangles: %s %s" % [start, sweep])
+
+	# New routes inherit live-frame rebasing; clearing by recovery must not let
+	# a subsequent default/cabin transition retain exterior stair waypoints.
+	player.force_recovery_to_on_foot(ship.get_exit_transform())
+	player.begin_boarding(ship.get_boarding_entry_transform(), ship.get_pilot_seat_anchor(), 2.0,
+		ship, ship.get_exterior_boarding_waypoints())
+	player.call("_update_embodiment", 0.5)
+	var before := ship.to_local(player.global_position)
+	var original_transform := ship.global_transform
+	ship.global_position += Vector3(4.0, 2.0, 3.0)
+	player.call("_update_embodiment", 0.0)
+	_check(ship.to_local(player.global_position).is_equal_approx(before), "doorway intermediate points rebase with the live ship frame")
+	ship.global_transform = original_transform
+	player.force_recovery_to_on_foot(ship.get_cabin_stand_transform())
+	_check((player.get("_transition_waypoints") as Array).is_empty(), "destructive recovery clears the exterior waypoint route")
+	player.begin_boarding(ship.get_cabin_stand_transform(), ship.get_pilot_seat_anchor(), 0.0, ship)
+	_check(player.is_seated() and (player.get("_transition_waypoints") as Array).is_empty(), "default cabin-to-seat entry keeps its empty direct path after doorway recovery")
+	player.queue_free()
+	geometry.queue_free()
+	ship.set_canopy_open(false, 0.0)
+	ship.set_physics_process(prior_physics)
+	await process_frame
+	await physics_frame
+
+
+func _add_doorway_mesh_probe(parent: Node3D, ship: JovianLightFreighter, corridor: AABB,
+		mesh: Mesh, world_transform: Transform3D, source_name: StringName) -> int:
+	if not corridor.intersects(ship.global_transform.affine_inverse() * world_transform * mesh.get_aabb()):
+		return 0
+	var body := StaticBody3D.new()
+	body.name = source_name
+	body.collision_layer = 1 << 25
+	body.collision_mask = 0
+	parent.add_child(body)
+	body.global_transform = world_transform
+	var collision := CollisionShape3D.new()
+	var shape := mesh.create_trimesh_shape()
+	shape.backface_collision = true
+	collision.shape = shape
+	body.add_child(collision)
+	return 1
+
+
+func _sample_pilot_doorway_motion(ship: JovianLightFreighter, player: PlayerController,
+		skeleton: Skeleton3D, capsule_query: PhysicsShapeQueryParameters3D,
+		body_query: PhysicsShapeQueryParameters3D, state: int) -> Dictionary:
+	var hits := {}
+	var frames := 0
+	var capsule_frames := 0
+	while int(player.get("_embodiment_state")) == state and frames < 125:
+		player.call("_update_embodiment", 2.0 / 120.0)
+		player.get_motion_animation_player().advance(2.0 / 120.0)
+		skeleton.force_update_all_bone_transforms()
+		frames += 1
+		# Standing clearance ends at the chair approach; the authored seated
+		# chest/head probes continue for every frame, including final settling.
+		if ship.to_local(player.global_position).x <= -1.0:
+			capsule_frames += 1
+			capsule_query.transform = Transform3D(ship.global_basis,
+				player.global_position + ship.global_basis.y * 0.97)
+			for hit in player.get_world_3d().direct_space_state.intersect_shape(capsule_query, 32):
+				hits[str(hit.collider.name) + "/capsule"] = true
+		for bone_name in ["chest", "head"]:
+			var bone := skeleton.find_bone(bone_name)
+			body_query.transform = Transform3D(Basis.IDENTITY,
+				(skeleton.global_transform * skeleton.get_bone_global_pose(bone)).origin)
+			for hit in player.get_world_3d().direct_space_state.intersect_shape(body_query, 32):
+				hits[str(hit.collider.name) + "/" + bone_name] = true
+	return {"frames": frames, "capsule_frames": capsule_frames, "hits": hits}

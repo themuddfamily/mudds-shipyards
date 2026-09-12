@@ -7041,8 +7041,13 @@ func _board_ship(candidate: HeroShip = null) -> void:
 	# Retaking the seat of the craft whose cabin the player is already walking is
 	# an interior movement, not an approach across an apron: there is no hull to
 	# climb, no canopy to cycle, and the craft may still be drifting.
-	var from_cabin := phase == Phase.IN_FLIGHT_CABIN and candidate == _cabin_ship
-	if from_cabin:
+	var returning_to_flight_seat := phase == Phase.IN_FLIGHT_CABIN and candidate == _cabin_ship
+	var interior_frame := candidate.get_node_or_null("MovingInteriorFrame") as MovingInteriorFrame
+	var from_landed_interior := not candidate.get_exterior_boarding_waypoints().is_empty() \
+		and interior_frame != null and interior_frame.is_occupant_registered(player) \
+		and interior_frame.contains_world_position(player.global_position)
+	var from_cabin := returning_to_flight_seat or from_landed_interior
+	if returning_to_flight_seat:
 		_release_cabin_occupancy()
 	# Every route generation is bound to the physical sortie that started it.
 	# Switching hulls is a terminal actor replacement even for the adapters that
@@ -7106,6 +7111,9 @@ func _board_ship(candidate: HeroShip = null) -> void:
 		await active_ship.canopy_motion_finished
 		if not _is_transition_current(transition_generation, candidate, Phase.BOARDING):
 			return
+	var exterior_waypoints: Array[Transform3D] = []
+	if not from_cabin:
+		exterior_waypoints = active_ship.get_exterior_boarding_waypoints(player.global_position)
 	if not player.begin_boarding(
 		(
 			active_ship.get_in_flight_cabin_report().get(
@@ -7116,10 +7124,11 @@ func _board_ship(candidate: HeroShip = null) -> void:
 		),
 		active_ship.get_pilot_seat_anchor(),
 		boarding_motion_time,
-		active_ship if from_cabin else null
+		active_ship if from_cabin or not exterior_waypoints.is_empty() else null,
+		exterior_waypoints
 	):
 		_transition_busy = false
-		if from_cabin:
+		if returning_to_flight_seat:
 			_present_boarding_confirmation(&"rejected", candidate, &"seat_transition_failed")
 			# The craft is still idled offline under way; put the player back in its
 			# cabin rather than stranding a failed boarding in a berth phase.
@@ -7229,7 +7238,9 @@ func _try_exit_ship() -> void:
 	active_ship.set_piloted(false)
 	active_ship.get_camera().current = false
 	player.set_camera_active(true)
-	if not player.begin_disembark(active_ship.get_exit_transform(), disembarking_motion_time):
+	var exterior_waypoints := active_ship.get_exterior_exit_waypoints()
+	if not player.begin_disembark(active_ship.get_exit_transform(), disembarking_motion_time,
+			active_ship if not exterior_waypoints.is_empty() else null, exterior_waypoints):
 		_transition_busy = false
 		_present_boarding_confirmation(&"rejected", transition_ship, &"disembark_transition_failed")
 		phase = Phase.SHUT_DOWN

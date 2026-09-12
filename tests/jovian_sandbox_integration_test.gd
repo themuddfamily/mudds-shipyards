@@ -392,6 +392,8 @@ func _run() -> void:
 		"complete Jovian sortie preserves the untouched Torrent guided mission"
 	)
 
+	await _test_public_pilot_doorway_starts(game, jovian, player)
+
 	# Parked craft are still real damageable bodies. Destroying Jovian now must
 	# release its lease, preserve the on-foot guide, and regenerate this same hull
 	# at the exact freight transform without reloading the world.
@@ -592,3 +594,47 @@ func _finish() -> void:
 			% [_failures.size(), _assertion_count, "; ".join(_failures)]
 		)
 		quit(1)
+
+
+func _test_public_pilot_doorway_starts(game: GameFlow, ship: JovianLightFreighter, player: PlayerController) -> void:
+	var prior_boarding := game.boarding_motion_time
+	var prior_exit := game.disembarking_motion_time
+	game.boarding_motion_time = 0.5
+	game.disembarking_motion_time = 0.5
+	var area := ship.get_node("ShipBoardingArea") as ShipBoardingArea
+	var frame := ship.get_moving_interior_component()
+	for local_start in [Vector3(-7.2, -1.22, -8.52), Vector3(-5.5, 0.25, -8.52),
+			Vector3(-4.0, 0.82, -8.52), Vector3(-1.2, 0.78, -8.52), JovianLightFreighter.CABIN_STAND_LOCAL_ORIGIN]:
+		player.teleport_to(ship.global_transform * Transform3D(Basis.IDENTITY, local_start))
+		for tick in 8:
+			await physics_frame
+			await process_frame
+		_check(player.get_nearby_interactables().has(area) and area.is_available_for(player),
+			"real public boarding discovery reaches supported approach %s" % local_start)
+		var cabin_start: bool = local_start == JovianLightFreighter.CABIN_STAND_LOCAL_ORIGIN
+		if cabin_start:
+			_check(frame.is_occupant_registered(player), "landed cabin boarding uses existing registered interior membership")
+		var motions: Array[bool] = []
+		var listener := func(open: bool) -> void: motions.append(open)
+		ship.canopy_motion_finished.connect(listener)
+		game.call("_board_ship", ship)
+		var frames := 0
+		var stayed_forward := true
+		for tick in 120:
+			if game.phase == GameFlow.Phase.START_ENGINES:
+				break
+			await physics_frame
+			await process_frame
+			frames += 1
+			if local_start.x > -6.7 and not cabin_start:
+				stayed_forward = stayed_forward and ship.to_local(player.global_position).x >= local_start.x - 0.12
+		ship.canopy_motion_finished.disconnect(listener)
+		_check(game.phase == GameFlow.Phase.START_ENGINES and player.is_seated() and frames >= 10 and stayed_forward,
+			"public GameFlow boards from actual approach without backtracking through stairs: %s" % local_start)
+		_check(motions.is_empty() if cabin_start else motions == [true, false],
+			"landed cabin keeps interior bypass while exterior starts cycle actual door: %s" % local_start)
+		game.call("_try_exit_ship")
+		_check(await _wait_for_phase(game, GameFlow.Phase.APPROACH_SHIP, 2.0),
+			"public GameFlow exits through the supported doorway after approach %s" % local_start)
+	game.boarding_motion_time = prior_boarding
+	game.disembarking_motion_time = prior_exit

@@ -256,6 +256,8 @@ var _transition_frame: Node3D
 var _transition_start_local := Transform3D.IDENTITY
 var _transition_entry_local := Transform3D.IDENTITY
 var _transition_target_local := Transform3D.IDENTITY
+var _transition_waypoints: Array[Transform3D] = []
+var _transition_waypoints_local: Array[Transform3D] = []
 var _transition_elapsed := 0.0
 var _transition_duration := 0.0
 ## A transition can reach its physical endpoint in the same turn its owning
@@ -584,7 +586,8 @@ func begin_boarding(
 		entry_transform: Transform3D,
 		seat_anchor: Node3D,
 		duration: float = 1.1,
-		reference_frame: Node3D = null
+		reference_frame: Node3D = null,
+		approach_waypoints: Array[Transform3D] = []
 	) -> bool:
 	if _embodiment_state != EmbodimentState.ON_FOOT or not is_instance_valid(seat_anchor):
 		return false
@@ -600,6 +603,7 @@ func begin_boarding(
 	_seat_anchor = seat_anchor
 	_process_after_seat_hierarchy(seat_anchor)
 	_bind_transition_frame(reference_frame)
+	_set_transition_waypoints(approach_waypoints)
 	_transition_start = _clean_transform(global_transform)
 	_transition_entry = _clean_transform(entry_transform)
 	_transition_start_local = _to_transition_local(_transition_start)
@@ -631,7 +635,8 @@ func begin_boarding(
 func begin_disembark(
 		exit_transform: Transform3D,
 		duration: float = 0.9,
-		reference_frame: Node3D = null
+		reference_frame: Node3D = null,
+		exit_waypoints: Array[Transform3D] = []
 	) -> bool:
 	if _embodiment_state != EmbodimentState.SEATED:
 		return false
@@ -640,6 +645,7 @@ func begin_disembark(
 	velocity = Vector3.ZERO
 	_reset_body_facing()
 	_bind_transition_frame(reference_frame)
+	_set_transition_waypoints(exit_waypoints)
 	_transition_start = _clean_transform(global_transform)
 	_transition_target = _clean_transform(exit_transform)
 	_transition_start_local = _to_transition_local(_transition_start)
@@ -676,6 +682,7 @@ func force_recovery_to_on_foot(target: Transform3D) -> void:
 	# frame and the cabin envelope is the thing that was just lost.
 	_clear_cabin_containment()
 	_transition_frame = null
+	_set_transition_waypoints([])
 	_transition_start = _clean_transform(target)
 	_transition_entry = _transition_start
 	_transition_target = _transition_start
@@ -1094,6 +1101,8 @@ func _update_embodiment(delta: float) -> void:
 
 func _update_boarding(delta: float) -> void:
 	if not is_instance_valid(_seat_anchor):
+		_transition_frame = null
+		_set_transition_waypoints([])
 		# Retain a stable, collision-free pose if the ship disappears. The
 		# gameplay owner can recover the player with begin_disembark once it has
 		# selected a safe exit transform.
@@ -1108,15 +1117,18 @@ func _update_boarding(delta: float) -> void:
 	var traversal_up := _get_transition_up_direction()
 	if progress <= BOARDING_ENTRY_FRACTION:
 		var entry_progress := _smoothstep(progress / BOARDING_ENTRY_FRACTION)
-		global_transform = _interpolate_transform(
-			_resolve_transition_transform(_transition_start, _transition_start_local),
-			_resolve_transition_transform(_transition_entry, _transition_entry_local),
-			entry_progress
-		)
-		global_position += traversal_up * _transition_step_height(
-			entry_progress,
-			BOARDING_STEP_HEIGHT
-		)
+		if _transition_waypoints.is_empty():
+			global_transform = _interpolate_transform(
+				_resolve_transition_transform(_transition_start, _transition_start_local),
+				_resolve_transition_transform(_transition_entry, _transition_entry_local),
+				entry_progress
+			)
+			global_position += traversal_up * _transition_step_height(entry_progress, BOARDING_STEP_HEIGHT)
+		else:
+			global_transform = _interpolate_waypoint_transition(
+				_resolve_transition_transform(_transition_entry, _transition_entry_local),
+				entry_progress
+			)
 	else:
 		var seat_progress := _smoothstep(
 			(progress - BOARDING_ENTRY_FRACTION) / (1.0 - BOARDING_ENTRY_FRACTION)
@@ -1139,6 +1151,7 @@ func _complete_boarding() -> void:
 	if is_instance_valid(_seat_anchor):
 		global_transform = _get_live_seat_transform()
 	_transition_frame = null
+	_set_transition_waypoints([])
 	velocity = Vector3.ZERO
 	_reset_body_facing()
 	_embodiment_state = EmbodimentState.SEATED
@@ -1159,18 +1172,50 @@ func _update_disembarking(delta: float) -> void:
 	_transition_elapsed = minf(_transition_elapsed + delta, _transition_duration)
 	var progress := clampf(_transition_elapsed / _transition_duration, 0.0, 1.0)
 	var eased_progress := _smoothstep(progress)
-	global_transform = _interpolate_transform(
-		_resolve_transition_transform(_transition_start, _transition_start_local),
-		_resolve_transition_transform(_transition_target, _transition_target_local),
-		eased_progress
-	)
-	global_position += _get_transition_up_direction() * _transition_step_height(
-		eased_progress,
-		DISEMBARK_STEP_HEIGHT
-	)
+	if _transition_waypoints.is_empty():
+		global_transform = _interpolate_transform(
+			_resolve_transition_transform(_transition_start, _transition_start_local),
+			_resolve_transition_transform(_transition_target, _transition_target_local),
+			eased_progress
+		)
+		global_position += _get_transition_up_direction() * _transition_step_height(eased_progress, DISEMBARK_STEP_HEIGHT)
+	else:
+		global_transform = _interpolate_waypoint_transition(
+			_resolve_transition_transform(_transition_target, _transition_target_local), eased_progress
+		)
 
 	if progress >= 1.0:
 		_complete_disembark()
+
+
+func _set_transition_waypoints(poses: Array[Transform3D]) -> void:
+	_transition_waypoints.clear()
+	_transition_waypoints_local.clear()
+	for pose in poses:
+		var clean := _clean_transform(pose)
+		_transition_waypoints.append(clean)
+		_transition_waypoints_local.append(_to_transition_local(clean))
+
+
+## Distance-weighted segments keep a stair/threshold route continuous. Resolve
+## all points through the same live ship frame as the original endpoints.
+func _interpolate_waypoint_transition(target: Transform3D, progress: float) -> Transform3D:
+	var points: Array[Transform3D] = [
+		_resolve_transition_transform(_transition_start, _transition_start_local)]
+	for index in _transition_waypoints.size():
+		points.append(_resolve_transition_transform(
+			_transition_waypoints[index], _transition_waypoints_local[index]))
+	points.append(target)
+	var total := 0.0
+	for index in points.size() - 1:
+		total += points[index].origin.distance_to(points[index + 1].origin)
+	var remaining := clampf(progress, 0.0, 1.0) * total
+	for index in points.size() - 1:
+		var length := points[index].origin.distance_to(points[index + 1].origin)
+		if remaining <= length and length > 0.00001:
+			return _interpolate_transform(points[index], points[index + 1], remaining / length)
+		remaining -= length
+	return target
 
 
 func _complete_disembark() -> void:
@@ -1179,6 +1224,7 @@ func _complete_disembark() -> void:
 		_transition_target_local
 	)
 	_transition_frame = null
+	_set_transition_waypoints([])
 	velocity = Vector3.ZERO
 	_seat_anchor = null
 	_station_seated_context = false

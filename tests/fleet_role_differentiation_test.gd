@@ -130,7 +130,9 @@ const APPROACH_OFFSETS := {
 	# a clear straight walk; this is one of them, chosen for staying near the 12 m
 	# the two fighters use so the suite's own distance and walk assertions keep
 	# their existing margins.
-	&"jovian_provisional": Vector3(-8.6, 0.0, -8.0),
+	# Keep the same standable apron stage after the pilot marker moved to
+	# the new stair foot: world-local X/Z remain (-12.0, -16.15).
+	&"jovian_provisional": Vector3(-4.8, 0.70, -7.63),
 	# Fleet Dock 01 is an elevated 12 x 15 m slab; a longer aft stage walks off
 	# its edge, so Zenith is staged diagonally at 8.06 m instead.
 	&"zenith_b7_observed": Vector3(-4.0, 0.0, 7.0),

@@ -45,6 +45,14 @@ const CARGO_ROOF_SECTIONS: Array[Vector3] = [Vector3(0.92, -0.20, -3.10), Vector
 	Vector3(1.0, 0.0, 8.25), Vector3(0.86, -0.22, 9.35)]
 const CABIN_ROOF_SECTIONS: Array[Vector3] = [Vector3(0.70, -0.70, -9.65), Vector3(0.91, -0.12, -7.65),
 	Vector3(1.0, 0.0, -4.05), Vector3(1.28, 0.30, -2.88)]
+# One physical port entry, clear of the forward shoulder and cargo entrance.
+const PILOT_DOOR_FRONT_Z := -9.15
+const PILOT_DOOR_ROUTE_Z := -8.52
+const PILOT_DOOR_OPEN_ANGLE := deg_to_rad(100.0)
+const PILOT_LANDING_Y := 0.76
+const PILOT_STAIR_OUTER_X := -6.7
+const PILOT_STAIR_INNER_X := -4.35
+const PILOT_STAIR_BOTTOM_Y := -1.25
 const INTERIOR_BOUNDS := AABB(Vector3(-5.72, 0.0, -8.0), Vector3(11.44, 4.6, 17.25))
 ## Ship-local envelope a crew member may occupy while the freighter is under way.
 ##
@@ -346,6 +354,9 @@ var _landing_bogie_foot_transforms: Array[Transform3D] = []
 var _cargo_deck_lane_mesh: ArrayMesh
 var _cargo_deck_lane_batch: MultiMeshInstance3D
 var _cargo_deck_lane_transforms: Array[Transform3D] = []
+var _pilot_door_pivot: Node3D
+var _pilot_door_blocker: CollisionShape3D
+var _pilot_door_collision_points := PackedVector3Array()
 var _elapsed_jovian := 0.0
 var _crew_role_authority: CrewSeatRoleAuthority
 var _engineer_component_selection: Dictionary = {}
@@ -3291,6 +3302,9 @@ func _relocate_and_restyle_cockpit(
 		# Fit the complete module beneath its original crown so every live row
 		# fits the authored pilot eye, including the lower engine status.
 		_fit_pilot_instrument_mount(cockpit)
+		_fit_pilot_doorway_interior(cockpit)
+		var entry := cockpit.get_node("BoardingEntry") as Marker3D
+		entry.position = Vector3(-0.78, 2.16, -0.37)
 		var rear_wall := cockpit.get_node_or_null("RearPressureWall") as MeshInstance3D
 		if rear_wall != null:
 			# The freighter connects this former fighter rear bulkhead to a real
@@ -3327,6 +3341,219 @@ func _relocate_and_restyle_cockpit(
 		mount_3d.hide()
 		if mount_3d is MeshInstance3D:
 			(mount_3d as MeshInstance3D).material_override = _jovian_materials.amber
+
+
+func _fit_pilot_doorway_interior(cockpit: Node3D) -> void:
+	# The old fighter's uninterrupted arm-height rails crossed the new door.
+	var trim := Node3D.new()
+	trim.name = "PilotDoorInteriorTrim"
+	cockpit.add_child(trim)
+	for part_name in ["PortSidewall", "PortSill"]:
+		var original := cockpit.get_node(part_name) as MeshInstance3D
+		var size := original.mesh.get_aabb().size
+		original.hide()
+		for span in [Vector2(-2.225, -1.20), Vector2(0.45, 1.125)]:
+			_box(trim, part_name + "DoorJamb", Vector3(original.position.x, original.position.y, (span.x + span.y) * 0.5),
+				Vector3(size.x, size.y, span.y - span.x), _jovian_materials.amber if part_name == "PortSill" else _jovian_materials.structure)
+	_batch_pilot_access_meshes(trim)
+	# Retain a working port instrument shelf ahead of the standing corridor.
+	var console := cockpit.get_node("PortSideConsole") as MeshInstance3D
+	console.mesh = _cockpit_formed_enclosure_mesh([
+		Vector4(0.62, -0.25, 0.53, -1.04),
+		Vector4(0.46, -0.25, 0.16, -0.64),
+		Vector4(0.40, -0.25, 0.16, -0.43)], _materials.structure)
+	for control: Node3D in cockpit.find_children("PortConsole*", "Node3D", false, false):
+		control.position.z = -1.42 + (control.position.z + 0.88) * 0.40
+	for part_name in ["ThrottleGate", "Throttle", "ThrottlePalmGrip"]:
+		(cockpit.get_node(part_name) as Node3D).position.z -= 1.05
+
+
+func _clip_pilot_glass(points: PackedVector3Array, door: bool) -> PackedVector3Array:
+	var clipped := PackedVector3Array()
+	for index in points.size():
+		var a := points[index]
+		var b := points[(index + 1) % points.size()]
+		var inside_a := a.z >= PILOT_DOOR_FRONT_Z if door else a.z <= PILOT_DOOR_FRONT_Z
+		var inside_b := b.z >= PILOT_DOOR_FRONT_Z if door else b.z <= PILOT_DOOR_FRONT_Z
+		if inside_a:
+			clipped.append(a)
+		if inside_a != inside_b:
+			clipped.append(a.lerp(b, (PILOT_DOOR_FRONT_Z - a.z) / (b.z - a.z)))
+	return clipped
+
+
+func _append_pilot_glass_polygon(tool: SurfaceTool, points: PackedVector3Array) -> void:
+	for index in range(1, points.size() - 1):
+		var normal := (points[index + 1] - points[0]).cross(points[index] - points[0]).normalized()
+		for point: Vector3 in [points[0], points[index], points[index + 1]]:
+			tool.set_normal(normal)
+			tool.set_uv(Vector2(point.x, point.z))
+			tool.add_vertex(point)
+
+
+func _build_pilot_door(mesh: ArrayMesh, front_bottom: Vector3, rear_bottom: Vector3, upper_edge: PackedVector3Array) -> void:
+	_pilot_door_pivot = Node3D.new()
+	_pilot_door_pivot.name = "PilotDoorHinge"
+	_pilot_door_pivot.position = rear_bottom
+	_jovian_visual.add_child(_pilot_door_pivot)
+	var pane := MeshInstance3D.new()
+	pane.name = "PilotDoorGlass"
+	pane.mesh = mesh
+	pane.position = -rear_bottom
+	pane.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	_pilot_door_pivot.add_child(pane)
+	_pilot_door_collision_points.clear()
+	for vertex in mesh.get_faces():
+		_pilot_door_collision_points.append(vertex + Vector3.LEFT * 0.055)
+		_pilot_door_collision_points.append(vertex + Vector3.RIGHT * 0.055)
+	var bottom_cut := front_bottom.lerp(rear_bottom, (PILOT_DOOR_FRONT_Z - front_bottom.z) / (rear_bottom.z - front_bottom.z))
+	var perimeter := PackedVector3Array([bottom_cut, rear_bottom])
+	for index in range(upper_edge.size() - 1, -1, -1):
+		if upper_edge[index].z >= PILOT_DOOR_FRONT_Z:
+			perimeter.append(upper_edge[index])
+		elif index < upper_edge.size() - 1:
+			perimeter.append(upper_edge[index].lerp(upper_edge[index + 1],
+				(PILOT_DOOR_FRONT_Z - upper_edge[index].z) / (upper_edge[index + 1].z - upper_edge[index].z)))
+			break
+	perimeter.append(bottom_cut)
+	_fitted_pressure_seal("PilotDoorFrame", perimeter, 0.048, Vector3.LEFT)
+	var frame := _jovian_visual.get_node("PilotDoorFrame") as Node3D
+	frame.reparent(_pilot_door_pivot, false)
+	frame.position = -rear_bottom
+	_fitted_pressure_seal("PilotDoorJamb", PackedVector3Array([bottom_cut, perimeter[-2]]), 0.055, Vector3.LEFT)
+	_box(_pilot_door_pivot, "PilotDoorHandle", Vector3(-0.02, 0.86, -1.35), Vector3(0.09, 0.28, 0.06), _jovian_materials.amber)
+	_set_canopy_open_fraction(1.0 if is_canopy_open() else 0.0)
+
+
+func _build_pilot_access_steps() -> void:
+	var steps := Node3D.new()
+	steps.name = "PilotAccessSteps"
+	_jovian_visual.add_child(steps)
+	_box(steps, "PilotThreshold", Vector3(-3.0, PILOT_LANDING_Y - 0.10, PILOT_DOOR_ROUTE_Z), Vector3(2.70, 0.20, 1.28), _jovian_materials.structure)
+	var toe := _box(steps, "PilotGroundToe", Vector3(PILOT_STAIR_OUTER_X - 0.175, PILOT_STAIR_BOTTOM_Y + 0.08, PILOT_DOOR_ROUTE_Z),
+		Vector3(0.40, 0.06, 1.28), _jovian_materials.structure)
+	toe.rotation.z = atan2(0.20, 0.35)
+	# A compact companionway remains inside the freighter's existing beam.
+	for index in 10:
+		var fraction := float(index + 1) / 10.0
+		var x := lerpf(PILOT_STAIR_OUTER_X, PILOT_STAIR_INNER_X, (float(index) + 0.5) / 10.0)
+		var y := lerpf(PILOT_STAIR_BOTTOM_Y, PILOT_LANDING_Y, fraction)
+		_box(steps, "PilotStairTread%02d" % index, Vector3(x, y - 0.065, PILOT_DOOR_ROUTE_Z), Vector3(0.25, 0.13, 1.28), _jovian_materials.structure)
+		_box(steps, "PilotStairNosing%02d" % index, Vector3(x - 0.10, y + 0.004, PILOT_DOOR_ROUTE_Z), Vector3(0.025, 0.02, 1.22), _jovian_materials.amber)
+	for z in [PILOT_DOOR_ROUTE_Z - 0.62, PILOT_DOOR_ROUTE_Z + 0.62]:
+		var start := Vector3(PILOT_STAIR_OUTER_X, PILOT_STAIR_BOTTOM_Y - 0.12, z)
+		var end := Vector3(PILOT_STAIR_INNER_X, PILOT_LANDING_Y - 0.12, z)
+		var member := _box(steps, "PilotStairStringer", (start + end) * 0.5, Vector3(start.distance_to(end), 0.15, 0.08), _jovian_materials.structure)
+		member.rotation.z = atan2(end.y - start.y, end.x - start.x)
+	_batch_pilot_access_meshes(steps)
+
+
+## This small static assembly submits once per finish. Moving door hardware
+## stays outside the batch and keeps its independent transform.
+func _batch_pilot_access_meshes(parent: Node3D) -> void:
+	var finishes: Dictionary = {}
+	for child: MeshInstance3D in parent.get_children():
+		var material := child.mesh.surface_get_material(0)
+		if not finishes.has(material):
+			var tool := SurfaceTool.new()
+			tool.begin(Mesh.PRIMITIVE_TRIANGLES)
+			tool.set_material(material)
+			finishes[material] = tool
+		(finishes[material] as SurfaceTool).append_from(child.mesh, 0, child.transform)
+		parent.remove_child(child)
+		child.free()
+	for material: Material in finishes:
+		var instance := MeshInstance3D.new()
+		instance.name = "AccessFinish%02d" % parent.get_child_count()
+		instance.mesh = (finishes[material] as SurfaceTool).commit()
+		parent.add_child(instance)
+
+
+func _build_pilot_access_collision() -> void:
+	_add_box_collision("PilotThresholdCollision", Vector3(-3.0, PILOT_LANDING_Y - 0.10, PILOT_DOOR_ROUTE_Z), Vector3(2.70, 0.20, 1.28))
+	# The collision ramp follows the tread nosings so the existing walking
+	# controller can climb a companionway without a new stair locomotion mode.
+	_add_ramp_wedge_collision("PilotStairCollision", PILOT_STAIR_OUTER_X - 0.35, PILOT_STAIR_INNER_X,
+		PILOT_STAIR_BOTTOM_Y, PILOT_STAIR_BOTTOM_Y, PILOT_LANDING_Y + 0.02, PILOT_DOOR_ROUTE_Z, 0.64)
+	_pilot_door_blocker = CollisionShape3D.new()
+	_pilot_door_blocker.name = "PilotDoorCollision"
+	var shape := ConvexPolygonShape3D.new()
+	shape.points = _pilot_door_collision_points
+	_pilot_door_blocker.shape = shape
+	add_child(_pilot_door_blocker)
+	_sync_pilot_door_collision()
+
+
+func _set_canopy_open_unchecked(open: bool, duration: float) -> void:
+	super._set_canopy_open_unchecked(open, duration)
+	# Close requests become solid before the first Tween sample; a target-open
+	# flag alone is never enough to clear an in-motion doorway.
+	_sync_pilot_door_collision()
+
+
+func _set_canopy_open_fraction(open_fraction: float) -> void:
+	super._set_canopy_open_fraction(open_fraction)
+	if is_instance_valid(_pilot_door_pivot):
+		_pilot_door_pivot.rotation.y = PILOT_DOOR_OPEN_ANGLE * clampf(open_fraction, 0.0, 1.0)
+	_sync_pilot_door_collision()
+
+
+func _sync_pilot_door_collision() -> void:
+	if is_instance_valid(_pilot_door_blocker) and is_instance_valid(_pilot_door_pivot):
+		_pilot_door_blocker.set_deferred("disabled", is_canopy_open()
+			and is_equal_approx(_pilot_door_pivot.rotation.y, PILOT_DOOR_OPEN_ANGLE))
+
+
+func _pilot_access_poses(points: Array[Vector3]) -> Array[Transform3D]:
+	var poses: Array[Transform3D] = []
+	for point in points:
+		poses.append(global_transform * Transform3D(Basis(Vector3.UP, -PI * 0.5), point))
+	return poses
+
+
+func get_exterior_boarding_waypoints(from_position: Vector3 = Vector3.INF) -> Array[Transform3D]:
+	var points: Array[Vector3] = [
+		Vector3(-7.2, -1.02, PILOT_DOOR_ROUTE_Z),
+		Vector3(-6.65, -0.72, PILOT_DOOR_ROUTE_Z),
+		Vector3(-4.55, 0.97, PILOT_DOOR_ROUTE_Z),
+		Vector3(-4.25, 0.90, PILOT_DOOR_ROUTE_Z),
+		Vector3(-2.3, 0.90, PILOT_DOOR_ROUTE_Z)]
+	if from_position.is_finite():
+		var local := to_local(from_position)
+		# A player can interact halfway up these real stairs. Continue forward
+		# along the authored strip instead of sending them back through its deck.
+		if absf(local.z - PILOT_DOOR_ROUTE_Z) <= 0.70 and local.x > points[0].x and local.x < -0.78:
+			var route: Array[Vector3] = points.duplicate()
+			route.append(Vector3(-0.78, 0.78, PILOT_DOOR_ROUTE_Z))
+			for index in route.size() - 1:
+				if local.x < route[index].x or local.x > route[index + 1].x:
+					continue
+				var fraction := (local.x - route[index].x) / (route[index + 1].x - route[index].x)
+				var projected: Vector3 = route[index].lerp(route[index + 1], fraction)
+				# Ground below/alongside the staircase is not its standing route.
+				if local.y >= projected.y - 0.45:
+					projected.y = maxf(projected.y, local.y)
+					var remaining: Array[Vector3] = [projected]
+					for point in points:
+						if point.x > local.x + 0.01:
+							remaining.append(point)
+					return _pilot_access_poses(remaining)
+				break
+		# Approach from surrounding berth ground outside the stair footprint,
+		# then turn toward its foot. This avoids a diagonal through the treads.
+		if absf(local.z - PILOT_DOOR_ROUTE_Z) > 0.70 and local.x > -7.2:
+			points.push_front(Vector3(-7.2, local.y, local.z))
+	return _pilot_access_poses(points)
+
+
+func get_exterior_exit_waypoints() -> Array[Transform3D]:
+	return _pilot_access_poses([
+		Vector3(-0.78, 0.78, PILOT_DOOR_ROUTE_Z),
+		Vector3(-2.3, 0.90, PILOT_DOOR_ROUTE_Z),
+		Vector3(-4.25, 0.90, PILOT_DOOR_ROUTE_Z),
+		Vector3(-4.55, 0.97, PILOT_DOOR_ROUTE_Z),
+		Vector3(-6.65, -0.72, PILOT_DOOR_ROUTE_Z),
+		Vector3(-7.2, -1.02, PILOT_DOOR_ROUTE_Z)])
 
 
 func _build_exterior() -> void:
@@ -3423,7 +3650,8 @@ func _build_exterior() -> void:
 	# canopy around the chair. The passenger/cargo route stays connected.
 	var screen_tool := SurfaceTool.new()
 	screen_tool.begin(Mesh.PRIMITIVE_TRIANGLES)
-	screen_tool.set_material(_jovian_glass(Color(0.10, 0.19, 0.21, 0.58)))
+	var screen_material := _jovian_glass(Color(0.10, 0.19, 0.21, 0.58))
+	screen_tool.set_material(screen_material)
 	var roof_sections := PackedVector3Array(CABIN_ROOF_SECTIONS)
 	var front_edge := PackedVector3Array()
 	# Share every tessellation station with the crown's actual underside. A
@@ -3444,6 +3672,9 @@ func _build_exterior() -> void:
 	_curve_tube(_jovian_visual, "FlightDeckWindscreenCentrePost", PackedVector3Array([
 		Vector3(0.0, 0.94, -11.60), front_edge[ROOF_ACROSS_STEPS / 2]]), 0.045, _jovian_materials.structure)
 	var side_steps := _roof_span_steps(roof_sections, roof_sections[0].z, roof_sections[1].z)
+	var door_tool := SurfaceTool.new()
+	door_tool.begin(Mesh.PRIMITIVE_TRIANGLES)
+	door_tool.set_material(screen_material)
 	for side in [-1.0, 1.0]:
 		var front_bottom := Vector3(side * 2.25, 0.94, -11.60)
 		var rear_bottom := Vector3(side * 3.2, 0.60, -7.65)
@@ -3456,9 +3687,17 @@ func _build_exterior() -> void:
 			var lower_a := front_bottom.lerp(rear_bottom, float(step) / side_steps)
 			var lower_b := front_bottom.lerp(rear_bottom, float(step + 1) / side_steps)
 			if side < 0.0:
-				_skin_quad(screen_tool, lower_a, lower_b, upper_edge[step + 1], upper_edge[step])
+				# Clip the original triangles, preserving every fixed roof/glass
+				# station and its planar chord on both sides of the doorway seam.
+				for triangle: PackedVector3Array in [
+						PackedVector3Array([lower_a, upper_edge[step + 1], lower_b]),
+						PackedVector3Array([lower_a, upper_edge[step], upper_edge[step + 1]])]:
+					_append_pilot_glass_polygon(screen_tool, _clip_pilot_glass(triangle, false))
+					_append_pilot_glass_polygon(door_tool, _clip_pilot_glass(triangle, true))
 			else:
 				_skin_quad(screen_tool, lower_b, lower_a, upper_edge[step], upper_edge[step + 1])
+		if side < 0.0:
+			_build_pilot_door(door_tool.commit(), front_bottom, rear_bottom, upper_edge)
 		var quarter_perimeter := PackedVector3Array([front_bottom, rear_bottom])
 		upper_edge.reverse()
 		quarter_perimeter.append_array(upper_edge)
@@ -3470,6 +3709,7 @@ func _build_exterior() -> void:
 	screen.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	screen.mesh = screen_tool.commit()
 	_jovian_visual.add_child(screen)
+	_build_pilot_access_steps()
 	_pressed_roof(_jovian_visual, "FlightDeckWindscreenCowl", 2.25, 0.35, 0.10,
 		PackedVector3Array([Vector3(0.90, 0.0, -12.20), Vector3(1.0, 0.50, -11.60)]), 0.10, _jovian_materials.hull_cool)
 	# Sparse panel divisions follow the broad stamped crown, not a tiled image.
@@ -4007,7 +4247,8 @@ func _build_interior_route_and_markers() -> void:
 	# A short same-level bridge joins the passenger room to the flight deck.
 	_box(_walkable_interior, "CockpitConnectorDeck", Vector3(0.0, 0.5, -8.0), Vector3(2.75, 0.18, 1.45), _jovian_materials.deck)
 	for side in [-1.0, 1.0]:
-		_box(_walkable_interior, "CockpitConnectorRail", Vector3(side * 1.42, 1.75, -8.0), Vector3(0.12, 2.4, 1.42), _jovian_materials.structure)
+		# The port standing corridor enters ahead of the retained aft jamb.
+		_box(_walkable_interior, "CockpitConnectorRail", Vector3(side * 1.42, 1.75, -7.49 if side < 0.0 else -8.0), Vector3(0.12, 2.4, 0.40 if side < 0.0 else 1.42), _jovian_materials.structure)
 	var cockpit := _walkable_interior.get_node_or_null(^"CockpitInterior") as Node3D
 	if cockpit != null:
 		_box(cockpit, "CopilotSeatBase", Vector3(1.05, 1.18, -0.02), Vector3(0.78, 0.18, 0.82), _jovian_materials.cabin_cloth)
@@ -4343,11 +4584,11 @@ func _replace_collision_and_markers() -> void:
 		# only way onto it was the seat transition; it is load-bearing now that a
 		# crew member can walk on to it, because an unenclosed deck edge is a way
 		# out of a pressurised hull.
-		_add_box_collision(
-			("Port" if side < 0.0 else "Starboard") + "CockpitSidewallCollision",
-			Vector3(side * 1.66, 1.75, -8.75),
-			Vector3(0.22, 2.6, 3.4)
-		)
+		if side < 0.0:
+			_add_box_collision("PortCockpitSidewallCollision", Vector3(-1.66, 1.75, -9.90), Vector3(0.22, 2.6, 1.10))
+			_add_box_collision("PortCockpitAftJambCollision", Vector3(-1.66, 1.75, -7.38), Vector3(0.22, 2.6, 0.66))
+		else:
+			_add_box_collision("StarboardCockpitSidewallCollision", Vector3(1.66, 1.75, -8.75), Vector3(0.22, 2.6, 3.4))
 	_add_box_collision("CockpitForwardWallCollision", Vector3(0.0, 1.75, -10.46), Vector3(3.55, 2.6, 0.22))
 	# The inherited chair is part of this walkable cockpit, not a presentation
 	# seen only while seated. Its visible back crossed the old cabin standing pose
@@ -4413,14 +4654,15 @@ func _replace_collision_and_markers() -> void:
 		1.7
 	)
 
+	_build_pilot_access_collision()
 	var boarding := get_node_or_null("BoardingPoint") as Marker3D
 	var exit := get_node_or_null("ExitPoint") as Marker3D
 	var left_muzzle := get_node_or_null("LeftMuzzle") as Marker3D
 	var right_muzzle := get_node_or_null("RightMuzzle") as Marker3D
 	if boarding != null:
-		boarding.position = Vector3(-3.4, -0.52, -8.15)
+		boarding.position = Vector3(-7.2, -1.22, PILOT_DOOR_ROUTE_Z)
 	if exit != null:
-		exit.position = Vector3(-4.7, -1.05, -8.2)
+		exit.position = Vector3(-7.2, -1.22, PILOT_DOOR_ROUTE_Z)
 		exit.rotation.y = -PI * 0.5
 	if left_muzzle != null:
 		left_muzzle.position = Vector3(-5.15, 3.76, -6.95)
@@ -5758,7 +6000,11 @@ func _build_fitted_freighter_details() -> void:
 			for seam_y in [0.84, -0.86]:
 				_fitout_stock(exterior, "structure", at + Vector3(-side * 0.045, seam_y, 0), Vector3(0.024, 0.025, 2.42))
 		# A structural apron meets the pressure glazing instead of ending in air.
-		_fitout_stock(exterior, "structure", Vector3(side * 2.8, 0.77, -9.48), Vector3(0.15, 0.12, 3.9), Vector3(0, side * 0.22, 0))
+		if side < 0.0:
+			# Terminate the apron rail at the door's forward jamb.
+			_fitout_stock(exterior, "structure", Vector3(-2.63, 0.77, -10.24), Vector3(0.15, 0.12, 2.34), Vector3(0, -0.22, 0))
+		else:
+			_fitout_stock(exterior, "structure", Vector3(side * 2.8, 0.77, -9.48), Vector3(0.15, 0.12, 3.9), Vector3(0, side * 0.22, 0))
 	for side in [-1.0, 1.0]:
 		for tier in 2:
 			var engine_x: float = side * (5.05 + tier * 1.35)
