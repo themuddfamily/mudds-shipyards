@@ -43,7 +43,7 @@ const SENSOR_DAMAGE_ANCHOR_NAMES := {
 	&"WingSkirmisherVisual": &"RoleLamp",
 }
 
-## Four exact port/starboard box families in the base defender hull. These are
+## Four shared port/starboard hull families, including the formed fin and cap. These are
 ## childless presentation stock: authority lives on the craft root, its seven
 ## CollisionShape3D children, the muzzle markers and the state-driven lights.
 ## Each family retains two nodes/submissions and shares only its immutable mesh.
@@ -71,10 +71,11 @@ const SYMMETRIC_HULL_BOX_SPECS := [
 	},
 	{
 		"name": &"VaneTip",
-		"size": Vector3(0.3, 0.22, 1.15),
+		"size": Vector3(0.264, 0.23, 1.284),
 		"material_key": &"amber",
-		"positions": [Vector3(-3.73, 1.4, 1.7), Vector3(3.73, 1.4, 1.7)],
-		"rotations": [Vector3.ZERO, Vector3.ZERO],
+		# Fin root + its rotated local Vector3(0, 0.665, 0).
+		"positions": [Vector3(-3.7619441994, 1.3554138700, 1.9612318845), Vector3(3.7619441994, 1.3554138700, 1.9612318845)],
+		"rotations": [Vector3(0.0, 0.1, 0.17), Vector3(0.0, -0.1, -0.17)],
 	},
 ]
 const SYMMETRIC_HULL_BOX_BASELINE_NODES := 8
@@ -2124,7 +2125,10 @@ func _build_interceptor() -> void:
 	for spec in SYMMETRIC_HULL_BOX_SPECS:
 		var material := _materials.get(String(StringName(spec["material_key"]))) as Material
 		var family_name := StringName(spec["name"])
-		symmetric_box_meshes[family_name] = _make_box_mesh(spec["size"], material)
+		if family_name == &"OuterVane" or family_name == &"VaneTip":
+			symmetric_box_meshes[family_name] = _defender_vane_mesh(family_name == &"VaneTip", material)
+		else:
+			symmetric_box_meshes[family_name] = _make_box_mesh(spec["size"], material)
 	_weapon_telegraph_mesh = SphereMesh.new()
 	_weapon_telegraph_mesh.radius = WEAPON_TELEGRAPH_RADIUS
 	_weapon_telegraph_mesh.height = WEAPON_TELEGRAPH_RADIUS * 2.0
@@ -2263,6 +2267,42 @@ func _build_defender_canopy() -> void:
 		_emit_armour_triangle(surface, rings[-1][0], rings[-1][step], rings[-1][step + 1])
 	surface.generate_tangents()
 	_box_from_mesh(_visual_root, "AmberCanopy", origin, surface.commit())
+
+
+## Swept fin sections share a rolled thickness profile. The amber cap follows
+## the same leading/trailing sweep, overlapping the upper shell like a fitted
+## edge guard. Its local origin is lifted to its own mounting node; both sides
+## retain positive-scale shared meshes and the original fin root transforms.
+func _defender_vane_mesh(tip: bool, material: Material) -> ArrayMesh:
+	var sections: Array = [
+		Vector4(-0.75, 0.95, 0.07, 0), Vector4(-0.62, 1.25, 0.13, 0),
+		Vector4(-0.3, 1.12, 0.13, 0), Vector4(0.3, 0.78, 0.12, 0),
+		Vector4(0.55, 0.63, 0.115, 0), Vector4(0.75, 0.525, 0.095, 0),
+	]
+	if tip:
+		sections = [
+			Vector4(0.55, 0.642, 0.122, 0), Vector4(0.58, 0.625, 0.132, 0),
+			Vector4(0.74, 0.541, 0.11, 0), Vector4(0.78, 0.52, 0.09, 0),
+		]
+	var arrays := _pressure_mesh(sections, material).surface_get_arrays(0)
+	var vertices: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
+	var normals: PackedVector3Array = arrays[Mesh.ARRAY_NORMAL]
+	for index in vertices.size():
+		var point := vertices[index]
+		vertices[index] = Vector3(point.y, point.z - (0.665 if tip else 0.0), point.x + 0.12 * (point.z + 0.75))
+		var normal := normals[index]
+		normals[index] = Vector3(normal.y, normal.z - 0.12 * normal.x, normal.x).normalized()
+	arrays[Mesh.ARRAY_VERTEX] = vertices
+	arrays[Mesh.ARRAY_NORMAL] = normals
+	# The axis permutation is a proper rotation; winding remains outward.
+	arrays[Mesh.ARRAY_TANGENT] = null
+	var formed := ArrayMesh.new()
+	formed.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
+	var surface := SurfaceTool.new()
+	surface.create_from(formed, 0)
+	surface.set_material(material)
+	surface.generate_tangents()
+	return surface.commit()
 
 
 func _add_shared_forward_prong(
@@ -2905,11 +2945,19 @@ func _build_range_fittings() -> void:
 				Vector4(-0.79, 0.10, 0.025, 0.458), Vector4(-0.65, 0.165, 0.033, 0.469),
 				Vector4(0.65, 0.165, 0.033, 0.469), Vector4(0.79, 0.10, 0.025, 0.458),
 			]])
-		# Flank-mounted vane access cover, hinges and root load spreader.
-		parts.append([Vector3(side*3.8,0.74,1.98),Vector3(0.065,0.85,1.78),1,Vector3(0,side*-0.1,side*-0.17)])
-		parts.append([Vector3(side*3.85,0.76,1.98),Vector3(0.035,0.62,1.48),2,Vector3(0,side*-0.1,side*-0.17)])
-		for z in [1.43,2.48]:
-			parts.append([Vector3(side*3.88,0.78,z),Vector3(0.07,0.36,0.09),0])
+		# The access lid sits inside the tapered fin's broad lower mounting flat.
+		# Evaluate every fitting in the fin frame so the narrowed upper chord
+		# cannot leave the old rectangular cover hanging beyond its leading edge.
+		var vane_rotation := Vector3(0, side * -0.1, side * -0.17)
+		var vane_basis := Basis.from_euler(vane_rotation)
+		var vane_root := Vector3(side * 3.65, 0.7, 1.95)
+		parts.append([vane_root + vane_basis * Vector3(side * 0.127, -0.15, 0.08),
+			Vector3(0.025, 0.5, 1.1), 1, vane_rotation])
+		parts.append([vane_root + vane_basis * Vector3(side * 0.145, -0.15, 0.08),
+			Vector3(0.018, 0.425, 1.02), 2, vane_rotation])
+		for local_z in [-0.33, 0.49]:
+			parts.append([vane_root + vane_basis * Vector3(side * 0.161, -0.15, local_z),
+				Vector3(0.027, 0.2, 0.055), 0, vane_rotation])
 		parts.append([Vector3(side*3.51,0.22,2.42),Vector3(0.64,0.35,1.2),1])
 	# Aft pressure bulkhead with recessed heat-exchanger slots.
 	parts.append([Vector3(0,0.1,3.63),Vector3(1.42,0.62,0.07),2])

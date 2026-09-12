@@ -505,13 +505,52 @@ func _test_symmetric_hull_box_allocation(opponent: RangeOpponent) -> void:
 	_check(visual != null and outer_vanes.size() == 2, "both OuterVane copies remain under the defender visual root")
 	if visual == null or outer_vanes.size() != 2:
 		return
-	var shared_mesh := outer_vanes[0].mesh as BoxMesh
+	var shared_mesh := outer_vanes[0].mesh as ArrayMesh
 	_check(
 		outer_vanes[1].mesh == shared_mesh,
 		"the two retained OuterVane nodes share one exact mesh"
 	)
 
-	shared_mesh.size = Vector3(0.27, 1.5, 2.5)
+	# The upper chord must visibly narrow and sweep aft, while both amber
+	# guards use the actual fin frame instead of the old detached block pose.
+	var vertices: PackedVector3Array = shared_mesh.surface_get_arrays(0)[Mesh.ARRAY_VERTEX]
+	var root_front := INF
+	var tip_front := INF
+	var tip_rear := -INF
+	for vertex in vertices:
+		if vertex.y < -0.5:
+			root_front = minf(root_front, vertex.z)
+		if vertex.y > 0.5:
+			tip_front = minf(tip_front, vertex.z)
+			tip_rear = maxf(tip_rear, vertex.z)
+	_check(tip_front > root_front + 0.65 and tip_rear - tip_front < 1.35,
+		"defender fins have a substantially swept, narrowed upper chord")
+	var cap_meshes: Array[Mesh] = []
+	for vane in outer_vanes:
+		for child in visual.get_children():
+			var cap := child as MeshInstance3D
+			if cap == null or cap.position.y < 1.3 or cap.position.x * vane.position.x <= 0.0 or absf(cap.position.x) < 3.5:
+				continue
+			cap_meshes.append(cap.mesh)
+			var cap_in_fin := vane.transform.affine_inverse() * cap.transform
+			_check(cap_in_fin.basis.is_equal_approx(Basis.IDENTITY)
+				and cap_in_fin.origin.is_equal_approx(Vector3(0, 0.665, 0)),
+				"amber guard follows its fin frame on both sides")
+			var cap_vertices: PackedVector3Array = cap.mesh.surface_get_arrays(0)[Mesh.ARRAY_VERTEX]
+			var bottom := INF
+			var cap_half_width := 0.0
+			for vertex in cap_vertices:
+				var local := cap_in_fin * vertex
+				bottom = minf(bottom, local.y)
+				if is_equal_approx(local.y, 0.55):
+					cap_half_width = maxf(cap_half_width, absf(local.x))
+			_check(is_equal_approx(bottom, 0.55) and is_equal_approx(cap_half_width, 0.122),
+				"amber guard overlaps the fin crown with a 7 mm retaining lip")
+	_check(cap_meshes.size() == 2 and cap_meshes[0] == cap_meshes[1],
+		"both fitted amber guards retain one shared mesh")
+
+	var original_material := shared_mesh.surface_get_material(0)
+	shared_mesh.surface_set_material(0, null)
 	var recipe_mutation := opponent.get_symmetric_hull_box_allocation_audit()
 	_check(
 		not bool(recipe_mutation.get("valid", true))
@@ -519,12 +558,10 @@ func _test_symmetric_hull_box_allocation(opponent: RangeOpponent) -> void:
 			recipe_mutation,
 			"symmetric_hull_box_mesh_recipe_drift:OuterVane"
 		)
-		and (outer_vanes[1].mesh as BoxMesh).size.is_equal_approx(
-			Vector3(0.27, 1.5, 2.5)
-		),
+		and (outer_vanes[1].mesh as ArrayMesh).surface_get_material(0) == null,
 		"shared mesh mutation reaches both copies and turns the recipe audit red"
 	)
-	shared_mesh.size = Vector3(0.26, 1.5, 2.5)
+	shared_mesh.surface_set_material(0, original_material)
 
 	var second_vane := outer_vanes[1]
 	var original_second_mesh := second_vane.mesh
