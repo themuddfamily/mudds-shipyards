@@ -1639,20 +1639,29 @@ func _build_interceptor() -> void:
 	_box_from_mesh(_visual_root, "LanceCollar", Vector3(0, -0.06, 0),
 		_picket_primary_hull_mesh(0, 3, Vector3(0, -0.06, 0), _materials.picket_deep))
 	_add_lance_rail_batch(_visual_root)
-	# The open, bevelled muzzle has a real bore around the retained emitter.
-	# Its forward lip stops behind the lens and the authoritative muzzle marker.
+	# The thermal sleeve ends in a stepped, bevelled lip around a recessed
+	# optic. The annular face has real wall thickness and stops behind the
+	# authoritative muzzle marker; the charge can still bloom through the bore.
 	_box_from_mesh(_visual_root, "LanceMuzzleRing", Vector3(0, -0.06, 0),
 		_lance_turned_mesh([
 			PackedVector2Array([Vector2(-7.72, 0.29), Vector2(-7.92, 0.39),
-				Vector2(-8.34, 0.39), Vector2(-8.46, 0.34), Vector2(-8.46, 0.235),
-				Vector2(-8.35, 0.205), Vector2(-7.72, 0.205)]),
+				Vector2(-8.23, 0.39), Vector2(-8.28, 0.37), Vector2(-8.36, 0.37),
+				Vector2(-8.41, 0.39), Vector2(-8.54, 0.39), Vector2(-8.70, 0.335),
+				Vector2(-8.73, 0.31), Vector2(-8.73, 0.255),
+				Vector2(-8.67, 0.225), Vector2(-8.35, 0.205), Vector2(-7.72, 0.205)]),
 		], _materials.picket_deep))
 	_lance_emitter = _cylinder(
 		_visual_root, "LanceEmitter", Vector3(0.0, -0.06, -8.4), 0.17, 0.4,
 		_materials.picket_violet_emissive, Vector3(90.0, 0.0, 0.0)
 	)
 	_warning_lenses.append(_lance_emitter)
-	_lance_lens = _sphere(_visual_root, "LanceChargeLens", Vector3(0.0, -0.06, -8.62), 0.22, _materials.picket_magenta_emissive)
+	# A shallow domed optic replaces the exposed spherical bulb. Its retained
+	# centre, radius, emission and inherited charge scaling stay unchanged.
+	_lance_lens = _box_from_mesh(_visual_root, "LanceChargeLens", Vector3(0.0, -0.06, -8.62),
+		_lance_turned_mesh([
+			PackedVector2Array([Vector2(0.05, 0), Vector2(0.04, 0.16),
+				Vector2(0, 0.22), Vector2(-0.025, 0.21), Vector2(-0.055, 0)]),
+		], _materials.picket_magenta_emissive))
 	_warning_lenses.append(_lance_lens)
 	var spine_lens := _sphere(_visual_root, "LanceSpineLens", Vector3(0.0, 0.34, -3.4), 0.15, _materials.picket_magenta_emissive)
 	_warning_lenses.append(spine_lens)

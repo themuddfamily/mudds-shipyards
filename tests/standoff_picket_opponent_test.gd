@@ -1780,6 +1780,41 @@ func _check_lance_construction(picket: StandoffPicketOpponent, visual: Node3D) -
 		and picket._muzzle_port.position.is_equal_approx(Vector3(0, -0.06, -8.75)),
 		"receiver and open muzzle retain charge animation owners and the authoritative firing anchor")
 
+	var housing := visual.get_node("LanceMuzzleRing") as MeshInstance3D
+	var lip_z := housing.position.z + housing.mesh.get_aabb().position.z
+	var optic_front := lens.position.z + lens.mesh.get_aabb().position.z
+	var optic_back := lens.position.z + lens.mesh.get_aabb().end.z
+	_check(optic_front > lip_z + 0.04 and optic_back < -8.5
+		and lip_z > picket._muzzle_port.position.z
+		and lens.mesh.surface_get_material(0) == picket._materials.picket_magenta_emissive,
+		"idle optic is recessed behind a structural lip without moving the firing anchor or changing emission")
+	# The bore check above rejects a closed cap. A ray through the surrounding
+	# annulus must hit a real front face, protecting visible muzzle wall thickness.
+	var lip_hit := false
+	var housing_faces := housing.mesh.get_faces()
+	for index in range(0, housing_faces.size(), 3):
+		var hit: Variant = Geometry3D.ray_intersects_triangle(Vector3(0.28, 0, -9), Vector3.BACK,
+			housing_faces[index], housing_faces[index + 1], housing_faces[index + 2])
+		lip_hit = lip_hit or (hit != null and absf(hit.z - lip_z) < 0.001)
+	_check(lip_hit, "muzzle annulus has a forward wall around its open bore")
+	# Exercise the existing presentation clock, then restore the dormant fixture.
+	# A recessed idle optic must not suppress the long-cadence warning emitter.
+	picket._active = true
+	picket._telegraph_remaining = 0.0
+	picket._update_presentation(0.0)
+	var idle_scale := lens.scale.x
+	picket._telegraph_remaining = picket.telegraph_time * 0.2
+	picket._update_presentation(0.0)
+	var emitter_front := (emitter.transform * emitter.mesh.get_aabb()).position.z
+	_check(lens.visible and emitter.visible and witness.visible
+		and lens.scale.x > idle_scale * 2.0 and emitter_front < picket._muzzle_port.position.z
+		and emitter.scale.is_equal_approx(Vector3.ONE * (lens.scale.x / StandoffPicketOpponent.LANCE_LENS_CHARGE_SCALE.x)
+			* StandoffPicketOpponent.LANCE_EMITTER_CHARGE_SCALE),
+		"charge retains the inherited warning expansion and projects the bright emitter beyond the finished housing")
+	picket._active = false
+	picket._telegraph_remaining = 0.0
+	picket._update_presentation(0.0)
+
 
 func _mesh_at_local_position(parent: Node3D, position_value: Vector3) -> MeshInstance3D:
 	if parent == null:
