@@ -6402,6 +6402,22 @@ func _fit_shared_instrument_housing(cluster: Node3D) -> void:
 	caution.scale.x = 0.56
 
 
+## Fit the complete physical module below the original hood crown sightline.
+## Its smaller envelope keeps the engine row visible and clears the narrowing
+## glazing. Forward console shoulders support it; eye, seat and controls stay put.
+func _fit_pilot_instrument_mount(cockpit: Node3D) -> void:
+	var cluster := cockpit.get_node("InstrumentCluster") as Node3D
+	cluster.scale = Vector3.ONE * 0.75
+	cluster.position.y = 2.846
+	for side_name in ["Port", "Starboard"]:
+		var console := cockpit.get_node(side_name + "SideConsole") as MeshInstance3D
+		console.mesh = _cockpit_formed_enclosure_mesh([
+			Vector4(0.62, -0.25, 0.53, -1.04),
+			Vector4(0.46, -0.25, 0.16, -0.64),
+			Vector4(0.40, -0.25, 0.16, 0.72),
+		], _materials.structure)
+
+
 func _shared_display_rail_mesh(length: float, vertical: bool, material: Material) -> ArrayMesh:
 	# Broad matte returns meet without clipped bar-end holes. Only the 8 mm
 	# inner land exposes satin metal; it seats the screen beneath a short lip.

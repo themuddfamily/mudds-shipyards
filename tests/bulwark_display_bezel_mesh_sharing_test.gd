@@ -1,6 +1,6 @@
 extends SceneTree
 
-const ArrowShipType := preload("res://scripts/ships/arrow_recon_ship.gd")
+const ARROW := preload("res://scenes/ships/arrow_recon_ship.tscn")
 const JOVIAN := preload("res://scenes/ships/jovian_light_freighter.tscn")
 const CARGO := preload("res://scripts/ships/cinder_cargo_hauler.gd")
 const Ship := preload("res://scripts/ships/bulwark_heavy_gunship.gd")
@@ -72,13 +72,17 @@ func _run() -> void:
 	)
 
 	_test_fitted_housing(ship, cluster)
+	await _test_pilot_readout_framing(ship)
 	ship.queue_free()
 	await process_frame
-	for other: HeroShip in [JOVIAN.instantiate(), CARGO.new()]:
+	for other: HeroShip in [ARROW.instantiate(), JOVIAN.instantiate(), CARGO.new()]:
 		root.add_child(other)
 		await process_frame
 		other.set_physics_process(false)
-		_test_fitted_housing(other, other.find_child("InstrumentCluster", true, false))
+		if not other is ArrowReconShip:
+			_test_fitted_housing(other, other.find_child("InstrumentCluster", true, false))
+		if other is ArrowReconShip or other is JovianLightFreighter:
+			await _test_pilot_readout_framing(other)
 		other.queue_free()
 		await process_frame
 	if _failures.is_empty():
@@ -136,3 +140,61 @@ func _test_fitted_housing(ship: HeroShip, cluster: Node3D) -> void:
 						clear_dials = clear_dials and Geometry3D.segment_intersects_triangle(stock.to_local(camera.global_position), stock.to_local(target), a, b, c) == null
 	_check(geometry_valid, "instrument stock retains outward winding, finite unit normals and nonsingular UVs")
 	_check(clear_dials, "both complete dial sweeps clear the new mounting geometry from the authored pilot eye")
+
+
+# Use each real scene's authored pilot eye and the production default FOV.
+# The expanded 21:9 projection is supplemental: the shipped stretch settings
+# can retain a 16:9 viewport inside an ultrawide window.
+# Checking the complete live text bounds catches a lower row falling offscreen
+# even when all instrument geometry and controller identities are still valid.
+func _test_pilot_readout_framing(ship: HeroShip) -> void:
+	var camera := ship.get("_cockpit_camera") as Camera3D
+	var original_fov := camera.fov
+	var original_size := root.size
+	var original_scale_size := root.content_scale_size
+	camera.fov = preload("res://scripts/settings/runtime_settings.gd").DEFAULT_CAMERA_FOV
+	var readout := ship.get("_cockpit_readout") as Label3D
+	var original_text := readout.text
+	var original_engine: String = ship.get("_engine_state")
+	var original_physics := ship.is_physics_processing()
+	ship.set_physics_process(false)
+	var live := readout.get_node("LiveFlightInstruments")
+	live.update_readings(237.0, -0.43, 0.21)
+	var labels := [readout, live.get_node("SpeedReadout"),
+		live.get_node("LiveStatusRepeaters/ThrottleReadout"),
+		live.get_node("LiveStatusRepeaters/HullReadout")]
+	for viewport_size in [Vector2i(1280, 720), Vector2i(1680, 720)]:
+		root.content_scale_size = viewport_size
+		root.size = viewport_size
+		# Exercise the real presentation producer, including the longer STARTING
+		# header and three-line overheat/recovery descriptor.
+		for engine_state in [HeroShip.ENGINE_OFFLINE, HeroShip.ENGINE_STARTING, HeroShip.ENGINE_ONLINE]:
+			ship.set("_engine_state", engine_state)
+			ship.set("_weapon_overheated", engine_state == HeroShip.ENGINE_ONLINE)
+			ship.set("_weapon_overheat_remaining", HeroShip.WEAPON_OVERHEAT_DURATION)
+			ship.call("_update_presentation", 0.0, ShipCommand.new())
+			live.update_readings(237.0, -0.43, 0.21)
+			await process_frame
+			var safe_frame := Rect2(Vector2(8, 8), Vector2(viewport_size) - Vector2(16, 16))
+			for label: Label3D in labels:
+				var bounds := label.get_aabb()
+				var fully_visible := bounds.size.x > 0.0 and bounds.size.y > 0.0
+				var min_y := INF
+				var max_y := -INF
+				for corner in 8:
+					var point := label.to_global(bounds.get_endpoint(corner))
+					var screen := camera.unproject_position(point)
+					fully_visible = fully_visible and not camera.is_position_behind(point) and safe_frame.has_point(screen)
+					min_y = minf(min_y, screen.y)
+					max_y = maxf(max_y, screen.y)
+				_check(fully_visible, "%s %s fits production pilot view at %s" % [ship.name + " " + str(engine_state), label.name, viewport_size])
+				_check((max_y - min_y) / label.text.get_slice_count("\n") >= 16.0,
+					"%s %s retains readable line height at %s" % [ship.name + " " + str(engine_state), label.name, viewport_size])
+	ship.set("_engine_state", original_engine)
+	ship.set("_weapon_overheated", false)
+	ship.set("_weapon_overheat_remaining", 0.0)
+	ship.set_physics_process(original_physics)
+	readout.text = original_text
+	camera.fov = original_fov
+	root.size = original_size
+	root.content_scale_size = original_scale_size

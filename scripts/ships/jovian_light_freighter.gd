@@ -3287,6 +3287,9 @@ func _relocate_and_restyle_cockpit(
 	if cockpit != null:
 		cockpit.position += COCKPIT_SHIFT
 		cockpit.set_meta("space_id", &"pilot_cockpit")
+		# Fit the complete module beneath its original crown so every live row
+		# fits the authored pilot eye, including the lower engine status.
+		_fit_pilot_instrument_mount(cockpit)
 		var rear_wall := cockpit.get_node_or_null("RearPressureWall") as MeshInstance3D
 		if rear_wall != null:
 			# The freighter connects this former fighter rear bulkhead to a real

@@ -1669,6 +1669,9 @@ func _restyle_inherited_cockpit(cockpit: Node3D, canopy: Node3D) -> void:
 ## replacement construction on the inherited renderers, not another HUD.
 func _fit_arrow_instrument_binnacle(cockpit: Node3D) -> void:
 	var cluster := cockpit.get_node("InstrumentCluster") as Node3D
+	# Fit the complete physical module so its engine row clears the
+	# lower pilot-view edge with readable type and the original crown sightline.
+	_fit_pilot_instrument_mount(cockpit)
 	var hood := cluster.get_node("InstrumentHood") as MeshInstance3D
 	hood.mesh = _cockpit_formed_enclosure_mesh([
 		Vector4(1.20, -0.53, 0.06, -0.53),

@@ -338,6 +338,10 @@ func _build_bulwark_variant(_controller: HeroShip) -> bool:
 		hinge_bar.reparent(_bulwark_visual, true)
 	for mount in hinge_mounts:
 		(mount as Node3D).reparent(_bulwark_visual, true)
+	# Keep the complete flight module inside the authored pilot view, with its
+	# housing and depth-tested readouts fitted together beneath the glazing.
+	if cockpit != null:
+		_fit_pilot_instrument_mount(cockpit)
 	_share_cockpit_console_key_meshes(cockpit)
 	_share_cockpit_display_bezel_meshes(cockpit)
 
