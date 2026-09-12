@@ -15,6 +15,8 @@ func _initialize() -> void:
 	await process_frame
 	_test_recessed_exhaust(craft)
 	_test_cockpit_fairing(craft)
+	_test_pressure_endcaps(craft)
+	var endcap_stock: Mesh = craft.get_node("CinderCargoVisual/ForwardPressureCap").mesh
 	var fairing_stock: Mesh = craft.get_node("CinderCargoVisual/CockpitPressureTransition").mesh
 	var original_renderer_count := _visual_renderer_count(craft)
 	var original_copy_count := _authored_visual_copy_count(craft)
@@ -262,6 +264,8 @@ func _initialize() -> void:
 	var rebuilt_seat_backs := rebuilt.get_node_or_null(
 		^"WalkableInterior/LoadmasterCabin/CrewSeatBackBatch"
 	) as MultiMeshInstance3D
+	_check(rebuilt.get_node("CinderCargoVisual/ForwardPressureCap").mesh == endcap_stock,
+		"formed cargo endcaps reuse immutable stock after craft replacement")
 	_check(rebuilt.get_node("CinderCargoVisual/CockpitPressureTransition").mesh == fairing_stock,
 		"rebuilt cargo cockpit reuses its immutable formed fairing stock")
 	var rebuilt_consoles := rebuilt.get_node_or_null(
@@ -482,3 +486,56 @@ func _check_service_cassettes(craft: Node3D) -> void:
 			closed = closed and count == 2
 	_check(valid, "cassette stocks have nondegenerate geometry/UVs and finite orthonormal tangent frames")
 	_check(closed, "frames and curved vanes form closed welded solids without missing ends")
+
+
+func _test_pressure_endcaps(craft: HeroShip) -> void:
+	var fore := craft.get_node("CinderCargoVisual/ForwardPressureCap") as MeshInstance3D
+	var aft := craft.get_node("CinderCargoVisual/AftPressureCap") as MeshInstance3D
+	var bounds := fore.mesh.get_aabb()
+	_check(fore.mesh == aft.mesh and fore.mesh.get_surface_count() == 1
+		and bounds.position.is_equal_approx(Vector3(-2.25, -0.08, -1.175))
+		and bounds.size.is_equal_approx(Vector3(4.50, 0.16, 2.35))
+		and fore.position == Vector3(0, 0, -6.03) and aft.position == Vector3(0, 0, 6.03)
+		and is_equal_approx(fore.rotation.x, -PI * 0.5) and is_equal_approx(aft.rotation.x, PI * 0.5),
+		"both formed endcaps share one surface and retain exact plate bounds and hardware transforms")
+	var arrays := fore.mesh.surface_get_arrays(0)
+	var vertices: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
+	var normals: PackedVector3Array = arrays[Mesh.ARRAY_NORMAL]
+	var indices: PackedInt32Array = arrays[Mesh.ARRAY_INDEX]
+	var uvs: PackedVector2Array = arrays[Mesh.ARRAY_TEX_UV]
+	var tangents: PackedFloat32Array = arrays[Mesh.ARRAY_TANGENT]
+	var shoulder_heights := {}
+	var valid := indices.size() / 3 <= 320 and tangents.size() == vertices.size() * 4
+	var rounded_corners := true
+	for i in vertices.size():
+		var point := vertices[i]
+		var tangent := Vector3(tangents[i * 4], tangents[i * 4 + 1], tangents[i * 4 + 2])
+		valid = valid and tangent.is_finite() and absf(tangent.length() - 1.0) < 0.001
+		valid = valid and absf(normals[i].dot(tangent)) < 0.001
+		valid = valid and normals[i].is_finite() and is_equal_approx(normals[i].length(), 1.0)
+		valid = valid and absf(point.x) <= 2.125 - 1.5625 * point.y + 0.00001
+		if point.y > -0.079 and point.y < 0.079 and point.z > 1.0:
+			shoulder_heights[snappedf(point.y, 0.001)] = true
+		if absf(point.x) > 2.20:
+			rounded_corners = rounded_corners and absf(point.z) < 1.05
+	var edges := {}
+	for triangle in range(0, indices.size(), 3):
+		var a := indices[triangle]
+		var b := indices[triangle + 1]
+		var c := indices[triangle + 2]
+		var outward := (vertices[c] - vertices[a]).cross(vertices[b] - vertices[a])
+		valid = valid and outward.length_squared() > 1e-12
+		valid = valid and outward.dot(normals[a] + normals[b] + normals[c]) > 0.0
+		valid = valid and absf((uvs[b] - uvs[a]).cross(uvs[c] - uvs[a])) > 1e-10
+		for pair in [[a, b], [b, c], [c, a]]:
+			var keys := [str(vertices[pair[0]].snapped(Vector3.ONE * 0.00001)), str(vertices[pair[1]].snapped(Vector3.ONE * 0.00001))]
+			keys.sort()
+			var key: String = keys[0] + ":" + keys[1]
+			edges[key] = int(edges.get(key, 0)) + 1
+	var closed := true
+	for count in edges.values():
+		closed = closed and count == 2
+	_check(shoulder_heights.size() >= 3 and rounded_corners,
+		"cargo caps have a broad three-stage rolled return and rounded silhouette corners")
+	_check(valid and closed,
+		"formed caps are closed outward-wound solids with finite normals, usable UVs and bounded triangle cost")

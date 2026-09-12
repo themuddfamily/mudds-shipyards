@@ -76,6 +76,7 @@ static var _shared_freight_load_frame: ArrayMesh
 static var _shared_frame_rib_mesh: ArrayMesh
 static var _shared_engine_mounts: ArrayMesh
 static var _shared_cockpit_fairing: ArrayMesh
+static var _shared_pressure_endcap: ArrayMesh
 
 
 class CinderLoadmasterInteraction:
@@ -1181,9 +1182,9 @@ func _build_freight_pressure_fairings(visual: Node3D) -> void:
 	for z in [-3.6, 3.7]:
 		_deck_plate(visual, "RoofService" + str(z), Vector3(0, 1.638, z), 3.45, 0.68, _shared_hull_material, dark)
 
-	var fore := _pressure_panel(visual, "ForwardPressureCap", Vector3(0, 0, -6.03), 4.0, 4.50, 0.16, 2.35, _shared_hull_material)
+	var fore := _formed_pressure_endcap(visual, "ForwardPressureCap", Vector3(0, 0, -6.03))
 	fore.rotation.x = -PI * 0.5
-	var aft := _pressure_panel(visual, "AftPressureCap", Vector3(0, 0, 6.03), 4.0, 4.50, 0.16, 2.35, _shared_hull_material)
+	var aft := _formed_pressure_endcap(visual, "AftPressureCap", Vector3(0, 0, 6.03))
 	aft.rotation.x = PI * 0.5
 	for side in [-1.0, 1.0]:
 		var tag := "Port" if side < 0 else "Starboard"
@@ -2445,6 +2446,62 @@ func _armor_shell(parent: Node3D, node_name: String, at: Vector3, size: Vector3,
 
 func _service_bay(parent: Node3D, tag: String, at: Vector3, width: float, length: float, frame: Material, dark: Material, metal: Material) -> void:
 	preload("res://scripts/ships/ship_service_cassette.gd").install(parent, tag, at, width, length, frame, dark, metal)
+
+
+## A pressed cover has a broad rolled perimeter around the flat service face.
+## The return stays inside the old tapered plate, including its exact bounds;
+## rounded corners remove the slab silhouette without moving fitted hardware.
+func _formed_pressure_endcap(parent: Node3D, label: String, at: Vector3) -> MeshInstance3D:
+	if _shared_pressure_endcap == null:
+		var surface := SurfaceTool.new()
+		surface.begin(Mesh.PRIMITIVE_TRIANGLES)
+		surface.set_material(_shared_hull_material)
+		var rings: Array[PackedVector3Array] = []
+		# Half-width, outward face depth, half-height. A shallow elliptical
+		# shoulder eases from the face to the full rear seating footprint.
+		for profile: Vector3 in [Vector3(1.96, 0.08, 0.955), Vector3(2.014, 0.064, 1.039),
+			Vector3(2.08, 0.025, 1.111), Vector3(2.164, -0.025, 1.158),
+			Vector3(2.25, -0.08, 1.175)]:
+			var ring := PackedVector3Array()
+			var radius := 0.30
+			for corner in 4:
+				var center := Vector2(profile.x - radius, profile.z - radius)
+				if corner == 1 or corner == 2:
+					center.x *= -1.0
+				if corner >= 2:
+					center.y *= -1.0
+				for step in 7:
+					var angle := (float(corner) + float(step) / 6.0) * PI * 0.5
+					var point := center + Vector2(cos(angle), sin(angle)) * radius
+					ring.append(Vector3(point.x, profile.y, point.y))
+			rings.append(ring)
+		for band in rings.size() - 1:
+			for edge in rings[band].size():
+				var next := (edge + 1) % rings[band].size()
+				for point: Vector3 in [rings[band][edge], rings[band + 1][edge], rings[band][next],
+					rings[band][next], rings[band + 1][edge], rings[band + 1][next]]:
+					surface.set_smooth_group(0)
+					surface.set_uv(Vector2(point.x, point.z) * 0.25 + Vector2.ONE * 0.5)
+					surface.add_vertex(point)
+		for cap in [0, rings.size() - 1]:
+			for edge in rings[cap].size():
+				var next := (edge + 1) % rings[cap].size()
+				var order := [edge, next] if cap == 0 else [next, edge]
+				for point: Vector3 in [Vector3(0, rings[cap][0].y, 0), rings[cap][order[0]], rings[cap][order[1]]]:
+					surface.set_smooth_group(0 if cap == 0 else 1)
+					surface.set_uv(Vector2(point.x, point.z) * 0.25 + Vector2.ONE * 0.5)
+					surface.add_vertex(point)
+		surface.generate_normals()
+		surface.generate_tangents()
+		surface.index()
+		_shared_pressure_endcap = surface.commit()
+		_shared_pressure_endcap.resource_local_to_scene = false
+	var instance := MeshInstance3D.new()
+	instance.name = label
+	instance.position = at
+	instance.mesh = _shared_pressure_endcap
+	parent.add_child(instance)
+	return instance
 
 
 func _pressure_panel(parent: Node3D, label: String, at: Vector3, top: float, bottom: float, height: float, depth: float, material: Material) -> MeshInstance3D:
