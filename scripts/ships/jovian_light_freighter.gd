@@ -12,7 +12,6 @@ extends HeroShip
 ## The cargo deck, passenger cabin, cockpit, and exterior ramp are one physical
 ## ship-local hierarchy; no detached or teleported interior is involved.
 
-const FittedCanopy := preload("res://scripts/ships/cinder_fitted_canopy.gd")
 const FitoutSurfaceData := preload("res://scripts/rendering/construction_surface_data.gd")
 
 const SCHEMA_VERSION := 1
@@ -3302,11 +3301,15 @@ func _relocate_and_restyle_cockpit(
 			(surface as MeshInstance3D).material_override = _jovian_materials.amber
 		# Keep the shared flight display and its bezel as dark instrument faces.
 		# Only individual console keys receive the freighter emissive accent.
+		for striker in cockpit.find_children("*CanopyLatchStriker", "MeshInstance3D", true, false):
+			(striker as MeshInstance3D).hide()
 		for key in cockpit.find_children("*ConsoleKey*", "MeshInstance3D", true, false):
 			(key as MeshInstance3D).material_override = _jovian_materials.display
 	if canopy != null:
 		canopy.position += COCKPIT_SHIFT
-		_fit_jovian_canopy(canopy)
+		# The freighter has its own full-width pressure windscreen. Retain the
+		# common pivot for boarding completion, but retire the nested fighter lid.
+		canopy.hide()
 		for glass in canopy.find_children("CanopyGlass", "MeshInstance3D", true, false):
 			(glass as MeshInstance3D).material_override = _jovian_materials.glass
 		for frame in canopy.find_children("*Canopy*Frame", "MeshInstance3D", true, false):
@@ -3316,22 +3319,13 @@ func _relocate_and_restyle_cockpit(
 	if hinge_bar != null:
 		hinge_bar.position += COCKPIT_SHIFT
 		(hinge_bar as MeshInstance3D).material_override = _jovian_materials.structure
+		hinge_bar.hide()
 	for mount in hinge_mounts:
 		var mount_3d := mount as Node3D
 		mount_3d.position += COCKPIT_SHIFT
+		mount_3d.hide()
 		if mount_3d is MeshInstance3D:
 			(mount_3d as MeshInstance3D).material_override = _jovian_materials.amber
-
-
-## The forward glazing uses the common fitted sill profile, but this flight
-## deck opens into a passenger cabin. Its aft arch must remain an open portal:
-## the hidden former pressure wall cannot carry a new glass cap or cross-sill.
-func _fit_jovian_canopy(canopy: Node3D) -> void:
-	FittedCanopy.install(canopy, _canopy_frame_mesh, false)
-	# The two half bows already form the supported rear arch. Retire only
-	# the redundant transverse stock that would otherwise bisect its opening.
-	canopy.get_node("CanopyRearFrame").hide()
-	canopy.get_node("CanopyRearPressureSeal").hide()
 
 
 func _build_exterior() -> void:
@@ -3424,8 +3418,8 @@ func _build_exterior() -> void:
 	for side in [-1.0, 1.0]:
 		_flight_deck_transition(side)
 	# A full-width raked pressure windscreen belongs to the freighter hull.
-	# The common functional seat/canopy stays inside this volume; boarding and
-	# flight-deck access still use the connected passenger/cargo route.
+	# The pilot station sits inside this enclosure, without a second fighter
+	# canopy around the chair. The passenger/cargo route stays connected.
 	var screen_tool := SurfaceTool.new()
 	screen_tool.begin(Mesh.PRIMITIVE_TRIANGLES)
 	screen_tool.set_material(_jovian_glass(Color(0.10, 0.19, 0.21, 0.58)))
