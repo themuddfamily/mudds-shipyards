@@ -43,6 +43,7 @@ func _run() -> void:
 	_test_cockpit_fairing(arrow)
 	_test_shared_seat_cushions(arrow)
 	_test_arrow_cabin_opening(arrow)
+	_test_fitted_canopy(arrow)
 	_test_collision_boarding_and_cameras(arrow)
 	await _test_engine_weapon_and_lifecycle(arrow)
 	await _test_cleanup(arrow)
@@ -993,15 +994,15 @@ func _test_visual_performance_batch(arrow: ArrowReconShip) -> void:
 		bool(report.valid)
 		and report.current == report.expected
 		and report.current == {
-			"nodes": 284,
-			"mesh_instance_nodes": 249,
+			"nodes": 283,
+			"mesh_instance_nodes": 248,
 			"multi_mesh_instance_nodes": 3,
-			"geometry_submissions": 253,
-			"visible_geometry_copies": 255,
-			"unique_mesh_resource_allocations": 205,
+			"geometry_submissions": 252,
+			"visible_geometry_copies": 254,
+			"unique_mesh_resource_allocations": 204,
 			"auto_fallback_names": 20,
 		},
-		"entry-complete Arrow retains 284 nodes, 253 submissions including one shadow-only renderer and three fitted nose service renderers, 205 meshes with shared nozzle stock and all 255 copies"
+		"entry-complete Arrow retains 283 nodes, 252 submissions including one shadow-only renderer and three fitted nose service renderers, 204 meshes with shared nozzle stock and all 254 copies"
 	)
 	_check(
 		report.phase9_before_entry_heat == {
@@ -1205,7 +1206,7 @@ func _test_visual_performance_batch(arrow: ArrowReconShip) -> void:
 	)
 	detached_panel_transforms[0] = Transform3D.IDENTITY
 	_check(
-		int(arrow.get_arrow_visual_performance_report().current.nodes) == 284
+		int(arrow.get_arrow_visual_performance_report().current.nodes) == 283
 		and int(
 			arrow.get_arrow_visual_performance_report()
 				.lateral_array_curve_joint_sharing.primitive_mesh_allocations
@@ -1775,6 +1776,85 @@ func _mesh_vertical_span(stock: MeshInstance3D, sample: Vector2, include_fitting
 			heights.append((stock.transform * (hit as Vector3)).y)
 	heights.sort()
 	return heights
+
+
+func _test_fitted_canopy(arrow: ArrowReconShip) -> void:
+	var visual := arrow.get_arrow_visual_root()
+	var hinge := visual.get_node("CanopyHinge") as Node3D
+	var glass := hinge.get_node("CanopyGlass") as MeshInstance3D
+	var sill := visual.get_node("CockpitSillFairing") as MeshInstance3D
+	var faces := glass.mesh.get_faces()
+	var relative := hinge.transform * glass.transform
+	var edges := {}
+	for triangle in range(0, faces.size(), 3):
+		for corner in 3:
+			var a := relative * faces[triangle + corner]
+			var b := relative * faces[triangle + (corner + 1) % 3]
+			var ka := str(a.snapped(Vector3.ONE * 0.0001))
+			var kb := str(b.snapped(Vector3.ONE * 0.0001))
+			if ka == kb:
+				continue
+			var key := ka + ":" + kb if ka < kb else kb + ":" + ka
+			if not edges.has(key):
+				edges[key] = {"count": 0, "a": a, "b": b}
+			edges[key].count += 1
+	var boundary_count := 0
+	var max_gap := 0.0
+	var supported := true
+	for edge: Dictionary in edges.values():
+		if edge.count != 1:
+			continue
+		boundary_count += 1
+		for t in [0.0, 0.5, 1.0]:
+			var point: Vector3 = edge.a.lerp(edge.b, t)
+			# The cut rear edge can be coplanar with the vertical ray. Sample
+			# 10 microns into the adjoining retained crown at that boundary.
+			var sample := Vector2(point.x, point.z + (0.00001 if absf(point.z - 0.84) < 0.00001 else 0.0))
+			var span := _mesh_vertical_span(sill, sample)
+			if span.is_empty():
+				supported = false
+			else:
+				max_gap = maxf(max_gap, absf(point.y - span[-1]))
+	_check(boundary_count > 40 and supported and max_gap < 0.022,
+		"every emitted open-bottom canopy perimeter edge seats on actual fairing stock within the 22 mm frame half-width (gap %.6f)" % max_gap)
+	var open_bottom := true
+	for x in [-0.5, 0.0, 0.5]:
+		for z in [-1.3, -0.6, 0.2]:
+			var heights: Array[float] = []
+			for triangle in range(0, faces.size(), 3):
+				var hit: Variant = Geometry3D.segment_intersects_triangle(Vector3(x, 1.9, z), Vector3(x, 4.0, z),
+					relative * faces[triangle], relative * faces[triangle + 1], relative * faces[triangle + 2])
+				if hit != null:
+					var height := (hit as Vector3).y
+					if heights.is_empty() or absf(height - heights[0]) > 0.0001:
+						heights.append(height)
+			open_bottom = open_bottom and heights.size() == 1 and heights[0] > 3.05
+	_check(open_bottom, "canopy emits only the upper roof across the occupied cabin, with no lower bubble or floor")
+	var hardware_clear := true
+	var minimum_hardware_clearance := INF
+	for name in ["PortSideConsole", "StarboardSideConsole", "InstrumentHood"]:
+		var stock := visual.get_node("CockpitInterior").find_child(name, true, false) as MeshInstance3D
+		var stock_relative := visual.global_transform.affine_inverse() * stock.global_transform
+		for vertex in stock.mesh.get_faces():
+			var point := stock_relative * vertex
+			if point.y < 2.4:
+				continue
+			var roof := -INF
+			for triangle in range(0, faces.size(), 3):
+				var hit: Variant = Geometry3D.segment_intersects_triangle(Vector3(point.x, 4.0, point.z), Vector3(point.x, 1.9, point.z),
+					relative * faces[triangle], relative * faces[triangle + 1], relative * faces[triangle + 2])
+				if hit != null:
+					roof = maxf(roof, (hit as Vector3).y)
+			minimum_hardware_clearance = minf(minimum_hardware_clearance, roof - point.y)
+			hardware_clear = hardware_clear and roof - point.y > 0.02
+	_check(hardware_clear, "actual retained console and instrument-hood upper vertices stay inside the glazing (minimum clearance %.4f)" % minimum_hardware_clearance)
+	var frame := glass.get_node_or_null("CanopyPressureFrame") as MeshInstance3D
+	_check(frame != null and frame.layers == glass.layers and frame.transform == Transform3D.IDENTITY
+		and not (hinge.get_node("CanopyRearFrame") as Node3D).visible
+		and not (hinge.get_node("CanopyRearPressureSeal") as Node3D).visible
+		and not (hinge.get_node("PortCanopyLatchHook") as Node3D).visible
+		and not (hinge.get_node("StarboardCanopyLatchHook") as Node3D).visible,
+		"fitted perimeter and arches share the retained glass/hinge and replace the floating inherited rear stock")
 
 
 func _test_collision_boarding_and_cameras(arrow: ArrowReconShip) -> void:

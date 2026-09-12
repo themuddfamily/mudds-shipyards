@@ -230,13 +230,13 @@ const PHASE9_ARROW_VISUAL_CENSUS := {
 	"auto_fallback_names": 23,
 }
 const EXPECTED_ARROW_VISUAL_CENSUS := {
-	"nodes": 284,
-	"mesh_instance_nodes": 249,
+	"nodes": 283,
+	"mesh_instance_nodes": 248,
 	"multi_mesh_instance_nodes": 3,
 	# Includes fitted seating/controls and one rigid airframe shadow renderer.
-	"geometry_submissions": 253,
-	"visible_geometry_copies": 255,
-	"unique_mesh_resource_allocations": 205,
+	"geometry_submissions": 252,
+	"visible_geometry_copies": 254,
+	"unique_mesh_resource_allocations": 204,
 	"auto_fallback_names": 20,
 }
 const RECON_PULSE_EMITTER_VISUAL_DELTA := {
@@ -1617,7 +1617,7 @@ func _restyle_inherited_cockpit(cockpit: Node3D, canopy: Node3D) -> void:
 	# nodes, dressed by the continuous pressure fairing and laminated canopy.
 	for obsolete_name in ["ForwardPressureWall", "RearPressureWall", "PortSill", "StarboardSill"]:
 		(cockpit.get_node(obsolete_name) as Node3D).visible = false
-	for obsolete_name in ["PortCanopyTopRail", "StarboardCanopyTopRail", "PortCanopyLowerRail", "StarboardCanopyLowerRail", "PortCanopyLowerPressureSeal", "StarboardCanopyLowerPressureSeal", "PortCanopyLaminateEdge", "StarboardCanopyLaminateEdge", "CanopyNosePressureSeal", "PortCanopyNoseFrame", "StarboardCanopyNoseFrame", "PortCanopyRearUpright", "StarboardCanopyRearUpright"]:
+	for obsolete_name in ["PortCanopyLatchHook", "StarboardCanopyLatchHook", "CanopyRearFrame", "CanopyRearPressureSeal", "PortCanopyTopRail", "StarboardCanopyTopRail", "PortCanopyLowerRail", "StarboardCanopyLowerRail", "PortCanopyLowerPressureSeal", "StarboardCanopyLowerPressureSeal", "PortCanopyLaminateEdge", "StarboardCanopyLaminateEdge", "CanopyNosePressureSeal", "PortCanopyNoseFrame", "StarboardCanopyNoseFrame", "PortCanopyRearUpright", "StarboardCanopyRearUpright"]:
 		(canopy.get_node(obsolete_name) as Node3D).visible = false
 	if cockpit != null:
 		_fit_arrow_instrument_binnacle(cockpit)
@@ -1637,27 +1637,7 @@ func _restyle_inherited_cockpit(cockpit: Node3D, canopy: Node3D) -> void:
 			var pilot_camera := cockpit.find_child("CockpitCamera", true, false) as Camera3D
 			if pilot_camera != null:
 				pilot_camera.set_cull_mask_value(19, false)
-			# Replace the inherited inward-wound wedge with the outward pressure
-			# shell; preserve the exact renderer and controller-owned hinge.
-			var shell := _loft_hull(canopy, "CanopyShellConstruction", Vector3.ZERO, PackedVector3Array([
-				Vector3(0.06, 0.06, -1.79), Vector3(0.61, 0.40, -1.20),
-				Vector3(1.04, 0.67, -0.30), Vector3(1.24, 0.775, 0.90),
-				Vector3(1.15, 0.66, 1.79),
-			]), _arrow_materials.glass)
-			glass.mesh = shell.mesh
-			# This replacement loft is centred on its own body; the shared
-			# pressure canopy now emits hinge-local vertices instead. Own the
-			# offset explicitly so the glass still covers the pilot and console.
-			glass.position = Vector3(0.0, 0.46, -1.82)
-			glass.set_meta("loft_section_count", shell.get_meta("loft_section_count"))
-			_fit_canopy_frame(glass, 7, _arrow_materials.graphite)
-			_fit_canopy_frame(glass, 16, _arrow_materials.graphite)
-			canopy.remove_child(shell)
-			shell.free()
-			# Retain the inherited physical canopy envelope. Enlarging the shell
-			# independently of its private camera/hinge geometry creates a cyan first-
-			# person wash and overstates the high-visibility canopy from outside.
-			glass.scale = Vector3.ONE
+			_build_fitted_arrow_canopy(glass, canopy)
 		for frame in canopy.find_children("*Canopy*Frame", "MeshInstance3D", true, false):
 			(frame as MeshInstance3D).material_override = _arrow_materials.graphite
 		for rail in canopy.find_children("*Canopy*Rail", "MeshInstance3D", true, false):
@@ -3782,32 +3762,164 @@ func _cut_pressure_panel(shell: MeshInstance3D, panel_name: String, first_sectio
 	shell.add_child(insert)
 
 
-## Slim pressure-frame arches are fitted to the actual laminated shell rather
-## than suspended as straight rails above its curved roof.
-func _fit_canopy_frame(glazing: MeshInstance3D, section: int, material: Material) -> void:
-	var arrays := glazing.mesh.surface_get_arrays(0)
-	var vertices: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
-	var normals: PackedVector3Array = arrays[Mesh.ARRAY_NORMAL]
-	var uvs: PackedVector2Array = arrays[Mesh.ARRAY_TEX_UV]
-	var sections := int(glazing.get_meta("loft_section_count"))
-	var arch := {}
-	for vertex_index in vertices.size():
-		if roundi(uvs[vertex_index].y * float(sections - 1)) == section:
-			arch[roundi(uvs[vertex_index].x * 32.0)] = vertex_index
+## The retained fairing's emitted triangles support the complete glazing rim.
+## Its broad windscreen lands ahead of the recessed aperture to clear the hood.
+## The sidewall ends remain exterior coaming; controls sit inside the glazing.
+## Neither the hull nor the common hinge changes.
+func _build_fitted_arrow_canopy(glass: MeshInstance3D, canopy: Node3D) -> void:
+	const ARCH_SEGMENTS := 24
+	const FRONT := -2.65
+	const REAR := 0.84
+	const HALF_WIDTH := 1.18
+	var sill := _arrow_visual.get_node("CockpitSillFairing") as MeshInstance3D
+	var faces := sill.mesh.get_faces()
+	for index in faces.size():
+		faces[index] = sill.transform * faces[index]
+	var stations: Array[float] = [FRONT, -2.40, -2.14, -1.80, -1.35, -0.90, -0.30, 0.30, 0.60, REAR]
+	# Preserve the hull's longitudinal triangle stations in the landing rail.
+	for point in faces:
+		if point.z > FRONT and point.z < REAR:
+			var duplicate := false
+			for station in stations:
+				duplicate = duplicate or absf(station - point.z) < 0.0001
+			if not duplicate:
+				stations.append(point.z)
+	stations.sort()
+	var grid := PackedVector3Array()
+	var rear_rim := PackedVector3Array()
+	var tool := SurfaceTool.new()
+	tool.begin(Mesh.PRIMITIVE_TRIANGLES)
+	tool.set_material(_arrow_materials.glass)
+	var closed_hinge := canopy.position
+	for row in stations.size():
+		var z := stations[row]
+		var half_width := HALF_WIDTH
+		if z < -1.80:
+			half_width = lerpf(0.82, HALF_WIDTH, inverse_lerp(FRONT, -1.80, z))
+		elif z > 0.60:
+			half_width = lerpf(HALF_WIDTH, 0.99, inverse_lerp(0.60, REAR, z))
+		var rim_y := _arrow_canopy_rim_height(faces, Vector2(half_width, z))
+		var crown := _arrow_canopy_crown(z)
+		for arch in ARCH_SEGMENTS + 1:
+			var angle := PI * float(arch) / ARCH_SEGMENTS
+			var x := half_width * signf(cos(angle)) * pow(absf(cos(angle)), 0.45)
+			var y := rim_y + (crown - rim_y) * pow(maxf(0.0, sin(angle)), 0.60)
+			if row == 0:
+				y = _arrow_canopy_rim_height(faces, Vector2(x, FRONT))
+			var point := Vector3(x, y, z) - closed_hinge
+			grid.append(point)
+			tool.set_uv(Vector2(float(arch) / ARCH_SEGMENTS, (z - FRONT) / (REAR - FRONT)))
+			tool.add_vertex(point)
+			if row == stations.size() - 1:
+				var rim_x := x
+				rear_rim.append(Vector3(rim_x, _arrow_canopy_rim_height(faces, Vector2(rim_x, REAR + 0.00001)), REAR) - closed_hinge)
+	for row in stations.size() - 1:
+		for arch in ARCH_SEGMENTS:
+			var a := row * (ARCH_SEGMENTS + 1) + arch
+			var b := a + ARCH_SEGMENTS + 1
+			for index in [a, b, b + 1, a, b + 1, a + 1]:
+				tool.add_index(index)
+	# The aft transparent pane returns to the curved rear rim. The underside
+	# is entirely open: no invisible pressure-volume floor sweeps the pilot.
+	var rear_start := grid.size()
+	for arch in ARCH_SEGMENTS + 1:
+		tool.set_uv(Vector2(float(arch) / ARCH_SEGMENTS, 1.2))
+		tool.add_vertex(rear_rim[arch])
+	var upper_start := (stations.size() - 1) * (ARCH_SEGMENTS + 1)
+	for arch in ARCH_SEGMENTS:
+		for triangle in [[upper_start + arch, rear_start + arch + 1, rear_start + arch], [upper_start + arch, upper_start + arch + 1, rear_start + arch + 1]]:
+			if (arch == 0 and triangle[2] == rear_start) or (arch == ARCH_SEGMENTS - 1 and triangle[1] == upper_start + ARCH_SEGMENTS):
+				continue
+			for index in triangle:
+				tool.add_index(index)
+	tool.generate_normals()
+	tool.generate_tangents()
+	glass.mesh = tool.commit()
+	glass.position = Vector3.ZERO
+	glass.scale = Vector3.ONE
+	glass.set_meta("closed_volume", false)
+	# Normal generation reorders the committed vertex array. Retain the source
+	# grid for frame fitting rather than assuming its indexed rows survive.
+	_fit_canopy_frame(glass, grid, rear_rim, stations, _arrow_materials.graphite)
+
+
+func _arrow_canopy_rim_height(faces: PackedVector3Array, sample: Vector2) -> float:
+	var height := -INF
+	for triangle in range(0, faces.size(), 3):
+		var hit: Variant = Geometry3D.ray_intersects_triangle(Vector3(sample.x, 4.0, sample.y), Vector3.DOWN,
+			faces[triangle], faces[triangle + 1], faces[triangle + 2])
+		if hit != null:
+			height = maxf(height, (hit as Vector3).y)
+	assert(is_finite(height), "Arrow canopy landing must have actual fairing stock")
+	return height
+
+
+func _arrow_canopy_crown(z: float) -> float:
+	var profile := PackedVector2Array([Vector2(-2.65, 1.97), Vector2(-2.40, 2.64), Vector2(-2.14, 3.20), Vector2(-1.80, 3.42),
+		Vector2(-1.35, 3.48), Vector2(-0.90, 3.57), Vector2(-0.30, 3.66),
+		Vector2(0.30, 3.63), Vector2(0.84, 3.50)])
+	for index in profile.size() - 1:
+		if z <= profile[index + 1].x:
+			var span := profile[index + 1].x - profile[index].x
+			var t := inverse_lerp(profile[index].x, profile[index + 1].x, z)
+			var slope := (profile[index + 1].y - profile[index].y) / span
+			var start_slope := slope
+			var end_slope := slope
+			# Harmonic tangents preserve monotonic heights through each interval.
+			# At the crown's turn the slope is zero, so no cubic overshoot can
+			# enlarge the authored roof or dip into the retained instrument hood.
+			if index > 0:
+				var previous := (profile[index].y - profile[index - 1].y) / (profile[index].x - profile[index - 1].x)
+				start_slope = 2.0 * previous * slope / (previous + slope) if previous * slope > 0.0 else 0.0
+			if index + 2 < profile.size():
+				var following := (profile[index + 2].y - profile[index + 1].y) / (profile[index + 2].x - profile[index + 1].x)
+				end_slope = 2.0 * following * slope / (following + slope) if following * slope > 0.0 else 0.0
+			return (2.0 * t * t * t - 3.0 * t * t + 1.0) * profile[index].y \
+				+ (t * t * t - 2.0 * t * t + t) * span * start_slope \
+				+ (-2.0 * t * t * t + 3.0 * t * t) * profile[index + 1].y \
+				+ (t * t * t - t * t) * span * end_slope
+	return profile[-1].y
+
+
+## A single renderer carries the closed perimeter and two pressure arches.
+func _fit_canopy_frame(glazing: MeshInstance3D, grid: PackedVector3Array, rear_rim: PackedVector3Array, stations: Array[float], material: Material) -> void:
+	const ARCH_SEGMENTS := 24
 	var tool := SurfaceTool.new()
 	tool.begin(Mesh.PRIMITIVE_TRIANGLES)
 	tool.set_material(material)
-	for ring in 16:
-		var a := int(arch[ring])
-		var b := int(arch[ring + 1])
-		var pa := vertices[a] + normals[a] * 0.018
-		var pb := vertices[b] + normals[b] * 0.018
-		for point in [pa + Vector3.FORWARD * 0.033, pb + Vector3.BACK * 0.033, pb + Vector3.FORWARD * 0.033, pa + Vector3.FORWARD * 0.033, pa + Vector3.BACK * 0.033, pb + Vector3.BACK * 0.033]:
-			tool.set_uv(Vector2(point.x, point.z))
-			tool.add_vertex(point)
+	tool.set_smooth_group(-1)
+	for row in stations.size() - 1:
+		for edge in [0, ARCH_SEGMENTS]:
+			_arrow_canopy_frame_stock(tool, grid[row * (ARCH_SEGMENTS + 1) + edge], grid[(row + 1) * (ARCH_SEGMENTS + 1) + edge], 0.045)
+	for arch in ARCH_SEGMENTS:
+		_arrow_canopy_frame_stock(tool, grid[arch], grid[arch + 1], 0.045)
+		_arrow_canopy_frame_stock(tool, rear_rim[arch], rear_rim[arch + 1], 0.045)
+	for row in stations.size():
+		if absf(stations[row] + 1.35) > 0.00001 and row != stations.size() - 1:
+			continue
+		for arch in ARCH_SEGMENTS:
+			_arrow_canopy_frame_stock(tool, grid[row * (ARCH_SEGMENTS + 1) + arch], grid[row * (ARCH_SEGMENTS + 1) + arch + 1], 0.032)
 	tool.generate_normals()
+	tool.index()
+	tool.generate_tangents()
 	var frame := MeshInstance3D.new()
-	frame.name = "PressureFrame%02d" % section
+	frame.name = "CanopyPressureFrame"
 	frame.mesh = tool.commit()
 	frame.layers = glazing.layers
 	glazing.add_child(frame)
+
+
+func _arrow_canopy_frame_stock(tool: SurfaceTool, a: Vector3, b: Vector3, width: float) -> void:
+	var tangent := (b - a).normalized()
+	var side := tangent.cross(Vector3.UP).normalized()
+	if side.length_squared() < 0.01:
+		side = Vector3.RIGHT
+	var up := side.cross(tangent).normalized()
+	var corners := PackedVector3Array()
+	for center in [a, b]:
+		for offset in [side + up, -side + up, -side - up, side - up]:
+			corners.append(center + offset * width * 0.5)
+	for face in [[0, 1, 2, 3], [4, 7, 6, 5], [0, 4, 5, 1], [1, 5, 6, 2], [2, 6, 7, 3], [3, 7, 4, 0]]:
+		var center := (a + b) * 0.5
+		_arrow_panel_triangle(tool, corners[face[0]], corners[face[1]], corners[face[2]], center)
+		_arrow_panel_triangle(tool, corners[face[0]], corners[face[2]], corners[face[3]], center)
