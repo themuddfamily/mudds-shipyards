@@ -446,9 +446,10 @@ const SPACE_BACKDROP_STAR_RADIUS_MIN := 1450.0
 const SPACE_BACKDROP_STAR_RADIUS_MAX := 1650.0
 const SPACE_BACKDROP_NEBULA_COVER_STRENGTH := 0.08
 const SPACE_BACKDROP_BODY_MESH_RADIUS := 1.0
-const SPACE_BACKDROP_BODY_MESH_RADIAL_SEGMENTS := 24
-const SPACE_BACKDROP_BODY_MESH_RINGS := 12
+const SPACE_BACKDROP_BODY_MESH_RADIAL_SEGMENTS := 64
+const SPACE_BACKDROP_BODY_MESH_RINGS := 32
 const SPACE_BACKDROP_BODY_MESH_FAMILY_ID: StringName = &"space-backdrop-celestial-bodies"
+const ORBITAL_SURFACE_SHADER := preload("res://scripts/rendering/orbital_body_surface.gdshader")
 const AURORA_ORBITAL_BODY_ID: StringName = &"CelestialGreenBody"
 const AURORA_ORBITAL_DESTINATION_ID: StringName = &"aurora_temperate_world"
 const AURORA_ORBITAL_SHADER_PATH := "res://scripts/rendering/aurora_orbital_silhouette.gdshader"
@@ -478,18 +479,21 @@ const SPACE_BACKDROP_BODY_SPECS := {
 		"radius": 110.0,
 		"palette_role": &"tan_cream",
 		"color": Color("c7b887"),
+		"surface_kind": 0,
 	},
 	&"CelestialGreyBody": {
 		"position": Vector3(70.0, 230.0, -1250.0),
 		"radius": 85.0,
 		"palette_role": &"grey",
 		"color": Color("86878c"),
+		"surface_kind": 1,
 	},
 	&"CelestialOrangeBody": {
 		"position": Vector3(-500.0, -160.0, -1150.0),
 		"radius": 75.0,
 		"palette_role": &"orange",
 		"color": Color("d57635"),
+		"surface_kind": 2,
 	},
 }
 const CENTRAL_HERO_MODULE_ID: StringName = &"central-berth-hero-cell"
@@ -5536,16 +5540,11 @@ func get_space_backdrop_audit_report() -> Dictionary:
 					== AURORA_ORBITAL_DESTINATION_ID
 			)
 		else:
-			var standard := material as StandardMaterial3D
+			var surface := material as ShaderMaterial
 			material_contract_valid = (
-				standard != null
-				and standard.albedo_color.is_equal_approx(spec.color as Color)
-				and standard.emission_enabled
-				and standard.emission.is_equal_approx(spec.color as Color)
-				# At 0.04 emission the night side remains readable without erasing
-				# the shared station-light terminator.
-				and is_equal_approx(standard.emission_energy_multiplier, 0.04)
-				and is_equal_approx(standard.roughness, 1.0)
+				surface != null and surface.shader == ORBITAL_SURFACE_SHADER
+				and _sky_color_matches(surface, &"body_color", spec.color as Color)
+				and _sky_scalar_matches(surface, &"surface_kind", float(spec.surface_kind))
 			)
 		if common_contract_drifted or not material_contract_valid:
 			errors.append("space body presentation contract drifted: %s" % String(body_name))
@@ -5600,15 +5599,15 @@ func get_space_backdrop_audit_report() -> Dictionary:
 		"authority_node_count": authority_node_count,
 		"renderable_count": renderable_count,
 		"runtime_draw_upper_bound": SPACE_BACKDROP_BODY_SPECS.size() + 1,
-		# 2,600 instances * 48 star triangles + 4 bodies * 624 triangles.
-		"runtime_triangle_upper_bound": 127_296,
+		# 2,600 instances * 48 star triangles + 4 bodies * 4,224 triangles.
+		"runtime_triangle_upper_bound": 141_696,
 		"performance": {
 			"mesh_resource_count": mesh_resource_ids.size(),
 			"material_resource_count": material_resource_ids.size(),
 			"renderer_node_count": renderable_count,
 			"surface_submission_count": surface_submission_count,
 			"visible_copy_count": visible_copy_count,
-			"triangle_count": 127_296,
+			"triangle_count": 141_696,
 		},
 		"target_count": get_target_count(),
 		# Deliberately enumerated rather than derived from get_berth_ids(): the
@@ -9193,8 +9192,8 @@ func _build_space_backdrop() -> void:
 	backdrop.add_child(stars)
 
 	# The four bodies retain distinct nodes and materials, but their immutable
-	# 24x12 unit-sphere topology is one shared resource. Uniform node scale carries
-	# each authored radius without changing a world vertex, normal or silhouette.
+	# 64x32 unit sphere is one shared resource. The closer orbital silhouettes
+	# stay smooth; uniform node scale retains every authored radius and placement.
 	var body_mesh := SphereMesh.new()
 	body_mesh.radius = SPACE_BACKDROP_BODY_MESH_RADIUS
 	body_mesh.height = SPACE_BACKDROP_BODY_MESH_RADIUS * 2.0
@@ -9202,34 +9201,17 @@ func _build_space_backdrop() -> void:
 	body_mesh.rings = SPACE_BACKDROP_BODY_MESH_RINGS
 	for body_name: StringName in SPACE_BACKDROP_BODY_SPECS:
 		var spec := SPACE_BACKDROP_BODY_SPECS[body_name] as Dictionary
-		var body_color := spec.color as Color
-		# Emission re-frozen from 0.32 to 0.04. The four bodies are lit by the same
-		# key light as the station, but at 0.32 the self-emission was bright enough
-		# to fill the unlit half back in, so each one rendered as a flat saturated
-		# disc with a barely visible terminator - four coloured circles pasted on
-		# the backdrop, and the most toy-like objects left in any wide frame. At
-		# 0.04 the emission is a night-side floor rather than a fill, the terminator
-		# resolves, and a body reads as a sphere with a lit limb whose bright side
-		# agrees with the direction everything else on screen is lit from. The
-		# colours and placements remain source-bounded; the radii are deliberately
-		# reduced to keep a low-poly facet from becoming a screen-sized white/orange
-		# flare when it crosses the station sightline.
-		var body_material: Material
+		var body_material: ShaderMaterial
 		if body_name == AURORA_ORBITAL_BODY_ID:
 			body_material = _aurora_orbital_material()
 		else:
-			var standard := _material(
-				body_color, 0.0, 1.0, body_color, 0.04
-			)
-			standard.disable_receive_shadows = true
-			body_material = standard
-		# The bodies deliberately stay *in* the depth fog, unlike the star shell.
-		# Exempting them was tried and reverted: unfogged and lit by the raised key
-		# they came back as vivid, fully saturated green and orange billiard balls,
-		# which is a worse toy tell than the flat discs the emission change was
-		# fixing. Aerial perspective is doing the right thing to them - a body a
-		# kilometre out should read muted and far, and the haze is the only thing
-		# on hand that says so about an untextured sphere.
+			body_material = ShaderMaterial.new()
+			body_material.shader = ORBITAL_SURFACE_SHADER
+			body_material.set_shader_parameter(&"body_color", spec.color as Color)
+			body_material.set_shader_parameter(&"surface_kind", int(spec.surface_kind))
+		# Orbital surfaces receive the same key as the yard, excluding the strong
+		# local ambient fill. Static object-space terrain keeps distant bodies
+		# legible without new textures, lights, draw submissions or update owners.
 		var body := MeshInstance3D.new()
 		body.name = String(body_name)
 		body.position = spec.position as Vector3

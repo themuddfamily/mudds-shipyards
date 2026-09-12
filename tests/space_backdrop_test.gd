@@ -15,8 +15,8 @@ const EXPECTED_STAR_RADIUS_MAX := 1650.0
 const EXPECTED_NEBULA_COVER_STRENGTH := 0.08
 const SKY_SHADER_PATH := "res://scripts/rendering/deep_space_sky.gdshader"
 const EXPECTED_BODY_MESH_RADIUS := 1.0
-const EXPECTED_BODY_MESH_RADIAL_SEGMENTS := 24
-const EXPECTED_BODY_MESH_RINGS := 12
+const EXPECTED_BODY_MESH_RADIAL_SEGMENTS := 64
+const EXPECTED_BODY_MESH_RINGS := 32
 const EXPECTED_BODY_MESH_FAMILY_ID: StringName = &"space-backdrop-celestial-bodies"
 const AURORA_BODY_ID: StringName = &"CelestialGreenBody"
 const AURORA_DESTINATION_ID: StringName = &"aurora_temperate_world"
@@ -26,7 +26,7 @@ const EXPECTED_LOCAL_MATERIAL_RESOURCES := 5
 const EXPECTED_LOCAL_RENDERER_NODES := 5
 const EXPECTED_LOCAL_SURFACE_SUBMISSIONS := 5
 const EXPECTED_LOCAL_VISIBLE_COPIES := 2604
-const EXPECTED_LOCAL_TRIANGLES := 127_296
+const EXPECTED_LOCAL_TRIANGLES := 141_696
 const EXPECTED_BERTH_IDS: Array[String] = [
 	"central_berth",
 	"arrow_recon_berth",
@@ -49,18 +49,21 @@ const EXPECTED_BODY_SPECS := {
 		"radius": 110.0,
 		"palette_role": &"tan_cream",
 		"color": Color("c7b887"),
+		"surface_kind": 0,
 	},
 	&"CelestialGreyBody": {
 		"position": Vector3(70.0, 230.0, -1250.0),
 		"radius": 85.0,
 		"palette_role": &"grey",
 		"color": Color("86878c"),
+		"surface_kind": 1,
 	},
 	&"CelestialOrangeBody": {
 		"position": Vector3(-500.0, -160.0, -1150.0),
 		"radius": 75.0,
 		"palette_role": &"orange",
 		"color": Color("d57635"),
+		"surface_kind": 2,
 	},
 }
 
@@ -162,7 +165,7 @@ func _test_pristine_audit(world: ShipyardWorld) -> void:
 		and int(performance.get("surface_submission_count", -1)) == EXPECTED_LOCAL_SURFACE_SUBMISSIONS
 		and int(performance.get("visible_copy_count", -1)) == EXPECTED_LOCAL_VISIBLE_COPIES
 		and int(performance.get("triangle_count", -1)) == EXPECTED_LOCAL_TRIANGLES,
-		"audit freezes the bounded 2-mesh, 5-material, 5-submission, 127296-triangle result"
+		"audit freezes the bounded 2-mesh, 5-material, 5-submission, 141696-triangle result"
 	)
 	_check(
 		bool(report.get("near_black_sky", false))
@@ -396,9 +399,8 @@ func _test_exact_body_roster(world: ShipyardWorld) -> void:
 		var sphere := body.mesh as SphereMesh if body != null else null
 		var material := body.material_override if body != null else null
 		var expected_radius := float(expected.radius)
-		# Rebuild the exact pre-sharing resource, rather than comparing against an
-		# ideal sphere: Godot's 24 sampled longitudes do not put every X/Z cardinal
-		# at the nominal radius, so the old mesh's AABB was slightly inset there.
+		# Compare shared-unit scaling against the same smooth topology authored
+		# directly at each radius; palette and placement remain unchanged.
 		var legacy_sphere := SphereMesh.new()
 		legacy_sphere.radius = expected_radius
 		legacy_sphere.height = expected_radius * 2.0
@@ -440,18 +442,15 @@ func _test_exact_body_roster(world: ShipyardWorld) -> void:
 				"Aurora uses one exact ocean/land/cloud/atmosphere orbital material",
 			)
 		else:
-			var standard := material as StandardMaterial3D
+			var surface := material as ShaderMaterial
 			_check(
-				standard != null
-				and standard.albedo_color.is_equal_approx(expected.color as Color)
-				and standard.emission_enabled
-				and standard.emission.is_equal_approx(expected.color as Color)
-				and is_equal_approx(standard.emission_energy_multiplier, 0.04)
-				and is_equal_approx(standard.roughness, 1.0)
-				and standard.disable_receive_shadows
+				surface != null
+				and surface.shader.resource_path == "res://scripts/rendering/orbital_body_surface.gdshader"
+				and (surface.get_shader_parameter(&"body_color") as Color).is_equal_approx(expected.color as Color)
+				and int(surface.get_shader_parameter(&"surface_kind")) == int(expected.surface_kind)
 				and body.cast_shadow == GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 				and body.gi_mode == GeometryInstance3D.GI_MODE_DISABLED,
-				"%s uses the exact low-emission, rough, non-lighting body material" % body_name,
+				"%s uses its static surface recipe with the original role color" % body_name,
 			)
 		_check(
 			reported.get("position", Vector3.INF) == expected.position
@@ -515,7 +514,7 @@ func _test_bounded_resource_sharing(world: ShipyardWorld) -> void:
 		and surface_submissions == EXPECTED_LOCAL_SURFACE_SUBMISSIONS
 		and visible_copies == EXPECTED_LOCAL_VISIBLE_COPIES
 		and triangles == EXPECTED_LOCAL_TRIANGLES,
-		"resource sharing preserves 5 renderer nodes/submissions, 2604 copies, and 127296 triangles"
+		"resource sharing preserves 5 renderer nodes/submissions, 2604 copies, and 141696 triangles"
 	)
 
 
