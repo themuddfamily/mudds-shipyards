@@ -1035,25 +1035,16 @@ func _build_courier_fittings() -> void:
 ## material batches; only the glazing keeps its own renderer.
 func _build_courier_upperworks() -> void:
 	var opaque: Array = [[], [], []]
-	# Collar closes the cab into the pressure shell, leaving a painted sill.
-	opaque[0].append(_courier_upper_mesh([
-		Vector4(-3.78,0.30,0.24,0.76), Vector4(-3.55,0.48,0.39,0.88),
-		Vector4(-3.30,0.64,0.54,0.97), Vector4(-3.13,0.71,0.62,1.00),
-		Vector4(-1.83,0.77,0.67,1.00), Vector4(-1.56,0.75,0.61,0.96),
-	], 0.60, _materials.courier_hull))
+	# Drawn pressure collar rolls into the bow, then broadens beneath the cab
+	# cheeks. The crown overlaps the glazing sill instead of leaving a shelf.
+	opaque[0].append(_courier_cab_shell_mesh(false, _materials.courier_hull))
 	_box_from_mesh(_visual_root, "Canopy", Vector3.ZERO, _courier_upper_mesh([
 		Vector4(-3.40,0.36,0.32,0.965), Vector4(-2.95,0.63,0.49,1.42),
 		Vector4(-2.02,0.67,0.51,1.44), Vector4(-1.76,0.63,0.50,1.15),
 	], 0.94, _materials.glass))
-	# The opaque aft pressure frame and roof are shaped to the same cab stations.
-	opaque[0].append(_courier_upper_mesh([
-		Vector4(-2.00,0.69,0.53,1.46), Vector4(-1.79,0.66,0.52,1.25),
-		Vector4(-1.56,0.73,0.63,1.04),
-	], 0.89, _materials.courier_hull))
-	opaque[0].append(_courier_upper_mesh([
-		Vector4(-3.00,0.50,0.47,1.46), Vector4(-2.88,0.54,0.48,1.50),
-		Vector4(-2.03,0.56,0.50,1.52), Vector4(-1.94,0.54,0.51,1.47),
-	], 1.40, _materials.courier_hull))
+	# One formed weather crown continues around the rear pressure bulkhead and
+	# eases down into the hull service roof, with no separate rectangular cap.
+	opaque[0].append(_courier_cab_shell_mesh(true, _materials.courier_hull))
 	# A centre mullion and two raked corner posts trace the windscreen edges.
 	for side in [-1.0, 0.0, 1.0]:
 		var start := Vector3(side*0.34,0.955,-3.40)
@@ -1080,6 +1071,71 @@ func _build_courier_upperworks() -> void:
 			surface.append_from(piece,0,Transform3D.IDENTITY)
 		surface.commit(combined)
 	fittings.mesh = combined
+
+
+## Closed formed cab shell. Each section gives z, half-width, shoulder height
+## and crown rise. The sampled arch changes the silhouette in both directions;
+## normals follow its actual transverse and longitudinal tangents. The lower
+## return is thin over the glazing, deepening into the aft pressure bulkhead.
+func _courier_cab_shell_mesh(weather_roof: bool, material: Material) -> ArrayMesh:
+	var sections: Array[Vector4]
+	var bottoms: PackedFloat32Array
+	if weather_roof:
+		sections = [
+			Vector4(-3.00,0.50,1.44,0.035), Vector4(-2.87,0.54,1.445,0.105),
+			Vector4(-2.64,0.57,1.45,0.155), Vector4(-2.35,0.59,1.455,0.16),
+			Vector4(-2.02,0.57,1.46,0.105), Vector4(-1.89,0.62,1.32,0.115),
+			Vector4(-1.76,0.69,1.17,0.11), Vector4(-1.62,0.76,0.99,0.10),
+			Vector4(-1.49,0.82,0.88,0.078),
+		]
+		bottoms = PackedFloat32Array([1.405,1.41,1.415,1.42,1.425,1.285,0.85,0.83,0.81])
+	else:
+		sections = [
+			Vector4(-3.78,0.29,0.62,0.14), Vector4(-3.60,0.43,0.735,0.17),
+			Vector4(-3.40,0.57,0.805,0.175), Vector4(-3.13,0.77,0.875,0.15),
+			Vector4(-2.70,0.82,0.885,0.13), Vector4(-2.10,0.84,0.88,0.13),
+			Vector4(-1.83,0.82,0.88,0.12), Vector4(-1.49,0.82,0.86,0.09),
+		]
+		bottoms = PackedFloat32Array([0.53,0.60,0.66,0.72,0.74,0.74,0.74,0.74])
+	const ARCH_STEPS := 16
+	var rings: Array[PackedVector3Array] = []
+	for station in sections.size():
+		var section := sections[station]
+		var ring := PackedVector3Array()
+		for step in ARCH_STEPS+1:
+			var angle := -PI*0.5+PI*float(step)/float(ARCH_STEPS)
+			ring.append(Vector3(section.y*sin(angle),section.z+section.w*cos(angle),section.x))
+		ring.append(Vector3(section.y,bottoms[station],section.x))
+		ring.append(Vector3(-section.y,bottoms[station],section.x))
+		rings.append(ring)
+	var surface := SurfaceTool.new()
+	surface.begin(Mesh.PRIMITIVE_TRIANGLES)
+	surface.set_material(material)
+	for station in rings.size()-1:
+		for edge in rings[station].size():
+			var next := (edge+1)%rings[station].size()
+			if edge >= ARCH_STEPS:
+				_emit_armour_triangle(surface,rings[station][edge],rings[station+1][edge],rings[station+1][next])
+				_emit_armour_triangle(surface,rings[station][edge],rings[station+1][next],rings[station][next])
+				continue
+			for address: Vector2i in [Vector2i(station,edge),Vector2i(station+1,next),Vector2i(station+1,edge),
+				Vector2i(station,edge),Vector2i(station,next),Vector2i(station+1,next)]:
+				var point := rings[address.x][address.y]
+				var around := rings[address.x][mini(ARCH_STEPS,address.y+1)]-rings[address.x][maxi(0,address.y-1)]
+				var along := rings[mini(rings.size()-1,address.x+1)][address.y]-rings[maxi(0,address.x-1)][address.y]
+				surface.set_normal(along.cross(around).normalized())
+				surface.set_uv(Vector2(float(address.y)/float(ARCH_STEPS),point.z))
+				surface.add_vertex(point)
+	# Convex section ends close against bow and service roof respectively.
+	for end in [0,rings.size()-1]:
+		var ring := rings[end]
+		for edge in range(1,ring.size()-1):
+			if end == 0:
+				_emit_armour_triangle(surface,ring[0],ring[edge],ring[edge+1])
+			else:
+				_emit_armour_triangle(surface,ring[0],ring[edge+1],ring[edge])
+	surface.generate_tangents()
+	return surface.commit()
 
 
 ## Exact roof profile of HullBody, including its aft taper and eight-segment

@@ -48,6 +48,7 @@ func _initialize() -> void:
 	_check(_upperworks_surface_is_valid(collar, true),
 		"closed upperworks fittings face out of their pressure volume with valid texture frames")
 
+	_check_cab_shell_construction(first, fitted)
 	_check_roof_construction(first, fitted)
 
 	var engines: Array[MeshInstance3D] = []
@@ -256,6 +257,44 @@ func _upperworks_surface_is_valid(mesh: ArrayMesh, check_outward := false) -> bo
 		if not tangent.is_finite() or absf(tangent.length()-1.0) > 0.01 or absf(tangent.dot(normals[index])) > 0.01:
 			return false
 	return true
+
+
+func _check_cab_shell_construction(courier: CourierRunnerOpponent, fitted: MeshInstance3D) -> void:
+	var installed := {}
+	for point: Vector3 in fitted.mesh.surface_get_arrays(0)[Mesh.ARRAY_VERTEX]:
+		installed[point.snapped(Vector3.ONE*0.00001)] = true
+	for weather_roof in [false,true]:
+		var shell := courier._courier_cab_shell_mesh(weather_roof,null)
+		_check(_upperworks_surface_is_valid(shell),
+			"formed cab shell has outward winding, nondegenerate triangles and valid UV/tangent frames")
+		var actual := true
+		var vertices: PackedVector3Array = shell.surface_get_arrays(0)[Mesh.ARRAY_VERTEX]
+		var crown_levels := {}
+		for point in vertices:
+			actual = actual and installed.has(point.snapped(Vector3.ONE*0.00001))
+			if absf(point.z-(-2.35 if weather_roof else -2.70)) < 0.0001:
+				crown_levels[snappedf(point.y,0.0001)] = true
+		_check(actual and crown_levels.size() >= 9 and vertices.size()/3 < 700,
+			"actual opaque batch carries a bounded curved cab crown and shoulders, rather than a four-corner housing")
+		if weather_roof:
+			var aft := _roof_vertical_hits(shell.get_faces(),0.0,-1.4901)
+			var service := courier._courier_roof_mesh(-1.51,-0.045,0.024,null)
+			var deck := _roof_vertical_hits(service.get_faces(),0.0,-1.4901)
+			_check(not aft.is_empty() and not deck.is_empty() and absf(aft[-1]-deck[-1]) < 0.01,
+				"aft cab crown joins the actual service cover within one centimetre")
+		else:
+			var bow := courier.get_node(^"ContractCourierVisual/BluntNose") as MeshInstance3D
+			var bow_faces := bow.mesh.get_faces()
+			for index in bow_faces.size():
+				bow_faces[index] = bow.transform*bow_faces[index]
+			var seated := true
+			for z in [-3.70,-3.50,-3.20]:
+				var base := _roof_vertical_hits(bow_faces,0.0,z)
+				var collar := _roof_vertical_hits(shell.get_faces(),0.0,z)
+				seated = seated and not base.is_empty() and collar.size() >= 2
+				if not base.is_empty() and collar.size() >= 2:
+					seated = seated and collar[0] < base[-1] and collar[-1] > base[-1]
+			_check(seated,"drawn collar intersects the actual formed bow instead of floating above it")
 
 
 func _check_roof_construction(courier: CourierRunnerOpponent, fitted: MeshInstance3D) -> void:
