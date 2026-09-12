@@ -1644,7 +1644,7 @@ func _test_formed_coaming(arrow: ArrowReconShip) -> void:
 			valid = valid and return_span.size() >= 2 and return_span[-1] < 2.40 and return_span[-1] > 2.34
 		var rolled_span := _mesh_vertical_span(stock, Vector2(stock.position.x + 0.07, -0.55))
 		valid = valid and rolled_span.size() >= 2 and rolled_span[-1] < 2.39 and rolled_span[-1] > 2.33
-	print("ARROW_COAMING_COST: shared_meshes=1 surfaces=1 renderers=2 triangles_per_copy=588 total_triangles=1176 previous_total=216 bounds=", port.mesh.get_aabb())
+	print("ARROW_COAMING_COST: shared_meshes=1 surfaces=1 renderers=2 triangles_per_copy=588 total_triangles=1176 previous_total=24 bounds=", port.mesh.get_aabb())
 	_check(valid, "formed coaming keeps exact wall envelope, authored transforms and sound bounded smooth geometry")
 
 
