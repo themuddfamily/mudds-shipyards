@@ -5394,13 +5394,13 @@ func _flight_deck_transition(side: float) -> void:
 		var radius_x := width * 0.72
 		var radius_y := height * 0.50
 		for step in 33:
-			var angle := float(step) / ROOF_ACROSS_STEPS * PI * 0.5
+			var angle := float(step) / 32.0 * PI * 0.5
 			ring.append(Vector3(side * (station.x - radius_x + radius_x * cos(angle)),
 				station.y - radius_y + radius_y * sin(angle), station.z))
 		ring.append(Vector3(side * inner_x, station.y, station.z))
 		ring.append(Vector3(side * inner_x, bottom, station.z))
 		for step in 32:
-			var angle := PI * 1.5 + float(step) / ROOF_ACROSS_STEPS * PI * 0.5
+			var angle := PI * 1.5 + float(step) / 32.0 * PI * 0.5
 			ring.append(Vector3(side * (station.x - radius_x + radius_x * cos(angle)),
 				bottom + radius_y + radius_y * sin(angle), station.z))
 		# An integral machined landing under the unchanged defensive bearing
