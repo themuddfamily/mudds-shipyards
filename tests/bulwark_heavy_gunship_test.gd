@@ -80,6 +80,7 @@ func _test_collision_and_authority_audit(ship: HeroShip) -> void:
 	_test_gun_pod_housing_batch(visual)
 	_test_service_cassettes(visual)
 	_test_cockpit_pressure_transition(visual)
+	_test_cockpit_armor_tub(visual)
 	_test_primary_armor_landings(visual)
 	var audit: Dictionary = ship.call("get_bulwark_audit_report")
 	_check(bool(audit.get("valid", false)), "fully constructed Bulwark passes its public audit")
@@ -107,6 +108,49 @@ func _test_cockpit_pressure_transition(visual: Node3D) -> void:
 		"pressure skin extends past both ends of the retained floor into the deck")
 	_check(fairing_bounds.size.x < 3.7 and fairing_bounds.position.y <= 1.33,
 		"rolled pressure shoulders narrow the former plinth and remain seated inside the deck")
+
+
+func _test_cockpit_armor_tub(visual: Node3D) -> void:
+	var fairing := visual.get_node("CockpitPressureTransition") as MeshInstance3D
+	var seated := true
+	var samples := 0
+	var triangles := 0
+	for wall_name in ["PortSidewall", "StarboardSidewall", "ForwardPressureWall", "RearPressureWall"]:
+		var wall := visual.get_node("CockpitInterior/" + wall_name) as MeshInstance3D
+		_check(wall.mesh is ArrayMesh and wall.mesh.get_surface_count() == 1,
+			wall_name + " keeps one existing renderer and one formed armor surface")
+		var vertices := wall.mesh.get_faces()
+		triangles += vertices.size() / 3
+		for vertex in vertices:
+			if not is_equal_approx(vertex.y, 1.40): continue
+			var point := wall.transform * vertex
+			seated = seated and _armor_surface_height(fairing, Vector2(point.x, point.z)) > point.y + 0.01
+			samples += 1
+		var side_wall: bool = wall_name.ends_with("Sidewall")
+		var supported := true
+		for t in [0.05, 0.5, 0.95]:
+			var point: Vector2
+			var expected_height: float
+			if side_wall:
+				point = Vector2(-1.08 if wall_name == "PortSidewall" else 1.08, lerpf(-2.15, 1.05, t))
+				expected_height = 2.41
+			else:
+				point = Vector2(lerpf(-1.0, 1.0, t), -2.05 if wall_name == "ForwardPressureWall" else 0.94)
+				expected_height = 2.525 if wall_name == "ForwardPressureWall" else 2.605
+			supported = supported and is_equal_approx(_armor_surface_height(wall, point), expected_height)
+		_check(supported, wall_name + " retains the original upper support plane")
+		var bounds := wall.get_aabb()
+		_check(bounds.size.x > 2.4 if not side_wall else bounds.size.x > 0.50,
+			wall_name + " has a substantial lower armor flare")
+	_check(seated and samples > 20, "all emitted lower tub feet embed in actual pressure-fairing triangles")
+	_check(triangles <= 208, "four formed tub walls stay within 208 triangles")
+	for x in [-0.95, 0.0, 0.95]:
+		for z in [-1.94, -0.55, 0.81]:
+			var cabin_clear := true
+			for wall_name in ["PortSidewall", "StarboardSidewall", "ForwardPressureWall", "RearPressureWall"]:
+				var wall := visual.get_node("CockpitInterior/" + wall_name) as MeshInstance3D
+				cabin_clear = cabin_clear and not is_finite(_armor_surface_height(wall, Vector2(x, z)))
+			_check(cabin_clear, "formed walls leave the retained cabin floor open at " + str(Vector2(x, z)))
 
 
 ## Sample the actual triangle skin: an unchanged AABB would not detect a
@@ -154,8 +198,7 @@ func _test_primary_armor_landings(visual: Node3D) -> void:
 
 
 func _armor_surface_height(instance: MeshInstance3D, at: Vector2) -> float:
-	var arrays := instance.mesh.surface_get_arrays(0)
-	var vertices: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
+	var vertices := instance.mesh.get_faces()
 	var height := -INF
 	for index in range(0, vertices.size(), 3):
 		var hit: Variant = Geometry3D.ray_intersects_triangle(Vector3(at.x, 10, at.y), Vector3.DOWN,

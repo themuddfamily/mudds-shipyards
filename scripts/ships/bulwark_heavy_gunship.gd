@@ -354,6 +354,7 @@ func _build_bulwark_variant(_controller: HeroShip) -> bool:
 	var armor_dark := _material(ARMOR_DARK, 0.12, 0.62)
 	var armor_blue := _material(ARMOR_BLUE, 0.12, 0.62)
 	var armor_highlight := _material(ARMOR_HIGHLIGHT, 0.16, 0.58)
+	_fit_cockpit_armor_tub(cockpit, armor_blue)
 	# Structural canopy sills use the hull finish; amber remains on controls.
 	if cockpit != null:
 		for sill_name in ["PortSill", "StarboardSill"]:
@@ -772,6 +773,79 @@ func _build_gunner_crew_surround(visual: Node3D, armor: Material) -> void:
 	surround.name = "GunnerRearSplinterShield"
 	surround.mesh = surface.commit()
 	visual.add_child(surround)
+
+
+## Retain the four functional wall owners and their exact upper support lands.
+## Below those lands, formed armor spreads into the pressure crown rather than
+## leaving a vertical rectangular cabin perched on top of the hull.
+func _fit_cockpit_armor_tub(cockpit: Node3D, armor: Material) -> void:
+	if cockpit == null:
+		return
+	for wall_name in ["PortSidewall", "StarboardSidewall", "ForwardPressureWall", "RearPressureWall"]:
+		var wall := cockpit.get_node(wall_name) as MeshInstance3D
+		var bounds := wall.transform * wall.get_aabb()
+		var side_wall: bool = wall_name.ends_with("Sidewall")
+		var direction := -1.0 if wall_name in ["PortSidewall", "ForwardPressureWall"] else 1.0
+		var rings: Array[PackedVector3Array] = []
+		for station in 4:
+			var t: float = [0.0, 0.12, 0.88, 1.0][station]
+			var top: Vector3
+			var inner: Vector3
+			var foot: Vector3
+			if side_wall:
+				top = Vector3(direction * 1.17, bounds.end.y, lerpf(bounds.position.z, bounds.end.z, t))
+				inner = Vector3(direction * 0.99, top.y, top.z)
+				foot = Vector3(direction * ([1.22, 1.50, 1.50, 1.22][station]), 1.40,
+					[-2.48, -2.10, 1.0, 1.30][station])
+			else:
+				top = Vector3(lerpf(-1.17, 1.17, t), bounds.end.y,
+					bounds.position.z if direction < 0.0 else bounds.end.z)
+				inner = Vector3(top.x, top.y, bounds.end.z if direction < 0.0 else bounds.position.z)
+				foot = Vector3([-1.22, -0.93, 0.93, 1.22][station], 1.40,
+					([-2.48, -2.57, -2.57, -2.48] if direction < 0.0 else [1.30, 1.34, 1.34, 1.30])[station])
+			# Short upright seal land, then a substantial sloping armor cheek.
+			var shoulder := top.lerp(foot, 0.12)
+			shoulder.y = 2.28 if side_wall else 2.34
+			var roll := top.lerp(foot, 0.48)
+			roll.y = 2.08
+			var belly := top.lerp(foot, 0.82)
+			belly.y = 1.83
+			var inner_foot := Vector3(inner.x, 1.87, inner.z)
+			rings.append(PackedVector3Array([inner, top, shoulder, roll, belly, foot, inner_foot]))
+		var surface := SurfaceTool.new()
+		surface.begin(Mesh.PRIMITIVE_TRIANGLES)
+		surface.set_material(armor)
+		for bay in 3:
+			var center := Vector3.ZERO
+			for point in rings[bay]: center += point / 14.0
+			for point in rings[bay + 1]: center += point / 14.0
+			for edge in 7:
+				var next := (edge + 1) % 7
+				_tub_quad(surface, rings[bay][edge], rings[bay + 1][edge],
+					rings[bay + 1][next], rings[bay][next], center)
+		for end in [0, 3]:
+			var ring := rings[end]
+			var center := Vector3.ZERO
+			for point in rings[1 if end == 0 else 2]: center += point / 7.0
+			for edge in range(1, 6):
+				_tub_quad(surface, ring[0], ring[edge], ring[edge + 1], ring[edge + 1], center)
+		surface.generate_tangents()
+		wall.transform = Transform3D.IDENTITY
+		wall.mesh = surface.commit()
+
+
+func _tub_quad(surface: SurfaceTool, a: Vector3, b: Vector3, c: Vector3, d: Vector3, inside: Vector3) -> void:
+	var normal := (c - a).cross(b - a).normalized()
+	var points := [a, b, c] if c == d else [a, b, c, a, c, d]
+	if normal.dot((a + b + c + d) * 0.25 - inside) < 0.0:
+		normal = -normal
+		points.reverse()
+	var u := (b - a).normalized()
+	var v := u.cross(normal).normalized()
+	for point: Vector3 in points:
+		surface.set_normal(normal)
+		surface.set_uv(Vector2((point - a).dot(u), (point - a).dot(v)))
+		surface.add_vertex(point)
 
 
 ## A formed pressure crown supports the retained cabin floor at y=1.87.
