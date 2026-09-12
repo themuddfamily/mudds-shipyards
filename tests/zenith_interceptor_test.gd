@@ -3542,6 +3542,20 @@ func _canopy_triangle_hits(zenith: ZenithInterceptor, stock: MeshInstance3D, ori
 	return hits
 
 
+func _canopy_triangle_distance(point: Vector3, a: Vector3, b: Vector3, c: Vector3) -> float:
+	var normal := (b - a).cross(c - a)
+	var closest := INF
+	for edge in [[a, b], [b, c], [c, a]]:
+		closest = minf(closest, point.distance_to(Geometry3D.get_closest_point_to_segment(point, edge[0], edge[1])))
+	if normal.length_squared() > 0.000000001:
+		var projected := point - normal * (point - a).dot(normal) / normal.length_squared()
+		if (b - a).cross(projected - a).dot(normal) >= -0.00000001 \
+				and (c - b).cross(projected - b).dot(normal) >= -0.00000001 \
+				and (a - c).cross(projected - c).dot(normal) >= -0.00000001:
+			closest = minf(closest, point.distance_to(projected))
+	return closest
+
+
 func _test_fitted_canopy(zenith: ZenithInterceptor) -> void:
 	zenith.set_canopy_open(false, 0.0)
 	var visual := zenith.get_zenith_visual_root()
@@ -3589,6 +3603,24 @@ func _test_fitted_canopy(zenith: ZenithInterceptor) -> void:
 		"physical cockpit eye remains inside the fitted canopy with overhead clearance")
 	var mesh_id := glass.mesh.get_instance_id()
 	var frame := glass.get_node("CanopyPressureFrame") as MeshInstance3D
+	# Measure physical stock against emitted glass, so SurfaceTool vertex
+	# reindexing cannot silently turn a perimeter rail into a diagonal brace.
+	var fitted_frame := true
+	for vertex: Vector3 in frame.mesh.surface_get_arrays(0)[Mesh.ARRAY_VERTEX]:
+		var distance := INF
+		for index in range(0, faces.size(), 3):
+			distance = minf(distance, _canopy_triangle_distance(vertex, faces[index], faces[index + 1], faces[index + 2]))
+			if distance < 0.033:
+				break
+		fitted_frame = fitted_frame and distance < 0.033
+	_check(fitted_frame, "all fitted frame stock stays within 33 mm of the actual glazing triangles")
+	var front_flat := true
+	for x in [-0.6, -0.3, 0.0, 0.3, 0.6]:
+		var hits := _canopy_triangle_hits(zenith, frame, Vector3(x, 2.6, -2.22), Vector3.DOWN)
+		front_flat = front_flat and not hits.is_empty()
+		for hit in hits:
+			front_flat = front_flat and absf(hit.y - 2.30) <= 0.023
+	_check(front_flat, "front pressure rail stays level across the full windscreen coaming")
 	var frame_id := frame.mesh.get_instance_id()
 	var reference := zenith.get_zenith_authored_presentation().call("get_canopy_pivot") as Node3D
 	var follows_hinge := true

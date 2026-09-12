@@ -4482,13 +4482,11 @@ func _build_enclosed_canopy(visual: Node3D, pressure_stations: Array) -> void:
 	# the pilot well. All points are authored closed, relative to the common hinge.
 	var stations := _formed_pressure_stations(pressure_stations).filter(
 		func(station: Vector4) -> bool: return station.w >= -2.22001 and station.w <= 0.34001)
-	var glazing := _build_fitted_canopy_glazing(stations, glass)
-	glazing.layers = COCKPIT_FRAME_EXTERIOR_VISUAL_MASK
 	var frame_material := glass.duplicate() as StandardMaterial3D
 	frame_material.albedo_color = Color("536169")
 	frame_material.metallic = 0.15
 	frame_material.roughness = 0.75
-	_fit_canopy_frame(glazing, frame_material)
+	_build_fitted_canopy_glazing(stations, glass, frame_material)
 	_sync_modern_canopy_pose()
 
 
@@ -5460,9 +5458,10 @@ static func _violation(
 ## Open-bottom glazing seated on the pressure body's existing cockpit aperture.
 ## The broad windscreen rises from the entire forward coaming; an aft pane
 ## closes the rear arch on the dorsal land without crossing the pilot volume.
-func _build_fitted_canopy_glazing(stations: Array, material: Material) -> MeshInstance3D:
+func _build_fitted_canopy_glazing(stations: Array, material: Material, frame_material: Material) -> void:
 	const ARCH_SEGMENTS := 24
 	const CLOSED_HINGE := Vector3(0.0, 2.65, 0.55)
+	var grid := PackedVector3Array()
 	var tool := SurfaceTool.new()
 	tool.begin(Mesh.PRIMITIVE_TRIANGLES)
 	tool.set_material(material)
@@ -5475,7 +5474,8 @@ func _build_fitted_canopy_glazing(stations: Array, material: Material) -> MeshIn
 			var point := Vector3(station.x * 0.70 * cos(angle),
 				station.y + rise * pow(maxf(0.0, sin(angle)), 0.80), station.w)
 			tool.set_uv(Vector2(float(arch) / ARCH_SEGMENTS, travel))
-			tool.add_vertex(point - CLOSED_HINGE)
+			grid.append(point - CLOSED_HINGE)
+			tool.add_vertex(grid[-1])
 	for station in stations.size() - 1:
 		for arch in ARCH_SEGMENTS:
 			var a := station * (ARCH_SEGMENTS + 1) + arch
@@ -5496,16 +5496,18 @@ func _build_fitted_canopy_glazing(stations: Array, material: Material) -> MeshIn
 	var glazing := MeshInstance3D.new()
 	glazing.name = "LaminatedCanopy"
 	glazing.mesh = tool.commit()
+	glazing.layers = COCKPIT_FRAME_EXTERIOR_VISUAL_MASK
 	_modern_canopy_pivot.add_child(glazing)
-	return glazing
+	# SurfaceTool.generate_normals reindexes the committed vertices by triangle
+	# encounter order. Keep the original station grid for fitting the frame.
+	_fit_canopy_frame(glazing, grid, frame_material)
 
 
 ## One retained frame mesh: closed perimeter stock and two curved pressure
 ## arches follow the emitted glazing vertices instead of hovering over a dome.
-func _fit_canopy_frame(glazing: MeshInstance3D, material: Material) -> void:
+func _fit_canopy_frame(glazing: MeshInstance3D, vertices: PackedVector3Array, material: Material) -> void:
 	const ARCH_SEGMENTS := 24
-	var vertices: PackedVector3Array = glazing.mesh.surface_get_arrays(0)[Mesh.ARRAY_VERTEX]
-	var rows := (vertices.size() - 1) / (ARCH_SEGMENTS + 1)
+	var rows := vertices.size() / (ARCH_SEGMENTS + 1)
 	var tool := SurfaceTool.new()
 	tool.begin(Mesh.PRIMITIVE_TRIANGLES)
 	tool.set_material(material)

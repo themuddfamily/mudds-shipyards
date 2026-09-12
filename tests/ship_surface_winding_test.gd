@@ -391,8 +391,11 @@ func _check_craft(expected_sign: int) -> void:
 		# checks every seat-shell triangle above.
 		# Arrow's recessed cabin is concave: its inward walls and upward floor
 		# have independent geometric winding checks in arrow_recon_ship_test.
-		closed_lofts == 53,
-		"the normal-independent closed-loft guard covered all 53 centre-testable manufactured closed volumes across Arrow, Zenith, Jovian and Halyard"
+		# Zenith now uses an open-bottom canopy fitted to its cockpit rim.
+		# Its perimeter/entry clearance is covered by the Zenith core test;
+		# every glazing/frame triangle remains in the winding sweep above.
+		closed_lofts == 52,
+		"the normal-independent closed-loft guard covered all 52 centre-testable manufactured closed volumes across Arrow, Zenith, Jovian and Halyard"
 	)
 
 
