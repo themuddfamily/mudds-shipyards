@@ -707,15 +707,12 @@ func _build_interceptor() -> void:
 	# immutable mesh recipe. Runtime lamps and collision retain their own nodes.
 	var cargo_shell_mesh := MaterialCatalog.make_cargo_shell(_materials.courier_clay)
 	var pod_band_mesh := MaterialCatalog.make_cargo_strap(_materials.courier_rust)
-	# The marker lamps are likewise a bilateral immutable visual family. Their
-	# MeshInstance3D nodes remain independent because lifecycle presentation
-	# toggles visibility per lamp, but their identical sphere geometry is shared.
-	var pod_lamp_mesh := SphereMesh.new()
-	pod_lamp_mesh.radius = POD_LAMP_RADIUS
-	pod_lamp_mesh.height = POD_LAMP_RADIUS * 2.0
-	pod_lamp_mesh.radial_segments = 24
-	pod_lamp_mesh.rings = 12
-	pod_lamp_mesh.material = _materials.courier_lamp
+	# Two independent active-state lenses share one shallow convex optical mesh.
+	# Their passive bezels and saddles join the existing static shadow surface.
+	var pod_lamp_mesh := _courier_lamp_profile_mesh(PackedVector2Array([
+		Vector2(0.0, -0.026), Vector2(0.078, -0.022),
+		Vector2(0.108, -0.010), Vector2(0.108, 0.015), Vector2(0.0, 0.015),
+	]), _materials.courier_lamp)
 	# These bilateral freight supports are immutable childless silhouette stock.
 	# Keep both renderer paths and exact transforms, while retaining one courier-
 	# local BoxMesh recipe instead of allocating the same geometry twice.
@@ -740,14 +737,11 @@ func _build_interceptor() -> void:
 			Vector3(side * 2.5, -0.34, -0.8),
 			pod_band_mesh
 		)
-		var lamp := _sphere(
-			_visual_root,
-			"PodLamp",
-			Vector3(side * 2.5, 0.22, -1.9),
-			POD_LAMP_RADIUS,
-			_materials.courier_lamp,
-			pod_lamp_mesh
-		)
+		var lamp := MeshInstance3D.new()
+		lamp.name = "PodLamp"
+		lamp.position = Vector3(side * 2.5, 0.22, -1.9)
+		lamp.mesh = pod_lamp_mesh
+		_visual_root.add_child(lamp)
 		_cargo_lamps.append(lamp)
 
 		_box_from_mesh(_visual_root, "EnginePod", Vector3(side * 1.15, 0.05, 3.9), engine_pod_mesh)
@@ -1029,6 +1023,43 @@ func _build_courier_fittings() -> void:
 	_build_courier_upperworks()
 
 
+## Radius/z sections form a convex lens or a closed, recessed mounting bezel.
+## Clockwise front faces and radial normals preserve a round optical silhouette.
+func _courier_lamp_profile_mesh(profile: PackedVector2Array, material: Material) -> ArrayMesh:
+	var surface := SurfaceTool.new()
+	surface.begin(Mesh.PRIMITIVE_TRIANGLES)
+	surface.set_material(material)
+	const SEGMENTS := 24
+	for section in profile.size() - 1:
+		var start := profile[section]
+		var finish := profile[section + 1]
+		var slope := finish - start
+		for segment in SEGMENTS:
+			var a := TAU * float(segment) / SEGMENTS
+			var b := TAU * float(segment + 1) / SEGMENTS
+			var points := PackedVector3Array([
+				Vector3(cos(a) * start.x, sin(a) * start.x, start.y),
+				Vector3(cos(b) * start.x, sin(b) * start.x, start.y),
+				Vector3(cos(b) * finish.x, sin(b) * finish.x, finish.y),
+				Vector3(cos(a) * finish.x, sin(a) * finish.x, finish.y),
+			])
+			for triangle in [[0, 2, 1], [0, 3, 2]]:
+				if (points[triangle[2]] - points[triangle[0]]).cross(points[triangle[1]] - points[triangle[0]]).length_squared() < 1e-12:
+					continue
+				for index in triangle:
+					var point := points[index]
+					var radial := Vector2(point.x, point.y).normalized()
+					if radial == Vector2.ZERO:
+						radial = Vector2(cos((a + b) * 0.5), sin((a + b) * 0.5))
+					surface.set_normal(Vector3(slope.y * radial.x, slope.y * radial.y, -slope.x).normalized())
+					surface.set_uv(Vector2(point.x, point.y))
+					surface.add_vertex(point)
+	surface.generate_tangents()
+	var mesh := surface.commit()
+	mesh.resource_local_to_scene = false
+	return mesh
+
+
 ## The flight cab has a sloped windscreen, side glazing, a weather roof and a
 ## pressure collar. Roof covers share the hull's shoulders instead of floating
 ## above the stripe on individual slabs. All opaque pieces join the existing
@@ -1060,13 +1091,30 @@ func _build_courier_upperworks() -> void:
 	for bay in 3:
 		var z := -1.51 + bay*1.51
 		opaque[0].append(_courier_roof_mesh(z, z+1.465, 0.024, _materials.courier_hull))
+	# A rolled open bezel shelters the lens. Its rear case meets a formed saddle
+	# that overlaps the cargo shoulder; the amber optic never serves as a mount.
+	var bezel := _courier_lamp_profile_mesh(PackedVector2Array([
+		Vector2(0.112, 0.015), Vector2(0.112, -0.024),
+		Vector2(0.13, -0.040), Vector2(0.17, -0.020),
+		Vector2(0.17, 0.12), Vector2(0.12, 0.205),
+		Vector2(0.0, 0.205), Vector2(0.0, 0.015), Vector2(0.112, 0.015),
+	]), _materials.courier_shadow)
+	var saddle := _armour_mesh(Vector3(0.23, 0.20, 0.32), _materials.courier_shadow)
+	for side in [-1.0, 1.0]:
+		for fitting in [[bezel, Vector3(side * 2.5, 0.22, -1.9)], [saddle, Vector3(side * 2.5, 0.005, -1.68)]]:
+			var surface := SurfaceTool.new()
+			surface.begin(Mesh.PRIMITIVE_TRIANGLES)
+			surface.set_material(_materials.courier_shadow)
+			surface.append_from(fitting[0], 0, Transform3D(Basis.IDENTITY, fitting[1]))
+			opaque[2].append(surface.commit())
 	var fittings := _visual_root.get_node(^"FittedArmourAndServices") as MeshInstance3D
 	var combined := ArrayMesh.new()
 	for material_index in 3:
 		var surface := SurfaceTool.new()
-		surface.begin(Mesh.PRIMITIVE_TRIANGLES)
-		surface.set_material(fittings.mesh.surface_get_material(material_index))
-		surface.append_from(fittings.mesh,material_index,Transform3D.IDENTITY)
+		surface.create_from(fittings.mesh, material_index)
+		# All appended fittings are triangle streams. Normalize the retained
+		# surface too so an indexed base cannot drop the added geometry.
+		surface.deindex()
 		for piece: ArrayMesh in opaque[material_index]:
 			surface.append_from(piece,0,Transform3D.IDENTITY)
 		surface.commit(combined)
