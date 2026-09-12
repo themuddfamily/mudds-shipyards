@@ -3207,29 +3207,22 @@ func _fit_co_pilot_station(station: Node3D) -> void:
 		Vector4(0.50, -0.10, 0.13, -0.02),
 		Vector4(0.42, -0.08, 0.10, 0.14),
 	], _halyard_materials.trim, false)], [Transform3D(upright, Vector3.ZERO)], _halyard_materials.trim)
-	# Sample the actual crown stations: the restraint sits on the foam instead
-	# of hanging vertically in front of a reclining back. A small overlap seats
-	# the webbing across the crown's rounded width.
-	var belt_sections: Array[Vector4] = []
-	for index in range(back_sections.size() - 1):
-		for step in 4:
-			var t := float(step) / 4.0
-			var section := back_sections[index].lerp(back_sections[index + 1], t * t * (3.0 - 2.0 * t))
-			section.w = lerpf(back_sections[index].w, back_sections[index + 1].w, t)
-			if section.w < -0.36 or section.w > 0.36:
-				continue
-			belt_sections.append(Vector4(0.12, section.z - 0.003, section.z + 0.005, section.w))
+	# Two shoulder webs converge into a short lap join. Each ribbon follows
+	# the same sampled foam crown, including its lateral roll at the shoulders.
 	var belt := station.get_node("CoPilotHarness") as MeshInstance3D
-	belt.mesh = _co_pilot_join_meshes([
-		_cockpit_formed_enclosure_mesh(belt_sections, _halyard_materials.accent),
-	], [belt.transform.affine_inverse() * back.transform * Transform3D(upright, Vector3.ZERO)], _halyard_materials.accent)
+	var belt_parts: Array[Mesh] = []
+	var belt_transforms: Array[Transform3D] = []
+	for side in [-1.0, 0.0, 1.0]:
+		belt_parts.append(_co_pilot_webbing_mesh(back_sections, side))
+		belt_transforms.append(belt.transform.affine_inverse() * back.transform * Transform3D(upright, Vector3.ZERO))
+	belt.mesh = _co_pilot_join_meshes(belt_parts, belt_transforms, _halyard_materials.accent)
 	var console := station.get_node("CoPilotConsole") as MeshInstance3D
-	console.mesh = _cockpit_formed_enclosure_mesh([
+	console.mesh = _cockpit_cushion_mesh([
 		Vector4(0.76, -0.22, 0.16, -0.30),
 		Vector4(0.92, -0.22, 0.22, -0.14),
 		Vector4(0.88, -0.22, 0.12, 0.22),
 		Vector4(0.78, -0.18, 0.08, 0.30),
-	], _halyard_materials.structure)
+	], _halyard_materials.structure, true)
 	# The pedestal is expressed in station space so it lands squarely on the
 	# deck while the housing retains its original sixteen-degree control rake.
 	var console_support := _cockpit_formed_enclosure_mesh([
@@ -3240,6 +3233,36 @@ func _fit_co_pilot_station(station: Node3D) -> void:
 		Transform3D.IDENTITY,
 		console.transform.affine_inverse() * Transform3D(Basis.IDENTITY, Vector3(0.34, 0.0, -0.92)),
 	], _halyard_materials.structure)
+
+
+func _co_pilot_webbing_mesh(back_sections: Array[Vector4], side: float) -> ArrayMesh:
+	var sections: Array[Vector4] = []
+	for step in 17:
+		var z := lerpf(-0.36, -0.30 if side == 0.0 else 0.36, float(step) / 16.0)
+		sections.append(Vector4(0.24 if side == 0.0 else 0.065, -0.002, 0.005, z))
+	var flat := _cockpit_formed_enclosure_mesh(sections, _halyard_materials.accent)
+	var vertices: PackedVector3Array = flat.surface_get_arrays(0)[Mesh.ARRAY_VERTEX]
+	var tool := SurfaceTool.new()
+	tool.begin(Mesh.PRIMITIVE_TRIANGLES)
+	tool.set_material(_halyard_materials.accent)
+	for vertex in vertices:
+		var section := back_sections[0]
+		for index in range(back_sections.size() - 1):
+			if vertex.z >= back_sections[index].w and vertex.z <= back_sections[index + 1].w:
+				var t := inverse_lerp(back_sections[index].w, back_sections[index + 1].w, vertex.z)
+				section = back_sections[index].lerp(back_sections[index + 1], t * t * (3.0 - 2.0 * t))
+				break
+		vertex.x += side * lerpf(0.035, 0.20, inverse_lerp(-0.36, 0.36, vertex.z))
+		# This is the cushion generator's cross-section equation, evaluated at
+		# both ribbon edges rather than approximated with a floating flat strip.
+		var cosine := pow(clampf(absf(vertex.x) / (section.x * 0.5), 0.0, 1.0), 1.0 / 0.52)
+		var crown := pow(sqrt(maxf(0.0, 1.0 - cosine * cosine)), 0.72)
+		vertex.y += (section.y + section.z) * 0.5 + crown * (section.z - section.y) * 0.5
+		tool.set_uv(Vector2(vertex.x, vertex.z))
+		tool.add_vertex(vertex)
+	tool.generate_normals()
+	tool.generate_tangents()
+	return tool.commit()
 
 
 func _co_pilot_join_meshes(parts: Array[Mesh], transforms: Array[Transform3D], material: Material) -> ArrayMesh:
