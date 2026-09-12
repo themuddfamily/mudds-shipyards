@@ -3332,6 +3332,11 @@ func _build_lighting_and_signage() -> void:
 		work_light.spot_angle_attenuation = 0.55
 		work_light.spot_attenuation = 0.75
 		work_light.shadow_enabled = true
+		if RenderingServer.get_current_rendering_method() == &"gl_compatibility":
+			# The broad apron cones otherwise self-shadow the ramp and curved
+			# hull into repeated bands. Bias these two maps while retaining
+			# their normal offset, contact shadows and quality-tier toggles.
+			work_light.shadow_bias = 0.2
 		_work_masts.append(work_light)
 		presentation.add_child(work_light, true)
 
