@@ -13,6 +13,8 @@ func _initialize() -> void:
 	_test_induction_cassettes(craft)
 	_test_recessed_exhaust(craft)
 	_test_fitted_canopy(craft)
+	_test_formed_cockpit_walls(craft)
+	await _test_armor_instance_finish(craft)
 	var audit := craft.get_audit_report()
 	_check(bool(audit.get("valid", false)), "the interceptor builds a valid collision and lifecycle contract")
 	_check(audit.get("evidence_status", &"") == &"NEW" and not bool(audit.get("historically_supported", true)), "the interceptor makes no historical claim")
@@ -404,3 +406,56 @@ func _test_fitted_canopy(craft: HeroShip) -> void:
 	_check(hinge.rotation.x > 1.0 and glass.mesh == glass_stock and glass.is_visible_in_tree(),
 		"the common functional hinge opens the complete fitted upper lid")
 	craft.set_canopy_open(false, 0.0)
+
+
+func _test_formed_cockpit_walls(craft: HeroShip) -> void:
+	var visual := craft.get_variant_visual_root()
+	var cockpit := visual.get_node("CockpitInterior")
+	var fairing := visual.get_node("ClosedCockpitFairing") as MeshInstance3D
+	var names := ["PortSidewall", "StarboardSidewall", "ForwardPressureWall", "RearPressureWall"]
+	var contact_points := [Vector3(-1.54, 0, -0.555), Vector3(1.54, 0, -0.555), Vector3(0, 0, -2.45), Vector3(0, 0, 1.32)]
+	var triangles := 0
+	for index in names.size():
+		var wall := cockpit.get_node(names[index]) as MeshInstance3D
+		_check(wall.mesh is ArrayMesh and wall.mesh.get_surface_count() == 1 and wall.mesh.surface_get_material(0) == null,
+			"formed cockpit armor keeps one surface per existing owner and no material in shared geometry")
+		_check(wall.material_override == fairing.material_override and wall.get_child_count() == 0,
+			"formed cockpit armor uses the owning craft finish with no additional scene or collision nodes")
+		var faces := wall.mesh.get_faces()
+		triangles += faces.size() / 3
+		var levels: Dictionary = {}
+		var contact := Vector3.INF
+		for vertex in faces:
+			var at := wall.transform * vertex
+			levels[snappedf(at.y, 0.001)] = true
+			if absf(at.x - contact_points[index].x) < 0.001 and absf(at.z - contact_points[index].z) < 0.001:
+				if at.y < contact.y: contact = at
+		_check(levels.size() >= 9, "armor has a substantial rolled profile below the retained seal land")
+		var height := -INF
+		var skin_faces := fairing.mesh.get_faces()
+		for triangle in range(0, skin_faces.size(), 3):
+			var hit = Geometry3D.ray_intersects_triangle(Vector3(contact.x, 8, contact.z), Vector3.DOWN,
+				fairing.transform * skin_faces[triangle], fairing.transform * skin_faces[triangle + 1], fairing.transform * skin_faces[triangle + 2])
+			if hit != null: height = maxf(height, hit.y)
+		_check(is_finite(height) and height - contact.y > 0.025 and height - contact.y < 0.045,
+			"the emitted armor toe seats inside actual fairing triangles, including the widest cheek and fore/aft center")
+	_check(triangles <= 600, "four formed wall owners stay within 600 triangles and four submissions")
+
+
+func _test_armor_instance_finish(craft: HeroShip) -> void:
+	var second := Interceptor.new()
+	root.add_child(second)
+	await process_frame
+	var first_wall := craft.get_variant_visual_root().get_node("CockpitInterior/PortSidewall") as MeshInstance3D
+	var second_cockpit := second.get_variant_visual_root().get_node("CockpitInterior") as Node3D
+	var original_finish := first_wall.material_override
+	var alternate_finish := StandardMaterial3D.new()
+	alternate_finish.albedo_color = Color.RED
+	# Exercise the populated geometry cache with a different owner's finish.
+	preload("res://scripts/ships/cinder_cockpit_armor_shell.gd").install(second_cockpit, alternate_finish, &"light_interceptor", 1.54, [])
+	var second_wall := second_cockpit.get_node("PortSidewall") as MeshInstance3D
+	_check(first_wall.mesh == second_wall.mesh and first_wall.material_override == original_finish
+		and second_wall.material_override == alternate_finish and second_wall.mesh.surface_get_material(0) == null,
+		"two live craft share armor geometry while retaining independent finish ownership")
+	second.queue_free()
+	await process_frame

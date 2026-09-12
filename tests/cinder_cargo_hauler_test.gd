@@ -16,6 +16,7 @@ func _initialize() -> void:
 	_test_recessed_exhaust(craft)
 	_test_cockpit_fairing(craft)
 	_test_fitted_canopy(craft)
+	_test_formed_cockpit_walls(craft)
 	_test_pressure_endcaps(craft)
 	var endcap_stock: Mesh = craft.get_node("CinderCargoVisual/ForwardPressureCap").mesh
 	var fairing_stock: Mesh = craft.get_node("CinderCargoVisual/CockpitPressureTransition").mesh
@@ -646,3 +647,37 @@ func _test_pressure_endcaps(craft: HeroShip) -> void:
 		"cargo caps have a broad three-stage rolled return and rounded silhouette corners")
 	_check(valid and closed,
 		"formed caps are closed outward-wound solids with finite normals, usable UVs and bounded triangle cost")
+
+
+func _test_formed_cockpit_walls(craft: HeroShip) -> void:
+	var visual := craft.get_variant_visual_root()
+	var cockpit := visual.get_node("CockpitInterior")
+	var fairing := visual.get_node("CockpitPressureTransition") as MeshInstance3D
+	var names := ["PortSidewall", "StarboardSidewall", "ForwardPressureWall", "RearPressureWall"]
+	var contact_points := [Vector3(-1.44, 0, -0.555), Vector3(1.44, 0, -0.555), Vector3(0, 0, -2.45), Vector3(0, 0, 1.32)]
+	var triangles := 0
+	for index in names.size():
+		var wall := cockpit.get_node(names[index]) as MeshInstance3D
+		_check(wall.mesh is ArrayMesh and wall.mesh.get_surface_count() == 1 and wall.mesh.surface_get_material(0) == null,
+			"formed cockpit armor keeps one surface per existing owner and no material in shared geometry")
+		_check(wall.material_override == fairing.mesh.surface_get_material(0) and wall.get_child_count() == 0,
+			"formed cockpit armor uses the owning craft finish with no additional scene or collision nodes")
+		var faces := wall.mesh.get_faces()
+		triangles += faces.size() / 3
+		var levels: Dictionary = {}
+		var contact := Vector3.INF
+		for vertex in faces:
+			var at := wall.transform * vertex
+			levels[snappedf(at.y, 0.001)] = true
+			if absf(at.x - contact_points[index].x) < 0.001 and absf(at.z - contact_points[index].z) < 0.001:
+				if at.y < contact.y: contact = at
+		_check(levels.size() >= 9, "armor has a substantial rolled profile below the retained seal land")
+		var height := -INF
+		var skin_faces := fairing.mesh.get_faces()
+		for triangle in range(0, skin_faces.size(), 3):
+			var hit = Geometry3D.ray_intersects_triangle(Vector3(contact.x, 8, contact.z), Vector3.DOWN,
+				fairing.transform * skin_faces[triangle], fairing.transform * skin_faces[triangle + 1], fairing.transform * skin_faces[triangle + 2])
+			if hit != null: height = maxf(height, hit.y)
+		_check(is_finite(height) and height - contact.y > 0.025 and height - contact.y < 0.045,
+			"the emitted armor toe seats inside actual fairing triangles, including the widest cheek and fore/aft center")
+	_check(triangles <= 600, "four formed wall owners stay within 600 triangles and four submissions")

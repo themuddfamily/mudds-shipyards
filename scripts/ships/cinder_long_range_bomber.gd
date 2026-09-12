@@ -1121,6 +1121,13 @@ func _build_cockpit_support_fairing(visual: Node3D) -> void:
 	fairing.material_override = _shared_hull_material
 	fairing.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON
 	visual.add_child(fairing)
+	# Fixed toe contacts lie 35 mm inside this craft's emitted fairing skin.
+	preload("res://scripts/ships/cinder_cockpit_armor_shell.gd").install(
+		visual.get_node("CockpitInterior"), _shared_hull_material, &"long_range_bomber", 1.68, [
+			[1.8002, 1.772, 1.6787, 1.6359, 1.6787, 1.772, 1.8316],
+			[1.8006, 1.7974, 1.7814, 1.7756, 1.7814, 1.7974, 1.8002],
+			[1.8316, 1.8388, 1.8345, 1.8329, 1.8345, 1.8388, 1.8316],
+		])
 
 
 ## Formed skins retain the authored planform while rolling continuously from

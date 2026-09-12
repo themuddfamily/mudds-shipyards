@@ -400,6 +400,13 @@ func _build_hull(visual: Node3D) -> void:
 	cockpit_fairing.set_meta(&"presentation_only", true)
 	cockpit_fairing.set_meta(&"gameplay_authority", false)
 	visual.add_child(cockpit_fairing)
+	# Fixed toe contacts lie 35 mm inside this craft's emitted fairing skin.
+	preload("res://scripts/ships/cinder_cockpit_armor_shell.gd").install(
+		visual.get_node("CockpitInterior"), _shared_hull_material, &"light_interceptor", 1.54, [
+			[1.7903, 1.7347, 1.6231, 1.572, 1.6231, 1.7347, 1.8107],
+			[1.7908, 1.8146, 1.8034, 1.7993, 1.8034, 1.8146, 1.7903],
+			[1.8106, 1.8308, 1.8244, 1.822, 1.8244, 1.8308, 1.8107],
+		])
 	var wing := MeshInstance3D.new()
 	wing.name = "RapidResponseWing"
 	if _shared_wing_mesh == null:

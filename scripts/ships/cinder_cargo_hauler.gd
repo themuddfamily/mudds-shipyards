@@ -1170,6 +1170,13 @@ func _build_freight_pressure_fairings(visual: Node3D) -> void:
 		_shared_cockpit_fairing.resource_local_to_scene = false
 	cockpit_fairing.mesh = _shared_cockpit_fairing
 	visual.add_child(cockpit_fairing)
+	# Fixed toe contacts lie 35 mm inside this craft's emitted fairing skin.
+	preload("res://scripts/ships/cinder_cockpit_armor_shell.gd").install(
+		visual.get_node("CockpitInterior"), _shared_hull_material, &"cargo_hauler", 1.44, [
+			[1.7668, 1.7742, 1.7062, 1.6715, 1.7062, 1.7742, 1.8064],
+			[1.7668, 1.7271, 1.6725, 1.6525, 1.6725, 1.7271, 1.7668],
+			[1.8064, 1.8111, 1.7905, 1.7829, 1.7905, 1.8111, 1.8064],
+		])
 	for z in [2.0, 3.2]:
 		var plate := _pressure_panel(visual, "FreightRoofArmor" + str(z), Vector3(0, 1.635, z), 3.1, 3.3, 1.04, 0.05, dark)
 		plate.rotation.x = PI * 0.5
