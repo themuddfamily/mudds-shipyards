@@ -236,7 +236,7 @@ const EXPECTED_ARROW_VISUAL_CENSUS := {
 	# Includes fitted seating/controls and one rigid airframe shadow renderer.
 	"geometry_submissions": 252,
 	"visible_geometry_copies": 254,
-	"unique_mesh_resource_allocations": 204,
+	"unique_mesh_resource_allocations": 203,
 	"auto_fallback_names": 20,
 }
 const RECON_PULSE_EMITTER_VISUAL_DELTA := {
@@ -1621,6 +1621,10 @@ func _restyle_inherited_cockpit(cockpit: Node3D, canopy: Node3D) -> void:
 		(canopy.get_node(obsolete_name) as Node3D).visible = false
 	if cockpit != null:
 		_fit_arrow_instrument_binnacle(cockpit)
+		var wall := cockpit.get_node("PortSidewall") as MeshInstance3D
+		var coaming := _arrow_coaming_mesh(wall.mesh.surface_get_material(0))
+		for side in ["Port", "Starboard"]:
+			(cockpit.get_node(side + "Sidewall") as MeshInstance3D).mesh = coaming
 		# Darker interior preserves high contrast behind the unusually clear canopy.
 		for node in cockpit.find_children("*", "MeshInstance3D", true, false):
 			var mesh_instance := node as MeshInstance3D
@@ -1642,6 +1646,52 @@ func _restyle_inherited_cockpit(cockpit: Node3D, canopy: Node3D) -> void:
 			(frame as MeshInstance3D).material_override = _arrow_materials.graphite
 		for rail in canopy.find_children("*Canopy*Rail", "MeshInstance3D", true, false):
 			(rail as MeshInstance3D).material_override = _arrow_materials.ceramic
+
+
+## Form the inherited wall stock in place: a broad upper roll and rounded
+## fore/aft returns remove the slab edges without moving any cabin boundary.
+## Both sides keep their own renderer/material override and share this stock.
+func _arrow_coaming_mesh(material: Material) -> ArrayMesh:
+	var half := Vector3(0.09, 0.24, 1.60)
+	var radius := Vector3(0.075, 0.14, 0.24)
+	var core := half - radius
+	var steps := PackedFloat32Array([-1.0, -0.8660254, -0.5, 0.0, 0.0, 0.5, 0.8660254, 1.0])
+	var tool := SurfaceTool.new()
+	tool.begin(Mesh.PRIMITIVE_TRIANGLES)
+	tool.set_material(material)
+	# Preserve the inherited structure finish on the replacement stock.
+	for axis in 3:
+		var u := (axis + 1) % 3
+		var v := (axis + 2) % 3
+		for side in [-1.0, 1.0]:
+			for row in steps.size() - 1:
+				for column in steps.size() - 1:
+					var points: Array[Vector3] = []
+					var normals: Array[Vector3] = []
+					var uvs: Array[Vector2] = []
+					for corner in [Vector2i(0, 0), Vector2i(1, 0), Vector2i(1, 1), Vector2i(0, 1)]:
+						var grid: Vector2i = Vector2i(row, column) + corner
+						var direction := Vector3.ZERO
+						direction[axis] = side
+						direction[u] = steps[grid.x]
+						direction[v] = steps[grid.y]
+						var center := Vector3.ZERO
+						center[axis] = side * core[axis]
+						center[u] = (-1.0 if grid.x < 4 else 1.0) * core[u]
+						center[v] = (-1.0 if grid.y < 4 else 1.0) * core[v]
+						# Grid patches cover the six faces of an ellipsoid swept
+						# around a rectangular core; analytic normals join smoothly.
+						points.append(center + direction.normalized() * radius)
+						normals.append((direction.normalized() / radius).normalized())
+						uvs.append(Vector2(grid) / float(steps.size() - 1))
+					for triangle in ([[0, 2, 1], [0, 3, 2]] if side > 0.0 else [[0, 1, 2], [0, 2, 3]]):
+						for index in triangle:
+							tool.set_normal(normals[index])
+							tool.set_uv(uvs[index])
+							tool.add_vertex(points[index])
+	tool.generate_tangents()
+	tool.index()
+	return tool.commit()
 
 
 ## The existing live faces sit inside machined wells, beneath a shallow brow.

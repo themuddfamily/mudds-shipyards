@@ -40,6 +40,7 @@ func _run() -> void:
 	_test_escape_pods_and_sensors(arrow)
 	_test_wingtip_sensor_housings(arrow)
 	_test_instrument_construction(arrow)
+	_test_formed_coaming(arrow)
 	_test_cockpit_fairing(arrow)
 	_test_shared_seat_cushions(arrow)
 	_test_arrow_cabin_opening(arrow)
@@ -999,10 +1000,10 @@ func _test_visual_performance_batch(arrow: ArrowReconShip) -> void:
 			"multi_mesh_instance_nodes": 3,
 			"geometry_submissions": 252,
 			"visible_geometry_copies": 254,
-			"unique_mesh_resource_allocations": 204,
+			"unique_mesh_resource_allocations": 203,
 			"auto_fallback_names": 20,
 		},
-		"entry-complete Arrow retains 283 nodes, 252 submissions including one shadow-only renderer and three fitted nose service renderers, 204 meshes with shared nozzle stock and all 254 copies"
+		"entry-complete Arrow retains 283 nodes, 252 submissions including one shadow-only renderer and three fitted nose service renderers, 203 meshes with shared nozzle and coaming stock and all 254 copies"
 	)
 	_check(
 		report.phase9_before_entry_heat == {
@@ -1607,6 +1608,44 @@ func _test_instrument_construction(arrow: ArrowReconShip) -> void:
 						clear_dials = clear_dials and Geometry3D.segment_intersects_triangle(stock.to_local(camera.global_position), stock.to_local(target), a, b, c) == null
 	_check(geometry_valid, "instrument stock retains outward winding, finite unit normals and nonsingular UVs")
 	_check(clear_dials, "both complete dial sweeps clear the new mounting geometry from the authored pilot eye")
+
+
+func _test_formed_coaming(arrow: ArrowReconShip) -> void:
+	var cockpit := arrow.get_arrow_visual_root().get_node("CockpitInterior")
+	var port := cockpit.get_node("PortSidewall") as MeshInstance3D
+	var starboard := cockpit.get_node("StarboardSidewall") as MeshInstance3D
+	var bounds := AABB(Vector3(-0.09, -0.24, -1.6), Vector3(0.18, 0.48, 3.2))
+	_check(port.mesh == starboard.mesh and port.mesh.get_surface_count() == 1,
+		"both formed coamings share one surface on the inherited renderers")
+	var valid := true
+	for stock: MeshInstance3D in [port, starboard]:
+		valid = valid and stock.mesh.get_aabb().is_equal_approx(bounds)
+		valid = valid and stock.position.is_equal_approx(Vector3(-1.08 if stock == port else 1.08, 2.17, -0.55))
+		var arrays := stock.mesh.surface_get_arrays(0)
+		var vertices: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
+		var normals: PackedVector3Array = arrays[Mesh.ARRAY_NORMAL]
+		var indices: PackedInt32Array = arrays[Mesh.ARRAY_INDEX]
+		var uvs: PackedVector2Array = arrays[Mesh.ARRAY_TEX_UV]
+		valid = valid and indices.size() / 3 == 588 and arrays[Mesh.ARRAY_TANGENT].size() == vertices.size() * 4
+		for index in vertices.size():
+			valid = valid and vertices[index].is_finite() and normals[index].is_finite() and absf(normals[index].length() - 1.0) < 0.001
+		for index in range(0, indices.size(), 3):
+			var a := indices[index]
+			var b := indices[index + 1]
+			var c := indices[index + 2]
+			valid = valid and (vertices[b] - vertices[a]).cross(vertices[c] - vertices[a]).dot(normals[a]) < -0.00000001
+			valid = valid and absf((uvs[b] - uvs[a]).cross(uvs[c] - uvs[a])) > 0.00000001
+		# The former sharp upper fore corner must now be absent; central
+		# top and side stock retain the exact original envelope/support.
+		var center_span := _mesh_vertical_span(stock, Vector2(stock.position.x, -0.55))
+		valid = valid and center_span.size() >= 2 and is_equal_approx(center_span[-1], 2.41)
+		for end_z in [-2.05, 0.95]:
+			var return_span := _mesh_vertical_span(stock, Vector2(stock.position.x, end_z))
+			valid = valid and return_span.size() >= 2 and return_span[-1] < 2.40 and return_span[-1] > 2.34
+		var rolled_span := _mesh_vertical_span(stock, Vector2(stock.position.x + 0.07, -0.55))
+		valid = valid and rolled_span.size() >= 2 and rolled_span[-1] < 2.39 and rolled_span[-1] > 2.33
+	print("ARROW_COAMING_COST: shared_meshes=1 surfaces=1 renderers=2 triangles_per_copy=588 total_triangles=1176 previous_total=216 bounds=", port.mesh.get_aabb())
+	_check(valid, "formed coaming keeps exact wall envelope, authored transforms and sound bounded smooth geometry")
 
 
 func _test_cockpit_fairing(arrow: ArrowReconShip) -> void:
