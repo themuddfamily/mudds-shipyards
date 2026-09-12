@@ -46,6 +46,7 @@ func _run() -> void:
 	var visual := skirmisher.get_node(^"WingSkirmisherVisual") as Node3D
 	_test_recessed_engine_stock(visual)
 	_test_fitted_intakes(skirmisher, visual)
+	_test_swept_fins(skirmisher, visual)
 	var intent_vane := visual.get_node(^"RoleLamp/RearCrossDirectionVane") as MeshInstance3D
 	var intent_material := intent_vane.get_active_material(0) as StandardMaterial3D
 	var nominal_cue := skirmisher.get_rear_cross_intent_cue_snapshot()
@@ -420,6 +421,58 @@ func _run() -> void:
 	host.queue_free()
 	await process_frame
 	_finish()
+
+
+func _test_swept_fins(ship: FlankingSkirmisherOpponent, visual: Node3D) -> void:
+	var fins: Array[MeshInstance3D] = []
+	for child in visual.get_children():
+		if child is MeshInstance3D and child.position in FlankingSkirmisherOpponent.WINGLET_FIN_POSITIONS:
+			fins.append(child)
+	_check(fins.size() == 2 and fins[0].mesh == fins[1].mesh
+		and fins[0].transform.basis.determinant() > 0 and fins[1].transform.basis.determinant() > 0,
+		"swept outer fins share one stock with positive mirror transforms")
+	if fins.size() != 2:
+		return
+	var faces := fins[0].mesh.get_faces()
+	var lower_hit := _fin_first_hit(faces, -0.30, -0.30)
+	var removed_corner := _fin_first_hit(faces, 0.30, -0.30)
+	var tip_hit := _fin_first_hit(faces, 0.30, 0.375)
+	_check(is_finite(lower_hit) and not is_finite(removed_corner) and is_finite(tip_hit)
+		and lower_hit > tip_hit and tip_hit > 0.02 and tip_hit < 0.04,
+		"fin leading edge sweeps aft and rolled thickness tapers toward the tip")
+	var meshes: Array[ArrayMesh] = [fins[0].mesh as ArrayMesh,
+		ship.call("_skirmisher_fin_fittings", 0), ship.call("_skirmisher_fin_fittings", 2)]
+	var sound := true
+	for mesh in meshes:
+		var arrays := mesh.surface_get_arrays(0)
+		var points: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
+		var normals: PackedVector3Array = arrays[Mesh.ARRAY_NORMAL]
+		var uv: PackedVector2Array = arrays[Mesh.ARRAY_TEX_UV]
+		var tangents: PackedFloat32Array = arrays[Mesh.ARRAY_TANGENT]
+		for i in points.size():
+			var tangent := Vector3(tangents[i * 4], tangents[i * 4 + 1], tangents[i * 4 + 2])
+			sound = sound and points[i].is_finite() and uv[i].is_finite() \
+				and normals[i].is_finite() and absf(normals[i].length() - 1.0) < 0.001 \
+				and tangent.is_finite() and absf(tangent.length() - 1.0) < 0.001
+		var triangles := mesh.get_faces()
+		for i in range(0, triangles.size(), 3):
+			var normal := (triangles[i + 2] - triangles[i]).cross(triangles[i + 1] - triangles[i])
+			sound = sound and normal.length_squared() > 1e-14
+		_check(mesh.get_surface_count() == 1, "fin parts retain a single existing material surface")
+	_check(sound, "rolled fins, fitted boots and swept covers have finite geometry and tangent frames")
+	var fittings := visual.get_node(^"FittedArmourAndServices") as MeshInstance3D
+	_check(fittings.mesh.get_surface_count() == 3 and bool(ship.get_wing_chalk_band_resource_audit().valid),
+		"fin finish stays inside the existing renderers, resources, materials and physics budget")
+
+
+func _fin_first_hit(faces: PackedVector3Array, y: float, z: float) -> float:
+	var closest := -INF
+	for i in range(0, faces.size(), 3):
+		var hit: Variant = Geometry3D.ray_intersects_triangle(Vector3(1, y, z), Vector3.LEFT,
+			faces[i], faces[i + 1], faces[i + 2])
+		if hit is Vector3:
+			closest = maxf(closest, hit.x)
+	return closest
 
 
 func _test_recessed_engine_stock(visual: Node3D) -> void:

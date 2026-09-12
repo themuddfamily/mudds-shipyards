@@ -122,7 +122,7 @@ const PRESENTATION_MATERIAL_RESOURCE_COUNT := 8
 const BASELINE_PRESENTATION_MESH_RESOURCE_COUNT := 16
 const PRESENTATION_MESH_RESOURCE_COUNT := 14
 const BASELINE_PRESENTATION_BOX_MESH_RESOURCE_COUNT := 6
-const PRESENTATION_BOX_MESH_RESOURCE_COUNT := 2
+const PRESENTATION_BOX_MESH_RESOURCE_COUNT := 1
 const WING_INSTANCE_COUNT := 2
 const BASELINE_WING_MESH_RESOURCE_COUNT := 2
 const WING_MESH_RESOURCE_COUNT := 1
@@ -1305,7 +1305,7 @@ func _build_interceptor() -> void:
 	], _materials.skirmisher_moss)
 
 	_wing_chalk_band_mesh = _make_box_mesh(WING_CHALK_BAND_SIZE, _materials.skirmisher_chalk)
-	_winglet_fin_mesh = _make_box_mesh(WINGLET_FIN_SIZE, _materials.skirmisher_chalk)
+	_winglet_fin_mesh = _skirmisher_fin_shell(FIN_SECTIONS, _materials.skirmisher_chalk)
 	var engine_pod_mesh := _skirmisher_engine_pod_mesh()
 	for side in [-1.0, 1.0]:
 		if side < 0.0:
@@ -1551,7 +1551,6 @@ func _build_skirmisher_fittings() -> void:
 	for side in [-1.0,1.0]:
 		parts.append([Vector3(side*0.66,0.30,-1.53),Vector3(0.42,0.10,1.39),2,Vector3(0,side*-0.25,0)])
 		parts.append([Vector3(side*0.7,0.37,-1.35),Vector3(0.3,0.04,0.72),0,Vector3(0,side*-0.25,0)])
-		parts.append([Vector3(side*3.78,0.38,1.9),Vector3(0.05,0.54,0.89),2,Vector3(0,side*0.16,side*-0.22)])
 		# The lower saddle meets the outside of the nacelle, below its bore.
 		parts.append([Vector3(side * 1.0, -0.43, 2.6), Vector3.ZERO, 0, Vector3.ZERO, [
 			Vector4(-0.40, 0.16, 0.055, 0.035),
@@ -1573,10 +1572,153 @@ func _build_skirmisher_fittings() -> void:
 		surface.set_material(fittings.mesh.surface_get_material(finish))
 		surface.append_from(fittings.mesh, finish, Transform3D.IDENTITY)
 		var duct := _skirmisher_intake_mesh(finish)
+		var fin_fittings := _skirmisher_fin_fittings(finish)
 		for side in [-1.0, 1.0]:
 			surface.append_from(duct, 0, Transform3D(Basis.IDENTITY, Vector3(side * 1.08, 0, 0)))
+			if fin_fittings != null:
+				var slot := 0 if side < 0 else 1
+				surface.append_from(fin_fittings, 0, Transform3D(
+					Basis.from_euler(WINGLET_FIN_ROTATIONS[slot]), WINGLET_FIN_POSITIONS[slot]))
 		surface.commit(combined)
 	fittings.mesh = combined
+
+
+## Height, half thickness, half chord and chord centre. The leading edge sweeps
+## aft into a narrow rolled tip; the full root chord still meets the wing skin.
+const FIN_SECTIONS := [
+	Vector4(-0.45, 0.08, 0.65, 0.0),
+	Vector4(-0.30, 0.075, 0.60, 0.035),
+	Vector4(0.0, 0.058, 0.43, 0.205),
+	Vector4(0.30, 0.035, 0.255, 0.375),
+	Vector4(0.43, 0.026, 0.16, 0.47),
+	Vector4(0.45, 0.012, 0.10, 0.47),
+]
+
+
+## Continuous rolled cross-sections, authored once for both positively rotated
+## fin nodes. Analytic normals follow the thickness taper and longitudinal sweep.
+func _skirmisher_fin_shell(sections: Array, material: Material) -> ArrayMesh:
+	const SEGMENTS := 24
+	var rings: Array[PackedVector3Array] = []
+	var normals: Array[PackedVector3Array] = []
+	var profile := PackedVector2Array()
+	for j in SEGMENTS:
+		var angle := TAU * float(j) / float(SEGMENTS)
+		profile.append(Vector2(cos(angle), sin(angle)))
+	for row in sections.size():
+		var section: Vector4 = sections[row]
+		var previous: Vector4 = sections[maxi(0, row - 1)]
+		var next: Vector4 = sections[mini(sections.size() - 1, row + 1)]
+		var slope := (next - previous) / (next.x - previous.x)
+		var ring := PackedVector3Array()
+		var ring_normals := PackedVector3Array()
+		for j in SEGMENTS:
+			var p := profile[j]
+			ring.append(Vector3(p.x * section.y, section.x, p.y * section.z + section.w))
+			var around := Vector3(-p.y * section.y, 0, p.x * section.z)
+			var along := Vector3(p.x * slope.y, 1, p.y * slope.z + slope.w)
+			ring_normals.append(along.cross(around).normalized())
+		rings.append(ring)
+		normals.append(ring_normals)
+	var surface := SurfaceTool.new()
+	surface.begin(Mesh.PRIMITIVE_TRIANGLES)
+	surface.set_material(material)
+	for row in rings.size() - 1:
+		for j in SEGMENTS:
+			var k := (j + 1) % SEGMENTS
+			for address: Vector2i in [Vector2i(row, j), Vector2i(row + 1, k), Vector2i(row + 1, j), Vector2i(row, j), Vector2i(row, k), Vector2i(row + 1, k)]:
+				var p := rings[address.x][address.y]
+				surface.set_normal(normals[address.x][address.y])
+				var wrap := SEGMENTS if address.y == 0 and j == SEGMENTS - 1 else address.y
+				surface.set_uv(Vector2(float(wrap) / float(SEGMENTS) * 2.6, p.y))
+				surface.add_vertex(p)
+	for j in range(1, SEGMENTS - 1):
+		_emit_armour_triangle(surface, rings[0][0], rings[0][j], rings[0][j + 1])
+		_emit_armour_triangle(surface, rings[-1][0], rings[-1][j + 1], rings[-1][j])
+	surface.generate_tangents()
+	return surface.commit()
+
+
+## Root boot and captive covers join the existing three-finish services batch.
+## The covers are swept, shallow closed shells on both faces, so neither mirror
+## needs negative scale or a dark rectangular plate protruding beyond the tip.
+func _skirmisher_fin_fittings(finish: int) -> ArrayMesh:
+	if finish == 1:
+		return null
+	var material: Material = _materials.skirmisher_moss if finish == 0 else _materials.skirmisher_deep
+	var surface := SurfaceTool.new()
+	surface.begin(Mesh.PRIMITIVE_TRIANGLES)
+	surface.set_material(material)
+	if finish == 0:
+		var boot := _skirmisher_fin_shell([
+			Vector4(-0.47, 0.16, 0.67, 0.0),
+			Vector4(-0.41, 0.15, 0.66, 0.01),
+			Vector4(-0.32, 0.095, 0.60, 0.035),
+			Vector4(-0.25, 0.073, 0.555, 0.085),
+		], material)
+		surface.append_from(boot, 0, Transform3D.IDENTITY)
+	var cover_sections := [
+		Vector4(-0.22, 0.011, 0.32, 0.10),
+		Vector4(-0.16, 0.013, 0.34, 0.14),
+		Vector4(0.12, 0.011, 0.22, 0.30),
+		Vector4(0.22, 0.007, 0.13, 0.37),
+	]
+	if finish == 0:
+		for i in cover_sections.size():
+			var section: Vector4 = cover_sections[i]
+			section.x = section.x * 0.86 - 0.005
+			section.z *= 0.89
+			cover_sections[i] = section
+	for face in [-1.0, 1.0]:
+		_skirmisher_fin_cover(surface, cover_sections, face, 0.011 if finish == 0 else 0.004)
+	surface.generate_tangents()
+	return surface.commit()
+
+
+func _skirmisher_fin_face_x(y: float, z: float) -> float:
+	for row in FIN_SECTIONS.size() - 1:
+		var a: Vector4 = FIN_SECTIONS[row]
+		var b: Vector4 = FIN_SECTIONS[row + 1]
+		if y <= b.x:
+			var section := a.lerp(b, clampf((y - a.x) / (b.x - a.x), 0, 1))
+			return section.y * sqrt(maxf(0, 1.0 - pow((z - section.w) / section.z, 2)))
+	return 0.0
+
+
+## The inset follows the fin skin instead of hovering as a planar plate. Fold
+## its boundary below the supporting skin to keep grazing side views sealed.
+func _skirmisher_fin_cover(surface: SurfaceTool, sections: Array, face: float, lift: float) -> void:
+	var rows: Array[PackedVector3Array] = []
+	for section: Vector4 in sections:
+		var row := PackedVector3Array()
+		for step in 13:
+			var z := section.w + section.z * (float(step) / 6.0 - 1.0)
+			row.append(Vector3(face * (_skirmisher_fin_face_x(section.x, z) + lift), section.x, z))
+		rows.append(row)
+	for row in rows.size() - 1:
+		for step in 12:
+			var points := [rows[row][step], rows[row + 1][step], rows[row + 1][step + 1], rows[row][step + 1]]
+			if face < 0:
+				points.reverse()
+			_emit_armour_triangle(surface, points[0], points[1], points[2])
+			_emit_armour_triangle(surface, points[0], points[2], points[3])
+	var perimeter := PackedVector3Array()
+	for p in rows[0]:
+		perimeter.append(p)
+	for row in range(1, rows.size()):
+		perimeter.append(rows[row][-1])
+	for step in range(11, -1, -1):
+		perimeter.append(rows[-1][step])
+	for row in range(rows.size() - 2, 0, -1):
+		perimeter.append(rows[row][0])
+	if face < 0:
+		perimeter.reverse()
+	var inward := Vector3(-face * (lift + 0.007), 0, 0)
+	for i in perimeter.size():
+		var a := perimeter[i]
+		var b := perimeter[(i + 1) % perimeter.size()]
+		_emit_armour_triangle(surface, a, b, b + inward)
+		_emit_armour_triangle(surface, a, b + inward, a + inward)
 
 
 ## The intake rolls into a broad shoulder, then narrows and falls onto the
