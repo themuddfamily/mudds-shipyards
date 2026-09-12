@@ -11,6 +11,7 @@ func _initialize() -> void:
 	root.add_child(bomber)
 	await process_frame
 	_test_recessed_exhaust(bomber)
+	_test_fitted_canopy(bomber)
 	_test_service_cassettes(bomber)
 	_test_forward_pressure_body(bomber)
 	var audit := bomber.get_audit_report()
@@ -217,3 +218,34 @@ func _pressure_skin_height(faces: PackedVector3Array, x: float, z: float) -> flo
 		if hit != null:
 			highest = maxf(highest, hit.y)
 	return highest
+
+
+func _test_fitted_canopy(craft: HeroShip) -> void:
+	var hinge := craft.get_variant_visual_root().get_node("CanopyHinge") as Node3D
+	var glass := hinge.get_node("CanopyGlass") as MeshInstance3D
+	var vertices: PackedVector3Array = glass.mesh.surface_get_arrays(0)[Mesh.ARRAY_VERTEX]
+	var upper_only := true
+	for index in range(0, vertices.size(), 3):
+		var normal := (vertices[index + 2] - vertices[index]).cross(vertices[index + 1] - vertices[index]).normalized()
+		upper_only = upper_only and normal.y > -0.95
+	var pillar := hinge.get_node("PortCanopyNoseFrame") as MeshInstance3D
+	var broad_pillar := true
+	var sampled := false
+	for vertex: Vector3 in pillar.mesh.get_faces():
+		var point := hinge.position + pillar.transform * vertex
+		if point.y > 2.90 and point.y < 3.45:
+			sampled = true
+			broad_pillar = broad_pillar and absf(point.x) > 1.025
+	_check(upper_only and sampled and broad_pillar and bool(glass.get_meta("upper_pressure_enclosure", false)),
+		"the fitted windscreen keeps pillars outside the forward instrument view and has no glass floor")
+	var attached_keepers := true
+	for side in ["Port", "Starboard"]:
+		var keeper := hinge.get_node(side + "CanopyLatchHook") as MeshInstance3D
+		var bounds := keeper.transform * keeper.mesh.get_aabb()
+		attached_keepers = attached_keepers and bounds.end.y > 0.10 and bounds.position.y <= -0.119 and bounds.size.x > 0.30
+	_check(attached_keepers, "both moving latch keepers reach from the lower lid rails to the retained striker contacts")
+	var glass_stock := glass.mesh
+	craft.set_canopy_open(true, 0.0)
+	_check(hinge.rotation.x > 1.0 and glass.mesh == glass_stock and glass.is_visible_in_tree(),
+		"the common functional hinge opens the complete fitted upper lid")
+	craft.set_canopy_open(false, 0.0)

@@ -1,6 +1,8 @@
 class_name CinderLongRangeBomber
 extends HeroShip
 
+const CinderFittedCanopy := preload("res://scripts/ships/cinder_fitted_canopy.gd")
+
 ## Original-modern long-range bomber component. No historical craft, weapon,
 ## payload, or mission claim is authenticated here.
 
@@ -244,6 +246,7 @@ func _build_bomber_variant(_controller: HeroShip) -> bool:
 	visual.name = "CinderBomberVisual"
 	visual.set_meta(&"geometry_status", EVIDENCE_STATUS)
 	visual.set_meta(&"historically_supported", false)
+	CinderFittedCanopy.install(_canopy_pivot, _canopy_frame_mesh)
 	_build_hull(visual)
 	_build_engine_exhaust(visual)
 	_build_cockpit_support_fairing(visual)

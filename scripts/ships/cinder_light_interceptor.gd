@@ -1,6 +1,8 @@
 class_name CinderLightInterceptor
 extends HeroShip
 
+const CinderFittedCanopy := preload("res://scripts/ships/cinder_fitted_canopy.gd")
+
 const WeaponDefinitionType := preload("res://scripts/combat/weapon_definition.gd")
 const ShipPerspectiveAudioBindingType := preload("res://scripts/audio/ship_perspective_audio_binding.gd")
 const SHIP_DEFINITION_TEMPLATE: ShipDefinition = preload(
@@ -199,6 +201,7 @@ func _build_interceptor_variant(_controller: HeroShip) -> bool:
 	visual.name = "CinderInterceptorVisual"
 	visual.set_meta(&"geometry_status", EVIDENCE_STATUS)
 	visual.set_meta(&"historically_supported", false)
+	CinderFittedCanopy.install(_canopy_pivot, _canopy_frame_mesh)
 	_batch_console_toggles(visual)
 	_batch_console_keys(visual)
 	_batch_console_center_keys(visual)
