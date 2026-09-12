@@ -3,10 +3,10 @@ extends RefCounted
 ## Fitted Cinder glazing seats on the retained pressure-wall and sill tops. The broad
 ## raked front has no narrow central bow, and the open underside lets the hood
 ## and pilot remain in the fixed cockpit while the complete upper lid lifts.
-static func install(hinge: Node3D, frame_mesh: Callable, cap_rear: bool = true) -> void:
+static func install(hinge: Node3D, frame_mesh: Callable) -> void:
 	var rings := _rings()
 	var glass := hinge.get_node("CanopyGlass") as MeshInstance3D
-	glass.mesh = _glass(rings, glass.mesh.surface_get_material(0), cap_rear)
+	glass.mesh = _glass(rings, glass.mesh.surface_get_material(0))
 	glass.set_meta("closed_volume", false)
 	glass.set_meta("upper_pressure_enclosure", true)
 	for side in [-1, 1]:
@@ -81,7 +81,7 @@ static func _rings() -> Array[PackedVector3Array]:
 	return rings
 
 
-static func _glass(rings: Array[PackedVector3Array], finish: Material, cap_rear: bool = true) -> ArrayMesh:
+static func _glass(rings: Array[PackedVector3Array], finish: Material) -> ArrayMesh:
 	var surface := SurfaceTool.new()
 	surface.begin(Mesh.PRIMITIVE_TRIANGLES)
 	surface.set_material(finish)
@@ -94,7 +94,7 @@ static func _glass(rings: Array[PackedVector3Array], finish: Material, cap_rear:
 				surface.add_vertex(rings[index.x][index.y])
 	# Front and rear glazing end at their actual structural cross-sills. No
 	# horizontal glass floor passes through the controls or sweeps over the head.
-	for cap in ([0, rings.size() - 1] if cap_rear else [0]):
+	for cap in [0, rings.size() - 1]:
 		surface.set_smooth_group(-1)
 		var center := (rings[cap][0] + rings[cap][32]) * 0.5
 		for side in 32:
