@@ -99,6 +99,56 @@ func _initialize() -> void:
 			and port_mount.get_meta(&"presentation_only", false) \
 			and port_mount.find_children("*", "CollisionObject3D", true, false).is_empty()
 	_check(mounts_valid, "paired engine saddles share geometry across craft and stay behind the boarding opening")
+	# Intersect the emitted housing triangles, independently of its profile
+	# builder. Sampling both ends of each mounting footprint catches a curved
+	# shroud slipping away from collars, roof covers or radiator feet.
+	var housing_contact := true
+	var contact_samples := 0
+	for side in [-1.0, 1.0]:
+		var tag := "Port" if side < 0 else "Starboard"
+		var shroud := craft.get_node("CinderCargoVisual/" + tag + "EngineShroud") as MeshInstance3D
+		var plates := craft.get_variant_visual_root().find_children(tag + "NacelleAccess*Gasket", "MeshInstance3D", false, false)
+		housing_contact = housing_contact and plates.size() == 2
+		for plate_node in plates:
+			var plate := plate_node as MeshInstance3D
+			for dx in [-0.36, 0.36]:
+				for dz in [-0.27, 0.27]:
+					var foot := plate.global_position + Vector3(dx, -0.014, dz)
+					var hit: Variant = _housing_hit(shroud, foot + Vector3.UP, Vector3.DOWN)
+					contact_samples += 1
+					housing_contact = housing_contact and hit != null and absf((hit as Vector3).y - foot.y) < 0.025
+		var radiator := craft.get_node("CinderCargoVisual/" + tag + "NacelleRadiator") as Node3D
+		for dy in [-0.20, 0.20]:
+			for dz in [-0.54, 0.54]:
+				var foot := radiator.to_global(Vector3(dy, -0.025, dz))
+				var outward := Vector3(side, 0, 0)
+				var hit: Variant = _housing_hit(shroud, foot + outward, -outward)
+				contact_samples += 1
+				housing_contact = housing_contact and hit != null and absf((hit as Vector3).x - foot.x) < 0.03
+		# Use actual inner-collar vertices, excluding the sloping shear webs.
+		# The inner face should sit 15 mm inside the housing at each sampled
+		# lower outboard shoulder at each end, with no air gap through its foot.
+		var collar_arrays := port_mount.mesh.surface_get_arrays(0)
+		var collar_points: PackedVector3Array = collar_arrays[Mesh.ARRAY_VERTEX]
+		var collar_normals: PackedVector3Array = collar_arrays[Mesh.ARRAY_NORMAL]
+		for station in [3.53, 3.77, 4.53, 4.77]:
+			var sampled := {}
+			for i in collar_points.size():
+				var point := port_mount.to_global(collar_points[i])
+				if not is_equal_approx(point.z, station) or point.x * side <= 3.75 or point.y >= 0.4:
+					continue
+				var radial := (point - Vector3(side * 3.75, 0.4, point.z)).normalized()
+				# Inner side-wall normals face the housing axis. This selects
+				# emitted inner-ring vertices at tapered AND full-size ends.
+				if collar_normals[i].dot(radial) >= -0.5 or sampled.has(point):
+					continue
+				sampled[point] = true
+				var hit: Variant = _housing_hit(shroud, point + radial, -radial)
+				contact_samples += 1
+				housing_contact = housing_contact and hit != null and (hit as Vector3).distance_to(point) < 0.025
+			_check(sampled.size() >= 6, tag + " collar checks sample emitted inner-ring vertices at " + str(station))
+
+	_check(housing_contact and contact_samples >= 40, "formed housings retain triangle contact with collar feet, roof access gaskets and radiator mounts")
 	var retained_ribs := other.get_node_or_null(^"CinderCargoVisual/CargoFrameRibBatch") as MultiMeshInstance3D
 	var belt := craft.get_node_or_null(^"CinderCargoVisual/ContinuousFreightLoadFrame") as MeshInstance3D
 	var retained_belt := other.get_node_or_null(^"CinderCargoVisual/ContinuousFreightLoadFrame") as MeshInstance3D
@@ -176,6 +226,19 @@ func _initialize() -> void:
 	for failure in _failures:
 		push_error(failure)
 	quit(1)
+
+
+func _housing_hit(housing: MeshInstance3D, origin: Vector3, direction: Vector3) -> Variant:
+	var faces := housing.mesh.get_faces()
+	var closest: Variant = null
+	var distance := INF
+	for triangle in range(0, faces.size(), 3):
+		var hit: Variant = Geometry3D.ray_intersects_triangle(origin, direction,
+			housing.to_global(faces[triangle]), housing.to_global(faces[triangle + 1]), housing.to_global(faces[triangle + 2]))
+		if hit != null and origin.distance_to(hit as Vector3) < distance:
+			closest = hit
+			distance = origin.distance_to(hit as Vector3)
+	return closest
 
 
 func _build_capture_environment(stage: Node3D) -> void:

@@ -1195,12 +1195,12 @@ func _build_freight_pressure_fairings(visual: Node3D) -> void:
 		_service_bay(visual, tag + "FreightThermalService", Vector3(side * 2.3, 1.695, 0.4), 0.66, 1.5, _shared_hull_material, dark, metal)
 		# All side pods stop behind the protected boarding aperture (z > 2.30).
 		_armor_shell(visual, tag + "EnginePylon", Vector3(side * 3.03, 0.38, 4.12), Vector3(1.55, 1.20, 3.25), _shared_hull_material)
-		_armor_shell(visual, tag + "EngineShroud", Vector3(side * 3.75, 0.4, 4.45), Vector3(1.62, 1.62, 3.5), dark)
+		_armor_shell(visual, tag + "EngineShroud", Vector3(side * 3.75, 0.4, 4.45), Vector3(1.62, 1.62, 3.5), dark, 0.0, true)
 		preload("res://scripts/ships/cinder_exhaust_machinery.gd").bell(visual, tag + "FreightExhaust", Vector3(side * 3.75, 0.4, 6.40), 0.75, 0.55, 0.65, metal)
 		_cylinder(visual, tag + "RecessedThroat", Vector3(side * 3.75, 0.4, 6.20), 0.45, 0.08, dark, Vector3(90, 0, 0))
 		_engine_mechanics(visual, tag, Vector3(side * 3.75, 0.4, 6.59), 0.64, metal, dark)
 		for z in [4.15, 5.15]:
-			_deck_plate(visual, tag + "NacelleAccess" + str(z), Vector3(side * 3.75, 1.218 if z < 5.0 else 1.19, z), 0.85, 0.65, _shared_hull_material, dark)
+			_deck_plate(visual, tag + "NacelleAccess" + str(z), Vector3(side * 3.75, 1.218, z), 0.85, 0.65, _shared_hull_material, dark)
 		var radiator := Node3D.new()
 		radiator.name = tag + "NacelleRadiator"
 		radiator.position = Vector3(side * 4.565, 0.4, 4.60)
@@ -1218,20 +1218,16 @@ func _build_engine_mounts(visual: Node3D) -> void:
 	if _shared_engine_mounts == null:
 		var surface := SurfaceTool.new()
 		surface.begin(Mesh.PRIMITIVE_TRIANGLES)
-		var section := PackedVector2Array([
-			Vector2(0.62, 1), Vector2(0.91, 0.80), Vector2(1, 0.40),
-			Vector2(1, -0.40), Vector2(0.91, -0.80), Vector2(0.62, -1),
-			Vector2(-0.62, -1), Vector2(-0.91, -0.80), Vector2(-1, -0.40),
-			Vector2(-1, 0.40), Vector2(-0.91, 0.80), Vector2(-0.62, 1),
-		])
+		var section := _engine_section()
 		for z in [3.65, 4.65]:
 			# Two annular stations produce an open collar, never an opaque
 			# plug through the engine. Every face has a metric UV projection.
 			var rings: Array[PackedVector3Array] = []
 			for station in [z - 0.12, z + 0.12]:
 				var t: float = (station - 2.70) / 3.5
-				var width := minf(1.0, lerpf(0.12, 1.0, t / 0.43)) * 0.81
-				var height := minf(1.0, lerpf(0.35, 1.0, t / 0.28)) * 0.81
+				var extent := _engine_extent(t) * 0.81
+				var width := extent.x
+				var height := extent.y
 				for offset in [-0.015, 0.075]:
 					var ring := PackedVector3Array()
 					for point in section:
@@ -2306,6 +2302,30 @@ func _crew_role_result(accepted: bool, status: StringName) -> Dictionary:
 		"station_id": LOADMASTER_STATION_SEAT_ID,
 	}.duplicate(true)
 
+## Rolled rectangular housing: planar service faces meet elliptical shoulders,
+## and the inlet / exhaust reductions ease into the constant-section barrel.
+## The removable aft cover has a recessed circumferential joint in this same
+## surface, keeping the existing material and renderer allocation.
+static func _engine_section() -> PackedVector2Array:
+	var section := PackedVector2Array()
+	for quadrant in 4:
+		var x_sign := 1.0 if quadrant < 2 else -1.0
+		var y_sign := 1.0 if quadrant == 0 or quadrant == 3 else -1.0
+		for step in 7:
+			var angle := float(step if quadrant % 2 == 0 else 6 - step) * PI / 12.0
+			section.append(Vector2(x_sign * (0.62 + 0.38 * sin(angle)), y_sign * (0.40 + 0.60 * cos(angle))))
+	return section
+
+
+static func _engine_extent(t: float) -> Vector2:
+	var width := lerpf(0.12, 1.0, smoothstep(0.0, 0.43, t))
+	var height := lerpf(0.35, 1.0, smoothstep(0.0, 0.28, t))
+	if t > 0.83:
+		width = lerpf(1.0, 0.9, smoothstep(0.83, 1.0, t))
+		height = lerpf(1.0, 0.8, smoothstep(0.83, 1.0, t))
+	return Vector2(width, height)
+
+
 ## Chamfered pressure-shell stock reuses the inherited closed loft topology.
 ## Broad planar stations carry armor panels; corner facets catch a narrow edge
 ## highlight without inflating the entire silhouette like a superellipse.
@@ -2362,11 +2382,61 @@ func _loft_mesh(size: Vector3, material: Material) -> ArrayMesh:
 	return surface.commit()
 
 
-func _armor_shell(parent: Node3D, node_name: String, at: Vector3, size: Vector3, coating: Material, skew: float = 0.0) -> MeshInstance3D:
+func _engine_housing_mesh(size: Vector3, material: Material, cover_join: bool) -> ArrayMesh:
+	var section := _engine_section()
+	var stations: Array[float] = [0.0, 0.07, 0.14, 0.21, 0.28, 0.33, 0.38, 0.43, 0.83, 0.87, 0.915, 0.955, 1.0]
+	# 25 mm recessed seat with short bevels. It lies aft of the last access
+	# plate and both retention saddles, ahead of the exhaust reduction.
+	if cover_join:
+		stations.append_array([0.795, 0.800, 0.810, 0.815])
+		stations.sort()
+	var extents: Array[Vector2] = []
+	for t in stations:
+		var extent := _engine_extent(t) * Vector2(size.x, size.y) * 0.5
+		if cover_join and (is_equal_approx(t, 0.800) or is_equal_approx(t, 0.810)):
+			extent -= Vector2.ONE * 0.025
+		extents.append(extent)
+	var surface := SurfaceTool.new()
+	surface.begin(Mesh.PRIMITIVE_TRIANGLES)
+	surface.set_material(material)
+	for bay in stations.size() - 1:
+		var run := size.z * (stations[bay + 1] - stations[bay])
+		var join_wall := cover_join and stations[bay] >= 0.795 and stations[bay + 1] <= 0.815
+		for edge in section.size():
+			var next := (edge + 1) % section.size()
+			for corner in [Vector2i(edge, bay), Vector2i(next, bay), Vector2i(next, bay + 1), Vector2i(edge, bay), Vector2i(next, bay + 1), Vector2i(edge, bay + 1)]:
+				var extent := extents[corner.y]
+				var point := section[corner.x]
+				var outward := Vector2(signf(point.x) * maxf(0.0, absf(point.x) - 0.62) / (0.38 * 0.38), signf(point.y) * maxf(0.0, absf(point.y) - 0.40) / (0.60 * 0.60))
+				var around := Vector3(outward.y * extent.x, -outward.x * extent.y, 0)
+				var t := stations[corner.y]
+				var derivative := (_engine_extent(t + 0.0001) - _engine_extent(t - 0.0001)) / 0.0002 * Vector2(size.x, size.y) * 0.5 / size.z
+				if join_wall:
+					derivative = (extents[bay + 1] - extents[bay]) / run
+				var along := Vector3(point.x * derivative.x, point.y * derivative.y, 1.0)
+				var u := 1.0 if edge == section.size() - 1 and corner.x == 0 else float(corner.x) / section.size()
+				surface.set_normal(along.cross(around).normalized())
+				surface.set_uv(Vector2(u, t))
+				surface.add_vertex(Vector3(point.x * extent.x, point.y * extent.y, (t - 0.5) * size.z))
+	for cap in [0, stations.size() - 1]:
+		var z: float = (stations[cap] - 0.5) * size.z
+		for edge in section.size():
+			var next := (edge + 1) % section.size()
+			var order := [-1, next, edge] if cap == 0 else [-1, edge, next]
+			for corner in order:
+				var point := Vector3(0, 0, z) if corner < 0 else Vector3(section[corner].x * extents[cap].x, section[corner].y * extents[cap].y, z)
+				surface.set_normal(Vector3.FORWARD if cap == 0 else Vector3.BACK)
+				surface.set_uv(Vector2(point.x / size.x, point.y / size.y) + Vector2.ONE * 0.5)
+				surface.add_vertex(point)
+	surface.generate_tangents()
+	return surface.commit()
+
+
+func _armor_shell(parent: Node3D, node_name: String, at: Vector3, size: Vector3, coating: Material, skew: float = 0.0, cover_join: bool = false) -> MeshInstance3D:
 	var instance := MeshInstance3D.new()
 	instance.name = node_name
 	instance.position = at
-	instance.mesh = _loft_mesh(size, coating)
+	instance.mesh = _engine_housing_mesh(size, coating, cover_join)
 	# Shear the assembly into the wing root without an intersecting box joint.
 	instance.transform.basis.z.x = -skew
 	parent.add_child(instance)
