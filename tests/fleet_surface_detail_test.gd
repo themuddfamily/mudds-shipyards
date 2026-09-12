@@ -111,6 +111,7 @@ func _run() -> void:
 	root.add_child(_test_root)
 
 	await _audit_surface_markings()
+	await _audit_multimesh_markings()
 	if "--markings-only" in OS.get_cmdline_user_args():
 		_test_root.queue_free()
 		await process_frame
@@ -659,3 +660,61 @@ func _point_on_triangle(point: Vector3, a: Vector3, b: Vector3, c: Vector3) -> b
 	var u := (ac.dot(ac) * ab.dot(point - a) - ab.dot(ac) * ac.dot(point - a)) / denominator
 	var v := (ab.dot(ab) * ac.dot(point - a) - ab.dot(ac) * ab.dot(point - a)) / denominator
 	return u >= -0.0001 and v >= -0.0001 and u + v <= 1.0001
+
+
+func _audit_multimesh_markings() -> void:
+	if RenderingServer.get_current_rendering_method() != "gl_compatibility":
+		return
+	if DisplayServer.get_name() == "headless":
+		# Godot's Dummy renderer returns identity for every instance transform.
+		# This behavior needs the silent isolated rendered invocation below.
+		print("NOT_RUN: MultiMesh motion requires a real renderer; use Xvfb with --display-driver x11 --audio-driver Dummy --rendering-method gl_compatibility")
+		return
+	var fixture := Node3D.new()
+	_test_root.add_child(fixture)
+	var receiver := MultiMeshInstance3D.new()
+	var batch := MultiMesh.new()
+	batch.transform_format = MultiMesh.TRANSFORM_3D
+	var stock := BoxMesh.new()
+	stock.size = Vector3(2.0, 0.2, 2.0)
+	batch.mesh = stock
+	batch.instance_count = 2
+	batch.set_instance_transform(0, Transform3D.IDENTITY)
+	batch.set_instance_transform(1, Transform3D(Basis.IDENTITY, Vector3(10, 0, 0)))
+	batch.visible_instance_count = 0
+	receiver.multimesh = batch
+	fixture.add_child(receiver)
+	var marking := ShipSurfaceDetail.mark_surface(fixture, "BatchedRegistration", "service",
+		Vector3(0, 0.1, 0), Vector2.ONE, Vector3.UP, Vector3.FORWARD)
+	await process_frame
+	await process_frame
+	_check(receiver.get_child_count() == 1, "Only the intersecting MultiMesh instance gains a retained ink patch")
+	if receiver.get_child_count() == 1:
+		var patch := receiver.get_child(0) as MeshInstance3D
+		_check(ShipSurfaceDetail.is_surface_marking_patch(patch), "MultiMesh ink has strong renderer ownership")
+		_check(not patch.visible, "Initially hidden MultiMesh instances retain hidden ink for reuse")
+		var mesh_id := patch.mesh.get_instance_id()
+		var material_id := patch.material_override.get_instance_id()
+		var initial_transform := patch.transform
+		var moved := Transform3D(Basis(Vector3.UP, 0.3), Vector3(1, 0.5, -0.2))
+		batch.set_instance_transform(0, moved)
+		batch.visible_instance_count = 1
+		await process_frame
+		await process_frame
+		_check(patch.visible and patch.transform.is_equal_approx(moved * initial_transform), "Ink follows instance motion and visible-instance-count activation")
+		batch.visible_instance_count = 0
+		await process_frame
+		await process_frame
+		_check(not patch.visible, "Hiding a batch instance hides its ink")
+		batch.set_instance_transform(0, Transform3D.IDENTITY)
+		batch.visible_instance_count = 1
+		await process_frame
+		await process_frame
+		_check(patch.visible and patch.transform.is_equal_approx(initial_transform), "Pooled instance reuse restores the retained patch")
+		_check(patch.mesh.get_instance_id() == mesh_id and patch.material_override.get_instance_id() == material_id and receiver.get_child_count() == 1, "Instance motion and reuse allocate no replacement mesh, material or patch")
+		marking.queue_free()
+		await process_frame
+		await process_frame
+		_check(receiver.get_child_count() == 0, "Removing a batch marking releases its patch")
+	fixture.queue_free()
+	await process_frame

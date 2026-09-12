@@ -8,8 +8,10 @@ const SURFACE_OFFSET := 0.002
 
 var _ink: StandardMaterial3D
 var _patches: Array[MeshInstance3D] = []
+var _instance_patches: Array[Dictionary] = []
 
 func _enter_tree() -> void:
+	set_process(false)
 	if not visibility_changed.is_connected(_sync_visibility):
 		visibility_changed.connect(_sync_visibility)
 	_build_patches.call_deferred()
@@ -23,41 +25,53 @@ func _build_patches() -> void:
 		if ancestor.is_queued_for_deletion():
 			return
 		ancestor = ancestor.get_parent()
-	var receivers: Array[MeshInstance3D] = []
+	var receivers: Array[GeometryInstance3D] = []
 	# Native decals also reach sibling access skins above a mesh parent.
-	var receiver_root := get_parent().get_parent() if get_parent() is MeshInstance3D else get_parent()
+	var receiver_root := get_parent().get_parent() if get_parent() is GeometryInstance3D else get_parent()
 	_collect_receivers(receiver_root, receivers)
 	for receiver in receivers:
-		_project_receiver(receiver)
+		if receiver is MeshInstance3D:
+			_project_receiver(receiver, receiver.mesh)
+		elif receiver is MultiMeshInstance3D:
+			var batch: MultiMesh = receiver.multimesh
+			for instance in batch.instance_count:
+				_project_receiver(receiver, batch.mesh, batch.get_instance_transform(instance), instance)
+	_sync_instance_patches()
+	set_process(not _instance_patches.is_empty())
 
 
-func _collect_receivers(node: Node, receivers: Array[MeshInstance3D]) -> void:
+func _collect_receivers(node: Node, receivers: Array[GeometryInstance3D]) -> void:
 	if node is Decal or node.has_meta("surface_marking_patch"):
 		return
-	if node is MeshInstance3D and node.mesh != null and (node.layers & cull_mask) != 0 and node.cast_shadow != GeometryInstance3D.SHADOW_CASTING_SETTING_SHADOWS_ONLY:
-		receivers.append(node)
+	if node is GeometryInstance3D and (node.layers & cull_mask) != 0 and node.cast_shadow != GeometryInstance3D.SHADOW_CASTING_SETTING_SHADOWS_ONLY:
+		if node is MeshInstance3D and node.mesh != null:
+			receivers.append(node)
+		elif node is MultiMeshInstance3D and node.multimesh != null and node.multimesh.mesh != null and node.multimesh.transform_format == MultiMesh.TRANSFORM_3D:
+			receivers.append(node)
 	for child in node.get_children():
 		_collect_receivers(child, receivers)
 
 
-func _project_receiver(receiver: MeshInstance3D) -> void:
-	var receiver_to_projector := global_transform.affine_inverse() * receiver.global_transform
+func _project_receiver(receiver: GeometryInstance3D, source_mesh: Mesh, instance_transform := Transform3D.IDENTITY, instance_index: int = -1) -> void:
+	var receiver_to_projector := global_transform.affine_inverse() * receiver.global_transform * instance_transform
 	var volume := AABB(-size * 0.5, size)
-	if not volume.intersects(receiver_to_projector * receiver.mesh.get_aabb()):
+	if not volume.intersects(receiver_to_projector * source_mesh.get_aabb()):
 		return
 	var vertices := PackedVector3Array()
 	var normals := PackedVector3Array()
 	var uvs := PackedVector2Array()
 	var colors := PackedColorArray()
-	for surface in receiver.mesh.get_surface_count():
-		if receiver.mesh is ArrayMesh and receiver.mesh.surface_get_primitive_type(surface) != Mesh.PRIMITIVE_TRIANGLES:
+	for surface in source_mesh.get_surface_count():
+		if source_mesh is ArrayMesh and source_mesh.surface_get_primitive_type(surface) != Mesh.PRIMITIVE_TRIANGLES:
 			continue
-		var material := receiver.get_active_material(surface)
+		var material: Material = receiver.material_override
+		if material == null:
+			material = receiver.get_active_material(surface) if receiver is MeshInstance3D else source_mesh.surface_get_material(surface)
 		# Dedicated glass layers are the primary receiver contract; transparent
 		# materials also exclude panes that share an otherwise opaque layer.
 		if material is BaseMaterial3D and material.transparency != BaseMaterial3D.TRANSPARENCY_DISABLED:
 			continue
-		var arrays := receiver.mesh.surface_get_arrays(surface)
+		var arrays := source_mesh.surface_get_arrays(surface)
 		var source_vertices: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
 		var source_normals: PackedVector3Array = arrays[Mesh.ARRAY_NORMAL] if arrays[Mesh.ARRAY_NORMAL] != null else PackedVector3Array()
 		var indices: PackedInt32Array = arrays[Mesh.ARRAY_INDEX] if arrays[Mesh.ARRAY_INDEX] != null else PackedInt32Array()
@@ -135,7 +149,10 @@ func _project_receiver(receiver: MeshInstance3D) -> void:
 	if receiver.visibility_range_end > 0.0:
 		patch.visibility_range_end = minf(patch.visibility_range_end, receiver.visibility_range_end) if patch.visibility_range_end > 0.0 else receiver.visibility_range_end
 	receiver.add_child(patch)
-	patch.transform = receiver_to_projector.affine_inverse()
+	patch.transform = instance_transform * receiver_to_projector.affine_inverse()
+	if instance_index >= 0:
+		_instance_patches.append({"patch": patch, "receiver": receiver, "index": instance_index,
+			"projector_to_instance": receiver_to_projector.affine_inverse()})
 	patch.visible = visible
 	_patches.append(patch)
 
@@ -167,14 +184,41 @@ func _sync_visibility() -> void:
 		if is_instance_valid(patch):
 			patch.visible = visible
 
+	_sync_instance_patches()
+
 
 func _exit_tree() -> void:
 	for patch in _patches:
 		if is_instance_valid(patch) and not patch.is_queued_for_deletion():
 			patch.queue_free()
 	_patches.clear()
+	_instance_patches.clear()
+	set_process(false)
 	_ink = null
 
 
 func owns_patch(node: Node) -> bool:
-	return _patches.has(node) and node.get_parent() is MeshInstance3D and node.get_script() == null and node.get_child_count() == 0 and not node.is_processing() and not node.is_physics_processing()
+	return _patches.has(node) and (node.get_parent() is MeshInstance3D or node.get_parent() is MultiMeshInstance3D) and node.get_script() == null and node.get_child_count() == 0 and not node.is_processing() and not node.is_physics_processing()
+
+
+## MultiMesh exposes no transform-changed signal. Only markings that actually
+## hit a batch pay this small instance-transform check; clipped meshes and ink
+## materials are retained through damage motion, hiding and pooled reuse.
+func _process(_delta: float) -> void:
+	_sync_instance_patches()
+
+
+func _sync_instance_patches() -> void:
+	for entry in _instance_patches:
+		var patch: MeshInstance3D = entry.patch
+		var receiver: MultiMeshInstance3D = entry.receiver
+		if not is_instance_valid(patch) or not is_instance_valid(receiver):
+			continue
+		var batch := receiver.multimesh
+		var index: int = entry.index
+		var present := batch != null and index < batch.instance_count
+		patch.visible = visible and present and (batch.visible_instance_count < 0 or index < batch.visible_instance_count)
+		if present:
+			var projected_transform := batch.get_instance_transform(index) * (entry.projector_to_instance as Transform3D)
+			if not patch.transform.is_equal_approx(projected_transform):
+				patch.transform = projected_transform
