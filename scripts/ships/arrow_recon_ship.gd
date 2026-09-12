@@ -62,9 +62,9 @@ const ARROW_NAV_GREEN := Color("7cf0a3")
 # removing one fallback-name renderer and one submission.
 # Phase 10 additionally retains both ordinary engine-collar renderers and their
 # exact authored transforms while sharing the pair's immutable TorusMesh. The
-# visually separate main-gear-foot family follows the same narrow rule: both
-# ordinary feet and their parked silhouette remain, while their identical,
-# authority-free titanium TorusMesh becomes one immutable resource.
+# landing shoes retain the two ordinary main-foot renderers and share formed
+# titanium stock. Their dark soles and connected supports share a second mesh;
+# all landing hardware remains static presentation without collision authority.
 # The two escape-pod separation collars now follow that same allocation-only
 # rule: both independently named pod renderers, parent modules, transforms and
 # visible submissions remain, while the identical graphite TorusMesh is shared.
@@ -156,9 +156,8 @@ const CORE_SYSTEMS_DAMAGE_CUE_COMPONENT_ID: StringName = &"core_systems"
 const CORE_SYSTEMS_FAILED_SENSOR_SWEEP_ROTATION := Vector3(
 	deg_to_rad(-24.0), deg_to_rad(31.0), deg_to_rad(26.0)
 )
-const MAIN_GEAR_FOOT_INNER_RADIUS := 0.22
-const MAIN_GEAR_FOOT_OUTER_RADIUS := 0.34
-const MAIN_GEAR_FOOT_SCALE := Vector3(1.4, 0.55, 1.0)
+const LANDING_SOLE_Y := -1.17
+const MAIN_GEAR_FOOT_SIZE := Vector3(0.76, 0.16, 1.2)
 const MAIN_GEAR_FOOT_VISIBLE_COPIES := 2
 const POD_SEPARATION_COLLAR_INNER_RADIUS := 0.57
 const POD_SEPARATION_COLLAR_OUTER_RADIUS := 0.65
@@ -285,7 +284,7 @@ var _cockpit_console_key_mesh: BoxMesh
 var _engine_collar_mesh: TorusMesh
 var _refractory_nozzle_mesh: ArrayMesh
 var _engine_collars: Array[MeshInstance3D] = []
-var _main_gear_foot_mesh: TorusMesh
+var _main_gear_foot_mesh: ArrayMesh
 var _main_gear_feet: Array[MeshInstance3D] = []
 var _pod_separation_collar_mesh: TorusMesh
 var _pod_separation_collars: Array[MeshInstance3D] = []
@@ -1559,25 +1558,30 @@ func _build_engines_and_landing_gear() -> void:
 		_cut_pressure_panel(fairing, prefix + "DriveServiceDoor", 4, 9, 3, 12, _arrow_materials.pearl)
 		_build_refractory_nozzle(prefix, Vector3(side * 0.92, 0.94, 6.05))
 
-	# Narrow tricycle gear suits the slender hull and keeps a stable parked pose.
-	for side in [-1.0, 1.0]:
-		_cylinder(_arrow_visual, "MainGearStrut", Vector3(side * 1.55, -0.05, 2.25), 0.07, 1.25, _arrow_materials.graphite, Vector3(0, 0, side * -8.0))
-		var main_gear_foot := _torus(
-			_arrow_visual,
-			"MainGearFoot",
-			Vector3(side * 1.7, -0.64, 2.25),
-			MAIN_GEAR_FOOT_INNER_RADIUS,
-			MAIN_GEAR_FOOT_OUTER_RADIUS,
-			_arrow_materials.titanium,
-			Vector3(90, 0, 0),
-			MAIN_GEAR_FOOT_SCALE,
-			_main_gear_foot_mesh
-		)
-		if _main_gear_foot_mesh == null:
-			_main_gear_foot_mesh = main_gear_foot.mesh as TorusMesh
-		_main_gear_feet.append(main_gear_foot)
-	_cylinder(_arrow_visual, "NoseGearStrut", Vector3(0, -0.02, -4.2), 0.065, 1.12, _arrow_materials.graphite)
-	_torus(_arrow_visual, "NoseGearFoot", Vector3(0, -0.56, -4.2), 0.18, 0.29, _arrow_materials.titanium, Vector3(90, 0, 0), Vector3(1.4, 0.55, 1.0))
+	# The ship's retained berth origin is 1.17 m above the drawn port deck.
+	# Narrow shoes sit inside the inner cue ring; the nose shoe sits in the
+	# annulus outside it. Only visual hardware changes, never landing authority.
+	_main_gear_foot_mesh = _landing_gear_stock(false, false)
+	var main_support_mesh := _landing_gear_stock(true, false)
+	var transforms := _main_gear_foot_transforms()
+	for placement in transforms:
+		var support := MeshInstance3D.new()
+		support.name = "MainGearStrut"
+		support.mesh = main_support_mesh
+		support.transform = placement
+		_arrow_visual.add_child(support)
+		var foot := MeshInstance3D.new()
+		foot.name = "MainGearFoot"
+		foot.mesh = _main_gear_foot_mesh
+		foot.transform = placement
+		_arrow_visual.add_child(foot)
+		_main_gear_feet.append(foot)
+	for is_support in [true, false]:
+		var nose := MeshInstance3D.new()
+		nose.name = "NoseGearStrut" if is_support else "NoseGearFoot"
+		nose.mesh = _landing_gear_stock(is_support, true)
+		nose.position = Vector3(0.0, LANDING_SOLE_Y, -3.85)
+		_arrow_visual.add_child(nose)
 	_boarding_step_mesh = _rounded_box_mesh(BOARDING_STEP_SIZE, _arrow_materials.pod)
 	var boarding_step_transforms: Array[Transform3D] = []
 	for step_index in BOARDING_STEP_VISIBLE_COPIES:
@@ -1595,6 +1599,90 @@ func _build_engines_and_landing_gear() -> void:
 		_boarding_step_mesh,
 		boarding_step_transforms
 	)
+
+
+## Two material surfaces remain two ordinary renderers per leg. The solid,
+## chamfered shoe carries a fork and transverse pivot; a telescoping piston and
+## rear drag brace connect it to a broad hull saddle. All pieces are generated
+## once, and both main legs share these immutable meshes without mirrored scale.
+func _landing_gear_stock(dark: bool, nose: bool) -> ArrayMesh:
+	var material: Material = _arrow_materials.graphite if dark else _arrow_materials.titanium
+	var tool := SurfaceTool.new()
+	tool.begin(Mesh.PRIMITIVE_TRIANGLES)
+	tool.set_material(material)
+	var width := 0.62 if nose else MAIN_GEAR_FOOT_SIZE.x
+	var length := 0.9 if nose else MAIN_GEAR_FOOT_SIZE.z
+	var pivot := Vector3(0.0, 0.36, 0.0)
+	var mount := Vector3(0.0 if nose else -0.28, 1.65 if nose else 2.03, -0.12)
+	var axis := (mount - pivot).normalized()
+	if dark:
+		_landing_pad(tool, width * 0.95, length * 0.95, 0.0, 0.09)
+		_landing_cylinder(tool, pivot + axis * 0.64, mount, 0.105)
+		_landing_cylinder(tool, pivot + axis * 0.61, pivot + axis * 0.72, 0.132)
+		_landing_box(tool, mount, Vector3(0.42, 0.16, 0.46), material)
+		# A second load path ends at the same pivot; no floating brace endpoints.
+		var brace_top := mount + Vector3(0.0, -0.05, 0.30)
+		_landing_box(tool, brace_top, Vector3(0.26, 0.14, 0.25), material)
+		_landing_cylinder(tool, brace_top, pivot, 0.06)
+	else:
+		_landing_pad(tool, width, length, 0.07, 0.23)
+		for side in [-1.0, 1.0]:
+			_landing_box(tool, Vector3(side * 0.115, 0.29, 0.0), Vector3(0.075, 0.26, 0.30), material)
+		_landing_cylinder(tool, pivot + Vector3(-0.21, 0, 0), pivot + Vector3(0.21, 0, 0), 0.09)
+		_landing_cylinder(tool, pivot, pivot + axis * 0.72, 0.063)
+		# Torque links make the sliding shock leg read as an articulated assembly.
+		var knee := pivot + Vector3(0.16, 0.30, 0.22)
+		_landing_cylinder(tool, pivot + Vector3(0.16, 0, 0), knee, 0.032)
+		_landing_cylinder(tool, knee, pivot + axis * 0.64 + Vector3(0.16, 0, 0), 0.032)
+	tool.generate_tangents()
+	tool.index()
+	return tool.commit()
+
+
+func _landing_pad(tool: SurfaceTool, width: float, length: float, bottom: float, top: float) -> void:
+	var section := PackedVector2Array([
+		Vector2(-0.36, -0.5), Vector2(0.36, -0.5), Vector2(0.5, -0.36), Vector2(0.5, 0.36),
+		Vector2(0.36, 0.5), Vector2(-0.36, 0.5), Vector2(-0.5, 0.36), Vector2(-0.5, -0.36),
+	])
+	var rings: Array[PackedVector3Array] = []
+	for layer in [Vector2(bottom, 0.90), Vector2(bottom + 0.025, 1.0), Vector2(top - 0.025, 1.0), Vector2(top, 0.82)]:
+		var ring := PackedVector3Array()
+		for point in section:
+			ring.append(Vector3(point.x * width * layer.y, layer.x, point.y * length * layer.y))
+		rings.append(ring)
+	var inside := Vector3(0, (bottom + top) * 0.5, 0)
+	for layer in 3:
+		for corner in 8:
+			var next := (corner + 1) % 8
+			_emit_raceway_face(tool, rings[layer][corner], rings[layer + 1][corner], rings[layer + 1][next], inside)
+			_emit_raceway_face(tool, rings[layer][corner], rings[layer + 1][next], rings[layer][next], inside)
+	for layer in [0, 3]:
+		var centre := Vector3(0, bottom if layer == 0 else top, 0)
+		for corner in 8:
+			_emit_raceway_face(tool, centre, rings[layer][corner], rings[layer][(corner + 1) % 8], inside)
+
+
+func _landing_cylinder(tool: SurfaceTool, start: Vector3, end: Vector3, radius: float) -> void:
+	var mesh := CylinderMesh.new()
+	mesh.top_radius = radius
+	mesh.bottom_radius = radius
+	mesh.height = start.distance_to(end)
+	mesh.radial_segments = 12
+	mesh.rings = 0
+	var placement := Transform3D(Basis(Quaternion(Vector3.UP, (end - start).normalized())), (start + end) * 0.5)
+	_append_landing_mesh(tool, mesh, placement)
+
+
+func _landing_box(tool: SurfaceTool, centre: Vector3, size: Vector3, material: Material) -> void:
+	_append_landing_mesh(tool, _rounded_box_mesh(size, material), Transform3D(Basis.IDENTITY, centre))
+
+
+func _append_landing_mesh(tool: SurfaceTool, mesh: Mesh, placement: Transform3D) -> void:
+	# Pads emit triangles directly, so appended stock must also be nonindexed.
+	var source := SurfaceTool.new()
+	source.create_from(mesh, 0)
+	source.deindex()
+	tool.append_from(source.commit(), 0, placement)
 
 
 func _open_engine_tail(shell: MeshInstance3D) -> void:
@@ -3546,12 +3634,9 @@ func _inspect_main_gear_foot_mesh_sharing() -> Dictionary:
 	if mesh_identities.size() != 1:
 		errors.append("main-gear-foot shared-mesh identity drift")
 	var mesh := _main_gear_foot_mesh
-	if mesh == null \
-			or not is_equal_approx(mesh.inner_radius, MAIN_GEAR_FOOT_INNER_RADIUS) \
-			or not is_equal_approx(mesh.outer_radius, MAIN_GEAR_FOOT_OUTER_RADIUS) \
-			or mesh.get_surface_count() != 1:
-		errors.append("main-gear-foot primitive recipe drift")
-	elif mesh.material != _arrow_materials.titanium:
+	if mesh == null or mesh.get_surface_count() != 1:
+		errors.append("main-gear-foot formed stock missing")
+	elif mesh.surface_get_material(0) != _arrow_materials.titanium:
 		errors.append("main-gear-foot material identity drift")
 	if mesh != null and mesh.resource_local_to_scene:
 		errors.append("main-gear-foot shared mesh gained instance authority")
@@ -3699,14 +3784,10 @@ static func _engine_damage_collar_transform() -> Transform3D:
 
 
 static func _main_gear_foot_transforms() -> Array[Transform3D]:
-	var transforms: Array[Transform3D] = []
-	for side in [-1.0, 1.0]:
-		transforms.append(Transform3D(
-			Basis.from_euler(Vector3(PI * 0.5, 0.0, 0.0)) \
-				* Basis.from_scale(MAIN_GEAR_FOOT_SCALE),
-			Vector3(side * 1.7, -0.64, 2.25)
-		))
-	return transforms
+	return [
+		Transform3D(Basis(Vector3.UP, PI), Vector3(-1.7, LANDING_SOLE_Y, 1.8)),
+		Transform3D(Basis.IDENTITY, Vector3(1.7, LANDING_SOLE_Y, 1.8)),
+	]
 
 
 func _cockpit_console_key_transforms() -> Dictionary:

@@ -356,21 +356,80 @@ func _test_main_gear_foot_mesh_sharing(arrow: ArrowReconShip) -> void:
 		and int(sharing.visible_geometry_copies) == 2
 		and int(sharing.primitive_mesh_allocations) == 1
 		and int(sharing.resource_allocation_reduction) == 1,
-		"main-gear feet reduce immutable TorusMesh allocations 2->1 without changing renderers, submissions, or copies"
+		"main-gear shoes share immutable formed stock without adding renderers or submissions"
 	)
 	_check(
 		port != null and starboard != null and port.mesh == starboard.mesh
-		and port.mesh is TorusMesh
-		and is_equal_approx((port.mesh as TorusMesh).inner_radius, ArrowReconShip.MAIN_GEAR_FOOT_INNER_RADIUS)
-		and is_equal_approx((port.mesh as TorusMesh).outer_radius, ArrowReconShip.MAIN_GEAR_FOOT_OUTER_RADIUS)
-		and (port.mesh as TorusMesh).material == arrow.get_variant_materials().titanium
+		and port.mesh is ArrayMesh
+		and port.mesh.surface_get_material(0) == arrow.get_variant_materials().titanium
 		and port.transform.is_equal_approx((sharing.authored_transforms as Array)[0])
 		and starboard.transform.is_equal_approx((sharing.authored_transforms as Array)[1])
 		and port.get_child_count() == 0 and starboard.get_child_count() == 0
 		and port.find_children("*", "CollisionObject3D", true, false).is_empty()
 		and starboard.find_children("*", "CollisionObject3D", true, false).is_empty(),
-		"both retained main-gear-foot paths preserve exact parked transforms, titanium silhouette, renderer state, and zero collision authority"
+		"both main shoes preserve shared titanium stock, renderer state, and zero collision authority"
 	)
+	var supports: Array[MeshInstance3D] = []
+	for child in visual.get_children():
+		if child is MeshInstance3D and (child as MeshInstance3D).mesh is ArrayMesh:
+			var bounds: AABB = (child as MeshInstance3D).mesh.get_aabb()
+			if is_equal_approx(child.position.y, ArrowReconShip.LANDING_SOLE_Y) and is_zero_approx(bounds.position.y):
+				supports.append(child)
+	var all_contact := supports.size() == 3
+	var all_clear := supports.size() == 3
+	var all_mounted := supports.size() == 3
+	var main_support_meshes := {}
+	for support in supports:
+		var is_nose := support.name == &"NoseGearStrut"
+		var sole_vertices := 0
+		for vertex in support.mesh.get_faces():
+			var placed: Vector3 = support.transform * vertex
+			all_contact = all_contact and placed.y >= -1.17001
+			if is_equal_approx(placed.y, -1.17):
+				sole_vertices += 1
+
+		all_contact = all_contact and sole_vertices >= 8
+		if not is_nose:
+			main_support_meshes[support.mesh.get_instance_id()] = true
+		var mount := support.transform * Vector3(0.0 if is_nose else -0.28, 1.65 if is_nose else 2.03, -0.12)
+		var connected := false
+		for shell: MeshInstance3D in arrow.get("_airframe_shadow_sources"):
+			var inverse := shell.global_transform.affine_inverse() * visual.global_transform
+			var from: Vector3 = inverse * (mount - Vector3.UP * 0.65)
+			var to: Vector3 = inverse * (mount + Vector3.UP * 0.08)
+			var faces := shell.mesh.get_faces()
+			for index in range(0, faces.size(), 3):
+				if Geometry3D.segment_intersects_triangle(from, to, faces[index], faces[index + 1], faces[index + 2]) != null:
+					connected = true
+					break
+			if connected: break
+		all_mounted = all_mounted and connected
+	var winding_ok := true
+	for child in visual.get_children():
+		if not child is MeshInstance3D or not is_equal_approx(child.position.y, ArrowReconShip.LANDING_SOLE_Y):
+			continue
+		var gear := child as MeshInstance3D
+		var arrays := gear.mesh.surface_get_arrays(0)
+		var normals: PackedVector3Array = arrays[Mesh.ARRAY_NORMAL]
+		var vertices: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
+		var indices: PackedInt32Array = arrays[Mesh.ARRAY_INDEX]
+		for i in range(0, indices.size(), 3):
+			var a := vertices[indices[i]]
+			var b := vertices[indices[i + 1]]
+			var c := vertices[indices[i + 2]]
+			winding_ok = winding_ok and (b - a).cross(c - a).dot(normals[indices[i]]) < -0.0000001
+		for vertex in vertices:
+			if vertex.y < 0.24:
+				var placed: Vector3 = gear.transform * vertex
+				var radial := Vector2(placed.x, placed.z).length()
+				all_clear = all_clear and (radial > 3.34 and radial < 4.45 if gear.name in [&"NoseGearStrut", &"NoseGearFoot"] else radial < 3.15)
+	_check(winding_ok, "formed shoes and merged stock retain outward normals and front-face winding")
+
+	_check(all_contact, "all three formed soles provide flat support at the actual dock deck plane, local y=-1.17")
+	_check(all_clear, "emitted low shoe geometry clears the raised inner and outer berth rings")
+	_check(all_mounted, "all three strut saddles connect through the actual rendered airframe underside")
+	_check(main_support_meshes.size() == 1, "both main dark soles and connected supports share one immutable mesh")
+
 	if port != null and starboard != null:
 		var shared_mesh := port.mesh
 		starboard.mesh = shared_mesh.duplicate(false)
@@ -1304,7 +1363,7 @@ func _test_visual_performance_batch(arrow: ArrowReconShip) -> void:
 	_check(
 		bool(budgeted_panel_report.valid)
 		and StringName(budgeted_panel_report.mesh_kind) == &"BoxMesh"
-		and int(torus_budget_report.tori) == 13,
+		and int(torus_budget_report.tori) == 10,
 		"production torus budget retains the compact emitter shrouds and bounded compression bow while leaving shallow dorsal seams outside torus normalization"
 	)
 	var injected := Node3D.new()
