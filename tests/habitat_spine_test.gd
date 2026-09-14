@@ -663,6 +663,18 @@ func _test_common_room_route_identity(module: HabitatSpine) -> void:
 	)
 
 
+## Triangle count of a single-surface mesh, used to hold the shadow-only copies
+## to their published recipe and to their published cost.
+func _mesh_triangles(mesh: Mesh) -> int:
+	if mesh == null or mesh.get_surface_count() != 1:
+		return -1
+	var arrays := mesh.surface_get_arrays(0)
+	var indices = arrays[Mesh.ARRAY_INDEX]
+	if indices != null and (indices as PackedInt32Array).size() > 0:
+		return (indices as PackedInt32Array).size() / 3
+	return (arrays[Mesh.ARRAY_VERTEX] as PackedVector3Array).size() / 3
+
+
 func _test_arch_shadow_batches(module: HabitatSpine) -> void:
 	var rosters: Array = module.get("_arch_shadow_sources")
 	var batches: Array[MeshInstance3D] = module.get("_arch_shadow_batches")
@@ -670,13 +682,24 @@ func _test_arch_shadow_batches(module: HabitatSpine) -> void:
 		"27 authored Habitat arches retain their own bounded shadow batch")
 	if rosters.size() != 27 or batches.size() != 27:
 		return
+	var proxy_rosters: Array = module.get("_arch_shadow_proxies")
+	_check(proxy_rosters.size() == 27,
+		"each arch roster carries its own shadow-only stand-in roster")
+	if proxy_rosters.size() != 27:
+		return
 	var retained_sources := 0
 	var retained_triangles := 0
+	var retained_source_triangles := 0
 	var max_vertex_error := 0.0
 	var max_normal_error := 0.0
 	var geometry_matches := true
+	var proxy_recipe_matches := true
+	var proxy_is_coarser := true
 	var colour_matches := true
 	var bounds_match := true
+	# Rebuilt here from each source's own measured radius and length, so the
+	# recipe is independently derived rather than read back off the module.
+	var independent_proxy_cache := {}
 	var family_counts := {"connector": 0, "corridor": 0, "bunk": 0, "common": 0}
 	for batch_index in batches.size():
 		var sources: Array[MeshInstance3D] = rosters[batch_index]
@@ -698,9 +721,27 @@ func _test_arch_shadow_batches(module: HabitatSpine) -> void:
 		var vertex_offset := 0
 		var index_offset := 0
 		var source_bounds := AABB()
-		for source_index in sources.size():
+		var proxies: Array = proxy_rosters[batch_index]
+		geometry_matches = geometry_matches and proxies.size() == sources.size()
+		for source_index in mini(sources.size(), proxies.size()):
 			var source := sources[source_index]
-			var original := source.mesh.surface_get_arrays(0)
+			var proxy := proxies[source_index] as ArrayMesh
+			# The stand-in must be the kit's published recipe for this exact piece
+			# of stock. Radius and length are measured off the colour mesh's own
+			# bounds -- the rule only returns multiples of four, so those bounds
+			# are still the exact 2r x h x 2r the builder asked for.
+			var colour_bounds := source.mesh.get_aabb()
+			var expected_proxy := StationSurfaceKit.shadow_proxy_cylinder_mesh_cached(
+				colour_bounds.size.x * 0.5, colour_bounds.size.y, independent_proxy_cache
+			)
+			proxy_recipe_matches = proxy_recipe_matches and proxy != null \
+				and str(proxy.resource_name) == StationSurfaceKit.SHADOW_PROXY_CYLINDER_RESOURCE_NAME \
+				and _mesh_triangles(proxy) == _mesh_triangles(expected_proxy) \
+				and proxy.get_aabb().is_equal_approx(expected_proxy.get_aabb()) \
+				and colour_bounds.grow(0.00001).encloses(proxy.get_aabb())
+			proxy_is_coarser = proxy_is_coarser and proxy != null \
+				and _mesh_triangles(proxy) < _mesh_triangles(source.mesh)
+			var original := proxy.surface_get_arrays(0)
 			var original_vertices: PackedVector3Array = original[Mesh.ARRAY_VERTEX]
 			var original_normals: PackedVector3Array = original[Mesh.ARRAY_NORMAL]
 			var original_indices := PackedInt32Array()
@@ -719,6 +760,7 @@ func _test_arch_shadow_batches(module: HabitatSpine) -> void:
 				geometry_matches = geometry_matches and indices[index_offset] == vertex_offset + index
 				index_offset += 1
 			vertex_offset += original_vertices.size()
+			retained_source_triangles += _mesh_triangles(source.mesh)
 			var bounds := source.transform * source.mesh.get_aabb()
 			source_bounds = bounds if source_index == 0 else source_bounds.merge(bounds)
 			colour_matches = colour_matches and source.get_parent() == arch \
@@ -742,7 +784,11 @@ func _test_arch_shadow_batches(module: HabitatSpine) -> void:
 	# helper test establishes this bound; positions and triangle order stay exact.
 	_check(geometry_matches and retained_sources == 378 and is_zero_approx(max_vertex_error) \
 		and max_normal_error < 0.0002,
-		"all 378 arch segments retain triangle winding, positions and normal directions within packing precision")
+		"all 378 arch stand-ins retain triangle winding, positions and normal directions within packing precision")
+	_check(proxy_recipe_matches and proxy_is_coarser,
+		"every stand-in is the kit's published shadow recipe for its own stock and stays inside the colour mesh's bounds")
+	_check(retained_source_triangles == 41664 and retained_triangles == 15456,
+		"the 378 colour arch segments cost 41,664 triangles and their shadow-only copies 15,456, not another 41,664")
 	_check(colour_matches and bounds_match,
 		"arch colour nodes and materials remain beside 27 tightly bounded shadow-only meshes")
 	module.set_module_enabled(false)

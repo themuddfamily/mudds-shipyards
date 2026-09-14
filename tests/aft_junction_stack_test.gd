@@ -856,6 +856,18 @@ func _test_ceiling_luminaire_lens_batch(module: AftJunctionStack) -> void:
 	)
 
 
+## Triangle count of a single-surface mesh, used to hold the shadow-only copies
+## to their published recipe and to their published cost.
+func _mesh_triangles(mesh: Mesh) -> int:
+	if mesh == null or mesh.get_surface_count() != 1:
+		return -1
+	var arrays := mesh.surface_get_arrays(0)
+	var indices = arrays[Mesh.ARRAY_INDEX]
+	if indices != null and (indices as PackedInt32Array).size() > 0:
+		return (indices as PackedInt32Array).size() / 3
+	return (arrays[Mesh.ARRAY_VERTEX] as PackedVector3Array).size() / 3
+
+
 func _test_pressure_envelope_shadow_batch(module: AftJunctionStack) -> void:
 	var sources: Array[MeshInstance3D] = module.get("_pressure_envelope_shadow_sources")
 	var batch := module.get_node_or_null(
@@ -877,12 +889,42 @@ func _test_pressure_envelope_shadow_batch(module: AftJunctionStack) -> void:
 	# normal introduces up to ~0.000121 vector error here (under 0.007 degrees).
 	var max_normal_error := 0.0
 	var colour_preserved := true
+	# Thirty-two of the sixty-seven sources are turned round stock and contribute
+	# a coarser shadow-only stand-in instead of their own triangles; the panels,
+	# cladding and reveals have no proven stand-in and are still merged exactly.
+	# The stand-ins are rebuilt here from the module's recorded radius/height so
+	# the recipe is checked, not taken on trust.
+	var recipes: Dictionary = module.get("_cylinder_shadow_recipes")
+	var independent_proxy_cache := {}
+	var stood_in := 0
+	var merged_exactly := 0
+	var proxy_recipe_matches := true
+	var source_triangles := 0
 	for source in sources:
 		colour_preserved = colour_preserved and source.visible \
 			and source.cast_shadow == GeometryInstance3D.SHADOW_CASTING_SETTING_OFF \
 			and source.get_parent() == batch.get_parent() \
 			and source.material_override is StandardMaterial3D
-		var original := source.mesh.surface_get_arrays(0)
+		source_triangles += _mesh_triangles(source.mesh)
+		var merged: ArrayMesh = source.mesh
+		var recipe: Variant = recipes.get(source.get_instance_id())
+		if recipe == null:
+			merged_exactly += 1
+			proxy_recipe_matches = proxy_recipe_matches \
+				and str(source.mesh.resource_name) \
+					!= StationSurfaceKit.CHAMFERED_CYLINDER_RESOURCE_NAME
+		else:
+			stood_in += 1
+			var dimensions := recipe as Vector2
+			merged = StationSurfaceKit.shadow_proxy_cylinder_mesh_cached(
+				dimensions.x, dimensions.y, independent_proxy_cache
+			)
+			proxy_recipe_matches = proxy_recipe_matches \
+				and str(source.mesh.resource_name) \
+					== StationSurfaceKit.CHAMFERED_CYLINDER_RESOURCE_NAME \
+				and _mesh_triangles(merged) < _mesh_triangles(source.mesh) \
+				and source.mesh.get_aabb().grow(0.00001).encloses(merged.get_aabb())
+		var original := merged.surface_get_arrays(0)
 		var original_vertices: PackedVector3Array = original[Mesh.ARRAY_VERTEX]
 		var original_normals: PackedVector3Array = original[Mesh.ARRAY_NORMAL]
 		var original_indices := PackedInt32Array()
@@ -905,7 +947,11 @@ func _test_pressure_envelope_shadow_batch(module: AftJunctionStack) -> void:
 		vertex_offset += original_vertices.size()
 	print("AFT_SHADOW_ARRAY_ERROR vertices=", max_vertex_error, " normals=", max_normal_error)
 	_check(exact_geometry and vertex_offset == vertices.size() and index_offset == indices.size(),
-		"shadow batch retains triangles, winding and transformed normal directions within packing precision")
+		"shadow batch retains merged winding and transformed normal directions within packing precision")
+	_check(stood_in == 32 and merged_exactly == 35 and proxy_recipe_matches,
+		"exactly the 32 turned sources carry a coarser bounded stand-in and the 35 panelled ones are merged exactly")
+	_check(source_triangles == 7844 and indices.size() / 3 == 5332,
+		"the 67 colour sources cost 7,844 triangles and their one shadow-only copy 5,332, not another 7,844")
 	_check(colour_preserved and batch.transform == Transform3D.IDENTITY \
 		and batch.cast_shadow == GeometryInstance3D.SHADOW_CASTING_SETTING_SHADOWS_ONLY \
 		and batch.material_override == sources[0].material_override,
@@ -917,11 +963,13 @@ func _test_pressure_envelope_shadow_batch(module: AftJunctionStack) -> void:
 	_check(batch.is_visible_in_tree() and sources[0].is_visible_in_tree(),
 		"enabling the module restores shadow and colour geometry together")
 	print("AFT_ENVELOPE_SHADOW_BATCH sources=", sources.size(),
+		" source_triangles=", source_triangles,
 		" triangles=", indices.size() / 3, " bounds=", batch.mesh.get_aabb())
 
 	var rebuilt_parent := Node3D.new()
 	_test_root.add_child(rebuilt_parent)
 	var rebuilt_sources: Array[MeshInstance3D] = []
+	var rebuilt_proxies: Array[ArrayMesh] = []
 	for source in sources:
 		var copy := MeshInstance3D.new()
 		copy.mesh = source.mesh
@@ -929,8 +977,17 @@ func _test_pressure_envelope_shadow_batch(module: AftJunctionStack) -> void:
 		copy.transform = source.transform
 		rebuilt_parent.add_child(copy)
 		rebuilt_sources.append(copy)
+		var recipe: Variant = recipes.get(source.get_instance_id())
+		if recipe == null:
+			rebuilt_proxies.append(null)
+		else:
+			rebuilt_proxies.append(StationSurfaceKit.shadow_proxy_cylinder_mesh_cached(
+				(recipe as Vector2).x, (recipe as Vector2).y, independent_proxy_cache
+			))
 	var build_started := Time.get_ticks_usec()
-	var rebuilt := AftJunctionStack.STATIC_SHADOW_BATCH.build(rebuilt_parent, rebuilt_sources)
+	var rebuilt := AftJunctionStack.STATIC_SHADOW_BATCH.build(
+		rebuilt_parent, rebuilt_sources, rebuilt_proxies
+	)
 	print("AFT_ENVELOPE_SHADOW_BUILD_USEC=", Time.get_ticks_usec() - build_started)
 	_check(rebuilt != null and rebuilt.mesh.get_aabb().is_equal_approx(batch.mesh.get_aabb()),
 		"a fresh static source roster produces the same bounded shadow mesh")

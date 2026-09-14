@@ -5684,15 +5684,15 @@ func get_space_backdrop_audit_report() -> Dictionary:
 		"authority_node_count": authority_node_count,
 		"renderable_count": renderable_count,
 		"runtime_draw_upper_bound": SPACE_BACKDROP_BODY_SPECS.size() + 1,
-		# 2,600 instances * 2 star-quad triangles + 4 bodies * 4,224 triangles.
-		"runtime_triangle_upper_bound": 22_096,
+		# 2,600 instances * 2 star-quad triangles + 4 bodies * 624 triangles.
+		"runtime_triangle_upper_bound": 7_696,
 		"performance": {
 			"mesh_resource_count": mesh_resource_ids.size(),
 			"material_resource_count": material_resource_ids.size(),
 			"renderer_node_count": renderable_count,
 			"surface_submission_count": surface_submission_count,
 			"visible_copy_count": visible_copy_count,
-			"triangle_count": 22_096,
+			"triangle_count": 7_696,
 		},
 		"target_count": get_target_count(),
 		# Deliberately enumerated rather than derived from get_berth_ids(): the

@@ -15,8 +15,18 @@ const EXPECTED_STAR_RADIUS_MAX := 1650.0
 const EXPECTED_NEBULA_COVER_STRENGTH := 0.08
 const SKY_SHADER_PATH := "res://scripts/rendering/deep_space_sky.gdshader"
 const EXPECTED_BODY_MESH_RADIUS := 1.0
-const EXPECTED_BODY_MESH_RADIAL_SEGMENTS := 64
-const EXPECTED_BODY_MESH_RINGS := 32
+## Refrozen for the 2026-09-14 station round-stock trim. The four bodies were
+## `64x32`; measured in the production scene their apparent radii at 1920x1080
+## with the game's default 72 degree vertical FOV are 74.5, 76.0, 49.6 and 44.1
+## pixels, so `24x12` keeps the silhouette error on the largest of them at
+## 0.65 px -- under one pixel, and nearly three times inside the 0.0021 rad
+## tolerance `TorusGeometryBudget` already applies to every other round surface
+## in the game. Placement, effective radius, palette, materials, renderer nodes
+## and submissions are unchanged.
+const EXPECTED_BODY_MESH_RADIAL_SEGMENTS := 24
+const EXPECTED_BODY_MESH_RINGS := 12
+const AUTHORED_BODY_MESH_RADIAL_SEGMENTS := 64
+const AUTHORED_BODY_MESH_RINGS := 32
 const EXPECTED_BODY_MESH_FAMILY_ID: StringName = &"space-backdrop-celestial-bodies"
 const AURORA_BODY_ID: StringName = &"CelestialGreenBody"
 const AURORA_DESTINATION_ID: StringName = &"aurora_temperate_world"
@@ -26,9 +36,9 @@ const EXPECTED_LOCAL_MATERIAL_RESOURCES := 5
 const EXPECTED_LOCAL_RENDERER_NODES := 5
 const EXPECTED_LOCAL_SURFACE_SUBMISSIONS := 5
 const EXPECTED_LOCAL_VISIBLE_COPIES := 2604
-# 2,600 star quads at 2 triangles plus four 64x32 bodies at 4,224. Was 141,696
-# while each star was a 48-triangle sphere.
-const EXPECTED_LOCAL_TRIANGLES := 22_096
+# 2,600 star quads at 2 triangles plus four 24x12 bodies at 624. Was 141,696
+# while each star was a 48-triangle sphere, and 22,096 while each body was 64x32.
+const EXPECTED_LOCAL_TRIANGLES := 7_696
 ## `0.9 * sqrt(PI)`: the square with the retired 0.9 m sphere's projected disc
 ## area, so the star field's brightness is unchanged by the rebuild.
 const EXPECTED_STAR_QUAD_EDGE := 1.5952085
@@ -170,7 +180,7 @@ func _test_pristine_audit(world: ShipyardWorld) -> void:
 		and int(performance.get("surface_submission_count", -1)) == EXPECTED_LOCAL_SURFACE_SUBMISSIONS
 		and int(performance.get("visible_copy_count", -1)) == EXPECTED_LOCAL_VISIBLE_COPIES
 		and int(performance.get("triangle_count", -1)) == EXPECTED_LOCAL_TRIANGLES,
-		"audit freezes the bounded 2-mesh, 5-material, 5-submission, 22096-triangle result"
+		"audit freezes the bounded 2-mesh, 5-material, 5-submission, 7696-triangle result"
 	)
 	_check(
 		bool(report.get("near_black_sky", false))
@@ -536,7 +546,7 @@ func _test_bounded_resource_sharing(world: ShipyardWorld) -> void:
 		and surface_submissions == EXPECTED_LOCAL_SURFACE_SUBMISSIONS
 		and visible_copies == EXPECTED_LOCAL_VISIBLE_COPIES
 		and triangles == EXPECTED_LOCAL_TRIANGLES,
-		"resource sharing preserves 5 renderer nodes/submissions, 2604 copies, and 22096 triangles"
+		"resource sharing preserves 5 renderer nodes/submissions, 2604 copies, and 7696 triangles"
 	)
 
 
