@@ -182,7 +182,7 @@ in this document has been raised.**
 
 | Schema-v2 metric | Station resident (0 loaded) | Cinder loaded (1 loaded) | Loaded delta |
 | --- | ---: | ---: | ---: |
-| Triangles | 1,951,853 | 2,085,987 | +134,134 |
+| Triangles | 1,917,359 | 2,051,493 | +134,134 |
 | Mesh renderer nodes | 6,589 | 6,798 | +209 |
 | Surfaces | 6,687 | 6,896 | +209 |
 | Unique meshes | 3,356 | 3,496 | +140 |
@@ -194,13 +194,222 @@ in this document has been raised.**
 | Particle systems | 45 | 45 | 0 |
 | Scene-tree nodes | 11,645 | 12,068 | +423 |
 
-The three 2026-09-14 trims below were each measured on their own branch from the
-same 2,407,157-triangle base (the first station trim). Merged on `main` together
-with the defender heat vents (+448 triangles, +1 renderer/mesh/material/node)
-and the walkability dressing (+32 nodes, no triangles), the combined resident
-scene measures **1,951,853 triangles** — 983,864 fewer than the 2,935,717 the
-morning census found, and now 8.4% over the 1,800,000 ceiling instead of 63%.
-The node count (11,645) remains 66% over its 7,000 ceiling.
+The first three 2026-09-14 trims below were each measured on their own branch
+from the same 2,407,157-triangle base (the first station trim). Merged on `main`
+together with the defender heat vents (+448 triangles, +1
+renderer/mesh/material/node) and the walkability dressing (+32 nodes, no
+triangles), the combined resident scene measured **1,951,735 triangles** — the
+**1,951,853** this table and `geometry_census_scenario_test.gd` previously
+carried was 118 high, because content landed after that refreeze and the freeze
+was not re-taken. The fourth trim (the hero/opponent pass, first below) takes
+the measured scene to **1,917,359 triangles** — 1,018,358 fewer than the
+2,935,717 the morning census found, and now 6.5% over the 1,800,000 ceiling
+instead of 63%. **The ceiling is still not met**, and the reason the remaining
+117,359 triangles are not reachable through this rule is set out in that
+section. The node count (11,645) remains 66% over its 7,000 ceiling.
+
+#### 2026-09-14 hero/opponent trim: -34,376 resident triangles, and the ceiling is still not met
+
+The three passes recorded below left the station-resident scene at 1,951,735
+triangles against the 1,800,000 ceiling. This pass takes the five craft those
+passes did not touch — the Arrow, the Zenith, the Bulwark and the four opponent archetypes
+— to **1,917,359**, and raises no ceiling, relaxes no assertion and invents no
+second tolerance.
+
+**It does not reach the ceiling, and it cannot.** 1,917,359 is 117,359 triangles
+— 6.5% — over. The arithmetic is set out under "why the remaining 117,359 is not
+here" below, because a pass that misses its number by that much owes the reader
+the reason rather than the number alone.
+
+| Bucket | Before | After | Delta |
+| --- | ---: | ---: | ---: |
+| `ArrowReconShip` | 121,746 | 103,002 | -18,744 |
+| `BulwarkHeavyGunship` | 66,134 | 58,726 | -7,408 |
+| `ZenithInterceptor` | 86,690 | 83,490 | -3,200 |
+| `ShipyardWorld/StationDefenseEncounter` (its three opponent craft) | 72,550 | 70,342 | -2,208 |
+| `WingSkirmisherLead` | 19,808 | 19,232 | -576 |
+| `WingSkirmisherWing` | 19,808 | 19,232 | -576 |
+| `StandoffPicket` | 19,796 | 19,220 | -576 |
+| `CourierRunner` | 21,126 | 20,582 | -544 |
+| `RangeOpponent` | 17,846 | 17,302 | -544 |
+| **Whole scene** | **1,951,735** | **1,917,359** | **-34,376** |
+
+No other bucket moves, and the change is triangle-only on every other census
+row: 6,589 mesh renderer nodes, 6,687 surfaces, 3,356 unique meshes, 693 bound
+and 969 retained materials, 7 shaders, 34 textures, 335 lights (20 shadow
+casting), 45 particle systems, 79,591 text triangles across 43 signs and 11,645
+scene-tree nodes are identical on both sides, as is the loaded-minus-resident
+Cinder delta of +134,134. No collision shape, interaction marker, boarding
+route, seat anchor, light, material or evidence label changed, and nothing added
+per-frame work.
+
+**Note on the previous freeze.** `geometry_census_scenario_test.gd` and the
+measurement table above both carried **1,951,853**, and the scene on `main` at
+17a536702 actually measured **1,951,735** — the suite was failing its resident
+and loaded totals and both fingerprints before this pass began, because content
+landed after the last refreeze. Every before-figure in this section is what the
+scene was, not what the freeze said it was; the table above is corrected to
+match.
+
+**The same rule as the ship trim, applied where it had not reached.** The five
+craft used `ShipGeometryBudget` and `ShipChamferedStock` nowhere, so every
+turned part, bead and box on them carried one authored tessellation whatever its
+size. They now carry local overrides of the same three builders the Jovian, the
+Halyard and the three Cinder craft already override, and `HeroShip`'s own shared
+builders are untouched, so the Torrent — which is a bare `HeroShip` — is
+deliberately unchanged.
+
+- The Arrow's `_cylinder` was frozen at 36 radial segments for stock from a 2 cm
+  toggle to a 20 cm mast pedestal; `ShipGeometryBudget.tube_segments` takes its
+  38 turned surfaces from 10,944 triangles to 5,696. Its `_sphere` was 28 x 14
+  from a 3.5 cm curve joint to the 42 cm ventral gimbal; `sphere_plan` leaves the
+  gimbal and its lens exactly as authored and takes the centimetre beads to
+  20 x 10 and 16 x 8.
+- The Zenith and the Bulwark pick up `_rounded_box_mesh`, `_cylinder` and
+  `_frustum`, which is the Bulwark's 31 chamfered cylinders and the 53 fitted
+  boxes across both craft.
+- The four opponent archetypes budget through `RangeOpponent`, which all four
+  inherit: its 28-segment chamfered cylinders, its 24 x 12 beads, and its exhaust
+  plumes, which were 32 radial segments with Godot's four default wall rings on a
+  30 cm cone. The rings go to `ShipSurfaceDetail.CYLINDER_WALL_RINGS`; a frustum
+  wall is planar along its length and carries constant vertex normals there, so
+  the intermediate rings resolve nothing and the surface is bit-identical without
+  them.
+
+**Two rules were measured and deliberately not applied**, because applying them
+would have been a no-op dressed up as a change. The opponents' pressure shells
+roll each shoulder as a quarter ellipse at eight segments;
+`ShipGeometryBudget.arc_segments` answers eight for every shell on all four
+craft, because a quarter turn gets a quarter of the 32-segment floor the project
+rendered and accepted for a closed circle and that floor binds at every shoulder
+radius here. The same floor is why no lofted hull on any of these craft loses a
+ring: `revolved_segments` and `tube_segments` both return 32 for anything at or
+above about 30 cm in radius, and these are hero airframes.
+
+**The Arrow's shadow twin stopped being an exact copy — for twelve of its
+twenty-eight sources.** `StaticShadowBatch` merged the colour triangles of the
+Arrow's whole rigid envelope, so 22,908 triangles of skin were paid for twice:
+once to be shaded and once to be a silhouette. The batch now merges a proven
+stand-in for the twelve cambered planform panels — the six sensor wing skins,
+two wing insets, two recognition marks and two sensor wings — whose authored
+8 x 12 grid exists to carry a camber crown across a *lit* surface. Held to
+`StationSurfaceKit.SHADOW_MAP_TEXEL_METRES` with the same parabolic residual
+model `span_steps` uses, those grids coarsen to grids that still divide the
+authored one, so every stand-in vertex is a vertex of the shipped skin and every
+outline corner survives. The batch goes from 22,908 to 17,772 triangles.
+
+**The other sixteen sources are merged exactly, and that is a measured result
+this pass got wrong first.** The twelve lofted skins were given stand-ins too,
+at 16 rings, by asking `StationSurfaceKit.shadow_radial_segments_for` for the
+count. That helper caps at `MAXIMUM_SHADOW_RADIAL_SEGMENTS` and returns the cap
+whether or not the cap satisfies its own sagitta test — correct for the
+station's sub-metre pipe and collar stock, wrong for the Arrow's 1.05 m
+fuselage, where 16 rings leave 20 mm of silhouette error against a 6 mm texel.
+The rendered cockpit-sill walk-up below caught it immediately: the caster sat
+that far inside its own colour surface and laid dithered self-shadow acne right
+across the sill band at walking range. Solving the ring count against the texel
+directly puts every lofted skin back at its authored 32, at which point the
+"reduced" loft is *larger* than the panel-cut surface it would replace. So the
+loft stand-in was removed rather than kept as machinery that never fires. The
+Arrow's lofted skins are already at the tessellation their own shadow needs.
+
+**One defect fixed on the way.** `ShipChamferedStock`'s `FACE_GRID` atlas gives a
+chamfer band's and a corner facet's vertices coordinates from two or three
+different face charts. On stock that is square in two axes both charts normalise
+by the same extent, every vertex of the seam lands on the same atlas column, the
+UV triangle collapses to zero area and `generate_tangents` hands the shader a
+singular tangent frame. The Zenith's 45 x 200 x 45 mm instrument stanchions are
+the first parts in the fleet to hit it. Collapsed triangles now fall back to the
+unit triangle, which is what `UNIT_PER_QUAD` would have given them; every
+polygon whose atlas mapping is a real triangle keeps exactly the coordinates it
+had, and the Jovian, Halyard and Cinder suites are unchanged.
+
+##### Rendered evidence
+
+At 1280x720 through `gl_compatibility` on a D3D12 GPU under Xvfb, from eight
+fixed gameplay viewpoints with the production root disabled and the station
+activity and service-agent clocks seeked to zero, so both sides frame the
+identical scene: the Arrow at its berth at chase standoff, a cockpit-sill
+walk-up, its port wing skins, the Zenith and the Bulwark at their fleet-dock
+berths, a Bulwark gunner-station walk-up, one long station view with the fleet's
+cast shadows, and the deck pool the Arrow's envelope casts. Captures, 16x
+difference images and crops are under
+`/root/.cache/mudds-shipyards/hero-trim-root/`.
+
+- Two runs of the *same* build differ on **8.564%** of pixels before and
+  **0.886%** after. Almost all of that is sub-quantisation dither and a
+  whole-frame exposure wobble: the count beyond 32 of 255 is **606 px (0.008%)**
+  and **1,517 px (0.021%)** respectively, and it is concentrated on the guide
+  lens markers and range drones, which drift.
+- Before against after differs on **3.575%** of pixels, and beyond 32 of 255 on
+  **638 px, 0.009%** — at the same-build floor, not above it. Per view the >32
+  count runs from 1 px (the cast-shadow pool) to 314 px (the Arrow at chase, a
+  view whose own same-build floor is 972 px). The 16x difference images are
+  black except for thin outlines on the fittings whose tessellation changed: the
+  Bulwark walk-up's diff is a handful of grip, mount and rail edges and nothing
+  else in the frame.
+- **Shadow verdict, attributed rather than assumed.** Each view was rendered
+  twice from the same build, once as shipped and once with the Arrow's
+  `OpaqueEnvelopeShadowBatch` switched to `SHADOW_CASTING_SETTING_OFF`, and the
+  pixels that differ by more than 8 of 255 are the pixels that batch owns — 6.45%
+  of the wing-skin view, 4.50% of the chase view, 2.64% of the cast-shadow view,
+  0.86% of the sill walk-up, 0.20% of the long view, none of either Bulwark view.
+  A >0 mask is useless at this noise floor and was not used. Restricted to that
+  mask, before against after moves 0.83% of the cast-shadow view's shadow pixels
+  (none beyond 32), 2.66% of the wing-skin view's (none beyond 32), 3.73% of the
+  sill walk-up's (42 px beyond 32, against a same-build floor of 118 px in the
+  same mask) and 6.15% of the chase view's (309 px beyond 32, against a
+  same-build floor of 971). No shadow detaches from its caster, no contact gap
+  opens, and no acne appears.
+- Direct inspection. At 3x the deck pool the Arrow casts is the same shape at the
+  same edge softness in the same place on both sides. At 4x on the nearest turned
+  stock a player can stand beside — the cockpit's console toggles and control
+  stick shaft, budgeted from 36 radial segments down to 12 and 16 — the pair is
+  indistinguishable apart from a roughly one-pixel shift in one toggle's
+  highlight band; no silhouette reads as polygonal on either side. The sill
+  shadow band that the first attempt covered in acne is, after the fix, identical
+  before and after at 2x.
+
+##### Why the remaining 117,359 is not here
+
+Stated plainly, because the roadmap item asked for 152,000 and this pass
+delivered 34,376.
+
+The in-scope *procedural* geometry on these craft — everything their own scripts
+build, excluding imported art — totals about 317,700 triangles. Reaching
+1,800,000 would have required taking 48% of it. The ship trim reached 33% on the
+Jovian, and it could do that because the Jovian had genuinely gross
+over-tessellation: 96-segment nozzles, 12-step roof patches, 128-segment
+quarter-ellipse fillets. These five craft do not. They were authored at 28, 32
+and 36 segments, which is already at or within one step of the floors this
+project established by *looking at renders* — `MIN_REVOLVED_SEGMENTS = 32`,
+`MIN_TUBE_SEGMENTS = 12`, `MIN_SPHERE_RADIAL_SEGMENTS = 16`. The only way to
+take another 117,359 triangles out of them through this rule would be to lower a
+floor that has photographs behind it, and this pass is not willing to do that.
+
+The remaining headroom is in **imported art**, which this pass did not touch:
+the Torrent's Blender hero art (100,098 triangles, of which four LOD0 static
+batches are 61,216), the Zenith's authored art (52,686) and the pilot suit
+(14,576). `tools/blender/` does have deterministic regeneration paths for all
+three — `generate_torrent_hero_v1.py`, `generate_zenith_authored_v1.py`,
+`generate_pilot_motion_v2.py` — so the option is real; it was declined here
+because closing a 117,359 gap out of a 167,360 imported pool means decimating
+hero craft by roughly 70%, which is a silhouette change on the fleet's most
+prominent models and not something "no visible change at gameplay distance" can
+cover. The honest next step for Phase 10 item 2 is an art pass on those three
+generators with its own rendered review, not a further squeeze on procedural
+tessellation.
+
+The Torrent's *procedural* fittings (58,080 triangles) are also untouched, and
+for a structural reason worth recording: the Torrent has no craft script. It
+instances `scripts/ships/hero_ship.gd` directly, so the only way to budget its
+fittings is to change the shared builders every craft inherits — which is
+exactly what the local-override pattern exists to avoid.
+
+This is a scene-content measurement plus a rendered-composition check. It is not
+a frame-time, GPU-time or VRAM claim, and the software/remote-display caveats at
+the top of this document still apply. **No ceiling in this document has been
+raised, and the 1,800,000 triangle ceiling is not met.**
 
 #### 2026-09-14 second trim: -250,864 more resident triangles
 
