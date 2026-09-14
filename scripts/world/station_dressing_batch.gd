@@ -91,6 +91,16 @@ const PLATE_MAX_THICKNESS := 0.82
 ## walking-distance framings; 16 m won on every one of them. Forward+, which the
 ## desktop build ships and which clusters lights instead of capping them per
 ## object, is inside its own same-build noise floor at all three caps.
+##
+## The second node trim re-tested 4 m and 8 m against the habitat and the Aft
+## operations room and **left the cap at 16 m**, because there the Compatibility
+## deviation is not a function of the bound at all: the Aft coordinator desk top
+## renders byte-identically at 4 m and at 16 m (RGB 192/188/173 either way
+## against 90/113/119 unbatched) and the habitat corridor measured *worse* at
+## 4 m than at 16. What moves under that renderer is which eight lights win an
+## instance's per-object slots, and that ordering depends on how many instances
+## the room has, not on how large any one of them is. Tightening the cap buys
+## nothing there and costs 339 of the 840 nodes this pass saves.
 const MAX_BATCH_EXTENT := 16.0
 
 

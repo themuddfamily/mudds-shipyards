@@ -4107,6 +4107,16 @@ func _build_common_berth_roster(common: Node3D) -> void:
 	# wall and 0.04 m above the top of the board.
 	_box(roster, "RosterLampHousing", Vector3(board_x, 2.80, 18.22), Vector3(1.30, 0.10, 0.26), _materials["graphite"], false)
 	_box(roster, "RosterLampLens", Vector3(board_x, 2.74, 18.26), Vector3(1.05, 0.03, 0.17), _materials["warm_light"], false)
+	# The board is a stack of 5 cm plates standing off the partition at slightly
+	# different depths, 1.3 m up a wall the common-room floor runs right past.
+	# Merged they become one 30 cm-thick, 1.32 m-tall board face that reaches into
+	# the standing capsule of the cells in front of it, which
+	# `tools/station_walkability_sweep.gd` correctly reports as a piece the player
+	# strolls through — a defect the merge would invent, not one the module built.
+	# Marking the family keeps the world's anonymous-dressing pass
+	# (`StationDressingBatch`) out of it; the sweep is unchanged end to end.
+	for piece in roster.get_children():
+		piece.set_meta("crew_berth_roster_piece", true)
 
 
 ## The last of it: what the room's seating group and its glazing wall carry.

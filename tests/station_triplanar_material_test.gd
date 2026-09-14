@@ -653,14 +653,26 @@ func _test_live_station_coverage(
 	# bound to the same geometry through `set_surface_override_material()` instead
 	# of through a `material_override` on a separate node.
 	#
+	# Re-frozen 2276/45/849/1382 -> 1926/45/643/1238 for the second Phase 10 §2
+	# scene-node trim, which extends the same consolidation to `HabitatSpine` and
+	# `AftJunctionStack`. 350 more submissions that shared a material with a
+	# sibling became one submission each: 206 out of the 0.28 m bucket, which is
+	# the habitat's and the Aft room's own wall-and-fitout scale, and 144 out of
+	# the 0.30 m structure bucket. The 0.22 m column does not move at all, because
+	# nothing at that scale was anonymous sibling dressing. No recipe, no material,
+	# no physical scale and no triangle changed — the census below still finds 214
+	# instanced batches with the same 129 mapped, and every surface still binds the
+	# same panel maps, now through `set_surface_override_material()` on a merged
+	# renderer instead of through a `material_override` on a separate node.
+	#
 	# As before these are live census results on the merged production tree, not
 	# a sum inferred from component budgets, and missing couriers must still fail.
 	_check(
-		mapped_surface_count == 2276
+		mapped_surface_count == 1926
 		and scale_022_count == 45
-		and scale_028_count == 849
-		and scale_030_count == 1382,
-		"live static station binds exactly 2276 ordinary mapped surfaces with all seven couriers dispatched"
+		and scale_028_count == 643
+		and scale_030_count == 1238,
+		"live static station binds exactly 1926 ordinary mapped surfaces with all seven couriers dispatched"
 	)
 	_check(exact_recipe, "every mapped station surface uses the matched world-triplanar albedo/normal/roughness recipe")
 	_check(forbidden_ship_atlas_count == 0, "no live station surface reuses the Arrow or Jovian directional ship atlases")

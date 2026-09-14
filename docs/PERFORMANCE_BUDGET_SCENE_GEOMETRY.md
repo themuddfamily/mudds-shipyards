@@ -428,7 +428,9 @@ and the walkability dressing (+32 nodes, no triangles), the combined resident
 scene measures **1,951,735 triangles** — 983,982 fewer than the 2,935,717 the
 morning census found, and now 8.4% over the 1,800,000 ceiling instead of 63%.
 The node count is **11,455** after the dressing-consolidation pass recorded
-below, and remains 64% over its 7,000 ceiling.
+below, and remains 64% over its 7,000 ceiling. The second node trim recorded
+immediately below takes the live resident count from **11,467 to 10,627** —
+still 52% over the 7,000 ceiling, and still not met.
 
 #### 2026-09-14 node trim: -190 resident scene-tree nodes, zero triangles
 
@@ -490,6 +492,98 @@ What was deliberately left alone, and why:
 * `AftJunctionStack`, `HabitatSpine`, `VipReceptionSuite`,
   `ObservationLogisticsSpur`, `SalvageTerrace`, `FabricationAnnex`, the parked
   craft and their fitouts: geometry owned elsewhere.
+
+#### 2026-09-14 second node trim: -840 resident scene-tree nodes, zero triangles
+
+The six modules the first pass could not touch were owned by other agents at the
+time. `HabitatSpine` and `AftJunctionStack` — the station's two largest node
+buckets — now run through the same `StationDressingBatch`, and the other four
+were each evaluated and are recorded below with the reason they were left as
+they are. Measured on `608772c15` with fresh private user data on both sides.
+
+| Bucket | Nodes before | Nodes after | Renderers before | Renderers after | Surfaces before | Surfaces after | Triangles |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| `HabitatSpine` | 1,923 | 1,453 | 1,251 | 848 | 1,251 | 975 | 209,990 unchanged |
+| `AftJunctionStack` | 1,190 | 818 | 754 | 396 | 754 | 491 | 161,168 unchanged |
+| `JovianFreightBerth` | 825 | 826 | 353 | 354 | 361 | 362 | 64,852 unchanged |
+| `LandingPad` | 146 | 147 | 82 | 83 | 105 | 106 | 42,116 unchanged |
+| **Resident total** | **11,467** | **10,627** | **6,435** | **5,676** | **6,570** | **6,033** | **1,917,477 unchanged** |
+
+No other bucket moves at all. The two **+1** rows are not a regression: the
+protected-name roster is one global list, so four names this pass added for the
+habitat and the Aft room also stand in those two modules and cost one fold each.
+
+Triangles (1,917,477 resident / 2,051,611 with Cinder loaded), lights (335, of
+which 20 cast shadows), particle systems (45), bound-phase (693) and retained
+(969) materials, shaders (7), textures (34 / 83,355,976 bytes), text
+triangles/instances, every collision shape's world extent and the whole
+loaded-minus-resident Cinder delta (+134,134 triangles, +209 renderers, +140
+unique meshes, +47 retained materials, +27 lights, +423 nodes) are identical on
+both sides. Unique meshes fall 3,355 -> 3,167 because a merged renderer replaces
+several cached box meshes with one, and surfaces fall 6,570 -> 6,033 because
+pieces that shared a material with a sibling now share one submission — a
+draw-call reduction, not lost geometry.
+
+**The two modules still publish exactly what they build.** Each publishes a
+frozen whole-module allocation census — descendant nodes, renderer nodes, drawn
+copies, surface submissions and unique mesh and material resources — and gates
+`validate()` on it. Rather than restate a roster the *world*, not the module,
+changed, every batch now records the exact census row it replaced
+(`StationDressingBatch.AUTHORED_CENSUS_META`) and both module audits add those
+rows back. `HabitatSpine.get_render_allocation_report()` still reports 1,882
+descendants on the live batched station, and
+`AftJunctionStack.get_pod_corner_collar_visual_allocation_audit()` still reports
+its frozen census; `ShipyardWorld.get_dressing_consolidation_report()` remains
+the one place the world's own arithmetic is published. Reconstruction is
+asserted end to end in `tests/station_dressing_batch_test.gd`.
+
+`tools/station_walkability_sweep.gd` is **byte-identical end to end** — 82
+surfaces, 135,137 cells, 39,689 blocked, 31 findings, the same per-module split,
+`invisible_blocker`/`choke`/`gap` all zero, and the same 31 blamed paths — because
+no collision shape moved. `tools/coplanar_seam_audit.gd` falls 1,412 -> 1,344
+pairs and 414 -> 388 families, entirely inside `HabitatSpine` (301 -> 242) and
+`AftJunctionStack` (248 -> 239); every other module's pair count, the 28
+`coplanar_by_design` declarations and the five worst-scoring families are
+unchanged, and the 30 new families are the same seams re-blamed on the batch,
+worst score 0.0038 against the audit's worst standing 0.2655.
+
+What was left alone in this pass, and by whose authority:
+
+* **`VipReceptionSuite`** (515 nodes, ~71 available).
+  `tests/vip_reception_suite_test.gd` asserts, body by body, that every
+  `StaticBody3D` in the suite owns a `Mesh` and a `Collision` child whose box is
+  exactly the drawn mesh's size, and that the module presents a floor of visible
+  renderers to its "nothing floats" sweep. A solid batch is one body, one merged
+  renderer and one `CollisionShape3D` per original piece by design, so neither
+  contract survives it without being restated per shape. No audit was relaxed to
+  buy nodes.
+* **`ObservationLogisticsSpur`, `SalvageTerrace`, `FabricationAnnex`.** These are
+  on the roster and produce **no batch at all**: every piece each of them builds
+  is either held by a live script variable or already folded into a
+  `MultiMeshInstance3D`. They are listed so that stays measured rather than
+  assumed — each also publishes an exact whole-module descendant node count, and
+  all three still validate clean on the live batched station.
+* **Three families declared rather than folded.** The six Aft ceiling-luminaire
+  housings and the nine Aft operations floor pressure plates are counted by
+  *recipe* by `AftJunctionStack`'s own fixture audit and by
+  `tests/station_surface_playability_test.gd`, and the habitat's side-window
+  frames are what that test measures the fabrication connector's 3.280 m
+  clearance against. Only the first of several identically named siblings keeps a
+  readable name, so each family now carries a marker; the metadata gate then
+  keeps the pass out of it.
+* **The habitat berth roster.** Its board is a stack of 5 cm plates standing off
+  the partition at slightly different depths, 1.3 m up a wall the common-room
+  floor runs past. Merged they become one 30 cm-thick, 1.32 m-tall face that
+  reaches into the standing capsule of the cells in front of it, which the
+  walkability sweep correctly reports as a piece the player strolls through — a
+  defect the merge would invent rather than one the module built. The family is
+  marked, and the sweep is unchanged.
+* Everything the first pass already refused: metadata, script, group,
+  node-driven signal, child, protected name, live script reference, the 16 m
+  locality cap and the walkable-plate refusal. `PROTECTED_DRESSING_NAMES` grew
+  from 204 to 431 names, found by matching every candidate node name against
+  every string literal in `scripts/`, `tests/`, `tools/`, `docs/`, `scenes/` and
+  `assets/`, including `%s`/`%d` format and `find_children` glob patterns.
 
 #### 2026-09-14 second trim: -250,864 more resident triangles
 
