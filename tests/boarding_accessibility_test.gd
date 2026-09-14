@@ -11,6 +11,10 @@ const PLAYER_INTERACTION_RADIUS_METRES := 2.35
 const FALLBACK_REACH_METRES := 7.0
 const TEST_ALTITUDE := 80.0
 const COLLISION_CLEARANCE_METRES := 0.12
+## The Jovian's ship-owned volume deliberately sits mid-route rather than on its
+## seat marker; see `_test_exact_radius_contract` and `_test_nearest_eligible_choice`.
+const ROUTE_SPANNING_VOLUME_SHIP := &"JovianLightFreighter"
+const JOVIAN_ROUTE_VOLUME_OFFSET_METRES := 4.0
 
 var _failures: Array[String] = []
 
@@ -83,6 +87,24 @@ func _test_exact_radius_contract(player: CharacterBody3D, fleet: Array[HeroShip]
 			and is_equal_approx((shape.shape as SphereShape3D).radius, BOARDING_RADIUS_METRES),
 			"%s inherits the exact 4.5-metre craft-side radius" % craft.name
 		)
+		if area == null:
+			continue
+		# Eight craft centre that volume on their seat marker. The Jovian is the
+		# deliberate exception from b5c5916af: its volume stays mid-route so the
+		# single sphere covers the exterior pilot door, the stairs and the cabin
+		# stand. Recording the split here keeps the placement fixtures below
+		# honest about which craft can be aligned by its seat marker.
+		var seat_offset := area.global_position.distance_to(craft.get_boarding_position())
+		if craft.name == ROUTE_SPANNING_VOLUME_SHIP:
+			_check(
+				absf(seat_offset - JOVIAN_ROUTE_VOLUME_OFFSET_METRES) <= 0.1,
+				"%s keeps its route-spanning boarding volume off the seat marker" % craft.name
+			)
+		else:
+			_check(
+				seat_offset <= 0.55,
+				"%s centres its boarding volume on its seat marker" % craft.name
+			)
 	var player_shape := player.get_node_or_null(
 		"InteractionArea/InteractionShape"
 	) as CollisionShape3D
@@ -228,9 +250,19 @@ func _test_nearest_eligible_choice(
 	_place_player_interaction_origin(player, origin)
 	# Torrent is registered first, but Arrow is physically closest. Jovian is
 	# also in the widened overlap so this proves a three-way spatial choice.
+	#
+	# The Jovian is positioned by its discovery volume rather than by its seat
+	# marker. Since b5c5916af ("Build Jovian pilot doorway and supported
+	# boarding route") its seat marker moved out to the new exterior pilot door
+	# at ship-local (-7.2, -1.22, -8.52) while its ShipBoardingArea stayed at
+	# (-3.4, -0.02, -8.15) on purpose, so one 4.5-metre volume spans the door,
+	# the stair flight and the cabin stand -- the route
+	# jovian_sandbox_integration_test drives end to end. Aligning the freighter
+	# by its seat marker would push that volume ~4 metres further out and drop
+	# it out of the overlap this regression is about.
 	_place_boarding_point(torrent, origin + Vector3(5.2, 0.0, 0.0))
-	_place_boarding_point(arrow, origin + Vector3(3.1, 0.0, 0.0))
-	_place_boarding_point(jovian, origin + Vector3(6.1, 0.0, 0.0))
+	_place_boarding_point(arrow, origin + Vector3(2.2, 0.0, 0.0))
+	_place_boarding_volume(jovian, origin + Vector3(6.4, 0.0, 0.0))
 	await _physics_frames(3)
 	_check(
 		player.get_nearby_interactables().has(_get_boarding_area(torrent))
@@ -349,6 +381,16 @@ func _park_fleet_far(fleet: Array[HeroShip]) -> void:
 func _place_boarding_point(craft: HeroShip, target: Vector3) -> void:
 	craft.global_transform = Transform3D(Basis.IDENTITY, Vector3.ZERO)
 	craft.global_position += target - craft.get_boarding_position()
+	craft.reset_physics_interpolation()
+
+
+## Aligns the craft by the centre of the volume GameFlow's physics discovery
+## actually ranks, for the one craft whose volume deliberately does not sit on
+## its seat marker.
+func _place_boarding_volume(craft: HeroShip, target: Vector3) -> void:
+	craft.global_transform = Transform3D(Basis.IDENTITY, Vector3.ZERO)
+	var area := _get_boarding_area(craft)
+	craft.global_position += target - area.global_position
 	craft.reset_physics_interpolation()
 
 
