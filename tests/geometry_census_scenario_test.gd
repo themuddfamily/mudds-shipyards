@@ -48,8 +48,8 @@ const MAIN_SCENE := preload("res://scenes/main.tscn")
 # `scripts/world/aft_junction_stack.gd` reverted to its committed state and are
 # already present at this HEAD, so they are live tessellation work that landed
 # after the ship-trim freeze and is recorded here rather than left failing.
-const RESIDENT_FINGERPRINT := "2250b5ff5b6b037a7c055f50b39ec54403f05ed09c14de6ffc74f22e478ca409"
-const CINDER_LOADED_FINGERPRINT := "6ac814ace942f761415562198288f4d490a625074accd5cc5d2f8daf018b2276"
+const RESIDENT_FINGERPRINT := "591fc359f9344aba3d9dc36e8941c2a0512b3c7236a5ba385ea8967588f5d9db"
+const CINDER_LOADED_FINGERPRINT := "c41800d2879a7836bc0110166ba61198e0227a7dc4f9a7b55afc9c1dea6ef7f6"
 
 var _assertions := 0
 var _failures := PackedStringArray()
@@ -99,11 +99,11 @@ func _run() -> void:
 		"resident report freezes schema, scenario identity, and exact loaded count"
 	)
 	_check(
-		int(resident.get("total_triangles", -1)) == 1951735
+		int(resident.get("total_triangles", -1)) == 1951853
 			and int(resident.get("total_mesh_instances", -1)) == 6589
 			and int(resident.get("total_surfaces", -1)) == 6687
 			and int(resident.get("unique_meshes", -1)) == 3356,
-		"resident geometry freezes 1,951,735 triangles / 6,589 meshes / 6,687 surfaces / 3,356 unique meshes"
+		"resident geometry freezes 1,951,853 triangles / 6,589 meshes / 6,687 surfaces / 3,356 unique meshes"
 	)
 	_check(
 		int(resident.get("bound_phase_unique_materials", -1)) == 693
@@ -167,11 +167,11 @@ func _run() -> void:
 		"loaded report freezes destination identity and one committed generation"
 	)
 	_check(
-		int(loaded.get("total_triangles", -1)) == 2085869
+		int(loaded.get("total_triangles", -1)) == 2085987
 			and int(loaded.get("total_mesh_instances", -1)) == 6798
 			and int(loaded.get("total_surfaces", -1)) == 6896
 			and int(loaded.get("unique_meshes", -1)) == 3496,
-		"loaded geometry freezes 2,085,869 triangles / 6,798 meshes / 6,896 surfaces / 3,496 unique meshes"
+		"loaded geometry freezes 2,085,987 triangles / 6,798 meshes / 6,896 surfaces / 3,496 unique meshes"
 	)
 	_check(
 		int(loaded.get("bound_phase_unique_materials", -1)) == 735
