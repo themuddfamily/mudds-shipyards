@@ -182,17 +182,25 @@ in this document has been raised.**
 
 | Schema-v2 metric | Station resident (0 loaded) | Cinder loaded (1 loaded) | Loaded delta |
 | --- | ---: | ---: | ---: |
-| Triangles | 2,156,175 | 2,290,309 | +134,134 |
-| Mesh renderer nodes | 6,588 | 6,797 | +209 |
-| Surfaces | 6,686 | 6,895 | +209 |
-| Unique meshes | 3,355 | 3,495 | +140 |
-| Bound-phase materials | 692 | 734 | +42 |
-| Retained/reachable materials | 968 | 1,015 | +47 |
+| Triangles | 1,951,853 | 2,085,987 | +134,134 |
+| Mesh renderer nodes | 6,589 | 6,798 | +209 |
+| Surfaces | 6,687 | 6,896 | +209 |
+| Unique meshes | 3,356 | 3,496 | +140 |
+| Bound-phase materials | 693 | 735 | +42 |
+| Retained/reachable materials | 969 | 1,016 | +47 |
 | Unique shaders | 7 | 7 | 0 |
 | Text triangles / instances | 79,591 / 43 | 100,157 / 56 | +20,566 / +13 |
 | Lights / shadow lights | 335 / 20 | 362 / 20 | +27 / 0 |
 | Particle systems | 45 | 45 | 0 |
-| Scene-tree nodes | 11,612 | 12,035 | +423 |
+| Scene-tree nodes | 11,645 | 12,068 | +423 |
+
+The three 2026-09-14 trims below were each measured on their own branch from the
+same 2,407,157-triangle base (the first station trim). Merged on `main` together
+with the defender heat vents (+448 triangles, +1 renderer/mesh/material/node)
+and the walkability dressing (+32 nodes, no triangles), the combined resident
+scene measures **1,951,853 triangles** — 983,864 fewer than the 2,935,717 the
+morning census found, and now 8.4% over the 1,800,000 ceiling instead of 63%.
+The node count (11,645) remains 66% over its 7,000 ceiling.
 
 #### 2026-09-14 second trim: -250,864 more resident triangles
 
