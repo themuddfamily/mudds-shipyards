@@ -185,7 +185,7 @@ in this document has been raised.**
 | Triangles | 2,156,175 | 2,290,309 | +134,134 |
 | Mesh renderer nodes | 6,588 | 6,797 | +209 |
 | Surfaces | 6,686 | 6,895 | +209 |
-| Unique meshes | 3,354 | 3,494 | +140 |
+| Unique meshes | 3,355 | 3,495 | +140 |
 | Bound-phase materials | 692 | 734 | +42 |
 | Retained/reachable materials | 968 | 1,015 | +47 |
 | Unique shaders | 7 | 7 | 0 |
@@ -325,6 +325,101 @@ This is a scene-content measurement plus a rendered-composition check. It is not
 a frame-time, GPU-time or VRAM claim, and the software/remote-display caveats at
 the top of this document still apply. **No ceiling in this document has been
 raised.**
+
+#### 2026-09-14 ship trim: -204,888 resident triangles
+
+The station pass above left the scene at 2,407,157 against the 1,800,000
+ceiling, with the ship buckets as the largest remaining growth. This pass
+budgets the fleet's *detail* tessellation from the size each part is actually
+drawn at, and again raises no ceiling and relaxes no assertion.
+
+| Bucket | Before | After | Delta |
+| --- | ---: | ---: | ---: |
+| `JovianLightFreighter` | 249,282 | 167,594 | -81,688 |
+| `ShipyardWorld/FleetExpansionProductionBinding` (three Cinder craft) | 263,746 | 193,858 | -69,888 |
+| `HalyardCrewTransport` | 204,060 | 150,748 | -53,312 |
+| **Whole scene** | **2,407,157** | **2,202,269** | **-204,888** |
+
+No other bucket moves, and the change is triangle-only on every other census
+row: 6,588 mesh renderer nodes, 6,686 surfaces, 692 bound and 968 retained
+materials, 7 shaders, 34 textures, 335 lights (20 shadow-casting), 45 particle
+systems and 11,612 scene-tree nodes are identical on both sides, as is the
+loaded-minus-resident Cinder delta of +134,134. Unique meshes move by exactly
+one (3,354 -> 3,355) because the Cinder nozzle family now keys its shared unit
+meshes by the budgeted segment count. No collision shape, interaction marker,
+boarding route, seat anchor, light, material or evidence label changed, and
+nothing added per-frame work.
+
+**Two owners, both modelled on `TorusGeometryBudget`.** They import its
+`TOLERANCE_RADIANS`, `NEAR_EYE_METRES` and `FRAME_RATIO` and call its
+`segments_for` rather than deriving a second tolerance, so the fleet and the
+station answer the same question the same way.
+
+- `scripts/rendering/ship_geometry_budget.gd` solves revolved segments, joint
+  sphere tessellation, arc steps, tube segments and shallow-span steps from a
+  part's own world-space size, floored at the counts this project has rendered
+  and accepted (32 for a circle read as a circle, 12 for a tube cross-section).
+  Every entry point returns `min(authored, budgeted)`, so it can only reduce.
+  Radial counts are snapped up to a multiple of four, which keeps a vertex on
+  each cardinal direction of the section and therefore keeps every reduced
+  part's extrema and AABB exact rather than approximately exact.
+- `scripts/rendering/ship_chamfered_stock.gd` builds fitted box stock with a
+  single *tangent* chamfer instead of the two-segment quarter-round the kit
+  gives every box. The tangent placement is what makes this safe: the chamfer
+  plane touches the authored rolled edge at 45 degrees and lies outside it
+  everywhere else, so the face planes and the AABB are exact and the surface
+  never moves inward. Its worst departure is `0.1589 * bevel` at the eight
+  corner vertices — 1.9 mm on the 12 mm chamfer most fitted stock carries.
+  Stock whose chamfer is wide enough for that to resolve at the 1.5 m walking
+  range keeps the authored roll.
+
+**What the budget reached.** The Cinder nozzle family (`_turned` revolved every
+part at 96 radial segments, from a two-metre bell mouth down to a
+twenty-centimetre thrust plug, and its stator blades at 16 x 9); the Jovian's
+rib, rail and cargo-frame joint spheres; both craft's *baked* fitout rings,
+which `TorusGeometryBudget.normalise_tree` never reaches because it sweeps live
+`TorusMesh` renderers only; the Jovian's roof service patches, which were 12
+steps wide whether the patch spanned 3.5 m of crown or 12 cm; its flight-deck
+transition fillets, which rolled a quarter-ellipse at 32 segments (128 around a
+full section); the Cinder beacon lens, at Godot's default 64 x 32 for a 48 cm
+bead; the Halyard's bunk-tie lattice; and every chamfered cylinder and frustum
+the five craft build, which were all frozen at 32 radial segments.
+
+Four of the Halyard's five berth-fabric kinds kept their authored 32 x 24
+lattice and that is the honest result: the pillow wrinkle, the curtain's five
+fold periods and the blanket and fold ripples carry real high-frequency shape,
+and every coarser candidate aliased them by more than a centimetre.
+
+**Rendered evidence**, at 1280x720 through `gl_compatibility` on a D3D12 GPU
+under Xvfb, from ten fixed gameplay viewpoints: the Jovian cargo bay at walking
+distance and a walk-up on its cargo frames, its engine cooling fins, and a
+chase framing of the whole craft; the Halyard crew cabin, a liveaboard berth and
+the engine service fitout; a Cinder interceptor and a Cinder bomber at their
+expansion berths, and a walk-up on an interceptor nozzle.
+
+- Two runs of the *same* build differ on 2.18% (before) and 3.40% (after) of
+  pixels; this scene is not bit-deterministic between runs.
+- Before against after differs on 45.8% of pixels, but at a mean amplitude of
+  3.5 of 255 — a whole-frame exposure drift, not geometry. The figure that
+  isolates the geometry is the count beyond 32 of 255: **25,054 pixels of
+  9,216,000, 0.27%**, against same-build floors of 1,821 and 1,472. That
+  residual is real and it is confined to the edited surfaces: the difference
+  image over the nozzle view is thin outlines on the bell, lip and stator
+  blades and nothing anywhere else in the frame.
+- Direct inspection, 1:1 and magnified: at 1:1 the pairs are indistinguishable
+  on all ten views. At 9x the nozzle bell rim is a smooth arc on both sides with
+  no straight run or corner, pulled in by well under one screen pixel. At 8x on
+  the *nearest* fitted stock — a cargo restraint corner about 40 px across — the
+  two-segment rolled edge does read as a single chamfer facet with two creases
+  where it used to read as a roll. That is the one difference this pass can
+  honestly find, it is about two pixels wide, it does not show at 1:1, and it is
+  a bounded presentation trade rather than a free reduction. Reverting it is a
+  single gate in `ShipChamferedStock.rolled_edge_is_resolvable` and costs about
+  12,400 triangles.
+
+This is a scene-content measurement plus a rendered-composition check. It is not
+a frame-time, GPU-time or VRAM claim, and the software/remote-display caveats at
+the top of this document still apply.
 
 #### 2026-09-14 trim: -528,560 resident triangles
 
@@ -600,12 +695,12 @@ copies, 27 lights and 426 nodes. Its extra three nodes beyond the whole-scene
 contradicting the total.
 
 The 2026-09-14 `tools/geometry_census.gd` resident measurement fingerprint is
-`09e5f5d597d85a2f9cb4e76bb7141f60646e5fdafd84fa06a6b3cb0ac562341d`;
+`4e17fb5a350d68b541f9699c0f7cc51d4bfdc76e21e0ebf416c0f9f286b92d7e`;
 the loaded fingerprint is
-`69ec5823c9e6cb6ca86d256d84efbc88ba959cf779f82b43349041e0d8b74fc5`.
+`3c580432aa2db57b929c6f10c9590a8d5edf8681cd7b6497874c3c5aaee4d917`.
 `tests/geometry_census_scenario_test.gd` takes its own settle and therefore
-carries its own pair, `c839303341ff1af55b5739aed800d1aafc11740240f73d8191c6633446835fb1`
-and `bb414bf00e3fbbfae601757ab0b5a41bb4d291f8a35a141adbff780e6d175a6b`.
+carries its own pair, `7971c6656cf8a2d8f67cf907b4b60b25b1c21bc9526e4c9ce511f94174db7594`
+and `ec255de3a54bfa7082f49bd40d1281aa53d7c9baf36e9fd00ff25db8a72878b5`.
 `tests/geometry_census_scenario_test.gd` freezes both production scenarios,
 their exact totals/delta, sole-generation ownership, a resident-mismatch red
 mutation, and the separate fingerprints. These are renderer-independent live

@@ -114,16 +114,31 @@ const MIN_TUBE_SEGMENTS := 12
 ## field of view the game cameras use, one pixel is 2.55 mm of world at the first
 ## and 13.6 mm at the second.
 ##
-## `TorusGeometryBudget.NEAR_EYE_METRES` (0.6 m) stays the strictest of the three
-## and is what the revolved/sphere rules above use, because a camera really can
-## be pressed that close to a collar. The walking allowance is published here for
-## the *surface* rules, where the feature being judged is a chamfer band that a
-## player has to be standing in front of to see at all.
+## `TorusGeometryBudget.NEAR_EYE_METRES` (0.6 m) stays the stricter of the two
+## and is what the revolved, sphere, tube and span rules below use, because a
+## camera really can be pressed that close to a collar. The walking allowance is
+## published here for the *surface* rule in `ShipChamferedStock`, where the
+## feature being judged is a chamfer band a player has to be standing in front of
+## to see at all.
 const WALKING_DISTANCE_METRES := 1.5
-const CHASE_DISTANCE_METRES := 8.0
-const NEAR_EYE_ALLOWANCE_METRES := TorusGeometryBudget.TOLERANCE_RADIANS * TorusGeometryBudget.NEAR_EYE_METRES
 const WALKING_ALLOWANCE_METRES := TorusGeometryBudget.TOLERANCE_RADIANS * WALKING_DISTANCE_METRES
-const CHASE_ALLOWANCE_METRES := TorusGeometryBudget.TOLERANCE_RADIANS * CHASE_DISTANCE_METRES
+
+
+## Radial counts are rounded up to a multiple of four so a reduced form keeps a
+## vertex on each of the four cardinal directions of its own section.
+##
+## This is not cosmetic. A turned mesh's bounding box is the extent of its
+## *inscribed* polygon, so a count with no vertex on an axis shortens that axis
+## by `radius * (1 - cos(PI / N))` and a count that is odd shortens the two
+## in-plane axes by different amounts. Snapping to four keeps the exact authored
+## extrema on both axes, which is what lets every reduction in this file claim an
+## unchanged AABB rather than an approximately unchanged one. Every authored
+## count in the fleet (32, 48, 96) is already a multiple of four, so the snap can
+## never push a result above what its builder asked for.
+const RADIAL_ALIGNMENT := 4
+
+static func _aligned(segments: int) -> int:
+	return int(ceil(float(segments) / float(RADIAL_ALIGNMENT))) * RADIAL_ALIGNMENT
 
 
 ## Radial segments for a form revolved about an axis, whose largest world-space
@@ -142,7 +157,7 @@ static func revolved_segments(radius: float, authored: int) -> int:
 	var allowance := TorusGeometryBudget.TOLERANCE_RADIANS * distance
 	return mini(
 		authored,
-		TorusGeometryBudget.segments_for(radius, allowance, MIN_REVOLVED_SEGMENTS)
+		_aligned(TorusGeometryBudget.segments_for(radius, allowance, MIN_REVOLVED_SEGMENTS))
 	)
 
 
@@ -153,7 +168,10 @@ static func tube_segments(radius: float, authored: int) -> int:
 	if radius <= 0.0:
 		return authored
 	var allowance := TorusGeometryBudget.TOLERANCE_RADIANS * TorusGeometryBudget.NEAR_EYE_METRES
-	return mini(authored, TorusGeometryBudget.segments_for(radius, allowance, MIN_TUBE_SEGMENTS))
+	return mini(
+		authored,
+		_aligned(TorusGeometryBudget.segments_for(radius, allowance, MIN_TUBE_SEGMENTS))
+	)
 
 
 ## Tessellation for a joint/bead `SphereMesh` of world-space `radius`.
@@ -169,9 +187,9 @@ static func sphere_plan(radius: float, authored_radial: int, authored_rings: int
 		TorusGeometryBudget.NEAR_EYE_METRES, TorusGeometryBudget.FRAME_RATIO * radius
 	)
 	var allowance := TorusGeometryBudget.TOLERANCE_RADIANS * distance
-	var radial := TorusGeometryBudget.segments_for(
+	var radial := _aligned(TorusGeometryBudget.segments_for(
 		radius, allowance, MIN_SPHERE_RADIAL_SEGMENTS
-	)
+	))
 	# Keep the authored 2:1 radial/ring aspect; round up so the vertical
 	# sampling is never the coarser of the two.
 	var rings := maxi(MIN_SPHERE_RINGS, int(ceil(float(radial) * 0.5)))
@@ -202,6 +220,7 @@ static func arc_segments(radius: float, sweep: float, authored: int) -> int:
 	return mini(authored, maxi(MIN_CURVE_STEPS, scaled))
 
 
+
 ## Steps across a shallow span of `chord` metres whose surface departs from the
 ## straight chord by at most `sagitta` metres.
 ##
@@ -224,23 +243,3 @@ static func span_steps(chord: float, sagitta: float, authored: int) -> int:
 	if sagitta <= allowance:
 		return 1
 	return mini(authored, maxi(1, int(ceil(sqrt(sagitta / allowance)))))
-
-
-## Grid resolution for a soft-goods surface (bunk fabric, upholstery) whose
-## shape is a sum of sine terms.
-##
-## Fabric is not a circle and the sagitta rule does not describe it. What does is
-## the sampling theorem: a surface carrying `periods` full sine periods across a
-## span needs enough samples per period to reconstruct the wave, and below about
-## six samples per period a fold stops being a fold and starts being a zigzag.
-## `SAMPLES_PER_PERIOD` is that number, taken from the authored meshes: the
-## Halyard's curtain carries five fold periods across 32 columns, which is 6.4
-## samples per period, and it is the finest-featured piece of cloth on the ship.
-## So the rule reproduces the authored resolution exactly where the authored
-## resolution was needed, and only cuts where the surface carries fewer periods.
-const SAMPLES_PER_PERIOD := 6.4
-
-static func wave_samples(periods: float, authored: int) -> int:
-	if periods <= 0.0:
-		return mini(authored, 4)
-	return mini(authored, maxi(4, int(ceil(periods * SAMPLES_PER_PERIOD))))

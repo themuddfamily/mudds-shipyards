@@ -115,14 +115,23 @@ const STRUCTURAL_ROUGHNESS_SPREAD_FLOOR := 0.40
 const CHAMFERED_CYLINDER_POPULATION := {
 	"Torrent": [57, 14_080],
 	"Arrow": [38, 10_944],
-	"Jovian": [72, 18_432],
+	# The Jovian's turned stock is budgeted by `ShipGeometryBudget.tube_segments`
+	# from each part's own radius instead of the frozen 32, so the same 72
+	# surfaces now cost 12,352 triangles. Every count stays a multiple of four,
+	# which keeps each part's authored extrema and AABB exact.
+	"Jovian": [72, 12_352],
 	"RangeOpponent": [4, 896],
 	"StandoffPicket": [3, 672],
 	"Zenith": [0, 0],
 }
 
 ## Radial-segment counts the fleet's `_cylinder`/`_frustum` builders pass.
-const LIVE_RADIAL_SEGMENTS := [28, 32, 36]
+##
+## The five craft budgeted by `ShipGeometryBudget.tube_segments` reach the whole
+## multiple-of-four range between its floor and the authored 32, so the flattened
+## wall property is proved across that range rather than only at the old fixed
+## counts. 36 is retained: the property must hold above the authored value too.
+const LIVE_RADIAL_SEGMENTS := [12, 16, 20, 24, 28, 32, 36]
 
 var _assertions := 0
 var _failures: Array[String] = []

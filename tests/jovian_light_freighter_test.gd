@@ -188,17 +188,20 @@ func _test_fitout_cpu_surface_parity(jovian: JovianLightFreighter) -> void:
 			var at := Vector3(index * 1.2, 0.7, -2.3)
 			var rotation_value := Vector3(0.15 * index, -0.37, 0.21)
 			jovian._fitout_stock(actual, finish, at, size, rotation_value)
-			var stock := StationSurfaceKit.rounded_box_mesh_with_bevel(size,
+			var stock := ShipChamferedStock.box_mesh(size,
 				minf(0.045, minf(size.x, minf(size.y, size.z)) * 0.35)) \
-				if finish == "cabin_cloth" else StationSurfaceKit.rounded_box_mesh_cached(size, old_cache)
+				if finish == "cabin_cloth" else ShipChamferedStock.fleet_box_mesh_cached(size, old_cache)
 			reference.append_from(stock, 0, Transform3D(Basis.from_euler(rotation_value), at))
 			if finish == "structure":
 				jovian._fitout_ring(actual, finish, at, 0.32, 0.45)
 				var ring := TorusMesh.new()
 				ring.inner_radius = 0.32
 				ring.outer_radius = 0.45
-				ring.rings = 48
-				ring.ring_segments = 8
+				var budget := TorusGeometryBudget.plan(0.45, 0.32)
+				ring.rings = mini(JovianLightFreighter.FITOUT_RING_SWEEP_SEGMENTS, int(budget["rings"]))
+				ring.ring_segments = mini(
+					JovianLightFreighter.FITOUT_RING_TUBE_SEGMENTS, int(budget["ring_segments"])
+				)
 				var ring_stock := SurfaceTool.new()
 				ring_stock.create_from(ring, 0)
 				ring_stock.deindex()
@@ -2353,7 +2356,9 @@ func _test_pilot_access_stowage(ship: JovianLightFreighter) -> void:
 		resources[mesh] = mesh.mesh
 		deployed[mesh] = mesh.global_transform
 		access_triangles += mesh.mesh.get_faces().size() / 3
-	_check(access_triangles == 3168, "access batches retain every original tread face plus split stringers, guides and knuckles")
+	_check(access_triangles == 1440,
+		"access batches retain every original tread face plus split stringers, guides and knuckles (%d triangles)"
+			% access_triangles)
 	ship.set("_landed", false)
 	ship.call("_update_pilot_access_stowage", 0.35)
 	await physics_frame

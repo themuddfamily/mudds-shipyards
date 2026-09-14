@@ -264,7 +264,7 @@ func _test_fitout_surface_parity(craft: HalyardCrewTransport) -> void:
 			var placement := Transform3D(Basis.from_euler(rotation_value), at)
 			var size := Vector3(0.72, 0.18, 0.63)
 			craft._fitout_stock(actual, finish, at, size, rotation_value)
-			reference.append_from(StationSurfaceKit.rounded_box_mesh_cached(size, reference_stock_cache), 0, placement)
+			reference.append_from(ShipChamferedStock.fleet_box_mesh_cached(size, reference_stock_cache), 0, placement)
 			# Inflated cushions have generated smooth normals, unlike flat stock.
 			craft._fitout_soft_stock(actual, finish, at, size, rotation_value)
 			reference.append_from(craft._cabin_cushion_mesh(size), 0, placement)
@@ -272,8 +272,11 @@ func _test_fitout_surface_parity(craft: HalyardCrewTransport) -> void:
 			var ring := TorusMesh.new()
 			ring.inner_radius = 0.77
 			ring.outer_radius = 0.855
-			ring.rings = 48
-			ring.ring_segments = 8
+			var budget := TorusGeometryBudget.plan(0.855, 0.77)
+			ring.rings = mini(HalyardCrewTransport.FITOUT_RING_SWEEP_SEGMENTS, int(budget["rings"]))
+			ring.ring_segments = mini(
+				HalyardCrewTransport.FITOUT_RING_TUBE_SEGMENTS, int(budget["ring_segments"])
+			)
 			var ring_stock := SurfaceTool.new()
 			ring_stock.create_from(ring, 0)
 			ring_stock.deindex()
