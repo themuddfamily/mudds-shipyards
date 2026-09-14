@@ -993,7 +993,9 @@ func _build_service_detail(dimensions: Dictionary) -> void:
 		_append_conduit_manifold_part(
 			surface_tools[conduit_material_keys[conduit_index]] as SurfaceTool,
 			StationSurfaceKit.chamfered_cylinder_mesh_cached(
-				radius, radius, conduit_length, 16, _chamfered_cylinder_cache, 1
+				radius, radius, conduit_length,
+				StationSurfaceKit.radial_segments_for(radius, TorusGeometryBudget.NEAR_EYE_METRES, 16),
+				_chamfered_cylinder_cache, 1
 			),
 			Transform3D(sideways, Vector3(
 				0.0,
@@ -1033,7 +1035,9 @@ func _build_service_detail(dimensions: Dictionary) -> void:
 		_append_conduit_manifold_part(
 			surface_tools[&"conduit_amber" if coupler_index == 0 else &"conduit_cyan"] as SurfaceTool,
 			StationSurfaceKit.chamfered_cylinder_mesh_cached(
-				0.07, 0.07, 0.18, 16, _chamfered_cylinder_cache, 1
+				0.07, 0.07, 0.18,
+				StationSurfaceKit.radial_segments_for(0.07, TorusGeometryBudget.NEAR_EYE_METRES, 16),
+				_chamfered_cylinder_cache, 1
 			),
 			Transform3D(sideways, Vector3(
 				manifold_x + (-0.22 if coupler_index == 0 else 0.22),
@@ -1866,7 +1870,9 @@ func _cross_brace_mesh() -> ArrayMesh:
 	var brace_height := Vector2(bay_width, vertical_span).length()
 	var radius := float(dimensions["frame_thickness"]) * 0.3
 	return StationSurfaceKit.chamfered_cylinder_mesh_cached(
-		radius, radius, brace_height, 16, _chamfered_cylinder_cache, 1
+		radius, radius, brace_height,
+		StationSurfaceKit.radial_segments_for(radius, TorusGeometryBudget.NEAR_EYE_METRES, 16),
+		_chamfered_cylinder_cache, 1
 	)
 
 
@@ -2044,7 +2050,9 @@ func _cylinder(
 	# and the overall height are untouched, so the published footprint still
 	# matches.
 	var mesh := StationSurfaceKit.chamfered_cylinder_mesh_cached(
-		radius, radius, height, 16, _chamfered_cylinder_cache, 1
+		radius, radius, height,
+		StationSurfaceKit.radial_segments_for(radius, TorusGeometryBudget.NEAR_EYE_METRES, 16),
+		_chamfered_cylinder_cache, 1
 	)
 	mesh_instance.mesh = mesh
 	mesh_instance.material_override = material
@@ -2076,7 +2084,9 @@ func _fascia_fastener(
 
 static func _shared_fascia_fastener_mesh() -> ArrayMesh:
 	return StationSurfaceKit.chamfered_cylinder_mesh_cached(
-		0.025, 0.025, 0.025, 16, _fascia_fastener_mesh_cache, 1
+		0.025, 0.025, 0.025,
+		StationSurfaceKit.radial_segments_for(0.025, TorusGeometryBudget.NEAR_EYE_METRES, 16),
+		_fascia_fastener_mesh_cache, 1
 	)
 
 

@@ -457,9 +457,58 @@ const SPACE_BACKDROP_STAR_RADIUS_MAX := 1650.0
 const SPACE_BACKDROP_STAR_QUAD_EDGE := 1.5952085
 
 const SPACE_BACKDROP_NEBULA_COVER_STRENGTH := 0.08
+## Radial count the hub's own turned stock was frozen at. The shared rule in
+## `StationSurfaceKit` is applied beneath it as a ceiling, so a hub part can only
+## lose segments to the rule, never gain them.
+const HUB_AUTHORED_RADIAL_SEGMENTS := 24
+
+## Closest a player's camera gets to the three utility runs slung under the open
+## deck. They hang 1.35 m to 1.83 m below the deck plane, over open void with no
+## walkable surface beneath them, so the nearest a standing player can be is the
+## deck edge directly above; 1.5 m is that with margin in the player's favour.
+const UNDERDECK_UTILITY_RUN_NEAREST_VIEW_METRES := 1.5
+
 const SPACE_BACKDROP_BODY_MESH_RADIUS := 1.0
-const SPACE_BACKDROP_BODY_MESH_RADIAL_SEGMENTS := 64
-const SPACE_BACKDROP_BODY_MESH_RINGS := 32
+
+## Tessellation of the four backdrop worlds.
+##
+## They were `64 x 32` — 4,224 triangles each, 16,896 for the four, the second
+## heaviest renderer family in the backdrop after the star shell — for four discs
+## that are never larger than a thumbnail. Measured in the production scene, at
+## the reference framing this project budgets against (1920x1080, the game's
+## default 72 degree vertical field of view), their apparent radii are 74.5, 76.0,
+## 49.6 and 44.1 pixels.
+##
+## The silhouette error of an `n`-gon standing in for a circle is
+## `apparent_radius_px * (1 - cos(PI / n))`, so on the largest of the four:
+##
+## - `64` -> 0.09 px
+## - `32` -> 0.37 px
+## - `24` -> 0.65 px
+## - `16` -> 1.46 px
+## - `12` -> 2.59 px
+##
+## `TorusGeometryBudget`'s shared tolerance for round stock is 0.0021 rad, about
+## 1.8 px at this framing, and applying it literally here answers `16`. It is not
+## taken, and the reason is the same one that class states for its own large-ring
+## floor: a backdrop world is read *as a disc*, and a silhouette polygon is
+## detectable well below the point where its deviation reaches the tolerance,
+## because the eye reads straightness and corners rather than absolute error.
+##
+## `24 x 12` is the floor taken instead: 0.65 px on the largest body, under a
+## single pixel at the reference framing and nearly three times inside the shared
+## tolerance, for 624 triangles instead of 4,224. `rings` keeps the authored 1:2
+## ratio so the pole-to-pole resolution matches the equatorial one (13.8 degree
+## bands, 0.55 px at the top and bottom of the largest body).
+##
+## Nothing else about these bodies moves: radius, position, palette, the
+## procedural ocean/land/cloud and crater recipes and their `body_direction`
+## vertex output are untouched, and that direction is renormalised per fragment
+## from an interpolant whose endpoints still lie exactly on the sphere.
+const SPACE_BACKDROP_BODY_MESH_AUTHORED_RADIAL_SEGMENTS := 64
+const SPACE_BACKDROP_BODY_MESH_AUTHORED_RINGS := 32
+const SPACE_BACKDROP_BODY_MESH_RADIAL_SEGMENTS := 24
+const SPACE_BACKDROP_BODY_MESH_RINGS := 12
 const SPACE_BACKDROP_BODY_MESH_FAMILY_ID: StringName = &"space-backdrop-celestial-bodies"
 const ORBITAL_SURFACE_SHADER := preload("res://scripts/rendering/orbital_body_surface.gdshader")
 const AURORA_ORBITAL_BODY_ID: StringName = &"CelestialGreenBody"
@@ -910,8 +959,26 @@ const EXTERIOR_TARGET_CORE_PATHS := [
 ## exact 0.22 m SphereMesh recipe is immutable, so only that resource is shared.
 const EXTERIOR_TARGET_LAMP_RADIUS := 0.22
 const EXTERIOR_TARGET_LAMP_HEIGHT := 0.44
-const EXTERIOR_TARGET_LAMP_RADIAL_SEGMENTS := 24
-const EXTERIOR_TARGET_LAMP_RINGS := 12
+
+## The lamps' tessellation, and the one figure it rests on.
+##
+## `TorusGeometryBudget` budgets a round surface at `NEAR_EYE_METRES` — 0.6 m,
+## the closest a camera is taken to a solid in this game — because a torus can be
+## anywhere. These sixteen lamps cannot. They are bolted to the four target
+## drones that float in the exterior flight-test range, out over open void beyond
+## the station's walkable envelope: there is no deck under them, and the only way
+## to approach one is to fly a hull at it. `EXTERIOR_TARGET_RANGE_APPROACH_METRES`
+## is the distance that approach is budgeted at — deliberately closer than a
+## player would ever actually park a ship, but far enough to state honestly.
+##
+## At 3 m the shared 0.0021 rad tolerance allows a 6.3 mm sagitta, which a 0.22 m
+## sphere meets at 16 segments (4.2 mm; 12 would be 7.5 mm and miss). `rings`
+## keeps the authored 1:2 ratio. 288 triangles each instead of 624.
+const EXTERIOR_TARGET_RANGE_APPROACH_METRES := 3.0
+const EXTERIOR_TARGET_LAMP_AUTHORED_RADIAL_SEGMENTS := 24
+const EXTERIOR_TARGET_LAMP_AUTHORED_RINGS := 12
+const EXTERIOR_TARGET_LAMP_RADIAL_SEGMENTS := 16
+const EXTERIOR_TARGET_LAMP_RINGS := 8
 const EXTERIOR_TARGET_LAMP_COUNT := 16
 const EXTERIOR_TARGET_LAMP_BASELINE_MESH_RESOURCES := 16
 const EXTERIOR_TARGET_LAMP_SHARED_MESH_RESOURCES := 1
@@ -8913,7 +8980,8 @@ func _build_industrial_details() -> void:
 				72.0,
 				pipe_material,
 				false,
-				Vector3(90, 0, 0)
+				Vector3(90, 0, 0),
+				UNDERDECK_UTILITY_RUN_NEAREST_VIEW_METRES
 			)
 			for z_position in range(-30, 38, 8):
 				coupler_transforms[pipe_index].append(Transform3D(
@@ -8931,7 +8999,13 @@ func _build_industrial_details() -> void:
 		var multi := MultiMesh.new()
 		multi.transform_format = MultiMesh.TRANSFORM_3D
 		multi.mesh = StationSurfaceKit.chamfered_cylinder_mesh_cached(
-			radius, radius, 0.35, 24, _chamfered_cylinder_cache
+			radius,
+			radius,
+			0.35,
+			StationSurfaceKit.radial_segments_for(
+				radius, UNDERDECK_UTILITY_RUN_NEAREST_VIEW_METRES, HUB_AUTHORED_RADIAL_SEGMENTS
+			),
+			_chamfered_cylinder_cache
 		)
 		multi.instance_count = transforms.size()
 		multi.buffer = _encode_multimesh_transforms(transforms)
@@ -10243,7 +10317,8 @@ func _cylinder(
 	height: float,
 	material: Material,
 	collidable: bool = false,
-	cylinder_rotation_degrees: Vector3 = Vector3.ZERO
+	cylinder_rotation_degrees: Vector3 = Vector3.ZERO,
+	nearest_view_metres: float = TorusGeometryBudget.NEAR_EYE_METRES
 ) -> Node3D:
 	var container: Node3D
 	if collidable:
@@ -10258,12 +10333,18 @@ func _cylinder(
 	container.rotation_degrees = cylinder_rotation_degrees
 	parent.add_child(container)
 
-	# Chamfered rims at the hub's frozen 24 radial segments. The cap radius and
-	# the lateral height both shrink by the chamfer; the outer radius and the
-	# overall height do not, so `get_aabb()` still returns the requested
-	# 2r x h x 2r and the collision cylinder below is untouched.
+	# Chamfered rims, radially tessellated by `StationSurfaceKit`'s shared rule
+	# and never above the hub's authored 24. The cap radius and the lateral
+	# height both shrink by the chamfer; the outer radius and the overall height
+	# do not, and the rule only returns multiples of four, so `get_aabb()` still
+	# returns the requested 2r x h x 2r and the collision cylinder below is
+	# untouched.
 	var cylinder_mesh := StationSurfaceKit.chamfered_cylinder_mesh_cached(
-		radius, radius, height, 24, _chamfered_cylinder_cache
+		radius,
+		radius,
+		height,
+		StationSurfaceKit.radial_segments_for(radius, nearest_view_metres, HUB_AUTHORED_RADIAL_SEGMENTS),
+		_chamfered_cylinder_cache
 	)
 	if collidable:
 		var mesh_instance := MeshInstance3D.new()

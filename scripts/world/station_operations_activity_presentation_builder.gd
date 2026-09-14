@@ -1051,7 +1051,9 @@ func _cylinder_batch(
 		parent,
 		node_name,
 		StationSurfaceKit.chamfered_cylinder_mesh_cached(
-			radius * 0.88, radius, height, 12, _chamfered_cylinder_cache, 1
+			radius * 0.88, radius, height,
+			StationSurfaceKit.radial_segments_for(radius, TorusGeometryBudget.NEAR_EYE_METRES, 12),
+			_chamfered_cylinder_cache, 1
 		),
 		transforms,
 		material
@@ -1121,7 +1123,9 @@ func _rounded_box_mesh(size: Vector3) -> ArrayMesh:
 func _safety_beacon_base_mesh() -> ArrayMesh:
 	if _shared_safety_beacon_base_mesh == null:
 		_shared_safety_beacon_base_mesh = StationSurfaceKit.chamfered_cylinder_mesh_cached(
-			0.24 * 0.88, 0.24, 0.18, 12, _chamfered_cylinder_cache, 1
+			0.24 * 0.88, 0.24, 0.18,
+			StationSurfaceKit.radial_segments_for(0.24, TorusGeometryBudget.NEAR_EYE_METRES, 12),
+			_chamfered_cylinder_cache, 1
 		)
 	return _shared_safety_beacon_base_mesh
 
@@ -1147,7 +1151,9 @@ func _cylinder(
 		mesh_override
 		if mesh_override != null
 		else StationSurfaceKit.chamfered_cylinder_mesh_cached(
-			radius * 0.88, radius, height, 12, _chamfered_cylinder_cache, 1
+			radius * 0.88, radius, height,
+			StationSurfaceKit.radial_segments_for(radius, TorusGeometryBudget.NEAR_EYE_METRES, 12),
+			_chamfered_cylinder_cache, 1
 		)
 	)
 	mesh_instance.material_override = material

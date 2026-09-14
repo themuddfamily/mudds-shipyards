@@ -163,6 +163,164 @@ const CYLINDER_WALL_RINGS := 0
 ## The name restores it without adding a metadata pass to ten call sites.
 const CHAMFERED_CYLINDER_RESOURCE_NAME := "chamfered_cylinder"
 
+## Radial subdivision rule.
+##
+## `CYLINDER_WALL_RINGS` removed the *lateral* subdivision, which was provably
+## free because a wall band is planar. The radial count is not free in the same
+## way — it is the silhouette — so it is answered by measurement rather than by
+## the flat 32 the interior modules were frozen at.
+##
+## **This does not invent a new tolerance. It reuses the one this project already
+## rendered, looked at and accepted**, in `TorusGeometryBudget`. A cylinder's
+## radial count tessellates exactly the same feature that class calls the *tube
+## cross-section*: one circle, seen locally, whose faceting shows as flats along
+## a silhouette. That budget solves it as
+##
+##     sagitta = radius * (1 - cos(PI / segments)) <= TOLERANCE_RADIANS * distance
+##
+## floored at `MIN_RING_SEGMENTS`, and both numbers carry rendered evidence:
+## `TOLERANCE_RADIANS` is calibrated so the biggest circles in the shipped game
+## come out at the 40 they were authored at, and the floor is the coarsest
+## tessellation that survived a magnified walk-up photo sweep of the worst case in
+## the game (a 10 cm collar at 0.6 m; `24x12` already showed a flattening, `18x9`
+## was plainly a polygon). Using the same tolerance and the same floor here means
+## the station's round stock is held to one standard instead of two, and that
+## standard is the one with pictures behind it.
+##
+## The only thing this rule adds is the *distance*. `TorusGeometryBudget` budgets
+## every tube cross-section at walk-up range because a torus can be anywhere; a
+## station module knows where it bolted each part. So a caller may declare the
+## closest a player's camera can actually get to a family — an overhead pressure
+## rib is metres up and cannot be approached — and anything that does not declare
+## one is budgeted at the same `NEAR_EYE_METRES` walk-up distance the torus rule
+## uses. The rule is a ceiling, never a target: callers pass their authored count
+## as `authored_segments` and the rule can only lower it.
+
+## Reference display and field of view, published so the rule's cost in pixels
+## can be read rather than recomputed. At 1920x1080 and the game's default 72°
+## vertical FOV (`RuntimeSettings.DEFAULT_CAMERA_FOV`; Godot's `Camera3D.fov` is
+## vertical under the default `KEEP_HEIGHT`) one vertical pixel subtends
+## `deg_to_rad(72) / 1080` = 0.0011636 rad, so the shared tolerance of 0.0021 rad
+## is about 1.8 px of silhouette error at the declared viewing distance.
+const RADIAL_REFERENCE_VERTICAL_PIXELS := 1080.0
+const RADIAL_REFERENCE_VERTICAL_FOV_DEGREES := 72.0
+
+## Ceiling on the answer: the count the interior modules were previously frozen
+## at, so a caller that authored 32 can only ever lose segments to this rule.
+const MAXIMUM_RADIAL_SEGMENTS := 32
+
+
+## Radians one vertical pixel subtends on the reference display.
+static func radians_per_reference_pixel() -> float:
+	return deg_to_rad(RADIAL_REFERENCE_VERTICAL_FOV_DEGREES) / RADIAL_REFERENCE_VERTICAL_PIXELS
+
+
+## Screen-space sagitta, in reference pixels, of a `segments`-gon standing in for
+## a circle of `radius` seen from `distance_metres`.
+static func silhouette_error_pixels(radius: float, segments: int, distance_metres: float) -> float:
+	if distance_metres <= 0.0 or segments < 3:
+		return INF
+	var sagitta := absf(radius) * (1.0 - cos(PI / float(segments)))
+	return (sagitta / distance_metres) / radians_per_reference_pixel()
+
+
+## Radial count for round stock of `radius` whose closest walkable approach is
+## `nearest_view_metres`, never above `authored_segments`.
+static func radial_segments_for(
+		radius: float,
+		nearest_view_metres: float = TorusGeometryBudget.NEAR_EYE_METRES,
+		authored_segments: int = MAXIMUM_RADIAL_SEGMENTS
+	) -> int:
+	if not is_finite(radius) or not is_finite(nearest_view_metres) \
+			or radius <= 0.0 or nearest_view_metres <= 0.0:
+		return authored_segments
+	var distance := maxf(TorusGeometryBudget.NEAR_EYE_METRES, nearest_view_metres)
+	var solved := TorusGeometryBudget.segments_for(
+		absf(radius),
+		TorusGeometryBudget.TOLERANCE_RADIANS * distance,
+		TorusGeometryBudget.MIN_RING_SEGMENTS
+	)
+	return mini(authored_segments, quantized_radial_segments(solved))
+
+
+## Rounds a solved radial count up to the next multiple of four.
+##
+## This is not a rounding convenience, it is what keeps the AABB exact. A
+## cylinder's four lateral extrema sit at 0°, 90°, 180° and 270°, and a vertex
+## only lands on all four when the count is a multiple of four; at 26 segments
+## the nearest vertex to 90° is 3.1° short and the mesh's stored bounds lose
+## 0.7% on that axis. Every station contract that asserts a part's bounds — the
+## VIP downlight housings, the batch custom AABBs, the shadow-proxy containment
+## gate — reads that number, and "a bevel may alter highlights, never a station
+## footprint" is the rule the whole kit is built on. Multiples of four preserve
+## it exactly, and the floor and ceiling (12 and 32) are already multiples of
+## four, so the answer is always one of 12, 16, 20, 24, 28, 32.
+static func quantized_radial_segments(segments: int) -> int:
+	return int(ceil(float(maxi(4, segments)) / 4.0)) * 4
+
+
+## Shadow-only geometry is not held to the screen rule, because a shadow's edge
+## is not resolved in screen pixels: it is resolved in shadow-map texels and then
+## filtered. `ShipyardWorld` runs the station key light at Godot's default
+## 4096 directional atlas in `SHADOW_PARALLEL_4_SPLITS`, so each cascade owns a
+## 2048 quadrant; over the 130 m `directional_shadow_max_distance` with splits at
+## 0.06/0.16/0.42 the nearest cascade resolves roughly 6 mm per texel and the next
+## roughly 15 mm, before Godot's filtering and the 2-texel normal bias widen the
+## edge further. A caster silhouette held under one nearest-cascade texel
+## therefore cannot move the rendered shadow edge by a resolvable amount.
+const SHADOW_MAP_TEXEL_METRES := 0.006
+const MINIMUM_SHADOW_RADIAL_SEGMENTS := 8
+const MAXIMUM_SHADOW_RADIAL_SEGMENTS := 16
+
+## Stamped on the shadow-only proxies so a proxy can never be mistaken for the
+## colour mesh it stands in for, and so `is_cylindrical_mesh` — which exists to
+## tell the ship and station suites that a surface is turned round stock — does
+## not answer for geometry that is never shaded.
+const SHADOW_PROXY_CYLINDER_RESOURCE_NAME := "chamfered_cylinder_shadow_proxy"
+
+
+## Smallest even radial count whose silhouette stays inside one nearest-cascade
+## shadow-map texel. Used only for geometry that is never shaded.
+static func shadow_radial_segments_for(radius: float) -> int:
+	if not is_finite(radius) or radius <= 0.0:
+		return MAXIMUM_SHADOW_RADIAL_SEGMENTS
+	var segments := MINIMUM_SHADOW_RADIAL_SEGMENTS
+	while segments < MAXIMUM_SHADOW_RADIAL_SEGMENTS:
+		if absf(radius) * (1.0 - cos(PI / float(segments))) <= SHADOW_MAP_TEXEL_METRES:
+			break
+		segments += 4
+	return mini(
+		MAXIMUM_SHADOW_RADIAL_SEGMENTS, quantized_radial_segments(segments)
+	)
+
+
+## Shadow-only stand-in for one length of round stock.
+##
+## Two reductions, both of which a shadow cannot carry. The radial count drops to
+## `shadow_radial_segments_for`, and the rim chamfer is dropped entirely: a
+## chamfer is a specular device — it exists to give a zero-width 90° edge enough
+## pixels to hold a highlight — and a shadow pass has no highlight. Dropping it
+## removes the two chamfer bands, taking the part from `8n` triangles to `4n`,
+## and it cannot shrink the silhouette because a chamfer only ever removes
+## material from the rim corner. The AABB is unchanged either way: radial extent
+## is carried by the wall vertices, which stay on the circle, and axial extent by
+## the caps, which stay on the end planes.
+static func shadow_proxy_cylinder_mesh_cached(
+		radius: float,
+		height: float,
+		cache: Dictionary
+	) -> ArrayMesh:
+	var segments := shadow_radial_segments_for(radius)
+	var cache_key := "shadowcyl:%0.4f:%0.4f:%d" % [radius, height, segments]
+	if cache.has(cache_key):
+		return cache[cache_key] as ArrayMesh
+	var mesh := chamfered_cylinder_mesh(
+		radius, radius, height, segments, 0, true, true, 0.0
+	)
+	mesh.resource_name = SHADOW_PROXY_CYLINDER_RESOURCE_NAME
+	cache[cache_key] = mesh
+	return mesh
+
 
 ## True when this mesh is a turned round form: Godot's own cylinder primitive, or
 ## one of this kit's chamfered replacements for it.

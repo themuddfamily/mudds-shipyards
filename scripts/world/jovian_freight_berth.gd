@@ -2377,7 +2377,9 @@ func _build_crane() -> void:
 		TROLLEY_WHEEL_RADIUS * 0.94,
 		TROLLEY_WHEEL_RADIUS,
 		TROLLEY_WHEEL_HEIGHT,
-		16,
+		StationSurfaceKit.radial_segments_for(
+			TROLLEY_WHEEL_RADIUS, TorusGeometryBudget.NEAR_EYE_METRES, 16
+		),
 		_chamfered_cylinder_cache,
 		2
 	)
@@ -2535,7 +2537,9 @@ func _build_handling_zones() -> void:
 	# 0.71 m and the published 3.4 m cargo-transfer lane at z = 29.0 by 1.3 m.
 	var bollard_z := [13.5, 20.0, 26.5, 33.0, 39.5]
 	var collar_mesh := StationSurfaceKit.chamfered_cylinder_mesh_cached(
-		0.23 * 0.94, 0.23, 0.14, 16, _chamfered_cylinder_cache, 2
+		0.23 * 0.94, 0.23, 0.14,
+		StationSurfaceKit.radial_segments_for(0.23, TorusGeometryBudget.NEAR_EYE_METRES, 16),
+		_chamfered_cylinder_cache, 2
 	)
 	for side in [-1.0, 1.0]:
 		var side_tag := "Port" if side < 0.0 else "Starboard"
@@ -3914,7 +3918,9 @@ func _cylinder(
 	# the apron. Outer radius and overall height are unchanged, so the collision
 	# cylinder below still matches the mesh envelope exactly.
 	var mesh := StationSurfaceKit.chamfered_cylinder_mesh_cached(
-		radius * 0.94, radius, height, 16, _chamfered_cylinder_cache, 2
+		radius * 0.94, radius, height,
+		StationSurfaceKit.radial_segments_for(radius, TorusGeometryBudget.NEAR_EYE_METRES, 16),
+		_chamfered_cylinder_cache, 2
 	)
 	if collidable:
 		var mesh_instance := MeshInstance3D.new()

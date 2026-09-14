@@ -226,6 +226,28 @@ const PRESSURE_RIB_X_MAX := 10.92
 const PRESSURE_RIB_SPRING_HEIGHT := 4.82
 const PRESSURE_RIB_CROWN_HEIGHT := 5.58
 const PRESSURE_RIB_RADIUS := 0.105
+## Closest a standing player's camera can get to the operations-room ribs. The
+## room's own `OperationsFloor` top sits at local `y = 0` and the ribs spring at
+## `PRESSURE_RIB_SPRING_HEIGHT`, so this is that height less a deliberately tall
+## 1.75 m eye — a short distance, and therefore a strict tessellation rule.
+const PRESSURE_RIB_NEAREST_VIEW_METRES := PRESSURE_RIB_SPRING_HEIGHT - 1.75
+
+## Two families of envelope structure a player can never walk up to, declared so
+## the shared radial rule is not forced to budget them at walk-up range.
+##
+## The underfloor members — the keel, the cross members and the diagonal braces
+## under the operations room, and the junction edge tube, longitudinal truss and
+## truss struts under the lower open deck — hang between `y = -0.28` and
+## `y = -1.05`, beneath a solid floor, over void. There is no surface under them and the
+## floor they hang from is solid, so the closest a standing camera gets is the
+## deck edge above; 2.5 m is that with margin in the player's favour.
+##
+## The roof service spine and vents sit at `y = 5.18` to `y = 5.62` on top of the
+## envelope, above a room whose own floor is at `y = 0` and which has no upper
+## walkway; the nearest approach is from that floor, which is 3.4 m below them
+## even before a 1.75 m eye is subtracted. 3.4 m is the conservative figure.
+const UNDERFLOOR_MEMBER_NEAREST_VIEW_METRES := 2.5
+const ROOF_MEMBER_NEAREST_VIEW_METRES := 3.4
 ## Three identical cyan route-light strips are presentation-only overlays on the
 ## collision-backed lower deck. Their authored names remain childless anchors;
 ## one lower-deck MultiMesh draws the unchanged cached rounded-box surface.
@@ -372,6 +394,11 @@ var _cabinet_fastener_batch: MultiMeshInstance3D
 var _ceiling_luminaire_lens_batch: MultiMeshInstance3D
 var _roof_vent_louvre_batch: MultiMeshInstance3D
 var _pressure_envelope_shadow_sources: Array[MeshInstance3D] = []
+## Radius/height of every visual-only turned part this module builds, keyed by
+## renderer instance id, and the cache for the shadow-only stand-ins derived from
+## them. Both are constructor-owned and never outlive the module.
+var _cylinder_shadow_recipes: Dictionary = {}
+var _shadow_proxy_mesh_cache: Dictionary = {}
 var _pressure_envelope_shadow_batch: MeshInstance3D
 var _approach_edge_collar_batch: MultiMeshInstance3D
 var _exterior_pipe_clamp_mesh: TorusMesh
@@ -1156,7 +1183,7 @@ func get_approach_edge_collar_batch_audit() -> Dictionary:
 		APPROACH_EDGE_COLLAR_RADIUS,
 		APPROACH_EDGE_COLLAR_RADIUS,
 		APPROACH_EDGE_COLLAR_HEIGHT,
-		32,
+		StationSurfaceKit.radial_segments_for(APPROACH_EDGE_COLLAR_RADIUS),
 		_chamfered_cylinder_cache
 	)
 	if batch == null or multimesh == null or mesh == null:
@@ -1907,7 +1934,9 @@ func get_cabinet_fastener_batch_audit() -> Dictionary:
 	var batch := _cabinet_fastener_batch
 	var multimesh := batch.multimesh if batch != null else null
 	var expected_mesh := StationSurfaceKit.chamfered_cylinder_mesh_cached(
-		0.035, 0.035, 0.028, 32, _chamfered_cylinder_cache
+		0.035, 0.035, 0.028,
+		StationSurfaceKit.radial_segments_for(0.035),
+		_chamfered_cylinder_cache
 	)
 	var expected_buffer := _encode_multimesh_transforms(expected)
 	if batch == null or multimesh == null:
@@ -3298,8 +3327,8 @@ func _build_open_lower_deck(structure: Node3D) -> void:
 			lower.add_child(collar_anchor)
 			approach_edge_collar_index += 1
 		var junction_edge_x := float(side) * 5.5
-		_beam_between(lower, "JunctionEdgeTube", Vector3(junction_edge_x, -0.42, 5.0), Vector3(junction_edge_x, -0.42, 10.0), 0.13, _materials["hull_dark"], false)
-		_beam_between(lower, "LowerLongitudinalTruss", Vector3(float(side) * 3.9, -0.86, 5.15), Vector3(float(side) * 4.9, -0.86, 9.85), 0.11, _materials["mid_grey"], false)
+		_beam_between(lower, "JunctionEdgeTube", Vector3(junction_edge_x, -0.42, 5.0), Vector3(junction_edge_x, -0.42, 10.0), 0.13, _materials["hull_dark"], false, UNDERFLOOR_MEMBER_NEAREST_VIEW_METRES)
+		_beam_between(lower, "LowerLongitudinalTruss", Vector3(float(side) * 3.9, -0.86, 5.15), Vector3(float(side) * 4.9, -0.86, 9.85), 0.11, _materials["mid_grey"], false, UNDERFLOOR_MEMBER_NEAREST_VIEW_METRES)
 		for z_position in [5.3, 7.5, 9.7]:
 			_beam_between(
 				lower,
@@ -3308,7 +3337,8 @@ func _build_open_lower_deck(structure: Node3D) -> void:
 				Vector3(float(side) * 4.75, -0.9, z_position + 0.72),
 				0.085,
 				_materials["warm_grey"],
-				false
+				false,
+				UNDERFLOOR_MEMBER_NEAREST_VIEW_METRES
 			)
 	_approach_edge_collar_batch = _multimesh_mesh(
 		lower,
@@ -3317,7 +3347,7 @@ func _build_open_lower_deck(structure: Node3D) -> void:
 			APPROACH_EDGE_COLLAR_RADIUS,
 			APPROACH_EDGE_COLLAR_RADIUS,
 			APPROACH_EDGE_COLLAR_HEIGHT,
-			32,
+			StationSurfaceKit.radial_segments_for(APPROACH_EDGE_COLLAR_RADIUS),
 			_chamfered_cylinder_cache
 		),
 		_materials["brass"],
@@ -3936,7 +3966,7 @@ func _build_operations_shell_detail(room: Node3D) -> void:
 			false
 		)
 	_build_pressure_rib_batches(envelope)
-	_beam_between(envelope, "RoofServiceSpine", Vector3(5.6, 5.62, 9.25), Vector3(5.6, 5.62, 17.22), 0.15, _materials["hull_dark"], false)
+	_beam_between(envelope, "RoofServiceSpine", Vector3(5.6, 5.62, 9.25), Vector3(5.6, 5.62, 17.22), 0.15, _materials["hull_dark"], false, ROOF_MEMBER_NEAREST_VIEW_METRES)
 	_spine_clamp_mesh = _torus_mesh(
 		SPINE_CLAMP_INNER_RADIUS,
 		SPINE_CLAMP_OUTER_RADIUS,
@@ -3965,7 +3995,7 @@ func _build_operations_shell_detail(room: Node3D) -> void:
 	)
 	for vent_index in 2:
 		var vent_x := 3.05 + float(vent_index) * 5.05
-		_cylinder(envelope, "RoofVent", Vector3(vent_x, 5.18, 13.0), 0.42, 0.28, _materials["hull_dark"], false)
+		_cylinder(envelope, "RoofVent", Vector3(vent_x, 5.18, 13.0), 0.42, 0.28, _materials["hull_dark"], false, Vector3.ZERO, ROOF_MEMBER_NEAREST_VIEW_METRES)
 		var collar := _torus(envelope, "RoofVentCollar", Vector3(vent_x, 5.31, 13.0), ROOF_VENT_COLLAR_INNER_RADIUS, ROOF_VENT_COLLAR_OUTER_RADIUS, _materials["mid_grey"], Vector3.ZERO, _roof_vent_collar_mesh)
 		collar.set_meta(ROOF_VENT_COLLAR_FAMILY_META, ROOF_VENT_COLLAR_FAMILY_ID)
 		for louvre_index in 3:
@@ -4050,11 +4080,11 @@ func _build_operations_shell_detail(room: Node3D) -> void:
 	# Underside keels and diagonal outriggers are deliberately visual-only. They
 	# are prominent in the exterior evidence camera and retain the exact floor hit.
 	for keel_x in [1.3, 5.6, 9.9]:
-		_beam_between(envelope, "UndersideKeel", Vector3(float(keel_x), -0.72, 9.25), Vector3(float(keel_x), -0.72, 17.1), 0.15, _materials["hull_dark"], false)
+		_beam_between(envelope, "UndersideKeel", Vector3(float(keel_x), -0.72, 9.25), Vector3(float(keel_x), -0.72, 17.1), 0.15, _materials["hull_dark"], false, UNDERFLOOR_MEMBER_NEAREST_VIEW_METRES)
 	for z_position in [9.55, 11.45, 13.35, 15.25, 17.0]:
-		_beam_between(envelope, "UnderfloorCrossMember", Vector3(0.45, -0.68, float(z_position)), Vector3(10.75, -0.68, float(z_position)), 0.12, _materials["mid_grey"], false)
-		_beam_between(envelope, "UnderfloorBracePort", Vector3(0.55, -0.5, float(z_position) - 0.65), Vector3(3.15, -1.05, float(z_position) + 0.65), 0.085, _materials["warm_grey"], false)
-		_beam_between(envelope, "UnderfloorBraceStarboard", Vector3(10.65, -0.5, float(z_position) - 0.65), Vector3(8.05, -1.05, float(z_position) + 0.65), 0.085, _materials["warm_grey"], false)
+		_beam_between(envelope, "UnderfloorCrossMember", Vector3(0.45, -0.68, float(z_position)), Vector3(10.75, -0.68, float(z_position)), 0.12, _materials["mid_grey"], false, UNDERFLOOR_MEMBER_NEAREST_VIEW_METRES)
+		_beam_between(envelope, "UnderfloorBracePort", Vector3(0.55, -0.5, float(z_position) - 0.65), Vector3(3.15, -1.05, float(z_position) + 0.65), 0.085, _materials["warm_grey"], false, UNDERFLOOR_MEMBER_NEAREST_VIEW_METRES)
+		_beam_between(envelope, "UnderfloorBraceStarboard", Vector3(10.65, -0.5, float(z_position) - 0.65), Vector3(8.05, -1.05, float(z_position) + 0.65), 0.085, _materials["warm_grey"], false, UNDERFLOOR_MEMBER_NEAREST_VIEW_METRES)
 
 	# A restrained exterior utility run adds scale and material contrast.
 	_beam_between(envelope, "ExteriorCopperFeed", Vector3(11.18, 0.82, 10.0), Vector3(11.18, 0.82, 16.25), 0.06, _materials["copper"], false)
@@ -4113,8 +4143,26 @@ func _build_pressure_envelope_shadow_batch() -> void:
 			or _pressure_envelope_shadow_sources.size() != PRESSURE_ENVELOPE_SHADOW_SOURCE_COUNT:
 		return
 	var envelope := get_node_or_null(^"Structure/OperationsRoom/VisualPressureEnvelope") as Node3D
+	# Thirty-two of the sixty-seven sources are turned round stock — the roof
+	# spine and vents, the shell rails, the entry header, the window frames, the
+	# keel and the underfloor members. A shadow pass consumes their silhouette
+	# and nothing else, so each contributes a coarser uncapped-rim stand-in built
+	# from the same radius and height (see
+	# `StationSurfaceKit.shadow_proxy_cylinder_mesh_cached`). The cladding,
+	# reveals and panels are chamfered boxes with no proven stand-in; they pass a
+	# null and are merged exactly, as before.
+	var shadow_proxies: Array[ArrayMesh] = []
+	for source in _pressure_envelope_shadow_sources:
+		var recipe: Variant = _cylinder_shadow_recipes.get(source.get_instance_id())
+		if recipe == null:
+			shadow_proxies.append(null)
+			continue
+		var dimensions := recipe as Vector2
+		shadow_proxies.append(StationSurfaceKit.shadow_proxy_cylinder_mesh_cached(
+			dimensions.x, dimensions.y, _shadow_proxy_mesh_cache
+		))
 	_pressure_envelope_shadow_batch = STATIC_SHADOW_BATCH.build(
-		envelope, _pressure_envelope_shadow_sources
+		envelope, _pressure_envelope_shadow_sources, shadow_proxies
 	)
 
 
@@ -5152,7 +5200,9 @@ func _build_service_wall(room: Node3D) -> void:
 		service,
 		"CabinetFastenerRenderBatch",
 		StationSurfaceKit.chamfered_cylinder_mesh_cached(
-			0.035, 0.035, 0.028, 32, _chamfered_cylinder_cache
+			0.035, 0.035, 0.028,
+			StationSurfaceKit.radial_segments_for(0.035),
+			_chamfered_cylinder_cache
 		),
 		_materials["brass"],
 		fastener_transforms
@@ -5539,7 +5589,8 @@ func _cylinder(
 		height: float,
 		material: Material,
 		collidable: bool,
-		rotation_degrees_value: Vector3 = Vector3.ZERO
+		rotation_degrees_value: Vector3 = Vector3.ZERO,
+		nearest_view_metres: float = TorusGeometryBudget.NEAR_EYE_METRES
 	) -> Node3D:
 	var container: Node3D
 	if collidable:
@@ -5553,11 +5604,17 @@ func _cylinder(
 	container.position = cylinder_position
 	container.rotation_degrees = rotation_degrees_value
 	parent.add_child(container)
-	# Chamfered rims at the module's frozen 32 radial segments. Outer radius and
-	# overall height are unchanged, so no footprint moves and the collision
-	# cylinder below is built from the same untouched arguments.
+	# Chamfered rims, radially tessellated by `StationSurfaceKit`'s screen-space
+	# rule rather than the module's old flat 32. Outer radius and overall height
+	# are unchanged, so no footprint moves, the silhouette vertices stay on the
+	# same circle, and the collision cylinder below is built from the same
+	# untouched arguments.
 	var cylinder_mesh := StationSurfaceKit.chamfered_cylinder_mesh_cached(
-		radius, radius, height, 32, _chamfered_cylinder_cache
+		radius,
+		radius,
+		height,
+		StationSurfaceKit.radial_segments_for(radius, nearest_view_metres),
+		_chamfered_cylinder_cache
 	)
 	if collidable:
 		var mesh_instance := MeshInstance3D.new()
@@ -5575,7 +5632,11 @@ func _cylinder(
 		mesh_instance.mesh = cylinder_mesh
 		mesh_instance.material_override = material
 	if not collidable:
-		_register_pressure_envelope_shadow_source(parent, node_name, container as MeshInstance3D)
+		var registered := container as MeshInstance3D
+		_register_pressure_envelope_shadow_source(parent, node_name, registered)
+		# Remember the exact turned-stock recipe so a shadow-only stand-in can be
+		# built from the same radius and height rather than inferred from a mesh.
+		_cylinder_shadow_recipes[registered.get_instance_id()] = Vector2(radius, height)
 	return container
 
 
@@ -5586,10 +5647,14 @@ func _beam_between(
 		to: Vector3,
 		radius: float,
 		material: Material,
-		collidable: bool
+		collidable: bool,
+		nearest_view_metres: float = TorusGeometryBudget.NEAR_EYE_METRES
 	) -> Node3D:
 	var direction := to - from
-	var beam := _cylinder(parent, node_name, (from + to) * 0.5, radius, direction.length(), material, collidable)
+	var beam := _cylinder(
+		parent, node_name, (from + to) * 0.5, radius, direction.length(), material,
+		collidable, Vector3.ZERO, nearest_view_metres
+	)
 	beam.quaternion = Quaternion(Vector3.UP, direction.normalized())
 	return beam
 
@@ -5676,7 +5741,9 @@ func _build_pressure_rib_batches(envelope: Node3D) -> void:
 				PRESSURE_RIB_RADIUS,
 				PRESSURE_RIB_RADIUS,
 				segment_length,
-				32,
+				StationSurfaceKit.radial_segments_for(
+					PRESSURE_RIB_RADIUS, PRESSURE_RIB_NEAREST_VIEW_METRES
+				),
 				_chamfered_cylinder_cache
 			),
 			_materials["off_white"],

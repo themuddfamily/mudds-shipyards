@@ -2462,7 +2462,11 @@ func _multimesh_cylinders(
 	var multi := MultiMesh.new()
 	multi.transform_format = MultiMesh.TRANSFORM_3D
 	multi.mesh = StationSurfaceKit.chamfered_cylinder_mesh_cached(
-		radius, radius, height, 32, _chamfered_cylinder_cache
+		radius,
+		radius,
+		height,
+		StationSurfaceKit.radial_segments_for(radius),
+		_chamfered_cylinder_cache
 	)
 	multi.instance_count = transforms.size()
 	multi.visible_instance_count = -1
@@ -2635,7 +2639,16 @@ func _cylinder(
 	container.position = cylinder_position
 	container.rotation_degrees = rotation_degrees_value
 	parent.add_child(container)
-	var mesh := StationSurfaceKit.chamfered_cylinder_mesh_cached(radius, radius, height, 32, _chamfered_cylinder_cache)
+	# Chamfered rims, radially tessellated by `StationSurfaceKit`'s screen-space
+	# rule rather than the suite's old flat 32. Radius, height and therefore the
+	# collision shape below are untouched.
+	var mesh := StationSurfaceKit.chamfered_cylinder_mesh_cached(
+		radius,
+		radius,
+		height,
+		StationSurfaceKit.radial_segments_for(radius),
+		_chamfered_cylinder_cache
+	)
 	if collidable:
 		var mesh_instance := MeshInstance3D.new()
 		mesh_instance.name = "Mesh"

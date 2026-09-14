@@ -52,6 +52,17 @@ const COMMON_PRESSURE_RIB_SPRING_HEIGHT := 4.16
 const COMMON_PRESSURE_RIB_CROWN_HEIGHT := 4.19
 const COMMON_PRESSURE_RIB_RADIUS := 0.13
 
+## Closest a standing player's camera can get to each overhead rib family, used
+## by `StationSurfaceKit.radial_segments_for` in place of the hand-reachable
+## default. Each is the family's springing height — the lowest point of the arch,
+## against the side wall — less a deliberately tall 1.75 m eye, which makes the
+## distance short and therefore the tessellation rule strict. Nothing in the
+## module is walkable above deck level, so no closer approach exists.
+const OVERHEAD_VIEW_EYE_HEIGHT := 1.75
+const HABITAT_RIB_NEAREST_VIEW_METRES := 4.65 - OVERHEAD_VIEW_EYE_HEIGHT
+const COMMON_RIB_NEAREST_VIEW_METRES := COMMON_PRESSURE_RIB_SPRING_HEIGHT - OVERHEAD_VIEW_EYE_HEIGHT
+const CONNECTOR_RIB_NEAREST_VIEW_METRES := 3.65 - OVERHEAD_VIEW_EYE_HEIGHT
+
 ## Component-local renderer freeze for four childless visual-only families.
 ## Their parent hatches, nutrient tanks, pipework and garden column retain
 ## service/collision authority; the brass fasteners, copper bands, red
@@ -259,6 +270,9 @@ var _hatch_fastener_mesh: Mesh
 # Constructor-owned immutable rosters; no scene scan or independently moving
 # geometry participates. Each arch retains its own tight shadow culling bounds.
 var _arch_shadow_sources: Array[Array] = []
+## One shadow-only proxy mesh per source, built by the same arch loop from the
+## same radius and segment length. See `StationSurfaceKit.shadow_proxy_cylinder_mesh_cached`.
+var _arch_shadow_proxies: Array[Array] = []
 var _arch_shadow_batches: Array[MeshInstance3D] = []
 var _arch_shadow_next_index := 0
 var _arch_shadow_needs_settle := false
@@ -2305,7 +2319,8 @@ func _build_connector(structure: Node3D) -> void:
 			3.65,
 			4.35,
 			0.1,
-			_materials["shell_mid"]
+			_materials["shell_mid"],
+			CONNECTOR_RIB_NEAREST_VIEW_METRES
 		)
 	# Three existing visual-only floor breadcrumbs now widen toward the pressure
 	# door, with the final bar changing to the habitat's amber threshold colour.
@@ -2429,7 +2444,18 @@ func _build_habitat_corridor(structure: Node3D) -> void:
 	# rhythm while keeping collision as simple stable boxes.
 	for rib_index in 7:
 		var rib_z := 2.65 + float(rib_index) * 2.48
-		_arch_across_x(habitat, "HabitatPressureRib%02d" % rib_index, rib_z, -6.35, 6.35, 4.65, 5.55, 0.12, _materials["shell_light"])
+		_arch_across_x(
+			habitat,
+			"HabitatPressureRib%02d" % rib_index,
+			rib_z,
+			-6.35,
+			6.35,
+			4.65,
+			5.55,
+			0.12,
+			_materials["shell_light"],
+			HABITAT_RIB_NEAREST_VIEW_METRES
+		)
 		for side in [-1.0, 1.0]:
 			_cylinder(habitat, "RibFoot", Vector3(float(side) * 6.37, 2.25, rib_z), 0.14, 4.5, _materials["structural"], false)
 	# The cove strips are `warm_light` — an authored #ffe6bd lens — but the pools
@@ -2558,7 +2584,8 @@ func _build_observation_common(structure: Node3D) -> void:
 			COMMON_PRESSURE_RIB_SPRING_HEIGHT,
 			COMMON_PRESSURE_RIB_CROWN_HEIGHT,
 			COMMON_PRESSURE_RIB_RADIUS,
-			rib_material
+			rib_material,
+			COMMON_RIB_NEAREST_VIEW_METRES
 		)
 	# Same correction as the corridor: a warm #ffe6bd lens over a cool #e6f2ec
 	# pool. The common room is the module a crew lives in, and warm overheads are
@@ -2865,7 +2892,7 @@ func _build_service_detail(structure: Node3D) -> void:
 		HATCH_FASTENER_RADIUS,
 		HATCH_FASTENER_RADIUS,
 		HATCH_FASTENER_HEIGHT,
-		32,
+		StationSurfaceKit.radial_segments_for(HATCH_FASTENER_RADIUS),
 		_chamfered_cylinder_cache
 	)
 	_hatch_fastener_batch = _multimesh_visual_stock(
@@ -3850,7 +3877,9 @@ func _build_common_galley(common: Node3D) -> void:
 		galley,
 		"GalleyMugs",
 		StationSurfaceKit.chamfered_cylinder_mesh_cached(
-			0.05, 0.05, 0.104, 32, _chamfered_cylinder_cache
+			0.05, 0.05, 0.104,
+			StationSurfaceKit.radial_segments_for(0.05),
+			_chamfered_cylinder_cache
 		),
 		_materials["plastic_pale"],
 		_galley_mug_transforms,
@@ -3956,7 +3985,9 @@ func _build_common_mess(common: Node3D) -> void:
 		mess,
 		"MessMugs",
 		StationSurfaceKit.chamfered_cylinder_mesh_cached(
-			0.048, 0.048, 0.105, 32, _chamfered_cylinder_cache
+			0.048, 0.048, 0.105,
+			StationSurfaceKit.radial_segments_for(0.048),
+			_chamfered_cylinder_cache
 		),
 		_materials["plastic_pale"],
 		_mess_mug_transforms,
@@ -4115,10 +4146,14 @@ func _build_arch_shadow_batches() -> void:
 
 func _build_next_arch_shadow_batch() -> void:
 	var sources: Array[MeshInstance3D] = _arch_shadow_sources[_arch_shadow_next_index]
+	var proxies: Array[ArrayMesh] = _arch_shadow_proxies[_arch_shadow_next_index]
 	_arch_shadow_next_index += 1
-	if sources.size() != ARCH_SHADOW_SEGMENTS_PER_BATCH:
+	if sources.size() != ARCH_SHADOW_SEGMENTS_PER_BATCH \
+			or proxies.size() != ARCH_SHADOW_SEGMENTS_PER_BATCH:
 		return
-	var batch := STATIC_SHADOW_BATCH.build(sources[0].get_parent() as Node3D, sources)
+	var batch := STATIC_SHADOW_BATCH.build(
+		sources[0].get_parent() as Node3D, sources, proxies
+	)
 	if batch != null:
 		_arch_shadow_batches.append(batch)
 
@@ -4414,7 +4449,8 @@ func _cylinder(
 		height: float,
 		material: Material,
 		collidable: bool,
-		rotation_degrees_value: Vector3 = Vector3.ZERO
+		rotation_degrees_value: Vector3 = Vector3.ZERO,
+		nearest_view_metres: float = TorusGeometryBudget.NEAR_EYE_METRES
 	) -> Node3D:
 	var container: Node3D
 	if collidable:
@@ -4428,11 +4464,17 @@ func _cylinder(
 	container.position = cylinder_position
 	container.rotation_degrees = rotation_degrees_value
 	parent.add_child(container)
-	# Chamfered rims at the module's frozen 32 radial segments. Outer radius and
-	# overall height are unchanged, so no footprint moves and the collision
-	# cylinder below is built from the same untouched arguments.
+	# Chamfered rims, radially tessellated by `StationSurfaceKit`'s screen-space
+	# rule rather than the module's old flat 32. Outer radius and overall height
+	# are unchanged, so no footprint moves, the silhouette vertices stay on the
+	# same circle, and the collision cylinder below is built from the same
+	# untouched arguments.
 	var mesh := StationSurfaceKit.chamfered_cylinder_mesh_cached(
-		radius, radius, height, 32, _chamfered_cylinder_cache
+		radius,
+		radius,
+		height,
+		StationSurfaceKit.radial_segments_for(radius, nearest_view_metres),
+		_chamfered_cylinder_cache
 	)
 	if collidable:
 		var mesh_instance := MeshInstance3D.new()
@@ -4461,10 +4503,14 @@ func _beam_between(
 		to: Vector3,
 		radius: float,
 		material: Material,
-		collidable: bool
+		collidable: bool,
+		nearest_view_metres: float = TorusGeometryBudget.NEAR_EYE_METRES
 	) -> Node3D:
 	var direction := to - from
-	var beam := _cylinder(parent, node_name, (from + to) * 0.5, radius, direction.length(), material, collidable)
+	var beam := _cylinder(
+		parent, node_name, (from + to) * 0.5, radius, direction.length(), material,
+		collidable, Vector3.ZERO, nearest_view_metres
+	)
 	beam.quaternion = Quaternion(Vector3.UP, direction.normalized())
 	return beam
 
@@ -4478,7 +4524,8 @@ func _arch_across_x(
 		spring_height: float,
 		crown_height: float,
 		radius: float,
-		material: Material
+		material: Material,
+		nearest_view_metres: float = TorusGeometryBudget.NEAR_EYE_METRES
 	) -> Node3D:
 	var arch := Node3D.new()
 	arch.name = node_name
@@ -4488,6 +4535,7 @@ func _arch_across_x(
 	var center_x := (x_minimum + x_maximum) * 0.5
 	var segment_count := ARCH_SHADOW_SEGMENTS_PER_BATCH
 	var shadow_sources: Array[MeshInstance3D] = []
+	var shadow_proxies: Array[ArrayMesh] = []
 	var previous := Vector3(x_minimum, spring_height, z_position)
 	for segment_index in segment_count:
 		var progress := float(segment_index + 1) / float(segment_count)
@@ -4496,8 +4544,12 @@ func _arch_across_x(
 		var curve_height := spring_height + (crown_height - spring_height) * sqrt(maxf(0.0, 1.0 - normalized_x * normalized_x))
 		var current := Vector3(x_position, curve_height, z_position)
 		shadow_sources.append(_beam_between(
-			arch, "TubeSegment%02d" % segment_index, previous, current, radius, material, false
+			arch, "TubeSegment%02d" % segment_index, previous, current, radius, material,
+			false, nearest_view_metres
 		) as MeshInstance3D)
+		shadow_proxies.append(StationSurfaceKit.shadow_proxy_cylinder_mesh_cached(
+			radius, (current - previous).length(), _chamfered_cylinder_cache
+		))
 		previous = current
 	# These four authored families are static pressure-shell or privacy ribs.
 	# No glass, seats, fixtures, hidden anchors or pre-existing batch is included.
@@ -4505,6 +4557,7 @@ func _arch_across_x(
 			or node_name.begins_with("HabitatPressureRib") \
 			or node_name.begins_with("CommonPressureRib"):
 		_arch_shadow_sources.append(shadow_sources)
+		_arch_shadow_proxies.append(shadow_proxies)
 	return arch
 
 

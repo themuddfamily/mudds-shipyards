@@ -1701,7 +1701,9 @@ func _build_dock_arm_service(detail: Node3D) -> void:
 		mast.name = "DockServiceMast" + suffix
 		mast.position = Vector3(21.9, elevation + 1.80, slab_z)
 		mast.mesh = StationSurfaceKit.chamfered_cylinder_mesh_cached(
-			0.26, 0.26, 4.20, 16, _chamfered_cylinder_cache
+			0.26, 0.26, 4.20,
+			StationSurfaceKit.radial_segments_for(0.26, TorusGeometryBudget.NEAR_EYE_METRES, 16),
+			_chamfered_cylinder_cache
 		)
 		mast.material_override = _materials["deck_light"]
 		mast.set_meta("visual_detail_only", true)
@@ -1855,7 +1857,9 @@ func _build_dock_arm_service(detail: Node3D) -> void:
 			bollard.name = "DockMooringCleatBollard%s_%s" % [suffix, "A" if side < 0.0 else "B"]
 			bollard.position = Vector3(9.5, elevation + 0.10, cleat_z)
 			bollard.mesh = StationSurfaceKit.chamfered_cylinder_mesh_cached(
-				0.20, 0.20, 0.17, 16, _chamfered_cylinder_cache
+				0.20, 0.20, 0.17,
+				StationSurfaceKit.radial_segments_for(0.20, TorusGeometryBudget.NEAR_EYE_METRES, 16),
+				_chamfered_cylinder_cache
 			)
 			bollard.material_override = _materials["underframe"]
 			bollard.set_meta("visual_detail_only", true)
@@ -1888,7 +1892,9 @@ func _build_dock_arm_service(detail: Node3D) -> void:
 		service,
 		"MooringCleatBollardBatch",
 		StationSurfaceKit.chamfered_cylinder_mesh_cached(
-			0.20, 0.20, 0.17, 16, _chamfered_cylinder_cache
+			0.20, 0.20, 0.17,
+			StationSurfaceKit.radial_segments_for(0.20, TorusGeometryBudget.NEAR_EYE_METRES, 16),
+			_chamfered_cylinder_cache
 		),
 		_materials["underframe"],
 		_mooring_cleat_bollard_transforms
@@ -1904,7 +1910,9 @@ func _build_dock_arm_service(detail: Node3D) -> void:
 		service,
 		"ServiceMastBatch",
 		StationSurfaceKit.chamfered_cylinder_mesh_cached(
-			0.26, 0.26, 4.20, 16, _chamfered_cylinder_cache
+			0.26, 0.26, 4.20,
+			StationSurfaceKit.radial_segments_for(0.26, TorusGeometryBudget.NEAR_EYE_METRES, 16),
+			_chamfered_cylinder_cache
 		),
 		_materials["deck_light"],
 		_dock_service_mast_transforms
@@ -2334,7 +2342,9 @@ func _beam_between(parent: Node3D, node_name: String, from: Vector3, to: Vector3
 	# Chamfered rims at the comb's frozen 16 radial segments; outer radius and
 	# beam length are unchanged, so the beam still spans exactly `from`..`to`.
 	result.mesh = StationSurfaceKit.chamfered_cylinder_mesh_cached(
-		radius, radius, direction.length(), 16, _chamfered_cylinder_cache
+		radius, radius, direction.length(),
+		StationSurfaceKit.radial_segments_for(radius, TorusGeometryBudget.NEAR_EYE_METRES, 16),
+		_chamfered_cylinder_cache
 	)
 	result.material_override = material
 	result.set_meta("visual_detail_only", true)
