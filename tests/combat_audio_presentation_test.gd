@@ -163,7 +163,9 @@ func _test_derived_opponent_weapon_profiles() -> void:
 		"hit": false,
 		"damaged": false,
 	}
-	picket.call("_present_lance_shot", Vector3(-12.0, 3.0, 8.0), Vector3.FORWARD, 1, resolved_miss)
+	# The lance voices its dispatch when the bolt leaves the emitter, not when the
+	# resolver later judges where it arrived.
+	picket.call("_play_lance_fire_audio", Vector3(-12.0, 3.0, 8.0))
 	var lance_fire := presentation.get_state_snapshot()
 	# Resolver-backed fire dispatch now separates the audio request from pulse
 	# presentation. Exercise both production seams, as the firing path does.
@@ -246,7 +248,7 @@ func _test_derived_opponent_weapon_profiles() -> void:
 			== CombatAudioPresentation.WEAPON_PROFILE_STANDARD,
 		"audio-bank re-entry clears stale source profiles and cannot replay a pre-detach heavy impact"
 	)
-	picket.call("_present_lance_shot", Vector3.ZERO, Vector3.FORWARD, 4, resolved_miss)
+	picket.call("_play_lance_fire_audio", Vector3.ZERO)
 	_check(
 		presentation.get_state_snapshot().last_weapon_profile_id
 			== CombatAudioPresentation.WEAPON_PROFILE_SIEGE_LANCE,

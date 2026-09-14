@@ -1228,11 +1228,15 @@ func _fire_at_target(target_position: Vector3) -> void:
 		"locked_aim_position": target_position,
 	}
 	_spawn_muzzle_flash(origin)
-	var launch_audio := _get_combat_audio()
-	if is_instance_valid(launch_audio):
-		launch_audio.play_opponent_weapon_fire(
-			origin, get_instance_id(), LANCE_AUDIO_PROFILE
-		)
+	_play_lance_fire_audio(origin)
+
+
+## The lance's pooled fire voice. Named like the shared resolver-backed seam so
+## the dispatch cue can be exercised on its own, without a resolver verdict.
+func _play_lance_fire_audio(origin: Vector3) -> void:
+	var audio := _get_combat_audio()
+	if is_instance_valid(audio):
+		audio.play_opponent_weapon_fire(origin, get_instance_id(), LANCE_AUDIO_PROFILE)
 
 
 ## The bolt reached a target, an obstruction, or its flight ceiling, and the one
