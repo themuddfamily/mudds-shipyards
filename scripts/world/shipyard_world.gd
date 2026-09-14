@@ -1130,6 +1130,8 @@ var _warning_lights: Array[OmniLight3D] = []
 var _crane_trolley: Node3D
 var _crane_hook: Node3D
 var _built := false
+## Phase 10 §2 node arithmetic from the last `_consolidate_station_dressing()`.
+var _dressing_consolidation_report: Dictionary = {}
 ## Set only by a boot loader, through `prepare_staged_construction()`, before
 ## this world enters the tree. Retained until every construction stage finishes.
 var _staged_construction := false
@@ -1318,6 +1320,74 @@ const BUILD_STAGES: Array[Array] = [
 	[&"_apply_operational_dressing_quality", "Applying visual quality"],
 	[&"_restore_station_activity_state", "Starting station life"],
 	[&"_apply_sign_geometry_budget", "Setting the signage"],
+	[&"_consolidate_station_dressing", "Batching station dressing"],
+]
+
+
+## Phase 10 §2. Module subtrees whose anonymous dressing is folded into batches
+## once every module, sign, route and collision pass above has finished reading
+## the tree by name. The roster is deliberately explicit: a module is listed only
+## when this world script owns its construction, and `AftJunctionStack`,
+## `HabitatSpine`, `VipReceptionSuite`, `ObservationLogisticsSpur`,
+## `SalvageTerrace`, `FabricationAnnex` and the parked craft are all absent
+## because their geometry is owned elsewhere.
+const CONSOLIDATED_DRESSING_MODULES: Array[StringName] = [
+	&"ExposedDockLattice",
+	&"LandingPad",
+	&"CentralBerthServiceLine",
+	&"UpperOperations",
+	&"ModernFleetRegistry",
+	&"IndustrialInfrastructure",
+	&"CargoAndMachinery",
+	&"OpenLaunchSpine",
+	&"OperationalLattice",
+	&"FleetDockComb",
+	&"JovianFreightBerth",
+	&"ExteriorTargetRange",
+]
+
+## Node names inside those modules that something outside their builder resolves
+## by name: a test, a probe, a doc roster, a route marker, or another module.
+## Found by grepping `scripts/`, `tests/`, `tools/`, `docs/`, `scenes/` and
+## `assets/` for every candidate name before any of them was batched. A name here
+## keeps its own node; the batcher never removes it and never folds its renderer.
+const PROTECTED_DRESSING_NAMES: Array[String] = [
+	"AftModuleConnector", "AftSpine", "ApronDeck01", "ApronDeck02", "ApronDeck03", "ApronDeck04",
+	"BasePlate", "BaySeatedPin00", "BaySeatedPin01", "Beacon", "BeaconMast", "BenchLeg",
+	"BenchLeg2", "BenchLeg3", "BenchLeg4", "BenchShelf", "BenchTop", "BinStock0001",
+	"BinStock0101", "BoardFoot", "Bonnet", "BonnetVent", "BranchRail", "BranchRailPost",
+	"BridgeBeam", "CableDrum", "CargoPod", "CargoRackShelf", "CarouselTool3", "CentralJunction",
+	"Centreline", "Chassis", "Column", "Column2", "Column3", "Column4", "ColumnEdge",
+	"ColumnEdge2", "ColumnEdge3", "ColumnEdge4", "ConnectionDeckA", "ConnectionDeckB",
+	"ConnectionDeckC", "ConnectorRailANorth", "ConnectorRailASouth", "ConnectorRailBEast",
+	"ConnectorRailBNorth", "ConnectorRailBWest", "ConnectorRailCNorth", "ConnectorRailCSouth",
+	"ConnectorRailEast", "ConnectorRailNorth", "ConnectorRailSouth", "ConnectorRailWest",
+	"ContainerManifest", "ControlHousing", "ControlPedestal", "CrateInboundPort",
+	"CrateInboundStarboard", "CrateInboundTop", "CrateLower", "CrateLowerAlt", "CrateOutbound",
+	"CrateOutboundPort", "CrateOutboundSmall", "CrateOutboundStarboard", "CrateOutboundTop",
+	"CrateUpper", "DeployedChockBody00", "DeployedChockBody01", "DockPlotTable",
+	"DockStatusBoard", "DockStatusField", "DrumFlange", "DrumFlange2", "DrumPlinth",
+	"DunnageSkipBand", "FleetRegistryTerminal", "FootPad", "FootPad2", "FootPad3", "FootPad4",
+	"ForwardCowl", "GantryCableTray", "GantryHeaderEndCapPort", "GantryHeaderEndCapStarboard",
+	"GantryHeaderFascia", "GantryHeaderLiftAxis", "HalyardApronNose", "HalyardApronTailPort",
+	"HalyardApronTailStarboard", "HitchBar", "HoistBeam", "HoistBridge", "HoistCarriage",
+	"HoistHook", "HoistPost", "HoistPost2", "HoistPost3", "HoistPost4", "HoistRail", "HoistRail2",
+	"Hull", "JigPost", "JunctionPortalHeader", "JunctionPortalPost", "JunctionStairRail",
+	"LandingConsoleReadout", "LandingDeckInset", "LandingEquipmentLocker",
+	"LandingObservationConsole", "LandingRail", "LandingViewerHead", "LockerBody", "Mast",
+	"ObservationLanding", "OperationsPodBack", "OperationsPodFloor", "OverheadRail",
+	"OverheadRail2", "PalletDeckInbound", "PalletDeckOutbound", "PalletDeckPort",
+	"PalletDeckStarboard", "PartsBin0000", "PartsBin0002", "PartsBin0100", "PartsBin0102",
+	"Pedestal", "PortBerthNode", "PortBranchArm", "PortPod", "RackFoot", "RailBeam", "RailBeam2",
+	"RailStop", "RailStop2", "RangeHeader", "RangeTruss", "RegistryDispatchBoard",
+	"RegistryPartsTray", "RegistryPodDeck", "RegistryPodRoof", "RegistryScreen",
+	"RegistryStowedManifest", "RegistryTaskLampHousing", "RegistryTerminalRiser",
+	"RegistryToolRack", "RoomFloor", "RoomRoof", "RotaryBase", "SeatBack", "SeatPad", "SeatRail",
+	"ServiceRoomShelf", "SideStep", "SignBoard", "SledContainer", "SledDeck", "SledSkirt",
+	"StagingBayEdgeXPortA", "StandStepLower", "StandToolbox", "StarboardBerthNode",
+	"StarboardBranchArm", "StarboardPod", "SteeringColumn", "SteeringWheel", "SupplyCrate",
+	"SupplyCrateTop", "TailFin", "ToolWall", "TowDeck", "TrolleyRailA", "TrolleyRailB",
+	"WithdrawnPin00", "WithdrawnPinClip"
 ]
 
 
@@ -1651,6 +1721,57 @@ func _apply_sign_geometry_budget() -> void:
 	# Apply without tessellating old lettering for an unused triangle report.
 	SignGeometryBudget.apply_tree(self)
 	_finalize_guide_lens_batches()
+
+
+## Phase 10 §2 scene-node trim. Folds anonymous sibling dressing in the modules
+## this world builds into merged renderers, and collapses `_box` triples that
+## carry no authority into one static body per material that still owns one
+## collision shape per original piece. Runs last so every route, sign, activity
+## and collision pass above has already resolved the tree it expects.
+func _consolidate_station_dressing() -> void:
+	_dressing_consolidation_report = {
+		"removed_nodes": 0,
+		"added_nodes": 0,
+		"solid_batches": 0,
+		"solid_sources": 0,
+		"visual_batches": 0,
+		"visual_sources": 0,
+		"folded_body_meshes": 0,
+		"folded_mesh_batches": 0,
+		"modules": [],
+	}
+	if not is_inside_tree():
+		return
+	var reference_root := get_tree().root as Node
+	var modules: Array[Node3D] = []
+	var module_names := PackedStringArray()
+	for module_name in CONSOLIDATED_DRESSING_MODULES:
+		var module := get_node_or_null(NodePath(String(module_name))) as Node3D
+		if not is_instance_valid(module):
+			continue
+		modules.append(module)
+		module_names.append(String(module_name))
+	var results := StationDressingBatch.consolidate_modules(
+		modules, PackedStringArray(PROTECTED_DRESSING_NAMES), reference_root
+	)
+	for index in results.size():
+		var result := results[index]
+		if not bool(result.get("applied", false)):
+			continue
+		(_dressing_consolidation_report["modules"] as Array).append(module_names[index])
+		for key in [
+			"removed_nodes", "added_nodes", "solid_batches", "solid_sources",
+			"visual_batches", "visual_sources", "folded_body_meshes",
+			"folded_mesh_batches",
+		]:
+			_dressing_consolidation_report[key] = int(
+				_dressing_consolidation_report[key]
+			) + int(result.get(key, 0))
+
+
+## The last consolidation pass's exact node arithmetic, for tests and probes.
+func get_dressing_consolidation_report() -> Dictionary:
+	return _dressing_consolidation_report.duplicate(true)
 
 
 ## The final sign sweep can exceed a loading frame on its own. Resume the same
