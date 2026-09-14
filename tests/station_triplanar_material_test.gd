@@ -642,14 +642,25 @@ func _test_live_station_coverage(
 	#     bucket loses 69 and 0.28 gains 27, while every replacement keeps its
 	#     registered material and is counted by the instanced census below.
 	#
+	# Re-frozen 2371/45/849/1477 -> 2247/45/849/1353 for the Phase 10 §2 dressing
+	# consolidation. `StationDressingBatch` merges anonymous sibling dressing in
+	# the world-built modules into one multi-surface renderer that carries one
+	# surface per distinct source material, so 124 submissions that shared a
+	# material with a sibling became one submission each. Every one of them was
+	# in the 0.30 m structure bucket, which is why that column moves by exactly
+	# the same 124 and the 0.22/0.28 buckets do not move at all. No recipe, no
+	# material, no physical scale and no triangle changed: the same panel maps are
+	# bound to the same geometry through `set_surface_override_material()` instead
+	# of through a `material_override` on a separate node.
+	#
 	# As before these are live census results on the merged production tree, not
 	# a sum inferred from component budgets, and missing couriers must still fail.
 	_check(
-		mapped_surface_count == 2371
+		mapped_surface_count == 2247
 		and scale_022_count == 45
 		and scale_028_count == 849
-		and scale_030_count == 1477,
-		"live static station binds exactly 2371 ordinary mapped surfaces with all seven couriers dispatched"
+		and scale_030_count == 1353,
+		"live static station binds exactly 2247 ordinary mapped surfaces with all seven couriers dispatched"
 	)
 	_check(exact_recipe, "every mapped station surface uses the matched world-triplanar albedo/normal/roughness recipe")
 	_check(forbidden_ship_atlas_count == 0, "no live station surface reuses the Arrow or Jovian directional ship atlases")

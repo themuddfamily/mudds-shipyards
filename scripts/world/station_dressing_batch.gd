@@ -53,6 +53,22 @@ const COLLISION_CHILD_NAME := "Collision"
 const PLATE_MIN_BREADTH := 0.65
 const PLATE_MAX_THICKNESS := 0.82
 
+## No batch may span more than this on any axis.
+##
+## A merged mesh is one bounding volume, and the station reads bounding volumes:
+## the walkability sweep decides what is a discrete prop, the service-line audit
+## decides what a piece is resting on, and the renderer decides what to cull. A
+## batch that spanned a whole module would answer all three questions about
+## volumes it does not actually occupy. Groups are therefore split into
+## locality-bounded runs instead of being merged wholesale. Thirty-two metres is
+## the largest cap measured at which the station's own bound-reading audits still
+## agree with the unbatched tree — the service line's drawn-geometry seating
+## probe, route-surface discovery and the walkability sweep were each re-measured
+## against it. Uncapped, the same groups produced an 89 x 17 x 75 m box across
+## most of the station, which reported a deliberately lifted service-line piece
+## as still seated.
+const MAX_BATCH_EXTENT := 32.0
+
 
 ## One consolidation pass over `module_root`'s subtree.
 ##
@@ -156,7 +172,9 @@ static func _consolidate_parent(
 		referenced: Dictionary,
 		report: Dictionary
 	) -> void:
-	if parent == null:
+	# A parent that this pass already emptied is still in the collected roster
+	# until its deferred free lands, and a detached node has no global transform.
+	if parent == null or not is_instance_valid(parent) or not parent.is_inside_tree():
 		return
 	# Sibling order is the authored order; grouping keeps it so a merged mesh
 	# emits its surfaces in the same sequence the separate nodes submitted them.
@@ -201,23 +219,62 @@ static func _consolidate_parent(
 			(visual_groups[visual_key] as Array).append(visual)
 
 	for key in solid_groups:
-		var bodies := solid_groups[key] as Array
-		if bodies.size() < 2:
-			continue
-		if _build_solid_batch(parent, bodies):
-			report["solid_batches"] = int(report["solid_batches"]) + 1
-			report["solid_sources"] = int(report["solid_sources"]) + bodies.size()
-			report["removed_nodes"] = int(report["removed_nodes"]) + bodies.size() * 3
-			report["added_nodes"] = int(report["added_nodes"]) + bodies.size() + 2
+		for bodies in _local_chunks(parent, solid_groups[key] as Array):
+			if bodies.size() < 2:
+				continue
+			if _build_solid_batch(parent, bodies):
+				report["solid_batches"] = int(report["solid_batches"]) + 1
+				report["solid_sources"] = int(report["solid_sources"]) + bodies.size()
+				report["removed_nodes"] = int(report["removed_nodes"]) + bodies.size() * 3
+				report["added_nodes"] = int(report["added_nodes"]) + bodies.size() + 2
 	for key in visual_groups:
-		var visuals := visual_groups[key] as Array
-		if visuals.size() < 2:
+		for visuals in _local_chunks(parent, visual_groups[key] as Array):
+			if visuals.size() < 2:
+				continue
+			if _build_visual_batch(parent, visuals, "DressingRenderBatch"):
+				report["visual_batches"] = int(report["visual_batches"]) + 1
+				report["visual_sources"] = int(report["visual_sources"]) + visuals.size()
+				report["removed_nodes"] = int(report["removed_nodes"]) + visuals.size()
+				report["added_nodes"] = int(report["added_nodes"]) + 1
+
+
+## Splits one same-render-state group into runs that each stay inside
+## `MAX_BATCH_EXTENT` on every axis, walking the children in their authored
+## order so a run is a contiguous stretch of the thing the module built.
+static func _local_chunks(parent: Node3D, sources: Array) -> Array:
+	var chunks: Array = []
+	var current: Array = []
+	var bounds := AABB()
+	for source_variant in sources:
+		var box := _source_bounds_in_parent(parent, source_variant as Node3D)
+		if current.is_empty():
+			current = [source_variant]
+			bounds = box
 			continue
-		if _build_visual_batch(parent, visuals, "DressingRenderBatch"):
-			report["visual_batches"] = int(report["visual_batches"]) + 1
-			report["visual_sources"] = int(report["visual_sources"]) + visuals.size()
-			report["removed_nodes"] = int(report["removed_nodes"]) + visuals.size()
-			report["added_nodes"] = int(report["added_nodes"]) + 1
+		var merged := bounds.merge(box)
+		if merged.size.x > MAX_BATCH_EXTENT \
+				or merged.size.y > MAX_BATCH_EXTENT \
+				or merged.size.z > MAX_BATCH_EXTENT:
+			chunks.append(current)
+			current = [source_variant]
+			bounds = box
+			continue
+		current.append(source_variant)
+		bounds = merged
+	if not current.is_empty():
+		chunks.append(current)
+	return chunks
+
+
+## Where a source's drawn volume sits in its batch parent's own space.
+static func _source_bounds_in_parent(parent: Node3D, source: Node3D) -> AABB:
+	var visual := source as MeshInstance3D
+	if visual == null:
+		visual = source.get_node_or_null(NodePath(MESH_CHILD_NAME)) as MeshInstance3D
+	if visual == null or visual.mesh == null:
+		return AABB(parent.to_local(source.global_position), Vector3.ZERO)
+	var placement := parent.global_transform.affine_inverse() * visual.global_transform
+	return placement * visual.mesh.get_aabb()
 
 
 ## A node nothing else can be holding on to: no script, no metadata, no group,

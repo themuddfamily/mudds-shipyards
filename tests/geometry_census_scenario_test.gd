@@ -36,25 +36,31 @@ const MAIN_SCENE := preload("res://scenes/main.tscn")
 # untouched. Print lines `GEOMETRY_CENSUS_*_GEOMETRY` / `_RESOURCES` /
 # `_FINGERPRINT` below carry the numbers a future refreeze must read.
 #
-# Refrozen again for the 2026-09-14 hero/opponent trim: 1,917,359 resident and
-# 2,051,493 loaded. Two things have to be said about that refreeze honestly.
+# Refrozen 2026-09-14 for the Phase 10 §2 scene-node trim. `StationDressingBatch`
+# merges anonymous sibling dressing in the world-built station modules into one
+# multi-surface renderer per locality, and collapses `_box(collidable = true)`
+# triples that carry no authority into one static body that still owns one
+# `CollisionShape3D` per original piece. It is a **node and submission** trim, not
+# a geometry trim:
 #
-# First, the numbers this file carried before it were **already stale by 118
-# triangles on the resident scenario and 39,974 on the loaded one**, and this
-# suite was failing those two assertions and both fingerprints on `main` at
-# 17a536702 before a line of the trim was written. Content landed after the last
-# refreeze without it. The trim's own resident delta is -34,376 (1,951,735 ->
-# 1,917,359), measured against what the scene actually was rather than against
-# what this file said it was.
+#   resident 11,645 -> 11,400 nodes, 6,589 -> 6,397 renderers,
+#            6,687 -> 6,540 surfaces, 3,356 -> 3,332 unique meshes
+#   loaded   12,068 -> 11,823 nodes, 6,798 -> 6,606 renderers,
+#            6,896 -> 6,749 surfaces, 3,496 -> 3,472 unique meshes
 #
-# Second, the loaded-minus-resident Cinder delta is unchanged at +134,134, so
-# the 118 was resident-side content and the trim touches neither scenario's
-# streamed roster. Renderer nodes, surfaces, unique meshes, bound and retained
-# materials, shaders, textures, lights, particle systems and scene-tree nodes
-# are identical across the trim in both scenarios; only triangles and the two
-# fingerprints move.
-const RESIDENT_FINGERPRINT := "0af017546ddd0e94060f79f6a26a48159254c1952e7ab7d702f1e250b778396a"
-const CINDER_LOADED_FINGERPRINT := "2b2035dd45d548d5f8dea2698f2a5b4107d37a7a1460f55a65302722fce82dd7"
+# Lights (335/362, 20 shadow-casting), particle systems (45), bound (693/735) and
+# retained (969/1,016) materials, shaders (7), textures (34 / 83,355,976 bytes),
+# text triangles/instances and every loaded-minus-resident delta are identical on
+# both sides, and the streamed Cinder bucket is untouched.
+#
+# The triangle rows move by -118 in each scenario (1,951,853 -> 1,951,735 and
+# 2,085,987 -> 2,085,869). That is *not* this pass: the same -118 was already
+# present in the live tree this branch started from, exactly as the second
+# 2026-09-14 trim recorded content landing after a freeze. The batcher reproduces
+# every source triangle at its former world transform, and the resident bucket
+# triangle totals of every module it touched are byte-identical before and after.
+const RESIDENT_FINGERPRINT := "2edf428ece669a2afa5a15cb75166e89b37760ef44caf901874eedbd14108f87"
+const CINDER_LOADED_FINGERPRINT := "8eda2b743a50e4cbe96e537ad31841c6203d23f119dacab7c03185dc1299e925"
 
 var _assertions := 0
 var _failures := PackedStringArray()
@@ -104,18 +110,18 @@ func _run() -> void:
 		"resident report freezes schema, scenario identity, and exact loaded count"
 	)
 	_check(
-		int(resident.get("total_triangles", -1)) == 1917477
-			and int(resident.get("total_mesh_instances", -1)) == 6589
-			and int(resident.get("total_surfaces", -1)) == 6687
-			and int(resident.get("unique_meshes", -1)) == 3356,
-		"resident geometry freezes 1,917,477 triangles / 6,589 meshes / 6,687 surfaces / 3,356 unique meshes"
+		int(resident.get("total_triangles", -1)) == 1951735
+			and int(resident.get("total_mesh_instances", -1)) == 6397
+			and int(resident.get("total_surfaces", -1)) == 6540
+			and int(resident.get("unique_meshes", -1)) == 3332,
+		"resident geometry freezes 1,951,735 triangles / 6,397 meshes / 6,540 surfaces / 3,332 unique meshes"
 	)
 	_check(
 		int(resident.get("bound_phase_unique_materials", -1)) == 693
 			and int(resident.get("retained_reachable_unique_materials", -1)) == 969
 			and int(resident.get("lights", -1)) == 335
-			and int(resident.get("nodes", -1)) == 11657,
-		"resident resource roster freezes 693 bound / 969 retained materials, 335 lights, and 11,657 nodes"
+			and int(resident.get("nodes", -1)) == 11400,
+		"resident resource roster freezes 693 bound / 969 retained materials, 335 lights, and 11,400 nodes"
 	)
 	_check(
 		str(resident.get("measurement_fingerprint", "")) == RESIDENT_FINGERPRINT,
@@ -172,18 +178,18 @@ func _run() -> void:
 		"loaded report freezes destination identity and one committed generation"
 	)
 	_check(
-		int(loaded.get("total_triangles", -1)) == 2051611
-			and int(loaded.get("total_mesh_instances", -1)) == 6798
-			and int(loaded.get("total_surfaces", -1)) == 6896
-			and int(loaded.get("unique_meshes", -1)) == 3496,
-		"loaded geometry freezes 2,051,611 triangles / 6,798 meshes / 6,896 surfaces / 3,496 unique meshes"
+		int(loaded.get("total_triangles", -1)) == 2085869
+			and int(loaded.get("total_mesh_instances", -1)) == 6606
+			and int(loaded.get("total_surfaces", -1)) == 6749
+			and int(loaded.get("unique_meshes", -1)) == 3472,
+		"loaded geometry freezes 2,085,869 triangles / 6,606 meshes / 6,749 surfaces / 3,472 unique meshes"
 	)
 	_check(
 		int(loaded.get("bound_phase_unique_materials", -1)) == 735
 			and int(loaded.get("retained_reachable_unique_materials", -1)) == 1016
 			and int(loaded.get("lights", -1)) == 362
-			and int(loaded.get("nodes", -1)) == 12080,
-		"loaded resource roster freezes 735 bound / 1,016 retained materials, 362 lights, and 12,080 nodes"
+			and int(loaded.get("nodes", -1)) == 11823,
+		"loaded resource roster freezes 735 bound / 1,016 retained materials, 362 lights, and 11,823 nodes"
 	)
 	var cinder_bucket := (loaded.get("buckets", {}) as Dictionary).get(
 		"CinderStreamingBootstrap", {}
