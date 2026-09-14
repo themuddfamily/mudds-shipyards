@@ -182,17 +182,27 @@ in this document has been raised.**
 
 | Schema-v2 metric | Station resident (0 loaded) | Cinder loaded (1 loaded) | Loaded delta |
 | --- | ---: | ---: | ---: |
-| Triangles | 1,917,359 | 2,051,493 | +134,134 |
-| Mesh renderer nodes | 6,589 | 6,798 | +209 |
-| Surfaces | 6,687 | 6,896 | +209 |
-| Unique meshes | 3,356 | 3,496 | +140 |
+| Triangles | 1,917,477 | 2,051,611 | +134,134 |
+| Mesh renderer nodes | 6,435 | 6,644 | +209 |
+| Surfaces | 6,570 | 6,779 | +209 |
+| Unique meshes | 3,355 | 3,495 | +140 |
 | Bound-phase materials | 693 | 735 | +42 |
 | Retained/reachable materials | 969 | 1,016 | +47 |
 | Unique shaders | 7 | 7 | 0 |
 | Text triangles / instances | 79,591 / 43 | 100,157 / 56 | +20,566 / +13 |
 | Lights / shadow lights | 335 / 20 | 362 / 20 | +27 / 0 |
 | Particle systems | 45 | 45 | 0 |
-| Scene-tree nodes | 11,455 | 11,878 | +423 |
+| Scene-tree nodes | 11,467 | 11,890 | +423 |
+
+Measured on `main` on 2026-09-14 (evening) with the station round-stock trim, the
+fleet fitout budget, the hero/opponent fitting budget, the defender heat vents,
+the walkability dressing, the solid Aft gate ribs (+12 collision nodes), the
+seam standoffs (transforms only) and the station dressing batcher (−190 nodes,
+−154 renderers) merged together. Resident triangles are 6.5% over the 1,800,000
+ceiling and nodes 64% over the 7,000 ceiling; the remaining triangle headroom is
+imported hero art (Torrent 100,098, Zenith 52,686) and the remaining node volume
+is HabitatSpine, AftJunctionStack, the ship fitouts and the count-audited
+OperationalLattice, none of which this pass touched.
 
 The first three 2026-09-14 trims below were each measured on their own branch
 from the same 2,407,157-triangle base (the first station trim). Merged on `main`
