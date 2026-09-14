@@ -182,21 +182,21 @@ in this document has been raised.**
 
 | Schema-v2 metric | Station resident (0 loaded) | Cinder loaded (1 loaded) | Loaded delta |
 | --- | ---: | ---: | ---: |
-| Triangles | 2,404,183 | 2,538,317 | +134,134 |
-| Mesh renderer nodes | 6,586 | 6,795 | +209 |
-| Surfaces | 6,681 | 6,890 | +209 |
-| Unique meshes | 3,353 | 3,493 | +140 |
+| Triangles | 2,407,157 | 2,541,291 | +134,134 |
+| Mesh renderer nodes | 6,588 | 6,797 | +209 |
+| Surfaces | 6,686 | 6,895 | +209 |
+| Unique meshes | 3,354 | 3,494 | +140 |
 | Bound-phase materials | 692 | 734 | +42 |
 | Retained/reachable materials | 968 | 1,015 | +47 |
 | Unique shaders | 7 | 7 | 0 |
 | Text triangles / instances | 79,591 / 43 | 100,157 / 56 | +20,566 / +13 |
 | Lights / shadow lights | 335 / 20 | 362 / 20 | +27 / 0 |
 | Particle systems | 45 | 45 | 0 |
-| Scene-tree nodes | 11,603 | 12,026 | +423 |
+| Scene-tree nodes | 11,612 | 12,035 | +423 |
 
 #### 2026-09-14 trim: -528,560 resident triangles
 
-The station-resident scene measured 2,932,743 triangles before this pass against
+The station-resident scene measured 2,935,717 triangles (with the Arrow access route of `24161c6`) before this pass against
 the 1,800,000 ceiling above. Phase 10 item 2 of `ROADMAP.md` says trim before
 raising budgets, so two reductions were taken and nothing was relaxed. Both are
 triangle-only: renderer nodes, surfaces, unique meshes, materials, shaders,
@@ -220,7 +220,7 @@ the streamed Cinder delta is unchanged.
 | `ShipyardWorld/UpperOperations` | 21,330 | 20,562 | -768 |
 | `ShipyardWorld/ModernFleetRegistry` | 17,052 | 16,476 | -576 |
 | `ShipyardWorld/ExteriorTargetRange` | 33,275 | 33,083 | -192 |
-| **Whole scene** | **2,932,743** | **2,404,183** | **-528,560** |
+| **Whole scene** | **2,935,717** | **2,407,157** | **-528,560** |
 
 **Station cylinder walls lost their four lateral rings (-408,960).** Every
 chamfered cylinder and frustum the station modules build was still subdividing
@@ -465,12 +465,12 @@ copies, 27 lights and 426 nodes. Its extra three nodes beyond the whole-scene
 contradicting the total.
 
 The 2026-09-14 `tools/geometry_census.gd` resident measurement fingerprint is
-`3a1b833f34da9999078baf9fa06cc62c95887729f83d1a9ad454810ed776c5b3`;
+`09e5f5d597d85a2f9cb4e76bb7141f60646e5fdafd84fa06a6b3cb0ac562341d`;
 the loaded fingerprint is
-`6df5f7eef310bf52190997458e516f4f7abf97723b78c652506f1805237ab42d`.
+`69ec5823c9e6cb6ca86d256d84efbc88ba959cf779f82b43349041e0d8b74fc5`.
 `tests/geometry_census_scenario_test.gd` takes its own settle and therefore
-carries its own pair, `3ae978f84df83f35133b76f4464f434d01b4527812975098d349eff028ab4580`
-and `acebd1cbe04b8bb5c233198927e5df2d6fe4e166bcb3f9d4034315d5735013d5`.
+carries its own pair, `c839303341ff1af55b5739aed800d1aafc11740240f73d8191c6633446835fb1`
+and `bb414bf00e3fbbfae601757ab0b5a41bb4d291f8a35a141adbff780e6d175a6b`.
 `tests/geometry_census_scenario_test.gd` freezes both production scenarios,
 their exact totals/delta, sole-generation ownership, a resident-mismatch red
 mutation, and the separate fingerprints. These are renderer-independent live
