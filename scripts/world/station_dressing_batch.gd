@@ -44,6 +44,15 @@ const DETERMINANT_EPSILON := 1e-6
 const MESH_CHILD_NAME := "Mesh"
 const COLLISION_CHILD_NAME := "Collision"
 
+## A merged bound this broad and this thin, facing up, is the exact shape the
+## station's route-surface discovery reads as a walkable plate
+## (`tests/station_surface_playability_test.gd`). Several separate props can
+## aggregate into that shape while the space between them stays empty, so a batch
+## that would produce one is refused and its sources are left alone. The numbers
+## are that audit's own published thresholds.
+const PLATE_MIN_BREADTH := 0.65
+const PLATE_MAX_THICKNESS := 0.82
+
 
 ## One consolidation pass over `module_root`'s subtree.
 ##
@@ -153,7 +162,6 @@ static func _consolidate_parent(
 	# emits its surfaces in the same sequence the separate nodes submitted them.
 	var solid_groups := {}
 	var visual_groups := {}
-	var fold_groups := {}
 	for child in parent.get_children():
 		if child is StaticBody3D:
 			var body := child as StaticBody3D
@@ -171,19 +179,11 @@ static func _consolidate_parent(
 					solid_groups[solid_key] = []
 				(solid_groups[solid_key] as Array).append(body)
 				continue
-			# The body itself stays — it carries metadata, a protected name or a
-			# live reference — but its render child is still ordinary dressing.
-			# Anything that can still reach the body can ask it for `Mesh`, so a
-			# referenced or protected body keeps its own renderer.
-			if _node_is_free_standing(mesh_child, {}, referenced) \
-					and not protected_set.has(String(body.name)) \
-					and not referenced.has(body.get_instance_id()):
-				var fold_key := "%d|%d" % [
-					int(mesh_child.cast_shadow), int(mesh_child.gi_mode)
-				]
-				if not fold_groups.has(fold_key):
-					fold_groups[fold_key] = []
-				(fold_groups[fold_key] as Array).append(mesh_child)
+			# A body that keeps its own node keeps its own `Mesh` child. The
+			# station's route-surface roster resolves `<body>/Mesh` and compares
+			# that renderer's bounds against the body's collider, so lifting the
+			# renderer out of a surviving body would break an audit even though
+			# nothing visible moved.
 			continue
 		if child is MultiMeshInstance3D:
 			continue
@@ -209,15 +209,6 @@ static func _consolidate_parent(
 			report["solid_sources"] = int(report["solid_sources"]) + bodies.size()
 			report["removed_nodes"] = int(report["removed_nodes"]) + bodies.size() * 3
 			report["added_nodes"] = int(report["added_nodes"]) + bodies.size() + 2
-	for key in fold_groups:
-		var meshes := fold_groups[key] as Array
-		if meshes.size() < 2:
-			continue
-		if _build_visual_batch(parent, meshes, "FoldedRenderBatch"):
-			report["folded_mesh_batches"] = int(report["folded_mesh_batches"]) + 1
-			report["folded_body_meshes"] = int(report["folded_body_meshes"]) + meshes.size()
-			report["removed_nodes"] = int(report["removed_nodes"]) + meshes.size()
-			report["added_nodes"] = int(report["added_nodes"]) + 1
 	for key in visual_groups:
 		var visuals := visual_groups[key] as Array
 		if visuals.size() < 2:
@@ -384,7 +375,7 @@ static func _build_solid_batch(parent: Node3D, bodies: Array) -> bool:
 		sources.append(mesh_child)
 		offsets.append(body.transform * mesh_child.transform)
 	var merged := _merge(sources, offsets)
-	if merged.is_empty():
+	if merged.is_empty() or _reads_as_walkable_plate(merged["mesh"] as ArrayMesh):
 		return false
 	var first := bodies[0] as StaticBody3D
 	var first_mesh := first.get_node(NodePath(MESH_CHILD_NAME)) as MeshInstance3D
@@ -435,7 +426,7 @@ static func _build_visual_batch(parent: Node3D, visuals: Array, suffix: String) 
 		sources.append(visual)
 		offsets.append(parent_inverse * visual.global_transform)
 	var merged := _merge(sources, offsets)
-	if merged.is_empty():
+	if merged.is_empty() or _reads_as_walkable_plate(merged["mesh"] as ArrayMesh):
 		return false
 	var first := visuals[0] as MeshInstance3D
 	var batch := MeshInstance3D.new()
@@ -467,6 +458,19 @@ static func _build_visual_batch(parent: Node3D, visuals: Array, suffix: String) 
 static func _apply_surface_materials(visual: MeshInstance3D, materials: Array) -> void:
 	for index in materials.size():
 		visual.set_surface_override_material(index, materials[index] as Material)
+
+
+## Whether a merged bound would present itself as a floor plate. See the
+## `PLATE_*` constants: the aggregate of several props can take that shape while
+## the volume between them is empty, and a rendered plate with nothing under it
+## is a real defect the station audits for.
+static func _reads_as_walkable_plate(mesh: ArrayMesh) -> bool:
+	if mesh == null:
+		return false
+	var size := mesh.get_aabb().size
+	return size.x >= PLATE_MIN_BREADTH \
+		and size.z >= PLATE_MIN_BREADTH \
+		and size.y <= PLATE_MAX_THICKNESS
 
 
 static func _batch_name(parent: Node3D, suffix: String) -> String:

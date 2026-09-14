@@ -1331,16 +1331,22 @@ const BUILD_STAGES: Array[Array] = [
 ## `HabitatSpine`, `VipReceptionSuite`, `ObservationLogisticsSpur`,
 ## `SalvageTerrace`, `FabricationAnnex` and the parked craft are all absent
 ## because their geometry is owned elsewhere.
+##
+## `OperationalLattice`, `CentralBerthServiceLine`, `ModernFleetRegistry` and
+## `IndustrialInfrastructure` are absent for a different reason: each publishes a
+## frozen per-component *count* and one-mesh-per-collider audit keyed to its own
+## node roster
+## (`get_operational_lattice_audit_report()`, each
+## `StationOperationsActivity.get_audit_report()`, the service-line audit and the
+## modern-registry render contract). Batching inside them is a change to that
+## indexing contract rather than to anonymous dressing, and this pass deliberately
+## does not weaken an audit to buy nodes.
 const CONSOLIDATED_DRESSING_MODULES: Array[StringName] = [
 	&"ExposedDockLattice",
 	&"LandingPad",
-	&"CentralBerthServiceLine",
 	&"UpperOperations",
-	&"ModernFleetRegistry",
-	&"IndustrialInfrastructure",
 	&"CargoAndMachinery",
 	&"OpenLaunchSpine",
-	&"OperationalLattice",
 	&"FleetDockComb",
 	&"JovianFreightBerth",
 	&"ExteriorTargetRange",
@@ -1365,29 +1371,36 @@ const PROTECTED_DRESSING_NAMES: Array[String] = [
 	"ContainerManifest", "ControlHousing", "ControlPedestal", "CrateInboundPort",
 	"CrateInboundStarboard", "CrateInboundTop", "CrateLower", "CrateLowerAlt", "CrateOutbound",
 	"CrateOutboundPort", "CrateOutboundSmall", "CrateOutboundStarboard", "CrateOutboundTop",
-	"CrateUpper", "DeployedChockBody00", "DeployedChockBody01", "DockPlotTable",
-	"DockStatusBoard", "DockStatusField", "DrumFlange", "DrumFlange2", "DrumPlinth",
-	"DunnageSkipBand", "FleetRegistryTerminal", "FootPad", "FootPad2", "FootPad3", "FootPad4",
-	"ForwardCowl", "GantryCableTray", "GantryHeaderEndCapPort", "GantryHeaderEndCapStarboard",
-	"GantryHeaderFascia", "GantryHeaderLiftAxis", "HalyardApronNose", "HalyardApronTailPort",
+	"CrateUpper", "DeployedChockBody00", "DeployedChockBody01", "DispatchConsole01",
+	"DispatchConsole02", "DispatchConsole03", "DispatchScreen01", "DispatchScreen02",
+	"DispatchScreen03", "DispatchSeat01", "DispatchSeat02", "DispatchSeat03", "DispatchStool01",
+	"DispatchStool02", "DispatchStool03", "DockPlotTable", "DockStatusBoard", "DockStatusField",
+	"DrumFlange", "DrumFlange2", "DrumPlinth", "DunnageSkipBand", "FleetRegistryTerminal",
+	"FootPad", "FootPad2", "FootPad3", "FootPad4", "ForwardCowl", "GantryCableTray",
+	"GantryHeaderEndCapPort", "GantryHeaderEndCapStarboard", "GantryHeaderFascia",
+	"GantryHeaderLiftAxis", "HalyardApronNose", "HalyardApronTailPort",
 	"HalyardApronTailStarboard", "HitchBar", "HoistBeam", "HoistBridge", "HoistCarriage",
 	"HoistHook", "HoistPost", "HoistPost2", "HoistPost3", "HoistPost4", "HoistRail", "HoistRail2",
-	"Hull", "JigPost", "JunctionPortalHeader", "JunctionPortalPost", "JunctionStairRail",
-	"LandingConsoleReadout", "LandingDeckInset", "LandingEquipmentLocker",
-	"LandingObservationConsole", "LandingRail", "LandingViewerHead", "LockerBody", "Mast",
-	"ObservationLanding", "OperationsPodBack", "OperationsPodFloor", "OverheadRail",
-	"OverheadRail2", "PalletDeckInbound", "PalletDeckOutbound", "PalletDeckPort",
-	"PalletDeckStarboard", "PartsBin0000", "PartsBin0002", "PartsBin0100", "PartsBin0102",
-	"Pedestal", "PortBerthNode", "PortBranchArm", "PortPod", "RackFoot", "RailBeam", "RailBeam2",
-	"RailStop", "RailStop2", "RangeHeader", "RangeTruss", "RegistryDispatchBoard",
-	"RegistryPartsTray", "RegistryPodDeck", "RegistryPodRoof", "RegistryScreen",
-	"RegistryStowedManifest", "RegistryTaskLampHousing", "RegistryTerminalRiser",
-	"RegistryToolRack", "RoomFloor", "RoomRoof", "RotaryBase", "SeatBack", "SeatPad", "SeatRail",
-	"ServiceRoomShelf", "SideStep", "SignBoard", "SledContainer", "SledDeck", "SledSkirt",
-	"StagingBayEdgeXPortA", "StandStepLower", "StandToolbox", "StarboardBerthNode",
-	"StarboardBranchArm", "StarboardPod", "SteeringColumn", "SteeringWheel", "SupplyCrate",
-	"SupplyCrateTop", "TailFin", "ToolWall", "TowDeck", "TrolleyRailA", "TrolleyRailB",
-	"WithdrawnPin00", "WithdrawnPinClip"
+	"Hull", "JigPost", "JunctionAccessRamp", "JunctionAccessTread01", "JunctionAccessTread02",
+	"JunctionAccessTread03", "JunctionAccessTread04", "JunctionAccessTread05",
+	"JunctionAccessTread06", "JunctionAccessTread07", "JunctionPortalHeader",
+	"JunctionPortalPost", "JunctionPortalPost02", "JunctionStairRail", "LandingConsoleReadout",
+	"LandingDeckInset", "LandingEquipmentLocker", "LandingObservationConsole", "LandingRail",
+	"LandingViewerHead", "LockerBody", "Mast", "ObservationLanding",
+	"OperationsCeilingLightEastBody", "OperationsCeilingLightEastLens",
+	"OperationsCeilingLightWestBody", "OperationsCeilingLightWestLens", "OperationsPodBack",
+	"OperationsPodFloor", "OverheadRail", "OverheadRail2", "PalletDeckInbound",
+	"PalletDeckOutbound", "PalletDeckPort", "PalletDeckStarboard", "PartsBin0000", "PartsBin0002",
+	"PartsBin0100", "PartsBin0102", "Pedestal", "PortBerthNode", "PortBranchArm", "PortPod",
+	"RackFoot", "RailBeam", "RailBeam2", "RailStop", "RailStop2", "RangeHeader", "RangeTruss",
+	"RegistryDispatchBoard", "RegistryPartsTray", "RegistryPodDeck", "RegistryPodRoof",
+	"RegistryScreen", "RegistryStowedManifest", "RegistryTaskLampHousing",
+	"RegistryTerminalRiser", "RegistryToolRack", "RoomFloor", "RoomRoof", "RotaryBase",
+	"SeatBack", "SeatPad", "SeatRail", "ServiceRoomShelf", "SideStep", "SignBoard",
+	"SledContainer", "SledDeck", "SledSkirt", "StagingBayEdgeXPortA", "StandStepLower",
+	"StandToolbox", "StarboardBerthNode", "StarboardBranchArm", "StarboardPod", "SteeringColumn",
+	"SteeringWheel", "SupplyCrate", "SupplyCrateTop", "TailFin", "ToolWall", "TowDeck",
+	"TrolleyRailA", "TrolleyRailB", "WithdrawnPin00", "WithdrawnPinClip"
 ]
 
 
@@ -6915,8 +6928,19 @@ func _build_architecture() -> void:
 	# the portal keeps the same footprint and navigation role while the walkway
 	# retains an open sky/light gap above the player sightline and the header's key-
 	# light shadow lands beyond the branch walkway.
-	for x_position in [-6.1, 6.1]:
-		_box(shell, "JunctionPortalPost", Vector3(x_position, 5.55, 22.6), Vector3(1.1, 11.1, 1.2), _materials["blue"])
+	# Both legs are named. The starboard one used to take Godot's
+	# `@StaticBody3D@nnn` fallback, which made it invisible to every
+	# name-addressed audit and to the dressing batcher's protected roster, even
+	# though `station_presentation_defect_witness_test` requires both legs to
+	# stand as separate grounded supports.
+	for portal_post in [["JunctionPortalPost", -6.1], ["JunctionPortalPost02", 6.1]]:
+		_box(
+			shell,
+			portal_post[0] as String,
+			Vector3(portal_post[1] as float, 5.55, 22.6),
+			Vector3(1.1, 11.1, 1.2),
+			_materials["blue"]
+		)
 	_box(shell, "JunctionPortalHeader", Vector3(0, 12.0, 22.6), Vector3(13.3, 2.0, 1.2), _materials["blue"])
 	_box(shell, "JunctionSignFace", Vector3(0, 12.0, 21.95), Vector3(12.0, 1.3, 0.12), _materials["navy"], false)
 	# MAP-004 family, found by sweeping every live `TextMesh` rather than only the
