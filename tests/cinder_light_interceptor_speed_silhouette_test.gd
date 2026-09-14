@@ -32,21 +32,32 @@ func _initialize() -> void:
 			"copies share immutable rail, blade and finish resources without merging renderer ownership"
 		)
 		var rail_material := first_rails.material_override as StandardMaterial3D
+		# f68f1453e formed the rail, blade and wing skins, so the authored
+		# extents now live in the emitted ArrayMesh AABB rather than a BoxMesh
+		# `size`. Production itself validates the same AABB extents.
 		_check(
-			first_rails.multimesh.mesh is BoxMesh
-				and (first_rails.multimesh.mesh as BoxMesh).size.is_equal_approx(Interceptor.SPEED_RAIL_SIZE)
+			first_rails.multimesh.mesh is ArrayMesh
+				and first_rails.multimesh.mesh.get_aabb().size.is_equal_approx(
+					Interceptor.SPEED_RAIL_SIZE
+				)
 				and first_rails.multimesh.instance_count == 2
 				and first_rails.multimesh.visible_instance_count == 2
 				and first_rails.cast_shadow == GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 				and rail_material != null
-				and rail_material.emission_enabled
-				and rail_material.emission.is_equal_approx(Interceptor.CANOPY_COLOR)
-				and is_equal_approx(rail_material.emission_energy_multiplier, 2.4),
-			"the swept cyan rails retain their efficient mirrored luminous recipe"
+				# 80162311c retired the glowing cyan rail recipe when the block
+				# hulls became shaped manufactured shells: the rails now read as
+				# brushed structural alloy, so they must carry no emission at all.
+				and not rail_material.emission_enabled
+				and rail_material.albedo_color.is_equal_approx(Color("87959b"))
+				and is_equal_approx(rail_material.metallic, 0.68)
+				and is_equal_approx(rail_material.roughness, 0.32),
+			"the swept structural rails retain their efficient mirrored matte alloy recipe"
 		)
 		_check(
-			first_blades.multimesh.mesh is BoxMesh
-				and (first_blades.multimesh.mesh as BoxMesh).size.is_equal_approx(Interceptor.WINGTIP_BLADE_SIZE)
+			first_blades.multimesh.mesh is ArrayMesh
+				and first_blades.multimesh.mesh.get_aabb().size.is_equal_approx(
+					Interceptor.WINGTIP_BLADE_SIZE
+				)
 				and first_blades.multimesh.instance_count == 2
 				and first_blades.multimesh.visible_instance_count == 2
 				and first_blades.cast_shadow == GeometryInstance3D.SHADOW_CASTING_SETTING_ON
@@ -58,22 +69,31 @@ func _initialize() -> void:
 		var production_wing := first.get_variant_visual_root().get_node_or_null(
 			^"RapidResponseWing"
 		) as MeshInstance3D
-		var wing_top := production_wing.position.y \
-			+ (production_wing.mesh as BoxMesh).size.y * 0.5 if production_wing != null else INF
-		var rails_seated := production_wing != null
+		var has_wing := production_wing != null and production_wing.mesh != null
+		var wing_bounds := production_wing.mesh.get_aabb() if has_wing else AABB()
+		var wing_top := production_wing.position.y + wing_bounds.end.y if has_wing else INF
+		# e332cef2b sheared each rail so its shallow end closures embed into the
+		# formed wing crown instead of floating above it by up to 15 cm, so the
+		# rails no longer rest exactly on a nominal crown plane. What the player
+		# must still see is no gap: every rail reaches into the wing while its
+		# own crown stays proud of it. The rendered triangle contact is proven in
+		# tests/cinder_light_interceptor_wing_resource_sharing_test.gd.
+		var rails_seated := has_wing
 		for transform_value in first_rails.get_meta(&"authored_instance_transforms", []):
 			var rail_bounds := ((transform_value as Transform3D) * first_rails.multimesh.mesh.get_aabb()).abs()
-			rails_seated = rails_seated and is_equal_approx(rail_bounds.position.y, wing_top)
+			rails_seated = rails_seated \
+				and rail_bounds.position.y <= wing_top \
+				and rail_bounds.end.y > wing_top
 		_check(
 			rails_seated,
-			"both luminous speed rails seat exactly on the response wing with no detached seam"
+			"both luminous speed rails embed into the response wing crown with no detached seam"
 		)
 		var visual_bounds := _batch_bounds(first_rails).merge(_batch_bounds(first_blades))
 		_check(
-			production_wing != null
-				and production_wing.mesh is BoxMesh
-				and visual_bounds.position.x >= -(production_wing.mesh as BoxMesh).size.x * 0.5
-				and visual_bounds.end.x <= (production_wing.mesh as BoxMesh).size.x * 0.5
+			has_wing
+				and production_wing.mesh is ArrayMesh
+				and visual_bounds.position.x >= production_wing.position.x + wing_bounds.position.x
+				and visual_bounds.end.x <= production_wing.position.x + wing_bounds.end.x
 				and visual_bounds.position.y >= -Interceptor.HULL_SIZE.y * 0.5
 				and visual_bounds.end.y <= Interceptor.HULL_SIZE.y * 0.5
 				and visual_bounds.position.z >= -Interceptor.HULL_SIZE.z * 0.5
