@@ -111,6 +111,7 @@ func _ready() -> void:
 		add_child(capture)
 		startup_completed.connect(capture.on_startup_completed)
 		capture.start_capture()
+	_apply_display_stretch_policy()
 	_boot_usec = Time.get_ticks_usec()
 	print("STARTUP begin: renderer=%s device=%s" % [
 		RenderingServer.get_current_rendering_method(), RenderingServer.get_video_adapter_name()
@@ -129,6 +130,22 @@ func _ready() -> void:
 	)
 	if auto_start:
 		run_startup()
+
+
+## The project pins `display/window/stretch/aspect` at the engine default,
+## `keep`, which pillarboxes every 21:9, 32:9 and 4:3 display to a 16:9 image.
+## Real displays expand to the window aspect so the HUD's
+## `UltrawideSafeAreaContract` and the KEEP_HEIGHT cameras do their work; the
+## headless runner keeps the default because its 64 x 64 window would otherwise
+## turn the 1600 x 900 test viewport square.
+static func stretch_aspect_for_display(display_name: String) -> Window.ContentScaleAspect:
+	if display_name == "headless":
+		return Window.CONTENT_SCALE_ASPECT_KEEP
+	return Window.CONTENT_SCALE_ASPECT_EXPAND
+
+
+func _apply_display_stretch_policy() -> void:
+	get_tree().root.content_scale_aspect = stretch_aspect_for_display(DisplayServer.get_name())
 
 
 func _quit_after_cli_output() -> void:
