@@ -77,8 +77,29 @@ const MAIN_SCENE := preload("res://scenes/main.tscn")
 # Unique meshes fall because a merged renderer replaces N cached box meshes with
 # one, and surfaces fall because pieces that shared a material with a sibling now
 # share one submission — a draw-call reduction, not lost geometry.
-const RESIDENT_FINGERPRINT := "deb7558332b473cfa668afe650c7d5fd54080e76af5ce162bf6ee60a208e1581"
-const CINDER_LOADED_FINGERPRINT := "36a4e2ed686e3082fbfabfbd94bf37804eeffe7199e2fb6502562b4c43770545"
+#
+# Refrozen 2026-09-15 for the Dock 04 approach-lane fix. **Nothing in that fix
+# moves a count.** Dock 04's berth node moved 3.0 m along its own axis so the
+# cargo hauler can fly the lane it publishes; the pad, its sign, its service
+# dressing and its guide lights are the same nodes with the same meshes at a new
+# transform, and every geometry, renderer, surface, mesh, material, light,
+# particle and node row below was measured byte-identical with the move applied
+# and with it reverted, fingerprints included.
+#
+# What does move is a **+1 node in each scenario** (10,647 -> 10,648 resident,
+# 11,070 -> 11,071 loaded) and the two fingerprints that cover them. That delta
+# is inherited, not introduced: it reproduces with this branch's change reverted,
+# and it still reproduces with `scripts/ui/hud.gd`,
+# `scripts/audio/optional_semantic_audio_composition.gd` and
+# `scripts/activities/station_defense_encounter_content.gd` restored to
+# 4d0190061 — the commit that last re-measured this census — so it was already
+# in the live tree that commit froze against. Triangles (1,917,477 / 2,051,611),
+# renderers (5,676 / 5,885), surfaces (6,033 / 6,242), unique meshes
+# (3,167 / 3,307), lights (335 / 362), bound (693 / 735) and retained
+# (969 / 1,016) materials, shaders (7), textures (34 / 83,355,976 bytes),
+# particle systems (45) and every loaded-minus-resident delta are unchanged.
+const RESIDENT_FINGERPRINT := "74f522b54bb56b690be1899e3b5e69a401a0fb19392287a3c67635b004e49ba8"
+const CINDER_LOADED_FINGERPRINT := "f9ba4a178791c3151713059edf97d810d4e3d914fb06ad01b85495c208d03930"
 
 var _assertions := 0
 var _failures := PackedStringArray()
@@ -138,8 +159,8 @@ func _run() -> void:
 		int(resident.get("bound_phase_unique_materials", -1)) == 693
 			and int(resident.get("retained_reachable_unique_materials", -1)) == 969
 			and int(resident.get("lights", -1)) == 335
-			and int(resident.get("nodes", -1)) == 10647,
-		"resident resource roster freezes 693 bound / 969 retained materials, 335 lights, and 10,647 nodes"
+			and int(resident.get("nodes", -1)) == 10648,
+		"resident resource roster freezes 693 bound / 969 retained materials, 335 lights, and 10,648 nodes"
 	)
 	_check(
 		str(resident.get("measurement_fingerprint", "")) == RESIDENT_FINGERPRINT,
@@ -206,8 +227,8 @@ func _run() -> void:
 		int(loaded.get("bound_phase_unique_materials", -1)) == 735
 			and int(loaded.get("retained_reachable_unique_materials", -1)) == 1016
 			and int(loaded.get("lights", -1)) == 362
-			and int(loaded.get("nodes", -1)) == 11070,
-		"loaded resource roster freezes 735 bound / 1,016 retained materials, 362 lights, and 11,070 nodes"
+			and int(loaded.get("nodes", -1)) == 11071,
+		"loaded resource roster freezes 735 bound / 1,016 retained materials, 362 lights, and 11,071 nodes"
 	)
 	var cinder_bucket := (loaded.get("buckets", {}) as Dictionary).get(
 		"CinderStreamingBootstrap", {}

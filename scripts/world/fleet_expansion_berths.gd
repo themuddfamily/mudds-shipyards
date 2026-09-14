@@ -9,8 +9,23 @@ const COMPONENT_ID: StringName = &"fleet-expansion-berths"
 const EVIDENCE_STATUS: StringName = &"NEW"
 const WORLD_LAYER := PhysicsLayers.WORLD
 const PAD_IDS: Array[StringName] = [&"dock_04_cargo", &"dock_05_bomber", &"dock_06_interceptor"]
+## Dock 04 sat 3.0 m further inboard (pad-local z = -8.0) until the long-session
+## soak proved the berth it publishes there is unreachable. `VipReceptionSuite`
+## is a cantilevered pod that predates this module by a week, and its starboard
+## reception wall plane stands at world x = -0.45. Dock 04's published parked
+## pose put the cargo hauler's nose at world x = -2.0, so the last 1.55 m of the
+## berth's own approach lane — and the parked pose at the end of it — ran through
+## the reception's aft wall, ceiling and outboard glazing. The real landing
+## assist flew the published lane, stalled 1.56 m short and aborted
+## `approach_obstructed` on every attempt, so the craft could never be parked.
+## The reception suite is not the newcomer and does not move; the berth does.
+## Pad-local z is world +x here, so z = -5.0 carries the whole pad — anchor,
+## approach marker, sign, service dressing and guide lights together — 3.0 m
+## outboard along its own `CargoBoardingLeg`, leaving 1.45 m of hull clearance
+## and 0.95 m for the full declared landing volume. The walking leg runs 9.5 m
+## along that same axis, so the boarding projection stays on its support.
 const PAD_POSITIONS: Array[Vector3] = [
-	Vector3(-16.4, 0.0, -8.0), Vector3(34.0, 0.0, -18.0), Vector3(0.0, 0.0, 34.0)
+	Vector3(-16.4, 0.0, -5.0), Vector3(34.0, 0.0, -18.0), Vector3(0.0, 0.0, 34.0)
 ]
 const PAD_SIZE := Vector3(28.0, 0.6, 42.0)
 const APPROACH_OFFSET := Vector3(0.0, 0.0, 30.0)
@@ -111,7 +126,10 @@ const PAD_MARKER_MATERIAL_KEYS := {
 ## header is readable before the player reaches the final boarding projection.
 const PAD_BOARDING_FASCIA_SPECS := {
 	&"dock_04_cargo": {
-		"position": Vector3(-3.4, 1.25, -0.535),
+		# Pad-local z tracks the pad, the route face does not: this stays at the
+		# same world point (x = 3.465) on `CargoBoardingLeg` after Dock 04 moved
+		# 3.0 m outboard, so it is still the header a player reads on the way in.
+		"position": Vector3(-3.4, 1.25, -3.535),
 		"rotation_degrees": Vector3.ZERO,
 		"approach_normal": Vector3.BACK,
 		"support": &"CargoBoardingLeg",

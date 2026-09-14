@@ -6,8 +6,10 @@ const StationSurfaceKit := preload("res://scripts/world/station_surface_kit.gd")
 const EXPECTED_PAD_IDS: Array[StringName] = [
 	&"dock_04_cargo", &"dock_05_bomber", &"dock_06_interceptor"
 ]
+## Dock 04 moved 3.0 m outboard (pad-local z -8.0 -> -5.0) once the long-session
+## soak proved its published approach lane ran 1.55 m through `VipReceptionSuite`.
 const EXPECTED_PAD_POSITIONS: Array[Vector3] = [
-	Vector3(-16.4, 0.0, -8.0), Vector3(34.0, 0.0, -18.0), Vector3(0.0, 0.0, 34.0)
+	Vector3(-16.4, 0.0, -5.0), Vector3(34.0, 0.0, -18.0), Vector3(0.0, 0.0, 34.0)
 ]
 const EXPECTED_SERVICE_MESHES := [3, 3, 3]
 const EXPECTED_SERVICE_BATCHES := [1, 0, 1]

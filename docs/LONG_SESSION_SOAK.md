@@ -19,6 +19,11 @@ Settings and session commits go to an injected in-memory `UserDataStore`, so the
 soak never writes the player's `user://` state and never races other suites for
 that file.
 
+Rendered evidence for the Dock 04 fix below sits in
+`/root/.cache/mudds-shipyards/dock04-root/{before,after}/` — the final approach at
+2.93 m out and the resting pose, from one fixed world camera at the production
+HIGH quality tier with the station's own environment untouched.
+
 Run: `godot --headless --audio-driver Dummy --path . --script
 res://tests/long_session_soak_test.gd`. Default (12 cycles) takes ~134 s alone
 and ~142 s inside `run_test_matrix.sh` at `--jobs 8`, so it fits the matrix's
@@ -138,18 +143,59 @@ contract is unchanged. Focused assertion in
 `tests/station_defense_encounter_content_test.gd`: returning to idle restores the
 exact resting three-source roster without arming the picket.
 
+## The Dock 04 obstruction, found here and now fixed
+
+The soak's one recorded defect is closed. It was neither a dock header nor the
+hauler's hull: **Dock 04's published berth pose stood inside the VIP reception
+suite.**
+
+`VipReceptionSuite` is a pod cantilevered off the Aft Junction's upper deck,
+built on 2026-08-16; `FleetExpansionBerths` placed Dock 04 on 2026-08-23 at a
+pose whose parked craft overlapped it. The reception's starboard wall plane
+stands at world x = -0.45. Dock 04's dock transform sat at world
+(4.0, 8.2, 84.7) and the hauler is 12 m long, so its parked nose reached
+world x = -2.0 — **1.55 m inside** the reception's aft wall, ceiling, starboard
+header/mullions and outboard glazing, nine World-layer bodies in all. The berth's
+own declared landing volume (`landing_half_extents.z` = 6.5) reached 2.05 m in.
+
+Everything followed from that. The berth published an assist-capture lane running
+straight at its own parked pose, `evaluate_assist_capture_candidate()` accepted
+the craft on it — correctly, since capture acceptance is a broad root-position
+gate and never attests hull clearance — and then `move_and_slide()` met the
+glazing. The assist made no progress, `_track_landing_progress()` ran out its
+four-second stall budget and `_abort_landing(&"approach_obstructed")` fired. In a
+rendered run the craft stopped **1.561 m** short of the dock origin, which is the
+1.55 m geometric intrusion plus the assist's completion distance.
+
+Measured with a capsule/box sweep of the hauler's eight real root collision
+shapes along the published line from the capture pose to the dock pose: before,
+nine blockers from `t = 0.95` to the dock, every one of them a `VipReceptionSuite`
+child; after, zero. The eight other craft's lanes were swept the same way and were
+already clear.
+
+The fix moves the berth, not the room. The reception suite is a week older and is
+not the newcomer, and the hauler's collision shells are its exterior silhouette,
+so the wrong thing was the pose: `PAD_POSITIONS[0]` goes from pad-local
+z = -8.0 to -5.0, carrying the whole pad — landing anchor, approach marker, pad
+sign, service dressing and guide lights together — 3.0 m outboard along world +x.
+That leaves 1.45 m of hull clearance and 0.95 m for the full declared landing
+volume. Dock 04's boarding walk is unchanged: `CargoBoardingLeg` runs 9.5 m along
+the same axis, so the craft's boarding projection stays on its support, and the
+pad's ground-level fascia keeps its old world point on the leg's face. No node,
+renderer, mesh, material, light or triangle count moves; the scene census is
+byte-identical with the move applied and reverted.
+
+`KNOWN_OBSTRUCTED_RETURN_CRAFT_IDS` is now empty and the soak asserts that every
+one of the nine craft completes a real assisted berth return. Two focused
+assertions keep it that way, both sweeping real collision shapes against the live
+production world rather than an authored hull table:
+`tests/fleet_expansion_shipyard_integration_test.gd` proves all three expansion
+berths publish a flyable lane, and `tests/cinder_cargo_hauler_test.gd` proves this
+craft's own envelope fits the lane and the parked volume at Dock 04. Both turn red
+on the old pose and name the offending nodes.
+
 ## What remains
 
-- **Dock 04's approach lane is obstructed for the Cinder cargo hauler.** The
-  craft is accepted for capture on its own berth's published approach pose and
-  then makes no progress against the dock structure, so the assist aborts with
-  `approach_obstructed` after its four-second stall timeout and the player can
-  never park it. Reproduced on every cargo-hauler cycle of both 48-cycle runs.
-  The obstruction is authored dock geometry, which this suite does not own; it is
-  recorded in `KNOWN_OBSTRUCTED_RETURN_CRAFT_IDS` so that *only* this craft may
-  fail a physical return, and fixing Dock 04 makes that assertion fail, which is
-  the signal to delete the entry. The other eight craft complete real assisted
-  berth returns.
 - **`hud_controls` moves between 1319 and 1322** depending on which toasts and
   status cards are live at the sampling instant. It is bounded across 48 cycles
   and does not trend, so it is tolerated rather than pinned.

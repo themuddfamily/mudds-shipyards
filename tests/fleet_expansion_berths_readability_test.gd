@@ -4,7 +4,7 @@ const Berths := preload("res://scripts/world/fleet_expansion_berths.gd")
 const EXPECTED_LEGEND := "FLEET EXPANSION // BERTH ASSIGNMENTS\nSOUTH   DOCK 04  CARGO HAULER\nNORTH   DOCK 05  BOMBER\nEAST    DOCK 06  INTERCEPTOR"
 const PRODUCTION_BASIS := Basis(Vector3.UP, PI * 0.5)
 const EXPECTED_ANCHORS := {
-	&"dock_04_cargo": Vector3(-16.4, 4.0, -8.0),
+	&"dock_04_cargo": Vector3(-16.4, 4.0, -5.0),
 	&"dock_05_bomber": Vector3(34.0, 4.0, -18.0),
 	&"dock_06_interceptor": Vector3(0.0, 4.0, 34.0),
 }

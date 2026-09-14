@@ -1,6 +1,11 @@
 extends SceneTree
 
 const Hauler := preload("res://scripts/ships/cinder_cargo_hauler.gd")
+const WORLD_SCENE := preload("res://scenes/world/shipyard_world.tscn")
+## Sample pitch of the published-lane sweep below, in metres. The hauler's
+## thinnest root shape is 0.3 m, so a quarter-metre pitch cannot step over a
+## mullion, a header or a comb tooth standing in the lane.
+const LANE_SAMPLE_STEP_M := 0.25
 const SEAT_BACK_GEOMETRY_SHA256 := "e3c8e385f42692452bca7da77e79ac15862df6335ada6ae682b6ee7c872917e3"
 const CABIN_END_WALL_GEOMETRY_SHA256 := "6b79a88d618da841735a40414bbe9016d4dcb9d9f475680400206b9e14e3104f"
 const CREW_CONSOLE_GEOMETRY_SHA256 := "9812fe3ed5aa023ab3587d83443f05d1113d9f990c2ddcf9da23164dfd5b8ab2"
@@ -293,6 +298,7 @@ func _initialize() -> void:
 	)
 	rebuilt.queue_free()
 	await process_frame
+	await _test_home_berth_approach_lane_is_flyable()
 	if _failures.is_empty():
 		print("PASS cinder_cargo_hauler_test (%d assertions)" % _assertions)
 		quit(0)
@@ -300,6 +306,91 @@ func _initialize() -> void:
 		for failure in _failures:
 			push_error(failure)
 		quit(1)
+
+
+## This craft's own half of the Dock 04 defect. The long-session soak flew the
+## hauler home on Dock 04's published assist-capture lane and the real landing
+## assist stalled 1.56 m short, aborting `approach_obstructed` every cycle, so
+## the player could never park it. The hull was not the wrong side — these eight
+## shell shapes are the exterior silhouette — but the craft is the thing that has
+## to fit, so its own suite measures the fit against the live production world.
+##
+## The whole published line is swept, not just the parked pose: the stall
+## happened in final approach, metres before the dock, and a pose-only check
+## would have reported the berth as fine.
+func _test_home_berth_approach_lane_is_flyable() -> void:
+	var world := WORLD_SCENE.instantiate() as ShipyardWorld
+	root.add_child(world)
+	await process_frame
+	await process_frame
+	# Dock 04 is a deferred berth child; production re-indexes it at the same
+	# boundary that admits this craft, so the registry has to be told first.
+	_check(
+		world.refresh_deferred_fleet_expansion_berths(),
+		"the production world re-indexes Dock 04 into its own berth registry"
+	)
+	var craft: CinderCargoHauler = null
+	for candidate in world.find_children("*", "CinderCargoHauler", true, false):
+		craft = candidate as CinderCargoHauler
+	var berth := world.get_berth_node(&"dock_04_cargo") if craft != null else null
+	_check(
+		craft != null and berth != null
+		and berth.get_occupant() == craft
+		and craft.global_transform.is_equal_approx(berth.get_dock_transform()),
+		"the production world parks this craft in Dock 04 at the berth's published pose"
+	)
+	if craft == null or berth == null:
+		world.queue_free()
+		await process_frame
+		return
+
+	var space := craft.get_world_3d().direct_space_state
+	var dock := berth.get_dock_transform()
+	var capture := berth.get_assist_capture_transform()
+	var samples := maxi(
+		2, int(ceil(capture.origin.distance_to(dock.origin) / LANE_SAMPLE_STEP_M))
+	)
+	var blockers := PackedStringArray()
+	for step in range(samples + 1):
+		var candidate_transform := Transform3D(
+			dock.basis, capture.origin.lerp(dock.origin, float(step) / float(samples))
+		)
+		for child in craft.get_children():
+			if child is not CollisionShape3D:
+				continue
+			var collision := child as CollisionShape3D
+			if collision.disabled or collision.shape == null:
+				continue
+			var query := PhysicsShapeQueryParameters3D.new()
+			query.shape = collision.shape
+			query.transform = candidate_transform * collision.transform
+			query.collision_mask = craft.collision_mask
+			query.collide_with_bodies = true
+			query.collide_with_areas = false
+			query.exclude = [craft.get_rid()]
+			for hit in space.intersect_shape(query, 4):
+				var collider := hit.get("collider") as Node
+				if collider == null:
+					continue
+				var described := "%s (%s)" % [collider.get_path(), collision.name]
+				if not blockers.has(described):
+					blockers.append(described)
+	_check(
+		blockers.is_empty(),
+		"Dock 04's published approach lane is clear for the hauler's real shapes: %s"
+			% ", ".join(blockers)
+	)
+	var report := craft.get_landing_collision_report()
+	_check(
+		bool(report.get("valid", false))
+		and int(report.get("shape_count", 0)) == 8
+		and berth.contains_oriented_bounds(
+			dock, report.get("local_bounds", AABB()) as AABB, 0.05
+		),
+		"the hauler's eight-shape flight envelope still fits inside Dock 04's parked volume"
+	)
+	world.queue_free()
+	await process_frame
 
 
 func _check(condition: bool, message: String) -> void:

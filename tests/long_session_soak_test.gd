@@ -64,15 +64,15 @@ const FREE_FLIGHT_LEG_TICKS := 24
 ## the far edge halves the flown approach without weakening the gate.
 const APPROACH_LANE_FRACTION := 0.5
 
-## Recorded, reproducible defect found by this soak (see docs/LONG_SESSION_SOAK.md).
-## The Cinder cargo hauler is accepted for capture on Dock 04's own published
-## approach pose and then stalls against the dock structure on the way in, so the
-## assist aborts with `approach_obstructed` and the craft can never be parked by
-## the player. The obstruction is authored dock geometry, which this suite does
-## not own; what it does own is the contract that *only* this craft is affected.
-## Fixing Dock 04 makes this assertion fail, which is the intended signal to
-## delete the entry.
-const KNOWN_OBSTRUCTED_RETURN_CRAFT_IDS: Array[StringName] = [&"cinder_cargo_hauler"]
+## Deliberately empty, and it stays that way. This soak found exactly one craft
+## that could not complete a physical berth return — the Cinder cargo hauler,
+## whose Dock 04 lane ran 1.55 m through `VipReceptionSuite`, so the real landing
+## assist stalled 1.56 m short and aborted `approach_obstructed` every cycle. The
+## berth moved 3.0 m outboard (`scripts/world/fleet_expansion_berths.gd`) and the
+## entry was deleted, exactly as the recorded defect said it should be. Every
+## craft now flies its own berth's published lane home; adding an id back here
+## records a new lane defect, it does not excuse one.
+const KNOWN_OBSTRUCTED_RETURN_CRAFT_IDS: Array[StringName] = []
 const FLIGHT_CONTROL_ACTIONS: Array[StringName] = [
 	&"move_forward", &"move_back", &"move_left", &"move_right",
 	&"pitch_up", &"pitch_down", &"roll_left", &"roll_right",
