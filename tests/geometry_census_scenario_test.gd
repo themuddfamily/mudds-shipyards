@@ -43,10 +43,10 @@ const MAIN_SCENE := preload("res://scenes/main.tscn")
 # `CollisionShape3D` per original piece. It is a **node and submission** trim, not
 # a geometry trim:
 #
-#   resident 11,645 -> 11,400 nodes, 6,589 -> 6,397 renderers,
-#            6,687 -> 6,540 surfaces, 3,356 -> 3,332 unique meshes
-#   loaded   12,068 -> 11,823 nodes, 6,798 -> 6,606 renderers,
-#            6,896 -> 6,749 surfaces, 3,496 -> 3,472 unique meshes
+#   resident 11,645 -> 11,455 nodes, 6,589 -> 6,435 renderers,
+#            6,687 -> 6,570 surfaces, 3,356 -> 3,355 unique meshes
+#   loaded   12,068 -> 11,878 nodes, 6,798 -> 6,644 renderers,
+#            6,896 -> 6,779 surfaces, 3,496 -> 3,495 unique meshes
 #
 # Lights (335/362, 20 shadow-casting), particle systems (45), bound (693/735) and
 # retained (969/1,016) materials, shaders (7), textures (34 / 83,355,976 bytes),
@@ -59,8 +59,8 @@ const MAIN_SCENE := preload("res://scenes/main.tscn")
 # 2026-09-14 trim recorded content landing after a freeze. The batcher reproduces
 # every source triangle at its former world transform, and the resident bucket
 # triangle totals of every module it touched are byte-identical before and after.
-const RESIDENT_FINGERPRINT := "2edf428ece669a2afa5a15cb75166e89b37760ef44caf901874eedbd14108f87"
-const CINDER_LOADED_FINGERPRINT := "8eda2b743a50e4cbe96e537ad31841c6203d23f119dacab7c03185dc1299e925"
+const RESIDENT_FINGERPRINT := "39e14b3854bc7bad937a45e56581267ba8a5c1da103b4ce54db5ac4365d64731"
+const CINDER_LOADED_FINGERPRINT := "7d3fa48c715c23f6b70fd10e4190d4f1321020f6ff44f9c63b4d4a017974a615"
 
 var _assertions := 0
 var _failures := PackedStringArray()
@@ -111,17 +111,17 @@ func _run() -> void:
 	)
 	_check(
 		int(resident.get("total_triangles", -1)) == 1951735
-			and int(resident.get("total_mesh_instances", -1)) == 6397
-			and int(resident.get("total_surfaces", -1)) == 6540
-			and int(resident.get("unique_meshes", -1)) == 3332,
-		"resident geometry freezes 1,951,735 triangles / 6,397 meshes / 6,540 surfaces / 3,332 unique meshes"
+			and int(resident.get("total_mesh_instances", -1)) == 6435
+			and int(resident.get("total_surfaces", -1)) == 6570
+			and int(resident.get("unique_meshes", -1)) == 3355,
+		"resident geometry freezes 1,951,735 triangles / 6,435 meshes / 6,570 surfaces / 3,355 unique meshes"
 	)
 	_check(
 		int(resident.get("bound_phase_unique_materials", -1)) == 693
 			and int(resident.get("retained_reachable_unique_materials", -1)) == 969
 			and int(resident.get("lights", -1)) == 335
-			and int(resident.get("nodes", -1)) == 11400,
-		"resident resource roster freezes 693 bound / 969 retained materials, 335 lights, and 11,400 nodes"
+			and int(resident.get("nodes", -1)) == 11455,
+		"resident resource roster freezes 693 bound / 969 retained materials, 335 lights, and 11,455 nodes"
 	)
 	_check(
 		str(resident.get("measurement_fingerprint", "")) == RESIDENT_FINGERPRINT,
@@ -179,17 +179,17 @@ func _run() -> void:
 	)
 	_check(
 		int(loaded.get("total_triangles", -1)) == 2085869
-			and int(loaded.get("total_mesh_instances", -1)) == 6606
-			and int(loaded.get("total_surfaces", -1)) == 6749
-			and int(loaded.get("unique_meshes", -1)) == 3472,
-		"loaded geometry freezes 2,085,869 triangles / 6,606 meshes / 6,749 surfaces / 3,472 unique meshes"
+			and int(loaded.get("total_mesh_instances", -1)) == 6644
+			and int(loaded.get("total_surfaces", -1)) == 6779
+			and int(loaded.get("unique_meshes", -1)) == 3495,
+		"loaded geometry freezes 2,085,869 triangles / 6,644 meshes / 6,779 surfaces / 3,495 unique meshes"
 	)
 	_check(
 		int(loaded.get("bound_phase_unique_materials", -1)) == 735
 			and int(loaded.get("retained_reachable_unique_materials", -1)) == 1016
 			and int(loaded.get("lights", -1)) == 362
-			and int(loaded.get("nodes", -1)) == 11823,
-		"loaded resource roster freezes 735 bound / 1,016 retained materials, 362 lights, and 11,823 nodes"
+			and int(loaded.get("nodes", -1)) == 11878,
+		"loaded resource roster freezes 735 bound / 1,016 retained materials, 362 lights, and 11,878 nodes"
 	)
 	var cinder_bucket := (loaded.get("buckets", {}) as Dictionary).get(
 		"CinderStreamingBootstrap", {}

@@ -60,14 +60,21 @@ const PLATE_MAX_THICKNESS := 0.82
 ## decides what a piece is resting on, and the renderer decides what to cull. A
 ## batch that spanned a whole module would answer all three questions about
 ## volumes it does not actually occupy. Groups are therefore split into
-## locality-bounded runs instead of being merged wholesale. Thirty-two metres is
-## the largest cap measured at which the station's own bound-reading audits still
-## agree with the unbatched tree — the service line's drawn-geometry seating
-## probe, route-surface discovery and the walkability sweep were each re-measured
-## against it. Uncapped, the same groups produced an 89 x 17 x 75 m box across
-## most of the station, which reported a deliberately lifted service-line piece
-## as still seated.
-const MAX_BATCH_EXTENT := 32.0
+## locality-bounded runs instead of being merged wholesale. Uncapped, the same
+## groups produced an 89 x 17 x 75 m box across most of the station, which
+## reported a deliberately lifted service-line piece as still seated and made
+## route-surface discovery read two aggregate boxes as unsupported walkable
+## plates.
+##
+## Sixteen metres is also the value that measured the least rendered deviation
+## under the Compatibility renderer, whose per-object light list is capped: a
+## batch's bound decides which lights reach it, so an over-large batch can pick up
+## a practical none of its pieces stood in, or drop one they all did. Caps of 8,
+## 16 and 32 m were each captured against the untrimmed build from four
+## walking-distance framings; 16 m won on every one of them. Forward+, which the
+## desktop build ships and which clusters lights instead of capping them per
+## object, is inside its own same-build noise floor at all three caps.
+const MAX_BATCH_EXTENT := 16.0
 
 
 ## One consolidation pass over `module_root`'s subtree.

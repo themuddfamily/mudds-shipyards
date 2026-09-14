@@ -192,7 +192,7 @@ in this document has been raised.**
 | Text triangles / instances | 79,591 / 43 | 100,157 / 56 | +20,566 / +13 |
 | Lights / shadow lights | 335 / 20 | 362 / 20 | +27 / 0 |
 | Particle systems | 45 | 45 | 0 |
-| Scene-tree nodes | 11,645 | 12,068 | +423 |
+| Scene-tree nodes | 11,455 | 11,878 | +423 |
 
 The first three 2026-09-14 trims below were each measured on their own branch
 from the same 2,407,157-triangle base (the first station trim). Merged on `main`
@@ -410,6 +410,76 @@ This is a scene-content measurement plus a rendered-composition check. It is not
 a frame-time, GPU-time or VRAM claim, and the software/remote-display caveats at
 the top of this document still apply. **No ceiling in this document has been
 raised, and the 1,800,000 triangle ceiling is not met.**
+
+The three 2026-09-14 trims below were each measured on their own branch from the
+same 2,407,157-triangle base (the first station trim). Merged on `main` together
+with the defender heat vents (+448 triangles, +1 renderer/mesh/material/node)
+and the walkability dressing (+32 nodes, no triangles), the combined resident
+scene measures **1,951,735 triangles** — 983,982 fewer than the 2,935,717 the
+morning census found, and now 8.4% over the 1,800,000 ceiling instead of 63%.
+The node count is **11,455** after the dressing-consolidation pass recorded
+below, and remains 64% over its 7,000 ceiling.
+
+#### 2026-09-14 node trim: -190 resident scene-tree nodes, zero triangles
+
+`StationDressingBatch` (`scripts/world/station_dressing_batch.gd`) is the colour
+-pass twin of the existing `StaticShadowBatch`. At the end of the world build it
+merges sibling dressing that carries no authority into one multi-surface
+`MeshInstance3D` per locality, and collapses sibling `_box(collidable = true)`
+triples into a single `StaticBody3D` that still owns **one `CollisionShape3D`
+per original piece**. Batches carry one surface per distinct source material, so
+the same panel maps are bound to the same triangles at the same world transforms
+through `set_surface_override_material()` instead of through a separate node's
+`material_override`.
+
+| Bucket | Nodes before | Nodes after | Renderers before | Renderers after | Triangles |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| `JovianFreightBerth` | 894 | 825 | 413 | 353 | 64,852 unchanged |
+| `ExposedDockLattice` | 299 | 247 | 119 | 88 | 21,475 unchanged |
+| `LandingPad` | 180 | 146 | 116 | 82 | 42,116 unchanged |
+| `UpperOperations` | 140 | 127 | 67 | 59 | 20,562 unchanged |
+| `ExteriorTargetRange` | 128 | 116 | 69 | 57 | 27,707 unchanged |
+| `CargoAndMachinery` | 62 | 52 | 30 | 21 | 4,068 unchanged |
+| **Resident total** | **11,645** | **11,455** | **6,589** | **6,435** | **1,951,735 unchanged** |
+
+Triangles, lights (335, of which 20 cast shadows), particle systems (45),
+bound-phase (693) and retained (969) materials, shaders (7), textures
+(34 / 83,355,976 bytes), text triangles/instances and the whole
+loaded-minus-resident Cinder delta are identical on both sides. Surfaces fall
+6,687 -> 6,570 because pieces that shared a material with a sibling now share
+one submission; that is a draw-call reduction, not lost geometry.
+
+`tools/station_walkability_sweep.gd` is unchanged end to end — 82 surfaces,
+135,137 cells, 39,620 blocked, 37 findings, `invisible_blocker`/`choke`/`gap`
+all zero, and the same per-module split — because no collision shape moved.
+
+Four walking-distance framings were captured against the untrimmed build under
+Xvfb at 1280x720. On **Forward+**, which the desktop build ships, the
+before/after difference is inside the renderer's own same-build noise floor
+(mean |delta| 0.44-1.04 of 255 against a 0.56-1.77 floor). On the
+**Compatibility** fallback the difference is larger than its much quieter floor
+(mean |delta| up to 0.34 against 0.06) and is confined to per-object light-list
+reassignment: that renderer caps how many lights reach one instance, so a merged
+bound can pick up or drop a practical. Batches are therefore capped at 16 m on
+every axis, the value that measured the least deviation of the 8/16/32 m caps
+tried, and no geometry, silhouette, material or placement differs in any framing.
+
+What was deliberately left alone, and why:
+
+* `OperationalLattice`, `CentralBerthServiceLine`, `ModernFleetRegistry` and
+  `IndustrialInfrastructure` each publish a frozen per-component count or
+  one-mesh-per-collider audit keyed to their own node roster. Batching inside
+  them changes that indexing contract, and no audit was relaxed to buy nodes.
+* Any node carrying metadata, a script, a group, a node-driven signal, a child,
+  or a name that `scripts/`, `tests/`, `tools/`, `docs/`, `scenes/` or `assets/`
+  resolves. That covers every walkable surface, evidence label, route marker,
+  berth anchor and interaction body.
+* Any node a live script variable still holds — the scan that protects the Jovian
+  berth's handling-fixture, cargo-unit and service-detail rosters, which is why
+  that module keeps 825 of its 894 nodes.
+* `AftJunctionStack`, `HabitatSpine`, `VipReceptionSuite`,
+  `ObservationLogisticsSpur`, `SalvageTerrace`, `FabricationAnnex`, the parked
+  craft and their fitouts: geometry owned elsewhere.
 
 #### 2026-09-14 second trim: -250,864 more resident triangles
 
