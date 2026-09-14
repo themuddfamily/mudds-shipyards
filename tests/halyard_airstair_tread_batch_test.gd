@@ -67,26 +67,31 @@ func _run() -> void:
 	)
 
 	var render := craft.get_halyard_render_allocation_report()
+	# Exterior census refreshed for the shipped formed-geometry checkpoints
+	# ending at 46b205086 (Account for Halyard formed jamb mesh and lining
+	# surfaces). HalyardCrewTransport.RENDER_* holds the same frozen roster.
 	_check(
-		int(render.get("mesh_instances", -1)) == 102
-			and int(render.get("multimesh_batches", -1)) == 8
-			and int(render.get("drawn_copies", -1)) == 168
-			and int(render.get("geometry_submissions", -1)) == 110
+		int(render.get("mesh_instances", -1)) == 115
+			and int(render.get("multimesh_batches", -1)) == 9
+			and int(render.get("drawn_copies", -1)) == 201
+			and int(render.get("geometry_submissions", -1)) == 130
 			and bool(render.get("exact_counts", false)),
-		"the exact current exterior snapshot keeps all 168 copies across 110 submissions"
+		"the exact current exterior snapshot keeps all 201 copies across 130 submissions"
 	)
 	var full_counts := _render_counts(craft)
 	# The tread family's original 269->266 reduction remains pinned by its exact
 	# local assertions. Later independent work reached 250/12/348/262 at this
 	# branch's parent; the portal batch alone then yields 246/13/348/259.
 	# Liveaboard bedding and reading fixtures add eight unbatched interior copies.
+	# Full-craft totals refreshed for the shipped formed-geometry checkpoints
+	# ending at 6cf0a1782 (Open Halyard hull cap along the flight-deck walkway).
 	_check(
-		int(full_counts.renderers) == 267
-			and int(full_counts.mesh_instances) == 254
-			and int(full_counts.multimesh_batches) == 13
-			and int(full_counts.authored_copies) == 356
-			and int(full_counts.geometry_submissions) == 267,
-		"the exact current craft snapshot keeps all 356 visual copies across 267 allocations"
+		int(full_counts.renderers) == 341
+			and int(full_counts.mesh_instances) == 327
+			and int(full_counts.multimesh_batches) == 14
+			and int(full_counts.authored_copies) == 449
+			and int(full_counts.geometry_submissions) == 348,
+		"the exact current craft snapshot keeps all 449 visual copies across 348 allocations"
 	)
 
 	var collision_count := craft.find_children("*", "CollisionShape3D", true, false).size()
@@ -151,8 +156,8 @@ func _run() -> void:
 
 	print(
 		"HALYARD_AIRSTAIR_TREAD_BATCH_METRICS: local_renderers=269->266 "
-		+ "local_submissions=269->266 current_renderers=267 current_submissions=267 "
-		+ "current_exterior_submissions=110 current_authored_copies=356 visual_review=NOT_RUN"
+		+ "local_submissions=269->266 current_renderers=341 current_submissions=348 "
+		+ "current_exterior_submissions=130 current_authored_copies=449 visual_review=NOT_RUN"
 	)
 	_finish(craft)
 

@@ -79,24 +79,29 @@ func _run() -> void:
 	)
 
 	var report := craft.get_halyard_render_allocation_report()
+	# Exterior census refreshed for the shipped formed-geometry checkpoints
+	# ending at 46b205086 (Account for Halyard formed jamb mesh and lining
+	# surfaces). HalyardCrewTransport.RENDER_* holds the same frozen roster.
 	_check(
-		int(report.get("descendant_nodes", -1)) == 115
-			and int(report.get("mesh_instances", -1)) == 102
-			and int(report.get("multimesh_batches", -1)) == 8
-			and int(report.get("drawn_copies", -1)) == 168
-			and int(report.get("geometry_submissions", -1)) == 110
-			and int(report.get("unique_mesh_resources", -1)) == 69
+		int(report.get("descendant_nodes", -1)) == 132
+			and int(report.get("mesh_instances", -1)) == 115
+			and int(report.get("multimesh_batches", -1)) == 9
+			and int(report.get("drawn_copies", -1)) == 201
+			and int(report.get("geometry_submissions", -1)) == 130
+			and int(report.get("unique_mesh_resources", -1)) == 92
 			and bool(report.get("exact_counts", false)),
 		"the separate exterior allocation freeze remains exact"
 	)
 	var full_counts := _full_render_counts(craft)
 	# Liveaboard bedding and reading fixtures add eight unbatched interior copies.
+	# Full-craft totals refreshed for the shipped formed-geometry checkpoints
+	# ending at 6cf0a1782 (Open Halyard hull cap along the flight-deck walkway).
 	_check(
-		int(full_counts.mesh_instances) == 254
-			and int(full_counts.multimesh_batches) == 13
-			and int(full_counts.drawn_copies) == 356
-			and int(full_counts.geometry_submissions) == 267,
-		"all 356 craft copies remain while full-craft nodes and submissions fall by three"
+		int(full_counts.mesh_instances) == 327
+			and int(full_counts.multimesh_batches) == 14
+			and int(full_counts.drawn_copies) == 449
+			and int(full_counts.geometry_submissions) == 348,
+		"all 449 craft copies remain while full-craft nodes and submissions fall by three"
 	)
 
 	craft.queue_free()

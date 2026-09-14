@@ -69,14 +69,18 @@ func _run() -> void:
 	# exact cumulative production snapshot now also includes later independent
 	# Halyard batches; the cabin portal change contributes 250/12/348/262 ->
 	# 246/13/348/259 (Mesh/MultiMesh/copies/submissions) by itself.
-	# Liveaboard bedding and reading fixtures add eight unbatched interior copies.
+	# Refreshed for the shipped formed-geometry checkpoints that followed:
+	# formed landing pads fd93076af, bow castings 429ba2be8, curved pressure
+	# cheeks 8d1350658, windshield jambs and lining b95e3a06e/46b205086,
+	# co-pilot station e2fb7a981/df38ff8e2 and the flight-deck walkway
+	# opening 6cf0a1782.
 	_check(
-		int(counts.renderers) == 267
-			and int(counts.mesh_instances) == 254
-			and int(counts.multimesh_batches) == 13
-			and int(counts.authored_copies) == 356
-			and int(counts.geometry_submissions) == 267,
-		"the exact current craft snapshot retains all 356 visual copies across 267 submissions"
+		int(counts.renderers) == 341
+			and int(counts.mesh_instances) == 327
+			and int(counts.multimesh_batches) == 14
+			and int(counts.authored_copies) == 449
+			and int(counts.geometry_submissions) == 348,
+		"the exact current craft snapshot retains all 449 visual copies across 348 submissions"
 	)
 	var geometry_hash := _rack_geometry_hash(batch)
 	print("HALYARD_AFT_RACK_PANEL_BATCH_ACTUAL: %s geometry_sha256=%s" % [counts, geometry_hash])
@@ -132,8 +136,8 @@ func _run() -> void:
 
 	print(
 		"HALYARD_AFT_RACK_PANEL_BATCH_METRICS: local_renderers=274->269 "
-		+ "local_submissions=274->269 current_renderers=267 current_submissions=267 "
-		+ "current_authored_copies=356 geometry_sha256=%s->%s visual_review=NOT_RUN"
+		+ "local_submissions=274->269 current_renderers=341 current_submissions=348 "
+		+ "current_authored_copies=449 geometry_sha256=%s->%s visual_review=NOT_RUN"
 		% [GEOMETRY_SHA256, geometry_hash]
 	)
 	_finish(craft)

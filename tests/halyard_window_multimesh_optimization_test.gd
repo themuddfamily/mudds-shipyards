@@ -25,15 +25,18 @@ func _run() -> void:
 	await physics_frame
 
 	var render := craft.get_halyard_render_allocation_report()
+	# Exterior census refreshed for the shipped formed-geometry checkpoints
+	# ending at 46b205086 (Account for Halyard formed jamb mesh and lining
+	# surfaces). HalyardCrewTransport.RENDER_* holds the same frozen roster.
 	_check(
-		int(render.get("mesh_instances", -1)) == 102
-			and int(render.get("geometry_submissions", -1)) == 110
-			and int(render.get("multimesh_batches", -1)) == 8,
-		"the pane batch remains one of eight exterior batches in the current authored budget"
+		int(render.get("mesh_instances", -1)) == 115
+			and int(render.get("geometry_submissions", -1)) == 130
+			and int(render.get("multimesh_batches", -1)) == 9,
+		"the pane batch remains one of nine exterior batches in the current authored budget"
 	)
 	_check(
-		int(render.get("drawn_copies", -1)) == 168
-			and int(render.get("unique_mesh_resources", -1)) == 69
+		int(render.get("drawn_copies", -1)) == 201
+			and int(render.get("unique_mesh_resources", -1)) == 92
 			and bool(render.get("exact_counts", false)),
 		"the optimization preserves drawn copies, mesh identity, and the exact authored budget"
 	)
@@ -62,9 +65,15 @@ func _run() -> void:
 			HalyardCrewTransport.CABIN_WINDOW_FIRST_Z
 				+ HalyardCrewTransport.CABIN_WINDOW_PITCH * float(window_index)
 		)
-		# Port window 02 clears the physical airstair doorway.
+		# Port window 02 clears the physical airstair doorway, and the port
+		# seals aft of it step 0.55 forward of the starboard cadence so no
+		# full pressure seal crosses the open aperture (4ad633d65, Refine
+		# inhabited craft with muted paint, pressure glazing and cast
+		# structure).
 		if side < 0.0 and window_index == 2:
 			expected.z = -9.55
+		elif side < 0.0 and window_index >= 3:
+			expected.z += 0.55
 		if not transform.origin.is_equal_approx(expected) \
 				or not transform.basis.is_equal_approx(Basis.IDENTITY):
 			transforms_match = false
