@@ -607,16 +607,73 @@ func _test_pure_converter(definition: WeaponDefinition) -> void:
 		"fixed faction mismatch fails closed"
 	)
 
-	var projectile := definition.duplicate(true) as WeaponDefinition
-	projectile.resolution_mode = WeaponDefinition.ResolutionMode.PROJECTILE
+	# A projectile mode is accepted only with a complete authored travel envelope.
+	# Flipping the mode alone still fails closed rather than being approximated.
+	var bare_projectile := definition.duplicate(true) as WeaponDefinition
+	bare_projectile.resolution_mode = WeaponDefinition.ResolutionMode.PROJECTILE
 	_check(
 		_has_error(
 			ConverterScript.get_conversion_errors(
-				projectile, SOURCE_FACTION, ORIGIN_TOLERANCE
+				bare_projectile, SOURCE_FACTION, ORIGIN_TOLERANCE
 			),
-			"hitscan only"
+			"projectile_speed_mps must be positive"
+		)
+		and bare_projectile.is_definition_valid()
+		and ConverterScript.to_resolver_profiles(
+			bare_projectile, SOURCE_FACTION, ORIGIN_TOLERANCE
+		).is_empty(),
+		"a projectile mode without an authored travel envelope fails closed"
+	)
+	var projectile := definition.duplicate(true) as WeaponDefinition
+	projectile.resolution_mode = WeaponDefinition.ResolutionMode.PROJECTILE
+	projectile.projectile_speed_mps = 150.0
+	projectile.projectile_lifetime_seconds = 4.0
+	projectile.projectile_radius_meters = 2.0
+	var projectile_profiles := ConverterScript.to_resolver_profiles(
+		projectile, SOURCE_FACTION, ORIGIN_TOLERANCE
+	)
+	var projectile_profile := projectile_profiles.get(projectile.weapon_id, {}) as Dictionary
+	_check(
+		projectile_profiles.size() == 1
+		and projectile_profile == {
+			"range": projectile.range_meters,
+			"damage": projectile.damage_per_hit,
+			"origin_tolerance": ORIGIN_TOLERANCE,
+			"projectile_speed": 150.0,
+			"projectile_lifetime": 4.0,
+			"projectile_radius": 2.0,
+		},
+		"a complete projectile definition converts to the hitscan envelope plus its travel fields"
+	)
+	_check(
+		ConverterScript.profile_is_projectile(projectile_profile)
+		and not ConverterScript.profile_is_projectile(
+			ConverterScript.to_resolver_profiles(
+				definition, SOURCE_FACTION, ORIGIN_TOLERANCE
+			).get(definition.weapon_id, {}) as Dictionary
 		),
-		"unsupported projectile mode cannot be approximated as hitscan"
+		"only a projectile conversion carries travel keys; hitscan output is unchanged"
+	)
+	var projectile_spread := projectile.duplicate(true) as WeaponDefinition
+	projectile_spread.spread_enabled = true
+	projectile_spread.spread_degrees = 4.0
+	_check(
+		_has_error(
+			ConverterScript.get_conversion_errors(
+				projectile_spread, SOURCE_FACTION, ORIGIN_TOLERANCE
+			),
+			"projectile spread"
+		),
+		"the bounded scatter fan stays a hitscan-only trigger shape"
+	)
+	var beam := definition.duplicate(true) as WeaponDefinition
+	beam.resolution_mode = WeaponDefinition.ResolutionMode.BEAM
+	_check(
+		_has_error(
+			ConverterScript.get_conversion_errors(beam, SOURCE_FACTION, ORIGIN_TOLERANCE),
+			"hitscan and projectile only"
+		),
+		"an unsupported beam mode still cannot be approximated as anything else"
 	)
 	var friendly_fire := definition.duplicate(true) as WeaponDefinition
 	friendly_fire.friendly_fire_policy = WeaponDefinition.FriendlyFirePolicy.ALLOW

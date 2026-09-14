@@ -16,9 +16,14 @@ const DISPATCH_FRAME_BUDGET := 420
 const PRODUCTION_ESCORT_DELAY := 3.0
 const TEST_ESCORT_DELAY := 0.4
 const LANCE_TEST_DISTANCE := 110.0
+## The lance is a travelling bolt: 560m of reach at 150 m/s is 3.73s of flight,
+## so 300 physics frames is five seconds of settling budget.
+const LANCE_FLIGHT_FRAME_BUDGET := 300
 
 var _failures: Array[String] = []
 var _assertion_count := 0
+var _picket_pulse_events: Array[Dictionary] = []
+var _picket_pulse_source_instance_id := 0
 
 
 func _init() -> void:
@@ -182,12 +187,26 @@ func _test_production_encounter() -> void:
 	var defender_health_before := defender.get_health()
 	var player_result_before: Dictionary = game.get_last_player_shot_result()
 	var opponent_result_before: Dictionary = game.get_last_opponent_shot_result()
-	var pulse_presented_before := int(pulse.get_statistics().presented)
 	var lance_sequence_before := resolver.get_last_sequence(picket, picket.source_id)
+	_picket_pulse_events.clear()
+	if not pulse.shot_presented.is_connected(_on_pulse_shot_presented):
+		pulse.shot_presented.connect(_on_pulse_shot_presented)
+	_picket_pulse_source_instance_id = picket.get_instance_id()
 
 	picket.set_target(torrent)
 	picket._cooldown_remaining = 0.0
 	picket._fire_at_target(torrent.global_position)
+	var dispatch_result: Dictionary = picket.get_last_shot_result()
+	_check(
+		StringName(dispatch_result.get("status", &"")) == &"bolt_in_flight"
+		and resolver.get_last_sequence(picket, picket.source_id) == lance_sequence_before
+		and is_equal_approx(float(torrent.get_telemetry().get("hull", 0.0)), hull_before),
+		"the production lance dispatch puts a bolt in the air without touching the player hull"
+	)
+	_check(
+		await _settle_lance(picket),
+		"the production bolt completes its flight and reaches the authority"
+	)
 	var lance_result: Dictionary = picket.get_last_shot_result()
 	_check(
 		bool(lance_result.get("accepted", false))
@@ -210,15 +229,15 @@ func _test_production_encounter() -> void:
 		"the lance consumes exactly one monotonic sequence on the shared replay ledger"
 	)
 	_check(
-		int(pulse.get_statistics().presented) == pulse_presented_before + 1,
-		"the lance consumes exactly one slot of the shared fixed pulse pool"
+		_picket_pulse_events.size() == 1,
+		"the arriving lance consumes exactly one slot of the shared fixed pulse pool"
 	)
-	var lance_snapshot := _find_snapshot_for_source(pulse, picket.get_instance_id())
 	_check(
-		not lance_snapshot.is_empty()
-		and StringName(lance_snapshot.get("style_id", &"")) == &"magenta",
+		_picket_pulse_events.size() == 1
+		and StringName((_picket_pulse_events[0] as Dictionary).style_id) == &"magenta",
 		"the lance reads on screen in magenta rather than the player's cyan or the defender's amber"
 	)
+	pulse.shot_presented.disconnect(_on_pulse_shot_presented)
 	_check(
 		game.get_last_player_shot_result() == player_result_before
 		and game.get_last_opponent_shot_result() == opponent_result_before,
@@ -352,10 +371,36 @@ func _find_snapshot_for_source(pulse: PulseWeaponPresentation, instance_id: int)
 	return {}
 
 
+func _on_pulse_shot_presented(
+		shot_id: int,
+		style_id: StringName,
+		source_instance_id: int,
+		hit: bool
+	) -> void:
+	if source_instance_id != _picket_pulse_source_instance_id:
+		return
+	_picket_pulse_events.append({
+		"shot_id": shot_id,
+		"style_id": style_id,
+		"hit": hit,
+	})
+
+
 func _advance_physics(frames: int) -> void:
 	for _index in frames:
 		await physics_frame
 		await process_frame
+
+
+## Dispatch only opens an authority flight. Every assertion about hull damage,
+## replay sequences, receipts or pulse slots has to observe the shot after the
+## bolt actually arrived, so advance physics until the pool is empty again.
+func _settle_lance(picket: StandoffPicketOpponent) -> bool:
+	return await _advance_until(
+		func() -> bool:
+			return int(picket.get_lance_bolt_snapshot().get("active", 0)) == 0,
+		LANCE_FLIGHT_FRAME_BUDGET
+	)
 
 
 func _advance_until(condition: Callable, frame_budget: int) -> bool:

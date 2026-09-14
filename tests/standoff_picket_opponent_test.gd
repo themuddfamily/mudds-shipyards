@@ -28,6 +28,9 @@ const ShotRequestScript := preload("res://scripts/combat/shot_request.gd")
 const TARGET_FACTION: StringName = &"picket_test_flight"
 const FIRE_FRAME_BUDGET := 420
 const SETTLE_FRAME_BUDGET := 120
+## 560m of authored reach at 150 m/s is 3.73s of flight; 300 physics frames
+## is five seconds of budget, so a settled bolt is never a timing accident.
+const LANCE_FLIGHT_FRAME_BUDGET := 300
 
 # Trade-off axes with an unambiguous "better for this opponent" reading.
 const HIGHER_IS_BETTER := [
@@ -443,6 +446,35 @@ func _test_contract_and_evidence() -> void:
 		),
 		"the resolver registration profile is converted from the shared definition without a second damage path"
 	)
+	# The production picket is the one shipped opponent weapon that travels. The
+	# authored speed and the damage budget are both asserted literally: a rename
+	# or a silent fallback to hitscan must fail here, not read as a pass.
+	_check(
+		siege_definition.resolution_mode == WeaponDefinition.ResolutionMode.PROJECTILE
+		and siege_definition.get_resolution_mode_id() == &"projectile"
+		and is_equal_approx(siege_definition.projectile_speed_mps, 150.0)
+		and is_equal_approx(siege_definition.projectile_lifetime_seconds, 4.0)
+		and is_equal_approx(siege_definition.projectile_radius_meters, 2.0),
+		"the production lance is authored as a 150 m/s travelling projectile, not a hitscan"
+	)
+	var lance_profile := profiles[StandoffPicketOpponent.LANCE_WEAPON_ID] as Dictionary
+	_check(
+		CombatResolver.profile_is_projectile(lance_profile)
+		and is_equal_approx(float(lance_profile["projectile_speed"]), 150.0)
+		and is_equal_approx(float(lance_profile["projectile_lifetime"]), 4.0)
+		and is_equal_approx(float(lance_profile["projectile_radius"]), 2.0)
+		and siege_definition.projectile_speed_mps
+			* siege_definition.projectile_lifetime_seconds >= siege_definition.range_meters,
+		"the travel envelope reaches the resolver registry and covers the authored reach"
+	)
+	_check(
+		is_equal_approx(
+			siege_definition.range_meters / siege_definition.projectile_speed_mps, 3.7333333
+		)
+		and siege_definition.range_meters / siege_definition.projectile_speed_mps > 3.0
+		and picket.standoff_range / siege_definition.projectile_speed_mps < 1.0,
+		"the bolt crosses the standoff band in under a second and the full reach in over three"
+	)
 
 	# --- structured red A1: a non-positive lance damage must fail the audit ---
 	var healthy_damage := picket.lance_damage
@@ -509,8 +541,13 @@ func _test_pooled_audio_cue() -> void:
 	_check(
 		_audio_cues.has(CombatAudioPresentation.CUE_DEFENDER_FIRE)
 		and not _audio_cues.has(CombatAudioPresentation.CUE_PLAYER_FIRE),
-		"the lance raises the opponent fire cue and never the player's"
+		"the lance raises the opponent fire cue at launch and never the player's"
 	)
+	_check(
+		int(picket.get_lance_bolt_snapshot().get("active", 0)) == 1,
+		"dispatch puts exactly one travelling bolt in the air instead of resolving instantly"
+	)
+	_check(await _settle_lance(picket), "the launched bolt reaches its authority verdict")
 	_audio_cues.clear()
 	pulse.clear_effects()
 	_check(
@@ -1183,6 +1220,7 @@ func _test_dispatch_authority_modes_and_stale_owners() -> void:
 	)
 	var manual_sequence_before := manual_resolver.get_last_sequence(manual, manual.source_id)
 	manual._fire_at_target(manual_target.global_position)
+	await _settle_lance(manual)
 	_check(
 		not manual_defender.destroyed.is_connected(manual._on_escort_defender_destroyed)
 			and bool(manual_charge_before.get("armed", false))
@@ -1304,11 +1342,55 @@ func _test_lance_firing_and_receipts() -> void:
 
 	var health_before := target.get_health()
 	var pulse_before: int = int(pulse.get_statistics().presented)
+	var sequence_at_dispatch := resolver.get_last_sequence(picket, picket.source_id)
 	picket._fire_at_target(target.global_position)
+	var dispatch_result := picket.get_last_shot_result()
+	# The whole point of the travelling lance: dispatch commits nothing. No
+	# sequence, no damage and no target presentation exist until the bolt lands.
+	_check(
+		StringName(dispatch_result.get("status", &"")) == &"bolt_in_flight"
+		and not bool(dispatch_result.get("resolved", false))
+		and resolver.get_last_sequence(picket, picket.source_id) == sequence_at_dispatch
+		and is_equal_approx(target.get_health(), health_before)
+		and picket.get_pending_lance_receipt_count() == 0,
+		"dispatch alone applies no damage, sequence or receipt while the bolt is in flight"
+	)
+	var flight_records := picket.get_lance_bolt_snapshot().get("records", []) as Array
+	_check(
+		flight_records.size() == 1
+		and is_equal_approx(float((flight_records[0] as Dictionary).speed), 150.0)
+		and is_equal_approx(float((flight_records[0] as Dictionary).lifetime), 4.0)
+		and is_equal_approx(float((flight_records[0] as Dictionary).radius), 2.0),
+		"the travelling bolt carries the authority-issued 150 m/s travel envelope"
+	)
+	var travel_start := (flight_records[0] as Dictionary).position as Vector3
+	await _advance_physics(6)
+	var travel_records := picket.get_lance_bolt_snapshot().get("records", []) as Array
+	var travelled := (
+		travel_start.distance_to((travel_records[0] as Dictionary).position as Vector3)
+		if travel_records.size() == 1
+		else 0.0
+	)
+	_check(
+		travel_records.size() == 1
+		and travelled > 10.0
+		and is_equal_approx(
+			travelled,
+			150.0 * float((travel_records[0] as Dictionary).elapsed)
+				- 150.0 * float((flight_records[0] as Dictionary).elapsed)
+		),
+		"the bolt advances at exactly the authored speed instead of teleporting"
+	)
+	_check(await _settle_lance(picket), "the bolt arrives within its authored flight ceiling")
 	var result := picket.get_last_shot_result()
 	_check(
 		bool(result.get("accepted", false)) and bool(result.get("resolved", false)),
 		"the lance resolves through the one live CombatResolver"
+	)
+	_check(
+		float(result.get("travel_seconds", 0.0)) > 0.5
+		and StringName(result.get("terminal_reason", &"")) == &"impact",
+		"the hundred-metre shot spends real travel time before its arrival verdict"
 	)
 	_check(
 		bool(result.get("damaged", false))
@@ -1353,7 +1435,7 @@ func _test_lance_firing_and_receipts() -> void:
 
 	# --- an aborted visual must still release the queued presentation ---
 	picket._cooldown_remaining = 0.0
-	picket._fire_at_target(target.global_position)
+	await _fire_and_settle(picket, target.global_position)
 	_check(
 		picket.get_pending_lance_receipt_count() == 1
 		and target.get_pending_damage_presentation_count() == 1,
@@ -1379,7 +1461,7 @@ func _test_lance_firing_and_receipts() -> void:
 	await _advance_physics(2)
 	var friendly_health := friendly.get_health()
 	picket._cooldown_remaining = 0.0
-	picket._fire_at_target(friendly.global_position)
+	await _fire_and_settle(picket, friendly.global_position)
 	_check(
 		StringName(picket.get_last_shot_result().get("status", &"")) == &"friendly_fire_blocked"
 		and is_equal_approx(friendly.get_health(), friendly_health),
@@ -1395,7 +1477,7 @@ func _test_lance_firing_and_receipts() -> void:
 	authority.set("_next_presentation_receipt_id", LiveCombatAuthority.MAX_PRESENTATION_RECEIPT_ID)
 	var saturated_health := target.get_health()
 	picket._cooldown_remaining = 0.0
-	picket._fire_at_target(target.global_position)
+	await _fire_and_settle(picket, target.global_position)
 	_check(
 		StringName(picket.get_last_shot_result().get("status", &"")) == &"receipt_exhausted"
 		and is_equal_approx(target.get_health(), saturated_health),
@@ -1407,7 +1489,7 @@ func _test_lance_firing_and_receipts() -> void:
 	# target without consuming a sequence. Prove the sequence is consumed. ---
 	var sequence_before := resolver.get_last_sequence(picket, picket.source_id)
 	picket._cooldown_remaining = 0.0
-	picket._fire_at_target(target.global_position)
+	await _fire_and_settle(picket, target.global_position)
 	_check(
 		resolver.get_last_sequence(picket, picket.source_id) == sequence_before + 1,
 		"RED E1: every lance shot consumes exactly one monotonic resolver sequence"
@@ -1418,7 +1500,7 @@ func _test_lance_firing_and_receipts() -> void:
 	picket._release_combat_registration()
 	var protected_health := target.get_health()
 	picket._cooldown_remaining = 0.0
-	picket._fire_at_target(target.global_position)
+	await _fire_and_settle(picket, target.global_position)
 	_check(
 		is_equal_approx(target.get_health(), protected_health)
 		and picket.get_pending_lance_receipt_count() == 0,
@@ -1447,7 +1529,7 @@ func _test_post_shot_relocation() -> void:
 	var sequence_before := resolver.get_last_sequence(picket, picket.source_id)
 	var health_before := target.get_health()
 	picket._fire_at_target(target.global_position)
-	var first_result := picket.get_last_shot_result()
+	var dispatch_result := picket.get_last_shot_result()
 	var first_break := picket.get_post_shot_relocation_snapshot()
 	var to_target := (target.global_position - picket.global_position).normalized()
 	var first_direction := picket._choose_motion_direction(
@@ -1455,12 +1537,14 @@ func _test_post_shot_relocation() -> void:
 		picket.global_position.distance_to(target.global_position)
 	)
 	var lateral := Vector3.UP.cross(to_target).normalized()
+	# The break is committed by the accepted dispatch, not by the later arrival:
+	# the picket leaves its firing position while its own bolt is still flying.
 	_check(
-		bool(first_result.get("accepted", false))
-		and bool(first_result.get("resolved", false))
-		and resolver.get_last_sequence(picket, picket.source_id) == sequence_before + 1
-		and is_equal_approx(target.get_health(), health_before - picket.lance_damage),
-		"the relocation begins only after one accepted resolver-owned lance damage commit"
+		bool(dispatch_result.get("accepted", false))
+		and StringName(dispatch_result.get("status", &"")) == &"bolt_in_flight"
+		and resolver.get_last_sequence(picket, picket.source_id) == sequence_before
+		and is_equal_approx(target.get_health(), health_before),
+		"the relocation begins on the accepted dispatch, before any damage is committed"
 	)
 	_check(
 		bool(first_break.get("active", false))
@@ -1484,6 +1568,18 @@ func _test_post_shot_relocation() -> void:
 	_check(
 		live_lateral_break,
 		"the live production movement loop publishes relocation and drives mostly sideways"
+	)
+
+	# The bolt keeps the committed world-space line while its launcher breaks
+	# away, and the one resolver commits the damage only where the bolt arrives.
+	_check(await _settle_lance(picket), "the bolt arrives while the picket is already relocating")
+	var first_result := picket.get_last_shot_result()
+	_check(
+		bool(first_result.get("accepted", false))
+		and bool(first_result.get("resolved", false))
+		and resolver.get_last_sequence(picket, picket.source_id) == sequence_before + 1
+		and is_equal_approx(target.get_health(), health_before - picket.lance_damage),
+		"one resolver-owned damage commit lands on arrival, not on dispatch"
 	)
 
 	# Dispatch a second accepted shot through the same authority seam. Direct
@@ -1866,6 +1962,26 @@ func _advance_physics(frames: int) -> void:
 	for _index in frames:
 		await physics_frame
 		await process_frame
+
+
+## The lance is a travelling bolt: `_fire_at_target()` only opens an authority
+## flight. Every assertion about damage, sequences, receipts or pulse visuals has
+## to observe the shot after the authority judged it where the bolt arrived, so
+## these helpers advance physics until the pool has no bolt left in the air.
+func _settle_lance(
+		picket: StandoffPicketOpponent,
+		frame_budget: int = LANCE_FLIGHT_FRAME_BUDGET
+	) -> bool:
+	return await _advance_until(
+		func() -> bool:
+			return int(picket.get_lance_bolt_snapshot().get("active", 0)) == 0,
+		frame_budget
+	)
+
+
+func _fire_and_settle(picket: StandoffPicketOpponent, target_position: Vector3) -> bool:
+	picket._fire_at_target(target_position)
+	return await _settle_lance(picket)
 
 
 func _advance_until(condition: Callable, frame_budget: int) -> bool:

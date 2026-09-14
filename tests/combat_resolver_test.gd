@@ -348,6 +348,8 @@ func _run() -> void:
 	resolver.forget_source(shooter, SOURCE_ID)
 	_check(resolver.get_tracked_source_count() == 0 and resolver.get_registered_source_count() == 0, "despawn cleanup forgets source registration and ledger")
 	await _test_scatter_authority(host)
+	await _test_projectile_flight_authority(host)
+	await _test_travelling_bolt_pool(host)
 
 	host.queue_free()
 	await process_frame
@@ -355,6 +357,392 @@ func _run() -> void:
 	await process_frame
 	_check(root.get_child_count() == original_root_child_count, "combat resolver fixture cleans up every scene node")
 	_finish()
+
+
+## The travelling-projectile authority. Every assertion here is about the one
+## thing that separates a bolt from a hitscan: the damage decision happens where
+## and when the bolt arrives, on the same resolver, with the same replay ledger.
+func _test_projectile_flight_authority(host: Node3D) -> void:
+	var resolver := CombatResolverScript.new() as CombatResolver
+	resolver.name = "ProjectileAuthorityResolver"
+	host.add_child(resolver)
+	var shooter_fixture := _make_damageable_body(
+		"BoltShooter", Vector3(400.0, 0.0, 40.0), SOURCE_FACTION, 60.0
+	)
+	var shooter := shooter_fixture.entity as Node3D
+	host.add_child(shooter)
+	var shooter_damageable := shooter_fixture.damageable as Damageable
+	var target_fixture := _make_damageable_body(
+		"BoltTarget", Vector3(400.0, 0.0, 0.0), &"raider", 90.0
+	)
+	var target := target_fixture.entity as Node3D
+	host.add_child(target)
+	var target_damageable := target_fixture.damageable as Damageable
+	await process_frame
+	await physics_frame
+
+	var hitscan_profiles := {
+		&"plain_cannon": {"range": 120.0, "damage": 7.0, "origin_tolerance": 4.0},
+	}
+	var bolt_profiles := {
+		&"bolt_lance": {
+			"range": 120.0,
+			"damage": 11.0,
+			"origin_tolerance": 4.0,
+			"projectile_speed": 60.0,
+			"projectile_lifetime": 4.0,
+			"projectile_radius": 1.0,
+		},
+	}
+	_check(
+		resolver.register_source(SOURCE_ID, shooter, SOURCE_FACTION, bolt_profiles)
+		and resolver.get_registered_weapon_profile(shooter, SOURCE_ID, &"bolt_lance")
+			== {
+				"range": 120.0,
+				"damage": 11.0,
+				"origin_tolerance": 4.0,
+				"projectile_speed": 60.0,
+				"projectile_lifetime": 4.0,
+				"projectile_radius": 1.0,
+			},
+		"a projectile profile registers with its travel envelope intact"
+	)
+
+	# --- a partial or impossible travel envelope drops the weapon entirely ---
+	for broken: Dictionary in [
+		{"range": 120.0, "damage": 11.0, "origin_tolerance": 4.0, "projectile_speed": 60.0},
+		{
+			"range": 120.0, "damage": 11.0, "origin_tolerance": 4.0,
+			"projectile_speed": 0.0, "projectile_lifetime": 4.0, "projectile_radius": 1.0,
+		},
+		{
+			"range": 900.0, "damage": 11.0, "origin_tolerance": 4.0,
+			"projectile_speed": 60.0, "projectile_lifetime": 1.0, "projectile_radius": 1.0,
+		},
+	]:
+		var broken_source := Node3D.new()
+		broken_source.name = "BrokenEnvelopeSource"
+		host.add_child(broken_source)
+		_check(
+			not resolver.register_source(
+				SOURCE_ID + 40, broken_source, SOURCE_FACTION, {&"broken_lance": broken}
+			),
+			"a partial or unreachable travel envelope refuses registration instead of degrading"
+		)
+		broken_source.queue_free()
+	await process_frame
+
+	# --- opening a flight is the only place the muzzle envelope is proven ---
+	var launch_origin := shooter.global_position
+	var to_target := (target.global_position - launch_origin).normalized()
+	_check(
+		not bool(resolver.open_projectile_flight(
+			shooter, SOURCE_ID, SOURCE_FACTION, &"plain_cannon", launch_origin, to_target
+		).accepted),
+		"a weapon with no travel envelope cannot open a projectile flight"
+	)
+	_check(
+		StringName(resolver.open_projectile_flight(
+			shooter, SOURCE_ID, SOURCE_FACTION, &"bolt_lance",
+			launch_origin + Vector3(200.0, 0.0, 0.0), to_target
+		).status) == &"origin_out_of_bounds",
+		"a launch outside the registered muzzle envelope fails closed at open time"
+	)
+
+	# --- hit on arrival ---
+	var sequence_before := resolver.get_last_sequence(shooter, SOURCE_ID)
+	var health_before := target_damageable.get_health()
+	var flight := resolver.open_projectile_flight(
+		shooter, SOURCE_ID, SOURCE_FACTION, &"bolt_lance", launch_origin, to_target
+	)
+	_check(
+		bool(flight.accepted)
+		and int(flight.flight_id) > 0
+		and is_equal_approx(float(flight.speed), 60.0)
+		and is_equal_approx(float(flight.lifetime), 4.0)
+		and is_equal_approx(float(flight.radius), 1.0)
+		and is_equal_approx(float(flight.damage), 11.0)
+		and resolver.get_active_projectile_flight_count() == 1
+		and resolver.get_last_sequence(shooter, SOURCE_ID) == sequence_before
+		and is_equal_approx(target_damageable.get_health(), health_before),
+		"opening a flight commits no sequence and no damage; it only issues the envelope"
+	)
+	_check(
+		resolver.observe_projectile_flight(int(flight.flight_id)) == &"live",
+		"a flight whose source is healthy and registered stays live in the air"
+	)
+	var contact := resolver.close_projectile_flight(
+		int(flight.flight_id),
+		sequence_before + 1,
+		target.global_position + to_target * -3.0,
+		target.global_position
+	)
+	_check(
+		bool(contact.accepted) and bool(contact.resolved) and bool(contact.damaged)
+		and is_equal_approx(float(contact.applied_damage), 11.0)
+		and is_equal_approx(target_damageable.get_health(), health_before - 11.0)
+		and resolver.get_last_sequence(shooter, SOURCE_ID) == sequence_before + 1
+		and resolver.get_active_projectile_flight_count() == 0,
+		"the arriving bolt commits exactly the registered damage and one replay sequence"
+	)
+
+	# --- miss on expiry: the bolt reaches its ceiling on the committed line ---
+	var expiry_health := target_damageable.get_health()
+	var away := Vector3(1.0, 0.0, 0.0)
+	var expiry_flight := resolver.open_projectile_flight(
+		shooter, SOURCE_ID, SOURCE_FACTION, &"bolt_lance", launch_origin, away
+	)
+	var expiry_end := launch_origin + away * 120.0
+	var expiry := resolver.close_projectile_flight(
+		int(expiry_flight.flight_id),
+		resolver.get_last_sequence(shooter, SOURCE_ID) + 1,
+		expiry_end - away * 1.0,
+		expiry_end
+	)
+	_check(
+		bool(expiry.accepted) and bool(expiry.resolved)
+		and StringName(expiry.status) == &"miss"
+		and not bool(expiry.damaged)
+		and is_equal_approx(target_damageable.get_health(), expiry_health),
+		"a bolt that expires without contact is an authoritative resolved miss"
+	)
+
+	# --- a bolt cannot be judged beyond the registered reach ---
+	var over_flight := resolver.open_projectile_flight(
+		shooter, SOURCE_ID, SOURCE_FACTION, &"bolt_lance", launch_origin, away
+	)
+	var over := resolver.close_projectile_flight(
+		int(over_flight.flight_id),
+		resolver.get_last_sequence(shooter, SOURCE_ID) + 1,
+		launch_origin + away * 130.0,
+		launch_origin + away * 140.0
+	)
+	_check(
+		not bool(over.accepted)
+		and StringName(over.status) == &"projectile_out_of_range",
+		"a terminal point past the registered reach is refused, not clamped"
+	)
+
+	# --- the dodge: only the terminal segment is swept ---
+	var dodge_health := target_damageable.get_health()
+	var dodge_flight := resolver.open_projectile_flight(
+		shooter, SOURCE_ID, SOURCE_FACTION, &"bolt_lance", launch_origin, to_target
+	)
+	var dodged_end := launch_origin + to_target * 18.0
+	var dodge := resolver.close_projectile_flight(
+		int(dodge_flight.flight_id),
+		resolver.get_last_sequence(shooter, SOURCE_ID) + 1,
+		dodged_end - to_target * 1.0,
+		dodged_end
+	)
+	_check(
+		bool(dodge.accepted) and bool(dodge.resolved)
+		and not bool(dodge.damaged)
+		and is_equal_approx(target_damageable.get_health(), dodge_health),
+		"a target off the terminal segment is missed even though it sat on the launch line"
+	)
+
+	# --- destroyed-source quarantine, including destroy-and-regenerate ---
+	var quarantine_health := target_damageable.get_health()
+	var quarantine_flight := resolver.open_projectile_flight(
+		shooter, SOURCE_ID, SOURCE_FACTION, &"bolt_lance", launch_origin, to_target
+	)
+	shooter_damageable.apply_damage(shooter_damageable.get_health() + 1.0, shooter.global_position)
+	_check(
+		shooter_damageable.is_destroyed()
+		and resolver.observe_projectile_flight(int(quarantine_flight.flight_id)) == &"quarantined",
+		"a source destroyed mid-flight quarantines its bolt on the very next observation"
+	)
+	# The source is healthy again before the bolt lands. The quarantine latches,
+	# so the dead epoch's shot can never be credited to the new live one.
+	shooter_damageable.reset_health()
+	_check(
+		not shooter_damageable.is_destroyed()
+		and resolver.observe_projectile_flight(int(quarantine_flight.flight_id)) == &"quarantined",
+		"regenerating the source does not un-quarantine a bolt fired by its dead epoch"
+	)
+	var quarantined_sequence := resolver.get_last_sequence(shooter, SOURCE_ID)
+	var quarantined := resolver.close_projectile_flight(
+		int(quarantine_flight.flight_id),
+		quarantined_sequence + 1,
+		target.global_position + to_target * -3.0,
+		target.global_position
+	)
+	_check(
+		not bool(quarantined.accepted)
+		and StringName(quarantined.status) == &"source_destroyed"
+		and is_equal_approx(target_damageable.get_health(), quarantine_health)
+		and resolver.get_last_sequence(shooter, SOURCE_ID) == quarantined_sequence,
+		"a quarantined bolt applies no damage and consumes no sequence"
+	)
+
+	# --- losing the live registration mid-flight is equally fatal to the bolt ---
+	var retired_flight := resolver.open_projectile_flight(
+		shooter, SOURCE_ID, SOURCE_FACTION, &"bolt_lance", launch_origin, to_target
+	)
+	resolver.retire_source_registration(shooter, SOURCE_ID)
+	var retired_health := target_damageable.get_health()
+	var retired := resolver.close_projectile_flight(
+		int(retired_flight.flight_id),
+		resolver.get_last_sequence(shooter, SOURCE_ID) + 1,
+		target.global_position + to_target * -3.0,
+		target.global_position
+	)
+	_check(
+		not bool(retired.accepted)
+		and StringName(retired.status) == &"unregistered_source"
+		and is_equal_approx(target_damageable.get_health(), retired_health),
+		"a bolt whose source lost its registration mid-flight cannot land"
+	)
+	_check(
+		resolver.register_source(SOURCE_ID, shooter, SOURCE_FACTION, hitscan_profiles)
+		and not bool(resolver.open_projectile_flight(
+			shooter, SOURCE_ID, SOURCE_FACTION, &"bolt_lance", launch_origin, to_target
+		).accepted),
+		"re-registering with a hitscan-only roster closes the projectile path again"
+	)
+
+	# --- the open-flight ledger is bounded and self-cleaning ---
+	resolver.register_source(SOURCE_ID, shooter, SOURCE_FACTION, bolt_profiles)
+	var opened := 0
+	for _index in CombatResolver.MAX_ACTIVE_PROJECTILE_FLIGHTS + 4:
+		if bool(resolver.open_projectile_flight(
+			shooter, SOURCE_ID, SOURCE_FACTION, &"bolt_lance", launch_origin, to_target
+		).accepted):
+			opened += 1
+	_check(
+		opened == CombatResolver.MAX_ACTIVE_PROJECTILE_FLIGHTS
+		and resolver.get_active_projectile_flight_count()
+			== CombatResolver.MAX_ACTIVE_PROJECTILE_FLIGHTS,
+		"open projectile flights saturate at the fixed bound instead of growing without limit"
+	)
+	resolver.forget_source(shooter, SOURCE_ID)
+	shooter.queue_free()
+	target.queue_free()
+	resolver.queue_free()
+	await process_frame
+	await process_frame
+
+
+## The travelling object itself: real physics frames, real world, real speed.
+func _test_travelling_bolt_pool(host: Node3D) -> void:
+	var authority := LiveCombatAuthority.new()
+	authority.name = "BoltPoolAuthority"
+	host.add_child(authority)
+	var shooter_fixture := _make_damageable_body(
+		"PoolBoltShooter", Vector3(800.0, 0.0, 60.0), SOURCE_FACTION, 50.0
+	)
+	var shooter := shooter_fixture.entity as Node3D
+	host.add_child(shooter)
+	var target_fixture := _make_damageable_body(
+		"PoolBoltTarget", Vector3(800.0, 0.0, 0.0), &"raider", 80.0
+	)
+	var target := target_fixture.entity as Node3D
+	host.add_child(target)
+	var target_damageable := target_fixture.damageable as Damageable
+	var pool := TravellingBoltProjectile.new() as TravellingBoltProjectile
+	pool.name = "BoltPool"
+	pool.pool_capacity = 2
+	host.add_child(pool)
+	pool.bind_authority(authority)
+	await process_frame
+	await physics_frame
+
+	_check(
+		authority.register_source(shooter, SOURCE_ID + 7, SOURCE_FACTION, {
+			&"bolt_lance": {
+				"range": 120.0,
+				"damage": 9.0,
+				"origin_tolerance": 4.0,
+				"projectile_speed": 60.0,
+				"projectile_lifetime": 4.0,
+				"projectile_radius": 1.0,
+			},
+		}),
+		"the live authority registers a travelling weapon through its ordinary seam"
+	)
+	var origin := shooter.global_position
+	var direction := (target.global_position - origin).normalized()
+	var health_before := target_damageable.get_health()
+	var launch := pool.launch(shooter, &"bolt_lance", origin, direction)
+	_check(
+		bool(launch.accepted)
+		and pool.get_active_bolt_count() == 1
+		and is_equal_approx(target_damageable.get_health(), health_before),
+		"launching a bolt commits nothing; the pool simply takes one slot"
+	)
+	var first := (pool.get_active_bolt_records()[0] as Dictionary)
+	await physics_frame
+	await process_frame
+	await physics_frame
+	await process_frame
+	var moving := pool.get_active_bolt_records()
+	var flown := (
+		(first.position as Vector3).distance_to((moving[0] as Dictionary).position as Vector3)
+		if moving.size() == 1
+		else 0.0
+	)
+	var flown_seconds := (
+		float((moving[0] as Dictionary).elapsed) - float(first.elapsed)
+		if moving.size() == 1
+		else 0.0
+	)
+	_check(
+		moving.size() == 1
+		and flown_seconds > 0.0
+		and is_equal_approx(flown, 60.0 * flown_seconds),
+		"the bolt covers exactly its authored metres per second of real physics time"
+	)
+	var landed := false
+	for _index in 600:
+		if pool.get_active_bolt_count() == 0:
+			landed = true
+			break
+		await physics_frame
+		await process_frame
+	_check(
+		landed and is_equal_approx(target_damageable.get_health(), health_before - 9.0),
+		"the bolt reaches the target under its own travel and the authority commits the hit"
+	)
+
+	# A bolt aimed into empty space resolves as a miss when its flight ends.
+	var miss_health := target_damageable.get_health()
+	pool.launch(shooter, &"bolt_lance", origin, Vector3(1.0, 0.0, 0.0))
+	var expired := false
+	for _index in 600:
+		if pool.get_active_bolt_count() == 0:
+			expired = true
+			break
+		await physics_frame
+		await process_frame
+	_check(
+		expired and is_equal_approx(target_damageable.get_health(), miss_health),
+		"a bolt that touches nothing expires without ever applying damage"
+	)
+	_check(
+		int(pool.get_statistics().resolved) == 2
+		and int(pool.get_statistics().abandoned) == 0
+		and bool(pool.get_audit_report().valid)
+		and not bool((pool.get_audit_report().authority as Dictionary).damage),
+		"the travel pool resolved both bolts through the authority and claims no damage authority"
+	)
+	var reduced := pool.set_reduced_flash_enabled(true)
+	_check(
+		bool(reduced.reduced_flash)
+		and not bool(reduced.dynamic_light_enabled)
+		and float(reduced.trail_length_meters)
+			< TravellingBoltProjectile.TRAIL_LENGTH_METERS,
+		"reduced flash drops the moving light and shortens the trail without hiding the bolt"
+	)
+	pool.set_reduced_flash_enabled(false)
+
+	authority.forget_source(shooter, SOURCE_ID + 7)
+	pool.queue_free()
+	shooter.queue_free()
+	target.queue_free()
+	authority.queue_free()
+	await process_frame
+	await process_frame
 
 
 func _test_scatter_authority(host: Node3D) -> void:

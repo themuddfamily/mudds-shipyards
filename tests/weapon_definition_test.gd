@@ -44,6 +44,20 @@ func _test_identity_modes_and_core_envelope() -> void:
 		"resolution snapshot exposes explicit mode, metre range, damage, and shots-per-second cadence"
 	)
 	_check(
+		resolution.projectile_speed_mps == 240.0
+			and resolution.projectile_lifetime_seconds == 4.0
+			and resolution.projectile_radius_meters == 1.5
+			and weapon.is_projectile_resolution(),
+		"a projectile definition publishes its explicit metres-per-second travel envelope"
+	)
+	_check(
+		defaults.get_resolution_snapshot().projectile_speed_mps == 0.0
+			and defaults.get_resolution_snapshot().projectile_lifetime_seconds == 0.0
+			and defaults.get_resolution_snapshot().projectile_radius_meters == 0.0
+			and not defaults.is_projectile_resolution(),
+		"a hitscan definition carries an exactly zero travel envelope and authors nothing new"
+	)
+	_check(
 		weapon.get_evidence_status_id() == &"provisional",
 		"evidence enum publishes a stable textual status without authenticating it"
 	)
@@ -159,6 +173,61 @@ func _test_strict_validation() -> void:
 	excessive_ammunition.reserve_ammunition = DefinitionScript.MAX_AMMUNITION + 1
 	_check(_has_error(excessive_ammunition.get_validation_errors(), "reserve_ammunition"), "ammunition has a finite integer ceiling")
 
+	# --- the travel envelope is strictly mode-gated ---
+	var hitscan_with_speed := _definition()
+	hitscan_with_speed.projectile_speed_mps = 120.0
+	_check(
+		_has_error(hitscan_with_speed.get_validation_errors(), "projectile travel fields"),
+		"a hitscan definition cannot retain a stray travel envelope"
+	)
+	var beam_with_radius := _definition()
+	beam_with_radius.resolution_mode = DefinitionScript.ResolutionMode.BEAM
+	beam_with_radius.projectile_radius_meters = 1.0
+	_check(
+		_has_error(beam_with_radius.get_validation_errors(), "projectile travel fields"),
+		"a beam definition cannot borrow the projectile travel envelope either"
+	)
+	var bare_projectile := _definition()
+	bare_projectile.resolution_mode = DefinitionScript.ResolutionMode.PROJECTILE
+	_check(
+		bare_projectile.is_definition_valid()
+			and not bare_projectile.has_projectile_travel_envelope(),
+		"a projectile whose travel data is not authored yet stays valid but declares no envelope"
+	)
+	var partial_projectile := _definition()
+	partial_projectile.resolution_mode = DefinitionScript.ResolutionMode.PROJECTILE
+	partial_projectile.projectile_speed_mps = 150.0
+	_check(
+		_has_error(
+			partial_projectile.get_validation_errors(), "partially authored projectile travel envelope"
+		)
+			and not partial_projectile.has_projectile_travel_envelope(),
+		"a half-authored travel envelope is rejected so no reader can guess the rest"
+	)
+	var unreachable_projectile := _definition()
+	unreachable_projectile.resolution_mode = DefinitionScript.ResolutionMode.PROJECTILE
+	unreachable_projectile.range_meters = 900.0
+	unreachable_projectile.projectile_speed_mps = 100.0
+	unreachable_projectile.projectile_lifetime_seconds = 3.0
+	unreachable_projectile.projectile_radius_meters = 1.0
+	_check(
+		unreachable_projectile.has_projectile_travel_envelope()
+			and _has_error(unreachable_projectile.get_validation_errors(), "must cover range_meters"),
+		"a flight ceiling that cannot reach the authored range is rejected, not silently clipped"
+	)
+	var non_finite_speed := _complete_definition()
+	non_finite_speed.projectile_speed_mps = INF
+	_check(
+		_has_error(non_finite_speed.get_validation_errors(), "projectile_speed_mps"),
+		"travel speed rejects infinities"
+	)
+	var excessive_speed := _complete_definition()
+	excessive_speed.projectile_speed_mps = DefinitionScript.MAX_PROJECTILE_SPEED_MPS + 1.0
+	_check(
+		_has_error(excessive_speed.get_validation_errors(), "projectile_speed_mps"),
+		"travel speed has a finite ceiling"
+	)
+
 	var invalid_presentation := _definition()
 	invalid_presentation.presentation_id = &"Bad Presentation"
 	invalid_presentation.fire_audio_id = &""
@@ -247,6 +316,9 @@ func _complete_definition() -> WeaponDefinition:
 	weapon.range_meters = 825.5
 	weapon.damage_per_hit = 17.25
 	weapon.cadence_shots_per_second = 6.5
+	weapon.projectile_speed_mps = 240.0
+	weapon.projectile_lifetime_seconds = 4.0
+	weapon.projectile_radius_meters = 1.5
 	weapon.faction_policy = DefinitionScript.FactionPolicy.FIXED_FACTION
 	weapon.fixed_faction_id = &"range_defence"
 	weapon.friendly_fire_policy = DefinitionScript.FriendlyFirePolicy.ALLOW
