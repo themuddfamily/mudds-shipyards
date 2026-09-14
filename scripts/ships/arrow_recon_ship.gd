@@ -129,11 +129,11 @@ const RECON_CROWN_SECONDARY_OUTER_RADIUS := 0.66
 const RECON_CROWN_SECONDARY_ROTATION_DEGREES := Vector3(0.0, 0.0, 90.0)
 const RECON_CROWN_HUB_RADIUS := 0.14
 const RECON_CROWN_MAX_CHASE_PROJECTED_DIAMETER_PX := 30.0
-const BOARDING_STEP_SIZE := Vector3(0.58, 0.1, 0.62)
-const BOARDING_STEP_VISIBLE_COPIES := 3
-# Retain the only stable renderer path from the former three-node family; the
-# two duplicate siblings had engine-generated fallback names and no authority.
-const BOARDING_STEP_BATCH_NAME := "BoardingStep"
+const ACCESS_WING_HINGE := Vector3(-3.4, 1.50, -0.3)
+const ACCESS_LADDER_FOOT := Vector3(-3.4, -1.17, -4.05)
+const ACCESS_ENTRY := Vector3(-0.55, 2.60, 0.18)
+const ACCESS_STAIR_POSES := [Vector3(-3.4, 1.52, 0.18), Vector3(-2.88, 1.82, 0.18),
+	Vector3(-2.36, 2.14, 0.18), Vector3(-1.84, 2.52, 0.18)]
 const ENGINE_COLLAR_INNER_RADIUS := 0.55
 const ENGINE_COLLAR_OUTER_RADIUS := 0.7
 const ENGINE_COLLAR_VISIBLE_COPIES := 2
@@ -229,13 +229,13 @@ const PHASE9_ARROW_VISUAL_CENSUS := {
 	"auto_fallback_names": 23,
 }
 const EXPECTED_ARROW_VISUAL_CENSUS := {
-	"nodes": 278,
-	"mesh_instance_nodes": 243,
-	"multi_mesh_instance_nodes": 3,
+	"nodes": 284,
+	"mesh_instance_nodes": 246,
+	"multi_mesh_instance_nodes": 2,
 	# Includes fitted seating/controls and one rigid airframe shadow renderer.
-	"geometry_submissions": 247,
+	"geometry_submissions": 252,
 	"visible_geometry_copies": 249,
-	"unique_mesh_resource_allocations": 196,
+	"unique_mesh_resource_allocations": 197,
 	"auto_fallback_names": 20,
 }
 const RECON_PULSE_EMITTER_VISUAL_DELTA := {
@@ -279,7 +279,9 @@ var _sensor_leading_edge_curve_joint_mesh: SphereMesh
 var _dorsal_data_conduit_curve_joint_mesh: SphereMesh
 var _fuselage_panel_band_mesh: BoxMesh
 var _array_receiver_mesh: SphereMesh
-var _boarding_step_mesh: ArrayMesh
+var _access_upper_hinge: Node3D
+var _access_lower_hinge: Node3D
+var _access_canopy_carrier: Node3D
 var _cockpit_console_key_mesh: BoxMesh
 var _engine_collar_mesh: TorusMesh
 var _refractory_nozzle_mesh: ArrayMesh
@@ -1582,23 +1584,150 @@ func _build_engines_and_landing_gear() -> void:
 		nose.mesh = _landing_gear_stock(is_support, true)
 		nose.position = Vector3(0.0, LANDING_SOLE_Y, -3.85)
 		_arrow_visual.add_child(nose)
-	_boarding_step_mesh = _rounded_box_mesh(BOARDING_STEP_SIZE, _arrow_materials.pod)
-	var boarding_step_transforms: Array[Transform3D] = []
-	for step_index in BOARDING_STEP_VISIBLE_COPIES:
-		boarding_step_transforms.append(Transform3D(
-			Basis.IDENTITY,
-			Vector3(
-				-1.65 - float(step_index) * 0.32,
-				-0.12 + float(step_index) * 0.28,
-				0.05
-			)
-		))
-	_multi_mesh_from_mesh(
-		_arrow_visual,
-		BOARDING_STEP_BATCH_NAME,
-		_boarding_step_mesh,
-		boarding_step_transforms
-	)
+	_build_supported_access()
+
+
+func _build_supported_access() -> void:
+	var access := Node3D.new()
+	access.name = "SupportedBoardingAccess"
+	_arrow_visual.add_child(access)
+	_access_upper_hinge = Node3D.new()
+	_access_upper_hinge.name = "UpperLadderHinge"
+	_access_upper_hinge.position = ACCESS_WING_HINGE
+	access.add_child(_access_upper_hinge)
+	var half := (ACCESS_LADDER_FOOT + Vector3.UP * 0.05 - ACCESS_WING_HINGE) * 0.5
+	_access_lower_hinge = Node3D.new()
+	_access_lower_hinge.name = "LowerLadderHinge"
+	var knuckle_offset := Vector3(0, -half.z, half.y).normalized() * 0.14
+	_access_lower_hinge.position = half
+	_access_upper_hinge.add_child(_access_lower_hinge)
+	var dark := _access_surface(_arrow_materials.graphite)
+	var metal := _access_surface(_arrow_materials.titanium)
+	for side in [-1.0, 1.0]:
+		var offset := Vector3(side * 0.50, 0.0, 0.0)
+		_landing_cylinder(dark, offset, half + offset, 0.045)
+		_landing_cylinder(metal, half + offset, half + offset + knuckle_offset, 0.065)
+		_landing_box(dark, half + offset - Vector3(0, 0.005, 0), Vector3(0.18, 0.09, 0.26), _arrow_materials.graphite)
+	for rung in 4:
+		var centre := half * ((float(rung) + 0.5) / 4.0)
+		_landing_box(metal, centre - Vector3(0, 0.045, 0), Vector3(0.94, 0.09, 0.16), _arrow_materials.titanium)
+	var ladder_stock := _finish_access_stock(dark, metal)
+	for hinge in [_access_upper_hinge, _access_lower_hinge]:
+		var renderer := MeshInstance3D.new()
+		renderer.name = "LadderStock"
+		renderer.mesh = ladder_stock
+		hinge.add_child(renderer)
+	dark = _access_surface(_arrow_materials.graphite)
+	metal = _access_surface(_arrow_materials.titanium)
+	# The wing landing is supported on the actual cambered skin, ahead of the
+	# inboard shoulder climb. No floating walkway extends along the cockpit.
+	_landing_box(metal, Vector3(-3.4, 1.455, -0.15), Vector3(1.02, 0.09, 0.62), _arrow_materials.titanium)
+	for side in [-1.0, 1.0]:
+		_landing_cylinder(dark, Vector3(-3.4 + side * 0.44, 1.02, 0.08), Vector3(-3.4 + side * 0.44, 1.48, 0.08), 0.05)
+	for index in ACCESS_STAIR_POSES.size():
+		var pose: Vector3 = ACCESS_STAIR_POSES[index]
+		_landing_box(metal, pose - Vector3(0, 0.045, 0), Vector3(0.32, 0.09, 0.84), _arrow_materials.titanium)
+		for side in [-1.0, 1.0]:
+			var base := Vector3(pose.x, 1.21, pose.z + side * 0.34)
+			_landing_cylinder(dark, base, pose + Vector3(0, -0.06, side * 0.34), 0.035)
+			# Leave the ladder-to-wing turn open; handholds start inboard of
+			# the first tread rather than fencing off its approach.
+			if index > 0:
+				var rail_top := pose + Vector3(0, 0.75, side * 0.55)
+				_landing_cylinder(dark, pose + Vector3(0, -0.06, side * 0.34), rail_top, 0.027)
+				if index > 1:
+					_landing_cylinder(metal, ACCESS_STAIR_POSES[index - 1] + Vector3(0, 0.75, side * 0.55), rail_top, 0.03)
+
+	var fixed := MeshInstance3D.new()
+	fixed.name = "WingLandingAndShoulderSteps"
+	fixed.mesh = _finish_access_stock(dark, metal)
+	access.add_child(fixed)
+	_set_canopy_open_fraction(1.0 if is_canopy_open() else 0.0)
+
+
+func _access_surface(material: Material) -> SurfaceTool:
+	var tool := SurfaceTool.new()
+	tool.begin(Mesh.PRIMITIVE_TRIANGLES)
+	tool.set_material(material)
+	return tool
+
+
+func _finish_access_stock(dark: SurfaceTool, metal: SurfaceTool) -> ArrayMesh:
+	var mesh := ArrayMesh.new()
+	for tool in [dark, metal]:
+		tool.generate_tangents()
+		tool.index()
+		tool.commit(mesh)
+	return mesh
+
+
+func _set_canopy_open_fraction(open_fraction: float) -> void:
+	super._set_canopy_open_fraction(open_fraction)
+	if is_instance_valid(_access_canopy_carrier):
+		_access_canopy_carrier.rotation.x = deg_to_rad(32.0) * clampf(open_fraction, 0.0, 1.0)
+	# Super construction calls this before the Arrow presentation exists.
+	if not is_instance_valid(_access_upper_hinge) or not is_instance_valid(_access_lower_hinge):
+		return
+	var fraction := clampf(open_fraction, 0.0, 1.0)
+	var delta := ACCESS_LADDER_FOOT + Vector3.UP * 0.05 - ACCESS_WING_HINGE
+	var folded_angle := PI + atan2(absf(delta.y), absf(delta.z))
+	_access_upper_hinge.rotation.x = folded_angle * (1.0 - smoothstep(0.0, 0.65, fraction))
+	var lower_fold := 1.0 - smoothstep(0.65, 1.0, fraction)
+	_access_lower_hinge.rotation.x = PI * lower_fold
+	var normal := Vector3(0, -delta.z, delta.y).normalized()
+	_access_lower_hinge.position = delta * 0.5 + normal * 0.14 * lower_fold
+
+
+func _access_route_poses(points: Array[Vector3]) -> Array[Transform3D]:
+	var poses: Array[Transform3D] = []
+	for index in points.size():
+		var direction := (points[mini(index + 1, points.size() - 1)] - points[index])
+		var yaw := atan2(-direction.x, -direction.z) if Vector2(direction.x, direction.z).length_squared() > 0.001 else -PI * 0.5
+		poses.append(global_transform * Transform3D(Basis(Vector3.UP, yaw), points[index]))
+	return poses
+
+
+func _access_climb_points() -> Array[Vector3]:
+	var points: Array[Vector3] = [ACCESS_LADDER_FOOT + Vector3(0, 0.08, -0.45)]
+	for rung in range(8, -1, -1):
+		points.append(ACCESS_WING_HINGE.lerp(ACCESS_LADDER_FOOT, float(rung) / 8.0) + Vector3(0, 0.22, 0))
+
+	for point: Vector3 in ACCESS_STAIR_POSES:
+		points.append(point + Vector3(0, 0.22, 0))
+	points.append(Vector3(-1.42, 2.60, 0.18))
+	return points
+
+
+func get_exterior_boarding_waypoints(from_position: Vector3 = Vector3.INF) -> Array[Transform3D]:
+	var points: Array[Vector3] = []
+	if from_position.is_finite():
+		var local := to_local(from_position)
+		var climb := _access_climb_points()
+		climb.append(ACCESS_ENTRY)
+		for index in climb.size() - 1:
+			var nearest := Geometry3D.get_closest_point_to_segment(local, climb[index], climb[index + 1])
+			if Vector2(local.x - nearest.x, local.z - nearest.z).length() < 0.45 and absf(local.y - nearest.y) < 0.28:
+				for next in range(index + 1, climb.size() - 1):
+					points.append(climb[next])
+				return _access_route_poses(points)
+		# The public prompt reaches both flanks. Ground approaches must clear
+		# the broad wings and the pointed nose before returning to the ladder.
+		if local.x > 0.0:
+			points.append(Vector3(maxf(local.x, 6.4), local.y, local.z))
+			points.append(Vector3(maxf(local.x, 6.4), local.y, -8.4))
+			points.append(Vector3(-6.4, local.y, -8.4))
+		else:
+			points.append(Vector3(minf(local.x, -6.4), local.y, local.z))
+		points.append(Vector3(-6.4, local.y, -4.5))
+	points.append_array(_access_climb_points())
+	return _access_route_poses(points)
+
+
+func get_exterior_exit_waypoints() -> Array[Transform3D]:
+	var points := _access_climb_points()
+	points.reverse()
+	points.push_front(ACCESS_ENTRY)
+	return _access_route_poses(points)
 
 
 ## Two material surfaces remain two ordinary renderers per leg. The solid,
@@ -1811,6 +1940,13 @@ func _restyle_inherited_cockpit(cockpit: Node3D, canopy: Node3D) -> void:
 			if pilot_camera != null:
 				pilot_camera.set_cull_mask_value(19, false)
 			_build_fitted_arrow_canopy(glass, canopy)
+			# Preserve the inherited 63-degree hinge/fraction contract while the
+			# Arrow lid clears a standing pilot crossing its unusually high sill.
+			_access_canopy_carrier = Node3D.new()
+			_access_canopy_carrier.name = "AccessCanopyCarrier"
+			canopy.add_child(_access_canopy_carrier)
+			glass.reparent(_access_canopy_carrier, true)
+			_set_canopy_open_fraction(1.0 if is_canopy_open() else 0.0)
 		for frame in canopy.find_children("*Canopy*Frame", "MeshInstance3D", true, false):
 			(frame as MeshInstance3D).material_override = _arrow_materials.graphite
 		for rail in canopy.find_children("*Canopy*Rail", "MeshInstance3D", true, false):
@@ -1980,15 +2116,22 @@ func _replace_collision_and_markers() -> void:
 			child.queue_free()
 	_add_box_collision("ArrowHullCollision", Vector3(0, 0.85, -0.35), Vector3(3.1, 1.65, 12.2))
 	_add_box_collision("ArrowWingCollision", Vector3(0, 0.88, 1.25), Vector3(11.1, 0.48, 4.9))
+	# These small sole contacts make the real parked height available to surface
+	# berths through the existing root collision report, including Ember.
+	for side in [-1.0, 1.0]:
+		_add_box_collision("ArrowPortLandingShoeCollision" if side < 0 else "ArrowStarboardLandingShoeCollision",
+			Vector3(side * 1.7, LANDING_SOLE_Y + 0.03, 1.8), Vector3(0.48, 0.06, 0.70))
+	_add_box_collision("ArrowNoseLandingShoeCollision", Vector3(0, LANDING_SOLE_Y + 0.03, -3.85), Vector3(0.38, 0.06, 0.52))
 
 	var boarding := get_node_or_null("BoardingPoint") as Marker3D
 	var exit := get_node_or_null("ExitPoint") as Marker3D
 	var left_muzzle := get_node_or_null("LeftMuzzle") as Marker3D
 	var right_muzzle := get_node_or_null("RightMuzzle") as Marker3D
+	_boarding_entry_marker.position = ACCESS_ENTRY
 	if boarding != null:
-		boarding.position = Vector3(-2.45, -0.02, 0.15)
+		boarding.position = ACCESS_LADDER_FOOT + Vector3(0, 0.08, -0.45)
 	if exit != null:
-		exit.position = Vector3(-6.6, -0.9, 0.25)
+		exit.position = ACCESS_LADDER_FOOT + Vector3(0, 0.0, -0.75)
 		exit.rotation.y = -PI * 0.5
 	if left_muzzle != null:
 		left_muzzle.position = Vector3(-1.05, 0.72, -5.7)
@@ -1996,7 +2139,7 @@ func _replace_collision_and_markers() -> void:
 		right_muzzle.position = Vector3(1.05, 0.72, -5.7)
 	var boarding_area := get_node_or_null("ShipBoardingArea") as Area3D
 	if boarding_area != null:
-		boarding_area.position = Vector3(-2.45, 0.48, 0.15)
+		boarding_area.position = boarding.position + Vector3.UP * 0.5
 		_add_flank_approach_range(boarding_area)
 
 

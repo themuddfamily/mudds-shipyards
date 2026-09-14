@@ -872,7 +872,8 @@ func request_reboard(
 		_ship.get_boarding_entry_transform(),
 		_ship.get_pilot_seat_anchor(),
 		0.6,
-		_ship
+		_ship,
+		_ship.get_exterior_boarding_waypoints(_player.global_position)
 	):
 		_boarding_area.release_reservation(_player)
 		_host_acquired_boarding_reservation = false
@@ -1689,7 +1690,8 @@ func _begin_disembark_if_ready() -> Dictionary:
 	_ship.set_canopy_open(true, 0.0)
 	_ship.set_piloted(false)
 	_player.set_camera_active(true)
-	if not _player.begin_disembark(_ship.get_exit_transform(), 0.6, _ship):
+	if not _player.begin_disembark(_ship.get_exit_transform(), 0.6, _ship,
+			_ship.get_exterior_exit_waypoints()):
 		return {"accepted": false, "reason": &"disembark_rejected"}
 	_disembarking_completed_observed = false
 	_set_phase(Phase.DISEMBARKING)

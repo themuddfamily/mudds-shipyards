@@ -590,6 +590,7 @@ func _test_normal_public_actor_loop() -> void:
 	if not reached_landed:
 		await _cleanup(fixture)
 		return
+	_check_landed_arrow_shoe_support(fixture)
 	var terrain_focus := (
 		fixture.scene as EmberMoonAuthoredScene
 	).get_terrain_clipmap_snapshot()
@@ -626,6 +627,10 @@ func _test_normal_public_actor_loop() -> void:
 		host.request_disembark(host.get_generation(), host.get_attachment_generation()).accepted,
 		"ordered disembark intent is accepted once",
 	)
+	_check(await _drive_to_phase(fixture, EmberSurfaceLoopHost.Phase.DISEMBARKING, 300),
+		"surface owner starts the real Arrow exit route")
+	_check_forwarded_access_route(player, ship, ship.get_exterior_exit_waypoints(),
+		"Ember exit forwards every Arrow waypoint in the live ship frame")
 	var reached_surface := await _drive_to_phase(
 		fixture, EmberSurfaceLoopHost.Phase.SURFACE_OUTBOUND, 300
 	)
@@ -668,10 +673,13 @@ func _test_normal_public_actor_loop() -> void:
 	)
 	_check(area.release_reservation(thief), "competing token releases exactly")
 	thief.queue_free()
+	var expected_boarding_route := ship.get_exterior_boarding_waypoints(player.global_position)
 	_check(
 		host.request_reboard(host.get_generation(), host.get_attachment_generation()).accepted,
 		"current Player acquires the real BoardingArea and begins public boarding",
 	)
+	_check_forwarded_access_route(player, ship, expected_boarding_route,
+		"Ember reboarding forwards the Arrow route from the current player position")
 	_check(
 		await _drive_to_phase(fixture, EmberSurfaceLoopHost.Phase.REBOARDED, 20)
 			and player.is_seated() and ship.is_piloted()
@@ -1295,6 +1303,48 @@ func _fixture_at_transition(phase: int) -> Dictionary:
 		_check(false, "transition fixture enters BOARDING")
 		return {}
 	return fixture
+
+
+func _check_landed_arrow_shoe_support(fixture: Dictionary) -> void:
+	var ship := fixture.ship as ArrowReconShip
+	var berth := fixture.berth as EmberSurfaceBerth
+	var up := berth.global_basis.y.normalized()
+	var heights: Array[float] = []
+	var supported := true
+	var visual := ship.get_arrow_visual_root()
+	var main_stock := (visual.get_node("MainGearStrut") as MeshInstance3D).mesh
+	var nose_stock := (visual.get_node("NoseGearStrut") as MeshInstance3D).mesh
+	# The dark strut meshes include the bottom of each actual shoe. Sample
+	# emitted vertices, independently of the collision report used to dock.
+	for strut: MeshInstance3D in visual.find_children("*", "MeshInstance3D", false, false):
+		if strut.mesh != main_stock and strut.mesh != nose_stock:
+			continue
+		var sole := Vector3.ZERO
+		var lowest := INF
+		for vertex in strut.mesh.get_faces():
+			var world_vertex := strut.to_global(vertex)
+			var height := (world_vertex - berth.global_position).dot(up)
+			if height < lowest:
+				lowest = height
+				sole = world_vertex
+		heights.append(lowest)
+		var query := PhysicsRayQueryParameters3D.create(sole + up * 0.5, sole - up * 2.0,
+			PhysicsLayers.WORLD_BODY_LAYER)
+		var hit := ship.get_world_3d().direct_space_state.intersect_ray(query)
+		supported = supported and not hit.is_empty() and hit.get("collider") == fixture.walkable \
+			and absf(lowest) < 0.03 \
+			and absf((sole - (hit.get("position", Vector3.INF) as Vector3)).dot(up)) < 0.03
+	_check(supported and heights.size() == 3,
+		"Ember docking places all three drawn Arrow soles on the actual pad, not underground: %s" % str(heights))
+
+
+func _check_forwarded_access_route(player: PlayerController, ship: HeroShip,
+		expected: Array[Transform3D], description: String) -> void:
+	var captured: Array = player.get("_transition_waypoints")
+	var matches := not expected.is_empty() and captured.size() == expected.size()
+	for index in mini(captured.size(), expected.size()):
+		matches = matches and (captured[index] as Transform3D).is_equal_approx(expected[index])
+	_check(matches and player.get("_transition_frame") == ship, description)
 
 
 func _fixture(

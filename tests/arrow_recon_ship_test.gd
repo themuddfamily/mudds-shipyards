@@ -1,6 +1,7 @@
 extends SceneTree
 
 const ARROW_SCENE := preload("res://scenes/ships/arrow_recon_ship.tscn")
+const PLAYER_SCENE := preload("res://scenes/player/player.tscn")
 const TORRENT_SCENE := preload("res://scenes/ships/torrent_interceptor.tscn")
 const SHIP_LAYER := PhysicsLayers.SHIP
 
@@ -36,7 +37,7 @@ func _run() -> void:
 	_test_refractory_nozzle_stock(arrow)
 	_test_main_gear_foot_mesh_sharing(arrow)
 	_test_pod_separation_collar_mesh_sharing(arrow)
-	_test_boarding_step_mesh_sharing(arrow)
+	await _test_supported_boarding_access(arrow)
 	_test_escape_pods_and_sensors(arrow)
 	_test_wingtip_sensor_housings(arrow)
 	_test_formed_raceways(arrow)
@@ -193,74 +194,84 @@ func _test_shared_seat_cushions(arrow: ArrowReconShip) -> void:
 		"cushion refit keeps the physical seated feet frame")
 
 
-func _test_boarding_step_mesh_sharing(arrow: ArrowReconShip) -> void:
-	var visual := arrow.get_arrow_visual_root()
-	var batch := visual.get_node_or_null(
-		ArrowReconShip.BOARDING_STEP_BATCH_NAME
-	) as MultiMeshInstance3D
-	var expected: Array[Transform3D] = []
-	for step_index in ArrowReconShip.BOARDING_STEP_VISIBLE_COPIES:
-		expected.append(Transform3D(
-			Basis.IDENTITY,
-			Vector3(
-				-1.65 - float(step_index) * 0.32,
-				-0.12 + float(step_index) * 0.28,
-				0.05
-			)
-		))
-	var authored := (
-		batch.get_meta("authored_instance_transforms", []) as Array
-		if batch != null else []
-	)
-	var transforms_match := authored.size() == expected.size()
-	for index in mini(authored.size(), expected.size()):
-		transforms_match = transforms_match and (
-			(authored[index] as Transform3D).is_equal_approx(expected[index])
-		)
-	var expected_bounds := AABB()
-	var ordinary_step_renderers := 0
-	for child in visual.get_children():
-		if child is MeshInstance3D \
-				and (child as MeshInstance3D).mesh is ArrayMesh \
-				and (child as MeshInstance3D).mesh.get_aabb().size.is_equal_approx(
-					ArrowReconShip.BOARDING_STEP_SIZE
-				):
-			ordinary_step_renderers += 1
-	if batch != null and batch.multimesh != null and batch.multimesh.mesh != null:
-		for index in expected.size():
-			var piece := (expected[index] * batch.multimesh.mesh.get_aabb()).abs()
-			expected_bounds = piece if index == 0 else expected_bounds.merge(piece)
-	_check(
-		batch != null and batch.multimesh != null
-		and batch.multimesh.mesh is ArrayMesh
-		and batch.multimesh.mesh.get_aabb().size.is_equal_approx(
-			ArrowReconShip.BOARDING_STEP_SIZE
-		)
-		and batch.multimesh.mesh.surface_get_material(0) \
-			== arrow.get_variant_materials().pod
-		and batch.multimesh.transform_format == MultiMesh.TRANSFORM_3D
-		and not batch.multimesh.use_colors
-		and not batch.multimesh.use_custom_data
-		and batch.multimesh.instance_count == ArrowReconShip.BOARDING_STEP_VISIBLE_COPIES
-		and batch.multimesh.visible_instance_count == ArrowReconShip.BOARDING_STEP_VISIBLE_COPIES
-		and transforms_match
-		and batch.multimesh.custom_aabb.is_equal_approx(expected_bounds)
-		and batch.transform.is_equal_approx(Transform3D.IDENTITY)
-		and batch.visible
-		and batch.cast_shadow == GeometryInstance3D.SHADOW_CASTING_SETTING_ON
-		and batch.material_override == null
-		and batch.material_overlay == null
-		and batch.layers == 1
-		and is_zero_approx(batch.transparency)
-		and bool(batch.get_meta("visual_detail_only", false))
-		and batch.get_meta_list().size() == 2
-		and batch.get_child_count() == 0
-		and batch.get_script() == null
-		and batch.get_groups().is_empty()
-		and visual.get_node_or_null("BoardingStep") == batch
-		and ordinary_step_renderers == 0,
-		"three visual-only boarding steps retain their exact mesh, transforms, culling, material and shadow state in one bounded batch"
-	)
+func _test_supported_boarding_access(ship: ArrowReconShip) -> void:
+	var visual := ship.get_arrow_visual_root()
+	var access := visual.get_node("SupportedBoardingAccess")
+	var upper := access.get_node("UpperLadderHinge") as Node3D
+	var lower := upper.get_node("LowerLadderHinge") as Node3D
+	var stock := (upper.get_node("LadderStock") as MeshInstance3D).mesh
+	_check(visual.get_node_or_null("BoardingStep") == null and stock == (lower.get_node("LadderStock") as MeshInstance3D).mesh,
+		"floating step batch is replaced by two folding flights sharing one immutable ladder stock")
+	ship.set_canopy_open(true, 0.0)
+	await process_frame
+	_check(is_zero_approx(upper.rotation.x) and is_zero_approx(lower.rotation.x), "settled open canopy deploys both ladder sections")
+	ship.set_canopy_open(false, 0.0)
+	await process_frame
+	_check(upper.rotation.x > PI and is_equal_approx(lower.rotation.x, PI), "closed canopy folds the ground ladder onto the wing")
+	_check(stock == (upper.get_node("LadderStock") as MeshInstance3D).mesh, "folding retains shared stock without mesh allocation")
+	ship.set_canopy_open(true, 0.0)
+	await process_frame
+	var prior_physics := ship.is_physics_processing()
+	ship.set_physics_process(false)
+	var geometry := Node3D.new()
+	_test_root.add_child(geometry)
+	var corridor := AABB(Vector3(-7, -1.4, -9), Vector3(14, 7, 17))
+	var geometry_count := 0
+	for node in ship.find_children("*", "GeometryInstance3D", true, false):
+		if ship.get_entry_heat_target().is_ancestor_of(node):
+			continue
+		if not (node as GeometryInstance3D).is_visible_in_tree() or (node as GeometryInstance3D).cast_shadow == GeometryInstance3D.SHADOW_CASTING_SETTING_SHADOWS_ONLY:
+			continue
+		if node is MeshInstance3D:
+			var mesh_node := node as MeshInstance3D
+			if mesh_node.mesh != null:
+				geometry_count += _add_access_mesh_probe(geometry, ship, corridor, mesh_node.mesh, mesh_node.global_transform, StringName(str(ship.get_path_to(mesh_node)).replace("/", "__")))
+		elif node is MultiMeshInstance3D:
+			var batch := node as MultiMeshInstance3D
+			if batch.multimesh == null or batch.multimesh.mesh == null: continue
+			var count := batch.multimesh.instance_count if batch.multimesh.visible_instance_count < 0 else batch.multimesh.visible_instance_count
+			for index in count:
+				geometry_count += _add_access_mesh_probe(geometry, ship, corridor, batch.multimesh.mesh,
+					batch.global_transform * batch.multimesh.get_instance_transform(index), batch.name)
+	_check(geometry_count > 50, "access sweep includes emitted hull, wings, ladder, canopy and cockpit fittings")
+	var player := PLAYER_SCENE.instantiate() as PlayerController
+	_test_root.add_child(player)
+	player.set_physics_process(false)
+	player.global_position = ship.get_boarding_position()
+	var skeleton := player.get_pilot_visual_root().find_child("*Skeleton*", true, false) as Skeleton3D
+	var capsule_query := PhysicsShapeQueryParameters3D.new()
+	capsule_query.shape = (player.get_node("PlayerCollision") as CollisionShape3D).shape
+	capsule_query.collision_mask = 1 << 25
+	capsule_query.margin = 0.005
+	var body_query := PhysicsShapeQueryParameters3D.new()
+	var body_sphere := SphereShape3D.new()
+	body_sphere.radius = 0.20
+	body_query.shape = body_sphere
+	body_query.collision_mask = 1 << 25
+	body_query.margin = 0.003
+	await physics_frame
+	await physics_frame
+	var accepted := player.begin_boarding(ship.get_boarding_entry_transform(), ship.get_pilot_seat_anchor(),
+		2.0, ship, ship.get_exterior_boarding_waypoints())
+	var board_sweep := _sample_access_motion(ship, player, skeleton, capsule_query, body_query, PlayerController.EmbodimentState.BOARDING)
+	_check(accepted and player.is_seated() and board_sweep.frames >= 120 and board_sweep.hits.is_empty(),
+		"boarding clears actual geometry with standing capsule and animated chest/head through seat settling: %s" % board_sweep)
+	accepted = player.begin_disembark(ship.get_exit_transform(), 2.0, ship, ship.get_exterior_exit_waypoints())
+	var exit_sweep := _sample_access_motion(ship, player, skeleton, capsule_query, body_query, PlayerController.EmbodimentState.DISEMBARKING)
+	_check(accepted and not player.is_seated() and exit_sweep.frames >= 120 and exit_sweep.hits.is_empty(),
+		"reverse access clears actual geometry with standing capsule and animated chest/head: %s" % exit_sweep)
+	for start in [Vector3(-6.4,-1.09,0),Vector3(6.4,-1.09,0),Vector3(0,-1.09,-8.4),Vector3(0,-1.09,8)]:
+		player.force_recovery_to_on_foot(ship.global_transform * Transform3D(Basis.IDENTITY, start))
+		player.begin_boarding(ship.get_boarding_entry_transform(), ship.get_pilot_seat_anchor(), 2.0, ship,
+			ship.get_exterior_boarding_waypoints(player.global_position))
+		var sweep := _sample_access_motion(ship, player, skeleton, capsule_query, body_query, PlayerController.EmbodimentState.BOARDING)
+		_check(sweep.hits.is_empty(), "flank/nose/tail approach skirts actual hull before climbing: %s %s" % [start, sweep])
+	geometry.queue_free()
+	player.queue_free()
+	ship.set_canopy_open(false, 0.0)
+	ship.set_physics_process(prior_physics)
+	await process_frame
+	await physics_frame
 
 
 func _test_engine_collar_mesh_sharing(arrow: ArrowReconShip) -> void:
@@ -1103,15 +1114,15 @@ func _test_visual_performance_batch(arrow: ArrowReconShip) -> void:
 		bool(report.valid)
 		and report.current == report.expected
 		and report.expected_without_markings == {
-			"nodes": 278,
-			"mesh_instance_nodes": 243,
-			"multi_mesh_instance_nodes": 3,
-			"geometry_submissions": 247,
+			"nodes": 284,
+			"mesh_instance_nodes": 246,
+			"multi_mesh_instance_nodes": 2,
+			"geometry_submissions": 252,
 			"visible_geometry_copies": 249,
-			"unique_mesh_resource_allocations": 196,
+			"unique_mesh_resource_allocations": 197,
 			"auto_fallback_names": 20,
 		},
-		"entry-complete Arrow retains 278 nodes, 247 submissions including one shadow-only renderer, 196 meshes with shared formed raceways and 249 copies"
+		"entry-complete Arrow retains 284 nodes, 252 submissions including one shadow-only renderer, 197 meshes with shared folding access and 249 copies"
 	)
 	_check(
 		report.phase9_before_entry_heat == {
@@ -1315,7 +1326,7 @@ func _test_visual_performance_batch(arrow: ArrowReconShip) -> void:
 	)
 	detached_panel_transforms[0] = Transform3D.IDENTITY
 	_check(
-		int(arrow.get_arrow_visual_performance_report().current.nodes) == 278 + int(report.surface_marking_costs.nodes)
+		int(arrow.get_arrow_visual_performance_report().current.nodes) == 284 + int(report.surface_marking_costs.nodes)
 		and int(
 			arrow.get_arrow_visual_performance_report()
 				.lateral_array_curve_joint_sharing.primitive_mesh_allocations
@@ -1928,7 +1939,7 @@ func _mesh_vertical_span(stock: MeshInstance3D, sample: Vector2, include_fitting
 func _test_fitted_canopy(arrow: ArrowReconShip) -> void:
 	var visual := arrow.get_arrow_visual_root()
 	var hinge := visual.get_node("CanopyHinge") as Node3D
-	var glass := hinge.get_node("CanopyGlass") as MeshInstance3D
+	var glass := hinge.get_node("AccessCanopyCarrier/CanopyGlass") as MeshInstance3D
 	var sill := visual.get_node("CockpitSillFairing") as MeshInstance3D
 	var faces := glass.mesh.get_faces()
 	var relative := hinge.transform * glass.transform
@@ -2011,7 +2022,7 @@ func _test_collision_boarding_and_cameras(arrow: ArrowReconShip) -> void:
 	for child in arrow.get_children():
 		if child is CollisionShape3D:
 			collisions.append(child)
-	_check(collisions.size() == 2, "Arrow has exactly two named direct hull collision shapes")
+	_check(collisions.size() == 5, "Arrow retains both hull shapes and adds three bounded sole contacts")
 	_check(arrow.get_node_or_null("ArrowHullCollision") is CollisionShape3D, "slender fuselage has a named collision shape")
 	_check(arrow.get_node_or_null("ArrowWingCollision") is CollisionShape3D, "sensor-wing planform has a named collision shape")
 
@@ -2039,7 +2050,7 @@ func _test_collision_boarding_and_cameras(arrow: ArrowReconShip) -> void:
 
 	var canopy := arrow.get_arrow_visual_root().get_node_or_null("CanopyHinge") as Node3D
 	_check(canopy != null, "functional inherited canopy pivot remains intact")
-	var glazing := canopy.get_node_or_null("CanopyGlass") as MeshInstance3D
+	var glazing := canopy.get_node_or_null("AccessCanopyCarrier/CanopyGlass") as MeshInstance3D
 	var glazing_material := glazing.get_active_material(0) as StandardMaterial3D if glazing != null else null
 	_check(glazing_material == arrow.get_variant_materials().glass \
 		and glazing_material.transparency == BaseMaterial3D.TRANSPARENCY_ALPHA \
@@ -2273,3 +2284,49 @@ func _finish() -> void:
 	else:
 		print("ARROW_RECON_SHIP_TEST_FAILED: ", ", ".join(_failures))
 		quit(1)
+
+
+func _add_access_mesh_probe(parent: Node3D, ship: ArrowReconShip, corridor: AABB,
+		mesh: Mesh, world_transform: Transform3D, source_name: StringName) -> int:
+	if not corridor.intersects(ship.global_transform.affine_inverse() * world_transform * mesh.get_aabb()):
+		return 0
+	var body := StaticBody3D.new()
+	body.name = source_name
+	body.collision_layer = 1 << 25
+	body.collision_mask = 0
+	parent.add_child(body)
+	body.global_transform = world_transform
+	var collision := CollisionShape3D.new()
+	var shape := mesh.create_trimesh_shape()
+	shape.backface_collision = true
+	collision.shape = shape
+	body.add_child(collision)
+	return 1
+
+
+func _sample_access_motion(ship: ArrowReconShip, player: PlayerController,
+		skeleton: Skeleton3D, capsule_query: PhysicsShapeQueryParameters3D,
+		body_query: PhysicsShapeQueryParameters3D, state: int) -> Dictionary:
+	var hits := {}
+	var frames := 0
+	var capsule_frames := 0
+	while int(player.get("_embodiment_state")) == state and frames < 125:
+		player.call("_update_embodiment", 2.0 / 120.0)
+		player.get_motion_animation_player().advance(2.0 / 120.0)
+		skeleton.force_update_all_bone_transforms()
+		frames += 1
+		# Standing clearance ends at the chair approach; the authored seated
+		# chest/head probes continue for every frame, including final settling.
+		if ship.to_local(player.global_position).x <= -1.20:
+			capsule_frames += 1
+			capsule_query.transform = Transform3D(ship.global_basis,
+				player.global_position + ship.global_basis.y * 0.97)
+			for hit in player.get_world_3d().direct_space_state.intersect_shape(capsule_query, 32):
+				hits[str(hit.collider.name) + "/capsule"] = str(ship.to_local(player.global_position))
+		for bone_name in ["chest", "head"]:
+			var bone := skeleton.find_bone(bone_name)
+			body_query.transform = Transform3D(Basis.IDENTITY,
+				(skeleton.global_transform * skeleton.get_bone_global_pose(bone)).origin)
+			for hit in player.get_world_3d().direct_space_state.intersect_shape(body_query, 32):
+				hits[str(hit.collider.name) + "/" + bone_name] = str(ship.to_local(player.global_position))
+	return {"frames": frames, "capsule_frames": capsule_frames, "hits": hits}

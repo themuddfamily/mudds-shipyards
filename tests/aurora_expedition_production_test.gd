@@ -1,5 +1,8 @@
 extends SceneTree
 const MAIN := preload("res://scenes/main.tscn")
+const ARROW := preload("res://scenes/ships/arrow_recon_ship.tscn")
+const PLAYER := preload("res://scenes/player/player.tscn")
+const EXPEDITION := preload("res://scripts/game/aurora_expedition.gd")
 const SUCCESS_MARKER := "AURORA_EXPEDITION_PRODUCTION_TEST_OK"
 var _failures: Array[String] = []
 var _assertions := 0
@@ -8,6 +11,7 @@ func _init() -> void:
 	call_deferred(&"_run")
 
 func _run() -> void:
+	await _test_arrow_access_forwarding()
 	var game := MAIN.instantiate() as GameFlow
 	root.add_child(game)
 	await process_frame
@@ -121,6 +125,60 @@ func _run() -> void:
 		_check(owner.state == &"idle" and not game._piloting and not game._transition_busy and not game.player.is_seated() and game.player.is_control_enabled() and game.player.get_camera().current and game.player.global_position.distance_to(home_position) < 40.0, "%s cancellation restores a controllable on-foot explorer at Mudds" % interrupted_state)
 		_check((craft.get_node("ShipBoardingArea") as ShipBoardingArea).get_reservation_token() == null and bool(craft.get_telemetry().get("landed", false)), "%s cancellation releases the seat and physically restores home docking" % interrupted_state)
 	await _finish(game)
+
+## Exercise the actual expedition handoffs with a routed craft as well as the
+## full Halyard voyage below. Freeze physics to inspect each live transition
+## before it completes; the production Player still consumes every descriptor.
+func _test_arrow_access_forwarding() -> void:
+	var fixture := Node3D.new()
+	root.add_child(fixture)
+	var ship := ARROW.instantiate() as ArrowReconShip
+	fixture.add_child(ship)
+	ship.set_physics_process(false)
+	var player := PLAYER.instantiate() as PlayerController
+	fixture.add_child(player)
+	player.set_physics_process(false)
+	player.set_control_enabled(false)
+	var flow := GameFlow.new()
+	flow.player = player
+	var owner := EXPEDITION.new(flow)
+	owner.set("_ship", ship)
+	owner.state = &"landed"
+	player.begin_boarding(ship.get_boarding_entry_transform(), ship.get_pilot_seat_anchor(), 0.0, ship)
+	await player.boarding_completed
+	owner.request_exit()
+	await _wait_state(owner, &"disembarking", 240)
+	_check_forwarded_access_route(player, ship, ship.get_exterior_exit_waypoints(),
+		"Aurora exit forwards every Arrow waypoint in the live ship frame")
+	player.call("_update_embodiment", 0.6)
+	await process_frame
+	_check(not player.is_seated() and player.global_transform.is_equal_approx(ship.get_exit_transform()),
+		"Aurora's routed exit reaches the actual Arrow exit marker")
+	owner.state = &"surface"
+	flow._transition_busy = false
+	player.global_position += ship.global_basis.z * -0.5
+	var expected := ship.get_exterior_boarding_waypoints(player.global_position)
+	owner.call("_begin_boarding")
+	await _wait_state(owner, &"boarding", 240)
+	_check_forwarded_access_route(player, ship, expected,
+		"Aurora reboarding forwards the Arrow route from the current player position")
+	player.call("_update_embodiment", 0.7)
+	await process_frame
+	_check(player.is_seated(), "Aurora's routed boarding reaches the live Arrow seat")
+	owner.set("_ship", null)
+	flow.free()
+	fixture.queue_free()
+	await process_frame
+
+
+func _check_forwarded_access_route(player: PlayerController, ship: HeroShip,
+		expected: Array[Transform3D], description: String) -> void:
+	var captured: Array = player.get("_transition_waypoints")
+	var matches := not expected.is_empty() and captured.size() == expected.size()
+	for index in mini(captured.size(), expected.size()):
+		matches = matches and (captured[index] as Transform3D).is_equal_approx(expected[index])
+	_check(matches and player.get("_transition_frame") == ship, description)
+
 
 func _row(game: GameFlow) -> Dictionary:
 	for row: Dictionary in game.get_planetary_destination_catalog_snapshot().get("destinations", []):

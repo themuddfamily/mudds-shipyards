@@ -192,7 +192,8 @@ func request_exit() -> void:
 		return
 	_ship.set_piloted(false)
 	_flow.player.set_camera_active(true)
-	if _flow.player.begin_disembark(_ship.get_exit_transform(), 0.6, _ship):
+	if _flow.player.begin_disembark(_ship.get_exit_transform(), 0.6, _ship,
+			_ship.get_exterior_exit_waypoints()):
 		_flow._transition_busy = true
 		state = &"disembarking"
 	else:
@@ -224,7 +225,8 @@ func _begin_boarding() -> void:
 	await boarding_ship.canopy_motion_finished
 	if state != &"opening_boarding" or not is_instance_valid(boarding_ship) or _ship != boarding_ship:
 		return
-	if _flow.player.begin_boarding(_ship.get_boarding_entry_transform(), _ship.get_pilot_seat_anchor(), 0.7, _ship):
+	if _flow.player.begin_boarding(_ship.get_boarding_entry_transform(), _ship.get_pilot_seat_anchor(), 0.7, _ship,
+			_ship.get_exterior_boarding_waypoints(_flow.player.global_position)):
 		state = &"boarding"
 	else:
 		_flow._transition_busy = false
