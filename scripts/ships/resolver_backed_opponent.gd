@@ -308,6 +308,15 @@ func _fire_at_target(target_position: Vector3) -> void:
 	direction = direction.normalized()
 
 	var profile := authority.get_weapon_profile(self, get_weapon_id()) as Dictionary
+	if CombatResolver.profile_is_projectile(profile):
+		# A weapon registered with a travel envelope is not an instantaneous shot.
+		# This base owns the hitscan seam only; firing a travelling weapon through
+		# it would silently deliver a bolt's damage at the speed of light. The
+		# travelling path lives in `TravellingBoltProjectile` and is opted into by
+		# the archetype that authored it, so refuse here rather than approximate.
+		_cooldown_remaining = weapon_cooldown
+		_last_shot_result = {"accepted": false, "status": &"weapon_requires_projectile_path"}
+		return
 	var pellet_count := int(profile.get("pellet_count", 1))
 	var receipt_ids := _allocate_presentation_receipts(authority, pellet_count)
 	if receipt_ids.size() != pellet_count:

@@ -6,6 +6,15 @@ const ShotRequestType := preload("res://scripts/combat/shot_request.gd")
 const DamageableType := preload("res://scripts/combat/damageable.gd")
 const SCATTER_PELLET_COUNT := 3
 const MAX_SPREAD_DEGREES := 45.0
+const PROJECTILE_PROFILE_KEYS := [
+	"projectile_speed", "projectile_lifetime", "projectile_radius",
+]
+const MAX_PROJECTILE_SPEED := 10_000.0
+const MAX_PROJECTILE_LIFETIME := 600.0
+const MAX_PROJECTILE_RADIUS := 100.0
+const MAX_ACTIVE_PROJECTILE_FLIGHTS := 32
+const PROJECTILE_RANGE_EPSILON := 0.01
+const MAX_PROJECTILE_FLIGHT_ID: int = 9223372036854775807
 
 ## Node-scoped authority service for deterministic hitscan resolution. The
 ## sequence ledger intentionally lives on this node so a future multiplayer
@@ -21,11 +30,16 @@ var _last_sequence_by_source: Dictionary = {}
 var _source_registry: Dictionary = {}
 var _source_key_by_instance_id: Dictionary = {}
 var _history_owner_by_source: Dictionary = {}
+## Open projectile flights keyed by monotonic flight ID. Bounded and pruned with
+## the same cadence as the source registry; no flight outlives its source.
+var _projectile_flights: Dictionary = {}
+var _next_projectile_flight_id: int = 1
 
 
 func _process(_delta: float) -> void:
 	_prune_invalid_sources()
 	_prune_invalid_history()
+	_prune_projectile_flights()
 
 
 ## Registers the authority-owned identity, collision root, faction, and weapon
@@ -281,6 +295,253 @@ func resolve_projectile_impact(
 	return _resolve_request(request, terminal_position)
 
 
+## ------------------------------------------------------ projectile flights ----
+##
+## A travelling bolt is a two-phase, server-owned transaction on this one
+## resolver. `open_projectile_flight()` validates the source, its registration,
+## its travel envelope and its muzzle origin-tolerance exactly once, at launch,
+## and returns a detached flight ticket. `close_projectile_flight()` then sweeps
+## only the short terminal segment through the same world-occlusion, faction and
+## Damageable chain as hitscan, and consumes exactly one replay sequence.
+##
+## The travelling object owns no damage, no range, no speed and no faction: it
+## advances a position, reports where it got to, and asks this resolver to judge
+## it. Because only the terminal segment is swept, a target that was on the
+## firing line at launch and has since moved is genuinely missed rather than
+## retroactively hit by the path it used to occupy.
+
+
+## Opens one flight. Returns `{accepted, status, flight_id, ...envelope}`.
+func open_projectile_flight(
+		source_entity: Node3D,
+		source_id: int,
+		faction_id: StringName,
+		weapon_id: StringName,
+		launch_origin: Vector3,
+		launch_direction: Vector3
+	) -> Dictionary:
+	if enforce_multiplayer_authority \
+			and (not is_inside_tree() or not is_multiplayer_authority()):
+		return _reject_flight(&"not_authority", "resolver is not multiplayer authority")
+	if not is_instance_valid(source_entity) or not source_entity.is_inside_tree() \
+			or source_entity.is_queued_for_deletion():
+		return _reject_flight(&"source_unavailable", "source is not live in the scene tree")
+	if not launch_origin.is_finite() or not launch_direction.is_finite() \
+			or launch_direction.length_squared() <= 0.000001:
+		return _reject_flight(&"invalid_request", "launch origin or direction is not finite")
+	var source_key := _source_key(source_entity, source_id)
+	var registration: Dictionary = _source_registry.get(source_key, {})
+	if registration.is_empty():
+		return _reject_flight(&"unregistered_source", "source has no authority registration")
+	var registered_faction: StringName = registration.get("faction_id", &"")
+	if not faction_id.is_empty() and faction_id != registered_faction:
+		return _reject_flight(&"source_mismatch", "request faction does not match registered source")
+	var profiles: Dictionary = registration.get("weapons", {})
+	var profile: Dictionary = profiles.get(weapon_id, {})
+	if profile.is_empty():
+		return _reject_flight(&"weapon_not_authorized", "weapon is not registered for source")
+	if not profile_is_projectile(profile):
+		return _reject_flight(&"weapon_not_projectile", "registered weapon has no travel envelope")
+	if float(source_entity.global_position.distance_to(launch_origin)) \
+			> float(profile.origin_tolerance):
+		return _reject_flight(
+			&"origin_out_of_bounds", "launch origin lies outside the registered source envelope"
+		)
+	if _source_lifecycle_is_destroyed(source_entity):
+		return _reject_flight(
+			&"source_destroyed", "registered source belongs to a destroyed lifecycle epoch"
+		)
+	if _projectile_flights.size() >= MAX_ACTIVE_PROJECTILE_FLIGHTS:
+		return _reject_flight(&"flight_capacity", "active projectile flights are saturated")
+	if _next_projectile_flight_id <= 0 \
+			or _next_projectile_flight_id >= MAX_PROJECTILE_FLIGHT_ID:
+		_next_projectile_flight_id = -1
+		return _reject_flight(&"flight_id_exhausted", "projectile flight IDs are saturated")
+	var flight_id := _next_projectile_flight_id
+	_next_projectile_flight_id += 1
+	_projectile_flights[flight_id] = {
+		"flight_id": flight_id,
+		"source": weakref(source_entity),
+		"source_instance_id": source_entity.get_instance_id(),
+		"source_key": source_key,
+		"source_id": source_id,
+		"faction_id": registered_faction,
+		"weapon_id": weapon_id,
+		"launch_origin": launch_origin,
+		"launch_direction": launch_direction.normalized(),
+		"range": float(profile.range),
+		"damage": float(profile.damage),
+		"speed": float(profile.projectile_speed),
+		"lifetime": float(profile.projectile_lifetime),
+		"radius": float(profile.projectile_radius),
+		"quarantined": false,
+		"quarantine_reason": &"",
+	}
+	var ticket := (_projectile_flights[flight_id] as Dictionary).duplicate(true)
+	ticket.erase("source")
+	ticket["accepted"] = true
+	ticket["status"] = &"flight_opened"
+	ticket["reason"] = ""
+	return ticket
+
+
+## Re-asks the lifecycle question the resolver would ask on arrival. Once a
+## flight has seen its source destroyed, unregistered, or replaced, the
+## quarantine latches: a source that dies and is regenerated mid-flight can
+## never have the in-flight bolt resolved against its new healthy epoch.
+func observe_projectile_flight(flight_id: int) -> StringName:
+	var flight: Dictionary = _projectile_flights.get(flight_id, {})
+	if flight.is_empty():
+		return &"unknown_flight"
+	if bool(flight.get("quarantined", false)):
+		return &"quarantined"
+	var reason := _projectile_flight_quarantine_reason(flight)
+	if reason.is_empty():
+		return &"live"
+	flight["quarantined"] = true
+	flight["quarantine_reason"] = reason
+	return &"quarantined"
+
+
+## Closes one flight by sweeping its terminal segment. Consumes exactly one
+## replay sequence whether the segment hits or misses.
+func close_projectile_flight(
+		flight_id: int,
+		sequence: int,
+		segment_start: Vector3,
+		segment_end: Vector3,
+		presentation_receipt_id: int = -1
+	) -> Dictionary:
+	var flight: Dictionary = _projectile_flights.get(flight_id, {})
+	if flight.is_empty():
+		return _reject_flight(&"unknown_flight", "projectile flight is not open")
+	_projectile_flights.erase(flight_id)
+	var source_reference: WeakRef = flight.get("source") as WeakRef
+	var source_entity := source_reference.get_ref() as Node3D if source_reference != null else null
+	var segment_direction := flight.launch_direction as Vector3
+	if segment_start.is_finite() and segment_end.is_finite() \
+			and (segment_end - segment_start).length_squared() > 0.000001:
+		segment_direction = (segment_end - segment_start).normalized()
+	var request := ShotRequestType.new(
+		source_entity,
+		int(flight.source_id),
+		flight.faction_id,
+		flight.weapon_id,
+		sequence,
+		segment_start if segment_start.is_finite() else Vector3.ZERO,
+		segment_direction,
+		float(flight.range),
+		float(flight.damage),
+		presentation_receipt_id
+	) as ShotRequestType
+	if bool(flight.get("quarantined", false)):
+		return _reject(
+			_make_result(request),
+			&"source_destroyed",
+			"projectile flight was quarantined in flight: %s" % flight.get("quarantine_reason", &""),
+			request
+		)
+	var live_reason := _projectile_flight_quarantine_reason(flight)
+	if not live_reason.is_empty():
+		return _reject(
+			_make_result(request),
+			live_reason,
+			"projectile flight is no longer backed by its launch epoch",
+			request
+		)
+	if not segment_start.is_finite() or not segment_end.is_finite() \
+			or (segment_end - segment_start).length_squared() <= 0.000001:
+		return _reject(
+			_make_result(request),
+			&"invalid_projectile_endpoint",
+			"projectile terminal segment is not a finite displacement",
+			request
+		)
+	var launch_origin: Vector3 = flight.launch_origin
+	# One centimetre of slack absorbs single-precision rounding on a bolt that
+	# flew the authored range exactly; it cannot widen the envelope in any way a
+	# player or a caller could exploit.
+	if launch_origin.distance_to(segment_end) > float(flight.range) + PROJECTILE_RANGE_EPSILON:
+		return _reject(
+			_make_result(request),
+			&"projectile_out_of_range",
+			"projectile terminal point exceeds the registered weapon range",
+			request
+		)
+	# The muzzle envelope was already proven at launch against the source's own
+	# position; by arrival the source has legitimately moved, so the tolerance
+	# check is deliberately not re-applied to the terminal segment.
+	return _resolve_request(request, segment_end, true)
+
+
+func abandon_projectile_flight(flight_id: int) -> bool:
+	return _projectile_flights.erase(flight_id)
+
+
+func get_active_projectile_flight_count() -> int:
+	_prune_projectile_flights()
+	return _projectile_flights.size()
+
+
+func get_projectile_flight_snapshot(flight_id: int) -> Dictionary:
+	var flight: Dictionary = _projectile_flights.get(flight_id, {})
+	if flight.is_empty():
+		return {}
+	var snapshot := flight.duplicate(true)
+	snapshot.erase("source")
+	return snapshot
+
+
+## True when a registered profile carries a complete, normalized travel envelope.
+static func profile_is_projectile(profile: Dictionary) -> bool:
+	for key: String in PROJECTILE_PROFILE_KEYS:
+		if not profile.has(key):
+			return false
+	return true
+
+
+## Public read of the lifecycle quarantine the resolver already applies to every
+## request.
+func is_source_lifecycle_destroyed(source_entity: Node) -> bool:
+	return _source_lifecycle_is_destroyed(source_entity)
+
+
+func _projectile_flight_quarantine_reason(flight: Dictionary) -> StringName:
+	var source_reference: WeakRef = flight.get("source") as WeakRef
+	var source_entity := source_reference.get_ref() as Node3D if source_reference != null else null
+	if not is_instance_valid(source_entity) or not source_entity.is_inside_tree() \
+			or source_entity.is_queued_for_deletion():
+		return &"source_unavailable"
+	if _source_lifecycle_is_destroyed(source_entity):
+		return &"source_destroyed"
+	var registration: Dictionary = _source_registry.get(String(flight.source_key), {})
+	if registration.is_empty():
+		return &"unregistered_source"
+	if int(registration.get("instance_id", 0)) != int(flight.source_instance_id):
+		return &"source_mismatch"
+	var profiles: Dictionary = registration.get("weapons", {})
+	if (profiles.get(flight.weapon_id, {}) as Dictionary).is_empty():
+		return &"weapon_not_authorized"
+	return &""
+
+
+func _prune_projectile_flights() -> void:
+	for untyped_flight_id: Variant in _projectile_flights.keys():
+		var flight: Dictionary = _projectile_flights[untyped_flight_id]
+		var source_reference: WeakRef = flight.get("source") as WeakRef
+		if source_reference == null or not is_instance_valid(source_reference.get_ref()):
+			_projectile_flights.erase(untyped_flight_id)
+
+
+func _reject_flight(status: StringName, reason: String) -> Dictionary:
+	return {
+		"accepted": false,
+		"status": status,
+		"reason": reason,
+		"flight_id": 0,
+	}.duplicate(true)
+
+
 ## Detached profile read used by adapters that need to construct a typed
 ## request without copying weapon range or damage authority into their ledger.
 func get_registered_weapon_profile(
@@ -296,7 +557,8 @@ func get_registered_weapon_profile(
 
 func _resolve_request(
 		request: ShotRequestType,
-		endpoint_override: Vector3 = Vector3.INF
+		endpoint_override: Vector3 = Vector3.INF,
+		skip_origin_tolerance: bool = false
 	) -> Dictionary:
 	var result := _make_result(request)
 	if request == null:
@@ -321,7 +583,7 @@ func _resolve_request(
 		if not is_multiplayer_authority():
 			return _reject(result, &"not_authority", "resolver is not multiplayer authority", request)
 
-	var authority_context := _resolve_authority_context(request)
+	var authority_context := _resolve_authority_context(request, false, skip_origin_tolerance)
 	if not bool(authority_context.get("valid", false)):
 		return _reject(
 			result,
@@ -578,7 +840,8 @@ func _emit_result(request: ShotRequestType, result: Dictionary) -> void:
 
 func _resolve_authority_context(
 		request: ShotRequestType,
-		expect_trigger_damage: bool = false
+		expect_trigger_damage: bool = false,
+		skip_origin_tolerance: bool = false
 	) -> Dictionary:
 	var source_key := request.get_source_key()
 	var registration: Dictionary = _source_registry.get(source_key, {})
@@ -644,7 +907,12 @@ func _resolve_authority_context(
 			"reason": "request range or damage differs from authority profile",
 		}
 	var origin_tolerance := float(profile.origin_tolerance)
-	if source_entity.global_position.distance_to(request.origin) > origin_tolerance:
+	# Hitscan measures the muzzle envelope on the frame it is submitted. A
+	# travelling projectile had that same envelope proven against this source at
+	# `open_projectile_flight()`; its terminal segment starts wherever the bolt
+	# reached, which is intentionally nowhere near the hull by then.
+	if not skip_origin_tolerance \
+			and source_entity.global_position.distance_to(request.origin) > origin_tolerance:
 		return {
 			"valid": false,
 			"status": &"origin_out_of_bounds",
@@ -731,11 +999,36 @@ func _normalize_weapon_profiles(profiles: Dictionary) -> Dictionary:
 			or not is_equal_approx(trigger_damage, weapon_damage * float(pellet_count))
 		):
 			continue
+		var projectile_speed := float(profile.get("projectile_speed", 0.0))
+		var projectile_lifetime := float(profile.get("projectile_lifetime", 0.0))
+		var projectile_radius := float(profile.get("projectile_radius", 0.0))
+		var declared_projectile_keys := 0
+		for projectile_key: String in PROJECTILE_PROFILE_KEYS:
+			if profile.has(projectile_key):
+				declared_projectile_keys += 1
+		if declared_projectile_keys != 0:
+			# A travel envelope is all-or-nothing and never mixes with the bounded
+			# scatter fan. A partial or out-of-bounds envelope drops the whole
+			# weapon rather than silently registering it as hitscan.
+			if declared_projectile_keys != PROJECTILE_PROFILE_KEYS.size() \
+				or pellet_count != 1 \
+				or not is_finite(projectile_speed) or projectile_speed <= 0.0 \
+				or projectile_speed > MAX_PROJECTILE_SPEED \
+				or not is_finite(projectile_lifetime) or projectile_lifetime <= 0.0 \
+				or projectile_lifetime > MAX_PROJECTILE_LIFETIME \
+				or not is_finite(projectile_radius) or projectile_radius <= 0.0 \
+				or projectile_radius > MAX_PROJECTILE_RADIUS \
+				or projectile_speed * projectile_lifetime < weapon_range:
+				continue
 		normalized[weapon_id] = {
 			"range": weapon_range,
 			"damage": weapon_damage,
 			"origin_tolerance": origin_tolerance,
 		}
+		if declared_projectile_keys == PROJECTILE_PROFILE_KEYS.size():
+			normalized[weapon_id]["projectile_speed"] = projectile_speed
+			normalized[weapon_id]["projectile_lifetime"] = projectile_lifetime
+			normalized[weapon_id]["projectile_radius"] = projectile_radius
 		if pellet_count > 1:
 			normalized[weapon_id]["trigger_damage"] = trigger_damage
 			normalized[weapon_id]["spread_degrees"] = spread_degrees

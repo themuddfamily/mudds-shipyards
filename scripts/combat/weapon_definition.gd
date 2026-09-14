@@ -44,6 +44,13 @@ const MAX_HEAT_UNITS := 1_000_000.0
 const MAX_HEAT_UNITS_PER_SECOND := 1_000_000.0
 const MAX_AMMUNITION := 1_000_000
 
+## Travel envelope bounds for `ResolutionMode.PROJECTILE`. A hitscan or beam
+## definition must leave every one of these fields at exactly zero, so an
+## already-shipped hitscan resource keeps its byte-for-byte authored shape.
+const MAX_PROJECTILE_SPEED_MPS := 10_000.0
+const MAX_PROJECTILE_LIFETIME_SECONDS := 600.0
+const MAX_PROJECTILE_RADIUS_METERS := 100.0
+
 const RESOLUTION_HITSCAN: StringName = &"hitscan"
 const RESOLUTION_PROJECTILE: StringName = &"projectile"
 const RESOLUTION_BEAM: StringName = &"beam"
@@ -67,6 +74,16 @@ const EVIDENCE_NEW: StringName = &"new"
 @export_range(0.001, MAX_RANGE_METERS, 0.001) var range_meters := 360.0
 @export_range(0.001, MAX_DAMAGE_PER_HIT, 0.001) var damage_per_hit := 34.0
 @export_range(0.001, MAX_CADENCE_SHOTS_PER_SECOND, 0.001) var cadence_shots_per_second := 4.0
+
+@export_category("Projectile travel envelope")
+## Authored muzzle speed of one travelling bolt. Required, and only permitted,
+## when `resolution_mode` is `PROJECTILE`.
+@export_range(0.0, MAX_PROJECTILE_SPEED_MPS, 0.001) var projectile_speed_mps := 0.0
+## Hard flight ceiling. `projectile_speed_mps * projectile_lifetime_seconds`
+## must cover `range_meters`, otherwise the authored range is unreachable.
+@export_range(0.0, MAX_PROJECTILE_LIFETIME_SECONDS, 0.001) var projectile_lifetime_seconds := 0.0
+## Bolt contact/presentation radius in metres.
+@export_range(0.0, MAX_PROJECTILE_RADIUS_METERS, 0.001) var projectile_radius_meters := 0.0
 
 @export_category("Faction policy")
 @export_enum("Inherit source:0", "Fixed faction:1") var faction_policy: int = FactionPolicy.INHERIT_SOURCE
@@ -106,6 +123,23 @@ func get_resolution_mode_id() -> StringName:
 			return RESOLUTION_BEAM
 		_:
 			return &"invalid"
+
+
+func is_projectile_resolution() -> bool:
+	return resolution_mode == ResolutionMode.PROJECTILE
+
+
+## True when this definition authors a complete, usable travel envelope. A
+## projectile-mode definition without one is still valid authoring data — it
+## simply has nothing for a travelling weapon to fly with, and every runtime
+## conversion seam refuses it rather than inventing a speed.
+func has_projectile_travel_envelope() -> bool:
+	return (
+		is_projectile_resolution()
+		and _is_finite_float(projectile_speed_mps) and projectile_speed_mps > 0.0
+		and _is_finite_float(projectile_lifetime_seconds) and projectile_lifetime_seconds > 0.0
+		and _is_finite_float(projectile_radius_meters) and projectile_radius_meters > 0.0
+	)
 
 
 func get_faction_policy_id() -> StringName:
@@ -164,6 +198,8 @@ func get_validation_errors() -> PackedStringArray:
 		0.001,
 		MAX_CADENCE_SHOTS_PER_SECOND
 	)
+
+	_validate_projectile_envelope(errors)
 
 	if faction_policy < FactionPolicy.INHERIT_SOURCE or faction_policy > FactionPolicy.FIXED_FACTION:
 		errors.append("faction_policy is outside the supported enum")
@@ -235,6 +271,9 @@ func get_resolution_snapshot() -> Dictionary:
 		"range_meters": range_meters,
 		"damage_per_hit": damage_per_hit,
 		"cadence_shots_per_second": cadence_shots_per_second,
+		"projectile_speed_mps": projectile_speed_mps,
+		"projectile_lifetime_seconds": projectile_lifetime_seconds,
+		"projectile_radius_meters": projectile_radius_meters,
 	}.duplicate(true)
 
 
@@ -329,6 +368,59 @@ func audit() -> Dictionary:
 
 func get_audit_report() -> Dictionary:
 	return audit().duplicate(true)
+
+
+## The travel envelope is strictly mode-gated. Hitscan and beam definitions must
+## leave all three fields at exactly zero; that is what keeps every existing
+## checked-in hitscan resource valid without editing a single authored byte.
+func _validate_projectile_envelope(errors: PackedStringArray) -> void:
+	_validate_range(errors, "projectile_speed_mps", projectile_speed_mps, 0.0, MAX_PROJECTILE_SPEED_MPS)
+	_validate_range(
+		errors,
+		"projectile_lifetime_seconds",
+		projectile_lifetime_seconds,
+		0.0,
+		MAX_PROJECTILE_LIFETIME_SECONDS
+	)
+	_validate_range(
+		errors,
+		"projectile_radius_meters",
+		projectile_radius_meters,
+		0.0,
+		MAX_PROJECTILE_RADIUS_METERS
+	)
+	if not is_projectile_resolution():
+		if projectile_speed_mps != 0.0 or projectile_lifetime_seconds != 0.0 \
+				or projectile_radius_meters != 0.0:
+			errors.append(
+				"projectile travel fields must be exactly zero unless resolution_mode is projectile"
+			)
+		return
+	var authored := (
+		projectile_speed_mps != 0.0
+		or projectile_lifetime_seconds != 0.0
+		or projectile_radius_meters != 0.0
+	)
+	# All three or none. A half-authored envelope is the dangerous case, because a
+	# reader could take the fields it recognises and guess the rest; an entirely
+	# unauthored one is simply a projectile whose travel data is still to be
+	# written, and every conversion seam refuses it outright.
+	if authored and not has_projectile_travel_envelope():
+		errors.append(
+			"a partially authored projectile travel envelope must define positive "
+			+ "speed, lifetime and radius together"
+		)
+	if (
+		_is_finite_float(projectile_speed_mps)
+		and _is_finite_float(projectile_lifetime_seconds)
+		and _is_finite_float(range_meters)
+		and projectile_speed_mps > 0.0
+		and projectile_lifetime_seconds > 0.0
+		and projectile_speed_mps * projectile_lifetime_seconds < range_meters
+	):
+		errors.append(
+			"projectile_speed_mps multiplied by projectile_lifetime_seconds must cover range_meters"
+		)
 
 
 func _validate_evidence_references(errors: PackedStringArray) -> void:

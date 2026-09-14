@@ -185,6 +185,119 @@ func _make_rejected_receipt_result(request: ShotRequestType, status: StringName)
 	return result
 
 
+## ------------------------------------------------------ projectile flights ----
+##
+## Travelling weapons reuse the one damage path rather than opening a second.
+## `launch_projectile()` proves the source, its registration, its authored travel
+## envelope and its muzzle envelope through the same `CombatResolver` that owns
+## hitscan, and hands back a detached ticket. The travelling object advances a
+## position and nothing else; `resolve_projectile_arrival()` allocates the same
+## monotonic replay sequence hitscan uses and commits the shot.
+##
+## Networking: this is the existing server-owned encounter path. The resolver
+## still refuses to resolve anything unless it is the multiplayer authority, so a
+## client session never resolves a bolt. No network API is widened and no new
+## replicated message exists.
+
+
+func launch_projectile(
+		source_entity: Node3D,
+		weapon_id: StringName,
+		origin: Vector3,
+		direction: Vector3
+	) -> Dictionary:
+	if is_queued_for_deletion():
+		return {
+			"accepted": false,
+			"status": &"authority_unavailable",
+			"reason": "combat authority is being torn down",
+			"flight_id": 0,
+		}.duplicate(true)
+	_ensure_resolver()
+	var registration := _get_registration(source_entity)
+	if registration.is_empty():
+		return {
+			"accepted": false,
+			"status": &"unregistered_source",
+			"reason": "source has no authority registration",
+			"flight_id": 0,
+		}.duplicate(true)
+	return resolver.open_projectile_flight(
+		source_entity,
+		int(registration.get("source_id", 0)),
+		registration.get("faction_id", &""),
+		weapon_id,
+		origin,
+		direction
+	)
+
+
+## Per-step liveness poll. Returns &"live", &"quarantined", or &"unknown_flight".
+func observe_projectile(flight_id: int) -> StringName:
+	if not is_instance_valid(resolver):
+		return &"unknown_flight"
+	return resolver.observe_projectile_flight(flight_id)
+
+
+## Commits one travelling bolt against its terminal segment. This consumes the
+## same per-source replay sequence hitscan consumes, so a captured arrival can
+## never be replayed, and emits the same authoritative signal.
+func resolve_projectile_arrival(
+		source_entity: Node3D,
+		flight_id: int,
+		segment_start: Vector3,
+		segment_end: Vector3,
+		presentation_receipt_id: int = -1
+	) -> Dictionary:
+	if not is_instance_valid(resolver):
+		return {
+			"accepted": false,
+			"resolved": false,
+			"status": &"authority_unavailable",
+			"reason": "combat authority has no resolver",
+		}.duplicate(true)
+	var snapshot := resolver.get_projectile_flight_snapshot(flight_id)
+	if snapshot.is_empty():
+		return {
+			"accepted": false,
+			"resolved": false,
+			"status": &"unknown_flight",
+			"reason": "projectile flight is not open",
+		}.duplicate(true)
+	var registration := _get_registration(source_entity)
+	var sequence := (
+		_next_sequence(source_entity, registration)
+		if not registration.is_empty()
+		else resolver.get_last_sequence(source_entity, int(snapshot.get("source_id", 0))) + 1
+	)
+	# `authoritative_shot_submitted` is deliberately NOT raised. That signal is the
+	# coordinator's cue to present and voice a shot *it* submitted, and it styles
+	# anything that is not the one bound defender in the player's own cyan with the
+	# player's fire cue. A travelling bolt is owned, presented and voiced by the
+	# craft that launched it, exactly as its hitscan predecessor was; re-raising the
+	# signal here would paint an enemy lance cyan and double-commit its receipt.
+	# `CombatResolver.shot_resolved` still carries the authoritative record.
+	return resolver.close_projectile_flight(
+		flight_id, sequence, segment_start, segment_end, presentation_receipt_id
+	)
+
+
+## Drops an open flight without inventing a resolver event. Used when the
+## travelling object is torn down with the encounter rather than arriving.
+func abandon_projectile(flight_id: int) -> bool:
+	# Deliberately does not build a resolver: this is the teardown path, and a
+	# torn-down authority has no flight left to retire.
+	if not is_instance_valid(resolver):
+		return false
+	return resolver.abandon_projectile_flight(flight_id)
+
+
+func get_active_projectile_flight_count() -> int:
+	if not is_instance_valid(resolver):
+		return 0
+	return resolver.get_active_projectile_flight_count()
+
+
 func attach_lifecycle_damageable(
 	target_entity: Node3D,
 	lifecycle_kind: int,
