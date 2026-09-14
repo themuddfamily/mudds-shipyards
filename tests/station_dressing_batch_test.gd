@@ -114,6 +114,38 @@ func _count(node: Node) -> int:
 	return total
 
 
+## The same census a station module publishes over its own subtree: renderer
+## nodes, drawn copies, surface submissions, static bodies and the distinct mesh
+## and `material_override` resources behind them.
+func _census(node: Node) -> Dictionary:
+	var mesh_ids := {}
+	var material_ids := {}
+	var renderers := 0
+	var drawn := 0
+	var submissions := 0
+	for raw in node.find_children("*", "MeshInstance3D", true, false):
+		var instance := raw as MeshInstance3D
+		if instance.mesh == null:
+			continue
+		renderers += 1
+		mesh_ids[instance.mesh.get_instance_id()] = true
+		if instance.material_override != null:
+			material_ids[instance.material_override.get_instance_id()] = true
+		if not instance.visible:
+			continue
+		drawn += 1
+		submissions += instance.mesh.get_surface_count()
+	return {
+		"nodes": _count(node),
+		"renderers": renderers,
+		"drawn_copies": drawn,
+		"submissions": submissions,
+		"static_bodies": node.find_children("*", "StaticBody3D", true, false).size(),
+		"mesh_ids": mesh_ids,
+		"material_ids": material_ids,
+	}
+
+
 func _run() -> void:
 	var material := StandardMaterial3D.new()
 	var other_material := StandardMaterial3D.new()
@@ -148,6 +180,7 @@ func _run() -> void:
 	var before_nodes := _count(holder)
 	var before_triangles := _triangles(holder)
 	var before_boxes := _shape_boxes(holder)
+	var before_census := _census(holder)
 
 	var report := BATCH.consolidate(holder, PackedStringArray(["NamedPost"]), holder)
 	await process_frame
@@ -240,6 +273,53 @@ func _run() -> void:
 			and visual_batch.get_surface_override_material(0) == material
 			and visual_batch.get_surface_override_material(1) == other_material,
 		"the visual batch keeps one surface and one binding per source material"
+	)
+
+	# Phase 10 §2 second trim. `HabitatSpine` and `AftJunctionStack` publish a
+	# frozen whole-module allocation census and gate `validate()` on it, so every
+	# batch records the census row it replaced. Reconstructing the module's census
+	# from those rows must land back on the pre-consolidation measurement exactly,
+	# for every currency those audits count — otherwise a module would have to
+	# restate a roster the world, not the module, changed.
+	var after_census := _census(holder)
+	var delta: Dictionary = BATCH.authored_render_census_delta(holder)
+	_check(
+		int(after_census.nodes) + int(delta.descendant_nodes) == int(before_census.nodes)
+			and int(after_census.renderers) + int(delta.renderer_nodes)
+				== int(before_census.renderers)
+			and int(after_census.drawn_copies) + int(delta.drawn_copies)
+				== int(before_census.drawn_copies)
+			and int(after_census.submissions) + int(delta.surface_submissions)
+				== int(before_census.submissions)
+			and int(after_census.static_bodies) + int(delta.static_bodies)
+				== int(before_census.static_bodies),
+		"the batches restore the authored node, renderer, copy, submission and body census"
+	)
+	var authored_meshes: Dictionary = (after_census.mesh_ids as Dictionary).duplicate()
+	for retired_id in delta.retired_mesh_resource_ids as PackedInt64Array:
+		authored_meshes.erase(retired_id)
+	for mesh_id in delta.mesh_resource_ids as PackedInt64Array:
+		authored_meshes[mesh_id] = true
+	var authored_materials: Dictionary = (after_census.material_ids as Dictionary).duplicate()
+	for material_id in delta.material_resource_ids as PackedInt64Array:
+		authored_materials[material_id] = true
+	_check(
+		authored_meshes.size() == (before_census.mesh_ids as Dictionary).size()
+			and authored_materials.size() == (before_census.material_ids as Dictionary).size(),
+		"the batches restore the authored unique mesh and material resource counts"
+	)
+	_check(
+		BATCH.authored_render_census_delta(walkable) == {
+			"descendant_nodes": 0,
+			"renderer_nodes": 0,
+			"drawn_copies": 0,
+			"surface_submissions": 0,
+			"static_bodies": 0,
+			"mesh_resource_ids": PackedInt64Array(),
+			"retired_mesh_resource_ids": PackedInt64Array(),
+			"material_resource_ids": PackedInt64Array(),
+		},
+		"a subtree this pass never batched reports an empty census delta"
 	)
 
 	holder.queue_free()

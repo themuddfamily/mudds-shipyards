@@ -1059,6 +1059,23 @@ func get_render_allocation_report() -> Dictionary:
 		if batch.material_override != null:
 			material_resource_ids[batch.material_override.get_instance_id()] = true
 
+	# The world folds anonymous sibling dressing into merged renderers after this
+	# module has finished building (`StationDressingBatch`). The roster frozen
+	# below is what this module *allocates*, so each batch is put back as the
+	# renderers, copies, submissions and resources it stands in for. The delta is
+	# zero on a module built without that pass, which is how every module test
+	# builds it.
+	var authored := StationDressingBatch.authored_render_census_delta(self)
+	var mesh_instance_count := mesh_nodes.size() + int(authored.renderer_nodes)
+	drawn_copies += int(authored.drawn_copies)
+	submissions += int(authored.surface_submissions)
+	for retired_id in authored.retired_mesh_resource_ids as PackedInt64Array:
+		mesh_resource_ids.erase(retired_id)
+	for mesh_id in authored.mesh_resource_ids as PackedInt64Array:
+		mesh_resource_ids[mesh_id] = true
+	for material_id in authored.material_resource_ids as PackedInt64Array:
+		material_resource_ids[material_id] = true
+
 	var expected_buffer := _encode_multimesh_transforms(_hatch_fastener_transforms)
 	var buffer_matches := (
 		is_instance_valid(_hatch_fastener_batch)
@@ -1506,7 +1523,7 @@ func get_render_allocation_report() -> Dictionary:
 	var descendant_count := _render_descendant_count()
 	var exact_counts: bool = (
 		descendant_count == RENDER_DESCENDANT_COUNT
-		and mesh_nodes.size() == RENDER_MESH_INSTANCE_COUNT
+		and mesh_instance_count == RENDER_MESH_INSTANCE_COUNT
 		and batch_nodes.size() == RENDER_MULTIMESH_BATCH_COUNT
 		and drawn_copies == RENDER_DRAWN_COPY_COUNT
 		and submissions == RENDER_GEOMETRY_SUBMISSION_COUNT
@@ -1541,7 +1558,7 @@ func get_render_allocation_report() -> Dictionary:
 	return {
 		"schema_version": 1,
 		"descendant_nodes": descendant_count,
-		"mesh_instances": mesh_nodes.size(),
+		"mesh_instances": mesh_instance_count,
 		"multimesh_batches": batch_nodes.size(),
 		"multimesh_resources": multimesh_resource_ids.size(),
 		"drawn_copies": drawn_copies,
@@ -1772,8 +1789,11 @@ func _render_descendant_count() -> int:
 				interaction_owned = true
 				break
 			cursor = cursor.get_parent()
-		if not interaction_owned:
-			count += 1
+		if interaction_owned:
+			continue
+		# A dressing batch stands in for the nodes the world folded into it, and
+		# this count is the roster this module builds. Zero for every other node.
+		count += 1 + StationDressingBatch.authored_node_delta(candidate)
 	return count
 
 
@@ -2759,8 +2779,17 @@ func _build_side_window_wall(parent: Node3D, side: float, pane_centers: Array, s
 	for pane_z_variant in pane_centers:
 		var pane_z := float(pane_z_variant)
 		_register_window(_box(parent, "SideWindowPane", Vector3(wall_x, 2.5, pane_z), Vector3(0.12, 3.18, 3.08), _materials["glass"]))
-		_box(parent, "SideWindowFrameA", Vector3(wall_x, 2.5, pane_z - 1.65), Vector3(0.44, 3.25, 0.18), _materials["structural"])
-		_box(parent, "SideWindowFrameB", Vector3(wall_x, 2.5, pane_z + 1.65), Vector3(0.44, 3.25, 0.18), _materials["structural"])
+		# `tests/station_surface_playability_test.gd` freezes the annex
+		# connector's clearance against this wall by naming the frame it measures
+		# to, and only the first of several identically named siblings keeps a
+		# readable name. The marker states that authority outright, so the world's
+		# anonymous-dressing pass (`StationDressingBatch`) leaves the frames as
+		# the discrete pieces that clearance is measured against instead of
+		# reporting one aggregate bound across the whole room.
+		_box(parent, "SideWindowFrameA", Vector3(wall_x, 2.5, pane_z - 1.65), Vector3(0.44, 3.25, 0.18), _materials["structural"]) \
+			.set_meta("side_window_frame", true)
+		_box(parent, "SideWindowFrameB", Vector3(wall_x, 2.5, pane_z + 1.65), Vector3(0.44, 3.25, 0.18), _materials["structural"]) \
+			.set_meta("side_window_frame", true)
 
 
 func _register_window(pane: Node3D) -> void:

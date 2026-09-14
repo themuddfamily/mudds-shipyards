@@ -44,6 +44,23 @@ const DETERMINANT_EPSILON := 1e-6
 const MESH_CHILD_NAME := "Mesh"
 const COLLISION_CHILD_NAME := "Collision"
 
+## Marks a node this pass created.
+const BATCH_META := &"station_dressing_batch"
+
+## What the batch replaced, in the exact currencies a station module's own render
+## census counts, so that census can still report the module as it was *built*.
+##
+## Several modules publish a frozen component-local allocation roster — node,
+## renderer, drawn-copy, submission and unique-resource counts — and gate
+## `validate()` on it. That roster is a statement about what the module builds,
+## and this pass runs afterwards, from the world, over dressing the module no
+## longer indexes by name. Without this record the module would have to either
+## abandon the roster or restate it as a number that is only true while this pass
+## is enabled; with it the module adds each batch's authored row back and keeps
+## reporting exactly what it built, while `get_dressing_consolidation_report()`
+## keeps reporting what the world folded.
+const AUTHORED_CENSUS_META := &"station_dressing_batch_authored_census"
+
 ## A merged bound this broad and this thin, facing up, is the exact shape the
 ## station's route-surface discovery reads as a walkable plate
 ## (`tests/station_surface_playability_test.gd`). Several separate props can
@@ -466,8 +483,12 @@ static func _build_solid_batch(parent: Node3D, bodies: Array) -> bool:
 		authored.append(offsets[index])
 		index += 1
 	batch.set_meta(&"authored_instance_transforms", authored.duplicate())
-	batch.set_meta(&"station_dressing_batch", true)
+	batch.set_meta(BATCH_META, true)
 	batch.set_meta(&"batched_source_count", bodies.size())
+	batch.set_meta(
+		AUTHORED_CENSUS_META,
+		_authored_census(sources, bodies.size() * 3, bodies.size())
+	)
 	parent.add_child(batch)
 	for body_variant in bodies:
 		var body := body_variant as StaticBody3D
@@ -495,8 +516,9 @@ static func _build_visual_batch(parent: Node3D, visuals: Array, suffix: String) 
 	batch.cast_shadow = first.cast_shadow
 	batch.gi_mode = first.gi_mode
 	batch.set_meta(&"authored_instance_transforms", offsets.duplicate())
-	batch.set_meta(&"station_dressing_batch", true)
+	batch.set_meta(BATCH_META, true)
 	batch.set_meta(&"batched_source_count", visuals.size())
+	batch.set_meta(AUTHORED_CENSUS_META, _authored_census(sources, visuals.size(), 0))
 	parent.add_child(batch)
 	_apply_surface_materials(batch, merged["materials"] as Array)
 	for visual_variant in visuals:
@@ -506,6 +528,127 @@ static func _build_visual_batch(parent: Node3D, visuals: Array, suffix: String) 
 			holder.remove_child(visual)
 		visual.queue_free()
 	return true
+
+
+## The render census of the nodes a batch is about to replace.
+##
+## `source_nodes` is how many scene nodes they occupied (three per `_box` triple,
+## one per free-standing renderer) and `source_static_bodies` how many of those
+## were bodies. Resource identities are recorded rather than the resources
+## themselves: a module's census counts *distinct* meshes and materials, and
+## holding the source meshes alive here would give back the memory the merge just
+## freed. Godot's object ids are monotonic, so a recorded id is never a live
+## resource other than the one it names.
+static func _authored_census(
+		sources: Array[MeshInstance3D],
+		source_nodes: int,
+		source_static_bodies: int
+	) -> Dictionary:
+	var submissions := 0
+	var drawn_copies := 0
+	var mesh_ids := PackedInt64Array()
+	var material_ids := PackedInt64Array()
+	for source in sources:
+		var mesh := source.mesh as ArrayMesh
+		if mesh == null:
+			continue
+		submissions += mesh.get_surface_count()
+		drawn_copies += 1 if source.visible else 0
+		if not mesh_ids.has(mesh.get_instance_id()):
+			mesh_ids.append(mesh.get_instance_id())
+		for surface_index in mesh.get_surface_count():
+			var material := _surface_material(source, surface_index)
+			if material != null and not material_ids.has(material.get_instance_id()):
+				material_ids.append(material.get_instance_id())
+	return {
+		"descendant_nodes": source_nodes,
+		"renderer_nodes": sources.size(),
+		"drawn_copies": drawn_copies,
+		"surface_submissions": submissions,
+		"static_bodies": source_static_bodies,
+		"mesh_resource_ids": mesh_ids,
+		"material_resource_ids": material_ids,
+	}
+
+
+## How many scene nodes `node` stands in for, beyond the ones it now occupies.
+##
+## Zero for everything this pass did not create, so a module's descendant walk
+## can add it unconditionally and read identically on an unbatched build.
+static func authored_node_delta(node: Node) -> int:
+	if node == null or not is_instance_valid(node) or not node.has_meta(AUTHORED_CENSUS_META):
+		return 0
+	var census: Dictionary = node.get_meta(AUTHORED_CENSUS_META)
+	return maxi(0, int(census.get("descendant_nodes", 0)) - _live_node_count(node))
+
+
+static func _live_node_count(node: Node) -> int:
+	return 1 + node.find_children("*", "", true, false).size()
+
+
+## The renderer census a module must add back to read as it was built, summed
+## over every batch this pass left under `module_root`.
+##
+## `mesh_resource_ids` are the source meshes to union back in and
+## `retired_mesh_resource_ids` the merged meshes to drop; the batches bind their
+## materials as per-surface overrides rather than a `material_override`, so a
+## census that reads `material_override` sees none of them and
+## `material_resource_ids` is a pure addition. Every counter is zero and every
+## roster empty when nothing under `module_root` was batched.
+static func authored_render_census_delta(module_root: Node) -> Dictionary:
+	var delta := {
+		"descendant_nodes": 0,
+		"renderer_nodes": 0,
+		"drawn_copies": 0,
+		"surface_submissions": 0,
+		"static_bodies": 0,
+		"mesh_resource_ids": PackedInt64Array(),
+		"retired_mesh_resource_ids": PackedInt64Array(),
+		"material_resource_ids": PackedInt64Array(),
+	}
+	if module_root == null or not is_instance_valid(module_root):
+		return delta
+	var batches := module_root.find_children("*", "", true, false)
+	batches.append(module_root)
+	for candidate in batches:
+		if not candidate.has_meta(AUTHORED_CENSUS_META):
+			continue
+		var census: Dictionary = candidate.get_meta(AUTHORED_CENSUS_META)
+		var visual := candidate as MeshInstance3D
+		if visual == null:
+			visual = candidate.get_node_or_null(NodePath(MESH_CHILD_NAME)) as MeshInstance3D
+		var live_submissions := 0
+		if visual != null and visual.mesh != null:
+			live_submissions = visual.mesh.get_surface_count()
+			delta["retired_mesh_resource_ids"] = _appended(
+				delta["retired_mesh_resource_ids"], visual.mesh.get_instance_id()
+			)
+		delta["descendant_nodes"] = int(delta["descendant_nodes"]) \
+			+ authored_node_delta(candidate)
+		delta["renderer_nodes"] = int(delta["renderer_nodes"]) \
+			+ int(census.get("renderer_nodes", 0)) - (1 if visual != null else 0)
+		delta["drawn_copies"] = int(delta["drawn_copies"]) \
+			+ int(census.get("drawn_copies", 0)) \
+			- (1 if visual != null and visual.visible else 0)
+		delta["surface_submissions"] = int(delta["surface_submissions"]) \
+			+ int(census.get("surface_submissions", 0)) - live_submissions
+		delta["static_bodies"] = int(delta["static_bodies"]) \
+			+ int(census.get("static_bodies", 0)) - (1 if candidate is StaticBody3D else 0)
+		for mesh_id in census.get("mesh_resource_ids", PackedInt64Array()) as PackedInt64Array:
+			delta["mesh_resource_ids"] = _appended(delta["mesh_resource_ids"], mesh_id)
+		for material_id in census.get(
+			"material_resource_ids", PackedInt64Array()
+		) as PackedInt64Array:
+			delta["material_resource_ids"] = _appended(
+				delta["material_resource_ids"], material_id
+			)
+	return delta
+
+
+static func _appended(ids: PackedInt64Array, id: int) -> PackedInt64Array:
+	if not ids.has(id):
+		ids.append(id)
+	return ids
 
 
 ## One surface per source material, bound exactly as the sources bound it.

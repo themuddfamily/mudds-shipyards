@@ -1327,10 +1327,26 @@ const BUILD_STAGES: Array[Array] = [
 ## Phase 10 §2. Module subtrees whose anonymous dressing is folded into batches
 ## once every module, sign, route and collision pass above has finished reading
 ## the tree by name. The roster is deliberately explicit: a module is listed only
-## when this world script owns its construction, and `AftJunctionStack`,
-## `HabitatSpine`, `VipReceptionSuite`, `ObservationLogisticsSpur`,
-## `SalvageTerrace`, `FabricationAnnex` and the parked craft are all absent
-## because their geometry is owned elsewhere.
+## once its own geometry owner has finished with it, and the parked craft and
+## their fitouts stay absent because their geometry is owned elsewhere.
+##
+## `HabitatSpine`, `AftJunctionStack`, `ObservationLogisticsSpur`,
+## `SalvageTerrace` and `FabricationAnnex` joined the roster in the second node
+## trim. The first two publish a frozen whole-module allocation census that
+## `validate()` gates on, and each batch now carries the census row it stands in
+## for (`StationDressingBatch.AUTHORED_CENSUS_META`), so those modules still
+## report exactly what they *build* while the world reports what it folded. The
+## other three produce no batch at all — every piece they build is either held by
+## a live script variable or already folded into a `MultiMeshInstance3D` — and
+## they are listed so that stays measured rather than assumed.
+##
+## `VipReceptionSuite` is deliberately still absent. Its module suite asserts,
+## body by body, that every `StaticBody3D` in the suite owns a `Mesh` and a
+## `Collision` child whose box is exactly the drawn mesh, and that the module
+## presents a floor of visible renderers to its "nothing floats" sweep. A solid
+## batch is one body, one merged renderer and one shape per original piece by
+## design, so neither contract can survive it without being restated per shape —
+## and no audit was relaxed to buy nodes.
 ##
 ## `OperationalLattice`, `CentralBerthServiceLine`, `ModernFleetRegistry` and
 ## `IndustrialInfrastructure` are absent for a different reason: each publishes a
@@ -1350,6 +1366,11 @@ const CONSOLIDATED_DRESSING_MODULES: Array[StringName] = [
 	&"FleetDockComb",
 	&"JovianFreightBerth",
 	&"ExteriorTargetRange",
+	&"HabitatSpine",
+	&"AftJunctionStack",
+	&"ObservationLogisticsSpur",
+	&"SalvageTerrace",
+	&"FabricationAnnex",
 ]
 
 ## Node names inside those modules that something outside their builder resolves
@@ -1358,50 +1379,95 @@ const CONSOLIDATED_DRESSING_MODULES: Array[StringName] = [
 ## `assets/` for every candidate name before any of them was batched. A name here
 ## keeps its own node; the batcher never removes it and never folds its renderer.
 const PROTECTED_DRESSING_NAMES: Array[String] = [
-	"AftModuleConnector", "AftSpine", "ApronDeck01", "ApronDeck02", "ApronDeck03", "ApronDeck04",
-	"BasePlate", "BaySeatedPin00", "BaySeatedPin01", "Beacon", "BeaconMast", "BenchLeg",
-	"BenchLeg2", "BenchLeg3", "BenchLeg4", "BenchShelf", "BenchTop", "BinStock0001",
+	"AftModuleConnector", "AftSpine", "AngledConsole", "ApronDeck01", "ApronDeck02", "ApronDeck03",
+	"ApronDeck04", "ArmPad", "ArrivalHookRail", "ArrivalShelf", "Back", "BackingPlate",
+	"BasePlate", "BaySeatedPin00", "BaySeatedPin01", "Beacon", "BeaconMast", "BedKerb01",
+	"BedKerb02", "BedKerb03", "BedKerb04", "BedKerb05", "BedKerb06", "BedKerb07", "BedKerb08",
+	"BenchLeg", "BenchLeg2", "BenchLeg3", "BenchLeg4", "BenchShelf", "BenchTop", "BerthBlanket",
+	"BerthCoverall", "BerthFoldedLinen", "BerthShelf", "BerthStowageNet", "BinStock0001",
 	"BinStock0101", "BoardFoot", "Bonnet", "BonnetVent", "BranchRail", "BranchRailPost",
-	"BridgeBeam", "CableDrum", "CargoPod", "CargoRackShelf", "CarouselTool3", "CentralJunction",
-	"Centreline", "Chassis", "Column", "Column2", "Column3", "Column4", "ColumnEdge",
-	"ColumnEdge2", "ColumnEdge3", "ColumnEdge4", "ConnectionDeckA", "ConnectionDeckB",
-	"ConnectionDeckC", "ConnectorRailANorth", "ConnectorRailASouth", "ConnectorRailBEast",
-	"ConnectorRailBNorth", "ConnectorRailBWest", "ConnectorRailCNorth", "ConnectorRailCSouth",
-	"ConnectorRailEast", "ConnectorRailNorth", "ConnectorRailSouth", "ConnectorRailWest",
-	"ContainerManifest", "ControlHousing", "ControlPedestal", "CrateInboundPort",
-	"CrateInboundStarboard", "CrateInboundTop", "CrateLower", "CrateLowerAlt", "CrateOutbound",
-	"CrateOutboundPort", "CrateOutboundSmall", "CrateOutboundStarboard", "CrateOutboundTop",
-	"CrateUpper", "DeployedChockBody00", "DeployedChockBody01", "DispatchConsole01",
+	"BridgeBeam", "BunkPlinth", "CabinetDoorSeam", "CabinetHandle", "CabinetStatus", "CableDrum",
+	"CargoPod", "CargoRackShelf", "CarouselTool3", "CarpetFront", "CeilingLightLens",
+	"CeilingLuminaireBody", "CentralJunction", "Centreline", "ChartPressBody", "ChartPressRoll00",
+	"ChartPressRoll01", "ChartPressRoll02", "ChartPressRoll03", "Chassis", "ClerestorySill",
+	"Clipboard", "Column", "Column2", "Column3", "Column4", "ColumnEdge", "ColumnEdge2",
+	"ColumnEdge3", "ColumnEdge4", "ColumnFeed", "ColumnGlow", "ColumnSleeve", "CommonCeiling",
+	"CommonFloor", "CommonFloorInset", "ConnectionDeck", "ConnectionDeckA", "ConnectionDeckB",
+	"ConnectionDeckC", "ConnectorFloor", "ConnectorInset", "ConnectorRailANorth",
+	"ConnectorRailASouth", "ConnectorRailBEast", "ConnectorRailBNorth", "ConnectorRailBWest",
+	"ConnectorRailCNorth", "ConnectorRailCSouth", "ConnectorRailEast", "ConnectorRailNorth",
+	"ConnectorRailSouth", "ConnectorRailWest", "ConnectorRouteLight01", "ConnectorRouteLight02",
+	"ConnectorRouteLight03", "ConsoleEdgeRail", "ConsoleHeadsetCup", "ConsolePlinth",
+	"ConsoleShockMount", "ContainerManifest", "ControlHousing", "ControlPedestal",
+	"CoolCeilingCoveRail", "CoordinatorDeskBody", "CoordinatorLampHead", "CoordinatorLampLens",
+	"CorridorLane", "CrateInboundPort", "CrateInboundStarboard", "CrateInboundTop", "CrateLower",
+	"CrateLowerAlt", "CrateOutbound", "CrateOutboundPort", "CrateOutboundSmall",
+	"CrateOutboundStarboard", "CrateOutboundTop", "CrateUpper", "CurtainLeadEdge",
+	"DeferredFacadeHeader", "DeployedChockBody00", "DeployedChockBody01", "DispatchConsole01",
 	"DispatchConsole02", "DispatchConsole03", "DispatchScreen01", "DispatchScreen02",
 	"DispatchScreen03", "DispatchSeat01", "DispatchSeat02", "DispatchSeat03", "DispatchStool01",
-	"DispatchStool02", "DispatchStool03", "DockPlotTable", "DockStatusBoard", "DockStatusField",
-	"DrumFlange", "DrumFlange2", "DrumPlinth", "DunnageSkipBand",
+	"DispatchStool02", "DispatchStool03", "DisplayDataBand", "DockPlotTable", "DockStatusBoard",
+	"DockStatusField", "DrumFlange", "DrumFlange2", "DrumPlinth", "DunnageSkipBand", "DutyLogLeaf",
 	"FleetDockCombConnectorPortRail", "FleetDockCombConnectorStarboardRail",
 	"FleetRegistryTerminal", "FootPad", "FootPad2", "FootPad3", "FootPad4", "ForwardCowl",
-	"GantryCableTray", "GantryHeaderEndCapPort", "GantryHeaderEndCapStarboard",
-	"GantryHeaderFascia", "GantryHeaderLiftAxis", "HalyardApronNose", "HalyardApronTailPort",
-	"HalyardApronTailStarboard", "HitchBar", "HoistBeam", "HoistBridge", "HoistCarriage",
-	"HoistHook", "HoistPost", "HoistPost2", "HoistPost3", "HoistPost4", "HoistRail", "HoistRail2",
-	"Hull", "JigPost", "JunctionAccessRamp", "JunctionAccessTread01", "JunctionAccessTread02",
-	"JunctionAccessTread03", "JunctionAccessTread04", "JunctionAccessTread05",
-	"JunctionAccessTread06", "JunctionAccessTread07", "JunctionPortalHeader",
-	"JunctionPortalPost", "JunctionPortalPost02", "JunctionStairRail", "LandingConsoleReadout",
-	"LandingDeckInset", "LandingEquipmentLocker", "LandingObservationConsole", "LandingRail",
-	"LandingViewerHead", "LockerBody", "Mast", "ObservationLanding",
+	"FrontWallPort", "FrontWallStarboard", "GalleyDispenserLens", "GalleyDoor01", "GalleyDoor02",
+	"GalleyDoor03", "GalleyDoor04", "GalleyPan", "GalleyTapLever", "GalleyTaskHousing",
+	"GalleyTaskLens", "GalleyTray", "GalleyUrnBody", "GalleyWorktop", "GantryCableTray",
+	"GantryHeaderEndCapPort", "GantryHeaderEndCapStarboard", "GantryHeaderFascia",
+	"GantryHeaderLiftAxis", "GardenBench01", "GardenBench02", "GardenBench03", "GardenFloor",
+	"HabitatCeiling", "HalyardApronNose", "HalyardApronTailPort", "HalyardApronTailStarboard",
+	"HatchFastener", "Headrest", "HeadServiceUnit", "HitchBar", "HoistBeam", "HoistBridge",
+	"HoistCarriage", "HoistHook", "HoistPost", "HoistPost2", "HoistPost3", "HoistPost4",
+	"HoistRail", "HoistRail2", "Hull", "JigPost", "JunctionAccessRamp", "JunctionAccessTread01",
+	"JunctionAccessTread02", "JunctionAccessTread03", "JunctionAccessTread04",
+	"JunctionAccessTread05", "JunctionAccessTread06", "JunctionAccessTread07", "JunctionDeck",
+	"JunctionDeckWestApron", "JunctionPortalHeader", "JunctionPortalPost", "JunctionPortalPost02",
+	"JunctionStairRail", "LandingConsoleReadout", "LandingDeckInset", "LandingEquipmentLocker",
+	"LandingObservationConsole", "LandingRail", "LandingViewerHead", "LaneEdge",
+	"LanternCoveFront", "LedgePlanter", "LedgeScopeBody", "LinkCoveLens", "LinkFloor", "LinkSill",
+	"LockerBody", "LockerShutter", "LowerCrossBrace", "LowerTrussStrut", "Mast", "Mattress",
+	"MessBoot", "MessBowl", "MessPendantLens", "MessPendantShade", "MessTableTop", "MessThermos",
+	"MessTrestleTie", "MouthHead", "MouthJambAft", "MouthJambForward", "MusterLampLens",
+	"MusterLockerBody", "MusterRouteBoard", "NoticeBoard", "NoticeBoardLampHousing",
+	"NoticeBoardLampLens", "NoticeSheet00", "NoticeSheet01", "NoticeSheet02", "NoticeSheet03",
+	"NoticeSheet04", "NoticeSheet05", "NoticeSheet06", "NutrientMain", "NutrientManifold",
+	"NutrientPanel", "NutrientTankCap", "ObservationLanding", "OperationsCeiling",
 	"OperationsCeilingLightEastBody", "OperationsCeilingLightEastLens",
-	"OperationsCeilingLightWestBody", "OperationsCeilingLightWestLens", "OperationsPodBack",
-	"OperationsPodFloor", "OverheadRail", "OverheadRail2", "PalletDeckInbound",
+	"OperationsCeilingLightWestBody", "OperationsCeilingLightWestLens", "OperationsFloor",
+	"OperationsPodBack", "OperationsPodFloor", "OutboardMarkerLamp01", "OutboardMarkerLamp02",
+	"OutboardSillCap", "OutboardSillCove", "OverheadRail", "OverheadRail2", "PalletDeckInbound",
 	"PalletDeckOutbound", "PalletDeckPort", "PalletDeckStarboard", "PartsBin0000", "PartsBin0002",
-	"PartsBin0100", "PartsBin0102", "Pedestal", "PortBerthNode", "PortBranchArm", "PortPod",
-	"RackFoot", "RailBeam", "RailBeam2", "RailStop", "RailStop2", "RangeHeader", "RangeTruss",
-	"RegistryDispatchBoard", "RegistryPartsTray", "RegistryPodDeck", "RegistryPodRoof",
-	"RegistryScreen", "RegistryStowedManifest", "RegistryTaskLampHousing",
-	"RegistryTerminalRiser", "RegistryToolRack", "RoomFloor", "RoomRoof", "RotaryBase",
-	"SeatBack", "SeatPad", "SeatRail", "ServiceRoomShelf", "SideStep", "SignBoard",
-	"SledContainer", "SledDeck", "SledSkirt", "StagingBayEdgeXPortA", "StandStepLower",
-	"StandToolbox", "StarboardBerthNode", "StarboardBranchArm", "StarboardPod", "SteeringColumn",
-	"SteeringWheel", "SupplyCrate", "SupplyCrateTop", "TailFin", "ToolWall", "TowDeck",
-	"TrolleyRailA", "TrolleyRailB", "WithdrawnPin00", "WithdrawnPinClip"
+	"PartsBin0100", "PartsBin0102", "Pedestal", "Pillow", "PlinthLegendRule", "PlotDutyMug",
+	"PlotLogbookPages", "PlotTableBase", "PlotToken00", "PlotToken01", "PlotToken02",
+	"PlotToken03", "PlotToken04", "PortBerthNode", "PortBranchArm", "PortDadoRail", "PortMount",
+	"PortPilaster01", "PortPilaster02", "PortPilaster03", "PortPilaster04", "PortPod",
+	"PortShellRib01", "PortShellRib02", "PortShellRib03", "PortShellRib04", "PortWallForward",
+	"PortWallLower", "PottingTaskLens", "PottingToolRail", "PottingWorktop", "PrimaryDisplay",
+	"RackCardCage01", "RackCardCage02", "RackFoot", "RackLockoutTag", "RackModule0000",
+	"RackModule0001", "RackModule0002", "RackModule0003", "RackModule0100", "RackModule0103",
+	"RackModule0200", "RackModule0201", "RackModule0202", "RackModule0203", "RackRemovedFascia",
+	"RackTray", "RackUpright", "RailBeam", "RailBeam2", "RailStop", "RailStop2", "RangeHeader",
+	"RangeTruss", "RearWindowSill", "RefreshmentCounter", "RegistryDispatchBoard",
+	"RegistryPartsTray", "RegistryPodDeck", "RegistryPodRoof", "RegistryScreen",
+	"RegistryStowedManifest", "RegistryTaskLampHousing", "RegistryTerminalRiser",
+	"RegistryToolRack", "RoomFloor", "RoomRoof", "RosterBoardFrame", "RosterHungCoverall",
+	"RosterLampHousing", "RosterLampLens", "RotaryBase", "RouteStripe", "Seat", "SeatBack",
+	"SeatPad", "SeatRail", "ServiceCabinet00", "ServiceCabinet01", "ServiceCabinet02",
+	"ServiceConduit", "ServiceRoomShelf", "SideStep", "SideWindowFrameA", "SideWindowSill",
+	"SignBoard", "SledContainer", "SledDeck", "SledSkirt", "StagingBayEdgeXPortA",
+	"StairBaseLanding", "StandStepLower", "StandToolbox", "StarboardBerthNode",
+	"StarboardBranchArm", "StarboardMount", "StarboardPod", "StarboardSill", "StatusBoardBody",
+	"StatusBoardField", "SteeringColumn", "SteeringWheel", "StowedCoverall", "StowedMug00",
+	"StowedMug01", "StowedMug02", "StowedMug03", "SupplyCrate", "SupplyCrateTop", "SweepHead",
+	"SweepLens", "TableDisplay", "TableDisplayBezel", "TableDisplayCursor", "TableDisplayPanel01",
+	"TableDisplayPanel02", "TailFin", "ThresholdStoneInlay", "ToolWall", "TowDeck", "TrolleyRailA",
+	"TrolleyRailB", "TubeSegment00", "TubeSegment01", "TubeSegment02", "TubeSegment03",
+	"TubeSegment04", "TubeSegment05", "TubeSegment06", "TubeSegment07", "TubeSegment08",
+	"TubeSegment09", "TubeSegment10", "TubeSegment11", "TubeSegment12", "TubeSegment13",
+	"UpperDiagonalBrace", "UpperFloorInset", "UpperRouteStripe", "WatchRackFrame00",
+	"WatchRackFrame01", "WatchRackFrame02", "WaterUrn", "WellNosingFront", "WindowMullion",
+	"WindowPane00", "WindowPane01", "WindowPane02", "WindowSill", "WithdrawnPin00",
+	"WithdrawnPinClip"
 ]
 
 

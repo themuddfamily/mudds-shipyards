@@ -1309,6 +1309,23 @@ func get_pod_corner_collar_visual_allocation_audit() -> Dictionary:
 		if batch.material_override != null:
 			material_resource_ids[batch.material_override.get_instance_id()] = true
 
+	# The world folds anonymous sibling dressing into merged renderers after this
+	# module has finished building (`StationDressingBatch`). The census frozen
+	# below is what this module *allocates*, so each batch is put back as the
+	# renderers, copies, submissions and resources it stands in for. The delta is
+	# zero on a module built without that pass, which is how every module test
+	# builds it.
+	var authored := StationDressingBatch.authored_render_census_delta(self)
+	var mesh_instance_count := mesh_nodes.size() + int(authored.renderer_nodes)
+	drawn_copies += int(authored.drawn_copies)
+	surface_submissions += int(authored.surface_submissions)
+	for retired_id in authored.retired_mesh_resource_ids as PackedInt64Array:
+		mesh_resource_ids.erase(retired_id)
+	for mesh_id in authored.mesh_resource_ids as PackedInt64Array:
+		mesh_resource_ids[mesh_id] = true
+	for material_id in authored.material_resource_ids as PackedInt64Array:
+		material_resource_ids[material_id] = true
+
 	var errors := PackedStringArray()
 	var family_nodes: Array[MeshInstance3D] = []
 	var family_mesh_ids := {}
@@ -1404,7 +1421,7 @@ func get_pod_corner_collar_visual_allocation_audit() -> Dictionary:
 	# Gameplay interaction markers are not render allocations. Keep this visual
 	# census scoped to the nodes that can affect the authored draw roster.
 	var descendant_nodes := _render_descendant_count()
-	var renderer_nodes := mesh_nodes.size() + batch_nodes.size()
+	var renderer_nodes := mesh_instance_count + batch_nodes.size()
 	if (
 		descendant_nodes != RENDER_DESCENDANT_NODE_COUNT
 		or renderer_nodes != RENDERER_NODE_COUNT
@@ -3087,8 +3104,11 @@ func _render_descendant_count() -> int:
 				interaction_owned = true
 				break
 			cursor = cursor.get_parent()
-		if not interaction_owned:
-			count += 1
+		if interaction_owned:
+			continue
+		# A dressing batch stands in for the nodes the world folded into it, and
+		# this count is the roster this module builds. Zero for every other node.
+		count += 1 + StationDressingBatch.authored_node_delta(candidate)
 	return count
 
 
@@ -3787,7 +3807,7 @@ func _build_operations_shell(room: Node3D) -> void:
 	_box(room, "SouthWallDoorPocket", Vector3(7.4, 2.1, 9.1), Vector3(6.6, 4.2, 0.42), _materials["warm_grey"])
 	for floor_x in [1.75, 5.6, 9.45]:
 		for floor_z in [10.55, 13.15, 15.75]:
-			_box(
+			var plate := _box(
 				room,
 				"FloorPressurePlate",
 				Vector3(float(floor_x), 0.015, float(floor_z)),
@@ -3795,6 +3815,13 @@ func _build_operations_shell(room: Node3D) -> void:
 				_materials["hull_dark_floor"] if int(floor_x * 10.0 + floor_z * 10.0) % 2 else _materials["mid_grey_floor"],
 				false
 			)
+			# `tests/station_surface_playability_test.gd` counts these nine plates
+			# by material recipe, because only the first of nine identically named
+			# siblings keeps a readable name. They are the room's walked floor, so
+			# the marker states that authority outright and keeps the world's
+			# anonymous-dressing pass (`StationDressingBatch`) from folding them
+			# into one renderer the floor census can no longer count.
+			plate.set_meta("operations_floor_pressure_plate", true)
 		for seam_z in [11.85, 14.45]:
 			_box(room, "FloorSeam", Vector3(float(floor_x), 0.042, float(seam_z)), Vector3(3.25, 0.018, 0.035), _materials["rubber"], false)
 	# Rounded guards and a tubular roof rail soften the pod silhouette while its
@@ -4322,7 +4349,14 @@ func _build_operations_lighting(room: Node3D) -> void:
 	var lens_transforms: Array[Transform3D] = []
 	for luminaire_x in [3.2, 8.0]:
 		for z_position in [11.15, 14.15, 16.15]:
-			_box(lighting, "CeilingLuminaireBody", Vector3(float(luminaire_x), 4.47, float(z_position)), Vector3(2.15, 0.11, 0.44), _materials["hull_dark"], false)
+			var luminaire_body := _box(lighting, "CeilingLuminaireBody", Vector3(float(luminaire_x), 4.47, float(z_position)), Vector3(2.15, 0.11, 0.44), _materials["hull_dark"], false)
+			# `get_ceiling_luminaire_lens_batch_audit()` finds these six housings by
+			# recipe rather than by name, and only the first of six identically
+			# named siblings keeps a readable name. The marker states that
+			# authority outright, which is also what keeps the world's
+			# anonymous-dressing pass (`StationDressingBatch`) from folding five of
+			# them into a batch the fixture audit can no longer count.
+			luminaire_body.set_meta("ceiling_luminaire_housing", true)
 			var lens_transform := Transform3D(
 				Basis.IDENTITY,
 				Vector3(float(luminaire_x), 4.405, float(z_position))
