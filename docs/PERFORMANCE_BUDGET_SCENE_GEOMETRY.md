@@ -547,6 +547,36 @@ pairs and 414 -> 388 families, entirely inside `HabitatSpine` (301 -> 242) and
 unchanged, and the 30 new families are the same seams re-blamed on the batch,
 worst score 0.0038 against the audit's worst standing 0.2655.
 
+**Rendered check, and one honest caveat.** Four walking-distance framings were
+captured under Xvfb at 1280x720 with the camera transform resolved from the live
+floor, so before and after are byte-identical viewpoints: the habitat corridor
+between the bunk alcoves, the observation common room, the Aft operations room
+across the coordinator desk, and VIP reception — which this pass does not touch
+at all and is therefore the control. Captures are in
+`/root/.cache/mudds-shipyards/node-trim2-root/`.
+
+On **Forward+**, which `project.godot` selects for desktop, the before/after
+difference is inside the renderer's own same-build noise floor on every framing:
+mean |delta| 0.49-0.68 of 255, against same-build rerun floors of 0.29-0.56
+(before) and 0.30-0.80 (after). The *largest* of the four before/after deltas is
+the VIP framing, where nothing was batched at all — the measurement saying
+"noise" as plainly as it can.
+
+On **Compatibility** — which this project ships only as the mobile rendering
+method — three framings are at or near the floor (VIP 0.0004, habitat common
+0.04, habitat corridor 0.27) but the **Aft operations room is not**: mean |delta|
+3.29 against same-build rerun floors of 0.73 (before) and 0.07 (after), and the
+coordinator desk top moves from RGB 90/113/119 to 192/188/173. That is a real, visible tone change, and it is the
+per-object light cap doing exactly what the first pass recorded, one order of
+magnitude larger in the station's most light-dense room: the desk top is *not*
+batched and did not move, but merging its neighbours changes which eight lights
+win its per-object slots, and it gains the warm wash of the task lamp standing on
+it. It is bound-independent — 4 m and 8 m locality caps reproduce the same
+192/188/173 byte for byte while costing 339 of the 840 nodes — so the cap stays
+at 16 m. Forward+ clusters lights instead of capping them per object and shows
+none of it. **This is not qualified as "no visible change" under the mobile
+rendering method.**
+
 What was left alone in this pass, and by whose authority:
 
 * **`VipReceptionSuite`** (515 nodes, ~71 available).
