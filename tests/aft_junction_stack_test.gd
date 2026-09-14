@@ -2,6 +2,15 @@ extends SceneTree
 
 const MODULE_SCENE := preload("res://scenes/world/modules/aft_junction_stack.tscn")
 const WORLD_LAYER := PhysicsLayers.WORLD
+## The upper-deck aisle witness needs the live station, not the isolated module:
+## the thing the gate ribs have to stay clear of is
+## `OperationalLattice/Activities/AftCrewWorkPost`, which `ShipyardWorld` owns.
+const WORLD_SCENE := preload("res://scenes/world/shipyard_world.tscn")
+const PLAYER_SCENE := preload("res://scenes/player/player.tscn")
+## Narrowest clear width any authored way past the work post may pinch to. One
+## metre against a 0.76 m capsule; the walkability sweep's own choke class trips
+## at 0.9 m, so this is the stricter gate of the two.
+const MINIMUM_AISLE_CLEAR_WIDTH := 1.0
 
 ## Extra simulated physics frames granted on top of the frames a wait's nominal
 ## duration implies. A frame count, never a wall-clock grace: the door advances in
@@ -70,6 +79,7 @@ func _run() -> void:
 	_test_collision_matrix(module)
 	await _test_module_enabled_currentness(module)
 	await _test_cleanup(module)
+	await _test_production_upper_deck_aisles()
 	_finish()
 
 
@@ -479,8 +489,40 @@ func _test_upper_transfer_gate(module: AftJunctionStack) -> void:
 		as MultiMeshInstance3D if gate != null else null
 	var band_batch := gate.get_node_or_null(^"TransferBandRenderBatch") \
 		as MultiMeshInstance3D if gate != null else null
-	var collision_free := gate != null \
-		and gate.find_children("*", "CollisionShape3D", true, false).is_empty()
+	# Every drawn rib now has a body at the same pose and the same section: the
+	# sweep measured the deck as walkable at the rib rows, so a porous rib was a
+	# 2.35 m post the player strolled through.
+	var rib_index := 0
+	var every_rib_solid := gate != null
+	var solid_matches_drawn := gate != null
+	for rib_x in AftJunctionStack.UPPER_TRANSFER_RIB_X_POSITIONS:
+		for rib_z in AftJunctionStack.UPPER_TRANSFER_RIB_Z_POSITIONS:
+			rib_index += 1
+			var expected_position := Vector3(
+				float(rib_x),
+				AftJunctionStack.UPPER_FLOOR_ELEVATION + 0.05
+					+ AftJunctionStack.UPPER_TRANSFER_RIB_SIZE.y * 0.5,
+				float(rib_z)
+			)
+			var body := gate.get_node_or_null(
+				NodePath("TransferRibCollision%02d" % rib_index)
+			) as StaticBody3D if gate != null else null
+			var shape := (
+				body.get_node_or_null(^"CollisionShape3D") as CollisionShape3D
+				if body != null else null
+			)
+			var box := shape.shape as BoxShape3D if shape != null else null
+			if body == null or box == null:
+				every_rib_solid = false
+				solid_matches_drawn = false
+				continue
+			if not body.position.is_equal_approx(expected_position) \
+					or body.collision_layer != PhysicsLayers.WORLD \
+					or body.collision_mask != 0 \
+					or shape.disabled:
+				every_rib_solid = false
+			if not box.size.is_equal_approx(AftJunctionStack.UPPER_TRANSFER_RIB_SIZE):
+				solid_matches_drawn = false
 
 	var every_rib_supported := gate != null
 	for rib_x in AftJunctionStack.UPPER_TRANSFER_RIB_X_POSITIONS:
@@ -496,7 +538,7 @@ func _test_upper_transfer_gate(module: AftJunctionStack) -> void:
 	# Exercise the centre and shoulder lanes through the whole threshold. With
 	# no header, the published six-metre jump envelope remains open sky.
 	var route_is_open := true
-	for lane_x in [-6.55, -5.15, -3.75]:
+	for lane_x in [-7.0, -5.15, -3.3]:
 		for route_z in [14.15, 14.75, 15.35]:
 			var upward_hit := await _ray_local(
 				module,
@@ -521,16 +563,21 @@ func _test_upper_transfer_gate(module: AftJunctionStack) -> void:
 		and band_batch.multimesh.instance_count == int(profile.rib_count)
 		and rib_batch.material_override == materials["red"]
 		and band_batch.material_override == materials["brass"]
-		and is_equal_approx(float(profile.clear_width), 3.66)
+		and is_equal_approx(float(profile.clear_width), 4.56)
 		and float(profile.clear_width) > 1.94
 		and int(profile.render_submissions) == 2
 		and StringName(profile.route_authority) == &"none"
 		and StringName(profile.collision_solution) \
-			== &"deck_supported_visual_ribs_outside_lane"
-		and collision_free
+			== &"solid_ribs_at_drawn_section_outside_lane"
+		and int(profile.collision_body_count) == int(profile.rib_count)
+		and (profile.collision_section as Vector3).is_equal_approx(
+			AftJunctionStack.UPPER_TRANSFER_RIB_SIZE
+		)
+		and every_rib_solid
+		and solid_matches_drawn
 		and every_rib_supported
 		and route_is_open,
-		"the Aft transfer ribs form a deck-supported two-submission threshold outside a 3.66 m open-sky standing and jump lane"
+		"the Aft transfer ribs form a solid two-submission threshold outside a 4.56 m open-sky standing and jump lane"
 	)
 
 
@@ -1034,7 +1081,7 @@ func _test_pod_corner_collar_visual_resource_sharing(
 		bool(report.valid)
 		and StringName(report.selected_family) == &"pod_corner_collars"
 		and report.legacy == {
-			"descendant_nodes": 1192,
+			"descendant_nodes": 1204,
 			"renderer_nodes": 868,
 			"drawn_copies": 878,
 			"surface_submissions": 868,
@@ -1046,7 +1093,7 @@ func _test_pod_corner_collar_visual_resource_sharing(
 			"family_mesh_resource_allocations": 4,
 		}
 		and report.current == {
-			"descendant_nodes": 1157,
+			"descendant_nodes": 1169,
 			"renderer_nodes": 754,
 			"drawn_copies": 894,
 			"surface_submissions": 754,
@@ -1057,7 +1104,7 @@ func _test_pod_corner_collar_visual_resource_sharing(
 			"family_surface_submissions": 4,
 			"family_mesh_resource_allocations": 1,
 		},
-		"shared collar families plus all three station consoles freeze 1157 descendants, 754 renderers/submissions, 894 copies, and 308 mesh allocations"
+		"shared collar families plus all three station consoles freeze 1169 descendants, 754 renderers/submissions, 894 copies, and 308 mesh allocations"
 	)
 	_check(
 		report.reductions == {
@@ -2566,8 +2613,8 @@ func _test_vip_facade_column_trim_batch(module: AftJunctionStack) -> void:
 		and int(authority.lease_authority_count) == 0
 		and int(authority.spawn_authority_count) == 0
 		and str(authority.network_authority_role) == "none"
-		and int(collision.body_count) == 106
-		and int(collision.shape_count) == 119
+		and int(collision.body_count) == 112
+		and int(collision.shape_count) == 125
 		and module.get_operations_entrance() != null
 		and module.get_vip_access() != null
 		and vip != null
@@ -3089,6 +3136,290 @@ func _wait_for_door_state(door: StationDoor, expected_state: int, travel_seconds
 		frames += 1
 	await process_frame
 	return is_instance_valid(door) and door.get_state() == expected_state
+
+
+## The transfer-gate ribs are solid now, so the gate has to be a gate the player
+## can actually use, on the live deck where `AftCrewWorkPost` stands rather than
+## in the isolated module. Everything here is measured with the production
+## capsule read out of `scenes/player/player.tscn` -- radius, height and mask --
+## so the figures cannot drift from the body the player actually walks.
+func _test_production_upper_deck_aisles() -> void:
+	var world := WORLD_SCENE.instantiate() as Node3D
+	_check(world != null, "production station world instantiates for the Aft aisle witness")
+	if world == null:
+		return
+	root.add_child(world)
+	await process_frame
+	await physics_frame
+	await physics_frame
+
+	var player := PLAYER_SCENE.instantiate() as CharacterBody3D
+	var player_collision := (
+		player.get_node_or_null(^"PlayerCollision") as CollisionShape3D
+		if player != null else null
+	)
+	var player_capsule := (
+		player_collision.shape as CapsuleShape3D if player_collision != null else null
+	)
+	_check(
+		player_capsule != null,
+		"the production player capsule resolves for the Aft aisle witness"
+	)
+	if player_capsule == null:
+		world.queue_free()
+		await process_frame
+		return
+	var capsule := CapsuleShape3D.new()
+	capsule.radius = player_capsule.radius
+	capsule.height = player_capsule.height
+	var mask := player.collision_mask
+	# Stand exactly as `tools/station_walkability_sweep.gd` stands: capsule centre
+	# one half-height plus a 0.02 m settle above the deck plate.
+	var stand_y := AftJunctionStack.UPPER_FLOOR_ELEVATION + capsule.height * 0.5 + 0.02
+	player.free()
+
+	var aft := world.get_node_or_null(^"AftJunctionStack") as AftJunctionStack
+	var space := world.get_world_3d().direct_space_state
+	_check(aft != null, "the live Aft module resolves inside the production world")
+	if aft == null:
+		world.queue_free()
+		await process_frame
+		return
+
+	# 1. Every drawn rib stops the capsule, and the thing that stops it is that
+	#    rib's own body rather than a neighbour or a stray deck collider.
+	var rib_index := 0
+	var every_rib_blocks := true
+	for rib_x in AftJunctionStack.UPPER_TRANSFER_RIB_X_POSITIONS:
+		for rib_z in AftJunctionStack.UPPER_TRANSFER_RIB_Z_POSITIONS:
+			rib_index += 1
+			var centre: Vector3 = aft.global_transform * Vector3(
+				float(rib_x), stand_y, float(rib_z)
+			)
+			var names := _capsule_collider_names(space, capsule, mask, centre)
+			if not names.has("TransferRibCollision%02d" % rib_index):
+				every_rib_blocks = false
+	_check(
+		every_rib_blocks,
+		"every drawn Aft transfer rib stops the production capsule at its own body"
+	)
+
+	# 2. The rib rows split the deck into three lanes and no more: the gate's own
+	#    clear lane plus a shoulder either side, each wide enough to walk.
+	# The first row also has the stair-head muster locker's east bay shouldering
+	# into it, so only the two rows clear of the locker measure the gate's own
+	# declared width; every row still has to stay walkable.
+	var lane_rows_correct := true
+	var open_row_gate := INF
+	var narrowest_gate := INF
+	var narrowest_shoulder := INF
+	for row_index in (AftJunctionStack.UPPER_TRANSFER_RIB_Z_POSITIONS as Array).size():
+		var rib_z: float = float(
+			AftJunctionStack.UPPER_TRANSFER_RIB_Z_POSITIONS[row_index]
+		)
+		var runs := _deck_clear_runs(aft, space, capsule, mask, stand_y, rib_z)
+		var row_report := PackedStringArray()
+		for run: Dictionary in runs:
+			row_report.append("[%.3f..%.3f]=%.3f" % [run.low, run.high, run.width])
+		print("AFT_RIB_ROW z=%.2f runs=%s" % [rib_z, " ".join(row_report)])
+		if runs.size() != 3:
+			lane_rows_correct = false
+			continue
+		narrowest_shoulder = minf(narrowest_shoulder, float((runs[0] as Dictionary).width))
+		narrowest_shoulder = minf(narrowest_shoulder, float((runs[2] as Dictionary).width))
+		var gate_width := float((runs[1] as Dictionary).width)
+		narrowest_gate = minf(narrowest_gate, gate_width)
+		if row_index > 0:
+			open_row_gate = minf(open_row_gate, gate_width)
+	_check(
+		lane_rows_correct
+		and absf(open_row_gate - AftJunctionStack.UPPER_TRANSFER_CLEAR_WIDTH) <= 0.02
+		and narrowest_gate >= 4.2
+		and narrowest_shoulder >= MINIMUM_AISLE_CLEAR_WIDTH,
+		"the solid rib rows leave the declared %.2f m gate lane and two walkable shoulders (open rows %.3f m, narrowest row %.3f m, narrowest shoulder %.3f m)" % [
+			AftJunctionStack.UPPER_TRANSFER_CLEAR_WIDTH,
+			open_row_gate, narrowest_gate, narrowest_shoulder,
+		]
+	)
+
+	# 3. Both authored ways north past the work post stay walkable end to end: the
+	#    west aisle between the bench and the cable drum, and the east lane past
+	#    the supply crate that the Cinder boarding tour now uses. Sampled from the
+	#    first rib row to where the deck opens out again.
+	var west_aisle := _narrowest_route_width(
+		aft, space, capsule, mask, stand_y, -6.05, 14.15, 19.0
+	)
+	# The east lane is sampled from z = 15.0, the Cinder tour's own crossing point:
+	# at the first rib row the muster locker's east bay still stands in this x, and
+	# a walker heading east through the gate is south of it there anyway.
+	var east_lane := _narrowest_route_width(
+		aft, space, capsule, mask, stand_y, -3.6, 15.0, 19.0
+	)
+	print("AFT_UPPER_DECK_AISLES: gate=%.3f shoulder=%.3f west_aisle=%.3f east_lane=%.3f" % [
+		narrowest_gate, narrowest_shoulder, west_aisle, east_lane,
+	])
+	_check(
+		west_aisle >= MINIMUM_AISLE_CLEAR_WIDTH
+		and absf(west_aisle - AftJunctionStack.UPPER_TRANSFER_WORK_POST_AISLE_WIDTH) <= 0.02,
+		"the west work-post aisle keeps its declared %.2f m of clear width (measured %.3f m)" % [
+			AftJunctionStack.UPPER_TRANSFER_WORK_POST_AISLE_WIDTH, west_aisle,
+		]
+	)
+	_check(
+		east_lane >= MINIMUM_AISLE_CLEAR_WIDTH
+		and absf(east_lane - AftJunctionStack.UPPER_TRANSFER_EAST_LANE_WIDTH) <= 0.02,
+		"the east lane out of the gate keeps its declared %.2f m of clear width (measured %.3f m)" % [
+			AftJunctionStack.UPPER_TRANSFER_EAST_LANE_WIDTH, east_lane,
+		]
+	)
+
+	world.queue_free()
+	await process_frame
+
+
+func _capsule_blocked(
+		space: PhysicsDirectSpaceState3D,
+		capsule: CapsuleShape3D,
+		mask: int,
+		centre: Vector3
+	) -> bool:
+	var query := PhysicsShapeQueryParameters3D.new()
+	query.shape = capsule
+	query.transform = Transform3D(Basis.IDENTITY, centre)
+	query.collision_mask = mask
+	query.collide_with_areas = false
+	query.margin = 0.0
+	return not space.intersect_shape(query, 1).is_empty()
+
+
+func _capsule_collider_names(
+		space: PhysicsDirectSpaceState3D,
+		capsule: CapsuleShape3D,
+		mask: int,
+		centre: Vector3
+	) -> PackedStringArray:
+	var query := PhysicsShapeQueryParameters3D.new()
+	query.shape = capsule
+	query.transform = Transform3D(Basis.IDENTITY, centre)
+	query.collision_mask = mask
+	query.collide_with_areas = false
+	query.margin = 0.0
+	var names := PackedStringArray()
+	for hit: Dictionary in space.intersect_shape(query, 8):
+		var collider := hit.get("collider") as Node
+		if collider != null:
+			names.append(String(collider.name))
+	return names
+
+
+## Free capsule-centre runs across the upper deck at one Aft-local z, converted
+## to the clear width a player reads: the centre run plus one capsule diameter.
+## Run edges are bisected so the answer is a measurement, not a grid artefact.
+func _deck_clear_runs(
+		aft: AftJunctionStack,
+		space: PhysicsDirectSpaceState3D,
+		capsule: CapsuleShape3D,
+		mask: int,
+		stand_y: float,
+		local_z: float
+	) -> Array[Dictionary]:
+	var coarse := 0.02
+	# The `UpperFloor` plate itself, x = -10.3 .. 0.0 in Aft-local space. Sampling
+	# wider would report slivers of overhang past the deck edge as lanes.
+	var window_low := -10.3
+	var window_high := 0.0
+	var raw: Array[Dictionary] = []
+	var run_start := NAN
+	var previous := NAN
+	var sample := window_low
+	while sample <= window_high + 0.0001:
+		var free := not _capsule_blocked(
+			space, capsule, mask,
+			aft.global_transform * Vector3(sample, stand_y, local_z)
+		)
+		if free and is_nan(run_start):
+			run_start = sample
+		elif not free and not is_nan(run_start):
+			raw.append({"low": run_start, "high": previous})
+			run_start = NAN
+		if free:
+			previous = sample
+		sample += coarse
+	if not is_nan(run_start):
+		raw.append({"low": run_start, "high": previous})
+
+	var refined: Array[Dictionary] = []
+	for run: Dictionary in raw:
+		# An edge that sits on the sampling window is bounded by where the probe
+		# stopped, not by station geometry, so it is taken as given rather than
+		# bisected. The run's width is then a lower bound on the real clear width,
+		# which is exactly what a ">= 1.0 m" witness wants.
+		var low := float(run.low)
+		if low > window_low + 0.0001:
+			low = _bisect_free_edge(
+				aft, space, capsule, mask, stand_y, local_z, low, low - coarse
+			)
+		var high := float(run.high)
+		if high < window_high - coarse - 0.0001:
+			high = _bisect_free_edge(
+				aft, space, capsule, mask, stand_y, local_z, high, high + coarse
+			)
+		refined.append({
+			"low": low,
+			"high": high,
+			"width": high - low + capsule.radius * 2.0,
+		})
+	return refined
+
+
+func _bisect_free_edge(
+		aft: AftJunctionStack,
+		space: PhysicsDirectSpaceState3D,
+		capsule: CapsuleShape3D,
+		mask: int,
+		stand_y: float,
+		local_z: float,
+		free_x: float,
+		blocked_x: float
+	) -> float:
+	var free := free_x
+	var blocked := blocked_x
+	for _step in 12:
+		var middle := (free + blocked) * 0.5
+		if _capsule_blocked(
+			space, capsule, mask,
+			aft.global_transform * Vector3(middle, stand_y, local_z)
+		):
+			blocked = middle
+		else:
+			free = middle
+	return free
+
+
+## Narrowest clear width of the lane a walker following `probe_x` stays inside,
+## sampled north from `from_z` to `to_z`. Returns 0.0 if the lane ever closes.
+func _narrowest_route_width(
+		aft: AftJunctionStack,
+		space: PhysicsDirectSpaceState3D,
+		capsule: CapsuleShape3D,
+		mask: int,
+		stand_y: float,
+		probe_x: float,
+		from_z: float,
+		to_z: float
+	) -> float:
+	var narrowest := INF
+	var local_z := from_z
+	while local_z <= to_z + 0.0001:
+		var containing := 0.0
+		for run: Dictionary in _deck_clear_runs(
+			aft, space, capsule, mask, stand_y, local_z
+		):
+			if probe_x >= float(run.low) and probe_x <= float(run.high):
+				containing = float(run.width)
+		narrowest = minf(narrowest, containing)
+		local_z += 0.25
+	return 0.0 if is_inf(narrowest) else narrowest
 
 
 func _check(condition: bool, description: String) -> void:

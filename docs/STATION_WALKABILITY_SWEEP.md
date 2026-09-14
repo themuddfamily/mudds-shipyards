@@ -44,8 +44,11 @@ Aft operations floor, followed by 1.02 m in the Habitat corridor and 1.08 m on
 Jovian apron deck 04. Zero invisible blockers is likewise a real result — every
 collider the capsule met had geometry drawn at it.
 
-After the fixes below: **37 findings** — 0 / 37 / 0 / 0. Both `gap` findings are
-closed and every fixed `walk_through` family is gone.
+After the fixes below: **31 findings** — 0 / 31 / 0 / 0. Both `gap` findings are
+closed and every fixed `walk_through` family is gone. The Aft transfer-gate ribs
+were the last of those families to close (37 -> 31); blocked cells rose from
+39,620 to 39,689, the 341 measured lanes are unchanged, and the narrowest lane
+on the station is still the Aft operations floor's 0.980 m.
 
 ## Triage
 
@@ -94,6 +97,47 @@ closed and every fixed `walk_through` family is gone.
    branch. `scripts/world/jovian_freight_berth.gd`, asserted in
    `tests/jovian_freight_berth_transform_test.gd`.
 
+5. **Aft Junction Stack — six upper transfer gate ribs (2.35 m) had no
+   collision.** The one deferred defect this sweep confirmed, and the one that
+   needed layout work rather than a collision flag. The module declared
+   `collision_solution: deck_supported_visual_ribs_outside_lane`, but the deck is
+   walkable *at* the rib rows and not only between them, so a player off the
+   centre lane walked through a 2.35 m gate post.
+
+   Each drawn rib now carries a `TransferRibCollision01..06` body at its own pose
+   and its own `0.24 x 2.35 x 0.52` section, so the collider can never be wider
+   or narrower than what is drawn. That alone would have left the gate funnelling
+   players into `OperationalLattice/Activities/AftCrewWorkPost`, which splits the
+   deck north of the gate in two: the bench ends at x = -6.6 and the cable drum
+   and supply crate start at x = -5.55, leaving a **1.050 m** west aisle between
+   them and the open east lane past the crate. Measured live with the production
+   capsule at the authored +/- 1.95 m rib spacing, the solid ribs squeezed the
+   east-lane crossing to **1.151 m** between a rib and the supply crate. The rib
+   pair therefore moved out to +/- 2.40 m about the deck's own x = -5.15
+   centreline, which keeps them symmetric on the route stripe and over the
+   `UpperFloorInset` they bear on, takes that crossing to **1.601 m**, and widens
+   the gate's own clear lane from 3.66 m to **4.56 m**. Shoulder lanes outside
+   the ribs are 2.36 m (west, to the deck rail) and 2.84 m (east, to the
+   operations-room west wall); the first rib row measures 4.29 m because the
+   stair-head muster locker's east bay shoulders into it. The declared
+   `collision_solution` is now `solid_ribs_at_drawn_section_outside_lane` and the
+   profile publishes the measured aisle widths.
+
+   Nothing moved on the work post, which another module owns. What did move is
+   the production traversal witness's Cinder tour: three of its legs crossed the
+   deck laterally at world z = 63.0 — straight through the x = -3.2 rib column —
+   and could only ever have done so while the ribs were porous. All three now use
+   the same crossing a player would: the open north deck at z = 67.0, the east
+   lane south through the gate, then west along z = 61.25, south of the rib rows
+   and north of the south deck rails. No leg was shortened and no waypoint left
+   the walkable deck. *Player effect:* the transfer gate is a gate — you walk
+   through the 4.56 m lane it frames instead of through its posts, and both ways
+   past the crew work post stay walkable.
+   `scripts/world/aft_junction_stack.gd`, asserted in
+   `tests/aft_junction_stack_test.gd` (`_test_production_upper_deck_aisles`
+   re-measures every figure above on the live station with the production
+   capsule) and re-walked in `tests/station_traversal_defect_witness_test.gd`.
+
 ### Accepted as intentional
 
 - **Hero berth `LandingPad/StarboardUtilityBay` (6 pieces: three umbilical
@@ -121,21 +165,6 @@ closed and every fixed `walk_through` family is gone.
 
 ### Deferred
 
-- **Aft Junction Stack — six upper transfer gate ribs (2.35 m) have no
-  collision.** Confirmed real: the module declares
-  `collision_solution: deck_supported_visual_ribs_outside_lane`, but the sweep
-  measured that the upper deck is walkable *at* the rib rows and not only
-  between them, so a player off the centre lane walks through a gate post. The
-  collision change itself is small and passes the Aft suite, but it exposes a
-  layout problem it cannot fix: measured live at y = 4.2, the deck north of the
-  gate is two aisles of about 1.0 m and 1.1 m either side of
-  `OperationalLattice/Activities/AftCrewWorkPost`, and the production traversal
-  witness's Cinder tour crosses the rib row three times because those ribs were
-  porous. The complete remedy is to make the ribs solid *and* move the crew work
-  post so the gate's 3.66 m lane continues north — Aft layout work owned by
-  another agent this session. Measurements for that work: free capsule-centre
-  spans at y = 4.2 are `z 62.0–63.5: [-6.5..-3.7] [-2.7..-0.2]`,
-  `z 64.0–66.0: [-8.5..-5.8] [-3.9..-0.2]`, opening out at `z ≥ 66.5`.
 - **Parked craft undersides (12 findings):** Jovian landing bogie strut, damper,
   foot batch and lower engine collars; Arrow engine collar and refractory
   nozzles. `scripts/ships/*`, owned elsewhere this pass.
@@ -147,3 +176,10 @@ gl_compatibility, 1280x720, production lighting and quality untouched:
 `observation-logistics-pad-masts.png`, `observation-pad-cross-landing-mast.png`,
 `vip-reception-armchairs.png`, `observation-landing-viewer.png`,
 `registry-freight-deck-seam.png`, `aft-upper-transfer-gate.png`.
+
+`/root/.cache/mudds-shipyards/aft-gate-root/` — same settings, for the Aft
+transfer-gate fix: `before/gate-approach.png` and `after/gate-approach.png` from
+the stair head, and `before/work-post-aisle.png` and `after/work-post-aisle.png`
+looking south down the work-post aisle at the rib rows. Identical cameras on both
+sides; the ribs are drawn exactly as before and stand further outboard, and the
+1.05 m aisle between the bench and the cable drum is open in both.

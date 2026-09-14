@@ -679,8 +679,20 @@ func _test_cinder_boarding_positions_from_real_spawn(
 	var upper_to_fleet := PackedVector3Array([
 		# Stay on the open east lane clear of live upper-deck dressing, then meet
 		# the connector at its real Aft-local boundary.
+		#
+		# The east-lane crossing moved from z = 15.0 to z = 19.0. The transfer-gate
+		# ribs used to be drawn-but-porous, so this tour walked straight through
+		# the x = -3.2 rib column on its way east. The ribs are solid now, and the
+		# gate widened to 4.56 m so the crossing happens *inside* the gate: the
+		# walk east at z = 15.0 stops at x = -3.6, still 0.35 m clear of the east
+		# rib, then runs north along the open east lane past `AftCrewWorkPost`'s
+		# supply crate — 1.46 m of clear width at the tightest, against 1.00 m if
+		# the ribs had been made solid at their authored spacing — and only turns
+		# east again at z = 19.0, where the deck is open wall to wall.
 		aft.global_transform * Vector3(-4.6, 4.2, 15.0),
-		aft.global_transform * Vector3(-1.0, 4.2, 15.0),
+		aft.global_transform * Vector3(-3.6, 4.2, 15.0),
+		aft.global_transform * Vector3(-3.6, 4.2, 19.0),
+		aft.global_transform * Vector3(-1.0, 4.2, 19.0),
 		aft.global_transform * Vector3(-1.0, 4.2, 20.3),
 		aft.global_transform * Vector3(-0.15, 4.2, 20.3),
 		connector_deck.global_position + Vector3.UP * 0.32,
@@ -689,11 +701,21 @@ func _test_cinder_boarding_positions_from_real_spawn(
 	])
 	var upper_leg := await _walk_world_waypoints(player, upper_to_fleet)
 
+	# Both Aft-crossing legs below used to run straight across the upper deck at
+	# world z = 63.0, which is the transfer-gate rib row. That worked only while
+	# the ribs were drawn-but-porous: with the ribs solid, the deck's lateral
+	# traffic has to pass the gate lengthwise instead of through a gate post. Both
+	# legs now use the same three-part crossing the upper leg does -- the open
+	# north deck at world z = 67.0, the east lane south through the 4.56 m gate,
+	# then west along world z = 61.25, which is south of the rib rows and north of
+	# the south deck rails. No leg was shortened, no waypoint left the walkable
+	# deck, and the ships, berths and tour order are unchanged.
 	var local_legs := {
 		"cinder_long_range_bomber": PackedVector3Array([
 			Vector3(0.0, 0.0, -6.0), Vector3(0.0, 0.0, -12.5),
-			Vector3(5.3, 0.0, -13.0), Vector3(5.3, 0.0, -16.6),
-			Vector3(5.3, 0.0, -20.7), Vector3(6.7, 0.0, -20.7),
+			Vector3(1.3, 0.0, -13.0), Vector3(1.3, 0.0, -15.6),
+			Vector3(5.3, 0.0, -15.6), Vector3(7.05, 0.0, -16.6),
+			Vector3(7.05, 0.0, -20.7), Vector3(6.7, 0.0, -20.7),
 			Vector3(6.7, 0.0, -22.8), Vector3(13.0, 0.0, -22.8),
 			Vector3(20.0, 0.0, -22.8), Vector3(25.0, 0.0, -22.8),
 			Vector3(30.2, 0.0, -22.8), Vector3(30.2, 0.0, -18.0),
@@ -702,8 +724,9 @@ func _test_cinder_boarding_positions_from_real_spawn(
 			Vector3(30.2, 0.0, -22.8), Vector3(25.0, 0.0, -22.8),
 			Vector3(20.0, 0.0, -22.8), Vector3(13.0, 0.0, -22.8),
 			Vector3(6.7, 0.0, -22.8),
-			Vector3(6.7, 0.0, -20.7), Vector3(5.3, 0.0, -20.7),
-			Vector3(5.3, 0.0, -16.6), Vector3(5.3, 0.0, -13.0),
+			Vector3(6.7, 0.0, -20.7), Vector3(7.05, 0.0, -20.7),
+			Vector3(7.05, 0.0, -16.6), Vector3(5.3, 0.0, -15.6),
+			Vector3(1.3, 0.0, -15.6), Vector3(1.3, 0.0, -13.0),
 			Vector3(0.0, 0.0, -12.5), Vector3(0.0, 0.0, -6.0),
 			Vector3(0.0, 0.0, 0.6), Vector3(0.0, 0.0, 24.0),
 			Vector3(0.0, 0.0, 34.0), Vector3(-2.4, 0.0, 34.0),

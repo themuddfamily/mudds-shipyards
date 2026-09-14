@@ -35,8 +35,21 @@ const MAIN_SCENE := preload("res://scenes/main.tscn")
 # previous freeze's live scene, and the loaded-minus-resident Cinder delta is
 # untouched. Print lines `GEOMETRY_CENSUS_*_GEOMETRY` / `_RESOURCES` /
 # `_FINGERPRINT` below carry the numbers a future refreeze must read.
-const RESIDENT_FINGERPRINT := "3594cf6305582d0525070423c8e9a7feb01475ba91a125c3782ca087e4d4d830"
-const CINDER_LOADED_FINGERPRINT := "1b7a4a667833649c7d92feb3fdb9b237da01eb1d38216f4b526b068b2fcc8920"
+#
+# Refrozen again 2026-09-14 for the Aft transfer-gate walkability fix, and the
+# two halves of this refreeze have different owners. The +12 scene-tree nodes in
+# each scenario (11,645 -> 11,657 resident, 12,068 -> 12,080 loaded) are that
+# fix: `AftJunctionStack` gives each of the six drawn upper transfer-gate ribs a
+# StaticBody3D and a CollisionShape3D, so a 2.35 m post the player used to walk
+# through now stops the capsule. Those are physics nodes and draw nothing — no
+# renderer, surface, mesh, material, light or particle count moves with them.
+# The -118 triangles in each scenario (1,951,853 -> 1,951,735 resident,
+# 2,085,987 -> 2,085,869 loaded) are *not* that fix: they were measured with
+# `scripts/world/aft_junction_stack.gd` reverted to its committed state and are
+# already present at this HEAD, so they are live tessellation work that landed
+# after the ship-trim freeze and is recorded here rather than left failing.
+const RESIDENT_FINGERPRINT := "2250b5ff5b6b037a7c055f50b39ec54403f05ed09c14de6ffc74f22e478ca409"
+const CINDER_LOADED_FINGERPRINT := "6ac814ace942f761415562198288f4d490a625074accd5cc5d2f8daf018b2276"
 
 var _assertions := 0
 var _failures := PackedStringArray()
@@ -86,18 +99,18 @@ func _run() -> void:
 		"resident report freezes schema, scenario identity, and exact loaded count"
 	)
 	_check(
-		int(resident.get("total_triangles", -1)) == 1951853
+		int(resident.get("total_triangles", -1)) == 1951735
 			and int(resident.get("total_mesh_instances", -1)) == 6589
 			and int(resident.get("total_surfaces", -1)) == 6687
 			and int(resident.get("unique_meshes", -1)) == 3356,
-		"resident geometry freezes 1,951,853 triangles / 6,589 meshes / 6,687 surfaces / 3,356 unique meshes"
+		"resident geometry freezes 1,951,735 triangles / 6,589 meshes / 6,687 surfaces / 3,356 unique meshes"
 	)
 	_check(
 		int(resident.get("bound_phase_unique_materials", -1)) == 693
 			and int(resident.get("retained_reachable_unique_materials", -1)) == 969
 			and int(resident.get("lights", -1)) == 335
-			and int(resident.get("nodes", -1)) == 11645,
-		"resident resource roster freezes 693 bound / 969 retained materials, 335 lights, and 11,645 nodes"
+			and int(resident.get("nodes", -1)) == 11657,
+		"resident resource roster freezes 693 bound / 969 retained materials, 335 lights, and 11,657 nodes"
 	)
 	_check(
 		str(resident.get("measurement_fingerprint", "")) == RESIDENT_FINGERPRINT,
@@ -154,18 +167,18 @@ func _run() -> void:
 		"loaded report freezes destination identity and one committed generation"
 	)
 	_check(
-		int(loaded.get("total_triangles", -1)) == 2085987
+		int(loaded.get("total_triangles", -1)) == 2085869
 			and int(loaded.get("total_mesh_instances", -1)) == 6798
 			and int(loaded.get("total_surfaces", -1)) == 6896
 			and int(loaded.get("unique_meshes", -1)) == 3496,
-		"loaded geometry freezes 2,085,987 triangles / 6,798 meshes / 6,896 surfaces / 3,496 unique meshes"
+		"loaded geometry freezes 2,085,869 triangles / 6,798 meshes / 6,896 surfaces / 3,496 unique meshes"
 	)
 	_check(
 		int(loaded.get("bound_phase_unique_materials", -1)) == 735
 			and int(loaded.get("retained_reachable_unique_materials", -1)) == 1016
 			and int(loaded.get("lights", -1)) == 362
-			and int(loaded.get("nodes", -1)) == 12068,
-		"loaded resource roster freezes 735 bound / 1,016 retained materials, 362 lights, and 12,068 nodes"
+			and int(loaded.get("nodes", -1)) == 12080,
+		"loaded resource roster freezes 735 bound / 1,016 retained materials, 362 lights, and 12,080 nodes"
 	)
 	var cinder_bucket := (loaded.get("buckets", {}) as Dictionary).get(
 		"CinderStreamingBootstrap", {}

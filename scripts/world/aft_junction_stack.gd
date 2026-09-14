@@ -271,8 +271,12 @@ const APPROACH_EDGE_COLLAR_COPY_COUNT := 6
 # and +5 renderers/copies/meshes/materials in both sharing comparison rosters.
 # The independent pressure-envelope shadow mesh adds one node, renderer and
 # mesh to both rosters, shares a material, and adds no colour-pass surface.
-const BASELINE_RENDER_DESCENDANT_NODE_COUNT := 1192
-const RENDER_DESCENDANT_NODE_COUNT := 1157
+# The six transfer-gate rib bodies add a StaticBody3D and a CollisionShape3D
+# each (+12 nodes, both rosters). They are physics, not render: no renderer,
+# copy, submission, mesh or material moves, and the ribs still draw as the same
+# two batched submissions.
+const BASELINE_RENDER_DESCENDANT_NODE_COUNT := 1204
+const RENDER_DESCENDANT_NODE_COUNT := 1169
 const BASELINE_RENDERER_NODE_COUNT := 868
 const RENDERER_NODE_COUNT := 754
 const BASELINE_DRAWN_COPY_COUNT := 878
@@ -313,12 +317,39 @@ const STAIR_HEAD_CLEARANCE := 2.7
 ## transfer-zone silhouette while keeping the walking lane open to the sky.
 ## Every rib visibly bears on the collision-backed floor outside the lane; the
 ## six red skins and six attached brass datum bands cost only two submissions.
+##
+## The ribs are 2.35 m of drawn structure and each one now carries a body at its
+## own pose and section, because the Phase 10 walkability sweep measured the deck
+## as walkable *at* the rib rows and not only between them: a player off the
+## centre lane walked through a gate post. Making them solid turns the rib rows
+## into a real gate, so the lane they frame has to be the lane players actually
+## use. North of the gate the deck is split by
+## `OperationalLattice/Activities/AftCrewWorkPost`, whose bench ends at x = -6.6
+## and whose cable drum and supply crate start at x = -5.55: the two ways past it
+## are a 1.05 m aisle between those two, and the open east lane from x = -4.35 to
+## the operations-room wall. At the authored +/- 1.95 m spacing the solid ribs
+## squeezed the east-lane crossing between a rib and the supply crate down to
+## 1.151 m, so the pair moved out to +/- 2.40 m about the deck's own x = -5.15
+## centreline. That keeps the ribs symmetric on the route stripe and over the
+## `UpperFloorInset` they bear on, spans both ways past the work post, takes that
+## crossing to 1.601 m, and widens the gate's clear lane from 3.66 m to 4.56 m.
+## Shoulder lanes outside the ribs stay 2.36 m (west, to the deck rail) and
+## 2.84 m (east, to the operations-room west wall). Every figure here is a live
+## capsule measurement, refrozen by `_test_production_upper_deck_aisles`.
 const UPPER_TRANSFER_RIB_SIZE := Vector3(0.24, 2.35, 0.52)
 const UPPER_TRANSFER_BAND_SIZE := Vector3(0.28, 0.16, 0.56)
-const UPPER_TRANSFER_RIB_X_POSITIONS := [-7.1, -3.2]
+const UPPER_TRANSFER_RIB_X_POSITIONS := [-7.55, -2.75]
 const UPPER_TRANSFER_RIB_Z_POSITIONS := [14.15, 14.75, 15.35]
-const UPPER_TRANSFER_CLEAR_WIDTH := 3.66
+const UPPER_TRANSFER_CLEAR_WIDTH := 4.56
 const UPPER_TRANSFER_OPEN_CLEARANCE := 6.0
+## Clear width of the narrowest authored way north past `AftCrewWorkPost`, from
+## the bench's east face to the cable drum's west flange. Measured live with the
+## production 0.38 m capsule; the gate lane spans it so the west aisle stays
+## reachable through the ribs.
+const UPPER_TRANSFER_WORK_POST_AISLE_WIDTH := 1.05
+## Clear width where the gate lane meets the open east lane past the work post's
+## supply crate, at its tightest row.
+const UPPER_TRANSFER_EAST_LANE_WIDTH := 1.60
 
 ## The stair-base landing is walked across, not looked at. Its footprint is a
 ## constant because two separate rail runs have to be kept off it: the approach
@@ -662,7 +693,12 @@ func get_upper_transfer_gate_profile() -> Dictionary:
 			* UPPER_TRANSFER_RIB_Z_POSITIONS.size(),
 		"clear_width": UPPER_TRANSFER_CLEAR_WIDTH,
 		"open_clearance": UPPER_TRANSFER_OPEN_CLEARANCE,
-		"collision_solution": &"deck_supported_visual_ribs_outside_lane",
+		"collision_solution": &"solid_ribs_at_drawn_section_outside_lane",
+		"collision_body_count": UPPER_TRANSFER_RIB_X_POSITIONS.size() \
+			* UPPER_TRANSFER_RIB_Z_POSITIONS.size(),
+		"collision_section": UPPER_TRANSFER_RIB_SIZE,
+		"work_post_aisle_width": UPPER_TRANSFER_WORK_POST_AISLE_WIDTH,
+		"east_lane_width": UPPER_TRANSFER_EAST_LANE_WIDTH,
 		"render_submissions": 2,
 		"route_authority": &"none",
 	}
@@ -925,7 +961,14 @@ func get_performance_contract() -> Dictionary:
 		# the built figure — the mesh and light ceilings are this module's declared
 		# regression gates and two is enough.
 		"static_bodies": 120,
-		"collision_shapes": 120,
+		# 120 -> 132 against 125 built. The Phase 10 walkability fix gave each of
+		# the six drawn transfer-gate ribs a body and a shape at the rib's own
+		# pose and section, which is the whole point of that fix: a 2.35 m post
+		# the player walked through is now a post the player walks around. The
+		# shape ceiling had one shape of headroom left, so it moves with the
+		# built figure rather than silently absorbing physics the module means to
+		# declare. No mesh, renderer, submission or light moves with it.
+		"collision_shapes": 132,
 		"labels": 4,
 		# Light ceiling re-frozen in the open, 12 -> 32 -> 40. The module built 11
 		# lights against that 12; the fixture pass took it to 32, all of them
@@ -3666,6 +3709,7 @@ func _build_upper_transfer_gate(upper: Node3D) -> void:
 			)
 			var rib_transform := Transform3D(Basis.IDENTITY, rib_position)
 			rib_transforms.append(rib_transform)
+			_build_transfer_rib_collider(gate, rib_transforms.size(), rib_position)
 			band_transforms.append(Transform3D(
 				Basis.IDENTITY,
 				Vector3(float(rib_x), UPPER_FLOOR_ELEVATION + 1.48, float(rib_z))
@@ -3687,6 +3731,32 @@ func _build_upper_transfer_gate(upper: Node3D) -> void:
 		band_transforms
 	)
 	band_batch.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON
+
+
+## The physical half of one drawn transfer rib. The render batch keeps its
+## authored instance pose and its `visual_detail_only` role; this body stands at
+## the identical pose with the rib's own `UPPER_TRANSFER_RIB_SIZE` section, so
+## the collider can never be wider or narrower than what the player sees. The
+## brass datum band stays trim: it is 0.02 m proud of the rib on each side and
+## adds nothing a player can walk into that the rib does not already stop.
+func _build_transfer_rib_collider(
+		gate: Node3D,
+		rib_index: int,
+		rib_position: Vector3
+	) -> StaticBody3D:
+	var body := StaticBody3D.new()
+	body.name = "TransferRibCollision%02d" % rib_index
+	body.position = rib_position
+	body.collision_layer = WORLD_LAYER
+	body.collision_mask = 0
+	gate.add_child(body)
+	var collision := CollisionShape3D.new()
+	collision.name = "CollisionShape3D"
+	var shape := BoxShape3D.new()
+	shape.size = UPPER_TRANSFER_RIB_SIZE
+	collision.shape = shape
+	body.add_child(collision)
+	return body
 
 
 func _build_operations_room(structure: Node3D) -> void:
