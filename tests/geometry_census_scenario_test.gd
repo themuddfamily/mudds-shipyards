@@ -36,15 +36,15 @@ const MAIN_SCENE := preload("res://scenes/main.tscn")
 # untouched. Print lines `GEOMETRY_CENSUS_*_GEOMETRY` / `_RESOURCES` /
 # `_FINGERPRINT` below carry the numbers a future refreeze must read.
 #
-# Refrozen again for the 2026-09-14 hero/opponent trim: 1,911,879 resident and
-# 2,046,013 loaded. Two things have to be said about that refreeze honestly.
+# Refrozen again for the 2026-09-14 hero/opponent trim: 1,917,359 resident and
+# 2,051,493 loaded. Two things have to be said about that refreeze honestly.
 #
 # First, the numbers this file carried before it were **already stale by 118
 # triangles on the resident scenario and 39,974 on the loaded one**, and this
 # suite was failing those two assertions and both fingerprints on `main` at
 # 17a536702 before a line of the trim was written. Content landed after the last
-# refreeze without it. The trim's own resident delta is -39,856 (1,951,735 ->
-# 1,911,879), measured against what the scene actually was rather than against
+# refreeze without it. The trim's own resident delta is -34,376 (1,951,735 ->
+# 1,917,359), measured against what the scene actually was rather than against
 # what this file said it was.
 #
 # Second, the loaded-minus-resident Cinder delta is unchanged at +134,134, so
@@ -53,8 +53,8 @@ const MAIN_SCENE := preload("res://scenes/main.tscn")
 # materials, shaders, textures, lights, particle systems and scene-tree nodes
 # are identical across the trim in both scenarios; only triangles and the two
 # fingerprints move.
-const RESIDENT_FINGERPRINT := "aed3381da2460dffcd81f41bc21263713276794b5b73427de63e842f84dfb776"
-const CINDER_LOADED_FINGERPRINT := "842b081e1e11c79fb54762ebf23b2c144288b582cec4ca576a885a8b88ca6dac"
+const RESIDENT_FINGERPRINT := "d34e9a7610653336db5a67f156fb9595b0087658660bc262fbc9389d9049b351"
+const CINDER_LOADED_FINGERPRINT := "0da4d56486f6d8f36d66b7e74d1ee62c6cb122ed98308308bedf14e05f99baa6"
 
 var _assertions := 0
 var _failures := PackedStringArray()
@@ -104,11 +104,11 @@ func _run() -> void:
 		"resident report freezes schema, scenario identity, and exact loaded count"
 	)
 	_check(
-		int(resident.get("total_triangles", -1)) == 1911879
+		int(resident.get("total_triangles", -1)) == 1917359
 			and int(resident.get("total_mesh_instances", -1)) == 6589
 			and int(resident.get("total_surfaces", -1)) == 6687
 			and int(resident.get("unique_meshes", -1)) == 3356,
-		"resident geometry freezes 1,911,879 triangles / 6,589 meshes / 6,687 surfaces / 3,356 unique meshes"
+		"resident geometry freezes 1,917,359 triangles / 6,589 meshes / 6,687 surfaces / 3,356 unique meshes"
 	)
 	_check(
 		int(resident.get("bound_phase_unique_materials", -1)) == 693
@@ -172,11 +172,11 @@ func _run() -> void:
 		"loaded report freezes destination identity and one committed generation"
 	)
 	_check(
-		int(loaded.get("total_triangles", -1)) == 2046013
+		int(loaded.get("total_triangles", -1)) == 2051493
 			and int(loaded.get("total_mesh_instances", -1)) == 6798
 			and int(loaded.get("total_surfaces", -1)) == 6896
 			and int(loaded.get("unique_meshes", -1)) == 3496,
-		"loaded geometry freezes 2,046,013 triangles / 6,798 meshes / 6,896 surfaces / 3,496 unique meshes"
+		"loaded geometry freezes 2,051,493 triangles / 6,798 meshes / 6,896 surfaces / 3,496 unique meshes"
 	)
 	_check(
 		int(loaded.get("bound_phase_unique_materials", -1)) == 735

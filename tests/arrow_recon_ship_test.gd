@@ -8,20 +8,23 @@ const StaticShadowBatchType := preload("res://scripts/world/static_shadow_batch.
 
 ## The Arrow's shadow-only envelope, frozen exactly.
 ##
-## Twenty-four of the twenty-eight sources cast through a stand-in built from the
-## same authored recipe at a coarser tessellation — the loft skins and the
-## cambered planform panels. The four that do not are the two survey cooling
-## ducts and the two refractory nozzles, which neither builder makes, plus any
-## skin whose committed surface was later recessed or milled below its own
-## stand-in: the dorsal survey spine and the cockpit sill fairing are both, so
-## they are merged exactly and counted here as not stood in.
+## Twelve of the twenty-eight sources cast through a stand-in: the six sensor
+## wing skins, the two wing insets, the two survey recognition marks and the two
+## sensor wings, all cambered planform plates whose authored 8 x 12 grid carries
+## a crown that a shadow pass cannot see.
+##
+## The other sixteen are merged exactly. The two survey cooling ducts and the two
+## refractory nozzles have no stand-in builder, and the twelve lofted skins were
+## measured and declined: held to the same shadow-map texel their stand-ins came
+## out no smaller than the surfaces they would replace, and an earlier attempt
+## that took them to 16 rings put visible dithered self-shadow acne across the
+## cockpit sill at walking range.
 ##
 ## The pair of triangle counts is the whole point of the change: the envelope's
 ## colour surfaces are 22,908 triangles and the shadow copy of them used to be
-## 22,908 as well. A shadow pass consumes a silhouette and nothing else, so it
-## now costs 12,292.
-const EXPECTED_SHADOW_STAND_IN_SOURCES := 22
-const EXPECTED_SHADOW_BATCH_TRIANGLES := 12_292
+## 22,908 as well. It now costs 17,772.
+const EXPECTED_SHADOW_STAND_IN_SOURCES := 12
+const EXPECTED_SHADOW_BATCH_TRIANGLES := 17_772
 const EXPECTED_SHADOW_SOURCE_TRIANGLES := 22_908
 
 var _failures: Array[String] = []

@@ -282,7 +282,6 @@ var _escape_pods: Array[Node3D] = []
 # Explicit construction roster; all sources remain under the banked visual root.
 # Nested panels, separable pods and animated/damage-responsive parts stay outside.
 var _airframe_shadow_sources: Array[MeshInstance3D] = []
-var _loft_shadow_recipes: Dictionary = {}
 var _planform_shadow_recipes: Dictionary = {}
 var _engine_plumes: Array[MeshInstance3D] = []
 var _arrow_engine_lights: Array[OmniLight3D] = []
@@ -715,7 +714,6 @@ func _build_arrow_variant(_controller: HeroShip) -> bool:
 		(mount as Node3D).reparent(_arrow_visual, true)
 
 	_airframe_shadow_sources.clear()
-	_loft_shadow_recipes.clear()
 	_planform_shadow_recipes.clear()
 	_create_arrow_materials()
 	_build_slender_airframe()
@@ -3202,291 +3200,57 @@ static func _transformed_mesh_bounds(
 	return result
 
 
-## The authored loft tessellation: 32 rings around every section, and five
-## samples across every authored span. Retained as the ceiling the shadow-only
-## stand-in below reduces from; the shipped colour surface always uses both.
-const LOFT_RING_COUNT := 32
-const LOFT_SAMPLES_PER_SPAN := 5
-
-## Ring counts the plate-land profile can be drawn at. The four broad faces are
-## an eight-point quadrant table rotated four times, so a count is only usable
-## when `count / 4` divides eight — otherwise the rotation lands between table
-## entries and the chamfers stop being chamfers. Each of these keeps a vertex on
-## all four cardinal directions, which is what holds the AABB exact.
-const LOFT_PROXY_RING_COUNTS := [8, 16, 32]
-
-
-func _loft_sections(
-		node_name: String,
-		authored_sections: PackedVector3Array,
-		direct_stations: bool,
-		samples_per_span: int
-	) -> PackedVector3Array:
-	if direct_stations:
-		return authored_sections
-	var curved_pressure_shell := node_name == "CanopyShellConstruction"
-	var formed_airframe := _loft_is_formed_airframe(node_name)
-	var sections := PackedVector3Array()
-	for index in authored_sections.size() - 1:
-		var start := authored_sections[index]
-		var finish := authored_sections[index + 1]
-		for sample_index in samples_per_span:
-			var t := float(sample_index) / float(samples_per_span)
-			var curved := start.cubic_interpolate(finish, authored_sections[maxi(0, index - 1)], authored_sections[mini(authored_sections.size() - 1, index + 2)], t) if curved_pressure_shell or formed_airframe else start.lerp(finish, t)
-			if formed_airframe:
-				# Keep authored extrema and all boarding/pod clearances. A cubic
-				# tangent may otherwise swell beyond adjacent pressure stations.
-				curved.x = clampf(curved.x, minf(start.x, finish.x), maxf(start.x, finish.x))
-				curved.y = clampf(curved.y, minf(start.y, finish.y), maxf(start.y, finish.y))
-			sections.append(Vector3(maxf(0.01, curved.x), maxf(0.01, curved.y), lerpf(start.z, finish.z, t)))
-	sections.append(authored_sections[-1])
-	return sections
-
-
-## Only formed airframe skins get continuous curvature. Pressure-pod cases,
-## saddles and removable covers retain their plate lands.
-func _loft_is_formed_airframe(node_name: String) -> bool:
-	return node_name in ["ReconFuselage", "GraphiteKeel", "DorsalSurveySpine", "WingtipSensorPod", "EfficientEngineHousing", "CockpitSillFairing"] or node_name.ends_with("ShoulderFairing") or node_name.ends_with("EngineIntakeFairing")
-
-
-## The unit cross-section a loft hull is swept from, at a caller-declared ring
-## count. Split out of `_loft_hull_mesh` because the shadow-only stand-in has to
-## measure the same profile it will be built from.
-func _loft_profile(node_name: String, ring_count: int) -> PackedVector2Array:
-	var curved_pressure_shell := node_name == "CanopyShellConstruction"
-	var formed_airframe := _loft_is_formed_airframe(node_name)
-	const PLATE_QUADRANT := [
-		Vector2(1.0, 0.0), Vector2(1.0, 0.3), Vector2(1.0, 0.6), Vector2(1.0, 0.88),
-		Vector2(0.97, 0.97), Vector2(0.88, 1.0), Vector2(0.6, 1.0), Vector2(0.3, 1.0),
-	]
-	# The plate quadrant is sampled at a stride, so a reduced ring count keeps
-	# the same four broad faces and the same corner chamfer shape rather than a
-	# different profile. `LOFT_PROXY_RING_COUNTS` is what makes the division exact,
-	# and every entry in it keeps table index 0 — the point on the cardinal axis —
-	# so a reduced profile still reaches the authored extent on all four sides.
-	var quadrant_points := ring_count / 4
-	var plate_stride := PLATE_QUADRANT.size() / maxi(1, quadrant_points)
-	var profile := PackedVector2Array()
-	for ring_index in ring_count:
-		var angle := TAU * float(ring_index) / float(ring_count)
-		var cosine := cos(angle)
-		var sine := sin(angle)
-		var exponent := 0.55 if formed_airframe else 0.72
-		var rounded_x := signf(cosine) * pow(absf(cosine), exponent)
-		var rounded_y := signf(sine) * pow(absf(sine), exponent)
-		if not curved_pressure_shell and not formed_airframe:
-			# Four broad faces joined by narrow two-step chamfers.
-			var quarter := ring_index / quadrant_points
-			var point: Vector2 = PLATE_QUADRANT[(ring_index % quadrant_points) * plate_stride]
-			for turn in quarter:
-				point = Vector2(-point.y, point.x)
-			rounded_x = point.x
-			rounded_y = point.y
-		profile.append(Vector2(rounded_x, rounded_y))
-	return profile
-
-
-## The closed loft surface itself, at a caller-declared ring count.
-##
-## `with_uv` is false only for the shadow-only stand-in, which is never shaded
-## and never samples a texture; every shipped colour surface asks for the
-## authored `LOFT_RING_COUNT` and its UVs.
-func _loft_hull_mesh(
-		node_name: String,
-		sections: PackedVector3Array,
-		material: Material,
-		ring_count: int,
-		with_uv := true
-	) -> ArrayMesh:
-	var curved_pressure_shell := node_name == "CanopyShellConstruction"
-	var formed_airframe := _loft_is_formed_airframe(node_name)
-	var profile := _loft_profile(node_name, ring_count)
-	var tool := SurfaceTool.new()
-	tool.begin(Mesh.PRIMITIVE_TRIANGLES)
-	if material != null:
-		tool.set_material(material)
-	if not curved_pressure_shell and not formed_airframe:
-		tool.set_smooth_group(-1)
-	for section_index in sections.size():
-		var section := sections[section_index]
-		for ring_index in ring_count:
-			var rounded_x := profile[ring_index].x
-			var rounded_y := profile[ring_index].y
-			if with_uv:
-				tool.set_uv(Vector2(float(ring_index) / float(ring_count), float(section_index) / float(maxi(1, sections.size() - 1))))
-			tool.add_vertex(Vector3(section.x * rounded_x, section.y * rounded_y, section.z))
-	for section_index in sections.size() - 1:
-		for ring_index in ring_count:
-			var next_ring := (ring_index + 1) % ring_count
-			var current := section_index * ring_count + ring_index
-			var current_next := section_index * ring_count + next_ring
-			var following := (section_index + 1) * ring_count + ring_index
-			var following_next := (section_index + 1) * ring_count + next_ring
-			tool.add_index(current)
-			tool.add_index(following)
-			tool.add_index(following_next)
-			tool.add_index(current)
-			tool.add_index(following_next)
-			tool.add_index(current_next)
-	if formed_airframe:
-		tool.set_smooth_group(-1)
-	var front_center := sections.size() * ring_count
-	tool.add_vertex(Vector3(0, 0, sections[0].z))
-	var rear_center := front_center + 1
-	tool.add_vertex(Vector3(0, 0, sections[sections.size() - 1].z))
-	for ring_index in ring_count:
-		var next_ring := (ring_index + 1) % ring_count
-		tool.add_index(front_center)
-		tool.add_index(ring_index)
-		tool.add_index(next_ring)
-		var rear_base := (sections.size() - 1) * ring_count
-		tool.add_index(rear_center)
-		tool.add_index(rear_base + next_ring)
-		tool.add_index(rear_base + ring_index)
-	tool.generate_normals()
-	if not curved_pressure_shell:
-		tool.index()
-	return tool.commit()
-
-
-## Shadow-only stand-in for one lofted airframe skin.
+## Shadow-only stand-in for one cambered planform skin.
 ##
 ## The Arrow's `OpaqueEnvelopeShadowBatch` merged the colour triangles of
-## seventeen skins, so every loft on this craft was paid for twice: once to be
-## shaded and once to be a silhouette. A shadow pass consumes only that
-## silhouette — it never shades the surface, never samples its UVs and never
-## sees its material — so `StaticShadowBatch` accepts one proven stand-in per
-## source, and this builds the Arrow's.
-##
-## Two reductions, and both are held to shadow-map texels rather than to screen
-## pixels, exactly as `StationSurfaceKit.shadow_proxy_cylinder_mesh_cached` is.
-## `ShipyardWorld` runs the station key light at Godot's default 4096 directional
-## atlas in `SHADOW_PARALLEL_4_SPLITS`, so the nearest cascade resolves roughly
-## `StationSurfaceKit.SHADOW_MAP_TEXEL_METRES` before Godot's filtering and the
-## two-texel normal bias widen the edge further.
-##
-## - **Around.** `StationSurfaceKit.shadow_radial_segments_for` answers the ring
-##   count from the skin's own widest section, snapped down to a count the plate
-##   quadrant can actually be drawn at. Every usable count keeps a vertex on all
-##   four cardinal directions, so the stand-in reaches the authored extent on
-##   each axis and its bounding box is the source's.
-## - **Along.** The shipped surface samples every authored span five times. The
-##   stand-in uses the coarsest sampling whose own departure from that shipped
-##   section path — plus the bilinear twist a longer quad leaves behind — stays
-##   inside one nearest-cascade texel. On a skin whose sections interpolate
-##   linearly that is one sample, because the intermediate stations lie exactly
-##   on the straight loft they subdivide.
-##
-## The result is an inscribed surface: every vertex is on the shipped skin, so
-## the stand-in can only ever sit inside it, never outside. `StaticShadowBatch`
-## re-checks that against the real source's bounding volume before merging, and
-## `_airframe_shadow_proxies` additionally drops any stand-in whose source was
-## later recessed or milled to something smaller than its own loft.
-func _loft_shadow_proxy_mesh(recipe: Dictionary) -> ArrayMesh:
-	var node_name: String = recipe["node_name"]
-	var authored: PackedVector3Array = recipe["authored_sections"]
-	var direct_stations: bool = recipe["direct_stations"]
-	var shipped := _loft_sections(
-		node_name, authored, direct_stations, LOFT_SAMPLES_PER_SPAN
-	)
-	var widest := 0.0
-	for section in shipped:
-		widest = maxf(widest, maxf(section.x, section.y))
-	var ring_count := LOFT_PROXY_RING_COUNTS[0]
-	var budgeted := StationSurfaceKit.shadow_radial_segments_for(widest)
-	for candidate: int in LOFT_PROXY_RING_COUNTS:
-		if candidate <= budgeted and candidate <= LOFT_RING_COUNT:
-			ring_count = candidate
-	var profile := _loft_profile(node_name, ring_count)
-	var samples := LOFT_SAMPLES_PER_SPAN
-	for candidate in range(1, LOFT_SAMPLES_PER_SPAN + 1):
-		var sections := _loft_sections(node_name, authored, direct_stations, candidate)
-		if _loft_shadow_departure(shipped, sections, profile) \
-				<= StationSurfaceKit.SHADOW_MAP_TEXEL_METRES:
-			samples = candidate
-			break
-	return _loft_hull_mesh(
-		node_name,
-		_loft_sections(node_name, authored, direct_stations, samples),
-		null,
-		ring_count,
-		false
-	)
-
-
-## How far a candidate stand-in's surface can stand from the shipped skin, in
-## metres, as the sum of the two effects a coarser longitudinal sampling has.
-##
-## *Section departure* is the distance from each shipped station to the
-## candidate's own section polyline, measured on the half-width and half-height
-## the section carries — those are the radii the silhouette is drawn at.
-##
-## *Bilinear twist* is what a longer quad leaves behind even when both its ends
-## are exact. A loft quad is a bilinear patch, and its diagonal triangulation
-## misses the patch centre by a quarter of the patch's twist vector, which here
-## is the section's own change across the quad times the profile's change across
-## one ring step. Subdividing the span is what removes it, so a stand-in that
-## stops subdividing has to account for it.
-func _loft_shadow_departure(
-		shipped: PackedVector3Array,
-		candidate: PackedVector3Array,
-		profile: PackedVector2Array
-	) -> float:
-	if candidate.size() < 2:
-		return INF
-	var departure := 0.0
-	for station in shipped:
-		var closest := INF
-		for index in candidate.size() - 1:
-			var a := candidate[index]
-			var b := candidate[index + 1]
-			var span := b.z - a.z
-			var t := 0.0 if is_zero_approx(span) else clampf((station.z - a.z) / span, 0.0, 1.0)
-			var at := a.lerp(b, t)
-			closest = minf(closest, Vector2(at.x - station.x, at.y - station.y).length())
-		departure = maxf(departure, closest)
-	var step := 0.0
-	for index in profile.size():
-		var following := profile[(index + 1) % profile.size()]
-		step = maxf(step, (following - profile[index]).length())
-	var twist := 0.0
-	for index in candidate.size() - 1:
-		var change := Vector2(
-			candidate[index + 1].x - candidate[index].x,
-			candidate[index + 1].y - candidate[index].y
-		)
-		twist = maxf(twist, change.length() * step * 0.25)
-	return departure + twist
-
-
-## Shadow-only stand-in for one cambered planform skin.
+## twenty-eight skins, so parts of this craft were paid for twice: once to be
+## shaded and once to be a silhouette. `StaticShadowBatch` accepts one proven
+## stand-in per source instead, and this builds the Arrow's.
 ##
 ## The wing skins, wing insets and recognition marks are thin plates whose only
 ## departure from a flat quadrilateral is `_sensor_wing_camber`. The authored
 ## 8 x 12 grid exists to carry that camber's *shading* — a smooth crown across a
-## lit surface — and a shadow pass has no shading. What a shadow needs from the
-## plate is its outline, its thickness and the position of its surface, and the
+## lit surface — and a shadow pass has no shading: it never shades the surface,
+## never samples its UVs and never sees its material. What a shadow needs from
+## the plate is its outline, its thickness and where its surface lies, so the
 ## grid can be coarsened until the camber it drops is worth one nearest-cascade
 ## shadow-map texel.
 ##
+## The allowance is `StationSurfaceKit.SHADOW_MAP_TEXEL_METRES` rather than the
+## screen tolerance, for exactly the reason that class gives: `ShipyardWorld`
+## runs the station key light at Godot's default 4096 directional atlas in
+## `SHADOW_PARALLEL_4_SPLITS`, so the nearest cascade resolves roughly 6 mm per
+## texel before filtering and the two-texel normal bias widen the edge further.
 ## The residual of a parabolic crown subdivided into `n` equal steps is
-## `total_sagitta / n^2`, which is the model `ShipGeometryBudget.span_steps`
-## already uses; the difference here is that the allowance is
-## `StationSurfaceKit.SHADOW_MAP_TEXEL_METRES` rather than the screen tolerance,
-## for exactly the reason that class gives. The candidate grids all divide the
-## authored one, so every vertex of a stand-in is a vertex of the shipped skin
-## and the four outline corners are always present: the stand-in is inscribed and
-## its bounding box cannot exceed the source's.
+## `total_sagitta / n^2`, the model `ShipGeometryBudget.span_steps` already uses.
+##
+## Candidate grids all divide the authored one, so every vertex of a stand-in is
+## a vertex of the shipped skin and the four outline corners are always present:
+## the stand-in is inscribed and its bounding box cannot exceed the source's.
+##
+## **Only these panels qualify, and that is a measured result rather than a
+## choice.** The twelve lofted skins were built as stand-ins too and then
+## rejected: hold a stand-in's silhouette error to the same 6 mm texel and the
+## Arrow's 1.05 m fuselage still needs all 32 of its rings, so the "reduced"
+## loft came out *larger* than the panel-cut surface it was meant to replace.
+## The first attempt at this pass took them to 16 rings by asking
+## `StationSurfaceKit.shadow_radial_segments_for` — which caps at 16 and returns
+## the cap whether or not the cap satisfies its own sagitta test, correct for the
+## station's sub-metre pipe stock and wrong for a fuselage — and a rendered
+## cockpit-sill walk-up showed the result plainly: 20 mm of inscribed caster put
+## dithered self-shadow acne right across the sill band. The lofted skins are
+## already at the tessellation their own shadow needs, so they are merged
+## exactly, as the whole batch was before.
 func _planform_shadow_proxy_mesh(recipe: Dictionary) -> ArrayMesh:
 	var outline: PackedVector3Array = recipe["outline"]
 	var depth: float = recipe["depth"]
-	var span_steps := _planform_proxy_steps(
-		outline, PLANFORM_PROXY_SPAN_STEPS, true
+	return _planform_surface_mesh(
+		outline,
+		depth,
+		null,
+		_planform_proxy_steps(outline, PLANFORM_PROXY_SPAN_STEPS, true),
+		_planform_proxy_steps(outline, PLANFORM_PROXY_CHORD_STEPS, false)
 	)
-	var chord_steps := _planform_proxy_steps(
-		outline, PLANFORM_PROXY_CHORD_STEPS, false
-	)
-	return _planform_surface_mesh(outline, depth, null, span_steps, chord_steps)
 
 
 ## Coarsest candidate grid along one axis whose dropped camber stays inside one
@@ -3533,50 +3297,124 @@ func _planform_point(
 ## `StaticShadowBatch` merged and check the merged surface against it triangle
 ## for triangle, rather than being told what the batch contains.
 ##
-## A source with neither a loft nor a planform recipe — the two survey cooling
-## ducts and the two refractory nozzles, which are not built by either — passes a
-## null and is merged exactly, as the whole batch was before. So is any source
-## whose committed surface was later recessed or milled below its own stand-in
-## (the dorsal spine and the cockpit sill fairing are both), because a stand-in
-## is only ever allowed to sit inside the shape it stands for.
+## A source with no planform recipe — every lofted skin, the two survey cooling
+## ducts and the two refractory nozzles — passes a null and is merged exactly, as
+## the whole batch was before. So does any panel whose stand-in did not come out
+## cheaper than the surface it stands for, or did not fit inside it: a stand-in
+## that is not smaller is not a stand-in.
 func _airframe_shadow_proxies() -> Array[ArrayMesh]:
 	var proxies: Array[ArrayMesh] = []
 	for source in _airframe_shadow_sources:
-		var loft: Variant = _loft_shadow_recipes.get(source.get_instance_id())
-		var planform: Variant = _planform_shadow_recipes.get(source.get_instance_id())
-		if source.mesh == null or (loft == null and planform == null):
+		var recipe: Variant = _planform_shadow_recipes.get(source.get_instance_id())
+		if recipe == null or source.mesh == null:
 			proxies.append(null)
 			continue
-		var proxy := _loft_shadow_proxy_mesh(loft as Dictionary) if loft != null \
-			else _planform_shadow_proxy_mesh(planform as Dictionary)
-		if proxy == null or not source.mesh.get_aabb().grow(
-				StaticShadowBatch.PROXY_BOUNDS_MARGIN_METRES
-			).encloses(proxy.get_aabb()):
+		var proxy := _planform_shadow_proxy_mesh(recipe as Dictionary)
+		if proxy == null \
+				or _surface_triangles(proxy) >= _surface_triangles(source.mesh) \
+				or not source.mesh.get_aabb().grow(
+					StaticShadowBatch.PROXY_BOUNDS_MARGIN_METRES
+				).encloses(proxy.get_aabb()):
 			proxies.append(null)
 			continue
 		proxies.append(proxy)
 	return proxies
 
 
+func _surface_triangles(mesh: Mesh) -> int:
+	var arrays := mesh.surface_get_arrays(0)
+	var indices: Variant = arrays[Mesh.ARRAY_INDEX]
+	if indices != null and (indices as PackedInt32Array).size() > 0:
+		return (indices as PackedInt32Array).size() / 3
+	return (arrays[Mesh.ARRAY_VERTEX] as PackedVector3Array).size() / 3
+
+
 func _loft_hull(parent: Node3D, node_name: String, origin: Vector3, authored_sections: PackedVector3Array, material: Material, direct_stations := false) -> MeshInstance3D:
-	var sections := _loft_sections(
-		node_name, authored_sections, direct_stations, LOFT_SAMPLES_PER_SPAN
-	)
+	var curved_pressure_shell := node_name == "CanopyShellConstruction"
+	# Only formed airframe skins get continuous curvature. Pressure-pod cases,
+	# saddles and removable covers retain their plate lands.
+	var formed_airframe := node_name in ["ReconFuselage", "GraphiteKeel", "DorsalSurveySpine", "WingtipSensorPod", "EfficientEngineHousing", "CockpitSillFairing"] or node_name.ends_with("ShoulderFairing") or node_name.ends_with("EngineIntakeFairing")
+	var sections := authored_sections if direct_stations else PackedVector3Array()
+	if not direct_stations:
+		for index in authored_sections.size() - 1:
+			var start := authored_sections[index]
+			var finish := authored_sections[index + 1]
+			for sample_index in 5:
+				var t := float(sample_index) / 5.0
+				var curved := start.cubic_interpolate(finish, authored_sections[maxi(0, index - 1)], authored_sections[mini(authored_sections.size() - 1, index + 2)], t) if curved_pressure_shell or formed_airframe else start.lerp(finish, t)
+				if formed_airframe:
+					# Keep authored extrema and all boarding/pod clearances. A cubic
+					# tangent may otherwise swell beyond adjacent pressure stations.
+					curved.x = clampf(curved.x, minf(start.x, finish.x), maxf(start.x, finish.x))
+					curved.y = clampf(curved.y, minf(start.y, finish.y), maxf(start.y, finish.y))
+				sections.append(Vector3(maxf(0.01, curved.x), maxf(0.01, curved.y), lerpf(start.z, finish.z, t)))
+		sections.append(authored_sections[-1])
+	const PLATE_QUADRANT := [
+		Vector2(1.0, 0.0), Vector2(1.0, 0.3), Vector2(1.0, 0.6), Vector2(1.0, 0.88),
+		Vector2(0.97, 0.97), Vector2(0.88, 1.0), Vector2(0.6, 1.0), Vector2(0.3, 1.0),
+	]
+	const RING_COUNT := 32
+	var tool := SurfaceTool.new()
+	tool.begin(Mesh.PRIMITIVE_TRIANGLES)
+	tool.set_material(material)
+	if not curved_pressure_shell and not formed_airframe:
+		tool.set_smooth_group(-1)
+	for section_index in sections.size():
+		var section := sections[section_index]
+		for ring_index in RING_COUNT:
+			var angle := TAU * float(ring_index) / float(RING_COUNT)
+			var cosine := cos(angle)
+			var sine := sin(angle)
+			var exponent := 0.55 if formed_airframe else 0.72
+			var rounded_x := signf(cosine) * pow(absf(cosine), exponent)
+			var rounded_y := signf(sine) * pow(absf(sine), exponent)
+			if not curved_pressure_shell and not formed_airframe:
+				# Four broad faces joined by narrow two-step chamfers.
+				var quarter := ring_index / 8
+				var point: Vector2 = PLATE_QUADRANT[ring_index % 8]
+				for turn in quarter:
+					point = Vector2(-point.y, point.x)
+				rounded_x = point.x
+				rounded_y = point.y
+			tool.set_uv(Vector2(float(ring_index) / float(RING_COUNT), float(section_index) / float(maxi(1, sections.size() - 1))))
+			tool.add_vertex(Vector3(section.x * rounded_x, section.y * rounded_y, section.z))
+	for section_index in sections.size() - 1:
+		for ring_index in RING_COUNT:
+			var next_ring := (ring_index + 1) % RING_COUNT
+			var current := section_index * RING_COUNT + ring_index
+			var current_next := section_index * RING_COUNT + next_ring
+			var following := (section_index + 1) * RING_COUNT + ring_index
+			var following_next := (section_index + 1) * RING_COUNT + next_ring
+			tool.add_index(current)
+			tool.add_index(following)
+			tool.add_index(following_next)
+			tool.add_index(current)
+			tool.add_index(following_next)
+			tool.add_index(current_next)
+	if formed_airframe:
+		tool.set_smooth_group(-1)
+	var front_center := sections.size() * RING_COUNT
+	tool.add_vertex(Vector3(0, 0, sections[0].z))
+	var rear_center := front_center + 1
+	tool.add_vertex(Vector3(0, 0, sections[sections.size() - 1].z))
+	for ring_index in RING_COUNT:
+		var next_ring := (ring_index + 1) % RING_COUNT
+		tool.add_index(front_center)
+		tool.add_index(ring_index)
+		tool.add_index(next_ring)
+		var rear_base := (sections.size() - 1) * RING_COUNT
+		tool.add_index(rear_center)
+		tool.add_index(rear_base + next_ring)
+		tool.add_index(rear_base + ring_index)
+	tool.generate_normals()
+	if not curved_pressure_shell:
+		tool.index()
 	var instance := MeshInstance3D.new()
 	instance.name = node_name
 	instance.position = origin
-	instance.mesh = _loft_hull_mesh(node_name, sections, material, LOFT_RING_COUNT)
+	instance.mesh = tool.commit()
 	instance.set_meta("closed_loft_hull", true)
 	instance.set_meta("loft_section_count", sections.size())
-	# The shadow-only stand-in is built from the authored recipe, not from the
-	# committed surface, so `_build_airframe_shadow_batch` can choose its own
-	# ring count and longitudinal sampling. Keyed by instance so a source that
-	# is later recessed, milled or panel-cut is still matched exactly.
-	_loft_shadow_recipes[instance.get_instance_id()] = {
-		"node_name": node_name,
-		"authored_sections": authored_sections,
-		"direct_stations": direct_stations,
-	}
 	parent.add_child(instance)
 	return instance
 
