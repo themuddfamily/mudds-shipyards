@@ -111,15 +111,50 @@ const BEVEL_SAFETY_LIMIT := 0.45
 const RIM_CHAMFER_PROPORTION := 0.22
 const RIM_MAXIMUM_CHAMFER := 0.045
 
-## `CylinderMesh.rings` default, mirrored so this builder is a drop-in for the
-## primitive it replaces and the triangle delta is attributable to the chamfer
-## alone. Worth knowing, and deliberately not acted on here: on a *straight*
-## cylinder these four extra lateral rings subdivide a flat, per-pixel-lit
-## surface. An interim build of this same change that passed `rings = 0` measured
-## 1,120,546 live triangles against this build's 1,374,466 — 253,920 fewer, far
-## more than the chamfer costs. That is a separate change owing its own rendered
-## evidence, not something to smuggle in under an art pass.
+## `CylinderMesh.rings` default, mirrored so the chamfer's own triangle delta
+## stays attributable when it is measured against the primitive this builder
+## replaces. It is no longer what the builder *uses* — see `CYLINDER_WALL_RINGS`
+## — and is retained as the dense reference tessellation that
+## `tests/fleet_surface_detail_test.gd` and
+## `tests/station_structural_bevel_contract_test.gd` compare the flattened wall
+## against.
 const CYLINDER_DEFAULT_RINGS := 4
+
+## Lateral wall subdivision this builder uses when a caller does not ask for
+## more. Zero, and that is an edge-free reduction rather than a quality trade.
+##
+## The fleet reached this first: `ShipSurfaceDetail.CYLINDER_WALL_RINGS` has been
+## 0 since the ship pass, with 42 fixed 2560x1440 renders behind it. The station
+## modules kept Godot's `rings = 4` because the note that used to live on
+## `CYLINDER_DEFAULT_RINGS` said the station half was "a separate change owing
+## its own rendered evidence". This is that change, and the evidence is in
+## `docs/PERFORMANCE_BUDGET_SCENE_GEOMETRY.md`.
+##
+## Why it is free, stated as the property it rests on: a capped cylinder's wall
+## quad between two adjacent radial angles is *planar*. On a straight cylinder
+## both side edges are vertical; on a frustum both are generators meeting at the
+## cone apex. Splitting that planar quad horizontally puts the new vertices
+## exactly on the same plane at exactly the linear parameter the interpolator
+## would have produced anyway:
+##
+## - position — `_add_cylinder_band` places ring `k` at `lerp(bottom_y, top_y,
+##   k/n)` and `_radius_at` is linear in y, so every intermediate ring sits on
+##   the generator line. No silhouette moves and no AABB changes.
+## - normal — a band's normal is the perpendicular of its profile *tangent*, and
+##   a wall's profile is one straight segment, so every sub-band is handed the
+##   identical normal. There is no curvature along the wall to resolve.
+## - UV — the axial coordinate is `(y + half_height) / height`, linear in y, so a
+##   subdivided quad reproduces the linear function it interpolates from.
+##
+## So only something sampling per *vertex* could see the difference. Nothing in
+## the station modules does: every station material is `SHADING_MODE_PER_PIXEL`,
+## the panel finish is world-triplanar (sampled by world position, not by an
+## interpolated vertex channel), and no module binds a vertex-displacement
+## shader to a cylinder.
+##
+## The chamfer bands and the caps are untouched: those are where the rim
+## highlight lives, and they are not planar continuations of the wall.
+const CYLINDER_WALL_RINGS := 0
 
 ## Stamped on every mesh this builder returns. `CylinderMesh` was itself the
 ## marker that a surface is a turned round form — two suites read it that way,
@@ -384,7 +419,7 @@ static func chamfered_cylinder_mesh_cached(
 		height: float,
 		radial_segments: int,
 		cache: Dictionary,
-		rings: int = CYLINDER_DEFAULT_RINGS,
+		rings: int = CYLINDER_WALL_RINGS,
 		cap_top: bool = true,
 		cap_bottom: bool = true,
 		material: Material = null
@@ -427,7 +462,7 @@ static func chamfered_cylinder_mesh(
 		bottom_radius: float,
 		height: float,
 		radial_segments: int,
-		rings: int = CYLINDER_DEFAULT_RINGS,
+		rings: int = CYLINDER_WALL_RINGS,
 		cap_top: bool = true,
 		cap_bottom: bool = true,
 		chamfer: float = -1.0
