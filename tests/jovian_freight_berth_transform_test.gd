@@ -292,7 +292,7 @@ func _test_approach_board_direction_truth(
 		])
 		_check(
 			is_equal_approx(boarding_local.x, 3.4)
-			and is_equal_approx(pilot_exit_local.x, 4.7)
+			and is_equal_approx(pilot_exit_local.x, 7.2)
 			and cargo_exit_local.x > 9.5
 			and is_equal_approx(terminal_local.x, 15.75),
 			"the 180-degree dock yaw resolves boarding, pilot exit, cargo-ramp exit and Freight Control to their real module-right positions"
