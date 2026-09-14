@@ -221,8 +221,9 @@ func _test_exact_scene_contracts(aft: AftJunctionStack, habitat: HabitatSpine) -
 			"interior warmth adds no lease, spawn, or network authority"
 		)
 	_check(
-		int(aft.get_collision_contract().body_count) == 106
-		and int(aft.get_collision_contract().shape_count) == 119
+		# f37514724 made the six upper transfer-gate ribs solid: +6 bodies/shapes.
+		int(aft.get_collision_contract().body_count) == 112
+		and int(aft.get_collision_contract().shape_count) == 125
 		and int(habitat.get_collision_contract().body_count) == 245
 		and int(habitat.get_collision_contract().shape_count) == 266,
 		"collision, layout, and navigation-facing scene bodies remain at their exact existing counts"
