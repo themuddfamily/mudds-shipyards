@@ -162,16 +162,21 @@ const PERIMETER_DOWNLIGHT_HOUSING_COPY_COUNT := 4
 const PERIMETER_DOWNLIGHT_LENS_COPY_COUNT := 4
 const PORT_PILASTER_FILLET_COPY_COUNT := 4
 const CLERESTORY_MULLION_COPY_COUNT := 4
-const BASELINE_RENDER_DESCENDANT_COUNT := 468
+## Every descendant snapshot in this batching chain moved by the same sixteen
+## nodes in the Phase 10 walkability pass: the four armchairs' seats and backs
+## became `StaticBody3D` + `Mesh` + `Collision` instead of a bare `MeshInstance3D`
+## each. Renderer, batch, copy and submission counts are untouched — the pieces
+## are drawn exactly as before, they are simply solid now.
+const BASELINE_RENDER_DESCENDANT_COUNT := 484
 const BASELINE_RENDER_MESH_INSTANCE_COUNT := 264
 const BASELINE_RENDER_MULTIMESH_BATCH_COUNT := 1
 const BASELINE_RENDER_DRAWN_COPY_COUNT := 278
 const BASELINE_RENDER_GEOMETRY_SUBMISSION_COUNT := 265
-const PRE_MULLION_RENDER_DESCENDANT_COUNT := 464
+const PRE_MULLION_RENDER_DESCENDANT_COUNT := 480
 const PRE_MULLION_RENDER_MESH_INSTANCE_COUNT := 259
 const PRE_MULLION_RENDER_MULTIMESH_BATCH_COUNT := 2
 const PRE_MULLION_RENDER_GEOMETRY_SUBMISSION_COUNT := 261
-const PRE_OUTBOARD_MULLION_RENDER_DESCENDANT_COUNT := 460
+const PRE_OUTBOARD_MULLION_RENDER_DESCENDANT_COUNT := 476
 const PRE_OUTBOARD_MULLION_RENDER_MESH_INSTANCE_COUNT := 250
 const PRE_OUTBOARD_MULLION_RENDER_MULTIMESH_BATCH_COUNT := 4
 const PRE_OUTBOARD_MULLION_RENDER_GEOMETRY_SUBMISSION_COUNT := 254
@@ -180,11 +185,11 @@ const PRE_ARMCHAIR_ARM_GEOMETRY_SUBMISSION_COUNT := 243
 const PRE_PORT_SHELL_RIB_HEAD_GEOMETRY_SUBMISSION_COUNT := 236
 const PRE_DOWNLIGHT_HOUSING_GEOMETRY_SUBMISSION_COUNT := 230
 const PRE_PORT_PILASTER_FILLET_GEOMETRY_SUBMISSION_COUNT := 227
-const PRE_KEEL_WEB_RENDER_DESCENDANT_COUNT := 454
+const PRE_KEEL_WEB_RENDER_DESCENDANT_COUNT := 470
 const PRE_KEEL_WEB_RENDER_MESH_INSTANCE_COUNT := 236
 const PRE_KEEL_WEB_RENDER_MULTIMESH_BATCH_COUNT := 12
 const PRE_KEEL_WEB_GEOMETRY_SUBMISSION_COUNT := 221
-const RENDER_DESCENDANT_COUNT := 443
+const RENDER_DESCENDANT_COUNT := 459
 const RENDER_MESH_INSTANCE_COUNT := 224
 const RENDER_MULTIMESH_BATCH_COUNT := 13
 const RENDER_DRAWN_COPY_COUNT := 278
@@ -2192,8 +2197,14 @@ func _build_armchair(
 	var pedestal := _cylinder(chair, "Pedestal", Vector3(0.0, 0.05, 0.0), 0.28, 0.1, _materials["bronze"], true)
 	_register_support(pedestal, &"armchair", &"floor beneath it")
 	_cylinder(chair, "Stem", Vector3(0.0, 0.24, 0.0), 0.1, 0.3, _materials["bronze"], false)
-	_box(chair, "Seat", Vector3(0.0, 0.44, 0.0), Vector3(0.72, 0.16, 0.7), _materials["upholstery"], false)
-	_box(chair, "Back", Vector3(0.0, 0.75, -0.29), Vector3(0.72, 0.62, 0.14), _materials["upholstery"], false, Vector3(-11.0, 0.0, 0.0))
+	# The seat and back are solid, like the pedestal under them. Only the 0.28 m
+	# pedestal disc used to be: the Phase 10 walkability sweep measured the
+	# standing capsule passing clean through the cushion and the 0.62 m back of
+	# every armchair in the room, stopped only by a disc at ankle height. Sitting
+	# is unaffected — the seat transition disables the player's own collision and
+	# the exit pose stands 1.05 m clear of the chair.
+	_box(chair, "Seat", Vector3(0.0, 0.44, 0.0), Vector3(0.72, 0.16, 0.7), _materials["upholstery"], true)
+	_box(chair, "Back", Vector3(0.0, 0.75, -0.29), Vector3(0.72, 0.62, 0.14), _materials["upholstery"], true, Vector3(-11.0, 0.0, 0.0))
 	for side in [-1.0, 1.0]:
 		var arm_anchor := _box(chair, "Arm", Vector3(float(side) * 0.37, 0.6, -0.02), Vector3(0.09, 0.16, 0.56), _materials["upholstery_dark"], false)
 		arm_transforms.append(chair.transform * arm_anchor.transform)

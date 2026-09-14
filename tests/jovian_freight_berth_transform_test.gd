@@ -157,12 +157,18 @@ func _test_connection_overlap_is_bounded(world: ShipyardWorld, module: JovianFre
 					overlap_names.append(pair_name)
 	overlap_names.sort()
 	print("FREIGHT_CONNECTION_OVERLAPS: ", overlap_names)
-	# Deck A butts both neighbouring decks at their edges. The query reports both
-	# contacts because its 0.002 m margin inflates the touching shapes, but all
-	# connections are required to have zero shared volume.
+	# Deck A butts both neighbouring decks at their edges, and since the Phase 10
+	# walkability pass deck B butts the registry shelf on the same x = -49.0 plane
+	# instead of stopping 0.30 m short of it over open space. Deck B's +X face runs
+	# past the registry pod's back wall as well, so that corner is a third and
+	# fourth declared edge seam. The query reports every contact because its
+	# 0.002 m margin inflates the touching shapes; all four connections are still
+	# required to have zero shared volume.
 	var expected_overlaps := PackedStringArray([
 		"ConnectionDeckA -> PortBerthNode",
 		"ConnectionDeckA -> RegistryPodDeck",
+		"ConnectionDeckB -> RegistryPodBack",
+		"ConnectionDeckB -> RegistryPodDeck",
 	])
 	_check(
 		overlap_names == expected_overlaps,
@@ -251,6 +257,28 @@ func _test_walkable_handoff(world: ShipyardWorld, module: JovianFreightBerth) ->
 		previous_y = y
 	_check(every_supported, "port deck, registry bypass, and freight approach have continuous physical support")
 	_check(maximum_step <= 0.41, "connection route contains no step higher than the existing registry shelf")
+
+	# Phase 10 walkability sweep, 2026-09-14: leaf B stopped 0.30 m short of the
+	# registry shelf while the shelf carried on at the same y = 0.380 plane,
+	# leaving an open slot in the floor between two walkable decks. Probe the whole
+	# former slot rather than its centre, and require deck at every sample.
+	var seam_closed := true
+	for seam_x in [-49.30, -49.25, -49.15, -49.05]:
+		for seam_z in [29.20, 30.00, 30.40]:
+			var seam_query := PhysicsRayQueryParameters3D.create(
+				Vector3(float(seam_x), 0.68, float(seam_z)),
+				Vector3(float(seam_x), 0.08, float(seam_z)),
+				WORLD_LAYER
+			)
+			seam_query.collide_with_areas = false
+			await physics_frame
+			var seam_hit := world.get_world_3d().direct_space_state.intersect_ray(seam_query)
+			if seam_hit.is_empty() or absf(float(seam_hit.position.y) - 0.38) > 0.01:
+				seam_closed = false
+	_check(
+		seam_closed,
+		"the registry-to-freight handoff is continuous floor with no open slot between the shelf and leaf B"
+	)
 
 
 ## Resolve the actual ship-owned access points only after applying the live

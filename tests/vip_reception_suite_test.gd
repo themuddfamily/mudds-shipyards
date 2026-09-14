@@ -119,6 +119,7 @@ func _run() -> void:
 	_test_keel_web_batch(suite)
 	_test_banquette_joint_batch(suite)
 	_test_banquette_cushion_batch(suite)
+	_test_armchair_seats_are_solid(suite)
 	_test_armchair_arm_batch(suite)
 	_test_roof_cassette_batch(suite)
 	_test_port_shell_rib_head_batch(suite)
@@ -264,8 +265,8 @@ func _test_keel_web_batch(suite: VipReceptionSuite) -> void:
 	))
 	_check(
 		batch != null and batch.multimesh != null
-			and int(render.pre_keel_web_descendant_nodes) == 454
-			and int(render.descendant_nodes) == 443
+			and int(render.pre_keel_web_descendant_nodes) == 470
+			and int(render.descendant_nodes) == 459
 			and int(render.pre_keel_web_mesh_instances) == 236
 			and int(render.mesh_instances) == 224
 			and int(render.pre_keel_web_multimesh_batches) == 12
@@ -378,13 +379,13 @@ func _test_banquette_joint_batch(suite: VipReceptionSuite) -> void:
 
 	var render := suite.get_render_batch_contract()
 	_check(
-		int(render.baseline_descendant_nodes) == 468
-		and int(render.descendant_nodes) == 443
+		int(render.baseline_descendant_nodes) == 484
+		and int(render.descendant_nodes) == 459
 		and int(render.baseline_mesh_instances) == 264
 		and int(render.mesh_instances) == 224
 		and int(render.baseline_multimesh_batches) == 1
 		and int(render.multimesh_batches) == 13,
-		"cumulative visual batching freezes descendants 468 -> 443, MeshInstances 264 -> 224, and batches 1 -> 13"
+		"cumulative visual batching freezes descendants 484 -> 459, MeshInstances 264 -> 224, and batches 1 -> 13"
 	)
 	_check(
 		int(render.baseline_drawn_copies) == 278
@@ -511,6 +512,42 @@ func _test_banquette_cushion_batch(suite: VipReceptionSuite) -> void:
 	)
 	batch.multimesh.buffer = original_buffer
 	_check(suite.get_validation_errors().is_empty(), "restoring the exact cushion payload restores a clean module audit")
+
+
+## Phase 10 walkability sweep, 2026-09-14: only the armchairs' 0.28 m pedestal
+## disc was solid, so the standing capsule walked clean through the cushion and
+## the 0.62 m back of every chair in the room. Both are bodies now, at the
+## authored sizes, and the pedestal that always carried the chair is unchanged.
+func _test_armchair_seats_are_solid(suite: VipReceptionSuite) -> void:
+	var fitout := suite.get_node_or_null(^"Structure/Fitout") as Node3D
+	var solid := fitout != null
+	for chair_index in 4:
+		var chair := fitout.get_node_or_null(
+			NodePath("Armchair%02d" % (chair_index + 1))
+		) as Node3D if fitout != null else null
+		solid = solid and chair != null
+		if chair == null:
+			continue
+		for piece_name in ["Seat", "Back", "Pedestal"]:
+			var body := chair.get_node_or_null(NodePath(piece_name)) as StaticBody3D
+			var collision := (
+				body.get_node_or_null(^"Collision") as CollisionShape3D
+				if body != null else null
+			)
+			solid = (
+				solid
+				and body != null
+				and body.collision_layer == PhysicsLayers.WORLD
+				and body.collision_mask == 0
+				and collision != null
+				and not collision.disabled
+				and collision.shape != null
+				and body.get_node_or_null(^"Mesh") is MeshInstance3D
+			)
+	_check(
+		solid,
+		"every reception armchair is solid at the seat and back, not only at its pedestal"
+	)
 
 
 func _test_armchair_arm_batch(suite: VipReceptionSuite) -> void:
@@ -1025,8 +1062,8 @@ func _test_outboard_mullion_fillet_batch(suite: VipReceptionSuite) -> void:
 		"fillet batching preserves the bronze recipe, non-shadow state and zero collision/interaction ownership"
 	)
 	_check(
-		int(render.pre_mullion_descendant_nodes) == 464
-		and int(render.descendant_nodes) == 443
+		int(render.pre_mullion_descendant_nodes) == 480
+		and int(render.descendant_nodes) == 459
 		and int(render.pre_mullion_mesh_instances) == 259
 		and int(render.mesh_instances) == 224
 		and int(render.pre_mullion_multimesh_batches) == 2
@@ -1167,8 +1204,8 @@ func _test_outboard_mullion_batch(suite: VipReceptionSuite) -> void:
 		"one exact buffer preserves six pearl-deep mullion copies, transforms, bounds and material"
 	)
 	_check(
-		int(render.pre_outboard_mullion_descendant_nodes) == 460
-		and int(render.descendant_nodes) == 443
+		int(render.pre_outboard_mullion_descendant_nodes) == 476
+		and int(render.descendant_nodes) == 459
 		and int(render.pre_outboard_mullion_mesh_instances) == 250
 		and int(render.mesh_instances) == 224
 		and int(render.pre_outboard_mullion_multimesh_batches) == 4

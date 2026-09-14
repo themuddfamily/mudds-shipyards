@@ -8347,8 +8347,14 @@ func _build_observation_landing_post(upper: Node3D) -> void:
 	_text_sign(upper, "TRAFFIC OBSERVATION", Vector3(-11.5, 3.95, 1.612), Vector3.ZERO, 0.16, _materials["white_glow"])
 
 	# Fixed viewer, pointed out over the open junction rather than at the wall.
-	_cylinder(upper, "LandingViewerPost", Vector3(-12.75, 3.85, 2.4), 0.13, 1.05, _materials["steel_blue"], false)
-	_box(upper, "LandingViewerHead", Vector3(-12.75, 4.42, 2.55), Vector3(0.46, 0.3, 0.78), _materials["navy"], false, Vector3(-18.0, 0.0, 0.0))
+	#
+	# Solid, like the console and the locker either side of it. The walkability
+	# sweep caught this one standing on the observation landing with no collider
+	# in it at all: a 1.05 m post and a head at chest height that the player walks
+	# straight through while the identical-looking console 1.25 m away stops them.
+	# Nothing moves; only the collision the rest of this landing already has.
+	_cylinder(upper, "LandingViewerPost", Vector3(-12.75, 3.85, 2.4), 0.13, 1.05, _materials["steel_blue"], true)
+	_box(upper, "LandingViewerHead", Vector3(-12.75, 4.42, 2.55), Vector3(0.46, 0.3, 0.78), _materials["navy"], true, Vector3(-18.0, 0.0, 0.0))
 	_add_guide_light(upper, Vector3(-12.75, 4.45, 2.4), KETH_CYAN, false, 1.2, 5.5)
 
 	# Stowed kit against the starboard rail, which it physically meets.

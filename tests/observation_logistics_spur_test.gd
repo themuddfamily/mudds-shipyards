@@ -372,10 +372,10 @@ func _test_surface_roster_and_area(module: ObservationLogisticsSpur) -> void:
 	_check(
 		bool(performance.within_budget)
 		and int(performance.mesh_instances) == 2
-		and int(performance.static_bodies) == 34
-		and int(performance.collision_shapes) == 36
-		and module.find_children("*", "Node", true, false).size() == 152,
-		"finished district freezes 152 nodes, 2 meshes, 34 bodies and 36 shapes"
+		and int(performance.static_bodies) == 40
+		and int(performance.collision_shapes) == 42
+		and module.find_children("*", "Node", true, false).size() == 164,
+		"finished district freezes 164 nodes, 2 meshes, 40 bodies and 42 shapes"
 	)
 	_check(int(performance.lights) == 6 and int(performance.labels) == 4 and int(performance.process_loops) == 0, "restrained presentation uses six practicals, four district signs and no frame loop")
 	var marker_batch := module.get_node_or_null(^"Structure/Dressing/ConnectorMarkers") as MultiMeshInstance3D
@@ -488,8 +488,8 @@ func _test_visual_resource_sharing(module: ObservationLogisticsSpur) -> void:
 		bool(performance.exact)
 		and bool(performance.headless_safe)
 		and StringName(performance.selected_family) == &"pad_canopy_frame_renderers"
-		and int(performance.baseline_descendant_nodes) == 144
-		and int(performance.descendant_nodes) == 152
+		and int(performance.baseline_descendant_nodes) == 156
+		and int(performance.descendant_nodes) == 164
 		and int(performance.baseline_renderer_nodes) == 42
 		and int(performance.renderer_nodes) == 30
 		and int(performance.baseline_drawn_copies) == 270
@@ -820,10 +820,37 @@ func _test_visual_resource_sharing(module: ObservationLogisticsSpur) -> void:
 		mast_batch.get_meta("authored_instance_transforms", []) as Array
 		if mast_batch != null else []
 	)
+	# Phase 10 walkability sweep, 2026-09-14: the mast family was the one piece of
+	# pad dressing with an anchor and no body, so the standing capsule passed clean
+	# through a 2.8 m pole on the logistics pad and on the pad cross landing. Each
+	# drawn mast must now have a collider at the identical pose and section.
+	var mast_bodies_solid := true
 	for mast_index in ObservationLogisticsSpur.LIGHT_MAST_COPY_COUNT:
 		var mast_anchor := module.get_node_or_null(NodePath(
 			"Structure/Dressing/LightMast%02d" % (mast_index + 1)
 		)) as Marker3D
+		var mast_body := module.get_node_or_null(NodePath(
+			"Structure/Dressing/LightMastCollision%02d" % (mast_index + 1)
+		)) as StaticBody3D
+		var mast_collision := (
+			mast_body.get_node_or_null(^"CollisionShape3D") as CollisionShape3D
+			if mast_body != null else null
+		)
+		mast_bodies_solid = (
+			mast_bodies_solid
+			and mast_body != null
+			and mast_body.position.is_equal_approx(
+				ObservationLogisticsSpur.LIGHT_MAST_POSITIONS[mast_index]
+			)
+			and mast_body.collision_layer == PhysicsLayers.WORLD
+			and mast_body.collision_mask == 0
+			and mast_collision != null
+			and not mast_collision.disabled
+			and mast_collision.shape is BoxShape3D
+			and (mast_collision.shape as BoxShape3D).size.is_equal_approx(
+				ObservationLogisticsSpur.LIGHT_MAST_SIZE
+			)
+		)
 		mast_family_exact = (
 			mast_family_exact
 			and mast_anchor != null
@@ -840,6 +867,10 @@ func _test_visual_resource_sharing(module: ObservationLogisticsSpur) -> void:
 				)
 			)
 		)
+	_check(
+		mast_bodies_solid,
+		"every batched light mast is backed by a World-layer body at its own pose and section"
+	)
 	_check(
 		mast_family_exact
 		and int(performance.baseline_light_mast_renderer_nodes) == 6

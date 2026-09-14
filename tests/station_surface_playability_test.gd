@@ -157,6 +157,7 @@ func _run() -> void:
 	await _test_discovered_walkable_surface_support(world)
 	_test_fleet_expansion_surface_honesty(world)
 	_test_no_station_collision_without_visible_geometry(world)
+	_test_observation_landing_furniture_is_solid(world)
 	_test_lattice_decks_do_not_share_the_authored_runway_volume(world)
 	await _test_spawn_adjacent_stair(world, player)
 	await _test_aft_stair_mount_and_climb(world, player)
@@ -1734,6 +1735,43 @@ func _authored_batch_transforms(batch: MultiMeshInstance3D) -> Array:
 ## write, render priority or material was touched, so this check is written
 ## against geometry only: nothing the station draws may have a surface inside the
 ## shell's rendered band where their footprints overlap.
+## The inverse of `_test_no_station_collision_without_visible_geometry`, on the
+## one piece of standing furniture the Phase 10 walkability sweep caught failing
+## it: the observation landing's fixed viewer was a 1.05 m post and a head at
+## chest height with no collider at all, standing between a console and an
+## equipment locker that are both solid. A player walked through it.
+func _test_observation_landing_furniture_is_solid(world: ShipyardWorld) -> void:
+	var upper := world.get_node_or_null(^"UpperOperations") as Node3D
+	var solid := upper != null
+	for piece_name in [
+		"LandingViewerPost",
+		"LandingViewerHead",
+		"LandingObservationConsole",
+		"LandingEquipmentLocker",
+	]:
+		var body := (
+			upper.get_node_or_null(NodePath(piece_name)) as StaticBody3D
+			if upper != null else null
+		)
+		var shapes := (
+			body.find_children("*", "CollisionShape3D", true, false) if body != null else []
+		)
+		solid = (
+			solid
+			and body != null
+			and body.collision_layer == WORLD_LAYER
+			and body.collision_mask == 0
+			and shapes.size() == 1
+			and not (shapes[0] as CollisionShape3D).disabled
+			and (shapes[0] as CollisionShape3D).shape != null
+			and body.find_children("*", "MeshInstance3D", true, false).size() == 1
+		)
+	_check(
+		solid,
+		"the observation landing's viewer, console and locker are all collision-backed at their drawn size"
+	)
+
+
 func _test_lattice_decks_do_not_share_the_authored_runway_volume(world: ShipyardWorld) -> void:
 	var shell := world.get_node_or_null(
 		^"LandingPad/CentralBerthHeroPresentation/CentralBerthHeroImport/CentralBerthHeroArt"

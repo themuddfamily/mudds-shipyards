@@ -132,8 +132,11 @@ const OBSERVATION_LENS_POSITIONS := [
 const OBSERVATION_LENS_CULLING_BOUNDS := AABB(
 	Vector3(-9.0675, 0.63, 28.14), Vector3(0.035, 0.26, 6.52)
 )
-const BASELINE_VISUAL_DESCENDANT_NODE_COUNT := 144
-const VISUAL_DESCENDANT_NODE_COUNT := 152
+## Six light-mast collision bodies and their shapes (12 nodes) joined the
+## district in the Phase 10 walkability pass; they are physics, not renderers, so
+## both the batched and the un-batched baseline grow by the same twelve.
+const BASELINE_VISUAL_DESCENDANT_NODE_COUNT := 156
+const VISUAL_DESCENDANT_NODE_COUNT := 164
 const BASELINE_RENDERER_NODE_COUNT := 42
 const RENDERER_NODE_COUNT := 30
 const BASELINE_DRAWN_COPY_COUNT := 270
@@ -479,9 +482,11 @@ func get_authority_contract() -> Dictionary:
 
 
 func get_performance_contract() -> Dictionary:
-	# Exact standalone build census, frozen rather than estimated: 152 descendant
+	# Exact standalone build census, frozen rather than estimated: 164 descendant
 	# nodes, 2 MeshInstance3D nodes plus twenty-eight MultiMesh batches,
-	# 34 bodies, 36 shapes, four Label3Ds and six practicals. The fifteen conservative
+	# 40 bodies, 42 shapes, four Label3Ds and six practicals. Six of those bodies
+	# are the light masts, which the Phase 10 walkability sweep found drawn but
+	# not solid. The fifteen conservative
 	# safety volumes deliberately retain collision shapes but no solid renderer.
 	# owns no processing callback. The practical lenses reuse three exact recipes,
 	# reducing repeated practical recipes while retaining one dedicated dark view
@@ -489,8 +494,8 @@ func get_performance_contract() -> Dictionary:
 	# Any later content must declare its cost here.
 	var contract := StationModuleContract.build_performance_contract(self, {
 		"mesh_instances": 2,
-		"static_bodies": 34,
-		"collision_shapes": 36,
+		"static_bodies": 40,
+		"collision_shapes": 42,
 		"labels": 4,
 		"lights": 6,
 		"process_loops": 0,
@@ -961,6 +966,13 @@ func get_visual_resource_contract() -> Dictionary:
 			"Structure/Dressing/LightMast%02d" % (mast_index + 1)
 		)) as Marker3D
 		var expected_transform := Transform3D(Basis.IDENTITY, LIGHT_MAST_POSITIONS[mast_index])
+		var mast_collider := get_node_or_null(NodePath(
+			"Structure/Dressing/LightMastCollision%02d" % (mast_index + 1)
+		)) as StaticBody3D
+		var mast_collision := (
+			mast_collider.get_node_or_null(^"CollisionShape3D") as CollisionShape3D
+			if mast_collider != null else null
+		)
 		light_mast_identities_exact = (
 			light_mast_identities_exact
 			and mast_anchor != null
@@ -972,6 +984,16 @@ func get_visual_resource_contract() -> Dictionary:
 			and (authored_mast_transforms[mast_index] as Transform3D).is_equal_approx(
 				expected_transform
 			)
+			# Every drawn mast has a body at the same pose and the same section.
+			and mast_collider != null
+			and mast_collider.position.is_equal_approx(LIGHT_MAST_POSITIONS[mast_index])
+			and mast_collider.collision_layer == WORLD_LAYER
+			and mast_collider.collision_mask == 0
+			and mast_collision != null
+			and not mast_collision.disabled
+			and mast_collision.transform.is_equal_approx(Transform3D.IDENTITY)
+			and mast_collision.shape is BoxShape3D
+			and (mast_collision.shape as BoxShape3D).size.is_equal_approx(LIGHT_MAST_SIZE)
 		)
 
 	var scaled_visual_mesh_resource_ids := {}
@@ -2052,6 +2074,36 @@ func _build_observation_threshold(parent: Node3D) -> void:
 	frame_batch.set_meta("physically_supported_visual", true)
 
 
+## Physical body for one batched light mast.
+##
+## Every other piece of pad dressing here — pallets, cases, consoles, the bench —
+## is a `StaticBody3D` whose visible copy is drawn by a shared batch off a
+## `Marker3D` anchor. The masts were the one family that got the anchor without
+## the body, so a 2.8 m pole standing in the middle of the logistics pad and the
+## pad cross landing could be walked straight through. The anchor keeps its
+## authored pose, name and `batched_visual_anchor` role untouched; this is the
+## missing physical half, at the same transform and the mast's own section, so
+## the collider can never be wider or narrower than what is drawn.
+func _build_light_mast_collider(
+		parent: Node3D,
+		fixture_index: int,
+		mast_position: Vector3
+	) -> StaticBody3D:
+	var body := StaticBody3D.new()
+	body.name = "LightMastCollision%02d" % (fixture_index + 1)
+	body.position = mast_position
+	body.collision_layer = WORLD_LAYER
+	body.collision_mask = 0
+	parent.add_child(body)
+	var collision := CollisionShape3D.new()
+	collision.name = "CollisionShape3D"
+	var shape := BoxShape3D.new()
+	shape.size = LIGHT_MAST_SIZE
+	collision.shape = shape
+	body.add_child(collision)
+	return body
+
+
 func _build_lighting(parent: Node3D) -> void:
 	_practical_lens_mesh = BoxMesh.new()
 	_practical_lens_mesh.size = PRACTICAL_LENS_SIZE
@@ -2079,6 +2131,7 @@ func _build_lighting(parent: Node3D) -> void:
 		mast_anchor.set_meta("batched_visual_anchor", true)
 		parent.add_child(mast_anchor)
 		mast_transforms.append(Transform3D(Basis.IDENTITY, mast_position))
+		_build_light_mast_collider(parent, fixture_index, mast_position)
 		if PRACTICAL_CYAN_LENS_INDICES.has(fixture_index) \
 				or PRACTICAL_WHITE_LENS_INDICES.has(fixture_index):
 			var lens_anchor := Marker3D.new()

@@ -2052,7 +2052,19 @@ func _build_connection_lattice() -> void:
 	# exactly at the registry shelf: one continuous dark deck, with no coplanar
 	# handoff tile left to overlap it.
 	_rounded_box(root_node, "ConnectionDeckA", Vector3(0, -0.31, -2.25), Vector3(8.0, 0.62, 5.1), _materials["deck"])
-	_rounded_box(root_node, "ConnectionDeckB", Vector3(0, -0.31, 2.1), Vector3(7.4, 0.62, 4.2), _materials["deck"])
+	# Leaf B's +X edge meets the registry shelf, exactly as leaf A's does.
+	#
+	# It used to stop 0.30 m short of it while the registry pod deck carried on at
+	# the same y = 0.380 plane, which left an open slot 0.30 m wide and 2.2 m long
+	# between two walkable decks on the registry-to-freight handoff — the Phase 10
+	# walkability sweep's only floor gap anywhere on the station. A 2026-08 pass
+	# measured that slot and correctly concluded a player cannot fall through it
+	# (0.30 m against a 0.76 m capsule), which is why the +X approach rail starts
+	# north of it; that stays true and the rail is unchanged. You could still see
+	# space through the floor. The leaf grows +0.30 m eastward only: the -X edge,
+	# the z span, the deck material and every post, rail and chord on it keep
+	# their authored positions.
+	_rounded_box(root_node, "ConnectionDeckB", Vector3(0.15, -0.31, 2.1), Vector3(7.7, 0.62, 4.2), _materials["deck"])
 	_rounded_box(root_node, "ConnectionDeckC", Vector3(0, -0.31, 6.45), Vector3(8.4, 0.62, 5.0), _materials["deck"])
 
 	for side in [-1.0, 1.0]:

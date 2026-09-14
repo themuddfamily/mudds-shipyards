@@ -15,16 +15,25 @@ const MAIN_SCENE := preload("res://scenes/main.tscn")
 # unloaded reachable content; the existing schema and Cinder delta stay fixed.
 #
 # Refrozen 2026-09-14 for the Phase 10 "trim before raising budgets" pass. Two
-# reductions land here and nothing else moved: the station's chamfered cylinder
+# reductions landed then and nothing else moved: the station's chamfered cylinder
 # and frustum walls lost Godot's four lateral rings, and the 2,600-star backdrop
 # shell became one camera-facing quad per star instead of a 48-triangle sphere.
-# Both are triangle-only — renderer count, surface count, unique meshes,
-# materials, lights, particle systems and nodes are all unchanged from the
-# previous freeze's live scene, and the loaded-minus-resident Cinder delta is
-# untouched. Print lines `GEOMETRY_CENSUS_*_GEOMETRY` / `_RESOURCES` /
-# `_FINGERPRINT` below carry the numbers a future refreeze must read.
-const RESIDENT_FINGERPRINT := "14dfa8e9cb9f4e9cdb395d1eb432e643e51d1fecce2ad21a1e2e26b3897939f9"
-const CINDER_LOADED_FINGERPRINT := "df1004455d044c84316d476b1a40c3dda58024c638a2bfe87a9951ad7f06886a"
+#
+# Refrozen again the same day for the Phase 10 walkability sweep, which made four
+# families of drawn-but-hollow station dressing solid. Nodes move +32 and nothing
+# else about the roster does: six Observation light-mast bodies and their shapes
+# (+12), the four VIP armchairs' seats and backs becoming bodies with a `Mesh`
+# child (+16), and the observation landing's viewer post and head doing the same
+# (+4). Renderer count, surface count, unique meshes, materials, lights and
+# particle systems are all unchanged, because every one of those pieces is drawn
+# exactly as it was, and triangles are unchanged too: the same pass grew the
+# Jovian freight branch's connection leaf B by 0.30 m so its edge meets the
+# registry shelf, and the station bevel rule tessellates the new size to exactly
+# the same count. The loaded-minus-resident Cinder delta is untouched.
+# Print lines `GEOMETRY_CENSUS_*_GEOMETRY` / `_RESOURCES` / `_FINGERPRINT` below
+# carry the numbers a future refreeze must read.
+const RESIDENT_FINGERPRINT := "f86cdb0824532e40dcb2fe40deb2bdd6313c3b0c0630f420b758e18228c76d25"
+const CINDER_LOADED_FINGERPRINT := "c0fd478e20d62ba30d8102eb4a0715f6f6ce5f403b65c7fd786a0f1b8fff0e74"
 
 var _assertions := 0
 var _failures := PackedStringArray()
@@ -74,18 +83,18 @@ func _run() -> void:
 		"resident report freezes schema, scenario identity, and exact loaded count"
 	)
 	_check(
-		int(resident.get("total_triangles", -1)) == 2407605
-			and int(resident.get("total_mesh_instances", -1)) == 6589
-			and int(resident.get("total_surfaces", -1)) == 6687
-			and int(resident.get("unique_meshes", -1)) == 3355,
-		"resident geometry freezes 2,407,605 triangles / 6,589 meshes / 6,687 surfaces / 3,355 unique meshes"
+		int(resident.get("total_triangles", -1)) == 2407157
+			and int(resident.get("total_mesh_instances", -1)) == 6588
+			and int(resident.get("total_surfaces", -1)) == 6686
+			and int(resident.get("unique_meshes", -1)) == 3354,
+		"resident geometry freezes 2,407,157 triangles / 6,588 meshes / 6,686 surfaces / 3,354 unique meshes"
 	)
 	_check(
-		int(resident.get("bound_phase_unique_materials", -1)) == 693
-			and int(resident.get("retained_reachable_unique_materials", -1)) == 969
+		int(resident.get("bound_phase_unique_materials", -1)) == 692
+			and int(resident.get("retained_reachable_unique_materials", -1)) == 968
 			and int(resident.get("lights", -1)) == 335
-			and int(resident.get("nodes", -1)) == 11613,
-		"resident resource roster freezes 693 bound / 969 retained materials, 335 lights, and 11,613 nodes"
+			and int(resident.get("nodes", -1)) == 11644,
+		"resident resource roster freezes 692 bound / 968 retained materials, 335 lights, and 11,644 nodes"
 	)
 	_check(
 		str(resident.get("measurement_fingerprint", "")) == RESIDENT_FINGERPRINT,
@@ -142,18 +151,18 @@ func _run() -> void:
 		"loaded report freezes destination identity and one committed generation"
 	)
 	_check(
-		int(loaded.get("total_triangles", -1)) == 2541739
-			and int(loaded.get("total_mesh_instances", -1)) == 6798
-			and int(loaded.get("total_surfaces", -1)) == 6896
-			and int(loaded.get("unique_meshes", -1)) == 3495,
-		"loaded geometry freezes 2,541,739 triangles / 6,798 meshes / 6,896 surfaces / 3,495 unique meshes"
+		int(loaded.get("total_triangles", -1)) == 2541291
+			and int(loaded.get("total_mesh_instances", -1)) == 6797
+			and int(loaded.get("total_surfaces", -1)) == 6895
+			and int(loaded.get("unique_meshes", -1)) == 3494,
+		"loaded geometry freezes 2,541,291 triangles / 6,797 meshes / 6,895 surfaces / 3,494 unique meshes"
 	)
 	_check(
-		int(loaded.get("bound_phase_unique_materials", -1)) == 735
-			and int(loaded.get("retained_reachable_unique_materials", -1)) == 1016
+		int(loaded.get("bound_phase_unique_materials", -1)) == 734
+			and int(loaded.get("retained_reachable_unique_materials", -1)) == 1015
 			and int(loaded.get("lights", -1)) == 362
-			and int(loaded.get("nodes", -1)) == 12036,
-		"loaded resource roster freezes 735 bound / 1,016 retained materials, 362 lights, and 12,036 nodes"
+			and int(loaded.get("nodes", -1)) == 12067,
+		"loaded resource roster freezes 734 bound / 1,015 retained materials, 362 lights, and 12,067 nodes"
 	)
 	var cinder_bucket := (loaded.get("buckets", {}) as Dictionary).get(
 		"CinderStreamingBootstrap", {}
