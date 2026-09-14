@@ -920,7 +920,16 @@ func _test_embodied_bidirectional_route(
 		Vector3(-14.15, 3.8, 18.0),
 		Vector3(CinderCargoAccess.BERTH_ROUTE_X, 3.8, 17.8),
 		Vector3(CinderCargoAccess.BERTH_ROUTE_X, 2.9, 13.75),
-		Vector3(CinderCargoAccess.BERTH_ROUTE_X, 2.9, 8.2),
+		# Walk back to the live BerthExit rather than a second frozen copy of it.
+		# b5c5916af moved the Jovian's ExitPoint to the foot of its new pilot
+		# stair, and the connector's marker follows it there; the former
+		# (-24.3, 2.9, 8.2) stand is now inside the parked freighter's
+		# PilotThresholdCollision and is no longer reachable on foot.
+		Vector3(
+			CinderCargoAccess.BERTH_EXIT_LOCAL.x,
+			2.9,
+			CinderCargoAccess.BERTH_EXIT_LOCAL.z
+		),
 	])
 	var inbound := await _walk_route(access, player, reverse_local)
 	print("CINDER_CARGO_PUBLIC_RETURN: ", inbound)

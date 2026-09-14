@@ -42,9 +42,22 @@ const BERTH_DOCK_LOCAL := Transform3D(
 	Basis(Vector3.UP, PI),
 	Vector3(-29.0, 4.15, 0.0)
 )
-const JOVIAN_EXIT_MARKER_LOCAL := Vector3(-4.7, -1.05, -8.2)
+## Frozen copy of the live Jovian `ExitPoint`, in craft-local space. b5c5916af
+## ("Build Jovian pilot doorway and supported boarding route") rebuilt the
+## freighter's port side and moved this marker outboard to the foot of the new
+## pilot stair, at `PILOT_DOOR_ROUTE_Z`. The connector has to follow the craft:
+## the old (-4.7, -1.05, -8.2) door now sits inside the freighter's own
+## `PilotThresholdCollision`, so the pilot who steps out physically lands 2.53 m
+## from a BerthExit frozen there - just past the 2.5 m handoff radius in
+## `authorize_disembarked_terminal_actor()` - and the cargo terminal route is
+## refused to the pilot who just disembarked.
+const JOVIAN_EXIT_MARKER_LOCAL := Vector3(-7.2, -1.22, -8.52)
+## Connector corridor line: the steps, rise catwalk and cross catwalk stay on it.
 const BERTH_ROUTE_X := -24.3
-const BERTH_EXIT_LOCAL := Vector3(BERTH_ROUTE_X, 3.1, 8.2)
+## `BERTH_DOCK_LOCAL * JOVIAN_EXIT_MARKER_LOCAL`. The PI dock yaw mirrors the
+## craft-local marker to (-21.8, 2.93, 8.52) here, still over the LandingDeck top
+## (y=2.90) and clear of the parked freighter's pilot-stair collision.
+const BERTH_EXIT_LOCAL := Vector3(-21.8, 2.93, 8.52)
 const BERTH_EXIT_LOCAL_TRANSFORM := Transform3D(
 	Basis(Vector3.UP, PI * 0.5),
 	BERTH_EXIT_LOCAL
