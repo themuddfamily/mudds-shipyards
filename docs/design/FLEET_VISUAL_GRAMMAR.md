@@ -142,7 +142,7 @@ displays).
 | --- | --- | --- |
 | `body_tone_torrent` | `c5c5b6` | `EXPECTED_BODY_TONE` in `tests/fleet_role_differentiation_test.gd` |
 | `body_tone_arrow` | `7891ab` | `EXPECTED_BODY_TONE` |
-| `body_tone_jovian` | `827766` | `EXPECTED_BODY_TONE` |
+| `body_tone_jovian` | `8f836d` | `EXPECTED_BODY_TONE` |
 | `body_tone_zenith` | `bac8d6` | `EXPECTED_BODY_TONE` |
 | `accent_torrent` | `f0b94d` | `EXPECTED_ACCENTS` |
 | `accent_arrow` | `45dee6` | `EXPECTED_ACCENTS` |
@@ -164,7 +164,7 @@ dichromat simulation → CIE L\*a\*b\* → CIEDE2000 — by
 
 | Key | Value | Frozen by (constant in `tests/fleet_role_differentiation_test.gd` unless noted) |
 | --- | --- | --- |
-| `body_tone_floor` | 8.0 | `BODY_TONE_FLOOR` |
+| `body_tone_floor` | 12.0 | `BODY_TONE_FLOOR` |
 | `accent_floor` | 25.0 | `ACCENT_FLOOR` |
 | `torrent_accent_floor` | 30.0 | `TORRENT_ACCENT_FLOOR` |
 | `body_tone_minimum_share` | 0.10 | `BODY_TONE_MINIMUM_SHARE` |
@@ -199,47 +199,77 @@ task: the hulls are never adjacent, are seen at different distances, attitudes
 and lighting, and are matched against colour memory rather than against each
 other. The runtime also multiplies each authored albedo tint by a bound hull map
 and then tonemaps it, compressing authored differences further. The body floor
-was set an order of magnitude above the patch JND for that reason, and now stands
-at `8.0` — still roughly 3.5× the practical JND — for the reason recorded under
-"What the finish pass cost" below. The full argument is in the header of
-`tests/fleet_role_differentiation_test.gd`; it is not repeated here so it cannot
-drift.
+was set an order of magnitude above the patch JND for that reason. It stands at
+`12.0`; it spent one checkpoint window at `8.0`, and "What the finish pass cost"
+below records why it fell and what put it back. The full argument is in the
+header of `tests/fleet_role_differentiation_test.gd`; it is not repeated here so
+it cannot drift.
 
 **Measured headroom today** (printed as `FLEET_COLOUR_EVIDENCE` by the audit):
 
-| Vision model | Minimum body-tone separation | Minimum accent separation |
-| --- | ---: | ---: |
-| normal | 14.36 | 31.77 |
-| protanopia | 8.27 | 31.60 |
-| deuteranopia | 10.71 | 31.38 |
-| tritanopia | 17.45 | 32.73 |
+| Vision model | Minimum body-tone separation | Narrowest body pair | Minimum accent separation |
+| --- | ---: | --- | ---: |
+| normal | 14.36 | Torrent/Zenith | 31.77 |
+| protanopia | 13.42 | Jovian/Halyard | 31.60 |
+| deuteranopia | 15.87 | Jovian/Halyard | 31.38 |
+| tritanopia | 17.45 | Arrow/Zenith | 32.73 |
 
 Do not treat that headroom as budget. The minimum over a set is monotonically
 non-increasing as craft are added: a new craft can only lower it, and it lowers
 it against **every** existing tone at once.
 
-**What the finish pass cost.** The 2026-09-07..09-12 ship-refinement checkpoints
-repainted the fleet, and the body-tone column above is where it shows.
-`4ad633d65` muted both inhabited craft in one pass — the Jovian from `e0ab74` to
-`827766` and the Halyard from `6e7a3e` to `59665b` — and those two muted browns
-collapse toward one another for red-green deficient vision. Jovian/Halyard is now
-the fleet's narrowest body pair at `8.27` under protanopia and `10.71` under
-deuteranopia, against a pre-pass minimum of `16.62`. `BODY_TONE_FLOOR` was
-re-frozen from `12.0` to `8.0` at the measured state rather than left red, and it
-stays a one-way ratchet: the next pass may only widen it. Two things did **not**
-move, and they are the reason the fleet still reads: the accent column is
-untouched and unbreached at a `31.38` minimum against its `25.0` floor, so
-identification by accent — the primary colour cue — did not regress at all; and
-in normal vision the narrowest body pair is still `14.36`. Widening
-Jovian/Halyard for dichromatic vision is the concrete outstanding job here, and
-it is a repaint of one of those two hulls, not a new mechanism.
+**What the finish pass cost, and what paid it back.** The 2026-09-07..09-12
+ship-refinement checkpoints repainted the fleet, and the body-tone column above
+is where it showed. `4ad633d65` muted both inhabited craft in one pass — the
+Jovian from `e0ab74` to `827766` and the Halyard from `6e7a3e` to `59665b` — and
+those two muted browns collapsed toward one another for red-green deficient
+vision. Jovian/Halyard became the fleet's narrowest body pair at `8.27` under
+protanopia and `10.71` under deuteranopia, against a pre-pass minimum of `16.62`.
+`BODY_TONE_FLOOR` was re-frozen from `12.0` to `8.0` at the measured state rather
+than left red. Two things did **not** move, and they are why the fleet kept
+reading through that window: the accent column was untouched and unbreached at a
+`31.38` minimum against its `25.0` floor, so identification by accent — the
+primary colour cue — never regressed; and in normal vision the narrowest body
+pair stayed at `14.36`.
+
+The repaint named there as the outstanding job has now been made, and the floor
+has ratcheted back to `12.0`. It was made **at the freighter**: `HULL_COOL` in
+`scripts/ships/jovian_light_freighter.gd` moved `827766` → `8f836d`. The Halyard
+was left alone on purpose, because green is the one hue region only it occupies
+and pulling it off olive would cost the fleet that region outright. Under
+dichromatic simulation brown and olive both collapse onto the same yellow axis,
+so the only separation available between them is lightness — a greener or more
+saturated olive does not help and was measured not to, the pre-pass `6e7a3e`
+scoring only `11.53`/`10.34` against today's muted Jovian. The freighter
+therefore holds hue and chroma (36.4° → 38.8°, S `0.215` → `0.238`) and lifts
+lightness alone, L\* `50.57` → `55.25`: a CIEDE2000 move of `4.94`, still firmly
+muted and satin at roughly half the pre-pass saturation (`0.238` against `0.482`)
+and well under its value (`0.561` against `0.878`). The pair reopens to `18.18`
+normal, `13.42` protanopia, `15.87` deuteranopia and `45.14` tritanopia, which is
+where the table above now comes from. The floor remains a one-way ratchet and may
+not be lowered again.
+
+One honest caveat, recorded because it is the reason the floor is set so high in
+the first place. Every number in this section is measured at the **authored
+albedo**, which is what the audit freezes. A rendered review of the repaint —
+both craft in one paused production frame at Fleet Dock distance, captured under
+Xvfb with the hull tint swapped in place so exposure and backdrop are identical —
+put the two craft's mean lit-hull colours only `7.10` apart under protanopia
+before and `7.91` after. The authored move is worth about `+5.2` CIEDE2000 and
+delivers about `+0.8` on screen at that distance, because the hull map and the
+tonemap compress it and because station lighting tints both hulls toward the same
+grey. The repaint is a real improvement in the right direction and the authored
+contract is met with margin; nobody should read `13.42` as what a player's eye
+receives. If dichromatic identification at distance is ever measured as failing,
+the answer is a second non-colour cue, not a larger number here.
 
 **Measured consequence, recorded because it binds the next craft.** The Halyard
 was required to clear the fleet's own minima outright rather than the frozen
 floors, and at the time of its arrival it did — body `6e7a3e` at 19.06 and accent
 `341024` at 31.60. Its accent still clears; its body tone was subsequently muted
-by the finish pass above, which is what narrowed the table. Producing that accent
-used the last of the space: a
+by the finish pass above, which is what narrowed the table, and the repair was
+then taken at the freighter rather than here so this craft keeps the fleet's only
+green hue region. Producing that accent used the last of the space: a
 full sweep of the sRGB cube against the four existing accents under all four
 vision models found that **every** colour clearing both accent floors is either a
 near-neutral grey at ~25.1 or a dark violet below L\* 27. There is no bright
@@ -549,9 +579,10 @@ This is the operative section. Everything above describes; this constrains.
    `accent_floor`. Check with the shared maths — `preload(
    "res://tests/fleet_colour_metrics.gd").minimum_separation(values, mode)` over
    all four vision models — before authoring anything, not after.
-2. **Do not spend the measured headroom.** The current minima (16.62 body,
-   31.38 accent) are the *fleet's* margin, not a per-craft allowance. Adding a
-   sixth tone lowers the minimum against all five existing tones simultaneously.
+2. **Do not spend the measured headroom.** The current minima (13.42 body under
+   protanopia, 31.38 accent) are the *fleet's* margin, not a per-craft allowance.
+   Adding a sixth tone lowers the minimum against all five existing tones
+   simultaneously, and the body margin is now only 1.42 above its floor.
 3. **Do not take a pale near-white body.** "Pale" is a source observation owned
    by exactly two craft, not a family trait. A new craft has no pale claim to
    make, and the pale region of the space is already occupied at the floor by

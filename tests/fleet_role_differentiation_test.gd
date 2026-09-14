@@ -38,10 +38,11 @@ extends SceneTree
 ## lighting, and are matched against colour memory rather than against each
 ## other. On top of that the runtime multiplies each authored albedo tint by a
 ## bound hull map and then tonemaps it, which compresses authored differences
-## further. BODY_TONE_FLOOR was therefore set at 12.0 — an order of magnitude
+## further. BODY_TONE_FLOOR is therefore set at 12.0 — an order of magnitude
 ## above the patch JND — and the accent floor at 25.0; see "What the finish pass
-## cost" below for why the body floor now stands at 8.0. The body floor is capped
-## by the evidence boundary rather than by taste: Torrent's warm off-white and
+## cost" below for the one pass that briefly narrowed the body floor to 8.0 and
+## the repaint that put it back. The body floor is capped by the evidence
+## boundary rather than by taste: Torrent's warm off-white and
 ## Zenith's pale exterior are both source-observed claims (see
 ## docs/TORRENT_2011_RECONSTRUCTION_SPEC.md and
 ## docs/ZENITH_B7_RECONSTRUCTION_SPEC.md), so those two craft cannot be pulled
@@ -81,28 +82,42 @@ extends SceneTree
 ##
 ## What the finish pass cost. The 2026-09-07..09-12 ship-refinement checkpoints
 ## repainted and reformed the fleet, and two of the floors below moved with them.
-## They are re-frozen at the shipped measurement rather than left red, and the
-## exact cost is recorded here so a later feel pass has a number to beat:
+## They were re-frozen at the shipped measurement rather than left red, and the
+## exact cost is recorded here. One of the two has since been paid back:
 ##
-##   * Body-tone separation. `4ad633d65` muted both inhabited craft in one pass —
-##     the Jovian from #e0ab74 to #827766 and the Halyard from #6e7a3e to
-##     #59665b — and those two muted browns collapse toward one another for
-##     red-green deficient vision. The fleet's narrowest body-tone pair is now
-##     Jovian/Halyard at CIEDE2000 8.27 under protanopia and 10.71 under
-##     deuteranopia, against 16.62 before the pass. Normal vision is 14.36
-##     (Torrent/Zenith) and tritanopia 17.45 (Arrow/Zenith), both still wide.
-##     BODY_TONE_FLOOR therefore moves from 12.0 to 8.0, keeping the same "floor
-##     under the measured minimum" convention the original 12.0-against-16.62
-##     pair used, and still roughly 3.5x the ~2.3 practical patch JND. The accent
-##     floors are untouched and unbreached — the narrowest accent pair measures
-##     31.38 against a 25.0 floor — so identification by accent, the fleet's
-##     primary colour cue, did not regress at all.
+##   * Body-tone separation — narrowed, then repaired. `4ad633d65` muted both
+##     inhabited craft in one pass — the Jovian from #e0ab74 to #827766 and the
+##     Halyard from #6e7a3e to #59665b — and those two muted browns collapsed
+##     toward one another for red-green deficient vision. Jovian/Halyard became
+##     the fleet's narrowest body-tone pair at CIEDE2000 8.27 under protanopia
+##     and 10.71 under deuteranopia, against 16.62 before the pass, and
+##     BODY_TONE_FLOOR was re-frozen from 12.0 down to 8.0 at that measurement.
+##
+##     The repaint that was named there as the outstanding job has now been made,
+##     at the freighter: HULL_COOL moved #827766 -> #8f836d. The Halyard was left
+##     alone deliberately — green is the one hue region only it occupies, and
+##     pulling it off olive would cost the fleet that region. Under dichromatic
+##     vision brown and olive both collapse onto the same yellow axis, so the
+##     only separation available is lightness; a greener or more saturated olive
+##     was measured not to help at all (the pre-pass #6e7a3e scores 11.53/10.34
+##     against today's muted Jovian). The freighter therefore holds hue and
+##     chroma — 36.4 deg -> 38.8 deg, S 0.215 -> 0.238 — and lifts lightness
+##     alone, L* 50.57 -> 55.25. That is a CIEDE2000 move of 4.94, it stays muted
+##     and satin well under the pre-pass S 0.482 / V 0.878, and it reopens the
+##     pair to 18.18 normal / 13.42 protanopia / 15.87 deuteranopia / 45.14
+##     tritanopia. BODY_TONE_FLOOR is therefore restored to 12.0. The fleet
+##     minima now read 14.36 normal (Torrent/Zenith), 13.42 protanopia
+##     (Jovian/Halyard), 15.87 deuteranopia (Jovian/Halyard) and 17.45
+##     tritanopia (Arrow/Zenith). The accent floors were never breached at any
+##     point — the narrowest accent pair measures 31.38 against a 25.0 floor — so
+##     identification by accent, the fleet's primary colour cue, never regressed.
 ##   * Head-to-hull clearance. The Torrent's conformed canopy lowered its crown
 ##     by about 8 cm, so the tightest cockpit in the fleet moved from Zenith
 ##     0.531 to Torrent 0.481. HEAD_HULL_CLEARANCE_MINIMUM moves from 0.5 to 0.45
 ##     on the same convention.
 ##
-## Both stay one-way ratchets: the next pass may only widen them.
+## Both stay one-way ratchets: a pass may only widen them. The body floor has now
+## ratcheted back up to its original 12.0 and may not be lowered again.
 ##
 ## No handling value, colour, or geometry is modified anywhere in this suite.
 
@@ -258,17 +273,22 @@ const EXPECTED_BODY_TONE := {
 	&"torrent_provisional": "c5c5b6",
 	&"arrow_provisional": "7891ab",
 	# 4ad633d65 "Refine inhabited craft with muted paint, pressure glazing and
-	# cast structure" repainted the freighter from the saturated #e0ab74 tan to
-	# this muted freight brown.
-	&"jovian_provisional": "827766",
+	# cast structure" repainted the freighter from the saturated #e0ab74 tan to a
+	# muted #827766 freight brown, which collapsed against the Halyard for
+	# red-green deficient vision. The repaint below reopened that pair at the
+	# freighter, holding hue and chroma (36.4 deg -> 38.8 deg, S 0.215 -> 0.238)
+	# and lifting lightness alone, L* 50.57 -> 55.25 — a CIEDE2000 move of 4.94.
+	# It stays muted and satin, well under the pre-pass S 0.482 / V 0.878.
+	&"jovian_provisional": "8f836d",
 	# B7 observes a pale exterior as a relative value only, so Zenith keeps a
 	# pale light-grey read while moving off the shared warm ivory.
 	&"zenith_b7_observed": "bac8d6",
 	# Utility olive. Green is the one hue region the fleet did not occupy, and it
 	# still reads against near-black space. 4ad633d65 muted it from #6e7a3e to
 	# this grey-olive in the same pass that repainted the freighter; the two craft
-	# moved toward one another, which is where the narrowed body-tone floor below
-	# comes from.
+	# moved toward one another, which is where the body-tone narrowing recorded in
+	# the header came from. It is unchanged by the repair, which was made at the
+	# freighter so this craft keeps the fleet's only green hue region.
 	&"halyard_new_design": "59665b",
 }
 const BODY_TONE_MINIMUM_SHARE := 0.10
@@ -280,7 +300,7 @@ const PALE_BODY_MINIMUM_LIGHTNESS := 78.0
 
 # Frozen CIEDE2000 floors; see the "Why these floors" and "What the finish pass
 # cost" notes in the header.
-const BODY_TONE_FLOOR := 8.0
+const BODY_TONE_FLOOR := 12.0
 const ACCENT_FLOOR := 25.0
 const TORRENT_ACCENT_FLOOR := 30.0
 const VISION_MODELS := ColourMetrics.VISION_MODELS

@@ -272,8 +272,30 @@ const PROVISIONAL_NOTE := (
 # HULL_COOL keeps its name because `hull_cool` is the craft's stable public
 # material-family key, asserted by tests/fleet_pbr_test.gd; it now carries the
 # subordinate shade of the same warm clay family rather than a cool grey.
+#
+# HULL_COOL is the craft's *body tone* — the brightest opaque albedo holding at
+# least a tenth of the visible hull, and so the colour a player reads off this
+# freighter at a glance. 4ad633d65 muted it from the #e0ab74 tan to #827766 in
+# the same pass that muted the Halyard to #59665b, and the two muted browns
+# collapsed for red-green deficient vision: the Jovian/Halyard body pair fell to
+# CIEDE2000 8.27 under protanopia and 10.71 under deuteranopia, from 16.62.
+#
+# The repaint below restores that separation at the freighter rather than at the
+# transport, because green is the one hue region only the Halyard occupies and
+# pulling the Halyard off olive would cost the fleet that region. Under
+# dichromatic vision both brown and olive collapse onto the same yellow axis, so
+# the only separation available is lightness — a greener or more saturated olive
+# does not help, and was measured not to: the pre-pass #6e7a3e olive scores only
+# 11.53/10.34 against today's muted Jovian. Hue and chroma are therefore held
+# (36.4 deg -> 38.8 deg, S 0.215 -> 0.238) and lightness alone is lifted,
+# L* 50.57 -> 55.25. That is a CIEDE2000 move of 4.94 from #827766 and takes the
+# pair to 18.18 normal / 13.42 protanopia / 15.87 deuteranopia. The result stays
+# muted and satin and does not return to the pre-4ad633d65 saturation: S 0.238
+# against 0.482 and V 0.561 against 0.878, roughly a fifth of the way back up
+# from the muted tone to the old tan. See the separation floors in
+# tests/fleet_role_differentiation_test.gd.
 const HULL_WARM := Color("a9977e")
-const HULL_COOL := Color("827766")
+const HULL_COOL := Color("8f836d")
 const JOVIAN_STRUCTURE := Color("283c42")
 const JOVIAN_STRUCTURE_DARK := Color("0e2026")
 const FREIGHT_TEAL := Color("35bbb5")
