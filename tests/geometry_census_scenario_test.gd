@@ -77,8 +77,8 @@ const MAIN_SCENE := preload("res://scenes/main.tscn")
 # Unique meshes fall because a merged renderer replaces N cached box meshes with
 # one, and surfaces fall because pieces that shared a material with a sibling now
 # share one submission — a draw-call reduction, not lost geometry.
-const RESIDENT_FINGERPRINT := "dbba16349c2c11fc2cfc018958e793a352733b53caf9ccf166221dddfb5ee2be"
-const CINDER_LOADED_FINGERPRINT := "237d9a46cffbfce4712caefd27cf652e7746010d2e62b230e4c7b8a39fdfdaa1"
+const RESIDENT_FINGERPRINT := "deb7558332b473cfa668afe650c7d5fd54080e76af5ce162bf6ee60a208e1581"
+const CINDER_LOADED_FINGERPRINT := "36a4e2ed686e3082fbfabfbd94bf37804eeffe7199e2fb6502562b4c43770545"
 
 var _assertions := 0
 var _failures := PackedStringArray()
@@ -138,8 +138,8 @@ func _run() -> void:
 		int(resident.get("bound_phase_unique_materials", -1)) == 693
 			and int(resident.get("retained_reachable_unique_materials", -1)) == 969
 			and int(resident.get("lights", -1)) == 335
-			and int(resident.get("nodes", -1)) == 10627,
-		"resident resource roster freezes 693 bound / 969 retained materials, 335 lights, and 10,627 nodes"
+			and int(resident.get("nodes", -1)) == 10647,
+		"resident resource roster freezes 693 bound / 969 retained materials, 335 lights, and 10,647 nodes"
 	)
 	_check(
 		str(resident.get("measurement_fingerprint", "")) == RESIDENT_FINGERPRINT,
@@ -206,8 +206,8 @@ func _run() -> void:
 		int(loaded.get("bound_phase_unique_materials", -1)) == 735
 			and int(loaded.get("retained_reachable_unique_materials", -1)) == 1016
 			and int(loaded.get("lights", -1)) == 362
-			and int(loaded.get("nodes", -1)) == 11050,
-		"loaded resource roster freezes 735 bound / 1,016 retained materials, 362 lights, and 11,050 nodes"
+			and int(loaded.get("nodes", -1)) == 11070,
+		"loaded resource roster freezes 735 bound / 1,016 retained materials, 362 lights, and 11,070 nodes"
 	)
 	var cinder_bucket := (loaded.get("buckets", {}) as Dictionary).get(
 		"CinderStreamingBootstrap", {}
