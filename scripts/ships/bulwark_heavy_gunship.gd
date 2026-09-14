@@ -222,7 +222,7 @@ func _enter_tree() -> void:
 
 func _ready() -> void:
 	super._ready()
-	_gunner_weapon_definition = SiegeLanceDefinition.duplicate(true) as WeaponDefinition
+	_gunner_weapon_definition = _crew_lance_definition()
 	if not _bulwark_built:
 		_bulwark_built = rebuild_variant_presentation(_build_bulwark_variant)
 	if _bulwark_built:
@@ -268,6 +268,19 @@ func _commit_variant_reset_for_reuse(context: Dictionary) -> void:
 
 func get_siege_lance_audio_binding() -> RefCounted:
 	return _siege_lance_audio_binding
+
+## The picket authors the siege lance as a travelling bolt (150 m/s). The
+## Bulwark crew station keeps the instant hitscan lance it shipped with until a
+## player-facing travelling bolt is authored for it. Hitscan definitions must
+## carry a zero travel envelope, so the crew copy clears the picket's.
+func _crew_lance_definition() -> WeaponDefinition:
+	var definition := SiegeLanceDefinition.duplicate(true) as WeaponDefinition
+	definition.resolution_mode = WeaponDefinition.ResolutionMode.HITSCAN
+	definition.projectile_speed_mps = 0.0
+	definition.projectile_lifetime_seconds = 0.0
+	definition.projectile_radius_meters = 0.0
+	return definition
+
 
 func _bind_siege_lance_audio() -> void:
 	if _siege_lance_audio_binding == null:
@@ -1558,7 +1571,7 @@ func attach_gunner_combat_authority(authority: LiveCombatAuthority) -> Dictionar
 	if _gunner_combat_authority != null and _gunner_combat_authority != authority:
 		return _crew_role_result(false, &"combat_authority_already_attached")
 	if _gunner_weapon_definition == null:
-		_gunner_weapon_definition = SiegeLanceDefinition.duplicate(true) as WeaponDefinition
+		_gunner_weapon_definition = _crew_lance_definition()
 	var profiles := WeaponDefinitionResolverProfileType.to_resolver_profiles(
 		_gunner_weapon_definition,
 		BULWARK_CREW_FACTION_ID,
@@ -1590,7 +1603,7 @@ func attach_gunner_combat_authority(authority: LiveCombatAuthority) -> Dictionar
 
 func get_gunner_weapon_definition() -> WeaponDefinition:
 	if _gunner_weapon_definition == null:
-		_gunner_weapon_definition = SiegeLanceDefinition.duplicate(true) as WeaponDefinition
+		_gunner_weapon_definition = _crew_lance_definition()
 	return _gunner_weapon_definition.duplicate(true) as WeaponDefinition
 
 
