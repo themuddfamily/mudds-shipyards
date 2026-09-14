@@ -167,12 +167,37 @@ const SERVICE_PANEL_COPY_COUNT := 7
 const SERVICE_PANEL_SIZE := Vector3(0.1, 1.48, 2.45)
 
 ## Four childless landing-bogie feet are one identical structure-material visual
-## recipe at fixed mirrored transforms. The ship-root collision envelope, berth
-## fit and parked contact plane do not read these renderers, so one visual-only
-## batch preserves all four drawn copies while removing three renderer nodes,
-## submissions and private rounded-box mesh allocations.
+## recipe at fixed mirrored transforms. The batch stays a pure visual-only
+## renderer with no gameplay authority of its own, so one batch preserves all
+## four drawn copies while removing three renderer nodes, submissions and
+## private rounded-box mesh allocations. Its authored instance transforms and
+## its formed mesh are now *read* by `_replace_collision_and_markers()`, which
+## derives the ship-root sole colliders from them; that keeps the drawn foot and
+## its collider from ever drifting apart, and the batch node itself still owns
+## no CollisionObject3D.
 const LANDING_BOGIE_FOOT_COPY_COUNT := 4
 const LANDING_BOGIE_FOOT_SIZE := Vector3(1.65, 0.56, 2.2)
+## The turned landing-leg sections, taken from the two lathe profiles in
+## `_build_propulsion_and_gear()`: the bogie strut reaches 0.26 m at its bearing
+## bulges over a 1.5 m shaft, and the damper reaches 0.15 m over 1.25 m. A
+## cylinder at each figure is the leg's own outer envelope; it fills only the
+## 5 cm waists between those bulges.
+const LANDING_BOGIE_STRUT_RADIUS := 0.26
+const LANDING_BOGIE_STRUT_LENGTH := 1.5
+const LANDING_DAMPER_RADIUS := 0.15
+const LANDING_DAMPER_LENGTH := 1.25
+## The exhaust collar ring drawn by `_freighter_exhaust_collar()`: 1.02 m at its
+## forward lip, 0.98 m aft, over a 0.42 m ring depth. Its bore is closed by the
+## recessed throat disc that the same builder fits, so the collider is the solid
+## outer cylinder rather than a ring a player could stand in.
+const ENGINE_EXHAUST_COLLAR_RADIUS := 1.02
+const ENGINE_EXHAUST_COLLAR_DEPTH := 0.42
+const EXHAUST_COLLAR_NODE_NAMES := [
+	&"PortLowerEngineCollar",
+	&"PortUpperEngineCollar",
+	&"StarboardLowerEngineCollar",
+	&"StarboardUpperEngineCollar",
+]
 
 # Phase 9 allocation boundary. The five dorsal ribs each retain five ordinary
 # MeshInstance3D curve joints and therefore all 25 authored draw submissions.
@@ -243,7 +268,13 @@ const CARGO_FRAME_JOINT_XY: Array[Vector2] = [
 ]
 
 const PARKED_RENDER_BOUNDS := AABB(Vector3(-10.6, -1.36, -14.1), Vector3(19.1, 6.31, 28.55))
-const FLIGHT_COLLISION_BOUNDS := AABB(Vector3(-10.45, -1.45, -13.9), Vector3(18.55, 6.2, 26.2))
+## Published clearance contract for a berth or landing planner. Its aft face was
+## sized to `AftHullCollision` while the drawn exhaust collars already stood
+## 1.01 m further back — `PARKED_RENDER_BOUNDS` has always reached z = 14.45 —
+## so closing the apron walk-through under those collars moved the collision
+## envelope out to the collar lip at z = 13.26. The declared face keeps the same
+## 0.05 m margin it always had over the craft's real aft-most collider.
+const FLIGHT_COLLISION_BOUNDS := AABB(Vector3(-10.45, -1.45, -13.9), Vector3(18.55, 6.2, 27.21))
 
 # One childless two-surface renderer carries a mirrored pair of forward cargo
 # guide vanes plus their amber index faces. The long, converging forks make the
@@ -4880,6 +4911,7 @@ func _replace_collision_and_markers() -> void:
 		else:
 			_add_box_collision("StarboardCockpitSidewallCollision", Vector3(1.66, 1.75, -8.75), Vector3(0.22, 2.6, 3.4))
 	_add_box_collision("CockpitForwardWallCollision", Vector3(0.0, 1.75, -10.46), Vector3(3.55, 2.6, 0.22))
+	_add_exterior_ground_support_collision()
 	# The inherited chair is part of this walkable cockpit, not a presentation
 	# seen only while seated. Its visible back crossed the old cabin standing pose
 	# and had no physics counterpart, so a released pilot spawned partly inside it
@@ -4975,6 +5007,107 @@ func _replace_collision_and_markers() -> void:
 	var camera_rig := get_node_or_null("CameraRig") as Node3D
 	if camera_rig != null:
 		camera_rig.position = Vector3(0.0, 4.0, 6.5)
+
+
+## STATION-WALK-JOVIAN-UNDERSIDE-001. Everything this craft parks *on* and every
+## drawn piece aft of `AftHullCollision` used to be presentation only, so the
+## freight apron's own walkability sweep found eight solid-looking pieces, in
+## four families, with no collider anywhere in their volume: the two reachable
+## landing bogie struts, their two dampers, two of the four sole castings, and
+## the two lower exhaust collars. A walker crossing the apron went straight through a landing leg, and
+## through the 2.04 m engine bells whose lowest drawn point clears that apron by
+## 1.38 m against a 1.94 m production capsule.
+##
+## Every collider here is derived from the live renderer it matches — the leg
+## nodes by their shared lathe mesh, the soles from the batch's own authored
+## instance transforms and formed mesh, the collars from their named nodes — so
+## restyling or relocating the gear cannot separate the drawn part from the part
+## you bump into. All four bogies and all four collars are built, not only the
+## eight pieces the sweep could reach: the drawn hardware is identical on every
+## corner and nacelle, and a craft that is solid on one leg and porous on the
+## mirrored one is a worse answer than either.
+##
+## The soles stop at their own drawn underside, local y = -1.23, which is 0.02 m
+## above the declared -1.25 landing contact plane. Nothing here reaches below
+## that plane, so the freight berth's structural-penetration audit still sees the
+## deployed cargo ramp and pilot stair as the only apron-bearing contacts.
+func _add_exterior_ground_support_collision() -> void:
+	if _jovian_visual == null:
+		return
+	var strut_reference := _jovian_visual.get_node_or_null(^"LandingBogieStrut") as MeshInstance3D
+	var damper_reference := _jovian_visual.get_node_or_null(^"LandingDamper") as MeshInstance3D
+	for child in _jovian_visual.get_children():
+		var renderer := child as MeshInstance3D
+		if renderer == null or renderer.mesh == null:
+			continue
+		if strut_reference != null and renderer.mesh == strut_reference.mesh:
+			_add_cylinder_collision(
+				"LandingBogieStrutCollision" + _landing_bogie_suffix(renderer.position),
+				renderer.position,
+				LANDING_BOGIE_STRUT_RADIUS,
+				LANDING_BOGIE_STRUT_LENGTH,
+				renderer.rotation
+			)
+		elif damper_reference != null and renderer.mesh == damper_reference.mesh:
+			_add_cylinder_collision(
+				"LandingDamperCollision" + _landing_bogie_suffix(renderer.position),
+				renderer.position,
+				LANDING_DAMPER_RADIUS,
+				LANDING_DAMPER_LENGTH,
+				renderer.rotation
+			)
+	if _landing_bogie_foot_mesh != null:
+		for placement: Transform3D in _landing_bogie_foot_transforms:
+			var sole := CollisionShape3D.new()
+			sole.name = "LandingBogieFootCollision" + _landing_bogie_suffix(placement.origin)
+			sole.transform = placement
+			# The formed casting tapers from a 1.65 x 2.2 m pad to a 0.92 m
+			# shoe. A box would stand 0.37 m proud of the drawn casting at shin
+			# height on every side; the convex hull of the drawn mesh does not.
+			# Simplification is refused: a merged plane can push the hull below
+			# the sole's own contact face.
+			sole.shape = _landing_bogie_foot_mesh.create_convex_shape(true, false)
+			add_child(sole)
+	for collar_name in EXHAUST_COLLAR_NODE_NAMES:
+		var collar := _jovian_visual.get_node_or_null(NodePath(collar_name)) as MeshInstance3D
+		if collar == null:
+			continue
+		_add_cylinder_collision(
+			String(collar_name) + "Collision",
+			collar.position,
+			ENGINE_EXHAUST_COLLAR_RADIUS,
+			ENGINE_EXHAUST_COLLAR_DEPTH,
+			Vector3(PI * 0.5, 0.0, 0.0)
+		)
+
+
+## Names a bogie collider after the corner it is drawn on, so the roster reads
+## the way the craft does rather than by build order. Local forward is -Z.
+static func _landing_bogie_suffix(station: Vector3) -> String:
+	return ("Port" if station.x < 0.0 else "Starboard") \
+		+ ("Forward" if station.z < 0.0 else "Aft")
+
+
+## A turned or lathed part is a cylinder about its own axis, not a box. Godot
+## cylinders stand on local Y, which is already the lathe axis for the landing
+## legs; the exhaust collars pass a quarter turn to lie along the thrust axis.
+func _add_cylinder_collision(
+		node_name: String,
+		collision_position: Vector3,
+		radius: float,
+		length: float,
+		rotation := Vector3.ZERO
+	) -> CollisionShape3D:
+	var collision := CollisionShape3D.new()
+	collision.name = node_name
+	collision.position = collision_position
+	collision.rotation = rotation
+	var shape := CylinderShape3D.new()
+	shape.radius = radius
+	shape.height = length
+	collision.shape = shape
+	add_child(collision)
+	return collision
 
 
 func _add_box_collision(

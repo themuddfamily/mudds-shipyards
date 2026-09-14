@@ -150,6 +150,20 @@ const ACCESS_STAIR_POSES := [Vector3(-3.4, 1.52, 0.18), Vector3(-2.88, 1.82, 0.1
 const ENGINE_COLLAR_INNER_RADIUS := 0.55
 const ENGINE_COLLAR_OUTER_RADIUS := 0.7
 const ENGINE_COLLAR_VISIBLE_COPIES := 2
+## The authored engine tail, as `_build_engines_and_landing_gear()` draws it, so
+## the tail colliders can be written against the drawn figures rather than
+## against a second guess at them. `tests/arrow_recon_ship_test.gd` measures each
+## collider against its own renderer's live bounds, which is what actually holds
+## the two together. The collar's 0.147721 m ring depth is the torus minor
+## diameter `ENGINE_COLLAR_OUTER_RADIUS - ENGINE_COLLAR_INNER_RADIUS` resolves
+## to in its own mesh bounds.
+const ENGINE_NACELLE_X := 0.92
+const ENGINE_NACELLE_Y := 0.94
+const ENGINE_COLLAR_Z := 6.48
+const ENGINE_COLLAR_RING_DEPTH := 0.147721
+const REFRACTORY_NOZZLE_Z := 6.05
+const REFRACTORY_NOZZLE_LENGTH := 0.88
+const REFRACTORY_NOZZLE_RADIUS := 0.57
 const ENGINE_COLLAR_AUTHORED_TESSELLATION := Vector2i(64, 18)
 const ENGINE_COLLAR_BUDGETED_TESSELLATION := Vector2i(40, 18)
 ## Static presentation of the existing engine-bay ledger. The starboard collar
@@ -2142,6 +2156,41 @@ func _replace_collision_and_markers() -> void:
 		_add_box_collision("ArrowPortLandingShoeCollision" if side < 0 else "ArrowStarboardLandingShoeCollision",
 			Vector3(side * 1.7, LANDING_SOLE_Y + 0.03, 1.8), Vector3(0.48, 0.06, 0.70))
 	_add_box_collision("ArrowNoseLandingShoeCollision", Vector3(0, LANDING_SOLE_Y + 0.03, -3.85), Vector3(0.38, 0.06, 0.52))
+	# STATION-WALK-ARROW-TAIL-001. `ArrowHullCollision` stops at local z = 5.75
+	# while the drawn engine tail carries on to z = 6.93, so the two ceramic
+	# collars and the two refractory nozzle bells stood over the port berth deck
+	# with no collider anywhere in their volume. Their lowest drawn point is
+	# 1.39 m over that deck and the production capsule stands 1.94 m, so a walker
+	# crossing behind the parked craft put their head and shoulders straight
+	# through an engine bell. Both pieces are turned about the same nacelle axis,
+	# so each gets its own cylinder at its own drawn section — the collar at its
+	# 0.70 m outer radius over its 0.1477 m ring depth, the nozzle at its 0.57 m
+	# widest radius over its full 0.88 m bell — and neither collider can be wider
+	# or narrower than what is drawn.
+	#
+	# The colliders stay at the authored nacelle pose. `ENGINE_DAMAGE_CUE_*`
+	# slides and stretches the starboard collar's *renderer* as a chase-view
+	# silhouette break; that cue is presentation-only and must not move this
+	# craft's collision envelope, and its 0.18 m offset never takes the drawn
+	# ring off its own collider.
+	for side in [-1.0, 1.0]:
+		var prefix := "ArrowPort" if side < 0 else "ArrowStarboard"
+		_add_cylinder_collision(
+			prefix + "EngineCollarCollision",
+			Vector3(side * ENGINE_NACELLE_X, ENGINE_NACELLE_Y, ENGINE_COLLAR_Z),
+			ENGINE_COLLAR_OUTER_RADIUS,
+			ENGINE_COLLAR_RING_DEPTH
+		)
+		_add_cylinder_collision(
+			prefix + "RefractoryNozzleCollision",
+			Vector3(
+				side * ENGINE_NACELLE_X,
+				ENGINE_NACELLE_Y,
+				REFRACTORY_NOZZLE_Z + REFRACTORY_NOZZLE_LENGTH * 0.5
+			),
+			REFRACTORY_NOZZLE_RADIUS,
+			REFRACTORY_NOZZLE_LENGTH
+		)
 
 	var boarding := get_node_or_null("BoardingPoint") as Marker3D
 	var exit := get_node_or_null("ExitPoint") as Marker3D
@@ -2206,6 +2255,27 @@ func _add_box_collision(node_name: String, collision_position: Vector3, size: Ve
 	collision.position = collision_position
 	var shape := BoxShape3D.new()
 	shape.size = size
+	collision.shape = shape
+	add_child(collision)
+
+
+## A turned tail piece is a cylinder about the nacelle axis, not a box: a box
+## would claim up to 0.29 m of empty air at each corner of a 0.70 m collar.
+## Godot cylinders stand on local Y, so the shape is rolled a quarter turn to
+## lie along the craft's own thrust axis.
+func _add_cylinder_collision(
+		node_name: String,
+		collision_position: Vector3,
+		radius: float,
+		length: float
+	) -> void:
+	var collision := CollisionShape3D.new()
+	collision.name = node_name
+	collision.position = collision_position
+	collision.rotation = Vector3(PI * 0.5, 0.0, 0.0)
+	var shape := CylinderShape3D.new()
+	shape.radius = radius
+	shape.height = length
 	collision.shape = shape
 	add_child(collision)
 

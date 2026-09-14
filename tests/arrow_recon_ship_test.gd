@@ -2083,9 +2083,61 @@ func _test_collision_boarding_and_cameras(arrow: ArrowReconShip) -> void:
 	for child in arrow.get_children():
 		if child is CollisionShape3D:
 			collisions.append(child)
-	_check(collisions.size() == 5, "Arrow retains both hull shapes and adds three bounded sole contacts")
+	_check(collisions.size() == 9, "Arrow retains both hull shapes, three bounded sole contacts and four engine-tail sections")
 	_check(arrow.get_node_or_null("ArrowHullCollision") is CollisionShape3D, "slender fuselage has a named collision shape")
 	_check(arrow.get_node_or_null("ArrowWingCollision") is CollisionShape3D, "sensor-wing planform has a named collision shape")
+
+	# STATION-WALK-ARROW-TAIL-001. `ArrowHullCollision` ends at local z = 5.75
+	# and the drawn tail runs to z = 6.93, so the collars and nozzle bells stood
+	# over the port berth deck with nothing to bump into. Each new section is
+	# measured against the renderer it answers for: same axis, same drawn bounds.
+	var tail_visual := arrow.get_arrow_visual_root()
+	var tail_pairs := {
+		"ArrowPortEngineCollarCollision": "EngineCollar",
+		"ArrowPortRefractoryNozzleCollision": "PortRefractoryNozzle",
+		"ArrowStarboardRefractoryNozzleCollision": "StarboardRefractoryNozzle",
+	}
+	var tail_matched := true
+	var tail_report := PackedStringArray()
+	for collider_name: String in tail_pairs:
+		var collider := arrow.get_node_or_null(collider_name) as CollisionShape3D
+		var drawn := tail_visual.get_node_or_null(String(tail_pairs[collider_name])) as MeshInstance3D
+		if collider == null or not (collider.shape is CylinderShape3D) or drawn == null \
+				or drawn.mesh == null:
+			tail_matched = false
+			continue
+		var drawn_bounds: AABB = drawn.transform * drawn.mesh.get_aabb()
+		var shape_bounds: AABB = collider.transform * AABB(
+			Vector3(
+				-(collider.shape as CylinderShape3D).radius,
+				-(collider.shape as CylinderShape3D).height * 0.5,
+				-(collider.shape as CylinderShape3D).radius
+			),
+			Vector3(
+				(collider.shape as CylinderShape3D).radius * 2.0,
+				(collider.shape as CylinderShape3D).height,
+				(collider.shape as CylinderShape3D).radius * 2.0
+			)
+		)
+		tail_report.append("%s %s vs drawn %s" % [collider_name, str(shape_bounds), str(drawn_bounds)])
+		tail_matched = tail_matched \
+			and shape_bounds.position.is_equal_approx(drawn_bounds.position) \
+			and shape_bounds.size.is_equal_approx(drawn_bounds.size)
+	print("ARROW_ENGINE_TAIL_COLLISION: ", tail_report)
+	_check(
+		tail_matched
+		and arrow.get_node_or_null("ArrowStarboardEngineCollarCollision") is CollisionShape3D,
+		"each engine collar and refractory nozzle carries a cylinder at its own drawn section"
+	)
+	var tail_bounds := arrow.get_landing_collision_report().get("local_bounds", AABB()) as AABB
+	_check(
+		absf(tail_bounds.end.z - 6.93) <= 0.0001
+		and absf(tail_bounds.position.y - ArrowReconShip.LANDING_SOLE_Y) <= 0.0001
+		and absf(tail_bounds.end.y - 1.675) <= 0.0001
+		and absf(tail_bounds.position.x + 5.55) <= 0.0001
+		and absf(tail_bounds.end.x - 5.55) <= 0.0001,
+		"the tail sections extend the landing envelope aft to the drawn nozzle mouth and nowhere else (%s)" % str(tail_bounds)
+	)
 
 	var boarding_area := arrow.get_node_or_null("ShipBoardingArea") as ShipBoardingArea
 	_check(boarding_area != null and boarding_area.get_ship() == arrow, "physical boarding area resolves the Arrow owner generically")

@@ -349,6 +349,85 @@ func _test_landing_bogie_foot_batch(jovian: JovianLightFreighter) -> void:
 	_check(fitted and strut_copies == 4 and damper_copies == 4 \
 		and multi.mesh.get_surface_count() == 1,
 		"all four mirrored leg shafts fit the shared foot shoe; struts and dampers each reuse one static mesh")
+	_test_exterior_ground_support_collision(jovian)
+
+
+## STATION-WALK-JOVIAN-UNDERSIDE-001. The apron walkability sweep found the
+## landing legs, their soles and the lower exhaust collars solid-looking and
+## collision-free, so a walker crossing the freight apron went through them.
+## Each drawn piece now carries a root collider at its own drawn section; this
+## re-measures every one of them against the renderer it answers for, and pins
+## the two envelope facts that landing depends on: nothing reaches below the
+## declared -1.25 contact plane, and only the tail reaches further aft.
+func _test_exterior_ground_support_collision(jovian: JovianLightFreighter) -> void:
+	var visual := jovian.get_jovian_visual_root()
+	var drawn_bounds := {}
+	var strut_reference := visual.get_node_or_null(^"LandingBogieStrut") as MeshInstance3D
+	var damper_reference := visual.get_node_or_null(^"LandingDamper") as MeshInstance3D
+	for child in visual.get_children():
+		var renderer := child as MeshInstance3D
+		if renderer == null or renderer.mesh == null:
+			continue
+		var family := ""
+		if strut_reference != null and renderer.mesh == strut_reference.mesh:
+			family = "LandingBogieStrutCollision"
+		elif damper_reference != null and renderer.mesh == damper_reference.mesh:
+			family = "LandingDamperCollision"
+		if family.is_empty():
+			continue
+		var suffix := ("Port" if renderer.position.x < 0.0 else "Starboard") \
+			+ ("Forward" if renderer.position.z < 0.0 else "Aft")
+		drawn_bounds[family + suffix] = renderer.transform * renderer.mesh.get_aabb()
+	var foot_batch := visual.get_node_or_null(^"LandingBogieFootBatch") as MultiMeshInstance3D
+	var foot_mesh_bounds: AABB = foot_batch.multimesh.mesh.get_aabb()
+	for placement: Transform3D in (
+		foot_batch.get_meta("authored_instance_transforms", []) as Array
+	):
+		var suffix := ("Port" if placement.origin.x < 0.0 else "Starboard") \
+			+ ("Forward" if placement.origin.z < 0.0 else "Aft")
+		drawn_bounds["LandingBogieFootCollision" + suffix] = placement * foot_mesh_bounds
+	for collar_name in JovianLightFreighter.EXHAUST_COLLAR_NODE_NAMES:
+		var collar := visual.get_node_or_null(NodePath(collar_name)) as MeshInstance3D
+		drawn_bounds[String(collar_name) + "Collision"] = (
+			collar.transform * collar.mesh.get_aabb()
+		)
+	var matched := true
+	var mismatches := PackedStringArray()
+	var lowest := INF
+	for collider_name: String in drawn_bounds:
+		var collider := jovian.get_node_or_null(NodePath(collider_name)) as CollisionShape3D
+		if collider == null or collider.shape == null or collider.disabled:
+			matched = false
+			mismatches.append(collider_name + " missing")
+			continue
+		var shape_bounds: AABB = collider.transform * JovianLightFreighter._shape_local_bounds(
+			collider.shape
+		)
+		var drawn: AABB = drawn_bounds[collider_name]
+		lowest = minf(lowest, shape_bounds.position.y)
+		if not shape_bounds.position.is_equal_approx(drawn.position) \
+				or not shape_bounds.size.is_equal_approx(drawn.size):
+			matched = false
+			mismatches.append("%s %s vs drawn %s" % [collider_name, str(shape_bounds), str(drawn)])
+	print("JOVIAN_GROUND_SUPPORT_COLLISION: pieces=", drawn_bounds.size(),
+		" lowest_y=", lowest, " mismatches=", mismatches)
+	_check(
+		drawn_bounds.size() == 16 and matched,
+		"every drawn landing leg, sole and exhaust collar carries a root collider at its own drawn section"
+	)
+	_check(
+		lowest >= -1.25 and lowest < -1.22,
+		"the sole colliders stop on their own drawn underside and never break the declared landing contact plane"
+	)
+	var envelope := jovian.get_landing_collision_report().get("local_bounds", AABB()) as AABB
+	_check(
+		absf(envelope.position.y + 1.25) <= 0.0001
+		and absf(envelope.position.x + 10.45) <= 0.0001
+		and absf(envelope.end.x - 8.075) <= 0.0001
+		and absf(envelope.end.y - 4.69) <= 0.0001
+		and absf(envelope.end.z - 13.26) <= 0.0001,
+		"ground-support collision leaves the parked contact plane and hull width untouched and reaches only to the drawn collar lip (%s)" % str(envelope)
+	)
 
 
 func _test_definition_and_evidence(jovian: JovianLightFreighter) -> void:

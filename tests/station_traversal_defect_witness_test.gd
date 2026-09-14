@@ -964,8 +964,19 @@ func _test_parked_craft_are_fully_supported_by_their_berth_decks(
 ## stopped dead against it, and the only gap in it — around x = -42.5 — is under
 ## the Arrow's own sensor wing, which blocks a standing capsule. The rails now end
 ## with their arm.
+##
+## STATION-WALK-ARROW-TAIL-001 moved this walk's stand, and nothing else about it.
+## It used to start at x = -36.0, which is 7 cm *behind* the drawn nozzle mouth at
+## x = -36.07 — a stand that could only ever cross the berth laterally while the
+## Arrow's engine bells were porous, because both legs pass directly under a bell
+## (starboard at z = 14.58, port at z = 16.42) whose lowest drawn point clears the
+## deck by 1.39 m against a 1.94 m capsule. Measured live on the production deck
+## with that capsule, the clear lateral lane behind the solid tail is **1.36 m**
+## wide, centred on x = -35.30, which is where this walk now stands: still well
+## inside the removed rail's x = -42.5 … -11.5 span, so it crosses both old rail
+## lines exactly as before, and still on the same berth deck at the same height.
 func _test_arrow_berth_rails_no_longer_fence_the_walkway(player: PlayerController) -> void:
-	var start := Vector3(-36.0, 0.18, 15.5)
+	var start := Vector3(-35.3, 0.18, 15.5)
 	# The walk is bounded at 80 physics frames on purpose. Both legs only have to
 	# cross the old rail line — z = 12.0 going starboard, z = 19.0 going port — and
 	# an unbounded hold would carry the capsule off the far edge of the deck and
