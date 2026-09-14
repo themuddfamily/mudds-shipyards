@@ -129,8 +129,6 @@ static func _empty_report(reason: StringName) -> Dictionary:
 		"solid_sources": 0,
 		"visual_batches": 0,
 		"visual_sources": 0,
-		"folded_body_meshes": 0,
-		"folded_mesh_batches": 0,
 	}
 
 
@@ -148,8 +146,6 @@ static func consolidate_with_references(
 		"solid_sources": 0,
 		"visual_batches": 0,
 		"visual_sources": 0,
-		"folded_body_meshes": 0,
-		"folded_mesh_batches": 0,
 	}
 	if not is_instance_valid(module_root) or not module_root.is_inside_tree():
 		report["reason"] = &"module_root_unavailable"

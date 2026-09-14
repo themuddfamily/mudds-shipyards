@@ -1750,8 +1750,6 @@ func _consolidate_station_dressing() -> void:
 		"solid_sources": 0,
 		"visual_batches": 0,
 		"visual_sources": 0,
-		"folded_body_meshes": 0,
-		"folded_mesh_batches": 0,
 		"modules": [],
 	}
 	if not is_inside_tree():
@@ -1775,8 +1773,7 @@ func _consolidate_station_dressing() -> void:
 		(_dressing_consolidation_report["modules"] as Array).append(module_names[index])
 		for key in [
 			"removed_nodes", "added_nodes", "solid_batches", "solid_sources",
-			"visual_batches", "visual_sources", "folded_body_meshes",
-			"folded_mesh_batches",
+			"visual_batches", "visual_sources",
 		]:
 			_dressing_consolidation_report[key] = int(
 				_dressing_consolidation_report[key]

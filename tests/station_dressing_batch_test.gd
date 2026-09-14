@@ -164,8 +164,8 @@ func _run() -> void:
 		"the three braces and the fascia become one visual batch"
 	)
 	_check(
-		int(report.get("folded_body_meshes", 0)) == 0,
-		"no metadata-bearing body's renderer is folded when it has no same-material sibling"
+		walkable.get_node_or_null(^"Mesh") != null,
+		"a metadata-bearing body keeps its own renderer rather than having it folded away"
 	)
 
 	var after_nodes := _count(holder)
