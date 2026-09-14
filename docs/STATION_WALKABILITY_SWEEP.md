@@ -176,8 +176,8 @@ on the station is still the Aft operations floor's 0.980 m.
    0.92 m shoe and a box would have stood 0.37 m proud of it at shin height;
    each collar carries a cylinder at its 1.02 m lip over its 0.42 m ring depth,
    solid because the builder's own recessed throat disc closes the bore.
-   All four bogies and all four collars are built, not only the six the sweep
-   could reach: the hardware is drawn identically on every corner and nacelle,
+   All four bogies and all four collars are built, not only the eight pieces the
+   sweep could reach: the hardware is drawn identically on every corner and nacelle,
    and a craft solid on one leg and porous on its mirror is a worse answer than
    either. Every collider is derived from the live renderer it matches — the
    legs by their shared lathe mesh, the soles from the batch's own authored
