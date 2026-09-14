@@ -77,18 +77,47 @@ const STRUCTURAL_ROUGHNESS_SPREAD_FLOOR := 0.40
 ## craft also include Torrent's light pulse mounts, Arrow's paired recon emitters
 ## and Jovian's developed defensive turrets. These authored additions supersede
 ## the population frozen when the cylinder wall subdivisions were removed.
-## Jovian's pressure windscreen adds eleven seal/post segments while four
-## engine housings now use lofts: net +7 cylinders. Range/Picket retain their
-## ten solid cylinders; their two plumes now use open exhaust meshes instead.
-## Fitted pilot seating adds two recline pivots and replaces the cylindrical grip:
-## net +1 cylinder on the three procedural cockpits.
+## The counts below were re-measured after the formed-geometry pass that ran
+## between 39e4d0698 (the last freeze) and today. Every delta is a deliberate
+## checkpoint that replaced turned cylinder stock with fitted, lathed or formed
+## geometry, so the population only falls where a craft stopped drawing a
+## cylinder it no longer needs:
+##
+## - Torrent 58 -> 57. HarnessBuckle: 7e7f4f2aa ("Form shared pilot harness from
+##   thin woven webbing") rebuilds the shared cockpit buckle as a recessed
+##   release face, so its renderer no longer carries kit cylinder stock.
+## - Arrow 44 -> 38. Both main gear struts and the nose gear strut (-3):
+##   dabfbbbca ("Replace Arrow landing rings with connected formed shoes") draws
+##   them from formed landing stock. Port/StarboardStatusRepeater (-2):
+##   9ce88f2d5 ("Fit shared cockpit displays and gauges into recessed housings")
+##   rebinds them to a shared instrument socket mesh. HarnessBuckle (-1):
+##   7e7f4f2aa, as above.
+## - Jovian 99 -> 72. Both defensive turrets' five turned parts each (-10):
+##   1b866c8b0 ("Form Jovian defensive mounts around low crown bearings"). All
+##   four LandingDamper legs (-4): 39e2b8487 ("Form Jovian landing soles and
+##   load-bearing gear assemblies"). Windscreen and quarterlight seal segments
+##   (-10): 2e4842538 ("Fit Jovian pressure glazing and seals to the formed roof
+##   underside") replaced the per-sample curve tubes with one continuous
+##   manufactured seal ring per owner. Status repeaters (-2): 9ce88f2d5.
+##   HarnessBuckle (-1): 7e7f4f2aa.
+## - RangeOpponent 10 -> 4. 7339035dc ("Form recessed defender exhaust throats
+##   and fitted retention collars") lathed the collar and core on both sides
+##   (-4); e2b4fc523 ("Shape defender gun housings around recessed charge
+##   lenses") relathed the two-instance gun-housing batch (-2).
+## - StandoffPicket 10 -> 3. 5d9d4713d ("Fit picket lance receiver, retention
+##   beams and open muzzle housing") replaced three turned lance parts (-3);
+##   e4a4e3ee1 ("Form recessed Picket exhausts within retained engine batches")
+##   relathed the two mirrored engine pod/core batches (-4).
+##
+## Count visible MultiMesh copies as well as standalone renderers, so the paired
+## opponent engine batches and Torrent gear batches remain covered.
 ## The suite's analytic wall-ring checks retain that optimization's geometry guard.
 const CHAMFERED_CYLINDER_POPULATION := {
-	"Torrent": [58, 14_336],
-	"Arrow": [44, 12_672],
-	"Jovian": [99, 25_344],
-	"RangeOpponent": [10, 2_240],
-	"StandoffPicket": [10, 2_240],
+	"Torrent": [57, 14_080],
+	"Arrow": [38, 10_944],
+	"Jovian": [72, 18_432],
+	"RangeOpponent": [4, 896],
+	"StandoffPicket": [3, 672],
 	"Zenith": [0, 0],
 }
 
