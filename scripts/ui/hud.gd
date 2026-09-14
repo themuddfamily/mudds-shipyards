@@ -23,6 +23,7 @@ const AtmosphericEntryGuidancePresenterType := preload("res://scripts/ui/atmosph
 const SemanticAudioCuePresenterType := preload("res://scripts/ui/semantic_audio_cue_presenter.gd")
 const HeavyBreachActivityPresenterType := preload("res://scripts/ui/heavy_breach_activity_presenter.gd")
 const FirstSortieTutorialPresenterType := preload("res://scripts/ui/first_sortie_tutorial_presenter.gd")
+const ActivityTutorialPresenterType := preload("res://scripts/ui/activity_tutorial_presenter.gd")
 const ServerBrowserPresenterType := preload("res://scripts/ui/server_browser_presenter.gd")
 const NearbySectorActivityPresenterType := preload("res://scripts/ui/nearby_sector_activity_presenter.gd")
 const BomberPayloadPresenterType := preload("res://scripts/ui/bomber_payload_presenter.gd")
@@ -592,6 +593,11 @@ var _first_sortie_tutorial_presenter := FirstSortieTutorialPresenterType.new()
 ## detached source, retained while visible so local glyph presentation can
 ## refresh after a device/profile/re-entry change without emitting an intent.
 var _first_sortie_tutorial_source_snapshot: Dictionary = {}
+## Nearby-sector activity briefings reuse the same tutorial channel, styling,
+## glyph resolution and intent seam. Their own retained source keeps first-time
+## activity copy from colliding with first-sortie step progress.
+var _activity_tutorial_presenter := ActivityTutorialPresenterType.new()
+var _activity_tutorial_source_snapshot: Dictionary = {}
 var _runtime_status_kind: StringName = &""
 ## Runtime cards are retained by producer instead of sharing one mutable slot.
 ## The serial selects the most recently updated ordinary card; bomber has an
@@ -2413,7 +2419,7 @@ func set_paused(paused: bool) -> void:
 		var resume := _pause_main_page.find_child("ResumeButton", true, false) as Button
 		if resume != null:
 			resume.grab_focus()
-	elif not paused and _runtime_status_kind == &"tutorial":
+	elif not paused and _runtime_status_kind in [&"tutorial", &"activity_tutorial"]:
 		# The modal relinquished focus. Return to the retained tutorial action
 		# without rebuilding an otherwise unchanged foreground card.
 		if is_instance_valid(_runtime_status_actions) \
@@ -4543,6 +4549,54 @@ func apply_first_sortie_tutorial_snapshot(
 	return true
 
 
+## First-time nearby-sector activity briefing. Shares the tutorial channel's
+## styling, glyph resolution, accessibility behaviour and intent seam; only the
+## retained source and card key differ so the two cannot overwrite each other.
+func apply_activity_tutorial_snapshot(
+		snapshot: Dictionary, activate_runtime_card: bool = true
+) -> bool:
+	if not activate_runtime_card and not _runtime_status_cards.has(&"activity_tutorial"):
+		return false
+	var caller_snapshot := snapshot.duplicate(true)
+	caller_snapshot["input_family"] = _tutorial_input_family()
+	caller_snapshot["glyphs"] = _tutorial_glyphs()
+	var presentation := _activity_tutorial_presenter.present_snapshot(caller_snapshot)
+	if not bool(presentation.get("accepted", false)):
+		if StringName(presentation.get("reason", &"")) in [
+			&"actor_unavailable", &"session_unavailable", &"tutorials_disabled",
+		]:
+			clear_activity_tutorial(StringName(presentation.get("reason", &"detached")))
+		return false
+	_activity_tutorial_source_snapshot = snapshot.duplicate(true)
+	var runtime_snapshot := presentation.duplicate(true)
+	runtime_snapshot["message"] = presentation.prompt
+	runtime_snapshot["detail"] = presentation.prompt
+	set_runtime_status_card(&"activity_tutorial", runtime_snapshot, activate_runtime_card)
+	return true
+
+
+func request_activity_tutorial_action(action: StringName) -> Dictionary:
+	var result := _activity_tutorial_presenter.request(action)
+	if bool(result.get("accepted", false)):
+		presentation_intent_requested.emit(&"activity_tutorial", result)
+		if action in [&"next", &"dismiss"]:
+			clear_activity_tutorial(&"acknowledged" if action == &"next" else &"dismissed")
+	return result
+
+
+func clear_activity_tutorial(reason: StringName = &"detached") -> Dictionary:
+	var result := _activity_tutorial_presenter.detach(reason)
+	_activity_tutorial_source_snapshot.clear()
+	if _runtime_status_kind == &"activity_tutorial" and is_instance_valid(_runtime_status_panel):
+		var viewport := get_viewport()
+		var focus_owner := viewport.gui_get_focus_owner() if viewport != null else null
+		if is_instance_valid(focus_owner) \
+				and _runtime_status_panel.is_ancestor_of(focus_owner):
+			focus_owner.release_focus()
+	clear_runtime_status(&"activity_tutorial")
+	return result
+
+
 func _apply_show_tutorials_setting(enabled: bool) -> void:
 	if enabled:
 		return
@@ -4550,6 +4604,7 @@ func _apply_show_tutorials_setting(enabled: bool) -> void:
 	# its current presentation so an already-visible prompt cannot outlive the
 	# setting or reappear when this retained layer re-enters the tree.
 	clear_first_sortie_tutorial(&"tutorials_disabled")
+	clear_activity_tutorial(&"tutorials_disabled")
 
 
 func dismiss_first_sortie_tutorial() -> Dictionary:
@@ -4899,6 +4954,8 @@ func _render_runtime_status_card(
 			button.pressed.connect(request_bomber_payload_release)
 		elif kind == &"tutorial":
 			button.pressed.connect(request_first_sortie_tutorial_action.bind(action_id))
+		elif kind == &"activity_tutorial":
+			button.pressed.connect(request_activity_tutorial_action.bind(action_id))
 		elif kind == &"safe_start_recovery":
 			button.tooltip_text = "Settings recovery action. The current settings remain unchanged until GameFlow accepts this fenced request."
 			button.pressed.connect(
@@ -4926,7 +4983,7 @@ func _render_runtime_status_card(
 	panel.mouse_filter = Control.MOUSE_FILTER_STOP
 	panel.visible = true
 	if (
-		kind == &"tutorial"
+		kind in [&"tutorial", &"activity_tutorial"]
 		and not action_buttons.is_empty()
 		and _runtime_status_can_claim_focus()
 	):
@@ -4947,7 +5004,7 @@ func _runtime_status_can_claim_focus() -> bool:
 
 func _claim_runtime_status_focus(target: Control) -> void:
 	if (
-		_runtime_status_kind == &"tutorial"
+		_runtime_status_kind in [&"tutorial", &"activity_tutorial"]
 		and is_instance_valid(target)
 		and target.is_visible_in_tree()
 		and _runtime_status_can_claim_focus()
@@ -7477,6 +7534,14 @@ func _refresh_input_prompts() -> void:
 		apply_first_sortie_tutorial_snapshot(
 			_first_sortie_tutorial_source_snapshot, false
 		)
+	if (
+		not is_queued_for_deletion()
+		and not _activity_tutorial_source_snapshot.is_empty()
+		and _runtime_status_cards.has(&"activity_tutorial")
+	):
+		apply_activity_tutorial_snapshot(
+			_activity_tutorial_source_snapshot, false
+		)
 
 
 func _refresh_input_prompts_after_reentry() -> void:
@@ -7501,6 +7566,7 @@ func _tutorial_glyphs() -> Dictionary:
 	for action: StringName in [
 		&"interact", &"move_forward", &"move_left", &"move_right",
 		&"pitch_up", &"pitch_down", &"fire", &"landing_assist", &"brake",
+		&"sprint_boost",
 	]:
 		var resolved: Dictionary = _runtime_input_glyph_presenter.resolve_action(action)
 		glyphs[action] = (

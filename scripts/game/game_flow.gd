@@ -22,6 +22,8 @@ const CinderNavigatorPingHudCompositionType := preload(
 	"res://scripts/ui/cinder_navigator_ping_hud_composition.gd"
 )
 const FinalApproachHudCompositionType := preload("res://scripts/ui/final_approach_hud_composition.gd")
+const ActivityTutorialPresenterType := preload("res://scripts/ui/activity_tutorial_presenter.gd")
+const TutorialPromptSeenStoreType := preload("res://scripts/settings/tutorial_prompt_seen_store.gd")
 const WeaponDefinitionResolverProfileType := preload(
 	"res://scripts/combat/weapon_definition_resolver_profile.gd"
 )
@@ -621,6 +623,13 @@ var _first_sortie_tutorial_completed_steps: Dictionary = {}
 var _first_sortie_tutorial_dismissed_generation := -1
 var _first_sortie_tutorial_active_step: StringName = &""
 var _first_sortie_tutorial_craft_context: Dictionary = {}
+## First-time nearby-sector activity briefings. Same tutorial channel and same
+## fencing discipline as the first-sortie steps; the seen-set is persistent.
+var _activity_tutorial_generation := 0
+var _activity_tutorial_revision := 0
+var _activity_tutorial_active_id: StringName = &""
+var _tutorial_prompt_seen_store: TutorialPromptSeenStoreType
+var _tutorial_prompt_seen_commit_serial := 0
 var _transition_busy := false
 ## Every awaited boarding/disembarking coroutine captures this generation. A
 ## destructive recovery advances it before restoring the player, so stale
@@ -997,6 +1006,7 @@ func _exit_tree() -> void:
 	_minimap_update_pending = false
 	_aurora_expedition.cancel()
 	_detach_first_sortie_tutorial_presentation(&"game_flow_detached")
+	_detach_activity_tutorial_presentation(&"game_flow_detached")
 	_planetary_journey.detach()
 	if not _pending_display_confirmation.is_empty() and runtime_settings != null:
 		_revert_display_settings(int(_pending_display_confirmation.generation), &"detach")
@@ -5035,6 +5045,7 @@ func _restore_runtime_bindings_after_reentry() -> void:
 	_publish_runtime_settings_repair_to_hud()
 	_restore_session_recovery_hud_after_reentry()
 	_republish_first_sortie_tutorial_presentation()
+	_republish_activity_tutorial_presentation()
 
 
 func _restore_live_combat_after_reentry() -> void:
@@ -5434,6 +5445,9 @@ func _on_hud_presentation_intent_requested(kind: StringName, payload: Dictionary
 	if kind == &"tutorial":
 		_handle_first_sortie_tutorial_intent(payload)
 		return
+	if kind == &"activity_tutorial":
+		_handle_activity_tutorial_intent(payload)
+		return
 	if kind == &"server_browser":
 		_handle_server_browser_intent(payload)
 		return
@@ -5570,6 +5584,106 @@ func _handle_first_sortie_tutorial_intent(payload: Dictionary) -> void:
 	_first_sortie_tutorial_completed_steps[step_id] = generation
 	if action == &"dismiss":
 		_first_sortie_tutorial_dismissed_generation = generation
+
+
+## Nearby-sector activity briefings ride the same tutorial channel: the same
+## presenter contract, HUD card, glyph resolution, accessibility behaviour and
+## intent seam. GameFlow keeps the only progress authority, and the "seen once"
+## set persists beside runtime settings in the existing user-data document.
+func apply_activity_tutorial_snapshot(snapshot: Dictionary) -> bool:
+	if not is_instance_valid(hud) or not hud.has_method(&"apply_activity_tutorial_snapshot"):
+		return false
+	var caller_snapshot := snapshot.duplicate(true)
+	caller_snapshot["show_tutorials"] = true if runtime_settings == null else runtime_settings.show_tutorials
+	return bool(hud.call(&"apply_activity_tutorial_snapshot", caller_snapshot))
+
+
+## Maps a production activity identifier or selected sortie kind onto the one
+## authored briefing for that activity family.
+func activity_tutorial_prompt_id(activity_id: StringName) -> StringName:
+	match activity_id:
+		CINDER_PLATFORM_PATROL_ROUTE_ID, ACTIVITY_KIND_PATROL:
+			return &"cinder_relay_patrol"
+		CARGO_DELIVERY_ACTIVITY_ID, ACTIVITY_KIND_CARGO_DELIVERY:
+			return &"cinder_platform_supply_run"
+		ACTIVITY_KIND_TIMED_RACE:
+			return DEFAULT_FREE_FLIGHT_ACTIVITY_ID
+		ACTIVITY_KIND_CONVOY_ESCORT:
+			return CINDER_CONVOY_ACTIVITY_ID
+	if ActivityTutorialPresenterType.is_known_activity(activity_id):
+		return activity_id
+	return &""
+
+
+func has_seen_activity_tutorial(prompt_id: StringName) -> bool:
+	return _tutorial_prompt_seen_store != null \
+		and _tutorial_prompt_seen_store.has_seen(prompt_id)
+
+
+## Called at the production activity-start seams. The first start of each kind
+## briefs the player once; every later start of that kind is silent.
+func publish_activity_tutorial_briefing(activity_id: StringName) -> bool:
+	var prompt_id := activity_tutorial_prompt_id(activity_id)
+	if prompt_id.is_empty():
+		return false
+	if runtime_settings != null and not runtime_settings.show_tutorials:
+		return false
+	_ensure_tutorial_prompt_seen_store()
+	if has_seen_activity_tutorial(prompt_id):
+		return false
+	_activity_tutorial_generation += 1
+	_activity_tutorial_revision = 1
+	_activity_tutorial_active_id = prompt_id
+	_record_activity_tutorial_seen(prompt_id)
+	return apply_activity_tutorial_snapshot({
+		"activity_id": prompt_id,
+		"generation": _activity_tutorial_generation,
+		"revision": _activity_tutorial_revision,
+		"actor_attached": true,
+		"session_active": true,
+	})
+
+
+func _record_activity_tutorial_seen(prompt_id: StringName) -> Dictionary:
+	if _tutorial_prompt_seen_store == null:
+		return {"accepted": false, "reason": &"store_unavailable"}
+	_tutorial_prompt_seen_commit_serial += 1
+	return _tutorial_prompt_seen_store.mark_seen(
+		prompt_id,
+		"tutorial-prompt-seen-%010d" % _tutorial_prompt_seen_commit_serial,
+	)
+
+
+func _detach_activity_tutorial_presentation(reason: StringName) -> void:
+	if is_instance_valid(hud) and hud.has_method(&"clear_activity_tutorial"):
+		hud.call(&"clear_activity_tutorial", reason)
+
+
+func _republish_activity_tutorial_presentation() -> bool:
+	if _activity_tutorial_active_id.is_empty():
+		return false
+	return apply_activity_tutorial_snapshot({
+		"activity_id": _activity_tutorial_active_id,
+		"generation": _activity_tutorial_generation,
+		"revision": _activity_tutorial_revision,
+		"actor_attached": true,
+		"session_active": true,
+	})
+
+
+func _handle_activity_tutorial_intent(payload: Dictionary) -> void:
+	var completion := payload.get("completion_intent", {}) as Dictionary
+	var generation_value: Variant = completion.get("generation")
+	if not generation_value is int or int(generation_value) != _activity_tutorial_generation:
+		return
+	var prompt_id := StringName(str(completion.get("activity_id", &"")))
+	if prompt_id == &"" or prompt_id != _activity_tutorial_active_id:
+		return
+	if StringName(str(payload.get("action", &""))) not in [&"next", &"dismiss"]:
+		return
+	# The briefing was already recorded when it was published, so acknowledging
+	# only retires the retained source; it cannot re-arm or re-persist anything.
+	_activity_tutorial_active_id = &""
 
 
 func _on_server_browser_result(result: Dictionary) -> void:
@@ -10561,6 +10675,7 @@ func request_activity_start(
 				cinder_race_session.get_session_generation()
 			)
 	if bool(started.get("accepted", false)):
+		publish_activity_tutorial_briefing(activity_id)
 		_active_activity_id = activity_id
 		_activity_selection_locked = true
 		_active_activity_generation = _get_selected_activity_generation()
@@ -12747,6 +12862,8 @@ func _on_hud_nearby_activity_intent_requested(intent: Dictionary) -> void:
 	# accepted lifecycle changes. Re-sample every concrete receipt so recovery
 	# guidance cannot be stranded behind an authority rejection.
 	if not result.is_empty():
+		if action == &"start_requested" and bool(result.get("accepted", false)):
+			publish_activity_tutorial_briefing(activity_id)
 		_sync_activity_hud()
 		if hud.has_method(&"apply_nearby_activity_action_result"):
 			hud.call(
@@ -14706,7 +14823,24 @@ func _initialize_runtime_settings() -> void:
 		)
 	_initialize_safe_start_recovery()
 	_ensure_runtime_settings_repair_binding()
+	_ensure_tutorial_prompt_seen_store()
 	_sync_production_runtime_settings_state()
+
+
+## The one-shot tutorial seen-set shares the settings user-data document and the
+## same process-lifetime identity, so whole-Main re-entry keeps every briefing
+## already shown without a second disk read or a second document format.
+func _ensure_tutorial_prompt_seen_store() -> void:
+	if _tutorial_prompt_seen_store != null:
+		if not _tutorial_prompt_seen_store.has_store():
+			# A briefing shown before the settings document was open kept its
+			# record in memory only. Adopt the real document once one exists.
+			_tutorial_prompt_seen_store.adopt_store(_runtime_settings_user_data_store)
+		return
+	_tutorial_prompt_seen_store = TutorialPromptSeenStoreType.new(
+		_runtime_settings_user_data_store
+	)
+	_tutorial_prompt_seen_store.restore()
 
 
 func _ensure_runtime_settings_repair_binding() -> void:
@@ -14773,6 +14907,10 @@ func _adopt_production_runtime_settings_state() -> void:
 	)
 	_runtime_settings_store_adapter = (
 		_production_runtime_settings_state.get("adapter") as RuntimeSettingsStoreAdapter
+	)
+	_tutorial_prompt_seen_store = (
+		_production_runtime_settings_state.get("tutorial_prompt_seen_store")
+		as TutorialPromptSeenStoreType
 	)
 	_runtime_settings_legacy_path = str(
 		_production_runtime_settings_state.get(
@@ -14850,6 +14988,7 @@ func _sync_production_runtime_settings_state() -> void:
 		"first_apply_followed_load": _runtime_settings_first_apply_followed_load,
 		"repair_resolved": _runtime_settings_repair_resolved,
 		"safe_start_recovery": _safe_start_production_recovery,
+		"tutorial_prompt_seen_store": _tutorial_prompt_seen_store,
 	}
 
 

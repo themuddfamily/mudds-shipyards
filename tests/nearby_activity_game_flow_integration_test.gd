@@ -567,6 +567,10 @@ func _run() -> void:
 
 	mining_filesystem.fail_writes = false
 	mining_start = mining_row.get_child(2) as Button if mining_row != null else null
+	# The shared user-data document also carries unrelated caller namespaces, so
+	# the retry is measured as exactly one further commit rather than an absolute
+	# document generation.
+	var mining_generation_before_retry := int(mining_store.get_generation())
 	if mining_start != null:
 		mining_start.emit_signal(&"pressed")
 	mining_row = _activity_row(retained_hud, &"cinder_platform_mining_run")
@@ -577,7 +581,7 @@ func _run() -> void:
 		mining_start != null
 			and bool(mining_recorded.get("capacity_persisted", false))
 			and not bool(mining_recorded.get("persistence_retry_available", true))
-			and int(mining_store.get_generation()) == 1
+			and int(mining_store.get_generation()) == mining_generation_before_retry + 1
 			and _activity_text(mining_row).contains(
 				"CAPACITY READY  //  EXTRACTION RECEIPT SAVED"
 			)
