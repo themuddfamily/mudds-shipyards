@@ -36,7 +36,11 @@ func _run() -> void:
 		await _finish(game)
 		return
 
-	var staged_position := console.global_position + Vector3(0.0, 0.0, -2.8)
+	# The console's 4.8 x 2.8 x 2.0 m interaction box reaches 1.0 m towards the
+	# approach and the player's interaction sphere 2.35 m, so a 2.8 m stage was
+	# already inside the prompt and only "walked" when a starved process ran
+	# several physics ticks per iteration. Stage outside both reaches.
+	var staged_position := console.global_position + Vector3(0.0, 0.0, -4.6)
 	player.teleport_to(Transform3D(Basis(Vector3.UP, PI), staged_position))
 	await physics_frame
 	var walk_start := player.global_position

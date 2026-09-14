@@ -2,6 +2,13 @@ extends "res://tests/in_flight_cabin_integration_test.gd"
 
 ## Real Halyard launch, seat exit, aisle walk, E sleep/wake and pilot return.
 ## Reuses the existing bounded cabin input helpers, not a second test driver.
+# The cockpit-to-bunk aisle is a 15.3 m walk. `_walk_until` advances one physics
+# tick per iteration when the process is not starved; under matrix load the
+# engine catches up several ticks per process frame, which is the only reason the
+# shared 400-iteration budget used to suffice. Size the budget for the walk.
+const AISLE_TICK_BUDGET := 1500
+
+
 func _run() -> void:
 	var game := MAIN_SCENE.instantiate() as GameFlow
 	root.add_child(game)
@@ -31,6 +38,11 @@ func _run() -> void:
 	await _idle_engine_offline(craft, "idle propulsion allows cabin access")
 	await _press_live_action(&"interact", 1)
 	var left_seat := await _wait_for_phase(game, GameFlow.Phase.IN_FLIGHT_CABIN, 2.0)
+	# The phase flips at the start of the seat exit; the standing pose lands only
+	# when the disembark motion completes and control returns. Turning the view
+	# before that lets the motion overwrite the facing and walks the wrong way.
+	left_seat = left_seat and await _wait_until(
+		func() -> bool: return player.is_control_enabled() and not bool(game.get("_transition_busy")), 3.0)
 	_check(left_seat, "E leaves the pilot seat into the cabin")
 	if not left_seat:
 		print("EXIT STATE: ", game.phase, " ", craft.get_telemetry())
@@ -41,7 +53,7 @@ func _run() -> void:
 	player.global_basis = craft.global_basis
 	player._camera_yaw.rotation.y = 0.0
 	_check(await _walk_until(&"move_back", false,
-		func() -> bool: return craft.to_local(player.global_position).z >= 6.45),
+		func() -> bool: return craft.to_local(player.global_position).z >= 6.45, AISLE_TICK_BUDGET),
 		"ordinary locomotion walks the connected aisle from cockpit to bunks")
 	var bunk := craft.get_node("WalkableInterior/AftSystemsBay/PortSleepingBerth/ShipBunkInteraction") as ShipBunk
 	player.global_basis = craft.global_basis * Basis(Vector3.UP, PI / 2.0)
@@ -84,17 +96,19 @@ func _run() -> void:
 	player.global_basis = craft.global_basis
 	player._camera_yaw.rotation.y = 0.0
 	_check(await _walk_until(&"move_forward", false,
-		func() -> bool: return craft.to_local(player.global_position).z < -8.8), "the rested passenger walks back to the cockpit")
+		func() -> bool: return craft.to_local(player.global_position).z < -8.8, AISLE_TICK_BUDGET), "the rested passenger walks back to the cockpit")
 	await _press_live_action(&"interact", 1)
 	_check(await _wait_until(func() -> bool: return game._piloting and player.is_seated() and craft.is_piloted(), 2.0),
 		"ordinary E resumes piloting after sleep")
 	# Return to the cabin and exercise destructive recovery with a real sleeper.
 	await _press_live_action(&"interact", 1)
 	await _wait_for_phase(game, GameFlow.Phase.IN_FLIGHT_CABIN, 2.0)
+	await _wait_until(
+		func() -> bool: return player.is_control_enabled() and not bool(game.get("_transition_busy")), 3.0)
 	player.global_basis = craft.global_basis
 	player._camera_yaw.rotation.y = 0.0
 	await _walk_until(&"move_back", false,
-		func() -> bool: return craft.to_local(player.global_position).z >= 6.45)
+		func() -> bool: return craft.to_local(player.global_position).z >= 6.45, AISLE_TICK_BUDGET)
 	player.global_basis = craft.global_basis * Basis(Vector3.UP, PI / 2.0)
 	await process_frame
 	await _press_live_action(&"interact", 1)
