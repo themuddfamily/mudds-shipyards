@@ -310,10 +310,19 @@ func _test_cabin_containment_currentness() -> void:
 	root.add_child(queued_frame)
 	await process_frame
 	queued_frame.queue_free()
+	# Re-baseline after the frame above. What this check proves is that the
+	# rejected call changes nothing, so the comparison has to be against the
+	# state immediately before that call. Reusing the pre-`await` baseline made
+	# it a claim that no frame had elapsed, which is not true and not the point:
+	# `get_camera_view_report()` publishes the spring arm's live `spring_length`,
+	# and that eases toward its target every frame, so under a loaded matrix run
+	# the extra frame moved it and this assertion failed for the wrong reason.
+	var queued_rejection_containment := player.get_cabin_containment_report()
+	var queued_rejection_view := player.get_camera_view_report()
 	_check(
 		not player.set_cabin_containment(queued_frame, bounds, player.global_transform)
-		and player.get_cabin_containment_report() == frame_rejection_containment
-		and player.get_camera_view_report() == frame_rejection_view,
+		and player.get_cabin_containment_report() == queued_rejection_containment
+		and player.get_camera_view_report() == queued_rejection_view,
 		"attached player rejects a queued cabin frame without containment or camera drift"
 	)
 	detached_frame.queue_free()

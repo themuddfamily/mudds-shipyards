@@ -175,6 +175,14 @@ func _test_courier_direct_mutation_currentness() -> void:
 		"currentness fixture launches the production courier before direct mutation checks"
 	)
 
+	# Detaching a live roster member is a fixture manoeuvre, not a production
+	# one: the director correctly treats an out-of-tree participant as gone and
+	# concludes the intercept as cleared. Whether one of its physics ticks landed
+	# inside the detach window used to decide whether the re-attached courier was
+	# still active, which made the guard checks below intermittently fail. Hold
+	# the director's own evaluation off for exactly the detached window so these
+	# assertions measure the courier's mutation guard and nothing else.
+	director.enabled = false
 	host.remove_child(courier)
 	await process_frame
 	var detached_before := _courier_mutation_snapshot(courier)
@@ -191,6 +199,11 @@ func _test_courier_direct_mutation_currentness() -> void:
 
 	host.add_child(courier)
 	await process_frame
+	director.enabled = true
+	_check(
+		director.is_running() and courier.is_active(),
+		"the intercept and its courier survive the deliberate detach/re-attach window"
+	)
 	var reentry_escape_accepted := courier.set_escape_run(
 		Vector3(50.0, 4.0, -16.0), Vector3.RIGHT, 320.0
 	)
