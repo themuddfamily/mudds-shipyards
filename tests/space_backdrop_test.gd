@@ -26,7 +26,12 @@ const EXPECTED_LOCAL_MATERIAL_RESOURCES := 5
 const EXPECTED_LOCAL_RENDERER_NODES := 5
 const EXPECTED_LOCAL_SURFACE_SUBMISSIONS := 5
 const EXPECTED_LOCAL_VISIBLE_COPIES := 2604
-const EXPECTED_LOCAL_TRIANGLES := 141_696
+# 2,600 star quads at 2 triangles plus four 64x32 bodies at 4,224. Was 141,696
+# while each star was a 48-triangle sphere.
+const EXPECTED_LOCAL_TRIANGLES := 22_096
+## `0.9 * sqrt(PI)`: the square with the retired 0.9 m sphere's projected disc
+## area, so the star field's brightness is unchanged by the rebuild.
+const EXPECTED_STAR_QUAD_EDGE := 1.5952085
 const EXPECTED_BERTH_IDS: Array[String] = [
 	"central_berth",
 	"arrow_recon_berth",
@@ -165,7 +170,7 @@ func _test_pristine_audit(world: ShipyardWorld) -> void:
 		and int(performance.get("surface_submission_count", -1)) == EXPECTED_LOCAL_SURFACE_SUBMISSIONS
 		and int(performance.get("visible_copy_count", -1)) == EXPECTED_LOCAL_VISIBLE_COPIES
 		and int(performance.get("triangle_count", -1)) == EXPECTED_LOCAL_TRIANGLES,
-		"audit freezes the bounded 2-mesh, 5-material, 5-submission, 141696-triangle result"
+		"audit freezes the bounded 2-mesh, 5-material, 5-submission, 22096-triangle result"
 	)
 	_check(
 		bool(report.get("near_black_sky", false))
@@ -280,15 +285,22 @@ func _test_deterministic_star_shell(world: ShipyardWorld, comparison_world: Ship
 		and multimesh.use_colors,
 		"one 3D MultiMesh publishes all 2,600 coloured star instances"
 	)
-	var star_sphere := multimesh.mesh as SphereMesh
-	var star_material := star_sphere.material as StandardMaterial3D if star_sphere != null else null
+	# One camera-facing quad per star, not a sphere. 2,600 spheres at 48 triangles
+	# each made the shell the single heaviest renderer in the scene; two triangles
+	# draw the same sub-pixel blob. The edge is area-matched to the sphere's
+	# projected disc so the sky did not get brighter in the trade — see
+	# `ShipyardWorld.SPACE_BACKDROP_STAR_QUAD_EDGE`.
+	var star_quad := multimesh.mesh as QuadMesh
+	var star_material := star_quad.material as StandardMaterial3D if star_quad != null else null
 	_check(
-		star_sphere != null
-		and is_equal_approx(star_sphere.radius, 0.9)
-		and is_equal_approx(star_sphere.height, 1.8)
-		and star_sphere.radial_segments == 6
-		and star_sphere.rings == 3,
-		"star draw uses one deliberately low-poly readable SphereMesh"
+		star_quad != null
+		and star_quad.size.is_equal_approx(
+			Vector2(EXPECTED_STAR_QUAD_EDGE, EXPECTED_STAR_QUAD_EDGE)
+		)
+		and is_equal_approx(
+			EXPECTED_STAR_QUAD_EDGE * EXPECTED_STAR_QUAD_EDGE, PI * 0.9 * 0.9
+		),
+		"star draw uses one two-triangle quad whose area matches the retired 0.9 m disc"
 	)
 	_check(
 		star_material != null
@@ -300,6 +312,16 @@ func _test_deterministic_star_shell(world: ShipyardWorld, comparison_world: Ship
 		and stars.cast_shadow == GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		and stars.gi_mode == GeometryInstance3D.GI_MODE_DISABLED,
 		"star renderer consumes instance colours and contributes no lighting or shadows"
+	)
+	# A quad has a facing where a sphere had none, so these two flags are the
+	# whole of what keeps the shell looking like the shell: turn to the camera,
+	# and keep the per-instance 0.55-2.35 scale spread through that rewrite.
+	_check(
+		star_material != null
+		and star_material.billboard_mode == BaseMaterial3D.BILLBOARD_ENABLED
+		and star_material.billboard_keep_scale
+		and star_material.disable_fog,
+		"every star faces the camera at its own instance scale and stays out of the dock fog"
 	)
 	_check(
 		stars.custom_aabb.is_equal_approx(
@@ -514,7 +536,7 @@ func _test_bounded_resource_sharing(world: ShipyardWorld) -> void:
 		and surface_submissions == EXPECTED_LOCAL_SURFACE_SUBMISSIONS
 		and visible_copies == EXPECTED_LOCAL_VISIBLE_COPIES
 		and triangles == EXPECTED_LOCAL_TRIANGLES,
-		"resource sharing preserves 5 renderer nodes/submissions, 2604 copies, and 141696 triangles"
+		"resource sharing preserves 5 renderer nodes/submissions, 2604 copies, and 22096 triangles"
 	)
 
 

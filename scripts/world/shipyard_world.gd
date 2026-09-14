@@ -444,6 +444,18 @@ const SPACE_BACKDROP_STAR_SEED := 19780704
 const SPACE_BACKDROP_STAR_COUNT := 2600
 const SPACE_BACKDROP_STAR_RADIUS_MIN := 1450.0
 const SPACE_BACKDROP_STAR_RADIUS_MAX := 1650.0
+## Edge of the camera-facing square one star is drawn with, in metres.
+##
+## `0.9 * sqrt(PI)`. The shell used to be 2,600 six-by-three spheres of radius
+## 0.9 m — 48 triangles each to draw something under a pixel wide — and this is
+## the square whose area equals that sphere's projected disc, `PI * 0.9^2`. Area
+## is the quantity to match rather than edge length, because at this angular size
+## a star's on-screen brightness is its pixel coverage times its colour; an
+## edge-matched 1.8 m square would have put 27% more light into every star in the
+## sky. The extent that the original TAA-survival note was calibrated on is kept
+## to within 11%.
+const SPACE_BACKDROP_STAR_QUAD_EDGE := 1.5952085
+
 const SPACE_BACKDROP_NEBULA_COVER_STRENGTH := 0.08
 const SPACE_BACKDROP_BODY_MESH_RADIUS := 1.0
 const SPACE_BACKDROP_BODY_MESH_RADIAL_SEGMENTS := 64
@@ -5471,33 +5483,39 @@ func get_space_backdrop_audit_report() -> Dictionary:
 		or stars.multimesh.instance_count != SPACE_BACKDROP_STAR_COUNT
 		or not stars.multimesh.use_colors
 		or stars.multimesh.transform_format != MultiMesh.TRANSFORM_3D
-		or stars.multimesh.mesh is not SphereMesh
+		or stars.multimesh.mesh is not QuadMesh
 		or stars.cast_shadow != GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		or stars.gi_mode != GeometryInstance3D.GI_MODE_DISABLED
 	):
 		errors.append("deterministic instanced star-shell contract drifted")
-	elif stars.multimesh.mesh is SphereMesh:
-		var star_sphere := stars.multimesh.mesh as SphereMesh
-		var star_material := star_sphere.material as StandardMaterial3D
-		mesh_resource_ids[star_sphere.get_instance_id()] = true
+	elif stars.multimesh.mesh is QuadMesh:
+		var star_quad := stars.multimesh.mesh as QuadMesh
+		var star_material := star_quad.material as StandardMaterial3D
+		mesh_resource_ids[star_quad.get_instance_id()] = true
 		if star_material != null:
 			material_resource_ids[star_material.get_instance_id()] = true
-		surface_submission_count += star_sphere.get_surface_count()
+		surface_submission_count += star_quad.get_surface_count()
 		visible_copy_count += (
 			stars.multimesh.instance_count
 			if stars.multimesh.visible_instance_count < 0
 			else stars.multimesh.visible_instance_count
 		)
 		if (
-			not is_equal_approx(star_sphere.radius, 0.9)
-			or not is_equal_approx(star_sphere.height, 1.8)
-			or star_sphere.radial_segments != 6
-			or star_sphere.rings != 3
+			not star_quad.size.is_equal_approx(
+				Vector2(SPACE_BACKDROP_STAR_QUAD_EDGE, SPACE_BACKDROP_STAR_QUAD_EDGE)
+			)
 			or star_material == null
 			or star_material.shading_mode != BaseMaterial3D.SHADING_MODE_UNSHADED
 			or not star_material.vertex_color_use_as_albedo
 			or not star_material.emission_enabled
 			or not is_equal_approx(star_material.emission_energy_multiplier, 0.55)
+			# A quad only reads as a star from every heading because it turns to
+			# face the camera, and only keeps the shell's depth spread because
+			# the billboard rewrite is told to carry the per-instance scale.
+			# Either flag lost silently flattens the entire sky.
+			or star_material.billboard_mode != BaseMaterial3D.BILLBOARD_ENABLED
+			or not star_material.billboard_keep_scale
+			or not star_material.disable_fog
 		):
 			errors.append("star mesh or material readability contract drifted")
 		if not stars.custom_aabb.is_equal_approx(
@@ -5599,15 +5617,15 @@ func get_space_backdrop_audit_report() -> Dictionary:
 		"authority_node_count": authority_node_count,
 		"renderable_count": renderable_count,
 		"runtime_draw_upper_bound": SPACE_BACKDROP_BODY_SPECS.size() + 1,
-		# 2,600 instances * 48 star triangles + 4 bodies * 4,224 triangles.
-		"runtime_triangle_upper_bound": 141_696,
+		# 2,600 instances * 2 star-quad triangles + 4 bodies * 4,224 triangles.
+		"runtime_triangle_upper_bound": 22_096,
 		"performance": {
 			"mesh_resource_count": mesh_resource_ids.size(),
 			"material_resource_count": material_resource_ids.size(),
 			"renderer_node_count": renderable_count,
 			"surface_submission_count": surface_submission_count,
 			"visible_copy_count": visible_copy_count,
-			"triangle_count": 141_696,
+			"triangle_count": 22_096,
 		},
 		"target_count": get_target_count(),
 		# Deliberately enumerated rather than derived from get_berth_ids(): the
@@ -9130,19 +9148,42 @@ func _build_space_backdrop() -> void:
 
 	# One deterministic instanced shell supplies the dense star identity without
 	# per-star nodes, processing, collision, lights, or camera-relative updates.
-	var star_mesh := SphereMesh.new()
-	# A base 0.9 m radius yields roughly one default-window pixel for the mean
-	# scale at shell distance, so TAA does not erase the entire identity cue.
-	star_mesh.radius = 0.9
-	star_mesh.height = 1.8
-	star_mesh.radial_segments = 6
-	star_mesh.rings = 3
+	#
+	# Each star is a camera-facing quad, not a sphere. A sphere is 48 triangles
+	# to draw a shape that is never more than about one pixel across — the shell
+	# alone was 124,800 triangles, 4.3% of the whole scene, and the single
+	# heaviest renderer in it. A billboarded quad is two, for 5,200 in total, and
+	# what reaches the frame is identical: an unshaded, unfogged, vertex-coloured
+	# disc-sized blob at a sub-pixel angular size, where the silhouette that
+	# separates a sphere from a square does not exist at any framing the game can
+	# reach. The positions, colours, per-instance scales and seed are untouched,
+	# so the constellation a player sees is the same one, star for star.
+	var star_mesh := QuadMesh.new()
+	# `SPACE_BACKDROP_STAR_QUAD_EDGE` is the square that puts exactly the old
+	# 0.9 m sphere's projected disc area on screen, so a sub-pixel star's
+	# brightness — which is coverage times colour — is unchanged rather than
+	# 27% brighter, which is what an edge-matched 1.8 m square would have been.
+	# It keeps 89% of the disc's extent, so the TAA-survival sizing note that
+	# picked 0.9 m still holds.
+	star_mesh.size = Vector2(
+		SPACE_BACKDROP_STAR_QUAD_EDGE, SPACE_BACKDROP_STAR_QUAD_EDGE
+	)
 	var star_material := _material(
 		Color("e7edf2"), 0.0, 1.0, Color("e7edf2"), 0.55
 	)
 	star_material.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 	star_material.vertex_color_use_as_albedo = true
 	star_material.disable_receive_shadows = true
+	# What replaces the sphere's own roundness: the quad turns to face whatever
+	# camera is drawing it, so a star is the same blob from every heading and
+	# from inside every ship, exactly as the sphere was. `billboard_keep_scale`
+	# is what carries the per-instance 0.55-2.35 size spread through the
+	# billboard rewrite of the model-view matrix; without it every star would
+	# collapse to the same size and the shell would lose its depth read. This is
+	# vertex-stage work on four vertices per star, against the 35 the sphere
+	# submitted, so it is strictly less per-frame work and no new update owner.
+	star_material.billboard_mode = BaseMaterial3D.BILLBOARD_ENABLED
+	star_material.billboard_keep_scale = true
 	# The depth fog that separates the station's far field is a local dock
 	# atmosphere, and this shell sits 1.45 kilometres out. Without this the fog
 	# reaches full density long before the stars and dissolves the entire star
