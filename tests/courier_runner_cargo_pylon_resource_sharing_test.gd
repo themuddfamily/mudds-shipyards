@@ -21,8 +21,8 @@ func _initialize() -> void:
 		first_pylons.size() == 2 and second_pylons.size() == 2,
 		"both production couriers retain two cargo-pylon renderer nodes"
 	)
-	var first_mesh := first_pylons[0].mesh as BoxMesh if first_pylons.size() == 2 else null
-	var second_mesh := second_pylons[0].mesh as BoxMesh if second_pylons.size() == 2 else null
+	var first_mesh := first_pylons[0].mesh as ArrayMesh if first_pylons.size() == 2 else null
+	var second_mesh := second_pylons[0].mesh as ArrayMesh if second_pylons.size() == 2 else null
 	_check(
 		first_mesh != null and second_mesh != null
 			and first_pylons[1].mesh == first_mesh
@@ -31,11 +31,11 @@ func _initialize() -> void:
 	)
 	_check(
 		first_mesh != second_mesh
-			and first_mesh.size.is_equal_approx(CourierRunnerOpponent.CARGO_PYLON_SIZE)
-			and second_mesh.size.is_equal_approx(CourierRunnerOpponent.CARGO_PYLON_SIZE)
+			and _stock_size(first_mesh).is_equal_approx(CourierRunnerOpponent.CARGO_PYLON_SIZE)
+			and _stock_size(second_mesh).is_equal_approx(CourierRunnerOpponent.CARGO_PYLON_SIZE)
 			and first_mesh.get_surface_count() == 1
 			and second_mesh.get_surface_count() == 1,
-		"shared stock remains courier-local and preserves the exact box silhouette"
+		"shared stock remains courier-local and preserves the exact authored pylon extents"
 	)
 	var shadow_id := int(
 		(first.get_visual_resource_audit().identity_by_key as Dictionary).get(&"courier_shadow", 0)
@@ -91,6 +91,10 @@ func _initialize() -> void:
 		quit(1)
 
 
+## e93cbb53b reshaped the courier's box stock into faceted armour ArrayMeshes,
+## which publish their authored extents through the `stock_size` meta instead of
+## `BoxMesh.size`. Select the pylons by that authored stock so this suite keeps
+## measuring the same two renderers it always did.
 func _cargo_pylons(courier: CourierRunnerOpponent) -> Array[MeshInstance3D]:
 	var pylons: Array[MeshInstance3D] = []
 	var visual := courier.get_node_or_null(^"ContractCourierVisual") as Node3D
@@ -100,10 +104,16 @@ func _cargo_pylons(courier: CourierRunnerOpponent) -> Array[MeshInstance3D]:
 		if child is not MeshInstance3D:
 			continue
 		var candidate := child as MeshInstance3D
-		var box := candidate.mesh as BoxMesh
-		if box != null and box.size.is_equal_approx(CourierRunnerOpponent.CARGO_PYLON_SIZE):
+		var stock := _stock_size(candidate.mesh as ArrayMesh)
+		if stock.is_equal_approx(CourierRunnerOpponent.CARGO_PYLON_SIZE):
 			pylons.append(candidate)
 	return pylons
+
+
+func _stock_size(mesh: ArrayMesh) -> Vector3:
+	if mesh == null:
+		return Vector3.ZERO
+	return mesh.get_meta(&"stock_size", Vector3.ZERO) as Vector3
 
 
 func _pylon_renderers_are_exact(pylons: Array[MeshInstance3D]) -> bool:

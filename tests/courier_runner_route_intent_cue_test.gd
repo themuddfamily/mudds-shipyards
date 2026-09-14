@@ -46,12 +46,20 @@ func _initialize() -> void:
 			and piece.mesh.surface_get_material(0) != null
 			and piece.mesh.surface_get_material(0).get_instance_id() == engine_material_id
 		)
+	# e93cbb53b reshaped every encounter-craft box into faceted armour stock, so
+	# the arrow's two recipes are now immutable ArrayMeshes that publish their
+	# authored box extents through the `stock_size` meta rather than BoxMesh.size.
 	_check(
 		bounded_geometry
 			and meshes.size() == 2
-			and pieces[0].mesh is BoxMesh
+			and pieces[0].mesh is ArrayMesh
+			and (pieces[0].mesh.get_meta(&"stock_size", Vector3.ZERO) as Vector3)
+				.is_equal_approx(CourierRunnerOpponent.ROUTE_INTENT_SHAFT_SIZE)
+			and pieces[1].mesh is ArrayMesh
+			and (pieces[1].mesh.get_meta(&"stock_size", Vector3.ZERO) as Vector3)
+				.is_equal_approx(CourierRunnerOpponent.ROUTE_INTENT_HEAD_SIZE)
 			and pieces[1].mesh == pieces[2].mesh,
-		"the readable arrow is bounded to two immutable box recipes and the shared emissive engine material"
+		"the readable arrow is bounded to two immutable faceted stock recipes and the shared emissive engine material"
 	)
 	_check(
 		cue.find_children("*", "Light3D", true, false).is_empty()
