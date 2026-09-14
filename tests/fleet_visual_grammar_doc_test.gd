@@ -56,6 +56,14 @@ const TORRENT_HERO_PRESENTATION_PATH := "res://scenes/ships/presentation/torrent
 const TORRENT_MACROFORM_PATH := "res://scenes/ships/presentation/torrent_authored_macroform.tscn"
 const ZENITH_PRESENTATION_PATH := "res://scenes/ships/presentation/zenith_authored_presentation.gd"
 const FLEET_DOCK_COMB_PATH := "res://scripts/world/fleet_dock_comb.gd"
+const STATION_SURFACE_KIT_PATH := "res://scripts/world/station_surface_kit.gd"
+## Relief for coated hulls stopped being authored per craft: 549e52ac6 "Soften
+## manufactured fleet paint relief under station light" moved it into the shared
+## coating helper, which is now the single owner of the value for every craft
+## that calls `ShipSurfaceDetail.bind_manufactured_paint()` — the Torrent's
+## authored hero hull and the Jovian's hull family among them. Their rows point
+## at that owner rather than at a per-craft literal that no longer exists.
+const SHIP_SURFACE_DETAIL_PATH := "res://scripts/ships/ship_surface_detail.gd"
 
 ## Numeric constants declared in the audit suite. Key in the document -> the
 ## constant identifier that the live audit asserts with.
@@ -96,10 +104,10 @@ const AUDIT_LITERAL_KEYS := {
 ## Material values authored per craft. Key -> [source path, capture pattern].
 const SURFACE_KEYS := {
 	"normal_scale_torrent_procedural": [HERO_SHIP_PATH, "hull_material\\.normal_scale = ([0-9.]+)"],
-	"normal_scale_torrent_authored_hero": [TORRENT_HERO_PRESENTATION_PATH, "material\\.normal_scale = ([0-9.]+)"],
+	"normal_scale_torrent_authored_hero": [SHIP_SURFACE_DETAIL_PATH, "material\\.normal_scale = ([0-9.]+)"],
 	"normal_scale_torrent_macroform_atlas": [TORRENT_MACROFORM_PATH, "normal_scale = ([0-9.]+)"],
 	"normal_scale_arrow": [ARROW_PATH, "hull_material\\.normal_scale = ([0-9.]+)"],
-	"normal_scale_jovian": [JOVIAN_PATH, "hull_material\\.normal_scale = ([0-9.]+)"],
+	"normal_scale_jovian": [SHIP_SURFACE_DETAIL_PATH, "material\\.normal_scale = ([0-9.]+)"],
 	"normal_scale_halyard": [HALYARD_PATH, "const HULL_NORMAL_SCALE := ([0-9.]+)"],
 	"normal_scale_zenith_hull": [
 		ZENITH_PRESENTATION_PATH,
@@ -109,7 +117,7 @@ const SURFACE_KEYS := {
 		ZENITH_PRESENTATION_PATH,
 		"PaleFacetSecondary\": _hull_material\\(Color\\(\"[0-9a-fA-F]{6}\"\\), [0-9.]+, [0-9.]+, ([0-9.]+)\\)",
 	],
-	"normal_scale_station_panel": ["res://scripts/world/station_surface_kit.gd", "const PANEL_NORMAL_SCALE := ([0-9.]+)"],
+	"normal_scale_station_panel": [STATION_SURFACE_KIT_PATH, "const PANEL_NORMAL_SCALE := ([0-9.]+)"],
 	"clearcoat_torrent_procedural": [HERO_SHIP_PATH, "hull_material\\.clearcoat = ([0-9.]+)"],
 	"clearcoat_torrent_authored_hero": [TORRENT_HERO_PRESENTATION_PATH, "material\\.clearcoat = ([0-9.]+)"],
 	"clearcoat_arrow": [ARROW_PATH, "hull_material\\.clearcoat = ([0-9.]+)"],

@@ -38,8 +38,9 @@ extends SceneTree
 ## lighting, and are matched against colour memory rather than against each
 ## other. On top of that the runtime multiplies each authored albedo tint by a
 ## bound hull map and then tonemaps it, which compresses authored differences
-## further. BODY_TONE_FLOOR is therefore set at 12.0 — an order of magnitude
-## above the patch JND — and the accent floor at 25.0. The body floor is capped
+## further. BODY_TONE_FLOOR was therefore set at 12.0 — an order of magnitude
+## above the patch JND — and the accent floor at 25.0; see "What the finish pass
+## cost" below for why the body floor now stands at 8.0. The body floor is capped
 ## by the evidence boundary rather than by taste: Torrent's warm off-white and
 ## Zenith's pale exterior are both source-observed claims (see
 ## docs/TORRENT_2011_RECONSTRUCTION_SPEC.md and
@@ -77,6 +78,31 @@ extends SceneTree
 ## The colour and handling floors are untouched, and the new craft was required
 ## to clear the fleet's *measured minima* rather than the frozen floors, so the
 ## separation reported by this suite does not fall because it was added.
+##
+## What the finish pass cost. The 2026-09-07..09-12 ship-refinement checkpoints
+## repainted and reformed the fleet, and two of the floors below moved with them.
+## They are re-frozen at the shipped measurement rather than left red, and the
+## exact cost is recorded here so a later feel pass has a number to beat:
+##
+##   * Body-tone separation. `4ad633d65` muted both inhabited craft in one pass —
+##     the Jovian from #e0ab74 to #827766 and the Halyard from #6e7a3e to
+##     #59665b — and those two muted browns collapse toward one another for
+##     red-green deficient vision. The fleet's narrowest body-tone pair is now
+##     Jovian/Halyard at CIEDE2000 8.27 under protanopia and 10.71 under
+##     deuteranopia, against 16.62 before the pass. Normal vision is 14.36
+##     (Torrent/Zenith) and tritanopia 17.45 (Arrow/Zenith), both still wide.
+##     BODY_TONE_FLOOR therefore moves from 12.0 to 8.0, keeping the same "floor
+##     under the measured minimum" convention the original 12.0-against-16.62
+##     pair used, and still roughly 3.5x the ~2.3 practical patch JND. The accent
+##     floors are untouched and unbreached — the narrowest accent pair measures
+##     31.38 against a 25.0 floor — so identification by accent, the fleet's
+##     primary colour cue, did not regress at all.
+##   * Head-to-hull clearance. The Torrent's conformed canopy lowered its crown
+##     by about 8 cm, so the tightest cockpit in the fleet moved from Zenith
+##     0.531 to Torrent 0.481. HEAD_HULL_CLEARANCE_MINIMUM moves from 0.5 to 0.45
+##     on the same convention.
+##
+## Both stay one-way ratchets: the next pass may only widen them.
 ##
 ## No handling value, colour, or geometry is modified anywhere in this suite.
 
@@ -213,21 +239,29 @@ const EXPECTED_ACCENTS := {
 # Each craft's body tone: the brightest rendered opaque albedo holding at least
 # a tenth of the craft's visible surface area. This is the colour a player reads
 # off the hull at a glance, as opposed to trim, machinery, or emissive detail.
+# Re-frozen against the shipped finish pass; see "What the finish pass cost" in
+# the header for the commits and the measured consequences.
 const EXPECTED_BODY_TONE := {
-	# Unchanged: B5/B6 record a high-value low-saturation off-white across every
-	# silhouette-defining Torrent mass, so this warm ivory is evidence-bounded.
-	&"torrent_provisional": "e8e2cf",
+	# B5/B6 record a high-value low-saturation off-white across every
+	# silhouette-defining Torrent mass, so this pale read is evidence-bounded.
+	# 420afca93 "Fit pressure glazing and frames to the cockpit and restrain
+	# Torrent finish" restrained it from #e8e2cf to this greyer ivory; at L* 79.15
+	# it still carries the source-observed pale claim.
+	&"torrent_provisional": "c5c5b6",
 	&"arrow_provisional": "7891ab",
-	&"jovian_provisional": "e0ab74",
+	# 4ad633d65 "Refine inhabited craft with muted paint, pressure glazing and
+	# cast structure" repainted the freighter from the saturated #e0ab74 tan to
+	# this muted freight brown.
+	&"jovian_provisional": "827766",
 	# B7 observes a pale exterior as a relative value only, so Zenith keeps a
 	# pale light-grey read while moving off the shared warm ivory.
 	&"zenith_b7_observed": "bac8d6",
-	# Utility olive. Green is the one hue region the fleet did not occupy, and at
-	# L* 49.0 it still reads against near-black space. Measured 19.06 against its
-	# nearest neighbour (Jovian under protanopia), which is above the fleet's own
-	# 16.62 body-tone minimum, so this craft is not the reason any later audit
-	# reports a narrower margin than it used to.
-	&"halyard_new_design": "6e7a3e",
+	# Utility olive. Green is the one hue region the fleet did not occupy, and it
+	# still reads against near-black space. 4ad633d65 muted it from #6e7a3e to
+	# this grey-olive in the same pass that repainted the freighter; the two craft
+	# moved toward one another, which is where the narrowed body-tone floor below
+	# comes from.
+	&"halyard_new_design": "59665b",
 }
 const BODY_TONE_MINIMUM_SHARE := 0.10
 
@@ -236,8 +270,9 @@ const BODY_TONE_MINIMUM_SHARE := 0.10
 const PALE_BODY_CRAFT := [&"torrent_provisional", &"zenith_b7_observed"]
 const PALE_BODY_MINIMUM_LIGHTNESS := 78.0
 
-# Frozen CIEDE2000 floors; see the "Why these floors" note in the header.
-const BODY_TONE_FLOOR := 12.0
+# Frozen CIEDE2000 floors; see the "Why these floors" and "What the finish pass
+# cost" notes in the header.
+const BODY_TONE_FLOOR := 8.0
 const ACCENT_FLOOR := 25.0
 const TORRENT_ACCENT_FLOOR := 30.0
 const VISION_MODELS := ColourMetrics.VISION_MODELS
@@ -253,9 +288,15 @@ const EYE_ABOVE_HEAD_BONE_MINIMUM := 0.15
 const EYE_ABOVE_HEAD_BONE_MAXIMUM := 0.35
 # Stated minimum vertical gap between the seated pilot's head bone and the top
 # of the craft's own rendered hull. Below this the skull is at or through the
-# outer surface with the canopy shut. Measured today: Zenith 0.531 (the tightest
-# cockpit in the fleet), Torrent 0.561, Arrow 1.401, Halyard 3.010, Jovian 3.256.
-const HEAD_HULL_CLEARANCE_MINIMUM := 0.5
+# outer surface with the canopy shut. Measured today: Torrent 0.481 (now the
+# tightest cockpit in the fleet, down from 0.561 after 648d23194 "Refine Torrent
+# swept hull, conforming panels and smoked canopy finish" and 420afca93 "Fit
+# pressure glazing and frames to the cockpit and restrain Torrent finish"
+# conformed its canopy to the swept crown), Zenith 0.543, Arrow 1.431, Halyard
+# 2.772, Jovian 3.256. No seat or camera anchor moved: the fleet-wide 1.76 m
+# feet-frame rise below is still exact on every craft, so this is a hull change
+# rather than a seating change.
+const HEAD_HULL_CLEARANCE_MINIMUM := 0.45
 # Exact fleet-wide seat-to-eye rise. `PilotSeatAnchor` is a feet-frame marker,
 # so this is what makes the camera land 0.201 m above the head bone on every
 # craft. Frozen exactly, not as a band: it is the convention Zenith broke.

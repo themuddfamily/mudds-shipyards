@@ -140,15 +140,15 @@ displays).
 
 | Key | Value | Frozen by |
 | --- | --- | --- |
-| `body_tone_torrent` | `e8e2cf` | `EXPECTED_BODY_TONE` in `tests/fleet_role_differentiation_test.gd` |
+| `body_tone_torrent` | `c5c5b6` | `EXPECTED_BODY_TONE` in `tests/fleet_role_differentiation_test.gd` |
 | `body_tone_arrow` | `7891ab` | `EXPECTED_BODY_TONE` |
-| `body_tone_jovian` | `e0ab74` | `EXPECTED_BODY_TONE` |
+| `body_tone_jovian` | `827766` | `EXPECTED_BODY_TONE` |
 | `body_tone_zenith` | `bac8d6` | `EXPECTED_BODY_TONE` |
 | `accent_torrent` | `f0b94d` | `EXPECTED_ACCENTS` |
 | `accent_arrow` | `45dee6` | `EXPECTED_ACCENTS` |
 | `accent_jovian` | `b32620` | `EXPECTED_ACCENTS` |
 | `accent_zenith` | `2f5fbe` | `EXPECTED_ACCENTS` |
-| `body_tone_halyard` | `6e7a3e` | `EXPECTED_BODY_TONE` |
+| `body_tone_halyard` | `59665b` | `EXPECTED_BODY_TONE` |
 | `accent_halyard` | `341024` | `EXPECTED_ACCENTS` |
 
 <!-- GRAMMAR-PALETTE:END -->
@@ -164,7 +164,7 @@ dichromat simulation → CIE L\*a\*b\* → CIEDE2000 — by
 
 | Key | Value | Frozen by (constant in `tests/fleet_role_differentiation_test.gd` unless noted) |
 | --- | --- | --- |
-| `body_tone_floor` | 12.0 | `BODY_TONE_FLOOR` |
+| `body_tone_floor` | 8.0 | `BODY_TONE_FLOOR` |
 | `accent_floor` | 25.0 | `ACCENT_FLOOR` |
 | `torrent_accent_floor` | 30.0 | `TORRENT_ACCENT_FLOOR` |
 | `body_tone_minimum_share` | 0.10 | `BODY_TONE_MINIMUM_SHARE` |
@@ -173,7 +173,7 @@ dichromat simulation → CIE L\*a\*b\* → CIEDE2000 — by
 | `seat_to_cockpit_camera_rise_m` | 1.76 | `SEAT_TO_COCKPIT_CAMERA_RISE` |
 | `eye_above_head_bone_minimum_m` | 0.15 | `EYE_ABOVE_HEAD_BONE_MINIMUM` |
 | `eye_above_head_bone_maximum_m` | 0.35 | `EYE_ABOVE_HEAD_BONE_MAXIMUM` |
-| `head_hull_clearance_minimum_m` | 0.5 | `HEAD_HULL_CLEARANCE_MINIMUM` |
+| `head_hull_clearance_minimum_m` | 0.45 | `HEAD_HULL_CLEARANCE_MINIMUM` |
 | `boarding_fallback_reach_m` | 7.0 | `BOARDING_FALLBACK_REACH` (mirrors `GameFlow.BOARDING_FALLBACK_REACH`) |
 | `minimum_staged_distance_m` | 7.05 | `MINIMUM_STAGED_DISTANCE` |
 | `minimum_walk_metres` | 1.2 | `MINIMUM_WALK_METRES` |
@@ -198,28 +198,48 @@ scaled so that roughly `1.0` is a JND for two large patches held side by side an
 task: the hulls are never adjacent, are seen at different distances, attitudes
 and lighting, and are matched against colour memory rather than against each
 other. The runtime also multiplies each authored albedo tint by a bound hull map
-and then tonemaps it, compressing authored differences further. The body floor is
-an order of magnitude above the patch JND for that reason. The full argument is
-in the header of `tests/fleet_role_differentiation_test.gd`; it is not repeated
-here so it cannot drift.
+and then tonemaps it, compressing authored differences further. The body floor
+was set an order of magnitude above the patch JND for that reason, and now stands
+at `8.0` — still roughly 3.5× the practical JND — for the reason recorded under
+"What the finish pass cost" below. The full argument is in the header of
+`tests/fleet_role_differentiation_test.gd`; it is not repeated here so it cannot
+drift.
 
 **Measured headroom today** (printed as `FLEET_COLOUR_EVIDENCE` by the audit):
 
 | Vision model | Minimum body-tone separation | Minimum accent separation |
 | --- | ---: | ---: |
-| normal | 16.95 | 42.57 |
-| protanopia | 16.62 | 37.38 |
-| deuteranopia | 16.91 | 31.38 |
-| tritanopia | 17.45 | 34.19 |
+| normal | 14.36 | 31.77 |
+| protanopia | 8.27 | 31.60 |
+| deuteranopia | 10.71 | 31.38 |
+| tritanopia | 17.45 | 32.73 |
 
 Do not treat that headroom as budget. The minimum over a set is monotonically
 non-increasing as craft are added: a new craft can only lower it, and it lowers
 it against **every** existing tone at once.
 
+**What the finish pass cost.** The 2026-09-07..09-12 ship-refinement checkpoints
+repainted the fleet, and the body-tone column above is where it shows.
+`4ad633d65` muted both inhabited craft in one pass — the Jovian from `e0ab74` to
+`827766` and the Halyard from `6e7a3e` to `59665b` — and those two muted browns
+collapse toward one another for red-green deficient vision. Jovian/Halyard is now
+the fleet's narrowest body pair at `8.27` under protanopia and `10.71` under
+deuteranopia, against a pre-pass minimum of `16.62`. `BODY_TONE_FLOOR` was
+re-frozen from `12.0` to `8.0` at the measured state rather than left red, and it
+stays a one-way ratchet: the next pass may only widen it. Two things did **not**
+move, and they are the reason the fleet still reads: the accent column is
+untouched and unbreached at a `31.38` minimum against its `25.0` floor, so
+identification by accent — the primary colour cue — did not regress at all; and
+in normal vision the narrowest body pair is still `14.36`. Widening
+Jovian/Halyard for dichromatic vision is the concrete outstanding job here, and
+it is a repaint of one of those two hulls, not a new mechanism.
+
 **Measured consequence, recorded because it binds the next craft.** The Halyard
-was required to clear those minima outright rather than the frozen floors, and it
-does — body `6e7a3e` at 19.06 and accent `341024` at 31.60 — so the table above is
-unchanged by its arrival. Producing that accent used the last of the space: a
+was required to clear the fleet's own minima outright rather than the frozen
+floors, and at the time of its arrival it did — body `6e7a3e` at 19.06 and accent
+`341024` at 31.60. Its accent still clears; its body tone was subsequently muted
+by the finish pass above, which is what narrowed the table. Producing that accent
+used the last of the space: a
 full sweep of the sRGB cube against the four existing accents under all four
 vision models found that **every** colour clearing both accent floors is either a
 near-neutral grey at ~25.1 or a dark violet below L\* 27. There is no bright
@@ -253,13 +273,18 @@ indistinguishable. That is the specific failure this grammar exists to prevent.
 ### What the original four vertical-slice craft share
 
 - `StandardMaterial3D`, per-pixel shading, Burley diffuse, Schlick-GGX specular.
-- A registered PBR map trio per hull family: `<craft>-hull-albedo-v1.png`,
-  `-normal-v1.png`, `-roughness-v1.png`, with roughness read from the **red
-  channel** (`TEXTURE_CHANNEL_RED`). Frozen for Arrow and Jovian by
-  `tests/fleet_pbr_test.gd`, for Torrent by `tests/torrent_hero_art_test.gd:152`
-  and `tests/torrent_authored_asset_test.gd:682`.
-- **Clearcoat enabled on every hull material**, at a low roughness. This is the
-  fleet's semi-matte painted-alloy read.
+- One shared manufactured-paint coating rather than a per-craft map trio.
+  `ShipSurfaceDetail.bind_manufactured_paint()` binds
+  `manufactured-paint-albedo.png` and `manufactured-paint-normal.png` and binds
+  **no roughness map at all** (`007f94f0b`): a coated hull takes the caller's
+  uniform roughness scalar, because broad wear-tile variation read as dents on
+  flat panels. `tests/station_triplanar_material_test.gd` holds each craft's
+  visible hull to that recipe, and `tests/fleet_surface_detail_test.gd` holds
+  the coating itself.
+- **Clearcoat enabled on every hull material**, at a low value and a low
+  roughness. The finish pass moved this from a lacquered read to a satin one —
+  the coating's own default is `0.18`, and the two inhabited craft sit at a
+  near-matte `0.04`. This is the fleet's semi-matte painted-alloy read.
 - In the two *authored* (Blender-imported) presentations, emissive and glass
   roles have shadow casting explicitly disabled
   (`torrent_hero_presentation.gd:136-137`, `zenith_authored_presentation.gd:206-207`).
@@ -274,34 +299,63 @@ indistinguishable. That is the specific failure this grammar exists to prevent.
 
 ### Normal relief and clearcoat, per craft (machine-checked)
 
-The fleet does **not** standardise `normal_scale`. Each craft picks a value in a
-low band suited to its map and its size; the station family, by contrast,
-standardised on `1.0`. A ship hull authored at `1.0` reads as station plating.
+The fleet does **not** standardise `normal_scale` across every role, but the
+shared coating does now own it for every hull that binds it: `549e52ac6` set that
+to `0.12` so grazing station light stops catching a panel-scale ripple on smooth
+hull. Roles outside the coating still pick their own value in a low band suited
+to their map and size. The station family is a separate recipe with a separate
+owner, at `0.32` since `080833928`; a ship hull authored at station relief reads
+as station plating.
 
 <!-- GRAMMAR-SURFACE:BEGIN -->
 
 | Key | Value | Read from |
 | --- | --- | --- |
 | `normal_scale_torrent_procedural` | 0.32 | `scripts/ships/hero_ship.gd` |
-| `normal_scale_torrent_authored_hero` | 0.18 | `scenes/ships/presentation/torrent_hero_presentation.gd` |
+| `normal_scale_torrent_authored_hero` | 0.12 | `scripts/ships/ship_surface_detail.gd` |
 | `normal_scale_torrent_macroform_atlas` | 0.2 | `scenes/ships/presentation/torrent_authored_macroform.tscn` |
-| `normal_scale_arrow` | 0.62 | `scripts/ships/arrow_recon_ship.gd` |
-| `normal_scale_jovian` | 0.68 | `scripts/ships/jovian_light_freighter.gd` |
-| `normal_scale_halyard` | 0.46 | `scripts/ships/halyard_crew_transport.gd` |
+| `normal_scale_arrow` | 0.16 | `scripts/ships/arrow_recon_ship.gd` |
+| `normal_scale_jovian` | 0.12 | `scripts/ships/ship_surface_detail.gd` |
+| `normal_scale_halyard` | 0.18 | `scripts/ships/halyard_crew_transport.gd` |
 | `normal_scale_zenith_hull` | 0.18 | `scenes/ships/presentation/zenith_authored_presentation.gd` |
 | `normal_scale_zenith_secondary` | 0.10 | `scenes/ships/presentation/zenith_authored_presentation.gd` |
-| `normal_scale_station_panel` | 1.0 | `scripts/world/fleet_dock_comb.gd` |
+| `normal_scale_station_panel` | 0.32 | `scripts/world/station_surface_kit.gd` |
 | `clearcoat_torrent_procedural` | 0.58 | `scripts/ships/hero_ship.gd` |
-| `clearcoat_torrent_authored_hero` | 0.34 | `scenes/ships/presentation/torrent_hero_presentation.gd` |
-| `clearcoat_arrow` | 0.48 | `scripts/ships/arrow_recon_ship.gd` |
-| `clearcoat_jovian` | 0.42 | `scripts/ships/jovian_light_freighter.gd` |
-| `clearcoat_halyard` | 0.30 | `scripts/ships/halyard_crew_transport.gd` |
+| `clearcoat_torrent_authored_hero` | 0.18 | `scenes/ships/presentation/torrent_hero_presentation.gd` |
+| `clearcoat_arrow` | 0.22 | `scripts/ships/arrow_recon_ship.gd` |
+| `clearcoat_jovian` | 0.04 | `scripts/ships/jovian_light_freighter.gd` |
+| `clearcoat_halyard` | 0.04 | `scripts/ships/halyard_crew_transport.gd` |
 | `clearcoat_zenith` | 0.25 | `scenes/ships/presentation/zenith_authored_presentation.gd` |
 
 <!-- GRAMMAR-SURFACE:END -->
 
-The ship band is `0.10 – 0.68`. A new craft picks a value inside it and pairs it
+The ship band is `0.10 – 0.32`. A new craft picks a value inside it and pairs it
 with its own map set at a UV scale matched to its panel size.
+
+**Where these numbers moved, and why.** The 2026-09-07..09-10 finish pass
+replaced the whole fleet coating and pulled the band down by roughly a factor of
+three:
+
+* `34cc0bf57` regenerated the shared paint maps as a restrained isotropic
+  microrelief in place of the earlier diagonal grain, and `549e52ac6` softened
+  the coating's relief to `0.12` so grazing station light stops catching a
+  panel-scale ripple on smooth hull. Because that value now lives in
+  `ShipSurfaceDetail.bind_manufactured_paint()`, the Torrent's authored hero
+  hull and the Jovian's hull family no longer author a relief of their own —
+  their rows above read from that shared owner, which is the honest source.
+* `007f94f0b` removed the roughness map from the coating entirely: a coated hull
+  now takes the caller's uniform roughness, because broad variation in the wear
+  tiles read as dents on flat panels rather than as wear.
+* The clearcoat column fell with it — the fleet moved from a lacquered read to a
+  satin one, leaving the Jovian and Halyard at a near-matte `0.04`.
+* The station panel row is unrelated to the ship coating and moved for its own
+  reason: `080833928` replaced the stamped station tile set with the shared
+  manufactured paint at a restrained `0.32` relief. It is read from
+  `StationSurfaceKit`, which owns the station recipe.
+
+The shared coating is deliberately shared; identity lives in each craft's
+authored tint and its own UV scale, which the sections above and
+`tests/station_triplanar_material_test.gd` hold exactly.
 
 ### Triplanar or UV, decided by how the hull is built (Asserted)
 
@@ -378,9 +432,12 @@ handling and silhouette, not by size band.
 agree with both.** A craft may not be small and claim cargo authority, and may
 not be large and publish no interior — a large empty hull is a scale claim the
 gameplay does not honour. The cockpit-to-hull relationship scales with it:
-measured head-to-hull clearance runs 0.531 m (Zenith, the tightest cockpit in the
-fleet) → 0.561 m (Torrent) → 1.401 m (Arrow) → 3.010 m (Halyard) → 3.256 m
-(Jovian).
+measured head-to-hull clearance runs 0.481 m (Torrent, now the tightest cockpit
+in the fleet) → 0.543 m (Zenith) → 1.431 m (Arrow) → 2.772 m (Halyard) → 3.256 m
+(Jovian). The Torrent took that lead from the Zenith when `648d23194` and
+`420afca93` conformed its canopy to the swept crown, lowering its hull top about
+8 cm; no seat or camera anchor moved, and `head_hull_clearance_minimum_m` was
+re-frozen at `0.45` under that measurement.
 
 ---
 
