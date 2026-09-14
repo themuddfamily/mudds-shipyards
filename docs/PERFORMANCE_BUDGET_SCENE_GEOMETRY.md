@@ -280,23 +280,24 @@ of the station's rings would be to lower a floor that was established by looking
 at renders, which this pass is not willing to do.
 
 Rendered evidence, at 1280x720 through `gl_compatibility` on a D3D12 GPU, from
-ten fixed gameplay viewpoints — the habitat corridor at walking distance, a
+eleven fixed gameplay viewpoints — the habitat corridor at walking distance, a
 walk-up on one rib foot, a look up at a rib crown, the common room, a bunk
 privacy arch, the Aft operations room inside and its envelope from the open deck
 outside, a freight-berth tie-down ring close under the apron's two
 shadow-casting spots, the whole station in a long view with its cast shadows,
-and the backdrop worlds — with station activity and service-agent clocks seeked
-to zero so both sides frame the identical scene. Captures and diffs are under
+the backdrop worlds, and one flight-range target drone — with station activity
+and service-agent clocks seeked to zero so both sides frame the identical scene.
+Captures and diffs are under
 `/root/.cache/mudds-shipyards/station-trim2-root/`.
 
-Nine of the ten views are static; the tenth (a flight-range target drone) is
-excluded from the totals below because the drone drifts, which moves 25.6% of
-that frame's pixels between two runs of the *same* build.
+Ten of the eleven views are static; the eleventh (the target drone) is excluded
+from the totals below because the drone drifts, which moves 25.6% of that
+frame's pixels between two runs of the *same* build.
 
-- Over the nine static views, two runs of the same build differ on **0.16%** of
+- Over the ten static views, two runs of the same build differ on **0.16%** of
   pixels (a second same-build pair differs on 0.54%, driven by the backdrop's
   own star field and the range markers' drift).
-- Before against after differs on **0.93%** of pixels over the same nine views.
+- Before against after differs on **0.93%** of pixels over the same ten views.
   This pass is *not* pixel-identical and is not claimed to be: moving a
   silhouette is what it does, and a rule held to about 1.8 px of silhouette
   error is expected to move edge pixels. Per view the figure runs 0.13% (rib
