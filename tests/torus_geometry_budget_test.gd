@@ -259,9 +259,15 @@ func _check_world_rings() -> void:
 		and int(freight_report.get("surfaces", 0)) == 8,
 		"freight lashing rings freeze at 6144 -> 4096 triangles while eight instances/surfaces stay exact"
 	)
+	# Refrozen 2026-09-14: six rings were added to the world subtree since the
+	# previous freeze of 105,824 across 127. The 2026-09-14 trim pass changed no
+	# torus — it flattened cylinder walls and rebuilt the star shell — so this
+	# move is the station's own ring growth, and it stays well inside
+	# `WORLD_TORUS_TRIANGLE_CEILING`.
 	_check(
-		total == 105824 and rings.size() == 127,
-		"the ordinary world-subtree TorusMesh renderers retain 105824 triangles across 127 copies"
+		total == 111584 and rings.size() == 133,
+		"the ordinary world-subtree TorusMesh renderers retain 111584 triangles across 133 copies (got %d across %d)"
+			% [total, rings.size()]
 	)
 
 	# Six console collars moved out of the sweep's ordinary MeshInstance roster.

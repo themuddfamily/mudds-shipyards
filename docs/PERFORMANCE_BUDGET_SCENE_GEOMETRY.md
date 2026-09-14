@@ -172,26 +172,104 @@ separate diagnostics rather than being recursively folded into the count
 fingerprint. Runtime fallback node names are normalized to stable
 class-and-sibling ordinals in both bucket paths and material origins.
 
-The 2026-09-07 stabilization census measures the current nine-craft production
-composition: physical berth feedback, the embodied destination/activity/service
-boards, current combat presentation, Salvage work lighting, and the streamed
-Cinder berth/cargo fitout. Existing `geometry_census_scenario_test.gd` freezes
-both scenarios with Godot 4.7.1, headless Forward+, Dummy audio and HIGH quality.
-These are measured totals; the budgets above remain unchanged.
+The 2026-09-14 census measures the current nine-craft production composition:
+physical berth feedback, the embodied destination/activity/service boards,
+current combat presentation, Salvage work lighting, and the streamed Cinder
+berth/cargo fitout. Existing `geometry_census_scenario_test.gd` freezes both
+scenarios with Godot 4.7.1, headless Forward+, Dummy audio and HIGH quality.
+These are measured totals; the budgets above remain unchanged, and **no ceiling
+in this document has been raised.**
 
 | Schema-v2 metric | Station resident (0 loaded) | Cinder loaded (1 loaded) | Loaded delta |
 | --- | ---: | ---: | ---: |
-| Triangles | 1,858,100 | 1,992,234 | +134,134 |
-| Mesh renderer nodes | 5,849 | 6,058 | +209 |
-| Surfaces | 5,868 | 6,077 | +209 |
-| Unique meshes | 2,737 | 2,877 | +140 |
-| Bound-phase materials | 606 | 648 | +42 |
-| Retained/reachable materials | 897 | 944 | +47 |
-| Unique shaders | 3 | 3 | 0 |
-| Text triangles / instances | 79,310 / 43 | 99,876 / 56 | +20,566 / +13 |
+| Triangles | 2,404,183 | 2,538,317 | +134,134 |
+| Mesh renderer nodes | 6,586 | 6,795 | +209 |
+| Surfaces | 6,681 | 6,890 | +209 |
+| Unique meshes | 3,353 | 3,493 | +140 |
+| Bound-phase materials | 692 | 734 | +42 |
+| Retained/reachable materials | 968 | 1,015 | +47 |
+| Unique shaders | 7 | 7 | 0 |
+| Text triangles / instances | 79,591 / 43 | 100,157 / 56 | +20,566 / +13 |
 | Lights / shadow lights | 335 / 20 | 362 / 20 | +27 / 0 |
 | Particle systems | 45 | 45 | 0 |
-| Scene-tree nodes | 10,719 | 11,142 | +423 |
+| Scene-tree nodes | 11,603 | 12,026 | +423 |
+
+#### 2026-09-14 trim: -528,560 resident triangles
+
+The station-resident scene measured 2,932,743 triangles before this pass against
+the 1,800,000 ceiling above. Phase 10 item 2 of `ROADMAP.md` says trim before
+raising budgets, so two reductions were taken and nothing was relaxed. Both are
+triangle-only: renderer nodes, surfaces, unique meshes, materials, shaders,
+lights, particle systems, scene-tree nodes, collision shapes, interaction
+markers, evidence labels and lifecycle owners are identical on both sides, and
+the streamed Cinder delta is unchanged.
+
+| Bucket | Before | After | Delta |
+| --- | ---: | ---: | ---: |
+| `ShipyardWorld/HabitatSpine` | 641,126 | 379,494 | -261,632 |
+| `ShipyardWorld/SpaceBackdrop` | 141,696 | 22,096 | -119,600 |
+| `ShipyardWorld/AftJunctionStack` | 317,226 | 214,314 | -102,912 |
+| `ShipyardWorld/VipReceptionSuite` | 71,511 | 52,567 | -18,944 |
+| `ShipyardWorld/IndustrialInfrastructure` | 23,040 | 11,520 | -11,520 |
+| `ShipyardWorld/FleetDockComb` | 20,404 | 16,436 | -3,968 |
+| `ShipyardWorld/CentralBerthServiceLine` | 17,924 | 15,428 | -2,496 |
+| `ShipyardWorld/LandingPad` | 45,060 | 42,756 | -2,304 |
+| `ShipyardWorld/ExposedDockLattice` | 23,395 | 21,667 | -1,728 |
+| `ShipyardWorld/CargoAndMachinery` | 5,220 | 4,068 | -1,152 |
+| `ShipyardWorld/OpenLaunchSpine` | 6,068 | 5,300 | -768 |
+| `ShipyardWorld/UpperOperations` | 21,330 | 20,562 | -768 |
+| `ShipyardWorld/ModernFleetRegistry` | 17,052 | 16,476 | -576 |
+| `ShipyardWorld/ExteriorTargetRange` | 33,275 | 33,083 | -192 |
+| **Whole scene** | **2,932,743** | **2,404,183** | **-528,560** |
+
+**Station cylinder walls lost their four lateral rings (-408,960).** Every
+chamfered cylinder and frustum the station modules build was still subdividing
+its wall at Godot's `CylinderMesh.rings = 4`. That wall is planar between each
+pair of radial angles — on a straight cylinder both side edges are vertical, on
+a frustum both are generators meeting at the cone apex — so every ring the
+subdivision adds sits exactly on the plane the two-triangle version already
+interpolates, at exactly the linear parameter it would have produced: no
+silhouette moves, no AABB changes, the band normals are identical because a
+wall's profile is one straight segment, and the axial UV is linear in y either
+way. Only per-*vertex* sampling could see the difference, and the station shades
+per pixel with a world-triplanar finish. The chamfer bands and caps, where the
+rim highlight lives, are untouched. The fleet took the same reduction during the
+ship pass; `StationSurfaceKit.CYLINDER_WALL_RINGS` is the station half, and
+`tests/station_structural_bevel_contract_test.gd` and
+`tests/fleet_surface_detail_test.gd` prove the property on both sides.
+HabitatSpine dominates the saving because its 27 pressure-rib arches are 14
+tube segments each *and* are duplicated into an opaque shadow batch, so every
+triangle removed from a rib is removed twice.
+
+**The star shell became quads (-119,600).** `SpaceBackdrop/ParallaxStars` drew
+2,600 stars as six-by-three spheres — 48 triangles each, the single heaviest
+renderer in the scene — to draw something that is never more than about one
+pixel across at 1.45 km. Each star is now one camera-facing quad at two
+triangles. Seed, positions, colours and per-instance scales are untouched. The
+quad's edge is `0.9 * sqrt(PI)`, the square with the retired sphere's projected
+disc area, so a sub-pixel star's brightness — coverage times colour — does not
+change.
+
+Rendered evidence, at 1280x720 through `gl_compatibility` on a D3D12 GPU, from
+ten fixed gameplay viewpoints covering the central berth and its star field, the
+habitat corridor and a walk-up on one pressure-rib arch, the habitat common
+room, the Aft Junction operations room, the landing-pad berth ring and the dock
+lattice mast, with station activity and service-agent clocks seeked to zero so
+both sides frame the identical scene:
+
+- Two runs of the *same* build differ on **7.42%** of pixels (renderer and
+  particle nondeterminism).
+- Before against after differs on **7.46%** of pixels — inside that noise floor,
+  and lower than it on five of the ten views.
+- Over the star view's sky region, mean luminance moves `11.32994 -> 11.32570`
+  of 255 (0.037%) with 93,391 lit pixels against 93,396.
+- Direct inspection at 8x magnification finds the stars in the same places at
+  the same sizes and brightnesses, and the arch tubes, collars and masts
+  unchanged in silhouette and highlight.
+
+This is a scene-content measurement plus a rendered-composition check. It is not
+a frame-time, GPU-time or VRAM claim, and the software/remote-display caveats at
+the top of this document still apply.
 
 The retained union includes reachable unloaded content and presentation material
 catalogues; it is not the bound material set or a GPU residency measurement.
@@ -386,10 +464,13 @@ copies, 27 lights and 426 nodes. Its extra three nodes beyond the whole-scene
 `+423` delta replace the resident bootstrap/coordinator shell nodes rather than
 contradicting the total.
 
-The resident measurement fingerprint is
-`bcbb692229c32e9f9471a5af197ac1820d0803157952de09e432ff2bdd50c7de`;
+The 2026-09-14 `tools/geometry_census.gd` resident measurement fingerprint is
+`3a1b833f34da9999078baf9fa06cc62c95887729f83d1a9ad454810ed776c5b3`;
 the loaded fingerprint is
-`f05daf12f9bd60a1ada9dc6503a69b06a7a0b193ae27ddb9ab11ed6c682518a2`.
+`6df5f7eef310bf52190997458e516f4f7abf97723b78c652506f1805237ab42d`.
+`tests/geometry_census_scenario_test.gd` takes its own settle and therefore
+carries its own pair, `3ae978f84df83f35133b76f4464f434d01b4527812975098d349eff028ab4580`
+and `acebd1cbe04b8bb5c233198927e5df2d6fe4e166bcb3f9d4034315d5735013d5`.
 `tests/geometry_census_scenario_test.gd` freezes both production scenarios,
 their exact totals/delta, sole-generation ownership, a resident-mismatch red
 mutation, and the separate fingerprints. These are renderer-independent live

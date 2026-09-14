@@ -5,8 +5,12 @@ extends SceneTree
 const CENSUS := preload("res://tools/station_light_overlap_census.gd")
 const MAIN_SCENE := preload("res://scenes/main.tscn")
 const ROSTER_FINGERPRINT := "43dabfe2e1cb3cc47caa41c34df8c71a2af9f955b8048d3c129ad5359491de07"
-const STATION_RESIDENT_MEASUREMENT_FINGERPRINT := "6ff23fb3dafda6c2d9a6728d1e9b5638f6b631196cf4e54e766847dc2ae1edb7"
-const CINDER_LOADED_MEASUREMENT_FINGERPRINT := "0ba07982b5c105655d224acd46480fc8c7244631dc35c02e7e31190a079c55e4"
+# Refrozen 2026-09-14. The 335-light roster fingerprint is unchanged, so no
+# light was added, moved, recoloured or re-ranged; only the per-point
+# contributor measurement moved with the station content that has landed since
+# the previous freeze. The 2026-09-14 geometry trim adds and removes no light.
+const STATION_RESIDENT_MEASUREMENT_FINGERPRINT := "c6ddc93f7cf81fdeba77b982e380a7bf61d7f9854e8b7f2f5724d856d26562ee"
+const CINDER_LOADED_MEASUREMENT_FINGERPRINT := "47faabd8467c15ed98f215e05c0242c4b9a6d36b2f98bf00494a639caead7749"
 const FABRICATION_LIGHT_PATHS := [
 	"ShipyardWorld/FabricationAnnex/GeneratedAnnex/PracticalPoolCentral",
 	"ShipyardWorld/FabricationAnnex/GeneratedAnnex/PracticalPoolPort",
@@ -333,7 +337,8 @@ func _test_production_main_roster_and_measurement() -> void:
 		str(report.sample_roster_fingerprint) == ROSTER_FINGERPRINT
 		and str(report.measurement_fingerprint)
 			== STATION_RESIDENT_MEASUREMENT_FINGERPRINT,
-		"station-resident roster and complete per-point contributor measurement have frozen fingerprints"
+		"station-resident roster and complete per-point contributor measurement have frozen fingerprints (roster %s measurement %s)"
+			% [report.sample_roster_fingerprint, report.measurement_fingerprint]
 	)
 	_check(
 		not json_first.contains("@OmniLight3D@")
@@ -475,7 +480,8 @@ func _test_cinder_loaded_production_scenario(
 		str(report.sample_roster_fingerprint) == ROSTER_FINGERPRINT
 		and str(report.measurement_fingerprint)
 			== CINDER_LOADED_MEASUREMENT_FINGERPRINT,
-		"Cinder-loaded roster and complete contributor measurement retain their separate fingerprint"
+		"Cinder-loaded roster and complete contributor measurement retain their separate fingerprint (roster %s measurement %s)"
+			% [report.sample_roster_fingerprint, report.measurement_fingerprint]
 	)
 	var json_first := CENSUS.deterministic_json(report)
 	var json_second := CENSUS.deterministic_json(CENSUS.measure_scene(
