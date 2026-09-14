@@ -21,7 +21,7 @@ func _run() -> void:
 		if ship is ArrowReconShip:
 			art = (ship as ArrowReconShip).get_arrow_visual_root()
 			_check(art.has_node("PortShoulderFairing") and art.has_node("StarboardShoulderFairing"), "Arrow has paired manufactured shoulders")
-			var glass := art.get_node("CanopyHinge/CanopyGlass") as MeshInstance3D
+			var glass := art.get_node("CanopyHinge/AccessCanopyCarrier/CanopyGlass") as MeshInstance3D
 			var camera := art.find_child("CockpitCamera", true, false) as Camera3D
 			_check(glass.layers == 1 << 18 and not camera.get_cull_mask_value(19), "Arrow reflective canopy remains outside the pilot's sight layer")
 			ship.set_canopy_open(false, 0.0)

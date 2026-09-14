@@ -43,11 +43,19 @@ func _initialize() -> void:
 			and is_equal_approx(starboard_fin.rotation_degrees.z, -12.0),
 		"the warm twin fins retain their mirrored outward cant in the aft chase view"
 	)
-	var fin_mesh := port_fin.mesh as BoxMesh
-	var tailplane_mesh := tailplane.mesh as BoxMesh
+	# Commit 37b2f5c9c formed the fin and tailplane skins into ArrayMeshes that
+	# keep their authored planforms; extents now come from the emitted bounds.
+	var fin_size := port_fin.mesh.get_aabb().size
+	var tailplane_size := tailplane.mesh.get_aabb().size
+	_check(
+		port_fin.mesh is ArrayMesh and tailplane.mesh is ArrayMesh
+			and fin_size.is_equal_approx(CinderLongRangeBomber.AFT_FIN_SIZE)
+			and tailplane_size.is_equal_approx(CinderLongRangeBomber.AFT_TAILPLANE_SIZE),
+		"formed fin and tailplane skins keep the authored planform extents"
+	)
 	var fin_outer_x := absf(port_fin.position.x) \
-			+ absf(cos(deg_to_rad(port_fin.rotation_degrees.z))) * fin_mesh.size.x * 0.5 \
-			+ absf(sin(deg_to_rad(port_fin.rotation_degrees.z))) * fin_mesh.size.y * 0.5
+			+ absf(cos(deg_to_rad(port_fin.rotation_degrees.z))) * fin_size.x * 0.5 \
+			+ absf(sin(deg_to_rad(port_fin.rotation_degrees.z))) * fin_size.y * 0.5
 	var baseline_bounds := _merged_renderer_bounds(
 		visual,
 		[&"LongRangeTailplane", &"PortBomberFin", &"StarboardBomberFin"]
@@ -58,10 +66,10 @@ func _initialize() -> void:
 		[&"LongRangeTailplane", &"PortBomberFin", &"StarboardBomberFin"]
 	)
 	_check(
-		tailplane_mesh.size.x * 0.5 <= 4.3 + 0.001
+		tailplane_size.x * 0.5 <= 4.3 + 0.001
 			and fin_outer_x < 2.7
-			and tailplane.position.z + tailplane_mesh.size.z * 0.5 < 7.75
-			and port_fin.position.z + fin_mesh.size.z * 0.5 < 7.75
+			and tailplane.position.z + tailplane_size.z * 0.5 < 7.75
+			and port_fin.position.z + fin_size.z * 0.5 < 7.75
 			and baseline_bounds.encloses(empennage_bounds),
 		"the new recognition cue remains inside the bomber's existing visual footprint: %s encloses %s" % [
 			baseline_bounds,
