@@ -88,6 +88,10 @@ const STANDOFF_INTENT_RAIL_SEPARATION := 1.7
 const STANDOFF_INTENT_RAIL_THICKNESS := 0.22
 
 const MAX_PENDING_LANCE_RECEIPTS := 8
+## One bolt is in flight for at most ~3.7s against a 4.8s trigger cadence, so a
+## two-slot pool is already headroom. Saturation fails the shot closed.
+const LANCE_BOLT_POOL_CAPACITY := 2
+const LANCE_BOLT_NODE_NAME := "SiegeLanceBolts"
 
 # Component-local static presentation budget. The old build allocated one
 # BoxMesh for each of fourteen box nodes. Four mirrored stock recipes remain
@@ -194,6 +198,10 @@ var _standoff_intent_cue: MultiMeshInstance3D
 var _standoff_intent_mesh: BoxMesh
 var _standoff_intent_target_instance_id := 0
 var _standoff_intent_activation_generation := 0
+var _bolt_pool: TravellingBoltProjectile
+## Launch context for the bolts currently in the air, keyed by the authority's
+## flight ID. Bounded by the pool capacity; never grows with encounter length.
+var _lance_flights: Dictionary = {}
 
 
 # ------------------------------------------------------------- lifecycle ----
@@ -221,6 +229,7 @@ func _ready() -> void:
 
 
 func _exit_tree() -> void:
+	_discard_lance_bolts(&"detached")
 	_clear_standoff_intent_cue()
 	_unbind_siege_lance_audio()
 	_revoke_dispatch_authorization(&"detached")
@@ -731,6 +740,7 @@ func activate_authorized_dispatch(
 
 
 func deactivate() -> void:
+	_discard_lance_bolts(&"deactivated")
 	_revoke_dispatch_authorization(&"deactivated")
 	_post_shot_relocation_remaining = 0.0
 	_clear_standoff_intent_cue()
@@ -759,6 +769,7 @@ func _unbind_siege_lance_audio() -> void:
 
 
 func _destroy_interceptor(death_position: Vector3) -> void:
+	_discard_lance_bolts(&"source_destroyed")
 	_revoke_dispatch_authorization(&"destroyed")
 	_post_shot_relocation_remaining = 0.0
 	_clear_standoff_intent_cue()
@@ -777,6 +788,8 @@ func _restore_after_reentry() -> void:
 		return
 	_connect_pulse_signals()
 	_attach_damage_proxy()
+	if is_instance_valid(_bolt_pool):
+		_bolt_pool.bind_authority(_get_combat_authority())
 	if _active:
 		_register_combat_source()
 		if _is_standoff_intent_target_actor_live():
@@ -1171,40 +1184,162 @@ func _fire_at_target(target_position: Vector3) -> void:
 		_cooldown_remaining = weapon_cooldown
 		_last_shot_result = {"accepted": false, "status": &"receipt_exhausted"}
 		return
-	var sequence := resolver.get_last_sequence(self, source_id) + 1
-	var request := ShotRequest.new(
-		self,
-		source_id,
-		faction_id,
-		LANCE_WEAPON_ID,
-		sequence,
-		origin,
-		direction,
-		definition.range_meters,
-		definition.damage_per_hit,
-		receipt_id
-	)
-	var result := resolver.resolve_hitscan(request)
-	result["aim_rule"] = LANCE_AIM_RULE
-	result["locked_aim_position"] = target_position
+	# The lance is a travelling bolt. Dispatch only opens an authority-owned
+	# flight; nothing is damaged here. The resolver judges the bolt where it
+	# actually arrives, seconds later, which is what makes the shot dodgeable.
+	var pool := _ensure_bolt_pool()
+	if not is_instance_valid(pool):
+		_cancel_lance_charge(&"bolt_pool_unavailable", false)
+		_cooldown_remaining = weapon_cooldown
+		_last_shot_result = {"accepted": false, "status": &"bolt_pool_unavailable"}
+		return
+	var launch := pool.launch(self, LANCE_WEAPON_ID, origin, direction, receipt_id)
+	if not bool(launch.get("accepted", false)):
+		_cancel_lance_charge(&"bolt_launch_rejected", false)
+		_cooldown_remaining = weapon_cooldown
+		_last_shot_result = {
+			"accepted": false,
+			"resolved": false,
+			"status": launch.get("status", &"bolt_launch_rejected"),
+			"reason": launch.get("reason", ""),
+		}
+		_emit_siege_lance_audio(&"dispatch", false)
+		return
+	var flight_id := int(launch.get("flight_id", 0))
+	_lance_flights[flight_id] = {
+		"origin": origin,
+		"direction": direction,
+		"locked_aim_position": target_position,
+		"receipt_id": receipt_id,
+	}
 	_lance_charge_armed = false
 	_lance_locked_aim_position = Vector3.INF
 	_lance_charge_cancel_reason = &""
-	_emit_siege_lance_audio(&"dispatch", bool(result.get("accepted", false)))
+	_emit_siege_lance_audio(&"dispatch", true)
 	_cooldown_remaining = weapon_cooldown
-	_last_shot_result = result.duplicate(true)
 	_shots_fired += 1
-	if bool(result.get("accepted", false)) and bool(result.get("resolved", false)):
-		_begin_post_shot_relocation()
+	_begin_post_shot_relocation()
+	_last_shot_result = {
+		"accepted": true,
+		"resolved": false,
+		"status": &"bolt_in_flight",
+		"flight_id": flight_id,
+		"aim_rule": LANCE_AIM_RULE,
+		"locked_aim_position": target_position,
+	}
+	_spawn_muzzle_flash(origin)
+	var launch_audio := _get_combat_audio()
+	if is_instance_valid(launch_audio):
+		launch_audio.play_opponent_weapon_fire(
+			origin, get_instance_id(), LANCE_AUDIO_PROFILE
+		)
+
+
+## The bolt reached a target, an obstruction, or its flight ceiling, and the one
+## `CombatResolver` has already judged the terminal segment. Everything below is
+## presentation and bookkeeping; no damage decision is taken here.
+func _on_lance_bolt_resolved(record: Dictionary, result: Dictionary) -> void:
+	var flight_id := int(record.get("flight_id", 0))
+	var launch_context: Dictionary = _lance_flights.get(flight_id, {})
+	_lance_flights.erase(flight_id)
+	var origin := launch_context.get("origin", record.get("origin", Vector3.INF)) as Vector3
+	var direction := launch_context.get("direction", record.get("direction", Vector3.ZERO)) as Vector3
+	var receipt_id := int(launch_context.get("receipt_id", record.get("receipt_id", -1)))
+	var enriched := result.duplicate(true)
+	enriched["aim_rule"] = LANCE_AIM_RULE
+	enriched["locked_aim_position"] = launch_context.get("locked_aim_position", Vector3.INF)
+	enriched["flight_id"] = flight_id
+	enriched["terminal_reason"] = record.get("terminal_reason", &"")
+	enriched["travel_seconds"] = float(record.get("elapsed", 0.0))
+	enriched["travel_distance"] = float(record.get("travelled", 0.0))
+	_last_shot_result = enriched.duplicate(true)
 	# `projectile_fired` is deliberately NOT raised. On the defender that signal is
 	# a request for the coordinator to submit a shot; this craft has already
 	# resolved its own, so re-raising it could produce a second submission.
-	lance_fired.emit(origin, direction, result.duplicate(true))
+	lance_fired.emit(origin, direction, enriched.duplicate(true))
 	if not bool(result.get("accepted", false)) or not bool(result.get("resolved", false)):
 		return
 	_emit_siege_lance_audio(&"impact", true)
-	_spawn_muzzle_flash(origin)
-	_present_lance_shot(origin, direction, receipt_id, result)
+	var terminal_position := record.get("terminal_position", Vector3.INF) as Vector3
+	_present_lance_arrival(origin, terminal_position, receipt_id, result)
+
+
+func _on_lance_bolt_abandoned(record: Dictionary, _reason: StringName) -> void:
+	_lance_flights.erase(int(record.get("flight_id", 0)))
+
+
+## Builds the bolt pool on first use — a picket that never fires never pays for
+## it. It hangs off this craft so it is torn down
+## with it, but every slot is `top_level`, so a bolt already in the air keeps its
+## world-space path while the picket relocates away from the firing line.
+func _ensure_bolt_pool() -> TravellingBoltProjectile:
+	if is_instance_valid(_bolt_pool):
+		_bolt_pool.bind_authority(_get_combat_authority())
+		return _bolt_pool
+	if not is_inside_tree() or is_queued_for_deletion():
+		return null
+	var existing := get_node_or_null(NodePath(LANCE_BOLT_NODE_NAME)) as TravellingBoltProjectile
+	if existing == null:
+		existing = TravellingBoltProjectile.new() as TravellingBoltProjectile
+		existing.name = LANCE_BOLT_NODE_NAME
+		existing.pool_capacity = LANCE_BOLT_POOL_CAPACITY
+		add_child(existing)
+	_bolt_pool = existing
+	if not _bolt_pool.bolt_resolved.is_connected(_on_lance_bolt_resolved):
+		_bolt_pool.bolt_resolved.connect(_on_lance_bolt_resolved)
+	if not _bolt_pool.bolt_abandoned.is_connected(_on_lance_bolt_abandoned):
+		_bolt_pool.bolt_abandoned.connect(_on_lance_bolt_abandoned)
+	_bolt_pool.bind_authority(_get_combat_authority())
+	_sync_bolt_presentation_gate()
+	return _bolt_pool
+
+
+## The bolt rides the one combat-visual gate the encounter already owns, so a
+## disabled or accessibility-reduced pulse presentation reduces the bolt too
+## instead of leaving a second unattenuated emissive source in the scene.
+func _sync_bolt_presentation_gate() -> void:
+	if not is_instance_valid(_bolt_pool):
+		return
+	var pulse := _get_pulse_presentation()
+	if is_instance_valid(pulse):
+		_bolt_pool.set_presentation_enabled(pulse.is_presentation_enabled())
+
+
+## Accessibility forwarding seam, shaped like the bomber payload's. Reduced
+## flash keeps the bolt fully readable and only drops its emissive punch, its
+## moving dynamic light, and most of its trail.
+func set_lance_bolt_reduced_flash(enabled: bool) -> Dictionary:
+	var pool := _ensure_bolt_pool()
+	if not is_instance_valid(pool):
+		return {"accepted": false, "reason": &"bolt_pool_unavailable"}
+	var snapshot := pool.set_reduced_flash_enabled(enabled)
+	snapshot["accepted"] = true
+	return snapshot
+
+
+func get_lance_bolt_snapshot() -> Dictionary:
+	if not is_instance_valid(_bolt_pool):
+		return {
+			"built": false,
+			"capacity": LANCE_BOLT_POOL_CAPACITY,
+			"active": 0,
+			"statistics": {},
+			"presentation": {},
+		}.duplicate(true)
+	return {
+		"built": true,
+		"capacity": _bolt_pool.get_pool_capacity(),
+		"active": _bolt_pool.get_active_bolt_count(),
+		"statistics": _bolt_pool.get_statistics(),
+		"presentation": _bolt_pool.get_presentation_profile_snapshot(),
+		"records": _bolt_pool.get_active_bolt_records(),
+	}.duplicate(true)
+
+
+func _discard_lance_bolts(reason: StringName) -> void:
+	if is_instance_valid(_bolt_pool):
+		_bolt_pool.abandon_all(reason)
+	_lance_flights.clear()
 
 
 func _begin_post_shot_relocation() -> void:
@@ -1212,23 +1347,32 @@ func _begin_post_shot_relocation() -> void:
 	_post_shot_relocation_remaining = post_shot_relocation_duration
 
 
-func _present_lance_shot(
+## Arrival presentation. The bolt itself already travelled; the shared pulse pool
+## supplies the familiar magenta terminal flare and, crucially, the impact
+## receipt that releases the target's deferred damage visuals.
+func _present_lance_arrival(
 		origin: Vector3,
-		direction: Vector3,
+		terminal_position: Vector3,
 		receipt_id: int,
 		result: Dictionary
 	) -> void:
-	var endpoint_range := _weapon_definition.range_meters if _weapon_definition != null else lance_range
-	var endpoint := origin + direction * endpoint_range
+	var endpoint := terminal_position
 	if bool(result.get("hit", false)):
 		var resolved_position: Variant = result.get("position", endpoint)
 		if resolved_position is Vector3 and (resolved_position as Vector3).is_finite():
 			endpoint = resolved_position as Vector3
-	var audio := _get_combat_audio()
-	if is_instance_valid(audio):
-		audio.play_opponent_weapon_fire(
-			origin, get_instance_id(), LANCE_AUDIO_PROFILE
+	if not endpoint.is_finite():
+		return
+	var request := result.get("request") as ShotRequest
+	var flare_origin := request.origin if request != null else endpoint
+	if not flare_origin.is_finite() \
+			or flare_origin.distance_to(endpoint) < PulseWeaponPresentation.MIN_SHOT_DISTANCE:
+		var flare_direction := (
+			(endpoint - origin).normalized()
+			if origin.is_finite() and (endpoint - origin).length_squared() > 0.000001
+			else Vector3.FORWARD
 		)
+		flare_origin = endpoint - flare_direction * PulseWeaponPresentation.MIN_SHOT_DISTANCE * 4.0
 	var damaged := bool(result.get("damaged", false))
 	if damaged:
 		_record_lance_receipt(receipt_id, result, endpoint)
@@ -1240,7 +1384,7 @@ func _present_lance_shot(
 	var pulse := _get_pulse_presentation()
 	if is_instance_valid(pulse):
 		presented = pulse.present_shot(
-			origin,
+			flare_origin,
 			endpoint,
 			LANCE_PULSE_STYLE,
 			self,

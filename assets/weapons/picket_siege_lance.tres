@@ -6,12 +6,15 @@
 script = ExtResource("1_definition")
 weapon_id = &"picket_siege_lance"
 display_name = "Picket Siege Lance"
-resolution_mode = 0
+resolution_mode = 1
 evidence_status = 2
-evidence_notes = "Original-modern heavy standoff tuning with a slow, high-impact pulse committed to one world-space aim point at charge start; not a recovered historical weapon specification."
+evidence_notes = "Original-modern heavy standoff tuning: a slow travelling bolt committed to one world-space aim point at charge start, resolved only where it arrives; not a recovered historical weapon specification."
 range_meters = 560.0
 damage_per_hit = 22.0
 cadence_shots_per_second = 0.20833333333333334
+projectile_speed_mps = 150.0
+projectile_lifetime_seconds = 4.0
+projectile_radius_meters = 2.0
 faction_policy = 0
 friendly_fire_policy = 0
 presentation_id = &"magenta"
