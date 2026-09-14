@@ -20,6 +20,20 @@ const PROJECTILE_PROFILE_KEYS := [
 	PROJECTILE_RADIUS_KEY,
 ]
 
+## Profile keys that carry an accepted heat envelope into the resolver registry.
+## They are emitted only for a definition whose `heat_enabled` is true, so a
+## weapon without authored heat produces exactly the dictionary it always did.
+const HEAT_PER_SHOT_KEY := "heat_per_shot"
+const HEAT_CAPACITY_KEY := "heat_capacity"
+const HEAT_COOLDOWN_KEY := "heat_cooldown_per_second"
+const HEAT_LOCKOUT_KEY := "heat_lockout_seconds"
+const HEAT_PROFILE_KEYS := [
+	HEAT_PER_SHOT_KEY,
+	HEAT_CAPACITY_KEY,
+	HEAT_COOLDOWN_KEY,
+	HEAT_LOCKOUT_KEY,
+]
+
 
 static func get_conversion_errors(
 	definition: WeaponDefinition,
@@ -56,8 +70,15 @@ static func get_conversion_errors(
 		errors.append("fixed_faction_id must match the registered source faction")
 	if definition.friendly_fire_policy != WeaponDefinitionType.FriendlyFirePolicy.DENY:
 		errors.append("current CombatResolver conversion supports denied friendly fire only")
-	if definition.heat_enabled:
-		errors.append("current CombatResolver conversion does not support heat")
+	if definition.heat_enabled and not definition.has_heat_envelope():
+		# Heat is all-or-nothing at the seam. A definition that switched heat on
+		# without authoring a positive per-shot cost, ceiling, trickle and forced
+		# lockout has no window a player could read, so it is refused outright
+		# rather than converted into a weapon that silently never overheats.
+		errors.append(
+			"heat_per_shot, heat_capacity, heat_cooldown_per_second and "
+			+ "heat_lockout_seconds must all be positive before a heat weapon can be converted"
+		)
 	if definition.ammunition_enabled:
 		errors.append("current CombatResolver conversion does not support ammunition")
 	if not is_finite(origin_tolerance_meters) or origin_tolerance_meters <= 0.0:
@@ -81,6 +102,14 @@ static func to_resolver_profiles(
 		"damage": definition.damage_per_hit,
 		"origin_tolerance": origin_tolerance_meters,
 	}
+	if definition.heat_enabled:
+		# The heat envelope is authority data, exactly like the travel envelope:
+		# the registry owns it so a firing craft can never widen its own ceiling,
+		# cheapen its per-shot cost, or shorten its own lockout at runtime.
+		profile[HEAT_PER_SHOT_KEY] = definition.heat_per_shot
+		profile[HEAT_CAPACITY_KEY] = definition.heat_capacity
+		profile[HEAT_COOLDOWN_KEY] = definition.heat_cooldown_per_second
+		profile[HEAT_LOCKOUT_KEY] = definition.heat_lockout_seconds
 	if definition.is_projectile_resolution():
 		# The travel envelope is authority data, not presentation data: the
 		# registry owns it so a travelling bolt can never widen its own speed,
@@ -103,6 +132,14 @@ static func to_resolver_profiles(
 ## True when a registered resolver profile carries a complete travel envelope.
 static func profile_is_projectile(profile: Dictionary) -> bool:
 	for key: String in PROJECTILE_PROFILE_KEYS:
+		if not profile.has(key):
+			return false
+	return true
+
+
+## True when a registered resolver profile carries a complete heat envelope.
+static func profile_is_heat(profile: Dictionary) -> bool:
+	for key: String in HEAT_PROFILE_KEYS:
 		if not profile.has(key):
 			return false
 	return true

@@ -42,6 +42,10 @@ const MAX_CADENCE_SHOTS_PER_SECOND := 1_000.0
 const MAX_SPREAD_DEGREES := 45.0
 const MAX_HEAT_UNITS := 1_000_000.0
 const MAX_HEAT_UNITS_PER_SECOND := 1_000_000.0
+## Upper bound on the authored forced-vent lockout. A heat weapon that crosses
+## its ceiling is out of action for exactly this authored span, so the number is
+## a gameplay window rather than a simulation constant.
+const MAX_HEAT_LOCKOUT_SECONDS := 60.0
 const MAX_AMMUNITION := 1_000_000
 
 ## Travel envelope bounds for `ResolutionMode.PROJECTILE`. A hitscan or beam
@@ -99,6 +103,13 @@ const EVIDENCE_NEW: StringName = &"new"
 @export_range(0.0, MAX_HEAT_UNITS, 0.001) var heat_per_shot := 0.0
 @export_range(0.0, MAX_HEAT_UNITS, 0.001) var heat_capacity := 0.0
 @export_range(0.0, MAX_HEAT_UNITS_PER_SECOND, 0.001) var heat_cooldown_per_second := 0.0
+## Forced cool-down lockout, in seconds, applied the moment accumulated heat
+## reaches `heat_capacity`. During it the weapon accepts no shot at all and its
+## heat is vented from the ceiling to exactly zero, so the lockout both bounds
+## the dead window and defines the visible vent rate
+## (`heat_capacity / heat_lockout_seconds`). `heat_cooldown_per_second` remains
+## the ordinary between-shots trickle that decides how long a burst lasts.
+@export_range(0.0, MAX_HEAT_LOCKOUT_SECONDS, 0.001) var heat_lockout_seconds := 0.0
 
 @export_category("Optional ammunition")
 @export var ammunition_enabled := false
@@ -139,6 +150,20 @@ func has_projectile_travel_envelope() -> bool:
 		and _is_finite_float(projectile_speed_mps) and projectile_speed_mps > 0.0
 		and _is_finite_float(projectile_lifetime_seconds) and projectile_lifetime_seconds > 0.0
 		and _is_finite_float(projectile_radius_meters) and projectile_radius_meters > 0.0
+	)
+
+
+## True when this definition authors a complete, usable heat envelope. Heat is
+## optional authoring data: a definition that leaves it disabled emits no heat
+## keys anywhere downstream, so an already-shipped weapon keeps its exact shape.
+func has_heat_envelope() -> bool:
+	return (
+		heat_enabled
+		and _is_finite_float(heat_per_shot) and heat_per_shot > 0.0
+		and _is_finite_float(heat_capacity) and heat_capacity > 0.0
+		and heat_per_shot <= heat_capacity
+		and _is_finite_float(heat_cooldown_per_second) and heat_cooldown_per_second > 0.0
+		and _is_finite_float(heat_lockout_seconds) and heat_lockout_seconds > 0.0
 	)
 
 
@@ -228,6 +253,13 @@ func get_validation_errors() -> PackedStringArray:
 		0.0,
 		MAX_HEAT_UNITS_PER_SECOND
 	)
+	_validate_range(
+		errors,
+		"heat_lockout_seconds",
+		heat_lockout_seconds,
+		0.0,
+		MAX_HEAT_LOCKOUT_SECONDS
+	)
 	if heat_enabled:
 		if _is_finite_float(heat_per_shot) and heat_per_shot <= 0.0:
 			errors.append("heat_per_shot must be positive when heat is enabled")
@@ -235,10 +267,13 @@ func get_validation_errors() -> PackedStringArray:
 			errors.append("heat_capacity must be positive when heat is enabled")
 		if _is_finite_float(heat_cooldown_per_second) and heat_cooldown_per_second <= 0.0:
 			errors.append("heat_cooldown_per_second must be positive when heat is enabled")
+		if _is_finite_float(heat_lockout_seconds) and heat_lockout_seconds <= 0.0:
+			errors.append("heat_lockout_seconds must be positive when heat is enabled")
 		if _is_finite_float(heat_per_shot) and _is_finite_float(heat_capacity) \
 				and heat_per_shot > heat_capacity:
 			errors.append("heat_per_shot must not exceed heat_capacity")
-	elif heat_per_shot != 0.0 or heat_capacity != 0.0 or heat_cooldown_per_second != 0.0:
+	elif heat_per_shot != 0.0 or heat_capacity != 0.0 or heat_cooldown_per_second != 0.0 \
+			or heat_lockout_seconds != 0.0:
 		errors.append("heat fields must be exactly zero when heat is disabled")
 
 	_validate_integer_range(errors, "magazine_capacity", magazine_capacity, 0, MAX_AMMUNITION)
@@ -296,6 +331,7 @@ func get_optional_systems_snapshot() -> Dictionary:
 			"per_shot": heat_per_shot,
 			"capacity": heat_capacity,
 			"cooldown_per_second": heat_cooldown_per_second,
+			"lockout_seconds": heat_lockout_seconds,
 		},
 		"ammunition": {
 			"enabled": ammunition_enabled,

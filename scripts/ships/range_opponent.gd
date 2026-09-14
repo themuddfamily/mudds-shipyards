@@ -32,6 +32,9 @@ const KETH_CYAN := Color("2a8994")
 const SIGNAL_AMBER := Color("f4b94f")
 const ENGINE_BLUE := Color("63efff")
 const DAMAGE_ORANGE := Color("ff8b3d")
+const VENT_HOT := Color("ff5a1e")
+## The gun the production range defender registers with the combat authority.
+const DEFENDER_WEAPON_ID: StringName = &"defence_pulse_cannon"
 const SMOKE_DARK := Color(0.08, 0.12, 0.14, 0.62)
 const DESTRUCTION_EFFECT_LIFETIME := 4.5
 const MAX_PENDING_DAMAGE_PRESENTATIONS := 16
@@ -161,6 +164,26 @@ const GUN_HOUSING_POSITIONS := [
 ]
 const GUN_HOUSING_NAMES := ["PortGunHousing", "StarboardGunHousing"]
 
+## Twin hot-vent collars banded around the existing gun shrouds. They are the
+## defender's weapon-heat readout: dark and hidden on a cold gun, brightening
+## shot by shot, at full heat for the forced vent, then fading back to cold as
+## the gun recovers. One bounded batch and one shared emissive material carry
+## both sides, and neither adds a texture or a light.
+const HEAT_VENT_COPY_COUNT := 2
+const HEAT_VENT_POSITIONS := [
+	Vector3(-2.65, -0.08, -4.62),
+	Vector3(2.65, -0.08, -4.62),
+]
+const HEAT_VENT_NAMES := ["PortGunHeatVent", "StarboardGunHeatVent"]
+const HEAT_VENT_RADIUS := 0.47
+const HEAT_VENT_HEIGHT := 0.14
+## Peak emission on the hottest frame, and the lower ceiling used when the
+## player has asked for reduced flash.
+const HEAT_VENT_EMISSION_ENERGY := 5.4
+const HEAT_VENT_REDUCED_FLASH_EMISSION_ENERGY := 1.9
+## Below this the gun reads as cold and the collars are simply not drawn.
+const HEAT_VENT_VISIBLE_RATIO := 0.02
+
 ## The fixed amber charge-lens barrels are presentation-only peers around the
 ## independently animated telegraph spheres. One bounded batch preserves both
 ## authored apertures while removing one renderer node and one submission.
@@ -271,6 +294,14 @@ var _pending_damage_presentations: Dictionary = {}
 var _pending_damage_presentation_order: Array[int] = []
 var _pending_terminal_presentation_sequence := -1
 var _presented_component_generation := 0
+var _heat_vent_batch: MultiMeshInstance3D
+var _weapon_heat_vents_enabled := false
+var _presented_heat_ratio := 0.0
+var _weapon_heat_locked := false
+var _weapon_heat_lockout_remaining := 0.0
+var _heat_lockout_announced := false
+var _heat_lockout_dry_fire_count := 0
+var _reduced_flash := false
 
 
 func _enter_tree() -> void:
@@ -286,6 +317,10 @@ func _ready() -> void:
 	_pressure_turn_automatic_enabled = (
 		_pressure_turn_automatic_enabled and name == &"RangeOpponent"
 	)
+	# The hot-vent collars belong to the one production defender whose registered
+	# gun authors a heat envelope. Derived archetypes and roster raiders keep their
+	# existing renderer, material and triangle budgets untouched.
+	_weapon_heat_vents_enabled = name == &"RangeOpponent"
 	_ensure_hull_damage_adapter()
 	_bind_damage_audio()
 	_build_interceptor()
@@ -467,6 +502,8 @@ func activate_with_result(spawn_transform: Transform3D) -> Dictionary:
 	_evasive_maneuver_elapsed_seconds = 0.0
 	_evasive_maneuver_last_mobility = 1.0
 	_reset_pressure_turn_tactic()
+	# A regenerated or reused hull starts its new epoch with a cold gun.
+	_reset_weapon_heat_presentation()
 	visible = true
 	_visual_root.visible = true
 	# The interceptor is both a physical ship body and a damageable hitscan target.
@@ -505,6 +542,7 @@ func deactivate() -> void:
 	_clear_pending_pattern_projectiles()
 	_clear_evasive_maneuver_configuration(&"deactivated")
 	_reset_pressure_turn_tactic()
+	_reset_weapon_heat_presentation()
 	_clear_component_damage_presentation()
 	if _visual_root != null:
 		_visual_root.visible = true
@@ -1174,6 +1212,238 @@ func commit_deferred_damage_presentation(sequence: int) -> bool:
 	return true
 
 
+## ------------------------------------------------------------ weapon heat ----
+##
+## The defender's gun is the first production weapon with an authored heat
+## ceiling. None of that state lives here: the one live `CombatResolver` owns the
+## ledger, charges it on every accepted trigger, and refuses a request made
+## during the forced vent with `weapon_heat_locked`. This craft only reads it, so
+## an isolated fixture with no `CombatAuthority` sibling behaves exactly as it
+## always did — no heat, no lockout, no vent glow, byte-identical firing.
+##
+## What the player sees: the twin vent collars on the gun housings brighten shot
+## by shot, the defender dry-fires once when the gun refuses, it breaks off its
+## orbit for the length of the lockout, and the collars fade back to cold as the
+## gun vents — an opening that is visible before it opens and readable while it
+## lasts.
+
+
+## Stable weapon identity used when this craft reads its own authority-owned
+## weapon state. The production defender's registered gun; archetypes that
+## register a different weapon override it, and a source whose registration does
+## not carry heat simply reads an empty state.
+func get_weapon_id() -> StringName:
+	return DEFENDER_WEAPON_ID
+
+
+## The one live combat authority. Overridden by `ResolverBackedOpponent`, which
+## already exports a configurable path for the archetypes that submit their own
+## shots; the base defender uses the production sibling and nothing else.
+func _get_combat_authority() -> LiveCombatAuthority:
+	return get_node_or_null(^"../CombatAuthority") as LiveCombatAuthority
+
+
+func _get_combat_audio() -> CombatAudioPresentation:
+	return get_node_or_null(^"../CombatAudioPresentation") as CombatAudioPresentation
+
+
+## Returns this craft's gun to a cold, unlocked state on the authority and clears
+## the presentation that was drawing it. A regenerated hull is a new epoch: it
+## does not inherit the vent the previous one earned, and it does not keep a hot
+## collar lit over a craft that is no longer in play.
+func _reset_weapon_heat_presentation() -> void:
+	var authority := _get_combat_authority()
+	if is_instance_valid(authority):
+		authority.reset_weapon_heat(self)
+	_presented_heat_ratio = 0.0
+	_weapon_heat_locked = false
+	_weapon_heat_lockout_remaining = 0.0
+	_heat_lockout_announced = false
+	_heat_lockout_dry_fire_count = 0
+	_apply_heat_vent_presentation(0.0)
+
+
+## Detached read of this craft's authored heat state. Empty when the craft has no
+## combat authority, or when its registered weapon authored no heat envelope.
+func get_weapon_heat_snapshot() -> Dictionary:
+	var authority := _get_combat_authority()
+	if not is_instance_valid(authority):
+		return {}
+	return authority.get_weapon_heat_state(self, get_weapon_id())
+
+
+## Presentation-facing summary. Always populated, so a caller does not have to
+## distinguish "no heat weapon" from "cold gun" when it is only drawing a glow.
+func get_weapon_heat_presentation_state() -> Dictionary:
+	return {
+		"heat_ratio": _presented_heat_ratio,
+		"locked": _weapon_heat_locked,
+		"lockout_remaining_seconds": _weapon_heat_lockout_remaining,
+		"dry_fire_announced": _heat_lockout_announced,
+		"dry_fire_count": _heat_lockout_dry_fire_count,
+		"vent_visible": _heat_vent_batch != null and _heat_vent_batch.visible,
+		"vent_emission_energy": (
+			_materials.heat_vent.emission_energy_multiplier
+			if _materials.has("heat_vent")
+			else 0.0
+		),
+		"vent_peak_emission_energy": _heat_vent_peak_emission_energy(),
+		"reduced_flash": _reduced_flash,
+		"vent_instance_count": (
+			_heat_vent_batch.multimesh.instance_count
+			if _heat_vent_batch != null and _heat_vent_batch.multimesh != null
+			else 0
+		),
+		"heat_authority": false,
+		"damage_authority": false,
+	}.duplicate(true)
+
+
+## Accessibility clamp. The vent is a steady fade with no oscillation term at any
+## setting; reduced flash lowers its peak emission so the brightest frame of a
+## lockout stays inside the same ceiling the other reduced-flash effects use.
+func set_reduced_flash_enabled(enabled: bool) -> Dictionary:
+	_reduced_flash = enabled
+	_apply_heat_vent_presentation(_presented_heat_ratio)
+	return {
+		"accepted": true,
+		"reduced_flash": _reduced_flash,
+		"vent_peak_emission_energy": _heat_vent_peak_emission_energy(),
+	}.duplicate(true)
+
+
+func _heat_vent_peak_emission_energy() -> float:
+	return (
+		HEAT_VENT_REDUCED_FLASH_EMISSION_ENERGY
+		if _reduced_flash
+		else HEAT_VENT_EMISSION_ENERGY
+	)
+
+
+## Called on the frame a charged, aimed, in-range shot is refused by the gun.
+## The craft does not own the refusal — it asked the authority and was told no.
+func _on_weapon_heat_lockout_withheld_fire(lockout_remaining: float) -> void:
+	# Wait out exactly the authored vent rather than retrying every few frames:
+	# the defender can read its own gun, so it stops charging instead of
+	# stuttering, and the dead window the player sees is the authored one.
+	_cooldown_remaining = maxf(_cooldown_remaining, lockout_remaining)
+	_telegraph_remaining = 0.0
+	_clear_pending_pattern_projectiles()
+	if _heat_lockout_announced:
+		return
+	_heat_lockout_announced = true
+	_heat_lockout_dry_fire_count += 1
+	_play_weapon_dry_fire_cue()
+	_begin_heat_lockout_reposition()
+
+
+## One dry click from the shared ten-voice combat bank, at the muzzle that would
+## have fired. No new cue, no new stream, no second audio authority.
+func _play_weapon_dry_fire_cue() -> void:
+	var audio := _get_combat_audio()
+	if not is_instance_valid(audio) or not is_inside_tree():
+		return
+	var muzzle := _muzzle_starboard if _alternate_muzzle else _muzzle_port
+	if not is_instance_valid(muzzle):
+		return
+	audio.play_dry_fire(muzzle.global_position, get_instance_id())
+
+
+## The back-off. This reuses the existing pressure-turn movement authority — the
+## same outward turn and orbit reversal the defender already performs between
+## firing cycles — rather than inventing a second movement path. The cycle
+## counters are deliberately untouched: a vent is not a completed firing cycle.
+func _begin_heat_lockout_reposition() -> void:
+	if _pressure_turn_state in [&"telegraph", &"active"]:
+		return
+	_pressure_turn_direction_sign = -1.0 if _orbit_sign >= 0.0 else 1.0
+	_pressure_turn_elapsed_seconds = 0.0
+	_pressure_turn_last_mobility = clampf(
+		float(get_operational_modifiers().get("mobility_multiplier", 0.0)), 0.0, 1.0
+	)
+	_pressure_turn_state = &"telegraph"
+	_commit_pressure_turn()
+
+
+## Per-frame read of the authority-owned ledger. Both calls return floats, so a
+## defender that is merely being drawn allocates nothing.
+func _sync_weapon_heat_presentation() -> void:
+	var authority := _get_combat_authority() if _active else null
+	if is_instance_valid(authority):
+		var weapon_id := get_weapon_id()
+		_presented_heat_ratio = authority.get_weapon_heat_ratio(self, weapon_id)
+		_weapon_heat_lockout_remaining = authority.get_weapon_heat_lockout_remaining(
+			self, weapon_id
+		)
+	elif _presented_heat_ratio == 0.0 and _weapon_heat_lockout_remaining == 0.0:
+		# Already cold. A dormant craft, or one with no combat authority at all,
+		# does no per-frame work and writes nothing.
+		return
+	else:
+		_presented_heat_ratio = 0.0
+		_weapon_heat_lockout_remaining = 0.0
+	_weapon_heat_locked = _weapon_heat_lockout_remaining > 0.0
+	if not _weapon_heat_locked:
+		_heat_lockout_announced = false
+	_apply_heat_vent_presentation(_presented_heat_ratio)
+
+
+## A steady, monotonic fade with no oscillation term, so the hottest frame of a
+## lockout is the one the accessibility ceiling is measured against.
+func _apply_heat_vent_presentation(heat_ratio: float) -> void:
+	if _heat_vent_batch == null or not is_instance_valid(_heat_vent_batch):
+		return
+	var clamped := clampf(heat_ratio, 0.0, 1.0)
+	var visible_vent := _active and clamped > HEAT_VENT_VISIBLE_RATIO
+	_heat_vent_batch.visible = visible_vent
+	var material := _materials.get("heat_vent") as StandardMaterial3D
+	if material == null:
+		return
+	# The shared vent material is the one animated value; both collars read it, so
+	# a hotter gun is one material write per frame rather than two node writes.
+	material.emission_energy_multiplier = (
+		_heat_vent_peak_emission_energy() * clamped * clamped if visible_vent else 0.0
+	)
+	material.albedo_color = HULL_SHADE.lerp(VENT_HOT, clamped)
+
+
+func _add_heat_vent_batch(parent: Node3D) -> MultiMeshInstance3D:
+	# A pair of machined vent collars already implied by the gun shrouds, sharing
+	# the housings' 28-segment rim profile and one emissive material. No new
+	# texture, no new light, and one bounded submission for both sides.
+	var mesh := StationSurfaceKit.chamfered_cylinder_mesh_cached(
+		HEAT_VENT_RADIUS, HEAT_VENT_RADIUS, HEAT_VENT_HEIGHT, 28,
+		_chamfered_cylinder_cache, ShipSurfaceDetail.CYLINDER_WALL_RINGS,
+		true, true, _materials.heat_vent
+	)
+	var rotation_basis := Basis.from_euler(Vector3(deg_to_rad(90.0), 0.0, 0.0))
+	var transforms: Array[Transform3D] = []
+	var bounds := AABB()
+	var multi := MultiMesh.new()
+	multi.transform_format = MultiMesh.TRANSFORM_3D
+	multi.mesh = mesh
+	multi.instance_count = HEAT_VENT_COPY_COUNT
+	multi.visible_instance_count = -1
+	for index in HEAT_VENT_COPY_COUNT:
+		var authored_transform := Transform3D(rotation_basis, HEAT_VENT_POSITIONS[index])
+		transforms.append(authored_transform)
+		multi.set_instance_transform(index, authored_transform)
+		var instance_bounds := (authored_transform * mesh.get_aabb()).abs()
+		bounds = instance_bounds if index == 0 else bounds.merge(instance_bounds)
+	multi.custom_aabb = bounds
+	var batch := MultiMeshInstance3D.new()
+	batch.name = "WeaponHeatVentBatch"
+	batch.multimesh = multi
+	batch.layers = 1
+	batch.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	batch.visible = false
+	batch.set_meta(&"presentation_only", true)
+	batch.set_meta(&"authored_visual_names", PackedStringArray(HEAT_VENT_NAMES))
+	batch.set_meta(&"authored_instance_transforms", transforms.duplicate())
+	parent.add_child(batch)
+	return batch
+
+
 func _choose_motion_direction(target_direction: Vector3, distance: float) -> Vector3:
 	if (
 		_evasive_maneuver_id == EVASIVE_MANEUVER_LATERAL_BREAK
@@ -1407,6 +1677,13 @@ func _update_weapon(target_position: Vector3, target_direction: Vector3, distanc
 	if forward.dot(target_direction) < _aim_acceptance_dot(0.94, targeting_modifier) \
 			or not _has_line_of_sight(target_position):
 		return
+	# Aimed, in range, and off cooldown: this is the frame the defender tries to
+	# fire. The gun's own authority is asked last, because a lockout is a property
+	# of the weapon rather than of the tactical picture.
+	var heat := get_weapon_heat_snapshot()
+	if bool(heat.get("locked", false)):
+		_on_weapon_heat_lockout_withheld_fire(float(heat.get("lockout_remaining", 0.0)))
+		return
 	_prepare_pressure_turn_telegraph()
 	_telegraph_remaining = telegraph_time
 
@@ -1578,6 +1855,7 @@ func _clear_component_damage_presentation() -> void:
 func _update_presentation(delta: float) -> void:
 	if not _built:
 		return
+	_sync_weapon_heat_presentation()
 	_sync_weapon_damage_anchor()
 	_sync_sensor_damage_anchor()
 	var engine_strength := 0.0
@@ -1662,6 +1940,7 @@ func _destroy_interceptor(death_position: Vector3) -> void:
 	_clear_pending_pattern_projectiles()
 	_clear_evasive_maneuver_configuration(&"destroyed")
 	_reset_pressure_turn_tactic()
+	_reset_weapon_heat_presentation()
 	destroyed.emit(death_position)
 
 
@@ -2142,6 +2421,8 @@ func _build_interceptor() -> void:
 	_weapon_telegraph_mesh.rings = WEAPON_TELEGRAPH_RINGS
 	_weapon_telegraph_mesh.material = _materials.amber_emissive
 	_add_gun_housing_batch(_visual_root)
+	if _weapon_heat_vents_enabled:
+		_heat_vent_batch = _add_heat_vent_batch(_visual_root)
 	_add_charge_lens_batch(_visual_root)
 	_add_range_engine_pod_batch(_visual_root)
 
@@ -2615,6 +2896,10 @@ func _create_materials() -> void:
 	_materials.amber_emissive = _material(SIGNAL_AMBER, 0.14, 0.24, SIGNAL_AMBER, 2.3)
 	_materials.engine = _material(ENGINE_BLUE, 0.08, 0.2, ENGINE_BLUE, 2.8)
 	_materials.spark = _material(DAMAGE_ORANGE, 0.08, 0.2, DAMAGE_ORANGE, 4.2)
+	if _weapon_heat_vents_enabled:
+		# Starts cold: a defender that never fires never lights its vents.
+		_materials.heat_vent = _material(HULL_SHADE, 0.2, 0.42, VENT_HOT, 0.0001)
+		_materials.heat_vent.emission_energy_multiplier = 0.0
 	var glass := StandardMaterial3D.new()
 	glass.albedo_color = Color("312e28")
 	glass.metallic = 0.15

@@ -703,11 +703,38 @@ func _test_pure_converter(definition: WeaponDefinition) -> void:
 	heat.heat_per_shot = 1.0
 	heat.heat_capacity = 4.0
 	heat.heat_cooldown_per_second = 1.0
+	heat.heat_lockout_seconds = 2.5
+	var heat_profiles := ConverterScript.to_resolver_profiles(
+		heat, SOURCE_FACTION, ORIGIN_TOLERANCE
+	)
+	var heat_profile := heat_profiles.get(definition.weapon_id, {}) as Dictionary
+	_check(
+		heat_profiles.size() == 1
+		and ConverterScript.profile_is_heat(heat_profile)
+		and is_equal_approx(float(heat_profile.heat_per_shot), 1.0)
+		and is_equal_approx(float(heat_profile.heat_capacity), 4.0)
+		and is_equal_approx(float(heat_profile.heat_cooldown_per_second), 1.0)
+		and is_equal_approx(float(heat_profile.heat_lockout_seconds), 2.5),
+		"a complete heat envelope converts to four explicit authority fields"
+	)
+	var half_authored_heat := definition.duplicate(true) as WeaponDefinition
+	half_authored_heat.heat_enabled = true
+	half_authored_heat.heat_per_shot = 1.0
+	half_authored_heat.heat_capacity = 4.0
+	half_authored_heat.heat_cooldown_per_second = 1.0
 	_check(
 		ConverterScript.to_resolver_profiles(
-			heat, SOURCE_FACTION, ORIGIN_TOLERANCE
+			half_authored_heat, SOURCE_FACTION, ORIGIN_TOLERANCE
 		).is_empty(),
-		"unsupported heat fails closed"
+		"a heat envelope without its forced lockout still fails closed"
+	)
+	_check(
+		not ConverterScript.profile_is_heat(
+			(ConverterScript.to_resolver_profiles(
+				definition, SOURCE_FACTION, ORIGIN_TOLERANCE
+			).get(definition.weapon_id, {}) as Dictionary)
+		),
+		"a definition that authored no heat emits no heat key at all"
 	)
 	var ammunition := definition.duplicate(true) as WeaponDefinition
 	ammunition.ammunition_enabled = true

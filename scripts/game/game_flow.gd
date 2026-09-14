@@ -401,13 +401,34 @@ const PLAYER_WEAPON_PROFILES := {
 		"origin_tolerance": 24.0,
 	},
 }
-const OPPONENT_WEAPON_PROFILES := {
-	OPPONENT_WEAPON_ID: {
-		"range": ENEMY_WEAPON_RANGE,
-		"damage": ENEMY_HIT_DAMAGE,
-		"origin_tolerance": 18.0,
-	},
-}
+const OPPONENT_COMBAT_ORIGIN_TOLERANCE_METERS := 18.0
+const OPPONENT_COMBAT_WEAPON_DEFINITION := preload(
+	"res://assets/weapons/range_defence_pulse.tres"
+)
+## The defender's authored envelope, including the heat ceiling and forced vent
+## that make its sustained fire something the player can wait out. Built once
+## from the authored Resource through the same fail-closed conversion the player
+## hulls use; the literal below is the fallback that keeps the encounter armed if
+## the Resource is ever unreadable, and `varied_encounter_integration_test`
+## asserts the authored path is the one actually taken.
+static var OPPONENT_WEAPON_PROFILES: Dictionary = _build_opponent_weapon_profiles()
+
+
+static func _build_opponent_weapon_profiles() -> Dictionary:
+	var converted := WeaponDefinitionResolverProfileType.to_resolver_profiles(
+		OPPONENT_COMBAT_WEAPON_DEFINITION,
+		OPPONENT_FACTION,
+		OPPONENT_COMBAT_ORIGIN_TOLERANCE_METERS
+	)
+	if not (converted.get(OPPONENT_WEAPON_ID, {}) as Dictionary).is_empty():
+		return converted
+	return {
+		OPPONENT_WEAPON_ID: {
+			"range": ENEMY_WEAPON_RANGE,
+			"damage": ENEMY_HIT_DAMAGE,
+			"origin_tolerance": OPPONENT_COMBAT_ORIGIN_TOLERANCE_METERS,
+		},
+	}
 const RUNTIME_SETTING_KEYS: Array[StringName] = [
 	&"ship_mouse_sensitivity",
 	&"on_foot_mouse_sensitivity",
@@ -15114,6 +15135,7 @@ func _apply_accessibility_settings() -> void:
 			else float(_authored_chase_camera_lag[instance_id])
 		)
 	_apply_bomber_payload_presentation_profile()
+	_apply_opponent_weapon_heat_presentation_profile()
 
 
 ## Gives the station's zero-budget Environment presenter the validated setting;
@@ -15134,6 +15156,16 @@ func _apply_bomber_payload_presentation_profile(target: CinderLongRangeBomber = 
 		var bomber := candidate as CinderLongRangeBomber
 		if is_instance_valid(bomber):
 			bomber.set_payload_presentation_profile(intensity, runtime_settings.reduced_flash)
+
+
+## Hands the defender the validated reduced-flash setting for its hot-vent
+## glow. RuntimeSettings stays the sole value authority and the vent stays a
+## steady fade at every setting; this only lowers its brightest frame.
+func _apply_opponent_weapon_heat_presentation_profile() -> void:
+	if runtime_settings == null or not is_instance_valid(opponent):
+		return
+	if opponent.has_method(&"set_reduced_flash_enabled"):
+		opponent.call(&"set_reduced_flash_enabled", runtime_settings.reduced_flash)
 
 
 func _on_audio_cue_started(cue_id: StringName) -> void:
@@ -15325,6 +15357,7 @@ func _on_runtime_setting_changed(setting: StringName, _value: Variant) -> void:
 		_apply_reduced_dynamic_range_setting()
 	elif setting in [&"reduced_flash", &"payload_visual_intensity"]:
 		_apply_bomber_payload_presentation_profile()
+		_apply_opponent_weapon_heat_presentation_profile()
 	elif setting in [
 		&"ui_scale", &"colorblind_palette", &"reduced_motion", &"captions_enabled"
 	]:

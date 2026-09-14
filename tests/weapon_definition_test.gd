@@ -94,8 +94,13 @@ func _test_faction_and_optional_system_contracts() -> void:
 	_check(
 		(optional.heat as Dictionary).per_shot == 8.0
 			and (optional.heat as Dictionary).capacity == 40.0
-			and (optional.heat as Dictionary).cooldown_per_second == 5.0,
-		"bounded heat records per-shot cost, capacity, and cooldown"
+			and (optional.heat as Dictionary).cooldown_per_second == 5.0
+			and (optional.heat as Dictionary).lockout_seconds == 3.25,
+		"bounded heat records per-shot cost, capacity, cooldown, and forced lockout"
+	)
+	_check(
+		weapon.has_heat_envelope() and not _definition().has_heat_envelope(),
+		"a complete heat envelope is a single explicit predicate, never inferred field by field"
 	)
 	_check(
 		(optional.ammunition as Dictionary).magazine_capacity == 24
@@ -151,15 +156,38 @@ func _test_strict_validation() -> void:
 	var disabled_heat_data := _definition()
 	disabled_heat_data.heat_per_shot = 1.0
 	_check(_has_error(disabled_heat_data.get_validation_errors(), "heat fields"), "disabled heat requires a canonical all-zero state")
+	var disabled_lockout_data := _definition()
+	disabled_lockout_data.heat_lockout_seconds = 1.0
+	_check(
+		_has_error(disabled_lockout_data.get_validation_errors(), "heat fields"),
+		"a disabled heat system cannot retain a forced lockout window"
+	)
 	var invalid_heat := _definition()
 	invalid_heat.heat_enabled = true
 	invalid_heat.heat_per_shot = 11.0
 	invalid_heat.heat_capacity = 10.0
 	invalid_heat.heat_cooldown_per_second = 1.0
+	invalid_heat.heat_lockout_seconds = 2.0
 	_check(_has_error(invalid_heat.get_validation_errors(), "must not exceed"), "one shot cannot exceed heat capacity")
+	var missing_lockout := _definition()
+	missing_lockout.heat_enabled = true
+	missing_lockout.heat_per_shot = 4.0
+	missing_lockout.heat_capacity = 20.0
+	missing_lockout.heat_cooldown_per_second = 1.0
+	_check(
+		_has_error(missing_lockout.get_validation_errors(), "heat_lockout_seconds")
+			and not missing_lockout.has_heat_envelope(),
+		"enabled heat with no forced lockout is a window the player could never read"
+	)
 	var non_finite_heat := _complete_definition()
 	non_finite_heat.heat_capacity = INF
 	_check(_has_error(non_finite_heat.get_validation_errors(), "heat_capacity"), "heat bounds reject infinities")
+	var overlong_lockout := _complete_definition()
+	overlong_lockout.heat_lockout_seconds = DefinitionScript.MAX_HEAT_LOCKOUT_SECONDS + 1.0
+	_check(
+		_has_error(overlong_lockout.get_validation_errors(), "heat_lockout_seconds"),
+		"the forced lockout is bounded like every other authored envelope"
+	)
 
 	var disabled_ammunition_data := _definition()
 	disabled_ammunition_data.reserve_ammunition = 1
@@ -328,6 +356,7 @@ func _complete_definition() -> WeaponDefinition:
 	weapon.heat_per_shot = 8.0
 	weapon.heat_capacity = 40.0
 	weapon.heat_cooldown_per_second = 5.0
+	weapon.heat_lockout_seconds = 3.25
 	weapon.ammunition_enabled = true
 	weapon.magazine_capacity = 24
 	weapon.reserve_ammunition = 96

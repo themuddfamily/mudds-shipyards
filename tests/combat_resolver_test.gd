@@ -348,6 +348,7 @@ func _run() -> void:
 	resolver.forget_source(shooter, SOURCE_ID)
 	_check(resolver.get_tracked_source_count() == 0 and resolver.get_registered_source_count() == 0, "despawn cleanup forgets source registration and ledger")
 	await _test_scatter_authority(host)
+	await _test_weapon_heat_authority(host)
 	await _test_projectile_flight_authority(host)
 	await _test_travelling_bolt_pool(host)
 
@@ -357,6 +358,238 @@ func _run() -> void:
 	await process_frame
 	_check(root.get_child_count() == original_root_child_count, "combat resolver fixture cleans up every scene node")
 	_finish()
+
+
+## The weapon-heat authority. Every assertion here is about the one thing heat
+## adds to the resolver: a registered weapon can refuse its own trigger, and the
+## refusal costs the shooter a replay sequence while costing the target nothing.
+func _test_weapon_heat_authority(host: Node3D) -> void:
+	var resolver := CombatResolverScript.new() as CombatResolver
+	resolver.name = "WeaponHeatResolver"
+	host.add_child(resolver)
+	var shooter := _make_compound_shooter("HeatShooter", Vector3(-400.0, 0.0, 12.0))
+	host.add_child(shooter)
+	var cold_shooter := _make_compound_shooter("ColdShooter", Vector3(-460.0, 0.0, 12.0))
+	host.add_child(cold_shooter)
+	var victim_fixture := _make_damageable_body(
+		"HeatVictim", Vector3(-400.0, 0.0, 0.0), &"raider", 400.0
+	)
+	host.add_child(victim_fixture.entity)
+	await process_frame
+	await physics_frame
+
+	var heat_profiles := {
+		&"vented_cannon": {
+			"range": 40.0,
+			"damage": 10.0,
+			"origin_tolerance": 4.0,
+			"heat_per_shot": 25.0,
+			"heat_capacity": 100.0,
+			"heat_cooldown_per_second": 5.0,
+			"heat_lockout_seconds": 2.0,
+		},
+	}
+	var cold_profiles := {
+		&"vented_cannon": {
+			"range": 40.0,
+			"damage": 10.0,
+			"origin_tolerance": 4.0,
+		},
+	}
+	_check(
+		resolver.register_source(SOURCE_ID + 40, shooter, SOURCE_FACTION, heat_profiles)
+		and resolver.register_source(
+			SOURCE_ID + 41, cold_shooter, SOURCE_FACTION, cold_profiles
+		),
+		"heat and non-heat weapons register side by side on one resolver"
+	)
+	_check(
+		CombatResolver.profile_is_heat(
+			resolver.get_registered_weapon_profile(shooter, SOURCE_ID + 40, &"vented_cannon")
+		)
+		and not CombatResolver.profile_is_heat(
+			resolver.get_registered_weapon_profile(
+				cold_shooter, SOURCE_ID + 41, &"vented_cannon"
+			)
+		)
+		and resolver.get_registered_weapon_profile(
+			cold_shooter, SOURCE_ID + 41, &"vented_cannon"
+		).size() == 3,
+		"only the heat weapon's registry entry grows; the other is exactly what it was"
+	)
+
+	var partial_profiles := {
+		&"half_authored": {
+			"range": 40.0,
+			"damage": 10.0,
+			"origin_tolerance": 4.0,
+			"heat_per_shot": 25.0,
+			"heat_capacity": 100.0,
+		},
+	}
+	var partial_shooter := _make_compound_shooter("PartialHeatShooter", Vector3(-520.0, 0.0, 12.0))
+	host.add_child(partial_shooter)
+	await process_frame
+	_check(
+		not resolver.register_source(
+			SOURCE_ID + 42, partial_shooter, SOURCE_FACTION, partial_profiles
+		),
+		"a half-authored heat envelope drops the weapon instead of registering a gun that never overheats"
+	)
+
+	var accepted := 0
+	var lockout_result := {}
+	for _index in 8:
+		var result := resolver.resolve_hitscan(
+			_heat_shot(shooter, SOURCE_ID + 40, resolver.get_last_sequence(shooter, SOURCE_ID + 40) + 1)
+		)
+		if StringName(result.get("status", &"")) == CombatResolver.HEAT_LOCKOUT_STATUS:
+			lockout_result = result
+			break
+		accepted += 1
+	_check(
+		accepted == 4 and not lockout_result.is_empty(),
+		"four 25-heat triggers fill a 100 ceiling and the fifth is refused"
+	)
+	_check(
+		not bool(lockout_result.get("accepted", true))
+		and not bool(lockout_result.get("resolved", true))
+		and not bool(lockout_result.get("damaged", true))
+		and is_equal_approx(float(lockout_result.get("applied_damage", -1.0)), 0.0)
+		and lockout_result.get("damageable") == null,
+		"the refused trigger applies no damage and never reaches a Damageable"
+	)
+	var sequence_after_refusal := resolver.get_last_sequence(shooter, SOURCE_ID + 40)
+	var replay := resolver.resolve_hitscan(
+		_heat_shot(shooter, SOURCE_ID + 40, sequence_after_refusal)
+	)
+	_check(
+		sequence_after_refusal == int(lockout_result.get("last_sequence", -1))
+		and StringName(replay.get("status", &"")) == &"duplicate_sequence",
+		"a refused trigger consumes its sequence, so it cannot be captured and replayed once the gun reopens"
+	)
+	_check(
+		is_equal_approx(
+			resolver.get_weapon_heat_lockout_remaining(shooter, SOURCE_ID + 40, &"vented_cannon"),
+			2.0
+		)
+		and is_equal_approx(
+			resolver.get_weapon_heat_ratio(shooter, SOURCE_ID + 40, &"vented_cannon"), 1.0
+		),
+		"the ceiling opens exactly the authored lockout with the gun at full heat"
+	)
+
+	resolver.advance_weapon_heat(1.0)
+	_check(
+		resolver.is_weapon_heat_locked(shooter, SOURCE_ID + 40, &"vented_cannon")
+		and is_equal_approx(
+			resolver.get_weapon_heat_ratio(shooter, SOURCE_ID + 40, &"vented_cannon"), 0.5
+		),
+		"the forced vent drains heat in step with the lockout it is serving"
+	)
+	resolver.advance_weapon_heat(1.0)
+	var reopened := resolver.resolve_hitscan(
+		_heat_shot(shooter, SOURCE_ID + 40, resolver.get_last_sequence(shooter, SOURCE_ID + 40) + 1)
+	)
+	_check(
+		not resolver.is_weapon_heat_locked(shooter, SOURCE_ID + 40, &"vented_cannon")
+		and bool(reopened.get("accepted", false))
+		and bool(reopened.get("damaged", false)),
+		"cooling reopens fire and the very next trigger applies damage again"
+	)
+
+	# Paced fire never overheats: the trickle outpaces the per-shot cost.
+	resolver.reset_weapon_heat(shooter, SOURCE_ID + 40)
+	var paced_accepted := 0
+	for _index in 10:
+		resolver.advance_weapon_heat(6.0)
+		if bool(
+			resolver.resolve_hitscan(
+				_heat_shot(
+					shooter, SOURCE_ID + 40,
+					resolver.get_last_sequence(shooter, SOURCE_ID + 40) + 1
+				)
+			).get("accepted", false)
+		):
+			paced_accepted += 1
+	_check(
+		paced_accepted == 10
+		and not resolver.is_weapon_heat_locked(shooter, SOURCE_ID + 40, &"vented_cannon"),
+		"a shooter that paces its fire below the cool rate never locks out at all"
+	)
+
+	# Re-registration is a fresh epoch: the ledger is rebuilt cold.
+	for _index in 4:
+		resolver.resolve_hitscan(
+			_heat_shot(
+				shooter, SOURCE_ID + 40,
+				resolver.get_last_sequence(shooter, SOURCE_ID + 40) + 1
+			)
+		)
+	_check(
+		resolver.is_weapon_heat_locked(shooter, SOURCE_ID + 40, &"vented_cannon"),
+		"an unpaced burst locks the gun again"
+	)
+	resolver.register_source(SOURCE_ID + 40, shooter, SOURCE_FACTION, heat_profiles)
+	_check(
+		not resolver.is_weapon_heat_locked(shooter, SOURCE_ID + 40, &"vented_cannon")
+		and is_equal_approx(
+			resolver.get_weapon_heat_ratio(shooter, SOURCE_ID + 40, &"vented_cannon"), 0.0
+		),
+		"re-registration rebuilds the heat ledger cold, exactly as it rebuilds the weapon envelope"
+	)
+
+	# A non-heat weapon is completely untouched by the ledger and its tick.
+	var cold_accepted := 0
+	for _index in 10:
+		if bool(
+			resolver.resolve_hitscan(
+				ShotRequestScript.new(
+					cold_shooter,
+					SOURCE_ID + 41,
+					SOURCE_FACTION,
+					&"vented_cannon",
+					resolver.get_last_sequence(cold_shooter, SOURCE_ID + 41) + 1,
+					cold_shooter.global_position,
+					Vector3(0.0, 0.0, -1.0),
+					40.0,
+					10.0
+				) as ShotRequest
+			).get("accepted", false)
+		):
+			cold_accepted += 1
+	resolver.advance_weapon_heat(5.0)
+	_check(
+		cold_accepted == 10
+		and resolver.get_weapon_heat_snapshot(
+			cold_shooter, SOURCE_ID + 41, &"vented_cannon"
+		).is_empty()
+		and not resolver.is_weapon_heat_locked(cold_shooter, SOURCE_ID + 41, &"vented_cannon"),
+		"a weapon that authored no heat cannot be locked out, heated, or even described by the ledger"
+	)
+
+	resolver.forget_source(shooter, SOURCE_ID + 40)
+	resolver.forget_source(cold_shooter, SOURCE_ID + 41)
+	shooter.queue_free()
+	cold_shooter.queue_free()
+	partial_shooter.queue_free()
+	victim_fixture.entity.queue_free()
+	resolver.queue_free()
+	await process_frame
+
+
+func _heat_shot(shooter: Node3D, source_id: int, sequence: int) -> ShotRequest:
+	return ShotRequestScript.new(
+		shooter,
+		source_id,
+		SOURCE_FACTION,
+		&"vented_cannon",
+		sequence,
+		shooter.global_position,
+		Vector3(0.0, 0.0, -1.0),
+		40.0,
+		10.0
+	) as ShotRequest
 
 
 ## The travelling-projectile authority. Every assertion here is about the one

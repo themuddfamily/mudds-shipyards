@@ -9,6 +9,15 @@ const MAX_SPREAD_DEGREES := 45.0
 const PROJECTILE_PROFILE_KEYS := [
 	"projectile_speed", "projectile_lifetime", "projectile_radius",
 ]
+## Optional authored heat envelope. A profile either declares all four keys or
+## none of them; a weapon without heat registers the dictionary it always did
+## and never touches a single line of the heat ledger below.
+const HEAT_PROFILE_KEYS := [
+	"heat_per_shot", "heat_capacity", "heat_cooldown_per_second", "heat_lockout_seconds",
+]
+const MAX_HEAT_UNITS := 1_000_000.0
+const MAX_HEAT_LOCKOUT_SECONDS := 60.0
+const HEAT_LOCKOUT_STATUS: StringName = &"weapon_heat_locked"
 const MAX_PROJECTILE_SPEED := 10_000.0
 const MAX_PROJECTILE_LIFETIME := 600.0
 const MAX_PROJECTILE_RADIUS := 100.0
@@ -36,10 +45,11 @@ var _projectile_flights: Dictionary = {}
 var _next_projectile_flight_id: int = 1
 
 
-func _process(_delta: float) -> void:
+func _process(delta: float) -> void:
 	_prune_invalid_sources()
 	_prune_invalid_history()
 	_prune_projectile_flights()
+	advance_weapon_heat(delta)
 
 
 ## Registers the authority-owned identity, collision root, faction, and weapon
@@ -90,6 +100,11 @@ func register_source(
 		"source_id": source_id,
 		"faction_id": faction_id,
 		"weapons": normalized_profiles,
+		# Server-owned weapon heat lives inside the registration it describes, so a
+		# re-registration, a retirement, a streamed detach, an explicit forget and
+		# ordinary pruning all discard it by construction. There is no second
+		# ledger that could outlive the identity or leak across a regenerated epoch.
+		"heat": _make_heat_ledger(normalized_profiles),
 	}
 	_source_key_by_instance_id[instance_id] = source_key
 	_remember_history_owner(source_key, source_entity, source_id)
@@ -181,6 +196,15 @@ func resolve_hitscan_fan(
 			aggregate, &"invalid_spread_profile", "scatter direction envelope is invalid"
 		)
 
+	if _weapon_heat_is_locked(
+		String(authority_context.source_key), trigger_request.weapon_id
+	):
+		return _reject_fan(
+			aggregate,
+			HEAT_LOCKOUT_STATUS,
+			"registered weapon is in its authored heat lockout"
+		)
+
 	var pellet_results: Array[Dictionary] = []
 	var applied_damage := 0.0
 	var all_accepted := true
@@ -198,7 +222,10 @@ func resolve_hitscan_fan(
 			float(authority_context.damage),
 			int(presentation_receipt_ids[pellet_index])
 		) as ShotRequestType
-		var pellet_result := _resolve_request(pellet_request)
+		# One trigger, one heat charge: the first pellet pays for the whole fan.
+		var pellet_result := _resolve_request(
+			pellet_request, Vector3.INF, false, pellet_index == 0
+		)
 		pellet_result["pellet_index"] = pellet_index
 		pellet_result["pellet_count"] = pellet_count
 		pellet_results.append(pellet_result)
@@ -292,7 +319,8 @@ func resolve_projectile_impact(
 		request_range,
 		request_damage
 	) as ShotRequestType
-	return _resolve_request(request, terminal_position)
+	# A terminal impact is not a trigger pull; the launch already paid its heat.
+	return _resolve_request(request, terminal_position, false, false)
 
 
 ## ------------------------------------------------------ projectile flights ----
@@ -351,6 +379,12 @@ func open_projectile_flight(
 		return _reject_flight(
 			&"source_destroyed", "registered source belongs to a destroyed lifecycle epoch"
 		)
+	if _weapon_heat_is_locked(source_key, weapon_id):
+		# Launching a bolt is the trigger pull for a travelling weapon, so the heat
+		# gate belongs here rather than on arrival.
+		return _reject_flight(
+			HEAT_LOCKOUT_STATUS, "registered weapon is in its authored heat lockout"
+		)
 	if _projectile_flights.size() >= MAX_ACTIVE_PROJECTILE_FLIGHTS:
 		return _reject_flight(&"flight_capacity", "active projectile flights are saturated")
 	if _next_projectile_flight_id <= 0 \
@@ -377,8 +411,11 @@ func open_projectile_flight(
 		"quarantined": false,
 		"quarantine_reason": &"",
 	}
+	var heat_state := _charge_weapon_heat(source_key, weapon_id)
 	var ticket := (_projectile_flights[flight_id] as Dictionary).duplicate(true)
 	ticket.erase("source")
+	if not heat_state.is_empty():
+		ticket["weapon_heat"] = heat_state
 	ticket["accepted"] = true
 	ticket["status"] = &"flight_opened"
 	ticket["reason"] = ""
@@ -471,7 +508,7 @@ func close_projectile_flight(
 	# The muzzle envelope was already proven at launch against the source's own
 	# position; by arrival the source has legitimately moved, so the tolerance
 	# check is deliberately not re-applied to the terminal segment.
-	return _resolve_request(request, segment_end, true)
+	return _resolve_request(request, segment_end, true, false)
 
 
 func abandon_projectile_flight(flight_id: int) -> bool:
@@ -490,6 +527,259 @@ func get_projectile_flight_snapshot(flight_id: int) -> Dictionary:
 	var snapshot := flight.duplicate(true)
 	snapshot.erase("source")
 	return snapshot
+
+
+## ------------------------------------------------------------ weapon heat ----
+##
+## An authored heat envelope turns sustained fire into a resource the firing
+## craft spends and the player can read. The rules are deliberately small:
+##
+##   * every accepted trigger pull adds `heat_per_shot`;
+##   * between pulls the gun sheds `heat_cooldown_per_second`, so a burst that
+##     is paced slowly never overheats at all;
+##   * the instant accumulated heat reaches `heat_capacity` the weapon enters a
+##     forced `heat_lockout_seconds` vent during which every request is refused
+##     with `weapon_heat_locked` and no damage is applied;
+##   * the vent drains the gun from the ceiling to exactly zero across that
+##     span, so `heat_capacity / heat_lockout_seconds` is both the recovery rate
+##     and the rate a hot-vent glow fades at.
+##
+## The ledger is server-owned and lives inside the source registration, so it is
+## reset by the same events that already reset registration: re-registration,
+## retirement, streamed detach, explicit forget, and a destroyed lifecycle epoch.
+
+
+## Advances every registered heat weapon. Called from this node's existing
+## `_process` tick; it mutates the ledger dictionaries in place and allocates
+## nothing per frame. Exposed so a headless fixture can drive it deterministically.
+func advance_weapon_heat(delta: float) -> void:
+	if not is_finite(delta) or delta <= 0.0:
+		return
+	for source_key: String in _source_registry:
+		var registration: Dictionary = _source_registry[source_key]
+		var ledger: Dictionary = registration.get("heat", {})
+		if ledger.is_empty():
+			continue
+		var profiles: Dictionary = registration.get("weapons", {})
+		for weapon_id: StringName in ledger:
+			_advance_weapon_heat_entry(
+				ledger[weapon_id] as Dictionary,
+				profiles.get(weapon_id, {}) as Dictionary,
+				delta
+			)
+
+
+## Detached read of one registered weapon's heat. An empty `weapon_id` returns
+## the source's single heat weapon when it owns exactly one, which is what a
+## presentation layer wants without duplicating the weapon-id authority.
+func get_weapon_heat_snapshot(
+		source_entity: Node,
+		source_id: int = 0,
+		weapon_id: StringName = &""
+	) -> Dictionary:
+	var source_key := _source_key(source_entity, source_id)
+	var registration: Dictionary = _source_registry.get(source_key, {})
+	if registration.is_empty():
+		return {}
+	var ledger: Dictionary = registration.get("heat", {})
+	var resolved_weapon_id := _resolved_heat_weapon_id(ledger, weapon_id)
+	if resolved_weapon_id.is_empty():
+		return {}
+	var state: Dictionary = ledger[resolved_weapon_id]
+	var profile: Dictionary = (registration.get("weapons", {}) as Dictionary).get(
+		resolved_weapon_id, {}
+	)
+	var capacity := float(profile.get("heat_capacity", 0.0))
+	var per_shot := float(profile.get("heat_per_shot", 0.0))
+	var heat := float(state.get("heat", 0.0))
+	var lockout_remaining := float(state.get("lockout_remaining", 0.0))
+	return {
+		"enabled": true,
+		"weapon_id": resolved_weapon_id,
+		"heat": heat,
+		"capacity": capacity,
+		"ratio": clampf(heat / maxf(capacity, 0.001), 0.0, 1.0),
+		"locked": lockout_remaining > 0.0,
+		"lockout_remaining": lockout_remaining,
+		"lockout_seconds": float(profile.get("heat_lockout_seconds", 0.0)),
+		"heat_per_shot": per_shot,
+		"cooldown_per_second": float(profile.get("heat_cooldown_per_second", 0.0)),
+		"shots_until_lockout": (
+			0
+			if lockout_remaining > 0.0
+			else maxi(0, int(ceil((capacity - heat) / maxf(per_shot, 0.001))))
+		),
+	}.duplicate(true)
+
+
+## True when the registered weapon is currently refusing fire.
+func is_weapon_heat_locked(
+		source_entity: Node,
+		source_id: int = 0,
+		weapon_id: StringName = &""
+	) -> bool:
+	return get_weapon_heat_lockout_remaining(source_entity, source_id, weapon_id) > 0.0
+
+
+## Allocation-free per-frame reads for a presentation layer. A glow that fades as
+## the gun vents is drawn every frame; building a whole snapshot dictionary for it
+## would be the one heat cost the player could actually measure.
+func get_weapon_heat_ratio(
+		source_entity: Node,
+		source_id: int = 0,
+		weapon_id: StringName = &""
+	) -> float:
+	var registration: Dictionary = _source_registry.get(
+		_source_key(source_entity, source_id), {}
+	)
+	if registration.is_empty():
+		return 0.0
+	var ledger: Dictionary = registration.get("heat", {})
+	var resolved_weapon_id := _resolved_heat_weapon_id(ledger, weapon_id)
+	if resolved_weapon_id.is_empty():
+		return 0.0
+	var profile: Dictionary = (registration.get("weapons", {}) as Dictionary).get(
+		resolved_weapon_id, {}
+	)
+	return clampf(
+		float((ledger[resolved_weapon_id] as Dictionary).get("heat", 0.0))
+			/ maxf(float(profile.get("heat_capacity", 0.0)), 0.001),
+		0.0,
+		1.0
+	)
+
+
+func get_weapon_heat_lockout_remaining(
+		source_entity: Node,
+		source_id: int = 0,
+		weapon_id: StringName = &""
+	) -> float:
+	var registration: Dictionary = _source_registry.get(
+		_source_key(source_entity, source_id), {}
+	)
+	if registration.is_empty():
+		return 0.0
+	var ledger: Dictionary = registration.get("heat", {})
+	var resolved_weapon_id := _resolved_heat_weapon_id(ledger, weapon_id)
+	if resolved_weapon_id.is_empty():
+		return 0.0
+	return maxf(
+		float((ledger[resolved_weapon_id] as Dictionary).get("lockout_remaining", 0.0)), 0.0
+	)
+
+
+## An empty request resolves to the source's single heat weapon. A source that
+## mounts more than one must name the weapon, because guessing which barrel a
+## presentation meant is exactly the kind of silent authority this seam refuses.
+func _resolved_heat_weapon_id(ledger: Dictionary, weapon_id: StringName) -> StringName:
+	if weapon_id.is_empty():
+		return StringName(ledger.keys()[0]) if ledger.size() == 1 else &""
+	return weapon_id if ledger.has(weapon_id) else &""
+
+
+## Vents every heat weapon on one source back to a cold, unlocked gun. This is
+## the regeneration/reuse hook: a craft that is made healthy again starts its new
+## epoch cold, exactly as a freshly registered one does.
+func reset_weapon_heat(source_entity: Node = null, source_id: int = 0) -> bool:
+	return _reset_weapon_heat_for_key(_source_key(source_entity, source_id))
+
+
+## True when a registered profile carries a complete, normalized heat envelope.
+static func profile_is_heat(profile: Dictionary) -> bool:
+	for key: String in HEAT_PROFILE_KEYS:
+		if not profile.has(key):
+			return false
+	return true
+
+
+func _make_heat_ledger(normalized_profiles: Dictionary) -> Dictionary:
+	var ledger := {}
+	for weapon_id: StringName in normalized_profiles:
+		if profile_is_heat(normalized_profiles[weapon_id] as Dictionary):
+			ledger[weapon_id] = {"heat": 0.0, "lockout_remaining": 0.0}
+	return ledger
+
+
+func _weapon_heat_state(source_key: String, weapon_id: StringName) -> Dictionary:
+	var registration: Dictionary = _source_registry.get(source_key, {})
+	if registration.is_empty():
+		return {}
+	var ledger: Dictionary = registration.get("heat", {})
+	return ledger.get(weapon_id, {}) as Dictionary
+
+
+func _weapon_heat_is_locked(source_key: String, weapon_id: StringName) -> bool:
+	var state := _weapon_heat_state(source_key, weapon_id)
+	return not state.is_empty() and float(state.get("lockout_remaining", 0.0)) > 0.0
+
+
+## Adds one trigger pull's heat and, if that reaches the authored ceiling, opens
+## the forced vent. Returns a detached snapshot for the caller's presentation, or
+## an empty dictionary for a weapon that authored no heat at all.
+func _charge_weapon_heat(source_key: String, weapon_id: StringName) -> Dictionary:
+	var registration: Dictionary = _source_registry.get(source_key, {})
+	if registration.is_empty():
+		return {}
+	var ledger: Dictionary = registration.get("heat", {})
+	if not ledger.has(weapon_id):
+		return {}
+	var state: Dictionary = ledger[weapon_id]
+	var profile: Dictionary = (registration.get("weapons", {}) as Dictionary).get(weapon_id, {})
+	var capacity := float(profile.get("heat_capacity", 0.0))
+	var heat := minf(
+		float(state.get("heat", 0.0)) + float(profile.get("heat_per_shot", 0.0)), capacity
+	)
+	state["heat"] = heat
+	if heat >= capacity:
+		state["lockout_remaining"] = float(profile.get("heat_lockout_seconds", 0.0))
+	var source_reference: WeakRef = registration.get("entity") as WeakRef
+	return get_weapon_heat_snapshot(
+		source_reference.get_ref() as Node if source_reference != null else null,
+		int(registration.get("source_id", 0)),
+		weapon_id
+	)
+
+
+func _advance_weapon_heat_entry(
+		state: Dictionary,
+		profile: Dictionary,
+		delta: float
+	) -> void:
+	var capacity := float(profile.get("heat_capacity", 0.0))
+	if capacity <= 0.0:
+		return
+	var lockout_remaining := float(state.get("lockout_remaining", 0.0))
+	if lockout_remaining > 0.0:
+		# The forced vent is the authored window, so heat tracks it exactly rather
+		# than trickling: the gun reaches cold on the frame fire reopens.
+		lockout_remaining = maxf(0.0, lockout_remaining - delta)
+		state["lockout_remaining"] = lockout_remaining
+		var lockout_seconds := maxf(float(profile.get("heat_lockout_seconds", 0.0)), 0.001)
+		state["heat"] = (
+			0.0
+			if lockout_remaining <= 0.0
+			else capacity * (lockout_remaining / lockout_seconds)
+		)
+		return
+	state["heat"] = maxf(
+		0.0,
+		float(state.get("heat", 0.0))
+			- float(profile.get("heat_cooldown_per_second", 0.0)) * delta
+	)
+
+
+func _reset_weapon_heat_for_key(source_key: String) -> bool:
+	var registration: Dictionary = _source_registry.get(source_key, {})
+	if registration.is_empty():
+		return false
+	var ledger: Dictionary = registration.get("heat", {})
+	if ledger.is_empty():
+		return false
+	for weapon_id: StringName in ledger:
+		var state: Dictionary = ledger[weapon_id]
+		state["heat"] = 0.0
+		state["lockout_remaining"] = 0.0
+	return true
 
 
 ## True when a registered profile carries a complete, normalized travel envelope.
@@ -555,10 +845,15 @@ func get_registered_weapon_profile(
 	return (profiles.get(weapon_id, {}) as Dictionary).duplicate(true)
 
 
+## `charge_heat` marks the one call that is a *trigger pull*. Only a trigger pull
+## is gated by, and pays into, the weapon heat ledger; a travelling bolt's
+## terminal segment already paid at launch, and the second and third pellets of
+## one scatter trigger are part of the same pull as the first.
 func _resolve_request(
 		request: ShotRequestType,
 		endpoint_override: Vector3 = Vector3.INF,
-		skip_origin_tolerance: bool = false
+		skip_origin_tolerance: bool = false,
+		charge_heat: bool = true
 	) -> Dictionary:
 	var result := _make_result(request)
 	if request == null:
@@ -617,6 +912,10 @@ func _resolve_request(
 	# after reset_for_reuse() makes the same object healthy again.
 	var authoritative_entity: Node3D = authority_context.source_entity
 	if _source_lifecycle_is_destroyed(authoritative_entity):
+		# A dead epoch keeps no heat. Whatever the hull was carrying when it died is
+		# discarded here, so a craft that is later regenerated on the same stable
+		# identity can never inherit a lockout it did not earn.
+		_reset_weapon_heat_for_key(source_key)
 		_last_sequence_by_source[source_key] = request.sequence
 		_remember_history_owner(
 			source_key,
@@ -628,6 +927,25 @@ func _resolve_request(
 			result,
 			&"source_destroyed",
 			"registered source belongs to a destroyed lifecycle epoch",
+			request
+		)
+
+	# The heat gate sits after the replay and lifecycle gates and before the world
+	# query, so a locked-out trigger still consumes its sequence: a request that was
+	# captured while the gun was venting can never be replayed once it reopens. It
+	# applies no damage, runs no ray, and emits no contact.
+	if charge_heat and _weapon_heat_is_locked(source_key, request.weapon_id):
+		_last_sequence_by_source[source_key] = request.sequence
+		_remember_history_owner(
+			source_key,
+			authoritative_entity,
+			int(authority_context.source_id)
+		)
+		result["last_sequence"] = request.sequence
+		return _reject(
+			result,
+			HEAT_LOCKOUT_STATUS,
+			"registered weapon is in its authored heat lockout",
 			request
 		)
 
@@ -645,6 +963,13 @@ func _resolve_request(
 	result["accepted"] = true
 	result["resolved"] = true
 	result["last_sequence"] = request.sequence
+	# An accepted trigger pays its heat before the ray is cast, so a shot that
+	# misses heats the gun exactly as much as one that hits. A weapon that
+	# authored no heat gets no key, so its result dictionary is unchanged.
+	if charge_heat:
+		var charged_heat := _charge_weapon_heat(source_key, request.weapon_id)
+		if not charged_heat.is_empty():
+			result["weapon_heat"] = charged_heat
 
 	var authoritative_range: float = authority_context.range
 	var authoritative_damage: float = authority_context.damage
@@ -999,6 +1324,29 @@ func _normalize_weapon_profiles(profiles: Dictionary) -> Dictionary:
 			or not is_equal_approx(trigger_damage, weapon_damage * float(pellet_count))
 		):
 			continue
+		var heat_per_shot := float(profile.get("heat_per_shot", 0.0))
+		var heat_capacity := float(profile.get("heat_capacity", 0.0))
+		var heat_cooldown := float(profile.get("heat_cooldown_per_second", 0.0))
+		var heat_lockout := float(profile.get("heat_lockout_seconds", 0.0))
+		var declared_heat_keys := 0
+		for heat_key: String in HEAT_PROFILE_KEYS:
+			if profile.has(heat_key):
+				declared_heat_keys += 1
+		if declared_heat_keys != 0:
+			# A heat envelope is all-or-nothing for the same reason the travel
+			# envelope is: a reader that took the fields it recognised and guessed
+			# the rest would silently register a gun that never has to stop firing.
+			if declared_heat_keys != HEAT_PROFILE_KEYS.size() \
+				or not is_finite(heat_per_shot) or heat_per_shot <= 0.0 \
+				or heat_per_shot > MAX_HEAT_UNITS \
+				or not is_finite(heat_capacity) or heat_capacity <= 0.0 \
+				or heat_capacity > MAX_HEAT_UNITS \
+				or heat_per_shot > heat_capacity \
+				or not is_finite(heat_cooldown) or heat_cooldown <= 0.0 \
+				or heat_cooldown > MAX_HEAT_UNITS \
+				or not is_finite(heat_lockout) or heat_lockout <= 0.0 \
+				or heat_lockout > MAX_HEAT_LOCKOUT_SECONDS:
+				continue
 		var projectile_speed := float(profile.get("projectile_speed", 0.0))
 		var projectile_lifetime := float(profile.get("projectile_lifetime", 0.0))
 		var projectile_radius := float(profile.get("projectile_radius", 0.0))
@@ -1025,6 +1373,11 @@ func _normalize_weapon_profiles(profiles: Dictionary) -> Dictionary:
 			"damage": weapon_damage,
 			"origin_tolerance": origin_tolerance,
 		}
+		if declared_heat_keys == HEAT_PROFILE_KEYS.size():
+			normalized[weapon_id]["heat_per_shot"] = heat_per_shot
+			normalized[weapon_id]["heat_capacity"] = heat_capacity
+			normalized[weapon_id]["heat_cooldown_per_second"] = heat_cooldown
+			normalized[weapon_id]["heat_lockout_seconds"] = heat_lockout
 		if declared_projectile_keys == PROJECTILE_PROFILE_KEYS.size():
 			normalized[weapon_id]["projectile_speed"] = projectile_speed
 			normalized[weapon_id]["projectile_lifetime"] = projectile_lifetime

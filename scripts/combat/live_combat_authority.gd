@@ -396,6 +396,64 @@ func get_weapon_profile(source_entity: Node3D, weapon_id: StringName) -> Diction
 	return (profiles.get(weapon_id, {}) as Dictionary).duplicate(true)
 
 
+## ------------------------------------------------------------ weapon heat ----
+##
+## Heat is owned end to end by the one `CombatResolver` this authority already
+## wraps. These are reads and a reset hook for the craft that mounts the gun and
+## the presentation that draws it; nothing here decides, stores, or replicates a
+## single heat value, and no network message is added.
+
+
+func get_weapon_heat_state(
+		source_entity: Node3D,
+		weapon_id: StringName = &""
+	) -> Dictionary:
+	if not is_instance_valid(resolver):
+		return {}
+	return resolver.get_weapon_heat_snapshot(
+		source_entity, get_source_id(source_entity), weapon_id
+	)
+
+
+func is_weapon_heat_locked(
+		source_entity: Node3D,
+		weapon_id: StringName = &""
+	) -> bool:
+	return get_weapon_heat_lockout_remaining(source_entity, weapon_id) > 0.0
+
+
+## Allocation-free per-frame reads used by the firing craft's own presentation.
+func get_weapon_heat_ratio(
+		source_entity: Node3D,
+		weapon_id: StringName = &""
+	) -> float:
+	if not is_instance_valid(resolver):
+		return 0.0
+	return resolver.get_weapon_heat_ratio(
+		source_entity, get_source_id(source_entity), weapon_id
+	)
+
+
+func get_weapon_heat_lockout_remaining(
+		source_entity: Node3D,
+		weapon_id: StringName = &""
+	) -> float:
+	if not is_instance_valid(resolver):
+		return 0.0
+	return resolver.get_weapon_heat_lockout_remaining(
+		source_entity, get_source_id(source_entity), weapon_id
+	)
+
+
+## Vents a source's guns back to cold. Used when a craft is regenerated or
+## reactivated on its existing registration, so a new epoch never inherits the
+## lockout the previous one earned.
+func reset_weapon_heat(source_entity: Node3D) -> bool:
+	if not is_instance_valid(resolver):
+		return false
+	return resolver.reset_weapon_heat(source_entity, get_source_id(source_entity))
+
+
 func get_last_submitted_sequence(source_entity: Node3D) -> int:
 	if not is_instance_valid(source_entity):
 		return -1

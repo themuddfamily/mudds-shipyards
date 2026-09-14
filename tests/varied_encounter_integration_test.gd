@@ -162,6 +162,15 @@ func _test_paired_wing_scatter_scenario() -> void:
 	await _free_game(game)
 
 
+## The defender's authored cadence (0.62 s telegraph + 1.55 s cooldown), the
+## burst that cadence buys against its 22-per-shot / 100-ceiling gun, and the
+## forced vent that follows. All four numbers are authored in
+## `assets/weapons/range_defence_pulse.tres`.
+const DEFENDER_SHOT_PERIOD_SECONDS := 2.17
+const DEFENDER_SHOTS_BEFORE_LOCKOUT := 7
+const DEFENDER_LOCKOUT_SECONDS := 2.5
+
+
 func _test_production_encounter() -> void:
 	var game := MAIN_SCENE.instantiate() as GameFlow
 	_check(game != null, "production Main instantiates for the varied encounter")
@@ -570,6 +579,97 @@ func _test_production_encounter() -> void:
 		not rearmed and not courier.is_active(),
 		"no scenario re-arms once the coordinator has left the engagement"
 	)
+
+	# ------------------------------------------ the defender's gun overheats ----
+	# The production defender is the first shipped opponent that has to stop
+	# firing. Everything below runs through the coordinator's own signal handler
+	# and the one live authority; nothing is simulated.
+	_check(
+		WeaponDefinitionResolverProfile.profile_is_heat(
+			authority.get_weapon_profile(defender, GameFlow.OPPONENT_WEAPON_ID)
+		),
+		"the production defender ships registered with an authored heat envelope"
+	)
+	defender.activate(Transform3D(Basis.IDENTITY, Vector3(320.0, 90.0, -400.0)))
+	_check(
+		is_equal_approx(
+			authority.get_weapon_heat_ratio(defender, GameFlow.OPPONENT_WEAPON_ID), 0.0
+		),
+		"a launched defender starts the engagement with a cold gun"
+	)
+	var defender_direction := -defender.global_basis.z
+	var defender_muzzle := defender.global_position + defender_direction * 6.0
+	var defender_shots := 0
+	var defender_lockout := {}
+	for _index in 12:
+		defender.projectile_fired.emit(defender_muzzle, defender_direction)
+		var defender_shot := game.get("_last_opponent_shot_result") as Dictionary
+		if StringName(defender_shot.get("status", &"")) == CombatResolver.HEAT_LOCKOUT_STATUS:
+			defender_lockout = defender_shot
+			break
+		defender_shots += 1
+		if authority.is_weapon_heat_locked(defender, GameFlow.OPPONENT_WEAPON_ID):
+			continue
+		resolver.advance_weapon_heat(DEFENDER_SHOT_PERIOD_SECONDS)
+	_check(
+		defender_shots == DEFENDER_SHOTS_BEFORE_LOCKOUT and not defender_lockout.is_empty(),
+		"the production defender lands %d shots at its authored cadence, then its gun refuses (%d)"
+			% [DEFENDER_SHOTS_BEFORE_LOCKOUT, defender_shots]
+	)
+	_check(
+		not bool(defender_lockout.get("accepted", true))
+		and not bool(defender_lockout.get("damaged", true))
+		and is_equal_approx(float(defender_lockout.get("applied_damage", -1.0)), 0.0)
+		and is_equal_approx(
+			authority.get_weapon_heat_lockout_remaining(
+				defender, GameFlow.OPPONENT_WEAPON_ID
+			),
+			DEFENDER_LOCKOUT_SECONDS
+		),
+		"the refused shot costs the player nothing and opens the authored %.1f s window"
+			% DEFENDER_LOCKOUT_SECONDS
+	)
+	defender.call("_update_presentation", 0.0)
+	var vent_state := defender.get_weapon_heat_presentation_state()
+	# The accessibility hand-off is asserted against the validated setting as it
+	# ships. Nothing here writes a setting: RuntimeSettings persists to the real
+	# user-data file, and a test that toggled it would leak into every later run.
+	var settings := game.get("runtime_settings") as RuntimeSettings
+	game.call("_apply_opponent_weapon_heat_presentation_profile")
+	defender.call("_update_presentation", 0.0)
+	vent_state = defender.get_weapon_heat_presentation_state()
+	_check(
+		settings != null
+		and bool(vent_state.get("reduced_flash", not settings.reduced_flash))
+			== settings.reduced_flash
+		# The material stores single-precision emission, so the ceiling is compared
+		# with one float32 step of slack rather than exactly.
+		and float(vent_state.get("vent_emission_energy", 0.0))
+			<= float(vent_state.get("vent_peak_emission_energy", 0.0)) + 0.001,
+		"the coordinator hands the defender the validated reduced-flash ceiling for its vent"
+	)
+	_check(
+		int(vent_state.get("vent_instance_count", 0)) == 2
+		and bool(vent_state.get("locked", false))
+		and bool(vent_state.get("vent_visible", false))
+		and float(vent_state.get("vent_emission_energy", 0.0)) > 0.0
+		and is_equal_approx(float(vent_state.get("heat_ratio", 0.0)), 1.0),
+		"the production defender shows the player a hot vent for the whole lockout"
+	)
+	resolver.advance_weapon_heat(DEFENDER_LOCKOUT_SECONDS)
+	defender.call("_update_presentation", 0.0)
+	var cooled_state := defender.get_weapon_heat_presentation_state()
+	defender.projectile_fired.emit(defender_muzzle, -defender.global_basis.z)
+	var reopened_shot := game.get("_last_opponent_shot_result") as Dictionary
+	_check(
+		not bool(cooled_state.get("locked", true))
+		and is_equal_approx(float(cooled_state.get("heat_ratio", 1.0)), 0.0)
+		and not bool(cooled_state.get("vent_visible", true))
+		and bool(reopened_shot.get("accepted", false)),
+		"the window closes on a cold, dark vent and the defender fires again"
+	)
+	defender.deactivate()
+	await _advance_physics(2)
 
 	await _free_game(game)
 

@@ -31,10 +31,10 @@ falling back to another behavior.
 ## Bounds and cross-field rules
 
 All floating-point gameplay values reject `NaN` and infinities. Range, damage,
-cadence, spread, heat, cooldown, magazine, reserve, and per-shot ammunition are
-bounded by named schema constants. Enabled spread must be positive. Enabled
-heat requires positive per-shot heat, capacity, and cooldown, and per-shot heat
-cannot exceed capacity. Enabled ammunition requires a positive magazine and
+cadence, spread, heat, cooldown, forced heat lockout, magazine, reserve, and
+per-shot ammunition are bounded by named schema constants. Enabled spread must
+be positive. Enabled heat requires positive per-shot heat, capacity, cooldown,
+and `heat_lockout_seconds`, and per-shot heat cannot exceed capacity. Enabled ammunition requires a positive magazine and
 per-shot cost, and one shot cannot cost more than the magazine holds. Disabled
 optional systems require exact zero values so snapshots have one canonical
 meaning.
@@ -87,10 +87,31 @@ not production profile owners.
 `WeaponDefinitionResolverProfile` is a pure converter. It accepts a validated
 definition, the already-authoritative registered faction, and the per-source
 origin tolerance, then returns a newly detached dictionary in the existing
-`{weapon_id: {range, damage, origin_tolerance}}` shape. It accepts hitscan,
-inherited faction or an exactly matching fixed faction, denied friendly fire,
-and disabled spread/heat/ammunition only. Any unsupported or invalid input
-returns an empty dictionary without a legacy fallback.
+`{weapon_id: {range, damage, origin_tolerance}}` shape. It accepts hitscan and
+projectile resolution, inherited faction or an exactly matching fixed faction,
+and denied friendly fire. A hitscan definition may enable the one bounded
+three-pellet spread fan; a projectile definition must author a complete travel
+envelope and may not enable spread. Either may enable heat, which appends the
+four explicit `heat_per_shot`, `heat_capacity`, `heat_cooldown_per_second` and
+`heat_lockout_seconds` fields; a definition that leaves heat disabled emits none
+of them, so its profile dictionary is exactly what it always was. Beam
+resolution, ammunition, allowed friendly fire, and any partially authored travel
+or heat envelope return an empty dictionary without a legacy fallback.
+
+`CombatResolver` owns the heat ledger itself. It lives inside the source
+registration, so it is discarded by the same events that discard the
+registration — re-registration, retirement, streamed detach, explicit forget —
+and is additionally vented when a request is refused for a destroyed lifecycle
+epoch. Every accepted trigger pull adds `heat_per_shot`; reaching
+`heat_capacity` opens a forced `heat_lockout_seconds` vent during which every
+request is refused with the distinct `weapon_heat_locked` status, applies no
+damage, runs no ray, and still consumes its replay sequence so it cannot be
+captured and replayed once the gun reopens. Cooling advances on the resolver's
+existing `_process` tick. The first production consumer is the range defender's
+`defence_pulse_cannon`
+(`assets/weapons/range_defence_pulse.tres`: 22 heat per shot, a 100 ceiling,
+3.6 heat/second between shots and a 2.5 s forced vent), which at its authored
+2.17 s cadence lands seven shots before it has to stop.
 
 The Torrent, Arrow, Jovian, Zenith, Halyard, and Bulwark pilot resources are now the sole
 production sources of their respective weapon identity, range, and damage.
@@ -115,6 +136,6 @@ The next migration should choose one row above, add its checked-in definition,
 and prove exact behavior before removing that row's dictionary. Cadence can
 move only after the relevant cooldown tests demonstrate identical accepted-shot
 timing. Presentation/audio IDs can become active routing inputs only after pool
-and cue tests prove the same atomic acceptance behavior. Projectile, beam,
-spread, heat, ammunition, and allowed friendly fire remain unsupported and
-must continue to fail closed rather than being approximated.
+and cue tests prove the same atomic acceptance behavior. Beam resolution,
+ammunition, and allowed friendly fire remain unsupported and must continue to
+fail closed rather than being approximated.
