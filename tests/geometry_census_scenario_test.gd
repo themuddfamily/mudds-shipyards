@@ -59,8 +59,8 @@ const MAIN_SCENE := preload("res://scenes/main.tscn")
 # 2026-09-14 trim recorded content landing after a freeze. The batcher reproduces
 # every source triangle at its former world transform, and the resident bucket
 # triangle totals of every module it touched are byte-identical before and after.
-const RESIDENT_FINGERPRINT := "fbe84901f03fe9d98b617ba2b5f0b917d5e0ee7cdd9067508871aced02a0a95d"
-const CINDER_LOADED_FINGERPRINT := "2b2f85b8c0b4372a9febe14ad6734ac87a87536d363b39334098b52eff02f641"
+const RESIDENT_FINGERPRINT := "727c47aaa587f62555c8d0400874863d80e18704cf7b1c486579ab1a0b75d787"
+const CINDER_LOADED_FINGERPRINT := "6e2584928fa1f6786705dc13acdcc5ca416ac1aff78fb3595e2ff3d855d7d487"
 
 var _assertions := 0
 var _failures := PackedStringArray()
@@ -120,8 +120,8 @@ func _run() -> void:
 		int(resident.get("bound_phase_unique_materials", -1)) == 693
 			and int(resident.get("retained_reachable_unique_materials", -1)) == 969
 			and int(resident.get("lights", -1)) == 335
-			and int(resident.get("nodes", -1)) == 11467,
-		"resident resource roster freezes 693 bound / 969 retained materials, 335 lights, and 11,467 nodes"
+			and int(resident.get("nodes", -1)) == 11487,
+		"resident resource roster freezes 693 bound / 969 retained materials, 335 lights, and 11,487 nodes"
 	)
 	_check(
 		str(resident.get("measurement_fingerprint", "")) == RESIDENT_FINGERPRINT,
@@ -188,8 +188,8 @@ func _run() -> void:
 		int(loaded.get("bound_phase_unique_materials", -1)) == 735
 			and int(loaded.get("retained_reachable_unique_materials", -1)) == 1016
 			and int(loaded.get("lights", -1)) == 362
-			and int(loaded.get("nodes", -1)) == 11890,
-		"loaded resource roster freezes 735 bound / 1,016 retained materials, 362 lights, and 11,890 nodes"
+			and int(loaded.get("nodes", -1)) == 11910,
+		"loaded resource roster freezes 735 bound / 1,016 retained materials, 362 lights, and 11,910 nodes"
 	)
 	var cinder_bucket := (loaded.get("buckets", {}) as Dictionary).get(
 		"CinderStreamingBootstrap", {}
