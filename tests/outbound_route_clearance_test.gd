@@ -844,7 +844,8 @@ func _test_target_lamp_mesh_sharing(world: ShipyardWorld) -> void:
 		mesh != null
 		and is_equal_approx(mesh.radius, 0.22)
 		and is_equal_approx(mesh.height, 0.44)
-		and mesh.radial_segments == 24 and mesh.rings == 12
+		# 48500161e budgets the 22 cm lamp at its declared 3 m ship approach: 16 x 8.
+		and mesh.radial_segments == 16 and mesh.rings == 8
 		and mesh.get_surface_count() == 1
 		and visual_contract_preserved,
 		"sharing preserves every lamp transform, material, name, visibility, and childless visual-only lifecycle"

@@ -167,7 +167,8 @@ const SEATED_ON_GEOMETRY_PATHS := [
 	"UpperOperations/Sign_DOCK_OPERATIONS",
 	"UpperOperations/OperationsWindow",
 	"UpperOperations/LandingConsoleReadout",
-	"UpperOperations/LandingViewerHead",
+	# f44f695a2 made the viewer head solid, so its drawn mesh now sits under a body.
+	"UpperOperations/LandingViewerHead/Mesh",
 	"JovianFreightBerth/CargoInfrastructure/CargoUnit01/Mesh",
 	"JovianFreightBerth/CargoInfrastructure/CargoUnit02/Mesh",
 	"JovianFreightBerth/CargoInfrastructure/CargoUnit03/Mesh",
