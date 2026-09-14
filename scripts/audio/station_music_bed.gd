@@ -3,12 +3,23 @@ extends Node
 
 const MusicDirectorType := preload("res://scripts/audio/music_director.gd")
 
-## Bounded three-voice music/ambient bed for the non-combat station state.
+## Bounded three-voice music/ambient bed for the non-combat states.
 ##
-## The three checked-in loops are project-original fixed-seed offline synthesis
-## (`tools/audio/generate_station_music_v1.py`). Nothing here is recovered or
-## authentic Keth audio, and the component makes no claim that the result sounds
-## good: a human listening pass is a separate, outstanding acceptance step.
+## The bed owns three loop *slots*, not three files. Each authored bed family -
+## `station`, `flight` (orbit and open space) and `surface` - fills the same
+## three slots with its own material at the same loop lengths, so leaving the
+## station changes what is heard without changing the voice budget, the bus, or
+## the combined 240 s cycle. A family change hands one slot over at a time: the
+## slot being handed over fades out at its own rate and re-enters on the new
+## family's loop while the other slots are still sounding the old one, which is
+## what makes the change an audible cross-fade rather than a cut.
+##
+## The checked-in loops are project-original fixed-seed offline synthesis
+## (`tools/audio/generate_station_music_v1.py` for the station family,
+## `tools/audio/generate_flight_music_v1.py` for the flight and surface
+## families). Nothing here is recovered or authentic Keth audio, and the
+## component makes no claim that the result sounds good: a human listening pass
+## is a separate, outstanding acceptance step.
 ##
 ## The bed strictly *observes*. `notify_session_state()` accepts an already
 ## decided session state and never calls back into gameplay, combat, phases, or
@@ -29,7 +40,10 @@ const AUDIO_BUS: StringName = &"Music"
 const SAMPLE_RATE := 22050
 const ASSET_DIRECTORY := "res://assets/audio/music"
 const MANIFEST_PATH := ASSET_DIRECTORY + "/station_music_v1_asset_manifest.json"
+const FLIGHT_MANIFEST_PATH := ASSET_DIRECTORY + "/flight_music_v1_asset_manifest.json"
 
+## Slot roles, not filenames: the sustaining floor, the sustaining colour, and
+## the sparse foreground gesture. Every bed family fills all three.
 const LAYER_DRONE: StringName = &"drone"
 const LAYER_HARMONICS: StringName = &"harmonics"
 const LAYER_MOTIF: StringName = &"motif"
@@ -37,24 +51,58 @@ const LAYER_MOTIF: StringName = &"motif"
 ## audits never depend on Dictionary iteration order.
 const LAYER_IDS: Array[StringName] = [LAYER_DRONE, LAYER_HARMONICS, LAYER_MOTIF]
 
+## Authored bed families. Fixed declaration order for the same reason as above.
+const FAMILY_STATION: StringName = &"station"
+const FAMILY_FLIGHT: StringName = &"flight"
+const FAMILY_SURFACE: StringName = &"surface"
+const BED_FAMILIES: Array[StringName] = [FAMILY_STATION, FAMILY_FLIGHT, FAMILY_SURFACE]
+
 const LAYER_NODE_NAMES := {
 	LAYER_DRONE: &"DroneLayer",
 	LAYER_HARMONICS: &"HarmonicsLayer",
 	LAYER_MOTIF: &"MotifLayer",
 }
-const LAYER_STREAM_PATHS := {
-	LAYER_DRONE: ASSET_DIRECTORY + "/station_bed_drone_v1.wav",
-	LAYER_HARMONICS: ASSET_DIRECTORY + "/station_bed_harmonics_v1.wav",
-	LAYER_MOTIF: ASSET_DIRECTORY + "/station_bed_motif_v1.wav",
+## One authored loop per slot per family. Every family reuses the same three
+## loop lengths, so a slot hand-over never changes the loop geometry and the
+## retained loop clock stays meaningful across a family change.
+const FAMILY_LAYER_STREAM_PATHS := {
+	FAMILY_STATION: {
+		LAYER_DRONE: ASSET_DIRECTORY + "/station_bed_drone_v1.wav",
+		LAYER_HARMONICS: ASSET_DIRECTORY + "/station_bed_harmonics_v1.wav",
+		LAYER_MOTIF: ASSET_DIRECTORY + "/station_bed_motif_v1.wav",
+	},
+	FAMILY_FLIGHT: {
+		LAYER_DRONE: ASSET_DIRECTORY + "/flight_bed_drift_v1.wav",
+		LAYER_HARMONICS: ASSET_DIRECTORY + "/flight_bed_shimmer_v1.wav",
+		LAYER_MOTIF: ASSET_DIRECTORY + "/flight_bed_signal_v1.wav",
+	},
+	FAMILY_SURFACE: {
+		LAYER_DRONE: ASSET_DIRECTORY + "/surface_bed_warmth_v1.wav",
+		LAYER_HARMONICS: ASSET_DIRECTORY + "/surface_bed_choir_v1.wav",
+		LAYER_MOTIF: ASSET_DIRECTORY + "/surface_bed_pulse_v1.wav",
+	},
 }
 ## Frozen content identity of the *imported* PCM payloads, hashed once per load
 ## rather than per frame. A silent re-export, a truncation, or a third-party
 ## substitution fails the audit instead of quietly changing the mix. The raw
-## source-file hashes are separately pinned by `station_music_asset_test.gd`.
-const LAYER_STREAM_DATA_SHA256 := {
-	LAYER_DRONE: "4e0173cb2fffd4c1efb514d0b9bbbc58456d120a94104980228c391704f242f2",
-	LAYER_HARMONICS: "b65a3d4f698f16e393c1d2994447714cbdd9365e45238bca9352943a9bd06ec1",
-	LAYER_MOTIF: "b8934dbc1ece958f79006559fd3e0e93a3dffe6d1d541e71eb57a70382fc22ba",
+## source-file hashes are separately pinned by `station_music_asset_test.gd`
+## and `flight_music_asset_test.gd`.
+const FAMILY_LAYER_STREAM_DATA_SHA256 := {
+	FAMILY_STATION: {
+		LAYER_DRONE: "4e0173cb2fffd4c1efb514d0b9bbbc58456d120a94104980228c391704f242f2",
+		LAYER_HARMONICS: "b65a3d4f698f16e393c1d2994447714cbdd9365e45238bca9352943a9bd06ec1",
+		LAYER_MOTIF: "b8934dbc1ece958f79006559fd3e0e93a3dffe6d1d541e71eb57a70382fc22ba",
+	},
+	FAMILY_FLIGHT: {
+		LAYER_DRONE: "8bc1456d918d0fd4813604ec8119807b13d70879188430ea5bfc2e52e9b9133b",
+		LAYER_HARMONICS: "5b4182dac4df0bcdaa48e0bdb834fd102ae236369fb57eab958720c1b01b4f0f",
+		LAYER_MOTIF: "80f3231106d594202d2a9bd54d3911bad6d2959257bed906dfeed030670ed352",
+	},
+	FAMILY_SURFACE: {
+		LAYER_DRONE: "1cc4955e7678ab059f7580cb4fa6e013f9190e8b9d18f55f5e75784181f79f6c",
+		LAYER_HARMONICS: "935d7dc85b56bc82b240f90e38d60dcf7157fa991927d1d5d1708affcfcf4a12",
+		LAYER_MOTIF: "81013f0fe94a282f780b93ffab8f7cd112840df445c09af8062b96d399dfe094",
+	},
 }
 const LAYER_FRAME_COUNTS := {
 	LAYER_DRONE: 352800,
@@ -68,11 +116,25 @@ const LAYER_LOOP_SECONDS := {
 }
 ## Small authored trim on top of the already conservative asset normalization.
 ## The `Music` bus carries the -6 dB category offset; these only balance the
-## three layers against each other.
-const LAYER_VOLUME_DB := {
-	LAYER_DRONE: 0.0,
-	LAYER_HARMONICS: -1.5,
-	LAYER_MOTIF: -2.5,
+## three slots against each other, per family: the flight material sits a little
+## further back than the station material, and the surface pulse is deliberately
+## kept under its own pad.
+const FAMILY_LAYER_VOLUME_DB := {
+	FAMILY_STATION: {
+		LAYER_DRONE: 0.0,
+		LAYER_HARMONICS: -1.5,
+		LAYER_MOTIF: -2.5,
+	},
+	FAMILY_FLIGHT: {
+		LAYER_DRONE: -1.0,
+		LAYER_HARMONICS: -2.0,
+		LAYER_MOTIF: -4.0,
+	},
+	FAMILY_SURFACE: {
+		LAYER_DRONE: 0.0,
+		LAYER_HARMONICS: -1.0,
+		LAYER_MOTIF: -3.5,
+	},
 }
 ## 16 s, 12 s, and 20 s only realign every 240 s, so the exact three-layer
 ## combination repeats once every four minutes.
@@ -164,11 +226,33 @@ const PRESENTATION_LAYER_TARGETS := {
 	},
 }
 
+## Which authored bed family each presentation state is scored with. States
+## absent from this table deliberately *inherit* the family already loaded:
+## combat silences every slot anyway, and an activity scored over the orbit bed
+## should stay in the orbit bed rather than re-cross-fade on its own.
+const PRESENTATION_BED_FAMILIES := {
+	PRESENTATION_STATION: FAMILY_STATION,
+	PRESENTATION_LANDING: FAMILY_STATION,
+	PRESENTATION_PLANETARY: FAMILY_FLIGHT,
+	PRESENTATION_ORBIT: FAMILY_FLIGHT,
+	PRESENTATION_SURFACE: FAMILY_SURFACE,
+}
+
 ## Linear gain units per second. Rising is slow so the bed never announces
 ## itself; the combat duck is quick so an encounter is never scored over.
 const FADE_IN_RATE_PER_SECOND := 0.25
 const FADE_OUT_RATE_PER_SECOND := 0.5
 const COMBAT_DUCK_RATE_PER_SECOND := 1.25
+## Per-slot rate for releasing a slot so it can be handed to another bed family.
+## The rates are deliberately staggered: the floor clears in about a second and
+## re-enters on the new family while the colour and gesture slots are still
+## sounding the old one, so the change is heard as a cross-fade between two beds
+## rather than as three voices cutting together through silence.
+const HANDOFF_FADE_OUT_RATE_PER_SECOND := {
+	LAYER_DRONE: 1.0,
+	LAYER_HARMONICS: 0.4,
+	LAYER_MOTIF: 0.28,
+}
 const MAX_COMBAT_MIX_INTENSITY := 1.0
 ## After combat ends the bed stays out for this long before it starts returning.
 const COMBAT_RECOVERY_HOLD_SECONDS := 4.0
@@ -177,7 +261,8 @@ const COMBAT_RECOVERY_HOLD_SECONDS := 4.0
 const MINIMUM_AUDIBLE_GAIN := 0.0005
 
 const CONTENT_NOTE := (
-	"The key, voicing, loop lengths, bell motif, layer levels, and state response are "
+	"The key, voicing, loop lengths, bell motif, orbit signal figure, surface pulse, "
+	+ "layer levels, and state response are "
 	+ "project-original modern composition and sound design. No surviving source "
 	+ "authenticates any music for the original Keth Shipyards. Automated checks cover "
 	+ "determinism, voice bounds, routing, and lifecycle only; whether the bed actually "
@@ -195,6 +280,10 @@ var _gains: Dictionary = {}
 var _targets: Dictionary = {}
 var _positions: Dictionary = {}
 var _active: Dictionary = {}
+var _stream_paths: Dictionary = {}
+var _slot_families: Dictionary = {}
+var _bed_family: StringName = FAMILY_STATION
+var _family_handoff_count := 0
 var _session_state: StringName = STATE_REST
 var _presentation_state: StringName = PRESENTATION_STATION
 var _combat_recovery_remaining := 0.0
@@ -238,6 +327,7 @@ func _ready() -> void:
 		_targets[layer_id] = 0.0
 		_positions[layer_id] = 0.0
 		_active[layer_id] = false
+		_slot_families[layer_id] = FAMILY_STATION
 	_configure_players()
 	if bed_enabled:
 		_load_streams()
@@ -430,6 +520,9 @@ func reset_bed() -> void:
 		_stop_and_detach(layer_id)
 		_gains[layer_id] = 0.0
 		_positions[layer_id] = 0.0
+		_slot_families[layer_id] = FAMILY_STATION
+	_bed_family = FAMILY_STATION
+	_family_handoff_count = 0
 	_session_state = STATE_REST
 	_presentation_state = PRESENTATION_STATION
 	_combat_recovery_remaining = 0.0
@@ -448,8 +541,21 @@ func release_audio_resources() -> void:
 	_unload_streams()
 
 
+## Moves one silent slot onto the current bed family. Only the slot's own
+## resource is exchanged, so the resident bank never holds two families' worth
+## of PCM and the fixed three-voice budget is unaffected.
+func _complete_slot_handoff(layer_id: StringName) -> void:
+	_stop_and_detach(layer_id)
+	_slot_families[layer_id] = _bed_family
+	_gains[layer_id] = 0.0
+	_family_handoff_count += 1
+	if bed_enabled:
+		_load_streams()
+
+
 func _unload_streams() -> void:
 	_streams.clear()
+	_stream_paths.clear()
 	_stream_ids.clear()
 	_stream_fingerprints.clear()
 	_resident_sample_bytes = 0
@@ -477,7 +583,9 @@ func get_evidence_metadata() -> Dictionary:
 			"D natural minor modal centre and Dm9 voicing",
 			"three loop lengths and their 240 s combined cycle",
 			"descending bell motif reserved for the station at rest",
-			"layer levels, fade rates, and the combat duck",
+			"open-fifth orbit drift and its sparse high signal figure",
+			"warm surface floor and its slow 24 BPM low pulse",
+			"layer levels, fade rates, the bed-family hand-over, and the combat duck",
 		]),
 	}
 
@@ -485,9 +593,11 @@ func get_evidence_metadata() -> Dictionary:
 func get_music_contract() -> Dictionary:
 	var loop_seconds := {}
 	var volumes := {}
+	var slot_families := {}
 	for layer_id in LAYER_IDS:
 		loop_seconds[layer_id] = float(LAYER_LOOP_SECONDS[layer_id])
-		volumes[layer_id] = float(LAYER_VOLUME_DB[layer_id])
+		volumes[layer_id] = _slot_volume_db(layer_id)
+		slot_families[layer_id] = _slot_family(layer_id)
 	return {
 		"schema_version": SCHEMA_VERSION,
 		"bus": AUDIO_BUS,
@@ -495,6 +605,9 @@ func get_music_contract() -> Dictionary:
 		"tuning_a4_hz": 440.0,
 		"mode": "D natural minor (Aeolian)",
 		"layer_ids": PackedStringArray(LAYER_IDS),
+		"bed_families": PackedStringArray(BED_FAMILIES),
+		"bed_family": _bed_family,
+		"layer_bed_families": slot_families,
 		"layer_loop_seconds": loop_seconds,
 		"layer_volume_db": volumes,
 		"combined_cycle_seconds": COMBINED_CYCLE_SECONDS,
@@ -519,10 +632,17 @@ func get_state_snapshot() -> Dictionary:
 		positions[layer_id] = float(_positions.get(layer_id, 0.0))
 		if bool(_active.get(layer_id, false)):
 			active.append(String(layer_id))
+	var slot_families := {}
+	for layer_id in LAYER_IDS:
+		slot_families[layer_id] = _slot_family(layer_id)
 	return {
 		"schema_version": SCHEMA_VERSION,
 		"session_state": _session_state,
 		"presentation_state": _presentation_state,
+		"bed_family": _bed_family,
+		"layer_bed_families": slot_families,
+		"bed_family_handoff_active": is_bed_family_handoff_active(),
+		"bed_family_handoff_count": _family_handoff_count,
 		"bed_enabled": bed_enabled,
 		"bed_paused": _bed_paused,
 		"combat_recovery_remaining": _combat_recovery_remaining,
@@ -636,8 +756,10 @@ func get_audit_report() -> Dictionary:
 				errors.append("music layer %s must loop across its complete sample range" % layer_id)
 			if stream.data.size() != int(LAYER_FRAME_COUNTS[layer_id]) * 2:
 				errors.append("music layer %s has an unexpected sample length" % layer_id)
-			if str(_stream_fingerprints.get(layer_id, "")) != String(LAYER_STREAM_DATA_SHA256[layer_id]):
+			if str(_stream_fingerprints.get(layer_id, "")) != _slot_stream_fingerprint(layer_id):
 				errors.append("music layer %s content does not match its frozen authored render" % layer_id)
+			if String(_stream_paths.get(layer_id, "")) != _slot_stream_path(layer_id):
+				errors.append("music layer %s is not holding its own bed family's loop" % layer_id)
 			if not _stream_is_audible(stream):
 				errors.append("music layer %s decoded to silence" % layer_id)
 			measured_bytes += stream.data.size()
@@ -653,6 +775,14 @@ func get_audit_report() -> Dictionary:
 		errors.append("music bed holds an unknown session state")
 	if not PRESENTATION_STATES.has(_presentation_state):
 		errors.append("music bed holds an unknown presentation state")
+	if not BED_FAMILIES.has(_bed_family):
+		errors.append("music bed holds an unknown authored bed family")
+	var expected_family: Variant = PRESENTATION_BED_FAMILIES.get(_presentation_state)
+	if expected_family != null and StringName(expected_family) != _bed_family:
+		errors.append("music bed family does not match its observed presentation state")
+	for layer_id in LAYER_IDS:
+		if not BED_FAMILIES.has(StringName(_slot_families.get(layer_id, &""))):
+			errors.append("music layer %s holds an unknown authored bed family" % layer_id)
 	var expected_targets := _resolve_targets()
 	for layer_id in LAYER_IDS:
 		var gain := float(_gains.get(layer_id, -1.0))
@@ -686,9 +816,31 @@ func get_audit_report() -> Dictionary:
 
 
 func _apply_session_targets() -> void:
+	_update_bed_family()
 	var resolved := _resolve_targets()
 	for layer_id in LAYER_IDS:
 		_targets[layer_id] = float(resolved[layer_id])
+
+
+## Selects the authored bed family for the state the bed is already in. States
+## with no entry keep whatever family is loaded, so combat and activities never
+## start a cross-fade of their own.
+func _update_bed_family() -> void:
+	var family: Variant = PRESENTATION_BED_FAMILIES.get(_presentation_state)
+	if family != null:
+		_bed_family = StringName(family)
+
+
+func get_bed_family() -> StringName:
+	return _bed_family
+
+
+## True while at least one slot is still sounding a family the bed has left.
+func is_bed_family_handoff_active() -> bool:
+	for layer_id in LAYER_IDS:
+		if _slot_family(layer_id) != _bed_family:
+			return true
+	return false
 
 
 func _on_semantic_music_cue(cue_id: StringName, intensity: float) -> void:
@@ -730,17 +882,26 @@ func _presentation_for_session_state(state: StringName) -> StringName:
 func _advance_gains(delta: float) -> void:
 	for layer_id in LAYER_IDS:
 		var gain := float(_gains.get(layer_id, 0.0))
-		var target := float(_targets.get(layer_id, 0.0))
+		# A slot still holding a family the bed has left is released to silence
+		# first, then re-enters on the new family's loop. Its authored target is
+		# untouched throughout, so reports keep describing the destination mix.
+		var handing_off := _slot_family(layer_id) != _bed_family
+		if handing_off and gain < MINIMUM_AUDIBLE_GAIN:
+			_complete_slot_handoff(layer_id)
+			gain = 0.0
+			handing_off = false
+		var target := 0.0 if handing_off else float(_targets.get(layer_id, 0.0))
 		if is_equal_approx(gain, target):
 			_gains[layer_id] = target
 			continue
 		var rate := FADE_IN_RATE_PER_SECOND
 		if target < gain:
-			rate = (
-				COMBAT_DUCK_RATE_PER_SECOND
-				if _session_state == STATE_COMBAT
-				else FADE_OUT_RATE_PER_SECOND
-			)
+			if handing_off:
+				rate = float(HANDOFF_FADE_OUT_RATE_PER_SECOND[layer_id])
+			elif _session_state == STATE_COMBAT:
+				rate = COMBAT_DUCK_RATE_PER_SECOND
+			else:
+				rate = FADE_OUT_RATE_PER_SECOND
 		var step := rate * delta
 		if target > gain:
 			_gains[layer_id] = minf(target, gain + step)
@@ -770,7 +931,7 @@ func _apply_playback_state() -> void:
 		if gain < MINIMUM_AUDIBLE_GAIN or not bed_enabled:
 			_stop_and_detach(layer_id)
 			continue
-		player.volume_db = float(LAYER_VOLUME_DB[layer_id]) + linear_to_db(gain)
+		player.volume_db = _slot_volume_db(layer_id) + linear_to_db(gain)
 		if bool(_active.get(layer_id, false)) and player.playing:
 			continue
 		if not _audio_available:
@@ -846,26 +1007,60 @@ func _configure_players() -> void:
 		player.max_polyphony = 1
 		player.autoplay = false
 		player.pitch_scale = 1.0
-		player.volume_db = float(LAYER_VOLUME_DB[layer_id])
+		player.volume_db = _slot_volume_db(layer_id)
 		player.stop()
 		player.stream_paused = false
 		player.stream = null
 		_active[layer_id] = false
 
 
+## Brings the resident bank in line with the per-slot families. A slot whose
+## authored loop is already resident is left alone, so this stays a no-op on the
+## lifecycle paths that call it on every re-entry.
 func _load_streams() -> void:
-	if _resources_ready:
-		return
 	_resident_sample_bytes = 0
+	var resident := 0
 	for layer_id in LAYER_IDS:
-		var stream := load(String(LAYER_STREAM_PATHS[layer_id])) as AudioStreamWAV
+		var stream := _ensure_slot_stream(layer_id)
 		if stream == null:
 			continue
-		_streams[layer_id] = stream
-		_stream_ids[layer_id] = stream.get_instance_id()
-		_stream_fingerprints[layer_id] = _hash_bytes(stream.data)
+		resident += 1
 		_resident_sample_bytes += stream.data.size()
-	_resources_ready = _streams.size() == LAYER_IDS.size()
+	_resources_ready = resident == LAYER_IDS.size()
+
+
+func _ensure_slot_stream(layer_id: StringName) -> AudioStreamWAV:
+	var path := _slot_stream_path(layer_id)
+	var current := _get_stream(layer_id)
+	if current != null and String(_stream_paths.get(layer_id, "")) == path:
+		return current
+	var stream := load(path) as AudioStreamWAV
+	if stream == null:
+		return null
+	_streams[layer_id] = stream
+	_stream_paths[layer_id] = path
+	_stream_ids[layer_id] = stream.get_instance_id()
+	_stream_fingerprints[layer_id] = _hash_bytes(stream.data)
+	return stream
+
+
+func _slot_family(layer_id: StringName) -> StringName:
+	var family := StringName(_slot_families.get(layer_id, FAMILY_STATION))
+	return family if BED_FAMILIES.has(family) else FAMILY_STATION
+
+
+func _slot_stream_path(layer_id: StringName) -> String:
+	return String((FAMILY_LAYER_STREAM_PATHS[_slot_family(layer_id)] as Dictionary)[layer_id])
+
+
+func _slot_volume_db(layer_id: StringName) -> float:
+	return float((FAMILY_LAYER_VOLUME_DB[_slot_family(layer_id)] as Dictionary)[layer_id])
+
+
+func _slot_stream_fingerprint(layer_id: StringName) -> String:
+	return String(
+		(FAMILY_LAYER_STREAM_DATA_SHA256[_slot_family(layer_id)] as Dictionary)[layer_id]
+	)
 
 
 func _hash_bytes(bytes: PackedByteArray) -> String:

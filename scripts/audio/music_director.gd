@@ -131,6 +131,12 @@ func get_mix_plan() -> Dictionary:
 	return _transition.get_mix_plan().duplicate(true)
 
 
+## The authored bed the observed state is scored with. Presentation-only: the
+## backend decides how to reach it, and nothing in gameplay reads it.
+func get_bed_family() -> StringName:
+	return _transition.get_bed_family()
+
+
 func get_snapshot() -> Dictionary:
 	var snapshot := _transition.get_snapshot()
 	snapshot["schema_version"] = SCHEMA_VERSION
@@ -173,6 +179,7 @@ func _accept_observation(state: StringName, observation: StringName) -> Dictiona
 	_observation_count += 1
 	var result := transition.duplicate(true)
 	result["observation"] = observation
+	result["bed_family"] = _transition.get_bed_family()
 	result["session_state"] = _session_state_for(state)
 	result["presentation_only"] = true
 	var previous_state := StringName(transition.get("previous_state", &""))

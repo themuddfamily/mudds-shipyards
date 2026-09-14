@@ -622,25 +622,45 @@ further without contradicting a registered source observation.
 
 ## `assets/audio/music/`
 
-- Purpose: three seamless loops that make up one bounded music/ambient bed for
-  the non-combat station state — a 16 s sustained root/fifth deck drone, a 12 s
-  Dm9 swell layer, and a 20 s sparse descending bell motif. `StationMusicBed`
-  plays them through a fixed three-voice ceiling on the dedicated `Music` bus.
+- Purpose: nine seamless loops that make up three bounded music/ambient beds for
+  the non-combat states. `StationMusicBed` owns three loop *slots* — a sustaining
+  floor, a sustaining colour, and a sparse foreground gesture — and each bed
+  fills all three at the same loop lengths, so the whole set still plays through
+  one fixed three-voice ceiling on the dedicated `Music` bus and only one bed is
+  ever resident.
+  - `station` (station at rest, and the landing return): a 16 s sustained
+    root/fifth deck drone, a 12 s Dm9 swell layer, and a 20 s sparse descending
+    bell motif.
+  - `flight` (orbit and open space): a 16 s open-fifth drift with no minor third,
+    a 12 s thin upper-register Dm9 shimmer, and a 20 s sparse high signal figure.
+    Sparser, higher and colder than the station bed.
+  - `surface` (standing on a planet): a 16 s warm low floor, a 12 s wide Dm11
+    pad, and a 20 s slow low pulse that strikes every 2.5 s (24 BPM). Warmer than
+    the station bed, and the only bed with a pulse.
+  - Changing bed hands one slot over at a time at staggered rates, so leaving or
+    returning to the station is heard as a cross-fade between two beds rather
+    than as a cut through silence.
 - Format: checked-in mono 22.05 kHz signed 16-bit little-endian PCM WAV; the
   Godot import sidecars keep `compress/mode=0` and `edit/loop_mode=2`, so the
   runtime resources are the same uncompressed PCM data looping forward across
   their complete sample range.
-- Editable source: `tools/audio/generate_station_music_v1.py`. It is **fixed-seed
-  offline synthesis**: a standard-library script with no wall-clock, no unseeded
-  randomness, and no runtime generation. Per-layer hashes, frame counts, peak/RMS
-  measurements, and loop-join measurements are pinned by
-  `station_music_v1_asset_manifest.json`.
-- Musical content: D natural minor (Aeolian) at A4 = 440 Hz with no metrical
-  pulse. Every partial and modulation rate in the two sustaining layers is snapped
-  to an integer number of cycles per loop, so each file loops without a seam by
-  construction rather than by a crossfade; the motif layer is exactly silent at
-  both boundaries. The 16 s, 12 s, and 20 s lengths only realign every 240 s, so
-  the exact three-layer combination repeats once every four minutes.
+- Editable source: `tools/audio/generate_station_music_v1.py` for the station bed
+  and `tools/audio/generate_flight_music_v1.py` for the flight and surface beds.
+  Both are **fixed-seed offline synthesis**: standard-library scripts with no
+  wall-clock, no unseeded randomness, and no runtime generation. Per-layer
+  hashes, frame counts, peak/RMS measurements, and loop-join measurements are
+  pinned by `station_music_v1_asset_manifest.json` and
+  `flight_music_v1_asset_manifest.json`.
+- Musical content: all three beds sit in D natural minor (Aeolian) at A4 = 440 Hz,
+  so a cross-fade between them changes register, density and colour rather than
+  key. Only the surface pulse layer carries a metrical pulse. Every partial and
+  modulation rate in the sustaining layers is snapped to an integer number of
+  cycles per loop, so each file loops without a seam by construction rather than
+  by a crossfade; the station motif and flight signal layers are exactly silent
+  at both boundaries, and the surface pulse layer wraps every tail across the
+  join so it is periodic by construction. The 16 s, 12 s, and 20 s lengths only
+  realign every 240 s, so each bed's exact three-layer combination repeats once
+  every four minutes.
 - Project status: original fixed-seed offline procedural synthesis authored for
   Mudds Shipyards; no recorded, sampled, or third-party source material, and no
   claim that any music for the original Keth Shipyards is recovered, authentic, or

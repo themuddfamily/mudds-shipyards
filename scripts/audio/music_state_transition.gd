@@ -27,8 +27,23 @@ const STATES: Array[StringName] = [
 	STATE_ACTIVITY_ACTIVE, STATE_ACTIVITY_COMPLETE,
 ]
 
+## Which authored bed the runtime backend scores each state with. States absent
+## from this table inherit the bed already selected: combat silences every layer
+## anyway, and an activity keeps whichever bed it is happening over.
+const BED_STATION: StringName = &"station"
+const BED_FLIGHT: StringName = &"flight"
+const BED_SURFACE: StringName = &"surface"
+const BED_FAMILIES: Array[StringName] = [BED_STATION, BED_FLIGHT, BED_SURFACE]
+const STATE_BED_FAMILIES := {
+	STATE_STATION: BED_STATION,
+	STATE_LANDING: BED_STATION,
+	STATE_PLANETARY: BED_FLIGHT,
+	STATE_ORBIT: BED_FLIGHT,
+	STATE_SURFACE: BED_SURFACE,
+}
+
 ## The names are authored mix layers, not player nodes. A runtime backend may
-## map them to the existing StationMusicBed or a future music bank.
+## map them to the existing StationMusicBed slots or a future music bank.
 const STATE_LAYER_GAINS := {
 	STATE_STATION: {&"bed": 1.0, &"motif": 1.0, &"stinger": 0.0},
 	STATE_COMBAT: {&"bed": 0.0, &"motif": 0.0, &"stinger": 1.0},
@@ -41,6 +56,7 @@ const STATE_LAYER_GAINS := {
 }
 
 var _state: StringName = STATE_STATION
+var _bed_family: StringName = BED_STATION
 var _loop_position_seconds := 0.0
 var _muted := false
 var _generation := 0
@@ -57,6 +73,7 @@ func transition(next_state: StringName, retained_position_seconds: float = -1.0)
 			_loop_position_seconds += 240.0
 	var previous := _state
 	_state = next_state
+	_update_bed_family()
 	_generation += 1
 	return {
 		"accepted": true,
@@ -87,12 +104,26 @@ func restore(snapshot: Dictionary) -> bool:
 	if not is_finite(position) or position < 0.0:
 		return false
 	_state = StringName(snapshot["state"])
+	var restored_family := StringName(snapshot.get("bed_family", &""))
+	if BED_FAMILIES.has(restored_family):
+		_bed_family = restored_family
+	_update_bed_family()
 	_loop_position_seconds = fmod(position, 240.0)
 	if _loop_position_seconds < 0.0:
 		_loop_position_seconds += 240.0
 	_muted = bool(snapshot.get("accessibility_muted", false))
 	_generation = maxi(0, int(snapshot.get("generation", _generation)))
 	return true
+
+
+func get_bed_family() -> StringName:
+	return _bed_family
+
+
+func _update_bed_family() -> void:
+	var family: Variant = STATE_BED_FAMILIES.get(_state)
+	if family != null:
+		_bed_family = StringName(family)
 
 
 func get_mix_plan() -> Dictionary:
@@ -102,6 +133,7 @@ func get_mix_plan() -> Dictionary:
 			gains[layer] = 0.0
 	return {
 		"state": _state,
+		"bed_family": _bed_family,
 		"bus": AUDIO_BUS,
 		"layer_gains": gains,
 		"voice_count": VOICE_CEILING,
@@ -115,6 +147,7 @@ func get_snapshot() -> Dictionary:
 		"schema_version": SCHEMA_VERSION,
 		"component_id": COMPONENT_ID,
 		"state": _state,
+		"bed_family": _bed_family,
 		"loop_position_seconds": _loop_position_seconds,
 		"accessibility_muted": _muted,
 		"generation": _generation,
@@ -123,8 +156,15 @@ func get_snapshot() -> Dictionary:
 
 func audit() -> Dictionary:
 	return {
-		"valid": STATES.size() == 8 and VOICE_CEILING == 3 and AUDIO_BUS == &"Music",
+		"valid": (
+			STATES.size() == 8
+			and VOICE_CEILING == 3
+			and AUDIO_BUS == &"Music"
+			and BED_FAMILIES.has(_bed_family)
+		),
 		"states": STATES.duplicate(),
+		"bed_families": BED_FAMILIES.duplicate(),
+		"bed_family": _bed_family,
 		"voice_ceiling": VOICE_CEILING,
 		"presentation_only": true,
 		"gameplay_authority": false,

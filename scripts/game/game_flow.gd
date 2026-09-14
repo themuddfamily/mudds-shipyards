@@ -14761,6 +14761,10 @@ func _update_music_bed_state() -> void:
 		or phase == Phase.SHUT_DOWN
 	):
 		presentation_state = &"landing"
+	elif _ember_surface_journey_active:
+		# The same retained latch the session diagnostics use for SURFACE. The
+		# flow already owns it; the bed only observes it.
+		presentation_state = &"surface"
 	elif _piloting:
 		presentation_state = &"orbit"
 	music_bed.notify_music_phase(presentation_state)

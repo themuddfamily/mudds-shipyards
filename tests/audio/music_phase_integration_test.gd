@@ -45,11 +45,40 @@ func _run() -> void:
 		"piloted free flight selects the orbit music profile"
 	)
 
+	_check(
+		bed.get_bed_family() == StationMusicBed.FAMILY_FLIGHT,
+		"piloted free flight scores orbit with the authored flight bed"
+	)
+
+	# The flow's own retained surface latch - the same one the session
+	# diagnostics read for SURFACE - is what reaches the surface bed.
+	game.set("_ember_surface_journey_active", true)
+	game.call("_update_music_bed_state")
+	_check(
+		bed.get_presentation_state() == &"surface",
+		"an active planetary surface journey selects the surface music profile"
+	)
+	_check(
+		bed.get_bed_family() == StationMusicBed.FAMILY_SURFACE,
+		"the surface profile is scored with the authored surface bed"
+	)
+	game.set("_ember_surface_journey_active", false)
+	game.call("_update_music_bed_state")
+	_check(
+		bed.get_presentation_state() == &"orbit"
+		and bed.get_bed_family() == StationMusicBed.FAMILY_FLIGHT,
+		"leaving the surface returns the bed to orbit without inventing a phase"
+	)
+
 	game.set("_landing_request_active", true)
 	game.call("_update_music_bed_state")
 	_check(
 		bed.get_presentation_state() == &"landing",
 		"an authoritative landing request reaches the landing crossfade"
+	)
+	_check(
+		bed.get_bed_family() == StationMusicBed.FAMILY_STATION,
+		"landing is already scored with the station bed it is returning to"
 	)
 
 	game.set("_landing_request_active", false)
@@ -68,11 +97,12 @@ func _run() -> void:
 	)
 
 	game.set("_landing_request_active", true)
+	game.set("_ember_surface_journey_active", true)
 	game.set("phase", GameFlowType.Phase.INTERCEPTOR_ENGAGEMENT)
 	game.call("_update_music_bed_state")
 	_check(
 		bed.get_presentation_state() == &"combat",
-		"combat phase takes priority over landing and flight music"
+		"combat phase takes priority over landing, surface and flight music"
 	)
 	_check(
 		bool((bed.get_audit_report().get("music", {}) as Dictionary).get("gameplay_authority", true)) == false,

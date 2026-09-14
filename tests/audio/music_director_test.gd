@@ -20,12 +20,34 @@ func _run() -> void:
 	_check(bool(landing.accepted), "landing phase observation is accepted")
 	_check(landing.state == &"landing", "landing retains a distinct presentation state")
 	_check(landing.session_state == &"flight", "landing maps to the bed flight vocabulary")
+	_check(
+		StringName(landing.bed_family) == &"station",
+		"landing is still scored with the station bed it is returning to"
+	)
 	var planetary := director.observe_phase(&"planetary")
 	_check(bool(planetary.accepted), "planetary phase observation is accepted")
 	_check(planetary.state == &"planetary", "planetary retains its presentation state")
+	_check(
+		StringName(planetary.bed_family) == &"flight"
+		and director.get_bed_family() == &"flight",
+		"leaving the station selects the authored flight bed"
+	)
+	var surface := director.observe_phase(&"surface")
+	_check(
+		StringName(surface.bed_family) == &"surface" and surface.state == &"surface",
+		"a surface phase selects the authored surface bed"
+	)
+	_check(
+		StringName(director.observe_phase(&"combat").bed_family) == &"surface",
+		"combat silences the bed in place rather than reselecting one"
+	)
+	_check(
+		StringName(director.observe_session_state(&"rest").bed_family) == &"station",
+		"returning to rest selects the station bed again"
+	)
 	_check(director.observe_phase(&"unknown").accepted == false, "unknown phase fails closed")
 	_check(
-		int(director.get_snapshot().observation_count) == 3,
+		int(director.get_snapshot().observation_count) == 6,
 		"rejected observations do not advance the director count"
 	)
 	_check(director.advance(37.25), "director loop clock advances")
