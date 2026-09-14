@@ -52,6 +52,11 @@ func _run() -> void:
 	hud.set("_reduced_motion", true)
 	hud.call("_begin")
 	await _settle_layout()
+	# That start path also captures the cursor. Automation must not hold a
+	# pointer grab, and on the shared display the graphical matrix runs on a
+	# retained grab makes a concurrent suite's own capture report "NO GRAB".
+	# These captures are driven by presenter state, never by the cursor.
+	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 
 	var presenter := Presenter.new()
 	var adapter := Adapter.new()

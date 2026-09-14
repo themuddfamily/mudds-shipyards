@@ -679,6 +679,12 @@ func _test_physical_roof_columns(stage: Node3D, annex: FabricationAnnex) -> void
 func _test_embodied_traversal(stage: Node3D, annex: FabricationAnnex) -> void:
 	var player := PLAYER_SCENE.instantiate() as PlayerController
 	stage.add_child(player)
+	# Release the camera first, as the other embodied traversal fixtures do. An
+	# active camera makes set_control_enabled() take an X11 pointer grab that
+	# this Input-action-driven route never uses, and that automation must not
+	# hold: on the shared display the graphical matrix runs on, one suite's
+	# retained grab makes a concurrent suite's own capture report "NO GRAB".
+	player.set_camera_active(false)
 	player.set_control_enabled(true)
 	# Local +Z is the through-route; Godot's body forward is -basis.z.
 	player.teleport_to(Transform3D(Basis.looking_at(Vector3.BACK, Vector3.UP), Vector3(0.0, 0.18, 0.8)))

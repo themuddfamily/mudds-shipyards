@@ -29,6 +29,11 @@ func _run() -> void:
 	await process_frame
 	await physics_frame
 	game.start_shift()
+	# GameFlow.start_shift() hands the player live control, which captures the
+	# cursor. Automation must not hold a pointer grab, and on the shared display
+	# the graphical matrix runs on a retained grab makes a concurrent suite's own
+	# capture report "NO GRAB". Nothing here reads the cursor.
+	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 	await process_frame
 	await physics_frame
 
@@ -520,6 +525,11 @@ func _capture_shared_world() -> void:
 		# without waiting through the intro tween or emitting a second start signal.
 		game.hud.call("_begin")
 		await create_timer(0.55).timeout
+		# That start path also captures the cursor. Automation must not hold a
+		# pointer grab, and on the shared display the graphical matrix runs on a
+		# retained grab makes a concurrent suite's own capture report "NO GRAB".
+		# These captures are driven by camera placement, never by the cursor.
+		Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 	var world := game.get_node("ShipyardWorld") as ShipyardWorld
 	var player := game.get_node("Player") as PlayerController
 	var habitat := world.get_habitat_spine()

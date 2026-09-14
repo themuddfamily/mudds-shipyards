@@ -1282,6 +1282,13 @@ func _test_embodied_loop_traversal(module: ObservationLogisticsSpur) -> void:
 	var player := PLAYER_SCENE.instantiate() as PlayerController
 	player.name = "ObservationSpurTraversalPlayer"
 	_test_root.add_child(player)
+	# Release the camera first, as the other embodied traversal fixtures do.
+	# An active camera makes set_control_enabled() request a pointer grab on any
+	# non-headless display; on the shared Xvfb server the graphical matrix runs
+	# on, a concurrent suite already holds that grab and X11 reports "NO GRAB".
+	# This route is driven entirely by Input actions, so the grab is not part of
+	# the contract - and automation must not take the cursor in any case.
+	player.set_camera_active(false)
 	player.set_control_enabled(true)
 	for action in [&"move_forward", &"move_back", &"move_left", &"move_right", &"sprint_boost", &"jump"]:
 		Input.action_release(action)

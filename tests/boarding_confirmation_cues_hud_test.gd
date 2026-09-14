@@ -25,6 +25,11 @@ func _run() -> void:
 	# production canvas for the Forward+ state captures.
 	hud.call(&"_begin")
 	await process_frame
+	# The production HUD start path captures the cursor. Automation must not
+	# hold a pointer grab, and on the shared display the graphical matrix runs
+	# on a retained grab makes a concurrent suite's own capture report
+	# "NO GRAB". Nothing below reads the cursor, so release it immediately.
+	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 	hud.set_captions_enabled(true)
 	hud.bind_caption_event_submitter(Callable(self, &"_capture_request"))
 	_check(hud.present_semantic_audio_cue(&"boarding_confirmed", &"boarding", 0.3, Vector3.ZERO), "boarding cue reaches captions")
