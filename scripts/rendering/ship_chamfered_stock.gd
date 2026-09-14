@@ -59,11 +59,13 @@ extends RefCounted
 ##   endpoint lies on one, so `max` and `min` on all three axes are identical to
 ##   the authored mesh. Nothing that reads a published envelope, footprint or
 ##   collision shape can see this, and no collider reads these meshes anyway.
-## - **the shading is the same field.** The authored mesh carries the pure face
-##   normal on its face-plane vertices and the normalized 45 degree bisector on
-##   its middle vertex; the chamfer quad carries the same two face normals at its
-##   two edges, and interpolating between them across one quad passes through that
-##   same bisector. The specular roll across the band is unchanged.
+## - **the shading is very nearly the same field.** The authored mesh carries the
+##   pure face normal on its face-plane vertices and the 45 degree bisector on its
+##   middle vertex; the chamfer quad carries the same two face normals at its two
+##   edges and interpolates between them across one quad, which reaches that same
+##   bisector at its midpoint. The band is now flat rather than a two-facet roll,
+##   so the specular gradient across it is smooth instead of kinked; it is not
+##   bit-identical, and see the rendered finding below.
 ## - **no silhouette is cut.** The one direction the surface moves is outward.
 ##
 ## ## Where it is allowed
@@ -77,6 +79,20 @@ extends RefCounted
 ## 55 mm in its shortest dimension to a 12 mm chamfer — so what stays rolled is
 ## the genuinely chunky structure, where the chamfer is a visible radius rather
 ## than an edge highlight.
+##
+## ## What the renders found, stated plainly
+##
+## Ten fixed gameplay viewpoints across the three craft, before and after, at
+## 1280x720 through `gl_compatibility` on a D3D12 GPU. At 1:1 the pairs are
+## indistinguishable on every view. Magnified 8x on the *nearest* fitted stock a
+## player can stand beside — a cargo restraint corner about 40 screen pixels
+## across in the Jovian's bay — the two-segment rolled edge does read as a single
+## chamfer facet with two creases where it used to read as a roll. That is about
+## two pixels wide, it does not show at 1:1, and it is the one honest difference
+## this recipe makes. It is therefore a bounded presentation trade rather than a
+## free reduction, and `rolled_edge_is_resolvable` is the single place to revert
+## it (at a cost of roughly 12,400 triangles across the Jovian, the Halyard and
+## the three Cinder craft) if the edge treatment is ever judged too close.
 ##
 ## Everything here is modern interpretation: presentation-budget geometry chosen
 ## by measuring this project, not a recovered value.

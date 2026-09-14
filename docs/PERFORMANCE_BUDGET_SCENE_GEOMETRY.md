@@ -397,15 +397,18 @@ chase framing of the whole craft; the Halyard crew cabin, a liveaboard berth and
 the engine service fitout; a Cinder interceptor and a Cinder bomber at their
 expansion berths, and a walk-up on an interceptor nozzle.
 
-- Two runs of the *same* build differ on 2.18% (before) and 3.40% (after) of
-  pixels; this scene is not bit-deterministic between runs.
-- Before against after differs on 45.8% of pixels, but at a mean amplitude of
-  3.5 of 255 — a whole-frame exposure drift, not geometry. The figure that
-  isolates the geometry is the count beyond 32 of 255: **25,054 pixels of
-  9,216,000, 0.27%**, against same-build floors of 1,821 and 1,472. That
-  residual is real and it is confined to the edited surfaces: the difference
-  image over the nozzle view is thin outlines on the bell, lip and stator
-  blades and nothing anywhere else in the frame.
+- Two runs of the *same* build differ on **2.18%** (before, 200,564 px of
+  9,216,000) and **3.10%** (after, 285,962 px) of pixels. This scene is not
+  bit-deterministic between runs: most of that is sub-quantisation drift at a
+  mean amplitude of 1 of 255, and a whole-frame exposure wobble can move every
+  pixel of a view by one or two levels.
+- Before against after differs on **7.35%** (677,147 px), against those two
+  floors. The figure that isolates geometry from the exposure wobble is the
+  count beyond 32 of 255: **20,486 px, 0.222%**, against same-build floors of
+  1,821 (0.020%) and 1,695 (0.018%). That residual is real and it is confined to
+  the edited surfaces — the difference image over the nozzle view is thin
+  outlines on the bell, lip and stator blades and nothing anywhere else in the
+  frame.
 - Direct inspection, 1:1 and magnified: at 1:1 the pairs are indistinguishable
   on all ten views. At 9x the nozzle bell rim is a smooth arc on both sides with
   no straight run or corner, pulled in by well under one screen pixel. At 8x on
