@@ -115,6 +115,11 @@ const ENTRY_THRESHOLD_MARK_POSITIONS := [
 	Vector3(0.0, 0.02, 4.18),
 	Vector3(0.0, 0.02, 4.52),
 ]
+## Two pieces laid dead flush share one plane exactly, and their two finishes
+## then fight for every pixel of the overlap. Five millimetres is more separation
+## than the depth buffer can confuse at hall-reading range and still reads as one
+## mounted plate or one seated beam rather than a floating part.
+const COPLANAR_STANDOFF := 0.005
 const ENTRY_LEGEND := "FABRICATION // INBOUND"
 const PORT_WORK_CELL_LEGEND := "PORT WORK CELL"
 const STARBOARD_WORK_CELL_LEGEND := "STBD WORK CELL"
@@ -478,8 +483,14 @@ func _build_work_bays() -> void:
 		for z in [7.0, 15.0]:
 			_add_batched_fixed_equipment("FabricatorBase", FABRICATOR_BASE_SIZE, Vector3(bay_x, 0.2, z), &"machine")
 			_add_mesh("FabricatorDeck", Vector3(3.55, 0.1, 2.55), Vector3(bay_x, 0.45, z), &"floor_inlay")
-			_add_mesh("FabricatorColumn", Vector3(0.5, 2.8, 0.5), Vector3(bay_x - side * 1.45, 1.8, z - 1.0), &"structure")
-			_add_mesh("FabricatorColumn", Vector3(0.5, 2.8, 0.5), Vector3(bay_x + side * 1.45, 1.8, z - 1.0), &"structure")
+			# The gantry is exactly as wide as the two columns' outer faces, so
+			# authored at 1.45 the beam's `hazard` end caps and the columns'
+			# `structure` faces landed on one plane and fought. Standing the
+			# columns `COPLANAR_STANDOFF` further apart buries each cap inside the
+			# column it lands on.
+			var column_reach := 1.45 + COPLANAR_STANDOFF
+			_add_mesh("FabricatorColumn", Vector3(0.5, 2.8, 0.5), Vector3(bay_x - side * column_reach, 1.8, z - 1.0), &"structure")
+			_add_mesh("FabricatorColumn", Vector3(0.5, 2.8, 0.5), Vector3(bay_x + side * column_reach, 1.8, z - 1.0), &"structure")
 			_add_mesh("FabricatorGantry", Vector3(3.4, 0.45, 0.55), Vector3(bay_x, 3.0, z - 1.0), &"hazard")
 			_add_mesh("FabricatorHead", Vector3(1.1, 1.5, 1.1), Vector3(bay_x, 1.65, z), &"accent")
 			_fabricator_luminous_render_parts.append({
@@ -557,7 +568,13 @@ func _build_structure_and_dressing() -> void:
 		_add_mesh("EntryJamb", Vector3(0.26, 4.2, 0.34), Vector3(x, 2.35, 4.34), &"hazard")
 	_add_mesh("EntryHeader", Vector3(5.7, 0.64, 0.38), Vector3(0.0, 4.55, 4.38), &"structure")
 	_add_mesh("EntryLightBand", Vector3(5.25, 0.1, 0.12), Vector3(0.0, 4.72, 4.14), &"luminous")
-	_add_mesh("MainSignBacking", Vector3(6.2, 1.05, 0.16), Vector3(0.0, 3.4, 4.25), &"structure")
+	# The sign plate is mounted *on* the portal, so it stands proud of the jambs
+	# by `COPLANAR_STANDOFF`. Authored flush, its front face and the jamb's front
+	# face shared one plane exactly and the two finishes fought across the entry.
+	_add_mesh(
+		"MainSignBacking", Vector3(6.2, 1.05, 0.16),
+		Vector3(0.0, 3.4, 4.25 - COPLANAR_STANDOFF), &"structure"
+	)
 	for x in [-7.0, 7.0]:
 		_add_mesh("BaySignBacking", Vector3(4.4, 0.82, 0.14), Vector3(x, 3.65, 10.0), &"structure")
 	# Low curb makes bay zoning legible without closing any approach.

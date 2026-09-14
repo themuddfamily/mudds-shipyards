@@ -130,6 +130,7 @@ func _run() -> void:
 	_test_clerestory_mullion_batch(suite)
 	_test_servery_shelf_batch(suite)
 	_test_threshold_route_thread(suite)
+	_test_shell_seams_stand_off_or_are_declared(suite)
 	_test_evidence_label(suite)
 	_test_is_not_a_fifth_station_module(world, suite)
 	_test_nothing_floats(world, suite)
@@ -1240,6 +1241,71 @@ func _test_outboard_mullion_batch(suite: VipReceptionSuite) -> void:
 		suite.get_validation_errors().is_empty(),
 		"restoring the structural mullion buffer restores a clean module audit"
 	)
+
+
+## Phase 10 coplanar-seam pass. Three seams in the shell shared a plane exactly
+## between two *different* finishes and now carry a `BAND_STANDOFF` reveal: the
+## clerestory sill inside the port wall, the threshold walls against the
+## threshold floor's edge, and the front walls against the front floor plate's
+## edge. The corner laps between shell boxes are a different case -- one `pearl`
+## finish on both sides, which cannot be seen to fight -- and are declared rather
+## than moved, which `tools/coplanar_seam_audit.gd` reads.
+func _test_shell_seams_stand_off_or_are_declared(suite: VipReceptionSuite) -> void:
+	var standoff := VipReceptionSuite.BAND_STANDOFF
+	var wall_half := VipReceptionSuite.WALL_THICKNESS * 0.5
+	var sill := suite.get_node_or_null(
+		^"Structure/OutboardGlazing/ClerestorySill"
+	) as Node3D
+	var port_wall := suite.get_node_or_null(
+		^"Structure/Reception/PortWallLower"
+	) as Node3D
+	var sill_clear := sill != null and port_wall != null
+	if sill_clear:
+		# Proud into the room on x, and dropped clear of the wall head on y.
+		sill_clear = (
+			is_equal_approx(sill.position.x - port_wall.position.x, standoff)
+			and is_equal_approx(
+				(port_wall.position.y + 3.59 * 0.5) - (sill.position.y + 0.3 * 0.5), standoff
+			)
+		)
+	_check(sill_clear, "the clerestory sill stands off the port wall on both shared planes")
+
+	var threshold_floor := suite.get_node_or_null(^"Structure/Threshold/ThresholdFloor") as Node3D
+	var threshold_walls_clear := threshold_floor != null
+	for hand in ["Port", "Starboard"]:
+		var wall := suite.get_node_or_null(
+			NodePath("Structure/Threshold/ThresholdWall%s" % hand)
+		) as Node3D
+		threshold_walls_clear = threshold_walls_clear and wall != null and is_equal_approx(
+			(absf(wall.position.x) + 0.15) - 5.1 * 0.5, standoff
+		)
+	_check(
+		threshold_walls_clear,
+		"each threshold wall buries the threshold floor's edge instead of sharing its plane"
+	)
+
+	var front_plate := suite.get_node_or_null(^"Structure/Reception/FloorPlateFront") as Node3D
+	var front_walls_clear := front_plate != null
+	for wall_name in ["FrontWallPort", "FrontWallStarboard"]:
+		var wall := suite.get_node_or_null(
+			NodePath("Structure/Reception/%s" % wall_name)
+		) as Node3D
+		front_walls_clear = front_walls_clear and wall != null and is_equal_approx(
+			(front_plate.position.z - 2.9 * 0.5) - (wall.position.z - wall_half), standoff
+		)
+	_check(
+		front_walls_clear,
+		"both front walls stand proud of the front floor plate's edge rather than sharing its plane"
+	)
+
+	for room_path in ["Structure/Reception", "Structure/Threshold"]:
+		var room := suite.get_node_or_null(NodePath(room_path)) as Node3D
+		_check(
+			room != null
+				and str(room.get_meta(&"coplanar_by_design", ""))
+					== VipReceptionSuite.SHELL_LAP_DECLARATION,
+			"%s declares its same-finish corner laps as coplanar by design" % room_path
+		)
 
 
 func _test_threshold_route_thread(suite: VipReceptionSuite) -> void:

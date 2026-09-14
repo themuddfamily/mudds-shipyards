@@ -204,8 +204,13 @@ const LOGISTICS_CASE_RENDERER_NODE_COUNT := 1
 ## stack width leaves 0.6 m from the old centreline to its inboard face and
 ## 0.1 m from its outboard face to the exact pad edge at x=10.5.
 const LOGISTICS_STACK_X := 9.5
+## The lower case seats *on* the pallet rather than 0.02 m into it. Sunk, its
+## `cargo` sides and the pallet's `rail` sides shared one plane over a 20 mm band
+## running the full length of every stack, and the two finishes fought there.
+const LOGISTICS_CASE_BASE_Y := 0.50
+const LOGISTICS_CASE_TIER_STEP := 0.58
 const LOGISTICS_CASE_CULLING_BOUNDS := AABB(
-	Vector3(8.6, 0.22, 28.16), Vector3(1.8, 1.10, 6.78)
+	Vector3(8.6, 0.24, 28.16), Vector3(1.8, 1.10, 6.78)
 )
 const LOGISTICS_PALLET_SIZE := Vector3(1.8, 0.24, 1.55)
 const LOGISTICS_PALLET_POSITIONS := [
@@ -803,7 +808,9 @@ func get_visual_resource_contract() -> Dictionary:
 		var stack_index := int(case_index / 2)
 		var tier_index := case_index % 2
 		expected_case_transforms.append(Transform3D(Basis.IDENTITY, Vector3(
-			LOGISTICS_STACK_X, 0.48 + float(tier_index) * 0.58, 28.8 + float(stack_index) * 2.75
+			LOGISTICS_STACK_X,
+			LOGISTICS_CASE_BASE_Y + float(tier_index) * LOGISTICS_CASE_TIER_STEP,
+			28.8 + float(stack_index) * 2.75
 		)))
 	if logistics_case_identities_exact:
 		var batch_mesh := logistics_case_batch.multimesh.mesh as BoxMesh
@@ -1811,7 +1818,9 @@ func _build_dressing(parent: Node3D) -> void:
 		for tier_index in 2:
 			var case_index := stack_index * 2 + tier_index + 1
 			var case_position := Vector3(
-				LOGISTICS_STACK_X, 0.48 + float(tier_index) * 0.58, stack_z
+				LOGISTICS_STACK_X,
+				LOGISTICS_CASE_BASE_Y + float(tier_index) * LOGISTICS_CASE_TIER_STEP,
+				stack_z
 			)
 			var case_body := _box(
 				parent, "LogisticsCase%02d" % case_index, case_position,
@@ -2000,7 +2009,7 @@ func _build_finishing_details(parent: Node3D) -> void:
 	for stack_index in 3:
 		var stack_z := 28.8 + float(stack_index) * 2.75
 		for tier_index in 2:
-			var tier_y := 0.48 + float(tier_index) * 0.58
+			var tier_y := LOGISTICS_CASE_BASE_Y + float(tier_index) * LOGISTICS_CASE_TIER_STEP
 			for band_offset in [-0.34, 0.34]:
 				cargo_bands.append(Transform3D(Basis.IDENTITY, Vector3(LOGISTICS_STACK_X + band_offset, tier_y + 0.27, stack_z)))
 	_multimesh_boxes(parent, "CargoCaseBands", Vector3(0.12, 0.05, 1.34), _materials["amber"], cargo_bands)

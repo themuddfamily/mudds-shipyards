@@ -1010,7 +1010,8 @@ func _test_visual_resource_sharing(module: ObservationLogisticsSpur) -> void:
 		var tier_index := case_index % 2
 		var expected_transform := Transform3D(Basis.IDENTITY, Vector3(
 			ObservationLogisticsSpur.LOGISTICS_STACK_X,
-			0.48 + float(tier_index) * 0.58,
+			ObservationLogisticsSpur.LOGISTICS_CASE_BASE_Y
+				+ float(tier_index) * ObservationLogisticsSpur.LOGISTICS_CASE_TIER_STEP,
 			28.8 + float(stack_index) * 2.75
 		))
 		case_contract_matches = case_contract_matches and (
@@ -1048,6 +1049,19 @@ func _test_visual_resource_sharing(module: ObservationLogisticsSpur) -> void:
 		and int(performance.logistics_case_mesh_resources) == 1
 		and bool(performance.logistics_case_identities_exact),
 		"six named collidable cargo cases retain exact bodies, shapes and poses while one bounded renderer draws them"
+	)
+	# Phase 10 coplanar-seam fix. The lower case used to sink 20 mm into the
+	# pallet, which put its `cargo` sides and the pallet's `rail` sides on one
+	# plane down a 20 mm band the length of every stack. It now seats on the
+	# pallet's top face, where the two solids meet back to back instead.
+	_check(
+		is_equal_approx(
+			ObservationLogisticsSpur.LOGISTICS_CASE_BASE_Y
+				- ObservationLogisticsSpur.LOGISTICS_CASE_SIZE.y * 0.5,
+			(ObservationLogisticsSpur.LOGISTICS_PALLET_POSITIONS[0] as Vector3).y
+				+ ObservationLogisticsSpur.LOGISTICS_PALLET_SIZE.y * 0.5
+		),
+		"the lower cargo case seats on the pallet's top face rather than sinking into its sides"
 	)
 	if case_batch != null:
 		var case_bounds := case_batch.multimesh.custom_aabb

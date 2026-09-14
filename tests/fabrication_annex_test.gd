@@ -26,6 +26,7 @@ func _run() -> void:
 	_test_finishing_pass(annex)
 	_test_inbound_portal_threshold(annex)
 	_test_central_casting_line_crown(annex)
+	_test_entry_and_gantry_standoffs(annex)
 	await _test_collision_and_edges(stage, annex)
 	await _test_physical_roof_columns(stage, annex)
 	await _test_embodied_traversal(stage, annex)
@@ -482,6 +483,47 @@ func _test_inbound_portal_threshold(annex: FabricationAnnex) -> void:
 		exact,
 		"two flush amber threshold bars align the inbound route with its portal inside the existing collisionless cross-mark batch"
 	)
+
+
+## Phase 10 coplanar-seam fix. The entry sign plate and the gantry beam were both
+## authored dead flush with the structure behind them -- the sign's face on the
+## jamb's face, the beam's end caps on the columns' outer faces -- so two
+## finishes shared one plane exactly at the two places a player walks past
+## closest. Both now clear by `COPLANAR_STANDOFF`.
+func _test_entry_and_gantry_standoffs(annex: FabricationAnnex) -> void:
+	var authored := annex.get("_authored_batch_transforms") as Dictionary
+	var standoff := FabricationAnnex.COPLANAR_STANDOFF
+	var sign_transforms := authored.get("structure:6.200:1.050:0.160", []) as Array
+	var jamb_transforms := authored.get("hazard:0.260:4.200:0.340", []) as Array
+	var column_transforms := authored.get("structure:0.500:2.800:0.500", []) as Array
+	var gantry_transforms := authored.get("hazard:3.400:0.450:0.550", []) as Array
+	# Sign plate: its front face stands proud of the jamb's front face.
+	var sign_proud := _has_transform(
+		sign_transforms, Transform3D(Basis.IDENTITY, Vector3(0.0, 3.4, 4.25 - standoff))
+	)
+	var jamb_face := 4.34 - 0.34 * 0.5
+	var sign_face := (4.25 - standoff) - 0.16 * 0.5
+	sign_proud = sign_proud and is_equal_approx(jamb_face - sign_face, standoff)
+	for x in [-2.72, 2.72]:
+		sign_proud = sign_proud and _has_transform(
+			jamb_transforms, Transform3D(Basis.IDENTITY, Vector3(x, 2.35, 4.34))
+		)
+	_check(sign_proud, "the entry sign plate stands 5 mm proud of the portal jambs it crosses")
+	# Gantry: every beam end cap lands inside the column it reaches, never on it.
+	var caps_buried := not gantry_transforms.is_empty() and not column_transforms.is_empty()
+	for gantry_variant in gantry_transforms:
+		var gantry := gantry_variant as Transform3D
+		var cap_x := absf(gantry.origin.x) + 3.4 * 0.5
+		var matched := false
+		for column_variant in column_transforms:
+			var column := column_variant as Transform3D
+			if not is_equal_approx(column.origin.z, gantry.origin.z):
+				continue
+			var column_face := absf(column.origin.x) + 0.5 * 0.5
+			if column_face > absf(gantry.origin.x) and is_equal_approx(column_face - cap_x, standoff):
+				matched = true
+		caps_buried = caps_buried and matched
+	_check(caps_buried, "every fabricator gantry end cap is buried 5 mm inside the column it reaches")
 
 
 func _test_central_casting_line_crown(annex: FabricationAnnex) -> void:

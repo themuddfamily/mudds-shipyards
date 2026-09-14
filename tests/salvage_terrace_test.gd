@@ -43,6 +43,7 @@ func _run() -> void:
 	_test_short_side_rail_visual_sharing(module)
 	_test_hazard_dressing_batch(module)
 	_test_machine_dressing_batch(module)
+	_test_supports_clear_every_walking_surface(module)
 	_test_emissive_dressing_batch(module)
 	_test_performance_and_lifecycle(module)
 	await _test_queued_module_enable_guard()
@@ -770,6 +771,34 @@ func _test_hazard_dressing_batch(module: SalvageTerrace) -> void:
 	_check(
 		bool(module.get_hazard_dressing_batch_audit().valid) and bool(module.get_audit_report().valid),
 		"restoring the immutable hazard-part metadata returns the module audit green"
+	)
+
+
+## Phase 10 coplanar-seam fix. Six of the ten terrace columns used to be authored
+## a deck-thickness too high, which put their 0.65 m caps exactly on the pad's
+## walking surface: two materials on one plane, underfoot. Every cap now stops on
+## the deck's underside, a full `SURFACE_THICKNESS` below any walkable top.
+func _test_supports_clear_every_walking_surface(module: SalvageTerrace) -> void:
+	var batch := module.get_node_or_null(
+		^"GeneratedRoot/TerraceSupportBatch"
+	) as MultiMeshInstance3D
+	var buffer := PackedFloat32Array() if batch == null else batch.multimesh.buffer
+	var cap_half := SalvageTerrace.TERRACE_SUPPORT_SIZE.y * 0.5
+	var tops := PackedFloat64Array()
+	for contract: Dictionary in module.get_standable_surface_contract():
+		tops.append(float(contract.get("top_elevation", INF)))
+	var caps_seated := batch != null and buffer.size() == 10 * 12 and not tops.is_empty()
+	var closest := INF
+	for index in int(buffer.size() / 12):
+		var cap_y := float(buffer[index * 12 + 7]) + cap_half
+		for top: float in tops:
+			closest = minf(closest, absf(top - cap_y))
+			# Below-deck columns may only reach a deck's underside, never its top
+			# and never anywhere inside the slab.
+			caps_seated = caps_seated and (cap_y <= top - SalvageTerrace.SURFACE_THICKNESS + 0.0005 or cap_y > top)
+	_check(
+		caps_seated and closest >= SalvageTerrace.SURFACE_THICKNESS - 0.0005,
+		"every terrace support cap stops a full deck thickness below the nearest walking surface"
 	)
 
 

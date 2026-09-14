@@ -170,6 +170,10 @@ const BUNK_BERTH_OCCUPANCY := [true, true, false, true, false, true]
 ## The mouth jambs are sized from these so both ends bury into real plate instead
 ## of stopping in air; the rows are not symmetric, so one shared number would
 ## have left a 0.55 m gap at the end of rows 1 and 3.
+## Reveal between the bunk mouth's head and the jambs it laps over. Five
+## millimetres separates the two finishes by more than the depth buffer can
+## resolve at corridor range while still reading as one surround.
+const BUNK_MOUTH_HEAD_STANDOFF := 0.005
 const BUNK_MOUTH_AFT_FACE := [-2.63, -2.08, -2.08]
 const BUNK_MOUTH_FORWARD_FACE := [2.08, 2.08, 2.73]
 
@@ -3602,10 +3606,19 @@ func _build_bunk_berth_life(bunk: Node3D, index: int) -> void:
 		Vector3(0.30, 4.5, absf(forward_jamb_end - 1.0)),
 		_materials["shell_mid"]
 	)
+	# The head is a lintel: it runs the whole mouth and laps over both jambs, so
+	# authored at the jambs' own x it put `shell_light` and `shell_mid` on one
+	# plane over the lap and the two finishes fought there from the lane. It now
+	# stands `BUNK_MOUTH_HEAD_STANDOFF` proud on the lane side -- a real reveal --
+	# which also carries its outboard face inside the jamb, where it cannot fight.
 	_box(
 		berth,
 		"MouthHead",
-		Vector3(jamb_x, 2.62, (aft_face + forward_face) * 0.5),
+		Vector3(
+			jamb_x + inboard * BUNK_MOUTH_HEAD_STANDOFF,
+			2.62,
+			(aft_face + forward_face) * 0.5
+		),
 		Vector3(0.30, 0.64, forward_face - aft_face + 0.08),
 		_materials["shell_light"],
 		false

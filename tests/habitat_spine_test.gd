@@ -425,6 +425,20 @@ func _test_bunk_alcoves(module: HabitatSpine) -> void:
 		_check(module.contains_room(room_id, module.to_global(center)), "bunk centre lies in published occupancy volume: %s" % room_id)
 		_check(not module.contains_room(room_id, module.to_global(Vector3(0, 1.0, center.z))), "central corridor is outside bunk occupancy: %s" % room_id)
 		_check(bunk.get_node_or_null("BunkPlinth") is StaticBody3D and bunk.get_node_or_null("Mattress") is StaticBody3D, "bunk sleeping surface is physically backed: %s" % room_id)
+		# Phase 10 coplanar-seam fix. The head laps over both jambs, so authored
+		# at the jambs' own x it put `shell_light` and `shell_mid` on one plane
+		# over the lap and the two finishes fought there from the lane. It now
+		# carries a real reveal.
+		var jamb := bunk.get_node_or_null("BerthLife/MouthJambForward") as Node3D
+		var head := bunk.get_node_or_null("BerthLife/MouthHead") as Node3D
+		var reveal := 0.0
+		if jamb != null and head != null:
+			reveal = absf(head.position.x) - absf(jamb.position.x)
+		_check(
+			jamb != null and head != null
+				and is_equal_approx(reveal, HabitatSpine.BUNK_MOUTH_HEAD_STANDOFF),
+			"bunk mouth head stands off its jambs rather than sharing their plane: %s" % room_id
+		)
 
 
 func _test_berth_boot_batch(module: HabitatSpine) -> void:

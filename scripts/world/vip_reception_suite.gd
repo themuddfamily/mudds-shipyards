@@ -95,6 +95,18 @@ const ROOM_CEILING := 4.6
 const LANTERN_CEILING := 6.1
 const WALL_THICKNESS := 0.4
 const FLOOR_PLATE_THICKNESS := 0.64
+## A band set into a wall at the wall's own thickness shares both of that wall's
+## faces exactly. Five millimetres of proud is more than the depth buffer can
+## confuse at room range, reads as the reveal such a band would really have, and
+## puts the band's other face inside the wall where it is never drawn.
+const BAND_STANDOFF := 0.005
+## The shell is built as overlapping boxes so every corner is solid rather than
+## mitred, which leaves each wall's outer face lapped over its neighbour's on the
+## same plane. Both laps are the one `pearl` material at the one orientation, so
+## whichever box wins a given pixel it shades identically and nothing can be seen
+## to flicker. `tools/coplanar_seam_audit.gd` reads this declaration and only
+## honours it where the two faces really do carry the same material.
+const SHELL_LAP_DECLARATION := "shell boxes lap at corners in one pearl finish"
 
 ## The sunken conversation well. A 0.45 m drop in two 0.225 m risers, which is
 ## less than half the production capsule's measured no-jump step, so the well can
@@ -1677,6 +1689,7 @@ func _build_threshold(structure: Node3D) -> void:
 	threshold.set_meta("station_room", true)
 	threshold.set_meta("room_id", &"vip-threshold")
 	threshold.set_meta("evidence_status", EVIDENCE_STATUS)
+	threshold.set_meta(&"coplanar_by_design", SHELL_LAP_DECLARATION)
 	structure.add_child(threshold)
 
 	var plate := _box(threshold, "ThresholdFloor", Vector3(0.0, -0.32, 1.5), Vector3(5.1, FLOOR_PLATE_THICKNESS, 3.0), _materials["pearl_floor"])
@@ -1715,7 +1728,11 @@ func _build_threshold(structure: Node3D) -> void:
 	route_thread.set_meta("route_landmark_role", &"vip_door_to_well_entry")
 
 	for side in [-1.0, 1.0]:
-		var wall_x := float(side) * 2.4
+		# The floor plate reaches exactly 2.55 m, so a wall whose outer face was
+		# also at 2.55 m put `lacquer` and `pearl_floor` on one plane down the
+		# whole threshold. Standing the wall `BAND_STANDOFF` further out buries
+		# the plate's edge inside it and widens the passage rather than pinching.
+		var wall_x := float(side) * (2.4 + BAND_STANDOFF)
 		var hand := "Port" if side < 0.0 else "Starboard"
 		_box(threshold, "ThresholdWall%s" % hand, Vector3(wall_x, 1.55, 1.5), Vector3(0.3, 4.46, 3.0), _materials["lacquer"])
 		# Bronze reveal at the room end of each wall: the frame you pass through.
@@ -1751,6 +1768,7 @@ func _build_reception_shell(structure: Node3D) -> void:
 	room.set_meta("station_room", true)
 	room.set_meta("room_id", &"vip-reception")
 	room.set_meta("evidence_status", EVIDENCE_STATUS)
+	room.set_meta(&"coplanar_by_design", SHELL_LAP_DECLARATION)
 	structure.add_child(room)
 
 	# Floor as a ring of four plates around the well, rather than one slab with a
@@ -1817,8 +1835,14 @@ func _build_reception_shell(structure: Node3D) -> void:
 	_box(room, "PortWallAft", Vector3(-7.1, 1.955, 13.3), Vector3(WALL_THICKNESS, 5.29, 1.4), _materials["pearl"])
 	_box(room, "PortWallLower", Vector3(-7.1, 1.105, 8.9), Vector3(WALL_THICKNESS, 3.59, 7.4), _materials["pearl"])
 	_box(room, "PortWallHeader", Vector3(-7.1, 4.2, 8.9), Vector3(WALL_THICKNESS, 0.8, 7.4), _materials["pearl"])
-	_box(room, "FrontWallPort", Vector3(-4.775, 1.955, 3.2), Vector3(5.05, 5.29, WALL_THICKNESS), _materials["pearl"])
-	_box(room, "FrontWallStarboard", Vector3(3.475, 1.955, 3.2), Vector3(2.45, 5.29, WALL_THICKNESS), _materials["pearl"])
+	# Both front walls stand `BAND_STANDOFF` forward of their authored 3.2 m, for
+	# the same reason as the threshold: the front floor plate ends on exactly the
+	# plane the front wall's outer face used to occupy, and `pearl_floor` fought
+	# `pearl` along that whole edge from the approach side. They move together, so
+	# the facade stays one plane.
+	var front_wall_z := 3.2 - BAND_STANDOFF
+	_box(room, "FrontWallPort", Vector3(-4.775, 1.955, front_wall_z), Vector3(5.05, 5.29, WALL_THICKNESS), _materials["pearl"])
+	_box(room, "FrontWallStarboard", Vector3(3.475, 1.955, front_wall_z), Vector3(2.45, 5.29, WALL_THICKNESS), _materials["pearl"])
 	_box(room, "StarboardWallForward", Vector3(4.5, 1.955, 4.0), Vector3(WALL_THICKNESS, 5.29, 2.0), _materials["pearl"])
 	_box(room, "StarboardWallAft", Vector3(4.5, 1.955, 13.25), Vector3(WALL_THICKNESS, 5.29, 1.5), _materials["pearl"])
 
@@ -1939,7 +1963,17 @@ func _build_outboard_glazing(structure: Node3D) -> void:
 	# flank. It is above head height on purpose — this is the wall a guest has
 	# their back to, so it earns its glass as light and silhouette, not as a view
 	# to stand at.
-	_box(glazing, "ClerestorySill", Vector3(-7.1, 2.75, 8.9), Vector3(WALL_THICKNESS, 0.3, 7.4), _materials["pearl_deep"])
+	# The sill is a deep band set into the port wall, so it is the same thickness
+	# at the same x, and it topped out on the wall's own top plane too. Authored
+	# dead flush, its `pearl_deep` faces and the wall's `pearl` faces shared two
+	# planes down all 7.4 m of the band and fought on both. `BAND_STANDOFF` brings
+	# it proud into the room, carries its far face inside the wall where nothing
+	# can see it, and drops its top into a shadow reveal under the wall head.
+	_box(
+		glazing, "ClerestorySill",
+		Vector3(-7.1 + BAND_STANDOFF, 2.75 - BAND_STANDOFF, 8.9),
+		Vector3(WALL_THICKNESS, 0.3, 7.4), _materials["pearl_deep"]
+	)
 	var clerestory_mullion_transforms: Array[Transform3D] = []
 	for mullion_index in 4:
 		var clerestory_z := 5.2 + float(mullion_index) * 2.4667

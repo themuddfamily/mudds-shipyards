@@ -20,6 +20,7 @@ const LOWER_ELEVATION := 0.0
 const UPPER_ELEVATION := 3.6
 const INSPECTION_ELEVATION := 5.4
 const SURFACE_THICKNESS := 0.30
+const TERRACE_SUPPORT_SIZE := Vector3(0.65, 1.8, 0.65)
 const MAIN_RAMP_WIDTH := 6.0
 const MAIN_RAMP_HORIZONTAL_RUN := 8.0
 const INSPECTION_RAMP_WIDTH := 6.0
@@ -1324,16 +1325,34 @@ func _add_sloped_rail(
 	_ramp_threshold_post_transforms.append(_rail_detail_transforms.back())
 
 
+## A column that carries a deck stops at that deck's underside. Returning the
+## centre from the deck's own top elevation keeps the cap off the walking
+## surface no matter which elevation the column is placed under.
+static func _support_center(x: float, deck_top: float, z: float) -> Vector3:
+	return Vector3(x, deck_top - SURFACE_THICKNESS - TERRACE_SUPPORT_SIZE.y * 0.5, z)
+
+
 func _build_batched_supports_and_dressing() -> void:
+	# Each column is placed by the deck it carries, not by a hand-written centre.
+	# Six of the ten used to be authored a deck-thickness too high, which pushed
+	# their 0.65 m cap up through the pad and left it exactly coplanar with the
+	# walking surface -- two materials fighting for the same pixels underfoot.
+	# `_support_center` seats every cap on the deck's underside instead.
 	var support_transforms: Array[Transform3D] = []
 	for support in [
-		Vector3(-16, -0.9, 4), Vector3(-16, -0.9, 8), Vector3(-8, -0.9, 4),
-		Vector3(-8, -0.9, 8), Vector3(16, 2.4, 2), Vector3(24, 2.4, 2),
-		Vector3(16, 2.4, 8), Vector3(24, 2.4, 8), Vector3(21, 4.5, 16),
-		Vector3(25, 4.5, 16),
+		_support_center(-16.0, LOWER_ELEVATION, 4.0),
+		_support_center(-16.0, LOWER_ELEVATION, 8.0),
+		_support_center(-8.0, LOWER_ELEVATION, 4.0),
+		_support_center(-8.0, LOWER_ELEVATION, 8.0),
+		_support_center(16.0, UPPER_ELEVATION, 2.0),
+		_support_center(24.0, UPPER_ELEVATION, 2.0),
+		_support_center(16.0, UPPER_ELEVATION, 8.0),
+		_support_center(24.0, UPPER_ELEVATION, 8.0),
+		_support_center(21.0, INSPECTION_ELEVATION, 16.0),
+		_support_center(25.0, INSPECTION_ELEVATION, 16.0),
 	]:
 		support_transforms.append(Transform3D(Basis.IDENTITY, support as Vector3))
-	_add_multimesh_batch("TerraceSupportBatch", Vector3(0.65, 1.8, 0.65), support_transforms, _materials.frame, "structural support below walkable decks")
+	_add_multimesh_batch("TerraceSupportBatch", TERRACE_SUPPORT_SIZE, support_transforms, _materials.frame, "structural support below walkable decks")
 
 	# Salvage cages sit outside the compacted walkable union behind the lower
 	# pad's aft rail. They read as stored service stock without consuming routes.
