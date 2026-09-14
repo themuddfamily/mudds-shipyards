@@ -139,6 +139,24 @@ enum StockUV {
 }
 
 
+## Smallest UV-space area a `FACE_GRID` triangle may have before it is treated
+## as collapsed.
+##
+## The chamfer band and the corner facets are the polygons on this box that
+## belong to more than one face at once, so under a per-face atlas their
+## vertices carry coordinates from two or three different charts. Usually those
+## charts disagree enough to leave a real triangle. They do not on stock that is
+## square in two axes: both charts normalise by the same extent, every vertex of
+## the seam lands on the same atlas column, the UV triangle collapses to zero
+## area and `generate_tangents` hands the shader a singular tangent frame there.
+## The Zenith's port instrument stanchion, 45 x 200 x 45 mm, is the first part in
+## the fleet to hit it.
+##
+## Deliberately a hair above zero rather than a tolerance: what this guards is
+## exact degeneracy from equal extents, not a gradual loss of UV area.
+const DEGENERATE_FACET_UV_AREA := 0.00000001
+
+
 ## `HeroShip`'s frozen radial segmentation for turned stock, retained as the
 ## ceiling `turned_stock_mesh` reduces from.
 const HERO_CYLINDER_SEGMENTS := 32
@@ -386,6 +404,14 @@ static func _emit_triangle(
 	var outward := (normals[0] + normals[1] + normals[2]) / 3.0
 	if geometric.dot(outward) > 0.0:
 		order = [0, 2, 1]
+	# A seam triangle whose atlas coordinates collapse (see
+	# `DEGENERATE_FACET_UV_AREA`) falls back to the unit triangle, which is what
+	# `UNIT_PER_QUAD` would have given it and is never degenerate. Only the
+	# collapsed triangles move; every polygon whose atlas mapping is a real
+	# triangle keeps exactly the coordinates it had.
+	var uv_area := absf((uvs[1] - uvs[0]).cross(uvs[2] - uvs[0]))
+	if uv_area <= DEGENERATE_FACET_UV_AREA:
+		uvs = [Vector2(0.0, 0.0), Vector2(1.0, 0.0), Vector2(0.0, 1.0)]
 	for index in order:
 		tool.set_normal(normals[index])
 		tool.set_uv(uvs[index])

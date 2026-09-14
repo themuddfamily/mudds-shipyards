@@ -114,7 +114,13 @@ const STRUCTURAL_ROUGHNESS_SPREAD_FLOOR := 0.40
 ## The suite's analytic wall-ring checks retain that optimization's geometry guard.
 const CHAMFERED_CYLINDER_POPULATION := {
 	"Torrent": [57, 14_080],
-	"Arrow": [38, 10_944],
+	# The Arrow's turned stock is budgeted by `ShipGeometryBudget.tube_segments`
+	# from each part's own radius instead of the frozen 36, so the same 38
+	# surfaces now cost 5,696 triangles. Its stock is mast, conduit, grip and
+	# toggle work from 2 cm to 12 cm in radius, which is why it loses more than
+	# the Jovian's did. Every count stays a multiple of four, so each part's
+	# authored extrema and AABB are exact.
+	"Arrow": [38, 5_696],
 	# The Jovian's turned stock is budgeted by `ShipGeometryBudget.tube_segments`
 	# from each part's own radius instead of the frozen 32, so the same 72
 	# surfaces now cost 12,352 triangles. Every count stays a multiple of four,

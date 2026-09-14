@@ -94,6 +94,15 @@ const WEAPON_TELEGRAPH_RADIUS := 0.16
 const WEAPON_TELEGRAPH_RADIAL_SEGMENTS := 24
 const WEAPON_TELEGRAPH_RINGS := 12
 const WEAPON_TELEGRAPH_COPY_COUNT := 2
+
+## The opponent family's authored detail tessellation, retained here as the
+## ceiling `ShipGeometryBudget` reduces from. None of these is raised, and every
+## call site takes `min(authored, budgeted)`, so the four opponent archetypes
+## can only ever lose segments a part's own world-space size does not earn.
+const OPPONENT_CYLINDER_SEGMENTS := 28
+const OPPONENT_SPHERE_RADIAL_SEGMENTS := 24
+const OPPONENT_SPHERE_RINGS := 12
+const EXHAUST_PLUME_RADIAL_SEGMENTS := 32
 const WEAPON_TELEGRAPH_POSITIONS := [
 	Vector3(-2.65, -0.08, -4.98),
 	Vector3(2.65, -0.08, -4.98),
@@ -2974,12 +2983,20 @@ func _cylinder(parent: Node3D, node_name: String, position_value: Vector3, radiu
 	instance.name = node_name
 	instance.position = position_value
 	instance.rotation_degrees = rotation_degrees_value
-	# Chamfered rims at the opponent's frozen 28 radial segments. Inherited by
-	# `StandoffPicketOpponent`. Outer radius and overall height are unchanged and
-	# the encounter's collision bodies are authored separately. Wall subdivision:
-	# see `ShipSurfaceDetail.CYLINDER_WALL_RINGS`.
+	# Chamfered rims at the radial segmentation each radius earns, capped at the
+	# opponent's authored 28. Inherited by `StandoffPicketOpponent`,
+	# `FlankingSkirmisherOpponent` and `CourierRunnerOpponent`.
+	# `ShipGeometryBudget.tube_segments` answers from the part's own radius
+	# against the tube floor `TorusGeometryBudget` already uses for a torus
+	# cross-section, so a 4 cm grip mount stops paying for a 40 cm engine can's
+	# tessellation. Outer radius and overall height are unchanged — the count is
+	# snapped to a multiple of four so the four lateral extrema stay on real
+	# vertices — and the encounter's collision bodies are authored separately.
+	# Wall subdivision: see `ShipSurfaceDetail.CYLINDER_WALL_RINGS`.
 	instance.mesh = StationSurfaceKit.chamfered_cylinder_mesh_cached(
-		radius, radius, height, 28, _chamfered_cylinder_cache,
+		radius, radius, height,
+		ShipGeometryBudget.tube_segments(radius, OPPONENT_CYLINDER_SEGMENTS),
+		_chamfered_cylinder_cache,
 		ShipSurfaceDetail.CYLINDER_WALL_RINGS, true, true, material
 	)
 	parent.add_child(instance)
@@ -3002,8 +3019,16 @@ func _sphere(
 		mesh = SphereMesh.new()
 		mesh.radius = radius
 		mesh.height = radius * 2.0
-		mesh.radial_segments = 24
-		mesh.rings = 12
+		# Lenses, beacons and bead fittings run from 6 cm to 20 cm across and
+		# were all authored at the same 24x12. `ShipGeometryBudget.sphere_plan`
+		# scales that to the bead's own radius, floored at the 16x8 the fleet's
+		# coarsest existing joint already ships, and never above the authored
+		# pair.
+		var plan := ShipGeometryBudget.sphere_plan(
+			radius, OPPONENT_SPHERE_RADIAL_SEGMENTS, OPPONENT_SPHERE_RINGS
+		)
+		mesh.radial_segments = int(plan["radial_segments"])
+		mesh.rings = int(plan["rings"])
 		mesh.material = material
 	instance.mesh = mesh
 	parent.add_child(instance)
@@ -3071,6 +3096,12 @@ func _pressure_mesh(sections: Array, material: Material) -> ArrayMesh:
 	# Elliptical shoulders meet the original mounting flats tangentially. Each
 	# quarter uses eight real segments so the silhouette also follows the curve.
 	# The four long straight spans retain x = +/-1 and y = +/-1 exactly.
+	#
+	# Deliberately left at eight. `ShipGeometryBudget.arc_segments` answers eight
+	# for every shell on these four craft — a quarter turn gets a quarter of the
+	# 32-segment floor the project rendered and accepted for a closed circle, and
+	# that floor binds at every shoulder radius here — so budgeting this sweep
+	# would be a no-op dressed up as a rule.
 	for corner in 4:
 		var centre := Vector2(0.64 if corner < 2 else -0.64, 0.48 if corner in [0, 3] else -0.48)
 		for step in 9:
@@ -3283,7 +3314,17 @@ func _exhaust_plume(parent: Node3D, node_name: String, mount: Vector3, radius: f
 		mesh.top_radius = radius * 0.08
 		mesh.bottom_radius = radius * 0.72
 		mesh.height = length * 0.62
-		mesh.radial_segments = 32
+		# A 30 cm exhaust cone was paying for 32 radial segments and Godot's four
+		# default wall rings. The radial count comes from the cone's widest
+		# radius through the fleet's tube rule; the wall rings go to
+		# `ShipSurfaceDetail.CYLINDER_WALL_RINGS`, which is zero because a
+		# frustum wall is planar along its length and its vertex normals are
+		# constant there — the intermediate rings resolve nothing and the
+		# surface, the silhouette and the AABB are bit-identical without them.
+		mesh.radial_segments = ShipGeometryBudget.tube_segments(
+			radius * 0.72, EXHAUST_PLUME_RADIAL_SEGMENTS
+		)
+		mesh.rings = ShipSurfaceDetail.CYLINDER_WALL_RINGS
 		mesh.material = material
 		_chamfered_cylinder_cache[cache_key] = mesh
 	plume.mesh = mesh
