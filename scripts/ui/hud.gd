@@ -163,6 +163,22 @@ const SENSOR_RETICLE_MARK_LAYOUT := [
 const MIN_LOGICAL_WIDTH := 1180.0
 const MIN_LOGICAL_HEIGHT := 690.0
 
+## Smallest logical layout the *modal pause pages* are authored for. They are a
+## separate contract because they are bigger than the gameplay panels: measured
+## content minimums are 669 px of height (ACTIVITY BOARD) and 816 px of width
+## (SERVER BROWSER), and a centred page must clear the readable band's 24/42 top
+## and bottom margins on both sides, so it needs 669 + 2 * 42 of height.
+##
+## Sharing [constant MIN_LOGICAL_HEIGHT] pushed those pages into the bottom safe
+## margin whenever the accessibility scale ceiling resolved against it: measured
+## at 1920x1080 with a 160% request, SETTINGS ended 27 logical px past the safe
+## bottom and the pause footer sat 1.6 device px from the screen edge. Raising
+## the gameplay floor instead would cap a plain 100% request on a 1280x720
+## display, which the contract above deliberately refuses to do, so the pause
+## layer carries its own ceiling and the gameplay layer is untouched.
+const MIN_PAUSE_LOGICAL_WIDTH := 880.0
+const MIN_PAUSE_LOGICAL_HEIGHT := 760.0
+
 ## The gameplay HUD is a three-column layout: a fixed left gutter (wordmark and
 ## objective), a fixed right gutter (controls and telemetry), and a centre band
 ## that carries the transient panels. Every collision this layout can suffer is
@@ -188,7 +204,12 @@ const PANEL_INTERACTION_WIDTH := 424.0
 ## The toast remains centred, but this width preserves at least 16 logical px of
 ## contract headroom before it can meet the right-side controls card. It stays
 ## comfortably above the measured 385 px worst-case content minimum.
-const PANEL_TOAST_WIDTH := 498.0
+## The widened controls gutter (see PANEL_HELP_WIDTH) moved the right-hand wall
+## in, so the previous 498 met the controls card at the 1180 px logical floor.
+## 468 restores 12 logical px of clearance from the controls card and 32 from the
+## wordmark block, and stays far above the measured 385 px worst-case content
+## minimum, so a longer toast wraps instead of widening the panel.
+const PANEL_TOAST_WIDTH := 468.0
 const PANEL_TELEMETRY_WIDTH := 312.0
 ## The telemetry geometry is authored as one logical band. Construction and
 ## safe-area relayout must share the same top reservation so the first frame and
@@ -197,13 +218,24 @@ const PANEL_TELEMETRY_TOP_OFFSET := 250.0
 ## Keep telemetry just right of the caption host without shrinking either card.
 ## The authored edge margin still retains 26 logical px before safe-area inset.
 const PANEL_TELEMETRY_CAPTION_CLEARANCE := 2.0
-const PANEL_HELP_WIDTH := 272.0
-const PANEL_SEMANTIC_TRANSCRIPT_WIDTH := 450.0
+## Measured content minimum of the piloting controls card is 283 logical px, so
+## the authored 272 understated the gutter it actually occupies and the card grew
+## 11 px past its own reserved band. Edge-anchored gutter cards deliberately keep
+## their outward (`GROW_DIRECTION_END`) growth -- their pinned edge sits 28
+## logical px inside the safe area while their inward neighbours are only a few
+## px away -- so the authored width has to contain the content instead.
+const PANEL_HELP_WIDTH := 284.0
+## The expanded caption log lives in the lane between the two fixed gutters. At
+## the 1180 px logical floor -- reached by every 4:3 and 16:10 display -- that
+## lane is 1180 - (350 + 28 + 32) - (284 + 28 + 32) = 426 px, so the authored 450
+## overlapped both the objective card and the controls card. 410 keeps 8 px clear
+## of each gutter at the floor and is unconstrained above it.
+const PANEL_SEMANTIC_TRANSCRIPT_WIDTH := 410.0
 const PANEL_SEMANTIC_TRANSCRIPT_MIN_HEIGHT := 212.0
 ## The expanded log uses the lane between the two edge gutters. A small right
 ## bias preserves clearance from the wider objective gutter at the minimum
 ## logical width while leaving enough room before HelpPanel.
-const PANEL_SEMANTIC_TRANSCRIPT_CENTER_OFFSET_X := 36.0
+const PANEL_SEMANTIC_TRANSCRIPT_CENTER_OFFSET_X := 33.0
 ## Public runtime cards occupy the narrow band below the enemy readout. Their
 ## body may scroll, but their title and action row never leave this fixed frame.
 ## The 396 px width keeps two logical pixels clear of both floor gutters; the
@@ -551,6 +583,9 @@ var _caption_preview_revision := 0
 ## registered against camera-space pixels and must stay 1:1 with the viewport.
 var _scaled_layers: Array[Control] = []
 var _layout_effective_ui_scale := 1.0
+## Effective scale of the modal pause layer, resolved against the larger pause
+## contract rather than the gameplay one.
+var _pause_effective_ui_scale := 1.0
 var _caption_presenter: CaptionPresenter
 var _network_status_presenter := NetworkSessionStatusPresenterType.new()
 var _crew_role_presenter := CrewRoleSeatPresenterType.new()
@@ -2889,6 +2924,23 @@ static func compute_effective_ui_scale(requested: float, viewport_size: Vector2)
 	return minf(validated, maxf(ceiling, MIN_UI_SCALE))
 
 
+## The same clamp for the modal pause layer, against its own larger contract.
+## Exposed so the ultrawide layout regression can reason about the pause ceiling
+## without owning a viewport, exactly as it can for the gameplay one.
+static func compute_effective_pause_ui_scale(requested: float, viewport_size: Vector2) -> float:
+	var validated := requested
+	if is_nan(validated) or is_inf(validated):
+		validated = 1.0
+	validated = clampf(validated, MIN_UI_SCALE, MAX_UI_SCALE)
+	if viewport_size.x <= 1.0 or viewport_size.y <= 1.0:
+		return validated
+	var ceiling := minf(
+		viewport_size.x / MIN_PAUSE_LOGICAL_WIDTH,
+		viewport_size.y / MIN_PAUSE_LOGICAL_HEIGHT
+	)
+	return minf(validated, maxf(ceiling, MIN_UI_SCALE))
+
+
 ## Every gameplay HUD panel's live rectangle, in the logical (pre-scale) space of
 ## the scaled panel layer, keyed by a stable name. Exposed so the layout contract
 ## in [constant MIN_LOGICAL_WIDTH] can be *measured* rather than asserted by
@@ -2964,6 +3016,17 @@ func layout_for_viewport(viewport_size: Vector2) -> float:
 		layer.position = Vector2.ZERO
 		layer.size = logical
 		layer.scale = Vector2(effective, effective)
+	# The modal pause pages are laid out against their own, larger contract; see
+	# MIN_PAUSE_LOGICAL_HEIGHT. This deliberately runs after the shared loop so
+	# the pause layer stays in _scaled_layers for the accessibility report while
+	# still resolving its own ceiling.
+	if is_instance_valid(_pause_panels):
+		var pause_effective := compute_effective_pause_ui_scale(_ui_scale, viewport_size)
+		_pause_effective_ui_scale = pause_effective
+		_pause_panels.set_anchors_and_offsets_preset(Control.PRESET_TOP_LEFT)
+		_pause_panels.position = Vector2.ZERO
+		_pause_panels.size = viewport_size / maxf(pause_effective, 0.01)
+		_pause_panels.scale = Vector2(pause_effective, pause_effective)
 	if is_instance_valid(_runtime_status_panel):
 		var status_rect := compute_runtime_status_panel_rect(
 			viewport_size, _safe_area_insets, effective
@@ -3381,6 +3444,9 @@ func _build_semantic_transcript_panel() -> void:
 	_semantic_transcript_panel = PanelContainer.new()
 	_semantic_transcript_panel.name = "SemanticCaptionTranscriptPanel"
 	_semantic_transcript_panel.set_anchors_preset(Control.PRESET_CENTER_TOP)
+	_semantic_transcript_panel.grow_horizontal = Control.GROW_DIRECTION_BOTH
+	# Top-anchored: grow downwards, never up through the top safe margin.
+	_semantic_transcript_panel.grow_vertical = Control.GROW_DIRECTION_END
 	_semantic_transcript_panel.position = Vector2(
 		-PANEL_SEMANTIC_TRANSCRIPT_WIDTH * 0.5
 			+ PANEL_SEMANTIC_TRANSCRIPT_CENTER_OFFSET_X,
@@ -3399,7 +3465,13 @@ func _build_semantic_transcript_panel() -> void:
 	stack.add_child(_semantic_transcript_heading)
 	_semantic_transcript_body = _label("No semantic captions yet.", 11, NOMINAL_SOFT)
 	_semantic_transcript_body.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	_semantic_transcript_body.custom_minimum_size = Vector2(420.0, 120.0)
+	# The log card is sized by the lane between the two HUD gutters, so its rows
+	# wrap inside the card instead of widening it past a gutter at the 1180 px
+	# logical floor. This authored minimum is the card width less its 12 px
+	# margins and the 2 px panel border, so the card never grows past the lane.
+	_semantic_transcript_body.custom_minimum_size = Vector2(
+		PANEL_SEMANTIC_TRANSCRIPT_WIDTH - 26.0, 120.0
+	)
 	stack.add_child(_semantic_transcript_body)
 	var controls := HBoxContainer.new()
 	stack.add_child(controls)
@@ -3822,6 +3894,8 @@ func _build_recovery_prompt_panel() -> void:
 	_recovery_prompt_panel = PanelContainer.new()
 	_recovery_prompt_panel.name = "RecoveryChoicePrompt"
 	_recovery_prompt_panel.set_anchors_preset(Control.PRESET_CENTER)
+	_recovery_prompt_panel.grow_horizontal = Control.GROW_DIRECTION_BOTH
+	_recovery_prompt_panel.grow_vertical = Control.GROW_DIRECTION_BOTH
 	_recovery_prompt_panel.position = Vector2(-300.0, -120.0)
 	_recovery_prompt_panel.size = Vector2(600.0, 240.0)
 	_recovery_prompt_panel.visible = false
@@ -4197,6 +4271,9 @@ func _build_hud() -> void:
 	_interaction_panel = PanelContainer.new()
 	_interaction_panel.name = "InteractionPanel"
 	_interaction_panel.set_anchors_preset(Control.PRESET_CENTER_BOTTOM)
+	_interaction_panel.grow_horizontal = Control.GROW_DIRECTION_BOTH
+	# Bottom-anchored: grow upwards, never down through the bottom safe margin.
+	_interaction_panel.grow_vertical = Control.GROW_DIRECTION_BEGIN
 	_interaction_panel.offset_left = -PANEL_INTERACTION_WIDTH * 0.5
 	_interaction_panel.offset_right = PANEL_INTERACTION_WIDTH * 0.5
 	_interaction_panel.offset_top = -118.0
@@ -4220,6 +4297,8 @@ func _build_hud() -> void:
 
 	_reticle = Control.new()
 	_reticle.set_anchors_preset(Control.PRESET_CENTER)
+	_reticle.grow_horizontal = Control.GROW_DIRECTION_BOTH
+	_reticle.grow_vertical = Control.GROW_DIRECTION_BOTH
 	_reticle.position = Vector2(-22.0, -22.0)
 	_reticle.size = Vector2(44.0, 44.0)
 	_reticle.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -4335,6 +4414,9 @@ func _build_toast() -> void:
 	_toast_panel = PanelContainer.new()
 	_toast_panel.name = "ToastPanel"
 	_toast_panel.set_anchors_preset(Control.PRESET_CENTER_TOP)
+	_toast_panel.grow_horizontal = Control.GROW_DIRECTION_BOTH
+	# Top-anchored: grow downwards, never up through the top safe margin.
+	_toast_panel.grow_vertical = Control.GROW_DIRECTION_END
 	_toast_panel.offset_left = -PANEL_TOAST_WIDTH * 0.5
 	_toast_panel.offset_right = PANEL_TOAST_WIDTH * 0.5
 	_toast_panel.offset_top = 32.0
@@ -4360,6 +4442,8 @@ func _build_runtime_status_panel() -> void:
 	_runtime_status_panel = PanelContainer.new()
 	_runtime_status_panel.name = "RuntimeStatusPanel"
 	_runtime_status_panel.set_anchors_preset(Control.PRESET_CENTER)
+	_runtime_status_panel.grow_horizontal = Control.GROW_DIRECTION_BOTH
+	_runtime_status_panel.grow_vertical = Control.GROW_DIRECTION_BOTH
 	_runtime_status_panel.position = Vector2(
 		-PANEL_PUBLIC_STATUS_WIDTH * 0.5, -PANEL_PUBLIC_STATUS_HEIGHT * 0.5
 	)
@@ -4411,6 +4495,8 @@ func _build_bomber_status_panel() -> void:
 	_bomber_status_panel = PanelContainer.new()
 	_bomber_status_panel.name = "BomberPayloadStatusPanel"
 	_bomber_status_panel.set_anchors_preset(Control.PRESET_CENTER)
+	_bomber_status_panel.grow_horizontal = Control.GROW_DIRECTION_BOTH
+	_bomber_status_panel.grow_vertical = Control.GROW_DIRECTION_BOTH
 	_bomber_status_panel.position = Vector2(
 		-PANEL_PUBLIC_STATUS_WIDTH * 0.5, -PANEL_PUBLIC_STATUS_HEIGHT * 0.5
 	)
@@ -5021,6 +5107,9 @@ func _build_enemy_status() -> void:
 	_enemy_panel = PanelContainer.new()
 	_enemy_panel.name = "EnemyPanel"
 	_enemy_panel.set_anchors_preset(Control.PRESET_CENTER_TOP)
+	_enemy_panel.grow_horizontal = Control.GROW_DIRECTION_BOTH
+	# Top-anchored: grow downwards, never up through the top safe margin.
+	_enemy_panel.grow_vertical = Control.GROW_DIRECTION_END
 	_enemy_panel.offset_left = -170.0
 	_enemy_panel.offset_right = 170.0
 	_enemy_panel.offset_top = 124.0
@@ -5106,6 +5195,8 @@ func _build_pause_main_page() -> void:
 	_pause_main_page = PanelContainer.new()
 	_pause_main_page.name = "PauseMainPage"
 	_pause_main_page.set_anchors_preset(Control.PRESET_CENTER)
+	_pause_main_page.grow_horizontal = Control.GROW_DIRECTION_BOTH
+	_pause_main_page.grow_vertical = Control.GROW_DIRECTION_BOTH
 	_pause_main_page.position = Vector2(-240.0, -250.0)
 	_pause_main_page.size = Vector2(480.0, 500.0)
 	_pause_main_page.mouse_filter = Control.MOUSE_FILTER_STOP
@@ -5301,6 +5392,8 @@ func _build_activity_selection_page() -> void:
 	_activity_selection_page = PanelContainer.new()
 	_activity_selection_page.name = "ActivitySelectionPage"
 	_activity_selection_page.set_anchors_preset(Control.PRESET_CENTER)
+	_activity_selection_page.grow_horizontal = Control.GROW_DIRECTION_BOTH
+	_activity_selection_page.grow_vertical = Control.GROW_DIRECTION_BOTH
 	_activity_selection_page.position = Vector2(-340.0, -330.0)
 	_activity_selection_page.size = Vector2(680.0, 660.0)
 	_activity_selection_page.mouse_filter = Control.MOUSE_FILTER_STOP
@@ -5403,6 +5496,8 @@ func _build_nearby_activity_page() -> void:
 	_nearby_activity_page = PanelContainer.new()
 	_nearby_activity_page.name = "NearbyActivityPage"
 	_nearby_activity_page.set_anchors_preset(Control.PRESET_CENTER)
+	_nearby_activity_page.grow_horizontal = Control.GROW_DIRECTION_BOTH
+	_nearby_activity_page.grow_vertical = Control.GROW_DIRECTION_BOTH
 	_nearby_activity_page.position = Vector2(-390.0, -330.0)
 	_nearby_activity_page.size = Vector2(780.0, 660.0)
 	_nearby_activity_page.mouse_filter = Control.MOUSE_FILTER_STOP
@@ -5454,6 +5549,8 @@ func _build_planetary_destination_page() -> void:
 	_planetary_destination_page = PanelContainer.new()
 	_planetary_destination_page.name = "PlanetaryDestinationPage"
 	_planetary_destination_page.set_anchors_preset(Control.PRESET_CENTER)
+	_planetary_destination_page.grow_horizontal = Control.GROW_DIRECTION_BOTH
+	_planetary_destination_page.grow_vertical = Control.GROW_DIRECTION_BOTH
 	_planetary_destination_page.position = Vector2(-360.0, -290.0)
 	_planetary_destination_page.size = Vector2(720.0, 580.0)
 	_planetary_destination_page.mouse_filter = Control.MOUSE_FILTER_STOP
@@ -6175,6 +6272,8 @@ func _build_server_browser_page() -> void:
 	_server_browser_page = PanelContainer.new()
 	_server_browser_page.name = "ServerBrowserPage"
 	_server_browser_page.set_anchors_preset(Control.PRESET_CENTER)
+	_server_browser_page.grow_horizontal = Control.GROW_DIRECTION_BOTH
+	_server_browser_page.grow_vertical = Control.GROW_DIRECTION_BOTH
 	_server_browser_page.position = Vector2(-360.0, -300.0)
 	_server_browser_page.size = Vector2(720.0, 600.0)
 	_server_browser_page.mouse_filter = Control.MOUSE_FILTER_STOP
@@ -6736,6 +6835,8 @@ func _build_settings_page() -> void:
 	_settings_page = PanelContainer.new()
 	_settings_page.name = "SettingsPage"
 	_settings_page.set_anchors_preset(Control.PRESET_CENTER)
+	_settings_page.grow_horizontal = Control.GROW_DIRECTION_BOTH
+	_settings_page.grow_vertical = Control.GROW_DIRECTION_BOTH
 	_settings_page.position = Vector2(-430.0, -330.0)
 	_settings_page.size = Vector2(860.0, 660.0)
 	_settings_page.mouse_filter = Control.MOUSE_FILTER_STOP
