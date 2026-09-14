@@ -41,6 +41,15 @@ const ENGINEER_REPAIR_RESOURCE_ID: StringName = &"jovian_repair_tool"
 const ENGINEER_REPAIR_RESOURCE_CAPACITY := 6
 # Shared stations keep fitted service assemblies on the pressure-skin profile.
 const ROOF_ACROSS_STEPS := 32
+
+## Authored tessellation of the fitted detail families this craft bakes, kept as
+## the ceiling `ShipGeometryBudget` and `TorusGeometryBudget` reduce from. None
+## of these may ever be raised by a budget; they are only ever the maximum.
+const FITOUT_RING_SWEEP_SEGMENTS := 48
+const FITOUT_RING_TUBE_SEGMENTS := 8
+const ENGINE_MODULE_SEGMENTS := 48
+const ROOF_SERVICE_ACROSS_STEPS := 12
+const CABIN_TRANSITION_FILLET_STEPS := 32
 const CARGO_ROOF_SECTIONS: Array[Vector3] = [Vector3(0.92, -0.20, -3.10), Vector3(1.0, 0.0, -1.8),
 	Vector3(1.0, 0.0, 8.25), Vector3(0.86, -0.22, 9.35)]
 const CABIN_ROOF_SECTIONS: Array[Vector3] = [Vector3(0.70, -0.70, -9.65), Vector3(0.91, -0.12, -7.65),
@@ -175,8 +184,11 @@ const DORSAL_CARGO_RIB_JOINT_COPY_COUNT := (
 	DORSAL_CARGO_RIB_COUNT * DORSAL_CARGO_RIB_JOINTS_PER_RIB
 )
 const DORSAL_CARGO_RIB_JOINT_RADIUS := 0.095
-const DORSAL_CARGO_RIB_JOINT_RADIAL_SEGMENTS := 24
-const DORSAL_CARGO_RIB_JOINT_RINGS := 12
+# `ShipGeometryBudget.sphere_plan(0.095, 24, 12)`. A 19 cm bead read at the
+# project's walk-up distance earns 20 radial segments; the authored 24 resolved
+# 0.6 mm of sagitta that is a third of a pixel at 1.5 m.
+const DORSAL_CARGO_RIB_JOINT_RADIAL_SEGMENTS := 20
+const DORSAL_CARGO_RIB_JOINT_RINGS := 10
 const DORSAL_CARGO_RIB_JOINT_XY: Array[Vector2] = [
 	Vector2(-5.55, 4.28),
 	Vector2(-3.7, 4.72),
@@ -191,7 +203,8 @@ const DORSAL_CARGO_RIB_JOINT_XY: Array[Vector2] = [
 # resource is shared.
 const SHOULDER_RAIL_JOINT_COPY_COUNT := 7
 const SHOULDER_RAIL_JOINT_RADIUS := 0.13
-const SHOULDER_RAIL_JOINT_RADIAL_SEGMENTS := 24
+# `ShipGeometryBudget.sphere_plan(0.13, 24, 12)`.
+const SHOULDER_RAIL_JOINT_RADIAL_SEGMENTS := 23
 const SHOULDER_RAIL_JOINT_RINGS := 12
 const SHOULDER_RAIL_NAMES: Array[StringName] = [
 	&"PortForwardShoulderRail",
@@ -216,8 +229,9 @@ const CARGO_FRAME_COUNT := 4
 const CARGO_FRAME_JOINTS_PER_FRAME := 5
 const CARGO_FRAME_JOINT_COPY_COUNT := CARGO_FRAME_COUNT * CARGO_FRAME_JOINTS_PER_FRAME
 const CARGO_FRAME_JOINT_RADIUS := 0.085
-const CARGO_FRAME_JOINT_RADIAL_SEGMENTS := 24
-const CARGO_FRAME_JOINT_RINGS := 12
+# `ShipGeometryBudget.sphere_plan(0.085, 24, 12)`.
+const CARGO_FRAME_JOINT_RADIAL_SEGMENTS := 19
+const CARGO_FRAME_JOINT_RINGS := 10
 const CARGO_FRAME_START_Z := -1.7
 const CARGO_FRAME_Z_STEP := 3.25
 const CARGO_FRAME_JOINT_XY: Array[Vector2] = [
@@ -5785,7 +5799,12 @@ func _freighter_engine_module_mesh() -> ArrayMesh:
 	return mesh
 
 
-func _engine_module_surface(mesh: ArrayMesh, profile: PackedVector2Array, material: Material, segments := 48) -> void:
+func _engine_module_surface(mesh: ArrayMesh, profile: PackedVector2Array, material: Material, segments := 0) -> void:
+	if segments <= 0:
+		var widest := 0.0
+		for point in profile:
+			widest = maxf(widest, absf(point.x))
+		segments = ShipGeometryBudget.revolved_segments(widest, ENGINE_MODULE_SEGMENTS)
 	var tool := SurfaceTool.new()
 	tool.begin(Mesh.PRIMITIVE_TRIANGLES)
 	tool.set_material(material)
@@ -5912,7 +5931,18 @@ func _flight_deck_transition(side: float) -> void:
 	var sections := PackedVector3Array([
 		Vector3(3.72, 3.90, -7.60), Vector3(6.00, 4.00, -6.35),
 		Vector3(6.00, 4.10, -4.75), Vector3(5.73, 4.43, -2.88)])
-	for station in _pressure_loft_stations(sections, 0.12):
+	var stations := _pressure_loft_stations(sections, 0.12)
+	# Both fillets are quarter-arcs of the same largest radius on the widest
+	# station, so one budgeted step count keeps every loft ring the same length.
+	var widest_fillet := 0.0
+	for station in stations:
+		widest_fillet = maxf(widest_fillet, maxf(
+			(station.x - 3.46) * 0.72, (station.y - 0.42) * 0.50
+		))
+	var fillet_steps := ShipGeometryBudget.arc_segments(
+		widest_fillet, PI * 0.5, CABIN_TRANSITION_FILLET_STEPS
+	)
+	for station in stations:
 		var inner_x := 3.46
 		var width := station.x - inner_x
 		var bottom := 0.42
@@ -5922,14 +5952,14 @@ func _flight_deck_transition(side: float) -> void:
 		# inboard pressure wall remains exactly at the cabin clearance plane.
 		var radius_x := width * 0.72
 		var radius_y := height * 0.50
-		for step in 33:
-			var angle := float(step) / 32.0 * PI * 0.5
+		for step in fillet_steps + 1:
+			var angle := float(step) / float(fillet_steps) * PI * 0.5
 			ring.append(Vector3(side * (station.x - radius_x + radius_x * cos(angle)),
 				station.y - radius_y + radius_y * sin(angle), station.z))
 		ring.append(Vector3(side * inner_x, station.y, station.z))
 		ring.append(Vector3(side * inner_x, bottom, station.z))
-		for step in 32:
-			var angle := PI * 1.5 + float(step) / 32.0 * PI * 0.5
+		for step in fillet_steps:
+			var angle := PI * 1.5 + float(step) / float(fillet_steps) * PI * 0.5
 			ring.append(Vector3(side * (station.x - radius_x + radius_x * cos(angle)),
 				bottom + radius_y + radius_y * sin(angle), station.z))
 		# An integral machined landing under the unchanged defensive bearing
@@ -6198,6 +6228,15 @@ func _roof_service_patch(batch: Dictionary, finish: String, side: float, inner: 
 		tool.set_material(_jovian_materials[finish])
 		batch[finish] = tool
 	var tool: SurfaceTool = batch[finish]
+	# The patch follows the crown transversely, so its step count comes from the
+	# deflection it actually carries across its own width rather than from one
+	# authored number: the wide central covers keep most of theirs, the 12 cm
+	# thermal slats are a straight strip of a 5.75 m crown and keep two.
+	var across := ShipGeometryBudget.span_steps(
+		absf(outer - inner),
+		_roof_service_transverse_sagitta(inner, outer, (front + rear) * 0.5, cabin),
+		ROOF_SERVICE_ACROSS_STEPS
+	)
 	var bevel := minf(0.10, minf((outer - inner) * 0.22, (rear - front) * 0.22))
 	var stations: Array[float] = [front, front + bevel, rear - bevel, rear]
 	for split in [-7.65, -4.05, -1.8, 8.25]:
@@ -6217,28 +6256,44 @@ func _roof_service_patch(batch: Dictionary, finish: String, side: float, inner: 
 		var xmin := inner + (bevel if end else 0.0)
 		var xmax := outer - (bevel if end else 0.0)
 		var ring := PackedVector3Array()
-		for step in 13:
-			var x := side * lerpf(xmin, xmax, float(step) / 12.0)
-			var edge := end or step == 0 or step == 12
+		for step in across + 1:
+			var x := side * lerpf(xmin, xmax, float(step) / float(across))
+			var edge := end or step == 0 or step == across
 			ring.append(Vector3(x, _roof_service_height(x, z, cabin) + lift - (minf(lift * 0.3, 0.035) if edge else 0.0), z))
 		rings.append(ring)
 	for station in rings.size() - 1:
-		for step in 12:
+		for step in across:
 			_roof_service_quad(tool, rings[station][step], rings[station + 1][step],
 				rings[station + 1][step + 1], rings[station][step + 1], side < 0)
-		for edge in [0, 12]:
+		for edge in [0, across]:
 			var a := rings[station][edge]
 			var b := rings[station + 1][edge]
 			var c := Vector3(b.x, _roof_service_height(b.x, b.z, cabin), b.z)
 			var d := Vector3(a.x, _roof_service_height(a.x, a.z, cabin), a.z)
-			_roof_service_quad(tool, a, d, c, b, (edge == 12) != (side < 0))
+			_roof_service_quad(tool, a, d, c, b, (edge == across) != (side < 0))
 	for end in [0, rings.size() - 1]:
-		for step in 12:
+		for step in across:
 			var a := rings[end][step]
 			var b := rings[end][step + 1]
 			var c := Vector3(b.x, _roof_service_height(b.x, b.z, cabin), b.z)
 			var d := Vector3(a.x, _roof_service_height(a.x, a.z, cabin), a.z)
 			_roof_service_quad(tool, a, b, c, d, (end != 0) != (side < 0))
+
+
+## Worst departure of the crown from the straight chord across one patch, in
+## metres, sampled on the authored lattice. This is the actual deflection the
+## transverse steps exist to resolve, evaluated from the same height function
+## the patch is built on rather than assumed from the crown's radius.
+func _roof_service_transverse_sagitta(inner: float, outer: float, z: float,
+		cabin: bool) -> float:
+	var near_height := _roof_service_height(inner, z, cabin)
+	var far_height := _roof_service_height(outer, z, cabin)
+	var worst := 0.0
+	for sample in range(1, ROOF_SERVICE_ACROSS_STEPS):
+		var fraction := float(sample) / float(ROOF_SERVICE_ACROSS_STEPS)
+		var height := _roof_service_height(lerpf(inner, outer, fraction), z, cabin)
+		worst = maxf(worst, absf(height - lerpf(near_height, far_height, fraction)))
+	return worst
 
 
 func _roof_service_quad(tool: SurfaceTool, a: Vector3, b: Vector3, c: Vector3,
@@ -6510,7 +6565,7 @@ func _fitout_stock(batch: Dictionary, finish: String, at: Vector3, size: Vector3
 	if not _fitout_mesh_cache.has(stock_key):
 		var bevel := minf(0.045, minf(size.x, minf(size.y, size.z)) * 0.35) \
 			if finish == "cabin_cloth" else StationSurfaceKit.bevel_for_size(size)
-		var stock := StationSurfaceKit.rounded_box_mesh_with_bevel(size, bevel)
+		var stock := ShipChamferedStock.box_mesh(size, bevel)
 		_fitout_mesh_cache[stock_key] = FitoutSurfaceData.new(stock)
 	(batch[finish] as SurfaceTool).append_from(_fitout_mesh_cache[stock_key], 0,
 		Transform3D(Basis.from_euler(rotation_value), at))
@@ -6538,8 +6593,13 @@ func _fitout_ring(batch: Dictionary, finish: String, at: Vector3,
 		var ring := TorusMesh.new()
 		ring.inner_radius = inside
 		ring.outer_radius = outside
-		ring.rings = 48
-		ring.ring_segments = 8
+		# Baked stock never reaches `TorusGeometryBudget.normalise_tree`, which
+		# only sweeps live `TorusMesh` renderers, so the same budget is applied
+		# here at bake time. The authored 8 tube segments already sit under its
+		# floor and stay; only the major sweep comes down.
+		var budget := TorusGeometryBudget.plan(outside, inside)
+		ring.rings = mini(FITOUT_RING_SWEEP_SEGMENTS, int(budget["rings"]))
+		ring.ring_segments = mini(FITOUT_RING_TUBE_SEGMENTS, int(budget["ring_segments"]))
 		# Stock panels are unindexed; mixing indexed torus geometry into the same
 		# SurfaceTool leaves the earlier panels outside its index buffer.
 		var ring_stock := SurfaceTool.new()
@@ -6583,3 +6643,74 @@ func _limit_interior_furnishing_range(furnishing: Node3D) -> void:
 	for child in furnishing.get_children():
 		if child is Node3D:
 			_limit_interior_furnishing_range(child as Node3D)
+
+
+## Fitted box stock at the edge resolution its own chamfer can carry.
+##
+## `HeroShip._rounded_box_mesh` gives every box a two-segment rolled edge and a
+## six-triangle spherical octant at each corner: 108 triangles whatever the box
+## is. `ShipChamferedStock` swaps that for the single tangent chamfer the bevel
+## rule is named for wherever the chamfer is too narrow for the difference to
+## resolve at walking range. The AABB, every face plane and the shading normal
+## field are unchanged and the surface only ever moves outward, by at most
+## `0.1589 * bevel`. Wider chamfers fall through to the authored builder.
+func _rounded_box_mesh(size: Vector3, material: Material) -> ArrayMesh:
+	var bevel := ShipChamferedStock.fleet_box_bevel(size)
+	if ShipChamferedStock.rolled_edge_is_resolvable(bevel):
+		return super(size, material)
+	var mesh := ShipChamferedStock.chamfered_box_mesh(
+		size, bevel, ShipChamferedStock.StockUV.FACE_GRID
+	)
+	mesh.surface_set_material(0, material)
+	return mesh
+
+
+## Turned stock at the radial segmentation its own radius earns.
+##
+## `HeroShip` freezes every chamfered cylinder and frustum at 32 radial segments,
+## from a 2 cm conduit to a metre-wide engine can. `ShipGeometryBudget.tube_segments`
+## budgets each one from its own radius against the tube floor
+## `TorusGeometryBudget` already uses for a torus cross-section. Radii, height,
+## caps, rim chamfer and material are untouched, so the AABB is exact.
+func _cylinder(
+		parent: Node3D,
+		node_name: String,
+		position: Vector3,
+		radius: float,
+		height: float,
+		material: Material,
+		rotation_degrees_value := Vector3.ZERO
+	) -> MeshInstance3D:
+	var mesh_instance := MeshInstance3D.new()
+	mesh_instance.name = node_name
+	mesh_instance.position = position
+	mesh_instance.rotation_degrees = rotation_degrees_value
+	mesh_instance.mesh = ShipChamferedStock.turned_stock_mesh(
+		radius, radius, height, _chamfered_cylinder_cache, true, true, material
+	)
+	parent.add_child(mesh_instance)
+	return mesh_instance
+
+
+func _frustum(
+		parent: Node3D,
+		node_name: String,
+		position: Vector3,
+		top_radius: float,
+		bottom_radius: float,
+		height: float,
+		material: Material,
+		rotation_degrees_value := Vector3.ZERO,
+		cap_top := true,
+		cap_bottom := true
+	) -> MeshInstance3D:
+	var mesh_instance := MeshInstance3D.new()
+	mesh_instance.name = node_name
+	mesh_instance.position = position
+	mesh_instance.rotation_degrees = rotation_degrees_value
+	mesh_instance.mesh = ShipChamferedStock.turned_stock_mesh(
+		top_radius, bottom_radius, height, _chamfered_cylinder_cache,
+		cap_top, cap_bottom, material
+	)
+	parent.add_child(mesh_instance)
+	return mesh_instance

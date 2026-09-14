@@ -594,6 +594,15 @@ func _build_engine_damage_beacon(visual: Node3D) -> void:
 	var lens_mesh := SphereMesh.new()
 	lens_mesh.radius = 0.24
 	lens_mesh.height = 0.48
+	# A 48 cm bead was carrying Godot's default 64 x 32, the finest sphere in
+	# the fleet, for a lamp lens. `ShipGeometryBudget` solves it from its own
+	# radius at walk-up range against the same tolerance every other round form
+	# in this project uses.
+	var lens_plan := ShipGeometryBudget.sphere_plan(
+		lens_mesh.radius, lens_mesh.radial_segments, lens_mesh.rings
+	)
+	lens_mesh.radial_segments = int(lens_plan["radial_segments"])
+	lens_mesh.rings = int(lens_plan["rings"])
 	_engine_damage_beacon_material = _material(
 		ENGINE_DAMAGE_IMPAIRED_COLOR.darkened(0.72),
 		0.08,
@@ -1553,3 +1562,74 @@ func _build_engine_exhaust(visual: Node3D) -> void:
 		_engine_glows.append(plume)
 		EngineExhaustPresentation.install(plume, Vector3.BACK)
 	_sync_engine_visuals_immediately()
+
+
+## Fitted box stock at the edge resolution its own chamfer can carry.
+##
+## `HeroShip._rounded_box_mesh` gives every box a two-segment rolled edge and a
+## six-triangle spherical octant at each corner: 108 triangles whatever the box
+## is. `ShipChamferedStock` swaps that for the single tangent chamfer the bevel
+## rule is named for wherever the chamfer is too narrow for the difference to
+## resolve at walking range. The AABB, every face plane and the shading normal
+## field are unchanged and the surface only ever moves outward, by at most
+## `0.1589 * bevel`. Wider chamfers fall through to the authored builder.
+func _rounded_box_mesh(size: Vector3, material: Material) -> ArrayMesh:
+	var bevel := ShipChamferedStock.fleet_box_bevel(size)
+	if ShipChamferedStock.rolled_edge_is_resolvable(bevel):
+		return super(size, material)
+	var mesh := ShipChamferedStock.chamfered_box_mesh(
+		size, bevel, ShipChamferedStock.StockUV.FACE_GRID
+	)
+	mesh.surface_set_material(0, material)
+	return mesh
+
+
+## Turned stock at the radial segmentation its own radius earns.
+##
+## `HeroShip` freezes every chamfered cylinder and frustum at 32 radial segments,
+## from a 2 cm conduit to a metre-wide engine can. `ShipGeometryBudget.tube_segments`
+## budgets each one from its own radius against the tube floor
+## `TorusGeometryBudget` already uses for a torus cross-section. Radii, height,
+## caps, rim chamfer and material are untouched, so the AABB is exact.
+func _cylinder(
+		parent: Node3D,
+		node_name: String,
+		position: Vector3,
+		radius: float,
+		height: float,
+		material: Material,
+		rotation_degrees_value := Vector3.ZERO
+	) -> MeshInstance3D:
+	var mesh_instance := MeshInstance3D.new()
+	mesh_instance.name = node_name
+	mesh_instance.position = position
+	mesh_instance.rotation_degrees = rotation_degrees_value
+	mesh_instance.mesh = ShipChamferedStock.turned_stock_mesh(
+		radius, radius, height, _chamfered_cylinder_cache, true, true, material
+	)
+	parent.add_child(mesh_instance)
+	return mesh_instance
+
+
+func _frustum(
+		parent: Node3D,
+		node_name: String,
+		position: Vector3,
+		top_radius: float,
+		bottom_radius: float,
+		height: float,
+		material: Material,
+		rotation_degrees_value := Vector3.ZERO,
+		cap_top := true,
+		cap_bottom := true
+	) -> MeshInstance3D:
+	var mesh_instance := MeshInstance3D.new()
+	mesh_instance.name = node_name
+	mesh_instance.position = position
+	mesh_instance.rotation_degrees = rotation_degrees_value
+	mesh_instance.mesh = ShipChamferedStock.turned_stock_mesh(
+		top_radius, bottom_radius, height, _chamfered_cylinder_cache,
+		cap_top, cap_bottom, material
+	)
+	parent.add_child(mesh_instance)
+	return mesh_instance

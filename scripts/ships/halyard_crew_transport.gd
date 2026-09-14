@@ -225,6 +225,32 @@ const LANDING_CONTACT_Y := -1.08
 const HULL_HALF_WIDTH := 2.62
 const TUBE_FORWARD_Z := -10.60
 const TUBE_AFT_Z := 8.20
+## Soft-goods lattice per berth-fabric kind.
+##
+## The bunk cloth is not a circle and the sagitta rule does not describe it, so
+## these were solved directly: for each kind the authored 32 x 24 surface was
+## evaluated on a 64 x 48 reference lattice and compared against the bilinear
+## reconstruction of every coarser candidate, and the coarsest grid whose worst
+## departure stayed inside this project's angular tolerance at walk-up range
+## (1.26 mm) was taken.
+##
+## Four of the five kinds keep the authored grid, and that is the honest result:
+## the pillow wrinkle, the curtain's five fold periods and the blanket and fold
+## ripples all carry real high-frequency shape that 32 columns barely resolves,
+## and every coarser candidate aliases them by more than a centimetre. Only the
+## tie comes down, because it is a 5 cm strap cut from an 8% slice of the
+## curtain's v range, over which the surface is all but linear: three rows
+## reproduce the authored twenty-four to 0.75 mm.
+const BERTH_FABRIC_AUTHORED_GRID := Vector2i(32, 24)
+const BERTH_FABRIC_GRIDS: Dictionary = {
+	&"tie": Vector2i(32, 3),
+}
+
+## Authored tessellation of the fitted ring stock, kept as the ceiling the
+## budget reduces from and never raises.
+const FITOUT_RING_SWEEP_SEGMENTS := 48
+const FITOUT_RING_TUBE_SEGMENTS := 8
+
 const BOW_RING_Z := -13.55
 const BOW_RING_RADIUS := 2.45
 const BOW_RING_CENTRE_Y := 1.85
@@ -3060,7 +3086,7 @@ func _build_flank_detail() -> void:
 	# The visible steps are not the boarding surface: PortAirstairCollision and
 	# the access/deck markers retain that physical contract. This batch keeps the
 	# exact four-step silhouette while replacing four one-surface submissions.
-	var airstair_tread_mesh := StationSurfaceKit.rounded_box_mesh_cached(
+	var airstair_tread_mesh := ShipChamferedStock.fleet_box_mesh_cached(
 		AIRSTAIR_TREAD_SIZE,
 		_box_mesh_cache
 	)
@@ -3072,7 +3098,7 @@ func _build_flank_detail() -> void:
 		airstair_tread_transforms,
 		airstair_tread_names
 	)
-	var airstair_nosing_mesh := StationSurfaceKit.rounded_box_mesh_cached(
+	var airstair_nosing_mesh := ShipChamferedStock.fleet_box_mesh_cached(
 		AIRSTAIR_NOSING_SIZE,
 		_box_mesh_cache
 	)
@@ -3420,7 +3446,7 @@ func _build_crew_cabin() -> void:
 		cabin_window_pane_transforms,
 		cabin_window_pane_names
 	)
-	var seat_leg_mesh := StationSurfaceKit.rounded_box_mesh_cached(
+	var seat_leg_mesh := ShipChamferedStock.fleet_box_mesh_cached(
 		Vector3(0.20, 0.28, 0.20),
 		_box_mesh_cache
 	)
@@ -3458,7 +3484,7 @@ func _build_crew_cabin() -> void:
 					+ "CabinPortalUpright"
 			)
 		_box(_crew_cabin, "CabinPortalHeader", Vector3(0.0, 3.16, portal_z), Vector3(2.74, 0.22, 0.22), _halyard_materials.accent)
-	var cabin_portal_upright_mesh := StationSurfaceKit.rounded_box_mesh_cached(
+	var cabin_portal_upright_mesh := ShipChamferedStock.fleet_box_mesh_cached(
 		CABIN_PORTAL_UPRIGHT_SIZE,
 		_box_mesh_cache
 	)
@@ -3555,7 +3581,7 @@ func _build_aft_systems_bay() -> void:
 	# engineer selection, repair progress, component damage and lifecycle state
 	# remain on the ship and its dedicated crew-status display; only the six
 	# childless presentation meshes share this moving-interior renderer.
-	var rack_panel_mesh := StationSurfaceKit.rounded_box_mesh_cached(
+	var rack_panel_mesh := ShipChamferedStock.fleet_box_mesh_cached(
 		AFT_RACK_PANEL_SIZE,
 		_box_mesh_cache
 	)
@@ -4674,7 +4700,7 @@ func _box(
 	instance.name = node_name
 	instance.position = box_position
 	instance.rotation = rotation_value
-	var mesh := StationSurfaceKit.rounded_box_mesh_cached(size, _box_mesh_cache)
+	var mesh := ShipChamferedStock.fleet_box_mesh_cached(size, _box_mesh_cache)
 	instance.mesh = mesh
 	instance.material_override = material
 	parent.add_child(instance)
@@ -5594,25 +5620,29 @@ func _berth_fabric_mesh(kind: StringName) -> ArrayMesh:
 		return _box_mesh_cache[key] as ArrayMesh
 	var tool := SurfaceTool.new()
 	tool.begin(Mesh.PRIMITIVE_TRIANGLES)
+	var grid := BERTH_FABRIC_GRIDS.get(kind, BERTH_FABRIC_AUTHORED_GRID) as Vector2i
+	var columns := grid.x
+	var rows := grid.y
+	var stride := columns + 1
 	for face in [1.0, -1.0]:
 		# Keep opposing seam normals separate when the thin skins meet.
 		tool.set_smooth_group(0 if face > 0.0 else 1)
 		# Adjacent quads evaluate the same corners. Retain their exact Vector3
 		# values once per face while emitting the original unindexed quad order.
 		var points: Array[Vector3] = []
-		points.resize(33 * 25)
-		for row in 25:
-			for column in 33:
-				var u: float = (column + 0.0) / 32.0
-				var v: float = (row + 0.0) / 24.0
-				points[row * 33 + column] = _berth_fabric_point(kind, u, v, face)
-		for row in 24:
-			for column in 32:
-				var corner := row * 33 + column
+		points.resize(stride * (rows + 1))
+		for row in rows + 1:
+			for column in stride:
+				var u: float = float(column) / float(columns)
+				var v: float = float(row) / float(rows)
+				points[row * stride + column] = _berth_fabric_point(kind, u, v, face)
+		for row in rows:
+			for column in columns:
+				var corner := row * stride + column
 				if face < 0.0:
-					_skin_quad(tool, points[corner], points[corner + 1], points[corner + 34], points[corner + 33])
+					_skin_quad(tool, points[corner], points[corner + 1], points[corner + stride + 1], points[corner + stride])
 				else:
-					_skin_quad(tool, points[corner + 33], points[corner + 34], points[corner + 1], points[corner])
+					_skin_quad(tool, points[corner + stride], points[corner + stride + 1], points[corner + 1], points[corner])
 	tool.generate_normals()
 	var mesh := tool.commit()
 	_box_mesh_cache[key] = mesh
@@ -5765,7 +5795,7 @@ func _fitout_stock(batch: Dictionary, finish: String, at: Vector3, size: Vector3
 		tool.begin(Mesh.PRIMITIVE_TRIANGLES)
 		tool.set_material(_halyard_materials[finish])
 		batch[finish] = tool
-	var stock := StationSurfaceKit.rounded_box_mesh_cached(size, _box_mesh_cache)
+	var stock := ShipChamferedStock.fleet_box_mesh_cached(size, _box_mesh_cache)
 	(batch[finish] as SurfaceTool).append_from(_fitout_surface(stock), 0,
 		Transform3D(Basis.from_euler(rotation_value), at))
 
@@ -5792,8 +5822,13 @@ func _fitout_ring(batch: Dictionary, finish: String, at: Vector3,
 		var ring := TorusMesh.new()
 		ring.inner_radius = inside
 		ring.outer_radius = outside
-		ring.rings = 48
-		ring.ring_segments = 8
+		# Baked stock never reaches `TorusGeometryBudget.normalise_tree`, which
+		# sweeps live `TorusMesh` renderers only, so the same budget is applied
+		# at bake time here. The authored 8 tube segments are already under its
+		# floor and stay; only the major sweep comes down.
+		var budget := TorusGeometryBudget.plan(outside, inside)
+		ring.rings = mini(FITOUT_RING_SWEEP_SEGMENTS, int(budget["rings"]))
+		ring.ring_segments = mini(FITOUT_RING_TUBE_SEGMENTS, int(budget["ring_segments"]))
 		# Stock panels are unindexed; mixing indexed torus geometry into the same
 		# SurfaceTool leaves the earlier panels outside its index buffer.
 		var ring_stock := SurfaceTool.new()
@@ -5846,3 +5881,54 @@ func _limit_interior_furnishing_range(furnishing: Node3D) -> void:
 	for child in furnishing.get_children():
 		if child is Node3D:
 			_limit_interior_furnishing_range(child as Node3D)
+
+
+## Turned stock at the radial segmentation its own radius earns.
+##
+## `HeroShip` freezes every chamfered cylinder and frustum at 32 radial segments,
+## from a 2 cm conduit to a metre-wide engine can. `ShipGeometryBudget.tube_segments`
+## budgets each one from its own radius against the tube floor
+## `TorusGeometryBudget` already uses for a torus cross-section. Radii, height,
+## caps, rim chamfer and material are untouched, so the AABB is exact.
+func _cylinder(
+		parent: Node3D,
+		node_name: String,
+		position: Vector3,
+		radius: float,
+		height: float,
+		material: Material,
+		rotation_degrees_value := Vector3.ZERO
+	) -> MeshInstance3D:
+	var mesh_instance := MeshInstance3D.new()
+	mesh_instance.name = node_name
+	mesh_instance.position = position
+	mesh_instance.rotation_degrees = rotation_degrees_value
+	mesh_instance.mesh = ShipChamferedStock.turned_stock_mesh(
+		radius, radius, height, _chamfered_cylinder_cache, true, true, material
+	)
+	parent.add_child(mesh_instance)
+	return mesh_instance
+
+
+func _frustum(
+		parent: Node3D,
+		node_name: String,
+		position: Vector3,
+		top_radius: float,
+		bottom_radius: float,
+		height: float,
+		material: Material,
+		rotation_degrees_value := Vector3.ZERO,
+		cap_top := true,
+		cap_bottom := true
+	) -> MeshInstance3D:
+	var mesh_instance := MeshInstance3D.new()
+	mesh_instance.name = node_name
+	mesh_instance.position = position
+	mesh_instance.rotation_degrees = rotation_degrees_value
+	mesh_instance.mesh = ShipChamferedStock.turned_stock_mesh(
+		top_radius, bottom_radius, height, _chamfered_cylinder_cache,
+		cap_top, cap_bottom, material
+	)
+	parent.add_child(mesh_instance)
+	return mesh_instance
