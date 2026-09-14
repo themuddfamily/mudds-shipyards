@@ -132,7 +132,15 @@ const APPROACH_OFFSETS := {
 	# and a player walks round the line; only the straight-line stage did not.
 	# The lateral 4.0 m puts the stage in that clear lane. The line, its collision
 	# and its placement are all unchanged — this is the approach a player takes.
-	&"arrow_provisional": Vector3(4.0, 0.0, 12.0),
+	# 24161c6 moved the boarding marker 4.95 m forward to the folding-ladder foot
+	# (ship-local z -4.5). The Arrow also owns a craft-shaped approach volume that
+	# reaches 9.95 m from the hull centre with the player's interaction sphere, so
+	# the former 12.0 m stage now landed inside it at ship-local z 7.5. The stage
+	# returns to the arm at ship-local (2.0, 12.5): a capsule sweep of the arm on
+	# 24161c6 found the gantry post blocking x 0.0-0.5 at z 10.5-11.0, and every
+	# cell at x >= 1.0 clear down to the prompt boundary, so the straight walk
+	# toward the forward-port ladder foot stays on open deck.
+	&"arrow_provisional": Vector3(5.4, 0.0, 17.0),
 	# Restaged from a straight 12 m aft stage, which put the avatar at ship-local
 	# (-3.4, -0.47, 3.85) — *inside the cargo hold*, standing on the ship's own
 	# cargo deck under its roof, and walked it in a straight unpathfound line
