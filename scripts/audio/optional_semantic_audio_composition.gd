@@ -33,10 +33,19 @@ func attach(
 			or not audio_director.has_method(&"unbind_semantic_audio_source"):
 		return _result(false, &"audio_director_contract_missing")
 	_audio_director = audio_director
-	_cinder_adapter = CINDER_ADAPTER.new()
-	_final_approach_adapter = FINAL_APPROACH_ADAPTER.new()
-	add_child(_cinder_adapter)
-	add_child(_final_approach_adapter)
+	# `detach()` leaves both adapters parented and inert, exactly as the navigator
+	# composition below is already retained. Re-creating them on every re-attach
+	# instead added a second dead pair to this node on every whole-Main re-entry,
+	# so a long session accumulated one abandoned loadmaster and final-approach
+	# adapter per station re-entry and never released either.
+	if _cinder_adapter == null or not is_instance_valid(_cinder_adapter):
+		_cinder_adapter = CINDER_ADAPTER.new()
+		_cinder_adapter.name = "CinderLoadmasterAudioProductionBinding"
+		add_child(_cinder_adapter)
+	if _final_approach_adapter == null or not is_instance_valid(_final_approach_adapter):
+		_final_approach_adapter = FINAL_APPROACH_ADAPTER.new()
+		_final_approach_adapter.name = "PlanetaryFinalApproachAudioProductionBinding"
+		add_child(_final_approach_adapter)
 	_attached = true
 	var result := set_sources(cinder_craft, cruise)
 	if not bool(result.get("accepted", false)):

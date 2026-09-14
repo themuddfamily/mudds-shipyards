@@ -1523,6 +1523,21 @@ func _test_checked_in_encounter_content() -> void:
 		and asset.collision_layer == PhysicsLayers.TARGET,
 		"post-completion reset clears the picket generation and keeps both role-lamp pairs nominal while renewing health/collision generation plus one"
 	)
+	# A terminal encounter retires the three session sources. Returning to idle has
+	# to put them back, because the resting registration is what
+	# `get_live_source_registration_contract()` — and through it GameFlow's whole
+	# live-combat roster audit — describes. Leaving them retired made every later
+	# `_initialize_live_combat()` report the production roster as invalid.
+	var idle_source_contract := content.get_live_source_registration_contract()
+	_check(
+		bool(idle_source_contract.valid)
+		and int(idle_source_contract.expected_live_source_count) == 3
+		and int(idle_source_contract.registered_source_key_count) == 3
+		and int(idle_source_contract.exact_registration_count) == 4
+		and authority.get_source_id(picket) == 0
+		and resolver.get_registered_source_count() == 4,
+		"returning to idle restores the exact resting three-source roster without arming the picket"
+	)
 	var timeout_start := content.start(idle_generation)
 	var timeout_generation := int(timeout_start.activity.generation)
 	var observed_hostile_fire := {"count": 0}

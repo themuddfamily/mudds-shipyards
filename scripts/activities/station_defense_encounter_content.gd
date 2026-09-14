@@ -2286,10 +2286,27 @@ func _on_host_snapshot_changed(host_snapshot: Dictionary) -> void:
 	if is_instance_valid(_protected_asset):
 		_protected_asset.apply_activity_presentation_snapshot(activity)
 		_apply_active_hostile_bearing(activity)
-	if StringName(activity.get("state_id", &"")) in [
-		&"completed", &"failed", &"aborted", &"timed_out",
-	]:
+	var activity_state := StringName(activity.get("state_id", &""))
+	if activity_state in [&"completed", &"failed", &"aborted", &"timed_out"]:
 		_retire_hostile_sources()
+	elif (
+		activity_state == &"idle"
+		and _initialized
+		and _registered_source_keys.is_empty()
+		and is_inside_tree()
+		and not is_queued_for_deletion()
+	):
+		# Returning to idle must restore the same resting registration this content
+		# acquired when it was configured. Leaving the three session hostiles
+		# retired after a terminal left `get_live_source_registration_contract()`
+		# — and therefore GameFlow's whole live-combat roster audit — invalid for
+		# the entire idle period, so the next `_initialize_live_combat()` (a
+		# whole-Main re-entry, or the deferred fleet-registry refresh) reported the
+		# roster as broken and the dormant raiders held no damage identity.
+		var resting_errors := PackedStringArray()
+		_wire_hostile_combat(resting_errors)
+		for resting_error in resting_errors:
+			_append_unique(_initialization_errors, resting_error)
 	if _content_mutation_active:
 		_publish_pending = true
 		return

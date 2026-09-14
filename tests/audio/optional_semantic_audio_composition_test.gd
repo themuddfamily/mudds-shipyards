@@ -94,8 +94,27 @@ func _run() -> void:
 	_check(bool(composition.attach(director).accepted), "legacy attach remains valid without navigator configuration")
 	_check(director.get_semantic_audio_binding_count() == 1 and not bool(composition.get_snapshot().navigator.attached), "legacy attach does not invent a navigator generation or source")
 	_check(bool(composition.detach().accepted), "legacy attachment detaches cleanly")
-	_check(bool(composition.attach(director, null, null, 3).accepted), "retained optional owner re-attaches with a fresh navigator generation")
-	_check(director.get_semantic_audio_binding_count() == 2, "re-entry restores exactly the navigator source")
+	# A whole-Main re-entry detaches and re-attaches this composition. Re-creating
+	# the two adapters on each re-attach abandoned the previous pair here, growing
+	# one dead loadmaster and final-approach adapter per station re-entry for the
+	# life of the session. The retained pair is the contract.
+	var adapters_after_first_attach := composition.get_child_count()
+	for _reattach_round in 4:
+		_check(
+			bool(composition.attach(director, null, null, 3).accepted),
+			"retained optional owner re-attaches with a fresh navigator generation"
+		)
+		_check(
+			director.get_semantic_audio_binding_count() == 2,
+			"re-entry restores exactly the navigator source"
+		)
+		_check(
+			composition.get_child_count() == adapters_after_first_attach,
+			"re-attaching reuses the retained adapters instead of adding a dead pair"
+		)
+		_check(bool(composition.detach().accepted), "the re-attached composition detaches cleanly")
+	_check(bool(composition.attach(director, null, null, 3).accepted), "final re-attach restores the navigator presentation")
+	_check(director.get_semantic_audio_binding_count() == 2, "the final re-attach owns exactly the navigator source")
 	composition.queue_free()
 	await process_frame
 	_check(director.get_semantic_audio_binding_count() == 1, "exit-tree cleanup removes only optional-owned router sources")

@@ -33,6 +33,11 @@ const ComponentDegradationPresenterType := preload("res://scripts/ui/component_d
 const HeroComponentHudBindingType := preload("res://scripts/ui/hero_component_hud_binding.gd")
 const LoadmasterTelemetryPresenterType := preload("res://scripts/ui/loadmaster_telemetry_presenter.gd")
 
+## New palette registrations tolerated between retirement sweeps. Small enough
+## that a long session's registry stays within a bounded multiple of the live
+## HUD, large enough that building one panel does not rescan the whole registry.
+const PALETTE_TARGET_PRUNE_STRIDE := 128
+
 signal start_requested
 signal restart_requested
 signal activity_selection_requested(activity_kind: StringName)
@@ -569,7 +574,17 @@ var _palette_mode: StringName = PaletteType.MODE_NONE
 var _palette: Dictionary = PaletteType.get_palette(PaletteType.MODE_NONE)
 ## Every element whose colour is a palette role, recorded as it is built so a
 ## preset change retints the live HUD without rebuilding or reloading it.
+##
+## Registration is unbounded by construction: every rebuilt panel, activity row,
+## toast and status card registers new targets. Retired ones must therefore be
+## retired *here*, not only when the palette happens to change, or a long session
+## accumulates one dead entry per rebuilt control forever. Style boxes are held
+## weakly for the same reason: the registry must never be the last owner keeping
+## a freed control's `StyleBoxFlat` alive.
 var _palette_targets: Array[Dictionary] = []
+## Registry size at the last prune. Pruning one stride's worth of new
+## registrations at a time keeps retirement amortized O(1) per registration.
+var _palette_targets_pruned_size := 0
 var _ui_scale := 1.0
 var _reduced_motion := false
 var _reduced_flash := false
@@ -2891,13 +2906,12 @@ func set_hud_palette(mode_id: StringName) -> void:
 	var resolved := mode_id if PaletteType.has_mode(mode_id) else PaletteType.MODE_NONE
 	_palette_mode = resolved
 	_palette = PaletteType.get_palette(resolved)
-	# The help panel rebuilds its labels whenever the control hints change, so
-	# prune retired targets here rather than letting the registry grow forever.
 	var live: Array[Dictionary] = []
 	for entry in _palette_targets:
 		if _apply_palette_target(entry):
 			live.append(entry)
 	_palette_targets = live
+	_palette_targets_pruned_size = live.size()
 	if is_instance_valid(_minimap):
 		_minimap.set_palette(_palette)
 	_refresh_state_tints()
@@ -8928,6 +8942,36 @@ func _damage_status_accessible_text(damage_status: String) -> String:
 func _register_palette_target(entry: Dictionary) -> void:
 	_palette_targets.append(entry)
 	_apply_palette_target(entry)
+	if _palette_targets.size() - _palette_targets_pruned_size >= PALETTE_TARGET_PRUNE_STRIDE:
+		_prune_palette_targets()
+
+
+## Drops entries whose control or style box no longer exists. Colour is never
+## applied here: this runs while the HUD is being built, and retinting a
+## half-constructed panel is not this sweep's business.
+func _prune_palette_targets() -> void:
+	var live: Array[Dictionary] = []
+	for entry in _palette_targets:
+		if _palette_target_is_live(entry):
+			live.append(entry)
+	_palette_targets = live
+	_palette_targets_pruned_size = live.size()
+
+
+func _palette_target_is_live(entry: Dictionary) -> bool:
+	match StringName(entry.get("kind", &"")):
+		&"theme_color", &"rect":
+			return is_instance_valid(entry.get("node"))
+		&"box_fill", &"box_border":
+			return _palette_target_box(entry) != null
+	return false
+
+
+## Style boxes are recorded weakly so the registry cannot be the last owner of a
+## freed control's box; a dead reference is exactly what marks the entry retired.
+func _palette_target_box(entry: Dictionary) -> StyleBoxFlat:
+	var reference := entry.get("box") as WeakRef
+	return reference.get_ref() as StyleBoxFlat if reference != null else null
 
 
 func _tint_theme_color(node: Control, property: StringName, role: StringName) -> void:
@@ -8940,13 +8984,13 @@ func _tint_rect(rect: ColorRect, role: StringName) -> void:
 
 func _fill_box(role: StringName, radius: int, darken := 0.0) -> StyleBoxFlat:
 	var box := _box(Color.TRANSPARENT, radius, 0, Color.TRANSPARENT)
-	_register_palette_target({"kind": &"box_fill", "box": box, "role": role, "darken": darken})
+	_register_palette_target({"kind": &"box_fill", "box": weakref(box), "role": role, "darken": darken})
 	return box
 
 
 func _border_box(fill: Color, radius: int, role: StringName) -> StyleBoxFlat:
 	var box := _box(fill, radius, 1, Color.TRANSPARENT)
-	_register_palette_target({"kind": &"box_border", "box": box, "role": role, "darken": 0.0})
+	_register_palette_target({"kind": &"box_border", "box": weakref(box), "role": role, "darken": 0.0})
 	return box
 
 
@@ -8972,13 +9016,13 @@ func _apply_palette_target(entry: Dictionary) -> bool:
 			(raw_rect as ColorRect).color = color
 			return true
 		&"box_fill":
-			var fill_box := entry.get("box") as StyleBoxFlat
+			var fill_box := _palette_target_box(entry)
 			if fill_box == null:
 				return false
 			fill_box.bg_color = color
 			return true
 		&"box_border":
-			var border_box := entry.get("box") as StyleBoxFlat
+			var border_box := _palette_target_box(entry)
 			if border_box == null:
 				return false
 			border_box.border_color = color
@@ -9032,13 +9076,13 @@ func _menu_button(text: String, role: StringName) -> Button:
 	hover.border_width_top = 1
 	hover.border_width_right = 1
 	hover.border_width_bottom = 1
-	_register_palette_target({"kind": &"box_border", "box": hover, "role": role, "darken": 0.0})
+	_register_palette_target({"kind": &"box_border", "box": weakref(hover), "role": role, "darken": 0.0})
 	var pressed := _fill_box(role, 4, 0.35)
 	pressed.border_width_left = 1
 	pressed.border_width_top = 1
 	pressed.border_width_right = 1
 	pressed.border_width_bottom = 1
-	_register_palette_target({"kind": &"box_border", "box": pressed, "role": role, "darken": 0.0})
+	_register_palette_target({"kind": &"box_border", "box": weakref(pressed), "role": role, "darken": 0.0})
 	button.add_theme_stylebox_override("hover", hover)
 	button.add_theme_stylebox_override("pressed", pressed)
 	return button

@@ -204,6 +204,23 @@ func _test_hud_palette_application() -> void:
 		"an invalid palette request falls back to the authored set instead of leaving a half-applied preset"
 	)
 
+	# Palette targets are registered as controls are built, and a page that
+	# rebuilds its rows registers a fresh set every time. Retirement used to
+	# happen only inside `set_hud_palette`, which a normal session never calls, so
+	# the registry grew by one dead entry per rebuilt control for the life of the
+	# session — and, because style boxes were held strongly, kept every freed
+	# control's `StyleBoxFlat` alive with it.
+	var rebuild_baseline := int(hud.get_accessibility_report()["palette_target_count"])
+	for _rebuild_round in 40:
+		hud.set_nearby_activity_snapshot({})
+		await process_frame
+	var rebuilt_count := int(hud.get_accessibility_report()["palette_target_count"])
+	_check(
+		rebuilt_count <= rebuild_baseline + 2 * GameHUD.PALETTE_TARGET_PRUNE_STRIDE,
+		"forty page rebuilds leave the palette registry bounded without a palette change (%d -> %d)"
+			% [rebuild_baseline, rebuilt_count]
+	)
+
 	hud.queue_free()
 	await process_frame
 	await process_frame
