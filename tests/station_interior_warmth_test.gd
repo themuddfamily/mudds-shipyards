@@ -193,8 +193,11 @@ func _test_exact_scene_contracts(aft: AftJunctionStack, habitat: HabitatSpine) -
 	_check(
 		int(aft_performance.lights) == 50
 		and int(aft_performance.budgets.lights) == 50
-		and int(aft_performance.mesh_instances) == 723
-		and int(aft_performance.budgets.mesh_instances) == 838
+		# fa479a8ae "Batch static Aft envelope shadows without changing colour
+		# geometry" added one shadow-only renderer (and matching headroom), so
+		# the built/budget pair moved from 723/838 to 724/839.
+		and int(aft_performance.mesh_instances) == 724
+		and int(aft_performance.budgets.mesh_instances) == 839
 		and int(aft_render.descendant_nodes) == AftJunctionStack.RENDER_DESCENDANT_NODE_COUNT
 		and int(aft_render.renderer_nodes) == AftJunctionStack.RENDERER_NODE_COUNT
 		and bool(aft_performance.within_budget),

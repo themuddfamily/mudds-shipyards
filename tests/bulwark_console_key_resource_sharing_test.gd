@@ -18,6 +18,15 @@ const EXPECTED_POSITIONS := [
 	Vector3(0.85, 2.41, -0.24),
 ]
 
+# Console-key finishes follow the shipped cockpit lighting checkpoints rather
+# than the original bright-glow values this contract froze in August:
+#   * b533e9fdf "Refine heavy fleet with folded armor and matte manufactured
+#     finishes" retinted the Bulwark identity accent from e2a63c to the matte
+#     957c4f the gold key now emits.
+#   * 648d23194 "Refine Torrent swept hull, conforming panels and smoked canopy
+#     finish" dropped the cockpit display emission energies (gold 2.4 -> 0.9,
+#     cyan 2.8 -> 0.85) so instrument glow no longer blows out the canopy.
+
 var _failures: Array[String] = []
 
 
@@ -66,10 +75,10 @@ func _run() -> void:
 				and material != null \
 				and material.emission_enabled \
 				and material.emission.is_equal_approx(
-					Color("e2a63c") if amber else Color("48dbe2")
+					Color("957c4f") if amber else Color("48dbe2")
 				) \
 				and is_equal_approx(
-					material.emission_energy_multiplier, 2.4 if amber else 2.8
+					material.emission_energy_multiplier, 0.9 if amber else 0.85
 				)
 
 	_check(

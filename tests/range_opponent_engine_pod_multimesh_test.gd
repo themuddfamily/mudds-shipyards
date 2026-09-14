@@ -2,6 +2,11 @@ extends SceneTree
 
 ## Focused renderer contract for the base defender's immutable engine-pod
 ## shells. Animated plumes/lights and all gameplay authority stay independent.
+##
+## The shell finish tracks e93cbb53b "Shape encounter craft with faceted armour
+## and fitted industrial details", which reworked the shared frame material to
+## metallic 0.65 / roughness 0.43 so the faceted armour reads as matte industrial
+## plate instead of the earlier 0.58 / 0.35 sheen.
 
 const OPPONENT_SCENE := preload("res://scenes/ships/range_opponent.tscn")
 
@@ -57,8 +62,8 @@ func _run() -> void:
 			and batch.cast_shadow == GeometryInstance3D.SHADOW_CASTING_SETTING_ON
 			and material != null
 			and material.albedo_color.is_equal_approx(RangeOpponent.FRAME_DARK)
-			and is_equal_approx(material.metallic, 0.58)
-			and is_equal_approx(material.roughness, 0.35)
+			and is_equal_approx(material.metallic, 0.65)
+			and is_equal_approx(material.roughness, 0.43)
 			and bool(batch.get_meta(&"presentation_only", false))
 			and batch.get_child_count() == 0,
 		"material, render layers, shadow policy and authority-free ownership remain exact"

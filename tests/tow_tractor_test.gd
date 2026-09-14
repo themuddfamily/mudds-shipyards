@@ -153,8 +153,11 @@ func _check_construction_contract() -> void:
 		chassis_material != null
 		and chassis_material.normal_enabled
 		and is_equal_approx(chassis_material.normal_scale, StationSurfaceKit.PANEL_NORMAL_SCALE)
-		and is_equal_approx(StationSurfaceKit.PANEL_NORMAL_SCALE, 1.0),
-		"the panel recipe is bound at the registered normal scale of 1.0"
+		# 080833928 "Replace stamped station tiles with a restrained manufactured
+		# finish" retuned the shared panel recipe from a full-strength 1.0 normal
+		# to the restrained 0.32 relief the tractor now shares with the station.
+		and is_equal_approx(StationSurfaceKit.PANEL_NORMAL_SCALE, 0.32),
+		"the panel recipe is bound at the registered normal scale of 0.32"
 	)
 	# Red witness for the recipe check: an untextured material must fail the same
 	# assertion, so a null-map fallback cannot be mistaken for a bound recipe.

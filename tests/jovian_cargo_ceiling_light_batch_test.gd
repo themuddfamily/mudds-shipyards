@@ -75,8 +75,11 @@ func _run() -> void:
 		practical_recipe_retained = (
 			practical_recipe_retained
 			and light.light_color.is_equal_approx(Color("d7fff2"))
-			and is_equal_approx(light.light_energy, 1.1)
-			and is_equal_approx(light.omni_range, 6.8)
+			# 4ad633d65 "Refine inhabited craft with muted paint, pressure glazing
+			# and cast structure" softened the cargo practicals to a wider, dimmer
+			# wash (1.1 -> 0.72 energy, 6.8 -> 7.4 m range).
+			and is_equal_approx(light.light_energy, 0.72)
+			and is_equal_approx(light.omni_range, 7.4)
 			and light.shadow_enabled
 		)
 	var expected_practical_transforms: Array[Transform3D] = []

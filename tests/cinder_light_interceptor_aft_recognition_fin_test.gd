@@ -2,6 +2,15 @@ extends SceneTree
 
 const Interceptor := preload("res://scripts/ships/cinder_light_interceptor.gd")
 
+## The fin stock and its finish follow two shipped checkpoints rather than the
+## original box-primitive contract:
+##   * f68f1453e "Form interceptor wing and fin skins with fitted service armor"
+##     replaced the PrismMesh stock with a formed ArrayMesh skin (a tapered,
+##     double-sided blade with a closed 5 cm perimeter land) that still occupies
+##     exactly AFT_RECOGNITION_FIN_SIZE.
+##   * b533e9fdf "Refine heavy fleet with folded armor and matte manufactured
+##     finishes" retuned the shared wing finish to metallic 0.12 / roughness 0.62.
+
 var _assertions := 0
 var _failures: Array[String] = []
 
@@ -20,7 +29,7 @@ func _initialize() -> void:
 		"both production interceptor copies retain the aft recognition fin"
 	)
 	if first_fin != null and second_fin != null:
-		var mesh := first_fin.mesh as PrismMesh
+		var mesh := first_fin.mesh as ArrayMesh
 		var material := first_fin.material_override as StandardMaterial3D
 		_check(
 			mesh != null
@@ -29,11 +38,12 @@ func _initialize() -> void:
 				and material == second_fin.material_override
 				and not mesh.resource_local_to_scene
 				and not material.resource_local_to_scene,
-			"the fin shares one immutable prism and the existing wing finish across copies"
+			"the fin shares one immutable formed skin and the existing wing finish across copies"
 		)
 		_check(
 			mesh != null
-				and mesh.size.is_equal_approx(Interceptor.AFT_RECOGNITION_FIN_SIZE)
+				and mesh.get_aabb().size.is_equal_approx(Interceptor.AFT_RECOGNITION_FIN_SIZE)
+				and mesh.get_aabb().get_center().is_equal_approx(Vector3.ZERO)
 				and mesh.get_surface_count() == 1
 				and first_fin.position.is_equal_approx(Interceptor.AFT_RECOGNITION_FIN_POSITION)
 				and is_equal_approx(first_fin.rotation.y, Interceptor.AFT_RECOGNITION_FIN_ROTATION_Y)
@@ -48,8 +58,8 @@ func _initialize() -> void:
 		)
 		_check(
 			material.albedo_color.is_equal_approx(Interceptor.WING_COLOR)
-				and is_equal_approx(material.metallic, 0.5)
-				and is_equal_approx(material.roughness, 0.36),
+				and is_equal_approx(material.metallic, 0.12)
+				and is_equal_approx(material.roughness, 0.62),
 			"the recognition fin remains visually tied to the rapid-response wing family"
 		)
 

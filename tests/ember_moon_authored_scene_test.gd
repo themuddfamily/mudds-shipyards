@@ -480,7 +480,11 @@ func _test_surface_material_hierarchy(scene: EmberMoonAuthoredScene) -> void:
 	var gantry_material := gantry.material_override as StandardMaterial3D
 	var gantry_sensor_material := gantry_sensor.material_override as StandardMaterial3D
 	var service_material := bunker_door.material_override as StandardMaterial3D
-	var panel_path := "res://assets/materials/procedural-panel-triplanar-albedo-v2.png"
+	# 080833928 "Replace stamped station tiles with a restrained manufactured
+	# finish" retired the stamped procedural-panel-v2 maps for the shared
+	# manufactured-paint set, which the surface kit now publishes as the single
+	# source of truth for every triplanar recipe on this moon.
+	var panel_path := StationSurfaceKit.PANEL_ALBEDO_PATH
 	_check(
 		snapshot.basalt == {"triplanar": false, "metallic": 0.0, "roughness": 1.0}
 			and snapshot.grip.finish == &"walked_deck"
