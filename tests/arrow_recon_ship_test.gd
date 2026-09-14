@@ -4,6 +4,25 @@ const ARROW_SCENE := preload("res://scenes/ships/arrow_recon_ship.tscn")
 const PLAYER_SCENE := preload("res://scenes/player/player.tscn")
 const TORRENT_SCENE := preload("res://scenes/ships/torrent_interceptor.tscn")
 const SHIP_LAYER := PhysicsLayers.SHIP
+const StaticShadowBatchType := preload("res://scripts/world/static_shadow_batch.gd")
+
+## The Arrow's shadow-only envelope, frozen exactly.
+##
+## Twenty-four of the twenty-eight sources cast through a stand-in built from the
+## same authored recipe at a coarser tessellation — the loft skins and the
+## cambered planform panels. The four that do not are the two survey cooling
+## ducts and the two refractory nozzles, which neither builder makes, plus any
+## skin whose committed surface was later recessed or milled below its own
+## stand-in: the dorsal survey spine and the cockpit sill fairing are both, so
+## they are merged exactly and counted here as not stood in.
+##
+## The pair of triangle counts is the whole point of the change: the envelope's
+## colour surfaces are 22,908 triangles and the shadow copy of them used to be
+## 22,908 as well. A shadow pass consumes a silhouette and nothing else, so it
+## now costs 12,292.
+const EXPECTED_SHADOW_STAND_IN_SOURCES := 22
+const EXPECTED_SHADOW_BATCH_TRIANGLES := 12_292
+const EXPECTED_SHADOW_SOURCE_TRIANGLES := 22_908
 
 var _failures: Array[String] = []
 var _test_root: Node3D
@@ -963,14 +982,27 @@ func _test_airframe_shadow_batch(arrow: ArrowReconShip) -> void:
 	var vertices: PackedVector3Array = merged[Mesh.ARRAY_VERTEX]
 	var normals: PackedVector3Array = merged[Mesh.ARRAY_NORMAL]
 	var indices: PackedInt32Array = merged[Mesh.ARRAY_INDEX]
+	# The batch no longer merges the colour triangles. Each source contributes
+	# either its own mesh or the shadow-only stand-in the craft builds for it, so
+	# the parity check rebuilds that roster from the craft's retained recipes and
+	# holds the merged surface to it exactly — same order, same vertices, same
+	# index offsets — instead of assuming which of the two each source gave.
+	var proxies: Array[ArrayMesh] = arrow._airframe_shadow_proxies()
 	var vertex_offset := 0
 	var index_offset := 0
 	var positions_match := true
 	var indices_match := true
 	var renderers_match := true
+	var proxies_inscribed := true
+	var stood_in := 0
 	var normal_error := 0.0
 	var bounds := AABB()
-	for source in sources:
+	var colour_triangles := 0
+	_check(proxies.size() == sources.size(), "the craft offers exactly one stand-in slot per shadow source")
+	if proxies.size() != sources.size():
+		return
+	for source_index in sources.size():
+		var source := sources[source_index]
 		var source_name := str(source.name)
 		if source_name.begins_with("@"):
 			if source.position.is_equal_approx(Vector3(5.55, 1.0, 2.45)):
@@ -981,7 +1013,18 @@ func _test_airframe_shadow_batch(arrow: ArrowReconShip) -> void:
 		renderers_match = renderers_match and source.get_parent() == visual and source.visible \
 			and source.cast_shadow == GeometryInstance3D.SHADOW_CASTING_SETTING_OFF \
 			and source.material_override == null and arrow.get_variant_materials().values().has(source.get_active_material(0))
-		var arrays := source.mesh.surface_get_arrays(0)
+		var colour_arrays := source.mesh.surface_get_arrays(0)
+		var colour_indices: PackedInt32Array = colour_arrays[Mesh.ARRAY_INDEX] if colour_arrays[Mesh.ARRAY_INDEX] != null else PackedInt32Array()
+		colour_triangles += (colour_indices.size() if not colour_indices.is_empty() else (colour_arrays[Mesh.ARRAY_VERTEX] as PackedVector3Array).size()) / 3
+		var contributor: Mesh = source.mesh
+		if proxies[source_index] != null:
+			contributor = proxies[source_index]
+			stood_in += 1
+			# A stand-in may only ever sit inside the volume its source occupies.
+			proxies_inscribed = proxies_inscribed and source.mesh.get_aabb().grow(
+				StaticShadowBatchType.PROXY_BOUNDS_MARGIN_METRES
+			).encloses(contributor.get_aabb())
+		var arrays := contributor.surface_get_arrays(0)
 		var source_vertices: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
 		var source_normals: PackedVector3Array = arrays[Mesh.ARRAY_NORMAL]
 		var source_indices := PackedInt32Array()
@@ -991,6 +1034,11 @@ func _test_airframe_shadow_batch(arrow: ArrowReconShip) -> void:
 			for index in source_vertices.size():
 				source_indices.append(index)
 		var normal_basis := source.basis.inverse().transposed()
+		if vertex_offset + source_vertices.size() > vertices.size() \
+				or index_offset + source_indices.size() > indices.size():
+			positions_match = false
+			indices_match = false
+			break
 		for index in source_vertices.size():
 			var expected_vertex := source.transform * source_vertices[index]
 			positions_match = positions_match and vertices[vertex_offset + index].is_equal_approx(expected_vertex)
@@ -1003,7 +1051,17 @@ func _test_airframe_shadow_batch(arrow: ArrowReconShip) -> void:
 	names.sort()
 	expected_names.sort()
 	_check(names == expected_names and renderers_match, "the exact 28 finalized shell sources retain their original colour materials, parents and visibility")
-	_check(positions_match and indices_match and vertices.size() == vertex_offset and indices.size() == index_offset and normal_error <= 0.0002, "merged shadow triangles preserve finalized vertices/index order and packed normal directions")
+	_check(positions_match and indices_match and vertices.size() == vertex_offset and indices.size() == index_offset and normal_error <= 0.0002, "merged shadow triangles preserve the stand-in roster's vertices/index order and packed normal directions")
+	_check(
+		stood_in == EXPECTED_SHADOW_STAND_IN_SOURCES and proxies_inscribed,
+		"exactly %d of the 28 sources cast through a stand-in, and every stand-in stays inside its own source's volume (got %d)" % [EXPECTED_SHADOW_STAND_IN_SOURCES, stood_in]
+	)
+	_check(
+		index_offset / 3 == EXPECTED_SHADOW_BATCH_TRIANGLES and colour_triangles == EXPECTED_SHADOW_SOURCE_TRIANGLES,
+		"the shadow batch draws %d triangles for %d triangles of colour envelope (got %d for %d)" % [
+			EXPECTED_SHADOW_BATCH_TRIANGLES, EXPECTED_SHADOW_SOURCE_TRIANGLES, index_offset / 3, colour_triangles
+		]
+	)
 	_check(batch.transform == Transform3D.IDENTITY and batch.mesh.get_aabb().is_equal_approx(bounds) \
 		and batch.cast_shadow == GeometryInstance3D.SHADOW_CASTING_SETTING_SHADOWS_ONLY \
 		and batch.material_override == sources[0].get_active_material(0) and batch.get_child_count() == 0,
@@ -1015,7 +1073,7 @@ func _test_airframe_shadow_batch(arrow: ArrowReconShip) -> void:
 		banking_matches = banking_matches and source.global_transform.is_equal_approx(visual.global_transform * source.transform)
 	visual.rotation = original_rotation
 	_check(banking_matches, "the batch and retained colour geometry share the inherited banked visual root")
-	print("ARROW_AIRFRAME_SHADOW_PARITY: sources=", sources.size(), " vertices=", vertex_offset, " triangles=", index_offset / 3, " bounds=", bounds, " max_normal_error=", normal_error)
+	print("ARROW_AIRFRAME_SHADOW_PARITY: sources=", sources.size(), " stand_ins=", stood_in, " vertices=", vertex_offset, " triangles=", index_offset / 3, " colour_triangles=", colour_triangles, " bounds=", bounds, " max_normal_error=", normal_error)
 
 
 

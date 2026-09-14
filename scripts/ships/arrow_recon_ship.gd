@@ -736,10 +736,6 @@ func _build_arrow_variant(_controller: HeroShip) -> bool:
 	# Freeze only after tail openings, access-panel cuts and final styling. The
 	# original colour meshes and nested panel/marking renderers remain intact.
 	StaticShadowBatch.build(_arrow_visual, _airframe_shadow_sources, _airframe_shadow_proxies())
-	# The stand-in recipes exist only to build that batch. Drop them rather than
-	# retain one authored section list per skin for the life of the craft.
-	_loft_shadow_recipes.clear()
-	_planform_shadow_recipes.clear()
 	_replace_collision_and_markers()
 	if not replace_variant_visual_root(_arrow_visual):
 		return false
@@ -3531,6 +3527,11 @@ func _planform_point(
 
 
 ## One stand-in per shadow source, in the roster's own order.
+##
+## Deterministic and recomputable: the recipes stay on the craft after the batch
+## is built, so `tests/arrow_recon_ship_test.gd` can rebuild exactly the roster
+## `StaticShadowBatch` merged and check the merged surface against it triangle
+## for triangle, rather than being told what the batch contains.
 ##
 ## A source with neither a loft nor a planform recipe — the two survey cooling
 ## ducts and the two refractory nozzles, which are not built by either — passes a
