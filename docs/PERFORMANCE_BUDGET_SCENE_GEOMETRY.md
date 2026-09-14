@@ -182,7 +182,7 @@ in this document has been raised.**
 
 | Schema-v2 metric | Station resident (0 loaded) | Cinder loaded (1 loaded) | Loaded delta |
 | --- | ---: | ---: | ---: |
-| Triangles | 2,407,157 | 2,541,291 | +134,134 |
+| Triangles | 2,156,175 | 2,290,309 | +134,134 |
 | Mesh renderer nodes | 6,588 | 6,797 | +209 |
 | Surfaces | 6,686 | 6,895 | +209 |
 | Unique meshes | 3,354 | 3,494 | +140 |
@@ -194,7 +194,141 @@ in this document has been raised.**
 | Particle systems | 45 | 45 | 0 |
 | Scene-tree nodes | 11,612 | 12,035 | +423 |
 
+#### 2026-09-14 second trim: -250,864 more resident triangles
+
+Measured on merged `4808160f` the station-resident scene was 2,407,039
+triangles — 118 under what the previous freeze recorded, because content landed
+after it. This pass takes it to **2,156,175**, and again nothing else moves:
+renderer nodes (6,588), surfaces (6,686), unique meshes (3,354), bound-phase
+materials (692), retained materials (968), shaders (7), textures (34), lights
+(335, of which 20 cast shadows), particle systems (45), scene-tree nodes
+(11,612), collision shapes, interaction markers, evidence labels and walkable
+routes are identical on both sides, and the streamed Cinder delta is unchanged
+at +134,134.
+
+| Bucket | Before | After | Delta |
+| --- | ---: | ---: | ---: |
+| `ShipyardWorld/HabitatSpine` | 379,494 | 209,990 | -169,504 |
+| `ShipyardWorld/AftJunctionStack` | 214,314 | 161,050 | -53,264 |
+| `ShipyardWorld/SpaceBackdrop` | 22,096 | 7,696 | -14,400 |
+| `ShipyardWorld/ExteriorTargetRange` | 33,083 | 27,707 | -5,376 |
+| `ShipyardWorld/VipReceptionSuite` | 52,567 | 47,767 | -4,800 |
+| `ShipyardWorld/OperationalLattice` | 84,452 | 82,692 | -1,760 |
+| `ShipyardWorld/CentralBerthServiceLine` | 15,428 | 14,692 | -736 |
+| `ShipyardWorld/LandingPad` | 42,756 | 42,116 | -640 |
+| `ShipyardWorld/ExposedDockLattice` | 21,667 | 21,475 | -192 |
+| `ShipyardWorld/IndustrialInfrastructure` | 11,520 | 11,328 | -192 |
+| **Whole scene** | **2,407,039** | **2,156,175** | **-250,864** |
+
+**Round stock is now budgeted by one rule, and it is not a new one.** The
+station interiors tessellated every turned part at a flat 32 radial segments,
+from a 4.5 m column to a 2.5 cm fastener head.
+`StationSurfaceKit.radial_segments_for` answers the count from the chord sagitta
+instead — the whole visual difference between an `n`-gon and the circle it
+stands for — and it does so by *reusing `TorusGeometryBudget`'s own tolerance
+and floor* rather than inventing a second standard. A cylinder's radial count
+tessellates exactly what that class calls the tube cross-section: one circle,
+seen locally, whose faceting shows as flats along a silhouette. Its 0.0021 rad
+tolerance is calibrated so the game's biggest circles come out at the 40 they
+were already authored at, and its `MIN_RING_SEGMENTS = 12` floor is the coarsest
+tessellation that survived a magnified walk-up photo sweep of the worst case in
+the game. Both numbers already have pictures behind them, which is the point.
+
+The rule adds exactly one thing: *distance*. `TorusGeometryBudget` budgets every
+tube cross-section at `NEAR_EYE_METRES` (0.6 m, the closest a camera is taken to
+a solid in this game) because a torus can be anywhere; a station module knows
+where it bolted each part. So a builder may declare the closest a player's
+camera can actually get to a family — the Habitat's four overhead rib families
+at 2.41 m to 2.90 m (their springing height less a deliberately tall 1.75 m
+eye), the Aft operations ribs at 3.07 m, the Aft roof spine and vents at 3.4 m,
+the Aft underfloor keel, cross members, braces and lower truss at 2.5 m, the
+three utility runs slung under the open deck at 1.5 m — and anything that does
+not declare one keeps the 0.6 m walk-up default. Every answer is quantised up
+to a multiple of four so the four lateral extrema stay on real vertices and no
+part's AABB, footprint or collision envelope moves, and every answer is capped
+at the count the builder authored, so the rule can only ever remove segments.
+
+**Shadow-only copies stopped being exact copies.** `StaticShadowBatch` merges an
+explicit roster into one `SHADOWS_ONLY` mesh; it was merging the colour
+triangles, so the Habitat's 27 pressure-rib arches cost their 378 tube segments
+twice. A shadow pass consumes a silhouette and nothing else — it never shades
+the surface, never samples its UVs and never sees its material — so a caller may
+now supply one proven stand-in per source. Every acceptance gate still runs
+against the real colour source, and each stand-in must fit inside its source's
+own bounding volume. The stand-ins are held to shadow-map texels rather than
+screen pixels: `ShipyardWorld` runs the key light at Godot's default 4096
+directional atlas in `SHADOW_PARALLEL_4_SPLITS`, so the nearest cascade resolves
+roughly 6 mm per texel before filtering and the 2-texel normal bias widen the
+edge further. The Habitat's 378 arch segments went from 96,768 shadow triangles
+to 15,456, and the Aft envelope's 32 round sources took the same treatment
+(9,668 -> 5,332 for the whole 67-source batch). Its 35 chamfered-box sources
+have no proven stand-in and are still merged exactly.
+
+**Two families outside the modules moved on the same arithmetic.** The four
+backdrop worlds were `64x32` for discs whose measured apparent radii at
+1920x1080 and the default 72 degree vertical FOV are 74.5, 76.0, 49.6 and 44.1
+pixels; `24x12` holds the silhouette error on the largest of them to 0.65 px,
+under one pixel and nearly three times inside the shared tolerance. The sixteen
+flight-range target lamps are 0.22 m spheres bolted to drones that float over
+open void beyond the station's walkable envelope, reachable only by flying a
+hull at them; budgeted at a deliberately close 3 m they come out at `16x8`.
+
+Tori were left alone on purpose. `TorusGeometryBudget` already applies exactly
+this reasoning, already has the rendered sweep behind its `32x12` floor, and
+already refuses to raise authored values — so the only way to take triangles out
+of the station's rings would be to lower a floor that was established by looking
+at renders, which this pass is not willing to do.
+
+Rendered evidence, at 1280x720 through `gl_compatibility` on a D3D12 GPU, from
+ten fixed gameplay viewpoints — the habitat corridor at walking distance, a
+walk-up on one rib foot, a look up at a rib crown, the common room, a bunk
+privacy arch, the Aft operations room inside and its envelope from the open deck
+outside, a freight-berth tie-down ring close under the apron's two
+shadow-casting spots, the whole station in a long view with its cast shadows,
+and the backdrop worlds — with station activity and service-agent clocks seeked
+to zero so both sides frame the identical scene. Captures and diffs are under
+`/root/.cache/mudds-shipyards/station-trim2-root/`.
+
+Nine of the ten views are static; the tenth (a flight-range target drone) is
+excluded from the totals below because the drone drifts, which moves 25.6% of
+that frame's pixels between two runs of the *same* build.
+
+- Over the nine static views, two runs of the same build differ on **0.16%** of
+  pixels (a second same-build pair differs on 0.54%, driven by the backdrop's
+  own star field and the range markers' drift).
+- Before against after differs on **0.93%** of pixels over the same nine views.
+  This pass is *not* pixel-identical and is not claimed to be: moving a
+  silhouette is what it does, and a rule held to about 1.8 px of silhouette
+  error is expected to move edge pixels. Per view the figure runs 0.13% (rib
+  crown) to 1.30% (common room), and the 16x-amplified difference images show it
+  confined to the outlines and specular gradients of the parts whose
+  tessellation changed — no panel, no label, no light pool and no material
+  boundary moves.
+- **Shadow verdict.** The 33 station shadow-only batches were attributed
+  directly rather than assumed: each view was rendered twice from the same build,
+  once as shipped and once with every batch switched to `SHADOW_CASTING_SETTING_OFF`,
+  and the pixels that differ are exactly the pixels those batches own — 0.79% of
+  the long view, 0.19% of the operations room, 0.09% of the envelope exterior,
+  0.06% of the corridor, none of the rib-crown view. Restricted to that mask,
+  before against after changes 6.4% of the long view's shadow pixels, 12.3% of
+  the envelope exterior's and 13.9% of the corridor's, at a peak delta of 55 to
+  85 of 255 — and at 6x magnification the deck's shadow bands are in the same
+  places at the same softness in both. No shadow detaches from its caster, no
+  contact gap opens, and no acne appears; what changed is the sub-pixel
+  antialiasing along the soft edge of shadows that were already there.
+- Direct inspection at 4x to 14x finds the backdrop worlds the same size with
+  the same banding in the same places and no polygon on either silhouette, and
+  the corridor ribs still reading as a single thin line across the ceiling.
+
+This is a scene-content measurement plus a rendered-composition check. It is not
+a frame-time, GPU-time or VRAM claim, and the software/remote-display caveats at
+the top of this document still apply. **No ceiling in this document has been
+raised.**
+
 #### 2026-09-14 trim: -528,560 resident triangles
+
+Superseded by the second trim above for the whole-scene totals; the bucket
+figures and the reasoning below remain the record of that pass.
 
 The station-resident scene measured 2,935,717 triangles (with the Arrow access route of `24161c6`) before this pass against
 the 1,800,000 ceiling above. Phase 10 item 2 of `ROADMAP.md` says trim before
