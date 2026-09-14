@@ -9,6 +9,14 @@ const MODULE_SCENE := preload("res://scenes/world/modules/jovian_freight_berth.t
 const JOVIAN_SCENE := preload("res://scenes/ships/jovian_light_freighter.tscn")
 const WORLD_LAYER := PhysicsLayers.WORLD
 const RAMP_COLLISION_NAME := &"PortCargoRampCollision"
+# b5c5916af "Build Jovian pilot doorway and supported boarding route" added a
+# second ground-bearing boarding structure - the starboard pilot companionway -
+# and 5732ce84e "Fold Jovian pilot stairs into a clear external flight stack"
+# made it a deployable stack that only carries collision while landed and
+# unfolded. Deployed, its foot rests on the apron exactly like the cargo ramp's
+# wedge, so it is classified as apron-bearing contact rather than structural
+# penetration. Every other ship collider must still clear module structure.
+const STAIR_COLLISION_NAME := &"PilotStairCollision"
 const CARGO_DECK_COLLISION_NAME := &"CargoDeckCollision"
 const SURFACE_SEAM_TOLERANCE := 0.035
 
@@ -159,6 +167,8 @@ func _run() -> void:
 	var structure_hits := PackedStringArray()
 	var ramp_support_hits := PackedStringArray()
 	var ramp_unexpected_hits := PackedStringArray()
+	var stair_support_hits := PackedStringArray()
+	var stair_unexpected_hits := PackedStringArray()
 	for candidate in ship.find_children("*", "CollisionShape3D", true, false):
 		var collision := candidate as CollisionShape3D
 		if collision.disabled or collision.shape == null or collision.get_parent() is Area3D:
@@ -182,15 +192,40 @@ func _run() -> void:
 					elif not ramp_unexpected_hits.has(support_name):
 						ramp_unexpected_hits.append(support_name)
 					continue
+				if collision.name == STAIR_COLLISION_NAME:
+					var stair_support_name := String(collider.name)
+					if stair_support_name.begins_with("ApronDeck"):
+						if not stair_support_hits.has(stair_support_name):
+							stair_support_hits.append(stair_support_name)
+					elif not stair_unexpected_hits.has(stair_support_name):
+						stair_unexpected_hits.append(stair_support_name)
+					continue
 				structure_penetration = true
 				var pair_name := "%s -> %s" % [collision.get_path(), module_rid_names.get(collider.get_rid(), collider.get_path())]
 				if not structure_hits.has(pair_name):
 					structure_hits.append(pair_name)
 	print("JOVIAN_MODULE_COLLISION_HITS: ", structure_hits)
 	print("JOVIAN_RAMP_SUPPORT_HITS: expected=", ramp_support_hits, " unexpected=", ramp_unexpected_hits)
+	print("JOVIAN_STAIR_SUPPORT_HITS: expected=", stair_support_hits, " unexpected=", stair_unexpected_hits)
 	_check(not structure_penetration, "actual parked Jovian hull collision does not penetrate freight-module structure")
 	_check(not ramp_support_hits.is_empty(), "deployed wedge has deliberate contact with a load-bearing apron leaf")
 	_check(ramp_unexpected_hits.is_empty(), "deployed wedge touches no module structure beyond its apron support")
+	var stair_collision := ship.find_child(String(STAIR_COLLISION_NAME), true, false) as CollisionShape3D
+	_check(
+		stair_collision != null and not stair_collision.disabled
+			and stair_collision.shape is ConvexPolygonShape3D,
+		"deployed pilot companionway exposes its own convex boarding collider"
+	)
+	if stair_collision != null and stair_collision.shape is ConvexPolygonShape3D:
+		var stair_lowest_y := INF
+		for point in (stair_collision.shape as ConvexPolygonShape3D).points:
+			stair_lowest_y = minf(stair_lowest_y, ship.to_local(stair_collision.to_global(point)).y)
+		_check(
+			stair_lowest_y >= -1.25 - SURFACE_SEAM_TOLERANCE,
+			"pilot companionway has no collider below the declared landing contact"
+		)
+	_check(not stair_support_hits.is_empty(), "deployed companionway rests on a load-bearing apron leaf")
+	_check(stair_unexpected_hits.is_empty(), "deployed companionway touches no module structure beyond its apron support")
 
 	ship.queue_free()
 	module.queue_free()

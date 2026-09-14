@@ -106,11 +106,18 @@ func _test_curved_threshold(ship: JovianLightFreighter) -> void:
 
 
 func _test_physical_boarding_clearance(ship: JovianLightFreighter) -> void:
+	# 46b8440fb "Fold Jovian cargo ramp into a physical flight door" split the
+	# single slab into a hinged main panel plus a folding toe that stows in
+	# flight. Deployed, the two panels still occupy exactly the boarding
+	# envelope the single slab used to claim, so this contract now measures the
+	# assembled silhouette rather than one renderer's mesh bounds.
 	var ramp_visual := ship.find_child("PortCargoRamp", true, false) as MeshInstance3D
+	var ramp_toe := ship.find_child("CargoRampToe", true, false) as MeshInstance3D
 	var ramp_collision := ship.get_node_or_null(^"PortCargoRampCollision") as CollisionShape3D
 	var cargo_collision := ship.get_node_or_null(^"CargoDeckCollision") as CollisionShape3D
 	_check(
 		ramp_visual != null and ramp_visual.mesh != null
+		and ramp_toe != null and ramp_toe.mesh != null
 		and ramp_collision != null and ramp_collision.shape is ConvexPolygonShape3D
 		and cargo_collision != null and cargo_collision.shape is BoxShape3D,
 		"the retained visual ramp, true convex wedge and cargo-deck threshold are live"
@@ -118,10 +125,13 @@ func _test_physical_boarding_clearance(ship: JovianLightFreighter) -> void:
 	if ramp_collision == null or not ramp_collision.shape is ConvexPolygonShape3D:
 		return
 	var ramp_points := (ramp_collision.shape as ConvexPolygonShape3D).points
+	var deployed_silhouette := _ship_local_bounds(ship, ramp_visual)
+	if ramp_toe != null and ramp_toe.mesh != null:
+		deployed_silhouette = deployed_silhouette.merge(_ship_local_bounds(ship, ramp_toe))
 	_check(
 		ramp_points.size() == 8
-		and ramp_visual.mesh.get_aabb().position.is_equal_approx(Vector3(-10.45, -1.25, 1.5))
-		and ramp_visual.mesh.get_aabb().size.is_equal_approx(Vector3(4.725, 1.73, 3.4)),
+		and deployed_silhouette.position.is_equal_approx(Vector3(-10.45, -1.25, 1.5))
+		and deployed_silhouette.size.is_equal_approx(Vector3(4.725, 1.73, 3.4)),
 		"ramp silhouette and eight-point physical wedge retain their exact boarding envelope"
 	)
 
@@ -158,6 +168,11 @@ func _test_physical_boarding_clearance(ship: JovianLightFreighter) -> void:
 		bool(ship.get_berth_clearance_report().get("deployed_ramp_may_overlap_apron", false)),
 		"ship clearance still identifies the deployed ramp as the sole permitted apron overlap"
 	)
+
+
+func _ship_local_bounds(ship: JovianLightFreighter, renderer: MeshInstance3D) -> AABB:
+	var to_ship := ship.global_transform.affine_inverse() * renderer.global_transform
+	return (to_ship * renderer.mesh.get_aabb()).abs()
 
 
 func _check(condition: bool, description: String) -> void:
