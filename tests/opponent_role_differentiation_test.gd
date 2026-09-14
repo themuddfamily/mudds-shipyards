@@ -287,30 +287,42 @@ func _test_skirmisher_mirrored_trim_resource_sharing() -> void:
 		and audit.scope == &"wing_skirmisher_mirrored_childless_trim",
 		"the skirmisher publishes a valid component-local mirrored-trim sharing audit"
 	)
+	# Two deliberate geometry checkpoints moved this census after the sharing
+	# pass froze it. e93cbb53b ("Shape encounter craft with faceted armour and
+	# fitted industrial details") turned the flat trim boxes into faceted armour
+	# stock: retained meshes 13 -> 14 and BoxMesh recipes 4 -> 2, and 900c912bd
+	# ("Form swept Skirmisher fins with fitted roots and service covers") took
+	# the last mirrored fin off BoxMesh, 2 -> 1. The three mirrored slots each
+	# still retain exactly one shared recipe, which is what this guards.
 	_check(
 		int(audit.mesh_resources_old) == 16
-		and int(audit.mesh_resources_new) == 13
+		and int(audit.mesh_resources_new) == 14
 		and int(audit.box_mesh_resources_old) == 6
-		and int(audit.box_mesh_resources_new) == 4
+		and int(audit.box_mesh_resources_new) == 1
 		and int(audit.wing_mesh_resources_old) == 2
 		and int(audit.wing_mesh_resources_new) == 1
 		and int(audit.wing_chalk_band_mesh_resources_old) == 2
 		and int(audit.wing_chalk_band_mesh_resources_new) == 1
 		and int(audit.winglet_fin_mesh_resources_old) == 2
 		and int(audit.winglet_fin_mesh_resources_new) == 1,
-		"three shared mirrored recipes reduce retained Mesh identities from 16 to 13"
+		"three shared mirrored recipes reduce retained Mesh identities from 16 to 14"
 	)
+	# e93cbb53b added the fitted armour/service geometry (descendants 32 -> 33,
+	# visual nodes 21 -> 22, MeshInstances 18 -> 19, submissions 18 -> 21) and
+	# 80e1ab9e3 ("Fit registry and service artwork to encounter hull skins")
+	# added the registry artwork receivers (descendants 33 -> 37, visual nodes
+	# 22 -> 26). The mirrored slots themselves still submit two copies each.
 	_check(
-		int(audit.descendant_nodes_old) == 32
-		and int(audit.descendant_nodes_new) == 32 + int(audit.surface_marking_costs.nodes)
-		and int(audit.visual_nodes_old) == 21
-		and int(audit.visual_nodes_new) == 21
-		and int(audit.mesh_instance_nodes_old) == 18
-		and int(audit.mesh_instance_nodes_new) == 18
-		and int(audit.drawn_copies_old) == 18
-		and int(audit.drawn_copies_new) == 18
-		and int(audit.structural_submissions_old) == 18
-		and int(audit.structural_submissions_new) == 18
+		int(audit.descendant_nodes_old) == 37
+		and int(audit.descendant_nodes_new) == 37 + int(audit.surface_marking_costs.nodes)
+		and int(audit.visual_nodes_old) == 26
+		and int(audit.visual_nodes_new) == 26
+		and int(audit.mesh_instance_nodes_old) == 19
+		and int(audit.mesh_instance_nodes_new) == 19
+		and int(audit.drawn_copies_old) == 19
+		and int(audit.drawn_copies_new) == 19
+		and int(audit.structural_submissions_old) == 21
+		and int(audit.structural_submissions_new) == 21
 		and int(audit.wing_chalk_band_submissions_old) == 2
 		and int(audit.wing_chalk_band_submissions_new) == 2
 		and int(audit.winglet_fin_submissions_old) == 2
@@ -435,13 +447,17 @@ func _test_skirmisher_mirrored_trim_resource_sharing() -> void:
 		if candidate != null and candidate.position.is_equal_approx(Vector3(2.5, 0.06, 0.4)):
 			starboard_band = candidate
 			break
+	# e93cbb53b reshaped the chalk band into faceted armour stock, so the shared
+	# recipe is now an ArrayMesh. Production checks it by AABB extents, surface
+	# count and bound material, so this suite drifts the same three properties.
 	_check(
-		port_band != null and starboard_band != null and port_band.mesh == starboard_band.mesh,
-		"the two live named/transform slots bind the same immutable BoxMesh identity"
+		port_band != null and starboard_band != null and port_band.mesh == starboard_band.mesh
+		and port_band.mesh is ArrayMesh,
+		"the two live named/transform slots bind the same immutable ArrayMesh identity"
 	)
 	if port_band != null and starboard_band != null:
-		var shared_mesh := port_band.mesh as BoxMesh
-		var duplicate_mesh := shared_mesh.duplicate(false) as BoxMesh
+		var shared_mesh := port_band.mesh as ArrayMesh
+		var duplicate_mesh := shared_mesh.duplicate(false) as ArrayMesh
 		starboard_band.mesh = duplicate_mesh
 		var identity_red := skirmisher.get_wing_chalk_band_resource_audit()
 		_check(
@@ -457,8 +473,16 @@ func _test_skirmisher_mirrored_trim_resource_sharing() -> void:
 			"restoring the shared mesh identity restores the allocation audit"
 		)
 
-		var original_size := shared_mesh.size
-		shared_mesh.size = Vector3(2.41, original_size.y, original_size.z)
+		var original_arrays := shared_mesh.surface_get_arrays(0)
+		var band_material := shared_mesh.surface_get_material(0)
+		var stretched_arrays := original_arrays.duplicate(true)
+		var stretched_vertices := stretched_arrays[Mesh.ARRAY_VERTEX] as PackedVector3Array
+		for vertex_index in stretched_vertices.size():
+			stretched_vertices[vertex_index] *= Vector3(1.01, 1.0, 1.0)
+		stretched_arrays[Mesh.ARRAY_VERTEX] = stretched_vertices
+		shared_mesh.clear_surfaces()
+		shared_mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, stretched_arrays)
+		shared_mesh.surface_set_material(0, band_material)
 		var recipe_red := skirmisher.get_wing_chalk_band_resource_audit()
 		_check(
 			not bool(recipe_red.valid)
@@ -467,10 +491,12 @@ func _test_skirmisher_mirrored_trim_resource_sharing() -> void:
 			),
 			"shared mesh geometry drift fails red on the frozen visible recipe"
 		)
-		shared_mesh.size = original_size
+		shared_mesh.clear_surfaces()
+		shared_mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, original_arrays)
+		shared_mesh.surface_set_material(0, band_material)
 		_check(
 			bool(skirmisher.get_wing_chalk_band_resource_audit().valid),
-			"restoring the band size restores the exact recipe audit"
+			"restoring the band geometry restores the exact recipe audit"
 		)
 
 	var port_fin: MeshInstance3D
@@ -483,13 +509,16 @@ func _test_skirmisher_mirrored_trim_resource_sharing() -> void:
 			port_fin = candidate
 		elif candidate.position.is_equal_approx(Vector3(3.7, 0.36, 1.9)):
 			starboard_fin = candidate
+	# 900c912bd swept the winglet fins into formed roots and service covers, so
+	# this mirrored slot is an ArrayMesh recipe too.
 	_check(
-		port_fin != null and starboard_fin != null and port_fin.mesh == starboard_fin.mesh,
-		"the two live winglet slots bind the same immutable BoxMesh identity"
+		port_fin != null and starboard_fin != null and port_fin.mesh == starboard_fin.mesh
+		and port_fin.mesh is ArrayMesh,
+		"the two live winglet slots bind the same immutable ArrayMesh identity"
 	)
 	if port_fin != null and starboard_fin != null:
-		var shared_fin_mesh := port_fin.mesh as BoxMesh
-		starboard_fin.mesh = shared_fin_mesh.duplicate(false) as BoxMesh
+		var shared_fin_mesh := port_fin.mesh as ArrayMesh
+		starboard_fin.mesh = shared_fin_mesh.duplicate(false) as ArrayMesh
 		var fin_identity_red := skirmisher.get_wing_chalk_band_resource_audit()
 		_check(
 			not bool(fin_identity_red.valid)
@@ -680,24 +709,33 @@ func _test_courier_visual_resource_sharing() -> void:
 			== _binding_identity_counts(audits[1].visual_material_bindings as Dictionary)
 		and _binding_identity_counts(audits[0].visual_material_bindings as Dictionary)
 			== _binding_identity_counts(audits[2].visual_material_bindings as Dictionary)
-		and (audits[0].visual_material_bindings as Dictionary).size() == 28
-		and (audits[1].visual_material_bindings as Dictionary).size() == 28
-		and (audits[2].visual_material_bindings as Dictionary).size() == 28,
+		and (audits[0].visual_material_bindings as Dictionary).size() == 31
+		and (audits[1].visual_material_bindings as Dictionary).size() == 31
+		and (audits[2].visual_material_bindings as Dictionary).size() == 31,
 		"shared courier materials preserve every visible parameter and semantic binding"
 	)
 	_check(
 		legacy_material_resources == 57 and unique_material_ids.size() == 19,
 		"three couriers reduce immutable Material allocations from 57 to 19"
 	)
+	# The material catalog has not changed (still 57 -> 19), but the courier's
+	# authored geometry has grown since 3328d300b froze this census, entirely
+	# through shipped presentation checkpoints: 926bbadc8 ("Add courier
+	# world-space route intent cue") added the dormant top-level cue and its
+	# three arrow pieces, e93cbb53b added the fitted armour/services shell, and
+	# 80e1ab9e3 ("Fit registry and service artwork to encounter hull skins")
+	# added the registry and crew-rescue artwork receivers. Every census axis
+	# moved up or held; lights, particles and collision shapes are untouched,
+	# so nothing the sharing pass protects has been lost.
 	_check(
-		int(aggregate_counts.node_count) == 126
-		and int(aggregate_counts.mesh_instance_nodes) == 81
+		int(aggregate_counts.node_count) == 141
+		and int(aggregate_counts.mesh_instance_nodes) == 84
 		and int(aggregate_counts.particle_nodes) == 9
-		and int(aggregate_counts.geometry_submissions) == 84
-		and int(aggregate_counts.material_bindings) == 84
+		and int(aggregate_counts.geometry_submissions) == 93
+		and int(aggregate_counts.material_bindings) == 93
 		and int(aggregate_counts.light_nodes) == 15
 		and int(aggregate_counts.collision_shape_nodes) == 9,
-		"sharing preserves 126 nodes, 84 submissions, 15 lights, and all collision shapes"
+		"sharing preserves 141 nodes, 93 submissions, 15 lights, and all collision shapes"
 	)
 
 	# The catalog is shared; the distress latch, visibility, lights, and lifecycle
