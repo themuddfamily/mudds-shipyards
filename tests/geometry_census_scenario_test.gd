@@ -13,8 +13,8 @@ const MAIN_SCENE := preload("res://scenes/main.tscn")
 # Bedding, emissive reading fixtures and berth labels add 10 renderers and five
 # materials while preserving the light budget. Retained materials include
 # unloaded reachable content; the existing schema and Cinder delta stay fixed.
-const RESIDENT_FINGERPRINT := "9ab2f092ead4bbd023e7e779e0bdf12192637838f9198aeef6d9bd396a36e3ca"
-const CINDER_LOADED_FINGERPRINT := "003d2cc18048fb35b68903b239beccc1d0edd1637a569ddba430955a321a3979"
+const RESIDENT_FINGERPRINT := "328ee272d85ed643892384a8c3b04166030ad40addfa5bcd093e51ea2edc6616"
+const CINDER_LOADED_FINGERPRINT := "72e9b883c9b5a6e0b340731628b5c0569a9bd6603865c533544dbb792f6da5fc"
 
 var _assertions := 0
 var _failures := PackedStringArray()
@@ -63,18 +63,18 @@ func _run() -> void:
 		"resident report freezes schema, scenario identity, and exact loaded count"
 	)
 	_check(
-		int(resident.get("total_triangles", -1)) == 1859367
-			and int(resident.get("total_mesh_instances", -1)) == 5859
-			and int(resident.get("total_surfaces", -1)) == 5878
-			and int(resident.get("unique_meshes", -1)) == 2741,
-		"resident geometry freezes 1,859,367 triangles / 5,859 meshes / 5,878 surfaces / 2,741 unique meshes"
+		int(resident.get("total_triangles", -1)) == 2935717
+			and int(resident.get("total_mesh_instances", -1)) == 6588
+			and int(resident.get("total_surfaces", -1)) == 6686
+			and int(resident.get("unique_meshes", -1)) == 3354,
+		"resident geometry freezes 2,935,717 triangles / 6,588 meshes / 6,686 surfaces / 3,354 unique meshes"
 	)
 	_check(
-		int(resident.get("bound_phase_unique_materials", -1)) == 611
-			and int(resident.get("retained_reachable_unique_materials", -1)) == 902
+		int(resident.get("bound_phase_unique_materials", -1)) == 692
+			and int(resident.get("retained_reachable_unique_materials", -1)) == 968
 			and int(resident.get("lights", -1)) == 335
-			and int(resident.get("nodes", -1)) == 10741,
-		"resident resource roster freezes 611 bound / 902 retained materials, 335 lights, and 10,741 nodes"
+			and int(resident.get("nodes", -1)) == 11612,
+		"resident resource roster freezes 692 bound / 968 retained materials, 335 lights, and 11,612 nodes"
 	)
 	_check(
 		str(resident.get("measurement_fingerprint", "")) == RESIDENT_FINGERPRINT,
@@ -130,18 +130,18 @@ func _run() -> void:
 		"loaded report freezes destination identity and one committed generation"
 	)
 	_check(
-		int(loaded.get("total_triangles", -1)) == 1993501
-			and int(loaded.get("total_mesh_instances", -1)) == 6068
-			and int(loaded.get("total_surfaces", -1)) == 6087
-			and int(loaded.get("unique_meshes", -1)) == 2881,
-		"loaded geometry freezes 1,993,501 triangles / 6,068 meshes / 6,087 surfaces / 2,881 unique meshes"
+		int(loaded.get("total_triangles", -1)) == 3069851
+			and int(loaded.get("total_mesh_instances", -1)) == 6797
+			and int(loaded.get("total_surfaces", -1)) == 6895
+			and int(loaded.get("unique_meshes", -1)) == 3494,
+		"loaded geometry freezes 3,069,851 triangles / 6,797 meshes / 6,895 surfaces / 3,494 unique meshes"
 	)
 	_check(
-		int(loaded.get("bound_phase_unique_materials", -1)) == 653
-			and int(loaded.get("retained_reachable_unique_materials", -1)) == 949
+		int(loaded.get("bound_phase_unique_materials", -1)) == 734
+			and int(loaded.get("retained_reachable_unique_materials", -1)) == 1015
 			and int(loaded.get("lights", -1)) == 362
-			and int(loaded.get("nodes", -1)) == 11164,
-		"loaded resource roster freezes 653 bound / 949 retained materials, 362 lights, and 11,164 nodes"
+			and int(loaded.get("nodes", -1)) == 12035,
+		"loaded resource roster freezes 734 bound / 1,015 retained materials, 362 lights, and 12,035 nodes"
 	)
 	var cinder_bucket := (loaded.get("buckets", {}) as Dictionary).get(
 		"CinderStreamingBootstrap", {}
@@ -180,7 +180,7 @@ func _run() -> void:
 
 func _resource_counts(report: Dictionary) -> Dictionary:
 	var counts := {}
-	for key in ["bound_phase_unique_materials", "retained_reachable_unique_materials", "lights", "nodes", "unique_shaders", "unique_textures", "texture_bytes", "particle_systems"]:
+	for key in ["total_triangles", "total_mesh_instances", "total_surfaces", "unique_meshes", "bound_phase_unique_materials", "retained_reachable_unique_materials", "lights", "nodes", "unique_shaders", "unique_textures", "texture_bytes", "particle_systems"]:
 		counts[key] = report.get(key)
 	return counts
 
