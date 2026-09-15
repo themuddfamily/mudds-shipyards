@@ -106,6 +106,8 @@ var _leg_angle := 0.0
 var _leg_origin := Transform3D.IDENTITY
 var _server_player_origin := Vector3.ZERO
 var _bunk_local := Vector3(0.0, WALK_FLOOR_Y, 6.4)
+## Seat requests carry per-occupant monotonic sequences; replays are rejected.
+var _sequence := 1
 
 
 ## Test-only transport shim. It never inspects or rewrites a relationship: it
@@ -743,9 +745,6 @@ func _transfer_seat(from_index: int, to_index: int) -> void:
 		and not after.is_empty()
 		and int(after.get("parent_frame_generation", 0)) >= int(before.get("parent_frame_generation", 0)),
 		"the transferred claim carries exactly one relationship forward without a generation regression")
-
-
-var _sequence := 1
 
 
 func _next_sequence() -> int:
