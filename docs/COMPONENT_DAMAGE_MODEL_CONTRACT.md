@@ -238,6 +238,46 @@ authority. A future production adapter must assign those responsibilities
 explicitly and prove behavior equivalence before replacing an existing damage
 path.
 
+## Fleet coverage
+
+The adapter is craft-agnostic: `HeroShip._ready()` derives the component
+envelope from whatever root collision the craft actually has, so every
+production craft carries the same ordered five-section roster
+(`forward_hull`, `port_wing`, `starboard_wing`, `core_systems`, `engine_bay`)
+with the same stage thresholds, the same repair rate, and the same reset
+generation fence. That holds for all nine flyable craft, whether they are
+instanced from a `scenes/ships/*.tscn` or composed from script by
+`FleetExpansionProductionBinding`. A script-composed craft must call
+`install_shared_damage_presentation()` before `super._ready()`; without it the
+model still registers, but nothing presents it.
+
+Damage attribution, the engine/weapon/sensor HUD cues, the failed-section
+silhouette, pilot repair while berthed, destruction, berth regeneration, and
+the post-reuse recovery audit are therefore fleet-wide behaviours rather than
+per-craft ones, and the parity suites enumerate all nine craft.
+
+Two things are deliberately **not** uniform, because they are role contracts
+rather than damage-model contracts:
+
+- **Idle charge emitters.** Hulls with no authored cannon lens (the Cinder
+  cargo hauler and long-range bomber) mount no idle charge point rather than
+  hanging a marker sphere on a shot-clearance anchor. The weapon component
+  still grades through every stage and still gates fire through the existing
+  authority; only the optional mesh is absent.
+- **Engineer repair.** The crewed craft that carry an engineer seat (Jovian,
+  Halyard, Bulwark) admit an authority-gated engineer repair. Craft without
+  that seat are repaired by the pilot once berthed, through the same
+  `tick_repair()` path on the same ledger. Both routes commit through
+  `RepairAuthority`/`ShipComponentDamage`; neither is a second health ledger.
+
+Being damageable and being able to fire are separate registrations.
+`GameFlow._initialize_live_combat()` attaches the lifecycle damageable adapter
+to every flyable craft, and gates only the firing-source registration on an
+authored weapon profile. A craft with no offensive weapon is still a valid
+target; bundling the two previously left the cargo hauler silently
+invulnerable, with every hitscan against it resolving
+`non_damageable_blocked`.
+
 ## Explicitly outside this foundation
 
 There is no direct `HeroShip`, target, `GameFlow`, resolver, or Main-scene
