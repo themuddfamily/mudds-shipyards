@@ -665,14 +665,23 @@ func _test_live_station_coverage(
 	# same panel maps, now through `set_surface_override_material()` on a merged
 	# renderer instead of through a `material_override` on a separate node.
 	#
+	# Re-frozen 1926/45/643/1238 -> 1911/45/643/1223 for the third Phase 10 §2
+	# scene-node trim, which extends the same consolidation to
+	# `CentralBerthServiceLine`, `ModernFleetRegistry` and
+	# `IndustrialInfrastructure`. Fifteen more submissions that shared a material
+	# with a sibling became one submission each, all of them in the 0.30 m station
+	# structure bucket — the service line and the registry pod are station stock, so
+	# the 0.22 m and 0.28 m columns do not move at all. The per-module rosters below
+	# make both contributions independently visible.
+	#
 	# As before these are live census results on the merged production tree, not
 	# a sum inferred from component budgets, and missing couriers must still fail.
 	_check(
-		mapped_surface_count == 1926
+		mapped_surface_count == 1911
 		and scale_022_count == 45
 		and scale_028_count == 643
-		and scale_030_count == 1238,
-		"live static station binds exactly 1926 ordinary mapped surfaces with all seven couriers dispatched"
+		and scale_030_count == 1223,
+		"live static station binds exactly 1911 ordinary mapped surfaces with all seven couriers dispatched"
 	)
 	_check(exact_recipe, "every mapped station surface uses the matched world-triplanar albedo/normal/roughness recipe")
 	_check(forbidden_ship_atlas_count == 0, "no live station surface reuses the Arrow or Jovian directional ship atlases")
@@ -807,10 +816,19 @@ func _test_instanced_station_family(
 ## baseline; these live roots make each contribution independently reviewable.
 func _test_recent_module_material_rosters(world: ShipyardWorld) -> void:
 	var expected := {
-		"CentralBerthServiceLine/PortFlank/PartsBinRack": [15, 14, 1, 1],
+		# Re-frozen 15/14 -> 13/12 by the third node trim: the rack's two anonymous
+		# strip-light pieces and its six `_box` bin/shelf/upright triples fold into
+		# one merged renderer each, so two mapped surfaces that shared a material
+		# with a sibling became one submission. Copies, materials and the rack's one
+		# registered batch are unchanged.
+		"CentralBerthServiceLine/PortFlank/PartsBinRack": [13, 12, 1, 1],
 		# The curved registry header removes one plain ordinary surface; its 22
 		# registered surfaces and one registered column batch are unchanged.
-		"ModernFleetRegistry": [34, 22, 1, 1],
+		# Re-frozen 34/22 -> 32/20 by the third node trim, which folds the pod's
+		# anonymous approach stripes, stand mark, indicator needle, back panel and
+		# service bench. The six `RegistryBerthTile` faces are protected by name and
+		# stay ordinary surfaces of their own.
+		"ModernFleetRegistry": [32, 20, 1, 1],
 		# Floor, work-bay, overhead, portal and guardrail batching leaves four
 		# registered ordinary surfaces and moves the other registered populations
 		# behind 24 exact material-family batches. Consolidating the two luminous

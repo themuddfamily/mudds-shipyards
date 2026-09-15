@@ -1348,15 +1348,49 @@ const BUILD_STAGES: Array[Array] = [
 ## design, so neither contract can survive it without being restated per shape —
 ## and no audit was relaxed to buy nodes.
 ##
-## `OperationalLattice`, `CentralBerthServiceLine`, `ModernFleetRegistry` and
-## `IndustrialInfrastructure` are absent for a different reason: each publishes a
-## frozen per-component *count* and one-mesh-per-collider audit keyed to its own
-## node roster
-## (`get_operational_lattice_audit_report()`, each
-## `StationOperationsActivity.get_audit_report()`, the service-line audit and the
-## modern-registry render contract). Batching inside them is a change to that
-## indexing contract rather than to anonymous dressing, and this pass deliberately
-## does not weaken an audit to buy nodes.
+## `CentralBerthServiceLine`, `ModernFleetRegistry` and `IndustrialInfrastructure`
+## joined in the third node trim. Each publishes a frozen per-component *count*
+## roster, and the service line additionally pairs one drawn mesh to one collider
+## on every solid it owns. Both were upgraded before either was batched, and both
+## were upgraded by restating what they already assert rather than by relaxing it:
+##
+## * `get_central_berth_service_line_render_contract()` and
+##   `get_modern_fleet_registry_render_contract()` add each batch's authored row
+##   (`StationDressingBatch.AUTHORED_CENSUS_META`) back into the descendant,
+##   renderer, drawn-copy, submission and static-body counts, so both still report
+##   exactly what their module builds while `get_dressing_consolidation_report()`
+##   reports what this world folded. Every published constant is unchanged.
+## * `get_central_berth_service_line_report()` states its one-mesh-per-collider
+##   pairing per *authored piece* instead of per node. A solid batch keeps one
+##   `CollisionShape3D` per original piece and draws all of them through one merged
+##   renderer whose surface count is their distinct materials, so the audit now
+##   requires shapes == authored pieces, exactly one renderer, and at least one and
+##   at most one-per-piece surfaces on it. On an unbatched body that is the old
+##   assertion character for character.
+##
+## `IndustrialInfrastructure` produces no batch. Each of its six utility runs is a
+## single 72 m cylinder, which is longer on its own than
+## `StationDressingBatch.MAX_BATCH_EXTENT`, so the locality split gives every one
+## of them a chunk to itself and a chunk of one is never merged. Its 54 couplers
+## are already one `MultiMeshInstance3D` per radius. It is on the roster so that
+## stays measured rather than assumed.
+##
+## `OperationalLattice` is deliberately still absent, and for a stronger reason
+## than a count. Every batch the pass can form inside it lands inside a
+## `StationOperationsActivity`, and that component does not publish a count roster:
+## `_built_presentation_hierarchy_is_live()` requires the live node set to equal
+## the built node set *by instance id at its authored path*, and
+## `_built_mesh_contracts_are_live()` re-checks every built renderer's own mesh
+## resource, storage fingerprint and bound `material_override`. A merge frees the
+## source nodes and their meshes by design, so those are not counts that a
+## stand-in row can restore — they are identity and resource-storage proofs that
+## would have to be deleted to pass. `get_operational_lattice_audit_report()` gates
+## on each activity's audit, so it inherits the same answer. The module's other
+## subtrees are out for their own reasons: `ActivityCollision` is collision
+## authority, `ServiceAgents` and `Ambience` are script-owned movers and emitters,
+## and `StationStructuralServiceDressing` marks every one of its renderers with the
+## `detail_role`/`quality_tier` metadata its quality lifecycle reads. No audit was
+## relaxed to buy nodes there either.
 const CONSOLIDATED_DRESSING_MODULES: Array[StringName] = [
 	&"ExposedDockLattice",
 	&"LandingPad",
@@ -1371,6 +1405,9 @@ const CONSOLIDATED_DRESSING_MODULES: Array[StringName] = [
 	&"ObservationLogisticsSpur",
 	&"SalvageTerrace",
 	&"FabricationAnnex",
+	&"CentralBerthServiceLine",
+	&"ModernFleetRegistry",
+	&"IndustrialInfrastructure",
 ]
 
 ## Node names inside those modules that something outside their builder resolves
@@ -1378,6 +1415,21 @@ const CONSOLIDATED_DRESSING_MODULES: Array[StringName] = [
 ## Found by grepping `scripts/`, `tests/`, `tools/`, `docs/`, `scenes/` and
 ## `assets/` for every candidate name before any of them was batched. A name here
 ## keeps its own node; the batcher never removes it and never folds its renderer.
+##
+## The third node trim added the service line, the registry pod and the utility
+## infrastructure, and grepped all 91 leaf names the pass would have folded there.
+## Seven needed protecting, taking the roster to 443 names.
+## `RegistryBerthTile01`…`06` are resolved by formatted name in
+## `get_modern_fleet_registry_render_contract()`'s preserved-path roster —
+## the pod's own statement of what batching must not absorb — and are the board
+## whose tiles track `SHIP_BERTH_FEEDBACK_BERTH_IDS`. `StandPlatform` and
+## `MastBaseFlange` are resolved by path from
+## `tests/station_presentation_defect_witness_test.gd`'s seated-geometry roster.
+## `BoardLampLens`, `MastFootLens`, `RackStripLens` and `WorkLampLens` are the four
+## lens names the service line's fixture-practical sweep resolves beside each of
+## its six lights: that audit asks whether the spill comes from a *drawn lens*, and
+## a merged renderer would answer "some geometry is near", which is a weaker
+## question. They keep their own nodes so the question stays the original one.
 const PROTECTED_DRESSING_NAMES: Array[String] = [
 	"AftModuleConnector", "AftSpine", "AngledConsole", "ApronDeck01", "ApronDeck02", "ApronDeck03",
 	"ApronDeck04", "ArmPad", "ArrivalHookRail", "ArrivalShelf", "Back", "BackingPlate",
@@ -1385,20 +1437,20 @@ const PROTECTED_DRESSING_NAMES: Array[String] = [
 	"BedKerb02", "BedKerb03", "BedKerb04", "BedKerb05", "BedKerb06", "BedKerb07", "BedKerb08",
 	"BenchLeg", "BenchLeg2", "BenchLeg3", "BenchLeg4", "BenchShelf", "BenchTop", "BerthBlanket",
 	"BerthCoverall", "BerthFoldedLinen", "BerthShelf", "BerthStowageNet", "BinStock0001",
-	"BinStock0101", "BoardFoot", "Bonnet", "BonnetVent", "BranchRail", "BranchRailPost",
-	"BridgeBeam", "BunkPlinth", "CabinetDoorSeam", "CabinetHandle", "CabinetStatus", "CableDrum",
-	"CargoPod", "CargoRackShelf", "CarouselTool3", "CarpetFront", "CeilingLightLens",
-	"CeilingLuminaireBody", "CentralJunction", "Centreline", "ChartPressBody", "ChartPressRoll00",
-	"ChartPressRoll01", "ChartPressRoll02", "ChartPressRoll03", "Chassis", "ClerestorySill",
-	"Clipboard", "Column", "Column2", "Column3", "Column4", "ColumnEdge", "ColumnEdge2",
-	"ColumnEdge3", "ColumnEdge4", "ColumnFeed", "ColumnGlow", "ColumnSleeve", "CommonCeiling",
-	"CommonFloor", "CommonFloorInset", "ConnectionDeck", "ConnectionDeckA", "ConnectionDeckB",
-	"ConnectionDeckC", "ConnectorFloor", "ConnectorInset", "ConnectorRailANorth",
-	"ConnectorRailASouth", "ConnectorRailBEast", "ConnectorRailBNorth", "ConnectorRailBWest",
-	"ConnectorRailCNorth", "ConnectorRailCSouth", "ConnectorRailEast", "ConnectorRailNorth",
-	"ConnectorRailSouth", "ConnectorRailWest", "ConnectorRouteLight01", "ConnectorRouteLight02",
-	"ConnectorRouteLight03", "ConsoleEdgeRail", "ConsoleHeadsetCup", "ConsolePlinth",
-	"ConsoleShockMount", "ContainerManifest", "ControlHousing", "ControlPedestal",
+	"BinStock0101", "BoardFoot", "BoardLampLens", "Bonnet", "BonnetVent", "BranchRail",
+	"BranchRailPost", "BridgeBeam", "BunkPlinth", "CabinetDoorSeam", "CabinetHandle",
+	"CabinetStatus", "CableDrum", "CargoPod", "CargoRackShelf", "CarouselTool3", "CarpetFront",
+	"CeilingLightLens", "CeilingLuminaireBody", "CentralJunction", "Centreline", "ChartPressBody",
+	"ChartPressRoll00", "ChartPressRoll01", "ChartPressRoll02", "ChartPressRoll03", "Chassis",
+	"ClerestorySill", "Clipboard", "Column", "Column2", "Column3", "Column4", "ColumnEdge",
+	"ColumnEdge2", "ColumnEdge3", "ColumnEdge4", "ColumnFeed", "ColumnGlow", "ColumnSleeve",
+	"CommonCeiling", "CommonFloor", "CommonFloorInset", "ConnectionDeck", "ConnectionDeckA",
+	"ConnectionDeckB", "ConnectionDeckC", "ConnectorFloor", "ConnectorInset",
+	"ConnectorRailANorth", "ConnectorRailASouth", "ConnectorRailBEast", "ConnectorRailBNorth",
+	"ConnectorRailBWest", "ConnectorRailCNorth", "ConnectorRailCSouth", "ConnectorRailEast",
+	"ConnectorRailNorth", "ConnectorRailSouth", "ConnectorRailWest", "ConnectorRouteLight01",
+	"ConnectorRouteLight02", "ConnectorRouteLight03", "ConsoleEdgeRail", "ConsoleHeadsetCup",
+	"ConsolePlinth", "ConsoleShockMount", "ContainerManifest", "ControlHousing", "ControlPedestal",
 	"CoolCeilingCoveRail", "CoordinatorDeskBody", "CoordinatorLampHead", "CoordinatorLampLens",
 	"CorridorLane", "CrateInboundPort", "CrateInboundStarboard", "CrateInboundTop", "CrateLower",
 	"CrateLowerAlt", "CrateOutbound", "CrateOutboundPort", "CrateOutboundSmall",
@@ -1416,7 +1468,7 @@ const PROTECTED_DRESSING_NAMES: Array[String] = [
 	"GantryHeaderEndCapPort", "GantryHeaderEndCapStarboard", "GantryHeaderFascia",
 	"GantryHeaderLiftAxis", "GardenBench01", "GardenBench02", "GardenBench03", "GardenFloor",
 	"HabitatCeiling", "HalyardApronNose", "HalyardApronTailPort", "HalyardApronTailStarboard",
-	"HatchFastener", "Headrest", "HeadServiceUnit", "HitchBar", "HoistBeam", "HoistBridge",
+	"HatchFastener", "HeadServiceUnit", "Headrest", "HitchBar", "HoistBeam", "HoistBridge",
 	"HoistCarriage", "HoistHook", "HoistPost", "HoistPost2", "HoistPost3", "HoistPost4",
 	"HoistRail", "HoistRail2", "Hull", "JigPost", "JunctionAccessRamp", "JunctionAccessTread01",
 	"JunctionAccessTread02", "JunctionAccessTread03", "JunctionAccessTread04",
@@ -1425,14 +1477,14 @@ const PROTECTED_DRESSING_NAMES: Array[String] = [
 	"JunctionStairRail", "LandingConsoleReadout", "LandingDeckInset", "LandingEquipmentLocker",
 	"LandingObservationConsole", "LandingRail", "LandingViewerHead", "LaneEdge",
 	"LanternCoveFront", "LedgePlanter", "LedgeScopeBody", "LinkCoveLens", "LinkFloor", "LinkSill",
-	"LockerBody", "LockerShutter", "LowerCrossBrace", "LowerTrussStrut", "Mast", "Mattress",
-	"MessBoot", "MessBowl", "MessPendantLens", "MessPendantShade", "MessTableTop", "MessThermos",
-	"MessTrestleTie", "MouthHead", "MouthJambAft", "MouthJambForward", "MusterLampLens",
-	"MusterLockerBody", "MusterRouteBoard", "NoticeBoard", "NoticeBoardLampHousing",
-	"NoticeBoardLampLens", "NoticeSheet00", "NoticeSheet01", "NoticeSheet02", "NoticeSheet03",
-	"NoticeSheet04", "NoticeSheet05", "NoticeSheet06", "NutrientMain", "NutrientManifold",
-	"NutrientPanel", "NutrientTankCap", "ObservationLanding", "OperationsCeiling",
-	"OperationsCeilingLightEastBody", "OperationsCeilingLightEastLens",
+	"LockerBody", "LockerShutter", "LowerCrossBrace", "LowerTrussStrut", "Mast", "MastBaseFlange",
+	"MastFootLens", "Mattress", "MessBoot", "MessBowl", "MessPendantLens", "MessPendantShade",
+	"MessTableTop", "MessThermos", "MessTrestleTie", "MouthHead", "MouthJambAft",
+	"MouthJambForward", "MusterLampLens", "MusterLockerBody", "MusterRouteBoard", "NoticeBoard",
+	"NoticeBoardLampHousing", "NoticeBoardLampLens", "NoticeSheet00", "NoticeSheet01",
+	"NoticeSheet02", "NoticeSheet03", "NoticeSheet04", "NoticeSheet05", "NoticeSheet06",
+	"NutrientMain", "NutrientManifold", "NutrientPanel", "NutrientTankCap", "ObservationLanding",
+	"OperationsCeiling", "OperationsCeilingLightEastBody", "OperationsCeilingLightEastLens",
 	"OperationsCeilingLightWestBody", "OperationsCeilingLightWestLens", "OperationsFloor",
 	"OperationsPodBack", "OperationsPodFloor", "OutboardMarkerLamp01", "OutboardMarkerLamp02",
 	"OutboardSillCap", "OutboardSillCove", "OverheadRail", "OverheadRail2", "PalletDeckInbound",
@@ -1446,28 +1498,29 @@ const PROTECTED_DRESSING_NAMES: Array[String] = [
 	"RackCardCage01", "RackCardCage02", "RackFoot", "RackLockoutTag", "RackModule0000",
 	"RackModule0001", "RackModule0002", "RackModule0003", "RackModule0100", "RackModule0103",
 	"RackModule0200", "RackModule0201", "RackModule0202", "RackModule0203", "RackRemovedFascia",
-	"RackTray", "RackUpright", "RailBeam", "RailBeam2", "RailStop", "RailStop2", "RangeHeader",
-	"RangeTruss", "RearWindowSill", "RefreshmentCounter", "RegistryDispatchBoard",
-	"RegistryPartsTray", "RegistryPodDeck", "RegistryPodRoof", "RegistryScreen",
-	"RegistryStowedManifest", "RegistryTaskLampHousing", "RegistryTerminalRiser",
-	"RegistryToolRack", "RoomFloor", "RoomRoof", "RosterBoardFrame", "RosterHungCoverall",
-	"RosterLampHousing", "RosterLampLens", "RotaryBase", "RouteStripe", "Seat", "SeatBack",
-	"SeatPad", "SeatRail", "ServiceCabinet00", "ServiceCabinet01", "ServiceCabinet02",
-	"ServiceConduit", "ServiceRoomShelf", "SideStep", "SideWindowFrameA", "SideWindowSill",
-	"SignBoard", "SledContainer", "SledDeck", "SledSkirt", "StagingBayEdgeXPortA",
-	"StairBaseLanding", "StandStepLower", "StandToolbox", "StarboardBerthNode",
-	"StarboardBranchArm", "StarboardMount", "StarboardPod", "StarboardSill", "StatusBoardBody",
-	"StatusBoardField", "SteeringColumn", "SteeringWheel", "StowedCoverall", "StowedMug00",
-	"StowedMug01", "StowedMug02", "StowedMug03", "SupplyCrate", "SupplyCrateTop", "SweepHead",
-	"SweepLens", "TableDisplay", "TableDisplayBezel", "TableDisplayCursor", "TableDisplayPanel01",
-	"TableDisplayPanel02", "TailFin", "ThresholdStoneInlay", "ToolWall", "TowDeck", "TrolleyRailA",
-	"TrolleyRailB", "TubeSegment00", "TubeSegment01", "TubeSegment02", "TubeSegment03",
-	"TubeSegment04", "TubeSegment05", "TubeSegment06", "TubeSegment07", "TubeSegment08",
-	"TubeSegment09", "TubeSegment10", "TubeSegment11", "TubeSegment12", "TubeSegment13",
-	"UpperDiagonalBrace", "UpperFloorInset", "UpperRouteStripe", "WatchRackFrame00",
-	"WatchRackFrame01", "WatchRackFrame02", "WaterUrn", "WellNosingFront", "WindowMullion",
-	"WindowPane00", "WindowPane01", "WindowPane02", "WindowSill", "WithdrawnPin00",
-	"WithdrawnPinClip"
+	"RackStripLens", "RackTray", "RackUpright", "RailBeam", "RailBeam2", "RailStop", "RailStop2",
+	"RangeHeader", "RangeTruss", "RearWindowSill", "RefreshmentCounter", "RegistryBerthTile01",
+	"RegistryBerthTile02", "RegistryBerthTile03", "RegistryBerthTile04", "RegistryBerthTile05",
+	"RegistryBerthTile06", "RegistryDispatchBoard", "RegistryPartsTray", "RegistryPodDeck",
+	"RegistryPodRoof", "RegistryScreen", "RegistryStowedManifest", "RegistryTaskLampHousing",
+	"RegistryTerminalRiser", "RegistryToolRack", "RoomFloor", "RoomRoof", "RosterBoardFrame",
+	"RosterHungCoverall", "RosterLampHousing", "RosterLampLens", "RotaryBase", "RouteStripe",
+	"Seat", "SeatBack", "SeatPad", "SeatRail", "ServiceCabinet00", "ServiceCabinet01",
+	"ServiceCabinet02", "ServiceConduit", "ServiceRoomShelf", "SideStep", "SideWindowFrameA",
+	"SideWindowSill", "SignBoard", "SledContainer", "SledDeck", "SledSkirt",
+	"StagingBayEdgeXPortA", "StairBaseLanding", "StandPlatform", "StandStepLower", "StandToolbox",
+	"StarboardBerthNode", "StarboardBranchArm", "StarboardMount", "StarboardPod", "StarboardSill",
+	"StatusBoardBody", "StatusBoardField", "SteeringColumn", "SteeringWheel", "StowedCoverall",
+	"StowedMug00", "StowedMug01", "StowedMug02", "StowedMug03", "SupplyCrate", "SupplyCrateTop",
+	"SweepHead", "SweepLens", "TableDisplay", "TableDisplayBezel", "TableDisplayCursor",
+	"TableDisplayPanel01", "TableDisplayPanel02", "TailFin", "ThresholdStoneInlay", "ToolWall",
+	"TowDeck", "TrolleyRailA", "TrolleyRailB", "TubeSegment00", "TubeSegment01", "TubeSegment02",
+	"TubeSegment03", "TubeSegment04", "TubeSegment05", "TubeSegment06", "TubeSegment07",
+	"TubeSegment08", "TubeSegment09", "TubeSegment10", "TubeSegment11", "TubeSegment12",
+	"TubeSegment13", "UpperDiagonalBrace", "UpperFloorInset", "UpperRouteStripe",
+	"WatchRackFrame00", "WatchRackFrame01", "WatchRackFrame02", "WaterUrn", "WellNosingFront",
+	"WindowMullion", "WindowPane00", "WindowPane01", "WindowPane02", "WindowSill",
+	"WithdrawnPin00", "WithdrawnPinClip", "WorkLampLens"
 ]
 
 
@@ -7924,6 +7977,7 @@ func get_central_berth_service_line_render_contract() -> Dictionary:
 	var descendant_count := 0
 	var mesh_nodes: Array[Node] = []
 	var batch_nodes: Array[Node] = []
+	var mesh_instance_count := 0
 	var drawn_copies := 0
 	var submissions := 0
 	var body_count := 0
@@ -7935,6 +7989,7 @@ func get_central_berth_service_line_render_contract() -> Dictionary:
 		descendant_count = line.find_children("*", "Node", true, false).size()
 		mesh_nodes = line.find_children("*", "MeshInstance3D", true, false)
 		batch_nodes = line.find_children("*", "MultiMeshInstance3D", true, false)
+		mesh_instance_count = mesh_nodes.size()
 		body_count = line.find_children("*", "PhysicsBody3D", true, false).size()
 		shape_count = line.find_children("*", "CollisionShape3D", true, false).size()
 		light_count = line.find_children("*", "Light3D", true, false).size()
@@ -7955,6 +8010,18 @@ func get_central_berth_service_line_render_contract() -> Dictionary:
 				visible_copies = batch.multimesh.instance_count
 			drawn_copies += visible_copies
 			submissions += batch.multimesh.mesh.get_surface_count()
+		# `_consolidate_station_dressing()` runs after this line is built and folds
+		# its anonymous sibling dressing into merged renderers. This roster is the
+		# statement of what the line *builds*, so every batch is put back as the
+		# nodes, renderers, copies, submissions and bodies it stands in for. The
+		# delta is zero on a build where nothing was folded, which is how the
+		# module's own suite builds it.
+		var authored := StationDressingBatch.authored_render_census_delta(line)
+		descendant_count += int(authored.descendant_nodes)
+		mesh_instance_count += int(authored.renderer_nodes)
+		drawn_copies += int(authored.drawn_copies)
+		submissions += int(authored.surface_submissions)
+		body_count += int(authored.static_bodies)
 
 	var buffer_matches := false
 	var bounds_match := false
@@ -7985,14 +8052,15 @@ func get_central_berth_service_line_render_contract() -> Dictionary:
 
 	var exact_counts := (
 		descendant_count == SERVICE_LINE_RENDER_DESCENDANT_COUNT
-		and mesh_nodes.size() == SERVICE_LINE_RENDER_MESH_INSTANCE_COUNT
+		and mesh_instance_count == SERVICE_LINE_RENDER_MESH_INSTANCE_COUNT
 		and batch_nodes.size() == SERVICE_LINE_RENDER_MULTIMESH_BATCH_COUNT
 		and drawn_copies == SERVICE_LINE_RENDER_DRAWN_COPY_COUNT
 		and submissions == SERVICE_LINE_RENDER_SUBMISSION_COUNT
 	)
 	return {
 		"descendant_nodes": descendant_count,
-		"mesh_instances": mesh_nodes.size(),
+		"mesh_instances": mesh_instance_count,
+		"live_mesh_instances": mesh_nodes.size(),
 		"multimesh_batches": batch_nodes.size(),
 		"drawn_copies": drawn_copies,
 		"geometry_submissions": submissions,
@@ -8051,13 +8119,25 @@ func get_central_berth_service_line_report() -> Dictionary:
 			if not role.is_empty():
 				role_counts[role] = int(role_counts.get(role, 0)) + 1
 			if candidate is StaticBody3D:
-				solid_body_count += 1
 				var body := candidate as StaticBody3D
+				# A dressing batch is one body standing in for N authored pieces: it
+				# keeps one collision shape per piece and draws all of them through
+				# one merged renderer whose surfaces are their materials. The pairing
+				# this audit exists to prove — every solid a tow tractor can hit is a
+				# solid the player can see — is therefore stated per authored piece
+				# rather than per node, and is one shape per piece either way.
+				var authored_pieces := StationDressingBatch.authored_solid_piece_count(body)
+				var pieces := maxi(authored_pieces, 1)
+				solid_body_count += pieces
 				if body.collision_layer != WORLD_LAYER or body.collision_mask != 0:
 					errors.append("service body physics layers changed: %s" % body.name)
-				if body.find_children("*", "CollisionShape3D", true, false).size() != 1 \
-						or body.find_children("*", "MeshInstance3D", true, false).size() != 1:
+				var shape_total := body.find_children("*", "CollisionShape3D", true, false).size()
+				if (
+					shape_total != pieces
+					or body.find_children("*", "MeshInstance3D", true, false).size() != 1
+				):
 					errors.append("service body is not one drawn mesh with one matched shape: %s" % body.name)
+				errors.append_array(StationDressingBatch.solid_batch_pairing_errors(body))
 			if candidate is OmniLight3D:
 				practical_count += 1
 				var practical := candidate as OmniLight3D
@@ -8882,6 +8962,7 @@ func get_modern_fleet_registry_render_contract() -> Dictionary:
 	var mesh_nodes: Array[Node] = []
 	var batch_nodes: Array[Node] = []
 	var descendant_count := 0
+	var mesh_instance_count := 0
 	var drawn_copies := 0
 	var submissions := 0
 	var body_count := 0
@@ -8892,6 +8973,7 @@ func get_modern_fleet_registry_render_contract() -> Dictionary:
 		descendant_count = registry.find_children("*", "Node", true, false).size()
 		mesh_nodes = registry.find_children("*", "MeshInstance3D", true, false)
 		batch_nodes = registry.find_children("*", "MultiMeshInstance3D", true, false)
+		mesh_instance_count = mesh_nodes.size()
 		body_count = registry.find_children("*", "PhysicsBody3D", true, false).size()
 		shape_count = registry.find_children("*", "CollisionShape3D", true, false).size()
 		light_count = registry.find_children("*", "Light3D", true, false).size()
@@ -8911,6 +8993,18 @@ func get_modern_fleet_registry_render_contract() -> Dictionary:
 				visible_copies = batch.multimesh.instance_count
 			drawn_copies += visible_copies
 			submissions += batch.multimesh.mesh.get_surface_count()
+		# `_consolidate_station_dressing()` folds this pod's anonymous sibling
+		# dressing after it is built. The roster below is what the pod *builds*, so
+		# each batch is put back as the nodes, renderers, copies, submissions and
+		# bodies it stands in for; the delta is zero when nothing was folded. The
+		# preserved-path roster below still names every node batching must not
+		# absorb, and those names are in `PROTECTED_DRESSING_NAMES`.
+		var authored := StationDressingBatch.authored_render_census_delta(registry)
+		descendant_count += int(authored.descendant_nodes)
+		mesh_instance_count += int(authored.renderer_nodes)
+		drawn_copies += int(authored.drawn_copies)
+		submissions += int(authored.surface_submissions)
+		body_count += int(authored.static_bodies)
 
 	var renderer_buffer_matches := false
 	var bounds_match := false
@@ -9014,7 +9108,7 @@ func get_modern_fleet_registry_render_contract() -> Dictionary:
 
 	var exact_counts := (
 		descendant_count == MODERN_REGISTRY_RENDER_DESCENDANT_COUNT
-		and mesh_nodes.size() == MODERN_REGISTRY_RENDER_MESH_INSTANCE_COUNT
+		and mesh_instance_count == MODERN_REGISTRY_RENDER_MESH_INSTANCE_COUNT
 		and batch_nodes.size() == MODERN_REGISTRY_RENDER_MULTIMESH_BATCH_COUNT
 		and drawn_copies == MODERN_REGISTRY_RENDER_DRAWN_COPY_COUNT
 		and submissions == MODERN_REGISTRY_RENDER_SUBMISSION_COUNT
@@ -9044,7 +9138,8 @@ func get_modern_fleet_registry_render_contract() -> Dictionary:
 		"valid": errors.is_empty(),
 		"errors": errors,
 		"descendant_nodes": descendant_count,
-		"mesh_instances": mesh_nodes.size(),
+		"mesh_instances": mesh_instance_count,
+		"live_mesh_instances": mesh_nodes.size(),
 		"multimesh_batches": batch_nodes.size(),
 		"drawn_copies": drawn_copies,
 		"geometry_submissions": submissions,

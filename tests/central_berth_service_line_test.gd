@@ -496,10 +496,27 @@ func _test_solid_pieces_match_their_drawn_mesh(world: ShipyardWorld) -> void:
 	var matched := true
 	var worst_error := 0.0
 	var worst_name := ""
+	var batched_pieces := 0
+	var batched_bodies := 0
 	for candidate in bodies:
 		var body := candidate as StaticBody3D
 		if body.collision_layer != PhysicsLayers.WORLD or body.collision_mask != 0:
 			matched = false
+			continue
+		# `StationDressingBatch` folds this line's anonymous `_box` triples into one
+		# body that keeps one collider per authored piece and draws all of them
+		# through one merged renderer. The pairing this test exists to hold is the
+		# same for that body, so it is asked of the live merged triangles: every
+		# collider is filled by the geometry drawn at it, and no geometry is drawn
+		# where no collider stands. See `solid_batch_pairing_errors()`.
+		var pieces := StationDressingBatch.authored_solid_piece_count(body)
+		if pieces > 0:
+			batched_bodies += 1
+			batched_pieces += pieces
+			var pairing := StationDressingBatch.solid_batch_pairing_errors(body)
+			if not pairing.is_empty():
+				matched = false
+				worst_name = body.name
 			continue
 		var shapes := body.find_children("*", "CollisionShape3D", true, false)
 		var meshes := body.find_children("*", "MeshInstance3D", true, false)
@@ -532,6 +549,13 @@ func _test_solid_pieces_match_their_drawn_mesh(world: ShipyardWorld) -> void:
 		matched,
 		"every solid piece carries one World collider matching its one drawn mesh (worst %s %.4f m)"
 		% [worst_name, worst_error]
+	)
+	# A red here means the consolidation pass stopped folding this line, not that a
+	# solid changed: the arithmetic above would then silently be testing nothing new.
+	_check(
+		batched_bodies == 4 and batched_pieces == 21,
+		"the four dressing batches on this line still stand in for 21 authored solid pieces (%d/%d)"
+		% [batched_bodies, batched_pieces]
 	)
 
 

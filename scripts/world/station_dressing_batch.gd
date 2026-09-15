@@ -596,6 +596,106 @@ static func _live_node_count(node: Node) -> int:
 	return 1 + node.find_children("*", "", true, false).size()
 
 
+## How many authored `_box(collidable = true)` pieces a solid batch stands in for.
+##
+## Zero for everything this pass did not create, so an audit that pairs one drawn
+## mesh to one collider can restate that pairing per authored piece and read
+## identically on an unbatched build. A batch keeps one `CollisionShape3D` per
+## piece and draws all of them through one merged renderer, so the shape count and
+## this number are the same statement from two directions.
+static func authored_solid_piece_count(node: Node) -> int:
+	if node == null or not is_instance_valid(node) or not node.has_meta(AUTHORED_CENSUS_META):
+		return 0
+	var census: Dictionary = node.get_meta(AUTHORED_CENSUS_META)
+	return maxi(0, int(census.get("static_bodies", 0)))
+
+
+## Whether a solid batch's colliders and its merged renderer describe one solid.
+##
+## The audits this pass runs under state "looks solid, is solid" as *one drawn
+## mesh per matched collider*, which a merged renderer cannot satisfy node for
+## node. This restates the same property for a batch, and reads the live merged
+## triangles rather than any record of what was merged:
+##
+## * every collider is **filled** — the drawn vertices inside it span its box to
+##   `tolerance`, so no collider stands in front of empty space, and
+## * every drawn vertex is **inside** some collider, so no triangle is drawn where
+##   the player would pass through.
+##
+## Together those are the node-for-node assertion applied to the merged pair, and
+## on a body this pass did not create the check is skipped (an empty result), so a
+## caller can run it over a whole module unconditionally.
+static func solid_batch_pairing_errors(
+		body: StaticBody3D,
+		tolerance := 0.002
+	) -> PackedStringArray:
+	var errors := PackedStringArray()
+	if body == null or not is_instance_valid(body) or not body.has_meta(BATCH_META):
+		return errors
+	if authored_solid_piece_count(body) <= 0:
+		return errors
+	var visual := body.get_node_or_null(NodePath(MESH_CHILD_NAME)) as MeshInstance3D
+	var mesh := visual.mesh as ArrayMesh if visual != null else null
+	if visual == null or mesh == null or not visual.transform.is_equal_approx(Transform3D.IDENTITY):
+		errors.append("%s does not draw one merged renderer at the batch origin" % body.name)
+		return errors
+	var vertices := PackedVector3Array()
+	for surface_index in mesh.get_surface_count():
+		var arrays := mesh.surface_get_arrays(surface_index)
+		vertices.append_array(arrays[Mesh.ARRAY_VERTEX] as PackedVector3Array)
+	if vertices.is_empty():
+		errors.append("%s draws no merged geometry" % body.name)
+		return errors
+	var boxes: Array[AABB] = []
+	for child in body.get_children():
+		var collision := child as CollisionShape3D
+		if collision == null:
+			continue
+		var box := collision.shape as BoxShape3D
+		if box == null:
+			errors.append("%s carries a collider this pass never seats: %s" % [body.name, collision.name])
+			continue
+		boxes.append(collision.transform * AABB(-box.size * 0.5, box.size))
+	if boxes.size() != authored_solid_piece_count(body):
+		errors.append("%s no longer keeps one collider per authored piece" % body.name)
+		return errors
+	var covered := PackedInt32Array()
+	covered.resize(vertices.size())
+	for box_index in boxes.size():
+		var box := boxes[box_index] as AABB
+		var grown := box.grow(tolerance)
+		var filled := AABB()
+		var found := false
+		for vertex_index in vertices.size():
+			if not grown.has_point(vertices[vertex_index]):
+				continue
+			covered[vertex_index] = 1
+			if found:
+				filled = filled.expand(vertices[vertex_index])
+			else:
+				filled = AABB(vertices[vertex_index], Vector3.ZERO)
+				found = true
+		# Under-fill only. A piece that touches its neighbour puts a few of the
+		# neighbour's vertices inside this box, which can only make `filled` larger,
+		# never smaller — so "the drawn geometry spans this collider" is the half of
+		# the comparison that means something here. The loop below is the other
+		# half: nothing may be drawn outside every collider.
+		var under_filled := (
+			filled.size.x < box.size.x - tolerance
+			or filled.size.y < box.size.y - tolerance
+			or filled.size.z < box.size.z - tolerance
+		)
+		if not found or under_filled:
+			errors.append(
+				"%s collider %d is not filled by the geometry drawn at it" % [body.name, box_index + 1]
+			)
+	for vertex_index in covered.size():
+		if covered[vertex_index] == 0:
+			errors.append("%s draws geometry no collider stands behind" % body.name)
+			break
+	return errors
+
+
 ## The renderer census a module must add back to read as it was built, summed
 ## over every batch this pass left under `module_root`.
 ##

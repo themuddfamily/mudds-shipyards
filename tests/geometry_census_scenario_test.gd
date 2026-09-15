@@ -98,8 +98,35 @@ const MAIN_SCENE := preload("res://scenes/main.tscn")
 # (3,167 / 3,307), lights (335 / 362), bound (693 / 735) and retained
 # (969 / 1,016) materials, shaders (7), textures (34 / 83,355,976 bytes),
 # particle systems (45) and every loaded-minus-resident delta are unchanged.
-const RESIDENT_FINGERPRINT := "deb7558332b473cfa668afe650c7d5fd54080e76af5ce162bf6ee60a208e1581"
-const CINDER_LOADED_FINGERPRINT := "36a4e2ed686e3082fbfabfbd94bf37804eeffe7199e2fb6502562b4c43770545"
+#
+# Refrozen 2026-09-15 for the third Phase 10 §2 scene-node trim, which extends the
+# same `StationDressingBatch` consolidation to `CentralBerthServiceLine`,
+# `ModernFleetRegistry` and `IndustrialInfrastructure`. Identical arithmetic, two
+# modules deeper (the third produces no batch at all, and is on the roster so that
+# stays measured):
+#
+#   resident 10,647 -> 10,598 nodes, 5,676 -> 5,645 renderers,
+#            6,033 -> 6,017 surfaces, 3,167 -> 3,151 unique meshes
+#   loaded   11,070 -> 11,021 nodes, 5,885 -> 5,854 renderers,
+#            6,242 -> 6,226 surfaces, 3,307 -> 3,291 unique meshes
+#
+# **Triangles do not move** — 1,917,477 resident and 2,051,611 loaded on both
+# sides — and neither do lights (335/362, 20 shadow-casting), particle systems
+# (45), bound (693/735) and retained (969/1,016) materials, shaders (7), textures
+# (34 / 83,355,976 bytes) or text triangles/instances. Every loaded-minus-resident
+# delta is untouched: +134,134 triangles, +209 renderers, +140 unique meshes, +47
+# retained materials, +27 lights, +423 nodes. Only two buckets move at all —
+# `CentralBerthServiceLine` 223 -> 180 nodes and `ModernFleetRegistry` 64 -> 58 —
+# and both modules still publish exactly what they *build*, because their render
+# contracts add each batch's authored census row back (see
+# `ShipyardWorld.CONSOLIDATED_DRESSING_MODULES`).
+#
+# These counts assume the pristine Godot user-data home a fresh checkout has.
+# Persisted pilot state adds one scene node in each scenario once a session has
+# written it, which moves both fingerprints; run this suite with a clean
+# `XDG_DATA_HOME` to reproduce the numbers below.
+const RESIDENT_FINGERPRINT := "bc90f7c95ac6ca07afa2743415b6515fb34b53d83a8dd0ae797af5f022e8e18c"
+const CINDER_LOADED_FINGERPRINT := "9e43d026cac78d701f947dfd339bac00d1ce032f4ed4644b0a2e2d2f2ae232b2"
 
 var _assertions := 0
 var _failures := PackedStringArray()
@@ -150,17 +177,17 @@ func _run() -> void:
 	)
 	_check(
 		int(resident.get("total_triangles", -1)) == 1917477
-			and int(resident.get("total_mesh_instances", -1)) == 5676
-			and int(resident.get("total_surfaces", -1)) == 6033
-			and int(resident.get("unique_meshes", -1)) == 3167,
-		"resident geometry freezes 1,917,477 triangles / 5,676 meshes / 6,033 surfaces / 3,167 unique meshes"
+			and int(resident.get("total_mesh_instances", -1)) == 5645
+			and int(resident.get("total_surfaces", -1)) == 6017
+			and int(resident.get("unique_meshes", -1)) == 3151,
+		"resident geometry freezes 1,917,477 triangles / 5,645 meshes / 6,017 surfaces / 3,151 unique meshes"
 	)
 	_check(
 		int(resident.get("bound_phase_unique_materials", -1)) == 693
 			and int(resident.get("retained_reachable_unique_materials", -1)) == 969
 			and int(resident.get("lights", -1)) == 335
-			and int(resident.get("nodes", -1)) == 10647,
-		"resident resource roster freezes 693 bound / 969 retained materials, 335 lights, and 10,647 nodes"
+			and int(resident.get("nodes", -1)) == 10598,
+		"resident resource roster freezes 693 bound / 969 retained materials, 335 lights, and 10,598 nodes"
 	)
 	_check(
 		str(resident.get("measurement_fingerprint", "")) == RESIDENT_FINGERPRINT,
@@ -218,17 +245,17 @@ func _run() -> void:
 	)
 	_check(
 		int(loaded.get("total_triangles", -1)) == 2051611
-			and int(loaded.get("total_mesh_instances", -1)) == 5885
-			and int(loaded.get("total_surfaces", -1)) == 6242
-			and int(loaded.get("unique_meshes", -1)) == 3307,
-		"loaded geometry freezes 2,051,611 triangles / 5,885 meshes / 6,242 surfaces / 3,307 unique meshes"
+			and int(loaded.get("total_mesh_instances", -1)) == 5854
+			and int(loaded.get("total_surfaces", -1)) == 6226
+			and int(loaded.get("unique_meshes", -1)) == 3291,
+		"loaded geometry freezes 2,051,611 triangles / 5,854 meshes / 6,226 surfaces / 3,291 unique meshes"
 	)
 	_check(
 		int(loaded.get("bound_phase_unique_materials", -1)) == 735
 			and int(loaded.get("retained_reachable_unique_materials", -1)) == 1016
 			and int(loaded.get("lights", -1)) == 362
-			and int(loaded.get("nodes", -1)) == 11070,
-		"loaded resource roster freezes 735 bound / 1,016 retained materials, 362 lights, and 11,070 nodes"
+			and int(loaded.get("nodes", -1)) == 11021,
+		"loaded resource roster freezes 735 bound / 1,016 retained materials, 362 lights, and 11,021 nodes"
 	)
 	var cinder_bucket := (loaded.get("buckets", {}) as Dictionary).get(
 		"CinderStreamingBootstrap", {}

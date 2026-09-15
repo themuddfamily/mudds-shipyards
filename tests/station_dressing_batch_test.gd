@@ -308,6 +308,51 @@ func _run() -> void:
 			and authored_materials.size() == (before_census.material_ids as Dictionary).size(),
 		"the batches restore the authored unique mesh and material resource counts"
 	)
+	# Phase 10 §2 third trim. `CentralBerthServiceLine` states "looks solid, is
+	# solid" as one drawn mesh per matched collider, which a merged renderer cannot
+	# satisfy node for node. `solid_batch_pairing_errors()` restates it against the
+	# live merged triangles, so both halves have to be proven here: that an honest
+	# batch passes, and that a collider which stops describing the geometry drawn
+	# at it turns the check red.
+	_check(
+		BATCH.authored_solid_piece_count(batch) == 5
+			and BATCH.authored_solid_piece_count(walkable) == 0
+			and BATCH.authored_solid_piece_count(visual_batch) == 0,
+		"only a solid batch reports authored pieces, and it reports every one of them"
+	)
+	_check(
+		BATCH.solid_batch_pairing_errors(batch).is_empty()
+			and BATCH.solid_batch_pairing_errors(walkable).is_empty(),
+		"the solid batch's colliders are each filled by the geometry drawn at them"
+	)
+	var mutated_shape := batch.get_node_or_null(^"Collision01") as CollisionShape3D
+	var authored_shape_transform := mutated_shape.transform
+	mutated_shape.transform = authored_shape_transform.translated_local(Vector3(0.0, 0.0, 3.0))
+	_check(
+		not BATCH.solid_batch_pairing_errors(batch).is_empty(),
+		"MUTATION: a collider moved off the geometry drawn at it turns the pairing check red"
+	)
+	mutated_shape.transform = authored_shape_transform
+	var authored_shape_size := (mutated_shape.shape as BoxShape3D).size
+	(mutated_shape.shape as BoxShape3D).size = authored_shape_size * 1.5
+	_check(
+		not BATCH.solid_batch_pairing_errors(batch).is_empty(),
+		"MUTATION: a collider grown past its drawn piece turns the pairing check red"
+	)
+	(mutated_shape.shape as BoxShape3D).size = authored_shape_size
+	var removed_shape := batch.get_node_or_null(^"Collision02") as CollisionShape3D
+	batch.remove_child(removed_shape)
+	_check(
+		not BATCH.solid_batch_pairing_errors(batch).is_empty(),
+		"MUTATION: dropping one authored piece's collider turns the pairing check red"
+	)
+	batch.add_child(removed_shape)
+	batch.move_child(removed_shape, 2)
+	_check(
+		BATCH.solid_batch_pairing_errors(batch).is_empty(),
+		"restoring the authored collider roster returns the pairing check to green"
+	)
+
 	_check(
 		BATCH.authored_render_census_delta(walkable) == {
 			"descendant_nodes": 0,
