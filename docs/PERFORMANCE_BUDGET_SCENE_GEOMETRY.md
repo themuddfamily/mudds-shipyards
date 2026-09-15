@@ -234,6 +234,120 @@ three rows move, and this is what they cost:
 Textures move 34 → 38 and 83,355,976 → 85,453,128 bytes, exactly 2 MiB, which is
 the four 512 × 256 marking plates `tools/generate_ship_markings.py` now emits.
 
+#### 2026-09-15 FREIGHT-CRATE-001: the freight berth's small crates, +8,352 resident triangles
+
+Re-measured on 2026-09-15 for FREIGHT-CRATE-001, the crate finish the container
+pass recorded as its residual: the Jovian freight berth's six `RackStoredCrate*`
+totes on the rack decking and the two staged pallet stacks' `StagedCrateLower` /
+`StagedCrateUpper` (1.1 × 0.62 × 1.5 m, 2.2 × 1.3 × 1.9 m and 1.6 × 0.9 × 1.5 m)
+were still chamfered slabs in the berth's own `ceramic_warm`, `ceramic` and
+`orange`, and the orange upper crate filled the foreground of the rack-line
+review view. They are now moulded stores totes from
+`scripts/world/freight_crate_kit.gd`, a deliberately different object class from
+the containers: four full-height corner battens (the only parts on the published
+envelope, so the crate stands on four feet with a shadow line under a lifted
+skirt rail), recessed panels split by a mid rail, a lid slab with a lip and a
+seam line, a strap pair over the lid on the eight strapped units (the two staged
+lower crates keep their existing separate `StagedStrap` nodes and take the
+unstrapped lid-seam variant), one `freight-tote` stores plate on each long side,
+and three moulded-polymer finishes — olive `5c6b3f`, plum `6b3b56`, stone
+`7f8478` — with one shared dark trim `2c3133`. None of the three is a container
+livery, the station's teal or a frozen craft tone. Every part is
+`ShipChamferedStock.box_mesh` through the container kit's own emitter; there is
+no new mesh family, shader, light, node or collider, and each crate's mesh AABB
+is exactly the `size` that still builds its `BoxShape3D`.
+
+The pass **adds no renderer node, scene-tree node, unique mesh, light or particle
+system**: one shell per (size, strapped) is shared through the berth's crate
+cache and the finishes are per-instance surface overrides. Measured twice on an
+empty `XDG_DATA_HOME` from the suite's own `GEOMETRY_CENSUS_*` lines, identical
+in both scenarios:
+
+- **Triangles +8,352**, 1,887,703 → 1,896,055 resident and 2,021,837 →
+  2,030,189 loaded, measured on top of the ninth trim. Eight strapped totes at
+  948 and two lidded at 684, less the ten 60-triangle slabs they replace.
+  Resident triangles move from 4.9% to **5.3% over the 1,800,000 ceiling**; the
+  ceiling is not raised.
+- **Surfaces +20**, 5,980 → 6,000 resident and 6,189 → 6,209 loaded: three
+  finishes per crate (shell, trim, plate) instead of one.
+- **Bound +5 / retained +5 materials**, 706 → 711 and 1,009 → 1,014 resident
+  (748 → 753 and 1,056 → 1,061 loaded): three tote shells, one shared trim and
+  one shared stores plate.
+- **Textures +1**, 38 → 39 and 85,453,128 → 85,977,416 bytes — exactly 524,288,
+  the one 512 × 256 `freight-tote` plate the marking generator now emits.
+
+Mesh instances (5,557 / 5,766), unique meshes (3,058 / 3,198), lights (341 / 368),
+nodes (10,593 / 11,016), shaders (7) and particle systems (54) are unchanged, and
+every loaded-minus-resident delta is untouched. The berth's own standalone census
+(`jovian_freight_berth_batch_test`) moves the same way: 429 → 449 submissions and
+93,692 → 102,044 drawn triangles through the same 893 descendants, 389 mesh
+instances, 16 batches, 477 visible copies and 206 / 209 collision.
+
+The three production audits, run headlessly on private user data before (a
+pristine copy of `82f4e42b5`, the main this pass is rebased on) and after:
+
+| Audit | before | after |
+| --- | --- | --- |
+| `tools/coplanar_seam_audit.gd` | 1,334 pairs reported, 1,338 back-to-back, 294 buried, 28 declared; `ShipyardWorld/JovianFreightBerth` 125 pairs / 59.167 m² | identical on every line but the timing: **same 1,334 / 1,338 / 294 / 28, same 125 / 59.167**, zero pairs naming a crate node on either side |
+| `tools/station_walkability_sweep.gd` | 82 surfaces, 135,137 cells, 39,939 blocked, 19 findings; three `jovian_freight_berth` lane rows | the whole log is byte-identical, lane rows included |
+| `tools/camera_intrusion_audit.gd` | 24 `near_plane_in_world_mesh`, 1 `camera_sphere_in_world_collision`, 6 `camera_sphere_in_own_hull`; `jovian_provisional` 6 findings, `cinder_cargo_hauler` 3 | 25 `near_plane_in_world_mesh`, 0 `camera_sphere_in_world_collision`, 6 `camera_sphere_in_own_hull`; `jovian_provisional` 5, `cinder_cargo_hauler` 3, every other `CAMERA_INTRUSION_CRAFT` line byte-identical; the 25th group is the documented one — `arrow_provisional` against `TargetDrone01/DroneVisual/DressingRenderBatch01` at `[-14.24, 7.95, -95.1]`, one sample, 95 m down the outbound range lane — and no finding names a crate |
+
+That camera row was taken twice on each side, because one run per side is
+not enough for this probe. The baseline's first run reported a
+`camera_sphere_in_world_collision` group — `jovian_provisional`, chase rig,
+outbound route, one 16:9 sample against an anonymous `StaticBody3D` at
+`[14.34, 0.2, -66.3]`, ninety metres from the freight berth — and its second
+run did not, reading 24 / 6 with `jovian_provisional` at 5 like the after tree;
+so that group is the baseline's own run-to-run noise, not a difference between
+the trees. Both after runs reported the 25th `near_plane_in_world_mesh` group,
+and both times it was the same single-sample drone graze the container pass
+recorded appearing in three of four runs on an unchanged tree. Everything a
+crate could touch — the two craft that park among this freight, the retracted
+boom counts, the shortest approach — is identical in all four runs.
+
+The audits cannot see inside one mesh, so the kit's own coplanar discipline is
+stated in `freight_crate_kit.gd` and was checked by eye in the close views: the
+envelope (battens), 6 mm (straps, plate), 12 mm (rails, lid) and ≥ 25 mm (shell)
+planes are all more than the audit's 3 mm tolerance apart, and nothing
+flickers in either renderer.
+
+Rendered before/after pairs — the same seven container-review views as
+FREIGHT-FINISH-001 (the Dock 04 walker, yard and chase, the freight berth's
+apron, one unit and the rack line, and the Cinder cargo terminal) plus two new
+close views of the port staged pallet and rack bay 01's shelf — are in
+`/root/.cache/mudds-shipyards/agent-crates/captures/{before,after}-{forward,compat}/`,
+Forward+ on llvmpipe and Compatibility on D3D12 (RTX 5070 Ti), the same camera
+transforms on both sides and no blank or uniform frame in any of the thirty-six.
+The "before" side was rendered from a pristine copy of the baseline commit.
+
+**Verdict.** The residual the container pass recorded is closed. In the rack-line
+view the object that fills the foreground is no longer an orange slab but the
+plum upper tote: two dark straps over its lid, four corner battens, a recessed
+side panel and the lid seam above it, all readable at that range on both
+renderers. In the staged-pallet close view the olive lower tote and the plum
+upper tote read as two moulded totes on a pallet — battens, mid rail, recessed
+panels, the lid lip, the strap pair, and a legible "SHIPYARD STORES / STK 0412"
+plate — where before there were a ceramic block and an orange block. In the
+rack-shelf close view the plum tote visibly stands on its four batten feet with
+a shadow line under the lifted skirt, the olive tote behind it, and the plates
+face the lane. The Dock 04 views, the freight unit view and the Cinder terminal
+are unchanged, as they should be: this pass touched nothing but the ten crates.
+
+Honest residuals: the three finishes are deliberately muted moulded-polymer
+colours, and in the wide rack-line view the plum tote reads dark against the
+navy container behind it; a lighter fourth finish would separate them further
+but was not needed to make the object read. The stores plate is one shared
+texture for all three finishes by design, so every tote carries the same stock
+code; per-crate codes would cost one plate per crate and were not warranted at
+this size. Outside the freight berth, `grep Crate scripts/world/` finds two
+other placements. The habitat's `BerthStowedCrate` (0.27 m stowage under a bunk,
+`habitat_spine.gd`) is domestic stowage rather than freight and is left alone.
+The station-operations cargo lines' thirteen `Crate*` boxes
+(`station_operations_activity_presentation_builder.gd`, 0.7–1.5 m palletised
+crates in `crate` / `crate_alt`) are the same object class; this commit leaves
+them as they are, and whether they are on the recipe is recorded in the entry
+that follows this one.
+
 Measured on `main` on 2026-09-15 with the service-line/registry batches (−49) and
 the ship fitout batches (−96, then +2 for the protected Zenith wing shells) and the chase-lane station collision (+28 nodes) merged on top of the Habitat/Aft batches; the
 renderer, surface and unique-mesh rows are read from the same

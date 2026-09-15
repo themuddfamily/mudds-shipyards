@@ -47,12 +47,20 @@ func _run() -> void:
 		# batches, the same 477 visible copies, and collision still exactly
 		# 206/209, because `FreightContainerKit.shell_mesh` publishes an AABB
 		# identical to the box it replaced.
+		#
+		# Re-frozen again by FREIGHT-CRATE-001: the ten small crates (six rack
+		# totes, two staged stacks of two) stopped being 60-triangle slabs and
+		# became `FreightCrateKit` totes. submissions 429 -> 449 (10 x 3 surfaces
+		# instead of 10 x 1); triangles 93692 -> 102044 (+8352: eight strapped
+		# totes at 948 and two lidded at 684, less the ten 60-triangle slabs).
+		# Same nodes, copies, bodies and shapes, because the tote's AABB is the
+		# slab's.
 		census == {
 			"descendant_nodes": 893, "mesh_instance_nodes": 389, "multimesh_nodes": 16,
-			"geometry_submissions": 429, "visible_geometry_copies": 477,
-			"drawn_triangles": 93692, "static_bodies": 206, "collision_shapes": 209,
+			"geometry_submissions": 449, "visible_geometry_copies": 477,
+			"drawn_triangles": 102044, "static_bodies": 206, "collision_shapes": 209,
 		},
-		"current standalone census includes later immutable batches: 893 nodes, 429 submissions, 477 visible copies, and collision exact"
+		"current standalone census includes later immutable batches: 893 nodes, 449 submissions, 477 visible copies, and collision exact"
 	)
 	_test_apron_diagonal_batch(module, apron)
 	var contract := module.get_dock_guide_batch_contract()

@@ -465,9 +465,9 @@ static func shell_mesh(
 		})
 
 	var mesh := ArrayMesh.new()
-	_commit_boxes(mesh, body)
-	_commit_boxes(mesh, frame)
-	_commit_boxes(mesh, door)
+	commit_boxes(mesh, body)
+	commit_boxes(mesh, frame)
+	commit_boxes(mesh, door)
 	_commit_stencils(
 		mesh, size, skin, rib_height, bay, leaf_z + leaf_thickness * 0.5,
 		leaf_width, leaf_gap, bar, stencilled, stencil_sign
@@ -519,7 +519,10 @@ static func stencil_side_size(size: Vector3, rib_height: float) -> Vector2:
 	return Vector2(width, minf(width * STENCIL_ASPECT, rib_height * 0.62))
 
 
-static func _commit_boxes(mesh: ArrayMesh, boxes: Array[Dictionary]) -> void:
+## Fuses a list of `{"position", "size"}` chamfered stock boxes into one surface
+## of `mesh`. Shared with `FreightCrateKit`, which builds its totes from the same
+## stock the same way; the two kits are two object classes on one emitter.
+static func commit_boxes(mesh: ArrayMesh, boxes: Array[Dictionary]) -> void:
 	var tool := SurfaceTool.new()
 	tool.begin(Mesh.PRIMITIVE_TRIANGLES)
 	for entry in boxes:
@@ -572,7 +575,7 @@ static func _commit_stencils(
 	var tool := SurfaceTool.new()
 	tool.begin(Mesh.PRIMITIVE_TRIANGLES)
 	if stencilled:
-		_emit_plate(
+		emit_plate(
 			tool,
 			Vector3(
 				stencil_sign * ((size.x * 0.5 - skin) + STENCIL_STANDOFF),
@@ -591,7 +594,7 @@ static func _commit_stencils(
 	var door_plate := Vector2(
 		door_width, minf(door_width * STENCIL_ASPECT, rib_height * 0.34)
 	)
-	_emit_plate(
+	emit_plate(
 		tool,
 		Vector3(
 			-(leaf_width + leaf_gap) * 0.5,
@@ -605,7 +608,9 @@ static func _commit_stencils(
 	tool.commit(mesh)
 
 
-static func _emit_plate(
+## One stencil quad, emitted with the front-face winding measured rather than
+## hand-ordered. Shared with `FreightCrateKit`.
+static func emit_plate(
 		tool: SurfaceTool, origin: Vector3, outward: Vector3, up: Vector3,
 		plate: Vector2
 	) -> void:

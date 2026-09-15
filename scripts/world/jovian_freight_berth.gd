@@ -317,6 +317,10 @@ var _rounded_box_cache: Dictionary = {}
 ## Per-operator freight finishes, kept out of `_materials` because each entry is
 ## a set of four rather than one material.
 var _freight_materials: Dictionary = {}
+## One crate shell per (size, strapped), shared by every crate of that
+## recipe so the finish is applied as per-instance surface overrides and the
+## unique-mesh census does not move.
+var _crate_mesh_cache: Dictionary = {}
 var _chamfered_cylinder_cache: Dictionary = {}
 var _lashing_ring_mesh: TorusMesh
 var _lashing_ring_batch: MultiMeshInstance3D
@@ -2788,14 +2792,20 @@ func _build_freight_stores() -> void:
 			_materials["cyan"],
 			false
 		)
-		for slot in [-1.0, 1.0]:
+		for slot_index in 2:
+			var slot := -1.0 if slot_index == 0 else 1.0
 			var slot_tag := "A" if slot < 0.0 else "B"
-			var stored_crate := _rounded_box(
+			# FREIGHT-CRATE-001 (Phase 10 §3). Strapped stores totes in the shared
+			# crate finish, two finishes per bay and adjacent bays differing. Same
+			# position, same size, same collider and same fixture class as the
+			# `ceramic_warm` slabs they were.
+			var stored_crate := _freight_crate(
 				stores,
 				"RackStoredCrate%02d%s" % [bay_index + 1, slot_tag],
 				Vector3(-21.15, 1.33, bay_z + slot * 1.8),
 				Vector3(1.1, 0.62, 1.5),
-				_materials["ceramic_warm"]
+				bay_index + slot_index,
+				true
 			)
 			_register_handling_fixture(stored_crate, &"rack-stored-crate")
 			var stored_drum := _cylinder(
@@ -3054,12 +3064,20 @@ func _build_loading_apparatus() -> void:
 	# Staged freight in both painted bays: pallet, main crate, top crate. These are
 	# deliberately not tagged `station_cargo_unit` - the eight rack units remain the
 	# module's cargo roster, and this is the transient staging a working bay holds.
-	_build_staged_stack(apparatus, "Port", STAGING_BAY_PORT_CENTER + Vector3(0.0, 0.0, -2.4))
-	_build_staged_stack(apparatus, "Starboard", STAGING_BAY_STARBOARD_CENTER + Vector3(0.0, 0.0, 2.4))
+	_build_staged_stack(apparatus, "Port", STAGING_BAY_PORT_CENTER + Vector3(0.0, 0.0, -2.4), 0)
+	_build_staged_stack(apparatus, "Starboard", STAGING_BAY_STARBOARD_CENTER + Vector3(0.0, 0.0, 2.4), 2)
 
 
 ## One staged pallet stack. Each item is buried 0.010 m into whatever carries it.
-func _build_staged_stack(parent: Node3D, side_tag: String, base: Vector3) -> void:
+##
+## FREIGHT-CRATE-001 (Phase 10 §3): the two crates are stores totes in the shared
+## `FreightCrateKit` finish rather than `ceramic` / `orange` slabs. The lower
+## crate keeps the two separate `StagedStrap` nodes it already had and so takes
+## the unstrapped lid-seam variant; the upper crate is strapped by the kit.
+## Positions, sizes, colliders and fixture classes are unchanged.
+func _build_staged_stack(
+		parent: Node3D, side_tag: String, base: Vector3, finish_index: int
+	) -> void:
 	var pallet := _rounded_box(
 		parent,
 		"StagedPallet%s" % side_tag,
@@ -3068,20 +3086,22 @@ func _build_staged_stack(parent: Node3D, side_tag: String, base: Vector3) -> voi
 		_materials["graphite"]
 	)
 	_register_handling_fixture(pallet, &"staged-pallet")
-	var lower := _rounded_box(
+	var lower := _freight_crate(
 		parent,
 		"StagedCrateLower%s" % side_tag,
 		base + Vector3(0.0, 0.80, 0.0),
 		Vector3(2.2, 1.3, 1.9),
-		_materials["ceramic"]
+		finish_index,
+		false
 	)
 	_register_handling_fixture(lower, &"staged-crate")
-	var upper := _rounded_box(
+	var upper := _freight_crate(
 		parent,
 		"StagedCrateUpper%s" % side_tag,
 		base + Vector3(0.1, 1.89, 0.0),
 		Vector3(1.6, 0.9, 1.5),
-		_materials["orange"]
+		finish_index + 1,
+		true
 	)
 	_register_handling_fixture(upper, &"staged-crate")
 	for strap_side in [-1.0, 1.0]:
@@ -3734,6 +3754,73 @@ func _freight_container_materials(operator_index: int) -> Dictionary:
 		"stencil": FreightContainerKit.stencil_material(
 			FreightContainerKit.operator_marking(operator_index)
 		),
+	}
+	_freight_materials[key] = finishes
+	return finishes
+
+
+## A small crate or tote in the station's shared crate finish (FREIGHT-CRATE-001).
+##
+## Structurally identical to `_rounded_box`: the same `StaticBody3D` on
+## `WORLD_LAYER`, the same child `Mesh` and `Collision` names and the same
+## `BoxShape3D` built from the same `size`. The mesh is `FreightCrateKit.shell_mesh`,
+## whose AABB is exactly the box it replaces, shared through `_crate_mesh_cache`
+## by every crate of the same recipe; the three finishes arrive as per-instance
+## surface overrides, so ten crates in three finishes share three meshes and
+## five materials rather than allocating ten of each.
+func _freight_crate(
+		parent: Node3D,
+		node_name: String,
+		position_value: Vector3,
+		size: Vector3,
+		finish_index: int,
+		strapped: bool
+	) -> StaticBody3D:
+	var body := StaticBody3D.new()
+	body.collision_layer = WORLD_LAYER
+	body.collision_mask = 0
+	body.name = node_name
+	body.position = position_value
+	parent.add_child(body, true)
+
+	var cache_key := "%0.3f:%0.3f:%0.3f:%s" % [
+		size.x, size.y, size.z, "strapped" if strapped else "lidded",
+	]
+	if not _crate_mesh_cache.has(cache_key):
+		_crate_mesh_cache[cache_key] = FreightCrateKit.shell_mesh(size, strapped)
+	var finishes := _freight_crate_materials(finish_index)
+	var mesh_instance := MeshInstance3D.new()
+	mesh_instance.name = "Mesh"
+	mesh_instance.mesh = _crate_mesh_cache[cache_key] as ArrayMesh
+	mesh_instance.set_surface_override_material(FreightCrateKit.SURFACE_SHELL, finishes["shell"])
+	mesh_instance.set_surface_override_material(FreightCrateKit.SURFACE_TRIM, finishes["trim"])
+	mesh_instance.set_surface_override_material(FreightCrateKit.SURFACE_STENCIL, finishes["stencil"])
+	body.add_child(mesh_instance)
+
+	var collision := CollisionShape3D.new()
+	collision.name = "Collision"
+	var shape := BoxShape3D.new()
+	shape.size = size
+	collision.shape = shape
+	body.add_child(collision)
+	return body
+
+
+## One shell material per finish, and one trim and one plate shared by all of
+## them: the trim is what makes three finishes one family.
+func _freight_crate_materials(finish_index: int) -> Dictionary:
+	var key := "crate_%d" % posmod(finish_index, FreightCrateKit.FINISHES.size())
+	if _freight_materials.has(key):
+		return _freight_materials[key] as Dictionary
+	if not _freight_materials.has("crate_trim"):
+		_freight_materials["crate_trim"] = FreightCrateKit.trim_material(PANEL_SURFACE_SCALE)
+		_freight_materials["crate_stencil"] = FreightCrateKit.stencil_material()
+	var finishes := {
+		"shell": FreightCrateKit.shell_material(
+			FreightCrateKit.finish_color(finish_index), PANEL_SURFACE_SCALE
+		),
+		"trim": _freight_materials["crate_trim"],
+		"stencil": _freight_materials["crate_stencil"],
 	}
 	_freight_materials[key] = finishes
 	return finishes

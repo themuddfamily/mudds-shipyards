@@ -690,12 +690,19 @@ func _test_live_station_coverage(
 	# `FleetExpansionProductionBinding`, which this census has always excluded.
 	# The 0.22 and 0.28 columns do not move. No previously mapped surface was
 	# removed and no new scale was introduced.
+	#
+	# Re-frozen 1927/45/643/1239 -> 1937/45/643/1249 by FREIGHT-CRATE-001: the
+	# freight berth's ten small crates each bound one mapped surface as a slab
+	# and now bind two — moulded shell and polymer trim — from
+	# `FreightCrateKit`, at the same 0.30 m scale. 10 x 1 = 10. The stencilled
+	# stores plate stays outside the family for the same reason the container
+	# data plate does.
 	_check(
-		mapped_surface_count == 1927
+		mapped_surface_count == 1937
 		and scale_022_count == 45
 		and scale_028_count == 643
-		and scale_030_count == 1239,
-		"live static station binds exactly 1927 ordinary mapped surfaces with all seven couriers dispatched"
+		and scale_030_count == 1249,
+		"live static station binds exactly 1937 ordinary mapped surfaces with all seven couriers dispatched"
 	)
 	_check(exact_recipe, "every mapped station surface uses the matched world-triplanar albedo/normal/roughness recipe")
 	_check(forbidden_ship_atlas_count == 0, "no live station surface reuses the Arrow or Jovian directional ship atlases")

@@ -106,6 +106,28 @@ FREIGHT = [
 ]
 
 
+# The stores tote plate (`scripts/world/freight_crate_kit.gd`). One plate for all
+# three tote finishes, because a returnable tote carries the yard's stores mark
+# rather than an operator's livery; fewer, larger lines than the container plate
+# because it is read at 0.3 m rather than 1.5 m.
+TOTE = ('freight-tote', 'SHIPYARD STORES', 'STK 0412', 'RETURNABLE TOTE')
+
+
+def tote(name, owner, code, note):
+    write(name, [
+        f'<rect x="0" y="0" width="512" height="256" fill="{PLATE}"/>',
+        path('M16 16H496V240H16Z', width=5),
+        lettering(owner, 34, 36, 26, weight=1.1, spacing=2.6),
+        path('M34 82H478', width=3),
+        lettering(code, 34, 100, 66, weight=1.2, spacing=3.6),
+        path('M34 186H478', width=2),
+        lettering(note, 34, 202, 19, weight=.95, spacing=2.2),
+        # This-way-up: an amber arrow under a bar, on the right of the plate.
+        path('M406 176L436 130L466 176H448V196H424V176Z', AMBER, 0, AMBER),
+        path('M398 118H474', AMBER, 5),
+    ])
+
+
 def freight(name, operator, code, route):
     write(name, [
         f'<rect x="0" y="0" width="512" height="256" fill="{PLATE}"/>',
@@ -161,6 +183,7 @@ def main():
     ])
     for name, operator, code, route in FREIGHT:
         freight(name, operator, code, route)
+    tote(*TOTE)
     write('exhaust', [
         path('M79 29L130 118H28Z', AMBER, 6),
         *[path(f'M{x} 98Q{x-9} 89 {x} 80Q{x+9} 71 {x} 62', width=3) for x in (61,79,97)],
