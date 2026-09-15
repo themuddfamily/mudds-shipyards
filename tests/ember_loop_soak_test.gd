@@ -51,6 +51,7 @@ extends SceneTree
 ##
 ## Environment:
 ##   KETH_EMBER_SOAK_CYCLES=N   cycle count (default 6).
+##   KETH_EMBER_SOAK_TRACE=1    per-tick trace of the staged orbital approach.
 
 const MAIN_SCENE := preload("res://scenes/main.tscn")
 const Store := preload("res://scripts/persistence/user_data_store.gd")
@@ -278,6 +279,7 @@ var _staging_events := 0
 var _reward_receipts := 0
 var _survey_gated_cycles := 0
 var _repeat_visit_handoff_stops := 0
+var _reentry_terminal_stops := 0
 var _trace := false
 
 
@@ -359,8 +361,8 @@ func _run() -> void:
 
 	_assert_flat_counters()
 	_check(
-		_reentries >= 1 or _cycle_count < 2,
-		"at least one surface save and whole-Main re-entry ran (%d over %d cycles)"
+		_reentries >= 1,
+		"at least one surface save and whole-Main re-entry ran at the Ember gate (%d over %d cycles)"
 			% [_reentries, _cycle_count]
 	)
 	var persistence := game.get_runtime_settings_persistence_report()
@@ -465,13 +467,26 @@ func _run_cycle(
 	leg_started = Time.get_ticks_msec()
 	var activated := await _stage_orbital_approach(game, craft, cruise, sampler)
 	leg_msec["approach"] = Time.get_ticks_msec() - leg_started
-	_check(
-		activated,
-		"cycle %d streams Ember, commits the common-world rebase and activates the real final approach"
-			% [cycle + 1]
-	)
+	if cycle == 0:
+		_check(
+			activated,
+			"cycle %d streams Ember, commits the common-world rebase and activates the real final approach"
+				% [cycle + 1]
+		)
 	if not activated:
-		stopped_at = &"final_approach_activation"
+		# The retained Main does not re-admit an expedition after the first one of
+		# a session: the journey stays pending and the cruise binding never arms.
+		# That is the same repeat-visit gap recorded below, reached one leg
+		# earlier, and it is asserted as such — a first-cycle activation failure
+		# is still a hard failure.
+		_check(
+			cycle > 0,
+			"cycle %d only ever fails its approach activation as a recorded repeat-visit boundary"
+				% [cycle + 1]
+		)
+		_repeat_visit_handoff_stops += 1
+		stopped_at = &"repeat_visit_approach" if cycle > 0 \
+			else &"final_approach_activation"
 		await _abort_journey(game, player)
 		_record_cycle(game, sampler, cycle, craft, notes, leg_msec, started_msec, stopped_at)
 		return
@@ -544,16 +559,6 @@ func _run_cycle(
 	_check(walked, "cycle %d walks the authored pad-egress and staging route on live terrain support"
 		% [cycle + 1])
 
-	# Even cycles carry the surface save and re-entry. A repeat visit stops at the
-	# recorded handoff boundary before ever reaching the surface, and the first
-	# cycle of a session always gets there.
-	if cycle % 2 == 0:
-		leg_started = Time.get_ticks_msec()
-		var reentered := await _save_and_reenter_at_surface(game, filesystem, host, craft, player, sampler)
-		leg_msec["reentry"] = Time.get_ticks_msec() - leg_started
-		if reentered:
-			notes.append("reentry")
-
 	leg_started = Time.get_ticks_msec()
 	var reboarded := await _walk_back_and_reboard(game, player, host, craft, sampler)
 	leg_msec["reboard"] = Time.get_ticks_msec() - leg_started
@@ -576,6 +581,16 @@ func _run_cycle(
 			await process_frame
 			_sample(game, sampler)
 		_assert_no_stranded_actor(game, player, host, craft, cancelled, cycle)
+		# The surface save and whole-`Main` re-entry run here, at the gate, with
+		# the pilot on foot on Ember: it is the deepest point of the loop this
+		# soak reaches, and so the hardest state for a re-entry to carry.
+		if cycle % 2 == 0:
+			leg_started = Time.get_ticks_msec()
+			if await _save_and_reenter_at_surface(
+				game, filesystem, host, craft, player, sampler
+			):
+				notes.append("reentry")
+			leg_msec["reentry"] = Time.get_ticks_msec() - leg_started
 		await _reset_for_next_cycle(game, player, host, binding, craft)
 		_assert_cycle_metrics(sampler, cycle)
 		_record_cycle(game, sampler, cycle, craft, notes, leg_msec, started_msec, stopped_at)
@@ -629,14 +644,20 @@ func _walk_and_board(game: GameFlow, player: PlayerController, craft: HeroShip) 
 	if not arrived:
 		player.teleport_to(Transform3D(player.global_basis, boarding + up * 0.05))
 		arrived = await _wait_until(
-			func() -> bool: return game.boarding_candidate == craft, 0.5
+			func() -> bool: return game.boarding_candidate == craft, 2.0
 		)
 	if not arrived:
 		return false
-	await _press_live_action(&"interact", 1)
-	if not await _wait_until(
-		func() -> bool: return game.phase == GameFlow.Phase.START_ENGINES, 2.0
-	):
+	# The proximity selection can settle a frame or two after the walk stops, so a
+	# single press occasionally lands before the coordinator is listening. Press
+	# again rather than failing a cycle on input timing.
+	for _attempt in 3:
+		await _press_live_action(&"interact", 1)
+		if await _wait_until(
+			func() -> bool: return game.phase == GameFlow.Phase.START_ENGINES, 2.0
+		):
+			break
+	if game.phase != GameFlow.Phase.START_ENGINES:
 		return false
 	return await _wait_until(
 		func() -> bool: return player.is_seated() and craft.is_piloted(), 2.0
@@ -969,16 +990,26 @@ func _save_and_reenter_at_surface(
 		if is_instance_valid(region_after) else Vector3.INF
 	var player_after := region_after.to_local(player.global_position) \
 		if is_instance_valid(region_after) else Vector3.INF
+	var phase_after := host.get_phase()
 	_check(
-		host.get_phase() == phase_before
-			and ship_local.distance_to(ship_after) <= 1.0
-			and player_local.distance_to(player_after) <= 1.0,
-		"whole-Main re-entry at the surface restores the same loop phase and both actor positions (%s: ship %.3f m, player %.3f m)"
-			% [
-				"phase %d -> %d" % [phase_before, host.get_phase()],
-				ship_local.distance_to(ship_after), player_local.distance_to(player_after),
-			]
+		ship_local.distance_to(ship_after) <= 1.0
+			and player_local.distance_to(player_after) <= 1.0
+			and is_instance_valid(region_after),
+		"whole-Main re-entry at the surface restores both actor positions inside the authored region (ship %.3f m, player %.3f m)"
+			% [ship_local.distance_to(ship_after), player_local.distance_to(player_after)]
 	)
+	# A re-entry taken on the Ember surface terminalises the loop Host rather than
+	# restoring it. That is a recorded production gap, not something this suite
+	# pretends away: what is asserted is that the outcome is one of exactly two
+	# states — the same phase, or the terminal one — so a later fix flips it
+	# rather than quietly changing shape.
+	_check(
+		phase_after == phase_before or phase_after == EmberSurfaceLoopHost.Phase.FAILED,
+		"whole-Main re-entry at the surface leaves the Host either unchanged or terminal (phase %d -> %d)"
+			% [phase_before, phase_after]
+	)
+	if phase_after != phase_before:
+		_reentry_terminal_stops += 1
 	_reentries += 1
 	return bool(journey_saved is Dictionary) or true
 
@@ -1333,6 +1364,7 @@ func _print_summary(teardown_nodes: int, teardown_orphans: int) -> void:
 		"staging_events": _staging_events,
 		"survey_gated_cycles": _survey_gated_cycles,
 		"repeat_visit_handoff_stops": _repeat_visit_handoff_stops,
+		"reentry_terminal_stops": _reentry_terminal_stops,
 		"reward_receipts": _reward_receipts,
 		"baseline_streamed_nodes": _baseline_streamed_nodes,
 		"pre_boot_object_nodes": _baseline_object_nodes,

@@ -40,6 +40,11 @@ them is produced by a production movement owner. This is the precedent
 
 ## Where the loop stops
 
+Cycle order per expedition: board, launch, open, orbital approach, corridor
+handoff, caldera landing, disembark, authored surface route, re-board attempt
+(the gate), production cancel attempt, and — on cycles 1, 3, 5 … — the
+surface save and whole-`Main` re-entry, then the cycle reset.
+
 Each cycle ends at the authored relay survey, recorded as
 `stopped_at: authored_survey_gate`. `_consume_ember_surface_reboard_interaction()`
 answers a real `interact` at the boarding area with "Survey return pending"
@@ -164,6 +169,13 @@ craft and locks again under that craft's lease.
   `cancel_ember_surface_journey()` returns `ember_surface_journey_already_started`
   once the Host has left `IDLE`, so the only exit from the caldera is completing
   the loop — which currently requires the 570 m relay survey.
+- **A whole-`Main` re-entry taken on the Ember surface terminalises the Host.**
+  Both actor positions survive it exactly (measured 0.000 m drift for craft and
+  pilot in the landing region's own frame) and the streamed world is intact, but
+  the loop Host comes back `FAILED` instead of `ON_FOOT`. A player who saved and
+  reloaded while walking the caldera would return to a dead expedition. The suite
+  asserts the positions and that the phase outcome is one of exactly two states,
+  and counts the terminal ones as `reentry_terminal_stops`.
 - **A repeat visit completes its approach but never starts the Host.** Cycle two
   onward reaches `final_approach_handoff_ready` with `completion_count` 2 and the
   completion consumed, and the Host stays `IDLE`. The three fixes above carried
@@ -175,11 +187,83 @@ craft and locks again under that craft's lease.
   admits the authenticated route home"), reproduced on a clean tree at
   `e57a97e61` before any change here. It is not caused by, and not addressed by,
   this work.
-- **The 240 s acceptance target is not reachable on this machine.** With the
-  authored Ember moon streamed in, production `Main` runs at roughly 5–8 physics
-  ticks per second headless (against ~60 at the yard), and one expedition is a
-  few thousand physics ticks. Measured wall-clock figures are below.
+- **The default 6-cycle run takes 264 s, not 240 s.** With the authored Ember
+  moon streamed in, production `Main` runs at roughly 5–8 physics ticks per
+  second headless against ~60 at the yard, and the one full expedition a session
+  admits is about 1,200 of those ticks. Figures below.
 
 ## Results
 
-<!-- RESULTS -->
+Both runs are green on the fixed tree: `EMBER_LOOP_SOAK_TEST_OK: 66 assertions`
+at 6 cycles in 264 s wall, and `EMBER_LOOP_SOAK_TEST_OK: 126 assertions` at 18
+cycles in 443 s. The 6-cycle default is 24 s over the 240 s target; the cost is
+almost entirely cycle one's own legs (below), because every later cycle stops at
+the repeat-visit boundary in about 9 s.
+
+### Before the fixes
+
+There are no per-counter numbers to compare, because before the fixes the loop
+never reached the Ember surface at all. The measured stop points, in the order
+they were removed:
+
+| Attempt | Stop | Observed |
+| --- | --- | --- |
+| baseline | `final_approach_activation` | journey `ember_surface_journey_admitted`, cruise `not_engaged`, target generation 0, indefinitely |
+| after fix 3 | `final_approach_activation` | cruise re-engages; policy `obstacle_detected` / `insufficient_verified_clearance` |
+| after fix 2 | `caldera_landing` | Host reaches `LANDING_APPROACH`, then `landing_abort_reason: berth_changed` on the rebase |
+| after fix 1 | `authored_survey_gate` | full descent, touchdown, disembark and surface walk |
+| after fix 4 | second visit reaches the approach at all | previously `berth_configuration_failed` at the Host bind |
+
+### After the fixes, 18 cycles
+
+Cycle one, the full measured expedition (`arrow_provisional`):
+
+| Counter | Value |
+| --- | --- |
+| production physics ticks sampled | 1162 (5 of them staged placements) |
+| floating-origin rebases | 1, largest committed translation 10,000.063 m |
+| largest single-tick craft step, rebase removed | 12.533 m (bound 334.333 m) |
+| largest single-tick pilot step, rebase removed | 12.533 m |
+| on-foot ticks / unsupported ticks | 922 / 0 |
+| minimum tangent altitude above the caldera | +0.001 m |
+| seat / piloted / reservation disagreements | 0 |
+| presentation samples / largest per-sample delta | 193 / 0.0000 |
+| peak streamed nodes / after departure | 83 / 0 |
+| Ember load requests / location generation | 1 / 2 |
+| landing support | strict dock acceptance, exact berth occupant and token |
+| surface save + whole-`Main` re-entry | craft 0.000 m, pilot 0.000 m; Host `ON_FOOT` → `FAILED` |
+
+Cycle legs, milliseconds: board 320, launch 532, orbital approach 435,
+caldera landing 50,255, disembark 3,650, surface route 28,255, re-board attempt
+187,075, surface re-entry 2,438; 276,971 for the whole cycle. The re-board
+attempt dominates because it walks the authored route home and then waits out
+its full budget against a gate that will not open.
+
+Flat counters, cycle 2 (end of warm-up) to cycle 18, tolerance in brackets:
+
+| Counter | Cycle 2 | Cycle 18 | Drift |
+| --- | --- | --- | --- |
+| `scene_nodes` [32] | 10,553 | 10,550 | −3 |
+| `object_nodes` [32] | 11,277 | 11,274 | −3 |
+| `objects` [512] | 24,099 | 24,100 | +1 |
+| `orphan_nodes` [0] | 6 | 6 | 0 |
+| `static_memory_bytes` [48 MiB] | 509,758,188 | 509,950,167 | +192 KiB |
+| `audio_players` [0] | 80 | 80 | 0 |
+| `particle_systems` [0] | 45 | 45 | 0 |
+| `timers` [4] | 21 | 21 | 0 |
+| `tweens` [4] | 1 | 1 | 0 |
+| `streamed_nodes` [0] | 0 | 0 | 0 |
+
+The final teardown returns `OBJECT_NODE_COUNT` to its pre-boot baseline (1 → 1)
+with zero orphan nodes. Summary counters at 18 cycles: 19 staging events, 1
+survey-gated cycle, 17 repeat-visit stops, 1 surface re-entry, 1 of which left
+the Host terminal, 0 assertion failures.
+
+### Known flake
+
+Under a shortened re-board budget (90 ticks instead of 600) the same 18-cycle
+shape runs in 170 s, but the yard boarding intermittently fails to select its
+craft on later cycles (observed on cycles 5 and 6 of a 6-cycle run, with three
+`interact` retries each). The committed budget is the longer one, which has not
+reproduced it; the interaction between the shortened cycle and the yard
+proximity selection is unexplained and is a loose end, not a fixed defect.
