@@ -545,7 +545,7 @@ func _test_common_room_glazing_and_furniture(module: HabitatSpine) -> void:
 			== TorusGeometryBudget.PROFILE_OCCLUDED_CHAIR_BEARING \
 			and is_equal_approx(mesh.inner_radius, 0.16) \
 			and is_equal_approx(mesh.outer_radius, 0.24) \
-			and mesh.rings == 32 \
+			and mesh.rings == 24 \
 			and mesh.ring_segments == 8 \
 			and mesh.get_surface_count() == 1 \
 			and mesh.get_aabb().is_equal_approx(before_aabb)

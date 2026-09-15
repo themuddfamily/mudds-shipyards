@@ -1736,7 +1736,10 @@ func _test_console_shock_collar_visual_resource_sharing(
 		and not bool(report.renderer_values_changed)
 		and bool(report.normalised)
 		and report.authored_tessellation == Vector2i(48, 16)
-		and report.live_tessellation == Vector2i(32, 8)
+		and report.live_tessellation == Vector2i(
+			AftJunctionStack.CONSOLE_SHOCK_COLLAR_BUDGETED_RINGS,
+			AftJunctionStack.CONSOLE_SHOCK_COLLAR_BUDGETED_RING_SEGMENTS
+		)
 		and bool(report.material_identity_preserved)
 		and int(report.collision_authority_count) == 0
 		and int(report.semantic_authority_count) == 0,
@@ -1795,12 +1798,12 @@ func _test_console_shock_collar_visual_resource_sharing(
 		and shared_mesh.material == null
 		and is_equal_approx(shared_mesh.inner_radius, 0.09)
 		and is_equal_approx(shared_mesh.outer_radius, 0.13)
-		and shared_mesh.rings == 32
-		and shared_mesh.ring_segments == 8
+		and shared_mesh.rings == AftJunctionStack.CONSOLE_SHOCK_COLLAR_BUDGETED_RINGS
+		and shared_mesh.ring_segments == AftJunctionStack.CONSOLE_SHOCK_COLLAR_BUDGETED_RING_SEGMENTS
 		and shared_mesh.get_meta(TorusGeometryBudget.AUTHORED_META, Vector2i.ZERO) \
 			== Vector2i(48, 16)
 		and shared_mesh.get_surface_count() == 1,
-		"six stable bay anchors, one exact raw transform buffer, rubber binding and production 48x16 -> 32x8 recipe remain intact"
+		"six stable bay anchors, one exact raw transform buffer, rubber binding and production 48x16 -> 16x8 deck-flush recipe remain intact"
 	)
 
 	(report.current as Dictionary)["renderer_nodes"] = -1
@@ -2593,7 +2596,10 @@ func _test_vip_facade_column_trim_batch(module: AftJunctionStack) -> void:
 				AftJunctionStack.VIP_FACADE_COLUMN_TRIM_RING_SEGMENTS
 			)
 		and report.authored_tessellation == Vector2i(48, 16)
-		and report.live_tessellation == Vector2i(32, 14),
+		and report.live_tessellation == Vector2i(
+			AftJunctionStack.VIP_FACADE_COLUMN_TRIM_BUDGETED_RINGS,
+			AftJunctionStack.VIP_FACADE_COLUMN_TRIM_BUDGETED_RING_SEGMENTS
+		),
 		"batch retains exact transform/buffer/culling evidence and the prior live 32x14 recipe with 48x16 authored metadata"
 	)
 	var vip := module.get_node_or_null(^"Structure/VIPLandmark")
@@ -2792,12 +2798,24 @@ func _test_interface_collar_profile(module: AftJunctionStack) -> void:
 		mesh_ids[mesh.get_instance_id()] = true
 		snapshots.append({
 			"instance": instance,
+			"kind": kind,
 			"transform": instance.transform,
 			"material": instance.material_override,
 			"inner_radius": mesh.inner_radius,
 			"outer_radius": mesh.outer_radius,
 			"aabb": mesh.get_aabb(),
 		})
+	# Every profiled collar keeps the profile's cardinal eight-edge tube. The
+	# major sweep follows each family's declared nearest view: the roof-spine
+	# clamps and the service-wall conduit collars are solved at their heights,
+	# and the three families a player walks up to keep the rendered floor.
+	var expected_rings := {
+		&"SpineClamp": AftJunctionStack.SPINE_CLAMP_BUDGETED_RINGS,
+		&"ConduitCollar": AftJunctionStack.CONDUIT_COLLAR_BUDGETED_RINGS,
+		&"ExteriorPipeClamp": TorusGeometryBudget.MIN_RINGS,
+		&"RackCableTrayClamp": AftJunctionStack.RACK_CABLE_TRAY_CLAMP_BUDGETED_RINGS,
+		&"PedestalBearing": AftJunctionStack.PEDESTAL_BEARING_BUDGETED_RINGS,
+	}
 
 	_check(observed_counts == expected_counts, "Aft profile selects the exact 20 ordinary interface-collar renderers; the six-copy console batch is audited separately")
 	_check(mesh_ids.size() == 5, "20 ordinary profiled collars retain 5 TorusMesh resources; the console batch retains one separately profiled shared resource")
@@ -2827,7 +2845,7 @@ func _test_interface_collar_profile(module: AftJunctionStack) -> void:
 			and is_equal_approx(mesh.inner_radius, float(snapshot["inner_radius"])) \
 			and is_equal_approx(mesh.outer_radius, float(snapshot["outer_radius"])) \
 			and mesh.get_aabb().is_equal_approx(before_aabb) \
-			and mesh.rings == TorusGeometryBudget.MIN_RINGS \
+			and mesh.rings == int(expected_rings.get(snapshot["kind"], -1)) \
 			and mesh.ring_segments == TorusGeometryBudget.AFT_INTERFACE_COLLAR_RING_SEGMENTS \
 			and mesh.get_surface_count() == 1
 	_check(
@@ -2843,10 +2861,13 @@ func _test_interface_collar_profile(module: AftJunctionStack) -> void:
 		and int(profile_report.get("surfaces", 0)) == 20,
 		"profile report freezes 5 ordinary resources, 20 visible instances, and 20 surfaces"
 	)
+	# 5 spine clamps at 16x8, 3 conduit collars at 20x8, 4 pedestal bearings at
+	# 24x8, 8 walk-up collars at 32x8: 1280 + 960 + 1536 + 4096 against the
+	# walk-up baseline of 20 x 32x12.
 	_check(
 		int(profile_report.get("triangles_baseline", 0)) == 15360
-		and int(profile_report.get("triangles_after", 0)) == 10240,
-		"ordinary Aft interface renderers freeze at 15360 -> 10240 triangles; the six-copy batch preserves the total-family 19968 -> 13312 budget"
+		and int(profile_report.get("triangles_after", 0)) == 7872,
+		"ordinary Aft interface renderers freeze at 15360 -> 7872 triangles once the roof-spine, service-wall and pedestal families are solved at their declared ranges"
 	)
 
 	var pod_report := module.get_pod_corner_collar_visual_allocation_audit()
@@ -2862,7 +2883,10 @@ func _test_interface_collar_profile(module: AftJunctionStack) -> void:
 		and bool(spine_report.valid)
 		and bool(spine_report.normalised)
 		and spine_report.authored_tessellation == Vector2i(48, 16)
-		and spine_report.live_tessellation == Vector2i(32, 8)
+		and spine_report.live_tessellation == Vector2i(
+			AftJunctionStack.SPINE_CLAMP_BUDGETED_RINGS,
+			AftJunctionStack.SPINE_CLAMP_BUDGETED_RING_SEGMENTS
+		)
 		and bool(rack_clamp_report.valid)
 		and bool(rack_clamp_report.normalised)
 		and rack_clamp_report.authored_tessellation == Vector2i(48, 16)
@@ -2870,20 +2894,32 @@ func _test_interface_collar_profile(module: AftJunctionStack) -> void:
 		and bool(console_collar_report.valid)
 		and bool(console_collar_report.normalised)
 		and console_collar_report.authored_tessellation == Vector2i(48, 16)
-		and console_collar_report.live_tessellation == Vector2i(32, 8)
+		and console_collar_report.live_tessellation == Vector2i(
+			AftJunctionStack.CONSOLE_SHOCK_COLLAR_BUDGETED_RINGS,
+			AftJunctionStack.CONSOLE_SHOCK_COLLAR_BUDGETED_RING_SEGMENTS
+		)
 		and bool(pedestal_bearing_report.valid)
 		and bool(pedestal_bearing_report.normalised)
 		and pedestal_bearing_report.authored_tessellation == Vector2i(48, 16)
-		and pedestal_bearing_report.live_tessellation == Vector2i(32, 8)
+		and pedestal_bearing_report.live_tessellation == Vector2i(
+			AftJunctionStack.PEDESTAL_BEARING_BUDGETED_RINGS,
+			AftJunctionStack.PEDESTAL_BEARING_BUDGETED_RING_SEGMENTS
+		)
 		and bool(conduit_collar_report.valid)
 		and bool(conduit_collar_report.normalised)
 		and conduit_collar_report.authored_tessellation == Vector2i(48, 16)
-		and conduit_collar_report.live_tessellation == Vector2i(32, 8)
+		and conduit_collar_report.live_tessellation == Vector2i(
+			AftJunctionStack.CONDUIT_COLLAR_BUDGETED_RINGS,
+			AftJunctionStack.CONDUIT_COLLAR_BUDGETED_RING_SEGMENTS
+		)
 		and bool(roof_vent_collar_report.valid)
 		and bool(roof_vent_collar_report.normalised)
 		and bool(roof_vent_collar_report.metadata_exact)
 		and roof_vent_collar_report.authored_tessellation == Vector2i(48, 16)
-		and roof_vent_collar_report.live_tessellation == Vector2i(40, 16)
+		and roof_vent_collar_report.live_tessellation == Vector2i(
+			AftJunctionStack.ROOF_VENT_COLLAR_BUDGETED_RINGS,
+			AftJunctionStack.ROOF_VENT_COLLAR_BUDGETED_RING_SEGMENTS
+		)
 		and bool(pod_recipe.get("normalised", false))
 		and int(pod_recipe.get("authored_rings", 0)) \
 			== AftJunctionStack.POD_CORNER_COLLAR_RINGS
@@ -2894,7 +2930,7 @@ func _test_interface_collar_profile(module: AftJunctionStack) -> void:
 		and int(pod_recipe.get("ring_segments", 0)) \
 			== AftJunctionStack.POD_CORNER_COLLAR_BUDGETED_RING_SEGMENTS
 		and module.get_validation_errors().is_empty(),
-		"production torus normalization retains exact 48x16 authorship metadata and keeps pod collars at 34x14 plus all five shared profiled families at 32x8"
+		"production torus normalization retains exact 48x16 authorship metadata and keeps every shared collar family at its declared-view budget"
 	)
 
 	var pod_mesh := (

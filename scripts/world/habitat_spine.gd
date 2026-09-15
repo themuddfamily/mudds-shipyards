@@ -77,14 +77,22 @@ const NUTRIENT_TANK_BAND_INNER_RADIUS := 0.40
 const NUTRIENT_TANK_BAND_OUTER_RADIUS := 0.47
 const NUTRIENT_TANK_BAND_RINGS := 48
 const NUTRIENT_TANK_BAND_RING_SEGMENTS := 16
-const NUTRIENT_TANK_BAND_BUDGETED_RINGS := 40
+## The bands sit at 0.82 m on tanks a player walks up to: from a 1.75 m eye
+## beside the 0.47 m tank the nearest band is about a metre away, and the
+## 0.435 m sweep meets the tolerance there at 32 rings.
+const NUTRIENT_TANK_BAND_NEAREST_VIEW_METRES := 1.0
+const NUTRIENT_TANK_BAND_BUDGETED_RINGS := 32
 const NUTRIENT_TANK_BAND_BUDGETED_RING_SEGMENTS := 12
 const NUTRIENT_TANK_BAND_COPY_COUNT := 3
 const NUTRIENT_VALVE_INNER_RADIUS := 0.13
 const NUTRIENT_VALVE_OUTER_RADIUS := 0.20
 const NUTRIENT_VALVE_RINGS := 48
 const NUTRIENT_VALVE_RING_SEGMENTS := 16
-const NUTRIENT_VALVE_BUDGETED_RINGS := 32
+## The valves sit at 2.3 m over the tanks; their undersides are 0.35 m above a
+## standing eye and the 0.4 m tanks keep that eye at least 0.75 m off the
+## valve axis, so the closest read is about 0.8 m. Solved there: 24 rings.
+const NUTRIENT_VALVE_NEAREST_VIEW_METRES := 0.8
+const NUTRIENT_VALVE_BUDGETED_RINGS := 24
 const NUTRIENT_VALVE_BUDGETED_RING_SEGMENTS := 12
 const NUTRIENT_VALVE_COPY_COUNT := 3
 const GARDEN_COLUMN_COLLAR_INNER_RADIUS := 0.46
@@ -98,8 +106,25 @@ const PIPE_COLLAR_INNER_RADIUS := 0.12
 const PIPE_COLLAR_OUTER_RADIUS := 0.19
 const PIPE_COLLAR_RINGS := 48
 const PIPE_COLLAR_RING_SEGMENTS := 16
-const PIPE_COLLAR_BUDGETED_RINGS := 32
-const PIPE_COLLAR_BUDGETED_RING_SEGMENTS := 12
+## The environmental mains run at 3.6 m to keep every route clear, so the
+## nearest a standing eye gets to a collar is its underside: 3.6 m less the
+## 0.19 m outer radius less the eye height. The isolation valves hang lower,
+## at 3.25 m with a 0.23 m radius. Both figures are the closest case, straight
+## below the run; anywhere else on the deck is further.
+const ENVIRONMENTAL_MAIN_COLLAR_NEAREST_VIEW_METRES := 3.6 - PIPE_COLLAR_OUTER_RADIUS - OVERHEAD_VIEW_EYE_HEIGHT
+const ISOLATION_VALVE_NEAREST_VIEW_METRES := 3.25 - 0.23 - OVERHEAD_VIEW_EYE_HEIGHT
+const PIPE_COLLAR_BUDGETED_RINGS := 16
+const PIPE_COLLAR_BUDGETED_RING_SEGMENTS := 8
+
+## The eight common-room chair bearings sit at 0.72 m inside the pedestal/seat
+## overlap; a standing eye reads one from about a metre. Their tube section is
+## already the occluded eight; this only lets the major sweep follow the range.
+const COMMON_CHAIR_BEARING_NEAREST_VIEW_METRES := 1.0
+
+## The garden column's head ring is at 5.16 m on a 0.9 m radius, so its lowest
+## point is 4.26 m up: the closest a player in the garden gets to it is that
+## less the eye height, straight underneath.
+const GARDEN_COLUMN_HEAD_RING_NEAREST_VIEW_METRES := 5.16 - 0.90 - OVERHEAD_VIEW_EYE_HEIGHT
 const PIPE_COLLAR_COPY_COUNT := 6
 const GARDEN_BENCH_LEG_LONGITUDINAL_SIZE := Vector3(0.42, 0.40, 0.14)
 const GARDEN_BENCH_LEG_TRANSVERSE_SIZE := Vector3(0.14, 0.40, 0.42)
@@ -2815,7 +2840,8 @@ func _build_common_chair(parent: Node3D, index: int, chair_position: Vector3, ya
 	_cylinder(chair, "Pedestal", Vector3(0, 0.42, 0), 0.16, 0.84, _materials["structural"], true)
 	_cylinder(chair, "Foot", Vector3(0, 0.08, 0), 0.46, 0.14, _materials["graphite"], true)
 	var bearing := _torus(
-		chair, "Bearing", Vector3(0, 0.72, 0), 0.16, 0.24, _materials["copper"]
+		chair, "Bearing", Vector3(0, 0.72, 0), 0.16, 0.24, _materials["copper"],
+		Vector3.ZERO, null, COMMON_CHAIR_BEARING_NEAREST_VIEW_METRES
 	)
 	# Eight identical visual-only bearings sit inside the pedestal/seat overlap.
 	# Their circular sweep keeps the global floor; the torus budget alone owns the
@@ -2844,7 +2870,7 @@ func _build_service_detail(structure: Node3D) -> void:
 	_pipe_collar_mesh.outer_radius = PIPE_COLLAR_OUTER_RADIUS
 	_pipe_collar_mesh.rings = PIPE_COLLAR_RINGS
 	_pipe_collar_mesh.ring_segments = PIPE_COLLAR_RING_SEGMENTS
-	TorusGeometryBudget.apply(_pipe_collar_mesh, 1.0)
+	TorusGeometryBudget.apply(_pipe_collar_mesh, 1.0, ENVIRONMENTAL_MAIN_COLLAR_NEAREST_VIEW_METRES)
 
 	# A high-mounted service run keeps every route clear while adding the pipes,
 	# cabinets, valves, and maintenance access expected of a modernised facility.
@@ -2855,7 +2881,7 @@ func _build_service_detail(structure: Node3D) -> void:
 		for valve_z in [4.6, 9.9, 15.2]:
 			var collar := _torus(service, "PipeCollar", Vector3(pipe_x, 3.6, float(valve_z)), PIPE_COLLAR_INNER_RADIUS, PIPE_COLLAR_OUTER_RADIUS, _materials["graphite"], Vector3(90, 0, 0), _pipe_collar_mesh)
 			_register_service(collar, &"pipe-collar")
-			var valve := _torus(service, "IsolationValve", Vector3(pipe_x - float(side) * 0.18, 3.25, float(valve_z)), 0.15, 0.23, _materials["red"], Vector3(0, 90, 0))
+			var valve := _torus(service, "IsolationValve", Vector3(pipe_x - float(side) * 0.18, 3.25, float(valve_z)), 0.15, 0.23, _materials["red"], Vector3(0, 90, 0), null, ISOLATION_VALVE_NEAREST_VIEW_METRES)
 			_register_service(valve, &"isolation-valve")
 	var cabinet_louvre_transforms: Array[Transform3D] = []
 	for cabinet_index in 3:
@@ -3248,7 +3274,7 @@ func _build_garden_column(branch: Node3D) -> void:
 			_garden_column_collar_mesh
 		)
 	_cylinder(column, "ColumnHead", Vector3(14.4, 5.07, 20.2), 0.72, 0.30, _materials["structural"], true)
-	_torus(column, "ColumnHeadRing", Vector3(14.4, 5.16, 20.2), 0.72, 0.90, _materials["copper"])
+	_torus(column, "ColumnHeadRing", Vector3(14.4, 5.16, 20.2), 0.72, 0.90, _materials["copper"], Vector3.ZERO, null, GARDEN_COLUMN_HEAD_RING_NEAREST_VIEW_METRES)
 	for feed_angle in [45.0, 165.0, 285.0]:
 		var feed_radians := deg_to_rad(float(feed_angle))
 		# Runs to the cupola curb at 4.86, not out to radius 2.90 at y = 3.42 where
@@ -3468,7 +3494,7 @@ func _build_garden_service(branch: Node3D) -> void:
 	# MultiMesh resources are outside the global MeshInstance3D torus sweep.
 	# Apply the same budget eagerly so the batch exactly matches the three retired
 	# live bands while retaining their 48x16 authored tessellation metadata.
-	TorusGeometryBudget.apply(_nutrient_tank_band_mesh, 1.0)
+	TorusGeometryBudget.apply(_nutrient_tank_band_mesh, 1.0, NUTRIENT_TANK_BAND_NEAREST_VIEW_METRES)
 	_nutrient_tank_band_transforms.clear()
 	for tank_index in 3:
 		var tank_x := 12.30 + float(tank_index) * 1.00
@@ -3496,7 +3522,7 @@ func _build_garden_service(branch: Node3D) -> void:
 	_nutrient_valve_mesh.outer_radius = NUTRIENT_VALVE_OUTER_RADIUS
 	_nutrient_valve_mesh.rings = NUTRIENT_VALVE_RINGS
 	_nutrient_valve_mesh.ring_segments = NUTRIENT_VALVE_RING_SEGMENTS
-	TorusGeometryBudget.apply(_nutrient_valve_mesh, 1.0)
+	TorusGeometryBudget.apply(_nutrient_valve_mesh, 1.0, NUTRIENT_VALVE_NEAREST_VIEW_METRES)
 	_nutrient_valve_transforms.clear()
 	for valve_x in [12.30, 13.30, 14.30]:
 		_nutrient_valve_transforms.append(
@@ -4621,7 +4647,8 @@ func _torus(
 		outer_radius: float,
 		material: Material,
 		rotation_degrees_value: Vector3 = Vector3.ZERO,
-		shared_mesh: TorusMesh = null
+		shared_mesh: TorusMesh = null,
+		nearest_view_metres: float = TorusGeometryBudget.NEAR_EYE_METRES
 	) -> MeshInstance3D:
 	var instance := MeshInstance3D.new()
 	instance.name = node_name
@@ -4634,6 +4661,10 @@ func _torus(
 		mesh.outer_radius = outer_radius
 		mesh.rings = 48
 		mesh.ring_segments = 16
+	# The authored recipe stays as built; the startup sweep solves it at the
+	# declared range. A shared mesh is only ever declared closer, never further.
+	if nearest_view_metres > TorusGeometryBudget.NEAR_EYE_METRES:
+		TorusGeometryBudget.declare_nearest_view(mesh, nearest_view_metres)
 	instance.mesh = mesh
 	instance.material_override = material
 	parent.add_child(instance)

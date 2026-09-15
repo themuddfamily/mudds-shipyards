@@ -153,6 +153,13 @@ const SERVERY_STOOL_FOOT_RING_INNER_RADIUS := 0.18
 const SERVERY_STOOL_FOOT_RING_OUTER_RADIUS := 0.22
 const SERVERY_STOOL_FOOT_RING_RINGS := 32
 const SERVERY_STOOL_FOOT_RING_SEGMENTS := 12
+## The foot ring sits 0.26 m above the servery floor; the closest a standing
+## eye gets is straight down from `StationSurfaceKit.STANDING_EYE_HEIGHT_METRES`.
+## Solved there the 0.2 m sweep meets the tolerance at 20 rings and the 2 cm
+## tube at the cardinal eight.
+const SERVERY_STOOL_FOOT_RING_NEAREST_VIEW_METRES := StationSurfaceKit.STANDING_EYE_HEIGHT_METRES - 0.26
+const SERVERY_STOOL_FOOT_RING_BUDGETED_RINGS := 20
+const SERVERY_STOOL_FOOT_RING_BUDGETED_SEGMENTS := 8
 
 ## Exact post-batch presentation census. Fourteen lacquer joint blocks, five
 ## exterior roof cassettes, six bronze outboard mullion fillets, three servery
@@ -417,8 +424,10 @@ func get_servery_stool_foot_ring_allocation_audit() -> Dictionary:
 	if mesh == null \
 			or not is_equal_approx(mesh.inner_radius, SERVERY_STOOL_FOOT_RING_INNER_RADIUS) \
 			or not is_equal_approx(mesh.outer_radius, SERVERY_STOOL_FOOT_RING_OUTER_RADIUS) \
-			or mesh.rings != SERVERY_STOOL_FOOT_RING_RINGS \
-			or mesh.ring_segments != SERVERY_STOOL_FOOT_RING_SEGMENTS \
+			or mesh.rings != SERVERY_STOOL_FOOT_RING_BUDGETED_RINGS \
+			or mesh.ring_segments != SERVERY_STOOL_FOOT_RING_BUDGETED_SEGMENTS \
+			or mesh.get_meta(TorusGeometryBudget.AUTHORED_META, Vector2i.ZERO) \
+				!= Vector2i(SERVERY_STOOL_FOOT_RING_RINGS, SERVERY_STOOL_FOOT_RING_SEGMENTS) \
 			or mesh.get_surface_count() != 1:
 		errors.append("servery_stool_foot_ring_recipe_drift")
 	if mesh_ids.size() != 1:
@@ -1566,6 +1575,12 @@ func _create_servery_stool_foot_ring_mesh() -> void:
 	_servery_stool_foot_ring_mesh.outer_radius = SERVERY_STOOL_FOOT_RING_OUTER_RADIUS
 	_servery_stool_foot_ring_mesh.rings = SERVERY_STOOL_FOOT_RING_RINGS
 	_servery_stool_foot_ring_mesh.ring_segments = SERVERY_STOOL_FOOT_RING_SEGMENTS
+	# Budgeted eagerly at the declared standing-eye range, retaining the authored
+	# 32x12 as the recipe's provenance metadata, so the allocation audit reads
+	# the same live recipe whether or not the startup sweep has run.
+	TorusGeometryBudget.apply(
+		_servery_stool_foot_ring_mesh, 1.0, SERVERY_STOOL_FOOT_RING_NEAREST_VIEW_METRES
+	)
 
 
 # --- Build -----------------------------------------------------------------

@@ -43,8 +43,14 @@ const POD_CORNER_COLLAR_INNER_RADIUS := 0.25
 const POD_CORNER_COLLAR_OUTER_RADIUS := 0.34
 const POD_CORNER_COLLAR_RINGS := 48
 const POD_CORNER_COLLAR_RING_SEGMENTS := 16
-const POD_CORNER_COLLAR_BUDGETED_RINGS := 34
-const POD_CORNER_COLLAR_BUDGETED_RING_SEGMENTS := 14
+## The four collars ring the pod's crown corners at 4.45 m. From the room floor
+## that is 2.4 m below a standing eye, but the upper open deck (floor at 4.2 m)
+## runs right along the pod's west wall, so the west pair sit 0.25 m above a
+## deck a player walks: deck-flush stock read from a standing eye, and the one
+## shared recipe is solved at `StationSurfaceKit.DECK_FLUSH_NEAREST_VIEW_METRES`.
+const POD_CORNER_COLLAR_NEAREST_VIEW_METRES := StationSurfaceKit.DECK_FLUSH_NEAREST_VIEW_METRES
+const POD_CORNER_COLLAR_BUDGETED_RINGS := 24
+const POD_CORNER_COLLAR_BUDGETED_RING_SEGMENTS := 12
 const POD_CORNER_COLLAR_COPY_COUNT := 4
 const POD_CORNER_COLLAR_FAMILY_META := "aft_visual_resource_family"
 const POD_CORNER_COLLAR_FAMILY_ID: StringName = &"pod_corner_collars"
@@ -62,8 +68,13 @@ const VIP_FACADE_COLUMN_TRIM_INNER_RADIUS := 0.19
 const VIP_FACADE_COLUMN_TRIM_OUTER_RADIUS := 0.28
 const VIP_FACADE_COLUMN_TRIM_RINGS := 48
 const VIP_FACADE_COLUMN_TRIM_RING_SEGMENTS := 16
-const VIP_FACADE_COLUMN_TRIM_BUDGETED_RINGS := 32
-const VIP_FACADE_COLUMN_TRIM_BUDGETED_RING_SEGMENTS := 14
+## The four trims share one recipe, so it is solved at the closest of them:
+## the two at the column feet, 0.2 m above the VIP deck a player walks past,
+## which is deck-flush stock read from a standing eye
+## (`StationSurfaceKit.DECK_FLUSH_NEAREST_VIEW_METRES`). The crown pair 3.6 m
+## higher is coarser than it needs to be by exactly nothing a camera can see.
+const VIP_FACADE_COLUMN_TRIM_BUDGETED_RINGS := 20
+const VIP_FACADE_COLUMN_TRIM_BUDGETED_RING_SEGMENTS := 12
 const VIP_FACADE_COLUMN_TRIM_COPY_COUNT := 4
 const VIP_FACADE_COLUMN_TRIM_TRANSFORMS := [
 	Transform3D(Basis.IDENTITY, Vector3(-9.0, 4.43, 20.02)),
@@ -78,7 +89,9 @@ const SPINE_CLAMP_INNER_RADIUS := 0.16
 const SPINE_CLAMP_OUTER_RADIUS := 0.225
 const SPINE_CLAMP_RINGS := 48
 const SPINE_CLAMP_RING_SEGMENTS := 16
-const SPINE_CLAMP_BUDGETED_RINGS := 32
+## Clamped to the roof service spine at 5.62 m, so declared at
+## `ROOF_MEMBER_NEAREST_VIEW_METRES` like the spine itself: 16 rings there.
+const SPINE_CLAMP_BUDGETED_RINGS := 16
 const SPINE_CLAMP_BUDGETED_RING_SEGMENTS := 8
 const SPINE_CLAMP_COPY_COUNT := 5
 const SPINE_CLAMP_POSITIONS := [
@@ -112,7 +125,10 @@ const CONSOLE_SHOCK_COLLAR_INNER_RADIUS := 0.09
 const CONSOLE_SHOCK_COLLAR_OUTER_RADIUS := 0.13
 const CONSOLE_SHOCK_COLLAR_RINGS := 48
 const CONSOLE_SHOCK_COLLAR_RING_SEGMENTS := 16
-const CONSOLE_SHOCK_COLLAR_BUDGETED_RINGS := 32
+## The collars sit at 0.08 m at the foot of each console's shock mounts, under
+## the plinth: deck-flush stock read from a standing eye, so budgeted at
+## `StationSurfaceKit.DECK_FLUSH_NEAREST_VIEW_METRES`: 16 rings there.
+const CONSOLE_SHOCK_COLLAR_BUDGETED_RINGS := 16
 const CONSOLE_SHOCK_COLLAR_BUDGETED_RING_SEGMENTS := 8
 const CONSOLE_SHOCK_COLLAR_COPY_COUNT := 6
 const CONSOLE_SHOCK_COLLAR_LOCAL_POSITIONS := [
@@ -131,7 +147,10 @@ const PEDESTAL_BEARING_INNER_RADIUS := 0.18
 const PEDESTAL_BEARING_OUTER_RADIUS := 0.25
 const PEDESTAL_BEARING_RINGS := 48
 const PEDESTAL_BEARING_RING_SEGMENTS := 16
-const PEDESTAL_BEARING_BUDGETED_RINGS := 32
+## The bearing rings the chair pedestal at 0.68 m, inside the seat's shadow; a
+## standing eye reads it from about a metre. Solved there: 24 rings.
+const PEDESTAL_BEARING_NEAREST_VIEW_METRES := 1.0
+const PEDESTAL_BEARING_BUDGETED_RINGS := 24
 const PEDESTAL_BEARING_BUDGETED_RING_SEGMENTS := 8
 const PEDESTAL_BEARING_COPY_COUNT := 4
 const PEDESTAL_BEARING_LOCAL_POSITION := Vector3(0.0, 0.68, 0.0)
@@ -143,7 +162,10 @@ const CONDUIT_COLLAR_INNER_RADIUS := 0.1
 const CONDUIT_COLLAR_OUTER_RADIUS := 0.16
 const CONDUIT_COLLAR_RINGS := 48
 const CONDUIT_COLLAR_RING_SEGMENTS := 16
-const CONDUIT_COLLAR_BUDGETED_RINGS := 32
+## The three conduit collars ring the service-wall run at 3.0 m; their
+## undersides are 2.84 m up, and that less a standing eye is the closest case.
+const CONDUIT_COLLAR_NEAREST_VIEW_METRES := 3.0 - CONDUIT_COLLAR_OUTER_RADIUS - 1.75
+const CONDUIT_COLLAR_BUDGETED_RINGS := 20
 const CONDUIT_COLLAR_BUDGETED_RING_SEGMENTS := 8
 const CONDUIT_COLLAR_COPY_COUNT := 3
 const CONDUIT_COLLAR_POSITIONS := [
@@ -168,8 +190,10 @@ const ROOF_VENT_COLLAR_INNER_RADIUS := 0.34
 const ROOF_VENT_COLLAR_OUTER_RADIUS := 0.46
 const ROOF_VENT_COLLAR_RINGS := 48
 const ROOF_VENT_COLLAR_RING_SEGMENTS := 16
-const ROOF_VENT_COLLAR_BUDGETED_RINGS := 40
-const ROOF_VENT_COLLAR_BUDGETED_RING_SEGMENTS := 16
+## On the pod roof at 5.31 m, declared at `ROOF_MEMBER_NEAREST_VIEW_METRES`
+## like the vents and the roof spine: 20 rings and an eight-edge tube there.
+const ROOF_VENT_COLLAR_BUDGETED_RINGS := 20
+const ROOF_VENT_COLLAR_BUDGETED_RING_SEGMENTS := 8
 const ROOF_VENT_COLLAR_COPY_COUNT := 2
 const ROOF_VENT_COLLAR_POSITIONS := [Vector3(3.05, 5.31, 13.0), Vector3(8.1, 5.31, 13.0)]
 const ROOF_VENT_COLLAR_FAMILY_META: StringName = &"aft_roof_vent_collar_family"
@@ -3833,6 +3857,9 @@ func _build_operations_shell(room: Node3D) -> void:
 		POD_CORNER_COLLAR_RING_SEGMENTS
 	)
 	_pod_corner_collar_mesh.resource_name = "AftPodCornerCollarMesh"
+	TorusGeometryBudget.declare_nearest_view(
+		_pod_corner_collar_mesh, POD_CORNER_COLLAR_NEAREST_VIEW_METRES
+	)
 	for corner in [
 		Vector3(0.4, 2.4, 9.18),
 		Vector3(10.8, 2.4, 9.18),
@@ -3893,7 +3920,8 @@ func _prepare_operations_consoles() -> void:
 	TorusGeometryBudget.apply_profile(
 		_console_shock_collar_mesh,
 		1.0,
-		TorusGeometryBudget.PROFILE_AFT_INTERFACE_COLLAR
+		TorusGeometryBudget.PROFILE_AFT_INTERFACE_COLLAR,
+		StationSurfaceKit.DECK_FLUSH_NEAREST_VIEW_METRES
 	)
 
 
@@ -4024,6 +4052,9 @@ func _build_operations_chairs(room: Node3D) -> void:
 		PEDESTAL_BEARING_RING_SEGMENTS
 	)
 	_pedestal_bearing_mesh.resource_name = "AftPedestalBearingMesh"
+	TorusGeometryBudget.declare_nearest_view(
+		_pedestal_bearing_mesh, PEDESTAL_BEARING_NEAREST_VIEW_METRES
+	)
 	for chair_index in 4:
 		var chair_position: Vector3
 		var chair_yaw := 180.0
@@ -4070,6 +4101,7 @@ func _build_operations_shell_detail(room: Node3D) -> void:
 		SPINE_CLAMP_RINGS,
 		SPINE_CLAMP_RING_SEGMENTS
 	)
+	TorusGeometryBudget.declare_nearest_view(_spine_clamp_mesh, ROOF_MEMBER_NEAREST_VIEW_METRES)
 	for spine_position in SPINE_CLAMP_POSITIONS:
 		_interface_collar(
 			envelope,
@@ -4090,6 +4122,7 @@ func _build_operations_shell_detail(room: Node3D) -> void:
 		ROOF_VENT_COLLAR_RINGS,
 		ROOF_VENT_COLLAR_RING_SEGMENTS
 	)
+	TorusGeometryBudget.declare_nearest_view(_roof_vent_collar_mesh, ROOF_MEMBER_NEAREST_VIEW_METRES)
 	for vent_index in 2:
 		var vent_x := 3.05 + float(vent_index) * 5.05
 		_cylinder(envelope, "RoofVent", Vector3(vent_x, 5.18, 13.0), 0.42, 0.28, _materials["hull_dark"], false, Vector3.ZERO, ROOF_MEMBER_NEAREST_VIEW_METRES)
@@ -5318,6 +5351,7 @@ func _build_service_wall(room: Node3D) -> void:
 		CONDUIT_COLLAR_RING_SEGMENTS
 	)
 	_conduit_collar_mesh.resource_name = "AftConduitCollarMesh"
+	TorusGeometryBudget.declare_nearest_view(_conduit_collar_mesh, CONDUIT_COLLAR_NEAREST_VIEW_METRES)
 	for pipe_index in 3:
 		var pipe_z := -2.05 + float(pipe_index) * 2.05
 		_cylinder(service, "ServiceConduit", Vector3(-0.55, 3.65, pipe_z), 0.09, 1.9, _materials["mid_grey"], false)
@@ -5379,9 +5413,10 @@ func _build_vip_landmark(structure: Node3D) -> void:
 		VIP_FACADE_COLUMN_TRIM_RING_SEGMENTS
 	)
 	# MultiMesh resources are not visited by the global MeshInstance3D sweep.
-	# Apply the same budget eagerly and retain its authored metadata so this batch
-	# has the exact live recipe the four retired ordinary renderers had.
-	TorusGeometryBudget.apply(trim_mesh, 1.0)
+	# Apply the same budget eagerly, at the declared deck-flush range of the two
+	# foot trims, and retain its authored metadata so this batch carries the
+	# same provenance the four retired ordinary renderers had.
+	TorusGeometryBudget.apply(trim_mesh, 1.0, StationSurfaceKit.DECK_FLUSH_NEAREST_VIEW_METRES)
 	_vip_facade_column_trim_batch = _multimesh_torus(
 		vip,
 		"VIPFacadeColumnTrimBatch",
@@ -5419,7 +5454,7 @@ func _build_open_structure_details(structure: Node3D) -> void:
 	for side in [-1.0, 1.0]:
 		var x_position: float = float(side) * 4.75
 		_cylinder(details, "JunctionSupport", Vector3(x_position, -0.95, 7.4), 0.24, 1.9, _materials["mid_grey"], true)
-		_torus(details, "SupportCollar", Vector3(x_position, -0.15, 7.4), 0.26, 0.39, _materials["brass"], Vector3(90, 0, 0))
+		_torus(details, "SupportCollar", Vector3(x_position, -0.15, 7.4), 0.26, 0.39, _materials["brass"], Vector3(90, 0, 0), null, UNDERFLOOR_MEMBER_NEAREST_VIEW_METRES)
 	_beam_between(details, "LowerCrossBrace", Vector3(-4.7, -1.2, 6.1), Vector3(4.7, -1.2, 8.7), 0.16, _materials["mid_grey"], false)
 	_beam_between(details, "LowerCrossBraceReturn", Vector3(4.7, -1.2, 6.1), Vector3(-4.7, -1.2, 8.7), 0.16, _materials["mid_grey"], false)
 	for side in [-1.0, 1.0]:
@@ -5977,7 +6012,8 @@ func _torus(
 		outer_radius: float,
 		material: Material,
 		rotation_degrees_value: Vector3 = Vector3.ZERO,
-		shared_mesh: TorusMesh = null
+		shared_mesh: TorusMesh = null,
+		nearest_view_metres: float = TorusGeometryBudget.NEAR_EYE_METRES
 	) -> MeshInstance3D:
 	var instance := MeshInstance3D.new()
 	instance.name = node_name
@@ -5986,6 +6022,10 @@ func _torus(
 	var mesh := shared_mesh
 	if mesh == null:
 		mesh = _torus_mesh(inner_radius, outer_radius, 48, 16)
+	# The authored recipe stays as built; the startup sweep solves it at the
+	# declared range. A shared mesh is only ever declared closer, never further.
+	if nearest_view_metres > TorusGeometryBudget.NEAR_EYE_METRES:
+		TorusGeometryBudget.declare_nearest_view(mesh, nearest_view_metres)
 	instance.mesh = mesh
 	instance.material_override = material
 	parent.add_child(instance)

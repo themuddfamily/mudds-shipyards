@@ -143,6 +143,10 @@ const LASHING_RING_INNER_RADIUS := 0.16
 const LASHING_RING_OUTER_RADIUS := 0.24
 const LASHING_RING_AUTHORED_RINGS := 48
 const LASHING_RING_AUTHORED_RING_SEGMENTS := 12
+## Recessed into the deck plates at 0.075 m, so the sweep solves the ring at
+## `StationSurfaceKit.DECK_FLUSH_NEAREST_VIEW_METRES`: 20 rings, with the
+## profile's cardinal eight-edge tube unchanged.
+const LASHING_RING_BUDGETED_RINGS := 20
 const LASHING_RING_BASELINE_MESH_RESOURCES := 8
 const LASHING_RING_BASELINE_MATERIAL_RESOURCES := 1
 const LASHING_RING_BASELINE_SUBMISSIONS := 8
@@ -1618,7 +1622,7 @@ func get_lashing_ring_visual_allocation_audit() -> Dictionary:
 		if authored_value is Vector2i:
 			authored_segments = authored_value
 	var expected_current_segments := Vector2i(
-		32 if normalised else LASHING_RING_AUTHORED_RINGS,
+		LASHING_RING_BUDGETED_RINGS if normalised else LASHING_RING_AUTHORED_RINGS,
 		TorusGeometryBudget.FREIGHT_RECESSED_LASHING_RING_SEGMENTS \
 			if normalised else LASHING_RING_AUTHORED_RING_SEGMENTS
 	)
@@ -2556,6 +2560,11 @@ func _build_handling_zones() -> void:
 		LASHING_RING_OUTER_RADIUS,
 		LASHING_RING_AUTHORED_RINGS,
 		LASHING_RING_AUTHORED_RING_SEGMENTS
+	)
+	# The authored recipe stays pristine until the startup sweep, which reaches
+	# the batch through the hidden anchors that share this one resource.
+	TorusGeometryBudget.declare_nearest_view(
+		_lashing_ring_mesh, StationSurfaceKit.DECK_FLUSH_NEAREST_VIEW_METRES
 	)
 	_lashing_ring_transforms.clear()
 

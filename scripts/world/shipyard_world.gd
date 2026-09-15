@@ -872,6 +872,18 @@ const GUIDE_LENS_RADIUS := 0.16
 const GUIDE_LENS_HEIGHT := 0.32
 const GUIDE_LENS_RADIAL_SEGMENTS := 24
 const GUIDE_LENS_RINGS := 12
+## The one shared lens is budgeted at the closest any of the fifty gets to a
+## walking player. Forty-six sit on masts, gantry headers, the launch spine and
+## the outbound keel, all metres from any deck; the four that set this figure
+## are the safety-pylon lamps at 1.95 m on the landing pad approaches, which a
+## 1.75 m eye beside the 0.8 m pylon reads from about a metre. At 1 m the shared
+## 0.0021 rad tolerance allows 2.1 mm of sagitta, which the 0.16 m lens meets at
+## 20 meridians (2.0 mm). `rings` is the odd count that puts a vertex ring on the
+## equator, so the lens keeps its exact 0.16 m width: 480 triangles each
+## instead of 624, across fifty batched copies.
+const GUIDE_LENS_NEAREST_VIEW_METRES := 1.0
+const GUIDE_LENS_BUDGETED_RADIAL_SEGMENTS := 20
+const GUIDE_LENS_BUDGETED_RINGS := 11
 const GUIDE_LENS_EXPECTED_COUNT := 50
 const GUIDE_LENS_EXPECTED_RECIPE_COUNT := 4
 const GUIDE_LENS_BASELINE_RETAINED_RESOURCES := 100
@@ -920,8 +932,11 @@ const LANDING_PAD_DECK_CONNECTOR_INNER_RADIUS := 0.16
 const LANDING_PAD_DECK_CONNECTOR_OUTER_RADIUS := 0.24
 const LANDING_PAD_DECK_CONNECTOR_AUTHORED_RINGS := 64
 const LANDING_PAD_DECK_CONNECTOR_AUTHORED_RING_SEGMENTS := 16
-const LANDING_PAD_DECK_CONNECTOR_BUDGETED_RINGS := 32
-const LANDING_PAD_DECK_CONNECTOR_BUDGETED_RING_SEGMENTS := 13
+## Flush on the deck plate at 0.13 m, so budgeted at
+## `StationSurfaceKit.DECK_FLUSH_NEAREST_VIEW_METRES` rather than walk-up: the
+## 0.2 m sweep meets 3.4 mm at 20 rings and the 4 cm tube meets it at 8.
+const LANDING_PAD_DECK_CONNECTOR_BUDGETED_RINGS := 20
+const LANDING_PAD_DECK_CONNECTOR_BUDGETED_RING_SEGMENTS := 8
 const LANDING_PAD_DECK_CONNECTOR_BASELINE_NODES := 3
 const LANDING_PAD_DECK_CONNECTOR_BASELINE_SUBMISSIONS := 3
 const LANDING_PAD_DECK_CONNECTOR_BASELINE_MESH_RESOURCES := 3
@@ -2356,7 +2371,9 @@ func get_tie_down_socket_allocation_audit() -> Dictionary:
 		if mesh != _tie_down_socket_mesh:
 			errors.append("tie_down_socket_mesh_identity_drift")
 		var authored_tessellation := mesh.get_meta(TorusGeometryBudget.AUTHORED_META, Vector2i.ZERO) as Vector2i
-		var budgeted_tessellation := TorusGeometryBudget.plan(mesh.outer_radius, mesh.inner_radius)
+		var budgeted_tessellation := TorusGeometryBudget.plan(
+			mesh.outer_radius, mesh.inner_radius, StationSurfaceKit.DECK_FLUSH_NEAREST_VIEW_METRES
+		)
 		var is_unbudgeted_authored_recipe := not mesh.has_meta(TorusGeometryBudget.AUTHORED_META) \
 				and mesh.rings == 64 and mesh.ring_segments == 16
 		var is_budgeted_authored_recipe := authored_tessellation == Vector2i(64, 16) \
@@ -2793,8 +2810,13 @@ func _guide_lens_mesh_matches_recipe(mesh: SphereMesh) -> bool:
 		mesh != null
 		and is_equal_approx(mesh.radius, GUIDE_LENS_RADIUS)
 		and is_equal_approx(mesh.height, GUIDE_LENS_HEIGHT)
-		and mesh.radial_segments == GUIDE_LENS_RADIAL_SEGMENTS
-		and mesh.rings == GUIDE_LENS_RINGS
+		and mesh.radial_segments == GUIDE_LENS_BUDGETED_RADIAL_SEGMENTS
+		and mesh.rings == GUIDE_LENS_BUDGETED_RINGS
+		and Vector2i(GUIDE_LENS_BUDGETED_RADIAL_SEGMENTS, GUIDE_LENS_BUDGETED_RINGS)
+			== StationSurfaceKit.sphere_tessellation_for(
+				GUIDE_LENS_RADIUS, GUIDE_LENS_NEAREST_VIEW_METRES,
+				GUIDE_LENS_RADIAL_SEGMENTS, GUIDE_LENS_RINGS
+			)
 	)
 
 
@@ -7403,6 +7425,9 @@ func _build_central_utility_bay(pad: Node3D) -> void:
 	_landing_pad_deck_connector_mesh.outer_radius = LANDING_PAD_DECK_CONNECTOR_OUTER_RADIUS
 	_landing_pad_deck_connector_mesh.rings = LANDING_PAD_DECK_CONNECTOR_AUTHORED_RINGS
 	_landing_pad_deck_connector_mesh.ring_segments = LANDING_PAD_DECK_CONNECTOR_AUTHORED_RING_SEGMENTS
+	TorusGeometryBudget.declare_nearest_view(
+		_landing_pad_deck_connector_mesh, StationSurfaceKit.DECK_FLUSH_NEAREST_VIEW_METRES
+	)
 	var utility_specs := [
 		["Power", -5.4, "orange", "berth_orange_glow"],
 		["Data", -9.6, "steel_blue", "berth_cyan_glow"],
@@ -7535,6 +7560,12 @@ func _build_central_deck_details(pad: Node3D) -> void:
 	_tie_down_socket_mesh.outer_radius = 0.25
 	_tie_down_socket_mesh.rings = 64
 	_tie_down_socket_mesh.ring_segments = 16
+	# Flush in the deck plate at 0.125 m: the closest a standing eye gets is
+	# straight down. The authored recipe stays pristine until the startup sweep,
+	# which solves it at this declared range instead of walk-up.
+	TorusGeometryBudget.declare_nearest_view(
+		_tie_down_socket_mesh, StationSurfaceKit.DECK_FLUSH_NEAREST_VIEW_METRES
+	)
 	for tie_position in [
 		Vector3(-8.7, 0.125, -21.5),
 		Vector3(8.7, 0.125, -21.5),
@@ -9423,7 +9454,7 @@ func _build_exterior_range() -> void:
 
 	# A distant maintenance beacon and antenna give scale to free flight.
 	_cylinder(exterior, "BeaconMast", Vector3(-48, 0, -145), 1.1, 26, _materials["steel_blue"])
-	_torus(exterior, "BeaconRing", Vector3(-48, 9, -145), 4.5, 4.85, _materials["orange_glow"], Vector3(90, 0, 0))
+	_torus(exterior, "BeaconRing", Vector3(-48, 9, -145), 4.5, 4.85, _materials["orange_glow"], Vector3(90, 0, 0), null, EXTERIOR_TARGET_RANGE_APPROACH_METRES)
 	_add_guide_light(exterior, Vector3(-48, 13.4, -145), ALERT_RED, true, 8.0, 38.0)
 
 
@@ -9716,8 +9747,11 @@ func _create_target(parent: Node3D, index: int, target_position: Vector3) -> voi
 	visual.name = "DroneVisual"
 	target.add_child(visual)
 	_add_exterior_target_core(visual)
-	_torus(visual, "OuterRing", Vector3.ZERO, 2.25, 2.55, _materials["ivory"], Vector3(90, 0, 0))
-	_torus(visual, "InnerRing", Vector3.ZERO, 1.75, 1.93, _materials["cyan_glow"], Vector3(0, 0, 90))
+	# Both rings float in the exterior range with no deck under them; like the
+	# lamps below they are budgeted at the declared hull approach, which takes
+	# the tube section from 16 to 12 and leaves the 40-ring sweep intact.
+	_torus(visual, "OuterRing", Vector3.ZERO, 2.25, 2.55, _materials["ivory"], Vector3(90, 0, 0), null, EXTERIOR_TARGET_RANGE_APPROACH_METRES)
+	_torus(visual, "InnerRing", Vector3.ZERO, 1.75, 1.93, _materials["cyan_glow"], Vector3(0, 0, 90), null, EXTERIOR_TARGET_RANGE_APPROACH_METRES)
 	_add_exterior_target_approach_frame(visual)
 	for angle in [0.0, 90.0, 180.0, 270.0]:
 		var radians := deg_to_rad(angle)
@@ -10077,8 +10111,14 @@ func _shared_guide_lens_mesh() -> SphereMesh:
 		_guide_lens_mesh = SphereMesh.new()
 		_guide_lens_mesh.radius = GUIDE_LENS_RADIUS
 		_guide_lens_mesh.height = GUIDE_LENS_HEIGHT
-		_guide_lens_mesh.radial_segments = GUIDE_LENS_RADIAL_SEGMENTS
-		_guide_lens_mesh.rings = GUIDE_LENS_RINGS
+		# Budgeted once at the declared nearest approach; the batches share this
+		# one resource, so the closest lens governs every copy.
+		var tessellation := StationSurfaceKit.sphere_tessellation_for(
+			GUIDE_LENS_RADIUS, GUIDE_LENS_NEAREST_VIEW_METRES,
+			GUIDE_LENS_RADIAL_SEGMENTS, GUIDE_LENS_RINGS
+		)
+		_guide_lens_mesh.radial_segments = tessellation.x
+		_guide_lens_mesh.rings = tessellation.y
 	return _guide_lens_mesh
 
 
@@ -10789,7 +10829,8 @@ func _torus(
 	outer_radius: float,
 	material: Material,
 	torus_rotation_degrees: Vector3 = Vector3.ZERO,
-	shared_mesh: TorusMesh = null
+	shared_mesh: TorusMesh = null,
+	nearest_view_metres: float = TorusGeometryBudget.NEAR_EYE_METRES
 ) -> MeshInstance3D:
 	var mesh_instance := MeshInstance3D.new()
 	mesh_instance.name = node_name
@@ -10802,6 +10843,10 @@ func _torus(
 		torus_mesh.outer_radius = outer_radius
 		torus_mesh.rings = 64
 		torus_mesh.ring_segments = 16
+	# The authored recipe stays as built; the startup sweep solves it at the
+	# declared range. A shared mesh is only ever declared closer, never further.
+	if nearest_view_metres > TorusGeometryBudget.NEAR_EYE_METRES:
+		TorusGeometryBudget.declare_nearest_view(torus_mesh, nearest_view_metres)
 	mesh_instance.mesh = torus_mesh
 	mesh_instance.material_override = material
 	parent.add_child(mesh_instance)

@@ -1412,7 +1412,7 @@ func _test_recessed_lashing_ring_profile(module: JovianFreightBerth) -> void:
 			and mesh.get_aabb().is_equal_approx(expected_aabb) \
 			and is_equal_approx(mesh.inner_radius, 0.16) \
 			and is_equal_approx(mesh.outer_radius, 0.24) \
-			and mesh.rings == 32 \
+			and mesh.rings == JovianFreightBerth.LASHING_RING_BUDGETED_RINGS \
 			and mesh.ring_segments \
 				== TorusGeometryBudget.FREIGHT_RECESSED_LASHING_RING_SEGMENTS \
 			and mesh.get_surface_count() == 1 \
@@ -1431,7 +1431,7 @@ func _test_recessed_lashing_ring_profile(module: JovianFreightBerth) -> void:
 		and observed_names == expected_names
 		and observed_paths == expected_paths
 		and baseline_triangles == 6144
-		and profile_triangles == 4096,
+		and profile_triangles == 2560,
 		"profile keeps the exact eight-path/name bijection, transforms, shared resource, materials, surfaces, radii and AABBs while cutting only 6144 -> 4096 tube triangles"
 	)
 	_check(
@@ -1446,7 +1446,7 @@ func _test_recessed_lashing_ring_profile(module: JovianFreightBerth) -> void:
 		and int(profile_report.get("instances", 0)) == 8
 		and int(profile_report.get("surfaces", 0)) == 8
 		and int(profile_report.get("triangles_baseline", 0)) == 6144
-		and int(profile_report.get("triangles_after", 0)) == 4096,
+		and int(profile_report.get("triangles_after", 0)) == 2560,
 		"profile report derives the exact one-resource/eight-instance/eight-surface family after sharing"
 	)
 	# The live parent roster was 899 descendants, 399 MeshInstances, 12 batches
@@ -1511,7 +1511,7 @@ func _test_lashing_ring_visual_allocation(module: JovianFreightBerth) -> void:
 		and is_equal_approx(float(mesh_recipe.get("outer_radius", -1.0)), 0.24)
 		and int(mesh_recipe.get("authored_rings", 0)) == 48
 		and int(mesh_recipe.get("authored_ring_segments", 0)) == 12
-		and int(mesh_recipe.get("rings", 0)) == 32
+		and int(mesh_recipe.get("rings", 0)) == JovianFreightBerth.LASHING_RING_BUDGETED_RINGS
 		and int(mesh_recipe.get("ring_segments", 0)) == 8
 		and int(mesh_recipe.get("surface_count", 0)) == 1
 		and (mesh_recipe.get("aabb", AABB()) as AABB).is_equal_approx(
