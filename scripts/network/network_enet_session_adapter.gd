@@ -109,6 +109,12 @@ const MOVING_INTERIOR_MAX_BYTES_PER_WINDOW := 24000
 ## authority; a flood of critical snapshots is a flood of ordinary packets.
 const MOVING_INTERIOR_PRIORITY_NORMAL := 0
 const MOVING_INTERIOR_PRIORITY_CRITICAL := 1
+## How often the publisher re-states a secured occupant whose pose has not
+## changed. The transition is published at once; between transitions the seat
+## pose is skipped and re-sent only on this cadence. It is the client ordering
+## buffer's own gap limit, so a cabin whose only occupant is a seated pilot is
+## a quiet stream and never a stall to re-baseline.
+const MOVING_INTERIOR_SECURED_KEEPALIVE_TICKS := SnapshotJitterBuffer.MAX_TICK_GAP
 ## The authoritative moving-interior publication rate. A relationship carries a
 ## `server_tick`, but `NetworkMovingInteriorReplica` interpolates and
 ## extrapolates on a wall-clock seconds axis, so the tick is converted once, at

@@ -50,7 +50,16 @@ func accept_snapshot(source_peer_id: int, snapshot: Dictionary, migration_genera
 		return _remember(_result(false, &"entity_capacity"))
 	var gap := tick - previous_tick if previous_tick >= 0 else 0
 	_last_ticks[entity_id] = tick
-	if gap > _max_hold_ticks and _current.has(entity_id) and not bool(_frozen.get(entity_id, false)):
+	# A secured pose is a fact, not a stride, and the server re-states it only
+	# on its keep-alive cadence — wider than this hold on purpose. Holding it
+	# would freeze a pose that has not moved, and holding the packet that
+	# *changes* the occupancy state (sat down, stood up) would draw the seat
+	# transition a packet late. Neither is a gap in a stride; both are accepted
+	# at once. Only an on-foot stride that went quiet is frozen.
+	var transition := _current.has(entity_id) \
+		and (_current[entity_id] as Relationship).get_occupancy_state() != relationship.get_occupancy_state()
+	if gap > _max_hold_ticks and _current.has(entity_id) and not bool(_frozen.get(entity_id, false)) \
+			and not relationship.is_secured_occupancy() and not transition:
 		_pending[entity_id] = relationship
 		_frozen[entity_id] = true
 		return _remember(_result(true, &"gap_hold", {"entity_id": entity_id, "gap_ticks": gap, "frozen": true}))

@@ -319,6 +319,30 @@ budget really does coalesce (32 snapshots in one measured run), the walking body
 is the one that falls behind, and the secured body's worst observed lag is one
 tick.
 
+**A secured pose is stated, then kept alive (2026-09-15).** Publishing the
+seat pose at critical priority *every tick* forced it past the budget every
+tick and counted it, so with 1 + N snapshots a tick the walkers' window was
+full a few ticks in. The pose of a seated pilot does not change between the
+moment they sit and the moment they stand, so `GameFlow` now publishes a
+secured occupant at critical priority on the transition (the state changed,
+or the pose moved past `NETWORK_MOVING_INTERIOR_SECURED_POSE_EPSILON`), skips
+it outright while unchanged, and re-states it every
+`MOVING_INTERIOR_SECURED_KEEPALIVE_TICKS` (8). The cadence is the adapter's
+and equals the client ordering buffer's `MAX_TICK_GAP`: a cabin whose only
+occupant is a seated pilot is a quiet stream, not a stall to re-baseline. A
+roster change (a peer joined, a body arrived) re-states every secured pose on
+the next tick, so a late joiner is never shown an empty seat for a keep-alive.
+The client's relationship stream — the adapter builds it with a two-tick hold,
+which the latency gate pins — no longer gap-holds a secured relationship or a
+packet that changes the occupancy state: a seat pose is a fact rather than a
+stride, and holding the packet that says "stood up" would draw the transition
+a packet late. Only an on-foot stride that goes quiet is frozen, as before.
+The publication audit counts `secured_transitions`, `secured_keepalives` and
+`secured_skipped` beside `secured_snapshots`; the publication suite checks
+that a busy cabin still coalesces the walker, that the seat is never parked,
+that its keep-alives arrive within the cadence, and that the client's buffer
+re-baselines nothing.
+
 ### Retirement
 
 Occupancy retires by mark-and-sweep on the same tick: an entity the publish pass
@@ -476,10 +500,30 @@ seats and bunks the *server* body's interaction area overlaps, within the
 host's own `STATION_SEAT_MAX_REACH`, through the production `StationSeat`
 reservation, `begin_boarding()` and `begin_disembark()`; a bunk sets the
 sleeping context, a seat the seated context, and the publisher reports
-`STATE_SLEEPING` / `STATE_SEATED` off the body. A walking intent while seated
-moves nothing. Bodies are released on peer disconnect, session stop, craft
-loss, occupancy loss and whole-Main detach; none survives the session, so the
-resident scene census is unchanged when nobody is aboard.
+`STATE_SLEEPING` / `STATE_SEATED` off the body. Bodies are released on peer
+disconnect, session stop, craft loss, occupancy loss and whole-Main detach;
+none survives the session, so the resident scene census is unchanged when
+nobody is aboard.
+
+**A seat changes the ledger's mode, not just the body's posture (2026-09-15).**
+The moment a body claims a seat or bunk, the simulation reports it to the
+movement ledger through the adapter's new `set_avatar_mode()` seam as
+`NetworkMovementAuthority.MODE_SEATED`, and as `MODE_ON_FOOT` again when it
+stands. While seated, a walking intent from the owner is refused *by the
+ledger* — status `action_not_allowed_in_mode`, `reason`
+`movement_while_seated`, `mode` `seated` — rather than accepted and then
+ignored by a body that cannot walk; the same rule names `board_while_seated`
+and `disembark_while_on_foot`. Every refusal is counted in the authority's
+audit by status (`intent_refusals`) and every mode refusal by reason
+(`mode_refusals`), beside `seated_avatar_count` and `mode_changes`; the
+simulation's own audit counts `mode_switches` and `mode_switches_refused`.
+The hold-window freeze is an on-foot rule and is not applied while the body
+is off its feet: silence from an owner whose walking intents are being
+refused is the refusal count, not a delivery gap. The remote-body suite
+streams a forward intent at a sleeping body over real ENet and checks that
+the ledger refuses every packet by name, that nothing streamed after the plan
+changed was accepted, that the body does not move, and that standing puts
+the avatar back on foot and walking is accepted again on the same stream.
 
 `GameFlow` admits a body automatically when a remote peer's non-pilot crew
 role is admitted on the active Halyard (`_on_network_crew_role_result()`),
@@ -488,6 +532,39 @@ for any other seam. The publisher marks a simulated occupant
 (`server_simulated`) and sends it to every admitted peer including its owner:
 the owner is no longer simulating it and follows the authority like any other
 client.
+
+**The hatch admits a body (2026-09-15).** The production boarding path now
+stands one up too. On the authority, `_on_network_session_started()`
+registers every fleet craft with a walkable interior in the boarding ledger
+— its ship record bound to `frame_<ship_id>`, its `<ship_id>_pilot` seat, and
+`GameFlow.NETWORK_CABIN_BERTH_COUNT` (4) cabin berths
+`<ship_id>_cabin_01..04` with role `passenger` — through
+`_ensure_network_boarding_ship_registered()`, which the host's own seat
+publication shares; the registry is cleared with the session so a re-host
+registers afresh. A remote peer boards through the ledger's own wire
+(`NetworkBoardingIntent`, `send_boarding_intent()`), and the ledger keeps
+every check it had: sender, ship / frame / seat generations, sequence, tick
+window, role against seat, one avatar per seat. `GameFlow` binds
+`boarding_intent_result` and, on a confirmed `boarded` claim from a remote
+peer, stands a server-simulated body at that craft's cabin stand pose for a
+cabin berth, or does nothing for the pilot seat — a remote pilot who boards
+and sits still gets the pilot seat and no walking body. A confirmed
+`disembarked` from a berth releases the body, only if the peer that
+disembarked owns it (`hatch_disembark`). The seam re-checks nothing the
+ledger checked and claims nothing itself; a refused claim never reaches it.
+Its audit rides on `get_network_remote_body_audit()`: `hatch_admissions`,
+`hatch_releases`, `hatch_pilot_seats`, `hatch_refusals`, `last_hatch_status`.
+The remote-body suite drives this over real ENet: a passenger claim on the
+pilot seat is refused by the ledger (`role_mismatch`), a berth claim stands a
+body at the stand pose that the observer is shown, a second peer's claim on
+the held berth is refused (`seat_occupied`), a pilot claim stands nobody up,
+a disembark by a peer holding no berth releases nothing, the owner's
+disembark releases the body and retires its avatar, and the freed berth can
+be claimed again. The boarding ledger's own server tick is not advanced by
+`GameFlow` (it never was), so a client stamps its boarding intent at the
+ledger's tick; and the ledger holds no occupancy for the host's own seat, so
+a remote pilot claim on a craft the host is flying is accepted by the ledger
+as before — both are pre-existing ledger contracts this seam leaves alone.
 
 ### Client presentation and prediction
 
@@ -581,29 +658,78 @@ body ever left the deck or the envelope. Two things follow for broadening
 player counts: a seated pilot's unchanged pose does not need a critical
 snapshot every tick (a transition plus a keepalive would leave most of the
 window to the walkers), and the ceiling itself was sized for two occupants.
-Neither is changed here.
+The first is changed below; the second is not.
+
+#### After the secured keep-alive (2026-09-15)
+
+The same sweep, same profiles, same seed, after the seat pose is stated on
+the transition and kept alive every 8 ticks instead of forced every tick, and
+after the client stream stopped gap-holding secured poses and state
+transitions. Three columns are new: worst pose *age* is the largest number of
+server ticks between the observer's newest accepted pose for a body and the
+tick it was sampled at — the lag in metres depends on how fast that body
+happened to be walking, the age does not; "held" is how many of the 60
+sampling rounds found the observer's relationship stream holding some
+entity in a gap; "stalls" is how many times the observer's ordering buffer
+re-baselined on a gap wider than 8 ticks. Before comparing across the two
+tables, note the run-to-run variance of the metre column: the *old* code
+re-measured on this machine immediately before the change gave 3.093 m for
+N = 4 clean (the table above recorded 4.156 m), 1.862 m for N = 2 clean and
+0.773 m for N = 1 clean, with the other rows within a few tenths of the table.
+
+| Bodies | Profile | Ticks | Snapshots / tick | Coalesced updates | Worst pose lag (m) | Worst age (ticks) | Held / stalls | Reconstruction (m) | Dropped / sent |
+|---|---|---|---|---|---|---|---|---|---|
+| 1 (+ pilot) | clean | 60 | 1.13 | 110 | 0.483 | 7 | 0 / 0 | 0.0000 | 0 / 260 |
+| 1 (+ pilot) | 80 ms ± 20 | 60 | 1.12 | 115 | 0.922 | 10 | 2 / 0 | 0.0000 | 0 / 250 |
+| 1 (+ pilot) | 200 ms ± 60 | 60 | 1.13 | 110 | 1.564 | 17 | 3 / 0 | 0.0000 | 0 / 260 |
+| 1 (+ pilot) | 350 ms ± 120 + 2 % loss | 60 | 1.12 | 115 | 1.867 | 35 | 6 / 2 | 0.0000 | 1 / 250 |
+| 2 (+ pilot) | clean | 60 | 2.13 | 440 | 2.800 | 34 | 13 / 1 | 0.0000 | 0 / 260 |
+| 2 (+ pilot) | 80 ms ± 20 | 60 | 2.12 | 430 | 1.252 | 13 | 6 / 0 | 0.0000 | 0 / 265 |
+| 2 (+ pilot) | 200 ms ± 60 | 60 | 2.13 | 440 | 1.727 | 32 | 24 / 2 | 0.0000 | 0 / 260 |
+| 2 (+ pilot) | 350 ms ± 120 + 2 % loss | 60 | 2.12 | 430 | 2.088 | 54 | 46 / 4 | 0.0000 | 10 / 265 |
+| 4 (+ pilot) | clean | 60 | 4.13 | 1090 | 0.967 | 19 | 10 / 1 | 0.0000 | 0 / 270 |
+| 4 (+ pilot) | 80 ms ± 20 | 60 | 4.12 | 1085 | 2.017 | 24 | 24 / 1 | 0.0000 | 0 / 270 |
+| 4 (+ pilot) | 200 ms ± 60 | 60 | 4.13 | 1090 | 1.932 | 44 | 51 / 3 | 0.0000 | 0 / 270 |
+| 4 (+ pilot) | 350 ms ± 120 + 2 % loss | 60 | 4.12 | 1085 | 2.113 | 54 | 42 / 4 | 0.0000 | 8 / 270 |
+
+Snapshots per tick are now N + 0.13: the pilot costs one snapshot per
+keep-alive and the transition, not one per tick. Coalesced updates barely
+move (1110 → 1090 at N = 4) because the ceiling, not the pilot, is what four
+walkers at 60 Hz run into; what changed is who gets the freed slot. The
+worst lag at N = 4 fell from 4.156 m (3.093 m re-measured) to 0.967 m on the
+clean link and to 2.11 m on the worst profile, and the whole sweep's worst
+went from 4.156 m to 2.80 m — now at N = 2 clean, a 34-tick age on a body
+caught at the end of a two-window park; the age column shows the shape:
+ages under 20 ticks on clean and 80 ms links, and 30–55 ticks on the 200 and
+350 ms profiles where the shim's own delay and reordering add to the budget's
+park. Reconstruction is exact in every row (the seat pose transition is
+still never coalesced, and every accepted walker pose is the authority's),
+no body left the deck or the envelope, and the observer's ordering buffer
+re-baselined only under the latency profiles, never on the clean link. The
+metre column at N = 1 and N = 2 is within the run-to-run variance noted
+above; the N = 4 improvement is not.
 
 ## What remains before broadening player counts
 
-* **The budget ceiling is the crowd's floor.** The table above is the
-  characterisation: with a seated pilot forced past the budget every tick, a
-  recipient's window is full a few ticks in and every walker is parked until
-  the roll, so a walking crowd trails by one to two metres on a clean link and
-  by four when a sample lands on a gap-hold. Two changes would buy real
-  headroom and neither is made here: a secured occupant does not need a
-  critical snapshot every tick (a transition plus a keepalive would leave most
-  of the window to the walkers), and the 8-snapshots/10-tick ceiling was sized
-  for two occupants.
+* **The budget ceiling is the crowd's floor.** The second crowd table is the
+  characterisation: the seated pilot no longer spends a slot per tick, and
+  the freed slot took the four-body clean-link lag from four metres to one,
+  but four walkers at 60 Hz still offer forty snapshots per ten-tick window
+  to an eight-slot ceiling, so every walker is parked until the roll and
+  worst ages of 20–55 ticks remain on the latency profiles. The
+  8-snapshots/10-tick ceiling was sized for two occupants and is unchanged.
 * **The client half of a simulated body has not run as a whole game.** The
   owning `GameFlow` streams intent and corrects its prediction from
   `_physics_process`, and the intent source, the reconciliation and the server
   body are all measured — but through bare client adapters driving the same
   source class, not through a second production Main on the other end. A
   two-process, two-`GameFlow` run is the next gate for that seam.
-* **Bodies are admitted through the crew-role seam or by explicit call.** A
-  remote crew member who is aboard without a crew role has no body until
-  something calls `admit_network_remote_body()`; the boarding and hatch seams
-  do not yet do so.
+* **The hatch has four berths per craft and no client seam.** A remote peer
+  boards through the ledger's wire, which no production client sends yet;
+  the berth count is the ledger's one-avatar-per-seat rule, not the cabin's
+  volume. A remote pilot's claim on a craft the host is flying is accepted by
+  the ledger (it holds no occupancy for the host's seat), which is the
+  ledger's contract to change, not the hatch seam's.
 * **Five clients on loopback.** Interest management and the resync baseline
   under many occupants are still untested at latency.
 * **Loss is injected above ENet.** The relationship RPC is reliable, so the 2 %

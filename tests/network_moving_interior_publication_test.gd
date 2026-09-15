@@ -233,39 +233,73 @@ func _assert_steady_state_costs_nothing() -> void:
 	_check(int(after.get("records_built", 0)) == int(before.get("records_built", 0))
 		and int(after.get("recipient_rebuilds", 0)) == int(before.get("recipient_rebuilds", 0)),
 		"a steady leg builds no occupant record and no recipient list")
-	_check(int(after.get("published", 0)) > int(before.get("published", 0)) + 30,
-		"the host is still publishing the cabin every tick while it costs nothing to do so")
+	# A seated pilot alone is a secured pose: stated on the transition, then
+	# re-stated on the keep-alive cadence and skipped between. The host still
+	# decides every tick; it just no longer sends a fact that has not changed.
+	var ticks := int(after.get("ticks", 0)) - int(before.get("ticks", 0))
+	var published := int(after.get("published", 0)) - int(before.get("published", 0))
+	var skipped := int(after.get("secured_skipped", 0)) - int(before.get("secured_skipped", 0))
+	_check(ticks >= 40 and published + skipped >= ticks
+		and published >= ticks / GameFlow.NETWORK_MOVING_INTERIOR_SECURED_KEEPALIVE_TICKS
+		and published <= ticks / GameFlow.NETWORK_MOVING_INTERIOR_SECURED_KEEPALIVE_TICKS + 2,
+		"the host still decides the cabin every tick while it costs nothing, and sends the unchanged seat only as keep-alives (%d ticks, %d published, %d skipped)"
+			% [ticks, published, skipped])
 
 
-## Two occupants at 60 Hz is more than the 8-snapshots-per-10-tick budget can
-## carry, so the walking body is coalesced — which is the point of the budget.
-## The secured occupant is not: a pilot whose seat snapshot is parked is drawn
-## standing in mid-cabin on every other client until they get up again.
+## A walking body at 60 Hz beside a seated pilot is more than the
+## 8-snapshots-per-10-tick budget can carry, so the walking body is coalesced —
+## which is the point of the budget. The secured occupant never is: its seat
+## pose goes out at critical priority on the transition and then only as a
+## bounded keep-alive, so it is never parked, and it no longer spends a budget
+## slot every tick that the walkers could have had.
 func _assert_a_busy_cabin_never_coalesces_the_seat() -> void:
 	_stand_second_crew_member_in_the_cabin()
+	var audit_before: Dictionary = _game.get_network_moving_interior_publication_audit()
 	await _drive(40)
 	var viewer: int = _client_peer_ids[0]
 	var budget: Dictionary = _server.get_moving_interior_budget_snapshot(viewer)
+	var audit_after: Dictionary = _game.get_network_moving_interior_publication_audit()
 	_check(int(budget.get("coalesced_count", 0)) > 0,
 		"a busy cabin really does exhaust the per-recipient budget (%d coalesced)"
 			% int(budget.get("coalesced_count", 0)))
-	_check(int(budget.get("forced_priority_count", 0)) > 0,
-		"the secured occupant is forced through that full budget (%d times)"
-			% int(budget.get("forced_priority_count", 0)))
+	var ticks := int(audit_after.get("ticks", 0)) - int(audit_before.get("ticks", 0))
+	var secured := int(audit_after.get("secured_snapshots", 0)) - int(audit_before.get("secured_snapshots", 0))
+	var keepalives := int(audit_after.get("secured_keepalives", 0)) - int(audit_before.get("secured_keepalives", 0))
+	var skipped := int(audit_after.get("secured_skipped", 0)) - int(audit_before.get("secured_skipped", 0))
+	_check(ticks >= 40 and keepalives >= 3
+		and secured <= ticks / GameFlow.NETWORK_MOVING_INTERIOR_SECURED_KEEPALIVE_TICKS + 2
+		and secured + skipped >= ticks,
+		"an unchanged seat pose is published as a bounded keep-alive, not every tick (%d secured, %d keepalives, %d skipped in %d ticks)"
+			% [secured, keepalives, skipped, ticks])
 	var seat_lag := 0
 	var walker_lag := 0
+	var seat_parked := false
+	var walker_parked := false
+	# On a loaded machine one round spans several physics ticks; the lag a
+	# round can observe is the cadence plus however many ticks that round took.
+	var round_ticks := 1
+	var last_tick := int(_game.get_network_moving_interior_publication_audit().get("server_tick", 0))
 	for _round in 30:
 		await _drive(1)
 		var tick := int(_game.get_network_moving_interior_publication_audit().get("server_tick", 0))
+		round_ticks = maxi(round_ticks, tick - last_tick)
+		last_tick = tick
 		seat_lag = maxi(seat_lag, tick - int(_sample(_clients[0], PILOT_ENTITY).get("server_tick", 0)))
 		var walker := _sample(_clients[0], CREW_ENTITY)
 		if not walker.is_empty():
 			walker_lag = maxi(walker_lag, tick - int(walker.get("server_tick", 0)))
-	_check(seat_lag <= Adapter.MOVING_INTERIOR_BUDGET_WINDOW_TICKS,
-		"the seat snapshot is never parked by the budget (worst lag %d ticks)" % seat_lag)
-	_check(walker_lag > seat_lag,
-		"the walking occupant is the one the budget coalesces (%d ticks against %d)"
-			% [walker_lag, seat_lag])
+		var pending: Dictionary = _server._moving_recipient_pending.get(viewer, {}) as Dictionary
+		seat_parked = seat_parked or pending.has(PILOT_ENTITY)
+		walker_parked = walker_parked or pending.has(CREW_ENTITY)
+	_check(seat_lag <= GameFlow.NETWORK_MOVING_INTERIOR_SECURED_KEEPALIVE_TICKS + round_ticks + 1,
+		"the seat pose is refreshed within the keep-alive cadence (worst lag %d ticks, rounds of up to %d ticks)"
+			% [seat_lag, round_ticks])
+	_check(int(_clients[0]._moving_stall_rebaselines) == 0,
+		"the keep-alive cadence never looks like a stall to the client's ordering buffer (%d re-baselines)"
+			% int(_clients[0]._moving_stall_rebaselines))
+	_check(not seat_parked and walker_parked,
+		"the walking occupant is the one the budget parks; the seat snapshot never is (walker lag %d ticks)"
+			% walker_lag)
 	# The second crew member belongs to the second client, which is simulating
 	# that body itself. Handing it back its own echo would stand two of them in
 	# the cabin, one frame apart.
@@ -386,12 +420,15 @@ func _assert_the_bunk_publishes_its_own_state() -> void:
 			"client %d is told the crewmate is asleep in a bunk, not standing still" % index)
 	_check(int(_presenter.get_avatar_occupancy_state(PILOT_ENTITY)) == Relationship.STATE_SLEEPING,
 		"the drawn body is posed as a sleeper rather than an idle stander")
-	var sleeping_budget: Dictionary = _server.get_moving_interior_budget_snapshot(_client_peer_ids[0])
-	var forced_before := int(sleeping_budget.get("forced_priority_count", 0))
+	var sleeping_audit: Dictionary = _game.get_network_moving_interior_publication_audit()
 	await _drive(20)
-	_check(int(_server.get_moving_interior_budget_snapshot(_client_peer_ids[0])
-			.get("forced_priority_count", 0)) > forced_before,
-		"a sleeper is a secured occupant and outranks the coalescing budget too")
+	var rested_audit: Dictionary = _game.get_network_moving_interior_publication_audit()
+	var secured := int(rested_audit.get("secured_snapshots", 0)) - int(sleeping_audit.get("secured_snapshots", 0))
+	var keepalives := int(rested_audit.get("secured_keepalives", 0)) - int(sleeping_audit.get("secured_keepalives", 0))
+	_check(keepalives >= 1 and secured <= 20 / GameFlow.NETWORK_MOVING_INTERIOR_SECURED_KEEPALIVE_TICKS + 2
+		and not (_server._moving_recipient_pending.get(_client_peer_ids[0], {}) as Dictionary).has(PILOT_ENTITY),
+		"a sleeper is a secured occupant too: kept alive on the bounded cadence and never parked (%d secured, %d keepalives)"
+			% [secured, keepalives])
 	await _press_live_action(&"interact", 1)
 	var awake := await _wait_until(func() -> bool: return not _player.is_sleeping(), 3.0)
 	_check(awake, "E wakes the crewmate again")

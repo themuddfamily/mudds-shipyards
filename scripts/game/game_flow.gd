@@ -119,6 +119,18 @@ const NETWORK_MOVING_INTERIOR_IDENTITY_META: StringName = &"_network_moving_inte
 ## How the session adapter spells "every admitted peer". Shared and never
 ## mutated, so the common case of publishing the host's own body costs no array.
 const NETWORK_MOVING_INTERIOR_ALL_PEERS: Array = []
+## How often a secured (seated or sleeping) occupant whose pose has not moved
+## is re-stated at critical priority. The transition into or out of a seat is
+## always published at once and never coalesced; between transitions the pose
+## is a fact that does not change, so re-sending it every tick only spent a
+## budget slot the walkers needed. The cadence is the adapter's: the widest
+## silence the client's ordering buffer accepts without treating it as a stall.
+const NETWORK_MOVING_INTERIOR_SECURED_KEEPALIVE_TICKS := \
+	NetworkSessionAdapterType.MOVING_INTERIOR_SECURED_KEEPALIVE_TICKS
+## How far a secured occupant's frame-local pose may drift, in metres and in
+## basis-column length, before it counts as a new pose rather than float noise
+## from re-deriving the seat anchor against a moving hull.
+const NETWORK_MOVING_INTERIOR_SECURED_POSE_EPSILON := 0.002
 const NearbySectorActivityAudioBindingType := preload(
 	"res://scripts/audio/nearby_sector_activity_audio_binding.gd"
 )
@@ -698,6 +710,9 @@ var _network_moving_interior_audit: Dictionary = {
 	"ticks": 0,
 	"published": 0,
 	"secured_snapshots": 0,
+	"secured_transitions": 0,
+	"secured_keepalives": 0,
+	"secured_skipped": 0,
 	"retired": 0,
 	"rebuilds": 0,
 	"records_built": 0,
@@ -7883,11 +7898,15 @@ func _publish_network_moving_interior_state(ship_to_publish: HeroShip, now_seate
 ##   simulating the body locally and would otherwise draw the server's echo of
 ##   it a frame behind the one they are steering. The host's own player has no
 ##   remote peer to exclude and goes to everyone.
-## * **A secured occupant outranks the budget.** The per-recipient budget
-##   coalesces ordinary walking snapshots, which is right — a parked stride is
-##   replaced a few ticks later. A seat or bunk pose is not one of a stream, so
-##   it is published at `MOVING_INTERIOR_PRIORITY_CRITICAL` and a busy cabin can
-##   never leave a pilot drawn standing in mid-air.
+## * **A secured occupant outranks the budget, and then stops spending it.**
+##   The per-recipient budget coalesces ordinary walking snapshots, which is
+##   right — a parked stride is replaced a few ticks later. A seat or bunk
+##   pose is not one of a stream, so the tick it becomes true (or moves) it is
+##   published at `MOVING_INTERIOR_PRIORITY_CRITICAL` and a busy cabin can
+##   never leave a pilot drawn standing in mid-air. After that the pose is a
+##   fact that does not change: it is re-stated only every
+##   `NETWORK_MOVING_INTERIOR_SECURED_KEEPALIVE_TICKS`, and skipped outright
+##   in between, so the slot it used to take every tick goes to a walker.
 ##
 ## Steady state costs no allocation *in this seam*: the roster, the per-occupant
 ## records and each occupant's wire dictionary are built when the roster changes
@@ -7924,13 +7943,27 @@ func _advance_network_moving_interior_publication() -> void:
 		if not _network_moving_interior_record_is_live(record):
 			continue
 		var state := _network_moving_interior_occupancy_state(record)
+		var pose := _network_moving_interior_pose(record)
+		var secured_now := state != MovingInteriorRelationshipType.STATE_WALKING
+		# A secured pose is a fact, not a stream. It is stated at critical
+		# priority the tick it becomes true (or moves), and re-stated at the
+		# keep-alive cadence; every other tick it is skipped outright, so the
+		# budget slot it used to take goes to a walker instead.
+		var transition := state != int(record.get("published_state", -1))
+		if secured_now and not transition \
+				and tick - int(record.get("published_tick", -1)) < NETWORK_MOVING_INTERIOR_SECURED_KEEPALIVE_TICKS \
+				and _network_moving_interior_secured_pose_unchanged(record, pose):
+			record["seen_tick"] = tick
+			_network_moving_interior_audit["secured_skipped"] = \
+				int(_network_moving_interior_audit["secured_skipped"]) + 1
+			continue
 		var wire := record["wire"] as Dictionary
 		wire["server_tick"] = tick
 		wire["event_sequence"] = tick
 		wire["occupancy_state"] = state
 		_write_moving_interior_transform(
 			wire["frame_local_transform"] as Array,
-			_network_moving_interior_pose(record)
+			pose
 		)
 		_write_moving_interior_vector(
 			wire["linear_velocity"] as Array,
@@ -7952,7 +7985,7 @@ func _advance_network_moving_interior_publication() -> void:
 			continue
 		var priority := (
 			NetworkSessionAdapterType.MOVING_INTERIOR_PRIORITY_CRITICAL
-			if state != MovingInteriorRelationshipType.STATE_WALKING
+			if secured_now
 			else NetworkSessionAdapterType.MOVING_INTERIOR_PRIORITY_NORMAL
 		)
 		var result := network_session.publish_moving_interior_snapshot(
@@ -7961,8 +7994,19 @@ func _advance_network_moving_interior_publication() -> void:
 		record["seen_tick"] = tick
 		if bool(result.get("accepted", false)):
 			published += 1
-			if priority == NetworkSessionAdapterType.MOVING_INTERIOR_PRIORITY_CRITICAL:
+			record["published_state"] = state
+			record["published_tick"] = tick
+			record["published_origin"] = pose.origin
+			record["published_up"] = pose.basis.y
+			record["published_forward"] = pose.basis.z
+			if secured_now:
 				secured += 1
+				if transition:
+					_network_moving_interior_audit["secured_transitions"] = \
+						int(_network_moving_interior_audit["secured_transitions"]) + 1
+				else:
+					_network_moving_interior_audit["secured_keepalives"] = \
+						int(_network_moving_interior_audit["secured_keepalives"]) + 1
 	var retired := _sweep_network_moving_interior_records(tick)
 	_network_moving_interior_audit["ticks"] = int(_network_moving_interior_audit["ticks"]) + 1
 	_network_moving_interior_audit["published"] = \
@@ -8039,6 +8083,25 @@ func _network_moving_interior_pose(record: Dictionary) -> Transform3D:
 			return Transform3D.IDENTITY
 		return moving.global_transform.affine_inverse() * anchor.global_transform
 	return frame.get_occupant_frame_local_transform(record.get("occupant") as Node3D)
+
+
+## True while a secured occupant's frame-local pose is the one last published
+## for it, within `NETWORK_MOVING_INTERIOR_SECURED_POSE_EPSILON`. The seat
+## anchor is re-derived against the hull every tick, so this is a tolerance
+## compare on three inline vectors rather than an exact one on a transform.
+func _network_moving_interior_secured_pose_unchanged(record: Dictionary, pose: Transform3D) -> bool:
+	var origin_variant: Variant = record.get("published_origin")
+	if not origin_variant is Vector3:
+		return false
+	var epsilon_squared := NETWORK_MOVING_INTERIOR_SECURED_POSE_EPSILON * NETWORK_MOVING_INTERIOR_SECURED_POSE_EPSILON
+	if pose.origin.distance_squared_to(origin_variant as Vector3) > epsilon_squared:
+		return false
+	var up_variant: Variant = record.get("published_up")
+	var forward_variant: Variant = record.get("published_forward")
+	if not up_variant is Vector3 or not forward_variant is Vector3:
+		return false
+	return pose.basis.y.distance_squared_to(up_variant as Vector3) <= epsilon_squared \
+		and pose.basis.z.distance_squared_to(forward_variant as Vector3) <= epsilon_squared
 
 
 ## The locomotion hint: how fast the occupant is moving across the deck, in the
@@ -8229,6 +8292,11 @@ func _adopt_network_moving_interior_occupant(
 	record["owner_peer_id"] = owner_peer_id
 	record["seated"] = seated
 	record["server_simulated"] = NetworkRemoteBodySimulationType.is_remote_body(occupant)
+	# A roster change is a new audience (a peer joined, a body arrived): the
+	# next tick states every secured pose afresh rather than waiting for its
+	# keep-alive, so nobody is shown a seat standing empty for ten ticks.
+	record["published_state"] = -1
+	record["published_tick"] = -1
 	(record["wire"] as Dictionary)["parent_frame_id"] = frame_id
 	if not bool(record.get("registered", false)):
 		var registered: Dictionary = network_session.register_moving_interior_occupancy(

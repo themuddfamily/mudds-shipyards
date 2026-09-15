@@ -720,6 +720,10 @@ func _run_crowd_profile(size: int, profile: Dictionary) -> void:
 	var tick_before := int(audit_before.get("server_tick", 0))
 	var worst_lag := 0.0
 	var worst_reconstruction := 0.0
+	var worst_age := 0
+	var frozen_rounds := 0
+	var observer = _clients[OBSERVER_INDEX]
+	var stalls_before := int(observer._moving_stall_rebaselines)
 	var floor_before := _floor_violations
 	var bounds_before := _bounds_violations
 	var rounds := int(profile.get("rounds", 60))
@@ -730,6 +734,9 @@ func _run_crowd_profile(size: int, profile: Dictionary) -> void:
 			var phase := (round_index + index * 15) % 60
 			_set_plan(index, FORWARD if phase < 30 else BACKWARD, true)
 		await _drive(1)
+		var now_tick := int(_game.get_network_moving_interior_publication_audit().get("server_tick", 0))
+		if int(observer._moving_relationship_stream.get_snapshot().get("frozen_entities", 0)) > 0:
+			frozen_rounds += 1
 		for index in size:
 			var entity := StringName(WALKER_ENTITIES[index])
 			var body := _body(entity)
@@ -741,6 +748,7 @@ func _run_crowd_profile(size: int, profile: Dictionary) -> void:
 				continue
 			var observed_local: Transform3D = observed.get("frame_local_transform", Transform3D.IDENTITY)
 			worst_lag = maxf(worst_lag, observed_local.origin.distance_to(authoritative))
+			worst_age = maxi(worst_age, now_tick - int(observed.get("server_tick", now_tick)))
 			var history: Dictionary = _authoritative.get(entity, {}) as Dictionary
 			var at_tick: Variant = history.get(int(observed.get("server_tick", -1)))
 			if at_tick is Vector3:
@@ -758,6 +766,9 @@ func _run_crowd_profile(size: int, profile: Dictionary) -> void:
 		"snapshots_per_tick": snappedf(float(published) / maxf(1.0, float(ticks)), 0.01),
 		"coalesced_updates": coalesced,
 		"worst_pose_lag_m": snappedf(worst_lag, 0.001),
+		"worst_pose_age_ticks": worst_age,
+		"observer_frozen_rounds": frozen_rounds,
+		"observer_stall_rebaselines": int(observer._moving_stall_rebaselines) - stalls_before,
 		"worst_reconstruction_error_m": snappedf(worst_reconstruction, 0.0001),
 		"packets_sent": _shim.sent,
 		"packets_dropped": _shim.dropped,
