@@ -4,13 +4,15 @@ extends SceneTree
 
 const CENSUS := preload("res://tools/station_light_overlap_census.gd")
 const MAIN_SCENE := preload("res://scenes/main.tscn")
+# 5a1945cd4 gave the three Cinder craft the shared damage presentation: six more
+# disabled omni practicals (two per craft), none shadow-casting, roster unchanged.
 const ROSTER_FINGERPRINT := "43dabfe2e1cb3cc47caa41c34df8c71a2af9f955b8048d3c129ad5359491de07"
 # Refrozen 2026-09-14. The 335-light roster fingerprint is unchanged, so no
 # light was added, moved, recoloured or re-ranged; only the per-point
 # contributor measurement moved with the station content that has landed since
 # the previous freeze. The 2026-09-14 geometry trim adds and removes no light.
-const STATION_RESIDENT_MEASUREMENT_FINGERPRINT := "c6ddc93f7cf81fdeba77b982e380a7bf61d7f9854e8b7f2f5724d856d26562ee"
-const CINDER_LOADED_MEASUREMENT_FINGERPRINT := "47faabd8467c15ed98f215e05c0242c4b9a6d36b2f98bf00494a639caead7749"
+const STATION_RESIDENT_MEASUREMENT_FINGERPRINT := "ab7df9447a6b2020f8eb338c32127323006a4d30b0bf5c9bda4095980c359af1"
+const CINDER_LOADED_MEASUREMENT_FINGERPRINT := "c334796cbd4e714801a87d9b4fee2a26d999f04b482da15f99e3817cd320010c"
 const FABRICATION_LIGHT_PATHS := [
 	"ShipyardWorld/FabricationAnnex/GeneratedAnnex/PracticalPoolCentral",
 	"ShipyardWorld/FabricationAnnex/GeneratedAnnex/PracticalPoolPort",
@@ -298,18 +300,18 @@ func _test_production_main_roster_and_measurement() -> void:
 		int(report.schema_version) == CENSUS.SCHEMA_VERSION
 		and report.scenario == CENSUS.SCENARIO_STATION_RESIDENT
 		and int(report.loaded_instance_count) == 0
-		and int(scene_lights.total) == 335
+		and int(scene_lights.total) == 341
 		and int(scene_lights.enabled) == 258
-		and int(scene_lights.disabled) == 77
+		and int(scene_lights.disabled) == 83
 		and int(scene_lights.shadow_casting_total) == 20
 		and int(scene_lights.enabled_shadow_casting) == 20
 		and int((by_type.directional as Dictionary).total) == 3
 		and int((by_type.directional as Dictionary).enabled) == 3
-		and int((by_type.omni as Dictionary).total) == 319
+		and int((by_type.omni as Dictionary).total) == 325
 		and int((by_type.omni as Dictionary).enabled) == 242
 		and int((by_type.spot as Dictionary).total) == 13
 		and int((by_type.spot as Dictionary).enabled) == 13,
-		"station-resident HIGH freezes 335 total / 258 enabled lights and exact type/shadow splits"
+		"station-resident HIGH freezes 341 total / 258 enabled lights and exact type/shadow splits"
 	)
 	_test_expansion_light_provenance(game, report)
 	var expected_worst := [
@@ -449,18 +451,18 @@ func _test_cinder_loaded_production_scenario(
 	_check(
 		report.scenario == CENSUS.SCENARIO_CINDER_LOADED
 		and int(report.loaded_instance_count) == 1
-		and int(lights.total) == 362
+		and int(lights.total) == 368
 		and int(lights.enabled) == 285
-		and int(lights.disabled) == 77
+		and int(lights.disabled) == 83
 		and int(lights.shadow_casting_total) == 20
 		and int(lights.enabled_shadow_casting) == 20
 		and int((by_type.directional as Dictionary).total) == 3
 		and int((by_type.directional as Dictionary).enabled) == 3
-		and int((by_type.omni as Dictionary).total) == 345
+		and int((by_type.omni as Dictionary).total) == 351
 		and int((by_type.omni as Dictionary).enabled) == 268
 		and int((by_type.spot as Dictionary).total) == 14
 		and int((by_type.spot as Dictionary).enabled) == 14,
-		"Cinder-loaded HIGH freezes 362 total / 285 enabled lights and exact type/shadow splits"
+		"Cinder-loaded HIGH freezes 368 total / 285 enabled lights and exact type/shadow splits"
 	)
 	_check(
 		int(lights.total) - int(resident_lights.total) == 27

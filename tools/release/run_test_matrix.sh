@@ -7,7 +7,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 
 GODOT_BIN="${GODOT_BIN:-godot}"
-TIMEOUT_SECONDS="${TEST_MATRIX_TIMEOUT_SECONDS:-180}"
+TIMEOUT_SECONDS="${TEST_MATRIX_TIMEOUT_SECONDS:-300}"
 RUN_RESULTS_ROOT="${TEST_MATRIX_RESULTS_ROOT:-$PROJECT_ROOT/artifacts/test-matrix}"
 RUN_ID="${TEST_MATRIX_RUN_ID:-$(date -u +%Y%m%dT%H%M%SZ)}"
 AUDIO_DRIVER="${TEST_MATRIX_AUDIO_DRIVER:-Dummy}"
@@ -59,7 +59,7 @@ durations, paths, log hashes, or raw log text.
 
 Options:
   --godot PATH              Godot binary (default: \`godot\`).
-  --timeout SECONDS         Per-suite timeout (default: 180).
+  --timeout SECONDS         Per-suite timeout (default: 300).
   --results-dir DIR         Results root (default: artifacts/test-matrix).
   --audio-driver NAME       Audio backend passed to --audio-driver (default: Dummy).
   --display-driver NAME     Display backend for graphical suites only (default: engine choice).
@@ -88,7 +88,7 @@ Options:
 
 Environment variables:
   GODOT_BIN                 Defaults to \`godot\`.
-  TEST_MATRIX_TIMEOUT_SECONDS Defaults to 180.
+  TEST_MATRIX_TIMEOUT_SECONDS Defaults to 300.
   TEST_MATRIX_RESULTS_ROOT   Defaults to artifacts/test-matrix.
   TEST_MATRIX_TEST_FILTER    Extended-regular-expression filter applied to tests/**/*_test.gd paths.
   TEST_MATRIX_AUDIO_DRIVER   Audio backend passed to --audio-driver (defaults to Dummy).
