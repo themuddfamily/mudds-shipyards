@@ -147,12 +147,47 @@ const DAMAGE_FLASH_FADE_SECONDS := 0.42
 const DAMAGE_DIRECTION_FADE_SECONDS := 0.62
 const REDUCED_MOTION_HOLD_SECONDS := 0.45
 const SENSOR_RETICLE_CRITICAL_INTEGRITY := 0.40
+## The authored `standard` reticle: four 4 px bars on a 44 px footprint. Kept
+## as the literal table so the geometry the pre-style build drew is on record;
+## [method _sensor_reticle_mark_geometry] reproduces it exactly for `standard`.
 const SENSOR_RETICLE_MARK_LAYOUT := [
 	[Vector2(20.0, 0.0), Vector2(4.0, 12.0)],
 	[Vector2(20.0, 32.0), Vector2(4.0, 12.0)],
 	[Vector2(0.0, 20.0), Vector2(12.0, 4.0)],
 	[Vector2(32.0, 20.0), Vector2(12.0, 4.0)],
 ]
+## Authored reticle styles, selected by `RuntimeSettings.reticle_style`. Every
+## style keeps the same four-bar silhouette and the same damage staging, so a
+## degraded or critical sensor reads the same way whichever style is chosen.
+## `bold` keeps the 44 px footprint with thicker bars; `large` widens the
+## footprint to 72 px (1.64x) and adds a centre dot. The state label sits 4 px
+## below the footprint in every style, so it can never overlap the bars.
+const SENSOR_RETICLE_STYLE_LAYOUTS := {
+	&"standard": {
+		"footprint": 44.0,
+		"thickness": 4.0,
+		"lengths": {&"nominal": 12.0, &"degraded": 8.0, &"critical": 6.0},
+		"centre_dot": 0.0,
+	},
+	&"bold": {
+		"footprint": 44.0,
+		"thickness": 6.0,
+		"lengths": {&"nominal": 12.0, &"degraded": 8.0, &"critical": 6.0},
+		"centre_dot": 0.0,
+	},
+	&"large": {
+		"footprint": 72.0,
+		"thickness": 6.0,
+		"lengths": {&"nominal": 20.0, &"degraded": 14.0, &"critical": 10.0},
+		"centre_dot": 6.0,
+	},
+}
+const SENSOR_RETICLE_LABEL_GAP := 4.0
+const DEFAULT_SENSOR_RETICLE_STYLE: StringName = &"standard"
+## Body-text outline applied while the high-contrast HUD is on. Labels that
+## already author an outline (wordmark, titles) keep theirs.
+const HIGH_CONTRAST_TEXT_OUTLINE_SIZE := 3
+const HIGH_CONTRAST_TEXT_OUTLINE_COLOR := Color("020509")
 ## Smallest logical layout the HUD panels are authored for. The gameplay panels
 ## use fixed pixel offsets, so scaling past the point where that layout stops
 ## fitting the viewport makes readouts overlap instead of becoming more legible.
@@ -572,6 +607,11 @@ const CINDER_BOMBER_ROLE := "LONG-RANGE BOMBER"
 
 var _palette_mode: StringName = PaletteType.MODE_NONE
 var _palette: Dictionary = PaletteType.get_palette(PaletteType.MODE_NONE)
+## High-contrast HUD: the active palette's high-contrast variant, opaque panel
+## backings and outlined body text. Off by default so the authored HUD is
+## bit-identical to the pre-accessibility build.
+var _high_contrast := false
+var _reticle_style: StringName = DEFAULT_SENSOR_RETICLE_STYLE
 ## Every element whose colour is a palette role, recorded as it is built so a
 ## preset change retints the live HUD without rebuilding or reloading it.
 ##
@@ -2017,42 +2057,47 @@ func _apply_sensor_reticle_stage(
 		integrity: float,
 		authoritative_stage: StringName
 	) -> void:
+	var layout := _sensor_reticle_layout()
+	var lengths := layout["lengths"] as Dictionary
 	var visible_count := 4
-	var length := 12.0
+	var length := float(lengths[&"nominal"])
 	match stage:
 		&"degraded":
-			length = 8.0
+			length = float(lengths[&"degraded"])
 		&"critical":
 			visible_count = 2
-			length = 6.0
+			length = float(lengths[&"critical"])
 		&"failed":
 			visible_count = 0
 			length = 0.0
 		_:
 			stage = &"nominal"
+	var dot_visible := float(layout["centre_dot"]) > 0.0 and stage != &"failed"
 	for index in mini(_reticle_marks.size(), SENSOR_RETICLE_MARK_LAYOUT.size()):
 		var mark := _reticle_marks[index]
-		var layout := SENSOR_RETICLE_MARK_LAYOUT[index] as Array
-		var base_position := layout[0] as Vector2
-		var base_size := layout[1] as Vector2
-		var vertical := base_size.y > base_size.x
-		var mark_size := Vector2(base_size.x, length) if vertical else Vector2(length, base_size.y)
-		var mark_position := base_position
-		if index == 1:
-			mark_position.y = 44.0 - length
-		elif index == 3:
-			mark_position.x = 44.0 - length
-		mark.position = mark_position
-		mark.size = mark_size
+		var geometry := _sensor_reticle_mark_geometry(index, length)
+		mark.position = geometry[0]
+		mark.size = geometry[1]
 		# Critical retains the top/bottom axis; failed retains no targeting bars.
 		mark.visible = index < visible_count
+	if _reticle_marks.size() > SENSOR_RETICLE_MARK_LAYOUT.size():
+		var dot := _reticle_marks[SENSOR_RETICLE_MARK_LAYOUT.size()]
+		var dot_geometry := _sensor_reticle_mark_geometry(SENSOR_RETICLE_MARK_LAYOUT.size(), length)
+		dot.position = dot_geometry[0]
+		dot.size = dot_geometry[1]
+		dot.visible = dot_visible
 	_sensor_reticle_profile = {
 		"stage": stage,
 		"integrity": clampf(integrity, 0.0, 1.0),
 		"authoritative_stage": authoritative_stage,
-		"visible_mark_count": visible_count,
+		"visible_mark_count": visible_count + (1 if dot_visible else 0),
 		"mark_length": length,
 		"mark_node_count": _reticle_marks.size(),
+		"style": _reticle_style,
+		"mark_count": _reticle_marks.size(),
+		"footprint": float(layout["footprint"]),
+		"mark_thickness": float(layout["thickness"]),
+		"centre_dot_visible": dot_visible,
 		"geometry_policy": &"static",
 		"flashing": false,
 		"reduced_flash_safe": true,
@@ -2569,13 +2614,17 @@ func set_settings_snapshot(snapshot: Dictionary) -> void:
 				set_captions_enabled(bool(value))
 			elif key == &"reduced_flash":
 				set_reduced_flash(bool(value))
+			elif key == &"high_contrast_hud":
+				set_high_contrast_hud(bool(value))
 		elif control is OptionButton:
 			var option := control as OptionButton
 			option.select(
 				_display_option_index(key, value)
-				if key in [&"window_mode", &"display_resolution", &"vsync_mode"]
+				if key in [&"window_mode", &"display_resolution", &"vsync_mode", &"reticle_style"]
 				else clampi(int(value), 0, option.item_count - 1)
 			)
+			if key == &"reticle_style":
+				set_reticle_style(_reticle_style_from_setting(value))
 		elif control is LineEdit:
 			(control as LineEdit).text = str(value)
 	_refresh_accessibility_tooltips()
@@ -2887,8 +2936,12 @@ func _cancel_settings_reset() -> void:
 func set_accessibility(descriptor: Dictionary) -> void:
 	if descriptor.has("ui_scale"):
 		set_ui_scale(float(descriptor["ui_scale"]))
+	if descriptor.has("high_contrast_hud"):
+		set_high_contrast_hud(bool(descriptor["high_contrast_hud"]))
 	if descriptor.has("colorblind_palette_id"):
 		set_hud_palette(StringName(str(descriptor["colorblind_palette_id"])))
+	if descriptor.has("reticle_style"):
+		set_reticle_style(StringName(str(descriptor["reticle_style"])))
 	if descriptor.has("reduced_motion"):
 		set_reduced_motion(bool(descriptor["reduced_motion"]))
 	if descriptor.has("reduced_flash"):
@@ -2905,7 +2958,7 @@ func set_accessibility(descriptor: Dictionary) -> void:
 func set_hud_palette(mode_id: StringName) -> void:
 	var resolved := mode_id if PaletteType.has_mode(mode_id) else PaletteType.MODE_NONE
 	_palette_mode = resolved
-	_palette = PaletteType.get_palette(resolved)
+	_palette = PaletteType.get_palette(resolved, _high_contrast)
 	var live: Array[Dictionary] = []
 	for entry in _palette_targets:
 		if _apply_palette_target(entry):
@@ -2919,6 +2972,96 @@ func set_hud_palette(mode_id: StringName) -> void:
 
 func get_hud_palette_id() -> StringName:
 	return _palette_mode
+
+
+## Switches every registered element between the active palette and its
+## high-contrast variant: opaque panel backings, roles at or above the AAA
+## floor, and a dark outline on body text. Turning it off restores the exact
+## authored fills and removes only the outlines this HUD added.
+func set_high_contrast_hud(enabled: bool) -> void:
+	if _high_contrast == enabled:
+		return
+	_high_contrast = enabled
+	set_hud_palette(_palette_mode)
+
+
+func is_high_contrast_hud() -> bool:
+	return _high_contrast
+
+
+## Rebuilds the sensor reticle in the requested authored style and restores the
+## damage stage it was showing. An unknown style resolves to `standard` so a
+## malformed setting can never hide the targeting cue.
+func set_reticle_style(style: StringName) -> void:
+	var resolved := style if SENSOR_RETICLE_STYLE_LAYOUTS.has(style) else DEFAULT_SENSOR_RETICLE_STYLE
+	if _reticle_style == resolved:
+		return
+	_reticle_style = resolved
+	if not is_instance_valid(_reticle):
+		return
+	for mark in _reticle_marks:
+		if is_instance_valid(mark):
+			_reticle.remove_child(mark)
+			mark.queue_free()
+	_reticle_marks.clear()
+	_build_sensor_reticle_marks()
+	_apply_sensor_reticle_stage(
+		StringName(_sensor_reticle_profile.get("stage", &"nominal")),
+		float(_sensor_reticle_profile.get("integrity", 1.0)),
+		StringName(_sensor_reticle_profile.get("authoritative_stage", &"nominal"))
+	)
+
+
+func get_reticle_style() -> StringName:
+	return _reticle_style
+
+
+func _sensor_reticle_layout() -> Dictionary:
+	return SENSOR_RETICLE_STYLE_LAYOUTS.get(
+		_reticle_style, SENSOR_RETICLE_STYLE_LAYOUTS[DEFAULT_SENSOR_RETICLE_STYLE]
+	) as Dictionary
+
+
+## Position and size of one bar (indices 0-3: top, bottom, left, right) or the
+## centre dot (index 4) for a bar length, in the reticle's local pixels.
+func _sensor_reticle_mark_geometry(index: int, length: float) -> Array:
+	var layout := _sensor_reticle_layout()
+	var footprint := float(layout["footprint"])
+	var thickness := float(layout["thickness"])
+	var centre := footprint * 0.5
+	var half := thickness * 0.5
+	match index:
+		0:
+			return [Vector2(centre - half, 0.0), Vector2(thickness, length)]
+		1:
+			return [Vector2(centre - half, footprint - length), Vector2(thickness, length)]
+		2:
+			return [Vector2(0.0, centre - half), Vector2(length, thickness)]
+		3:
+			return [Vector2(footprint - length, centre - half), Vector2(length, thickness)]
+	var dot := float(layout["centre_dot"])
+	return [Vector2(centre - dot * 0.5, centre - dot * 0.5), Vector2(dot, dot)]
+
+
+func _build_sensor_reticle_marks() -> void:
+	var layout := _sensor_reticle_layout()
+	var footprint := float(layout["footprint"])
+	var nominal_length := float((layout["lengths"] as Dictionary)[&"nominal"])
+	_reticle.position = Vector2(-footprint * 0.5, -footprint * 0.5)
+	_reticle.size = Vector2(footprint, footprint)
+	_reticle.pivot_offset = Vector2(footprint * 0.5, footprint * 0.5)
+	var mark_count := 5 if float(layout["centre_dot"]) > 0.0 else 4
+	for index in mark_count:
+		var geometry := _sensor_reticle_mark_geometry(index, nominal_length)
+		var mark := ColorRect.new()
+		mark.position = geometry[0]
+		mark.size = geometry[1]
+		_tint_rect(mark, NOMINAL)
+		_reticle.add_child(mark)
+		_reticle_marks.append(mark)
+	if is_instance_valid(_reticle_state_label):
+		_reticle_state_label.position = Vector2(-46.0, footprint + SENSOR_RETICLE_LABEL_GAP)
+		_reticle.move_child(_reticle_state_label, -1)
 
 
 ## Clamps a requested scale, then caps it at the largest factor whose logical
@@ -4020,6 +4163,8 @@ func get_accessibility_report() -> Dictionary:
 		"scaled_layer_scale": _scaled_layers[0].scale.x if not _scaled_layers.is_empty() else 1.0,
 		"reticle_scale": _reticle.scale.x if is_instance_valid(_reticle) else 1.0,
 		"palette": _palette_mode,
+		"high_contrast": _high_contrast,
+		"reticle_style": _reticle_style,
 		"palette_target_count": _palette_targets.size(),
 		"nominal_color": _c(NOMINAL),
 		"caution_color": _c(CAUTION),
@@ -4245,7 +4390,7 @@ func _build_hud() -> void:
 	_objective_panel.position = Vector2(28.0, 126.0)
 	_objective_panel.custom_minimum_size = Vector2(PANEL_LEFT_COLUMN_WIDTH, 112.0)
 	_objective_panel.size = Vector2(PANEL_LEFT_COLUMN_WIDTH, 112.0)
-	_objective_panel.add_theme_stylebox_override("panel", _box(PANEL, 8, 1, Color("315367")))
+	_objective_panel.add_theme_stylebox_override("panel", _panel_box(PANEL, 8, Color("315367")))
 	_hud_panels.add_child(_objective_panel)
 	var objective_margin := _margin(18, 14, 18, 14)
 	_objective_panel.add_child(objective_margin)
@@ -4274,7 +4419,7 @@ func _build_hud() -> void:
 	_help_panel.offset_right = -PANEL_MARGIN
 	_help_panel.offset_top = 28.0
 	_help_panel.offset_bottom = 342.0
-	_help_panel.add_theme_stylebox_override("panel", _box(PANEL, 8, 1, Color("315367")))
+	_help_panel.add_theme_stylebox_override("panel", _panel_box(PANEL, 8, Color("315367")))
 	_hud_panels.add_child(_help_panel)
 	_set_help_text([])
 
@@ -4318,15 +4463,11 @@ func _build_hud() -> void:
 	_reticle.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_reticle.pivot_offset = Vector2(22.0, 22.0)
 	_hud.add_child(_reticle)
-	for rect_data: Array in SENSOR_RETICLE_MARK_LAYOUT:
-		var mark := ColorRect.new()
-		mark.position = rect_data[0]
-		mark.size = rect_data[1]
-		_tint_rect(mark, NOMINAL)
-		_reticle.add_child(mark)
-		_reticle_marks.append(mark)
+	_build_sensor_reticle_marks()
 	_reticle_state_label = _label("[...]  SEARCHING", 10, NOMINAL_SOFT)
-	_reticle_state_label.position = Vector2(-46.0, 48.0)
+	_reticle_state_label.position = Vector2(
+		-46.0, float(_sensor_reticle_layout()["footprint"]) + SENSOR_RETICLE_LABEL_GAP
+	)
 	_reticle_state_label.size = Vector2(136.0, 22.0)
 	_reticle_state_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_reticle_state_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -4375,7 +4516,7 @@ func _build_telemetry() -> void:
 	# every bar/label in a distinct row without approaching the centre reticle.
 	_telemetry_panel.offset_top = -PANEL_TELEMETRY_TOP_OFFSET
 	_telemetry_panel.offset_bottom = -PANEL_MARGIN
-	_telemetry_panel.add_theme_stylebox_override("panel", _box(PANEL, 8, 1, Color("315367")))
+	_telemetry_panel.add_theme_stylebox_override("panel", _panel_box(PANEL, 8, Color("315367")))
 	_hud_panels.add_child(_telemetry_panel)
 	_apply_hull_frame_stage(&"healthy", 1.0)
 	var margin := _margin(18, 15, 18, 15)
@@ -6958,6 +7099,21 @@ func _build_settings_page() -> void:
 		["Off", "Deuteranopia", "Protanopia", "Tritanopia"],
 		0
 	)
+	_add_toggle_setting_with_help(
+		accessibility_group,
+		&"high_contrast_hud",
+		"High-contrast HUD",
+		"Opaque panel backings, state colours at or above the 7:1 AAA floor, and "
+			+ "outlined body text. Combines with every colour-vision preset.",
+		false
+	)
+	_add_option_setting(
+		accessibility_group,
+		&"reticle_style",
+		"Reticle style",
+		["Standard", "Bold", "Large"],
+		0
+	)
 	_add_toggle_setting(accessibility_group, &"reduced_motion", "Reduced motion", false)
 	_add_toggle_setting_with_help(
 		accessibility_group,
@@ -7963,6 +8119,7 @@ func _configure_accessibility_focus_neighbors() -> void:
 	var ordered_keys: Array[StringName] = [
 		&"master_volume", &"ambience_volume", &"music_volume", &"engine_volume",
 		&"weapons_volume", &"ui_volume", &"ui_scale", &"colorblind_palette",
+		&"high_contrast_hud", &"reticle_style",
 		&"reduced_motion", &"reduced_flash", &"reduced_dynamic_range",
 		&"payload_visual_intensity", &"captions_enabled", &"show_tutorials",
 		_CONTROLLER_GLYPH_FAMILY_KEY,
@@ -8053,6 +8210,13 @@ func _on_setting_value_changed(key: StringName, value: Variant) -> void:
 			if not bool(display_result.get("accepted", false)):
 				return
 			value = (display_result.get("values", {}) as Dictionary).get(String(key), value)
+	if key == &"reticle_style":
+		# The selector reports a menu index; the setting is a stable ID. Convert
+		# before the request leaves the HUD so persistence never sees an index.
+		value = _reticle_style_from_setting(value)
+		set_reticle_style(value)
+	elif key == &"high_contrast_hud":
+		set_high_contrast_hud(bool(value))
 	if value is float:
 		_update_setting_value_label(key, float(value))
 		if key == &"ui_scale":
@@ -8065,7 +8229,10 @@ func _on_setting_value_changed(key: StringName, value: Variant) -> void:
 	if not _updating_settings:
 		_settings_dirty = true
 		setting_change_requested.emit(key, value)
-	if key in [&"reduced_flash", &"payload_visual_intensity", &"limit_ultrawide_fov"]:
+	if key in [
+		&"reduced_flash", &"payload_visual_intensity", &"limit_ultrawide_fov",
+		&"high_contrast_hud", &"reticle_style",
+	]:
 		_refresh_accessibility_tooltips()
 
 
@@ -8086,7 +8253,18 @@ func _display_settings_intent(key: StringName, value: Variant) -> Dictionary:
 	return {}
 
 
+## Resolves a persisted reticle style ID or a selector index to a stable ID.
+func _reticle_style_from_setting(value: Variant) -> StringName:
+	var ids := RuntimeSettingsType.RETICLE_STYLE_IDS
+	if value is int:
+		return ids[clampi(int(value), 0, ids.size() - 1)]
+	var wanted := StringName(str(value))
+	return wanted if ids.has(wanted) else RuntimeSettingsType.DEFAULT_RETICLE_STYLE
+
+
 func _display_option_index(key: StringName, value: Variant) -> int:
+	if key == &"reticle_style":
+		return RuntimeSettingsType.RETICLE_STYLE_IDS.find(_reticle_style_from_setting(value))
 	if key == &"window_mode":
 		return int(value) if value is int else [&"windowed", &"borderless", &"fullscreen"].find(StringName(str(value)))
 	if key == &"display_resolution":
@@ -8108,6 +8286,18 @@ func _refresh_accessibility_tooltips() -> void:
 		ultrawide_limit.tooltip_text = (
 			"Limit ultrawide field of view: %s. Displays 21:9 and narrower are unaffected."
 			% ("ON" if ultrawide_limit.button_pressed else "OFF")
+		)
+	var high_contrast := _settings_controls.get(&"high_contrast_hud") as CheckButton
+	if high_contrast != null:
+		high_contrast.tooltip_text = (
+			"High-contrast HUD: %s. Opaque panels, 7:1 state colours and outlined text."
+			% ("ON" if high_contrast.button_pressed else "OFF")
+		)
+	var reticle_style := _settings_controls.get(&"reticle_style") as OptionButton
+	if reticle_style != null and reticle_style.item_count > 0:
+		reticle_style.tooltip_text = (
+			"Reticle style: %s. Choose standard, bold, or large with a centre dot."
+			% reticle_style.get_item_text(maxi(reticle_style.selected, 0))
 		)
 
 
@@ -8977,7 +9167,7 @@ func _palette_target_is_live(entry: Dictionary) -> bool:
 	match StringName(entry.get("kind", &"")):
 		&"theme_color", &"rect":
 			return is_instance_valid(entry.get("node"))
-		&"box_fill", &"box_border":
+		&"box_fill", &"box_border", &"box_panel":
 			return _palette_target_box(entry) != null
 	return false
 
@@ -9005,8 +9195,41 @@ func _fill_box(role: StringName, radius: int, darken := 0.0) -> StyleBoxFlat:
 
 func _border_box(fill: Color, radius: int, role: StringName) -> StyleBoxFlat:
 	var box := _box(fill, radius, 1, Color.TRANSPARENT)
-	_register_palette_target({"kind": &"box_border", "box": weakref(box), "role": role, "darken": 0.0})
+	_register_palette_target({
+		"kind": &"box_border", "box": weakref(box), "role": role, "darken": 0.0, "fill": fill,
+	})
 	return box
+
+
+## A panel backing with a fixed border colour whose fill follows the contrast
+## mode: the authored (possibly translucent) fill normally, the opaque
+## high-contrast panel colour while the high-contrast HUD is on.
+func _panel_box(fill: Color, radius: int, border_color: Color) -> StyleBoxFlat:
+	var box := _box(fill, radius, 1, border_color)
+	_register_palette_target({"kind": &"box_panel", "box": weakref(box), "fill": fill})
+	return box
+
+
+## The fill a registered panel backing shows in the current contrast mode.
+func _panel_fill(entry: Dictionary) -> Color:
+	if _high_contrast:
+		return PaletteType.PANEL_BACKGROUND_HIGH_CONTRAST
+	return entry.get("fill", PANEL) as Color
+
+
+## Adds the high-contrast body-text outline to a palette-tinted label, or removes
+## the one this HUD added. Labels that author their own outline are left alone.
+func _apply_high_contrast_outline(label: Label, entry: Dictionary) -> void:
+	if _high_contrast:
+		if not bool(entry.get("hc_outline", false)) and label.has_theme_constant_override("outline_size"):
+			return
+		label.add_theme_constant_override("outline_size", HIGH_CONTRAST_TEXT_OUTLINE_SIZE)
+		label.add_theme_color_override("font_outline_color", HIGH_CONTRAST_TEXT_OUTLINE_COLOR)
+		entry["hc_outline"] = true
+	elif bool(entry.get("hc_outline", false)):
+		label.remove_theme_constant_override("outline_size")
+		label.remove_theme_color_override("font_outline_color")
+		entry["hc_outline"] = false
 
 
 ## Repaints one registered element. Returns false when the target no longer
@@ -9023,6 +9246,8 @@ func _apply_palette_target(entry: Dictionary) -> bool:
 			if not is_instance_valid(raw_node):
 				return false
 			(raw_node as Control).add_theme_color_override(String(entry["property"]), color)
+			if raw_node is Label and StringName(entry["property"]) == &"font_color":
+				_apply_high_contrast_outline(raw_node as Label, entry)
 			return true
 		&"rect":
 			var raw_rect: Variant = entry.get("node")
@@ -9041,6 +9266,14 @@ func _apply_palette_target(entry: Dictionary) -> bool:
 			if border_box == null:
 				return false
 			border_box.border_color = color
+			if entry.has("fill"):
+				border_box.bg_color = _panel_fill(entry)
+			return true
+		&"box_panel":
+			var panel_box := _palette_target_box(entry)
+			if panel_box == null:
+				return false
+			panel_box.bg_color = _panel_fill(entry)
 			return true
 	return false
 

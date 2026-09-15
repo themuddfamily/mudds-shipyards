@@ -473,6 +473,8 @@ const RUNTIME_SETTING_KEYS: Array[StringName] = [
 	&"control_preset",
 	&"ui_scale",
 	&"colorblind_palette",
+	&"high_contrast_hud",
+	&"reticle_style",
 	&"reduced_motion",
 	&"captions_enabled",
 	&"reduced_dynamic_range",
@@ -16178,7 +16180,8 @@ func _on_runtime_setting_changed(setting: StringName, _value: Variant) -> void:
 		_apply_bomber_payload_presentation_profile()
 		_apply_opponent_weapon_heat_presentation_profile()
 	elif setting in [
-		&"ui_scale", &"colorblind_palette", &"reduced_motion", &"captions_enabled"
+		&"ui_scale", &"colorblind_palette", &"high_contrast_hud", &"reticle_style",
+		&"reduced_motion", &"captions_enabled",
 	]:
 		_apply_accessibility_settings()
 

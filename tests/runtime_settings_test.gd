@@ -23,6 +23,7 @@ func _run() -> void:
 	_test_validation_and_signals()
 	_test_reentrant_batch_signals()
 	_test_round_trip_and_stable_storage()
+	_test_hud_presentation_round_trip()
 	_test_safe_loading()
 	_test_explicit_audio_application()
 	_test_window_application_contract()
@@ -72,6 +73,8 @@ func _test_defaults_and_descriptors() -> void:
 			"ui_scale": 1.0,
 			"colorblind_palette": Settings.ColorblindPalette.NONE,
 			"colorblind_palette_id": &"none",
+			"high_contrast_hud": false,
+			"reticle_style": &"standard",
 			"reduced_motion": false,
 			"captions_enabled": false,
 			"reduced_dynamic_range": false,
@@ -80,6 +83,10 @@ func _test_defaults_and_descriptors() -> void:
 			"show_tutorials": true,
 		},
 		"the accessibility descriptor exposes every supported presentation preference"
+	)
+	_check(
+		not settings.high_contrast_hud and settings.reticle_style == &"standard",
+		"the high-contrast HUD is off and the reticle is standard by default"
 	)
 
 	var modern: Dictionary = settings.get_control_preset_descriptor(Settings.ControlPreset.MODERN)
@@ -259,6 +266,8 @@ func _test_round_trip_and_stable_storage() -> void:
 	original.control_preset = Settings.ControlPreset.CLASSIC
 	original.ui_scale = 1.35
 	original.colorblind_palette = Settings.ColorblindPalette.PROTANOPIA
+	original.high_contrast_hud = true
+	original.reticle_style = &"bold"
 	original.reduced_motion = true
 	original.captions_enabled = true
 	var expected: Dictionary = original.to_dictionary()
@@ -294,6 +303,12 @@ func _test_round_trip_and_stable_storage() -> void:
 		and stored.get_value("accessibility", "captions") == true,
 		"every accessibility preset is written to its own section"
 	)
+	_check(
+		stored.get_value("accessibility", "high_contrast_hud") == true
+		and typeof(stored.get_value("accessibility", "reticle_style", null)) == TYPE_STRING
+		and stored.get_value("accessibility", "reticle_style") == "bold",
+		"the high-contrast flag and reticle style persist in the accessibility section as stable values"
+	)
 
 	var restored := Settings.new(_temp_path)
 	var audio_before_load := _snapshot_audio_buses()
@@ -321,6 +336,8 @@ func _test_round_trip_and_stable_storage() -> void:
 		"window_mode",
 		"ui_scale",
 		"colorblind_palette",
+		"high_contrast_hud",
+		"reticle_style",
 		"reduced_motion",
 		"captions_enabled",
 	])
@@ -367,6 +384,95 @@ func _test_round_trip_and_stable_storage() -> void:
 	# A file cannot also be used as a parent directory, giving a deterministic
 	# write failure without relying on filesystem permissions.
 	_check(restored.save_to_file(_temp_path + "/child.cfg") != OK, "save propagates destination errors")
+
+
+## The two HUD presentation settings added with user-data schema 11: a full
+## save/load round trip, the typed atomic-store round trip, migration from a
+## schema-10 document, rejection of a newer document, and reset.
+func _test_hud_presentation_round_trip() -> void:
+	var path := _temp_path + ".presentation"
+	var original := Settings.new(path)
+	original.high_contrast_hud = true
+	original.reticle_style = &"large"
+	_check(
+		original.high_contrast_hud and original.reticle_style == &"large",
+		"both presentation settings accept a non-default value"
+	)
+	original.reticle_style = &"not_a_style"
+	_check(original.reticle_style == &"standard", "an unknown reticle style falls back to standard rather than persisting garbage")
+	original.reticle_style = "LARGE"
+	_check(original.reticle_style == &"large", "a stable reticle ID is accepted case-insensitively as a String")
+	_check(original.save_to_file() == OK, "presentation settings save")
+	var restored := Settings.new(path)
+	_check(restored.load_from_file() == OK, "presentation settings load into a fresh instance")
+	_check(
+		restored.to_dictionary() == original.to_dictionary()
+		and restored.high_contrast_hud and restored.reticle_style == &"large",
+		"the high-contrast flag and reticle style round-trip through the config file"
+	)
+
+	var payload := original.to_user_data_payload()
+	_check(
+		int(payload.schema_version) == Settings.USER_DATA_PAYLOAD_SCHEMA_VERSION
+		and int(payload.schema_version) == 11
+		and payload.values.high_contrast_hud == true
+		and payload.values.reticle_style == "large",
+		"the typed payload is stamped schema 11 and stores the reticle style as a plain string"
+	)
+	var typed := Settings.new(path + ".typed")
+	var applied: Dictionary = typed.apply_user_data_payload(payload)
+	_check(
+		bool(applied.accepted) and typed.to_dictionary() == original.to_dictionary(),
+		"the typed payload round-trips both presentation settings exactly"
+	)
+
+	# A schema-10 document knows neither key; migration must supply the defaults
+	# and leave every other stored value untouched.
+	var legacy := original.to_user_data_payload()
+	legacy["schema_version"] = 10
+	(legacy.values as Dictionary).erase("high_contrast_hud")
+	(legacy.values as Dictionary).erase("reticle_style")
+	var migrated := Settings.new(path + ".legacy")
+	var migration: Dictionary = migrated.apply_user_data_payload(legacy)
+	_check(
+		bool(migration.accepted)
+		and not migrated.high_contrast_hud
+		and migrated.reticle_style == &"standard",
+		"a schema-10 document migrates with the high-contrast HUD off and the standard reticle"
+	)
+	_check(
+		is_equal_approx(migrated.camera_fov, original.camera_fov)
+		and migrated.limit_ultrawide_fov == original.limit_ultrawide_fov,
+		"migration preserves the values the schema-10 writer did store"
+	)
+	var stale := original.to_user_data_payload()
+	stale["schema_version"] = 10
+	_check(
+		not bool(Settings.new(path + ".stale").validate_user_data_payload(stale).accepted),
+		"a schema-10 document that already carries the schema-11 keys is rejected as malformed"
+	)
+	var newer := original.to_user_data_payload()
+	newer["schema_version"] = Settings.USER_DATA_PAYLOAD_SCHEMA_VERSION + 1
+	var future: Dictionary = Settings.new(path + ".future").validate_user_data_payload(newer)
+	_check(
+		not bool(future.accepted) and future.reason == &"newer_schema",
+		"a newer document is still rejected as newer, never as corruption"
+	)
+	var bad_style := original.to_user_data_payload()
+	bad_style.values.reticle_style = "huge"
+	var bad_result: Dictionary = Settings.new(path + ".bad").validate_user_data_payload(bad_style)
+	_check(
+		not bool(bad_result.accepted) and bad_result.reason == &"invalid_reticle_style",
+		"an unknown reticle style in a current document fails closed with a named reason"
+	)
+
+	restored.reset_to_defaults()
+	_check(
+		not restored.high_contrast_hud and restored.reticle_style == &"standard",
+		"reset restores the high-contrast HUD to off and the reticle to standard"
+	)
+	for suffix in ["", ".typed", ".legacy", ".stale", ".future", ".bad"]:
+		DirAccess.remove_absolute(ProjectSettings.globalize_path(path + suffix))
 
 
 func _test_safe_loading() -> void:

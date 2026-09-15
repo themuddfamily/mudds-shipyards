@@ -86,13 +86,48 @@ func _test_active_settings_status(contract: RefCounted) -> void:
 		"attachment reconciles every public presentation policy to the same active settings descriptor"
 	)
 	_check(
-		status.rows.size() == 5
+		status.rows.size() == 7
 			and status.rows[0].text == "CAPTIONS // ON"
 			and status.rows[1].text == "REDUCED FLASH // ON"
 			and status.rows[2].text == "REDUCED MOTION // ON"
 			and status.rows[3].text == "UI / TEXT SCALE // 135%"
-			and status.rows[4].text == "COLOUR ALTERNATIVE // TRITANOPIA ALTERNATIVE",
+			and status.rows[4].text == "COLOUR ALTERNATIVE // TRITANOPIA ALTERNATIVE"
+			and status.rows[5].text == "HIGH-CONTRAST HUD // OFF"
+			and status.rows[6].text == "RETICLE STYLE // STANDARD",
 		"every active choice is confirmed in player-readable text rather than colour alone"
+	)
+	_check(
+		int(reconciled.visual.contrast_mode) == Contract.VisualPreset.ContrastMode.STANDARD
+			and not bool(status.high_contrast_hud)
+			and status.reticle_style == &"standard",
+		"a settings authority with the high-contrast HUD off reconciles the standard contrast mode"
+	)
+	settings.high_contrast_hud = true
+	settings.reticle_style = &"large"
+	var contrast_snapshot: Dictionary = contract.get_snapshot()
+	var contrast_status := contrast_snapshot.status_confirmation as Dictionary
+	_check(
+		int(contrast_snapshot.visual.contrast_mode) == Contract.VisualPreset.ContrastMode.HIGH
+			and bool(contrast_status.high_contrast_hud)
+			and int(contrast_status.contrast_mode) == Contract.VisualPreset.ContrastMode.HIGH
+			and contrast_status.rows[5].text == "HIGH-CONTRAST HUD // ON"
+			and contrast_status.rows[6].text == "RETICLE STYLE // LARGE WITH CENTRE DOT"
+			and contrast_status.reticle_style == &"large",
+		"turning the high-contrast HUD on reaches the visual preset's HIGH contrast mode and both rows update live"
+	)
+	var contrast_cue: Dictionary = contract.resolve_cue({
+		"cue_id": &"contrast_probe", "visual_category": &"caution", "caption_category": &"system",
+	})
+	_check(
+		bool(contrast_cue.accepted)
+			and int(contrast_cue.visual.contrast_mode) == Contract.VisualPreset.ContrastMode.HIGH,
+		"a cue resolved while the high-contrast HUD is on carries the HIGH contrast mode"
+	)
+	settings.high_contrast_hud = false
+	settings.reticle_style = &"standard"
+	_check(
+		int(contract.get_snapshot().visual.contrast_mode) == Contract.VisualPreset.ContrastMode.STANDARD,
+		"turning the high-contrast HUD off returns the visual preset to STANDARD"
 	)
 	_check(
 		bool(status.color_independent) and bool(status.uses_text_labels)

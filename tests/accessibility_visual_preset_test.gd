@@ -45,6 +45,26 @@ func _run() -> void:
 	var detached := preset.get_snapshot()
 	detached["reduced_flash"] = false
 	_check(bool(preset.get_snapshot().reduced_flash), "returned snapshots are detached from policy state")
+	# The runtime adapter re-hydrates a candidate preset from a snapshot before
+	# every reconciliation, so HIGH must survive that copy and be revocable.
+	var copy := Preset.new()
+	var hydrated := copy.configure(preset.get_snapshot())
+	_check(
+		bool(hydrated.accepted) and copy.contrast_mode == Preset.ContrastMode.HIGH
+		and int(copy.get_snapshot().contrast_mode) == Preset.ContrastMode.HIGH,
+		"a snapshot re-applied to a fresh preset keeps the HIGH contrast mode"
+	)
+	var lowered := copy.configure({"contrast_mode": Preset.ContrastMode.STANDARD})
+	_check(
+		bool(lowered.accepted) and copy.contrast_mode == Preset.ContrastMode.STANDARD
+		and int(copy.resolve_cue(&"probe", &"info").contrast_mode) == Preset.ContrastMode.STANDARD,
+		"contrast can return to STANDARD and resolved cues follow it"
+	)
+	var bad_contrast := copy.configure({"contrast_mode": 7})
+	_check(
+		not bool(bad_contrast.accepted) and bad_contrast.reason == &"invalid_contrast_mode",
+		"an out-of-range contrast mode rejects by name"
+	)
 	_finish()
 
 

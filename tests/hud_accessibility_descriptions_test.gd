@@ -23,6 +23,24 @@ func _run() -> void:
 	hud.set_settings_snapshot({"reduced_flash": true, "payload_visual_intensity": 0})
 	_check(flash.tooltip_text.contains("ON"), "reduced flash description updates live")
 	_check(intensity.tooltip_text.contains("Low"), "payload intensity description updates live")
+	var high_contrast := controls[&"high_contrast_hud"] as CheckButton
+	var reticle_style := controls[&"reticle_style"] as OptionButton
+	_check(
+		high_contrast.focus_mode == Control.FOCUS_ALL and high_contrast.tooltip_text.contains("OFF"),
+		"high-contrast HUD exposes a focused accessible description of its disabled default"
+	)
+	_check(
+		reticle_style.focus_mode == Control.FOCUS_ALL and reticle_style.tooltip_text.contains("Standard"),
+		"reticle style exposes a focused accessible description of its standard default"
+	)
+	hud.set_settings_snapshot({"high_contrast_hud": true, "reticle_style": &"large"})
+	_check(high_contrast.tooltip_text.contains("ON"), "high-contrast HUD description updates live")
+	_check(reticle_style.tooltip_text.contains("Large") and reticle_style.selected == 2, "reticle style description follows a stable-ID snapshot")
+	_check(
+		high_contrast.focus_neighbor_bottom == high_contrast.get_path_to(reticle_style)
+		and reticle_style.focus_neighbor_top == reticle_style.get_path_to(high_contrast),
+		"the two presentation controls sit next to each other in controller focus order"
+	)
 	hud.apply_bomber_payload_snapshot({"generation": 1, "active": true, "ammo": 1, "cooldown_remaining": 0.0})
 	var action_row := hud.get("_bomber_status_actions") as HBoxContainer
 	_check(action_row.get_child_count() == 1, "bomber owns one dedicated payload action")

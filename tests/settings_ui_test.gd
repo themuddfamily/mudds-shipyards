@@ -55,6 +55,8 @@ func _run() -> void:
 		&"control_preset",
 		&"ui_scale",
 		&"colorblind_palette",
+		&"high_contrast_hud",
+		&"reticle_style",
 		&"reduced_motion",
 		&"reduced_dynamic_range",
 		&"reduced_flash",

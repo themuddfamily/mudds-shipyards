@@ -28,7 +28,14 @@ const STATUS_SETTING_FIELDS: Array[StringName] = [
 	&"reduced_motion",
 	&"ui_scale",
 	&"colorblind_palette",
+	&"high_contrast_hud",
+	&"reticle_style",
 ]
+const RETICLE_STYLE_LABELS := {
+	&"standard": "Standard",
+	&"bold": "Bold",
+	&"large": "Large with centre dot",
+}
 const PALETTE_LABELS := {
 	&"none": "Standard colours",
 	&"deuteranopia": "Deuteranopia alternative",
@@ -346,6 +353,11 @@ func _reconcile_settings_descriptor(
 		"reduced_flash": reduced_flash,
 		"reduced_motion": reduced_motion,
 		"colour_safe_cues": palette_id != &"none",
+		"contrast_mode": (
+			VisualPreset.ContrastMode.HIGH
+			if bool(descriptor.high_contrast_hud)
+			else VisualPreset.ContrastMode.STANDARD
+		),
 		"ui_scale": float(descriptor.ui_scale),
 	})
 	if not bool(visual_result.get("accepted", false)):
@@ -376,10 +388,16 @@ func _reconcile_settings_descriptor(
 func _build_status_confirmation(descriptor: Dictionary) -> Dictionary:
 	for field: StringName in [
 		&"captions_enabled", &"reduced_flash", &"reduced_motion", &"ui_scale",
-		&"colorblind_palette", &"colorblind_palette_id",
+		&"colorblind_palette", &"colorblind_palette_id", &"high_contrast_hud",
+		&"reticle_style",
 	]:
 		if not descriptor.has(field):
 			return {"accepted": false, "reason": &"accessibility_field_missing", "field": field}
+	if typeof(descriptor.high_contrast_hud) != TYPE_BOOL:
+		return {"accepted": false, "reason": &"invalid_high_contrast_hud"}
+	if typeof(descriptor.reticle_style) not in [TYPE_STRING, TYPE_STRING_NAME] \
+			or not RETICLE_STYLE_LABELS.has(StringName(descriptor.reticle_style)):
+		return {"accepted": false, "reason": &"invalid_reticle_style"}
 	if typeof(descriptor.captions_enabled) != TYPE_BOOL:
 		return {"accepted": false, "reason": &"invalid_captions_enabled"}
 	if typeof(descriptor.reduced_flash) != TYPE_BOOL:
@@ -402,18 +420,24 @@ func _build_status_confirmation(descriptor: Dictionary) -> Dictionary:
 	var captions_enabled := bool(descriptor.captions_enabled)
 	var reduced_flash := bool(descriptor.reduced_flash)
 	var reduced_motion := bool(descriptor.reduced_motion)
+	var high_contrast := bool(descriptor.high_contrast_hud)
+	var reticle_style := StringName(descriptor.reticle_style)
 	var scale_percent := roundi(ui_scale * 100.0)
 	var palette_label := String(PALETTE_LABELS[palette_id])
+	var reticle_label := String(RETICLE_STYLE_LABELS[reticle_style])
 	var rows: Array[Dictionary] = [
 		_status_row(&"captions", "Captions", "ON" if captions_enabled else "OFF"),
 		_status_row(&"reduced_flash", "Reduced flash", "ON" if reduced_flash else "OFF"),
 		_status_row(&"reduced_motion", "Reduced motion", "ON" if reduced_motion else "OFF"),
 		_status_row(&"ui_text_scale", "UI / text scale", "%d%%" % scale_percent),
 		_status_row(&"colour_alternative", "Colour alternative", palette_label),
+		_status_row(&"high_contrast", "High-contrast HUD", "ON" if high_contrast else "OFF"),
+		_status_row(&"reticle_style", "Reticle style", reticle_label),
 	]
 	var active := captions_enabled or reduced_flash or reduced_motion \
 			or not is_equal_approx(ui_scale, RuntimeSettingsType.DEFAULT_UI_SCALE) \
-			or palette_id != &"none"
+			or palette_id != &"none" or high_contrast \
+			or reticle_style != RuntimeSettingsType.DEFAULT_RETICLE_STYLE
 	var status_text := "ACCESSIBILITY OPTIONS // %s" % ("ACTIVE" if active else "STANDARD")
 	var announcement_parts := PackedStringArray([status_text])
 	for row: Dictionary in rows:
@@ -436,6 +460,12 @@ func _build_status_confirmation(descriptor: Dictionary) -> Dictionary:
 			"colorblind_palette": int(descriptor.colorblind_palette),
 			"colorblind_palette_id": palette_id,
 			"colour_alternative_label": palette_label,
+			"high_contrast_hud": high_contrast,
+			"contrast_mode": (
+				VisualPreset.ContrastMode.HIGH if high_contrast else VisualPreset.ContrastMode.STANDARD
+			),
+			"reticle_style": reticle_style,
+			"reticle_style_label": reticle_label,
 			"color_independent": true,
 			"uses_text_labels": true,
 			"focusable": false,

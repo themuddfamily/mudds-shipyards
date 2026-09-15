@@ -31,6 +31,16 @@ const ROLE_NOMINAL_SOFT: StringName = &"nominal_soft"
 ## Panel fill every HUD readout is drawn over.
 const PANEL_BACKGROUND := Color("0c1724")
 
+## Opaque panel fill the high-contrast variants are measured against. Darker
+## than [constant PANEL_BACKGROUND] so every role can clear the AAA floor
+## without bleaching the chromatic roles into one another; the HUD swaps its
+## translucent panel backings for exactly this colour while the variant is on.
+const PANEL_BACKGROUND_HIGH_CONTRAST := Color("05090f")
+
+## WCAG 2.x AAA text floor every role of a high-contrast variant must reach
+## against [constant PANEL_BACKGROUND_HIGH_CONTRAST].
+const MINIMUM_HIGH_CONTRAST_PANEL_CONTRAST := 7.0
+
 ## Minimum CIEDE2000 separation required between any two state roles once the
 ## targeted deficiency has been simulated. The authored set scores 11.6 under
 ## deuteranopia, so this threshold is a real gate rather than a formality.
@@ -114,6 +124,54 @@ const _PALETTES := {
 	},
 }
 
+# High-contrast variants. Each keeps its base preset's hue assignment so the
+# player's learned meaning of a colour survives toggling the variant, and the
+# roles are pushed only as far as the AAA floor and the separation gates need:
+# every state role is re-measured by `tests/accessibility_presets_test.gd`
+# against `PANEL_BACKGROUND_HIGH_CONTRAST` and under the target deficiency.
+# The recorded minima are deliberately close to the gates -- a saturated danger
+# orange that clears 7.0:1 on a dark panel is also the colour that converges on
+# a light muted grey once red-green vision is simulated -- so an edit that
+# nudges either role fails the matrix instead of silently regressing.
+const _HIGH_CONTRAST_PALETTES := {
+	# Normal-vision minimum 25.3 (danger/muted); lowest role contrast 7.91:1.
+	MODE_NONE: {
+		ROLE_NOMINAL: Color("62e6ef"),
+		ROLE_CAUTION: Color("ffb85c"),
+		ROLE_DANGER: Color("ff7f78"),
+		ROLE_MUTED: Color("a3a3a3"),
+		ROLE_PRIMARY: Color("edfaff"),
+		ROLE_NOMINAL_SOFT: Color("a9f7f5"),
+	},
+	# Simulated minimum 24.8 (danger/muted); normal minimum 29.2; lowest 7.30:1.
+	MODE_DEUTERANOPIA: {
+		ROLE_NOMINAL: Color("8aa4ff"),
+		ROLE_CAUTION: Color("ffff00"),
+		ROLE_DANGER: Color("e0846b"),
+		ROLE_MUTED: Color("e4e7e5"),
+		ROLE_PRIMARY: Color("edfaff"),
+		ROLE_NOMINAL_SOFT: Color("b3c4ff"),
+	},
+	# Simulated minimum 25.8 (danger/muted); normal minimum 27.2; lowest 7.41:1.
+	MODE_PROTANOPIA: {
+		ROLE_NOMINAL: Color("2aa8ff"),
+		ROLE_CAUTION: Color("faf575"),
+		ROLE_DANGER: Color("ff7434"),
+		ROLE_MUTED: Color("b4bcb4"),
+		ROLE_PRIMARY: Color("edfaff"),
+		ROLE_NOMINAL_SOFT: Color("8fd0ff"),
+	},
+	# Simulated minimum 26.3 (caution/muted); normal minimum 29.7; lowest 7.52:1.
+	MODE_TRITANOPIA: {
+		ROLE_NOMINAL: Color("85f2f2"),
+		ROLE_CAUTION: Color("f9e03e"),
+		ROLE_DANGER: Color("ff7551"),
+		ROLE_MUTED: Color("a0a2b2"),
+		ROLE_PRIMARY: Color("edfaff"),
+		ROLE_NOMINAL_SOFT: Color("c2f9f9"),
+	},
+}
+
 ## The deficiency each preset is designed against. `none` has no target: it is
 ## the authored palette, recorded here so the tests can measure and report the
 ## defect that motivates the other three rather than assuming it.
@@ -134,15 +192,24 @@ static func has_mode(mode_id: StringName) -> bool:
 
 
 ## Returns a detached role/colour map. An unknown ID falls back to the authored
-## palette instead of returning a partially populated dictionary.
-static func get_palette(mode_id: StringName) -> Dictionary:
-	var source: Dictionary = _PALETTES.get(mode_id, _PALETTES[MODE_NONE])
+## palette instead of returning a partially populated dictionary. With
+## `high_contrast` the variant measured against
+## [constant PANEL_BACKGROUND_HIGH_CONTRAST] is returned instead.
+static func get_palette(mode_id: StringName, high_contrast: bool = false) -> Dictionary:
+	var table: Dictionary = _HIGH_CONTRAST_PALETTES if high_contrast else _PALETTES
+	var source: Dictionary = table.get(mode_id, table[MODE_NONE])
 	return source.duplicate(true)
 
 
-static func get_role_color(mode_id: StringName, role: StringName) -> Color:
-	var palette: Dictionary = _PALETTES.get(mode_id, _PALETTES[MODE_NONE])
+static func get_role_color(mode_id: StringName, role: StringName, high_contrast: bool = false) -> Color:
+	var table: Dictionary = _HIGH_CONTRAST_PALETTES if high_contrast else _PALETTES
+	var palette: Dictionary = table.get(mode_id, table[MODE_NONE])
 	return palette.get(role, palette[ROLE_PRIMARY]) as Color
+
+
+## The opaque panel colour a palette variant is verified against.
+static func get_panel_background(high_contrast: bool = false) -> Color:
+	return PANEL_BACKGROUND_HIGH_CONTRAST if high_contrast else PANEL_BACKGROUND
 
 
 ## Every role a palette must define. Used to reject an incomplete preset.
@@ -191,8 +258,11 @@ static func contrast_ratio(first: Color, second: Color) -> float:
 ## Measures a palette's state-role separation. `deficiency` may be
 ## [constant MODE_NONE] to measure normal colour vision. The returned report is
 ## the evidence a preset is judged on.
-static func get_separation_report(mode_id: StringName, deficiency: StringName) -> Dictionary:
-	var palette := get_palette(mode_id)
+static func get_separation_report(
+		mode_id: StringName, deficiency: StringName, high_contrast: bool = false
+	) -> Dictionary:
+	var palette := get_palette(mode_id, high_contrast)
+	var panel := get_panel_background(high_contrast)
 	var pairs := {}
 	var minimum := INF
 	var minimum_pair := PackedStringArray()
@@ -211,18 +281,31 @@ static func get_separation_report(mode_id: StringName, deficiency: StringName) -
 	var minimum_contrast := INF
 	var minimum_contrast_role := &""
 	for role in STATE_ROLES:
-		var ratio := contrast_ratio(palette[role] as Color, PANEL_BACKGROUND)
+		var ratio := contrast_ratio(palette[role] as Color, panel)
 		if ratio < minimum_contrast:
 			minimum_contrast = ratio
 			minimum_contrast_role = role
+	# Typography roles are not state signals, but a high-contrast variant must
+	# still put every role above the floor, so the weakest of all six is reported.
+	var minimum_role_contrast := minimum_contrast
+	var minimum_role_contrast_role := minimum_contrast_role
+	for role in get_required_roles():
+		var ratio := contrast_ratio(palette[role] as Color, panel)
+		if ratio < minimum_role_contrast:
+			minimum_role_contrast = ratio
+			minimum_role_contrast_role = role
 	return {
 		"mode": mode_id,
 		"deficiency": deficiency,
+		"high_contrast": high_contrast,
+		"panel_background": panel,
 		"pairs": pairs,
 		"minimum_difference": minimum,
 		"minimum_pair": minimum_pair,
 		"minimum_panel_contrast": minimum_contrast,
 		"minimum_panel_contrast_role": minimum_contrast_role,
+		"minimum_role_contrast": minimum_role_contrast,
+		"minimum_role_contrast_role": minimum_role_contrast_role,
 	}
 
 

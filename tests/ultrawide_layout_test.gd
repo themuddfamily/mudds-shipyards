@@ -125,6 +125,17 @@ const PRESETS := [
 			"captions_enabled": true,
 		},
 	},
+	{
+		"id": &"high_contrast_large_reticle",
+		"descriptor": {
+			"ui_scale": 1.0,
+			"reduced_motion": false,
+			"reduced_flash": false,
+			"captions_enabled": true,
+			"high_contrast_hud": true,
+			"reticle_style": &"large",
+		},
+	},
 ]
 
 ## Every HUD state the roadmap item names, in the order the suite drives them.
@@ -234,8 +245,20 @@ func _run() -> void:
 	for resolution in RESOLUTIONS:
 		await _apply_resolution(resolution)
 		for preset: Dictionary in PRESETS:
-			_hud.set_accessibility((preset["descriptor"] as Dictionary).duplicate())
+			var descriptor := (preset["descriptor"] as Dictionary).duplicate()
+			# Presets that do not name the two HUD presentation settings run with
+			# them off, so the frozen authored layout is measured as authored.
+			if not descriptor.has("high_contrast_hud"):
+				descriptor["high_contrast_hud"] = false
+			if not descriptor.has("reticle_style"):
+				descriptor["reticle_style"] = &"standard"
+			_hud.set_accessibility(descriptor)
 			await process_frame
+			_check(
+				_hud.is_high_contrast_hud() == bool(descriptor["high_contrast_hud"])
+				and _hud.get_reticle_style() == StringName(descriptor["reticle_style"]),
+				"%s applies its contrast and reticle presentation before measurement" % preset["id"]
+			)
 			for state in STATES:
 				await _exercise_state(resolution, StringName(preset["id"]), state)
 

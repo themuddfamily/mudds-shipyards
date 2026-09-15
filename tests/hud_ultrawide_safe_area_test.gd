@@ -11,10 +11,20 @@ func _init() -> void:
 	call_deferred(&"_run")
 
 
+## Presentation variants every case is measured under. The second one turns the
+## high-contrast HUD on with the large reticle: opaque panels and a wider
+## reticle footprint must not move any card out of the safe band.
+const PRESENTATIONS := [
+	{"id": "standard", "high_contrast_hud": false, "reticle_style": &"standard"},
+	{"id": "high-contrast/large", "high_contrast_hud": true, "reticle_style": &"large"},
+]
+
+
 func _run() -> void:
 	for viewport in [Vector2(1920, 1080), Vector2(1920, 1200), Vector2(2560, 1080), Vector2(5120, 1440)]:
 		for requested_scale in [0.75, 1.0, 1.6]:
-			await _exercise_case(viewport, requested_scale)
+			for presentation: Dictionary in PRESENTATIONS:
+				await _exercise_case(viewport, requested_scale, presentation)
 	if _failures.is_empty():
 		print("HUD_ULTRAWIDE_SAFE_AREA_TEST_OK (%d assertions)" % _assertions)
 		quit(0)
@@ -24,7 +34,7 @@ func _run() -> void:
 	quit(1)
 
 
-func _exercise_case(viewport_size: Vector2, requested_scale: float) -> void:
+func _exercise_case(viewport_size: Vector2, requested_scale: float, presentation: Dictionary) -> void:
 	# A real SubViewport is required here. Anchored right/bottom controls resolve
 	# from their owning viewport, so faking only the layout size would measure a
 	# hybrid geometry that production can never display.
@@ -39,6 +49,16 @@ func _exercise_case(viewport_size: Vector2, requested_scale: float) -> void:
 	(hud.get("_intro") as Control).visible = false
 	(hud.get("_hud") as Control).visible = true
 	hud.set_mode("piloting")
+	hud.set_accessibility({
+		"high_contrast_hud": bool(presentation["high_contrast_hud"]),
+		"reticle_style": StringName(presentation["reticle_style"]),
+	})
+	var case_label := "%s %s" % [Contract.classify_viewport(viewport_size), presentation["id"]]
+	_check(
+		hud.is_high_contrast_hud() == bool(presentation["high_contrast_hud"])
+		and hud.get_reticle_style() == StringName(presentation["reticle_style"]),
+		"the %s case applies its presentation variant before layout" % case_label
+	)
 	hud.set_objective(
 		"Free flight — explore, fight, or return to a compatible registered berth",
 		"SANDBOX SORTIE"
@@ -100,7 +120,37 @@ func _exercise_case(viewport_size: Vector2, requested_scale: float) -> void:
 			safe.grow(0.5).encloses(panel)
 			and Rect2(Vector2.ZERO, viewport_size).encloses(panel),
 			"%s remains fully inside the readable safe band at %s scale %.2f"
-			% [key, Contract.classify_viewport(viewport_size), requested_scale]
+			% [key, case_label, requested_scale]
+		)
+	# The camera-space reticle is excluded from UI scaling, so it is measured in
+	# device pixels: every visible mark and the state label stay inside the safe
+	# band, and the label never touches a mark whichever style is selected.
+	var reticle := hud.get("_reticle") as Control
+	var reticle_snapshot := hud.get_sensor_reticle_component_snapshot()
+	var reticle_label := hud.get("_reticle_state_label") as Label
+	var reticle_origin := reticle.get_global_position()
+	var label_rect := Rect2(reticle_origin + reticle_label.position, reticle_label.size)
+	var reticle_clear := true
+	var reticle_inside := true
+	for mark: Dictionary in reticle_snapshot["marks"] as Array:
+		if not bool(mark["visible"]):
+			continue
+		var mark_rect := Rect2(reticle_origin + (mark["position"] as Vector2), mark["size"] as Vector2)
+		if mark_rect.intersects(label_rect):
+			reticle_clear = false
+		if not safe.grow(0.5).encloses(mark_rect):
+			reticle_inside = false
+	_check(
+		reticle_snapshot["style"] == StringName(presentation["reticle_style"])
+		and reticle_clear and reticle_inside and safe.grow(0.5).encloses(label_rect),
+		"the %s reticle keeps its marks and state label inside the safe band and apart at %s scale %.2f"
+		% [reticle_snapshot["style"], case_label, requested_scale]
+	)
+	if bool(presentation["high_contrast_hud"]):
+		var telemetry_box := (hud.get("_telemetry_panel") as PanelContainer).get_theme_stylebox("panel") as StyleBoxFlat
+		_check(
+			telemetry_box.bg_color.a == 1.0,
+			"the high-contrast telemetry backing is opaque at %s scale %.2f" % [case_label, requested_scale]
 		)
 	var composed_keys: Array[StringName] = [
 		&"brand", &"objective", &"help", &"telemetry", &"minimap",

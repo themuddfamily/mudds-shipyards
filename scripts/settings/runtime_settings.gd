@@ -56,7 +56,7 @@ const MINIMUM_SUPPORTED_SCHEMA_VERSION := 1
 ## Version of the typed RuntimeSettings section stored inside UserDataStore's
 ## independently versioned envelope. This starts at one because ConfigFile
 ## schema versions describe a different wire format and migration history.
-const USER_DATA_PAYLOAD_SCHEMA_VERSION := 10
+const USER_DATA_PAYLOAD_SCHEMA_VERSION := 11
 const _MAX_SAFE_JSON_INTEGER := 9_007_199_254_740_991
 const DEFAULT_CONFIG_PATH := "user://settings.cfg"
 const _STAGING_SUFFIX := ".tmp"
@@ -101,6 +101,23 @@ const DEFAULT_VSYNC_MODE := VSyncMode.ON
 const SUPPORTED_DISPLAY_RESOLUTION_IDS := ["1280x720", "1600x900", "1920x1080", "2560x1440"]
 const DEFAULT_CONTROL_PRESET := ControlPreset.MODERN
 const DEFAULT_COLORBLIND_PALETTE := ColorblindPalette.NONE
+## High-contrast HUD, default OFF. Selects the high-contrast variant of the
+## active colour-vision palette (`HudPalette.get_palette(mode, true)`): opaque
+## panel backings, every role at or above 7.0:1 against the darker panel, and a
+## dark outline on body text. Verified by `tests/accessibility_presets_test.gd`.
+const DEFAULT_HIGH_CONTRAST_HUD := false
+## Sensor reticle style. `standard` is the authored 44 px cross, `bold` keeps
+## that footprint with thicker marks, `large` widens the footprint and adds a
+## centre dot. Stable textual IDs so persistence never depends on menu order.
+const RETICLE_STYLE_STANDARD: StringName = &"standard"
+const RETICLE_STYLE_BOLD: StringName = &"bold"
+const RETICLE_STYLE_LARGE: StringName = &"large"
+const RETICLE_STYLE_IDS: Array[StringName] = [
+	RETICLE_STYLE_STANDARD,
+	RETICLE_STYLE_BOLD,
+	RETICLE_STYLE_LARGE,
+]
+const DEFAULT_RETICLE_STYLE: StringName = RETICLE_STYLE_STANDARD
 const DEFAULT_REDUCED_MOTION := false
 const DEFAULT_CAPTIONS_ENABLED := false
 const DEFAULT_REDUCED_DYNAMIC_RANGE := false
@@ -131,6 +148,40 @@ const _SECTION_NETWORK := "network"
 
 const _USER_DATA_SECTION_KEYS := ["schema_version", "values"]
 const _USER_DATA_VALUE_KEYS := [
+	"ship_mouse_sensitivity",
+	"on_foot_mouse_sensitivity",
+	"invert_ship_y",
+	"invert_on_foot_y",
+	"camera_fov",
+	"on_foot_first_person",
+	"limit_ultrawide_fov",
+	"master_volume",
+	"ambience_volume",
+	"engine_volume",
+	"weapons_volume",
+	"ui_volume",
+	"music_volume",
+	"graphics_profile",
+	"window_mode",
+	"display_resolution",
+	"vsync_mode",
+	"control_preset",
+	"ui_scale",
+	"colorblind_palette",
+	"high_contrast_hud",
+	"reticle_style",
+	"reduced_motion",
+	"captions_enabled",
+	"reduced_dynamic_range",
+	"reduced_flash",
+	"payload_visual_intensity",
+	"show_tutorials",
+	"multiplayer_display_name",
+	"network_default_port",
+	"multiplayer_max_players",
+	"input_binding_profile",
+]
+const _USER_DATA_VALUE_KEYS_V10 := [
 	"ship_mouse_sensitivity",
 	"on_foot_mouse_sensitivity",
 	"invert_ship_y",
@@ -502,6 +553,26 @@ var colorblind_palette: int = DEFAULT_COLORBLIND_PALETTE:
 		colorblind_palette = validated
 		_queue_change(&"colorblind_palette", validated)
 
+## Opt-in high-contrast HUD. Presentation only: the HUD swaps to the
+## high-contrast variant of whichever colour-vision palette is active.
+var high_contrast_hud := DEFAULT_HIGH_CONTRAST_HUD:
+	set(value):
+		var validated := bool(value)
+		if high_contrast_hud == validated:
+			return
+		high_contrast_hud = validated
+		_queue_change(&"high_contrast_hud", validated)
+
+## Sensor reticle style, one of [constant RETICLE_STYLE_IDS]. An unknown ID
+## falls back to the authored `standard` cross rather than hiding the reticle.
+var reticle_style: StringName = DEFAULT_RETICLE_STYLE:
+	set(value):
+		var validated := _validated_reticle_style(value)
+		if reticle_style == validated:
+			return
+		reticle_style = validated
+		_queue_change(&"reticle_style", validated)
+
 var reduced_motion := DEFAULT_REDUCED_MOTION:
 	set(value):
 		if reduced_motion == value:
@@ -626,6 +697,8 @@ func to_dictionary() -> Dictionary:
 		"control_preset": control_preset,
 		"ui_scale": ui_scale,
 		"colorblind_palette": colorblind_palette,
+		"high_contrast_hud": high_contrast_hud,
+		"reticle_style": reticle_style,
 		"reduced_motion": reduced_motion,
 		"captions_enabled": captions_enabled,
 		"reduced_dynamic_range": reduced_dynamic_range,
@@ -667,6 +740,8 @@ func to_user_data_payload() -> Dictionary:
 			"control_preset": String(get_control_preset_id()),
 			"ui_scale": ui_scale,
 			"colorblind_palette": String(get_colorblind_palette_id()),
+			"high_contrast_hud": high_contrast_hud,
+			"reticle_style": String(reticle_style),
 			"reduced_motion": reduced_motion,
 			"captions_enabled": captions_enabled,
 			"reduced_dynamic_range": reduced_dynamic_range,
@@ -724,6 +799,8 @@ func apply_user_data_payload(candidate: Variant) -> Dictionary:
 	control_preset = int(values.control_preset)
 	ui_scale = float(values.ui_scale)
 	colorblind_palette = int(values.colorblind_palette)
+	high_contrast_hud = bool(values.high_contrast_hud)
+	reticle_style = StringName(values.reticle_style)
 	reduced_motion = bool(values.reduced_motion)
 	captions_enabled = bool(values.captions_enabled)
 	reduced_dynamic_range = bool(values.reduced_dynamic_range)
@@ -762,6 +839,8 @@ func reset_to_defaults() -> void:
 	control_preset = DEFAULT_CONTROL_PRESET
 	ui_scale = DEFAULT_UI_SCALE
 	colorblind_palette = DEFAULT_COLORBLIND_PALETTE
+	high_contrast_hud = DEFAULT_HIGH_CONTRAST_HUD
+	reticle_style = DEFAULT_RETICLE_STYLE
 	reduced_motion = DEFAULT_REDUCED_MOTION
 	captions_enabled = DEFAULT_CAPTIONS_ENABLED
 	reduced_dynamic_range = DEFAULT_REDUCED_DYNAMIC_RANGE
@@ -838,6 +917,8 @@ func save_to_file(path_override: String = "") -> Error:
 		"colorblind_palette",
 		String(_colorblind_palette_id(colorblind_palette))
 	)
+	config.set_value(_SECTION_ACCESSIBILITY, "high_contrast_hud", high_contrast_hud)
+	config.set_value(_SECTION_ACCESSIBILITY, "reticle_style", String(reticle_style))
 	config.set_value(_SECTION_ACCESSIBILITY, "reduced_motion", reduced_motion)
 	config.set_value(_SECTION_ACCESSIBILITY, "captions", captions_enabled)
 	config.set_value(_SECTION_ACCESSIBILITY, "reduced_dynamic_range", reduced_dynamic_range)
@@ -998,6 +1079,12 @@ func load_from_file(path_override: String = "", read_only: bool = false) -> Erro
 			_colorblind_palette_id(DEFAULT_COLORBLIND_PALETTE)
 		)
 	)
+	high_contrast_hud = _read_bool(
+		config, _SECTION_ACCESSIBILITY, "high_contrast_hud", DEFAULT_HIGH_CONTRAST_HUD
+	)
+	reticle_style = _parse_reticle_style(
+		config.get_value(_SECTION_ACCESSIBILITY, "reticle_style", String(DEFAULT_RETICLE_STYLE))
+	)
 	reduced_motion = _read_bool(
 		config, _SECTION_ACCESSIBILITY, "reduced_motion", DEFAULT_REDUCED_MOTION
 	)
@@ -1125,6 +1212,8 @@ func get_accessibility_descriptor() -> Dictionary:
 		"ui_scale": ui_scale,
 		"colorblind_palette": colorblind_palette,
 		"colorblind_palette_id": get_colorblind_palette_id(),
+		"high_contrast_hud": high_contrast_hud,
+		"reticle_style": reticle_style,
 		"reduced_motion": reduced_motion,
 		"captions_enabled": captions_enabled,
 		"reduced_dynamic_range": reduced_dynamic_range,
@@ -1240,7 +1329,9 @@ func _decode_user_data_payload(candidate: Variant) -> Dictionary:
 		return {"accepted": false, "reason": &"values_not_dictionary"}
 	var raw_values := section.values as Dictionary
 	var expected_value_keys := _USER_DATA_VALUE_KEYS
-	if schema == 9:
+	if schema == 10:
+		expected_value_keys = _USER_DATA_VALUE_KEYS_V10
+	elif schema == 9:
 		expected_value_keys = _USER_DATA_VALUE_KEYS_V9
 	elif schema == 8:
 		expected_value_keys = _USER_DATA_VALUE_KEYS_V8
@@ -1288,6 +1379,10 @@ func _decode_user_data_payload(candidate: Variant) -> Dictionary:
 	if schema <= 9:
 		raw_values = raw_values.duplicate()
 		raw_values["limit_ultrawide_fov"] = DEFAULT_LIMIT_ULTRAWIDE_FOV
+	if schema <= 10:
+		raw_values = raw_values.duplicate()
+		raw_values["high_contrast_hud"] = DEFAULT_HIGH_CONTRAST_HUD
+		raw_values["reticle_style"] = String(DEFAULT_RETICLE_STYLE)
 
 	var decoded := {}
 	var bounded_numbers := {
@@ -1331,6 +1426,7 @@ func _decode_user_data_payload(candidate: Variant) -> Dictionary:
 		"invert_on_foot_y",
 		"on_foot_first_person",
 		"limit_ultrawide_fov",
+		"high_contrast_hud",
 		"reduced_motion",
 		"captions_enabled",
 		"reduced_dynamic_range",
@@ -1383,6 +1479,10 @@ func _decode_user_data_payload(candidate: Variant) -> Dictionary:
 	if not raw_values.display_resolution is String or not SUPPORTED_DISPLAY_RESOLUTION_IDS.has(raw_values.display_resolution):
 		return {"accepted": false, "reason": &"invalid_display_resolution"}
 	decoded["display_resolution"] = String(raw_values.display_resolution)
+	if not raw_values.reticle_style is String \
+			or not RETICLE_STYLE_IDS.has(StringName(raw_values.reticle_style)):
+		return {"accepted": false, "reason": &"invalid_reticle_style"}
+	decoded["reticle_style"] = StringName(raw_values.reticle_style)
 
 	var profile_result := _decode_input_profile_json(raw_values.input_binding_profile)
 	if not bool(profile_result.accepted):
@@ -1635,6 +1735,21 @@ static func _validated_control_preset(value: int) -> int:
 
 static func _validated_colorblind_palette(value: int) -> int:
 	return value if _COLORBLIND_PALETTE_IDS.has(value) else DEFAULT_COLORBLIND_PALETTE
+
+
+## Accepts a stable ID (String or StringName) or a menu index into
+## [constant RETICLE_STYLE_IDS]; anything else resolves to the authored cross.
+static func _validated_reticle_style(value: Variant) -> StringName:
+	if value is int and int(value) >= 0 and int(value) < RETICLE_STYLE_IDS.size():
+		return RETICLE_STYLE_IDS[int(value)]
+	return _parse_reticle_style(value)
+
+
+static func _parse_reticle_style(value: Variant) -> StringName:
+	if typeof(value) != TYPE_STRING and typeof(value) != TYPE_STRING_NAME:
+		return DEFAULT_RETICLE_STYLE
+	var wanted := StringName(String(value).strip_edges().to_lower())
+	return wanted if RETICLE_STYLE_IDS.has(wanted) else DEFAULT_RETICLE_STYLE
 
 
 static func _validated_multiplayer_display_name(value: Variant) -> String:

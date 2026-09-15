@@ -21,7 +21,10 @@ func _run() -> void:
 	_test_palette_completeness()
 	_test_authored_palette_defect()
 	_test_preset_separation()
+	_test_high_contrast_variants()
 	await _test_hud_palette_application()
+	await _test_hud_high_contrast_application()
+	await _test_hud_reticle_styles()
 	await _test_hud_scale_and_motion()
 	await _test_hud_captions()
 	_finish()
@@ -165,6 +168,299 @@ func _test_preset_separation() -> void:
 			simulated_minimum > float(authored["minimum_difference"]),
 			"%s preset strictly improves on the authored palette under the same deficiency" % mode_id
 		)
+
+
+## Every palette mode x contrast variant is re-measured here. The high-contrast
+## variants must clear the WCAG AAA 7.0:1 floor for *all six* roles against the
+## opaque high-contrast panel, and the separation gates the base presets are held
+## to must still hold after the same dichromacy simulation. `none` has no target
+## deficiency, so its variant is gated on normal-vision separation only and its
+## simulated numbers are printed for the record.
+func _test_high_contrast_variants() -> void:
+	_check(
+		Palette.PANEL_BACKGROUND_HIGH_CONTRAST.a == 1.0
+		and Palette.contrast_ratio(Color.WHITE, Palette.PANEL_BACKGROUND_HIGH_CONTRAST)
+			> Palette.contrast_ratio(Color.WHITE, Palette.PANEL_BACKGROUND),
+		"the high-contrast panel is opaque and darker than the authored panel"
+	)
+	_check(
+		Palette.get_palette(Palette.MODE_NONE, false) == Palette.get_palette(Palette.MODE_NONE),
+		"the contrast argument defaults off, so existing callers keep the authored palette"
+	)
+	for mode_id: StringName in Palette.get_mode_ids():
+		var base := Palette.get_palette(mode_id, false)
+		var variant := Palette.get_palette(mode_id, true)
+		var complete := true
+		for role: StringName in Palette.get_required_roles():
+			if not variant.has(role):
+				complete = false
+		_check(complete, "high-contrast %s defines every required role" % mode_id)
+		_check(variant != base, "high-contrast %s is a distinct variant, not the base palette" % mode_id)
+		var deficiency: StringName = Palette.MODE_TARGETS.get(mode_id, Palette.MODE_NONE)
+		var simulated := Palette.get_separation_report(mode_id, deficiency, true)
+		var normal := Palette.get_separation_report(mode_id, Palette.MODE_NONE, true)
+		var base_report := Palette.get_separation_report(mode_id, deficiency, false)
+		var role_contrast := float(simulated["minimum_role_contrast"])
+		print(
+			"MEASURED: %s high-contrast -> simulated min dE00 %.1f (%s/%s) under %s, normal min %.1f, weakest role %s at %.2f:1 on %s"
+			% [
+				mode_id,
+				float(simulated["minimum_difference"]),
+				(simulated["minimum_pair"] as PackedStringArray)[0],
+				(simulated["minimum_pair"] as PackedStringArray)[1],
+				deficiency,
+				float(normal["minimum_difference"]),
+				simulated["minimum_role_contrast_role"],
+				role_contrast,
+				Palette.PANEL_BACKGROUND_HIGH_CONTRAST.to_html(false),
+			]
+		)
+		_check(
+			bool(simulated["high_contrast"])
+			and Color(simulated["panel_background"]) == Palette.PANEL_BACKGROUND_HIGH_CONTRAST,
+			"the %s high-contrast report is measured against the opaque high-contrast panel" % mode_id
+		)
+		for role: StringName in Palette.get_required_roles():
+			var ratio := Palette.contrast_ratio(variant[role] as Color, Palette.PANEL_BACKGROUND_HIGH_CONTRAST)
+			_check(
+				ratio >= Palette.MINIMUM_HIGH_CONTRAST_PANEL_CONTRAST,
+				"high-contrast %s/%s clears the %.1f:1 AAA floor (measured %.2f:1)"
+				% [mode_id, role, Palette.MINIMUM_HIGH_CONTRAST_PANEL_CONTRAST, ratio]
+			)
+		_check(
+			role_contrast >= Palette.MINIMUM_HIGH_CONTRAST_PANEL_CONTRAST,
+			"high-contrast %s reports its weakest role above the AAA floor (%.2f:1)" % [mode_id, role_contrast]
+		)
+		_check(
+			float(normal["minimum_difference"]) >= Palette.MINIMUM_NORMAL_SEPARATION,
+			"high-contrast %s stays readable with normal colour vision (measured %.1f)"
+			% [mode_id, float(normal["minimum_difference"])]
+		)
+		if deficiency != Palette.MODE_NONE:
+			_check(
+				float(simulated["minimum_difference"]) >= Palette.MINIMUM_STATE_SEPARATION,
+				"high-contrast %s keeps every state pair at least %.1f apart under %s (measured %.1f)"
+				% [mode_id, Palette.MINIMUM_STATE_SEPARATION, deficiency, float(simulated["minimum_difference"])]
+			)
+			_check(
+				float(simulated["minimum_panel_contrast"]) > float(base_report["minimum_panel_contrast"]),
+				"high-contrast %s strictly raises the weakest state-role contrast over its base preset" % mode_id
+			)
+		else:
+			for other: StringName in Palette.MODE_TARGETS:
+				var record := Palette.get_separation_report(mode_id, other, true)
+				print(
+					"MEASURED: none high-contrast under %s -> min dE00 %.1f (%s/%s); not colour-safe by design"
+					% [
+						other,
+						float(record["minimum_difference"]),
+						(record["minimum_pair"] as PackedStringArray)[0],
+						(record["minimum_pair"] as PackedStringArray)[1],
+					]
+				)
+	_check(
+		Palette.get_palette(&"bogus_mode", true) == Palette.get_palette(Palette.MODE_NONE, true),
+		"an unknown high-contrast ID falls back to the high-contrast authored set"
+	)
+
+
+## Turning the high-contrast HUD on swaps the palette variant, makes every
+## registered panel backing opaque and outlines body text; turning it off must
+## restore the authored fills and colours exactly, because the ultrawide and
+## composition suites freeze the `none` + off layout.
+func _test_hud_high_contrast_application() -> void:
+	var hud := GameHUD.new()
+	hud.name = "AccessibilityContrastHUD"
+	root.add_child(hud)
+	await process_frame
+	hud.set_engine_state("OFFLINE")
+	hud.update_ship_telemetry({"damage_status": "critical", "throttle": -0.5, "hull": 10.0, "maximum_hull": 100.0})
+
+	var interaction_box := (hud.get("_interaction_panel") as PanelContainer).get_theme_stylebox("panel") as StyleBoxFlat
+	var objective_box := (hud.get("_objective_panel") as PanelContainer).get_theme_stylebox("panel") as StyleBoxFlat
+	var telemetry_box := (hud.get("_telemetry_panel") as PanelContainer).get_theme_stylebox("panel") as StyleBoxFlat
+	var objective_label := hud.get("_objective_label") as Label
+	var authored_interaction_fill := interaction_box.bg_color
+	var authored_objective_fill := objective_box.bg_color
+	var authored_border := objective_box.border_color
+	var authored_widths := [
+		objective_box.border_width_left, objective_box.border_width_top,
+		objective_box.content_margin_left, objective_box.content_margin_top,
+	]
+	var authored_report := hud.get_accessibility_report()
+	_check(
+		not bool(authored_report["high_contrast"])
+		and authored_interaction_fill.a < 1.0 and authored_objective_fill.a < 1.0,
+		"the authored HUD starts with translucent panel backings and the contrast variant off"
+	)
+	_check(
+		not objective_label.has_theme_constant_override("outline_size"),
+		"authored body text carries no outline"
+	)
+
+	hud.set_high_contrast_hud(true)
+	var applied := hud.get_accessibility_report()
+	_check(bool(applied["high_contrast"]) and hud.is_high_contrast_hud(), "the HUD latches the high-contrast variant")
+	_check(
+		Color(applied["danger_color"]) == Palette.get_role_color(Palette.MODE_NONE, Palette.ROLE_DANGER, true)
+		and Color(applied["danger_color"]) != Color(authored_report["danger_color"]),
+		"state roles resolve to the high-contrast variant of the active palette"
+	)
+	_check(
+		Color(applied["engine_label_color"]) == Palette.get_role_color(Palette.MODE_NONE, Palette.ROLE_DANGER, true),
+		"an already-rendered offline engine readout is retinted to the variant immediately"
+	)
+	_check(
+		interaction_box.bg_color == Palette.PANEL_BACKGROUND_HIGH_CONTRAST
+		and objective_box.bg_color == Palette.PANEL_BACKGROUND_HIGH_CONTRAST
+		and telemetry_box.bg_color == Palette.PANEL_BACKGROUND_HIGH_CONTRAST
+		and interaction_box.bg_color.a == 1.0,
+		"every HUD panel backing becomes the opaque high-contrast panel"
+	)
+	_check(
+		objective_box.border_color == authored_border
+		and [
+			objective_box.border_width_left, objective_box.border_width_top,
+			objective_box.content_margin_left, objective_box.content_margin_top,
+		] == authored_widths,
+		"the opaque backing changes only the fill, never a border width or content margin"
+	)
+	_check(
+		objective_label.has_theme_constant_override("outline_size")
+		and objective_label.get_theme_constant("outline_size") == GameHUD.HIGH_CONTRAST_TEXT_OUTLINE_SIZE
+		and objective_label.get_theme_color("font_outline_color") == GameHUD.HIGH_CONTRAST_TEXT_OUTLINE_COLOR,
+		"body text gains the dark high-contrast outline"
+	)
+	var authored_outline_kept := 0
+	for candidate in (hud.get("_intro") as Control).find_children("*", "Label", true, false):
+		var label := candidate as Label
+		if label.has_theme_constant_override("outline_size") \
+				and label.get_theme_constant("outline_size") > GameHUD.HIGH_CONTRAST_TEXT_OUTLINE_SIZE:
+			authored_outline_kept += 1
+	_check(
+		authored_outline_kept >= 2,
+		"labels that author their own larger outline keep it under high contrast (%d kept)" % authored_outline_kept
+	)
+
+	hud.set_hud_palette(Palette.MODE_DEUTERANOPIA)
+	_check(
+		Color(hud.get_accessibility_report()["danger_color"])
+			== Palette.get_role_color(Palette.MODE_DEUTERANOPIA, Palette.ROLE_DANGER, true),
+		"changing the colour-vision preset while high contrast is on selects that preset's variant"
+	)
+	hud.set_hud_palette(Palette.MODE_NONE)
+
+	hud.set_high_contrast_hud(false)
+	var restored := hud.get_accessibility_report()
+	_check(
+		not bool(restored["high_contrast"])
+		and Color(restored["danger_color"]) == Color(authored_report["danger_color"])
+		and Color(restored["nominal_color"]) == Color(authored_report["nominal_color"])
+		and Color(restored["muted_color"]) == Color(authored_report["muted_color"])
+		and Color(restored["engine_label_color"]) == Color(authored_report["engine_label_color"]),
+		"turning high contrast off restores every authored role colour exactly"
+	)
+	_check(
+		interaction_box.bg_color == authored_interaction_fill
+		and objective_box.bg_color == authored_objective_fill
+		and objective_box.border_color == authored_border,
+		"turning high contrast off restores the authored translucent fills exactly"
+	)
+	_check(
+		not objective_label.has_theme_constant_override("outline_size")
+		and not objective_label.has_theme_color_override("font_outline_color"),
+		"turning high contrast off removes only the outline the HUD added"
+	)
+	hud.set_accessibility({"high_contrast_hud": true, "colorblind_palette_id": Palette.MODE_TRITANOPIA})
+	_check(
+		hud.is_high_contrast_hud()
+		and Color(hud.get_accessibility_report()["danger_color"])
+			== Palette.get_role_color(Palette.MODE_TRITANOPIA, Palette.ROLE_DANGER, true),
+		"the accessibility descriptor path applies the contrast flag before the palette"
+	)
+	hud.queue_free()
+	await process_frame
+	await process_frame
+
+
+## The reticle styles change only the authored geometry. Every style keeps the
+## four-bar silhouette, keeps the damage staging, reports itself in the
+## component snapshot, and keeps the state label clear of the marks.
+func _test_hud_reticle_styles() -> void:
+	var hud := GameHUD.new()
+	hud.name = "AccessibilityReticleHUD"
+	root.add_child(hud)
+	await process_frame
+	hud.set_mode("piloting")
+	hud.set_target_lock_state(&"acquired", "RANGE DEFENDER")
+	var standard := hud.get_sensor_reticle_component_snapshot()
+	_check(
+		standard["style"] == &"standard" and int(standard["mark_count"]) == 4
+		and int(standard["visible_mark_count"]) == 4
+		and is_equal_approx(float(standard["footprint"]), 44.0),
+		"the reticle starts in the authored standard style with four marks on a 44 px footprint"
+	)
+	var authored_marks: Array = []
+	for mark: Dictionary in standard["marks"] as Array:
+		authored_marks.append([mark["position"], mark["size"]])
+	var expected_authored: Array = []
+	for layout: Array in GameHUD.SENSOR_RETICLE_MARK_LAYOUT:
+		expected_authored.append([layout[0], layout[1]])
+	_check(authored_marks == expected_authored, "the standard style is bit-identical to the authored mark table")
+
+	for style: StringName in [&"bold", &"large", &"standard"]:
+		hud.set_reticle_style(style)
+		await process_frame
+		var snapshot := hud.get_sensor_reticle_component_snapshot()
+		var layout := GameHUD.SENSOR_RETICLE_STYLE_LAYOUTS[style] as Dictionary
+		var expected_marks := 5 if float(layout["centre_dot"]) > 0.0 else 4
+		_check(
+			snapshot["style"] == style and hud.get_reticle_style() == style
+			and int(snapshot["mark_count"]) == expected_marks
+			and int(snapshot["visible_mark_count"]) == expected_marks
+			and is_equal_approx(float(snapshot["footprint"]), float(layout["footprint"]))
+			and is_equal_approx(float(snapshot["mark_thickness"]), float(layout["thickness"])),
+			"the %s style reports its style, %d marks and its footprint" % [style, expected_marks]
+		)
+		var reticle := hud.get("_reticle") as Control
+		var label := hud.get("_reticle_state_label") as Label
+		var label_rect := Rect2(label.position, label.size)
+		var clear_of_marks := true
+		var inside_footprint := true
+		var reticle_rect := Rect2(Vector2.ZERO, reticle.size)
+		for mark: Dictionary in snapshot["marks"] as Array:
+			var mark_rect := Rect2(mark["position"], mark["size"])
+			if bool(mark["visible"]) and mark_rect.intersects(label_rect):
+				clear_of_marks = false
+			if not reticle_rect.grow(0.01).encloses(mark_rect):
+				inside_footprint = false
+		_check(clear_of_marks, "the %s state label never overlaps a visible mark" % style)
+		_check(inside_footprint, "every %s mark stays inside the reticle footprint" % style)
+		_check(
+			is_equal_approx(reticle.position.x, -reticle.size.x * 0.5)
+			and is_equal_approx(reticle.pivot_offset.x, reticle.size.x * 0.5),
+			"the %s reticle stays centred on the viewport" % style
+		)
+		_check(
+			hud.get_sensor_reticle_component_snapshot()["lock_state"] == &"acquired",
+			"rebuilding the %s reticle keeps the target-lock state" % style
+		)
+	_check(
+		float((GameHUD.SENSOR_RETICLE_STYLE_LAYOUTS[&"large"] as Dictionary)["footprint"]) >= 44.0 * 1.6,
+		"the large style is at least 1.6x the authored footprint"
+	)
+	_check(
+		float((GameHUD.SENSOR_RETICLE_STYLE_LAYOUTS[&"bold"] as Dictionary)["thickness"]) > 4.0
+		and is_equal_approx(float((GameHUD.SENSOR_RETICLE_STYLE_LAYOUTS[&"bold"] as Dictionary)["footprint"]), 44.0),
+		"the bold style thickens the marks on the same 44 px footprint"
+	)
+	hud.set_reticle_style(&"not_a_style")
+	_check(hud.get_reticle_style() == &"standard", "an unknown reticle style falls back to standard")
+	hud.set_accessibility({"reticle_style": &"large"})
+	_check(hud.get_reticle_style() == &"large", "the accessibility descriptor path selects the reticle style")
+	hud.queue_free()
+	await process_frame
+	await process_frame
 
 
 func _test_hud_palette_application() -> void:
