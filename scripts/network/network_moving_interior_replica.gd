@@ -66,7 +66,16 @@ func accept_snapshot(
 		if teleported:
 			_teleport_count += 1
 		else:
-			record["previous"] = current.duplicate(true)
+			# Only the two fields the interpolator reads are carried forward.
+			# Storing the whole previous record nests every sample inside the
+			# next one, so the per-entity history grows without bound: each
+			# incoming relationship costs a deeper recursive copy than the last
+			# until Godot's duplicate-recursion limit is reached and the replica
+			# stops tracking the crew member it was drawing.
+			record["previous"] = {
+				"arrival_time_seconds": float(current.get("arrival_time_seconds", 0.0)),
+				"transform": current.get("transform", Transform3D.IDENTITY),
+			}
 	_samples[entity_id] = record
 	_frozen.erase(entity_id)
 	return _result(true, &"teleported" if teleported else &"accepted", {
@@ -104,6 +113,15 @@ func detach_entity(entity_id: StringName) -> Dictionary:
 	_samples.erase(entity_id)
 	_frozen.erase(entity_id)
 	return _result(true, &"detached", {"entity_id": entity_id})
+
+
+## Session-teardown clear. Unlike `reset_migration()` this keeps the migration
+## cursor, because a reconnect to the same host resumes on the same generation.
+func clear_entities() -> Dictionary:
+	_stream.clear_entities()
+	_samples.clear()
+	_frozen.clear()
+	return _result(true, &"entities_cleared")
 
 
 func reset_migration(source_peer_id: int, migration_generation: int) -> Dictionary:

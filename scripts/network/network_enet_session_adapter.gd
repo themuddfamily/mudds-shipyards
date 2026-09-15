@@ -147,6 +147,18 @@ var _moving_recipient_budgets: Dictionary = {}
 var _moving_recipient_entities: Dictionary = {}
 var _moving_recipient_pending: Dictionary = {}
 var _moving_recipient_revisions: Dictionary = {}
+## Test-only transport shim for the moving-interior relationship stream. In
+## production this stays unset and every relationship packet goes straight to
+## the authority RPC below, so the only cost is one `Callable.is_null()` per
+## published packet. A latency harness installs a Callable that receives
+## `(peer_id, wire)`, holds/re-orders/drops the packet, and hands each survivor
+## back through `deliver_moving_interior_wire_packet()`. The hook can only
+## delay what the server already decided to send: it is not an authority seam
+## and no other stream is routed through it.
+var _moving_interior_transport_hook := Callable()
+## Counts the times a delivery stall longer than the ordering window forced the
+## per-recipient moving cursor to re-baseline. Observation only.
+var _moving_stall_rebaselines := 0
 var _projectile_jitter
 var _projectile_replica_samples: Dictionary = {}
 var _projectile_snapshot_revision := 0
@@ -452,7 +464,7 @@ func shutdown(reason: StringName = &"requested") -> Dictionary:
 	# Retire the old ordering cursor along with its presentation bindings.
 	_reset_moving_interior_jitter(int(
 		_moving_relationship_stream.get_snapshot().get("migration_generation", 1)
-	))
+	), true)
 	mark_reconnect_succeeded()
 	record_session_end(reason)
 	_reset_handshake_deadline()
@@ -1740,7 +1752,7 @@ func publish_moving_interior_release(
 	var packet := {"entity_id": entity_id, "entity_generation": entity_generation}
 	for peer_variant in target_peers:
 		if _peer != null:
-			_broadcast_moving_interior_release.rpc_id(int(peer_variant), packet)
+			_send_moving_interior_release_packet(int(peer_variant), packet)
 	return _remember(_result(true, &"moving_interior_release_published", {"packet": packet}))
 
 
@@ -1797,10 +1809,45 @@ func publish_moving_interior_resync(peer_id: int, budget_tick: int = -1) -> Dict
 	}))
 
 
+## Installs (or, with an empty Callable, removes) the moving-interior transport
+## shim described on `_moving_interior_transport_hook`. Only a test harness
+## calls this; production never installs a hook.
+func set_moving_interior_transport_hook(hook: Callable) -> Dictionary:
+	_moving_interior_transport_hook = hook
+	return _remember(_result(true, &"moving_interior_transport_hook_set", {
+		"installed": not hook.is_null(),
+	}))
+
+
+## Second half of the shim: hands a previously withheld relationship packet to
+## the real authority RPC. Server-only, and it publishes nothing new.
+func deliver_moving_interior_wire_packet(peer_id: int, wire: Dictionary) -> Dictionary:
+	if not is_server():
+		return _remember(_result(false, &"authority_required"))
+	if _peer == null or not _peer_generations.has(peer_id):
+		return _remember(_result(false, &"peer_not_admitted"))
+	if wire.has("relationship"):
+		_broadcast_moving_interior_snapshot.rpc_id(peer_id, wire)
+	elif wire.has("entity_id"):
+		_broadcast_moving_interior_release.rpc_id(peer_id, wire)
+	else:
+		return _remember(_result(false, &"invalid_moving_interior_snapshot"))
+	return _remember(_result(true, &"moving_interior_wire_delivered", {"peer_id": peer_id}))
+
+
 func get_moving_interior_budget_snapshot(peer_id: int = 0) -> Dictionary:
 	if peer_id > 0:
 		return (_moving_recipient_budgets.get(peer_id, {}) as Dictionary).duplicate(true)
 	return _moving_recipient_budgets.duplicate(true)
+
+
+## A release is the relationship stream's own tombstone, so it takes the same
+## ordered path as the snapshots it retires. Production sends both directly.
+func _send_moving_interior_release_packet(peer_id: int, packet: Dictionary) -> void:
+	if _moving_interior_transport_hook.is_null():
+		_broadcast_moving_interior_release.rpc_id(peer_id, packet)
+	else:
+		_moving_interior_transport_hook.call(peer_id, packet.duplicate(true))
 
 
 func _send_moving_interior_packet(peer_id: int, packet: Dictionary) -> void:
@@ -1816,7 +1863,10 @@ func _send_moving_interior_packet(peer_id: int, packet: Dictionary) -> void:
 		_moving_recipient_pending[peer_id] = pending
 		if _moving_recipient_budgets.has(peer_id):
 			_moving_recipient_budgets[peer_id]["pending_count"] = pending.size()
-		_broadcast_moving_interior_snapshot.rpc_id(peer_id, wire)
+		if _moving_interior_transport_hook.is_null():
+			_broadcast_moving_interior_snapshot.rpc_id(peer_id, wire)
+		else:
+			_moving_interior_transport_hook.call(peer_id, wire.duplicate(true))
 	else:
 		# Resync records form one authority baseline, irrespective of their count
 		# and their independently advancing entity ticks.
@@ -2379,7 +2429,10 @@ func reset_snapshot_jitter(migration_generation: int = 1) -> Dictionary:
 	return _remember(_snapshot_jitter.reset(migration_generation))
 
 
-func _reset_moving_interior_jitter(migration_generation: int) -> Dictionary:
+func _reset_moving_interior_jitter(
+	migration_generation: int,
+	clear_tracked_entities: bool = false
+) -> Dictionary:
 	_moving_replica_samples.clear()
 	_moving_snapshot_revision = 0
 	_moving_resync_revision = 0
@@ -2393,6 +2446,15 @@ func _reset_moving_interior_jitter(migration_generation: int) -> Dictionary:
 	if migration_generation > int(_moving_relationship_stream.get_snapshot().get("migration_generation", 1)):
 		_moving_relationship_stream.reset_migration(AUTHORITY_PEER_ID, migration_generation)
 		_moving_replica.reset_migration(AUTHORITY_PEER_ID, migration_generation)
+	elif clear_tracked_entities:
+		# Tearing the session down is not a migration, so the generation check
+		# above cannot clear anything: the per-entity tick cursors and the last
+		# received poses survive into the next session. A client that reconnects
+		# to the same host then shows the cabin's other occupants exactly where
+		# they stood when the link dropped, and any entity whose server tick
+		# restarts lower is rejected as stale for the rest of the session.
+		_moving_relationship_stream.clear_entities()
+		_moving_replica.clear_entities()
 	return _moving_jitter.reset(migration_generation)
 
 
@@ -2583,7 +2645,24 @@ func consume_moving_interior_snapshot(
 		return _remember(_result(false, &"invalid_interpolation_alpha"))
 	var buffered: Dictionary = _moving_jitter.push(packet)
 	if not bool(buffered.get("accepted", false)):
-		return _remember(_result(false, StringName(buffered.get("status", &"buffer_rejected"))))
+		if StringName(buffered.get("status", &"buffer_rejected")) != &"snapshot_gap_too_large":
+			return _remember(_result(false, StringName(buffered.get("status", &"buffer_rejected"))))
+		# A delivery stall longer than the ordering window is a stream
+		# discontinuity, not a corrupt packet. The buffer compares each packet
+		# against the last revision it released, so once a stall exceeds that
+		# window every later packet is rejected too and the recipient never
+		# recovers: the remote crew member stays frozen in the moving cabin for
+		# the rest of the session. Re-baseline this recipient's cursor on the
+		# first packet after the stall and let the relationship stream below do
+		# the documented freeze-then-resume on its own tick gap.
+		_moving_stall_rebaselines += 1
+		_moving_jitter.reset(
+			int(_moving_jitter.get_snapshot().get("migration_generation", 1)),
+			maxi(1, int(packet.get("revision", 1)))
+		)
+		buffered = _moving_jitter.push(packet)
+		if not bool(buffered.get("accepted", false)):
+			return _remember(_result(false, StringName(buffered.get("status", &"buffer_rejected"))))
 	var presented: Array = []
 	while true:
 		var ready: Dictionary = _moving_jitter.pop_ready()
@@ -2799,7 +2878,9 @@ func get_snapshot_jitter_state() -> Dictionary:
 
 
 func get_moving_interior_jitter_state() -> Dictionary:
-	return _moving_jitter.get_snapshot()
+	var state: Dictionary = _moving_jitter.get_snapshot()
+	state["stall_rebaselines"] = _moving_stall_rebaselines
+	return state
 
 
 ## Detached session-quality counters; these are observations, never admission
@@ -4208,9 +4289,16 @@ func _on_peer_disconnected(peer_id: int, reason: StringName = &"disconnect") -> 
 		_ownership_transition_states[StringName(ship_id_variant)] = &"disconnected"
 	for seat_id_variant in disconnected_seat_ids:
 		_boarding_transition_states[StringName(seat_id_variant)] = &"disconnected"
+	var dropped_moving_entities: Dictionary = {}
 	for relationship_key_variant in _seat_moving_relationships.keys():
 		var relationship_key := String(relationship_key_variant)
 		if relationship_key.begins_with("%d:" % peer_id):
+			var dropped_relationship := _seat_moving_relationships[relationship_key_variant] as Dictionary
+			var dropped_entity_id := StringName(dropped_relationship.get("entity_id", &""))
+			if not dropped_entity_id.is_empty():
+				dropped_moving_entities[dropped_entity_id] = maxi(
+					1, int(dropped_relationship.get("entity_generation", 1))
+				)
 			_seat_moving_relationships.erase(relationship_key_variant)
 	for prediction_id_variant in _prediction_entities.keys():
 		var prediction_id := StringName(prediction_id_variant)
@@ -4262,8 +4350,20 @@ func _on_peer_disconnected(peer_id: int, reason: StringName = &"disconnect") -> 
 			_damage_entities.erase(damage_id)
 			_damage_authoritative_records.erase(damage_id)
 	if _moving_occupants.has(peer_id):
-		_moving_interior.release_peer(AUTHORITY_PEER_ID, peer_id)
+		var peer_release: Dictionary = _moving_interior.release_peer(AUTHORITY_PEER_ID, peer_id)
+		for occupancy_variant in (peer_release.get("occupancies", []) as Array):
+			var occupancy := occupancy_variant as Dictionary
+			var occupancy_entity_id := StringName(occupancy.get("entity_id", &""))
+			if not occupancy_entity_id.is_empty():
+				dropped_moving_entities[occupancy_entity_id] = maxi(
+					1, int(occupancy.get("entity_generation", 1))
+				)
 		_moving_occupants.erase(peer_id)
+	# The server stops publishing a dropped peer's relationships, but silence is
+	# not a release: without an explicit one every remaining client keeps the
+	# last pose it received and draws the crew member who left as a motionless
+	# body standing in the moving cabin for the rest of the session.
+	_release_moving_interior_entities_for_remaining_peers(dropped_moving_entities)
 	receipt["reason"] = reason
 	peer_disconnected.emit(peer_id, receipt.duplicate(true))
 	if reason == &"timeout":
@@ -4273,6 +4373,29 @@ func _on_peer_disconnected(peer_id: int, reason: StringName = &"disconnect") -> 
 func _on_server_disconnected() -> void:
 	if not is_server():
 		shutdown(&"server_disconnected")
+
+
+func _release_moving_interior_entities_for_remaining_peers(entities: Dictionary) -> void:
+	if entities.is_empty():
+		return
+	for entity_variant in entities.keys():
+		var entity_id := StringName(entity_variant)
+		var entity_generation := maxi(1, int(entities[entity_variant]))
+		for remaining_variant in _peer_generations.keys():
+			var remaining_peer := int(remaining_variant)
+			var recipient_entities: Dictionary = _moving_recipient_entities.get(remaining_peer, {}) as Dictionary
+			recipient_entities.erase(entity_id)
+			_moving_recipient_entities[remaining_peer] = recipient_entities
+			var recipient_pending: Dictionary = _moving_recipient_pending.get(remaining_peer, {}) as Dictionary
+			recipient_pending.erase(entity_id)
+			_moving_recipient_pending[remaining_peer] = recipient_pending
+			if _moving_recipient_budgets.has(remaining_peer):
+				_moving_recipient_budgets[remaining_peer]["pending_count"] = recipient_pending.size()
+			if _peer != null:
+				_send_moving_interior_release_packet(remaining_peer, {
+					"entity_id": entity_id,
+					"entity_generation": entity_generation,
+				})
 
 
 func _seat_relationship_key(peer_id: int, avatar_id: StringName) -> String:

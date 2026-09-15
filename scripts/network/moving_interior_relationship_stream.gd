@@ -78,6 +78,18 @@ func reset_migration(source_peer_id: int, migration_generation: int) -> Dictiona
 	return _remember(_result(true, &"migration_reset"))
 
 
+## Drops every tracked entity while keeping the migration cursor where it is.
+## A session teardown is not a migration: the next session republishes under the
+## same generation, so bumping the generation here would make the reconnected
+## client reject everything the server sends it.
+func clear_entities() -> Dictionary:
+	_last_ticks.clear()
+	_current.clear()
+	_pending.clear()
+	_frozen.clear()
+	return _remember(_result(true, &"entities_cleared"))
+
+
 func get_snapshot() -> Dictionary:
 	return {
 		"migration_generation": _migration_generation,
