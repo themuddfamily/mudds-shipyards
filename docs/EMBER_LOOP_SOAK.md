@@ -1,6 +1,15 @@
 # Ember loop soak
 
-`tests/ember_loop_soak_test.gd` drives production `res://scenes/main.tscn`
+`tests/ember_loop_soak_evidence.gd` drives production `res://scenes/main.tscn`
+
+> **Why this is not a `*_test.gd` matrix suite.** Cycle one is one full real
+> expedition and costs ~220 s on an idle machine; under matrix load it would
+> exceed the per-suite budget. The four defects it found each carry a focused
+> assertion in an ordinary suite (`landing_clearance_test`,
+> `ember_final_approach_production_handoff_test`,
+> `ember_surface_loop_host_test`), so the matrix guards the fixes while this
+> harness is run explicitly for §4 evidence, like the capture harnesses.
+
 through N Ember expeditions in one process, alternating the two craft the
 production binding admits for the trip (`torrent_provisional`,
 `arrow_provisional`). It is the Phase 10 §4 measurement for the planetary loop:
@@ -10,9 +19,9 @@ unbounded streaming growth and save/re-entry divergence.
 
 ```sh
 godot --headless --audio-driver Dummy --path . \
-  --script res://tests/ember_loop_soak_test.gd            # 6 cycles
+  --script res://tests/ember_loop_soak_evidence.gd            # 6 cycles
 KETH_EMBER_SOAK_CYCLES=18 godot --headless --audio-driver Dummy --path . \
-  --script res://tests/ember_loop_soak_test.gd            # 18 cycles
+  --script res://tests/ember_loop_soak_evidence.gd            # 18 cycles
 ```
 
 ## What is real and what is staged
