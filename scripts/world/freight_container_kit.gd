@@ -25,7 +25,7 @@ extends RefCounted
 ## * **top and bottom rails** — four longitudinal rolled sections set
 ##   `FRAME_INSET` behind the castings, so the castings stand off them.
 ## * **end frames** — a header, a sill and two corner posts at each end.
-## * **corrugated side and front skins** — `_rib_count_for` formed ribs per face,
+## * **corrugated side and front skins** — `rib_count_for` formed ribs per face,
 ##   each one a chamfered stock box whose outer face is flush with the envelope
 ##   and whose inner half is buried in the body core. That is a real formed sheet
 ##   profile, not a batten glued to a flat wall: the eye reads the alternation of
@@ -133,13 +133,20 @@ const DOOR_SHADE := 0.76
 ## yard container are the same object at two sizes rather than two objects.
 ## Half the crest-to-valley depth of the corrugation, which is also how far the
 ## painted skin sits behind the published envelope between ribs. `SKIN_MAXIMUM`
-## is 0.040 rather than the 0.075 the first pass used, for two reasons that agree
-## with each other. It is closer to real formed-sheet proportion — an ISO
-## container's corrugation is about 36 mm deep on a 2.44 m box, and 0.075 gave a
-## 3 m container a 150 mm trench. And the deeper valley was measurably hollow to
-## the chase-camera boom: `tools/camera_intrusion_audit.gd` retracts against drawn
-## geometry, so a skin that stands 150 mm behind its own silhouette is 150 mm the
-## boom can sink into that the box it replaced did not have.
+## is 0.040 rather than the 0.075 the first rendered pass used, because 0.075 gave
+## a 3 m container a 150 mm trench — roughly four times real formed-sheet
+## proportion, an ISO container's corrugation being about 36 mm deep on a 2.44 m
+## box. The shallower profile reads the same at walking distance and better at
+## chase range, where the deep version's valley shadows started to look like
+## grooves cut into a slab rather than like sheet.
+##
+## It was *also* tried as a fix for a one-group move in
+## `tools/camera_intrusion_audit.gd`, on the theory that a skin standing 150 mm
+## behind its own silhouette is 150 mm of depth the chase boom can sink into that
+## the box did not have. It did not move that number, and the number turned out to
+## be the probe's own documented run-to-run variance rather than anything this
+## finish did. That reasoning is recorded because it was wrong, and the value is
+## kept on the proportion argument alone.
 const SKIN_PROPORTION := 0.014
 const SKIN_MINIMUM := 0.016
 const SKIN_MAXIMUM := 0.040
@@ -176,12 +183,15 @@ const STENCIL_BAY_RIBS := 2
 ## bar crowns and the castings are two planes rather than one flickering one.
 const LOCK_BAR_STANDOFF := 0.006
 
-## The door is on `+Z` and the stencilled side is `-X`. Callers orient the
-## container by placing it, exactly as they already do; no instance is rotated by
-## this kit.
 ## Signed unit pairs, typed so inferred loop variables stay `float`.
 const SIGNS: Array[float] = [-1.0, 1.0]
 
+## The door end is always `+Z`. The stencilled side is `-X` by default and `+X`
+## on request, because which long side carries the plate depends on where the
+## player stands rather than on anything about the container — see `shell_mesh`.
+## Callers orient a unit by placing it, exactly as they already do; this kit
+## rotates no instance, so a caller's collider, band and marker positions cannot
+## be swung out from under it.
 const DOOR_AXIS := Vector3.BACK
 const STENCIL_SIDE_AXIS := Vector3.LEFT
 
