@@ -1,7 +1,7 @@
 extends SceneTree
 
 const PolicyScript := preload("res://scripts/world/planetary_cruise_policy.gd")
-const EXPECTED_ASSERTIONS := 30
+const EXPECTED_ASSERTIONS := 33
 const COMMON_AUTHORITY_KEYS := [
 	"renderer", "gameplay", "streaming", "save", "network", "physics",
 	"world_generation", "terrain_generation", "collision_generation",
@@ -23,6 +23,7 @@ func _run() -> void:
 	_test_alignment_and_deadband_exact_boundaries()
 	_test_geometry_proof_structured_red()
 	_test_schema_bounds_determinism_detachment_and_authority()
+	_test_transit_aligning_and_approach_profile()
 	_finish()
 
 
@@ -33,17 +34,18 @@ func _test_tuned_reference_leg_geometry_and_purity() -> void:
 		policy is RefCounted
 			and not (policy as Object).is_class("Node")
 			and bool(audit.valid)
-			and audit.schema_version == 2
-			and audit.policy_version == &"planetary_cruise_policy_v2",
-		"the corrected policy is a valid pure schema-two RefCounted contract"
+			and audit.schema_version == 3
+			and audit.policy_version == &"planetary_cruise_policy_v3"
+			and audit.tuning_version == &"ember_eight_megameter_transit_v2",
+		"the transit policy is a valid pure schema-three RefCounted contract"
 	)
 	_check(
 		float(audit.ember_reference.distance_meters) == 8_000_000.0
 			and float(audit.ember_reference.estimated_seconds)
-				== 433.3333333333333
+				== 97.88888888888889
 			and float(audit.ember_reference.estimated_minutes)
-				== 7.222222222222222,
-		"audit freezes the exact eight-megameter 433.33-second / 7.22-minute estimate"
+				== 1.6314814814814815,
+		"audit freezes the exact eight-megameter 97.89-second / 1.63-minute transit estimate"
 	)
 	_check(
 		audit.geometry_contract == {
@@ -82,13 +84,13 @@ func _test_participation_speed_and_braking_hints() -> void:
 			and accelerating.reason == &"cruise_participation_desired"
 			and bool(accelerating.desired_cruise_participation)
 			and accelerating.state == &"accelerate"
-			and accelerating.desired_speed_meters_per_second == 20_000.0
-			and accelerating.acceleration_hint_meters_per_second_squared == 500.0
+			and accelerating.desired_speed_meters_per_second == 90_000.0
+			and accelerating.acceleration_hint_meters_per_second_squared == 10_000.0
 			and not bool(accelerating.braking_requested),
 		"a stopped aligned craft with a full proof requests bounded acceleration"
 	)
 	var target := _observation()
-	_set_motion(target, 20_000.0, 1.0)
+	_set_motion(target, 90_000.0, 1.0)
 	target.currently_participating = true
 	var cruising := _evaluate(policy, target)
 	_check(
@@ -98,15 +100,15 @@ func _test_participation_speed_and_braking_hints() -> void:
 		"target speed returns a neutral cruise hint"
 	)
 	var overspeed := target.duplicate(true)
-	_set_motion(overspeed, 21_000.0, 1.0)
+	_set_motion(overspeed, 91_000.0, 1.0)
 	var braking := _evaluate(policy, overspeed)
 	_check(
 		braking.state == &"brake_to_cruise_speed"
 			and bool(braking.desired_cruise_participation)
 			and bool(braking.braking_requested)
-			and braking.acceleration_hint_meters_per_second_squared == -750.0
+			and braking.acceleration_hint_meters_per_second_squared == -10_000.0
 			and braking.braking_acceleration_hint_meters_per_second_squared
-				== 750.0,
+				== 10_000.0,
 		"overspeed retains cruise ownership while returning an explicit braking hint"
 	)
 	var receding := _observation()
@@ -117,7 +119,7 @@ func _test_participation_speed_and_braking_hints() -> void:
 			and bool(receding_result.braking_requested)
 			and is_equal_approx(
 				float(receding_result.current_braking_envelope_meters),
-				25_206.666666666668
+				25_050.5
 			),
 		"total ship speed drives braking even when signed closing speed is receding"
 	)
@@ -126,13 +128,13 @@ func _test_participation_speed_and_braking_hints() -> void:
 func _test_gate_priority_and_distance_envelopes() -> void:
 	var policy := PolicyScript.new() as PlanetaryCruisePolicy
 	var target := _observation()
-	_set_motion(target, 20_000.0, 1.0)
+	_set_motion(target, 90_000.0, 1.0)
 	target.currently_participating = true
 	var target_result := _evaluate(policy, target)
 	_check(
 		is_equal_approx(
 			float(target_result.current_braking_envelope_meters),
-			331_666.6666666667
+			475_000.0
 		)
 			and target_result.required_verified_clearance_meters
 				== target_result.current_braking_envelope_meters,
@@ -142,7 +144,7 @@ func _test_gate_priority_and_distance_envelopes() -> void:
 	_check(
 		is_equal_approx(
 			float(engage.minimum_engage_distance_meters),
-			731_666.6666666667
+			880_000.0
 		)
 			and engage.required_verified_clearance_meters
 				== engage.minimum_engage_distance_meters
@@ -231,28 +233,28 @@ func _test_alignment_and_deadband_exact_boundaries() -> void:
 				== &"alignment_below_threshold",
 		"retained alignment is green at exact 0.980 and red at its next value below"
 	)
-	var lower_outside_value := _next_float64(19_999.0, -1)
+	var lower_outside_value := _next_float64(89_999.0, -1)
 	var lower_edge := _observation()
-	_set_motion(lower_edge, 19_999.0, 1.0)
+	_set_motion(lower_edge, 89_999.0, 1.0)
 	lower_edge.currently_participating = true
 	var lower_outside := lower_edge.duplicate(true)
 	_set_motion(lower_outside, lower_outside_value, 1.0)
 	_check(
 		_evaluate(policy, lower_edge).state == &"cruise"
-			and _float64_bits(19_999.0) - _float64_bits(lower_outside_value)
+			and _float64_bits(89_999.0) - _float64_bits(lower_outside_value)
 				== 1
 			and _evaluate(policy, lower_outside).state == &"accelerate",
 		"minus 1 m/s is inside the deadband and the next representable value accelerates"
 	)
-	var upper_outside_value := _next_float64(20_001.0, 1)
+	var upper_outside_value := _next_float64(90_001.0, 1)
 	var upper_edge := _observation()
-	_set_motion(upper_edge, 20_001.0, 1.0)
+	_set_motion(upper_edge, 90_001.0, 1.0)
 	upper_edge.currently_participating = true
 	var upper_outside := upper_edge.duplicate(true)
 	_set_motion(upper_outside, upper_outside_value, 1.0)
 	_check(
 		_evaluate(policy, upper_edge).state == &"cruise"
-			and _float64_bits(upper_outside_value) - _float64_bits(20_001.0)
+			and _float64_bits(upper_outside_value) - _float64_bits(90_001.0)
 				== 1
 			and _evaluate(policy, upper_outside).state == &"brake_to_cruise_speed",
 		"plus 1 m/s is inside the deadband and the next representable value brakes"
@@ -446,7 +448,79 @@ func _observation() -> Dictionary:
 		"destroyed": false,
 		"landing_active": false,
 		"combat_active": false,
+		"attitude_authority": false,
+		"approach_speed_limit_meters_per_second": 0.0,
 	}
+
+
+## The two transit behaviours the same pure function produces from its
+## observation alone: attitude authority turns a refused alignment into a
+## speed-holding aligning hint, and a positive approach speed limit switches
+## the evaluation to the short-leg profile toward the approach point.
+func _test_transit_aligning_and_approach_profile() -> void:
+	var policy := PolicyScript.new() as PlanetaryCruisePolicy
+	var misaligned := _observation()
+	_set_motion(misaligned, 40.0, 0.2)
+	var refused := _evaluate(policy, misaligned)
+	misaligned.attitude_authority = true
+	var aligning := _evaluate(policy, misaligned)
+	_check(
+		refused.reason == &"alignment_below_threshold"
+			and not bool(refused.desired_cruise_participation)
+			and bool(aligning.accepted)
+			and aligning.reason == &"transit_aligning"
+			and aligning.state == &"aligning"
+			and bool(aligning.desired_cruise_participation)
+			and aligning.desired_speed_meters_per_second == 40.0
+			and aligning.acceleration_hint_meters_per_second_squared == 0.0
+			and not bool(aligning.braking_requested),
+		"attitude authority holds speed while aligning instead of refusing"
+	)
+	var approach := _observation()
+	approach.approach_speed_limit_meters_per_second = 50_000.0
+	approach.distance_to_destination_meters = 80_040.0
+	_set_clear_proof(approach, 80_040.0)
+	var far := _evaluate(policy, approach)
+	approach.distance_to_destination_meters = 1_040.0
+	_set_clear_proof(approach, 1_040.0)
+	_set_motion(approach, 5_000.0, 1.0)
+	var near := _evaluate(policy, approach)
+	_check(
+		far.reason == &"approach_participation_desired"
+			and far.state == &"approach_accelerate"
+			and is_equal_approx(
+				float(far.desired_speed_meters_per_second),
+				sqrt(2.0 * 8_000.0 * 80_000.0)
+			)
+			and far.acceleration_hint_meters_per_second_squared == 10_000.0
+			and near.state == &"approach_brake_to_profile"
+			and is_equal_approx(
+				float(near.desired_speed_meters_per_second), 4_000.0
+			)
+			and near.acceleration_hint_meters_per_second_squared == -10_000.0
+			and bool(near.braking_requested),
+		"the approach profile follows sqrt(2 a d) below the leg's speed limit"
+	)
+	var terminal := approach.duplicate(true)
+	terminal.distance_to_destination_meters = 30.0
+	_set_clear_proof(terminal, 30.0)
+	_set_motion(terminal, 200.0, 1.0)
+	var terminal_brake := _evaluate(policy, terminal)
+	_set_motion(terminal, 0.0, 1.0)
+	var terminal_hold := _evaluate(policy, terminal)
+	var obstructed := terminal.duplicate(true)
+	_set_obstacle_proof(obstructed, 5.0, 30.0)
+	_check(
+		terminal_brake.reason == &"approach_terminal_brake"
+			and not bool(terminal_brake.desired_cruise_participation)
+			and bool(terminal_brake.braking_requested)
+			and terminal_hold.reason == &"approach_terminal_hold"
+			and bool(terminal_hold.desired_cruise_participation)
+			and terminal_hold.desired_speed_meters_per_second == 0.0
+			and _evaluate(policy, obstructed).reason == &"obstacle_detected"
+			and not bool(_evaluate(policy, obstructed).desired_cruise_participation),
+		"inside the terminal distance the profile brakes to rest, then holds; obstacles still gate"
+	)
 
 
 func _unverified_observation() -> Dictionary:

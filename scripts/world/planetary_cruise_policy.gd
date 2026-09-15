@@ -9,22 +9,55 @@ extends RefCounted
 ## authority. A later ship/control owner must prove the supplied clearance and
 ## decide whether and how to enact an accepted hint.
 
-const SCHEMA_VERSION := 2
-const POLICY_VERSION: StringName = &"planetary_cruise_policy_v2"
-const TUNING_VERSION: StringName = &"ember_eight_megameter_minutes_v1"
+const SCHEMA_VERSION := 3
+const POLICY_VERSION: StringName = &"planetary_cruise_policy_v3"
+const TUNING_VERSION: StringName = &"ember_eight_megameter_transit_v2"
 const ALIGNMENT_BASIS_VELOCITY: StringName = &"normalized_velocity_forward"
 const ALIGNMENT_BASIS_ZERO_SPEED: StringName = &"normalized_ship_forward_zero_speed"
 const CLEARANCE_SWEEP_BASIS: StringName = &"normalized_cruise_direction"
 
-const TARGET_CRUISE_SPEED_METERS_PER_SECOND := 20_000.0
-const ACCELERATION_HINT_METERS_PER_SECOND_SQUARED := 500.0
-const BRAKING_HINT_METERS_PER_SECOND_SQUARED := 750.0
-const BRAKE_RESPONSE_SECONDS := 2.0
+## The one transit tuning set. Every number the Ember legs fly to lives here:
+## the long-leg cruise, the short-leg approach profile the same policy flies
+## inside a streamed body's envelope, the attitude slew the controller may
+## command, and the brake-shell geometry `GameFlow` derives its Mudds return
+## target from. Time compression is deliberate: an 8,000 km leg at 90 km/s with
+## 10 km/s^2 acceleration and braking is ~98 s of simulated flight, inside the
+## 60-120 s band the Ember loop budgets per leg, and still inside the 1,250 km
+## full-hull clearance horizon the physical controller sweeps (engagement needs
+## braking envelope plus acceleration distance, 880 km, proven clear).
+const TARGET_CRUISE_SPEED_METERS_PER_SECOND := 90_000.0
+const ACCELERATION_HINT_METERS_PER_SECOND_SQUARED := 10_000.0
+const BRAKING_HINT_METERS_PER_SECOND_SQUARED := 10_000.0
+const BRAKE_RESPONSE_SECONDS := 0.5
 const BRAKE_FIXED_MARGIN_METERS := 25_000.0
 const ENGAGE_ALIGNMENT_DOT := 0.995
 const RETAIN_ALIGNMENT_DOT := 0.980
 const SPEED_DEADBAND_METERS_PER_SECOND := 1.0
 const EMBER_REFERENCE_LEG_METERS := 8_000_000.0
+## Short-leg approach profile: the speed a craft may hold at `d` metres from an
+## approach point is `min(limit, sqrt(2 * APPROACH_PROFILE_DECELERATION * d))`,
+## planned at 80% of the braking the ship can actually apply so the discrete
+## integrator always tracks from the safe side. Inside the terminal distance the
+## craft brakes to rest; at rest inside it the policy holds participation at zero
+## speed so an attitude slew can finish before the arrival is measured.
+const APPROACH_PROFILE_DECELERATION_METERS_PER_SECOND_SQUARED := 8_000.0
+const APPROACH_ACCELERATION_HINT_METERS_PER_SECOND_SQUARED := 10_000.0
+const APPROACH_BRAKING_HINT_METERS_PER_SECOND_SQUARED := 10_000.0
+const APPROACH_TERMINAL_DISTANCE_METERS := 40.0
+const APPROACH_SPEED_LIMIT_METERS_PER_SECOND := 50_000.0
+## Attitude slew the physical controller may command while it holds authority.
+const TRANSIT_ATTITUDE_TURN_RATE_RADIANS_PER_SECOND := 0.7853981633974483
+## The activation lead the binding uses to hand a cruising craft to the approach
+## profile: the profile's own stopping distance plus this many seconds of travel.
+const APPROACH_ACTIVATION_LEAD_SECONDS := 2.0
+## Mudds return brake shell, derived from the same tuning: a craft braking from
+## cruise comes to rest between the fixed margin and the response-plus-margin
+## distance from home; the return approach point sits at the shell's centre.
+const RETURN_BRAKE_SHELL_MINIMUM_METERS := BRAKE_FIXED_MARGIN_METERS
+const RETURN_BRAKE_SHELL_MAXIMUM_METERS := (
+	TARGET_CRUISE_SPEED_METERS_PER_SECOND * BRAKE_RESPONSE_SECONDS
+	+ BRAKE_FIXED_MARGIN_METERS
+)
 
 const MAX_DISTANCE_METERS := 1_000_000_000.0
 const MAX_ABSOLUTE_SPEED_METERS_PER_SECOND := 100_000.0
@@ -50,6 +83,8 @@ const _OBSERVATION_KEYS := [
 	"destroyed",
 	"landing_active",
 	"combat_active",
+	"attitude_authority",
+	"approach_speed_limit_meters_per_second",
 ]
 const _COMMON_AUTHORITY_KEYS := [
 	"renderer", "gameplay", "streaming", "save", "network", "physics",
@@ -88,6 +123,14 @@ func evaluate(
 	var alignment := float(observation.alignment_dot)
 	var clearance := float(observation.verified_clearance_meters)
 	var currently_participating := bool(observation.currently_participating)
+	var approach_speed_limit := float(
+		observation.approach_speed_limit_meters_per_second
+	)
+	if approach_speed_limit > 0.0:
+		return _evaluate_approach(
+			detached_observation, expected_coordinate_frame_generation,
+			distance, ship_speed, clearance, approach_speed_limit
+		)
 	var current_braking_envelope := _braking_envelope_meters(
 		ship_speed
 	)
@@ -119,6 +162,32 @@ func evaluate(
 		required_clearance,
 		required_destination_distance
 	)
+	if gate_reason == &"alignment_below_threshold" \
+			and bool(observation.attitude_authority):
+		# The controller holds attitude authority: instead of refusing, hold the
+		# current speed while it slews the hull (and, at speed, the velocity it
+		# carries) onto the cruise direction. Participation is desired so the
+		# ship keeps the attachment; nothing accelerates until alignment is met.
+		return _safe_result(
+			true,
+			&"transit_aligning",
+			expected_coordinate_frame_generation,
+			{
+				"observation": detached_observation,
+				"desired_cruise_participation": true,
+				"state": &"aligning",
+				"desired_speed_meters_per_second": ship_speed,
+				"acceleration_hint_meters_per_second_squared": 0.0,
+				"braking_requested": false,
+				"braking_acceleration_hint_meters_per_second_squared": 0.0,
+				"current_braking_envelope_meters": current_braking_envelope,
+				"required_verified_clearance_meters": required_clearance,
+				"required_destination_distance_meters": (
+					required_destination_distance
+				),
+				"minimum_engage_distance_meters": minimum_engage_distance,
+			}
+		)
 	if not gate_reason.is_empty():
 		var brake_requested := _should_offer_disengage_brake(
 			gate_reason, ship_speed, observation
@@ -183,6 +252,112 @@ func evaluate(
 	)
 
 
+## Short-leg approach profile toward one approach point. The caller has already
+## proved the sweep; the profile only decides how fast the craft may still be at
+## the observed distance. The lifecycle gates keep their long-leg priority; the
+## alignment and minimum-engage gates do not apply, because the approach point
+## is by construction inside the long leg's braking envelope.
+static func _evaluate_approach(
+	detached_observation: Dictionary,
+	expected_coordinate_frame_generation: int,
+	distance: float,
+	ship_speed: float,
+	clearance: float,
+	approach_speed_limit: float
+) -> Dictionary:
+	var gate_reason := _approach_gate_reason(
+		detached_observation, distance, clearance
+	)
+	var profile_speed := minf(
+		approach_speed_limit,
+		sqrt(
+			2.0 * APPROACH_PROFILE_DECELERATION_METERS_PER_SECOND_SQUARED
+			* maxf(distance - APPROACH_TERMINAL_DISTANCE_METERS, 0.0)
+		)
+	)
+	var common := {
+		"observation": detached_observation,
+		"approach_profile_speed_meters_per_second": profile_speed,
+		"approach_terminal_distance_meters": APPROACH_TERMINAL_DISTANCE_METERS,
+		"current_braking_envelope_meters": _braking_envelope_meters(ship_speed),
+		"required_verified_clearance_meters": distance,
+		"required_destination_distance_meters": 0.0,
+		"minimum_engage_distance_meters": 0.0,
+	}
+	if not gate_reason.is_empty():
+		var brake_requested := _should_offer_disengage_brake(
+			gate_reason, ship_speed, detached_observation
+		)
+		common["braking_requested"] = brake_requested
+		common["braking_acceleration_hint_meters_per_second_squared"] = (
+			APPROACH_BRAKING_HINT_METERS_PER_SECOND_SQUARED
+			if brake_requested else 0.0
+		)
+		return _safe_result(
+			true, gate_reason, expected_coordinate_frame_generation, common
+		)
+	if distance <= APPROACH_TERMINAL_DISTANCE_METERS:
+		if ship_speed > SPEED_DEADBAND_METERS_PER_SECOND:
+			common["braking_requested"] = true
+			common["braking_acceleration_hint_meters_per_second_squared"] = (
+				APPROACH_BRAKING_HINT_METERS_PER_SECOND_SQUARED
+			)
+			return _safe_result(
+				true, &"approach_terminal_brake",
+				expected_coordinate_frame_generation, common
+			)
+		common["desired_cruise_participation"] = true
+		common["state"] = &"approach_hold"
+		common["desired_speed_meters_per_second"] = 0.0
+		return _safe_result(
+			true, &"approach_terminal_hold",
+			expected_coordinate_frame_generation, common
+		)
+	var state: StringName = &"approach_cruise"
+	var acceleration_hint := 0.0
+	var braking_requested := false
+	if ship_speed < profile_speed - SPEED_DEADBAND_METERS_PER_SECOND:
+		acceleration_hint = APPROACH_ACCELERATION_HINT_METERS_PER_SECOND_SQUARED
+		state = &"approach_accelerate"
+	elif ship_speed > profile_speed + SPEED_DEADBAND_METERS_PER_SECOND:
+		acceleration_hint = -APPROACH_BRAKING_HINT_METERS_PER_SECOND_SQUARED
+		braking_requested = true
+		state = &"approach_brake_to_profile"
+	common["desired_cruise_participation"] = true
+	common["state"] = state
+	common["desired_speed_meters_per_second"] = profile_speed
+	common["acceleration_hint_meters_per_second_squared"] = acceleration_hint
+	common["braking_requested"] = braking_requested
+	common["braking_acceleration_hint_meters_per_second_squared"] = (
+		APPROACH_BRAKING_HINT_METERS_PER_SECOND_SQUARED
+		if braking_requested else 0.0
+	)
+	return _safe_result(
+		true, &"approach_participation_desired",
+		expected_coordinate_frame_generation, common
+	)
+
+
+static func _approach_gate_reason(
+	observation: Dictionary, distance: float, clearance: float
+) -> StringName:
+	if bool(observation.destroyed):
+		return &"destroyed"
+	if not bool(observation.piloted):
+		return &"not_piloted"
+	if bool(observation.landing_active):
+		return &"landing_active"
+	if bool(observation.combat_active):
+		return &"combat_active"
+	if not bool(observation.clearance_verified):
+		return &"clearance_unverified"
+	if bool(observation.obstacle_detected):
+		return &"obstacle_detected"
+	if clearance < minf(distance, float(observation.clearance_sweep_distance_meters)):
+		return &"insufficient_verified_clearance"
+	return &""
+
+
 func audit() -> Dictionary:
 	var errors := _contract_errors()
 	return {
@@ -223,6 +398,27 @@ func audit() -> Dictionary:
 			&"destination_braking_envelope",
 		],
 		"tuning": _tuning_snapshot(),
+		"approach_profile": {
+			"deceleration_meters_per_second_squared": (
+				APPROACH_PROFILE_DECELERATION_METERS_PER_SECOND_SQUARED
+			),
+			"acceleration_hint_meters_per_second_squared": (
+				APPROACH_ACCELERATION_HINT_METERS_PER_SECOND_SQUARED
+			),
+			"braking_hint_meters_per_second_squared": (
+				APPROACH_BRAKING_HINT_METERS_PER_SECOND_SQUARED
+			),
+			"terminal_distance_meters": APPROACH_TERMINAL_DISTANCE_METERS,
+			"speed_limit_meters_per_second": APPROACH_SPEED_LIMIT_METERS_PER_SECOND,
+			"activation_lead_seconds": APPROACH_ACTIVATION_LEAD_SECONDS,
+			"attitude_turn_rate_radians_per_second": (
+				TRANSIT_ATTITUDE_TURN_RATE_RADIANS_PER_SECOND
+			),
+		},
+		"return_brake_shell": {
+			"minimum_meters": RETURN_BRAKE_SHELL_MINIMUM_METERS,
+			"maximum_meters": RETURN_BRAKE_SHELL_MAXIMUM_METERS,
+		},
 		"ember_reference": {
 			"distance_meters": EMBER_REFERENCE_LEG_METERS,
 			"estimated_seconds": _default_leg_seconds(),
@@ -268,6 +464,7 @@ static func _validate_observation(
 		"alignment_dot",
 		"verified_clearance_meters",
 		"clearance_sweep_distance_meters",
+		"approach_speed_limit_meters_per_second",
 	]:
 		if not observation[key] is float:
 			return StringName("%s_not_float" % key)
@@ -276,7 +473,7 @@ static func _validate_observation(
 	for key in [
 		"clearance_full_hull", "clearance_verified", "obstacle_detected",
 		"currently_participating", "piloted", "destroyed", "landing_active",
-		"combat_active",
+		"combat_active", "attitude_authority",
 	]:
 		if not observation[key] is bool:
 			return StringName("%s_not_bool" % key)
@@ -298,6 +495,10 @@ static func _validate_observation(
 	var sweep_distance := float(observation.clearance_sweep_distance_meters)
 	if sweep_distance < 0.0 or sweep_distance > MAX_CLEARANCE_METERS:
 		return &"clearance_sweep_distance_out_of_bounds"
+	var approach_limit := float(observation.approach_speed_limit_meters_per_second)
+	if approach_limit < 0.0 \
+		or approach_limit > APPROACH_SPEED_LIMIT_METERS_PER_SECOND:
+		return &"approach_speed_limit_out_of_bounds"
 	for key in ["alignment_basis", "clearance_sweep_basis"]:
 		if not observation[key] is StringName:
 			return StringName("%s_not_string_name" % key)
@@ -465,6 +666,17 @@ static func _contract_errors() -> Array[StringName]:
 		errors.append(&"invalid_common_authority_roster")
 	if not is_finite(_default_leg_seconds()) or _default_leg_seconds() <= 0.0:
 		errors.append(&"invalid_reference_leg_estimate")
+	if APPROACH_PROFILE_DECELERATION_METERS_PER_SECOND_SQUARED <= 0.0 \
+		or APPROACH_PROFILE_DECELERATION_METERS_PER_SECOND_SQUARED \
+			> APPROACH_BRAKING_HINT_METERS_PER_SECOND_SQUARED \
+		or APPROACH_ACCELERATION_HINT_METERS_PER_SECOND_SQUARED <= 0.0 \
+		or APPROACH_TERMINAL_DISTANCE_METERS <= 0.0 \
+		or APPROACH_SPEED_LIMIT_METERS_PER_SECOND <= 0.0 \
+		or APPROACH_SPEED_LIMIT_METERS_PER_SECOND \
+			> MAX_ABSOLUTE_SPEED_METERS_PER_SECOND \
+		or TRANSIT_ATTITUDE_TURN_RATE_RADIANS_PER_SECOND <= 0.0 \
+		or RETURN_BRAKE_SHELL_MAXIMUM_METERS <= RETURN_BRAKE_SHELL_MINIMUM_METERS:
+		errors.append(&"invalid_approach_profile")
 	return errors
 
 

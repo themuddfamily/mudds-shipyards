@@ -102,6 +102,17 @@ const PLANETARY_CRUISE_STATE_ACCELERATING: StringName = &"accelerating"
 const PLANETARY_CRUISE_STATE_CRUISING: StringName = &"cruising"
 const PLANETARY_CRUISE_STATE_BRAKING_TO_SPEED: StringName = &"braking_to_speed"
 const PLANETARY_CRUISE_STATE_BRAKING: StringName = &"braking"
+## Attached, participation desired, holding speed while the attached controller
+## slews the hull (and the velocity it carries) onto the cruise direction.
+const PLANETARY_CRUISE_STATE_ALIGNING: StringName = &"aligning"
+const PLANETARY_CRUISE_ALIGNING_POLICY_REASON: StringName = &"transit_aligning"
+const PLANETARY_CRUISE_ATTITUDE_KEYS := [
+	"controller_instance_id",
+	"ship_attachment_generation",
+	"target_basis_world",
+	"max_step_radians",
+	"rotate_velocity",
+]
 const PLANETARY_CRUISE_CLEARANCE_PROOF_KEYS := [
 	"accepted",
 	"reason",
@@ -484,6 +495,7 @@ var _planetary_cruise_reason: StringName = &"never_engaged"
 var _planetary_cruise_pending_envelope: Dictionary = {}
 var _planetary_cruise_last_envelope: Dictionary = {}
 var _planetary_cruise_pending_clearance_proof: Dictionary = {}
+var _planetary_cruise_pending_attitude: Dictionary = {}
 var _planetary_cruise_clearance_proof_sequence := 0
 var _planetary_cruise_controller_instance_id := 0
 var _planetary_cruise_last_controller_generation := 0
@@ -1611,6 +1623,7 @@ func build_planetary_cruise_clearance_proof(
 	# envelope reusable before the body's next physics tick.
 	_planetary_cruise_pending_clearance_proof.clear()
 	_planetary_cruise_pending_envelope.clear()
+	_planetary_cruise_pending_attitude.clear()
 	var rejection := _validate_planetary_cruise_query_context(
 		direction_world,
 		sweep_distance_meters,
@@ -1797,6 +1810,88 @@ func submit_planetary_cruise_envelope(envelope: Dictionary) -> Dictionary:
 	return _planetary_cruise_receipt(true, &"envelope_queued")
 
 
+## Queues one bounded attitude command from the attached cruise controller for
+## the next physics step. Like the envelope it rides with, it is one tick wide:
+## the hull slews at most `max_step_radians` toward `target_basis_world` and,
+## when `rotate_velocity` is set (the policy's aligning state), the velocity is
+## carried through the same rotation so the cruise alignment follows the nose.
+## This ship remains the only writer of its transform; the command is discarded
+## whenever the envelope it accompanies is.
+func submit_planetary_cruise_attitude(command: Dictionary) -> Dictionary:
+	if _reset_for_reuse_mutation_blocked() \
+			or _planetary_cruise_mutation_active or _planetary_cruise_signal_dispatch_active:
+		return _planetary_cruise_receipt(false, &"reentrant_call")
+	if not _has_exact_planetary_cruise_keys(command, PLANETARY_CRUISE_ATTITUDE_KEYS):
+		return _planetary_cruise_receipt(false, &"attitude_schema_mismatch")
+	if not command.controller_instance_id is int \
+			or not command.ship_attachment_generation is int \
+			or not command.target_basis_world is Basis \
+			or not command.max_step_radians is float \
+			or not command.rotate_velocity is bool:
+		return _planetary_cruise_receipt(false, &"attitude_type_mismatch")
+	if int(command.controller_instance_id) == 0 \
+			or int(command.controller_instance_id) \
+				!= _planetary_cruise_controller_instance_id:
+		return _planetary_cruise_receipt(false, &"controller_identity_mismatch")
+	if int(command.ship_attachment_generation) \
+			!= _planetary_cruise_attachment_generation:
+		return _planetary_cruise_receipt(false, &"attachment_generation_mismatch")
+	if _planetary_cruise_pending_envelope.is_empty():
+		return _planetary_cruise_receipt(false, &"attitude_without_envelope")
+	var target := command.target_basis_world as Basis
+	if not target.x.is_finite() or not target.y.is_finite() or not target.z.is_finite() \
+			or not target.is_conformal() or target.determinant() <= 0.0 \
+			or not target.get_scale().is_equal_approx(Vector3.ONE):
+		return _planetary_cruise_receipt(false, &"attitude_basis_invalid")
+	var step := float(command.max_step_radians)
+	if not is_finite(step) or step < 0.0 or step > PI:
+		return _planetary_cruise_receipt(false, &"attitude_step_out_of_bounds")
+	_planetary_cruise_mutation_active = true
+	_planetary_cruise_pending_attitude = command.duplicate(true)
+	_planetary_cruise_mutation_active = false
+	return _planetary_cruise_receipt(true, &"attitude_queued")
+
+
+## Carries a live attachment across one committed common-world origin rebase.
+## A coordinate-frame change is not a disengage: the hull keeps its state,
+## velocity and direction, only the frame generation its next envelope must
+## carry advances, and the stale-frame capability and envelope are dropped so
+## the controller re-proves in the new frame on this same tick.
+func retarget_planetary_cruise_coordinate_frame(
+	controller_instance_id: int,
+	expected_attachment_generation: int,
+	coordinate_frame_generation: int
+) -> Dictionary:
+	if _reset_for_reuse_mutation_blocked() \
+			or _planetary_cruise_mutation_active or _planetary_cruise_signal_dispatch_active:
+		return _planetary_cruise_receipt(false, &"reentrant_call")
+	if controller_instance_id == 0 \
+			or controller_instance_id != _planetary_cruise_controller_instance_id:
+		return _planetary_cruise_receipt(false, &"controller_identity_mismatch")
+	if expected_attachment_generation != _planetary_cruise_attachment_generation:
+		return _planetary_cruise_receipt(false, &"attachment_generation_mismatch")
+	if coordinate_frame_generation < 1 \
+			or coordinate_frame_generation > PLANETARY_CRUISE_MAX_SAFE_INTEGER:
+		return _planetary_cruise_receipt(false, &"coordinate_frame_generation_out_of_bounds")
+	var pending_frame_generation := int(
+		_planetary_cruise_pending_envelope.get(
+			"coordinate_frame_generation",
+			_planetary_cruise_coordinate_frame_generation
+		)
+	)
+	if coordinate_frame_generation <= max(
+		_planetary_cruise_coordinate_frame_generation, pending_frame_generation
+	):
+		return _planetary_cruise_receipt(false, &"stale_coordinate_frame_generation")
+	_planetary_cruise_mutation_active = true
+	_planetary_cruise_pending_envelope.clear()
+	_planetary_cruise_pending_clearance_proof.clear()
+	_planetary_cruise_pending_attitude.clear()
+	_planetary_cruise_coordinate_frame_generation = coordinate_frame_generation
+	_planetary_cruise_mutation_active = false
+	return _planetary_cruise_receipt(true, &"coordinate_frame_retargeted")
+
+
 ## Explicitly retires the bound controller and any pending/active envelope. The
 ## body begins a bounded HeroShip-owned brake when that is physically allowed.
 func disengage_planetary_cruise(
@@ -1813,6 +1908,7 @@ func disengage_planetary_cruise(
 		return _planetary_cruise_receipt(false, &"attachment_generation_mismatch")
 	_planetary_cruise_pending_envelope.clear()
 	_planetary_cruise_pending_clearance_proof.clear()
+	_planetary_cruise_pending_attitude.clear()
 	_planetary_cruise_controller_instance_id = 0
 	if brake_to_stop and _planetary_cruise_can_brake() and velocity.length() > 0.0:
 		_planetary_cruise_state = PLANETARY_CRUISE_STATE_BRAKING
@@ -1845,6 +1941,7 @@ func get_planetary_cruise_attachment_report() -> Dictionary:
 		"last_controller_generation": _planetary_cruise_last_controller_generation,
 		"last_sequence": _planetary_cruise_last_sequence,
 		"pending_envelope": _planetary_cruise_pending_envelope.duplicate(true),
+		"pending_attitude": _planetary_cruise_pending_attitude.duplicate(true),
 		"pending_clearance_proof": (
 			_planetary_cruise_pending_clearance_proof.duplicate(true)
 		),
@@ -3048,8 +3145,16 @@ func _update_planetary_cruise_physics(delta: float) -> bool:
 		_planetary_cruise_braking_acceleration = absf(float(
 			envelope.braking_acceleration_hint_meters_per_second_squared
 		))
+		var aligning := StringName(envelope.policy_reason) \
+			== PLANETARY_CRUISE_ALIGNING_POLICY_REASON
+		# The attitude command rides with this exact envelope. Apply it before
+		# the participation decision so a tick that ends in retirement still
+		# slews once; a manual command has already discarded both by now.
+		_apply_planetary_cruise_attitude(aligning)
 		if bool(envelope.desired_participation):
-			if bool(envelope.braking_requested) or signed_acceleration < 0.0:
+			if aligning:
+				_planetary_cruise_state = PLANETARY_CRUISE_STATE_ALIGNING
+			elif bool(envelope.braking_requested) or signed_acceleration < 0.0:
 				_planetary_cruise_state = PLANETARY_CRUISE_STATE_BRAKING_TO_SPEED
 			elif _planetary_cruise_acceleration > 0.0:
 				_planetary_cruise_state = PLANETARY_CRUISE_STATE_ACCELERATING
@@ -3067,6 +3172,7 @@ func _update_planetary_cruise_physics(delta: float) -> bool:
 		PLANETARY_CRUISE_STATE_ACCELERATING,
 		PLANETARY_CRUISE_STATE_CRUISING,
 		PLANETARY_CRUISE_STATE_BRAKING_TO_SPEED,
+		PLANETARY_CRUISE_STATE_ALIGNING,
 	]:
 		# Participation needs one proof-bearing envelope per physics tick. Missing
 		# cadence cannot coast indefinitely on an old obstacle observation.
@@ -3482,6 +3588,40 @@ func _planetary_surface_gravity_receipt(
 	}.duplicate(true)
 
 
+## Applies the one queued attitude command: a shortest-arc slew of at most the
+## commanded step toward the target basis, with the velocity carried through the
+## same world rotation only while the policy is aligning. The command is one
+## tick wide and is consumed here whether or not it moved anything.
+func _apply_planetary_cruise_attitude(rotate_velocity_allowed: bool) -> void:
+	if _planetary_cruise_pending_attitude.is_empty():
+		return
+	var command := _planetary_cruise_pending_attitude
+	_planetary_cruise_pending_attitude = {}
+	if int(command.get("controller_instance_id", 0)) \
+			!= _planetary_cruise_controller_instance_id \
+			or int(command.get("ship_attachment_generation", 0)) \
+				!= _planetary_cruise_attachment_generation:
+		return
+	var target := (command.get("target_basis_world", Basis.IDENTITY) as Basis).orthonormalized()
+	var current := global_basis.orthonormalized()
+	var from_rotation := Quaternion(current).normalized()
+	var to_rotation := Quaternion(target).normalized()
+	if from_rotation.dot(to_rotation) < 0.0:
+		to_rotation = -to_rotation
+	var angle := 2.0 * acos(clampf(absf(from_rotation.dot(to_rotation)), 0.0, 1.0))
+	if angle <= 0.000001:
+		return
+	var step := clampf(float(command.get("max_step_radians", 0.0)), 0.0, PI)
+	if step <= 0.0:
+		return
+	var next_rotation := from_rotation.slerp(to_rotation, minf(1.0, step / angle)).normalized()
+	var world_rotation := next_rotation * from_rotation.inverse()
+	global_basis = Basis(next_rotation)
+	if rotate_velocity_allowed and bool(command.get("rotate_velocity", false)) \
+			and velocity.length_squared() > 0.0:
+		velocity = world_rotation * velocity
+
+
 func _planetary_cruise_can_brake() -> bool:
 	return _piloted and not _destroyed and not _landing_active
 
@@ -3493,6 +3633,7 @@ func _retire_planetary_cruise(reason: StringName, advance_generation: bool) -> v
 		or _planetary_cruise_reason != reason
 	_planetary_cruise_pending_envelope.clear()
 	_planetary_cruise_pending_clearance_proof.clear()
+	_planetary_cruise_pending_attitude.clear()
 	_planetary_cruise_controller_instance_id = 0
 	_planetary_cruise_state = PLANETARY_CRUISE_STATE_INACTIVE
 	_planetary_cruise_reason = reason

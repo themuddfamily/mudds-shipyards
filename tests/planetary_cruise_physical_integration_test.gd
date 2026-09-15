@@ -164,7 +164,7 @@ func _run() -> void:
 		"HeroShip rejects an out-of-policy forged cruise speed"
 	)
 	var acceleration_forgery := valid_candidate.duplicate(true)
-	acceleration_forgery["acceleration_hint_meters_per_second_squared"] = 10_000.0
+	acceleration_forgery["acceleration_hint_meters_per_second_squared"] = 9_999.0
 	_check(
 		ship.submit_planetary_cruise_envelope(acceleration_forgery).get("reason") \
 			== &"policy_result_mismatch",
@@ -189,8 +189,13 @@ func _run() -> void:
 		ship.get_planetary_cruise_attachment_report() == forgery_baseline,
 		"all forged-envelope rejections preserve byte-equivalent ship cruise state"
 	)
-	ship.velocity = Vector3.FORWARD \
-		* (PlanetaryCruisePolicy.TARGET_CRUISE_SPEED_METERS_PER_SECOND + 100.0)
+	# Two full braking steps above target, so the bounded step is observable
+	# rather than clamped onto the target speed within one tick.
+	ship.velocity = Vector3.FORWARD * (
+		PlanetaryCruisePolicy.TARGET_CRUISE_SPEED_METERS_PER_SECOND
+		+ 2.0 * PlanetaryCruisePolicy.BRAKING_HINT_METERS_PER_SECOND_SQUARED
+			* ship.get_physics_process_delta_time()
+	)
 	var overspeed_before := ship.velocity.length()
 	var overspeed_result := controller.evaluate_and_submit(
 		destination,
@@ -541,6 +546,10 @@ func _run() -> void:
 	)
 	_check(bool(collision_result.get("accepted", false)), "fresh clear intent queues before collision witness")
 	ship.velocity = Vector3.FORWARD * 20.0
+	# The transit tuning accelerates 10 km/s^2, so the witness impact a tick later
+	# is ~190 m/s; the assertion is the same-tick retirement, not hull loss.
+	var witness_damage_scale := ship.impact_damage_scale
+	ship.impact_damage_scale = 0.0
 	var collision_wall := _make_blocker(
 		"LateCollisionWall",
 		Vector3(20.0, 20.0, 0.5),
@@ -558,6 +567,7 @@ func _run() -> void:
 	collision_wall.queue_free()
 	await physics_frame
 	await process_frame
+	ship.impact_damage_scale = witness_damage_scale
 
 	# Pilot, landing, destruction, reset, and tree lifecycle boundaries all
 	# tombstone a previously valid envelope.
@@ -763,6 +773,8 @@ func _envelope_from_proof(
 		"destroyed": ship.is_destroyed(),
 		"landing_active": ship.is_landing_active(),
 		"combat_active": combat_active,
+		"attitude_authority": false,
+		"approach_speed_limit_meters_per_second": 0.0,
 	}.duplicate(true)
 	var policy_result := PlanetaryCruisePolicy.new().evaluate(
 		observation,

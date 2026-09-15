@@ -19,10 +19,23 @@ enum FinalApproachState { NONE, ARMED, ACTIVE, COMPLETED, ABORTED }
 
 const SCHEMA_VERSION := 1
 const MAX_SAFE_INTEGER := 9_007_199_254_740_991
-## Conservative physical horizon above the pure policy's 731,666.67 m default
-## engagement requirement. Higher current speeds fail closed when this horizon
-## cannot cover their larger braking envelope.
-const CLEARANCE_PROOF_HORIZON_METERS := 750_000.0
+## Conservative physical horizon above the pure policy's 880,000 m default
+## engagement requirement (braking envelope plus acceleration distance at the
+## transit tuning). Higher current speeds fail closed when this horizon cannot
+## cover their larger braking envelope.
+const CLEARANCE_PROOF_HORIZON_METERS := 1_250_000.0
+## Optional per-tick guidance the binding may hand `evaluate_and_submit()`:
+## an approach point (switches the pure policy to its short-leg profile), the
+## profile's speed limit, an attitude the hull should slew toward while this
+## controller holds authority, and an explicit request to activate an armed
+## approach. Absent guidance is exactly the historical long-leg behaviour.
+const GUIDANCE_KEYS := [
+	"approach_point_world",
+	"approach_speed_limit_meters_per_second",
+	"attitude_basis_world",
+	"attitude_authority",
+	"activate_approach",
+]
 const FINAL_APPROACH_TARGET_ID: StringName = &"FINAL_APPROACH"
 const RETURN_APPROACH_TARGET_ID: StringName = &"SHIPYARD_RETURN_APPROACH"
 const RETURN_APPROACH_KIND: StringName = &"shipyard_return"
@@ -483,12 +496,16 @@ func settle_arrival_on_retired_attachment(expected_generation: int) -> Dictionar
 
 ## Produces and submits exactly one proof-bearing envelope for the next ship
 ## physics tick. Callers must invoke this once per physics tick while cruise is
-## desired; missing cadence makes HeroShip brake on its next tick.
+## desired; missing cadence makes HeroShip brake on its next tick. Optional
+## `guidance` (see `GUIDANCE_KEYS`) selects the policy's short-leg approach
+## profile toward an explicit point and lets this controller command a bounded
+## attitude slew alongside the envelope; HeroShip still integrates both.
 func evaluate_and_submit(
 	destination_world: Vector3,
 	combat_active: bool,
 	expected_coordinate_frame_generation: int,
-	expected_generation: int
+	expected_generation: int,
+	guidance: Dictionary = {}
 ) -> Dictionary:
 	if _mutation_active or _signal_dispatch_active:
 		return _receipt(false, &"reentrant_call")
@@ -500,6 +517,9 @@ func evaluate_and_submit(
 		return _receipt(false, binding_reason)
 	if not destination_world.is_finite():
 		return _receipt(false, &"destination_nonfinite")
+	var guidance_reason := _validate_guidance(guidance)
+	if not guidance_reason.is_empty():
+		return _receipt(false, guidance_reason)
 	var ship := _resolve_ship()
 	if ship == null:
 		_clear_binding(&"ship_unavailable", true)
@@ -514,22 +534,40 @@ func evaluate_and_submit(
 					.home_target_world_transform.origin
 			):
 		return _receipt(false, &"return_approach_home_target_mismatch")
+	if _final_approach_state == FinalApproachState.ARMED \
+			and bool(guidance.get("activate_approach", false)):
+		_activate_approach()
+	var approach_point := guidance.get(
+		"approach_point_world", Vector3.INF
+	) as Vector3
+	var approach_speed_limit := 0.0
+	if approach_point.is_finite():
+		approach_speed_limit = float(guidance.get(
+			"approach_speed_limit_meters_per_second",
+			PlanetaryCruisePolicyType.APPROACH_SPEED_LIMIT_METERS_PER_SECOND,
+		))
 	if _final_approach_state == FinalApproachState.ACTIVE:
 		if _approach_kind == RETURN_APPROACH_KIND:
 			var return_completion := _measure_return_approach(ship)
 			if bool(return_completion.get("accepted", false)):
 				return _commit_return_approach_completion(return_completion)
+			final_approach_measurement = return_completion.duplicate(true)
 		else:
 			var completion := _measure_final_approach(ship)
 			if bool(completion.get("accepted", false)):
 				return _commit_final_approach_completion(completion)
 			final_approach_measurement = completion.duplicate(true)
+		if approach_point.is_finite():
+			destination_world = approach_point
+		elif _approach_kind == FINAL_APPROACH_KIND:
 			var retarget := _final_approach_policy_destination(ship)
 			if not retarget.is_finite():
 				return _commit_evaluation_rejection(
-					&"final_approach_retarget_nonfinite", completion
+					&"final_approach_retarget_nonfinite", final_approach_measurement
 				)
 			destination_world = retarget
+	elif approach_point.is_finite():
+		destination_world = approach_point
 	var offset := destination_world - ship.global_position
 	var distance := offset.length()
 	if not is_finite(distance) \
@@ -553,6 +591,8 @@ func evaluate_and_submit(
 			StringName(proof.get("reason", &"clearance_proof_rejected")),
 			proof
 		)
+	var attitude_authority := guidance.has("attitude_basis_world") \
+		and bool(guidance.get("attitude_authority", true))
 	var observation := {
 		"distance_to_destination_meters": float(distance),
 		"ship_speed_meters_per_second": float(
@@ -584,6 +624,8 @@ func evaluate_and_submit(
 		"destroyed": ship.is_destroyed(),
 		"landing_active": ship.is_landing_active(),
 		"combat_active": combat_active,
+		"attitude_authority": attitude_authority,
+		"approach_speed_limit_meters_per_second": approach_speed_limit,
 	}.duplicate(true)
 	var policy_result := _policy.evaluate(
 		observation,
@@ -599,6 +641,7 @@ func evaluate_and_submit(
 			}
 		)
 	if _final_approach_state == FinalApproachState.ARMED \
+			and approach_speed_limit <= 0.0 \
 			and not bool(policy_result.get("desired_cruise_participation", false)):
 		var policy_reason := StringName(
 			policy_result.get("reason", &"policy_disengaged")
@@ -606,16 +649,11 @@ func evaluate_and_submit(
 		if policy_reason in [
 			&"destination_braking_envelope", &"insufficient_verified_clearance",
 		]:
-			_mutation_active = true
-			_final_approach_state = FinalApproachState.ACTIVE
-			_last_final_approach_reason = &"return_approach_activated" \
-				if _approach_kind == RETURN_APPROACH_KIND \
-				else &"final_approach_activated"
-			_mutation_active = false
-			_emit_final_approach_changed()
+			_activate_approach()
 			return evaluate_and_submit(
 				destination_world, combat_active,
-				expected_coordinate_frame_generation, expected_generation
+				expected_coordinate_frame_generation, expected_generation,
+				guidance
 			)
 		_mutation_active = true
 		_final_approach_state = FinalApproachState.ABORTED
@@ -677,6 +715,18 @@ func evaluate_and_submit(
 				"ship_receipt": submit_receipt.duplicate(true),
 			}
 		)
+	var attitude_receipt: Dictionary = {}
+	if guidance.has("attitude_basis_world"):
+		attitude_receipt = ship.submit_planetary_cruise_attitude({
+			"controller_instance_id": get_instance_id(),
+			"ship_attachment_generation": _ship_attachment_generation,
+			"target_basis_world": (guidance.attitude_basis_world as Basis).orthonormalized(),
+			"max_step_radians": (
+				PlanetaryCruisePolicyType.TRANSIT_ATTITUDE_TURN_RATE_RADIANS_PER_SECOND
+				/ float(maxi(Engine.physics_ticks_per_second, 1))
+			),
+			"rotate_velocity": StringName(policy_result.get("state", &"")) == &"aligning",
+		})
 	_mutation_active = true
 	_sequence = candidate_sequence
 	_last_envelope = envelope.duplicate(true)
@@ -692,6 +742,10 @@ func evaluate_and_submit(
 		"policy": policy_result.duplicate(true),
 		"envelope": envelope.duplicate(true),
 		"ship_receipt": submit_receipt.duplicate(true),
+		"guidance": guidance.duplicate(true),
+		"attitude_receipt": attitude_receipt.duplicate(true),
+		"destination_world": destination_world,
+		"distance_to_destination_meters": float(distance),
 	}.duplicate(true)
 	if not final_approach_measurement.is_empty():
 		_last_result["final_approach_measurement"] = (
@@ -701,6 +755,120 @@ func evaluate_and_submit(
 	_mutation_active = false
 	_emit_evaluation_committed()
 	return _last_result.duplicate(true)
+
+
+## Carries the live attachment, and any armed or active approach target, across
+## one committed common-world origin rebase without retiring it. The target's
+## world transform must already have been re-expressed through
+## `translate_approach_target()`; only the frame generation moves here.
+func rebind_coordinate_frame(
+	ship: HeroShip,
+	coordinate_frame_generation: int,
+	expected_generation: int
+) -> Dictionary:
+	if _mutation_active or _signal_dispatch_active:
+		return _receipt(false, &"reentrant_call")
+	var binding_reason := _validate_binding(
+		_coordinate_frame_generation, expected_generation
+	)
+	if not binding_reason.is_empty():
+		return _receipt(false, binding_reason)
+	if coordinate_frame_generation != _coordinate_frame_generation + 1:
+		return _receipt(false, &"coordinate_frame_generation_jump")
+	var live := _resolve_ship()
+	if live == null or live != ship:
+		return _receipt(false, &"ship_instance_mismatch")
+	_mutation_active = true
+	var retargeted := ship.retarget_planetary_cruise_coordinate_frame(
+		get_instance_id(),
+		_ship_attachment_generation,
+		coordinate_frame_generation
+	)
+	if not bool(retargeted.get("accepted", false)):
+		_mutation_active = false
+		return _receipt(
+			false,
+			StringName(retargeted.get("reason", &"ship_frame_retarget_rejected"))
+		)
+	_coordinate_frame_generation = coordinate_frame_generation
+	if _final_approach_target is FinalApproachTarget:
+		(_final_approach_target as FinalApproachTarget).coordinate_frame_generation = (
+			coordinate_frame_generation
+		)
+	elif _final_approach_target is ReturnApproachTarget:
+		(_final_approach_target as ReturnApproachTarget).coordinate_frame_generation = (
+			coordinate_frame_generation
+		)
+	_generation = 1 if _generation >= MAX_SAFE_INTEGER else _generation + 1
+	_last_envelope = {}
+	_mutation_active = false
+	_emit_binding_changed()
+	return _receipt(true, &"coordinate_frame_rebound")
+
+
+## Re-expresses the armed or active approach target's frozen world transform
+## after the common world moved by `delta` under it. Notification, not
+## authority: the caller that owns the rebase transaction announces it.
+func translate_approach_target(
+	delta: Vector3,
+	expected_target_generation: int,
+	expected_generation: int
+) -> Dictionary:
+	if _mutation_active or _signal_dispatch_active:
+		return _final_approach_result(false, &"reentrant_call")
+	if expected_generation != _generation:
+		return _final_approach_result(false, &"generation_mismatch")
+	if _final_approach_target == null or _final_approach_state not in [
+		FinalApproachState.ARMED, FinalApproachState.ACTIVE,
+	]:
+		return _final_approach_result(false, &"approach_not_active")
+	if expected_target_generation != _final_approach_generation:
+		return _final_approach_result(false, &"approach_generation_mismatch")
+	if not delta.is_finite():
+		return _final_approach_result(false, &"translation_nonfinite")
+	_mutation_active = true
+	if _final_approach_target is FinalApproachTarget:
+		(_final_approach_target as FinalApproachTarget).target_world_transform.origin += delta
+	elif _final_approach_target is ReturnApproachTarget:
+		(_final_approach_target as ReturnApproachTarget).home_target_world_transform.origin += delta
+	_mutation_active = false
+	return _final_approach_result(true, &"approach_target_translated")
+
+
+func _activate_approach() -> void:
+	_mutation_active = true
+	_final_approach_state = FinalApproachState.ACTIVE
+	_last_final_approach_reason = &"return_approach_activated" \
+		if _approach_kind == RETURN_APPROACH_KIND \
+		else &"final_approach_activated"
+	_mutation_active = false
+	_emit_final_approach_changed()
+
+
+static func _validate_guidance(guidance: Dictionary) -> StringName:
+	for key: Variant in guidance:
+		if not key is String or not GUIDANCE_KEYS.has(key):
+			return &"guidance_schema_mismatch"
+	if guidance.has("approach_point_world"):
+		if not guidance.approach_point_world is Vector3 \
+				or not (guidance.approach_point_world as Vector3).is_finite():
+			return &"guidance_approach_point_invalid"
+	if guidance.has("approach_speed_limit_meters_per_second"):
+		var limit: Variant = guidance.approach_speed_limit_meters_per_second
+		if not limit is float or not is_finite(float(limit)) or float(limit) <= 0.0 \
+				or float(limit) > PlanetaryCruisePolicyType.APPROACH_SPEED_LIMIT_METERS_PER_SECOND:
+			return &"guidance_approach_speed_limit_invalid"
+	if guidance.has("attitude_basis_world"):
+		if not guidance.attitude_basis_world is Basis:
+			return &"guidance_attitude_invalid"
+		var basis := guidance.attitude_basis_world as Basis
+		if not basis.x.is_finite() or not basis.y.is_finite() or not basis.z.is_finite() \
+				or is_zero_approx(basis.determinant()) or basis.determinant() < 0.0:
+			return &"guidance_attitude_invalid"
+	for key in ["attitude_authority", "activate_approach"]:
+		if guidance.has(key) and not guidance[key] is bool:
+			return &"guidance_flag_invalid"
+	return &""
 
 
 func disengage(expected_generation: int, brake_to_stop: bool = true) -> Dictionary:
@@ -804,6 +972,9 @@ func audit() -> Dictionary:
 			"typed_return_approach_target": true,
 			"full_flyable_fleet_return_corridor_proof": true,
 			"return_brake_complete_shell_measurement": true,
+			"guided_approach_profile": true,
+			"bounded_attitude_command": true,
+			"coordinate_frame_rebind": true,
 			"input_sampling": false,
 			"velocity_write": false,
 			"move_and_slide": false,

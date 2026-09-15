@@ -62,7 +62,7 @@ func _run() -> void:
 			and armed_state.get("approach_kind") == ControllerType.RETURN_APPROACH_KIND
 			and bool(fleet_proof.get("accepted", false))
 			and (fleet_proof.get("fleet_ids", []) as Array).size() == 9,
-		"one typed target freezes all nine production hulls inside the 750 km corridor",
+		"one typed target freezes all nine production hulls inside the clearance-horizon corridor",
 	)
 	var stale_abort := controller.abort_return_approach(
 		&"stale_attempt", 2, controller.get_generation()
@@ -160,7 +160,9 @@ func _target_for(ship: HeroShip, generation: int) -> Variant:
 	target.coordinate_frame_generation = FRAME_GENERATION
 	target.home_target_id = &"mudds_shipyards_home"
 	target.home_target_world_transform = Transform3D.IDENTITY
-	target.corridor_half_extents_m = Vector3(100.0, 100.0, 750_000.0)
+	target.corridor_half_extents_m = Vector3(
+		100.0, 100.0, ControllerType.CLEARANCE_PROOF_HORIZON_METERS
+	)
 	target.brake_shell_min_distance_m = 50.0
 	target.brake_shell_max_distance_m = 150.0
 	target.maximum_speed_mps = 12.0
