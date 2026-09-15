@@ -68,14 +68,14 @@ const ACCESS_SUPPORT_MESH_COUNT := 11
 ## Dock 04's container row and Dock 06's launch frame and rails). Dock 05 has no
 ## structural body because none of its dressing was found intruded.
 const SERVICE_STRUCTURE_BODIES := 2
-const SERVICE_STRUCTURE_SHAPES := 8
+const SERVICE_STRUCTURE_SHAPES := 36
 const MAX_STATIC_BODIES := 6 + SERVICE_STRUCTURE_BODIES
 const MAX_MESH_INSTANCES := 38
 const EXPECTED_STATIC_BODIES := 6 + SERVICE_STRUCTURE_BODIES
 const EXPECTED_COLLISION_SHAPES := 6 + SERVICE_STRUCTURE_SHAPES
 const EXPECTED_MESH_INSTANCES := 21
-const EXPECTED_MULTIMESH_INSTANCES := 3
-const EXPECTED_RENDERER_NODES := 24
+const EXPECTED_MULTIMESH_INSTANCES := 7
+const EXPECTED_RENDERER_NODES := 28
 const EXPECTED_WAYFINDING_MESH_INSTANCES := 1
 const EXPECTED_WAYFINDING_LABELS := 1
 const EXPECTED_WAYFINDING_BOXES := 17
@@ -87,16 +87,16 @@ const DOCK05_BOARDING_ALIGNMENT_BOXES: Array[Dictionary] = [
 	{"centre": Vector3(30.2, 0.035, -19.65), "size": Vector3(0.72, 0.07, 0.10)},
 	{"centre": Vector3(30.2, 0.035, -18.9), "size": Vector3(0.72, 0.07, 0.10)},
 ]
-const EXPECTED_SERVICE_MESH_INSTANCES := 14
-const EXPECTED_SERVICE_RENDERER_NODES := 11
-const EXPECTED_SERVICE_MESH_RESOURCE_ALLOCATIONS := 11
-const EXPECTED_COMPONENT_MESH_RESOURCE_ALLOCATIONS := 24
+const EXPECTED_SERVICE_MESH_INSTANCES := 85
+const EXPECTED_SERVICE_RENDERER_NODES := 15
+const EXPECTED_SERVICE_MESH_RESOURCE_ALLOCATIONS := 12
+const EXPECTED_COMPONENT_MESH_RESOURCE_ALLOCATIONS := 25
 const EXPECTED_GUIDE_LIGHTS := 5
-const EXPECTED_DESCENDANTS := 70
+const EXPECTED_DESCENDANTS := 104
 const SERVICE_MESH_COUNTS := {
-	&"dock_04_cargo": 6,
+	&"dock_04_cargo": 38,
 	&"dock_05_bomber": 3,
-	&"dock_06_interceptor": 5,
+	&"dock_06_interceptor": 44,
 }
 const SERVICE_LIGHT_COUNTS := {
 	&"dock_04_cargo": 2,
@@ -109,9 +109,9 @@ const SERVICE_ROLES := {
 	&"dock_06_interceptor": &"rapid_launch_guide_frame",
 }
 const SERVICE_LOCAL_BOUNDS := {
-	&"dock_04_cargo": AABB(Vector3(-20.0, -0.1, -15.0), Vector3(43.0, 13.0, 30.0)),
+	&"dock_04_cargo": AABB(Vector3(-19.0, -0.5, -16.0), Vector3(34.0, 13.0, 37.0)),
 	&"dock_05_bomber": AABB(Vector3(-21.0, -0.1, -21.0), Vector3(42.0, 12.0, 25.0)),
-	&"dock_06_interceptor": AABB(Vector3(-18.0, -0.1, -18.0), Vector3(36.0, 12.0, 44.0)),
+	&"dock_06_interceptor": AABB(Vector3(-15.0, -0.2, -21.0), Vector3(30.0, 12.0, 42.0)),
 }
 ## Minimum silhouette width each pad's service dressing must still read at, in
 ## pad-local x.
@@ -126,10 +126,18 @@ const SERVICE_LOCAL_BOUNDS := {
 ## it measures is the defect; these are the widths the dressing reaches while
 ## staying on its own pad, and Dock 05 is unchanged because none of its dressing
 ## was found in anybody else's volume.
+##
+## Phase 10 §3 re-dress: Dock 06 rises 23.0 -> 27.5 m because the lane kerbs and
+## corner markers now reach pad-local x = +/-13.9, and Dock 04 holds at 32.0 m
+## (it measures 32.65 m). Neither floor was lowered by the re-dress. Dock 04 is
+## the only pad whose silhouette is still wider than its own pad, and the single
+## piece responsible is `CargoCraneMast`, the cantilever crane's off-pad column,
+## which carries no collider. Every structural collider on both pads now sits
+## inside the 28 x 42 m footprint with 0.10 m to spare.
 const SERVICE_READABLE_WIDTHS := {
 	&"dock_04_cargo": 32.0,
 	&"dock_05_bomber": 31.0,
-	&"dock_06_interceptor": 23.0,
+	&"dock_06_interceptor": 27.5,
 }
 const LANDING_VISUAL_CLEARANCE := AABB(Vector3(-10.0, 0.0, -14.0), Vector3(20.0, 8.0, 28.0))
 const APPROACH_VISUAL_CLEARANCE := AABB(Vector3(-10.0, 0.0, 21.0), Vector3(20.0, 8.0, 15.0))
@@ -172,6 +180,47 @@ const PAD_BOARDING_FASCIA_SPECS := {
 		"approach_normal": Vector3.RIGHT,
 		"support": &"InterceptorBoardingToe",
 		"craft_role": &"interceptor",
+	},
+}
+## The exact `MultiMeshInstance3D` roster each pad publishes, its authored
+## instance source and the material it must draw with. Checking by name rather
+## than by child index keeps the audit honest now that two pads carry three
+## batches each.
+const SERVICE_BATCH_RECIPES := {
+	&"dock_04_cargo": {
+		&"CargoContainerBatch": {
+			"mesh_size": CARGO_CONTAINER_SIZE,
+			"transforms": CARGO_CONTAINER_TRANSFORMS,
+			"material": "cargo_container",
+		},
+		&"CargoApronKitBatch": {
+			"mesh_size": Vector3.ONE,
+			"pieces": CARGO_APRON_KIT,
+			"material": "cargo_frame",
+		},
+		&"CargoApronMarkingBatch": {
+			"mesh_size": Vector3.ONE,
+			"pieces": CARGO_APRON_MARKINGS,
+			"material": "cargo_marker",
+		},
+	},
+	&"dock_05_bomber": {},
+	&"dock_06_interceptor": {
+		&"LaunchRailBatch": {
+			"mesh_size": LAUNCH_RAIL_SIZE,
+			"transforms": LAUNCH_RAIL_TRANSFORMS,
+			"material": "interceptor_marker",
+		},
+		&"LaunchApronKitBatch": {
+			"mesh_size": Vector3.ONE,
+			"pieces": LAUNCH_APRON_KIT,
+			"material": "interceptor_frame",
+		},
+		&"LaunchLaneMarkingBatch": {
+			"mesh_size": Vector3.ONE,
+			"pieces": LAUNCH_LANE_MARKINGS,
+			"material": "interceptor_marker",
+		},
 	},
 }
 const PRESENTATION_NODE_DELTA := 0
@@ -218,12 +267,166 @@ const LAUNCH_FRAME_PORT_POSITION := Vector3(-11.0, 5.0, -16.0)
 const LAUNCH_FRAME_STARBOARD_POSITION := Vector3(11.0, 5.0, -16.0)
 const LAUNCH_FRAME_HEADER_SIZE := Vector3(23.5, 1.0, 1.2)
 const LAUNCH_FRAME_HEADER_POSITION := Vector3(0.0, 10.0, -16.0)
+## CAMERA-LANE-006 follow-up (Phase 10 §3 art direction). Shrinking the row to
+## fit the free strip left Dock 04 with three loose crates nobody could see and
+## Dock 06 with two rails hanging in open space: the rendered check from the
+## walker, the chase and the station long view found no freight read and no
+## launch read at all on either pad. The identities below are rebuilt *inside*
+## the same clearance contracts, from the same box primitive and the same four
+## per-pad materials, by using the space each pad actually owns.
+##
+## Dock 04 keeps the 3 x 3.6 x 4 container, and now stows seven of them: two
+## three-high stacks on the starboard strip (broken around `CargoTrunkLeg`
+## exactly as before) and one on the roller line under the crane, which is why
+## the crane hoist moved out to that container and grew into a reachable lifting
+## line instead of a stub 5 m above nothing.
 const CARGO_CONTAINER_SIZE := Vector3(3.0, 3.6, 4.0)
 const CARGO_CONTAINER_TRANSFORMS: Array[Transform3D] = [
-	Transform3D(Basis.IDENTITY, Vector3(12.0, 1.8, -4.0)),
-	Transform3D(Basis.IDENTITY, Vector3(12.0, 1.8, 1.0)),
-	Transform3D(Basis.IDENTITY, Vector3(12.0, 1.8, 11.0)),
+	Transform3D(Basis.IDENTITY, Vector3(12.4, 1.8, -4.0)),
+	Transform3D(Basis.IDENTITY, Vector3(12.4, 1.8, 0.3)),
+	Transform3D(Basis.IDENTITY, Vector3(12.4, 5.4, -1.85)),
+	Transform3D(Basis.IDENTITY, Vector3(12.4, 1.8, 8.6)),
+	Transform3D(Basis.IDENTITY, Vector3(12.4, 1.8, 12.9)),
+	Transform3D(Basis.IDENTITY, Vector3(12.4, 5.4, 10.75)),
+	Transform3D(Basis.IDENTITY, Vector3(-12.0, 3.1, -7.0)),
 ]
+## The crane is a cantilever: the mast is the one piece that still stands off
+## the pad edge, it carries no collider, and the jib now reaches only as far as
+## the hoist it actually serves instead of stopping 5 m short of everything.
+const CARGO_CRANE_MAST_POSITION := Vector3(-18.0, 6.0, -7.0)
+const CARGO_CRANE_MAST_SIZE := Vector3(1.5, 12.0, 1.5)
+const CARGO_CRANE_JIB_POSITION := Vector3(-15.0, 11.5, -7.0)
+const CARGO_CRANE_JIB_SIZE := Vector3(7.5, 1.0, 1.0)
+const CARGO_CRANE_HOIST_POSITION := Vector3(-12.0, 8.25, -7.0)
+const CARGO_CRANE_HOIST_SIZE := Vector3(1.0, 6.5, 1.0)
+## Every structural apron/launch piece below is a unit box scaled per instance,
+## so both pads' new hardware costs one renderer node and shares one mesh
+## resource with the other pad's. `rotation_degrees` is applied before the
+## scale, so the collider built from the same row is the drawn box.
+##
+## Clearance, in pad-local metres: `LANDING_VISUAL_CLEARANCE` owns
+## x [-10, 10] y [0, 8] z [-14, 14] and `APPROACH_VISUAL_CLEARANCE` owns
+## x [-10, 10] y [0, 8] z [21, 36]. Nothing here enters either, and every row
+## was shape-queried against the live production world before it was kept.
+const CARGO_APRON_KIT: Array[Dictionary] = [
+	{"name": "ApronBeamOutboard", "position": Vector3(-13.3, 0.55, 0.0), "size": Vector3(1.2, 1.1, 26.0)},
+	{"name": "ApronBeamInboard", "position": Vector3(-10.7, 0.55, 0.0), "size": Vector3(1.2, 1.1, 26.0)},
+	{"name": "RollerStand00", "position": Vector3(-12.0, 1.0, -7.0), "size": Vector3(2.2, 0.6, 1.4)},
+	{"name": "RollerStand01", "position": Vector3(-12.0, 1.0, -1.0), "size": Vector3(2.2, 0.6, 1.4)},
+	{"name": "RollerStand02", "position": Vector3(-12.0, 1.0, 3.0), "size": Vector3(2.2, 0.6, 1.4)},
+	{"name": "RollerStand03", "position": Vector3(-12.0, 1.0, 7.0), "size": Vector3(2.2, 0.6, 1.4)},
+	{"name": "ManifestPylon", "position": Vector3(-12.0, 1.2, -12.5), "size": Vector3(1.0, 2.4, 1.0)},
+	{"name": "ManifestPlate", "position": Vector3(-12.0, 3.6, -12.5), "size": Vector3(0.3, 2.4, 5.4)},
+	{"name": "YardKerbSouth", "position": Vector3(10.45, 0.25, -1.0), "size": Vector3(0.7, 0.5, 11.0)},
+	{"name": "YardKerbNorth", "position": Vector3(10.45, 0.25, 10.75), "size": Vector3(0.7, 0.5, 8.5)},
+	{"name": "ApronThresholdBeam", "position": Vector3(0.0, 0.3, 17.6), "size": Vector3(24.0, 0.6, 1.6)},
+]
+## Thin emissive cues, all of them carried on a piece of the kit above rather
+## than floating: these pads own no deck plate, so "deck paint" would have been
+## stripes hanging in vacuum. They share the pad's existing marker material, so
+## they dim with the berth exactly as the crane hoist and the launch rails do.
+const CARGO_APRON_MARKINGS: Array[Dictionary] = [
+	{"name": "YardLaneLightSouth", "position": Vector3(10.45, 0.62, -1.0), "size": Vector3(0.4, 0.24, 11.0)},
+	{"name": "YardLaneLightNorth", "position": Vector3(10.45, 0.62, 10.75), "size": Vector3(0.4, 0.24, 8.5)},
+	{"name": "StackLampSouth", "position": Vector3(12.4, 7.32, -1.85), "size": Vector3(2.2, 0.24, 3.0)},
+	{"name": "StackLampNorth", "position": Vector3(12.4, 7.32, 10.75), "size": Vector3(2.2, 0.24, 3.0)},
+	{"name": "ApronBeamLightOutboard", "position": Vector3(-13.3, 1.22, 0.0), "size": Vector3(0.45, 0.24, 24.0)},
+	{"name": "ApronBeamLightInboard", "position": Vector3(-10.7, 1.22, 0.0), "size": Vector3(0.45, 0.24, 24.0)},
+	{"name": "ManifestBacklight", "position": Vector3(-11.79, 2.55, -12.5), "size": Vector3(0.12, 0.25, 5.0)},
+	{"name": "ContainerMark00", "position": Vector3(10.88, 3.0, -4.0), "size": Vector3(0.1, 0.35, 3.2)},
+	{"name": "ContainerMark01", "position": Vector3(10.88, 3.0, 0.3), "size": Vector3(0.1, 0.35, 3.2)},
+	{"name": "ContainerMark02", "position": Vector3(10.88, 6.6, -1.85), "size": Vector3(0.1, 0.35, 3.2)},
+	{"name": "ContainerMark03", "position": Vector3(10.88, 3.0, 8.6), "size": Vector3(0.1, 0.35, 3.2)},
+	{"name": "ContainerMark04", "position": Vector3(10.88, 3.0, 12.9), "size": Vector3(0.1, 0.35, 3.2)},
+	{"name": "ContainerMark05", "position": Vector3(10.88, 6.6, 10.75), "size": Vector3(0.1, 0.35, 3.2)},
+	{"name": "ThresholdChevronPortInner", "position": Vector3(-4.0, 0.72, 17.6), "size": Vector3(8.0, 0.24, 0.8), "rotation_degrees": Vector3(0.0, 20.0, 0.0)},
+	{"name": "ThresholdChevronStarboardInner", "position": Vector3(4.0, 0.72, 17.6), "size": Vector3(8.0, 0.24, 0.8), "rotation_degrees": Vector3(0.0, -20.0, 0.0)},
+	{"name": "ThresholdChevronPortOuter", "position": Vector3(-2.6, 0.72, 19.4), "size": Vector3(5.0, 0.24, 0.8), "rotation_degrees": Vector3(0.0, 20.0, 0.0)},
+	{"name": "ThresholdChevronStarboardOuter", "position": Vector3(2.6, 0.72, 19.4), "size": Vector3(5.0, 0.24, 0.8), "rotation_degrees": Vector3(0.0, -20.0, 0.0)},
+]
+## Dock 06's frame and rails are unchanged; what they lacked was a pad. The
+## blast fence closes the back of the lane behind the frame line (pad-local
+## z <= -15.8, well clear of the landing box), the kerbs give the rails a ground
+## line the eye can follow, and the umbilical tower stands the port side up so
+## the launch frame is no longer a doorway to nothing.
+##
+## The fence is two panels with a 7 m gate between them, not one 20 m wall,
+## because the fleet-dock comb's 4.8 m `Trunk` walkway runs the length of this
+## pad at pad-local x [-2.4, 2.4] with its deck plane at pad-local y = 0. A solid
+## fence there would have stood on the comb's walking plate and closed the spine
+## — the same defect class as the container row CAMERA-LANE-004 moved. Measured
+## against the live world: the panels clear the walkway by 1.1 m on each side and
+## their lowest corner sits 59 mm above its deck.
+##
+## The same measurement governs how far outboard this pad may dress at all.
+## Dock 06's footprint overlays the comb's dock slabs from pad-local x = +9
+## outward: `DockSlab01` (x [9, 21], z [-33, -18]) and `DockSlab02`
+## (x [9, 21], z [-15, -3]) are walking surfaces whose deck plane is pad-local
+## y = 0, and `DockSlab03Upper` (x [9, 21], z [0, 12]) sits 1.8 m above it. The
+## first draft of this fence and a full-length starboard kerb stood *on* those
+## decks: `station_traversal_defect_witness_test`'s Halyard circuit walked into
+## the kerb at world (42.0, 4.2, 54.1) and stalled there for 523 frames. So the
+## fence panels stop at pad-local x = +/-8.3 and the starboard kerb only runs
+## z [13, 20], forward of every slab. The port flank carries the full-length
+## kerb because the port half of this pad really is the pad's own space.
+const LAUNCH_APRON_KIT: Array[Dictionary] = [
+	{"name": "BlastDeflectorPort", "position": Vector3(-5.9, 3.3, -17.3), "size": Vector3(4.8, 6.4, 1.2), "rotation_degrees": Vector3(-16.0, 0.0, 0.0)},
+	{"name": "BlastDeflectorStarboard", "position": Vector3(5.9, 3.3, -17.3), "size": Vector3(4.8, 6.4, 1.2), "rotation_degrees": Vector3(-16.0, 0.0, 0.0)},
+	{"name": "BlastDeflectorRib00", "position": Vector3(-7.8, 2.05, -19.0), "size": Vector3(1.2, 4.0, 2.6)},
+	{"name": "BlastDeflectorRib01", "position": Vector3(-3.9, 2.05, -19.0), "size": Vector3(1.2, 4.0, 2.6)},
+	{"name": "BlastDeflectorRib02", "position": Vector3(3.9, 2.05, -19.0), "size": Vector3(1.2, 4.0, 2.6)},
+	{"name": "BlastDeflectorRib03", "position": Vector3(7.8, 2.05, -19.0), "size": Vector3(1.2, 4.0, 2.6)},
+	{"name": "UmbilicalTower", "position": Vector3(-12.5, 4.5, -6.0), "size": Vector3(2.2, 9.0, 2.2)},
+	{"name": "UmbilicalArm", "position": Vector3(-11.2, 8.2, -6.0), "size": Vector3(2.0, 0.9, 1.6)},
+	{"name": "LaneKerbPort", "position": Vector3(-13.2, 0.45, 7.0), "size": Vector3(1.2, 0.9, 26.0)},
+	{"name": "LaneKerbStarboard", "position": Vector3(13.2, 0.45, 16.5), "size": Vector3(1.2, 0.9, 7.0)},
+	{"name": "ReadinessPylon", "position": Vector3(-12.1, 0.9, 8.0), "size": Vector3(0.9, 1.8, 0.9)},
+	{"name": "ReadinessPlate", "position": Vector3(-12.1, 3.0, 8.0), "size": Vector3(0.3, 2.4, 5.6)},
+	{"name": "LaunchThresholdBeam", "position": Vector3(0.0, 0.3, 17.6), "size": Vector3(20.0, 0.6, 1.6)},
+]
+const LAUNCH_LANE_MARKINGS: Array[Dictionary] = [
+	{"name": "RailLampPort00", "position": Vector3(-11.65, 0.62, -1.0), "size": Vector3(0.3, 0.36, 1.3)},
+	{"name": "RailLampPort01", "position": Vector3(-11.65, 0.62, 2.5), "size": Vector3(0.3, 0.36, 1.3)},
+	{"name": "RailLampPort02", "position": Vector3(-11.65, 0.62, 6.0), "size": Vector3(0.3, 0.36, 1.3)},
+	{"name": "RailLampPort03", "position": Vector3(-11.65, 0.62, 9.5), "size": Vector3(0.3, 0.36, 1.3)},
+	{"name": "RailLampPort04", "position": Vector3(-11.65, 0.62, 13.0), "size": Vector3(0.3, 0.36, 1.3)},
+	{"name": "RailLampPort05", "position": Vector3(-11.65, 0.62, 16.5), "size": Vector3(0.3, 0.36, 1.3)},
+	{"name": "RailLampPort06", "position": Vector3(-11.65, 0.62, 20.0), "size": Vector3(0.3, 0.36, 1.3)},
+	{"name": "RailLampStarboard00", "position": Vector3(11.65, 0.62, -1.0), "size": Vector3(0.3, 0.36, 1.3)},
+	{"name": "RailLampStarboard01", "position": Vector3(11.65, 0.62, 2.5), "size": Vector3(0.3, 0.36, 1.3)},
+	{"name": "RailLampStarboard02", "position": Vector3(11.65, 0.62, 6.0), "size": Vector3(0.3, 0.36, 1.3)},
+	{"name": "RailLampStarboard03", "position": Vector3(11.65, 0.62, 9.5), "size": Vector3(0.3, 0.36, 1.3)},
+	{"name": "RailLampStarboard04", "position": Vector3(11.65, 0.62, 13.0), "size": Vector3(0.3, 0.36, 1.3)},
+	{"name": "RailLampStarboard05", "position": Vector3(11.65, 0.62, 16.5), "size": Vector3(0.3, 0.36, 1.3)},
+	{"name": "RailLampStarboard06", "position": Vector3(11.65, 0.62, 20.0), "size": Vector3(0.3, 0.36, 1.3)},
+	{"name": "LaneCornerPortAft", "position": Vector3(-13.2, 0.95, -5.4), "size": Vector3(1.4, 0.3, 1.4)},
+	{"name": "LaneCornerStarboardAft", "position": Vector3(13.2, 0.95, 13.6), "size": Vector3(1.4, 0.3, 1.4)},
+	{"name": "LaneCornerPortFore", "position": Vector3(-13.2, 0.95, 19.4), "size": Vector3(1.4, 0.3, 1.4)},
+	{"name": "LaneCornerStarboardFore", "position": Vector3(13.2, 0.95, 19.4), "size": Vector3(1.4, 0.3, 1.4)},
+	{"name": "ReadinessBacklight", "position": Vector3(-11.89, 1.95, 8.0), "size": Vector3(0.12, 0.25, 5.2)},
+	{"name": "FrameHeaderBand", "position": Vector3(0.0, 10.65, -16.0), "size": Vector3(23.0, 0.3, 0.3)},
+	{"name": "DeflectorWarningBandPort", "position": Vector3(-5.9, 6.189, -17.38), "size": Vector3(4.4, 0.35, 0.22), "rotation_degrees": Vector3(-16.0, 0.0, 0.0)},
+	{"name": "DeflectorWarningBandStarboard", "position": Vector3(5.9, 6.189, -17.38), "size": Vector3(4.4, 0.35, 0.22), "rotation_degrees": Vector3(-16.0, 0.0, 0.0)},
+	{"name": "LaunchChevronPortInner", "position": Vector3(-4.0, 0.72, 17.6), "size": Vector3(8.0, 0.24, 0.8), "rotation_degrees": Vector3(0.0, 20.0, 0.0)},
+	{"name": "LaunchChevronStarboardInner", "position": Vector3(4.0, 0.72, 17.6), "size": Vector3(8.0, 0.24, 0.8), "rotation_degrees": Vector3(0.0, -20.0, 0.0)},
+	{"name": "LaunchChevronPortOuter", "position": Vector3(-2.6, 0.72, 19.4), "size": Vector3(5.0, 0.24, 0.8), "rotation_degrees": Vector3(0.0, 20.0, 0.0)},
+	{"name": "LaunchChevronStarboardOuter", "position": Vector3(2.6, 0.72, 19.4), "size": Vector3(5.0, 0.24, 0.8), "rotation_degrees": Vector3(0.0, -20.0, 0.0)},
+]
+## The two pad boards. Both are `Label3D`, the same non-authoritative
+## presentation class the pad signs and the Aft route legend already use, each
+## standing 35 mm proud of the plate its own kit row draws.
+const CARGO_MANIFEST_BOARD := {
+	"name": "CargoManifestBoard",
+	"position": Vector3(-11.815, 3.6, -12.5),
+	"rotation_degrees": Vector3(0.0, 90.0, 0.0),
+	"text": "DOCK 04  FREIGHT APRON\nCRANE RAIL LIVE  //  KEEP CLEAR\nCONTAINER LINE  A1 - A7",
+}
+const LAUNCH_READINESS_BOARD := {
+	"name": "LaunchReadinessBoard",
+	"position": Vector3(-11.915, 3.0, 8.0),
+	"rotation_degrees": Vector3(0.0, 90.0, 0.0),
+	"text": "DOCK 06  LAUNCH LANE\nRAIL LAMPS LIVE  //  LANE CLEAR\nBLAST FENCE  STAND CLEAR",
+}
 const UNDERFRAME_SUPPORT_SIZE := Vector3(0.55, 2.5, 0.55)
 const UNDERFRAME_SUPPORT_TRANSFORMS: Array[Transform3D] = [
 	Transform3D(Basis.IDENTITY, Vector3(-15.0, -1.75, 0.5)),
@@ -236,6 +439,11 @@ const UNDERFRAME_SUPPORT_TRANSFORMS: Array[Transform3D] = [
 
 var _pads: Dictionary = {}
 var _service_materials: Dictionary = {}
+## One 1 x 1 x 1 `BoxMesh`, shared by every scaled-box batch on every pad, so
+## the whole apron/launch re-dress costs one mesh resource rather than one per
+## drawn piece.
+var _unit_box_mesh: BoxMesh
+
 var _built := false
 var _pad_presentation_states: Dictionary = {}
 var _access_surfaces: Dictionary = {}
@@ -530,34 +738,18 @@ func get_service_presentation_audit() -> Dictionary:
 				visible_mesh_copies += batch.multimesh.instance_count
 		if visible_mesh_copies != int(SERVICE_MESH_COUNTS[pad_id]):
 			errors.append("service mesh budget drift: %s" % pad_id)
-		var expected_batches := 1 if pad_id in [&"dock_04_cargo", &"dock_06_interceptor"] else 0
-		if batches.size() != expected_batches:
+		var expected_recipes := SERVICE_BATCH_RECIPES.get(pad_id, {}) as Dictionary
+		if batches.size() != expected_recipes.size():
 			errors.append("service batch roster drift: %s" % pad_id)
-		elif pad_id == &"dock_04_cargo":
-			var container_batch := batches[0] as MultiMeshInstance3D
-			var container_mesh := container_batch.multimesh.mesh as BoxMesh \
-				if container_batch.multimesh != null else null
-			if container_batch.name != &"CargoContainerBatch" \
-					or container_mesh == null \
-					or not container_mesh.size.is_equal_approx(CARGO_CONTAINER_SIZE) \
-					or container_batch.multimesh.instance_count != CARGO_CONTAINER_TRANSFORMS.size() \
-					or container_batch.material_override != _service_materials["cargo_container"] \
-					or container_batch.cast_shadow != GeometryInstance3D.SHADOW_CASTING_SETTING_OFF \
-					or not bool(container_batch.get_meta(&"visual_detail_only", false)) \
-					or container_batch.get_meta(&"authored_instance_transforms", []) != CARGO_CONTAINER_TRANSFORMS:
-				errors.append("cargo container batch recipe drift")
-		elif pad_id == &"dock_06_interceptor":
-			var rail_batch := batches[0] as MultiMeshInstance3D
-			var rail_mesh := rail_batch.multimesh.mesh as BoxMesh \
-				if rail_batch.multimesh != null else null
-			if rail_batch.name != &"LaunchRailBatch" \
-					or rail_mesh == null or not rail_mesh.size.is_equal_approx(LAUNCH_RAIL_SIZE) \
-					or rail_batch.multimesh.instance_count != LAUNCH_RAIL_TRANSFORMS.size() \
-					or rail_batch.material_override != _service_materials["interceptor_marker"] \
-					or rail_batch.cast_shadow != GeometryInstance3D.SHADOW_CASTING_SETTING_OFF \
-					or not bool(rail_batch.get_meta(&"visual_detail_only", false)) \
-					or rail_batch.get_meta(&"authored_instance_transforms", []) != LAUNCH_RAIL_TRANSFORMS:
-				errors.append("launch rail batch recipe drift")
+		else:
+			for raw_batch in batches:
+				var batch := raw_batch as MultiMeshInstance3D
+				var recipe := expected_recipes.get(batch.name, {}) as Dictionary
+				if recipe.is_empty():
+					errors.append("unexpected service batch: %s/%s" % [pad_id, batch.name])
+					continue
+				if not _batch_matches_recipe(batch, recipe):
+					errors.append("%s batch recipe drift" % batch.name)
 		if lights.size() != int(SERVICE_LIGHT_COUNTS[pad_id]):
 			errors.append("service light budget drift: %s" % pad_id)
 		if not (SERVICE_LOCAL_BOUNDS[pad_id] as AABB).encloses(local_bounds):
@@ -879,6 +1071,34 @@ func get_access_wayfinding_audit() -> Dictionary:
 		"berth_lease_authority": false,
 		"interaction_authority": false,
 	}.duplicate(true)
+
+
+## One batch against its declared recipe: the shared unit mesh or the family's
+## own box, the exact authored roster the constants describe, the pad's own
+## material, and no shadow or authority drift.
+func _batch_matches_recipe(batch: MultiMeshInstance3D, recipe: Dictionary) -> bool:
+	if batch.multimesh == null:
+		return false
+	var mesh := batch.multimesh.mesh as BoxMesh
+	if mesh == null or not mesh.size.is_equal_approx(recipe["mesh_size"] as Vector3):
+		return false
+	var expected: Array[Transform3D] = []
+	if recipe.has("transforms"):
+		expected = (recipe["transforms"] as Array[Transform3D]).duplicate()
+	else:
+		for piece: Dictionary in (recipe["pieces"] as Array[Dictionary]):
+			expected.append(scaled_box_transform(piece))
+	if batch.multimesh.instance_count != expected.size():
+		return false
+	var authored := batch.get_meta(&"authored_instance_transforms", []) as Array
+	if authored.size() != expected.size():
+		return false
+	for index in expected.size():
+		if not (authored[index] as Transform3D).is_equal_approx(expected[index]):
+			return false
+	return batch.material_override == _service_materials[recipe["material"] as String] \
+		and batch.cast_shadow == GeometryInstance3D.SHADOW_CASTING_SETTING_OFF \
+		and bool(batch.get_meta(&"visual_detail_only", false))
 
 
 func _points_aabb(points: PackedVector3Array) -> AABB:
@@ -1404,10 +1624,19 @@ func _build_service_presentation(pad: Node3D, pad_id: StringName) -> void:
 	pad.add_child(service)
 	match pad_id:
 		&"dock_04_cargo":
-			_visual_box(service, "CargoCraneMast", Vector3(-18.0, 6.0, -7.0), Vector3(1.5, 12.0, 1.5), _service_materials["cargo_frame"])
-			_visual_box(service, "CargoCraneJib", Vector3(-12.0, 11.5, -7.0), Vector3(13.5, 1.0, 1.0), _service_materials["cargo_frame"])
-			_visual_box(service, "CargoCraneHoist", Vector3(-7.0, 10.0, -7.0), Vector3(1.0, 3.0, 1.0), _service_materials["cargo_marker"])
+			_visual_box(service, "CargoCraneMast", CARGO_CRANE_MAST_POSITION, CARGO_CRANE_MAST_SIZE, _service_materials["cargo_frame"])
+			_visual_box(service, "CargoCraneJib", CARGO_CRANE_JIB_POSITION, CARGO_CRANE_JIB_SIZE, _service_materials["cargo_frame"])
+			_visual_box(service, "CargoCraneHoist", CARGO_CRANE_HOIST_POSITION, CARGO_CRANE_HOIST_SIZE, _service_materials["cargo_marker"])
 			_build_cargo_container_batch(service)
+			_build_scaled_box_batch(
+				service, "CargoApronKitBatch", CARGO_APRON_KIT,
+				_service_materials["cargo_frame"], &"dock_04_cargo_apron_kit"
+			)
+			_build_scaled_box_batch(
+				service, "CargoApronMarkingBatch", CARGO_APRON_MARKINGS,
+				_service_materials["cargo_marker"], &"dock_04_cargo_apron_markings"
+			)
+			_build_service_board(service, CARGO_MANIFEST_BOARD, Color("56d8de"))
 			_guide_light(service, "CargoApronGuidePort", Vector3(-18.0, 1.2, 12.0), Color("56d8de"))
 			_guide_light(service, "CargoApronGuideStarboard", Vector3(18.0, 1.2, 14.0), Color("56d8de"))
 		&"dock_05_bomber":
@@ -1423,6 +1652,15 @@ func _build_service_presentation(pad: Node3D, pad_id: StringName) -> void:
 			_visual_box(service, "LaunchFramePort", LAUNCH_FRAME_PORT_POSITION, LAUNCH_FRAME_POST_SIZE, _service_materials["interceptor_frame"])
 			_visual_box(service, "LaunchFrameStarboard", LAUNCH_FRAME_STARBOARD_POSITION, LAUNCH_FRAME_POST_SIZE, _service_materials["interceptor_frame"])
 			_visual_box(service, "LaunchFrameHeader", LAUNCH_FRAME_HEADER_POSITION, LAUNCH_FRAME_HEADER_SIZE, _service_materials["interceptor_frame"])
+			_build_scaled_box_batch(
+				service, "LaunchApronKitBatch", LAUNCH_APRON_KIT,
+				_service_materials["interceptor_frame"], &"dock_06_launch_apron_kit"
+			)
+			_build_scaled_box_batch(
+				service, "LaunchLaneMarkingBatch", LAUNCH_LANE_MARKINGS,
+				_service_materials["interceptor_marker"], &"dock_06_launch_lane_markings"
+			)
+			_build_service_board(service, LAUNCH_READINESS_BOARD, Color("61e4ee"))
 			_guide_light(service, "LaunchGuidePort", Vector3(-16.0, 1.2, 24.0), Color("61e4ee"))
 			_guide_light(service, "LaunchGuideStarboard", Vector3(16.0, 1.2, 24.0), Color("61e4ee"))
 
@@ -1473,6 +1711,9 @@ func _build_service_structure_collision() -> void:
 			var shape_node := CollisionShape3D.new()
 			shape_node.name = String(piece["name"])
 			shape_node.position = piece["position"] as Vector3
+			shape_node.rotation_degrees = piece.get(
+				"rotation_degrees", Vector3.ZERO
+			) as Vector3
 			var box := BoxShape3D.new()
 			box.size = piece["size"] as Vector3
 			shape_node.shape = box
@@ -1492,7 +1733,20 @@ static func service_structure_pieces(pad_id: StringName) -> Array[Dictionary]:
 					"name": "CargoContainer%02d" % index,
 					"position": CARGO_CONTAINER_TRANSFORMS[index].origin,
 					"size": CARGO_CONTAINER_SIZE,
+					"rotation_degrees": Vector3.ZERO,
 					"drawn": "ServicePresentation/CargoContainerBatch",
+					"instance": index,
+				})
+			for index in CARGO_APRON_KIT.size():
+				var cargo_kit := CARGO_APRON_KIT[index]
+				pieces.append({
+					"name": String(cargo_kit["name"]),
+					"position": cargo_kit["position"] as Vector3,
+					"size": cargo_kit["size"] as Vector3,
+					"rotation_degrees": cargo_kit.get(
+						"rotation_degrees", Vector3.ZERO
+					) as Vector3,
+					"drawn": "ServicePresentation/CargoApronKitBatch",
 					"instance": index,
 				})
 		&"dock_06_interceptor":
@@ -1500,6 +1754,7 @@ static func service_structure_pieces(pad_id: StringName) -> Array[Dictionary]:
 				"name": "LaunchFramePort",
 				"position": LAUNCH_FRAME_PORT_POSITION,
 				"size": LAUNCH_FRAME_POST_SIZE,
+				"rotation_degrees": Vector3.ZERO,
 				"drawn": "ServicePresentation/LaunchFramePort",
 				"instance": -1,
 			})
@@ -1507,6 +1762,7 @@ static func service_structure_pieces(pad_id: StringName) -> Array[Dictionary]:
 				"name": "LaunchFrameStarboard",
 				"position": LAUNCH_FRAME_STARBOARD_POSITION,
 				"size": LAUNCH_FRAME_POST_SIZE,
+				"rotation_degrees": Vector3.ZERO,
 				"drawn": "ServicePresentation/LaunchFrameStarboard",
 				"instance": -1,
 			})
@@ -1514,6 +1770,7 @@ static func service_structure_pieces(pad_id: StringName) -> Array[Dictionary]:
 				"name": "LaunchFrameHeader",
 				"position": LAUNCH_FRAME_HEADER_POSITION,
 				"size": LAUNCH_FRAME_HEADER_SIZE,
+				"rotation_degrees": Vector3.ZERO,
 				"drawn": "ServicePresentation/LaunchFrameHeader",
 				"instance": -1,
 			})
@@ -1522,7 +1779,20 @@ static func service_structure_pieces(pad_id: StringName) -> Array[Dictionary]:
 					"name": "LaunchRail%02d" % index,
 					"position": LAUNCH_RAIL_TRANSFORMS[index].origin,
 					"size": LAUNCH_RAIL_SIZE,
+					"rotation_degrees": Vector3.ZERO,
 					"drawn": "ServicePresentation/LaunchRailBatch",
+					"instance": index,
+				})
+			for index in LAUNCH_APRON_KIT.size():
+				var launch_kit := LAUNCH_APRON_KIT[index]
+				pieces.append({
+					"name": String(launch_kit["name"]),
+					"position": launch_kit["position"] as Vector3,
+					"size": launch_kit["size"] as Vector3,
+					"rotation_degrees": launch_kit.get(
+						"rotation_degrees", Vector3.ZERO
+					) as Vector3,
+					"drawn": "ServicePresentation/LaunchApronKitBatch",
 					"instance": index,
 				})
 	return pieces
@@ -1573,6 +1843,9 @@ func get_service_structure_audit() -> Dictionary:
 					continue
 				shapes += 1
 				if not shape_node.position.is_equal_approx(piece["position"] as Vector3) \
+						or not shape_node.rotation_degrees.is_equal_approx(
+							piece.get("rotation_degrees", Vector3.ZERO) as Vector3
+						) \
 						or not (shape_node.shape as BoxShape3D).size.is_equal_approx(
 							piece["size"] as Vector3
 						):
@@ -1599,22 +1872,42 @@ func _structural_collider_matches_renderer(pad: Node3D, piece: Dictionary) -> bo
 		return false
 	var size := piece["size"] as Vector3
 	var position := piece["position"] as Vector3
+	var rotation_degrees := piece.get("rotation_degrees", Vector3.ZERO) as Vector3
+	var expected_rotation := Basis.from_euler(Vector3(
+		deg_to_rad(rotation_degrees.x),
+		deg_to_rad(rotation_degrees.y),
+		deg_to_rad(rotation_degrees.z)
+	))
 	var instance := int(piece["instance"])
 	if instance < 0:
 		var mesh_instance := drawn as MeshInstance3D
 		var box := mesh_instance.mesh as BoxMesh if mesh_instance != null else null
 		return box != null and box.size.is_equal_approx(size) \
-			and mesh_instance.position.is_equal_approx(position)
+			and mesh_instance.position.is_equal_approx(position) \
+			and _basis_rotation_matches(mesh_instance.basis, expected_rotation)
 	var batch := drawn as MultiMeshInstance3D
 	if batch == null or batch.multimesh == null:
 		return false
 	var batch_box := batch.multimesh.mesh as BoxMesh
-	if batch_box == null or not batch_box.size.is_equal_approx(size):
+	if batch_box == null:
 		return false
 	var authored := batch.get_meta(&"authored_instance_transforms", []) as Array
 	if instance >= authored.size():
 		return false
-	return (authored[instance] as Transform3D).origin.is_equal_approx(position - batch.position)
+	# A scaled-box batch draws one unit mesh at many sizes, so the drawn size is
+	# the mesh size times the authored instance scale. The container and rail
+	# batches keep a full-size mesh at identity scale and read back the same way.
+	var authored_transform := authored[instance] as Transform3D
+	return (batch_box.size * authored_transform.basis.get_scale()).is_equal_approx(size) \
+		and authored_transform.origin.is_equal_approx(position - batch.position) \
+		and _basis_rotation_matches(authored_transform.basis, expected_rotation)
+
+
+func _basis_rotation_matches(drawn: Basis, expected: Basis) -> bool:
+	var rotation := drawn.orthonormalized()
+	return rotation.x.is_equal_approx(expected.x) \
+		and rotation.y.is_equal_approx(expected.y) \
+		and rotation.z.is_equal_approx(expected.z)
 
 
 func _build_launch_rail_batch(service: Node3D) -> void:
@@ -1636,6 +1929,76 @@ func _build_launch_rail_batch(service: Node3D) -> void:
 	service.add_child(batch)
 	for index in LAUNCH_RAIL_TRANSFORMS.size():
 		multimesh.set_instance_transform(index, LAUNCH_RAIL_TRANSFORMS[index])
+
+
+## Authored parent-space transform for one scaled-box row: rotate, then scale,
+## so `basis.get_scale()` reads back the drawn size and `basis.orthonormalized()`
+## reads back the drawn orientation. The structural collider and both audits are
+## built from this same decomposition.
+static func scaled_box_transform(piece: Dictionary) -> Transform3D:
+	var rotation_degrees := piece.get("rotation_degrees", Vector3.ZERO) as Vector3
+	var basis := Basis.from_euler(
+		Vector3(
+			deg_to_rad(rotation_degrees.x),
+			deg_to_rad(rotation_degrees.y),
+			deg_to_rad(rotation_degrees.z)
+		)
+	) * Basis.from_scale(piece["size"] as Vector3)
+	return Transform3D(basis, piece["position"] as Vector3)
+
+
+func _build_scaled_box_batch(
+		service: Node3D, node_name: String, pieces: Array[Dictionary],
+		material: Material, family_id: StringName
+	) -> MultiMeshInstance3D:
+	if _unit_box_mesh == null:
+		_unit_box_mesh = BoxMesh.new()
+		_unit_box_mesh.size = Vector3.ONE
+	var transforms: Array[Transform3D] = []
+	var names := PackedStringArray()
+	for piece: Dictionary in pieces:
+		transforms.append(scaled_box_transform(piece))
+		names.append(String(piece["name"]))
+	var multimesh := MultiMesh.new()
+	multimesh.transform_format = MultiMesh.TRANSFORM_3D
+	multimesh.mesh = _unit_box_mesh
+	multimesh.instance_count = transforms.size()
+	multimesh.visible_instance_count = -1
+	var batch := MultiMeshInstance3D.new()
+	batch.name = node_name
+	batch.multimesh = multimesh
+	batch.material_override = material
+	batch.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	batch.set_meta(&"visual_detail_only", true)
+	batch.set_meta(&"visual_batch_family_id", family_id)
+	batch.set_meta(&"authored_instance_transforms", transforms.duplicate())
+	batch.set_meta(&"authored_instance_names", names)
+	service.add_child(batch)
+	for index in transforms.size():
+		multimesh.set_instance_transform(index, transforms[index])
+	return batch
+
+
+## The pad's own information board. Same non-authoritative `Label3D` class as
+## the pad signs, owning no collision, no script and no children.
+func _build_service_board(
+		service: Node3D, spec: Dictionary, tint: Color
+	) -> Label3D:
+	var board := Label3D.new()
+	board.name = String(spec["name"])
+	board.text = String(spec["text"])
+	board.position = spec["position"] as Vector3
+	board.rotation_degrees = spec.get("rotation_degrees", Vector3.ZERO) as Vector3
+	board.font_size = 26
+	board.pixel_size = 0.0085
+	board.outline_size = 6
+	board.modulate = tint
+	board.outline_modulate = Color("071b1d")
+	board.no_depth_test = false
+	board.set_meta(&"presentation_only", true)
+	board.set_meta(&"non_authoritative_presentation", true)
+	service.add_child(board)
+	return board
 
 
 func _build_cargo_container_batch(service: Node3D) -> void:

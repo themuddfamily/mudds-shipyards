@@ -328,5 +328,13 @@ func _drawn_boxes(instance: GeometryInstance3D) -> Array[Dictionary]:
 		return boxes
 	for authored: Variant in (batch.get_meta(&"authored_instance_transforms", []) as Array):
 		var placed := batch.global_transform * (authored as Transform3D)
-		boxes.append({"basis": placed.basis, "origin": placed.origin, "size": batch_box.size})
+		# The apron and lane kits draw one shared unit box at a per-instance
+		# scale, so the drawn size lives in the basis. Decompose it rather than
+		# handing a scaled basis to the query, which would scale the millimetre
+		# tolerance below with it and quietly blunt this sweep on long pieces.
+		boxes.append({
+			"basis": placed.basis.orthonormalized(),
+			"origin": placed.origin,
+			"size": batch_box.size * placed.basis.get_scale(),
+		})
 	return boxes

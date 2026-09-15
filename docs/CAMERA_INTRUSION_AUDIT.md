@@ -152,6 +152,108 @@ ever be met by dressing hanging 2.5 m or more past the pad on each side; what
 that overhang reached is the list above. Dock 05 is unchanged: none of its
 dressing was found in anybody else's volume.
 
+That pass closed with an open question — *a human should look at how the two
+pads read now* — and the answer, taken from three fixed viewpoints per pad under
+Xvfb, was that they did not read at all. See the art-direction pass below.
+
+### 2026-09-15 — Phase 10 §3 art direction: the two pads get their identity back
+
+The shrunk dressing was clearance-correct and unreadable. Rendered from a walker
+on the comb at 1.6 m eye height, from the chase camera on the published approach
+at 40 m, and from the station long view:
+
+* **Dock 04 showed no freight at all from either flying viewpoint.** The three
+  3 × 3.6 × 4 m containers sit on the only free strip the pad owns, and that
+  strip is screened by the VIP reception suite and the Aft junction mass from
+  everywhere except the walkway itself. What was left was a lone crane goalpost
+  cantilevered over an empty gap, its hoist a 3 m stub ending 8.5 m above
+  nothing.
+* **Dock 06 showed two cyan sticks and a dark doorway.** The shortened rails had
+  no ground plane, no pad and nothing at either end — in the station long view
+  the port rail reads as a bar floating in vacuum, detached from the station —
+  and the launch frame reads as a portal into another module rather than a gantry.
+
+Both identities are rebuilt inside the same contracts, from the same box
+primitive and the same four per-pad materials. No material, texture or light is
+added; the module still publishes exactly five guide lights.
+
+| Pad | What it now shows |
+| --- | --- |
+| Dock 04 | Seven containers instead of three: two three-high stacks on the starboard strip either side of `CargoTrunkLeg`, each face carrying a lit ID stripe, on lit yard kerbs; a freight transfer bed on the port strip (two beams, four roller stands) with the seventh container landed on it under the crane; the crane jib shortened to reach that load and the hoist grown into a real 6.5 m lifting line; a manifest board on its own pylon; and a lit chevron gate on a threshold beam at the approach mouth. |
+| Dock 06 | A two-panel blast fence raked 16° back behind the frame line, on four buttress ribs; an umbilical tower and arm standing the port side up; a full-length port lane kerb and a short starboard one at the lane mouth, both with corner markers; 14 rail lamps down the two rails; a readiness board; a lit header band across the frame; and the same chevron gate at the lane mouth. |
+
+The fence is deliberately **two panels with a 7 m gate**, not one 20 m wall: the
+comb's 4.8 m `Trunk` walkway runs the whole length of Dock 06 at pad-local
+x [−2.4, 2.4] with its deck plane at pad-local y = 0, and a solid fence there
+would have closed the spine. Measured against the live world, the panels clear
+that walkway by 1.1 m on each side and their lowest corner sits 59 mm above its
+deck. The launch threshold beam is 20 m rather than 24 m for the same reason in
+miniature: at 24 m its underside was coplanar with both rail undersides and the
+seam audit picked up two new findings, which are gone at 20 m.
+
+**The same measurement decides how far outboard Dock 06 may dress at all, and
+the witness suite caught the first draft getting it wrong.** This pad's
+footprint overlays the comb's dock slabs from pad-local x = +9 outward:
+`DockSlab01` (x [9, 21], z [−33, −18]) and `DockSlab02` (x [9, 21], z [−15, −3])
+are walking surfaces whose deck plane is pad-local y = 0, and `DockSlab03Upper`
+(x [9, 21], z [0, 12]) sits 1.8 m above it. A first draft put the fence panels
+out to x = ±10.5 and ran a full-length 0.9 m starboard kerb from z = −6 to +20,
+which stood *on* `DockSlab01` and `DockSlab02`. Nothing in the three audits
+moved — the sweep reported the same 19 findings and the same 345 lanes — but
+`station_traversal_defect_witness_test`'s Halyard circuit walked into the kerb
+at world (42.0, 4.2, 54.1) and stalled there for 523 frames, 16.6 m into a
+31.2 m leg. The panels now stop at x = ±8.3 and the starboard kerb only runs
+z [13, 20], forward of every slab; the same walk completes its full 31.15 m with
+zero stuck frames. That witness suite is the check that catches this class, not
+the sweep: a wall across a route the sweep does not measure is invisible to it.
+
+Every structural piece carries the collider it visually implies, and **every
+collider now stands inside its own 28 × 42 m pad with 0.10 m to spare** — the
+first time that has been true of this module's dressing. Only the crane mast
+still cantilevers past the pad edge, and it carries no collider, exactly as
+before. The silhouette floors rise rather than fall: Dock 04 holds at 32.0 m
+(reaching 32.65 m) and Dock 06 goes 23.0 → 27.5 m (reaching 27.80 m).
+
+Census, all measured rather than asserted:
+
+| | before | after |
+| --- | --- | --- |
+| service renderer nodes | 11 | 15 |
+| service drawn copies | 14 | 85 |
+| service mesh resources | 11 | 12 |
+| whole-module renderer nodes | 24 | 28 |
+| whole-module mesh resources | 24 | 25 |
+| structural colliders | 8 | 36 |
+| module descendants | 70 | 104 |
+| guide lights | 5 | 5 |
+| materials | 11 | 11 |
+
+Four new `MultiMeshInstance3D` batches (an apron kit and a marking batch per
+pad) draw all 71 added copies, and all four share one 1 × 1 × 1 `BoxMesh` scaled
+per instance — so 71 new pieces cost 4 draw submissions and 1 mesh allocation.
+
+The three audits, run before and after against the live production world:
+
+| Audit | before | after |
+| --- | --- | --- |
+| `tools/camera_intrusion_audit.gd` | 30 findings | 30 findings, byte-identical per craft, **zero referencing this module** |
+| `tools/station_walkability_sweep.gd` | 82 surfaces, 135,137 cells, 19 findings (19 walk-through, 0 invisible, 0 choke, 0 gap), 345 lanes | identical findings, lanes and per-module rows; blocked cells 39,904 → 39,939 as the new dressing is solid |
+| `tools/coplanar_seam_audit.gd` | 1,334 findings | 1,334 findings, zero new and zero removed seam pairs, identical worst-20 |
+
+Rendered before/after pairs from the three fixed viewpoints per pad are in
+`/root/.cache/mudds-shipyards/pads-root/{before,after}/`, rendered under Xvfb on
+D3D12 (RTX 5070 Ti) with the same pad-local camera spec on both sides.
+
+**Honest residual:** Dock 04's container yard still cannot be seen from the
+chase camera or the station long view. It is screened by the VIP reception suite
+and the Aft junction stack, and the strip it stands on is the only free ground
+the pad has. The freight identity that reads from those two viewpoints is the
+port apron — crane, transfer bed, landed container, manifest board — plus the
+chevron gate; the stacks read from the walkway, which is where a player actually
+meets them. Dock 06's starboard kerb and rail are likewise partly screened by
+Dock 02's walking slab from the approach, so its lane reads asymmetric from the
+chase.
+
 Verification for this pass: the camera audit and `tools/station_walkability_sweep.gd`
 before and after, every berth's published lane re-swept with its own craft's real
 collision shapes plus each craft's parked pose, and the module suites,

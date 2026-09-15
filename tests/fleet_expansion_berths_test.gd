@@ -12,11 +12,11 @@ const EXPECTED_PAD_POSITIONS: Array[Vector3] = [
 	Vector3(-16.4, 0.0, -5.0), Vector3(34.0, 0.0, -18.0), Vector3(0.0, 0.0, 34.0)
 ]
 const EXPECTED_SERVICE_MESHES := [3, 3, 3]
-const EXPECTED_SERVICE_BATCHES := [1, 0, 1]
-const EXPECTED_SERVICE_COPIES := [6, 3, 5]
+const EXPECTED_SERVICE_BATCHES := [3, 0, 3]
+const EXPECTED_SERVICE_COPIES := [38, 3, 44]
 const EXPECTED_SERVICE_LIGHTS := [2, 1, 2]
-const EXPECTED_SERVICE_MESH_RESOURCE_ALLOCATIONS := 11
-const EXPECTED_COMPONENT_MESH_RESOURCE_ALLOCATIONS := 24
+const EXPECTED_SERVICE_MESH_RESOURCE_ALLOCATIONS := 12
+const EXPECTED_COMPONENT_MESH_RESOURCE_ALLOCATIONS := 25
 const EXPECTED_SERVICE_ROLES: Array[StringName] = [
 	&"cargo_crane_and_container_apron",
 	&"ordnance_safe_gantry_markers",
@@ -39,6 +39,7 @@ func _initialize() -> void:
 	_test_cargo_container_batch(berths, audit)
 	_test_launch_rail_batch(berths, audit)
 	_test_service_structure_collision(berths, audit)
+	_test_apron_and_lane_kits(berths)
 	_test_underframe_support_batch(berths, audit)
 	_test_access_circulation(berths, audit)
 	_test_panel_finish_roles(berths)
@@ -120,34 +121,40 @@ func _test_service_presentations(berths: Node3D, audit: Dictionary) -> void:
 		bool(presentation.get("valid", false))
 		and (presentation.get("errors", PackedStringArray()) as PackedStringArray).is_empty()
 		and int(audit.get("static_bodies", -1)) == 8
-		and int(audit.get("collision_shapes", -1)) == 14
+		and int(audit.get("collision_shapes", -1)) == 42
 		and int(audit.get("mesh_instances", -1)) == 21
-		and int(audit.get("multimesh_instances", -1)) == 3
-		and int(audit.get("renderer_nodes", -1)) == 24
+		and int(audit.get("multimesh_instances", -1)) == 7
+		and int(audit.get("renderer_nodes", -1)) == 28
 		and int(audit.get("mesh_resource_allocations", -1)) == EXPECTED_COMPONENT_MESH_RESOURCE_ALLOCATIONS
 		and int(audit.get("service_mesh_resource_allocations", -1)) == EXPECTED_SERVICE_MESH_RESOURCE_ALLOCATIONS
 		and int(audit.get("guide_lights", -1)) == 5
-		and int(audit.get("descendants", -1)) == 70
+		and int(audit.get("descendants", -1)) == 104
 		and int(budgets.get("static_bodies", -1)) == 8
-		and int(budgets.get("collision_shapes", -1)) == 14
+		and int(budgets.get("collision_shapes", -1)) == 42
 		and int(budgets.get("mesh_instances", -1)) == 21
-		and int(budgets.get("multimesh_instances", -1)) == 3
-		and int(budgets.get("renderer_nodes", -1)) == 24
+		and int(budgets.get("multimesh_instances", -1)) == 7
+		and int(budgets.get("renderer_nodes", -1)) == 28
 		and int(budgets.get("mesh_resource_allocations", -1)) == EXPECTED_COMPONENT_MESH_RESOURCE_ALLOCATIONS
 		and int(budgets.get("service_mesh_resource_allocations", -1)) == EXPECTED_SERVICE_MESH_RESOURCE_ALLOCATIONS
 		and int(budgets.get("guide_lights", -1)) == 5
-		and int(budgets.get("descendants", -1)) == 70,
-		"three logical pads and six honest routes freeze at 24 renderers, 24 resources, 70 descendants, six exact walkable boxes and eight service-structure colliders"
+		and int(budgets.get("descendants", -1)) == 104,
+		"three logical pads and six honest routes freeze at 28 renderers, 25 resources, 104 descendants, six exact walkable boxes and 36 service-structure colliders"
 	)
 	var expected_bounds: Array[AABB] = [
-		AABB(Vector3(-18.75, 0.0, -7.75), Vector3(32.25, 12.0, 20.75)),
+		AABB(Vector3(-18.75, 0.0, -15.2), Vector3(32.65, 12.0, 35.830929)),
 		AABB(Vector3(-19.5, 0.0, -19.0), Vector3(31.5, 11.0, 17.0)),
-		AABB(Vector3(-11.75, 0.0, -16.6), Vector3(23.5, 10.5, 37.1)),
+		AABB(Vector3(-13.9, 0.0, -20.3), Vector3(27.8, 10.8, 40.95)),
 	]
 	var required_nodes := [
-		["CargoCraneMast", "CargoCraneJib", "CargoContainerBatch"],
+		[
+			"CargoCraneMast", "CargoCraneJib", "CargoContainerBatch",
+			"CargoApronKitBatch", "CargoApronMarkingBatch", "CargoManifestBoard",
+		],
 		["OrdnanceGantryPort", "OrdnanceMarkerPort", "BlastSafetyDatum"],
-		["LaunchRailBatch", "LaunchFramePort", "LaunchFrameHeader"],
+		[
+			"LaunchRailBatch", "LaunchFramePort", "LaunchFrameHeader",
+			"LaunchApronKitBatch", "LaunchLaneMarkingBatch", "LaunchReadinessBoard",
+		],
 	]
 	var material_signatures := PackedStringArray()
 	for pad_index in EXPECTED_PAD_IDS.size():
@@ -275,9 +282,13 @@ func _test_cargo_container_batch(berths: Node3D, audit: Dictionary) -> void:
 	var container_mesh := batch.multimesh.mesh as BoxMesh \
 		if batch != null and batch.multimesh != null else null
 	var expected_transforms: Array[Transform3D] = [
-		Transform3D(Basis.IDENTITY, Vector3(12.0, 1.8, -4.0)),
-		Transform3D(Basis.IDENTITY, Vector3(12.0, 1.8, 1.0)),
-		Transform3D(Basis.IDENTITY, Vector3(12.0, 1.8, 11.0)),
+		Transform3D(Basis.IDENTITY, Vector3(12.4, 1.8, -4.0)),
+		Transform3D(Basis.IDENTITY, Vector3(12.4, 1.8, 0.3)),
+		Transform3D(Basis.IDENTITY, Vector3(12.4, 5.4, -1.85)),
+		Transform3D(Basis.IDENTITY, Vector3(12.4, 1.8, 8.6)),
+		Transform3D(Basis.IDENTITY, Vector3(12.4, 1.8, 12.9)),
+		Transform3D(Basis.IDENTITY, Vector3(12.4, 5.4, 10.75)),
+		Transform3D(Basis.IDENTITY, Vector3(-12.0, 3.1, -7.0)),
 	]
 	var authored_transforms := batch.get_meta(&"authored_instance_transforms", []) as Array \
 		if batch != null else []
@@ -292,7 +303,7 @@ func _test_cargo_container_batch(berths: Node3D, audit: Dictionary) -> void:
 	_check(
 		batch != null and container_mesh != null
 		and container_mesh.size.is_equal_approx(Vector3(3.0, 3.6, 4.0))
-		and batch.multimesh.instance_count == 3 and transforms_exact
+		and batch.multimesh.instance_count == 7 and transforms_exact
 		and material != null and material.albedo_color.is_equal_approx(Color("2f5966"))
 		and is_equal_approx(material.metallic, 0.58) and not material.emission_enabled
 		and batch.cast_shadow == GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
@@ -300,17 +311,17 @@ func _test_cargo_container_batch(berths: Node3D, audit: Dictionary) -> void:
 		and bool(batch.get_meta(&"visual_detail_only", false))
 		and StringName(batch.get_meta(&"visual_batch_family_id", &"")) \
 			== &"dock_04_cargo_containers",
-		"Dock 04 retains all three exact cargo-container copies and transforms in one childless visual batch"
+		"Dock 04 stows all seven exact cargo-container copies and transforms in one childless visual batch"
 	)
 	_check(
-		int(presentation.get("renderer_nodes_before", -1)) == 14
-		and int(presentation.get("renderer_nodes_after", -1)) == 11
-		and int(presentation.get("renderer_node_delta", 0)) == -3
-		and int(presentation.get("geometry_submissions_before", -1)) == 14
-		and int(presentation.get("geometry_submissions_after", -1)) == 11
-		and int(presentation.get("geometry_submission_delta", 0)) == -3
-		and int(presentation.get("visible_mesh_copies", -1)) == 14,
-		"cargo batching contributes two fewer renderers and submissions while all 14 service copies remain visible"
+		int(presentation.get("renderer_nodes_before", -1)) == 85
+		and int(presentation.get("renderer_nodes_after", -1)) == 15
+		and int(presentation.get("renderer_node_delta", 0)) == -70
+		and int(presentation.get("geometry_submissions_before", -1)) == 85
+		and int(presentation.get("geometry_submissions_after", -1)) == 15
+		and int(presentation.get("geometry_submission_delta", 0)) == -70
+		and int(presentation.get("visible_mesh_copies", -1)) == 85,
+		"batching draws all 85 service copies from 15 renderer submissions"
 	)
 	_check(
 		service != null
@@ -361,17 +372,17 @@ func _test_launch_rail_batch(berths: Node3D, audit: Dictionary) -> void:
 		"Dock 06 retains both exact rail copies, transforms, emissive material, and render state in one childless visual batch"
 	)
 	_check(
-		int(presentation.get("renderer_nodes_before", -1)) == 14
-		and int(presentation.get("renderer_nodes_after", -1)) == 11
-		and int(presentation.get("renderer_node_delta", 0)) == -3
-		and int(presentation.get("geometry_submissions_before", -1)) == 14
-		and int(presentation.get("geometry_submissions_after", -1)) == 11
-		and int(presentation.get("geometry_submission_delta", 0)) == -3
+		int(presentation.get("renderer_nodes_before", -1)) == 85
+		and int(presentation.get("renderer_nodes_after", -1)) == 15
+		and int(presentation.get("renderer_node_delta", 0)) == -70
+		and int(presentation.get("geometry_submissions_before", -1)) == 85
+		and int(presentation.get("geometry_submissions_after", -1)) == 15
+		and int(presentation.get("geometry_submission_delta", 0)) == -70
 		and int(presentation.get("mesh_resource_allocations_before", -1)) == 12
-		and int(presentation.get("mesh_resource_allocations_after", -1)) == 11
-		and int(presentation.get("mesh_resource_delta", 0)) == -1
-		and int(presentation.get("visible_mesh_copies", -1)) == 14,
-		"the rail and cargo families reduce renderer nodes and submissions by three and mesh allocations by one while retaining all 14 service copies"
+		and int(presentation.get("mesh_resource_allocations_after", -1)) == 12
+		and int(presentation.get("mesh_resource_delta", 0)) == 0
+		and int(presentation.get("visible_mesh_copies", -1)) == 85,
+		"the rail, container, apron and lane families draw 85 service copies from 15 renderers and 12 mesh resources"
 	)
 	_check(
 		service != null
@@ -382,6 +393,81 @@ func _test_launch_rail_batch(berths: Node3D, audit: Dictionary) -> void:
 		and service.find_children("*", "Area3D", true, false).is_empty(),
 		"the launch-rail batch remains presentation-only with no collision, landing, lease, or interaction authority"
 	)
+
+
+## Phase 10 §3 art direction. Dock 04 and Dock 06 were shape-correct and
+## unreadable: three loose crates buried behind the VIP suite, and two launch
+## rails hanging in open space. The apron/launch kits below rebuild both
+## identities from the same box primitive and the same per-pad materials, with
+## every structural piece carrying the collider it visually implies and every
+## emissive cue riding on a piece of that structure.
+func _test_apron_and_lane_kits(berths: Node3D) -> void:
+	for spec in [
+		[
+			^"dock_04_cargo/ServicePresentation",
+			"CargoApronKitBatch", Berths.CARGO_APRON_KIT, Color("8a6a36"), false,
+			"CargoApronMarkingBatch", Berths.CARGO_APRON_MARKINGS, Color("56d8de"),
+			"CargoManifestBoard", "FREIGHT APRON",
+		],
+		[
+			^"dock_06_interceptor/ServicePresentation",
+			"LaunchApronKitBatch", Berths.LAUNCH_APRON_KIT, Color("31515b"), false,
+			"LaunchLaneMarkingBatch", Berths.LAUNCH_LANE_MARKINGS, Color("61e4ee"),
+			"LaunchReadinessBoard", "LAUNCH LANE",
+		],
+	]:
+		var service := berths.get_node_or_null(spec[0] as NodePath) as Node3D
+		var kit := service.get_node_or_null(NodePath(spec[1] as String)) as MultiMeshInstance3D \
+			if service != null else null
+		var marking := service.get_node_or_null(NodePath(spec[5] as String)) as MultiMeshInstance3D \
+			if service != null else null
+		var board := service.get_node_or_null(NodePath(spec[8] as String)) as Label3D \
+			if service != null else null
+		var kit_pieces := spec[2] as Array[Dictionary]
+		var marking_pieces := spec[6] as Array[Dictionary]
+		_check(
+			kit != null and marking != null
+			and kit.multimesh != null and marking.multimesh != null
+			and (kit.multimesh.mesh as BoxMesh) != null
+			and (kit.multimesh.mesh as BoxMesh).size.is_equal_approx(Vector3.ONE)
+			and kit.multimesh.mesh == marking.multimesh.mesh
+			and kit.multimesh.instance_count == kit_pieces.size()
+			and marking.multimesh.instance_count == marking_pieces.size()
+			and kit.get_child_count() == 0 and marking.get_child_count() == 0
+			and kit.cast_shadow == GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+			and marking.cast_shadow == GeometryInstance3D.SHADOW_CASTING_SETTING_OFF,
+			"%s draws its apron kit and its lane cues from one shared unit box" % spec[0]
+		)
+		var kit_material := kit.material_override as StandardMaterial3D if kit != null else null
+		var marking_material := marking.material_override as StandardMaterial3D \
+			if marking != null else null
+		_check(
+			kit_material != null and not kit_material.emission_enabled
+			and kit_material.albedo_color.is_equal_approx(spec[3] as Color)
+			and marking_material != null and marking_material.emission_enabled
+			and marking_material.emission.is_equal_approx(spec[7] as Color),
+			"%s reuses its own structural and marker materials and adds none" % spec[0]
+		)
+		var transforms_exact := kit != null and marking != null
+		for pair in [[kit, kit_pieces], [marking, marking_pieces]]:
+			var batch := pair[0] as MultiMeshInstance3D
+			var pieces := pair[1] as Array[Dictionary]
+			var authored := batch.get_meta(&"authored_instance_transforms", []) as Array \
+				if batch != null else []
+			transforms_exact = transforms_exact and authored.size() == pieces.size()
+			if authored.size() != pieces.size():
+				continue
+			for index in pieces.size():
+				var expected := Berths.scaled_box_transform(pieces[index])
+				transforms_exact = transforms_exact \
+					and (authored[index] as Transform3D).is_equal_approx(expected)
+		_check(transforms_exact, "%s publishes its exact authored apron roster" % spec[0])
+		_check(
+			board != null and board.text.contains(spec[9] as String)
+			and board.get_child_count() == 0 and board.get_script() == null
+			and bool(board.get_meta(&"non_authoritative_presentation", false)),
+			"%s carries a non-authoritative pad board" % spec[0]
+		)
 
 
 func _test_underframe_support_batch(berths: Node3D, audit: Dictionary) -> void:
@@ -424,8 +510,8 @@ func _test_underframe_support_batch(berths: Node3D, audit: Dictionary) -> void:
 	_check(
 		int(access.get("support_meshes", -1)) == 11
 		and int(access.get("support_renderer_nodes", -1)) == 6
-		and int(audit.get("renderer_nodes", -1)) == 24
-		and int(audit.get("mesh_resource_allocations", -1)) == 24,
+		and int(audit.get("renderer_nodes", -1)) == 28
+		and int(audit.get("mesh_resource_allocations", -1)) == 25,
 		"the support-post family removes five renderer submissions and mesh allocations while retaining all 11 underframe copies"
 	)
 	_check(
