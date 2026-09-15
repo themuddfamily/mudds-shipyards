@@ -166,6 +166,12 @@ const LANDING_STAGING_COMPLETION_SPEED := 0.75
 const LANDING_ALIGNMENT_COMPLETION_DISTANCE := 0.35
 const LANDING_ALIGNMENT_COMPLETION_ANGLE_DEGREES := 2.0
 const LANDING_TRANSFORM_EPSILON := 0.0001
+## Float32 rounding a committed common-world translation may leave between a
+## berth's re-derived dock transform and the frozen snapshot moved by the same
+## delta, relative to the largest magnitude the transaction handled. 2^-20 is
+## roughly sixteen single-precision ulps; on Ember's 10 km caldera drop that is
+## under a centimetre, against an observed 0.39 mm.
+const LANDING_REBASE_ROUNDING_RELATIVE := 1.0 / 1048576.0
 const LANDING_ROTATION_GUARD_ANGLE_DEGREES := 0.1
 const LANDING_PHASE_NONE: StringName = &"none"
 const LANDING_PHASE_BRAKE: StringName = &"brake"
@@ -4112,6 +4118,17 @@ func _is_landing_pose_obstructed(candidate_transform: Transform3D) -> bool:
 ## no hull, changes no phase, and grants the owner no landing authority. A berth
 ## that genuinely re-authors its dock still fails the guard, because nothing
 ## outside this transaction ever reaches here.
+##
+## Adding `delta` to the frozen snapshot is not enough on its own. The live berth
+## re-derives its dock transform through its own parent chain, and at the 10 km
+## magnitudes a rebase handles that chain rounds differently in float32 from the
+## single addition here — by 0.078 mm for the Arrow and 0.391 mm for the Torrent
+## on the caldera pad, either side of `LANDING_TRANSFORM_EPSILON`. The first
+## visit of a session happened to land on the passing side; the Torrent never
+## did. So the targets are re-expressed from the live berth wherever it agrees
+## with the translated snapshot within the transaction's rounding budget, which
+## keeps the exact guard exact afterwards, and a berth that moved by more than
+## that budget under the same commit is still a `berth_changed` abort.
 func notify_common_world_translation(
 		delta: Vector3,
 		_target_coordinate_frame_generation: int = 0,
@@ -4120,13 +4137,32 @@ func notify_common_world_translation(
 		return
 	if _landing_contract.is_empty() and not _landing_active:
 		return
+	var rounding_budget := _common_world_translation_rounding_budget(delta)
 	_landing_target.origin += delta
 	_landing_staging_target.origin += delta
+	var berth := _get_landing_berth()
+	if _landing_active and berth != null and berth.is_inside_tree():
+		var live_dock := berth.get_dock_transform()
+		if live_dock.origin.distance_to(_landing_target.origin) <= rounding_budget \
+				and live_dock.basis.is_equal_approx(_landing_target.basis):
+			_landing_target = live_dock
+		var live_staging := berth.get_assist_staging_transform()
+		if live_staging.origin.distance_to(_landing_staging_target.origin) <= rounding_budget \
+				and live_staging.basis.is_equal_approx(_landing_staging_target.basis):
+			_landing_staging_target = live_staging
 	if not _landing_contract.is_empty():
 		_landing_contract["dock_transform_snapshot"] = _landing_target
 		_landing_contract["staging_transform_snapshot"] = _landing_staging_target
 	if is_finite(_landing_previous_distance):
 		_landing_previous_distance = global_position.distance_to(_landing_target.origin)
+
+
+func _common_world_translation_rounding_budget(delta: Vector3) -> float:
+	var magnitude := maxf(
+		delta.length(),
+		maxf(_landing_target.origin.length(), (_landing_target.origin + delta).length())
+	)
+	return maxf(LANDING_TRANSFORM_EPSILON, magnitude * LANDING_REBASE_ROUNDING_RELATIVE)
 
 
 static func _landing_transforms_match(first: Transform3D, second: Transform3D) -> bool:

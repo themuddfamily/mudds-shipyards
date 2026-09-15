@@ -21,6 +21,7 @@ func _run() -> void:
 	await _test_production_fleet_collision_envelopes()
 	await _test_strict_assist_lifecycle()
 	await _test_landing_authority_invalidation()
+	await _test_landing_survives_caldera_scale_rebase()
 	await _test_active_landing_lifecycle_teardown()
 	await _test_aligned_support_contact()
 	await _test_rotational_obstruction_stall()
@@ -287,6 +288,95 @@ func _test_landing_authority_invalidation() -> void:
 	stage.queue_free()
 	await process_frame
 	await process_frame
+
+
+## Ember's caldera descent commits a common-world rebase from the exact
+## geometry modelled here: the pad 10 km below the orbital anchor, the craft a
+## dozen metres above it, a translation that puts the craft at the origin. The
+## live berth re-derives its dock transform through its parent chain, and at
+## that magnitude float32 rounds the chain differently from the translated
+## snapshot — 0.078 mm for the Arrow, 0.391 mm for the Torrent — either side of
+## the 0.1 mm exact guard. A first visit in the Arrow landed; every Torrent
+## descent, and so every second expedition of the soak, aborted `berth_changed`
+## from inside the same committed rebase.
+func _test_landing_survives_caldera_scale_rebase() -> void:
+	for craft_name: String in ["torrent", "arrow"]:
+		var stage := Node3D.new()
+		stage.name = "CalderaRebaseStage_%s" % craft_name
+		root.add_child(stage)
+		var moon := Node3D.new()
+		moon.name = "MoonRoot"
+		moon.position = Vector3(0.0, -10_000.0, -500.0)
+		stage.add_child(moon)
+		var berth := BERTH_SCRIPT.new() as ShipBerth
+		berth.berth_id = &"caldera_scale_rebase_berth"
+		berth.landing_half_extents = Vector3(14.0, 9.0, 16.0)
+		berth.assist_capture_half_extents = Vector3(45.0, 60.0, 300.0)
+		berth.assist_capture_maximum_speed = 32.0
+		berth.assist_maximum_tilt_degrees = 75.0
+		moon.add_child(berth)
+		var ship: HeroShip
+		if craft_name == "torrent":
+			ship = TORRENT_SCENE.instantiate() as HeroShip
+			ship.ship_definition = TORRENT_DEFINITION
+		else:
+			ship = ARROW_SCENE.instantiate() as HeroShip
+		stage.add_child(ship)
+		await process_frame
+		ship.engine_start_time = 0.01
+		ship.request_engine_start()
+		await physics_frame
+		await physics_frame
+		var bounds := ship.get_landing_collision_report().get("local_bounds", AABB()) as AABB
+		berth.dock_transform = Transform3D(Basis.IDENTITY, Vector3(0.0, -bounds.position.y, 0.0))
+		berth.assist_capture_center = Vector3(0.0, 60.0, 30.0) - berth.dock_transform.origin
+		var aborted_reasons: Array[StringName] = []
+		ship.landing_aborted.connect(func(reason: StringName) -> void: aborted_reasons.append(reason))
+
+		var token := berth.try_reserve(ship, ship.get_ship_definition())
+		ship.global_transform = berth.get_dock_transform() \
+			* Transform3D(Basis.IDENTITY, Vector3(0.0, 12.44, 0.0))
+		ship.velocity = Vector3.ZERO
+		_check(
+			not token.is_empty() and ship.request_berth_landing(berth),
+			"%s caldera-scale fixture begins with a bound lease" % craft_name
+		)
+		var translation := -ship.global_position
+		stage.position += translation
+		ship.notify_common_world_translation(translation, 2)
+		var snapshot_after := ship.get_landing_contract_report().get("acceptance", {}) as Dictionary
+		ship.call("_update_landing", 0.01)
+		_check(
+			ship.is_landing_active()
+				and aborted_reasons.is_empty()
+				and ship.get_telemetry().landing_abort_reason == &""
+				and berth.is_reserved(),
+			"%s keeps its caldera landing alive through the 10 km common-world rebase (abort %s)"
+				% [craft_name, str(ship.get_telemetry().landing_abort_reason)]
+		)
+		var dock_snapshot := snapshot_after.get("dock_transform_snapshot", Transform3D.IDENTITY) \
+			as Transform3D
+		_check(
+			dock_snapshot.origin.is_equal_approx(berth.get_dock_transform().origin)
+				and dock_snapshot.origin.distance_to(
+					berth.get_dock_transform().origin
+				) <= HeroShip.LANDING_TRANSFORM_EPSILON,
+			"%s re-expresses the accepted dock snapshot exactly on the live berth after the rebase"
+				% craft_name
+		)
+		# A berth that genuinely moved after that commit is still caught exactly.
+		berth.position.z += 0.01
+		ship.call("_update_landing", 0.01)
+		_check(
+			not ship.is_landing_active()
+				and ship.get_telemetry().landing_abort_reason == &"berth_changed"
+				and not berth.is_reserved(),
+			"%s still aborts berth_changed for a centimetre the berth moved on its own"
+				% craft_name
+		)
+		stage.queue_free()
+		await process_frame
+		await process_frame
 
 
 func _test_active_landing_lifecycle_teardown() -> void:
