@@ -70,6 +70,7 @@ var _has_velocity_sample := false
 var _last_step_token := -1
 var _base_physics_priority := 0
 var _tearing_down := false
+var _occupancy_revision := 0
 var _volume_registered_ids: Dictionary = {}
 var _pending_volume_occupants: Dictionary = {}
 
@@ -257,6 +258,7 @@ func register_occupant(occupant: Node3D, options: Dictionary = {}) -> Dictionary
 	occupant.tree_exiting.connect(state["tree_exiting_callable"] as Callable)
 	_sync_occupant_authority(occupant, state, _sample_frame_transform())
 	_occupants[occupant_id] = state
+	_occupancy_revision += 1
 	result["registered"] = true
 	result["status"] = &"registered"
 	result["simulation_authority"] = _can_simulate_occupant(occupant)
@@ -306,6 +308,7 @@ func unregister_occupant(
 		(occupant as CharacterBody3D).velocity = exit_velocity
 		result["velocity_applied"] = true
 
+	_occupancy_revision += 1
 	result["released"] = true
 	result["status"] = &"released"
 	result["relative_velocity"] = relative_velocity
@@ -332,6 +335,50 @@ func get_registered_occupants() -> Array[Node3D]:
 func get_occupant_count() -> int:
 	_prune_invalid_occupants()
 	return _occupants.size()
+
+
+## Monotonic counter of *who* is aboard, bumped by every accepted registration,
+## every release and every pruned dead occupant — and by nothing else. A frame
+## that carries the same crew for a whole leg keeps the same revision no matter
+## how far it flies.
+##
+## This exists so a per-tick reader (the authoritative network publisher, for
+## one) can tell "the roster is unchanged" from one integer compare instead of
+## rebuilding an occupant array sixty times a second. Pose changes are not
+## roster changes and deliberately do not move it.
+func get_occupancy_revision() -> int:
+	return _occupancy_revision
+
+
+## Where one registered occupant is standing, expressed in the moving frame's
+## own coordinates — the cabin's floor plan, not the world.
+##
+## This is the reporting half of the occupancy the frame already owns. It reads
+## the live poses and writes nothing, so calling it every physics tick costs one
+## matrix inverse and allocates nothing. An occupant that is not registered here
+## reports the identity transform rather than a world pose that would place a
+## body at the cabin origin of some other craft.
+func get_occupant_frame_local_transform(occupant: Node3D) -> Transform3D:
+	if not is_occupant_registered(occupant) or not is_instance_valid(_moving_frame):
+		return Transform3D.IDENTITY
+	return _sample_frame_transform().affine_inverse() * _node_world_transform(occupant)
+
+
+## The occupant's own velocity in the same frame-local coordinates.
+##
+## While a body is aboard, `MovingInteriorFrame` leaves its `velocity` as
+## occupant-relative world velocity — the hull's motion is applied as a rigid
+## delta rather than added to the occupant — so rotating that vector into the
+## frame basis is exactly the speed a crewmate is walking across the deck. A
+## passenger standing still in a Halyard at cruise reports zero here and flight
+## speed in world space, which is why presentation reads this one.
+func get_occupant_frame_local_velocity(occupant: Node3D) -> Vector3:
+	if not is_occupant_registered(occupant) or not is_instance_valid(_moving_frame):
+		return Vector3.ZERO
+	var relative := _get_relative_velocity(occupant)
+	if not relative.is_finite():
+		return Vector3.ZERO
+	return _sample_frame_transform().basis.inverse() * relative
 
 
 func clear_occupants(inherit_velocity: bool = false, reason: StringName = &"cleared") -> Array[Dictionary]:
@@ -553,6 +600,7 @@ func get_status_report() -> Dictionary:
 		"interior_bounds": interior_bounds,
 		"has_bounds": has_interior_bounds(),
 		"occupant_count": get_occupant_count(),
+		"occupancy_revision": _occupancy_revision,
 		"linear_velocity": _frame_linear_velocity,
 		"angular_velocity": _frame_angular_velocity,
 		"linear_acceleration": _frame_linear_acceleration,
@@ -701,6 +749,13 @@ func _can_simulate_occupant(occupant: Node3D) -> bool:
 		return false
 	if not is_inside_tree() or not multiplayer.has_multiplayer_peer():
 		return true
+	# A peer that exists but is not connected has no unique id to compare an
+	# authority against, and asking it for one is an error rather than an answer.
+	# A session that has stopped, or has not finished connecting, is the same
+	# situation as no session at all: this peer simulates its own occupants.
+	if multiplayer.multiplayer_peer.get_connection_status() \
+			!= MultiplayerPeer.CONNECTION_CONNECTED:
+		return true
 	match authority_mode:
 		AuthorityMode.FRAME_AUTHORITY:
 			return is_multiplayer_authority()
@@ -785,6 +840,7 @@ func _prune_invalid_occupants() -> void:
 		if not is_instance_valid(occupant):
 			_volume_registered_ids.erase(occupant_id)
 			_occupants.erase(occupant_id)
+			_occupancy_revision += 1
 
 
 func _clear_owner_meta(occupant: Node3D) -> void:

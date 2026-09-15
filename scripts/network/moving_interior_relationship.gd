@@ -9,16 +9,31 @@ extends RefCounted
 ## the frame's coordinates means interpolation and packet loss do not turn a
 ## ship's motion into an occupant teleport.
 
-const SCHEMA_VERSION := 1
+const SCHEMA_VERSION := 2
 const MAX_SAFE_INTEGER := 9_007_199_254_740_991
 const MAX_ID_LENGTH := 64
 const TRANSFORM_COMPONENT_COUNT := 12
 const VECTOR_COMPONENT_COUNT := 3
 
+## What the occupant is *doing* in the cabin, alongside where they are.
+##
+## The pose alone cannot tell a crewmate asleep in a bunk from one standing
+## motionless beside it, and a client that only has the pose has to guess. The
+## authority knows, so it says: one small integer per relationship, read by
+## presentation to choose how the body is drawn and by the publisher to decide
+## which snapshots may be coalesced. It grants nothing — an occupancy state is
+## not a seat claim, and a replica that rejects the pose rejects this with it.
+enum {
+	STATE_WALKING = 0,  ## On foot in the moving interior, pose is a live stride.
+	STATE_SEATED = 1,  ## Belted into a seat the authority has already granted.
+	STATE_SLEEPING = 2,  ## Resting in a bunk; the body is lying down, not idle.
+}
+const MAX_OCCUPANCY_STATE := STATE_SLEEPING
+
 const _KEYS := [
 	"schema_version", "server_tick", "entity_id", "entity_generation",
 	"parent_frame_id", "parent_frame_generation", "frame_local_transform",
-	"linear_velocity", "angular_velocity", "event_sequence",
+	"linear_velocity", "angular_velocity", "occupancy_state", "event_sequence",
 ]
 
 var _snapshot: Dictionary = {}
@@ -39,7 +54,8 @@ static func create(
 	p_frame_local_transform: Transform3D,
 	p_linear_velocity := Vector3.ZERO,
 	p_angular_velocity := Vector3.ZERO,
-	p_event_sequence: int = 0
+	p_event_sequence: int = 0,
+	p_occupancy_state: int = STATE_WALKING
 	) -> NetworkMovingInteriorRelationship:
 	return NetworkMovingInteriorRelationship.new({
 		"schema_version": SCHEMA_VERSION,
@@ -51,6 +67,7 @@ static func create(
 		"frame_local_transform": _encode_transform(p_frame_local_transform),
 		"linear_velocity": _encode_vector(p_linear_velocity),
 		"angular_velocity": _encode_vector(p_angular_velocity),
+		"occupancy_state": p_occupancy_state,
 		"event_sequence": p_event_sequence,
 	})
 
@@ -95,6 +112,17 @@ func get_event_sequence() -> int:
 	return int(_snapshot.get("event_sequence", 0))
 
 
+func get_occupancy_state() -> int:
+	return int(_snapshot.get("occupancy_state", STATE_WALKING))
+
+
+## True while the authority says this occupant is in a seat or a bunk. The
+## publisher uses it to hold a seat snapshot above the coalescing budget: a
+## pilot whose seat pose is dropped is drawn standing in mid-cabin.
+func is_secured_occupancy() -> bool:
+	return get_occupancy_state() != STATE_WALKING
+
+
 func get_frame_local_transform() -> Transform3D:
 	return _decode_transform(_snapshot.get("frame_local_transform", []))
 
@@ -118,6 +146,7 @@ func audit() -> Dictionary:
 		"valid": is_valid(),
 		"errors": get_validation_errors(),
 		"snapshot": get_snapshot(),
+		"occupancy_state": get_occupancy_state(),
 		"frame_local_authority": true,
 		"replica_transform_setter": false,
 		"owns_movement": false,
@@ -138,6 +167,7 @@ static func _canonical_snapshot(data: Dictionary) -> Dictionary:
 		"frame_local_transform": _copy_array(data.get("frame_local_transform", [])),
 		"linear_velocity": _copy_array(data.get("linear_velocity", [])),
 		"angular_velocity": _copy_array(data.get("angular_velocity", [])),
+		"occupancy_state": int(data.get("occupancy_state", STATE_WALKING)),
 		"event_sequence": int(data.get("event_sequence", 0)),
 	}
 
@@ -146,7 +176,7 @@ static func _validate(snapshot: Dictionary, source: Dictionary) -> PackedStringA
 	var errors := PackedStringArray()
 	if not _has_exact_keys(source):
 		errors.append("snapshot fields must match the relationship wire schema")
-	for integer_key in [&"schema_version", &"server_tick", &"entity_generation", &"parent_frame_generation", &"event_sequence"]:
+	for integer_key in [&"schema_version", &"server_tick", &"entity_generation", &"parent_frame_generation", &"occupancy_state", &"event_sequence"]:
 		if not source.get(integer_key) is int:
 			errors.append("%s must remain an integer on the wire" % integer_key)
 	for id_key in [&"entity_id", &"parent_frame_id"]:
@@ -174,6 +204,9 @@ static func _validate(snapshot: Dictionary, source: Dictionary) -> PackedStringA
 		errors.append("linear_velocity must contain three finite components")
 	if not _valid_vector_array(snapshot.angular_velocity):
 		errors.append("angular_velocity must contain three finite components")
+	if not _valid_integer(snapshot.occupancy_state, false) \
+			or int(snapshot.occupancy_state) > MAX_OCCUPANCY_STATE:
+		errors.append("occupancy_state must name a published occupancy state")
 	if not _valid_integer(snapshot.event_sequence, false):
 		errors.append("event_sequence must be a non-negative safe integer")
 	return errors

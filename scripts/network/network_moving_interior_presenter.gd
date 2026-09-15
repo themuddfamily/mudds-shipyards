@@ -43,6 +43,7 @@ extends Node3D
 
 const PilotVisualScene := preload("res://scenes/player/pilot_skinned_presentation.tscn")
 const PilotFallbackBuilder := preload("res://scripts/player/pilot_fallback_presentation_builder.gd")
+const Relationship := preload("res://scripts/network/moving_interior_relationship.gd")
 
 const MAX_TRACKED_AVATARS := 64
 
@@ -79,6 +80,17 @@ const RUN_ANIMATION_SPEED := 4.2
 ## eighth of a second is what keeps a steadily walking crew member on the walk
 ## clip instead of flickering between walk and run at every arrival boundary.
 const ANIMATION_SPEED_SMOOTHING := 8.0
+
+## Clip preference per published occupancy state, best first. The authority says
+## what an occupant is *doing*; speed alone cannot, because a crewmate asleep in
+## a bunk and one standing still beside it publish the same zero-velocity pose.
+## Each list falls back down to a clip the imported suit definitely has, so a
+## visual without a dedicated sleep or sit clip still draws a settled body
+## rather than nothing.
+const SECURED_OCCUPANCY_CLIPS := {
+	Relationship.STATE_SEATED: [&"sit", &"seated", &"idle"],
+	Relationship.STATE_SLEEPING: [&"sleep", &"rest", &"idle"],
+}
 
 var _session: Node = null
 var _attached := false
@@ -224,6 +236,14 @@ func get_avatar_animation_clip(entity_id: StringName) -> StringName:
 	return StringName((_avatars.get(entity_id, {}) as Dictionary).get("clip", &""))
 
 
+## The occupancy state the drawn body is currently being posed for, as the
+## authority published it. Presentation read-through, not a second record.
+func get_avatar_occupancy_state(entity_id: StringName) -> int:
+	if not _avatars.has(entity_id) or not is_instance_valid(_session):
+		return Relationship.STATE_WALKING
+	return int(_session.get_moving_interior_occupancy_state(entity_id))
+
+
 func get_presentation_audit() -> Dictionary:
 	return {
 		"attached": _attached,
@@ -269,7 +289,12 @@ func _process(delta: float) -> void:
 		)
 		if bool(applied.get("accepted", false)):
 			_applied_count += 1
-			_advance_avatar_animation(record, applied, delta)
+			_advance_avatar_animation(
+				record,
+				applied,
+				delta,
+				int(_session.get_moving_interior_occupancy_state(StringName(entity_variant)))
+			)
 
 
 ## Discovery and lifecycle. Deliberately the only allocating path: it runs when
@@ -422,7 +447,9 @@ func _build_fallback_suit(pivot: Node3D) -> void:
 ## member standing still in a Halyard under way is crossing the sky at flight
 ## speed, and a world-space reading would animate every passenger on board as
 ## sprinting for the whole leg.
-func _advance_avatar_animation(record: Dictionary, applied: Dictionary, delta: float) -> void:
+func _advance_avatar_animation(
+	record: Dictionary, applied: Dictionary, delta: float, occupancy_state: int
+) -> void:
 	if not bool(record.get("imported", false)):
 		return
 	var player_variant: Variant = record.get("animation_player")
@@ -441,7 +468,15 @@ func _advance_avatar_animation(record: Dictionary, applied: Dictionary, delta: f
 	record["last_origin"] = origin
 	record["has_last_origin"] = true
 	var clip: StringName = &"idle"
-	if speed >= RUN_ANIMATION_SPEED:
+	if SECURED_OCCUPANCY_CLIPS.has(occupancy_state):
+		# A secured occupant is where the authority put them. Their remaining
+		# frame-local motion is the seat or bunk being carried, not a stride, so
+		# the speed reading is deliberately ignored here: a pilot in a seat during
+		# a hard turn must not be animated as sprinting on the spot.
+		clip = _first_available_clip(
+			player_variant as AnimationPlayer, SECURED_OCCUPANCY_CLIPS[occupancy_state] as Array
+		)
+	elif speed >= RUN_ANIMATION_SPEED:
 		clip = &"run"
 	elif speed >= WALK_ANIMATION_SPEED:
 		clip = &"walk"
@@ -451,6 +486,18 @@ func _advance_avatar_animation(record: Dictionary, applied: Dictionary, delta: f
 	var animation_player := player_variant as AnimationPlayer
 	if animation_player.has_animation(String(clip)):
 		animation_player.play(String(clip))
+
+
+## First clip in `candidates` the suit actually has, or the last one as the
+## honest name of what was asked for even when nothing can play it.
+func _first_available_clip(
+	animation_player: AnimationPlayer, candidates: Array
+) -> StringName:
+	for candidate_variant in candidates:
+		var candidate := StringName(candidate_variant)
+		if animation_player.has_animation(String(candidate)):
+			return candidate
+	return StringName(candidates[candidates.size() - 1]) if not candidates.is_empty() else &"idle"
 
 
 func _release_avatar(entity_id: StringName, reason: StringName) -> void:

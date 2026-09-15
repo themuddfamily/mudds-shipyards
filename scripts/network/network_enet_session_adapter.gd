@@ -89,6 +89,26 @@ const PROJECTILE_TOMBSTONE_RETENTION_TICKS := 120
 const MOVING_INTERIOR_BUDGET_WINDOW_TICKS := 10
 const MOVING_INTERIOR_MAX_SNAPSHOTS_PER_WINDOW := 8
 const MOVING_INTERIOR_MAX_BYTES_PER_WINDOW := 24000
+
+## Publication priority for one moving-interior relationship, and the whole of
+## the rule the per-recipient budget applies to it.
+##
+## The budget above coalesces: past 8 snapshots in a 10-tick window a further
+## snapshot is parked as this recipient's newest pending pose for that entity
+## and sent when the window rolls. For a crew member walking the aisle that is
+## exactly right — the pose they are parked at is stale by a few ticks and then
+## replaced. For an occupant the authority has *secured* into a seat or a bunk
+## it is wrong: that snapshot is not one of a stream, it is the statement that
+## the pilot is now in the pilot seat, and a busy cabin that coalesces it leaves
+## the pilot drawn standing in mid-cabin on every other client until they get up
+## again. `CRITICAL` is therefore reserved for exactly that — a seat or bunk
+## pose, published by `GameFlow` from `NetworkMovingInteriorRelationship`'s own
+## `is_secured_occupancy()` — and it buys one thing only: the snapshot is sent
+## in the window it was published in instead of being parked. It never raises
+## the byte ceiling, never bypasses the packet-size limit, and grants no
+## authority; a flood of critical snapshots is a flood of ordinary packets.
+const MOVING_INTERIOR_PRIORITY_NORMAL := 0
+const MOVING_INTERIOR_PRIORITY_CRITICAL := 1
 ## The authoritative moving-interior publication rate. A relationship carries a
 ## `server_tick`, but `NetworkMovingInteriorReplica` interpolates and
 ## extrapolates on a wall-clock seconds axis, so the tick is converted once, at
@@ -212,6 +232,7 @@ var _presentation_evictions := 0
 var _is_server := false
 var _configured := false
 var _peer_generations: Dictionary = {}
+var _peer_admission_epoch := 0
 var _peer_keepalive_deadlines: Dictionary = {}
 var _keepalive_timeout_milliseconds := KEEPALIVE_DEFAULT_TIMEOUT_MILLISECONDS
 var _projectile_sources: Dictionary = {}
@@ -440,6 +461,7 @@ func shutdown(reason: StringName = &"requested") -> Dictionary:
 	_configured = false
 	_is_server = false
 	_peer_generations.clear()
+	_peer_admission_epoch += 1
 	_seat_moving_relationships.clear()
 	_moving_recipient_budgets.clear()
 	_moving_recipient_entities.clear()
@@ -1664,7 +1686,7 @@ func register_moving_interior_occupancy(
 ) -> Dictionary:
 	if not is_server():
 		return _remember(_result(false, &"authority_required"))
-	if not _peer_generations.has(owner_peer_id):
+	if owner_peer_id != AUTHORITY_PEER_ID and not _peer_generations.has(owner_peer_id):
 		return _remember(_result(false, &"peer_not_admitted"))
 	var result: Dictionary = _moving_interior.register_occupancy(
 		AUTHORITY_PEER_ID, owner_peer_id, entity_id, entity_generation,
@@ -1715,7 +1737,8 @@ func get_moving_interior_occupancy(entity_id: StringName) -> Dictionary:
 func publish_moving_interior_snapshot(
 	relationship_snapshot: Dictionary,
 	recipients: Array = [],
-	budget_tick: int = -1
+	budget_tick: int = -1,
+	priority: int = MOVING_INTERIOR_PRIORITY_NORMAL
 ) -> Dictionary:
 	if not is_server():
 		return _remember(_result(false, &"authority_required"))
@@ -1749,7 +1772,9 @@ func publish_moving_interior_snapshot(
 		var entity_id := relationship.get_entity_id()
 		var prior: Dictionary = (_moving_recipient_entities.get(peer_id, {}) as Dictionary).get(entity_id, {}) as Dictionary
 		var transition := prior.is_empty() or int(prior.get("entity_generation", 0)) != relationship.get_entity_generation()
-		var budget := _moving_budget_decision(peer_id, packet, entity_id, logical_tick, transition)
+		var budget := _moving_budget_decision(
+			peer_id, packet, entity_id, logical_tick, transition, priority
+		)
 		if bool(budget.get("accepted", false)) and _peer != null:
 			_send_moving_interior_packet(peer_id, packet)
 		elif budget.get("status") == &"coalesced":
@@ -1759,6 +1784,7 @@ func publish_moving_interior_snapshot(
 		"migration_generation": generation,
 		"recipients": target_peers.size(),
 		"coalesced": coalesced,
+		"priority": priority,
 		"packet": packet,
 	})
 	moving_interior_result.emit(result.duplicate(true))
@@ -1781,10 +1807,32 @@ func publish_moving_interior_release(
 		if not _peer_generations.has(int(peer_variant)):
 			return _remember(_result(false, &"peer_not_admitted"))
 	var packet := {"entity_id": entity_id, "entity_generation": entity_generation}
+	var discarded := 0
 	for peer_variant in target_peers:
+		var peer_id := int(peer_variant)
+		# A release has to retire this entity's *withheld* snapshot as well as the
+		# ones already sent. The per-recipient budget parks a coalesced pose and
+		# flushes it when the window rolls; left in place, that flush re-publishes a
+		# crew member who has already left the cabin, and every other client stands
+		# them back up mid-aisle for good. Reachable whenever a busy cabin is
+		# coalescing, which is exactly when somebody is most likely to step out of it.
+		var pending: Dictionary = _moving_recipient_pending.get(peer_id, {}) as Dictionary
+		if pending.has(entity_id):
+			pending.erase(entity_id)
+			_moving_recipient_pending[peer_id] = pending
+			discarded += 1
+			if _moving_recipient_budgets.has(peer_id):
+				_moving_recipient_budgets[peer_id]["pending_count"] = pending.size()
+		var entities: Dictionary = _moving_recipient_entities.get(peer_id, {}) as Dictionary
+		if entities.has(entity_id):
+			entities.erase(entity_id)
+			_moving_recipient_entities[peer_id] = entities
 		if _peer != null:
-			_send_moving_interior_release_packet(int(peer_variant), packet)
-	return _remember(_result(true, &"moving_interior_release_published", {"packet": packet}))
+			_send_moving_interior_release_packet(peer_id, packet)
+	return _remember(_result(true, &"moving_interior_release_published", {
+		"packet": packet,
+		"discarded_pending": discarded,
+	}))
 
 
 func publish_moving_interior_resync(peer_id: int, budget_tick: int = -1) -> Dictionary:
@@ -1866,6 +1914,20 @@ func deliver_moving_interior_wire_packet(peer_id: int, wire: Dictionary) -> Dict
 	return _remember(_result(true, &"moving_interior_wire_delivered", {"peer_id": peer_id}))
 
 
+## Every peer this session has admitted. One fresh array per call, so a caller
+## that needs it every tick pairs it with [method get_admitted_peer_epoch] and
+## only rebuilds when that integer moves.
+func get_admitted_peer_ids() -> Array:
+	return _peer_generations.keys()
+
+
+## Bumped by every admission and every departure, and by nothing else. A
+## per-tick publisher compares this instead of rebuilding a recipient list for a
+## membership that has not changed.
+func get_admitted_peer_epoch() -> int:
+	return _peer_admission_epoch
+
+
 func get_moving_interior_budget_snapshot(peer_id: int = 0) -> Dictionary:
 	if peer_id > 0:
 		return (_moving_recipient_budgets.get(peer_id, {}) as Dictionary).duplicate(true)
@@ -1910,7 +1972,8 @@ func _moving_budget_decision(
 	packet: Dictionary,
 	entity_id: StringName,
 	logical_tick: int,
-	transition: bool
+	transition: bool,
+	priority: int = MOVING_INTERIOR_PRIORITY_NORMAL
 ) -> Dictionary:
 	var size_bytes := Marshalls.variant_to_base64(packet).to_utf8_buffer().size()
 	if size_bytes > MAX_MOVING_INTERIOR_PACKET_BYTES:
@@ -1918,7 +1981,8 @@ func _moving_budget_decision(
 	var state: Dictionary = _moving_recipient_budgets.get(peer_id, {}) as Dictionary
 	if state.is_empty():
 		state = {"window_tick": logical_tick, "snapshot_count": 0, "byte_count": 0,
-			"coalesced_count": 0, "transition_count": 0, "forced_transition_count": 0, "pending_count": 0}
+			"coalesced_count": 0, "transition_count": 0, "forced_transition_count": 0,
+			"forced_priority_count": 0, "pending_count": 0}
 	elif logical_tick < int(state.get("window_tick", logical_tick)):
 		return _result(false, &"stale_moving_interior_budget_tick")
 	elif logical_tick >= int(state.get("window_tick", logical_tick)) + MOVING_INTERIOR_BUDGET_WINDOW_TICKS:
@@ -1941,8 +2005,14 @@ func _moving_budget_decision(
 		_moving_recipient_pending[peer_id] = pending
 	if int(state.snapshot_count) >= MOVING_INTERIOR_MAX_SNAPSHOTS_PER_WINDOW \
 			or int(state.byte_count) + size_bytes > MOVING_INTERIOR_MAX_BYTES_PER_WINDOW:
-		if transition:
-			state.forced_transition_count = int(state.get("forced_transition_count", 0)) + 1
+		if transition or priority >= MOVING_INTERIOR_PRIORITY_CRITICAL:
+			# A generation transition and a secured-occupancy snapshot are the two
+			# things a full window may not swallow. Both are sent now and counted, so
+			# an over-budget window stays visible in the audit rather than silent.
+			if transition:
+				state.forced_transition_count = int(state.get("forced_transition_count", 0)) + 1
+			else:
+				state.forced_priority_count = int(state.get("forced_priority_count", 0)) + 1
 		else:
 			var pending: Dictionary = _moving_recipient_pending.get(peer_id, {}) as Dictionary
 			pending[entity_id] = packet.duplicate(true)
@@ -2756,6 +2826,7 @@ func _present_moving_interior_relationship(ready: Dictionary, frame_world_transf
 		"entity_generation": relationship.get_entity_generation(),
 		"parent_frame_id": relationship.get_parent_frame_id(),
 		"parent_frame_generation": relationship.get_parent_frame_generation(),
+		"occupancy_state": relationship.get_occupancy_state(),
 		"local_transform": local_transform,
 	})
 	return _remember(_result(true, &"moving_interior_presented", {"samples": [{
@@ -2812,9 +2883,18 @@ func get_moving_interior_presentation_entities() -> Array:
 			"entity_generation": int(sample.get("entity_generation", 0)),
 			"parent_frame_id": StringName(sample.get("parent_frame_id", &"")),
 			"parent_frame_generation": int(sample.get("parent_frame_generation", 0)),
+			"occupancy_state": int(sample.get("occupancy_state", 0)),
 			"server_tick": int(sample.get("server_tick", -1)),
 		})
 	return entities
+
+
+## What the authority last said this occupant is doing, as a plain int on
+## `NetworkMovingInteriorRelationship`'s `STATE_*` scale. Deliberately allocation
+## free: a presenter polls it every rendered frame to decide how to draw a body
+## whose pose alone cannot distinguish sleeping from standing still.
+func get_moving_interior_occupancy_state(entity_id: StringName) -> int:
+	return int((_moving_replica_samples.get(entity_id, {}) as Dictionary).get("occupancy_state", 0))
 
 
 func sample_moving_interior_replica(entity_id: StringName, now_seconds: float) -> Dictionary:
@@ -3980,6 +4060,7 @@ func _receive_hello(wire: Dictionary) -> void:
 		transport_rejected.emit(StringName(registered.get("status", &"transport_rejected")))
 		return
 	_peer_generations[peer_id] = peer_generation
+	_peer_admission_epoch += 1
 	_peer_keepalive_deadlines[peer_id] = Time.get_ticks_msec() + _keepalive_timeout_milliseconds
 	_crew_roles.admit_peer(AUTHORITY_PEER_ID, peer_id, peer_generation)
 	var migration_registered: Dictionary = _migration.register_peer(
@@ -3993,6 +4074,7 @@ func _receive_hello(wire: Dictionary) -> void:
 	if not bool(migration_registered.get("accepted", false)):
 		_lifecycle.disconnect_peer(AUTHORITY_PEER_ID, peer_id, peer_generation)
 		_peer_generations.erase(peer_id)
+		_peer_admission_epoch += 1
 		transport_rejected.emit(StringName(migration_registered.get("status", &"migration_rejected")))
 		return
 	var offer := {
@@ -4403,6 +4485,7 @@ func _on_peer_disconnected(peer_id: int, reason: StringName = &"disconnect") -> 
 			)
 			_prediction_entities.erase(prediction_id)
 	_peer_generations.erase(peer_id)
+	_peer_admission_epoch += 1
 	_peer_keepalive_deadlines.erase(peer_id)
 	_moving_recipient_budgets.erase(peer_id)
 	_moving_recipient_entities.erase(peer_id)
@@ -4529,7 +4612,8 @@ func _relationship_for_seat_assignment(assignment: Dictionary) -> RefCounted:
 		Transform3D.IDENTITY,
 		Vector3.ZERO,
 		Vector3.ZERO,
-		int(assignment.get("claim_sequence", 0))
+		int(assignment.get("claim_sequence", 0)),
+		MovingInteriorRelationship.STATE_SEATED
 	)
 
 

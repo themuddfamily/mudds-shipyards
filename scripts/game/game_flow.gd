@@ -74,6 +74,17 @@ const MovingInteriorRelationshipType := preload(
 const NetworkMovingInteriorPresenterType := preload(
 	"res://scripts/network/network_moving_interior_presenter.gd"
 )
+## Ceiling on how many bodies one authoritative tick will publish across the
+## whole fleet. A cabin cannot hold more crew than this, and a frame that
+## somehow reports more is truncated rather than allowed to grow the per-tick
+## cost without bound.
+const MOVING_INTERIOR_MAX_PUBLISHED_OCCUPANTS := 24
+## Occupancy identity an owner outside GameFlow attached to a body; see
+## `register_network_moving_interior_occupant()`.
+const NETWORK_MOVING_INTERIOR_IDENTITY_META: StringName = &"_network_moving_interior_identity"
+## How the session adapter spells "every admitted peer". Shared and never
+## mutated, so the common case of publishing the host's own body costs no array.
+const NETWORK_MOVING_INTERIOR_ALL_PEERS: Array = []
 const NearbySectorActivityAudioBindingType := preload(
 	"res://scripts/audio/nearby_sector_activity_audio_binding.gd"
 )
@@ -611,6 +622,41 @@ var _network_landing_request_sequence := 0
 var _network_landing_server_tick := 0
 var _network_boarding_entities: Dictionary = {}
 var _network_boarding_server_tick := 0
+## Authoritative moving-interior occupancy publication state. See
+## `_advance_network_moving_interior_publication()` for the contract; everything
+## here is server-only and is torn down whenever this peer stops being the
+## authority.
+var _network_moving_interior_server_tick := 0
+var _network_moving_interior_dirty := true
+var _network_moving_interior_fleet_size := -1
+var _network_moving_interior_was_piloting := false
+var _network_moving_interior_peer_epoch := -1
+var _network_moving_interior_frames: Array = []
+var _network_moving_interior_roster: Array = []
+var _network_moving_interior_records: Dictionary = {}
+var _network_moving_interior_registered_frames: Dictionary = {}
+var _network_moving_interior_recipient_cache: Dictionary = {}
+var _network_moving_interior_recipient_epoch := -1
+var _network_moving_interior_retire_scratch: Array = []
+var _network_moving_interior_result: Dictionary = {
+	"accepted": false,
+	"status": &"network_publish_unavailable",
+	"server_tick": 0,
+	"published": 0,
+	"secured": 0,
+	"retired": 0,
+}
+var _network_moving_interior_audit: Dictionary = {
+	"ticks": 0,
+	"published": 0,
+	"secured_snapshots": 0,
+	"retired": 0,
+	"rebuilds": 0,
+	"records_built": 0,
+	"recipient_rebuilds": 0,
+	"unidentified_occupants": 0,
+	"last_retire_reason": &"",
+}
 ## Client-side consumer of the moving-interior replica. Created only on a
 ## non-authority peer; see `_ensure_network_moving_interior_presenter()`.
 var _network_moving_interior_presenter: NetworkMovingInteriorPresenterType = null
@@ -1020,6 +1066,11 @@ var _minimap_update_pending := false
 
 
 func _enter_tree() -> void:
+	# `tree_exiting` fires while this subtree is still whole; `_exit_tree()` does
+	# not. The moving-interior tombstones have to reach the other clients over the
+	# session's own RPC, so they are sent from here rather than on the way out,
+	# when the session node has already left the tree and can no longer send them.
+	_connect_signal_once(self, &"tree_exiting", _on_game_flow_tree_exiting)
 	# A whole Main subtree can be streamed out and re-added without being freed.
 	# Source `tree_exiting` hooks intentionally clear combat authority state, but
 	# Godot does not call `_ready()` again. Restore only runtime bindings after all
@@ -1027,6 +1078,14 @@ func _enter_tree() -> void:
 	# one-time operations.
 	if _initialized:
 		call_deferred("_restore_runtime_bindings_after_reentry")
+
+
+## Last point at which this subtree can still speak to the session it is about
+## to close. Every crew member the host was publishing gets a real release
+## tombstone here, so no client is left drawing a body in a cabin nobody is
+## flying any more.
+func _on_game_flow_tree_exiting() -> void:
+	_retire_all_network_moving_interior_occupancy(&"game_flow_detached")
 
 
 func _exit_tree() -> void:
@@ -1047,6 +1106,10 @@ func _exit_tree() -> void:
 	if is_queued_for_deletion():
 		_detach_fleet_expansion_for_shutdown()
 	_cancel_station_seat_for_detach()
+	# `_on_game_flow_tree_exiting()` already sent the tombstones while the session
+	# could still reach its peers. This only makes sure nothing survives a path
+	# that reached here without that signal.
+	_retire_all_network_moving_interior_occupancy(&"game_flow_detached")
 	if is_instance_valid(network_session):
 		network_session.shutdown(&"game_flow_exit")
 		network_session = null
@@ -3751,6 +3814,10 @@ func _physics_process(delta: float) -> void:
 			_network_ship_authority_composition.submit_server_physics_tick(
 				_network_ship_event_sequence, _network_ship_event_sequence
 			)
+	# Authority-side moving-interior occupancy. Deliberately ahead of every
+	# early return below: a host who is not flying still owes the other clients
+	# the poses of the crew walking their cabins.
+	_advance_network_moving_interior_publication()
 	_advance_safe_start_recovery_physics(delta)
 	_advance_session_diagnostics_physics(delta)
 	if _caption_presentation_service != null:
@@ -5065,6 +5132,9 @@ func _restore_runtime_bindings_after_reentry() -> void:
 	# under a stale one.
 	_update_music_bed_state()
 	_restore_cabin_occupancy_after_reentry()
+	# The frames, their occupants and the fleet are the same instances, but the
+	# roster was torn down on the way out. Rebuild it from what is aboard now.
+	_network_moving_interior_dirty = true
 	# The presenter released every avatar on the way out of the tree, and the
 	# craft it composes against are the same instances; re-attaching restates
 	# the frames so the next rendered frame rebuilds exactly the crew members
@@ -5356,6 +5426,7 @@ func _on_network_session_started(mode: StringName) -> void:
 	_set_station_defense_network_presentation_only(mode == &"client")
 	if mode == &"server" and _bomber_payload_ship != null:
 		_ensure_bomber_payload_network_source()
+	_network_moving_interior_dirty = true
 	_ensure_network_moving_interior_presenter()
 	_publish_network_session_snapshot(
 		&"connected" if mode == &"server" else &"connecting",
@@ -5378,6 +5449,7 @@ func _on_network_session_stopped(reason: StringName) -> void:
 	# A dropped session must not leave crew members standing in a cabin nobody
 	# is flying: every remote avatar is released in the same frame the session
 	# ends, not left holding its last received pose.
+	_retire_all_network_moving_interior_occupancy(reason)
 	_detach_network_moving_interior_presenter(reason)
 	_detach_network_ship_authority_composition(reason)
 	_detach_network_halyard_command_bridge()
@@ -5398,6 +5470,8 @@ func _on_network_peer_admitted(peer_id: int, _receipt: Dictionary) -> void:
 	if _network_session_mode == &"server":
 		_republish_bomber_payloads_for_peer(peer_id)
 		_republish_player_pulses_for_peer(peer_id)
+		# A newly admitted peer is a new recipient for every body already aboard.
+		_network_moving_interior_dirty = true
 		return
 	if _network_session_mode == &"client":
 		_ensure_network_moving_interior_presenter()
@@ -5424,6 +5498,7 @@ func _on_network_migration_result(result: Dictionary) -> void:
 
 
 func _on_network_peer_disconnected(peer_id: int, _receipt: Dictionary) -> void:
+	_network_moving_interior_dirty = true
 	if _network_ship_authority_composition != null:
 		_network_ship_authority_composition.release_peer(peer_id)
 
@@ -7503,31 +7578,532 @@ func _publish_network_boarding_state(ship_to_publish: HeroShip, occupied: bool) 
 	)
 
 
-func _publish_network_moving_interior_state(ship_to_publish: HeroShip, occupied: bool) -> Dictionary:
+## Seat transitions. Taking or leaving the pilot seat changes a posture, never
+## an occupancy: the same entity id keeps the same claim and simply starts
+## publishing a walking pose read from the `MovingInteriorFrame` instead of a
+## seated pose read from the seat anchor. Marking the roster dirty and running
+## one publication pass here is what puts that change on the wire in the frame
+## it happened rather than a physics tick later.
+func _publish_network_moving_interior_state(ship_to_publish: HeroShip, now_seated: bool) -> Dictionary:
 	if (
 		not is_instance_valid(network_session)
 		or not network_session.is_server()
 		or not is_instance_valid(ship_to_publish)
 	):
 		return {"accepted": false, "status": &"network_publish_unavailable"}
-	var entity_id := StringName("pilot_%s" % String(ship_to_publish.get_ship_id()))
-	var frame_id := StringName("frame_%s" % String(ship_to_publish.get_ship_id()))
-	if not occupied:
-		return network_session.publish_moving_interior_release(entity_id, 1)
-	var relationship := MovingInteriorRelationshipType.create(
-		_network_boarding_server_tick,
-		entity_id,
-		1,
-		frame_id,
-		1,
-		Transform3D.IDENTITY,
-		Vector3.ZERO,
-		Vector3.ZERO,
-		_network_boarding_server_tick
+	_network_moving_interior_dirty = true
+	_advance_network_moving_interior_publication()
+	var result := _network_moving_interior_result.duplicate(true)
+	result["seated"] = now_seated
+	return result
+
+
+## Authoritative moving-interior occupancy publication.
+##
+## Every tick the server decides where each crew member aboard a flying cabin
+## is, and says so. `NetworkMovingInteriorPresenter` on each client draws
+## whatever this publishes, so this method is the difference between crewmates
+## who walk, sit and sleep inside a Halyard under way and crewmates who stand at
+## the cabin origin like furniture.
+##
+## The occupancy itself is not invented here. `MovingInteriorFrame` already owns
+## who is aboard — it is the node that carries them — so this reads its roster
+## and its frame-local poses rather than keeping a second ledger that could
+## disagree with the one physics uses. What this seam adds is identity (which
+## published entity id each body is), lifecycle (register once, retire once) and
+## the priority the per-recipient budget applies.
+##
+## Three rules it does not get to bend:
+##
+## * **One relationship per occupant, not one per posture.** A pilot who leaves
+##   the seat keeps `pilot_<ship_id>` and the entity generation the seat claim
+##   established; the snapshot changes from a seated pose at the seat anchor to
+##   a walking pose in the aisle, and the claim underneath is untouched. Sitting
+##   back down does not re-claim anything either.
+## * **Nobody is shown their own body.** An occupant owned by a remote peer is
+##   published to every admitted peer *except* that one, because that peer is
+##   simulating the body locally and would otherwise draw the server's echo of
+##   it a frame behind the one they are steering. The host's own player has no
+##   remote peer to exclude and goes to everyone.
+## * **A secured occupant outranks the budget.** The per-recipient budget
+##   coalesces ordinary walking snapshots, which is right — a parked stride is
+##   replaced a few ticks later. A seat or bunk pose is not one of a stream, so
+##   it is published at `MOVING_INTERIOR_PRIORITY_CRITICAL` and a busy cabin can
+##   never leave a pilot drawn standing in mid-air.
+##
+## Steady state costs no allocation *in this seam*: the roster, the per-occupant
+## records and each occupant's wire dictionary are built when the roster changes
+## and then mutated in place, and `MovingInteriorFrame.get_occupancy_revision()`
+## is what makes "unchanged" an integer compare rather than a rebuilt array.
+## `get_network_moving_interior_publication_audit()` counts every rebuild, so a
+## steady leg is provable rather than asserted.
+func _advance_network_moving_interior_publication() -> void:
+	if (
+		_network_session_mode != &"server"
+		or not is_instance_valid(network_session)
+		or not network_session.is_server()
+	):
+		if not _network_moving_interior_records.is_empty():
+			_retire_all_network_moving_interior_occupancy(&"session_unavailable")
+		_network_moving_interior_result["accepted"] = false
+		_network_moving_interior_result["status"] = &"network_publish_unavailable"
+		_network_moving_interior_result["published"] = 0
+		_network_moving_interior_result["secured"] = 0
+		_network_moving_interior_result["retired"] = 0
+		return
+	_network_moving_interior_server_tick += 1
+	var tick := _network_moving_interior_server_tick
+	network_session.set_moving_interior_server_tick(tick)
+	if _network_moving_interior_dirty or _network_moving_interior_roster_changed():
+		_rebuild_network_moving_interior_roster()
+	var published := 0
+	var secured := 0
+	for entry_variant in _network_moving_interior_roster:
+		var record := entry_variant as Dictionary
+		if not _network_moving_interior_record_is_live(record):
+			continue
+		var state := _network_moving_interior_occupancy_state(record)
+		var wire := record["wire"] as Dictionary
+		wire["server_tick"] = tick
+		wire["event_sequence"] = tick
+		wire["occupancy_state"] = state
+		_write_moving_interior_transform(
+			wire["frame_local_transform"] as Array,
+			_network_moving_interior_pose(record)
+		)
+		_write_moving_interior_vector(
+			wire["linear_velocity"] as Array,
+			_network_moving_interior_velocity(record)
+		)
+		var recipients := _network_moving_interior_recipients(int(record.get("owner_peer_id", 1)))
+		if recipients.is_empty() and int(record.get("owner_peer_id", 1)) > 1:
+			# The only admitted peer is the one who owns this body. Publishing an
+			# empty recipient list would mean "everyone" and hand them their own
+			# echo, so nothing is sent at all.
+			record["seen_tick"] = tick
+			continue
+		var priority := (
+			NetworkSessionAdapterType.MOVING_INTERIOR_PRIORITY_CRITICAL
+			if state != MovingInteriorRelationshipType.STATE_WALKING
+			else NetworkSessionAdapterType.MOVING_INTERIOR_PRIORITY_NORMAL
+		)
+		var result := network_session.publish_moving_interior_snapshot(
+			wire, recipients, tick, priority
+		)
+		record["seen_tick"] = tick
+		if bool(result.get("accepted", false)):
+			published += 1
+			if priority == NetworkSessionAdapterType.MOVING_INTERIOR_PRIORITY_CRITICAL:
+				secured += 1
+	var retired := _sweep_network_moving_interior_records(tick)
+	_network_moving_interior_audit["ticks"] = int(_network_moving_interior_audit["ticks"]) + 1
+	_network_moving_interior_audit["published"] = \
+		int(_network_moving_interior_audit["published"]) + published
+	_network_moving_interior_audit["secured_snapshots"] = \
+		int(_network_moving_interior_audit["secured_snapshots"]) + secured
+	# Written into one retained dictionary rather than a fresh one: this runs
+	# every server tick, and a per-tick result object would be the only thing in
+	# this seam that still allocated on a steady leg.
+	_network_moving_interior_result["accepted"] = published > 0
+	_network_moving_interior_result["status"] = (
+		&"moving_interior_occupancy_published" if published > 0
+		else &"moving_interior_no_occupants"
 	)
-	return network_session.publish_moving_interior_snapshot(
-		relationship.get_snapshot(), [], _network_boarding_server_tick
+	_network_moving_interior_result["server_tick"] = tick
+	_network_moving_interior_result["published"] = published
+	_network_moving_interior_result["secured"] = secured
+	_network_moving_interior_result["retired"] = retired
+
+
+## True while this record still names a body the authority is entitled to speak
+## for. A craft that was destroyed or freed, or an occupant the frame has let
+## go, fails here and is retired by the sweep in the same tick.
+func _network_moving_interior_record_is_live(record: Dictionary) -> bool:
+	var ship := record.get("ship") as HeroShip
+	var frame := record.get("frame") as MovingInteriorFrame
+	if not is_instance_valid(ship) or ship.is_destroyed() or not is_instance_valid(frame):
+		return false
+	var occupant := record.get("occupant") as Node3D
+	if not is_instance_valid(occupant) or not occupant.is_inside_tree():
+		return false
+	if bool(record.get("seated", false)):
+		# The seated pilot is not a frame occupant: the seat holds them, not the
+		# deck. They stay publishable exactly as long as they are still flying
+		# this craft.
+		return _piloting and ship == active_ship
+	return frame.is_occupant_registered(occupant)
+
+
+## What the occupant is doing, on `NetworkMovingInteriorRelationship`'s scale.
+##
+## Only the host's own player has postures GameFlow owns. A crew-role occupant
+## registered with the frame by its craft is on foot in the cabin by
+## construction — that registration exists precisely because the deck has to
+## carry a walking body — so its locomotion is carried by the published velocity
+## rather than by a posture flag.
+func _network_moving_interior_occupancy_state(record: Dictionary) -> int:
+	if record.get("occupant") != player:
+		return MovingInteriorRelationshipType.STATE_WALKING
+	if bool(record.get("seated", false)):
+		return MovingInteriorRelationshipType.STATE_SEATED
+	if _station_seated and is_instance_valid(_active_station_seat):
+		return (
+			MovingInteriorRelationshipType.STATE_SLEEPING
+			if _active_station_seat is ShipBunk
+			else MovingInteriorRelationshipType.STATE_SEATED
+		)
+	return MovingInteriorRelationshipType.STATE_WALKING
+
+
+## Where the occupant is, in the cabin's own coordinates.
+func _network_moving_interior_pose(record: Dictionary) -> Transform3D:
+	var frame := record.get("frame") as MovingInteriorFrame
+	if bool(record.get("seated", false)):
+		var moving := frame.get_moving_frame()
+		var anchor := (record.get("ship") as HeroShip).get_pilot_seat_anchor()
+		if not is_instance_valid(moving) or not is_instance_valid(anchor):
+			return Transform3D.IDENTITY
+		return moving.global_transform.affine_inverse() * anchor.global_transform
+	return frame.get_occupant_frame_local_transform(record.get("occupant") as Node3D)
+
+
+## The locomotion hint: how fast the occupant is moving across the deck, in the
+## deck's own coordinates. A passenger standing still in a Halyard at cruise
+## reports zero here and flight speed in world space, which is why presentation
+## animates from this one and never from the world pose.
+func _network_moving_interior_velocity(record: Dictionary) -> Vector3:
+	if bool(record.get("seated", false)):
+		return Vector3.ZERO
+	var frame := record.get("frame") as MovingInteriorFrame
+	return frame.get_occupant_frame_local_velocity(record.get("occupant") as Node3D)
+
+
+## Cheap per-tick change detector. `MovingInteriorFrame` bumps its occupancy
+## revision when somebody joins or leaves it and never when somebody moves, so a
+## cabin that carries the same crew for a whole leg answers this with a handful
+## of integer compares and no allocation at all.
+func _network_moving_interior_roster_changed() -> bool:
+	if ships.size() != _network_moving_interior_fleet_size:
+		return true
+	if _piloting != _network_moving_interior_was_piloting:
+		return true
+	if is_instance_valid(network_session) \
+			and network_session.get_admitted_peer_epoch() != _network_moving_interior_peer_epoch:
+		return true
+	for entry_variant in _network_moving_interior_frames:
+		var entry := entry_variant as Dictionary
+		var frame := entry.get("frame") as MovingInteriorFrame
+		if not is_instance_valid(frame):
+			return true
+		if frame.get_occupancy_revision() != int(entry.get("revision", -1)):
+			return true
+	return false
+
+
+## Rebuilds who is published, and nothing about where they are. The allocating
+## path by construction: it runs when the roster changes, a craft joins or
+## leaves the fleet, the host takes or leaves a seat, or the admitted peer set
+## moves — never on a steady tick.
+func _rebuild_network_moving_interior_roster() -> void:
+	_network_moving_interior_dirty = false
+	_network_moving_interior_audit["rebuilds"] = \
+		int(_network_moving_interior_audit["rebuilds"]) + 1
+	_network_moving_interior_fleet_size = ships.size()
+	_network_moving_interior_was_piloting = _piloting
+	_network_moving_interior_peer_epoch = (
+		network_session.get_admitted_peer_epoch() if is_instance_valid(network_session) else 0
 	)
+	_network_moving_interior_recipient_epoch = -1
+	_network_moving_interior_frames.clear()
+	_network_moving_interior_roster.clear()
+	for fleet_ship in ships:
+		if not is_instance_valid(fleet_ship) or fleet_ship.is_destroyed():
+			continue
+		var frame := _resolve_network_moving_interior_frame(fleet_ship)
+		if not is_instance_valid(frame):
+			continue
+		var frame_id := StringName("frame_%s" % String(fleet_ship.get_ship_id()))
+		_network_moving_interior_frames.append({
+			"ship": fleet_ship,
+			"frame": frame,
+			"frame_id": frame_id,
+			"revision": frame.get_occupancy_revision(),
+		})
+		_register_network_moving_interior_frame(frame_id)
+		if _piloting and fleet_ship == active_ship and is_instance_valid(player):
+			_adopt_network_moving_interior_occupant(
+				fleet_ship, frame, frame_id, player,
+				StringName("pilot_%s" % String(fleet_ship.get_ship_id())), 1, true
+			)
+		for occupant in frame.get_registered_occupants():
+			if _network_moving_interior_roster.size() >= MOVING_INTERIOR_MAX_PUBLISHED_OCCUPANTS:
+				break
+			var entity_id := _network_moving_interior_entity_id(occupant, fleet_ship)
+			if entity_id.is_empty():
+				_network_moving_interior_audit["unidentified_occupants"] = \
+					int(_network_moving_interior_audit["unidentified_occupants"]) + 1
+				continue
+			_adopt_network_moving_interior_occupant(
+				fleet_ship, frame, frame_id, occupant, entity_id,
+				_network_moving_interior_owner_peer_id(occupant), false
+			)
+
+
+## The moving-interior coordinator of one craft, without paying for the whole
+## in-flight cabin report on a rebuild that only needs the node.
+func _resolve_network_moving_interior_frame(fleet_ship: HeroShip) -> MovingInteriorFrame:
+	if fleet_ship.has_method(&"get_moving_interior_component"):
+		return fleet_ship.get_moving_interior_component()
+	if not fleet_ship.supports_in_flight_cabin_access():
+		return null
+	return fleet_ship.get_in_flight_cabin_report().get("frame") as MovingInteriorFrame
+
+
+## Which published entity one body aboard a craft is.
+##
+## The host's own player is `pilot_<ship_id>` — the same identity its seat claim
+## uses, which is what makes leaving the seat a change of posture rather than a
+## new occupant. Crew attached through a craft's own crew-role seam carry the
+## avatar id the role authority admitted them under. A body nobody has claimed
+## is not published at all: the authority has no identity to speak for it, and
+## inventing one would put an unowned avatar in every client's cabin.
+func _network_moving_interior_entity_id(occupant: Node3D, fleet_ship: HeroShip) -> StringName:
+	if occupant == player:
+		return StringName("pilot_%s" % String(fleet_ship.get_ship_id()))
+	if occupant.has_meta(NETWORK_MOVING_INTERIOR_IDENTITY_META):
+		var identity := occupant.get_meta(NETWORK_MOVING_INTERIOR_IDENTITY_META, {}) as Dictionary
+		return StringName(identity.get("entity_id", &""))
+	if occupant.has_meta(HalyardCrewTransport.HALYARD_CREW_ROLE_OCCUPANT_META):
+		var crew := occupant.get_meta(
+			HalyardCrewTransport.HALYARD_CREW_ROLE_OCCUPANT_META, {}
+		) as Dictionary
+		return StringName(crew.get("avatar_id", &""))
+	return &""
+
+
+## Which peer is simulating this body, and therefore the one peer that must not
+## be shown it. The host's own player answers 1: the authority simulates it and
+## every client draws the server's copy.
+func _network_moving_interior_owner_peer_id(occupant: Node3D) -> int:
+	if occupant == player:
+		return 1
+	if occupant.has_meta(NETWORK_MOVING_INTERIOR_IDENTITY_META):
+		var identity := occupant.get_meta(NETWORK_MOVING_INTERIOR_IDENTITY_META, {}) as Dictionary
+		return maxi(1, int(identity.get("owner_peer_id", 1)))
+	if occupant.has_meta(HalyardCrewTransport.HALYARD_CREW_ROLE_OCCUPANT_META):
+		var crew := occupant.get_meta(
+			HalyardCrewTransport.HALYARD_CREW_ROLE_OCCUPANT_META, {}
+		) as Dictionary
+		return maxi(1, int(crew.get("occupant_peer_id", 1)))
+	return 1
+
+
+## Names one body to the moving-interior publisher from outside GameFlow.
+##
+## A craft that registers a crew member with its `MovingInteriorFrame` through
+## its own seam already carries the identity in its occupancy metadata and needs
+## nothing here. This exists for an owner that has no such metadata — a test
+## harness standing a second crew member in the cabin, or a future content seam
+## — and it names an occupant, it does not claim a seat: the occupancy, the
+## claim and the release all remain the authority's.
+func register_network_moving_interior_occupant(
+	occupant: Node3D,
+	entity_id: StringName,
+	owner_peer_id: int = 1
+) -> Dictionary:
+	if not is_instance_valid(occupant) or String(entity_id).is_empty():
+		return {"accepted": false, "status": &"invalid_moving_interior_occupant"}
+	occupant.set_meta(NETWORK_MOVING_INTERIOR_IDENTITY_META, {
+		"entity_id": entity_id,
+		"owner_peer_id": maxi(1, owner_peer_id),
+	})
+	_network_moving_interior_dirty = true
+	return {"accepted": true, "status": &"moving_interior_occupant_named", "entity_id": entity_id}
+
+
+## Takes one identified body into the published roster, creating its wire record
+## on first sight and re-using it on every later rebuild so an occupant who
+## walks through a roster change keeps its entity generation and its claim.
+func _adopt_network_moving_interior_occupant(
+	fleet_ship: HeroShip,
+	frame: MovingInteriorFrame,
+	frame_id: StringName,
+	occupant: Node3D,
+	entity_id: StringName,
+	owner_peer_id: int,
+	seated: bool
+) -> void:
+	var record := _network_moving_interior_records.get(entity_id, {}) as Dictionary
+	if record.is_empty():
+		record = {
+			"entity_id": entity_id,
+			"generation": 1,
+			"wire": MovingInteriorRelationshipType.create(
+				0, entity_id, 1, frame_id, 1, Transform3D.IDENTITY, Vector3.ZERO, Vector3.ZERO,
+				0, MovingInteriorRelationshipType.STATE_WALKING
+			).get_snapshot(),
+			"seen_tick": -1,
+			"registered": false,
+		}
+		_network_moving_interior_records[entity_id] = record
+		_network_moving_interior_audit["records_built"] = \
+			int(_network_moving_interior_audit["records_built"]) + 1
+	record["ship"] = fleet_ship
+	record["frame"] = frame
+	record["frame_id"] = frame_id
+	record["occupant"] = occupant
+	record["owner_peer_id"] = owner_peer_id
+	record["seated"] = seated
+	(record["wire"] as Dictionary)["parent_frame_id"] = frame_id
+	if not bool(record.get("registered", false)):
+		var registered: Dictionary = network_session.register_moving_interior_occupancy(
+			owner_peer_id, entity_id, int(record.get("generation", 1)), frame_id, 1
+		)
+		record["registered"] = bool(registered.get("accepted", false)) \
+			or registered.get("status") == &"duplicate_occupancy"
+	_network_moving_interior_roster.append(record)
+
+
+func _register_network_moving_interior_frame(frame_id: StringName) -> void:
+	if _network_moving_interior_registered_frames.has(frame_id):
+		return
+	var result: Dictionary = network_session.register_moving_interior_frame(frame_id, 1)
+	if bool(result.get("accepted", false)) or result.get("status") == &"duplicate_frame":
+		_network_moving_interior_registered_frames[frame_id] = true
+
+
+## Retires every occupancy this tick did not publish: a disembark, a craft lost,
+## a crew member who left the cabin, a frame that went away. One release
+## tombstone so the other clients stop drawing the body, and one
+## `retire_moving_interior_occupancy()` so the entity id is free to be claimed
+## again under a fresh generation rather than staying claimed forever.
+func _sweep_network_moving_interior_records(tick: int) -> int:
+	_network_moving_interior_retire_scratch.clear()
+	for entity_variant in _network_moving_interior_records:
+		var record := _network_moving_interior_records[entity_variant] as Dictionary
+		if int(record.get("seen_tick", -1)) != tick:
+			_network_moving_interior_retire_scratch.append(entity_variant)
+	for entity_variant in _network_moving_interior_retire_scratch:
+		_retire_network_moving_interior_record(StringName(entity_variant), &"occupancy_ended")
+	return _network_moving_interior_retire_scratch.size()
+
+
+func _retire_network_moving_interior_record(entity_id: StringName, reason: StringName) -> void:
+	var record := _network_moving_interior_records.get(entity_id, {}) as Dictionary
+	if record.is_empty():
+		return
+	var generation := maxi(1, int(record.get("generation", 1)))
+	_network_moving_interior_records.erase(entity_id)
+	_network_moving_interior_roster.erase(record)
+	_network_moving_interior_audit["retired"] = \
+		int(_network_moving_interior_audit["retired"]) + 1
+	_network_moving_interior_audit["last_retire_reason"] = reason
+	_network_moving_interior_dirty = true
+	if not is_instance_valid(network_session) or not network_session.is_server():
+		return
+	if not network_session.is_inside_tree():
+		# The session node has already left the tree and can no longer reach a
+		# peer. The local record is still dropped above; there is simply nobody
+		# left to tell, and asking the RPC anyway would only log an error.
+		return
+	network_session.publish_moving_interior_release(entity_id, generation)
+	network_session.retire_moving_interior_occupancy(entity_id, generation)
+
+
+## Ends every published occupancy at once: a session that stops, a whole-Main
+## detach, a host that stops being the authority. Deliberately the same retire
+## path as one crew member leaving, so no client is left holding a pose for a
+## body that will never be published again.
+func _retire_all_network_moving_interior_occupancy(reason: StringName) -> int:
+	_network_moving_interior_retire_scratch.clear()
+	for entity_variant in _network_moving_interior_records:
+		_network_moving_interior_retire_scratch.append(entity_variant)
+	for entity_variant in _network_moving_interior_retire_scratch:
+		_retire_network_moving_interior_record(StringName(entity_variant), reason)
+	var retired := _network_moving_interior_retire_scratch.size()
+	_network_moving_interior_retire_scratch.clear()
+	_network_moving_interior_frames.clear()
+	_network_moving_interior_roster.clear()
+	_network_moving_interior_records.clear()
+	_network_moving_interior_registered_frames.clear()
+	_network_moving_interior_recipient_cache.clear()
+	_network_moving_interior_recipient_epoch = -1
+	_network_moving_interior_dirty = true
+	return retired
+
+
+## Who one occupant's snapshots go to. The host's own body goes to everyone, and
+## an empty array is exactly how the adapter spells that, so the common case
+## builds nothing at all. A remote-owned body needs every admitted peer but its
+## owner, which is cached against the session's admission epoch and rebuilt only
+## when somebody joins or leaves.
+func _network_moving_interior_recipients(owner_peer_id: int) -> Array:
+	if owner_peer_id <= 1:
+		return NETWORK_MOVING_INTERIOR_ALL_PEERS
+	var epoch := network_session.get_admitted_peer_epoch()
+	if epoch != _network_moving_interior_recipient_epoch:
+		_network_moving_interior_recipient_epoch = epoch
+		_network_moving_interior_recipient_cache.clear()
+	var cached := _network_moving_interior_recipient_cache.get(owner_peer_id, []) as Array
+	if not _network_moving_interior_recipient_cache.has(owner_peer_id):
+		cached = []
+		for peer_variant in network_session.get_admitted_peer_ids():
+			if int(peer_variant) != owner_peer_id:
+				cached.append(int(peer_variant))
+		_network_moving_interior_recipient_cache[owner_peer_id] = cached
+		_network_moving_interior_audit["recipient_rebuilds"] = \
+			int(_network_moving_interior_audit["recipient_rebuilds"]) + 1
+	return cached
+
+
+## In-place wire writers. The relationship's transport arrays are built once per
+## occupant and then overwritten every tick, so a steady leg reuses the same
+## twelve floats instead of allocating a fresh array sixty times a second.
+func _write_moving_interior_transform(target: Array, value: Transform3D) -> void:
+	if target.size() != 12:
+		return
+	target[0] = value.basis.x.x
+	target[1] = value.basis.x.y
+	target[2] = value.basis.x.z
+	target[3] = value.basis.y.x
+	target[4] = value.basis.y.y
+	target[5] = value.basis.y.z
+	target[6] = value.basis.z.x
+	target[7] = value.basis.z.y
+	target[8] = value.basis.z.z
+	target[9] = value.origin.x
+	target[10] = value.origin.y
+	target[11] = value.origin.z
+
+
+func _write_moving_interior_vector(target: Array, value: Vector3) -> void:
+	if target.size() != 3:
+		return
+	target[0] = value.x
+	target[1] = value.y
+	target[2] = value.z
+
+
+## Inspectable counters for the publication seam. `rebuilds`, `records_built`
+## and `recipient_rebuilds` are the allocation story: all three stay put across
+## a steady leg and only move when the cabin's crew actually changes.
+func get_network_moving_interior_publication_audit() -> Dictionary:
+	var audit := _network_moving_interior_audit.duplicate(true)
+	audit["server_tick"] = _network_moving_interior_server_tick
+	audit["tracked_entities"] = _network_moving_interior_records.size()
+	audit["tracked_frames"] = _network_moving_interior_frames.size()
+	audit["owns_seat_authority"] = false
+	audit["owns_movement_authority"] = false
+	return audit
+
+
+## Entity ids the publisher is currently speaking for, in roster order.
+func get_network_moving_interior_published_entities() -> Array:
+	var entities: Array = []
+	for entity_variant in _network_moving_interior_records:
+		entities.append(StringName(entity_variant))
+	return entities
+
 
 
 ## Network presentation seam. `_publish_network_moving_interior_state()` above is

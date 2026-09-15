@@ -233,19 +233,157 @@ the other clients to stop drawing a crew member, but nothing retired the
 authority's own occupancy record, so a released entity id stayed claimed and
 could never be re-registered under a fresh generation.
 
+## What the server publishes
+
+`GameFlow._advance_network_moving_interior_publication()` is the authority half,
+and it runs every server physics tick. Until now it published one thing — the
+seated pilot, at the cabin origin — so a client drew whatever posture that was
+and nothing else. It now publishes **every occupant of every moving interior in
+the fleet**: the pilot who leaves the seat and walks the aisle, a crew member
+attached through a craft's own crew-role seam, and the sleeper in a bunk, each
+with its live frame-local pose, its occupancy state and its locomotion hint.
+
+The occupancy is not invented there. `MovingInteriorFrame` is the node that
+physically carries these bodies, so it already knows who is aboard; the
+publisher reads that roster rather than keeping a second ledger that could
+disagree with the one physics uses. Three accessors were added to it, all
+read-only:
+
+* `get_occupancy_revision()` — a counter bumped by every registration, release
+  and pruned dead occupant, and by nothing else. Pose changes are not roster
+  changes, so a cabin that carries the same crew for a whole leg answers "has
+  anything changed?" with one integer compare.
+* `get_occupant_frame_local_transform()` — where an occupant is standing, in the
+  cabin's floor plan rather than the world.
+* `get_occupant_frame_local_velocity()` — how fast they are crossing the deck.
+  While a body is aboard the frame leaves its `velocity` as occupant-relative
+  world velocity, so this is the walking speed and not the flight speed. A
+  passenger standing still in a Halyard at cruise reports zero here and several
+  hundred km/h in world space, which is why presentation animates from this one.
+
+### Identity, and what a posture is not
+
+One relationship per occupant, not one per posture. A pilot who leaves the seat
+keeps `pilot_<ship_id>` and the entity generation the seat claim established; the
+snapshot changes from a seated pose at the craft's own seat anchor to a walking
+pose read from the frame, and the claim underneath is untouched. Sitting back
+down, sleeping and waking are the same: a change of `occupancy_state`, never a
+new claim. `tests/network_moving_interior_publication_test.gd` asserts the
+authority's occupancy record carries the same entity generation across the whole
+sit → walk → sleep → wake → disembark arc.
+
+The host's own player is `pilot_<ship_id>`. A body attached through a craft's
+crew-role seam carries the avatar id the role authority admitted it under.
+Anything else aboard is **not published at all** and is counted as an
+unidentified occupant: the authority has no identity to speak for it, and
+inventing one would put an unowned avatar in every client's cabin.
+`register_network_moving_interior_occupant()` is the seam for an owner that has
+no such metadata; it names a body, it does not claim a seat.
+
+### Who is shown what
+
+An occupant owned by a remote peer is published to every admitted peer *except*
+that one. That peer is simulating the body locally, and drawing the server's echo
+of it as well would stand two of them in the cabin, one frame apart. The host's
+own player has no remote peer to exclude and goes to everyone. When the owner is
+the only admitted peer, nothing is sent at all rather than an empty recipient
+list, which the adapter would read as "everyone".
+
+### `occupancy_state`, and the priority rule
+
+The relationship wire carries one new field, `occupancy_state` (schema version
+2): `STATE_WALKING`, `STATE_SEATED`, `STATE_SLEEPING`. The pose alone cannot tell
+a crewmate asleep in a bunk from one standing motionless beside it, and a client
+that only has the pose has to guess. It is read twice:
+
+* **Presentation.** `NetworkMovingInteriorPresenter` poses a secured occupant
+  from the state instead of from the smoothed frame-local speed, so a pilot in a
+  seat during a hard turn is not animated as sprinting on the spot and a sleeper
+  is drawn lying down rather than idling.
+* **The budget.** A secured occupancy is published at
+  `MOVING_INTERIOR_PRIORITY_CRITICAL`; a walking one is not.
+
+That is the whole priority rule, and it buys exactly one thing. The per-recipient
+budget coalesces: past 8 snapshots in a 10-tick window a further snapshot is
+parked as that recipient's newest pending pose for the entity and sent when the
+window rolls. For a walking crew member that is right — the parked stride is
+stale by a few ticks and then replaced. For a seat or bunk pose it is wrong: that
+snapshot is not one of a stream, it is the statement that the pilot is now in the
+pilot seat, and a busy cabin that coalesces it leaves the pilot drawn standing in
+mid-cabin on every other client until they get up again. `CRITICAL` means the
+snapshot is sent in the window it was published in instead of being parked. It
+never raises the byte ceiling, never bypasses the packet-size limit and grants no
+authority; a flood of critical snapshots is a flood of ordinary packets. The new
+suite measures both halves in one busy-cabin leg: with two occupants at 60 Hz the
+budget really does coalesce (32 snapshots in one measured run), the walking body
+is the one that falls behind, and the secured body's worst observed lag is one
+tick.
+
+### Retirement
+
+Occupancy retires by mark-and-sweep on the same tick: an entity the publish pass
+did not touch gets one release tombstone, so the other clients stop drawing it,
+and one `retire_moving_interior_occupancy()`, so the entity id is free to be
+claimed again under a fresh generation instead of staying claimed forever. That
+covers a crew member leaving the cabin, a disembark, craft loss, a frame that
+went away and a whole-Main detach, which retires everything from `tree_exiting`
+— while the session node is still in the tree and can still reach its peers —
+rather than from `_exit_tree`, by which time it cannot.
+
+### Steady state
+
+The roster, each occupant's record and each recipient list are built when the
+cabin's crew, the fleet or the admitted peer set changes, and then reused and
+mutated in place: the relationship's twelve transform floats and three velocity
+floats are overwritten each tick rather than reallocated.
+`get_network_moving_interior_publication_audit()` counts every one of those
+builds, and the suite drives a 40-tick steady leg and asserts all three counters
+stay put while the poses keep going out. The adapter's own publication cost —
+duplicating the wire packet per recipient — is unchanged and is not part of this
+seam's claim.
+
+## Defects found and fixed by the publication gate
+
+**5. A released crew member was resurrected by their own withheld snapshot.**
+`publish_moving_interior_release()` retired the entity everywhere except the one
+place that was still holding a copy of it: the per-recipient *pending* map. The
+budget parks a coalesced pose there and flushes it when the window rolls, so a
+crew member who left a busy cabin was re-published a few ticks after their own
+tombstone and stood back up mid-aisle on every other client, permanently.
+Reachable exactly when a cabin is busy enough to coalesce — which is when
+somebody is most likely to step out of it. Fixed by dropping that entity's
+pending packet and recipient record for every target peer as part of the release.
+Witness: `the other client stops drawing a crew member who left the cabin` and
+`the released crew member's avatar is gone, not frozen mid-aisle`.
+
+**6. An inactive peer was asked for an authority answer.**
+`MovingInteriorFrame._can_simulate_occupant()` guarded against *no* multiplayer
+peer but not against one that exists and is not connected, so a registration
+during a stopped or half-connected session called `get_unique_id()` on a dead
+ENet peer and logged an error instead of answering. A session that has stopped is
+the same situation as no session at all: this peer simulates its own occupants.
+
 ## What remains before broadening player counts
 
-* **The walking pose is still published by the suites, not by GameFlow.**
-  `_publish_network_moving_interior_state()` publishes the seated pilot at the
-  cabin origin; it does not yet publish a walking cabin occupant's live
-  frame-local pose each tick. The presenter draws whatever the server publishes,
-  and both suites drive the real walk through the production stream, but
-  authority-side publication of an on-foot cabin occupant is the next step.
-* **Per-recipient budget headroom.** The sweep deliberately advances a whole
-  budget window per round so its own traffic is never coalesced. With more
-  occupants the 8-snapshots/10-tick ceiling is the next thing to characterise —
-  defect 1 shows coalescing is a real source of tick holes, not a theoretical
-  one.
+* **A re-entered Main cannot host again cleanly.** `GameFlow._exit_tree()`
+  closes its session and drops its reference to the adapter, but leaves the node
+  parented under Main. A later `host_network_session()` adds a second adapter
+  whose name collides with the corpse and is auto-renamed, and every production
+  RPC path then resolves to a node the clients do not have.
+  `tests/network_moving_interior_publication_test.gd` clears the stale node
+  before re-hosting so it can measure occupancy publication rather than this;
+  the session-lifecycle fix itself is outstanding.
+* **Per-recipient budget headroom at latency.** The publication gate
+  characterises the 8-snapshots/10-tick ceiling with two occupants on a direct
+  transport: the budget coalesces, the walking body is what falls behind and a
+  secured body never is. What that ceiling does to a *walking* crowd under the
+  latency profiles above, where coalescing and transport gaps compound, is the
+  next thing to measure.
+* **Remote bodies are still named, not simulated.** The publisher speaks for
+  every identified occupant of a `MovingInteriorFrame`, but the only bodies the
+  server actually simulates on foot today are its own player and whatever a
+  craft's crew-role seam attaches. Server-side avatars driven by remote movement
+  intent are the next step.
 * **Two clients only.** This gate establishes the relationship stream's
   behaviour for one pilot and one walker. Interest management and the resync
   baseline under many occupants are untested at latency.
