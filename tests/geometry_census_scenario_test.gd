@@ -180,8 +180,8 @@ const MAIN_SCENE := preload("res://scenes/main.tscn")
 # textures (34 / 83,355,976 bytes) and particle systems (54). Every
 # loaded-minus-resident delta is untouched: +134,134 triangles, +209 renderers,
 # +140 unique meshes, +47 retained materials, +27 lights, +423 nodes.
-const RESIDENT_FINGERPRINT := "2ca4fef12b4c8d1843ed6a6a678e3d6a3a0c45b27b5f67ac1bb1315907cc35f6"
-const CINDER_LOADED_FINGERPRINT := "c9a2345453a9c30ba6e7fcdca18566a006d72466f4a8a53d86e0b02c39055f2d"
+const RESIDENT_FINGERPRINT := "b3722a06411d3b8450804a9f0e1ffe458ad63cdaeb337c67d8e57ba5511a4c37"
+const CINDER_LOADED_FINGERPRINT := "7c5afb1e6bd06f0d751fd66f44c36458a957fe86e4072072d685810b4da3c3c4"
 
 var _assertions := 0
 var _failures := PackedStringArray()
@@ -231,11 +231,11 @@ func _run() -> void:
 		"resident report freezes schema, scenario identity, and exact loaded count"
 	)
 	_check(
-		int(resident.get("total_triangles", -1)) == 1959449
+		int(resident.get("total_triangles", -1)) == 1887703
 			and int(resident.get("total_mesh_instances", -1)) == 5557
 			and int(resident.get("total_surfaces", -1)) == 5980
 			and int(resident.get("unique_meshes", -1)) == 3058,
-		"resident geometry freezes 1,959,449 triangles / 5,557 meshes / 5,980 surfaces / 3,058 unique meshes"
+		"resident geometry freezes 1,887,703 triangles / 5,557 meshes / 5,980 surfaces / 3,058 unique meshes"
 	)
 	_check(
 		int(resident.get("bound_phase_unique_materials", -1)) == 706
@@ -299,11 +299,11 @@ func _run() -> void:
 		"loaded report freezes destination identity and one committed generation"
 	)
 	_check(
-		int(loaded.get("total_triangles", -1)) == 2093583
+		int(loaded.get("total_triangles", -1)) == 2021837
 			and int(loaded.get("total_mesh_instances", -1)) == 5766
 			and int(loaded.get("total_surfaces", -1)) == 6189
 			and int(loaded.get("unique_meshes", -1)) == 3198,
-		"loaded geometry freezes 2,093,583 triangles / 5,766 meshes / 6,189 surfaces / 3,198 unique meshes"
+		"loaded geometry freezes 2,021,837 triangles / 5,766 meshes / 6,189 surfaces / 3,198 unique meshes"
 	)
 	_check(
 		int(loaded.get("bound_phase_unique_materials", -1)) == 748

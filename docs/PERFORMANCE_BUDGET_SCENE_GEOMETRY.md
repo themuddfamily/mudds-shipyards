@@ -182,7 +182,7 @@ in this document has been raised.**
 
 | Schema-v2 metric | Station resident (0 loaded) | Cinder loaded (1 loaded) | Loaded delta |
 | --- | ---: | ---: | ---: |
-| Triangles | 1,959,449 | 2,093,583 | +134,134 |
+| Triangles | 1,887,703 | 2,021,837 | +134,134 |
 | Mesh renderer nodes | 5,557 | 5,766 | +209 |
 | Surfaces | 5,980 | 6,189 | +209 |
 | Unique meshes | 3,058 | 3,198 | +140 |
