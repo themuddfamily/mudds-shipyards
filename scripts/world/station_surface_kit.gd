@@ -259,6 +259,115 @@ static func quantized_radial_segments(segments: int) -> int:
 	return int(ceil(float(maxi(4, segments)) / 4.0)) * 4
 
 
+## ## Declared-view tessellation for torus and sphere stock (ninth trim)
+##
+## The two primitives the census found cheapest to trim — 192 `TorusMesh` at
+## 905 triangles and 226 `SphereMesh` at 474 — were budgeted at walk-up range
+## whatever their placement. These two entry points are the one place a station
+## module or a craft declares how close a camera actually gets to a collar or a
+## lens, and receive back the coarsest tessellation the shared sagitta rule and
+## the distance-scaled floors allow, never above what the builder authored.
+##
+## The torus rule lives in `TorusGeometryBudget` (it owns the ring floors and the
+## sweep); the sphere rule is `ShipGeometryBudget.sphere_plan` carried out to a
+## declared distance in the same way: its 16x8 walk-up floor scales with the
+## declaration down to `SPHERE_FAR_MIN_RADIAL_SEGMENTS` x `SPHERE_FAR_MIN_RINGS`,
+## the recipe the freight berth's own guide lenses already ship at.
+
+## Eye height of a standing player, the figure every "seen from the deck"
+## declaration in the modules subtracts from a fitting's height.
+const STANDING_EYE_HEIGHT_METRES := 1.75
+
+## A ring recessed into, or lying flush on, the deck a player stands on: tie-down
+## sockets, umbilical deck connectors, lashing rings. From a 1.75 m eye the
+## fitting is at least 1.6 m away — straight down is the closest case and the
+## body's own capsule keeps it under the eye rather than at it.
+const DECK_FLUSH_NEAREST_VIEW_METRES := 1.6
+
+## Coarsest sphere this project will draw at any declared distance: twelve
+## meridians and six rings, the recipe the Jovian freight berth's eighteen guide
+## lenses have shipped at.
+const SPHERE_FAR_MIN_RADIAL_SEGMENTS := 12
+const SPHERE_FAR_MIN_RINGS := 6
+
+
+## Sphere radial floor at a declared distance: the walk-up 16 carried out at the
+## same angular edge, never under `SPHERE_FAR_MIN_RADIAL_SEGMENTS`.
+static func sphere_radial_floor_for(nearest_view_metres: float) -> int:
+	var declared := _declared_view(nearest_view_metres)
+	if declared <= TorusGeometryBudget.NEAR_EYE_METRES:
+		return ShipGeometryBudget.MIN_SPHERE_RADIAL_SEGMENTS
+	return maxi(SPHERE_FAR_MIN_RADIAL_SEGMENTS, quantized_radial_segments(int(ceil(
+		float(ShipGeometryBudget.MIN_SPHERE_RADIAL_SEGMENTS)
+		* TorusGeometryBudget.NEAR_EYE_METRES / declared
+	))))
+
+
+## Sphere ring floor at a declared distance, likewise from the walk-up 8.
+static func sphere_rings_floor_for(nearest_view_metres: float) -> int:
+	var declared := _declared_view(nearest_view_metres)
+	if declared <= TorusGeometryBudget.NEAR_EYE_METRES:
+		return ShipGeometryBudget.MIN_SPHERE_RINGS
+	return maxi(SPHERE_FAR_MIN_RINGS, int(ceil(
+		float(ShipGeometryBudget.MIN_SPHERE_RINGS)
+		* TorusGeometryBudget.NEAR_EYE_METRES / declared
+	)))
+
+
+## `(radial_segments, rings)` for a `SphereMesh` of world-space `radius` whose
+## closest camera approach is `nearest_view_metres`, never above the authored
+## pair. `rings` stays at half the radial count so the meridian and equator
+## samplings of the silhouette remain balanced, as `sphere_plan` keeps them.
+static func sphere_tessellation_for(
+		radius: float,
+		nearest_view_metres: float,
+		authored_radial_segments: int,
+		authored_rings: int
+	) -> Vector2i:
+	if not is_finite(radius) or radius <= 0.0:
+		return Vector2i(authored_radial_segments, authored_rings)
+	var declared := _declared_view(nearest_view_metres)
+	var distance := maxf(declared, TorusGeometryBudget.FRAME_RATIO * radius)
+	var allowance := TorusGeometryBudget.TOLERANCE_RADIANS * distance
+	var radial := quantized_radial_segments(TorusGeometryBudget.segments_for(
+		radius, allowance, sphere_radial_floor_for(declared)
+	))
+	var rings := maxi(sphere_rings_floor_for(declared), int(ceil(float(radial) * 0.5)))
+	# Godot's `SphereMesh` cuts the meridian into `rings + 1` bands, so only an
+	# odd ring count puts a vertex ring on the equator — the widest circle of the
+	# silhouette and the one every dimension contract measures. A declared
+	# answer is therefore made odd: 12x7 rather than 12x6 costs 24 triangles a
+	# sphere and keeps the authored radius exact on all three axes, where the
+	# even authored 24x12 already sat 0.7% inside it.
+	if declared > TorusGeometryBudget.NEAR_EYE_METRES and rings % 2 == 0:
+		rings += 1
+	return Vector2i(mini(authored_radial_segments, radial), mini(authored_rings, rings))
+
+
+## `(rings, ring_segments)` for a `TorusMesh` of the given world-space radii whose
+## closest camera approach is `nearest_view_metres`, never above the authored
+## pair. This is `TorusGeometryBudget.plan` for builders that tessellate a shared
+## resource themselves (MultiMesh stock and craft built after the startup sweep).
+static func torus_tessellation_for(
+		inner_radius: float,
+		outer_radius: float,
+		nearest_view_metres: float,
+		authored_rings: int,
+		authored_ring_segments: int
+	) -> Vector2i:
+	var chosen := TorusGeometryBudget.plan(outer_radius, inner_radius, nearest_view_metres)
+	return Vector2i(
+		mini(authored_rings, int(chosen["rings"])),
+		mini(authored_ring_segments, int(chosen["ring_segments"]))
+	)
+
+
+static func _declared_view(nearest_view_metres: float) -> float:
+	if not is_finite(nearest_view_metres):
+		return TorusGeometryBudget.NEAR_EYE_METRES
+	return maxf(TorusGeometryBudget.NEAR_EYE_METRES, nearest_view_metres)
+
+
 ## Shadow-only geometry is not held to the screen rule, because a shadow's edge
 ## is not resolved in screen pixels: it is resolved in shadow-map texels and then
 ## filtered. `ShipyardWorld` runs the station key light at Godot's default

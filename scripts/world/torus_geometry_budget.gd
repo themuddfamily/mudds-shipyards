@@ -146,6 +146,51 @@ const SILHOUETTE_TUBE_FRACTION := 0.20
 const MIN_RINGS := 32
 const MIN_RING_SEGMENTS := 12
 
+## ## The declared-view rule (ninth trim)
+##
+## The floors above were photographed at `NEAR_EYE_METRES`, and the tube rule
+## always budgets at that range, because a torus *can* be anywhere. Most of the
+## station's collars cannot: a pipe collar on a 3.6 m service run, a roof-vent
+## collar on a 5.3 m roof, a lashing ring recessed into the deck plate under a
+## standing eye. Every one of those still carried the 0.6 m answer, and the
+## whole-scene census found 174,000 triangles of `TorusMesh` at 905 each — the
+## cheapest headroom left against the 1,800,000 ceiling.
+##
+## A builder may therefore *declare* the nearest distance a camera can be taken
+## to a ring — the same declaration `StationSurfaceKit.radial_segments_for` and
+## the module rib builders already make for round stock — and the plan is then
+## solved at that distance:
+##
+## - The sagitta rule is unchanged: `TOLERANCE_RADIANS` at the declared
+##   distance, still capped at a fraction of the tube for the major sweep.
+## - The floor scales with the declaration. A polygon is read by its *angular*
+##   edge length, not its metric error, so the photographed 32x12 at 0.6 m is
+##   carried to a further distance as `32 * 0.6 / d` and `12 * 0.6 / d`: the
+##   same angular sampling the walk-up floor was judged clean at. Below
+##   `FAR_MIN_RINGS` x `FAR_MIN_RING_SEGMENTS` nothing goes, whatever the
+##   distance: a 12-gon is the coarsest circle this project will draw, and eight
+##   is the cardinal-aligned tube section the bounded profiles below already use.
+## - Declared answers are rounded up to a multiple of `RADIAL_ALIGNMENT` so a
+##   vertex lands on every cardinal direction of both circles: the ring's x/z
+##   footprint and the tube's thickness stay exactly the authored extrema, which
+##   is what lets every family's AABB contract hold to the millimetre.
+##
+## Undeclared rings — anything a builder has not measured — keep the walk-up
+## rule bit for bit. A declaration never raises tessellation and never lowers
+## the floor a walk-up ring is held to; it only says how far away the ring is.
+const FAR_MIN_RINGS := 12
+const FAR_MIN_RING_SEGMENTS := 8
+const RADIAL_ALIGNMENT := 4
+
+## Declared nearest-view distances, keyed by `TorusMesh` instance id.
+##
+## A registry rather than metadata, deliberately: the module audits freeze the
+## exact metadata list on their collar meshes and renderer nodes (one key, the
+## authored tessellation, after the sweep; none before it), and a builder must
+## be able to declare a distance without moving any of those contracts. The
+## sweep consults it; `apply` consults it when not given a distance directly.
+static var _declared_nearest_view: Dictionary = {}
+
 ## Smallest saving worth perturbing a builder's authored geometry for.
 ##
 ## The rule sometimes lands one or two segments below what a builder chose — the
@@ -207,28 +252,97 @@ static func segments_for(radius: float, allowed_error: float, minimum: int) -> i
 	return maxi(minimum, int(ceil(PI / half_angle)))
 
 
+## Declares the nearest distance a camera can be taken to any instance of
+## `mesh`, in metres, for the sweep and `apply` to solve at. Never raises the
+## tessellation; a declaration under walk-up range is the walk-up rule.
+static func declare_nearest_view(mesh: TorusMesh, nearest_view_metres: float) -> TorusMesh:
+	if mesh == null:
+		return mesh
+	# A shared resource is budgeted at the closest of its uses: a second
+	# declaration can only bring the distance in, never push it out.
+	var key := mesh.get_instance_id()
+	var declared := _sanitised_view(nearest_view_metres)
+	if _declared_nearest_view.has(key):
+		declared = minf(declared, float(_declared_nearest_view[key]))
+	_declared_nearest_view[key] = declared
+	return mesh
+
+
+## The distance declared for `mesh`, or walk-up range when nothing was declared.
+static func nearest_view_for(mesh: TorusMesh) -> float:
+	if mesh == null:
+		return NEAR_EYE_METRES
+	return float(_declared_nearest_view.get(mesh.get_instance_id(), NEAR_EYE_METRES))
+
+
+static func _sanitised_view(nearest_view_metres: float) -> float:
+	if not is_finite(nearest_view_metres):
+		return NEAR_EYE_METRES
+	return maxf(NEAR_EYE_METRES, nearest_view_metres)
+
+
+## Rounds a declared count up to the next multiple of `RADIAL_ALIGNMENT`.
+static func aligned(segments: int) -> int:
+	return int(ceil(float(maxi(segments, RADIAL_ALIGNMENT)) / float(RADIAL_ALIGNMENT))) * RADIAL_ALIGNMENT
+
+
+## Major-sweep floor at a declared distance: the photographed 32 carried out to
+## `nearest_view_metres` at the same angular edge, never under `FAR_MIN_RINGS`.
+static func floor_rings_for(nearest_view_metres: float) -> int:
+	var declared := _sanitised_view(nearest_view_metres)
+	if declared <= NEAR_EYE_METRES:
+		return MIN_RINGS
+	return maxi(FAR_MIN_RINGS, aligned(int(ceil(float(MIN_RINGS) * NEAR_EYE_METRES / declared))))
+
+
+## Tube-section floor at a declared distance, likewise from the photographed 12.
+static func floor_ring_segments_for(nearest_view_metres: float) -> int:
+	var declared := _sanitised_view(nearest_view_metres)
+	if declared <= NEAR_EYE_METRES:
+		return MIN_RING_SEGMENTS
+	return maxi(
+		FAR_MIN_RING_SEGMENTS,
+		aligned(int(ceil(float(MIN_RING_SEGMENTS) * NEAR_EYE_METRES / declared)))
+	)
+
+
 ## Tessellation this budget would choose for a torus of the given world-space
 ## radii, ignoring whatever was authored.
 ##
 ## `outer_radius` and `inner_radius` are the `TorusMesh` properties already
 ## multiplied by the instance's world scale, so this works on the size a player
-## actually sees rather than on the size the builder typed.
+## actually sees rather than on the size the builder typed. `nearest_view_metres`
+## is the builder's declared closest approach; at or under `NEAR_EYE_METRES` this
+## is exactly the walk-up rule the floors were photographed for.
 ##
 ## Returns `{"rings": int, "ring_segments": int}`.
-static func plan(outer_radius: float, inner_radius: float) -> Dictionary:
+static func plan(
+		outer_radius: float,
+		inner_radius: float,
+		nearest_view_metres: float = NEAR_EYE_METRES
+	) -> Dictionary:
 	var major_radius := (outer_radius + inner_radius) * 0.5
 	var tube_radius := (outer_radius - inner_radius) * 0.5
-	# Major sweep: seen from at least far enough that the ring fits the frame.
-	var major_distance := maxf(NEAR_EYE_METRES, FRAME_RATIO * major_radius)
+	var declared := _sanitised_view(nearest_view_metres)
+	# Major sweep: seen from at least far enough that the ring fits the frame,
+	# and never nearer than the builder declared.
+	var major_distance := maxf(declared, FRAME_RATIO * major_radius)
 	var major_allowance := TOLERANCE_RADIANS * major_distance
 	if tube_radius > 0.0:
 		# ...but never allowed to wobble by much of the tube's own thickness.
 		major_allowance = minf(major_allowance, SILHOUETTE_TUBE_FRACTION * tube_radius)
-	# Tube cross-section: a local feature, always budgeted at walk-up range.
-	var tube_allowance := TOLERANCE_RADIANS * NEAR_EYE_METRES
+	# Tube cross-section: a local feature, budgeted at the declared range.
+	var tube_allowance := TOLERANCE_RADIANS * declared
+	if declared <= NEAR_EYE_METRES:
+		return {
+			"rings": segments_for(major_radius, major_allowance, MIN_RINGS),
+			"ring_segments": segments_for(tube_radius, tube_allowance, MIN_RING_SEGMENTS),
+		}
 	return {
-		"rings": segments_for(major_radius, major_allowance, MIN_RINGS),
-		"ring_segments": segments_for(tube_radius, tube_allowance, MIN_RING_SEGMENTS),
+		"rings": aligned(segments_for(major_radius, major_allowance, floor_rings_for(declared))),
+		"ring_segments": aligned(segments_for(
+			tube_radius, tube_allowance, floor_ring_segments_for(declared)
+		)),
 	}
 
 
@@ -247,8 +361,11 @@ const AUTHORED_META := "torus_budget_authored_tessellation"
 ##
 ## Never increases either count: where the rule asks for more than the builder
 ## authored, the authored value stands. Returns the mesh so callers can chain.
-static func apply(mesh: TorusMesh, world_scale := 1.0) -> TorusMesh:
-	return apply_profile(mesh, world_scale, &"")
+## `nearest_view_metres` is the builder's declared closest approach; left
+## negative, a distance declared through `declare_nearest_view` is used, and
+## an undeclared mesh is budgeted at walk-up range.
+static func apply(mesh: TorusMesh, world_scale := 1.0, nearest_view_metres := -1.0) -> TorusMesh:
+	return apply_profile(mesh, world_scale, &"", nearest_view_metres)
 
 
 ## Applies the general plan, with one deliberately narrow presentation profile
@@ -257,14 +374,23 @@ static func apply(mesh: TorusMesh, world_scale := 1.0) -> TorusMesh:
 static func apply_profile(
 		mesh: TorusMesh,
 		world_scale: float,
-		profile: StringName
+		profile: StringName,
+		nearest_view_metres := -1.0
 	) -> TorusMesh:
 	if mesh == null:
 		return mesh
 	if not mesh.has_meta(AUTHORED_META):
 		mesh.set_meta(AUTHORED_META, Vector2i(mesh.rings, mesh.ring_segments))
 	var scale_factor := maxf(world_scale, 0.0001)
-	var chosen := plan(mesh.outer_radius * scale_factor, mesh.inner_radius * scale_factor)
+	# An explicit distance is a declaration: it is recorded so the sweep, the
+	# census and the budget suite all read the same nearest view for this mesh.
+	if nearest_view_metres > NEAR_EYE_METRES:
+		declare_nearest_view(mesh, nearest_view_metres)
+	var declared := nearest_view_for(mesh) if nearest_view_metres < 0.0 \
+		else minf(_sanitised_view(nearest_view_metres), nearest_view_for(mesh))
+	var chosen := plan(
+		mesh.outer_radius * scale_factor, mesh.inner_radius * scale_factor, declared
+	)
 	var rings := mini(mesh.rings, int(chosen["rings"]))
 	var segments := mini(mesh.ring_segments, int(chosen["ring_segments"]))
 	if profile == PROFILE_OCCLUDED_CHAIR_BEARING:
@@ -333,7 +459,9 @@ static func normalise_tree(node: Node) -> Dictionary:
 			var authored: Vector2i = mesh.get_meta(AUTHORED_META)
 			baseline_mesh.rings = authored.x
 			baseline_mesh.ring_segments = authored.y
-		apply(baseline_mesh, float(entry["scale"]))
+		# The baseline column is the walk-up rule regardless of any declaration,
+		# so a report always shows what the declared distance bought.
+		apply(baseline_mesh, float(entry["scale"]), NEAR_EYE_METRES)
 		var baseline := triangles_of(baseline_mesh) * instances
 		report["tori"] = int(report["tori"]) + instances
 		report["triangles_before"] = int(report["triangles_before"]) + before

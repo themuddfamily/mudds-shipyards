@@ -49,10 +49,158 @@ func _init() -> void:
 
 func _run() -> void:
 	_check_plan_contract()
+	_check_declared_view_contract()
 	await _check_world_rings()
 	_check_sweep_is_idempotent()
 	_check_authored_values_round_trip()
 	_finish()
+
+
+## The declared-view rule (ninth trim): a builder may state how close a camera
+## gets to a ring, and the plan is solved there with floors that scale with the
+## declaration. What this guards: walk-up rings are bit-for-bit unchanged, a
+## declaration never raises tessellation, the far floors hold, declared answers
+## stay cardinal-aligned so AABB contracts hold, and a shared mesh can only ever
+## be declared closer.
+func _check_declared_view_contract() -> void:
+	# At or under walk-up range the rule is exactly the photographed one.
+	for radii in [[0.25, 0.16], [0.19, 0.12], [0.74, 0.55], [9.0, 8.7]]:
+		var walk_up := TorusGeometryBudget.plan(radii[0], radii[1])
+		var declared_near := TorusGeometryBudget.plan(radii[0], radii[1], 0.3)
+		var declared_eye := TorusGeometryBudget.plan(
+			radii[0], radii[1], TorusGeometryBudget.NEAR_EYE_METRES
+		)
+		_check(
+			walk_up == declared_near and walk_up == declared_eye,
+			"a %.2f m ring declared at or under walk-up range keeps the walk-up plan" % radii[0]
+		)
+	_check(
+		TorusGeometryBudget.floor_rings_for(TorusGeometryBudget.NEAR_EYE_METRES)
+			== TorusGeometryBudget.MIN_RINGS
+		and TorusGeometryBudget.floor_ring_segments_for(TorusGeometryBudget.NEAR_EYE_METRES)
+			== TorusGeometryBudget.MIN_RING_SEGMENTS,
+		"the walk-up floors are the photographed 32x12"
+	)
+
+	# The floors scale with distance and never pass the far floors.
+	_check(
+		TorusGeometryBudget.floor_rings_for(1.0) == 20
+		and TorusGeometryBudget.floor_rings_for(1.6) == 12
+		and TorusGeometryBudget.floor_rings_for(3.4) == TorusGeometryBudget.FAR_MIN_RINGS
+		and TorusGeometryBudget.floor_rings_for(100.0) == TorusGeometryBudget.FAR_MIN_RINGS
+		and TorusGeometryBudget.floor_ring_segments_for(1.0) == 8
+		and TorusGeometryBudget.floor_ring_segments_for(3.4) == TorusGeometryBudget.FAR_MIN_RING_SEGMENTS
+		and TorusGeometryBudget.FAR_MIN_RINGS >= 12
+		and TorusGeometryBudget.FAR_MIN_RING_SEGMENTS >= 8,
+		"declared floors scale from the photographed pair and stop at 12x8"
+	)
+
+	# A declared answer is never finer than the walk-up answer, never coarser
+	# than the far floor, and always a multiple of four on both circles.
+	for distance in [1.0, 1.6, 2.5, 3.4, 8.0]:
+		for radii in [[0.25, 0.16], [0.19, 0.12], [0.46, 0.34], [2.55, 2.25]]:
+			var walk_up := TorusGeometryBudget.plan(radii[0], radii[1])
+			var declared := TorusGeometryBudget.plan(radii[0], radii[1], distance)
+			_check(
+				int(declared["rings"]) <= int(walk_up["rings"])
+				and int(declared["ring_segments"]) <= int(walk_up["ring_segments"])
+				and int(declared["rings"]) >= TorusGeometryBudget.FAR_MIN_RINGS
+				and int(declared["ring_segments"]) >= TorusGeometryBudget.FAR_MIN_RING_SEGMENTS
+				and int(declared["rings"]) % TorusGeometryBudget.RADIAL_ALIGNMENT == 0
+				and int(declared["ring_segments"]) % TorusGeometryBudget.RADIAL_ALIGNMENT == 0,
+				"a %.2f m ring declared at %.1f m plans %dx%d: under the walk-up %dx%d, over the far floor, cardinal-aligned" % [
+					radii[0], distance, int(declared["rings"]), int(declared["ring_segments"]),
+					int(walk_up["rings"]), int(walk_up["ring_segments"]),
+				]
+			)
+
+	# The large-ring calibration survives a declaration: the sweep of a ring a
+	# player reads as a circle is still 40 at the exterior range's approach.
+	var drone_ring := TorusGeometryBudget.plan(2.55, 2.25, 3.0)
+	_check(
+		int(drone_ring["rings"]) >= LARGE_RING_MINIMUM_RINGS,
+		"a 2.55 m ring declared at 3 m keeps %d rings (got %d)" % [
+			LARGE_RING_MINIMUM_RINGS, int(drone_ring["rings"]),
+		]
+	)
+
+	# A declaration is applied through the sweep without touching metadata, a
+	# shared mesh is budgeted at the closest of its declarations, and the
+	# baseline column still reports the walk-up rule.
+	var holder := Node3D.new()
+	root.add_child(holder)
+	var mesh := TorusMesh.new()
+	mesh.outer_radius = 0.25
+	mesh.inner_radius = 0.16
+	mesh.rings = 64
+	mesh.ring_segments = 16
+	for _copy in 2:
+		var instance := MeshInstance3D.new()
+		instance.mesh = mesh
+		holder.add_child(instance)
+	TorusGeometryBudget.declare_nearest_view(mesh, 8.0)
+	TorusGeometryBudget.declare_nearest_view(mesh, 1.6)
+	TorusGeometryBudget.declare_nearest_view(mesh, 3.0)
+	_check(
+		is_equal_approx(TorusGeometryBudget.nearest_view_for(mesh), 1.6)
+		and mesh.get_meta_list().is_empty(),
+		"a shared mesh keeps the closest declaration and no metadata is written by declaring"
+	)
+	var report := TorusGeometryBudget.normalise_tree(holder)
+	var expected := TorusGeometryBudget.plan(0.25, 0.16, 1.6)
+	var walk_up_plan := TorusGeometryBudget.plan(0.25, 0.16)
+	_check(
+		mesh.rings == int(expected["rings"])
+		and mesh.ring_segments == int(expected["ring_segments"])
+		and mesh.get_meta(TorusGeometryBudget.AUTHORED_META, Vector2i.ZERO) == Vector2i(64, 16)
+		and mesh.get_meta_list().size() == 1
+		and int(report["triangles_baseline"])
+			== int(walk_up_plan["rings"]) * int(walk_up_plan["ring_segments"]) * 2 * 2
+		and int(report["triangles_after"]) == mesh.rings * mesh.ring_segments * 2 * 2,
+		"the sweep solves a declared ring at its declaration (%dx%d) and reports the walk-up %dx%d as its baseline" % [
+			mesh.rings, mesh.ring_segments, int(walk_up_plan["rings"]), int(walk_up_plan["ring_segments"]),
+		]
+	)
+	var restored := TorusGeometryBudget.restore_authored(holder)
+	_check(
+		restored == 2 and mesh.rings == 64 and mesh.ring_segments == 16,
+		"restore_authored puts a declared ring back exactly as its builder made it"
+	)
+	holder.free()
+
+	# The sphere rule is the ship plan carried out to a declaration in the same
+	# way: identical at walk-up, floored at the freight berth's 12x6 far out.
+	var walk_up_sphere := ShipGeometryBudget.sphere_plan(0.16, 24, 12)
+	var kit_walk_up := StationSurfaceKit.sphere_tessellation_for(
+		0.16, TorusGeometryBudget.NEAR_EYE_METRES, 24, 12
+	)
+	_check(
+		kit_walk_up == Vector2i(int(walk_up_sphere["radial_segments"]), int(walk_up_sphere["rings"]))
+		and StationSurfaceKit.sphere_tessellation_for(0.16, 1.0, 24, 12) == Vector2i(20, 11)
+		and StationSurfaceKit.sphere_tessellation_for(0.16, 3.0, 24, 12) == Vector2i(12, 7)
+		and StationSurfaceKit.sphere_tessellation_for(0.095, 2.9, 24, 12) == Vector2i(12, 7)
+		and StationSurfaceKit.sphere_tessellation_for(0.26, 3.0, 24, 12) == Vector2i(16, 9)
+		and StationSurfaceKit.sphere_tessellation_for(1.4, 3.0, 24, 12) == Vector2i(24, 12)
+		and StationSurfaceKit.sphere_tessellation_for(0.5, 0.6, 12, 6) == Vector2i(12, 6)
+		and StationSurfaceKit.sphere_tessellation_for(0.02, 100.0, 12, 6) == Vector2i(12, 6),
+		"the declared sphere rule matches the ship plan at walk-up, scales with distance, keeps an equatorial vertex ring, floors at twelve meridians and never rises"
+	)
+	# The odd ring count is what keeps a declared sphere's width exact: Godot
+	# cuts the meridian into `rings + 1` bands, so 12x7 has a vertex ring on the
+	# equator and 12x6 does not.
+	var declared_lens := SphereMesh.new()
+	declared_lens.radius = 0.075
+	declared_lens.height = 0.15
+	var declared_recipe := StationSurfaceKit.sphere_tessellation_for(0.075, 2.5, 24, 12)
+	declared_lens.radial_segments = declared_recipe.x
+	declared_lens.rings = declared_recipe.y
+	_check(
+		declared_recipe == Vector2i(12, 7)
+		and declared_lens.get_aabb().size.is_equal_approx(Vector3(0.15, 0.15, 0.15)),
+		"a declared 7.5 cm lens keeps its exact 0.15 m extent on every axis (got %s at %s)" % [
+			str(declared_lens.get_aabb().size), str(declared_recipe),
+		]
+	)
 
 
 ## The rule itself, on synthetic radii, so a change to it is caught without
@@ -139,26 +287,32 @@ func _check_world_rings() -> void:
 				instance.name, mesh.rings, mesh.ring_segments, authored.x, authored.y,
 			])
 
-		# ...and never coarser than the rendered floor, unless the builder itself
-		# authored below it, in which case the budget simply left it alone.
+		# ...and never coarser than the rendered floor at the ring's declared
+		# nearest view — the photographed 32x12 for anything a player can walk
+		# up to, scaled out only where a builder has measured the distance —
+		# unless the builder itself authored below it, in which case the budget
+		# simply left it alone.
+		var declared_view := TorusGeometryBudget.nearest_view_for(mesh)
+		var rings_floor := TorusGeometryBudget.floor_rings_for(declared_view)
+		var segments_floor := TorusGeometryBudget.floor_ring_segments_for(declared_view)
 		if profile == TorusGeometryBudget.PROFILE_OCCLUDED_CHAIR_BEARING:
 			chair_bearing_profiles += 1
 			if (
-				mesh.rings < mini(TorusGeometryBudget.MIN_RINGS, authored.x)
+				mesh.rings < mini(rings_floor, authored.x)
 				or mesh.ring_segments != TorusGeometryBudget.OCCLUDED_CHAIR_BEARING_RING_SEGMENTS
 			):
 				below_floor.append("%s profile drifted to %dx%d" % [instance.name, mesh.rings, mesh.ring_segments])
 		elif profile == TorusGeometryBudget.PROFILE_AFT_INTERFACE_COLLAR:
 			aft_interface_profiles += 1
 			if (
-				mesh.rings < mini(TorusGeometryBudget.MIN_RINGS, authored.x)
+				mesh.rings < mini(rings_floor, authored.x)
 				or mesh.ring_segments != TorusGeometryBudget.AFT_INTERFACE_COLLAR_RING_SEGMENTS
 			):
 				below_floor.append("%s aft profile drifted to %dx%d" % [instance.name, mesh.rings, mesh.ring_segments])
 		elif profile == TorusGeometryBudget.PROFILE_FREIGHT_RECESSED_LASHING_RING:
 			freight_lashing_profiles += 1
 			if (
-				mesh.rings < mini(TorusGeometryBudget.MIN_RINGS, authored.x)
+				mesh.rings < mini(rings_floor, authored.x)
 				or mesh.ring_segments
 					!= TorusGeometryBudget.FREIGHT_RECESSED_LASHING_RING_SEGMENTS
 			):
@@ -166,10 +320,20 @@ func _check_world_rings() -> void:
 					instance.name, mesh.rings, mesh.ring_segments,
 				])
 		elif (
-			mesh.rings < mini(TorusGeometryBudget.MIN_RINGS, authored.x)
-			or mesh.ring_segments < mini(TorusGeometryBudget.MIN_RING_SEGMENTS, authored.y)
+			mesh.rings < mini(rings_floor, authored.x)
+			or mesh.ring_segments < mini(segments_floor, authored.y)
 		):
 			below_floor.append("%s (%dx%d)" % [instance.name, mesh.rings, mesh.ring_segments])
+		# A declared ring is never coarser than the absolute far floor, and a
+		# walk-up ring is exactly held to the photographed one: the declared
+		# floor can only be below the walk-up floor when a builder declared.
+		if declared_view > TorusGeometryBudget.NEAR_EYE_METRES and (
+			mesh.rings < mini(TorusGeometryBudget.FAR_MIN_RINGS, authored.x)
+			or mesh.ring_segments < mini(TorusGeometryBudget.FAR_MIN_RING_SEGMENTS, authored.y)
+		):
+			below_floor.append("%s declared at %.2f m fell under the far floor (%dx%d)" % [
+				instance.name, declared_view, mesh.rings, mesh.ring_segments,
+			])
 
 		var scale_factor := instance.global_basis.get_scale().abs()
 		var uniform := maxf(maxf(scale_factor.x, scale_factor.y), scale_factor.z)
@@ -223,11 +387,13 @@ func _check_world_rings() -> void:
 		and int(chair_report.get("instances", 0)) == 8,
 		"the bounded observation-chair family remains eight independent visual rings/resources"
 	)
+	# Eight bearings at 24x8: the occluded eight-edge tube as before, with the
+	# major sweep now solved at the family's declared metre.
 	_check(
 		int(chair_report.get("triangles_baseline", 0)) == 6656
-		and int(chair_report.get("triangles_after", 0)) == 4096
+		and int(chair_report.get("triangles_after", 0)) == 3072
 		and int(chair_report.get("surfaces", 0)) == 8,
-		"chair bearings freeze at 6656 -> 4096 triangles while eight instances/surfaces stay exact"
+		"chair bearings freeze at 6656 -> 3072 triangles while eight instances/surfaces stay exact"
 	)
 	var aft_report := profiles.get(
 		TorusGeometryBudget.PROFILE_AFT_INTERFACE_COLLAR, {}
@@ -238,11 +404,14 @@ func _check_world_rings() -> void:
 		and int(aft_report.get("instances", 0)) == 20,
 		"the ordinary Aft interface renderers retain 20 copies sharing five immutable recipes"
 	)
+	# Five roof-spine clamps at 16x8, three service-wall conduit collars at 20x8
+	# and four pedestal bearings at 24x8 are solved at their declared ranges;
+	# the eight walk-up collars keep 32x8: 1280 + 960 + 1536 + 4096.
 	_check(
 		int(aft_report.get("triangles_baseline", 0)) == 15360
-		and int(aft_report.get("triangles_after", 0)) == 10240
+		and int(aft_report.get("triangles_after", 0)) == 7872
 		and int(aft_report.get("surfaces", 0)) == 20,
-		"ordinary Aft interface collars retain 15360 -> 10240 triangles across 20 surfaces"
+		"ordinary Aft interface collars retain 15360 -> 7872 triangles across 20 surfaces"
 	)
 	var freight_report := profiles.get(
 		TorusGeometryBudget.PROFILE_FREIGHT_RECESSED_LASHING_RING, {}
@@ -253,20 +422,22 @@ func _check_world_rings() -> void:
 		and int(freight_report.get("instances", 0)) == 8,
 		"the freight lashing family retains eight independent visuals sharing one immutable ring recipe"
 	)
+	# Eight recessed rings at 20x8: the profile's eight-edge tube as before,
+	# with the major sweep solved at the deck-flush standing-eye range.
 	_check(
 		int(freight_report.get("triangles_baseline", 0)) == 6144
-		and int(freight_report.get("triangles_after", 0)) == 4096
+		and int(freight_report.get("triangles_after", 0)) == 2560
 		and int(freight_report.get("surfaces", 0)) == 8,
-		"freight lashing rings freeze at 6144 -> 4096 triangles while eight instances/surfaces stay exact"
+		"freight lashing rings freeze at 6144 -> 2560 triangles while eight instances/surfaces stay exact"
 	)
-	# Refrozen 2026-09-14: six rings were added to the world subtree since the
-	# previous freeze of 105,824 across 127. The 2026-09-14 trim pass changed no
-	# torus — it flattened cylinder walls and rebuilt the star shell — so this
-	# move is the station's own ring growth, and it stays well inside
-	# `WORLD_TORUS_TRIANGLE_CEILING`.
+	# Refrozen 2026-09-15 for the ninth trim: the same 133 copies, 111,584 ->
+	# 87,008 triangles, every saving from a ring whose builder declared its
+	# nearest view (deck-flush sockets and connectors, the habitat service run,
+	# the Aft roof and underfloor families, the recessed lashing rings, the
+	# exterior range at its hull approach). No ring was added or removed.
 	_check(
-		total == 111584 and rings.size() == 133,
-		"the ordinary world-subtree TorusMesh renderers retain 111584 triangles across 133 copies (got %d across %d)"
+		total == 87520 and rings.size() == 133,
+		"the ordinary world-subtree TorusMesh renderers retain 87520 triangles across 133 copies (got %d across %d)"
 			% [total, rings.size()]
 	)
 
