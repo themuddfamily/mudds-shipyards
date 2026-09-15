@@ -89,6 +89,18 @@ const PROJECTILE_TOMBSTONE_RETENTION_TICKS := 120
 const MOVING_INTERIOR_BUDGET_WINDOW_TICKS := 10
 const MOVING_INTERIOR_MAX_SNAPSHOTS_PER_WINDOW := 8
 const MOVING_INTERIOR_MAX_BYTES_PER_WINDOW := 24000
+## The authoritative moving-interior publication rate. A relationship carries a
+## `server_tick`, but `NetworkMovingInteriorReplica` interpolates and
+## extrapolates on a wall-clock seconds axis, so the tick is converted once, at
+## the single seam that records an arrival
+## (`_present_moving_interior_relationship()`), and every caller-facing sample
+## time is therefore real seconds. Before this conversion the replica was fed
+## raw tick numbers while its constants were named seconds, which made
+## `_max_extrapolation_seconds = 0.25` behave as 0.25 *ticks* of a velocity
+## published in metres per *second* — self-consistent only by accident, and
+## unusable by a presenter sampling on a render clock.
+const MOVING_INTERIOR_SERVER_TICK_RATE_HZ := 60.0
+const MOVING_INTERIOR_SERVER_TICK_SECONDS := 1.0 / MOVING_INTERIOR_SERVER_TICK_RATE_HZ
 const DAMAGE_PRESENTATION_STATES := [
 	&"active", &"healthy", &"damaged", &"destroyed", &"recovering",
 	&"recovery_ready", &"ready", &"respawn_pending", &"respawning",
@@ -1664,6 +1676,25 @@ func register_moving_interior_occupancy(
 	return _remember(result)
 
 
+## Ends one entity's occupancy of a moving interior. The mirror of
+## [method register_moving_interior_occupancy], and the server-side half of a
+## release: `publish_moving_interior_release()` tells the other clients to stop
+## drawing a crew member, but only this retires the authority's own record, so
+## without it the entity id stays claimed and can never be re-registered under a
+## fresh generation.
+func retire_moving_interior_occupancy(
+	entity_id: StringName,
+	entity_generation: int
+) -> Dictionary:
+	if not is_server():
+		return _remember(_result(false, &"authority_required"))
+	var result: Dictionary = _moving_interior.retire_occupancy(
+		AUTHORITY_PEER_ID, entity_id, entity_generation
+	)
+	moving_interior_result.emit(result.duplicate(true))
+	return _remember(result)
+
+
 func handoff_moving_interior_sample(sample: Dictionary) -> Dictionary:
 	if not is_server():
 		return _remember(_result(false, &"authority_required"))
@@ -2693,7 +2724,7 @@ func _present_moving_interior_relationship(ready: Dictionary, frame_world_transf
 		AUTHORITY_PEER_ID,
 		raw_relationship as Dictionary,
 		stream_generation,
-		float(ready.get("server_tick", 0))
+		moving_interior_tick_to_seconds(int(ready.get("server_tick", 0)))
 	)
 	if not bool(replica_gate.get("accepted", false)):
 		return _remember(_result(false, replica_gate.get("status", &"replica_rejected")))
@@ -2722,6 +2753,7 @@ func _present_moving_interior_relationship(ready: Dictionary, frame_world_transf
 	_store_presentation_sample(_moving_replica_samples, entity_id, {
 		"revision": int(ready.get("revision", 0)),
 		"server_tick": relationship.get_server_tick(),
+		"entity_generation": relationship.get_entity_generation(),
 		"parent_frame_id": relationship.get_parent_frame_id(),
 		"parent_frame_generation": relationship.get_parent_frame_generation(),
 		"local_transform": local_transform,
@@ -2734,6 +2766,55 @@ func _present_moving_interior_relationship(ready: Dictionary, frame_world_transf
 		"parent_frame_generation": relationship.get_parent_frame_generation(),
 		"world_transform": frame_world_transform * local_transform,
 	}]}))
+
+
+## The one tick -> seconds conversion for the moving-interior replica timeline.
+## Arrivals are recorded through this, so every `now_seconds` a caller passes to
+## [method sample_moving_interior_replica] or [method apply_moving_interior_replica]
+## is on the same real-seconds axis and may come from a render clock.
+func moving_interior_tick_to_seconds(server_tick: int) -> float:
+	return maxf(0.0, float(server_tick)) * MOVING_INTERIOR_SERVER_TICK_SECONDS
+
+
+## Newest authoritative tick this client has released into the replica, or -1.
+## A presenter anchors its render clock on this: it is the tick whose arrival
+## time the replica will interpolate away from, so `tick -> seconds` plus the
+## real time since it was observed is the correct sample time.
+func get_moving_interior_latest_server_tick() -> int:
+	var latest := -1
+	for entity_variant in _moving_replica_samples:
+		var sample: Dictionary = _moving_replica_samples[entity_variant] as Dictionary
+		latest = maxi(latest, int(sample.get("server_tick", -1)))
+	return latest
+
+
+## Cheap per-frame change detector for a presenter. Deliberately returns a plain
+## int so a presenter can poll it every rendered frame without allocating, and
+## only pay for [method get_moving_interior_presentation_entities] when the set
+## has actually changed.
+func get_moving_interior_presentation_entity_count() -> int:
+	return _moving_replica_samples.size()
+
+
+func get_moving_interior_presentation_generation() -> int:
+	return int(_moving_relationship_stream.get_snapshot().get("migration_generation", 1))
+
+
+## Identity and parent frame of every relationship this client is currently
+## drawing. Presentation data only: no pose is returned here, because the pose a
+## presenter must use is the replica sample for its own render time.
+func get_moving_interior_presentation_entities() -> Array:
+	var entities: Array = []
+	for entity_variant in _moving_replica_samples:
+		var sample: Dictionary = _moving_replica_samples[entity_variant] as Dictionary
+		entities.append({
+			"entity_id": StringName(entity_variant),
+			"entity_generation": int(sample.get("entity_generation", 0)),
+			"parent_frame_id": StringName(sample.get("parent_frame_id", &"")),
+			"parent_frame_generation": int(sample.get("parent_frame_generation", 0)),
+			"server_tick": int(sample.get("server_tick", -1)),
+		})
+	return entities
 
 
 func sample_moving_interior_replica(entity_id: StringName, now_seconds: float) -> Dictionary:
@@ -2768,6 +2849,19 @@ func bind_moving_interior_replica(
 			"entity_generation": entity_generation,
 			"frame_generation": frame_generation,
 		}
+	return _remember(result)
+
+
+## Retires the presentation binding for one entity without touching which
+## relationships this client tracks. A presenter that frees an avatar node calls
+## this; `detach_moving_interior_replica()` is the stronger call that also drops
+## the replica sample, and using it for a presentation-side free would discard a
+## crew member the server is still publishing and respawn them on the next tick.
+func unbind_moving_interior_replica(entity_id: StringName) -> Dictionary:
+	if is_server():
+		return _remember(_result(false, &"client_required"))
+	var result: Dictionary = _moving_replica_binding.detach(entity_id)
+	_moving_replica_binding_ids.erase(entity_id)
 	return _remember(result)
 
 

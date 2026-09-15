@@ -71,6 +71,9 @@ const NETWORK_MAX_SAFE_GENERATION := 9_007_199_254_740_991
 const MovingInteriorRelationshipType := preload(
 	"res://scripts/network/moving_interior_relationship.gd"
 )
+const NetworkMovingInteriorPresenterType := preload(
+	"res://scripts/network/network_moving_interior_presenter.gd"
+)
 const NearbySectorActivityAudioBindingType := preload(
 	"res://scripts/audio/nearby_sector_activity_audio_binding.gd"
 )
@@ -608,6 +611,9 @@ var _network_landing_request_sequence := 0
 var _network_landing_server_tick := 0
 var _network_boarding_entities: Dictionary = {}
 var _network_boarding_server_tick := 0
+## Client-side consumer of the moving-interior replica. Created only on a
+## non-authority peer; see `_ensure_network_moving_interior_presenter()`.
+var _network_moving_interior_presenter: NetworkMovingInteriorPresenterType = null
 ## One presentation-only caption authority for this Main lifetime. It is a
 ## RefCounted service rather than a scene node and survives whole-Main detach.
 var _caption_presentation_service: CaptionPresentationService
@@ -5059,6 +5065,11 @@ func _restore_runtime_bindings_after_reentry() -> void:
 	# under a stale one.
 	_update_music_bed_state()
 	_restore_cabin_occupancy_after_reentry()
+	# The presenter released every avatar on the way out of the tree, and the
+	# craft it composes against are the same instances; re-attaching restates
+	# the frames so the next rendered frame rebuilds exactly the crew members
+	# the adapter is still tracking, with no orphan left behind.
+	_ensure_network_moving_interior_presenter()
 	_sync_cinder_loadmaster_hud_binding()
 	_ensure_final_approach_hud_composition()
 	_ensure_ember_surface_presentations()
@@ -5345,6 +5356,7 @@ func _on_network_session_started(mode: StringName) -> void:
 	_set_station_defense_network_presentation_only(mode == &"client")
 	if mode == &"server" and _bomber_payload_ship != null:
 		_ensure_bomber_payload_network_source()
+	_ensure_network_moving_interior_presenter()
 	_publish_network_session_snapshot(
 		&"connected" if mode == &"server" else &"connecting",
 		mode,
@@ -5363,6 +5375,10 @@ func _on_network_session_stopped(reason: StringName) -> void:
 	if _network_session_mode == &"client":
 		_clear_bomber_payload_replica_presentation()
 		_clear_player_pulse_replica_presentation()
+	# A dropped session must not leave crew members standing in a cabin nobody
+	# is flying: every remote avatar is released in the same frame the session
+	# ends, not left holding its last received pose.
+	_detach_network_moving_interior_presenter(reason)
 	_detach_network_ship_authority_composition(reason)
 	_detach_network_halyard_command_bridge()
 	_detach_halyard_crew_semantic_audio()
@@ -5384,6 +5400,7 @@ func _on_network_peer_admitted(peer_id: int, _receipt: Dictionary) -> void:
 		_republish_player_pulses_for_peer(peer_id)
 		return
 	if _network_session_mode == &"client":
+		_ensure_network_moving_interior_presenter()
 		_publish_network_session_snapshot(
 			&"connected", &"client", "Session host accepted peer %d." % peer_id, false
 		)
@@ -5400,6 +5417,10 @@ func _on_network_migration_result(result: Dictionary) -> void:
 		_clear_bomber_payload_replica_presentation(generation)
 	if generation > 0 and generation != _player_pulse_replica_migration_generation:
 		_clear_player_pulse_replica_presentation(generation)
+	# The presenter drops everything it was drawing on its own when the replica's
+	# migration generation moves; this only restates the frames the new
+	# generation resolves against.
+	_sync_network_moving_interior_presenter()
 
 
 func _on_network_peer_disconnected(peer_id: int, _receipt: Dictionary) -> void:
@@ -7507,6 +7528,75 @@ func _publish_network_moving_interior_state(ship_to_publish: HeroShip, occupied:
 	return network_session.publish_moving_interior_snapshot(
 		relationship.get_snapshot(), [], _network_boarding_server_tick
 	)
+
+
+## Network presentation seam. `_publish_network_moving_interior_state()` above is
+## the authority half: on the server it publishes where a crew member is inside
+## a craft's cabin. This is the other half, and it only ever runs on a peer that
+## is *not* the authority — the client that has to draw that crew member.
+##
+## GameFlow owns nothing about how the pose is produced. It supplies the two
+## things only the running game knows: which live node each published
+## `parent_frame_id` refers to, and which entity is this peer's own body.
+## `NetworkMovingInteriorPresenter` does the sampling, composition, spawning and
+## release.
+func _ensure_network_moving_interior_presenter() -> NetworkMovingInteriorPresenterType:
+	if not is_inside_tree() or not is_instance_valid(network_session):
+		return null
+	if _network_session_mode != &"client":
+		# The authority simulates these bodies itself and has no replica to draw.
+		_detach_network_moving_interior_presenter(&"authority_peer")
+		return null
+	if _network_moving_interior_presenter == null \
+			or not is_instance_valid(_network_moving_interior_presenter):
+		_network_moving_interior_presenter = NetworkMovingInteriorPresenterType.new()
+		_network_moving_interior_presenter.name = "NetworkMovingInteriorPresenter"
+		add_child(_network_moving_interior_presenter)
+	elif _network_moving_interior_presenter.get_parent() == null:
+		add_child(_network_moving_interior_presenter)
+	_network_moving_interior_presenter.attach(network_session)
+	_sync_network_moving_interior_presenter()
+	return _network_moving_interior_presenter
+
+
+## Restates what the presenter cannot know on its own. Frame ids are built the
+## same way `_publish_network_moving_interior_state()` builds them, so a
+## relationship published against `frame_<ship_id>` resolves to that exact craft
+## — the node its own `MovingInteriorFrame` treats as the moving frame, which is
+## what makes the composed pose land inside the cabin rather than beside it.
+##
+## Re-registration is idempotent and cheap: an unchanged frame is recognised and
+## does not dirty the presenter.
+func _sync_network_moving_interior_presenter() -> void:
+	if _network_moving_interior_presenter == null \
+			or not is_instance_valid(_network_moving_interior_presenter):
+		return
+	for fleet_ship in ships:
+		if not is_instance_valid(fleet_ship) or not fleet_ship.supports_in_flight_cabin_access():
+			continue
+		_network_moving_interior_presenter.register_frame(
+			StringName("frame_%s" % String(fleet_ship.get_ship_id())), 1, fleet_ship
+		)
+	if runtime_settings != null:
+		_network_moving_interior_presenter.set_reduced_motion(runtime_settings.reduced_motion)
+	# This peer's own crew member is simulated locally by `PlayerController`.
+	# Drawing the server's echo of them as well would stand a second body in the
+	# same cabin, one frame behind the one the player is steering.
+	if is_instance_valid(active_ship):
+		_network_moving_interior_presenter.set_local_entity_ids([
+			StringName("pilot_%s" % String(active_ship.get_ship_id()))
+		])
+
+
+func _detach_network_moving_interior_presenter(reason: StringName) -> void:
+	if _network_moving_interior_presenter == null \
+			or not is_instance_valid(_network_moving_interior_presenter):
+		return
+	_network_moving_interior_presenter.detach(reason)
+
+
+func get_network_moving_interior_presenter() -> NetworkMovingInteriorPresenterType:
+	return _network_moving_interior_presenter
 
 
 func _leave_seat_into_cabin() -> void:
@@ -15122,6 +15212,9 @@ func _apply_accessibility_settings() -> void:
 			runtime_settings.reduced_motion
 		)
 		_sync_caption_presentation()
+	if _network_moving_interior_presenter != null \
+			and is_instance_valid(_network_moving_interior_presenter):
+		_network_moving_interior_presenter.set_reduced_motion(runtime_settings.reduced_motion)
 	for fleet_ship in ships:
 		if not is_instance_valid(fleet_ship):
 			continue

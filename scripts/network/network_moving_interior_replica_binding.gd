@@ -28,7 +28,13 @@ func bind(
 		return _result(false, &"invalid_binding_identity")
 	if not is_instance_valid(avatar_node) or not is_instance_valid(frame_node):
 		return _result(false, &"invalid_binding_node")
-	if avatar_node is PhysicsBody3D or frame_node is PhysicsBody3D:
+	# The avatar is written to every frame, so it may never be a body a solver
+	# owns. The frame is only ever *read* — one `global_transform` fetch — and
+	# every craft that actually has a walkable moving interior is a
+	# `CharacterBody3D`, so rejecting a physics frame rejected the only frames
+	# production has. Reading a body's transform takes nothing away from the
+	# solver; writing to one would.
+	if avatar_node is PhysicsBody3D:
 		return _result(false, &"physics_body_rejected")
 	if not _bindings.has(entity_id) and _bindings.size() >= MAX_ENTITIES:
 		return _result(false, &"entity_capacity")
@@ -79,6 +85,11 @@ func apply_sample(
 		"entity_id": entity_id,
 		"frozen": false,
 		"global_transform": avatar.global_transform,
+		# The pose in the frame's own coordinates, handed back because it is the
+		# only frame of reference in which a cabin occupant's speed means
+		# anything: in world space a body standing still in a Halyard under way
+		# is moving at the speed of the Halyard.
+		"local_transform": local_transform,
 	})
 
 

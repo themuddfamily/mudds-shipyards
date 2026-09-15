@@ -3,6 +3,11 @@ extends SceneTree
 const Adapter := preload("res://scripts/network/network_enet_session_adapter.gd")
 const Relationship := preload("res://scripts/network/moving_interior_relationship.gd")
 
+## See `network_enet_moving_interior_replica_test.gd`: sample times are on the
+## replica's real-seconds axis, so the tick numbers published here are converted
+## rather than passed through.
+const TICK_SECONDS := Adapter.MOVING_INTERIOR_SERVER_TICK_SECONDS
+
 var _assertions := 0
 var _failures := PackedStringArray()
 
@@ -25,18 +30,18 @@ func _run() -> void:
 		"accepted relationship feeds bound presentation")
 	_check(adapter.bind_moving_interior_replica(&"crew_7", 3, avatar, frame, 5).accepted,
 		"caller registers remote avatar and frame")
-	var applied: Dictionary = adapter.apply_moving_interior_replica(&"crew_7", 1.0)
+	var applied: Dictionary = adapter.apply_moving_interior_replica(&"crew_7", 1.0 * TICK_SECONDS)
 	_check(applied.get("status") == &"interpolated", "caller-time sample applies presentation")
 	_check(is_equal_approx(avatar.global_position.x, 11.0), "frame-relative pose reaches avatar node")
 	_check(adapter.bind_moving_interior_replica(&"crew_7", 2, avatar, frame, 5).accepted,
 		"rebind updates entity generation")
-	_check(adapter.apply_moving_interior_replica(&"crew_7", 1.0).accepted,
+	_check(adapter.apply_moving_interior_replica(&"crew_7", 1.0 * TICK_SECONDS).accepted,
 		"rebound generation remains adapter-owned")
 	frame.free()
-	_check(adapter.apply_moving_interior_replica(&"crew_7", 2.0).get("status") == &"frame_unavailable",
+	_check(adapter.apply_moving_interior_replica(&"crew_7", 2.0 * TICK_SECONDS).get("status") == &"frame_unavailable",
 		"frame loss freezes presentation")
 	_check(adapter.reset_snapshot_jitter(2).accepted, "migration clears registered bindings")
-	_check(adapter.apply_moving_interior_replica(&"crew_7", 2.0).get("status") == &"entity_not_tracked",
+	_check(adapter.apply_moving_interior_replica(&"crew_7", 2.0 * TICK_SECONDS).get("status") == &"entity_not_tracked",
 		"migration prevents stale binding reuse")
 	var physics := StaticBody3D.new()
 	holder.add_child(physics)

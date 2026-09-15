@@ -43,11 +43,14 @@ const SEAT_ID: StringName = &"halyardpilot"
 ## Documented replica bounds, mirrored from the production construction in
 ## `NetworkEnetSessionAdapter._init()`:
 ##     MovingInteriorReplica.new(AUTHORITY_PEER_ID, 2, 0.0, 0.25, 8.0)
-## The replica's timeline is the server tick axis, so the extrapolation horizon
-## is 0.25 tick-steps of the published linear velocity and the teleport
-## tolerance is 8 m of frame-local displacement between accepted samples.
+## The replica's timeline is real seconds: the adapter converts each arrival's
+## `server_tick` once, at the seam that records it, so the extrapolation horizon
+## is 0.25 s of the published linear velocity — 0.675 m at the sweep's 2.7 m/s
+## walk — and the teleport tolerance is 8 m of frame-local displacement between
+## accepted samples. Sample times below go through `_sample_seconds()` for the
+## same reason.
 const MAX_HOLD_TICKS := 2
-const EXTRAPOLATION_HORIZON_TICKS := 0.25
+const EXTRAPOLATION_HORIZON_SECONDS := 0.25
 const TELEPORT_TOLERANCE_METRES := 8.0
 ## Frame-local reconstruction is exact by contract: the wire carries the pose in
 ## the cabin's own coordinates, so latency may cost lag but never distortion.
@@ -417,7 +420,7 @@ func _run_profile(profile: Dictionary) -> void:
 	_check(float(measurement.max_presentation_lag_m) <= lag_bound,
 		"%s: what a client draws trails the live pose by no more than the profile allows (%.3f m of %.3f m)"
 			% [name, float(measurement.max_presentation_lag_m), lag_bound])
-	_check(float(measurement.max_extrapolation_m) <= EXTRAPOLATION_HORIZON_TICKS * WALK_SPEED + 0.001,
+	_check(float(measurement.max_extrapolation_m) <= EXTRAPOLATION_HORIZON_SECONDS * WALK_SPEED + 0.001,
 		"%s: extrapolation stops at the documented horizon (%.3f m)"
 			% [name, float(measurement.max_extrapolation_m)])
 	_check(float(measurement.max_sample_step_m) <= TELEPORT_TOLERANCE_METRES,
@@ -610,7 +613,7 @@ func _measure_round(measurement: Dictionary, last_sampled: Dictionary) -> void:
 				local.origin.distance_to(live_origin)
 			)
 			_check_contained(index, entity_id, local, frame_world, "presented")
-			var sampled: Dictionary = client.sample_moving_interior_replica(entity_id, float(_server_tick))
+			var sampled: Dictionary = client.sample_moving_interior_replica(entity_id, _sample_seconds())
 			if not bool(sampled.get("accepted", false)):
 				continue
 			if bool(sampled.get("frozen", false)):
@@ -654,6 +657,15 @@ func _check_contained(
 			and not _frame_component.contains_world_position(world_origin):
 		_fail("client %d %s %s pose resolved outside the live frame volume"
 			% [index, String(entity_id), label])
+
+
+## The replica's axis is real seconds, and every arrival is recorded as
+## `server_tick * MOVING_INTERIOR_SERVER_TICK_SECONDS`. Sampling at the live
+## server tick converted onto that same axis is what a production presenter does
+## on its render clock, so the measured extrapolation below is the extrapolation
+## a player would actually be shown.
+func _sample_seconds() -> float:
+	return float(_server_tick) * Adapter.MOVING_INTERIOR_SERVER_TICK_SECONDS
 
 
 func _presented(client, entity_id: StringName) -> Dictionary:
@@ -718,7 +730,7 @@ func _end_bunk_sleep() -> void:
 		_check(local.origin.distance_to(_bunk_local) < 0.01,
 			"client %d holds the sleeping crew member still at the bunk in flight" % index)
 		var sampled: Dictionary = _clients[index].sample_moving_interior_replica(
-			CREW_ENTITY, float(_server_tick)
+			CREW_ENTITY, _sample_seconds()
 		)
 		_check(bool(sampled.get("accepted", false))
 			and (sampled.get("transform", Transform3D.IDENTITY) as Transform3D
@@ -775,7 +787,7 @@ func _drop_and_readmit_second_client() -> void:
 	_check(_presented(_clients[0], CREW_ENTITY).is_empty(),
 		"the remaining client stops drawing the crew member who left the cabin")
 	_check(_presented(_clients[1], CREW_ENTITY).is_empty()
-		and not _clients[1].sample_moving_interior_replica(CREW_ENTITY, float(_server_tick)).get("accepted", false),
+		and not _clients[1].sample_moving_interior_replica(CREW_ENTITY, _sample_seconds()).get("accepted", false),
 		"a torn-down client keeps no pre-disconnect pose to show on reconnect")
 	_tracked.erase(CREW_ENTITY)
 

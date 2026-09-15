@@ -3,6 +3,25 @@ extends RefCounted
 
 ## Presentation-only moving-interior sampler. Authority and ordering remain in
 ## NetworkMovingInteriorRelationshipStream; this class owns no scene or physics state.
+##
+## ## Timeline
+##
+## Every time this class handles is **real seconds**, on one axis shared by
+## `accept_snapshot(..., arrival_time_seconds)` and `sample(..., now_seconds)`.
+## A relationship on the wire carries a `server_tick`, not a timestamp, so the
+## conversion happens once, at the single seam that records an arrival —
+## `NetworkEnetSessionAdapter._present_moving_interior_relationship()`, through
+## `moving_interior_tick_to_seconds()`. Nothing inside this class knows about
+## ticks.
+##
+## That seam is load-bearing. Feeding raw tick numbers in while the constants
+## below are named seconds makes `_max_extrapolation_seconds = 0.25` clamp to a
+## quarter of a *tick* and then multiply it by a velocity in metres per
+## *second*: self-consistent only because every reader used the same wrong unit,
+## and unusable by a presenter that samples on a render clock. With the
+## conversion in place the horizon is a real 0.25 s, so a crew member walking at
+## 2.7 m/s is never drawn more than 0.675 m ahead of the newest accepted
+## sample — the same physical bound the latency sweep measures.
 
 const RelationshipStream := preload("res://scripts/network/moving_interior_relationship_stream.gd")
 const Relationship := preload("res://scripts/network/moving_interior_relationship.gd")
