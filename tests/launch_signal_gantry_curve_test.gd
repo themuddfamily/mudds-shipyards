@@ -90,20 +90,34 @@ func _test_curved_signal_gantry(world: ShipyardWorld, launch: Node3D) -> void:
 			if child is MeshInstance3D:
 				mast_visual = child as MeshInstance3D
 				break
-	var gantry_shape := gantry_body.get_node_or_null(^"Collision") as CollisionShape3D
-	var gantry_box := gantry_shape.shape as BoxShape3D if gantry_shape != null else null
+	# The crossbeam spans the illuminated launch lane (guide lights at 2.7, 6.2
+	# and 9.7 m). A solid 11.8 m underside stopped the Torrent flown at y = 9 in
+	# the guided sortie (vertical_slice_test), so the gantry stays open: no
+	# collision layer, no shape. The chase camera's 0.019 m graze is accepted.
 	_check(
 		mast_visual != null
 		and gantry.material_override == mast_visual.material_override
-		and gantry_body.get_child_count() == 2
+		and gantry_body.get_child_count() == 1
 		and gantry.get_child_count() == 0
-		and gantry_body.collision_layer == PhysicsLayers.WORLD
+		and gantry_body.collision_layer == PhysicsLayers.NONE
 		and gantry_body.collision_mask == PhysicsLayers.NONE
-		and gantry_box != null
-		and gantry_box.size.is_equal_approx(ShipyardWorld.SIGNAL_GANTRY_SIZE)
-		and gantry_shape.position.is_zero_approx()
+		and gantry_body.get_node_or_null(^"Collision") == null
 		and launch.find_children("SignalGantry", "StaticBody3D", false, false).size() == 1,
-		"gantry retains steel-blue material and one renderer, and its collider is exactly the drawn 27 x 0.8 x 0.8 m envelope"
+		"gantry retains steel-blue material and one renderer and carries no collision over the launch lane"
+	)
+	var lane := BoxShape3D.new()
+	lane.size = Vector3(18.0, 10.5, 12.0)
+	var lane_query := PhysicsShapeQueryParameters3D.new()
+	lane_query.shape = lane
+	lane_query.transform = Transform3D(Basis.IDENTITY, launch.to_global(Vector3(0.0, 6.5, -66.0)))
+	lane_query.collision_mask = PhysicsLayers.WORLD
+	lane_query.collide_with_bodies = true
+	var lane_hits := PackedStringArray()
+	for hit in world.get_world_3d().direct_space_state.intersect_shape(lane_query, 32):
+		lane_hits.append(str((hit.get("collider") as Node).name))
+	_check(
+		lane_hits.is_empty(),
+		"no world collider crosses the illuminated launch lane at the gate (x +-9, y 1.25-11.75): %s" % lane_hits
 	)
 	_check(
 		str(gantry_body.get_meta("geometry_profile", "")) == "central_launch_capsule_crossbeam"

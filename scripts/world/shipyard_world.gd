@@ -8304,7 +8304,8 @@ func _build_launch_corridor() -> void:
 		_materials["steel_blue"],
 		SIGNAL_GANTRY_END_RADIUS,
 		SIGNAL_GANTRY_CURVE_SEGMENTS,
-		&"central_launch_capsule_crossbeam"
+		&"central_launch_capsule_crossbeam",
+		false
 	)
 	_box(launch, "SignalFace", Vector3(0, 12.15, -65.52), Vector3(12.0, 1.4, 0.08), _materials["navy"], false)
 	var launch_vector_sign := _text_sign(
@@ -10459,11 +10460,15 @@ func _extruded_capsule_crossbeam(
 		end_radius: float,
 		segments_per_end: int,
 		geometry_profile: StringName,
+		collidable: bool = true,
 	) -> StaticBody3D:
 	var body := StaticBody3D.new()
 	body.name = node_name
 	body.position = header_position
-	body.collision_layer = WORLD_LAYER
+	# A crossbeam spanning a flight lane must stay open: the Torrent flown at the
+	# top of the illuminated launch lane (y = 9) strikes an 11.8 m underside and
+	# the guided sortie never crosses the gate. Camera grazes are accepted instead.
+	body.collision_layer = WORLD_LAYER if collidable else PhysicsLayers.NONE
 	body.collision_mask = PhysicsLayers.NONE
 	body.set_meta("geometry_profile", geometry_profile)
 	body.set_meta("end_radius_m", end_radius)
@@ -10480,12 +10485,13 @@ func _extruded_capsule_crossbeam(
 	visual.material_override = material
 	body.add_child(visual)
 
-	var collision := CollisionShape3D.new()
-	collision.name = "Collision"
-	var shape := BoxShape3D.new()
-	shape.size = size
-	collision.shape = shape
-	body.add_child(collision)
+	if collidable:
+		var collision := CollisionShape3D.new()
+		collision.name = "Collision"
+		var shape := BoxShape3D.new()
+		shape.size = size
+		collision.shape = shape
+		body.add_child(collision)
 	return body
 
 

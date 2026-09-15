@@ -152,7 +152,15 @@ func _test_connection_overlap_is_bounded(world: ShipyardWorld, module: JovianFre
 				var collider := hit.get("collider") as StaticBody3D
 				if collider == null or not original_bodies.has(collider):
 					continue
-				var pair_name := "%s -> %s" % [body.name, collider.name]
+				var collider_name := String(collider.name)
+				if collider.has_meta(StationDressingBatch.BATCH_META):
+					# Batched dressing keeps one shape per authored piece; name the piece.
+					var owner_node := collider.shape_owner_get_owner(
+						collider.shape_find_owner(int(hit.get("shape", -1)))
+					)
+					if owner_node != null and owner_node.has_meta(&"authored_piece"):
+						collider_name = String(owner_node.get_meta(&"authored_piece"))
+				var pair_name := "%s -> %s" % [body.name, collider_name]
 				if not overlap_names.has(pair_name):
 					overlap_names.append(pair_name)
 	overlap_names.sort()

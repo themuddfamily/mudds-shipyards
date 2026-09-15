@@ -204,3 +204,15 @@ per frame pair, at a threshold of 12/255:
 | `f05` Zenith / `CargoContainerBatch`, centred | 22.44 % |
 | `f05` Zenith / `CargoContainerBatch`, boom lag | 10.44 % |
 | `f05` Zenith / `CargoContainerBatch`, yaw sweep | 17.31 % |
+
+### 2026-09-15 correction — the signal gantry stays open
+
+Giving `OpenLaunchSpine/SignalGantry` its drawn 27 × 0.8 × 0.8 m collider put
+a solid 11.8 m underside across the illuminated launch lane (guide lights at
+2.7, 6.2 and 9.7 m). The guided first sortie (`tests/vertical_slice_test.gd`)
+flies the Torrent at y = 9 and stopped dead at z = −63.4 against it, so a player
+launching high in the lane could never cross the gate. The crossbeam is
+navigation dressing over a flight lane, not a pressure frame: it is back to no
+collision layer and no shape, its 0.019 m outbound-lane camera graze is
+**accepted** alongside the range drones, and `launch_signal_gantry_curve_test`
+now asserts that no world collider crosses the lane box at the gate.

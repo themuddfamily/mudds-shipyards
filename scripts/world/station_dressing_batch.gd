@@ -489,6 +489,8 @@ static func _build_solid_batch(parent: Node3D, bodies: Array) -> bool:
 		seated.name = "Collision%02d" % (index + 1)
 		seated.shape = collision_child.shape
 		seated.transform = body.transform * collision_child.transform
+		# Seam and overlap audits name pieces, not batches.
+		seated.set_meta(&"authored_piece", String(body.name))
 		batch.add_child(seated)
 		authored.append(offsets[index])
 		index += 1

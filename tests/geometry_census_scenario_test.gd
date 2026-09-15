@@ -122,8 +122,8 @@ const MAIN_SCENE := preload("res://scenes/main.tscn")
 # containers were resized 7 x 3.6 x 7 -> 3 x 3.6 x 4 and Dock 06's rails and
 # header shortened, which moves no count at all: they are the same `BoxMesh`
 # and `MultiMesh` resources at new dimensions.
-const RESIDENT_FINGERPRINT := "60a98b4222d23448f5245692511a151fb8416c296c4cb610ce728430ec2067d4"
-const CINDER_LOADED_FINGERPRINT := "25f65add1a76167a3e6e62613339c231acb5750426ffcef606019e868cf4352e"
+const RESIDENT_FINGERPRINT := "365eda11f875462b6b315c0a4faeaeed525cc3318279453f3e3f6b740955671e"
+const CINDER_LOADED_FINGERPRINT := "5e53f6c2c27bf75acc3dbba8213ecdcb76c796139d4952755b5e9a00bb50583c"
 
 var _assertions := 0
 var _failures := PackedStringArray()
@@ -183,8 +183,8 @@ func _run() -> void:
 		int(resident.get("bound_phase_unique_materials", -1)) == 693
 			and int(resident.get("retained_reachable_unique_materials", -1)) == 969
 			and int(resident.get("lights", -1)) == 335
-			and int(resident.get("nodes", -1)) == 10532,
-		"resident resource roster freezes 693 bound / 969 retained materials, 335 lights, and 10,532 nodes"
+			and int(resident.get("nodes", -1)) == 10531,
+		"resident resource roster freezes 693 bound / 969 retained materials, 335 lights, and 10,531 nodes"
 	)
 	_check(
 		str(resident.get("measurement_fingerprint", "")) == RESIDENT_FINGERPRINT,
@@ -251,8 +251,8 @@ func _run() -> void:
 		int(loaded.get("bound_phase_unique_materials", -1)) == 735
 			and int(loaded.get("retained_reachable_unique_materials", -1)) == 1016
 			and int(loaded.get("lights", -1)) == 362
-			and int(loaded.get("nodes", -1)) == 10955,
-		"loaded resource roster freezes 735 bound / 1,016 retained materials, 362 lights, and 10,955 nodes"
+			and int(loaded.get("nodes", -1)) == 10954,
+		"loaded resource roster freezes 735 bound / 1,016 retained materials, 362 lights, and 10,954 nodes"
 	)
 	var cinder_bucket := (loaded.get("buckets", {}) as Dictionary).get(
 		"CinderStreamingBootstrap", {}

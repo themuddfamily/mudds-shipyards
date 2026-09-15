@@ -192,7 +192,7 @@ in this document has been raised.**
 | Text triangles / instances | 79,591 / 43 | 100,157 / 56 | +20,566 / +13 |
 | Lights / shadow lights | 335 / 20 | 362 / 20 | +27 / 0 |
 | Particle systems | 45 | 45 | 0 |
-| Scene-tree nodes | 10,532 | 10,955 | +423 |
+| Scene-tree nodes | 10,531 | 10,954 | +423 |
 
 Measured on `main` on 2026-09-15 with the service-line/registry batches (−49) and
 the ship fitout batches (−96, then +2 for the protected Zenith wing shells) and the chase-lane station collision (+28 nodes) merged on top of the Habitat/Aft batches; the
