@@ -33,6 +33,12 @@ extends Node
 ##   overlaps, inside the same reach the host's own player has, through the
 ##   same `StationSeat` reservation, boarding and disembark transitions. The
 ##   request id is monotonic per stream and honoured once.
+## * **A seat changes the ledger's mode, not just the body's posture.** The
+##   moment a body claims a seat or bunk its movement avatar is put into
+##   `NetworkMovementAuthority.MODE_SEATED`, and back `on_foot` when it stands.
+##   A walking intent from the owner while seated is therefore refused *by the
+##   ledger*, with a named reason that is counted in its audit, rather than
+##   accepted and then ignored here.
 ## * **Bodies exist only while their occupant does.** Admission creates one,
 ##   release frees it; a peer disconnect, a session stop, a craft lost or a
 ##   whole-Main detach all release. Nothing here survives the session, so the
@@ -44,6 +50,7 @@ extends Node
 
 const PlayerScene := preload("res://scenes/player/player.tscn")
 const Intent := preload("res://scripts/network/network_movement_intent.gd")
+const MovementAuthority := preload("res://scripts/network/network_movement_authority.gd")
 const Relationship := preload("res://scripts/network/moving_interior_relationship.gd")
 
 ## Meta a remote body carries so the publisher can recognise a server-simulated
@@ -70,6 +77,8 @@ var _audit := {
 	"seat_claims": 0,
 	"seat_releases": 0,
 	"occupancy_lost": 0,
+	"mode_switches": 0,
+	"mode_switches_refused": 0,
 	"last_release_reason": &"",
 }
 
@@ -185,6 +194,7 @@ func admit(
 		"frozen": false,
 		"seat": null,
 		"seat_state": &"standing",
+		"avatar_mode": MovementAuthority.MODE_ON_FOOT,
 		"last_interaction_id": 0,
 		"intents_applied": 0,
 	}
@@ -275,8 +285,12 @@ func advance(server_tick: int) -> Dictionary:
 			if intent.get_interaction_request_id() > int(record.get("last_interaction_id", 0)):
 				record["last_interaction_id"] = intent.get_interaction_request_id()
 				_handle_interaction(record)
-		elif not bool(record.get("frozen", false)) and int(record.get("last_intent_tick", -1)) >= 0 \
+		elif StringName(record.get("seat_state", &"standing")) == &"standing" \
+				and not bool(record.get("frozen", false)) and int(record.get("last_intent_tick", -1)) >= 0 \
 				and server_tick - int(record.get("last_intent_tick", -1)) > INTENT_HOLD_TICKS:
+			# The hold window is an on-foot rule. A seated body's owner may be
+			# streaming intents the ledger refuses by mode, and that silence is
+			# the ledger's refusal count, not a delivery gap.
 			body.clear_remote_intent()
 			record["frozen"] = true
 			frozen += 1
@@ -332,6 +346,7 @@ func get_body_record(entity_id: StringName) -> Dictionary:
 		"last_intent_tick": int(record.get("last_intent_tick", -1)),
 		"frozen": bool(record.get("frozen", false)),
 		"seat_state": StringName(record.get("seat_state", &"standing")),
+		"avatar_mode": StringName(record.get("avatar_mode", MovementAuthority.MODE_ON_FOOT)),
 		"seated": is_instance_valid(record.get("seat")),
 		"last_interaction_id": int(record.get("last_interaction_id", 0)),
 		"intents_applied": int(record.get("intents_applied", 0)),
@@ -408,6 +423,9 @@ func _try_sit(record: Dictionary) -> void:
 		return
 	record["seat"] = best
 	record["seat_state"] = &"sitting"
+	# The claim is the moment the ledger's mode changes: from here until the
+	# body stands again, a walking intent is refused by name at the authority.
+	_set_avatar_mode(record, MovementAuthority.MODE_SEATED)
 
 
 func _stand(record: Dictionary) -> void:
@@ -448,6 +466,7 @@ func _on_body_boarded(entity_id: StringName) -> void:
 	if not is_instance_valid(body) or not is_instance_valid(seat_variant):
 		record["seat"] = null
 		record["seat_state"] = &"standing"
+		_set_avatar_mode(record, MovementAuthority.MODE_ON_FOOT)
 		return
 	var seat := seat_variant as StationSeat
 	seat.finish_transition(body)
@@ -469,7 +488,31 @@ func _on_body_stood(entity_id: StringName) -> void:
 		(seat_variant as StationSeat).release(body)
 	record["seat"] = null
 	record["seat_state"] = &"standing"
+	# Back on foot: the ledger accepts walking again, and the hold window
+	# starts from the first intent it delivers rather than from the seat.
+	record["last_intent_tick"] = -1
+	record["frozen"] = false
+	_set_avatar_mode(record, MovementAuthority.MODE_ON_FOOT)
 	_audit["seat_releases"] = int(_audit["seat_releases"]) + 1
+
+
+## Mirrors the body's physical seat result into the movement ledger. The ledger
+## is the adapter's; this only reports what the seat authority already did.
+func _set_avatar_mode(record: Dictionary, mode: StringName) -> void:
+	if StringName(record.get("avatar_mode", &"")) == mode:
+		return
+	if not is_instance_valid(_session) or not _session.is_server() \
+			or not _session.has_method(&"set_avatar_mode"):
+		_audit["mode_switches_refused"] = int(_audit["mode_switches_refused"]) + 1
+		return
+	var result: Dictionary = _session.set_avatar_mode(
+		StringName(record.get("entity_id", &"")), int(record.get("entity_generation", 1)), mode
+	)
+	if bool(result.get("accepted", false)):
+		record["avatar_mode"] = mode
+		_audit["mode_switches"] = int(_audit["mode_switches"]) + 1
+	else:
+		_audit["mode_switches_refused"] = int(_audit["mode_switches_refused"]) + 1
 
 
 func _seat_belongs_to_craft(seat: StationSeat, craft: Node3D) -> bool:

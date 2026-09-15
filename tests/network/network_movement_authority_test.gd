@@ -93,9 +93,16 @@ func _test_mode_and_generation_guards() -> void:
 		"server can record the external physical seat result"
 	)
 	var walking_while_seated = Intent.create(3, &"avatar_b", 5, 2, 1, 21, Vector2.UP)
+	var refused := authority.accept_intent(3, walking_while_seated.to_dictionary())
 	_check(
-		authority.accept_intent(3, walking_while_seated.to_dictionary()).status == &"action_not_allowed_in_mode",
+		refused.status == &"action_not_allowed_in_mode",
 		"seated avatar cannot author movement through the on-foot channel"
+	)
+	_check(
+		refused.get("reason") == Authority.REFUSAL_MOVEMENT_WHILE_SEATED
+		and refused.get("mode") == Authority.MODE_SEATED
+		and refused.get("entity_id") == &"avatar_b",
+		"the refusal names its reason, the mode it was refused in and the avatar"
 	)
 	var disembark = Intent.create(3, &"avatar_b", 5, 2, 1, 21, Vector2.ZERO, false, &"", true)
 	_check(authority.accept_intent(3, disembark.to_dictionary()).accepted, "seated avatar can request disembark")
@@ -111,6 +118,47 @@ func _test_mode_and_generation_guards() -> void:
 		and not bool(audit.server_owns_movement_truth)
 		and not bool(audit.server_owns_seat_reservation),
 		"audit names the server boundary without duplicating movement or seat authority"
+	)
+	_check(
+		int((audit.mode_refusals as Dictionary).get(Authority.REFUSAL_MOVEMENT_WHILE_SEATED, 0)) == 1
+		and int((audit.intent_refusals as Dictionary).get(&"action_not_allowed_in_mode", 0)) == 1
+		and int((audit.intent_refusals as Dictionary).get(&"stale_avatar_generation", 0)) == 1
+		and int(audit.seated_avatar_count) == 1
+		and int(audit.mode_changes) == 1,
+		"the audit counts every refusal by status and every mode refusal by reason"
+	)
+	# Standing up is the mirror: the seat authority reports on_foot, walking is
+	# accepted again, and a disembark from a seat the avatar is not in is refused
+	# by its own name.
+	authority.set_server_tick(1, 22)
+	var stood := authority.set_avatar_mode(1, &"avatar_b", 5, &"on_foot")
+	_check(
+		stood.accepted and stood.get("previous_mode") == &"seated",
+		"standing switches the avatar back on foot and reports the mode it left"
+	)
+	var walking_again = Intent.create(3, &"avatar_b", 5, 2, 2, 22, Vector2.UP)
+	_check(
+		authority.accept_intent(3, walking_again.to_dictionary()).accepted,
+		"an avatar back on foot authors movement again on the same stream"
+	)
+	var disembark_on_foot = Intent.create(3, &"avatar_b", 5, 2, 3, 23, Vector2.ZERO, false, &"", true)
+	var refused_on_foot := authority.accept_intent(3, disembark_on_foot.to_dictionary())
+	_check(
+		refused_on_foot.status == &"action_not_allowed_in_mode"
+		and refused_on_foot.get("reason") == Authority.REFUSAL_DISEMBARK_WHILE_ON_FOOT,
+		"a disembark from no seat is refused by name"
+	)
+	_check(
+		authority.set_avatar_mode(1, &"avatar_b", 5, &"reclining").status == &"invalid_avatar_mode"
+		and authority.set_avatar_mode(1, &"avatar_b", 4, &"seated").status == &"stale_avatar_generation"
+		and authority.set_avatar_mode(3, &"avatar_b", 5, &"seated").status == &"unauthorized_source",
+		"only the authority changes a mode, only to a known one, only for the live generation"
+	)
+	audit = authority.audit()
+	_check(
+		int(audit.seated_avatar_count) == 0 and int(audit.mode_changes) == 2
+		and int((audit.mode_refusals as Dictionary).get(Authority.REFUSAL_DISEMBARK_WHILE_ON_FOOT, 0)) == 1,
+		"the audit follows the avatar back on foot"
 	)
 
 

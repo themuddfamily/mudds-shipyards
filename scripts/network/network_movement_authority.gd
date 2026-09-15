@@ -17,6 +17,22 @@ const DEFAULT_MAX_TICK_BEHIND := 6
 const DEFAULT_MAX_TICK_AHEAD := 2
 const MAX_PENDING_PER_ENTITY := 8
 
+## Avatar modes. `seated` is the mode a server-owned body is put into the
+## moment it claims a seat or a bunk, and `on_foot` again when it stands: while
+## seated, a walking or boarding intent is refused *here*, by name and counted,
+## rather than reaching a body that would have to ignore it. `pilot` is the
+## remote ship command seam's mode and, for on-foot actions, is treated as on
+## foot.
+const MODE_ON_FOOT: StringName = &"on_foot"
+const MODE_SEATED: StringName = &"seated"
+const MODE_PILOT: StringName = &"pilot"
+const MODES := [MODE_ON_FOOT, MODE_SEATED, MODE_PILOT]
+
+## The named reasons an intent is refused for its avatar's mode.
+const REFUSAL_MOVEMENT_WHILE_SEATED: StringName = &"movement_while_seated"
+const REFUSAL_BOARD_WHILE_SEATED: StringName = &"board_while_seated"
+const REFUSAL_DISEMBARK_WHILE_ON_FOOT: StringName = &"disembark_while_on_foot"
+
 var _authority_peer_id := 1
 var _max_tick_behind := DEFAULT_MAX_TICK_BEHIND
 var _max_tick_ahead := DEFAULT_MAX_TICK_AHEAD
@@ -24,6 +40,12 @@ var _server_tick := 0
 var _event_sequence := 0
 var _avatars: Dictionary = {}
 var _last_result: Dictionary = {}
+## Every refused intent by status, and every mode refusal by its named reason,
+## so a client that keeps walking while its body is seated shows up in the
+## audit as a count rather than as silence.
+var _intent_refusals: Dictionary = {}
+var _mode_refusals: Dictionary = {}
+var _mode_changes := 0
 
 
 func _init(
@@ -94,7 +116,7 @@ func register_avatar(
 		return _remember(_result(false, &"unauthorized_source"))
 	if owner_peer_id <= 0 or not _valid_entity_id(entity_id) or entity_generation <= 0:
 		return _remember(_result(false, &"invalid_avatar_identity"))
-	if mode != &"on_foot" and mode != &"seated" and mode != &"pilot":
+	if not MODES.has(mode):
 		return _remember(_result(false, &"invalid_avatar_mode"))
 	if _avatars.has(entity_id):
 		return _remember(_result(false, &"duplicate_avatar"))
@@ -150,10 +172,16 @@ func set_avatar_mode(
 	var avatar := _avatars[entity_id] as Dictionary
 	if int(avatar.entity_generation) != entity_generation:
 		return _remember(_result(false, &"stale_avatar_generation"))
-	if mode != &"on_foot" and mode != &"seated" and mode != &"pilot":
+	if not MODES.has(mode):
 		return _remember(_result(false, &"invalid_avatar_mode"))
+	var previous := StringName(avatar.mode)
 	avatar.mode = mode
-	return _remember(_result(true, &"mode_updated", {"mode": mode}))
+	if previous != mode:
+		_mode_changes += 1
+		_event_sequence += 1
+	return _remember(_result(true, &"mode_updated", {
+		"mode": mode, "previous_mode": previous, "entity_id": entity_id,
+	}))
 
 
 ## `source_peer_id` is the transport sender. It must match the peer ID in the
@@ -161,38 +189,44 @@ func set_avatar_mode(
 func accept_intent(source_peer_id: int, wire: Dictionary) -> Dictionary:
 	var intent = Intent.from_dictionary(wire)
 	if not intent.is_valid():
-		return _remember(_result(false, &"invalid_intent", {"errors": intent.get_validation_errors()}))
+		return _refuse(&"invalid_intent", {"errors": intent.get_validation_errors()})
 	if source_peer_id != intent.get_peer_id():
-		return _remember(_result(false, &"spoofed_peer"))
+		return _refuse(&"spoofed_peer")
 	if not _avatars.has(intent.get_entity_id()):
-		return _remember(_result(false, &"unknown_avatar"))
+		return _refuse(&"unknown_avatar")
 	var avatar := _avatars[intent.get_entity_id()] as Dictionary
 	if int(avatar.owner_peer_id) != source_peer_id:
-		return _remember(_result(false, &"not_avatar_owner"))
+		return _refuse(&"not_avatar_owner")
 	if int(avatar.entity_generation) != intent.get_entity_generation():
-		return _remember(_result(false, &"stale_avatar_generation"))
+		return _refuse(&"stale_avatar_generation")
 	if intent.get_client_tick() < _server_tick - _max_tick_behind:
-		return _remember(_result(false, &"client_tick_too_old"))
+		return _refuse(&"client_tick_too_old")
 	if intent.get_client_tick() > _server_tick + _max_tick_ahead:
-		return _remember(_result(false, &"client_tick_too_far_ahead"))
+		return _refuse(&"client_tick_too_far_ahead")
 	var stream_id: int = intent.get_stream_id()
 	var last_stream := int(avatar.stream_id)
 	if stream_id < last_stream:
-		return _remember(_result(false, &"stale_stream"))
+		return _refuse(&"stale_stream")
 	if stream_id == last_stream:
 		if intent.get_sequence() <= int(avatar.last_sequence):
-			return _remember(_result(false, &"stale_sequence"))
+			return _refuse(&"stale_sequence")
 		if intent.get_client_tick() <= int(avatar.last_client_tick):
-			return _remember(_result(false, &"stale_client_tick"))
+			return _refuse(&"stale_client_tick")
 	else:
 		# A new stream is a source lifecycle boundary; sequence zero is valid.
 		if intent.get_sequence() != 0:
-			return _remember(_result(false, &"new_stream_must_start_at_zero"))
-	if not _validate_mode_actions(avatar, intent):
-		return _remember(_result(false, &"action_not_allowed_in_mode"))
+			return _refuse(&"new_stream_must_start_at_zero")
+	var mode_refusal := _mode_refusal(avatar, intent)
+	if mode_refusal != &"":
+		_mode_refusals[mode_refusal] = int(_mode_refusals.get(mode_refusal, 0)) + 1
+		return _refuse(&"action_not_allowed_in_mode", {
+			"mode": StringName(avatar.mode),
+			"reason": mode_refusal,
+			"entity_id": intent.get_entity_id(),
+		})
 	var pending := avatar.pending as Array
 	if pending.size() >= MAX_PENDING_PER_ENTITY:
-		return _remember(_result(false, &"intent_queue_full"))
+		return _refuse(&"intent_queue_full")
 	pending.append(intent.to_dictionary())
 	avatar.stream_id = stream_id
 	avatar.last_sequence = intent.get_sequence()
@@ -266,6 +300,10 @@ func audit() -> Dictionary:
 		"server_owns_seat_reservation": false,
 		"client_can_mutate_state": false,
 		"registered_avatar_count": _avatars.size(),
+		"seated_avatar_count": _count_avatars_in_mode(MODE_SEATED),
+		"mode_changes": _mode_changes,
+		"intent_refusals": _intent_refusals.duplicate(true),
+		"mode_refusals": _mode_refusals.duplicate(true),
 	}.duplicate(true)
 
 
@@ -273,15 +311,32 @@ func get_last_result() -> Dictionary:
 	return _last_result.duplicate(true)
 
 
-func _validate_mode_actions(avatar: Dictionary, intent) -> bool:
-	var seated := StringName(avatar.mode) == &"seated"
+## The named reason an intent is refused for its avatar's current mode, or an
+## empty name when the mode allows it. A seated avatar may look around, ask to
+## interact and ask to disembark; it may not walk and may not board again. An
+## avatar on foot may not disembark from a seat it is not in.
+func _mode_refusal(avatar: Dictionary, intent) -> StringName:
+	var seated := StringName(avatar.mode) == MODE_SEATED
 	if seated and not intent.is_neutral_movement():
-		return false
+		return REFUSAL_MOVEMENT_WHILE_SEATED
 	if seated and intent.has_board_request():
-		return false
+		return REFUSAL_BOARD_WHILE_SEATED
 	if not seated and intent.has_disembark_request():
-		return false
-	return true
+		return REFUSAL_DISEMBARK_WHILE_ON_FOOT
+	return &""
+
+
+func _count_avatars_in_mode(mode: StringName) -> int:
+	var count := 0
+	for avatar_variant in _avatars.values():
+		if StringName((avatar_variant as Dictionary).mode) == mode:
+			count += 1
+	return count
+
+
+func _refuse(status: StringName, payload: Dictionary = {}) -> Dictionary:
+	_intent_refusals[status] = int(_intent_refusals.get(status, 0)) + 1
+	return _remember(_result(false, status, payload))
 
 
 func _valid_entity_id(entity_id: StringName) -> bool:

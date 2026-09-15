@@ -608,6 +608,22 @@ func retire_avatar(entity_id: StringName, entity_generation: int) -> Dictionary:
 	return _remember(_movement.retire_avatar(AUTHORITY_PEER_ID, entity_id, entity_generation))
 
 
+## Records the physical seat result for one avatar in the movement ledger.
+## Server only, and only after the real seat authority has committed: a
+## server-owned body that claims a seat or bunk is put into `seated` here, so a
+## walking intent from its owner is refused by name and counted at the ledger
+## instead of reaching a body that would have to ignore it; standing puts it
+## back `on_foot`.
+func set_avatar_mode(entity_id: StringName, entity_generation: int, mode: StringName) -> Dictionary:
+	if not is_server():
+		return _remember(_result(false, &"authority_required"))
+	return _remember(_movement.set_avatar_mode(AUTHORITY_PEER_ID, entity_id, entity_generation, mode))
+
+
+func get_movement_authority_audit() -> Dictionary:
+	return _movement.audit()
+
+
 ## Widens or narrows the movement authority's client-tick window. Server only;
 ## see `NetworkMovementAuthority.configure_tick_window()` for why a remote
 ## body's owner needs more than the six-tick default.

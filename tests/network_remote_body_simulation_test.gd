@@ -34,6 +34,7 @@ const Adapter := preload("res://scripts/network/network_enet_session_adapter.gd"
 const Relationship := preload("res://scripts/network/moving_interior_relationship.gd")
 const Intent := preload("res://scripts/network/network_movement_intent.gd")
 const IntentSource := preload("res://scripts/network/network_remote_body_intent_source.gd")
+const MovementAuthority := preload("res://scripts/network/network_movement_authority.gd")
 const RemoteBodySimulation := preload("res://scripts/network/network_remote_body_simulation.gd")
 
 const SHIP_ID: StringName = &"halyard_new_design"
@@ -480,13 +481,33 @@ func _assert_the_body_sleeps_in_the_bunk_and_wakes() -> void:
 		"the bunk is reserved for the body physically at it")
 	_check(int(_game.get_network_remote_body_audit().get("seat_claims", 0)) == 1,
 		"the simulation records one seat claim")
-	# A walking intent while asleep must not move the body.
+	# The claim changed the ledger's mode, not just the body's posture.
+	_check(_server.get_movement_avatar_snapshot(WALKER_ENTITIES[0]).get("mode") == MovementAuthority.MODE_SEATED
+		and simulation.get_body_record(WALKER_ENTITIES[0]).get("avatar_mode") == MovementAuthority.MODE_SEATED,
+		"claiming the bunk puts the body's movement avatar into the ledger's seated mode")
+	# A walking intent while asleep is refused by the ledger, by name and
+	# counted, and the body never sees it.
+	_intent_statuses.clear()
+	var refusals_before := _mode_refusal_count(MovementAuthority.REFUSAL_MOVEMENT_WHILE_SEATED)
+	var plan_tick := int(_game.get_network_moving_interior_publication_audit().get("server_tick", 0))
 	_set_plan(0, FORWARD, true)
 	var resting := _frame.get_occupant_frame_local_transform(body).origin
 	await _drive(30)
 	var rested := _frame.get_occupant_frame_local_transform(body).origin
 	_check(resting.distance_to(rested) < 0.02,
 		"forward intent does not walk a sleeping body off its bunk (%.3f m)" % resting.distance_to(rested))
+	_check(int(_intent_statuses.get(&"action_not_allowed_in_mode", 0)) >= 3,
+		"every walking intent streamed while seated is refused by the ledger (%d refused)"
+			% int(_intent_statuses.get(&"action_not_allowed_in_mode", 0)))
+	_check(_mode_refusal_count(MovementAuthority.REFUSAL_MOVEMENT_WHILE_SEATED) >= refusals_before + 3,
+		"the authority's audit counts the refusals under their named reason")
+	# Neutral packets already in flight when the plan changed are accepted, as
+	# they should be; once the forward stream is all that arrives, the ledger
+	# accepts nothing more for this avatar.
+	var last_accepted := int(_server.get_movement_avatar_snapshot(WALKER_ENTITIES[0]).get("last_accepted_server_tick", -1))
+	_check(last_accepted <= plan_tick + IntentSource.DEFAULT_CADENCE_TICKS * 3,
+		"nothing the owner streamed after the plan changed was accepted (last accept at tick %d, plan at %d)"
+			% [last_accepted, plan_tick])
 	var observed := _latest(_clients[OBSERVER_INDEX], WALKER_ENTITIES[0])
 	_check(int(observed.get("occupancy_state", -1)) == Relationship.STATE_SLEEPING,
 		"the publication tells every client the body is asleep, not standing still")
@@ -500,12 +521,28 @@ func _assert_the_body_sleeps_in_the_bunk_and_wakes() -> void:
 	_check(stood, "a second interaction request stands the body back up")
 	_check(bunk.is_available() and not bunk.is_reserved_for(body),
 		"standing releases the bunk")
+	_check(_server.get_movement_avatar_snapshot(WALKER_ENTITIES[0]).get("mode") == MovementAuthority.MODE_ON_FOOT,
+		"standing puts the movement avatar back on foot in the ledger")
+	_check(int(_game.get_network_remote_body_audit().get("mode_switches", 0)) == 2
+		and int(_game.get_network_remote_body_audit().get("mode_switches_refused", 0)) == 0,
+		"the simulation reports both mode switches to the ledger and neither is refused")
 	await _drive(12)
 	observed = _latest(_clients[OBSERVER_INDEX], WALKER_ENTITIES[0])
 	_check(int(observed.get("occupancy_state", -1)) == Relationship.STATE_WALKING,
 		"the publication returns the body to walking after it stands")
 	_check(body.is_on_floor() and _bounds.has_point(_frame.get_occupant_frame_local_transform(body).origin),
 		"the body stands on the deck inside the cabin after waking")
+	# And walking is accepted again on the same stream.
+	_intent_statuses.clear()
+	var applied_before := int(_game.get_network_remote_body_audit().get("intents_applied", 0))
+	_set_plan(0, FORWARD, true)
+	await _drive(16)
+	_set_plan(0, Vector2.ZERO, true)
+	_check(int(_game.get_network_remote_body_audit().get("intents_applied", 0)) > applied_before
+		and int(_intent_statuses.get(&"action_not_allowed_in_mode", 0)) == 0,
+		"a body back on foot walks on its owner's intent again with nothing refused")
+
+
 
 
 # --- the crowd budget -------------------------------------------------------
@@ -873,6 +910,13 @@ func _coalesced_total() -> int:
 func _on_server_intent_result(result: Dictionary) -> void:
 	var status := StringName(result.get("status", &"?"))
 	_intent_statuses[status] = int(_intent_statuses.get(status, 0)) + 1
+
+
+func _mode_refusal_count(reason: StringName) -> int:
+	if _server == null or not is_instance_valid(_server):
+		return 0
+	var audit: Dictionary = _server.get_movement_authority_audit()
+	return int((audit.get("mode_refusals", {}) as Dictionary).get(reason, 0))
 
 
 func _status_total() -> int:
