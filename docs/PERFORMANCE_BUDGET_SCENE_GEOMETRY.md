@@ -183,19 +183,19 @@ in this document has been raised.**
 | Schema-v2 metric | Station resident (0 loaded) | Cinder loaded (1 loaded) | Loaded delta |
 | --- | ---: | ---: | ---: |
 | Triangles | 1,917,477 | 2,051,611 | +134,134 |
-| Mesh renderer nodes | 5,549 | 5,758 | +209 |
-| Surfaces | 5,945 | 6,154 | +209 |
-| Unique meshes | 3,055 | 3,195 | +140 |
+| Mesh renderer nodes | 5,551 | 5,760 | +209 |
+| Surfaces | 5,947 | 6,156 | +209 |
+| Unique meshes | 3,057 | 3,197 | +140 |
 | Bound-phase materials | 693 | 735 | +42 |
 | Retained/reachable materials | 969 | 1,016 | +47 |
 | Unique shaders | 7 | 7 | 0 |
 | Text triangles / instances | 79,591 / 43 | 100,157 / 56 | +20,566 / +13 |
 | Lights / shadow lights | 335 / 20 | 362 / 20 | +27 / 0 |
 | Particle systems | 45 | 45 | 0 |
-| Scene-tree nodes | 10,502 | 10,925 | +423 |
+| Scene-tree nodes | 10,532 | 10,955 | +423 |
 
 Measured on `main` on 2026-09-15 with the service-line/registry batches (−49) and
-the ship fitout batches (−96) merged on top of the Habitat/Aft batches; the
+the ship fitout batches (−96, then +2 for the protected Zenith wing shells) and the chase-lane station collision (+28 nodes) merged on top of the Habitat/Aft batches; the
 renderer, surface and unique-mesh rows are read from the same
 `geometry_census_scenario_test` log. Resident nodes are 50% over the 7,000
 ceiling; what remains is indexing and resource contracts (shared-stock resource

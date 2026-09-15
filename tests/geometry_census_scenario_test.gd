@@ -122,8 +122,8 @@ const MAIN_SCENE := preload("res://scenes/main.tscn")
 # containers were resized 7 x 3.6 x 7 -> 3 x 3.6 x 4 and Dock 06's rails and
 # header shortened, which moves no count at all: they are the same `BoxMesh`
 # and `MultiMesh` resources at new dimensions.
-const RESIDENT_FINGERPRINT := "62c2a3b306f9e53df77af045a90fd500a95bb9885336de8d91cfb2e8da96a5f6"
-const CINDER_LOADED_FINGERPRINT := "04d26f7bb2d9615543643e977f3f486ddadeb77d39a2820a276339cfd7e403bd"
+const RESIDENT_FINGERPRINT := "60a98b4222d23448f5245692511a151fb8416c296c4cb610ce728430ec2067d4"
+const CINDER_LOADED_FINGERPRINT := "25f65add1a76167a3e6e62613339c231acb5750426ffcef606019e868cf4352e"
 
 var _assertions := 0
 var _failures := PackedStringArray()
@@ -174,17 +174,17 @@ func _run() -> void:
 	)
 	_check(
 		int(resident.get("total_triangles", -1)) == 1917477
-			and int(resident.get("total_mesh_instances", -1)) == 5676
-			and int(resident.get("total_surfaces", -1)) == 6033
-			and int(resident.get("unique_meshes", -1)) == 3167,
-		"resident geometry freezes 1,917,477 triangles / 5,676 meshes / 6,033 surfaces / 3,167 unique meshes"
+			and int(resident.get("total_mesh_instances", -1)) == 5551
+			and int(resident.get("total_surfaces", -1)) == 5947
+			and int(resident.get("unique_meshes", -1)) == 3057,
+		"resident geometry freezes 1,917,477 triangles / 5,551 meshes / 5,947 surfaces / 3,057 unique meshes"
 	)
 	_check(
 		int(resident.get("bound_phase_unique_materials", -1)) == 693
 			and int(resident.get("retained_reachable_unique_materials", -1)) == 969
 			and int(resident.get("lights", -1)) == 335
-			and int(resident.get("nodes", -1)) == 10675,
-		"resident resource roster freezes 693 bound / 969 retained materials, 335 lights, and 10,675 nodes"
+			and int(resident.get("nodes", -1)) == 10532,
+		"resident resource roster freezes 693 bound / 969 retained materials, 335 lights, and 10,532 nodes"
 	)
 	_check(
 		str(resident.get("measurement_fingerprint", "")) == RESIDENT_FINGERPRINT,
@@ -242,17 +242,17 @@ func _run() -> void:
 	)
 	_check(
 		int(loaded.get("total_triangles", -1)) == 2051611
-			and int(loaded.get("total_mesh_instances", -1)) == 5885
-			and int(loaded.get("total_surfaces", -1)) == 6242
-			and int(loaded.get("unique_meshes", -1)) == 3307,
-		"loaded geometry freezes 2,051,611 triangles / 5,885 meshes / 6,242 surfaces / 3,307 unique meshes"
+			and int(loaded.get("total_mesh_instances", -1)) == 5760
+			and int(loaded.get("total_surfaces", -1)) == 6156
+			and int(loaded.get("unique_meshes", -1)) == 3197,
+		"loaded geometry freezes 2,051,611 triangles / 5,760 meshes / 6,156 surfaces / 3,197 unique meshes"
 	)
 	_check(
 		int(loaded.get("bound_phase_unique_materials", -1)) == 735
 			and int(loaded.get("retained_reachable_unique_materials", -1)) == 1016
 			and int(loaded.get("lights", -1)) == 362
-			and int(loaded.get("nodes", -1)) == 11098,
-		"loaded resource roster freezes 735 bound / 1,016 retained materials, 362 lights, and 11,098 nodes"
+			and int(loaded.get("nodes", -1)) == 10955,
+		"loaded resource roster freezes 735 bound / 1,016 retained materials, 362 lights, and 10,955 nodes"
 	)
 	var cinder_bucket := (loaded.get("buckets", {}) as Dictionary).get(
 		"CinderStreamingBootstrap", {}
