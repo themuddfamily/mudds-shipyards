@@ -9,8 +9,12 @@ const CRAFTS := [
 	"JovianLightFreighter",
 	"ZenithInterceptor",
 	"HalyardCrewTransport",
+	"BulwarkHeavyGunship",
 ]
-const FALLBACK_CRAFTS := ["ZenithInterceptor"]
+## Craft with no authored idle cannon lens that still mount the shared marker
+## charge point. Bulwark's barrels are authored geometry but carry no separate
+## lens mesh, so it takes the same two fallback emitters Zenith does.
+const FALLBACK_CRAFTS := ["ZenithInterceptor", "BulwarkHeavyGunship"]
 
 var _assertions := 0
 var _failures: PackedStringArray = []
@@ -176,9 +180,53 @@ func _run() -> void:
 			and int(idle.get("fallback_node_count", -1)) == 0
 			and idle.get("stage") == &"nominal",
 			"%s omits unmounted idle cue while retaining the weapon component profile" % script_path)
+
+		# These hulls carry no authored cannon lens, so they mount no idle charge
+		# point - but the weapon component itself still has to grade exactly as
+		# every other craft's does, because the HUD heat cue and the shared fire
+		# authority both read that profile. An ungraded profile would leave the
+		# player with a working-looking weapon readout on a failed wing.
+		craft.set("_landed", false)
+		craft.set("_engine_state", HeroShip.ENGINE_ONLINE)
+		craft.set("_weapon_timer", 0.0)
+		_fail_weapon_component(craft)
+		craft.call("_sync_weapon_component_presentation")
+		var failed := craft.get_weapon_component_emitter_snapshot()
+		_check(
+			failed.get("stage") == &"failed"
+			and int(failed.get("emitter_count", -1)) == 0
+			and is_zero_approx(float(failed.get("geometry_multiplier", 1.0)))
+			and craft.get_weapon_fire_status().get("reason") == &"weapon_component_failed"
+			and not bool(failed.get("fire_authority", true)),
+			"%s grades a failed weapon component and blocks fire without any emitter mesh"
+				% script_path
+		)
+
+		_repair_weapon_components_to(craft, 0.32)
+		craft.call("_sync_weapon_component_presentation")
+		var critical := craft.get_weapon_component_emitter_snapshot()
+		_check(
+			critical.get("stage") == &"critical"
+			and int(critical.get("emitter_count", -1)) == 0
+			and (critical.get("overlay_color", Color.TRANSPARENT) as Color).is_equal_approx(
+				Color("ff5944")
+			),
+			"%s publishes the critical weapon grade the HUD heat cue reads" % script_path
+		)
+
+		_repair_weapon_components_to(craft, 0.55)
+		craft.call("_sync_weapon_component_presentation")
+		_check(
+			craft.get_weapon_component_emitter_snapshot().get("stage") == &"degraded",
+			"%s publishes the degraded weapon grade between critical and nominal" % script_path
+		)
+
 		craft.reset_for_reuse(craft.global_transform)
-		_check(int(craft.get_weapon_component_emitter_snapshot().get("emitter_count", -1)) == 0,
-			"%s reuse does not recreate unmounted marker spheres" % script_path)
+		var restored := craft.get_weapon_component_emitter_snapshot()
+		_check(int(restored.get("emitter_count", -1)) == 0
+			and restored.get("stage") == &"nominal",
+			"%s reuse restores the nominal grade without creating unmounted marker spheres"
+				% script_path)
 		craft.free()
 	_finish()
 
