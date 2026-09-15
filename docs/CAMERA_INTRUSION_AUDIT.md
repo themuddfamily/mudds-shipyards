@@ -261,23 +261,30 @@ The three audits, before and after, on the live production world:
 | --- | --- | --- |
 | `tools/coplanar_seam_audit.gd` | 1,334 pairs, JovianFreightBerth 125 / FleetExpansion 77 | 1,334 pairs, **same 125 / 77**, zero pairs naming any container node on either side |
 | `tools/station_walkability_sweep.gd` | 82 surfaces, 135,137 cells, 39,939 blocked, 19 findings | identical on every row |
-| `tools/camera_intrusion_audit.gd` | 24 `near_plane_in_world_mesh`, 6 `camera_sphere_in_own_hull` | 25 / 6 |
+| `tools/camera_intrusion_audit.gd` | 24 `near_plane_in_world_mesh`, 6 `camera_sphere_in_own_hull` | 24 / 6, **every `CAMERA_INTRUSION_CRAFT` line byte-identical to before** |
 
-That camera row is a real +1 and is recorded as one rather than rounded away.
-What it is **not** is a container finding: no finding in either run names a
-container, and the craft parked at Dock 04 (`cinder_cargo_hauler`, 3 findings)
-and at the freight berth (`jovian_provisional`, 5) are unchanged. The extra group
-is `arrow_provisional` against `TargetDrone01/DroneVisual/DressingRenderBatch01`
-at `[-14.22, 7.95, -95.26]`, 0.461 m deep, one sample at 32:9 — the exterior
-range drone class already **Accepted** above, at a position six other craft
-already report. The mechanism is the chase boom, not the drone: a container is
-now a frame with skins on it rather than a solid slab, so the arm's shape sweep
-retracts against it slightly differently (the Arrow's lane goes 252 → 250
-retracted samples out of 16,863), and two samples of lag state later the boom
-grazes a drone it previously cleared by centimetres. Both sides were measured
-twice and reproduce exactly, and halving the corrugation depth (0.075 → 0.040 m,
-kept because it is closer to real formed-sheet proportion) did not move it, so
-the cause is the frame-and-skin construction itself and not the valley depth.
+That camera row needs a caveat rather than a clean tick, because getting to it
+took six runs and they did not all agree. **This probe is not bit-deterministic
+at the margin**, which the Findings section above already says in so many
+words: the range drones patrol a closed-form orbit, so the shallow grazes on
+them are sampled at slightly different positions from run to run. The baseline alone measured 253 and then 252 retracted boom
+samples out of 16,863 on the Arrow's outbound lane across two runs of an
+unchanged tree, and three of the four runs taken during this pass reported 25
+`near_plane_in_world_mesh` groups rather than 24. The extra group, whenever it
+appeared, was always the same one: `arrow_provisional` against
+`TargetDrone01/DroneVisual/DressingRenderBatch01` at `[-14.22, 7.95, -95.26]`,
+0.461 m deep, **one sample**, 32:9 only — a single-sample graze on the exterior
+range-drone class already **Accepted** above, at a position six other craft
+already report from. The final run on the shipped geometry reproduces the
+baseline exactly, craft for craft, including that 252.
+
+What is solid either way: **no finding in any run names a container**, and the
+two craft that actually park among this freight are unchanged in every run —
+`cinder_cargo_hauler` at Dock 04 (3 findings) and `jovian_provisional` at the
+freight berth (5). A knife-edge single sample 95 m down the outbound lane is not
+evidence about station freight; it is evidence that this probe needs a repeat
+count before a one-group delta in it means anything, which is recorded here so
+the next pass does not read a single run as a regression or as a fix.
 
 Rendered before/after pairs — the Dock 04 walker, the whole yard, the hauler's
 chase range, the freight berth's rack line and one unit at arm's length, and the
