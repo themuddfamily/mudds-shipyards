@@ -305,17 +305,13 @@ descent.
   opaquely (`last_external_rebase_rejection`).
 - **`ember_surface_loop_production_binding_test` has one pre-existing failure**
   ("real survey completion persists one GameFlow reward before the coordinator
-  admits the authenticated route home"), reproduced on a clean tree before any
-  change here. It is not caused by, and not addressed by, this work.
-- **`ember_surface_loop_production_binding_test` has one pre-existing failure**
-  ("real survey completion persists one GameFlow reward before the coordinator
   admits the authenticated route home"), reproduced on a clean tree at
-  `e57a97e61` before any change here. It is not caused by, and not addressed by,
-  this work.
-- **The default 6-cycle run takes 264 s, not 240 s.** With the authored Ember
-  moon streamed in, production `Main` runs at roughly 5–8 physics ticks per
-  second headless against ~60 at the yard, and the one full expedition a session
-  admits is about 1,200 of those ticks. Figures below.
+  `e57a97e61` before any of this work. It is not caused by, and not addressed
+  by, it.
+- **The 6-cycle run takes 566 s of cycle legs, not 240 s.** With the authored
+  Ember moon streamed in, production `Main` runs at roughly 5–8 physics ticks per
+  second headless against ~60 at the yard, and a full expedition is about 1,200
+  of those ticks. Figures below.
 
 ## Results
 
