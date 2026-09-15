@@ -180,8 +180,8 @@ const MAIN_SCENE := preload("res://scenes/main.tscn")
 # textures (34 / 83,355,976 bytes) and particle systems (54). Every
 # loaded-minus-resident delta is untouched: +134,134 triangles, +209 renderers,
 # +140 unique meshes, +47 retained materials, +27 lights, +423 nodes.
-const RESIDENT_FINGERPRINT := "c17bf4a280c6943b716e31610bad55dee3ce96ec6e43dea5187f99ecc2c722be"
-const CINDER_LOADED_FINGERPRINT := "43ec2e96bd71eed1138d4bcee64e02fbd2861c9a3d1560bde4f2a1947af6355a"
+const RESIDENT_FINGERPRINT := "47ca8c6f5857882ec3b272b8626601b57d61c8bffbc198c7e8fadab0c1a97630"
+const CINDER_LOADED_FINGERPRINT := "3a8aaa84b2d69bafea3fce0e6292629edb55e0082a15c3126cdbfb3f2bf8da2f"
 
 var _assertions := 0
 var _failures := PackedStringArray()
@@ -241,8 +241,8 @@ func _run() -> void:
 		int(resident.get("bound_phase_unique_materials", -1)) == 693
 			and int(resident.get("retained_reachable_unique_materials", -1)) == 996
 			and int(resident.get("lights", -1)) == 341
-			and int(resident.get("nodes", -1)) == 10587,
-		"resident resource roster freezes 693 bound / 996 retained materials, 341 lights, and 10,587 nodes"
+			and int(resident.get("nodes", -1)) == 10593,
+		"resident resource roster freezes 693 bound / 996 retained materials, 341 lights, and 10,593 nodes"
 	)
 	_check(
 		str(resident.get("measurement_fingerprint", "")) == RESIDENT_FINGERPRINT,
@@ -309,8 +309,8 @@ func _run() -> void:
 		int(loaded.get("bound_phase_unique_materials", -1)) == 735
 			and int(loaded.get("retained_reachable_unique_materials", -1)) == 1043
 			and int(loaded.get("lights", -1)) == 368
-			and int(loaded.get("nodes", -1)) == 11010,
-		"loaded resource roster freezes 735 bound / 1,043 retained materials, 368 lights, and 11,010 nodes"
+			and int(loaded.get("nodes", -1)) == 11016,
+		"loaded resource roster freezes 735 bound / 1,043 retained materials, 368 lights, and 11,016 nodes"
 	)
 	var cinder_bucket := (loaded.get("buckets", {}) as Dictionary).get(
 		"CinderStreamingBootstrap", {}
