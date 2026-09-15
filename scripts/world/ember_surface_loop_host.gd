@@ -453,6 +453,18 @@ var _runtime_bindings_restored := false
 var _composition_exit_pending := false
 var _composition_exit_reason: StringName = &""
 var _composition_suspended := false
+## An expedition the player gave up on. The visit keeps running under its own
+## owners until the craft is airborne again — a pilot standing on the caldera
+## must still board the craft they arrived in — and the abandon commits the
+## moment it is.
+var _abandon_requested := false
+var _abandon_reason: StringName = &""
+var _abandon_commit_count := 0
+## A visit released through `abandon()` whose composition was no longer whole.
+## Everything is handed back, so the retained Host is offered a fresh bind rather
+## than being left attached to a streamed-out world.
+var _visit_released_detached := false
+var _last_abandon_receipt: Dictionary = {}
 var _composition_reentry_restore_pending := false
 var _composition_reentry_count := 0
 var _connections: Array[Dictionary] = []
@@ -496,9 +508,13 @@ func bind_dependencies(
 	if expected_attachment_generation != _attachment_generation:
 		return _finish(false, &"stale_attachment_generation")
 	var repeat_bind := _bound_once
+	var released_visit := _visit_released_detached and _phase == Phase.IDLE
 	if repeat_bind and (
-		_attached or _phase != Phase.COMPLETED or not _runtime_ownership_returned
-		or _session == null
+		_attached or _session == null
+		or not (
+			released_visit
+			or (_phase == Phase.COMPLETED and _runtime_ownership_returned)
+		)
 	):
 		return _finish(false, &"repeat_bind_unavailable")
 	var resolved_composition_root := composition_root \
@@ -607,7 +623,7 @@ func bind_dependencies(
 		_release_leases()
 		_restore_runtime_bindings()
 		return _finish(false, _configuration_error)
-	if repeat_bind:
+	if repeat_bind and _session.get_state() != PlanetaryTravelSession.State.IDLE:
 		var session_reset := _session.reset(
 			_session.get_generation(), _session.get_attachment_generation()
 		)
@@ -619,7 +635,9 @@ func bind_dependencies(
 			_release_leases()
 			_restore_runtime_bindings()
 			return _finish(false, _configuration_error)
+	if repeat_bind:
 		_reset_repeat_visit_state()
+		_visit_released_detached = false
 
 	_connect_dependency_signals()
 	_attachment_generation = _session.get_attachment_generation()
@@ -704,6 +722,197 @@ func start(
 	)
 	_set_phase(Phase.ORBIT_APPROACH)
 	return _finish(true, &"started")
+
+
+## Gives up this visit. The expedition ends, no reward is committed, the caldera
+## lease and all runtime ownership go back to their ordinary owners, and the
+## retained Host resets in place to `IDLE` so the same composition can admit
+## another expedition without a rebind.
+##
+## The one thing an abandon never does is separate a pilot from their craft. It
+## commits only while the craft is airborne with its pilot aboard; asked from the
+## pad or the surface it is recorded as pending, which lifts the authored survey
+## route so the player can walk straight back and board, and commits by itself
+## once the Host's own takeoff and ascent have the craft clear of the body.
+##
+## A visit that already terminalized releases here too: the teardown has already
+## happened, so only the reset for the next visit remains.
+func abandon(
+	expected_generation: int,
+	expected_attachment_generation: int,
+	reason: StringName = &"expedition_abandoned"
+) -> Dictionary:
+	if _mutation_active:
+		return _result(false, &"reentrant_call")
+	_mutation_active = true
+	var rejection := _simple_token_rejection(
+		expected_generation, expected_attachment_generation
+	)
+	if not rejection.is_empty():
+		return _finish(false, rejection)
+	if not _attached:
+		return _finish(false, &"not_attached")
+	if _phase in [Phase.IDLE, Phase.COMPLETED]:
+		return _finish(false, &"ember_surface_abandon_out_of_order")
+	if _phase == Phase.FAILED:
+		var released := _rebuild_for_next_visit(reason)
+		if not bool(released.get("accepted", false)):
+			return _finish(
+				false,
+				released.get("reason", &"abandon_reset_failed") as StringName
+			)
+		var release_result := _finish(true, &"ember_surface_abandoned")
+		release_result["abandon"] = _last_abandon_receipt.duplicate(true)
+		_last_result = release_result.duplicate(true)
+		return release_result
+	_abandon_requested = true
+	if _abandon_reason.is_empty():
+		_abandon_reason = reason
+	if _node_is_current(_ship) and _ship.is_landing_active() \
+			and _phase in [Phase.SURFACE_APPROACH, Phase.LANDING_APPROACH]:
+		_ship.call(&"_end_landing_for_lifecycle", &"ember_expedition_abandoned")
+		_landing_aborted_reason = &""
+	if not _abandon_commit_ready():
+		var pending := _finish(true, &"ember_surface_abandon_pending_return")
+		pending["abandon"] = get_abandon_snapshot()
+		_last_result = pending.duplicate(true)
+		return pending
+	var committed := _commit_abandon(_abandon_reason)
+	if not bool(committed.get("accepted", false)):
+		return _finish(
+			false, committed.get("reason", &"abandon_rejected") as StringName
+		)
+	var result := _finish(true, &"ember_surface_abandoned")
+	result["abandon"] = _last_abandon_receipt.duplicate(true)
+	_last_result = result.duplicate(true)
+	return result
+
+
+func get_abandon_snapshot() -> Dictionary:
+	return {
+		"requested": _abandon_requested,
+		"reason": _abandon_reason,
+		"commit_count": _abandon_commit_count,
+		"receipt": _last_abandon_receipt.duplicate(true),
+	}.duplicate(true)
+
+
+## An abandon may never leave the pilot beside a craft they cannot fly away in,
+## so it waits for the craft to be airborne, under its pilot, with no landing
+## contract in flight. A pending abandon additionally rides the Host's own
+## takeoff until the ascent has committed its surface-clear evidence, so the
+## craft is physically off the pad and climbing before the abandon hands it back.
+func _abandon_commit_ready() -> bool:
+	if _phase not in [
+		Phase.ORBIT_APPROACH, Phase.DESCENT, Phase.SURFACE_APPROACH,
+		Phase.LANDING_APPROACH, Phase.ASCENT, Phase.ORBIT_RETURN,
+	]:
+		return false
+	if _phase == Phase.ASCENT and not _surface_clear_submitted:
+		return false
+	if not _node_is_current(_ship) or not _node_is_current(_player):
+		return false
+	if _ship.is_destroyed() or _ship.is_landing_active() \
+			or bool(_ship.get_telemetry().get("landed", true)):
+		return false
+	return _player.is_seated() and _ship.is_piloted()
+
+
+func _commit_abandon(reason: StringName) -> Dictionary:
+	if is_instance_valid(_command_source):
+		_command_source.set_mode(
+			EmberSurfaceLoopCommandSource.Mode.NEUTRAL, _source_generation
+		)
+	if _node_is_current(_ship):
+		_ship.call(&"_end_landing_for_lifecycle", &"ember_expedition_abandoned")
+	# The pilot never left the seat, so logical cleanup responsibility for their
+	# own boarding token goes back to its ordinary owner instead of the token
+	# being dropped under a seated pilot — the same handback
+	# `return_runtime_ownership` performs at the end of a completed visit.
+	if _node_is_current(_player) and _player.is_seated():
+		_host_acquired_boarding_reservation = false
+	_release_leases()
+	if _session != null and _session.get_state() not in [
+		PlanetaryTravelSession.State.IDLE,
+		PlanetaryTravelSession.State.COMPLETED,
+		PlanetaryTravelSession.State.FAILED,
+		PlanetaryTravelSession.State.ABORTED,
+	]:
+		_session.fail(reason, _generation, _session.get_attachment_generation())
+	_disconnect_dependency_signals()
+	_restore_runtime_bindings()
+	return _rebuild_for_next_visit(reason)
+
+
+## Returns this retained Host to the exact state `bind_dependencies` leaves it
+## in, without a rebind: the same composition, a fresh session generation, a
+## fresh command source and no visit-scoped evidence. It changes no actor state,
+## because `_restore_runtime_bindings` has already returned all of it.
+func _rebuild_for_next_visit(reason: StringName) -> Dictionary:
+	if _session == null:
+		return {"accepted": false, "reason": &"travel_session_unavailable"}
+	var retired_generation := _generation
+	if _session.get_state() != PlanetaryTravelSession.State.IDLE:
+		var reset := _session.reset(
+			_generation, _session.get_attachment_generation()
+		)
+		if not bool(reset.get("accepted", false)):
+			return {"accepted": false, "reason": &"abandon_session_reset_rejected"}
+	_reset_repeat_visit_state()
+	_abandon_requested = false
+	_abandon_reason = &""
+	_composition_exit_pending = false
+	_composition_suspended = false
+	_composition_reentry_restore_pending = false
+	if is_instance_valid(_command_source):
+		if _command_source.get_snapshot().attached:
+			_command_source.detach(_source_generation)
+		_command_source.queue_free()
+	_command_source = EmberSurfaceLoopCommandSource.new()
+	_command_source.name = "EmberSurfaceLoopCommandSource"
+	add_child(_command_source)
+	var source_attach := _command_source.attach(0)
+	if not bool(source_attach.get("accepted", false)):
+		_configuration_error = &"command_source_attach_failed"
+		_attached = false
+		return {"accepted": false, "reason": _configuration_error}
+	_source_generation = _command_source.get_generation()
+	_disconnect_dependency_signals()
+	# A visit can end with its composition already gone — the streamed world
+	# unloaded, the craft freed. Everything this Host owned has been handed back
+	# either way, so rather than stay attached to a world that is not there, it
+	# detaches and offers itself for a fresh bind.
+	if _dependencies_current():
+		_original_command_source = _ship.get_command_source()
+		_original_ship_piloted = _ship.is_piloted()
+		_original_player_control_enabled = _player.is_control_enabled()
+		_original_player_gravity_multiplier = _player.gravity_multiplier
+		_original_player_camera_current = _player.get_camera().current
+		_connect_dependency_signals()
+		_visit_released_detached = false
+		_attached = true
+	else:
+		_visit_released_detached = true
+		_attached = false
+		_attachment_generation += 1
+	_configuration_error = &""
+	_abandon_commit_count += 1
+	_last_abandon_receipt = {
+		"schema_version": SCHEMA_VERSION,
+		"reason": reason,
+		"host_id": HOST_ID,
+		"retired_generation": retired_generation,
+		"generation": _generation,
+		"attachment_generation": _attachment_generation,
+		"ship_instance_id": _ship_instance_id,
+		"player_instance_id": _player_instance_id,
+		"ship_piloted": _ship.is_piloted() if _node_is_current(_ship) else false,
+		"player_seated": _player.is_seated() if _node_is_current(_player) else false,
+		"berth_lease_released": _berth_token.is_empty(),
+		"host_attached": _attached,
+		"phase": _phase,
+	}.duplicate(true)
+	return {"accepted": true, "reason": &"ember_surface_visit_released"}
 
 
 ## Reverses only the synchronous start transaction, before caller physics has
@@ -840,6 +1049,16 @@ func advance_physics(
 		return _finish(false, &"invalid_delta")
 	if _composition_reentry_restore_pending:
 		_restore_composition_reentry_bindings()
+	if _abandon_requested and _abandon_commit_ready():
+		var abandon_commit := _commit_abandon(_abandon_reason)
+		if not bool(abandon_commit.get("accepted", false)):
+			return _commit_failure(
+				abandon_commit.get("reason", &"abandon_rejected") as StringName
+			)
+		var abandoned := _finish(true, &"ember_surface_abandoned")
+		abandoned["abandon"] = _last_abandon_receipt.duplicate(true)
+		_last_result = abandoned.duplicate(true)
+		return abandoned
 	var dependency_failure := _dependency_failure_reason()
 	if not dependency_failure.is_empty():
 		return _commit_failure(dependency_failure)
@@ -1293,12 +1512,30 @@ func detach(
 		_terminal_reason = &"host_detached"
 		_set_phase(Phase.FAILED)
 		_session.fail(&"host_detached", _generation, _session.get_attachment_generation())
+	var idle_detach := _phase == Phase.IDLE
 	_release_leases()
 	_disconnect_dependency_signals()
-	_restore_runtime_bindings(recover_embodiment)
+	if idle_detach:
+		# An idle Host owns no actor state — its own audit treats holding any as
+		# an error — so detaching one must not write any back. Restoring the
+		# piloted flag captured at bind time would re-pilot a craft the player has
+		# since walked away from. Retire only the producer built for the visit
+		# that never started.
+		_runtime_bindings_restored = true
+		if is_instance_valid(_command_source):
+			if _command_source.get_snapshot().attached:
+				_command_source.detach(_source_generation)
+			_command_source.queue_free()
+			_command_source = null
+	else:
+		_restore_runtime_bindings(recover_embodiment)
 	_session.detach(_generation, _session.get_attachment_generation())
 	_attached = false
 	_attachment_generation += 1
+	# Detaching a Host that never started this visit ends nothing, so it offers
+	# itself for a fresh bind rather than waiting for a completed station return
+	# it will never make.
+	_visit_released_detached = idle_detach
 	return _finish(true, &"detached")
 
 
@@ -1341,6 +1578,7 @@ func _reset_repeat_visit_state() -> void:
 	_last_runtime_ownership_return_receipt.clear()
 	_host_acquired_boarding_reservation = false
 	_runtime_bindings_restored = false
+	_visit_released_detached = false
 
 
 func get_generation() -> int:
@@ -1426,6 +1664,7 @@ func get_snapshot() -> Dictionary:
 		"configuration_error": _configuration_error,
 		"terminal_reason": _terminal_reason,
 		"composition_reentry_count": _composition_reentry_count,
+		"abandon": get_abandon_snapshot(),
 		"identities": {
 			"world_id": WORLD_ID,
 			"body_id": BODY_ID,
@@ -1759,6 +1998,13 @@ func _advance_surface_outbound() -> Dictionary:
 	if not _surface_route_outbound_complete \
 			and _tangent_distance(player_tangent, egress) <= ROUTE_ANCHOR_RADIUS_M:
 		_surface_route_outbound_complete = true
+	# An abandoned expedition has no authored work left to walk to. The route
+	# stops gating, so the pilot's only remaining task is the one an abandon can
+	# never skip: getting back into the craft.
+	if _abandon_requested:
+		_surface_route_outbound_complete = true
+		_set_phase(Phase.ON_FOOT)
+		return {"accepted": true, "reason": &"surface_outbound_abandoned"}
 	if not _surface_route_outbound_complete:
 		return {"accepted": true, "reason": &"awaiting_egress_anchor"}
 	if _tangent_distance(player_tangent, staging) > ROUTE_ANCHOR_RADIUS_M:
@@ -1777,6 +2023,8 @@ func _advance_surface_return_observation() -> Dictionary:
 		_return_departed_staging = true
 	if _return_departed_staging \
 			and _tangent_distance(player_tangent, egress) <= ROUTE_ANCHOR_RADIUS_M:
+		_surface_route_return_complete = true
+	if _abandon_requested:
 		_surface_route_return_complete = true
 	return {
 		"accepted": true,
@@ -2796,6 +3044,8 @@ func _surface_actor_supported() -> bool:
 
 
 func _connect_dependency_signals() -> void:
+	if not _node_is_current(_ship) or not _node_is_current(_player):
+		return
 	_connect_signal(_ship.destroyed, _on_ship_destroyed)
 	_connect_signal(_ship.landing_completed, _on_landing_completed)
 	_connect_signal(_ship.landing_aborted, _on_landing_aborted)
@@ -2808,6 +3058,8 @@ func _connect_dependency_signals() -> void:
 		{"node": _ship, "reason": &"ship_detached"},
 		{"node": _player, "reason": &"player_detached"},
 	]:
+		if not _node_is_current(record.node):
+			continue
 		var node := record.node as Node
 		_connect_signal(node.tree_exiting, _on_dependency_tree_exiting.bind(record.reason))
 

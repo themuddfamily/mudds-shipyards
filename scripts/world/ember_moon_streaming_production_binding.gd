@@ -43,6 +43,7 @@ var _last_absolute_coordinate: Dictionary = {}
 var _last_streaming_result: Dictionary = {}
 var _last_tick_result: Dictionary = {}
 var _external_rebase_commit_count := 0
+var _last_external_rebase_rejection: Dictionary = {}
 
 
 func _enter_tree() -> void:
@@ -198,6 +199,19 @@ func preflight_external_origin_rebase(preview: Variant, request: Variant) -> Dic
 	return _result(true, &"external_rebase_preflighted")
 
 
+## The common-world owner reports a refused acceptance as one opaque
+## `binding_commit_desynchronized`, because by then the frame commit is
+## irreversible. This retains which of this adapter's own checks refused, as
+## diagnostics only.
+func _reject_committed_rebase(reason: StringName) -> Dictionary:
+	_last_external_rebase_rejection = {
+		"reason": reason,
+		"bound_coordinate_frame_generation": _bound_frame_generation,
+		"bootstrap_audit": _bootstrap.audit() if is_instance_valid(_bootstrap) else {},
+	}.duplicate(true)
+	return _result(false, reason)
+
+
 ## Reconciles this observation adapter after the common-world owner has applied
 ## and committed the exact preflighted transaction. It cannot request or commit
 ## a rebase itself.
@@ -208,12 +222,12 @@ func accept_committed_origin_rebase(
 		target_generation: int,
 	) -> Dictionary:
 	if not _activated or not is_inside_tree() or is_queued_for_deletion():
-		return _result(false, &"binding_unavailable")
+		return _reject_committed_rebase(&"binding_unavailable")
 	if _tick_active:
-		return _result(false, &"reentrant_call")
+		return _reject_committed_rebase(&"reentrant_call")
 	if not preview is Dictionary or not request is Dictionary \
 			or not adjusted_actor_sample is Dictionary:
-		return _result(false, &"invalid_rebase_contract")
+		return _reject_committed_rebase(&"invalid_rebase_contract")
 	var p := preview as Dictionary
 	var r := request as Dictionary
 	var sample := adjusted_actor_sample as Dictionary
@@ -223,20 +237,20 @@ func accept_committed_origin_rebase(
 			or p.get("absolute_coordinate") != _last_absolute_coordinate \
 			or _coordinate_frame.get_generation() != target_generation \
 			or _coordinate_frame.has_pending_rebase():
-		return _result(false, &"committed_rebase_mismatch")
+		return _reject_committed_rebase(&"committed_rebase_mismatch")
 	if not bool(sample.get("available", false)) \
 			or sample.get("actor_kind") != _last_actor_kind \
 			or int(sample.get("actor_instance_id", 0)) != _last_actor_instance_id:
-		return _result(false, &"adjusted_actor_mismatch")
+		return _reject_committed_rebase(&"adjusted_actor_mismatch")
 	var adjusted_position := sample.get("position", Vector3.INF) as Vector3
 	var converted := _coordinate_frame.world_streaming_to_orbital_position(
 		adjusted_position, target_generation
 	)
 	if not bool(converted.get("accepted", false)) \
 			or converted.get("coordinate") != _last_absolute_coordinate:
-		return _result(false, &"absolute_coordinate_drift")
+		return _reject_committed_rebase(&"absolute_coordinate_drift")
 	if not bool(_bootstrap.audit().get("valid", false)):
-		return _result(false, &"bootstrap_alignment_invalid")
+		return _reject_committed_rebase(&"bootstrap_alignment_invalid")
 	_bound_frame_generation = target_generation
 	_last_world_streaming_position = adjusted_position
 	var streaming := _bootstrap.update_absolute_focus(
@@ -272,6 +286,7 @@ func get_snapshot() -> Dictionary:
 		"bootstrap_instance_id": _bootstrap_instance_id,
 		"coordinate_frame_instance_id": _frame_instance_id,
 		"bound_coordinate_frame_generation": _bound_frame_generation,
+		"last_external_rebase_rejection": _last_external_rebase_rejection.duplicate(true),
 		"current_coordinate_frame_generation": int(frame_snapshot.get("generation", 0)),
 		"physics_tick_count": _physics_tick_count,
 		"accepted_sample_count": _accepted_sample_count,

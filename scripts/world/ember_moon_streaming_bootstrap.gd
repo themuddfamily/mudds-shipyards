@@ -8,6 +8,10 @@ extends Node3D
 ## registers Ember with one private coordinator, and requests its fixed
 ## load/unload lifecycle. It has no automatic engine callback.
 
+## The largest residual this root will silently re-express away after a committed
+## common-world translation. It is a rounding allowance, not a correction budget.
+const ORIGIN_TRANSLATION_ROUNDING_TOLERANCE_M := 0.01
+
 const SCHEMA_VERSION := 1
 const LOCATION_ID: StringName = &"ember_moon"
 const WORLD_ID: StringName = &"ember_moon"
@@ -694,6 +698,37 @@ func _body_center_world_position(expected_generation: int) -> Dictionary:
 	return _coordinate_frame.orbital_to_world_streaming_position(
 		body_coordinate, expected_generation
 	)
+
+
+## `CommonWorldOriginRebaseOwner` calls this once per committed transaction, only
+## on nodes it actually translated, and only after the commit is irreversible.
+##
+## The owner translates every covered root by one identical delta. Over an
+## 8,000 km delta that leaves sub-millimetre rounding in the near-zero components
+## of this root's position, and both `update_absolute_focus()` and
+## `accept_committed_origin_rebase()` compare it to the exact body centre the
+## frame defines — the latter *after* the next transaction's frame commit is
+## already irreversible, which is how a second Ember expedition used to lose the
+## rebase its caldera descent needs. Re-expressing the root at that exact
+## position removes only the rounding the translation just introduced: a
+## displacement beyond a centimetre is left alone, because that is a real move
+## and not this seam's business.
+func notify_common_world_translation(
+		delta: Vector3,
+		target_coordinate_frame_generation: int = 0,
+	) -> void:
+	if not delta.is_finite() or not _configured \
+			or target_coordinate_frame_generation < 1 \
+			or transform.basis != Basis.IDENTITY:
+		return
+	var expected := _body_center_world_position(target_coordinate_frame_generation)
+	if not bool(expected.get("accepted", false)):
+		return
+	var exact := expected.get("position", Vector3.INF) as Vector3
+	if not exact.is_finite() \
+			or position.distance_to(exact) > ORIGIN_TRANSLATION_ROUNDING_TOLERANCE_M:
+		return
+	position = exact
 
 
 func _root_is_aligned(expected_generation: int) -> bool:

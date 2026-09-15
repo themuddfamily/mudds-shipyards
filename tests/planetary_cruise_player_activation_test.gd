@@ -3,7 +3,7 @@ extends SceneTree
 const MAIN_SCENE := preload("res://scenes/main.tscn")
 const Store := preload("res://scripts/persistence/user_data_store.gd")
 const STORE_PATH := "memory://planetary-cruise-player-activation-settings.json"
-const EXPECTED_ASSERTIONS := 29
+const EXPECTED_ASSERTIONS := 30
 
 var _assertions := 0
 var _failures: Array[String] = []
@@ -249,6 +249,15 @@ func _run() -> void:
 		and surface_reward_sink.get_object_id() == game.get_instance_id()
 		and surface_reward_sink.get_method() == &"_commit_game_flow_activity_reward",
 		"controller accept queues the complete typed Ember surface expedition",
+	)
+	var objective_kicker := hud.get("_objective_kicker") as Label
+	var objective_label := hud.get("_objective_label") as Label
+	_check(
+		objective_kicker != null and objective_label != null
+			and objective_kicker.text == "EMBER EXPEDITION"
+			and objective_label.text.contains("Ember Moon")
+			and objective_label.text.contains("caldera"),
+		"the player entry publishes a standing Ember expedition objective",
 	)
 	_check(
 		bool(nested_request_attempted[0])

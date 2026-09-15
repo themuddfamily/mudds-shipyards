@@ -210,6 +210,9 @@ const SAFE_START_RECOMMENDATION_PRESERVED_KEYS := (
 const PLANETARY_CRUISE_MAX_CALLER_TICK := 9_007_199_254_740_991
 const PLANETARY_CRUISE_MAX_HUD_TOGGLE_SERIAL := 9_007_199_254_740_991
 const EMBER_DESTINATION_ID: StringName = &"ember_moon"
+## The one authored activity an Ember expedition opens. Its first-time briefing
+## card rides the same activity tutorial channel every other activity uses.
+const EMBER_RELAY_SURVEY_ACTIVITY_ID: StringName = &"ember_beacon_survey"
 const EMBER_DESTINATION_ROUTE_ID: StringName = &"ember_surface_expedition"
 const MUDDS_RETURN_TARGET_ID: StringName = &"mudds_shipyards"
 const MUDDS_RETURN_CORRIDOR_HALF_LENGTH_METERS := 750_000.0
@@ -9844,6 +9847,15 @@ func cancel_ember_surface_journey() -> Dictionary:
 	return _planetary_journey.cancel_ember_surface_journey()
 
 
+## Player-facing exit from an Ember expedition, from the pause menu and from
+## craft loss. The rule the retained owner implements is documented on
+## `PlanetaryJourneyCoordinator.abandon_ember_surface_journey()`.
+func abandon_ember_surface_journey(
+	reason: StringName = &"player_abandoned"
+) -> Dictionary:
+	return _planetary_journey.abandon_ember_surface_journey(reason)
+
+
 func _forward_pending_ember_surface_journey() -> Dictionary:
 	return _planetary_journey._forward_pending_ember_surface_journey()
 
@@ -11319,6 +11331,12 @@ func _on_ship_destroyed(
 	)
 	if source_ship == active_ship and (_piloting or active_transition_loss):
 		_fail_active_activity(&"ship_destroyed")
+		# Losing the craft ends any Ember expedition it was flying. Without this
+		# the retained Host stayed terminal and refused every later expedition of
+		# the session; the recall below still owns the pilot and the hull.
+		if not _pending_ember_surface_request.is_empty() \
+				or _ember_surface_journey_active:
+			abandon_ember_surface_journey(&"craft_lost")
 		if not _recovering:
 			_invalidate_transition_generation()
 			_recover_from_destroyed_ship(source_ship)
@@ -14187,7 +14205,10 @@ func _on_hud_planetary_cruise_toggle_requested(request_serial: int) -> void:
 	var result: Dictionary
 	if not _pending_ember_surface_request.is_empty() \
 			or _ember_surface_journey_active:
-		result = cancel_ember_surface_journey()
+		# A started expedition is abandoned, not refused: the same press that
+		# opened it gives it up, and the retained owner decides whether that
+		# commits now or waits for the pilot to board their craft.
+		result = abandon_ember_surface_journey(&"player_abandoned")
 	elif bool(before.get("engagement_requested", false)):
 		result = disengage_planetary_cruise(true)
 	elif (
@@ -15061,12 +15082,25 @@ func _begin_player_ember_surface_journey(caller_serial: int) -> Dictionary:
 			or _game_flow_reward_authority == null \
 			or not bool(_game_flow_reward_configuration.get("accepted", false)):
 		return {"accepted": false, "reason": &"ember_surface_composition_unavailable"}
-	return begin_ember_surface_journey(
+	var admitted := begin_ember_surface_journey(
 		ember_surface_loop_host,
 		activity_director,
 		Callable(self, &"_commit_game_flow_activity_reward"),
 		caller_serial,
 	)
+	if not bool(admitted.get("accepted", false)):
+		return admitted
+	# A player-started expedition is a destination, not a toggle: it gets the
+	# same standing objective every other production journey gets, and the same
+	# first-time activity briefing card, from the one seam the player used. A
+	# caller-driven start (tests, the soak harness) changes no presentation.
+	if is_instance_valid(hud):
+		hud.set_objective(
+			"Cruise to the Ember Moon, then follow the caldera approach corridor down",
+			"EMBER EXPEDITION",
+		)
+	publish_activity_tutorial_briefing(EMBER_RELAY_SURVEY_ACTIVITY_ID)
+	return admitted
 
 
 func disengage_planetary_cruise(brake_to_stop: bool = true) -> Dictionary:

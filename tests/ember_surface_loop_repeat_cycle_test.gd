@@ -139,12 +139,43 @@ func _run() -> void:
 		"a completed station return rebinds the same Main Host/binding for cycle two",
 	)
 
+	# Cycle three: a Host that went terminal — a lost craft, a lost dependency, a
+	# re-entry that could not be carried — used to refuse every later expedition
+	# of the session, because a repeat bind is only offered to a Host that
+	# completed and handed runtime ownership back. The production abandon
+	# releases a terminal visit in place instead, and the same retained Main
+	# admits the next one.
+	host.set("_phase", EmberSurfaceLoopHost.Phase.FAILED)
+	host.set("_terminal_reason", &"ship_destroyed")
+	var released := game.abandon_ember_surface_journey(&"craft_lost")
+	var third := game.begin_ember_surface_journey(
+		host, game.activity_director, Callable(self, &"_reward"), 3
+	)
+	_check(
+		bool(released.get("accepted", false))
+			and released.get("reason") == &"ember_surface_abandoned"
+			and host.get_phase() == EmberSurfaceLoopHost.Phase.IDLE
+			and bool(host.get_snapshot().get("attached", false))
+			and StringName(host.get_snapshot().get("terminal_reason", &"?")).is_empty()
+			and host.get_instance_id() == first_host_id
+			and production.get_instance_id() == first_binding_id
+			and bool(third.get("accepted", false))
+			and bool(game.get("_ember_surface_journey_active")),
+		"the production abandon releases a terminal Host and the retained Main admits cycle three",
+	)
+	var abandon_snapshot := host.get_snapshot().get("abandon", {}) as Dictionary
+	_check(
+		int(abandon_snapshot.get("commit_count", 0)) >= 1
+			and not bool(abandon_snapshot.get("requested", true)),
+		"the abandon leaves no pending request behind on the admitted Host",
+	)
+
 	game.queue_free()
 	await process_frame
 	_check(journey_reference.get_ref() == null,
 		"freeing Main releases the retained coordinator without a reference cycle")
 	if _failures.is_empty():
-		print("EMBER_SURFACE_LOOP_REPEAT_CYCLE_TEST_OK: retained Main admits cycle two")
+		print("EMBER_SURFACE_LOOP_REPEAT_CYCLE_TEST_OK: retained Main admits cycles two and three")
 		quit(0)
 		return
 	quit(1)

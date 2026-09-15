@@ -1511,6 +1511,42 @@ func detach_planetary_surface() -> Dictionary:
 	return result
 
 
+## Retires the visit-scoped surface composition for an expedition the player gave
+## up on. Unlike `detach_planetary_surface()` this needs no station-return
+## receipt, because there was no return contract: the live relay survey is
+## terminalized first so no activity generation is left running and no reward can
+## follow, and then the same repeat retirement a completed visit uses releases
+## the composition, the manifests and the scheduler identities. It touches no
+## GameFlow, ship or berth authority.
+## Terminalizes a live relay-survey generation without retiring the composition.
+## An abandon asked from the caldera ends the authored work immediately, while
+## the pilot still has a craft to walk back to and a surface to walk on.
+func abort_planetary_relay_survey(
+	reason: StringName = &"expedition_abandoned"
+) -> Dictionary:
+	if _planetary_composition == null:
+		return _reject(&"planetary_composition_unavailable")
+	_abort_active_relay_survey(reason)
+	return _result(true, &"planetary_relay_survey_aborted")
+
+
+func abandon_planetary_surface(
+	reason: StringName = &"expedition_abandoned"
+) -> Dictionary:
+	if _planetary_composition == null and not _configured:
+		return _reject(&"planetary_surface_not_configured")
+	_abort_active_relay_survey(reason)
+	if _planetary_composition != null:
+		var detached: Dictionary = _planetary_composition.call(&"detach")
+		if bool(detached.get("accepted", false)):
+			if is_instance_valid(_staging_relay_proximity):
+				_staging_relay_proximity.call(&"detach")
+			if _relay_return_travel != null:
+				_relay_return_travel.call(&"detach")
+	_retire_completed_journey_for_repeat()
+	return _result(true, &"planetary_surface_abandoned")
+
+
 func _terminal_station_return_completed() -> bool:
 	if _return_berth_adapter == null:
 		return false
@@ -1972,6 +2008,7 @@ func get_caller_snapshot() -> Dictionary:
 		"pending_envelope": _pending_envelope.duplicate(true),
 		"pending_intent": _pending_intent.duplicate(true),
 		"last_intent_serial": _last_intent_serial,
+		"last_caller_serial": _last_caller_serial,
 	}
 
 

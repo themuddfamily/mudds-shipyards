@@ -5,6 +5,11 @@ extends RefCounted
 ## Dependencies are observed through the retained Main. Berth leases, boarding,
 ## reward persistence and ordinary yard lifecycle remain with their owners.
 
+## Bounded retries for arming an abandoned visit's return approach. The craft is
+## flyable and under manual control throughout; this only stops a permanently
+## refused arm from asking every tick forever.
+const MAX_ABANDON_RETURN_ARM_ATTEMPTS := 900
+
 var _flow: GameFlow
 
 var _planetary_return_receipt_consumed := false
@@ -16,10 +21,31 @@ var _pending_ember_surface_director: ActivityDirector
 var _pending_ember_surface_reward_sink := Callable()
 var _pending_ember_surface_serial := 0
 var _last_ember_surface_forward_result: Dictionary = {}
+## The most recent surface-cadence outcome, retained as diagnostics only. A
+## stalled Host is almost always a refused cadence tick, and this names it.
+var _last_ember_surface_cadence_result: Dictionary = {}
+## The most recent refused common-world rebase, retained as diagnostics only.
+var _last_ember_origin_rejection: Dictionary = {}
 var _ember_surface_forward_count := 0
 var _ember_survey_start_context: Dictionary = {}
 var _ember_survey_return_manifest: Dictionary = {}
 var _ember_surface_journey_active := false
+## An expedition the player gave up on. The Host holds the abandon until the
+## craft is airborne again, so a pilot on the caldera keeps their objective and
+## their craft's pad lease until they have boarded it.
+var _ember_surface_abandon_pending := false
+var _ember_surface_abandon_reason: StringName = &""
+var _ember_surface_abandon_count := 0
+var _ember_abandon_observed_commit_count := 0
+var _last_ember_surface_abandon_result: Dictionary = {}
+## The abandoned visit's way home: the same Mudds return approach the completed
+## loop arms, without the station-return contract an abandoned visit never
+## earned. Arming can be refused while the craft is still climbing out of the
+## caldera, so it is retried on the ordinary cadence until it takes.
+var _ember_abandon_return_active := false
+var _ember_abandon_return_arm_pending := false
+var _ember_abandon_return_arm_attempts := 0
+var _last_ember_abandon_return_arm_result: Dictionary = {}
 var _ember_final_approach_handoff_ready := false
 var _ember_final_approach_completion_receipt: Dictionary = {}
 var _ember_final_approach_rearm_count := 0
@@ -78,6 +104,12 @@ func advance_world(delta: float, actor_sample: Dictionary) -> Dictionary:
 					var rebase := _flow.common_world_origin_rebase_owner.consume_rebase_preview(
 						preview, actor_sample
 					)
+					if preview_requires_rebase \
+							and not bool(rebase.get("accepted", false)):
+						_last_ember_origin_rejection = {
+							"reason": rebase.get("reason", &"origin_rebase_rejected"),
+							"coordinate_frame_generation": coordinate_frame_generation,
+						}.duplicate(true)
 					if bool(rebase.get("accepted", false)):
 						ember_origin_result = rebase.duplicate(true)
 					if bool(rebase.get("accepted", false)) and rebase.has("actor_sample"):
@@ -116,6 +148,7 @@ func advance_world(delta: float, actor_sample: Dictionary) -> Dictionary:
 		_last_ember_surface_forward_result = _forward_pending_ember_surface_journey()
 		if bool(_last_ember_surface_forward_result.get("accepted", false)):
 			_ember_surface_forward_count += 1
+	_advance_ember_surface_abandon(coordinate_frame_generation)
 	if _ember_surface_journey_active:
 		if required_origin_rebase_uncommitted or not ember_streaming_accepted:
 			_last_ember_final_approach_rearm_result = {
@@ -183,7 +216,7 @@ func advance_world(delta: float, actor_sample: Dictionary) -> Dictionary:
 	# GameFlow callback prevents a new origin transaction from reaching an IDLE
 	# Host between completion and start; the priority-2 surface binding still
 	# performs the one actual Host.start() after Hero's current physics tick.
-	_advance_ember_surface_loop_cadence(
+	_last_ember_surface_cadence_result = _advance_ember_surface_loop_cadence(
 		delta, actor_sample, ember_origin_result, coordinate_frame_generation
 	)
 	_flow._sync_planetary_cruise_hud()
@@ -217,7 +250,24 @@ func _ensure_ember_surface_loop_host_bound(streaming_ready: bool) -> Dictionary:
 			or not is_instance_valid(_flow.ember_surface_loop_production_binding):
 		return {"accepted": false, "reason": &"composition_missing"}
 	if _flow.ember_surface_loop_host.is_attached():
-		return {"accepted": true, "reason": &"already_bound"}
+		# A retained Host that is idle between visits can still be holding the
+		# streamed world of the previous one: Ember unloads behind a departing
+		# craft and the Host's frozen loaded-root identity goes stale, which its
+		# own audit reports and the surface binding refuses to configure against.
+		# Nothing is running, so release that binding here and rebind below
+		# against the world that is actually loaded now.
+		if _ember_surface_journey_active \
+				or not _pending_ember_surface_request.is_empty() \
+				or _flow.ember_surface_loop_host.get_phase() \
+					!= EmberSurfaceLoopHost.Phase.IDLE \
+				or bool(_flow.ember_surface_loop_host.audit().get("valid", false)):
+			return {"accepted": true, "reason": &"already_bound"}
+		var released := _flow.ember_surface_loop_host.detach(
+			_flow.ember_surface_loop_host.get_generation(),
+			_flow.ember_surface_loop_host.get_attachment_generation(),
+		)
+		if not bool(released.get("accepted", false)):
+			return released
 	if _flow.ember_surface_loop_production_binding.is_configured():
 		return {"accepted": true, "reason": &"already_configured"}
 	var loaded_scene := _flow.ember_streaming_bootstrap.get_loaded_instance() \
@@ -318,6 +368,7 @@ func _advance_ember_surface_loop_cadence(
 		advanced["relay_survey"] = survey_lifecycle.duplicate(true)
 	var intent_result: Dictionary = {}
 	if host_phase == EmberSurfaceLoopHost.Phase.LANDED \
+			and not _ember_surface_abandon_pending \
 			and str(telemetry.get("engine_state", "ONLINE")) == "OFFLINE":
 		intent_result = _queue_ember_surface_intent(&"disembark")
 	elif host_phase == EmberSurfaceLoopHost.Phase.REBOARDED:
@@ -365,6 +416,9 @@ func _ember_survey_return_is_admitted(binding_snapshot: Dictionary) -> bool:
 ## Reward and persistence remain the late binding's authorities; only their
 ## matching committed receipt permits the existing route-home admission.
 func _advance_ember_survey_lifecycle(binding_snapshot: Dictionary) -> Dictionary:
+	if _ember_surface_abandon_pending:
+		# An abandoned expedition starts no authored work and earns no reward.
+		return {}
 	var binding := _flow.ember_surface_loop_production_binding
 	if binding.get_host_phase() != EmberSurfaceLoopHost.Phase.ON_FOOT:
 		return {}
@@ -470,7 +524,8 @@ func _consume_ember_surface_reboard_interaction() -> bool:
 			boarding_area_nearby = true
 			break
 	if boarding_area_nearby:
-		if not _ember_survey_return_is_admitted(_flow.ember_surface_loop_production_binding.get_snapshot()):
+		if not _ember_surface_abandon_pending \
+				and not _ember_survey_return_is_admitted(_flow.ember_surface_loop_production_binding.get_snapshot()):
 			if is_instance_valid(_flow.hud):
 				_flow.hud.toast("Survey return pending", "Complete the Ember relay survey and save its reward before boarding for home")
 			return true
@@ -551,6 +606,23 @@ func begin_ember_surface_journey(
 	# same-frame caller envelope exists yet.
 	_ember_survey_start_context.clear()
 	_ember_survey_return_manifest.clear()
+	# The surface binding's caller-serial fence belongs to the visit-scoped
+	# composition, and resets with it. A retained coordinator that kept counting
+	# from the previous expedition handed every later visit a skipped serial, so
+	# the binding refused every cadence tick: the second visit consumed its
+	# final-approach completion, reported the handoff ready, and then left the
+	# Host at `IDLE` forever. Adopt the fence the binding is actually holding.
+	_ember_surface_caller_serial = int(
+		binding.get_caller_snapshot().get("last_caller_serial", 0)
+	)
+	_ember_surface_abandon_pending = false
+	_ember_surface_abandon_reason = &""
+	_ember_abandon_return_active = false
+	_ember_abandon_return_arm_pending = false
+	_ember_abandon_return_arm_attempts = 0
+	_ember_abandon_observed_commit_count = int(
+		host.call(&"get_abandon_snapshot").get("commit_count", 0)
+	)
 	_ember_surface_journey_active = true
 	_ember_final_approach_handoff_ready = false
 	_ember_final_approach_completion_receipt.clear()
@@ -1103,6 +1175,28 @@ func _consume_mudds_return_approach_completion(receipt: Dictionary) -> Dictionar
 	_mudds_return_approach_completion_receipt = consumed.duplicate(true)
 	_mudds_return_approach_active = false
 	_ember_surface_journey_active = false
+	if _ember_abandon_return_active:
+		# An abandoned visit earned no station-return contract and carries no
+		# physical arrival receipt, so the ordinary sandbox berth lifecycle owns
+		# the last leg exactly as it owns any other sortie's landing.
+		_ember_abandon_return_active = false
+		_planetary_return_physical_arrival_required = false
+		_flow._sortie_departed_berth = true
+		if is_instance_valid(_flow.hud):
+			_flow.hud.set_objective(
+				"Re-align with a compatible registered berth and land",
+				"EXPEDITION ABANDONED",
+			)
+			_flow.hud.toast(
+				"Mudds approach complete",
+				"Manual flight and the registered berth lifecycle now own the return",
+			)
+		_last_mudds_return_approach_result = {
+			"accepted": true,
+			"reason": &"abandoned_return_handed_to_station_lifecycle",
+			"receipt": consumed.duplicate(true),
+		}.duplicate(true)
+		return _last_mudds_return_approach_result.duplicate(true)
 	_planetary_return_receipt_consumed = false
 	_planetary_return_physical_arrival_required = true
 	_planetary_return_physical_arrival_armed = false
@@ -1241,6 +1335,234 @@ func _complete_planetary_return_physical_arrival(
 		return consumed
 	_planetary_return_physical_arrival_required = false
 	return consumed
+
+
+## Gives up an expedition that has already started.
+##
+## The rule, in full. Before the Host leaves `IDLE` — the craft is still cruising
+## out to Ember — this is the ordinary cancel: the cruise disengages and there is
+## no expedition. Once the Host has started, the abandon terminalizes the relay
+## survey's activity generation with no reward, retires the visit-scoped surface
+## composition, releases the caldera lease and every piece of runtime ownership
+## the Host held, and resets the retained Host in place to `IDLE`, so the same
+## `Main` admits another expedition immediately. The craft then flies home on the
+## same Mudds return approach the completed loop uses, and the player lands at
+## their own berth through the ordinary yard lifecycle.
+##
+## An abandon never separates a pilot from their craft. Asked while the craft is
+## on, or committed to, the caldera pad, it is recorded as pending: the authored
+## survey route and its re-board gate lift at once, the player walks back to
+## their craft and boards it, and the Host's own takeoff carries the abandon
+## until the craft is physically off the pad and climbing, where it commits.
+## Until then the pilot keeps control and the craft keeps its pad lease.
+func abandon_ember_surface_journey(
+	reason: StringName = &"player_abandoned"
+) -> Dictionary:
+	if _pending_ember_surface_request.is_empty() \
+			and not _ember_surface_journey_active:
+		return {"accepted": false, "reason": &"ember_surface_request_not_pending"}
+	var host := _flow.ember_surface_loop_host
+	if not is_instance_valid(host) \
+			or host.get_phase() == EmberSurfaceLoopHost.Phase.IDLE:
+		return cancel_ember_surface_journey()
+	var abandoned: Dictionary = host.abandon(
+		host.get_generation(), host.get_attachment_generation(), reason
+	)
+	_last_ember_surface_abandon_result = abandoned.duplicate(true)
+	if not bool(abandoned.get("accepted", false)):
+		return abandoned
+	_ember_surface_abandon_reason = reason
+	_ember_abandon_observed_commit_count = int(
+		host.get_abandon_snapshot().get("commit_count", 0)
+	)
+	if StringName(abandoned.get("reason", &"")) \
+			== &"ember_surface_abandon_pending_return":
+		_ember_surface_abandon_pending = true
+		# The authored work is over the moment the player gives it up, even
+		# though the visit itself waits for them to board. No generation keeps
+		# running behind an abandoned expedition and no reward can follow.
+		var binding := _flow.ember_surface_loop_production_binding
+		if is_instance_valid(binding) \
+				and binding.has_method(&"abort_planetary_relay_survey"):
+			binding.call(&"abort_planetary_relay_survey", reason)
+		if is_instance_valid(_flow.hud):
+			_flow.hud.set_objective(
+				"Walk back to your craft and board it to leave Ember",
+				"EXPEDITION ABANDONED",
+			)
+			_flow.hud.toast(
+				"Expedition abandoned",
+				"The relay survey is cancelled — board your craft to fly home",
+				3.0,
+			)
+		return abandoned
+	var completed := _complete_ember_surface_abandon(
+		reason, _current_planetary_return_frame_generation()
+	)
+	var result := abandoned.duplicate(true)
+	result["abandon_completion"] = completed.duplicate(true)
+	return result
+
+
+## Watches a pending abandon the Host commits on its own cadence, and ends an
+## expedition whose Host went terminal — a lost craft, a lost dependency — as an
+## abandon rather than leaving the retained `Main` refusing every later visit.
+func _advance_ember_surface_abandon(coordinate_frame_generation: int) -> Dictionary:
+	if _ember_abandon_return_arm_pending:
+		_retry_ember_abandon_return_approach(coordinate_frame_generation)
+	if not _ember_surface_journey_active:
+		return {"accepted": false, "reason": &"ember_surface_abandon_not_active"}
+	var host := _flow.ember_surface_loop_host
+	if not is_instance_valid(host):
+		return {"accepted": false, "reason": &"ember_surface_abandon_host_unavailable"}
+	if _ember_surface_abandon_pending:
+		var abandon := host.get_abandon_snapshot()
+		if int(abandon.get("commit_count", 0)) \
+				> _ember_abandon_observed_commit_count:
+			_ember_abandon_observed_commit_count = int(abandon.get("commit_count", 0))
+			return _complete_ember_surface_abandon(
+				_ember_surface_abandon_reason, coordinate_frame_generation
+			)
+	if host.get_phase() == EmberSurfaceLoopHost.Phase.FAILED:
+		return abandon_ember_surface_journey(
+			StringName(host.get_snapshot().get("terminal_reason", &"host_terminal"))
+		)
+	return {"accepted": false, "reason": &"ember_surface_abandon_not_pending"}
+
+
+func _complete_ember_surface_abandon(
+	reason: StringName, coordinate_frame_generation: int
+) -> Dictionary:
+	_ember_surface_abandon_pending = false
+	_ember_surface_abandon_count += 1
+	var retired: Dictionary = {}
+	var binding := _flow.ember_surface_loop_production_binding
+	if is_instance_valid(binding) \
+			and binding.has_method(&"abandon_planetary_surface"):
+		retired = binding.call(&"abandon_planetary_surface", reason) as Dictionary
+	if is_instance_valid(_flow.planetary_cruise_binding):
+		var cruise := _flow.planetary_cruise_binding
+		var cruise_snapshot := cruise.get_snapshot()
+		var final_approach := cruise_snapshot.get("final_approach", {}) as Dictionary
+		var completion := final_approach.get("completion_receipt", {}) as Dictionary
+		if not completion.is_empty():
+			cruise.discard_final_approach_completion(
+				int(completion.get("target_generation", 0)),
+				cruise.get_generation(),
+				&"ember_surface_journey_abandoned",
+			)
+		if bool(cruise_snapshot.get("engagement_requested", false)):
+			cruise.request_disengage(cruise.get_generation(), false)
+	_ember_surface_journey_active = false
+	_ember_final_approach_handoff_ready = false
+	_ember_final_approach_completion_receipt.clear()
+	_last_ember_final_approach_rearm_result.clear()
+	_ember_survey_start_context.clear()
+	_ember_survey_return_manifest.clear()
+	_pending_ember_surface_request.clear()
+	_pending_ember_surface_host = null
+	_pending_ember_surface_director = null
+	_pending_ember_surface_reward_sink = Callable()
+	_pending_ember_surface_serial = 0
+	_mudds_return_handback_consumption_attempted = false
+	_mudds_return_handback_receipt.clear()
+	_mudds_station_return_intent_consumption_attempted = false
+	_mudds_station_return_intent_receipt.clear()
+	_mudds_return_approach_completion_attempted = false
+	_mudds_return_approach_completion_receipt.clear()
+	_planetary_return_physical_arrival_required = false
+	_planetary_return_physical_arrival_armed = false
+	_ember_abandon_return_arm_pending = true
+	_ember_abandon_return_arm_attempts = 0
+	var armed := _arm_ember_abandon_return_approach(coordinate_frame_generation)
+	if is_instance_valid(_flow.hud):
+		_flow.hud.set_objective(
+			"Cruising back to Mudds Shipyards — land at a compatible registered berth",
+			"EXPEDITION ABANDONED",
+		)
+		_flow.hud.toast(
+			"Ember expedition abandoned",
+			"No survey reward was granted — the return approach is flying you home",
+			3.0,
+		)
+	return {
+		"accepted": true,
+		"reason": &"ember_surface_journey_abandoned",
+		"abandon_reason": reason,
+		"abandon_count": _ember_surface_abandon_count,
+		"surface_retirement": retired.duplicate(true),
+		"return_approach": armed.duplicate(true),
+	}.duplicate(true)
+
+
+func _arm_ember_abandon_return_approach(
+	coordinate_frame_generation: int
+) -> Dictionary:
+	if not _ember_abandon_return_arm_pending:
+		return {"accepted": false, "reason": &"abandon_return_not_pending"}
+	if not is_instance_valid(_flow.planetary_cruise_binding) \
+			or not is_instance_valid(_flow.active_ship) \
+			or not _flow.active_ship.is_piloted():
+		_last_ember_abandon_return_arm_result = {
+			"accepted": false, "reason": &"abandon_return_actor_unavailable",
+		}.duplicate(true)
+		return _last_ember_abandon_return_arm_result.duplicate(true)
+	var frame_generation := coordinate_frame_generation
+	if frame_generation < 1:
+		frame_generation = _current_planetary_return_frame_generation()
+	if frame_generation < 1:
+		_last_ember_abandon_return_arm_result = {
+			"accepted": false,
+			"reason": &"abandon_return_coordinate_frame_unavailable",
+		}.duplicate(true)
+		return _last_ember_abandon_return_arm_result.duplicate(true)
+	var target_result := _build_mudds_return_approach_target()
+	if not bool(target_result.get("accepted", false)):
+		_last_ember_abandon_return_arm_result = target_result.duplicate(true)
+		return target_result
+	var cruise := _flow.planetary_cruise_binding
+	var gate_reason := _flow._planetary_cruise_gate_reason(false)
+	if not gate_reason.is_empty():
+		_last_ember_abandon_return_arm_result = {
+			"accepted": false, "reason": gate_reason,
+		}.duplicate(true)
+		return _last_ember_abandon_return_arm_result.duplicate(true)
+	if not bool(cruise.get_snapshot().get("engagement_requested", false)):
+		var engaged := cruise.request_engage(
+			_flow.active_ship, frame_generation, gate_reason,
+			cruise.get_generation(),
+		)
+		if not bool(engaged.get("accepted", false)):
+			_last_ember_abandon_return_arm_result = engaged.duplicate(true)
+			return engaged
+	var armed := cruise.request_return_approach(
+		target_result.get("target", {}) as Dictionary,
+		frame_generation,
+		cruise.get_generation(),
+	)
+	if not bool(armed.get("accepted", false)):
+		_last_ember_abandon_return_arm_result = armed.duplicate(true)
+		return armed
+	_ember_abandon_return_arm_pending = false
+	_ember_abandon_return_active = true
+	_mudds_return_approach_active = true
+	_last_ember_abandon_return_arm_result = armed.duplicate(true)
+	_last_mudds_return_approach_result = armed.duplicate(true)
+	return armed
+
+
+## The craft may still be inside the caldera's clearance envelope when an
+## abandon commits, so the return approach is retried on the ordinary cadence
+## until it arms. The bound exists so a permanently refused arm stops asking; the
+## pilot still has their craft and full manual control either way.
+func _retry_ember_abandon_return_approach(
+	coordinate_frame_generation: int
+) -> Dictionary:
+	if _ember_abandon_return_arm_attempts >= MAX_ABANDON_RETURN_ARM_ATTEMPTS:
+		_ember_abandon_return_arm_pending = false
+		return {"accepted": false, "reason": &"abandon_return_arm_exhausted"}
+	_ember_abandon_return_arm_attempts += 1
+	return _arm_ember_abandon_return_approach(coordinate_frame_generation)
 
 
 func cancel_ember_surface_journey() -> Dictionary:

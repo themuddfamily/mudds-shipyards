@@ -35,6 +35,8 @@ func _run() -> void:
 	await _test_terrain_contact_rejects_airborne()
 	await _test_synchronous_destruction_first_wins()
 	await _test_composition_reentry_preserves_the_live_visit()
+	await _test_airborne_abandon_releases_the_visit_for_the_next_one()
+	await _test_landed_abandon_waits_for_the_pilot_to_board()
 	for phase in [
 		EmberSurfaceLoopHost.Phase.DISEMBARKING,
 		EmberSurfaceLoopHost.Phase.BOARDING,
@@ -1343,6 +1345,159 @@ func _test_composition_reentry_preserves_the_live_visit() -> void:
 			and host.get_phase() != EmberSurfaceLoopHost.Phase.FAILED,
 		"the re-entered Host keeps advancing its own phase (%s)"
 			% advanced.get("reason", &"?"),
+	)
+	await _cleanup(fixture)
+
+
+## Abandoning an airborne visit hands everything back at once and leaves the same
+## retained Host ready for the next expedition without a rebind — the repeat
+## visit a session used to be refused.
+func _test_airborne_abandon_releases_the_visit_for_the_next_one() -> void:
+	var fixture := await _fixture()
+	if fixture.is_empty():
+		return
+	var host := fixture.host as EmberSurfaceLoopHost
+	var ship := fixture.ship as ArrowReconShip
+	var player := fixture.player as PlayerController
+	var berth := fixture.berth as EmberSurfaceBerth
+	var original_source := fixture.original_source as ShipCommandSource
+	await _tick(fixture)
+	var live_phase := host.get_phase()
+	var retired_generation := host.get_generation()
+	var abandoned := host.abandon(
+		host.get_generation(), host.get_attachment_generation(), &"player_abandoned"
+	)
+	var receipt := abandoned.get("abandon", {}) as Dictionary
+	_check(
+		live_phase != EmberSurfaceLoopHost.Phase.IDLE
+			and bool(abandoned.get("accepted", false))
+			and abandoned.get("reason") == &"ember_surface_abandoned"
+			and host.get_phase() == EmberSurfaceLoopHost.Phase.IDLE
+			and host.is_attached()
+			and host.get_generation() != retired_generation
+			and receipt.get("reason") == &"player_abandoned"
+			and bool(receipt.get("berth_lease_released", false)),
+		"an airborne abandon ends the visit and resets the retained Host in place (%s)"
+			% abandoned.get("reason", &"?"),
+	)
+	_check(
+		berth.get_reservation_token(ship).is_empty()
+			and ship.get_command_source() == original_source
+			and ship.is_piloted() and player.is_seated()
+			and not ship.is_destroyed()
+			and not bool(host.get_snapshot().get("attached", false) == false),
+		"the abandoned craft keeps its pilot and hands every lease and command back",
+	)
+	var restarted := _start_host(fixture)
+	_check(
+		bool(restarted.get("accepted", false))
+			and host.get_phase() != EmberSurfaceLoopHost.Phase.IDLE,
+		"the same retained Host starts a second expedition after the abandon (%s)"
+			% restarted.get("reason", &"?"),
+	)
+	await _cleanup(fixture)
+
+
+## An abandon never separates a pilot from their craft: asked from the pad it is
+## pending, it lifts the authored survey route so the walk home is immediate, and
+## the caldera lease stays with the craft until the pilot is aboard again.
+func _test_landed_abandon_waits_for_the_pilot_to_board() -> void:
+	var fixture := await _fixture()
+	if fixture.is_empty():
+		return
+	var host := fixture.host as EmberSurfaceLoopHost
+	var ship := fixture.ship as ArrowReconShip
+	var player := fixture.player as PlayerController
+	var berth := fixture.berth as EmberSurfaceBerth
+	var reached_landed := await _drive_to_phase(
+		fixture, EmberSurfaceLoopHost.Phase.LANDED, 660
+	)
+	if not reached_landed:
+		_check(false, "abandon fixture reaches the caldera pad")
+		await _cleanup(fixture)
+		return
+	host.request_disembark(host.get_generation(), host.get_attachment_generation())
+	var on_surface := await _drive_to_phase(
+		fixture, EmberSurfaceLoopHost.Phase.SURFACE_OUTBOUND, 600
+	)
+	if not on_surface:
+		_check(false, "abandon fixture puts the pilot on the caldera")
+		await _cleanup(fixture)
+		return
+	var lease_before := berth.get_reservation_token(ship)
+	var pending := host.abandon(
+		host.get_generation(), host.get_attachment_generation(), &"player_abandoned"
+	)
+	_check(
+		bool(pending.get("accepted", false))
+			and pending.get("reason") == &"ember_surface_abandon_pending_return"
+			and host.get_phase() == EmberSurfaceLoopHost.Phase.SURFACE_OUTBOUND
+			and berth.get_reservation_token(ship) == lease_before
+			and not lease_before.is_empty()
+			and player.is_control_enabled() and not player.is_seated(),
+		"an abandon asked from the caldera is pending and strands nobody (%s)"
+			% pending.get("reason", &"?"),
+	)
+	var lifted := await _tick(fixture)
+	await _tick(fixture)
+	var route := host.get_snapshot().get("surface_route", {}) as Dictionary
+	_check(
+		bool(lifted.get("accepted", false))
+			and host.get_phase() == EmberSurfaceLoopHost.Phase.ON_FOOT
+			and bool(route.get("outbound_complete", false))
+			and bool(route.get("return_complete", false)),
+		"the pending abandon lifts the authored survey route so the pilot can board at once",
+	)
+	# The production re-board gate is the route, not the walk. What must change is
+	# the refusal itself: an abandoned visit is never held back by an authored
+	# route it will never finish, only by the physical boarding area.
+	_check(
+		berth.get_reservation_token(ship) == lease_before
+			and player.is_control_enabled() and not player.is_seated()
+			and player.is_on_floor(),
+		"the abandoning pilot keeps control on the caldera and their craft keeps its pad lease",
+	)
+	var reboard := host.request_reboard(
+		host.get_generation(), host.get_attachment_generation()
+	)
+	_check(
+		StringName(reboard.get("reason", &"?")) != &"return_route_incomplete"
+			and (
+				bool(reboard.get("accepted", false))
+				or StringName(reboard.get("reason", &"?")) == &"boarding_area_not_reached"
+			),
+		"an abandoned visit is refused re-boarding only by physical reach (%s)"
+			% reboard.get("reason", &"?"),
+	)
+	if not bool(reboard.get("accepted", false)):
+		await _cleanup(fixture)
+		return
+	var reboarded := await _drive_to_phase(
+		fixture, EmberSurfaceLoopHost.Phase.REBOARDED, 600
+	)
+	_check(reboarded, "the abandoning pilot boards their craft again on the caldera")
+	if not reboarded:
+		await _cleanup(fixture)
+		return
+	host.request_takeoff(host.get_generation(), host.get_attachment_generation())
+	var committed := false
+	for _index in 2400:
+		if host.get_phase() == EmberSurfaceLoopHost.Phase.IDLE:
+			committed = true
+			break
+		if host.get_phase() == EmberSurfaceLoopHost.Phase.FAILED:
+			break
+		await _tick(fixture)
+	var abandon := host.get_abandon_snapshot()
+	_check(
+		committed
+			and host.is_attached()
+			and int(abandon.get("commit_count", 0)) == 1
+			and berth.get_reservation_token(ship).is_empty()
+			and player.is_seated() and ship.is_piloted()
+			and StringName(host.get_snapshot().get("terminal_reason", &"?")).is_empty(),
+		"the Host's own takeoff carries the abandon off the pad and commits it (phase %d, commits %d)"
+			% [host.get_phase(), int(abandon.get("commit_count", 0))],
 	)
 	await _cleanup(fixture)
 
