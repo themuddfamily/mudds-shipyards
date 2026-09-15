@@ -94,6 +94,31 @@ func _run() -> void:
 			and display.get_readout_text().contains("IDLE // REPAIR READY"),
 		"craft reuse clears the engineer station and advances its repair generation"
 	)
+	# Streaming the craft out of the tree and back is what every production
+	# `Main` re-entry does to it. `_exit_tree()` parks the panel on its detached
+	# copy and arms a one-shot skip for the outgoing lifecycle's repair envelope;
+	# the refresh on the way back in has to republish the live one, or the craft
+	# comes back with the repair-kit inventory field missing from its cabin panel
+	# while carrying a full kit load.
+	var kit_capacity := int(
+		((craft.get_engineer_repair_network_snapshot().get("repair", {}) as Dictionary)
+			.get("resource_capacity", 0))
+	)
+	var kit_token := "KITS %d/%d" % [kit_capacity, kit_capacity]
+	_check(
+		kit_capacity > 0 and display.get_readout_text().contains(kit_token),
+		"the parked craft's cabin panel carries its full repair-kit inventory"
+	)
+	root.remove_child(craft)
+	await process_frame
+	root.add_child(craft)
+	await process_frame
+	await process_frame
+	await physics_frame
+	_check(
+		display.get_readout_text().contains(kit_token),
+		"a craft streamed out of the tree and back keeps its repair-kit inventory"
+	)
 	craft.queue_free()
 	await process_frame
 	if _failures.is_empty():

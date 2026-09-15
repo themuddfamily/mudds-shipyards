@@ -469,6 +469,16 @@ func _enter_tree() -> void:
 	# tree is live instead of leaving cabin walkers unregistered.
 	if _halyard_built:
 		call_deferred("_bind_optional_interior_frame")
+		# `_exit_tree()` parks the cabin engineer panel on its detached copy and
+		# arms a one-shot skip so no repair envelope from the outgoing lifecycle
+		# can land on it. That skip belongs to the detach. Left armed across the
+		# re-entry it was consumed by the refresh below instead, which then
+		# rendered the cleared view: a Halyard that had been streamed out and
+		# back — every production `Main` re-entry does this — came back with its
+		# engineer panel reading `REPAIR [READY // IDLE // REPAIR READY]`, the
+		# repair-kit inventory field silently gone from a craft carrying a full
+		# kit load, until some later crew event happened to republish it.
+		_skip_next_crew_status_repair_snapshot = false
 		call_deferred("refresh_crew_status_display")
 
 
