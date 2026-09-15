@@ -83,6 +83,23 @@ const MovingInteriorRelationshipType := preload(
 const NetworkMovingInteriorPresenterType := preload(
 	"res://scripts/network/network_moving_interior_presenter.gd"
 )
+const NetworkRemoteBodySimulationType := preload(
+	"res://scripts/network/network_remote_body_simulation.gd"
+)
+const NetworkRemoteBodyIntentSourceType := preload(
+	"res://scripts/network/network_remote_body_intent_source.gd"
+)
+## Client-tick window the movement authority applies to on-foot intents. A
+## remote body's owner stamps from the newest server tick it has observed on
+## the relationship stream, which under the 350 ms latency profile trails the
+## authority by twenty-odd ticks; one second of slack behind and a tenth ahead
+## keeps an honest client inside the window on every measured profile while
+## still bounding a stale replay.
+const NETWORK_REMOTE_BODY_MAX_TICK_BEHIND := 60
+const NETWORK_REMOTE_BODY_MAX_TICK_AHEAD := 6
+## Frame-local divergence between the owning client's predicted body and the
+## server's simulated one, at the same stamp, past which the client snaps.
+const NETWORK_REMOTE_BODY_CORRECTION_METRES := 0.5
 ## Ceiling on how many bodies one authoritative tick will publish across the
 ## whole fleet. A cabin cannot hold more crew than this, and a frame that
 ## somehow reports more is truncated rather than allowed to grow the per-tick
@@ -674,6 +691,14 @@ var _network_moving_interior_audit: Dictionary = {
 ## Client-side consumer of the moving-interior replica. Created only on a
 ## non-authority peer; see `_ensure_network_moving_interior_presenter()`.
 var _network_moving_interior_presenter: NetworkMovingInteriorPresenterType = null
+## Server-side simulation of remote occupants' bodies. Created only on the
+## authority and released with the session; see `_advance_network_remote_bodies()`.
+var _network_remote_body_simulation: NetworkRemoteBodySimulationType = null
+## Client-side producer of this peer's own on-foot intent stream, bound while
+## the server is simulating a body for this peer; see
+## `_advance_network_remote_body_intent_stream()`.
+var _network_remote_body_intent_source: NetworkRemoteBodyIntentSourceType = null
+var _network_remote_body_corrections := 0
 ## One presentation-only caption authority for this Main lifetime. It is a
 ## RefCounted service rather than a scene node and survives whole-Main detach.
 var _caption_presentation_service: CaptionPresentationService
@@ -3959,6 +3984,9 @@ func _physics_process(delta: float) -> void:
 	# early return below: a host who is not flying still owes the other clients
 	# the poses of the crew walking their cabins.
 	_advance_network_moving_interior_publication()
+	# Client-side: this peer's own on-foot intent for the body the server is
+	# simulating for it, and the bounded correction of its local prediction.
+	_advance_network_remote_body_intent_stream()
 	_advance_safe_start_recovery_physics(delta)
 	_advance_session_diagnostics_physics(delta)
 	if _caption_presentation_service != null:
@@ -5569,6 +5597,8 @@ func _on_network_session_started(mode: StringName) -> void:
 		_ensure_bomber_payload_network_source()
 	_network_moving_interior_dirty = true
 	_ensure_network_moving_interior_presenter()
+	if mode == &"server":
+		_ensure_network_remote_body_simulation()
 	_publish_network_session_snapshot(
 		&"connected" if mode == &"server" else &"connecting",
 		mode,
@@ -5592,6 +5622,9 @@ func _on_network_session_stopped(reason: StringName) -> void:
 	# ends, not left holding its last received pose.
 	_retire_all_network_moving_interior_occupancy(reason)
 	_detach_network_moving_interior_presenter(reason)
+	_release_all_network_remote_bodies(reason)
+	if _network_remote_body_intent_source != null:
+		_network_remote_body_intent_source.unbind()
 	_detach_network_ship_authority_composition(reason)
 	_detach_network_halyard_command_bridge()
 	_detach_halyard_crew_semantic_audio()
@@ -5642,6 +5675,8 @@ func _on_network_peer_disconnected(peer_id: int, _receipt: Dictionary) -> void:
 	_network_moving_interior_dirty = true
 	if _network_ship_authority_composition != null:
 		_network_ship_authority_composition.release_peer(peer_id)
+	if _network_remote_body_simulation != null and is_instance_valid(_network_remote_body_simulation):
+		_network_remote_body_simulation.release_peer(peer_id, &"peer_disconnected")
 
 
 func _on_network_transport_rejected(status: StringName) -> void:
@@ -5659,7 +5694,7 @@ func _on_network_crew_role_result(result: Dictionary) -> void:
 		return
 	if not active_ship.has_method(&"admit_network_crew_role"):
 		return
-	active_ship.call(
+	var admitted: Dictionary = active_ship.call(
 		&"admit_network_crew_role",
 		int(role_record.get("peer_id", 0)),
 		int(role_record.get("peer_generation", 0)),
@@ -5669,6 +5704,18 @@ func _on_network_crew_role_result(result: Dictionary) -> void:
 		int(role_record.get("seat_generation", 0)),
 		int(role_record.get("request_sequence", 0))
 	)
+	# A crew member admitted to a non-pilot role is aboard on foot by
+	# construction, so the authority stands a real body for them in the cabin
+	# and drives it from their intent stream from here on. The pilot role keeps
+	# the seat seam it already has.
+	if bool(admitted.get("accepted", false)) \
+			and StringName(role_record.get("role", &"")) != &"pilot" \
+			and int(role_record.get("peer_id", 0)) > 1:
+		admit_network_remote_body(
+			int(role_record.get("peer_id", 0)),
+			StringName(role_record.get("avatar_id", &"")),
+			active_ship
+		)
 
 
 func _on_network_crew_command_result(result: Dictionary) -> void:
@@ -7795,6 +7842,9 @@ func _advance_network_moving_interior_publication() -> void:
 	_network_moving_interior_server_tick += 1
 	var tick := _network_moving_interior_server_tick
 	network_session.set_moving_interior_server_tick(tick)
+	# The simulated bodies move on this tick before their poses are read below,
+	# so what goes out for tick N is where the intent for tick N put them.
+	_advance_network_remote_bodies(tick)
 	if _network_moving_interior_dirty or _network_moving_interior_roster_changed():
 		_rebuild_network_moving_interior_roster()
 	var published := 0
@@ -7816,8 +7866,15 @@ func _advance_network_moving_interior_publication() -> void:
 			wire["linear_velocity"] as Array,
 			_network_moving_interior_velocity(record)
 		)
-		var recipients := _network_moving_interior_recipients(int(record.get("owner_peer_id", 1)))
-		if recipients.is_empty() and int(record.get("owner_peer_id", 1)) > 1:
+		# A body the server simulates goes to everyone, its owner included: the
+		# owner is no longer simulating it and follows the authority's pose like
+		# any other client. A body a peer simulates itself is withheld from that
+		# peer, as before.
+		var recipients := NETWORK_MOVING_INTERIOR_ALL_PEERS \
+			if bool(record.get("server_simulated", false)) \
+			else _network_moving_interior_recipients(int(record.get("owner_peer_id", 1)))
+		if recipients.is_empty() and int(record.get("owner_peer_id", 1)) > 1 \
+				and not bool(record.get("server_simulated", false)):
 			# The only admitted peer is the one who owns this body. Publishing an
 			# empty recipient list would mean "everyone" and hand them their own
 			# echo, so nothing is sent at all.
@@ -7883,6 +7940,12 @@ func _network_moving_interior_record_is_live(record: Dictionary) -> bool:
 ## carry a walking body — so its locomotion is carried by the published velocity
 ## rather than by a posture flag.
 func _network_moving_interior_occupancy_state(record: Dictionary) -> int:
+	if bool(record.get("server_simulated", false)) \
+			and _network_remote_body_simulation != null \
+			and is_instance_valid(_network_remote_body_simulation):
+		return _network_remote_body_simulation.get_occupancy_state(
+			StringName(record.get("entity_id", &""))
+		)
 	if record.get("occupant") != player:
 		return MovingInteriorRelationshipType.STATE_WALKING
 	if bool(record.get("seated", false)):
@@ -8095,6 +8158,7 @@ func _adopt_network_moving_interior_occupant(
 	record["occupant"] = occupant
 	record["owner_peer_id"] = owner_peer_id
 	record["seated"] = seated
+	record["server_simulated"] = NetworkRemoteBodySimulationType.is_remote_body(occupant)
 	(record["wire"] as Dictionary)["parent_frame_id"] = frame_id
 	if not bool(record.get("registered", false)):
 		var registered: Dictionary = network_session.register_moving_interior_occupancy(
@@ -8299,10 +8363,15 @@ func _sync_network_moving_interior_presenter() -> void:
 	# This peer's own crew member is simulated locally by `PlayerController`.
 	# Drawing the server's echo of them as well would stand a second body in the
 	# same cabin, one frame behind the one the player is steering.
+	var local_entity_ids: Array = []
 	if is_instance_valid(active_ship):
-		_network_moving_interior_presenter.set_local_entity_ids([
-			StringName("pilot_%s" % String(active_ship.get_ship_id()))
-		])
+		local_entity_ids.append(StringName("pilot_%s" % String(active_ship.get_ship_id())))
+	# The body the server simulates for this peer is this peer's own player:
+	# the local `PlayerController` predicts it and is corrected to the server's
+	# pose, so the presenter must not stand a second copy beside it.
+	if _network_remote_body_intent_source != null and _network_remote_body_intent_source.is_bound():
+		local_entity_ids.append(_network_remote_body_intent_source.get_entity_id())
+	_network_moving_interior_presenter.set_local_entity_ids(local_entity_ids)
 
 
 func _detach_network_moving_interior_presenter(reason: StringName) -> void:
@@ -8314,6 +8383,198 @@ func _detach_network_moving_interior_presenter(reason: StringName) -> void:
 
 func get_network_moving_interior_presenter() -> NetworkMovingInteriorPresenterType:
 	return _network_moving_interior_presenter
+
+
+
+## Server-owned remote bodies. The authority half of "remote bodies are
+## simulated, not named": every remote occupant admitted here gets a real
+## `PlayerController` in the cabin, carried by the craft's `MovingInteriorFrame`
+## and driven only by the intents `NetworkMovementAuthority` accepts from its
+## owner. The publisher above then reads that body's pose like any other
+## occupant's. `NetworkRemoteBodySimulation` owns the bodies; this coordinator
+## only decides when one is admitted and released, and names it to the
+## publisher.
+func _ensure_network_remote_body_simulation() -> NetworkRemoteBodySimulationType:
+	if not is_inside_tree() or not is_instance_valid(network_session):
+		return null
+	if _network_session_mode != &"server" or not network_session.is_server():
+		_release_all_network_remote_bodies(&"not_authority")
+		return null
+	if _network_remote_body_simulation == null \
+			or not is_instance_valid(_network_remote_body_simulation):
+		_network_remote_body_simulation = NetworkRemoteBodySimulationType.new()
+		_network_remote_body_simulation.name = "NetworkRemoteBodySimulation"
+		add_child(_network_remote_body_simulation)
+	elif _network_remote_body_simulation.get_parent() == null:
+		add_child(_network_remote_body_simulation)
+	_network_remote_body_simulation.attach(network_session)
+	network_session.configure_movement_tick_window(
+		NETWORK_REMOTE_BODY_MAX_TICK_BEHIND, NETWORK_REMOTE_BODY_MAX_TICK_AHEAD
+	)
+	return _network_remote_body_simulation
+
+
+func _release_all_network_remote_bodies(reason: StringName) -> void:
+	if _network_remote_body_simulation == null \
+			or not is_instance_valid(_network_remote_body_simulation):
+		return
+	_network_remote_body_simulation.release_all(reason)
+	_network_moving_interior_dirty = true
+
+
+func _advance_network_remote_bodies(tick: int) -> void:
+	if _network_remote_body_simulation == null \
+			or not is_instance_valid(_network_remote_body_simulation) \
+			or _network_remote_body_simulation.get_body_count() == 0:
+		return
+	network_session.set_movement_server_tick(tick)
+	_network_remote_body_simulation.advance(tick)
+
+
+## Stands a server-owned body for `owner_peer_id` aboard `fleet_ship`, named
+## `entity_id` to the publisher. Server only; the peer must be admitted. The
+## craft's own cabin report supplies the stand pose and the movement envelope,
+## exactly as it does for the host's own player leaving the seat.
+func admit_network_remote_body(
+	owner_peer_id: int,
+	entity_id: StringName,
+	fleet_ship: HeroShip = null
+) -> Dictionary:
+	var simulation := _ensure_network_remote_body_simulation()
+	if simulation == null:
+		return {"accepted": false, "status": &"authority_required"}
+	if not network_session.get_admitted_peer_ids().has(owner_peer_id):
+		return {"accepted": false, "status": &"peer_not_admitted"}
+	var craft := fleet_ship if fleet_ship != null else active_ship
+	if not is_instance_valid(craft) or craft.is_destroyed():
+		return {"accepted": false, "status": &"invalid_craft"}
+	var frame := _resolve_network_moving_interior_frame(craft)
+	if not is_instance_valid(frame):
+		return {"accepted": false, "status": &"moving_interior_unavailable"}
+	var frame_id := StringName("frame_%s" % String(craft.get_ship_id()))
+	var result: Dictionary = simulation.admit(owner_peer_id, entity_id, craft, frame, frame_id)
+	if not bool(result.get("accepted", false)):
+		return result
+	var body := result.get("body") as Node3D
+	var named := register_network_moving_interior_occupant(body, entity_id, owner_peer_id)
+	result["named"] = named
+	_network_moving_interior_dirty = true
+	return result
+
+
+func release_network_remote_body(entity_id: StringName, reason: StringName = &"released") -> Dictionary:
+	if _network_remote_body_simulation == null \
+			or not is_instance_valid(_network_remote_body_simulation):
+		return {"accepted": false, "status": &"unknown_body"}
+	var result: Dictionary = _network_remote_body_simulation.release(entity_id, reason)
+	_network_moving_interior_dirty = true
+	return result
+
+
+func get_network_remote_body_simulation() -> NetworkRemoteBodySimulationType:
+	return _network_remote_body_simulation
+
+
+func get_network_remote_body_audit() -> Dictionary:
+	var audit: Dictionary = {}
+	if _network_remote_body_simulation != null and is_instance_valid(_network_remote_body_simulation):
+		audit = _network_remote_body_simulation.get_audit()
+	else:
+		audit = {"bodies": 0, "attached": false}
+	audit["intent_source_bound"] = _network_remote_body_intent_source != null \
+		and _network_remote_body_intent_source.is_bound()
+	audit["local_corrections"] = _network_remote_body_corrections
+	return audit
+
+
+## Client half. Binds this peer's own intent stream to the body the server
+## simulates for it, so `_physics_process` streams the local input from here
+## on and the local `PlayerController` is corrected to the authority's pose.
+func bind_network_remote_body(entity_id: StringName, entity_generation: int = 1) -> Dictionary:
+	if _network_session_mode != &"client":
+		return {"accepted": false, "status": &"client_required"}
+	if _network_remote_body_intent_source == null:
+		_network_remote_body_intent_source = NetworkRemoteBodyIntentSourceType.new()
+	var bound: Dictionary = _network_remote_body_intent_source.bind(entity_id, entity_generation)
+	_sync_network_moving_interior_presenter()
+	return bound
+
+
+func unbind_network_remote_body() -> Dictionary:
+	if _network_remote_body_intent_source == null:
+		return {"accepted": true, "status": &"unbound"}
+	var result: Dictionary = _network_remote_body_intent_source.unbind()
+	_sync_network_moving_interior_presenter()
+	return result
+
+
+func get_network_remote_body_intent_source() -> NetworkRemoteBodyIntentSourceType:
+	return _network_remote_body_intent_source
+
+
+## One client physics tick of the on-foot intent stream and the prediction
+## correction. The local `PlayerController` keeps simulating on the same input
+## (that is the prediction); the pose it reaches at each stamp is remembered,
+## and when the server's pose for the same stamp arrives more than
+## `NETWORK_REMOTE_BODY_CORRECTION_METRES` away, the local body is snapped to
+## it. No input replay: cheap, bounded, and honest about the jerk it costs.
+func _advance_network_remote_body_intent_stream() -> void:
+	if _network_session_mode != &"client" \
+			or _network_remote_body_intent_source == null \
+			or not _network_remote_body_intent_source.is_bound() \
+			or not is_instance_valid(network_session) \
+			or not network_session.is_inside_tree() \
+			or network_session.is_server() \
+			or not is_instance_valid(player):
+		return
+	var peer_id := network_session.multiplayer.get_unique_id()
+	if peer_id <= 1:
+		return
+	var move_axis := Vector2.ZERO
+	var run := false
+	if player.is_control_enabled() and not player.is_seated():
+		move_axis = Input.get_vector("move_left", "move_right", "move_forward", "move_back")
+		run = Input.is_action_pressed("sprint_boost")
+		if Input.is_action_just_pressed("jump"):
+			_network_remote_body_intent_source.request_jump()
+	if player.is_control_enabled() and Input.is_action_just_pressed("interact"):
+		_network_remote_body_intent_source.request_interaction()
+	var wire: Dictionary = _network_remote_body_intent_source.advance(peer_id, {
+		"move_axis": move_axis,
+		"look_yaw": player.get_look_yaw() if player.has_method(&"get_look_yaw") else 0.0,
+		"look_pitch": 0.0,
+		"run": run,
+		"crouch": false,
+	}, network_session.get_moving_interior_latest_server_tick())
+	var frame: MovingInteriorFrame = null
+	if is_instance_valid(_cabin_ship):
+		frame = _cabin_ship.get_in_flight_cabin_report().get("frame") as MovingInteriorFrame
+	if not wire.is_empty():
+		network_session.send_movement_intent(wire)
+		if is_instance_valid(frame) and frame.is_occupant_registered(player):
+			_network_remote_body_intent_source.record_local_pose(
+				int(wire.get("client_tick", -1)), frame.get_occupant_frame_local_transform(player)
+			)
+	if not is_instance_valid(frame) or not frame.is_occupant_registered(player) or player.is_seated():
+		return
+	var entity_id := _network_remote_body_intent_source.get_entity_id()
+	var latest: Dictionary = network_session.get_moving_interior_latest_relationship(entity_id)
+	if latest.is_empty():
+		return
+	var server_local: Transform3D = latest.get("frame_local_transform", Transform3D.IDENTITY)
+	var verdict: Dictionary = _network_remote_body_intent_source.reconcile(
+		int(latest.get("server_tick", -1)), server_local, NETWORK_REMOTE_BODY_CORRECTION_METRES
+	)
+	if not bool(verdict.get("correct", false)):
+		return
+	var moving := frame.get_moving_frame()
+	if not is_instance_valid(moving):
+		return
+	var corrected := moving.global_transform * server_local
+	player.global_position = corrected.origin
+	player.velocity = Vector3.ZERO
+	player.reset_physics_interpolation()
+	_network_remote_body_corrections += 1
 
 
 func _leave_seat_into_cabin() -> void:
