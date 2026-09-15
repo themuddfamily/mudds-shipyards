@@ -269,7 +269,6 @@ var _survey_gated_cycles := 0
 var _repeat_visit_handoff_stops := 0
 var _reentry_terminal_stops := 0
 var _abandoned_expeditions := 0
-var _repeat_visit_origin_stops := 0
 var _trace := false
 
 
@@ -495,20 +494,27 @@ func _run_cycle(
 		game, sampler, host, EmberSurfaceLoopHost.Phase.LANDED, LANDING_TICK_BUDGET
 	)
 	leg_msec["land"] = Time.get_ticks_msec() - leg_started
-	if landed:
-		_check(
-			true,
-			"cycle %d lands on the caldera pad through the real berth lease and landing assist"
-				% [cycle + 1]
-		)
-		_assert_landing_support(game, craft, cycle)
-	else:
-		_assert_repeat_visit_origin_boundary(game, host, craft, cycle)
-		_repeat_visit_origin_stops += 1
-		stopped_at = &"repeat_visit_origin_rebase"
+	# Every cycle lands, not just the first. The descent's own committed
+	# common-world rebase used to abort the landing `berth_changed` on every
+	# Torrent descent — float32 rounding of the translated berth against the
+	# frozen dock snapshot — which read here as a "repeat-visit boundary" only
+	# because the rotation put the Torrent on the even cycles. A landing that
+	# fails is a hard failure at any cycle index.
+	_check(
+		landed,
+		"cycle %d lands on the caldera pad through the real berth lease and landing assist (phase %d, abort %s, host %s)"
+			% [
+				cycle + 1, host.get_phase(),
+				craft.get_telemetry().get("landing_abort_reason", &"?"),
+				(host.get_snapshot().get("last_result", {}) as Dictionary).get("reason", &"?"),
+			]
+	)
+	if not landed:
+		stopped_at = &"caldera_landing"
 		await _abort_journey(game, player)
 		_record_cycle(game, sampler, cycle, craft, notes, leg_msec, started_msec, stopped_at)
 		return
+	_assert_landing_support(game, craft, cycle)
 
 	leg_started = Time.get_ticks_msec()
 	var on_foot := await _advance_to_phase(
@@ -1278,58 +1284,6 @@ func _assert_survey_gated_reboard(
 	)
 
 
-## The one production boundary a repeat visit still stops at, asserted by name.
-##
-## A second expedition now admits, arms, activates, hands off, starts its Host
-## and flies the caldera descent. What it still cannot do is finish that descent:
-## `HeroShip` aborts the landing it is flying with `berth_changed` when the
-## descent's own committed common-world rebase moves the caldera berth out from
-## under the landing contract, exactly as the first visit used to before that
-## defect was fixed for the first visit. The Host observes the released lease as
-## `berth_lease_lost` on its next tick and terminalizes.
-##
-## What must hold at that boundary — and is asserted here — is that it ends
-## safely rather than leaving a dead expedition behind: the retained coordinator
-## turns the terminal Host into the ordinary abandon, so the Host comes back
-## `IDLE` and attached with no terminal reason, the caldera lease is released,
-## the pilot is aboard their own craft, no reward was granted, and the retained
-## `Main` is ready to admit another expedition.
-##
-## A first-cycle landing failure is still a hard failure, and a later one must
-## show exactly that chain — anything else fails here instead of stopping
-## quietly. `docs/EMBER_LOOP_SOAK.md` carries it as the remaining gap.
-func _assert_repeat_visit_origin_boundary(
-		game: GameFlow,
-		host: EmberSurfaceLoopHost,
-		craft: HeroShip,
-		cycle: int,
-	) -> void:
-	var snapshot := host.get_snapshot()
-	var abandon := snapshot.get("abandon", {}) as Dictionary
-	var berth := game.ember_surface_berth as EmberSurfaceBerth
-	_check(
-		cycle > 0
-			and StringName(craft.get_telemetry().get("landing_abort_reason", &"")) \
-				== &"berth_changed"
-			and StringName(
-				(abandon.get("receipt", {}) as Dictionary).get("reason", &"")
-			) == &"berth_lease_lost"
-			and host.get_phase() == EmberSurfaceLoopHost.Phase.IDLE
-			and bool(snapshot.get("attached", false))
-			and StringName(snapshot.get("terminal_reason", &"?")).is_empty()
-			and is_instance_valid(berth)
-			and berth.get_reservation_token(craft).is_empty()
-			and not bool(game.get("_ember_surface_journey_active"))
-			and _reward_receipts == 0,
-		"cycle %d only ever fails its caldera landing as the recorded repeat-visit descent boundary, and ends it as a clean abandon (phase %d, abort %s, abandon %s)"
-			% [
-				cycle + 1, host.get_phase(),
-				craft.get_telemetry().get("landing_abort_reason", &"?"),
-				(abandon.get("receipt", {}) as Dictionary).get("reason", &"?"),
-			]
-	)
-
-
 ## The abandon, asked from the caldera with the pilot on foot. It is admitted and
 ## pending, never refused: the authored survey route and its re-board gate lift
 ## at once, the relay survey's activity generation is terminalized with no
@@ -1585,7 +1539,6 @@ func _print_summary(teardown_nodes: int, teardown_orphans: int) -> void:
 		"survey_gated_cycles": _survey_gated_cycles,
 		"repeat_visit_handoff_stops": _repeat_visit_handoff_stops,
 		"abandoned_expeditions": _abandoned_expeditions,
-		"repeat_visit_origin_stops": _repeat_visit_origin_stops,
 		"reentry_terminal_stops": _reentry_terminal_stops,
 		"reward_receipts": _reward_receipts,
 		"baseline_streamed_nodes": _baseline_streamed_nodes,

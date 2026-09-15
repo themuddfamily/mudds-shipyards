@@ -7,9 +7,9 @@
 > exceed the per-suite budget. The defects it found each carry a focused
 > assertion in an ordinary suite (`landing_clearance_test`,
 > `ember_final_approach_production_handoff_test`,
-> `ember_surface_loop_host_test`, `ember_surface_loop_repeat_cycle_test`), so the
-> matrix guards the fixes while this harness is run explicitly for §4 evidence,
-> like the capture harnesses.
+> `ember_surface_loop_host_test`, `ember_surface_loop_repeat_cycle_test`,
+> `ember_repeat_visit_landing_test`), so the matrix guards the fixes while this
+> harness is run explicitly for §4 evidence, like the capture harnesses.
 
 through N Ember expeditions in one process, alternating the two craft the
 production binding admits for the trip (`torrent_provisional`,
@@ -94,8 +94,8 @@ hand-forged `COMPLETED` handback in the harness.
 Because the abandon releases the Host in place, every later cycle is a real
 second, third and sixth expedition by the same retained `Main`, with a fresh
 session generation, a rebound caldera berth and a fresh activity generation. A
-cycle that fails to arm, activate or hand off its approach is a hard failure at
-any cycle index, not an excused repeat-visit boundary.
+cycle that fails to arm, activate or hand off its approach, or to land, is a
+hard failure at any cycle index, not an excused repeat-visit boundary.
 
 ## Defects found and fixed
 
@@ -268,98 +268,132 @@ by this suite, where every cycle after the first is a real second expedition tha
 admits, arms, activates, hands off, starts its Host and flies the caldera
 descent.
 
+### 8. A repeat visit could not finish its caldera descent
+
+`scripts/ships/hero_ship.gd`. With defect 1 fixed, cycle two onward admitted,
+armed, activated, handed off, started its Host and flew the descent — and then
+stopped at `stopped_at: repeat_visit_origin_rebase`: `HeroShip` aborted the
+landing it was flying with `berth_changed` from inside that descent's own
+committed common-world rebase, the Host observed the released lease as
+`berth_lease_lost` on its next tick, and the retained coordinator turned the
+terminal Host into the safe abandon. The earlier soak recorded it as a
+repeat-visit boundary; it never was one. Cycles 3 and 5 are repeat visits too
+and they landed. What the even cycles had in common was the Torrent.
+
+The descent's rebase moves the world by ~10 km so the craft sits at the origin.
+Defect 1's fix adds that delta to the frozen dock snapshot; the live berth
+instead re-derives its dock transform through its own parent chain (moon root,
+berth, dock offset), and at 10 km magnitudes float32 rounds that chain
+differently from the single addition. Measured on the caldera pad with the
+production tree: 0.078 mm for the Arrow's 1.17 m dock height, 0.391 mm for the
+Torrent's 0.775 m — either side of the guard's absolute
+`LANDING_TRANSFORM_EPSILON` of 0.1 mm. The first visit of a session was the
+Arrow, so it landed; the Torrent never did, on any visit.
+
+Fix: on the announced translation, `notify_common_world_translation()` still
+moves the snapshot by the delta, then re-expresses the dock and staging targets
+from the live berth wherever the berth agrees with the translated snapshot
+within the transaction's rounding budget (`LANDING_REBASE_ROUNDING_RELATIVE`,
+2^-20 of the largest magnitude handled — under a centimetre on Ember's drop).
+The exact guard stays exact afterwards, because the target is now the berth's
+own value; a berth that moved by more than that budget under the same commit,
+or by anything at all afterwards, is still a `berth_changed` abort. Covered by
+`_test_landing_survives_caldera_scale_rebase()` in
+`tests/landing_clearance_test.gd`, which models the exact geometry for both
+craft and fails on the unfixed ship with the Torrent's `berth_changed`, and by
+`tests/ember_repeat_visit_landing_test.gd`, where one retained production `Main`
+admits the Arrow and then the Torrent and each lands through its own committed
+rebase, holds the caldera lease and disembarks.
+
+One layer of this was removed on the way here and is worth recording, because
+it hid the rest. `CommonWorldOriginRebaseOwner` translates every covered root
+by one identical delta, which over an 8,000 km translation leaves
+sub-millimetre rounding in the near-zero components of
+`EmberMoonStreamingBootstrap`'s root. Both `update_absolute_focus()` and
+`accept_committed_origin_rebase()` compare that root to the exact body centre
+the frame defines, the latter *after* the next transaction's frame commit is
+already irreversible — so the second visit's rebase was refused with
+`bootstrap_alignment_invalid`, surfaced to the owner as the opaque
+`binding_commit_desynchronized`, and starved the surface cadence entirely. The
+bootstrap now implements the existing `notify_common_world_translation()` seam
+and re-expresses its root at that exact position, allowing at most a centimetre
+of rounding, and the binding retains the refusal the owner otherwise reports
+opaquely (`last_external_rebase_rejection`).
+
 ## Remaining gaps (not fixed here)
 
 - **No owner flies the craft to Ember, into the corridor, or the 8,000 km home.**
   The staged placements above and the staged return in `_reset_for_next_cycle()`
   stand in for it.
-- **A repeat visit cannot finish its caldera descent.** Cycle two onward now
-  admits, arms, activates, hands off, starts its Host and flies the descent, and
-  then stops at `stopped_at: repeat_visit_origin_rebase`: `HeroShip` aborts the
-  landing it is flying with `berth_changed` when that descent's own committed
-  common-world rebase moves the caldera berth out from under the landing
-  contract — the same shape as defect 1, which is fixed for a first visit. The
-  Host observes the released lease as `berth_lease_lost` on its next tick and
-  terminalizes.
-
-  What the suite does assert at that boundary is that it ends safely instead of
-  leaving a dead expedition: the retained coordinator turns the terminal Host
-  into the ordinary abandon, so the Host comes back `IDLE` and attached with no
-  terminal reason, the caldera lease is released, the pilot is aboard their own
-  craft, no reward was granted, and the retained `Main` is ready for the next
-  expedition. A first-cycle landing failure is still a hard failure.
-
-  One layer of this was removed on the way here and is worth recording, because
-  it hid the rest. `CommonWorldOriginRebaseOwner` translates every covered root
-  by one identical delta, which over an 8,000 km translation leaves
-  sub-millimetre rounding in the near-zero components of
-  `EmberMoonStreamingBootstrap`'s root. Both `update_absolute_focus()` and
-  `accept_committed_origin_rebase()` compare that root to the exact body centre
-  the frame defines, the latter *after* the next transaction's frame commit is
-  already irreversible — so the second visit's rebase was refused with
-  `bootstrap_alignment_invalid`, surfaced to the owner as the opaque
-  `binding_commit_desynchronized`, and starved the surface cadence entirely. The
-  bootstrap now implements the existing `notify_common_world_translation()` seam
-  and re-expresses its root at that exact position, allowing at most a centimetre
-  of rounding, and the binding retains the refusal the owner otherwise reports
-  opaquely (`last_external_rebase_rejection`).
-- **`ember_surface_loop_production_binding_test` has one pre-existing failure**
-  ("real survey completion persists one GameFlow reward before the coordinator
-  admits the authenticated route home"), reproduced on a clean tree at
-  `e57a97e61` before any of this work. It is not caused by, and not addressed
-  by, it.
-- **The 6-cycle run takes 566 s of cycle legs, not 240 s.** With the authored
+- **`ember_surface_loop_production_binding_test`'s recorded failure** ("real
+  survey completion persists one GameFlow reward before the coordinator admits
+  the authenticated route home"), reproduced on a clean tree at `e57a97e61`, no
+  longer reproduces: the suite passes its 79 assertions on `234876ac3` both with
+  and without defect 8's ship change, so it was closed on main independently of
+  this work. Two other suites fail on that same clean `main` regardless of the
+  ship script — `common_world_origin_rebase_production_journey_test` (a detached
+  Ember binding's snapshot changes when it refuses a direct rebase acceptance)
+  and `tests/world/ember_surface_loop_relay_survey_api_test` (the surface
+  binding's caller snapshot carries more than that suite's expected shape) —
+  neither of which lands a craft or reaches `notify_common_world_translation()`.
+- **The 6-cycle run takes 790 s of cycle legs, not 240 s.** With the authored
   Ember moon streamed in, production `Main` runs at roughly 5–8 physics ticks per
   second headless against ~60 at the yard, and a full expedition is about 1,200
-  of those ticks. Figures below.
+  of those ticks. Now that every cycle runs the whole loop, six of them are
+  ~13 min wall. Figures below.
 
 ## Results
 
-`EMBER_LOOP_SOAK_TEST_OK: 122 assertions` at the 6-cycle default, 0 failures,
-566 s of measured cycle legs (~9.5 min wall on an idle machine). Cycles
-alternate `arrow_provisional` and `torrent_provisional`; the Arrow cycles run the
-whole loop to the abandon, the Torrent cycles stop at the recorded repeat-visit
-descent boundary.
+`EMBER_LOOP_SOAK_TEST_OK: 167 assertions` at the 6-cycle default, 0 failures,
+790 s of measured cycle legs (~13 min wall; the machine also ran
+`ember_repeat_visit_landing_test` for two of those minutes). Cycles alternate
+`arrow_provisional` and `torrent_provisional`, and every cycle now runs the
+whole loop: lands, disembarks, walks the authored route, is refused at the
+survey gate, and leaves through the production abandon. The odd cycles also run
+the surface save and whole-`Main` re-entry.
 
 | Cycle | Craft | Stop | Furthest phase | Ticks | Rebases | Wall |
 | --- | --- | --- | --- | --- | --- | --- |
-| 1 | arrow | `abandoned_expedition` | `ASCENT` | 576 | 1 | 105.8 s |
-| 2 | torrent | `repeat_visit_origin_rebase` | `LANDING_APPROACH` | 2401 | 1 | 84.4 s |
-| 3 | arrow | `abandoned_expedition` | `ASCENT` | 576 | 1 | 129.0 s |
-| 4 | torrent | `repeat_visit_origin_rebase` | `LANDING_APPROACH` | 2401 | 1 | 68.9 s |
-| 5 | arrow | `abandoned_expedition` | `ASCENT` | 576 | 1 | 109.0 s |
-| 6 | torrent | `repeat_visit_origin_rebase` | `LANDING_APPROACH` | 2401 | 1 | 68.7 s |
+| 1 | arrow | `abandoned_expedition` | `ASCENT` | 576 | 1 | 136.4 s |
+| 2 | torrent | `abandoned_expedition` | `ASCENT` | 522 | 1 | 122.6 s |
+| 3 | arrow | `abandoned_expedition` | `ASCENT` | 576 | 1 | 153.2 s |
+| 4 | torrent | `abandoned_expedition` | `ASCENT` | 522 | 1 | 120.5 s |
+| 5 | arrow | `abandoned_expedition` | `ASCENT` | 576 | 1 | 139.7 s |
+| 6 | torrent | `abandoned_expedition` | `ASCENT` | 522 | 1 | 117.6 s |
 
-A full Arrow cycle's legs, milliseconds: board 383, launch 660, orbital approach
-437, caldera landing 36,330, disembark 2,805, authored surface route 21,767,
-survey-gated re-board attempt 34,333, surface save and whole-`Main` re-entry
-3,296, abandon (pending, re-board, takeoff, commit) 4,633.
+Cycle 2's legs — the first Torrent expedition ever to land — in milliseconds:
+board 381, launch 527, orbital approach 402, caldera landing 41,110, disembark
+3,469, authored surface route 24,657, survey-gated re-board attempt 44,337,
+abandon (pending, re-board, takeoff, commit) 6,304. Cycle 1 (Arrow, with the
+re-entry): board 311, launch 534, orbital approach 428, caldera landing 48,592,
+disembark 3,570, authored surface route 28,784, survey-gated re-board attempt
+43,555, surface save and whole-`Main` re-entry 3,790, abandon 5,595.
 
-Per-cycle measurements on a full cycle: 1 floating-origin rebase with a
+Per-cycle measurements, every cycle: 1 floating-origin rebase with a
 10,000.063 m committed translation; largest single-tick craft and pilot step
-12.533 m against a 334.333 m bound; zero unsupported on-foot ticks; minimum
-tangent altitude above the caldera +0.001 m; zero seat/piloted/reservation
-disagreements; presentation moved without a pop; strict dock acceptance with the
-exact berth occupant and token at touchdown.
+12.533 m (Arrow) / 10.933 m (Torrent) against a 334.333 m bound; zero
+unsupported on-foot ticks; minimum tangent altitude above the caldera +0.001 m
+(Arrow) / −0.002 m (Torrent); zero seat/piloted/reservation disagreements;
+presentation moved without a pop; strict dock acceptance with the exact berth
+occupant and token at touchdown.
 
 Counters across all six cycles, recorded after each cycle's reset with Ember
 streamed out:
 
 | Counter | Cycles 1–6 | Tolerance |
 | --- | --- | --- |
-| `scene_nodes` | 10,572 every cycle | 32 |
-| `object_nodes` | 11,296 every cycle | 32 |
-| `objects` | 24,144 → 24,178 | 512 |
+| `scene_nodes` | 10,613 every cycle | 32 |
+| `object_nodes` | 11,350 every cycle | 32 |
+| `objects` | 24,293 / 24,294 (Arrow cycles), 24,335 (Torrent cycles) | 512 |
 | `orphan_nodes` | 6 every cycle | 0 |
-| `static_memory_bytes` | 511,509,136 → 511,557,371 | 48 MiB |
+| `static_memory_bytes` | 517,560,260 → 517,928,985 | 48 MiB |
 | `audio_players` / `particle_systems` / `timers` / `tweens` | 81 / 54 / 21 / 1 every cycle | 0 / 0 / 4 / 4 |
 | `streamed_nodes` | 0 every cycle | 0 |
 
 The final teardown returns `OBJECT_NODE_COUNT` to its pre-boot baseline (1 → 1)
-with zero orphan nodes. Summary counters: 12 staging events, 3 survey-gated
-cycles, 3 abandoned expeditions, 3 surface save/re-entries with **0** terminal
-Hosts, 3 repeat-visit descent boundaries, 0 reward receipts, 0 assertion
-failures.
+with zero orphan nodes. Summary counters: 12 staging events, 6 survey-gated
+cycles, 6 abandoned expeditions, 3 surface save/re-entries with **0** terminal
+Hosts, 0 repeat-visit handoff stops, 0 reward receipts, 0 assertion failures.
 
 ### Before this work
 
@@ -367,7 +401,7 @@ failures.
 | --- | --- | --- |
 | starting an expedition | pause `EMBER CRUISE` already opened it (since `87400dc`); no objective, no briefing | same press, plus the standing `EMBER EXPEDITION` objective and the first-time activity briefing card |
 | abandoning one | `ember_surface_journey_already_started`; the only exit was the 570 m relay survey | pending from the caldera, committed off the pad, craft home on the Mudds return approach |
-| repeat visit | second visit consumed its completion and sat at `IDLE` forever | admits, arms, activates, hands off, starts its Host and flies the descent |
+| repeat visit | second visit consumed its completion and sat at `IDLE` forever; once it flew, every Torrent descent aborted `berth_changed` inside its own rebase | admits, arms, activates, hands off, lands, disembarks and walks the survey route like the first |
 | surface save/re-entry | Host `ON_FOOT` → `FAILED`; a dead expedition on reload | Host, caldera lease, survey progress and active expedition all survive |
 
 ### Known flake
