@@ -18,6 +18,7 @@ func _run() -> void:
 	var ordered_keys: Array[StringName] = [
 		&"master_volume", &"ambience_volume", &"music_volume", &"engine_volume",
 		&"weapons_volume", &"ui_volume", &"ui_scale", &"colorblind_palette",
+		&"high_contrast_hud", &"reticle_style",
 		&"reduced_motion", &"reduced_flash", &"reduced_dynamic_range",
 		&"payload_visual_intensity", &"captions_enabled", &"show_tutorials",
 		&"controller_glyph_family",

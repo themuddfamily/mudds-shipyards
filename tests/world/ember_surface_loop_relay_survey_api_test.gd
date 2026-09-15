@@ -301,6 +301,9 @@ func _check_caller_snapshot(binding: Node, composition: Node, phase: String) -> 
 		"pending_envelope": full.pending_envelope,
 		"pending_intent": full.pending_intent,
 		"last_intent_serial": full.last_intent_serial,
+		# The retained coordinator adopts this fence at admission (a repeat
+		# visit's cadence was refused as skipped serials before it did).
+		"last_caller_serial": full.last_caller_serial,
 	}
 	var diagnostic_reads := int(composition.full_snapshot_reads) if composition != null else 0
 	var caller: Dictionary = binding.get_caller_snapshot()

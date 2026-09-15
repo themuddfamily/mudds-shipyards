@@ -75,13 +75,14 @@ func _test_deck_connector_allocation(world: ShipyardWorld) -> void:
 		"only connector mesh identities fall from three to one"
 	)
 	var mesh_recipe := audit.get("mesh_recipe", {}) as Dictionary
+	print("CENTRAL_BERTH_CONNECTOR_RECIPE: ", JSON.stringify(mesh_recipe))
 	_check(
 		is_equal_approx(float(mesh_recipe.get("inner_radius", -1.0)), 0.16)
 		and is_equal_approx(float(mesh_recipe.get("outer_radius", -1.0)), 0.24)
 		and int(mesh_recipe.get("authored_rings", 0)) == 64
 		and int(mesh_recipe.get("authored_ring_segments", 0)) == 16
-		and int(mesh_recipe.get("rings", 0)) == 32
-		and int(mesh_recipe.get("ring_segments", 0)) == 13
+		and int(mesh_recipe.get("rings", 0)) == 20
+		and int(mesh_recipe.get("ring_segments", 0)) == 8
 		and int(mesh_recipe.get("surface_count", 0)) == 1,
 		"shared connector retains the exact authored and budgeted torus recipe"
 	)

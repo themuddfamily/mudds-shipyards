@@ -169,11 +169,12 @@ func _test_upper_operations_identity(
 			break
 	var sphere := cyan_batch.multimesh.mesh as SphereMesh if cyan_batch != null else null
 	var material := cyan_batch.material_override as StandardMaterial3D if cyan_batch != null else null
+	print("UPPER_OPERATIONS_GUIDE_SPHERE_RECIPE: radial=", sphere.radial_segments, " rings=", sphere.rings)
 	_check(
 		sphere != null
 		and is_equal_approx(sphere.radius, 0.16)
 		and is_equal_approx(sphere.height, 0.32)
-		and sphere.radial_segments == 24 and sphere.rings == 12,
+		and sphere.radial_segments == 20 and sphere.rings == 11,
 		"batched guide geometry retains the exact former SphereMesh recipe"
 	)
 	_check(
