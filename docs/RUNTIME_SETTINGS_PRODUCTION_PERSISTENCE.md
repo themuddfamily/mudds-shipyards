@@ -12,6 +12,18 @@ Camera preferences have their own contract:
 `docs/ULTRAWIDE_FIELD_OF_VIEW_POLICY.md` documents `camera_fov`'s meaning on
 displays wider than 21:9 and the `limit_ultrawide_fov` opt-out that governs it.
 
+HUD presentation preferences likewise: `docs/ACCESSIBILITY_PRESETS.md`
+documents `high_contrast_hud` and `reticle_style`. They moved the typed
+`RuntimeSettings` payload to schema 11. A schema-10 section (the schema that
+introduced `limit_ultrawide_fov`) still loads and is upgraded in memory with
+`high_contrast_hud = false` and `reticle_style = "standard"`; a schema-10
+section that already carries either key is `value_fields_invalid`; an unknown
+`reticle_style` in a current section is `invalid_reticle_style`; and a
+schema-12+ section is still `newer_schema`, so the adapter preserves its bytes
+exactly rather than treating them as replaceable corruption. `reticle_style`
+is stored as its stable plain-string ID in both the ConfigFile and the typed
+payload, never as a menu index.
+
 ## Startup order
 
 The atomic adapter loads exactly once, then GameFlow restores the safe-start
