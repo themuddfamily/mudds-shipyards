@@ -192,7 +192,7 @@ in this document has been raised.**
 | Text triangles / instances | 79,591 / 43 | 100,157 / 56 | +20,566 / +13 |
 | Lights / shadow lights | 341 / 20 | 368 / 20 | +27 / 0 |
 | Particle systems | 54 | 54 | 0 |
-| Scene-tree nodes | 10,552 | 10,975 | +423 |
+| Scene-tree nodes | 10,587 | 11,010 | +423 |
 
 Re-measured on 2026-09-15 for the Cinder damage-presentation coverage pass. The
 three runtime-composed Cinder craft carried no `HeroDamagePresentation` at all;
