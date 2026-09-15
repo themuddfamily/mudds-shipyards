@@ -82,9 +82,9 @@ func _run() -> void:
 			and not bool(contract.get("ship_authority", true))
 			and not bool(contract.get("berth_lease_authority", true))
 			and bool(audit.get("valid", false))
-			and int(audit.get("renderer_nodes", -1)) == 24
-			and int(audit.get("guide_lights", -1)) == 5
-			and int(audit.get("collision_shapes", -1)) == 6,
+			and int(audit.get("renderer_nodes", -1)) == Berths.EXPECTED_RENDERER_NODES
+			and int(audit.get("guide_lights", -1)) == Berths.EXPECTED_GUIDE_LIGHTS
+			and int(audit.get("collision_shapes", -1)) == Berths.EXPECTED_COLLISION_SHAPES,
 		"landing, approach, authority, renderer, light, and collision contracts remain unchanged"
 	)
 
