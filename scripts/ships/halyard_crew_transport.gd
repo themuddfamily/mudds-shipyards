@@ -40,6 +40,7 @@ extends HeroShip
 ## rails and paired round housings; both are evidence-bounded reads and are not
 ## available to a modern design.
 
+const ShipFitoutBatch := preload("res://scripts/rendering/ship_fitout_batch.gd")
 const ShipCabinHatchType := preload("res://scripts/interaction/ship_cabin_hatch.gd")
 const ShipBunkType := preload("res://scripts/interaction/ship_bunk.gd")
 
@@ -387,6 +388,7 @@ var _halyard_materials: Dictionary = {}
 var _box_mesh_cache: Dictionary = {}
 # Separate from renderer-owned meshes; released after the final fitout consumer.
 var _fitout_surface_cache: Dictionary = {}
+var _fitout_consolidation_report: Dictionary = {}
 var _walkable_interior: Node3D
 var _crew_cabin: Node3D
 var _port_hatch_door: MeshInstance3D
@@ -2600,7 +2602,30 @@ func _build_halyard_variant(_controller: HeroShip) -> bool:
 	_bind_optional_interior_frame()
 	if not replace_variant_visual_root(_halyard_visual):
 		return false
+	_consolidate_halyard_fitout()
 	return true
+
+
+## Phase 10 §2 scene-node trim, run as the last step of the transport's own build
+## so every collision, marker, route, hatch, damage-cue, hull-marking and
+## furnishing-LOD pass above has already resolved the tree it expects. Folds
+## anonymous sibling fitout dressing -- cabin liners and window surrounds, bunk
+## joinery, curtain rails, systems racks, light strips -- into merged renderers in
+## the exact parent that built them. Nothing that carries metadata, a script, a
+## group, a child, a visibility band or a name any consumer resolves is touched,
+## and the pass creates and removes no collision shape at all.
+func _consolidate_halyard_fitout() -> void:
+	_fitout_consolidation_report = ShipFitoutBatch.consolidate(
+		[_halyard_visual, _walkable_interior],
+		ShipFitoutBatch.PROTECTED_FITOUT_NAMES,
+		get_tree().root if is_inside_tree() else self
+	)
+
+
+## The last fitout consolidation pass's exact node arithmetic, for tests and
+## probes. Every counter is zero before the transport has built.
+func get_halyard_fitout_consolidation_report() -> Dictionary:
+	return _fitout_consolidation_report.duplicate(true)
 
 
 func _create_halyard_materials() -> void:

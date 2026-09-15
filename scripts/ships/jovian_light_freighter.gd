@@ -12,6 +12,7 @@ extends HeroShip
 ## The cargo deck, passenger cabin, cockpit, and exterior ramp are one physical
 ## ship-local hierarchy; no detached or teleported interior is involved.
 
+const ShipFitoutBatch := preload("res://scripts/rendering/ship_fitout_batch.gd")
 const FitoutSurfaceData := preload("res://scripts/rendering/construction_surface_data.gd")
 
 const SCHEMA_VERSION := 1
@@ -387,6 +388,7 @@ const DEFENSIVE_TURRET_PART_SUFFIXES: Array[StringName] = [
 ]
 
 var _fitout_mesh_cache: Dictionary = {}
+var _fitout_consolidation_report: Dictionary = {}
 var _jovian_built := false
 var _jovian_visual: Node3D
 var _jovian_materials: Dictionary = {}
@@ -3334,7 +3336,30 @@ func _build_jovian_variant(_controller: HeroShip) -> bool:
 	_bind_optional_interior_frame()
 	if not replace_variant_visual_root(_jovian_visual):
 		return false
+	_consolidate_jovian_fitout()
 	return true
+
+
+## Phase 10 §2 scene-node trim, run as the last step of the freighter's own
+## build so every collision, marker, route, damage-cue, hull-marking and
+## furnishing-LOD pass above has already resolved the tree it expects. Folds
+## anonymous sibling fitout dressing -- cargo-bay liners and cassettes, container
+## faces, cabin trim, bunk and locker joinery -- into merged renderers in the
+## exact parent that built them. Nothing that carries metadata, a script, a
+## group, a child, a visibility band or a name any consumer resolves is touched,
+## and the pass creates and removes no collision shape at all.
+func _consolidate_jovian_fitout() -> void:
+	_fitout_consolidation_report = ShipFitoutBatch.consolidate(
+		[_jovian_visual, _walkable_interior],
+		ShipFitoutBatch.PROTECTED_FITOUT_NAMES,
+		get_tree().root if is_inside_tree() else self
+	)
+
+
+## The last fitout consolidation pass's exact node arithmetic, for tests and
+## probes. Every counter is zero before the freighter has built.
+func get_jovian_fitout_consolidation_report() -> Dictionary:
+	return _fitout_consolidation_report.duplicate(true)
 
 
 func _create_jovian_materials() -> void:

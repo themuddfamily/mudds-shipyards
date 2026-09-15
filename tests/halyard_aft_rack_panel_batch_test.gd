@@ -5,6 +5,7 @@ extends SceneTree
 ## component damage, crew authority, collision and lifecycle remain ship-owned.
 
 const HALYARD_SCENE := preload("res://scenes/ships/halyard_crew_transport.tscn")
+const SHIP_FITOUT_BATCH := preload("res://scripts/rendering/ship_fitout_batch.gd")
 const Authority := preload("res://scripts/ships/crew_seat_role_authority.gd")
 const GEOMETRY_SHA256 := "b4790ca4de29ac91a09d11a06e1ed56ec3225d413443e9bec31f3250435b8118"
 
@@ -144,6 +145,12 @@ func _run() -> void:
 
 
 func _render_counts(craft: Node) -> Dictionary:
+	# The craft folds anonymous sibling fitout dressing into merged renderers as
+	# the last step of its own build (`ShipFitoutBatch`). This snapshot is what
+	# the craft *allocates*, so each batch is added back as the renderers, copies
+	# and submissions it stands in for. The delta is zero on a craft built without
+	# that pass, so the frozen roster below is unchanged either way.
+	var authored := SHIP_FITOUT_BATCH.authored_render_census_delta(craft)
 	var meshes := craft.find_children("*", "MeshInstance3D", true, false)
 	var batches := craft.find_children("*", "MultiMeshInstance3D", true, false)
 	var copies := meshes.size()
@@ -157,11 +164,11 @@ func _render_counts(craft: Node) -> Dictionary:
 		submissions += batch.multimesh.mesh.get_surface_count() \
 			if batch.multimesh != null and batch.multimesh.mesh != null else 0
 	return {
-		"renderers": meshes.size() + batches.size(),
-		"mesh_instances": meshes.size(),
+		"renderers": meshes.size() + batches.size() + int(authored.renderer_nodes),
+		"mesh_instances": meshes.size() + int(authored.renderer_nodes),
 		"multimesh_batches": batches.size(),
-		"authored_copies": copies,
-		"geometry_submissions": submissions,
+		"authored_copies": copies + int(authored.drawn_copies),
+		"geometry_submissions": submissions + int(authored.surface_submissions),
 	}
 
 

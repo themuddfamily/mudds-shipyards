@@ -1,6 +1,7 @@
 class_name CinderLightInterceptor
 extends HeroShip
 
+const ShipFitoutBatch := preload("res://scripts/rendering/ship_fitout_batch.gd")
 const CinderFittedCanopy := preload("res://scripts/ships/cinder_fitted_canopy.gd")
 
 const WeaponDefinitionType := preload("res://scripts/combat/weapon_definition.gd")
@@ -116,6 +117,7 @@ static var _shared_cockpit_fairing_mesh: ArrayMesh
 
 static var _shared_engine_exhaust_mesh: WeakRef
 
+var _fitout_consolidation_report: Dictionary = {}
 var _interceptor_boarding_marker: Marker3D
 var _interceptor_built := false
 var _weapon_definition: WeaponDefinition
@@ -211,7 +213,30 @@ func _build_interceptor_variant(_controller: HeroShip) -> bool:
 	_build_speed_silhouette(visual)
 	_build_engine_damage_beacon(visual)
 	_build_boarding_marker(visual)
+	_consolidate_interceptor_fitout()
 	return true
+
+
+## Phase 10 §2 scene-node trim, run as the last step of the craft's own build so
+## every collision, marker, route, damage-cue and hull-marking pass above has
+## already resolved the tree it expects. Folds anonymous sibling fitout dressing
+## -- cockpit and cabin trim, panels, fasteners, cable runs, lamp housings --
+## into merged renderers in the exact parent that built them. Nothing that
+## carries metadata, a script, a group, a child, a visibility band or a name any
+## consumer resolves is touched, and the pass creates and removes no collision
+## shape at all.
+func _consolidate_interceptor_fitout() -> void:
+	_fitout_consolidation_report = ShipFitoutBatch.consolidate(
+		[get_variant_visual_root()],
+		ShipFitoutBatch.PROTECTED_FITOUT_NAMES,
+		get_tree().root if is_inside_tree() else self
+	)
+
+
+## The last fitout consolidation pass's exact node arithmetic, for tests and
+## probes. Every counter is zero before the craft has built.
+func get_interceptor_fitout_consolidation_report() -> Dictionary:
+	return _fitout_consolidation_report.duplicate(true)
 
 
 func get_display_name() -> String:

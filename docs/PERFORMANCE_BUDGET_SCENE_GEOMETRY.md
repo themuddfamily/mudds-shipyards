@@ -429,9 +429,10 @@ scene measures **1,951,735 triangles** — 983,982 fewer than the 2,935,717 the
 morning census found, and now 8.4% over the 1,800,000 ceiling instead of 63%.
 The node count is **11,455** after the dressing-consolidation pass recorded
 below, and remains 64% over its 7,000 ceiling. The second node trim recorded
-immediately below takes the live resident count from **11,467 to 10,627**, and
-the third from **10,647 to 10,598** — still 51% over the 7,000 ceiling, and still
-not met.
+immediately below takes the live resident count from **11,467 to 10,627** —
+still 52% over the 7,000 ceiling, and still not met. The 2026-09-15 ship trim
+recorded further below takes it from **10,647 to 10,551**, 51% over, still not
+met.
 
 #### 2026-09-14 node trim: -190 resident scene-tree nodes, zero triangles
 
@@ -483,8 +484,6 @@ What was deliberately left alone, and why:
   `IndustrialInfrastructure` each publish a frozen per-component count or
   one-mesh-per-collider audit keyed to their own node roster. Batching inside
   them changes that indexing contract, and no audit was relaxed to buy nodes.
-  (The third node trim below upgrades three of those four contracts and batches
-  them; `OperationalLattice` stays out, for a stronger reason recorded there.)
 * Any node carrying metadata, a script, a group, a node-driven signal, a child,
   or a name that `scripts/`, `tests/`, `tools/`, `docs/`, `scenes/` or `assets/`
   resolves. That covers every walkable surface, evidence label, route marker,
@@ -618,170 +617,131 @@ What was left alone in this pass, and by whose authority:
   every string literal in `scripts/`, `tests/`, `tools/`, `docs/`, `scenes/` and
   `assets/`, including `%s`/`%d` format and `find_children` glob patterns.
 
-#### 2026-09-15 third node trim: -49 resident scene-tree nodes, zero triangles
+#### 2026-09-15 ship node trim: -96 resident scene-tree nodes, zero triangles
 
-The four buckets the first two passes refused are the ones this pass was sent at:
-`OperationalLattice`, `CentralBerthServiceLine`, `ModernFleetRegistry` and
-`IndustrialInfrastructure`. Three of them now run through the same
-`StationDressingBatch`. The fourth does not, and the measurement of *why* is the
-more useful half of this entry: the roadmap item behind this pass expected roughly
-379 batchable nodes in `OperationalLattice`, and the honest figure is 38.
+`ShipFitoutBatch` (`scripts/rendering/ship_fitout_batch.gd`) is the ship-side
+sibling of `StationDressingBatch`, called from each craft's own variant builder
+as the last step of its build. It merges anonymous sibling fitout dressing —
+cabin liners, window surrounds, wall and ceiling cassettes, container faces,
+bunk and locker joinery, curtain rails, systems racks, light strips, access trim
+— into one multi-surface `MeshInstance3D` per locality, in the exact parent that
+built it. Batches carry one surface per distinct source material, so the same
+finishes are bound to the same triangles at the same local placements through
+`set_surface_override_material()`.
+
+It is a separate class rather than a caller of the station one for two reasons a
+ship has and the station does not. A craft is built **before** it is in the tree
+and rebuilt by `reset_for_reuse`, so every placement here is composed from local
+transforms only — the station pass reads `global_transform`, which is meaningless
+in those states. And ship fitout is drawn stock whose collision is authored
+separately as root shapes and interaction areas: no ship fitout piece owns a body
+of its own, so there is no solid-batch path at all and **the pass creates, moves
+and removes no collision shape**.
 
 | Bucket | Nodes before | Nodes after | Renderers before | Renderers after | Surfaces before | Surfaces after | Triangles |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
-| `CentralBerthServiceLine` | 223 | 180 | 95 | 69 | 95 | 81 | 14,692 unchanged |
-| `ModernFleetRegistry` | 64 | 58 | 35 | 30 | 35 | 33 | 16,476 unchanged |
-| `IndustrialInfrastructure` | 10 | 10 | 9 | 9 | 9 | 9 | 11,328 unchanged |
-| `OperationalLattice` | 848 | 848 | 478 | 478 | 490 | 490 | 82,692 unchanged |
-| **Resident total** | **10,647** | **10,598** | **5,676** | **5,645** | **6,033** | **6,017** | **1,917,477 unchanged** |
+| `FleetExpansionProductionBinding` | 792 | 759 | 597 | 564 | 606 | 582 | 193,858 unchanged |
+| `ZenithInterceptor` | 198 | 170 | 99 | 71 | 116 | 87 | 83,490 unchanged |
+| `JovianLightFreighter` | 621 | 601 | 453 | 433 | 472 | 460 | 167,594 unchanged |
+| `BulwarkHeavyGunship` | 270 | 259 | 214 | 203 | 218 | 213 | 58,726 unchanged |
+| `ArrowReconShip` | 324 | 322 | 252 | 250 | 256 | 255 | 103,002 unchanged |
+| `HalyardCrewTransport` | 459 | 457 | 349 | 347 | 356 | 355 | 150,748 unchanged |
+| **Resident total** | **10,648** | **10,552** | **5,676** | **5,580** | **6,033** | **5,961** | **1,917,477 unchanged** |
 
-No other bucket moves at all. Triangles (1,917,477 resident / 2,051,611 with
+The bucket rows above are the census tool's own run on this box. The frozen
+scenario contract in `tests/geometry_census_scenario_test.gd` measures the same
+scene with fresh private user data, as that contract requires, and reads one
+node lower in each scenario for the reason the previous freeze already records:
+**10,647 -> 10,551 resident and 11,070 -> 10,974 loaded**. The delta is 96
+either way.
+
+No station bucket moves at all. Triangles (1,917,477 resident / 2,051,611 with
 Cinder loaded), lights (335, of which 20 cast shadows), particle systems (45),
 bound-phase (693) and retained (969) materials, shaders (7), textures
-(34 / 83,355,976 bytes), text triangles/instances (79,709 / 43), every collision
-shape's world extent and the whole loaded-minus-resident Cinder delta (+134,134
-triangles, +209 renderers, +140 unique meshes, +47 retained materials, +27 lights,
-+423 nodes) are identical on both sides. Unique meshes fall 3,167 -> 3,151 because
-a merged renderer replaces N cached box meshes with one, and surfaces fall
-6,033 -> 6,017 because pieces that shared a material with a sibling now share one
-submission — a draw-call reduction, not lost geometry. Measured on `aa3d935c7`
-with a pristine Godot user-data home on both sides; persisted pilot state adds one
-node per scenario and moves the census fingerprints, which is why the frozen
-counts in `tests/geometry_census_scenario_test.gd` now say so out loud.
+(34 / 83,355,976 bytes), text triangles/instances, every collision shape's world
+extent and the whole loaded-minus-resident Cinder delta are identical on both
+sides. Unique meshes fall 3,167 -> 3,071 because a merged renderer replaces
+several privately owned box meshes with one, and surfaces fall because pieces
+that shared a finish with a sibling now share one submission — a draw-call
+reduction, not lost geometry. `tools/station_walkability_sweep.gd` is unchanged
+end to end: the same 19 findings at the same coordinates, the same per-module
+split (`aft_junction_stack` 2, `habitat_spine` 6, `shipyard_world` 11),
+`invisible_blocker`/`choke`/`gap` all zero and the same pinch-lane roster,
+because no collision shape moved.
 
-**Both modules still publish exactly what they build.** Neither audit was
-relaxed; both were restated:
+**The craft still publish exactly what they build.** `EXPECTED_ARROW_VISUAL_CENSUS`
+is a frozen roster of what the Arrow *allocates*, so each batch is added back as
+the renderer nodes, drawn copies, submissions, mesh resources and auto-named
+sources it stands in for (`ShipFitoutBatch.authored_render_census_delta` /
+`authored_node_delta`, the same contract `HabitatSpine` and `AftJunctionStack`
+use). The delta is zero on a craft built without the pass, so an unbatched build
+reads identically. The Halyard's `RENDER_DESCENDANT_COUNT` roster is scoped to
+`HalyardTransportVisual` and its cabin fittings live on the moving interior root,
+so it is unaffected and unchanged.
 
-* `get_central_berth_service_line_render_contract()` and
-  `get_modern_fleet_registry_render_contract()` add each batch's authored row
-  (`StationDressingBatch.AUTHORED_CENSUS_META`) back into the descendant,
-  renderer, drawn-copy, submission and static-body counts. Every published
-  constant is unchanged — the line still reports 222 descendants / 93 renderers /
-  100 drawn copies / 95 submissions / 56 bodies / 56 shapes, and the pod still
-  reports 63 / 34 / 38 / 35 / 12 / 12, on the live batched station. Each contract
-  also now publishes `live_mesh_instances`, so the difference between what the
-  module built and what the world left standing is visible rather than inferred.
-* `get_central_berth_service_line_report()` states its "looks solid, is solid"
-  pairing per **authored piece** instead of per node, because a merged renderer
-  cannot satisfy one-drawn-mesh-per-collider node for node.
-  `StationDressingBatch.solid_batch_pairing_errors()` asks the same question of
-  the live merged triangle buffer: every collider must be spanned by the geometry
-  drawn inside it, and no vertex may be drawn outside every collider. That reads
-  the merged vertex arrays rather than any stored record of what was merged, and
-  it is asserted both ways in `tests/station_dressing_batch_test.gd`, where moving
-  a collider off its piece, growing it past its piece and dropping one each turn
-  the check red.
+Five walking-distance interior framings — the Jovian cargo bay and passenger
+cabin, the Halyard crew cabin and flight deck, and the Cinder cargo hauler's
+cockpit — were captured against the untrimmed build under Xvfb at 1280x720 on
+both renderers. The compartment bounds the framing is derived from are identical
+before and after, so the camera transforms are bit-identical. On **Forward+**,
+which the desktop build ships, every framing is inside or at the renderer's own
+same-build noise floor (mean |delta| 0.376-0.565 of 255 against a 0.321-0.602
+floor). On the **Compatibility** fallback the difference is larger than its much
+quieter floor and is confined to per-object light-list reassignment: that
+renderer caps how many lights reach one instance, so a merged bound can pick up
+or drop a cabin practical. The largest is the Halyard crew cabin at mean |delta|
+3.01 of 255 (1.2%) against a 0.002 floor — a uniform low-amplitude luminance
+shift across the whole frame, strongest on the ceiling, with no geometry,
+silhouette, material or placement difference in any framing. Tightening the
+locality cap does not touch it: at a 4 m cap the same framing measures 3.006,
+because what moves there is which lights win an instance's per-object slots and
+that ordering follows how many instances the compartment has, not how large any
+one of them is. The cap therefore stays at the station pass's 16 m, which costs
+74 fewer nodes than 4 m for no measured rendering difference.
 
-`tools/station_walkability_sweep.gd` is **byte-identical end to end** — 82
-surfaces, 135,137 cells, 39,904 blocked, 19 findings,
-`invisible_blocker`/`choke`/`gap` all zero, 345 lanes measured, and the same 19
-blamed paths, 12 narrowest lanes and per-module split — because no collision shape
-moved. `tools/coplanar_seam_audit.gd` reports the same **1,341 pairs and 388
-families** with the same 28 `coplanar_by_design` declarations, the same worst
-families and a byte-identical per-module table; the only movement anywhere in it
-is one pair reclassified from `back_to_back` (1,291 -> 1,290), which is a merged
-renderer presenting one of its own internal faces to the classifier rather than
-two nodes' faces to each other. No class regressed in either tool.
+**Why 96 and not several hundred.** An unguarded pass over the same eight craft
+folds 401 nodes. Each guard below removes part of that, and each removes it
+because folding there would trade away a production property rather than buy a
+free one. **No audit was relaxed to buy nodes**, and the measured cost of each is
+recorded so a later pass can revisit it deliberately rather than by accident:
 
-**Rendered check.** Five walking-distance framings were captured under Xvfb at
-1280x720 with the camera transform resolved from the live floor, so before and
-after are byte-identical viewpoints: the operations lattice across the maintenance
-gantry, the berth service line down the port flank, the access work stand (the
-ten-piece solid batch), the fleet registry pod across its terminal and berth
-board, and VIP reception. **Two of the five are controls this pass does not touch
-a node in** — the lattice and VIP. Each framing was captured twice per renderer
-per side, so each cell below sits against two same-build rerun floors. Captures,
-logs and the full cross-matrix are in
-`/root/.cache/mudds-shipyards/node-trim3-root/` (`pixdiffs.txt`).
+* **Deliberately shared stock meshes — about 170 nodes.** The Jovian's
+  dorsal-rib and shoulder-rail joints, cargo-frame joints, cabin light strips and
+  landing-gear legs, the Arrow's collar and main-gear-foot stock, and every other
+  family a `*_resource_sharing_test` proves. Merging N renderers of one cached
+  mesh stores that geometry N times, which is the opposite of what the sharing
+  exists for, and dissolves the resource identity those audits check. A renderer
+  whose mesh is drawn more than once, or held by a live craft variable, is never
+  folded.
+* **Live `PrimitiveMesh` stock — about 25 nodes.** `TorusGeometryBudget.normalise_tree`
+  sweeps the finished tree and re-tessellates turned and swept stock from its own
+  radius, and only while the recipe is still a primitive. Baking one into a
+  merged `ArrayMesh` takes it out of that sweep and freezes it at the segment
+  count it was authored with; the Bulwark's cockpit gimbal measured +112
+  triangles that way before the rule was added.
+* **Camera-distance LOD bands — about 32 nodes.** The seat and container
+  furniture `_configure_interior_furnishing_ranges` bands is left standing piece
+  by piece, so exactly the renderers that carried a band still carry one.
+* **Names a craft assembles at runtime — about 60 nodes.** Ship audits build
+  paths by concatenation and formatting, so a whole-name grep cannot see them;
+  every fragment a composed lookup contributes protects every name it occurs in.
+* **`PilotAccessSteps`, `MainFrame` and `ToeFrame`**, whose contents are an exact
+  renderer roster their own audits index.
+* Any node carrying metadata, a script, a group, a node-driven signal, a child,
+  or a name that `scripts/`, `tests/`, `tools/`, `docs/`, `scenes/` or `assets/`
+  resolves — which covers every seat, bunk, anchor, console, instrument face,
+  hatch, route inlay, damage cue, hull marking and canopy fitting, and is why the
+  shared `CockpitInterior` the common controller indexes contributes almost
+  nothing. Any node a live script variable still holds. A merged bound that would
+  read as a walkable plate. And any merge whose triangle count would not
+  reproduce its sources' exactly.
 
-| Renderer | Framing | floor(before) | floor(after) | before->after | before2->after2 |
-| --- | --- | ---: | ---: | ---: | ---: |
-| Forward+ | operations-lattice *(control)* | 1.73 | 0.88 | 1.97 | 1.24 |
-| Forward+ | berth-service-line | 0.91 | 0.65 | 0.78 | 0.80 |
-| Forward+ | berth-work-stand | 0.60 | 0.36 | 0.56 | 0.40 |
-| Forward+ | fleet-registry | 0.87 | 1.14 | 1.31 | 1.01 |
-| Forward+ | vip-reception *(control)* | 0.33 | 0.55 | 0.46 | 0.57 |
-| Compatibility | operations-lattice *(control)* | 1.17 | 0.14 | 0.90 | 0.36 |
-| Compatibility | berth-service-line | 0.21 | 0.02 | 0.34 | 0.20 |
-| Compatibility | berth-work-stand | 0.85 | 0.05 | 1.01 | 0.28 |
-| Compatibility | fleet-registry | 0.41 | 0.16 | 0.34 | 0.14 |
-| Compatibility | vip-reception *(control)* | 0.00 | 0.00 | 0.00 | 0.00 |
-
-Mean |delta| of 255. On **Forward+** every before/after cell is inside the band
-its own two floors define, and the largest number on the whole board — 1.97, and
-2.20 on the before->after2 pairing — is `operations-lattice`, a framing in which
-this pass does not change a single node. That is the measurement saying "noise" as
-plainly as it can. On **Compatibility** the VIP control is 0.0000 across all six
-pairings, and the other four sit at or below their own before-side floor while the
-after-side floor is much quieter. The reason is visible and was tracked down
-rather than averaged away: of the four Compatibility runs, `compat-before` alone
-rendered the berth deck beside the work stand *without* a specular pool that
-`compat-before2`, `compat-after` and `compat-after2` all show. That is the same
-per-object light-slot instability the second trim recorded, occurring here
-**within one build** — which is exactly why the noise floor takes two runs a side.
-No geometry, silhouette, material, light or placement differs in any framing on
-either renderer, and unlike the second trim there is no bound-dependent tone
-change to record.
-
-What was left alone in this pass, and by whose authority:
-
-* **`OperationalLattice`** (848 nodes). This is the bucket the roadmap item aimed
-  at, and it is measured rather than assumed: run the pass over it and it forms
-  **7 batches out of 45 renderers, worth 38 nodes**, every one of them inside a
-  `StationOperationsActivity` (`CentralTowServiceActivity`,
-  `FreightApproachGantry`, `AftCrewWorkPost`, `HabitatSkywatchPost`,
-  `FreightApproachSignage`). That component does **not** publish a count roster
-  that an authored-census row can restore.
-  `_built_presentation_hierarchy_is_live()` requires the live node set to equal
-  the built node set *by instance id at its authored path*, and
-  `_built_mesh_contracts_are_live()` re-checks every built renderer's own mesh
-  resource id, storage fingerprint and bound `material_override`. A merge frees
-  the source nodes and their meshes by design, so those are identity and
-  resource-storage proofs that would have to be deleted, not counts that could be
-  added back. `get_operational_lattice_audit_report()` gates on each activity's
-  audit and inherits the same answer. Thirty-eight nodes do not buy deleting a
-  proof that every authored renderer is still the resource it was built from.
-* **The rest of the lattice**, by subtree: `ActivityCollision` (71 nodes) is
-  collision authority; `ServiceAgents` (85) and `Ambience` (13) are script-owned
-  movers and emitters; and all 20 renderers of the four
-  `StationStructuralServiceDressing` instances (177 nodes) carry the
-  `detail_role`/`quality_tier` metadata their quality lifecycle reads, so the
-  metadata gate already keeps the pass out of them.
-* **Ninety lattice renderers that are structurally foldable and must not be
-  folded.** The service arm's segments, both service drones and every safety
-  beacon carry a **hard near-camera guard** (`visibility_range_begin`, fade
-  disabled) so a drone flying at the player does not fill the screen. That guard
-  triggers on the *instance's* bounding volume, so merging even two siblings moves
-  the distance at which each one disappears. That is a visible change by
-  definition, and `_mesh_is_mergeable()` already refuses any renderer with a
-  visibility range.
-* **Seven names added to `PROTECTED_DRESSING_NAMES`**, taking it to 443, found by
-  grepping all 91 leaf names this pass would otherwise have folded in the three
-  new modules. `RegistryBerthTile01`…`06` are the pod's own declared readability
-  roster, resolved by formatted name inside its render contract and tracking
-  `SHIP_BERTH_FEEDBACK_BERTH_IDS`. `StandPlatform` and `MastBaseFlange` are
-  resolved by path from `tests/station_presentation_defect_witness_test.gd`.
-  `BoardLampLens`, `MastFootLens`, `RackStripLens` and `WorkLampLens` are the four
-  lens names the service line's fixture-practical sweep resolves beside each of
-  its six lights; that audit asks whether the spill comes from a *drawn lens*, and
-  a merged renderer could only answer "some geometry is near", which is a weaker
-  question. Those seven names cost 12 of the 61 nodes the three modules could
-  otherwise have given up, and every one was paid deliberately.
-* **`IndustrialInfrastructure` produces no batch at all.** Each of its six utility
-  runs is a single 72 m cylinder — longer on its own than the 16 m locality cap —
-  so every one gets a chunk to itself, and a chunk of one is never merged; its 54
-  couplers are already one `MultiMeshInstance3D` per radius. It is on the roster
-  so that stays measured rather than assumed.
-* Everything the earlier passes already refused: metadata, script, group,
-  node-driven signal, child, protected name, live script reference, the 16 m
-  locality cap and the walkable-plate refusal.
-
-**The node ceiling is still not met, and these four buckets are now close to
-exhausted.** Resident nodes are 10,598 against 7,000 — 51% over. Of the 1,145
-nodes the four buckets hold, 49 were available without weakening a published
-audit, 38 more sit behind `StationOperationsActivity`'s identity contract, and the
-remaining ~1,058 are collision, mover, lifecycle, quality-tier or name-resolved
-authority. The next real node headroom is not in this module.
+The resident node count is **10,551** and remains 51% over its 7,000 ceiling.
+The ceiling is not met. The remaining ship node volume is the shared cockpit
+roster, the shared-stock families above and metadata-bearing presentation
+renderers — indexing and resource contracts rather than anonymous dressing — so
+the next worthwhile ship-side trim is a deliberate decision about one of those
+contracts, not another sweep of this one.
 
 #### 2026-09-14 second trim: -250,864 more resident triangles
 

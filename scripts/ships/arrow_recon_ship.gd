@@ -15,6 +15,7 @@ extends HeroShip
 ## destruction, and reuse behavior.
 
 const StaticShadowBatch = preload("res://scripts/world/static_shadow_batch.gd")
+const ShipFitoutBatch := preload("res://scripts/rendering/ship_fitout_batch.gd")
 
 const SCHEMA_VERSION := 1
 const EVIDENCE_STATUS: StringName = &"provisional"
@@ -290,6 +291,7 @@ static var _shared_engine_damage_collar_material: StandardMaterial3D
 
 var _arrow_built := false
 var _arrow_visual: Node3D
+var _fitout_consolidation_report: Dictionary = {}
 var _entry_heat_target: PlanetaryEntryHeatTarget
 var _arrow_materials: Dictionary = {}
 var _escape_pods: Array[Node3D] = []
@@ -751,7 +753,31 @@ func _build_arrow_variant(_controller: HeroShip) -> bool:
 	_replace_collision_and_markers()
 	if not replace_variant_visual_root(_arrow_visual):
 		return false
+	_consolidate_arrow_fitout()
 	return true
+
+
+## Phase 10 §2 scene-node trim, run as the last step of the craft's own build so
+## every collision, marker, route, damage-cue, shadow-batch and hull-marking pass
+## above has already resolved the tree it expects -- `StaticShadowBatch` in
+## particular has already frozen its proxies against the named airframe sources
+## it audits. Folds anonymous sibling fitout dressing -- cockpit and airframe
+## trim, panels, fasteners, cable runs, lamp housings -- into merged renderers in
+## the exact parent that built them. Nothing that carries metadata, a script, a
+## group, a child, a visibility band or a name any consumer resolves is touched,
+## and the pass creates and removes no collision shape at all.
+func _consolidate_arrow_fitout() -> void:
+	_fitout_consolidation_report = ShipFitoutBatch.consolidate(
+		[_arrow_visual],
+		ShipFitoutBatch.PROTECTED_FITOUT_NAMES,
+		get_tree().root if is_inside_tree() else self
+	)
+
+
+## The last fitout consolidation pass's exact node arithmetic, for tests and
+## probes. Every counter is zero before the craft has built.
+func get_arrow_fitout_consolidation_report() -> Dictionary:
+	return _fitout_consolidation_report.duplicate(true)
 
 
 func _create_arrow_materials() -> void:
@@ -2449,15 +2475,49 @@ func _collect_arrow_visual_census() -> Dictionary:
 	for candidate in _arrow_visual.find_children("*", "Node", true, false):
 		if str((candidate as Node).name).begins_with("@"):
 			auto_fallback_names += 1
+	# The craft folds anonymous sibling fitout dressing into merged renderers as
+	# the last step of its own build (`ShipFitoutBatch`). The roster frozen in
+	# `EXPECTED_ARROW_VISUAL_CENSUS` is what this craft *allocates*, so each batch
+	# is put back as the renderers, copies, submissions and mesh resources it
+	# stands in for, and the auto-named sources it replaced are counted where they
+	# stood. The delta is zero on a craft built without that pass.
+	var authored := ShipFitoutBatch.authored_render_census_delta(_arrow_visual)
+	for retired_id in authored.retired_mesh_resource_ids as PackedInt64Array:
+		unique_mesh_resources.erase(retired_id)
+	for mesh_id in authored.mesh_resource_ids as PackedInt64Array:
+		unique_mesh_resources[mesh_id] = true
 	return {
 		"nodes": _count_visual_nodes(_arrow_visual),
-		"mesh_instance_nodes": mesh_instances.size(),
+		"mesh_instance_nodes": mesh_instances.size() + int(authored.renderer_nodes),
 		"multi_mesh_instance_nodes": multi_mesh_instances.size(),
-		"geometry_submissions": geometry_submissions,
-		"visible_geometry_copies": visible_geometry_copies,
+		"geometry_submissions": geometry_submissions + int(authored.surface_submissions),
+		"visible_geometry_copies": visible_geometry_copies + int(authored.drawn_copies),
 		"unique_mesh_resource_allocations": unique_mesh_resources.size(),
-		"auto_fallback_names": auto_fallback_names,
+		"auto_fallback_names": auto_fallback_names + _authored_auto_fallback_names(_arrow_visual),
 	}
+
+
+## Auto-named sources a fitout batch replaced.
+##
+## `auto_fallback_names` counts the renderers Godot had to name for the builder,
+## and the batch records every name it stands in for, so the roster still reports
+## how many of this craft's authored renderers went unnamed. Zero when nothing
+## was folded.
+func _authored_auto_fallback_names(search_root: Node) -> int:
+	var count := 0
+	var candidates := search_root.find_children("*", "", true, false)
+	candidates.append(search_root)
+	for candidate in candidates:
+		if not candidate.has_meta(ShipFitoutBatch.AUTHORED_NAMES_META):
+			continue
+		if not candidate.has_meta(ShipFitoutBatch.AUTHORED_CENSUS_META):
+			continue
+		for authored_name in candidate.get_meta(
+			ShipFitoutBatch.AUTHORED_NAMES_META, PackedStringArray()
+		) as PackedStringArray:
+			if authored_name.begins_with("@"):
+				count += 1
+	return count
 
 
 func _inspect_recon_pulse_emitters() -> Dictionary:
@@ -3103,8 +3163,13 @@ func _inspect_fuselage_panel_band_mesh_sharing() -> Dictionary:
 	}.duplicate(true)
 
 
+## Nodes this craft allocates under `search_root`.
+##
+## A fitout batch stands in for the nodes the craft folded into it, and this
+## count is the roster the craft builds. `authored_node_delta` is zero for every
+## other node, so an unbatched build reads identically.
 func _count_visual_nodes(search_root: Node) -> int:
-	var count := 1
+	var count := 1 + ShipFitoutBatch.authored_node_delta(search_root)
 	for child in search_root.get_children():
 		count += _count_visual_nodes(child)
 	return count

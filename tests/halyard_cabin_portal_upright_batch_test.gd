@@ -5,6 +5,7 @@ extends SceneTree
 ## nodes; this verifies only exact visual copies and allocation reduction.
 
 const HALYARD_SCENE := preload("res://scenes/ships/halyard_crew_transport.tscn")
+const SHIP_FITOUT_BATCH := preload("res://scripts/rendering/ship_fitout_batch.gd")
 
 var _failures: Array[String] = []
 var _assertions := 0
@@ -117,6 +118,12 @@ func _transformed_bounds(mesh_bounds: AABB, transforms: Array[Transform3D]) -> A
 
 
 func _full_render_counts(craft: Node) -> Dictionary:
+	# The craft folds anonymous sibling fitout dressing into merged renderers as
+	# the last step of its own build (`ShipFitoutBatch`). This snapshot is what
+	# the craft *allocates*, so each batch is added back as the renderers, copies
+	# and submissions it stands in for. The delta is zero on a craft built without
+	# that pass, so the frozen roster below is unchanged either way.
+	var authored := SHIP_FITOUT_BATCH.authored_render_census_delta(craft)
 	var meshes := craft.find_children("*", "MeshInstance3D", true, false)
 	var batches := craft.find_children("*", "MultiMeshInstance3D", true, false)
 	var submissions := 0
@@ -133,10 +140,10 @@ func _full_render_counts(craft: Node) -> Dictionary:
 			var visible := batch_instance.multimesh.visible_instance_count
 			drawn_copies += batch_instance.multimesh.instance_count if visible < 0 else visible
 	return {
-		"mesh_instances": meshes.size(),
+		"mesh_instances": meshes.size() + int(authored.renderer_nodes),
 		"multimesh_batches": batches.size(),
-		"drawn_copies": drawn_copies,
-		"geometry_submissions": submissions,
+		"drawn_copies": drawn_copies + int(authored.drawn_copies),
+		"geometry_submissions": submissions + int(authored.surface_submissions),
 	}
 
 

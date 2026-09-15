@@ -9,6 +9,7 @@ extends HeroShip
 ## damage, boarding lifecycle, and reuse; optional gunner fire is admitted by
 ## the seat authority and resolved by the shared combat authority.
 
+const ShipFitoutBatch := preload("res://scripts/rendering/ship_fitout_batch.gd")
 const FittedCanopy := preload("res://scripts/ships/cinder_fitted_canopy.gd")
 const ShipServiceCassette := preload("res://scripts/ships/ship_service_cassette.gd")
 const ModernRoleProfile := preload("res://scripts/fleet/modern_role_profile.gd")
@@ -116,6 +117,7 @@ static var _shared_engine_exhaust_mesh: WeakRef
 
 var _bulwark_built := false
 var _bulwark_visual: Node3D
+var _fitout_consolidation_report: Dictionary = {}
 var _gunner_station: Node3D
 var _gunner_station_anchor: Marker3D
 var _gunner_status_readout: Label3D
@@ -596,7 +598,30 @@ func _build_bulwark_variant(_controller: HeroShip) -> bool:
 	if not replace_variant_visual_root(_bulwark_visual):
 		return false
 	_build_engine_exhaust(_bulwark_visual)
+	_consolidate_bulwark_fitout()
 	return true
+
+
+## Phase 10 §2 scene-node trim, run as the last step of the craft's own build so
+## every collision, marker, route, damage-cue, shadow-batch and hull-marking pass
+## above has already resolved the tree it expects. Folds anonymous sibling fitout
+## dressing -- cockpit and airframe trim, panels, fasteners, cable runs, lamp
+## housings -- into merged renderers in the exact parent that built them. Nothing
+## that carries metadata, a script, a group, a child, a visibility band or a name
+## any consumer resolves is touched, and the pass creates and removes no collision
+## shape at all.
+func _consolidate_bulwark_fitout() -> void:
+	_fitout_consolidation_report = ShipFitoutBatch.consolidate(
+		[_bulwark_visual],
+		ShipFitoutBatch.PROTECTED_FITOUT_NAMES,
+		get_tree().root if is_inside_tree() else self
+	)
+
+
+## The last fitout consolidation pass's exact node arithmetic, for tests and
+## probes. Every counter is zero before the craft has built.
+func get_bulwark_fitout_consolidation_report() -> Dictionary:
+	return _fitout_consolidation_report.duplicate(true)
 
 
 ## A supported bucket and a formed console replace the exposed chair/desk

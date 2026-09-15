@@ -1,6 +1,7 @@
 class_name CinderCargoHauler
 extends HeroShip
 
+const ShipFitoutBatch := preload("res://scripts/rendering/ship_fitout_batch.gd")
 const CinderFittedCanopy := preload("res://scripts/ships/cinder_fitted_canopy.gd")
 
 const WeaponDefinitionType := preload("res://scripts/combat/weapon_definition.gd")
@@ -355,6 +356,7 @@ var _cargo_threshold_light: OmniLight3D
 var _cargo_hold: Node3D
 var _cargo_anchors: Array[Marker3D] = []
 var _walkable_interior: Node3D
+var _fitout_consolidation_report: Dictionary = {}
 var _cargo_cabin: Node3D
 var _moving_interior_component: MovingInteriorFrame
 var _occupant_volume: Area3D
@@ -555,7 +557,30 @@ func _build_cargo_variant(_controller: HeroShip) -> bool:
 	_build_cargo_hold(visual)
 	_build_cargo_interior()
 	_bind_cargo_interior_frame()
+	_consolidate_cargo_fitout()
 	return true
+
+
+## Phase 10 §2 scene-node trim, run as the last step of the craft's own build so
+## every collision, marker, route, damage-cue and hull-marking pass above has
+## already resolved the tree it expects. Folds anonymous sibling fitout dressing
+## -- cockpit and cabin trim, panels, fasteners, cable runs, lamp housings --
+## into merged renderers in the exact parent that built them. Nothing that
+## carries metadata, a script, a group, a child, a visibility band or a name any
+## consumer resolves is touched, and the pass creates and removes no collision
+## shape at all.
+func _consolidate_cargo_fitout() -> void:
+	_fitout_consolidation_report = ShipFitoutBatch.consolidate(
+		[get_variant_visual_root(), _walkable_interior],
+		ShipFitoutBatch.PROTECTED_FITOUT_NAMES,
+		get_tree().root if is_inside_tree() else self
+	)
+
+
+## The last fitout consolidation pass's exact node arithmetic, for tests and
+## probes. Every counter is zero before the craft has built.
+func get_cargo_fitout_consolidation_report() -> Dictionary:
+	return _fitout_consolidation_report.duplicate(true)
 
 
 func get_display_name() -> String:

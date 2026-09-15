@@ -8,6 +8,7 @@ extends HeroShip
 ## flight, damage, audio, weapons, boarding, docking and every numeric handling
 ## value remain modern gameplay authority owned by this node and HeroShip.
 
+const ShipFitoutBatch := preload("res://scripts/rendering/ship_fitout_batch.gd")
 const ServiceCassette := preload("res://scripts/ships/ship_service_cassette.gd")
 
 const ShipComponentDamageType := preload("res://scripts/combat/ship_component_damage.gd")
@@ -3234,6 +3235,7 @@ const CONTENT_NOTE := (
 
 var _zenith_built := false
 var _zenith_visual: Node3D
+var _fitout_consolidation_report: Dictionary = {}
 var _authored_presentation: Node3D
 var _functional_cockpit: Node3D
 var _functional_canopy: Node3D
@@ -3643,8 +3645,31 @@ func _build_zenith_variant(_controller: HeroShip) -> bool:
 	if inherited_visual.get_parent() != null:
 		inherited_visual.get_parent().remove_child(inherited_visual)
 	inherited_visual.queue_free()
+	_consolidate_zenith_fitout()
 	_identity_snapshot = _capture_runtime_identities()
 	return true
+
+
+## Phase 10 §2 scene-node trim, run as the last step of the craft's own build so
+## every collision, marker, route, damage-cue, shadow-batch and hull-marking pass
+## above has already resolved the tree it expects. Folds anonymous sibling fitout
+## dressing -- cockpit and airframe trim, panels, fasteners, cable runs, lamp
+## housings -- into merged renderers in the exact parent that built them. Nothing
+## that carries metadata, a script, a group, a child, a visibility band or a name
+## any consumer resolves is touched, and the pass creates and removes no collision
+## shape at all.
+func _consolidate_zenith_fitout() -> void:
+	_fitout_consolidation_report = ShipFitoutBatch.consolidate(
+		[get_variant_visual_root()],
+		ShipFitoutBatch.PROTECTED_FITOUT_NAMES,
+		get_tree().root if is_inside_tree() else self
+	)
+
+
+## The last fitout consolidation pass's exact node arithmetic, for tests and
+## probes. Every counter is zero before the craft has built.
+func get_zenith_fitout_consolidation_report() -> Dictionary:
+	return _fitout_consolidation_report.duplicate(true)
 
 
 ## Modern visual retrofit around the preserved B7 reference package. Imported

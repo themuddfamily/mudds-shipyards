@@ -1,6 +1,7 @@
 class_name CinderLongRangeBomber
 extends HeroShip
 
+const ShipFitoutBatch := preload("res://scripts/rendering/ship_fitout_batch.gd")
 const CinderFittedCanopy := preload("res://scripts/ships/cinder_fitted_canopy.gd")
 
 ## Original-modern long-range bomber component. No historical craft, weapon,
@@ -99,6 +100,7 @@ static var _shared_ordnance_service_mesh: ArrayMesh
 
 static var _shared_engine_exhaust_mesh: WeakRef
 
+var _fitout_consolidation_report: Dictionary = {}
 var _bomber_boarding_marker: Marker3D
 var _payload_hardpoints: Array[Marker3D] = []
 var _bomber_built := false
@@ -255,7 +257,30 @@ func _build_bomber_variant(_controller: HeroShip) -> bool:
 	_build_cockpit_and_boarding(visual)
 	_build_payload_hardpoints(visual)
 	_build_component_damage_cue(visual)
+	_consolidate_bomber_fitout()
 	return true
+
+
+## Phase 10 §2 scene-node trim, run as the last step of the craft's own build so
+## every collision, marker, route, damage-cue and hull-marking pass above has
+## already resolved the tree it expects. Folds anonymous sibling fitout dressing
+## -- cockpit and cabin trim, panels, fasteners, cable runs, lamp housings --
+## into merged renderers in the exact parent that built them. Nothing that
+## carries metadata, a script, a group, a child, a visibility band or a name any
+## consumer resolves is touched, and the pass creates and removes no collision
+## shape at all.
+func _consolidate_bomber_fitout() -> void:
+	_fitout_consolidation_report = ShipFitoutBatch.consolidate(
+		[get_variant_visual_root()],
+		ShipFitoutBatch.PROTECTED_FITOUT_NAMES,
+		get_tree().root if is_inside_tree() else self
+	)
+
+
+## The last fitout consolidation pass's exact node arithmetic, for tests and
+## probes. Every counter is zero before the craft has built.
+func get_bomber_fitout_consolidation_report() -> Dictionary:
+	return _fitout_consolidation_report.duplicate(true)
 
 
 func get_display_name() -> String:
