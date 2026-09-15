@@ -310,7 +310,7 @@ boarding, or spawn authority, and the registry records zero authority claims.
 | `zenith_fleet_dock_berth` | `(22.0, 5.28, 53.3)` | `0` |
 | `halyard_fleet_dock_berth` | `(37.0, 5.28, 53.3)` | `0` |
 | `bulwark_fleet_dock_berth` | `(52.0, 7.68, 53.05)` | `0` |
-| `dock_04_cargo` | `(4.0, 8.2, 84.7)` | `90` |
+| `dock_04_cargo` | `(7.0, 8.2, 84.7)` | `90` |
 | `dock_05_bomber` | `(-6.0, 8.2, 34.3)` | `90` |
 | `dock_06_interceptor` | `(46.0, 8.2, 68.3)` | `90` |
 
