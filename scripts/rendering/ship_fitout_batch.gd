@@ -161,6 +161,11 @@ const PROTECTED_FITOUT_CONTAINERS: Array[String] = [
 ## hardware and every resource-sharing audit's subject keep the node identity
 ## their consumer looks them up by.
 const PROTECTED_FITOUT_NAMES: Array[String] = [
+	# tests/zenith_interceptor_test.gd composes these as prefix + part at runtime,
+	# which a whole-name grep cannot see; the wing-shell trio must stay addressable.
+	"PortWingOuterSkin", "StarboardWingOuterSkin",
+	"PortElevons", "StarboardElevons",
+	"PortBlendedDeltaWing", "StarboardBlendedDeltaWing",
 	"AftBayCeiling", "AftBayDeck", "AftHull", "AftPressureCap", "AftPressureWall",
 	"ArmoredCentralSlab", "ArmoredNose", "ArrayCrossbar", "AttitudeLadder00",
 	"AttitudeLadder01", "AttitudeLadder02", "AttitudeLadder03", "AttitudeLadder04",
