@@ -32,6 +32,18 @@ const PORT_APERTURE_Z_MIN := -2.30
 const PORT_APERTURE_Z_MAX := 2.30
 const EXTERIOR_SHELL_THICKNESS := 0.30
 const WEAPON_ID: StringName = &"cinder_cargo_mass_driver"
+## Shared damage-presentation anchors, on this hull's own geometry. Hull sparks
+## sit on the forward port cargo load-frame rib (the z -4.65 rib canted in to
+## x -3.06, standing from y -1.0 to y 1.4); engine smoke, engine-failure sparks
+## and the engine-failure practical sit just forward of the port nozzle mouth at
+## (-3.75, 0.4, 6.62); the damage warning practical sits on the cockpit crown
+## above the pressure transition at (0, 1.715, -0.55), clear of the aft
+## engine-damage shoulders.
+const DAMAGE_SPARK_ANCHOR := Vector3(-3.06, 0.95, -4.65)
+const DAMAGE_SMOKE_ANCHOR := Vector3(-3.75, 0.72, 6.1)
+const DAMAGE_WARNING_ANCHOR := Vector3(0.0, 2.12, -2.05)
+## The heaviest Cinder hull sheds the same debris count as the Jovian freighter.
+const DAMAGE_DEBRIS_COUNT := 14
 const LOADMASTER_STATION_SEAT_ID: StringName = &"cinder_loadmaster_station"
 const NAVIGATOR_STATION_SEAT_ID: StringName = &"cinder_navigator_station"
 const INTERIOR_BOUNDS := AABB(Vector3(-2.55, -0.95, -2.80), Vector3(5.10, 2.10, 5.60))
@@ -412,6 +424,17 @@ func _ready() -> void:
 	set_meta(&"evidence_status", EVIDENCE_STATUS)
 	set_meta(&"historically_supported", false)
 	set_meta(&"content_class", EVIDENCE_STATUS)
+	# This craft is composed from script by its production binding, so the shared
+	# damage presentation the authored `scenes/ships/*.tscn` craft instance has to
+	# be attached before HeroShip resolves it. Without it the hauler raises no
+	# impact flash, staged sparks/smoke, damage or engine-failure warning light,
+	# component damage rig or destruction/debris channel at all.
+	install_shared_damage_presentation(
+		DAMAGE_SPARK_ANCHOR,
+		DAMAGE_SMOKE_ANCHOR,
+		DAMAGE_WARNING_ANCHOR,
+		DAMAGE_DEBRIS_COUNT
+	)
 	super._ready()
 	_ship_perspective_audio_binding = ShipPerspectiveAudioBindingType.new()
 	var perspective_result: Dictionary = _ship_perspective_audio_binding.bind(_ship_audio_rig)

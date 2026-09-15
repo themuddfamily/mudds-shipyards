@@ -15,17 +15,18 @@ question: what is actually being drawn?
 ```
 godot --headless --audio-driver Dummy --path . \
   --script res://tests/lifecycle_phantom_geometry_test.gd
-KETH_PHANTOM_CYCLES=12 godot --headless --audio-driver Dummy --path . \
+KETH_PHANTOM_CYCLES=9 godot --headless --audio-driver Dummy --path . \
   --script res://tests/lifecycle_phantom_geometry_test.gd
 ```
 
-174 s and 198 assertions at the default four cycles; 515 s and 872 assertions at
-three times that (12 cycles, 72 rest-state snapshots, 48 leak watches, 12
-destruction/regeneration lifecycles of which 6 were losses in open space, 12
-whole-`Main` re-entries, 12 cabin-and-bunk round trips, 0 failures). The suite
-prints one `PHANTOM_CYCLE` JSON line per rest state per cycle, one
-`PHANTOM_LEAK` line per lifecycle watched inside a cycle, and one
-`PHANTOM_SUMMARY`.
+204 assertions at the default four cycles; 631 at nine cycles, which is one
+destruction/regeneration lifecycle per flyable craft (54 rest-state snapshots,
+36 leak watches, 9 lifecycles of which 4 were losses in open space, 9
+whole-`Main` re-entries, 9 cabin-and-bunk round trips, 0 failures). Before the
+Cinder damage-presentation closure below the same suite read 198 assertions at
+four cycles and 872 at twelve. The suite prints one `PHANTOM_CYCLE` JSON line
+per rest state per cycle, one `PHANTOM_LEAK` line per lifecycle watched inside a
+cycle, and one `PHANTOM_SUMMARY`.
 
 ## What is checked
 
@@ -121,6 +122,45 @@ damage channels are actually *raised* before it is destroyed and *cleared* after
 it regenerates. A "nothing is drawn at rest" pass means nothing if nothing could
 ever have been drawn.
 
+## Closed: the three Cinder craft now raise the shared channels too
+
+The first version of this audit had to record a gap rather than assert one:
+**the three runtime-composed Cinder craft carried no `HeroDamagePresentation` at
+all.** Only the six craft instanced from a `scenes/ships/*.tscn` had one, so
+`cinder_cargo_hauler`, `cinder_light_interceptor` and `cinder_long_range_bomber`
+raised none of the shared impact, spark, smoke, warning-light, component-damage
+or destruction/debris channels when they were damaged or destroyed; they carried
+only their own bespoke cues (the interceptor's engine damage beacon, the hauler's
+cargo threshold light, the bomber's wing damage vane). The suite recorded them in
+`craft_without_damage_presentation` and skipped the raised-channel assertion for
+them rather than passing it vacuously.
+
+Those three craft are composed from script by their production bindings, so they
+had no authored scene child to carry the presentation. They now attach the same
+`scenes/effects/hero_damage_presentation.tscn` through
+`HeroShip.install_shared_damage_presentation()` before `HeroShip._ready()`
+resolves it, with anchors on their own geometry — hull sparks on the port intake
+shoulder / cargo load-frame rib / wing-root flank, engine smoke, engine-failure
+sparks and the engine-failure practical at the port nozzle, and the damage
+warning practical on the cockpit spine. Nothing about the shared presentation
+changes: same script, same materials, meshes, particles, lifetimes and
+`reset_for_reuse` rules.
+
+The raised-then-cleared assertion is therefore unconditional here now, and
+applies to all nine flyable craft. `craft_without_damage_presentation` stays in
+`PHANTOM_SUMMARY` and is expected to be empty; a craft that ever lost its
+presentation again would fail the new "finds the shared damage presentation"
+check rather than quietly disappearing into that list.
+
+The default four cycles reach four of the nine craft, so the closure was also
+measured at `KETH_PHANTOM_CYCLES=9`, one destruction/regeneration lifecycle per
+craft: 631 assertions, 0 failures, 9 destroyed-and-regenerated craft, 9 whole-
+`Main` re-entries, 36 leak watches, `craft_without_damage_presentation: []`, and
+one `finds the shared damage presentation` pass for each of `arrow_provisional`,
+`bulwark_heavy_gunship`, `cinder_cargo_hauler`, `cinder_light_interceptor`,
+`cinder_long_range_bomber`, `halyard_new_design`, `jovian_provisional`,
+`torrent_provisional` and `zenith_b7_observed`.
+
 ## Found and fixed
 
 **`scripts/ships/halyard_crew_transport.gd` — a regenerated or re-entered
@@ -170,16 +210,6 @@ fix and green with it.
 
 ## Not covered here
 
-* **The three runtime-composed Cinder craft carry no `HeroDamagePresentation`
-  at all.** Only the six craft with a `scenes/ships/*.tscn` instance have one, so
-  `cinder_cargo_hauler`, `cinder_light_interceptor` and
-  `cinder_long_range_bomber` raise none of the shared impact, spark, smoke,
-  warning-light or destruction channels when they are damaged or destroyed; they
-  carry only their own bespoke cues (the interceptor's engine damage beacon, the
-  hauler's cargo threshold light). The suite records them in
-  `craft_without_damage_presentation` and skips the raised-channel assertion for
-  them rather than passing it vacuously. This is a *missing* presentation, not a
-  phantom, and it belongs to the fleet presentation-coverage item.
 * **Atmospheric entry-heat overlays and the Jovian engineer repair-arc cues.**
   Their transient renderer names are in the audited set, so one left drawn at a
   yard rest state would fail — but neither lifecycle is *driven* by this loop

@@ -53,6 +53,17 @@ const WINGTIP_BLADE_SIZE := Vector3(0.28, 0.78, 2.6)
 const WINGTIP_BLADE_OFFSET := Vector3(5.52, 0.225, 0.72)
 const WINGTIP_BLADE_CANT_DEGREES := 10.0
 const WEAPON_ID: StringName = &"cinder_light_repeater"
+## Shared damage-presentation anchors, on this hull's own geometry. Hull sparks
+## sit on the port intake shoulder crown (the nacelle at x -2.1 tops out at
+## y 0.89); engine smoke, engine-failure sparks and the engine-failure practical
+## sit just forward of the port exhaust bell at (-2.1, 0.2, 4.80); the damage
+## warning practical sits on the dorsal spine above the canopy at
+## (0, 1.505, -3.0), clear of the starboard engine-damage beacon lens.
+const DAMAGE_SPARK_ANCHOR := Vector3(-2.1, 0.86, -0.35)
+const DAMAGE_SMOKE_ANCHOR := Vector3(-2.1, 0.5, 4.35)
+const DAMAGE_WARNING_ANCHOR := Vector3(0.0, 2.05, -2.55)
+## A light interceptor sheds the same debris count as the Arrow.
+const DAMAGE_DEBRIS_COUNT := 8
 const CONSOLE_TOGGLE_VISIBLE_COPIES := 8
 const CONSOLE_TOGGLE_LEGACY_SUBMISSIONS := 8
 const CONSOLE_TOGGLE_BATCH_SUBMISSIONS := 1
@@ -155,6 +166,17 @@ func _ready() -> void:
 	set_meta(&"component_id", COMPONENT_ID)
 	set_meta(&"evidence_status", EVIDENCE_STATUS)
 	set_meta(&"historically_supported", false)
+	# This craft is composed from script by its production binding, so the shared
+	# damage presentation the authored `scenes/ships/*.tscn` craft instance has to
+	# be attached before HeroShip resolves it. Without it the interceptor raises
+	# no impact flash, staged sparks/smoke, damage or engine-failure warning
+	# light, component damage rig or destruction/debris channel at all.
+	install_shared_damage_presentation(
+		DAMAGE_SPARK_ANCHOR,
+		DAMAGE_SMOKE_ANCHOR,
+		DAMAGE_WARNING_ANCHOR,
+		DAMAGE_DEBRIS_COUNT
+	)
 	super._ready()
 	_ship_perspective_audio_binding = ShipPerspectiveAudioBindingType.new()
 	var perspective_result: Dictionary = _ship_perspective_audio_binding.bind(_ship_audio_rig)

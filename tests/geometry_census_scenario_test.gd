@@ -122,8 +122,46 @@ const MAIN_SCENE := preload("res://scenes/main.tscn")
 # containers were resized 7 x 3.6 x 7 -> 3 x 3.6 x 4 and Dock 06's rails and
 # header shortened, which moves no count at all: they are the same `BoxMesh`
 # and `MultiMesh` resources at new dimensions.
-const RESIDENT_FINGERPRINT := "365eda11f875462b6b315c0a4faeaeed525cc3318279453f3e3f6b740955671e"
-const CINDER_LOADED_FINGERPRINT := "5e53f6c2c27bf75acc3dbba8213ecdcb76c796139d4952755b5e9a00bb50583c"
+#
+# Refrozen 2026-09-15 for the Cinder damage-presentation coverage pass. The three
+# runtime-composed Cinder craft carried no `HeroDamagePresentation` at all; they
+# now attach the same `scenes/effects/hero_damage_presentation.tscn` the six
+# authored craft instance, with anchors on their own engines, flanks and spines.
+# **No mesh, surface, triangle or unique mesh moves** — the presentation owns no
+# renderer at rest — and the whole delta is the three identical six-node rigs:
+#
+#   +18 nodes (6 per craft: the rig plus `DamageSparks`, `EngineFailureSparks`,
+#              `EngineSmoke`, `DamageWarningLight`, `EngineFailureLight`)
+#   +6 lights (the two practicals per craft, neither shadow-casting)
+#   +9 particle systems (45 -> 54; all three are `emitting = false` at rest)
+#   +27 retained materials (the nine shared spark/smoke/flash/debris recipes
+#              each rig allocates; bound-phase materials do not move, because
+#              nothing the rig owns is drawn in the frozen phase)
+#
+# A path-level walk of the resident scene before and after shows exactly those
+# 18 nodes and nothing else. Triangles (1,917,477 / 2,051,611), renderers
+# (5,551 / 5,760), surfaces (5,947 / 6,156), unique meshes (3,057 / 3,197),
+# bound materials (693 / 735), shaders (7), textures (34 / 83,355,976 bytes) and
+# every loaded-minus-resident delta (+134,134 triangles, +209 renderers, +140
+# unique meshes, +47 retained materials, +27 lights, +423 nodes) are unchanged.
+#
+# A further **+3 nodes in each scenario** (10,531 -> 10,534 resident,
+# 10,954 -> 10,957 loaded, measured on fresh private user data with this pass's
+# change disabled) is inherited, not introduced: eea0b6e09 added the "Limit
+# ultrawide field of view" settings row -- `LimitUltrawideFovRow`, its label and
+# `LimitUltrawideFovControl` -- to the pause settings page without re-measuring
+# this census. All three are Control nodes with no renderer, mesh, material,
+# light or particle, so they move the node rows and the two fingerprints and
+# nothing else.
+#
+# **Measure this suite on fresh private user data**, as the header above says:
+# a saved recovery choice left in `user://` by an earlier run legitimately adds
+# one HUD control, and that one node moves both node rows and both fingerprints.
+# The numbers below were taken twice from an empty `XDG_DATA_HOME` and reproduce
+# exactly; the same runs against a shared, written-to user directory read one
+# node higher.
+const RESIDENT_FINGERPRINT := "e05090f6aea97152e86aa35ac889016df21ac06d3b6ccfcff900f5b126f999dd"
+const CINDER_LOADED_FINGERPRINT := "15a88c1e03a78eab3d8cdba93e3507ec6fcf6b3a4f9125b634ac38bab5e210de"
 
 var _assertions := 0
 var _failures := PackedStringArray()
@@ -181,10 +219,10 @@ func _run() -> void:
 	)
 	_check(
 		int(resident.get("bound_phase_unique_materials", -1)) == 693
-			and int(resident.get("retained_reachable_unique_materials", -1)) == 969
-			and int(resident.get("lights", -1)) == 335
-			and int(resident.get("nodes", -1)) == 10531,
-		"resident resource roster freezes 693 bound / 969 retained materials, 335 lights, and 10,531 nodes"
+			and int(resident.get("retained_reachable_unique_materials", -1)) == 996
+			and int(resident.get("lights", -1)) == 341
+			and int(resident.get("nodes", -1)) == 10552,
+		"resident resource roster freezes 693 bound / 996 retained materials, 341 lights, and 10,552 nodes"
 	)
 	_check(
 		str(resident.get("measurement_fingerprint", "")) == RESIDENT_FINGERPRINT,
@@ -249,10 +287,10 @@ func _run() -> void:
 	)
 	_check(
 		int(loaded.get("bound_phase_unique_materials", -1)) == 735
-			and int(loaded.get("retained_reachable_unique_materials", -1)) == 1016
-			and int(loaded.get("lights", -1)) == 362
-			and int(loaded.get("nodes", -1)) == 10954,
-		"loaded resource roster freezes 735 bound / 1,016 retained materials, 362 lights, and 10,954 nodes"
+			and int(loaded.get("retained_reachable_unique_materials", -1)) == 1043
+			and int(loaded.get("lights", -1)) == 368
+			and int(loaded.get("nodes", -1)) == 10975,
+		"loaded resource roster freezes 735 bound / 1,043 retained materials, 368 lights, and 10,975 nodes"
 	)
 	var cinder_bucket := (loaded.get("buckets", {}) as Dictionary).get(
 		"CinderStreamingBootstrap", {}

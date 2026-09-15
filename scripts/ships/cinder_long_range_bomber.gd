@@ -29,6 +29,18 @@ const PAYLOAD_WEAPON_ID: StringName = &"bomber_payload_release"
 const PAYLOAD_PRESENTATION_ID: StringName = &"payload_release_flash"
 const PAYLOAD_AUDIO_ID: StringName = &"payload_release_audio"
 const HULL_SIZE := Vector3(7.0, 3.0, 15.5)
+## Shared damage-presentation anchors, on this hull's own geometry. Hull sparks
+## sit on the port hull flank at the strike-wing root (the 7.0 m hull reaches
+## x -3.5, the wing plants at x -5.15, z 0.65); engine smoke, engine-failure
+## sparks and the engine-failure practical sit just forward of the port nozzle
+## mouth at (-2.35, 0.1, 8.31); the damage warning practical sits on the dorsal
+## spine between the cockpit support crown (y 1.89) and the sensor at
+## (0, 1.44, -5.2), clear of the starboard wing damage vane.
+const DAMAGE_SPARK_ANCHOR := Vector3(-3.35, 0.25, 0.4)
+const DAMAGE_SMOKE_ANCHOR := Vector3(-2.35, 0.55, 7.75)
+const DAMAGE_WARNING_ANCHOR := Vector3(0.0, 2.15, -2.85)
+## A long-range bomber sheds the same debris count as the Halyard transport.
+const DAMAGE_DEBRIS_COUNT := 12
 ## Retain the cockpit support origin while its continuous shoulder ramps into
 ## the narrower pressure body. The platform seats 20 mm into the fixed floor.
 const COCKPIT_SUPPORT_FAIRING_POSITION := Vector3(0.0, 1.685, -0.55)
@@ -159,6 +171,17 @@ func _ready() -> void:
 	set_meta(&"component_id", COMPONENT_ID)
 	set_meta(&"evidence_status", EVIDENCE_STATUS)
 	set_meta(&"historically_supported", false)
+	# This craft is composed from script by its production binding, so the shared
+	# damage presentation the authored `scenes/ships/*.tscn` craft instance has to
+	# be attached before HeroShip resolves it. Without it the bomber raises no
+	# impact flash, staged sparks/smoke, damage or engine-failure warning light,
+	# component damage rig or destruction/debris channel at all.
+	install_shared_damage_presentation(
+		DAMAGE_SPARK_ANCHOR,
+		DAMAGE_SMOKE_ANCHOR,
+		DAMAGE_WARNING_ANCHOR,
+		DAMAGE_DEBRIS_COUNT
+	)
 	super._ready()
 	_ship_perspective_audio_binding = ShipPerspectiveAudioBindingType.new()
 	var perspective_result: Dictionary = _ship_perspective_audio_binding.bind(_ship_audio_rig)

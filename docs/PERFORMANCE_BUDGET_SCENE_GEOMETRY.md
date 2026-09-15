@@ -187,12 +187,29 @@ in this document has been raised.**
 | Surfaces | 5,947 | 6,156 | +209 |
 | Unique meshes | 3,057 | 3,197 | +140 |
 | Bound-phase materials | 693 | 735 | +42 |
-| Retained/reachable materials | 969 | 1,016 | +47 |
+| Retained/reachable materials | 996 | 1,043 | +47 |
 | Unique shaders | 7 | 7 | 0 |
 | Text triangles / instances | 79,591 / 43 | 100,157 / 56 | +20,566 / +13 |
-| Lights / shadow lights | 335 / 20 | 362 / 20 | +27 / 0 |
-| Particle systems | 45 | 45 | 0 |
-| Scene-tree nodes | 10,531 | 10,954 | +423 |
+| Lights / shadow lights | 341 / 20 | 368 / 20 | +27 / 0 |
+| Particle systems | 54 | 54 | 0 |
+| Scene-tree nodes | 10,552 | 10,975 | +423 |
+
+Re-measured on 2026-09-15 for the Cinder damage-presentation coverage pass. The
+three runtime-composed Cinder craft carried no `HeroDamagePresentation` at all;
+they now attach the same shared scene the six authored craft instance. **No
+triangle, renderer, surface, unique mesh or bound-phase material moves** — the
+rig owns no renderer at rest — and the whole delta is three identical six-node
+rigs: **+18 scene-tree nodes**, **+6 lights** (none shadow-casting), **+9
+particle systems** (45 → 54, all `emitting = false` at rest) and **+27
+retained/reachable materials** (the nine shared spark/smoke/flash/debris recipes
+each rig allocates). Every loaded-minus-resident delta is unchanged. A further
+**+3 nodes in each scenario** in the rows above is inherited, not introduced:
+eea0b6e09 added the "Limit ultrawide field of view" settings row to the pause
+settings page without re-measuring this census, and those three Control nodes
+carry no renderer, mesh, material, light or particle. Measure this scenario on
+**fresh private user data**: a saved recovery choice left in `user://` by an
+earlier run legitimately adds one HUD control, which moves both node rows and
+both census fingerprints by one.
 
 Measured on `main` on 2026-09-15 with the service-line/registry batches (−49) and
 the ship fitout batches (−96, then +2 for the protected Zenith wing shells) and the chase-lane station collision (+28 nodes) merged on top of the Habitat/Aft batches; the

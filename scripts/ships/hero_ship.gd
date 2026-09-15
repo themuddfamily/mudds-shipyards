@@ -200,6 +200,12 @@ const TORRENT_AUTHORED_MACROFORM_SCENE := preload(
 const TORRENT_HERO_PRESENTATION_SCENE := preload(
 	"res://scenes/ships/presentation/torrent_hero_presentation.tscn"
 )
+## The one damage presentation the whole flyable fleet shares. Authored craft
+## instance it in their own `scenes/ships/*.tscn`; runtime-composed craft attach
+## the same scene through `install_shared_damage_presentation()`.
+const SHARED_DAMAGE_PRESENTATION_SCENE := preload(
+	"res://scenes/effects/hero_damage_presentation.tscn"
+)
 
 const HULL_IVORY := Color("e8ece5")
 const HULL_LIGHT := Color("f8f6e9")
@@ -2049,6 +2055,39 @@ func _on_viewport_size_changed() -> void:
 
 func get_damage_presentation() -> HeroDamagePresentation:
 	return _damage_presentation
+
+
+## Attaches the one shared damage presentation to a craft that is composed at
+## runtime instead of instanced from a `scenes/ships/*.tscn`.
+##
+## The six authored craft carry `scenes/effects/hero_damage_presentation.tscn`
+## as a scene child with their own anchors; a script-composed craft has no
+## authored child to carry, so it installs the same scene here before
+## `HeroShip._ready()` resolves the node by name. Nothing about the shared
+## presentation changes: identical script, materials, meshes, particles and
+## lifetimes, only this hull's anchors. Call before `super._ready()`; the call
+## is idempotent and returns the live presentation either way.
+func install_shared_damage_presentation(
+		spark: Vector3,
+		smoke: Vector3,
+		warning: Vector3,
+		debris_count: int
+	) -> HeroDamagePresentation:
+	var existing := get_node_or_null("HeroDamagePresentation") as HeroDamagePresentation
+	if existing != null:
+		return existing
+	var presentation := SHARED_DAMAGE_PRESENTATION_SCENE.instantiate() as HeroDamagePresentation
+	if presentation == null:
+		return null
+	presentation.name = "HeroDamagePresentation"
+	# Anchors are read by `_ensure_built()` when the node becomes ready, so they
+	# must be assigned before it enters the tree.
+	presentation.spark_anchor = spark
+	presentation.smoke_anchor = smoke
+	presentation.warning_anchor = warning
+	presentation.destruction_debris_count = clampi(debris_count, 1, 24)
+	add_child(presentation)
+	return presentation
 
 
 func get_ship_id() -> StringName:

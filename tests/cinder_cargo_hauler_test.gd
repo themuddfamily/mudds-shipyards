@@ -263,6 +263,7 @@ func _initialize() -> void:
 		"damage remains component-owned without mutating batched geometry, anchors, collision, tags, or authority"
 	)
 	_check_service_cassettes(craft)
+	await _test_shared_damage_presentation(craft)
 	craft.queue_free()
 	await process_frame
 	var rebuilt := Hauler.new()
@@ -772,3 +773,224 @@ func _test_formed_cockpit_walls(craft: HeroShip) -> void:
 		_check(is_finite(height) and height - contact.y > 0.025 and height - contact.y < 0.045,
 			"the emitted armor toe seats inside actual fairing triangles, including the widest cheek and fore/aft center")
 	_check(triangles <= 600, "four formed wall owners stay within 600 triangles and four submissions")
+
+
+## Phase 6 fleet damage/repair/recovery coverage for the shared presentation.
+##
+## This craft is composed from script by its production binding rather than
+## instanced from a `scenes/ships/*.tscn`, so it used to raise none of the shared
+## channels a player sees on every authored craft. It now attaches the same
+## `scenes/effects/hero_damage_presentation.tscn`, and this drives the whole
+## lifecycle through it: staged hull sparks, engine smoke and engine-failure
+## sparks on this hull's own anchors, the damage and engine-failure practicals,
+## the localized rig the shared `component_damage_*` seam routes, the degraded
+## engine exhaust grade, the reduced-flash impact clamp, a destruction burst
+## detached out of the craft, and a regeneration that clears every one of them.
+func _test_shared_damage_presentation(craft: CinderCargoHauler) -> void:
+	var presentation := craft.get_damage_presentation()
+	_check(
+		presentation != null,
+		"the hauler carries the fleet's shared damage presentation"
+	)
+	if presentation == null:
+		return
+	var sparks := presentation.get_node_or_null(^"DamageSparks") as CPUParticles3D
+	var engine_sparks := presentation.get_node_or_null(^"EngineFailureSparks") as CPUParticles3D
+	var smoke := presentation.get_node_or_null(^"EngineSmoke") as CPUParticles3D
+	var warning := presentation.get_node_or_null(^"DamageWarningLight") as OmniLight3D
+	var engine_light := presentation.get_node_or_null(^"EngineFailureLight") as OmniLight3D
+	_check(
+		presentation.get_script() == load("res://scripts/effects/hero_damage_presentation.gd")
+		and presentation.spark_anchor.is_equal_approx(CinderCargoHauler.DAMAGE_SPARK_ANCHOR)
+		and presentation.smoke_anchor.is_equal_approx(CinderCargoHauler.DAMAGE_SMOKE_ANCHOR)
+		and presentation.warning_anchor.is_equal_approx(CinderCargoHauler.DAMAGE_WARNING_ANCHOR)
+		and presentation.destruction_debris_count == CinderCargoHauler.DAMAGE_DEBRIS_COUNT
+		and sparks != null and engine_sparks != null and smoke != null
+		and warning != null and engine_light != null
+		and sparks.position.is_equal_approx(CinderCargoHauler.DAMAGE_SPARK_ANCHOR)
+		and smoke.position.is_equal_approx(CinderCargoHauler.DAMAGE_SMOKE_ANCHOR)
+		and engine_sparks.position.is_equal_approx(CinderCargoHauler.DAMAGE_SMOKE_ANCHOR)
+		and warning.position.is_equal_approx(CinderCargoHauler.DAMAGE_WARNING_ANCHOR)
+		and engine_light.position.is_equal_approx(CinderCargoHauler.DAMAGE_SMOKE_ANCHOR),
+		"the shared rig anchors its spark, smoke, warning and engine channels on this hull's own geometry"
+	)
+	_check(
+		not sparks.emitting and not smoke.emitting and not engine_sparks.emitting
+		and is_zero_approx(warning.light_energy)
+		and is_zero_approx(engine_light.light_energy)
+		and not warning.shadow_enabled and not engine_light.shadow_enabled
+		and presentation.get_live_world_effect_count() == 0
+		and presentation.get_status() == &"healthy",
+		"an undamaged craft draws none of those channels and casts no extra shadow"
+	)
+
+	craft.set_physics_process(false)
+	craft.set("_landed", false)
+	craft.set("_engine_state", HeroShip.ENGINE_ONLINE)
+	craft.call("_sync_damage_presentation")
+
+	# Damaged: hull sparks and the amber damage practical, plus one world impact.
+	craft.apply_damage(
+		craft.maximum_hull * 0.45,
+		craft.to_global(CinderCargoHauler.DAMAGE_SPARK_ANCHOR),
+		Vector3.UP
+	)
+	await process_frame
+	await process_frame
+	_check(
+		presentation.get_status() == &"damaged"
+		and sparks.emitting and sparks.visible
+		and presentation.is_alarm_active()
+		and warning.light_energy > 0.0
+		and presentation.get_live_world_effect_count() == 1
+		and not smoke.emitting,
+		"damage raises the hull sparks and the damage warning light with one impact burst"
+	)
+
+	# Critical: engine smoke, engine-failure sparks and the cyan failure practical.
+	craft.apply_damage(
+		craft.maximum_hull * 0.35,
+		craft.to_global(CinderCargoHauler.DAMAGE_SMOKE_ANCHOR),
+		Vector3.UP
+	)
+	await process_frame
+	await process_frame
+	_check(
+		presentation.get_status() == &"critical"
+		and smoke.emitting and smoke.visible
+		and engine_sparks.emitting and engine_sparks.visible
+		and presentation.is_engine_failure_active()
+		and engine_light.light_energy > 0.0
+		and presentation.get_engine_power_multiplier() < 1.0,
+		"critical damage raises engine smoke, engine-failure sparks and the degraded engine cue"
+	)
+
+	# The already-authoritative component roster drives the localized rig and the
+	# static exhaust grade; neither is decided here.
+	var model := craft.get_component_damage()
+	var engine_anchor := _component_local_position(
+		craft, ShipComponentDamage.COMPONENT_ENGINE_BAY
+	)
+	var guard := 0
+	while model.get_component_state(ShipComponentDamage.COMPONENT_ENGINE_BAY) \
+			< ShipComponentDamage.ComponentState.FAILED and guard < 4:
+		model.record_damage(craft.maximum_hull * 2.0, engine_anchor)
+		guard += 1
+	craft.call("_sync_component_damage", 0.01)
+	craft.call("_sync_engine_visuals_immediately")
+	await process_frame
+	var rig := presentation.get_node_or_null(
+		"ComponentDamage_%s" % String(ShipComponentDamage.COMPONENT_ENGINE_BAY)
+	) as Node3D
+	var exhaust := craft.get_engine_exhaust_damage_presentation_profile()
+	var visible_plumes := 0
+	for plume_value in craft.get("_engine_glows") as Array:
+		if is_instance_valid(plume_value) and (plume_value as MeshInstance3D).visible:
+			visible_plumes += 1
+	_check(
+		rig != null
+		and rig.position.is_equal_approx(engine_anchor)
+		and presentation.get_failed_component_effect_ids().has(
+			ShipComponentDamage.COMPONENT_ENGINE_BAY
+		)
+		and exhaust.get("stage") == &"failed"
+		and visible_plumes == 0
+		and not bool(exhaust.get("flashing", true))
+		and not bool(exhaust.get("gameplay_authority", true)),
+		"a failed engine bay shows the shared localized rig and puts out this craft's real plumes"
+	)
+
+	# Reduced flash: whatever intensity the caller resolved, the impact practical
+	# is clamped to 1.6x peak and from there only decays, and the core only ever
+	# expands and fades inside its authored band. There is no pulse in it.
+	var world_effects_before: Dictionary = {}
+	for existing in root.get_children():
+		world_effects_before[existing.get_instance_id()] = true
+	presentation.present_impact(craft.global_position, Vector3.UP, 4.0)
+	var impact := _impact_effect_added_since(world_effects_before)
+	var impact_flash := impact.get_node_or_null(^"ImpactFlash") as MeshInstance3D \
+		if impact != null else null
+	var impact_light := impact.get_node_or_null(^"ImpactLight") as OmniLight3D \
+		if impact != null else null
+	var peak_energy := impact_light.light_energy if impact_light != null else -1.0
+	var previous_energy := peak_energy
+	var previous_transparency := impact_flash.transparency if impact_flash != null else 0.0
+	var decays_without_pulsing := impact_light != null and impact_flash != null
+	for _flash_step in 8:
+		await process_frame
+		if not is_instance_valid(impact_light) or not is_instance_valid(impact_flash):
+			break
+		if impact_light.light_energy > previous_energy + 0.0001 \
+				or impact_flash.transparency < previous_transparency - 0.0001 \
+				or impact_flash.scale.x > HeroDamagePresentation.IMPACT_FLASH_MAXIMUM_SCALE * 1.22 + 0.0001 \
+				or impact_light.omni_range > HeroDamagePresentation.IMPACT_LIGHT_MAXIMUM_RANGE + 0.0001:
+			decays_without_pulsing = false
+		previous_energy = impact_light.light_energy
+		previous_transparency = impact_flash.transparency
+	_check(
+		impact_flash != null and impact_light != null
+		and is_equal_approx(peak_energy, 5.2 * 1.6)
+		and decays_without_pulsing
+		and previous_energy < peak_energy
+		and not impact_light.shadow_enabled
+		and impact_flash.cast_shadow == GeometryInstance3D.SHADOW_CASTING_SETTING_OFF,
+		"the shared impact practical stays inside the reduced-flash clamp and only decays at any intensity"
+	)
+
+	# Destruction: the burst and its debris detach out of the craft so a hidden or
+	# recycled hull cannot drag them along.
+	craft.apply_damage(craft.maximum_hull * 2.0, craft.global_position, Vector3.UP)
+	await process_frame
+	await process_frame
+	var destruction := presentation.get_destruction_effect_root()
+	var debris := 0
+	if destruction != null:
+		for child in destruction.get_children():
+			if str(child.name).begins_with("HeroHullDebris"):
+				debris += 1
+	_check(
+		craft.is_destroyed()
+		and destruction != null
+		and not craft.is_ancestor_of(destruction)
+		and debris == CinderCargoHauler.DAMAGE_DEBRIS_COUNT
+		and presentation.get_status() == &"destroyed",
+		"destruction detaches the shared burst out of the craft with its full debris count"
+	)
+
+	# Regeneration: the berth's reuse path clears every channel it raised.
+	var reset := craft.reset_for_reuse(craft.global_transform)
+	await process_frame
+	await process_frame
+	_check(
+		bool(reset.get("accepted", false))
+		and presentation.get_status() == &"healthy"
+		and not sparks.emitting and not smoke.emitting and not engine_sparks.emitting
+		and is_zero_approx(warning.light_energy)
+		and is_zero_approx(engine_light.light_energy)
+		and presentation.get_destruction_effect_root() == null
+		and presentation.get_live_world_effect_count() == 0
+		and presentation.get_active_component_effect_count() == 0
+		and presentation.get_node_or_null(
+			"ComponentDamage_%s" % String(ShipComponentDamage.COMPONENT_ENGINE_BAY)
+		) == null,
+		"regeneration clears every damage, component, and destruction channel it raised"
+	)
+
+
+func _component_local_position(ship: HeroShip, component_id: StringName) -> Vector3:
+	for component in ship.get_component_damage_report().get("components", []) as Array:
+		if StringName((component as Dictionary).get("id", &"")) == component_id:
+			return (component as Dictionary).get("local_position", Vector3.ZERO) as Vector3
+	return Vector3.ZERO
+
+
+## The shared presentation detaches its impacts into the scene-tree root by
+## design, and a colliding sibling there is renamed by the engine, so the burst
+## one call raised is found as the root child that was not there before it.
+func _impact_effect_added_since(before: Dictionary) -> Node3D:
+	for candidate in root.get_children():
+		if before.has(candidate.get_instance_id()):
+			continue
+		if candidate is Node3D and candidate.get_node_or_null(^"ImpactLight") != null:
+			return candidate as Node3D
+	return null

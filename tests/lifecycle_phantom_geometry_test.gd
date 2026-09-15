@@ -654,19 +654,24 @@ func _damage_destroy_and_regenerate(craft: HeroShip, cycle: int) -> void:
 		await physics_frame
 		await process_frame
 	var raised := _transient_paths_under(craft)
-	# The three runtime-composed Cinder craft carry no `HeroDamagePresentation`
-	# at all (only the six craft with a `scenes/ships/*.tscn` instance one), so
-	# there is no shared damage channel of theirs to raise. That gap is reported
-	# in `docs/LIFECYCLE_PHANTOM_AUDIT.md`; it is a missing presentation, not a
-	# phantom, and it belongs to the fleet presentation-coverage item.
-	if craft.get_damage_presentation() != null:
-		_check(
-			not craft.is_destroyed() and not raised.is_empty(),
-			"cycle %d raises %s's damage channels before destroying it (%s)"
-				% [cycle + 1, craft.get_ship_id(), ", ".join(_clip(raised))]
-		)
-	else:
+	# All nine flyable craft now carry the shared `HeroDamagePresentation`: the
+	# six with a `scenes/ships/*.tscn` instance it, and the three runtime-composed
+	# Cinder craft attach the same scene from their own `_ready()`. The coverage
+	# gap `docs/LIFECYCLE_PHANTOM_AUDIT.md` recorded is closed, so the raised-then-
+	# cleared assertion applies to every craft this loop rotates through and
+	# `craft_without_damage_presentation` is expected to stay empty.
+	if craft.get_damage_presentation() == null:
 		_craft_without_damage_presentation_ids[str(craft.get_ship_id())] = true
+	_check(
+		craft.get_damage_presentation() != null,
+		"cycle %d finds the shared damage presentation on %s"
+			% [cycle + 1, craft.get_ship_id()]
+	)
+	_check(
+		not craft.is_destroyed() and not raised.is_empty(),
+		"cycle %d raises %s's damage channels before destroying it (%s)"
+			% [cycle + 1, craft.get_ship_id(), ", ".join(_clip(raised))]
+	)
 
 	craft.apply_damage(craft.maximum_hull + 1.0, craft.global_position, Vector3.UP)
 	for _destroy_tick in 6:
