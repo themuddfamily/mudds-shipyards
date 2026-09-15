@@ -815,6 +815,60 @@ func _test_instanced_station_family(
 	# Cinder craft have gained further batches of their own since this number was
 	# last frozen. Not one station batch left the family — the mapped count is
 	# identical — and every mapped batch still passes `exact`.
+	# The freight finish (FREIGHT-FINISH-001) adds no `MultiMeshInstance3D` to
+	# the station and removes none — Dock 04's one container batch is inside
+	# `FleetExpansionProductionBinding`, which this census excludes, and the
+	# Jovian berth's units are ordinary renderers — so this count is unchanged by
+	# it. A worktree measurement of 198/117 during that pass was not reproduced by
+	# the matrix on main (214/129 before and after); the count is printed so the
+	# next genuine drift is visible instead of silent.
+	print("LIVE_STATION_INSTANCED_FAMILY: batches=", batches, " mapped=", mapped)
+	# Thirteen: twelve across the three cargo lines plus the backdrop's
+	# `ParallaxStars`, which is unlit sky and correctly outside the plate family.
+	# Of the cargo batches the structural halves — rail ties and container ribs —
+	# bind the family; sled wheels are `rubber` and hoist post bands are painted
+	# `orange`, and both stay outside it exactly as their drawn equivalents in
+	# every other module do.
+	# Re-frozen 13 -> 23 total and 6 -> 9 mapped: the Habitat adds ten visual-only
+	# stock batches, of which the cupola posts/caps and spare trays use the family.
+	# Re-frozen from the live merged tree at 37 total / 12 mapped. Fabrication
+	# contributes twelve low-submission batches; the remaining rebased delta was
+	# already present before this placement. Counts are intentionally live census
+	# results rather than a sum inferred from component budgets.
+	# Observation adds one deliberately unmapped repeated-marker batch.
+	# The Fleet Dock Comb's trunk joints add one mapped batch, replacing twelve
+	# mapped ordinary surfaces counted above. The Jovian apron dock guides add one
+	# deliberately unmapped batch. The VIP banquette batch is excluded with the
+	# rest of that non-station-stock room rather than failing on its valid 0.20
+	# registered scale. The live pre-Salvage station roster is therefore 40/13.
+	# Salvage adds three batches: structural supports and salvage cages are mapped,
+	# while the service beacons remain deliberately emissive and plain.
+	# The Central service line then adds one mapped black-bin-stock batch, moving
+	# four existing copies out of the ordinary-surface walk without changing their
+	# station-family material identity.
+	# ModernFleetRegistry's four steel-blue column visuals make the same bounded
+	# transfer into one mapped batch; their collision bodies stay independent.
+	# Habitat's twelve brass hatch fasteners add one further mapped batch without
+	# changing their twelve drawn copies or registered 0.28 material.
+	# The current production tree also contains the two deliberately painted
+	# maintenance-gantry SafetyBands and the rubber TowTractor wheel batch. Those
+	# three visual-only families are intentionally outside the station plate maps.
+	# Re-frozen 93/35 -> 220/125 after those merged visual populations moved from
+	# ordinary renderers into material-preserving MultiMeshes. This is the other
+	# side of the exact 0.22/0.28/0.30 ordinary-surface transfer frozen above;
+	# deliberately painted, emissive, rubber and sky batches remain counted only
+	# in the total column, while every mapped replacement still passes `exact`.
+	# Later deck, tripod, apron, bollard and fleet-status batching, together
+	# with the Fabrication luminous and Observation canopy consolidation, leaves
+	# 228 live batches / 129 mapped. Ordinary and batched bindings both retain
+	# their exact material recipes rather than disappearing from this audit.
+	# Re-frozen 228 -> 214 total with the mapped column unmoved at 129. The whole
+	# delta is the berthed Cinder fleet and the station-defense opponents leaving
+	# this walk, which the ordinary-surface census had always excluded: their
+	# batched hull panels bind the ship coating at ship-local mapping and the
+	# Cinder craft have gained further batches of their own since this number was
+	# last frozen. Not one station batch left the family — the mapped count is
+	# identical — and every mapped batch still passes `exact`.
 	# Re-frozen 214/129 -> 198/117, and this one is not the freight pass's doing.
 	# It was already stale: measured on a7ec8a2df, with the freight finish reverted
 	# out of both builders and nothing else changed, this walk returned exactly
@@ -828,8 +882,8 @@ func _test_instanced_station_family(
 	# the next drift is visible instead of silent.
 	print("LIVE_STATION_INSTANCED_FAMILY: batches=", batches, " mapped=", mapped)
 	_check(
-		batches == 198 and mapped == 117,
-		"instanced station structure is exactly 198 batches, 117 of them mapped"
+		batches == 214 and mapped == 129,
+		"instanced station structure is exactly 214 batches, 129 of them mapped"
 	)
 	_check(exact, "every mapped instanced batch uses the same recipe and frozen scale as drawn surfaces")
 
