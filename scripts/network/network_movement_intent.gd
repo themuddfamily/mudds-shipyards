@@ -8,16 +8,34 @@ extends RefCounted
 ## authoritative Player/boarding components.  Keeping the boarding target in
 ## the packet makes the request explicit without letting a client claim a seat
 ## or teleport across a collision boundary.
+##
+## Schema 2 is the whole of what a server-owned remote body needs to be driven
+## by its owner: the move axes, the look yaw and pitch the axes are relative
+## to, the run / crouch / jump flags and a monotonic interaction request id.
+## Every field is bounded on the wire (unit axes, wrapped yaw, clamped pitch,
+## safe integers) so the server never has to trust a value before it reads it.
+## A schema 1 packet is still admitted with these fields at their neutral
+## defaults, so the remote ship command source and the three-process authority
+## harness keep the wire they already speak; there is one intent contract, one
+## authority ledger and one RPC path for both.
 
-const SCHEMA_VERSION := 1
+const SCHEMA_VERSION := 2
+const LEGACY_SCHEMA_VERSION := 1
 const MAX_SAFE_INTEGER := 9_007_199_254_740_991
 const MAX_ID_LENGTH := 64
 const AXIS_EPSILON := 0.000001
+const MAX_LOOK_PITCH := PI * 0.5
 
-const _WIRE_KEYS := [
+const _WIRE_KEYS_V1 := [
 	"schema_version", "peer_id", "entity_id", "entity_generation",
 	"stream_id", "sequence", "client_tick", "move_axis", "board_request",
 	"boarding_target_id", "disembark_request",
+]
+const _WIRE_KEYS_V2 := [
+	"schema_version", "peer_id", "entity_id", "entity_generation",
+	"stream_id", "sequence", "client_tick", "move_axis", "board_request",
+	"boarding_target_id", "disembark_request", "look_yaw", "look_pitch",
+	"run", "crouch", "jump", "interaction_request_id",
 ]
 
 var _schema_version := 0
@@ -31,6 +49,12 @@ var _move_axis := Vector2.ZERO
 var _board_request := false
 var _boarding_target_id: StringName = &""
 var _disembark_request := false
+var _look_yaw := 0.0
+var _look_pitch := 0.0
+var _run := false
+var _crouch := false
+var _jump := false
+var _interaction_request_id := 0
 var _errors := PackedStringArray()
 
 
@@ -44,7 +68,13 @@ static func create(
 	p_move_axis := Vector2.ZERO,
 	p_board_request := false,
 	p_boarding_target_id: StringName = &"",
-	p_disembark_request := false
+	p_disembark_request := false,
+	p_look_yaw := 0.0,
+	p_look_pitch := 0.0,
+	p_run := false,
+	p_crouch := false,
+	p_jump := false,
+	p_interaction_request_id := 0
 ):
 	return new({
 		"schema_version": SCHEMA_VERSION,
@@ -58,6 +88,12 @@ static func create(
 		"board_request": p_board_request,
 		"boarding_target_id": p_boarding_target_id,
 		"disembark_request": p_disembark_request,
+		"look_yaw": wrapf(p_look_yaw, -PI, PI),
+		"look_pitch": clampf(p_look_pitch, -MAX_LOOK_PITCH, MAX_LOOK_PITCH),
+		"run": p_run,
+		"crouch": p_crouch,
+		"jump": p_jump,
+		"interaction_request_id": p_interaction_request_id,
 	})
 
 
@@ -77,6 +113,13 @@ func _init(data: Dictionary = {}) -> void:
 	_board_request = data.get("board_request", false) if data.get("board_request", false) is bool else false
 	_boarding_target_id = StringName(data.get("boarding_target_id", &""))
 	_disembark_request = data.get("disembark_request", false) if data.get("disembark_request", false) is bool else false
+	_look_yaw = _decode_angle(data.get("look_yaw", 0.0))
+	_look_pitch = _decode_angle(data.get("look_pitch", 0.0))
+	_run = data.get("run", false) if data.get("run", false) is bool else false
+	_crouch = data.get("crouch", false) if data.get("crouch", false) is bool else false
+	_jump = data.get("jump", false) if data.get("jump", false) is bool else false
+	_interaction_request_id = int(data.get("interaction_request_id", 0)) \
+		if data.get("interaction_request_id", 0) is int else -1
 	_errors = _validate(data)
 
 
@@ -128,12 +171,39 @@ func has_disembark_request() -> bool:
 	return _disembark_request
 
 
+func get_look_yaw() -> float:
+	return _look_yaw
+
+
+func get_look_pitch() -> float:
+	return _look_pitch
+
+
+func is_running() -> bool:
+	return _run
+
+
+func is_crouching() -> bool:
+	return _crouch
+
+
+func has_jump_request() -> bool:
+	return _jump
+
+
+## Monotonic per stream. The server acts on a request id exactly once, the
+## first time it sees a value above the last one it handled, so a held key or a
+## re-sent packet cannot sit a body down twice.
+func get_interaction_request_id() -> int:
+	return _interaction_request_id
+
+
 func is_neutral_movement() -> bool:
 	return _move_axis.length_squared() <= AXIS_EPSILON
 
 
 func to_dictionary() -> Dictionary:
-	return {
+	var wire := {
 		"schema_version": _schema_version,
 		"peer_id": _peer_id,
 		"entity_id": _entity_id,
@@ -145,7 +215,15 @@ func to_dictionary() -> Dictionary:
 		"board_request": _board_request,
 		"boarding_target_id": _boarding_target_id,
 		"disembark_request": _disembark_request,
-	}.duplicate(true)
+	}
+	if _schema_version != LEGACY_SCHEMA_VERSION:
+		wire["look_yaw"] = _look_yaw
+		wire["look_pitch"] = _look_pitch
+		wire["run"] = _run
+		wire["crouch"] = _crouch
+		wire["jump"] = _jump
+		wire["interaction_request_id"] = _interaction_request_id
+	return wire.duplicate(true)
 
 
 func detached_copy():
@@ -166,8 +244,24 @@ func _validate(data: Dictionary) -> PackedStringArray:
 		var value: Variant = data.get(key)
 		if not value is String and not value is StringName:
 			errors.append("%s must remain an identifier on the wire" % key)
-	if _schema_version != SCHEMA_VERSION:
+	if _schema_version != SCHEMA_VERSION and _schema_version != LEGACY_SCHEMA_VERSION:
 		errors.append("unsupported movement intent schema version")
+	if _schema_version == SCHEMA_VERSION:
+		for key in ["run", "crouch", "jump"]:
+			if not data.get(key) is bool:
+				errors.append("%s must remain a boolean on the wire" % key)
+		for key in ["look_yaw", "look_pitch"]:
+			var angle: Variant = data.get(key)
+			if not (angle is float or angle is int) or not is_finite(float(angle)):
+				errors.append("%s must remain a finite angle on the wire" % key)
+		if not data.get("interaction_request_id") is int:
+			errors.append("interaction_request_id must remain an integer on the wire")
+		if abs(_look_yaw) > PI + AXIS_EPSILON:
+			errors.append("look_yaw must be wrapped to [-PI, PI]")
+		if abs(_look_pitch) > MAX_LOOK_PITCH + AXIS_EPSILON:
+			errors.append("look_pitch must stay within a half turn")
+		if _interaction_request_id < 0 or _interaction_request_id > MAX_SAFE_INTEGER:
+			errors.append("interaction_request_id must be a non-negative safe integer")
 	if _peer_id <= 0:
 		errors.append("peer_id must be positive")
 	if not _valid_id(_entity_id):
@@ -192,9 +286,10 @@ func _validate(data: Dictionary) -> PackedStringArray:
 
 
 func _has_exact_wire_keys(data: Dictionary) -> bool:
-	if data.size() != _WIRE_KEYS.size():
+	var keys: Array = _WIRE_KEYS_V1 if _schema_version == LEGACY_SCHEMA_VERSION else _WIRE_KEYS_V2
+	if data.size() != keys.size():
 		return false
-	for key in _WIRE_KEYS:
+	for key in keys:
 		if not data.has(key):
 			return false
 	return true
@@ -231,3 +326,10 @@ func _decode_axis(value: Variant) -> Vector2:
 		return Vector2.ZERO
 	var values := value as Array
 	return Vector2(float(values[0]), float(values[1]))
+
+
+func _decode_angle(value: Variant) -> float:
+	if not (value is float or value is int):
+		return 0.0
+	var angle := float(value)
+	return angle if is_finite(angle) else 0.0

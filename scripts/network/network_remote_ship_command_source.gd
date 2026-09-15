@@ -24,6 +24,14 @@ func register_pilot(peer_id: int, ship_id: StringName, generation: int) -> Dicti
 	return _remember(result)
 
 
+## Whether `ship_id` names a craft a remote pilot is registered against. The
+## session adapter routes a movement packet here only when it does; an on-foot
+## avatar's intent for any other entity goes to the movement authority instead
+## of being refused as a pilot mismatch by a source that never owned it.
+func is_registered_pilot_ship(ship_id: StringName) -> bool:
+	return _registered.has(ship_id)
+
+
 func accept_command(peer_id: int, command: Dictionary) -> Dictionary:
 	var ship_id := StringName(command.get("entity_id", &""))
 	var identity: Dictionary = _registered.get(ship_id, {}) as Dictionary

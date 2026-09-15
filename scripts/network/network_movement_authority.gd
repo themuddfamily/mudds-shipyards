@@ -37,6 +37,50 @@ func _init(
 	_last_result = _result(false, &"uninitialized")
 
 
+## Widens or narrows the client-tick acceptance window. A remote body's owner
+## stamps its intents with the newest server tick it has *observed* on the
+## relationship stream plus the local ticks since, so under a 350 ms profile a
+## perfectly honest stamp trails the authority by twenty-odd ticks. The window
+## is still a bound: a stamp older than `behind` or newer than `ahead` is
+## rejected, and ordering within a stream is enforced separately.
+func configure_tick_window(source_peer_id: int, max_tick_behind: int, max_tick_ahead: int) -> Dictionary:
+	if source_peer_id != _authority_peer_id:
+		return _remember(_result(false, &"unauthorized_source"))
+	if max_tick_behind < 0 or max_tick_ahead < 0 \
+			or max_tick_behind > 600 or max_tick_ahead > 60:
+		return _remember(_result(false, &"invalid_tick_window"))
+	_max_tick_behind = max_tick_behind
+	_max_tick_ahead = max_tick_ahead
+	return _remember(_result(true, &"tick_window_configured", {
+		"max_tick_behind": _max_tick_behind, "max_tick_ahead": _max_tick_ahead,
+	}))
+
+
+## Retires every avatar one peer owns. A departed peer's body goes with it, so
+## its pending intents and stream cursor must not survive to drive a body
+## registered later under the same entity id.
+func release_peer(source_peer_id: int, peer_id: int) -> Dictionary:
+	if source_peer_id != _authority_peer_id:
+		return _remember(_result(false, &"unauthorized_source"))
+	var released: Array = []
+	for entity_variant in _avatars.keys():
+		var avatar := _avatars[entity_variant] as Dictionary
+		if int(avatar.owner_peer_id) != peer_id:
+			continue
+		released.append({
+			"entity_id": StringName(entity_variant),
+			"entity_generation": int(avatar.entity_generation),
+		})
+		_avatars.erase(entity_variant)
+	if not released.is_empty():
+		_event_sequence += 1
+	return _remember(_result(true, &"peer_released", {"released": released}))
+
+
+func get_avatar_ids() -> Array:
+	return _avatars.keys()
+
+
 ## Registration is a server lifecycle operation. `mode` is supplied by the
 ## existing seat/Player authority; this ledger never creates a seat itself.
 func register_avatar(
@@ -62,6 +106,7 @@ func register_avatar(
 		"last_sequence": -1,
 		"last_client_tick": -1,
 		"last_consumed_server_tick": -1,
+		"last_accepted_server_tick": -1,
 		"pending": [],
 	}
 	_event_sequence += 1
@@ -152,6 +197,7 @@ func accept_intent(source_peer_id: int, wire: Dictionary) -> Dictionary:
 	avatar.stream_id = stream_id
 	avatar.last_sequence = intent.get_sequence()
 	avatar.last_client_tick = intent.get_client_tick()
+	avatar.last_accepted_server_tick = _server_tick
 	_event_sequence += 1
 	return _remember(_result(true, &"accepted", {
 		"entity_id": intent.get_entity_id(),
@@ -202,6 +248,8 @@ func get_avatar_snapshot(entity_id: StringName) -> Dictionary:
 		"stream_id": avatar.stream_id,
 		"last_sequence": avatar.last_sequence,
 		"last_client_tick": avatar.last_client_tick,
+		"last_accepted_server_tick": int(avatar.get("last_accepted_server_tick", -1)),
+		"last_consumed_server_tick": int(avatar.get("last_consumed_server_tick", -1)),
 		"pending_count": (avatar.pending as Array).size(),
 	}.duplicate(true)
 

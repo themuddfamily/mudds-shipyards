@@ -430,6 +430,7 @@ func shutdown(reason: StringName = &"requested") -> Dictionary:
 				_moving_occupants.erase(peer_id)
 			_ship_ownership.release_peer(AUTHORITY_PEER_ID, peer_id)
 			_seat_authority.release_peer(AUTHORITY_PEER_ID, peer_id)
+			_movement.release_peer(AUTHORITY_PEER_ID, peer_id)
 			_migration.disconnect_peer(AUTHORITY_PEER_ID, peer_id, int(_peer_generations.get(peer_id, 0)))
 			_crew_commands.release_peer(AUTHORITY_PEER_ID, peer_id, int(_peer_generations.get(peer_id, 0)))
 			_security_strikes.erase(peer_id)
@@ -598,11 +599,52 @@ func set_movement_server_tick(server_tick: int) -> Dictionary:
 	return _remember(_movement.set_server_tick(AUTHORITY_PEER_ID, server_tick))
 
 
+## Retires one exact avatar generation. The mirror of [method register_avatar];
+## a server-owned remote body that leaves the cabin retires its avatar here so
+## a later body under the same entity id starts with an empty intent queue.
+func retire_avatar(entity_id: StringName, entity_generation: int) -> Dictionary:
+	if not is_server():
+		return _remember(_result(false, &"authority_required"))
+	return _remember(_movement.retire_avatar(AUTHORITY_PEER_ID, entity_id, entity_generation))
+
+
+## Widens or narrows the movement authority's client-tick window. Server only;
+## see `NetworkMovementAuthority.configure_tick_window()` for why a remote
+## body's owner needs more than the six-tick default.
+func configure_movement_tick_window(max_tick_behind: int, max_tick_ahead: int) -> Dictionary:
+	if not is_server():
+		return _remember(_result(false, &"authority_required"))
+	return _remember(_movement.configure_tick_window(
+		AUTHORITY_PEER_ID, max_tick_behind, max_tick_ahead
+	))
+
+
+## Delivers at most one accepted, due intent for one avatar per server tick.
+## This is the only seam through which a client's on-foot intent reaches a body
+## the server simulates; the authority has already checked ownership,
+## generation, stream order and the tick window before anything is queued.
+func consume_movement_intent(
+	entity_id: StringName, entity_generation: int, server_tick: int
+) -> Dictionary:
+	if not is_server():
+		return _result(false, &"authority_required")
+	return _movement.consume_for_tick(entity_id, entity_generation, server_tick)
+
+
+func get_movement_avatar_snapshot(entity_id: StringName) -> Dictionary:
+	return _movement.get_avatar_snapshot(entity_id)
+
+
 func send_movement_intent(wire: Dictionary) -> Dictionary:
 	if is_server():
 		return _remember(_result(false, &"client_required"))
 	if not _configured:
 		return _remember(_result(false, &"not_started"))
+	# A remote body's owner streams every few ticks, including across its own
+	# reconnect. Until the transport is connected there is nobody to send to,
+	# and asking the RPC anyway only logs an engine error per attempt.
+	if _peer == null or _peer.get_connection_status() != MultiplayerPeer.CONNECTION_CONNECTED:
+		return _remember(_result(false, &"not_connected"))
 	_receive_movement_intent.rpc_id(AUTHORITY_PEER_ID, _make_secure_rpc_packet(&"movement", wire))
 	return _remember(_result(true, &"queued"))
 
@@ -2835,6 +2877,7 @@ func _present_moving_interior_relationship(ready: Dictionary, frame_world_transf
 		"parent_frame_generation": relationship.get_parent_frame_generation(),
 		"occupancy_state": relationship.get_occupancy_state(),
 		"local_transform": local_transform,
+		"published_local_transform": relationship.get_frame_local_transform(),
 	})
 	return _remember(_result(true, &"moving_interior_presented", {"samples": [{
 		"revision": int(ready.get("revision", 0)),
@@ -2852,6 +2895,28 @@ func _present_moving_interior_relationship(ready: Dictionary, frame_world_transf
 ## is on the same real-seconds axis and may come from a render clock.
 func moving_interior_tick_to_seconds(server_tick: int) -> float:
 	return maxf(0.0, float(server_tick)) * MOVING_INTERIOR_SERVER_TICK_SECONDS
+
+
+## The newest relationship this client has accepted for one entity, as the
+## authority published it: the server tick and the exact frame-local pose on
+## the wire, before any jitter-buffer blending. Empty when nothing has arrived.
+## The owning client of a server-simulated body reconciles its local
+## prediction against this, tick for tick.
+func get_moving_interior_latest_relationship(entity_id: StringName) -> Dictionary:
+	var sample: Dictionary = _moving_replica_samples.get(entity_id, {}) as Dictionary
+	if sample.is_empty():
+		return {}
+	return {
+		"entity_id": entity_id,
+		"server_tick": int(sample.get("server_tick", -1)),
+		"entity_generation": int(sample.get("entity_generation", 0)),
+		"parent_frame_id": StringName(sample.get("parent_frame_id", &"")),
+		"parent_frame_generation": int(sample.get("parent_frame_generation", 0)),
+		"occupancy_state": int(sample.get("occupancy_state", 0)),
+		"frame_local_transform": sample.get(
+			"published_local_transform", sample.get("local_transform", Transform3D.IDENTITY)
+		),
+	}
 
 
 ## Newest authoritative tick this client has released into the replica, or -1.
@@ -3954,7 +4019,12 @@ func _receive_movement_intent(wire: Dictionary) -> void:
 	var payload := _accept_secure_rpc(source_peer_id, wire, &"movement")
 	if payload.is_empty():
 		return
-	if not (_remote_ship_commands.get_snapshot().get("pilots", []) as Array).is_empty():
+	# One RPC, two ledgers. A packet naming a craft a remote pilot is registered
+	# against is a helm command; anything else is an on-foot intent for a body
+	# the server simulates. Routing by the entity rather than by "is anyone
+	# piloting" is what lets a crewmate walk the cabin of a craft somebody else
+	# is flying.
+	if _remote_ship_commands.is_registered_pilot_ship(StringName(payload.get("entity_id", &""))):
 		var remote_result: Dictionary = _remote_ship_commands.accept_command(source_peer_id, payload)
 		movement_intent_result.emit(remote_result.duplicate(true))
 		return
@@ -4468,6 +4538,7 @@ func _on_peer_disconnected(peer_id: int, reason: StringName = &"disconnect") -> 
 	_crew_commands.release_peer(AUTHORITY_PEER_ID, peer_id, peer_generation)
 	_seat_authority.release_peer(AUTHORITY_PEER_ID, peer_id)
 	_ship_ownership.release_peer(AUTHORITY_PEER_ID, peer_id)
+	_movement.release_peer(AUTHORITY_PEER_ID, peer_id)
 	for ship_id_variant in disconnected_ship_ids:
 		_ownership_transition_states[StringName(ship_id_variant)] = &"disconnected"
 	for seat_id_variant in disconnected_seat_ids:
