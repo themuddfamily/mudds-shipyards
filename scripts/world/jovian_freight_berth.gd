@@ -310,6 +310,9 @@ const CONTENT_NOTE := (
 var _materials: Dictionary = {}
 var _work_masts: Array[SpotLight3D] = []
 var _rounded_box_cache: Dictionary = {}
+## Per-operator freight finishes, kept out of `_materials` because each entry is
+## a set of four rather than one material.
+var _freight_materials: Dictionary = {}
 var _chamfered_cylinder_cache: Dictionary = {}
 var _lashing_ring_mesh: TorusMesh
 var _lashing_ring_batch: MultiMeshInstance3D
@@ -2251,26 +2254,50 @@ func _build_cargo_infrastructure() -> void:
 	# the surface below it. Only the y coordinate moved; x, z, every size and every
 	# material are unchanged, so the eight tagged units, their bands and the
 	# published cargo-unit count are untouched.
+	#
+	# FREIGHT-FINISH-001 (Phase 10 §3). The eight units above kept their positions
+	# and sizes but stopped being boxes. Until this pass they were chamfered slabs
+	# in four of the berth's own module colours — `ceramic`, `orange`,
+	# `steel_blue`, `ceramic_warm` — which is to say the cargo was painted the
+	# same palette as the racks it stands on and the room behind it, and nothing
+	# about the shapes said *freight* at all.
+	#
+	# They now carry `FreightContainerKit`'s station-wide container finish:
+	# corrugated skins, cast corners, top and bottom rails, end frames, a door end
+	# with locking bars and cam handles, one of three operator liveries, and that
+	# operator's own stencilled data plate on the apron-facing side. It is the same
+	# recipe Dock 04's seven yard containers use, from the same constants, so the
+	# two freight sites finally read as one station's stock.
+	#
+	# Nothing structural moved. The `size` in each row is still what builds the
+	# `BoxShape3D`, and `shell_mesh` publishes an AABB identical to the box it
+	# replaces, so every collider, the declared 3.4 m transfer lane, the eight
+	# `station_cargo_unit` tags, the `cargo_unit_id` identities, the `CargoBand`
+	# stripes and the published cargo-unit count are all untouched. The third
+	# column is now the operator index rather than a module colour key.
 	var cargo_layout := [
-		[Vector3(-18.2, 0.665, 17.2), Vector3(4.0, 1.35, 3.0), "ceramic"],
-		[Vector3(-18.5, 1.905, 17.2), Vector3(3.2, 1.15, 2.6), "orange"],
-		[Vector3(-18.1, 0.59, 24.1), Vector3(3.7, 1.2, 2.8), "steel_blue"],
-		[Vector3(-18.6, 1.655, 24.1), Vector3(2.8, 0.95, 2.4), "ceramic_warm"],
-		[Vector3(-18.3, 0.715, 31.4), Vector3(4.1, 1.45, 3.1), "orange"],
-		[Vector3(-18.2, 1.955, 31.4), Vector3(3.1, 1.05, 2.55), "ceramic"],
-		[Vector3(-18.5, 0.615, 39.0), Vector3(3.5, 1.25, 2.9), "steel_blue"],
-		[Vector3(-18.4, 1.705, 39.0), Vector3(2.9, 0.95, 2.35), "ceramic_warm"],
+		[Vector3(-18.2, 0.665, 17.2), Vector3(4.0, 1.35, 3.0), 0],
+		[Vector3(-18.5, 1.905, 17.2), Vector3(3.2, 1.15, 2.6), 1],
+		[Vector3(-18.1, 0.59, 24.1), Vector3(3.7, 1.2, 2.8), 2],
+		[Vector3(-18.6, 1.655, 24.1), Vector3(2.8, 0.95, 2.4), 0],
+		[Vector3(-18.3, 0.715, 31.4), Vector3(4.1, 1.45, 3.1), 1],
+		[Vector3(-18.2, 1.955, 31.4), Vector3(3.1, 1.05, 2.55), 2],
+		[Vector3(-18.5, 0.615, 39.0), Vector3(3.5, 1.25, 2.9), 2],
+		[Vector3(-18.4, 1.705, 39.0), Vector3(2.9, 0.95, 2.35), 0],
 	]
 	for index in cargo_layout.size():
 		var entry: Array = cargo_layout[index]
-		var cargo := _rounded_box(
+		var cargo := _freight_container(
 			cargo_root,
 			"CargoUnit%02d" % (index + 1),
 			entry[0] as Vector3,
 			entry[1] as Vector3,
-			_materials[entry[2] as String]
+			int(entry[2])
 		)
 		cargo.set_meta("station_cargo_unit", true)
+		cargo.set_meta("freight_operator", FreightContainerKit.operator_for_index(
+			int(entry[2])
+		)["id"])
 		cargo.set_meta("cargo_unit_id", StringName("freight-unit-%02d" % (index + 1)))
 		cargo.set_meta("evidence_status", EVIDENCE_STATUS)
 		_cargo_units.append(cargo)
@@ -3630,6 +3657,77 @@ func _rounded_box(
 		mesh_instance.mesh = mesh
 		mesh_instance.material_override = material
 	return container
+
+
+## A tagged cargo unit in the station's shared freight-container finish.
+##
+## Structurally identical to `_rounded_box`: the same `StaticBody3D` with the
+## same `WORLD_LAYER`, the same child `Mesh` and `Collision` names, and the same
+## `BoxShape3D` built from the same `size`. The only differences are the mesh
+## resource — `FreightContainerKit.shell_mesh`, whose AABB is exactly the box it
+## replaces — and that the four finishes arrive as surface materials instead of a
+## single `material_override`, because a container's painted skin, cast frame,
+## door leaves and printed plate are four different surfaces of one object.
+##
+## The plate faces `+X`, toward the transfer lane and the ramp, which is the only
+## side of this rack line a player ever walks.
+func _freight_container(
+		parent: Node3D,
+		node_name: String,
+		position_value: Vector3,
+		size: Vector3,
+		operator_index: int
+	) -> StaticBody3D:
+	var body := StaticBody3D.new()
+	body.collision_layer = WORLD_LAYER
+	body.collision_mask = 0
+	body.name = node_name
+	body.position = position_value
+	parent.add_child(body, true)
+
+	var mesh := FreightContainerKit.shell_mesh(size, true, 1.0)
+	var finishes := _freight_container_materials(operator_index)
+	mesh.surface_set_material(FreightContainerKit.SURFACE_BODY, finishes["body"])
+	mesh.surface_set_material(FreightContainerKit.SURFACE_CASTING, finishes["casting"])
+	mesh.surface_set_material(FreightContainerKit.SURFACE_DOOR, finishes["door"])
+	mesh.surface_set_material(FreightContainerKit.SURFACE_STENCIL, finishes["stencil"])
+	var mesh_instance := MeshInstance3D.new()
+	mesh_instance.name = "Mesh"
+	mesh_instance.mesh = mesh
+	body.add_child(mesh_instance)
+
+	var collision := CollisionShape3D.new()
+	collision.name = "Collision"
+	var shape := BoxShape3D.new()
+	shape.size = size
+	collision.shape = shape
+	body.add_child(collision)
+	return body
+
+
+## One material set per operator, built once and shared by every unit wearing
+## that livery, so eight containers in three liveries cost three paint materials
+## rather than eight. The cast steel is shared across all three: it is the part
+## of the finish that makes them one family rather than three unrelated boxes.
+func _freight_container_materials(operator_index: int) -> Dictionary:
+	var key := "operator_%d" % operator_index
+	if _freight_materials.has(key):
+		return _freight_materials[key] as Dictionary
+	var livery := FreightContainerKit.operator_color(operator_index)
+	if not _freight_materials.has("casting"):
+		_freight_materials["casting"] = FreightContainerKit.casting_material(
+			PANEL_SURFACE_SCALE
+		)
+	var finishes := {
+		"body": FreightContainerKit.body_material(livery, PANEL_SURFACE_SCALE),
+		"casting": _freight_materials["casting"],
+		"door": FreightContainerKit.door_material(livery, PANEL_SURFACE_SCALE),
+		"stencil": FreightContainerKit.stencil_material(
+			FreightContainerKit.operator_marking(operator_index)
+		),
+	}
+	_freight_materials[key] = finishes
+	return finishes
 
 
 ## Collision-backed service-door lintel with a capsule outline in its broad Y/Z

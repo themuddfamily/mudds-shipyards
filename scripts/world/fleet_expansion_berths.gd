@@ -89,6 +89,16 @@ const DOCK05_BOARDING_ALIGNMENT_BOXES: Array[Dictionary] = [
 ]
 const EXPECTED_SERVICE_MESH_INSTANCES := 85
 const EXPECTED_SERVICE_RENDERER_NODES := 15
+## Renderer nodes and geometry submissions stopped being the same number when
+## Dock 04's containers gained the shared freight finish. A submission is one
+## *surface*, and `FreightContainerKit.shell_mesh` deliberately splits the
+## container into four — painted body, cast frame, door leaves and the stencil
+## plate — because those are four different finishes on one object and a single
+## surface could only carry one of them. Fourteen of the fifteen renderer nodes
+## still submit one surface each; the container batch submits four. Publishing
+## the honest number matters more than keeping the tidy one: this is the figure a
+## future batching pass has to beat.
+const EXPECTED_SERVICE_GEOMETRY_SUBMISSIONS := 18
 const EXPECTED_SERVICE_MESH_RESOURCE_ALLOCATIONS := 12
 const EXPECTED_COMPONENT_MESH_RESOURCE_ALLOCATIONS := 25
 const EXPECTED_GUIDE_LIGHTS := 5
@@ -192,6 +202,7 @@ const SERVICE_BATCH_RECIPES := {
 			"mesh_size": CARGO_CONTAINER_SIZE,
 			"transforms": CARGO_CONTAINER_TRANSFORMS,
 			"material": "cargo_container",
+			"freight_shell": true,
 		},
 		&"CargoApronKitBatch": {
 			"mesh_size": Vector3.ONE,
@@ -290,6 +301,12 @@ const CARGO_CONTAINER_TRANSFORMS: Array[Transform3D] = [
 	Transform3D(Basis.IDENTITY, Vector3(12.4, 5.4, 10.75)),
 	Transform3D(Basis.IDENTITY, Vector3(-12.0, 3.1, -7.0)),
 ]
+## Which `FreightContainerKit.OPERATORS` livery each of the seven wears. Authored
+## rather than derived so the yard reads as a yard: no stack is one colour top to
+## bottom, the two stacks do not repeat each other's order, and the unit under the
+## crane on the roller line is a third livery again, so the piece of freight the
+## crane is actually working is the one the eye separates first.
+const CARGO_CONTAINER_OPERATORS: Array[int] = [0, 1, 2, 1, 2, 0, 2]
 ## The crane is a cantilever: the mast is the one piece that still stands off
 ## the pad edge, it carries no collider, and the jib now reaches only as far as
 ## the hoist it actually serves instead of stopping 5 m short of everything.
@@ -669,6 +686,10 @@ func get_service_presentation_audit() -> Dictionary:
 	var errors := PackedStringArray()
 	var pad_reports: Dictionary = {}
 	var mesh_resource_ids: Dictionary = {}
+	# Counted, not asserted from the node total: a multi-surface mesh submits once
+	# per surface, so the only way this number stays true is by reading it off the
+	# meshes the pads actually built.
+	var submissions := 0
 	for pad_index in PAD_IDS.size():
 		var pad_id := PAD_IDS[pad_index]
 		var pad := get_node_or_null(NodePath(String(pad_id))) as Node3D
@@ -693,6 +714,7 @@ func get_service_presentation_audit() -> Dictionary:
 					errors.append("service mesh missing: %s" % pad_id)
 					continue
 				mesh_resource_ids[instance.mesh.get_instance_id()] = true
+				submissions += instance.mesh.get_surface_count()
 				var bounds := (instance.transform * instance.mesh.get_aabb()).abs()
 				local_bounds = bounds if first_bound else local_bounds.merge(bounds)
 				first_bound = false
@@ -704,6 +726,7 @@ func get_service_presentation_audit() -> Dictionary:
 					errors.append("service batch missing: %s" % pad_id)
 					continue
 				mesh_resource_ids[batch.multimesh.mesh.get_instance_id()] = true
+				submissions += batch.multimesh.mesh.get_surface_count()
 				# RenderingServer transform readback can be identity-only headless, so
 				# retain the exact submitted parent-space roster for deterministic
 				# clearance and silhouette audits.
@@ -793,6 +816,8 @@ func get_service_presentation_audit() -> Dictionary:
 			"readable": readable,
 			"state_feedback": get_pad_presentation_state(pad_id),
 		}.duplicate(true)
+	if submissions != EXPECTED_SERVICE_GEOMETRY_SUBMISSIONS:
+		errors.append("service geometry submission drift")
 	errors.sort()
 	return {
 		"valid": errors.is_empty(),
@@ -802,8 +827,9 @@ func get_service_presentation_audit() -> Dictionary:
 		"renderer_nodes_after": EXPECTED_SERVICE_RENDERER_NODES,
 		"renderer_node_delta": EXPECTED_SERVICE_RENDERER_NODES - EXPECTED_SERVICE_MESH_INSTANCES,
 		"geometry_submissions_before": EXPECTED_SERVICE_MESH_INSTANCES,
-		"geometry_submissions_after": EXPECTED_SERVICE_RENDERER_NODES,
-		"geometry_submission_delta": EXPECTED_SERVICE_RENDERER_NODES - EXPECTED_SERVICE_MESH_INSTANCES,
+		"geometry_submissions_after": EXPECTED_SERVICE_GEOMETRY_SUBMISSIONS,
+		"geometry_submission_delta": EXPECTED_SERVICE_GEOMETRY_SUBMISSIONS - EXPECTED_SERVICE_MESH_INSTANCES,
+		"measured_geometry_submissions": submissions,
 		"visible_mesh_copies": EXPECTED_SERVICE_MESH_INSTANCES,
 		"mesh_resource_allocations_before": 12,
 		"mesh_resource_allocations_after": mesh_resource_ids.size(),
@@ -1082,9 +1108,14 @@ func get_access_wayfinding_audit() -> Dictionary:
 func _batch_matches_recipe(batch: MultiMeshInstance3D, recipe: Dictionary) -> bool:
 	if batch.multimesh == null:
 		return false
-	var mesh := batch.multimesh.mesh as BoxMesh
-	if mesh == null or not mesh.size.is_equal_approx(recipe["mesh_size"] as Vector3):
-		return false
+	var freight_shell := bool(recipe.get("freight_shell", false))
+	if freight_shell:
+		if not _freight_shell_matches(batch, recipe):
+			return false
+	else:
+		var mesh := batch.multimesh.mesh as BoxMesh
+		if mesh == null or not mesh.size.is_equal_approx(recipe["mesh_size"] as Vector3):
+			return false
 	var expected: Array[Transform3D] = []
 	if recipe.has("transforms"):
 		expected = (recipe["transforms"] as Array[Transform3D]).duplicate()
@@ -1099,9 +1130,54 @@ func _batch_matches_recipe(batch: MultiMeshInstance3D, recipe: Dictionary) -> bo
 	for index in expected.size():
 		if not (authored[index] as Transform3D).is_equal_approx(expected[index]):
 			return false
-	return batch.material_override == _service_materials[recipe["material"] as String] \
+	# A freight shell carries its four finishes as surface materials, so it has no
+	# single `material_override` to compare; `_freight_shell_matches` has already
+	# checked all four against the pad's own roster.
+	var material_bound: bool = batch.material_override == null if freight_shell \
+		else batch.material_override == _service_materials[recipe["material"] as String]
+	return material_bound \
 		and batch.cast_shadow == GeometryInstance3D.SHADOW_CASTING_SETTING_OFF \
 		and bool(batch.get_meta(&"visual_detail_only", false))
+
+
+## The freight finish, checked as the contract it is rather than as a box.
+##
+## The published envelope is the load-bearing assertion here: the collider roster
+## in `service_structure_pieces`, the landing and approach clearance sweeps and
+## the pad's authored local bounds are all computed from `mesh_size`, so a shell
+## whose AABB drifted from it would move the drawing away from the solid without
+## any of those three noticing.
+func _freight_shell_matches(batch: MultiMeshInstance3D, recipe: Dictionary) -> bool:
+	var mesh := batch.multimesh.mesh as ArrayMesh
+	if mesh == null or mesh.get_surface_count() != FreightContainerKit.SURFACE_COUNT:
+		return false
+	var size := recipe["mesh_size"] as Vector3
+	if not mesh.get_aabb().is_equal_approx(AABB(-size * 0.5, size)):
+		return false
+	var expected_materials := [
+		_service_materials["cargo_container"],
+		_service_materials["cargo_container_casting"],
+		_service_materials["cargo_container_door"],
+		_service_materials["cargo_container_stencil"],
+	]
+	for surface in FreightContainerKit.SURFACE_COUNT:
+		if mesh.surface_get_material(surface) != expected_materials[surface]:
+			return false
+	if not batch.multimesh.use_colors:
+		return false
+	# Read the authored roster, not `MultiMesh.get_instance_color`. The headless
+	# rendering server answers black for instance colour exactly as it answers
+	# identity for instance transform, which is why the transform roster is
+	# published as metadata a few lines above; the livery roster is published the
+	# same way and for the same reason.
+	var operators := batch.get_meta(&"freight_operator_indices", []) as Array
+	if operators.size() != batch.multimesh.instance_count:
+		return false
+	for index in operators.size():
+		var operator_index := int(operators[index])
+		if operator_index < 0 or operator_index >= FreightContainerKit.OPERATORS.size():
+			return false
+	return true
 
 
 func _points_aabb(points: PackedVector3Array) -> AABB:
@@ -1891,17 +1967,20 @@ func _structural_collider_matches_renderer(pad: Node3D, piece: Dictionary) -> bo
 	var batch := drawn as MultiMeshInstance3D
 	if batch == null or batch.multimesh == null:
 		return false
-	var batch_box := batch.multimesh.mesh as BoxMesh
-	if batch_box == null:
+	if batch.multimesh.mesh == null:
 		return false
+	# What has to match is the *drawn envelope*, not the mesh class. A scaled-box
+	# batch draws one unit box at many sizes; the rail batch draws a full-size box
+	# at identity scale; the freight batch draws a four-surface container shell
+	# whose AABB `FreightContainerKit.shell_mesh` guarantees is exactly its
+	# authored size. Reading the mesh's own AABB covers all three, and it is the
+	# number the collider actually has to agree with.
+	var drawn_size := batch.multimesh.mesh.get_aabb().size
 	var authored := batch.get_meta(&"authored_instance_transforms", []) as Array
 	if instance >= authored.size():
 		return false
-	# A scaled-box batch draws one unit mesh at many sizes, so the drawn size is
-	# the mesh size times the authored instance scale. The container and rail
-	# batches keep a full-size mesh at identity scale and read back the same way.
 	var authored_transform := authored[instance] as Transform3D
-	return (batch_box.size * authored_transform.basis.get_scale()).is_equal_approx(size) \
+	return (drawn_size * authored_transform.basis.get_scale()).is_equal_approx(size) \
 		and authored_transform.origin.is_equal_approx(position - batch.position) \
 		and _basis_rotation_matches(authored_transform.basis, expected_rotation)
 
@@ -2004,25 +2083,64 @@ func _build_service_board(
 	return board
 
 
+## Dock 04's freight, in the station's shared container finish.
+##
+## What changed and what did not. The seven authored transforms, the 3 x 3.6 x 4
+## envelope, the family tag, the single childless batch, the shadow setting and
+## the seven `CargoContainer00..06` colliders in `service_structure_pieces` are
+## all exactly what they were: `FreightContainerKit.shell_mesh` guarantees an
+## AABB identical to the `BoxMesh` it replaces, which is the whole reason this
+## finish could be applied to already-placed, already-cleared freight.
+##
+## What a player sees instead of seven teal blocks: corrugated sides, cast
+## corners, a door end with locking bars, and three operator liveries across the
+## two stacks and the roller line.
+##
+## The livery comes from `MultiMesh.set_instance_color` rather than from three
+## batches. A `MultiMeshInstance3D` carries one material, so three liveries would
+## otherwise have cost three renderer nodes and three copies of a mesh that is
+## the same geometry each time. The instance colour multiplies the body and door
+## surfaces, whose materials are white for exactly this reason, and deliberately
+## does not reach the cast frame or the stencil plate — the castings are galvanised
+## on every operator's stock, and a plate tinted to the container it is bolted to
+## would be unreadable on the navy. The consequence, stated rather than hidden, is
+## that the one plate the batch can carry is the yard's own rather than each
+## operator's; the per-operator plates are at the Jovian freight berth, whose
+## units are individual renderers and can each carry their own.
 func _build_cargo_container_batch(service: Node3D) -> void:
-	var container_mesh := BoxMesh.new()
-	container_mesh.size = CARGO_CONTAINER_SIZE
+	var container_mesh := FreightContainerKit.shell_mesh(CARGO_CONTAINER_SIZE)
+	container_mesh.surface_set_material(
+		FreightContainerKit.SURFACE_BODY, _service_materials["cargo_container"]
+	)
+	container_mesh.surface_set_material(
+		FreightContainerKit.SURFACE_CASTING, _service_materials["cargo_container_casting"]
+	)
+	container_mesh.surface_set_material(
+		FreightContainerKit.SURFACE_DOOR, _service_materials["cargo_container_door"]
+	)
+	container_mesh.surface_set_material(
+		FreightContainerKit.SURFACE_STENCIL, _service_materials["cargo_container_stencil"]
+	)
 	var multimesh := MultiMesh.new()
 	multimesh.transform_format = MultiMesh.TRANSFORM_3D
+	multimesh.use_colors = true
 	multimesh.mesh = container_mesh
 	multimesh.instance_count = CARGO_CONTAINER_TRANSFORMS.size()
 	multimesh.visible_instance_count = -1
 	var batch := MultiMeshInstance3D.new()
 	batch.name = "CargoContainerBatch"
 	batch.multimesh = multimesh
-	batch.material_override = _service_materials["cargo_container"]
 	batch.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	batch.set_meta(&"visual_detail_only", true)
 	batch.set_meta(&"visual_batch_family_id", &"dock_04_cargo_containers")
 	batch.set_meta(&"authored_instance_transforms", CARGO_CONTAINER_TRANSFORMS.duplicate())
+	batch.set_meta(&"freight_operator_indices", CARGO_CONTAINER_OPERATORS.duplicate())
 	service.add_child(batch)
 	for index in CARGO_CONTAINER_TRANSFORMS.size():
 		multimesh.set_instance_transform(index, CARGO_CONTAINER_TRANSFORMS[index])
+		multimesh.set_instance_color(
+			index, FreightContainerKit.operator_color(CARGO_CONTAINER_OPERATORS[index])
+		)
 
 
 func _visual_box(
@@ -2067,9 +2185,19 @@ func _build_service_materials() -> void:
 		"cargo_frame": _panel_material(
 			Color("8a6a36"), 0.72, StationSurfaceKit.PanelFinish.STRUCTURAL_ALLOY
 		),
-		"cargo_container": _panel_material(
-			Color("2f5966"), 0.58, StationSurfaceKit.PanelFinish.PAINTED_METAL
+		# The container family. Body and door are white and instance-tinted; the
+		# livery itself lives in `FreightContainerKit.OPERATORS`, so Dock 04 and the
+		# Jovian freight berth cannot drift apart into two different reds.
+		"cargo_container": FreightContainerKit.body_material(
+			Color.WHITE, PANEL_SURFACE_SCALE, true
 		),
+		"cargo_container_casting": FreightContainerKit.casting_material(
+			PANEL_SURFACE_SCALE
+		),
+		"cargo_container_door": FreightContainerKit.door_material(
+			Color.WHITE, PANEL_SURFACE_SCALE, true
+		),
+		"cargo_container_stencil": FreightContainerKit.stencil_material("freight-yard"),
 		"cargo_marker": _emissive_material(Color("56d8de")),
 		"bomber_frame": _panel_material(
 			Color("3b3034"), 0.78, StationSurfaceKit.PanelFinish.STRUCTURAL_ALLOY

@@ -25,12 +25,34 @@ func _run() -> void:
 	print("JOVIAN_BATCH_CENSUS: ", census)
 	var apron := module.get_node("LoadingApron")
 	_check(
+		# Re-frozen by FREIGHT-FINISH-001, the station-wide freight-container pass.
+		# The eight tagged cargo units stopped being chamfered slabs in the berth's
+		# own module palette and became real containers: corrugated skins, cast
+		# corners, rails, end frames, a door end with locking bars, an operator
+		# livery and a stencilled data plate. That is paid for entirely in
+		# geometry, and the two numbers that moved say exactly what it cost.
+		#
+		#   submissions 405 -> 429. Each unit's mesh carries four surfaces instead
+		#   of one, because painted skin, cast steel, door leaf and printed plate
+		#   are four finishes and a surface can hold one. 8 x 3 = 24.
+		#
+		#   triangles 77020 -> 93692, +16672, about 2084 per unit. Every part is
+		#   `ShipChamferedStock.box_mesh`, so each takes the cheap 44-triangle
+		#   tangent chamfer or the authored 108-triangle rolled edge according to
+		#   the chamfer width it has actually earned — the same rule the rest of
+		#   the fleet's fitted stock follows.
+		#
+		# Nothing else moved, and that is the load-bearing half of this assertion:
+		# the same 893 descendants, the same 389 mesh instances, the same 16
+		# batches, the same 477 visible copies, and collision still exactly
+		# 206/209, because `FreightContainerKit.shell_mesh` publishes an AABB
+		# identical to the box it replaced.
 		census == {
 			"descendant_nodes": 893, "mesh_instance_nodes": 389, "multimesh_nodes": 16,
-			"geometry_submissions": 405, "visible_geometry_copies": 477,
-			"drawn_triangles": 77020, "static_bodies": 206, "collision_shapes": 209,
+			"geometry_submissions": 429, "visible_geometry_copies": 477,
+			"drawn_triangles": 93692, "static_bodies": 206, "collision_shapes": 209,
 		},
-		"current standalone census includes later immutable batches: 893 nodes, 405 submissions, 477 visible copies, and collision exact"
+		"current standalone census includes later immutable batches: 893 nodes, 429 submissions, 477 visible copies, and collision exact"
 	)
 	_test_apron_diagonal_batch(module, apron)
 	var contract := module.get_dock_guide_batch_contract()

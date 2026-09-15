@@ -801,6 +801,7 @@ func _test_instanced_station_family(
 	# Cinder craft have gained further batches of their own since this number was
 	# last frozen. Not one station batch left the family — the mapped count is
 	# identical — and every mapped batch still passes `exact`.
+	print("LIVE_STATION_INSTANCED_FAMILY: batches=", batches, " mapped=", mapped)
 	_check(
 		batches == 214 and mapped == 129,
 		"instanced station structure is exactly 214 batches, 129 of them mapped"

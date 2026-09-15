@@ -90,6 +90,36 @@ CRAFT = [
 ]
 
 
+# Station freight-container liveries. Same font-free engineering alphabet and
+# the same flat-colour SVG the hull registrations use; the only difference is an
+# opaque plate behind the ink, because a container data panel is a painted steel
+# plate on the box rather than ink printed straight onto a hull.
+PLATE = '#d9ddd6'
+FREIGHT = [
+    ('freight-ardent', 'ARDENT FREIGHT', 'ARD 4417', 'OUTER YARD 04'),
+    ('freight-meridian', 'MERIDIAN BULK', 'MRD 2208', 'JOVIAN LINE'),
+    ('freight-cinder', 'CINDER RUN', 'CDR 6135', 'REACH RELAY'),
+    # The yard's own plate. Dock 04 draws all seven of its containers through one
+    # batch, and a batch carries one material, so there the operator is carried by
+    # the paint and the plate is the yard's rather than any one line's.
+    ('freight-yard', 'SHIPYARD FREIGHT', 'YARD 04', 'BONDED TRANSFER'),
+]
+
+
+def freight(name, operator, code, route):
+    write(name, [
+        f'<rect x="0" y="0" width="512" height="256" fill="{PLATE}"/>',
+        path('M16 16H496V240H16Z', width=5),
+        lettering(operator, 34, 38, 24, weight=1.05, spacing=2.4),
+        path('M34 78H478', width=3),
+        lettering(code, 34, 96, 58, weight=1.15, spacing=3.4),
+        path('M34 176H478', width=2),
+        lettering(route, 34, 190, 17, weight=.9, spacing=2.0),
+        lettering('MAX GROSS 24000 KG / TARE 2300 KG', 34, 220, 11, spacing=1.4),
+        path('M436 96H478V166H436Z', AMBER, 0, AMBER),
+    ])
+
+
 def main():
     OUT.mkdir(parents=True, exist_ok=True)
     for name, code, role in CRAFT:
@@ -129,6 +159,8 @@ def main():
         lettering('PULL', 346, 166, 20),
         lettering('EMERGENCY CANOPY ACCESS', 32, 231, 11),
     ])
+    for name, operator, code, route in FREIGHT:
+        freight(name, operator, code, route)
     write('exhaust', [
         path('M79 29L130 118H28Z', AMBER, 6),
         *[path(f'M{x} 98Q{x-9} 89 {x} 80Q{x+9} 71 {x} 62', width=3) for x in (61,79,97)],

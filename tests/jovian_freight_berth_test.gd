@@ -1454,15 +1454,18 @@ func _test_recessed_lashing_ring_profile(module: JovianFreightBerth) -> void:
 	# ten visual-only collar leaves with four local batches therefore removes the
 	# exact six nodes/submissions claimed below while retaining every drawn copy.
 	_check(
+		# `surfaces` re-frozen 375 -> 399 by FREIGHT-FINISH-001: the eight tagged
+		# cargo units each draw the shared freight-container shell, whose four
+		# finishes are four surfaces. No node, no batch and no drawn copy moved.
 		renderer_before == {
 			"descendant_nodes": 893,
 			"mesh_instance_nodes": 389,
 			"multimesh_nodes": 16,
-			"surfaces": 375,
+			"surfaces": 399,
 			"visible_copies": 447,
 		}
 		and _renderer_census(module) == renderer_before,
-		"collar batching preserves 447 visible copies through 893 descendants and 375 submissions"
+		"collar batching preserves 447 visible copies through 893 descendants and 399 submissions"
 	)
 	_check(
 		module.get_collision_contract() == collision_before

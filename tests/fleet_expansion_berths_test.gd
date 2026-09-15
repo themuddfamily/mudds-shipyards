@@ -279,7 +279,12 @@ func _test_cargo_container_batch(berths: Node3D, audit: Dictionary) -> void:
 	) as Node3D
 	var batch := service.get_node_or_null(^"CargoContainerBatch") as MultiMeshInstance3D \
 		if service != null else null
-	var container_mesh := batch.multimesh.mesh as BoxMesh \
+	# The container is no longer a box. `FreightContainerKit.shell_mesh` draws it as
+	# four surfaces — painted body, cast frame, door leaves, stencil plate — and
+	# the assertion that matters is that its AABB is still exactly the 3 x 3.6 x 4
+	# the seven colliders, the clearance sweeps and the authored pad bounds are all
+	# built from, so the finish moved nothing.
+	var container_mesh := batch.multimesh.mesh as ArrayMesh \
 		if batch != null and batch.multimesh != null else null
 	var expected_transforms: Array[Transform3D] = [
 		Transform3D(Basis.IDENTITY, Vector3(12.4, 1.8, -4.0)),
@@ -292,7 +297,6 @@ func _test_cargo_container_batch(berths: Node3D, audit: Dictionary) -> void:
 	]
 	var authored_transforms := batch.get_meta(&"authored_instance_transforms", []) as Array \
 		if batch != null else []
-	var material := batch.material_override as StandardMaterial3D if batch != null else null
 	var transforms_exact := authored_transforms.size() == expected_transforms.size()
 	if transforms_exact:
 		for index in expected_transforms.size():
@@ -302,10 +306,12 @@ func _test_cargo_container_batch(berths: Node3D, audit: Dictionary) -> void:
 	var presentation := audit.get("service_presentation", {}) as Dictionary
 	_check(
 		batch != null and container_mesh != null
-		and container_mesh.size.is_equal_approx(Vector3(3.0, 3.6, 4.0))
+		and container_mesh.get_aabb().is_equal_approx(
+			AABB(Vector3(-1.5, -1.8, -2.0), Vector3(3.0, 3.6, 4.0))
+		)
+		and container_mesh.get_surface_count() == FreightContainerKit.SURFACE_COUNT
 		and batch.multimesh.instance_count == 7 and transforms_exact
-		and material != null and material.albedo_color.is_equal_approx(Color("2f5966"))
-		and is_equal_approx(material.metallic, 0.58) and not material.emission_enabled
+		and batch.material_override == null
 		and batch.cast_shadow == GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		and batch.get_child_count() == 0
 		and bool(batch.get_meta(&"visual_detail_only", false))
@@ -313,15 +319,52 @@ func _test_cargo_container_batch(berths: Node3D, audit: Dictionary) -> void:
 			== &"dock_04_cargo_containers",
 		"Dock 04 stows all seven exact cargo-container copies and transforms in one childless visual batch"
 	)
+	# The freight finish, checked where a player would read it: three liveries
+	# across the seven units, cast steel shared by all of them, and a stencil plate
+	# that is neither tinted by the livery nor part of the panel family.
+	var body_surface := container_mesh.surface_get_material(
+		FreightContainerKit.SURFACE_BODY
+	) as StandardMaterial3D if container_mesh != null else null
+	var casting_surface := container_mesh.surface_get_material(
+		FreightContainerKit.SURFACE_CASTING
+	) as StandardMaterial3D if container_mesh != null else null
+	var stencil_surface := container_mesh.surface_get_material(
+		FreightContainerKit.SURFACE_STENCIL
+	) as StandardMaterial3D if container_mesh != null else null
+	var operators := batch.get_meta(&"freight_operator_indices", []) as Array \
+		if batch != null else []
+	var livery_spread := {}
+	for entry in operators:
+		livery_spread[int(entry)] = true
+	_check(
+		body_surface != null and body_surface.vertex_color_use_as_albedo
+		and body_surface.albedo_color.is_equal_approx(Color.WHITE)
+		and casting_surface != null
+		and casting_surface.albedo_color.is_equal_approx(FreightContainerKit.CASTING_COLOR)
+		and not casting_surface.vertex_color_use_as_albedo
+		and stencil_surface != null and not stencil_surface.vertex_color_use_as_albedo
+		and not stencil_surface.uv1_triplanar
+		and stencil_surface.albedo_texture != null
+		and stencil_surface.albedo_texture.resource_path \
+			== "res://assets/ships/markings/freight-yard.svg"
+		and batch.multimesh.use_colors
+		and operators.size() == 7 and livery_spread.size() == 3,
+		"the seven containers wear all three freight liveries over shared cast steel and the yard's stencilled plate"
+	)
 	_check(
 		int(presentation.get("renderer_nodes_before", -1)) == 85
 		and int(presentation.get("renderer_nodes_after", -1)) == 15
 		and int(presentation.get("renderer_node_delta", 0)) == -70
 		and int(presentation.get("geometry_submissions_before", -1)) == 85
-		and int(presentation.get("geometry_submissions_after", -1)) == 15
-		and int(presentation.get("geometry_submission_delta", 0)) == -70
+		# 15 renderer nodes, 18 submissions: the container shell is the one mesh in
+		# the roster that carries more than one surface, because its four finishes
+		# cannot share one. Measured off the live meshes rather than asserted from
+		# the node count.
+		and int(presentation.get("geometry_submissions_after", -1)) == 18
+		and int(presentation.get("measured_geometry_submissions", -1)) == 18
+		and int(presentation.get("geometry_submission_delta", 0)) == -67
 		and int(presentation.get("visible_mesh_copies", -1)) == 85,
-		"batching draws all 85 service copies from 15 renderer submissions"
+		"batching draws all 85 service copies from 15 renderers and 18 submissions"
 	)
 	_check(
 		service != null
@@ -376,13 +419,13 @@ func _test_launch_rail_batch(berths: Node3D, audit: Dictionary) -> void:
 		and int(presentation.get("renderer_nodes_after", -1)) == 15
 		and int(presentation.get("renderer_node_delta", 0)) == -70
 		and int(presentation.get("geometry_submissions_before", -1)) == 85
-		and int(presentation.get("geometry_submissions_after", -1)) == 15
-		and int(presentation.get("geometry_submission_delta", 0)) == -70
+		and int(presentation.get("geometry_submissions_after", -1)) == 18
+		and int(presentation.get("geometry_submission_delta", 0)) == -67
 		and int(presentation.get("mesh_resource_allocations_before", -1)) == 12
 		and int(presentation.get("mesh_resource_allocations_after", -1)) == 12
 		and int(presentation.get("mesh_resource_delta", 0)) == 0
 		and int(presentation.get("visible_mesh_copies", -1)) == 85,
-		"the rail, container, apron and lane families draw 85 service copies from 15 renderers and 12 mesh resources"
+		"the rail, container, apron and lane families draw 85 service copies from 15 renderers, 18 submissions and 12 mesh resources"
 	)
 	_check(
 		service != null
