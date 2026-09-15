@@ -5,7 +5,14 @@ extends SceneTree
 ## be reviewed by eye. Headless assertions do not establish readability.
 
 const Palette := preload("res://scripts/ui/hud_palette.gd")
-const OUTPUT_DIR := "res://artifacts/accessibility"
+const DEFAULT_OUTPUT_DIR := "res://artifacts/accessibility"
+## `ACCESSIBILITY_CAPTURE_DIR` redirects the PNGs (an absolute path is fine);
+## `ACCESSIBILITY_CAPTURE_SET=presentation` renders only the piloting-state
+## contrast/reticle pair; `ACCESSIBILITY_CAPTURE_SIZE=WxH` sizes the viewport.
+var _output_dir := DEFAULT_OUTPUT_DIR
+## Every capture is checked for a blank frame: the count of distinct colours on
+## a sampling grid is printed, and a uniform frame is reported as such.
+var _blank_frames := 0
 
 
 func _init() -> void:
@@ -13,7 +20,24 @@ func _init() -> void:
 
 
 func _run() -> void:
-	DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path(OUTPUT_DIR))
+	var override_dir := OS.get_environment("ACCESSIBILITY_CAPTURE_DIR")
+	if not override_dir.is_empty():
+		_output_dir = override_dir
+	DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path(_output_dir))
+	var size_override := OS.get_environment("ACCESSIBILITY_CAPTURE_SIZE")
+	if size_override.contains("x"):
+		var parts := size_override.split("x")
+		var requested := Vector2i(int(parts[0]), int(parts[1]))
+		root.content_scale_aspect = Window.CONTENT_SCALE_ASPECT_EXPAND
+		root.content_scale_size = requested
+		root.size = requested
+		await process_frame
+		await process_frame
+		print("CAPTURE_VIEWPORT ", root.get_visible_rect().size)
+	if OS.get_environment("ACCESSIBILITY_CAPTURE_SET") == "presentation":
+		await _capture_presentation_pair()
+		_finish()
+		return
 	var hud := GameHUD.new()
 	hud.name = "AccessibilityCaptureHUD"
 	root.add_child(hud)
@@ -85,8 +109,68 @@ func _run() -> void:
 
 	hud.queue_free()
 	await process_frame
+	await _capture_presentation_pair()
+	_finish()
+
+
+func _finish() -> void:
+	if _blank_frames > 0:
+		print("CAPTURE_ACCESSIBILITY_PRESETS_FAILED: %d blank frame(s)" % _blank_frames)
+		quit(1)
+		return
 	print("CAPTURE_ACCESSIBILITY_PRESETS_OK")
 	quit(0)
+
+
+## The piloting HUD as authored (palette `none`, contrast off, standard reticle)
+## beside the high-contrast HUD with the large reticle, on the same telemetry,
+## so the opaque backings, outlined text and wider reticle can be compared.
+func _capture_presentation_pair() -> void:
+	var hud := GameHUD.new()
+	hud.name = "AccessibilityPresentationCaptureHUD"
+	root.add_child(hud)
+	await process_frame
+	hud.set("_started", true)
+	(hud.get("_intro") as Control).visible = false
+	(hud.get("_hud") as Control).visible = true
+	hud.set_mode("piloting")
+	hud.set_ship_identity("Torrent-class Interceptor", "Interceptor")
+	hud.set_objective("Return to the central berth and shut down", "CURRENT OBJECTIVE")
+	hud.set_target_count(2, 3)
+	hud.set_interaction("[ E ]  DOCK TORRENT", true)
+	hud.set_enemy_status("RANGE DEFENCE INTERCEPTOR", 22.0, 100.0, true)
+	hud.set_target_lock_state(&"acquired", "RANGE DEFENDER")
+	hud.set_engine_state("STARTING")
+	hud.update_ship_telemetry({
+		"speed": 74.0,
+		"altitude": 318.0,
+		"throttle": -0.65,
+		"hull": 52.0,
+		"maximum_hull": 100.0,
+		"damage_status": "damaged",
+		"engine_power": 0.62,
+		"engine_state": "STARTING",
+	})
+	for entry in [
+		{"label": "hud_piloting_standard_none", "high_contrast_hud": false, "reticle_style": &"standard"},
+		{"label": "hud_piloting_high_contrast_large", "high_contrast_hud": true, "reticle_style": &"large"},
+	]:
+		hud.set_accessibility({
+			"colorblind_palette_id": Palette.MODE_NONE,
+			"high_contrast_hud": bool(entry["high_contrast_hud"]),
+			"reticle_style": StringName(entry["reticle_style"]),
+		})
+		var reticle := hud.get_sensor_reticle_component_snapshot()
+		print(
+			"CAPTURE_STATE %s high_contrast=%s reticle=%s marks=%d footprint=%.0f"
+			% [
+				entry["label"], hud.is_high_contrast_hud(), reticle["style"],
+				int(reticle["mark_count"]), float(reticle["footprint"]),
+			]
+		)
+		await _capture(str(entry["label"]))
+	hud.queue_free()
+	await process_frame
 
 
 ## Renders each palette's four state roles side by side, both as authored and as
@@ -148,6 +232,26 @@ func _capture(label: String) -> void:
 	await process_frame
 	await RenderingServer.frame_post_draw
 	var image := root.get_texture().get_image()
-	var path := "%s/%s.png" % [OUTPUT_DIR, label]
-	image.save_png(path)
-	print("CAPTURED: ", path)
+	var path := "%s/%s.png" % [_output_dir, label]
+	var saved := image.save_png(path)
+	var distinct := _distinct_sampled_colours(image)
+	if distinct <= 1:
+		_blank_frames += 1
+	print(
+		"CAPTURED: %s (%dx%d, save=%d, distinct_sampled_colours=%d%s)"
+		% [path, image.get_width(), image.get_height(), saved, distinct, "" if distinct > 1 else ", BLANK"]
+	)
+
+
+## Number of distinct colours on a 64x36 sampling grid. One means a uniform,
+## blank frame; the composed HUD produces hundreds.
+func _distinct_sampled_colours(image: Image) -> int:
+	var seen := {}
+	var columns := 64
+	var rows := 36
+	for row in rows:
+		for column in columns:
+			var x := int((column + 0.5) * image.get_width() / columns)
+			var y := int((row + 0.5) * image.get_height() / rows)
+			seen[image.get_pixel(x, y).to_rgba32()] = true
+	return seen.size()

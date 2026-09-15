@@ -436,10 +436,19 @@ func _test_hud_reticle_styles() -> void:
 				inside_footprint = false
 		_check(clear_of_marks, "the %s state label never overlaps a visible mark" % style)
 		_check(inside_footprint, "every %s mark stays inside the reticle footprint" % style)
+		var footprint := float(layout["footprint"])
 		_check(
-			is_equal_approx(reticle.position.x, -reticle.size.x * 0.5)
-			and is_equal_approx(reticle.pivot_offset.x, reticle.size.x * 0.5),
-			"the %s reticle stays centred on the viewport" % style
+			is_equal_approx(reticle.anchor_left, 0.5) and is_equal_approx(reticle.anchor_top, 0.5)
+			and is_equal_approx(reticle.offset_left, -footprint * 0.5)
+			and is_equal_approx(reticle.offset_right, footprint * 0.5)
+			and is_equal_approx(reticle.offset_top, -footprint * 0.5)
+			and is_equal_approx(reticle.offset_bottom, footprint * 0.5)
+			and is_equal_approx(reticle.size.x, footprint)
+			and is_equal_approx(reticle.pivot_offset.x, footprint * 0.5)
+			and reticle.get_global_rect().get_center().is_equal_approx(
+				(reticle.get_parent() as Control).get_global_rect().get_center()
+			),
+			"the %s reticle stays centred on the viewport after a runtime rebuild" % style
 		)
 		_check(
 			hud.get_sensor_reticle_component_snapshot()["lock_state"] == &"acquired",

@@ -3047,9 +3047,16 @@ func _build_sensor_reticle_marks() -> void:
 	var layout := _sensor_reticle_layout()
 	var footprint := float(layout["footprint"])
 	var nominal_length := float((layout["lengths"] as Dictionary)[&"nominal"])
-	_reticle.position = Vector2(-footprint * 0.5, -footprint * 0.5)
-	_reticle.size = Vector2(footprint, footprint)
-	_reticle.pivot_offset = Vector2(footprint * 0.5, footprint * 0.5)
+	# The reticle is centre-anchored, so it is sized through its offsets: a
+	# `position` assignment would be relative to the parent's top-left once the
+	# HUD is laid out, and a style change at runtime would park the reticle in
+	# the corner. Symmetric offsets keep it on the viewport centre in every style.
+	var half := footprint * 0.5
+	_reticle.offset_left = -half
+	_reticle.offset_top = -half
+	_reticle.offset_right = half
+	_reticle.offset_bottom = half
+	_reticle.pivot_offset = Vector2(half, half)
 	var mark_count := 5 if float(layout["centre_dot"]) > 0.0 else 4
 	for index in mark_count:
 		var geometry := _sensor_reticle_mark_geometry(index, nominal_length)
