@@ -3,9 +3,15 @@ extends SceneTree
 # Resolve the concrete subtype before shared HeroShip references to avoid retained script resources.
 const ArrowShipType := preload("res://scripts/ships/arrow_recon_ship.gd")
 
-## Focused Phase 6 recovery parity against the five production HeroShip scenes.
+## Focused Phase 6 recovery parity across the whole nine-craft production fleet.
 ## It dirties the shared component model and every generic damage-presentation
 ## family, then proves one authoritative reuse restores the same physical craft.
+##
+## The six authored craft arrive from `scenes/ships/*.tscn`. The three Cinder
+## craft are composed from script by `FleetExpansionProductionBinding`, so they
+## are built here the same way that binding builds them. Recovery parity is a
+## fleet-wide contract: a craft that flies in the production rotation has to
+## come back from a loss as clean as any other, however it was composed.
 
 const CRAFT_SCENES := {
 	"TorrentInterceptor": preload("res://scenes/ships/torrent_interceptor.tscn"),
@@ -13,10 +19,20 @@ const CRAFT_SCENES := {
 	"JovianLightFreighter": preload("res://scenes/ships/jovian_light_freighter.tscn"),
 	"ZenithInterceptor": preload("res://scenes/ships/zenith_interceptor.tscn"),
 	"HalyardCrewTransport": preload("res://scenes/ships/halyard_crew_transport.tscn"),
+	"BulwarkHeavyGunship": preload("res://scenes/ships/bulwark_heavy_gunship.tscn"),
 }
+
+const CRAFT_SCRIPTS := {
+	"CinderLightInterceptor": preload("res://scripts/ships/cinder_light_interceptor.gd"),
+	"CinderCargoHauler": preload("res://scripts/ships/cinder_cargo_hauler.gd"),
+	"CinderLongRangeBomber": preload("res://scripts/ships/cinder_long_range_bomber.gd"),
+}
+
+const EXPECTED_CRAFT_COUNT := 9
 
 var _assertions := 0
 var _failures: PackedStringArray = []
+var _exercised: PackedStringArray = []
 
 
 func _init() -> void:
@@ -39,12 +55,36 @@ func _run() -> void:
 		await _exercise_craft(craft_name, craft)
 		craft.queue_free()
 		await process_frame
+	for craft_name: String in CRAFT_SCRIPTS:
+		var craft := (CRAFT_SCRIPTS[craft_name] as GDScript).new() as HeroShip
+		_check(craft != null, "%s production script composes" % craft_name)
+		if craft == null:
+			continue
+		craft.name = craft_name
+		host.add_child(craft)
+		await process_frame
+		await physics_frame
+		# The script-composed craft must install the same shared presentation the
+		# authored scenes carry as a child, or none of the parity below can run.
+		_check(
+			craft.get_damage_presentation() != null,
+			"%s composes the shared damage presentation before the parity sweep" % craft_name
+		)
+		await _exercise_craft(craft_name, craft)
+		craft.queue_free()
+		await process_frame
+	_check(
+		_exercised.size() == EXPECTED_CRAFT_COUNT,
+		"recovery parity enumerates all %d production craft (%s)"
+			% [EXPECTED_CRAFT_COUNT, ", ".join(_exercised)]
+	)
 	host.queue_free()
 	await process_frame
 	_finish()
 
 
 func _exercise_craft(craft_name: String, craft: HeroShip) -> void:
+	_exercised.append(craft_name)
 	var component := craft.get_component_damage()
 	var presentation := craft.get_damage_presentation()
 	var initial_model := component.get_ledger_snapshot()
