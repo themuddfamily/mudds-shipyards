@@ -221,10 +221,14 @@ func accept_committed_origin_rebase(
 		adjusted_actor_sample: Variant,
 		target_generation: int,
 	) -> Dictionary:
+	# A detached, inactive or re-entered binding refuses without retaining
+	# anything: its snapshot must stay byte-identical across the refusal
+	# (common_world_origin_rebase_production_journey_test), and a refusal that
+	# never reached this adapter's own checks is not a diagnostic of them.
 	if not _activated or not is_inside_tree() or is_queued_for_deletion():
-		return _reject_committed_rebase(&"binding_unavailable")
+		return _result(false, &"binding_unavailable")
 	if _tick_active:
-		return _reject_committed_rebase(&"reentrant_call")
+		return _result(false, &"reentrant_call")
 	if not preview is Dictionary or not request is Dictionary \
 			or not adjusted_actor_sample is Dictionary:
 		return _reject_committed_rebase(&"invalid_rebase_contract")
