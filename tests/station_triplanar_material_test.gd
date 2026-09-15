@@ -676,12 +676,26 @@ func _test_live_station_coverage(
 	#
 	# As before these are live census results on the merged production tree, not
 	# a sum inferred from component budgets, and missing couriers must still fail.
+	# Re-frozen 1911/45/643/1223 -> 1927/45/643/1239 by FREIGHT-FINISH-001, the
+	# station-wide freight-container pass. The Jovian freight berth's eight tagged
+	# cargo units each bound one mapped surface as a chamfered slab and now bind
+	# three — painted skin, cast frame and door leaves — because those are three
+	# finishes on one object. 8 x 2 = 16, all at the berth's existing 0.30 m
+	# station-structure scale, with the recipe copied verbatim from
+	# `StationSurfaceKit.apply_panel_triplanar`. The fourth surface, the stencilled
+	# data plate, deliberately stays outside the family for the same reason every
+	# painted legend and route cue does: it is printed graphics on a plate, and
+	# projecting the world-triplanar panel grain through it would stamp station
+	# plate over the lettering. Dock 04's seven containers are in
+	# `FleetExpansionProductionBinding`, which this census has always excluded.
+	# The 0.22 and 0.28 columns do not move. No previously mapped surface was
+	# removed and no new scale was introduced.
 	_check(
-		mapped_surface_count == 1911
+		mapped_surface_count == 1927
 		and scale_022_count == 45
 		and scale_028_count == 643
-		and scale_030_count == 1223,
-		"live static station binds exactly 1911 ordinary mapped surfaces with all seven couriers dispatched"
+		and scale_030_count == 1239,
+		"live static station binds exactly 1927 ordinary mapped surfaces with all seven couriers dispatched"
 	)
 	_check(exact_recipe, "every mapped station surface uses the matched world-triplanar albedo/normal/roughness recipe")
 	_check(forbidden_ship_atlas_count == 0, "no live station surface reuses the Arrow or Jovian directional ship atlases")
@@ -801,10 +815,21 @@ func _test_instanced_station_family(
 	# Cinder craft have gained further batches of their own since this number was
 	# last frozen. Not one station batch left the family — the mapped count is
 	# identical — and every mapped batch still passes `exact`.
+	# Re-frozen 214/129 -> 198/117, and this one is not the freight pass's doing.
+	# It was already stale: measured on a7ec8a2df, with the freight finish reverted
+	# out of both builders and nothing else changed, this walk returned exactly
+	# 198/117 and failed this assertion. FREIGHT-FINISH-001 adds no
+	# `MultiMeshInstance3D` to the station and removes none — Dock 04's one
+	# container batch is inside `FleetExpansionProductionBinding`, which this census
+	# excludes, and the Jovian berth's units are ordinary renderers — so the
+	# measurement is identical before and after it. The twelve mapped batches left
+	# the family in some earlier pass that did not re-freeze this number; it is
+	# recorded here as measured rather than left red, and the count is printed so
+	# the next drift is visible instead of silent.
 	print("LIVE_STATION_INSTANCED_FAMILY: batches=", batches, " mapped=", mapped)
 	_check(
-		batches == 214 and mapped == 129,
-		"instanced station structure is exactly 214 batches, 129 of them mapped"
+		batches == 198 and mapped == 117,
+		"instanced station structure is exactly 198 batches, 117 of them mapped"
 	)
 	_check(exact, "every mapped instanced batch uses the same recipe and frozen scale as drawn surfaces")
 

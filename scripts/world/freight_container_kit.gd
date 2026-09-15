@@ -131,9 +131,18 @@ const DOOR_SHADE := 0.76
 
 ## Proportions. Everything scales with the unit so a 1.2 m rack crate and a 3.6 m
 ## yard container are the same object at two sizes rather than two objects.
-const SKIN_PROPORTION := 0.022
-const SKIN_MINIMUM := 0.022
-const SKIN_MAXIMUM := 0.075
+## Half the crest-to-valley depth of the corrugation, which is also how far the
+## painted skin sits behind the published envelope between ribs. `SKIN_MAXIMUM`
+## is 0.040 rather than the 0.075 the first pass used, for two reasons that agree
+## with each other. It is closer to real formed-sheet proportion — an ISO
+## container's corrugation is about 36 mm deep on a 2.44 m box, and 0.075 gave a
+## 3 m container a 150 mm trench. And the deeper valley was measurably hollow to
+## the chase-camera boom: `tools/camera_intrusion_audit.gd` retracts against drawn
+## geometry, so a skin that stands 150 mm behind its own silhouette is 150 mm the
+## boom can sink into that the box it replaced did not have.
+const SKIN_PROPORTION := 0.014
+const SKIN_MINIMUM := 0.016
+const SKIN_MAXIMUM := 0.040
 const CASTING_PROPORTION := 0.085
 const CASTING_MINIMUM := 0.075
 const CASTING_MAXIMUM := 0.26
@@ -186,6 +195,20 @@ static func operator_for_index(index: int) -> Dictionary:
 
 static func operator_color(index: int) -> Color:
 	return operator_for_index(index)["body_color"] as Color
+
+
+## The same livery for `MultiMesh.set_instance_color`.
+##
+## `albedo_color` is an sRGB property the engine converts for the shader;
+## per-instance colour is not — it arrives in `COLOR` exactly as written and is
+## multiplied into an already-linear albedo. Handing the raw authored value to it
+## paints the container in sRGB numbers read as linear, which is how the first
+## rendered pass of Dock 04 came back in pastel while the Jovian berth's units,
+## which carry the identical values through `albedo_color`, came back in the
+## authored oxide red and navy. Converting here is what keeps one livery table
+## producing one colour at both sites.
+static func operator_instance_color(index: int) -> Color:
+	return operator_color(index).srgb_to_linear()
 
 
 static func operator_marking(index: int) -> String:

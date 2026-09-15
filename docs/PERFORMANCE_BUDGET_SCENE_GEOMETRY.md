@@ -182,12 +182,12 @@ in this document has been raised.**
 
 | Schema-v2 metric | Station resident (0 loaded) | Cinder loaded (1 loaded) | Loaded delta |
 | --- | ---: | ---: | ---: |
-| Triangles | 1,918,333 | 2,052,467 | +134,134 |
+| Triangles | 1,959,449 | 2,093,583 | +134,134 |
 | Mesh renderer nodes | 5,557 | 5,766 | +209 |
-| Surfaces | 5,953 | 6,162 | +209 |
+| Surfaces | 5,980 | 6,189 | +209 |
 | Unique meshes | 3,058 | 3,198 | +140 |
-| Bound-phase materials | 693 | 735 | +42 |
-| Retained/reachable materials | 996 | 1,043 | +47 |
+| Bound-phase materials | 706 | 748 | +42 |
+| Retained/reachable materials | 1,009 | 1,056 | +47 |
 | Unique shaders | 7 | 7 | 0 |
 | Text triangles / instances | 79,591 / 43 | 100,157 / 56 | +20,566 / +13 |
 | Lights / shadow lights | 341 / 20 | 368 / 20 | +27 / 0 |
@@ -210,6 +210,29 @@ carry no renderer, mesh, material, light or particle. Measure this scenario on
 **fresh private user data**: a saved recovery choice left in `user://` by an
 earlier run legitimately adds one HUD control, which moves both node rows and
 both census fingerprints by one.
+
+Re-measured on 2026-09-15 for FREIGHT-FINISH-001, the station-wide
+freight-container finish (Dock 04's seven yard containers and the Jovian freight
+berth's eight tagged cargo units, `scripts/world/freight_container_kit.gd`). The
+pass **adds no renderer node, no scene-tree node, no light, no unique mesh and no
+particle system** — the container shells replace the boxes one for one — so only
+three rows move, and this is what they cost:
+
+- **Triangles +41,116** in each scenario, 1,918,333 → 1,959,449 resident. Dock 04
+  is 7 × (3,504 − 12) = 24,444 and the freight berth is +16,672. That is the
+  price of a container being a frame with corrugated skins hung on it rather than
+  a slab, and it is spent entirely on the two places a player meets freight.
+  Resident triangles move from 6.5% to **8.9% over the 1,800,000 ceiling**; the
+  ceiling is not raised, and the headroom analysis below is unchanged — the
+  remaining bulk is still imported hero art.
+- **Surfaces +27**, 5,953 → 5,980. One shell mesh carries four surfaces because
+  painted skin, cast steel, door leaves and printed plate are four finishes.
+- **Bound +13 / retained +13 materials**, three operator liveries plus one shared
+  casting and four stencil plates, replacing the five module colours the freight
+  used to borrow from the rooms around it.
+
+Textures move 34 → 38 and 83,355,976 → 85,453,128 bytes, exactly 2 MiB, which is
+the four 512 × 256 marking plates `tools/generate_ship_markings.py` now emits.
 
 Measured on `main` on 2026-09-15 with the service-line/registry batches (−49) and
 the ship fitout batches (−96, then +2 for the protected Zenith wing shells) and the chase-lane station collision (+28 nodes) merged on top of the Habitat/Aft batches; the

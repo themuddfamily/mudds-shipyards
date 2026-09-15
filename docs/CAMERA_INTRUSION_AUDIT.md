@@ -244,6 +244,48 @@ Rendered before/after pairs from the three fixed viewpoints per pad are in
 `/root/.cache/mudds-shipyards/pads-root/{before,after}/`, rendered under Xvfb on
 D3D12 (RTX 5070 Ti) with the same pad-local camera spec on both sides.
 
+**Follow-up, FREIGHT-FINISH-001 (Phase 10 §3).** The residual below is about
+where the yard can be *seen from*; the separate residual recorded with that pass
+was about what it looked like once you got there — "the containers are still
+untextured blocks in the station's own teal; the lit ID stripes carry most of the
+'this is freight' signal." That half is now closed. Dock 04's seven containers
+and the Jovian freight berth's eight tagged cargo units build from one shared
+recipe, `scripts/world/freight_container_kit.gd`: corrugated skins, cast corners,
+rails, end frames, a door end with locking bars, three operator liveries and a
+stencilled data plate from the existing marking generator. The lit ID stripes are
+unchanged and now read as one cue among several rather than as the only one.
+
+The three audits, before and after, on the live production world:
+
+| Audit | before | after |
+| --- | --- | --- |
+| `tools/coplanar_seam_audit.gd` | 1,334 pairs, JovianFreightBerth 125 / FleetExpansion 77 | 1,334 pairs, **same 125 / 77**, zero pairs naming any container node on either side |
+| `tools/station_walkability_sweep.gd` | 82 surfaces, 135,137 cells, 39,939 blocked, 19 findings | identical on every row |
+| `tools/camera_intrusion_audit.gd` | 24 `near_plane_in_world_mesh`, 6 `camera_sphere_in_own_hull` | 25 / 6 |
+
+That camera row is a real +1 and is recorded as one rather than rounded away.
+What it is **not** is a container finding: no finding in either run names a
+container, and the craft parked at Dock 04 (`cinder_cargo_hauler`, 3 findings)
+and at the freight berth (`jovian_provisional`, 5) are unchanged. The extra group
+is `arrow_provisional` against `TargetDrone01/DroneVisual/DressingRenderBatch01`
+at `[-14.22, 7.95, -95.26]`, 0.461 m deep, one sample at 32:9 — the exterior
+range drone class already **Accepted** above, at a position six other craft
+already report. The mechanism is the chase boom, not the drone: a container is
+now a frame with skins on it rather than a solid slab, so the arm's shape sweep
+retracts against it slightly differently (the Arrow's lane goes 252 → 250
+retracted samples out of 16,863), and two samples of lag state later the boom
+grazes a drone it previously cleared by centimetres. Both sides were measured
+twice and reproduce exactly, and halving the corrugation depth (0.075 → 0.040 m,
+kept because it is closer to real formed-sheet proportion) did not move it, so
+the cause is the frame-and-skin construction itself and not the valley depth.
+
+Rendered before/after pairs — the Dock 04 walker, the whole yard, the hauler's
+chase range, the freight berth's rack line and one unit at arm's length, and the
+Cinder cargo terminal — are in
+`/root/.cache/mudds-shipyards/containers-root/{before,after}-{forward,compat}/`,
+Forward+ on llvmpipe and Compatibility on D3D12 (RTX 5070 Ti), same camera
+transforms on both sides.
+
 **Honest residual:** Dock 04's container yard still cannot be seen from the
 chase camera or the station long view. It is screened by the VIP reception suite
 and the Aft junction stack, and the strip it stands on is the only free ground

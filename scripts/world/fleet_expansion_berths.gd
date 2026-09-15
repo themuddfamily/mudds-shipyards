@@ -2139,7 +2139,8 @@ func _build_cargo_container_batch(service: Node3D) -> void:
 	for index in CARGO_CONTAINER_TRANSFORMS.size():
 		multimesh.set_instance_transform(index, CARGO_CONTAINER_TRANSFORMS[index])
 		multimesh.set_instance_color(
-			index, FreightContainerKit.operator_color(CARGO_CONTAINER_OPERATORS[index])
+			index,
+			FreightContainerKit.operator_instance_color(CARGO_CONTAINER_OPERATORS[index])
 		)
 
 
