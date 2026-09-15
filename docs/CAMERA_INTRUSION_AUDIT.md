@@ -34,7 +34,7 @@ world renderers at their own bounding-box centres first (91.3 % contained), so
 an empty result is a clean scene rather than a dead detector.
 
 Coverage of the last run: 9 craft, 5,963 renderers, 154,497 chase samples,
-2.9 M near-plane point tests, 13.1 s. Lanes are `berth_rest`, `assist_descent`,
+2.9 M near-plane point tests, 11.3 s. Lanes are `berth_rest`, `assist_descent`,
 `launch_climb`, `outbound_route` and `inbound_route`, each sampled across the
 three zoom stops, seven reachable boom offsets (rotation lag and velocity bank)
 and the hull attitudes the berth's own `assist_maximum_tilt_degrees` permits.
@@ -43,8 +43,11 @@ berth.
 
 ## Findings
 
-29 grouped findings, down from 48 before the station-geometry pass below.
-No `camera_sphere_in_world_collision` and no
+29–30 grouped findings, down from 48 before the station-geometry pass below,
+and across 8 targets instead of 16. The number varies by one group between runs
+because the range drones patrol a closed-form orbit, so the shallow grazes on
+them are sampled at slightly different positions; the *target* set does not
+vary. No `camera_sphere_in_world_collision` and no
 `spring_arm_collapse_at_rest` anywhere: the arm keeps its sweep sphere clear of
 every solid body, and every craft resolves its full requested rest arm at its
 berth (15.34–22.00 m against readability floors of 4.50–11.00 m). The cockpit rig and the cabin-exit rig are clean on all
@@ -170,10 +173,34 @@ any future move to `expand` is taken knowing it widens the near plane by 2×.
 ## Rendered confirmation
 
 `.godot/camera_intrusion_capture.gd` (scratch, not shipped) re-stages the worst
-ten findings at their recorded hull poses through each craft's own production
-camera and renders a three-frame sweep: centred boom, the audit's boom offset,
-and one frame of hull yaw so the moving clip plane makes the intrusion legible.
-Rendered under Xvfb on D3D12 (RTX 5070 Ti) to
+findings at their recorded hull poses through each craft's own production camera
+and renders a three-frame sweep: centred boom, the audit's boom offset, and one
+frame of hull yaw so the moving clip plane makes the intrusion legible. Rendered
+under Xvfb on D3D12 (RTX 5070 Ti).
+
+The first pass covered the worst ten findings, in
 `/root/.cache/mudds-shipyards/camera-audit-root/`. The reproduced camera lands
 within 0.00–0.45 m of the audited position on all ten, and the Jovian fix is
 captured as a frozen before/after pair at the two candidate roofs.
+
+The station-geometry pass re-ran the two worst station findings as a true
+before/after pair — the same spec, the same recorded poses, once with
+`scripts/world/fleet_expansion_berths.gd` at 6fbc4c7 and once with the fix — into
+`/root/.cache/mudds-shipyards/camera-lanes-root/{before,after}/`. Both craft
+reproduce the audited camera to 0.01 m and 0.45 m on the boom-lag frame.
+
+The verdict is not subtle, because a camera *inside* a closed box sees its
+back-faces culled and renders the box as a flat unlit slab across the frame.
+On the hauler's yaw-sweep frame the pre-fix render is a hard-edged dark plane
+covering the entire left half of the screen — the inside of `LaunchFramePort`
+— and the post-fix render of the same pose is clean starfield. Changed pixels
+per frame pair, at a threshold of 12/255:
+
+| Frame | Changed |
+| --- | --- |
+| `f02` hauler / `LaunchFramePort`, centred | 0.63 % |
+| `f02` hauler / `LaunchFramePort`, boom lag | 0.93 % |
+| `f02` hauler / `LaunchFramePort`, yaw sweep | **34.37 %** |
+| `f05` Zenith / `CargoContainerBatch`, centred | 22.44 % |
+| `f05` Zenith / `CargoContainerBatch`, boom lag | 10.44 % |
+| `f05` Zenith / `CargoContainerBatch`, yaw sweep | 17.31 % |
