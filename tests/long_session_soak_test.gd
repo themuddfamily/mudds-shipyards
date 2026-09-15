@@ -417,6 +417,24 @@ func _run_cycle(
 			"cycle %d loses and recovers %s through the berth regeneration lifecycle"
 				% [cycle + 1, craft_id]
 		)
+		# Boardable is not the same as clean. A regenerated craft the player is
+		# about to fly again must also come back with its component ledger on a
+		# fresh generation, every section nominal, and no damage-presentation
+		# residue - otherwise the next sortie starts on a craft that still
+		# carries the last one's smoke, sparks or failed-section shards.
+		var component_recovery := craft.get_component_recovery_report()
+		_check(
+			bool(component_recovery.get("valid", false)),
+			"cycle %d regenerates %s with a clean component ledger and presentation (%s)"
+				% [
+					cycle + 1,
+					craft_id,
+					", ".join(
+						component_recovery.get("errors", PackedStringArray())
+							as PackedStringArray
+					),
+				]
+		)
 		if not _destroyed_craft_ids.has(craft_id):
 			_destroyed_craft_ids.append(craft_id)
 		notes.append("destroyed_and_recovered")

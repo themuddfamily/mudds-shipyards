@@ -4,9 +4,14 @@ extends SceneTree
 const ArrowShipType := preload("res://scripts/ships/arrow_recon_ship.gd")
 
 ## Focused production binding for repair interruption. The shared HeroShip
-## damage seam is exercised on the original five-craft fleet, then a real
+## damage seam is exercised on every craft in the production fleet, then a real
 ## authority-admitted Jovian engineer repair proves immediate semantic/network
 ## feedback and restartability. No GameFlow or broad gameplay matrix is loaded.
+##
+## A repair that a fresh hit does not interrupt silently hands the player back a
+## craft that was never actually fixed, so the seam is checked on every hull the
+## player can fly - including the three Cinder craft, which are composed from
+## script rather than instanced from `scenes/ships/*.tscn`.
 
 const TORRENT_SCENE := preload("res://scenes/ships/torrent_interceptor.tscn")
 const ARROW_SCENE := preload("res://scenes/ships/arrow_recon_ship.tscn")
@@ -20,13 +25,27 @@ const RepairPresentationType := preload(
 	"res://scripts/ships/jovian_engineer_repair_presentation.gd"
 )
 
-const FIVE_CRAFT := [
+const BULWARK_SCENE := preload("res://scenes/ships/bulwark_heavy_gunship.tscn")
+const CINDER_INTERCEPTOR_SCRIPT := preload(
+	"res://scripts/ships/cinder_light_interceptor.gd"
+)
+const CINDER_HAULER_SCRIPT := preload("res://scripts/ships/cinder_cargo_hauler.gd")
+const CINDER_BOMBER_SCRIPT := preload("res://scripts/ships/cinder_long_range_bomber.gd")
+
+const AUTHORED_CRAFT := [
 	TORRENT_SCENE,
 	ARROW_SCENE,
 	JOVIAN_SCENE,
 	ZENITH_SCENE,
 	HALYARD_SCENE,
+	BULWARK_SCENE,
 ]
+const COMPOSED_CRAFT := [
+	CINDER_INTERCEPTOR_SCRIPT,
+	CINDER_HAULER_SCRIPT,
+	CINDER_BOMBER_SCRIPT,
+]
+const EXPECTED_CRAFT_COUNT := 9
 
 var _checks := 0
 var _failures: Array[String] = []
@@ -36,18 +55,32 @@ func _init() -> void:
 	call_deferred("_run")
 
 
+var _bound_craft: PackedStringArray = []
+
+
 func _run() -> void:
-	for craft_scene: PackedScene in FIVE_CRAFT:
-		await _test_shared_hero_binding(craft_scene)
+	for craft_scene: PackedScene in AUTHORED_CRAFT:
+		await _test_shared_hero_binding(
+			craft_scene.instantiate() as HeroShip, craft_scene.resource_path
+		)
+	for craft_script: GDScript in COMPOSED_CRAFT:
+		await _test_shared_hero_binding(
+			craft_script.new() as HeroShip, craft_script.resource_path
+		)
+	_check(
+		_bound_craft.size() == EXPECTED_CRAFT_COUNT,
+		"repair interruption is bound on all %d production craft (%s)"
+			% [EXPECTED_CRAFT_COUNT, ", ".join(_bound_craft)]
+	)
 	await _test_live_jovian_engineer_binding()
 	_finish()
 
 
-func _test_shared_hero_binding(craft_scene: PackedScene) -> void:
-	var craft := craft_scene.instantiate() as HeroShip
-	_check(craft != null, "%s instantiates through HeroShip" % craft_scene.resource_path)
+func _test_shared_hero_binding(craft: HeroShip, source_path: String) -> void:
+	_check(craft != null, "%s instantiates through HeroShip" % source_path)
 	if craft == null:
 		return
+	_bound_craft.append(source_path.get_file().get_basename())
 	root.add_child(craft)
 	await process_frame
 	var model := craft.get_component_damage()

@@ -2,12 +2,23 @@ extends SceneTree
 
 const ShipComponentDamageType := preload("res://scripts/combat/ship_component_damage.gd")
 
+## Every craft in the production flyable rotation, by live node name, paired
+## with the section this sweep fails on it. The six authored craft are direct
+## Main children; the three Cinder craft are composed from script under
+## `FleetExpansionProductionBinding` a few frames later. Each Cinder is failed
+## on the section that matters most for its role - the hauler's engine bay, the
+## bomber's strike wing, the interceptor's port wing - so a player loses a
+## readable piece of the silhouette, not just a HUD number.
 const CRAFT_COMPONENTS := {
 	"TorrentInterceptor": ShipComponentDamageType.COMPONENT_FORWARD_HULL,
 	"ArrowReconShip": ShipComponentDamageType.COMPONENT_PORT_WING,
 	"JovianLightFreighter": ShipComponentDamageType.COMPONENT_STARBOARD_WING,
 	"ZenithInterceptor": ShipComponentDamageType.COMPONENT_CORE_SYSTEMS,
 	"HalyardCrewTransport": ShipComponentDamageType.COMPONENT_ENGINE_BAY,
+	"BulwarkHeavyGunship": ShipComponentDamageType.COMPONENT_FORWARD_HULL,
+	"cinder_light_interceptor": ShipComponentDamageType.COMPONENT_PORT_WING,
+	"cinder_cargo_hauler": ShipComponentDamageType.COMPONENT_ENGINE_BAY,
+	"cinder_long_range_bomber": ShipComponentDamageType.COMPONENT_STARBOARD_WING,
 }
 
 var _assertions := 0
@@ -29,9 +40,18 @@ func _run() -> void:
 	await process_frame
 	await physics_frame
 
+	var fleet := await _resolve_production_fleet(game)
+	_check(
+		fleet.size() == CRAFT_COMPONENTS.size(),
+		"the production rotation admits all %d craft before the silhouette sweep (%d)"
+			% [CRAFT_COMPONENTS.size(), fleet.size()]
+	)
 	var profile_signatures: Dictionary = {}
 	for craft_name: String in CRAFT_COMPONENTS:
-		var craft := game.get_node(craft_name) as HeroShip
+		var craft := fleet.get(craft_name) as HeroShip
+		_check(craft != null, "%s joins the production flyable rotation" % craft_name)
+		if craft == null:
+			continue
 		var component_id: StringName = CRAFT_COMPONENTS[craft_name]
 		craft.set_physics_process(false)
 		craft.set("_landed", false)
@@ -78,9 +98,14 @@ func _run() -> void:
 		)
 		profile_signatures[_profile_signature(shards)] = true
 
+	# One geometry pattern per section, not per craft: several craft now fail the
+	# same section, and two craft losing an engine bay have to read identically.
+	var swept_components: Dictionary = {}
+	for craft_name: String in CRAFT_COMPONENTS:
+		swept_components[CRAFT_COMPONENTS[craft_name]] = true
 	_check(
-		profile_signatures.size() == CRAFT_COMPONENTS.size(),
-		"forward, port, starboard, core, and engine failures have five non-color geometry patterns"
+		profile_signatures.size() == swept_components.size(),
+		"forward, port, starboard, core, and engine failures each keep their own non-color geometry pattern"
 	)
 	var budget := (
 		(game.get_node("TorrentInterceptor") as HeroShip)
@@ -152,7 +177,9 @@ func _run() -> void:
 	)
 
 	for craft_name: String in CRAFT_COMPONENTS:
-		var craft := game.get_node(craft_name) as HeroShip
+		var craft := fleet.get(craft_name) as HeroShip
+		if craft == null:
+			continue
 		var reset := craft.reset_for_reuse(craft.global_transform)
 		var presentation := craft.get_damage_presentation()
 		_check(
@@ -181,6 +208,22 @@ func _profile_signature(shards: Array) -> String:
 	for shard_record: Dictionary in shards:
 		parts.append(str(shard_record.get("transform", Transform3D.IDENTITY)))
 	return "|".join(parts)
+
+
+
+## Resolves the live flyable rotation by node name. The Cinder craft join it
+## through deferred production composition, so the roster is awaited rather
+## than read on the first frame.
+func _resolve_production_fleet(game: GameFlow) -> Dictionary:
+	var deadline := Time.get_ticks_msec() + 8000
+	while Time.get_ticks_msec() < deadline \
+			and game.get_flyable_ships().size() < CRAFT_COMPONENTS.size():
+		await physics_frame
+		await process_frame
+	var fleet := {}
+	for craft: HeroShip in game.get_flyable_ships():
+		fleet[String(craft.name)] = craft
+	return fleet
 
 
 func _check(condition: bool, message: String) -> void:
