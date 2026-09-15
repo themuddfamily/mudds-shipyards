@@ -36,15 +36,33 @@ frame change.
 ## API and lifecycle
 
 `GameFlow.engage_planetary_cruise()` and
-`GameFlow.disengage_planetary_cruise(brake_to_stop)` remain the only production
-request seams. The existing pause navigation has one controller-focusable
-`EMBER CRUISE` toggle that emits a typed monotonic request serial; it adds no
-`InputMap` action and reads no raw `Input`. `GameFlow` synchronously rechecks
-the live report and gates before calling engage or `disengage(true)`, while
-replayed or skipped serials cannot toggle twice. There is no automatic engage.
-Engage requires the exact live, piloted active ship in departed free flight, no
-landing request/assist, no live combat, no recovery, no running activity, and
-no pending origin transaction.
+`GameFlow.disengage_planetary_cruise(brake_to_stop)` remain the detached request
+seams for cruise itself. The player-facing destination seam is the pause
+navigation's one controller-focusable `EMBER CRUISE` toggle, mirrored by the
+Destination Board's `LAUNCH EXPEDITION` row for the same `ember_moon` route;
+both emit the same typed monotonic request serial, add no `InputMap` action and
+read no raw `Input`. `GameFlow` synchronously rechecks the live report and gates
+before acting, while replayed or skipped serials cannot toggle twice. There is
+no automatic engage. Admission requires the exact live, piloted active ship in
+departed free flight, no landing request/assist, no live combat, no recovery, no
+running activity, and no pending origin transaction.
+
+A press on a ready row starts the complete retained expedition through
+`GameFlow.begin_ember_surface_journey()` — the surface `Host`, the
+`ActivityDirector`, the reward authority, the streaming binding and this cruise
+binding, not a detached flight demo — and publishes the standing
+`EMBER EXPEDITION` objective plus the first-time activity briefing card for
+`ember_beacon_survey` on the same channel every other activity uses. A press
+while an expedition is live abandons it through
+`GameFlow.abandon_ember_surface_journey()`; the rule that seam implements is
+documented on `PlanetaryJourneyCoordinator.abandon_ember_surface_journey()` and
+in `EMBER_SURFACE_LOOP_HOST.md`. Refusals surface through the existing
+`EMBER CRUISE UNAVAILABLE` toast and its bounded public gate vocabulary.
+
+An abandoned expedition's way home is this binding's Mudds return approach, armed
+directly rather than through the completed loop's station-return contract, which
+an abandoned visit never earned. Its completion hands the last leg to the
+ordinary registered-berth landing lifecycle with no physical-arrival receipt.
 
 The HUD receives presentation only. Its exact detached state vocabulary is
 `READY — EMBER MOON`, `QUEUED`, `ACCELERATING`, `CRUISING`,

@@ -76,6 +76,7 @@ const LANDING_TICK_BUDGET := 2400
 const DISEMBARK_TICK_BUDGET := 600
 const SURFACE_WALK_TICK_BUDGET := 900
 const REBOARD_TICK_BUDGET := 600
+const ABANDON_TICK_BUDGET := 2400
 const ASCENT_TICK_BUDGET := 6000
 const RETURN_TICK_BUDGET := 2400
 
@@ -173,19 +174,6 @@ class MemoryFilesystem extends UserDataFilesystem:
 		return OK
 
 
-## The completed station-return the visit-scoped surface composition asks for
-## before it will retire. The soak stops at the authored survey gate, so the real
-## return never happens; this is the same terminal boundary
-## `ember_surface_loop_repeat_cycle_test` models to prove the retained Main
-## admits a second visit.
-class TerminalReturnAdapter extends RefCounted:
-	func get_snapshot() -> Dictionary:
-		return {
-			"physical_arrival_completed": true,
-			"contract_completed": true,
-		}.duplicate(true)
-
-
 ## One cycle's live sampler. Everything the soak asserts about continuity is
 ## accumulated here, one physics tick at a time, so a defect is attributed to the
 ## tick that produced it rather than to an end-state snapshot.
@@ -280,6 +268,8 @@ var _reward_receipts := 0
 var _survey_gated_cycles := 0
 var _repeat_visit_handoff_stops := 0
 var _reentry_terminal_stops := 0
+var _abandoned_expeditions := 0
+var _repeat_visit_origin_stops := 0
 var _trace := false
 
 
@@ -467,50 +457,33 @@ func _run_cycle(
 	leg_started = Time.get_ticks_msec()
 	var activated := await _stage_orbital_approach(game, craft, cruise, sampler)
 	leg_msec["approach"] = Time.get_ticks_msec() - leg_started
-	if cycle == 0:
-		_check(
-			activated,
-			"cycle %d streams Ember, commits the common-world rebase and activates the real final approach"
-				% [cycle + 1]
-		)
+	# Every cycle must get through, not just the first. A retained `Main` that
+	# only ever admitted one expedition per session was the repeat-visit defect
+	# this soak recorded; the production abandon closes each cycle in place, so a
+	# later cycle failing here is a hard failure like any other.
+	_check(
+		activated,
+		"cycle %d streams Ember, commits the common-world rebase and activates the real final approach"
+			% [cycle + 1]
+	)
 	if not activated:
-		# The retained Main does not re-admit an expedition after the first one of
-		# a session: the journey stays pending and the cruise binding never arms.
-		# That is the same repeat-visit gap recorded below, reached one leg
-		# earlier, and it is asserted as such — a first-cycle activation failure
-		# is still a hard failure.
-		_check(
-			cycle > 0,
-			"cycle %d only ever fails its approach activation as a recorded repeat-visit boundary"
-				% [cycle + 1]
-		)
 		_repeat_visit_handoff_stops += 1
-		stopped_at = &"repeat_visit_approach" if cycle > 0 \
-			else &"final_approach_activation"
+		stopped_at = &"final_approach_activation"
 		await _abort_journey(game, player)
 		_record_cycle(game, sampler, cycle, craft, notes, leg_msec, started_msec, stopped_at)
 		return
 
 	var handed_off := await _stage_corridor_entry(game, craft, host, sampler)
+	var approach_state := cruise.get_snapshot().get("final_approach", {}) as Dictionary
+	_check(
+		handed_off,
+		"cycle %d hands the completed final approach off to the surface Host (completions %d, host phase %d)"
+			% [
+				cycle + 1, int(approach_state.get("completion_count", 0)),
+				host.get_phase(),
+			]
+	)
 	if not handed_off:
-		# A repeat visit by the retained Main consumes its final-approach
-		# completion but never starts the Host. The first expedition of a session
-		# always does, so this is a second-visit defect, not a broken loop, and it
-		# is recorded by name rather than swallowed: `docs/EMBER_LOOP_SOAK.md`
-		# carries it as a remaining gap. A first-cycle handoff failure is still a
-		# hard failure.
-		var cruise_state := cruise.get_snapshot()
-		var approach_state := cruise_state.get("final_approach", {}) as Dictionary
-		_check(
-			cycle > 0 and int(approach_state.get("completion_count", 0)) > 1
-				and bool(approach_state.get("completion_consumed", false))
-				and host.get_phase() == EmberSurfaceLoopHost.Phase.IDLE,
-			"cycle %d only ever fails its handoff as a recorded repeat-visit boundary (completions %d, host phase %d)"
-				% [
-					cycle + 1, int(approach_state.get("completion_count", 0)),
-					host.get_phase(),
-				]
-		)
 		_repeat_visit_handoff_stops += 1
 		stopped_at = &"repeat_visit_handoff"
 		await _abort_journey(game, player)
@@ -522,20 +495,17 @@ func _run_cycle(
 		game, sampler, host, EmberSurfaceLoopHost.Phase.LANDED, LANDING_TICK_BUDGET
 	)
 	leg_msec["land"] = Time.get_ticks_msec() - leg_started
-	_check(landed, "cycle %d lands on the caldera pad through the real berth lease and landing assist"
-		% [cycle + 1])
 	if landed:
+		_check(
+			true,
+			"cycle %d lands on the caldera pad through the real berth lease and landing assist"
+				% [cycle + 1]
+		)
 		_assert_landing_support(game, craft, cycle)
 	else:
-		var host_snapshot := host.get_snapshot()
-		push_error("EMBER_SOAK landing stopped: phase=%d terminal=%s last=%s berth=%s telemetry=%s binding=%s" % [
-			host.get_phase(), host_snapshot.get("terminal", {}),
-			host_snapshot.get("last_result", {}),
-			host_snapshot.get("berth", {}),
-			craft.get_telemetry(),
-			binding.get_caller_snapshot().get("last_result", {}),
-		])
-		stopped_at = &"caldera_landing"
+		_assert_repeat_visit_origin_boundary(game, host, craft, cycle)
+		_repeat_visit_origin_stops += 1
+		stopped_at = &"repeat_visit_origin_rebase"
 		await _abort_journey(game, player)
 		_record_cycle(game, sampler, cycle, craft, notes, leg_msec, started_msec, stopped_at)
 		return
@@ -575,12 +545,6 @@ func _run_cycle(
 		stopped_at = &"authored_survey_gate"
 		_assert_survey_gated_reboard(game, player, host, binding, craft, cycle)
 		_survey_gated_cycles += 1
-		var cancelled := game.cancel_ember_surface_journey()
-		for _settle in 12:
-			await physics_frame
-			await process_frame
-			_sample(game, sampler)
-		_assert_no_stranded_actor(game, player, host, craft, cancelled, cycle)
 		# The surface save and whole-`Main` re-entry run here, at the gate, with
 		# the pilot on foot on Ember: it is the deepest point of the loop this
 		# soak reaches, and so the hardest state for a re-entry to carry.
@@ -591,6 +555,36 @@ func _run_cycle(
 			):
 				notes.append("reentry")
 			leg_msec["reentry"] = Time.get_ticks_msec() - leg_started
+		# The production abandon. Every cycle takes the same exit a player takes
+		# when they give up on the survey, through the same pause-menu seam.
+		leg_started = Time.get_ticks_msec()
+		var abandoned := game.abandon_ember_surface_journey(&"player_abandoned")
+		for _settle in 12:
+			await physics_frame
+			await process_frame
+			_sample(game, sampler)
+		_assert_abandon_pending_on_the_surface(
+			game, player, host, binding, craft, abandoned, cycle
+		)
+		var boarded_home := await _reboard_after_abandon(
+			game, player, host, craft, sampler
+		)
+		_check(
+			boarded_home,
+			"cycle %d re-boards at the caldera through the lifted abandon gate"
+				% [cycle + 1]
+		)
+		var released := await _advance_until_abandon_commits(game, sampler, host)
+		leg_msec["abandon"] = Time.get_ticks_msec() - leg_started
+		_assert_abandon_released_the_visit(
+			game, player, host, binding, craft, released, cycle
+		)
+		if released:
+			_abandoned_expeditions += 1
+			stopped_at = &"abandoned_expedition"
+			notes.append("abandoned")
+		else:
+			stopped_at = &"abandon_commit"
 		await _reset_for_next_cycle(game, player, host, binding, craft)
 		_assert_cycle_metrics(sampler, cycle)
 		_record_cycle(game, sampler, cycle, craft, notes, leg_msec, started_msec, stopped_at)
@@ -804,6 +798,21 @@ func _stage_corridor_entry(
 			return true
 		if host.get_phase() == EmberSurfaceLoopHost.Phase.FAILED:
 			return false
+	var binding := game.ember_surface_loop_production_binding \
+		as EmberSurfaceLoopProductionBinding
+	push_error("EMBER_SOAK corridor handoff stalled: host_phase=%d attached=%s handoff_ready=%s journey=%s binding_state=%d configured=%s binding_last=%s host_last=%s probe=%s cruise=%s" % [
+		host.get_phase(), host.is_attached(),
+		game.get("_ember_final_approach_handoff_ready"),
+		game.get("_ember_surface_journey_active"),
+		binding.get_state(), binding.is_configured(),
+		binding.get_caller_snapshot().get("last_result", {}),
+		host.get_snapshot().get("last_result", {}),
+		host.probe_approach_ready(
+			host.get_generation(), host.get_attachment_generation(),
+			host.get_coordinate_frame_generation(), host.get_location_generation()
+		).get("reason", &"?"),
+		(game.planetary_cruise_binding as PlanetaryCruiseProductionBinding).get_snapshot().get("final_approach", {}),
+	])
 	return false
 
 
@@ -881,6 +890,11 @@ func _walk_back_and_reboard(
 		if host.get_phase() >= EmberSurfaceLoopHost.Phase.BOARDING \
 				and host.get_phase() != EmberSurfaceLoopHost.Phase.FAILED:
 			break
+	if host.get_phase() == EmberSurfaceLoopHost.Phase.ON_FOOT:
+		# The gate answered every press without starting a boarding transition.
+		# Waiting out the whole re-board budget for a phase that cannot arrive
+		# only makes the gate cost two minutes a cycle.
+		return false
 	return await _advance_to_phase(
 		game, sampler, host, EmberSurfaceLoopHost.Phase.REBOARDED, REBOARD_TICK_BUDGET
 	)
@@ -928,6 +942,95 @@ func _walk_until_sampled(
 		await process_frame
 		_sample(game, sampler)
 	return bool(predicate.call())
+
+
+## The abandoned visit's own way off the caldera. The pilot is already standing
+## at the boarding area from the refused survey attempt, so this is the same real
+## `interact` press, answered this time because the abandon lifted the gate.
+func _reboard_after_abandon(
+		game: GameFlow,
+		player: PlayerController,
+		host: EmberSurfaceLoopHost,
+		craft: HeroShip,
+		sampler: CycleSampler,
+	) -> bool:
+	var area := craft.get_node_or_null(^"ShipBoardingArea") as ShipBoardingArea
+	if not is_instance_valid(area):
+		return false
+	if not (area in player.get_nearby_interactables()):
+		if not await _walk_until_sampled(
+			game, sampler, &"move_forward",
+			func() -> bool: return area in player.get_nearby_interactables(),
+			120
+		):
+			return false
+	for _press in 12:
+		await _press_live_action(&"interact", 1)
+		for _settle in 6:
+			await physics_frame
+			await process_frame
+			_sample(game, sampler)
+		if host.get_phase() >= EmberSurfaceLoopHost.Phase.BOARDING \
+				and host.get_phase() != EmberSurfaceLoopHost.Phase.FAILED:
+			break
+	# `REBOARDED` is transient in production: the coordinator queues the takeoff
+	# intent on the same tick the Host reaches it, and an abandoned visit can be
+	# through takeoff, ascent and its own commit before the next sample. What is
+	# asserted is that the pilot is aboard and the caldera is behind them.
+	var reboarded := await _wait_for_sampled(
+		game, sampler,
+		func() -> bool: return player.is_seated() and host.get_phase() in [
+			EmberSurfaceLoopHost.Phase.REBOARDED,
+			EmberSurfaceLoopHost.Phase.TAKEOFF,
+			EmberSurfaceLoopHost.Phase.ASCENT,
+			EmberSurfaceLoopHost.Phase.ORBIT_RETURN,
+			EmberSurfaceLoopHost.Phase.IDLE,
+		],
+		REBOARD_TICK_BUDGET
+	)
+	if not reboarded:
+		push_error("EMBER_SOAK abandon reboard stalled: phase=%d player_seated=%s control=%s reservation=%s landed=%s piloted=%s last=%s binding=%s" % [
+			host.get_phase(), player.is_seated(), player.is_control_enabled(),
+			area.get_reservation_token(), craft.get_telemetry().get("landed", false),
+			craft.is_piloted(), host.get_snapshot().get("last_result", {}),
+			(game.ember_surface_loop_production_binding as EmberSurfaceLoopProductionBinding).get_caller_snapshot().get("last_result", {}),
+		])
+	return reboarded
+
+
+func _wait_for_sampled(
+		game: GameFlow,
+		sampler: CycleSampler,
+		predicate: Callable,
+		tick_budget: int,
+	) -> bool:
+	for _index in tick_budget:
+		if bool(predicate.call()):
+			return true
+		await physics_frame
+		await process_frame
+		_sample(game, sampler)
+	return bool(predicate.call())
+
+
+## The Host owns takeoff and the climb off the pad; the abandon commits itself
+## once the craft is physically clear. Nothing here drives either.
+func _advance_until_abandon_commits(
+		game: GameFlow,
+		sampler: CycleSampler,
+		host: EmberSurfaceLoopHost,
+	) -> bool:
+	for _index in ABANDON_TICK_BUDGET:
+		if host.get_phase() == EmberSurfaceLoopHost.Phase.IDLE \
+				and not bool(game.get("_ember_surface_journey_active")):
+			return true
+		if host.get_phase() == EmberSurfaceLoopHost.Phase.FAILED:
+			return false
+		await physics_frame
+		await process_frame
+		_sample(game, sampler)
+	return host.get_phase() == EmberSurfaceLoopHost.Phase.IDLE \
+		and not bool(game.get("_ember_surface_journey_active"))
 
 
 ## The production station-return leg. GameFlow owns the handoff intent, the
@@ -1175,37 +1278,132 @@ func _assert_survey_gated_reboard(
 	)
 
 
-## No stranded actor, measured before any harness recovery.
+## The one production boundary a repeat visit still stops at, asserted by name.
 ##
-## `cancel_ember_surface_journey()` deliberately refuses a started expedition
-## (`ember_surface_journey_already_started`), so the only production exit from the
-## caldera is completing the loop. What this asserts is therefore the weaker, true
-## property: at the gate the pilot is embodied, in control and standing on live
-## authored support, the craft is parked and still holds its own pad lease, and
-## the Host is not in a terminal failure. Nothing is lost or unreachable — but the
-## expedition also cannot be abandoned, which `docs/EMBER_LOOP_SOAK.md` records as
-## a remaining gap rather than something this suite pretends away.
-func _assert_no_stranded_actor(
+## A second expedition now admits, arms, activates, hands off, starts its Host
+## and flies the caldera descent. What it still cannot do is finish that descent:
+## `HeroShip` aborts the landing it is flying with `berth_changed` when the
+## descent's own committed common-world rebase moves the caldera berth out from
+## under the landing contract, exactly as the first visit used to before that
+## defect was fixed for the first visit. The Host observes the released lease as
+## `berth_lease_lost` on its next tick and terminalizes.
+##
+## What must hold at that boundary — and is asserted here — is that it ends
+## safely rather than leaving a dead expedition behind: the retained coordinator
+## turns the terminal Host into the ordinary abandon, so the Host comes back
+## `IDLE` and attached with no terminal reason, the caldera lease is released,
+## the pilot is aboard their own craft, no reward was granted, and the retained
+## `Main` is ready to admit another expedition.
+##
+## A first-cycle landing failure is still a hard failure, and a later one must
+## show exactly that chain — anything else fails here instead of stopping
+## quietly. `docs/EMBER_LOOP_SOAK.md` carries it as the remaining gap.
+func _assert_repeat_visit_origin_boundary(
+		game: GameFlow,
+		host: EmberSurfaceLoopHost,
+		craft: HeroShip,
+		cycle: int,
+	) -> void:
+	var snapshot := host.get_snapshot()
+	var abandon := snapshot.get("abandon", {}) as Dictionary
+	var berth := game.ember_surface_berth as EmberSurfaceBerth
+	_check(
+		cycle > 0
+			and StringName(craft.get_telemetry().get("landing_abort_reason", &"")) \
+				== &"berth_changed"
+			and StringName(
+				(abandon.get("receipt", {}) as Dictionary).get("reason", &"")
+			) == &"berth_lease_lost"
+			and host.get_phase() == EmberSurfaceLoopHost.Phase.IDLE
+			and bool(snapshot.get("attached", false))
+			and StringName(snapshot.get("terminal_reason", &"?")).is_empty()
+			and is_instance_valid(berth)
+			and berth.get_reservation_token(craft).is_empty()
+			and not bool(game.get("_ember_surface_journey_active"))
+			and _reward_receipts == 0,
+		"cycle %d only ever fails its caldera landing as the recorded repeat-visit descent boundary, and ends it as a clean abandon (phase %d, abort %s, abandon %s)"
+			% [
+				cycle + 1, host.get_phase(),
+				craft.get_telemetry().get("landing_abort_reason", &"?"),
+				(abandon.get("receipt", {}) as Dictionary).get("reason", &"?"),
+			]
+	)
+
+
+## The abandon, asked from the caldera with the pilot on foot. It is admitted and
+## pending, never refused: the authored survey route and its re-board gate lift
+## at once, the relay survey's activity generation is terminalized with no
+## reward, and nobody is stranded — the pilot keeps control on live authored
+## support and the craft keeps its own pad lease until they have boarded it.
+func _assert_abandon_pending_on_the_surface(
 		game: GameFlow,
 		player: PlayerController,
 		host: EmberSurfaceLoopHost,
+		binding: EmberSurfaceLoopProductionBinding,
 		craft: HeroShip,
-		cancelled: Dictionary,
+		abandoned: Dictionary,
 		cycle: int,
 	) -> void:
 	var berth := game.ember_surface_berth as EmberSurfaceBerth
 	var lease_held := is_instance_valid(berth) \
 		and not berth.get_reservation_token(craft).is_empty() \
 		and berth.get_occupant() == craft
+	var route := host.get_snapshot().get("surface_route", {}) as Dictionary
 	_check(
-		StringName(cancelled.get("reason", &"")) == &"ember_surface_journey_already_started"
+		bool(abandoned.get("accepted", false))
+			and StringName(abandoned.get("reason", &"")) \
+				== &"ember_surface_abandon_pending_return"
 			and player.is_control_enabled() and not player.is_seated()
 			and player.is_on_floor()
 			and host.get_phase() == EmberSurfaceLoopHost.Phase.ON_FOOT
+			and bool(route.get("return_complete", false))
 			and lease_held
 			and bool(craft.get_telemetry().get("landed", false)),
-		"cycle %d strands neither pilot nor craft at the gate: on foot in control, craft parked and holding its pad lease (cancel %s, phase %d)"
-			% [cycle + 1, cancelled.get("reason", &"?"), host.get_phase()]
+		"cycle %d abandons from the caldera without stranding anyone: gate lifted, pilot in control, craft holding its pad lease (%s, phase %d)"
+			% [cycle + 1, abandoned.get("reason", &"?"), host.get_phase()]
+	)
+	var activity := ((
+		binding.get_planetary_surface_snapshot().get("adapter", {}) as Dictionary
+	).get("activity_reward", {}) as Dictionary)
+	_check(
+		StringName(activity.get("state", &"")) not in [&"active", &"awaiting_reward"],
+		"cycle %d leaves no relay-survey generation running after the abandon (state %s)"
+			% [cycle + 1, activity.get("state", &"?")]
+	)
+
+
+## The committed abandon. The Host is back at `IDLE`, still attached to the same
+## retained composition, with the caldera lease released, no terminal reason and
+## no reward — and the pilot is aboard their own craft, flying.
+func _assert_abandon_released_the_visit(
+		game: GameFlow,
+		player: PlayerController,
+		host: EmberSurfaceLoopHost,
+		binding: EmberSurfaceLoopProductionBinding,
+		craft: HeroShip,
+		released: bool,
+		cycle: int,
+	) -> void:
+	var berth := game.ember_surface_berth as EmberSurfaceBerth
+	var snapshot := host.get_snapshot()
+	var abandon := snapshot.get("abandon", {}) as Dictionary
+	_check(
+		released
+			and host.get_phase() == EmberSurfaceLoopHost.Phase.IDLE
+			and bool(snapshot.get("attached", false))
+			and StringName(snapshot.get("terminal_reason", &"?")).is_empty()
+			and int(abandon.get("commit_count", 0)) >= 1
+			and not bool(abandon.get("requested", true))
+			and is_instance_valid(berth)
+			and berth.get_reservation_token(craft).is_empty()
+			and player.is_seated() and craft.is_piloted()
+			and not bool(game.get("_ember_surface_journey_active"))
+			and _reward_receipts == 0,
+		"cycle %d releases the abandoned visit in place: Host idle and attached, caldera lease released, pilot flying, no reward (phase %d, commits %d, rewards %d)"
+			% [
+				cycle + 1, host.get_phase(),
+				int(abandon.get("commit_count", 0)), _reward_receipts,
+			]
 	)
 
 
@@ -1386,6 +1584,8 @@ func _print_summary(teardown_nodes: int, teardown_orphans: int) -> void:
 		"staging_events": _staging_events,
 		"survey_gated_cycles": _survey_gated_cycles,
 		"repeat_visit_handoff_stops": _repeat_visit_handoff_stops,
+		"abandoned_expeditions": _abandoned_expeditions,
+		"repeat_visit_origin_stops": _repeat_visit_origin_stops,
 		"reentry_terminal_stops": _reentry_terminal_stops,
 		"reward_receipts": _reward_receipts,
 		"baseline_streamed_nodes": _baseline_streamed_nodes,
@@ -1424,10 +1624,10 @@ func _await_free_on_foot(game: GameFlow, player: PlayerController) -> void:
 
 
 ## Harness-only recovery so one failed cycle is reported once instead of
-## cascading. Nothing here is a production path.
+## cascading. The exit itself is the production one.
 func _abort_journey(game: GameFlow, player: PlayerController) -> void:
 	_release_all_actions()
-	game.cancel_ember_surface_journey()
+	game.abandon_ember_surface_journey(&"soak_cycle_aborted")
 	for _settle in 8:
 		await physics_frame
 		await process_frame
@@ -1441,12 +1641,12 @@ func _abort_journey(game: GameFlow, player: PlayerController) -> void:
 
 ## Returns the retained Main to a state that admits another expedition.
 ##
-## A started expedition has no production abandon path, so the soak uses the same
-## ordered handback `ember_surface_loop_repeat_cycle_test` establishes for a
-## second visit: detach the Host through its own public seam, retire the
-## visit-scoped surface composition, release any berth lease the craft still
-## holds, and let the retained coordinator rebind on its next observation. The
-## actor placement afterwards is harness staging and nothing else.
+## The expedition itself is ended by the production abandon, which leaves the
+## retained Host attached and `IDLE` and retires the visit-scoped surface
+## composition. What remains here is the 8,000 km flight home, which production
+## has no owner for (`EMBER_MOON_ORBITAL_STREAMING.md`): the craft and pilot are
+## staged back to the yard exactly as the outbound legs are staged out, and the
+## abandoned visit's live return approach is released with them.
 func _reset_for_next_cycle(
 		game: GameFlow,
 		player: PlayerController,
@@ -1455,31 +1655,15 @@ func _reset_for_next_cycle(
 		craft: HeroShip,
 	) -> void:
 	_release_all_actions()
-	if is_instance_valid(host) and host.is_attached():
-		# A repeat bind is only offered to a Host that completed its visit and
-		# handed runtime ownership back. The soak stops at the authored survey
-		# gate, so it models that terminal boundary exactly as
-		# `ember_surface_loop_repeat_cycle_test` does — the alternative is a
-		# detach from ON_FOOT, which terminalises the Host as FAILED and makes the
-		# retained Main refuse every later expedition.
-		var session: Object = host.get_travel_session_observation_source()
-		if session != null:
-			session.set("_started_once", true)
-			session.set("_state", PlanetaryTravelSession.State.COMPLETED)
-		host.set("_phase", EmberSurfaceLoopHost.Phase.COMPLETED)
-		host.detach(host.get_generation(), host.get_attachment_generation())
-		host.set("_runtime_ownership_returned", true)
-	if is_instance_valid(binding) and binding.has_method(&"detach_planetary_surface"):
-		binding.set("_return_berth_adapter", TerminalReturnAdapter.new())
-		binding.detach_planetary_surface()
-		# `detach_planetary_surface()` only retires the visit-scoped composition
-		# once a real station-return receipt exists. This soak stops at the
-		# authored survey gate and never produces one, so it invokes the same
-		# production retirement directly; it releases only Ember-owned
-		# compositions and evidence and touches no GameFlow or ship authority.
-		if binding.is_configured():
-			binding.call(&"_retire_completed_journey_for_repeat")
-	game.set("_ember_surface_journey_active", false)
+	if is_instance_valid(host) and host.is_attached() \
+			and host.get_phase() != EmberSurfaceLoopHost.Phase.IDLE:
+		game.abandon_ember_surface_journey(&"soak_cycle_reset")
+		for _abandon_tick in 12:
+			await physics_frame
+			await process_frame
+			if host.get_phase() == EmberSurfaceLoopHost.Phase.IDLE:
+				break
+	game.disengage_planetary_cruise(false)
 	for _settle in 6:
 		await physics_frame
 		await process_frame
@@ -1499,19 +1683,24 @@ func _reset_for_next_cycle(
 		for _release_tick in 6:
 			await physics_frame
 			await process_frame
-	# Let the retained coordinator rebind its Host before the next cycle asks.
-	for _rebind_tick in 24:
+	# Let the retained coordinator settle, and let Ember stream out behind the
+	# departed craft, before the cycle's counters are recorded. Comparing a cycle
+	# that still has the moon resident against one that does not would report a
+	# streamed world as unbounded growth.
+	for _rebind_tick in 240:
 		await physics_frame
 		await process_frame
-	# The Host rebinds itself on the retained coordinator's next observation, once
-	# the next cycle's approach has streamed Ember back in. Asking for it here,
-	# with the craft parked at the yard and the moon unloaded, would only ask for
-	# `loaded_actor_unavailable`.
-	if is_instance_valid(host) and host.get_phase() == EmberSurfaceLoopHost.Phase.COMPLETED:
+		if _streamed_node_count(game) <= _baseline_streamed_nodes:
+			break
+	for _settle_tick in 24:
+		await physics_frame
+		await process_frame
+	if is_instance_valid(host):
 		_check(
-			not host.is_attached()
-				and is_instance_valid(binding) and not binding.is_configured(),
-			"the cycle reset leaves the retained Host and surface binding free to rebind"
+			host.get_phase() == EmberSurfaceLoopHost.Phase.IDLE
+				and not bool(game.get("_ember_surface_journey_active")),
+			"the cycle reset leaves the retained Host idle and free to admit the next expedition (phase %d)"
+				% host.get_phase()
 		)
 
 
@@ -1519,8 +1708,15 @@ func _recover(game: GameFlow, player: PlayerController) -> void:
 	_release_all_actions()
 	var world := game.get_node_or_null(^"ShipyardWorld") as ShipyardWorld
 	var craft := game.get_active_ship()
+	# Every craft this soak flew must be boardable again for a later cycle, and a
+	# craft that was abandoned in flight keeps its engines online until something
+	# idles them. This is the same harness staging as the placement below.
+	for fleet_craft in game.get_flyable_ships():
+		if is_instance_valid(fleet_craft) and not fleet_craft.is_piloted():
+			fleet_craft.request_engine_stop(false)
 	if is_instance_valid(craft):
 		craft.set_piloted(false)
+		craft.request_engine_stop(false)
 		craft.velocity = Vector3.ZERO
 		if is_instance_valid(world):
 			var berth := world.get_berth_node(craft.get_home_berth_id())

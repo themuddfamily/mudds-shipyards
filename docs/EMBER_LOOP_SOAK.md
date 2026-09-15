@@ -3,12 +3,13 @@
 `tests/ember_loop_soak_evidence.gd` drives production `res://scenes/main.tscn`
 
 > **Why this is not a `*_test.gd` matrix suite.** Cycle one is one full real
-> expedition and costs ~220 s on an idle machine; under matrix load it would
-> exceed the per-suite budget. The four defects it found each carry a focused
+> expedition and costs ~110 s on an idle machine; under matrix load it would
+> exceed the per-suite budget. The defects it found each carry a focused
 > assertion in an ordinary suite (`landing_clearance_test`,
 > `ember_final_approach_production_handoff_test`,
-> `ember_surface_loop_host_test`), so the matrix guards the fixes while this
-> harness is run explicitly for §4 evidence, like the capture harnesses.
+> `ember_surface_loop_host_test`, `ember_surface_loop_repeat_cycle_test`), so the
+> matrix guards the fixes while this harness is run explicitly for §4 evidence,
+> like the capture harnesses.
 
 through N Ember expeditions in one process, alternating the two craft the
 production binding admits for the trip (`torrent_provisional`,
@@ -51,38 +52,50 @@ them is produced by a production movement owner. This is the precedent
 
 Cycle order per expedition: board, launch, open, orbital approach, corridor
 handoff, caldera landing, disembark, authored surface route, re-board attempt
-(the gate), production cancel attempt, and — on cycles 1, 3, 5 … — the
-surface save and whole-`Main` re-entry, then the cycle reset.
+(the gate), — on cycles 1, 3, 5 … — the surface save and whole-`Main` re-entry,
+then the production abandon, the re-board it opens, the commit off the pad, and
+the cycle reset.
 
-Each cycle ends at the authored relay survey, recorded as
-`stopped_at: authored_survey_gate`. `_consume_ember_surface_reboard_interaction()`
-answers a real `interact` at the boarding area with "Survey return pending"
-until the survey's mandatory route is complete, and that route's two checkpoints
-sit at body-local `(180, ·, -44)` and `(540, ·, -210)` — about 170 m and a
-further 400 m from the caldera pad. Walking them is minutes of simulated time per
-cycle at a headless Ember tick rate of roughly 5–8 physics ticks per second, so
-the suite stops at that gate by name instead of teleporting through it. The
-refusal is asserted to be exactly that gate: Host `ON_FOOT`, the exact boarding
-area in reach, and an active survey still on its first objective. If a later
-change closes the gate, that assertion fails and the suite must be extended
-through re-board, ascent, orbital return and the yard landing — the legs are
-already written and budgeted below the gate.
+Each cycle walks up to the authored relay survey and then takes the production
+exit a player takes when they give up on it, recorded as `stopped_at:
+abandoned_expedition`.
 
-`cancel_ember_surface_journey()` deliberately refuses a started expedition
-(`ember_surface_journey_already_started`), so what the suite can assert about
-stranding is the true, weaker property: at the gate the pilot is embodied, in
-control and standing on live authored support, and the craft is parked holding
-its own pad lease. Nothing is lost — but a started expedition also cannot be
-abandoned, which is recorded below as a remaining gap.
+The survey gate itself is still asserted by name first.
+`_consume_ember_surface_reboard_interaction()` answers a real `interact` at the
+boarding area with "Survey return pending" until the survey's mandatory route is
+complete, and that route's two checkpoints sit at body-local `(180, ·, -44)` and
+`(540, ·, -210)` — about 170 m and a further 400 m from the caldera pad. Walking
+them is minutes of simulated time per cycle at a headless Ember tick rate of
+roughly 5–8 physics ticks per second, so the suite proves the refusal is exactly
+that gate — Host `ON_FOOT`, the exact boarding area in reach, an active survey
+still on its first objective — instead of teleporting through it.
 
-A cycle after the first stops earlier still, at `stopped_at:
-repeat_visit_handoff`: the retained composition arms, activates and *completes*
-its second final approach — the completion count reaches two and is consumed —
-but the Host never leaves `IDLE`, so the surface loop does not start. That is a
-second-visit defect rather than a broken loop (the first expedition of a session
-always gets through), and it is asserted by name: a first-cycle handoff failure
-is still a hard failure, and a later one must show a consumed second completion
-against an `IDLE` Host. It is listed under remaining gaps.
+From there the cycle runs the abandon:
+`GameFlow.abandon_ember_surface_journey()`, the same call the pause navigation's
+`EMBER CRUISE` row makes. The suite asserts the whole rule. The abandon is
+admitted and *pending*, never refused; the authored route and its re-board gate
+lift at once; the relay survey's activity generation is terminalized with no
+reward; and nobody is stranded — the pilot keeps control on live authored
+support and the craft keeps its own caldera lease until they have boarded it.
+One real `interact` at the boarding area then boards, the Host runs its own
+takeoff, and the abandon commits itself once the craft is physically off the pad:
+Host back at `IDLE`, still attached, no terminal reason, caldera lease released,
+pilot flying, zero reward receipts.
+
+What the suite still stages is the 8,000 km flight home, exactly as it stages the
+8,000 km flight out (`EMBER_MOON_ORBITAL_STREAMING.md` records that production
+has no owner for either). `_reset_for_next_cycle()` releases the abandoned
+visit's live return approach and places the craft and pilot back at the yard.
+Everything else in the reset is production: the expedition is ended by the
+production abandon, which leaves the retained Host attached and `IDLE` and
+retires the visit-scoped surface composition by itself. There is no longer a
+hand-forged `COMPLETED` handback in the harness.
+
+Because the abandon releases the Host in place, every later cycle is a real
+second, third and sixth expedition by the same retained `Main`, with a fresh
+session generation, a rebound caldera berth and a fresh activity generation. A
+cycle that fails to arm, activate or hand off its approach is a hard failure at
+any cycle index, not an excused repeat-visit boundary.
 
 ## Defects found and fixed
 
@@ -167,30 +180,133 @@ live landing's snapshot. Covered by an extension to
 `tests/ember_surface_loop_host_test.gd`: an idle berth re-derives for a second
 craft and locks again under that craft's lease.
 
+### 5. A whole-`Main` re-entry on the surface killed the expedition
+
+`scripts/world/ember_surface_loop_host.gd`. A save/re-entry streams the entire
+composition out and back in, so every dependency the Host observes leaves with
+it. The Host treated that exactly like losing a dependency: each `tree_exiting`
+reached `_queue_terminal()` and the visit committed `FAILED` before `_exit_tree`
+even ran. Both actor positions survived the re-entry exactly (measured 0.000 m
+drift for craft and pilot in the landing region's own frame) and the streamed
+world was intact — but a player who saved and reloaded while walking the caldera
+came back to a dead expedition.
+
+Godot reports both removals identically while they are happening: exits are
+bottom-up, so a still-live composition root is indistinguishable from a retained
+one. The fix takes the decision one deferred step later, once `remove_child` has
+returned and the composition root's own tree membership is finally readable. A
+composition root still inside the tree means a dependency (or the Host itself)
+genuinely left a live composition and the visit terminalizes exactly as before; a
+composition root that left with everything else is the re-entry, and the visit is
+suspended intact — same phase, same berth lease, same travel session, same
+runtime ownership. Resuming re-asserts only what the streamed-out nodes dropped
+on their own account: `HeroShip` retires its planetary-surface gravity binding
+(the fresh binding restarts its submission sequence, so the visit's sample
+counter restarts with it) and `ShipBoardingArea` clears every seat claim, re-taken
+only into a genuinely free seat in the phases that require one.
+
+Covered by `_test_composition_reentry_preserves_the_live_visit()` in
+`tests/ember_surface_loop_host_test.gd`, and by this suite's re-entry assertion,
+which now requires the live Host, its caldera lease, its survey progress and the
+active expedition to all survive.
+
+### 6. A started expedition could not be abandoned
+
+`scripts/world/ember_surface_loop_host.gd`,
+`scripts/world/ember_surface_loop_production_binding.gd`,
+`scripts/game/planetary_journey_coordinator.gd`, `scripts/game/game_flow.gd`.
+`cancel_ember_surface_journey()` returned `ember_surface_journey_already_started`
+once the Host left `IDLE`, so the only exit from the caldera was completing the
+~570 m relay survey. The pause navigation's `EMBER CRUISE` row offered exactly
+that refusal.
+
+`EmberSurfaceLoopHost.abandon()` is the production exit, and the rule it
+implements is in `EMBER_SURFACE_LOOP_HOST.md` and on
+`PlanetaryJourneyCoordinator.abandon_ember_surface_journey()`. It never separates
+a pilot from their craft: it commits only while the craft is airborne under its
+own pilot, and asked from the pad it is pending — the authored route and its
+re-board gate lift so the walk home is immediate, and the Host's own takeoff
+carries it until the craft is off the pad. Committing terminalizes the survey's
+activity generation with no reward, retires the visit-scoped surface composition,
+releases the caldera lease and all runtime ownership, and resets the retained
+Host in place to `IDLE`. The craft then flies home on the same Mudds return
+approach the completed loop uses, armed directly because an abandoned visit
+earned no station-return contract; its completion hands the last leg to the
+ordinary registered-berth landing lifecycle. Losing the craft mid-expedition
+takes the same exit, so the retained `Main` is no longer left refusing every
+later visit.
+
+### 7. A repeat visit was never re-admitted
+
+`scripts/world/ember_surface_loop_host.gd`,
+`scripts/game/planetary_journey_coordinator.gd`. A repeat bind is only offered to
+a Host that reached `COMPLETED` and handed runtime ownership back, so any other
+ending — the survey gate, a terminal failure, a re-entry that could not be
+carried — left the retained `Main` refusing every later expedition of the
+session. That is why cycle two of the previous soak reached
+`final_approach_handoff_ready` and then sat with an `IDLE` Host.
+
+Three things closed it. Releasing a visit through the abandon resets the same
+Host node and the same travel session in place — fresh session generation, fresh
+command source, no visit-scoped evidence — so the next
+`begin_ember_surface_journey()` is admitted with no rebind at all. A Host left
+attached to the previous visit's streamed world (Ember unloads behind a departing
+craft and the frozen loaded-root identity goes stale, which the Host's own audit
+reports and the surface binding refuses to configure against) is now released and
+rebound by the retained coordinator, but never under a live expedition.
+
+And the actual reason cycle two used to consume its completion and then sit at
+`IDLE`: the surface binding's caller-serial fence belongs to the visit-scoped
+composition and resets with it, while the retained coordinator kept counting from
+the previous expedition. Every cadence tick of the second visit was refused as a
+skipped serial, so nothing ever called `Host.start()`. The coordinator now adopts
+the fence the binding is actually holding when a journey is admitted.
+
+Covered by cycle three of `tests/ember_surface_loop_repeat_cycle_test.gd` (a
+terminal Host is released and the retained `Main` admits the next expedition) and
+by this suite, where every cycle after the first is a real second expedition that
+admits, arms, activates, hands off, starts its Host and flies the caldera
+descent.
+
 ## Remaining gaps (not fixed here)
 
-- **No production entry point.** `begin_ember_surface_journey()` has no caller in
-  the shipped game; the expedition is still a caller-driven seam. The pause
-  navigation's `EMBER CRUISE` toggle only engages cruise.
-- **No owner flies the craft to Ember or into the corridor.** The two staged
-  placements above stand in for it.
-- **A started expedition cannot be abandoned.**
-  `cancel_ember_surface_journey()` returns `ember_surface_journey_already_started`
-  once the Host has left `IDLE`, so the only exit from the caldera is completing
-  the loop — which currently requires the 570 m relay survey.
-- **A whole-`Main` re-entry taken on the Ember surface terminalises the Host.**
-  Both actor positions survive it exactly (measured 0.000 m drift for craft and
-  pilot in the landing region's own frame) and the streamed world is intact, but
-  the loop Host comes back `FAILED` instead of `ON_FOOT`. A player who saved and
-  reloaded while walking the caldera would return to a dead expedition. The suite
-  asserts the positions and that the phase outcome is one of exactly two states,
-  and counts the terminal ones as `reentry_terminal_stops`.
-- **A repeat visit completes its approach but never starts the Host.** Cycle two
-  onward reaches `final_approach_handoff_ready` with `completion_count` 2 and the
-  completion consumed, and the Host stays `IDLE`. The three fixes above carried
-  the second visit from "never arms" to "completes and is consumed"; what remains
-  is the consumption-to-start step on a rebound Host. Recorded as
-  `repeat_visit_handoff_stops` in `EMBER_SUMMARY`.
+- **No owner flies the craft to Ember, into the corridor, or the 8,000 km home.**
+  The staged placements above and the staged return in `_reset_for_next_cycle()`
+  stand in for it.
+- **A repeat visit cannot finish its caldera descent.** Cycle two onward now
+  admits, arms, activates, hands off, starts its Host and flies the descent, and
+  then stops at `stopped_at: repeat_visit_origin_rebase`: `HeroShip` aborts the
+  landing it is flying with `berth_changed` when that descent's own committed
+  common-world rebase moves the caldera berth out from under the landing
+  contract — the same shape as defect 1, which is fixed for a first visit. The
+  Host observes the released lease as `berth_lease_lost` on its next tick and
+  terminalizes.
+
+  What the suite does assert at that boundary is that it ends safely instead of
+  leaving a dead expedition: the retained coordinator turns the terminal Host
+  into the ordinary abandon, so the Host comes back `IDLE` and attached with no
+  terminal reason, the caldera lease is released, the pilot is aboard their own
+  craft, no reward was granted, and the retained `Main` is ready for the next
+  expedition. A first-cycle landing failure is still a hard failure.
+
+  One layer of this was removed on the way here and is worth recording, because
+  it hid the rest. `CommonWorldOriginRebaseOwner` translates every covered root
+  by one identical delta, which over an 8,000 km translation leaves
+  sub-millimetre rounding in the near-zero components of
+  `EmberMoonStreamingBootstrap`'s root. Both `update_absolute_focus()` and
+  `accept_committed_origin_rebase()` compare that root to the exact body centre
+  the frame defines, the latter *after* the next transaction's frame commit is
+  already irreversible — so the second visit's rebase was refused with
+  `bootstrap_alignment_invalid`, surfaced to the owner as the opaque
+  `binding_commit_desynchronized`, and starved the surface cadence entirely. The
+  bootstrap now implements the existing `notify_common_world_translation()` seam
+  and re-expresses its root at that exact position, allowing at most a centimetre
+  of rounding, and the binding retains the refusal the owner otherwise reports
+  opaquely (`last_external_rebase_rejection`).
+- **`ember_surface_loop_production_binding_test` has one pre-existing failure**
+  ("real survey completion persists one GameFlow reward before the coordinator
+  admits the authenticated route home"), reproduced on a clean tree before any
+  change here. It is not caused by, and not addressed by, this work.
 - **`ember_surface_loop_production_binding_test` has one pre-existing failure**
   ("real survey completion persists one GameFlow reward before the coordinator
   admits the authenticated route home"), reproduced on a clean tree at
@@ -203,76 +319,66 @@ craft and locks again under that craft's lease.
 
 ## Results
 
-Both runs are green on the fixed tree: `EMBER_LOOP_SOAK_TEST_OK: 66 assertions`
-at 6 cycles in 264 s wall, and `EMBER_LOOP_SOAK_TEST_OK: 126 assertions` at 18
-cycles in 443 s. The 6-cycle default is 24 s over the 240 s target; the cost is
-almost entirely cycle one's own legs (below), because every later cycle stops at
-the repeat-visit boundary in about 9 s.
+`EMBER_LOOP_SOAK_TEST_OK: 122 assertions` at the 6-cycle default, 0 failures,
+566 s of measured cycle legs (~9.5 min wall on an idle machine). Cycles
+alternate `arrow_provisional` and `torrent_provisional`; the Arrow cycles run the
+whole loop to the abandon, the Torrent cycles stop at the recorded repeat-visit
+descent boundary.
 
-### Before the fixes
+| Cycle | Craft | Stop | Furthest phase | Ticks | Rebases | Wall |
+| --- | --- | --- | --- | --- | --- | --- |
+| 1 | arrow | `abandoned_expedition` | `ASCENT` | 576 | 1 | 105.8 s |
+| 2 | torrent | `repeat_visit_origin_rebase` | `LANDING_APPROACH` | 2401 | 1 | 84.4 s |
+| 3 | arrow | `abandoned_expedition` | `ASCENT` | 576 | 1 | 129.0 s |
+| 4 | torrent | `repeat_visit_origin_rebase` | `LANDING_APPROACH` | 2401 | 1 | 68.9 s |
+| 5 | arrow | `abandoned_expedition` | `ASCENT` | 576 | 1 | 109.0 s |
+| 6 | torrent | `repeat_visit_origin_rebase` | `LANDING_APPROACH` | 2401 | 1 | 68.7 s |
 
-There are no per-counter numbers to compare, because before the fixes the loop
-never reached the Ember surface at all. The measured stop points, in the order
-they were removed:
+A full Arrow cycle's legs, milliseconds: board 383, launch 660, orbital approach
+437, caldera landing 36,330, disembark 2,805, authored surface route 21,767,
+survey-gated re-board attempt 34,333, surface save and whole-`Main` re-entry
+3,296, abandon (pending, re-board, takeoff, commit) 4,633.
 
-| Attempt | Stop | Observed |
+Per-cycle measurements on a full cycle: 1 floating-origin rebase with a
+10,000.063 m committed translation; largest single-tick craft and pilot step
+12.533 m against a 334.333 m bound; zero unsupported on-foot ticks; minimum
+tangent altitude above the caldera +0.001 m; zero seat/piloted/reservation
+disagreements; presentation moved without a pop; strict dock acceptance with the
+exact berth occupant and token at touchdown.
+
+Counters across all six cycles, recorded after each cycle's reset with Ember
+streamed out:
+
+| Counter | Cycles 1–6 | Tolerance |
 | --- | --- | --- |
-| baseline | `final_approach_activation` | journey `ember_surface_journey_admitted`, cruise `not_engaged`, target generation 0, indefinitely |
-| after fix 3 | `final_approach_activation` | cruise re-engages; policy `obstacle_detected` / `insufficient_verified_clearance` |
-| after fix 2 | `caldera_landing` | Host reaches `LANDING_APPROACH`, then `landing_abort_reason: berth_changed` on the rebase |
-| after fix 1 | `authored_survey_gate` | full descent, touchdown, disembark and surface walk |
-| after fix 4 | second visit reaches the approach at all | previously `berth_configuration_failed` at the Host bind |
-
-### After the fixes, 18 cycles
-
-Cycle one, the full measured expedition (`arrow_provisional`):
-
-| Counter | Value |
-| --- | --- |
-| production physics ticks sampled | 1162 (5 of them staged placements) |
-| floating-origin rebases | 1, largest committed translation 10,000.063 m |
-| largest single-tick craft step, rebase removed | 12.533 m (bound 334.333 m) |
-| largest single-tick pilot step, rebase removed | 12.533 m |
-| on-foot ticks / unsupported ticks | 922 / 0 |
-| minimum tangent altitude above the caldera | +0.001 m |
-| seat / piloted / reservation disagreements | 0 |
-| presentation samples / largest per-sample delta | 193 / 0.0000 |
-| peak streamed nodes / after departure | 83 / 0 |
-| Ember load requests / location generation | 1 / 2 |
-| landing support | strict dock acceptance, exact berth occupant and token |
-| surface save + whole-`Main` re-entry | craft 0.000 m, pilot 0.000 m; Host `ON_FOOT` → `FAILED` |
-
-Cycle legs, milliseconds: board 320, launch 532, orbital approach 435,
-caldera landing 50,255, disembark 3,650, surface route 28,255, re-board attempt
-187,075, surface re-entry 2,438; 276,971 for the whole cycle. The re-board
-attempt dominates because it walks the authored route home and then waits out
-its full budget against a gate that will not open.
-
-Flat counters, cycle 2 (end of warm-up) to cycle 18, tolerance in brackets:
-
-| Counter | Cycle 2 | Cycle 18 | Drift |
-| --- | --- | --- | --- |
-| `scene_nodes` [32] | 10,553 | 10,550 | −3 |
-| `object_nodes` [32] | 11,277 | 11,274 | −3 |
-| `objects` [512] | 24,099 | 24,100 | +1 |
-| `orphan_nodes` [0] | 6 | 6 | 0 |
-| `static_memory_bytes` [48 MiB] | 509,758,188 | 509,950,167 | +192 KiB |
-| `audio_players` [0] | 80 | 80 | 0 |
-| `particle_systems` [0] | 45 | 45 | 0 |
-| `timers` [4] | 21 | 21 | 0 |
-| `tweens` [4] | 1 | 1 | 0 |
-| `streamed_nodes` [0] | 0 | 0 | 0 |
+| `scene_nodes` | 10,572 every cycle | 32 |
+| `object_nodes` | 11,296 every cycle | 32 |
+| `objects` | 24,144 → 24,178 | 512 |
+| `orphan_nodes` | 6 every cycle | 0 |
+| `static_memory_bytes` | 511,509,136 → 511,557,371 | 48 MiB |
+| `audio_players` / `particle_systems` / `timers` / `tweens` | 81 / 54 / 21 / 1 every cycle | 0 / 0 / 4 / 4 |
+| `streamed_nodes` | 0 every cycle | 0 |
 
 The final teardown returns `OBJECT_NODE_COUNT` to its pre-boot baseline (1 → 1)
-with zero orphan nodes. Summary counters at 18 cycles: 19 staging events, 1
-survey-gated cycle, 17 repeat-visit stops, 1 surface re-entry, 1 of which left
-the Host terminal, 0 assertion failures.
+with zero orphan nodes. Summary counters: 12 staging events, 3 survey-gated
+cycles, 3 abandoned expeditions, 3 surface save/re-entries with **0** terminal
+Hosts, 3 repeat-visit descent boundaries, 0 reward receipts, 0 assertion
+failures.
+
+### Before this work
+
+| Boundary | Before | Now |
+| --- | --- | --- |
+| starting an expedition | pause `EMBER CRUISE` already opened it (since `87400dc`); no objective, no briefing | same press, plus the standing `EMBER EXPEDITION` objective and the first-time activity briefing card |
+| abandoning one | `ember_surface_journey_already_started`; the only exit was the 570 m relay survey | pending from the caldera, committed off the pad, craft home on the Mudds return approach |
+| repeat visit | second visit consumed its completion and sat at `IDLE` forever | admits, arms, activates, hands off, starts its Host and flies the descent |
+| surface save/re-entry | Host `ON_FOOT` → `FAILED`; a dead expedition on reload | Host, caldera lease, survey progress and active expedition all survive |
 
 ### Known flake
 
-Under a shortened re-board budget (90 ticks instead of 600) the same 18-cycle
-shape runs in 170 s, but the yard boarding intermittently fails to select its
-craft on later cycles (observed on cycles 5 and 6 of a 6-cycle run, with three
-`interact` retries each). The committed budget is the longer one, which has not
-reproduced it; the interaction between the shortened cycle and the yard
-proximity selection is unexplained and is a loose end, not a fixed defect.
+Under a shortened re-board budget (90 ticks instead of 600) an earlier shape of
+this suite intermittently failed to select its craft at the yard on later
+cycles. The committed budget is the longer one, which has not reproduced it. A
+related cause has since been removed: a craft abandoned in flight kept its
+engines online, and `is_boardable()` requires them offline, so the cycle reset
+now idles every unpiloted flyable before the next cycle walks up to one.

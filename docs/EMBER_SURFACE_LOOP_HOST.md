@@ -171,6 +171,63 @@ sample is retired. If the surface itself is already
 unloading, the transition is still cancelled at the Player's current transform
 but locomotion remains disabled for a later world-owner recovery decision.
 
+## Abandoning a visit
+
+`abandon(generation, attachment_generation, reason)` is the production exit from
+a started expedition. It ends the visit, commits no reward, releases the caldera
+berth lease and every runtime binding the host owns, and resets the retained host
+in place to `IDLE` — same node, same session object, fresh session generation,
+fresh command source, no visit-scoped evidence — so the same composition admits
+the next expedition without a rebind. The repeat bind path is still there for a
+visit that completed and handed runtime ownership back; abandon is the path for
+every other ending.
+
+The one thing an abandon never does is separate a pilot from their craft, so it
+commits only while the craft is airborne under its own pilot with no landing
+contract in flight (`ORBIT_APPROACH`, `DESCENT`, `SURFACE_APPROACH`,
+`LANDING_APPROACH` after the landing is ended through the existing public
+lifecycle seam, `ASCENT` once its surface-clear evidence is committed, and
+`ORBIT_RETURN`). Asked from the pad or from the surface it is recorded as
+pending and reported as `ember_surface_abandon_pending_return`: the authored
+outbound route completes immediately and the return route is marked complete, so
+the pilot can walk straight back and board, and the host's own takeoff carries
+the abandon until the craft is physically off the pad, where it commits itself on
+the ordinary caller cadence. Until then the pilot keeps control and the craft
+keeps its pad lease.
+
+A pilot who is still seated keeps their own boarding token across the abandon:
+logical cleanup responsibility returns to the ordinary owner exactly as
+`return_runtime_ownership()` hands it back, rather than the seat being released
+under them. A host that already terminalized (`FAILED`) also releases through
+this seam — the teardown has happened, so only the reset for the next visit runs
+— which is how a lost craft ends an expedition without leaving the retained
+`Main` refusing every later one.
+
+## Whole-`Main` save and re-entry
+
+A save/re-entry streams the entire composition out and back in: the host and
+every dependency it observes leave together and return together. That is a
+suspension of the live visit, not a lost dependency, and the host holds the visit
+intact across it — same phase, same berth lease, same travel session, same
+runtime ownership.
+
+Godot reports both removals identically while they are happening (exits are
+bottom-up, so a still-live composition root is indistinguishable from a retained
+one), so the decision is taken one deferred step later, once `remove_child` has
+returned and the composition root's own tree membership is finally readable. A
+composition root still inside the tree means a dependency, or the host itself,
+genuinely left a live composition, and the visit terminalizes exactly as
+described above. A composition root that left the tree with everything else is
+the re-entry.
+
+Resuming re-asserts only what the streamed-out nodes dropped on their own
+account. `HeroShip` retires its planetary-surface gravity binding on exit; the
+host re-attaches its own binding and restarts its sample counter with the fresh
+submission sequence. `ShipBoardingArea` clears every seat claim on exit; the host
+re-takes only its own claim, only into a genuinely free seat, and only in the
+phases that require one. Self-root composition (no separate composition root) is
+unchanged: it has no announced suspension and terminalizes as before.
+
 ## Authority and remaining production work
 
 The host owns the caller-clocked session composition, bounded command
