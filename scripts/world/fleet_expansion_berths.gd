@@ -371,7 +371,10 @@ const CARGO_APRON_MARKINGS: Array[Dictionary] = [
 ## kerb because the port half of this pad really is the pad's own space.
 const LAUNCH_APRON_KIT: Array[Dictionary] = [
 	{"name": "BlastDeflectorPort", "position": Vector3(-5.9, 3.3, -17.3), "size": Vector3(4.8, 6.4, 1.2), "rotation_degrees": Vector3(-16.0, 0.0, 0.0)},
-	{"name": "BlastDeflectorStarboard", "position": Vector3(5.9, 3.3, -17.3), "size": Vector3(4.8, 6.4, 1.2), "rotation_degrees": Vector3(-16.0, 0.0, 0.0)},
+	# The starboard panel stops at pad-local x 6.2: the fleet dock comb publishes
+	# the gap between its teeth at world x 29.5 (pad-local 6.7) as genuine space,
+	# and a full-width panel stood inside it (fleet_dock_comb_integration_test).
+	{"name": "BlastDeflectorStarboard", "position": Vector3(4.85, 3.3, -17.3), "size": Vector3(2.7, 6.4, 1.2), "rotation_degrees": Vector3(-16.0, 0.0, 0.0)},
 	{"name": "BlastDeflectorRib00", "position": Vector3(-7.8, 2.05, -19.0), "size": Vector3(1.2, 4.0, 2.6)},
 	{"name": "BlastDeflectorRib01", "position": Vector3(-3.9, 2.05, -19.0), "size": Vector3(1.2, 4.0, 2.6)},
 	{"name": "BlastDeflectorRib02", "position": Vector3(3.9, 2.05, -19.0), "size": Vector3(1.2, 4.0, 2.6)},

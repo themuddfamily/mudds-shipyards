@@ -30,6 +30,7 @@ func _initialize() -> void:
 	_test_access_geometry_clearance(world)
 	_test_published_approach_lanes_are_flyable(world)
 	_test_service_dressing_stands_in_no_other_module(world)
+	_test_structure_clears_comb_negative_space(world)
 	world.queue_free()
 	await process_frame
 	if _failures.is_empty():
@@ -260,6 +261,26 @@ func _aabb_overlap_depth(first: AABB, second: AABB) -> Vector3:
 ## nothing else. What is measured here is the live world — every piece this
 ## module draws, shape-queried against every other module's real World-layer
 ## collision, with its own bodies excluded.
+## The fleet dock comb publishes the gaps between its teeth as genuine space;
+## no expansion-berth structure may stand in them (Dock 06's first blast fence did).
+func _test_structure_clears_comb_negative_space(world: ShipyardWorld) -> void:
+	var comb := world.get_node_or_null(^"FleetDockComb") as FleetDockComb
+	var structure := world.get_node_or_null(^"FleetExpansionProductionBinding/FleetExpansionBerths/ServiceStructure")
+	if comb == null or structure == null:
+		_check(false, "production world exposes the comb and the expansion service structure")
+		return
+	var intruders := PackedStringArray()
+	var space := world.get_world_3d().direct_space_state
+	for local_void in comb.get_negative_space_samples():
+		var world_void: Vector3 = comb.to_global(local_void)
+		var query := PhysicsRayQueryParameters3D.create(world_void + Vector3.UP * 6.0, world_void + Vector3.DOWN * 6.0)
+		query.collision_mask = PhysicsLayers.WORLD
+		var hit := space.intersect_ray(query)
+		if not hit.is_empty() and structure.is_ancestor_of(hit.collider as Node):
+			intruders.append("%s @ %s" % [(hit.collider as Node).name, world_void])
+	_check(intruders.is_empty(), "no expansion-berth structure stands in a published comb gap: %s" % intruders)
+
+
 func _test_service_dressing_stands_in_no_other_module(world: ShipyardWorld) -> void:
 	var berths := world.get_node_or_null(
 		^"FleetExpansionProductionBinding/FleetExpansionBerths"
