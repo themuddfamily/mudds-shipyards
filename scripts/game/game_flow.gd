@@ -9789,11 +9789,23 @@ func _initialize_live_combat() -> void:
 	var source_owners: Dictionary = {}
 	var expected_player_sources := 0
 	for fleet_ship in ships:
+		# Being shootable and being able to shoot are separate contracts. Every
+		# craft the player can fly is a valid target in the live encounter,
+		# whether or not it carries an authored offensive weapon: the cargo
+		# hauler has no gun profile, but enemy fire still has to hit it, drive
+		# its component ledger, raise its damage cues, and be able to destroy it
+		# so its berth can rebuild it. Bundling the two left that hull silently
+		# invulnerable - shots resolved `non_damageable_blocked` and passed
+		# straight through.
+		combat_authority.attach_lifecycle_damageable(
+			fleet_ship,
+			LifecycleDamageableAdapterType.LifecycleKind.HERO_SHIP,
+			PLAYER_FACTION
+		)
 		var source_id := int(PLAYER_SOURCE_IDS.get(fleet_ship.get_ship_id(), 0))
 		if source_id <= 0:
-			# Expansion craft without a complete combat contract remain flyable and
-			# boardable but fail closed here. The Cinder light interceptor is now the
-			# first nested craft to cross this gate with a full production repeater.
+			# Expansion craft without an authored offensive weapon contract stay
+			# flyable, boardable and damageable, but register no firing source.
 			continue
 		expected_player_sources += 1
 		if source_owners.has(source_id):
@@ -9803,11 +9815,6 @@ func _initialize_live_combat() -> void:
 			)
 			continue
 		source_owners[source_id] = fleet_ship
-		combat_authority.attach_lifecycle_damageable(
-			fleet_ship,
-			LifecycleDamageableAdapterType.LifecycleKind.HERO_SHIP,
-			PLAYER_FACTION
-		)
 		var player_profiles := _get_player_weapon_profiles(fleet_ship)
 		if (
 			not _combat_registration_matches(

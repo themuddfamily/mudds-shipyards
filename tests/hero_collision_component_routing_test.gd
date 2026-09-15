@@ -5,12 +5,21 @@ extends SceneTree
 ## component layout; the test invokes only the small seam immediately after
 ## CharacterBody3D has resolved a finite contact.
 
+## Every craft in the production flyable rotation, by live node name. The six
+## authored craft are direct Main children; the three Cinder craft are composed
+## from script under `FleetExpansionProductionBinding` a few frames later.
+## Localized damage attribution is what makes a hit readable, so a hull that
+## routes every contact into one bucket is a hull the player cannot read.
 const FLEET_CRAFT_NAMES := [
 	"TorrentInterceptor",
 	"ArrowReconShip",
 	"JovianLightFreighter",
 	"ZenithInterceptor",
 	"HalyardCrewTransport",
+	"BulwarkHeavyGunship",
+	"cinder_light_interceptor",
+	"cinder_cargo_hauler",
+	"cinder_long_range_bomber",
 ]
 
 const CONTACT_CASES := [
@@ -58,10 +67,16 @@ func _run() -> void:
 	await process_frame
 	await physics_frame
 
+	var fleet := await _resolve_production_fleet(game)
+	_check(
+		fleet.size() == FLEET_CRAFT_NAMES.size(),
+		"the production rotation admits all %d craft before the contact sweep (%d)"
+			% [FLEET_CRAFT_NAMES.size(), fleet.size()]
+	)
 	for craft_name: String in FLEET_CRAFT_NAMES:
-		var craft := game.get_node_or_null(craft_name) as HeroShip
+		var craft := fleet.get(craft_name) as HeroShip
 		if craft == null:
-			_fail("%s exists as a retained HeroShip" % craft_name)
+			_fail("%s joins the production flyable rotation" % craft_name)
 			continue
 		_test_craft_contacts(craft, craft_name)
 
@@ -169,6 +184,22 @@ func _surface_contact(bounds: AABB, surface: StringName) -> Vector3:
 		&"dorsal":
 			return Vector3(centre.x, bounds.end.y, centre.z)
 	return centre
+
+
+
+## Resolves the live flyable rotation by node name. The Cinder craft join it
+## through deferred production composition, so the roster is awaited rather
+## than read on the first frame.
+func _resolve_production_fleet(game: GameFlow) -> Dictionary:
+	var deadline := Time.get_ticks_msec() + 8000
+	while Time.get_ticks_msec() < deadline \
+			and game.get_flyable_ships().size() < FLEET_CRAFT_NAMES.size():
+		await physics_frame
+		await process_frame
+	var fleet := {}
+	for craft: HeroShip in game.get_flyable_ships():
+		fleet[String(craft.name)] = craft
+	return fleet
 
 
 func _check(condition: bool, message: String) -> void:

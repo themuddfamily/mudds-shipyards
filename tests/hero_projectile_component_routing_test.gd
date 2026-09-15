@@ -5,12 +5,21 @@ extends SceneTree
 ## five retained craft; no fixture damageable or alternate authority is created.
 
 const ARENA_ORIGIN := Vector3(1200.0, 420.0, -1800.0)
+## Every craft in the production flyable rotation, by live node name. The six
+## authored craft are direct Main children; the three Cinder craft are composed
+## from script under `FleetExpansionProductionBinding` a few frames later.
+## Localized damage attribution is what makes a hit readable, so a hull that
+## routes every contact into one bucket is a hull the player cannot read.
 const FLEET_CRAFT_NAMES := [
 	"TorrentInterceptor",
 	"ArrowReconShip",
 	"JovianLightFreighter",
 	"ZenithInterceptor",
 	"HalyardCrewTransport",
+	"BulwarkHeavyGunship",
+	"cinder_light_interceptor",
+	"cinder_cargo_hauler",
+	"cinder_long_range_bomber",
 ]
 const CONTACT_CASES := [
 	{
@@ -62,11 +71,17 @@ func _run() -> void:
 		_finish()
 		return
 
+	var rotation := await _resolve_production_fleet(game)
+	_check(
+		rotation.size() == FLEET_CRAFT_NAMES.size(),
+		"the production rotation admits all %d craft before the projectile sweep (%d)"
+			% [FLEET_CRAFT_NAMES.size(), rotation.size()]
+	)
 	var fleet: Array[HeroShip] = []
 	for craft_name: String in FLEET_CRAFT_NAMES:
-		var craft := game.get_node_or_null(craft_name) as HeroShip
+		var craft := rotation.get(craft_name) as HeroShip
 		if craft == null:
-			_fail("%s exists as a retained HeroShip" % craft_name)
+			_fail("%s joins the production flyable rotation" % craft_name)
 		else:
 			fleet.append(craft)
 	for craft_index in fleet.size():
@@ -98,6 +113,12 @@ func _test_craft(
 		var reset := craft.reset_for_reuse(Transform3D(Basis.IDENTITY, ARENA_ORIGIN))
 		_check(bool(reset.get("accepted", false)), "%s resets before %s" % [craft_name, contact_case.name])
 		generation += 1
+		# `reset_for_reuse()` teleports the body; the physics server only carries
+		# the new transform on the following step. One frame is enough to place a
+		# solid fuselage, but the walkable Cinder hulls are shells - a stale
+		# transform threads the probe ray straight through the open interior and
+		# attributes the contact to the wrong section. Settle before probing.
+		await physics_frame
 		await physics_frame
 		var report := craft.get_component_damage_report()
 		var bounds: AABB = report.get("local_bounds", AABB())
@@ -280,6 +301,22 @@ func _only_target_changed(report: Dictionary, target_id: StringName) -> bool:
 		elif not is_equal_approx(integrity, 1.0):
 			return false
 	return true
+
+
+
+## Resolves the live flyable rotation by node name. The Cinder craft join it
+## through deferred production composition, so the roster is awaited rather
+## than read on the first frame.
+func _resolve_production_fleet(game: GameFlow) -> Dictionary:
+	var deadline := Time.get_ticks_msec() + 8000
+	while Time.get_ticks_msec() < deadline \
+			and game.get_flyable_ships().size() < FLEET_CRAFT_NAMES.size():
+		await physics_frame
+		await process_frame
+	var fleet := {}
+	for craft: HeroShip in game.get_flyable_ships():
+		fleet[String(craft.name)] = craft
+	return fleet
 
 
 func _check(condition: bool, message: String) -> void:
