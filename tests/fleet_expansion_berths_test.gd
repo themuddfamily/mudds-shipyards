@@ -38,6 +38,7 @@ func _initialize() -> void:
 	_test_service_presentations(berths, audit)
 	_test_cargo_container_batch(berths, audit)
 	_test_launch_rail_batch(berths, audit)
+	_test_service_structure_collision(berths, audit)
 	_test_underframe_support_batch(berths, audit)
 	_test_access_circulation(berths, audit)
 	_test_panel_finish_roles(berths)
@@ -118,30 +119,30 @@ func _test_service_presentations(berths: Node3D, audit: Dictionary) -> void:
 	_check(
 		bool(presentation.get("valid", false))
 		and (presentation.get("errors", PackedStringArray()) as PackedStringArray).is_empty()
-		and int(audit.get("static_bodies", -1)) == 6
-		and int(audit.get("collision_shapes", -1)) == 6
+		and int(audit.get("static_bodies", -1)) == 8
+		and int(audit.get("collision_shapes", -1)) == 14
 		and int(audit.get("mesh_instances", -1)) == 21
 		and int(audit.get("multimesh_instances", -1)) == 3
 		and int(audit.get("renderer_nodes", -1)) == 24
 		and int(audit.get("mesh_resource_allocations", -1)) == EXPECTED_COMPONENT_MESH_RESOURCE_ALLOCATIONS
 		and int(audit.get("service_mesh_resource_allocations", -1)) == EXPECTED_SERVICE_MESH_RESOURCE_ALLOCATIONS
 		and int(audit.get("guide_lights", -1)) == 5
-		and int(audit.get("descendants", -1)) == 59
-		and int(budgets.get("static_bodies", -1)) == 6
-		and int(budgets.get("collision_shapes", -1)) == 6
+		and int(audit.get("descendants", -1)) == 70
+		and int(budgets.get("static_bodies", -1)) == 8
+		and int(budgets.get("collision_shapes", -1)) == 14
 		and int(budgets.get("mesh_instances", -1)) == 21
 		and int(budgets.get("multimesh_instances", -1)) == 3
 		and int(budgets.get("renderer_nodes", -1)) == 24
 		and int(budgets.get("mesh_resource_allocations", -1)) == EXPECTED_COMPONENT_MESH_RESOURCE_ALLOCATIONS
 		and int(budgets.get("service_mesh_resource_allocations", -1)) == EXPECTED_SERVICE_MESH_RESOURCE_ALLOCATIONS
 		and int(budgets.get("guide_lights", -1)) == 5
-		and int(budgets.get("descendants", -1)) == 59,
-		"three logical pads and six honest routes freeze at 24 renderers, 24 resources, 59 descendants, and six exact walkable boxes"
+		and int(budgets.get("descendants", -1)) == 70,
+		"three logical pads and six honest routes freeze at 24 renderers, 24 resources, 70 descendants, six exact walkable boxes and eight service-structure colliders"
 	)
 	var expected_bounds: Array[AABB] = [
-		AABB(Vector3(-18.75, 0.0, -13.5), Vector3(40.25, 12.0, 27.0)),
+		AABB(Vector3(-18.75, 0.0, -7.75), Vector3(32.25, 12.0, 20.75)),
 		AABB(Vector3(-19.5, 0.0, -19.0), Vector3(31.5, 11.0, 17.0)),
-		AABB(Vector3(-16.75, 0.0, -16.75), Vector3(33.5, 10.5, 40.75)),
+		AABB(Vector3(-11.75, 0.0, -16.6), Vector3(23.5, 10.5, 37.1)),
 	]
 	var required_nodes := [
 		["CargoCraneMast", "CargoCraneJib", "CargoContainerBatch"],
@@ -274,9 +275,9 @@ func _test_cargo_container_batch(berths: Node3D, audit: Dictionary) -> void:
 	var container_mesh := batch.multimesh.mesh as BoxMesh \
 		if batch != null and batch.multimesh != null else null
 	var expected_transforms: Array[Transform3D] = [
-		Transform3D(Basis.IDENTITY, Vector3(18.0, 1.8, -10.0)),
-		Transform3D(Basis.IDENTITY, Vector3(18.0, 1.8, 0.0)),
-		Transform3D(Basis.IDENTITY, Vector3(18.0, 1.8, 10.0)),
+		Transform3D(Basis.IDENTITY, Vector3(12.0, 1.8, -4.0)),
+		Transform3D(Basis.IDENTITY, Vector3(12.0, 1.8, 1.0)),
+		Transform3D(Basis.IDENTITY, Vector3(12.0, 1.8, 11.0)),
 	]
 	var authored_transforms := batch.get_meta(&"authored_instance_transforms", []) as Array \
 		if batch != null else []
@@ -290,7 +291,7 @@ func _test_cargo_container_batch(berths: Node3D, audit: Dictionary) -> void:
 	var presentation := audit.get("service_presentation", {}) as Dictionary
 	_check(
 		batch != null and container_mesh != null
-		and container_mesh.size.is_equal_approx(Vector3(7.0, 3.6, 7.0))
+		and container_mesh.size.is_equal_approx(Vector3(3.0, 3.6, 4.0))
 		and batch.multimesh.instance_count == 3 and transforms_exact
 		and material != null and material.albedo_color.is_equal_approx(Color("2f5966"))
 		and is_equal_approx(material.metallic, 0.58) and not material.emission_enabled
@@ -331,8 +332,8 @@ func _test_launch_rail_batch(berths: Node3D, audit: Dictionary) -> void:
 	var rail_mesh := batch.multimesh.mesh as BoxMesh \
 		if batch != null and batch.multimesh != null else null
 	var expected_transforms: Array[Transform3D] = [
-		Transform3D(Basis.IDENTITY, Vector3(-16.0, 0.5, 5.0)),
-		Transform3D(Basis.IDENTITY, Vector3(16.0, 0.5, 5.0)),
+		Transform3D(Basis.IDENTITY, Vector3(-11.0, 0.5, 9.5)),
+		Transform3D(Basis.IDENTITY, Vector3(11.0, 0.5, 9.5)),
 	]
 	# RenderingServer readback may expose identity transforms headless; the
 	# submitted parent-space roster is retained alongside the GPU buffer.
@@ -347,7 +348,7 @@ func _test_launch_rail_batch(berths: Node3D, audit: Dictionary) -> void:
 	var material := batch.material_override as StandardMaterial3D if batch != null else null
 	_check(
 		batch != null and rail_mesh != null
-		and rail_mesh.size.is_equal_approx(Vector3(1.0, 1.0, 38.0))
+		and rail_mesh.size.is_equal_approx(Vector3(1.0, 1.0, 22.0))
 		and transforms_exact
 		and material != null and material.emission_enabled
 		and material.emission.is_equal_approx(Color("61e4ee"))
@@ -614,3 +615,61 @@ func _check(condition: bool, message: String) -> void:
 	_assertions += 1
 	if not condition:
 		_failures.append(message)
+
+
+## CAMERA-LANE. Focused regression for the Phase 10 §1 camera-lane fix.
+##
+## Four pieces of this module's service dressing were drawn as heavy steel and
+## heavy freight while carrying no collision at all, so the chase rig's
+## `SpringArm3D` sweep — which queries `CAMERA_OBSTRUCTION_QUERY_MASK` — had
+## nothing to retract against and the player's camera clipped straight through
+## them on four different craft's assist and launch lanes, up to 0.737 m deep.
+## Two of them were worse than that: `LaunchFramePort` and `LaunchFrameHeader`
+## stood inside Dock 04's *own published approach lane*, and the container row
+## stood inside the VIP reception suite, the Aft Junction Stack's operations
+## room and on the fleet-dock comb's trunk walking plate.
+##
+## What this asserts is the shape of the fix, not just its presence: every
+## declared structural collider pairs with a piece that is actually drawn, at the
+## same transform and the same size, and every service piece stays inside the
+## 28 x 42 m pad it belongs to so it cannot reach into a neighbour's lane again.
+func _test_service_structure_collision(berths: Node3D, audit: Dictionary) -> void:
+	var structure: Dictionary = berths.call("get_service_structure_audit")
+	_check(
+		bool(structure.get("valid", false))
+		and (structure.get("errors", PackedStringArray()) as PackedStringArray).is_empty()
+		and int(structure.get("structural_bodies", -1)) == Berths.SERVICE_STRUCTURE_BODIES
+		and int(structure.get("structural_shapes", -1)) == Berths.SERVICE_STRUCTURE_SHAPES
+		and (audit.get("service_structure", {}) as Dictionary) == structure,
+		"every drawn service structure piece has a matching World-layer collider and the module publishes the pairing"
+	)
+
+	var root_node := berths.get_node_or_null(^"ServiceStructure") as Node3D
+	var layers_exact := root_node != null
+	var colliders_inside_pad := root_node != null
+	var half := Vector3(
+		Berths.PAD_SIZE.x * 0.5, INF, Berths.PAD_SIZE.z * 0.5
+	)
+	var worst_overhang := -INF
+	for pad_id: StringName in berths.get_pad_ids():
+		var body := root_node.get_node_or_null(NodePath(String(pad_id))) as StaticBody3D \
+			if root_node != null else null
+		if body == null:
+			continue
+		layers_exact = layers_exact \
+			and body.collision_layer == PhysicsLayers.WORLD \
+			and body.collision_mask == 0
+		for child in body.get_children():
+			var shape_node := child as CollisionShape3D
+			if shape_node == null or shape_node.shape is not BoxShape3D:
+				continue
+			var extent := (shape_node.shape as BoxShape3D).size * 0.5
+			for axis in [0, 2]:
+				var reach := absf(shape_node.position[axis]) + extent[axis]
+				worst_overhang = maxf(worst_overhang, reach - half[axis])
+				colliders_inside_pad = colliders_inside_pad and reach <= half[axis]
+	_check(
+		layers_exact and colliders_inside_pad,
+		"every service-structure collider stays inside its own %.0f x %.0f m pad (worst reach %.2f m past the edge)"
+			% [Berths.PAD_SIZE.x, Berths.PAD_SIZE.z, worst_overhang]
+	)

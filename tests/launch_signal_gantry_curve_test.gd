@@ -39,13 +39,29 @@ func _run() -> void:
 	_finish()
 
 
+## CAMERA-LANE-002. The crossbeam used to be a presentation-only `MeshInstance3D`
+## with zero collision authority, and the ship-perspective camera audit measured
+## the cost of that: the Jovian's real chase near plane sits 0.017 m inside this
+## beam's aft face at (0.40, 12.27, -66.38) on the published outbound route,
+## because `SpringArm3D` sweeps `CAMERA_OBSTRUCTION_QUERY_MASK` and a renderer
+## with no body cannot retract it. Both `SignalMast` posts carrying the beam have
+## always been `StaticBody3D`; the beam is now one too.
+##
+## Everything else about it is still frozen here: same position, same
+## 27 x 0.8 x 0.8 m envelope, same 11.8 m underside, same 72-triangle capsule
+## mesh, same material and metadata, one renderer and one submission. The
+## clearance assertions below are unchanged and still pass, which is the point —
+## the published aim is y = 2.70 against a fleet-worst ceiling of 3.80 m, 8 m
+## under this beam.
 func _test_curved_signal_gantry(world: ShipyardWorld, launch: Node3D) -> void:
-	var gantry := launch.get_node_or_null(^"SignalGantry") as MeshInstance3D
+	var gantry_body := launch.get_node_or_null(^"SignalGantry") as StaticBody3D
+	var gantry := gantry_body.get_node_or_null(^"Mesh") as MeshInstance3D \
+		if gantry_body != null else null
 	_check(
-		gantry != null and gantry.mesh != null,
+		gantry_body != null and gantry != null and gantry.mesh != null,
 		"central launch approach retains its one rendered signal crossbeam"
 	)
-	if gantry == null or gantry.mesh == null:
+	if gantry_body == null or gantry == null or gantry.mesh == null:
 		return
 
 	var arrays := gantry.mesh.surface_get_arrays(0)
@@ -62,7 +78,8 @@ func _test_curved_signal_gantry(world: ShipyardWorld, launch: Node3D) -> void:
 			-ShipyardWorld.SIGNAL_GANTRY_SIZE * 0.5
 		)
 		and gantry.mesh.get_aabb().size.is_equal_approx(ShipyardWorld.SIGNAL_GANTRY_SIZE)
-		and gantry.position.is_equal_approx(Vector3(0.0, 12.2, -66.0)),
+		and gantry_body.position.is_equal_approx(Vector3(0.0, 12.2, -66.0))
+		and gantry.position.is_zero_approx(),
 		"curved mesh preserves the exact 27 x 0.8 x 0.8 m crossbeam envelope and 11.8 m underside"
 	)
 
@@ -73,21 +90,28 @@ func _test_curved_signal_gantry(world: ShipyardWorld, launch: Node3D) -> void:
 			if child is MeshInstance3D:
 				mast_visual = child as MeshInstance3D
 				break
+	var gantry_shape := gantry_body.get_node_or_null(^"Collision") as CollisionShape3D
+	var gantry_box := gantry_shape.shape as BoxShape3D if gantry_shape != null else null
 	_check(
 		mast_visual != null
 		and gantry.material_override == mast_visual.material_override
+		and gantry_body.get_child_count() == 2
 		and gantry.get_child_count() == 0
-		and gantry.find_children("*", "CollisionObject3D", true, false).is_empty()
-		and launch.find_children("SignalGantry", "MeshInstance3D", false, false).size() == 1,
-		"gantry retains steel-blue material, one node/submission and zero collision authority"
+		and gantry_body.collision_layer == PhysicsLayers.WORLD
+		and gantry_body.collision_mask == PhysicsLayers.NONE
+		and gantry_box != null
+		and gantry_box.size.is_equal_approx(ShipyardWorld.SIGNAL_GANTRY_SIZE)
+		and gantry_shape.position.is_zero_approx()
+		and launch.find_children("SignalGantry", "StaticBody3D", false, false).size() == 1,
+		"gantry retains steel-blue material and one renderer, and its collider is exactly the drawn 27 x 0.8 x 0.8 m envelope"
 	)
 	_check(
-		str(gantry.get_meta("geometry_profile", "")) == "central_launch_capsule_crossbeam"
-		and is_equal_approx(float(gantry.get_meta("end_radius_m", 0.0)), 0.4)
-		and int(gantry.get_meta("curve_segments_per_end", 0)) == 8
-		and str(gantry.get_meta("evidence_status", "")) == "modern_interpretation"
-		and not bool(gantry.get_meta("historical_form_identified", true))
-		and not bool(gantry.get_meta("authenticated_original_geometry", true)),
+		str(gantry_body.get_meta("geometry_profile", "")) == "central_launch_capsule_crossbeam"
+		and is_equal_approx(float(gantry_body.get_meta("end_radius_m", 0.0)), 0.4)
+		and int(gantry_body.get_meta("curve_segments_per_end", 0)) == 8
+		and str(gantry_body.get_meta("evidence_status", "")) == "modern_interpretation"
+		and not bool(gantry_body.get_meta("historical_form_identified", true))
+		and not bool(gantry_body.get_meta("authenticated_original_geometry", true)),
 		"crossbeam publishes its curve recipe and honest modern-interpretation boundary"
 	)
 	_check(
@@ -163,7 +187,7 @@ func _test_retained_clearance(world: ShipyardWorld, launch: Node3D) -> void:
 	await physics_frame
 	_check(
 		world.get_world_3d().direct_space_state.intersect_ray(flight_ray).is_empty(),
-		"published launch aim remains physically unobstructed beneath the presentation-only gantry"
+		"published launch aim remains physically unobstructed 9.1 m beneath the now-solid gantry"
 	)
 
 

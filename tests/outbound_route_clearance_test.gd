@@ -126,6 +126,7 @@ func _run() -> void:
 	_test_header_beam_carries_a_clearance_cue(world)
 	_test_the_cue_adds_no_collision(world, hulls)
 	_test_dock_mast_collar_allocation(world)
+	_test_lattice_mast_cap_collision(world)
 	_test_target_core_allocation(world)
 	_test_target_lamp_mesh_sharing(world)
 	await _test_target_core_detach_reentry(world)
@@ -1109,3 +1110,65 @@ func _finish() -> void:
 	else:
 		print("OUTBOUND_ROUTE_CLEARANCE_TEST_FAILED: ", ", ".join(_failures))
 		quit(1)
+
+
+## CAMERA-LANE. The exposed dock lattice's three mast caps are named and solid.
+##
+## Reproduction this exists for: the ship-perspective camera audit
+## (`docs/CAMERA_INTRUSION_AUDIT.md`) put the Torrent's chase near plane 0.115 m
+## inside the cap at (11.00, 10.15, -23.00) while it flew the central berth's own
+## assist and launch lanes. Two things were wrong. The cap was one of three
+## siblings all called `MastCap`, so Godot renamed two of them and the audit
+## could only report the piece as `ExposedDockLattice/@MeshInstance3D@752` — a
+## piece a report cannot name is a piece nobody can fix. And the cap carried no
+## collision while the `DockMast` under it always has, even though the cap
+## overhangs that 0.46 m mast radius by 0.74 m in x, so the `SpringArm3D` sweep
+## had nothing to retract against out at the overhang.
+func _test_lattice_mast_cap_collision(world: ShipyardWorld) -> void:
+	var lattice := world.get_node_or_null(^"ExposedDockLattice") as Node3D
+	_check(lattice != null, "the world still builds its exposed dock lattice")
+	if lattice == null:
+		return
+	var caps_exact := true
+	var unnamed := PackedStringArray()
+	for index in ShipyardWorld.DOCK_MAST_COLLAR_POSITIONS.size():
+		var expected_position := (
+			ShipyardWorld.DOCK_MAST_COLLAR_POSITIONS[index] as Vector3
+		) - Vector3.UP + Vector3(0.0, 10.15, 0.0)
+		var cap := lattice.get_node_or_null(
+			NodePath("MastCap%02d" % (index + 1))
+		) as StaticBody3D
+		if cap == null:
+			unnamed.append("MastCap%02d" % (index + 1))
+			caps_exact = false
+			continue
+		var shape := cap.get_node_or_null(^"Collision") as CollisionShape3D
+		var box := shape.shape as BoxShape3D if shape != null else null
+		caps_exact = caps_exact \
+			and cap.position.is_equal_approx(expected_position) \
+			and cap.collision_layer == PhysicsLayers.WORLD \
+			and cap.collision_mask == 0 \
+			and box != null \
+			and box.size.is_equal_approx(Vector3(2.4, 0.55, 1.6)) \
+			and cap.get_node_or_null(^"Mesh") is MeshInstance3D
+	_check(
+		caps_exact and unnamed.is_empty(),
+		"all three lattice mast caps carry their own index and a collider that is exactly the drawn 2.4 x 0.55 x 1.6 m plate: %s"
+			% ", ".join(unnamed)
+	)
+	var engine_named_at_cap_height := PackedStringArray()
+	for raw_child in lattice.get_children():
+		var visual := raw_child as MeshInstance3D
+		if visual == null or not String(visual.name).begins_with("@"):
+			continue
+		for index in ShipyardWorld.DOCK_MAST_COLLAR_POSITIONS.size():
+			var cap_position := (
+				ShipyardWorld.DOCK_MAST_COLLAR_POSITIONS[index] as Vector3
+			) - Vector3.UP + Vector3(0.0, 10.15, 0.0)
+			if visual.position.is_equal_approx(cap_position):
+				engine_named_at_cap_height.append(String(visual.name))
+	_check(
+		engine_named_at_cap_height.is_empty(),
+		"no mast cap is left with an engine-assigned name an audit cannot report: %s"
+			% ", ".join(engine_named_at_cap_height)
+	)

@@ -63,10 +63,16 @@ const ACCESS_SURFACE_SPECS: Array[Dictionary] = [
 const ACCESS_GROSS_HORIZONTAL_M2 := 57.4
 const ACCESS_UNIQUE_HORIZONTAL_M2 := 55.4
 const ACCESS_SUPPORT_MESH_COUNT := 11
-const MAX_STATIC_BODIES := 6
+## Six walkable access surfaces, plus one structural body for each pad that
+## publishes service-structure collision (`_build_service_structure_collision()`:
+## Dock 04's container row and Dock 06's launch frame and rails). Dock 05 has no
+## structural body because none of its dressing was found intruded.
+const SERVICE_STRUCTURE_BODIES := 2
+const SERVICE_STRUCTURE_SHAPES := 8
+const MAX_STATIC_BODIES := 6 + SERVICE_STRUCTURE_BODIES
 const MAX_MESH_INSTANCES := 38
-const EXPECTED_STATIC_BODIES := 6
-const EXPECTED_COLLISION_SHAPES := 6
+const EXPECTED_STATIC_BODIES := 6 + SERVICE_STRUCTURE_BODIES
+const EXPECTED_COLLISION_SHAPES := 6 + SERVICE_STRUCTURE_SHAPES
 const EXPECTED_MESH_INSTANCES := 21
 const EXPECTED_MULTIMESH_INSTANCES := 3
 const EXPECTED_RENDERER_NODES := 24
@@ -86,7 +92,7 @@ const EXPECTED_SERVICE_RENDERER_NODES := 11
 const EXPECTED_SERVICE_MESH_RESOURCE_ALLOCATIONS := 11
 const EXPECTED_COMPONENT_MESH_RESOURCE_ALLOCATIONS := 24
 const EXPECTED_GUIDE_LIGHTS := 5
-const EXPECTED_DESCENDANTS := 59
+const EXPECTED_DESCENDANTS := 70
 const SERVICE_MESH_COUNTS := {
 	&"dock_04_cargo": 6,
 	&"dock_05_bomber": 3,
@@ -106,6 +112,24 @@ const SERVICE_LOCAL_BOUNDS := {
 	&"dock_04_cargo": AABB(Vector3(-20.0, -0.1, -15.0), Vector3(43.0, 13.0, 30.0)),
 	&"dock_05_bomber": AABB(Vector3(-21.0, -0.1, -21.0), Vector3(42.0, 12.0, 25.0)),
 	&"dock_06_interceptor": AABB(Vector3(-18.0, -0.1, -18.0), Vector3(36.0, 12.0, 44.0)),
+}
+## Minimum silhouette width each pad's service dressing must still read at, in
+## pad-local x.
+##
+## CAMERA-LANE-006. Dock 04 and Dock 06 used to be held at 33.0 m here. A pad is
+## 28.0 m wide (`PAD_SIZE.x`), so that floor could only ever be met by dressing
+## hanging 2.5 m or more past the pad on each side — and the pads do not stand in
+## open space. What the overhang actually reached is recorded on
+## `LAUNCH_RAIL_SIZE`: Dock 04's own approach lane, the parked Halyard, the
+## `VipReceptionSuite` interior, `AftJunctionStack`'s operations room and the
+## fleet-dock comb's trunk walking plate. A readability floor wider than the pad
+## it measures is the defect; these are the widths the dressing reaches while
+## staying on its own pad, and Dock 05 is unchanged because none of its dressing
+## was found in anybody else's volume.
+const SERVICE_READABLE_WIDTHS := {
+	&"dock_04_cargo": 32.0,
+	&"dock_05_bomber": 31.0,
+	&"dock_06_interceptor": 23.0,
 }
 const LANDING_VISUAL_CLEARANCE := AABB(Vector3(-10.0, 0.0, -14.0), Vector3(20.0, 8.0, 28.0))
 const APPROACH_VISUAL_CLEARANCE := AABB(Vector3(-10.0, 0.0, 21.0), Vector3(20.0, 8.0, 15.0))
@@ -156,16 +180,49 @@ const PRESENTATION_SUBMISSION_DELTA := 0
 const AFT_ROUTE_LEGEND_TEXT := "FLEET EXPANSION // BERTH ASSIGNMENTS\nSOUTH   DOCK 04  CARGO HAULER\nNORTH   DOCK 05  BOMBER\nEAST    DOCK 06  INTERCEPTOR"
 const AFT_ROUTE_LEGEND_POSITION := Vector3(7.45, 2.55, -19.55)
 const PANEL_SURFACE_SCALE := 0.30
-const LAUNCH_RAIL_SIZE := Vector3(1.0, 1.0, 38.0)
+## CAMERA-LANE-004. Dock 06's launch frame and rails and Dock 04's container
+## stack all used to sit at pad-local |x| = 16 to 18, on a pad whose own
+## half-width is 14 m, and the overhang was not empty space. Measured against the
+## live world:
+##
+## * `LaunchFramePort` (pad-local x = -16, world z = 84.3) and the header beam
+##   stood *inside Dock 04's own published approach lane*. The hauler's landing
+##   envelope crosses world x = 30 at y = 12.98…16.18 and the post reached
+##   y = 14.20, so the craft flew through a drawn 10 m post on every approach.
+##   The camera-intrusion audit found it as a 0.737 m near-plane intrusion; the
+##   hull was going through it too, and only the post's total absence of
+##   collision kept the landing assist from stalling on it.
+## * The starboard launch rail (world z = 52.3) ran through the parked Halyard's
+##   landing volume, and both rails overhung the pad's approach edge by 3 m.
+## * The three 7 m cargo containers (world z 63.2…70.2) stood inside the
+##   `VipReceptionSuite` reception and threshold, inside `AftJunctionStack`'s
+##   operations room and upper deck, through the fleet-dock comb connector deck
+##   and its two rails, and on top of the comb's own trunk walking plate. Two of
+##   the three were entirely buried inside other modules' interiors.
+##
+## Everything below is now inside the pad it belongs to and clear of every
+## neighbour, measured by shape query against the production world, which is
+## also what lets it carry the collision it visually implies
+## (`_build_service_structure_collision()`). The rails keep their full launch run
+## in pad-local z and stop 1.5 m short of Dock 02's walking slab; the container
+## row moved to the 4 m strip between the comb trunk's edge and Dock 04's own
+## landing clearance, and is sized to fit it with 0.5 m either side, breaking
+## around `CargoTrunkLeg` rather than standing on it.
+const LAUNCH_RAIL_SIZE := Vector3(1.0, 1.0, 22.0)
 const LAUNCH_RAIL_TRANSFORMS: Array[Transform3D] = [
-	Transform3D(Basis.IDENTITY, Vector3(-16.0, 0.5, 5.0)),
-	Transform3D(Basis.IDENTITY, Vector3(16.0, 0.5, 5.0)),
+	Transform3D(Basis.IDENTITY, Vector3(-11.0, 0.5, 9.5)),
+	Transform3D(Basis.IDENTITY, Vector3(11.0, 0.5, 9.5)),
 ]
-const CARGO_CONTAINER_SIZE := Vector3(7.0, 3.6, 7.0)
+const LAUNCH_FRAME_POST_SIZE := Vector3(1.5, 10.0, 1.2)
+const LAUNCH_FRAME_PORT_POSITION := Vector3(-11.0, 5.0, -16.0)
+const LAUNCH_FRAME_STARBOARD_POSITION := Vector3(11.0, 5.0, -16.0)
+const LAUNCH_FRAME_HEADER_SIZE := Vector3(23.5, 1.0, 1.2)
+const LAUNCH_FRAME_HEADER_POSITION := Vector3(0.0, 10.0, -16.0)
+const CARGO_CONTAINER_SIZE := Vector3(3.0, 3.6, 4.0)
 const CARGO_CONTAINER_TRANSFORMS: Array[Transform3D] = [
-	Transform3D(Basis.IDENTITY, Vector3(18.0, 1.8, -10.0)),
-	Transform3D(Basis.IDENTITY, Vector3(18.0, 1.8, 0.0)),
-	Transform3D(Basis.IDENTITY, Vector3(18.0, 1.8, 10.0)),
+	Transform3D(Basis.IDENTITY, Vector3(12.0, 1.8, -4.0)),
+	Transform3D(Basis.IDENTITY, Vector3(12.0, 1.8, 1.0)),
+	Transform3D(Basis.IDENTITY, Vector3(12.0, 1.8, 11.0)),
 ]
 const UNDERFRAME_SUPPORT_SIZE := Vector3(0.55, 2.5, 0.55)
 const UNDERFRAME_SUPPORT_TRANSFORMS: Array[Transform3D] = [
@@ -200,6 +257,7 @@ func _ready() -> void:
 	for index in PAD_IDS.size():
 		_build_pad(PAD_IDS[index], PAD_POSITIONS[index], index)
 		_publish_pad_presentation(PAD_IDS[index])
+	_build_service_structure_collision()
 	_build_access_circulation()
 
 
@@ -506,11 +564,11 @@ func get_service_presentation_audit() -> Dictionary:
 			errors.append("service silhouette left local bounds: %s" % pad_id)
 		if not landing_clear or not approach_clear:
 			errors.append("service silhouette entered landing or approach clearance: %s" % pad_id)
-		var minimum_readable_width := 31.0 if pad_id == &"dock_05_bomber" else 33.0
+		var minimum_readable_width := float(SERVICE_READABLE_WIDTHS[pad_id])
 		var readable := not first_bound and local_bounds.size.x >= minimum_readable_width \
 			and local_bounds.size.y >= 10.0
 		if pad_id == &"dock_06_interceptor":
-			readable = readable and local_bounds.size.z >= 40.0
+			readable = readable and local_bounds.size.z >= 37.0
 		if not readable:
 			errors.append("service silhouette readability drift: %s" % pad_id)
 		var marker_key := String(PAD_MARKER_MATERIAL_KEYS[pad_id])
@@ -908,7 +966,7 @@ func get_audit_report() -> Dictionary:
 	if renderer_nodes > MAX_MESH_INSTANCES:
 		errors.append("mesh budget exceeded")
 	if bodies != EXPECTED_STATIC_BODIES or collision_shapes != EXPECTED_COLLISION_SHAPES:
-		errors.append("walkable collision roster drift")
+		errors.append("collision roster drift")
 	if meshes != EXPECTED_MESH_INSTANCES \
 			or multimesh_nodes.size() != EXPECTED_MULTIMESH_INSTANCES \
 			or renderer_nodes != EXPECTED_RENDERER_NODES \
@@ -921,6 +979,10 @@ func get_audit_report() -> Dictionary:
 	if not bool(service_presentation.get("valid", false)):
 		for error in (service_presentation.get("errors", PackedStringArray()) as PackedStringArray):
 			errors.append("service presentation: %s" % error)
+	var service_structure := get_service_structure_audit()
+	if not bool(service_structure.get("valid", false)):
+		for error in (service_structure.get("errors", PackedStringArray()) as PackedStringArray):
+			errors.append("service structure: %s" % error)
 	var access_circulation := get_access_circulation_audit()
 	if not bool(access_circulation.get("valid", false)):
 		for error in (access_circulation.get("errors", PackedStringArray()) as PackedStringArray):
@@ -962,6 +1024,7 @@ func get_audit_report() -> Dictionary:
 		"guide_lights": guide_lights,
 		"descendants": descendants,
 		"service_presentation": service_presentation,
+		"service_structure": service_structure,
 		"access_circulation": access_circulation,
 		"ship_authority": false,
 		"berth_lease_authority": false,
@@ -1357,11 +1420,201 @@ func _build_service_presentation(pad: Node3D, pad_id: StringName) -> void:
 			_guide_light(service, "OrdnanceGuidePort", Vector3(-18.0, 10.5, -1.5), Color("ff9b4a"))
 		&"dock_06_interceptor":
 			_build_launch_rail_batch(service)
-			_visual_box(service, "LaunchFramePort", Vector3(-16.0, 5.0, -16.0), Vector3(1.5, 10.0, 1.5), _service_materials["interceptor_frame"])
-			_visual_box(service, "LaunchFrameStarboard", Vector3(16.0, 5.0, -16.0), Vector3(1.5, 10.0, 1.5), _service_materials["interceptor_frame"])
-			_visual_box(service, "LaunchFrameHeader", Vector3(0.0, 10.0, -16.0), Vector3(33.5, 1.0, 1.5), _service_materials["interceptor_frame"])
+			_visual_box(service, "LaunchFramePort", LAUNCH_FRAME_PORT_POSITION, LAUNCH_FRAME_POST_SIZE, _service_materials["interceptor_frame"])
+			_visual_box(service, "LaunchFrameStarboard", LAUNCH_FRAME_STARBOARD_POSITION, LAUNCH_FRAME_POST_SIZE, _service_materials["interceptor_frame"])
+			_visual_box(service, "LaunchFrameHeader", LAUNCH_FRAME_HEADER_POSITION, LAUNCH_FRAME_HEADER_SIZE, _service_materials["interceptor_frame"])
 			_guide_light(service, "LaunchGuidePort", Vector3(-16.0, 1.2, 24.0), Color("61e4ee"))
 			_guide_light(service, "LaunchGuideStarboard", Vector3(16.0, 1.2, 24.0), Color("61e4ee"))
+
+
+## CAMERA-LANE-005. The launch frame, the launch rails and the cargo containers
+## are drawn as heavy steel and heavy freight, and until this pass none of them
+## collided with anything. That is why a craft's chase camera clipped straight
+## through them: `SpringArm3D` resolves the boom with a shape sweep on
+## `PhysicsLayers.CAMERA_OBSTRUCTION_QUERY_MASK`, and a renderer with no body is
+## invisible to it, so the arm had nothing to retract against. The audit measured
+## the result at 0.737 m, 0.615 m, 0.435 m and 0.344 m of near-plane intrusion
+## across four separate craft.
+##
+## Two contracts this module already publishes are deliberately left intact
+## rather than relaxed: the logical pad still owns no collision of any kind (it
+## must never become player floor again), and `ServicePresentation` is still
+## checked to hold no `CollisionObject3D`, `CollisionShape3D` or `Area3D` at all
+## (it owns no authority). The structural collision therefore lives in its own
+## `ServiceStructure` node, one body per pad, one shape per drawn piece, built
+## from the very constants the renderers are built from so the two cannot drift
+## — and `get_service_structure_audit()` re-pairs them against the live drawn
+## nodes on every check.
+##
+## Every shape here was shape-queried against the production world before it was
+## added: none of them touches a walkable surface, a parked hull, or any berth's
+## published assist lane, including the Dock 04 approach restored in 55d7d3e5.
+func _build_service_structure_collision() -> void:
+	var structure := Node3D.new()
+	structure.name = "ServiceStructure"
+	structure.set_meta(&"structural_collision_only", true)
+	structure.set_meta(&"ship_authority", false)
+	structure.set_meta(&"berth_lease_authority", false)
+	add_child(structure)
+	for index in PAD_IDS.size():
+		var pad_id := PAD_IDS[index]
+		var pieces := service_structure_pieces(pad_id)
+		if pieces.is_empty():
+			continue
+		var body := StaticBody3D.new()
+		body.name = String(pad_id)
+		body.position = PAD_POSITIONS[index]
+		body.collision_layer = WORLD_LAYER
+		body.collision_mask = 0
+		body.set_meta(&"structural_dressing_collision", true)
+		body.set_meta(&"non_walkable_reason", "service structure standing clear of every walking surface")
+		structure.add_child(body)
+		for piece: Dictionary in pieces:
+			var shape_node := CollisionShape3D.new()
+			shape_node.name = String(piece["name"])
+			shape_node.position = piece["position"] as Vector3
+			var box := BoxShape3D.new()
+			box.size = piece["size"] as Vector3
+			shape_node.shape = box
+			body.add_child(shape_node)
+
+
+## The exact structural pieces each pad publishes collision for, in pad-local
+## space. Shared by the builder and the audit so a moved renderer that forgot its
+## collider, or a collider that outlived its renderer, is a reported error rather
+## than a silent one.
+static func service_structure_pieces(pad_id: StringName) -> Array[Dictionary]:
+	var pieces: Array[Dictionary] = []
+	match pad_id:
+		&"dock_04_cargo":
+			for index in CARGO_CONTAINER_TRANSFORMS.size():
+				pieces.append({
+					"name": "CargoContainer%02d" % index,
+					"position": CARGO_CONTAINER_TRANSFORMS[index].origin,
+					"size": CARGO_CONTAINER_SIZE,
+					"drawn": "ServicePresentation/CargoContainerBatch",
+					"instance": index,
+				})
+		&"dock_06_interceptor":
+			pieces.append({
+				"name": "LaunchFramePort",
+				"position": LAUNCH_FRAME_PORT_POSITION,
+				"size": LAUNCH_FRAME_POST_SIZE,
+				"drawn": "ServicePresentation/LaunchFramePort",
+				"instance": -1,
+			})
+			pieces.append({
+				"name": "LaunchFrameStarboard",
+				"position": LAUNCH_FRAME_STARBOARD_POSITION,
+				"size": LAUNCH_FRAME_POST_SIZE,
+				"drawn": "ServicePresentation/LaunchFrameStarboard",
+				"instance": -1,
+			})
+			pieces.append({
+				"name": "LaunchFrameHeader",
+				"position": LAUNCH_FRAME_HEADER_POSITION,
+				"size": LAUNCH_FRAME_HEADER_SIZE,
+				"drawn": "ServicePresentation/LaunchFrameHeader",
+				"instance": -1,
+			})
+			for index in LAUNCH_RAIL_TRANSFORMS.size():
+				pieces.append({
+					"name": "LaunchRail%02d" % index,
+					"position": LAUNCH_RAIL_TRANSFORMS[index].origin,
+					"size": LAUNCH_RAIL_SIZE,
+					"drawn": "ServicePresentation/LaunchRailBatch",
+					"instance": index,
+				})
+	return pieces
+
+
+## Pairs every declared structural collider with the renderer it stands for.
+##
+## The failure this exists to catch is the one the audit found in the first
+## place: a drawn piece with no collider is a thing the player's camera and the
+## craft fly through, and a collider with no drawn piece is an invisible wall.
+## Both are reported here, against the live tree rather than against the
+## constants alone.
+func get_service_structure_audit() -> Dictionary:
+	var errors := PackedStringArray()
+	var bodies := 0
+	var shapes := 0
+	var structure := get_node_or_null(^"ServiceStructure") as Node3D
+	if structure == null:
+		errors.append("service structure root missing")
+	else:
+		if not structure.find_children("*", "Area3D", true, false).is_empty():
+			errors.append("service structure gained interaction authority")
+		for index in PAD_IDS.size():
+			var pad_id := PAD_IDS[index]
+			var pieces := service_structure_pieces(pad_id)
+			var body := structure.get_node_or_null(NodePath(String(pad_id))) as StaticBody3D
+			if pieces.is_empty():
+				if body != null:
+					errors.append("unexpected structural body: %s" % pad_id)
+				continue
+			if body == null:
+				errors.append("structural body missing: %s" % pad_id)
+				continue
+			bodies += 1
+			if body.collision_layer != WORLD_LAYER or body.collision_mask != 0 \
+					or not body.position.is_equal_approx(PAD_POSITIONS[index]):
+				errors.append("structural body contract drift: %s" % pad_id)
+			var pad := get_node_or_null(NodePath(String(pad_id))) as Node3D
+			var declared := {}
+			for piece: Dictionary in pieces:
+				declared[String(piece["name"])] = true
+				var shape_node := body.get_node_or_null(
+					NodePath(String(piece["name"]))
+				) as CollisionShape3D
+				if shape_node == null or shape_node.disabled \
+						or shape_node.shape is not BoxShape3D:
+					errors.append("structural collider missing: %s/%s" % [pad_id, piece["name"]])
+					continue
+				shapes += 1
+				if not shape_node.position.is_equal_approx(piece["position"] as Vector3) \
+						or not (shape_node.shape as BoxShape3D).size.is_equal_approx(
+							piece["size"] as Vector3
+						):
+					errors.append("structural collider drift: %s/%s" % [pad_id, piece["name"]])
+				if not _structural_collider_matches_renderer(pad, piece):
+					errors.append("structural collider has no drawn piece: %s/%s" % [pad_id, piece["name"]])
+			for child in body.get_children():
+				if child is CollisionShape3D and not declared.has(String(child.name)):
+					errors.append("undeclared structural collider: %s/%s" % [pad_id, child.name])
+	return {
+		"schema_version": SCHEMA_VERSION,
+		"valid": errors.is_empty(),
+		"errors": errors,
+		"structural_bodies": bodies,
+		"structural_shapes": shapes,
+	}.duplicate(true)
+
+
+func _structural_collider_matches_renderer(pad: Node3D, piece: Dictionary) -> bool:
+	if pad == null:
+		return false
+	var drawn := pad.get_node_or_null(NodePath(String(piece["drawn"])))
+	if drawn == null:
+		return false
+	var size := piece["size"] as Vector3
+	var position := piece["position"] as Vector3
+	var instance := int(piece["instance"])
+	if instance < 0:
+		var mesh_instance := drawn as MeshInstance3D
+		var box := mesh_instance.mesh as BoxMesh if mesh_instance != null else null
+		return box != null and box.size.is_equal_approx(size) \
+			and mesh_instance.position.is_equal_approx(position)
+	var batch := drawn as MultiMeshInstance3D
+	if batch == null or batch.multimesh == null:
+		return false
+	var batch_box := batch.multimesh.mesh as BoxMesh
+	if batch_box == null or not batch_box.size.is_equal_approx(size):
+		return false
+	var authored := batch.get_meta(&"authored_instance_transforms", []) as Array
+	if instance >= authored.size():
+		return false
+	return (authored[instance] as Transform3D).origin.is_equal_approx(position - batch.position)
 
 
 func _build_launch_rail_batch(service: Node3D) -> void:
@@ -1381,8 +1634,8 @@ func _build_launch_rail_batch(service: Node3D) -> void:
 	batch.set_meta(&"visual_batch_family_id", &"dock_06_launch_rails")
 	batch.set_meta(&"authored_instance_transforms", LAUNCH_RAIL_TRANSFORMS.duplicate())
 	service.add_child(batch)
-	multimesh.set_instance_transform(0, Transform3D(Basis.IDENTITY, Vector3(-16.0, 0.5, 5.0)))
-	multimesh.set_instance_transform(1, Transform3D(Basis.IDENTITY, Vector3(16.0, 0.5, 5.0)))
+	for index in LAUNCH_RAIL_TRANSFORMS.size():
+		multimesh.set_instance_transform(index, LAUNCH_RAIL_TRANSFORMS[index])
 
 
 func _build_cargo_container_batch(service: Node3D) -> void:

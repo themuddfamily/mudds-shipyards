@@ -98,39 +98,32 @@ const MAIN_SCENE := preload("res://scenes/main.tscn")
 # (3,167 / 3,307), lights (335 / 362), bound (693 / 735) and retained
 # (969 / 1,016) materials, shaders (7), textures (34 / 83,355,976 bytes),
 # particle systems (45) and every loaded-minus-resident delta are unchanged.
-
-# Refrozen 2026-09-15 for the Phase 10 §2 *ship-side* scene-node trim.
-# `ShipFitoutBatch` merges anonymous sibling fitout dressing inside the eight
-# hero/fleet craft into one multi-surface renderer per locality, in the exact
-# parent that built it. Like the station pass it is a **node and submission**
-# trim, not a geometry trim:
 #
-#   resident 10,647 -> 10,551 nodes, 5,676 -> 5,580 renderers,
-#            6,033 -> 5,961 surfaces, 3,167 -> 3,071 unique meshes
-#   loaded   11,070 -> 10,974 nodes, 5,885 -> 5,789 renderers,
-#            6,242 -> 6,170 surfaces, 3,307 -> 3,211 unique meshes
+# Refrozen 2026-09-15 for the Phase 10 §1 camera-lane pass. **Only nodes move,
+# and only collision nodes.** Eight station pieces that a craft's chase camera
+# flew through were given the collision they visually imply, or moved onto their
+# own pad and then given it: Dock 06's launch frame and rails and Dock 04's
+# container row (`ServiceStructure`, one body per pad and one shape per drawn
+# piece), the fleet-dock comb's three outboard service risers, the launch
+# spine's signal crossbeam, and the three exposed-lattice mast caps (also
+# finally named, `MastCap01`…`MastCap03`).
 #
-# Both sides were measured with fresh private user data, which is what the
-# census contract requires and which is the whole of the one-node difference
-# between these rows and the tool's numbers on a session that has recovery
-# controls in its HUD.
+#   resident 10,647 -> 10,675 nodes, loaded 11,070 -> 11,098
 #
-# **Triangles do not move** — 1,917,477 resident and 2,051,611 loaded on both
-# sides, and every per-bucket triangle total of every craft the pass touched is
-# byte-identical before and after. Neither do lights (335/362, 20
-# shadow-casting), particle systems (45), bound (693/735) and retained
-# (969/1,016) materials, shaders (7), textures (34 / 83,355,976 bytes) or text
-# triangles/instances. Every loaded-minus-resident delta is untouched: +134,134
-# triangles, +209 renderers, +140 unique meshes, +47 retained materials, +27
-# lights, +423 nodes, and the streamed Cinder bucket is identical.
-#
-# Unique meshes fall because a merged renderer replaces N privately owned box
-# meshes with one; surfaces fall because pieces that shared a material with a
-# sibling now share one submission. Both are draw-call reductions, not lost
-# geometry. Deliberately shared *stock* meshes are never folded, so the craft's
-# resource-sharing audits keep the exact identities they prove.
-const RESIDENT_FINGERPRINT := "c83df40ab6850c64f901bf7ac4ef81bb7a12bcce0c98199921df171b5382d9f1"
-const CINDER_LOADED_FINGERPRINT := "68ab892fae14b7bcaba55c84a55e434c426aad72a937b034bb5580b92510a0c0"
+# +28 in each scenario, and it decomposes exactly: 11 from the expansion berths
+# (one `ServiceStructure` root, two bodies, eight shapes), 9 from the comb
+# (three bodies, six shapes), 2 from the signal crossbeam and 6 from the three
+# mast caps (each `MeshInstance3D` becomes a body with a mesh and a shape).
+# Everything else is byte-identical: triangles (1,917,477 / 2,051,611),
+# renderers (5,676 / 5,885), surfaces (6,033 / 6,242), unique meshes
+# (3,167 / 3,307), lights (335 / 362), bound (693 / 735) and retained
+# (969 / 1,016) materials, shaders (7), textures (34 / 83,355,976 bytes),
+# particle systems (45) and every loaded-minus-resident delta. Dock 04's
+# containers were resized 7 x 3.6 x 7 -> 3 x 3.6 x 4 and Dock 06's rails and
+# header shortened, which moves no count at all: they are the same `BoxMesh`
+# and `MultiMesh` resources at new dimensions.
+const RESIDENT_FINGERPRINT := "62c2a3b306f9e53df77af045a90fd500a95bb9885336de8d91cfb2e8da96a5f6"
+const CINDER_LOADED_FINGERPRINT := "04d26f7bb2d9615543643e977f3f486ddadeb77d39a2820a276339cfd7e403bd"
 
 var _assertions := 0
 var _failures := PackedStringArray()
@@ -181,17 +174,17 @@ func _run() -> void:
 	)
 	_check(
 		int(resident.get("total_triangles", -1)) == 1917477
-			and int(resident.get("total_mesh_instances", -1)) == 5549
-			and int(resident.get("total_surfaces", -1)) == 5945
-			and int(resident.get("unique_meshes", -1)) == 3055,
-		"resident geometry freezes 1,917,477 triangles / 5,549 meshes / 5,945 surfaces / 3,055 unique meshes"
+			and int(resident.get("total_mesh_instances", -1)) == 5676
+			and int(resident.get("total_surfaces", -1)) == 6033
+			and int(resident.get("unique_meshes", -1)) == 3167,
+		"resident geometry freezes 1,917,477 triangles / 5,676 meshes / 6,033 surfaces / 3,167 unique meshes"
 	)
 	_check(
 		int(resident.get("bound_phase_unique_materials", -1)) == 693
 			and int(resident.get("retained_reachable_unique_materials", -1)) == 969
 			and int(resident.get("lights", -1)) == 335
-			and int(resident.get("nodes", -1)) == 10502,
-		"resident resource roster freezes 693 bound / 969 retained materials, 335 lights, and 10,502 nodes"
+			and int(resident.get("nodes", -1)) == 10675,
+		"resident resource roster freezes 693 bound / 969 retained materials, 335 lights, and 10,675 nodes"
 	)
 	_check(
 		str(resident.get("measurement_fingerprint", "")) == RESIDENT_FINGERPRINT,
@@ -249,17 +242,17 @@ func _run() -> void:
 	)
 	_check(
 		int(loaded.get("total_triangles", -1)) == 2051611
-			and int(loaded.get("total_mesh_instances", -1)) == 5758
-			and int(loaded.get("total_surfaces", -1)) == 6154
-			and int(loaded.get("unique_meshes", -1)) == 3195,
-		"loaded geometry freezes 2,051,611 triangles / 5,758 meshes / 6,154 surfaces / 3,195 unique meshes"
+			and int(loaded.get("total_mesh_instances", -1)) == 5885
+			and int(loaded.get("total_surfaces", -1)) == 6242
+			and int(loaded.get("unique_meshes", -1)) == 3307,
+		"loaded geometry freezes 2,051,611 triangles / 5,885 meshes / 6,242 surfaces / 3,307 unique meshes"
 	)
 	_check(
 		int(loaded.get("bound_phase_unique_materials", -1)) == 735
 			and int(loaded.get("retained_reachable_unique_materials", -1)) == 1016
 			and int(loaded.get("lights", -1)) == 362
-			and int(loaded.get("nodes", -1)) == 10925,
-		"loaded resource roster freezes 735 bound / 1,016 retained materials, 362 lights, and 10,925 nodes"
+			and int(loaded.get("nodes", -1)) == 11098,
+		"loaded resource roster freezes 735 bound / 1,016 retained materials, 362 lights, and 11,098 nodes"
 	)
 	var cinder_bucket := (loaded.get("buckets", {}) as Dictionary).get(
 		"CinderStreamingBootstrap", {}

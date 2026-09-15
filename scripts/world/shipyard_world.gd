@@ -7026,11 +7026,22 @@ func _build_architecture() -> void:
 	_dock_mast_collar_mesh.outer_radius = DOCK_MAST_COLLAR_OUTER_RADIUS
 	_dock_mast_collar_mesh.rings = DOCK_MAST_COLLAR_RINGS
 	_dock_mast_collar_mesh.ring_segments = DOCK_MAST_COLLAR_RING_SEGMENTS
-	for mast_position in DOCK_MAST_COLLAR_POSITIONS:
-		var mast_base_position: Vector3 = (mast_position as Vector3) - Vector3.UP
+	# CAMERA-LANE-001. The cap was one of three siblings all called `MastCap`, so
+	# Godot renamed two of them and the camera-intrusion audit could only report
+	# the third as `ExposedDockLattice/@MeshInstance3D@752`. A piece a report
+	# cannot name is a piece nobody can fix, so each cap now carries its own
+	# index. The cap is also the reason the chase camera clipped here: the mast
+	# under it has been a collidable cylinder all along, but the cap overhangs
+	# that 0.46 m radius by 0.74 m in x, and the overhang carried no collision at
+	# all, so the arm's obstruction sweep had nothing to retract against while a
+	# craft flew the central berth's assist lane past it. It is a solid ivory
+	# plate on a solid mast; it now collides like one.
+	for mast_index in DOCK_MAST_COLLAR_POSITIONS.size():
+		var mast_position: Vector3 = DOCK_MAST_COLLAR_POSITIONS[mast_index] as Vector3
+		var mast_base_position: Vector3 = mast_position - Vector3.UP
 		_cylinder(shell, "DockMast", mast_base_position + Vector3(0, 5.2, 0), 0.46, 10.4, _materials["steel_blue"], true)
 		_torus(shell, "DockMastCollar", mast_position, DOCK_MAST_COLLAR_INNER_RADIUS, DOCK_MAST_COLLAR_OUTER_RADIUS, _materials["orange"], Vector3.ZERO, _dock_mast_collar_mesh)
-		_box(shell, "MastCap", mast_base_position + Vector3(0, 10.15, 0), Vector3(2.4, 0.55, 1.6), _materials["ivory"], false)
+		_box(shell, "MastCap%02d" % (mast_index + 1), mast_base_position + Vector3(0, 10.15, 0), Vector3(2.4, 0.55, 1.6), _materials["ivory"], true)
 		_add_guide_light(shell, mast_base_position + Vector3(0, 9.5, -0.55), KETH_CYAN, false, 2.2, 9.0)
 
 	# Modern navigation pylon; text describes this slice's deck, not a recovered
@@ -8285,7 +8296,7 @@ func _build_launch_corridor() -> void:
 		_cylinder(launch, "SignalMastCollar", Vector3(side * 13.0, 1.6, -66.0), 1.0, 0.65, _materials["orange"], false)
 		for y_position in [2.7, 6.2, 9.7]:
 			_add_guide_light(launch, Vector3(side * 12.9, y_position, -65.45), ALERT_RED, true)
-	_extruded_capsule_header_visual(
+	_extruded_capsule_crossbeam(
 		launch,
 		"SignalGantry",
 		Vector3(0, 12.2, -66.0),
@@ -10421,10 +10432,25 @@ func _extruded_capsule_fascia(
 	return body
 
 
-## Presentation-only sibling of `_extruded_capsule_fascia`. The launch signal
-## crossbeam has never owned collision or authority, so this retains its exact
-## one-node/one-submission contract instead of introducing a structural body.
-func _extruded_capsule_header_visual(
+## Structural sibling of `_extruded_capsule_fascia` for the launch signal
+## crossbeam.
+##
+## CAMERA-LANE-002. This used to be `_extruded_capsule_header_visual`, a
+## deliberately presentation-only node with zero collision authority. The
+## camera-intrusion audit then flew the published outbound route with the real
+## Jovian chase rig and put the near plane 0.017 m through the beam's aft face
+## at `(0.40, 12.27, -66.38)`: the arm's obstruction sweep had nothing to retract
+## against, because the only member of this gantry without collision was the
+## crossbeam itself — both `SignalMast` cylinders that carry it have been
+## `StaticBody3D` all along. A beam a craft's camera flies through while the two
+## posts holding it up are solid is the defect, not the collision.
+##
+## The envelope does not move: same position, same 27 x 0.8 x 0.8 m bounds, same
+## 11.8 m underside, same 72-triangle capsule mesh, material and metadata. Only
+## the node type changes, and the published launch aim is unaffected — it is
+## y = 2.70 with a fleet-worst ceiling of 3.80 m, 8 m below this beam, which
+## `tests/outbound_route_clearance_test.gd` re-measures against the live physics.
+func _extruded_capsule_crossbeam(
 		parent: Node3D,
 		node_name: String,
 		header_position: Vector3,
@@ -10433,21 +10459,34 @@ func _extruded_capsule_header_visual(
 		end_radius: float,
 		segments_per_end: int,
 		geometry_profile: StringName,
-	) -> MeshInstance3D:
+	) -> StaticBody3D:
+	var body := StaticBody3D.new()
+	body.name = node_name
+	body.position = header_position
+	body.collision_layer = WORLD_LAYER
+	body.collision_mask = PhysicsLayers.NONE
+	body.set_meta("geometry_profile", geometry_profile)
+	body.set_meta("end_radius_m", end_radius)
+	body.set_meta("curve_segments_per_end", segments_per_end)
+	body.set_meta("evidence_status", OPERATIONAL_LATTICE_EVIDENCE_STATUS)
+	body.set_meta("historical_form_identified", false)
+	body.set_meta("authenticated_original_geometry", false)
+	parent.add_child(body)
+
 	var visual := MeshInstance3D.new()
-	visual.name = node_name
-	visual.position = header_position
+	visual.name = "Mesh"
 	visual.mesh = _extruded_capsule_mesh(size, end_radius, segments_per_end)
 	visual.mesh.resource_name = "central_launch_signal_capsule_gantry_v1"
 	visual.material_override = material
-	visual.set_meta("geometry_profile", geometry_profile)
-	visual.set_meta("end_radius_m", end_radius)
-	visual.set_meta("curve_segments_per_end", segments_per_end)
-	visual.set_meta("evidence_status", OPERATIONAL_LATTICE_EVIDENCE_STATUS)
-	visual.set_meta("historical_form_identified", false)
-	visual.set_meta("authenticated_original_geometry", false)
-	parent.add_child(visual)
-	return visual
+	body.add_child(visual)
+
+	var collision := CollisionShape3D.new()
+	collision.name = "Collision"
+	var shape := BoxShape3D.new()
+	shape.size = size
+	collision.shape = shape
+	body.add_child(collision)
+	return body
 
 
 ## Give the normal Habitat walk route a true curved pressure-lintel silhouette

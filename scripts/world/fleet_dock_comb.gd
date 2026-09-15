@@ -38,8 +38,16 @@ const DOCK_MARKER_COUNT := 3
 const ASSIGNED_DOCK_COUNT := 3
 const DEFERRED_DOCK_COUNT := 0
 const WALKABLE_SURFACE_COUNT := 7
-const COLLISION_BODY_COUNT := 7
-const COLLISION_SHAPE_COUNT := 7
+## One body per walkable surface, plus one structural body per outboard
+## dock-service riser. The riser bodies are the module's single deliberate
+## exception to "no collision on dressing" and the reason is recorded on
+## `_build_dock_service_pylon_collision()`: they stand over open void, so they
+## add no walkable surface, and a craft's chase camera was flying through them
+## on Dock 03's published assist lane because nothing could retract its arm.
+const SERVICE_PYLON_COLLISION_BODY_COUNT := 3
+const SERVICE_PYLON_COLLISION_SHAPE_COUNT := 6
+const COLLISION_BODY_COUNT := WALKABLE_SURFACE_COUNT + SERVICE_PYLON_COLLISION_BODY_COUNT
+const COLLISION_SHAPE_COUNT := WALKABLE_SURFACE_COUNT + SERVICE_PYLON_COLLISION_SHAPE_COUNT
 ## Exact post-batch renderer census. The visual-only trunk expansion strips,
 ## slab corner beacons, slab supports, rung edge cues, mooring cleat pads,
 ## mooring cleat bollards, dock service brackets, dock service masts, trunk route
@@ -88,7 +96,10 @@ const PRE_MOORING_CLEAT_BOLLARD_GEOMETRY_SUBMISSION_COUNT := 62
 const PRE_DOCK_SERVICE_MAST_GEOMETRY_SUBMISSION_COUNT := 57
 const PRE_DOCK_SERVICE_BRACKET_GEOMETRY_SUBMISSION_COUNT := 55
 const PRE_DOCK_STATUS_STRIPE_GEOMETRY_SUBMISSION_COUNT := 53
-const RENDER_DESCENDANT_COUNT := 141
+## 141 before the outboard service risers; they add three `StaticBody3D` bodies
+## and their six shapes and no renderer at all.
+const RENDER_DESCENDANT_COUNT := 141 \
+	+ SERVICE_PYLON_COLLISION_BODY_COUNT + SERVICE_PYLON_COLLISION_SHAPE_COUNT
 const RENDER_MESH_INSTANCE_COUNT := 83
 const RENDER_MULTIMESH_BATCH_COUNT := 12
 const RENDER_DRAWN_COPY_COUNT := 101
@@ -280,6 +291,12 @@ var _dock_mast_cap_transforms: Array[Transform3D] = []
 var _dock_mast_cap_batch: MultiMeshInstance3D = null
 var _dock_service_mast_transforms: Array[Transform3D] = []
 var _dock_service_mast_batch: MultiMeshInstance3D = null
+## One structural body per outboard dock-service riser. Held here for the same
+## reason the walkable surfaces are: `_apply_enabled_state()` runs during
+## `_ready()`, before a `find_children()` sweep of this node is reliable, and a
+## body that kept the world layer through a module disable is exactly what the
+## collision contract exists to catch.
+var _dock_service_pylon_bodies: Array[StaticBody3D] = []
 var _dock_cross_stripe_transforms: Array[Transform3D] = []
 var _dock_cross_stripe_batch: MultiMeshInstance3D = null
 var _dock_long_stripe_transforms: Array[Transform3D] = []
@@ -1130,7 +1147,7 @@ func get_validation_errors() -> PackedStringArray:
 		errors.append("comb must preserve exactly three rungs and three broad slabs")
 	var collision := get_collision_contract()
 	if int(collision.body_count) != COLLISION_BODY_COUNT or int(collision.shape_count) != COLLISION_SHAPE_COUNT:
-		errors.append("collision roster must remain one body and shape per walkable surface")
+		errors.append("collision roster must remain one body and shape per walkable surface plus the three outboard service risers")
 	if not bool(collision.all_layers_match_lifecycle) or not bool(collision.all_masks_zero):
 		errors.append("collision layers or masks differ from the canonical lifecycle contract")
 	if bool(collision.full_footprint_floor_present):
@@ -1629,8 +1646,11 @@ func _build_surface_detail() -> void:
 ## assumed, and all of them load-bearing:
 ##
 ## 1. **Nothing substantial stands on the walking plate.** The module carries no
-##    collision on dressing and its collision roster is frozen at one body per
-##    walkable surface, so any waist-height object on the deck would be a solid-
+##    collision on dressing that a player can reach, and its collision roster is
+##    frozen at one body per walkable surface plus one structural body per
+##    outboard service riser (`_build_dock_service_pylon_collision()`, added
+##    because a craft's chase camera was flying through the riser on Dock 03's
+##    assist lane), so any waist-height object on the deck would be a solid-
 ##    looking thing a player walks straight through. Everything tall here stands
 ##    *outboard* of the slab edge over the void, where no player can reach it and
 ##    no walkable surface is implied; everything that does touch the plate is a
@@ -1659,6 +1679,7 @@ func _build_dock_arm_service(detail: Node3D) -> void:
 	_dock_mast_cap_transforms.clear()
 	_dock_service_mast_transforms.clear()
 	_dock_service_bracket_transforms.clear()
+	_dock_service_pylon_bodies.clear()
 
 	for index in DOCK_SLAB_IDS.size():
 		var elevation := 0.0 if index < 2 else UPPER_DECK_ELEVATION
@@ -1752,6 +1773,7 @@ func _build_dock_arm_service(detail: Node3D) -> void:
 			_materials["underframe"],
 			"service pod slung beneath the slab edge over open void"
 		)
+		_build_dock_service_pylon_collision(service, suffix, elevation, slab_z)
 		# The status lens, and the only place on this hardware where the assigned
 		# and deferred colours differ. Its practical below is amber on all three
 		# masts for the reason already recorded for the slab beacons: tinting a
@@ -1811,9 +1833,11 @@ func _build_dock_arm_service(detail: Node3D) -> void:
 			)
 
 		# Toe kerb along the drop edge. It is 0.14 m — a kerb, not a rail. A rail
-		# here would need collision to be honest, and collision is exactly what
-		# this module's frozen one-body-per-surface roster forbids; a 0.14 m kerb
-		# marks the edge without pretending to stop anyone.
+		# here would need collision to be honest, and a reachable collider on the
+		# walking plate is exactly what this module's roster keeps out: the only
+		# dressing collision it owns is the outboard service riser, which stands
+		# over the void where nobody can walk. A 0.14 m kerb marks the edge
+		# without pretending to stop anyone.
 		#
 		# It is only built where there is still an edge to mark. See
 		# [constant DROP_EDGE_DOCK_INDICES] for the arm that lost one.
@@ -1967,6 +1991,71 @@ func _count_service_nodes(prefix: String) -> int:
 		if str(child.name).begins_with(prefix):
 			total += 1
 	return total
+
+
+## CAMERA-LANE-003. The one exception to "this module carries no collision on
+## dressing", and it is an exception the rule's own reasoning asks for.
+##
+## The rule above exists so that nothing solid-looking stands *on the walking
+## plate* without stopping a player. This riser is the opposite case: bracket,
+## pod and mast all hang outboard of the slab edge over open void where no player
+## can reach them, so they create no walkable surface and carry no
+## `walkable_surface` metadata — the station walkable-area census is unchanged by
+## them. What they do stand in is a *flight* lane. The camera-intrusion audit
+## flew the Bulwark's real chase rig down Dock 03's published assist lane and put
+## the near plane 0.161 m inside `ServiceMastBatch` and 0.158 m inside
+## `DockServiceBrackets` at `(52.00, 6.46, 46.45)` and `(52.00, 6.29, 46.43)`:
+## with the boom hanging below the arm at full zoom, the camera passes through
+## the riser just under the deck line, and the `SpringArm3D` sweep had nothing to
+## retract against because the riser was collision-free.
+##
+## Nothing moves: the collider is the drawn bracket and the drawn pod at their
+## authored transforms and sizes.
+##
+## The mast shaft above them is deliberately *not* included, and that is a
+## measured decision rather than an omission. Every one of the three docked craft
+## publishes a landing volume that starts just above the deck plane and runs the
+## full length of the hull: the Halyard's is 28.35 m long and reaches module-local
+## x = 29.5, so a collider on the 4.2 m mast at x = 21.9 stands inside the parked
+## Halyard's own envelope and inside all three berths' published assist lanes. It
+## was measured doing exactly that — a mast collider blocked the Zenith, Halyard
+## and Bulwark lanes and the Halyard's parked pose — which is the "collision must
+## not obstruct a landing lane" side of the same audit. The bracket and pod hang
+## *below* the deck line (crown at elevation - 0.13 against craft envelopes whose
+## floors start at elevation + 0.03 or higher), so they are the part of the riser
+## that can be solid without standing in anybody's way, and they are the part the
+## camera actually reached: both recorded intrusions are at elevation - 0.14 and
+## elevation - 0.31, inside the bracket's own 0.34 m section.
+func _build_dock_service_pylon_collision(
+		service: Node3D, suffix: String, elevation: float, slab_z: float
+	) -> void:
+	var pylon := StaticBody3D.new()
+	pylon.name = "DockServicePylon" + suffix
+	pylon.collision_layer = WORLD_LAYER
+	pylon.collision_mask = 0
+	pylon.set_meta("structural_dressing_collision", true)
+	pylon.set_meta(
+		"non_walkable_reason",
+		"dock service riser standing outboard of the slab over open void"
+	)
+	service.add_child(pylon)
+	_dock_service_pylon_bodies.append(pylon)
+
+	var bracket_shape := CollisionShape3D.new()
+	bracket_shape.name = "BracketCollision"
+	bracket_shape.position = Vector3(20.9, elevation - 0.30, slab_z)
+	var bracket_box := BoxShape3D.new()
+	bracket_box.size = Vector3(2.6, 0.34, 0.90)
+	bracket_shape.shape = bracket_box
+	pylon.add_child(bracket_shape)
+
+	var pod_shape := CollisionShape3D.new()
+	pod_shape.name = "PodCollision"
+	pod_shape.position = Vector3(21.9, elevation - 0.90, slab_z)
+	var pod_box := BoxShape3D.new()
+	pod_box.size = Vector3(1.05, 0.90, 1.70)
+	pod_shape.shape = pod_box
+	pylon.add_child(pod_shape)
 
 
 ## A dock-service visual with an explicit non-walkable reason attached.
@@ -2415,6 +2504,12 @@ func _apply_enabled_state() -> void:
 	# runs during `_ready()`, before the build root is guaranteed to be reachable
 	# from a `find_children()` sweep of this node.
 	var surfaces := _surface_nodes.values()
+	# The outboard service risers are structural collision rather than walking
+	# surface, but they are this module's bodies and must follow its lifecycle
+	# exactly: a disabled module clears the world layer on every body it owns.
+	for raw_pylon in _dock_service_pylon_bodies:
+		if is_instance_valid(raw_pylon):
+			surfaces.append(raw_pylon)
 	StationModuleContract.apply_enabled_state(surfaces, WORLD_LAYER, _enabled, _build_root)
 	for raw_surface in surfaces:
 		var surface := raw_surface as StaticBody3D

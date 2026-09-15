@@ -330,7 +330,11 @@ func _test_collision_backed_comb_and_voids(module: FleetDockComb) -> void:
 		every_void_empty = every_void_empty and void_hit.is_empty()
 	_check(every_void_empty, "all five published footprint samples remain genuine physics voids")
 	var collision := module.get_collision_contract()
-	_check(int(collision.body_count) == 7 and int(collision.shape_count) == 7, "collision roster is exactly one body and shape per walkable surface")
+	_check(
+		int(collision.body_count) == FleetDockComb.COLLISION_BODY_COUNT
+		and int(collision.shape_count) == FleetDockComb.COLLISION_SHAPE_COUNT,
+		"collision roster is one body and shape per walkable surface plus the three outboard service risers"
+	)
 	_check(bool(collision.all_layers_match_lifecycle) and bool(collision.all_masks_zero), "all collision uses the canonical World layer with zero static mask")
 	_check(not bool(collision.full_footprint_floor_present), "collision audit proves no hidden full-footprint floor exists")
 	_test_chamfered_meshes_do_not_move_collision(module)
@@ -345,6 +349,11 @@ func _test_chamfered_meshes_do_not_move_collision(module: FleetDockComb) -> void
 	var every_mesh_matches_its_shape := true
 	for candidate in module.find_children("*", "StaticBody3D", true, false):
 		var body := candidate as StaticBody3D
+		# The outboard service risers are structural collision under drawn
+		# dressing the batches own, not walked plate, so they carry no `Mesh`
+		# child of their own and are checked by their own test below.
+		if String(body.name).begins_with("DockServicePylon"):
+			continue
 		var mesh_instance := body.get_node_or_null(^"Mesh") as MeshInstance3D
 		var collision_shape := body.get_node_or_null(^"Collision") as CollisionShape3D
 		var box_shape := collision_shape.shape as BoxShape3D if collision_shape != null else null
@@ -435,7 +444,7 @@ func _test_trunk_expansion_joint_batch(module: FleetDockComb) -> void:
 
 	var render := module.get_render_batch_contract()
 	_check(
-		int(render.descendant_nodes) == 141
+		int(render.descendant_nodes) == FleetDockComb.RENDER_DESCENDANT_COUNT
 		and int(render.mesh_instances) == 83
 		and int(render.multimesh_batches) == 12,
 		"renderer census includes all twelve bounded visual-detail batches"
@@ -457,12 +466,12 @@ func _test_trunk_expansion_joint_batch(module: FleetDockComb) -> void:
 	var collision := module.get_collision_contract()
 	var authority := module.get_authority_contract()
 	_check(
-		int(render.static_bodies) == 7
-		and int(render.collision_shapes) == 7
+		int(render.static_bodies) == FleetDockComb.COLLISION_BODY_COUNT
+		and int(render.collision_shapes) == FleetDockComb.COLLISION_SHAPE_COUNT
 		and int(render.route_markers) == 9
 		and int(render.dock_landmarks) == 3
-		and int(collision.body_count) == 7
-		and int(collision.shape_count) == 7,
+		and int(collision.body_count) == FleetDockComb.COLLISION_BODY_COUNT
+		and int(collision.shape_count) == FleetDockComb.COLLISION_SHAPE_COUNT,
 		"batching leaves bodies, shapes, route markers and dock landmarks exact"
 	)
 	_check(
@@ -570,8 +579,8 @@ func _test_trunk_route_light_batch(module: FleetDockComb) -> void:
 		and bool(render.trunk_route_light_renderer_buffer_matches_authored)
 		and bool(render.trunk_route_light_bounds_match_authored)
 		and bool(render.trunk_route_light_contract_matches)
-		and int(render.static_bodies) == 7
-		and int(render.collision_shapes) == 7
+		and int(render.static_bodies) == FleetDockComb.COLLISION_BODY_COUNT
+		and int(render.collision_shapes) == FleetDockComb.COLLISION_SHAPE_COUNT
 		and int(render.route_markers) == 9
 		and int(render.dock_landmarks) == 3,
 		"route lights reduce 3 -> 1 submissions without changing copies, physics, routes or dock identities"
@@ -664,8 +673,8 @@ func _test_slab_corner_beacon_batch(module: FleetDockComb) -> void:
 	_check(
 		bool(render.slab_corner_beacon_renderer_buffer_matches_authored)
 		and bool(render.slab_corner_beacon_bounds_match_authored)
-		and int(render.static_bodies) == 7
-		and int(render.collision_shapes) == 7
+		and int(render.static_bodies) == FleetDockComb.COLLISION_BODY_COUNT
+		and int(render.collision_shapes) == FleetDockComb.COLLISION_SHAPE_COUNT
 		and int(render.route_markers) == 9
 		and int(render.dock_landmarks) == 3,
 		"batch preserves authored transforms, bounds, collision, routes and dock landmarks"
@@ -859,8 +868,8 @@ func _test_rung_edge_cue_batch(module: FleetDockComb) -> void:
 		and bool(render.rung_edge_cue_renderer_buffer_matches_authored)
 		and bool(render.rung_edge_cue_bounds_match_authored)
 		and bool(render.rung_edge_cue_contract_matches)
-		and int(render.static_bodies) == 7
-		and int(render.collision_shapes) == 7
+		and int(render.static_bodies) == FleetDockComb.COLLISION_BODY_COUNT
+		and int(render.collision_shapes) == FleetDockComb.COLLISION_SHAPE_COUNT
 		and int(render.route_markers) == 9
 		and int(render.dock_landmarks) == 3,
 		"rung cues measure 4 -> 1 submissions with exact visible count and unchanged physics/semantics"
@@ -937,7 +946,7 @@ func _test_mooring_cleat_pad_batch(module: FleetDockComb) -> void:
 		and batch.cast_shadow == GeometryInstance3D.SHADOW_CASTING_SETTING_ON
 		and batch.layers == 1
 		and batch.get_child_count() == 0
-		and service.find_children("*", "CollisionObject3D", true, false).is_empty()
+		and _service_collision_is_only_the_declared_risers(service)
 		and service.find_children("*", "Area3D", true, false).is_empty(),
 		"cleat-pad batch preserves exact transforms, grip material, shadows, culling layer and visual-only ownership"
 	)
@@ -951,8 +960,8 @@ func _test_mooring_cleat_pad_batch(module: FleetDockComb) -> void:
 		and bool(render.mooring_cleat_pad_renderer_buffer_matches_authored)
 		and bool(render.mooring_cleat_pad_bounds_match_authored)
 		and bool(render.mooring_cleat_pad_contract_matches)
-		and int(render.static_bodies) == 7
-		and int(render.collision_shapes) == 7
+		and int(render.static_bodies) == FleetDockComb.COLLISION_BODY_COUNT
+		and int(render.collision_shapes) == FleetDockComb.COLLISION_SHAPE_COUNT
 		and int(render.route_markers) == 9
 		and int(render.dock_landmarks) == 3,
 		"cleat pads reduce 6 -> 1 submissions without changing copies, physics, routes or dock identities"
@@ -1024,7 +1033,7 @@ func _test_mooring_cleat_bollard_batch(module: FleetDockComb) -> void:
 		and batch.cast_shadow == GeometryInstance3D.SHADOW_CASTING_SETTING_ON
 		and batch.layers == 1
 		and batch.get_child_count() == 0
-		and service.find_children("*", "CollisionObject3D", true, false).is_empty()
+		and _service_collision_is_only_the_declared_risers(service)
 		and service.find_children("*", "Area3D", true, false).is_empty(),
 		"bollard batch preserves exact cylinder mesh, transforms, underframe material and visual-only ownership"
 	)
@@ -1038,8 +1047,8 @@ func _test_mooring_cleat_bollard_batch(module: FleetDockComb) -> void:
 		and bool(render.mooring_cleat_bollard_renderer_buffer_matches_authored)
 		and bool(render.mooring_cleat_bollard_bounds_match_authored)
 		and bool(render.mooring_cleat_bollard_contract_matches)
-		and int(render.static_bodies) == 7
-		and int(render.collision_shapes) == 7
+		and int(render.static_bodies) == FleetDockComb.COLLISION_BODY_COUNT
+		and int(render.collision_shapes) == FleetDockComb.COLLISION_SHAPE_COUNT
 		and int(render.route_markers) == 9
 		and int(render.dock_landmarks) == 3,
 		"bollards reduce 6 -> 1 submissions without changing copies, physics, routes or dock identities"
@@ -1117,7 +1126,7 @@ func _test_dock_mast_cap_batch(module: FleetDockComb) -> void:
 		and batch.cast_shadow == GeometryInstance3D.SHADOW_CASTING_SETTING_ON
 		and batch.layers == 1
 		and batch.get_child_count() == 0
-		and service.find_children("*", "CollisionObject3D", true, false).is_empty()
+		and _service_collision_is_only_the_declared_risers(service)
 		and service.find_children("*", "Area3D", true, false).is_empty(),
 		"mast caps retain their exact batched chamfers while dark frame stock separates them from the pale Dock 01/02 masts"
 	)
@@ -1190,7 +1199,7 @@ func _test_dock_service_mast_batch(module: FleetDockComb) -> void:
 		and batch.cast_shadow == GeometryInstance3D.SHADOW_CASTING_SETTING_ON
 		and batch.layers == 1
 		and batch.get_child_count() == 0
-		and service.find_children("*", "CollisionObject3D", true, false).is_empty()
+		and _service_collision_is_only_the_declared_risers(service)
 		and service.find_children("*", "Area3D", true, false).is_empty(),
 		"service-mast batch preserves exact cylinders, transforms, deck-light material and visual-only outboard ownership"
 	)
@@ -1205,8 +1214,8 @@ func _test_dock_service_mast_batch(module: FleetDockComb) -> void:
 		and bool(render.dock_service_mast_renderer_buffer_matches_authored)
 		and bool(render.dock_service_mast_bounds_match_authored)
 		and bool(render.dock_service_mast_contract_matches)
-		and int(render.static_bodies) == 7
-		and int(render.collision_shapes) == 7
+		and int(render.static_bodies) == FleetDockComb.COLLISION_BODY_COUNT
+		and int(render.collision_shapes) == FleetDockComb.COLLISION_SHAPE_COUNT
 		and int(render.route_markers) == 9
 		and int(render.dock_landmarks) == 3,
 		"service masts reduce 3 -> 1 submissions without changing copies, physics, routes or dock identities"
@@ -1270,7 +1279,7 @@ func _test_dock_service_bracket_batch(module: FleetDockComb) -> void:
 		and batch.cast_shadow == GeometryInstance3D.SHADOW_CASTING_SETTING_ON
 		and batch.layers == 1
 		and batch.get_child_count() == 0
-		and service.find_children("*", "CollisionObject3D", true, false).is_empty()
+		and _service_collision_is_only_the_declared_risers(service)
 		and service.find_children("*", "Area3D", true, false).is_empty(),
 		"service-bracket batch preserves exact transforms, frame material and visual-only outboard ownership"
 	)
@@ -1285,8 +1294,8 @@ func _test_dock_service_bracket_batch(module: FleetDockComb) -> void:
 		and bool(render.dock_service_bracket_renderer_buffer_matches_authored)
 		and bool(render.dock_service_bracket_bounds_match_authored)
 		and bool(render.dock_service_bracket_contract_matches)
-		and int(render.static_bodies) == 7
-		and int(render.collision_shapes) == 7
+		and int(render.static_bodies) == FleetDockComb.COLLISION_BODY_COUNT
+		and int(render.collision_shapes) == FleetDockComb.COLLISION_SHAPE_COUNT
 		and int(render.route_markers) == 9
 		and int(render.dock_landmarks) == 3,
 		"service brackets reduce 3 -> 1 submissions without changing copies, physics, routes or dock identities"
@@ -1328,7 +1337,11 @@ func _test_dock_service_bracket_batch(module: FleetDockComb) -> void:
 func _test_performance_contract(module: FleetDockComb) -> void:
 	var performance := module.get_performance_contract()
 	_check(bool(performance.within_budget), "module stays within every fixed geometry and processing budget")
-	_check(int(performance.static_bodies) == 7 and int(performance.collision_shapes) == 7, "performance report agrees with the exact collision roster")
+	_check(
+		int(performance.static_bodies) == FleetDockComb.COLLISION_BODY_COUNT
+		and int(performance.collision_shapes) == FleetDockComb.COLLISION_SHAPE_COUNT,
+		"performance report agrees with the exact collision roster"
+	)
 	_check(int(performance.labels) == 6 and int(performance.lights) == 7, "presentation contains exactly three ship labels, three dock-number fascias and seven practical light nodes")
 	_check(int(performance.process_loops) == 0, "static module allocates no frame or physics process loop")
 	var practicals_are_restrained := true
@@ -1393,10 +1406,43 @@ func _test_dock_arm_service_hardware(module: FleetDockComb) -> void:
 	_check(service != null, "generated dock-service group resolves under the surface detail root")
 	if service == null:
 		return
+	# CAMERA-LANE. The dock-arm service group owns exactly one collision body per
+	# arm and nothing else: the outboard riser bracket and pod, below the deck
+	# line, added because a craft's chase camera flew through them on Dock 03's
+	# published assist lane with nothing for the spring arm to retract against.
+	# The 4.2 m mast above them still carries none — a collider there stands
+	# inside the parked Halyard's own landing volume and blocks all three berths'
+	# lanes, which is the defect on the other side of the same audit.
 	_check(
-		service.find_children("*", "CollisionObject3D", true, false).is_empty()
+		_service_collision_is_only_the_declared_risers(service)
 		and service.find_children("*", "Area3D", true, false).is_empty(),
-		"dock-arm service hardware introduces no collision body, shape or area"
+		"dock-arm service hardware owns only its three declared outboard riser bodies"
+	)
+	var risers := service.find_children("DockServicePylon*", "StaticBody3D", true, false)
+	var riser_below_deck := risers.size() == FleetDockComb.SERVICE_PYLON_COLLISION_BODY_COUNT
+	var riser_shapes := 0
+	var worst_crown := -INF
+	for riser_index in risers.size():
+		var riser := risers[riser_index] as StaticBody3D
+		var deck := 0.0 if riser_index < 2 else FleetDockComb.UPPER_DECK_ELEVATION
+		riser_below_deck = riser_below_deck \
+			and riser.collision_layer == FleetDockComb.WORLD_LAYER \
+			and riser.collision_mask == 0
+		for raw_shape in riser.get_children():
+			var riser_shape := raw_shape as CollisionShape3D
+			if riser_shape == null or riser_shape.disabled \
+					or riser_shape.shape is not BoxShape3D:
+				continue
+			riser_shapes += 1
+			var crown := riser.position.y + riser_shape.position.y \
+				+ (riser_shape.shape as BoxShape3D).size.y * 0.5
+			worst_crown = maxf(worst_crown, crown - deck)
+			riser_below_deck = riser_below_deck and crown <= deck - 0.1
+	_check(
+		riser_below_deck
+		and riser_shapes == FleetDockComb.SERVICE_PYLON_COLLISION_SHAPE_COUNT,
+		"every riser collider crowns at least 0.1 m under its own deck plane (worst %.2f m), so none can stand in a craft's landing envelope"
+			% worst_crown
 	)
 
 	var module_boxes: Array[AABB] = []
@@ -1603,3 +1649,19 @@ func _finish() -> void:
 	else:
 		print("FLEET_DOCK_COMB_TEST_FAILED: ", ", ".join(_failures))
 		quit(1)
+
+
+## The dock-arm service group is allowed exactly the declared outboard riser
+## bodies and nothing else. Anything that is not a `DockServicePylon` body or one
+## of its own shapes is dressing that gained collision behind the module's back.
+func _service_collision_is_only_the_declared_risers(service: Node3D) -> bool:
+	if service == null:
+		return false
+	var bodies := service.find_children("*", "CollisionObject3D", true, false)
+	if bodies.size() != FleetDockComb.SERVICE_PYLON_COLLISION_BODY_COUNT:
+		return false
+	for raw_body in bodies:
+		if raw_body is not StaticBody3D \
+				or not String(raw_body.name).begins_with("DockServicePylon"):
+			return false
+	return true

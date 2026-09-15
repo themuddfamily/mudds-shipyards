@@ -47,11 +47,11 @@ func _initialize() -> void:
 	var audit := berths.get_audit_report()
 	_check(
 		bool(audit.get("valid", false)) \
-		and int(audit.get("static_bodies", -1)) == 6 \
-		and int(audit.get("collision_shapes", -1)) == 6 \
-		and int(audit.get("renderer_nodes", -1)) == 24 \
-		and int(audit.get("guide_lights", -1)) == 5 \
-		and int(audit.get("descendants", -1)) == 59,
+		and int(audit.get("static_bodies", -1)) == Berths.EXPECTED_STATIC_BODIES \
+		and int(audit.get("collision_shapes", -1)) == Berths.EXPECTED_COLLISION_SHAPES \
+		and int(audit.get("renderer_nodes", -1)) == Berths.EXPECTED_RENDERER_NODES \
+		and int(audit.get("guide_lights", -1)) == Berths.EXPECTED_GUIDE_LIGHTS \
+		and int(audit.get("descendants", -1)) == Berths.EXPECTED_DESCENDANTS,
 		"material binding preserves FleetExpansionBerths layout, collision, renderer, light, and attachment-owner rosters"
 	)
 

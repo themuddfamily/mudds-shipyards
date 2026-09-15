@@ -43,7 +43,8 @@ berth.
 
 ## Findings
 
-48 grouped findings. No `camera_sphere_in_world_collision` and no
+29 grouped findings, down from 48 before the station-geometry pass below.
+No `camera_sphere_in_world_collision` and no
 `spring_arm_collapse_at_rest` anywhere: the arm keeps its sweep sphere clear of
 every solid body, and every craft resolves its full requested rest arm at its
 berth (15.34–22.00 m against readability floors of 4.50–11.00 m). The cockpit rig and the cabin-exit rig are clean on all
@@ -89,25 +90,71 @@ If they are ever made solid, `PhysicsLayers.CAMERA_OBSTRUCTION_QUERY_MASK` has
 to gain `TARGET` at the same time or the camera will pass through bodies the
 craft cannot.
 
-### Deferred — station geometry, not ours to move
+### Fixed — station geometry (Phase 10 §1 follow-up)
 
-Every one of these is a visible renderer with **no collision at all**, which is
-why the chase arm cannot retract for it. Naming the owner, worst depth, and the
-lanes where a craft reaches it:
+All eight of these were visible renderers with **no collision at all**, which is
+why the chase arm could not retract for them: `SpringArm3D` resolves the boom
+with a shape sweep on `PhysicsLayers.CAMERA_OBSTRUCTION_QUERY_MASK`, and a
+renderer without a body is invisible to that sweep. They are gone from the audit
+and the grouped total falls from 48 to 29.
 
-| Node | Depth | Lanes | Owner |
+Two of them were worse than a camera defect. Dock 06's `LaunchFramePort` and
+`LaunchFrameHeader` stood *inside Dock 04's own published approach lane* — the
+hauler's landing envelope crosses world x = 30 at y = 12.98…16.18 and the post
+reached y = 14.20, so the craft flew through a drawn 10 m post on every
+approach, and only the post's total absence of collision kept the landing assist
+from stalling on it. Dock 04's three 7 m containers stood inside the
+`VipReceptionSuite` reception and threshold, inside `AftJunctionStack`'s
+operations room and upper deck, through the fleet-dock comb connector deck and
+its rails, and on top of the comb's own trunk walking plate; two of the three
+were entirely buried inside other modules' interiors.
+
+| Node | Depth | Lanes | Disposition |
 | --- | --- | --- | --- |
-| `FleetExpansionBerths/dock_06_interceptor/ServicePresentation/LaunchFramePort` | 0.737 m | assist, launch | `scripts/world/fleet_expansion_berths.gd` |
-| `FleetExpansionBerths/dock_04_cargo/ServicePresentation/CargoContainerBatch` | 0.615 m | assist, launch | `scripts/world/fleet_expansion_berths.gd` |
-| `FleetExpansionBerths/dock_06_interceptor/ServicePresentation/LaunchRailBatch` | 0.435 m | assist, launch | `scripts/world/fleet_expansion_berths.gd` |
-| `FleetExpansionBerths/dock_06_interceptor/ServicePresentation/LaunchFrameHeader` | 0.344 m | assist, launch | `scripts/world/fleet_expansion_berths.gd` |
-| `FleetDockComb/GeneratedComb/SurfaceDetail/DockArmService/ServiceMastBatch` | 0.161 m | assist, launch | `scripts/world/fleet_dock_comb.gd` |
-| `FleetDockComb/GeneratedComb/SurfaceDetail/DockArmService/DockServiceBrackets` | 0.158 m | assist, launch | `scripts/world/fleet_dock_comb.gd` |
-| `ExposedDockLattice/@MeshInstance3D@752` | 0.115 m | assist, launch | `scripts/world/shipyard_world.gd` |
-| `OpenLaunchSpine/SignalGantry` | 0.019 m | outbound | `scripts/world/shipyard_world.gd` |
+| `.../dock_06_interceptor/ServicePresentation/LaunchFramePort` | 0.737 m | assist, launch | moved to pad-local x = -11 (from -16) and thinned to 1.2 m through the approach axis, then given collision |
+| `.../dock_04_cargo/ServicePresentation/CargoContainerBatch` | 0.615 m | assist, launch | row moved to the 4 m strip between the comb trunk's edge and Dock 04's landing clearance, resized 7 × 3.6 × 7 → 3 × 3.6 × 4 to fit it, broken around `CargoTrunkLeg`, then given collision |
+| `.../dock_06_interceptor/ServicePresentation/LaunchRailBatch` | 0.435 m | assist, launch | moved to pad-local x = ±11 (from ±16) and shortened 38 m → 22 m so it stops 1.5 m short of Dock 02's walking slab, then given collision |
+| `.../dock_06_interceptor/ServicePresentation/LaunchFrameHeader` | 0.344 m | assist, launch | shortened 33.5 m → 23.5 m to span the moved posts, thinned to 1.2 m, then given collision |
+| `FleetDockComb/.../DockArmService/ServiceMastBatch` | 0.161 m | assist, launch | riser bracket and pod given collision; both recorded camera poses are inside the bracket's own section |
+| `FleetDockComb/.../DockArmService/DockServiceBrackets` | 0.158 m | assist, launch | same body |
+| `ExposedDockLattice/@MeshInstance3D@752` | 0.115 m | assist, launch | named `MastCap03` (three siblings all called `MastCap` were being auto-renamed) and given collision |
+| `OpenLaunchSpine/SignalGantry` | 0.019 m | outbound | given collision; it was the only member of its gantry without it, both `SignalMast` posts carrying it have always been `StaticBody3D` |
 
-The general fix is station-side: either give the intruded dressing collision so
-the existing sweep retracts for it, or clear the published assist lane of it.
+Where the fix is "given collision", nothing moved and the collider is the drawn
+box. Where it is "moved", collision alone was not available: the piece stood in
+a lane or on a walking surface, so a body there would have traded a camera
+defect for a landing or walkability defect.
+
+Two collision decisions are deliberately partial, and the measurement is the
+reason:
+
+* **The comb's dock-service mast has no collider.** All three docked craft
+  publish a landing volume that starts just above the deck plane and runs the
+  full hull length — the Halyard's is 28.35 m and reaches module-local x = 29.5 —
+  so a collider on the 4.2 m mast at x = 21.9 stands inside the parked Halyard's
+  own envelope. Measured: a mast collider blocked the Zenith, Halyard and Bulwark
+  published lanes *and* the Halyard's parked pose. The bracket and pod hang below
+  the deck line (crown at elevation − 0.13 against craft envelope floors at
+  elevation + 0.03 and higher), block nothing, and are where both recorded camera
+  poses (elevation − 0.14 and elevation − 0.31) actually are.
+* **Dock 06's launch frame is 1.2 m through the approach axis instead of 1.5 m.**
+  The frame line sits in a 1.79 m gap between the parked Zenith's envelope
+  (world x ≤ 29.21) and Dock 02's walking slab (world x ≥ 31.00). At the authored
+  1.5 m section a now-solid post would have left 0.04 m to the Zenith; at 1.2 m it
+  leaves 0.19 m and 0.40 m.
+
+Dock 04's and Dock 06's silhouette-width floors moved with the geometry, from
+33.0 m to 32.0 m and 23.0 m. A pad is 28.0 m wide, so a 33.0 m floor could only
+ever be met by dressing hanging 2.5 m or more past the pad on each side; what
+that overhang reached is the list above. Dock 05 is unchanged: none of its
+dressing was found in anybody else's volume.
+
+Verification for this pass: the camera audit and `tools/station_walkability_sweep.gd`
+before and after, every berth's published lane re-swept with its own craft's real
+collision shapes plus each craft's parked pose, and the module suites,
+`outbound_route_clearance_test`, `landing_clearance_test`,
+`cinder_cargo_hauler_test`, `fleet_expansion_shipyard_integration_test`,
+`station_traversal_defect_witness_test` and the walkable-area census.
 
 ## Ultrawide
 

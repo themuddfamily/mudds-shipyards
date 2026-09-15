@@ -108,9 +108,11 @@ func _initialize() -> void:
 		and EXPECTED_LEGEND.contains("%s   DOCK 05" % production_directions[&"dock_05_bomber"])
 		and EXPECTED_LEGEND.contains("%s    DOCK 06" % production_directions[&"dock_06_interceptor"])
 		and bool(berths.get_audit_report().get("valid", false))
-		and berths.find_children("*", "StaticBody3D", true, false).size() == 6
-		and berths.find_children("*", "CollisionShape3D", true, false).size() == 6,
-		"readability polish preserves landing anchors, authority, and walkable collision"
+		and berths.find_children("*", "StaticBody3D", true, false).size() == Berths.EXPECTED_STATIC_BODIES
+		and berths.find_children("*", "CollisionShape3D", true, false).size() == Berths.EXPECTED_COLLISION_SHAPES
+		and berths.find_children("*", "StaticBody3D", true, false).size()
+			== 6 + Berths.SERVICE_STRUCTURE_BODIES,
+		"readability polish preserves landing anchors, authority, six walkable bodies and the service-structure colliders"
 	)
 
 	berths.queue_free()

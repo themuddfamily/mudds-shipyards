@@ -29,6 +29,7 @@ func _initialize() -> void:
 		_check(row.get("pad_id", &"") == expected[index] and bool(row.get("attached", false)), "Dock %s remains attached" % expected[index])
 	_test_access_geometry_clearance(world)
 	_test_published_approach_lanes_are_flyable(world)
+	_test_service_dressing_stands_in_no_other_module(world)
 	world.queue_free()
 	await process_frame
 	if _failures.is_empty():
@@ -236,3 +237,96 @@ func _aabb_overlap_depth(first: AABB, second: AABB) -> Vector3:
 		minf(first.end.y, second.end.y) - maxf(first.position.y, second.position.y),
 		minf(first.end.z, second.end.z) - maxf(first.position.z, second.position.z)
 	)
+
+
+## CAMERA-LANE. Nothing this module draws may stand inside another module's
+## solid geometry.
+##
+## Reproduction this exists for: the ship-perspective camera audit
+## (`tools/camera_intrusion_audit.gd`, `docs/CAMERA_INTRUSION_AUDIT.md`) found
+## the player's chase near plane 0.615 m inside Dock 04's `CargoContainerBatch`
+## and 0.737 m inside Dock 06's `LaunchFramePort`. Neither was really a camera
+## defect. The container row — three 7 m boxes at pad-local x = 18 on a pad whose
+## own half-width is 14 m — stood inside `VipReceptionSuite`'s reception and
+## threshold, inside `AftJunctionStack`'s operations room and upper deck, through
+## the fleet-dock comb connector deck and both its rails, and on top of the
+## comb's trunk walking plate; two of the three were entirely buried inside other
+## modules' interiors. The launch frame stood inside Dock 04's own published
+## approach lane, which `_test_published_approach_lanes_are_flyable()` above
+## could not see because the post carried no collision.
+##
+## The same class of defect as 55d7d3e5 and for the same reason: this module
+## checks its dressing against its own pad-local clearance volumes and against
+## nothing else. What is measured here is the live world — every piece this
+## module draws, shape-queried against every other module's real World-layer
+## collision, with its own bodies excluded.
+func _test_service_dressing_stands_in_no_other_module(world: ShipyardWorld) -> void:
+	var berths := world.get_node_or_null(
+		^"FleetExpansionProductionBinding/FleetExpansionBerths"
+	) as Node3D
+	_check(berths != null, "the production world exposes the expansion berths to sweep")
+	if berths == null:
+		return
+	var space := world.get_world_3d().direct_space_state
+	var own_bodies: Array[RID] = []
+	for raw_body in berths.find_children("*", "StaticBody3D", true, false):
+		own_bodies.append((raw_body as StaticBody3D).get_rid())
+	var intrusions := PackedStringArray()
+	for pad_id: StringName in [&"dock_04_cargo", &"dock_05_bomber", &"dock_06_interceptor"]:
+		var service := berths.get_node_or_null(
+			NodePath("%s/ServicePresentation" % pad_id)
+		) as Node3D
+		if service == null:
+			continue
+		for raw in service.find_children("*", "GeometryInstance3D", true, false):
+			for entry: Dictionary in _drawn_boxes(raw as GeometryInstance3D):
+				var query := PhysicsShapeQueryParameters3D.new()
+				var box := BoxShape3D.new()
+				# Shrunk by a millimetre so a piece that merely touches a deck it
+				# is bolted to is not reported as standing inside it.
+				box.size = (entry["size"] as Vector3) - Vector3.ONE * 0.002
+				query.shape = box
+				query.transform = Transform3D(
+					entry["basis"] as Basis, entry["origin"] as Vector3
+				)
+				query.collision_mask = PhysicsLayers.WORLD
+				query.exclude = own_bodies
+				for hit in space.intersect_shape(query, 8):
+					var collider := hit.get("collider") as Node
+					if collider == null:
+						continue
+					var described := "%s in %s" % [raw.name, world.get_path_to(collider)]
+					if not intrusions.has(described):
+						intrusions.append(described)
+	_check(
+		intrusions.is_empty(),
+		"no Dock 04/05/06 service dressing stands inside another module's solid geometry: %s"
+			% ", ".join(intrusions)
+	)
+
+
+## Every world-space box a service renderer actually draws, decoding `MultiMesh`
+## copies from the authored roster the module retains for exactly this reason.
+func _drawn_boxes(instance: GeometryInstance3D) -> Array[Dictionary]:
+	var boxes: Array[Dictionary] = []
+	if instance is MeshInstance3D:
+		var mesh_instance := instance as MeshInstance3D
+		var box := mesh_instance.mesh as BoxMesh
+		if box == null:
+			return boxes
+		boxes.append({
+			"basis": mesh_instance.global_transform.basis,
+			"origin": mesh_instance.global_position,
+			"size": box.size,
+		})
+		return boxes
+	var batch := instance as MultiMeshInstance3D
+	if batch == null or batch.multimesh == null:
+		return boxes
+	var batch_box := batch.multimesh.mesh as BoxMesh
+	if batch_box == null:
+		return boxes
+	for authored: Variant in (batch.get_meta(&"authored_instance_transforms", []) as Array):
+		var placed := batch.global_transform * (authored as Transform3D)
+		boxes.append({"basis": placed.basis, "origin": placed.origin, "size": batch_box.size})
+	return boxes
