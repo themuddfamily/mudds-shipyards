@@ -357,6 +357,10 @@ var _boarding_entry_marker: Marker3D
 var _camera_pivot: Node3D
 var _camera_spring_arm: SpringArm3D
 var _camera_boundary_mount: Node3D
+var _chase_camera_hull_envelope := AABB()
+var _chase_camera_hull_envelope_source := AABB()
+var _chase_camera_hull_envelope_renderers := 0
+var _chase_camera_hull_envelope_ready := false
 var _camera: Camera3D
 var _cockpit_camera: Camera3D
 var _boarding_marker: Marker3D
@@ -970,15 +974,132 @@ func get_current_chase_camera_distance() -> float:
 	return _camera_spring_arm.spring_length if _camera_spring_arm != null else 0.0
 
 
-## Structured witness for the collision-safe chase rig. The SpringArm owns
-## external obstruction distance; this report proves that its resolved endpoint
-## and all four near-plane corners also remain outside this craft's enabled root
-## collision envelope after the self-hull correction is applied.
-func get_chase_camera_self_hull_boundary_report() -> Dictionary:
+## The self-hull envelope the chase camera boundary correction lifts against.
+##
+## The landing collision envelope is a *physics* contract, and it is allowed to
+## be smaller than the craft that owns it: it only has to describe where the
+## hull can rest on a pad. Measured against the production fleet, the Jovian's
+## `CargoRoofShell` and dorsal cargo ribs top out 0.31 m above it, the Bulwark's
+## canopy nose frame 0.94 m, and the Arrow's entire cockpit -- headrest,
+## instrument hood, dorsal conduit and boarding steps -- sits up to 1.84 m above
+## a collision slab that never claimed to contain it. Lifting the camera only to
+## the *collision* roof therefore parks its near plane inside plating that is
+## still being drawn; that is the intrusion `tools/camera_intrusion_audit.gd`
+## reproduced on the Jovian's landing-assist lane.
+##
+## Transparent, additive and shadow-only renderers are deliberately excluded.
+## The Arrow's planetary-entry heat overlay and every canopy glazing would
+## otherwise raise this roof by metres of geometry the camera sees straight
+## through, and lifting for those would be a framing change, not a fix.
+##
+## The union is cached and rebuilt whenever the live collision envelope changes,
+## so a craft whose root shapes are resized, disabled or re-fitted re-measures
+## rather than holding a stale roof.
+func get_chase_camera_self_hull_envelope() -> Dictionary:
 	var collision := get_landing_collision_report()
 	var bounds := collision.get("local_bounds", AABB()) as AABB
+	if not bool(collision.get("valid", false)) or not bounds.has_volume():
+		_chase_camera_hull_envelope_ready = false
+		return {
+			"valid": false,
+			"bounds": AABB(),
+			"collision_bounds": bounds,
+			"visual_lift_m": 0.0,
+			"renderer_count": 0,
+		}
+	if not _chase_camera_hull_envelope_ready \
+			or not _chase_camera_hull_envelope_source.is_equal_approx(bounds):
+		_rebuild_chase_camera_self_hull_envelope(bounds)
+	return {
+		"valid": true,
+		"bounds": _chase_camera_hull_envelope,
+		"collision_bounds": bounds,
+		"visual_lift_m": _chase_camera_hull_envelope.end.y - bounds.end.y,
+		"renderer_count": _chase_camera_hull_envelope_renderers,
+	}
+
+
+func _rebuild_chase_camera_self_hull_envelope(bounds: AABB) -> void:
+	var envelope := bounds
+	var counted := 0
+	var inverse := global_transform.affine_inverse()
+	for candidate in find_children("*", "VisualInstance3D", true, false):
+		var visual := candidate as VisualInstance3D
+		if visual == null or not visual.is_visible_in_tree():
+			continue
+		if visual is GeometryInstance3D and (visual as GeometryInstance3D).cast_shadow \
+				== GeometryInstance3D.SHADOW_CASTING_SETTING_SHADOWS_ONLY:
+			continue
+		if not _renderer_draws_opaque_hull(visual):
+			continue
+		envelope = envelope.merge(
+			(inverse * visual.global_transform) * visual.get_aabb()
+		)
+		counted += 1
+	_chase_camera_hull_envelope = envelope
+	_chase_camera_hull_envelope_source = bounds
+	_chase_camera_hull_envelope_renderers = counted
+	_chase_camera_hull_envelope_ready = true
+
+
+## Only geometry the camera cannot see through counts as hull for the lift.
+static func _renderer_draws_opaque_hull(visual: VisualInstance3D) -> bool:
+	if visual is MeshInstance3D:
+		var instance := visual as MeshInstance3D
+		if instance.mesh == null:
+			return false
+		for surface in instance.mesh.get_surface_count():
+			if _material_draws_opaque(instance.get_active_material(surface)):
+				return true
+		return false
+	if visual is MultiMeshInstance3D:
+		var batch := visual as MultiMeshInstance3D
+		if batch.multimesh == null or batch.multimesh.mesh == null:
+			return false
+		if batch.material_override != null:
+			return _material_draws_opaque(batch.material_override)
+		for surface in batch.multimesh.mesh.get_surface_count():
+			if _material_draws_opaque(batch.multimesh.mesh.surface_get_material(surface)):
+				return true
+		return false
+	return false
+
+
+static func _material_draws_opaque(material: Material) -> bool:
+	if material == null:
+		return true
+	if material is BaseMaterial3D:
+		var base := material as BaseMaterial3D
+		if base.transparency != BaseMaterial3D.TRANSPARENCY_DISABLED:
+			return false
+		if base.no_depth_test:
+			return false
+		return base.blend_mode == BaseMaterial3D.BLEND_MODE_MIX
+	if material is ShaderMaterial:
+		var shader := (material as ShaderMaterial).shader
+		if shader == null:
+			return false
+		for marker in [
+			"blend_add", "blend_sub", "blend_mul", "blend_premul_alpha",
+			"depth_draw_never", "depth_test_disabled",
+		]:
+			if shader.code.contains(marker):
+				return false
+		return true
+	return false
+
+
+## Structured witness for the collision-safe chase rig. The SpringArm owns
+## external obstruction distance; this report proves that its resolved endpoint
+## and all four near-plane corners also remain outside this craft's own hull
+## envelope -- its enabled root collision merged with the opaque hull it draws --
+## after the self-hull correction is applied.
+func get_chase_camera_self_hull_boundary_report() -> Dictionary:
+	var envelope := get_chase_camera_self_hull_envelope()
+	var collision := get_landing_collision_report()
+	var bounds := envelope.get("bounds", AABB()) as AABB
 	if _camera == null or _camera_boundary_mount == null \
-			or not bool(collision.get("valid", false)) or not bounds.has_volume():
+			or not bool(envelope.get("valid", false)) or not bounds.has_volume():
 		return {
 			"valid": false,
 			"reason": &"camera_or_collision_boundary_unavailable",
@@ -987,7 +1108,9 @@ func get_chase_camera_self_hull_boundary_report() -> Dictionary:
 			"base_signed_clearance_m": -INF,
 			"signed_clearance_m": -INF,
 			"correction_m": 0.0,
-			"collision_bounds": bounds,
+			"collision_bounds": collision.get("local_bounds", AABB()) as AABB,
+			"hull_envelope": bounds,
+			"visual_lift_m": float(envelope.get("visual_lift_m", 0.0)),
 			"samples_local": {},
 		}
 	var base_samples := _chase_camera_boundary_samples(_camera_boundary_mount.global_position)
@@ -1011,7 +1134,9 @@ func get_chase_camera_self_hull_boundary_report() -> Dictionary:
 		"base_signed_clearance_m": base_clearance,
 		"signed_clearance_m": live_clearance,
 		"correction_m": correction,
-		"collision_bounds": bounds,
+		"collision_bounds": collision.get("local_bounds", AABB()) as AABB,
+		"hull_envelope": bounds,
+		"visual_lift_m": float(envelope.get("visual_lift_m", 0.0)),
 		"samples_local": samples_local,
 	}
 
@@ -6685,10 +6810,10 @@ func _build_markers_and_camera() -> void:
 func _enforce_chase_camera_self_hull_boundary() -> void:
 	if _camera == null or _camera_boundary_mount == null:
 		return
-	var collision := get_landing_collision_report()
-	var bounds := collision.get("local_bounds", AABB()) as AABB
+	var envelope := get_chase_camera_self_hull_envelope()
+	var bounds := envelope.get("bounds", AABB()) as AABB
 	var mount_position := _camera_boundary_mount.global_position
-	if not bool(collision.get("valid", false)) or not bounds.has_volume():
+	if not bool(envelope.get("valid", false)) or not bounds.has_volume():
 		_camera.global_position = mount_position
 		return
 	var base_samples := _chase_camera_boundary_samples(mount_position)

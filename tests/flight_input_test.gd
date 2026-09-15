@@ -75,6 +75,7 @@ func _run() -> void:
 	var stage := Node3D.new()
 	root.add_child(stage)
 	await _test_variant_launch_thresholds(stage)
+	await _test_chase_camera_self_hull_envelope_covers_drawn_hull(stage)
 	await _test_fleet_chase_camera_boundaries(stage)
 	await _test_live_chase_collision_bounds(stage, ship_scene)
 	await _test_controller_only_command_path(stage, ship_scene)
@@ -588,6 +589,129 @@ func _camera_test_wall(wall_name: String, world_position: Vector3) -> StaticBody
 	shape.shape = box
 	wall.add_child(shape)
 	return wall
+
+
+## The self-hull lift has to clear the hull the player can *see*, not the
+## physics slab.
+##
+## Reproduction this exists for: `tools/camera_intrusion_audit.gd` flew the
+## production Jovian down its own landing-assist lane with the boom pitched and
+## the arm retracted against the freight berth, and found the chase camera's
+## near plane 0.107 m inside `CargoRoofShell`. Nothing was wrong with the berth.
+## The boundary mount was lifting the camera to the top of
+## `get_landing_collision_report().local_bounds`, and that envelope is a landing
+## contract that is allowed to stop below the craft: measured on the live fleet
+## it stops 0.31 m under the Jovian's dorsal cargo ribs, 0.94 m under the
+## Bulwark's canopy nose frame and 1.84 m under the Arrow's own cockpit. Lifting
+## to that roof puts the near plane inside plating that is still drawn.
+##
+## What is measured here, from live production craft rather than asserted from
+## constants: that the envelope the mount now lifts against encloses every
+## visible opaque renderer the craft draws; that transparent shells stay out of
+## it, so a canopy glazing cannot raise the roof by metres the camera sees
+## through; that a craft whose collision already contains its hull is unchanged;
+## and that with the correction engaged no near-plane sample is left below the
+## drawn roof.
+func _test_chase_camera_self_hull_envelope_covers_drawn_hull(stage: Node3D) -> void:
+	var fixtures := [
+		# The reproduction, the largest measured lift, and a craft whose
+		# collision already contains everything it draws.
+		{"label": "Jovian", "source": "res://scenes/ships/jovian_light_freighter.tscn",
+			"lifts": true, "drawn": "CargoRoofShell"},
+		{"label": "Arrow", "source": "res://scenes/ships/arrow_recon_ship.tscn",
+			"lifts": true, "drawn": ""},
+		{"label": "Torrent", "source": "res://scenes/ships/torrent_interceptor.tscn",
+			"lifts": false, "drawn": ""},
+	]
+	for index in fixtures.size():
+		var fixture: Dictionary = fixtures[index]
+		var label := str(fixture.label)
+		var craft := (load(str(fixture.source)) as PackedScene).instantiate() as HeroShip
+		stage.add_child(craft)
+		craft.global_position = Vector3(-600.0 - float(index) * 90.0, 30.0, 0.0)
+		for _settle in 3:
+			await physics_frame
+		var envelope := craft.get_chase_camera_self_hull_envelope()
+		var bounds := envelope.get("bounds", AABB()) as AABB
+		var collision := envelope.get("collision_bounds", AABB()) as AABB
+		_check(
+			bool(envelope.get("valid", false)) and bounds.encloses(collision),
+			"%s self-hull envelope still contains its whole landing collision envelope"
+				% label
+		)
+		# Every renderer the craft actually draws, measured off the live tree.
+		var inverse := craft.global_transform.affine_inverse()
+		var uncovered := PackedStringArray()
+		var transparent_outside := 0
+		var opaque_renderers := 0
+		for candidate in craft.find_children("*", "VisualInstance3D", true, false):
+			var visual := candidate as VisualInstance3D
+			if visual == null or not visual.is_visible_in_tree():
+				continue
+			if visual is GeometryInstance3D and (visual as GeometryInstance3D).cast_shadow \
+					== GeometryInstance3D.SHADOW_CASTING_SETTING_SHADOWS_ONLY:
+				continue
+			var box := (inverse * visual.global_transform) * visual.get_aabb()
+			if HeroShip._renderer_draws_opaque_hull(visual):
+				opaque_renderers += 1
+				if not bounds.grow(0.001).encloses(box):
+					uncovered.append(String(craft.get_path_to(visual)))
+			elif visual is MeshInstance3D and box.end.y > bounds.end.y + 0.001:
+				transparent_outside += 1
+		print("CHASE_CAMERA_SELF_HULL_ENVELOPE: craft=%s lift=%.3f opaque=%d uncovered=%d see_through_above_roof=%d" % [
+			label, float(envelope.get("visual_lift_m", 0.0)), opaque_renderers,
+			uncovered.size(), transparent_outside,
+		])
+		_check(
+			uncovered.is_empty() and opaque_renderers > 0,
+			"%s self-hull envelope encloses every visible opaque renderer it draws (%s)"
+				% [label, ", ".join(uncovered)]
+		)
+		_check(
+			(float(envelope.get("visual_lift_m", 0.0)) > 0.001) == bool(fixture.lifts),
+			"%s raises the self-hull roof only when its drawn hull leaves the collision slab"
+				% label
+		)
+
+		# Put the boom exactly where a collapsed arm leaves it: just under the
+		# collision roof, amidships. The correction must then lift the near plane
+		# past the *drawn* roof rather than stopping at the collision one.
+		var mount := craft.get_node(
+			^"CameraRig/CameraCollisionArm/CameraBoundaryMount"
+		) as Node3D
+		mount.global_position = craft.to_global(Vector3(
+			0.0, collision.end.y - 0.05, collision.get_center().z
+		))
+		craft.call("_enforce_chase_camera_self_hull_boundary")
+		var report := craft.get_chase_camera_self_hull_boundary_report()
+		_check(
+			float(report.get("base_signed_clearance_m", 0.0)) < 0.0,
+			"%s fixture reproduces an uncorrected camera inside its own hull" % label
+		)
+		var samples := report.get("samples_local", {}) as Dictionary
+		var lowest := INF
+		for sample_name: StringName in samples:
+			lowest = minf(lowest, (samples[sample_name] as Vector3).y)
+		_check(
+			float(report.get("correction_m", 0.0)) > 0.0
+			and lowest >= bounds.end.y + HeroShip.CHASE_CAMERA_SELF_HULL_CLEARANCE - 0.001,
+			"%s corrected near plane clears the drawn roof, not just the collision roof"
+				% label
+		)
+		if str(fixture.drawn) != "":
+			var drawn := craft.find_child(str(fixture.drawn), true, false) as VisualInstance3D
+			_check(drawn != null, "%s still draws %s" % [label, str(fixture.drawn)])
+			if drawn != null:
+				var drawn_box := (inverse * drawn.global_transform) * drawn.get_aabb()
+				_check(
+					drawn_box.end.y > collision.end.y
+					and lowest >= drawn_box.end.y,
+					"%s near plane sits above %s, the plate the collision slab missed"
+						% [label, str(fixture.drawn)]
+				)
+		craft.queue_free()
+		await process_frame
+		await process_frame
 
 
 func _test_fleet_chase_camera_boundaries(stage: Node3D) -> void:
