@@ -408,22 +408,204 @@ than orphaned, the same RPC path resolved on both peers, and all three wire
 bindings working: a seat claim, the authority's own moving-interior publication,
 and one projectile round trip out and back.
 
+## Remote bodies are simulated, not named (2026-09-15)
+
+Until this section the authority *spoke* for every identified occupant of a
+`MovingInteriorFrame` but *simulated* only its own player: a remote client's
+walking crewmate was a name with a pose the client claimed. Now the server
+stands a real body for each remote occupant and every peer, the owner
+included, is told where the simulation put it.
+
+### The intent stream (client → server)
+
+`NetworkMovementIntent` is schema 2. Beside the schema 1 fields (move axes,
+board/disembark) it carries the look yaw the axes are relative to, look
+pitch, the run / crouch / jump flags and a monotonic
+`interaction_request_id`. Every field is bounded on the wire: unit-disc axes,
+yaw wrapped to [-π, π], pitch clamped to a half turn, safe integers, exact key
+sets. Schema 1 packets are still admitted with the new fields neutral, so the
+remote ship command source and the three-process authority harness keep the
+wire they already speak — one contract, one ledger, one RPC.
+
+The owning client produces the stream with `NetworkRemoteBodyIntentSource`
+(`scripts/network/network_remote_body_intent_source.gd`): one packet every
+four physics ticks (15 Hz, well inside the adapter's per-peer secure-packet
+ceiling), jump and interact latched between sends so an edge is never lost,
+one stream id per binding so a reconnect restarts its sequence legitimately.
+The `client_tick` stamp is the newest `server_tick` the client's adapter has
+released on the relationship stream plus the local ticks since — the client
+has no clock of the server's, but it now receives its own body's relationship
+every tick, so the estimate trails the authority by one-way latency and is
+strictly ordered through a stall. `NetworkMovementAuthority` keeps every check
+it had (owner, generation, stream order, sequence, tick window) and gains
+`configure_tick_window()`, which `GameFlow` sets to 60 ticks behind / 6 ahead
+for on-foot avatars: an honest stamp under the 350 ms profile trails by
+twenty-odd ticks and the six-tick default rejected all of it. `release_peer()`
+retires a departed peer's avatars in `_on_peer_disconnected()` and
+`shutdown()`. The same `_receive_movement_intent` RPC and `movement` secure
+stream carry it; the only routing change is that a packet goes to the remote
+ship command source only when its entity is a registered pilot ship, so a
+crewmate can walk the cabin of a craft somebody else is flying.
+
+### The server-owned body
+
+`NetworkRemoteBodySimulation` (`scripts/network/network_remote_body_simulation.gd`)
+is a child of `GameFlow` on the authority, created with the session and
+released with it. `admit()` instantiates the production
+`scenes/player/player.tscn` — the same `PlayerController`, capsule, floor
+snap, step-up assist, cabin containment and seat transitions the host's own
+player has — stands it at the craft's own cabin stand pose, registers it with
+the craft's `MovingInteriorFrame` so the deck carries it, names it to the
+publisher through `register_network_moving_interior_occupant()`, and registers
+its movement avatar with the adapter. `PlayerController` gained one seam for
+this: `set_remote_drive_enabled()` / `apply_remote_intent()` /
+`clear_remote_intent()`. With remote drive on, `_control_enabled` stays false
+(nothing on the body reads the host's keyboard or moves the host's mouse), the
+camera is never made current, unhandled input is off, and the three input
+samplers read the held intent instead of `Input`. The intent is *held*: the
+last accepted axes drive the body until the next send replaces them.
+
+Each authoritative tick, before the publisher reads poses,
+`advance(tick)` consumes at most one due intent per body through
+`consume_movement_intent()` and applies it; when no ordered intent has
+arrived for `INTENT_HOLD_TICKS` (12, three missed sends) the body is frozen —
+axes cleared, so it decelerates and stands where it is — until one does. That
+is the relationship stream's gap rule applied in the other direction. An
+`interaction_request_id` above the last handled one is resolved against the
+seats and bunks the *server* body's interaction area overlaps, within the
+host's own `STATION_SEAT_MAX_REACH`, through the production `StationSeat`
+reservation, `begin_boarding()` and `begin_disembark()`; a bunk sets the
+sleeping context, a seat the seated context, and the publisher reports
+`STATE_SLEEPING` / `STATE_SEATED` off the body. A walking intent while seated
+moves nothing. Bodies are released on peer disconnect, session stop, craft
+loss, occupancy loss and whole-Main detach; none survives the session, so the
+resident scene census is unchanged when nobody is aboard.
+
+`GameFlow` admits a body automatically when a remote peer's non-pilot crew
+role is admitted on the active Halyard (`_on_network_crew_role_result()`),
+and exposes `admit_network_remote_body()` / `release_network_remote_body()`
+for any other seam. The publisher marks a simulated occupant
+(`server_simulated`) and sends it to every admitted peer including its owner:
+the owner is no longer simulating it and follows the authority like any other
+client.
+
+### Client presentation and prediction
+
+The owning client binds its stream with `GameFlow.bind_network_remote_body()`
+and streams from its own `_physics_process`. Its local `PlayerController`
+keeps simulating on the same input — that is the prediction — and the pose it
+reaches at each stamp is remembered (a 128-entry ring). When the server's
+pose for the *same stamp* arrives (`get_moving_interior_latest_relationship()`,
+the exact wire pose before jitter blending) more than 0.5 m away, the local
+body is snapped to it. Same physics, same input, same tick: a divergence past
+tolerance is a disagreement, not latency. There is deliberately no input
+replay — a snap costs a visible jerk and is cheap and bounded; a rollback
+system is not. The presenter excludes the bound entity so no second copy is
+drawn beside the local body. This client half is exercised only by the unit
+suite (`tests/network/network_remote_body_intent_source_test.gd`) and by the
+harness driving the same source class over real ENet; a two-`GameFlow`
+process pair has not been run.
+
+### Defects found and fixed
+
+* **A coalesced walker froze on every client.** With a seated pilot published
+  at critical priority every tick, the per-recipient budget window fills a
+  few ticks in and each walker's later poses are parked until the window
+  rolls, so a walker's stream carries a gap wider than the client hold window
+  once per window. The client relationship stream measured every such arrival
+  against the *held* tick, parked it as a fresh gap and never resumed: the
+  four-body crowd measured a 14.5 m frame-local lag on a clean transport.
+  `NetworkMovingInteriorRelationshipStream` now treats the first ordered
+  packet that arrives while an entity is frozen as the resumption, whatever
+  its own gap. Worst lag fell to 3.7 m; the remaining lag is the budget's own
+  coalescing cadence, characterised below.
+* **A movement intent was swallowed whenever anyone remote was piloting.** The
+  adapter routed every `movement` packet to the ship command source once a
+  remote pilot existed. Routing is now by entity.
+* **Streaming across a reconnect logged an engine error per send.**
+  `send_movement_intent()` refuses with `not_connected` until the transport is
+  connected.
+
+### The crowd budget
+
+`tests/network_remote_body_simulation_test.gd` runs the production Main as
+host, four walker clients each owning one server body and streaming from
+`NetworkRemoteBodyIntentSource`, and one observer, over loopback ENet with the
+latency suite's transport shim on the relationship stream, while the Halyard
+flies a leg on its own velocity. Each row is 60 authoritative ticks
+(`rounds`); `ticks` is what the host actually stepped on a shared machine.
+Snapshots per tick are the publisher's own count (1 pilot + N bodies, all
+recipients); coalesced updates are the per-recipient budget's parked
+snapshots summed over every peer; worst pose lag is the largest frame-local
+distance between the observer's newest accepted pose for a body and where the
+simulation had that body at the moment of sampling; reconstruction error is
+the observer's accepted pose against the authoritative pose at that same tick.
+
+| Bodies | Profile | Ticks | Snapshots / tick | Coalesced updates | Worst pose lag (m) | Reconstruction (m) | Dropped / sent |
+|---|---|---|---|---|---|---|---|
+| 1 (+ pilot) | clean | 60 | 2.0 | 210 | 0.773 | 0.0000 | 0 / 420 |
+| 1 (+ pilot) | 80 ms ± 20 | 60 | 2.0 | 210 | 1.143 | 0.0000 | 0 / 420 |
+| 1 (+ pilot) | 200 ms ± 60 | 60 | 2.0 | 210 | 1.533 | 0.0000 | 0 / 420 |
+| 1 (+ pilot) | 350 ms ± 120 + 2 % loss | 60 | 2.0 | 210 | 1.838 | 0.0000 | 8 / 420 |
+| 2 (+ pilot) | clean | 60 | 3.0 | 480 | 1.796 | 0.0000 | 0 / 480 |
+| 2 (+ pilot) | 80 ms ± 20 | 60 | 3.0 | 480 | 1.299 | 0.0000 | 0 / 480 |
+| 2 (+ pilot) | 200 ms ± 60 | 60 | 3.0 | 480 | 1.799 | 0.0000 | 0 / 480 |
+| 2 (+ pilot) | 350 ms ± 120 + 2 % loss | 60 | 3.0 | 480 | 1.629 | 0.0000 | 16 / 480 |
+| 4 (+ pilot) | clean | 60 | 5.0 | 1110 | 4.156 | 0.0000 | 0 / 510 |
+| 4 (+ pilot) | 80 ms ± 20 | 60 | 5.0 | 1110 | 1.588 | 0.0000 | 0 / 510 |
+| 4 (+ pilot) | 200 ms ± 60 | 60 | 5.0 | 1110 | 2.046 | 0.0000 | 0 / 510 |
+| 4 (+ pilot) | 350 ms ± 120 + 2 % loss | 60 | 5.0 | 1110 | 1.977 | 0.0000 | 12 / 510 |
+
+The hull flew 125 m over the twelve rows. Snapshots per tick are the
+publisher's per-tick count and are exactly 1 + N in every row: the crowd does
+not change what the authority publishes, only how much of it a recipient's
+budget parks. Coalesced updates grow with N (210 → 480 → 1110 over five
+recipients) because each extra body is one more snapshot per tick competing
+for the same eight slots. The lag column is not monotonic in latency: at N = 4
+the clean row is the worst (4.2 m) because the sample landed on a body in a
+gap-hold with every peer's window full, while the 80 ms row caught no such
+moment. "Packets" are relationship packets through the shim, so the sent count
+is what left the budget, not what the publisher offered.
+
+Reading it: the pilot's secured snapshot is forced past the budget every tick
+and counted, so with 1 + N snapshots a tick the 8-snapshot window is full
+after the first few ticks of each 10-tick window (four ticks at N = 1, two at
+N = 4); from there every walker is coalesced until the window rolls and its
+newest parked pose is flushed. A walker's worst gap is therefore six to eight
+ticks whatever N is, plus the one flush the client's hold window still parks
+(the first ordered packet after the gap resumes, and is drawn a tick later).
+That is the sub-metre floor at walking speed on a clean link; the profiles add
+their one-way delay on top, and a body drifting into a gap-hold at the moment
+of sampling is the worst case in each row. Reconstruction stays exact and no
+body ever left the deck or the envelope. Two things follow for broadening
+player counts: a seated pilot's unchanged pose does not need a critical
+snapshot every tick (a transition plus a keepalive would leave most of the
+window to the walkers), and the ceiling itself was sized for two occupants.
+Neither is changed here.
+
 ## What remains before broadening player counts
 
-* **Per-recipient budget headroom at latency.** The publication gate
-  characterises the 8-snapshots/10-tick ceiling with two occupants on a direct
-  transport: the budget coalesces, the walking body is what falls behind and a
-  secured body never is. What that ceiling does to a *walking* crowd under the
-  latency profiles above, where coalescing and transport gaps compound, is the
-  next thing to measure.
-* **Remote bodies are still named, not simulated.** The publisher speaks for
-  every identified occupant of a `MovingInteriorFrame`, but the only bodies the
-  server actually simulates on foot today are its own player and whatever a
-  craft's crew-role seam attaches. Server-side avatars driven by remote movement
-  intent are the next step.
-* **Two clients only.** This gate establishes the relationship stream's
-  behaviour for one pilot and one walker. Interest management and the resync
-  baseline under many occupants are untested at latency.
+* **The budget ceiling is the crowd's floor.** The table above is the
+  characterisation: with a seated pilot forced past the budget every tick, a
+  recipient's window is full a few ticks in and every walker is parked until
+  the roll, so a walking crowd trails by one to two metres on a clean link and
+  by four when a sample lands on a gap-hold. Two changes would buy real
+  headroom and neither is made here: a secured occupant does not need a
+  critical snapshot every tick (a transition plus a keepalive would leave most
+  of the window to the walkers), and the 8-snapshots/10-tick ceiling was sized
+  for two occupants.
+* **The client half of a simulated body has not run as a whole game.** The
+  owning `GameFlow` streams intent and corrects its prediction from
+  `_physics_process`, and the intent source, the reconciliation and the server
+  body are all measured — but through bare client adapters driving the same
+  source class, not through a second production Main on the other end. A
+  two-process, two-`GameFlow` run is the next gate for that seam.
+* **Bodies are admitted through the crew-role seam or by explicit call.** A
+  remote crew member who is aboard without a crew role has no body until
+  something calls `admit_network_remote_body()`; the boarding and hatch seams
+  do not yet do so.
+* **Five clients on loopback.** Interest management and the resync baseline
+  under many occupants are still untested at latency.
 * **Loss is injected above ENet.** The relationship RPC is reliable, so the 2 %
   profile models loss on a path where retransmission does not save the packet.
   It is a stand-in for the gap sources that *are* reachable in production
