@@ -966,6 +966,11 @@ func _save_and_reenter_at_surface(
 		else Vector3.INF
 	var player_local := region.to_local(player.global_position) if is_instance_valid(region) \
 		else Vector3.INF
+	var binding_before := game.ember_surface_loop_production_binding \
+		as EmberSurfaceLoopProductionBinding
+	var route_before := ((
+		binding_before.get_planetary_surface_snapshot().get("relay_survey", {}) as Dictionary
+	).get("mandatory_route", {}) as Dictionary).duplicate(true)
 	var persisted := game.call(&"_persist_runtime_settings") as Dictionary
 	var journey_saved := game.save_interrupted_ember_journey()
 	_check(
@@ -998,15 +1003,32 @@ func _save_and_reenter_at_surface(
 		"whole-Main re-entry at the surface restores both actor positions inside the authored region (ship %.3f m, player %.3f m)"
 			% [ship_local.distance_to(ship_after), player_local.distance_to(player_after)]
 	)
-	# A re-entry taken on the Ember surface terminalises the loop Host rather than
-	# restoring it. That is a recorded production gap, not something this suite
-	# pretends away: what is asserted is that the outcome is one of exactly two
-	# states — the same phase, or the terminal one — so a later fix flips it
-	# rather than quietly changing shape.
+	# A whole-`Main` re-entry taken on the Ember surface is a suspension of the
+	# live visit, not the end of it: the same Host comes back attached, in the
+	# same phase, still holding the caldera lease, with the same survey progress
+	# and an expedition GameFlow still considers active. Anything else is a
+	# player who saved on the caldera and reloaded into a dead expedition.
+	var berth := game.ember_surface_berth as EmberSurfaceBerth
+	var binding := game.ember_surface_loop_production_binding \
+		as EmberSurfaceLoopProductionBinding
+	var route_after := ((
+		binding.get_planetary_surface_snapshot().get("relay_survey", {}) as Dictionary
+	).get("mandatory_route", {}) as Dictionary)
 	_check(
-		phase_after == phase_before or phase_after == EmberSurfaceLoopHost.Phase.FAILED,
-		"whole-Main re-entry at the surface leaves the Host either unchanged or terminal (phase %d -> %d)"
-			% [phase_before, phase_after]
+		phase_after == phase_before
+			and host.is_attached()
+			and StringName(host.get_snapshot().get("terminal_reason", &"?")).is_empty()
+			and int(host.get_snapshot().get("composition_reentry_count", 0)) >= 1
+			and is_instance_valid(berth) and berth.get_occupant() == craft
+			and not berth.get_reservation_token(craft).is_empty()
+			and bool(game.get("_ember_surface_journey_active"))
+			and route_before == route_after
+			and player.is_control_enabled() and not player.is_seated(),
+		"whole-Main re-entry at the surface restores the live Host, its caldera lease and its survey progress (phase %d -> %d, terminal %s)"
+			% [
+				phase_before, phase_after,
+				host.get_snapshot().get("terminal_reason", &"?"),
+			]
 	)
 	if phase_after != phase_before:
 		_reentry_terminal_stops += 1

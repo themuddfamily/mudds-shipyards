@@ -439,12 +439,41 @@ var _original_player_camera_current := false
 var _reference_tangent_basis_body := Basis.IDENTITY
 var _host_acquired_boarding_reservation := false
 var _runtime_bindings_restored := false
+## A whole-`Main` save/re-entry removes and re-adds the entire composition —
+## this Host and every dependency it observes leave together and come back
+## together. That is a suspension, not a lost dependency, and terminalizing the
+## visit for it left a player who saved on the caldera with a dead expedition.
+##
+## Godot reports both removals identically while they are happening (exits are
+## bottom-up and the still-live ancestor is indistinguishable from a retained
+## one), so the decision is taken one deferred step later, once `remove_child`
+## has returned and the composition root's own tree membership is finally
+## readable. A dependency that leaves a composition which is still in the tree
+## still terminalizes exactly as before.
+var _composition_exit_pending := false
+var _composition_exit_reason: StringName = &""
+var _composition_suspended := false
+var _composition_reentry_restore_pending := false
+var _composition_reentry_count := 0
 var _connections: Array[Dictionary] = []
 
 
 func _ready() -> void:
 	set_process(false)
 	set_physics_process(false)
+
+
+## The composition came back. The live visit was never torn down, so there is
+## nothing to restore here: the suspension simply ends.
+func _enter_tree() -> void:
+	if not _composition_suspended and not _composition_exit_pending:
+		return
+	_composition_exit_pending = false
+	_composition_exit_reason = &""
+	if _composition_suspended:
+		_composition_suspended = false
+		_composition_reentry_restore_pending = true
+		_composition_reentry_count += 1
 
 
 func bind_dependencies(
@@ -809,6 +838,8 @@ func advance_physics(
 		return _finish(false, &"not_running")
 	if not is_finite(delta) or delta < 0.0 or delta > MAX_CALLER_DELTA_SECONDS:
 		return _finish(false, &"invalid_delta")
+	if _composition_reentry_restore_pending:
+		_restore_composition_reentry_bindings()
 	var dependency_failure := _dependency_failure_reason()
 	if not dependency_failure.is_empty():
 		return _commit_failure(dependency_failure)
@@ -1394,6 +1425,7 @@ func get_snapshot() -> Dictionary:
 		"physics_advance_count": _physics_advance_count,
 		"configuration_error": _configuration_error,
 		"terminal_reason": _terminal_reason,
+		"composition_reentry_count": _composition_reentry_count,
 		"identities": {
 			"world_id": WORLD_ID,
 			"body_id": BODY_ID,
@@ -2900,6 +2932,38 @@ func _surface_recovery_transform() -> Dictionary:
 	}
 
 
+## `ShipBoardingArea` releases every seat claim when it is streamed out, because
+## a streamed-out ship owns no live handoff. A whole-`Main` re-entry brings the
+## same ship, the same seat and the same still-seated pilot back, so this visit
+## re-asserts exactly the claim it already held, and only into a genuinely free
+## seat. It reserves nothing the phase did not already require.
+func _restore_composition_reentry_bindings() -> void:
+	_composition_reentry_restore_pending = false
+	# `HeroShip` drops its planetary-surface gravity binding when it is streamed
+	# out. Re-assert this visit's own binding, and only this visit's: a foreign
+	# or still-live binding is left exactly where it is.
+	if _node_is_current(_ship) and not _ship_surface_gravity_binding_is_current():
+		var report := _ship.get_planetary_surface_gravity_report()
+		if not bool(report.get("attached", false)) \
+				and bool(_attach_ship_surface_gravity().get("accepted", false)):
+			# A fresh binding starts a fresh submission sequence on the ship, so
+			# this visit's sample counter restarts with it. Nothing else about the
+			# visit is reset.
+			_gravity_sample_count = 0
+			_ship_gravity_submission_count = 0
+	if _phase not in [
+		Phase.ORBIT_APPROACH, Phase.DESCENT, Phase.SURFACE_APPROACH,
+		Phase.LANDING_APPROACH, Phase.LANDED, Phase.DISEMBARKING,
+		Phase.BOARDING, Phase.REBOARDED, Phase.TAKEOFF, Phase.ASCENT,
+		Phase.ORBIT_RETURN,
+	]:
+		return
+	if not _node_is_current(_boarding_area) or not _node_is_current(_player) \
+			or _boarding_area.get_reservation_token() != null:
+		return
+	_boarding_area.try_reserve(_player)
+
+
 func _release_leases() -> void:
 	if _node_is_current(_berth) and _node_is_current(_ship) \
 			and not _berth_token.is_empty():
@@ -2934,7 +2998,49 @@ func _on_ship_destroyed(_world_position: Vector3, _inherited_velocity: Vector3) 
 
 
 func _on_dependency_tree_exiting(reason: StringName) -> void:
-	_queue_terminal(reason)
+	if not _defer_composition_exit(reason):
+		_queue_terminal(reason)
+
+
+## Returns true when the decision was deferred. Nothing is torn down yet: the
+## berth lease, the travel session, the command source and the phase all stand
+## until `_resolve_composition_exit` can tell the two removals apart.
+func _defer_composition_exit(reason: StringName) -> bool:
+	if _composition_root == self or not _attached \
+			or _phase in [Phase.IDLE, Phase.COMPLETED, Phase.FAILED]:
+		return false
+	if not _node_is_current(_composition_root) \
+			or _composition_root.is_queued_for_deletion() \
+			or is_queued_for_deletion():
+		return false
+	if _composition_suspended:
+		return true
+	if not _composition_exit_pending:
+		_composition_exit_pending = true
+		_composition_exit_reason = reason
+		call_deferred(&"_resolve_composition_exit")
+	return true
+
+
+## One deferred step after the removal returned. A composition root still inside
+## the tree means this Host really did lose a dependency, or itself, out of a
+## live composition, and the visit terminalizes exactly as it always has. A
+## composition root that left the tree with everything else is the whole-`Main`
+## re-entry, and the visit is held intact until `_enter_tree` resumes it.
+func _resolve_composition_exit() -> void:
+	if not _composition_exit_pending:
+		return
+	_composition_exit_pending = false
+	var reason := _composition_exit_reason
+	_composition_exit_reason = &""
+	if not _attached or _phase in [Phase.IDLE, Phase.COMPLETED, Phase.FAILED]:
+		return
+	if not is_instance_valid(_composition_root) \
+			or _composition_root.is_queued_for_deletion() \
+			or _composition_root.is_inside_tree():
+		_queue_terminal(reason if not reason.is_empty() else &"host_detached")
+		return
+	_composition_suspended = true
 
 
 func _queue_terminal(reason: StringName) -> void:
@@ -2966,6 +3072,8 @@ func _on_boarding_completed() -> void:
 
 
 func _exit_tree() -> void:
+	if _defer_composition_exit(&"host_detached"):
+		return
 	if _attached:
 		var recover_embodiment := _phase in [Phase.DISEMBARKING, Phase.BOARDING]
 		if _phase not in [Phase.IDLE, Phase.COMPLETED, Phase.FAILED] \

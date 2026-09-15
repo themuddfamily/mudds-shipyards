@@ -34,6 +34,7 @@ func _run() -> void:
 	await _test_tangent_frame_and_continuous_support_fail_closed()
 	await _test_terrain_contact_rejects_airborne()
 	await _test_synchronous_destruction_first_wins()
+	await _test_composition_reentry_preserves_the_live_visit()
 	for phase in [
 		EmberSurfaceLoopHost.Phase.DISEMBARKING,
 		EmberSurfaceLoopHost.Phase.BOARDING,
@@ -1275,6 +1276,74 @@ func _test_transition_terminal_atomicity(phase: int, trigger: StringName) -> voi
 			(fixture.frame as PlanetaryCoordinateFrame).get_generation(), 1
 		)
 		_check(replay.reason == &"stale_attachment_generation", "old attachment cannot resurrect a detached transition")
+	await _cleanup(fixture)
+
+
+## A whole-`Main` save/re-entry streams the entire composition out and back in.
+## Every dependency leaves with the Host, so none of them is lost: the live visit
+## must come back exactly as it stood, not terminal. The isolated-dependency
+## losses that must still terminalize are covered by
+## `_test_transition_terminal_atomicity`.
+func _test_composition_reentry_preserves_the_live_visit() -> void:
+	var fixture := await _fixture(true, true)
+	if fixture.is_empty():
+		return
+	var host := fixture.host as EmberSurfaceLoopHost
+	var berth := fixture.berth as EmberSurfaceBerth
+	var ship := fixture.ship as ArrowReconShip
+	var composition := fixture.composition_root as Node
+	var player := fixture.player as PlayerController
+	var reached_landed := await _drive_to_phase(
+		fixture, EmberSurfaceLoopHost.Phase.LANDED, 660
+	)
+	if not reached_landed:
+		_check(false, "re-entry fixture reaches a live landed visit")
+		await _cleanup(fixture)
+		return
+	host.request_disembark(host.get_generation(), host.get_attachment_generation())
+	var on_surface := await _drive_to_phase(
+		fixture, EmberSurfaceLoopHost.Phase.SURFACE_OUTBOUND, 600
+	)
+	_check(
+		on_surface,
+		"re-entry fixture reaches the live on-foot surface visit a player would save in",
+	)
+	if not on_surface:
+		await _cleanup(fixture)
+		return
+	var phase_before := host.get_phase()
+	var generation_before := host.get_generation()
+	var attachment_before := host.get_attachment_generation()
+	var token_before := berth.get_reservation_token(ship)
+	var session := host.get_travel_session_observation_source()
+	var session_state_before := int(session.get_state())
+	var parent := composition.get_parent()
+	parent.remove_child(composition)
+	await process_frame
+	parent.add_child(composition)
+	await process_frame
+	await physics_frame
+	_check(
+		host.get_phase() == phase_before
+			and host.is_attached()
+			and host.get_generation() == generation_before
+			and host.get_attachment_generation() == attachment_before
+			and berth.get_occupant() == ship
+			and berth.get_reservation_token(ship) == token_before
+			and not token_before.is_empty()
+			and int(session.get_state()) == session_state_before
+			and int(host.get_snapshot().get("composition_reentry_count", 0)) == 1
+			and StringName(host.get_snapshot().get("terminal_reason", &"?")).is_empty()
+			and not player.is_seated() and player.is_control_enabled(),
+		"whole-composition re-entry keeps the live on-foot visit, its lease and its session",
+	)
+	var advanced := await _tick(fixture)
+	_check(
+		bool(advanced.get("accepted", false))
+			and host.get_phase() != EmberSurfaceLoopHost.Phase.FAILED,
+		"the re-entered Host keeps advancing its own phase (%s)"
+			% advanced.get("reason", &"?"),
+	)
 	await _cleanup(fixture)
 
 
