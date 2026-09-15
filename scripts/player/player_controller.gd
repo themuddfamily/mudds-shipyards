@@ -307,6 +307,23 @@ var _pilot_integrity_probe_elapsed := 0.0
 var _step_probe_reach := 0.40
 var _imported_skeleton_pose_contract: Array[Dictionary] = []
 
+## Server-owned remote body seam.
+##
+## A body the authority simulates for a remote peer is this same controller —
+## the same capsule, floor snap, step-up assist, cabin containment and seat
+## transitions the local player has — with one difference: its input comes
+## from an accepted `NetworkMovementIntent` rather than from `Input`. While
+## remote drive is on, `_control_enabled` stays false (so nothing here reads
+## the host's keyboard or moves the host's mouse), the camera is never made
+## current and unhandled input is ignored. The intent is *held*: an owner
+## streams at a fixed cadence below the physics rate, so the last accepted
+## axes keep driving the body until the next intent replaces them or the
+## simulation freezes it on a delivery gap.
+var _remote_drive_enabled := false
+var _remote_move_axis := Vector2.ZERO
+var _remote_run := false
+var _remote_jump_pending := false
+
 
 func _ready() -> void:
 	# Captured before anything can touch it. Selecting a presentation authority
@@ -376,24 +393,19 @@ func _physics_process(delta: float) -> void:
 	var desired_direction := Vector3.ZERO
 	var is_sprinting := false
 
-	if _control_enabled:
-		var input_vector := Input.get_vector(
-			"move_left",
-			"move_right",
-			"move_forward",
-			"move_back"
-		)
+	if _control_enabled or _remote_drive_enabled:
+		var input_vector := _sample_move_vector()
 		desired_direction = _camera_relative_direction(input_vector)
-		is_sprinting = Input.is_action_pressed("sprint_boost") and not desired_direction.is_zero_approx()
+		is_sprinting = _sample_sprint_held() and not desired_direction.is_zero_approx()
 		_update_horizontal_velocity(desired_direction, is_sprinting, delta)
 
-		if Input.is_action_just_pressed("jump") and is_on_floor():
+		if _sample_jump_edge() and is_on_floor():
 			var movement_up := _get_movement_up_direction()
 			var existing_up_speed := velocity.dot(movement_up)
 			if existing_up_speed < 0.0:
 				velocity -= movement_up * existing_up_speed
 			velocity += movement_up * jump_velocity
-		if Input.is_action_just_pressed("interact"):
+		if _control_enabled and Input.is_action_just_pressed("interact"):
 			interact_requested.emit()
 	else:
 		_decelerate_horizontal_velocity(delta)
@@ -405,6 +417,92 @@ func _physics_process(delta: float) -> void:
 	_update_authored_locomotion(is_sprinting)
 	_advance_motion_animation(delta)
 	_update_grounded_foot_placement()
+
+
+## The three input samplers. Exactly one source is live at a time: the host's
+## own `Input` while control is enabled, the held remote intent while remote
+## drive is on. Neither reads the other's source.
+func _sample_move_vector() -> Vector2:
+	if _remote_drive_enabled:
+		return _remote_move_axis
+	return Input.get_vector("move_left", "move_right", "move_forward", "move_back")
+
+
+func _sample_sprint_held() -> bool:
+	if _remote_drive_enabled:
+		return _remote_run
+	return Input.is_action_pressed("sprint_boost")
+
+
+func _sample_jump_edge() -> bool:
+	if _remote_drive_enabled:
+		var pending := _remote_jump_pending
+		_remote_jump_pending = false
+		return pending
+	return Input.is_action_just_pressed("jump")
+
+
+## Turns this controller into a server-owned remote body, or back. Enabling it
+## relinquishes the camera and the host's input for good: a remote body never
+## becomes current and never captures the mouse, whatever else is called on it.
+func set_remote_drive_enabled(enabled: bool) -> void:
+	_remote_drive_enabled = enabled
+	if enabled:
+		_control_enabled = false
+		set_camera_active(false)
+		set_process_unhandled_input(false)
+		# Only deck-tangent motion is dropped, exactly as `set_control_enabled()`
+		# does; the vertical component stays correct aboard a pitched interior.
+		var movement_up := _get_movement_up_direction()
+		velocity = movement_up * velocity.dot(movement_up)
+	else:
+		clear_remote_intent()
+		set_process_unhandled_input(true)
+
+
+func is_remote_driven() -> bool:
+	return _remote_drive_enabled
+
+
+## Holds one accepted intent until the next one. `look_yaw` is the yaw the axes
+## are relative to, applied to the same camera-yaw pivot the local player's
+## mouse turns, so a remote "forward" means the same thing a local one does.
+## `jump` is an edge: consumed once by the next on-foot physics tick.
+func apply_remote_intent(move_axis: Vector2, look_yaw: float, run: bool, jump: bool) -> void:
+	if not _remote_drive_enabled:
+		return
+	_remote_move_axis = move_axis.limit_length(1.0) if move_axis.is_finite() else Vector2.ZERO
+	if is_finite(look_yaw):
+		_camera_yaw.rotation.y = wrapf(look_yaw, -PI, PI)
+	_remote_run = run
+	if jump:
+		_remote_jump_pending = true
+
+
+## The gap-freeze half of the remote seam: the body decelerates to a stop and
+## stays put until an ordered intent arrives again.
+func clear_remote_intent() -> void:
+	_remote_move_axis = Vector2.ZERO
+	_remote_run = false
+	_remote_jump_pending = false
+
+
+## Yaw of the look pivot the movement axes are relative to. The client-side
+## intent source stamps this into every packet so the server body's "forward"
+## is the direction the owning player is actually facing.
+func get_look_yaw() -> float:
+	return _camera_yaw.rotation.y
+
+
+func get_remote_drive_audit() -> Dictionary:
+	return {
+		"remote_driven": _remote_drive_enabled,
+		"move_axis": _remote_move_axis,
+		"run": _remote_run,
+		"jump_pending": _remote_jump_pending,
+		"control_enabled": _control_enabled,
+		"camera_active": _camera_active,
+	}
 
 
 func _get_interior_collision_transform() -> Transform3D:
@@ -552,6 +650,10 @@ func _unhandled_input(event: InputEvent) -> void:
 
 ## Enables or suspends on-foot movement and interaction input.
 func set_control_enabled(enabled: bool) -> void:
+	if enabled and _remote_drive_enabled:
+		# A remote body is driven by its owner's accepted intent, never by the
+		# host's keyboard. Asking for control on one is a no-op, not a takeover.
+		return
 	if (
 		enabled
 		and _embodiment_state != EmbodimentState.ON_FOOT
@@ -570,6 +672,8 @@ func set_control_enabled(enabled: bool) -> void:
 
 ## Makes this controller's camera current, or relinquishes it to another rig.
 func set_camera_active(active: bool) -> void:
+	if active and _remote_drive_enabled:
+		return
 	_camera_active = active
 	_camera.current = active
 	if active and _control_enabled and DisplayServer.get_name() != "headless":
