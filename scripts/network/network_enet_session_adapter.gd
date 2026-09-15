@@ -457,7 +457,14 @@ func shutdown(reason: StringName = &"requested") -> Dictionary:
 		_peer.close()
 		_peer = null
 	if multiplayer != null:
-		multiplayer.multiplayer_peer = null
+		# A stopped session is the same situation as no session at all, so the
+		# API goes back to the peer a fresh `SceneMultiplayer` carries rather than
+		# to none at all. `get_unique_id()` then answers 1 offline, the way it
+		# does before anyone ever hosts; leaving it peerless makes every caller
+		# that asks it each frame — `ShipCommandSource.get_local_peer_id()` and
+		# `MovingInteriorFrame._can_simulate_occupant()` both do — take an engine
+		# error instead of an answer for the rest of the process.
+		multiplayer.multiplayer_peer = OfflineMultiplayerPeer.new()
 	_configured = false
 	_is_server = false
 	_peer_generations.clear()

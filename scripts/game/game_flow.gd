@@ -61,6 +61,15 @@ const SafeStartProductionRecoveryType := preload(
 const NetworkSessionAdapterType := preload(
 	"res://scripts/network/network_enet_session_adapter.gd"
 )
+## The one child name this coordinator's session adapter ever answers to.
+##
+## Godot routes an RPC by the node path the receiver resolves relative to its
+## own multiplayer root, so every peer's adapter has to sit at the same relative
+## path. Main's adapter is that path, and `_retire_network_session()` is what
+## keeps it free between sessions: `add_child()` silently renames a colliding
+## node to `@NetworkSession@N`, and an adapter at that name is an adapter no
+## other peer can address.
+const NETWORK_SESSION_NODE_NAME := "NetworkSession"
 const NetworkHalyardCrewCommandBridgeType := preload(
 	"res://scripts/network/network_halyard_crew_command_bridge.gd"
 )
@@ -1071,6 +1080,11 @@ func _enter_tree() -> void:
 	# session's own RPC, so they are sent from here rather than on the way out,
 	# when the session node has already left the tree and can no longer send them.
 	_connect_signal_once(self, &"tree_exiting", _on_game_flow_tree_exiting)
+	# A subtree can be streamed out through a path that had no `multiplayer` left
+	# to restore. Re-entry is the first moment one resolves again, so the closed
+	# peer of the session that ended is replaced here, before anything asks this
+	# API for an id it can no longer give.
+	_restore_offline_multiplayer_peer()
 	# A whole Main subtree can be streamed out and re-added without being freed.
 	# Source `tree_exiting` hooks intentionally clear combat authority state, but
 	# Godot does not call `_ready()` again. Restore only runtime bindings after all
@@ -1086,6 +1100,13 @@ func _enter_tree() -> void:
 ## flying any more.
 func _on_game_flow_tree_exiting() -> void:
 	_retire_all_network_moving_interior_occupancy(&"game_flow_detached")
+	# The session adapter's lifetime is this subtree's tree membership, and this
+	# is the last moment it is still a whole node in a whole tree: it can close
+	# its transport against a live `SceneMultiplayer` and be taken out of the RPC
+	# path in the same breath. Leaving it parented would make the next
+	# `host_network_session()` or `join_network_session()` add a *second* adapter
+	# beside the corpse, renamed by Godot, addressing a path no client has.
+	_retire_network_session(&"game_flow_detached")
 
 
 func _exit_tree() -> void:
@@ -1110,9 +1131,9 @@ func _exit_tree() -> void:
 	# could still reach its peers. This only makes sure nothing survives a path
 	# that reached here without that signal.
 	_retire_all_network_moving_interior_occupancy(&"game_flow_detached")
-	if is_instance_valid(network_session):
-		network_session.shutdown(&"game_flow_exit")
-		network_session = null
+	# Same backstop for the adapter itself, which `tree_exiting` normally retired
+	# a moment ago. Retiring twice is a no-op.
+	_retire_network_session(&"game_flow_exit")
 	_detach_network_ship_authority_composition(&"game_flow_exit")
 	_detach_network_halyard_command_bridge()
 	_cancel_ground_transition_for_detach()
@@ -1239,22 +1260,137 @@ func _ensure_network_session() -> NetworkSessionAdapterType:
 		return null
 	if is_instance_valid(network_session):
 		return network_session
+	# Nothing may be holding the canonical name when the new adapter takes it.
+	# A subtree that was streamed out and back in has already been through
+	# `_retire_network_session()`, so this normally finds nothing; it is what
+	# makes a single adapter at a single path an invariant rather than a hope.
+	_retire_network_session(&"stale_session_adapter")
 	network_session = NetworkSessionAdapterType.new()
-	network_session.name = "NetworkSession"
+	network_session.name = NETWORK_SESSION_NODE_NAME
 	add_child(network_session)
-	_connect_signal_once(network_session, &"session_started", _on_network_session_started)
-	_connect_signal_once(network_session, &"session_stopped", _on_network_session_stopped)
-	_connect_signal_once(network_session, &"peer_admitted", _on_network_peer_admitted)
-	_connect_signal_once(network_session, &"peer_disconnected", _on_network_peer_disconnected)
-	_connect_signal_once(network_session, &"transport_rejected", _on_network_transport_rejected)
-	_connect_signal_once(network_session, &"crew_role_result", _on_network_crew_role_result)
-	_connect_signal_once(network_session, &"crew_command_result", _on_network_crew_command_result)
-	_connect_signal_once(network_session, &"projectile_replica_packet", _on_projectile_replica_packet)
-	_connect_signal_once(network_session, &"migration_result", _on_network_migration_result)
-	_connect_signal_once(network_session, &"server_browser_result", _on_server_browser_result)
+	for binding: Array in _network_session_signal_bindings():
+		_connect_signal_once(network_session, StringName(binding[0]), binding[1] as Callable)
 	_attach_network_halyard_command_bridge()
 	_attach_network_ship_authority_composition()
 	return network_session
+
+
+## The exact signal bindings a live adapter holds on this coordinator.
+##
+## One table, made and unmade by one pair of functions, so a retired adapter
+## cannot still be calling back into GameFlow between its shutdown and its
+## deletion, and a new one cannot come up missing a binding the old one had.
+func _network_session_signal_bindings() -> Array:
+	return [
+		[&"session_started", Callable(self, "_on_network_session_started")],
+		[&"session_stopped", Callable(self, "_on_network_session_stopped")],
+		[&"peer_admitted", Callable(self, "_on_network_peer_admitted")],
+		[&"peer_disconnected", Callable(self, "_on_network_peer_disconnected")],
+		[&"transport_rejected", Callable(self, "_on_network_transport_rejected")],
+		[&"crew_role_result", Callable(self, "_on_network_crew_role_result")],
+		[&"crew_command_result", Callable(self, "_on_network_crew_command_result")],
+		[&"projectile_replica_packet", Callable(self, "_on_projectile_replica_packet")],
+		[&"migration_result", Callable(self, "_on_network_migration_result")],
+		[&"server_browser_result", Callable(self, "_on_server_browser_result")],
+	]
+
+
+## Closes the session and takes its adapter out of the RPC path, in that order.
+##
+## This is the whole of the lifecycle rule: **GameFlow owns exactly one session
+## adapter, it lives at `NETWORK_SESSION_NODE_NAME`, and it does not outlive the
+## session it is running.** Shutdown runs first and while `network_session`
+## still resolves, because `session_stopped` handlers retire moving-interior
+## occupancy and detach the ship-authority composition, the Halyard command
+## bridge and the moving-interior presenter — all of which speak through this
+## very adapter. Only then is the node unbound, unparented (synchronously, so
+## the canonical name is free in the same frame) and freed.
+##
+## Idempotent, and safe to call when no session was ever started. It also sweeps
+## any adapter left parented by an older path, so one broken re-entry cannot
+## poison every session after it.
+func _retire_network_session(reason: StringName) -> void:
+	var retired: Array[Node] = []
+	if is_instance_valid(network_session):
+		network_session.shutdown(reason)
+		retired.append(network_session)
+	network_session = null
+	for child in get_children():
+		if not _is_network_session_adapter(child) or retired.has(child):
+			continue
+		retired.append(child)
+	for adapter in retired:
+		if not is_instance_valid(adapter):
+			continue
+		if adapter.has_method(&"shutdown"):
+			adapter.call(&"shutdown", reason)
+		for binding: Array in _network_session_signal_bindings():
+			var signal_name := StringName(binding[0])
+			var callback := binding[1] as Callable
+			if adapter.has_signal(signal_name) and adapter.is_connected(signal_name, callback):
+				adapter.disconnect(signal_name, callback)
+		var adapter_parent := adapter.get_parent()
+		if adapter_parent != null:
+			adapter_parent.remove_child(adapter)
+		adapter.queue_free()
+	_restore_offline_multiplayer_peer()
+
+
+## Puts this subtree's `MultiplayerAPI` back on the offline peer a fresh
+## `SceneMultiplayer` carries, when the session it was running is over.
+##
+## `NetworkEnetSessionAdapter.shutdown()` does this for the API it can reach,
+## but a node already outside the tree has no `multiplayer` to reach, so a
+## closed `ENetMultiplayerPeer` can outlive the session on the API itself.
+## Anything that then asks that API for its id — `ShipCommandSource` does, every
+## frame — takes an engine error instead of an answer for the rest of the
+## process. Only a peer that is absent or genuinely disconnected is replaced, so
+## a live or still-connecting session is never touched.
+func _restore_offline_multiplayer_peer() -> void:
+	if not is_inside_tree():
+		return
+	var api := multiplayer
+	if api == null:
+		return
+	var peer := api.multiplayer_peer
+	if peer != null and peer.get_connection_status() != MultiplayerPeer.CONNECTION_DISCONNECTED:
+		return
+	api.multiplayer_peer = OfflineMultiplayerPeer.new()
+
+
+## A node is this coordinator's session adapter if it runs the adapter script or
+## occupies the canonical name. The name half matters: a node that answered RPCs
+## at that path has to go even if a future refactor changes what scripts it.
+func _is_network_session_adapter(node: Node) -> bool:
+	if not is_instance_valid(node):
+		return false
+	return node is NetworkSessionAdapterType or String(node.name) == NETWORK_SESSION_NODE_NAME
+
+
+## The live adapter node's path relative to the multiplayer root that routes it,
+## which is the string every other peer has to resolve for a production RPC to
+## land. Empty when no session is up. Diagnostic seam for the session-lifecycle
+## suites, and the only supported way to compare two peers' RPC addressing.
+func get_network_session_rpc_path() -> String:
+	if not is_instance_valid(network_session) or not network_session.is_inside_tree():
+		return ""
+	var api := network_session.multiplayer
+	if api == null:
+		return String(network_session.get_path())
+	var multiplayer_root := get_node_or_null(api.get_root_path())
+	if multiplayer_root == null:
+		return String(network_session.get_path())
+	return String(multiplayer_root.get_path_to(network_session))
+
+
+## Every node under this coordinator that is, or once was, a session adapter.
+## Exactly one after any successful host or join; zero otherwise.
+func get_network_session_adapter_nodes() -> Array[Node]:
+	var adapters: Array[Node] = []
+	for child in get_children():
+		if _is_network_session_adapter(child):
+			adapters.append(child)
+	return adapters
 
 
 func _attach_network_ship_authority_composition() -> Dictionary:

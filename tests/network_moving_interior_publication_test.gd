@@ -449,21 +449,16 @@ func _assert_reentry_republishes_the_same_occupancy() -> void:
 		return
 	var port := probe.get_local_port()
 	probe.stop()
-	# `GameFlow._exit_tree()` closes its session and drops its reference, but
-	# leaves the old adapter node parented under Main. A second `host_network_session()`
-	# then adds a new adapter whose name collides with it and is auto-renamed, which
-	# breaks every production RPC path. That is a session-lifecycle defect outside
-	# this change's ownership; clearing the corpse here keeps this suite measuring
-	# occupancy publication rather than that bug. It is recorded in
-	# `docs/MOVING_INTERIOR_LATENCY.md`.
-	var stale := _game.get_node_or_null("NetworkSession")
-	if stale != null and stale != _game.get_network_session():
-		_game.remove_child(stale)
-		stale.queue_free()
-		await process_frame
 	_check(bool(_game.host_network_session(port, 4).get("accepted", false)),
 		"the re-entered host starts its session again")
 	_server = _game.get_network_session()
+	# The re-entered Main retires its old adapter on the way out, so hosting
+	# again produces one adapter at the one canonical path the clients address.
+	# `tests/network_rehost_after_reentry_test.gd` owns that rule; this only
+	# refuses to measure publication through a path the clients cannot resolve.
+	_check(_game.get_network_session_adapter_nodes().size() == 1
+		and _game.get_network_session_rpc_path() == GameFlow.NETWORK_SESSION_NODE_NAME,
+		"the re-entered host hosts through one adapter at the canonical RPC path")
 	for client in _clients:
 		client.shutdown(&"publication_sweep_rehost")
 	for client in _clients:

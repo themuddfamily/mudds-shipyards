@@ -363,16 +363,53 @@ during a stopped or half-connected session called `get_unique_id()` on a dead
 ENet peer and logged an error instead of answering. A session that has stopped is
 the same situation as no session at all: this peer simulates its own occupants.
 
+## The session adapter does not outlive its session
+
+A whole-Main re-entry used to leave the game unable to host or join again, and
+the publication gate had to work around it to measure anything at all. The rule
+that replaced the workaround lives in `GameFlow._retire_network_session()`:
+**GameFlow owns exactly one session adapter, it lives at the canonical child name
+`NetworkSession`, and Main's tree membership owns its lifetime.**
+
+Godot routes an RPC by a node path the receiver resolves against its own
+multiplayer root, so every peer's adapter has to answer at the same relative
+path. `_exit_tree()` closed the session and dropped the reference but left the
+node parented, so a later `host_network_session()` or `join_network_session()`
+added a *second* adapter beside the corpse, which `add_child()` silently renamed
+to `@NetworkSession@N`. Every production RPC then went out addressed to a path
+no other peer had: after a save reload or a safe-start recovery, a player who
+hosted or joined got a session that reported itself connected and moved nothing
+— no seat claim, no cabin occupancy, no shot.
+
+Retirement now happens from `tree_exiting`, the last moment the adapter is still
+a whole node in a whole tree, so it closes its transport against a live
+`SceneMultiplayer` and leaves the RPC path in the same breath: shutdown first
+(while `network_session` still resolves, because the `session_stopped` handlers
+retire moving-interior occupancy and detach the ship-authority composition, the
+Halyard command bridge and the presenter), then unbind, then `remove_child()`
+synchronously so the canonical name is free in the same frame, then free.
+`_exit_tree()` repeats it for any path that arrived without the signal, and
+`_ensure_network_session()` sweeps before it builds, so one adapter at one path
+is an invariant rather than a hope. One smaller defect fell out of the same
+seam: a stopped session left its `MultiplayerAPI` holding a closed
+`ENetMultiplayerPeer` (or none at all), so everything that asks it for an id
+each frame — `ShipCommandSource.get_local_peer_id()`,
+`MovingInteriorFrame._can_simulate_occupant()` — took an engine error instead of
+an answer for the rest of the process; `shutdown()` now restores the
+`OfflineMultiplayerPeer` a fresh `SceneMultiplayer` carries, which is exactly
+the state solo play runs in.
+
+`tests/network_rehost_after_reentry_test.gd` measures it on a real loopback
+session: the production Main flies a short leg with one client aboard, is
+streamed out and back, hosts again, and the same client rejoins — then the
+mirror, where the re-entered Main joins a host that was already listening. Each
+leg asserts one adapter under the canonical name, the retired one freed rather
+than orphaned, the same RPC path resolved on both peers, and all three wire
+bindings working: a seat claim, the authority's own moving-interior publication,
+and one projectile round trip out and back.
+
 ## What remains before broadening player counts
 
-* **A re-entered Main cannot host again cleanly.** `GameFlow._exit_tree()`
-  closes its session and drops its reference to the adapter, but leaves the node
-  parented under Main. A later `host_network_session()` adds a second adapter
-  whose name collides with the corpse and is auto-renamed, and every production
-  RPC path then resolves to a node the clients do not have.
-  `tests/network_moving_interior_publication_test.gd` clears the stale node
-  before re-hosting so it can measure occupancy publication rather than this;
-  the session-lifecycle fix itself is outstanding.
 * **Per-recipient budget headroom at latency.** The publication gate
   characterises the 8-snapshots/10-tick ceiling with two occupants on a direct
   transport: the budget coalesces, the walking body is what falls behind and a
