@@ -587,6 +587,18 @@ func physics_tick_from_caller_sample(
 		ship, expected_coordinate_frame_generation
 	)
 	if not bool(frame_binding.get("accepted", false)):
+		# A braking approach reaches zero speed and `HeroShip` retires its own
+		# cruise attachment on that same tick — which, for an approach, is
+		# exactly the tick the craft comes to rest inside the authored entry
+		# volume. Retiring here would discard a target whose arrival has already
+		# physically happened, leaving the craft parked in the corridor with no
+		# handoff. Take that one arrival measurement from the current public ship
+		# state first; only a rejected measurement retires.
+		if bool(frame_binding.get("reconcile_pending", false)):
+			var settled := _settle_retired_approach_arrival_guarded(caller_tick)
+			if not settled.is_empty():
+				return settled
+			_controller.reconcile_retired_ship_binding(_controller.get_generation())
 		return _fail_tick_guarded(
 			StringName(frame_binding.get("reason", &"frame_rebind_rejected")),
 			true,
@@ -835,6 +847,29 @@ func _activate_scene_binding() -> void:
 	_last_reason = &"activated"
 
 
+## Takes the one arrival measurement an active approach is owed when the ship
+## retired its own cruise attachment on the tick its braking completed. Returns
+## an empty dictionary when there is nothing to settle, so the caller falls
+## through to its ordinary retirement. The public transaction guard is already
+## held; the controller measures only the live ship transform and velocity and
+## writes no actor state.
+func _settle_retired_approach_arrival_guarded(caller_tick: int) -> Dictionary:
+	if not _mutation_active or _final_approach_target_generation < 1:
+		return {}
+	var state_id := StringName(
+		(_safe_controller_snapshot().get("final_approach", {}) as Dictionary)
+			.get("state_id", &"none")
+	)
+	if state_id not in [&"final_approach", &"return_approach"]:
+		return {}
+	var settled := _controller.settle_arrival_on_retired_attachment(
+		_controller.get_generation()
+	)
+	if not bool(settled.get("accepted", false)):
+		return {}
+	return _complete_final_approach_guarded(settled, caller_tick)
+
+
 func _complete_final_approach_guarded(
 		controller_evaluation: Dictionary,
 		caller_tick: int,
@@ -1037,7 +1072,15 @@ func _ensure_current_frame_binding(
 					== int(controller_snapshot.get("ship_attachment_generation", -1))
 			):
 				return {"accepted": true, "reason": &"binding_current"}
-			_controller.reconcile_retired_ship_binding(_controller.get_generation())
+			# Reconciliation clears the controller's approach target, so the
+			# caller is given the chance to settle an already physical arrival
+			# first. `_settle_retired_approach_arrival_guarded()` reconciles when
+			# there is nothing to settle.
+			return {
+				"accepted": false,
+				"reason": &"ship_attachment_retired",
+				"reconcile_pending": true,
+			}
 		return {"accepted": false, "reason": &"ship_attachment_retired"}
 	if expected_coordinate_frame_generation != _bound_frame_generation + 1:
 		return {"accepted": false, "reason": &"coordinate_frame_generation_jump"}

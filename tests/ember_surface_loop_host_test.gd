@@ -5,6 +5,8 @@ const BOOTSTRAP_SCENE := preload(
 )
 const ARROW_SCENE := preload("res://scenes/ships/arrow_recon_ship.tscn")
 const PLAYER_SCENE := preload("res://scenes/player/player.tscn")
+const TORRENT_SCENE := preload("res://scenes/ships/torrent_interceptor.tscn")
+const TORRENT_DEFINITION := preload("res://assets/ships/torrent_provisional.tres")
 const PHYSICS_DELTA := 1.0 / 12.0
 const TEST_TIME_SCALE := 5.0
 
@@ -69,6 +71,31 @@ func _test_berth_configuration_requires_empty_lease() -> void:
 			and after_release.get("reason", &"") == &"configured",
 		"surface berth cannot rewrite the landing contract under a reserved re-entry craft",
 	)
+	# `Main` retains one caldera berth for the session, and a later expedition can
+	# arrive in a different craft whose hull sits at a different dock height. The
+	# idle berth must re-derive for it; refusing left the pad frozen to the first
+	# craft that ever landed and every later Ember visit in another craft failed
+	# its Host bind with `berth_configuration_failed`.
+	var second_craft := TORRENT_SCENE.instantiate() as HeroShip
+	second_craft.ship_definition = TORRENT_DEFINITION
+	fixture_root.add_child(second_craft)
+	await process_frame
+	await physics_frame
+	var first_dock := berth.dock_transform
+	var second_configured := berth.configure_for_ship(second_craft)
+	var second_token := berth.try_reserve(second_craft, second_craft.get_ship_definition())
+	var relocked := berth.configure_for_ship(ship)
+	_check(
+		bool(second_configured.get("accepted", false))
+			and berth.is_configured_for(second_craft)
+			and not berth.is_configured_for(ship)
+			and not second_token.is_empty()
+			and not bool(relocked.get("accepted", true))
+			and relocked.get("reason", &"") == &"berth_lease_active"
+			and berth.dock_transform != first_dock,
+		"an idle surface berth re-derives for a later visit's craft and locks again under its lease",
+	)
+	berth.release(second_craft, second_token)
 	fixture_root.queue_free()
 	await process_frame
 

@@ -449,6 +449,38 @@ func abort_return_approach(
 	return _final_approach_result(true, reason)
 
 
+## Takes the arrival measurement an already ACTIVE approach is owed after the
+## ship retired its own cruise attachment. `HeroShip` retires on the same tick
+## its braking reaches the speed deadband, and for an approach that is exactly
+## the tick the craft comes to rest inside the authored entry volume: the
+## ordinary `evaluate_and_submit()` cadence never gets to measure it, because the
+## binding's next tick fails on the retired attachment first.
+##
+## This measures only the live public ship transform and velocity through the
+## same predicate the ordinary path uses, and commits the same completion. It
+## submits no envelope, writes no actor state, and arms no target: a measurement
+## that does not accept leaves the approach exactly as it was.
+func settle_arrival_on_retired_attachment(expected_generation: int) -> Dictionary:
+	if _mutation_active or _signal_dispatch_active:
+		return _final_approach_result(false, &"reentrant_call")
+	if expected_generation != _generation:
+		return _final_approach_result(false, &"generation_mismatch")
+	if _final_approach_state != FinalApproachState.ACTIVE:
+		return _final_approach_result(false, &"approach_not_active")
+	var ship := _resolve_ship()
+	if ship == null:
+		return _final_approach_result(false, &"ship_unavailable")
+	var return_approach := _approach_kind == RETURN_APPROACH_KIND
+	var measurement := _measure_return_approach(ship) if return_approach \
+		else _measure_final_approach(ship)
+	if not bool(measurement.get("accepted", false)):
+		return _final_approach_result(
+			false, StringName(measurement.get("reason", &"arrival_not_reached"))
+		)
+	return _commit_return_approach_completion(measurement) if return_approach \
+		else _commit_final_approach_completion(measurement)
+
+
 ## Produces and submits exactly one proof-bearing envelope for the next ship
 ## physics tick. Callers must invoke this once per physics tick while cruise is
 ## desired; missing cadence makes HeroShip brake on its next tick.

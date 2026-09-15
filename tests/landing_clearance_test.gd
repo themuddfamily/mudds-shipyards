@@ -226,6 +226,43 @@ func _test_landing_authority_invalidation() -> void:
 	berth.position.x -= 0.5
 	_check(not berth.is_reserved(), "moved-berth abort releases the exact snapshotted lease")
 
+	# A committed common-world origin rebase moves the ship, the berth and every
+	# other covered root by one identical delta. Before `HeroShip` was told about
+	# that translation, the frozen dock snapshot stayed behind and the assist
+	# aborted `berth_changed` on the tick the world moved — on Ember, on every
+	# descent, because the drop from the orbital anchor to the caldera pad is
+	# exactly the frame's 10 km origin-shift threshold. The notification the
+	# origin owner sends must keep the same landing alive.
+	token = berth.try_reserve(ship, ship.get_ship_definition())
+	ship.global_transform = berth.get_dock_transform() \
+		* Transform3D(Basis.IDENTITY, Vector3(0.0, 0.0, 2.0))
+	_check(
+		not token.is_empty() and ship.request_berth_landing(berth),
+		"common-world translation fixture begins with a bound lease"
+	)
+	var translation := Vector3(-10_000.0, 0.0, 4_000.0)
+	stage.position += translation
+	ship.notify_common_world_translation(translation, 2)
+	ship.call("_update_landing", 0.01)
+	_check(
+		ship.is_landing_active()
+			and ship.get_telemetry().landing_abort_reason == &""
+			and berth.is_reserved(),
+		"a committed common-world translation of ship and berth together keeps the landing alive"
+	)
+	# The same guard must still catch a berth that really did move: an
+	# unannounced translation of the berth alone is not a common-world commit.
+	berth.position.x += 0.5
+	ship.call("_update_landing", 0.01)
+	_check(
+		not ship.is_landing_active()
+			and ship.get_telemetry().landing_abort_reason == &"berth_changed",
+		"an unannounced berth move still aborts after a common-world translation"
+	)
+	berth.position.x -= 0.5
+	stage.position -= translation
+	_check(not berth.is_reserved(), "the unannounced-move abort still releases the lease")
+
 	token = berth.try_reserve(ship, ship.get_ship_definition())
 	ship.global_transform = berth.get_dock_transform() * Transform3D(Basis.IDENTITY, Vector3(0.0, 0.0, 2.0))
 	_check(not token.is_empty() and ship.request_berth_landing(berth), "reparented-berth fixture begins with a bound lease")

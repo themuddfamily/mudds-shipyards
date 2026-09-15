@@ -38,13 +38,21 @@ func _init() -> void:
 ## Freezes the exact dock-root height from the live compatible hull envelope.
 ## Configuration is one-shot and is forbidden after any lease exists.
 func configure_for_ship(ship: HeroShip) -> Dictionary:
-	if not _configured_ship_id.is_empty():
-		return _result(false, &"already_configured")
 	# A lease snapshots this berth's dock transform for the landing authority.
-	# Do not let a late initial configuration rewrite that snapshot underneath a
-	# reserved craft during a streamed re-entry or retry.
+	# Do not let a configuration rewrite that snapshot underneath a reserved or
+	# occupied craft during a streamed re-entry, a retry, or a second visit.
 	if is_reserved() or is_occupied():
 		return _result(false, &"berth_lease_active")
+	if not _configured_ship_id.is_empty():
+		# `Main` retains one caldera berth for the whole session, and a later
+		# expedition legitimately arrives in a different craft whose hull sits at a
+		# different dock height. Refusing to re-derive left the pad frozen to the
+		# first craft that ever landed here: every later Ember visit in another
+		# craft failed its Host bind with `berth_configuration_failed` and the
+		# surface loop simply never started. Re-derive only while idle — the lease
+		# guard above is what protects a live landing.
+		_configured_ship_id = &""
+		_configured_collision_bounds = AABB()
 	if ship == null or not is_instance_valid(ship) or ship.is_queued_for_deletion():
 		return _result(false, &"ship_unavailable")
 	var definition := ship.get_ship_definition()

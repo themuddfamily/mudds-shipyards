@@ -170,6 +170,12 @@ func consume_rebase_preview(preview: Variant, actor_sample: Variant) -> Dictiona
 		_mutation_active = false
 		return _reject(&"binding_commit_desynchronized")
 
+	# The commit is irreversible from here. Actors that froze a world-space target
+	# before it are now holding pre-translation coordinates; tell exactly those
+	# that ask to be told. This is notification, not authority: the owner writes
+	# no actor state beyond the translation it already applied.
+	_notify_committed_translation(roots, covered, delta, target_generation)
+
 	_transaction_count += 1
 	_last_source_generation = source_generation
 	_last_target_generation = target_generation
@@ -398,6 +404,27 @@ func _world_quiescence_preflight() -> StringName:
 				and int(candidate.call(&"get_pending_terminal_damage_presentation_receipt_id")) >= 0:
 			return &"pending_terminal_damage_presentation"
 	return &""
+
+
+## Tells every translated node that implements the optional notification seam
+## that the common world just moved under it by `delta`. Each node decides what
+## that means for its own frozen world-space state; nothing here inspects or
+## overrides the result.
+func _notify_committed_translation(
+		roots: Array,
+		covered: Array,
+		delta: Vector3,
+		target_generation: int,
+	) -> void:
+	var notified := {}
+	for group: Array in [roots, covered]:
+		for record_value in group:
+			var node := (record_value as Dictionary).get("node") as Node3D
+			if not is_instance_valid(node) or notified.has(node.get_instance_id()):
+				continue
+			notified[node.get_instance_id()] = true
+			if node.has_method(&"notify_common_world_translation"):
+				node.call(&"notify_common_world_translation", delta, target_generation)
 
 
 func _apply_root_translation(roots: Array, delta: Vector3) -> bool:

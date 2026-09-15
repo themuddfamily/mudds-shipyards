@@ -22,6 +22,8 @@ var _ember_survey_return_manifest: Dictionary = {}
 var _ember_surface_journey_active := false
 var _ember_final_approach_handoff_ready := false
 var _ember_final_approach_completion_receipt: Dictionary = {}
+var _ember_final_approach_rearm_count := 0
+var _last_ember_final_approach_rearm_result: Dictionary = {}
 var _mudds_return_handback_consumption_attempted := false
 var _mudds_return_handback_receipt: Dictionary = {}
 var _mudds_station_return_intent_consumption_attempted := false
@@ -114,6 +116,17 @@ func advance_world(delta: float, actor_sample: Dictionary) -> Dictionary:
 		_last_ember_surface_forward_result = _forward_pending_ember_surface_journey()
 		if bool(_last_ember_surface_forward_result.get("accepted", false)):
 			_ember_surface_forward_count += 1
+	if _ember_surface_journey_active:
+		if required_origin_rebase_uncommitted or not ember_streaming_accepted:
+			_last_ember_final_approach_rearm_result = {
+				"accepted": false,
+				"reason": &"ember_final_approach_rearm_observation_unavailable",
+			}.duplicate(true)
+		else:
+			_last_ember_final_approach_rearm_result = \
+				_rearm_retired_ember_final_approach()
+			if bool(_last_ember_final_approach_rearm_result.get("accepted", false)):
+				_ember_final_approach_rearm_count += 1
 	if not required_origin_rebase_uncommitted:
 		_consume_mudds_station_return_handoff_intent(
 			coordinate_frame_generation
@@ -605,6 +618,54 @@ func _arm_ember_final_approach(host: Object) -> Dictionary:
 		int(host_snapshot.get("attachment_generation", 0)),
 		_flow.planetary_cruise_binding.get_generation(),
 	)
+
+
+## An admitted expedition keeps exactly one armed final-approach target, armed
+## once by `begin_ember_surface_journey`. `HeroShip` may independently retire its
+## cruise attachment while the Host is still IDLE — braking complete at the
+## destination, a physical collision, a manual flight command — and that
+## retirement clears the armed target and the engagement with it. Nothing else
+## re-arms: the expedition stayed active with no path to the surface and no
+## production request seam to ask again, stranding the craft in Ember orbit.
+##
+## This restores exactly the state the admission established and nothing more.
+## It is idempotent (an armed target reports `final_approach_already_armed`), it
+## never runs once a completion receipt exists or the station-return leg has
+## begun, and it reuses the same public engage/arm calls, so it adds no movement,
+## landing or origin authority.
+func _rearm_retired_ember_final_approach() -> Dictionary:
+	if _ember_final_approach_handoff_ready \
+			or not _ember_final_approach_completion_receipt.is_empty() \
+			or _mudds_return_approach_active \
+			or _mudds_return_approach_completion_attempted:
+		return {"accepted": false, "reason": &"ember_final_approach_rearm_out_of_order"}
+	if not is_instance_valid(_flow.ember_surface_loop_host) \
+			or not is_instance_valid(_flow.planetary_cruise_binding) \
+			or not is_instance_valid(_flow.active_ship) \
+			or not _flow.active_ship.is_piloted():
+		return {"accepted": false, "reason": &"ember_final_approach_rearm_unavailable"}
+	var host_snapshot := _flow.ember_surface_loop_host.get_snapshot()
+	if not bool(host_snapshot.get("attached", false)) \
+			or int(host_snapshot.get("phase", -1)) != EmberSurfaceLoopHost.Phase.IDLE:
+		return {"accepted": false, "reason": &"ember_final_approach_rearm_phase_mismatch"}
+	var cruise_snapshot := _flow.planetary_cruise_binding.get_snapshot()
+	if int((cruise_snapshot.get("final_approach", {}) as Dictionary).get(
+		"target_generation", 0
+	)) > 0:
+		return {"accepted": false, "reason": &"final_approach_already_armed"}
+	var gate_reason := _flow._planetary_cruise_gate_reason(false)
+	if not gate_reason.is_empty():
+		return {"accepted": false, "reason": gate_reason}
+	if not bool(cruise_snapshot.get("engagement_requested", false)):
+		var engaged := _flow.planetary_cruise_binding.request_engage(
+			_flow.active_ship,
+			int(cruise_snapshot.get("current_coordinate_frame_generation", 0)),
+			&"",
+			_flow.planetary_cruise_binding.get_generation()
+		)
+		if not bool(engaged.get("accepted", false)):
+			return engaged
+	return _arm_ember_final_approach(_flow.ember_surface_loop_host)
 
 
 func _ember_final_approach_completion_is_current(receipt: Dictionary) -> bool:

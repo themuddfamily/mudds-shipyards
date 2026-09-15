@@ -4098,6 +4098,37 @@ func _is_landing_pose_obstructed(candidate_transform: Transform3D) -> bool:
 	return false
 
 
+## A common-world origin rebase translates this ship, its berth and every other
+## covered root by one identical delta. The landing contract freezes its dock and
+## staging targets as world transforms, so after such a commit the live berth no
+## longer matches its snapshot and the assist aborts `berth_changed` — on Ember
+## that happens on every descent, because the drop from the orbital navigation
+## anchor to the caldera pad is exactly the coordinate frame's 10 km origin-shift
+## threshold, and the craft is thrown out of an approach it was flying correctly.
+##
+## `CommonWorldOriginRebaseOwner` calls this once per committed transaction, only
+## on nodes it actually translated, and only after the commit is irreversible.
+## This re-expresses the already-agreed targets in the new common frame; it moves
+## no hull, changes no phase, and grants the owner no landing authority. A berth
+## that genuinely re-authors its dock still fails the guard, because nothing
+## outside this transaction ever reaches here.
+func notify_common_world_translation(
+		delta: Vector3,
+		_target_coordinate_frame_generation: int = 0,
+	) -> void:
+	if not delta.is_finite() or delta.is_zero_approx():
+		return
+	if _landing_contract.is_empty() and not _landing_active:
+		return
+	_landing_target.origin += delta
+	_landing_staging_target.origin += delta
+	if not _landing_contract.is_empty():
+		_landing_contract["dock_transform_snapshot"] = _landing_target
+		_landing_contract["staging_transform_snapshot"] = _landing_staging_target
+	if is_finite(_landing_previous_distance):
+		_landing_previous_distance = global_position.distance_to(_landing_target.origin)
+
+
 static func _landing_transforms_match(first: Transform3D, second: Transform3D) -> bool:
 	return first.origin.distance_squared_to(second.origin) \
 			<= LANDING_TRANSFORM_EPSILON * LANDING_TRANSFORM_EPSILON \

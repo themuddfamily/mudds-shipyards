@@ -141,6 +141,10 @@ func _run() -> void:
 		"completion followed by location drift is discarded before Host.start",
 	)
 
+	await _test_retired_attachment_arrival_and_rearm(
+		game, cruise, host, landing_root, envelope
+	)
+
 	_check(bool(game.engage_planetary_cruise().get("accepted", false)),
 		"discarded stale completion permits a fresh engagement")
 	_check(bool(_arm_current(cruise, host, landing_root, envelope).get("accepted", false)),
@@ -195,6 +199,74 @@ func _run() -> void:
 	game.queue_free()
 	await process_frame
 	_finish()
+
+
+## The two seams that let an admitted expedition survive the tick its own braking
+## ends on.
+##
+## `HeroShip` retires its cruise attachment the moment a braking approach reaches
+## the speed deadband, and for a final approach that is exactly the tick the craft
+## comes to rest inside the authored entry volume. The binding's next tick used to
+## fail on the retired attachment and abort the target, so the arrival was real
+## but never measured; and once the target was gone nothing re-armed it, because
+## `_arm_ember_final_approach()` only ran from an admission that had already
+## happened. The craft was left parked at Ember with an admitted expedition, no
+## approach target and no path to the surface.
+func _test_retired_attachment_arrival_and_rearm(
+		game: GameFlow,
+		cruise: PlanetaryCruiseProductionBinding,
+		host: EmberSurfaceLoopHost,
+		landing_root: Node3D,
+		envelope: Dictionary,
+	) -> void:
+	var journey: Object = game.get("_planetary_journey")
+	_check(bool(game.engage_planetary_cruise().get("accepted", false)),
+		"a fresh engagement follows the discarded stale completion")
+	_check(bool(_arm_current(cruise, host, landing_root, envelope).get("accepted", false)),
+		"the re-arm case arms its own target")
+
+	# A retirement while the Host is still IDLE takes the target with it. The
+	# retained expedition owner must put it back on its next observation.
+	var released := cruise.request_disengage(cruise.get_generation(), false)
+	_check(
+		bool(released.get("accepted", false))
+			and int((cruise.get_snapshot().get("final_approach", {}) as Dictionary)
+				.get("target_generation", -1)) == 0,
+		"a retirement while the Host is IDLE clears the armed approach target",
+	)
+	var journey_active_before: bool = game.get("_ember_surface_journey_active")
+	game.set("_ember_surface_journey_active", true)
+	var rearmed: Dictionary = journey.call(&"_rearm_retired_ember_final_approach")
+	game.set("_ember_surface_journey_active", journey_active_before)
+	_check(
+		bool(rearmed.get("accepted", false))
+			and int((cruise.get_snapshot().get("final_approach", {}) as Dictionary)
+				.get("target_generation", 0)) > 0
+			and bool(cruise.get_snapshot().get("engagement_requested", false)),
+		"the retained expedition owner re-engages and re-arms the cleared target (%s)"
+			% rearmed.get("reason", &"?"),
+	)
+
+	# The arrival the ship's own braking retirement would otherwise discard.
+	_check(bool(_activate_current(game, cruise, host).get("accepted", false)),
+		"the retired-attachment case activates through the brake-shell policy")
+	game.active_ship.global_transform = landing_root.global_transform \
+		* (envelope.get("corridor_transform_region_local_m") as Transform3D)
+	game.active_ship.velocity = Vector3.ZERO
+	game.active_ship.call(&"_retire_planetary_cruise", &"braking_complete", true)
+	var arrival := _binding_tick(game, cruise, host)
+	_check(
+		arrival.get("reason") == &"final_approach_handoff_ready"
+			and int((arrival.get("controller_completion", {}) as Dictionary)
+				.get("target_generation", 0)) > 0,
+		"a craft that arrived in the entry volume completes even though its own braking retired the attachment (%s)"
+			% arrival.get("reason", &"?"),
+	)
+	if arrival.get("reason") == &"final_approach_handoff_ready":
+		cruise.discard_final_approach_completion(
+			int(arrival.get("target_generation", 0)), cruise.get_generation(),
+			&"test_retired_attachment_arrival",
+		)
 
 
 func _arm_current(
