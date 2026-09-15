@@ -100,6 +100,14 @@ const NETWORK_REMOTE_BODY_MAX_TICK_AHEAD := 6
 ## Frame-local divergence between the owning client's predicted body and the
 ## server's simulated one, at the same stamp, past which the client snaps.
 const NETWORK_REMOTE_BODY_CORRECTION_METRES := 0.5
+## Cabin berths the boarding ledger offers on every craft with a walkable
+## interior, beside its pilot seat. A remote peer that boards one through the
+## hatch (`NetworkBoardingIntent`, role `passenger`) is stood up as a
+## server-simulated body at the craft's cabin stand pose; a networked
+## disembark from the same berth releases it. The ledger holds one avatar per
+## berth, so this is also the hatch's headcount per craft.
+const NETWORK_CABIN_BERTH_COUNT := 4
+const NETWORK_CABIN_BERTH_ROLE: StringName = &"passenger"
 ## Ceiling on how many bodies one authoritative tick will publish across the
 ## whole fleet. A cabin cannot hold more crew than this, and a frame that
 ## somehow reports more is truncated rather than allowed to grow the per-tick
@@ -653,6 +661,15 @@ var _network_landing_request_sequence := 0
 var _network_landing_server_tick := 0
 var _network_boarding_entities: Dictionary = {}
 var _network_boarding_server_tick := 0
+## What the hatch seam did with each confirmed networked boarding; see
+## `_on_network_boarding_intent_result()`.
+var _network_hatch_audit: Dictionary = {
+	"hatch_admissions": 0,
+	"hatch_releases": 0,
+	"hatch_pilot_seats": 0,
+	"hatch_refusals": 0,
+	"last_hatch_status": &"",
+}
 ## Authoritative moving-interior occupancy publication state. See
 ## `_advance_network_moving_interior_publication()` for the contract; everything
 ## here is server-only and is torn down whenever this peer stops being the
@@ -1318,6 +1335,7 @@ func _network_session_signal_bindings() -> Array:
 		[&"peer_disconnected", Callable(self, "_on_network_peer_disconnected")],
 		[&"transport_rejected", Callable(self, "_on_network_transport_rejected")],
 		[&"crew_role_result", Callable(self, "_on_network_crew_role_result")],
+		[&"boarding_intent_result", Callable(self, "_on_network_boarding_intent_result")],
 		[&"crew_command_result", Callable(self, "_on_network_crew_command_result")],
 		[&"projectile_replica_packet", Callable(self, "_on_projectile_replica_packet")],
 		[&"migration_result", Callable(self, "_on_network_migration_result")],
@@ -5599,6 +5617,15 @@ func _on_network_session_started(mode: StringName) -> void:
 	_ensure_network_moving_interior_presenter()
 	if mode == &"server":
 		_ensure_network_remote_body_simulation()
+		# Every craft with a walkable interior is boardable through the hatch
+		# from the first tick of the session, whether or not the host has ever
+		# sat in it: the ledger has to know the ship before it can accept a
+		# peer's berth claim, and it is this seam that admits the body.
+		_network_boarding_entities.clear()
+		for fleet_ship in ships:
+			if is_instance_valid(fleet_ship) and not fleet_ship.is_destroyed() \
+					and fleet_ship.supports_in_flight_cabin_access():
+				_ensure_network_boarding_ship_registered(fleet_ship)
 	_publish_network_session_snapshot(
 		&"connected" if mode == &"server" else &"connecting",
 		mode,
@@ -5625,6 +5652,9 @@ func _on_network_session_stopped(reason: StringName) -> void:
 	_release_all_network_remote_bodies(reason)
 	if _network_remote_body_intent_source != null:
 		_network_remote_body_intent_source.unbind()
+	# The boarding ledger went with the adapter; the next session registers
+	# its ships and berths afresh rather than believing they are still known.
+	_network_boarding_entities.clear()
 	_detach_network_ship_authority_composition(reason)
 	_detach_network_halyard_command_bridge()
 	_detach_halyard_crew_semantic_audio()
@@ -7751,19 +7781,59 @@ func _publish_network_boarding_state(ship_to_publish: HeroShip, occupied: bool) 
 		return {"accepted": false, "status": &"network_publish_unavailable"}
 	var ship_id := ship_to_publish.get_ship_id()
 	var seat_id := StringName("%s_pilot" % String(ship_id))
-	var frame_id := StringName("frame_%s" % String(ship_id))
-	if not _network_boarding_entities.has(ship_id):
-		var registered_ship := network_session.register_boarding_ship(ship_id, 1, frame_id, 1)
-		if not bool(registered_ship.get("accepted", false)) and registered_ship.get("status") != &"duplicate_ship":
-			return registered_ship
-		var registered_seat := network_session.register_boarding_seat(seat_id, ship_id, 1, &"pilot")
-		if not bool(registered_seat.get("accepted", false)) and registered_seat.get("status") != &"duplicate_seat":
-			return registered_seat
-		_network_boarding_entities[ship_id] = true
+	var registered := _ensure_network_boarding_ship_registered(ship_to_publish)
+	if not bool(registered.get("accepted", false)):
+		return registered
 	_network_boarding_server_tick += 1
 	return network_session.publish_boarding_snapshot(
 		ship_id, 1, seat_id, 1, 1, occupied, [], _network_boarding_server_tick
 	)
+
+
+## The boarding ledger's picture of one craft: the ship bound to its
+## moving-interior frame, its pilot seat, and — when the craft has a walkable
+## interior — `NETWORK_CABIN_BERTH_COUNT` cabin berths a remote peer can claim
+## through the hatch. Registered once per session per craft; the ledger's own
+## duplicate answers make a repeat call harmless.
+func _ensure_network_boarding_ship_registered(ship_to_register: HeroShip) -> Dictionary:
+	if not is_instance_valid(network_session) or not network_session.is_server() \
+			or not is_instance_valid(ship_to_register):
+		return {"accepted": false, "status": &"network_publish_unavailable"}
+	var ship_id := ship_to_register.get_ship_id()
+	if _network_boarding_entities.has(ship_id):
+		return {"accepted": true, "status": &"boarding_ship_registered", "ship_id": ship_id}
+	var seat_id := StringName("%s_pilot" % String(ship_id))
+	var frame_id := StringName("frame_%s" % String(ship_id))
+	var registered_ship := network_session.register_boarding_ship(ship_id, 1, frame_id, 1)
+	if not bool(registered_ship.get("accepted", false)) and registered_ship.get("status") != &"duplicate_ship":
+		return registered_ship
+	var registered_seat := network_session.register_boarding_seat(seat_id, ship_id, 1, &"pilot")
+	if not bool(registered_seat.get("accepted", false)) and registered_seat.get("status") != &"duplicate_seat":
+		return registered_seat
+	var berths := 0
+	if ship_to_register.supports_in_flight_cabin_access():
+		for index in NETWORK_CABIN_BERTH_COUNT:
+			var berth := network_session.register_boarding_seat(
+				network_cabin_berth_seat_id(ship_id, index + 1), ship_id, 1, NETWORK_CABIN_BERTH_ROLE
+			)
+			if bool(berth.get("accepted", false)) or berth.get("status") == &"duplicate_seat":
+				berths += 1
+	_network_boarding_entities[ship_id] = true
+	return {
+		"accepted": true, "status": &"boarding_ship_registered",
+		"ship_id": ship_id, "cabin_berths": berths,
+	}
+
+
+## The seat id of one cabin berth in the boarding ledger, 1-based.
+static func network_cabin_berth_seat_id(ship_id: StringName, berth_index: int) -> StringName:
+	return StringName("%s_cabin_%02d" % [String(ship_id), berth_index])
+
+
+## True when `seat_id` is one of `ship_id`'s cabin berths rather than its
+## pilot seat.
+static func is_network_cabin_berth_seat(ship_id: StringName, seat_id: StringName) -> bool:
+	return String(seat_id).begins_with("%s_cabin_" % String(ship_id))
 
 
 ## Seat transitions. Taking or leaving the pilot seat changes a posture, never
@@ -8471,6 +8541,67 @@ func release_network_remote_body(entity_id: StringName, reason: StringName = &"r
 	return result
 
 
+## The production boarding path's half of "remote bodies are simulated". The
+## boarding ledger has already confirmed a peer's claim on a seat of a
+## registered craft — sender, generations, sequence and tick window checked,
+## one avatar per seat — and this decides what stands behind the claim:
+##
+## * a **cabin berth** claim on a craft with a walkable interior stands a
+##   server-simulated body at that craft's cabin stand pose, exactly as the
+##   crew-role seam does for a non-pilot role, and a networked disembark from
+##   the same berth releases it;
+## * a **pilot seat** claim keeps the seat seam it already has — the claim is
+##   the occupancy, the ship's pilot anchor is the pose, and nobody is stood
+##   up in the aisle to walk to it.
+##
+## Nothing here re-checks what the ledger checked, and nothing here claims a
+## seat: the ledger did, and a refused claim never reaches this handler.
+func _on_network_boarding_intent_result(result: Dictionary) -> void:
+	if _network_session_mode != &"server" or not bool(result.get("accepted", false)):
+		return
+	var occupancy: Dictionary = result.get("occupancy", {}) as Dictionary
+	var peer_id := int(occupancy.get("peer_id", 0))
+	var avatar_id := StringName(occupancy.get("avatar_id", &""))
+	var ship_id := StringName(occupancy.get("ship_id", &""))
+	var seat_id := StringName(occupancy.get("seat_id", &""))
+	if peer_id <= 1 or avatar_id.is_empty() or ship_id.is_empty():
+		return
+	var status := StringName(result.get("status", &""))
+	if status == &"boarded":
+		if StringName(occupancy.get("role", &"")) == &"pilot" \
+				or not is_network_cabin_berth_seat(ship_id, seat_id):
+			_network_hatch_audit["hatch_pilot_seats"] = int(_network_hatch_audit["hatch_pilot_seats"]) + 1
+			_network_hatch_audit["last_hatch_status"] = &"pilot_seat_retained"
+			return
+		var craft := _find_flyable_ship_by_id(ship_id)
+		if not is_instance_valid(craft):
+			_network_hatch_audit["hatch_refusals"] = int(_network_hatch_audit["hatch_refusals"]) + 1
+			_network_hatch_audit["last_hatch_status"] = &"unknown_craft"
+			return
+		var admitted := admit_network_remote_body(peer_id, avatar_id, craft)
+		if bool(admitted.get("accepted", false)):
+			_network_hatch_audit["hatch_admissions"] = int(_network_hatch_audit["hatch_admissions"]) + 1
+		else:
+			_network_hatch_audit["hatch_refusals"] = int(_network_hatch_audit["hatch_refusals"]) + 1
+		_network_hatch_audit["last_hatch_status"] = StringName(admitted.get("status", &"?"))
+		return
+	if status == &"disembarked":
+		if _network_remote_body_simulation == null \
+				or not is_instance_valid(_network_remote_body_simulation) \
+				or not _network_remote_body_simulation.has_body(avatar_id):
+			_network_hatch_audit["last_hatch_status"] = &"no_body_to_release"
+			return
+		var record: Dictionary = _network_remote_body_simulation.get_body_record(avatar_id)
+		if int(record.get("owner_peer_id", 0)) != peer_id:
+			_network_hatch_audit["hatch_refusals"] = int(_network_hatch_audit["hatch_refusals"]) + 1
+			_network_hatch_audit["last_hatch_status"] = &"not_body_owner"
+			return
+		var released := release_network_remote_body(avatar_id, &"hatch_disembark")
+		if bool(released.get("accepted", false)):
+			_network_hatch_audit["hatch_releases"] = int(_network_hatch_audit["hatch_releases"]) + 1
+		_network_hatch_audit["last_hatch_status"] = StringName(released.get("status", &"?"))
+
+
 func get_network_remote_body_simulation() -> NetworkRemoteBodySimulationType:
 	return _network_remote_body_simulation
 
@@ -8484,6 +8615,8 @@ func get_network_remote_body_audit() -> Dictionary:
 	audit["intent_source_bound"] = _network_remote_body_intent_source != null \
 		and _network_remote_body_intent_source.is_bound()
 	audit["local_corrections"] = _network_remote_body_corrections
+	for key in _network_hatch_audit:
+		audit[key] = _network_hatch_audit[key]
 	return audit
 
 

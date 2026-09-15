@@ -31,6 +31,7 @@ extends "res://tests/in_flight_cabin_integration_test.gd"
 ## it opens real `ENetMultiplayerPeer` sockets.
 
 const Adapter := preload("res://scripts/network/network_enet_session_adapter.gd")
+const BoardingIntent := preload("res://scripts/network/network_boarding_intent.gd")
 const Relationship := preload("res://scripts/network/moving_interior_relationship.gd")
 const Intent := preload("res://scripts/network/network_movement_intent.gd")
 const IntentSource := preload("res://scripts/network/network_remote_body_intent_source.gd")
@@ -143,6 +144,7 @@ var _client_peer_ids: Array[int] = []
 ## Per walker: intent source, movement plan and the entity it drives.
 var _walkers: Array[Dictionary] = []
 var _intent_statuses: Dictionary = {}
+var _boarding_results: Array = []
 var _shim: TransportShim = null
 var _ticker: TickDriver = null
 var _leg_active := false
@@ -168,6 +170,7 @@ func _run() -> void:
 	await _assert_the_body_walks_the_aisle_on_intent()
 	await _assert_forged_and_stale_intents_are_rejected()
 	await _assert_the_body_sleeps_in_the_bunk_and_wakes()
+	await _assert_the_hatch_admits_and_releases_a_body()
 	await _assert_the_crowd_budget()
 	await _assert_a_disconnect_releases_the_body()
 	await _assert_reentry_and_rehost_readmit_the_body()
@@ -250,6 +253,7 @@ func _build_session() -> bool:
 	if _server == null or not bool(hosted.get("accepted", false)):
 		return false
 	_server.movement_intent_result.connect(_on_server_intent_result)
+	_server.boarding_intent_result.connect(_on_server_boarding_result)
 	if not await _join_all(port):
 		return false
 	_shim = TransportShim.new()
@@ -543,6 +547,134 @@ func _assert_the_body_sleeps_in_the_bunk_and_wakes() -> void:
 		"a body back on foot walks on its owner's intent again with nothing refused")
 
 
+# --- the hatch --------------------------------------------------------------
+
+
+## The production boarding path. The second client has no body yet; it claims
+## one of the Halyard's cabin berths through the boarding ledger over the real
+## `send_boarding_intent()` RPC, and the authority stands a body for it at the
+## cabin stand pose. A disembark from the same berth releases it. A pilot-seat
+## claim keeps the seat seam and stands nobody up. Nothing is claimed by name:
+## the ledger refuses a berth already held, a role that does not match the
+## seat, and a disembark by a peer that holds no occupancy.
+func _assert_the_hatch_admits_and_releases_a_body() -> void:
+	_boarding_results.clear()
+	var walker_index := 1
+	var entity := StringName(WALKER_ENTITIES[walker_index])
+	var berth := GameFlow.network_cabin_berth_seat_id(SHIP_ID, 1)
+	var pilot_seat := StringName("%s_pilot" % String(SHIP_ID))
+	var bodies_before := int(_game.get_network_remote_body_audit().get("bodies", 0))
+	var occupants_before := _frame.get_occupant_count()
+	_check(_body(entity) == null, "the second client has no body before it boards")
+	# A role that does not match the berth is the ledger's refusal, not ours.
+	_send_boarding(walker_index, entity, pilot_seat, &"passenger", 0, BoardingIntent.ACTION_BOARD)
+	await _wait_until(func() -> bool: return _boarding_results.size() >= 1, 4.0)
+	_check(_boarding_results.size() >= 1 and _boarding_results[0].get("status") == &"role_mismatch",
+		"a passenger claim on the pilot seat is refused by the boarding ledger")
+	_boarding_results.clear()
+	_send_boarding(walker_index, entity, berth, &"passenger", 1, BoardingIntent.ACTION_BOARD)
+	var boarded := await _wait_until(func() -> bool: return _boarding_results.size() >= 1, 4.0)
+	_check(boarded and bool(_boarding_results[0].get("accepted", false))
+		and _boarding_results[0].get("status") == &"boarded",
+		"the ledger confirms the second client's berth claim (%s)"
+			% String(_boarding_results[0].get("status", &"?") if not _boarding_results.is_empty() else &"none"))
+	await _drive(4)
+	var body := _body(entity)
+	_check(body != null and body is PlayerController and body.is_inside_tree(),
+		"a confirmed hatch boarding stands a server-simulated body for the peer")
+	var audit: Dictionary = _game.get_network_remote_body_audit()
+	_check(int(audit.get("hatch_admissions", 0)) == 1 and int(audit.get("bodies", 0)) == bodies_before + 1,
+		"the hatch seam records one admission (%d bodies)" % int(audit.get("bodies", 0)))
+	if body == null:
+		return
+	_check(_frame.is_occupant_registered(body) and _frame.get_occupant_count() == occupants_before + 1,
+		"the craft's frame carries the hatch body")
+	var stand_local := _craft.to_local(_craft.get_cabin_stand_transform().origin)
+	var local := _frame.get_occupant_frame_local_transform(body).origin
+	_check(local.distance_to(stand_local) < 0.6 and _bounds.has_point(local),
+		"the hatch body stands at the cabin's own stand pose")
+	_check(int(_game.get_network_remote_body_simulation().get_body_record(entity).get("owner_peer_id", 0))
+			== _client_peer_ids[walker_index],
+		"the hatch body belongs to the peer whose claim the ledger confirmed")
+	await _drive(20)
+	_check(not _latest(_clients[OBSERVER_INDEX], entity).is_empty(),
+		"the observing client is shown the hatch body")
+	# A second claim on the held berth, by another peer, is refused by the ledger.
+	_boarding_results.clear()
+	_send_boarding(2, StringName(WALKER_ENTITIES[2]), berth, &"passenger", 0, BoardingIntent.ACTION_BOARD)
+	await _wait_until(func() -> bool: return _boarding_results.size() >= 1, 4.0)
+	_check(_boarding_results.size() >= 1 and _boarding_results[0].get("status") == &"seat_occupied",
+		"a berth already held is refused to the next peer")
+	# A pilot claim keeps the seat seam: no body is stood up for it.
+	_boarding_results.clear()
+	_send_boarding(2, StringName(WALKER_ENTITIES[2]), pilot_seat, &"pilot", 1, BoardingIntent.ACTION_BOARD)
+	await _wait_until(func() -> bool: return _boarding_results.size() >= 1, 4.0)
+	await _drive(4)
+	audit = _game.get_network_remote_body_audit()
+	_check(_boarding_results.size() >= 1 and _boarding_results[0].get("status") == &"boarded"
+		and _body(StringName(WALKER_ENTITIES[2])) == null
+		and int(audit.get("hatch_pilot_seats", 0)) == 1 and int(audit.get("bodies", 0)) == bodies_before + 1,
+		"a remote pilot who boards and sits still gets the pilot seat and no walking body")
+	_boarding_results.clear()
+	_send_boarding(2, StringName(WALKER_ENTITIES[2]), pilot_seat, &"pilot", 2, BoardingIntent.ACTION_DISEMBARK)
+	await _wait_until(func() -> bool: return _boarding_results.size() >= 1, 4.0)
+	# A disembark by a peer that holds no berth releases nothing.
+	_boarding_results.clear()
+	_send_boarding(2, StringName(WALKER_ENTITIES[2]), berth, &"passenger", 3, BoardingIntent.ACTION_DISEMBARK)
+	await _wait_until(func() -> bool: return _boarding_results.size() >= 1, 4.0)
+	await _drive(4)
+	_check(_boarding_results.size() >= 1 and not bool(_boarding_results[0].get("accepted", true))
+		and _body(entity) != null,
+		"a disembark from a berth the peer does not hold is refused and releases nobody (%s)"
+			% String(_boarding_results[0].get("status", &"?") if not _boarding_results.is_empty() else &"none"))
+	# The owner's own disembark through the hatch releases the body.
+	_boarding_results.clear()
+	_send_boarding(walker_index, entity, berth, &"passenger", 2, BoardingIntent.ACTION_DISEMBARK)
+	var left := await _wait_until(func() -> bool: return _boarding_results.size() >= 1, 4.0)
+	await _drive(6)
+	audit = _game.get_network_remote_body_audit()
+	_check(left and _boarding_results[0].get("status") == &"disembarked"
+		and int(audit.get("hatch_releases", 0)) == 1 and int(audit.get("bodies", 0)) == bodies_before
+		and audit.get("last_release_reason") == &"hatch_disembark",
+		"a networked disembark through the hatch releases the body (%s)" % String(audit.get("last_hatch_status", &"?")))
+	_check(not is_instance_valid(body) or not body.is_inside_tree(),
+		"the released hatch body is freed")
+	_check(_frame.get_occupant_count() == occupants_before
+		and not _game.get_network_moving_interior_published_entities().has(entity),
+		"the frame and the publisher both let the hatch body go")
+	await _drive(6)
+	_check(_latest(_clients[OBSERVER_INDEX], entity).is_empty(),
+		"the observing client is told to stop drawing it")
+	_check(_server.get_movement_avatar_snapshot(entity).is_empty(),
+		"the movement authority forgets the released avatar")
+	# The berth is free again: the same peer can board a second time.
+	_boarding_results.clear()
+	_send_boarding(walker_index, entity, berth, &"passenger", 3, BoardingIntent.ACTION_BOARD)
+	await _wait_until(func() -> bool: return _boarding_results.size() >= 1, 4.0)
+	await _drive(4)
+	_check(_body(entity) != null and int(_game.get_network_remote_body_audit().get("hatch_admissions", 0)) == 2,
+		"a released berth can be claimed again and stands a fresh body")
+	_boarding_results.clear()
+	_send_boarding(walker_index, entity, berth, &"passenger", 4, BoardingIntent.ACTION_DISEMBARK)
+	await _wait_until(func() -> bool: return _boarding_results.size() >= 1, 4.0)
+	await _drive(6)
+	_check(_body(entity) == null and int(_game.get_network_remote_body_audit().get("bodies", 0)) == bodies_before,
+		"the cabin is back to where the hatch found it before the crowd is admitted")
+
+
+func _send_boarding(
+	client_index: int, avatar_id: StringName, seat_id: StringName, role: StringName,
+	sequence: int, action: StringName
+) -> void:
+	var intent = BoardingIntent.create(
+		_client_peer_ids[client_index], avatar_id, SHIP_ID, 1, FRAME_ID, 1,
+		seat_id, 1, role, sequence, 0, action
+	)
+	_clients[client_index].send_boarding_intent(intent.to_dictionary())
+
+
+func _on_server_boarding_result(result: Dictionary) -> void:
+	_boarding_results.append(result.duplicate(true))
 
 
 # --- the crowd budget -------------------------------------------------------
@@ -715,6 +847,7 @@ func _assert_reentry_and_rehost_readmit_the_body() -> void:
 	if _server == null:
 		return
 	_server.movement_intent_result.connect(_on_server_intent_result)
+	_server.boarding_intent_result.connect(_on_server_boarding_result)
 	_shim.server = _server
 	_check(_game.get_network_session_adapter_nodes().size() == 1,
 		"%s: exactly one adapter answers at the canonical path" % label)
