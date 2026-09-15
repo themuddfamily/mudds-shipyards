@@ -2,12 +2,21 @@ extends SceneTree
 
 const ShipComponentDamageType := preload("res://scripts/combat/ship_component_damage.gd")
 
+## Every craft in the production flyable rotation, by live node name. The six
+## authored craft are direct Main children; the three Cinder craft are composed
+## from script under `FleetExpansionProductionBinding` a few frames after Main
+## enters the tree. A component cue that only reaches part of the fleet is a
+## cue the player cannot trust, so all nine are driven through the same HUD.
 const CRAFTS := [
 	"TorrentInterceptor",
 	"ArrowReconShip",
 	"JovianLightFreighter",
 	"ZenithInterceptor",
 	"HalyardCrewTransport",
+	"BulwarkHeavyGunship",
+	"cinder_light_interceptor",
+	"cinder_cargo_hauler",
+	"cinder_long_range_bomber",
 ]
 
 var _assertions := 0
@@ -34,8 +43,18 @@ func _run() -> void:
 	hud.set_target_lock_state(&"acquired", "RANGE DRONE")
 	var retained_mark_ids: Array[int] = []
 
+	var fleet := await _resolve_production_fleet(game)
+	_check(
+		fleet.size() == CRAFTS.size(),
+		"the production rotation admits all %d craft before the cue sweep (%d)"
+			% [CRAFTS.size(), fleet.size()]
+	)
+
 	for craft_name: String in CRAFTS:
-		var craft := game.get_node(craft_name) as HeroShip
+		var craft := fleet.get(craft_name) as HeroShip
+		_check(craft != null, "%s joins the production flyable rotation" % craft_name)
+		if craft == null:
+			continue
 		craft.set_physics_process(false)
 		_check(hud.bind_hero_component_ship(craft), "%s binds to the retained flight HUD" % craft_name)
 		var nominal := hud.get_sensor_reticle_component_snapshot()
@@ -114,28 +133,42 @@ func _run() -> void:
 			"%s respawn/reuse restores the nominal retained reticle" % craft_name
 		)
 
-	var halyard := game.get_node("HalyardCrewTransport") as HeroShip
-	_damage_sensor_to(halyard, 0.58)
-	var before_detach := hud.get_sensor_reticle_component_snapshot()
-	root.remove_child(game)
-	await process_frame
-	var detached := hud.get_sensor_reticle_component_snapshot()
-	_check(
-		before_detach.get("stage") == &"degraded"
-		and detached.get("stage") == &"nominal"
-		and _mark_ids(detached) == retained_mark_ids,
-		"whole-Main detach clears the bound damage grade without rebuilding reticle nodes"
-	)
-	root.add_child(game)
-	await process_frame
-	await process_frame
-	var reentered := hud.get_sensor_reticle_component_snapshot()
-	_check(
-		reentered.get("stage") == &"degraded"
-		and int(reentered.get("visible_mark_count", -1)) == 4
-		and _mark_ids(reentered) == retained_mark_ids,
-		"whole-Main re-entry restores the active craft sensor grade on the same bars"
-	)
+	# Save/re-entry is run against one authored craft and one script-composed
+	# Cinder. A pilot who saves mid-sortie with a damaged sensor must find the
+	# same degraded reticle on re-entry whichever hull they were flying, so the
+	# craft under test is bound explicitly rather than inherited from the sweep.
+	for reentry_craft_name: String in ["HalyardCrewTransport", "cinder_long_range_bomber"]:
+		var reentry_craft := fleet.get(reentry_craft_name) as HeroShip
+		_check(
+			reentry_craft != null and hud.bind_hero_component_ship(reentry_craft),
+			"%s binds for the whole-Main save/re-entry probe" % reentry_craft_name
+		)
+		if reentry_craft == null:
+			continue
+		_damage_sensor_to(reentry_craft, 0.58)
+		var before_detach := hud.get_sensor_reticle_component_snapshot()
+		root.remove_child(game)
+		await process_frame
+		var detached := hud.get_sensor_reticle_component_snapshot()
+		_check(
+			before_detach.get("stage") == &"degraded"
+			and detached.get("stage") == &"nominal"
+			and _mark_ids(detached) == retained_mark_ids,
+			"%s whole-Main detach clears the bound damage grade without rebuilding reticle nodes"
+				% reentry_craft_name
+		)
+		root.add_child(game)
+		await process_frame
+		await process_frame
+		var reentered := hud.get_sensor_reticle_component_snapshot()
+		_check(
+			reentered.get("stage") == &"degraded"
+			and int(reentered.get("visible_mark_count", -1)) == 4
+			and _mark_ids(reentered) == retained_mark_ids,
+			"%s whole-Main re-entry restores the active craft sensor grade on the same bars"
+				% reentry_craft_name
+		)
+		_repair_sensor_to(reentry_craft, 1.0)
 
 	hud.set_mode("on-foot")
 	var disembarked := hud.get_sensor_reticle_component_snapshot()
@@ -213,6 +246,22 @@ func _all_visible_marks_have_length(snapshot: Dictionary, expected: float) -> bo
 		if not (is_equal_approx(size.x, expected) or is_equal_approx(size.y, expected)):
 			return false
 	return true
+
+
+
+## Resolves the live flyable rotation by node name. The Cinder craft join it
+## through deferred production composition, so the roster is awaited rather
+## than read on the first frame.
+func _resolve_production_fleet(game: GameFlow) -> Dictionary:
+	var deadline := Time.get_ticks_msec() + 8000
+	while Time.get_ticks_msec() < deadline \
+			and game.get_flyable_ships().size() < CRAFTS.size():
+		await physics_frame
+		await process_frame
+	var fleet := {}
+	for craft: HeroShip in game.get_flyable_ships():
+		fleet[String(craft.name)] = craft
+	return fleet
 
 
 func _check(condition: bool, message: String) -> void:

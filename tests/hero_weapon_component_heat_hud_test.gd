@@ -2,12 +2,21 @@ extends SceneTree
 
 const ShipComponentDamageType := preload("res://scripts/combat/ship_component_damage.gd")
 
+## Every craft in the production flyable rotation, by live node name. The six
+## authored craft are direct Main children; the three Cinder craft are composed
+## from script under `FleetExpansionProductionBinding` a few frames after Main
+## enters the tree. A component cue that only reaches part of the fleet is a
+## cue the player cannot trust, so all nine are driven through the same HUD.
 const CRAFTS := [
 	"TorrentInterceptor",
 	"ArrowReconShip",
 	"JovianLightFreighter",
 	"ZenithInterceptor",
 	"HalyardCrewTransport",
+	"BulwarkHeavyGunship",
+	"cinder_light_interceptor",
+	"cinder_cargo_hauler",
+	"cinder_long_range_bomber",
 ]
 
 var _assertions := 0
@@ -35,8 +44,18 @@ func _run() -> void:
 	var retained_reticle_ids: Array[int] = []
 	var retained_hull_frame_id := 0
 
+	var fleet := await _resolve_production_fleet(game)
+	_check(
+		fleet.size() == CRAFTS.size(),
+		"the production rotation admits all %d craft before the cue sweep (%d)"
+			% [CRAFTS.size(), fleet.size()]
+	)
+
 	for craft_name: String in CRAFTS:
-		var craft := game.get_node(craft_name) as HeroShip
+		var craft := fleet.get(craft_name) as HeroShip
+		_check(craft != null, "%s joins the production flyable rotation" % craft_name)
+		if craft == null:
+			continue
 		craft.set_physics_process(false)
 		craft.set("_landed", false)
 		craft.set("_engine_state", HeroShip.ENGINE_ONLINE)
@@ -222,6 +241,22 @@ func _reticle_ids(snapshot: Dictionary) -> Array[int]:
 	for mark in snapshot.get("marks", []) as Array:
 		ids.append(int((mark as Dictionary).get("instance_id", 0)))
 	return ids
+
+
+
+## Resolves the live flyable rotation by node name. The Cinder craft join it
+## through deferred production composition, so the roster is awaited rather
+## than read on the first frame.
+func _resolve_production_fleet(game: GameFlow) -> Dictionary:
+	var deadline := Time.get_ticks_msec() + 8000
+	while Time.get_ticks_msec() < deadline \
+			and game.get_flyable_ships().size() < CRAFTS.size():
+		await physics_frame
+		await process_frame
+	var fleet := {}
+	for craft: HeroShip in game.get_flyable_ships():
+		fleet[String(craft.name)] = craft
+	return fleet
 
 
 func _check(condition: bool, message: String) -> void:
