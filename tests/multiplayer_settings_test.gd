@@ -36,7 +36,7 @@ func _run() -> void:
 	var legacy := payload.duplicate(true)
 	legacy.schema_version = 3
 	# A historical payload contains only fields introduced by that schema.
-	for later_field in ["on_foot_first_person", "display_resolution", "vsync_mode", "reduced_flash", "payload_visual_intensity"]:
+	for later_field in ["limit_ultrawide_fov", "on_foot_first_person", "display_resolution", "vsync_mode", "reduced_flash", "payload_visual_intensity"]:
 		(legacy.values as Dictionary).erase(later_field)
 	(legacy.values as Dictionary).erase("multiplayer_display_name")
 	(legacy.values as Dictionary).erase("network_default_port")

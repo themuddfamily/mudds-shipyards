@@ -101,6 +101,10 @@ func _test_production_startup_transactions_and_reentry() -> void:
 	seeded_settings.ship_mouse_sensitivity = 0.0067
 	seeded_settings.on_foot_mouse_sensitivity = 0.0071
 	seeded_settings.camera_fov = 96.0
+	# Seeded OFF specifically because the shipping default is ON: a persisted
+	# opt-out that silently reverts to the default on the next launch is the
+	# failure this proves cannot happen.
+	seeded_settings.limit_ultrawide_fov = false
 	seeded_settings.captions_enabled = true
 	var seeded_profile := seeded_settings.get_input_binding_profile()
 	var fire_bindings: Array[Dictionary] = []
@@ -184,6 +188,16 @@ func _test_production_startup_transactions_and_reentry() -> void:
 			and is_equal_approx(fleet_ship.mouse_sensitivity, 0.0067) \
 			and is_equal_approx(fleet_ship.get_camera_fov(), 96.0)
 	_check(ships_match, "every ship consumes the loaded snapshot before production play begins")
+	var ultrawide_opt_out_reached_rigs := not settings.limit_ultrawide_fov \
+		and not player.is_ultrawide_fov_limited()
+	for fleet_ship: HeroShip in game.get_flyable_ships():
+		ultrawide_opt_out_reached_rigs = ultrawide_opt_out_reached_rigs \
+			and not fleet_ship.is_ultrawide_fov_limited() \
+			and is_equal_approx(fleet_ship.get_authored_camera_fov(), 96.0)
+	_check(
+		ultrawide_opt_out_reached_rigs,
+		"the persisted ultrawide field-of-view opt-out reaches every camera rig at startup"
+	)
 	var startup_profile_matches := true
 	var startup_generations := PackedInt64Array()
 	for fleet_ship: HeroShip in game.get_flyable_ships():

@@ -47,6 +47,7 @@ func _run() -> void:
 	await _test_cabin_containment_currentness()
 	await _test_seat_suspends_and_restores_without_losing_the_choice()
 	await _test_binding_is_bound_and_documented()
+	await _test_ultrawide_policy_reaches_the_on_foot_rig()
 	await process_frame
 	_finish()
 
@@ -483,3 +484,69 @@ func _finish() -> void:
 		print("FIRST_PERSON_VIEW_TEST_FAILURE: ", failure)
 	print("FIRST_PERSON_VIEW_TEST_FAILED: ", _failures.size())
 	quit(1)
+
+
+## The on-foot rig is the third camera the `camera_fov` setting drives, and it is
+## the same `KEEP_HEIGHT` policy as the two hero rigs, so the ultrawide cap has
+## to reach it as well. A 32:9 player walking the station would otherwise keep
+## the 137.7 degree horizontal sweep the hero rigs no longer use.
+##
+## Measured on the live player rig after a real window resize: exact equality at
+## 16:9 and 21:9 (the cap must be invisible there), the 21:9 horizontal ceiling
+## held at 32:9 with the cap on, and the uncapped angle restored with it off.
+func _test_ultrawide_policy_reaches_the_on_foot_rig() -> void:
+	var restore_size := root.size
+	var restore_content_size := root.content_scale_size
+	var restore_aspect := root.content_scale_aspect
+	var player := await _spawn_player()
+	var camera := player.get_camera() as Camera3D
+	_check(
+		camera != null and camera.keep_aspect == Camera3D.KEEP_HEIGHT,
+		"the on-foot rig is on the same vertical-FOV policy as the hero rigs"
+	)
+	root.content_scale_aspect = Window.CONTENT_SCALE_ASPECT_EXPAND
+	root.content_scale_size = Vector2i(1920, 1080)
+	root.size = Vector2i(1920, 1080)
+	await process_frame
+	player.set_camera_fov(72.0, true)
+	await process_frame
+	_check(camera.fov == 72.0, "16:9 keeps the authored on-foot angle exactly")
+	root.content_scale_size = Vector2i(3440, 1440)
+	root.size = Vector2i(3440, 1440)
+	await process_frame
+	await process_frame
+	_check(camera.fov == 72.0, "21:9 keeps the authored on-foot angle exactly")
+	root.content_scale_size = Vector2i(5120, 1440)
+	root.size = Vector2i(5120, 1440)
+	await process_frame
+	await process_frame
+	_check(
+		is_equal_approx(snappedf(camera.fov, 0.001), 52.038),
+		"32:9 narrows the on-foot vertical angle to the capped 52.038 degrees (%.3f)"
+			% camera.fov
+	)
+	_check(
+		is_equal_approx(
+			snappedf(
+				UltrawideFovPolicy.horizontal_fov_degrees(camera.fov, 32.0 / 9.0), 0.001
+			),
+			120.102
+		),
+		"32:9 holds the on-foot horizontal angle at the 21:9 ceiling"
+	)
+	_check(
+		is_equal_approx(player.get_authored_camera_fov(), 72.0),
+		"the capped rig still reports the player's own authored 72 degrees"
+	)
+	player.set_camera_fov(72.0, false)
+	await process_frame
+	_check(
+		camera.fov == 72.0,
+		"opting out of the cap restores the uncapped 32:9 angle exactly"
+	)
+	player.queue_free()
+	await process_frame
+	root.content_scale_aspect = restore_aspect
+	root.content_scale_size = restore_content_size
+	root.size = restore_size
+	await process_frame

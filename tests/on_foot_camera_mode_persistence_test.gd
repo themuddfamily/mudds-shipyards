@@ -60,7 +60,9 @@ func _run() -> void:
 	var legacy_settings := Settings.new(LEGACY_PATH)
 	var schema_eight_payload := legacy_settings.to_user_data_payload()
 	schema_eight_payload.schema_version = 8
-	(schema_eight_payload.values as Dictionary).erase("on_foot_first_person")
+	# A historical payload contains only fields introduced by that schema.
+	for later_field in ["on_foot_first_person", "limit_ultrawide_fov"]:
+		(schema_eight_payload.values as Dictionary).erase(later_field)
 	_check(bool(store.load().accepted), "fixture opens an empty atomic store")
 	_check(
 		bool(store.commit({Adapter.SETTINGS_PAYLOAD_KEY: schema_eight_payload}, 0, "schema-eight").accepted),

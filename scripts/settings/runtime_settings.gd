@@ -56,7 +56,7 @@ const MINIMUM_SUPPORTED_SCHEMA_VERSION := 1
 ## Version of the typed RuntimeSettings section stored inside UserDataStore's
 ## independently versioned envelope. This starts at one because ConfigFile
 ## schema versions describe a different wire format and migration history.
-const USER_DATA_PAYLOAD_SCHEMA_VERSION := 9
+const USER_DATA_PAYLOAD_SCHEMA_VERSION := 10
 const _MAX_SAFE_JSON_INTEGER := 9_007_199_254_740_991
 const DEFAULT_CONFIG_PATH := "user://settings.cfg"
 const _STAGING_SUFFIX := ".tmp"
@@ -74,6 +74,11 @@ const MIN_CAMERA_FOV := 55.0
 const MAX_CAMERA_FOV := 110.0
 const DEFAULT_CAMERA_FOV := 72.0
 const DEFAULT_ON_FOOT_FIRST_PERSON := false
+## Ultrawide field-of-view cap, default ON. Kept identical to
+## `UltrawideFovPolicy.DEFAULT_LIMIT_ULTRAWIDE_FOV`, which owns the policy this
+## flag switches on; `tests/ultrawide_layout_test.gd` asserts they agree.
+## See `docs/ULTRAWIDE_FIELD_OF_VIEW_POLICY.md`.
+const DEFAULT_LIMIT_ULTRAWIDE_FOV := true
 
 const MIN_VOLUME := 0.0
 const MAX_VOLUME := 1.0
@@ -126,6 +131,38 @@ const _SECTION_NETWORK := "network"
 
 const _USER_DATA_SECTION_KEYS := ["schema_version", "values"]
 const _USER_DATA_VALUE_KEYS := [
+	"ship_mouse_sensitivity",
+	"on_foot_mouse_sensitivity",
+	"invert_ship_y",
+	"invert_on_foot_y",
+	"camera_fov",
+	"on_foot_first_person",
+	"limit_ultrawide_fov",
+	"master_volume",
+	"ambience_volume",
+	"engine_volume",
+	"weapons_volume",
+	"ui_volume",
+	"music_volume",
+	"graphics_profile",
+	"window_mode",
+	"display_resolution",
+	"vsync_mode",
+	"control_preset",
+	"ui_scale",
+	"colorblind_palette",
+	"reduced_motion",
+	"captions_enabled",
+	"reduced_dynamic_range",
+	"reduced_flash",
+	"payload_visual_intensity",
+	"show_tutorials",
+	"multiplayer_display_name",
+	"network_default_port",
+	"multiplayer_max_players",
+	"input_binding_profile",
+]
+const _USER_DATA_VALUE_KEYS_V9 := [
 	"ship_mouse_sensitivity",
 	"on_foot_mouse_sensitivity",
 	"invert_ship_y",
@@ -346,6 +383,17 @@ var on_foot_first_person := DEFAULT_ON_FOOT_FIRST_PERSON:
 		on_foot_first_person = value
 		_queue_change(&"on_foot_first_person", value)
 
+## Opt-out ultrawide field-of-view cap. With it on, a display wider than 21:9
+## keeps the horizontal angle the authored `camera_fov` reaches at 21:9 instead
+## of widening without limit; 16:9 and 21:9 are unaffected either way.
+var limit_ultrawide_fov := DEFAULT_LIMIT_ULTRAWIDE_FOV:
+	set(value):
+		var validated := bool(value)
+		if limit_ultrawide_fov == validated:
+			return
+		limit_ultrawide_fov = validated
+		_queue_change(&"limit_ultrawide_fov", validated)
+
 var master_volume: float = DEFAULT_MASTER_VOLUME:
 	set(value):
 		var validated := _validated_float(value, DEFAULT_MASTER_VOLUME, MIN_VOLUME, MAX_VOLUME)
@@ -564,6 +612,7 @@ func to_dictionary() -> Dictionary:
 		"invert_on_foot_y": invert_on_foot_y,
 		"camera_fov": camera_fov,
 		"on_foot_first_person": on_foot_first_person,
+		"limit_ultrawide_fov": limit_ultrawide_fov,
 		"master_volume": master_volume,
 		"ambience_volume": ambience_volume,
 		"engine_volume": engine_volume,
@@ -604,6 +653,7 @@ func to_user_data_payload() -> Dictionary:
 			"invert_on_foot_y": invert_on_foot_y,
 			"camera_fov": camera_fov,
 			"on_foot_first_person": on_foot_first_person,
+			"limit_ultrawide_fov": limit_ultrawide_fov,
 			"master_volume": master_volume,
 			"ambience_volume": ambience_volume,
 			"engine_volume": engine_volume,
@@ -660,6 +710,7 @@ func apply_user_data_payload(candidate: Variant) -> Dictionary:
 	invert_on_foot_y = bool(values.invert_on_foot_y)
 	camera_fov = float(values.camera_fov)
 	on_foot_first_person = bool(values.on_foot_first_person)
+	limit_ultrawide_fov = bool(values.limit_ultrawide_fov)
 	master_volume = float(values.master_volume)
 	ambience_volume = float(values.ambience_volume)
 	engine_volume = float(values.engine_volume)
@@ -697,6 +748,7 @@ func reset_to_defaults() -> void:
 	invert_on_foot_y = false
 	camera_fov = DEFAULT_CAMERA_FOV
 	on_foot_first_person = DEFAULT_ON_FOOT_FIRST_PERSON
+	limit_ultrawide_fov = DEFAULT_LIMIT_ULTRAWIDE_FOV
 	master_volume = DEFAULT_MASTER_VOLUME
 	ambience_volume = DEFAULT_AMBIENCE_VOLUME
 	engine_volume = DEFAULT_ENGINE_VOLUME
@@ -769,6 +821,7 @@ func save_to_file(path_override: String = "") -> Error:
 	)
 	config.set_value(_SECTION_CAMERA, "fov", camera_fov)
 	config.set_value(_SECTION_CAMERA, "on_foot_first_person", on_foot_first_person)
+	config.set_value(_SECTION_CAMERA, "limit_ultrawide_fov", limit_ultrawide_fov)
 	config.set_value(_SECTION_AUDIO, "master", master_volume)
 	config.set_value(_SECTION_AUDIO, "ambience", ambience_volume)
 	config.set_value(_SECTION_AUDIO, "engine", engine_volume)
@@ -883,6 +936,9 @@ func load_from_file(path_override: String = "", read_only: bool = false) -> Erro
 	var loaded_on_foot_first_person := _read_bool(
 		config, _SECTION_CAMERA, "on_foot_first_person", DEFAULT_ON_FOOT_FIRST_PERSON
 	)
+	var loaded_limit_ultrawide_fov := _read_bool(
+		config, _SECTION_CAMERA, "limit_ultrawide_fov", DEFAULT_LIMIT_ULTRAWIDE_FOV
+	)
 	var loaded_master := _read_number(config, _SECTION_AUDIO, "master", DEFAULT_MASTER_VOLUME)
 	var loaded_ambience := _read_number(config, _SECTION_AUDIO, "ambience", DEFAULT_AMBIENCE_VOLUME)
 	var loaded_engine := _read_number(config, _SECTION_AUDIO, "engine", DEFAULT_ENGINE_VOLUME)
@@ -915,6 +971,7 @@ func load_from_file(path_override: String = "", read_only: bool = false) -> Erro
 	)
 	camera_fov = loaded_camera_fov
 	on_foot_first_person = loaded_on_foot_first_person
+	limit_ultrawide_fov = loaded_limit_ultrawide_fov
 	master_volume = loaded_master
 	ambience_volume = loaded_ambience
 	engine_volume = loaded_engine
@@ -1183,7 +1240,9 @@ func _decode_user_data_payload(candidate: Variant) -> Dictionary:
 		return {"accepted": false, "reason": &"values_not_dictionary"}
 	var raw_values := section.values as Dictionary
 	var expected_value_keys := _USER_DATA_VALUE_KEYS
-	if schema == 8:
+	if schema == 9:
+		expected_value_keys = _USER_DATA_VALUE_KEYS_V9
+	elif schema == 8:
 		expected_value_keys = _USER_DATA_VALUE_KEYS_V8
 	elif schema == 7:
 		expected_value_keys = _USER_DATA_VALUE_KEYS_V7
@@ -1226,6 +1285,9 @@ func _decode_user_data_payload(candidate: Variant) -> Dictionary:
 	if schema <= 8:
 		raw_values = raw_values.duplicate()
 		raw_values["on_foot_first_person"] = DEFAULT_ON_FOOT_FIRST_PERSON
+	if schema <= 9:
+		raw_values = raw_values.duplicate()
+		raw_values["limit_ultrawide_fov"] = DEFAULT_LIMIT_ULTRAWIDE_FOV
 
 	var decoded := {}
 	var bounded_numbers := {
@@ -1268,6 +1330,7 @@ func _decode_user_data_payload(candidate: Variant) -> Dictionary:
 		"invert_ship_y",
 		"invert_on_foot_y",
 		"on_foot_first_person",
+		"limit_ultrawide_fov",
 		"reduced_motion",
 		"captions_enabled",
 		"reduced_dynamic_range",

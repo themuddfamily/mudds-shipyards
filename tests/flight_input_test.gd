@@ -75,6 +75,7 @@ func _run() -> void:
 	var stage := Node3D.new()
 	root.add_child(stage)
 	await _test_variant_launch_thresholds(stage)
+	await _test_ultrawide_field_of_view_policy(stage, ship_scene)
 	await _test_chase_camera_self_hull_envelope_covers_drawn_hull(stage)
 	await _test_fleet_chase_camera_boundaries(stage)
 	await _test_live_chase_collision_bounds(stage, ship_scene)
@@ -893,3 +894,117 @@ func _test_variant_launch_thresholds(stage: Node3D) -> void:
 		await physics_frame
 		variant.queue_free()
 		await process_frame
+
+
+## The ultrawide field-of-view policy, measured on a live production rig at three
+## real display aspects rather than asserted from the policy's own arithmetic.
+##
+## Reproduction this exists for: both hero rigs are `Camera3D.KEEP_HEIGHT`, so
+## the authored `camera_fov` is the *vertical* angle and the horizontal angle
+## widens with the panel. Once the display stretch policy stopped pillarboxing
+## real displays, a 32:9 player was rendering 137.7 degrees horizontal at the
+## 72 degree default, and `tools/camera_intrusion_audit.gd` found near-plane
+## intrusions at that width that do not exist at 16:9.
+##
+## What is measured: the exact table below, from `_camera.fov` on a live
+## Torrent after the window has actually been resized. 16:9 and 21:9 must be
+## *bit-identical* to the authored angle with the cap either on or off -- this is
+## the promise that the overwhelming majority of displays are untouched -- and
+## 32:9 must hold the horizontal angle at the 21:9 ceiling with the cap on and
+## widen without limit with it off. The rigs are never re-pushed a FOV between
+## resolutions: the resize itself has to re-derive the angle, because a player
+## dragging their window onto an ultrawide panel never reopens the settings menu.
+func _test_ultrawide_field_of_view_policy(stage: Node3D, ship_scene: PackedScene) -> void:
+	var expectations := [
+		# resolution, vertical with cap on, horizontal with cap on,
+		# vertical with cap off, horizontal with cap off
+		[Vector2i(1920, 1080), 72.0, 104.505, 72.0, 104.505],
+		[Vector2i(3440, 1440), 72.0, 120.102, 72.0, 120.102],
+		[Vector2i(5120, 1440), 52.038, 120.102, 72.0, 137.676],
+	]
+	var restore_size := root.size
+	var restore_content_size := root.content_scale_size
+	var restore_aspect := root.content_scale_aspect
+	var ship := ship_scene.instantiate() as HeroShip
+	stage.add_child(ship)
+	await process_frame
+	var chase := ship.get("_camera") as Camera3D
+	var cockpit := ship.get("_cockpit_camera") as Camera3D
+	_check(
+		chase != null and cockpit != null
+		and chase.keep_aspect == Camera3D.KEEP_HEIGHT
+		and cockpit.keep_aspect == Camera3D.KEEP_HEIGHT,
+		"both hero rigs stay on the vertical-FOV (KEEP_HEIGHT) policy the cap assumes"
+	)
+	for limit_enabled: bool in [true, false]:
+		# The authored angle is pushed once, at 16:9, and never again.
+		root.content_scale_aspect = Window.CONTENT_SCALE_ASPECT_EXPAND
+		root.content_scale_size = Vector2i(1920, 1080)
+		root.size = Vector2i(1920, 1080)
+		await process_frame
+		ship.set_camera_fov(72.0, limit_enabled)
+		for row: Array in expectations:
+			var resolution := row[0] as Vector2i
+			var expected_vertical := float(row[1] if limit_enabled else row[3])
+			var expected_horizontal := float(row[2] if limit_enabled else row[4])
+			root.content_scale_size = resolution
+			root.size = resolution
+			await process_frame
+			await process_frame
+			var aspect := float(resolution.x) / float(resolution.y)
+			var measured_horizontal := UltrawideFovPolicy.horizontal_fov_degrees(
+				chase.fov, aspect
+			)
+			var exact := absf(aspect - 32.0 / 9.0) > 0.0001
+			_check(
+				(chase.fov == expected_vertical) if exact
+					else is_equal_approx(snappedf(chase.fov, 0.001), expected_vertical),
+				"%dx%d with the cap %s runs %.3f degrees vertical (expected %.3f%s)"
+					% [
+						resolution.x, resolution.y, "on" if limit_enabled else "off",
+						chase.fov, expected_vertical, ", exactly" if exact else ""
+					]
+			)
+			_check(
+				is_equal_approx(snappedf(measured_horizontal, 0.001), expected_horizontal),
+				"%dx%d with the cap %s covers %.3f degrees horizontal (expected %.3f)"
+					% [
+						resolution.x, resolution.y, "on" if limit_enabled else "off",
+						measured_horizontal, expected_horizontal
+					]
+			)
+			_check(
+				is_equal_approx(cockpit.fov, chase.fov),
+				"%dx%d keeps the cockpit rig on the same resolved angle as the chase rig"
+					% [resolution.x, resolution.y]
+			)
+			_check(
+				is_equal_approx(ship.get_authored_camera_fov(), 72.0),
+				"%dx%d leaves the player's authored angle untouched at 72 degrees"
+					% [resolution.x, resolution.y]
+			)
+	# The ceiling the cap holds to is the 21:9 angle of the *authored* FOV, so the
+	# shipping slider still does something on a 32:9 panel.
+	root.content_scale_size = Vector2i(5120, 1440)
+	root.size = Vector2i(5120, 1440)
+	await process_frame
+	ship.set_camera_fov(110.0, true)
+	await process_frame
+	_check(
+		chase.fov > 72.0 and chase.fov < 110.0,
+		"a 110 degree authored angle still reads differently from 72 at 32:9 (%.3f)"
+			% chase.fov
+	)
+	_check(
+		is_equal_approx(
+			snappedf(UltrawideFovPolicy.horizontal_fov_degrees(chase.fov, 32.0 / 9.0), 0.001),
+			snappedf(UltrawideFovPolicy.horizontal_fov_ceiling_degrees(110.0), 0.001)
+		),
+		"the 32:9 horizontal angle sits exactly on the authored angle's 21:9 ceiling"
+	)
+	ship.queue_free()
+	await process_frame
+	root.content_scale_aspect = restore_aspect
+	root.content_scale_size = restore_content_size
+	root.size = restore_size
+	await process_frame

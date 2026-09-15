@@ -56,6 +56,15 @@ func _test_defaults_and_descriptors() -> void:
 	_check(not settings.reduced_motion, "reduced motion is off by default")
 	_check(not settings.captions_enabled, "audio cue captions are off by default")
 	_check(settings.show_tutorials, "first-sortie tutorials default to enabled")
+	_check(
+		settings.limit_ultrawide_fov,
+		"the ultrawide field-of-view limit defaults to enabled"
+	)
+	_check(
+		Settings.DEFAULT_LIMIT_ULTRAWIDE_FOV
+			== UltrawideFovPolicy.DEFAULT_LIMIT_ULTRAWIDE_FOV,
+		"the setting default and the policy that consumes it agree"
+	)
 	_check(settings.get_colorblind_palette_id() == &"none", "colour-vision preset exposes a stable off ID")
 	var accessibility: Dictionary = settings.get_accessibility_descriptor()
 	_check(
@@ -238,6 +247,7 @@ func _test_round_trip_and_stable_storage() -> void:
 	original.invert_ship_y = true
 	original.invert_on_foot_y = true
 	original.camera_fov = 101.0
+	original.limit_ultrawide_fov = false
 	original.master_volume = 0.75
 	original.ambience_volume = 0.42
 	original.engine_volume = 0.67
@@ -274,6 +284,11 @@ func _test_round_trip_and_stable_storage() -> void:
 		"colour-vision preset persists as a stable plain-string ID"
 	)
 	_check(
+		stored.get_value("camera", "limit_ultrawide_fov") == false
+		and is_equal_approx(float(stored.get_value("camera", "fov", 0.0)), 101.0),
+		"the ultrawide opt-out persists beside the authored angle in the camera section"
+	)
+	_check(
 		is_equal_approx(float(stored.get_value("accessibility", "ui_scale", 0.0)), 1.35)
 		and stored.get_value("accessibility", "reduced_motion") == true
 		and stored.get_value("accessibility", "captions") == true,
@@ -295,6 +310,7 @@ func _test_round_trip_and_stable_storage() -> void:
 		"invert_on_foot_y",
 		"control_preset",
 		"camera_fov",
+		"limit_ultrawide_fov",
 		"master_volume",
 		"ambience_volume",
 		"engine_volume",

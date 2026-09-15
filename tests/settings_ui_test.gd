@@ -41,6 +41,7 @@ func _run() -> void:
 		&"invert_ship_y",
 		&"invert_on_foot_y",
 		&"camera_fov",
+		&"limit_ultrawide_fov",
 		&"master_volume",
 		&"ambience_volume",
 		&"music_volume",
@@ -115,6 +116,25 @@ func _run() -> void:
 	_check((hud.get("_damage_status_label") as Label).text.begins_with("HULL  //  OK"), "healthy hull state uses a stable text marker")
 	_check((controls[&"colorblind_palette"] as OptionButton).selected == 2, "colour-vision preset snapshot reaches its selector")
 	_check((controls[&"reduced_motion"] as CheckButton).button_pressed, "reduced motion snapshot reaches its toggle")
+	# The ultrawide field-of-view limit is an opt-out, so the page must present it
+	# already on before any snapshot arrives, and must still follow a snapshot
+	# that turns it off.
+	var ultrawide_limit := controls[&"limit_ultrawide_fov"] as CheckButton
+	_check(
+		ultrawide_limit != null and ultrawide_limit.button_pressed,
+		"the ultrawide field-of-view limit is presented enabled by default"
+	)
+	_check(
+		ultrawide_limit != null and ultrawide_limit.focus_mode == Control.FOCUS_ALL
+		and ultrawide_limit.tooltip_text.contains("ON"),
+		"the ultrawide limit exposes a focused accessible description of its live value"
+	)
+	hud.set_settings_snapshot({"limit_ultrawide_fov": false})
+	_check(
+		not ultrawide_limit.button_pressed and ultrawide_limit.tooltip_text.contains("OFF"),
+		"an opted-out snapshot reaches the ultrawide toggle and its description"
+	)
+	hud.set_settings_snapshot({"limit_ultrawide_fov": true})
 	hud.set_reduced_motion(true)
 	hud.toast("REDUCED MOTION", "Readable toast stays steady.", 0.2)
 	var reduced_toast := hud.get("_toast_panel") as Control
@@ -187,6 +207,19 @@ func _run() -> void:
 		_check(_change_events[0].key == &"camera_fov" and is_equal_approx(float(_change_events[0].value), 91.0), "slider request preserves its typed key and float value")
 	(controls[&"invert_ship_y"] as CheckButton).button_pressed = false
 	_check(_change_events.size() == 2 and _change_events[1].key == &"invert_ship_y" and _change_events[1].value == false, "toggle edit emits its boolean value")
+	ultrawide_limit.button_pressed = false
+	_check(
+		_change_events.size() == 3
+		and _change_events[2].key == &"limit_ultrawide_fov"
+		and _change_events[2].value == false,
+		"opting out of the ultrawide limit emits one typed boolean change request"
+	)
+	_check(
+		ultrawide_limit.tooltip_text.contains("OFF"),
+		"the ultrawide limit description follows a player edit, not only a snapshot"
+	)
+	ultrawide_limit.button_pressed = true
+	_change_events.resize(2)
 	var quality := controls[&"graphics_profile"] as OptionButton
 	quality.select(2)
 	quality.item_selected.emit(2)

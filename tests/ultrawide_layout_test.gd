@@ -40,16 +40,30 @@ extends SceneTree
 ## choice.
 ##
 ## CAMERA. The hero chase/cockpit rigs are measured here too: the roadmap item
-## asks whether horizontal FOV explodes at 32:9. Godot's `Camera3D.KEEP_HEIGHT`
-## is the project's existing vertical-FOV policy -- `HeroShip` relies on it
-## explicitly in `_chase_camera_boundary_samples` -- so the assertion is that the
-## vertical FOV is aspect-invariant and the rigs stay on that policy.
+## asks whether horizontal FOV explodes at 32:9. It did. Godot's
+## `Camera3D.KEEP_HEIGHT` is the project's vertical-FOV policy -- `HeroShip`
+## relies on it explicitly in `_chase_camera_boundary_samples` -- so the authored
+## `camera_fov` is the vertical angle and the horizontal angle widened without
+## limit: 104.5 degrees at 16:9, 120.1 at 21:9, 137.7 at 32:9.
+##
+## `UltrawideFovPolicy` now caps that, and the player can opt out with
+## `limit_ultrawide_fov` (default ON). The measurement here walks every supported
+## resolution twice -- cap on and cap off -- and prints the whole table, because
+## the contract has two halves that are only convincing together: at 21:9 and
+## narrower the authored angle must survive *exactly*, and above 21:9 the
+## horizontal angle must sit on the ceiling that same authored angle reaches at
+## 21:9. See `docs/ULTRAWIDE_FIELD_OF_VIEW_POLICY.md`.
 
 const MAIN_SCENE := preload("res://scenes/main.tscn")
 const HudType := preload("res://scripts/ui/hud.gd")
 const Contract := preload("res://scripts/ui/ultrawide_safe_area_contract.gd")
 const RestOverlayType := preload("res://scripts/ui/ship_rest_overlay.gd")
 const AccessibilityPreset := preload("res://scripts/ui/accessibility_visual_preset.gd")
+const RuntimeSettingsType := preload("res://scripts/settings/runtime_settings.gd")
+
+## The shipping `camera_fov` default, and the angle the whole FOV table below is
+## measured at.
+const AUTHORED_CAMERA_FOV := 72.0
 
 ## The 4:3 minimum, the two shipping 16:9 sizes, and the two ultrawide panels the
 ## roadmap names. 1024x768 is below the project's 1600x900 stretch viewport in
@@ -215,7 +229,7 @@ func _run() -> void:
 	_hud.bind_caption_event_submitter(Callable(self, &"_accept_caption_request"))
 
 	_report_production_stretch_policy()
-	_check_camera_field_of_view_policy()
+	await _check_camera_field_of_view_policy()
 
 	for resolution in RESOLUTIONS:
 		await _apply_resolution(resolution)
@@ -725,14 +739,19 @@ func _report_production_stretch_policy() -> void:
 ## Godot's `Camera3D.KEEP_HEIGHT` is the project's vertical-FOV policy: the
 ## authored `fov` is the vertical angle and the horizontal angle widens with the
 ## display. `HeroShip._chase_camera_boundary_samples` already branches on it, so
-## the property under test is that both rigs stay on it and that the vertical
-## angle never moves with the aspect ratio.
+## the first property under test is that both rigs stay on it.
+##
+## The rest is the ultrawide policy itself, measured on the live window rather
+## than computed: the suite resizes to each supported display with the cap on and
+## again with it off, reads `fov` back off the real `Camera3D`s, and asserts the
+## table. Nothing re-pushes a FOV between resolutions -- the resize has to
+## re-derive it, because a player dragging their window onto an ultrawide panel
+## does not reopen the settings menu.
 func _check_camera_field_of_view_policy() -> void:
 	var ship := _game.get_node_or_null("TorrentInterceptor") as HeroShip
 	_check(ship != null, "production Main exposes the hero ship camera rigs")
 	if ship == null:
 		return
-	ship.set_camera_fov(72.0)
 	var chase := ship.get("_camera") as Camera3D
 	var cockpit := ship.get("_cockpit_camera") as Camera3D
 	_check(
@@ -743,33 +762,99 @@ func _check_camera_field_of_view_policy() -> void:
 	)
 	if chase == null or cockpit == null:
 		return
-	var vertical := chase.fov
+	_check(
+		RuntimeSettingsType.DEFAULT_LIMIT_ULTRAWIDE_FOV
+			== UltrawideFovPolicy.DEFAULT_LIMIT_ULTRAWIDE_FOV,
+		"the shipping setting default and the policy default are the same value"
+	)
+	_check(
+		RuntimeSettingsType.DEFAULT_LIMIT_ULTRAWIDE_FOV,
+		"the ultrawide field-of-view limit ships enabled by default"
+	)
 	var report: Array = []
-	for resolution in RESOLUTIONS:
-		var aspect := float(resolution.x) / float(resolution.y)
-		report.append({
-			"resolution": "%dx%d" % [resolution.x, resolution.y],
-			"aspect": snappedf(aspect, 0.001),
-			"chase_vertical_fov": snappedf(chase.fov, 0.01),
-			"chase_horizontal_fov": snappedf(_horizontal_fov(chase.fov, aspect), 0.01),
-			"cockpit_vertical_fov": snappedf(cockpit.fov, 0.01),
-			"cockpit_horizontal_fov": snappedf(_horizontal_fov(cockpit.fov, aspect), 0.01),
-		})
+	for limit_enabled: bool in [true, false]:
+		await _apply_resolution(Vector2i(1920, 1080))
+		ship.set_camera_fov(AUTHORED_CAMERA_FOV, limit_enabled)
+		for resolution in RESOLUTIONS:
+			await _apply_resolution(resolution)
+			var aspect := float(resolution.x) / float(resolution.y)
+			var limited := limit_enabled and aspect > UltrawideFovPolicy.REFERENCE_ASPECT
+			report.append({
+				"resolution": "%dx%d" % [resolution.x, resolution.y],
+				"aspect": snappedf(aspect, 0.001),
+				"limit_ultrawide_fov": limit_enabled,
+				"limited": limited,
+				"chase_vertical_fov": snappedf(chase.fov, 0.01),
+				"chase_horizontal_fov": snappedf(_horizontal_fov(chase.fov, aspect), 0.01),
+				"cockpit_vertical_fov": snappedf(cockpit.fov, 0.01),
+				"cockpit_horizontal_fov": snappedf(_horizontal_fov(cockpit.fov, aspect), 0.01),
+			})
+			_check(
+				is_equal_approx(chase.fov, cockpit.fov),
+				"%dx%d resolves one angle for both hero rigs%s"
+					% [resolution.x, resolution.y, "" if limit_enabled else " (cap off)"]
+			)
+			_check(
+				is_equal_approx(ship.get_authored_camera_fov(), AUTHORED_CAMERA_FOV),
+				"%dx%d leaves the authored angle at %.0f degrees%s"
+					% [
+						resolution.x, resolution.y, AUTHORED_CAMERA_FOV,
+						"" if limit_enabled else " (cap off)"
+					]
+			)
+			if not limited:
+				# Exact, not approximate: this is the promise that every display
+				# at 21:9 or narrower renders precisely what it rendered before
+				# the policy existed.
+				_check(
+					chase.fov == AUTHORED_CAMERA_FOV,
+					"%dx%d keeps the authored vertical FOV bit-exact%s"
+						% [
+							resolution.x, resolution.y,
+							"" if limit_enabled else " (cap off)"
+						]
+				)
+				continue
+			_check(
+				chase.fov < AUTHORED_CAMERA_FOV,
+				"%dx%d narrows the vertical angle instead of widening without limit"
+					% [resolution.x, resolution.y]
+			)
+			_check(
+				is_equal_approx(
+					snappedf(_horizontal_fov(chase.fov, aspect), 0.01),
+					snappedf(
+						UltrawideFovPolicy.horizontal_fov_ceiling_degrees(
+							AUTHORED_CAMERA_FOV
+						),
+						0.01
+					)
+				),
+				"%dx%d holds the horizontal angle on the 21:9 ceiling (%.2f degrees)"
+					% [
+						resolution.x, resolution.y,
+						_horizontal_fov(chase.fov, aspect)
+					]
+			)
 	print("ULTRAWIDE_CAMERA_FOV ", JSON.stringify({
-		"policy": "keep_height_vertical_fov",
+		"policy": "keep_height_vertical_fov_with_ultrawide_ceiling",
+		"setting": "limit_ultrawide_fov",
+		"default_enabled": RuntimeSettingsType.DEFAULT_LIMIT_ULTRAWIDE_FOV,
+		"authored_vertical_fov": AUTHORED_CAMERA_FOV,
+		"reference_aspect": snappedf(UltrawideFovPolicy.REFERENCE_ASPECT, 0.001),
+		"horizontal_fov_ceiling": snappedf(
+			UltrawideFovPolicy.horizontal_fov_ceiling_degrees(AUTHORED_CAMERA_FOV), 0.01
+		),
 		"clamp": [55.0, 110.0],
 		"samples": report,
 	}))
-	_check(
-		is_equal_approx(chase.fov, vertical),
-		"the chase rig's vertical FOV is aspect invariant"
-	)
-	ship.set_camera_fov(1000.0)
+	await _apply_resolution(Vector2i(1920, 1080))
+	ship.set_camera_fov(1000.0, true)
 	_check(
 		chase.fov <= 110.0 and cockpit.fov <= 110.0,
 		"the shipping FOV clamp bounds both rigs"
 	)
-	ship.set_camera_fov(72.0)
+	ship.set_camera_fov(AUTHORED_CAMERA_FOV, true)
 
 
 func _horizontal_fov(vertical_fov: float, aspect: float) -> float:

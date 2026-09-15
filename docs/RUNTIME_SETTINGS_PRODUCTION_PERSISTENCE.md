@@ -8,6 +8,10 @@ RefCounted objects. Re-entry/reconstruction reapplies already validated settings
 but does not load again or begin a second startup. Injected test authorities
 remain Main-local and never populate this production process state.
 
+Camera preferences have their own contract:
+`docs/ULTRAWIDE_FIELD_OF_VIEW_POLICY.md` documents `camera_fov`'s meaning on
+displays wider than 21:9 and the `limit_ultrawide_fov` opt-out that governs it.
+
 ## Startup order
 
 The atomic adapter loads exactly once, then GameFlow restores the safe-start

@@ -161,14 +161,23 @@ collision shapes plus each craft's parked pose, and the module suites,
 
 ## Ultrawide
 
-`display/window/stretch/aspect` ships as `keep`, which pillarboxes a 32:9
-display back to a 16:9 render, so 16:9 is the shipping case and the audit
+`display/window/stretch/aspect` shipped as `keep`, which pillarboxed a 32:9
+display back to a 16:9 render, so 16:9 was the shipping case and the audit
 reports 32:9 separately rather than acting on it. Under `KEEP_HEIGHT` the
 authored 72° vertical FOV becomes 137.7° horizontal at 32:9, which widens the
 near plane from ±0.194 m to ±0.388 m. That produces **6 additional findings**
 that do not exist at 16:9, all shallow grazes on the range drones and one
-approach frame. No FOV policy change is proposed here; this is recorded so that
-any future move to `expand` is taken knowing it widens the near plane by 2×.
+approach frame.
+
+Both halves of that paragraph have since been acted on. `45561f79b` moved real
+displays to `expand`, so 32:9 is now a shipping render rather than a
+hypothetical, and `docs/ULTRAWIDE_FIELD_OF_VIEW_POLICY.md` added the
+`limit_ultrawide_fov` setting (default ON) that holds the horizontal angle at
+the 21:9 ceiling above 21:9. Re-run at a 5120 × 1440 content scale with that cap
+on, the live chase FOV reads 52.04° and all six 32:9-only findings are gone
+(23 grouped findings against 30 with the cap off); every finding that exists at
+16:9 is unchanged. The audit itself still invents no policy — it reads whatever
+FOV the live rigs are running.
 
 ## Rendered confirmation
 

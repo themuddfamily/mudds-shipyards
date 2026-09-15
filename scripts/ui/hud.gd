@@ -6908,6 +6908,15 @@ func _build_settings_page() -> void:
 	_add_slider_setting(controls_group, &"on_foot_mouse_sensitivity", "On-foot look sensitivity", 0.0005, 0.02, 0.0001, 0.0025)
 	_add_toggle_setting(controls_group, &"invert_on_foot_y", "Invert on-foot vertical look", false)
 	_add_slider_setting(controls_group, &"camera_fov", "Camera field of view", 55.0, 110.0, 1.0, 72.0)
+	_add_toggle_setting_with_help(
+		controls_group,
+		&"limit_ultrawide_fov",
+		"Limit ultrawide field of view",
+		"On displays wider than 21:9, holds the horizontal view at the 21:9 angle "
+			+ "instead of stretching it further, so cockpit framing stays readable. "
+			+ "16:9 and 21:9 are unchanged either way.",
+		true
+	)
 	_add_option_setting(controls_group, &"control_preset", "Control hints (labels only)", ["Modern", "Classic"], 0)
 
 	var bindings_group := _settings_group(
@@ -8056,7 +8065,7 @@ func _on_setting_value_changed(key: StringName, value: Variant) -> void:
 	if not _updating_settings:
 		_settings_dirty = true
 		setting_change_requested.emit(key, value)
-	if key == &"reduced_flash" or key == &"payload_visual_intensity":
+	if key in [&"reduced_flash", &"payload_visual_intensity", &"limit_ultrawide_fov"]:
 		_refresh_accessibility_tooltips()
 
 
@@ -8094,6 +8103,12 @@ func _refresh_accessibility_tooltips() -> void:
 	var payload_intensity := _settings_controls.get(&"payload_visual_intensity") as OptionButton
 	if payload_intensity != null and payload_intensity.item_count > 0:
 		payload_intensity.tooltip_text = "Payload visual intensity: %s. Choose low, medium, or high." % payload_intensity.get_item_text(payload_intensity.selected)
+	var ultrawide_limit := _settings_controls.get(&"limit_ultrawide_fov") as CheckButton
+	if ultrawide_limit != null:
+		ultrawide_limit.tooltip_text = (
+			"Limit ultrawide field of view: %s. Displays 21:9 and narrower are unaffected."
+			% ("ON" if ultrawide_limit.button_pressed else "OFF")
+		)
 
 
 func _update_setting_value_label(key: StringName, value: float) -> void:

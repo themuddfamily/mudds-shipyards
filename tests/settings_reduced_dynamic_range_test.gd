@@ -23,7 +23,7 @@ func _run() -> void:
 	var legacy := payload.duplicate(true)
 	legacy.schema_version = 1
 	# A historical payload contains only fields introduced by that schema.
-	for later_field in ["on_foot_first_person", "display_resolution", "vsync_mode", "reduced_flash", "payload_visual_intensity", "multiplayer_display_name", "network_default_port", "multiplayer_max_players"]:
+	for later_field in ["limit_ultrawide_fov", "on_foot_first_person", "display_resolution", "vsync_mode", "reduced_flash", "payload_visual_intensity", "multiplayer_display_name", "network_default_port", "multiplayer_max_players"]:
 		(legacy.values as Dictionary).erase(later_field)
 	(legacy.values as Dictionary).erase("reduced_dynamic_range")
 	(legacy.values as Dictionary).erase("show_tutorials")
@@ -36,7 +36,7 @@ func _run() -> void:
 	var legacy_tutorial_payload := settings.to_user_data_payload()
 	legacy_tutorial_payload.schema_version = 2
 	# A historical payload contains only fields introduced by that schema.
-	for later_field in ["on_foot_first_person", "display_resolution", "vsync_mode", "reduced_flash", "payload_visual_intensity", "multiplayer_display_name", "network_default_port", "multiplayer_max_players"]:
+	for later_field in ["limit_ultrawide_fov", "on_foot_first_person", "display_resolution", "vsync_mode", "reduced_flash", "payload_visual_intensity", "multiplayer_display_name", "network_default_port", "multiplayer_max_players"]:
 		(legacy_tutorial_payload.values as Dictionary).erase(later_field)
 	(legacy_tutorial_payload.values as Dictionary).erase("show_tutorials")
 	var legacy_tutorial := Settings.new("user://legacy_tutorial_settings_test.cfg")

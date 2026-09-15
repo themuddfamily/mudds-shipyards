@@ -436,6 +436,7 @@ const RUNTIME_SETTING_KEYS: Array[StringName] = [
 	&"invert_on_foot_y",
 	&"camera_fov",
 	&"on_foot_first_person",
+	&"limit_ultrawide_fov",
 	&"master_volume",
 	&"ambience_volume",
 	&"engine_volume",
@@ -15034,7 +15035,7 @@ func _apply_all_runtime_settings() -> void:
 		_apply_runtime_settings_to_fleet_ship(fleet_ship)
 	player.mouse_sensitivity = runtime_settings.on_foot_mouse_sensitivity
 	player.invert_mouse_y = runtime_settings.invert_on_foot_y
-	player.set_camera_fov(runtime_settings.camera_fov)
+	player.set_camera_fov(runtime_settings.camera_fov, runtime_settings.limit_ultrawide_fov)
 	_apply_on_foot_camera_preference()
 	# The tractor's chase camera is an on-foot-scale third-person rig, so it takes
 	# the on-foot look preference rather than the flight one.
@@ -15061,7 +15062,7 @@ func _apply_runtime_settings_to_fleet_ship(fleet_ship: HeroShip) -> void:
 		return
 	fleet_ship.mouse_sensitivity = runtime_settings.ship_mouse_sensitivity
 	fleet_ship.invert_mouse_y = runtime_settings.invert_ship_y
-	fleet_ship.set_camera_fov(runtime_settings.camera_fov)
+	fleet_ship.set_camera_fov(runtime_settings.camera_fov, runtime_settings.limit_ultrawide_fov)
 	var instance_id := fleet_ship.get_instance_id()
 	if not _authored_chase_camera_lag.has(instance_id):
 		_authored_chase_camera_lag[instance_id] = (
@@ -15319,10 +15320,16 @@ func _on_runtime_setting_changed(setting: StringName, _value: Variant) -> void:
 			fleet_ship.invert_mouse_y = runtime_settings.invert_ship_y
 	elif setting == &"invert_on_foot_y":
 		player.invert_mouse_y = runtime_settings.invert_on_foot_y
-	elif setting == &"camera_fov":
+	elif setting == &"camera_fov" or setting == &"limit_ultrawide_fov":
+		# One seam for both keys: the authored angle and the ultrawide opt-out
+		# are two halves of the same resolved FOV, so either edit re-derives it.
 		for fleet_ship in ships:
-			fleet_ship.set_camera_fov(runtime_settings.camera_fov)
-		player.set_camera_fov(runtime_settings.camera_fov)
+			fleet_ship.set_camera_fov(
+				runtime_settings.camera_fov, runtime_settings.limit_ultrawide_fov
+			)
+		player.set_camera_fov(
+			runtime_settings.camera_fov, runtime_settings.limit_ultrawide_fov
+		)
 		if is_instance_valid(tow_tractor):
 			tow_tractor.set_camera_fov(runtime_settings.camera_fov)
 	elif setting == &"on_foot_first_person":

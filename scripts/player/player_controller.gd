@@ -27,6 +27,9 @@ enum CameraViewMode {
 	FIRST_PERSON,
 }
 
+## Authored vertical FOV of the on-foot rig, and the value it falls back to
+## before the settings owner pushes the player's `camera_fov`.
+const DEFAULT_AUTHORED_CAMERA_FOV := 72.0
 const BOARDING_ENTRY_FRACTION := 0.42
 const BOARDING_STEP_HEIGHT := 0.16
 const DISEMBARK_STEP_HEIGHT := 0.12
@@ -210,6 +213,11 @@ const LEGACY_MOTION_LIBRARY_SHA256 := "4af3e12abb02e2dca75ac441c782c2530d7090fe8
 
 var _control_enabled: bool = true
 var _camera_active: bool = true
+## Authored vertical FOV last requested through [method set_camera_fov], before
+## the ultrawide policy, so a display resize can re-derive the effective angle.
+var _authored_camera_fov := DEFAULT_AUTHORED_CAMERA_FOV
+var _limit_ultrawide_fov := UltrawideFovPolicy.DEFAULT_LIMIT_ULTRAWIDE_FOV
+var _camera_fov_assigned := false
 ## The distance the boom eases toward. This is the *requested* distance already
 ## reduced by whatever ceiling the current space imposes; the request itself is
 ## kept separately so a player who zoomed out before stepping into a cabin gets
@@ -340,9 +348,14 @@ func _ready() -> void:
 
 
 func _enter_tree() -> void:
+	_bind_viewport_field_of_view_policy()
 	# A deferred completion queued while this retained Player was detached must
 	# not be lost, but it is only current once the whole hierarchy is live again.
 	call_deferred("_flush_pending_transition_completions")
+
+
+func _exit_tree() -> void:
+	_unbind_viewport_field_of_view_policy()
 
 
 func _physics_process(delta: float) -> void:
@@ -744,13 +757,58 @@ func get_camera() -> Camera3D:
 	return _camera
 
 
-func set_camera_fov(field_of_view: float) -> void:
-	if _camera != null:
-		_camera.fov = clampf(field_of_view, 55.0, 110.0)
+## The on-foot rig is the same `KEEP_HEIGHT` policy as the hero rigs, so it takes
+## the same authored angle and the same ultrawide opt-out. `field_of_view` is the
+## authored `camera_fov`; `limit_ultrawide` is the player's `limit_ultrawide_fov`.
+func set_camera_fov(field_of_view: float, limit_ultrawide: bool = true) -> void:
+	_authored_camera_fov = clampf(field_of_view, 55.0, 110.0)
+	_limit_ultrawide_fov = limit_ultrawide
+	_camera_fov_assigned = true
+	_apply_camera_field_of_view()
 
 
+## The authored angle the player chose, independent of their display.
+func get_authored_camera_fov() -> float:
+	return _authored_camera_fov
+
+
+func is_ultrawide_fov_limited() -> bool:
+	return _limit_ultrawide_fov
+
+
+## The angle the on-foot rig is actually running at, after the ultrawide policy.
 func get_camera_fov() -> float:
-	return _camera.fov if _camera != null else 72.0
+	return _camera.fov if _camera != null else DEFAULT_AUTHORED_CAMERA_FOV
+
+
+func _apply_camera_field_of_view() -> void:
+	if _camera == null:
+		return
+	_camera.fov = UltrawideFovPolicy.effective_vertical_fov_for_viewport(
+		_authored_camera_fov, get_viewport(), _limit_ultrawide_fov
+	)
+
+
+func _bind_viewport_field_of_view_policy() -> void:
+	var viewport := get_viewport()
+	if viewport == null:
+		return
+	if not viewport.size_changed.is_connected(_on_viewport_size_changed):
+		viewport.size_changed.connect(_on_viewport_size_changed)
+
+
+func _unbind_viewport_field_of_view_policy() -> void:
+	var viewport := get_viewport()
+	if viewport == null:
+		return
+	if viewport.size_changed.is_connected(_on_viewport_size_changed):
+		viewport.size_changed.disconnect(_on_viewport_size_changed)
+
+
+func _on_viewport_size_changed() -> void:
+	if not _camera_fov_assigned:
+		return
+	_apply_camera_field_of_view()
 
 
 ## World-space point used by doors, seats, and other proximity interactions.

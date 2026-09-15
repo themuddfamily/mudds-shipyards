@@ -176,6 +176,9 @@ const LANDING_PHASE_DOCKED: StringName = &"docked"
 const LANDING_PHASE_ABORTED: StringName = &"aborted"
 const CHASE_CAMERA_OFFSET := Vector3(0.0, 5.0, 14.5)
 const CHASE_CAMERA_PITCH := 0.0
+## Authored vertical FOV of the chase rig, and the value both rigs fall back to
+## before the settings owner pushes the player's `camera_fov`.
+const DEFAULT_AUTHORED_CAMERA_FOV := 72.0
 const CHASE_CAMERA_SELF_HULL_CLEARANCE := 0.02
 const CHASE_CAMERA_BOUNDARY_EPSILON := 0.0001
 const CANOPY_OPEN_ANGLE := deg_to_rad(63.0)
@@ -363,6 +366,12 @@ var _chase_camera_hull_envelope_renderers := 0
 var _chase_camera_hull_envelope_ready := false
 var _camera: Camera3D
 var _cockpit_camera: Camera3D
+## Authored vertical FOV last requested through [method set_camera_fov], before
+## the ultrawide policy. Kept so a display resize can re-derive the effective
+## angle without the settings owner having to re-push the value.
+var _authored_camera_fov := DEFAULT_AUTHORED_CAMERA_FOV
+var _limit_ultrawide_fov := UltrawideFovPolicy.DEFAULT_LIMIT_ULTRAWIDE_FOV
+var _camera_fov_assigned := false
 var _boarding_marker: Marker3D
 var _exit_marker: Marker3D
 var _muzzle_left: Marker3D
@@ -493,6 +502,7 @@ var _planetary_surface_gravity_mutation_active := false
 
 
 func _enter_tree() -> void:
+	_bind_viewport_field_of_view_policy()
 	# Child `_ready()` runs before this ship's `_ready()`. Bind the authored rig to
 	# the definition here so it snapshots the exact profile ID for every variant.
 	var rig := get_node_or_null("ShipAudioRig") as ShipAudioRig
@@ -503,6 +513,7 @@ func _enter_tree() -> void:
 
 
 func _exit_tree() -> void:
+	_unbind_viewport_field_of_view_policy()
 	# A detached body performs no physics. Fence every envelope captured against
 	# the old World3D so re-entry requires a new physical proof and submission.
 	_retire_planetary_cruise(&"ship_detached", true)
@@ -1964,18 +1975,76 @@ func get_camera() -> Camera3D:
 
 ## Applies one FOV to both aiming rigs so the reticle and current view remain
 ## consistent when the player changes the camera setting mid-flight.
-func set_camera_fov(field_of_view: float) -> void:
+##
+## `field_of_view` is the *authored* vertical angle from the `camera_fov`
+## setting. `limit_ultrawide` is the player's `limit_ultrawide_fov` opt-out: with
+## it on, a display wider than 21:9 runs a reduced vertical angle so the
+## horizontal angle stays at the ceiling the same authored angle reaches at 21:9
+## (`UltrawideFovPolicy`). At 16:9 and 21:9 the effective angle is the authored
+## angle exactly, whichever way the toggle is set.
+func set_camera_fov(field_of_view: float, limit_ultrawide: bool = true) -> void:
 	if _reset_for_reuse_mutation_blocked():
 		return
-	var safe_fov := clampf(field_of_view, 55.0, 110.0)
-	if _camera != null:
-		_camera.fov = safe_fov
-	if _cockpit_camera != null:
-		_cockpit_camera.fov = safe_fov
+	_authored_camera_fov = clampf(field_of_view, 55.0, 110.0)
+	_limit_ultrawide_fov = limit_ultrawide
+	_camera_fov_assigned = true
+	_apply_camera_field_of_view()
 
 
+## The authored angle the player chose, independent of the display in front of
+## them. The settings round trip reads this, never the capped live `fov`.
+func get_authored_camera_fov() -> float:
+	return _authored_camera_fov
+
+
+func is_ultrawide_fov_limited() -> bool:
+	return _limit_ultrawide_fov
+
+
+## The angle the rigs are actually running at, after the ultrawide policy.
 func get_camera_fov() -> float:
-	return _camera.fov if _camera != null else 72.0
+	return _camera.fov if _camera != null else DEFAULT_AUTHORED_CAMERA_FOV
+
+
+func _apply_camera_field_of_view() -> void:
+	var effective := UltrawideFovPolicy.effective_vertical_fov_for_viewport(
+		_authored_camera_fov,
+		get_viewport(),
+		_limit_ultrawide_fov
+	)
+	if _camera != null:
+		_camera.fov = effective
+	if _cockpit_camera != null:
+		_cockpit_camera.fov = effective
+
+
+## A player dragging the window onto an ultrawide panel, or switching to a
+## fullscreen 32:9 mode, changes the aspect without touching the setting. The
+## policy therefore re-derives on the live viewport rather than only when the
+## settings owner pushes a value.
+func _bind_viewport_field_of_view_policy() -> void:
+	var viewport := get_viewport()
+	if viewport == null:
+		return
+	if not viewport.size_changed.is_connected(_on_viewport_size_changed):
+		viewport.size_changed.connect(_on_viewport_size_changed)
+
+
+func _unbind_viewport_field_of_view_policy() -> void:
+	var viewport := get_viewport()
+	if viewport == null:
+		return
+	if viewport.size_changed.is_connected(_on_viewport_size_changed):
+		viewport.size_changed.disconnect(_on_viewport_size_changed)
+
+
+func _on_viewport_size_changed() -> void:
+	# Rigs whose FOV was never assigned keep their authored scene values; the
+	# cockpit rig is authored wider than the chase rig and a resize must not
+	# silently flatten that difference.
+	if not _camera_fov_assigned or _reset_for_reuse_mutation_blocked():
+		return
+	_apply_camera_field_of_view()
 
 
 func get_damage_presentation() -> HeroDamagePresentation:
@@ -6780,7 +6849,7 @@ func _build_markers_and_camera() -> void:
 	_camera.name = "ShipCamera"
 	# Compensate for the arm incline so the reticle follows the physical nose.
 	_camera.rotation.x = CHASE_CAMERA_PITCH - _camera_spring_arm.rotation.x
-	_camera.fov = 72.0
+	_camera.fov = DEFAULT_AUTHORED_CAMERA_FOV
 	_camera.near = 0.15
 	_camera.far = 1800.0
 	_camera_boundary_mount = ChaseCameraBoundaryMount.new()
