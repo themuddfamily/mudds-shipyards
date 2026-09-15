@@ -4,6 +4,15 @@ extends RefCounted
 ## Runtime presentation gate for delayed moving-interior relationships.
 ## The server remains the only source of accepted samples; a long tick gap
 ## freezes the last resolved pose until ordered updates resume.
+##
+## "Resume" is the first ordered packet that arrives while the entity is
+## frozen, whatever its own gap. The server's per-recipient budget coalesces a
+## walking body in a busy cabin down to one snapshot per budget window, so
+## every arrival for that body is a gap wider than this hold window; measuring
+## each one against the held tick parked every packet and froze the crewmate
+## for the rest of the leg (the four-body crowd in
+## `tests/network_remote_body_simulation_test.gd` measured a 14 m lag). A
+## packet that arrives is by definition the end of the silence it followed.
 
 const Relationship := preload("res://scripts/network/moving_interior_relationship.gd")
 const MAX_TRACKED_ENTITIES := 128
@@ -41,7 +50,7 @@ func accept_snapshot(source_peer_id: int, snapshot: Dictionary, migration_genera
 		return _remember(_result(false, &"entity_capacity"))
 	var gap := tick - previous_tick if previous_tick >= 0 else 0
 	_last_ticks[entity_id] = tick
-	if gap > _max_hold_ticks and _current.has(entity_id):
+	if gap > _max_hold_ticks and _current.has(entity_id) and not bool(_frozen.get(entity_id, false)):
 		_pending[entity_id] = relationship
 		_frozen[entity_id] = true
 		return _remember(_result(true, &"gap_hold", {"entity_id": entity_id, "gap_ticks": gap, "frozen": true}))
