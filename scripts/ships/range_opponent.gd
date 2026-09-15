@@ -93,6 +93,19 @@ const SYMMETRIC_HULL_BOX_EXPECTED_MATERIAL_RESOURCES := 4
 const WEAPON_TELEGRAPH_RADIUS := 0.16
 const WEAPON_TELEGRAPH_RADIAL_SEGMENTS := 24
 const WEAPON_TELEGRAPH_RINGS := 12
+## An opponent exists only in flight: it is pooled invisible at the origin
+## until an encounter spawns it into open space, and no deck is ever under it.
+## The nearest a camera gets to one is the same hull approach the exterior
+## range budgets its drones at — `ShipyardWorld.EXTERIOR_TARGET_RANGE_APPROACH_METRES`,
+## 3 m, closer than a chase camera standing 8 m off the player's hull ever is
+## except at the moment of a collision. Every lens and beacon on the four
+## archetypes is solved there.
+const OPPONENT_NEAREST_VIEW_METRES := 3.0
+## `StationSurfaceKit.sphere_tessellation_for(0.16, 3.0, 24, 12)`: 6.3 mm of
+## allowed sagitta, met at the twelve-meridian floor (5.5 mm), with the odd
+## ring count that keeps the equator, and so the lens width, exact.
+const WEAPON_TELEGRAPH_BUDGETED_RADIAL_SEGMENTS := 12
+const WEAPON_TELEGRAPH_BUDGETED_RINGS := 7
 const WEAPON_TELEGRAPH_COPY_COUNT := 2
 
 ## The opponent family's authored detail tessellation, retained here as the
@@ -1061,8 +1074,13 @@ func get_weapon_telegraph_mesh_allocation_audit() -> Dictionary:
 	if mesh == null \
 		or not is_equal_approx(mesh.radius, WEAPON_TELEGRAPH_RADIUS) \
 		or not is_equal_approx(mesh.height, WEAPON_TELEGRAPH_RADIUS * 2.0) \
-		or mesh.radial_segments != WEAPON_TELEGRAPH_RADIAL_SEGMENTS \
-		or mesh.rings != WEAPON_TELEGRAPH_RINGS \
+		or mesh.radial_segments != WEAPON_TELEGRAPH_BUDGETED_RADIAL_SEGMENTS \
+		or mesh.rings != WEAPON_TELEGRAPH_BUDGETED_RINGS \
+		or Vector2i(WEAPON_TELEGRAPH_BUDGETED_RADIAL_SEGMENTS, WEAPON_TELEGRAPH_BUDGETED_RINGS) \
+			!= StationSurfaceKit.sphere_tessellation_for(
+				WEAPON_TELEGRAPH_RADIUS, OPPONENT_NEAREST_VIEW_METRES,
+				WEAPON_TELEGRAPH_RADIAL_SEGMENTS, WEAPON_TELEGRAPH_RINGS
+			) \
 		or mesh.get_surface_count() != 1:
 		errors.append("weapon_telegraph_sphere_recipe_drift")
 	elif mesh.material != _materials.get("amber_emissive"):
@@ -2426,8 +2444,8 @@ func _build_interceptor() -> void:
 	_weapon_telegraph_mesh = SphereMesh.new()
 	_weapon_telegraph_mesh.radius = WEAPON_TELEGRAPH_RADIUS
 	_weapon_telegraph_mesh.height = WEAPON_TELEGRAPH_RADIUS * 2.0
-	_weapon_telegraph_mesh.radial_segments = WEAPON_TELEGRAPH_RADIAL_SEGMENTS
-	_weapon_telegraph_mesh.rings = WEAPON_TELEGRAPH_RINGS
+	_weapon_telegraph_mesh.radial_segments = WEAPON_TELEGRAPH_BUDGETED_RADIAL_SEGMENTS
+	_weapon_telegraph_mesh.rings = WEAPON_TELEGRAPH_BUDGETED_RINGS
 	_weapon_telegraph_mesh.material = _materials.amber_emissive
 	_add_gun_housing_batch(_visual_root)
 	if _weapon_heat_vents_enabled:
@@ -3020,15 +3038,16 @@ func _sphere(
 		mesh.radius = radius
 		mesh.height = radius * 2.0
 		# Lenses, beacons and bead fittings run from 6 cm to 20 cm across and
-		# were all authored at the same 24x12. `ShipGeometryBudget.sphere_plan`
-		# scales that to the bead's own radius, floored at the 16x8 the fleet's
-		# coarsest existing joint already ships, and never above the authored
-		# pair.
-		var plan := ShipGeometryBudget.sphere_plan(
-			radius, OPPONENT_SPHERE_RADIAL_SEGMENTS, OPPONENT_SPHERE_RINGS
+		# were all authored at the same 24x12. The shared sphere rule scales
+		# that to the bead's own radius at the opponent's declared flight-only
+		# approach, floored at the twelve-meridian recipe, and never above the
+		# authored pair.
+		var plan := StationSurfaceKit.sphere_tessellation_for(
+			radius, OPPONENT_NEAREST_VIEW_METRES,
+			OPPONENT_SPHERE_RADIAL_SEGMENTS, OPPONENT_SPHERE_RINGS
 		)
-		mesh.radial_segments = int(plan["radial_segments"])
-		mesh.rings = int(plan["rings"])
+		mesh.radial_segments = plan.x
+		mesh.rings = plan.y
 		mesh.material = material
 	instance.mesh = mesh
 	parent.add_child(instance)

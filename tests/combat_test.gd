@@ -651,13 +651,13 @@ func _test_weapon_telegraph_mesh_allocation(opponent: RangeOpponent) -> void:
 		and shared_mesh != null
 		and is_equal_approx(shared_mesh.radius, 0.16)
 		and is_equal_approx(shared_mesh.height, 0.32)
-		and shared_mesh.radial_segments == 24
-		and shared_mesh.rings == 12
+		and shared_mesh.radial_segments == RangeOpponent.WEAPON_TELEGRAPH_BUDGETED_RADIAL_SEGMENTS
+		and shared_mesh.rings == RangeOpponent.WEAPON_TELEGRAPH_BUDGETED_RINGS
 		and shared_mesh.get_surface_count() == 1
 		and shared_mesh.material != null
 		and not shared_mesh.resource_local_to_scene
 		and shared_mesh.get_meta_list().is_empty(),
-		"both telegraph nodes share the exact immutable 0.16 m, 24x12 SphereMesh recipe"
+		"both telegraph nodes share the exact immutable 0.16 m SphereMesh recipe budgeted at the opponent's declared flight-only approach"
 	)
 	var nodes_exact := true
 	for telegraph in [port, starboard]:

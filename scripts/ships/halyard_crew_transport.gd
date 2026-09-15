@@ -313,6 +313,12 @@ const DEFENSIVE_SHROUD_SIZE := Vector3(0.34, 0.28, 0.56)
 const DEFENSIVE_COLLAR_RADIUS := 0.16
 const DEFENSIVE_COLLAR_LENGTH := 0.14
 const DEFENSIVE_LENS_RADIUS := 0.075
+## The two lenses sit on the bow at ship-local 4.24 m. Parked on Fleet Dock 02
+## the bow overhangs the slab, so the only deck a crew member stands on runs
+## alongside the midships hull and the closest a standing eye gets to a lens is
+## across that overhang: declared at 2.5 m, where the 7.5 cm lens meets the
+## shared tolerance at the twelve-meridian floor.
+const DEFENSIVE_MUZZLE_LENS_NEAREST_VIEW_METRES := 2.5
 const DEFENSIVE_MUZZLE_POSITIONS := [
 	Vector3(-1.75, 4.24, -7.65),
 	Vector3(1.75, 4.24, -7.65),
@@ -3074,10 +3080,11 @@ func _build_flank_detail() -> void:
 		))
 		# The dim amber lens is centred exactly on the unchanged combat marker.
 		# It communicates a low-output pulse emitter without increasing authority.
-		weapon_parts.append(_sphere(
+		weapon_parts.append(_sphere_at(
 			_halyard_visual, side_name + "DefensiveMuzzleLens",
 			DEFENSIVE_MUZZLE_POSITIONS[0 if side < 0.0 else 1],
-			DEFENSIVE_LENS_RADIUS, _halyard_materials.instrument_low
+			DEFENSIVE_LENS_RADIUS, _halyard_materials.instrument_low,
+			DEFENSIVE_MUZZLE_LENS_NEAREST_VIEW_METRES
 		))
 		for part in weapon_parts:
 			part.set_meta("evidence_status", EVIDENCE_STATUS)

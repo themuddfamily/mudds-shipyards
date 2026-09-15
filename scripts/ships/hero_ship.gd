@@ -8226,20 +8226,48 @@ func _torus(
 	mesh.rings = 48
 	mesh.ring_segments = 16
 	mesh.material = material
+	# Budgeted as built, at the part's own scale, so a craft assembled after the
+	# startup sweep (the streamed and expansion-berth Cinder craft) carries the
+	# same walk-up recipe the sweep gives the resident hulls; the sweep itself
+	# then finds nothing further to take.
+	TorusGeometryBudget.apply(
+		mesh, maxf(maxf(absf(scale_value.x), absf(scale_value.y)), absf(scale_value.z))
+	)
 	mesh_instance.mesh = mesh
 	parent.add_child(mesh_instance)
 	return mesh_instance
 
 
+## Bead, lens or joint sphere at walk-up range: `ShipGeometryBudget`'s sphere
+## plan, never above the authored 24x12. Craft override this with their own
+## signature, so the declared-view variant lives beside it as `_sphere_at`.
 func _sphere(parent: Node3D, node_name: String, position: Vector3, radius: float, material: Material) -> MeshInstance3D:
+	return _sphere_at(parent, node_name, position, radius, material, TorusGeometryBudget.NEAR_EYE_METRES)
+
+
+## Bead, lens or joint sphere whose closest camera approach a craft has
+## measured against its own berth deck. `nearest_view_metres` at walk-up range
+## is exactly `_sphere`; a greater declared range lets the shared rule solve
+## the recipe there, down to the twelve-meridian floor.
+func _sphere_at(
+		parent: Node3D,
+		node_name: String,
+		position: Vector3,
+		radius: float,
+		material: Material,
+		nearest_view_metres: float
+	) -> MeshInstance3D:
 	var mesh_instance := MeshInstance3D.new()
 	mesh_instance.name = node_name
 	mesh_instance.position = position
 	var mesh := SphereMesh.new()
 	mesh.radius = radius
 	mesh.height = radius * 2.0
-	mesh.radial_segments = 24
-	mesh.rings = 12
+	var tessellation := StationSurfaceKit.sphere_tessellation_for(
+		radius, nearest_view_metres, 24, 12
+	)
+	mesh.radial_segments = tessellation.x
+	mesh.rings = tessellation.y
 	mesh.material = material
 	mesh_instance.mesh = mesh
 	parent.add_child(mesh_instance)

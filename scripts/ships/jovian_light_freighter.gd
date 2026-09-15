@@ -210,11 +210,20 @@ const DORSAL_CARGO_RIB_JOINT_COPY_COUNT := (
 	DORSAL_CARGO_RIB_COUNT * DORSAL_CARGO_RIB_JOINTS_PER_RIB
 )
 const DORSAL_CARGO_RIB_JOINT_RADIUS := 0.095
-# `ShipGeometryBudget.sphere_plan(0.095, 24, 12)`. A 19 cm bead read at the
-# project's walk-up distance earns 20 radial segments; the authored 24 resolved
-# 0.6 mm of sagitta that is a third of a pixel at 1.5 m.
-const DORSAL_CARGO_RIB_JOINT_RADIAL_SEGMENTS := 20
-const DORSAL_CARGO_RIB_JOINT_RINGS := 10
+# The closest a walking player gets to the hull-top fittings. The lowest of
+# them, the navigation lights at ship-local 3.7 m, sit 4.9 m above the freight
+# apron the craft is parked over; from a 1.75 m standing eye straight below
+# that is 3.1 m, less the lens radius. The dorsal ribs (4.28 m and up) and the
+# shoulder rails (4.42 m) are further still, and the gantry catwalk is 6 m
+# outboard and 7 m above them. Nothing on the ship's own walkable route — the
+# ramp, the cargo bay, the flight deck — sees these from outside the hull.
+const EXTERIOR_HULL_FITTING_NEAREST_VIEW_METRES := 2.9
+# `StationSurfaceKit.sphere_tessellation_for(0.095, 2.9, 24, 12)`: at 2.9 m the
+# shared tolerance allows 6.1 mm of sagitta and every one of these beads meets
+# it at the twelve-meridian floor, with the odd ring count that keeps a vertex
+# ring on the equator so the bead's authored width is exact.
+const DORSAL_CARGO_RIB_JOINT_RADIAL_SEGMENTS := 12
+const DORSAL_CARGO_RIB_JOINT_RINGS := 7
 const DORSAL_CARGO_RIB_JOINT_XY: Array[Vector2] = [
 	Vector2(-5.55, 4.28),
 	Vector2(-3.7, 4.72),
@@ -229,9 +238,9 @@ const DORSAL_CARGO_RIB_JOINT_XY: Array[Vector2] = [
 # resource is shared.
 const SHOULDER_RAIL_JOINT_COPY_COUNT := 7
 const SHOULDER_RAIL_JOINT_RADIUS := 0.13
-# `ShipGeometryBudget.sphere_plan(0.13, 24, 12)`.
-const SHOULDER_RAIL_JOINT_RADIAL_SEGMENTS := 23
-const SHOULDER_RAIL_JOINT_RINGS := 12
+# `StationSurfaceKit.sphere_tessellation_for(0.13, 2.9, 24, 12)`.
+const SHOULDER_RAIL_JOINT_RADIAL_SEGMENTS := 12
+const SHOULDER_RAIL_JOINT_RINGS := 7
 const SHOULDER_RAIL_NAMES: Array[StringName] = [
 	&"PortForwardShoulderRail",
 	&"PortAftShoulderRail",
@@ -3837,12 +3846,13 @@ func _build_exterior() -> void:
 			_service_panel_transforms.append(Transform3D(
 				Basis.IDENTITY, Vector3(side * 8.04, 2.12, panel_z)
 			))
-		_sphere(
+		_sphere_at(
 			_jovian_visual,
 			side_name + "NavigationLight",
 			Vector3(side * 8.02, 3.7, 8.4),
 			0.16,
-			_jovian_materials.nav_red if side < 0.0 else _jovian_materials.nav_green
+			_jovian_materials.nav_red if side < 0.0 else _jovian_materials.nav_green,
+			EXTERIOR_HULL_FITTING_NEAREST_VIEW_METRES
 		)
 	_build_forward_cargo_guide_silhouette()
 
