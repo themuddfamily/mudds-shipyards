@@ -269,6 +269,19 @@ func _run() -> void:
 		and opponent.get_node_or_null("AuthoritativeDamageable") is DamageableScript,
 		"production craft expose typed Damageable lifecycle proxies"
 	)
+	# Every craft the player can fly is a target, including the ones that carry
+	# no offensive weapon of their own. A craft without an adapter is invisible
+	# to enemy fire: shots resolve `non_damageable_blocked` and it can never be
+	# damaged, destroyed, or regenerated at its berth.
+	var undamageable: PackedStringArray = []
+	for flyable: HeroShip in game.get_flyable_ships():
+		if not (flyable.get_node_or_null("AuthoritativeDamageable") is DamageableScript):
+			undamageable.append(String(flyable.get_ship_id()))
+	_check(
+		game.get_flyable_ships().size() == 9 and undamageable.is_empty(),
+		"all nine flyable craft are valid targets, armed or not (missing: %s)"
+			% ", ".join(undamageable)
+	)
 	var targets := _get_live_range_targets(world)
 	_check(targets.size() == int(world.call("get_target_count")), "every generated range drone is adapted into generic combat")
 	for target in targets:
@@ -355,6 +368,87 @@ func _run() -> void:
 		hero.get_damage_presentation().get_live_world_effect_count() > 0,
 		"pulse arrival releases the resolved hero impact presentation"
 	)
+
+	# The same enemy fire has to reach a craft that carries no weapon of its own.
+	# The cargo hauler registers no firing source, and while the damageable
+	# attachment was bundled with that registration it was skipped entirely: every
+	# shot resolved `non_damageable_blocked`, so the hull could not be hit,
+	# degraded, or lost at all. Take it through one complete production lifecycle
+	# here - a real authoritative hit on a named section, the localized
+	# consequence a pilot reads, and the berthed repair that clears it again.
+	var hauler := game.call(
+		&"_find_flyable_ship_by_id", &"cinder_cargo_hauler"
+	) as HeroShip
+	_check(hauler != null, "the production rotation exposes the Cinder cargo hauler")
+	if hauler != null:
+		var hauler_berth_transform := hauler.global_transform
+		var hauler_was_landed := bool(hauler.get("_landed"))
+		hauler.set_physics_process(false)
+		hauler.set("_landed", false)
+		hauler.global_transform = Transform3D(Basis.IDENTITY, arena_origin)
+		var engine_anchor := _component_anchor(hauler, &"engine_bay")
+		opponent.global_position = hauler.to_global(engine_anchor) + Vector3(0.0, 0.0, 30.0)
+		await physics_frame
+		var hauler_origin := opponent.global_position
+		var hauler_direction := (
+			hauler.to_global(engine_anchor) - hauler_origin
+		).normalized()
+		var hauler_hull_before := float(hauler.get_telemetry().get("hull", 0.0))
+		resolver.reset_weapon_heat(opponent, GameFlow.OPPONENT_SOURCE_ID)
+		game.call("_on_opponent_projectile_fired", hauler_origin, hauler_direction)
+		var hauler_result: Dictionary = game.call("get_last_opponent_shot_result")
+		_check(
+			bool(hauler_result.get("accepted", false))
+			and bool(hauler_result.get("damaged", false))
+			and hauler_result.get("target_entity") == hauler
+			and float(hauler.get_telemetry().get("hull", 0.0)) < hauler_hull_before,
+			"enemy production fire damages the unarmed cargo hauler through the shared authority"
+		)
+
+		var impair_guard := 0
+		while _component_integrity(hauler, &"engine_bay") >= ShipComponentDamage.IMPAIRED_THRESHOLD \
+				and impair_guard < 4:
+			resolver.reset_weapon_heat(opponent, GameFlow.OPPONENT_SOURCE_ID)
+			game.call("_on_opponent_projectile_fired", hauler_origin, hauler_direction)
+			impair_guard += 1
+		var damaged_modifiers := hauler.get_operational_modifiers()
+		_check(
+			_component_integrity(hauler, &"engine_bay") < ShipComponentDamage.IMPAIRED_THRESHOLD
+			and is_equal_approx(_component_integrity(hauler, &"forward_hull"), 1.0)
+			and float(damaged_modifiers.get("mobility_multiplier", 1.0)) < 1.0
+			and not hauler.is_destroyed(),
+			"aimed enemy fire degrades only the hauler's engine bay and costs it real mobility"
+		)
+		hauler.call(&"_sync_engine_visuals_immediately")
+		_check(
+			hauler.get_engine_exhaust_damage_presentation_profile().get("stage") != &"nominal",
+			"the degraded hauler engine raises the shared exhaust damage cue"
+		)
+
+		# Production repair: the shared HeroShip tick, authorized only while the
+		# craft is physically at rest, is what a pilot gets for landing at a berth.
+		hauler.set("_landed", true)
+		hauler.set("_landing_active", false)
+		var repair_guard := 0
+		while _component_integrity(hauler, &"engine_bay") < 1.0 and repair_guard < 400:
+			hauler.call(&"_sync_component_damage", 0.1)
+			repair_guard += 1
+		hauler.call(&"_sync_engine_visuals_immediately")
+		hauler.call(&"_sync_weapon_component_presentation")
+		var repaired_modifiers := hauler.get_operational_modifiers()
+		_check(
+			is_equal_approx(_component_integrity(hauler, &"engine_bay"), 1.0)
+			and is_equal_approx(float(repaired_modifiers.get("mobility_multiplier", 0.0)), 1.0)
+			and not bool(repaired_modifiers.get("mobility_disabled", true))
+			and hauler.get_engine_exhaust_damage_presentation_profile().get("stage") == &"nominal"
+			and hauler.get_weapon_component_presentation_profile().get("stage") == &"nominal",
+			"berthed repair restores the hauler's engine bay and clears every component cue"
+		)
+		# Put the hauler back exactly where the production rotation had it, so the
+		# rest of this suite sees the world it set up.
+		hauler.set("_landed", hauler_was_landed)
+		hauler.global_transform = hauler_berth_transform
+		await physics_frame
 
 	# Range targets use the same request/resolver path, then forward lethal damage
 	# to ShipyardWorld so mission counting, burst presentation, and cleanup remain.
@@ -709,6 +803,22 @@ func _clean_up(game: Node) -> void:
 	await process_frame
 	await process_frame
 	await process_frame
+
+
+## Ship-local anchor of one damage section, as the craft's own collision-derived
+## component layout publishes it.
+func _component_anchor(craft: HeroShip, component_id: StringName) -> Vector3:
+	for component in craft.get_component_damage_report().get("components", []) as Array:
+		if StringName((component as Dictionary).get("id", &"")) == component_id:
+			return (component as Dictionary).get("local_position", Vector3.ZERO) as Vector3
+	return Vector3.ZERO
+
+
+func _component_integrity(craft: HeroShip, component_id: StringName) -> float:
+	for component in craft.get_component_damage_report().get("components", []) as Array:
+		if StringName((component as Dictionary).get("id", &"")) == component_id:
+			return float((component as Dictionary).get("integrity", -1.0))
+	return -1.0
 
 
 func _check(condition: bool, description: String) -> void:
