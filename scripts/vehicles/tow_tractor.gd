@@ -173,6 +173,9 @@ var _recovery_reported := false
 var _deck_normal := Vector3.UP
 var _home_transform := Transform3D.IDENTITY
 var _camera_yaw_offset := 0.0
+var _authored_camera_fov := 72.0
+var _limit_ultrawide_fov := true
+var _camera_fov_assigned := false
 var _camera_pitch := deg_to_rad(-14.0)
 var _mesh_cache: Dictionary = {}
 var _materials: Dictionary = {}
@@ -188,6 +191,9 @@ var _wheel_mesh: Mesh = null
 
 
 func _ready() -> void:
+	var viewport := get_viewport()
+	if viewport != null and not viewport.size_changed.is_connected(_on_viewport_size_changed):
+		viewport.size_changed.connect(_on_viewport_size_changed)
 	up_direction = Vector3.UP
 	floor_max_angle = deg_to_rad(FLOOR_MAXIMUM_ANGLE_DEGREES)
 	floor_snap_length = FLOOR_SNAP_LENGTH
@@ -508,10 +514,38 @@ func get_wheel_batch_report() -> Dictionary:
 	}.duplicate(true)
 
 
-func set_camera_fov(field_of_view: float) -> void:
+## Same contract as HeroShip.set_camera_fov: the authored angle and the
+## ultrawide opt-out are retained, and the live `fov` is derived through
+## UltrawideFovPolicy on the viewport the rig actually renders into.
+func set_camera_fov(field_of_view: float, limit_ultrawide: bool = true) -> void:
 	if not _can_mutate_live_vehicle():
 		return
-	_camera.fov = clampf(field_of_view, 55.0, 110.0)
+	_authored_camera_fov = clampf(field_of_view, 55.0, 110.0)
+	_limit_ultrawide_fov = limit_ultrawide
+	_camera_fov_assigned = true
+	_apply_camera_field_of_view()
+
+
+func get_authored_camera_fov() -> float:
+	return _authored_camera_fov
+
+
+func is_ultrawide_fov_limited() -> bool:
+	return _limit_ultrawide_fov
+
+
+func _apply_camera_field_of_view() -> void:
+	if _camera == null:
+		return
+	_camera.fov = UltrawideFovPolicy.effective_vertical_fov_for_viewport(
+		_authored_camera_fov, get_viewport(), _limit_ultrawide_fov
+	)
+
+
+func _on_viewport_size_changed() -> void:
+	if not _camera_fov_assigned or not _can_mutate_live_vehicle():
+		return
+	_apply_camera_field_of_view()
 
 
 ## World-space footfall the boarding animation walks through on its way to the
@@ -1029,3 +1063,9 @@ func _transformed_mesh_bounds(
 		else:
 			result = result.merge(piece)
 	return result
+
+
+func _exit_tree() -> void:
+	var viewport := get_viewport()
+	if viewport != null and viewport.size_changed.is_connected(_on_viewport_size_changed):
+		viewport.size_changed.disconnect(_on_viewport_size_changed)

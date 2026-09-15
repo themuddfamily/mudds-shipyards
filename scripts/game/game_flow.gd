@@ -15041,7 +15041,7 @@ func _apply_all_runtime_settings() -> void:
 	# the on-foot look preference rather than the flight one.
 	if is_instance_valid(tow_tractor):
 		tow_tractor.mouse_sensitivity = runtime_settings.on_foot_mouse_sensitivity
-		tow_tractor.set_camera_fov(runtime_settings.camera_fov)
+		tow_tractor.set_camera_fov(runtime_settings.camera_fov, runtime_settings.limit_ultrawide_fov)
 	runtime_settings.apply_audio_settings()
 	_apply_reduced_dynamic_range_setting()
 	runtime_settings.apply_window_mode()
@@ -15331,7 +15331,7 @@ func _on_runtime_setting_changed(setting: StringName, _value: Variant) -> void:
 			runtime_settings.camera_fov, runtime_settings.limit_ultrawide_fov
 		)
 		if is_instance_valid(tow_tractor):
-			tow_tractor.set_camera_fov(runtime_settings.camera_fov)
+			tow_tractor.set_camera_fov(runtime_settings.camera_fov, runtime_settings.limit_ultrawide_fov)
 	elif setting == &"on_foot_first_person":
 		_apply_on_foot_camera_preference()
 	elif setting in [

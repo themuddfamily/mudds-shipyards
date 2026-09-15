@@ -919,6 +919,16 @@ func _check_tractor_mutator_currentness() -> void:
 		and tractor.get_driver_station().is_available(),
 		"a fresh live re-entry accepts drive, camera, and recovery mutation"
 	)
+	_check(
+		is_equal_approx(tractor.get_authored_camera_fov(), 96.0)
+			and tractor.is_ultrawide_fov_limited()
+			and is_equal_approx(
+				tractor.get_camera().fov,
+				UltrawideFovPolicy.effective_vertical_fov_for_viewport(96.0, tractor.get_viewport(), true)
+			)
+			and UltrawideFovPolicy.effective_vertical_fov(96.0, 5120.0 / 1440.0, true) < 96.0,
+		"tractor rig retains the authored angle and derives its live fov through the ultrawide policy"
+	)
 
 	var queued_before := _tractor_mutator_snapshot(tractor)
 	tractor.queue_free()
