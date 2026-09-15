@@ -2148,3 +2148,281 @@ xvfb-run -a -s '-screen 0 1920x1080x24' godot --path . --resolution 1920x1080 \
   --rendering-method forward_plus --audio-driver Dummy \
   --script res://tests/capture_torus_smoothness.gd
 ```
+
+## Ninth trim (2026-09-15): declared-view tessellation for torus and sphere stock
+
+Phase 10 §2 asked for the resident scene to come under the 1,800,000
+ceiling by trimming primitive stock before any budget is raised. Measured on
+`de8d162d6` with `tools/geometry_census.gd` under fresh private user data, this
+pass takes the station-resident scene from **1,918,333 to 1,846,587 triangles
+(-71,746, 3.7%)**. **The ceiling is still not met**: the scene is 46,587
+triangles (2.6%) over it, and the arithmetic of why the rest is not available
+from this stock is set out at the end, as the hero/opponent pass did.
+
+The change is triangle-only. Before and after, the census counts **5,557 mesh
+renderers, 5,953 surfaces, 3,058 unique meshes, 693 bound and 996 retained
+materials, 7 shaders, 34 textures, 341 lights (20 shadow casting), 54 particle
+systems, 79,709 text triangles across 43 signs and 10,587 scene-tree nodes**
+identically, and the bound-material fingerprint is unchanged
+(`86b6a683…`). No node name, count, material identity or mesh-sharing
+relationship moves; no collision shape is derived from any of the primitives
+touched (every one was checked to be a `MeshInstance3D` or `MultiMesh`
+visual whose body, where it has one, is a separate cylinder or box shape).
+
+### The policy
+
+The whole-scene census had 192 `TorusMesh` instances at 905 triangles each
+and 226 `SphereMesh` at 474. Every one of them was already budgeted, but at
+one range: `TorusGeometryBudget` solves the tube at `NEAR_EYE_METRES` (0.6 m)
+and floors everything at the photographed 32x12, because a torus *can* be
+anywhere. Most of these cannot. A pipe collar on a 3.6 m service run, a
+roof-vent collar on a 5.3 m roof, a lashing ring recessed into a deck plate
+under a standing eye and a navigation light 4.9 m above an apron are all held
+to the walk-up answer for a range no camera reaches.
+
+So a builder may now **declare** the nearest distance a camera is taken to a
+ring or a lens — the same declaration the module rib builders and
+`StationSurfaceKit.radial_segments_for` already make for round stock — and the
+shared rule is solved there:
+
+- `TorusGeometryBudget.plan(outer, inner, nearest_view_metres)` keeps the
+  sagitta rule and `TOLERANCE_RADIANS` unchanged, applied at the declared
+  range instead of 0.6 m, still capped at a fifth of the tube on the major
+  sweep. **The floors scale with the declaration**: a polygon is read by its
+  angular edge, not its metric error, so the photographed 32x12 at 0.6 m is
+  carried out as `32 * 0.6 / d` and `12 * 0.6 / d`, the same angular sampling
+  the walk-up floor was judged clean at, and never below `FAR_MIN_RINGS` x
+  `FAR_MIN_RING_SEGMENTS` = 12x8. Declared answers are rounded up to a
+  multiple of four so a vertex lands on every cardinal direction of both
+  circles, which is what keeps every family's AABB contract exact.
+- A declaration reaches a live `MeshInstance3D` family through the existing
+  startup sweep: `TorusGeometryBudget.declare_nearest_view(mesh, metres)` is a
+  registry keyed by mesh, not metadata, because the module audits freeze the
+  exact metadata list on those meshes and renderers. A shared mesh is
+  budgeted at the **closest** of its declarations; the authored recipe stays
+  pristine until the sweep exactly as before. MultiMesh stock and craft
+  assembled after the sweep pass the distance to `apply` directly, as they
+  already did for the walk-up rule.
+- `StationSurfaceKit.sphere_tessellation_for(radius, nearest_view_metres,
+  authored_radial, authored_rings)` is `ShipGeometryBudget.sphere_plan`
+  carried out the same way: identical at walk-up, floors scaling from 16x8 to
+  12 meridians. One property the sphere rule adds, found by the Halyard's
+  lens-dimension contract: Godot's `SphereMesh` cuts the meridian into
+  `rings + 1` bands, so only an **odd** ring count places a vertex ring on
+  the equator — the widest circle of the silhouette. A declared sphere is
+  therefore 12x7, 16x9 or 20x11 rather than 12x6, 16x8 or 20x10: 24
+  triangles more per sphere, and the authored radius exact on all three axes,
+  where the even authored 24x12 already sat 0.7% inside it.
+- `StationSurfaceKit.DECK_FLUSH_NEAREST_VIEW_METRES` (1.6 m) names the one
+  range most of the declarations share: a ring recessed into or lying on the
+  deck a player stands on is at least 1.6 m from a 1.75 m standing eye,
+  straight down being the closest case.
+- Undeclared rings and spheres keep the walk-up rule bit for bit; a
+  declaration never raises tessellation and never lowers the floor a walk-up
+  ring is held to. `tests/torus_geometry_budget_test.gd` now asserts all of
+  this on synthetic radii, and holds every live world ring to the floor at its
+  own declared range.
+
+### What was declared, and what was left alone
+
+Every declaration is a measured height or standoff written next to the
+constant, not a guess about where the level puts the player. Per instance,
+before -> after:
+
+| Family | Declared range and why | Recipe | Copies | Saved |
+| --- | --- | --- | --- | ---: |
+| Cinder nozzle lips (`cinder_exhaust_machinery.gd`) | walk-up; the one revolved part the ship trim left at the authored 96x16 | 96x16 -> 40x12 | 6 | 12,672 |
+| Guide lenses, four batches (`shipyard_world.gd`) | 1.0 m: the safety-pylon lamps at 1.95 m, ~0.8 m from an eye beside the 0.8 m pylon, govern all fifty | 24x12 -> 20x11 | 50 | 7,200 |
+| Jovian dorsal rib joints | 2.9 m: the lowest hull-top fitting, the nav light at 3.7 m ship-local, is 4.9 m above the apron | 20x10 -> 12x7 | 25 | 6,200 |
+| Jovian shoulder-rail joints | 2.9 m, as above | 23x12 -> 12x7 | 7 | 2,842 |
+| Jovian navigation lights / windscreen post joints | 2.9 m / walk-up (`_sphere` now budgets its bead) | 24x12 -> 12x7 / 16x8 | 2 / 2 | 864 / 672 |
+| Habitat environmental-main pipe collars | 3.6 m run less 0.19 m radius less a 1.75 m eye = 1.66 m | 32x12 -> 16x8 | 6 | 3,072 |
+| Habitat isolation valves | 3.25 m less 0.23 m less 1.75 m = 1.27 m | 32x13 -> 20x12 | 6 | 2,112 |
+| Habitat common-chair bearings | 1.0 m, inside the pedestal/seat overlap; tube keeps the occluded 8 | 32x8 -> 24x8 | 8 | 1,024 |
+| Habitat garden column head ring | 5.16 m less 0.9 m less 1.75 m = 2.51 m | 40x16 -> 28x12 | 1 | 608 |
+| Habitat nutrient tank bands / valves (MultiMesh) | 1.0 m beside the 0.47 m tanks / 0.8 m under the 2.3 m valves | 40x12 -> 32x12 / 32x12 -> 24x12 | 3 / 3 | 576 / 576 |
+| Aft roof-vent collars and roof-spine clamps | `ROOF_MEMBER_NEAREST_VIEW_METRES` (3.4 m), already declared for the vents and spine | 40x16 -> 20x8 / 32x8 -> 16x8 | 2 / 5 | 1,920 / 1,280 |
+| Aft pod-corner collars | deck-flush 1.6 m: the west pair sit 0.25 m above the upper open deck | 34x14 -> 24x12 | 4 | 1,504 |
+| Aft console shock collars (MultiMesh) | deck-flush 1.6 m at the console feet | 32x8 -> 16x8 | 6 | 1,536 |
+| Aft conduit collars / pedestal bearings | 3.0 m less 0.16 m less 1.75 m = 1.09 m / 1.0 m | 32x8 -> 20x8 / 32x8 -> 24x8 | 3 / 4 | 576 / 512 |
+| Aft underfloor support collars | `UNDERFLOOR_MEMBER_NEAREST_VIEW_METRES` (2.5 m), already declared for the braces | 36x16 -> 20x8 | 2 | 1,664 |
+| Aft VIP facade column trims (MultiMesh) | deck-flush 1.6 m: the foot pair sit 0.2 m above the VIP deck | 32x14 -> 20x12 | 4 | 1,664 |
+| Landing pad tie-down sockets / umbilical deck connectors | deck-flush 1.6 m | 32x14 -> 20x12 / 32x13 -> 20x8 | 6 / 3 | 2,496 / 1,536 |
+| Freight-berth lashing rings (anchors and batch) | deck-flush 1.6 m; tube keeps the profile's 8 | 32x8 -> 20x8 | 16 | 3,072 |
+| VIP servery stool foot rings | 1.75 m eye less 0.26 m = 1.49 m | 32x12 -> 20x8 | 3 | 1,344 |
+| Exterior range drone rings and beacon ring | `EXTERIOR_TARGET_RANGE_APPROACH_METRES` (3 m), already declared for the lamps | 40x16 -> 40x12 | 9 | 2,880 |
+| Cinder cockpit control-stick gimbals | walk-up; `HeroShip._torus` now budgets as built, so craft assembled after the sweep match the resident hulls | 48x16 -> 32x12 | 3 | 2,304 |
+| Halyard defensive muzzle lenses | 2.5 m across the bow overhang from the midships deck | 24x12 -> 12x7 | 2 | 864 |
+| Opponent weapon telegraphs, lenses, blisters, beacons (`range_opponent.gd`) | 3 m: flight-only craft, budgeted at the range's own hull approach | 24x12 -> 12x7 / 16x9 | 18 | 5,200 |
+| Torrent recessed igniters / navigation light | walk-up; `_sphere` now budgets its bead | 24x12 -> 16x8 / 20x10 | 2 / 2 | 672 / 368 |
+
+Left at walk-up range on purpose, with the reason: the three dock mast
+collars (1.0 m up, beside a walkable mast), the garden column collars (the
+planting bed keeps a player 1.2 m off the axis but the lowest collar is 0.8 m
+from the eye), the catwalk ladder hoops (the lowest is 0.7 m above a standing
+eye), the Torrent's engine collars (2.2 m up on a hull a player walks
+around), the Bulwark's collars and lamps (walk-up answers already at 40x8 and
+24x12), the Aft rack-tray and exterior pipe clamps (0.55 m and walk-up), the
+big deck rings on the landing pad and freight apron (their tubes need 16
+segments even at 1.6 m), and the Jovian cargo-frame joints (their lower
+joints are at eye level in a walkable bay). The Arrow's 21,000 triangles of
+rings and beads were not touched: its builder is owned by another workstream.
+
+### The numbers
+
+| Bucket | Before | After | Delta |
+| --- | ---: | ---: | ---: |
+| `ShipyardWorld/FleetExpansionProductionBinding` | 194,714 | 179,738 | -14,976 |
+| `ShipyardWorld/AftJunctionStack` | 161,168 | 150,512 | -10,656 |
+| `JovianLightFreighter` | 167,594 | 157,016 | -10,578 |
+| `ShipyardWorld/HabitatSpine` | 209,990 | 202,022 | -7,968 |
+| `ShipyardWorld/GuideLensBatch{Red,Cyan,Orange,Neutral}` | 31,200 | 24,000 | -7,200 |
+| `ShipyardWorld/LandingPad` | 42,116 | 38,084 | -4,032 |
+| `ShipyardWorld/StationDefenseEncounter` | 70,342 | 67,014 | -3,328 |
+| `ShipyardWorld/JovianFreightBerth` | 64,852 | 61,780 | -3,072 |
+| `ShipyardWorld/ExteriorTargetRange` | 27,707 | 24,827 | -2,880 |
+| `ShipyardWorld/VipReceptionSuite` | 47,767 | 46,423 | -1,344 |
+| `TorrentInterceptor` | 158,600 | 157,560 | -1,040 |
+| `HalyardCrewTransport` | 150,748 | 149,884 | -864 |
+| `RangeOpponent` | 17,302 | 16,438 | -864 |
+| `StandoffPicket`, `WingSkirmisherLead`, `WingSkirmisherWing`, `CourierRunner` | 19,220 / 19,232 / 19,232 / 20,582 | 18,484 / 18,496 / 18,496 / 19,846 | -736 each |
+| **Whole scene** | **1,918,333** | **1,846,587** | **-71,746** |
+
+By mesh kind: `TorusMesh` 173,884 -> 128,956 across the same 192 instances
+(905 -> 671 each), `SphereMesh` 107,146 -> 80,328 across the same 226 (474 ->
+355). `ArrayMesh`, `TextMesh`, `BoxMesh`, `QuadMesh`, `CylinderMesh` and
+`CapsuleMesh` are identical. `tools/torus_census.gd` reports the live ring
+population at 242,816 authored -> 112,508 budgeted (53.7% cut); the standalone
+world subtree freezes at 87,520 triangles across the same 133 ordinary ring
+renderers in `torus_geometry_budget_test.gd` (was 111,584).
+
+`geometry_census_scenario_test.gd` on this branch prints, for the integrator
+to refreeze on `main` (its four triangle and fingerprint assertions fail with
+exactly these values; the other thirteen pass):
+
+```
+GEOMETRY_CENSUS_RESIDENT_FINGERPRINT: 12edd5e47fc7053e4754ff1b527dbc4dc5d3985b573619eb303cdfe5a6f72731
+GEOMETRY_CENSUS_RESIDENT_GEOMETRY: { "total_triangles": 1846587, "total_mesh_instances": 5557, "total_surfaces": 5953, "unique_meshes": 3058 }
+GEOMETRY_CENSUS_RESIDENT_RESOURCES: { "bound_phase_unique_materials": 693, "retained_reachable_unique_materials": 996, "lights": 341, "nodes": 10587, "unique_shaders": 7, "unique_textures": 34, "texture_bytes": 83355976, "particle_systems": 54 }
+GEOMETRY_CENSUS_LOADED_FINGERPRINT: a06fb2c14e2459edeb03ef9f6e861a233b6046ae19ce83bab048673242e35d27
+GEOMETRY_CENSUS_LOADED_GEOMETRY: { "total_triangles": 1980721, "total_mesh_instances": 5766, "total_surfaces": 6162, "unique_meshes": 3198 }
+GEOMETRY_CENSUS_LOADED_RESOURCES: { "bound_phase_unique_materials": 735, "retained_reachable_unique_materials": 1043, "lights": 368, "nodes": 11010, "unique_shaders": 7, "unique_textures": 34, "texture_bytes": 83355976, "particle_systems": 54 }
+```
+
+The loaded-minus-resident Cinder delta stays +134,134 triangles, +209
+renderers, +209 surfaces and +140 unique meshes: nothing streamed changed.
+
+### Rendered evidence
+
+At 1280x720 through `gl_compatibility` on the D3D12 device under Xvfb, from
+fifteen fixed gameplay viewpoints that look at trimmed stock at the range a
+player reads it from — the habitat service run and a valve walk-up, the
+garden column head ring, the nutrient tanks, the VIP servery stools, the dock
+mast collar with its lens, a safety-pylon guide lens, a landing-pad tie-down
+socket and a deck connector, a freight-berth lashing ring, the Jovian's
+hull-top fittings, a Cinder bomber nozzle lip, the Aft roof vents and a pod
+corner from the upper deck, and a range drone. Both sides come from this
+worktree: "before" with `scripts/` checked out from `de8d162d6`, "after" from
+the working state, and a same-build "after" repeat for the noise floor.
+Captures, 8x difference images and 3x side-by-side crops are under
+`/root/.cache/mudds-shipyards/agent-torus-trim/captures/{before,after,after2,diff,diff-samebuild,crops}`;
+the harness is `.godot/torus_trim_capture.gd` (untracked, modelled on
+`arrow_access_root.gd`).
+
+Per pair, mean and maximum absolute RGB difference (0-255) and the share of
+pixels whose largest channel moves by more than 8 and 32, before against
+after, with the same-build repeat's figure in brackets:
+
+| View | mean | max | >8 | >32 |
+| --- | ---: | ---: | ---: | ---: |
+| `habitat_pipe_collars` | 0.015 | 186 | 0.039% (0.000%) | 0.013% |
+| `habitat_isolation_valve_walkup` | 0.021 | 204 | 0.040% (0.000%) | 0.022% |
+| `garden_column_head_ring` | 0.020 | 84 | 0.063% (0.000%) | 0.012% |
+| `garden_nutrient_tanks` | 0.005 | 73 | 0.018% (0.000%) | 0.003% |
+| `vip_servery_stools` | 0.016 | 174 | 0.056% (0.000%) | 0.014% |
+| `dock_mast_collar_and_lens` | 0.871 | 237 | 4.759% (0.037%) | 1.930% |
+| `safety_pylon_guide_lens` | 0.115 | 255 | 0.237% (0.015%) | 0.115% |
+| `landing_pad_tie_down` | 1.390 | 207 | 3.833% (0.010%) | 2.077% |
+| `landing_pad_deck_connector` | 0.020 | 130 | 0.049% (0.000%) | 0.006% |
+| `freight_lashing_ring` | 0.040 | 54 | 0.054% (0.000%) | 0.002% |
+| `cinder_bomber_nozzle_lip` | 0.031 | 139 | 0.088% (0.009%) | 0.018% |
+| `aft_roof_vent_collars` | 0.179 | 211 | 0.502% (0.045%) | 0.134% |
+| `aft_pod_corner_collar` | 0.142 | 208 | 0.176% (0.001%) | 0.055% |
+| `jovian_nav_light_and_ribs` (`captures/{before,after,after}-jovian*`) | 0.043 | 255 | 0.062% (0.042%) | 0.043% |
+| `range_drone_rings` (drones parked; `captures/{before,after,after}-drones*`) | 1.728 | 255 | 2.943% (2.184%) | 1.322% |
+
+Two pairs stand well above their same-build floor and neither is
+tessellation. The dock-mast view's difference image is a broad red wash over
+the mast and deck — a pulsing guide light caught at a different phase,
+because the base and working builds reach the pause at different frame
+counts — plus the outline of a service vehicle further along its route; the
+mast collar itself is untrimmed. The tie-down view has the same red wash and
+a moving outline at the top of frame; the socket's own difference is a thin
+outline at its rim. The range drones drift on a time-based phase, so the
+first pass photographed them displaced; the harness now parks every target at
+its authored position before the pair is taken, and the row above is that
+parked pair.
+
+Direct inspection at 3x on the centre crops: the tie-down socket (32x14 ->
+20x12), the stool foot rings (32x12 -> 20x8), the lashing ring (32x8 ->
+20x8), the isolation valve (32x13 -> 20x12) and pipe collar (32x12 -> 16x8)
+on the service run, the column head ring (40x16 -> 28x12), the roof-vent
+collars and spine clamps from the upper deck, and the Cinder lip (96x16 ->
+40x12) are indistinguishable from the authored side; no silhouette reads as
+polygonal at 1:1 or at 3x. The one visible change is the pylon guide lens
+(24x12 -> 20x11), where at 3x a faint straightness can be found on the
+upper-left silhouette that is not there at 1:1; that lens is the closest
+approach of the whole family and sets its recipe, and it is left as the
+declared 1.0 m answer rather than backed off, since the same-build repeat's
+0.015% shows the 0.237% it moves is the lens itself and the crop shows what
+that amounts to. The Jovian's port navigation light (24x12 -> 12x7, about
+30 px across from the apron) likewise shows a faint twelve-sided outline at
+3x and none at 1:1, which is the twelve-meridian floor doing exactly what the
+freight berth's own lenses already do. Nothing else was backed off; the
+pod-corner declaration was
+*tightened* during the pass (from 2.36 m to the deck-flush 1.6 m) when the
+upper open deck was found to run along the pod wall.
+
+### Suites
+
+`tools/run_affected_suites.sh --jobs 3` over every `*census*`,
+`*silhouette*` and `*geometry_budget*` suite, `station_light_overlap_census_test`,
+`habitat_spine_*`, `vip_reception_*`, `aft_junction_*`, `jovian_freight_berth_*`,
+`shipyard_world_*`, the Jovian, Halyard, Bulwark, Cinder, hero and opponent
+suites, `combat_test`, `ship_fitout_batch_test`, `station_expansion_test`,
+`outbound_route_clearance_test`, `vertical_slice_test` and `smoke_test`: 184
+suites, all passing after the four frozen literals that moved with this pass
+were refrozen (`aft_junction_stack_test`, `halyard_crew_transport_test`,
+`jovian_freight_berth_test`, `torus_geometry_budget_test`; the Halyard one is
+what surfaced the odd-ring rule), except `geometry_census_scenario_test`,
+whose four triangle and fingerprint freezes fail with the values printed above
+and are the integrator's to refreeze. No `*roster*`, `*mesh_storage*`,
+`landing_pad_*`, `coplanar_seam_*` or `station_walkability_*` suite exists
+under those names; the freezes those globs were meant to reach live in the
+module suites above.
+
+### Why the remaining 46,587 is not here
+
+Stated plainly, because the item asked for 118,333 and this pass delivered
+71,746.
+
+After the pass, 128,956 triangles of `TorusMesh` and 80,328 of `SphereMesh`
+remain. Of those, the guide lenses (24,000) are at the range their closest
+copy is actually seen from; the drone and beacon rings (9,600) and the
+lamps (4,608) are at the range's declared approach; and about 80,000 sit on
+stock a player walks up to — the pad and apron deck rings, the dock-mast and
+garden column collars, the ladder hoops, the Torrent's engine collars and
+gear beads, the Jovian's cargo-frame joints, the Aft plot-table rings and
+clamps — where the recipe is already the photographed floor and the only
+way to take more is to lower a floor that has photographs behind it or the
+0.0021 rad tolerance every budget in this project shares. This pass, like the
+hero/opponent pass before it, is not willing to do that. The Arrow's 21,000
+are owned by another workstream. The remaining headroom is where that pass
+left it: the imported hero art (the Torrent's 100,098, the Zenith's 52,686)
+and the pilot suit, through their own generators and their own rendered
+review.
+
+This is a scene-content measurement plus a rendered-composition check. It is
+not a frame-time, GPU-time or VRAM claim, and the software/remote-display
+caveats at the top of this document still apply. **No ceiling in this
+document has been raised, and the 1,800,000 triangle ceiling is not met.**
