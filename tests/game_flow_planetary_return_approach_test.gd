@@ -444,8 +444,10 @@ func _run() -> void:
 		bool(target_result.get("accepted", false))
 			and target.get("home_target_id") == &"mudds_shipyards"
 			and target.get("home_target_world_transform") == home_transform
-			and (target.get("corridor_half_extents_m") as Vector3).z == 750_000.0
-			and float(target.get("brake_shell_max_distance_m", 0.0)) == 65_000.0
+			and (target.get("corridor_half_extents_m") as Vector3).z \
+				== PlanetaryCruisePhysicalController.CLEARANCE_PROOF_HORIZON_METERS
+			and float(target.get("brake_shell_max_distance_m", 0.0)) \
+				== PlanetaryCruisePolicy.RETURN_BRAKE_SHELL_MAXIMUM_METERS
 			and exact_hulls,
 		"the station owner and all nine live hull owners supply the detached route proof",
 	)

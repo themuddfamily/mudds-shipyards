@@ -1392,7 +1392,13 @@ func adopt_committed_origin_rebase(
 		return _finish(false, rejection)
 	if expected_location_generation != _location_generation:
 		return _finish(false, &"stale_location_generation")
-	if _phase < Phase.ORBIT_APPROACH or _phase > Phase.ORBIT_RETURN:
+	# An attached, idle Host is bound to the streamed world while the craft is
+	# still flying the last ~200 km of its cruise, and that cruise crosses the
+	# 10 km origin-shift threshold many times before the approach hands off.
+	# Each committed rebase moves the landing root with the rest of the common
+	# world, so the idle Host adopts it exactly as a started loop does; only a
+	# terminal Host has nothing to keep current.
+	if _phase > Phase.ORBIT_RETURN or (_phase == Phase.IDLE and not _attached):
 		return _finish(false, &"origin_adoption_out_of_order")
 	var validation := _validate_committed_origin_receipt(receipt)
 	if not bool(validation.get("accepted", false)):

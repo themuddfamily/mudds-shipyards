@@ -69,14 +69,14 @@ The HUD receives presentation only. Its exact detached state vocabulary is
 `BRAKING TO SPEED`, `BRAKING`, or `UNAVAILABLE — <bounded public gate>`.
 Internal controller, proof, generation, and transaction reasons are not shown.
 The fixed destination remains Ember's canonical navigation anchor; this slice
-adds no destination selection, return target, surface transition, movement,
-sampling, policy, or origin authority. Whole-`Main` re-entry retains the same
-HUD and binding identities but never restores an engagement: a fresh player
-request is required.
+adds no destination selection or origin authority. Whole-`Main` re-entry
+retains the same HUD and binding identities and never restores an engagement
+by itself; the retained coordinator re-requests a transit leg it still owns
+(see "Transit ownership").
 
 The binding owns exactly one stable `PlanetaryCruisePhysicalController` child.
 The controller asks `HeroShip` for its current fixed-orientation, full-hull
-750 km swept-clearance proof, evaluates the existing pure policy, and submits a
+1,250 km swept-clearance proof, evaluates the existing pure policy, and submits a
 detached envelope. One monotonic GameFlow caller-tick serial prevents duplicate
 or replayed cadence. Reaching the maximum safe integer retires the request and
 never wraps or reuses `MAX`; binding generations reject engagement at `MAX-1`
@@ -108,6 +108,82 @@ snapshot/audit paths.
 Whole-`Main` detach retires any request and all pending envelopes. Re-entry
 preserves the same binding/controller identities and creates no duplicate; a
 new explicit engage is required.
+
+## Transit ownership: flying the legs
+
+The binding is also the production movement owner for the outbound Ember leg.
+An engagement may carry one *transit leg* (`request_engage(..., transit_leg)`):
+`ember_outbound`. A legacy engagement with no leg behaves exactly as before,
+and the Mudds return approach still uses that legacy engagement. With a leg, every caller tick
+hands the controller one detached *guidance* record alongside the destination:
+
+- **Cruise mode** (far from the approach point): the existing long-leg policy,
+  plus an attitude the hull should face (the heading). The policy's
+  `attitude_authority` observation key turns a refused alignment into the
+  `transit_aligning` state — participation held at the current speed while the
+  controller slews the hull at `TRANSIT_ATTITUDE_TURN_RATE` and carries the
+  velocity through the same rotation — so a craft launched off its berth turns
+  onto the leg by itself instead of the pilot having to aim it.
+- **Approach mode** (an approach point inside the activation distance, or an
+  armed target the long leg can no longer engage): the same pure policy's
+  short-leg profile, selected by a positive `approach_speed_limit` observation
+  key. Speed follows `min(limit, sqrt(2·8,000·d))` toward the point, brakes to
+  rest inside the 40 m terminal distance and then holds at zero speed so the
+  attitude slew can finish; the existing entry/shell measurement then accepts
+  the arrival exactly as before. Because `HeroShip` re-evaluates the policy on
+  every envelope, both modes are pure functions of the observation.
+- **Attitude**: the controller submits one `submit_planetary_cruise_attitude()`
+  command per envelope; `HeroShip` applies the bounded slew in its own physics
+  tick and discards it with the envelope. Any manual flight command still
+  retires the cruise, which is how the pilot takes the craft back.
+
+One transit tuning set lives in `PlanetaryCruisePolicy`
+(`ember_eight_megameter_transit_v2`): 90 km/s cruise, 10 km/s² acceleration
+and braking, 0.5 s brake response, 25 km fixed margin, a 1,250 km clearance
+horizon in the controller. An 8,000 km leg is ~98 s of simulated flight; the
+minimum engage distance (braking envelope plus acceleration distance) is
+880 km, inside the swept horizon. `GameFlow` derives the Mudds return corridor
+length and brake shell (25–70 km) from the same constants.
+
+**Rebases.** A committed common-world rebase is a coordinate change, not a
+disengage. `PlanetaryJourneyCoordinator` announces each commit to the binding
+(`accept_committed_origin_rebase(receipt)`), which re-expresses its frozen
+transforms — the armed target through the controller's
+`translate_approach_target()`, the return home target, the landing-root drift
+snapshot — and the next caller tick carries the attachment into
+generation N+1 through `controller.rebind_coordinate_frame()` /
+`HeroShip.retarget_planetary_cruise_coordinate_frame()`: same attachment, same
+velocity, same participation, fresh proof in the new frame. An 8,000 km leg
+crosses its ~750–800 ten-kilometre rebases without ever losing the cruise. A
+frame that moves under an armed target *without* that announcement still
+fails closed (`final_approach_rebase_aborted`). An attached, idle
+`EmberSurfaceLoopHost` adopts the same commits so its frame fence stays
+current while the craft flies the last ~200 km to the armed approach.
+
+**Outbound route.** `begin_ember_surface_journey()` engages `ember_outbound`.
+The long leg cruises at the anchor; its brake-shell decision is the planned
+standoff stop 70 km short of the navigation anchor, flown attached
+(`transit_standoff_braking_submitted`) rather than released. Ember has streamed
+in by then, the Host binds, the pending expedition forwards and arms the
+final approach; the approach profile then flies the ~80 km into the authored
+corridor entry, the existing arrival measurement completes it and the surface
+Host takes over. Whenever the cruise is released while the expedition is
+still wanted — a manual command, an obstacle, a whole-`Main` re-entry — the
+coordinator asks for the leg again on the next clean tick
+(`_resume_ember_outbound_transit()`); a pilot holding the controls keeps
+them and releasing them resumes the leg. A whole-`Main` re-entry mid-leg is
+the safe abort: the pending expedition is cancelled with the rest of the
+retained state, nothing re-engages by itself, and the pilot has the craft under
+manual control where they are until they open a fresh expedition.
+
+**Return leg.** Not flown yet. The return approach is armed exactly as before
+(a legacy engagement with the brake-complete shell, now derived from the
+transit tuning), so a craft cruising home under manual alignment still gets the
+existing shell completion and yard handoff; a climb-out out of the caldera and
+yard legs into the registered berth were prototyped and removed unproven
+(`EMBER_LOOP_SOAK.md`, "Remaining gaps"). `GameFlow.get_planetary_transit_progress()`
+exposes the outbound leg's mode, distance to the current point and speed for
+presentation.
 
 ## Authority boundary
 

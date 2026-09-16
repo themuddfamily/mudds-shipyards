@@ -9,8 +9,15 @@ extends Node3D
 ## load/unload lifecycle. It has no automatic engine callback.
 
 ## The largest residual this root will silently re-express away after a committed
-## common-world translation. It is a rounding allowance, not a correction budget.
+## common-world translation. It is a rounding allowance, not a correction budget:
+## an absolute centimetre near the origin, and 2^-20 of the magnitudes involved
+## (about sixteen float32 ulps) once the body sits thousands of kilometres from
+## streaming zero, where a single `position += delta` in single precision already
+## rounds by half a metre. Without the relative term the ~400th rebase of a
+## transit leg left the root a few metres off and every later commit was
+## refused as `bootstrap_alignment_invalid`.
 const ORIGIN_TRANSLATION_ROUNDING_TOLERANCE_M := 0.01
+const ORIGIN_TRANSLATION_ROUNDING_RELATIVE := 1.0 / 1048576.0
 
 const SCHEMA_VERSION := 1
 const LOCATION_ID: StringName = &"ember_moon"
@@ -725,8 +732,14 @@ func notify_common_world_translation(
 	if not bool(expected.get("accepted", false)):
 		return
 	var exact := expected.get("position", Vector3.INF) as Vector3
-	if not exact.is_finite() \
-			or position.distance_to(exact) > ORIGIN_TRANSLATION_ROUNDING_TOLERANCE_M:
+	if not exact.is_finite():
+		return
+	var tolerance := maxf(
+		ORIGIN_TRANSLATION_ROUNDING_TOLERANCE_M,
+		maxf(maxf(exact.length(), position.length()), delta.length())
+			* ORIGIN_TRANSLATION_ROUNDING_RELATIVE
+	)
+	if position.distance_to(exact) > tolerance:
 		return
 	position = exact
 

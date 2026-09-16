@@ -103,11 +103,17 @@ observation binding, and one `CommonWorldOriginRebaseOwner`. The owner consumes
 the binding's detached preview, translates the common live spatial roster, and
 commits the coordinate frame; it does not grant travel, landing, or gameplay
 authority. The newer Ember surface-loop host remains a standalone focused proof
-with no production GameFlow/activity selection or handoff. Also deferred are
-production motion and travel handoff, TravelSession streaming-generation
-binding, landing selection/authority, global terrain/LOD/collision, production
-actor staging, persistence/networking, and production performance/render
-validation. These foundations do not by themselves make Ember visitable.
+with no production GameFlow/activity selection or handoff. Production motion
+for the outbound leg now exists: `PlanetaryCruiseProductionBinding` carries the
+`ember_outbound` transit leg from the yard through every 10 km rebase into the
+authored corridor entry (`PLANETARY_CRUISE_PRODUCTION_BINDING.md`, "Transit
+ownership"); this bootstrap's part in it is the relative rounding allowance
+its `notify_common_world_translation()` seam applies, since a body thousands
+of kilometres from streaming zero rounds by half a metre per single-precision
+translation. Still deferred are the flown return leg (armed, not flown — see
+`EMBER_LOOP_SOAK.md`), TravelSession streaming-generation binding, global
+terrain/LOD/collision, production actor staging, persistence/networking, and
+production performance/render validation.
 
 Focused verification covers exact cells and detachment, canonical rejection,
 the required initial rebase, both inclusive distance boundaries, coordinator

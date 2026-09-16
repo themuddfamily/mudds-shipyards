@@ -23,6 +23,13 @@ const DESTINATION_RESOURCE_PATH := "res://assets/world/locations/ember_moon.tres
 const _ControllerType := preload(
 	"res://scripts/control/planetary_cruise_physical_controller.gd"
 )
+const _PolicyType := preload("res://scripts/world/planetary_cruise_policy.gd")
+## The transit leg this binding can carry under the cruise controller's
+## authority: `ember_outbound` cruises to the canonical anchor and flies the
+## armed final approach into the caldera corridor. An empty leg is the
+## historical behaviour (the Mudds return approach still uses it).
+const TRANSIT_LEG_EMBER_OUTBOUND: StringName = &"ember_outbound"
+const TRANSIT_LEGS := [TRANSIT_LEG_EMBER_OUTBOUND]
 const _EMBER_LOCATION := preload(DESTINATION_RESOURCE_PATH)
 const _SAMPLE_KEYS := [
 	"actor_instance_id",
@@ -75,6 +82,9 @@ var _final_approach_completion_consumed := false
 var _final_approach_completion_count := 0
 var _approach_kind: StringName = &""
 var _return_approach_home_target_transform := Transform3D.IDENTITY
+var _transit_leg: StringName = &""
+var _transit_progress: Dictionary = {}
+var _translated_frame_generation := 0
 var _mutation_active := false
 var _signal_dispatch_active := false
 
@@ -115,6 +125,9 @@ func _exit_tree() -> void:
 	_final_approach_completion_consumed = false
 	_approach_kind = &""
 	_return_approach_home_target_transform = Transform3D.IDENTITY
+	_transit_leg = &""
+	_transit_progress.clear()
+	_translated_frame_generation = 0
 	set_process(false)
 	set_physics_process(false)
 
@@ -122,17 +135,23 @@ func _exit_tree() -> void:
 ## Starts one explicit Ember-navigation cruise request. This records desired
 ## participation only after the exact live ship and current frame are bound.
 ## Policy and movement do not begin until the next accepted caller tick.
+## `transit_leg` (one of `TRANSIT_LEGS`, or empty) makes the binding carry the
+## whole leg under the controller's authority: per-tick guidance, attitude, the
+## standoff brake and the approach profile.
 func request_engage(
 		ship: HeroShip,
 		expected_coordinate_frame_generation: int,
 		production_gate_reason: StringName,
 		expected_generation: int,
+		transit_leg: StringName = &"",
 	) -> Dictionary:
 	var preflight := _mutation_preflight(expected_generation)
 	if not preflight.is_empty():
 		return _result(false, preflight)
 	if _engagement_requested:
 		return _result(false, &"already_engaged")
+	if not transit_leg.is_empty() and not TRANSIT_LEGS.has(transit_leg):
+		return _result(false, &"transit_leg_invalid")
 	# One further generation is reserved for the retirement of every accepted
 	# engagement. Accepting at MAX-1 would bind a live controller at MAX and make
 	# every later fail-closed release unrepresentable.
@@ -178,6 +197,9 @@ func request_engage(
 	_engaged_ship_ref = weakref(ship)
 	_engaged_ship_instance_id = ship.get_instance_id()
 	_bound_frame_generation = expected_coordinate_frame_generation
+	_transit_leg = transit_leg
+	_transit_progress.clear()
+	_translated_frame_generation = 0
 	_last_reason = &"engaged_for_next_physics_tick"
 	_generation = _next_generation(_generation)
 	_last_result = _result(true, _last_reason)
@@ -567,20 +589,17 @@ func physics_tick_from_caller_sample(
 	var ship_reason := _validate_engaged_ship(ship)
 	if not ship_reason.is_empty():
 		return _fail_tick_guarded(ship_reason, true)
-	if _final_approach_target_generation > 0:
-		if _approach_kind == _ControllerType.FINAL_APPROACH_KIND:
-			if expected_location_generation != _final_approach_location_generation:
-				return _fail_tick_guarded(&"location_generation_mismatch", true)
-			var target_source_reason := _final_approach_source_rejection()
-			if not target_source_reason.is_empty():
-				return _fail_tick_guarded(target_source_reason, true)
-		if expected_coordinate_frame_generation != _bound_frame_generation:
-			return _fail_tick_guarded(
-				&"return_approach_rebase_aborted" \
-					if _approach_kind == _ControllerType.RETURN_APPROACH_KIND \
-					else &"final_approach_rebase_aborted",
-				true,
-			)
+	if _final_approach_target_generation > 0 \
+			and expected_coordinate_frame_generation != _bound_frame_generation \
+			and _translated_frame_generation != expected_coordinate_frame_generation:
+		# A frame that moved under an armed target without the owning rebase
+		# transaction announcing its translation here still fails closed.
+		return _fail_tick_guarded(
+			&"return_approach_rebase_aborted" \
+				if _approach_kind == _ControllerType.RETURN_APPROACH_KIND \
+				else &"final_approach_rebase_aborted",
+			true,
+		)
 	if expected_coordinate_frame_generation != _frame.get_generation():
 		return _fail_tick_guarded(&"coordinate_frame_generation_mismatch", true)
 	var frame_binding := _ensure_current_frame_binding(
@@ -603,6 +622,13 @@ func physics_tick_from_caller_sample(
 			StringName(frame_binding.get("reason", &"frame_rebind_rejected")),
 			true,
 		)
+	if _final_approach_target_generation > 0 \
+			and _approach_kind == _ControllerType.FINAL_APPROACH_KIND:
+		if expected_location_generation != _final_approach_location_generation:
+			return _fail_tick_guarded(&"location_generation_mismatch", true)
+		var target_source_reason := _final_approach_source_rejection()
+		if not target_source_reason.is_empty():
+			return _fail_tick_guarded(target_source_reason, true)
 	var destination_world := _return_approach_home_target_transform.origin \
 		if _approach_kind == _ControllerType.RETURN_APPROACH_KIND \
 		else Vector3.INF
@@ -619,11 +645,13 @@ func physics_tick_from_caller_sample(
 		destination_world = destination.get("position", Vector3.INF) as Vector3
 	if not destination_world.is_finite():
 		return _fail_tick_guarded(&"destination_nonfinite", true)
+	var guidance := _transit_guidance(ship, destination_world)
 	var evaluation := _controller.evaluate_and_submit(
 		destination_world,
 		combat_active,
 		expected_coordinate_frame_generation,
 		_controller.get_generation(),
+		guidance,
 	)
 	if not bool(evaluation.get("accepted", false)):
 		return _fail_tick_guarded(
@@ -640,20 +668,37 @@ func physics_tick_from_caller_sample(
 		((_controller.get_snapshot().get("final_approach", {}) as Dictionary)
 			.get("state_id", &"none"))
 	)
+	var standoff_braking := false
 	if not bool(policy.get("desired_cruise_participation", false)) \
 			and final_state not in [&"final_approach", &"return_approach"]:
-		return _fail_tick_guarded(
-			StringName(policy.get("reason", &"policy_disengaged")),
-			true,
-			evaluation,
-		)
+		# On the outbound transit the long leg's brake-shell decision is the
+		# planned standoff stop short of the anchor, flown attached: the
+		# approach target arms behind the streamed moon and takes over from
+		# there. Every other refusal still releases the craft to its pilot.
+		# The stop arrives as `insufficient_verified_clearance` when the sweep is
+		# capped at the destination distance, or as `destination_braking_envelope`
+		# when it is not; both are the same brake-shell decision.
+		standoff_braking = _transit_leg == TRANSIT_LEG_EMBER_OUTBOUND \
+			and _final_approach_target_generation == 0 \
+			and StringName(policy.get("reason", &"")) in [
+				&"destination_braking_envelope", &"insufficient_verified_clearance",
+			] \
+			and bool(policy.get("braking_requested", false))
+		if not standoff_braking:
+			return _fail_tick_guarded(
+				StringName(policy.get("reason", &"policy_disengaged")),
+				true,
+				evaluation,
+			)
 	_accepted_tick_count += 1
 	_last_destination_world = destination_world
-	_last_reason = &"return_approach_braking_envelope_submitted" \
+	_record_transit_progress(evaluation, policy, final_state, standoff_braking)
+	_last_reason = &"transit_standoff_braking_submitted" if standoff_braking \
+		else (&"return_approach_braking_envelope_submitted" \
 		if final_state == &"return_approach" \
 		else (&"final_approach_envelope_submitted" \
 			if final_state == &"final_approach" \
-			else &"next_ship_physics_envelope_submitted")
+			else &"next_ship_physics_envelope_submitted"))
 	_last_result = _result(true, _last_reason, {
 		"caller_tick": caller_tick,
 		"coordinate_frame_generation": expected_coordinate_frame_generation,
@@ -674,6 +719,166 @@ func get_generation() -> int:
 
 func get_controller() -> PlanetaryCruisePhysicalController:
 	return _controller
+
+
+## Announces one committed common-world origin rebase to a live engagement,
+## before the caller tick that carries the exact target generation. Every
+## frozen world-space transform this binding or its controller holds (the
+## landing root drift snapshot, the return home target, the armed approach
+## target) is re-expressed by the same delta the owner
+## applied to the world; nothing here moves an actor or changes the frame.
+func accept_committed_origin_rebase(
+		receipt: Dictionary,
+		expected_generation: int,
+	) -> Dictionary:
+	var preflight := _mutation_preflight(expected_generation)
+	if not preflight.is_empty():
+		return _result(false, preflight)
+	if not _engagement_requested:
+		return _result(false, &"not_engaged")
+	if receipt.get("reason", &"") != &"rebase_committed" \
+			or not receipt.get("source_generation") is int \
+			or not receipt.get("target_generation") is int \
+			or not receipt.get("world_translation_delta") is Vector3:
+		return _result(false, &"origin_receipt_invalid")
+	var source_generation := int(receipt.source_generation)
+	var target_generation := int(receipt.target_generation)
+	var delta := receipt.world_translation_delta as Vector3
+	if not delta.is_finite():
+		return _result(false, &"origin_translation_nonfinite")
+	if source_generation != _bound_frame_generation \
+			or target_generation != source_generation + 1:
+		return _result(false, &"origin_receipt_generation_mismatch")
+	if _translated_frame_generation == target_generation:
+		return _result(true, &"origin_translation_already_accepted")
+	_mutation_active = true
+	if _final_approach_target_generation > 0 and _controller_is_valid():
+		var translated := _controller.translate_approach_target(
+			delta, _final_approach_target_generation, _controller.get_generation()
+		)
+		if not bool(translated.get("accepted", false)):
+			_mutation_active = false
+			return _result(false, StringName(
+				translated.get("reason", &"approach_target_translation_rejected")
+			))
+	_final_approach_landing_root_transform.origin += delta
+	_return_approach_home_target_transform.origin += delta
+	_translated_frame_generation = target_generation
+	_mutation_active = false
+	return _result(true, &"origin_translation_accepted", {
+		"target_generation": target_generation,
+		"world_translation_delta": delta,
+	})
+
+
+func get_transit_progress() -> Dictionary:
+	return _transit_progress.duplicate(true)
+
+
+## The approach profile can bring the craft to rest from its current speed in
+## this distance, plus the activation lead; an armed target inside it takes
+## over from the long leg. A craft that is not participating in the long leg
+## (at rest at the standoff, or braking) cannot engage the long leg inside its
+## minimum engage distance, so the approach takes over there unconditionally.
+static func _approach_activation_distance(
+		speed: float, participating: bool
+	) -> float:
+	var stopping := speed * speed \
+		/ (2.0 * _PolicyType.APPROACH_PROFILE_DECELERATION_METERS_PER_SECOND_SQUARED) \
+		+ speed * _PolicyType.APPROACH_ACTIVATION_LEAD_SECONDS
+	if participating:
+		return stopping
+	var target_envelope := _PolicyType.TARGET_CRUISE_SPEED_METERS_PER_SECOND \
+		* _PolicyType.TARGET_CRUISE_SPEED_METERS_PER_SECOND \
+		/ (2.0 * _PolicyType.BRAKING_HINT_METERS_PER_SECOND_SQUARED) \
+		+ _PolicyType.TARGET_CRUISE_SPEED_METERS_PER_SECOND \
+			* _PolicyType.BRAKE_RESPONSE_SECONDS \
+		+ _PolicyType.BRAKE_FIXED_MARGIN_METERS
+	var acceleration_distance := _PolicyType.TARGET_CRUISE_SPEED_METERS_PER_SECOND \
+		* _PolicyType.TARGET_CRUISE_SPEED_METERS_PER_SECOND \
+		/ (2.0 * _PolicyType.ACCELERATION_HINT_METERS_PER_SECOND_SQUARED)
+	return maxf(stopping, target_envelope + acceleration_distance)
+
+
+static func _heading_basis(direction: Vector3, current: Basis) -> Basis:
+	if not direction.is_finite() or direction.is_zero_approx():
+		return current.orthonormalized()
+	var forward := direction.normalized()
+	var up := current.y.normalized()
+	if absf(forward.dot(up)) > 0.98:
+		up = Vector3.UP if absf(forward.dot(Vector3.UP)) <= 0.98 else Vector3.RIGHT
+	return Basis.looking_at(forward, up)
+
+
+## One tick of transit guidance for the controller, from the leg this binding
+## carries and the controller's current approach state. Legacy engagements (no
+## leg) receive none and behave exactly as before.
+func _transit_guidance(ship: HeroShip, destination_world: Vector3) -> Dictionary:
+	if _transit_leg.is_empty():
+		return {}
+	var controller_snapshot := _safe_controller_snapshot()
+	var approach := controller_snapshot.get("final_approach", {}) as Dictionary
+	var state_id := StringName(approach.get("state_id", &"none"))
+	var target := approach.get("target", {}) as Dictionary
+	var ship_report := ship.get_planetary_cruise_attachment_report()
+	var participating := StringName(ship_report.get("state", &"")) in [
+		HeroShip.PLANETARY_CRUISE_STATE_ACCELERATING,
+		HeroShip.PLANETARY_CRUISE_STATE_CRUISING,
+		HeroShip.PLANETARY_CRUISE_STATE_BRAKING_TO_SPEED,
+	]
+	var speed := ship.velocity.length()
+	var position := ship.global_position
+	var guidance := {"attitude_authority": true}
+	match _transit_leg:
+		TRANSIT_LEG_EMBER_OUTBOUND:
+			if state_id in [&"armed", &"final_approach"] and not target.is_empty():
+				var entry := target.get("target_world_transform", Transform3D.IDENTITY) as Transform3D
+				var distance := position.distance_to(entry.origin)
+				if state_id == &"final_approach" or distance \
+						<= _approach_activation_distance(speed, participating):
+					guidance["approach_point_world"] = entry.origin
+					guidance["approach_speed_limit_meters_per_second"] = (
+						_PolicyType.APPROACH_SPEED_LIMIT_METERS_PER_SECOND
+					)
+					guidance["attitude_basis_world"] = entry.basis.orthonormalized()
+					guidance["activate_approach"] = state_id == &"armed"
+					return guidance
+			guidance["attitude_basis_world"] = _heading_basis(
+				destination_world - position, ship.global_basis
+			)
+			return guidance
+	return {}
+
+
+func _record_transit_progress(
+		evaluation: Dictionary,
+		policy: Dictionary,
+		final_state: StringName,
+		standoff_braking: bool,
+	) -> void:
+	if _transit_leg.is_empty():
+		_transit_progress.clear()
+		return
+	var guidance := evaluation.get("guidance", {}) as Dictionary
+	_transit_progress = {
+		"leg": _transit_leg,
+		"mode": &"approach" if guidance.has("approach_point_world") else &"cruise",
+		"approach_state": final_state,
+		"standoff_braking": standoff_braking,
+		"policy_state": StringName(policy.get("state", &"")),
+		"policy_reason": StringName(policy.get("reason", &"")),
+		"distance_to_point_meters": float(
+			evaluation.get("distance_to_destination_meters", 0.0)
+		),
+		"speed_meters_per_second": float(
+			(policy.get("observation", {}) as Dictionary).get(
+				"ship_speed_meters_per_second", 0.0
+			)
+		),
+		"desired_speed_meters_per_second": float(
+			policy.get("desired_speed_meters_per_second", 0.0)
+		),
+	}.duplicate(true)
 
 
 func get_snapshot() -> Dictionary:
@@ -720,6 +925,11 @@ func get_snapshot() -> Dictionary:
 			"completion_count": _final_approach_completion_count,
 			"completion_consumed": _final_approach_completion_consumed,
 			"completion_receipt": _final_approach_completion_receipt.duplicate(true),
+		}.duplicate(true),
+		"transit": {
+			"leg": _transit_leg,
+			"progress": _transit_progress.duplicate(true),
+			"translated_frame_generation": _translated_frame_generation,
 		}.duplicate(true),
 		"return_approach": {
 			"active": _approach_kind == _ControllerType.RETURN_APPROACH_KIND,
@@ -911,6 +1121,9 @@ func _complete_final_approach_guarded(
 	_engaged_ship_ref = null
 	_engaged_ship_instance_id = 0
 	_bound_frame_generation = 0
+	_transit_leg = &""
+	_transit_progress.clear()
+	_translated_frame_generation = 0
 	_retirement_count += 1
 	_final_approach_completion_count += 1
 	_generation = _next_generation(_generation)
@@ -1084,6 +1297,20 @@ func _ensure_current_frame_binding(
 		return {"accepted": false, "reason": &"ship_attachment_retired"}
 	if expected_coordinate_frame_generation != _bound_frame_generation + 1:
 		return {"accepted": false, "reason": &"coordinate_frame_generation_jump"}
+	# A committed rebase is a coordinate change, not a disengage: the attached
+	# controller and its armed target are carried into the new frame with the
+	# hull's cruise state intact, so an 8,000 km leg crosses its eight hundred
+	# 10 km rebases without ever losing participation. Only when the ship cannot
+	# be carried (no live attachment to retarget) does the historical
+	# release-and-rebind run, which starts the long leg's engagement afresh.
+	if bool(controller_snapshot.get("attached", false)):
+		var carried := _controller.rebind_coordinate_frame(
+			ship, expected_coordinate_frame_generation, _controller.get_generation()
+		)
+		if bool(carried.get("accepted", false)):
+			_bound_frame_generation = expected_coordinate_frame_generation
+			_rebind_count += 1
+			return {"accepted": true, "reason": &"frame_carried"}
 	var release := _release_controller(false)
 	if not bool(release.get("accepted", false)):
 		return release
@@ -1147,6 +1374,9 @@ func _retire_engagement_guarded(
 	_final_approach_target_generation = 0
 	_approach_kind = &""
 	_return_approach_home_target_transform = Transform3D.IDENTITY
+	_transit_leg = &""
+	_transit_progress.clear()
+	_translated_frame_generation = 0
 	_retirement_count += 1
 	_last_reason = reason
 	_generation = _next_generation(_generation)

@@ -38,15 +38,24 @@ descent and caldera touchdown through the real `EmberSurfaceBerth` lease and
 staging route walked with held movement actions on live terrain support; the
 walk back to the real `ShipBoardingArea` and a real `interact` at it.
 
-Staged, twice per cycle and counted as `staging_events`: the craft is held at
-Ember's canonical navigation anchor until the real cruise binding reports its
-final-approach target ACTIVE, then placed once at the authored corridor entry
-pose. Production has no owner that physically flies a craft the 8,000 km from
-the yard or the last 10 km into the corridor — `EMBER_MOON_ORBITAL_STREAMING.md`
-records that gap — so the suite plays exactly that missing owner and nothing
-else. Both placements reset the discontinuity tracker by name; every metre after
-them is produced by a production movement owner. This is the precedent
-`long_session_soak_test.gd` sets for the yard approach lane.
+Real as well, since the transit movement owner landed: the 8,000 km outbound
+leg itself. `PlanetaryCruiseProductionBinding` carries the `ember_outbound`
+transit leg (`PLANETARY_CRUISE_PRODUCTION_BINDING.md`, "Transit ownership"):
+it aligns the launched craft onto the leg, cruises it at the transit tuning's
+90 km/s through every 10 km common-world rebase without releasing the cruise,
+brakes it at the standoff short of the navigation anchor, and flies the armed
+final approach into the authored corridor entry, where the existing arrival
+measurement hands off to the surface Host. The harness writes no envelope,
+transform or landing request on that leg; it only advances physics and counts.
+
+Staged, once per cycle and counted as a `staging_event`: the 8,000 km flight
+home. After the production abandon commits, `_reset_for_next_cycle()` places
+the craft and pilot back at the yard. The return route is armed on the same
+transit machinery (`mudds_return`) but is not flown here: the abandon commits
+with the craft just off the caldera pad, inside the clearance envelope where
+the full-hull sweep toward home is obstructed, and no climb-out or yard-approach
+legs are in production yet (see "Remaining gaps"). The placement resets the
+discontinuity tracker by name.
 
 ## Where the loop stops
 
@@ -82,10 +91,9 @@ takeoff, and the abandon commits itself once the craft is physically off the pad
 Host back at `IDLE`, still attached, no terminal reason, caldera lease released,
 pilot flying, zero reward receipts.
 
-What the suite still stages is the 8,000 km flight home, exactly as it stages the
-8,000 km flight out (`EMBER_MOON_ORBITAL_STREAMING.md` records that production
-has no owner for either). `_reset_for_next_cycle()` releases the abandoned
-visit's live return approach and places the craft and pilot back at the yard.
+What the suite still stages is the 8,000 km flight home (the flight out is
+production, above). `_reset_for_next_cycle()` releases the abandoned visit's
+live return approach and places the craft and pilot back at the yard.
 Everything else in the reset is production: the expedition is ended by the
 production abandon, which leaves the retained Host attached and `IDLE` and
 retires the visit-scoped surface composition by itself. There is no longer a
@@ -322,9 +330,20 @@ opaquely (`last_external_rebase_rejection`).
 
 ## Remaining gaps (not fixed here)
 
-- **No owner flies the craft to Ember, into the corridor, or the 8,000 km home.**
-  The staged placements above and the staged return in `_reset_for_next_cycle()`
-  stand in for it.
+- **The 8,000 km flight home is still staged.** The outbound leg is flown by
+  the production movement owner (above, and `tests/ember_transit_movement_test.gd`
+  proves it on the Torrent from a real board and launch: pilot override and
+  resume, whole-`Main` save/re-entry resume, one rebase per 10 km, arrival in
+  the corridor and the existing landing). The return approach is armed on the
+  same `mudds_return` transit leg the moment the abandon commits, but the craft
+  is then just off the pad inside the caldera's clearance envelope, where the
+  full-hull sweep toward home finds terrain, so the leg cannot engage from
+  there. A climb-out waypoint leg, and yard-approach legs from the brake shell
+  through the launch gate into the registered berth's capture volume, were
+  prototyped and removed unproven; the registered Arrow berth sits behind the
+  port branch rails with no authored approach from the launch corridor, so its
+  last metres also stay the pilot's. `_reset_for_next_cycle()` stands in for
+  all of that.
 - **`ember_surface_loop_production_binding_test`'s recorded failure** ("real
   survey completion persists one GameFlow reward before the coordinator admits
   the authenticated route home"), reproduced on a clean tree at `e57a97e61`, no

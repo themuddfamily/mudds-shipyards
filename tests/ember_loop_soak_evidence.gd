@@ -15,18 +15,23 @@ extends SceneTree
 ## walks the authored surface route with real held movement actions, re-boards
 ## through the real `ShipBoardingArea`, takes off, ascends, and returns.
 ##
-## What the harness stages, and why. Production has no owner that physically
-## flies a craft the 8,000 km from the yard to Ember or the last 10 km from the
-## Ember navigation anchor into the authored caldera corridor —
-## `docs/EMBER_MOON_ORBITAL_STREAMING.md` records that gap ("Production still has
-## to bring the live Arrow physically into that volume with a separate movement
-## owner"). This suite plays exactly that missing owner and nothing else: it
-## holds the craft at the orbital anchor until the real cruise binding has armed
-## and activated its final-approach target, then places it once at the authored
-## corridor entry pose. Both placements are counted as `staging_events` and are
-## excluded from the discontinuity metric by name; every metre after them is
-## produced by production movement owners. This is the same precedent
-## `long_session_soak_test.gd` sets for the yard approach lane.
+## The outbound 8,000 km is flown by the production movement owner: the cruise
+## binding's `ember_outbound` transit leg (`PLANETARY_CRUISE_PRODUCTION_BINDING.md`,
+## "Transit ownership") aligns the craft, cruises it through every 10 km
+## common-world rebase, brakes it at the standoff, flies the armed approach into
+## the authored corridor entry and hands off to the surface Host. Nothing here
+## writes a cruise envelope, a transform or a landing request on that leg.
+##
+## What the harness still stages, and why: the 8,000 km flight home.
+## `_reset_for_next_cycle()` places the craft and pilot back at the yard after
+## the production abandon has committed. The production return route (climb-out,
+## the Mudds return approach, the launch-gate and berth-capture legs) exists and
+## is proven on the Torrent by `tests/ember_transit_movement_test.gd`; this
+## harness keeps the placement because the Arrow's registered `arrow_recon_berth`
+## sits behind the port branch rails with no authored approach corridor from the
+## launch gate, so its capture leg cannot be proven clear by the full-hull sweep
+## and the last metres remain the pilot's. That single placement is counted as a
+## `staging_event` and resets the discontinuity tracker by name.
 ##
 ## Per cycle this records and asserts:
 ##   * floating-origin rebase count and the largest single-tick world-position
@@ -51,7 +56,7 @@ extends SceneTree
 ##
 ## Environment:
 ##   KETH_EMBER_SOAK_CYCLES=N   cycle count (default 6).
-##   KETH_EMBER_SOAK_TRACE=1    per-tick trace of the staged orbital approach.
+##   KETH_EMBER_SOAK_TRACE=1    periodic trace of the production outbound leg.
 
 const MAIN_SCENE := preload("res://scenes/main.tscn")
 const Store := preload("res://scripts/persistence/user_data_store.gd")
@@ -62,15 +67,13 @@ const WARM_UP_CYCLES := 2
 const FRAME_BUDGET_GRACE := 30
 const PRESENTATION_SAMPLE_INTERVAL := 6
 
-## Staged standoff from Ember's canonical navigation anchor, and the held speed
-## that keeps the craft out of `HeroShip`'s braking deadband while the real
-## binding arms and activates its target.
-const ORBIT_STANDOFF_M := 500.0
-const ORBIT_HOLD_SPEED_MPS := 8.0
+## The production outbound leg: ~98 s of simulated flight at the transit tuning
+## plus the standoff, the streamed approach and the corridor handoff, with a
+## generous margin for the slower headless tick rate once Ember is resident.
+const OUTBOUND_TRANSIT_TICK_BUDGET := 16_000
 
 const LOCOMOTION_TICK_BUDGET := 240
 const DEPARTURE_TICK_BUDGET := 240
-const ORBIT_STAGE_TICK_BUDGET := 420
 const HANDOFF_TICK_BUDGET := 600
 const LANDING_TICK_BUDGET := 2400
 const DISEMBARK_TICK_BUDGET := 600
@@ -103,7 +106,7 @@ const RETURN_ROUTE_LEGS: Array = [
 ## A craft in cruise never exceeds the policy's target speed, so no honest
 ## physics tick can move an actor further than this in one step. Anything larger
 ## is a teleport, a rebase that was not accounted for, or a precision failure.
-const CRUISE_SPEED_LIMIT_MPS := 20_000.0
+const CRUISE_SPEED_LIMIT_MPS := PlanetaryCruisePolicy.TARGET_CRUISE_SPEED_METERS_PER_SECOND
 const TICK_STEP_LIMIT_M := CRUISE_SPEED_LIMIT_MPS / 60.0 + 1.0
 
 const FLIGHT_CONTROL_ACTIONS: Array[StringName] = [
@@ -454,33 +457,28 @@ func _run_cycle(
 		return
 
 	leg_started = Time.get_ticks_msec()
-	var activated := await _stage_orbital_approach(game, craft, cruise, sampler)
+	var outbound := await _fly_outbound(game, craft, cruise, host, sampler)
 	leg_msec["approach"] = Time.get_ticks_msec() - leg_started
+	var handed_off := bool(outbound.get("handed_off", false))
+	var approach_state := cruise.get_snapshot().get("final_approach", {}) as Dictionary
 	# Every cycle must get through, not just the first. A retained `Main` that
 	# only ever admitted one expedition per session was the repeat-visit defect
 	# this soak recorded; the production abandon closes each cycle in place, so a
 	# later cycle failing here is a hard failure like any other.
 	_check(
-		activated,
-		"cycle %d streams Ember, commits the common-world rebase and activates the real final approach"
-			% [cycle + 1]
-	)
-	if not activated:
-		_repeat_visit_handoff_stops += 1
-		stopped_at = &"final_approach_activation"
-		await _abort_journey(game, player)
-		_record_cycle(game, sampler, cycle, craft, notes, leg_msec, started_msec, stopped_at)
-		return
-
-	var handed_off := await _stage_corridor_entry(game, craft, host, sampler)
-	var approach_state := cruise.get_snapshot().get("final_approach", {}) as Dictionary
-	_check(
 		handed_off,
-		"cycle %d hands the completed final approach off to the surface Host (completions %d, host phase %d)"
+		"cycle %d flies the 8,000 km outbound leg under the production movement owner, through %d rebases, and hands the completed approach off to the surface Host (completions %d, host phase %d, %d ticks, cruise %s)"
 			% [
-				cycle + 1, int(approach_state.get("completion_count", 0)),
-				host.get_phase(),
+				cycle + 1, int(outbound.get("rebases", 0)),
+				int(approach_state.get("completion_count", 0)),
+				host.get_phase(), int(outbound.get("ticks", 0)),
+				cruise.get_snapshot().get("last_reason", &"?"),
 			]
+	)
+	_check(
+		int(outbound.get("rebases", 0)) >= int(outbound.get("expected_rebases_min", 1)),
+		"cycle %d commits one common-world rebase per 10 km of the outbound leg (%d for %.0f km)"
+			% [cycle + 1, int(outbound.get("rebases", 0)), float(outbound.get("leg_distance_m", 0.0)) / 1000.0]
 	)
 	if not handed_off:
 		_repeat_visit_handoff_stops += 1
@@ -685,141 +683,62 @@ func _launch(game: GameFlow, craft: HeroShip) -> bool:
 	return airborne
 
 
-## Holds the craft at Ember's canonical navigation anchor — the one production
-## staging this suite performs — until the real streaming binding has loaded the
-## authored moon, the real origin owner has committed the rebases it requires,
-## and the real cruise binding has armed *and* activated its final-approach
-## target. Nothing here writes a cruise envelope or a landing request.
-func _stage_orbital_approach(
+## The production outbound leg. Nothing here drives the craft: the cruise
+## binding's transit leg flies it and the coordinator re-arms the approach; this
+## only advances physics, samples every tick and reports the handoff.
+func _fly_outbound(
 		game: GameFlow,
 		craft: HeroShip,
 		cruise: PlanetaryCruiseProductionBinding,
+		host: EmberSurfaceLoopHost,
 		sampler: CycleSampler,
-	) -> bool:
+	) -> Dictionary:
 	var frame := game.ember_streaming_bootstrap.get_coordinate_frame_for_session()
 	var canonical := cruise.get_snapshot().get(
 		"canonical_destination_orbital", {}
 	) as Dictionary
-	_staging_events += 1
-	for _index in ORBIT_STAGE_TICK_BUDGET:
-		var decoded := frame.orbital_to_world_streaming_position(
-			canonical, frame.get_generation()
-		)
-		var navigation := decoded.get("position", Vector3.INF) as Vector3
-		if navigation.is_finite():
-			craft.global_position = navigation + Vector3.BACK * ORBIT_STANDOFF_M
-			craft.global_basis = Basis.IDENTITY
-			craft.velocity = (
-				navigation - craft.global_position
-			).normalized() * ORBIT_HOLD_SPEED_MPS
-			sampler.note_staging()
-		await physics_frame
-		var controller := (cruise.get_snapshot().get("controller", {}) as Dictionary)
-		var approach := controller.get("final_approach", {}) as Dictionary
-		if _trace and (_index < 30 or _index % 200 == 0):
-			var trace_snapshot := cruise.get_snapshot()
-			print("TRACE stage i=%d gate=%s phase=%d reason=%s engaged=%s fa=%d ctrl=%s ship=%s v=%.2f" % [
-				_index, game.call(&"_planetary_cruise_gate_reason", false), game.phase,
-				trace_snapshot.get("last_reason", &"?"),
-				trace_snapshot.get("engagement_requested", false),
-				int((trace_snapshot.get("final_approach", {}) as Dictionary).get("target_generation", 0)),
-				approach.get("state_id", &"?"), craft.global_position, craft.velocity.length(),
-			])
-			print("TRACE    rearm=%s framegen=%d nav=%s" % [
-				(game.get("_planetary_journey") as Object).get(
-					"_last_ember_final_approach_rearm_result"
-				),
-				frame.get_generation(), navigation,
-			])
-			var t := cruise.get_snapshot()
-			print("TRACE    now_frame=%d fa_gen=%d gen=%d retirements=%d rebinds=%d accepted=%d rejected=%d fwd=%s" % [
-				Engine.get_physics_frames(),
-				int((t.get("final_approach", {}) as Dictionary).get("target_generation", 0)),
-				int(t.get("generation", -1)), int(t.get("retirement_count", -1)),
-				int(t.get("rebind_count", -1)), int(t.get("accepted_tick_count", -1)),
-				int(t.get("rejected_tick_count", -1)),
-				game.get("_ember_surface_forward_count"),
-			])
-		if StringName(approach.get("state_id", &"")) == &"final_approach":
-			return true
-	var snapshot := cruise.get_snapshot()
-	push_error(
-		"EMBER_SOAK orbital staging exhausted: cruise_reason=%s engaged=%s fa=%s controller=%s journey_active=%s rearm=%s" % [
-			snapshot.get("last_reason", &"?"),
-			snapshot.get("engagement_requested", false),
-			snapshot.get("final_approach", {}),
-			(snapshot.get("controller", {}) as Dictionary).get("final_approach", {}),
-			game.get("_ember_surface_journey_active"),
-			(game.get("_planetary_journey") as Object).get(
-				"_last_ember_final_approach_rearm_result"
-			),
-		]
-	)
-	push_error("EMBER_SOAK orbital staging state: host_attached=%s host_phase=%d configured=%s pending=%s forward=%s loaded=%s location_gen=%s bound_gen=%s current_gen=%s" % [
-		game.ember_surface_loop_host.get_snapshot().get("attached", false),
-		game.ember_surface_loop_host.get_phase(),
-		game.ember_surface_loop_production_binding.is_configured(),
-		game.get("_pending_ember_surface_request"),
-		game.get("_last_ember_surface_forward_result"),
-		is_instance_valid(game.ember_streaming_bootstrap.get_loaded_instance()),
-		game.ember_streaming_bootstrap.get_snapshot().get("location_generation", -1),
-		game.ember_streaming_binding.get_snapshot().get("bound_coordinate_frame_generation", -1),
-		game.ember_streaming_binding.get_snapshot().get("current_coordinate_frame_generation", -1),
-	])
-	push_error("EMBER_SOAK orbital staging bind: %s" % [
-		game._ensure_ember_surface_loop_host_bound(true)
-	])
-	return false
-
-
-## The second and last staged placement: the authored corridor entry pose the
-## Host's own approach envelope is written against. The real cruise binding
-## measures its arrival on the next production tick and hands off to the Host.
-func _stage_corridor_entry(
-		game: GameFlow,
-		craft: HeroShip,
-		host: EmberSurfaceLoopHost,
-		sampler: CycleSampler,
-	) -> bool:
-	var loaded := game.ember_streaming_bootstrap.get_loaded_instance()
-	if not is_instance_valid(loaded):
-		return false
-	var region := loaded.get_node_or_null(^"LandingRegion") as Node3D
-	if not is_instance_valid(region):
-		return false
-	var corridor := (
-		(host.get_snapshot().get("approach_entry", {}) as Dictionary)
-			.get("envelope", {}) as Dictionary
-	).get("corridor_transform_region_local_m", Transform3D.IDENTITY) as Transform3D
-	_staging_events += 1
-	craft.global_transform = region.global_transform * corridor
-	craft.velocity = Vector3.ZERO
-	sampler.note_staging()
-	for _index in HANDOFF_TICK_BUDGET:
+	var anchor := frame.orbital_to_world_streaming_position(
+		canonical, frame.get_generation()
+	).get("position", Vector3.INF) as Vector3
+	var leg_distance_m := craft.global_position.distance_to(anchor) \
+		if anchor.is_finite() else 0.0
+	var rebases_before := sampler.rebase_count
+	var ticks := 0
+	var handed_off := false
+	for _index in OUTBOUND_TRANSIT_TICK_BUDGET:
 		await physics_frame
 		await process_frame
 		_sample(game, sampler)
-		if host.get_phase() > EmberSurfaceLoopHost.Phase.IDLE \
-				and host.get_phase() != EmberSurfaceLoopHost.Phase.FAILED:
-			return true
+		ticks += 1
+		if _trace and ticks % 300 == 0:
+			var report := craft.get_planetary_cruise_attachment_report()
+			print("TRACE outbound t=%d v=%.0f state=%s reason=%s cruise=%s progress=%s rebases=%d host=%d" % [
+				ticks, craft.velocity.length(), report.get("state"), report.get("reason"),
+				cruise.get_snapshot().get("last_reason"), cruise.get_transit_progress(),
+				sampler.rebase_count, host.get_phase(),
+			])
 		if host.get_phase() == EmberSurfaceLoopHost.Phase.FAILED:
-			return false
-	var binding := game.ember_surface_loop_production_binding \
-		as EmberSurfaceLoopProductionBinding
-	push_error("EMBER_SOAK corridor handoff stalled: host_phase=%d attached=%s handoff_ready=%s journey=%s binding_state=%d configured=%s binding_last=%s host_last=%s probe=%s cruise=%s" % [
-		host.get_phase(), host.is_attached(),
-		game.get("_ember_final_approach_handoff_ready"),
-		game.get("_ember_surface_journey_active"),
-		binding.get_state(), binding.is_configured(),
-		binding.get_caller_snapshot().get("last_result", {}),
-		host.get_snapshot().get("last_result", {}),
-		host.probe_approach_ready(
-			host.get_generation(), host.get_attachment_generation(),
-			host.get_coordinate_frame_generation(), host.get_location_generation()
-		).get("reason", &"?"),
-		(game.planetary_cruise_binding as PlanetaryCruiseProductionBinding).get_snapshot().get("final_approach", {}),
-	])
-	return false
+			break
+		if host.get_phase() > EmberSurfaceLoopHost.Phase.IDLE:
+			handed_off = true
+			break
+	if not handed_off:
+		push_error("EMBER_SOAK outbound transit stalled: cruise=%s transit=%s journey=%s pending=%s resume=%s rearm=%s host=%d ship=%s" % [
+			cruise.get_snapshot().get("last_reason", &"?"),
+			cruise.get_snapshot().get("transit", {}),
+			game.get("_ember_surface_journey_active"),
+			game.get("_pending_ember_surface_request"),
+			(game.get("_planetary_journey") as Object).get("_last_ember_outbound_resume_result"),
+			(game.get("_planetary_journey") as Object).get("_last_ember_final_approach_rearm_result"),
+			host.get_phase(), craft.get_planetary_cruise_attachment_report().get("reason"),
+		])
+	return {
+		"handed_off": handed_off,
+		"ticks": ticks,
+		"rebases": sampler.rebase_count - rebases_before,
+		"leg_distance_m": leg_distance_m,
+		"expected_rebases_min": int(floor(leg_distance_m / (10_000.0 + TICK_STEP_LIMIT_M))) - 2,
+	}
 
 
 ## Advances production physics until the Host reaches `phase`, sampling every
@@ -1596,10 +1515,10 @@ func _abort_journey(game: GameFlow, player: PlayerController) -> void:
 ##
 ## The expedition itself is ended by the production abandon, which leaves the
 ## retained Host attached and `IDLE` and retires the visit-scoped surface
-## composition. What remains here is the 8,000 km flight home, which production
-## has no owner for (`EMBER_MOON_ORBITAL_STREAMING.md`): the craft and pilot are
-## staged back to the yard exactly as the outbound legs are staged out, and the
-## abandoned visit's live return approach is released with them.
+## composition. What remains here is the 8,000 km flight home: the craft and
+## pilot are placed back at the yard (the one staging this harness still
+## performs — see the header for why the Arrow cannot yet fly its own last
+## metres), and the abandoned visit's live return route is released with them.
 func _reset_for_next_cycle(
 		game: GameFlow,
 		player: PlayerController,
@@ -1616,7 +1535,13 @@ func _reset_for_next_cycle(
 			await process_frame
 			if host.get_phase() == EmberSurfaceLoopHost.Phase.IDLE:
 				break
+	var journey: Object = game.get("_planetary_journey")
+	journey.set("_ember_return_transit_phase", &"")
+	journey.set("_ember_return_transit_flow", &"")
+	journey.set("_ember_abandon_return_arm_pending", false)
+	journey.set("_mudds_return_approach_active", false)
 	game.disengage_planetary_cruise(false)
+	_staging_events += 1
 	for _settle in 6:
 		await physics_frame
 		await process_frame

@@ -252,10 +252,19 @@ const EMBER_DESTINATION_ID: StringName = &"ember_moon"
 const EMBER_RELAY_SURVEY_ACTIVITY_ID: StringName = &"ember_beacon_survey"
 const EMBER_DESTINATION_ROUTE_ID: StringName = &"ember_surface_expedition"
 const MUDDS_RETURN_TARGET_ID: StringName = &"mudds_shipyards"
-const MUDDS_RETURN_CORRIDOR_HALF_LENGTH_METERS := 750_000.0
+## The return corridor is exactly the cruise controller's full-hull clearance
+## horizon, and the brake shell is the one the cruise policy's transit tuning
+## brings a craft to rest in (`PlanetaryCruisePolicy.RETURN_BRAKE_SHELL_*`).
+const MUDDS_RETURN_CORRIDOR_HALF_LENGTH_METERS := (
+	PlanetaryCruisePhysicalController.CLEARANCE_PROOF_HORIZON_METERS
+)
 const MUDDS_RETURN_CORRIDOR_MINIMUM_HALF_WIDTH_METERS := 100.0
-const MUDDS_RETURN_BRAKE_SHELL_MINIMUM_METERS := 25_000.0
-const MUDDS_RETURN_BRAKE_SHELL_MAXIMUM_METERS := 65_000.0
+const MUDDS_RETURN_BRAKE_SHELL_MINIMUM_METERS := (
+	PlanetaryCruisePolicy.RETURN_BRAKE_SHELL_MINIMUM_METERS
+)
+const MUDDS_RETURN_BRAKE_SHELL_MAXIMUM_METERS := (
+	PlanetaryCruisePolicy.RETURN_BRAKE_SHELL_MAXIMUM_METERS
+)
 const MUDDS_RETURN_MAXIMUM_SPEED_MPS := 12.0
 const MUDDS_RETURN_MAXIMUM_ATTITUDE_DEGREES := 12.0
 const MUDDS_RETURN_HULL_MARGIN_METERS := 0.05
@@ -16005,6 +16014,15 @@ func _detach_ember_surface_presentations() -> void:
 		_ember_surface_return_status_binding.call(&"detach")
 	if is_instance_valid(_ember_surface_loop_audio_composition):
 		_ember_surface_loop_audio_composition.call(&"detach")
+
+
+## Detached transit progress of the leg the cruise binding is carrying (empty
+## when no transit leg is engaged): leg, mode, distance to the current point,
+## speed and the approach state. Presentation only.
+func get_planetary_transit_progress() -> Dictionary:
+	if not is_instance_valid(planetary_cruise_binding):
+		return {}
+	return planetary_cruise_binding.get_transit_progress()
 
 
 func get_planetary_cruise_report() -> Dictionary:

@@ -155,7 +155,9 @@ func _return_target(ship: HeroShip) -> Dictionary:
 	return {
 		"home_target_id": &"mudds_shipyards_home",
 		"home_target_world_transform": Transform3D.IDENTITY,
-		"corridor_half_extents_m": Vector3(100.0, 100.0, 750_000.0),
+		"corridor_half_extents_m": Vector3(
+			100.0, 100.0, PlanetaryCruisePhysicalController.CLEARANCE_PROOF_HORIZON_METERS
+		),
 		"brake_shell_min_distance_m": 50.0,
 		"brake_shell_max_distance_m": 150.0,
 		"maximum_speed_mps": 12.0,
