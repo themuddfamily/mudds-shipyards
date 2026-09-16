@@ -344,9 +344,11 @@ other placements. The habitat's `BerthStowedCrate` (0.27 m stowage under a bunk,
 `habitat_spine.gd`) is domestic stowage rather than freight and is left alone.
 The station-operations cargo lines' thirteen `Crate*` boxes
 (`station_operations_activity_presentation_builder.gd`, 0.7–1.5 m palletised
-crates in `crate` / `crate_alt`) are the same object class; this commit leaves
-them as they are, and whether they are on the recipe is recorded in the entry
-that follows this one.
+crates in `crate` / `crate_alt`) are the same object class and are **not on
+this recipe yet**: that builder is a separate presentation family with its own
+frozen material rosters and three placements, and taking it onto
+`FreightCrateKit` is a bounded follow-up (thirteen `_box` calls, one helper,
+one more triplanar and census refreeze) that this pass does not claim.
 
 Measured on `main` on 2026-09-15 with the service-line/registry batches (−49) and
 the ship fitout batches (−96, then +2 for the protected Zenith wing shells) and the chase-lane station collision (+28 nodes) merged on top of the Habitat/Aft batches; the
