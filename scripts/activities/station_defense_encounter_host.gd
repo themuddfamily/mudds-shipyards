@@ -273,6 +273,13 @@ func reset(expected_generation: int) -> Dictionary:
 	return _forward_terminal(&"reset", expected_generation)
 
 
+## Resumes a failed run. The activity keeps the run's wave index and kill
+## ledger; this host only puts the retired roster back where a wave start
+## can reactivate it, exactly as a reset does.
+func recover(expected_generation: int) -> Dictionary:
+	return _forward_terminal(&"recover", expected_generation)
+
+
 ## Rebinds only the activity's observed protected handle after a public reset.
 ## Physical renewal and health remain on the caller-owned protected object.
 func renew_protected_asset_handle(
@@ -308,6 +315,15 @@ func renew_protected_asset_handle(
 	return _finish_mutation(
 		bool(result.get("accepted", false)),
 		StringName(result.get("reason", &"unknown"))
+	)
+
+
+## Cheap liveness for a per-physics-frame caller, so nothing has to build a
+## whole snapshot to find out whether there is an encounter to advance.
+func is_activity_active() -> bool:
+	return (
+		_activity != null
+		and _activity.get_state() == StationDefenseActivity.State.ACTIVE
 	)
 
 
@@ -487,6 +503,9 @@ func _forward_terminal(
 			result = _activity.abort(expected_generation)
 		&"reset":
 			result = _activity.reset(expected_generation)
+		&"recover":
+			result = _activity.recover(expected_generation)
+			_apply_pending_failure()
 		_:
 			result = {"accepted": false, "reason": &"unknown_operation"}
 	_publish_snapshot()
@@ -527,6 +546,7 @@ func _connect_activity_signals() -> void:
 	_activity.activity_failed.connect(_on_activity_terminal)
 	_activity.activity_aborted.connect(_on_activity_terminal)
 	_activity.activity_reset.connect(_on_activity_reset)
+	_activity.activity_recovered.connect(_on_activity_recovered)
 
 
 func _connect_resolver() -> void:
@@ -629,6 +649,25 @@ func _on_activity_terminal(_snapshot: Dictionary) -> void:
 func _on_activity_reset(_snapshot: Dictionary) -> void:
 	for key: String in _record_by_key:
 		var record := _record_by_key[key] as Dictionary
+		var entity := _entity_from_record(record)
+		if is_instance_valid(entity) and entity.is_active():
+			entity.deactivate()
+		record["state_id"] = &"registered"
+		record["activation_generation"] = 0
+	_last_observation_result.clear()
+	_pending_failure_reason = &""
+	_publish_snapshot()
+
+
+## A recovered run re-enters through the ordinary wave-start path, so every
+## retired record must be returned to `registered` first. Hostiles the
+## player already destroyed stay destroyed: the activity's own ledger keeps
+## them out of the resumed wave's active handles.
+func _on_activity_recovered(_snapshot: Dictionary) -> void:
+	for key: String in _record_by_key:
+		var record := _record_by_key[key] as Dictionary
+		if record.get("state_id", &"") != &"retired":
+			continue
 		var entity := _entity_from_record(record)
 		if is_instance_valid(entity) and entity.is_active():
 			entity.deactivate()

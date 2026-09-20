@@ -27,6 +27,22 @@ const PINCER_OUTER_HOSTILE_ID: StringName = &"perimeter_raider_gamma"
 const HEAVY_PICKET_TACTIC_ID: StringName = &"heavy_picket_reinforcement"
 const HEAVY_PICKET_WAVE_ID: StringName = &"heavy_picket_reinforcement"
 const HEAVY_PICKET_HOSTILE_ID: StringName = &"perimeter_heavy_picket"
+const APPROACH_HOSTILE_ID: StringName = &"perimeter_raider_alpha"
+## Which of this encounter's craft carries which of the opponent role
+## postures. Each posture is owned and run by RangeOpponent itself; this
+## content only says who takes which job while its wave is up, and it takes
+## the job away again the moment the wave or the run ends.
+const APPROACH_ROLE_TACTIC: StringName = RangeOpponent.ROLE_TACTIC_COVER_PEEK
+const PINCER_ROLE_TACTIC: StringName = RangeOpponent.ROLE_TACTIC_BRACKET_SQUEEZE
+## The lone survivor of the relief pair already trades formation for a core
+## rush. A survivor that has been hurt badly enough now breaks off first,
+## patches itself out of the fight, and comes back permanently damaged.
+const REVENGE_SURVIVOR_ROLE_TACTIC: StringName = RangeOpponent.ROLE_TACTIC_WITHDRAW_REPAIR
+const BRACKET_CLOSE_SIDE_SIGN := -1.0
+const BRACKET_OUTER_SIDE_SIGN := 1.0
+const ROLE_TACTIC_HOSTILE_IDS: Array[StringName] = [
+	APPROACH_HOSTILE_ID, PINCER_CLOSE_HOSTILE_ID, PINCER_OUTER_HOSTILE_ID,
+]
 const HEAVY_PICKET_SOURCE_ID := 2124
 const PINCER_CLOSE_PREFERRED_RANGE := 22.0
 const PINCER_OUTER_PREFERRED_RANGE := 74.0
@@ -164,6 +180,7 @@ var _hit_and_fade_elapsed_seconds := 0.0
 var _hit_and_fade_consumed := false
 var _hit_and_fade_trigger_event_id: StringName = &""
 var _network_presentation_only := false
+var _wave_role_tactic_applied := false
 
 
 func _enter_tree() -> void:
@@ -371,6 +388,10 @@ func get_live_source_registration_contract() -> Dictionary:
 	}.duplicate(true)
 
 
+func is_encounter_active() -> bool:
+	return _initialized and is_instance_valid(_host) and _host.is_activity_active()
+
+
 func get_generation() -> int:
 	return _host.get_generation() if is_instance_valid(_host) else 0
 
@@ -459,9 +480,9 @@ func advance_physics(delta: float, expected_generation: int) -> Dictionary:
 				HIT_AND_FADE_DURATION_SECONDS,
 				_hit_and_fade_elapsed_seconds + delta
 			)
-		_sync_later_wave_tactic(
-			_host.get_snapshot().get("activity", {}) as Dictionary
-		)
+		var advanced_activity := _host.get_snapshot().get("activity", {}) as Dictionary
+		_sync_later_wave_tactic(advanced_activity)
+		_sync_wave_role_tactics(advanced_activity)
 		_publish_snapshot()
 	return result
 
@@ -504,6 +525,33 @@ func abort(expected_generation: int) -> Dictionary:
 	if not _initialized:
 		return _content_result(false, &"content_not_ready")
 	return _host.abort(expected_generation)
+
+
+## Resumes a failed run at the wave it died on. The roster, the protected
+## object and every combat source this content already owns are reused; a
+## recovery never re-acquires or duplicates a live source.
+func recover(expected_generation: int) -> Dictionary:
+	if _content_mutation_active:
+		return _content_result(false, &"reentrant_call")
+	if not _initialized:
+		return _content_result(false, &"content_not_ready")
+	if not _live_pose_matches_audited_site():
+		return _content_result(false, &"audited_world_pose_required")
+	if not is_instance_valid(_protected_asset) \
+		or bool(_protected_asset.get_snapshot().get("destroyed", true)):
+		return _content_result(false, &"protected_asset_unavailable")
+	_content_mutation_active = true
+	var source_errors := PackedStringArray()
+	_wire_hostile_combat(source_errors)
+	if not source_errors.is_empty():
+		_content_mutation_active = false
+		_flush_publish()
+		return _content_result(false, &"hostile_combat_wiring_failed")
+	_last_leash_exit.clear()
+	var result := _host.recover(expected_generation)
+	_content_mutation_active = false
+	_flush_publish()
+	return result
 
 
 func reset(expected_generation: int) -> Dictionary:
@@ -733,6 +781,7 @@ func get_snapshot() -> Dictionary:
 		"breaker_feint": breaker_feint_feedback,
 		"hit_and_fade": hit_and_fade_feedback,
 		"heavy_picket_reinforcement": heavy_picket_feedback,
+		"wave_role_tactics": _get_wave_role_tactic_feedback(),
 		"protected_asset_integrity": integrity_feedback,
 		"engagement": {
 			"required_world_transform": AUDITED_WORLD_TRANSFORM,
@@ -1183,6 +1232,109 @@ func _sync_later_wave_tactic(activity: Dictionary) -> void:
 		_hit_and_fade_state = &"interrupted"
 	_breaker_feint_state = &"interrupted"
 	_later_wave_tactic_state = &"broken"
+
+
+## Hands each live wave its role posture and takes it back when the wave or
+## the run ends. RangeOpponent owns every posture's state machine, steering,
+## telegraph and fire decision; nothing is duplicated here.
+func _sync_wave_role_tactics(activity: Dictionary) -> void:
+	var state_id := StringName(activity.get("state_id", &"idle"))
+	if state_id != &"active" or not bool(activity.get("wave_active", false)):
+		_clear_wave_role_tactics()
+		return
+	var active_ids: Array[StringName] = []
+	for handle: Dictionary in activity.get("active_hostile_handles", []) as Array:
+		active_ids.append(StringName(handle.get("hostile_id", &"")))
+	var applied := false
+	if APPROACH_HOSTILE_ID in active_ids:
+		var approach := _get_tactic_entity(APPROACH_HOSTILE_ID)
+		if is_instance_valid(approach) and approach.is_active():
+			applied = bool(approach.configure_role_tactic(
+				APPROACH_ROLE_TACTIC
+			).get("accepted", false)) or applied
+	# The authored breaker/feint opening and the beacon-hit peel own the relief
+	# pair's lanes while they run. The bracket is the *sustained* pincer, and
+	# the withdrawal is what the lone survivor does once it is badly hurt.
+	if _later_wave_tactic_mode == &"pincer":
+		var close_entity := _get_tactic_entity(PINCER_CLOSE_HOSTILE_ID)
+		var outer_entity := _get_tactic_entity(PINCER_OUTER_HOSTILE_ID)
+		if (
+			is_instance_valid(close_entity) and close_entity.is_active()
+			and is_instance_valid(outer_entity) and outer_entity.is_active()
+		):
+			applied = bool(close_entity.configure_role_tactic(
+				PINCER_ROLE_TACTIC,
+				{"side_sign": BRACKET_CLOSE_SIDE_SIGN, "partner": outer_entity}
+			).get("accepted", false)) or applied
+			applied = bool(outer_entity.configure_role_tactic(
+				PINCER_ROLE_TACTIC,
+				{"side_sign": BRACKET_OUTER_SIDE_SIGN, "partner": close_entity}
+			).get("accepted", false)) or applied
+	elif _later_wave_tactic_mode == &"revenge_dive":
+		for hostile_id in [PINCER_CLOSE_HOSTILE_ID, PINCER_OUTER_HOSTILE_ID]:
+			var survivor := _get_tactic_entity(hostile_id)
+			if not is_instance_valid(survivor):
+				continue
+			if survivor.is_active() and hostile_id in active_ids:
+				applied = bool(survivor.configure_role_tactic(
+					REVENGE_SURVIVOR_ROLE_TACTIC
+				).get("accepted", false)) or applied
+			else:
+				survivor.configure_role_tactic(RangeOpponent.ROLE_TACTIC_NONE)
+	else:
+		_clear_pincer_role_tactics()
+	_wave_role_tactic_applied = _wave_role_tactic_applied or applied
+
+
+func _clear_pincer_role_tactics() -> void:
+	for hostile_id in [PINCER_CLOSE_HOSTILE_ID, PINCER_OUTER_HOSTILE_ID]:
+		var entity := _get_tactic_entity(hostile_id)
+		if is_instance_valid(entity):
+			entity.configure_role_tactic(RangeOpponent.ROLE_TACTIC_NONE)
+
+
+func _clear_wave_role_tactics() -> void:
+	if not _wave_role_tactic_applied:
+		return
+	for hostile_id in ROLE_TACTIC_HOSTILE_IDS:
+		var entity := _get_tactic_entity(hostile_id)
+		if is_instance_valid(entity):
+			entity.configure_role_tactic(RangeOpponent.ROLE_TACTIC_NONE)
+	_wave_role_tactic_applied = false
+
+
+func _get_wave_role_tactic_feedback() -> Dictionary:
+	var tactics: Dictionary = {}
+	for hostile_id in ROLE_TACTIC_HOSTILE_IDS:
+		var entity := _get_tactic_entity(hostile_id)
+		if not is_instance_valid(entity):
+			continue
+		var posture := entity.get_role_tactic_snapshot()
+		tactics[String(hostile_id)] = {
+			"tactic_id": posture.get("tactic_id", &"none"),
+			"state_id": posture.get("state_id", &"idle"),
+			"telegraph_id": posture.get("pre_discharge_telegraph_id", &""),
+			"telegraph_scale_multipliers": posture.get(
+				"pre_discharge_scale_multipliers", PackedFloat32Array()
+			),
+			"countered": bool(posture.get("countered", false)),
+			"counter_reason": posture.get("counter_reason", &""),
+			"suppresses_fire": bool(posture.get("suppresses_fire", false)),
+			"active": entity.is_active(),
+		}
+	return {
+		"applied": _wave_role_tactic_applied,
+		"assignment": {
+			String(APPROACH_HOSTILE_ID): APPROACH_ROLE_TACTIC,
+			String(PINCER_CLOSE_HOSTILE_ID): PINCER_ROLE_TACTIC,
+			String(PINCER_OUTER_HOSTILE_ID): PINCER_ROLE_TACTIC,
+			"relief_survivor": REVENGE_SURVIVOR_ROLE_TACTIC,
+		},
+		"tactics": tactics,
+		"opponent_owns_state_machine": true,
+		"adds_hud_element": false,
+		"combat_authority": false,
+	}.duplicate(true)
 
 
 func _apply_later_wave_tactic_configuration() -> void:
@@ -2283,6 +2435,7 @@ func _detached_shot_result(result: Dictionary) -> Dictionary:
 func _on_host_snapshot_changed(host_snapshot: Dictionary) -> void:
 	var activity := host_snapshot.get("activity", {}) as Dictionary
 	_sync_later_wave_tactic(activity)
+	_sync_wave_role_tactics(activity)
 	if is_instance_valid(_protected_asset):
 		_protected_asset.apply_activity_presentation_snapshot(activity)
 		_apply_active_hostile_bearing(activity)

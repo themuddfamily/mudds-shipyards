@@ -10,6 +10,11 @@ extends Resource
 
 const SCHEMA_VERSION := 1
 const MAX_CONTENT_HOSTILES := 8
+## A lull is only a window if the encounter can still be won after it. The
+## authored timeout must leave at least this much fighting time once every
+## authored inter-wave delay has been spent, or the repair run the board
+## offers is a trap and the content is rejected here rather than in play.
+const MINIMUM_FIGHTING_SECONDS := 12.0
 const EVIDENCE_STATUS: StringName = &"modern_interpretation"
 
 const _AUTHORITY_EXCLUSIONS := {
@@ -109,6 +114,13 @@ func get_validation_errors() -> PackedStringArray:
 		partition_total += maxi(0, count)
 	if partition_total != hostile_ids.size():
 		errors.append("wave hostile counts must partition the exact hostile roster")
+	var authored_delay_total := 0.0
+	for delay in wave_delays_seconds:
+		authored_delay_total += maxf(0.0, float(delay))
+	if timeout_seconds < authored_delay_total + MINIMUM_FIGHTING_SECONDS:
+		errors.append(
+			"timeout must leave fighting time after every authored inter-wave delay"
+		)
 	if (
 		not is_finite(later_wave_opening_duration_seconds)
 		or later_wave_opening_duration_seconds < 0.25
@@ -169,10 +181,19 @@ func audit() -> Dictionary:
 			"maximum_waves": StationDefenseContract.MAX_WAVES,
 			"maximum_hostiles_per_wave": StationDefenseContract.MAX_HOSTILES_PER_WAVE,
 			"later_wave_opening_duration_seconds": later_wave_opening_duration_seconds,
+			"minimum_fighting_seconds": MINIMUM_FIGHTING_SECONDS,
+			"authored_delay_total_seconds": _authored_delay_total_seconds(),
 		},
 		"evidence": get_evidence_metadata(),
 		"authority_exclusions": _AUTHORITY_EXCLUSIONS.duplicate(true),
 	}.duplicate(true)
+
+
+func _authored_delay_total_seconds() -> float:
+	var total := 0.0
+	for delay in wave_delays_seconds:
+		total += maxf(0.0, float(delay))
+	return total
 
 
 func _build_waves() -> Array[Dictionary]:

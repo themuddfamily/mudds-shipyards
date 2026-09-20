@@ -30,6 +30,9 @@ signal activity_completed(snapshot: Dictionary)
 signal activity_failed(snapshot: Dictionary)
 signal activity_aborted(snapshot: Dictionary)
 signal activity_reset(snapshot: Dictionary)
+## A failed run that the player took the recovery on. The encounter
+## resumes at the wave it died on; it is never a fresh run.
+signal activity_recovered(snapshot: Dictionary)
 
 enum State {
 	IDLE,
@@ -41,6 +44,20 @@ enum State {
 }
 
 const MAX_ACCEPTED_ASSET_EVENTS := 1024
+## A failure is a setback, not a dead end: the player may resume the run
+## once, at the wave he lost, with the kills he had already banked. A
+## second failure ends the run and the board's ordinary reset applies.
+const MAX_RECOVERIES := 1
+## An inter-wave delay at or above this is a *lull*: long enough for the
+## player to break contact, fly back to a berth and repair before the next
+## wave forms. Shorter delays are only spacing between arrivals.
+##
+## The encounter clock keeps running through a lull — the timeout is an
+## unconditional backstop and nothing may suspend it. A lull is paid for in
+## the authored timeout instead: StationDefenseEncounterDefinition refuses
+## content whose budget does not leave real fighting time after every
+## authored delay, so the repair run can never be a trap.
+const LULL_MINIMUM_SECONDS := 4.0
 const _STATE_IDS := ["idle", "active", "completed", "failed", "aborted", "timed_out"]
 const _WAVE_MODE_IDS := ["ordered", "simultaneous"]
 
@@ -58,6 +75,7 @@ var _destroyed_hostile_keys: Dictionary = {}
 var _accepted_asset_event_keys: Dictionary = {}
 var _protected_asset_states: Array[Dictionary] = []
 var _completion_emission_count := 0
+var _recovery_count := 0
 var _mutation_active := false
 
 
@@ -107,6 +125,7 @@ func start(expected_generation: int) -> Dictionary:
 	_destroyed_hostile_keys.clear()
 	_accepted_asset_event_keys.clear()
 	_completion_emission_count = 0
+	_recovery_count = 0
 	_reset_asset_states()
 	_prepare_current_wave()
 	_emit_snapshot(activity_started)
@@ -222,6 +241,86 @@ func fail(reason: StringName, expected_generation: int) -> Dictionary:
 	return _finish_mutation(true, &"failed")
 
 
+## Resumes a failed run at the wave it died on.
+##
+## This is the difference between a failure and a dead end. The clock restarts,
+## the protected asset's damage ledger is cleared, and the wave re-forms behind
+## its authored delay so the player has a moment to get back into position —
+## but the wave index and every hostile already destroyed are kept, so the
+## recovery is a second chance at the same fight rather than a new run. It is
+## refused once the protected asset is actually gone, and it is available at
+## most `MAX_RECOVERIES` times per run.
+func recover(expected_generation: int) -> Dictionary:
+	if _mutation_active:
+		return _result(false, &"reentrant_call")
+	if expected_generation != _generation:
+		return _result(false, &"stale_generation")
+	if not _attached:
+		return _result(false, &"detached")
+	if _state not in [State.FAILED, State.TIMED_OUT]:
+		return _result(false, &"recovery_unavailable")
+	if _recovery_count >= MAX_RECOVERIES:
+		return _result(false, &"recovery_exhausted")
+	if _any_protected_asset_destroyed():
+		return _result(false, &"protected_asset_destroyed")
+	if _current_wave_index < 0 or _current_wave_index >= _get_wave_count():
+		return _result(false, &"recovery_unavailable")
+	if _generation >= StationDefenseContract.MAX_SAFE_INTEGER:
+		return _result(false, &"generation_exhausted")
+	_mutation_active = true
+	_generation += 1
+	_recovery_count += 1
+	_state = State.ACTIVE
+	_elapsed_seconds = 0.0
+	_failure_reason = &""
+	_accepted_asset_event_keys.clear()
+	_reset_asset_states()
+	_prepare_current_wave()
+	_emit_snapshot(activity_recovered)
+	if _wave_active:
+		_emit_snapshot(wave_started)
+	return _finish_mutation(true, &"recovered")
+
+
+func is_recovery_available() -> bool:
+	return (
+		_attached
+		and _state in [State.FAILED, State.TIMED_OUT]
+		and _recovery_count < MAX_RECOVERIES
+		and not _any_protected_asset_destroyed()
+		and _current_wave_index >= 0
+		and _current_wave_index < _get_wave_count()
+	)
+
+
+func get_recovery_count() -> int:
+	return _recovery_count
+
+
+## True inside a lull long enough to break contact and run for a berth.
+func is_berth_lull() -> bool:
+	return is_in_lull() and _current_wave_delay_seconds() >= LULL_MINIMUM_SECONDS
+
+
+func is_in_lull() -> bool:
+	return (
+		_state == State.ACTIVE
+		and not _wave_active
+		and _wave_delay_remaining_seconds > 0.0
+	)
+
+
+func _current_wave_delay_seconds() -> float:
+	return float(_get_current_wave().get("delay_seconds", 0.0))
+
+
+func _any_protected_asset_destroyed() -> bool:
+	for asset_state in _protected_asset_states:
+		if bool(asset_state.get("destroyed", false)):
+			return true
+	return false
+
+
 func abort(expected_generation: int) -> Dictionary:
 	if _mutation_active:
 		return _result(false, &"reentrant_call")
@@ -255,6 +354,7 @@ func reset(expected_generation: int) -> Dictionary:
 	_destroyed_hostile_keys.clear()
 	_accepted_asset_event_keys.clear()
 	_completion_emission_count = 0
+	_recovery_count = 0
 	_reset_asset_states()
 	_emit_snapshot(activity_reset)
 	return _finish_mutation(true, &"reset")
@@ -409,6 +509,13 @@ func get_snapshot() -> Dictionary:
 		"wave_mode_id": _WAVE_MODE_IDS[mode] if mode >= 0 and mode < _WAVE_MODE_IDS.size() else "none",
 		"wave_active": _state == State.ACTIVE and _wave_active,
 		"wave_delay_remaining_seconds": _wave_delay_remaining_seconds,
+		"wave_delay_seconds": _current_wave_delay_seconds(),
+		"in_lull": is_in_lull(),
+		"lull_is_berth_window": is_berth_lull(),
+		"lull_minimum_seconds": LULL_MINIMUM_SECONDS,
+		"recovery_available": is_recovery_available(),
+		"recovery_count": _recovery_count,
+		"maximum_recoveries": MAX_RECOVERIES,
 		"current_wave_hostile_count": (wave.get("hostile_handles", []) as Array).size(),
 		"current_wave_destroyed_count": _destroyed_count_for_wave(wave),
 		"active_hostile_handles": active_handles,
@@ -431,6 +538,8 @@ func audit() -> Dictionary:
 		errors.append("destroyed hostile ledger exceeds the contract")
 	if _accepted_asset_event_keys.size() > MAX_ACCEPTED_ASSET_EVENTS:
 		errors.append("protected asset event ledger exceeds its bound")
+	if _recovery_count < 0 or _recovery_count > MAX_RECOVERIES:
+		errors.append("recovery ledger is outside its bound")
 	if _state == State.COMPLETED:
 		if _remaining_hostile_count() != 0:
 			errors.append("completed defense retains hostiles")
@@ -444,6 +553,8 @@ func audit() -> Dictionary:
 		"errors": errors,
 		"limits": {
 			"maximum_accepted_asset_events": MAX_ACCEPTED_ASSET_EVENTS,
+			"maximum_recoveries": MAX_RECOVERIES,
+			"lull_minimum_seconds": LULL_MINIMUM_SECONDS,
 			"maximum_waves": StationDefenseContract.MAX_WAVES,
 			"maximum_total_hostiles": StationDefenseContract.MAX_TOTAL_HOSTILES,
 		},

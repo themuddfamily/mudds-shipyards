@@ -251,6 +251,18 @@ func abort_and_reset(actor: Node, expected_generation: int) -> Dictionary:
 	return _last_result.duplicate(true)
 
 
+## Physical second-chance seam. A failed run the content still considers
+## recoverable resumes at the wave it died on; everything else is refused and
+## the player uses the ordinary reset. Losing never strands him either way.
+func recover(actor: Node, expected_generation: int) -> Dictionary:
+	var gate := get_interaction_snapshot(actor, expected_generation)
+	if not bool(gate.get("available", false)):
+		_last_result = gate.duplicate(true)
+		return _last_result.duplicate(true)
+	_last_result = _content.recover(expected_generation)
+	return _last_result.duplicate(true)
+
+
 func get_last_result() -> Dictionary:
 	return _last_result.duplicate(true)
 
@@ -342,6 +354,8 @@ func _refresh_presentation(snapshot: Dictionary) -> void:
 	if generation < _presentation_generation:
 		return
 	var state_id := StringName(activity.get("state_id", &"idle"))
+	var recovery_available := bool(activity.get("recovery_available", false))
+	var failed_wave_number := maxi(1, int(activity.get("wave_number", 1)))
 	# Every live board state carries an ASCII silhouette marker in its existing
 	# status label.  The marker keeps the state readable when its colour is
 	# unavailable (glare, accessibility filters, or reduced-flash settings),
@@ -361,9 +375,15 @@ func _refresh_presentation(snapshot: Dictionary) -> void:
 				0.0, float(activity.get("wave_delay_remaining_seconds", 0.0))
 			)
 			if not wave_active and delay_seconds > 0.0:
-				status_text = "[~] NEXT WAVE %d / %d\nDEPLOY IN %.1f S" % [
-					wave_number, wave_count, delay_seconds,
-				]
+				if bool(activity.get("lull_is_berth_window", false)):
+					# A lull long enough to break contact, dock and patch up.
+					status_text = "[~] LULL %.1f S // BERTH RUN OPEN\nNEXT WAVE %d / %d" % [
+						delay_seconds, wave_number, wave_count,
+					]
+				else:
+					status_text = "[~] NEXT WAVE %d / %d\nDEPLOY IN %.1f S" % [
+						wave_number, wave_count, delay_seconds,
+					]
 			else:
 				status_text = ">> WAVE %d / %d\nROSTER %d / %d" % [
 					wave_number, wave_count, roster_cleared, roster_total
@@ -373,14 +393,22 @@ func _refresh_presentation(snapshot: Dictionary) -> void:
 			status_text = "[=] COMPLETE // RESET REQUIRED"
 			status_color = STATUS_COLOR_SECURE
 		&"failed":
-			status_text = "[X] FAILED // RESET REQUIRED"
-			status_color = STATUS_COLOR_RECOVERY
+			if recovery_available:
+				status_text = "[!] FAILED // RESUME AT WAVE %d" % failed_wave_number
+				status_color = STATUS_COLOR_ACTIVE
+			else:
+				status_text = "[X] FAILED // RESET REQUIRED"
+				status_color = STATUS_COLOR_RECOVERY
 		&"aborted":
 			status_text = "[X] ABORTED // RESET REQUIRED"
 			status_color = STATUS_COLOR_RECOVERY
 		&"timed_out":
-			status_text = "[X] TIMED OUT // RESET REQUIRED"
-			status_color = STATUS_COLOR_RECOVERY
+			if recovery_available:
+				status_text = "[!] TIMED OUT // RESUME AT WAVE %d" % failed_wave_number
+				status_color = STATUS_COLOR_ACTIVE
+			else:
+				status_text = "[X] TIMED OUT // RESET REQUIRED"
+				status_color = STATUS_COLOR_RECOVERY
 		&"idle":
 			pass
 		_:
