@@ -709,6 +709,72 @@ re-baselined only under the latency profiles, never on the clean link. The
 metre column at N = 1 and N = 2 is within the run-to-run variance noted
 above; the N = 4 improvement is not.
 
+## The client half of the hatch (2026-09-20)
+
+The ledger, the four berths per craft and the server-simulated bodies were all
+real before this, and none of them had a production caller: a peer running as
+a network client boarded itself and told nobody. That was Phase 7's named
+"still open". It is closed here, on both ends.
+
+**The wire gained one answer.** `NetworkEnetSessionAdapter` now replies to each
+boarding RPC it accepts, addressed to the peer that sent it, carrying the
+ledger's verdict, the request's own identity, and the ledger tick the answer
+was stamped with. Only that: no transform, no roster, no other peer's
+occupancy. The tick is the load-bearing field — the boarding authority accepts
+a request only inside a bounded window around its own tick, and an answer is
+the only way a client can learn where that window is. The answer is stored on
+the client as a replica and nothing about it lets a client change an occupancy.
+A packet whose secure envelope the host rejects is still never answered; that
+silence is deliberate and is what the requester's timeout is for.
+
+**The press asks instead of deciding.** `GameFlow._board_ship()` forks on the
+session role. A client still walks to the hatch, still reserves the
+`ShipBoardingArea`, still presses the same key — those are what make the
+request legitimate, not what make it true. What the press now does is send a
+`NetworkBoardingIntent`:
+
+* a craft with a walkable interior is asked for a cabin berth, a craft with
+  none (and a player retaking the seat from that craft's own cabin) for the
+  pilot seat;
+* `seat_occupied` is not a refusal of this player but the ledger naming the
+  next berth to try, so one press walks the four berths in order; every other
+  reason is final and is shown on the existing refusal card with the ledger's
+  own word for it, plus one toast;
+* a confirmed berth is presented through the *same* in-flight-cabin seam a
+  locally boarded player uses — frame occupancy, containment, cabin HUD mode
+  and the craft's own stand pose — and then binds this peer's intent stream to
+  the body the host stood up, which is what turns the local body into the
+  prediction the authority corrects;
+* a hatch disembark sends the matching intent and releases nothing until the
+  ledger confirms it. The pilot seat's landed disembark is held by the same
+  gate;
+* a request nobody answers expires after four seconds, and an expiry or a
+  session that ends mid-request changes nothing at all: no phase, no pose, no
+  binding, no claim, and one refusal shown once.
+
+**What proves it.** `tests/network_client_boarding_seam_test.gd` is the first
+suite in this project with two whole production `Main` subtrees alive at the
+same time: a host `GameFlow` owning the ledger and two client `GameFlow`s that
+board it with the ordinary hatch prompt, over real loopback ENet, with three
+bare adapters holding berths so the crowded case is a genuinely full ledger.
+Two harness facts are worth stating because they are properties of the test
+process and not of the production peers. Each client `Main` lives in a
+`SubViewport` with `own_world_3d` set, because two shipyards in one physics
+space would let one peer's interaction area discover the other peer's hatch.
+And `Input` is one process-global singleton, so control is taken off every
+other peer's player for the duration of a press; without that, a key pressed
+for one client disembarks another.
+
+It asserts the press sends an intent instead of boarding locally; that the
+host admits a body at the cabin stand and the client binds and drives it,
+walking on held input with the authority's pose following within a stride;
+that the hatch disembark leaves the player on the yard deck only once the
+ledger has confirmed; that a client whose berths are all held is refused with
+the ledger's own reason and does not move; and that a request the host never
+reads — its secure-packet budget spent, which is the production way a host
+stops answering a flooding peer — times out with one refusal, no claim and no
+body.
+
 ## What remains before broadening player counts
 
 * **The budget ceiling is the crowd's floor.** The second crowd table is the
@@ -718,18 +784,25 @@ above; the N = 4 improvement is not.
   to an eight-slot ceiling, so every walker is parked until the roll and
   worst ages of 20–55 ticks remain on the latency profiles. The
   8-snapshots/10-tick ceiling was sized for two occupants and is unchanged.
-* **The client half of a simulated body has not run as a whole game.** The
-  owning `GameFlow` streams intent and corrects its prediction from
-  `_physics_process`, and the intent source, the reconciliation and the server
-  body are all measured — but through bare client adapters driving the same
-  source class, not through a second production Main on the other end. A
-  two-process, two-`GameFlow` run is the next gate for that seam.
-* **The hatch has four berths per craft and no client seam.** A remote peer
-  boards through the ledger's wire, which no production client sends yet;
-  the berth count is the ledger's one-avatar-per-seat rule, not the cabin's
-  volume. A remote pilot's claim on a craft the host is flying is accepted by
-  the ledger (it holds no occupancy for the host's seat), which is the
-  ledger's contract to change, not the hatch seam's.
+* **The two-`GameFlow` run is one process, not two.** The client half now runs
+  as a whole game: a production `GameFlow` boards through the hatch, binds the
+  body the host simulates for it and corrects its own prediction, and the
+  suite above measures all of it end to end. What it does not yet do is span
+  two OS processes — both peers share one engine, one `Input` singleton and
+  one frame clock, so a real scheduling divergence between host and client is
+  still unmodelled here. `network_authority_three_process_test` covers the
+  multi-process transport; joining the two is the remaining gate.
+* **The hatch still holds four berths per craft, and the ledger still has no
+  occupancy for the host's own seat.** The berth count is the ledger's
+  one-avatar-per-seat rule, not the cabin's volume, and it is unchanged. A
+  remote pilot's claim on a craft the host is flying is still accepted,
+  because the ledger holds no occupancy for the host's seat — that remains the
+  ledger's contract to change, not the hatch seam's, and the client seam
+  deliberately does not paper over it.
+* **The client asks for berths one at a time.** A full craft costs four round
+  trips before the refusal, because the answer names one seat's verdict and
+  the ledger publishes no free-berth list. Correct and bounded, but it is a
+  latency cost that grows with the berth count if that count ever does.
 * **Five clients on loopback.** Interest management and the resync baseline
   under many occupants are still untested at latency.
 * **Loss is injected above ENet.** The relationship RPC is reliable, so the 2 %
