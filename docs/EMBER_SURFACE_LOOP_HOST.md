@@ -275,6 +275,59 @@ accepts the completion handback. Until then, this remains a standalone proof
 entered only after caller-owned rebase/load. It grants no reward and does not
 save progress.
 
+## The caldera as a landing region
+
+Down on the surface there is now somewhere to go. Three authored landmarks
+stand on the generated basalt outside the fixed 96 m patch, each in clear line
+of sight from the pad and each a real World-layer `StaticBody3D` with one
+collision box per drawn part, not a billboard:
+
+| Landmark | Region-local | Silhouette |
+| --- | --- | --- |
+| `ember_collapsed_lava_tube` | `(-86, 0, 18)` | dark basalt arch, 6.8 m |
+| `ember_caldera_survey_mast` | `(14, 0, -92)` | grey lattice mast and dish, 19.5 m |
+| `ember_wrecked_survey_lander` | `(62, 0, 54)` | tipped oxide hull, 5.4 m |
+
+Each has its own `RouteMarkers/*Access` approach marker and one authored route
+back to the pad egress or the staging gate, drawn with the same flush chevron
+decal recipe, the same route colour and the same marker treatment as the
+existing pad-to-staging spine (`ExpeditionRouteSpineVisuals`). Every metre of
+every route is continuously supported: the fixed `WalkablePatch` inside 48 m
+and the terrain clipmap's own collision outside it, which the Host already
+accepts while `ON_FOOT`. The furthest point of any route is 76 m from the
+committed terrain focus, well inside the 192 m recentre distance, so walking
+the region never rebuilds terrain.
+
+Two bounded errands stand beside the relay survey:
+`ember_lava_tube_sounding` and `ember_lander_wreck_survey`. Each is an ordinary
+`checkpoint_route` `ActivityDefinition` registered with the existing
+`ActivityDirector` by `EmberCalderaExpeditionActivity`, run through its own
+`PlanetarySurfaceActivityRewardAdapter`/`PlanetaryActivityRewardRuntime` pair
+inside the retained `EmberPlanetarySurfaceProductionBinding`, and paid exactly
+once through the one existing `GameFlowRewardAuthority` store using the
+ordinary activity-reward request. Their checkpoints sit on the authored route,
+so neither can be satisfied from the pad.
+
+The Host owns none of this. It keeps its existing authority boundary: the
+surface owner forwards the same already-admitted body-local player observation
+it feeds the relay survey, the composition refuses a second request per errand,
+its session snapshot records which errands are paid, and a restored record can
+only mark an errand already paid — never recreate a pending reward. Abandoning
+an errand drops the objective alone: the craft, the berth lease, the authored
+return route and the flight home are untouched.
+
+Everything is authored under `LandingRegion`, so it rides the common-world
+origin rebase as ordinary covered geometry and streams out with the rest of the
+loaded moon. The loaded generation grows to 106 nodes and 41,680 triangles with
+no new light and no shadow caster; the resident station census does not move.
+
+Focused gate (after editor import):
+
+```sh
+godot --headless --audio-driver Dummy --path . \
+  --script res://tests/ember_landing_region_test.gd
+```
+
 Focused gate (after editor import):
 
 ```sh
