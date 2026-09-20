@@ -382,13 +382,16 @@ const STRUCTURE_SCAN_FAILED_COLLAR_SCALE := Vector3(0.55, 1.45, 0.3)
 const PERFORMANCE_BUDGET := {
 	# Includes the production cargo access route (21 bodies/17 meshes/four
 	# batches) and the real destination terminal (two bodies/four meshes).
-	"static_bodies": 61,
-	"mesh_instances": 204,
+	# The abandoned station hulk adds its own 18 solid bodies, 40 meshes and 8
+	# emergency practicals inside its own component-local budget; the cluster
+	# totals below carry them because the cluster owns the whole subtree.
+	"static_bodies": 79,
+	"mesh_instances": 231,
 	# Bounded visual batches retain the debris shell, processing-spine ribs,
 	# gantry rails, race-return crown supports, and streamed aperture lenses
 	# without increasing gameplay or collision ownership.
 	"multimesh_instances": 17,
-	"omni_lights": 26,
+	"omni_lights": 34,
 	"spot_lights": 1,
 	"shadow_casting_lights": 0,
 	"audio_nodes": 0,
@@ -420,6 +423,7 @@ const MOONLET_CRATER_RIM_OUTER_RADIUS := 1.28
 @onready var _field_root: Node3D = get_node(^"DebrisField") as Node3D
 @onready var _platform_root: Node3D = get_node(^"ExtractionPlatform") as Node3D
 @onready var _landmark_root: Node3D = get_node(^"Landmarks") as Node3D
+@onready var _hulk: AbandonedStationHulk = get_node(^"StationHulk") as AbandonedStationHulk
 @onready var _activity_binding: Node3D = get_node(^"ActivityBinding") as Node3D
 
 var _materials: Dictionary = {}
@@ -545,6 +549,7 @@ func _ready() -> void:
 	_build_landmarks()
 	_build_debris_field()
 	_build_extraction_platform()
+	_build_station_hulk()
 	_audit_report = _compose_audit_report()
 	set_cluster_enabled(starts_enabled)
 	_arm_streaming_transition()
@@ -611,6 +616,8 @@ func set_detail_quality(quality: int) -> void:
 	var chips := _field_root.get_node_or_null(^"DebrisChips") as MultiMeshInstance3D
 	if chips != null:
 		chips.visible = _quality_level >= DetailQuality.MEDIUM
+	if is_instance_valid(_hulk):
+		_hulk.set_detail_quality(_quality_level)
 
 
 func get_detail_quality() -> int:
@@ -683,6 +690,19 @@ func _arm_streaming_transition() -> void:
 ## Straight-line distance from the station origin to the platform, in metres.
 func get_platform_distance() -> float:
 	return PLATFORM_ANCHOR.length()
+
+
+## The one destination in this sector with an inside. Nullable only before the
+## component has built, so callers that hold a live cluster can rely on it.
+func get_station_hulk() -> AbandonedStationHulk:
+	return _hulk if is_instance_valid(_hulk) else null
+
+
+## The hulk's docking face, as an ordinary ShipBerth. The cluster publishes it
+## so `GameFlow` can reserve and occupy it through its existing berth path; the
+## cluster itself still never touches a lease.
+func get_station_hulk_berth() -> ShipBerth:
+	return _hulk.get_dock_berth() if is_instance_valid(_hulk) else null
 
 
 func get_cinder_cargo_access() -> CinderCargoAccess:
@@ -2139,6 +2159,11 @@ func _compose_audit_report() -> Dictionary:
 			errors.append(
 				"%s count %d exceeds budget %d" % [key, int(counts[key]), int(PERFORMANCE_BUDGET[key])]
 			)
+	if is_instance_valid(_hulk):
+		var hulk_audit := _hulk.get_audit_report()
+		if not bool(hulk_audit.get("valid", false)):
+			for hulk_error in (hulk_audit.get("errors", PackedStringArray()) as PackedStringArray):
+				errors.append("station hulk: %s" % hulk_error)
 	var mining_presentation := get_mining_platform_presentation_audit()
 	if not bool(mining_presentation.valid):
 		for presentation_error in (mining_presentation.get("errors", PackedStringArray()) as PackedStringArray):
@@ -2184,6 +2209,9 @@ func _compose_audit_report() -> Dictionary:
 		"debris_chip_seed": DEBRIS_CHIP_SEED,
 		"gantry_clear_width": GANTRY_CLEAR_WIDTH,
 		"gantry_clear_height": GANTRY_CLEAR_HEIGHT,
+		"station_hulk": (
+			_hulk.get_audit_report() if is_instance_valid(_hulk) else {}
+		),
 		"mining_platform_presentation": mining_presentation,
 		"structure_scan_presentation": structure_scan_presentation,
 		"beacon_traversal_presentation": beacon_traversal_presentation,
@@ -2755,6 +2783,17 @@ func _build_extraction_platform() -> void:
 ## The two raked supports meet the existing processing spine at y = 2 m and the
 ## orange header spans them above every nearby platform detail. It deliberately
 ## lives behind the structure rather than inside the open-dock flight lane.
+## The sector's one enterable destination. Built after the platform so it shares
+## the cluster's finished mesh caches and its manufactured panel recipes: a hulk
+## box is the same cached chamfered stock a platform box is, so the destination
+## costs what a station module costs rather than a second copy of the sector.
+func _build_station_hulk() -> void:
+	if not is_instance_valid(_hulk):
+		return
+	_hulk.build(_materials, _box_cache, _cylinder_cache)
+	_hulk.set_detail_quality(_quality_level)
+
+
 func _build_race_return_crown(platform: Node3D) -> void:
 	var support_mesh: Mesh = StationSurfaceKit.rounded_box_mesh_cached(Vector3.ONE, _box_cache)
 	var support_transforms := _race_return_crown_support_transforms(
