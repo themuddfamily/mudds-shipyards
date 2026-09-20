@@ -121,6 +121,60 @@ func _run() -> void:
 		"opening the terminal selects no world and starts no planetary journey",
 	)
 
+	# The sector's own enterable places are listed beside the worlds. The pilot
+	# is on foot in the yard with Cinder streamed out, so both are shown and
+	# both are honestly refused.
+	var board := hud.get_planetary_destination_report()
+	var board_snapshot := board.get("snapshot", {}) as Dictionary
+	var site_rows := board_snapshot.get("sector_sites", []) as Array
+	var site_ids := PackedStringArray()
+	for row_variant: Variant in site_rows:
+		site_ids.append(str((row_variant as Dictionary).get("destination_id", &"")))
+	_check(
+		int(board_snapshot.get("destination_count", -1)) == 2
+		and int(board_snapshot.get("sector_site_count", -1)) == 2
+		and site_ids == PackedStringArray([
+			"cinder_hulk_dock_site", "cinder_belt_bore_site",
+		]),
+		"the Destination Board lists the hulk dock and the belt bore beside the worlds",
+	)
+	var site_cards_present := true
+	var site_actions_refused := true
+	for row_variant: Variant in board.get("sector_site_actions", []) as Array:
+		var action_row := row_variant as Dictionary
+		if not bool(action_row.get("button_disabled", false)):
+			site_actions_refused = false
+		if str(action_row.get("button_text", "")) != "OUT OF SENSOR RANGE":
+			site_actions_refused = false
+	for site_id in site_ids:
+		if not is_instance_valid(
+			hud.get("_planetary_destination_rows").find_child(
+				"PlanetaryDestination_%s" % site_id, true, false
+			)
+		):
+			site_cards_present = false
+	_check(
+		site_cards_present and site_actions_refused,
+		"each place has a board card that refuses while the pilot is in the yard",
+	)
+	_check(
+		not bool(game.call(
+			&"_on_hud_sector_site_briefing_requested", &"cinder_hulk_dock_site"
+		))
+		and not bool(game.call(
+			&"_on_hud_sector_site_briefing_requested", &"cinder_nowhere_site"
+		)),
+		"the site action refuses an absent place and an unlisted one alike",
+	)
+	var catalog_after_site := game.get_planetary_destination_catalog_snapshot()
+	_check(
+		catalog_after_site.get("destination_count") == 2
+		and catalog_after_site.get("sector_site_count") == 2
+		and (catalog_after_site.get("available_sector_site_ids", PackedStringArray())
+			as PackedStringArray).is_empty(),
+		"asking about a place never streams a sector in or makes it reachable",
+	)
+
 	hud.set_paused(false)
 	root.remove_child(game)
 	await process_frame

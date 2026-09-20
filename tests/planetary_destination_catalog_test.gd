@@ -123,7 +123,147 @@ func _init() -> void:
 		authority.values().all(func(value: Variant) -> bool: return value == false),
 		"the catalog owns no travel, movement, streaming, landing, or reward authority",
 	)
+	_test_sector_sites(catalog)
 	_finish()
+
+
+## The sector's own enterable places are listed beside the worlds, but they are
+## never counted as worlds and are never offered while the sector is away.
+func _test_sector_sites(catalog: PlanetaryDestinationCatalog) -> void:
+	var hulk := catalog.register_sector_site({
+		"site_id": &"cinder_hulk_dock_site",
+		"display_name": "Abandoned Station Hulk",
+		"sector_id": &"cinder_reach",
+		"site_kind_id": &"dock",
+		"site_kind_text": "PRESSURISED DOCK",
+		"approach_id": &"cinder_hulk_dock_approach",
+		"approach_distance_meters": 486.0,
+		"travel_summary": "DOCK // WALK IN // THROW THE BREAKER",
+		"engagement_text": "IN SENSOR RANGE — DOCK ON THE LIT FACE",
+		"unreachable_text": "OUT OF SENSOR RANGE — FLY OUT TO CINDER REACH",
+	})
+	var bore := catalog.register_sector_site({
+		"site_id": &"cinder_belt_bore_site",
+		"display_name": "Cinder Belt Bore",
+		"sector_id": &"cinder_reach",
+		"site_kind_id": &"bore",
+		"site_kind_text": "CUT BORE",
+		"approach_id": &"cinder_belt_bore_run",
+		"approach_distance_meters": 368.0,
+		"travel_summary": "ENTER THE RINGED MOUTH // FIVE GATES // EXIT",
+		"engagement_text": "IN SENSOR RANGE — LINE UP ON THE RINGED MOUTH",
+		"unreachable_text": "OUT OF SENSOR RANGE — FLY OUT TO CINDER REACH",
+	})
+	_check(
+		bool(hulk.get("accepted", false)) and bool(bore.get("accepted", false))
+		and catalog.get_sector_site_count() == 2
+		and catalog.get_destination_count() == 2,
+		"both enterable places register as sites without inflating the world count",
+	)
+	_check(
+		not bool(catalog.register_sector_site({
+			"site_id": &"cinder_hulk_dock_site",
+			"display_name": "Abandoned Station Hulk",
+			"sector_id": &"cinder_reach",
+			"site_kind_id": &"dock",
+			"site_kind_text": "PRESSURISED DOCK",
+			"approach_id": &"cinder_hulk_dock_approach",
+			"approach_distance_meters": 486.0,
+			"travel_summary": "DOCK // WALK IN // THROW THE BREAKER",
+			"engagement_text": "IN SENSOR RANGE — DOCK ON THE LIT FACE",
+			"unreachable_text": "OUT OF SENSOR RANGE — FLY OUT TO CINDER REACH",
+		}).get("accepted", true))
+		and not bool(catalog.register_sector_site({
+			"site_id": &"cinder_ghost_site",
+			"display_name": "Ghost Site",
+			"sector_id": &"cinder_reach",
+			"site_kind_id": &"wormhole",
+			"site_kind_text": "UNKNOWN",
+			"approach_id": &"cinder_ghost_approach",
+			"approach_distance_meters": 100.0,
+			"travel_summary": "NOWHERE",
+			"engagement_text": "NOWHERE",
+			"unreachable_text": "NOWHERE",
+		}).get("accepted", true)),
+		"a duplicate site, and a site of an unauthored kind, both fail closed",
+	)
+
+	# Sector away: nothing is offered, and the copy says why rather than
+	# claiming a route.
+	var away := catalog.get_presentation_snapshot({}, {})
+	var away_sites := away.get("sector_sites", []) as Array
+	_check(
+		int(away.get("destination_count", -1)) == 2
+		and int(away.get("sector_site_count", -1)) == 2
+		and away_sites.size() == 2
+		and (away.get("available_sector_site_ids", PackedStringArray())
+			as PackedStringArray).is_empty(),
+		"the board lists both places while the sector is streamed out",
+	)
+	var honest_away := true
+	for row_variant: Variant in away_sites:
+		var row := row_variant as Dictionary
+		if bool(row.get("action_enabled", true)):
+			honest_away = false
+		if StringName(row.get("status_id", &"")) != &"unavailable":
+			honest_away = false
+		if str(row.get("action_text", "")) != "OUT OF SENSOR RANGE":
+			honest_away = false
+		if not str(row.get("status_text", "")).begins_with("OUT OF SENSOR RANGE"):
+			honest_away = false
+	_check(
+		honest_away,
+		"an absent sector can never present one of its places as engageable",
+	)
+
+	# Sector resident: the rows become actionable and quote a metre distance,
+	# not a rounded-away kilometre one.
+	var near := catalog.get_presentation_snapshot({}, {
+		&"cinder_hulk_dock_site": {"reachable": true},
+		&"cinder_belt_bore_site": {"reachable": true},
+	})
+	var near_sites := near.get("sector_sites", []) as Array
+	var hulk_row := near_sites[0] as Dictionary
+	var bore_row := near_sites[1] as Dictionary
+	_check(
+		(near.get("available_sector_site_ids", PackedStringArray())
+			as PackedStringArray) == PackedStringArray([
+				"cinder_hulk_dock_site", "cinder_belt_bore_site",
+			])
+		and bool(hulk_row.get("action_enabled", false))
+		and StringName(hulk_row.get("status_id", &"")) == &"ready"
+		and str(hulk_row.get("action_text", "")) == "SHOW BRIEFING"
+		and str(hulk_row.get("distance_text", "")) == "486 M FROM MUDDS"
+		and str(hulk_row.get("environment_text", "")) == "PRESSURISED DOCK"
+		and str(bore_row.get("distance_text", "")) == "368 M FROM MUDDS"
+		and str(bore_row.get("travel_summary", ""))
+			== "ENTER THE RINGED MOUTH // FIVE GATES // EXIT",
+		"a resident sector offers both places with their own copy and distance",
+	)
+	_check(
+		not bool(catalog.get_presentation_snapshot({}, {
+			&"cinder_hulk_dock_site": {"reachable": "yes"},
+		}).get("sector_sites", [] as Array)[0].get("action_enabled", true)),
+		"a malformed residency report cannot offer a place",
+	)
+
+	# Both rosters resolve through the same entry point, with different answers.
+	var resolved_hulk := catalog.resolve_route(&"cinder_hulk_dock_site")
+	var resolved_ember := catalog.resolve_route(&"ember_moon")
+	_check(
+		bool(resolved_hulk.get("accepted", false))
+		and resolved_hulk.get("reason") == &"sector_site_resolved"
+		and resolved_hulk.get("destination_kind") == &"sector_site"
+		and resolved_hulk.get("route_id") == &"cinder_hulk_dock_approach"
+		and bool(resolved_ember.get("accepted", false))
+		and resolved_ember.get("reason") == &"route_resolved"
+		and not resolved_ember.has("destination_kind"),
+		"the board resolves each place to its approach and each world to its route",
+	)
+	_check(
+		not bool(catalog.resolve_route(&"cinder_unknown_site").get("accepted", true)),
+		"an unlisted place resolves to nothing",
+	)
 
 
 func _check(condition: bool, message: String) -> void:

@@ -44,6 +44,9 @@ signal activity_selection_requested(activity_kind: StringName)
 signal patrol_branch_selection_requested(branch_id: StringName)
 signal planetary_cruise_toggle_requested(request_serial: int)
 signal planetary_destination_requested(destination_id: StringName, request_serial: int)
+## A Destination Board row for an in-sector place the pilot flies to. There is
+## no expedition to launch, so the row asks only for that place's briefing.
+signal sector_site_briefing_requested(site_id: StringName)
 signal setting_change_requested(key: StringName, value: Variant)
 signal settings_save_requested
 signal settings_reset_requested
@@ -5791,20 +5794,25 @@ func _render_planetary_destination_rows() -> void:
 	_planetary_destination_buttons.clear()
 	var presented_ids: Array[StringName] = []
 	var presentation_index := 0
-	for row_variant: Variant in _planetary_destination_snapshot.get(
-		"destinations", []
-	) as Array:
-		var row := row_variant as Dictionary
-		var destination_id := StringName(row.get("destination_id", &""))
-		presented_ids.append(destination_id)
-		var card := retained.get(destination_id) as Control
-		if is_instance_valid(card):
-			_update_planetary_destination_row(card, row)
-		else:
-			card = _add_planetary_destination_row(row)
-		if is_instance_valid(card) and card.get_index() != presentation_index:
-			_planetary_destination_rows.move_child(card, presentation_index)
-		presentation_index += 1
+	# Worlds first, then the in-sector places that are reached by flying to
+	# them. Both use the same row contract, so one renderer serves both.
+	for roster: Array in [
+		[&"planetary_world", _planetary_destination_snapshot.get("destinations", [])],
+		[&"sector_site", _planetary_destination_snapshot.get("sector_sites", [])],
+	]:
+		var row_kind := roster[0] as StringName
+		for row_variant: Variant in roster[1] as Array:
+			var row := row_variant as Dictionary
+			var destination_id := StringName(row.get("destination_id", &""))
+			presented_ids.append(destination_id)
+			var card := retained.get(destination_id) as Control
+			if is_instance_valid(card):
+				_update_planetary_destination_row(card, row)
+			else:
+				card = _add_planetary_destination_row(row, row_kind)
+			if is_instance_valid(card) and card.get_index() != presentation_index:
+				_planetary_destination_rows.move_child(card, presentation_index)
+			presentation_index += 1
 	for child in _planetary_destination_rows.get_children():
 		var retained_id := StringName(
 			child.get_meta(&"planetary_destination_id", &"")
@@ -5814,7 +5822,9 @@ func _render_planetary_destination_rows() -> void:
 	_configure_planetary_destination_focus_order()
 
 
-func _add_planetary_destination_row(row: Dictionary) -> Control:
+func _add_planetary_destination_row(
+	row: Dictionary, row_kind: StringName = &"planetary_world"
+) -> Control:
 	var destination_id := StringName(row.get("destination_id", &""))
 	var status_id := StringName(row.get("status_id", &"unavailable"))
 	var border_role := (
@@ -5827,6 +5837,7 @@ func _add_planetary_destination_row(row: Dictionary) -> Control:
 	var card := PanelContainer.new()
 	card.name = "PlanetaryDestination_%s" % destination_id
 	card.set_meta(&"planetary_destination_id", destination_id)
+	card.set_meta(&"planetary_destination_kind", row_kind)
 	card.add_theme_stylebox_override(
 		"panel",
 		_border_box(Color("102332"), 6, border_role),
@@ -5873,13 +5884,19 @@ func _add_planetary_destination_row(row: Dictionary) -> Control:
 	action.set_meta(&"planetary_destination_id", destination_id)
 	action.disabled = not bool(row.get("action_enabled", false))
 	action.focus_mode = Control.FOCUS_NONE if action.disabled else Control.FOCUS_ALL
-	action.tooltip_text = (
-		"Uses the existing production expedition route."
-		if bool(row.get("route_available", false))
-		else "This authored world has no commissioned production route yet."
-	)
-	if bool(row.get("route_available", false)):
-		action.pressed.connect(_request_planetary_destination.bind(destination_id))
+	if row_kind == &"sector_site":
+		action.tooltip_text = (
+			"Shows this place's briefing again. Flying there remains the only way in."
+		)
+		action.pressed.connect(_request_sector_site_briefing.bind(destination_id))
+	else:
+		action.tooltip_text = (
+			"Uses the existing production expedition route."
+			if bool(row.get("route_available", false))
+			else "This authored world has no commissioned production route yet."
+		)
+		if bool(row.get("route_available", false)):
+			action.pressed.connect(_request_planetary_destination.bind(destination_id))
 	row_layout.add_child(action)
 	_planetary_destination_buttons[destination_id] = action
 	return card
@@ -5931,6 +5948,22 @@ func _update_planetary_destination_row(card: Control, row: Dictionary) -> void:
 		action.disabled = not bool(row.get("action_enabled", false))
 		action.focus_mode = Control.FOCUS_NONE if action.disabled else Control.FOCUS_ALL
 		_planetary_destination_buttons[destination_id] = action
+
+
+## A sector-site row asks GameFlow for that place's briefing card. The HUD owns
+## no travel, streaming or activity authority here; the row cannot move a ship
+## and cannot make an out-of-range place reachable.
+func _request_sector_site_briefing(site_id: StringName) -> void:
+	for row_variant: Variant in _planetary_destination_snapshot.get(
+		"sector_sites", []
+	) as Array:
+		var row := row_variant as Dictionary
+		if StringName(row.get("destination_id", &"")) != site_id:
+			continue
+		if not bool(row.get("action_enabled", false)):
+			return
+		sector_site_briefing_requested.emit(site_id)
+		return
 
 
 func _request_planetary_destination(destination_id: StringName) -> void:
@@ -6010,6 +6043,9 @@ func _valid_planetary_destination_snapshot(snapshot: Dictionary) -> bool:
 		"destination_count",
 		"available_destination_ids",
 		"destinations",
+		"sector_site_count",
+		"available_sector_site_ids",
+		"sector_sites",
 		"authority",
 	]):
 		return false
@@ -6022,6 +6058,9 @@ func _valid_planetary_destination_snapshot(snapshot: Dictionary) -> bool:
 		or snapshot.get("destination_count") is not int
 		or snapshot.get("available_destination_ids") is not PackedStringArray
 		or snapshot.get("destinations") is not Array
+		or snapshot.get("sector_site_count") is not int
+		or snapshot.get("available_sector_site_ids") is not PackedStringArray
+		or snapshot.get("sector_sites") is not Array
 		or snapshot.get("authority") is not Dictionary
 	):
 		return false
@@ -6050,6 +6089,33 @@ func _valid_planetary_destination_snapshot(snapshot: Dictionary) -> bool:
 		if bool(row.get("route_available", false)):
 			actual_available.append(str(destination_id))
 	if advertised_available != actual_available:
+		return false
+	var site_rows := snapshot.get("sector_sites", []) as Array
+	if (
+		site_rows.size() > MAX_PLANETARY_DESTINATIONS
+		or int(snapshot.get("sector_site_count", -1)) != site_rows.size()
+	):
+		return false
+	var advertised_sites := snapshot.get(
+		"available_sector_site_ids", PackedStringArray()
+	) as PackedStringArray
+	var actual_sites := PackedStringArray()
+	for site_variant: Variant in site_rows:
+		if site_variant is not Dictionary:
+			return false
+		var site_row := site_variant as Dictionary
+		if not _valid_planetary_destination_row(site_row):
+			return false
+		var site_id := StringName(site_row.get("destination_id", &""))
+		if seen.has(site_id):
+			return false
+		seen[site_id] = true
+		# A site row is only ever offered while its sector is resident, so the
+		# advertised roster tracks the live action state rather than the
+		# authored route flag the planetary rows use.
+		if bool(site_row.get("action_enabled", false)):
+			actual_sites.append(str(site_id))
+	if advertised_sites != actual_sites:
 		return false
 	var authority := snapshot.get("authority", {}) as Dictionary
 	if authority.is_empty():
@@ -6149,9 +6215,22 @@ func get_planetary_destination_report() -> Dictionary:
 			"button_rect": button.get_global_rect() if is_instance_valid(button) else Rect2(),
 			"card_rect": card.get_global_rect() if is_instance_valid(card) else Rect2(),
 		}.duplicate(true))
+	var site_action_rows: Array[Dictionary] = []
+	for row_variant: Variant in _planetary_destination_snapshot.get(
+		"sector_sites", []
+	) as Array:
+		var row := row_variant as Dictionary
+		var site_id := StringName(row.get("destination_id", &""))
+		var button := _planetary_destination_buttons.get(site_id) as Button
+		site_action_rows.append({
+			"destination_id": site_id,
+			"button_text": button.text if is_instance_valid(button) else "",
+			"button_disabled": button.disabled if is_instance_valid(button) else true,
+		}.duplicate(true))
 	return {
 		"snapshot": _planetary_destination_snapshot.duplicate(true),
 		"actions": action_rows,
+		"sector_site_actions": site_action_rows,
 		"page_visible": (
 			is_instance_valid(_planetary_destination_page)
 			and _planetary_destination_page.visible
