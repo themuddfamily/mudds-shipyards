@@ -215,10 +215,13 @@ func _test_loaded_berth_and_reentry(
 	_check(
 		cluster != null
 		and int(cluster.get_meta(&"world_location_generation", -1)) == 1
-		and cluster.find_children("*", "ShipBerth", true, false).size() == 1
+		and cluster.find_children("*", "ShipBerth", true, false).size() == 2
 		and cluster.get_cinder_cargo_access().get_berth().get_berth_id()
-			== CinderCargoAccess.BERTH_ID,
-		"generation-1 Cinder contains the one physical cargo-access Jovian berth"
+			== CinderCargoAccess.BERTH_ID
+		and cluster.get_station_hulk_berth() != null
+		and cluster.get_station_hulk_berth().get_berth_id()
+			== AbandonedStationHulk.BERTH_ID,
+		"generation-1 Cinder contains the cargo-access Jovian berth and the hulk docking face"
 	)
 	var loaded := binding.get_snapshot()
 	var overlay := loaded.get("overlay", {}) as Dictionary
@@ -229,16 +232,16 @@ func _test_loaded_berth_and_reentry(
 		and bool(last_load.get("accepted", false))
 		and int(last_load.get("load_generation", -1)) == 1
 		and int(overlay.get("active_location_count", -1)) == 1
-		and int(overlay.get("active_berth_count", -1)) == 1
+		and int(overlay.get("active_berth_count", -1)) == 2
 		and int(loaded.get("registration_signal_count", -1)) == 1,
-		"generation 1 registers its one physical berth exactly once"
+		"generation 1 registers both of its physical berths exactly once"
 	)
 	_check(
 		binding.get_merged_berth_snapshot().get("berth_ids")
 		== _loaded_berth_ids()
 		and _resident_nodes_match(world, resident_nodes)
 		and bool(binding.audit().get("valid", false)),
-		"streamed cargo berth merges with nine unchanged resident identities and a valid audit"
+		"both streamed berths merge with nine unchanged resident identities and a valid audit"
 	)
 	var berth := cluster.get_cinder_cargo_access().get_berth() as ShipBerth
 	var record := binding.lookup_streamed_berth_record(CinderCargoAccess.BERTH_ID)
@@ -440,6 +443,7 @@ func _test_detached_reports_and_authority(
 func _loaded_berth_ids() -> Array[StringName]:
 	var ids := CinderStreamedShipBerthBinding.RESIDENT_BERTH_IDS.duplicate()
 	ids.append(CinderCargoAccess.BERTH_ID)
+	ids.append(AbandonedStationHulk.BERTH_ID)
 	return _sorted_ids(ids)
 
 

@@ -116,16 +116,21 @@ const EXPECTED_GANTRY_RAIL_TRANSFORMS: Array[Transform3D] = [
 	Transform3D(Basis.IDENTITY, Vector3(15.5, 17.0, 86.0)),
 ]
 const EXPECTED_GANTRY_RAIL_FAMILY_ID: StringName = &"nearby-gantry-rails"
-const EXPECTED_LOCAL_MESH_NODES := 192
+# Refrozen for the abandoned station hulk, the sector's first enterable
+# destination. It is exactly additive: +39 mesh renderers, copies and
+# submissions (192 -> 231, 758 -> 797, 209 -> 248), +5,448 triangles
+# (126,494 -> 131,942), +18 solid bodies (61 -> 79) and +19 collision
+# shapes (62 -> 81, the hulk's 18 solids plus its breaker volume). No
+# MultiMesh batch changed, and the station-resident census is untouched
+# because the whole sector still streams.
+const EXPECTED_LOCAL_MESH_NODES := 231
 const EXPECTED_LOCAL_MULTIMESH_NODES := 17
-const EXPECTED_LOCAL_RENDERER_NODES := 209
-const EXPECTED_LOCAL_VISIBLE_COPIES := 758
-const EXPECTED_LOCAL_SURFACE_SUBMISSIONS := 209
-# The shared 48 -> 47 font recipe reduces the 13 local TextMeshes from
-# 21,074 to 20,566 triangles; the other geometry retains 105,928 triangles.
-const EXPECTED_LOCAL_TRIANGLES := 126494
-const EXPECTED_LOCAL_STATIC_BODIES := 61
-const EXPECTED_LOCAL_COLLISION_SHAPES := 62
+const EXPECTED_LOCAL_RENDERER_NODES := 248
+const EXPECTED_LOCAL_VISIBLE_COPIES := 797
+const EXPECTED_LOCAL_SURFACE_SUBMISSIONS := 248
+const EXPECTED_LOCAL_TRIANGLES := 131942
+const EXPECTED_LOCAL_STATIC_BODIES := 79
+const EXPECTED_LOCAL_COLLISION_SHAPES := 81
 ## The dock gate's four fixed rails remain one renderer/submission, but now
 ## compile into one immutable mesh without a retained MultiMesh resource.
 const EXPECTED_LAMP_LENS_COPY_COUNT := 26
@@ -299,16 +304,44 @@ func _test_identity_and_authority(world: ShipyardWorld, cluster: NearbySectorClu
 		if bool(candidate.get_meta("is_shipyard_target", false)):
 			stray_targets += 1
 	_check(stray_targets == 0, "the cluster contributes no range targets of its own")
+	# Two interaction volumes, and exactly two: the cargo terminal the pilot
+	# uses from the seat, and the hulk's auxiliary breaker the pilot uses on
+	# foot. Both are prompt-and-signal only; neither grants anything. The
+	# hulk also adds the sector's one ShipBerth, which is a lease contract
+	# and not an interaction volume.
 	var interaction_areas := cluster.find_children("*", "Area3D", true, false)
 	var cargo_access := cluster.get_cinder_cargo_access()
 	var cargo_terminal := cluster.get_cinder_cargo_destination_terminal()
+	var station_hulk := cluster.get_station_hulk()
+	var hulk_breaker := station_hulk.get_breaker() if station_hulk != null else null
 	_check(
-		interaction_areas.size() == 1
+		interaction_areas.size() == 2
 		and cargo_access != null
 		and cargo_access.get_berth() != null
 		and cargo_terminal != null
-		and interaction_areas[0] == cargo_terminal,
-		"the destination terminal is the only interaction volume and the production berth remains lease-only"
+		and hulk_breaker != null
+		and interaction_areas.has(cargo_terminal)
+		and interaction_areas.has(hulk_breaker),
+		"the cargo terminal and the hulk breaker are the only two interaction volumes"
+	)
+	# Two streamed berths, and exactly two: the cargo access route's existing
+	# freight berth, and the hulk's docking face. Both start unleased, and the
+	# sector still grants nothing through either of them.
+	var cluster_berths := cluster.find_children("*", "ShipBerth", true, false)
+	var hulk_berth := cluster.get_station_hulk_berth()
+	var unleased := 0
+	for candidate in cluster_berths:
+		var berth := candidate as ShipBerth
+		if not berth.is_reserved() and not berth.is_occupied():
+			unleased += 1
+	_check(
+		cluster_berths.size() == 2
+		and hulk_berth != null
+		and cluster_berths.has(hulk_berth)
+		and cluster_berths.has(cargo_access.get_berth())
+		and unleased == 2
+		and not bool(report.get("grants_rewards", true)),
+		"the sector owns exactly two unleased berths and still grants nothing"
 	)
 
 	# Structured red: the returned report is a deep copy, so a caller mutating it
@@ -867,18 +900,18 @@ func _test_processing_spine_rib_batch(cluster: NearbySectorCluster) -> void:
 		int(geometry["mesh_nodes"]) == EXPECTED_LOCAL_MESH_NODES
 		and int(geometry["multimesh_nodes"]) == EXPECTED_LOCAL_MULTIMESH_NODES
 		and int(geometry["renderer_nodes"]) == EXPECTED_LOCAL_RENDERER_NODES,
-		"NearbySectorCluster owns 192 Mesh + 17 MultiMesh renderers with all three activity landmarks"
+		"NearbySectorCluster owns 231 Mesh + 17 MultiMesh renderers with the hulk and all three activity landmarks"
 	)
 	_check(
 		int(geometry["visible_copies"]) == EXPECTED_LOCAL_VISIBLE_COPIES
 		and int(geometry["surface_submissions"]) == EXPECTED_LOCAL_SURFACE_SUBMISSIONS
 		and int(geometry["triangles"]) == EXPECTED_LOCAL_TRIANGLES,
-		"the local census freezes 758 renderer copies, 126494 triangles, and 209 submissions"
+		"the local census freezes 797 renderer copies, 131942 triangles, and 248 submissions"
 	)
 	_check(
 		int(geometry["static_bodies"]) == EXPECTED_LOCAL_STATIC_BODIES
 		and int(geometry["collision_shapes"]) == EXPECTED_LOCAL_COLLISION_SHAPES,
-		"production composition retains 61 static bodies and the terminal's one interaction shape"
+		"production composition retains 79 static bodies and the terminal and breaker interaction shapes"
 	)
 
 

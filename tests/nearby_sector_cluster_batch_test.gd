@@ -40,15 +40,17 @@ func _run() -> void:
 			"the combined mesh retains presentation material while owning no shadows or collision"
 		)
 	# The 13 signs now contribute 20,566 triangles (508 fewer at font 47).
-	# The unchanged non-text meshes contribute the other 105,928 triangles.
+	# The unchanged non-text meshes contribute the other 105,928 triangles, and
+	# the abandoned station hulk adds 39 unbatched mesh renderers and 5,448
+	# triangles on top without touching a single MultiMesh batch.
 	var census := _census(cluster)
 	_check(
-		int(census["mesh_nodes"]) == 192
+		int(census["mesh_nodes"]) == 231
 		and int(census["batch_nodes"]) == 17
-		and int(census["submissions"]) == 209
-		and int(census["visible_copies"]) == 758
-		and int(census["triangles"]) == 126494,
-		"the combined rail trim keeps 209 submissions and 126494 triangles within 192 Mesh + 17 MultiMesh renderers"
+		and int(census["submissions"]) == 248
+		and int(census["visible_copies"]) == 797
+		and int(census["triangles"]) == 131942,
+		"the combined rail trim keeps 248 submissions and 131942 triangles within 231 Mesh + 17 MultiMesh renderers"
 	)
 	cluster.queue_free()
 	await process_frame

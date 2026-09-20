@@ -14,9 +14,12 @@ const FADE_OUT_SECONDS := 0.5
 const MAX_RETAINED_DISTANCE_METERS := 725.0
 # Authored consolidation: collars -1, scan ruins -3, crater rims -5,
 # cargo cross/handoff rails -2; race crown +2, ore lift +1, survey fork +1.
-const EXPECTED_AUTHORED_RENDERER_COUNT := 211
-const EXPECTED_BOUND_RENDERER_COUNT := 215
-const EXPECTED_LIGHT_COUNT := 27
+# The abandoned station hulk then adds +39 renderers and +8 emergency
+# practicals, all of which fade in and out with the rest of the sector: a
+# destination the pilot can stand inside must not pop.
+const EXPECTED_AUTHORED_RENDERER_COUNT := 250
+const EXPECTED_BOUND_RENDERER_COUNT := 254
+const EXPECTED_LIGHT_COUNT := 35
 const EPSILON := 0.000001
 const EXTRACTION_ARM_COLLAR_FAMILY_ID: StringName = &"cinder-extraction-arm-collars"
 const EXTRACTION_ARM_COLLAR_PATHS: Array[NodePath] = [

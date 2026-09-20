@@ -407,6 +407,19 @@ func _test_production_loop() -> void:
 		Transform3D(Basis.IDENTITY, hulk.get_breaker_world_position())
 	)
 	await physics_frame
+	await physics_frame
+	# The breaker has to be a control the walking pilot actually finds, not a
+	# node a test can reach: it must turn up in the production interaction
+	# query with a prompt, on the interactable layer, exactly as the station's
+	# own consoles do.
+	_check(
+		breaker.collision_layer == PhysicsLayers.INTERACTABLE_AREA_LAYER
+		and breaker.has_method(&"get_interaction_prompt")
+		and breaker.has_method(&"interact")
+		and not str(breaker.call(&"get_interaction_prompt")).is_empty()
+		and player.get_nearby_interactables().has(breaker),
+		"the walking pilot's own interaction query finds the breaker and its prompt"
+	)
 	game.call(&"_sync_hulk_power_restoration_binding")
 	var before := game.get_hulk_power_restoration_snapshot()
 	_check(

@@ -4,8 +4,10 @@ const CLUSTER_SCENE := preload("res://scenes/world/components/nearby_sector_clus
 const LOCATION_ID: StringName = &"cinder_reach"
 const GENERATION := 7
 const TICK := 1.0 / 60.0
-const EXPECTED_AUTHORED_RENDERER_COUNT := 211
-const EXPECTED_BOUND_RENDERER_COUNT := 215
+# Refrozen for the abandoned station hulk: +39 authored renderers, which the
+# transition binds and fades with everything else in the sector.
+const EXPECTED_AUTHORED_RENDERER_COUNT := 250
+const EXPECTED_BOUND_RENDERER_COUNT := 254
 const EXPECTED_INTEGRATED_BATCH_FINGERPRINT := (
 	"ExtractionPlatform/CinderReachPlatform/ExtractionArmCollars"
 	+ "|cinder-extraction-arm-collars|6|-1;"
@@ -174,7 +176,7 @@ func _test_streamed_fade_lifecycle_and_baselines() -> void:
 		and int(hidden.get("renderer_count", -1)) \
 			== EXPECTED_BOUND_RENDERER_COUNT
 		and renderers.size() == EXPECTED_BOUND_RENDERER_COUNT
-		and lights.size() == 27,
+		and lights.size() == 35,
 		"a streamed generation commits fully hidden before its first draw"
 	)
 	_check(
