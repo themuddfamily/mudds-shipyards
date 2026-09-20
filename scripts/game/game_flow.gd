@@ -10683,6 +10683,21 @@ func _collect_ember_interrupted_journey_save_evidence() -> Dictionary:
 	# actors/berths for world transforms through the spatial Host snapshot.
 	if ember_surface_loop_host.get_phase() != EmberSurfaceLoopHost.Phase.ON_FOOT:
 		return {"accepted": false, "reason": &"ember_active_journey_phase_unavailable"}
+	# The phase gate is not enough on the way out. An expedition torn down on
+	# foot keeps that phase, and `_exit_tree()` runs after every descendant has
+	# already left the tree: `Node3D.global_transform` answers identity there
+	# and logs `Condition "!is_inside_tree()" is true` for each read -- 21 per
+	# teardown, across the Host snapshot's ship and player positions, the berth
+	# audit's dock and assist-capture transforms, and the player read below.
+	# The record that produced stood the pilot, the craft and the berth at the
+	# origin, and it overwrote whatever correct save the caller had committed
+	# in-tree a moment earlier. An expedition is only saveable from a live
+	# tree, so refuse rather than persist an origin checkpoint.
+	if not ember_surface_loop_host.is_inside_tree() \
+			or not player.is_inside_tree() \
+			or (is_instance_valid(ember_surface_berth) \
+				and not ember_surface_berth.is_inside_tree()):
+		return {"accepted": false, "reason": &"ember_active_journey_actors_detached"}
 	var host := ember_surface_loop_host.get_snapshot()
 	if not bool(host.get("attached", false)) \
 			or StringName(host.get("phase_id", &"")) != &"on_foot":
