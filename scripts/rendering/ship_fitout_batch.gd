@@ -42,7 +42,10 @@ extends RefCounted
 ##   metadata verbatim, and `AUTHORED_PIECE_INDEX_META` records each piece's own
 ##   copy. A reader that resolves metadata off the renderer reads the same
 ##   answer it read before; a value that differs between two pieces splits them
-##   into separate groups rather than being averaged into one.
+##   into separate groups rather than being averaged into one. The one exception
+##   is `SINGLE_MESH_CLAIM_META`: those keys state something about *one* mesh's
+##   own shape, which an aggregate of N shapes does not inherit. See that
+##   constant.
 ## * It never touches a node any live script variable can still reach. That scan
 ##   is the guard against freeing something the craft, its bindings or the world
 ##   is going to call back into.
@@ -67,11 +70,43 @@ extends RefCounted
 ## * It never folds live `PrimitiveMesh` stock, which the tree-wide geometry
 ##   budget sweeps and re-tessellates after the craft has built.
 ## * It never emits a batch whose triangle count differs from its sources'.
+## * It never emits a batch whose handedness differs from its sources'. A
+##   placement with a negative determinant — the usual way a starboard copy of a
+##   port part is authored — mirrors the geometry it carries, which reverses the
+##   orientation of every triangle in it. Such a piece is merged with its index
+##   order reversed and its tangent handedness flipped, so the merged surface
+##   winds outward exactly as the separate renderer did. Handedness is judged
+##   from the **composed placement** the merge actually applies, never from the
+##   renderer's own local basis, because the two differ the moment an ancestor
+##   carries the mirror.
 ##
 ## The result is fewer scene nodes and fewer renderers for identical triangles at
 ## identical local transforms.
 
 const DETERMINANT_EPSILON := 1e-6
+
+## Authored metadata keys that state something about **one** mesh's own shape.
+##
+## `_seat_shared_metadata` carries a group's shared metadata onto the batch
+## verbatim, which is right for every key that describes the *thing* a piece is —
+## its role, its material family, its authored index. It is wrong for a key that
+## describes the *geometry* of the renderer it sits on, because a merged buffer
+## holding N separate volumes is not one of them.
+##
+## `closed_loft_hull` is exactly that shape of claim: it tells
+## `tests/ship_surface_winding_test.gd` that the mesh surrounds its own AABB
+## centre, so that centre is independent evidence of which side of each triangle
+## is outside. Ten correctly wound engine housings and pylons merged into one
+## buffer surround no common interior point, and the claim becomes false of the
+## node carrying it even though every triangle in it is untouched.
+##
+## The claim is not lost, it is relocated: `AUTHORED_PIECE_INDEX_META` keeps each
+## piece's own metadata, its own placement and — through `index_ranges` — its own
+## triangles, so the guard still runs per authored piece, from that piece's own
+## interior, exactly as it ran before the piece was folded.
+const SINGLE_MESH_CLAIM_META: Array[StringName] = [
+	&"closed_loft_hull",
+]
 
 ## Marks a node this pass created.
 const BATCH_META := &"ship_fitout_batch"
@@ -782,7 +817,10 @@ static func _mesh_is_mergeable(visual: MeshInstance3D, shared: Dictionary) -> bo
 			return false
 		if _surface_material(visual, surface_index) == null:
 			return false
-	if visual.transform.basis.determinant() <= DETERMINANT_EPSILON:
+	# Degeneracy only. A *mirrored* basis is a placement this pass now merges
+	# correctly rather than refuses, and handedness is judged in `_merge` from the
+	# composed placement rather than here from the renderer's own local basis.
+	if absf(visual.transform.basis.determinant()) <= DETERMINANT_EPSILON:
 		return false
 	return true
 
@@ -804,7 +842,10 @@ static func _surface_material(visual: MeshInstance3D, surface_index: int) -> Mat
 ## Copies the group's shared metadata onto the batch that replaces it.
 static func _seat_shared_metadata(batch: Node, metadata: Dictionary) -> void:
 	for key in metadata:
-		batch.set_meta(StringName(String(key)), metadata[key])
+		var name_value := StringName(String(key))
+		if SINGLE_MESH_CLAIM_META.has(name_value):
+			continue
+		batch.set_meta(name_value, metadata[key])
 
 
 ## One index record per authored piece a batch is about to replace.
@@ -817,7 +858,8 @@ static func _build_piece_index(
 		sources: Array[MeshInstance3D],
 		offsets: Array[Transform3D],
 		metadata: Array[Dictionary],
-		mesh_uses: Dictionary
+		mesh_uses: Dictionary,
+		index_ranges: Dictionary = {}
 	) -> Array:
 	var index: Array = []
 	for position in sources.size():
@@ -833,6 +875,11 @@ static func _build_piece_index(
 			"name": names[position],
 			"transform": offsets[position],
 			"local_transform": source.transform,
+			# Which triangles of the merged buffer are this piece's, as
+			# `{surface, index_start, index_count}` runs. An audit that has to
+			# score a piece's own geometry — winding, bounds, closure — reads its
+			# triangles here instead of guessing at them from a shared AABB.
+			"index_ranges": index_ranges.get(position, []),
 			"metadata": metadata[position],
 			"materials": materials,
 			"surfaces": surfaces,
@@ -995,7 +1042,10 @@ static func _build_visual_batch(
 	batch.set_meta(AUTHORED_CENSUS_META, _authored_census(sources))
 	batch.set_meta(
 		AUTHORED_PIECE_INDEX_META,
-		_build_piece_index(authored_names, sources, offsets, piece_metadata, mesh_uses)
+		_build_piece_index(
+			authored_names, sources, offsets, piece_metadata, mesh_uses,
+			merged.get("ranges", {}) as Dictionary
+		)
 	)
 	parent.add_child(batch)
 	_apply_surface_materials(batch, merged["materials"] as Array)
@@ -1269,22 +1319,46 @@ static func _merge(sources: Array[MeshInstance3D], offsets: Array[Transform3D]) 
 			(buckets[material_id] as Array).append(
 				Vector2i(source_index, surface_index)
 			)
-	var merged := ArrayMesh.new()
-	for material_id in order:
-		var surface := _merge_surface(sources, offsets, buckets[material_id] as Array)
-		if surface.is_empty():
+	# Handedness is a property of the placement the merge applies, not of the
+	# renderer's own local basis, so it is settled here where the composed
+	# placement is in hand. A degenerate placement collapses the geometry it
+	# carries and can never be merged losslessly; a mirrored one is merged with
+	# its winding reversed, below.
+	for offset in offsets:
+		if absf(offset.basis.determinant()) <= DETERMINANT_EPSILON:
 			return {}
-		merged.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, surface)
+	var merged := ArrayMesh.new()
+	var ranges := {}
+	for material_id in order:
+		var built := _merge_surface(sources, offsets, buckets[material_id] as Array)
+		if built.is_empty():
+			return {}
+		var surface_position := merged.get_surface_count()
+		merged.add_surface_from_arrays(
+			Mesh.PRIMITIVE_TRIANGLES, built["surface"] as Array
+		)
+		for run_variant in (built["ranges"] as Array):
+			var run := (run_variant as Dictionary).duplicate()
+			var source_index := int(run["source"])
+			run.erase("source")
+			run["surface"] = surface_position
+			if not ranges.has(source_index):
+				ranges[source_index] = []
+			(ranges[source_index] as Array).append(run)
 	if merged.get_surface_count() != materials.size():
 		return {}
-	return {"mesh": merged, "materials": materials}
+	return {"mesh": merged, "materials": materials, "ranges": ranges}
 
 
+## One merged surface, plus the index run each contributing member occupies in
+## it as `{source, index_start, index_count}`.
+##
+## Returns `{}` when a member cannot be carried across losslessly.
 static func _merge_surface(
 		sources: Array[MeshInstance3D],
 		offsets: Array[Transform3D],
 		members: Array
-	) -> Array:
+	) -> Dictionary:
 	var vertices := PackedVector3Array()
 	var normals := PackedVector3Array()
 	var tangents := PackedFloat32Array()
@@ -1292,6 +1366,7 @@ static func _merge_surface(
 	var indices := PackedInt32Array()
 	var has_tangents := true
 	var has_uvs := true
+	var runs: Array = []
 	for member_variant in members:
 		var member := member_variant as Vector2i
 		var mesh := sources[member.x].mesh
@@ -1299,10 +1374,18 @@ static func _merge_surface(
 		var source_vertices: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
 		var source_normals: PackedVector3Array = arrays[Mesh.ARRAY_NORMAL]
 		if source_vertices.is_empty() or source_normals.size() != source_vertices.size():
-			return []
+			return {}
 		var placement := offsets[member.x]
+		# A mirrored placement reverses the orientation of every triangle it
+		# carries: the vertices move, the index order does not, and what was the
+		# front face becomes the back one. The inverse-transpose below still
+		# carries each shading normal to the right side of the mirrored surface,
+		# so the fix is to reverse the winding to match it — and to flip the
+		# tangent's binormal sign, because `n x t` changes sign under a mirror too.
+		var mirrored := placement.basis.determinant() < 0.0
 		var normal_basis := placement.basis.inverse().transposed()
 		var offset := vertices.size()
+		var run_start := indices.size()
 		for index in source_vertices.size():
 			vertices.append(placement * source_vertices[index])
 			normals.append((normal_basis * source_normals[index]).normalized())
@@ -1319,7 +1402,10 @@ static func _merge_surface(
 				tangents.append(tangent.x)
 				tangents.append(tangent.y)
 				tangents.append(tangent.z)
-				tangents.append(source_tangents[index * 4 + 3])
+				tangents.append(
+					-source_tangents[index * 4 + 3] if mirrored
+					else source_tangents[index * 4 + 3]
+				)
 		else:
 			has_tangents = false
 		if has_uvs and arrays[Mesh.ARRAY_TEX_UV] is PackedVector2Array \
@@ -1333,18 +1419,32 @@ static func _merge_surface(
 			source_indices = arrays[Mesh.ARRAY_INDEX]
 		if source_indices.is_empty():
 			if source_vertices.size() % 3 != 0:
-				return []
+				return {}
+			source_indices = PackedInt32Array()
 			for index in source_vertices.size():
-				indices.append(offset + index)
-		else:
-			if source_indices.size() % 3 != 0:
-				return []
-			for index in source_indices:
-				if index < 0 or index >= source_vertices.size():
-					return []
-				indices.append(offset + index)
+				source_indices.append(index)
+		if source_indices.size() % 3 != 0:
+			return {}
+		for index in source_indices:
+			if index < 0 or index >= source_vertices.size():
+				return {}
+		var triangle := 0
+		while triangle + 2 < source_indices.size():
+			indices.append(offset + source_indices[triangle])
+			if mirrored:
+				indices.append(offset + source_indices[triangle + 2])
+				indices.append(offset + source_indices[triangle + 1])
+			else:
+				indices.append(offset + source_indices[triangle + 1])
+				indices.append(offset + source_indices[triangle + 2])
+			triangle += 3
+		runs.append({
+			"source": member.x,
+			"index_start": run_start,
+			"index_count": indices.size() - run_start,
+		})
 	if vertices.is_empty() or indices.is_empty():
-		return []
+		return {}
 	var surface := []
 	surface.resize(Mesh.ARRAY_MAX)
 	surface[Mesh.ARRAY_VERTEX] = vertices
@@ -1354,7 +1454,7 @@ static func _merge_surface(
 	if has_uvs and uvs.size() == vertices.size():
 		surface[Mesh.ARRAY_TEX_UV] = uvs
 	surface[Mesh.ARRAY_INDEX] = indices
-	return surface
+	return {"surface": surface, "ranges": runs}
 
 
 ## Every **node** any live script variable under `root` can still reach.

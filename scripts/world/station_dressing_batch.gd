@@ -40,6 +40,17 @@ extends RefCounted
 ## * It never crosses a parent boundary. A batch is always built in the exact
 ##   parent its sources stood in, so a container that a module hides, moves or
 ##   swaps still owns the same geometry afterwards.
+## * It never emits a batch whose handedness differs from its sources'. A
+##   placement with a negative determinant — the usual way a starboard copy of a
+##   port part is authored — mirrors the geometry it carries and reverses the
+##   orientation of every triangle in it. Such a piece is merged with its index
+##   order reversed and its tangent handedness flipped, so the merged surface
+##   winds outward exactly as the separate renderer did. Handedness is judged
+##   from the **composed placement** the merge applies, never from the
+##   renderer's own local basis: the solid path merges `<body>/Mesh` at
+##   `body.transform * mesh.transform`, so a mirror an authoring body carries
+##   is invisible to the renderer's own transform and used to pass straight
+##   through into an inside-out merged surface.
 ##
 ## The result is fewer scene nodes and fewer renderers for identical triangles at
 ## identical world transforms.
@@ -580,7 +591,11 @@ static func _mesh_is_mergeable(visual: MeshInstance3D, referenced: Dictionary) -
 			return false
 		if _surface_material(visual, surface_index) == null:
 			return false
-	if visual.transform.basis.determinant() <= DETERMINANT_EPSILON:
+	# Degeneracy only. A *mirrored* basis is a placement this pass now merges
+	# correctly rather than refuses, and handedness is judged in `_merge` from the
+	# composed placement rather than here from the renderer's own local basis —
+	# which for a solid piece is the `Mesh` child's, not the body's.
+	if absf(visual.transform.basis.determinant()) <= DETERMINANT_EPSILON:
 		return false
 	return true
 
@@ -1251,6 +1266,14 @@ static func _merge(sources: Array[MeshInstance3D], offsets: Array[Transform3D]) 
 			(buckets[material_id] as Array).append(
 				Vector2i(source_index, surface_index)
 			)
+	# Handedness is a property of the placement the merge applies, not of the
+	# renderer's own local basis, so it is settled here where the composed
+	# placement is in hand. A degenerate placement collapses the geometry it
+	# carries and can never be merged losslessly; a mirrored one is merged with
+	# its winding reversed, below.
+	for offset in offsets:
+		if absf(offset.basis.determinant()) <= DETERMINANT_EPSILON:
+			return {}
 	var merged := ArrayMesh.new()
 	for material_id in order:
 		var surface := _merge_surface(sources, offsets, buckets[material_id] as Array)
@@ -1283,6 +1306,13 @@ static func _merge_surface(
 		if source_vertices.is_empty() or source_normals.size() != source_vertices.size():
 			return []
 		var placement := offsets[member.x]
+		# A mirrored placement reverses the orientation of every triangle it
+		# carries: the vertices move, the index order does not, and what was the
+		# front face becomes the back one. The inverse-transpose below still
+		# carries each shading normal to the right side of the mirrored surface,
+		# so the fix is to reverse the winding to match it — and to flip the
+		# tangent's binormal sign, because `n x t` changes sign under a mirror too.
+		var mirrored := placement.basis.determinant() < 0.0
 		var normal_basis := placement.basis.inverse().transposed()
 		var offset := vertices.size()
 		for index in source_vertices.size():
@@ -1301,7 +1331,10 @@ static func _merge_surface(
 				tangents.append(tangent.x)
 				tangents.append(tangent.y)
 				tangents.append(tangent.z)
-				tangents.append(source_tangents[index * 4 + 3])
+				tangents.append(
+					-source_tangents[index * 4 + 3] if mirrored
+					else source_tangents[index * 4 + 3]
+				)
 		else:
 			has_tangents = false
 		if has_uvs and arrays[Mesh.ARRAY_TEX_UV] is PackedVector2Array \
@@ -1316,15 +1349,24 @@ static func _merge_surface(
 		if source_indices.is_empty():
 			if source_vertices.size() % 3 != 0:
 				return []
+			source_indices = PackedInt32Array()
 			for index in source_vertices.size():
-				indices.append(offset + index)
-		else:
-			if source_indices.size() % 3 != 0:
+				source_indices.append(index)
+		if source_indices.size() % 3 != 0:
+			return []
+		for index in source_indices:
+			if index < 0 or index >= source_vertices.size():
 				return []
-			for index in source_indices:
-				if index < 0 or index >= source_vertices.size():
-					return []
-				indices.append(offset + index)
+		var triangle := 0
+		while triangle + 2 < source_indices.size():
+			indices.append(offset + source_indices[triangle])
+			if mirrored:
+				indices.append(offset + source_indices[triangle + 2])
+				indices.append(offset + source_indices[triangle + 1])
+			else:
+				indices.append(offset + source_indices[triangle + 1])
+				indices.append(offset + source_indices[triangle + 2])
+			triangle += 3
 	if vertices.is_empty() or indices.is_empty():
 		return []
 	var surface := []

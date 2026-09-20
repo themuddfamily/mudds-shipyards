@@ -73,6 +73,7 @@ func _run() -> void:
 	_check_heavy_plate_builders(expected_sign)
 	await _check_craft(expected_sign)
 	_check_detects_reversal(expected_sign)
+	_check_mirrored_placement_merge(expected_sign)
 	_finish()
 
 
@@ -392,13 +393,9 @@ func _check_craft(expected_sign: int) -> void:
 			backwards += mesh_backwards
 			if mesh_backwards > 0 and worst.size() < 6:
 				worst.append("%s (%d/%d)" % [instance.name, mesh_backwards, mesh_triangles])
-			if instance.get_meta("closed_loft_hull", false):
-				closed_lofts += 1
-				_assert_closed_mesh_faces_outward(
-					"%s/%s" % [label, craft.get_path_to(instance)],
-					instance.mesh,
-					expected_sign
-				)
+			closed_lofts += _check_closed_lofts(
+				"%s/%s" % [label, craft.get_path_to(instance)], instance, expected_sign
+			)
 		if meshes == 0:
 			_assert(
 				imported_meshes > 0,
@@ -541,6 +538,104 @@ func _check_detects_reversal(expected_sign: int) -> void:
 	)
 
 
+## The merge path a *mirrored* placement takes.
+##
+## A starboard copy of a port part is authored as the port part at a negative
+## scale, and mirroring reverses the orientation of every triangle it carries. A
+## merge that moves the vertices and copies the index order across unchanged
+## therefore bakes an inside-out copy into the batch: every structural assertion
+## still passes, the triangle count is exact, and backface culling draws a hole
+## where that piece used to be solid. The refusal that used to stand in for this
+## was `visual.transform.basis.determinant()`, which reads the renderer's *own*
+## local basis and cannot see a mirror an ancestor carries — and in
+## `StationDressingBatch` the solid path merges `<body>/Mesh` at
+## `body.transform * mesh.transform`, where that is exactly where the mirror
+## lives.
+##
+## This is built by hand rather than read off a craft because whether any
+## shipping craft happens to author a mirrored piece into a mergeable group is
+## an accident of content that must not decide whether the path is covered.
+func _check_mirrored_placement_merge(expected_sign: int) -> void:
+	var hero := HeroShip.new()
+	var box := hero.call("_rounded_box_mesh", Vector3(0.5, 0.5, 0.5), null) as ArrayMesh
+	hero.free()
+	var material := StandardMaterial3D.new()
+	var parent := Node3D.new()
+	parent.name = "MirroredFitoutFixture"
+	root.add_child(parent)
+	for spec in [
+		["PortPart", Transform3D(Basis.IDENTITY, Vector3(-0.6, 0.0, 0.0))],
+		[
+			"StarboardPart",
+			Transform3D(
+				Basis.IDENTITY.scaled(Vector3(-1.0, 1.0, 1.0)), Vector3(0.6, 0.0, 0.0)
+			),
+		],
+	]:
+		var piece := MeshInstance3D.new()
+		piece.name = String(spec[0])
+		piece.mesh = box
+		piece.material_override = material
+		piece.transform = spec[1] as Transform3D
+		parent.add_child(piece)
+
+	var report := ShipFitoutBatch.consolidate([parent], [], parent)
+	var batch := parent.get_node_or_null(NodePath("FitoutRenderBatch01")) as MeshInstance3D
+	_assert(
+		int(report["visual_batches"]) == 1 and batch != null and batch.mesh != null,
+		"a mirrored starboard placement is merged rather than refused (%d batches)"
+		% int(report["visual_batches"])
+	)
+	if batch == null or batch.mesh == null:
+		root.remove_child(parent)
+		parent.queue_free()
+		return
+
+	# Winding against the shading normals: the whole point of reversing the
+	# index order is that the two still agree after the mirror.
+	_assert_wound("the merged port/starboard pair", batch.mesh, expected_sign)
+
+	var scored := 0
+	for record_variant in ShipFitoutBatch.authored_piece_index(batch):
+		var record := record_variant as Dictionary
+		_assert_batched_piece_faces_outward(
+			"merged %s" % String(record.get("name", "?")),
+			batch.mesh,
+			record,
+			expected_sign
+		)
+		scored += 1
+	_assert(
+		scored == 2,
+		"both authored pieces are scored through the batch's index (%d of 2)" % scored
+	)
+
+	# The mirrored half's tangent frame has to flip with it: `n x t` changes sign
+	# under a mirror, so the binormal sign must be negated or every normal-mapped
+	# face on that piece lights from the wrong side.
+	var merged_arrays: Array = batch.mesh.surface_get_arrays(0)
+	var merged_tangents: PackedFloat32Array = merged_arrays[Mesh.ARRAY_TANGENT]
+	var source_vertices := (box.surface_get_arrays(0)[Mesh.ARRAY_VERTEX] as PackedVector3Array).size()
+	var opposed := 0
+	var compared := 0
+	if merged_tangents.size() == source_vertices * 2 * 4:
+		for index in source_vertices:
+			compared += 1
+			if is_equal_approx(
+				merged_tangents[index * 4 + 3],
+				-merged_tangents[(source_vertices + index) * 4 + 3]
+			):
+				opposed += 1
+	_assert(
+		compared == source_vertices and opposed == compared,
+		"the mirrored half carries the opposite binormal sign at all %d vertices (%d matched)"
+		% [compared, opposed]
+	)
+
+	root.remove_child(parent)
+	parent.queue_free()
+
+
 ## Normal mapping needs two independent UV axes on every face, including
 ## side and top plates. XY-only projection collapses their tangent frames.
 func _assert_uv_faces_have_area(label: String, mesh: Mesh) -> void:
@@ -587,6 +682,99 @@ func _assert_closed_mesh_faces_outward(label: String, mesh: Mesh, expected_sign:
 		"%s faces all %d closed-loft triangles away from its interior (%d backwards)"
 		% [label, triangles, backwards]
 	)
+
+
+## Every closed-loft claim this renderer answers for, scored from its own
+## interior. Returns how many claims it covered.
+##
+## An ordinary piece answers for itself. A `ShipFitoutBatch` renderer answers for
+## the authored pieces it folded, and the difference matters: the merged buffer
+## holds N separate closed volumes, so its own AABB centre sits in the air
+## between them and is no longer interior to anything. Scored that way, ten
+## correctly wound engine housings read as half backwards. The batch therefore
+## never claims `closed_loft_hull` for itself, and this guard reaches through its
+## authored-piece index instead — each piece's own triangles, at its own
+## placement, scored from its own interior, exactly as they were scored when that
+## piece still stood as its own node. Folding a piece must not retire the guard
+## that covers it.
+func _check_closed_lofts(label: String, instance: MeshInstance3D, expected_sign: int) -> int:
+	var pieces := ShipFitoutBatch.authored_piece_index(instance)
+	if pieces.is_empty():
+		if not bool(instance.get_meta("closed_loft_hull", false)):
+			return 0
+		_assert_closed_mesh_faces_outward(label, instance.mesh, expected_sign)
+		return 1
+	var covered := 0
+	for record_variant in pieces:
+		var record := record_variant as Dictionary
+		var metadata := record.get("metadata", {}) as Dictionary
+		if not bool(metadata.get("closed_loft_hull", false)):
+			continue
+		covered += 1
+		_assert_batched_piece_faces_outward(
+			"%s/%s" % [label, String(record.get("name", "?"))],
+			instance.mesh,
+			record,
+			expected_sign
+		)
+	return covered
+
+
+## One folded piece's own triangles, scored from that piece's own interior.
+func _assert_batched_piece_faces_outward(
+		label: String,
+		mesh: Mesh,
+		record: Dictionary,
+		expected_sign: int
+	) -> void:
+	var placement := record.get("transform", Transform3D.IDENTITY) as Transform3D
+	var interior := (placement * (record.get("aabb", AABB()) as AABB)).get_center()
+	var report := _score_ranges_from_interior(
+		mesh, record.get("index_ranges", []) as Array, interior
+	)
+	var triangles := int(report["triangles"])
+	var positive := int(report["positive"])
+	var backwards := positive if expected_sign == -1 else triangles - positive
+	_assert(
+		triangles > 0 and backwards == 0,
+		"%s faces all %d closed-loft triangles away from its interior (%d backwards)"
+		% [label, triangles, backwards]
+	)
+
+
+## `_score_faces_from_interior` restricted to the index runs a batch published
+## for one authored piece.
+func _score_ranges_from_interior(mesh: Mesh, ranges: Array, interior: Vector3) -> Dictionary:
+	var triangles := 0
+	var positive := 0
+	for run_variant in ranges:
+		var run := run_variant as Dictionary
+		var surface := int(run.get("surface", -1))
+		if mesh == null or surface < 0 or surface >= mesh.get_surface_count():
+			continue
+		var arrays: Array = mesh.surface_get_arrays(surface)
+		if arrays.is_empty():
+			continue
+		var verts: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
+		var idx: PackedInt32Array = (
+			arrays[Mesh.ARRAY_INDEX] if arrays[Mesh.ARRAY_INDEX] != null else PackedInt32Array()
+		)
+		var cursor := int(run.get("index_start", 0))
+		var stop := mini(cursor + int(run.get("index_count", 0)), idx.size())
+		while cursor + 3 <= stop:
+			var a := verts[idx[cursor]]
+			var b := verts[idx[cursor + 1]]
+			var c := verts[idx[cursor + 2]]
+			cursor += 3
+			var geometric := (b - a).cross(c - a)
+			var outside := (a + b + c) / 3.0 - interior
+			var direction := geometric.dot(outside)
+			if absf(direction) < 1e-9:
+				continue
+			triangles += 1
+			if direction > 0.0:
+				positive += 1
+	return {"triangles": triangles, "positive": positive}
 
 
 func _score_faces_from_interior(mesh: Mesh) -> Dictionary:
