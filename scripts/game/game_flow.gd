@@ -822,6 +822,29 @@ var _first_sortie_tutorial_active_step: StringName = &""
 var _first_sortie_tutorial_craft_context: Dictionary = {}
 ## First-time nearby-sector activity briefings. Same tutorial channel and same
 ## fencing discipline as the first-sortie steps; the seen-set is persistent.
+## The sector's own places, as the Destination Board lists them. These are not
+## worlds: there is no expedition to launch, only a place to fly to. The
+## briefing map is the one authored card each place gets.
+const NEARBY_HULK_DOCK_SITE_ID: StringName = &"cinder_hulk_dock_site"
+const NEARBY_BELT_BORE_SITE_ID: StringName = &"cinder_belt_bore_site"
+const NEARBY_SECTOR_SITE_BRIEFING_IDS := {
+	NEARBY_HULK_DOCK_SITE_ID: &"cinder_hulk_power_restoration",
+	NEARBY_BELT_BORE_SITE_ID: &"cinder_asteroid_field_threading_run",
+}
+## Marker families the streamed cluster publishes for its own named places.
+const NEARBY_SECTOR_DESTINATION_MARKER_IDS: Array[StringName] = [
+	&"nearby_hulk_dock",
+	&"nearby_belt_bore",
+	&"nearby_route_beacon",
+	&"nearby_ringed_moonlet",
+	&"nearby_extraction_platform",
+	&"nearby_debris_field",
+]
+## Close enough that the place fills the canopy rather than reading as a speck,
+## and tight enough that the hulk and the belt bore -- roughly 440 m apart --
+## can never brief the pilot about each other.
+const NEARBY_SECTOR_SITE_BRIEFING_RANGE_METERS := 250.0
+
 var _activity_tutorial_generation := 0
 var _activity_tutorial_revision := 0
 var _activity_tutorial_active_id: StringName = &""
@@ -3658,9 +3681,39 @@ func _initialize_planetary_destination_catalog() -> void:
 		"travel_summary": "JUMP // LAND // COASTAL EXPLORATION // RETURN",
 		"unavailable_reason": "",
 	})
+	# The two places in the nearby sector a pilot can actually go inside. They
+	# are listed beside the worlds so they can be found deliberately, and they
+	# are registered as sites, not worlds, because there is no expedition to
+	# launch: the board can only tell you where they are and what to do there.
+	var hulk_site := catalog.register_sector_site({
+		"site_id": NEARBY_HULK_DOCK_SITE_ID,
+		"display_name": "Abandoned Station Hulk",
+		"sector_id": CinderStreamingBootstrap.LOCATION_ID,
+		"site_kind_id": &"dock",
+		"site_kind_text": "PRESSURISED DOCK",
+		"approach_id": &"cinder_hulk_dock_approach",
+		"approach_distance_meters": AbandonedStationHulk.HULK_ANCHOR.length(),
+		"travel_summary": "DOCK // WALK IN // THROW THE BREAKER",
+		"engagement_text": "IN SENSOR RANGE — DOCK ON THE LIT FACE",
+		"unreachable_text": "OUT OF SENSOR RANGE — FLY OUT TO CINDER REACH",
+	})
+	var bore_site := catalog.register_sector_site({
+		"site_id": NEARBY_BELT_BORE_SITE_ID,
+		"display_name": "Cinder Belt Bore",
+		"sector_id": CinderStreamingBootstrap.LOCATION_ID,
+		"site_kind_id": &"bore",
+		"site_kind_text": "CUT BORE",
+		"approach_id": &"cinder_belt_bore_run",
+		"approach_distance_meters": CinderAsteroidField.LANE_ENTRY.length(),
+		"travel_summary": "ENTER THE RINGED MOUTH // FIVE GATES // EXIT",
+		"engagement_text": "IN SENSOR RANGE — LINE UP ON THE RINGED MOUTH",
+		"unreachable_text": "OUT OF SENSOR RANGE — FLY OUT TO CINDER REACH",
+	})
 	if (
 		not bool(ember_result.get("accepted", false))
 		or not bool(aurora_result.get("accepted", false))
+		or not bool(hulk_site.get("accepted", false))
+		or not bool(bore_site.get("accepted", false))
 	):
 		push_error("Planetary destination catalog rejected its authored production roster")
 		return
@@ -3785,7 +3838,106 @@ func _get_minimap_objective_markers(coordinate_frame_generation: int = 0) -> Arr
 		_get_nearby_activity_binding(),
 		coordinate_frame_generation,
 	))
+	markers.append_array(_get_nearby_sector_destination_markers(
+		coordinate_frame_generation
+	))
 	return markers
+
+
+## Non-null only while a streamed Cinder generation is really in the tree. The
+## station's own scene owns no cluster, so this is also the honest answer to
+## "is the sector out there right now".
+func _get_resident_nearby_sector_cluster() -> NearbySectorCluster:
+	if not is_instance_valid(world) or not world.has_method(&"get_nearby_sector_cluster"):
+		return null
+	var cluster := world.get_nearby_sector_cluster() as NearbySectorCluster
+	if not is_instance_valid(cluster) or not cluster.is_inside_tree() \
+			or cluster.is_queued_for_deletion():
+		return null
+	return cluster
+
+
+## The sector's own places, published into the same detached marker roster the
+## activities already use. They exist only while the pilot is actually flying
+## and the sector is resident: on foot in the yard, or with Cinder streamed
+## out, the roster is empty and the map drops every one of them. The cluster
+## omits a family whose component has not built, so a marker can never claim a
+## place that is not there.
+func _get_nearby_sector_destination_markers(
+		coordinate_frame_generation: int = 0,
+	) -> Array[Dictionary]:
+	var markers: Array[Dictionary] = []
+	if not _piloting:
+		return markers
+	var cluster := _get_resident_nearby_sector_cluster()
+	if cluster == null or not cluster.has_method(&"get_named_destination_marker_positions"):
+		return markers
+	var families := cluster.get_named_destination_marker_positions()
+	for marker_id: StringName in NEARBY_SECTOR_DESTINATION_MARKER_IDS:
+		for position_variant: Variant in families.get(marker_id, []) as Array:
+			if position_variant is not Vector3 \
+					or not (position_variant as Vector3).is_finite():
+				continue
+			markers.append({
+				"id": marker_id,
+				"position": position_variant as Vector3,
+				"generation": maxi(coordinate_frame_generation, 0),
+				"active": true,
+			})
+	return markers
+
+
+## First approach to one of the sector's own places. A pilot who ignores the
+## objective list is still told once what the hulk and the belt are and how to
+## engage them; the existing seen-store makes every later approach silent, and
+## remembers that across a re-entry.
+func _advance_nearby_destination_briefings(actor_sample: Dictionary) -> void:
+	if not _piloting or not bool(actor_sample.get("available", false)):
+		return
+	var sampled: Variant = actor_sample.get("position", null)
+	if sampled is not Vector3 or not (sampled as Vector3).is_finite():
+		return
+	var cluster := _get_resident_nearby_sector_cluster()
+	if cluster == null or not cluster.has_method(&"get_named_destination_marker_positions"):
+		return
+	var actor_position := sampled as Vector3
+	var families := cluster.get_named_destination_marker_positions()
+	for briefing: Array in [
+		[&"nearby_hulk_dock", NEARBY_SECTOR_SITE_BRIEFING_IDS[NEARBY_HULK_DOCK_SITE_ID]],
+		[&"nearby_belt_bore", NEARBY_SECTOR_SITE_BRIEFING_IDS[NEARBY_BELT_BORE_SITE_ID]],
+	]:
+		var positions := families.get(briefing[0] as StringName, []) as Array
+		if positions.is_empty():
+			continue
+		var place := positions[0] as Vector3
+		if not place.is_finite() or actor_position.distance_to(place) \
+				> NEARBY_SECTOR_SITE_BRIEFING_RANGE_METERS:
+			continue
+		publish_activity_tutorial_briefing(briefing[1] as StringName)
+
+
+## Live offer state for the Destination Board's sector-site rows. A site is
+## offered only while the pilot is flying and that place's own component is
+## resident; nothing here can make an absent place reachable.
+func _get_nearby_sector_site_runtime_states() -> Dictionary:
+	var cluster := _get_resident_nearby_sector_cluster()
+	var families: Dictionary = {}
+	if cluster != null and cluster.has_method(&"get_named_destination_marker_positions"):
+		families = cluster.get_named_destination_marker_positions()
+	return {
+		NEARBY_HULK_DOCK_SITE_ID: {
+			"reachable": (
+				_piloting
+				and not (families.get(&"nearby_hulk_dock", []) as Array).is_empty()
+			),
+		},
+		NEARBY_BELT_BORE_SITE_ID: {
+			"reachable": (
+				_piloting
+				and not (families.get(&"nearby_belt_bore", []) as Array).is_empty()
+			),
+		},
+	}
 
 
 ## Completes the retained Ember HUD handoff for targets already inside the map
@@ -4101,6 +4253,7 @@ func _physics_process(delta: float) -> void:
 	_advance_cinder_beacon_traversal(delta, cinder_activity_actor_sample)
 	_advance_cinder_asteroid_field_run(delta, cinder_activity_actor_sample)
 	_advance_hulk_power_restoration(delta)
+	_advance_nearby_destination_briefings(cinder_activity_actor_sample)
 	_sync_cinder_convoy_stream_presence()
 	# A live convoy owns one exact streamed Cinder generation, but that retained
 	# residency cannot substitute for the required current caller-sampled update.
@@ -5521,6 +5674,11 @@ func _connect_runtime_signals() -> void:
 		&"planetary_destination_requested",
 		_on_hud_planetary_destination_requested
 	)
+	_connect_signal_once(
+		hud,
+		&"sector_site_briefing_requested",
+		_on_hud_sector_site_briefing_requested
+	)
 	_connect_signal_once(hud, &"setting_change_requested", _on_setting_change_requested)
 	_connect_signal_once(hud, &"settings_save_requested", _on_settings_save_requested)
 	_connect_signal_once(hud, &"settings_reset_requested", _on_settings_reset_requested)
@@ -6082,16 +6240,21 @@ func has_seen_activity_tutorial(prompt_id: StringName) -> bool:
 		and _tutorial_prompt_seen_store.has_seen(prompt_id)
 
 
-## Called at the production activity-start seams. The first start of each kind
-## briefs the player once; every later start of that kind is silent.
-func publish_activity_tutorial_briefing(activity_id: StringName) -> bool:
+## Called at the production activity-start seams and at the first approach to
+## one of the sector's own places. The first start or approach of each kind
+## briefs the player once; every later one is silent. `ignore_seen` is the
+## Destination Board's deliberate "show me that again" and is never used by an
+## automatic trigger.
+func publish_activity_tutorial_briefing(
+	activity_id: StringName, ignore_seen: bool = false
+) -> bool:
 	var prompt_id := activity_tutorial_prompt_id(activity_id)
 	if prompt_id.is_empty():
 		return false
 	if runtime_settings != null and not runtime_settings.show_tutorials:
 		return false
 	_ensure_tutorial_prompt_seen_store()
-	if has_seen_activity_tutorial(prompt_id):
+	if has_seen_activity_tutorial(prompt_id) and not ignore_seen:
 		return false
 	_activity_tutorial_generation += 1
 	_activity_tutorial_revision = 1
@@ -13552,8 +13715,10 @@ func _on_cinder_location_loaded(
 	# `location_loaded`, so the world's nullable accessor can now discover the
 	# real ActivityBinding. Refresh the retained directory from that authority in
 	# the same transition instead of leaving its station-side OUT OF RANGE cards
-	# stale until some unrelated activity event happens.
+	# stale until some unrelated activity event happens. The Destination Board's
+	# sector-site rows read the same residency, so they refresh here too.
 	_sync_activity_hud()
+	_sync_planetary_cruise_hud()
 	if is_instance_valid(cinder_convoy_host):
 		cinder_convoy_host.visible = is_instance_valid(instance)
 	if _cinder_convoy_runtime_rebind_pending:
@@ -13586,8 +13751,10 @@ func _on_cinder_location_unloaded(
 		return
 	# Coordinator ownership is already retired before this signal. Re-reading the
 	# world accessor therefore clears the streamed binding, detaches its optional
-	# audio, and immediately restores honest disabled directory cards.
+	# audio, and immediately restores honest disabled directory cards, including
+	# the Destination Board's sector-site rows.
 	_sync_activity_hud()
+	_sync_planetary_cruise_hud()
 	if _convoy_is_running() and not _cinder_convoy_runtime_rebind_pending:
 		_fail_active_activity(&"cinder_stream_unloaded")
 	if is_instance_valid(cinder_convoy_host):
@@ -15568,6 +15735,30 @@ func _on_hud_planetary_cruise_toggle_requested(request_serial: int) -> void:
 ## Each journey retains its own live pilot and lifecycle gates; unknown IDs
 ## cannot select a route or mutate travel state. A well-formed rejected serial is
 ## consumed so the retained HUD and GameFlow sequence cannot drift apart.
+## The Destination Board's sector-site action. It resolves the site through the
+## same catalog entry point the worlds use, then shows that place's authored
+## briefing again. It starts nothing, moves nothing, and is refused outright for
+## a site the catalog does not know.
+func _on_hud_sector_site_briefing_requested(site_id: StringName) -> bool:
+	if _planetary_destination_catalog == null:
+		return false
+	var resolved := _planetary_destination_catalog.resolve_route(site_id)
+	if not bool(resolved.get("accepted", false)) \
+			or StringName(resolved.get("destination_kind", &"")) != &"sector_site":
+		return false
+	var briefing_id := StringName(
+		NEARBY_SECTOR_SITE_BRIEFING_IDS.get(site_id, &"")
+	)
+	if briefing_id.is_empty():
+		return false
+	# Second gate, independent of the button's disabled state: a place that is
+	# not out there right now is never briefed as though it were.
+	var offered := _get_nearby_sector_site_runtime_states().get(site_id, {}) as Dictionary
+	if not bool(offered.get("reachable", false)):
+		return false
+	return publish_activity_tutorial_briefing(briefing_id, true)
+
+
 func _on_hud_planetary_destination_requested(
 	destination_id: StringName,
 	request_serial: int,
@@ -16796,7 +16987,7 @@ func _make_planetary_destination_catalog_snapshot(presentation: Dictionary) -> D
 			"engagement_requested": bool(presentation.get("engagement_requested", false)),
 		},
 		AuroraExpeditionType.DESTINATION_ID: _aurora_expedition.runtime_state(),
-	})
+	}, _get_nearby_sector_site_runtime_states())
 	for row: Dictionary in snapshot.get("destinations", []):
 		if row.get("destination_id") == AuroraExpeditionType.DESTINATION_ID and _aurora_expedition.is_active():
 			row["action_text"] = "RETURN TO MUDDS" if bool(row.get("action_enabled", false)) else "RETURN REQUIRES PILOT SEAT"

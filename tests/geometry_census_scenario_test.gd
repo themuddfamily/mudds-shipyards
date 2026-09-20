@@ -269,8 +269,19 @@ const MAIN_SCENE := preload("res://scenes/main.tscn")
 # material the six stock batches share. The +30 solid bodies and their 30
 # collision shapes are nodes, not renderers, which is why renderers move by 8
 # while nodes move by 72.
-const RESIDENT_FINGERPRINT := "b5bebf5348647dfa67c23ce654d028cc4d079c3598a49367fb8ce4c05419deaa"
-const CINDER_LOADED_FINGERPRINT := "8c17d0b9c8742a940c0ad24ecc35f961eb78ebc66ac0d993042bb551edf0d202"
+# Refrozen 2026-09-20 for the Destination Board's two new sector-site rows: the
+# board now lists the abandoned hulk's dock and the belt's bore beside Ember and
+# Aurora, and each retained pause-menu card is nine Controls (panel, margin, row,
+# copy column, three labels, status label, action button). That is +18 nodes on
+# both scenarios and nothing else at all - triangles, renderers, surfaces, unique
+# meshes, materials, lights, shaders, textures and particle systems are all
+# byte-identical, and every loaded-minus-resident delta is unchanged, because the
+# rows are HUD Controls with no renderer of their own.
+#
+#   resident nodes  10,391 -> 10,409
+#   loaded nodes    10,978 -> 10,996
+const RESIDENT_FINGERPRINT := "f24952b2d46054f63a958cd868e77d5bd1316abd2b2c9f090bad1ddac2ca712d"
+const CINDER_LOADED_FINGERPRINT := "64e1c85301295a57c2ade5ef8ebed6168b80b342b702b7695d9ee4b3df244492"
 
 var _assertions := 0
 var _failures := PackedStringArray()
@@ -330,8 +341,8 @@ func _run() -> void:
 		int(resident.get("bound_phase_unique_materials", -1)) == 716
 			and int(resident.get("retained_reachable_unique_materials", -1)) == 1019
 			and int(resident.get("lights", -1)) == 341
-			and int(resident.get("nodes", -1)) == 10391,
-		"resident resource roster freezes 716 bound / 1,019 retained materials, 341 lights, and 10,391 nodes"
+			and int(resident.get("nodes", -1)) == 10409,
+		"resident resource roster freezes 716 bound / 1,019 retained materials, 341 lights, and 10,409 nodes"
 	)
 	_check(
 		str(resident.get("measurement_fingerprint", "")) == RESIDENT_FINGERPRINT,
@@ -398,8 +409,8 @@ func _run() -> void:
 		int(loaded.get("bound_phase_unique_materials", -1)) == 768
 			and int(loaded.get("retained_reachable_unique_materials", -1)) == 1076
 			and int(loaded.get("lights", -1)) == 376
-			and int(loaded.get("nodes", -1)) == 10978,
-		"loaded resource roster freezes 768 bound / 1,076 retained materials, 376 lights, and 10,978 nodes"
+			and int(loaded.get("nodes", -1)) == 10996,
+		"loaded resource roster freezes 768 bound / 1,076 retained materials, 376 lights, and 10,996 nodes"
 	)
 	var cinder_bucket := (loaded.get("buckets", {}) as Dictionary).get(
 		"CinderStreamingBootstrap", {}
