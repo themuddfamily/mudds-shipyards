@@ -113,6 +113,18 @@ used, so the margin is visible in the passing log and not only in the failure.
    race. A suite that cannot survive a loaded machine cannot be trusted on a
    quiet one either; it was measuring the machine, not the game.
 
+## The other kind of load flake: the clock
+
+A suite can be perfectly deterministic and still fail under load by running out
+of time. `lifecycle_phantom_geometry_test` takes about 175 s quiet and up to
+267 s against deliberate load; the release matrix allows 300 s per suite
+(`TEST_MATRIX_TIMEOUT_SECONDS`) while `tools/run_affected_suites.sh` defaults to
+240 s, so the same passing suite reads as a failure through the focused runner
+on a busy machine. Before adding a long suite, check its loaded wall-clock
+against both budgets, and prefer a fix that removes wasted real time - waiting
+on a predicate instead of a fixed number of rounds, for one - over one that
+shortens what the suite audits.
+
 ## Checklist for a new suite
 
 * Does any assertion count awaited rounds as ticks or as seconds? Measure
