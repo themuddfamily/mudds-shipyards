@@ -26,6 +26,19 @@ const Store := preload("res://scripts/persistence/user_data_store.gd")
 const ISOLATED_STORE_PATH := "memory://ember-repeat-visit-landing.json"
 
 const CRAFT_ROTATION: Array[StringName] = [&"arrow_provisional", &"torrent_provisional"]
+## What "on the caldera floor" means for every authored cue the Ember surface
+## composition owns. See `ember_landing_region_test.gd` for the full reasoning;
+## the short version is that each cue is placed from a body-local or
+## region-local reading under a composition that is a plain `Node`, so a
+## reading used straight as a node position stands in neither frame. This is
+## the Main-composed measurement of the same family, taken after the descent's
+## own committed common-world rebase.
+const SURFACE_CUE_MAX_HEIGHT_M := 64.0
+const SURFACE_CUE_MAX_RANGE_M := 1500.0
+## The orbital approach datum is authored 140 km from the moon's centre --
+## 20 km above the caldera -- and genuinely belongs in the body frame.
+const ORBITAL_DATUM_NODE: StringName = &"OwnedOrbitalApproachRing"
+const ORBITAL_DATUM_ALTITUDE_M := 20_000.0
 const FRAME_BUDGET_GRACE := 30
 const ORBIT_STANDOFF_M := 500.0
 const ORBIT_HOLD_SPEED_MPS := 8.0
@@ -345,6 +358,60 @@ func _check_authored_interaction_points_are_reachable(
 			"%s keeps the %s point on the caldera floor, %.1f m from the disembarked pilot: region-local %s, authored %s"
 				% [label, probe.name, walk, placed, authored]
 		)
+	_check_surface_cues_stand_on_the_caldera_floor(composition, region, label)
+
+
+## The Main-composed whole-family measurement: everything this composition puts
+## in the world that the pilot can see or touch stands on the caldera floor
+## they walked out onto. The two presses above have a reachability contract;
+## the route cues, practicals, beacons, hazard perimeter and water surface have
+## none, which is why all of them were 120 km up and nothing said so.
+func _check_surface_cues_stand_on_the_caldera_floor(
+		composition: Node, region: Node3D, label: String
+	) -> void:
+	var offenders := PackedStringArray()
+	var measured := 0
+	var orbital_datum_local := Vector3.INF
+	var stack: Array[Node] = [composition]
+	while not stack.is_empty():
+		var node: Node = stack.pop_back()
+		var spatial := node as Node3D
+		# Anything the composition places itself has to stand in an authored
+		# frame of its own rather than inherit the composition's, which is a
+		# plain `Node` and therefore whatever frame it happens to hang under.
+		# This catches the same defect at any magnitude, including the small
+		# offsets a bounded distance cannot separate from an authored height.
+		if spatial != null and node.get_parent() == composition \
+				and not spatial.top_level:
+			offenders.append("%s is not anchored to an authored frame" % [node.name])
+		if node.name == ORBITAL_DATUM_NODE and node.get_parent() == composition:
+			orbital_datum_local = region.to_local(spatial.global_position)
+			continue
+		for child in node.get_children():
+			stack.append(child)
+		if spatial == null or not (
+			spatial is VisualInstance3D or spatial is CollisionShape3D
+				or spatial is CollisionObject3D
+		):
+			continue
+		measured += 1
+		var placed := region.to_local(spatial.global_position)
+		if absf(placed.y) > SURFACE_CUE_MAX_HEIGHT_M \
+				or Vector2(placed.x, placed.z).length() > SURFACE_CUE_MAX_RANGE_M:
+			offenders.append("%s at region-local %s" % [
+				composition.get_path_to(spatial), placed,
+			])
+	_check(
+		measured >= 20 and offenders.is_empty(),
+		"%s stands every authored surface cue on the caldera floor (%d measured): %s"
+			% [label, measured, offenders]
+	)
+	_check(
+		absf(orbital_datum_local.y - ORBITAL_DATUM_ALTITUDE_M) <= 1.0
+			and Vector2(orbital_datum_local.x, orbital_datum_local.z).length() <= 1.0,
+		"%s keeps the orbital approach datum on its body-frame anchor 20 km over the caldera: region-local %s"
+			% [label, orbital_datum_local]
+	)
 
 
 # ------------------------------------------------------------- staging ----

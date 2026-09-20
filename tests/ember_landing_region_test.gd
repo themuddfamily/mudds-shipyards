@@ -42,6 +42,24 @@ const LAVA_TUBE_LEGS := [
 	Vector3(-74.0, 0.0, 16.0),
 ]
 const INTERACTION_LAYER := 1 << 3
+## Every authored cue this composition owns is placed from a reading in an
+## authored frame -- body-local, where the caldera floor reads y = 120,000 m,
+## or the landing region's own frame, where it reads y = 0. The composition
+## holding them is a plain `Node`, so a reading used straight as a node
+## position lands in neither frame. Two interaction points were found 120 km
+## overhead that way and nothing caught it, because a route cue or a practical
+## has no reachability contract to fail. These bounds are what "on the caldera
+## floor" means for the whole family: a cue is within 64 m of the floor
+## vertically and inside the 1.5 km the authored surface content spans -- the
+## furthest is the return beacon at 712 m.
+const SURFACE_CUE_MAX_HEIGHT_M := 64.0
+const SURFACE_CUE_MAX_RANGE_M := 1500.0
+## The one cue in this composition that is not a surface cue. The orbital
+## approach datum is authored 140 km from the moon's centre -- 20 km above the
+## caldera -- and belongs in the body frame, so it is measured against that
+## frame instead and skipped with its subtree here.
+const ORBITAL_DATUM_NODE: StringName = &"OwnedOrbitalApproachRing"
+const ORBITAL_DATUM_ALTITUDE_M := 20_000.0
 ## The two authored interaction points, in the caldera region's own frame.
 ## Both are authored as floor spots the pilot walks onto, so the live point
 ## has to stand there too -- not 120 km up in the body frame.
@@ -391,7 +409,62 @@ func _test_authored_interaction_points_stand_on_the_floor() -> void:
 			"a pilot standing on the authored %s spot reaches its press %.1f m away: %s"
 				% [probe.label, reach, point.call(&"get_interaction_prompt")],
 		)
+	_check_surface_cues_stand_on_the_caldera_floor(composition, landing_root, "")
 	await _cleanup(fixture)
+
+
+## The whole-family placement measurement. It walks everything the composition
+## puts in the world that a pilot can see or touch -- meshes, batches, lights
+## and collision -- and requires each one to stand on the caldera floor the
+## pilot is walking on. One sweep covers every cue at once, which is the point:
+## the family that broke here is exactly the set nobody writes a per-node
+## contract for.
+func _check_surface_cues_stand_on_the_caldera_floor(
+		composition: Node, region: Node3D, label: String
+	) -> void:
+	var offenders := PackedStringArray()
+	var measured := 0
+	var orbital_datum_local := Vector3.INF
+	var stack: Array[Node] = [composition]
+	while not stack.is_empty():
+		var node: Node = stack.pop_back()
+		var spatial := node as Node3D
+		# Anything the composition places itself has to stand in an authored
+		# frame of its own rather than inherit the composition's, which is a
+		# plain `Node` and therefore whatever frame it happens to hang under.
+		# This catches the same defect at any magnitude, including the small
+		# offsets a bounded distance cannot separate from an authored height.
+		if spatial != null and node.get_parent() == composition \
+				and not spatial.top_level:
+			offenders.append("%s is not anchored to an authored frame" % [node.name])
+		if node.name == ORBITAL_DATUM_NODE and node.get_parent() == composition:
+			orbital_datum_local = region.to_local(spatial.global_position)
+			continue
+		for child in node.get_children():
+			stack.append(child)
+		if spatial == null or not (
+			spatial is VisualInstance3D or spatial is CollisionShape3D
+				or spatial is CollisionObject3D
+		):
+			continue
+		measured += 1
+		var placed := region.to_local(spatial.global_position)
+		if absf(placed.y) > SURFACE_CUE_MAX_HEIGHT_M \
+				or Vector2(placed.x, placed.z).length() > SURFACE_CUE_MAX_RANGE_M:
+			offenders.append("%s at region-local %s" % [
+				composition.get_path_to(spatial), placed,
+			])
+	_check(
+		measured >= 20 and offenders.is_empty(),
+		"%severy authored surface cue stands on the caldera floor (%d measured): %s"
+			% [label, measured, offenders],
+	)
+	_check(
+		absf(orbital_datum_local.y - ORBITAL_DATUM_ALTITUDE_M) <= 1.0
+			and Vector2(orbital_datum_local.x, orbital_datum_local.z).length() <= 1.0,
+		"%sthe orbital approach datum keeps its body-frame anchor %.0f km over the caldera: region-local %s"
+			% [label, ORBITAL_DATUM_ALTITUDE_M / 1000.0, orbital_datum_local],
+	)
 
 
 # -------------------------------------------------------------- expedition ---

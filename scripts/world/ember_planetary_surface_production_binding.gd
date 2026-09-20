@@ -60,6 +60,13 @@ const MAX_SAFE_GENERATION := 9_007_199_254_740_991
 
 enum State { IDLE, BOUND, DETACHED }
 
+## The two authored frames this composition's surface cues are read in. A cue
+## registered as `BODY` carries a body-local reading -- the moon's centre is
+## its origin, so a spot on the caldera floor reads y = 120,000 m. A cue
+## registered as `REGION` carries a reading in the authored landing region's
+## own frame, where that same spot reads y = 0.
+enum CueFrame { BODY, REGION }
+
 var _state := State.IDLE
 var _host: Object
 var _host_generation := -1
@@ -110,6 +117,10 @@ var _surface_audio_policy: RefCounted
 var _surface_audio_generation := 0
 var _surface_audio_altitude_m := 0.0
 var _surface_audio_exposure := 0.0
+## Authored surface cues, each with the frame its position was read in. See
+## `_anchor_surface_cues` for why this composition cannot simply let them keep
+## that reading as a node position.
+var _surface_cues: Array[Dictionary] = []
 
 
 func _ready() -> void:
@@ -145,6 +156,7 @@ func configure(
 	if generation != expected_generation and expected_generation != 0:
 		return _result(false, &"stale_host_generation")
 	_host = host
+	_surface_cues.clear()
 	_host_generation = generation
 	_attachment_generation = int(host.call(&"get_attachment_generation"))
 	_hazard_content = HazardContentScript.new()
@@ -188,6 +200,7 @@ func configure(
 	)
 	if not bool(configured.get("accepted", false)):
 		return _result(false, &"hazard_recovery_cue_rejected")
+	_register_surface_cue(_hazard_zone_presentation as Node3D, CueFrame.BODY)
 	_set_hazard_semantic_clear(&"hazard_zone_ready")
 	_surface_audio_policy = SurfaceAudioPolicyScript.new()
 	configured = _surface_audio_policy.call(&"configure", WeatherProfile)
@@ -217,16 +230,31 @@ func configure(
 	for landmark in landmark_contract.get_snapshot().get("landmarks", []) as Array:
 		route_points.append((landmark as Dictionary).get("position_body_local_m", Vector3.ZERO))
 	_route_trail.call(&"configure", route_points)
+	# The trail renders the same cluster-contract points the beacons stand on,
+	# so its batch and its next-landmark label are region-local too.
+	_register_surface_cue(_route_trail as Node3D, CueFrame.REGION)
 	_relay_survey = RelaySurveyScript.new()
 	_register_relay_survey_activity(director)
 	_relay_survey_presentation = RelaySurveyPresentationScript.new() as Node
 	_relay_survey_presentation.name = "OwnedRelaySurveyPresentation"
 	add_child(_relay_survey_presentation)
+	# The survey's own route markers are authored body-local and reported that
+	# way, so this renderer stands at the body's centre and its three markers
+	# keep the exact anchors the snapshot publishes.
+	_register_surface_cue(_relay_survey_presentation as Node3D, CueFrame.BODY)
 	_bind_relay_survey_pad_guides(host)
 	_orbital_ring = OrbitalRingScript.new() as Node
 	_orbital_ring.name = "OwnedOrbitalApproachRing"
 	add_child(_orbital_ring)
 	_orbital_ring.call(&"configure", Vector3(0.0, 140000.0, 0.0))
+	# The only cue here that is not a surface cue: an orbital approach datum
+	# 140 km from the moon's centre, 20 km above the caldera. It stays in the
+	# body frame -- that is what its authored anchor means -- and is registered
+	# so it is stood in the real body frame instead of the composition's.
+	_register_surface_cue(_orbital_ring as Node3D, CueFrame.BODY)
+	# The water presentation places its own surface mesh body-local, so the
+	# renderer root stands at the body's centre.
+	_register_surface_cue(_water_presentation as Node3D, CueFrame.BODY)
 	_adapter = AdapterScript.new()
 	var runtime := ActivityRuntimeScript.new()
 	var bound: Dictionary = _adapter.call(&"bind", host, runtime, director, reward_sink)
@@ -303,6 +331,7 @@ func configure(
 	)
 	if not bool(audio_attach.get("accepted", false)):
 		return _result(false, &"surface_audio_attach_rejected")
+	_anchor_surface_cues(host)
 	_composition_generation += 1
 	_state = State.BOUND
 	_apply_relay_survey_presentation()
@@ -988,6 +1017,7 @@ func reenter() -> Dictionary:
 		if not bool(rack_reentry.get("accepted", false)):
 			return _result(false, &"sample_rack_reentry_rejected")
 	_set_hazard_semantic_clear(&"composition_reentered")
+	_anchor_surface_cues(_host)
 	_apply_relay_survey_presentation()
 	var water_snapshot := _water.call(&"get_snapshot") as Dictionary
 	if water_snapshot.get("state", &"idle") == &"detached":
@@ -1681,6 +1711,61 @@ func _resolve_authored_landing_region(host: Object) -> Node3D:
 	return loaded_scene.get_node_or_null(^"LandingRegion") as Node3D
 
 
+## Records one authored surface cue and the frame its position was read in.
+## The reading is captured here because anchoring makes the node `top_level`,
+## after which its `position` carries the world placement instead. Every cue
+## that reports its anchor already keeps it separately, as
+## `anchor_body_local_m`, so no published reading changes.
+func _register_surface_cue(node: Node3D, frame: CueFrame) -> void:
+	if node == null or not is_instance_valid(node):
+		return
+	_surface_cues.append({
+		"node": node,
+		"frame": frame,
+		"authored_m": node.position,
+	})
+
+
+## Stands every registered cue in the authored frame its position was read in.
+##
+## This composition is a plain `Node`, so a child Node3D's `position` is in
+## neither authored frame: it is whatever frame the composition happens to
+## hang under. Under the retained production `Main` that is the streamed
+## common world, which put every body-local cue 120 km above the caldera -- the
+## relay survey's route markers, the settlement practicals, the landing
+## approach markers, the hazard perimeter and the water surface -- and left
+## even the region-local ones floating at the current origin offset. None of
+## them was reachable or visible where the pilot actually walks.
+##
+## Each cue is now `top_level` and placed through the live authored scene: the
+## body frame is the authored root, which is body-centred, and the region
+## frame is its `LandingRegion` child. A rebase owner treats every `top_level`
+## Node3D as one of its translation roots, so a streamed world-origin rebase
+## carries the cues and the caldera together, and `reenter` re-reads both
+## frames in case the authored scene was restreamed.
+func _anchor_surface_cues(host: Object) -> void:
+	var scene := _resolve_loaded_authored_scene(host) as Node3D
+	if scene == null or not scene.is_inside_tree():
+		# No live authored moon to stand on. Every cue keeps the authored
+		# reading it reports; nothing walks up to one in that arrangement.
+		return
+	var region := scene.get_node_or_null(^"LandingRegion") as Node3D
+	if region == null or not region.is_inside_tree():
+		return
+	var frames := {
+		CueFrame.BODY: scene.global_transform,
+		CueFrame.REGION: region.global_transform,
+	}
+	for cue: Dictionary in _surface_cues:
+		var node := cue.get("node") as Node3D
+		if node == null or not is_instance_valid(node) or not node.is_inside_tree():
+			continue
+		node.top_level = true
+		node.global_transform = (
+			frames[int(cue.get("frame", CueFrame.BODY))] as Transform3D
+		) * Transform3D(Basis.IDENTITY, cue.get("authored_m", Vector3.ZERO) as Vector3)
+
+
 func _bind_relay_survey_pad_guides(host: Object) -> void:
 	if _relay_survey_presentation == null:
 		return
@@ -1907,6 +1992,7 @@ func _configure_settlement_practicals(contract_snapshot: Dictionary) -> void:
 		var result: Dictionary = practical.call(&"configure", structure_id)
 		if bool(result.get("accepted", false)):
 			_settlement_practicals[structure_id] = practical
+			_register_surface_cue(practical, CueFrame.BODY)
 
 
 func _apply_settlement_practicals() -> void:
@@ -1938,6 +2024,10 @@ func _configure_landmark_beacons(contract_snapshot: Dictionary) -> void:
 		var result: Dictionary = beacon.call(&"configure", landmark_id, anchor)
 		if bool(result.get("accepted", false)):
 			_landmark_beacons[landmark_id] = beacon
+			# The cluster contract's landmark anchors carry no body radius:
+			# `ember_caldera_pad` reads (18, 0, 0), which is the authored pad
+			# in the landing region's own frame, not 120 km underground.
+			_register_surface_cue(beacon as Node3D, CueFrame.REGION)
 
 
 func _apply_landmark_beacons() -> void:
@@ -1968,6 +2058,7 @@ func _configure_landing_markers(contract_snapshot: Dictionary) -> void:
 		var result: Dictionary = marker.call(&"configure", landing_id, anchor)
 		if bool(result.get("accepted", false)):
 			_landing_markers[landing_id] = marker
+			_register_surface_cue(marker as Node3D, CueFrame.BODY)
 
 
 func _apply_landing_markers() -> void:
