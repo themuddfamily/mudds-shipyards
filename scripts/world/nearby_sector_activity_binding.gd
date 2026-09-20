@@ -22,6 +22,11 @@ const CARGO_REWARD_HANDOFF := preload("res://scripts/cargo/cinder_cargo_reward_h
 const MINING_ACTIVITY := preload("res://scripts/world/cinder_mining_platform_activity.gd")
 const SCAN_ACTIVITY := preload("res://scripts/world/cinder_abandoned_structure_scan_activity.gd")
 const BEACON_ACTIVITY := preload("res://scripts/world/cinder_beacon_traversal_activity.gd")
+const ASTEROID_RUN_ROUTE := preload(
+	"res://assets/activities/cinder_asteroid_field_threading_run.tres"
+)
+const ASTEROID_RUN_ACTIVITY_ID: StringName = &"cinder_asteroid_field_threading_run"
+const ASTEROID_RUN_REWARD_ID: StringName = &"return_asteroid_survey_to_shipyard"
 const CINDER_FIELD_AUDIO := preload("res://scripts/audio/cinder_field_activity_audio_binding.gd")
 const CINDER_CARGO_TERMINAL_AUDIO := preload("res://scripts/audio/cinder_cargo_terminal_audio_binding.gd")
 const REWARD_ADAPTER := preload("res://scripts/world/nearby_activity_reward_adapter.gd")
@@ -111,6 +116,14 @@ var _last_beacon_distance := -1.0
 var _last_beacon_distance_generation := -1
 var _beacon_traversal_reward_sink := Callable()
 var _last_beacon_reward_result: Dictionary = {}
+var _asteroid_run_director: ActivityDirector
+var _asteroid_field: Node3D
+var _asteroid_run_presentation_consumers: Array[Callable] = []
+var _asteroid_run_reward_sink := Callable()
+var _asteroid_run_reward_requested := false
+var _asteroid_run_rewarded_generation := -1
+var _last_asteroid_run_reward_result: Dictionary = {}
+var _last_asteroid_run_feedback_reason: StringName = &""
 
 
 func _enter_tree() -> void:
@@ -158,6 +171,13 @@ func _ready() -> void:
 	cargo_item.display_name = "Cinder supply crates"
 	cargo_item.unit_capacity = 1
 	_cargo_authority.register_item(cargo_item)
+	# The belt threading run is a second `CheckpointRouteActivity`, not a second
+	# activity type: `ActivityDirector` already keys its routes by activity id,
+	# so a distinct definition is the whole of the new authority.
+	_asteroid_run_director = ActivityDirector.new()
+	_asteroid_run_director.name = "CinderAsteroidFieldRunDirector"
+	add_child(_asteroid_run_director)
+	_asteroid_run_director.register_definition(ASTEROID_RUN_ROUTE)
 	_mining_activity = MINING_ACTIVITY.new() as RefCounted
 	_scan_activity = SCAN_ACTIVITY.new() as RefCounted
 	_beacon_activity = BEACON_ACTIVITY.new() as RefCounted
@@ -1932,6 +1952,286 @@ func _publish_beacon_traversal_presentation(authority_record: Dictionary = {}) -
 		_on_beacon_audio_result(authority_record)
 
 
+# --- Asteroid belt threading run ---------------------------------------------
+
+
+## The belt component publishes the collider roster the run is scored against.
+## Without it the run still starts and still completes on gate arrivals; it
+## simply cannot end a run on impact, and says so rather than pretending.
+func bind_asteroid_field(field: Node3D) -> Dictionary:
+	if not is_instance_valid(field) or not field.has_method(&"classify_position"):
+		return _result(false, &"asteroid_field_invalid")
+	_asteroid_field = field
+	_publish_asteroid_run_presentation()
+	return _result(true, &"asteroid_field_bound")
+
+
+func get_bound_asteroid_field() -> Node3D:
+	return _asteroid_field if is_instance_valid(_asteroid_field) else null
+
+
+func configure_asteroid_field_reward_handoff(reward_sink: Callable) -> Dictionary:
+	if not reward_sink.is_valid():
+		return _result(false, &"asteroid_field_reward_sink_invalid")
+	if _asteroid_run_reward_sink.is_valid():
+		if _asteroid_run_reward_sink == reward_sink:
+			return _result(true, &"asteroid_field_reward_handoff_already_configured")
+		return _result(false, &"asteroid_field_reward_handoff_already_bound")
+	_asteroid_run_reward_sink = reward_sink
+	return _result(true, &"asteroid_field_reward_handoff_configured")
+
+
+func get_asteroid_field_reward_handoff_snapshot() -> Dictionary:
+	return {
+		"configured": _asteroid_run_reward_sink.is_valid(),
+		"activity_id": ASTEROID_RUN_ACTIVITY_ID,
+		"reward_id": ASTEROID_RUN_REWARD_ID,
+		"activity_authority": false,
+		"reward_authority": false,
+		"store_authority": false,
+	}.duplicate(true)
+
+
+## Admission is the first gate itself. The gate sits inside the belt, off the
+## safe lane, so a pilot who has not actually flown into the rock cannot open a
+## run from the comfort of the beacon chain.
+func start_asteroid_field_run(caller_position: Vector3) -> Dictionary:
+	if _asteroid_run_director == null:
+		return _result(false, &"not_ready")
+	var first_gate := ASTEROID_RUN_ROUTE.get_checkpoint_position(0)
+	if not caller_position.is_finite() \
+			or caller_position.distance_to(first_gate) > ASTEROID_RUN_ROUTE.checkpoint_radius:
+		_last_asteroid_run_feedback_reason = &"outside_first_gate"
+		var rejected := _asteroid_run_presentation_snapshot()
+		rejected["accepted"] = false
+		rejected["reason"] = &"outside_first_gate"
+		_publish_asteroid_run_presentation(rejected)
+		return rejected
+	var started: Dictionary = _asteroid_run_director.start_activity(ASTEROID_RUN_ACTIVITY_ID)
+	if bool(started.get("accepted", false)):
+		_last_asteroid_run_feedback_reason = &""
+		_asteroid_run_reward_requested = false
+		_last_asteroid_run_reward_result.clear()
+	else:
+		_last_asteroid_run_feedback_reason = StringName(started.get("reason", &""))
+	var result := _asteroid_run_presentation_snapshot()
+	result["accepted"] = bool(started.get("accepted", false))
+	result["reason"] = StringName(started.get("reason", &""))
+	_publish_asteroid_run_presentation(result)
+	return result
+
+
+func submit_asteroid_field_run_position(caller_position: Vector3) -> Dictionary:
+	if _asteroid_run_director == null:
+		return _result(false, &"not_ready")
+	var route := _asteroid_run_director.get_activity_snapshot(ASTEROID_RUN_ACTIVITY_ID)
+	var submitted: Dictionary = _asteroid_run_director.submit_position(
+		ASTEROID_RUN_ACTIVITY_ID, caller_position, int(route.get("generation", -1))
+	)
+	_last_asteroid_run_feedback_reason = (
+		&"" if bool(submitted.get("accepted", false))
+		else StringName(submitted.get("reason", &""))
+	)
+	var result := _asteroid_run_presentation_snapshot()
+	result["accepted"] = bool(submitted.get("accepted", false))
+	result["reason"] = StringName(submitted.get("reason", &""))
+	if bool(submitted.get("accepted", false)) \
+			and StringName(result.get("state_id", &"")) == &"completed":
+		result["reason"] = &"complete"
+	_publish_asteroid_run_presentation(result)
+	return result
+
+
+## Production auto-submit seam. One caller-owned ship sample per physics tick
+## decides three things in order: did the hull reach the rock, did it reach the
+## next gate, or neither.
+func advance_asteroid_field_run_from_caller_sample(caller_position: Vector3) -> Dictionary:
+	if _asteroid_run_director == null:
+		return _result(false, &"not_ready")
+	var before := _asteroid_run_presentation_snapshot()
+	if StringName(before.get("state_id", &"")) != &"active":
+		before["accepted"] = false
+		before["reason"] = &"not_active"
+		return before
+	if not caller_position.is_finite():
+		before["accepted"] = false
+		before["reason"] = &"invalid_position"
+		return before
+	if is_instance_valid(_asteroid_field):
+		var contact := _asteroid_field.call("classify_position", caller_position) as Dictionary
+		if bool(contact.get("struck", false)):
+			# Clipping a body ends the run. The physics engine has already
+			# stopped the hull; this is the run's half of the same event, and it
+			# is deliberately unforgiving because the belt published a clear
+			# lane the pilot could have taken instead.
+			_asteroid_run_director.fail_activity(
+				ASTEROID_RUN_ACTIVITY_ID,
+				&"asteroid_impact",
+				int(before.get("generation", -1)),
+			)
+			_last_asteroid_run_feedback_reason = &"asteroid_impact"
+			var failed := _asteroid_run_presentation_snapshot()
+			failed["accepted"] = true
+			failed["reason"] = &"asteroid_impact"
+			failed["struck_asteroid_index"] = int(contact.get("struck_asteroid_index", -1))
+			_publish_asteroid_run_presentation(failed)
+			return failed
+	var next_index := int(before.get("next_checkpoint_index", -1))
+	var next_gate := ASTEROID_RUN_ROUTE.get_checkpoint_position(next_index)
+	if not next_gate.is_finite() \
+			or caller_position.distance_to(next_gate) > ASTEROID_RUN_ROUTE.checkpoint_radius:
+		var feedback_changed := _last_asteroid_run_feedback_reason != &"outside_gate"
+		_last_asteroid_run_feedback_reason = &"outside_gate"
+		var outside := _asteroid_run_presentation_snapshot()
+		outside["accepted"] = false
+		outside["reason"] = &"outside_gate"
+		if feedback_changed:
+			_publish_asteroid_run_presentation(outside)
+		return outside
+	return submit_asteroid_field_run_position(caller_position)
+
+
+## One reward per completed run, and only through the caller-owned sink. The
+## local one-shot flag stops a second request inside this generation; the sink's
+## own ledger stops a second grant across a save and a whole-Main re-entry.
+func request_asteroid_field_run_reward() -> Dictionary:
+	if _asteroid_run_director == null:
+		return _result(false, &"not_ready")
+	var before := _asteroid_run_presentation_snapshot()
+	var generation := int(before.get("generation", 0))
+	if StringName(before.get("state_id", &"")) != &"completed" or generation < 1:
+		var not_complete := before.duplicate(true)
+		not_complete["accepted"] = false
+		not_complete["reason"] = &"not_complete"
+		_last_asteroid_run_reward_result = not_complete.duplicate(true)
+		return not_complete
+	if _asteroid_run_reward_requested:
+		var already := before.duplicate(true)
+		already["accepted"] = false
+		already["reason"] = &"reward_already_requested"
+		_last_asteroid_run_reward_result = already.duplicate(true)
+		return already
+	if not _asteroid_run_reward_sink.is_valid():
+		var unavailable := before.duplicate(true)
+		unavailable["accepted"] = false
+		unavailable["reason"] = &"asteroid_field_reward_handoff_unavailable"
+		_last_asteroid_run_reward_result = unavailable.duplicate(true)
+		return unavailable
+	var authority_value: Variant = _asteroid_run_reward_sink.call({
+		"activity_id": ASTEROID_RUN_ACTIVITY_ID,
+		"activity_generation": generation,
+		"reward_id": ASTEROID_RUN_REWARD_ID,
+		"reward_authority": false,
+		"granted": false,
+	}.duplicate(true))
+	var authority_result: Dictionary = (
+		(authority_value as Dictionary).duplicate(true)
+		if authority_value is Dictionary
+		else {"accepted": false, "reason": &"asteroid_field_reward_receipt_invalid"}
+	)
+	if not bool(authority_result.get("accepted", false)) \
+			or not bool(authority_result.get("granted", false)):
+		var rejected := before.duplicate(true)
+		rejected["accepted"] = false
+		rejected["reason"] = &"asteroid_field_reward_handoff_rejected"
+		rejected["authority_result"] = authority_result
+		_last_asteroid_run_reward_result = rejected.duplicate(true)
+		_publish_asteroid_run_presentation(rejected)
+		return rejected
+	_asteroid_run_reward_requested = true
+	_asteroid_run_rewarded_generation = generation
+	var result := _asteroid_run_presentation_snapshot()
+	result["accepted"] = true
+	result["reason"] = &"reward_request_committed"
+	result["authority_result"] = authority_result
+	result["reward_committed"] = true
+	_last_asteroid_run_reward_result = result.duplicate(true)
+	_publish_asteroid_run_presentation(result)
+	return result
+
+
+func get_last_asteroid_field_run_reward_result() -> Dictionary:
+	return _last_asteroid_run_reward_result.duplicate(true)
+
+
+## Abandon. The route's own generation advances, so a sample still in flight
+## from the abandoned run cannot complete or fail the next one.
+func reset_asteroid_field_run() -> Dictionary:
+	if _asteroid_run_director == null:
+		return _result(false, &"not_ready")
+	var before := _asteroid_run_director.get_activity_snapshot(ASTEROID_RUN_ACTIVITY_ID)
+	var accepted := _asteroid_run_director.reset_activity(
+		ASTEROID_RUN_ACTIVITY_ID, int(before.get("generation", -1))
+	)
+	if accepted:
+		_last_asteroid_run_feedback_reason = &""
+		_asteroid_run_reward_requested = false
+		_last_asteroid_run_reward_result.clear()
+	var result := _asteroid_run_presentation_snapshot()
+	result["accepted"] = accepted
+	result["reason"] = &"reset" if accepted else &"asteroid_field_run_reset_rejected"
+	_publish_asteroid_run_presentation(result)
+	return result
+
+
+func bind_asteroid_field_presentation(consumer: Callable) -> Dictionary:
+	return _bind_presentation_observer(
+		_asteroid_run_presentation_consumers,
+		consumer,
+		_asteroid_run_presentation_snapshot(),
+		&"asteroid_field_run",
+	)
+
+
+func unbind_asteroid_field_presentation(consumer: Callable) -> Dictionary:
+	return _unbind_presentation_observer(
+		_asteroid_run_presentation_consumers, consumer, &"asteroid_field_run"
+	)
+
+
+func _publish_asteroid_run_presentation(authority_record: Dictionary = {}) -> void:
+	if _asteroid_run_director == null:
+		return
+	var detached := authority_record.duplicate(true)
+	if detached.is_empty():
+		detached = _asteroid_run_presentation_snapshot()
+	_publish_presentation_observers(_asteroid_run_presentation_consumers, detached)
+
+
+func _asteroid_run_presentation_snapshot() -> Dictionary:
+	if _asteroid_run_director == null:
+		return {}
+	var route := _asteroid_run_director.get_activity_snapshot(ASTEROID_RUN_ACTIVITY_ID)
+	var state_id: StringName = {
+		CheckpointRouteActivity.State.IDLE: &"idle",
+		CheckpointRouteActivity.State.ACTIVE: &"active",
+		CheckpointRouteActivity.State.COMPLETED: &"completed",
+		CheckpointRouteActivity.State.FAILED: &"failed",
+	}.get(int(route.get("state", -1)), &"idle")
+	var next_index := int(route.get("next_checkpoint_index", 0))
+	var next_gate := ASTEROID_RUN_ROUTE.get_checkpoint_position(next_index)
+	return {
+		"schema_version": SCHEMA_VERSION,
+		"activity_id": ASTEROID_RUN_ACTIVITY_ID,
+		"reward_id": ASTEROID_RUN_REWARD_ID,
+		"state": int(route.get("state", 0)),
+		"state_id": state_id,
+		"generation": int(route.get("generation", 0)),
+		"next_checkpoint_index": next_index,
+		"checkpoint_count": ASTEROID_RUN_ROUTE.get_checkpoint_count(),
+		"checkpoint_radius": ASTEROID_RUN_ROUTE.checkpoint_radius,
+		"next_gate_position": next_gate if next_gate.is_finite() else Vector3.ZERO,
+		"failure_reason": StringName(route.get("failure_reason", &"")),
+		"presentation_reason": _last_asteroid_run_feedback_reason,
+		"reward_requested": _asteroid_run_reward_requested,
+		"rewarded_generation": _asteroid_run_rewarded_generation,
+		"belt_bound": is_instance_valid(_asteroid_field),
+		"gameplay_authority": false,
+		"reward_authority": false,
+		"network_authority": false,
+	}.duplicate(true)
+
+
 func get_presentation_observer_snapshot() -> Dictionary:
 	_prune_invalid_presentation_observers(_race_presentation_consumers)
 	_prune_invalid_presentation_observers(_patrol_presentation_consumers)
@@ -2057,6 +2357,8 @@ func get_activity_snapshot(activity: StringName) -> Dictionary:
 			return _structure_scan_presentation_snapshot()
 		&"beacon_traversal":
 			return _beacon_traversal_presentation_snapshot()
+		&"asteroid_field_run":
+			return _asteroid_run_presentation_snapshot()
 	return {}
 
 
@@ -2107,6 +2409,8 @@ func get_snapshot() -> Dictionary:
 		"mining": _mining_presentation_snapshot(),
 		"structure_scan": _structure_scan_presentation_snapshot(),
 		"beacon_traversal": _beacon_traversal_presentation_snapshot(),
+		"asteroid_field_run": _asteroid_run_presentation_snapshot(),
+		"asteroid_field_reward_handoff": get_asteroid_field_reward_handoff_snapshot(),
 		"restored_session": _restored_session.duplicate(true),
 		"production_owner": true,
 		"gameplay_authority": false,

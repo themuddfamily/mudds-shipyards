@@ -668,6 +668,8 @@ var _cinder_cargo_hud_elapsed := 0.0
 var _cinder_mining_hud_elapsed := 0.0
 var _cinder_beacon_traversal_reward_configuration: Dictionary = {}
 var _last_cinder_beacon_traversal_reward_result: Dictionary = {}
+var _cinder_asteroid_field_reward_configuration: Dictionary = {}
+var _last_cinder_asteroid_field_reward_result: Dictionary = {}
 var _cinder_beacon_hud_elapsed := 0.0
 var _last_game_flow_reward_result: Dictionary = {}
 ## Opt-in multiplayer transport. Normal solo startup never creates this node;
@@ -4097,6 +4099,7 @@ func _physics_process(delta: float) -> void:
 	_advance_cinder_mining_extraction(delta, cinder_activity_actor_sample)
 	_advance_cinder_structure_scan(delta, cinder_activity_actor_sample)
 	_advance_cinder_beacon_traversal(delta, cinder_activity_actor_sample)
+	_advance_cinder_asteroid_field_run(delta, cinder_activity_actor_sample)
 	_advance_hulk_power_restoration(delta)
 	_sync_cinder_convoy_stream_presence()
 	# A live convoy owns one exact streamed Cinder generation, but that retained
@@ -13796,6 +13799,108 @@ func _advance_cinder_beacon_traversal(
 	return advanced.duplicate(true)
 
 
+## Phase 8 asteroid belt. The belt's threading run is the only nearby activity
+## whose caller sample can *end* the run without reaching anything: clipping a
+## body fails it, so the sample is forwarded every active tick rather than only
+## while the ship is near the next gate.
+func _advance_cinder_asteroid_field_run(
+		delta: float,
+		actor_sample: Dictionary,
+	) -> Dictionary:
+	var binding := _get_nearby_activity_binding()
+	if (
+		not is_instance_valid(binding)
+		or not binding.has_method(&"advance_asteroid_field_run_from_caller_sample")
+		or not binding.has_method(&"request_asteroid_field_run_reward")
+		or not binding.has_method(&"get_activity_snapshot")
+	):
+		return {"accepted": false, "reason": &"asteroid_field_binding_unavailable"}
+	var run := binding.call(&"get_activity_snapshot", &"asteroid_field_run") as Dictionary
+	if (
+		StringName(run.get("state_id", &"")) != &"active"
+		or int(run.get("generation", 0)) < 1
+	):
+		return {"accepted": false, "reason": &"asteroid_field_run_inactive"}
+	var reward_handoff_ready := _cinder_asteroid_field_reward_handoff_ready(binding)
+	var caller_position := _cinder_nearby_activity_ship_position(actor_sample)
+	var previous_reason := StringName(run.get("presentation_reason", &""))
+	var advanced := binding.call(
+		&"advance_asteroid_field_run_from_caller_sample", caller_position
+	) as Dictionary
+	var completed := StringName(advanced.get("state_id", &"")) == &"completed"
+	if completed:
+		var reward := (
+			binding.call(&"request_asteroid_field_run_reward") as Dictionary
+			if reward_handoff_ready else {
+				"accepted": false,
+				"reason": &"asteroid_field_reward_handoff_unavailable",
+			}
+		)
+		_last_cinder_asteroid_field_reward_result = reward.duplicate(true)
+		advanced["reward_result"] = reward.duplicate(true)
+		_present_cinder_asteroid_field_completion(reward)
+	if (
+		bool(advanced.get("accepted", false))
+		or completed
+		or previous_reason != StringName(advanced.get("presentation_reason", &""))
+	):
+		_sync_activity_hud()
+	return advanced.duplicate(true)
+
+
+func _configure_cinder_asteroid_field_reward_handoff(binding: Object) -> Dictionary:
+	if _game_flow_reward_authority == null:
+		_cinder_asteroid_field_reward_configuration = {
+			"accepted": false,
+			"reason": &"reward_authority_unavailable",
+		}.duplicate(true)
+	elif binding == null \
+			or not binding.has_method(&"configure_asteroid_field_reward_handoff"):
+		_cinder_asteroid_field_reward_configuration = {
+			"accepted": false,
+			"reason": &"asteroid_field_reward_handoff_unavailable",
+		}.duplicate(true)
+	else:
+		_cinder_asteroid_field_reward_configuration = binding.call(
+			&"configure_asteroid_field_reward_handoff",
+			Callable(self, &"_commit_game_flow_activity_reward"),
+		) as Dictionary
+	return _cinder_asteroid_field_reward_configuration.duplicate(true)
+
+
+func _cinder_asteroid_field_reward_handoff_ready(binding: Object) -> bool:
+	if binding == null \
+			or not binding.has_method(&"get_asteroid_field_reward_handoff_snapshot"):
+		return false
+	if _game_flow_reward_authority != null:
+		_configure_cinder_asteroid_field_reward_handoff(binding)
+	var handoff := binding.call(
+		&"get_asteroid_field_reward_handoff_snapshot"
+	) as Dictionary
+	return bool(handoff.get("configured", false))
+
+
+func _present_cinder_asteroid_field_completion(reward: Dictionary) -> void:
+	if not is_instance_valid(hud):
+		return
+	var authority := reward.get("authority_result", {}) as Dictionary
+	var receipt := authority.get("receipt", {}) as Dictionary
+	if bool(reward.get("accepted", false)) \
+			and bool(authority.get("accepted", false)):
+		hud.toast(
+			"Belt threading run complete",
+			"Survey accepted — Shipyard receipt #%d saved"
+				% int(receipt.get("receipt_id", 0)),
+			3.2,
+		)
+	else:
+		hud.toast(
+			"Belt threading run complete",
+			"Survey receipt was not saved — choose Start to retry",
+			3.2,
+		)
+
+
 func _cinder_nearby_activity_ship_position(actor_sample: Dictionary) -> Vector3:
 	if (
 		bool(actor_sample.get("available", false))
@@ -14179,6 +14284,31 @@ func _sync_cinder_beacon_traversal_activity_hud() -> bool:
 	return true
 
 
+func _sync_cinder_asteroid_field_activity_hud() -> bool:
+	if not is_instance_valid(hud) or not hud.has_method(&"set_activity_objective"):
+		return false
+	var binding := _get_nearby_activity_binding()
+	if not is_instance_valid(binding) or not binding.has_method(&"get_snapshot"):
+		return false
+	var belt_run := (
+		(binding.call(&"get_snapshot") as Dictionary).get("asteroid_field_run", {})
+		as Dictionary
+	)
+	if int(belt_run.get("generation", 0)) < 1:
+		return false
+	var state_id := StringName(belt_run.get("state_id", &""))
+	# A failed run stays on the objective panel: the pilot needs to be told the
+	# belt ended it, not left wondering why the gates went dark.
+	var presentable := state_id == &"active" or state_id == &"failed" or (
+		state_id == &"completed"
+		and not bool(belt_run.get("reward_requested", false))
+	)
+	if not presentable:
+		return false
+	hud.call(&"set_activity_objective", "Belt threading run", belt_run.duplicate(true))
+	return true
+
+
 func _sync_activity_hud() -> void:
 	_sync_nearby_activity_hud()
 	if _sync_heavy_breach_activity_hud():
@@ -14190,6 +14320,8 @@ func _sync_activity_hud() -> void:
 	if _sync_cinder_structure_scan_activity_hud():
 		return
 	if _sync_cinder_beacon_traversal_activity_hud():
+		return
+	if _sync_cinder_asteroid_field_activity_hud():
 		return
 	if not is_instance_valid(hud) or not hud.has_method(&"set_activity_objective"):
 		return
@@ -14269,6 +14401,7 @@ func _sync_nearby_activity_hud() -> void:
 		_configure_cinder_cargo_reward_handoff(binding)
 		_configure_cinder_structure_scan_reward_handoff(binding)
 		_configure_cinder_beacon_traversal_reward_handoff(binding)
+		_configure_cinder_asteroid_field_reward_handoff(binding)
 	bind_cinder_race_best_persistence(binding)
 	bind_cinder_scan_discovery_persistence(binding)
 	bind_cinder_cargo_delivery_persistence(binding)
@@ -14966,6 +15099,33 @@ func _start_nearby_activity(binding: Node, activity_id: StringName) -> Dictionar
 				active_ship.global_position
 					if is_instance_valid(active_ship) else Vector3.ZERO,
 			)
+		&"cinder_asteroid_field_threading_run":
+			var belt_run := (
+				(binding.call(&"get_snapshot") as Dictionary).get(
+					"asteroid_field_run", {}
+				) as Dictionary
+			)
+			if (
+				StringName(belt_run.get("state_id", &"")) == &"completed"
+				and int(belt_run.get("generation", 0)) > 0
+				and not bool(belt_run.get("reward_requested", false))
+			):
+				if not _cinder_asteroid_field_reward_handoff_ready(binding):
+					return {
+						"accepted": false,
+						"reason": &"asteroid_field_reward_handoff_unavailable",
+					}
+				var belt_retry := binding.call(
+					&"request_asteroid_field_run_reward"
+				) as Dictionary
+				_last_cinder_asteroid_field_reward_result = belt_retry.duplicate(true)
+				_present_cinder_asteroid_field_completion(belt_retry)
+				return belt_retry
+			return binding.call(
+				&"start_asteroid_field_run",
+				active_ship.global_position
+					if is_instance_valid(active_ship) else Vector3.ZERO,
+			)
 		&"cinder_platform_supply_run":
 			var cargo := (
 				(binding.call(&"get_snapshot") as Dictionary).get("cargo", {})
@@ -14999,6 +15159,8 @@ func _reset_nearby_activity(binding: Node, activity_id: StringName) -> Dictionar
 		&"cinder_platform_mining_run": return binding.call(&"reset_mining_activity")
 		&"cinder_derelict_structure_scan": return binding.call(&"reset_structure_scan")
 		&"cinder_debris_beacon_traversal": return binding.call(&"reset_beacon_traversal")
+		&"cinder_asteroid_field_threading_run":
+			return binding.call(&"reset_asteroid_field_run")
 		&"cinder_platform_supply_run": return binding.call(&"reset_cargo_run")
 		&"station_defense": return _reset_physical_station_defense_board()
 	return {"accepted": false, "reason": &"unknown_activity"}

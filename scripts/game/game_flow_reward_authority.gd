@@ -2,8 +2,8 @@ class_name GameFlowRewardAuthority
 extends RefCounted
 
 ## The production reward authority for the four GameFlow-owned route activities,
-## the Cinder derelict scan and beacon run, the physical Heavy Breach board, and
-## the retained Ember relay survey. It turns their non-authoritative completion
+## the Cinder derelict scan, beacon run and asteroid belt threading run, the
+## physical Heavy Breach board, and the retained Ember relay survey. It turns their non-authoritative completion
 ## handoffs into one persisted Shipyard return-incentive receipt. It owns no
 ## activity, inventory, currency, ship, berth, combat, or network state.
 
@@ -26,6 +26,7 @@ const HEAVY_BREACH_ACTIVITY_ID: StringName = &"shipyard_heavy_breach"
 const STATION_DEFENSE_ACTIVITY_ID: StringName = &"shipyard_perimeter_defense"
 const EMBER_RELAY_ACTIVITY_ID: StringName = &"ember_beacon_survey"
 const HULK_POWER_ACTIVITY_ID: StringName = &"cinder_hulk_power_restoration"
+const CINDER_ASTEROID_RUN_ACTIVITY_ID: StringName = &"cinder_asteroid_field_threading_run"
 
 const RACE_REWARD_ID: StringName = &"return_race_record_to_shipyard"
 const PATROL_REWARD_ID: StringName = &"return_patrol_log_to_shipyard"
@@ -37,6 +38,7 @@ const HEAVY_BREACH_REWARD_ID: StringName = &"return_heavy_breach_credit"
 const STATION_DEFENSE_REWARD_ID: StringName = &"return_defense_report_to_shipyard"
 const EMBER_RELAY_REWARD_ID: StringName = &"ember_beacon_data"
 const HULK_POWER_REWARD_ID: StringName = &"hulk_auxiliary_power_cell"
+const CINDER_ASTEROID_RUN_REWARD_ID: StringName = &"return_asteroid_survey_to_shipyard"
 
 const ACTIVITY_REWARDS := {
 	RACE_ACTIVITY_ID: RACE_REWARD_ID,
@@ -51,6 +53,7 @@ const ACTIVITY_REWARDS := {
 	STATION_DEFENSE_ACTIVITY_ID: STATION_DEFENSE_REWARD_ID,
 	EMBER_RELAY_ACTIVITY_ID: EMBER_RELAY_REWARD_ID,
 	HULK_POWER_ACTIVITY_ID: HULK_POWER_REWARD_ID,
+	CINDER_ASTEROID_RUN_ACTIVITY_ID: CINDER_ASTEROID_RUN_REWARD_ID,
 }
 const REWARD_LABELS := {
 	RACE_REWARD_ID: "Race record accepted",
@@ -63,6 +66,7 @@ const REWARD_LABELS := {
 	STATION_DEFENSE_REWARD_ID: "Perimeter defense report accepted",
 	EMBER_RELAY_REWARD_ID: "Survey data accepted",
 	HULK_POWER_REWARD_ID: "Salvaged auxiliary power cell logged",
+	CINDER_ASTEROID_RUN_REWARD_ID: "Belt threading survey accepted",
 }
 const REQUEST_KEYS := [
 	"activity_id",

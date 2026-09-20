@@ -10,6 +10,7 @@ const SUPPORTED_ACTIVITY_IDS: Array[StringName] = [
 	&"cinder_reach_platform_patrol_route",
 	&"cinder_platform_supply_run", &"cinder_platform_mining_run",
 	&"cinder_derelict_structure_scan", &"cinder_debris_beacon_traversal",
+	&"cinder_asteroid_field_threading_run",
 	&"station_defense",
 ]
 
@@ -31,6 +32,7 @@ func capture(binding_snapshot: Dictionary) -> Dictionary:
 	_capture_activity(activities, binding_snapshot.get("mining", {}) as Dictionary, &"cinder_platform_mining_run")
 	_capture_activity(activities, binding_snapshot.get("structure_scan", {}) as Dictionary, &"cinder_derelict_structure_scan")
 	_capture_activity(activities, binding_snapshot.get("beacon_traversal", {}) as Dictionary, &"cinder_debris_beacon_traversal")
+	_capture_activity(activities, binding_snapshot.get("asteroid_field_run", {}) as Dictionary, &"cinder_asteroid_field_threading_run")
 	_capture_activity(activities, binding_snapshot.get("station_defense", {}) as Dictionary, &"station_defense")
 	return {"schema_version": SCHEMA_VERSION, "activities": activities}.duplicate(true)
 
