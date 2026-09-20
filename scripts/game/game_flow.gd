@@ -9011,7 +9011,10 @@ func _confirm_network_client_boarding() -> void:
 func _present_network_client_cabin_boarding(craft: HeroShip, area: ShipBoardingArea) -> void:
 	var cabin: Dictionary = craft.get_in_flight_cabin_report()
 	if not bool(cabin.get("supported", false)):
-		_refuse_network_client_boarding(&"cabin_unavailable")
+		# The ledger seated this peer in a cabin it cannot present locally.
+		# The request is already settled, so there is nothing left to refuse:
+		# hand the berth straight back instead of holding a seat nobody is in.
+		_return_network_client_berth(craft, area, &"cabin_unavailable")
 		return
 	var stand := cabin.get("stand_transform", craft.global_transform) as Transform3D
 	_boarding_area = area
@@ -9039,6 +9042,30 @@ func _present_network_client_cabin_boarding(craft: HeroShip, area: ShipBoardingA
 	audio.play_ui_confirm()
 
 
+## Gives a confirmed berth back to the ledger without ever having presented
+## it, and says why once. The only caller is the case above: a craft the
+## ledger seated this peer in that has no cabin to stand in on this machine.
+func _return_network_client_berth(
+	craft: HeroShip, area: ShipBoardingArea, reason: StringName
+) -> void:
+	_network_client_boarding_audit["refusals"] = \
+		int(_network_client_boarding_audit["refusals"]) + 1
+	_network_client_boarding_audit["refusal_toasts"] = \
+		int(_network_client_boarding_audit["refusal_toasts"]) + 1
+	_network_client_boarding_audit["last_status"] = reason
+	_present_boarding_confirmation(&"rejected", craft, reason)
+	if is_instance_valid(hud):
+		hud.toast(
+			"Boarding refused",
+			"%s — %s" % [
+				craft.get_display_name() if is_instance_valid(craft) else "The craft",
+				String(reason).replace("_", " "),
+			],
+			2.8
+		)
+	_request_network_client_boarding(craft, area)
+
+
 ## Reverses the presentation above, and only ever on the ledger's confirmation
 ## that the seat has actually been released.
 func _release_network_client_boarding_presentation(
@@ -9046,6 +9073,9 @@ func _release_network_client_boarding_presentation(
 ) -> void:
 	var was_pilot := StringName(_network_client_boarding_claim.get("role", &"")) \
 		== NetworkBoardingIntentType.ROLE_PILOT
+	# A berth that was never presented -- see `_return_network_client_berth()`
+	# -- has no cabin to leave and no deck to be put back on.
+	var was_aboard := is_instance_valid(_cabin_ship) and _cabin_ship == craft
 	_network_client_boarding_claim = {}
 	_network_client_boarding_audit["claimed_seat_id"] = &""
 	unbind_network_remote_body()
@@ -9053,6 +9083,12 @@ func _release_network_client_boarding_presentation(
 		# The seat is the ledger's no longer; the ordinary local disembark can
 		# now run, and its own gate sees no claim to ask about a second time.
 		_try_exit_ship()
+		return
+	if not was_aboard:
+		if is_instance_valid(area) and area.get_reservation_token() == player:
+			area.release_reservation(player)
+		if _boarding_area == area:
+			_boarding_area = null
 		return
 	_release_cabin_occupancy()
 	if is_instance_valid(area):
