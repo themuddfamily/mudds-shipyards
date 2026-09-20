@@ -24,6 +24,7 @@ const CINDER_SCAN_ACTIVITY_ID: StringName = &"cinder_derelict_structure_scan"
 const CINDER_BEACON_ACTIVITY_ID: StringName = &"cinder_debris_beacon_traversal"
 const HEAVY_BREACH_ACTIVITY_ID: StringName = &"shipyard_heavy_breach"
 const EMBER_RELAY_ACTIVITY_ID: StringName = &"ember_beacon_survey"
+const HULK_POWER_ACTIVITY_ID: StringName = &"cinder_hulk_power_restoration"
 
 const RACE_REWARD_ID: StringName = &"return_race_record_to_shipyard"
 const PATROL_REWARD_ID: StringName = &"return_patrol_log_to_shipyard"
@@ -33,6 +34,7 @@ const CINDER_SCAN_REWARD_ID: StringName = &"derelict_material_sample"
 const CINDER_BEACON_REWARD_ID: StringName = &"debris_route_navigation_data"
 const HEAVY_BREACH_REWARD_ID: StringName = &"return_heavy_breach_credit"
 const EMBER_RELAY_REWARD_ID: StringName = &"ember_beacon_data"
+const HULK_POWER_REWARD_ID: StringName = &"hulk_auxiliary_power_cell"
 
 const ACTIVITY_REWARDS := {
 	RACE_ACTIVITY_ID: RACE_REWARD_ID,
@@ -45,6 +47,7 @@ const ACTIVITY_REWARDS := {
 	CINDER_BEACON_ACTIVITY_ID: CINDER_BEACON_REWARD_ID,
 	HEAVY_BREACH_ACTIVITY_ID: HEAVY_BREACH_REWARD_ID,
 	EMBER_RELAY_ACTIVITY_ID: EMBER_RELAY_REWARD_ID,
+	HULK_POWER_ACTIVITY_ID: HULK_POWER_REWARD_ID,
 }
 const REWARD_LABELS := {
 	RACE_REWARD_ID: "Race record accepted",
@@ -55,6 +58,7 @@ const REWARD_LABELS := {
 	CINDER_BEACON_REWARD_ID: "Debris navigation data recorded",
 	HEAVY_BREACH_REWARD_ID: "Heavy Breach credit logged",
 	EMBER_RELAY_REWARD_ID: "Survey data accepted",
+	HULK_POWER_REWARD_ID: "Salvaged auxiliary power cell logged",
 }
 const REQUEST_KEYS := [
 	"activity_id",

@@ -202,6 +202,11 @@ const CINDER_RACE_REWARD_ID: StringName = &"return_race_record_to_shipyard"
 const CINDER_PATROL_REWARD_ID: StringName = &"return_patrol_log_to_shipyard"
 const CINDER_CONVOY_REWARD_ID: StringName = &"return_convoy_credit_to_shipyard"
 const CARGO_DELIVERY_REWARD_ID: StringName = &"return_fabrication_kits_to_shipyard"
+## The one activity inside the abandoned station hulk. It is reached on
+## foot, it is one-shot, and its reward crosses the same shared adapter and
+## authority every other nearby activity already uses.
+const HULK_POWER_ACTIVITY_ID: StringName = DerelictPowerRestorationActivity.ACTIVITY_ID
+const HULK_POWER_REWARD_ID: StringName = DerelictPowerRestorationActivity.REWARD_ID
 const HEAVY_BREACH_HUD_REFRESH_SECONDS := 0.1
 const CINDER_CARGO_HUD_REFRESH_SECONDS := 0.1
 const CINDER_MINING_HUD_REFRESH_SECONDS := 0.1
@@ -646,6 +651,11 @@ var cargo_delivery_activity: CargoDeliveryActivity
 ## run, the physical Heavy Breach board, and the retained Ember relay survey
 ## converge only at this one persisted Shipyard return-incentive authority.
 var _game_flow_reward_authority: RefCounted
+var _hulk_power_activity: DerelictPowerRestorationActivity
+var _hulk_power_breaker: Node
+var _hulk_power_ledger_restored := false
+var _last_hulk_power_result: Dictionary = {}
+var _last_hulk_power_reward_result: Dictionary = {}
 var _game_flow_reward_adapter: RefCounted
 var _game_flow_reward_configuration: Dictionary = {}
 var _heavy_breach_reward_configuration: Dictionary = {}
@@ -4084,6 +4094,7 @@ func _physics_process(delta: float) -> void:
 	_advance_cinder_mining_extraction(delta, cinder_activity_actor_sample)
 	_advance_cinder_structure_scan(delta, cinder_activity_actor_sample)
 	_advance_cinder_beacon_traversal(delta, cinder_activity_actor_sample)
+	_advance_hulk_power_restoration(delta)
 	_sync_cinder_convoy_stream_presence()
 	# A live convoy owns one exact streamed Cinder generation, but that retained
 	# residency cannot substitute for the required current caller-sampled update.
@@ -7122,8 +7133,8 @@ func _fleet_registry_state(candidate: HeroShip) -> StringName:
 	if candidate.is_piloted():
 		return &"occupied"
 	var berth := (
-		world.call(&"get_berth_node", candidate.get_home_berth_id()) as ShipBerth
-		if is_instance_valid(world) and world.has_method(&"get_berth_node")
+		_resolve_berth_node(candidate.get_home_berth_id())
+		if is_instance_valid(world)
 		else null
 	)
 	if berth != null:
@@ -10061,8 +10072,8 @@ func _on_landing_completed(source_ship: HeroShip = null) -> void:
 		return
 	if _planetary_return_physical_arrival_required:
 		var physical_berth := (
-			world.call(&"get_berth_node", _active_landing_berth_id) as ShipBerth
-			if is_instance_valid(world) and world.has_method(&"get_berth_node")
+			_resolve_berth_node(_active_landing_berth_id)
+			if is_instance_valid(world)
 			else null
 		)
 		var network_landing := _ensure_network_landing_handoff_committed(
@@ -10108,8 +10119,8 @@ func _on_landing_completed(source_ship: HeroShip = null) -> void:
 		hud.toast("Docking coordination fault", "The berth lease could not be secured; do not exit", 3.5)
 		return
 	var occupied_berth := (
-		world.call(&"get_berth_node", completed_berth_id) as ShipBerth
-		if is_instance_valid(world) and world.has_method(&"get_berth_node")
+		_resolve_berth_node(completed_berth_id)
+		if is_instance_valid(world)
 		else null
 	)
 	var network_landing := _commit_network_landing_handoff(active_ship, occupied_berth)
@@ -12203,11 +12214,18 @@ func _get_active_landing_assist_report() -> Dictionary:
 			"selected_berth_id": &"",
 		}
 	if world.has_method("get_landing_assist_report"):
-		return world.call(
+		var resident_report := world.call(
 			"get_landing_assist_report",
 			active_ship,
 			active_ship.get_home_berth_id()
 		) as Dictionary
+		if not StringName(resident_report.get("selected_berth_id", &"")).is_empty():
+			return resident_report
+		# The station has nothing for this pose. Out at the hulk that is the
+		# expected answer, so ask the one streamed berth before reporting that
+		# there is nowhere to land.
+		var hulk_report := _get_station_hulk_landing_assist_report(active_ship)
+		return hulk_report if not hulk_report.is_empty() else resident_report
 	# Compatibility for marker-only custom worlds. Production always uses the
 	# complete non-mutating ShipBerth capture report above.
 	var berth_id := &""
@@ -12273,11 +12291,7 @@ func _try_request_landing() -> void:
 	if not _reserve_berth_for_ship(active_ship, berth_id, false):
 		hud.toast("Berth occupied", "Choose another illuminated docking node")
 		return
-	var landing_berth := (
-		world.call("get_berth_node", berth_id) as ShipBerth
-		if world.has_method("get_berth_node")
-		else null
-	)
+	var landing_berth := _resolve_berth_node(berth_id)
 	if landing_berth == null:
 		_release_ship_berth(active_ship)
 		_active_landing_berth_id = &""
@@ -13122,6 +13136,10 @@ func _initialize_game_flow_reward_authority() -> void:
 		{
 			"activity_id": CARGO_DELIVERY_ACTIVITY_ID,
 			"reward_id": CARGO_DELIVERY_REWARD_ID,
+		},
+		{
+			"activity_id": HULK_POWER_ACTIVITY_ID,
+			"reward_id": HULK_POWER_REWARD_ID,
 		},
 	]:
 		var registered := adapter.call(
@@ -14204,6 +14222,7 @@ func _sync_nearby_activity_hud() -> void:
 	bind_cinder_cargo_delivery_persistence(binding)
 	bind_cinder_mining_capacity_persistence(binding)
 	bind_cinder_convoy_arrival_persistence(binding)
+	_sync_hulk_power_restoration_binding()
 	var snapshot := binding.call(&"get_snapshot") as Dictionary
 	snapshot["binding_available"] = true
 	_sync_nearby_activity_audio(snapshot)
@@ -15519,10 +15538,9 @@ func _ship_owns_exact_occupied_berth(candidate: HeroShip, berth_id: StringName) 
 	var instance_id := candidate.get_instance_id()
 	if not _berth_tokens.has(instance_id) \
 			or not _reserved_berth_ids.has(instance_id) \
-			or StringName(_reserved_berth_ids.get(instance_id, &"")) != berth_id \
-			or not world.has_method("get_berth_node"):
+			or StringName(_reserved_berth_ids.get(instance_id, &"")) != berth_id:
 		return false
-	var berth := world.call("get_berth_node", berth_id) as ShipBerth
+	var berth := _resolve_berth_node(berth_id)
 	if berth == null:
 		return false
 	var token := StringName(_berth_tokens.get(instance_id, &""))
@@ -15532,9 +15550,7 @@ func _ship_owns_exact_occupied_berth(candidate: HeroShip, berth_id: StringName) 
 
 
 func _can_ship_use_berth(candidate: HeroShip, berth_id: StringName) -> bool:
-	if not world.has_method("get_berth_node"):
-		return true
-	var berth := world.call("get_berth_node", berth_id) as ShipBerth
+	var berth := _resolve_berth_node(berth_id)
 	if berth == null:
 		return true
 	return berth.can_accept(candidate.get_ship_definition(), candidate)
@@ -15575,9 +15591,8 @@ func _mark_sortie_departed() -> Dictionary:
 		_reserved_berth_ids.get(active_ship.get_instance_id(), &"")
 	)
 	var berth := (
-		world.call(&"get_berth_node", berth_id) as ShipBerth
-		if not berth_id.is_empty() and is_instance_valid(world) \
-			and world.has_method(&"get_berth_node")
+		_resolve_berth_node(berth_id)
+		if not berth_id.is_empty() and is_instance_valid(world)
 		else null
 	)
 	var network_release := _release_network_landing_handoff(active_ship, berth)
@@ -15606,9 +15621,7 @@ func _reserve_berth_for_ship(candidate: HeroShip, berth_id: StringName, occupy_n
 	if not is_instance_valid(candidate):
 		return false
 	_release_ship_berth(candidate)
-	if not world.has_method("get_berth_node"):
-		return true
-	var berth := world.call("get_berth_node", berth_id) as ShipBerth
+	var berth := _resolve_berth_node(berth_id)
 	if berth == null:
 		return true
 	var definition := candidate.get_ship_definition()
@@ -15631,7 +15644,7 @@ func _occupy_reserved_berth(candidate: HeroShip) -> bool:
 	var instance_id := candidate.get_instance_id()
 	if not _berth_tokens.has(instance_id) or not _reserved_berth_ids.has(instance_id):
 		return false
-	var berth := world.call("get_berth_node", _reserved_berth_ids[instance_id]) as ShipBerth
+	var berth := _resolve_berth_node(_reserved_berth_ids[instance_id])
 	return berth != null and berth.occupy(candidate, _berth_tokens[instance_id])
 
 
@@ -15643,17 +15656,215 @@ func _release_ship_berth(candidate: HeroShip) -> void:
 		return
 	if not _berth_tokens.has(instance_id) or not _reserved_berth_ids.has(instance_id):
 		return
-	if world.has_method("get_berth_node"):
-		var berth := world.call("get_berth_node", _reserved_berth_ids[instance_id]) as ShipBerth
-		if berth != null:
-			var token := StringName(_berth_tokens[instance_id])
-			# HeroShip's landing abort/destruction lifecycle may have already
-			# released this exact lease before its synchronous signal reaches us.
-			# Retire GameFlow bookkeeping without issuing a duplicate mutation.
-			if berth.has_valid_lease(candidate, token, candidate.get_ship_id()):
-				berth.release(candidate, token)
+	var berth := _resolve_berth_node(_reserved_berth_ids[instance_id])
+	if berth != null:
+		var token := StringName(_berth_tokens[instance_id])
+		# HeroShip's landing abort/destruction lifecycle may have already
+		# released this exact lease before its synchronous signal reaches us.
+		# Retire GameFlow bookkeeping without issuing a duplicate mutation.
+		if berth.has_valid_lease(candidate, token, candidate.get_ship_id()):
+			berth.release(candidate, token)
 	_berth_tokens.erase(instance_id)
 	_reserved_berth_ids.erase(instance_id)
+
+
+# --- Abandoned station hulk (Phase 8: the sector's one enterable destination) -
+
+
+## Resolves a berth id against the resident station registry first and then the
+## streamed sector. `ShipyardWorld` owns nine physical berths; the abandoned
+## hulk's docking face is a tenth that only exists while its Cinder generation
+## is loaded. Both are ordinary `ShipBerth` nodes and both go through this one
+## resolver, so reservation, occupancy, landing and release stay on exactly one
+## code path instead of growing a parallel docking system for the hulk.
+func _resolve_berth_node(berth_id: StringName) -> ShipBerth:
+	if berth_id.is_empty():
+		return null
+	if is_instance_valid(world) and world.has_method(&"get_berth_node"):
+		var resident := world.call(&"get_berth_node", berth_id) as ShipBerth
+		if is_instance_valid(resident):
+			return resident
+	var hulk := _get_station_hulk()
+	if not is_instance_valid(hulk):
+		return null
+	var streamed := hulk.get_dock_berth()
+	if is_instance_valid(streamed) and streamed.get_berth_id() == berth_id \
+			and streamed.is_inside_tree():
+		return streamed
+	return null
+
+
+## The live hulk, or null. The sector streams, so this is null at the station,
+## null after the return trip, and non-null only while the pilot is out there.
+func _get_station_hulk() -> AbandonedStationHulk:
+	if not is_instance_valid(world) \
+			or not world.has_method(&"get_nearby_sector_cluster"):
+		return null
+	var cluster := world.call(&"get_nearby_sector_cluster") as NearbySectorCluster
+	if not is_instance_valid(cluster):
+		return null
+	return cluster.get_station_hulk()
+
+
+## The streamed hulk's landing-assist report, in exactly the shape
+## `ShipyardWorld.get_landing_assist_report()` publishes, so the existing
+## landing path reads one contract whichever berth answered.
+func _get_station_hulk_landing_assist_report(candidate: HeroShip) -> Dictionary:
+	if not is_instance_valid(candidate) or candidate.is_destroyed():
+		return {}
+	var hulk := _get_station_hulk()
+	if not is_instance_valid(hulk):
+		return {}
+	var berth := hulk.get_dock_berth()
+	if not is_instance_valid(berth) or not berth.is_inside_tree():
+		return {}
+	var definition := candidate.get_ship_definition()
+	if definition == null or not definition.is_definition_valid() \
+			or not berth.can_accept(definition, candidate):
+		return {}
+	var collision_report := candidate.get_landing_collision_report()
+	var report := berth.evaluate_assist_capture_candidate(
+		candidate.global_transform,
+		collision_report.get("local_bounds", AABB()) as AABB,
+		candidate.velocity,
+		candidate.landing_maximum_speed
+	)
+	if not bool(report.get("assist_capture_accepted", false)):
+		return {}
+	report["selected_berth_id"] = berth.get_berth_id()
+	report["berth_id"] = berth.get_berth_id()
+	report["berth_available"] = true
+	report["compatibility_accepted"] = berth.is_compatible_with(definition)
+	report["preview_non_mutating"] = true
+	report["streamed_destination"] = true
+	report["collision_report"] = collision_report.duplicate(true)
+	return report.duplicate(true)
+
+
+## One lifetime-stable activity identity, and one connection to the physical
+## breaker in the reactor gallery. The breaker is rebound on every streamed
+## reload and after a whole-`Main` re-entry, because the node it lives on is a
+## different instance each time the sector loads.
+func _sync_hulk_power_restoration_binding() -> void:
+	if _hulk_power_activity == null:
+		_hulk_power_activity = DerelictPowerRestorationActivity.new()
+	_restore_hulk_power_from_reward_ledger()
+	var hulk := _get_station_hulk()
+	if not is_instance_valid(hulk):
+		_hulk_power_breaker = null
+		return
+	var breaker := hulk.get_breaker()
+	if not is_instance_valid(breaker):
+		_hulk_power_breaker = null
+		return
+	if breaker == _hulk_power_breaker \
+			and breaker.is_connected(&"breaker_engaged", _on_hulk_breaker_engaged):
+		return
+	_hulk_power_breaker = breaker
+	if not breaker.is_connected(&"breaker_engaged", _on_hulk_breaker_engaged):
+		breaker.connect(&"breaker_engaged", _on_hulk_breaker_engaged)
+	breaker.call(&"set_engaged", _hulk_power_activity.is_claimed())
+
+
+## The persisted reward ledger is the durable record of this one-shot run. A
+## save, a fresh process or a whole-`Main` re-entry all reconfigure the
+## authority from the same store, so reading its committed reward counts once
+## is what stops the cell being salvaged twice.
+func _restore_hulk_power_from_reward_ledger() -> void:
+	if _hulk_power_ledger_restored or _hulk_power_activity == null \
+			or _game_flow_reward_authority == null:
+		return
+	_hulk_power_ledger_restored = true
+	var snapshot := _game_flow_reward_authority.call(&"get_snapshot") as Dictionary
+	var record := snapshot.get("record", {}) as Dictionary
+	var counts := record.get("reward_counts", {}) as Dictionary
+	_hulk_power_activity.restore_from_reward_ledger(counts)
+
+
+func _on_hulk_breaker_engaged(_actor: Node) -> void:
+	if _hulk_power_activity == null or not is_instance_valid(player):
+		return
+	_last_hulk_power_result = _hulk_power_activity.engage(
+		player.global_position
+	).duplicate(true)
+	if bool(_last_hulk_power_result.get("accepted", false)) and is_instance_valid(hud):
+		hud.set_objective(
+			"Hold the gallery while the auxiliary bus comes up",
+			"AUXILIARY POWER RESTORING"
+		)
+
+
+## Caller physics delta only, and only while the pilot is actually on foot with
+## the sector loaded. Completion crosses the shared reward adapter, which is
+## what produces the one committed receipt.
+func _advance_hulk_power_restoration(delta: float) -> void:
+	if _hulk_power_activity == null or _hulk_power_activity.is_claimed():
+		return
+	var snapshot := _hulk_power_activity.get_snapshot()
+	if StringName(snapshot.get("state_id", &"")) == &"active":
+		if not is_instance_valid(_get_station_hulk()):
+			_hulk_power_activity.reset()
+			return
+		_last_hulk_power_result = _hulk_power_activity.advance_physics(delta).duplicate(true)
+		snapshot = _hulk_power_activity.get_snapshot()
+	if StringName(snapshot.get("state_id", &"")) != &"complete":
+		return
+	_commit_hulk_power_reward()
+
+
+func _commit_hulk_power_reward() -> Dictionary:
+	if _hulk_power_activity == null or _game_flow_reward_adapter == null:
+		return {"accepted": false, "reason": &"hulk_reward_plumbing_unavailable"}
+	var requested := _hulk_power_activity.request_reward()
+	if not bool(requested.get("accepted", false)):
+		return requested
+	var consumed := _game_flow_reward_adapter.call(
+		&"consume",
+		_hulk_power_activity.get_snapshot(),
+		_hulk_power_activity.get_generation()
+	) as Dictionary
+	_last_hulk_power_reward_result = consumed.duplicate(true)
+	if not bool(consumed.get("accepted", false)):
+		return consumed
+	var callback := consumed.get("callback", {}) as Dictionary
+	var receipt := (callback.get("receipt", {}) as Dictionary).duplicate(true)
+	receipt["reward_id"] = StringName(receipt.get("reward_id", &""))
+	receipt["activity_id"] = StringName(receipt.get("activity_id", &""))
+	var claimed := _hulk_power_activity.commit_reward_receipt(receipt)
+	if bool(claimed.get("accepted", false)):
+		if is_instance_valid(_hulk_power_breaker):
+			_hulk_power_breaker.call(&"set_engaged", true)
+		if is_instance_valid(hud):
+			hud.set_objective(
+				"Auxiliary bus restored — carry the salvaged cell home",
+				"POWER CELL RECOVERED"
+			)
+			hud.toast(
+				"Auxiliary power cell recovered",
+				"The derelict's bus is up; the cell is logged once",
+				3.5,
+			)
+	return claimed
+
+
+## Detached read-only state for the HUD and for the focused suite. It grants
+## nothing and mutates nothing.
+func get_hulk_power_restoration_snapshot() -> Dictionary:
+	if _hulk_power_activity == null:
+		return {"available": false, "reason": &"hulk_activity_unavailable"}
+	var snapshot := _hulk_power_activity.get_snapshot()
+	snapshot["available"] = true
+	snapshot["hulk_loaded"] = is_instance_valid(_get_station_hulk())
+	snapshot["breaker_bound"] = is_instance_valid(_hulk_power_breaker)
+	snapshot["last_reward_result"] = _last_hulk_power_reward_result.duplicate(true)
+	return snapshot
+
+
+## The hulk's berth, for callers that need the physical landing contract
+## without reaching through the streaming coordinator themselves.
+func get_station_hulk_berth() -> ShipBerth:
+	var hulk := _get_station_hulk()
+	return hulk.get_dock_berth() if is_instance_valid(hulk) else null
 
 
 func get_runtime_settings() -> RuntimeSettings:
