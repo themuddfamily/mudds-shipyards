@@ -2734,7 +2734,8 @@ the same resource, so the identity it compares is the one it always compared.
 **Authored metadata.** It no longer refuses a piece outright, but it constrains
 the group: `_metadata_digest()` is part of every group key, so a batch only ever
 absorbs pieces whose metadata is identical key for key *and* value for value, it
-carries that metadata verbatim onto the batch, and the index records each
+carries that metadata verbatim onto the batch — with one exception found after
+the fact and recorded under *Follow-up* below — and the index records each
 piece's own copy. A value that differs splits the group rather than being
 averaged into one. `tests/station_dressing_batch_test.gd` and
 `tests/ship_fitout_batch_test.gd` assert all of this directly — that two folded
@@ -3046,6 +3047,69 @@ time-varying series over `OpenLaunchSpine`, a bucket with **zero node delta**,
 and it fails the same way on the untouched baseline (203 of 204 assertions,
 one `reduced-flash contract` diagnostic). It is timing-sensitive, not a
 regression of this pass, and it passes in the closing run.
+
+### Follow-up (2026-09-20): two defects the suite scope above missed
+
+The scope quoted under *Suites* — `station_*`, `ship_fitout*`, `*allocation*`,
+`*census*`, `*resource_sharing*` and eleven named suites — contains no
+`halyard_*` suite, no `jovian_light_freighter_test` and no
+`ship_surface_winding_test`. The next full matrix returned **16 failures**, all
+green on the previous checkpoint. None of them was a lost triangle, but two
+were real defects and only one was a freeze.
+
+**A claim about one mesh is not a claim about the merge.** Carrying a group's
+metadata verbatim onto the batch is right for a key that describes the *thing*
+a piece is and wrong for one that describes the *geometry* of the renderer it
+sits on. `closed_loft_hull` is the second kind: it tells
+`tests/ship_surface_winding_test.gd` that the mesh surrounds its own AABB
+centre, so that centre is independent evidence of which side of a triangle
+faces out. The trim newly admits pieces carrying it, and ten correctly wound
+engine housings and pylons merged into one buffer surround no common point —
+the centre lands in the air between them. The suite read 816 of 2,896 Halyard
+and 127 of 272 Zenith triangles as backwards on a batch in which **every
+triangle is wound exactly as authored**: the normal-agreement sweep beside it
+scores 0 backwards on the same meshes, and every placement in both batches has
+determinant +1. `ShipFitoutBatch.SINGLE_MESH_CLAIM_META` now withholds that
+class of key from the aggregate, and the suite scores each folded piece's own
+triangles from its own interior through the index — which needed one addition
+to the record, `index_ranges`, naming the `{surface, index_start, index_count}`
+runs a piece occupies in the merged buffer. Coverage is unchanged at 52 closed
+volumes and all 52 score 0 backwards. This is the general shape of the risk the
+index carries: it restates identity faithfully, and a *claim* restated onto a
+node that cannot support it is not identity.
+
+**Handedness was judged from the wrong transform.** `_merge` applies the
+composed placement while the only guard read
+`visual.transform.basis.determinant()`, the renderer's own local basis. In
+`StationDressingBatch` the solid path merges `<body>/Mesh` at
+`body.transform * mesh.transform`, so a mirror the authoring body carries — the
+usual way a starboard copy of a port part is written — was invisible to that
+guard and would have merged inside out with unchanged winding, which backface
+culling draws as a hole. Both batchers now settle handedness in `_merge` from
+the composed placement, and a mirrored placement is merged **correctly** rather
+than refused: index order reversed, tangent binormal sign flipped. Nothing in
+the shipped scene folds a mirrored piece today — the Halyard's two negatively
+scaled renderers are refused on other grounds and its measured allocation is
+identical either way — so the path is pinned by a direct fixture in the winding
+suite rather than left to content.
+
+**One audit lost its reach, and was restored rather than refrozen.** The
+Jovian's ground-support collision census walked `visual.get_children()` for the
+renderers drawing its leg stock, so the six sections the trim folded stopped
+being measured: it reported 10 of 16 pieces **with no mismatches**, which is
+the quiet failure this index exists to prevent — everything still visible was
+exactly right. Resolving through `authored_piece_index()` puts it back at 16 of
+16 with nothing refrozen.
+
+**One roster genuinely moved.** `HalyardCrewTransport`'s exterior roster is a
+live-node count that does not restate itself through `AUTHORED_CENSUS_META` the
+way the Arrow's and the VIP suite's do, so eighteen more folded renderers move
+it: descendants 132 -> 114, `MeshInstance3D` 115 -> 97, drawn copies 201 -> 183,
+geometry submissions 130 -> 115, unique meshes 92 -> 79; MultiMesh batches (9)
+and unique materials (18) unchanged. Six suites had duplicated those literals
+and move with it. The lesson for the next trim is the scope, not the roster: a
+node trim must run the suites of every craft and module it touches, not only
+the ones whose names contain the words this pass is about.
 
 ### Why 3,391 nodes are still over, and where they are
 

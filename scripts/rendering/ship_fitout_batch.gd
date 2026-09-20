@@ -917,7 +917,10 @@ static func authored_piece_index(node: Node) -> Array:
 ## standing in for it), `name`, `transform`, `metadata`, `materials`,
 ## `material_override`, `surfaces`, `visible`, `cast_shadow`, `gi_mode`, `aabb`,
 ## `mesh_id`, and `mesh` whenever that resource is still alive — always for a
-## live node, and for a batched piece exactly when the mesh was shared.
+## live node, and for a batched piece exactly when the mesh was shared. A
+## batched piece additionally carries `index_ranges`, the runs of the merged
+## buffer that are its own triangles; a live piece has no such key, because its
+## triangles are simply its mesh's.
 ##
 ## A live node of that name always wins over an index record: a piece that kept
 ## its own node is the stronger answer to the same question.
