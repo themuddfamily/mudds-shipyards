@@ -82,9 +82,9 @@ func _run() -> void:
 	_check(
 		bool(fresh_audit.valid)
 			and fresh_snapshot == first_snapshot
-			and int(fresh_audit.performance.node_count) == 83
+			and int(fresh_audit.performance.node_count) == 106
 			and int(fresh_audit.performance.mesh_instances) == 22
-			and int(fresh_audit.performance.collision_shapes) == 27
+			and int(fresh_audit.performance.collision_shapes) == 40
 			and int(fresh_audit.performance.triangle_count) == first_triangles
 			and int(fresh_audit.performance.triangle_count) <= 60_000,
 		"fresh streaming generation resets the relay and bounded terrain within the retained scene budget"

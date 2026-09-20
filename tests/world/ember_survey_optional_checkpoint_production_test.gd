@@ -125,6 +125,7 @@ func _run() -> void:
 	var expected_session_keys := [
 		"attachment_generation",
 		"authority",
+		"caldera_expeditions",
 		"composition_generation",
 		"host_generation",
 		"relay_survey_optional_checkpoint",
