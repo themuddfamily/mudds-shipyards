@@ -43,6 +43,8 @@ func _run() -> void:
 	var original_root_child_count := root.get_child_count()
 	await _test_production_encounter()
 	await _test_paired_wing_scatter_scenario()
+	await _test_opponent_role_tactics()
+	await _test_station_defense_multi_stage_encounter()
 	_check(
 		root.get_child_count() == original_root_child_count,
 		"the production encounter fixture cleans up without leaving scene nodes"
@@ -745,3 +747,793 @@ func _finish() -> void:
 	else:
 		print("VARIED_ENCOUNTER_INTEGRATION_TEST_FAILED: ", "; ".join(_failures))
 		quit(1)
+
+
+# ------------------------------------------------- opponent role tactics ----
+#
+# Three postures the base defender family can be put into, each proven here
+# against the production `RangeOpponent` in the production scene, with the
+# player's own craft as the thing being fought. Every one of them is observed
+# *and* countered, because a tactic the player cannot answer is not a tactic.
+
+## Far enough from the yard that nothing on the world collision layer is in
+## the arena, so the only cover in it is the slab this suite puts there.
+const TACTIC_ARENA_ORIGIN := Vector3(2600.0, 1400.0, 2600.0)
+const TACTIC_ARENA_CLEARANCE_METRES := 300.0
+const TACTIC_FRAME_BUDGET := 420
+const COVER_SLAB_SIZE := Vector3(60.0, 60.0, 3.0)
+
+
+func _test_opponent_role_tactics() -> void:
+	var game := MAIN_SCENE.instantiate() as GameFlow
+	root.add_child(game)
+	await process_frame
+	await physics_frame
+	await process_frame
+	var torrent := game.get_node_or_null("TorrentInterceptor") as HeroShip
+	var defender := game.get_node_or_null("RangeOpponent") as RangeOpponent
+	var authority := game.get_combat_authority()
+	if torrent == null or defender == null or authority == null:
+		_check(false, "the production scene stages the defender and the player craft")
+		await _free_game(game)
+		return
+
+	var hold := TACTIC_ARENA_ORIGIN
+	var cover_origin := hold + Vector3(0.0, 0.0, 80.0)
+	var slab_origin := hold + Vector3(0.0, 0.0, 40.0)
+	var arena_clear := true
+	for probe: Vector3 in [
+		Vector3.RIGHT, Vector3.LEFT, Vector3.UP, Vector3.DOWN,
+		Vector3.FORWARD, Vector3.BACK,
+	]:
+		arena_clear = arena_clear and _world_ray_clear(
+			game, hold, hold + probe * TACTIC_ARENA_CLEARANCE_METRES
+		)
+	_check(
+		arena_clear and _world_ray_clear(game, hold, cover_origin)
+		and _world_ray_clear(game, cover_origin, cover_origin + Vector3(0.0, 0.0, 40.0)),
+		"the tactic arena is open space in every direction before any cover is placed in it"
+	)
+
+	# ------------------------------------------------------- cover_peek ----
+	var slab := _add_cover_slab(game, slab_origin)
+	defender.activate(Transform3D(Basis.IDENTITY, cover_origin))
+	defender.set_target(torrent)
+	await _advance_tactic_physics(1, torrent, hold)
+	var cover_armed := defender.configure_role_tactic(
+		RangeOpponent.ROLE_TACTIC_COVER_PEEK
+	)
+	var armed_posture := defender.get_role_tactic_snapshot()
+	_check(
+		bool(cover_armed.get("accepted", false))
+		and armed_posture.tactic_id == RangeOpponent.ROLE_TACTIC_COVER_PEEK
+		and armed_posture.state_id == &"seeking_cover"
+		and armed_posture.pre_discharge_telegraph_id == RangeOpponent.COVER_TELEGRAPH_ID
+		and bool(armed_posture.suppresses_fire)
+		and not bool(armed_posture.adds_hud_element),
+		"the cover posture arms on the production defender and goes quiet while it looks for an occluder"
+	)
+	var took_cover := await _advance_tactic_until(
+		func() -> bool:
+			return defender.get_role_tactic_snapshot().state_id == &"in_cover",
+		TACTIC_FRAME_BUDGET, torrent, hold
+	)
+	var hidden := defender.get_role_tactic_snapshot()
+	var hidden_multipliers := hidden.pre_discharge_scale_multipliers as PackedFloat32Array
+	_check(
+		took_cover and bool((hidden.cover as Dictionary).anchor_valid)
+		and bool(hidden.suppresses_fire) and bool(hidden.telegraphing)
+		and hidden_multipliers.size() == 2
+		and is_equal_approx(hidden_multipliers[0], 0.5)
+		and is_equal_approx(hidden_multipliers[1], 0.5)
+		and not _world_ray_clear(game, defender.global_position, torrent.global_position),
+		"the defender puts real world geometry between itself and the player and holds both lenses shut"
+	)
+	var leaned_out := await _advance_tactic_until(
+		func() -> bool: return defender.get_role_tactic_snapshot().state_id == &"peek",
+		TACTIC_FRAME_BUDGET, torrent, hold
+	)
+	var peeking := defender.get_role_tactic_snapshot()
+	var peek_multipliers := peeking.pre_discharge_scale_multipliers as PackedFloat32Array
+	_check(
+		leaned_out
+		and peeking.pre_discharge_telegraph_id == RangeOpponent.COVER_PEEK_TELEGRAPH_ID
+		and not bool(peeking.suppresses_fire)
+		and peek_multipliers.size() == 2
+		and not is_equal_approx(peek_multipliers[0], peek_multipliers[1])
+		and int((peeking.cover as Dictionary).peek_count) >= 1,
+		"it leans out of cover to shoot and shows the player which side it is coming from"
+	)
+	# The counter: take the occluder away, the way flanking does, and the craft
+	# has to fight in the open.
+	slab.get_parent().remove_child(slab)
+	slab.queue_free()
+	await process_frame
+	var exposed := await _advance_tactic_until(
+		func() -> bool: return defender.get_role_tactic_snapshot().state_id == &"exposed",
+		TACTIC_FRAME_BUDGET, torrent, hold
+	)
+	var open_posture := defender.get_role_tactic_snapshot()
+	_check(
+		exposed and bool(open_posture.countered)
+		and open_posture.counter_reason == &"no_cover_available"
+		and not bool(open_posture.suppresses_fire)
+		and not bool((open_posture.cover as Dictionary).anchor_valid),
+		"denying it cover counters the posture and forces it to fight in the open"
+	)
+	defender.deactivate()
+	await _advance_tactic_physics(2, torrent, hold)
+
+	# --------------------------------------------------- bracket_squeeze ----
+	var port_half := RangeOpponent.new()
+	port_half.name = "BracketPortHalf"
+	var starboard_half := RangeOpponent.new()
+	starboard_half.name = "BracketStarboardHalf"
+	game.add_child(port_half)
+	game.add_child(starboard_half)
+	await process_frame
+	port_half.activate(Transform3D(Basis.IDENTITY, hold + Vector3(-52.0, 0.0, 6.0)))
+	starboard_half.activate(Transform3D(Basis.IDENTITY, hold + Vector3(52.0, 0.0, -6.0)))
+	port_half.set_target(torrent)
+	starboard_half.set_target(torrent)
+	await _advance_tactic_physics(1, torrent, hold)
+	var port_armed := port_half.configure_role_tactic(
+		RangeOpponent.ROLE_TACTIC_BRACKET_SQUEEZE,
+		{"side_sign": -1.0, "partner": starboard_half}
+	)
+	var starboard_armed := starboard_half.configure_role_tactic(
+		RangeOpponent.ROLE_TACTIC_BRACKET_SQUEEZE,
+		{"side_sign": 1.0, "partner": port_half}
+	)
+	var port_lean := port_half.get_role_tactic_snapshot()
+	var starboard_lean := starboard_half.get_role_tactic_snapshot()
+	var port_lean_scales := port_lean.pre_discharge_scale_multipliers as PackedFloat32Array
+	var starboard_lean_scales := (
+		starboard_lean.pre_discharge_scale_multipliers as PackedFloat32Array
+	)
+	_check(
+		bool(port_armed.get("accepted", false))
+		and bool(starboard_armed.get("accepted", false))
+		and port_lean.state_id == &"closing" and starboard_lean.state_id == &"closing"
+		and port_lean.pre_discharge_telegraph_id \
+			== RangeOpponent.BRACKET_CLOSING_TELEGRAPH_ID
+		and bool((port_lean.bracket as Dictionary).partner_engaged)
+		and bool((starboard_lean.bracket as Dictionary).partner_engaged)
+		and port_lean_scales.size() == 2 and starboard_lean_scales.size() == 2
+		and is_equal_approx(port_lean_scales[0], starboard_lean_scales[1])
+		and is_equal_approx(port_lean_scales[1], starboard_lean_scales[0])
+		and not is_equal_approx(port_lean_scales[0], port_lean_scales[1]),
+		"the pair takes opposite flanks and each half leans its charge pair to its own side"
+	)
+	var squeezed := await _advance_tactic_until(
+		func() -> bool:
+			return (
+				port_half.get_role_tactic_snapshot().state_id == &"squeeze"
+				and starboard_half.get_role_tactic_snapshot().state_id == &"squeeze"
+			),
+		TACTIC_FRAME_BUDGET, torrent, hold
+	)
+	var port_squeeze := port_half.get_role_tactic_snapshot()
+	var squeeze_scales := port_squeeze.pre_discharge_scale_multipliers as PackedFloat32Array
+	var starboard_squeeze_id := StringName(
+		starboard_half.get_role_tactic_snapshot().pre_discharge_telegraph_id
+	)
+	_check(
+		squeezed
+		and port_squeeze.pre_discharge_telegraph_id \
+			== RangeOpponent.BRACKET_SQUEEZE_TELEGRAPH_ID
+		and starboard_squeeze_id == RangeOpponent.BRACKET_SQUEEZE_TELEGRAPH_ID
+		and squeeze_scales.size() == 2
+		and is_equal_approx(squeeze_scales[0], squeeze_scales[1])
+		and squeeze_scales[0] < 1.0
+		and int((port_squeeze.bracket as Dictionary).squeeze_count) >= 1,
+		"both halves commit at the same moment behind one tightened, side-neutral cue"
+	)
+	# The commit is a turn, not a teleport: the pair has to haul its orbit round
+	# before the player feels it. What matters is that the envelope actually
+	# shrinks while the cue is up.
+	var port_entry_range := port_half.global_position.distance_to(torrent.global_position)
+	var starboard_entry_range := starboard_half.global_position.distance_to(
+		torrent.global_position
+	)
+	await _advance_tactic_until(
+		func() -> bool:
+			return port_half.get_role_tactic_snapshot().state_id != &"squeeze",
+		int(RangeOpponent.BRACKET_SQUEEZE_DURATION_SECONDS * 62.0), torrent, hold
+	)
+	var port_exit_range := port_half.global_position.distance_to(torrent.global_position)
+	var starboard_exit_range := starboard_half.global_position.distance_to(
+		torrent.global_position
+	)
+	_check(
+		port_exit_range < port_entry_range - 5.0
+		and starboard_exit_range < starboard_entry_range - 5.0,
+		"the squeeze closes the bracket around the player from both sides at once"
+			+ " (%.1f->%.1f / %.1f->%.1f)" % [
+				port_entry_range, port_exit_range,
+				starboard_entry_range, starboard_exit_range,
+			]
+	)
+	# Counter one: break out. Leaving the bracket's envelope drops it for good.
+	var escape := hold + Vector3(0.0, 0.0, 400.0)
+	var broke_out := await _advance_tactic_until(
+		func() -> bool:
+			return port_half.get_role_tactic_snapshot().state_id == &"broken",
+		TACTIC_FRAME_BUDGET, torrent, escape
+	)
+	var broken := port_half.get_role_tactic_snapshot()
+	_check(
+		broke_out and bool(broken.countered)
+		and broken.counter_reason == &"player_broke_out",
+		"flying out past the release range breaks the bracket and it stays broken"
+	)
+	# Counter two: kill one half. The survivor cannot bracket on its own.
+	port_half.configure_role_tactic(RangeOpponent.ROLE_TACTIC_NONE)
+	port_half.configure_role_tactic(
+		RangeOpponent.ROLE_TACTIC_BRACKET_SQUEEZE,
+		{"side_sign": -1.0, "partner": starboard_half}
+	)
+	starboard_half.deactivate()
+	var lost_partner := await _advance_tactic_until(
+		func() -> bool:
+			return port_half.get_role_tactic_snapshot().state_id == &"broken",
+		TACTIC_FRAME_BUDGET, torrent, hold
+	)
+	var orphaned := port_half.get_role_tactic_snapshot()
+	_check(
+		lost_partner and bool(orphaned.countered)
+		and orphaned.counter_reason == &"bracket_partner_lost"
+		and not bool((orphaned.bracket as Dictionary).partner_engaged),
+		"taking either half out of the fight ends the bracket for the survivor"
+	)
+	port_half.deactivate()
+	game.remove_child(port_half)
+	game.remove_child(starboard_half)
+	port_half.queue_free()
+	starboard_half.queue_free()
+	await process_frame
+
+	# --------------------------------------------------- withdraw_repair ----
+	var repair_origin := hold + Vector3(0.0, 0.0, 46.0)
+	defender.activate(Transform3D(Basis.IDENTITY, repair_origin))
+	defender.set_target(torrent)
+	await _advance_tactic_physics(1, torrent, hold)
+	var repair_armed := defender.configure_role_tactic(
+		RangeOpponent.ROLE_TACTIC_WITHDRAW_REPAIR
+	)
+	_check(
+		bool(repair_armed.get("accepted", false))
+		and defender.get_role_tactic_snapshot().state_id == &"engaged"
+		and not bool(defender.get_role_tactic_snapshot().suppresses_fire),
+		"the withdrawal posture arms without changing how the defender fights while it is healthy"
+	)
+	var trigger_health := defender.get_maximum_health() \
+		* RangeOpponent.WITHDRAW_REPAIR_TRIGGER_HEALTH_RATIO
+	defender.apply_damage(defender.get_health() - trigger_health + 0.5, defender.global_position)
+	var hurt_health := defender.get_health()
+	var broke_off := await _advance_tactic_until(
+		func() -> bool:
+			return defender.get_role_tactic_snapshot().state_id == &"withdrawing",
+		TACTIC_FRAME_BUDGET, torrent, hold
+	)
+	await _advance_tactic_physics(20, torrent, hold)
+	var withdrawing := defender.get_role_tactic_snapshot()
+	var withdraw_scales := withdrawing.pre_discharge_scale_multipliers as PackedFloat32Array
+	_check(
+		broke_off
+		and withdrawing.pre_discharge_telegraph_id == RangeOpponent.WITHDRAW_TELEGRAPH_ID
+		and bool(withdrawing.suppresses_fire)
+		and withdraw_scales.size() == 2
+		and is_equal_approx(withdraw_scales[0], 1.5)
+		and is_equal_approx(withdraw_scales[1], 1.5)
+		and defender.velocity.dot(
+			(defender.global_position - torrent.global_position).normalized()
+		) > 0.5,
+		"a badly hurt defender breaks off, stops shooting, and opens both lenses wide on the way out"
+			+ " (%s %.2f)" % [
+				withdrawing.state_id,
+				defender.velocity.dot(
+					(defender.global_position - torrent.global_position).normalized()
+				),
+			]
+	)
+	var repairing := await _advance_tactic_until(
+		func() -> bool:
+			return defender.get_role_tactic_snapshot().state_id == &"repairing",
+		TACTIC_FRAME_BUDGET, torrent, hold
+	)
+	var patching := defender.get_role_tactic_snapshot()
+	var patch_scales := patching.pre_discharge_scale_multipliers as PackedFloat32Array
+	_check(
+		repairing and bool(patching.holds_station) and bool(patching.suppresses_fire)
+		and patching.pre_discharge_telegraph_id \
+			== RangeOpponent.WITHDRAW_REPAIR_TELEGRAPH_ID
+		and patch_scales.size() == 2
+		and not is_equal_approx(patch_scales[0], patch_scales[1])
+		and defender.global_position.distance_to(torrent.global_position) \
+			> RangeOpponent.WITHDRAW_REPAIR_INTERRUPT_RANGE,
+		"it stands off out of reach, holds station and shows one lens split open while it patches"
+	)
+	var returned := await _advance_tactic_until(
+		func() -> bool:
+			return defender.get_role_tactic_snapshot().state_id \
+				in [&"returning", &"returned"],
+		TACTIC_FRAME_BUDGET, torrent, hold
+	)
+	var comeback := defender.get_role_tactic_snapshot()
+	var repair_report := comeback.withdraw_repair as Dictionary
+	_check(
+		returned and float(repair_report.restored_health) > 0.0
+		and defender.get_health() > hurt_health
+		and defender.get_health() <= defender.get_maximum_health() \
+			* RangeOpponent.WITHDRAW_REPAIR_HEALTH_CEILING_RATIO + 0.001
+		and defender.get_health() < defender.get_maximum_health()
+		and bool(repair_report.returned_damaged)
+		and not bool(repair_report.interrupted),
+		"it comes back with a patched but permanently damaged hull, never a fresh one"
+	)
+	# The counter: get on top of it while it works and it comes back with nothing.
+	defender.deactivate()
+	await _advance_tactic_physics(2, torrent, hold)
+	defender.activate(Transform3D(Basis.IDENTITY, repair_origin))
+	defender.set_target(torrent)
+	await _advance_tactic_physics(1, torrent, hold)
+	defender.configure_role_tactic(RangeOpponent.ROLE_TACTIC_WITHDRAW_REPAIR)
+	defender.apply_damage(defender.get_health() - trigger_health + 0.5, defender.global_position)
+	var second_patch := await _advance_tactic_until(
+		func() -> bool:
+			return defender.get_role_tactic_snapshot().state_id == &"repairing",
+		TACTIC_FRAME_BUDGET, torrent, hold
+	)
+	var chased_health := defender.get_health()
+	var interrupted := await _advance_tactic_until(
+		func() -> bool:
+			return bool(
+				(defender.get_role_tactic_snapshot().withdraw_repair as Dictionary).interrupted
+			),
+		TACTIC_FRAME_BUDGET,
+		torrent,
+		defender.global_position + Vector3(0.0, 0.0, 8.0)
+	)
+	var denied := defender.get_role_tactic_snapshot()
+	_check(
+		second_patch and interrupted
+		and bool((denied.withdraw_repair as Dictionary).interrupted)
+		and denied.counter_reason == &"repair_interrupted"
+		and is_equal_approx(
+			float((denied.withdraw_repair as Dictionary).restored_health), 0.0
+		)
+		and is_equal_approx(defender.get_health(), chased_health),
+		"chasing it down inside the repair window denies the patch entirely"
+	)
+	defender.deactivate()
+	await _advance_tactic_physics(2, torrent, hold)
+	await _free_game(game)
+
+
+# ------------------------------------ multi-stage station defense sortie ----
+
+
+func _test_station_defense_multi_stage_encounter() -> void:
+	var game := MAIN_SCENE.instantiate() as GameFlow
+	root.add_child(game)
+	await process_frame
+	await physics_frame
+	await process_frame
+	var world := game.get("world") as Node3D
+	if not is_instance_valid(world) \
+		or not world.has_method(&"get_station_defense_content"):
+		_check(false, "the production world stages the station defense encounter")
+		await _free_game(game)
+		return
+	var content := world.call(&"get_station_defense_content") as StationDefenseEncounterContent
+	var board := world.call(&"get_station_defense_activity_board") as Area3D
+	var authority := game.get_combat_authority()
+	var resolver := game.get_combat_resolver()
+	var player := game.get("player") as Node3D
+	if (
+		not is_instance_valid(content) or not is_instance_valid(board)
+		or authority == null or resolver == null or not is_instance_valid(player)
+	):
+		_check(false, "the defense board, its content and the live combat seam are all present")
+		await _free_game(game)
+		return
+
+	var bindings_ready := await _advance_until(
+		func() -> bool:
+			return bool(game.get_station_defense_encounter_status().bindings_ready),
+		SETTLE_FRAME_BUDGET
+	)
+	var status := game.get_station_defense_encounter_status()
+	_check(
+		bindings_ready and bool(status.bindings_ready)
+		and bool((status.reward_configuration as Dictionary).get("accepted", false))
+		and bool(board.call(&"get_reward_handoff_snapshot").get("configured", false)),
+		"the coordinator binds the defense board to its one reward authority at boot"
+	)
+
+	var contract := content.get_snapshot().get("contract", {}) as Dictionary
+	var waves := contract.get("waves", []) as Array
+	_check(
+		waves.size() == 3
+		and (waves[0].hostile_handles as Array).size() == 1
+		and (waves[1].hostile_handles as Array).size() == 2
+		and (waves[2].hostile_handles as Array).size() == 1
+		and int(waves[0].mode) == StationDefenseContract.WaveMode.ORDERED
+		and int(waves[1].mode) == StationDefenseContract.WaveMode.SIMULTANEOUS
+		and int(waves[2].mode) == StationDefenseContract.WaveMode.ORDERED
+		and float(waves[2].delay_seconds) >= StationDefenseActivity.LULL_MINIMUM_SECONDS,
+		"the sortie is three waves of different composition with a berth-length lull before the last"
+	)
+
+	var attacker := Node3D.new()
+	attacker.name = "DefenseSortieTestGun"
+	root.add_child(attacker)
+	_check(
+		authority.register_source(attacker, DEFENSE_TEST_SOURCE_ID, &"station_allies", {
+			DEFENSE_TEST_WEAPON: {
+				"range": 600.0,
+				"damage": 4000.0,
+				"origin_tolerance": 60.0,
+			},
+		}),
+		"a live session source shares the production resolver with the encounter"
+	)
+
+	player.global_position = board.global_position + Vector3(0.0, 0.0, 1.2)
+	await _advance_physics(2)
+	var start_result := game.call(&"_start_physical_station_defense_board") as Dictionary
+	await _advance_physics(2)
+	var generation := content.get_generation()
+	var activity := _defense_activity(content)
+	_check(
+		bool(start_result.get("accepted", false))
+		and activity.state_id == &"active"
+		and int(activity.wave_number) == 1
+		and int(activity.wave_count) == 3,
+		"a player standing at the board starts the multi-stage sortie from the board itself"
+	)
+
+	# GameFlow, not the test, is what gives this encounter its time.
+	var elapsed_before := float(activity.elapsed_seconds)
+	await _advance_physics(8)
+	_check(
+		float(_defense_activity(content).elapsed_seconds) > elapsed_before,
+		"the coordinator's own physics step advances the running sortie"
+	)
+
+	var role_tactics := content.get_snapshot().get("wave_role_tactics", {}) as Dictionary
+	var alpha_posture := (role_tactics.get("tactics", {}) as Dictionary).get(
+		String(StationDefenseEncounterContent.APPROACH_HOSTILE_ID), {}
+	) as Dictionary
+	_check(
+		bool(role_tactics.get("applied", false))
+		and alpha_posture.get("tactic_id", &"") == RangeOpponent.ROLE_TACTIC_COVER_PEEK
+		and not bool(role_tactics.get("adds_hud_element", true)),
+		"wave one's raider works the dockside under the cover posture"
+	)
+
+	# ---- wave one cleared, the relief pair brackets the beacon it guards ----
+	var alpha := _defense_entity(content, StationDefenseEncounterContent.APPROACH_HOSTILE_ID)
+	_check(alpha != null and alpha.is_active(), "wave one puts exactly one raider in the air")
+	if alpha != null:
+		await _defense_kill(authority, attacker, alpha)
+	await _defense_advance(content, 2.6)
+	var relief := _defense_activity(content)
+	_check(
+		relief.state_id == &"active" and int(relief.wave_number) == 2
+		and bool(relief.wave_active)
+		and (relief.active_hostile_handles as Array).size() == 2,
+		"clearing wave one brings the two-craft relief wave in together"
+	)
+
+	# --------- save and whole-Main re-entry with the sortie still running ----
+	var session_snapshot := board.call(
+		&"get_session_persistence_snapshot"
+	) as Dictionary
+	_check(
+		not bool(session_snapshot.get("active_runtime_state_persisted", true))
+		and not bool(session_snapshot.get("combat_sources_persisted", true))
+		and not bool(session_snapshot.get("asset_damage_persisted", true))
+		and not bool(session_snapshot.get("reward_replayable", true)),
+		"a save taken mid-sortie writes no live roster, damage or replayable reward"
+	)
+	authority.forget_source(attacker)
+	await _advance_physics(1)
+	var sources_before := resolver.get_registered_source_count()
+	var kills_before := int(relief.current_wave_destroyed_count)
+	root.remove_child(game)
+	await process_frame
+	root.add_child(game)
+	await process_frame
+	await physics_frame
+	await process_frame
+	var reentered := _defense_activity(content)
+	_check(
+		reentered.state_id == &"active"
+		and int(reentered.generation) == generation
+		and int(reentered.wave_number) == 2
+		and int(reentered.current_wave_destroyed_count) == kills_before
+		and resolver.get_registered_source_count() == sources_before
+		and int(board.call(&"get_reward_handoff_snapshot").highest_reward_generation) == 0
+		and not bool(
+			(board.call(&"get_session_persistence_snapshot").get("reward_replayable", true))
+		),
+		"a save taken mid-sortie survives a whole-Main re-entry without replaying a reward"
+	)
+	authority.register_source(attacker, DEFENSE_TEST_SOURCE_ID, &"station_allies", {
+		DEFENSE_TEST_WEAPON: {
+			"range": 600.0,
+			"damage": 4000.0,
+			"origin_tolerance": 60.0,
+		},
+	})
+	await _advance_physics(1)
+
+	for hostile_id in [
+		StationDefenseEncounterContent.PINCER_CLOSE_HOSTILE_ID,
+		StationDefenseEncounterContent.PINCER_OUTER_HOSTILE_ID,
+	]:
+		var raider := _defense_entity(content, hostile_id)
+		if raider != null and raider.is_active():
+			await _defense_kill(authority, attacker, raider)
+		await _defense_advance(content, 0.1)
+
+	# ------------------------------------------------ the berth-run lull ----
+	var lull := _defense_activity(content)
+	await _defense_advance(content, 2.0)
+	var mid_lull := _defense_activity(content)
+	var board_text := str(board.call(&"get_presentation_snapshot").text)
+	_check(
+		bool(lull.in_lull) and bool(lull.lull_is_berth_window)
+		and float(lull.wave_delay_seconds) >= StationDefenseActivity.LULL_MINIMUM_SECONDS
+		and float(mid_lull.wave_delay_remaining_seconds) < float(
+			lull.wave_delay_remaining_seconds
+		)
+		and (mid_lull.active_hostile_handles as Array).is_empty()
+		and board_text.contains("BERTH RUN OPEN"),
+		"the lull is quiet, counts down on the board, and says the berth run is open"
+	)
+	# The budget is authored to survive its own lulls, so spending the window
+	# on a repair run still leaves a fight to come back to.
+	_check(
+		float(mid_lull.timeout_remaining_seconds)
+			> StationDefenseEncounterDefinition.MINIMUM_FIGHTING_SECONDS * 0.5
+		and float(mid_lull.timeout_seconds) >= float(mid_lull.wave_delay_seconds)
+			+ StationDefenseEncounterDefinition.MINIMUM_FIGHTING_SECONDS,
+		"taking the whole berth window still leaves the player a fight to return to"
+	)
+
+	# ------------------------------- a failure the player can come back from ----
+	var lost := content.fail(&"perimeter_overrun", content.get_generation())
+	await _advance_physics(2)
+	var failed := _defense_activity(content)
+	_check(
+		bool(lost.get("accepted", false)) and failed.state_id == &"failed"
+		and bool(failed.recovery_available)
+		and int(failed.recovery_count) == 0
+		and str(board.call(&"get_presentation_snapshot").text).contains("RESUME AT WAVE"),
+		"losing the sortie leaves a recoverable failure rather than a dead end"
+	)
+	player.global_position = board.global_position + Vector3(0.0, 0.0, 1.2)
+	await _advance_physics(1)
+	var recovered := board.call(
+		&"recover", player, content.get_generation()
+	) as Dictionary
+	await _advance_physics(2)
+	var resumed := _defense_activity(content)
+	_check(
+		bool(recovered.get("accepted", false))
+		and resumed.state_id == &"active"
+		and int(resumed.generation) == int(failed.generation) + 1
+		and int(resumed.wave_number) == 3
+		and int(resumed.remaining_hostile_count) == 1
+		and int(resumed.recovery_count) == 1
+		and not bool(resumed.recovery_available),
+		"the recovery resumes the same fight at wave three with the earlier kills kept"
+	)
+
+	# ----------------------------------------------- wave three and reward ----
+	await _defense_advance(content, 8.5)
+	var final_wave := _defense_activity(content)
+	var picket := _defense_entity(
+		content, StationDefenseEncounterContent.HEAVY_PICKET_HOSTILE_ID
+	)
+	_check(
+		int(final_wave.wave_number) == 3 and bool(final_wave.wave_active)
+		and picket != null and picket.is_active(),
+		"the lull ends and the heavy picket arrives as the third and last composition"
+	)
+	if picket != null:
+		await _defense_kill(authority, attacker, picket)
+	await _advance_physics(2)
+	var cleared := _defense_activity(content)
+	var reward := board.call(&"get_reward_handoff_snapshot") as Dictionary
+	_check(
+		cleared.state_id == &"completed"
+		and bool((reward.last_result as Dictionary).get("accepted", false))
+		and int(reward.highest_reward_generation) == int(cleared.generation),
+		"clearing every wave grants the sortie reward through the coordinator's reward authority"
+			+ " (%s g%d r%d %s)" % [
+				cleared.state_id,
+				int(cleared.generation),
+				int(reward.highest_reward_generation),
+				str(game.get("_last_game_flow_reward_result")),
+			]
+	)
+	board.call(&"_on_content_snapshot_changed", content.get_snapshot())
+	var replayed := board.call(&"get_reward_handoff_snapshot") as Dictionary
+	var direct_replay := game.call(&"_commit_game_flow_activity_reward", {
+		"activity_id": StationDefenseActivityBoard.ACTIVITY_ID,
+		"activity_generation": int(cleared.generation),
+		"reward_id": &"return_defense_report_to_shipyard",
+		"reward_authority": false,
+		"granted": false,
+	}) as Dictionary
+	_check(
+		int(replayed.highest_reward_generation) == int(cleared.generation)
+		and not bool(direct_replay.get("accepted", true))
+		and StringName(direct_replay.get("reason", &"")) \
+			== &"reward_generation_already_committed",
+		"neither a replayed completion snapshot nor a direct re-commit grants the reward twice"
+			+ " (%s)" % [str(direct_replay.get("reason", &""))]
+	)
+
+	# ------------------------------------------------------ abandonment ----
+	player.global_position = board.global_position + Vector3(0.0, 0.0, 1.2)
+	await _advance_physics(1)
+	var reset_after_clear := board.call(
+		&"abort_and_reset", player, content.get_generation()
+	) as Dictionary
+	await _advance_physics(2)
+	var restart := game.call(&"_start_physical_station_defense_board") as Dictionary
+	await _defense_advance(content, 0.2)
+	player.global_position = board.global_position + Vector3(0.0, 0.0, 1.2)
+	await _advance_physics(1)
+	var abandoned := board.call(
+		&"abort_and_reset", player, content.get_generation()
+	) as Dictionary
+	await _advance_physics(2)
+	var idle := _defense_activity(content)
+	var idle_tactics := (
+		content.get_snapshot().get("wave_role_tactics", {}) as Dictionary
+	).get("tactics", {}) as Dictionary
+	var every_posture_cleared := true
+	var any_hostile_live := false
+	for hostile_key: String in idle_tactics:
+		var posture := idle_tactics[hostile_key] as Dictionary
+		every_posture_cleared = (
+			every_posture_cleared
+			and posture.get("tactic_id", &"") == RangeOpponent.ROLE_TACTIC_NONE
+		)
+		any_hostile_live = any_hostile_live or bool(posture.get("active", false))
+	_check(
+		bool(reset_after_clear.get("accepted", false))
+		and bool(restart.get("accepted", false))
+		and bool(abandoned.get("accepted", false))
+		and idle.state_id == &"idle"
+		and every_posture_cleared and not any_hostile_live
+		and resolver.get_registered_source_count() == sources_before + 1,
+		"abandoning the sortie retires every craft, clears every posture and leaves the roster as it was"
+	)
+
+	authority.forget_source(attacker)
+	root.remove_child(attacker)
+	attacker.queue_free()
+	await process_frame
+	await _free_game(game)
+
+
+# ------------------------------------------- role-tactic sortie helpers ----
+
+const DEFENSE_TEST_SOURCE_ID := 91101
+const DEFENSE_TEST_WEAPON: StringName = &"defense_sortie_test_gun"
+const DEFENSE_TEST_FIRING_OFFSETS := [
+	Vector3(0.0, 0.0, 22.0),
+	Vector3(0.0, 22.0, 0.0),
+	Vector3(22.0, 0.0, 0.0),
+	Vector3(0.0, 0.0, -22.0),
+	Vector3(-22.0, 0.0, 0.0),
+	Vector3(0.0, -22.0, 0.0),
+	Vector3(16.0, 16.0, 16.0),
+	Vector3(-16.0, 16.0, -16.0),
+]
+
+
+func _defense_activity(content: StationDefenseEncounterContent) -> Dictionary:
+	return (
+		(content.get_snapshot().get("host", {}) as Dictionary).get("activity", {})
+		as Dictionary
+	)
+
+
+func _defense_entity(
+	content: StationDefenseEncounterContent,
+	hostile_id: StringName
+	) -> RangeOpponent:
+	for child in content.find_children("*", "RangeOpponent", true, false):
+		var entity := child as RangeOpponent
+		if entity != null and StringName(entity.get_meta("hostile_id", &"")) == hostile_id:
+			return entity
+	return null
+
+
+func _defense_advance(content: StationDefenseEncounterContent, seconds: float) -> void:
+	content.advance_physics(seconds, content.get_generation())
+	await physics_frame
+	await process_frame
+
+
+func _defense_kill(
+	authority: LiveCombatAuthority,
+	attacker: Node3D,
+	target: RangeOpponent
+	) -> void:
+	for offset: Vector3 in DEFENSE_TEST_FIRING_OFFSETS:
+		if not target.is_active():
+			return
+		await physics_frame
+		await process_frame
+		var aim_position := target.global_position
+		var keel := target.get_node_or_null(^"KeelCollision") as CollisionShape3D
+		if keel != null:
+			aim_position = keel.global_position
+		attacker.global_position = aim_position + offset
+		authority.submit_hitscan(
+			attacker,
+			DEFENSE_TEST_WEAPON,
+			attacker.global_position,
+			(aim_position - attacker.global_position).normalized()
+		)
+		await process_frame
+
+
+func _world_ray_clear(host: Node3D, from_position: Vector3, to_position: Vector3) -> bool:
+	var query := PhysicsRayQueryParameters3D.create(
+		from_position, to_position, PhysicsLayers.WORLD
+	)
+	return host.get_world_3d().direct_space_state.intersect_ray(query).is_empty()
+
+
+func _add_cover_slab(game: GameFlow, origin: Vector3) -> StaticBody3D:
+	var slab := StaticBody3D.new()
+	slab.name = "TacticCoverSlab"
+	slab.collision_layer = PhysicsLayers.WORLD
+	slab.collision_mask = 0
+	var shape := CollisionShape3D.new()
+	var box := BoxShape3D.new()
+	box.size = COVER_SLAB_SIZE
+	shape.shape = box
+	slab.add_child(shape)
+	game.add_child(slab)
+	slab.global_position = origin
+	return slab
+
+
+func _advance_tactic_physics(frames: int, held: Node3D, hold_position: Vector3) -> void:
+	for _index in frames:
+		if is_instance_valid(held):
+			held.global_position = hold_position
+			if held is CharacterBody3D:
+				(held as CharacterBody3D).velocity = Vector3.ZERO
+		await physics_frame
+		await process_frame
+
+
+func _advance_tactic_until(
+	condition: Callable,
+	frame_budget: int,
+	held: Node3D,
+	hold_position: Vector3
+	) -> bool:
+	for _index in frame_budget:
+		if bool(condition.call()):
+			return true
+		if is_instance_valid(held):
+			held.global_position = hold_position
+			if held is CharacterBody3D:
+				(held as CharacterBody3D).velocity = Vector3.ZERO
+		await physics_frame
+		await process_frame
+	return bool(condition.call())
+

@@ -114,23 +114,23 @@ func _run() -> void:
 	var inter_wave_activity := content.get_snapshot().host.activity as Dictionary
 	_check_status(
 		board, status_label, &"active", generation,
-		"[~] NEXT WAVE 2 / 3\nDEPLOY IN 0.5 S",
+		"[~] NEXT WAVE 2 / 3\nDEPLOY IN 2.5 S",
 		"settled public wave transition presents the positive-delay wave 2 countdown"
 	)
 	_check(
 		bool(alpha_terminal.get("destroyed", false))
 		and int(inter_wave_activity.get("wave_number", 0)) == 2
 		and not bool(inter_wave_activity.get("wave_active", true))
-		and is_equal_approx(float(inter_wave_activity.get("wave_delay_remaining_seconds", 0.0)), 0.5)
+		and is_equal_approx(float(inter_wave_activity.get("wave_delay_remaining_seconds", 0.0)), 2.5)
 		and int(inter_wave_activity.get("current_wave_hostile_count", 0)) == 2
 		and int(inter_wave_activity.get("current_wave_destroyed_count", -1)) == 0,
 		"inter-wave board copy comes from the settled public activity snapshot, never a cleared wave-1 fixture"
 	)
-	content.advance_physics(0.5, generation)
+	content.advance_physics(2.5, generation)
 	await physics_frame
 	var beta_terminal := await _destroy(authority, attacker, beta)
 	var gamma_terminal := await _destroy(authority, attacker, gamma)
-	content.advance_physics(1.25, generation)
+	content.advance_physics(8.0, generation)
 	await physics_frame
 	var picket_terminal := await _destroy(authority, attacker, picket, 8)
 	await process_frame
@@ -170,8 +170,8 @@ func _run() -> void:
 	)
 	_check_status(
 		board, status_label, &"failed", failed_generation,
-		"[X] FAILED // RESET REQUIRED",
-		"failed signal truthfully requires an external reset"
+		"[!] FAILED // RESUME AT WAVE 1",
+		"a recoverable failure offers the resume the player has, not a dead end"
 	)
 	var failed_interaction: bool = board.interact(actor)
 	_check(

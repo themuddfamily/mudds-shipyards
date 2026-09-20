@@ -17,7 +17,7 @@ const TEST_WEAPON: StringName = &"content_integration_cannon"
 const TEST_SOURCE_ID := 9201
 const TEST_WEAPON_DAMAGE := 100.0
 const PHYSICS_STEP := 1.0 / 60.0
-const FULL_ENCOUNTER_PHYSICS_STEPS := 960
+const FULL_ENCOUNTER_PHYSICS_STEPS := 2100
 const AUDITED_WORLD_TRANSFORM := Transform3D(Basis.IDENTITY, Vector3(90.0, 0.0, -10.0))
 
 var _assertions := 0
@@ -793,12 +793,13 @@ func _test_checked_in_encounter_content() -> void:
 		and int(waves[0].mode) == StationDefenseContract.WaveMode.ORDERED
 		and waves[1].wave_id == &"dockside_relief"
 		and int(waves[1].mode) == StationDefenseContract.WaveMode.SIMULTANEOUS
-		and is_equal_approx(float(waves[1].delay_seconds), 0.5)
+		and is_equal_approx(float(waves[1].delay_seconds), 2.5)
 		and waves[2].wave_id == &"heavy_picket_reinforcement"
 		and int(waves[2].mode) == StationDefenseContract.WaveMode.ORDERED
-		and is_equal_approx(float(waves[2].delay_seconds), 1.25)
-		and is_equal_approx(float(contract_snapshot.timeout_seconds), 16.0),
-		"the bounded contract adds one delayed heavy-picket wave inside a finite 16 s encounter"
+		and is_equal_approx(float(waves[2].delay_seconds), 8.0)
+		and float(waves[2].delay_seconds) >= StationDefenseActivity.LULL_MINIMUM_SECONDS
+		and is_equal_approx(float(contract_snapshot.timeout_seconds), 34.0),
+		"the bounded contract opens a berth-length lull before the heavy picket inside a finite 34 s encounter"
 	)
 
 	var initial := content.get_snapshot()
@@ -934,7 +935,7 @@ func _test_checked_in_encounter_content() -> void:
 		),
 		"inter-wave feedback warns of the breaker and outer feint while retaining non-color-only core pressure"
 	)
-	var relief := content.advance_physics(0.5, generation)
+	var relief := content.advance_physics(2.5, generation)
 	await physics_frame
 	var breaker_snapshot := content.get_snapshot()
 	var breaker_feedback := breaker_snapshot.breaker_feint as Dictionary
@@ -1434,7 +1435,7 @@ func _test_checked_in_encounter_content() -> void:
 			== StationDefenseEncounterContent.HEAVY_PICKET_TACTIC_ID
 		and inbound_picket.state_id == &"inbound"
 		and bool(inbound_picket.warning)
-		and is_equal_approx(float(inbound_picket.warning_remaining_seconds), 1.25)
+		and is_equal_approx(float(inbound_picket.warning_remaining_seconds), 8.0)
 		and is_equal_approx(float(inbound_picket.minimum_arming_range), 40.0)
 		and is_equal_approx(float(inbound_picket.initial_arming_delay_seconds), 1.6)
 		and inbound_picket.counterplay == &"close_inside_minimum_arming_range"
@@ -1451,11 +1452,11 @@ func _test_checked_in_encounter_content() -> void:
 		and stale_picket_warning.reason == &"stale_generation"
 		and is_equal_approx(
 			float(content.get_snapshot().heavy_picket_reinforcement.warning_remaining_seconds),
-			1.25
+			8.0
 		),
 		"stale activity generation cannot consume or replay the reinforcement warning"
 	)
-	var picket_arrival := content.advance_physics(1.25, generation)
+	var picket_arrival := content.advance_physics(8.0, generation)
 	await physics_frame
 	var active_picket := content.get_snapshot().heavy_picket_reinforcement as Dictionary
 	var active_source_contract := content.get_live_source_registration_contract()
@@ -1464,7 +1465,7 @@ func _test_checked_in_encounter_content() -> void:
 		and active_picket.state_id == &"active"
 		and bool(active_picket.active) and not bool(active_picket.warning)
 		and float(active_picket.timeout_remaining_seconds) > 0.0
-		and float(active_picket.timeout_remaining_seconds) <= 16.0
+		and float(active_picket.timeout_remaining_seconds) <= 34.0
 		and active_picket.terminal_policy == &"resolver_defeat_rewards_timeout_recovers"
 		and authority.get_source_id(picket) == 2124
 		and authority.get_source_faction(picket) == &"perimeter_raiders"
@@ -1566,7 +1567,7 @@ func _test_checked_in_encounter_content() -> void:
 		and int(asset_after_physics.damage_event_count) > 0
 		and int(observed_hostile_fire.count) > 0
 		and resolver.get_registered_source_count() == 1,
-		"a full 16 s of real physics stays collision-clear, resolves hostile fire, times out without reward, and retires cleanly"
+		"a full 34 s of real physics stays collision-clear, resolves hostile fire, times out without reward, and retires cleanly"
 	)
 
 	var reset_after_timeout := content.reset(timeout_generation)

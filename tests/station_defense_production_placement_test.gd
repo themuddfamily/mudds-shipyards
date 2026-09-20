@@ -210,11 +210,11 @@ func _run() -> void:
 	var gamma := roster.get_node(^"PerimeterRaiderGamma") as RangeOpponent
 	var picket := roster.get_node(^"PerimeterHeavyPicket") as StandoffPicketOpponent
 	var alpha_terminal := await _destroy_with_torrent(authority, torrent, alpha)
-	var relief := content.advance_physics(0.5, generation)
+	var relief := content.advance_physics(2.5, generation)
 	await physics_frame
 	var beta_terminal := await _destroy_with_torrent(authority, torrent, beta)
 	var gamma_terminal := await _destroy_with_torrent(authority, torrent, gamma)
-	var reinforcement := content.advance_physics(1.25, generation)
+	var reinforcement := content.advance_physics(8.0, generation)
 	await physics_frame
 	var picket_terminal := await _destroy_with_torrent(authority, torrent, picket, 8)
 	await process_frame
