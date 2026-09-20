@@ -344,11 +344,155 @@ other placements. The habitat's `BerthStowedCrate` (0.27 m stowage under a bunk,
 `habitat_spine.gd`) is domestic stowage rather than freight and is left alone.
 The station-operations cargo lines' thirteen `Crate*` boxes
 (`station_operations_activity_presentation_builder.gd`, 0.7–1.5 m palletised
-crates in `crate` / `crate_alt`) are the same object class and are **not on
-this recipe yet**: that builder is a separate presentation family with its own
-frozen material rosters and three placements, and taking it onto
-`FreightCrateKit` is a bounded follow-up (thirteen `_box` calls, one helper,
-one more triplanar and census refreeze) that this pass does not claim.
+crates in `crate` / `crate_alt`) are the same object class and were **not on
+this recipe yet** when this pass was written: that builder is a separate
+presentation family with its own frozen material rosters and three placements,
+and taking it onto `FreightCrateKit` was a bounded follow-up (thirteen `_box`
+calls, one helper, one more triplanar and census refreeze) that this pass did
+not claim. **That follow-up is closed — see the 2026-09-20 section below.**
+
+#### 2026-09-20 FREIGHT-CRATE-001 (station operations): the cargo lines' thirteen crates, +11,220 resident triangles
+
+Re-measured on 2026-09-20 for the residual the freight-berth crate pass recorded
+five days earlier and explicitly did not claim: the thirteen palletised `Crate*`
+boxes in `scripts/world/station_operations_activity_presentation_builder.gd`
+(0.7–1.5 m, `CrateLower/LowerAlt/Upper/Outbound/OutboundSmall` on the short
+transfer line, `CrateInbound*/CrateOutbound*` on each 21.6 m line, and
+`SupplyCrate`/`SupplyCrateTop` on the crew work post). They were the same object
+class as the berth's ten totes and were still chamfered slabs in the builder's
+own `crate` teal and `crate_alt` orange — the same two colours the module's sled
+container wears, so the cargo a player walks up to was painted the colour of the
+machine beside it.
+
+They are now the same stores totes, from the same
+`scripts/world/freight_crate_kit.gd`: four full-height corner battens, recessed
+panels split by a mid rail and closed by a skirt rail lifted off the deck so the
+crate stands on four feet with a shadow line under it, a lid slab dropped below
+the batten tops with a lip and a seam, a strap pair where the crate is strapped,
+the `freight-tote` stores plate on both long sides, and the kit's three
+moulded-polymer finishes — olive `5c6b3f`, plum `6b3b56`, stone `7f8478` — over
+one shared dark trim `2c3133`, varied so no two adjacent crates match. A crate
+carrying another crate takes the unstrapped lid-seam variant, because a strap
+band over its lid would be under the load; every other crate is strapped. That
+rule makes eight strapped and eleven lidded totes across the ten-placement
+production roster (one short line, two long lines, one crew work post = nineteen
+crates).
+
+`crate` and `crate_alt` stay in the catalog and are now what they always
+described: the powered sled's container body and its two formed ribs, which
+really are a small container rather than a tote.
+
+The pass **adds no renderer node, scene-tree node, unique mesh, light, collider,
+shader or particle system, and changes no authored size, position, solid volume,
+clearance sweep, handling fixture, node name or lifecycle**. Each tote's mesh
+AABB is exactly the `size` the slab published, one shell is retained per
+(`size`, `strapped`) recipe — so the three equally-sized unstrapped totes on a
+long line share one `ArrayMesh` exactly as the three equally-sized slabs did —
+and the activity's process-wide fingerprint cache then shares each shell across
+placements. Measured from the suite's own `GEOMETRY_CENSUS_*` lines, identical
+in both scenarios:
+
+- **Triangles +11,220**, 1,896,055 → 1,907,275 resident and 2,030,189 →
+  2,041,409 loaded. That is +15,108 of tote (eight strapped at 948, eleven
+  lidded at 684), less the 2,052 the nineteen 108-triangle slabs cost, less a
+  further 1,836 because seventeen of those slabs were also merged copies inside
+  the two cargo lines' `OpaqueEnvelopeShadowBatch` and are no longer.
+  Resident triangles move from 5.3% to **6.0% over the 1,800,000 ceiling**; the
+  ceiling is not raised.
+- **Surfaces +38**, 6,000 → 6,038 resident and 6,209 → 6,247 loaded: three
+  finishes per crate (shell, trim, plate) instead of one.
+- **Bound +5 / retained +5 materials**, 711 → 716 and 1,014 → 1,019 resident
+  (753 → 758 and 1,061 → 1,066 loaded): three tote shells, one shared trim and
+  one shared stores plate, added to the activity's shared catalog.
+- **Textures do not move** (39 / 85,977,416 bytes). The `freight-tote` plate the
+  berth pass generated is reused as it stands, so `ASSETS.md` needs no new
+  entry — its `freight-tote` paragraph already reads "every small crate and tote
+  built by `scripts/world/freight_crate_kit.gd`", which is now true at both
+  sites.
+
+Mesh instances (5,557 / 5,766), unique meshes (3,058 / 3,198), lights
+(341 / 368), nodes (10,593 / 11,016), shaders (7) and particle systems (54) are
+unchanged, and every loaded-minus-resident delta is untouched.
+`station_triplanar_material_test` moves 1937 → 1956 mapped station surfaces with
+the 0.30 m column 1249 → 1268 (shell and trim where there was one slab; the
+0.22 m and 0.28 m columns do not move, and the printed plate stays outside the
+family for the reason the container data plate does).
+
+Two contracts in `station_operations_activity.gd` follow the finish rather than
+the geometry, and both are stated here because they are real:
+
+- The shared material catalog is **17 → 22 entries**, on every profile row and
+  on the production roster row, because the set is built whole regardless of
+  profile. Node (500), MeshInstance (359), batch (24), batched-copy (107),
+  submission (383) and drawn-copy (461) rows do not move.
+- A renderer's finish binding may now be one owned material per surface instead
+  of one `material_override`. The build contract captures the surface bindings
+  and re-checks them exactly as strictly, and `bound_material_references` counts
+  a surface-bound renderer, so the roster still reports **383** bound renderers
+  and 57 dynamic lens bindings.
+
+**The shadow cost is not free and is not hidden.** `StaticShadowBatch` merges
+single-surface sources only, and a tote is three surfaces, so the seventeen
+totes on the three cargo lines left those rosters: the short line's batch is
+now 12 sources / 1,284 triangles and each long line's 15 sources / 1,608. Those
+seventeen crates now cast through their own renderers, as the berth's ten totes
+already do. In the shadow pass that is seventeen extra draws and 13,476
+triangles of real silhouette where 1,836 triangles of merged slab used to be.
+(The two crew-workpost totes were never batched and are unaffected.) It buys the
+silhouette actually matching the object — battens, skirt gap and strap pair
+included — and it is what keeps the two sites on one recipe.
+
+The three production audits, run headlessly on private `XDG_DATA_HOME` before
+and after, on the same source tree either side:
+
+| Audit | before | after |
+| --- | --- | --- |
+| `tools/coplanar_seam_audit.gd` | 1,334 pairs reported, 1,338 back-to-back, 294 buried, 28 declared; 5,142 placements / 168,905 faces | **the entire ranked report is identical, pair for pair, 1,334 reported**; faces 168,905 → 170,173 (the tote faces) and the excluded counters move 1,338 → 1,320 back-to-back and 294 → 293 buried, because a tote stands on four battens instead of lying flat on the pallet deck. No reported pair names a crate on either side. |
+| `tools/station_walkability_sweep.gd` | `surfaces=82 cells=135137 blocked=39939 findings=19` | **the whole log is byte-identical**, line for line, including every `OperationalLattice/Activities/*CargoLine` and `AftCrewWorkPost` row |
+| `tools/camera_intrusion_audit.gd` | `near_plane_in_world_mesh=24`, `camera_sphere_in_own_hull=6`; per-craft findings 1/4/3/3/3/4/5/3/4 | the same class totals and the same per-craft finding counts; every difference is inside the documented range-drone group (`ExteriorTargetRange/TargetDrone*` depths and which drone part a graze lands on) plus two retracted-sample counts moving by one. No finding names a crate, and nothing at the station's operations decks moved. |
+
+Rendered before/after pairs are in
+`/root/.cache/mudds-shipyards/agent-ops-crates/captures/{before,after}-{forward-plus,compatibility}/`
+at 1280 × 720, from a harness modelled on `.godot/arrow_access_root.gd` that
+boots the production boot scene, starts the game through the HUD, hides every
+`CanvasLayer` and derives each camera pose from the live crate nodes, so both
+sides are framed identically. Forward+ carries seven views (a walker view at
+each of the four crate groups, the short line's outbound pair, a mid-range view
+down the short line, and one arm's-length view of a stores plate);
+Compatibility, which renders this scene at minutes per frame on software GL,
+carries the five that matter — the three cargo-line walker views, the supply
+post and the mid-range view. Twenty-four frames, none blank or uniform (772 to
+1,482 distinct colours on a 64 × 36 grid; the harness fails below 12, and the
+low end is the arm's-length plate view, which is mostly one crate face). The
+"before" side was rendered from the baseline commit checked out in the same
+worktree. Both renderers were software (llvmpipe / lavapipe): this establishes
+composition, not native GPU rendering or performance.
+
+**Verdict.** The residual is closed and the family reads as one across the
+station. In the short line's walker view three rounded teal-and-orange slabs
+have become an olive and a plum tote side by side under a stone one, each on
+four black battens with a mid rail, a skirt rail lifted off the pallet deck and
+a lid lip above. In both long-line views the stack reads the same way and no two
+adjacent totes share a finish. At the crew work post the olive lower tote and
+the strapped plum top tote both carry a legible "SHIPYARD STORES / STK 0412 /
+RETURNABLE TOTE" plate, and the strap pair over the top tote's lid is plain at
+walking distance. In the mid-range view the totes and the sled's teal container
+now read as two different object classes at a glance, which is the whole point:
+before, the crates and the container were the same two colours. Compatibility
+shows the same objects with its usual flatter ambient; nothing flickers on
+either renderer.
+
+Honest residuals. The stores plate sits on the crate's two **X** faces, so on
+the short and long lines — where a player stands off the crate's Z face — the
+plate is edge-on and the white rectangle in those frames is the line's own
+`CrateManifest` board, not the tote plate; the plate is visible along the line
+and at the work post. Putting a plate on all four faces would cost two more
+quads per crate and was not taken. At arm's length the recessed shell core's
+chamfer reads as a slightly pillowed panel rather than a flat moulded one; that
+is the shared kit's own stock and is identical on the berth's ten totes, so it
+is a kit-level observation rather than something this pass introduced. Every
+tote carries the same stock code, by the same design decision the berth pass
+recorded. No human has reviewed these frames.
 
 Measured on `main` on 2026-09-15 with the service-line/registry batches (−49) and
 the ship fitout batches (−96, then +2 for the protected Zenith wing shells) and the chase-lane station collision (+28 nodes) merged on top of the Habitat/Aft batches; the
