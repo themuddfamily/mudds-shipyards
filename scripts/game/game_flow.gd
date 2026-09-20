@@ -10880,6 +10880,31 @@ func begin_ember_surface_journey(
 	)
 
 
+## Player-facing seam for the two authored caldera errands. GameFlow only
+## forwards the intent: the retained Ember surface binding owns the errand and
+## the existing reward authority owns the payout.
+func begin_ember_caldera_expedition(activity_id: StringName) -> Dictionary:
+	if not is_instance_valid(ember_surface_loop_production_binding):
+		return {"accepted": false, "reason": &"ember_surface_binding_unavailable"}
+	return ember_surface_loop_production_binding.start_caldera_expedition(activity_id)
+
+
+func abandon_ember_caldera_expedition(
+		activity_id: StringName, reason: StringName = &"player_abandoned"
+	) -> Dictionary:
+	if not is_instance_valid(ember_surface_loop_production_binding):
+		return {"accepted": false, "reason": &"ember_surface_binding_unavailable"}
+	return ember_surface_loop_production_binding.abandon_caldera_expedition(
+		activity_id, reason
+	)
+
+
+func get_ember_caldera_expedition_report() -> Dictionary:
+	if not is_instance_valid(ember_surface_loop_production_binding):
+		return {}
+	return ember_surface_loop_production_binding.get_caldera_expedition_snapshot()
+
+
 func _arm_ember_final_approach(host: Object) -> Dictionary:
 	return _planetary_journey._arm_ember_final_approach(host)
 
