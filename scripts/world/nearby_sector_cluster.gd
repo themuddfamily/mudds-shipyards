@@ -754,6 +754,41 @@ func get_route_beacon_positions() -> Array[Vector3]:
 	return positions
 
 
+## World positions of this sector's authored named places, grouped by the HUD
+## minimap marker family that draws them. Read-only geometry: the cluster
+## publishes where things are and never learns whether anything is displayed,
+## reachable, or engaged. An entry is omitted entirely when the component that
+## owns it has not built, so a caller can never mark a place that is not there.
+func get_named_destination_marker_positions() -> Dictionary:
+	if not is_inside_tree():
+		return {}
+	var families: Dictionary = {}
+	var beacons: Array[Vector3] = []
+	for spec in ROUTE_BEACON_SPECS:
+		beacons.append(to_global(spec["position"] as Vector3))
+	if not beacons.is_empty():
+		families[&"nearby_route_beacon"] = beacons
+	if is_instance_valid(_moonlet):
+		families[&"nearby_ringed_moonlet"] = [to_global(MOONLET_ANCHOR)] as Array[Vector3]
+	if is_instance_valid(get_node_or_null(^"ExtractionPlatform/CinderReachPlatform")):
+		families[&"nearby_extraction_platform"] = [to_global(PLATFORM_ANCHOR)] as Array[Vector3]
+	if is_instance_valid(get_node_or_null(^"DebrisField/DebrisChips")):
+		families[&"nearby_debris_field"] = [
+			to_global(TRAVERSAL_DEBRIS_PRESENTATION_BOUNDS.get_center())
+		] as Array[Vector3]
+	var berth := get_station_hulk_berth()
+	if is_instance_valid(berth) and berth.is_inside_tree():
+		var dock_origin := _hulk.get_dock_world_transform().origin
+		if dock_origin.is_finite():
+			families[&"nearby_hulk_dock"] = [dock_origin] as Array[Vector3]
+	var field := get_asteroid_field()
+	if is_instance_valid(field) and field.is_inside_tree():
+		families[&"nearby_belt_bore"] = [
+			field.to_global(field.get_lane_entry())
+		] as Array[Vector3]
+	return families
+
+
 ## Maps only authority-produced race order and rejection state onto the retained
 ## route rings. The fifth checkpoint remains the existing platform return; this
 ## presenter neither creates a gate nor decides whether a ship passed one.

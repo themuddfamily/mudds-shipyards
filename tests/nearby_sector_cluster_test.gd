@@ -194,6 +194,7 @@ func _run() -> void:
 
 	_test_frozen_contract()
 	_test_identity_and_authority(world, cluster)
+	_test_named_destination_markers(cluster)
 	_test_mining_platform_activity_presentation(cluster)
 	_test_structure_scan_activity_presentation(cluster)
 	_test_beacon_traversal_presentation(cluster)
@@ -240,6 +241,98 @@ func _run() -> void:
 ## The published placement rule, held to the numbers this suite measures against.
 ## Every later scan uses the constants above, so this is the single place a
 ## deliberate design change has to be declared.
+## Every named place in this sector must be able to say where it is, in world
+## space, so the cockpit map can mark it. A place whose component has not built
+## is omitted rather than marked at the origin.
+func _test_named_destination_markers(cluster: NearbySectorCluster) -> void:
+	var families := cluster.get_named_destination_marker_positions()
+	var expected: Array[StringName] = [
+		&"nearby_route_beacon",
+		&"nearby_ringed_moonlet",
+		&"nearby_extraction_platform",
+		&"nearby_debris_field",
+		&"nearby_hulk_dock",
+		&"nearby_belt_bore",
+	]
+	var complete := true
+	var finite := true
+	var inside_envelope := true
+	for family_id in expected:
+		if not families.has(family_id):
+			complete = false
+			continue
+		var positions := families[family_id] as Array
+		if positions.is_empty():
+			complete = false
+		for position_variant: Variant in positions:
+			if position_variant is not Vector3 \
+					or not (position_variant as Vector3).is_finite():
+				finite = false
+				continue
+			var position := position_variant as Vector3
+			if position.length() > NearbySectorCluster.MAXIMUM_CONTENT_DISTANCE:
+				inside_envelope = false
+	_check(
+		complete and families.size() == expected.size(),
+		"every authored named place publishes exactly one marker family"
+	)
+	_check(finite, "no named place publishes a non-finite marker position")
+	_check(
+		inside_envelope,
+		"no marker claims a place outside this component's published content envelope"
+	)
+	_check(
+		(families.get(&"nearby_route_beacon", []) as Array).size()
+			== NearbySectorCluster.ROUTE_BEACON_SPECS.size()
+		and (families.get(&"nearby_hulk_dock", []) as Array).size() == 1
+		and (families.get(&"nearby_belt_bore", []) as Array).size() == 1,
+		"the four route beacons share one family and each entrance marks one point"
+	)
+	var dock := (families[&"nearby_hulk_dock"] as Array)[0] as Vector3
+	var hulk := cluster.get_station_hulk()
+	_check(
+		is_instance_valid(hulk)
+		and dock.is_equal_approx(hulk.get_dock_world_transform().origin)
+		and dock.distance_to(hulk.get_anchor()) < 80.0,
+		"the hulk marker is its real docking face, not the hull centre"
+	)
+	var bore := (families[&"nearby_belt_bore"] as Array)[0] as Vector3
+	var field := cluster.get_asteroid_field()
+	_check(
+		is_instance_valid(field)
+		and bore.is_equal_approx(field.to_global(field.get_lane_entry())),
+		"the belt marker is the marked bore mouth, not the belt's bulk"
+	)
+	var moonlet := (families[&"nearby_ringed_moonlet"] as Array)[0] as Vector3
+	var platform := (families[&"nearby_extraction_platform"] as Array)[0] as Vector3
+	var debris := (families[&"nearby_debris_field"] as Array)[0] as Vector3
+	_check(
+		moonlet.is_equal_approx(cluster.to_global(NearbySectorCluster.MOONLET_ANCHOR))
+		and platform.is_equal_approx(
+			cluster.to_global(NearbySectorCluster.PLATFORM_ANCHOR)
+		)
+		and NearbySectorCluster.TRAVERSAL_DEBRIS_PRESENTATION_BOUNDS.has_point(
+			cluster.to_local(debris)
+		),
+		"the moonlet, platform and debris marks sit on their authored anchors"
+	)
+	var distinct: Dictionary = {}
+	for family_id: StringName in families:
+		for position_variant: Variant in families[family_id] as Array:
+			distinct[(position_variant as Vector3).snapped(Vector3.ONE)] = true
+	_check(
+		distinct.size() == NearbySectorCluster.ROUTE_BEACON_SPECS.size() + 5,
+		"no two named places resolve to the same mark"
+	)
+	var detached := cluster.get_named_destination_marker_positions()
+	(detached[&"nearby_hulk_dock"] as Array)[0] = Vector3.ZERO
+	_check(
+		((cluster.get_named_destination_marker_positions()[&"nearby_hulk_dock"]
+			as Array)[0] as Vector3).is_equal_approx(dock),
+		"a consumer cannot move a published mark by editing the roster it was given"
+	)
+
+
 func _test_frozen_contract() -> void:
 	_check(
 		NearbySectorCluster.PLATFORM_ANCHOR.is_equal_approx(EXPECTED_PLATFORM_ANCHOR),

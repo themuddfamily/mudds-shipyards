@@ -158,6 +158,7 @@ func _run() -> void:
 	var hulls := await _production_hulls()
 
 	_test_published_contract(cluster, field)
+	_test_bore_mouth_is_markable(cluster, field)
 	_test_published_lanes_are_not_blocked(field)
 	_test_safe_lane_is_flyable(field, hulls)
 	_test_the_belt_has_real_mass(field)
@@ -333,6 +334,40 @@ func _test_published_contract(cluster: NearbySectorCluster, field: CinderAsteroi
 
 
 # --- 2. Published lanes -------------------------------------------------------
+
+
+## A pilot reads this belt as scenery unless the cockpit can mark the one way
+## in. The bore mouth the cluster publishes must be the same lit ring the belt
+## builds, and must lead to the first threading gate rather than anywhere else.
+func _test_bore_mouth_is_markable(
+	cluster: NearbySectorCluster, field: CinderAsteroidField
+) -> void:
+	var families := cluster.get_named_destination_marker_positions()
+	var bore_family := families.get(&"nearby_belt_bore", []) as Array
+	_check(
+		bore_family.size() == 1,
+		"the streamed belt publishes exactly one bore-mouth mark"
+	)
+	if bore_family.size() != 1:
+		return
+	var bore := bore_family[0] as Vector3
+	_check(
+		bore.is_finite()
+		and bore.is_equal_approx(field.to_global(field.get_lane_point(0.0)))
+		and bore.is_equal_approx(field.to_global(field.get_lane_entry())),
+		"the mark sits on the belt's own marked entry ring, not a derived guess"
+	)
+	var checkpoints := field.get_threading_checkpoints()
+	_check(
+		checkpoints.size() == 5
+		and bore.distance_to(field.to_global(checkpoints[0]))
+			< bore.distance_to(field.to_global(field.get_lane_exit())),
+		"the marked mouth is the end of the bore the five-gate run starts from"
+	)
+	_check(
+		not bore.is_equal_approx(field.to_global(field.get_lane_exit())),
+		"the entry mouth and the far mouth are not the same mark"
+	)
 
 
 func _test_published_lanes_are_not_blocked(field: CinderAsteroidField) -> void:

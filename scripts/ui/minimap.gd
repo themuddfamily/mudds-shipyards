@@ -108,6 +108,12 @@ func get_objective_marker_legend() -> Array[Dictionary]:
 		{"id": &"active_platform_supply_target", "glyph": "⬡", "pattern": &"hex_target", "label": "PLATFORM SUPPLY TARGET", "focus_label": "Current platform supply objective"},
 		{"id": &"active_ember_surface_route", "glyph": "⌖", "pattern": &"four_tick_target", "label": "EMBER SURFACE ROUTE", "focus_label": "Current Ember surface route target"},
 		{"id": &"active_ember_side_task", "glyph": "✦", "pattern": &"star_point", "label": "EMBER SIDE TASK", "focus_label": "Nearest unfinished Ember side task"},
+		{"id": &"nearby_hulk_dock", "glyph": "⊡", "pattern": &"dotted_square", "label": "HULK DOCK", "focus_label": "Abandoned station hulk docking face"},
+		{"id": &"nearby_belt_bore", "glyph": "◍", "pattern": &"barred_ring", "label": "BELT BORE", "focus_label": "Marked asteroid belt bore mouth"},
+		{"id": &"nearby_route_beacon", "glyph": "◬", "pattern": &"dotted_triangle", "label": "ROUTE BEACON", "focus_label": "Authored sector route beacon"},
+		{"id": &"nearby_ringed_moonlet", "glyph": "⊜", "pattern": &"ringed_circle", "label": "RINGED MOONLET", "focus_label": "Ringed moonlet landmark"},
+		{"id": &"nearby_extraction_platform", "glyph": "⊞", "pattern": &"plus_square", "label": "EXTRACTION PLATFORM", "focus_label": "Derelict extraction platform"},
+		{"id": &"nearby_debris_field", "glyph": "▩", "pattern": &"crosshatch_square", "label": "DEBRIS FIELD", "focus_label": "Debris field landmark"},
 	]
 
 
@@ -191,6 +197,12 @@ func get_audit_report() -> Dictionary:
 			&"active_platform_supply_target": "⬡",
 			&"active_ember_surface_route": "⌖",
 			&"active_ember_side_task": "✦",
+			&"nearby_hulk_dock": "⊡",
+			&"nearby_belt_bore": "◍",
+			&"nearby_route_beacon": "◬",
+			&"nearby_ringed_moonlet": "⊜",
+			&"nearby_extraction_platform": "⊞",
+			&"nearby_debris_field": "▩",
 		},
 		"objective_marker_legend": get_objective_marker_legend(),
 		"visible_objective_marker_legend": get_visible_objective_marker_legend(),

@@ -132,10 +132,11 @@ func _run() -> void:
 	var legend_patterns: Dictionary = {}
 	for entry in legend:
 		legend_patterns[entry.get("pattern", &"")] = true
-	_check(legend.size() == 12 and legend_patterns.size() == 12, "objective legend uses distinct non-color patterns")
+	_check(legend.size() == 18 and legend_patterns.size() == 18, "objective legend uses distinct non-color patterns")
 	_check(legend.all(func(entry: Dictionary) -> bool:
 		return str(entry.get("focus_label", "")).length() > 0
 	), "objective legend exposes controller-readable focus labels")
+	_test_nearby_sector_destination_markers(minimap, snapshot)
 	var stale := marked.duplicate(true)
 	(stale["objective_markers"] as Array)[0]["generation"] = 3
 	_check(minimap.apply_snapshot(stale), "stale marker snapshot remains structurally valid")
@@ -216,6 +217,136 @@ func _run() -> void:
 	minimap.queue_free()
 	await process_frame
 	_finish()
+
+
+## The nearby sector's own places ride the same detached marker roster as the
+## activities. They must read distinctly from every existing objective, stay
+## legible without colour, and never animate.
+func _test_nearby_sector_destination_markers(minimap: Minimap, base: Dictionary) -> void:
+	var sector_ids: Array[StringName] = [
+		&"nearby_hulk_dock",
+		&"nearby_belt_bore",
+		&"nearby_route_beacon",
+		&"nearby_ringed_moonlet",
+		&"nearby_extraction_platform",
+		&"nearby_debris_field",
+	]
+	var legend := minimap.get_objective_marker_legend()
+	var styles: Dictionary = {}
+	for entry in legend:
+		styles[StringName(entry.get("id", &""))] = entry
+	var glyphs: Dictionary = {}
+	var labels: Dictionary = {}
+	var complete := true
+	for marker_id in sector_ids:
+		var style := styles.get(marker_id, {}) as Dictionary
+		if style.is_empty() \
+				or str(style.get("glyph", "")).is_empty() \
+				or str(style.get("label", "")).is_empty() \
+				or str(style.get("focus_label", "")).is_empty():
+			complete = false
+			continue
+		glyphs[str(style.get("glyph", ""))] = true
+		labels[str(style.get("label", ""))] = true
+	_check(
+		complete and glyphs.size() == sector_ids.size()
+		and labels.size() == sector_ids.size(),
+		"every nearby-sector destination carries its own glyph, label and focus label",
+	)
+	var all_glyphs: Dictionary = {}
+	for entry in legend:
+		all_glyphs[str(entry.get("glyph", ""))] = true
+	_check(
+		all_glyphs.size() == legend.size(),
+		"no nearby-sector destination reuses an existing objective glyph",
+	)
+
+	var sector := base.duplicate(true)
+	var roster: Array = []
+	var index := 0
+	for marker_id in sector_ids:
+		index += 1
+		roster.append({
+			"id": marker_id,
+			"position": Vector3(20.0 * index, 0.0, -30.0 * index),
+			"generation": 4,
+		})
+	# Four beacons share one family, exactly as the streamed cluster publishes
+	# them: the map draws four marks and the key still shows one row.
+	for beacon in 3:
+		roster.append({
+			"id": &"nearby_route_beacon",
+			"position": Vector3(-24.0 * (beacon + 1), 0.0, -40.0 * (beacon + 1)),
+			"generation": 4,
+		})
+	sector["objective_markers"] = roster
+	_check(minimap.apply_snapshot(sector), "the sector destination roster is accepted")
+	var audit := minimap.get_audit_report()
+	_check(
+		int(audit.get("objective_marker_count", 0)) == sector_ids.size() + 3,
+		"one beacon family publishes each of its four marks",
+	)
+	var visible := minimap.get_visible_objective_marker_legend()
+	_check(
+		visible.size() == sector_ids.size(),
+		"the visible key lists each present destination family exactly once",
+	)
+	_check(
+		(audit.get("visible_objective_marker_legend", []) as Array).size() == visible.size()
+		and (audit.get("objective_marker_legend", []) as Array).size() == legend.size(),
+		"the audit reports both the present key and the full accessibility legend",
+	)
+	var drawn := minimap.get_snapshot().get("objective_markers", []) as Array
+	var steady := true
+	for marker_variant: Variant in drawn:
+		var marker := marker_variant as Dictionary
+		if marker.has("blink") or marker.has("flash") or marker.has("pulse_hz"):
+			steady = false
+	_check(
+		steady,
+		"no sector destination marker carries a flashing presentation field",
+	)
+	var dock := drawn.filter(func(marker: Dictionary) -> bool:
+		return marker.get("id", &"") == &"nearby_hulk_dock"
+	)
+	_check(
+		dock.size() == 1 and str(dock[0].get("label", "")) == "HULK DOCK"
+		and str(dock[0].get("glyph", "")) == str(
+			(styles[&"nearby_hulk_dock"] as Dictionary).get("glyph", "")
+		),
+		"the hulk dock marker uses the frozen readable style, not caller text",
+	)
+	# Colour is never the carrier: the palette can change wholesale and every
+	# mark keeps its own shape and text.
+	_check(
+		minimap.set_palette({
+			&"nominal": Color.WHITE, &"caution": Color.WHITE,
+			&"danger": Color.WHITE, &"muted": Color.WHITE,
+		}),
+		"a single-hue colour-vision palette is accepted",
+	)
+	var mono := minimap.get_visible_objective_marker_legend()
+	var mono_glyphs: Dictionary = {}
+	for entry in mono:
+		mono_glyphs[str(entry.get("glyph", ""))] = true
+	_check(
+		mono_glyphs.size() == mono.size(),
+		"under one flat hue every visible destination is still told apart by shape",
+	)
+	minimap.set_palette({
+		&"nominal": Minimap.CYAN, &"caution": Minimap.AMBER,
+		&"danger": Minimap.RED, &"muted": Minimap.MUTED,
+	})
+	# A streamed-out sector publishes an empty roster, exactly as GameFlow does
+	# once the cluster leaves the tree.
+	var streamed_out := base.duplicate(true)
+	streamed_out["objective_markers"] = []
+	_check(
+		minimap.apply_snapshot(streamed_out)
+		and int(minimap.get_audit_report().get("objective_marker_count", 0)) == 0
+		and minimap.get_visible_objective_marker_legend().is_empty(),
+		"a streamed-out sector leaves no retained destination mark or key row behind",
+	)
 
 
 func _check_objective_text_advances(minimap: Control) -> void:
