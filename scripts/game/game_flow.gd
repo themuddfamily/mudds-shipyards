@@ -7545,7 +7545,7 @@ func _board_ship(candidate: HeroShip = null) -> void:
 	# is the host's ledger to decide. This peer therefore asks and waits; it
 	# does not board itself and then tell anybody. See
 	# `_request_network_client_boarding()`.
-	if _network_session_mode == &"client" and is_instance_valid(network_session):
+	if _network_client_boarding_is_live():
 		_request_network_client_boarding(candidate, candidate_area)
 		return
 	_board_ship_locally(candidate, candidate_area)
@@ -7741,7 +7741,7 @@ func _try_exit_ship() -> void:
 		return
 	# A seat this peer holds in the host's ledger is released by the ledger, not
 	# by walking out of it. The local disembark runs on the confirmation.
-	if _network_session_mode == &"client" and _network_client_boarding_holds(active_ship):
+	if _network_client_boarding_is_live() and _network_client_boarding_holds(active_ship):
 		_request_network_client_boarding(active_ship, _boarding_area)
 		return
 	_transition_busy = true
@@ -8802,6 +8802,14 @@ func get_network_remote_body_intent_source() -> NetworkRemoteBodyIntentSourceTyp
 ## claim, the entity id of the body the server stands up for it.
 static func network_client_boarding_avatar_id(peer_id: int) -> StringName:
 	return StringName("peer_%d_crew" % maxi(0, peer_id))
+
+
+## True only while this peer is a client of a session that is actually up.
+## A shut-down session leaves `_network_session_mode` naming the role this
+## coordinator last played; boarding must fall back to the ordinary local
+## path then, not keep asking a host that is no longer there.
+func _network_client_boarding_is_live() -> bool:
+	return _network_session_mode == &"client" and _network_client_peer_id() > 1
 
 
 func _network_client_peer_id() -> int:
