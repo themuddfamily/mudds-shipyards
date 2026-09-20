@@ -12,8 +12,6 @@ extends Area3D
 ## snapshot, and the only thing it can do with a press is ask the caller's sink
 ## to start or abandon the errand through the existing production seams.
 
-signal expedition_intent_submitted(receipt: Dictionary)
-
 const ExpeditionScript := preload(
 	"res://scripts/activities/ember_caldera_expedition_activity.gd"
 )
@@ -190,7 +188,6 @@ func submit_interaction(actor: Node = null) -> Dictionary:
 		return _result(
 			false, StringName(_last_receipt.get("reason", &"expedition_intent_rejected"))
 		)
-	expedition_intent_submitted.emit(_last_receipt.duplicate(true))
 	return _result(true, StringName("expedition_%s_submitted" % intent.action))
 
 
@@ -217,10 +214,14 @@ func reenter(next_attachment_generation: int) -> Dictionary:
 
 ## Re-reads the authored trailhead out of the live region frame. It only ever
 ## writes this node's own transform, and only from an authored constant.
+func _is_anchored() -> bool:
+	return is_instance_valid(_region_anchor) \
+		and _region_anchor.get_instance_id() == _region_anchor_instance_id \
+		and _region_anchor.is_inside_tree()
+
+
 func _anchor_to_region() -> bool:
-	if not is_instance_valid(_region_anchor) \
-			or _region_anchor.get_instance_id() != _region_anchor_instance_id \
-			or not _region_anchor.is_inside_tree() or not is_inside_tree():
+	if not _is_anchored() or not is_inside_tree():
 		return false
 	global_transform = _region_anchor.global_transform * Transform3D(
 		Basis.IDENTITY,
@@ -249,8 +250,7 @@ func get_snapshot() -> Dictionary:
 			_activity_id
 		),
 		"region_anchor_instance_id": _region_anchor_instance_id,
-		"anchored": is_instance_valid(_region_anchor)
-			and _region_anchor.get_instance_id() == _region_anchor_instance_id,
+		"anchored": _is_anchored(),
 		"prompt": _interaction_prompt(offer_state),
 		"last_receipt": _last_receipt.duplicate(true),
 		"physical": {
@@ -316,7 +316,7 @@ func _offer_state() -> StringName:
 
 func _current() -> bool:
 	if not _configured or not _attached or _host == null \
-			or not is_instance_valid(_host):
+			or not is_instance_valid(_host) or not _is_anchored():
 		return false
 	var host_snapshot := _host_snapshot()
 	return int(_host.call(&"get_generation")) == _host_generation \
