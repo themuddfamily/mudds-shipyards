@@ -326,6 +326,26 @@ func _test_authored_interaction_points_stand_on_the_floor() -> void:
 		"the relay survey starts so the rack point carries its press: %s"
 			% [survey_started.get("reason", &"?")],
 	)
+	# The pad-guide tilt is driven off the live authored batch. Reading the
+	# Host's scene id from the wrong place left this unbound and silent, so
+	# the real Host has to be able to resolve it here.
+	var authored_guides := (fixture.scene as Node).get_node_or_null(
+		^"LandingRegion/SurfaceLandmarks/PadGuideVisuals"
+	) as MultiMeshInstance3D
+	var pad_status := (
+		(composition.call(&"get_snapshot") as Dictionary).get(
+			"relay_survey_presentation", {}
+		) as Dictionary
+	).get("landing_pad_survey_status", {}) as Dictionary
+	_check(
+		authored_guides != null
+			and int(pad_status.get("guide_instance_id", 0)) \
+				== authored_guides.get_instance_id()
+			and int(pad_status.get("loaded_scene_instance_id", 0)) \
+				== (fixture.scene as Node).get_instance_id(),
+		"the relay survey's pad guides bind to the live authored batch: %s"
+			% [pad_status],
+	)
 	for probe: Dictionary in [
 		{
 			"node": "OwnedSampleRackInteraction",

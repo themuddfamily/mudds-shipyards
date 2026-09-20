@@ -74,6 +74,12 @@ func _ready() -> void:
 	_apply_state(&"idle")
 
 
+## Takes the authored pad-guide batch so the survey state can be read off the
+## two posts that already flank the pad. Only the batch's instance transforms
+## move: the `PadGuidancePort`/`PadGuidanceStarboard` collision boxes stay
+## exactly as authored, upright, so a canted or lowered post keeps a standing
+## collider. That is the deliberate trade -- this renderer holds no collision
+## authority -- and the posts stand clear of the authored egress route.
 func bind_landing_pad_guides(
 		guides: Variant, loaded_scene_instance_id: int
 	) -> Dictionary:

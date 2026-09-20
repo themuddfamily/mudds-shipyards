@@ -1642,10 +1642,11 @@ func _apply_relay_survey_presentation() -> void:
 	)
 
 
-## Resolves the live authored landing region the Host has streamed in. The
-## authored caldera content is positioned in that node's frame, so anything
-## standing on the caldera floor must be placed through it.
-func _resolve_authored_landing_region(host: Object) -> Node3D:
+## Resolves the live authored Ember scene the Host has streamed in. Every
+## consumer reads the id the same way through here, because the one that read
+## it differently -- at the top level of the snapshot rather than inside
+## `identities` -- silently resolved nothing for as long as it existed.
+func _resolve_loaded_authored_scene(host: Object) -> Node:
 	if host == null:
 		return null
 	var loaded_scene_instance_id := 0
@@ -1667,29 +1668,31 @@ func _resolve_authored_landing_region(host: Object) -> Node3D:
 	if loaded_scene == null or not is_instance_valid(loaded_scene) \
 			or loaded_scene.get_script() != EmberAuthoredSceneScript:
 		return null
+	return loaded_scene
+
+
+## Resolves the live authored landing region the Host has streamed in. The
+## authored caldera content is positioned in that node's frame, so anything
+## standing on the caldera floor must be placed through it.
+func _resolve_authored_landing_region(host: Object) -> Node3D:
+	var loaded_scene := _resolve_loaded_authored_scene(host)
+	if loaded_scene == null:
+		return null
 	return loaded_scene.get_node_or_null(^"LandingRegion") as Node3D
 
 
 func _bind_relay_survey_pad_guides(host: Object) -> void:
-	if _relay_survey_presentation == null or host == null \
-			or not host.has_method(&"get_snapshot"):
+	if _relay_survey_presentation == null:
 		return
-	var host_snapshot := host.call(&"get_snapshot") as Dictionary
-	var loaded_scene_instance_id := int(
-		host_snapshot.get("loaded_scene_instance_id", 0)
-	)
-	if loaded_scene_instance_id <= 0:
-		return
-	var loaded_scene := instance_from_id(loaded_scene_instance_id) as Node
-	if loaded_scene == null or not is_instance_valid(loaded_scene) \
-			or loaded_scene.get_script() != EmberAuthoredSceneScript:
+	var loaded_scene := _resolve_loaded_authored_scene(host)
+	if loaded_scene == null:
 		return
 	var pad_guides := loaded_scene.get_node_or_null(
 		^"LandingRegion/SurfaceLandmarks/PadGuideVisuals"
 	) as MultiMeshInstance3D
 	if pad_guides != null:
 		_relay_survey_presentation.call(
-			&"bind_landing_pad_guides", pad_guides, loaded_scene_instance_id
+			&"bind_landing_pad_guides", pad_guides, loaded_scene.get_instance_id()
 		)
 
 

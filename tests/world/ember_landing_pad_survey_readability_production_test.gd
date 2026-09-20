@@ -16,15 +16,18 @@ class FakeHost:
 	func get_generation() -> int: return generation
 	func get_attachment_generation() -> int: return attachment_generation
 	func get_phase() -> int: return 8
+	# Shaped exactly like the real `EmberSurfaceLoopHost` snapshot: the scene
+	# id lives inside `identities` and nowhere else. A stand-in that also
+	# published it at the top level hid a consumer that only read it there.
 	func get_snapshot() -> Dictionary:
 		return {
 			"host_id": &"ember_surface_loop",
 			"attached": true,
 			"phase_id": &"on_foot",
-			"loaded_scene_instance_id": loaded_scene_instance_id,
 			"identities": {
 				"world_id": &"ember_moon",
 				"player_instance_id": player_instance_id,
+				"loaded_scene_instance_id": loaded_scene_instance_id,
 			},
 		}
 
@@ -70,6 +73,7 @@ func _run() -> void:
 			and bool(availability.color_independent)
 			and int(availability.loaded_scene_instance_id) \
 				== authored_scene.get_instance_id()
+			and int(availability.guide_instance_id) == guides.get_instance_id()
 			and available_transforms.size() == 2
 			and available_transforms[0].origin == authored[0].origin
 			and available_transforms[1].origin == authored[1].origin
