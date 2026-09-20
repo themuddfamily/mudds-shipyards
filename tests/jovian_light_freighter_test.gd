@@ -307,23 +307,19 @@ func _test_landing_bogie_foot_batch(jovian: JovianLightFreighter) -> void:
 	# Godot assigns generated sibling names; identify remaining shared copies by mesh.
 	var strut := visual.get_node("LandingBogieStrut") as MeshInstance3D
 	var damper := visual.get_node("LandingDamper") as MeshInstance3D
-	var strut_copies := 0
-	var damper_copies := 0
+	var strut_placements := _drawn_placements_of(visual, strut.mesh)
+	var damper_placements := _drawn_placements_of(visual, damper.mesh)
+	var strut_copies := strut_placements.size()
+	var damper_copies := damper_placements.size()
 	var fitted := true
-	for child in visual.get_children():
-		if not child is MeshInstance3D:
-			continue
-		if child.mesh == strut.mesh:
-			strut_copies += 1
-			var foot_origin := Vector3(signf(child.position.x) * 5.05, -1.14, child.position.z)
-			# At shoe height the leg's lower shaft is enclosed by the casting;
-			# its bottom also remains above the sole's original contact plane.
-			var lower_tip: Vector3 = child.transform * Vector3(0, -0.75, 0)
-			var entry: Vector3 = child.transform * Vector3(0, -0.34, 0) - foot_origin
-			fitted = fitted and absf(entry.x) + 0.17 < 0.46 and absf(entry.z) < 0.01 \
-				and lower_tip.y > -1.23 and entry.y > 0.37 and entry.y < 0.40
-		elif child.mesh == damper.mesh:
-			damper_copies += 1
+	for placement in strut_placements:
+		var foot_origin := Vector3(signf(placement.origin.x) * 5.05, -1.14, placement.origin.z)
+		# At shoe height the leg's lower shaft is enclosed by the casting;
+		# its bottom also remains above the sole's original contact plane.
+		var lower_tip: Vector3 = placement * Vector3(0, -0.75, 0)
+		var entry: Vector3 = placement * Vector3(0, -0.34, 0) - foot_origin
+		fitted = fitted and absf(entry.x) + 0.17 < 0.46 and absf(entry.z) < 0.01 \
+			and lower_tip.y > -1.23 and entry.y > 0.37 and entry.y < 0.40
 	var formed_profile := true
 	var sole_vertices := 0
 	var rim_vertices := 0
@@ -352,6 +348,37 @@ func _test_landing_bogie_foot_batch(jovian: JovianLightFreighter) -> void:
 	_test_exterior_ground_support_collision(jovian)
 
 
+## Where every drawn copy of `mesh` sits in `visual`'s own space, whether that
+## copy still stands as its own renderer or has been folded into a
+## `ShipFitoutBatch`.
+##
+## The fitout pass merges shared stock, so a leg shaft that used to be a sibling
+## `MeshInstance3D` can now be one record in a batch's authored-piece index. The
+## copy is still drawn, from the same resource, at the same placement; only its
+## node is gone. An audit that counted siblings would quietly stop measuring
+## whatever was folded and keep passing on the remainder — six of these sixteen
+## sections went unmeasured that way — which is precisely what the index exists
+## to prevent. Batches are searched only among `visual`'s own children, because
+## a record's `transform` is stated in its batch parent's space and this census
+## is stated in `visual`'s.
+func _drawn_placements_of(visual: Node3D, mesh: Mesh) -> Array[Transform3D]:
+	var placements: Array[Transform3D] = []
+	if mesh == null:
+		return placements
+	for child in visual.get_children():
+		var renderer := child as MeshInstance3D
+		if renderer == null:
+			continue
+		if renderer.mesh == mesh:
+			placements.append(renderer.transform)
+			continue
+		for record_variant in ShipFitoutBatch.authored_piece_index(renderer):
+			var record := record_variant as Dictionary
+			if record.get("mesh", null) == mesh:
+				placements.append(record["transform"] as Transform3D)
+	return placements
+
+
 ## STATION-WALK-JOVIAN-UNDERSIDE-001. The apron walkability sweep found the
 ## landing legs, their soles and the lower exhaust collars solid-looking and
 ## collision-free, so a walker crossing the freight apron went through them.
@@ -364,20 +391,19 @@ func _test_exterior_ground_support_collision(jovian: JovianLightFreighter) -> vo
 	var drawn_bounds := {}
 	var strut_reference := visual.get_node_or_null(^"LandingBogieStrut") as MeshInstance3D
 	var damper_reference := visual.get_node_or_null(^"LandingDamper") as MeshInstance3D
-	for child in visual.get_children():
-		var renderer := child as MeshInstance3D
-		if renderer == null or renderer.mesh == null:
+	for family_spec in [
+		["LandingBogieStrutCollision", strut_reference],
+		["LandingDamperCollision", damper_reference],
+	]:
+		var reference := family_spec[1] as MeshInstance3D
+		if reference == null or reference.mesh == null:
 			continue
-		var family := ""
-		if strut_reference != null and renderer.mesh == strut_reference.mesh:
-			family = "LandingBogieStrutCollision"
-		elif damper_reference != null and renderer.mesh == damper_reference.mesh:
-			family = "LandingDamperCollision"
-		if family.is_empty():
-			continue
-		var suffix := ("Port" if renderer.position.x < 0.0 else "Starboard") \
-			+ ("Forward" if renderer.position.z < 0.0 else "Aft")
-		drawn_bounds[family + suffix] = renderer.transform * renderer.mesh.get_aabb()
+		for placement in _drawn_placements_of(visual, reference.mesh):
+			var suffix := ("Port" if placement.origin.x < 0.0 else "Starboard") \
+				+ ("Forward" if placement.origin.z < 0.0 else "Aft")
+			drawn_bounds[String(family_spec[0]) + suffix] = (
+				placement * reference.mesh.get_aabb()
+			)
 	var foot_batch := visual.get_node_or_null(^"LandingBogieFootBatch") as MultiMeshInstance3D
 	var foot_mesh_bounds: AABB = foot_batch.multimesh.mesh.get_aabb()
 	for placement: Transform3D in (
