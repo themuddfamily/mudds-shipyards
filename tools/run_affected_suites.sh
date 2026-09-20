@@ -55,9 +55,10 @@ if (( ${#SCOPE_ARGS[@]} == 0 )); then
 	exit 2
 fi
 
-# Focused runs are throwaway evidence: keep them out of the release matrix tree
-# and give them the longer per-suite budget this script has always used.
+# Focused runs are throwaway evidence: keep them out of the release matrix tree.
+# The per-suite budget matches the release matrix exactly: a focused run that
+# passes here must not be killed by a shorter clock than the gate it feeds.
 export TEST_MATRIX_RESULTS_ROOT="${TEST_MATRIX_RESULTS_ROOT:-$SCRIPT_DIR/../artifacts/affected-suites}"
-export TEST_MATRIX_TIMEOUT_SECONDS="${TEST_MATRIX_TIMEOUT_SECONDS:-240}"
+export TEST_MATRIX_TIMEOUT_SECONDS="${TEST_MATRIX_TIMEOUT_SECONDS:-300}"
 
 exec "$MATRIX" "${PASSTHROUGH[@]}" "${SCOPE_ARGS[@]}"
