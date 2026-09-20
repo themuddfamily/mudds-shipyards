@@ -369,7 +369,107 @@ func _run() -> void:
 
 	holder.queue_free()
 	await process_frame
+	await _test_authored_piece_index()
 	_finish()
+
+
+## The indexing contract: a batched member answers the same questions its own
+## node answered.
+##
+## This is what allows the metadata and shared-mesh refusals to be relaxed at
+## all, so it is asserted directly rather than inferred from the node counts.
+func _test_authored_piece_index() -> void:
+	var finish := StandardMaterial3D.new()
+	var module := Node3D.new()
+	module.name = "IndexModule"
+	root.add_child(module)
+
+	# Two pieces drawn from one cached mesh: the shared-stock shape every
+	# `*_resource_sharing_test` proves.
+	var shared_mesh := _box_mesh(Vector3(0.3, 0.3, 0.3))
+	var shared_names := ["SharedStockA", "SharedStockB"]
+	for index in shared_names.size():
+		var piece := MeshInstance3D.new()
+		piece.name = shared_names[index]
+		piece.position = Vector3(float(index) * 0.8, 0.2, 0.0)
+		piece.mesh = shared_mesh
+		piece.material_override = finish
+		module.add_child(piece)
+	# Two pieces carrying identical authored metadata.
+	for index in 2:
+		var tagged := _visual(
+			module, "Tagged%02d" % index, Vector3(float(index) * 0.8, 1.4, 0.0),
+			Vector3(0.3, 0.3, 0.3), finish
+		)
+		tagged.set_meta(&"detail_role", &"conduit_clamp")
+		tagged.set_meta(&"quality_tier", 2)
+	# One piece whose metadata differs in value: it must not join them.
+	var odd := _visual(
+		module, "Tagged02", Vector3(1.6, 1.4, 0.0), Vector3(0.3, 0.3, 0.3), finish
+	)
+	odd.set_meta(&"detail_role", &"conduit_clamp")
+	odd.set_meta(&"quality_tier", 1)
+	# A family that opts out by name keeps its own nodes.
+	for index in 2:
+		var opted := _visual(
+			module, "OptedOut%02d" % index, Vector3(float(index) * 0.8, 2.6, 0.0),
+			Vector3(0.3, 0.3, 0.3), finish
+		)
+		opted.set_meta(BATCH.NO_BATCH_META, true)
+
+	await process_frame
+	BATCH.consolidate(module, PackedStringArray(), root)
+	await process_frame
+
+	var first := BATCH.find_authored_piece(module, "SharedStockA")
+	var second := BATCH.find_authored_piece(module, "SharedStockB")
+	_check(
+		not first.is_empty() and not second.is_empty()
+			and bool(first["batched"]) and bool(second["batched"])
+			and first["mesh"] == shared_mesh and second["mesh"] == shared_mesh
+			and first["mesh"] == second["mesh"],
+		"the piece index proves two folded pieces share one retained mesh allocation"
+	)
+	_check(
+		(first["transform"] as Transform3D).origin.is_equal_approx(Vector3(0.0, 0.2, 0.0))
+			and (second["transform"] as Transform3D).origin.is_equal_approx(
+				Vector3(0.8, 0.2, 0.0)
+			)
+			and (first["materials"] as Array)[0] == finish
+			and int(first["surfaces"]) == shared_mesh.get_surface_count()
+			and (first["aabb"] as AABB).size.is_equal_approx(shared_mesh.get_aabb().size),
+		"the piece index reproduces each folded piece's placement, finish and bound"
+	)
+
+	var tagged_batch := BATCH.find_authored_piece(module, "Tagged00")
+	var tagged_peer := BATCH.find_authored_piece(module, "Tagged01")
+	var tagged_odd := BATCH.find_authored_piece(module, "Tagged02")
+	_check(
+		not tagged_batch.is_empty() and bool(tagged_batch["batched"])
+			and bool(tagged_peer["batched"])
+			and tagged_batch["node"] == tagged_peer["node"]
+			and (tagged_batch["metadata"] as Dictionary).get("detail_role") == &"conduit_clamp"
+			and int((tagged_batch["metadata"] as Dictionary).get("quality_tier", -1)) == 2
+			and (tagged_batch["node"] as Node).get_meta(&"quality_tier") == 2
+			and (tagged_batch["node"] as Node).get_meta(&"detail_role") == &"conduit_clamp",
+		"identical metadata folds together and the batch carries it verbatim"
+	)
+	_check(
+		not tagged_odd.is_empty() and not bool(tagged_odd["batched"])
+			and int((tagged_odd["metadata"] as Dictionary).get("quality_tier", -1)) == 1,
+		"a metadata value that differs keeps its piece out of the group"
+	)
+	_check(
+		module.get_node_or_null(^"OptedOut00") != null
+			and module.get_node_or_null(^"OptedOut01") != null,
+		"a family marked with the opt-out key is never folded"
+	)
+	_check(
+		BATCH.find_authored_piece(module, "NoSuchPiece").is_empty(),
+		"the index reports nothing for a piece that was never built"
+	)
+	module.queue_free()
+	await process_frame
 
 
 func _finish() -> void:

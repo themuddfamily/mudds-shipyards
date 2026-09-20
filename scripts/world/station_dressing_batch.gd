@@ -23,10 +23,17 @@ extends RefCounted
 ##   resource is reused untouched and re-seated at the exact transform that
 ##   reproduces its former world placement, so the physical station is bit-for-bit
 ##   the station that was authored.
-## * It never touches a node that carries metadata, a script, a group, an
-##   incoming signal connection, a child, or a name a caller passes in the
-##   protected roster. Walkable-surface, evidence, route, interaction, berth and
-##   lifecycle authority all live on metadata or on a looked-up name.
+## * It never touches a node that carries a script, a group, an incoming signal
+##   connection, a child, or a name a caller passes in the protected roster.
+##   Walkable-surface, evidence, route, interaction, berth and lifecycle
+##   authority all live on metadata or on a looked-up name.
+## * Authored **metadata** no longer refuses a piece outright, but it constrains
+##   the group: a batch only ever absorbs pieces whose metadata is identical key
+##   for key and value for value, it carries that metadata verbatim, and
+##   `AUTHORED_PIECE_INDEX_META` records each piece's own copy, so a reader that
+##   resolves metadata off the renderer reads what it read before. A key in
+##   `KEEP_OUT_META_KEYS` still refuses, because those exist for no other
+##   purpose than to keep this pass out.
 ## * It never touches a node that any live script variable anywhere in the scene
 ##   still holds a reference to. That scan is the guard against freeing something
 ##   a module is going to call back into.
@@ -60,6 +67,73 @@ const BATCH_META := &"station_dressing_batch"
 ## reporting exactly what it built, while `get_dressing_consolidation_report()`
 ## keeps reporting what the world folded.
 const AUTHORED_CENSUS_META := &"station_dressing_batch_authored_census"
+
+## The authored pieces a batch stands in for, one record each, in authored order.
+##
+## `AUTHORED_CENSUS_META` restores *counts*. This restores *identity*: it is the
+## indexing contract that lets a suite ask the same question of a batched member
+## that it used to ask of its own node. Each record carries the piece's authored
+## name, its placement in the batch parent's space, its own metadata verbatim,
+## the mesh's untransformed bound, its surface count and visibility, the resolved
+## material of every surface, and — when the mesh outlives the merge — the source
+## `Mesh` resource itself.
+##
+## The retained mesh is the reason a shared-stock audit survives batching without
+## being weakened. Those audits prove "these N pieces are drawn from one mesh
+## allocation" by comparing `a.mesh == b.mesh`; after a merge both nodes are gone
+## and `a.mesh` would be the merged buffer. The index hands the audit the same
+## resource it used to read off the node, so the identity it compares is the one
+## it always compared. Holding the resource is also a *stronger* record than the
+## `mesh_resource_ids` beside it: an instance id names a resource that may since
+## have been freed, while a retained reference cannot be anything else.
+##
+## Retention is deliberately conditional. A mesh drawn only by the one piece the
+## merge replaced is freed exactly as before, so the unique-mesh count still
+## falls by the merge's full arithmetic. A mesh that is *shared* — drawn by
+## another renderer, or held by a live script variable — is retained here, and
+## that costs nothing, because the merge never had the right to free it.
+const AUTHORED_PIECE_INDEX_META := &"station_dressing_batch_authored_pieces"
+
+## The meta keys this pass writes. A node carrying any of them is something a
+## previous pass produced, and is never folded again: its own index would
+## otherwise be absorbed into a second batch that no longer records it.
+const BATCH_OWNED_META_KEYS: Array[StringName] = [
+	BATCH_META,
+	AUTHORED_CENSUS_META,
+	AUTHORED_PIECE_INDEX_META,
+	&"authored_instance_transforms",
+	&"batched_source_count",
+	&"authored_piece",
+]
+
+## Metadata whose only job is to keep this pass out of a family.
+##
+## Until the tenth trim, *any* metadata refused a piece, and two habitat
+## families quietly relied on that: the builder sets a marker and its comment
+## says outright that the marker is what keeps `StationDressingBatch` away. When
+## the blanket metadata refusal was relaxed, both families started folding and
+## one of them immediately produced a real defect —
+## `tools/station_walkability_sweep.gd` reported a twentieth `walk_through`,
+## a 1.32 m board face merged out of 5 cm plates that reaches into the standing
+## capsule of the cells in front of it.
+##
+## So the opt-out is now a contract instead of a side effect.
+## `NO_BATCH_META` is the key a builder should use from here; the two legacy
+## markers are honoured by name because their builders document them as the
+## refusal and it would be dishonest to quietly drop an authored decision while
+## claiming the pass weakens nothing:
+##
+## * `crew_berth_roster_piece` — `habitat_spine.gd::_build_common_berth_roster`,
+##   the board face above.
+## * `side_window_frame` — `habitat_spine.gd`, where
+##   `tests/station_surface_playability_test.gd` measures the annex connector's
+##   clearance to a *named discrete frame* rather than to an aggregate bound.
+const NO_BATCH_META := &"station_dressing_batch_opt_out"
+const KEEP_OUT_META_KEYS: Array[StringName] = [
+	NO_BATCH_META,
+	&"crew_berth_roster_piece",
+	&"side_window_frame",
+]
 
 ## A merged bound this broad and this thin, facing up, is the exact shape the
 ## station's route-surface discovery reads as a walkable plate
@@ -103,6 +177,27 @@ const PLATE_MAX_THICKNESS := 0.82
 ## nothing there and costs 339 of the 840 nodes this pass saves.
 const MAX_BATCH_EXTENT := 16.0
 
+## A merge may be as tall as its tallest piece and no taller.
+##
+## `_reads_as_walkable_plate` refuses an aggregate that would read as a *floor*.
+## This refuses the other shape the same sweep blames: an aggregate that reads as
+## a **standing solid**. `tools/station_walkability_sweep.gd` reports
+## `walk_through` for any rendered piece at least `SWEEP_PIECE_HEIGHT` tall on a
+## walkable cell with no collider anywhere in its volume, and a stack of short
+## shelf boards at different heights satisfies that the moment they share one
+## bounding volume, even though the air between them is still air.
+##
+## The tenth trim found this the honest way: relaxing the metadata refusal let
+## the habitat's crew-berth roster fold, and the sweep immediately reported one
+## new `walk_through` at 1.32 m that no individual board had produced. A merged
+## bound taller than its own tallest source is manufacturing occupancy, so it is
+## refused and the sources are left standing.
+##
+## Only visual batches need this. A solid batch keeps one `CollisionShape3D` per
+## authored piece, so its volume is collided exactly where it was before.
+const SWEEP_PIECE_HEIGHT := 0.4
+const AGGREGATE_HEIGHT_TOLERANCE := 0.002
+
 
 ## One consolidation pass over `module_root`'s subtree.
 ##
@@ -115,12 +210,12 @@ static func consolidate(
 	) -> Dictionary:
 	if not is_instance_valid(module_root) or not module_root.is_inside_tree():
 		return _empty_report(&"module_root_unavailable")
+	var scan_root := reference_root if reference_root != null else module_root.get_tree().root
 	return consolidate_with_references(
 		module_root,
 		protected,
-		_collect_script_referenced_objects(
-			reference_root if reference_root != null else module_root.get_tree().root
-		)
+		_collect_script_referenced_objects(scan_root),
+		count_mesh_uses(scan_root)
 	)
 
 
@@ -137,13 +232,42 @@ static func consolidate_modules(
 	if reference_root == null or not is_instance_valid(reference_root):
 		return reports
 	var referenced := _collect_script_referenced_objects(reference_root)
+	var mesh_uses := count_mesh_uses(reference_root)
 	for module_variant in module_roots:
 		var module := module_variant as Node3D
 		if not is_instance_valid(module) or not module.is_inside_tree():
 			reports.append(_empty_report(&"module_root_unavailable"))
 			continue
-		reports.append(consolidate_with_references(module, protected, referenced))
+		reports.append(
+			consolidate_with_references(module, protected, referenced, mesh_uses)
+		)
 	return reports
+
+
+## How many renderers in `root`'s tree draw each mesh resource, keyed by the
+## resource's instance id.
+##
+## The piece index uses this to decide whether a merge is allowed to let a source
+## mesh go. A mesh drawn once is the merge's to free; a mesh drawn more than once
+## is shared stock the merge never owned, and the index keeps the resource so the
+## audits that prove that sharing can still read it.
+static func count_mesh_uses(root: Node) -> Dictionary:
+	var uses := {}
+	_count_mesh_uses_into(root, uses)
+	return uses
+
+
+static func _count_mesh_uses_into(node: Node, uses: Dictionary) -> void:
+	var visual := node as MeshInstance3D
+	if visual != null and visual.mesh != null:
+		var id := visual.mesh.get_instance_id()
+		uses[id] = int(uses.get(id, 0)) + 1
+	var multi := node as MultiMeshInstance3D
+	if multi != null and multi.multimesh != null and multi.multimesh.mesh != null:
+		var multi_id := multi.multimesh.mesh.get_instance_id()
+		uses[multi_id] = int(uses.get(multi_id, 0)) + 1
+	for child in node.get_children():
+		_count_mesh_uses_into(child, uses)
 
 
 static func _empty_report(reason: StringName) -> Dictionary:
@@ -162,7 +286,8 @@ static func _empty_report(reason: StringName) -> Dictionary:
 static func consolidate_with_references(
 		module_root: Node3D,
 		protected: PackedStringArray,
-		referenced: Dictionary
+		referenced: Dictionary,
+		mesh_uses: Dictionary = {}
 	) -> Dictionary:
 	var report := {
 		"applied": false,
@@ -180,10 +305,13 @@ static func consolidate_with_references(
 	var protected_set := {}
 	for name_value in protected:
 		protected_set[String(name_value)] = true
+	var uses := mesh_uses
+	if uses.is_empty():
+		uses = count_mesh_uses(module_root)
 	var parents: Array[Node] = []
 	_collect_parents(module_root, parents)
 	for parent in parents:
-		_consolidate_parent(parent as Node3D, protected_set, referenced, report)
+		_consolidate_parent(parent as Node3D, protected_set, referenced, uses, report)
 	report["applied"] = true
 	report["reason"] = &"consolidated"
 	return report
@@ -200,6 +328,7 @@ static func _consolidate_parent(
 		parent: Node3D,
 		protected_set: Dictionary,
 		referenced: Dictionary,
+		mesh_uses: Dictionary,
 		report: Dictionary
 	) -> void:
 	# A parent that this pass already emptied is still in the collected roster
@@ -217,11 +346,13 @@ static func _consolidate_parent(
 			if mesh_child == null or not _mesh_is_mergeable(mesh_child, referenced):
 				continue
 			if _is_mergeable_solid(body, protected_set, referenced):
-				var solid_key := "%d|%d|%d|%d" % [
+				var solid_key := "%d|%d|%d|%d|%s|%s" % [
 					int(mesh_child.cast_shadow),
 					int(mesh_child.gi_mode),
 					body.collision_layer,
 					body.collision_mask,
+					_metadata_digest(body),
+					_metadata_digest(mesh_child),
 				]
 				if not solid_groups.has(solid_key):
 					solid_groups[solid_key] = []
@@ -241,8 +372,8 @@ static func _consolidate_parent(
 				continue
 			if not _mesh_is_mergeable(visual, referenced):
 				continue
-			var visual_key := "%d|%d" % [
-				int(visual.cast_shadow), int(visual.gi_mode)
+			var visual_key := "%d|%d|%s" % [
+				int(visual.cast_shadow), int(visual.gi_mode), _metadata_digest(visual)
 			]
 			if not visual_groups.has(visual_key):
 				visual_groups[visual_key] = []
@@ -252,7 +383,7 @@ static func _consolidate_parent(
 		for bodies in _local_chunks(parent, solid_groups[key] as Array):
 			if bodies.size() < 2:
 				continue
-			if _build_solid_batch(parent, bodies):
+			if _build_solid_batch(parent, bodies, mesh_uses):
 				report["solid_batches"] = int(report["solid_batches"]) + 1
 				report["solid_sources"] = int(report["solid_sources"]) + bodies.size()
 				report["removed_nodes"] = int(report["removed_nodes"]) + bodies.size() * 3
@@ -261,7 +392,7 @@ static func _consolidate_parent(
 		for visuals in _local_chunks(parent, visual_groups[key] as Array):
 			if visuals.size() < 2:
 				continue
-			if _build_visual_batch(parent, visuals, "DressingRenderBatch"):
+			if _build_visual_batch(parent, visuals, "DressingRenderBatch", mesh_uses):
 				report["visual_batches"] = int(report["visual_batches"]) + 1
 				report["visual_sources"] = int(report["visual_sources"]) + visuals.size()
 				report["removed_nodes"] = int(report["removed_nodes"]) + visuals.size()
@@ -307,8 +438,19 @@ static func _source_bounds_in_parent(parent: Node3D, source: Node3D) -> AABB:
 	return placement * visual.mesh.get_aabb()
 
 
-## A node nothing else can be holding on to: no script, no metadata, no group,
-## no incoming signal, no children, and not reachable from any script variable.
+## A node nothing else can be holding on to: no script, no group, no incoming
+## signal, no children, not reachable from any script variable, and no metadata
+## this pass itself wrote.
+##
+## Ordinary authored metadata no longer disqualifies a piece. It used to, because
+## a merged node could not answer a per-piece metadata question; it can now,
+## because a batch only ever absorbs pieces whose metadata is *identical* key for
+## key and value for value (`_metadata_digest` is part of every group key), it
+## carries that metadata verbatim, and `AUTHORED_PIECE_INDEX_META` records each
+## piece's own copy. A reader that resolves metadata off the renderer therefore
+## reads the same answer it read before, whether it reaches the batch or the
+## index. Metadata whose value differs between two pieces keeps them in separate
+## groups, so a per-piece value is never averaged into one.
 static func _node_is_free_standing(
 		node: Node,
 		protected_set: Dictionary,
@@ -320,7 +462,7 @@ static func _node_is_free_standing(
 		return false
 	if node.get_script() != null:
 		return false
-	if not node.get_meta_list().is_empty():
+	if _carries_batch_metadata(node):
 		return false
 	if not node.get_groups().is_empty():
 		return false
@@ -331,6 +473,54 @@ static func _node_is_free_standing(
 	if referenced.has(node.get_instance_id()):
 		return false
 	return true
+
+
+## Whether `node` carries a meta key this pass itself writes.
+static func _carries_batch_metadata(node: Node) -> bool:
+	for key in BATCH_OWNED_META_KEYS:
+		if node.has_meta(key):
+			return true
+	for key in KEEP_OUT_META_KEYS:
+		if node.has_meta(key):
+			return true
+	return false
+
+
+## A node's metadata as a stable string, so two pieces group together only when
+## every key *and* every value matches.
+##
+## `var_to_str` is used rather than `hash()` because a hash collision would let
+## two different values share a group, which is exactly the mistake this guard
+## exists to prevent. Keys are sorted so authoring order cannot split a group.
+static func _metadata_digest(node: Node) -> String:
+	var keys := node.get_meta_list()
+	if keys.is_empty():
+		return ""
+	var names := PackedStringArray()
+	for key in keys:
+		names.append(String(key))
+	names.sort()
+	var parts := PackedStringArray()
+	for name_value in names:
+		parts.append("%s=%s" % [
+			name_value, var_to_str(node.get_meta(StringName(name_value)))
+		])
+	return "|".join(parts)
+
+
+## `node`'s metadata as a dictionary, for the piece index and for re-seating the
+## same metadata on the batch that stands in for it.
+static func _metadata_of(node: Node) -> Dictionary:
+	var out := {}
+	for key in node.get_meta_list():
+		out[String(key)] = node.get_meta(key)
+	return out
+
+
+## Copies the group's shared metadata onto the batch that replaces it.
+static func _seat_shared_metadata(batch: Node, metadata: Dictionary) -> void:
+	for key in metadata:
+		batch.set_meta(StringName(String(key)), metadata[key])
 
 
 ## Whether another *node* drives this one through a signal.
@@ -429,8 +619,12 @@ static func _is_mergeable_solid(
 		return false
 	if not _mesh_is_mergeable(mesh_child, referenced):
 		return false
-	if not mesh_child.get_meta_list().is_empty() or mesh_child.get_script() != null:
+	if _carries_batch_metadata(mesh_child) or mesh_child.get_script() != null:
 		return false
+	# Collision authority is never restated. A shape this pass re-seats keeps its
+	# own node, and the only meta it is given is the `authored_piece` name that
+	# lets a seam or overlap audit blame the piece rather than the batch, so a
+	# shape that already carries authored metadata is left where it stands.
 	if not collision_child.get_meta_list().is_empty() or collision_child.get_script() != null:
 		return false
 	if collision_child.get_child_count() != 0 or collision_child.disabled:
@@ -453,14 +647,68 @@ static func _is_mergeable_solid(
 
 
 ## Replaces N `_box` triples with one body, N shapes and one merged renderer.
-static func _build_solid_batch(parent: Node3D, bodies: Array) -> bool:
+## One index record per authored piece a batch is about to replace.
+##
+## `names` and `offsets` run parallel to `sources`. `mesh_uses` decides
+## retention: a mesh some other renderer also draws is kept in the record, a mesh
+## only this piece drew is recorded by id and left for the merge to free.
+static func _build_piece_index(
+		names: PackedStringArray,
+		sources: Array[MeshInstance3D],
+		offsets: Array[Transform3D],
+		metadata: Array[Dictionary],
+		mesh_uses: Dictionary
+	) -> Array:
+	var index: Array = []
+	for position in sources.size():
+		var source := sources[position]
+		var mesh := source.mesh as ArrayMesh
+		var materials: Array[Material] = []
+		var surfaces := 0
+		if mesh != null:
+			surfaces = mesh.get_surface_count()
+			for surface_index in surfaces:
+				materials.append(_surface_material(source, surface_index))
+		var record := {
+			"name": names[position],
+			"transform": offsets[position],
+			"local_transform": source.transform,
+			"metadata": metadata[position],
+			"materials": materials,
+			"surfaces": surfaces,
+			"visible": source.visible,
+			"cast_shadow": int(source.cast_shadow),
+			"gi_mode": int(source.gi_mode),
+			"mesh_id": mesh.get_instance_id() if mesh != null else 0,
+			"aabb": mesh.get_aabb() if mesh != null else AABB(),
+		}
+		if mesh != null and int(mesh_uses.get(mesh.get_instance_id(), 0)) > 1:
+			record["mesh"] = mesh
+			record["mesh_retained"] = true
+		else:
+			record["mesh_retained"] = false
+		index.append(record)
+	return index
+
+
+static func _build_solid_batch(
+		parent: Node3D,
+		bodies: Array,
+		mesh_uses: Dictionary = {}
+	) -> bool:
 	var sources: Array[MeshInstance3D] = []
 	var offsets: Array[Transform3D] = []
+	var piece_names := PackedStringArray()
+	var piece_metadata: Array[Dictionary] = []
 	for body_variant in bodies:
 		var body := body_variant as StaticBody3D
 		var mesh_child := body.get_node(NodePath(MESH_CHILD_NAME)) as MeshInstance3D
 		sources.append(mesh_child)
 		offsets.append(body.transform * mesh_child.transform)
+		# A solid piece is named by its body; its `Mesh` child is the generated
+		# renderer inside it, and the seam and overlap audits blame the body.
+		piece_names.append(String(body.name))
+		piece_metadata.append(_metadata_of(body))
 	var merged := _merge(sources, offsets)
 	if merged.is_empty() or _reads_as_walkable_plate(merged["mesh"] as ArrayMesh):
 		return false
@@ -494,12 +742,24 @@ static func _build_solid_batch(parent: Node3D, bodies: Array) -> bool:
 		batch.add_child(seated)
 		authored.append(offsets[index])
 		index += 1
+	# The group's metadata is identical across every member by construction, so
+	# the batch carries it verbatim and a reader that resolves it off the
+	# renderer reads exactly what it read before. Seated first, so a batch-owned
+	# key below can never be overwritten by an authored one.
+	_seat_shared_metadata(batch, piece_metadata[0] if not piece_metadata.is_empty() else {})
+	_seat_shared_metadata(
+		visual, _metadata_of(first_mesh)
+	)
 	batch.set_meta(&"authored_instance_transforms", authored.duplicate())
 	batch.set_meta(BATCH_META, true)
 	batch.set_meta(&"batched_source_count", bodies.size())
 	batch.set_meta(
 		AUTHORED_CENSUS_META,
 		_authored_census(sources, bodies.size() * 3, bodies.size())
+	)
+	batch.set_meta(
+		AUTHORED_PIECE_INDEX_META,
+		_build_piece_index(piece_names, sources, offsets, piece_metadata, mesh_uses)
 	)
 	parent.add_child(batch)
 	for body_variant in bodies:
@@ -510,16 +770,34 @@ static func _build_solid_batch(parent: Node3D, bodies: Array) -> bool:
 
 
 ## Replaces N sibling renderers with one merged renderer in the same parent.
-static func _build_visual_batch(parent: Node3D, visuals: Array, suffix: String) -> bool:
+static func _build_visual_batch(
+		parent: Node3D,
+		visuals: Array,
+		suffix: String,
+		mesh_uses: Dictionary = {}
+	) -> bool:
 	var sources: Array[MeshInstance3D] = []
 	var offsets: Array[Transform3D] = []
+	var piece_names := PackedStringArray()
+	var piece_metadata: Array[Dictionary] = []
 	var parent_inverse := parent.global_transform.affine_inverse()
 	for visual_variant in visuals:
 		var visual := visual_variant as MeshInstance3D
 		sources.append(visual)
 		offsets.append(parent_inverse * visual.global_transform)
+		piece_names.append(String(visual.name))
+		piece_metadata.append(_metadata_of(visual))
 	var merged := _merge(sources, offsets)
 	if merged.is_empty() or _reads_as_walkable_plate(merged["mesh"] as ArrayMesh):
+		return false
+	var carries_metadata := false
+	for entry in piece_metadata:
+		if not entry.is_empty():
+			carries_metadata = true
+			break
+	if _manufactures_standing_solid(
+			merged["mesh"] as ArrayMesh, sources, offsets, carries_metadata
+		):
 		return false
 	var first := visuals[0] as MeshInstance3D
 	var batch := MeshInstance3D.new()
@@ -527,10 +805,15 @@ static func _build_visual_batch(parent: Node3D, visuals: Array, suffix: String) 
 	batch.mesh = merged["mesh"] as ArrayMesh
 	batch.cast_shadow = first.cast_shadow
 	batch.gi_mode = first.gi_mode
+	_seat_shared_metadata(batch, piece_metadata[0] if not piece_metadata.is_empty() else {})
 	batch.set_meta(&"authored_instance_transforms", offsets.duplicate())
 	batch.set_meta(BATCH_META, true)
 	batch.set_meta(&"batched_source_count", visuals.size())
 	batch.set_meta(AUTHORED_CENSUS_META, _authored_census(sources, visuals.size(), 0))
+	batch.set_meta(
+		AUTHORED_PIECE_INDEX_META,
+		_build_piece_index(piece_names, sources, offsets, piece_metadata, mesh_uses)
+	)
 	parent.add_child(batch)
 	_apply_surface_materials(batch, merged["materials"] as Array)
 	for visual_variant in visuals:
@@ -581,6 +864,113 @@ static func _authored_census(
 		"mesh_resource_ids": mesh_ids,
 		"material_resource_ids": material_ids,
 	}
+
+
+## The authored pieces `node` stands in for, or an empty array for anything this
+## pass did not create.
+static func authored_piece_index(node: Node) -> Array:
+	if node == null or not is_instance_valid(node) \
+			or not node.has_meta(AUTHORED_PIECE_INDEX_META):
+		return []
+	return node.get_meta(AUTHORED_PIECE_INDEX_META) as Array
+
+
+## The authored piece named `piece_name` under `search_root`, whether it still
+## stands as its own node or has been folded into a batch.
+##
+## This is the whole point of the indexing contract: an audit asks one question
+## and gets the same answer on a batched and an unbatched build. The result is
+## `{}` when nothing of that name was ever built, and otherwise carries:
+##
+## * `batched` — whether the piece is now drawn by a batch,
+## * `node` — the piece's own node, or the batch that stands in for it,
+## * `name`, `metadata`, `surfaces`, `visible`, `cast_shadow`, `gi_mode`,
+## * `transform` — the placement in the batch parent's space, which for a live
+##   node is its own local transform,
+## * `aabb` — the piece's own untransformed mesh bound,
+## * `mesh` — the piece's own mesh resource when that resource is still alive
+##   (always for a live node; for a batched piece exactly when it was shared),
+## * `mesh_id` — the identity of that resource either way,
+## * `materials` — the resolved material of every surface.
+##
+## `search_root` is walked, so a caller may hand it a module, a craft or a single
+## parent. A live node of that name always wins over an index record, because a
+## piece that kept its own node is the stronger answer.
+static func find_authored_piece(search_root: Node, piece_name: String) -> Dictionary:
+	if search_root == null or not is_instance_valid(search_root):
+		return {}
+	var live := _find_live_piece(search_root, piece_name)
+	if live != null:
+		return _live_piece_record(live)
+	var candidates := search_root.find_children("*", "", true, false)
+	candidates.append(search_root)
+	for candidate in candidates:
+		for record_variant in authored_piece_index(candidate):
+			var record := record_variant as Dictionary
+			if String(record.get("name", "")) != piece_name:
+				continue
+			var resolved := record.duplicate()
+			resolved["batched"] = true
+			resolved["node"] = candidate
+			return resolved
+	return {}
+
+
+static func _find_live_piece(search_root: Node, piece_name: String) -> MeshInstance3D:
+	if search_root is MeshInstance3D and String(search_root.name) == piece_name:
+		return search_root as MeshInstance3D
+	for candidate in search_root.find_children(piece_name, "", true, false):
+		var visual := candidate as MeshInstance3D
+		if visual != null:
+			return visual
+		# A `_box` piece is named by its body and draws through its `Mesh` child.
+		var mesh_child := candidate.get_node_or_null(NodePath(MESH_CHILD_NAME))
+		if mesh_child is MeshInstance3D:
+			return mesh_child as MeshInstance3D
+	return null
+
+
+static func _live_piece_record(visual: MeshInstance3D) -> Dictionary:
+	var mesh := visual.mesh as ArrayMesh
+	var materials: Array[Material] = []
+	var surfaces := 0
+	if mesh != null:
+		surfaces = mesh.get_surface_count()
+		for surface_index in surfaces:
+			materials.append(_surface_material(visual, surface_index))
+	var owner_node := visual.get_parent() if String(visual.name) == MESH_CHILD_NAME else visual
+	return {
+		"batched": false,
+		"node": visual,
+		"name": String(owner_node.name),
+		"transform": visual.transform,
+		"local_transform": visual.transform,
+		"metadata": _metadata_of(owner_node),
+		"materials": materials,
+		"surfaces": surfaces,
+		"visible": visual.visible,
+		"cast_shadow": int(visual.cast_shadow),
+		"gi_mode": int(visual.gi_mode),
+		"mesh": mesh,
+		"mesh_id": mesh.get_instance_id() if mesh != null else 0,
+		"mesh_retained": true,
+		"aabb": mesh.get_aabb() if mesh != null else AABB(),
+	}
+
+
+## The mesh resource authored piece `piece_name` is drawn from, or `null`.
+##
+## A resource-sharing audit compares this between two pieces exactly as it used
+## to compare `a.mesh == b.mesh`, and gets the identical answer whether either
+## piece is a node or a batched member. `null` means the piece is unknown, or
+## that it was batched and its mesh was private to it — never that the sharing
+## it once had has quietly stopped being proven, because a mesh that was shared
+## is always retained.
+static func authored_piece_mesh(search_root: Node, piece_name: String) -> Mesh:
+	var record := find_authored_piece(search_root, piece_name)
+	if record.is_empty():
+		return null
+	return record.get("mesh", null) as Mesh
 
 
 ## How many scene nodes `node` stands in for, beyond the ones it now occupies.
@@ -786,6 +1176,43 @@ static func _reads_as_walkable_plate(mesh: ArrayMesh) -> bool:
 	return size.x >= PLATE_MIN_BREADTH \
 		and size.z >= PLATE_MIN_BREADTH \
 		and size.y <= PLATE_MAX_THICKNESS
+
+
+## Whether a merge would present a standing solid none of its pieces presented.
+##
+## See `SWEEP_PIECE_HEIGHT`. The comparison is against the tallest *placed*
+## source, not the tallest authored mesh, because a piece's own rotation is part
+## of the volume it occupies.
+static func _manufactures_standing_solid(
+		mesh: ArrayMesh,
+		sources: Array[MeshInstance3D],
+		offsets: Array[Transform3D],
+		newly_reachable: bool
+	) -> bool:
+	# Scoped to the groups this trim newly reaches. Every batch the shipped pass
+	# already formed was measured against the sweep by the trim that introduced
+	# it, and re-refusing those costs 136 nodes to re-litigate findings that
+	# were already clean. The rule exists so that *relaxing* a refusal cannot
+	# manufacture a standing solid, not to re-open settled ground.
+	if not newly_reachable:
+		return false
+	if mesh == null:
+		return false
+	var merged_height := mesh.get_aabb().size.y
+	if merged_height < SWEEP_PIECE_HEIGHT:
+		return false
+	# If any source already stood that tall, the sweep already had a piece of
+	# flaggable height here and the merge manufactures nothing. The refusal is
+	# only for a run of individually short pieces whose aggregate crosses the
+	# threshold for the first time.
+	for index in sources.size():
+		var source_mesh := sources[index].mesh
+		if source_mesh == null:
+			continue
+		if (offsets[index] * source_mesh.get_aabb()).size.y \
+				>= SWEEP_PIECE_HEIGHT - AGGREGATE_HEIGHT_TOLERANCE:
+			return false
+	return true
 
 
 static func _batch_name(parent: Node3D, suffix: String) -> String:

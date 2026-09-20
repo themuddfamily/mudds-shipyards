@@ -240,8 +240,10 @@ func _test_shared_stock_and_bands_stand() -> void:
 	bay.name = "AftSystemsBay"
 	craft.add_child(bay)
 
-	# One cached stock mesh drawn twice: folding it would store the geometry
-	# twice and dissolve the identity a resource-sharing audit proves.
+	# One cached stock mesh drawn twice. This *is* folded now, and the identity
+	# the old refusal protected is restated rather than dropped: the batch's
+	# piece index retains the very resource both pieces drew, so a
+	# resource-sharing audit still compares the same `Mesh` it always compared.
 	var shared_mesh := _stock(Vector3(0.2, 0.2, 0.2), finish)
 	for index in 2:
 		var shared := MeshInstance3D.new()
@@ -273,9 +275,62 @@ func _test_shared_stock_and_bands_stand() -> void:
 
 	BATCH.consolidate([craft], PackedStringArray(), root)
 
+	# Live primitive stock and banded furniture still stand piece by piece: one
+	# is re-tessellated after this pass, the other carries a per-instance
+	# camera-distance band, and neither is a fact an index can restate.
+	var standing := PackedStringArray()
+	for child in bay.get_children():
+		standing.append(String(child.name))
 	_check(
-		bay.get_child_count() == 6 and _batches(bay).is_empty(),
-		"shared stock, live primitive stock and banded furniture are all left standing"
+		standing.has("Turned00") and standing.has("Turned01")
+			and standing.has("Banded00") and standing.has("Banded01")
+			and not standing.has("Shared00") and not standing.has("Shared01"),
+		"live primitive stock and banded furniture stand; shared stock folds"
+	)
+
+	# The upgraded contract: the shared pieces are gone as nodes, and the batch
+	# still proves the exact fact their nodes proved — one mesh allocation drawn
+	# by both of them. `find_authored_piece` answers for a batched member the way
+	# it answers for a live node, and the resource it returns is the same object,
+	# not an equal-looking copy.
+	var first := BATCH.find_authored_piece(craft, "Shared00")
+	var second := BATCH.find_authored_piece(craft, "Shared01")
+	_check(
+		not first.is_empty() and not second.is_empty()
+			and bool(first["batched"]) and bool(second["batched"])
+			and first["mesh"] == shared_mesh and second["mesh"] == shared_mesh
+			and first["mesh"] == second["mesh"]
+			and int(first["mesh_id"]) == shared_mesh.get_instance_id()
+			and int(second["mesh_id"]) == shared_mesh.get_instance_id(),
+		"the piece index proves both folded pieces share one retained mesh allocation"
+	)
+	_check(
+		(first["transform"] as Transform3D).origin.is_equal_approx(Vector3(0.0, 0.2, 0.0))
+			and (second["transform"] as Transform3D).origin.is_equal_approx(
+				Vector3(0.4, 0.2, 0.0)
+			)
+			and (first["aabb"] as AABB).size.is_equal_approx(Vector3(0.2, 0.2, 0.2))
+			and int(first["surfaces"]) == 1
+			and (first["materials"] as Array)[0] == finish,
+		"the piece index reproduces each folded piece's placement, bound and finish"
+	)
+	# A mesh only one piece drew is still freed, so the merge's unique-mesh
+	# arithmetic is unchanged and the index retains nothing it need not.
+	var private_bay := Node3D.new()
+	private_bay.name = "PrivateBay"
+	craft.add_child(private_bay)
+	for index in 2:
+		_piece(
+			private_bay, "Private%02d" % index, Vector3(float(index) * 0.4, 0.0, 0.0),
+			Vector3(0.2, 0.2, 0.2), finish
+		)
+	BATCH.consolidate([craft], PackedStringArray(), root)
+	var private_record := BATCH.find_authored_piece(craft, "Private00")
+	_check(
+		not private_record.is_empty() and bool(private_record["batched"])
+			and not bool(private_record["mesh_retained"])
+			and not private_record.has("mesh"),
+		"a mesh only one folded piece drew is not retained by the index"
 	)
 	root.remove_child(craft)
 	craft.free()

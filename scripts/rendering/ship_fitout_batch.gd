@@ -30,12 +30,19 @@ extends RefCounted
 ## What this deliberately never does, because each of those is an indexing
 ## contract another system reads by node identity:
 ##
-## * It never touches a node that carries metadata, a script, a group, an
-##   incoming signal connection, a child, or a name in the protected roster its
-##   caller passes. Seats, bunks, anchors, boarding routes, cargo interaction
-##   markers, damage cues, hull markings, moving-interior frames, LOD bands and
-##   every `MultiMeshInstance3D`/shadow batch already carry one of those, and
-##   every name any script, test, tool or document resolves is in the roster.
+## * It never touches a node that carries a script, a group, an incoming signal
+##   connection, a child, or a name in the protected roster its caller passes.
+##   Seats, bunks, anchors, boarding routes, cargo interaction markers, damage
+##   cues, hull markings, moving-interior frames, LOD bands and every
+##   `MultiMeshInstance3D`/shadow batch already carry one of those, and every
+##   name any script, test, tool or document resolves is in the roster.
+## * Authored **metadata** no longer refuses a piece, but it does constrain the
+##   group: `_render_state_key` includes a digest of every key and value, so a
+##   batch only ever absorbs pieces whose metadata is identical, it carries that
+##   metadata verbatim, and `AUTHORED_PIECE_INDEX_META` records each piece's own
+##   copy. A reader that resolves metadata off the renderer reads the same
+##   answer it read before; a value that differs between two pieces splits them
+##   into separate groups rather than being averaged into one.
 ## * It never touches a node any live script variable can still reach. That scan
 ##   is the guard against freeing something the craft, its bindings or the world
 ##   is going to call back into.
@@ -46,10 +53,17 @@ extends RefCounted
 ##   bands (`_configure_interior_furnishing_ranges`) are expressed as visibility
 ##   ranges, so this pass must run after them and leaves every banded piece
 ##   standing on its own.
-## * It never folds a renderer whose mesh is drawn more than once or held by a
-##   live craft variable. Merging deliberately shared stock would store that
-##   geometry once per copy -- the opposite of what the sharing is for -- and
-##   dissolve the resource identity each craft's own allocation audit proves.
+## * It never folds a renderer whose mesh a live craft variable holds. That is
+##   stock the craft may still re-seat, re-tessellate or re-bind after this pass
+##   has run, and a merged copy would not follow it.
+## * It **does** now fold a renderer whose mesh is merely drawn more than once.
+##   That used to be refused on two grounds. Identity, which
+##   `AUTHORED_PIECE_INDEX_META` restates by retaining the shared resource so
+##   every `*_resource_sharing_test` reads the identity it always read; and
+##   vertex storage, which is real, is paid, and is measured and published in
+##   `docs/PERFORMANCE_BUDGET_SCENE_GEOMETRY.md`. Scene-tree nodes are the
+##   budget this scene is 51% over, and this is the trade the roadmap
+##   authorised to buy them.
 ## * It never folds live `PrimitiveMesh` stock, which the tree-wide geometry
 ##   budget sweeps and re-tessellates after the craft has built.
 ## * It never emits a batch whose triangle count differs from its sources'.
@@ -79,6 +93,47 @@ const AUTHORED_CENSUS_META := &"ship_fitout_batch_authored_census"
 ## The authored names a batch stands in for, in the project's existing batch
 ## idiom, so an audit can still see what a merged renderer replaced.
 const AUTHORED_NAMES_META := &"authored_visual_names"
+
+## The authored pieces a batch stands in for, one record each, in authored order.
+##
+## `AUTHORED_NAMES_META` names them and `AUTHORED_CENSUS_META` restores their
+## counts. This restores their *identity*, and it is what allows the ships'
+## shared-stock families to be batched at all.
+##
+## Those families exist because a craft builds one cached mesh and hangs N
+## renderers on it, and each craft's `*_resource_sharing_test` proves the sharing
+## by comparing `a.mesh == b.mesh`. Before this record the merge could only
+## answer that question by not happening: it frees the source renderers, and
+## `a.mesh` afterwards is the merged buffer, so the audit had no way to reach the
+## resource it was asking about. The index hands it back the same resource, so
+## the identity it compares is the one it always compared, and a batched member
+## proves exactly the fact an unbatched node proved.
+##
+## Each record carries the piece's authored name, its local placement, its own
+## metadata verbatim, the untransformed bound and surface count of its mesh, the
+## resolved material of every surface, and — when the mesh outlives the merge —
+## the source `Mesh` resource itself. A retained reference is a stronger record
+## than the instance id beside it, which names a resource that may since have
+## been freed.
+##
+## Retention is conditional and that condition is what keeps this honest. A mesh
+## only the replaced piece drew is freed exactly as before, so the unique-mesh
+## count still falls by the merge's own arithmetic and nothing is retained that
+## was not retained already. A mesh that is *shared* is kept, and that costs no
+## memory at all, because the merge never had the right to free it.
+const AUTHORED_PIECE_INDEX_META := &"ship_fitout_batch_authored_pieces"
+
+## The meta keys this pass writes. A node carrying any of them was produced by a
+## previous pass and is never folded again, because its own index would be
+## absorbed into a second batch that no longer records it.
+const BATCH_OWNED_META_KEYS: Array[StringName] = [
+	BATCH_META,
+	AUTHORED_CENSUS_META,
+	AUTHORED_NAMES_META,
+	AUTHORED_PIECE_INDEX_META,
+	&"authored_instance_transforms",
+	&"batched_source_count",
+]
 
 ## A merged bound this broad and this thin, facing up, is the exact shape the
 ## station's route-surface discovery reads as a walkable plate. A parked craft's
@@ -161,6 +216,89 @@ const PROTECTED_FITOUT_CONTAINERS: Array[String] = [
 ## hardware and every resource-sharing audit's subject keep the node identity
 ## their consumer looks them up by.
 const PROTECTED_FITOUT_NAMES: Array[String] = [
+
+		"DockUmbilicalHead02",  # FleetDockComb freezes its renderer/batch/copy/submission roster
+	"DockUmbilicalHead03",  # FleetDockComb freezes its renderer/batch/copy/submission roster
+# --- Tenth trim (2026-09-20), further pass: 63 more names. ---
+	#
+	# Lifting the metadata and shared-mesh refusals, and enrolling two more
+	# modules, exposed leaf names that
+	# earlier passes never had to grep, because some other guard had always kept
+	# the pass out of them. Every one of those names was put through this
+	# roster's own three criteria again -- the whole name resolved anywhere in
+	# `scripts/`, `tests/`, `tools/`, `docs/`, `scenes/` or `assets/` other than
+	# its own builder line; a `find_child`/`find_children` glob that matches it;
+	# or a ten-character-or-longer literal some call composes a name from -- and
+	# these are the ones that hit. The rest fold.
+	#
+	# The `*MuzzleLens` family is why this re-grep exists rather than being
+	# assumed unnecessary: `HeroShip._ensure_weapon_component_emitters()` counts
+	# authored lenses by that glob and *builds two fallback spheres* when it
+	# finds fewer than two, so folding the Jovian's lenses silently added two
+	# nodes and 336 triangles instead of failing anything.
+	"ApproachFrameNorthEast",  # resolved at tests/exterior_target_range_readability_test.gd:18
+	"ApproachFrameNorthWest",  # resolved at tests/exterior_target_range_readability_test.gd:21
+	"ApproachFrameSouthEast",  # resolved at tests/exterior_target_range_readability_test.gd:19
+	"ApproachFrameSouthWest",  # resolved at docs/ULTRAWIDE_FIELD_OF_VIEW_POLICY.md:146, tests/exterior_target_range_readability_test.gd:20
+	"BlendedPressureHull",  # resolved at tests/modern_fighter_presentation_test.gd:35, tests/station_triplanar_material_test.gd:1054
+	"CargoFitoutAmber",  # matches Cargo*
+	"CargoFitoutCabin Liner",  # matches Cargo*
+	"CargoFitoutCabin Shell",  # matches Cargo*
+	"CargoFitoutDark",  # matches Cargo*
+	"CargoFitoutFreight Shell",  # matches Cargo*
+	"CargoFitoutHull Cool",  # matches Cargo*
+	"CargoFitoutLiner",  # matches Cargo*
+	"CargoFitoutStructure",  # matches Cargo*
+	"CargoFitoutWebbing",  # matches Cargo*
+	"CargoPressureCollar",  # resolved at tests/cinder_cargo_approach_readability_test.gd:69; matches Cargo*
+	"CargoPressureJoint",  # matches Cargo*
+	"CargoPressureRim",  # resolved at tests/cinder_cargo_approach_readability_test.gd:69; matches Cargo*
+	"CargoThresholdHeader",  # resolved at tests/cinder_cargo_approach_readability_test.gd:63, tests/cinder_cargo_approach_readability_test.gd:67; matches Cargo*
+	"CoolingVanes",  # matches *Vanes
+	"DockMastLamp02",  # matches DockMast*
+	"DockMastLamp03",  # matches DockMast*
+	"EngineRetentionSaddles",  # resolved at tests/cinder_cargo_hauler_freight_frame_visual_test.gd:91, tests/cinder_cargo_hauler_freight_frame_visual_test.gd:94
+	"FlightDeckWindscreenCowl",  # resolved at tests/jovian_light_freighter_test.gd:2199
+	"ForwardCabinCrown",  # resolved at tests/jovian_light_freighter_test.gd:2076, tests/jovian_light_freighter_test.gd:2199
+	"ForwardFlightDeck",  # resolved at tests/jovian_light_freighter_test.gd:1376, tests/jovian_light_freighter_test.gd:2101
+	"ModernHeadrest",  # resolved at tests/zenith_interceptor_test.gd:3510
+	"ModernSeatBack",  # resolved at tests/zenith_interceptor_test.gd:3510
+	"ModernSeatCushion",  # resolved at tests/zenith_interceptor_test.gd:3510
+	"NoseSensorRadome",  # resolved at tests/zenith_interceptor_test.gd:3647
+	"PortAftGearStrut",  # matches *GearStrut,*Strut
+	"PortCabinTransition",  # resolved at tests/jovian_light_freighter_test.gd:2102; composed from Port+CabinTransition
+	"PortCargoShoulder",  # resolved at tests/jovian_light_freighter_test.gd:1377, tests/jovian_light_freighter_test.gd:2101
+	"PortDefensiveTurretMuzzleCollar",  # matches *MuzzleCollar
+	"PortDefensiveTurretMuzzleLens",  # resolved at tests/jovian_light_freighter_test.gd:525; matches *MuzzleLens
+	"PortEngineCowling",  # composed from Port+EngineCowling
+	"PortEngineServiceDoor",  # composed from Port+EngineServiceDoor
+	"PortForwardGearStrut",  # matches *GearStrut,*Strut
+	"PortFreightExhaust",  # resolved at tests/cinder_cargo_hauler_test.gd:629
+	"PortFreightThermalServiceVanes",  # matches *Vanes
+	"PortLowerEngineHousing",  # matches *EngineHousing
+	"PortNoseCapCheek",  # composed from Port+NoseCapCheek
+	"PortNoseCheek",  # composed from Port+NoseCheek
+	"PortOrdnanceServiceCassette",  # composed from Port+OrdnanceServiceCassette
+	"PortThermalServiceVanes",  # matches *Vanes
+	"PortUpperEngineHousing",  # matches *EngineHousing
+	"PortYokeBrace",  # matches *Brace
+	"StarboardAftGearStrut",  # matches *GearStrut,*Strut
+	"StarboardCabinTransition",  # resolved at tests/jovian_light_freighter_test.gd:2102; composed from Starboard+CabinTransition
+	"StarboardDefensiveTurretMuzzleCollar",  # matches *MuzzleCollar
+	"StarboardDefensiveTurretMuzzleLens",  # resolved at tests/jovian_light_freighter_test.gd:526; matches *MuzzleLens
+	"StarboardEngineCowling",  # composed from Starboard+EngineCowling
+	"StarboardEngineServiceDoor",  # composed from Starboard+EngineServiceDoor
+	"StarboardForwardGearStrut",  # matches *GearStrut,*Strut
+	"StarboardFreightExhaust",  # resolved at tests/cinder_cargo_hauler_test.gd:630
+	"StarboardFreightThermalServiceVanes",  # matches *Vanes
+	"StarboardLowerEngineHousing",  # matches *EngineHousing
+	"StarboardNoseCapCheek",  # composed from Starboard+NoseCapCheek
+	"StarboardNoseCheek",  # composed from Starboard+NoseCheek
+	"StarboardOrdnanceServiceCassette",  # composed from Starboard+OrdnanceServiceCassette
+	"StarboardThermalServiceVanes",  # matches *Vanes
+	"StarboardUpperEngineHousing",  # matches *EngineHousing
+	"StarboardYokeBrace",  # matches *Brace
+	"TailYokeCap",  # resolved at tests/halyard_engine_damage_silhouette_test.gd:13
 	# tests/zenith_interceptor_test.gd composes these as prefix + part at runtime,
 	# which a whole-name grep cannot see; the wing-shell trio must stay addressable.
 	"PortWingOuterSkin", "StarboardWingOuterSkin",
@@ -300,6 +438,7 @@ static func consolidate(
 		return report
 	var referenced := _collect_script_referenced_objects(reference_root)
 	var shared := _collect_shared_mesh_resources(reference_root, referenced)
+	var mesh_uses := count_mesh_uses(reference_root)
 	var protected_set := {}
 	for name_value in protected:
 		protected_set[String(name_value)] = true
@@ -312,7 +451,9 @@ static func consolidate(
 		var parents: Array[Node] = []
 		_collect_parents(root, parents)
 		for parent in parents:
-			_consolidate_parent(parent as Node3D, protected_set, referenced, shared, report)
+			_consolidate_parent(
+				parent as Node3D, protected_set, referenced, shared, mesh_uses, report
+			)
 	report["applied"] = applied
 	if not applied:
 		report["reason"] = &"no_root_available"
@@ -351,6 +492,7 @@ static func _consolidate_parent(
 		protected_set: Dictionary,
 		referenced: Dictionary,
 		shared: Dictionary,
+		mesh_uses: Dictionary,
 		report: Dictionary
 	) -> void:
 	if parent == null or not is_instance_valid(parent):
@@ -374,37 +516,51 @@ static func _consolidate_parent(
 		for visuals in _local_chunks(groups[key] as Array):
 			if visuals.size() < 2:
 				continue
-			if _build_visual_batch(parent, visuals):
+			if _build_visual_batch(parent, visuals, mesh_uses):
 				report["visual_batches"] = int(report["visual_batches"]) + 1
 				report["visual_sources"] = int(report["visual_sources"]) + visuals.size()
 				report["removed_nodes"] = int(report["removed_nodes"]) + visuals.size()
 				report["added_nodes"] = int(report["added_nodes"]) + 1
 
 
-## Every mesh resource more than one renderer draws, or that any live script
-## variable holds.
+## Every mesh resource a live script variable still holds.
 ##
-## This is the guard that keeps the merge from *costing* memory. Merging is a
-## trade: N renderers of one mesh become one renderer of a mesh that contains N
-## copies of that geometry. When each source owns its own mesh the trade is free
-## -- the same vertex data moves into one buffer. When the sources deliberately
-## share one cached stock mesh, as the ships' rib joints, shoulder-rail joints,
-## cargo-frame joints, cabin light strips and landing-gear legs all do, the trade
-## duplicates the geometry the sharing exists to avoid, and it dissolves the
-## shared-resource identity each craft's own allocation audit proves. Neither is
-## acceptable to buy nodes, so a renderer whose mesh is shared -- with a sibling,
-## with anything else in the craft, or with a ship variable holding the cached
-## stock -- is left exactly as it stands.
+## This is the half of the old shared-mesh guard that still refuses. A mesh a
+## craft variable holds is stock the craft may still re-seat, re-tessellate or
+## re-bind after this pass has run, and a merged copy would not follow it. That
+## is a live dependency rather than a contract about identity, so no index can
+## restate it and a renderer drawing such a mesh is left exactly as it stands.
+##
+## The other half — a mesh simply drawn by more than one renderer — used to
+## refuse for two reasons. The first was identity: merging dissolved the
+## shared-resource identity each craft's `*_resource_sharing_test` proves.
+## `AUTHORED_PIECE_INDEX_META` now retains that exact resource, so the audits
+## read the identity they always read and none of them is weakened; the roadmap
+## authorised this restatement as a deliberate contract change. The second was
+## storage, and that one is real and is *paid*: N renderers of one mesh become
+## one renderer of a buffer holding N copies of that geometry, so vertex storage
+## for those families rises by roughly the geometry the sharing avoided. It is
+## bought deliberately, for scene-tree nodes, which is the budget this scene is
+## 51% over while its triangle count is 5%. The cost is measured and published
+## in `docs/PERFORMANCE_BUDGET_SCENE_GEOMETRY.md` rather than absorbed quietly,
+## and the mesh itself is never freed, so the sharing the families were built
+## for still holds for every copy that kept its own node.
 static func _collect_shared_mesh_resources(root: Node, referenced: Dictionary) -> Dictionary:
+	var held := {}
+	for object_id in referenced:
+		held[object_id] = true
+	return held
+
+
+## How many renderers under `root` draw each mesh resource.
+##
+## The piece index uses this to decide whether a merge may let a source mesh go:
+## a mesh drawn once is the merge's to free, a mesh drawn more than once is
+## shared stock the merge never owned and the index keeps the resource.
+static func count_mesh_uses(root: Node) -> Dictionary:
 	var counts := {}
 	_count_mesh_uses(root, counts)
-	var shared := {}
-	for mesh_id in counts:
-		if int(counts[mesh_id]) > 1:
-			shared[mesh_id] = true
-	for object_id in referenced:
-		shared[object_id] = true
-	return shared
+	return counts
 
 
 static func _count_mesh_uses(node: Node, counts: Dictionary) -> void:
@@ -427,8 +583,13 @@ static func _count_mesh_uses(node: Node, counts: Dictionary) -> void:
 ## carries a camera-distance band, so every member of a group reads zero here,
 ## and the key makes it impossible for a later change to that refusal to put two
 ## different bands in one batch by accident.
+## The metadata digest is part of the key so a batch only ever absorbs pieces
+## whose metadata is identical key for key and value for value. That is what
+## lets the batch carry the group's metadata verbatim and still answer a
+## metadata question the way each piece answered it; a value that differs splits
+## the group instead of being averaged into one.
 static func _render_state_key(visual: MeshInstance3D) -> String:
-	return "%d|%d|%f|%f|%f|%f|%d|%f" % [
+	return "%d|%d|%f|%f|%f|%f|%d|%f|%s" % [
 		int(visual.cast_shadow),
 		int(visual.gi_mode),
 		visual.visibility_range_begin,
@@ -437,7 +598,45 @@ static func _render_state_key(visual: MeshInstance3D) -> String:
 		visual.visibility_range_end_margin,
 		int(visual.visibility_range_fade_mode),
 		visual.lod_bias,
+		_metadata_digest(visual),
 	]
+
+
+## Whether `node` carries a meta key this pass itself writes.
+static func _carries_batch_metadata(node: Node) -> bool:
+	for key in BATCH_OWNED_META_KEYS:
+		if node.has_meta(key):
+			return true
+	return false
+
+
+## A node's metadata as a stable string, so two pieces group together only when
+## every key *and* every value matches.
+##
+## `var_to_str` rather than `hash()`, because a hash collision would let two
+## different values share a group, which is the mistake this guard exists to
+## prevent. Keys are sorted so authoring order cannot split a group.
+static func _metadata_digest(node: Node) -> String:
+	var keys := node.get_meta_list()
+	if keys.is_empty():
+		return ""
+	var names := PackedStringArray()
+	for key in keys:
+		names.append(String(key))
+	names.sort()
+	var parts := PackedStringArray()
+	for name_value in names:
+		parts.append("%s=%s" % [
+			name_value, var_to_str(node.get_meta(StringName(name_value)))
+		])
+	return "|".join(parts)
+
+
+static func _metadata_of(node: Node) -> Dictionary:
+	var out := {}
+	for key in node.get_meta_list():
+		out[String(key)] = node.get_meta(key)
+	return out
 
 
 static func _apply_render_state(batch: MeshInstance3D, source: MeshInstance3D) -> void:
@@ -501,7 +700,7 @@ static func _node_is_free_standing(
 		return false
 	if node.get_script() != null:
 		return false
-	if not node.get_meta_list().is_empty():
+	if _carries_batch_metadata(node):
 		return false
 	if not node.get_groups().is_empty():
 		return false
@@ -602,18 +801,176 @@ static func _surface_material(visual: MeshInstance3D, surface_index: int) -> Mat
 	return visual.mesh.surface_get_material(surface_index)
 
 
+## Copies the group's shared metadata onto the batch that replaces it.
+static func _seat_shared_metadata(batch: Node, metadata: Dictionary) -> void:
+	for key in metadata:
+		batch.set_meta(StringName(String(key)), metadata[key])
+
+
+## One index record per authored piece a batch is about to replace.
+##
+## `names`, `offsets` and `metadata` run parallel to `sources`. `mesh_uses`
+## decides retention: a mesh another renderer also draws is kept in the record,
+## a mesh only this piece drew is recorded by id and left for the merge to free.
+static func _build_piece_index(
+		names: PackedStringArray,
+		sources: Array[MeshInstance3D],
+		offsets: Array[Transform3D],
+		metadata: Array[Dictionary],
+		mesh_uses: Dictionary
+	) -> Array:
+	var index: Array = []
+	for position in sources.size():
+		var source := sources[position]
+		var mesh := source.mesh
+		var materials: Array[Material] = []
+		var surfaces := 0
+		if mesh != null:
+			surfaces = mesh.get_surface_count()
+			for surface_index in surfaces:
+				materials.append(_surface_material(source, surface_index))
+		var record := {
+			"name": names[position],
+			"transform": offsets[position],
+			"local_transform": source.transform,
+			"metadata": metadata[position],
+			"materials": materials,
+			"surfaces": surfaces,
+			"visible": source.visible,
+			"cast_shadow": int(source.cast_shadow),
+			"gi_mode": int(source.gi_mode),
+			"mesh_id": mesh.get_instance_id() if mesh != null else 0,
+			"aabb": mesh.get_aabb() if mesh != null else AABB(),
+			"material_override": source.material_override,
+		}
+		if mesh != null and int(mesh_uses.get(mesh.get_instance_id(), 0)) > 1:
+			record["mesh"] = mesh
+			record["mesh_retained"] = true
+		else:
+			record["mesh_retained"] = false
+		index.append(record)
+	return index
+
+
+## The authored pieces `node` stands in for, or an empty array for anything this
+## pass did not create.
+static func authored_piece_index(node: Node) -> Array:
+	if node == null or not is_instance_valid(node) \
+			or not node.has_meta(AUTHORED_PIECE_INDEX_META):
+		return []
+	return node.get_meta(AUTHORED_PIECE_INDEX_META) as Array
+
+
+## The authored piece named `piece_name` under `search_root`, whether it still
+## stands as its own node or has been folded into a batch.
+##
+## This is the indexing contract in one call: an audit asks one question and
+## gets the same answer on a batched and an unbatched build. Empty when nothing
+## of that name was built; otherwise `batched`, `node` (the piece, or the batch
+## standing in for it), `name`, `transform`, `metadata`, `materials`,
+## `material_override`, `surfaces`, `visible`, `cast_shadow`, `gi_mode`, `aabb`,
+## `mesh_id`, and `mesh` whenever that resource is still alive — always for a
+## live node, and for a batched piece exactly when the mesh was shared.
+##
+## A live node of that name always wins over an index record: a piece that kept
+## its own node is the stronger answer to the same question.
+static func find_authored_piece(search_root: Node, piece_name: String) -> Dictionary:
+	if search_root == null or not is_instance_valid(search_root):
+		return {}
+	if search_root is MeshInstance3D and String(search_root.name) == piece_name:
+		return _live_piece_record(search_root as MeshInstance3D)
+	for candidate in search_root.find_children(piece_name, "MeshInstance3D", true, false):
+		return _live_piece_record(candidate as MeshInstance3D)
+	var holders := search_root.find_children("*", "", true, false)
+	holders.append(search_root)
+	for holder in holders:
+		for record_variant in authored_piece_index(holder):
+			var record := record_variant as Dictionary
+			if String(record.get("name", "")) != piece_name:
+				continue
+			var resolved := record.duplicate()
+			resolved["batched"] = true
+			resolved["node"] = holder
+			return resolved
+	return {}
+
+
+static func _live_piece_record(visual: MeshInstance3D) -> Dictionary:
+	var mesh := visual.mesh
+	var materials: Array[Material] = []
+	var surfaces := 0
+	if mesh != null:
+		surfaces = mesh.get_surface_count()
+		for surface_index in surfaces:
+			materials.append(_surface_material(visual, surface_index))
+	return {
+		"batched": false,
+		"node": visual,
+		"name": String(visual.name),
+		"transform": visual.transform,
+		"local_transform": visual.transform,
+		"metadata": _metadata_of(visual),
+		"materials": materials,
+		"material_override": visual.material_override,
+		"surfaces": surfaces,
+		"visible": visual.visible,
+		"cast_shadow": int(visual.cast_shadow),
+		"gi_mode": int(visual.gi_mode),
+		"mesh": mesh,
+		"mesh_id": mesh.get_instance_id() if mesh != null else 0,
+		"mesh_retained": true,
+		"aabb": mesh.get_aabb() if mesh != null else AABB(),
+	}
+
+
+## The mesh resource authored piece `piece_name` is drawn from, or `null`.
+##
+## A `*_resource_sharing_test` compares this between two pieces exactly as it
+## used to compare `a.mesh == b.mesh`, and gets the identical answer whether
+## either piece is still a node or has been folded into a batch. `null` means
+## the piece is unknown, or that it was batched and its mesh was private to it —
+## never that sharing has quietly stopped being proven, because a mesh that was
+## shared is always retained.
+static func authored_piece_mesh(search_root: Node, piece_name: String) -> Mesh:
+	var record := find_authored_piece(search_root, piece_name)
+	if record.is_empty():
+		return null
+	return record.get("mesh", null) as Mesh
+
+
 ## Replaces N sibling renderers with one merged renderer in the same parent.
-static func _build_visual_batch(parent: Node3D, visuals: Array) -> bool:
+static func _build_visual_batch(
+		parent: Node3D,
+		visuals: Array,
+		mesh_uses: Dictionary = {}
+	) -> bool:
 	var sources: Array[MeshInstance3D] = []
 	var offsets: Array[Transform3D] = []
 	var authored_names := PackedStringArray()
+	var piece_metadata: Array[Dictionary] = []
 	for visual_variant in visuals:
 		var visual := visual_variant as MeshInstance3D
 		sources.append(visual)
 		offsets.append(visual.transform)
 		authored_names.append(String(visual.name))
+		piece_metadata.append(_metadata_of(visual))
 	var merged := _merge(sources, offsets)
 	if merged.is_empty() or _reads_as_walkable_plate(merged["mesh"] as ArrayMesh):
+		return false
+	var newly_reachable := false
+	for entry in piece_metadata:
+		if not entry.is_empty():
+			newly_reachable = true
+			break
+	if not newly_reachable:
+		for source in sources:
+			if source.mesh != null \
+					and int(mesh_uses.get(source.mesh.get_instance_id(), 0)) > 1:
+				newly_reachable = true
+				break
+	if _manufactures_standing_solid(
+			merged["mesh"] as ArrayMesh, sources, offsets, newly_reachable
+		):
 		return false
 	# The merge must be triangle-for-triangle, counted the way the production
 	# census counts: index triples where a surface is indexed, vertex triples
@@ -630,7 +987,16 @@ static func _build_visual_batch(parent: Node3D, visuals: Array) -> bool:
 	batch.set_meta(AUTHORED_NAMES_META, authored_names)
 	batch.set_meta(BATCH_META, true)
 	batch.set_meta(&"batched_source_count", visuals.size())
+	# The group's metadata is identical across every member by construction, so
+	# the batch carries it verbatim and a reader that resolves metadata off the
+	# renderer reads exactly what it read before. Seated before the batch-owned
+	# keys, which an authored key must never be able to overwrite.
+	_seat_shared_metadata(batch, piece_metadata[0] if not piece_metadata.is_empty() else {})
 	batch.set_meta(AUTHORED_CENSUS_META, _authored_census(sources))
+	batch.set_meta(
+		AUTHORED_PIECE_INDEX_META,
+		_build_piece_index(authored_names, sources, offsets, piece_metadata, mesh_uses)
+	)
 	parent.add_child(batch)
 	_apply_surface_materials(batch, merged["materials"] as Array)
 	for visual_variant in visuals:
@@ -639,6 +1005,54 @@ static func _build_visual_batch(parent: Node3D, visuals: Array) -> bool:
 		if holder != null:
 			holder.remove_child(visual)
 		visual.queue_free()
+	return true
+
+
+## A merge may be as tall as its tallest piece and no taller.
+##
+## `_reads_as_walkable_plate` refuses an aggregate that would read as a *floor*
+## to the station's route-surface discovery. This refuses the other shape the
+## same sweep blames: `tools/station_walkability_sweep.gd` reports
+## `walk_through` for any rendered piece at least `SWEEP_PIECE_HEIGHT` tall
+## standing on a walkable cell with no collider anywhere in its volume, and a
+## parked craft's interior is a walkable surface in that sweep. Ship fitout
+## carries no colliders of its own, so a stack of short fittings merged into one
+## tall bound is exactly that defect, even though the air between them is still
+## air. A merged bound taller than its own tallest source is manufacturing
+## occupancy and is refused.
+const SWEEP_PIECE_HEIGHT := 0.4
+const AGGREGATE_HEIGHT_TOLERANCE := 0.002
+
+
+static func _manufactures_standing_solid(
+		mesh: ArrayMesh,
+		sources: Array[MeshInstance3D],
+		offsets: Array[Transform3D],
+		newly_reachable: bool
+	) -> bool:
+	# Scoped to the groups this trim newly reaches. Every batch the shipped pass
+	# already formed was measured against the sweep by the trim that introduced
+	# it, and re-refusing those costs 136 nodes to re-litigate findings that
+	# were already clean. The rule exists so that *relaxing* a refusal cannot
+	# manufacture a standing solid, not to re-open settled ground.
+	if not newly_reachable:
+		return false
+	if mesh == null:
+		return false
+	var merged_height := mesh.get_aabb().size.y
+	if merged_height < SWEEP_PIECE_HEIGHT:
+		return false
+	# If any source already stood that tall, the sweep already had a piece of
+	# flaggable height here and the merge manufactures nothing. The refusal is
+	# only for a run of individually short pieces whose aggregate crosses the
+	# threshold for the first time.
+	for index in sources.size():
+		var source_mesh := sources[index].mesh
+		if source_mesh == null:
+			continue
+		if (offsets[index] * source_mesh.get_aabb()).size.y \
+				>= SWEEP_PIECE_HEIGHT - AGGREGATE_HEIGHT_TOLERANCE:
+			return false
 	return true
 
 
