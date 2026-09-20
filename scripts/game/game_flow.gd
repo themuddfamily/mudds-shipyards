@@ -690,6 +690,11 @@ var _network_boarding_server_tick := 0
 ## authority: both are erased the moment the session that granted them ends.
 var _network_client_boarding_request: Dictionary = {}
 var _network_client_boarding_claim: Dictionary = {}
+## The board request this peer stopped waiting for. An expiry does not reach
+## the ledger, so a grant can still arrive for it; this is what lets that late
+## grant be handed straight back instead of becoming a seat held forever by a
+## peer that has forgotten it asked.
+var _network_client_boarding_abandoned: Dictionary = {}
 var _network_client_boarding_sequence := 0
 ## The ledger tick this client was last answered with, which is what keeps its
 ## next request inside the authority's bounded acceptance window.
@@ -704,6 +709,7 @@ var _network_client_boarding_audit: Dictionary = {
 	"last_status": &"",
 	"last_seat_id": &"",
 	"claimed_seat_id": &"",
+	"abandoned_grants": 0,
 }
 ## What the hatch seam did with each confirmed networked boarding; see
 ## `_on_network_boarding_intent_result()`.
@@ -4034,6 +4040,11 @@ func _ensure_ember_surface_loop_host_bound(streaming_ready: bool) -> Dictionary:
 func _physics_process(delta: float) -> void:
 	if not _initialized:
 		return
+	# Client-side: the one boarding request this peer may have outstanding.
+	# Deliberately above the expedition's early return -- a request whose
+	# clock stops is a request that never expires, and a never-expiring
+	# request blocks every later press behind `boarding_request_in_flight`.
+	_advance_network_client_boarding_request(delta)
 	if _aurora_expedition.is_active():
 		_aurora_expedition.physics_tick(delta)
 		return
@@ -4052,8 +4063,6 @@ func _physics_process(delta: float) -> void:
 	# Client-side: this peer's own on-foot intent for the body the server is
 	# simulating for it, and the bounded correction of its local prediction.
 	_advance_network_remote_body_intent_stream()
-	# Client-side: the one boarding request this peer may have outstanding.
-	_advance_network_client_boarding_request(delta)
 	_advance_safe_start_recovery_physics(delta)
 	_advance_session_diagnostics_physics(delta)
 	if _caption_presentation_service != null:
@@ -7546,7 +7555,13 @@ func _board_ship(candidate: HeroShip = null) -> void:
 	# does not board itself and then tell anybody. See
 	# `_request_network_client_boarding()`.
 	if _network_client_boarding_is_live():
-		_request_network_client_boarding(candidate, candidate_area)
+		var asked := _request_network_client_boarding(candidate, candidate_area)
+		# A press that never became a request must not leave this craft's
+		# hatch reserved to a player who is not boarding it.
+		if not bool(asked.get("accepted", false)) and candidate_area != null \
+				and _boarding_area != candidate_area \
+				and _network_client_boarding_request.is_empty():
+			candidate_area.release_reservation(player)
 		return
 	_board_ship_locally(candidate, candidate_area)
 
@@ -8825,11 +8840,16 @@ func _network_client_boarding_holds(craft: HeroShip) -> bool:
 		and StringName(_network_client_boarding_claim.get("ship_id", &"")) == craft.get_ship_id()
 
 
-## Which seat this peer is asking for. A craft with no walkable interior has no
-## berth to stand in, so the only thing its hatch can offer is the pilot seat;
-## and a player already standing in a cabin who presses the seat prompt is
-## claiming the pilot role by that press. Everyone else arriving at the hatch
-## is asking for a berth, and which berth is free is the ledger's to say.
+## Which seat this peer is asking for, reached only when the ledger holds
+## nothing for it on this craft. A craft with no walkable interior has no berth
+## to stand in, so the only thing its hatch can offer is the pilot seat; and a
+## player standing unclaimed in that craft's cabin -- one who joined a session
+## while already aboard, or whose pilot seat the ledger has since released --
+## is claiming the pilot role by pressing the seat prompt. Everyone else
+## arriving at the hatch is asking for a berth, and which berth is free is the
+## ledger's to say. A peer that already holds a berth presses to leave, not to
+## be promoted: a seat swap is a second occupancy change and the ledger has no
+## atomic form of it.
 func _network_client_claims_pilot_seat(craft: HeroShip) -> bool:
 	if not craft.supports_in_flight_cabin_access():
 		return true
@@ -8951,14 +8971,24 @@ func _on_network_client_boarding_answer(result: Dictionary) -> void:
 	_network_client_boarding_server_tick = maxi(
 		0, int(result.get("server_tick", _network_client_boarding_server_tick))
 	)
+	var sequence := int(result.get("sequence", -1))
+	if _network_client_boarding_matches_abandoned(sequence, result):
+		return
 	if _network_client_boarding_request.is_empty():
 		return
-	if int(result.get("sequence", -1)) != int(_network_client_boarding_request.get("sequence", -2)):
+	if sequence != int(_network_client_boarding_request.get("sequence", -2)):
 		return
 	var status := StringName(result.get("status", &""))
 	_network_client_boarding_audit["last_status"] = status
 	if bool(result.get("accepted", false)):
 		_confirm_network_client_boarding()
+		return
+	# The authority's tick window moved under this request. The answer carried
+	# the window with it, so the same seat is worth exactly one more ask.
+	if (status == &"client_tick_too_old" or status == &"client_tick_too_far_ahead") \
+			and not bool(_network_client_boarding_request.get("restamped", false)):
+		_network_client_boarding_request["restamped"] = true
+		_send_network_client_boarding_intent()
 		return
 	if status == &"seat_occupied" and StringName(
 		_network_client_boarding_request.get("action", &"")
@@ -8967,9 +8997,58 @@ func _on_network_client_boarding_answer(result: Dictionary) -> void:
 		var seats: Array = _network_client_boarding_request.get("seats", [])
 		if next_index < seats.size():
 			_network_client_boarding_request["seat_index"] = next_index
+			_network_client_boarding_request["restamped"] = false
 			_send_network_client_boarding_intent()
 			return
 	_refuse_network_client_boarding(status)
+
+
+## A grant for a request this peer stopped waiting for. The expiry never
+## reached the ledger, so the seat is genuinely held and would otherwise stay
+## held for the life of the session by a peer that has forgotten asking --
+## and every later board of any craft would come back
+## `avatar_already_occupied`, which is final. Hand it straight back.
+func _network_client_boarding_matches_abandoned(
+	sequence: int, result: Dictionary
+) -> bool:
+	if _network_client_boarding_abandoned.is_empty() \
+			or sequence != int(_network_client_boarding_abandoned.get("sequence", -2)):
+		return false
+	var abandoned := _network_client_boarding_abandoned
+	_network_client_boarding_abandoned = {}
+	if not bool(result.get("accepted", false)):
+		return true
+	_network_client_boarding_audit["abandoned_grants"] = \
+		int(_network_client_boarding_audit.get("abandoned_grants", 0)) + 1
+	_send_network_client_boarding_release(
+		StringName(abandoned.get("ship_id", &"")),
+		StringName(abandoned.get("seat_id", &"")),
+		StringName(abandoned.get("role", &""))
+	)
+	return true
+
+
+## One unbookkept disembark, sent outside the request machinery because there
+## is no local presentation waiting on its answer. Its own answer names a
+## sequence nothing is waiting for and is therefore ignored, which is correct:
+## whether the ledger accepts it or has already released the seat, this peer
+## ends up holding nothing either way.
+func _send_network_client_boarding_release(
+	ship_id: StringName, seat_id: StringName, role: StringName
+) -> Dictionary:
+	if not _network_client_boarding_is_live() or String(ship_id).is_empty() \
+			or String(seat_id).is_empty():
+		return {"accepted": false, "status": &"no_seat_to_release"}
+	_network_client_boarding_sequence += 1
+	var intent = NetworkBoardingIntentType.create(
+		_network_client_peer_id(), network_client_boarding_avatar_id(_network_client_peer_id()),
+		ship_id, 1, StringName("frame_%s" % String(ship_id)), 1, seat_id, 1, role,
+		_network_client_boarding_sequence, _network_client_boarding_server_tick,
+		NetworkBoardingIntentType.ACTION_DISEMBARK
+	)
+	if not intent.is_valid():
+		return {"accepted": false, "status": &"invalid_boarding_intent"}
+	return network_session.send_boarding_intent(intent.to_dictionary())
 
 
 func _confirm_network_client_boarding() -> void:
@@ -9063,7 +9142,18 @@ func _return_network_client_berth(
 			],
 			2.8
 		)
-	_request_network_client_boarding(craft, area)
+	var handed_back := _request_network_client_boarding(craft, area)
+	if bool(handed_back.get("accepted", false)):
+		return
+	# The disembark could not even be sent. Better to forget a seat this peer
+	# cannot use than to keep presenting a claim on it; the host releases the
+	# occupancy with the peer when the session ends either way.
+	_network_client_boarding_claim = {}
+	_network_client_boarding_audit["claimed_seat_id"] = &""
+	if is_instance_valid(area) and area.get_reservation_token() == player:
+		area.release_reservation(player)
+	if _boarding_area == area:
+		_boarding_area = null
 
 
 ## Reverses the presentation above, and only ever on the ledger's confirmation
@@ -9126,7 +9216,13 @@ func _refuse_network_client_boarding(status: StringName) -> Dictionary:
 	_network_client_boarding_request = {}
 	var craft := request.get("craft") as HeroShip
 	var area := request.get("area") as ShipBoardingArea
-	if is_instance_valid(area) and _network_client_boarding_claim.is_empty():
+	# Release this craft's hatch unless the refusal was a refused *departure*
+	# from it -- a peer still seated aboard keeps its own reservation. Claim
+	# emptiness is the wrong test: a passenger aboard one craft can be refused
+	# at another's hatch, and that other hatch must not stay reserved.
+	var refused_ship := StringName(request.get("ship_id", &""))
+	var claimed_ship := StringName(_network_client_boarding_claim.get("ship_id", &""))
+	if is_instance_valid(area) and refused_ship != claimed_ship:
 		area.release_reservation(player)
 		if _boarding_area == area:
 			_boarding_area = null
@@ -9158,7 +9254,28 @@ func _advance_network_client_boarding_request(delta: float) -> void:
 		return
 	_network_client_boarding_audit["timeouts"] = \
 		int(_network_client_boarding_audit["timeouts"]) + 1
+	_abandon_network_client_boarding_request()
 	_refuse_network_client_boarding(&"host_did_not_answer")
+
+
+## Keeps the identity of the request being given up on, so a grant that
+## arrives for it afterwards can be recognised and handed back.
+func _abandon_network_client_boarding_request() -> void:
+	if _network_client_boarding_request.is_empty():
+		return
+	if StringName(_network_client_boarding_request.get("action", &"")) \
+			!= NetworkBoardingIntentType.ACTION_BOARD:
+		return
+	var seats: Array = _network_client_boarding_request.get("seats", [])
+	var index := int(_network_client_boarding_request.get("seat_index", 0))
+	if index < 0 or index >= seats.size():
+		return
+	_network_client_boarding_abandoned = {
+		"sequence": int(_network_client_boarding_request.get("sequence", -1)),
+		"ship_id": StringName(_network_client_boarding_request.get("ship_id", &"")),
+		"seat_id": StringName(seats[index]),
+		"role": StringName(_network_client_boarding_request.get("role", &"")),
+	}
 
 
 ## A session that ends mid-request answers nothing and confirms nothing. The
@@ -9168,6 +9285,9 @@ func _advance_network_client_boarding_request(delta: float) -> void:
 ## moving-interior retirement the session stop already runs.
 func _abort_network_client_boarding(reason: StringName) -> Dictionary:
 	var had_request := not _network_client_boarding_request.is_empty()
+	# Nothing outlives the session that granted it, so an abandoned request is
+	# forgotten here rather than chased into a session that no longer exists.
+	_network_client_boarding_abandoned = {}
 	if had_request:
 		_network_client_boarding_audit["aborts"] = \
 			int(_network_client_boarding_audit["aborts"]) + 1
@@ -9184,6 +9304,7 @@ func get_network_client_boarding_audit() -> Dictionary:
 	var audit := _network_client_boarding_audit.duplicate(true)
 	audit["request_pending"] = not _network_client_boarding_request.is_empty()
 	audit["claim"] = _network_client_boarding_claim.duplicate(true)
+	audit["abandoned"] = _network_client_boarding_abandoned.duplicate(true)
 	audit["server_tick"] = _network_client_boarding_server_tick
 	audit["sequence"] = _network_client_boarding_sequence
 	audit["presentation_only"] = true

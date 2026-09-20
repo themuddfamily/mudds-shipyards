@@ -826,6 +826,9 @@ func _boarding_intent_answer_packet(result: Dictionary, request: Dictionary) -> 
 	_boarding_answer_revision += 1
 	return {
 		"revision": _boarding_answer_revision,
+		"migration_generation": int(
+			_migration.get_snapshot().get("migration_generation", 1)
+		),
 		"server_tick": int(_boarding.get_snapshot().get("server_tick", 0)),
 		"result": {
 			"accepted": bool(result.get("accepted", false)),
@@ -848,15 +851,22 @@ func _boarding_intent_answer_packet(result: Dictionary, request: Dictionary) -> 
 func consume_boarding_intent_result(packet: Dictionary) -> Dictionary:
 	if not packet.has("revision") or not packet.has("server_tick") \
 			or not packet.get("result") is Dictionary:
-		return _remember(_result(false, &"invalid_boarding_result"))
+		return _result(false, &"invalid_boarding_result")
 	var answer := packet.get("result") as Dictionary
 	var sequence := int(answer.get("sequence", -1))
 	var status := StringName(answer.get("status", &""))
 	var revision := int(packet.get("revision", 0))
 	if sequence < 0 or String(status).is_empty() or revision <= 0:
-		return _remember(_result(false, &"invalid_boarding_result"))
+		return _result(false, &"invalid_boarding_result")
+	# Revisions are monotonic only within one authority. A host that migrated
+	# or rehosted restarts its counter, and reading those answers as stale
+	# would silently mute every boarding request for the rest of the session,
+	# so the generation is what scopes the comparison.
+	var generation := maxi(1, int(packet.get("migration_generation", 1)))
+	if generation != int(_boarding_intent_result_replica.get("migration_generation", 0)):
+		_boarding_intent_result_replica.clear()
 	if revision <= int(_boarding_intent_result_replica.get("revision", 0)):
-		return _remember(_result(false, &"stale_boarding_result"))
+		return _result(false, &"stale_boarding_result")
 	_boarding_result_server_tick = maxi(0, int(packet.get("server_tick", 0)))
 	var applied := {
 		"accepted": bool(answer.get("accepted", false)),
@@ -869,6 +879,7 @@ func consume_boarding_intent_result(packet: Dictionary) -> Dictionary:
 		"sequence": sequence,
 		"server_tick": _boarding_result_server_tick,
 		"revision": revision,
+		"migration_generation": generation,
 		"presentation_only": true,
 	}
 	_boarding_intent_result_replica = applied.duplicate(true)

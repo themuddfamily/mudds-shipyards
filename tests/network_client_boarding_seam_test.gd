@@ -81,6 +81,7 @@ func _run() -> void:
 	await _assert_the_hatch_disembark_waits_for_the_ledger()
 	await _assert_a_full_ledger_refuses_the_next_client()
 	await _assert_an_unanswered_request_times_out()
+	await _assert_an_expiry_does_not_lock_the_peer_out()
 	await _finish_client_boarding()
 
 
@@ -447,6 +448,50 @@ func _assert_an_unanswered_request_times_out() -> void:
 		and _host_body(GameFlow.network_client_boarding_avatar_id(
 			session.multiplayer.get_unique_id())) == null,
 		"no body was stood up for a request the ledger never confirmed")
+	var abandoned: Dictionary = audit.get("abandoned", {}) as Dictionary
+	_check(String(abandoned.get("seat_id", &"")).begins_with("%s_cabin_" % String(SHIP_ID))
+		and int(abandoned.get("sequence", -1)) >= 0,
+		"the expired request is remembered, so a grant that arrives for it late "
+			+ "can be handed back rather than held for ever (%s)"
+			% String(abandoned.get("seat_id", &"none")))
+
+
+# --- F. an expiry is not a life sentence ------------------------------------
+#
+# An expiry never reaches the ledger. Whatever the ledger decided, this peer
+# must still be able to board the next free berth it finds -- the failure this
+# guards against is a ledger holding an occupancy the peer has forgotten, which
+# turns every later board into the final refusal `avatar_already_occupied`.
+
+
+func _assert_an_expiry_does_not_lock_the_peer_out() -> void:
+	var game := _client_games[1]
+	var craft := _client_crafts[1] as HalyardCrewTransport
+	var client_player := _client_players[1] as PlayerController
+	var berth := GameFlow.network_cabin_berth_seat_id(SHIP_ID, 1)
+	_boarding_results.clear()
+	_send_filler_boarding(0, StringName(FILLER_ENTITIES[0]), berth, 1,
+		BoardingIntent.ACTION_DISEMBARK)
+	await _wait_until(func() -> bool: return not _boarding_results.is_empty(), 4.0)
+	_check(not _boarding_results.is_empty()
+		and _boarding_results[0].get("status") == &"disembarked",
+		"a berth is freed again for the peer whose request expired")
+	var confirmations_before := _client_confirmations(game)
+	await _press_the_hatch(game, client_player, craft)
+	var boarded := await _wait_until(
+		func() -> bool: return _client_confirmations(game) > confirmations_before, 10.0
+	)
+	var audit: Dictionary = game.get_network_client_boarding_audit()
+	_check(boarded and audit.get("last_status") == &"boarded",
+		"the peer whose request expired boards the freed berth (%s)"
+			% String(audit.get("last_status", &"none")))
+	_check(StringName(audit.get("claimed_seat_id", &"")) == berth
+		and game.phase == GameFlow.Phase.IN_FLIGHT_CABIN,
+		"it holds the berth it was granted and is presented aboard")
+	await _drive_session(6)
+	_check(_host_body(GameFlow.network_client_boarding_avatar_id(
+			game.get_network_session().multiplayer.get_unique_id())) != null,
+		"the host stands a body for the second client too")
 
 
 # --- helpers ----------------------------------------------------------------
