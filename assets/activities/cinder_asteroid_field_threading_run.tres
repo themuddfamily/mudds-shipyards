@@ -1,0 +1,14 @@
+[gd_resource type="Resource" script_class="ActivityDefinition" load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://scripts/activities/activity_definition.gd" id="1_activity"]
+[ext_resource type="Resource" path="res://assets/world/locations/cinder_reach.tres" id="2_location"]
+
+[resource]
+script = ExtResource("1_activity")
+activity_id = &"cinder_asteroid_field_threading_run"
+display_name = "Cinder belt threading run"
+activity_kind = &"checkpoint_route"
+content_note = "A finite, opt-in slalom through the starboard asteroid belt's five authored gates; the gates sit outside the belt's clear safe lane so the run is the reason to leave it, and the route records progress only, granting no rewards or vehicle authority of its own."
+location = ExtResource("2_location")
+checkpoint_positions = PackedVector3Array(329.461121, 0.765786, -296.744049, 190.252350, 1.510746, -380.404724, 351.878723, -56.569092, -396.969391, 202.549713, -63.667442, -480.881226, 361.466644, -33.510082, -515.962219)
+checkpoint_radius = 30.0

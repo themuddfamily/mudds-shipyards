@@ -1,9 +1,10 @@
-[gd_scene load_steps=5 format=3]
+[gd_scene load_steps=6 format=3]
 
 [ext_resource type="Script" path="res://scripts/world/nearby_sector_cluster.gd" id="1_cluster"]
 [ext_resource type="Script" path="res://scripts/world/nearby_sector_activity_binding.gd" id="2_binding"]
 [ext_resource type="Script" path="res://scripts/activities/cinder_convoy_escort_host.gd" id="3_convoy"]
 [ext_resource type="Script" path="res://scripts/world/abandoned_station_hulk.gd" id="4_hulk"]
+[ext_resource type="Script" path="res://scripts/world/cinder_asteroid_field.gd" id="5_asteroids"]
 
 [node name="NearbySectorCluster" type="Node3D"]
 script = ExtResource("1_cluster")
@@ -13,6 +14,9 @@ script = ExtResource("1_cluster")
 [node name="Landmarks" type="Node3D" parent="."]
 
 [node name="DebrisField" type="Node3D" parent="."]
+
+[node name="AsteroidField" type="Node3D" parent="."]
+script = ExtResource("5_asteroids")
 
 [node name="ExtractionPlatform" type="Node3D" parent="."]
 

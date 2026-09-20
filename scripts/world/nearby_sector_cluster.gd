@@ -385,12 +385,16 @@ const PERFORMANCE_BUDGET := {
 	# The abandoned station hulk adds its own 18 solid bodies, 40 meshes and 8
 	# emergency practicals inside its own component-local budget; the cluster
 	# totals below carry them because the cluster owns the whole subtree.
-	"static_bodies": 79,
+	# The starboard asteroid belt adds its 30 solid bodies here. They are the
+	# only bodies in the sector the pilot is expected to hit, and they are
+	# counted in the cluster's own budget because the cluster owns the subtree.
+	"static_bodies": 109,
 	"mesh_instances": 231,
 	# Bounded visual batches retain the debris shell, processing-spine ribs,
-	# gantry rails, race-return crown supports, and streamed aperture lenses
+	# gantry rails, race-return crown supports, streamed aperture lenses, and
+	# the belt's six shared-stock batches plus its lane and gate chevrons,
 	# without increasing gameplay or collision ownership.
-	"multimesh_instances": 17,
+	"multimesh_instances": 25,
 	"omni_lights": 34,
 	"spot_lights": 1,
 	"shadow_casting_lights": 0,
@@ -423,6 +427,7 @@ const MOONLET_CRATER_RIM_OUTER_RADIUS := 1.28
 @onready var _field_root: Node3D = get_node(^"DebrisField") as Node3D
 @onready var _platform_root: Node3D = get_node(^"ExtractionPlatform") as Node3D
 @onready var _landmark_root: Node3D = get_node(^"Landmarks") as Node3D
+@onready var _asteroid_field: CinderAsteroidField = get_node(^"AsteroidField") as CinderAsteroidField
 @onready var _hulk: AbandonedStationHulk = get_node(^"StationHulk") as AbandonedStationHulk
 @onready var _activity_binding: Node3D = get_node(^"ActivityBinding") as Node3D
 
@@ -486,6 +491,10 @@ func _exit_tree() -> void:
 		"unbind_beacon_traversal_presentation",
 		Callable(self, "_apply_beacon_traversal_activity_presentation")
 	)
+	_activity_binding.call(
+		"unbind_asteroid_field_presentation",
+		Callable(self, "_apply_asteroid_field_presentation")
+	)
 
 
 ## A deferred re-entry callback must use the state retained at execution time:
@@ -523,6 +532,12 @@ func _restore_cluster_enabled_after_reentry() -> void:
 		"bind_beacon_traversal_presentation",
 		Callable(self, "_apply_beacon_traversal_activity_presentation")
 	)
+	if is_instance_valid(_asteroid_field):
+		_activity_binding.call("bind_asteroid_field", _asteroid_field)
+	_activity_binding.call(
+		"bind_asteroid_field_presentation",
+		Callable(self, "_apply_asteroid_field_presentation")
+	)
 	set_cluster_enabled(_cluster_enabled)
 
 
@@ -548,6 +563,7 @@ func _ready() -> void:
 	)
 	_build_landmarks()
 	_build_debris_field()
+	_build_asteroid_field()
 	_build_extraction_platform()
 	_build_station_hulk()
 	_audit_report = _compose_audit_report()
@@ -2174,6 +2190,10 @@ func _compose_audit_report() -> Dictionary:
 			structure_scan_presentation.get("errors", PackedStringArray()) as PackedStringArray
 		):
 			errors.append("structure scan presentation: %s" % presentation_error)
+	var asteroid_field := get_asteroid_field_audit()
+	if not asteroid_field.is_empty() and not bool(asteroid_field.get("valid", false)):
+		for field_error in (asteroid_field.get("errors", PackedStringArray()) as PackedStringArray):
+			errors.append("asteroid field: %s" % field_error)
 	var beacon_traversal_presentation := get_beacon_traversal_presentation_audit()
 	if not bool(beacon_traversal_presentation.valid):
 		for presentation_error in (
@@ -2215,6 +2235,7 @@ func _compose_audit_report() -> Dictionary:
 		"mining_platform_presentation": mining_presentation,
 		"structure_scan_presentation": structure_scan_presentation,
 		"beacon_traversal_presentation": beacon_traversal_presentation,
+		"asteroid_field": asteroid_field,
 		"counts": counts,
 		"budget": PERFORMANCE_BUDGET.duplicate(true),
 		"errors": errors,
@@ -2228,6 +2249,8 @@ func _get_field_outer_distance() -> float:
 	var furthest := PLATFORM_ANCHOR.length()
 	for offset in _boulder_offsets:
 		furthest = maxf(furthest, (PLATFORM_ANCHOR + offset).length() + BOULDER_MAXIMUM_EXTENT)
+	if is_instance_valid(_asteroid_field):
+		furthest = maxf(furthest, _asteroid_field.get_outer_content_distance())
 	return furthest
 
 
@@ -2718,6 +2741,48 @@ func _rock_mesh(size: Vector3) -> ArrayMesh:
 	var mesh := StationSurfaceKit.rounded_box_mesh_with_bevel(size, shortest * ROCK_BEVEL_PROPORTION)
 	_rock_mesh_cache[key] = mesh
 	return mesh
+
+
+# --- Asteroid belt -----------------------------------------------------------
+
+
+## The belt is a separate component, not more boulders. It owns mass the pilot
+## has to fly around, one clear bore he can decline the whole thing through, and
+## the threading run's authored gates; the cluster only hands it the shared
+## materials and the shared rock mesh cache so belt stock and Cinder Reach
+## boulders are cut from one set of recipes.
+func _build_asteroid_field() -> void:
+	if not is_instance_valid(_asteroid_field):
+		return
+	_asteroid_field.build(_materials, _rock_mesh_cache)
+	_activity_binding.call("bind_asteroid_field", _asteroid_field)
+	_activity_binding.call(
+		"bind_asteroid_field_presentation",
+		Callable(self, "_apply_asteroid_field_presentation")
+	)
+
+
+func get_asteroid_field() -> CinderAsteroidField:
+	return _asteroid_field if is_instance_valid(_asteroid_field) else null
+
+
+func get_asteroid_field_audit() -> Dictionary:
+	return _asteroid_field.audit() if is_instance_valid(_asteroid_field) else {}
+
+
+## Presentation sink for the threading run, mounted on the cluster so the
+## activity binding publishes to one consumer whatever the belt is parented to.
+func _apply_asteroid_field_presentation(snapshot: Dictionary) -> Dictionary:
+	if not is_instance_valid(_asteroid_field):
+		return {}
+	return _asteroid_field.apply_threading_presentation(snapshot)
+
+
+func get_asteroid_field_presentation_state() -> Dictionary:
+	return (
+		_asteroid_field.get_presentation_state()
+		if is_instance_valid(_asteroid_field) else {}
+	)
 
 
 # --- Extraction platform -----------------------------------------------------
