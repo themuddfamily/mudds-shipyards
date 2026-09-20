@@ -2686,3 +2686,438 @@ This is a scene-content measurement plus a rendered-composition check. It is
 not a frame-time, GPU-time or VRAM claim, and the software/remote-display
 caveats at the top of this document still apply. **No ceiling in this
 document has been raised, and the 1,800,000 triangle ceiling is not met.**
+
+## Tenth trim (2026-09-20): the authored-piece index, -202 resident nodes
+
+Phase 10 §2's remaining overrun is the scene tree, not the triangles. Measured
+on `7e0d17f1c` with `tools/geometry_census.gd` under fresh private user data,
+the resident scene holds **10,593 scene-tree nodes against a 7,000 ceiling —
+51% over** — while triangles are 5.3% over. The eight previous trims batched
+everything that could be batched without touching an audit contract, and this
+document recorded that the next reduction "means restating the ships'
+shared-stock resource audits — a deliberate contract change, not a batching
+pass". That restatement was authorised, and it is what this pass builds.
+
+The pass takes the resident scene from **10,593 to 10,391 nodes (-202)** and
+the Cinder-loaded scene from 11,016 to 10,814, with **zero triangles moved**.
+**The node ceiling is still not met**: the scene is 3,391 nodes (48%) over it.
+The arithmetic of why the rest is not available is set out at the end, because
+the honest figure is a long way short of what the item hoped for, and — as with
+the third trim, which expected 379 nodes from `OperationalLattice` and found
+38 — the measurement of *why* is the more useful half of this entry.
+
+### The contract upgrade
+
+`AUTHORED_CENSUS_META` already let a module restate its **counts** after a
+merge. Both batchers now also carry `AUTHORED_PIECE_INDEX_META`
+(`station_dressing_batch_authored_pieces`, `ship_fitout_batch_authored_pieces`),
+which restates **identity**: one record per absorbed piece, in authored order,
+carrying the piece's authored name, its placement in the batch parent's space,
+its own metadata verbatim, its mesh's untransformed bound and surface count,
+its visibility and render state, the resolved material of every surface, and —
+conditionally — the source `Mesh` resource itself.
+`find_authored_piece(search_root, name)` answers with that record, or with the
+live node when the piece kept one, so a suite asks one question and gets the
+same answer on a batched and an unbatched build; `authored_piece_mesh()` is the
+one-line form a resource-sharing audit wants. Retaining the resource is
+*stronger* than the `mesh_resource_ids` beside it: an instance id names a
+resource that may since have been freed, a reference cannot be anything else.
+
+That index is what allows two refusals to be lifted without weakening an audit.
+
+**Shared stock.** A `*_resource_sharing_test` proves "these N pieces are drawn
+from one mesh allocation" by comparing `a.mesh == b.mesh`, and before the index
+a merge could only answer that by not happening: it frees the source renderers,
+and `a.mesh` afterwards is the merged buffer. The index hands the audit back
+the same resource, so the identity it compares is the one it always compared.
+
+**Authored metadata.** It no longer refuses a piece outright, but it constrains
+the group: `_metadata_digest()` is part of every group key, so a batch only ever
+absorbs pieces whose metadata is identical key for key *and* value for value, it
+carries that metadata verbatim onto the batch, and the index records each
+piece's own copy. A value that differs splits the group rather than being
+averaged into one. `tests/station_dressing_batch_test.gd` and
+`tests/ship_fitout_batch_test.gd` assert all of this directly — that two folded
+pieces still resolve to one retained `Mesh`, that their placements, bounds and
+finishes come back exactly, that a differing metadata value keeps its piece out
+of the group, and that a mesh only one folded piece drew is *not* retained.
+
+Retention is deliberately conditional, and that condition is what keeps the
+trade honest. A mesh only the replaced piece drew is freed exactly as before. A
+mesh that is **shared** — drawn by another renderer — is retained, and that
+costs nothing at all, because the merge never had the right to free it. The
+census proves the property rather than the intention: `unique_meshes` **falls**
+3,058 -> 2,945, and `retained_reachable_unique_materials` is **identical** at
+1,014, so the index retains nothing that was not already reachable. What the
+ship side does pay is vertex storage: merging N renderers of one cached mesh
+stores that geometry N times in the merged buffer while the original stays
+alive. That is real, it is bought deliberately for scene-tree nodes — the
+budget this scene is 51% over while its triangle count is 5% — and it is stated
+here rather than absorbed quietly.
+
+Two refusals were **added**, both found by measurement rather than by reasoning:
+
+* **`KEEP_OUT_META_KEYS`.** Until now *any* metadata refused a piece, and two
+  habitat families quietly relied on that: `habitat_spine.gd` sets a marker and
+  its comment says outright that the marker is what keeps `StationDressingBatch`
+  away. Relaxing the blanket rule folded both, and
+  `tools/station_walkability_sweep.gd` immediately reported a **twentieth**
+  `walk_through` — a 1.32 m board face merged out of 5 cm plates, reaching into
+  the standing capsule of the cells in front of it. The opt-out is now a
+  contract (`NO_BATCH_META`) instead of a side effect, and the two legacy
+  markers (`crew_berth_roster_piece`, `side_window_frame`) are honoured by name,
+  because quietly dropping an authored decision while claiming the pass weakens
+  nothing would be exactly the wrong trade.
+* **`_manufactures_standing_solid()`.** `_reads_as_walkable_plate` already
+  refuses an aggregate that would read as a *floor*; this refuses the other
+  shape the same sweep blames. A run of individually short pieces whose merged
+  bound crosses the sweep's own 0.4 m piece height for the first time is
+  refused, because the air between them is still air. It is scoped to the groups
+  this trim newly reaches: re-refusing batches the shipped pass already formed
+  costs 136 nodes to re-litigate findings that the trim which introduced them
+  already measured clean.
+
+### The roster re-grep
+
+Lifting the two refusals exposed **806 leaf names** that earlier passes never
+had to grep, because some other guard had always kept the pass out of them.
+Every one went through this roster's own criteria again, sharpened so that a
+builder naming the node it is creating is not mistaken for a consumer of it:
+the whole name resolved anywhere outside `scripts/`, or on a `scripts/` line
+that also resolves a node; a `find_child`/`find_children` glob that matches it;
+or a composed lookup where **both halves** of some split of the name are
+literals a resolving line joins. **107 names hit and are protected** (65 of them
+in both rosters, plus `DockUmbilicalHead02`/`03` added after the fact); the
+other 699 fold. Names the shipped pass already folded are excluded from the
+re-grep, because re-protecting those would *undo* nodes an earlier trim already
+banked.
+
+`*MuzzleLens` is why this re-grep exists rather than being assumed unnecessary.
+`HeroShip._ensure_weapon_component_emitters()` counts authored lenses by that
+glob and **builds two fallback spheres** when it finds fewer than two, so
+folding the Jovian's lenses silently added two nodes and 336 triangles instead
+of failing anything. The census caught it because triangles are frozen exactly;
+no suite would have.
+
+Two modules were also enrolled in `CONSOLIDATED_DRESSING_MODULES` for the first
+time — `VipReceptionSuite` and `StationDefenseEncounter`. Neither was ever
+refused on a contract; they had simply never been added. The VIP suite publishes
+a frozen render roster, so enrolling it meant **restating** that roster rather
+than refreezing it: `get_render_batch_contract()` now adds each batch's authored
+row back through `authored_render_census_delta()`, `_render_descendant_count()`
+adds `authored_node_delta()`, every published constant is unchanged, and the
+contract additionally publishes `live_mesh_instances` so the difference between
+what the module built and what the world left standing is visible rather than
+inferred. Three assertions in its own suite were restated the same way: the
+whole-module sweep's coverage threshold counts what the module allocates; the
+threshold wall and floor placements resolve through `find_authored_piece()`; and
+a solid batch's colliders are blamed on their authored pieces and additionally
+put through `solid_batch_pairing_errors()`, which asks this check's own
+question — every collider spanned by geometry drawn inside it, and no vertex
+drawn outside every collider — of the merged pair.
+
+### The numbers
+
+Measured with `tools/geometry_census.gd` under fresh private user data, before
+on `7e0d17f1c` and after on this branch. Only these six buckets move at all:
+
+| Bucket | Nodes | Renderers | Surfaces | Triangles |
+| --- | ---: | ---: | ---: | ---: |
+| `ShipyardWorld/StationDefenseEncounter` | 225 -> 151 (**-74**) | 116 -> 42 | 125 -> 65 | unchanged |
+| `ShipyardWorld/VipReceptionSuite` | 515 -> 444 (**-71**) | 237 -> 177 | 237 -> 188 | unchanged |
+| `HalyardCrewTransport` | 457 -> 427 (**-30**) | 347 -> 317 | 355 -> 340 | unchanged |
+| `JovianLightFreighter` | 601 -> 589 (**-12**) | 433 -> 421 | 460 -> 455 | unchanged |
+| `ShipyardWorld/JovianFreightBerth` | 826 -> 815 (**-11**) | 354 -> 343 | 406 -> 395 | unchanged |
+| `ZenithInterceptor` | 172 -> 168 (**-4**) | 73 -> 69 | 89 -> 86 | unchanged |
+| **Resident total** | **10,593 -> 10,391 (-202)** | **5,557 -> 5,366** | **6,000 -> 5,857** | **1,896,055 unchanged** |
+
+Everything else in the census is **identical on both sides**: 1,896,055 resident
+triangles, 341 lights of which 20 cast shadows, 54 particle systems, 711
+bound-phase and 1,014 retained materials, 7 shaders, 39 textures / 85,977,416
+bytes, 79,709 text triangles across 43 signs, and no drawn `MultiMesh` copy
+moved. `unique_meshes` falls 3,058 -> 2,945 because a merged renderer replaces
+several privately owned box meshes with one, and surfaces fall because pieces
+that shared a finish with a sibling now share one submission — a draw-call
+reduction, not lost geometry.
+
+`tests/geometry_census_scenario_test.gd` measures the same scene with its own
+fresh private user data and reads **exactly the same node count** here, which
+the previous two freezes could not say. Its six frozen literals are refreshed in
+this branch and now read:
+
+```
+GEOMETRY_CENSUS_RESIDENT_FINGERPRINT: 9394d9274d15c7b7e3ef159c4a86d25a498ab012456947131116f351f792015f
+GEOMETRY_CENSUS_RESIDENT_GEOMETRY: { "total_triangles": 1896055, "total_mesh_instances": 5366, "total_surfaces": 5857, "unique_meshes": 2945 }
+GEOMETRY_CENSUS_RESIDENT_RESOURCES: { "bound_phase_unique_materials": 711, "retained_reachable_unique_materials": 1014, "lights": 341, "nodes": 10391, "unique_shaders": 7, "unique_textures": 39, "texture_bytes": 85977416, "particle_systems": 54 }
+GEOMETRY_CENSUS_LOADED_FINGERPRINT: 2073da183f95141d6ecdc9b6f8945dbcf3696b0e7705625e68d08f7d3c0f3fcc
+GEOMETRY_CENSUS_LOADED_GEOMETRY: { "total_triangles": 2030189, "total_mesh_instances": 5575, "total_surfaces": 6066, "unique_meshes": 3085 }
+GEOMETRY_CENSUS_LOADED_RESOURCES: { "bound_phase_unique_materials": 753, "retained_reachable_unique_materials": 1061, "lights": 368, "nodes": 10814, "unique_shaders": 7, "unique_textures": 39, "texture_bytes": 85977416, "particle_systems": 54 }
+```
+
+The loaded-minus-resident Cinder delta stays +134,134 triangles, +209 renderers,
++209 surfaces, +140 unique meshes, +27 lights and +423 nodes: nothing streamed
+changed.
+
+`tests/station_triplanar_material_test.gd` is refrozen 1,937 -> 1,926 mapped
+station surfaces. The 0.22 and 0.28 scale columns do not move, no previously
+mapped surface was removed and no new scale was introduced; eleven surfaces
+that were submitted separately are submitted once by the merged renderer that
+stands in for them, at the same 0.30 m scale with the same recipe.
+
+### Probes
+
+`tools/station_walkability_sweep.gd` is **byte-identical end to end** — the same
+82 surfaces, 135,137 cells, 39,939 blocked, 19 findings,
+`invisible_blocker`/`choke`/`gap` all zero, the same per-module split and the
+same 19 blamed paths — because no collision shape moved and the two new refusals
+above exist precisely to keep it that way. The twentieth finding this pass
+produced before those refusals were added is quoted in full in the contract
+section; it is the reason they exist.
+
+`tools/coplanar_seam_audit.gd` is **not** identical, and the movement is the
+direct consequence of folding more: pieces that were two renderers presenting
+coplanar faces to each other become internal faces of one mesh.
+
+| | before | after |
+| --- | ---: | ---: |
+| reported findings | 1,334 | 1,245 |
+| coplanar pairs examined | 3,789 | 3,645 |
+| back-to-back excluded | 1,338 | 1,335 |
+| interior excluded | 45 | 45 |
+| occluded excluded | 249 | 249 |
+| declared `coplanar_by_design` | 28 | 20 |
+| families | 382 | 366 |
+| renderer placements | 5,142 | 5,035 |
+| unique meshes planed | 2,463 | 2,399 |
+
+Compared as a **set** rather than as counts, **91 findings disappear and 2 appear**. Both new ones are
+the Zenith's port and starboard muzzle bore against the airframe batch that now
+surrounds them, at screen scores 0.00107 and 0.00076 — 0.35% of the worst seam
+in the scene, whose score is **0.302121 on both sides, unchanged**. No seam class
+regressed, and the `interior` and `occluded` exclusions are identical. The
+`coplanar_by_design` declarations that no longer match are declarations whose
+*pair no longer exists*, both faces having gone into one mesh.
+
+`tools/camera_intrusion_audit.gd` reports the **same 21 finding lines and the same 31 counted
+findings** on both sides, and the **same six `camera_sphere_in_own_hull`
+findings at the same depths** against the Jovian's and the Halyard's own
+envelopes. Grouped by target, the only column that moves is the exterior target
+range: `TargetDrone01` 7 -> 9, `TargetDrone03` 5 -> 2, `TargetDrone04` 2 -> 2,
+with one `camera_sphere_in_world_collision` appearing at a single sample
+against an anonymous range body at (14.34, 0.2, -66.3), and the drone depths
+moving in the third decimal (0.800 -> 0.794, 0.641 -> 0.637, 0.537 -> 0.534).
+That is this probe's documented one-group range-drone variance and nothing
+else: no finding outside that group changed, and the byte-identical walkability
+sweep is the independent evidence that no collision body was created, removed
+or moved. `renderers` falls 5,989 -> 5,872, which is the trim.
+
+### Rendered evidence
+
+Ten fixed gameplay viewpoints, at 1280x720, on **both renderers**, covering
+every bucket this pass touches plus two controls. Camera transforms are literal
+world coordinates rather than resolved from nodes, so a folded node cannot move
+a viewpoint between the two sides of a pair, and every clock-driven
+presentation is sought to t = 0 and the tree paused before any frame is taken.
+The views are the station defence encounter's corridor, VIP reception, the
+habitat spine, the freight berth apron, the fleet dock comb, the Cinder
+expansion berths, the Halyard crew cabin, the Jovian freighter at its berth,
+the Zenith at its berth, and the operational lattice across the station — the
+last of which, plus `habitat_spine`, this pass **does not change a single node
+in**, so both read as controls.
+
+Each side was captured **twice**, so every before/after cell sits against a
+same-build repeat on *its own* side rather than against one floor borrowed from
+the other. Captures, 8x-amplified difference images and the harness
+(`.godot/node_trim_capture.gd`, untracked, modelled on `arrow_access_root.gd`)
+are under
+`/root/.cache/mudds-shipyards/agent-node-trim/captures/{fp,compat}-{before,before2,after,after2}`
+and `.../captures/diff/`. Figures are mean absolute RGB difference and the
+share of pixels whose largest channel moves by more than 8, all of 255. Both
+renderers report `llvmpipe`: the WSL d3d12 path segfaults inside
+`libnvwgf2umx.so` when Godot's GL compatibility backend loads it, so that
+renderer is captured on the software rasteriser, and Forward+ falls back to
+llvmpipe on this box regardless.
+
+#### Forward+
+
+| View | before->after mean | >8 | max | floor(before) | floor(after) |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| `fleet_dock_comb` | 0.289 | 0.975% | 96 | 0.461 (1.676%) | 0.190 (0.623%) |
+| `fleet_expansion_berths` | 0.550 | 2.068% | 122 | 0.782 (3.161%) | 0.592 (2.239%) |
+| `habitat_spine` | 0.614 | 1.954% | 93 | 0.541 (1.564%) | 0.613 (2.190%) |
+| `halyard_cabin` | 0.073 | 0.031% | 98 | 0.017 (0.025%) | 0.024 (0.033%) |
+| `jovian_freight_berth` | 0.944 | 3.667% | 214 | 0.816 (2.997%) | 0.762 (2.897%) |
+| `jovian_freighter` | 0.858 | 3.273% | 114 | 0.693 (2.561%) | 0.677 (2.539%) |
+| `operational_lattice_control` | 0.651 | 2.420% | 146 | 0.816 (3.401%) | 0.686 (2.781%) |
+| `station_defense` | 0.176 | 0.403% | 169 | 0.229 (0.486%) | 0.174 (0.372%) |
+| `vip_reception` | 0.535 | 1.719% | 173 | 0.661 (1.980%) | 0.472 (1.437%) |
+| `zenith_interceptor` | 0.954 | 3.549% | 164 | 1.524 (5.790%) | 0.678 (2.470%) |
+
+#### Compatibility
+
+| View | before->after mean | >8 | max | floor(before) | floor(after) |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| `fleet_dock_comb` | 0.046 | 0.001% | 11 | 0.040 (0.001%) | 0.021 (0.000%) |
+| `fleet_expansion_berths` | 0.041 | 0.059% | 234 | 0.067 (0.069%) | 0.018 (0.026%) |
+| `habitat_spine` | 0.018 | 0.053% | 130 | 0.002 (0.000%) | 0.001 (0.000%) |
+| `halyard_cabin` | 0.087 | 0.000% | 2 | 0.000 (0.000%) | 0.000 (0.000%) |
+| `jovian_freight_berth` | 0.489 | 1.728% | 255 | 0.185 (0.365%) | 0.065 (0.141%) |
+| `jovian_freighter` | 0.018 | 0.036% | 121 | 0.035 (0.110%) | 0.011 (0.020%) |
+| `operational_lattice_control` | 0.140 | 0.367% | 222 | 0.200 (0.314%) | 0.072 (0.175%) |
+| `station_defense` | 0.178 | 0.188% | 227 | 0.228 (0.218%) | 0.089 (0.130%) |
+| `vip_reception` | 0.958 | 1.906% | 42 | 0.705 (0.677%) | 0.710 (1.223%) |
+| `zenith_interceptor` | 0.395 | 0.038% | 75 | 0.320 (0.025%) | 0.227 (0.012%) |
+
+On **Forward+**, which the desktop build ships, **eight of the ten pairs are at
+or below the higher of their own two floors**, including both controls
+(`operational_lattice_control` 0.651 against floors of 0.816 and 0.686;
+`habitat_spine` 0.614 against 0.541 and 0.613). The two that sit above are
+`jovian_freight_berth` (0.944 against 0.816) and `jovian_freighter` (0.858
+against 0.693), each about 1.2x its own before-side floor. `halyard_cabin` is
+0.073 against a near-zero floor, three times a floor of 0.017 and 0.03% of a
+channel in absolute terms. Read as images rather than as numbers, every
+Forward+ difference — including the same-build repeats — is the identical
+pattern: a one-pixel outline on every silhouette edge in the frame, on objects
+this pass never touched as much as on the ones it did. That is the renderer's
+own edge jitter, not a geometry change; a moved, resized or missing mesh shows
+as a filled region, and none of the twenty images has one.
+
+On the **Compatibility** fallback the floors are an order of magnitude quieter,
+which makes it the discriminating renderer, and there **six of ten pairs are
+still inside their band**, including both controls. Three of the four that are
+not are small: `habitat_spine` 0.018 against 0.002 (0.007% of a channel),
+`zenith_interceptor` 0.395 against 0.320, and `halyard_cabin` 0.087 against
+0.000 with a **maximum channel movement of 2 of 255** — a uniform
+sub-threshold luminance shift whose share of pixels over 8 is exactly zero. The
+fourth, `jovian_freight_berth` at 0.489 against 0.185, is the largest number on
+the whole board and was inspected rather than averaged away: its difference
+image is a set of broad soft glows on lit surfaces — the mast, the crate stack,
+the sign face, the deck pool — plus one small service craft caught at a
+different point on its route near the top of frame. That is the per-object
+light-list reassignment this document has recorded for the Compatibility
+fallback since the second trim (a merged bound changes which eight lights reach
+an instance) together with the mover variance the ninth trim recorded.
+`vip_reception` (0.958 against 0.705) is the same effect in its purest form: a
+diffuse low-amplitude wash across the whole facade, maximum 42 of 255, with no
+silhouette outline anywhere in it.
+
+**No pair on either renderer shows missing geometry, a moved silhouette, a
+changed material or a changed placement.** Nothing was backed out.
+
+### Suites
+
+`tools/run_affected_suites.sh --jobs 2 --timeout 600` over every `station_*`,
+`ship_fitout*`, `*allocation*`, `*census*` and `*resource_sharing*` suite plus
+`habitat_spine_test`, `aft_junction_stack_test`, `central_berth_hero_test`,
+`vip_reception_suite_test`, `jovian_freight_berth_test`,
+`upper_operations_allocation_test`, `vertical_slice_test`,
+`long_session_soak_test`, `lifecycle_phantom_geometry_test`,
+`main_reentry_quality_test` and `smoke_test`: **83 suites, 4,250 pass
+assertions, zero failures, overall PASS**, with the source manifest matching
+and the import cache stable. No `*roster*` suite exists under that name; the
+freezes that glob was meant to reach live in the module suites above.
+
+All fourteen `*_resource_sharing_test` suites pass unchanged — the
+shared-stock families they prove are either still their own nodes or reachable
+through the index, and none of them had to be edited. Six suites moved and each
+one was **restated rather than relaxed**:
+
+* `station_dressing_batch_test` 30 -> 36 assertions and
+  `ship_fitout_batch_test` 23 -> 26, both gaining direct proofs of the index:
+  that two folded pieces resolve to one retained `Mesh`, that their placements,
+  bounds and finishes come back exactly, that a differing metadata value keeps
+  its piece out of the group, that the opt-out key is honoured, and that a mesh
+  only one folded piece drew is not retained.
+* `vip_reception_suite_test` 169 assertions, with the three restatements
+  described above.
+* `station_navigation_graph_test`, `station_route_registry_integration_test`
+  and `station_topology_evidence_test` went red when `FleetDockComb`'s frozen
+  renderer/batch/copy/submission roster drifted, and are green again because
+  the two umbilical heads that caused it are protected. That failure is worth
+  recording: the comb's roster is read by an *independent* registry built after
+  the dressing pass has run, so a drift there reaches three suites that never
+  mention geometry.
+* `geometry_census_scenario_test` and `station_triplanar_material_test` are
+  refrozen, as set out above.
+
+`lifecycle_phantom_geometry_test` deserves a note because it failed twice
+during this pass and passes here: its light-flash contract samples a
+time-varying series over `OpenLaunchSpine`, a bucket with **zero node delta**,
+and it fails the same way on the untouched baseline (203 of 204 assertions,
+one `reduced-flash contract` diagnostic). It is timing-sensitive, not a
+regression of this pass, and it passes in the closing run.
+
+### Why 3,391 nodes are still over, and where they are
+
+Stated plainly, because Phase 10 §2 wants 3,593 nodes and this pass delivered
+202. The arithmetic, simulated against the live tree with the pass's own
+grouping, chunking and refusal rules:
+
+* **1,481 nodes sit behind the two protected-name rosters.** A run of the same
+  rules with every protected name ignored folds 1,937; the rules as shipped
+  reach 202, and 456 more are reachable but unreached (below). Those rosters
+  hold names each of which an earlier trim proved is resolved by something — a
+  test path, a `find_children` glob, a composed lookup, a doc roster. The
+  re-grep in this pass covers the names the relaxations *newly* reach, and it is
+  deliberately **not** run over the existing entries: a sharpened grep says 56
+  of them look free, and reading them shows the grep is wrong about at least
+  `RegistryBerthTile02` (resolved by formatted name inside the pod's own render
+  contract) and `PortElevons` (composed at runtime by
+  `tests/zenith_interceptor_test.gd`). Unprotecting roster entries on a
+  heuristic that is demonstrably wrong twice in a sample of two is how a pass
+  weakens an audit by accident. Reaching those nodes means migrating each
+  consumer to `find_authored_piece()` one family at a time — which the index now
+  makes possible, and which is a per-family job rather than a sweep.
+* **`OperationalLattice` gives 55, and this pass does not take them.** This is
+  the bucket the item named and the index was built partly for it, so the
+  refusal is measured rather than assumed. Every one of those nodes is inside a
+  `StationOperationsActivity`, whose `_built_mesh_contracts_are_live()` re-checks
+  each built renderer's mesh resource id, **storage fingerprint**, class, AABB
+  and bound `material_override` at its authored path, and whose
+  `_built_presentation_hierarchy_is_live()` requires live-node-set equality by
+  instance id. The index can restate both — but only by retaining **every**
+  source mesh, not just the shared ones, because a storage fingerprint cannot be
+  computed from a freed resource. That inverts the trade the rest of this pass
+  is built on: instead of retaining nothing new and dropping 113 unique meshes,
+  the lattice would retain every source mesh *and* add a merged mesh per batch.
+  Spending mesh storage and unique-mesh count to buy 38-55 nodes is the opposite
+  of what Phase 10 §2 asks for, and
+  `tests/station_operations_activity_mesh_sharing_test.gd` freezes 66
+  submissions / 36 retained meshes / 79 drawn copies keyed by relative
+  `NodePath`, all of which would move. The remaining lattice subtrees are
+  unchanged from the third trim's measurement: `ActivityCollision` (71 nodes) is
+  collision authority, `ServiceAgents` (85) and `Ambience` (13) are script-owned
+  movers and emitters, the four `StationStructuralServiceDressing` instances
+  (177) belong to a component outside this pass's files, and 90 renderers carry a
+  hard near-camera `visibility_range_begin` guard that triggers on the
+  *instance's* bounding volume, so merging even two of them moves the distance at
+  which each disappears.
+* **The Torrent and the four range opponents give about 126, and have no
+  consolidation call at all.** `TorrentInterceptor` (62), `RangeOpponent` (18),
+  `StandoffPicket` (17), `CourierRunner` (17) and the two `WingSkirmisher` craft
+  (12 each) never run `ShipFitoutBatch`. Adding the call is a small change;
+  restating `range_opponent.gd`'s `referenced_visual_resource_identity_count`
+  allocation audit and the Torrent's imported-art roster is not, and neither was
+  in scope beside the contract work. This is the largest cheap remainder and the
+  obvious next pass.
+* **About 275 more are reachable under the rules exactly as they now stand** —
+  the Halyard's cabin (58 simulated), `CentralBerthServiceLine`'s solid runs
+  (34), `FleetExpansionProductionBinding` (33), `LandingPad` (27),
+  `HabitatSpine` (49, of which the keep-out markers correctly refuse most) and a
+  long tail. The simulation over-counts these by roughly half, because it does
+  not model the walkable-plate refusal, the triangle-parity guard,
+  `PROTECTED_FITOUT_CONTAINERS` or the keep-out markers.
+* **Everything the earlier passes already refused** stays refused: collision,
+  interaction, evidence and lifecycle authority, scripts, groups, node-driven
+  signals, children, `.tscn`-owned nodes, live script references, live
+  `PrimitiveMesh` stock the geometry-budget sweep still re-tessellates,
+  camera-distance LOD bands, the 16 m locality cap, the walkable-plate refusal
+  and the new standing-solid refusal.
+
+The resident node count is **10,391** against 7,000 and remains **48% over**.
+**The node ceiling is not met.** This is a scene-content measurement plus a
+rendered-composition check; it is not a frame-time, GPU-time or VRAM claim, and
+the software/remote-display caveats at the top of this document apply — both
+renderers here were captured on llvmpipe, because the WSL d3d12 path segfaults
+inside `libnvwgf2umx.so` when Godot's GL compatibility backend loads it. **No
+ceiling in this document has been raised.**
