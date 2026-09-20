@@ -375,16 +375,32 @@ const CABIN_PORTAL_UPRIGHT_COPY_COUNT := 4
 # and engine hardware; three hull decals share their retained visual root.
 # A further four finish meshes carry all four nacelles' cooling and service
 # hardware. Cabin fittings remain on the moving interior root.
-const RENDER_DESCENDANT_COUNT := 132
-const RENDER_MESH_INSTANCE_COUNT := 115
+#
+# Refrozen for the tenth node trim (914432dae, 7fefb7fbe). Lifting the
+# shared-stock and authored-metadata refusals lets `ShipFitoutBatch` fold
+# eighteen more exterior renderers into those finish meshes. This is the same
+# craft, drawing the same triangles at the same placements, from fewer nodes:
+# the identities and per-piece facts the folded renderers used to answer for are
+# now answered by `AUTHORED_PIECE_INDEX_META`.
+# Refrozen: the tenth node trim folds eighteen more exterior renderers.
+const RENDER_DESCENDANT_COUNT := 114
+# Refrozen: those same eighteen renderers are the MeshInstance3D nodes that went.
+const RENDER_MESH_INSTANCE_COUNT := 97
 const RENDER_MULTIMESH_BATCH_COUNT := 9
-const RENDER_DRAWN_COPY_COUNT := 201
-const RENDER_GEOMETRY_SUBMISSION_COUNT := 130
+# Refrozen: one drawn copy per folded renderer, all eighteen now drawn by a batch.
+const RENDER_DRAWN_COPY_COUNT := 183
+# Refrozen: the eighteen folded renderers submitted fifteen more surfaces than
+# the merged buffers that replaced them; every triangle is still submitted.
+const RENDER_GEOMETRY_SUBMISSION_COUNT := 115
 # The formed exterior adds one shoulder mesh. Identification ribbons follow
 # the pressure cheek profile, replacing the old shared rectangular stock.
 # Fitted canopy rails, rear bows and lined windshield jambs have distinct
 # port/starboard profiles; each jamb carries shell and liner surfaces.
-const RENDER_UNIQUE_MESH_RESOURCE_COUNT := 92
+# Refrozen: the tenth node trim's folded renderers release thirteen more meshes
+# than the merged buffers standing in for them allocate. A mesh some other
+# renderer still draws is retained by the piece index and never freed, so every
+# `*_resource_sharing_test` identity survives the drop.
+const RENDER_UNIQUE_MESH_RESOURCE_COUNT := 79
 # Includes the shared soft-exhaust ShaderMaterial installed on all four plumes.
 const RENDER_UNIQUE_MATERIAL_RESOURCE_COUNT := 18
 

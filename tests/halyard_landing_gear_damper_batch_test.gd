@@ -52,21 +52,22 @@ func _run() -> void:
 			"the batch is collision-free while the Halyard keeps its separate landing-gear collider"
 		)
 		var report := craft.call("get_halyard_render_allocation_report") as Dictionary
-		# Exterior census refreshed for the shipped formed-geometry checkpoints
-		# ending at 46b205086 (Account for Halyard formed jamb mesh and lining
-		# surfaces). The four damper copies themselves are unchanged.
+		# Refrozen for the tenth node trim (914432dae, 7fefb7fbe): lifting the
+		# shared-stock and authored-metadata refusals folds eighteen more exterior
+		# renderers into the finish meshes. The four damper copies themselves are
+		# unchanged, and this batch is not one of the groups the trim reached.
 		_check(
-			int(report.drawn_copies) == 201
-			and int(report.geometry_submissions) == 130
+			int(report.drawn_copies) == 183
+			and int(report.geometry_submissions) == 115
 			and int(report.multimesh_batches) == 9
 			and bool(report.exact_counts),
-			"the production allocation retains 201 visible copies in 130 geometry submissions"
+			"the production allocation retains 183 visible copies in 115 geometry submissions"
 		)
 		var original_visible_count := batch.multimesh.visible_instance_count
 		batch.multimesh.visible_instance_count = HalyardCrewTransport.GEAR_DAMPER_COPY_COUNT - 1
 		var mutated_report := craft.call("get_halyard_render_allocation_report") as Dictionary
 		_check(
-			int(mutated_report.drawn_copies) == 200 and not bool(mutated_report.exact_counts),
+			int(mutated_report.drawn_copies) == 182 and not bool(mutated_report.exact_counts),
 			"RED: hiding one damper copy is rejected by the frozen render allocation"
 		)
 		batch.multimesh.visible_instance_count = original_visible_count

@@ -77,13 +77,13 @@ func _run() -> void:
 			and int(interior.get("passenger_seat_count", 0)) == 6,
 		"boarding markers, moving cabin support, and all six crew seats remain available"
 	)
-	# Exterior copy/batch totals refreshed for the shipped formed-geometry
-	# checkpoints ending at 46b205086 (Account for Halyard formed jamb mesh and
-	# lining surfaces); the nosing batch itself is unchanged.
+	# Refrozen for the tenth node trim (914432dae, 7fefb7fbe): lifting the
+	# shared-stock and authored-metadata refusals folds eighteen more exterior
+	# renderers into the finish meshes; the nosing batch itself is unchanged.
 	_check(
 		bool(audit.get("valid", false))
 			and bool(allocation.get("exact_counts", false))
-			and int(allocation.get("drawn_copies", -1)) == 201
+			and int(allocation.get("drawn_copies", -1)) == 183
 			and int(allocation.get("multimesh_batches", -1)) == 9,
 		"the complete Halyard audit accepts the visual-only four-copy addition"
 	)

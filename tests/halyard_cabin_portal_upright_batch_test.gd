@@ -80,16 +80,17 @@ func _run() -> void:
 	)
 
 	var report := craft.get_halyard_render_allocation_report()
-	# Exterior census refreshed for the shipped formed-geometry checkpoints
-	# ending at 46b205086 (Account for Halyard formed jamb mesh and lining
-	# surfaces). HalyardCrewTransport.RENDER_* holds the same frozen roster.
+	# Refrozen for the tenth node trim (914432dae, 7fefb7fbe): lifting the
+	# shared-stock and authored-metadata refusals folds eighteen more exterior
+	# renderers into the finish meshes. Same triangles, same placements, fewer
+	# nodes. HalyardCrewTransport.RENDER_* holds the same frozen roster.
 	_check(
-		int(report.get("descendant_nodes", -1)) == 132
-			and int(report.get("mesh_instances", -1)) == 115
+		int(report.get("descendant_nodes", -1)) == 114
+			and int(report.get("mesh_instances", -1)) == 97
 			and int(report.get("multimesh_batches", -1)) == 9
-			and int(report.get("drawn_copies", -1)) == 201
-			and int(report.get("geometry_submissions", -1)) == 130
-			and int(report.get("unique_mesh_resources", -1)) == 92
+			and int(report.get("drawn_copies", -1)) == 183
+			and int(report.get("geometry_submissions", -1)) == 115
+			and int(report.get("unique_mesh_resources", -1)) == 79
 			and bool(report.get("exact_counts", false)),
 		"the separate exterior allocation freeze remains exact"
 	)

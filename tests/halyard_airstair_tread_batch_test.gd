@@ -68,16 +68,17 @@ func _run() -> void:
 	)
 
 	var render := craft.get_halyard_render_allocation_report()
-	# Exterior census refreshed for the shipped formed-geometry checkpoints
-	# ending at 46b205086 (Account for Halyard formed jamb mesh and lining
-	# surfaces). HalyardCrewTransport.RENDER_* holds the same frozen roster.
+	# Refrozen for the tenth node trim (914432dae, 7fefb7fbe): lifting the
+	# shared-stock and authored-metadata refusals folds eighteen more exterior
+	# renderers into the finish meshes. Same triangles, same placements, fewer
+	# nodes. HalyardCrewTransport.RENDER_* holds the same frozen roster.
 	_check(
-		int(render.get("mesh_instances", -1)) == 115
+		int(render.get("mesh_instances", -1)) == 97
 			and int(render.get("multimesh_batches", -1)) == 9
-			and int(render.get("drawn_copies", -1)) == 201
-			and int(render.get("geometry_submissions", -1)) == 130
+			and int(render.get("drawn_copies", -1)) == 183
+			and int(render.get("geometry_submissions", -1)) == 115
 			and bool(render.get("exact_counts", false)),
-		"the exact current exterior snapshot keeps all 201 copies across 130 submissions"
+		"the exact current exterior snapshot keeps all 183 copies across 115 submissions"
 	)
 	var full_counts := _render_counts(craft)
 	# The tread family's original 269->266 reduction remains pinned by its exact
