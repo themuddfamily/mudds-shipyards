@@ -117,13 +117,13 @@ func present(snapshot: Dictionary, reduced_motion: bool = false) -> Dictionary:
 				if not prompt.is_empty():
 					lines.append(prompt)
 		else:
+			var checkpoint_count := maxi(
+				1, int(in_hand.get("checkpoint_count", 1))
+			)
 			var progress_line := "EXPEDITION  [>]  %s  //  CHECKPOINT %d OF %d" % [
 				str(in_hand.get("label", "CALDERA ERRAND")),
-				mini(
-					int(in_hand.get("checkpoints_reached", 0)) + 1,
-					maxi(1, int(in_hand.get("checkpoint_count", 1))),
-				),
-				maxi(1, int(in_hand.get("checkpoint_count", 1))),
+				mini(int(in_hand.get("checkpoints_reached", 0)) + 1, checkpoint_count),
+				checkpoint_count,
 			]
 			var leg_distance := float(in_hand.get("distance_m", -1.0))
 			if is_finite(leg_distance) and leg_distance >= 0.0:
@@ -465,7 +465,7 @@ func _optional_surface_objectives(
 ## Makes the two authored caldera errands legible from the retained surface
 ## card: how many are logged, which one is in hand and how far its next
 ## checkpoint is, or which one is being offered underfoot. Everything is read
-## from the authenticated detached errand snapshot and the offer points''' own
+## from the authenticated detached errand snapshot and the offer points' own
 ## fresh reports; this view can neither start, advance nor pay an errand.
 func _caldera_expeditions(
 		host: Dictionary, binding: Dictionary, state: StringName

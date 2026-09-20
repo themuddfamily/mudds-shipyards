@@ -212,14 +212,14 @@ func reenter(next_attachment_generation: int) -> Dictionary:
 	return _result(true, &"expedition_interaction_reentered")
 
 
-## Re-reads the authored trailhead out of the live region frame. It only ever
-## writes this node's own transform, and only from an authored constant.
 func _is_anchored() -> bool:
 	return is_instance_valid(_region_anchor) \
 		and _region_anchor.get_instance_id() == _region_anchor_instance_id \
 		and _region_anchor.is_inside_tree()
 
 
+## Re-reads the authored trailhead out of the live region frame. It only ever
+## writes this node's own transform, and only from an authored constant.
 func _anchor_to_region() -> bool:
 	if not _is_anchored() or not is_inside_tree():
 		return false
