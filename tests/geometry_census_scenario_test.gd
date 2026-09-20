@@ -198,8 +198,30 @@ const MAIN_SCENE := preload("res://scenes/main.tscn")
 # No renderer, unique mesh, light, node, shader or particle system moves: the
 # tote's AABB is the slab's, one mesh per size is shared through the berth's
 # crate cache and the finishes are per-instance surface overrides.
-const RESIDENT_FINGERPRINT := "eef8eb2feecf796e599b0c9ca2ed229ceb3a180f06f526ed14ba97fe0cbfed0f"
-const CINDER_LOADED_FINGERPRINT := "5b25276d5a67a50837b14acbf0219e0c8b3a249d4d8af0c10112bd0e237272b9"
+# Refrozen 2026-09-20 for the station-operations half of FREIGHT-CRATE-001: the
+# thirteen palletised `Crate*` boxes in
+# `scripts/world/station_operations_activity_presentation_builder.gd` — nineteen
+# instances across the one short cargo line, the two 21.6 m cargo lines and the
+# crew work post — stopped being teal and orange slabs and became the same
+# moulded stores totes as the freight berth's. Measured from the suite's own
+# printed lines, identical in both scenarios:
+#
+#   +11,220 triangles  (eight strapped totes at 948 and eleven lidded at 684,
+#                       less the nineteen 60-triangle slabs they replace)
+#   +38 surfaces       (shell, trim and plate instead of one painted box)
+#   +5 bound / +5 retained materials (three tote shells, one shared trim and
+#                       one shared stores plate, added to the activity's shared
+#                       22-entry catalog)
+#
+# Renderers (5,557 / 5,766), unique meshes (3,058 / 3,198), lights (341 / 368),
+# nodes (10,593 / 11,016), shaders (7), textures (39 / 85,977,416 bytes) and
+# particle systems (54) are all unchanged, and every loaded-minus-resident delta
+# is untouched. The tote's AABB is the slab's, one shell is retained per
+# (size, strapped) recipe and shared across placements by the activity's own
+# fingerprint cache, the `freight-tote` plate already existed, and the finishes
+# arrive as per-instance surface overrides.
+const RESIDENT_FINGERPRINT := "a0181078eadd734967a17c133b0b606af26dabc38ac52d170c66db6760107580"
+const CINDER_LOADED_FINGERPRINT := "f36addae58a578016942786707003945828855375e6724d03864c49f5635ee1e"
 
 var _assertions := 0
 var _failures := PackedStringArray()
@@ -249,18 +271,18 @@ func _run() -> void:
 		"resident report freezes schema, scenario identity, and exact loaded count"
 	)
 	_check(
-		int(resident.get("total_triangles", -1)) == 1896055
+		int(resident.get("total_triangles", -1)) == 1907275
 			and int(resident.get("total_mesh_instances", -1)) == 5557
-			and int(resident.get("total_surfaces", -1)) == 6000
+			and int(resident.get("total_surfaces", -1)) == 6038
 			and int(resident.get("unique_meshes", -1)) == 3058,
-		"resident geometry freezes 1,896,055 triangles / 5,557 meshes / 6,000 surfaces / 3,058 unique meshes"
+		"resident geometry freezes 1,907,275 triangles / 5,557 meshes / 6,038 surfaces / 3,058 unique meshes"
 	)
 	_check(
-		int(resident.get("bound_phase_unique_materials", -1)) == 711
-			and int(resident.get("retained_reachable_unique_materials", -1)) == 1014
+		int(resident.get("bound_phase_unique_materials", -1)) == 716
+			and int(resident.get("retained_reachable_unique_materials", -1)) == 1019
 			and int(resident.get("lights", -1)) == 341
 			and int(resident.get("nodes", -1)) == 10593,
-		"resident resource roster freezes 711 bound / 1,014 retained materials, 341 lights, and 10,593 nodes"
+		"resident resource roster freezes 716 bound / 1,019 retained materials, 341 lights, and 10,593 nodes"
 	)
 	_check(
 		str(resident.get("measurement_fingerprint", "")) == RESIDENT_FINGERPRINT,
@@ -317,18 +339,18 @@ func _run() -> void:
 		"loaded report freezes destination identity and one committed generation"
 	)
 	_check(
-		int(loaded.get("total_triangles", -1)) == 2030189
+		int(loaded.get("total_triangles", -1)) == 2041409
 			and int(loaded.get("total_mesh_instances", -1)) == 5766
-			and int(loaded.get("total_surfaces", -1)) == 6209
+			and int(loaded.get("total_surfaces", -1)) == 6247
 			and int(loaded.get("unique_meshes", -1)) == 3198,
-		"loaded geometry freezes 2,030,189 triangles / 5,766 meshes / 6,209 surfaces / 3,198 unique meshes"
+		"loaded geometry freezes 2,041,409 triangles / 5,766 meshes / 6,247 surfaces / 3,198 unique meshes"
 	)
 	_check(
-		int(loaded.get("bound_phase_unique_materials", -1)) == 753
-			and int(loaded.get("retained_reachable_unique_materials", -1)) == 1061
+		int(loaded.get("bound_phase_unique_materials", -1)) == 758
+			and int(loaded.get("retained_reachable_unique_materials", -1)) == 1066
 			and int(loaded.get("lights", -1)) == 368
 			and int(loaded.get("nodes", -1)) == 11016,
-		"loaded resource roster freezes 753 bound / 1,061 retained materials, 368 lights, and 11,016 nodes"
+		"loaded resource roster freezes 758 bound / 1,066 retained materials, 368 lights, and 11,016 nodes"
 	)
 	var cinder_bucket := (loaded.get("buckets", {}) as Dictionary).get(
 		"CinderStreamingBootstrap", {}

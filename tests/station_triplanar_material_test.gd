@@ -697,12 +697,20 @@ func _test_live_station_coverage(
 	# `FreightCrateKit`, at the same 0.30 m scale. 10 x 1 = 10. The stencilled
 	# stores plate stays outside the family for the same reason the container
 	# data plate does.
+	#
+	# Re-frozen 1937/45/643/1249 -> 1956/45/643/1268 by the station-operations
+	# half of FREIGHT-CRATE-001: the nineteen palletised `Crate*` instances on
+	# the three cargo lines and the crew work post each bound one mapped surface
+	# as a teal or orange slab and now bind two — moulded shell and polymer trim
+	# — from the same `FreightCrateKit` recipes, at the same 0.30 m scale.
+	# 19 x 1 = 19. Their stencilled stores plate stays outside the family for the
+	# reason the berth's does, and the 0.22 and 0.28 columns do not move.
 	_check(
-		mapped_surface_count == 1937
+		mapped_surface_count == 1956
 		and scale_022_count == 45
 		and scale_028_count == 643
-		and scale_030_count == 1249,
-		"live static station binds exactly 1937 ordinary mapped surfaces with all seven couriers dispatched"
+		and scale_030_count == 1268,
+		"live static station binds exactly 1956 ordinary mapped surfaces with all seven couriers dispatched"
 	)
 	_check(exact_recipe, "every mapped station surface uses the matched world-triplanar albedo/normal/roughness recipe")
 	_check(forbidden_ship_atlas_count == 0, "no live station surface reuses the Arrow or Jovian directional ship atlases")

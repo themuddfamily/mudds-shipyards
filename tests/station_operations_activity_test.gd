@@ -82,8 +82,11 @@ func _run() -> void:
 	_check_gantry_rail_fastener_batch(activity, false)
 	_check_gantry_guide_wheel_batch(activity)
 	_check_gantry_rail_face_batch(activity)
+	# 17 -> 22 by FREIGHT-CRATE-001: three stores-tote shells plus one shared
+	# trim and one shared stores plate. The catalog is still counted once for
+	# all six placements, which is what this assertion is about.
 	_check(
-		int((activity.get_performance_audit(6).aggregate_counts as Dictionary).unique_materials) == 17,
+		int((activity.get_performance_audit(6).aggregate_counts as Dictionary).unique_materials) == 22,
 		"aggregate performance audit counts the shared catalog once across six placements"
 	)
 
@@ -260,13 +263,15 @@ func _run() -> void:
 	_check(
 		bool(roster_catalog.valid)
 		and bool(roster_catalog.catalog_shared)
-		and int(roster_catalog.catalog_entries) == 17
-		and int(roster_catalog.retained_unique_materials) == 17,
-		"ten placements retain one shared 17-entry material catalog instead of 170 duplicate resources"
+		and int(roster_catalog.catalog_entries) == 22
+		and int(roster_catalog.retained_unique_materials) == 22,
+		"ten placements retain one shared 22-entry material catalog instead of 220 duplicate resources"
 	)
 	_check(
 		(full_catalog.catalog_keys as PackedStringArray) == PackedStringArray([
-			"amber_dim", "amber_lit", "ceramic", "crate", "crate_alt", "cyan_dim",
+			"amber_dim", "amber_lit", "ceramic", "crate", "crate_alt",
+			"crate_stencil", "crate_stores_olive", "crate_stores_plum",
+			"crate_stores_stone", "crate_trim", "cyan_dim",
 			"cyan_lit", "frame", "frame_edge", "graphite", "green_dim", "green_lit",
 			"orange", "red_dim", "red_lit", "rubber", "sign_lit",
 		]),
@@ -1609,10 +1614,17 @@ func _check_fixed_shell_shadow_batch(activity: StationOperationsActivity) -> voi
 			expected_families = {"FootPad": 4, "Column": 4, "ColumnEdge": 4, "OverheadRail": 2, "BridgeBeam": 1}
 		StationOperationsActivity.ActivityProfile.CARGO_LINE:
 			assembly_name = "CargoTransferLine"
-			expected_families = {"RailBeam": 2, "RailStop": 2, "PalletDeckPort": 1, "CrateLower": 1, "CrateLowerAlt": 1, "CrateUpper": 1, "CrateManifest": 1, "PalletDeckStarboard": 1, "CrateOutbound": 1, "CrateOutboundSmall": 1, "HoistPost": 2, "HoistBeam": 1, "ControlPedestal": 1, "ControlHousing": 1}
+			# FREIGHT-CRATE-001: the five palletised totes left this roster. A
+			# `FreightCrateKit` shell is three surfaces and `StaticShadowBatch`
+			# merges single-surface sources only, so each tote keeps its own
+			# `SHADOW_CASTING_SETTING_ON` renderer and is covered below by the
+			# excluded-branch check instead.
+			expected_families = {"RailBeam": 2, "RailStop": 2, "PalletDeckPort": 1, "CrateManifest": 1, "PalletDeckStarboard": 1, "HoistPost": 2, "HoistBeam": 1, "ControlPedestal": 1, "ControlHousing": 1}
 		StationOperationsActivity.ActivityProfile.CARGO_LINE_LONG:
 			assembly_name = "LongCargoTransferLine"
-			expected_families = {"RailBeam": 2, "RailStop": 2, "HoistPost": 4, "HoistRail": 2, "PalletDeckInbound": 1, "CrateInboundPort": 1, "CrateInboundStarboard": 1, "CrateInboundTop": 1, "CrateManifest": 1, "PalletDeckOutbound": 1, "CrateOutboundPort": 1, "CrateOutboundStarboard": 1, "CrateOutboundTop": 1, "ControlPedestal": 1, "ControlHousing": 1}
+			# FREIGHT-CRATE-001: as on the short line, the six totes are no
+			# longer merged sources and cast through their own renderers.
+			expected_families = {"RailBeam": 2, "RailStop": 2, "HoistPost": 4, "HoistRail": 2, "PalletDeckInbound": 1, "CrateManifest": 1, "PalletDeckOutbound": 1, "ControlPedestal": 1, "ControlHousing": 1}
 		_:
 			_check(activity.find_children("OpaqueEnvelopeShadowBatch", "MeshInstance3D", true, false).is_empty(), "unrelated profiles gain no shadow batch")
 			return

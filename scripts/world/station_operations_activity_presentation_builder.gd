@@ -8,6 +8,24 @@ extends RefCounted
 
 const StaticShadowBatch = preload("res://scripts/world/static_shadow_batch.gd")
 
+## The physical scale this module's mapped panel family samples the station
+## plate at. `_apply_station_panel_family()` has always used it; the crate
+## finishes name it so the totes built here and the totes built by the Jovian
+## freight berth (`JovianFreightBerth.PANEL_SURFACE_SCALE`) sample one grain.
+const PANEL_SURFACE_SCALE := 0.30
+
+## Catalog keys for the shared stores-tote finish (FREIGHT-CRATE-001, Phase 10
+## §3). Three moulded shells in the kit's own `FINISHES` order, plus the one
+## dark trim and the one stencilled stores plate every finish shares — the trim
+## and the plate are what make three finishes one family, here and at the berth.
+const CRATE_SHELL_MATERIAL_KEYS: Array[String] = [
+	"crate_stores_olive",
+	"crate_stores_plum",
+	"crate_stores_stone",
+]
+const CRATE_TRIM_MATERIAL_KEY := "crate_trim"
+const CRATE_STENCIL_MATERIAL_KEY := "crate_stencil"
+
 const PROFILE_FULL: StringName = &"full"
 const PROFILE_GANTRY: StringName = &"gantry"
 const PROFILE_SERVICE_ARM: StringName = &"service_arm"
@@ -87,6 +105,7 @@ var _station_life_lens_specs: Array[Dictionary] = []
 var _multimesh_batch_transforms: Dictionary = {}
 var _rounded_box_cache: Dictionary = {}
 var _chamfered_cylinder_cache: Dictionary = {}
+var _crate_mesh_cache: Dictionary = {}
 
 # Every production profile carries the same four childless beacon pedestals.
 # Per-builder cylinder caches already collapse the four local copies to one mesh,
@@ -205,12 +224,39 @@ func _create_materials() -> void:
 	# Station-life additions. The two crate colours are painted container steel
 	# and join the mapped panel family below; the green pair and the sign face are
 	# lit cues and deliberately stay flat, exactly as the amber/cyan/red pairs do.
+	#
+	# `crate` / `crate_alt` are now the *sled container's* steel — the powered
+	# sled body and its two formed ribs, which really are a small container. The
+	# thirteen palletised `Crate*` boxes that used to borrow them are stores
+	# totes in the five shared `FreightCrateKit` recipes below.
 	_materials["crate"] = _material(Color("2f6f63"), 0.44, 0.46)
 	_materials["crate_alt"] = _material(Color("a8552f"), 0.4, 0.5)
+	_add_crate_finishes()
 	_materials["green_dim"] = _material(Color("2c5f3a"), 0.2, 0.42, Color("1f7a3c"), 0.2)
 	_materials["green_lit"] = _material(Color("8ef2a8"), 0.1, 0.3, Color("34d566"), 1.5)
 	_materials["sign_lit"] = _material(Color("e8f2ef"), 0.08, 0.28, Color("cfe6df"), 1.15)
 	_apply_station_panel_family()
+
+
+## The shared stores-tote finish (FREIGHT-CRATE-001, Phase 10 §3).
+##
+## The station's small freight now reads as one object class wherever a player
+## meets it: the same three moulded-polymer shells, the same dark batten/rail
+## trim and the same `freight-tote` stores plate the Jovian freight berth's ten
+## crates carry. `FreightCrateKit.shell_material()` and `trim_material()` apply
+## `StationSurfaceKit.apply_panel_triplanar()` at this module's own 0.30 m
+## scale, so these five join the mapped panel family exactly as the keys in
+## `_apply_station_panel_family()` do and are deliberately not re-processed by
+## it. The plate stays outside the family for the reason every printed legend
+## does: projecting world-triplanar station grain through it would stamp plate
+## over the lettering.
+func _add_crate_finishes() -> void:
+	for finish_index in CRATE_SHELL_MATERIAL_KEYS.size():
+		_materials[CRATE_SHELL_MATERIAL_KEYS[finish_index]] = FreightCrateKit.shell_material(
+			FreightCrateKit.finish_color(finish_index), PANEL_SURFACE_SCALE
+		)
+	_materials[CRATE_TRIM_MATERIAL_KEY] = FreightCrateKit.trim_material(PANEL_SURFACE_SCALE)
+	_materials[CRATE_STENCIL_MATERIAL_KEY] = FreightCrateKit.stencil_material()
 
 
 ## Use the station's shared manufactured grain on equipment and cargo. Actual
@@ -449,15 +495,20 @@ func _build_cargo_transfer_line() -> void:
 	for x_side in [-1.0, 1.0]:
 		shadow_sources.append(_box(line, "RailStop", Vector3(x_side * 4.34, 0.26, 0.0), Vector3(0.24, 0.52, 1.7), _materials["orange"]))
 
+	# FREIGHT-CRATE-001 (Phase 10 §3): the five palletised boxes on this line are
+	# stores totes in the shared `FreightCrateKit` finish rather than teal and
+	# orange slabs, with adjacent totes in different finishes. The two crates
+	# under `CrateUpper` carry a load and so take the unstrapped lid-seam
+	# variant. Positions, sizes and authored solid volumes are unchanged.
 	shadow_sources.append(_box(line, "PalletDeckPort", Vector3(-2.9, 0.09, 1.85), Vector3(2.3, 0.18, 1.25), _materials["graphite"]))
-	shadow_sources.append(_box(line, "CrateLower", Vector3(-3.4, 0.55, 1.85), Vector3(1.05, 0.74, 1.0), _materials["crate"]))
-	shadow_sources.append(_box(line, "CrateLowerAlt", Vector3(-2.35, 0.55, 1.85), Vector3(0.95, 0.74, 1.0), _materials["crate_alt"]))
-	shadow_sources.append(_box(line, "CrateUpper", Vector3(-2.9, 1.24, 1.85), Vector3(1.5, 0.64, 1.05), _materials["crate"]))
+	_crate(line, "CrateLower", Vector3(-3.4, 0.55, 1.85), Vector3(1.05, 0.74, 1.0), 0, false)
+	_crate(line, "CrateLowerAlt", Vector3(-2.35, 0.55, 1.85), Vector3(0.95, 0.74, 1.0), 1, false)
+	_crate(line, "CrateUpper", Vector3(-2.9, 1.24, 1.85), Vector3(1.5, 0.64, 1.05), 2, true)
 	shadow_sources.append(_box(line, "CrateManifest", Vector3(-2.9, 1.3, 1.33), Vector3(0.62, 0.2, 0.04), _materials["sign_lit"]))
 
 	shadow_sources.append(_box(line, "PalletDeckStarboard", Vector3(3.0, 0.09, -1.9), Vector3(2.0, 0.18, 1.2), _materials["graphite"]))
-	shadow_sources.append(_box(line, "CrateOutbound", Vector3(2.65, 0.52, -1.9), Vector3(1.1, 0.68, 0.98), _materials["crate_alt"]))
-	shadow_sources.append(_box(line, "CrateOutboundSmall", Vector3(3.62, 0.44, -1.9), Vector3(0.7, 0.52, 0.8), _materials["crate"]))
+	_crate(line, "CrateOutbound", Vector3(2.65, 0.52, -1.9), Vector3(1.1, 0.68, 0.98), 1, true)
+	_crate(line, "CrateOutboundSmall", Vector3(3.62, 0.44, -1.9), Vector3(0.7, 0.52, 0.8), 2, true)
 
 	var band_transforms: Array[Transform3D] = []
 	for z_side in [-1.0, 1.0]:
@@ -473,6 +524,13 @@ func _build_cargo_transfer_line() -> void:
 	# Only the constructor-owned fixed shell casts through this batch. Colour
 	# nodes retain their materials and solid-volume anchors; movers, existing
 	# MultiMeshes and pulsing readouts keep their own shadow/lifecycle behavior.
+	#
+	# The stores totes are deliberately not in this roster. `StaticShadowBatch`
+	# merges exactly one surface per source and refuses the whole assembly
+	# otherwise, and a tote is three surfaces because it is three finishes on one
+	# object. They therefore keep their own `SHADOW_CASTING_SETTING_ON` renderers,
+	# exactly as the freight berth's ten totes do; the silhouette a player sees is
+	# the real crate rather than the merged envelope's stand-in for it.
 	StaticShadowBatch.build(line, shadow_sources)
 
 	var sled := _add_station_life_mover(line, "AnimatedCargoSled")
@@ -574,16 +632,21 @@ func _build_long_cargo_transfer_line() -> void:
 	# are 0.8 m deep and set at z = +/-1.30, which leaves the sled's 1.5 m body a
 	# 0.15 m lane past them; at 0.95 m deep the sled's container clipped the
 	# manifest plate by a centimetre on every pass.
+	# FREIGHT-CRATE-001 (Phase 10 §3), as on the short line: six stores totes in
+	# the shared crate finish, adjacent totes in different finishes, and the four
+	# crates carrying a top crate in the unstrapped lid-seam variant. The three
+	# 1.0 × 0.72 × 0.8 m unstrapped totes share one shell the way the three
+	# equally-sized slabs they replace shared one chamfered box.
 	shadow_sources.append(_box(line, "PalletDeckInbound", Vector3(-8.6, 0.09, 1.3), Vector3(3.2, 0.18, 0.8), _materials["graphite"]))
-	shadow_sources.append(_box(line, "CrateInboundPort", Vector3(-9.5, 0.54, 1.3), Vector3(1.0, 0.72, 0.8), _materials["crate"]))
-	shadow_sources.append(_box(line, "CrateInboundStarboard", Vector3(-7.9, 0.54, 1.3), Vector3(1.0, 0.72, 0.8), _materials["crate_alt"]))
-	shadow_sources.append(_box(line, "CrateInboundTop", Vector3(-8.7, 1.19, 1.3), Vector3(1.5, 0.6, 0.8), _materials["crate"]))
+	_crate(line, "CrateInboundPort", Vector3(-9.5, 0.54, 1.3), Vector3(1.0, 0.72, 0.8), 0, false)
+	_crate(line, "CrateInboundStarboard", Vector3(-7.9, 0.54, 1.3), Vector3(1.0, 0.72, 0.8), 1, false)
+	_crate(line, "CrateInboundTop", Vector3(-8.7, 1.19, 1.3), Vector3(1.5, 0.6, 0.8), 2, true)
 	shadow_sources.append(_box(line, "CrateManifest", Vector3(-8.7, 1.25, 0.88), Vector3(0.62, 0.2, 0.04), _materials["sign_lit"]))
 
 	shadow_sources.append(_box(line, "PalletDeckOutbound", Vector3(8.2, 0.09, -1.3), Vector3(2.8, 0.18, 0.8), _materials["graphite"]))
-	shadow_sources.append(_box(line, "CrateOutboundPort", Vector3(7.5, 0.54, -1.3), Vector3(0.9, 0.72, 0.8), _materials["crate_alt"]))
-	shadow_sources.append(_box(line, "CrateOutboundStarboard", Vector3(8.9, 0.54, -1.3), Vector3(1.0, 0.72, 0.8), _materials["crate"]))
-	shadow_sources.append(_box(line, "CrateOutboundTop", Vector3(8.2, 1.19, -1.3), Vector3(1.3, 0.6, 0.8), _materials["crate_alt"]))
+	_crate(line, "CrateOutboundPort", Vector3(7.5, 0.54, -1.3), Vector3(0.9, 0.72, 0.8), 2, false)
+	_crate(line, "CrateOutboundStarboard", Vector3(8.9, 0.54, -1.3), Vector3(1.0, 0.72, 0.8), 0, false)
+	_crate(line, "CrateOutboundTop", Vector3(8.2, 1.19, -1.3), Vector3(1.3, 0.6, 0.8), 1, true)
 
 	# Mid-run, on the apron side. Every outboard position collided with something
 	# that has to be there: at x = -11.0 with the corner beacon, at x = -10.2 with
@@ -595,6 +658,13 @@ func _build_long_cargo_transfer_line() -> void:
 	# Only the constructor-owned fixed shell casts through this batch. Colour
 	# nodes retain their materials and solid-volume anchors; movers, existing
 	# MultiMeshes and pulsing readouts keep their own shadow/lifecycle behavior.
+	#
+	# The stores totes are deliberately not in this roster. `StaticShadowBatch`
+	# merges exactly one surface per source and refuses the whole assembly
+	# otherwise, and a tote is three surfaces because it is three finishes on one
+	# object. They therefore keep their own `SHADOW_CASTING_SETTING_ON` renderers,
+	# exactly as the freight berth's ten totes do; the silhouette a player sees is
+	# the real crate rather than the merged envelope's stand-in for it.
 	StaticShadowBatch.build(line, shadow_sources)
 
 	var sled := _add_station_life_mover(line, "AnimatedLongCargoSled")
@@ -830,8 +900,11 @@ func _build_crew_work_post() -> void:
 	for z_side in [-1.0, 1.0]:
 		_cylinder(post, "DrumFlange", Vector3(1.95, 0.52, 0.7 + z_side * 0.28), 0.5, 0.06, _materials["frame_edge"], Vector3(90, 0, 0))
 
-	_box(post, "SupplyCrate", Vector3(2.15, 0.34, -0.55), Vector3(1.0, 0.68, 0.9), _materials["crate"])
-	_box(post, "SupplyCrateTop", Vector3(2.15, 0.92, -0.55), Vector3(0.85, 0.48, 0.8), _materials["crate_alt"])
+	# FREIGHT-CRATE-001 (Phase 10 §3). The post's two supply boxes are the same
+	# object class as the cargo lines' and the freight berth's, so they take the
+	# same finish: the loaded lower crate unstrapped, the top crate strapped.
+	_crate(post, "SupplyCrate", Vector3(2.15, 0.34, -0.55), Vector3(1.0, 0.68, 0.9), 0, false)
+	_crate(post, "SupplyCrateTop", Vector3(2.15, 0.92, -0.55), Vector3(0.85, 0.48, 0.8), 1, true)
 
 	# The post sign caps the tool wall rather than standing on nothing: its
 	# underside at y = 2.34 overlaps the wall head at y = 2.45.
@@ -1018,6 +1091,63 @@ func _box(
 	mesh_instance.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON
 	parent.add_child(mesh_instance, true)
 	return mesh_instance
+
+
+## A palletised stores tote in the station's shared crate finish.
+##
+## FREIGHT-CRATE-001 (Phase 10 §3). Structurally identical to `_box()`: one
+## `MeshInstance3D` with the same node name, the same parent, the same position
+## and the same authored `size`, because `FreightCrateKit.shell_mesh()` publishes
+## an AABB of exactly `AABB(-size * 0.5, size)` — only the four corner battens
+## reach the extremes. Every authored solid volume, clearance sweep and travel
+## probe measured from that `size` is therefore untouched.
+##
+## What changes is that the finish arrives as three surface overrides instead of
+## one `material_override`, because a tote is a moulded shell, a dark polymer
+## trim and a printed stores plate rather than one painted slab. The shells are
+## shared catalog entries, so nineteen production totes bind five materials.
+##
+## `strapped` is not decoration: a crate carrying another crate is unstrapped,
+## because a strap band over its lid would be under the load. Everything else
+## is strapped. One mesh is retained per (`size`, `strapped`) pair, so the three
+## 1.0 × 0.72 × 0.8 m unstrapped totes on a long line share one `ArrayMesh`
+## exactly as the three equally-sized slabs they replace shared one, and the
+## activity's process-wide fingerprint cache then shares it across placements.
+func _crate(
+		parent: Node3D,
+		node_name: String,
+		position_value: Vector3,
+		size: Vector3,
+		finish_index: int,
+		strapped: bool
+	) -> MeshInstance3D:
+	var mesh_instance := MeshInstance3D.new()
+	mesh_instance.name = node_name
+	mesh_instance.position = position_value
+	mesh_instance.mesh = _crate_mesh(size, strapped)
+	mesh_instance.set_surface_override_material(
+		FreightCrateKit.SURFACE_SHELL,
+		_materials[CRATE_SHELL_MATERIAL_KEYS[posmod(finish_index, CRATE_SHELL_MATERIAL_KEYS.size())]]
+	)
+	mesh_instance.set_surface_override_material(
+		FreightCrateKit.SURFACE_TRIM, _materials[CRATE_TRIM_MATERIAL_KEY]
+	)
+	mesh_instance.set_surface_override_material(
+		FreightCrateKit.SURFACE_STENCIL, _materials[CRATE_STENCIL_MATERIAL_KEY]
+	)
+	mesh_instance.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON
+	parent.add_child(mesh_instance, true)
+	return mesh_instance
+
+
+## One tote shell per (`size`, `strapped`) recipe, retained for this placement.
+func _crate_mesh(size: Vector3, strapped: bool) -> ArrayMesh:
+	var cache_key := "%0.3f:%0.3f:%0.3f:%s" % [
+		size.x, size.y, size.z, "strapped" if strapped else "lidded",
+	]
+	if not _crate_mesh_cache.has(cache_key):
+		_crate_mesh_cache[cache_key] = FreightCrateKit.shell_mesh(size, strapped)
+	return _crate_mesh_cache[cache_key] as ArrayMesh
 
 
 ## One `MultiMeshInstance3D` drawing many copies of one chamfered box.

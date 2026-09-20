@@ -115,6 +115,17 @@ static var _shared_visual_mesh_catalog: Dictionary = {}
 ## animated-assembly count moved. The four new rows were measured against the
 ## live builds: 58/47, 43/33, 44/33 and 59/48 nodes/meshes.
 ##
+## Re-frozen 17 -> 22 by FREIGHT-CRATE-001 (Phase 10 §3), which puts the
+## thirteen palletised `Crate*` boxes on the freight berth's stores-tote recipe.
+## A tote is three finishes on one object, so the catalog gains three moulded
+## shells (olive, plum, stone), one shared dark batten/rail trim and one shared
+## stencilled stores plate. As with the station-life pass the set is built whole
+## regardless of profile, so every row moves by five even though only
+## `cargo_line`, `cargo_line_long` and `crew_workpost` place a tote; and as
+## before this is a real retained cost the audit reports rather than hides. No
+## row's node, MeshInstance, batch, copy, submission, light, collision or
+## animated-assembly count moves, because each tote replaces one box one for one.
+##
 ## Re-frozen again by the long-cargo pass, which added two keys to every row
 ## rather than to one. `multimesh_batches` is the number of `MultiMeshInstance3D`
 ## nodes a profile builds and `multimesh_instances` the number of copies those
@@ -182,7 +193,7 @@ const PROFILE_PERFORMANCE_BUDGETS := {
 	ActivityProfile.FULL: {
 		"node_count": 83,
 		"mesh_instances": 62,
-		"unique_materials": 17,
+		"unique_materials": 22,
 		"lights": 0,
 		"particle_emitters": 0,
 		"collision_nodes": 0,
@@ -195,7 +206,7 @@ const PROFILE_PERFORMANCE_BUDGETS := {
 	ActivityProfile.GANTRY: {
 		"node_count": 46,
 		"mesh_instances": 31,
-		"unique_materials": 17,
+		"unique_materials": 22,
 		"lights": 0,
 		"particle_emitters": 0,
 		"collision_nodes": 0,
@@ -208,7 +219,7 @@ const PROFILE_PERFORMANCE_BUDGETS := {
 	ActivityProfile.SERVICE_ARM: {
 		"node_count": 31,
 		"mesh_instances": 19,
-		"unique_materials": 17,
+		"unique_materials": 22,
 		"lights": 0,
 		"particle_emitters": 0,
 		"collision_nodes": 0,
@@ -221,7 +232,7 @@ const PROFILE_PERFORMANCE_BUDGETS := {
 	ActivityProfile.DRONE_PATROL: {
 		"node_count": 42,
 		"mesh_instances": 32,
-		"unique_materials": 17,
+		"unique_materials": 22,
 		"lights": 0,
 		"particle_emitters": 0,
 		"collision_nodes": 0,
@@ -234,7 +245,7 @@ const PROFILE_PERFORMANCE_BUDGETS := {
 	ActivityProfile.CARGO_LINE: {
 		"node_count": 50,
 		"mesh_instances": 35,
-		"unique_materials": 17,
+		"unique_materials": 22,
 		"lights": 0,
 		"particle_emitters": 0,
 		"collision_nodes": 0,
@@ -247,7 +258,7 @@ const PROFILE_PERFORMANCE_BUDGETS := {
 	ActivityProfile.SIGNAGE_PYLON: {
 		"node_count": 45,
 		"mesh_instances": 33,
-		"unique_materials": 17,
+		"unique_materials": 22,
 		"lights": 0,
 		"particle_emitters": 0,
 		"collision_nodes": 0,
@@ -260,7 +271,7 @@ const PROFILE_PERFORMANCE_BUDGETS := {
 	ActivityProfile.OBSERVATORY: {
 		"node_count": 38,
 		"mesh_instances": 24,
-		"unique_materials": 17,
+		"unique_materials": 22,
 		"lights": 0,
 		"particle_emitters": 0,
 		"collision_nodes": 0,
@@ -273,7 +284,7 @@ const PROFILE_PERFORMANCE_BUDGETS := {
 	ActivityProfile.CREW_WORKPOST: {
 		"node_count": 55,
 		"mesh_instances": 43,
-		"unique_materials": 17,
+		"unique_materials": 22,
 		"lights": 0,
 		"particle_emitters": 0,
 		"collision_nodes": 0,
@@ -286,7 +297,7 @@ const PROFILE_PERFORMANCE_BUDGETS := {
 	ActivityProfile.CARGO_LINE_LONG: {
 		"node_count": 55,
 		"mesh_instances": 40,
-		"unique_materials": 17,
+		"unique_materials": 22,
 		"lights": 0,
 		"particle_emitters": 0,
 		"collision_nodes": 0,
@@ -346,11 +357,16 @@ const PROFILE_PERFORMANCE_BUDGETS := {
 ## existing transform. All 461 visible copies remain.
 ## Five fixed-shell shadow renderers add five nodes/submissions; visible
 ## copies remain 461 and all 89 original colour renderers remain present.
+## FREIGHT-CRATE-001 then moves exactly one roster row, `unique_materials`
+## 17 -> 22: nineteen palletised boxes become stores totes that bind three
+## surface overrides each out of five new shared recipes. Nodes, MeshInstances,
+## batches, batched copies, submissions and the 461 drawn copies are unchanged,
+## because a tote is the same one renderer at the same authored size.
 const RECOMMENDED_PRODUCTION_ROSTER_BUDGET := {
 	"instance_count": 10,
 	"node_count": 500,
 	"mesh_instances": 359,
-	"unique_materials": 17,
+	"unique_materials": 22,
 	"lights": 0,
 	"particle_emitters": 0,
 	"collision_nodes": 0,
@@ -1058,16 +1074,24 @@ func get_material_catalog_audit() -> Dictionary:
 			and material == shared_material
 		)
 	keys.sort()
+	# One count of renderers that wear a catalog finish, in either binding shape:
+	# a `material_override`, or — for a stores tote, which is three finishes on
+	# one mesh — one owned material per surface. Counting only the override would
+	# have read the crate pass as nineteen renderers dropping their binding.
 	var bound_references := 0
 	for candidate in find_children("*", "", true, false):
-		if (
-			(candidate is MeshInstance3D or candidate is MultiMeshInstance3D)
-			and (candidate as GeometryInstance3D).material_override != null
+		if not (candidate is MeshInstance3D or candidate is MultiMeshInstance3D):
+			continue
+		if (candidate as GeometryInstance3D).material_override != null:
+			bound_references += 1
+		elif (
+			candidate is MeshInstance3D
+			and not _surface_material_instance_ids(candidate as MeshInstance3D).is_empty()
 		):
 			bound_references += 1
 	return {
 		"valid": (
-			_materials.size() == 17
+			_materials.size() == 22
 			and shared_identity
 			and _materials_match_build_contract()
 			and _dynamic_lens_materials_match_clock()
@@ -1179,7 +1203,7 @@ static func audit_production_roster(activities: Array[Node]) -> Dictionary:
 		"material_catalog": {
 			"valid": (
 				catalogs_share_identity
-				and retained_material_ids.size() == 17
+				and retained_material_ids.size() == 22
 				and dynamic_lens_bindings_valid
 			),
 			"catalog_shared": catalogs_share_identity,
@@ -1548,6 +1572,14 @@ func _capture_built_presentation_contract() -> void:
 					mesh_instance.material_override.get_instance_id()
 					if mesh_instance.material_override != null else 0
 				),
+				# FREIGHT-CRATE-001: a renderer whose object is several finishes
+				# at once — a stores tote's moulded shell, dark trim and printed
+				# plate — binds one owned material per surface instead of one
+				# `material_override`. Capture that shape too, so the live
+				# contract is exactly as strict for it as for an override.
+				"surface_material_instance_ids": _surface_material_instance_ids(
+					mesh_instance
+				),
 				"dynamic_material": (
 					_beacon_lenses.has(mesh_instance)
 					or _drone_beacon_lenses.has(mesh_instance)
@@ -1617,6 +1649,63 @@ func _owned_material_instance_ids() -> Dictionary:
 	return result
 
 
+## Every material a renderer binds through its surfaces, in surface order.
+##
+## `get_surface_override_material_count()` reports the mesh's surface count
+## rather than how many overrides were set, so an ordinary renderer answers one
+## empty slot. An empty result therefore means "binds nothing per surface",
+## which is the ordinary `material_override` shape; a partly filled slot list is
+## returned as it stands so the caller can reject it.
+func _surface_material_instance_ids(mesh_instance: MeshInstance3D) -> PackedInt64Array:
+	var ids := PackedInt64Array()
+	var bound := false
+	for surface_index in mesh_instance.get_surface_override_material_count():
+		var material := mesh_instance.get_surface_override_material(surface_index)
+		ids.append(material.get_instance_id() if material != null else 0)
+		bound = bound or material != null
+	return ids if bound else PackedInt64Array()
+
+
+## The renderer still wears the exact finish the build gave it.
+##
+## A finish arrives in one of two shapes and both are held to the same rule:
+## every bound material must be one this component owns, and a static binding
+## must still be the identical resource. Most renderers bind one
+## `material_override`. FREIGHT-CRATE-001 introduced the second shape — a stores
+## tote is a moulded shell, a dark batten/rail trim and a printed stores plate
+## on one mesh, so it binds one owned material per surface and no override. A
+## renderer that binds neither, or that has picked up a material from outside
+## the catalog, fails exactly as it did before.
+func _mesh_finish_binding_is_live(
+		mesh_instance: MeshInstance3D,
+		contract: Dictionary,
+		owned_material_ids: Dictionary
+	) -> bool:
+	var recorded_surfaces := (
+		contract.get("surface_material_instance_ids", PackedInt64Array()) as PackedInt64Array
+	)
+	if recorded_surfaces.is_empty():
+		if (
+			mesh_instance.material_override == null
+			or not owned_material_ids.has(mesh_instance.material_override.get_instance_id())
+		):
+			return false
+		return (
+			bool(contract.get("dynamic_material", false))
+			or mesh_instance.material_override.get_instance_id()
+				== int(contract.get("material_instance_id", 0))
+		)
+	if mesh_instance.material_override != null:
+		return false
+	var live_surfaces := _surface_material_instance_ids(mesh_instance)
+	if live_surfaces != recorded_surfaces:
+		return false
+	for surface_id in live_surfaces:
+		if not owned_material_ids.has(surface_id):
+			return false
+	return true
+
+
 func _built_mesh_contracts_are_live() -> bool:
 	if _built_mesh_contracts.is_empty():
 		return false
@@ -1652,14 +1741,7 @@ func _built_mesh_contracts_are_live() -> bool:
 				and (mesh_instance.mesh as PrimitiveMesh).flip_faces
 					!= bool(contract.get("flip_faces", false))
 			)
-			or mesh_instance.material_override == null
-			or not owned_material_ids.has(mesh_instance.material_override.get_instance_id())
-		):
-			return false
-		if (
-			not bool(contract.get("dynamic_material", false))
-			and mesh_instance.material_override.get_instance_id()
-				!= int(contract.get("material_instance_id", 0))
+			or not _mesh_finish_binding_is_live(mesh_instance, contract, owned_material_ids)
 		):
 			return false
 	return (
