@@ -12,7 +12,12 @@ const ROSTER_FINGERPRINT := "43dabfe2e1cb3cc47caa41c34df8c71a2af9f955b8048d3c129
 # contributor measurement moved with the station content that has landed since
 # the previous freeze. The 2026-09-14 geometry trim adds and removes no light.
 const STATION_RESIDENT_MEASUREMENT_FINGERPRINT := "ab7df9447a6b2020f8eb338c32127323006a4d30b0bf5c9bda4095980c359af1"
-const CINDER_LOADED_MEASUREMENT_FINGERPRINT := "c334796cbd4e714801a87d9b4fee2a26d999f04b482da15f99e3817cd320010c"
+# Refrozen: the abandoned station hulk in the streamed nearby sector hangs eight
+# shadowless omni practicals (`AbandonedStationHulk._build_practicals`, all
+# `shadow_enabled = false`) off the Cinder-loaded scenario. Only this scenario
+# moves; the station-resident roster and fingerprint above are untouched, which
+# is what says no station light was added, moved, recoloured or re-ranged.
+const CINDER_LOADED_MEASUREMENT_FINGERPRINT := "503818ae8dec5c0310aa672c251e7220098aecd831bfa6dd07eae8bc54a20b89"
 const FABRICATION_LIGHT_PATHS := [
 	"ShipyardWorld/FabricationAnnex/GeneratedAnnex/PracticalPoolCentral",
 	"ShipyardWorld/FabricationAnnex/GeneratedAnnex/PracticalPoolPort",
@@ -451,32 +456,37 @@ func _test_cinder_loaded_production_scenario(
 	_check(
 		report.scenario == CENSUS.SCENARIO_CINDER_LOADED
 		and int(report.loaded_instance_count) == 1
-		and int(lights.total) == 368
-		and int(lights.enabled) == 285
+		# Refrozen: +8 shadowless omni practicals from the abandoned station hulk.
+		and int(lights.total) == 376
+		and int(lights.enabled) == 293
 		and int(lights.disabled) == 83
 		and int(lights.shadow_casting_total) == 20
 		and int(lights.enabled_shadow_casting) == 20
 		and int((by_type.directional as Dictionary).total) == 3
 		and int((by_type.directional as Dictionary).enabled) == 3
-		and int((by_type.omni as Dictionary).total) == 351
-		and int((by_type.omni as Dictionary).enabled) == 268
+		and int((by_type.omni as Dictionary).total) == 359
+		and int((by_type.omni as Dictionary).enabled) == 276
 		and int((by_type.spot as Dictionary).total) == 14
 		and int((by_type.spot as Dictionary).enabled) == 14,
-		"Cinder-loaded HIGH freezes 368 total / 285 enabled lights and exact type/shadow splits"
+		"Cinder-loaded HIGH freezes 376 total / 293 enabled lights and exact type/shadow splits"
 	)
+	# Refrozen: the hulk's eight practicals raise the streaming delta from +26 to
+	# +34 omni. They cast no shadows and disable nothing, so every other term of
+	# this delta - disabled, directional, shadow-casting, spot - is unchanged,
+	# which is the part of this check that actually guards the frame cost.
 	_check(
-		int(lights.total) - int(resident_lights.total) == 27
-		and int(lights.enabled) - int(resident_lights.enabled) == 27
+		int(lights.total) - int(resident_lights.total) == 35
+		and int(lights.enabled) - int(resident_lights.enabled) == 35
 		and int(lights.disabled) - int(resident_lights.disabled) == 0
 		and int(lights.shadow_casting_total)
 			- int(resident_lights.shadow_casting_total) == 0
 		and int((by_type.omni as Dictionary).total)
-			- int((resident_by_type.omni as Dictionary).total) == 26
+			- int((resident_by_type.omni as Dictionary).total) == 34
 		and int((by_type.spot as Dictionary).total)
 			- int((resident_by_type.spot as Dictionary).total) == 1
 		and int((by_type.directional as Dictionary).total)
 			- int((resident_by_type.directional as Dictionary).total) == 0,
-		"streaming delta is exactly +26 omni and +1 spot with no disabled, directional, or shadow change"
+		"streaming delta is exactly +34 omni and +1 spot with no disabled, directional, or shadow change"
 	)
 	_check(
 		str(report.sample_roster_fingerprint) == ROSTER_FINGERPRINT
