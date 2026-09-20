@@ -27,6 +27,9 @@ const LandingApproachScript := preload("res://scripts/world/planetary_landing_ap
 const OrbitalRingScript := preload("res://scripts/world/planetary_orbital_approach_ring_presentation.gd")
 const RouteTrailScript := preload("res://scripts/world/planetary_surface_route_trail_presentation.gd")
 const RelaySurveyScript := preload("res://scripts/world/ember_surface_relay_survey_activity.gd")
+const ExpeditionActivityScript := preload(
+	"res://scripts/activities/ember_caldera_expedition_activity.gd"
+)
 const ActivityDefinitionScript := preload("res://scripts/activities/activity_definition.gd")
 const LocationDefinitionScript := preload("res://scripts/world/definitions/world_location_definition.gd")
 const RelaySurveyPresentationScript := preload("res://scripts/world/ember_surface_relay_survey_presentation.gd")
@@ -80,6 +83,11 @@ var _orbital_ring: Node
 var _route_trail: Node
 var _last_surface_navigation_feedback: Dictionary = {}
 var _relay_survey: RefCounted
+var _expedition: RefCounted
+var _expedition_adapters: Dictionary = {}
+var _expedition_reward_sink := Callable()
+var _expedition_receipts: Dictionary = {}
+var _expedition_reward_in_flight := false
 var _relay_survey_presentation: Node
 var _relay_survey_persistence: RefCounted
 var _restored_relay_survey_completion: Dictionary = {}
@@ -121,7 +129,8 @@ func configure(
 		director: ActivityDirector,
 		reward_sink: Callable,
 		expected_generation: int = 0,
-		service_repair_sink: Callable = Callable()
+		service_repair_sink: Callable = Callable(),
+		expedition_reward_sink: Callable = Callable()
 	) -> Dictionary:
 	if _state != State.IDLE or host == null or not is_instance_valid(host):
 		return _result(false, &"composition_unavailable")
@@ -226,6 +235,16 @@ func configure(
 	]:
 		if not bool(binding.get("accepted", false)):
 			return _result(false, binding.get("reason", &"runtime_binding_rejected") as StringName)
+	var expedition_composition := _compose_caldera_expeditions(
+		host, director, expedition_reward_sink
+	)
+	if not bool(expedition_composition.get("accepted", false)):
+		return _result(
+			false,
+			expedition_composition.get(
+				"reason", &"caldera_expedition_binding_rejected"
+			) as StringName
+		)
 	_survey_interaction = SurveyInteractionScript.new() as Area3D
 	_survey_interaction.name = "OwnedSurveyBunkerInteraction"
 	add_child(_survey_interaction)
@@ -864,6 +883,10 @@ func detach() -> Dictionary:
 		var detached: Dictionary = _adapter.call(&"detach")
 		if not bool(detached.get("accepted", false)) and activity == &"active":
 			return detached
+	for expedition_adapter: RefCounted in _expedition_adapters.values():
+		var expedition_state := StringName(expedition_adapter.call(&"get_state_id"))
+		if expedition_state in [&"active", &"ready"]:
+			expedition_adapter.call(&"detach")
 	var settlement_snapshot := _settlement.call(&"get_snapshot") as Dictionary
 	if settlement_snapshot.get("state", &"idle") == &"inside":
 		_settlement.call(&"detach")
@@ -909,6 +932,11 @@ func reenter() -> Dictionary:
 		var activity_reentry: Dictionary = _adapter.call(&"reenter")
 		if not bool(activity_reentry.get("accepted", false)):
 			return activity_reentry
+	for expedition_adapter: RefCounted in _expedition_adapters.values():
+		if StringName(expedition_adapter.call(&"get_state_id")) == &"detached":
+			var expedition_reentry: Dictionary = expedition_adapter.call(&"reenter")
+			if not bool(expedition_reentry.get("accepted", false)):
+				return _result(false, &"caldera_expedition_reentry_rejected")
 	var settlement_snapshot := _settlement.call(&"get_snapshot") as Dictionary
 	if settlement_snapshot.get("state", &"idle") == &"detached":
 		_settlement.call(&"reenter", next_attachment)
@@ -994,6 +1022,7 @@ func get_snapshot() -> Dictionary:
 		"attachment_generation": _attachment_generation,
 		"composition_generation": _composition_generation,
 		"adapter": _adapter.get_snapshot() if _adapter != null else {},
+		"caldera_expeditions": get_caldera_expedition_snapshot(),
 		"navigation": _navigation.get_snapshot() if _navigation != null else {},
 		"hazard": _hazard.get_snapshot() if _hazard != null else {},
 		"hazard_content": _hazard_content.call(&"get_snapshot") if _hazard_content != null else {},
@@ -1027,6 +1056,141 @@ func get_snapshot() -> Dictionary:
 			if _sample_rack_interaction != null else {},
 		"surface_audio": _surface_audio_adapter.call(&"get_snapshot") if _surface_audio_adapter != null else {},
 	}.duplicate(true)
+
+
+## Composes one adapter/runtime pair per authored caldera errand. They share
+## the existing ActivityDirector and the one existing reward authority; each
+## keeps its own generation fence so one errand can never pay for another.
+func _compose_caldera_expeditions(
+		host: Object, director: ActivityDirector, expedition_reward_sink: Callable
+	) -> Dictionary:
+	_expedition = ExpeditionActivityScript.new()
+	_expedition_reward_sink = expedition_reward_sink
+	_expedition_adapters.clear()
+	_expedition_receipts.clear()
+	for definition: ActivityDefinition in ExpeditionActivityScript.build_definitions():
+		if not definition.is_definition_valid():
+			return _result(false, &"caldera_expedition_definition_invalid")
+		if director.get_definition(definition.activity_id) == null:
+			director.register_definition(definition)
+	for activity_id: StringName in ExpeditionActivityScript.ACTIVITY_IDS:
+		var adapter := AdapterScript.new()
+		var bound: Dictionary = adapter.call(
+			&"bind", host, ActivityRuntimeScript.new(), director,
+			Callable(self, "_commit_caldera_expedition_reward")
+		)
+		if not bool(bound.get("accepted", false)):
+			return _result(
+				false,
+				bound.get("reason", &"caldera_expedition_binding_rejected") as StringName
+			)
+		_expedition_adapters[activity_id] = adapter
+	return _result(true, &"caldera_expeditions_bound")
+
+
+func start_caldera_expedition(activity_id: StringName) -> Dictionary:
+	if not _live() or _expedition == null:
+		return _result(false, &"caldera_expedition_unavailable")
+	return _expedition.call(
+		&"begin", activity_id, _expedition_adapters.get(activity_id)
+	)
+
+
+func submit_caldera_expedition_position(
+		activity_id: StringName, position: Vector3
+	) -> Dictionary:
+	if not _live() or _expedition == null:
+		return _result(false, &"caldera_expedition_unavailable")
+	return _expedition.call(
+		&"submit_position", activity_id, _expedition_adapters.get(activity_id), position
+	)
+
+
+func commit_caldera_expedition_reward(activity_id: StringName) -> Dictionary:
+	if not _live() or _expedition == null:
+		return _result(false, &"caldera_expedition_unavailable")
+	return _expedition.call(
+		&"commit_reward", activity_id, _expedition_adapters.get(activity_id)
+	)
+
+
+func abandon_caldera_expedition(
+		activity_id: StringName, reason: StringName = &"player_abandoned"
+	) -> Dictionary:
+	if not _live() or _expedition == null:
+		return _result(false, &"caldera_expedition_unavailable")
+	return _expedition.call(
+		&"abandon", activity_id, _expedition_adapters.get(activity_id), reason
+	)
+
+
+func get_active_caldera_expedition_id() -> StringName:
+	if _expedition == null:
+		return &""
+	return StringName(_expedition.call(&"get_active_activity_id"))
+
+
+func get_caldera_expedition_snapshot() -> Dictionary:
+	if _expedition == null:
+		return {}
+	var snapshot: Dictionary = _expedition.call(&"get_snapshot", _expedition_adapters)
+	snapshot["receipts"] = _expedition_receipts.duplicate(true)
+	snapshot["reward_authority_bound"] = _expedition_reward_sink.is_valid()
+	return snapshot
+
+
+## The one reward seam for both caldera errands. It never writes a reward: it
+## translates the runtime's completion intent into the ordinary GameFlow
+## activity-reward request and refuses a second request for the same errand.
+func _commit_caldera_expedition_reward(intent: Variant) -> Dictionary:
+	if _expedition_reward_in_flight:
+		return {"accepted": false, "reason": &"caldera_expedition_reward_reentrant"}
+	if not intent is Dictionary:
+		return {"accepted": false, "reason": &"caldera_expedition_reward_schema_mismatch"}
+	var request_intent := intent as Dictionary
+	var activity_id := StringName(request_intent.get("activity_id", &""))
+	var reward_id := StringName(request_intent.get("reward_id", &""))
+	var generation := int(request_intent.get("activity_generation", 0))
+	if not ExpeditionActivityScript.is_expedition_activity(activity_id) 			or StringName(request_intent.get("world_id", &"")) != &"ember_moon" 			or reward_id != StringName(
+				(ExpeditionActivityScript.ACTIVITY_SPECS[activity_id] as Dictionary).reward_id
+			) 			or generation < 1:
+		return {"accepted": false, "reason": &"caldera_expedition_reward_schema_mismatch"}
+	if _expedition_receipts.has(activity_id):
+		return {"accepted": false, "reason": &"caldera_expedition_reward_already_committed"}
+	if not _expedition_reward_sink.is_valid():
+		return {"accepted": false, "reason": &"caldera_expedition_reward_authority_unavailable"}
+	var request := {
+		"activity_id": activity_id,
+		"activity_generation": generation,
+		"reward_id": reward_id,
+		"reward_authority": false,
+		"granted": false,
+	}
+	_expedition_reward_in_flight = true
+	var authority_result: Variant = _expedition_reward_sink.call(request.duplicate(true))
+	_expedition_reward_in_flight = false
+	if not authority_result is Dictionary 			or not bool((authority_result as Dictionary).get("accepted", false)):
+		return {
+			"accepted": false,
+			"reason": (
+				(authority_result as Dictionary).get(
+					"reason", &"caldera_expedition_reward_authority_rejected"
+				) as StringName
+				if authority_result is Dictionary
+				else &"caldera_expedition_reward_authority_rejected"
+			),
+		}
+	_expedition_receipts[activity_id] = {
+		"activity_id": activity_id,
+		"activity_generation": generation,
+		"reward_id": reward_id,
+		"authority_result": (authority_result as Dictionary).duplicate(true),
+	}
+	return {
+		"accepted": true,
+		"reason": &"caldera_expedition_reward_committed",
+		"receipt": (_expedition_receipts[activity_id] as Dictionary).duplicate(true),
+	}
 
 
 func _register_relay_survey_activity(director: ActivityDirector) -> void:
@@ -1498,6 +1662,9 @@ func get_session_snapshot() -> Dictionary:
 		"relay_survey_optional_checkpoint": _relay_survey.call(
 			&"get_persistence_snapshot", _adapter
 		) if _relay_survey != null else {},
+		"caldera_expeditions": _expedition.call(
+			&"get_persistence_snapshot"
+		) if _expedition != null else {},
 		"authority": {"save": false, "movement": false, "reward": false, "doors": false},
 	}.duplicate(true)
 
@@ -1547,6 +1714,28 @@ func restore_session_snapshot(snapshot: Variant) -> Dictionary:
 		)
 		if not bool(checkpoint_restored.get("accepted", false)):
 			return _result(false, &"relay_survey_checkpoint_restore_rejected")
+	var expedition_saved := saved.get("caldera_expeditions", {}) as Dictionary
+	if _expedition != null and not expedition_saved.is_empty():
+		var expedition_restored: Dictionary = _expedition.call(
+			&"restore_persistence_snapshot", expedition_saved
+		)
+		if not bool(expedition_restored.get("accepted", false)):
+			return _result(false, &"caldera_expedition_restore_rejected")
+		# A restored errand is already paid for; freeze its reward seam so the
+		# re-entered visit cannot open a second request for it.
+		for activity_id: StringName in ExpeditionActivityScript.ACTIVITY_IDS:
+			if bool(_expedition.call(&"is_completed", activity_id)) \
+					and not _expedition_receipts.has(activity_id):
+				_expedition_receipts[activity_id] = {
+					"activity_id": activity_id,
+					"activity_generation": 0,
+					"reward_id": StringName(
+						(ExpeditionActivityScript.ACTIVITY_SPECS[activity_id] as Dictionary).reward_id
+					),
+					"authority_result": {
+						"accepted": true, "reason": &"restored_from_save",
+					},
+				}
 	_apply_relay_survey_presentation()
 	return _result(true, &"planetary_session_restored")
 

@@ -328,7 +328,8 @@ func configure_planetary_surface(
 		&"configure", _host, director,
 		Callable(self, &"_commit_relay_reward_through_authority"),
 		_host.get_generation(),
-		service_repair_sink
+		service_repair_sink,
+		reward_sink
 	)
 	if bool(result.get("accepted", false)) \
 			and _relay_survey_persistence_store != null:
@@ -616,6 +617,49 @@ func submit_planetary_relay_survey_position(position: Vector3) -> Dictionary:
 	if _planetary_composition == null:
 		return _reject(&"planetary_composition_unavailable")
 	return _planetary_composition.call(&"submit_relay_survey_position", position)
+
+
+## The two authored caldera errands beside the relay survey. They run on the
+## same retained composition, the same ActivityDirector and the same reward
+## authority; this owner only forwards the caller's intent.
+func start_caldera_expedition(activity_id: StringName) -> Dictionary:
+	if _planetary_composition == null:
+		return _reject(&"planetary_composition_unavailable")
+	return _planetary_composition.call(&"start_caldera_expedition", activity_id)
+
+
+func submit_caldera_expedition_position(
+		activity_id: StringName, position: Vector3
+	) -> Dictionary:
+	if _planetary_composition == null:
+		return _reject(&"planetary_composition_unavailable")
+	return _planetary_composition.call(
+		&"submit_caldera_expedition_position", activity_id, position
+	)
+
+
+func commit_caldera_expedition_reward(activity_id: StringName) -> Dictionary:
+	if _planetary_composition == null:
+		return _reject(&"planetary_composition_unavailable")
+	return _planetary_composition.call(
+		&"commit_caldera_expedition_reward", activity_id
+	)
+
+
+func abandon_caldera_expedition(
+		activity_id: StringName, reason: StringName = &"player_abandoned"
+	) -> Dictionary:
+	if _planetary_composition == null:
+		return _reject(&"planetary_composition_unavailable")
+	return _planetary_composition.call(
+		&"abandon_caldera_expedition", activity_id, reason
+	)
+
+
+func get_caldera_expedition_snapshot() -> Dictionary:
+	if _planetary_composition == null:
+		return {}
+	return _planetary_composition.call(&"get_caldera_expedition_snapshot")
 
 
 func submit_planetary_relay_survey_landmark(landmark_id: StringName, position: Vector3) -> Dictionary:
@@ -2466,6 +2510,10 @@ func _physics_process(_engine_delta: float) -> void:
 	if not relay_forward_rejection.is_empty():
 		_fail_late(relay_forward_rejection)
 		return
+	var expedition_rejection := _forward_active_caldera_expedition(envelope)
+	if not expedition_rejection.is_empty():
+		_fail_late(expedition_rejection)
+		return
 	_forward_authored_hazard_observation(envelope)
 
 	var phase := _host.get_phase()
@@ -2566,6 +2614,55 @@ func _physics_process(_engine_delta: float) -> void:
 		_complete_handback_late()
 		return
 	_finish_late_signal(&"host_advanced")
+
+
+## Feeds the already-admitted body-local player observation to whichever
+## caldera errand is in hand and pays its reward the moment the authored route
+## completes, exactly as the relay survey is driven.
+func _forward_active_caldera_expedition(envelope: Dictionary) -> StringName:
+	if _planetary_composition == null:
+		return &""
+	var active := StringName(
+		_planetary_composition.call(&"get_active_caldera_expedition_id")
+	)
+	if active.is_empty():
+		return &""
+	var snapshot := _planetary_composition.call(
+		&"get_caldera_expedition_snapshot"
+	) as Dictionary
+	var record := (snapshot.get("activities", {}) as Dictionary).get(
+		active, {}
+	) as Dictionary
+	var activity_state := StringName(
+		(record.get("activity_reward", {}) as Dictionary).get("state", &"")
+	)
+	if activity_state not in [&"active", &"awaiting_reward"]:
+		return &""
+	if activity_state == &"active":
+		var position: Variant = envelope.get("position_body_local_m", Vector3.INF)
+		if not position is Vector3 or not (position as Vector3).is_finite():
+			return &"invalid_caldera_expedition_position_sample"
+		var forwarded: Dictionary = _planetary_composition.call(
+			&"submit_caldera_expedition_position", active, position
+		)
+		if not bool(forwarded.get("accepted", false)) \
+				and StringName(forwarded.get("reason", &"")) != &"outside_checkpoint":
+			return &"caldera_expedition_position_forward_rejected"
+		activity_state = StringName(
+			((_planetary_composition.call(
+				&"get_caldera_expedition_snapshot"
+			) as Dictionary).get("activities", {}) as Dictionary).get(
+				active, {}
+			).get("activity_reward", {}).get("state", &"")
+		)
+	if activity_state != &"awaiting_reward":
+		return &""
+	var committed: Dictionary = _planetary_composition.call(
+		&"commit_caldera_expedition_reward", active
+	)
+	if not bool(committed.get("accepted", false)):
+		return &"caldera_expedition_reward_rejected"
+	return &""
 
 
 func _forward_active_relay_position(envelope: Dictionary) -> StringName:

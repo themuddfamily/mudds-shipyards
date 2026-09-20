@@ -14,7 +14,7 @@ func _run() -> void:
 	_check(contract.is_definition_valid(), "authored objective/reward/recovery roster validates")
 	var snapshot: Dictionary = contract.get_snapshot()
 	var activities: Array = snapshot["activities"]
-	_check(activities.size() == 5, "the authored roster carries five planetary objectives")
+	_check(activities.size() == 7, "the authored roster carries seven planetary objectives")
 	_check(snapshot["identity"]["world_id"] == &"ember_moon", "handoff identifies Ember Moon")
 	_check(snapshot["identity"]["return_target_id"] == &"mudds_shipyards", "every objective returns to Mudds Shipyards")
 	_check(snapshot["authorities"]["reward_store_id"] == &"game_flow_reward_store", "handoff names the existing reward store")

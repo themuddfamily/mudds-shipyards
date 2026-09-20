@@ -50,6 +50,8 @@ const EXISTING_RECOVERY_IDS := {
 	"ember_kit_cargo_run",
 	"ember_checkpoint_race",
 	"ember_convoy_escort",
+	"ember_lava_tube_sounding",
+	"ember_lander_wreck_survey",
 ])
 @export var objective_ids := PackedStringArray([
 	"survey_beacon_network",
@@ -57,6 +59,8 @@ const EXISTING_RECOVERY_IDS := {
 	"deliver_fabrication_kits",
 	"set_checkpoint_record",
 	"escort_emberline_convoy",
+	"sound_collapsed_lava_tube",
+	"survey_wrecked_lander",
 ])
 @export var activity_authority_ids := PackedStringArray([
 	"activity_director",
@@ -64,6 +68,8 @@ const EXISTING_RECOVERY_IDS := {
 	"cargo_delivery_activity",
 	"timed_checkpoint_race",
 	"convoy_escort_activity",
+	"activity_director",
+	"activity_director",
 ])
 
 @export_category("Single existing reward store")
@@ -76,6 +82,8 @@ const EXISTING_RECOVERY_IDS := {
 	"game_flow_reward_store",
 	"game_flow_reward_store",
 	"game_flow_reward_store",
+	"game_flow_reward_store",
+	"game_flow_reward_store",
 ])
 @export var reward_ids := PackedStringArray([
 	"ember_beacon_data",
@@ -83,6 +91,8 @@ const EXISTING_RECOVERY_IDS := {
 	"ember_fabrication_kits",
 	"ember_race_record",
 	"ember_convoy_credit",
+	"ember_lava_tube_sounding_data",
+	"ember_lander_wreck_salvage_log",
 ])
 @export var reward_authority_id: StringName = REQUIRED_REWARD_AUTHORITY_ID
 
@@ -93,6 +103,8 @@ const EXISTING_RECOVERY_IDS := {
 	"return_kits_to_shipyard_berth",
 	"return_race_record_to_shipyard",
 	"return_convoy_credit_to_shipyard",
+	"return_tube_sounding_to_shipyard",
+	"return_wreck_salvage_to_shipyard",
 ])
 @export var activity_recovery_ids := PackedStringArray([
 	"return_to_landed_ship",
@@ -100,6 +112,8 @@ const EXISTING_RECOVERY_IDS := {
 	"return_to_landed_ship",
 	"reset_at_start_beacon",
 	"recover_convoy_at_return_beacon",
+	"return_to_landed_ship",
+	"return_to_landed_ship",
 ])
 @export var return_authority_id: StringName = REQUIRED_RETURN_AUTHORITY_ID
 

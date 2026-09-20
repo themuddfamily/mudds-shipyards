@@ -27,6 +27,8 @@ const STATION_DEFENSE_ACTIVITY_ID: StringName = &"shipyard_perimeter_defense"
 const EMBER_RELAY_ACTIVITY_ID: StringName = &"ember_beacon_survey"
 const HULK_POWER_ACTIVITY_ID: StringName = &"cinder_hulk_power_restoration"
 const CINDER_ASTEROID_RUN_ACTIVITY_ID: StringName = &"cinder_asteroid_field_threading_run"
+const EMBER_LAVA_TUBE_ACTIVITY_ID: StringName = &"ember_lava_tube_sounding"
+const EMBER_LANDER_WRECK_ACTIVITY_ID: StringName = &"ember_lander_wreck_survey"
 
 const RACE_REWARD_ID: StringName = &"return_race_record_to_shipyard"
 const PATROL_REWARD_ID: StringName = &"return_patrol_log_to_shipyard"
@@ -39,6 +41,8 @@ const STATION_DEFENSE_REWARD_ID: StringName = &"return_defense_report_to_shipyar
 const EMBER_RELAY_REWARD_ID: StringName = &"ember_beacon_data"
 const HULK_POWER_REWARD_ID: StringName = &"hulk_auxiliary_power_cell"
 const CINDER_ASTEROID_RUN_REWARD_ID: StringName = &"return_asteroid_survey_to_shipyard"
+const EMBER_LAVA_TUBE_REWARD_ID: StringName = &"ember_lava_tube_sounding_data"
+const EMBER_LANDER_WRECK_REWARD_ID: StringName = &"ember_lander_wreck_salvage_log"
 
 const ACTIVITY_REWARDS := {
 	RACE_ACTIVITY_ID: RACE_REWARD_ID,
@@ -54,6 +58,8 @@ const ACTIVITY_REWARDS := {
 	EMBER_RELAY_ACTIVITY_ID: EMBER_RELAY_REWARD_ID,
 	HULK_POWER_ACTIVITY_ID: HULK_POWER_REWARD_ID,
 	CINDER_ASTEROID_RUN_ACTIVITY_ID: CINDER_ASTEROID_RUN_REWARD_ID,
+	EMBER_LAVA_TUBE_ACTIVITY_ID: EMBER_LAVA_TUBE_REWARD_ID,
+	EMBER_LANDER_WRECK_ACTIVITY_ID: EMBER_LANDER_WRECK_REWARD_ID,
 }
 const REWARD_LABELS := {
 	RACE_REWARD_ID: "Race record accepted",
@@ -67,6 +73,8 @@ const REWARD_LABELS := {
 	EMBER_RELAY_REWARD_ID: "Survey data accepted",
 	HULK_POWER_REWARD_ID: "Salvaged auxiliary power cell logged",
 	CINDER_ASTEROID_RUN_REWARD_ID: "Belt threading survey accepted",
+	EMBER_LAVA_TUBE_REWARD_ID: "Lava-tube sounding data accepted",
+	EMBER_LANDER_WRECK_REWARD_ID: "Lander wreck salvage log accepted",
 }
 const REQUEST_KEYS := [
 	"activity_id",
