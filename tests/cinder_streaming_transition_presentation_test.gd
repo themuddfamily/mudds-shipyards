@@ -6,8 +6,8 @@ const GENERATION := 7
 const TICK := 1.0 / 60.0
 # Refrozen for the abandoned station hulk: +39 authored renderers, which the
 # transition binds and fades with everything else in the sector.
-const EXPECTED_AUTHORED_RENDERER_COUNT := 250
-const EXPECTED_BOUND_RENDERER_COUNT := 254
+const EXPECTED_AUTHORED_RENDERER_COUNT := 258
+const EXPECTED_BOUND_RENDERER_COUNT := 262
 const EXPECTED_INTEGRATED_BATCH_FINGERPRINT := (
 	"ExtractionPlatform/CinderReachPlatform/ExtractionArmCollars"
 	+ "|cinder-extraction-arm-collars|6|-1;"

@@ -250,8 +250,27 @@ const MAIN_SCENE := preload("res://scenes/main.tscn")
 # `renderer_roster_mismatch` and hid itself - which is the only reason an
 # intermediate measurement of this census ever showed the triangle line
 # falling. Measured on the corrected bind, every delta above is additive.
+# Refrozen 2026-09-20 for the Phase 8 starboard asteroid belt
+# (`scripts/world/cinder_asteroid_field.gd`), the nearby sector's first
+# navigable rock. It is a **loaded-only** move: every resident row above is
+# byte-identical, because the belt ships inside the streamed Cinder component
+# and the station owns none of it.
+#
+#   Cinder bucket  139,582 -> 153,406 triangles, 248 -> 256 renderers/surfaces,
+#                  584 -> 712 MultiMesh copies, 518 -> 590 nodes, lights 35
+#                  unchanged (the belt adds no light at all).
+#   loaded totals  2,046,857 -> 2,060,681 triangles, 5,614 -> 5,622 meshes,
+#                  6,143 -> 6,151 surfaces, 3,109 -> 3,117 unique meshes,
+#                  767 -> 768 bound / 1,075 -> 1,076 retained materials,
+#                  10,906 -> 10,978 nodes.
+#
+# The +8 unique meshes are the belt's six shared stock recipes and its two
+# chevron meshes; the +1 material is the one neutral vertex-colour rock
+# material the six stock batches share. The +30 solid bodies and their 30
+# collision shapes are nodes, not renderers, which is why renderers move by 8
+# while nodes move by 72.
 const RESIDENT_FINGERPRINT := "b5bebf5348647dfa67c23ce654d028cc4d079c3598a49367fb8ce4c05419deaa"
-const CINDER_LOADED_FINGERPRINT := "062cd108fffc070f054b4e8bdc70f460a41f1a0df313f73c8b8e4adcd4627fd0"
+const CINDER_LOADED_FINGERPRINT := "8c17d0b9c8742a940c0ad24ecc35f961eb78ebc66ac0d993042bb551edf0d202"
 
 var _assertions := 0
 var _failures := PackedStringArray()
@@ -369,18 +388,18 @@ func _run() -> void:
 		"loaded report freezes destination identity and one committed generation"
 	)
 	_check(
-		int(loaded.get("total_triangles", -1)) == 2046857
-			and int(loaded.get("total_mesh_instances", -1)) == 5614
-			and int(loaded.get("total_surfaces", -1)) == 6143
-			and int(loaded.get("unique_meshes", -1)) == 3109,
-		"loaded geometry freezes 2,046,857 triangles / 5,614 meshes / 6,143 surfaces / 3,109 unique meshes"
+		int(loaded.get("total_triangles", -1)) == 2060681
+			and int(loaded.get("total_mesh_instances", -1)) == 5622
+			and int(loaded.get("total_surfaces", -1)) == 6151
+			and int(loaded.get("unique_meshes", -1)) == 3117,
+		"loaded geometry freezes 2,060,681 triangles / 5,622 meshes / 6,151 surfaces / 3,117 unique meshes"
 	)
 	_check(
-		int(loaded.get("bound_phase_unique_materials", -1)) == 767
-			and int(loaded.get("retained_reachable_unique_materials", -1)) == 1075
+		int(loaded.get("bound_phase_unique_materials", -1)) == 768
+			and int(loaded.get("retained_reachable_unique_materials", -1)) == 1076
 			and int(loaded.get("lights", -1)) == 376
-			and int(loaded.get("nodes", -1)) == 10906,
-		"loaded resource roster freezes 767 bound / 1,075 retained materials, 376 lights, and 10,906 nodes"
+			and int(loaded.get("nodes", -1)) == 10978,
+		"loaded resource roster freezes 768 bound / 1,076 retained materials, 376 lights, and 10,978 nodes"
 	)
 	var cinder_bucket := (loaded.get("buckets", {}) as Dictionary).get(
 		"CinderStreamingBootstrap", {}
@@ -389,21 +408,21 @@ func _run() -> void:
 	# should read the streamed destination's new roster straight off the run.
 	print("GEOMETRY_CENSUS_LOADED_CINDER_BUCKET: ", cinder_bucket)
 	_check(
-		int(cinder_bucket.get("triangles", -1)) == 139582
-			and int(cinder_bucket.get("instances", -1)) == 248
-			and int(cinder_bucket.get("surfaces", -1)) == 248
-			and int(cinder_bucket.get("multimesh_instances", -1)) == 584
+		int(cinder_bucket.get("triangles", -1)) == 153406
+			and int(cinder_bucket.get("instances", -1)) == 256
+			and int(cinder_bucket.get("surfaces", -1)) == 256
+			and int(cinder_bucket.get("multimesh_instances", -1)) == 712
 			and int(cinder_bucket.get("lights", -1)) == 35
-			and int(cinder_bucket.get("nodes", -1)) == 518,
+			and int(cinder_bucket.get("nodes", -1)) == 590,
 		"the streamed Cinder bucket independently accounts for its exact renderer and node roster"
 	)
 	_check(
-		int(loaded.get("total_triangles", 0)) - int(resident.get("total_triangles", 0)) == 139582
-			and int(loaded.get("total_mesh_instances", 0)) - int(resident.get("total_mesh_instances", 0)) == 248
-			and int(loaded.get("unique_meshes", 0)) - int(resident.get("unique_meshes", 0)) == 164
-			and int(loaded.get("retained_reachable_unique_materials", 0)) - int(resident.get("retained_reachable_unique_materials", 0)) == 56
+		int(loaded.get("total_triangles", 0)) - int(resident.get("total_triangles", 0)) == 153406
+			and int(loaded.get("total_mesh_instances", 0)) - int(resident.get("total_mesh_instances", 0)) == 256
+			and int(loaded.get("unique_meshes", 0)) - int(resident.get("unique_meshes", 0)) == 172
+			and int(loaded.get("retained_reachable_unique_materials", 0)) - int(resident.get("retained_reachable_unique_materials", 0)) == 57
 			and int(loaded.get("lights", 0)) - int(resident.get("lights", 0)) == 35
-			and int(loaded.get("nodes", 0)) - int(resident.get("nodes", 0)) == 515,
+			and int(loaded.get("nodes", 0)) - int(resident.get("nodes", 0)) == 587,
 		"loaded-minus-resident delta is exact across geometry, retained resources, lights, and nodes"
 	)
 	_check(

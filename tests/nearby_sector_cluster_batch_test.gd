@@ -43,14 +43,20 @@ func _run() -> void:
 	# The unchanged non-text meshes contribute the other 105,928 triangles, and
 	# the abandoned station hulk adds 39 unbatched mesh renderers and 5,448
 	# triangles on top without touching a single MultiMesh batch.
+	#
+	# The starboard asteroid belt then adds 13,824 triangles and 128 copies
+	# through 8 new MultiMesh renderers and no new MeshInstance3D at all:
+	# 30 asteroids x 3 lobes over six shared stock recipes, 18 safe-lane
+	# chevrons and 20 threading-gate chevrons. Solid bodies are not renderers,
+	# so its 30 colliders cost nothing in this census.
 	var census := _census(cluster)
 	_check(
 		int(census["mesh_nodes"]) == 231
-		and int(census["batch_nodes"]) == 17
-		and int(census["submissions"]) == 248
-		and int(census["visible_copies"]) == 797
-		and int(census["triangles"]) == 131942,
-		"the combined rail trim keeps 248 submissions and 131942 triangles within 231 Mesh + 17 MultiMesh renderers"
+		and int(census["batch_nodes"]) == 25
+		and int(census["submissions"]) == 256
+		and int(census["visible_copies"]) == 925
+		and int(census["triangles"]) == 145766,
+		"the belt keeps 256 submissions and 145766 triangles within 231 Mesh + 25 MultiMesh renderers"
 	)
 	cluster.queue_free()
 	await process_frame

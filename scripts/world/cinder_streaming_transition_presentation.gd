@@ -17,8 +17,13 @@ const MAX_RETAINED_DISTANCE_METERS := 725.0
 # The abandoned station hulk then adds +39 renderers and +8 emergency
 # practicals, all of which fade in and out with the rest of the sector: a
 # destination the pilot can stand inside must not pop.
-const EXPECTED_AUTHORED_RENDERER_COUNT := 250
-const EXPECTED_BOUND_RENDERER_COUNT := 254
+# The starboard asteroid belt then adds +8 renderers - six shared-stock batches,
+# one safe-lane chevron batch and one threading-gate chevron batch - and no
+# lights at all. This roster is a *closed* gate: an unrecognised renderer or
+# light count hides the whole sector rather than fading in a half-built one, so
+# it is refrozen with every authored addition.
+const EXPECTED_AUTHORED_RENDERER_COUNT := 258
+const EXPECTED_BOUND_RENDERER_COUNT := 262
 const EXPECTED_LIGHT_COUNT := 35
 const EPSILON := 0.000001
 const EXTRACTION_ARM_COLLAR_FAMILY_ID: StringName = &"cinder-extraction-arm-collars"

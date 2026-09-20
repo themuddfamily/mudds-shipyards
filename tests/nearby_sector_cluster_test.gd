@@ -124,13 +124,13 @@ const EXPECTED_GANTRY_RAIL_FAMILY_ID: StringName = &"nearby-gantry-rails"
 # MultiMesh batch changed, and the station-resident census is untouched
 # because the whole sector still streams.
 const EXPECTED_LOCAL_MESH_NODES := 231
-const EXPECTED_LOCAL_MULTIMESH_NODES := 17
-const EXPECTED_LOCAL_RENDERER_NODES := 248
-const EXPECTED_LOCAL_VISIBLE_COPIES := 797
-const EXPECTED_LOCAL_SURFACE_SUBMISSIONS := 248
-const EXPECTED_LOCAL_TRIANGLES := 131942
-const EXPECTED_LOCAL_STATIC_BODIES := 79
-const EXPECTED_LOCAL_COLLISION_SHAPES := 81
+const EXPECTED_LOCAL_MULTIMESH_NODES := 25
+const EXPECTED_LOCAL_RENDERER_NODES := 256
+const EXPECTED_LOCAL_VISIBLE_COPIES := 925
+const EXPECTED_LOCAL_SURFACE_SUBMISSIONS := 256
+const EXPECTED_LOCAL_TRIANGLES := 145766
+const EXPECTED_LOCAL_STATIC_BODIES := 109
+const EXPECTED_LOCAL_COLLISION_SHAPES := 111
 ## The dock gate's four fixed rails remain one renderer/submission, but now
 ## compile into one immutable mesh without a retained MultiMesh resource.
 const EXPECTED_LAMP_LENS_COPY_COUNT := 26
