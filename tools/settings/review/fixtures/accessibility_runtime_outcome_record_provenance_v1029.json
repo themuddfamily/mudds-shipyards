@@ -1,0 +1,76 @@
+{
+ "audio_authority": false,
+ "authority": {
+  "audio_authority": false,
+  "caption_queue_authority": false,
+  "gameplay_authority": false,
+  "network_authority": false,
+  "outcome_record_authority": false,
+  "presentation_only": true,
+  "settings_read_authority": false,
+  "settings_write_authority": false
+ },
+ "binding": {
+  "apply_rule": "provenance_outcome_only",
+  "contract_id": "runtime-accessibility-presentation",
+  "human_gate": "open",
+  "native_policy": "not_run",
+  "policy_mode": "exact",
+  "source_id": "runtime-accessibility-outcome-record-policy",
+  "source_schema": "runtime_accessibility_outcome_record_policy_v1"
+ },
+ "caption_queue_authority": false,
+ "contract_id": "runtime-accessibility-presentation",
+ "evidence": null,
+ "gameplay_authority": false,
+ "human_review_performed": false,
+ "human_review_status": "not_performed",
+ "native_render_performed": false,
+ "native_render_status": "not_run",
+ "network_authority": false,
+ "open_gate_reason": "open",
+ "outcome_confirmed": false,
+ "outcome_policy": {
+  "artifact_types": [
+   "validator",
+   "test",
+   "manifest",
+   "evidence"
+  ],
+  "missing_artifact": "mark_incomplete_without_claim",
+  "outcome_fields": [
+   "accessibility",
+   "captions",
+   "audio",
+   "bindings",
+   "camera"
+  ],
+  "outcome_states": [
+   "prepared",
+   "pending_review",
+   "deferred"
+  ],
+  "secret_logging": "never",
+  "sequence": [
+   "declare_scope",
+   "list_outcomes",
+   "mark_gates",
+   "defer_outcome"
+  ]
+ },
+ "outcome_record_authority": false,
+ "outcome_written": false,
+ "policy_verified": false,
+ "presentation_only": true,
+ "provenance_source_of_truth": "runtime_accessibility_outcome_record_policy",
+ "reviewer_required": "human",
+ "runtime_claimed": false,
+ "schema": "accessibility_runtime_outcome_record_provenance_v1029_evidence_v1",
+ "schema_version": "v1029",
+ "settings_read_authority": false,
+ "settings_write_authority": false,
+ "source_id": "runtime-accessibility-outcome-record-policy",
+ "source_revision": "r",
+ "source_schema": "runtime_accessibility_outcome_record_policy_v1",
+ "status": "planned"
+}

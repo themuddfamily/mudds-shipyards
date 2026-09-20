@@ -91,6 +91,18 @@ pipeline.
   behavior, artifact, external handoff, or regression that is not already
   covered. Prefer extending or consolidating an existing check over adding a
   parallel one.
+- **Never add a versioned copy of an existing validator.** Do not create
+  `<name>_v<N>_validator.py`. A schema that gains a version extends the
+  supported range of the one consolidated validator for that family, the way
+  `tools/audio/audio_cleanup_evidence_state_validator.py`,
+  `tools/world/planetary_reward_objective_consistency_validator.py` and
+  `tools/settings/review/accessibility_runtime_outcome_record_provenance_validator.py`
+  already do. This rule exists because three families had grown to 901, 769 and
+  264 near-identical versions importing each other in a chain 900 deep,
+  3,868 files and 250,919 lines, deleted on 2026-09-20 and replaced by three
+  files. Evidence validators are the lowest-value artifact in this repository:
+  none is run by CI, none is referenced by the game, and one is never a
+  substitute for a gameplay test or a playable build.
 - Every implementation assignment should deliver a production behavior,
   player-visible/content change, or executable build/release capability. Add
   the smallest focused test needed to prove that behavior.
