@@ -47,6 +47,14 @@ const LANDER_WRECK_CHECKPOINTS_REGION_LOCAL_M := [
 	Vector3(52.0, 0.0, 46.0),
 ]
 
+## Where the errand is offered. Each trailhead stands a few metres off the
+## existing pad-to-staging walk, at the head of that errand's own authored
+## route, so a pilot who leaves the craft and walks east meets both of them
+## before anything else. They are sites, not geometry: the interaction binding
+## owns whatever marks them.
+const LAVA_TUBE_TRAILHEAD_REGION_LOCAL_M := Vector3(18.0, 0.0, -3.0)
+const LANDER_WRECK_TRAILHEAD_REGION_LOCAL_M := Vector3(40.0, 0.0, -4.0)
+
 const ACTIVITY_SPECS := {
 	LAVA_TUBE_ACTIVITY_ID: {
 		"display_name": "Lava Tube Sounding",
@@ -57,6 +65,7 @@ const ACTIVITY_SPECS := {
 		"reward_id": LAVA_TUBE_REWARD_ID,
 		"objective_id": &"sound_collapsed_lava_tube",
 		"checkpoints": LAVA_TUBE_CHECKPOINTS_REGION_LOCAL_M,
+		"trailhead": LAVA_TUBE_TRAILHEAD_REGION_LOCAL_M,
 		"content_note": "Sound the collapsed Ember lava-tube mouth from the caldera floor.",
 	},
 	LANDER_WRECK_ACTIVITY_ID: {
@@ -68,12 +77,18 @@ const ACTIVITY_SPECS := {
 		"reward_id": LANDER_WRECK_REWARD_ID,
 		"objective_id": &"survey_wrecked_lander",
 		"checkpoints": LANDER_WRECK_CHECKPOINTS_REGION_LOCAL_M,
+		"trailhead": LANDER_WRECK_TRAILHEAD_REGION_LOCAL_M,
 		"content_note": "Log the wrecked Ember survey lander east of the staging gate.",
 	},
 }
 
 var _active_activity_id: StringName = &""
 var _completed: Dictionary = {}
+## Last authoritative route position reported by the adapter for each errand,
+## kept only so a reader can say "checkpoint 1 of 2" without asking the route
+## owner to expose a second progress seam. It is copied from the results the
+## activity plumbing already returns and is never a source of truth.
+var _route_progress: Dictionary = {}
 
 
 static func is_expedition_activity(activity_id: StringName) -> bool:
@@ -84,6 +99,26 @@ static func is_expedition_activity(activity_id: StringName) -> bool:
 ## the authored landing region sits on the +Y radius of the body scene root.
 static func to_body_local(region_local: Vector3) -> Vector3:
 	return region_local + Vector3(0.0, BODY_RADIUS_M, 0.0)
+
+
+static func get_trailhead_region_local(activity_id: StringName) -> Vector3:
+	if not ACTIVITY_SPECS.has(activity_id):
+		return Vector3.INF
+	return (ACTIVITY_SPECS[activity_id] as Dictionary).trailhead as Vector3
+
+
+static func get_trailhead_body_local(activity_id: StringName) -> Vector3:
+	if not ACTIVITY_SPECS.has(activity_id):
+		return Vector3.INF
+	return to_body_local(
+		(ACTIVITY_SPECS[activity_id] as Dictionary).trailhead as Vector3
+	)
+
+
+static func get_display_name(activity_id: StringName) -> String:
+	if not ACTIVITY_SPECS.has(activity_id):
+		return ""
+	return str((ACTIVITY_SPECS[activity_id] as Dictionary).display_name)
 
 
 static func get_checkpoints_body_local(activity_id: StringName) -> PackedVector3Array:
@@ -140,6 +175,7 @@ func begin(activity_id: StringName, adapter: Object) -> Dictionary:
 		started = adapter.call(&"begin_activity", activity_id)
 	if bool(started.get("accepted", false)):
 		_active_activity_id = activity_id
+		_capture_route_progress(activity_id, started)
 	return started
 
 
@@ -149,7 +185,11 @@ func submit_position(activity_id: StringName, adapter: Object, position: Vector3
 		return {"accepted": false, "reason": &"activity_adapter_unavailable"}
 	if not position.is_finite():
 		return {"accepted": false, "reason": &"invalid_caldera_expedition_position"}
-	return adapter.call(&"submit_activity_position_for_production", position)
+	var submitted: Dictionary = adapter.call(
+		&"submit_activity_position_for_production", position
+	)
+	_capture_route_progress(activity_id, submitted)
+	return submitted
 
 
 func commit_reward(activity_id: StringName, adapter: Object) -> Dictionary:
@@ -161,6 +201,7 @@ func commit_reward(activity_id: StringName, adapter: Object) -> Dictionary:
 	var committed: Dictionary = adapter.call(&"commit_activity_reward")
 	if bool(committed.get("accepted", false)):
 		_completed[activity_id] = true
+		_route_progress.erase(activity_id)
 		if _active_activity_id == activity_id:
 			_active_activity_id = &""
 	return committed
@@ -173,13 +214,30 @@ func abandon(activity_id: StringName, adapter: Object, reason: StringName = &"pl
 			or not adapter.has_method(&"abort_activity"):
 		return {"accepted": false, "reason": &"activity_adapter_unavailable"}
 	var aborted: Dictionary = adapter.call(&"abort_activity", reason)
-	if bool(aborted.get("accepted", false)) and _active_activity_id == activity_id:
-		_active_activity_id = &""
+	if bool(aborted.get("accepted", false)):
+		_route_progress.erase(activity_id)
+		if _active_activity_id == activity_id:
+			_active_activity_id = &""
 	return aborted
 
 
 func get_active_activity_id() -> StringName:
 	return _active_activity_id
+
+
+## What an offer point at this errand's trailhead may say. The four states are
+## exhaustive and derive only from facade state, so a reader can never present
+## a start that the errand seam would refuse.
+func get_offer_state(activity_id: StringName) -> StringName:
+	if not ACTIVITY_SPECS.has(activity_id):
+		return &"unknown"
+	if bool(_completed.get(activity_id, false)):
+		return &"completed"
+	if _active_activity_id == activity_id:
+		return &"active"
+	if _active_activity_id != &"":
+		return &"busy"
+	return &"available"
 
 
 func is_completed(activity_id: StringName) -> bool:
@@ -191,6 +249,11 @@ func get_snapshot(adapters: Dictionary = {}) -> Dictionary:
 	for activity_id: StringName in ACTIVITY_IDS:
 		var spec := ACTIVITY_SPECS[activity_id] as Dictionary
 		var adapter: Variant = adapters.get(activity_id)
+		var checkpoints := get_checkpoints_body_local(activity_id)
+		var progress := _route_progress.get(activity_id, {}) as Dictionary
+		var reached := clampi(
+			int(progress.get("next_checkpoint_index", 0)), 0, checkpoints.size()
+		)
 		records[activity_id] = {
 			"activity_id": activity_id,
 			"display_name": spec.display_name,
@@ -198,7 +261,14 @@ func get_snapshot(adapters: Dictionary = {}) -> Dictionary:
 			"route_id": spec.route_id,
 			"reward_id": spec.reward_id,
 			"objective_id": spec.objective_id,
-			"checkpoints_body_local_m": get_checkpoints_body_local(activity_id),
+			"checkpoints_body_local_m": checkpoints,
+			"trailhead_body_local_m": get_trailhead_body_local(activity_id),
+			"offer_state": get_offer_state(activity_id),
+			"checkpoints_reached": reached,
+			"checkpoint_count": checkpoints.size(),
+			"next_checkpoint_body_local_m": (
+				checkpoints[reached] if reached < checkpoints.size() else Vector3.INF
+			),
 			"state": _adapter_state(adapter),
 			"reward_committed": bool(_completed.get(activity_id, false)),
 			"activity_reward": (
@@ -264,11 +334,31 @@ func restore_persistence_snapshot(candidate: Variant) -> Dictionary:
 		return validation
 	var record := candidate as Dictionary
 	_completed.clear()
+	_route_progress.clear()
 	for value in record.get("completed_activity_ids") as PackedStringArray:
 		_completed[StringName(value)] = true
 	var active := StringName(record.get("active_activity_id", &""))
 	_active_activity_id = &"" if bool(_completed.get(active, false)) else active
 	return {"accepted": true, "reason": &"caldera_expedition_record_restored"}
+
+
+## Copies the route counters the checkpoint activity already publishes on every
+## start/position result. An unrecognised or rejected result leaves the last
+## known counters alone rather than inventing progress.
+func _capture_route_progress(activity_id: StringName, result: Variant) -> void:
+	if not result is Dictionary or not bool((result as Dictionary).get("accepted", false)):
+		return
+	var record := result as Dictionary
+	if not record.get("next_checkpoint_index") is int \
+			or not record.get("checkpoint_count") is int:
+		return
+	var count := int(record.checkpoint_count)
+	if count <= 0:
+		return
+	_route_progress[activity_id] = {
+		"next_checkpoint_index": clampi(int(record.next_checkpoint_index), 0, count),
+		"checkpoint_count": count,
+	}
 
 
 func _adapter_state(adapter: Variant) -> StringName:

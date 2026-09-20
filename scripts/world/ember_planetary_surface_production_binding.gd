@@ -30,6 +30,9 @@ const RelaySurveyScript := preload("res://scripts/world/ember_surface_relay_surv
 const ExpeditionActivityScript := preload(
 	"res://scripts/activities/ember_caldera_expedition_activity.gd"
 )
+const ExpeditionInteractionScript := preload(
+	"res://scripts/world/ember_caldera_expedition_interaction_binding.gd"
+)
 const ActivityDefinitionScript := preload("res://scripts/activities/activity_definition.gd")
 const LocationDefinitionScript := preload("res://scripts/world/definitions/world_location_definition.gd")
 const RelaySurveyPresentationScript := preload("res://scripts/world/ember_surface_relay_survey_presentation.gd")
@@ -97,6 +100,8 @@ var _pending_relay_survey_retirement: Dictionary = {}
 var _interrupted_relay_survey_resume_blocked := false
 var _survey_interaction: Area3D
 var _sample_rack_interaction: Area3D
+var _expedition_interactions: Dictionary = {}
+var _expedition_intent_sink := Callable()
 var _settlement: RefCounted
 var _settlement_practicals: Dictionary = {}
 var _surface_audio_binding: Node
@@ -243,6 +248,14 @@ func configure(
 			false,
 			expedition_composition.get(
 				"reason", &"caldera_expedition_binding_rejected"
+			) as StringName
+		)
+	var expedition_offers := _compose_caldera_expedition_interactions(host)
+	if not bool(expedition_offers.get("accepted", false)):
+		return _result(
+			false,
+			expedition_offers.get(
+				"reason", &"caldera_expedition_interaction_rejected"
 			) as StringName
 		)
 	_survey_interaction = SurveyInteractionScript.new() as Area3D
@@ -906,6 +919,8 @@ func detach() -> Dictionary:
 		_survey_interaction.call(&"detach")
 	if _sample_rack_interaction != null:
 		_sample_rack_interaction.call(&"detach")
+	for activity_id: StringName in _expedition_interactions:
+		(_expedition_interactions[activity_id] as Area3D).call(&"detach")
 	_clear_authored_hazard_runtime_exposure()
 	_set_hazard_semantic_clear(&"composition_detached")
 	var water_snapshot := _water.call(&"get_snapshot") as Dictionary
@@ -947,6 +962,12 @@ func reenter() -> Dictionary:
 	_route_trail.call(&"reenter")
 	if _hazard_zone_presentation != null:
 		_hazard_zone_presentation.call(&"reenter")
+	for activity_id: StringName in _expedition_interactions:
+		var offer_reentry: Dictionary = (
+			_expedition_interactions[activity_id] as Area3D
+		).call(&"reenter", next_attachment)
+		if not bool(offer_reentry.get("accepted", false)):
+			return _result(false, &"caldera_expedition_interaction_reentry_rejected")
 	if _survey_interaction != null:
 		var survey_reentry: Dictionary = _survey_interaction.call(&"reenter", next_attachment)
 		if not bool(survey_reentry.get("accepted", false)):
@@ -1012,6 +1033,9 @@ func get_return_status_snapshot() -> Dictionary:
 		"survey_interaction": _survey_interaction.call(&"get_snapshot") if _survey_interaction != null else {},
 		"sample_rack_interaction": _sample_rack_interaction.call(&"get_snapshot") \
 			if _sample_rack_interaction != null else {},
+		"caldera_expeditions": get_caldera_expedition_snapshot(),
+		"caldera_expedition_interactions":
+			get_caldera_expedition_interaction_snapshot(),
 	}.duplicate(true)
 
 
@@ -1023,6 +1047,8 @@ func get_snapshot() -> Dictionary:
 		"composition_generation": _composition_generation,
 		"adapter": _adapter.get_snapshot() if _adapter != null else {},
 		"caldera_expeditions": get_caldera_expedition_snapshot(),
+		"caldera_expedition_interactions":
+			get_caldera_expedition_interaction_snapshot(),
 		"navigation": _navigation.get_snapshot() if _navigation != null else {},
 		"hazard": _hazard.get_snapshot() if _hazard != null else {},
 		"hazard_content": _hazard_content.call(&"get_snapshot") if _hazard_content != null else {},
@@ -1086,6 +1112,72 @@ func _compose_caldera_expeditions(
 			)
 		_expedition_adapters[activity_id] = adapter
 	return _result(true, &"caldera_expeditions_bound")
+
+
+## Stands one offer point at each errand's authored trailhead. They are the
+## only reason a pilot on foot ever learns the errands exist, and they own
+## nothing: each one reads this owner's errand state and hands its press back
+## through the caller-installed production seam.
+func _compose_caldera_expedition_interactions(host: Object) -> Dictionary:
+	_expedition_interactions.clear()
+	var region := _resolve_authored_landing_region(host)
+	if region == null:
+		return _result(false, &"caldera_expedition_landing_region_unavailable")
+	for activity_id: StringName in ExpeditionActivityScript.ACTIVITY_IDS:
+		var offer := ExpeditionInteractionScript.new() as Area3D
+		offer.name = "OwnedCalderaExpeditionOffer_%s" % activity_id
+		add_child(offer)
+		var configured: Dictionary = offer.call(
+			&"configure", host, activity_id, region,
+			Callable(self, "_caldera_expedition_offer_state")
+		)
+		if not bool(configured.get("accepted", false)):
+			return _result(
+				false,
+				configured.get(
+					"reason", &"caldera_expedition_interaction_rejected"
+				) as StringName
+			)
+		if _expedition_intent_sink.is_valid():
+			offer.call(&"configure_intent_sink", _expedition_intent_sink)
+		_expedition_interactions[activity_id] = offer
+	return _result(true, &"caldera_expedition_interactions_bound")
+
+
+## Installs the caller's errand seam behind both offer points. The caller may
+## install it before or after composition; nothing here can be pressed until
+## it arrives.
+func configure_caldera_expedition_intent_sink(sink: Callable) -> Dictionary:
+	if not sink.is_valid():
+		return _result(false, &"invalid_caldera_expedition_intent_sink")
+	if _expedition_intent_sink == sink:
+		return _result(true, &"caldera_expedition_intent_sink_unchanged")
+	_expedition_intent_sink = sink
+	for activity_id: StringName in _expedition_interactions:
+		var configured: Dictionary = (
+			_expedition_interactions[activity_id] as Area3D
+		).call(&"configure_intent_sink", sink)
+		if not bool(configured.get("accepted", false)):
+			return _result(false, &"caldera_expedition_intent_sink_rejected")
+	return _result(true, &"caldera_expedition_intent_sink_configured")
+
+
+func _caldera_expedition_offer_state(activity_id: StringName) -> StringName:
+	if _expedition == null or not _live():
+		return &"unknown"
+	return StringName(_expedition.call(&"get_offer_state", activity_id))
+
+
+func get_caldera_expedition_interaction_snapshot() -> Dictionary:
+	var offers := {}
+	for activity_id: StringName in _expedition_interactions:
+		offers[activity_id] = (
+			_expedition_interactions[activity_id] as Area3D
+		).call(&"get_snapshot")
+	return {
+		"intent_sink_bound": _expedition_intent_sink.is_valid(),
+		"offers": offers,
+	}.duplicate(true)
 
 
 func start_caldera_expedition(activity_id: StringName) -> Dictionary:
@@ -1535,6 +1627,34 @@ func _apply_relay_survey_presentation() -> void:
 		&"apply_activity_snapshot", activity_snapshot, checkpoint_snapshot,
 		mandatory_route, committed_reward
 	)
+
+
+## Resolves the live authored landing region the Host has streamed in. The
+## authored caldera content is positioned in that node's frame, so anything
+## standing on the caldera floor must be placed through it.
+func _resolve_authored_landing_region(host: Object) -> Node3D:
+	if host == null:
+		return null
+	var loaded_scene_instance_id := 0
+	if host.has_method(&"get_loaded_scene_instance_id"):
+		loaded_scene_instance_id = int(host.call(&"get_loaded_scene_instance_id"))
+	elif host.has_method(&"get_snapshot"):
+		# The Host publishes this id inside its identities block; a legacy Host
+		# that publishes it at the top level is still accepted.
+		var host_snapshot := host.call(&"get_snapshot") as Dictionary
+		loaded_scene_instance_id = int(
+			(host_snapshot.get("identities", {}) as Dictionary).get(
+				"loaded_scene_instance_id",
+				host_snapshot.get("loaded_scene_instance_id", 0)
+			)
+		)
+	if loaded_scene_instance_id <= 0:
+		return null
+	var loaded_scene := instance_from_id(loaded_scene_instance_id) as Node
+	if loaded_scene == null or not is_instance_valid(loaded_scene) \
+			or loaded_scene.get_script() != EmberAuthoredSceneScript:
+		return null
+	return loaded_scene.get_node_or_null(^"LandingRegion") as Node3D
 
 
 func _bind_relay_survey_pad_guides(host: Object) -> void:

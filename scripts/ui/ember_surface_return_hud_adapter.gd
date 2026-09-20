@@ -220,6 +220,37 @@ func _to_runtime_status_card(route: Dictionary) -> Dictionary:
 			if is_finite(side_distance) and side_distance >= 0.0:
 				side_task += " // %.1f M" % side_distance
 			lines.append(side_task)
+	# The caldera errands get exactly one tally line and one live line. The
+	# press itself is never repeated here: the shared interaction prompt panel
+	# already shows it whenever the pilot is standing on an offer point.
+	var expeditions := route.get("caldera_expeditions", {}) as Dictionary
+	if bool(expeditions.get("available", false)):
+		lines.append("EXPEDITIONS // %d OF %d LOGGED" % [
+			int(expeditions.get("logged_count", 0)),
+			int(expeditions.get("expedition_count", 0)),
+		])
+		var in_hand := expeditions.get("active", {}) as Dictionary
+		if in_hand.is_empty():
+			var offer := expeditions.get("nearest_offer", {}) as Dictionary
+			if not offer.is_empty():
+				var offer_line := "EXPEDITION // %s // AVAILABLE" % str(
+					offer.get("label", "CALDERA ERRAND")
+				)
+				var offer_distance := float(offer.get("distance_m", -1.0))
+				if is_finite(offer_distance) and offer_distance >= 0.0:
+					offer_line += " // %.1f M" % offer_distance
+				lines.append(offer_line)
+		else:
+			var count := maxi(1, int(in_hand.get("checkpoint_count", 1)))
+			var active_line := "EXPEDITION // %s // CHECKPOINT %d OF %d" % [
+				str(in_hand.get("label", "CALDERA ERRAND")),
+				mini(int(in_hand.get("checkpoints_reached", 0)) + 1, count),
+				count,
+			]
+			var leg_distance := float(in_hand.get("distance_m", -1.0))
+			if is_finite(leg_distance) and leg_distance >= 0.0:
+				active_line += " // %.1f M" % leg_distance
+			lines.append(active_line)
 	var next_action := route.get("next_action", {}) as Dictionary
 	if not next_action.is_empty():
 		lines.append("NEXT // %s // EMBER RETURN // %s" % [
@@ -282,6 +313,9 @@ func _to_surface_route_snapshot(view: Dictionary) -> Dictionary:
 		"route_guidance": guidance.duplicate(true),
 		"optional_objectives": (
 			view.get("optional_objectives", {}) as Dictionary
+		).duplicate(true),
+		"caldera_expeditions": (
+			view.get("caldera_expeditions", {}) as Dictionary
 		).duplicate(true),
 		"next_action": next_action.duplicate(true),
 		"reduced_motion": bool(view.get("reduced_motion", false)),

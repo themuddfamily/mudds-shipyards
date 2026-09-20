@@ -36,12 +36,12 @@ const LANDER_WRECK_LEGS := [
 	Vector3(52.0, 0.0, 46.0),
 ]
 const LAVA_TUBE_LEGS := [
-	Vector3(18.0, 0.0, 46.0),
 	Vector3(18.0, 0.0, -38.0),
 	Vector3(-32.0, 0.0, -38.0),
 	Vector3(-32.0, 0.0, 16.0),
 	Vector3(-74.0, 0.0, 16.0),
 ]
+const INTERACTION_LAYER := 1 << 3
 const SIGHTLINE_TARGETS := {
 	&"ember_collapsed_lava_tube": Vector3(-86.0, 3.5, 18.0),
 	&"ember_caldera_survey_mast": Vector3(14.0, 9.0, -92.0),
@@ -50,6 +50,7 @@ const SIGHTLINE_TARGETS := {
 
 var _failures := PackedStringArray()
 var _original_time_scale := 1.0
+var _expedition_intent_composition: Node
 
 
 class MemoryFilesystem extends FilesystemScript:
@@ -364,6 +365,22 @@ func _test_caldera_expedition_visit() -> void:
 		"a whole-composition re-entry keeps the visit and both paid errands without re-paying either",
 	)
 
+	var offers_after_reentry := true
+	for activity_id: StringName in ExpeditionScript.ACTIVITY_IDS:
+		var offer := _offer_snapshot(fixture, activity_id)
+		if StringName(offer.get("offer_state", &"")) != &"completed" \
+				or bool(offer.get("pressable", true)) \
+				or not str(offer.get("prompt", "")).begins_with("[ COMPLETE ]") \
+				or int((offer.get("physical", {}) as Dictionary).get(
+					"collision_layer", -1
+				)) != 0 \
+				or not bool(offer.get("intent_sink_bound", false)):
+			offers_after_reentry = false
+	_check(
+		offers_after_reentry,
+		"after a whole-composition re-entry both trailheads still read LOGGED and offer no second start",
+	)
+
 	var restored := ExpeditionScript.new()
 	var restore_result: Dictionary = restored.call(
 		&"restore_persistence_snapshot", saved_expeditions
@@ -395,9 +412,9 @@ func _test_abandoned_expedition_leaves_the_pilot_free() -> void:
 	var player := fixture.player as PlayerController
 	var authority: RefCounted = fixture.authority
 	var wreck_id := ExpeditionScript.LANDER_WRECK_ACTIVITY_ID
-	var started: Dictionary = composition.call(&"start_caldera_expedition", wreck_id)
+	var started := await _walk_to_offer_and_press(fixture, wreck_id)
 	_check(bool(started.get("accepted", false)),
-		"an errand starts on foot: %s" % [started.get("reason", &"?")])
+		"an errand starts from its authored trailhead on foot: %s" % [started.get("reason", &"?")])
 	if not bool(started.get("accepted", false)):
 		await _cleanup(fixture)
 		return
@@ -405,9 +422,14 @@ func _test_abandoned_expedition_leaves_the_pilot_free() -> void:
 		_check(false, "the abandoning pilot walks the first authored leg")
 		await _cleanup(fixture)
 		return
-	var abandoned: Dictionary = composition.call(
-		&"abandon_caldera_expedition", wreck_id, &"player_abandoned"
+	var gave_up := await _walk_to_offer_and_press(fixture, wreck_id)
+	_check(
+		bool(gave_up.get("accepted", false))
+			and str(gave_up.get("prompt_before", "")) \
+				== "[ E ]  ABANDON LANDER WRECK SURVEY",
+		"walking back to the trailhead offers the way out and one press takes it",
 	)
+	var abandoned := {"accepted": bool(gave_up.get("accepted", false))}
 	var snapshot: Dictionary = composition.call(&"get_caldera_expedition_snapshot")
 	var record := (snapshot.get("activities", {}) as Dictionary).get(
 		wreck_id, {}
@@ -427,8 +449,34 @@ func _test_abandoned_expedition_leaves_the_pilot_free() -> void:
 			and player.is_control_enabled() and player.is_on_floor(),
 		"the abandoning pilot keeps control, support and the live visit",
 	)
+	var reoffered := _offer_snapshot(fixture, wreck_id)
+	var sibling_free := _offer_snapshot(
+		fixture, ExpeditionScript.LAVA_TUBE_ACTIVITY_ID
+	)
+	_check(
+		StringName(reoffered.get("offer_state", &"")) == &"available"
+			and bool(reoffered.get("pressable", false))
+			and str(reoffered.get("prompt", "")) == "[ E ]  BEGIN LANDER WRECK SURVEY"
+			and StringName(sibling_free.get("offer_state", &"")) == &"available",
+		"abandoning clears the standing objective and re-offers both errands",
+	)
 	var flew_home := await _return_and_fly_home(fixture)
 	_check(flew_home, "an abandoned errand still leaves a clean walk back, boarding and flight home")
+	var aboard_and_away := true
+	for activity_id: StringName in ExpeditionScript.ACTIVITY_IDS:
+		var offer := _offer_snapshot(fixture, activity_id)
+		var physical := offer.get("physical", {}) as Dictionary
+		if bool(offer.get("active", true)) \
+				or not str(offer.get("prompt", "?")).is_empty() \
+				or bool(offer.get("pressable", true)) \
+				or int(physical.get("collision_layer", -1)) != 0 \
+				or bool(physical.get("marker_visible", true)):
+			aboard_and_away = false
+	_check(
+		aboard_and_away
+			and (fixture.player as PlayerController).get_nearby_interactables().is_empty(),
+		"aboard the craft and away from the surface neither trailhead offers, prompts or shows anything",
+	)
 	await _cleanup(fixture)
 
 
@@ -436,15 +484,77 @@ func _run_expedition(
 		fixture: Dictionary, activity_id: StringName, legs: Array
 	) -> bool:
 	var composition := fixture.composition as Node
-	var started: Dictionary = composition.call(&"start_caldera_expedition", activity_id)
-	if not bool(started.get("accepted", false)):
+	var display_name := str(
+		(ExpeditionScript.ACTIVITY_SPECS[activity_id] as Dictionary).display_name
+	).to_upper()
+	var offered := _offer_snapshot(fixture, activity_id)
+	_check(
+		bool(offered.get("active", false))
+			and StringName(offered.get("offer_state", &"")) == &"available"
+			and bool(offered.get("pressable", false))
+			and str(offered.get("prompt", "")) == "[ E ]  BEGIN %s" % display_name
+			and int((offered.get("physical", {}) as Dictionary).get(
+				"collision_layer", 0
+			)) == INTERACTION_LAYER
+			and str((offered.get("physical", {}) as Dictionary).get(
+				"marker_text", ""
+			)) == "%s\nERRAND AVAILABLE" % display_name
+			and not bool((offered.get("authority", {}) as Dictionary).get(
+				"activity", true
+			))
+			and bool((offered.get("accessibility", {}) as Dictionary).get(
+				"reduced_flash_safe", false
+			))
+			and not bool((offered.get("accessibility", {}) as Dictionary).get(
+				"animated", true
+			)),
+		"%s is offered on foot by name, with a press and a static marker" % activity_id,
+	)
+	var pressed := await _walk_to_offer_and_press(fixture, activity_id)
+	if not bool(pressed.get("accepted", false)):
 		push_error("EXPEDITION start rejected %s: %s" % [
-			activity_id, started.get("reason", &"?")
+			activity_id, pressed.get("reason", &"?")
 		])
 		return false
+	var in_hand := _offer_snapshot(fixture, activity_id)
+	_check(
+		StringName(composition.call(&"get_active_caldera_expedition_id")) == activity_id
+			and StringName(in_hand.get("offer_state", &"")) == &"active"
+			and str(in_hand.get("prompt", "")) == "[ E ]  ABANDON %s" % display_name,
+		"pressing the %s trailhead takes the errand and turns the point into the way out" % activity_id,
+	)
+	for other_id: StringName in ExpeditionScript.ACTIVITY_IDS:
+		if other_id == activity_id:
+			continue
+		var sibling := _offer_snapshot(fixture, other_id)
+		if StringName(sibling.get("offer_state", &"")) == &"completed":
+			continue
+		_check(
+			StringName(sibling.get("offer_state", &"")) == &"busy"
+				and not bool(sibling.get("pressable", true))
+				and int((sibling.get("physical", {}) as Dictionary).get(
+					"collision_layer", -1
+				)) == 0
+				and not bool((fixture.player as PlayerController).call(
+					&"get_nearby_interactables"
+				).has(_offer_point(fixture, other_id))),
+			"the other errand's point stands down while %s is in hand" % activity_id,
+		)
+	var leg_index := 0
 	for target: Vector3 in legs:
 		if not await _walk_to(fixture, target):
 			return false
+		leg_index += 1
+		if leg_index == 1:
+			var walked := (composition.call(
+				&"get_caldera_expedition_snapshot"
+			) as Dictionary).get("activities", {}).get(activity_id, {}) as Dictionary
+			_check(
+				int(walked.get("checkpoint_count", -1)) == 2
+					and int(walked.get("checkpoints_reached", -1)) >= 0
+					and not bool(walked.get("reward_committed", true)),
+				"%s reports live route progress out of two checkpoints while it is walked" % activity_id,
+			)
 	var snapshot: Dictionary = composition.call(&"get_caldera_expedition_snapshot")
 	var record := (snapshot.get("activities", {}) as Dictionary).get(
 		activity_id, {}
@@ -452,6 +562,19 @@ func _run_expedition(
 	if not bool(record.get("reward_committed", false)):
 		push_error("EXPEDITION %s incomplete: %s" % [activity_id, record])
 		return false
+	var logged := _offer_snapshot(fixture, activity_id)
+	_check(
+		StringName(logged.get("offer_state", &"")) == &"completed"
+			and not bool(logged.get("pressable", true))
+			and str(logged.get("prompt", "")) == "[ COMPLETE ]  %s LOGGED" % display_name
+			and int((logged.get("physical", {}) as Dictionary).get(
+				"collision_layer", -1
+			)) == 0
+			and not bool(_offer_point(fixture, activity_id).call(
+				&"can_interact", fixture.player
+			)),
+		"finishing %s clears its standing objective and retires the press" % activity_id,
+	)
 	return true
 
 
@@ -591,13 +714,91 @@ func _configure_composition(fixture: Dictionary) -> Dictionary:
 	var director := fixture.director as ActivityDirector
 	var authority: RefCounted = fixture.authority
 	var composition := fixture.composition as Node
-	return composition.call(
+	var configured: Dictionary = composition.call(
 		&"configure", host, director,
 		Callable(self, "_relay_reward_sink_stub"),
 		host.get_generation(),
 		Callable(),
 		Callable(authority, "commit")
 	)
+	if not bool(configured.get("accepted", false)):
+		return configured
+	# GameFlow owns this seam in production. Standing in for it here keeps the
+	# press on exactly the composition calls `begin_ember_caldera_expedition`
+	# and `abandon_ember_caldera_expedition` terminate in.
+	_expedition_intent_composition = composition
+	var sink_installed: Dictionary = composition.call(
+		&"configure_caldera_expedition_intent_sink",
+		Callable(self, "_expedition_intent_sink")
+	)
+	if not bool(sink_installed.get("accepted", false)):
+		return sink_installed
+	return configured
+
+
+## The caller-owned errand seam behind both trailhead offer points.
+func _expedition_intent_sink(intent: Variant) -> Dictionary:
+	if not intent is Dictionary \
+			or not is_instance_valid(_expedition_intent_composition):
+		return {"accepted": false, "reason": &"invalid_caldera_expedition_intent"}
+	var request := intent as Dictionary
+	var activity_id := StringName(request.get("activity_id", &""))
+	if StringName(request.get("world_id", &"")) != &"ember_moon" \
+			or not ExpeditionScript.is_expedition_activity(activity_id):
+		return {"accepted": false, "reason": &"invalid_caldera_expedition_intent"}
+	match StringName(request.get("action", &"")):
+		&"begin":
+			return _expedition_intent_composition.call(
+				&"start_caldera_expedition", activity_id
+			)
+		&"abandon":
+			return _expedition_intent_composition.call(
+				&"abandon_caldera_expedition", activity_id, &"player_abandoned"
+			)
+	return {"accepted": false, "reason": &"invalid_caldera_expedition_intent"}
+
+
+func _offer_point(fixture: Dictionary, activity_id: StringName) -> Area3D:
+	return (fixture.composition as Node).get_node_or_null(
+		NodePath("OwnedCalderaExpeditionOffer_%s" % activity_id)
+	) as Area3D
+
+
+func _offer_snapshot(fixture: Dictionary, activity_id: StringName) -> Dictionary:
+	var offer := _offer_point(fixture, activity_id)
+	return offer.call(&"get_snapshot") as Dictionary if offer != null else {}
+
+
+func _trailhead_region_local(activity_id: StringName) -> Vector3:
+	return (ExpeditionScript.ACTIVITY_SPECS[activity_id] as Dictionary).trailhead as Vector3
+
+
+## Walks the pilot onto the authored trailhead and presses it the way the
+## generic on-foot interaction seam does: the point must be discoverable
+## through the player's own nearby-interactable scan first.
+func _walk_to_offer_and_press(
+		fixture: Dictionary, activity_id: StringName
+	) -> Dictionary:
+	var player := fixture.player as PlayerController
+	var offer := _offer_point(fixture, activity_id)
+	if offer == null:
+		return {"accepted": false, "reason": &"offer_point_missing"}
+	if not await _walk_to(fixture, _trailhead_region_local(activity_id)):
+		return {"accepted": false, "reason": &"offer_point_unreachable"}
+	await _tick(fixture)
+	if offer not in player.get_nearby_interactables():
+		push_error("OFFER %s not discoverable at %s (offer %s / player %s)" % [
+			activity_id,
+			(fixture.landing_root as Node3D).to_local(player.global_position),
+			offer.global_position, player.global_position,
+		])
+		return {"accepted": false, "reason": &"offer_point_not_discoverable"}
+	var prompt_before := str(offer.call(&"get_interaction_prompt"))
+	return {
+		"accepted": bool(offer.call(&"interact", player)),
+		"reason": &"offer_pressed",
+		"prompt_before": prompt_before,
+	}
 
 
 ## The relay survey keeps its own evidence-bearing production sink; this suite

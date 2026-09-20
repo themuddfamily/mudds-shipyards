@@ -20,10 +20,29 @@ class StatusBindingProbe:
 class PlanetaryCompositionProbe:
 	extends Node
 	var snapshot: Dictionary = {}
+	var expedition_intent_sink := Callable()
+	var started: Array[StringName] = []
+	var abandoned: Array[StringName] = []
+	var reject_next := false
 	func get_snapshot() -> Dictionary:
 		return snapshot.duplicate(true)
 	func get_authored_hazard_presentation_snapshot() -> Dictionary:
 		return {}
+	func configure_caldera_expedition_intent_sink(sink: Callable) -> Dictionary:
+		expedition_intent_sink = sink
+		return {"accepted": true, "reason": &"caldera_expedition_intent_sink_configured"}
+	func start_caldera_expedition(activity_id: StringName) -> Dictionary:
+		if reject_next:
+			return {"accepted": false, "reason": &"caldera_expedition_unavailable"}
+		started.append(activity_id)
+		return {"accepted": true, "reason": &"activity_started"}
+	func abandon_caldera_expedition(
+			activity_id: StringName, reason: StringName = &"player_abandoned"
+		) -> Dictionary:
+		abandoned.append(activity_id)
+		return {"accepted": true, "reason": reason}
+	func get_caldera_expedition_snapshot() -> Dictionary:
+		return {"world_id": &"ember_moon", "activities": {}}
 
 var _assertions := 0
 var _failures: PackedStringArray = []
@@ -145,6 +164,7 @@ func _run() -> void:
 	_check(detail.text.contains("EMBER RETURN // ASCENT"), "fresh re-entry updates the surface HUD once")
 	_check(_cues.count(&"ember_surface_ascent_exterior") == 1, "fresh re-entry reaches AudioDirector once")
 	_test_in_range_minimap_markers()
+	_test_caldera_expedition_intent_seam(flow, production, planetary)
 
 	flow.queue_free()
 	await process_frame
@@ -202,6 +222,105 @@ func _test_in_range_minimap_markers() -> void:
 		"withdrawn Ember guidance cannot leave an in-range minimap target",
 	)
 	flow.free()
+
+
+## The authored trailhead offer points can only ask; this owner answers. The
+## press must land on the same public `begin_/abandon_ember_caldera_expedition`
+## seams an external caller would use, and nothing else may get through.
+func _test_caldera_expedition_intent_seam(
+		flow: FlowProbe, production: ProductionType,
+		planetary: PlanetaryCompositionProbe
+	) -> void:
+	_check(
+		planetary.expedition_intent_sink.is_valid()
+			and planetary.expedition_intent_sink.get_object() == flow
+			and planetary.expedition_intent_sink.get_method() \
+				== "_submit_ember_caldera_expedition_intent",
+		"composing the Ember presentation installs GameFlow's own errand seam behind the offer points",
+	)
+	var begin_intent := {
+		"action": &"begin",
+		"activity_id": &"ember_lava_tube_sounding",
+		"world_id": &"ember_moon",
+	}
+	var began: Dictionary = planetary.expedition_intent_sink.call(
+		begin_intent.duplicate(true)
+	)
+	var abandoned: Dictionary = planetary.expedition_intent_sink.call({
+		"action": &"abandon",
+		"activity_id": &"ember_lava_tube_sounding",
+		"world_id": &"ember_moon",
+	})
+	_check(
+		bool(began.get("accepted", false))
+			and bool(abandoned.get("accepted", false))
+			and planetary.started.size() == 1
+			and planetary.started[0] == &"ember_lava_tube_sounding"
+			and planetary.abandoned.size() == 1
+			and planetary.abandoned[0] == &"ember_lava_tube_sounding"
+			and StringName(abandoned.get("reason", &"")) == &"player_abandoned",
+		"one press each way reaches the retained errand owner exactly once through the public seams",
+	)
+	var refusals := [
+		planetary.expedition_intent_sink.call("not a dictionary"),
+		planetary.expedition_intent_sink.call({
+			"action": &"begin", "activity_id": &"ember_beacon_survey",
+			"world_id": &"ember_moon",
+		}),
+		planetary.expedition_intent_sink.call({
+			"action": &"begin", "activity_id": &"ember_lava_tube_sounding",
+			"world_id": &"cinder_reach",
+		}),
+		planetary.expedition_intent_sink.call({
+			"action": &"complete", "activity_id": &"ember_lava_tube_sounding",
+			"world_id": &"ember_moon",
+		}),
+	]
+	var all_refused := true
+	for refusal: Dictionary in refusals:
+		if bool(refusal.get("accepted", true)) \
+				or StringName(refusal.get("reason", &"")) \
+					!= &"invalid_caldera_expedition_intent":
+			all_refused = false
+	_check(
+		all_refused
+			and planetary.started.size() == 1 and planetary.abandoned.size() == 1,
+		"a malformed, foreign-world, foreign-activity or unknown-action intent starts nothing",
+	)
+	planetary.reject_next = true
+	var refused_by_owner: Dictionary = planetary.expedition_intent_sink.call(
+		begin_intent.duplicate(true)
+	)
+	planetary.reject_next = false
+	_check(
+		not bool(refused_by_owner.get("accepted", true))
+			and StringName(refused_by_owner.get("reason", &"")) \
+				== &"caldera_expedition_unavailable",
+		"the errand owner's refusal is reported verbatim rather than being presented as a start",
+	)
+	planetary.expedition_intent_sink = Callable()
+	flow.call("_ensure_ember_surface_presentations")
+	_check(
+		planetary.expedition_intent_sink.is_valid(),
+		"an idempotent presentation pass restores the errand seam after re-entry",
+	)
+	var detached_flow := FlowProbe.new()
+	_check(
+		not bool(detached_flow._submit_ember_caldera_expedition_intent({
+			"action": &"begin", "activity_id": &"ember_lava_tube_sounding",
+			"world_id": &"ember_moon",
+		}).get("accepted", true))
+		and detached_flow.get_ember_caldera_expedition_report().is_empty(),
+		"off Ember, with no surface binding, the same intent cannot start an errand",
+	)
+	detached_flow.free()
+	# The probe's own counters, not GameFlow's, prove nothing was smuggled past
+	# the seam while these refusals were being made.
+	_check(
+		production.get_caldera_expedition_snapshot().get("world_id", &"") \
+			== &"ember_moon",
+		"the retained production owner remains the single errand report source",
+	)
 
 
 func _find_marker(markers: Array[Dictionary], marker_id: StringName) -> Dictionary:

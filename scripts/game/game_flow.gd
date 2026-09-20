@@ -11068,6 +11068,28 @@ func get_ember_caldera_expedition_report() -> Dictionary:
 	return ember_surface_loop_production_binding.get_caldera_expedition_snapshot()
 
 
+## The one way a press on an authored caldera trailhead becomes an errand. The
+## offer point in the world decides nothing: it names an action and an errand,
+## and this seam forwards it to the same public production seams an external
+## caller would use. Anything it cannot recognise is refused here.
+func _submit_ember_caldera_expedition_intent(intent: Variant) -> Dictionary:
+	if not intent is Dictionary:
+		return {"accepted": false, "reason": &"invalid_caldera_expedition_intent"}
+	var request := intent as Dictionary
+	var activity_id := StringName(request.get("activity_id", &""))
+	if StringName(request.get("world_id", &"")) != &"ember_moon" \
+			or not EmberCalderaExpeditionActivity.is_expedition_activity(
+				activity_id
+			):
+		return {"accepted": false, "reason": &"invalid_caldera_expedition_intent"}
+	match StringName(request.get("action", &"")):
+		&"begin":
+			return begin_ember_caldera_expedition(activity_id)
+		&"abandon":
+			return abandon_ember_caldera_expedition(activity_id, &"player_abandoned")
+	return {"accepted": false, "reason": &"invalid_caldera_expedition_intent"}
+
+
 func _arm_ember_final_approach(host: Object) -> Dictionary:
 	return _planetary_journey._arm_ember_final_approach(host)
 
@@ -17162,6 +17184,17 @@ func _ensure_ember_surface_presentations() -> Dictionary:
 	if not bool(host_snapshot.get("attached", false)) \
 			or not bool(production_snapshot.get("configured", false)):
 		return {"accepted": false, "reason": &"ember_production_not_bound"}
+
+	# The authored trailhead offer points are composed with the surface, but
+	# only this owner may answer their presses. Installing the seam here keeps
+	# it on the same idempotent pass that owns every other Ember presentation.
+	if ember_surface_loop_production_binding.has_method(
+		&"configure_caldera_expedition_intent_sink"
+	):
+		ember_surface_loop_production_binding.call(
+			&"configure_caldera_expedition_intent_sink",
+			Callable(self, "_submit_ember_caldera_expedition_intent")
+		)
 
 	if not is_instance_valid(_ember_surface_loop_audio_composition):
 		_ember_surface_loop_audio_composition = EmberSurfaceLoopAudioCompositionType.new()

@@ -65,6 +65,9 @@ func present(snapshot: Dictionary, reduced_motion: bool = false) -> Dictionary:
 	var optional_objectives := _optional_surface_objectives(
 		host, binding, mapped.get("state", &"rejected") as StringName
 	)
+	var caldera_expeditions := _caldera_expeditions(
+		host, binding, mapped.get("state", &"rejected") as StringName
+	)
 	var lines := PackedStringArray([visible_title])
 	lines.append("STATUS MARKER  //  %s  //  %s" % [
 		str(status_semantics.get("marker", "[???]")),
@@ -94,6 +97,41 @@ func present(snapshot: Dictionary, reduced_motion: bool = false) -> Dictionary:
 					and is_finite(objective_distance) and objective_distance >= 0.0:
 				objective_line += "  //  %.1f m" % objective_distance
 			lines.append(objective_line)
+	if bool(caldera_expeditions.get("available", false)):
+		lines.append("EXPEDITIONS  //  %d OF %d LOGGED" % [
+			int(caldera_expeditions.get("logged_count", 0)),
+			int(caldera_expeditions.get("expedition_count", 0)),
+		])
+		var in_hand := caldera_expeditions.get("active", {}) as Dictionary
+		if in_hand.is_empty():
+			var offer := caldera_expeditions.get("nearest_offer", {}) as Dictionary
+			if not offer.is_empty():
+				var offer_line := "EXPEDITION  [ ]  %s" % str(
+					offer.get("label", "CALDERA ERRAND")
+				)
+				var offer_distance := float(offer.get("distance_m", -1.0))
+				if is_finite(offer_distance) and offer_distance >= 0.0:
+					offer_line += "  //  %.1f m" % offer_distance
+				lines.append(offer_line)
+				var prompt := str(offer.get("prompt", "")).strip_edges()
+				if not prompt.is_empty():
+					lines.append(prompt)
+		else:
+			var progress_line := "EXPEDITION  [>]  %s  //  CHECKPOINT %d OF %d" % [
+				str(in_hand.get("label", "CALDERA ERRAND")),
+				mini(
+					int(in_hand.get("checkpoints_reached", 0)) + 1,
+					maxi(1, int(in_hand.get("checkpoint_count", 1))),
+				),
+				maxi(1, int(in_hand.get("checkpoint_count", 1))),
+			]
+			var leg_distance := float(in_hand.get("distance_m", -1.0))
+			if is_finite(leg_distance) and leg_distance >= 0.0:
+				progress_line += "  //  %.1f m" % leg_distance
+			lines.append(progress_line)
+			var abandon_prompt := str(in_hand.get("prompt", "")).strip_edges()
+			if not abandon_prompt.is_empty():
+				lines.append(abandon_prompt)
 	if distance >= 0.0:
 		lines.append("DISTANCE  %.1f m" % distance)
 	if speed >= 0.0:
@@ -116,6 +154,7 @@ func present(snapshot: Dictionary, reduced_motion: bool = false) -> Dictionary:
 		"color_independent": true, "reduced_flash_safe": true,
 		"flash_requested": false, "route_guidance": route_guidance,
 		"optional_objectives": optional_objectives,
+		"caldera_expeditions": caldera_expeditions,
 		"status_semantics": status_semantics,
 		"next_action": next_action,
 		"presentation_only": true,
@@ -420,6 +459,120 @@ func _optional_surface_objectives(
 		"navigation_authority": false,
 		"activity_authority": false,
 		"reward_authority": false,
+	}.duplicate(true)
+
+
+## Makes the two authored caldera errands legible from the retained surface
+## card: how many are logged, which one is in hand and how far its next
+## checkpoint is, or which one is being offered underfoot. Everything is read
+## from the authenticated detached errand snapshot and the offer points''' own
+## fresh reports; this view can neither start, advance nor pay an errand.
+func _caldera_expeditions(
+		host: Dictionary, binding: Dictionary, state: StringName
+	) -> Dictionary:
+	if state != &"on_foot":
+		return _unavailable_caldera_expeditions()
+	var actor: Variant = (
+		host.get("actor_state", {}) as Dictionary
+	).get("player_position", Vector3.INF)
+	if actor is not Vector3 or not (actor as Vector3).is_finite():
+		return _unavailable_caldera_expeditions()
+	var planetary := binding.get("planetary_surface", {}) as Dictionary
+	var expeditions := planetary.get("caldera_expeditions", {}) as Dictionary
+	if StringName(expeditions.get("world_id", &"")) != &"ember_moon":
+		return _unavailable_caldera_expeditions()
+	var records := expeditions.get("activities", {}) as Dictionary
+	if records.is_empty():
+		return _unavailable_caldera_expeditions()
+	var offer_reports := (
+		planetary.get("caldera_expedition_interactions", {}) as Dictionary
+	).get("offers", {}) as Dictionary
+	var actor_position := actor as Vector3
+	var active_id := StringName(expeditions.get("active_activity_id", &""))
+	var logged_count := 0
+	var offers: Array[Dictionary] = []
+	var nearest_offer: Dictionary = {}
+	var in_hand: Dictionary = {}
+	for activity_id: StringName in records:
+		var record := records[activity_id] as Dictionary
+		var offer_state := StringName(record.get("offer_state", &""))
+		if offer_state not in [&"available", &"active", &"busy", &"completed"]:
+			continue
+		if offer_state == &"completed":
+			logged_count += 1
+		var report := offer_reports.get(activity_id, {}) as Dictionary
+		var label := str(record.get("display_name", "Caldera Errand")).to_upper()
+		var trailhead: Variant = record.get("trailhead_body_local_m", Vector3.INF)
+		var trailhead_distance := -1.0
+		if trailhead is Vector3 and (trailhead as Vector3).is_finite():
+			trailhead_distance = (trailhead as Vector3).distance_to(actor_position)
+		var prompt := str(report.get("prompt", "")) \
+			if bool(report.get("active", false)) else ""
+		var entry := {
+			"activity_id": activity_id,
+			"label": label,
+			"offer_state": offer_state,
+			"distance_m": trailhead_distance,
+			"in_range": bool(report.get("pressable", false)),
+			"prompt": prompt,
+			"position_body_local_m": (
+				trailhead if trailhead is Vector3 else Vector3.INF
+			),
+			"presentation_only": true,
+			"activity_authority": false,
+			"reward_authority": false,
+			"navigation_authority": false,
+		}.duplicate(true)
+		if offer_state == &"active" and activity_id == active_id:
+			var next_checkpoint: Variant = record.get(
+				"next_checkpoint_body_local_m", Vector3.INF
+			)
+			var leg_distance := -1.0
+			if next_checkpoint is Vector3 and (next_checkpoint as Vector3).is_finite():
+				leg_distance = (next_checkpoint as Vector3).distance_to(actor_position)
+			in_hand = entry.duplicate(true)
+			in_hand["checkpoints_reached"] = int(record.get("checkpoints_reached", 0))
+			in_hand["checkpoint_count"] = int(record.get("checkpoint_count", 0))
+			in_hand["distance_m"] = leg_distance
+			in_hand["position_body_local_m"] = (
+				next_checkpoint if next_checkpoint is Vector3 else Vector3.INF
+			)
+			continue
+		offers.append(entry)
+		if offer_state == &"available" and trailhead_distance >= 0.0 \
+				and (nearest_offer.is_empty() \
+					or trailhead_distance < float(nearest_offer.get("distance_m", INF))):
+			nearest_offer = entry.duplicate(true)
+	return {
+		"available": true,
+		"world_id": &"ember_moon",
+		"logged_count": logged_count,
+		"expedition_count": records.size(),
+		"active": in_hand,
+		"offers": offers,
+		"nearest_offer": nearest_offer,
+		"coordinate_source": &"authenticated_detached_caldera_errand_snapshot",
+		"reduced_flash_safe": true,
+		"presentation_only": true,
+		"activity_authority": false,
+		"reward_authority": false,
+		"navigation_authority": false,
+	}.duplicate(true)
+
+
+func _unavailable_caldera_expeditions() -> Dictionary:
+	return {
+		"available": false,
+		"logged_count": 0,
+		"expedition_count": 0,
+		"active": {},
+		"offers": [],
+		"nearest_offer": {},
+		"reduced_flash_safe": true,
+		"presentation_only": true,
+		"activity_authority": false,
+		"reward_authority": false,
+		"navigation_authority": false,
 	}.duplicate(true)
 
 

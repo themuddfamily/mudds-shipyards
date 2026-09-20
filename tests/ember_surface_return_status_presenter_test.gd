@@ -75,6 +75,7 @@ func _run() -> void:
 		"status semantics remain presentation-only",
 	)
 	_test_optional_surface_objectives()
+	_test_caldera_expedition_objective()
 	if _failures.is_empty():
 		print("EMBER_SURFACE_RETURN_STATUS_PRESENTER_TEST_OK (%d assertions)" % _assertions)
 		quit(0)
@@ -199,6 +200,203 @@ func _test_optional_surface_objectives() -> void:
 			)[0].checkpoint_id == &"ember_bunker_gantry_log",
 		"a mismatched interaction identity cannot borrow an Ember checkpoint label",
 	)
+
+
+## The two authored caldera errands must be legible from the same standing
+## surface card the relay survey already owns: offered while the pilot stands
+## at a trailhead, tracked checkpoint by checkpoint once one is in hand, and
+## gone the moment the pilot is no longer on foot.
+func _test_caldera_expedition_objective() -> void:
+	var presenter := PresenterType.new()
+	var snapshot := _snapshot(1, &"on_foot", true)
+	snapshot.host["actor_state"] = {
+		"player_position": Vector3(16.0, 120000.0, -3.0),
+	}
+	snapshot.binding = {
+		"attached": true,
+		"planetary_surface": {
+			"caldera_expeditions": {
+				"world_id": &"ember_moon",
+				"active_activity_id": &"",
+				"activities": {
+					&"ember_lava_tube_sounding": _expedition_record(
+						&"ember_lava_tube_sounding", "Lava Tube Sounding",
+						&"available", Vector3(18.0, 120000.0, -3.0), 0
+					),
+					&"ember_lander_wreck_survey": _expedition_record(
+						&"ember_lander_wreck_survey", "Lander Wreck Survey",
+						&"available", Vector3(40.0, 120000.0, -4.0), 0
+					),
+				},
+			},
+			"caldera_expedition_interactions": {
+				"offers": {
+					&"ember_lava_tube_sounding": {
+						"active": true, "pressable": true,
+						"prompt": "[ E ]  BEGIN LAVA TUBE SOUNDING",
+					},
+					&"ember_lander_wreck_survey": {
+						"active": true, "pressable": false,
+						"prompt": "[ E ]  BEGIN LANDER WRECK SURVEY",
+					},
+				},
+			},
+		},
+	}
+	var offered := presenter.present(snapshot)
+	var expeditions := offered.get("caldera_expeditions", {}) as Dictionary
+	var nearest := expeditions.get("nearest_offer", {}) as Dictionary
+	_check(
+		bool(offered.get("accepted", false))
+			and bool(expeditions.get("available", false))
+			and int(expeditions.get("logged_count", -1)) == 0
+			and int(expeditions.get("expedition_count", -1)) == 2
+			and (expeditions.get("active", {}) as Dictionary).is_empty()
+			and StringName(nearest.get("activity_id", &"")) \
+				== &"ember_lava_tube_sounding"
+			and is_equal_approx(float(nearest.get("distance_m", -1.0)), 2.0)
+			and bool(nearest.get("in_range", false))
+			and str(offered.get("text", "")).contains(
+				"EXPEDITIONS  //  0 OF 2 LOGGED"
+			)
+			and str(offered.get("text", "")).contains(
+				"EXPEDITION  [ ]  LAVA TUBE SOUNDING  //  2.0 m"
+			)
+			and str(offered.get("text", "")).contains(
+				"[ E ]  BEGIN LAVA TUBE SOUNDING"
+			)
+			and not bool(expeditions.get("activity_authority", true))
+			and not bool(expeditions.get("reward_authority", true))
+			and not bool(expeditions.get("navigation_authority", true)),
+		"a pilot standing at a trailhead is offered the nearer errand by name, distance and press",
+	)
+
+	snapshot.generation = 2
+	var records := snapshot.binding.planetary_surface.caldera_expeditions.activities as Dictionary
+	snapshot.binding.planetary_surface.caldera_expeditions.active_activity_id \
+		= &"ember_lava_tube_sounding"
+	records[&"ember_lava_tube_sounding"] = _expedition_record(
+		&"ember_lava_tube_sounding", "Lava Tube Sounding", &"active",
+		Vector3(18.0, 120000.0, -3.0), 1
+	)
+	records[&"ember_lander_wreck_survey"] = _expedition_record(
+		&"ember_lander_wreck_survey", "Lander Wreck Survey", &"busy",
+		Vector3(40.0, 120000.0, -4.0), 0
+	)
+	var offers := snapshot.binding.planetary_surface.caldera_expedition_interactions.offers as Dictionary
+	offers[&"ember_lava_tube_sounding"] = {
+		"active": true, "pressable": true,
+		"prompt": "[ E ]  ABANDON LAVA TUBE SOUNDING",
+	}
+	var in_hand_view := presenter.present(snapshot)
+	expeditions = in_hand_view.get("caldera_expeditions", {}) as Dictionary
+	var in_hand := expeditions.get("active", {}) as Dictionary
+	_check(
+		StringName(in_hand.get("activity_id", &"")) == &"ember_lava_tube_sounding"
+			and int(in_hand.get("checkpoints_reached", -1)) == 1
+			and int(in_hand.get("checkpoint_count", -1)) == 2
+			and is_equal_approx(
+				float(in_hand.get("distance_m", -1.0)),
+				Vector3(-74.0, 120000.0, 16.0).distance_to(
+					Vector3(16.0, 120000.0, -3.0)
+				)
+			)
+			and (expeditions.get("nearest_offer", {}) as Dictionary).is_empty()
+			and str(in_hand_view.get("text", "")).contains(
+				"EXPEDITION  [>]  LAVA TUBE SOUNDING  //  CHECKPOINT 2 OF 2"
+			)
+			and str(in_hand_view.get("text", "")).contains(
+				"[ E ]  ABANDON LAVA TUBE SOUNDING"
+			),
+		"the errand in hand replaces the offer with a live checkpoint counter and a way out",
+	)
+
+	snapshot.generation = 3
+	snapshot.binding.planetary_surface.caldera_expeditions.active_activity_id = &""
+	records[&"ember_lava_tube_sounding"] = _expedition_record(
+		&"ember_lava_tube_sounding", "Lava Tube Sounding", &"completed",
+		Vector3(18.0, 120000.0, -3.0), 2
+	)
+	records[&"ember_lander_wreck_survey"] = _expedition_record(
+		&"ember_lander_wreck_survey", "Lander Wreck Survey", &"completed",
+		Vector3(40.0, 120000.0, -4.0), 2
+	)
+	var logged := presenter.present(snapshot)
+	expeditions = logged.get("caldera_expeditions", {}) as Dictionary
+	_check(
+		int(expeditions.get("logged_count", -1)) == 2
+			and (expeditions.get("active", {}) as Dictionary).is_empty()
+			and (expeditions.get("nearest_offer", {}) as Dictionary).is_empty()
+			and str(logged.get("text", "")).contains(
+				"EXPEDITIONS  //  2 OF 2 LOGGED"
+			)
+			and not str(logged.get("text", "")).contains("CHECKPOINT"),
+		"both errands logged leaves a tally and no standing objective to chase",
+	)
+
+	snapshot.generation = 4
+	records[&"ember_lava_tube_sounding"] = _expedition_record(
+		&"ember_lava_tube_sounding", "Lava Tube Sounding", &"available",
+		Vector3(18.0, 120000.0, -3.0), 0
+	)
+	for aboard_phase: StringName in [&"reboard", &"reboarded", &"ascent", &"landed"]:
+		snapshot.generation += 1
+		snapshot.host.phase_id = aboard_phase
+		var aboard := presenter.present(snapshot)
+		_check(
+			not bool((aboard.get("caldera_expeditions", {}) as Dictionary).get(
+				"available", true
+			))
+			and not str(aboard.get("text", "")).contains("EXPEDITION"),
+			"no caldera errand is offered or tracked while the pilot is %s" % aboard_phase,
+		)
+
+	snapshot.generation += 1
+	snapshot.host.phase_id = &"on_foot"
+	snapshot.binding.planetary_surface.caldera_expeditions.world_id = &"foreign_world"
+	var foreign := presenter.present(snapshot)
+	_check(
+		not bool((foreign.get("caldera_expeditions", {}) as Dictionary).get(
+			"available", true
+		)),
+		"a foreign world's errand record cannot be relabelled as an Ember caldera errand",
+	)
+
+	snapshot.generation += 1
+	snapshot.binding.planetary_surface.erase("caldera_expeditions")
+	snapshot.binding.planetary_surface.erase("caldera_expedition_interactions")
+	var off_world := presenter.present(snapshot)
+	_check(
+		not bool((off_world.get("caldera_expeditions", {}) as Dictionary).get(
+			"available", true
+		))
+		and not str(off_world.get("text", "")).contains("EXPEDITION"),
+		"a surface report without an Ember errand record shows no errand at all",
+	)
+
+
+func _expedition_record(
+		activity_id: StringName, display_name: String, offer_state: StringName,
+		trailhead: Vector3, reached: int
+	) -> Dictionary:
+	var checkpoints := PackedVector3Array([
+		Vector3(-32.0, 120000.0, -38.0), Vector3(-74.0, 120000.0, 16.0),
+	]) if activity_id == &"ember_lava_tube_sounding" else PackedVector3Array([
+		Vector3(56.0, 120000.0, 18.0), Vector3(52.0, 120000.0, 46.0),
+	])
+	return {
+		"activity_id": activity_id,
+		"display_name": display_name,
+		"offer_state": offer_state,
+		"trailhead_body_local_m": trailhead,
+		"checkpoints_body_local_m": checkpoints,
+		"checkpoints_reached": reached,
+		"checkpoint_count": checkpoints.size(),
+		"next_checkpoint_body_local_m": (
+			checkpoints[reached] if reached < checkpoints.size() else Vector3.INF
+		),
+		"reward_committed": offer_state == &"completed",
+	}.duplicate(true)
 
 
 func _snapshot(

@@ -662,6 +662,20 @@ func get_caldera_expedition_snapshot() -> Dictionary:
 	return _planetary_composition.call(&"get_caldera_expedition_snapshot")
 
 
+## Installs the caller's errand seam behind the two authored trailhead offer
+## points. Presentation may ask; only the caller's seam answers.
+func configure_caldera_expedition_intent_sink(sink: Callable) -> Dictionary:
+	if _planetary_composition == null:
+		return _reject(&"planetary_composition_unavailable")
+	if not _planetary_composition.has_method(
+		&"configure_caldera_expedition_intent_sink"
+	):
+		return _reject(&"caldera_expedition_intent_sink_unsupported")
+	return _planetary_composition.call(
+		&"configure_caldera_expedition_intent_sink", sink
+	)
+
+
 func submit_planetary_relay_survey_landmark(landmark_id: StringName, position: Vector3) -> Dictionary:
 	if _planetary_composition == null:
 		return _reject(&"planetary_composition_unavailable")
