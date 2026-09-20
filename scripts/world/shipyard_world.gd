@@ -1423,6 +1423,12 @@ const CONSOLIDATED_DRESSING_MODULES: Array[StringName] = [
 	&"CentralBerthServiceLine",
 	&"ModernFleetRegistry",
 	&"IndustrialInfrastructure",
+	# Tenth trim (2026-09-20). Neither of these was ever refused on a contract;
+	# they were simply never enrolled, and the relaxed metadata rule makes them
+	# worth enrolling. Both went through the roster grep with everything else
+	# this pass newly reaches.
+	&"VipReceptionSuite",
+	&"StationDefenseEncounter",
 ]
 
 ## Node names inside those modules that something outside their builder resolves
@@ -1446,6 +1452,89 @@ const CONSOLIDATED_DRESSING_MODULES: Array[StringName] = [
 ## a merged renderer would answer "some geometry is near", which is a weaker
 ## question. They keep their own nodes so the question stays the original one.
 const PROTECTED_DRESSING_NAMES: Array[String] = [
+
+		"DockUmbilicalHead02",  # FleetDockComb freezes its renderer/batch/copy/submission roster
+	"DockUmbilicalHead03",  # FleetDockComb freezes its renderer/batch/copy/submission roster
+# --- Tenth trim (2026-09-20), further pass: 63 more names. ---
+	#
+	# Lifting the metadata and shared-mesh refusals, and enrolling two more
+	# modules, exposed leaf names that
+	# earlier passes never had to grep, because some other guard had always kept
+	# the pass out of them. Every one of those names was put through this
+	# roster's own three criteria again -- the whole name resolved anywhere in
+	# `scripts/`, `tests/`, `tools/`, `docs/`, `scenes/` or `assets/` other than
+	# its own builder line; a `find_child`/`find_children` glob that matches it;
+	# or a ten-character-or-longer literal some call composes a name from -- and
+	# these are the ones that hit. The rest fold.
+	#
+	# The `*MuzzleLens` family is why this re-grep exists rather than being
+	# assumed unnecessary: `HeroShip._ensure_weapon_component_emitters()` counts
+	# authored lenses by that glob and *builds two fallback spheres* when it
+	# finds fewer than two, so folding the Jovian's lenses silently added two
+	# nodes and 336 triangles instead of failing anything.
+	"ApproachFrameNorthEast",  # resolved at tests/exterior_target_range_readability_test.gd:18
+	"ApproachFrameNorthWest",  # resolved at tests/exterior_target_range_readability_test.gd:21
+	"ApproachFrameSouthEast",  # resolved at tests/exterior_target_range_readability_test.gd:19
+	"ApproachFrameSouthWest",  # resolved at docs/ULTRAWIDE_FIELD_OF_VIEW_POLICY.md:146, tests/exterior_target_range_readability_test.gd:20
+	"BlendedPressureHull",  # resolved at tests/modern_fighter_presentation_test.gd:35, tests/station_triplanar_material_test.gd:1054
+	"CargoFitoutAmber",  # matches Cargo*
+	"CargoFitoutCabin Liner",  # matches Cargo*
+	"CargoFitoutCabin Shell",  # matches Cargo*
+	"CargoFitoutDark",  # matches Cargo*
+	"CargoFitoutFreight Shell",  # matches Cargo*
+	"CargoFitoutHull Cool",  # matches Cargo*
+	"CargoFitoutLiner",  # matches Cargo*
+	"CargoFitoutStructure",  # matches Cargo*
+	"CargoFitoutWebbing",  # matches Cargo*
+	"CargoPressureCollar",  # resolved at tests/cinder_cargo_approach_readability_test.gd:69; matches Cargo*
+	"CargoPressureJoint",  # matches Cargo*
+	"CargoPressureRim",  # resolved at tests/cinder_cargo_approach_readability_test.gd:69; matches Cargo*
+	"CargoThresholdHeader",  # resolved at tests/cinder_cargo_approach_readability_test.gd:63, tests/cinder_cargo_approach_readability_test.gd:67; matches Cargo*
+	"CoolingVanes",  # matches *Vanes
+	"DockMastLamp02",  # matches DockMast*
+	"DockMastLamp03",  # matches DockMast*
+	"EngineRetentionSaddles",  # resolved at tests/cinder_cargo_hauler_freight_frame_visual_test.gd:91, tests/cinder_cargo_hauler_freight_frame_visual_test.gd:94
+	"FlightDeckWindscreenCowl",  # resolved at tests/jovian_light_freighter_test.gd:2199
+	"ForwardCabinCrown",  # resolved at tests/jovian_light_freighter_test.gd:2076, tests/jovian_light_freighter_test.gd:2199
+	"ForwardFlightDeck",  # resolved at tests/jovian_light_freighter_test.gd:1376, tests/jovian_light_freighter_test.gd:2101
+	"ModernHeadrest",  # resolved at tests/zenith_interceptor_test.gd:3510
+	"ModernSeatBack",  # resolved at tests/zenith_interceptor_test.gd:3510
+	"ModernSeatCushion",  # resolved at tests/zenith_interceptor_test.gd:3510
+	"NoseSensorRadome",  # resolved at tests/zenith_interceptor_test.gd:3647
+	"PortAftGearStrut",  # matches *GearStrut,*Strut
+	"PortCabinTransition",  # resolved at tests/jovian_light_freighter_test.gd:2102; composed from Port+CabinTransition
+	"PortCargoShoulder",  # resolved at tests/jovian_light_freighter_test.gd:1377, tests/jovian_light_freighter_test.gd:2101
+	"PortDefensiveTurretMuzzleCollar",  # matches *MuzzleCollar
+	"PortDefensiveTurretMuzzleLens",  # resolved at tests/jovian_light_freighter_test.gd:525; matches *MuzzleLens
+	"PortEngineCowling",  # composed from Port+EngineCowling
+	"PortEngineServiceDoor",  # composed from Port+EngineServiceDoor
+	"PortForwardGearStrut",  # matches *GearStrut,*Strut
+	"PortFreightExhaust",  # resolved at tests/cinder_cargo_hauler_test.gd:629
+	"PortFreightThermalServiceVanes",  # matches *Vanes
+	"PortLowerEngineHousing",  # matches *EngineHousing
+	"PortNoseCapCheek",  # composed from Port+NoseCapCheek
+	"PortNoseCheek",  # composed from Port+NoseCheek
+	"PortOrdnanceServiceCassette",  # composed from Port+OrdnanceServiceCassette
+	"PortThermalServiceVanes",  # matches *Vanes
+	"PortUpperEngineHousing",  # matches *EngineHousing
+	"PortYokeBrace",  # matches *Brace
+	"StarboardAftGearStrut",  # matches *GearStrut,*Strut
+	"StarboardCabinTransition",  # resolved at tests/jovian_light_freighter_test.gd:2102; composed from Starboard+CabinTransition
+	"StarboardDefensiveTurretMuzzleCollar",  # matches *MuzzleCollar
+	"StarboardDefensiveTurretMuzzleLens",  # resolved at tests/jovian_light_freighter_test.gd:526; matches *MuzzleLens
+	"StarboardEngineCowling",  # composed from Starboard+EngineCowling
+	"StarboardEngineServiceDoor",  # composed from Starboard+EngineServiceDoor
+	"StarboardForwardGearStrut",  # matches *GearStrut,*Strut
+	"StarboardFreightExhaust",  # resolved at tests/cinder_cargo_hauler_test.gd:630
+	"StarboardFreightThermalServiceVanes",  # matches *Vanes
+	"StarboardLowerEngineHousing",  # matches *EngineHousing
+	"StarboardNoseCapCheek",  # composed from Starboard+NoseCapCheek
+	"StarboardNoseCheek",  # composed from Starboard+NoseCheek
+	"StarboardOrdnanceServiceCassette",  # composed from Starboard+OrdnanceServiceCassette
+	"StarboardThermalServiceVanes",  # matches *Vanes
+	"StarboardUpperEngineHousing",  # matches *EngineHousing
+	"StarboardYokeBrace",  # matches *Brace
+	"TailYokeCap",  # resolved at tests/halyard_engine_damage_silhouette_test.gd:13
 	"AftModuleConnector", "AftSpine", "AngledConsole", "ApronDeck01", "ApronDeck02", "ApronDeck03",
 	"ApronDeck04", "ArmPad", "ArrivalHookRail", "ArrivalShelf", "Back", "BackingPlate",
 	"BasePlate", "BaySeatedPin00", "BaySeatedPin01", "Beacon", "BeaconMast", "BedKerb01",

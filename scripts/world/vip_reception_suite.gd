@@ -721,6 +721,17 @@ func get_render_batch_contract() -> Dictionary:
 		drawn_copies += visible_copies
 		submissions += batch.multimesh.mesh.get_surface_count()
 
+	# The world folds anonymous sibling dressing into merged renderers after
+	# this module has finished building (`StationDressingBatch`). The roster
+	# frozen below is what this module *allocates*, so each batch is put back as
+	# the renderer nodes, drawn copies and submissions it stands in for. The
+	# delta is zero on a module built without that pass, which is how every
+	# module test builds it, so both readings are the same statement.
+	var authored := StationDressingBatch.authored_render_census_delta(self)
+	var mesh_instance_count := mesh_nodes.size() + int(authored.renderer_nodes)
+	drawn_copies += int(authored.drawn_copies)
+	submissions += int(authored.surface_submissions)
+
 	var expected_joint_buffer := _encode_multimesh_transforms(_banquette_joint_transforms)
 	var joint_renderer_buffer_matches := (
 		is_instance_valid(_banquette_joint_batch)
@@ -1085,7 +1096,7 @@ func get_render_batch_contract() -> Dictionary:
 	var descendant_count := _render_descendant_count()
 	var exact_counts := (
 		descendant_count == RENDER_DESCENDANT_COUNT
-		and mesh_nodes.size() == RENDER_MESH_INSTANCE_COUNT
+		and mesh_instance_count == RENDER_MESH_INSTANCE_COUNT
 		and batch_nodes.size() == RENDER_MULTIMESH_BATCH_COUNT
 		and drawn_copies == RENDER_DRAWN_COPY_COUNT
 		and submissions == RENDER_GEOMETRY_SUBMISSION_COUNT
@@ -1103,7 +1114,10 @@ func get_render_batch_contract() -> Dictionary:
 		"baseline_descendant_nodes": BASELINE_RENDER_DESCENDANT_COUNT,
 		"descendant_nodes": descendant_count,
 		"baseline_mesh_instances": BASELINE_RENDER_MESH_INSTANCE_COUNT,
-		"mesh_instances": mesh_nodes.size(),
+		"mesh_instances": mesh_instance_count,
+		# What the world left standing, beside what this module built, so the
+		# difference is visible rather than inferred.
+		"live_mesh_instances": mesh_nodes.size(),
 		"baseline_multimesh_batches": BASELINE_RENDER_MULTIMESH_BATCH_COUNT,
 		"multimesh_batches": batch_nodes.size(),
 		"baseline_drawn_copies": BASELINE_RENDER_DRAWN_COPY_COUNT,
@@ -1449,7 +1463,10 @@ func _render_descendant_count() -> int:
 				break
 			cursor = cursor.get_parent()
 		if not interaction_owned:
-			count += 1
+			# A dressing batch stands in for the nodes the world folded into it,
+			# and this count is the roster this module builds. Zero for every
+			# other node.
+			count += 1 + StationDressingBatch.authored_node_delta(candidate)
 	return count
 
 

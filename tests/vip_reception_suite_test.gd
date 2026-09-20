@@ -1270,15 +1270,23 @@ func _test_shell_seams_stand_off_or_are_declared(suite: VipReceptionSuite) -> vo
 		)
 	_check(sill_clear, "the clerestory sill stands off the port wall on both shared planes")
 
-	var threshold_floor := suite.get_node_or_null(^"Structure/Threshold/ThresholdFloor") as Node3D
-	var threshold_walls_clear := threshold_floor != null
+	# These pieces may stand as their own nodes or be drawn by a dressing batch.
+	# `find_authored_piece` answers the same question either way: the record's
+	# transform is the placement the piece was authored at, which is exactly
+	# what this check reads. The proof is unchanged; only the lookup is.
+	var threshold_floor := StationDressingBatch.find_authored_piece(
+		suite, "ThresholdFloor"
+	)
+	var threshold_walls_clear := not threshold_floor.is_empty()
 	for hand in ["Port", "Starboard"]:
-		var wall := suite.get_node_or_null(
-			NodePath("Structure/Threshold/ThresholdWall%s" % hand)
-		) as Node3D
-		threshold_walls_clear = threshold_walls_clear and wall != null and is_equal_approx(
-			(absf(wall.position.x) + 0.15) - 5.1 * 0.5, standoff
+		var wall := StationDressingBatch.find_authored_piece(
+			suite, "ThresholdWall%s" % hand
 		)
+		threshold_walls_clear = threshold_walls_clear and not wall.is_empty() \
+			and is_equal_approx(
+				(absf((wall["transform"] as Transform3D).origin.x) + 0.15) - 5.1 * 0.5,
+				standoff
+			)
 	_check(
 		threshold_walls_clear,
 		"each threshold wall buries the threshold floor's edge instead of sharing its plane"
@@ -1520,7 +1528,16 @@ func _test_nothing_floats(world: ShipyardWorld, suite: VipReceptionSuite) -> voi
 		if instance.mesh == null or not instance.is_visible_in_tree():
 			continue
 		own.append({"node": instance, "box": (instance.global_transform * instance.mesh.get_aabb()).abs()})
-	_check(own.size() > 180, "the sweep sees the whole built module")
+	# The world folds anonymous sibling dressing into merged renderers after the
+	# module builds, so the live renderer count is no longer the built one. The
+	# sweep itself is unaffected -- a batch is a visible `MeshInstance3D` whose
+	# bound is the union of the pieces it replaced, so every piece is still
+	# swept -- but this coverage threshold is a statement about what the module
+	# allocates, and it is restated as such.
+	var authored_renderers := own.size() + int(
+		StationDressingBatch.authored_render_census_delta(suite).renderer_nodes
+	)
+	_check(authored_renderers > 180, "the sweep sees the whole built module")
 
 	# The pieces that lap the Aft Junction — the collar, the keels and the back
 	# stays — are seated on *its* geometry, so the neighbour is part of the sweep.
@@ -1579,8 +1596,30 @@ func _test_colliders_have_drawn_geometry(suite: VipReceptionSuite) -> void:
 		suite.get_render_batch_contract().authored_clerestory_mullion_transforms
 		as Array
 	)
+	# A solid batch is one body holding one `CollisionShape3D` per authored
+	# piece, each tagged with the piece it stands for, and one merged renderer
+	# that draws all of them. `solid_batch_pairing_errors()` proves that merged
+	# pairing directly against the live triangle buffer -- every collider
+	# spanned by geometry drawn inside it, and no vertex drawn outside every
+	# collider -- which is this check's own question asked of the batch. Asking
+	# it here as well, per authored piece, is what keeps the roster honest
+	# rather than simply skipping the batch.
 	for candidate in suite.find_children("*", "StaticBody3D", true, false):
 		var body := candidate as StaticBody3D
+		if body.has_meta(StationDressingBatch.BATCH_META):
+			var pairing := StationDressingBatch.solid_batch_pairing_errors(body)
+			for pairing_error in pairing:
+				orphans.append("%s: %s" % [body.name, pairing_error])
+			var authored_pieces := StationDressingBatch.authored_solid_piece_count(body)
+			var seated_shapes := 0
+			for shape_child in body.find_children("*", "CollisionShape3D", true, false):
+				if (shape_child as CollisionShape3D).has_meta(&"authored_piece"):
+					seated_shapes += 1
+			if seated_shapes != authored_pieces:
+				orphans.append("%s: %d shapes for %d authored pieces" % [
+					body.name, seated_shapes, authored_pieces
+				])
+			continue
 		var mesh_instance := body.get_node_or_null(^"Mesh") as MeshInstance3D
 		var shape := body.get_node_or_null(^"Collision") as CollisionShape3D
 		if shape == null or shape.shape == null:
