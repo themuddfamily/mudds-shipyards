@@ -250,7 +250,13 @@ func configure(
 				"reason", &"caldera_expedition_binding_rejected"
 			) as StringName
 		)
-	var expedition_offers := _compose_caldera_expedition_interactions(host)
+	# One reading of the live authored caldera serves every point that stands
+	# on its floor, so a trailhead and an interaction point can never end up
+	# anchored to two different frames.
+	var landing_region := _resolve_authored_landing_region(host)
+	var expedition_offers := _compose_caldera_expedition_interactions(
+		host, landing_region
+	)
 	if not bool(expedition_offers.get("accepted", false)):
 		return _result(
 			false,
@@ -266,7 +272,9 @@ func configure(
 		&"service_repair_feedback", _on_service_terminal_repair_feedback
 	)
 	configured = _survey_interaction.call(
-		&"configure", host, EmberAuthoredSceneScript.get_survey_interaction_definition()
+		&"configure", host,
+		EmberAuthoredSceneScript.get_survey_interaction_definition(),
+		landing_region
 	)
 	if not bool(configured.get("accepted", false)):
 		return _result(false, &"survey_interaction_configuration_rejected")
@@ -283,7 +291,8 @@ func configure(
 		&"configure", host,
 		EmberAuthoredSceneScript.get_sample_rack_interaction_definition(),
 		Callable(self, "_sample_rack_activity_is_current"),
-		Callable(self, "_submit_sample_rack_optional_checkpoint")
+		Callable(self, "_submit_sample_rack_optional_checkpoint"),
+		landing_region
 	)
 	if not bool(configured.get("accepted", false)):
 		return _result(false, &"sample_rack_configuration_rejected")
@@ -1118,9 +1127,10 @@ func _compose_caldera_expeditions(
 ## only reason a pilot on foot ever learns the errands exist, and they own
 ## nothing: each one reads this owner's errand state and hands its press back
 ## through the caller-installed production seam.
-func _compose_caldera_expedition_interactions(host: Object) -> Dictionary:
+func _compose_caldera_expedition_interactions(
+		host: Object, region: Node3D
+	) -> Dictionary:
 	_expedition_interactions.clear()
-	var region := _resolve_authored_landing_region(host)
 	if region == null:
 		# No live authored caldera to stand on. The errands and their seams are
 		# still composed; there is simply nowhere to offer them from, and the

@@ -274,6 +274,7 @@ func _visit(
 		"%s disembarks onto the Ember surface with the craft still leased on the pad (phase %d)"
 			% [label, host.get_phase()]
 	)
+	_check_authored_interaction_points_are_reachable(game, host, player, label)
 
 	# Leave through the production exit: the abandon lifts the survey gate, the
 	# pilot re-boards with a real interact press, the Host's own takeoff carries
@@ -298,6 +299,52 @@ func _visit(
 	)
 	await _reset_for_next_visit(game, player, host, craft)
 	return landed and on_foot
+
+
+## The Main-composed reach check. Both authored interaction points are placed
+## by the live composition under this retained `Main`, so this measures where
+## they actually stand relative to the streamed caldera the pilot walked out
+## onto -- the reading that has to survive the descent's own committed
+## common-world rebase, and the one nothing used to take.
+func _check_authored_interaction_points_are_reachable(
+		game: GameFlow, host: EmberSurfaceLoopHost, player: PlayerController,
+		label: String
+	) -> void:
+	var composition := game.get_node_or_null(
+		^"EmberPlanetarySurfaceProductionBinding"
+	) as Node
+	var scene := instance_from_id(host.get_loaded_scene_instance_id()) as Node
+	var region: Node3D = null
+	if scene != null:
+		region = scene.get_node_or_null(^"LandingRegion") as Node3D
+	if composition == null or region == null:
+		_check(false, "%s composes its authored interaction points under Main" % label)
+		return
+	for probe: Dictionary in [
+		{
+			"node": "OwnedSampleRackInteraction", "name": "sample rack",
+			"authored": Vector3(28.0, 0.0, -4.8),
+		},
+		{
+			"node": "OwnedSurveyBunkerInteraction", "name": "survey bunker",
+			"authored": Vector3(-17.5, 0.0, -17.5),
+		},
+	]:
+		var point := composition.get_node_or_null(
+			NodePath(str(probe.node))
+		) as Area3D
+		if point == null:
+			_check(false, "%s composes the %s interaction point" % [label, probe.name])
+			continue
+		var placed := region.to_local(point.global_position)
+		var authored := probe.authored as Vector3
+		var walk := player.global_position.distance_to(point.global_position)
+		_check(
+			placed.distance_to(authored) <= 1.0
+				and walk <= EmberMoonAuthoredScene.CALDERA_FLOOR_RADIUS_M,
+			"%s keeps the %s point on the caldera floor, %.1f m from the disembarked pilot: region-local %s, authored %s"
+				% [label, probe.name, walk, placed, authored]
+		)
 
 
 # ------------------------------------------------------------- staging ----

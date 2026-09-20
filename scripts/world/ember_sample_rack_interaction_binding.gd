@@ -19,6 +19,10 @@ const READY_COLOR := Color(0.95, 0.52, 0.18, 1.0)
 const COMPLETE_COLOR := Color(0.32, 0.86, 0.78, 1.0)
 
 var _host: Object
+var _region_anchor: Node3D
+var _region_anchor_instance_id := 0
+var _body_local_position := Vector3.ZERO
+var _region_local_position := Vector3.ZERO
 var _host_generation := -1
 var _attachment_generation := -1
 var _activity_generation := -1
@@ -63,11 +67,17 @@ func _ready() -> void:
 	_apply_presentation()
 
 
+## `region_anchor` is the live authored landing-region node. The rack is
+## authored as a spot on the caldera floor, so the point that offers it has to
+## stand on that floor: anchored to the region, the point follows a streamed
+## world-origin rebase with the caldera instead of staying behind at the raw
+## body-frame reading, which is a full body radius overhead.
 func configure(
 		host: Object,
 		definition: Variant,
 		activity_state_source: Callable,
-		submission_sink: Callable
+		submission_sink: Callable,
+		region_anchor: Node3D = null
 	) -> Dictionary:
 	if _configured or host == null or not is_instance_valid(host) \
 			or not host.has_method(&"get_generation") \
@@ -78,6 +88,7 @@ func configure(
 		return _result(false, &"invalid_sample_rack_configuration")
 	var record := definition as Dictionary
 	var position_value: Variant = record.get("position_body_local_m", Vector3.INF)
+	var region_value: Variant = record.get("position_region_local_m", Vector3.INF)
 	var landmark_ids: Variant = record.get("landmark_ids", PackedStringArray())
 	if StringName(record.get("interaction_id", &"")) != INTERACTION_ID \
 			or StringName(record.get("checkpoint_id", &"")) != CHECKPOINT_ID \
@@ -86,6 +97,8 @@ func configure(
 				!= COMPLETION_RESPONSE_ID \
 			or position_value is not Vector3 \
 			or not (position_value as Vector3).is_finite() \
+			or region_value is not Vector3 \
+			or not (region_value as Vector3).is_finite() \
 			or landmark_ids is not PackedStringArray \
 			or not (landmark_ids as PackedStringArray).has("ember_sample_rack") \
 			or bool(record.get("historical_claim", true)):
@@ -99,11 +112,43 @@ func configure(
 	_definition = record.duplicate(true)
 	_activity_state_source = activity_state_source
 	_submission_sink = submission_sink
-	position = position_value as Vector3
+	_body_local_position = position_value as Vector3
+	_region_local_position = region_value as Vector3
+	if region_anchor != null and is_instance_valid(region_anchor) \
+			and region_anchor.is_inside_tree() and is_inside_tree():
+		_region_anchor = region_anchor
+		_region_anchor_instance_id = region_anchor.get_instance_id()
+		# A rebase owner treats every `top_level` Node3D as one of its
+		# translation roots, so standing outside this owner's transform keeps
+		# the point in the caldera's frame without taking transform authority.
+		top_level = true
+		if not _anchor_to_region():
+			return _result(false, &"invalid_sample_rack_anchor")
+	else:
+		# No live authored caldera to stand on. The point keeps the body-frame
+		# reading it reports; nothing walks up to it in that arrangement.
+		position = _body_local_position
 	_configured = true
 	_attached = true
 	_apply_presentation()
 	return _result(true, &"sample_rack_configured")
+
+
+func _is_anchored() -> bool:
+	return _region_anchor != null and is_instance_valid(_region_anchor) \
+		and _region_anchor.get_instance_id() == _region_anchor_instance_id \
+		and _region_anchor.is_inside_tree()
+
+
+## Re-reads the authored spot out of the live region frame. It only ever
+## writes this node's own transform, and only from the authored constant.
+func _anchor_to_region() -> bool:
+	if not _is_anchored() or not is_inside_tree():
+		return false
+	global_transform = _region_anchor.global_transform * Transform3D(
+		Basis.IDENTITY, _region_local_position
+	)
+	return true
 
 
 func activate_for_activity_generation(next_activity_generation: int) -> Dictionary:
@@ -202,6 +247,7 @@ func reenter(next_attachment_generation: int) -> Dictionary:
 		return _result(false, &"stale_sample_rack_generation")
 	_attachment_generation = next_attachment_generation
 	_attached = true
+	_anchor_to_region()
 	_apply_presentation()
 	return _result(true, &"sample_rack_reentered")
 
@@ -258,7 +304,10 @@ func get_snapshot() -> Dictionary:
 		"active": active,
 		"checkpoint_id": CHECKPOINT_ID,
 		"interaction_id": INTERACTION_ID,
-		"position_body_local_m": position,
+		"position_body_local_m": _body_local_position,
+		"position_region_local_m": _region_local_position,
+		"region_anchor_instance_id": _region_anchor_instance_id,
+		"anchored": _is_anchored(),
 		"prompt": _interaction_prompt(active),
 		"activity_generation": _activity_generation,
 		"completed": _completed,

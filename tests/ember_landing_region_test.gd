@@ -42,6 +42,23 @@ const LAVA_TUBE_LEGS := [
 	Vector3(-74.0, 0.0, 16.0),
 ]
 const INTERACTION_LAYER := 1 << 3
+## The two authored interaction points, in the caldera region's own frame.
+## Both are authored as floor spots the pilot walks onto, so the live point
+## has to stand there too -- not 120 km up in the body frame.
+const SAMPLE_RACK_ACCESS_REGION_LOCAL := Vector3(28.0, 0.0, -4.8)
+const BUNKER_ACCESS_REGION_LOCAL := Vector3(-17.5, 0.0, -17.5)
+## Axis-aligned approach legs onto each authored spot, region-local.
+const SAMPLE_RACK_ACCESS_LEGS := [
+	Vector3(28.0, 0.0, 0.5),
+	SAMPLE_RACK_ACCESS_REGION_LOCAL,
+]
+## The landed craft sits across the pad lane, so the walk to the bunker takes
+## the same clear z = 8 corridor the authored egress route uses.
+const BUNKER_ACCESS_LEGS := [
+	Vector3(17.5, 0.0, 8.0),
+	Vector3(-17.5, 0.0, 8.0),
+	BUNKER_ACCESS_REGION_LOCAL,
+]
 const SIGHTLINE_TARGETS := {
 	&"ember_collapsed_lava_tube": Vector3(-86.0, 3.5, 18.0),
 	&"ember_caldera_survey_mast": Vector3(14.0, 9.0, -92.0),
@@ -103,6 +120,7 @@ func _run() -> void:
 	_original_time_scale = Engine.time_scale
 	Engine.time_scale = TEST_TIME_SCALE
 	await _test_authored_landmarks_and_routes()
+	await _test_authored_interaction_points_stand_on_the_floor()
 	await _test_caldera_expedition_visit()
 	await _test_abandoned_expedition_leaves_the_pilot_free()
 	Engine.time_scale = _original_time_scale
@@ -281,6 +299,79 @@ func _segment_is_supported(
 		if absf(local_hit.y) > 0.4:
 			return false
 	return true
+
+
+# ------------------------------------------------------------ interaction ---
+
+
+## The sample rack and the survey bunker are authored as spots on the caldera
+## floor. This measures where their live interaction points actually stand and
+## walks the pilot onto each authored spot, because an interaction point that
+## reports the right state from 120 km overhead is still unreachable.
+func _test_authored_interaction_points_stand_on_the_floor() -> void:
+	var fixture := await _fixture()
+	if fixture.is_empty():
+		return
+	if not await _reach_on_foot(fixture):
+		await _cleanup(fixture)
+		return
+	var composition := fixture.composition as Node
+	var landing_root := fixture.landing_root as Node3D
+	var player := fixture.player as PlayerController
+	# The rack only joins the interaction layer while the relay survey owns a
+	# live activity generation; the bunker is live for the whole visit.
+	var survey_started: Dictionary = composition.call(&"start_relay_survey")
+	_check(
+		bool(survey_started.get("accepted", false)),
+		"the relay survey starts so the rack point carries its press: %s"
+			% [survey_started.get("reason", &"?")],
+	)
+	for probe: Dictionary in [
+		{
+			"node": "OwnedSampleRackInteraction",
+			"label": "sample rack",
+			"prompt": "[ E ]  ANALYSE SAMPLE RACK",
+			"authored": SAMPLE_RACK_ACCESS_REGION_LOCAL,
+			"legs": SAMPLE_RACK_ACCESS_LEGS,
+		},
+		{
+			"node": "OwnedSurveyBunkerInteraction",
+			"label": "survey bunker",
+			"prompt": "[ E ]  LOG BUNKER / GANTRY SURVEY",
+			"authored": BUNKER_ACCESS_REGION_LOCAL,
+			"legs": BUNKER_ACCESS_LEGS,
+		},
+	]:
+		var point := composition.get_node_or_null(
+			NodePath(str(probe.node))
+		) as Area3D
+		if point == null:
+			_check(false, "the %s interaction point is composed" % [probe.label])
+			continue
+		var authored := probe.authored as Vector3
+		var placed := landing_root.to_local(point.global_position)
+		_check(
+			placed.distance_to(authored) <= 1.0,
+			"the %s point stands on its authored caldera spot: region-local %s, authored %s"
+				% [probe.label, placed, authored],
+		)
+		var walked := true
+		for leg: Vector3 in probe.legs as Array:
+			if not await _walk_to(fixture, leg):
+				walked = false
+				break
+		if not walked:
+			_check(false, "the pilot walks onto the authored %s spot" % [probe.label])
+			continue
+		await _tick(fixture)
+		var reach := player.global_position.distance_to(point.global_position)
+		_check(
+			point in player.get_nearby_interactables()
+				and str(point.call(&"get_interaction_prompt")) == str(probe.prompt),
+			"a pilot standing on the authored %s spot reaches its press %.1f m away: %s"
+				% [probe.label, reach, point.call(&"get_interaction_prompt")],
+		)
+	await _cleanup(fixture)
 
 
 # -------------------------------------------------------------- expedition ---

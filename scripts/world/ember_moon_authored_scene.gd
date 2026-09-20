@@ -422,6 +422,11 @@ static func get_survey_interaction_definition() -> Dictionary:
 		"interaction_id": &"ember_bunker_gantry_survey",
 		"world_id": WORLD_ID,
 		"position_body_local_m": BUNKER_ACCESS_POSITION_M + Vector3.UP * BODY_RADIUS_M,
+		# The same authored spot in the landing region's own frame. A live
+		# interaction point is placed through the streamed `LandingRegion`
+		# node, which is where the pilot's feet actually are; the body-local
+		# reading above stays the reporting and route coordinate.
+		"position_region_local_m": BUNKER_ACCESS_POSITION_M,
 		"completion_response_id": BUNKER_SERVICE_ALCOVE_ID,
 		"bunker_door_ground_body_local_m": bunker_door_ground_m + Vector3.UP * BODY_RADIUS_M,
 		"service_alcove_width_m": BUNKER_SERVICE_ALCOVE_WIDTH_M,
@@ -444,6 +449,9 @@ static func get_sample_rack_interaction_definition() -> Dictionary:
 		"world_id": WORLD_ID,
 		"position_body_local_m": SAMPLE_RACK_ACCESS_POSITION_M \
 			+ Vector3.UP * BODY_RADIUS_M,
+		# The same authored spot in the landing region's own frame; see the
+		# survey definition above for why a live point needs both readings.
+		"position_region_local_m": SAMPLE_RACK_ACCESS_POSITION_M,
 		"completion_response_id": &"ember_sample_rack_analysis_marker",
 		"landmark_ids": PackedStringArray(["ember_sample_rack"]),
 		"historical_claim": false,

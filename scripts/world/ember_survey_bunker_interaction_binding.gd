@@ -33,6 +33,10 @@ const WAYFINDING_COMPLETE_HEIGHT_M := 2.35
 const WAYFINDING_LINTEL_SIZE_M := Vector3(0.72, 1.15, 0.72)
 
 var _host: Object
+var _region_anchor: Node3D
+var _region_anchor_instance_id := 0
+var _body_local_position := Vector3.ZERO
+var _region_local_position := Vector3.ZERO
 var _host_generation := -1
 var _attachment_generation := -1
 var _configured := false
@@ -94,7 +98,14 @@ func _ready() -> void:
 	_apply_presentation()
 
 
-func configure(host: Object, definition: Variant) -> Dictionary:
+## `region_anchor` is the live authored landing-region node. The bunker access
+## point is authored as a spot on the caldera floor, so the interaction has to
+## stand on that floor rather than at the raw body-frame reading a full body
+## radius overhead. Anchored to the region it also follows a streamed
+## world-origin rebase with the caldera it belongs to.
+func configure(
+		host: Object, definition: Variant, region_anchor: Node3D = null
+	) -> Dictionary:
 	if _configured or host == null or not is_instance_valid(host) \
 			or not host.has_method(&"get_generation") \
 			or not host.has_method(&"get_attachment_generation") \
@@ -102,12 +113,14 @@ func configure(host: Object, definition: Variant) -> Dictionary:
 		return _result(false, &"invalid_survey_interaction_configuration")
 	var record := definition as Dictionary
 	var position_value: Variant = record.get("position_body_local_m", Vector3.INF)
+	var region_value: Variant = record.get("position_region_local_m", Vector3.INF)
 	var door_value: Variant = record.get("bunker_door_ground_body_local_m", Vector3.INF)
 	var response_width := float(record.get("service_alcove_width_m", 0.0))
 	var response_height := float(record.get("service_alcove_height_m", 0.0))
 	if StringName(record.get("interaction_id", &"")) != INTERACTION_ID \
 			or StringName(record.get("world_id", &"")) != &"ember_moon" \
 			or position_value is not Vector3 or not (position_value as Vector3).is_finite() \
+			or region_value is not Vector3 or not (region_value as Vector3).is_finite() \
 			or StringName(record.get("completion_response_id", &"")) != COMPLETION_RESPONSE_ID \
 			or door_value is not Vector3 or not (door_value as Vector3).is_finite() \
 			or not is_finite(response_width) or response_width < 2.0 \
@@ -124,7 +137,22 @@ func configure(host: Object, definition: Variant) -> Dictionary:
 	if not _valid_generation(_host_generation) or not _valid_generation(_attachment_generation):
 		return _result(false, &"invalid_survey_interaction_generation")
 	_definition = record.duplicate(true)
-	position = position_value as Vector3
+	_body_local_position = position_value as Vector3
+	_region_local_position = region_value as Vector3
+	if region_anchor != null and is_instance_valid(region_anchor) \
+			and region_anchor.is_inside_tree() and is_inside_tree():
+		_region_anchor = region_anchor
+		_region_anchor_instance_id = region_anchor.get_instance_id()
+		# A rebase owner treats every `top_level` Node3D as one of its
+		# translation roots, so standing outside this owner's transform keeps
+		# the point in the caldera's frame without taking transform authority.
+		top_level = true
+		if not _anchor_to_region():
+			return _result(false, &"invalid_survey_interaction_anchor")
+	else:
+		# No live authored caldera to stand on. The point keeps the body-frame
+		# reading it reports; nothing walks up to it in that arrangement.
+		position = _body_local_position
 	_build_completion_response(
 		door_value as Vector3, response_width, response_height
 	)
@@ -132,6 +160,23 @@ func configure(host: Object, definition: Variant) -> Dictionary:
 	_attached = true
 	_apply_presentation()
 	return _result(true, &"survey_interaction_configured")
+
+
+func _is_anchored() -> bool:
+	return _region_anchor != null and is_instance_valid(_region_anchor) \
+		and _region_anchor.get_instance_id() == _region_anchor_instance_id \
+		and _region_anchor.is_inside_tree()
+
+
+## Re-reads the authored spot out of the live region frame. It only ever
+## writes this node's own transform, and only from the authored constant.
+func _anchor_to_region() -> bool:
+	if not _is_anchored() or not is_inside_tree():
+		return false
+	global_transform = _region_anchor.global_transform * Transform3D(
+		Basis.IDENTITY, _region_local_position
+	)
+	return true
 
 
 func get_interaction_prompt() -> String:
@@ -320,6 +365,7 @@ func reenter(next_attachment_generation: int) -> Dictionary:
 		return _result(false, &"stale_survey_interaction_generation")
 	_attachment_generation = next_attachment_generation
 	_attached = true
+	_anchor_to_region()
 	_apply_presentation()
 	return _result(true, &"survey_interaction_reentered")
 
@@ -459,7 +505,10 @@ func get_snapshot() -> Dictionary:
 		"configured": _configured,
 		"attached": _attached,
 		"interaction_id": INTERACTION_ID,
-		"position_body_local_m": position,
+		"position_body_local_m": _body_local_position,
+		"position_region_local_m": _region_local_position,
+		"region_anchor_instance_id": _region_anchor_instance_id,
+		"anchored": _is_anchored(),
 		"prompt": _interaction_prompt(active),
 		"completed": _completed,
 		"completion_attachment_generation": _completion_attachment_generation,
@@ -586,7 +635,7 @@ func _build_completion_response(
 		corridor_width_m: float,
 		headroom_m: float
 	) -> void:
-	var direction := door_ground_body_local_m - position
+	var direction := door_ground_body_local_m - _body_local_position
 	direction.y = 0.0
 	var total_distance := direction.length()
 	direction /= total_distance
@@ -597,7 +646,7 @@ func _build_completion_response(
 	_response_width_m = corridor_width_m
 	_response_height_m = headroom_m
 	var center_offset := direction * (ALCOVE_FRONT_CLEARANCE_M + _response_length_m * 0.5)
-	_response_center_body_local_m = position + center_offset
+	_response_center_body_local_m = _body_local_position + center_offset
 
 	_response_body = StaticBody3D.new()
 	_response_body.name = "OwnedBunkerServiceAlcove"
