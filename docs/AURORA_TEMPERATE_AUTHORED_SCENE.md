@@ -46,7 +46,7 @@ The loop is: land on the authored pad through a real `ShipBerth` lease and
 walk the authored patch on real collision; walk back to the craft's
 `ShipBoardingArea` and re-board with a real `interact`; and choose the board's
 return action to fly home and dock at the pilot's own registered berth.
-Departing frees the streamed world, restores the station's presentation and
+Departing frees the visited world, restores the station's presentation and
 leaves no Aurora nodes under `Main`. Abandoning mid-visit returns a
 controllable explorer to the yard with their craft docked at home and no held
 reservation. `tests/aurora_visit_loop_test.gd` drives all of that through a

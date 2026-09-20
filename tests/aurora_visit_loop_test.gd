@@ -237,7 +237,7 @@ func _run() -> void:
 	)
 	_check(
 		_aurora_node_count(resumed_game) == 0,
-		"abandoning streams Aurora out as cleanly as a completed departure"
+		"abandoning removes Aurora as cleanly as a completed departure"
 	)
 	await _finish(resumed_game)
 
