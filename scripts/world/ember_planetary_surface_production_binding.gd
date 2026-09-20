@@ -1122,7 +1122,10 @@ func _compose_caldera_expedition_interactions(host: Object) -> Dictionary:
 	_expedition_interactions.clear()
 	var region := _resolve_authored_landing_region(host)
 	if region == null:
-		return _result(false, &"caldera_expedition_landing_region_unavailable")
+		# No live authored caldera to stand on. The errands and their seams are
+		# still composed; there is simply nowhere to offer them from, and the
+		# surface card reads no offer because no offer exists.
+		return _result(true, &"caldera_expedition_interactions_unanchored")
 	for activity_id: StringName in ExpeditionActivityScript.ACTIVITY_IDS:
 		var offer := ExpeditionInteractionScript.new() as Area3D
 		offer.name = "OwnedCalderaExpeditionOffer_%s" % activity_id

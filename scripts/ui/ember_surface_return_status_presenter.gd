@@ -484,12 +484,17 @@ func _caldera_expeditions(
 	var records := expeditions.get("activities", {}) as Dictionary
 	if records.is_empty():
 		return _unavailable_caldera_expeditions()
+	# An errand with no live offer point underfoot cannot be started, so it is
+	# not advertised: the card never names work the pilot has no way to take.
 	var offer_reports := (
 		planetary.get("caldera_expedition_interactions", {}) as Dictionary
 	).get("offers", {}) as Dictionary
+	if offer_reports.is_empty():
+		return _unavailable_caldera_expeditions()
 	var actor_position := actor as Vector3
 	var active_id := StringName(expeditions.get("active_activity_id", &""))
 	var logged_count := 0
+	var offered_count := 0
 	var offers: Array[Dictionary] = []
 	var nearest_offer: Dictionary = {}
 	var in_hand: Dictionary = {}
@@ -498,9 +503,12 @@ func _caldera_expeditions(
 		var offer_state := StringName(record.get("offer_state", &""))
 		if offer_state not in [&"available", &"active", &"busy", &"completed"]:
 			continue
+		var report := offer_reports.get(activity_id, {}) as Dictionary
+		if report.is_empty():
+			continue
+		offered_count += 1
 		if offer_state == &"completed":
 			logged_count += 1
-		var report := offer_reports.get(activity_id, {}) as Dictionary
 		var label := str(record.get("display_name", "Caldera Errand")).to_upper()
 		var trailhead: Variant = record.get("trailhead_body_local_m", Vector3.INF)
 		var trailhead_distance := -1.0
@@ -545,11 +553,13 @@ func _caldera_expeditions(
 				and (nearest_offer.is_empty() \
 					or trailhead_distance < float(nearest_offer.get("distance_m", INF))):
 			nearest_offer = entry.duplicate(true)
+	if offered_count == 0:
+		return _unavailable_caldera_expeditions()
 	return {
 		"available": true,
 		"world_id": &"ember_moon",
 		"logged_count": logged_count,
-		"expedition_count": records.size(),
+		"expedition_count": offered_count,
 		"active": in_hand,
 		"offers": offers,
 		"nearest_offer": nearest_offer,
