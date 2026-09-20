@@ -228,6 +228,14 @@ var _ownership_authoritative_records: Dictionary = {}
 var _boarding_authoritative_records: Dictionary = {}
 var _ownership_transition_states: Dictionary = {}
 var _boarding_transition_states: Dictionary = {}
+## Client-side replica of the authority's answer to this peer's *own*
+## boarding intents. The ledger stays on the server; a client keeps only the
+## last answer it was handed plus the ledger tick that answer was stamped
+## with, which is what lets its next request land inside the authority's
+## bounded tick window instead of guessing.
+var _boarding_intent_result_replica: Dictionary = {}
+var _boarding_result_server_tick := 0
+var _boarding_answer_revision := 0
 var _migration_jitter
 var _migration_replica_generation := 0
 var _migration_replica_samples: Dictionary = {}
@@ -498,6 +506,9 @@ func shutdown(reason: StringName = &"requested") -> Dictionary:
 	_boarding_authoritative_records.clear()
 	_ownership_transition_states.clear()
 	_boarding_transition_states.clear()
+	_boarding_intent_result_replica.clear()
+	_boarding_result_server_tick = 0
+	_boarding_answer_revision = 0
 	_peer_keepalive_deadlines.clear()
 	_session_max_clients = DEFAULT_MAX_CLIENTS
 	_server_offer.clear()
@@ -750,6 +761,11 @@ func send_boarding_intent(wire: Dictionary) -> Dictionary:
 		return _remember(_result(false, &"client_required"))
 	if not _configured:
 		return _remember(_result(false, &"not_started"))
+	# A boarding request the transport cannot carry is not a request at all:
+	# the caller must be told now rather than wait out a timeout for an answer
+	# that was never going to be asked for.
+	if _peer == null or _peer.get_connection_status() != MultiplayerPeer.CONNECTION_CONNECTED:
+		return _remember(_result(false, &"not_connected"))
 	_receive_boarding_intent.rpc_id(AUTHORITY_PEER_ID, _make_secure_rpc_packet(&"boarding", wire))
 	return _remember(_result(true, &"queued"))
 
@@ -796,6 +812,76 @@ func get_remote_pilot_replica() -> Dictionary:
 
 func get_boarding_snapshot() -> Dictionary:
 	return _boarding.get_snapshot()
+
+
+## The authority's answer to one boarding request, addressed to the peer that
+## made it. Only the ledger's verdict and the request's own identity travel:
+## no transform, no roster, and no other peer's occupancy. `server_tick` is the
+## ledger's current tick, which is the only way a client can stamp its next
+## request inside the authority's bounded acceptance window.
+func _boarding_intent_answer_packet(result: Dictionary, request: Dictionary) -> Dictionary:
+	var occupancy: Dictionary = {}
+	if result.get("occupancy") is Dictionary:
+		occupancy = result.get("occupancy") as Dictionary
+	_boarding_answer_revision += 1
+	return {
+		"revision": _boarding_answer_revision,
+		"server_tick": int(_boarding.get_snapshot().get("server_tick", 0)),
+		"result": {
+			"accepted": bool(result.get("accepted", false)),
+			"status": StringName(result.get("status", &"")),
+			"action": StringName(request.get("action", &"")),
+			"ship_id": StringName(request.get("ship_id", &"")),
+			"seat_id": StringName(request.get("seat_id", &"")),
+			"role": StringName(occupancy.get("role", request.get("role", &""))),
+			"avatar_id": StringName(request.get("avatar_id", &"")),
+			"sequence": int(request.get("sequence", -1)),
+		},
+	}
+
+
+## Client half of the boarding handshake. The answer is a presentation fact,
+## never an authority one: it is stored as a replica, the ledger it came from
+## is not mirrored here, and nothing in this adapter lets a client change an
+## occupancy. Revisions are monotonic per session, so a late duplicate is
+## dropped rather than replayed over a newer verdict.
+func consume_boarding_intent_result(packet: Dictionary) -> Dictionary:
+	if not packet.has("revision") or not packet.has("server_tick") \
+			or not packet.get("result") is Dictionary:
+		return _remember(_result(false, &"invalid_boarding_result"))
+	var answer := packet.get("result") as Dictionary
+	var sequence := int(answer.get("sequence", -1))
+	var status := StringName(answer.get("status", &""))
+	var revision := int(packet.get("revision", 0))
+	if sequence < 0 or String(status).is_empty() or revision <= 0:
+		return _remember(_result(false, &"invalid_boarding_result"))
+	if revision <= int(_boarding_intent_result_replica.get("revision", 0)):
+		return _remember(_result(false, &"stale_boarding_result"))
+	_boarding_result_server_tick = maxi(0, int(packet.get("server_tick", 0)))
+	var applied := {
+		"accepted": bool(answer.get("accepted", false)),
+		"status": status,
+		"action": StringName(answer.get("action", &"")),
+		"ship_id": StringName(answer.get("ship_id", &"")),
+		"seat_id": StringName(answer.get("seat_id", &"")),
+		"role": StringName(answer.get("role", &"")),
+		"avatar_id": StringName(answer.get("avatar_id", &"")),
+		"sequence": sequence,
+		"server_tick": _boarding_result_server_tick,
+		"revision": revision,
+		"presentation_only": true,
+	}
+	_boarding_intent_result_replica = applied.duplicate(true)
+	return _remember(applied.duplicate(true))
+
+
+func get_boarding_intent_result_replica() -> Dictionary:
+	return _boarding_intent_result_replica.duplicate(true)
+
+
+## The ledger tick this client was last told about, or 0 before any answer.
+func get_boarding_result_server_tick() -> int:
+	return _boarding_result_server_tick
 
 
 func register_projectile_source(
@@ -2590,6 +2676,9 @@ func reset_snapshot_jitter(migration_generation: int = 1) -> Dictionary:
 	_boarding_authoritative_records.clear()
 	_ownership_transition_states.clear()
 	_boarding_transition_states.clear()
+	_boarding_intent_result_replica.clear()
+	_boarding_result_server_tick = 0
+	_boarding_answer_revision = 0
 	_boarding_jitter.reset(migration_generation)
 	_migration_replica_generation = migration_generation
 	_migration_replica_samples.clear()
@@ -4064,6 +4153,16 @@ func _receive_boarding_intent(wire: Dictionary) -> void:
 		return
 	var result: Dictionary = _boarding.accept_intent(source_peer_id, payload)
 	boarding_intent_result.emit(result.duplicate(true))
+	# Every answered request is answered *to the peer that asked*. A boarding
+	# claim is the one intent stream whose sender has to know the verdict before
+	# it may present anything: the ledger alone knows whether a berth was free,
+	# and a client that never hears back must stay exactly where it stood. A
+	# rejected secure envelope returns above and is therefore deliberately never
+	# answered -- that silence is what the requester's own timeout is for.
+	if _peer != null and _peer_generations.has(source_peer_id):
+		_send_boarding_intent_result.rpc_id(
+			source_peer_id, _boarding_intent_answer_packet(result, payload)
+		)
 
 
 @rpc("any_peer", "reliable")
@@ -4378,6 +4477,18 @@ func _send_landing_snapshot(packet: Dictionary) -> void:
 		return
 	var applied := consume_landing_snapshot(packet)
 	landing_intent_result.emit(applied.duplicate(true))
+	_last_result = applied.duplicate(true)
+
+
+@rpc("authority", "call_remote", "reliable")
+func _send_boarding_intent_result(packet: Dictionary) -> void:
+	if is_server():
+		return
+	var applied := consume_boarding_intent_result(packet)
+	var status := StringName(applied.get("status", &""))
+	if status == &"invalid_boarding_result" or status == &"stale_boarding_result":
+		return
+	boarding_intent_result.emit(applied.duplicate(true))
 	_last_result = applied.duplicate(true)
 
 
