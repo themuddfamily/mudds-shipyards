@@ -750,7 +750,13 @@ request legitimate, not what make it true. What the press now does is send a
   gate;
 * a request nobody answers expires after four seconds, and an expiry or a
   session that ends mid-request changes nothing at all: no phase, no pose, no
-  binding, no claim, and one refusal shown once.
+  binding, no claim, and one refusal shown once;
+* an expiry does not reach the ledger, so the identity of the abandoned
+  request is kept and a grant that turns up for it afterwards is handed
+  straight back. Without that, one slow answer would leave a berth held by a
+  peer that had forgotten asking, and every later board would come back
+  `avatar_already_occupied` — a final refusal that locks that player out of
+  boarding anything for the rest of the session.
 
 **What proves it.** `tests/network_client_boarding_seam_test.gd` is the first
 suite in this project with two whole production `Main` subtrees alive at the
@@ -770,10 +776,11 @@ host admits a body at the cabin stand and the client binds and drives it,
 walking on held input with the authority's pose following within a stride;
 that the hatch disembark leaves the player on the yard deck only once the
 ledger has confirmed; that a client whose berths are all held is refused with
-the ledger's own reason and does not move; and that a request the host never
+the ledger's own reason and does not move; that a request the host never
 reads — its secure-packet budget spent, which is the production way a host
 stops answering a flooding peer — times out with one refusal, no claim and no
-body.
+body; and that the peer whose request expired still boards the next berth that
+frees up, which is the lockout above stated as a test.
 
 ## What remains before broadening player counts
 
