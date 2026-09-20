@@ -83,13 +83,13 @@ func _test_identity_and_audit(scene: EmberMoonAuthoredScene) -> void:
 	)
 	_check(not scene.is_processing() and not scene.is_physics_processing(), "the authored scene has no automatic process loop")
 	_check(
-		audit.performance.node_count == 83
+		audit.performance.node_count == 106
 			and audit.performance.mesh_instances == 22
-			and audit.performance.multi_mesh_instances == 8
-			and audit.performance.multi_mesh_copies == 42
-			and audit.performance.render_submissions == 30
-			and audit.performance.static_bodies == 9
-			and audit.performance.collision_shapes == 27
+			and audit.performance.multi_mesh_instances == 12
+			and audit.performance.multi_mesh_copies == 95
+			and audit.performance.render_submissions == 34
+			and audit.performance.static_bodies == 12
+			and audit.performance.collision_shapes == 40
 			and audit.performance.triangle_count <= 60_000,
 		"authored content plus five terrain rings stay inside the exact bounded budget",
 	)
@@ -114,7 +114,7 @@ func _test_identity_and_audit(scene: EmberMoonAuthoredScene) -> void:
 				== 18_432.0
 			and int(terrain.scene_collision_triangle_ceiling) == 41_088
 			and int(terrain.scene_collision_vertex_ceiling) == 41_600
-			and int(terrain.scene_active_node_ceiling) == 84
+			and int(terrain.scene_active_node_ceiling) == 110
 			and (terrain.material_tint as Color).is_equal_approx(Color("bd704f")),
 		"five basalt-tinted rings and one dormant bounded actor-support owner surround the fixed caldera",
 	)
@@ -161,28 +161,34 @@ func _test_geometry_and_markers(scene: EmberMoonAuthoredScene) -> void:
 	)
 	_check(
 		landmark_ids == PackedStringArray([
+			"ember_caldera_survey_mast",
+			"ember_collapsed_lava_tube",
 			"ember_derelict_survey_gantry",
 			"ember_pad_guidance_port",
 			"ember_pad_guidance_starboard",
 			"ember_sample_rack",
 			"ember_staging_relay",
 			"ember_survey_service_bunker",
+			"ember_wrecked_survey_lander",
 		]),
 		"surface snapshot publishes the exact stable modern landmark roster",
 	)
 	var surface_markers := scene.get_surface_landmark_marker_transforms()
 	_check(
-		surface_markers.size() == 5
+		surface_markers.size() == 8
+			and (surface_markers.ember_collapsed_lava_tube_access as Transform3D).origin == Vector3(-74.0, 120_000.0, 16.0)
+			and (surface_markers.ember_caldera_survey_mast_access as Transform3D).origin == Vector3(14.0, 120_000.0, -80.0)
+			and (surface_markers.ember_wrecked_survey_lander_access as Transform3D).origin == Vector3(52.0, 120_000.0, 46.0)
 			and (surface_markers.ember_pad_guidance_threshold as Transform3D).origin == Vector3(14.0, 120_000.0, 0.0)
 			and (surface_markers.ember_sample_rack_access as Transform3D).origin == Vector3(28.0, 120_000.0, -4.8)
 			and (surface_markers.ember_staging_relay_access as Transform3D).origin == Vector3(42.0, 120_000.0, 4.4)
 			and (surface_markers.ember_derelict_survey_gantry_access as Transform3D).origin == Vector3(34.0, 120_000.0, -7.0)
 			and (surface_markers.ember_survey_service_bunker_access as Transform3D).origin == Vector3(-17.5, 120_000.0, -17.5),
-		"five stable access markers compose through the body-local landing frame",
+		"eight stable access markers compose through the body-local landing frame",
 	)
 	surface_markers.clear()
 	_check(
-		scene.get_surface_landmark_marker_transforms().size() == 5,
+		scene.get_surface_landmark_marker_transforms().size() == 8,
 		"returned surface-landmark marker dictionaries are detached",
 	)
 	var route_visual := scene.get_node(^"LandingRegion/SurfaceLandmarks/EgressRouteVisual") as MeshInstance3D
@@ -629,10 +635,10 @@ func _test_collision(scene: EmberMoonAuthoredScene) -> void:
 	)
 	var collision_snapshot := scene.get_snapshot().collision as Dictionary
 	_check(
-		int(collision_snapshot.landmark_static_body_count) == 6
-			and int(collision_snapshot.solid_landmark_collision_shape_count) == 24
+		int(collision_snapshot.landmark_static_body_count) == 9
+			and int(collision_snapshot.solid_landmark_collision_shape_count) == 37
 			and is_equal_approx(float(collision_snapshot.route_clear_half_width_m), 2.0),
-		"surface collision snapshot freezes six landmark bodies and twenty-four solid shapes",
+		"surface collision snapshot freezes nine landmark bodies and thirty-seven solid shapes",
 	)
 
 
@@ -882,10 +888,10 @@ func _test_terrain_focus_recenter(scene: EmberMoonAuthoredScene) -> void:
 		and bool(corridor_audit.get("valid", false))
 		and int((corridor_audit.get("performance", {}) as Dictionary).get(
 			"node_count", 0
-		)) == 84
+		)) == 107
 		and int((corridor_audit.get("performance", {}) as Dictionary).get(
 			"collision_shapes", 0
-		)) == 28,
+		)) == 41,
 		"the live Ember scene adds one audited focus corridor without replacing the caldera collision",
 	)
 	var renderer := scene.get_node(^"TerrainClipmap") \
@@ -942,9 +948,9 @@ func _test_terrain_focus_recenter(scene: EmberMoonAuthoredScene) -> void:
 			and int(far_snapshot.get("scene_collision_vertex_count", 0))
 				== 20_737
 			and bool(far_audit.get("valid", false))
-			and int((far_audit.performance as Dictionary).node_count) == 83
-			and int((far_audit.performance as Dictionary).static_bodies) == 9
-			and int((far_audit.performance as Dictionary).collision_shapes) == 27,
+			and int((far_audit.performance as Dictionary).node_count) == 106
+			and int((far_audit.performance as Dictionary).static_bodies) == 12
+			and int((far_audit.performance as Dictionary).collision_shapes) == 40,
 		"beyond 18.432 km one exact common-origin relief disc replaces the landing corridor inside hard budgets",
 	)
 	var far_direction := streamed_focus.normalized()

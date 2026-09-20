@@ -64,7 +64,7 @@ const TERRAIN_ACTOR_COLLISION_TRIANGLE_COUNT := (
 # The actor disc is smaller (8,064 triangles / 4,097 vertices).
 const TERRAIN_COLLISION_VERTEX_CEILING := 41_600
 const TERRAIN_COLLISION_TRIANGLE_CEILING := 41_088
-const TERRAIN_ACTIVE_NODE_CEILING := 84
+const TERRAIN_ACTIVE_NODE_CEILING := 110
 const PAD_VISUAL_SIZE_M := Vector3(28.0, 0.04, 32.0)
 const PAD_VISUAL_POSITION_REGION_LOCAL_M := Vector3(0.0, 0.02, 0.0)
 const SURFACE_ROUTE_ID: StringName = &"ember_caldera_pad_to_staging"
@@ -208,6 +208,117 @@ const BUNKER_ACCESS_POSITION_M := Vector3(-17.5, 0.0, -17.5)
 const BUNKER_MIN_PAD_CLEARANCE_M := 2.3
 const BUNKER_MIN_ROUTE_CLEARANCE_M := 18.3
 
+## Authored caldera expedition content. Three further landmarks stand on the
+## real generated basalt outside the fixed 96 m patch, each with its own
+## silhouette, its own approach marker, and one chevron route back to the
+## authored pad egress. Nothing here touches the landing corridor, the pad
+## footprint, or the existing pad-to-staging spine.
+const LAVA_TUBE_ROOT_POSITION_M := Vector3(-86.0, 0.0, 18.0)
+const SURVEY_MAST_ROOT_POSITION_M := Vector3(14.0, 0.0, -92.0)
+const LANDER_WRECK_ROOT_POSITION_M := Vector3(62.0, 0.0, 54.0)
+const LAVA_TUBE_ACCESS_POSITION_M := Vector3(-74.0, 0.0, 16.0)
+const SURVEY_MAST_ACCESS_POSITION_M := Vector3(14.0, 0.0, -80.0)
+const LANDER_WRECK_ACCESS_POSITION_M := Vector3(52.0, 0.0, 46.0)
+const EXPEDITION_LANDMARK_MINIMUM_PATCH_CLEARANCE_M := 4.0
+const EXPEDITION_ROUTE_CHEVRON_SPACING_M := 14.0
+const EXPEDITION_ROUTE_ARM_WIDTH_M := 0.34
+const EXPEDITION_ROUTE_ARM_HEIGHT_M := 0.025
+const EXPEDITION_ROUTE_HALF_SPAN_M := 1.35
+const EXPEDITION_ROUTE_TIP_OFFSET_M := 1.0
+const EXPEDITION_ROUTE_TAIL_OFFSET_M := 1.15
+const EXPEDITION_ROUTE_Y_M := 0.0325
+const EXPEDITION_ROUTE_CHEVRON_COUNT := 20
+const EXPEDITION_ROUTE_INSTANCE_COUNT := EXPEDITION_ROUTE_CHEVRON_COUNT * 2
+const LAVA_TUBE_PART_SPECS := [
+	{"name": &"PortWallCollision", "size": Vector3(3.0, 5.0, 6.0), "position": Vector3(-5.0, 2.5, 0.0), "roll": 0.0},
+	{"name": &"StarboardWallCollision", "size": Vector3(3.0, 5.0, 6.0), "position": Vector3(5.0, 2.5, 0.0), "roll": 0.0},
+	{"name": &"CollapsedLintelCollision", "size": Vector3(13.0, 1.8, 6.0), "position": Vector3(0.0, 5.9, 0.0), "roll": 0.0},
+	{"name": &"SpillApronCollision", "size": Vector3(15.0, 0.9, 5.0), "position": Vector3(0.0, 0.45, 5.4), "roll": 0.0},
+	{"name": &"ThroatSlabCollision", "size": Vector3(7.0, 1.2, 3.0), "position": Vector3(0.0, 0.6, -3.2), "roll": 0.0},
+]
+const SURVEY_MAST_PART_SPECS := [
+	{"name": &"FootingCollision", "size": Vector3(4.0, 0.6, 4.0), "position": Vector3(0.0, 0.3, 0.0), "roll": 0.0},
+	{"name": &"MastCollision", "size": Vector3(0.7, 17.0, 0.7), "position": Vector3(0.0, 9.1, 0.0), "roll": 0.0},
+	{"name": &"CrossArmCollision", "size": Vector3(8.4, 0.5, 0.6), "position": Vector3(0.0, 15.4, 0.0), "roll": 0.0},
+	{"name": &"DishPanelCollision", "size": Vector3(3.2, 3.2, 0.35), "position": Vector3(0.0, 17.9, 0.0), "roll": 0.0},
+]
+const LANDER_WRECK_PART_SPECS := [
+	{"name": &"TippedHullCollision", "size": Vector3(8.0, 3.2, 3.2), "position": Vector3(0.0, 2.0, 0.0), "roll": -0.42},
+	{"name": &"TailFinCollision", "size": Vector3(0.6, 3.6, 4.4), "position": Vector3(-4.0, 3.6, 0.0), "roll": -0.42},
+	{"name": &"SnappedLegCollision", "size": Vector3(0.6, 5.4, 0.6), "position": Vector3(3.2, 1.4, -2.6), "roll": 0.9},
+	{"name": &"DebrisApronCollision", "size": Vector3(9.0, 0.5, 6.0), "position": Vector3(1.2, 0.25, 3.0), "roll": 0.0},
+]
+const EXPEDITION_LANDMARK_SPECS := [
+	{
+		"landmark_id": &"ember_collapsed_lava_tube",
+		"node_name": &"CollapsedLavaTube",
+		"batch_name": &"LavaTubeVisuals",
+		"root": LAVA_TUBE_ROOT_POSITION_M,
+		"material_path": ^"LandingRegion/CalderaFloor",
+		"parts": LAVA_TUBE_PART_SPECS,
+		"evidence_note": "Original collapsed lava-tube interpretation; no authenticated historical geometry.",
+	},
+	{
+		"landmark_id": &"ember_caldera_survey_mast",
+		"node_name": &"CalderaSurveyMast",
+		"batch_name": &"SurveyMastVisuals",
+		"root": SURVEY_MAST_ROOT_POSITION_M,
+		"material_path": ^"LandingRegion/SurfaceLandmarks/SampleRack/RackVisual",
+		"parts": SURVEY_MAST_PART_SPECS,
+		"evidence_note": "Original caldera survey-mast interpretation; no authenticated historical geometry.",
+	},
+	{
+		"landmark_id": &"ember_wrecked_survey_lander",
+		"node_name": &"WreckedSurveyLander",
+		"batch_name": &"WreckedLanderVisuals",
+		"root": LANDER_WRECK_ROOT_POSITION_M,
+		"material_path": ^"LandingRegion/SurfaceLandmarks/DerelictSurveyGantry/DeadSensorVisual",
+		"parts": LANDER_WRECK_PART_SPECS,
+		"evidence_note": "Original wrecked survey-lander interpretation; no authenticated historical geometry.",
+	},
+]
+const LAVA_TUBE_ROUTE_POINTS_M := [
+	Vector3(18.0, 0.0, 0.0),
+	Vector3(18.0, 0.0, -34.0),
+	Vector3(-32.0, 0.0, -38.0),
+	Vector3(-74.0, 0.0, 16.0),
+]
+const LAVA_TUBE_ROUTE_CHEVRON_COUNTS := [3, 4, 5]
+const SURVEY_MAST_ROUTE_POINTS_M := [
+	Vector3(18.0, 0.0, -34.0),
+	Vector3(14.0, 0.0, -80.0),
+]
+const SURVEY_MAST_ROUTE_CHEVRON_COUNTS := [4]
+const LANDER_WRECK_ROUTE_POINTS_M := [
+	Vector3(42.0, 0.0, 0.0),
+	Vector3(56.0, 0.0, 18.0),
+	Vector3(52.0, 0.0, 46.0),
+]
+const LANDER_WRECK_ROUTE_CHEVRON_COUNTS := [2, 2]
+const EXPEDITION_ROUTE_SPECS := [
+	{
+		"route_id": &"ember_caldera_lava_tube_route",
+		"marker_id": &"ember_collapsed_lava_tube_access",
+		"landmark_id": &"ember_collapsed_lava_tube",
+		"points": LAVA_TUBE_ROUTE_POINTS_M,
+		"chevron_counts": LAVA_TUBE_ROUTE_CHEVRON_COUNTS,
+	},
+	{
+		"route_id": &"ember_caldera_survey_mast_route",
+		"marker_id": &"ember_caldera_survey_mast_access",
+		"landmark_id": &"ember_caldera_survey_mast",
+		"points": SURVEY_MAST_ROUTE_POINTS_M,
+		"chevron_counts": SURVEY_MAST_ROUTE_CHEVRON_COUNTS,
+	},
+	{
+		"route_id": &"ember_caldera_lander_wreck_route",
+		"marker_id": &"ember_wrecked_survey_lander_access",
+		"landmark_id": &"ember_wrecked_survey_lander",
+		"points": LANDER_WRECK_ROUTE_POINTS_M,
+		"chevron_counts": LANDER_WRECK_ROUTE_CHEVRON_COUNTS,
+	},
+]
+
 const BODY_COLOR := Color("552817")
 const FLOOR_COLOR := Color("292421")
 const RIM_COLOR := Color("713a25")
@@ -247,13 +358,13 @@ const METAL_ROUGHNESS := 0.78
 const OXIDE_ROUGHNESS := 0.92
 const SERVICE_ROUGHNESS := 0.72
 
-const EXPECTED_NODE_COUNT := 83
+const EXPECTED_NODE_COUNT := 106
 const EXPECTED_MESH_INSTANCE_COUNT := 22
-const EXPECTED_MULTI_MESH_INSTANCE_COUNT := 8
-const EXPECTED_MULTI_MESH_COPY_COUNT := 42
-const EXPECTED_RENDER_SUBMISSION_COUNT := 30
-const EXPECTED_STATIC_BODY_COUNT := 9
-const EXPECTED_COLLISION_SHAPE_COUNT := 27
+const EXPECTED_MULTI_MESH_INSTANCE_COUNT := 12
+const EXPECTED_MULTI_MESH_COPY_COUNT := 95
+const EXPECTED_RENDER_SUBMISSION_COUNT := 34
+const EXPECTED_STATIC_BODY_COUNT := 12
+const EXPECTED_COLLISION_SHAPE_COUNT := 40
 const MAXIMUM_TRIANGLE_COUNT := 60_000
 const WORLD_LAYER := PhysicsLayers.WORLD_BODY_LAYER
 const WORLD_MASK := PhysicsLayers.WORLD_BODY_MASK
@@ -271,6 +382,9 @@ const SURFACE_LANDMARK_NODE_PATHS := {
 	&"ember_staging_relay": ^"LandingRegion/SurfaceLandmarks/StagingRelay",
 	&"ember_derelict_survey_gantry": ^"LandingRegion/SurfaceLandmarks/DerelictSurveyGantry",
 	&"ember_survey_service_bunker": ^"LandingRegion/SurfaceLandmarks/SurveyServiceBunker",
+	&"ember_collapsed_lava_tube": ^"LandingRegion/SurfaceLandmarks/CollapsedLavaTube",
+	&"ember_caldera_survey_mast": ^"LandingRegion/SurfaceLandmarks/CalderaSurveyMast",
+	&"ember_wrecked_survey_lander": ^"LandingRegion/SurfaceLandmarks/WreckedSurveyLander",
 }
 const SURFACE_MARKER_NODE_PATHS := {
 	&"ember_pad_guidance_threshold": ^"LandingRegion/SurfaceLandmarks/RouteMarkers/PadGuidanceThreshold",
@@ -278,6 +392,9 @@ const SURFACE_MARKER_NODE_PATHS := {
 	&"ember_staging_relay_access": ^"LandingRegion/SurfaceLandmarks/RouteMarkers/StagingRelayAccess",
 	&"ember_derelict_survey_gantry_access": ^"LandingRegion/SurfaceLandmarks/RouteMarkers/DerelictSurveyGantryAccess",
 	&"ember_survey_service_bunker_access": ^"LandingRegion/SurfaceLandmarks/RouteMarkers/SurveyServiceBunkerAccess",
+	&"ember_collapsed_lava_tube_access": ^"LandingRegion/SurfaceLandmarks/RouteMarkers/CollapsedLavaTubeAccess",
+	&"ember_caldera_survey_mast_access": ^"LandingRegion/SurfaceLandmarks/RouteMarkers/CalderaSurveyMastAccess",
+	&"ember_wrecked_survey_lander_access": ^"LandingRegion/SurfaceLandmarks/RouteMarkers/WreckedSurveyLanderAccess",
 }
 const INTEGRATION_AUTHORITY_KEYS := [
 	"streaming", "game_flow", "gameplay", "landing_decision", "ship_movement",
@@ -346,6 +463,8 @@ func _ready() -> void:
 	_configure_landing_approach_cues()
 	_configure_orbital_landing_datum_cue()
 	_configure_pad_guide_visuals()
+	_configure_expedition_landmarks()
+	_configure_expedition_route_spine()
 	_initialize_contract()
 	_configure_actor_collision_owner()
 	_configure_terrain_clipmap()
@@ -388,6 +507,22 @@ func get_surface_landmark_marker_transforms() -> Dictionary:
 		if marker != null:
 			result[marker_id] = landing_root.transform * marker.transform
 	return result.duplicate(true)
+
+
+## Detached authored expedition route manifest. Region-local polylines, the
+## terminal approach marker, and the landmark each route serves. Presentation
+## and wayfinding reference only; the scene owns no navigation authority.
+func get_expedition_route_snapshot() -> Array[Dictionary]:
+	var records: Array[Dictionary] = []
+	for route: Dictionary in EXPEDITION_ROUTE_SPECS:
+		records.append({
+			"route_id": StringName(route.route_id),
+			"marker_id": StringName(route.marker_id),
+			"landmark_id": StringName(route.landmark_id),
+			"points_region_local_m": PackedVector3Array(route.points as Array),
+			"chevron_counts": PackedInt32Array(route.chevron_counts as Array),
+		})
+	return records.duplicate(true)
 
 
 ## Pure selection seam. The returned policy hint never changes scene state.
@@ -561,6 +696,7 @@ func get_snapshot() -> Dictionary:
 			"route_points_region_local_m": SURFACE_ROUTE_POINTS_M.duplicate(),
 			"landmark_ids": SURFACE_LANDMARK_NODE_PATHS.keys(),
 			"marker_transforms_body_local": get_surface_landmark_marker_transforms(),
+			"expedition_routes": get_expedition_route_snapshot(),
 		},
 		"surface_material_hierarchy": _surface_material_hierarchy_snapshot(),
 		"geometry": {
@@ -615,8 +751,8 @@ func get_snapshot() -> Dictionary:
 			"top_surface_region_local_y_m": 0.0,
 			"layer": WORLD_LAYER,
 			"mask": WORLD_MASK,
-			"landmark_static_body_count": 6,
-			"solid_landmark_collision_shape_count": 24,
+			"landmark_static_body_count": 9,
+			"solid_landmark_collision_shape_count": 37,
 			"route_clear_half_width_m": SURFACE_ROUTE_WIDTH_M * 0.5,
 		},
 		"terrain_lod_policy": lod_snapshot,
@@ -1252,7 +1388,18 @@ func _validate_topology(errors: Array[Dictionary]) -> void:
 		^"LandingRegion/SurfaceLandmarks/RouteMarkers/StagingRelayAccess": "Marker3D",
 		^"LandingRegion/SurfaceLandmarks/RouteMarkers/DerelictSurveyGantryAccess": "Marker3D",
 		^"LandingRegion/SurfaceLandmarks/RouteMarkers/SurveyServiceBunkerAccess": "Marker3D",
+		^"LandingRegion/SurfaceLandmarks/ExpeditionRouteSpineVisuals": "MultiMeshInstance3D",
 	}
+	for spec: Dictionary in EXPEDITION_LANDMARK_SPECS:
+		var landmark_path := String(
+			SURFACE_LANDMARK_NODE_PATHS[spec.landmark_id] as NodePath
+		)
+		expected[NodePath(landmark_path)] = "StaticBody3D"
+		expected[NodePath("%s/%s" % [landmark_path, spec.batch_name])] = "MultiMeshInstance3D"
+		for part: Dictionary in spec.parts as Array:
+			expected[NodePath("%s/%s" % [landmark_path, part.name])] = "CollisionShape3D"
+	for route: Dictionary in EXPEDITION_ROUTE_SPECS:
+		expected[SURFACE_MARKER_NODE_PATHS[StringName(route.marker_id)]] = "Marker3D"
 	for path: NodePath in expected:
 		var node := get_node_or_null(path)
 		if node == null or not node.is_class(expected[path]):
@@ -1293,8 +1440,8 @@ func _validate_topology(errors: Array[Dictionary]) -> void:
 			or landing_root == null or landing_root.get_child_count() != 6 \
 			or walkable == null or walkable.get_child_count() != 1 \
 			or markers == null or markers.get_child_count() != 4 \
-			or landmarks == null or landmarks.get_child_count() != 12 \
-			or route_markers == null or route_markers.get_child_count() != 5 \
+			or landmarks == null or landmarks.get_child_count() != 16 \
+			or route_markers == null or route_markers.get_child_count() != 8 \
 			or relay == null or relay.get_child_count() != 6 \
 			or gantry == null or gantry.get_child_count() != 18 \
 			or bunker == null or bunker.get_child_count() != 11:
@@ -1390,6 +1537,10 @@ func _validate_geometry(errors: Array[Dictionary]) -> void:
 		_append_error(errors, &"derelict_gantry_visual_drift", &"DerelictSurveyGantry", "derelict survey-gantry silhouette or passive material recipe drifted")
 	if not _survey_bunker_geometry_is_exact(bunker):
 		_append_error(errors, &"survey_bunker_visual_drift", &"SurveyServiceBunker", "survey service-bunker silhouette or passive material recipe drifted")
+	if not _expedition_landmarks_are_exact():
+		_append_error(errors, &"expedition_landmark_visual_drift", &"SurfaceLandmarks", "authored caldera expedition landmark silhouette or solid recipe drifted")
+	if not _expedition_route_spine_is_exact():
+		_append_error(errors, &"expedition_route_spine_drift", &"ExpeditionRouteSpineVisuals", "batched expedition route chevrons drifted from their flush passive recipe")
 	var material_specs := {
 		body: {"color": BODY_COLOR, "role": &"basalt"},
 		floor: {"color": FLOOR_COLOR, "role": &"basalt"},
@@ -1690,6 +1841,25 @@ func _validate_surface_content(errors: Array[Dictionary]) -> void:
 			or bool(bunker.get_meta("historical_geometry_authenticated", true)) \
 			or str(bunker.get_meta("evidence_note", "")).is_empty():
 		_append_error(errors, &"survey_bunker_evidence_drift", &"ember_survey_service_bunker", "modern survey bunker interpretation must not claim historical geometry")
+	for spec: Dictionary in EXPEDITION_LANDMARK_SPECS:
+		var expedition := get_node_or_null(
+			SURFACE_LANDMARK_NODE_PATHS[spec.landmark_id] as NodePath
+		) as StaticBody3D
+		if expedition == null \
+				or bool(expedition.get_meta("historical_geometry_authenticated", true)) \
+				or str(expedition.get_meta("evidence_note", "")).is_empty():
+			_append_error(errors, &"expedition_landmark_evidence_drift", StringName(spec.landmark_id), "modern expedition landmark must not claim historical geometry")
+	for route_spec: Dictionary in EXPEDITION_ROUTE_SPECS:
+		var route_marker := get_node_or_null(
+			SURFACE_MARKER_NODE_PATHS[StringName(route_spec.marker_id)] as NodePath
+		) as Marker3D
+		var points := route_spec.points as Array
+		if route_marker == null \
+				or StringName(route_marker.get_meta("route_id", &"")) != StringName(route_spec.route_id) \
+				or StringName(route_marker.get_meta("landmark_id", &"")) != StringName(route_spec.landmark_id) \
+				or points.size() != (route_spec.chevron_counts as Array).size() + 1 \
+				or route_marker.position != (points[points.size() - 1] as Vector3):
+			_append_error(errors, &"expedition_route_identity_drift", StringName(route_spec.route_id), "authored expedition route identity or terminal marker drifted")
 	for marker_id: StringName in SURFACE_MARKER_NODE_PATHS:
 		var marker := get_node_or_null(SURFACE_MARKER_NODE_PATHS[marker_id]) as Marker3D
 		if marker == null \
@@ -2635,6 +2805,298 @@ static func _bar_between(
 	)
 
 
+## Builds the three authored expedition landmarks. Each is one solid
+## StaticBody3D with a single batched unit-box silhouette reusing an existing
+## authored material, plus one collision box per drawn part, so every visible
+## solid is also a real World-layer solid.
+func _configure_expedition_landmarks() -> void:
+	var landmarks := get_node_or_null(^"LandingRegion/SurfaceLandmarks") as Node3D
+	if landmarks == null:
+		return
+	for spec: Dictionary in EXPEDITION_LANDMARK_SPECS:
+		var source := get_node_or_null(spec.material_path as NodePath) as MeshInstance3D
+		if source == null or source.material_override == null:
+			continue
+		var body := StaticBody3D.new()
+		body.name = spec.node_name
+		body.position = spec.root
+		body.collision_layer = WORLD_LAYER
+		body.collision_mask = WORLD_MASK
+		body.set_meta("landmark_id", spec.landmark_id)
+		body.set_meta("content_class", &"NEW")
+		body.set_meta("status", &"modern_interpretation")
+		body.set_meta("solid_visual_collision", true)
+		body.set_meta("historical_geometry_authenticated", false)
+		body.set_meta("evidence_note", spec.evidence_note)
+		landmarks.add_child(body)
+		var unit_box := BoxMesh.new()
+		unit_box.size = Vector3.ONE
+		unit_box.material = source.material_override
+		var transforms := _expedition_part_transforms(spec.parts as Array)
+		var multi := MultiMesh.new()
+		multi.transform_format = MultiMesh.TRANSFORM_3D
+		multi.mesh = unit_box
+		multi.instance_count = transforms.size()
+		multi.buffer = _encode_multi_mesh_transforms(transforms)
+		multi.custom_aabb = _expedition_batch_bounds(transforms)
+		var batch := MultiMeshInstance3D.new()
+		batch.name = spec.batch_name
+		batch.multimesh = multi
+		batch.material_override = source.material_override
+		batch.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		batch.gi_mode = GeometryInstance3D.GI_MODE_DISABLED
+		batch.set_meta("authored_transforms", transforms.duplicate())
+		batch.set_meta("landmark_id", spec.landmark_id)
+		batch.set_meta("content_class", &"NEW")
+		batch.set_meta("status", &"modern_interpretation")
+		body.add_child(batch)
+		for part: Dictionary in spec.parts as Array:
+			var shape := BoxShape3D.new()
+			shape.size = part.size
+			var collision := CollisionShape3D.new()
+			collision.name = part.name
+			collision.transform = _expedition_part_basis(part)
+			collision.shape = shape
+			body.add_child(collision)
+	var route_markers := get_node_or_null(
+		^"LandingRegion/SurfaceLandmarks/RouteMarkers"
+	) as Node3D
+	if route_markers == null:
+		return
+	for route: Dictionary in EXPEDITION_ROUTE_SPECS:
+		var marker_id := StringName(route.marker_id)
+		var path := String(SURFACE_MARKER_NODE_PATHS[marker_id] as NodePath)
+		var marker := Marker3D.new()
+		marker.name = path.get_file()
+		marker.transform = _expected_surface_marker_transform(marker_id)
+		marker.set_meta("marker_id", marker_id)
+		marker.set_meta("route_id", route.route_id)
+		marker.set_meta("landmark_id", route.landmark_id)
+		route_markers.add_child(marker)
+
+
+## One batched chevron spine for all three expedition routes. It uses the same
+## passive decal recipe and the same authored route colour as the existing
+## pad-to-staging spine, so the surface reads as one wayfinding system.
+func _configure_expedition_route_spine() -> void:
+	var landmarks := get_node_or_null(^"LandingRegion/SurfaceLandmarks") as Node3D
+	var route_accent := get_node_or_null(
+		^"LandingRegion/SurfaceLandmarks/EgressRouteVisual"
+	) as MeshInstance3D
+	if landmarks == null or route_accent == null \
+			or route_accent.material_override == null:
+		return
+	var unit_bar := BoxMesh.new()
+	unit_bar.size = Vector3.ONE
+	unit_bar.material = route_accent.material_override
+	var transforms := _expedition_route_spine_transforms()
+	var multi := MultiMesh.new()
+	multi.transform_format = MultiMesh.TRANSFORM_3D
+	multi.mesh = unit_bar
+	multi.instance_count = EXPEDITION_ROUTE_INSTANCE_COUNT
+	multi.buffer = _encode_multi_mesh_transforms(transforms)
+	multi.custom_aabb = _expedition_batch_bounds(transforms)
+	var spine := MultiMeshInstance3D.new()
+	spine.name = &"ExpeditionRouteSpineVisuals"
+	spine.multimesh = multi
+	spine.material_override = route_accent.material_override
+	spine.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	spine.gi_mode = GeometryInstance3D.GI_MODE_DISABLED
+	spine.set_meta("authored_transforms", transforms.duplicate())
+	spine.set_meta("route_ids", _expedition_route_ids())
+	spine.set_meta("destination_marker_ids", _expedition_marker_ids())
+	spine.set_meta("content_class", &"NEW")
+	spine.set_meta("status", &"modern_interpretation")
+	spine.set_meta("collision_role", &"flush_supported_decal_geometry")
+	landmarks.add_child(spine)
+
+
+static func _expedition_route_ids() -> PackedStringArray:
+	var ids := PackedStringArray()
+	for route: Dictionary in EXPEDITION_ROUTE_SPECS:
+		ids.append(String(route.route_id))
+	return ids
+
+
+static func _expedition_marker_ids() -> PackedStringArray:
+	var ids := PackedStringArray()
+	for route: Dictionary in EXPEDITION_ROUTE_SPECS:
+		ids.append(String(route.marker_id))
+	return ids
+
+
+static func _expedition_part_basis(part: Dictionary) -> Transform3D:
+	return Transform3D(
+		Basis(Vector3(0.0, 0.0, 1.0), float(part.roll)),
+		part.position as Vector3,
+	)
+
+
+static func _expedition_part_transforms(parts: Array) -> Array[Transform3D]:
+	var transforms: Array[Transform3D] = []
+	for part: Dictionary in parts:
+		var oriented := _expedition_part_basis(part)
+		transforms.append(Transform3D(
+			oriented.basis * Basis.IDENTITY.scaled(part.size as Vector3),
+			oriented.origin,
+		))
+	return transforms
+
+
+static func _expedition_route_spine_transforms() -> Array[Transform3D]:
+	var transforms: Array[Transform3D] = []
+	for route: Dictionary in EXPEDITION_ROUTE_SPECS:
+		var points := route.points as Array
+		var counts := route.chevron_counts as Array
+		for segment in counts.size():
+			var start := points[segment] as Vector3
+			var finish := points[segment + 1] as Vector3
+			var direction := (finish - start).normalized()
+			var lateral := Vector3(-direction.z, 0.0, direction.x)
+			for index in int(counts[segment]):
+				var ratio := float(index + 1) / float(int(counts[segment]) + 1)
+				var centre := start.lerp(finish, ratio)
+				centre.y = EXPEDITION_ROUTE_Y_M
+				var tip := centre + direction * EXPEDITION_ROUTE_TIP_OFFSET_M
+				transforms.append(_bar_between(
+					centre - direction * EXPEDITION_ROUTE_TAIL_OFFSET_M
+						- lateral * EXPEDITION_ROUTE_HALF_SPAN_M,
+					tip,
+					EXPEDITION_ROUTE_ARM_WIDTH_M,
+					EXPEDITION_ROUTE_ARM_HEIGHT_M,
+				))
+				transforms.append(_bar_between(
+					centre - direction * EXPEDITION_ROUTE_TAIL_OFFSET_M
+						+ lateral * EXPEDITION_ROUTE_HALF_SPAN_M,
+					tip,
+					EXPEDITION_ROUTE_ARM_WIDTH_M,
+					EXPEDITION_ROUTE_ARM_HEIGHT_M,
+				))
+	return transforms
+
+
+static func _expedition_batch_bounds(transforms: Array[Transform3D]) -> AABB:
+	if transforms.is_empty():
+		return AABB()
+	var unit_box := AABB(Vector3(-0.5, -0.5, -0.5), Vector3.ONE)
+	var bounds := (transforms[0] * unit_box).abs()
+	for index in range(1, transforms.size()):
+		bounds = bounds.merge((transforms[index] * unit_box).abs())
+	return bounds
+
+
+func _expedition_landmarks_are_exact() -> bool:
+	for spec: Dictionary in EXPEDITION_LANDMARK_SPECS:
+		var body := get_node_or_null(
+			SURFACE_LANDMARK_NODE_PATHS[spec.landmark_id] as NodePath
+		) as StaticBody3D
+		var source := get_node_or_null(spec.material_path as NodePath) as MeshInstance3D
+		var parts := spec.parts as Array
+		if body == null or source == null or source.material_override == null \
+				or body.position != (spec.root as Vector3) \
+				or body.basis != Basis.IDENTITY \
+				or body.collision_layer != WORLD_LAYER \
+				or body.collision_mask != WORLD_MASK \
+				or body.get_child_count() != parts.size() + 1:
+			return false
+		var batch := body.get_node_or_null(
+			NodePath(String(spec.batch_name))
+		) as MultiMeshInstance3D
+		var expected := _expedition_part_transforms(parts)
+		if not _expedition_batch_is_exact(
+			batch, source.material_override as StandardMaterial3D, expected
+		):
+			return false
+		for part: Dictionary in parts:
+			var collision := body.get_node_or_null(
+				NodePath(String(part.name))
+			) as CollisionShape3D
+			var box := collision.shape as BoxShape3D if collision != null else null
+			if collision == null or collision.disabled or box == null \
+					or box.size != (part.size as Vector3) \
+					or not collision.transform.is_equal_approx(
+						_expedition_part_basis(part)
+					):
+				return false
+		# Every expedition landmark stands on the generated basalt clear of the
+		# fixed patch edge, so it can never shadow the authored pad collision.
+		var clearance := WALKABLE_PATCH_SIZE_M.x * 0.5 \
+			+ EXPEDITION_LANDMARK_MINIMUM_PATCH_CLEARANCE_M
+		var footprint := _expedition_batch_bounds(expected)
+		var root := spec.root as Vector3
+		var nearest_x := absf(root.x) - footprint.size.x * 0.5
+		var nearest_z := absf(root.z) - footprint.size.z * 0.5
+		if nearest_x < clearance and nearest_z < clearance:
+			return false
+	return true
+
+
+func _expedition_batch_is_exact(
+		batch: MultiMeshInstance3D,
+		material: StandardMaterial3D,
+		expected: Array[Transform3D],
+	) -> bool:
+	if batch == null or batch.multimesh == null or material == null \
+			or batch.get_child_count() != 0 \
+			or batch.transform != Transform3D.IDENTITY \
+			or batch.cast_shadow != GeometryInstance3D.SHADOW_CASTING_SETTING_OFF \
+			or batch.gi_mode != GeometryInstance3D.GI_MODE_DISABLED \
+			or batch.material_override != material \
+			or StringName(batch.get_meta("content_class", &"")) != &"NEW" \
+			or StringName(batch.get_meta("status", &"")) != &"modern_interpretation":
+		return false
+	var multi := batch.multimesh
+	var unit_box := multi.mesh as BoxMesh
+	if multi.transform_format != MultiMesh.TRANSFORM_3D \
+			or multi.instance_count != expected.size() \
+			or multi.visible_instance_count not in [-1, expected.size()] \
+			or unit_box == null or unit_box.size != Vector3.ONE \
+			or unit_box.material != material \
+			or not multi.custom_aabb.is_equal_approx(
+				_expedition_batch_bounds(expected)
+			):
+		return false
+	var authored: Variant = batch.get_meta("authored_transforms", [])
+	if not authored is Array or (authored as Array).size() != expected.size():
+		return false
+	for index in expected.size():
+		if not (authored as Array)[index] is Transform3D \
+				or not ((authored as Array)[index] as Transform3D).is_equal_approx(
+					expected[index]
+				):
+			return false
+	return _multi_mesh_live_transforms_are_exact(multi, expected)
+
+
+func _expedition_route_spine_is_exact() -> bool:
+	var spine := get_node_or_null(
+		^"LandingRegion/SurfaceLandmarks/ExpeditionRouteSpineVisuals"
+	) as MultiMeshInstance3D
+	var route_accent := get_node_or_null(
+		^"LandingRegion/SurfaceLandmarks/EgressRouteVisual"
+	) as MeshInstance3D
+	if spine == null or route_accent == null \
+			or spine.get_meta("route_ids", PackedStringArray()) \
+				!= _expedition_route_ids() \
+			or spine.get_meta("destination_marker_ids", PackedStringArray()) \
+				!= _expedition_marker_ids() \
+			or StringName(spine.get_meta("collision_role", &"")) \
+				!= &"flush_supported_decal_geometry":
+		return false
+	var expected := _expedition_route_spine_transforms()
+	if expected.size() != EXPEDITION_ROUTE_INSTANCE_COUNT:
+		return false
+	# A flush decal must never become a lip the production capsule can trip on.
+	for transform: Transform3D in expected:
+		var bounds := (transform * AABB(Vector3(-0.5, -0.5, -0.5), Vector3.ONE)).abs()
+		if bounds.position.y + bounds.size.y \
+				> EXPEDITION_ROUTE_Y_M + EXPEDITION_ROUTE_ARM_HEIGHT_M:
+			return false
+	return _expedition_batch_is_exact(
+		spine, route_accent.material_override as StandardMaterial3D, expected
+	)
+
+
 func _validate_performance(errors: Array[Dictionary], census: Dictionary) -> void:
 	var budget := _performance_budget()
 	for key: String in budget:
@@ -2745,6 +3207,12 @@ static func _expected_surface_marker_transform(marker_id: StringName) -> Transfo
 			return Transform3D(Basis.IDENTITY, GANTRY_ACCESS_POSITION_M)
 		&"ember_survey_service_bunker_access":
 			return Transform3D(Basis.IDENTITY, BUNKER_ACCESS_POSITION_M)
+		&"ember_collapsed_lava_tube_access":
+			return Transform3D(Basis.IDENTITY, LAVA_TUBE_ACCESS_POSITION_M)
+		&"ember_caldera_survey_mast_access":
+			return Transform3D(Basis.IDENTITY, SURVEY_MAST_ACCESS_POSITION_M)
+		&"ember_wrecked_survey_lander_access":
+			return Transform3D(Basis.IDENTITY, LANDER_WRECK_ACCESS_POSITION_M)
 		_:
 			return Transform3D.IDENTITY
 
