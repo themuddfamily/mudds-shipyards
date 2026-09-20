@@ -119,7 +119,7 @@ func _init() -> void:
 func _run() -> void:
 	_check(
 		Presenter.ACTIVITY_ORDER.size() == Presenter.ACTIVITY_COPY.size()
-		and Presenter.ACTIVITY_ORDER.size() == 8,
+		and Presenter.ACTIVITY_ORDER.size() == 10,
 		"the activity briefing family is frozen at one prompt per offered activity",
 	)
 	var hud := HUD_SCENE.instantiate()
@@ -338,8 +338,47 @@ func _run() -> void:
 		and flow.activity_tutorial_prompt_id(GameFlowType.CARGO_DELIVERY_ACTIVITY_ID)
 			== &"cinder_platform_supply_run"
 		and flow.activity_tutorial_prompt_id(&"heavy_breach").is_empty(),
-		"free-flight sortie kinds and route ids resolve onto the same eight briefings",
+		"free-flight sortie kinds and route ids resolve onto the same ten briefings",
 	)
+
+	# The two places in the sector that have an inside get the same one-shot
+	# treatment as the board activities, but their trigger is proximity rather
+	# than a pressed start, so they are published directly here.
+	for place_id: StringName in [
+		&"cinder_hulk_power_restoration",
+		&"cinder_asteroid_field_threading_run",
+	]:
+		production_hud.clear_activity_tutorial(&"place_case")
+		flow._activity_tutorial_active_id = &""
+		var place_copy := Presenter.ACTIVITY_COPY[place_id] as Dictionary
+		_check(
+			flow.publish_activity_tutorial_briefing(place_id)
+			and production_title.text == str(place_copy.title)
+			and _briefing_card_visible(production_hud)
+			and flow.has_seen_activity_tutorial(place_id),
+			"the first approach to %s briefs the pilot once" % String(place_id),
+		)
+		production_hud.clear_activity_tutorial(&"place_repeat")
+		flow._activity_tutorial_active_id = &""
+		_check(
+			not flow.publish_activity_tutorial_briefing(place_id)
+			and not _briefing_card_visible(production_hud),
+			"a later approach to %s is silent" % String(place_id),
+		)
+		# The Destination Board's deliberate "show me again" is the one path
+		# allowed past the seen-set, and it still starts nothing.
+		_check(
+			flow.publish_activity_tutorial_briefing(place_id, true)
+			and production_title.text == str(place_copy.title)
+			and _briefing_card_visible(production_hud),
+			"the board can re-show the %s briefing on request" % String(place_id),
+		)
+	_check(
+		binding.starts.size() == board_started.size() * 2,
+		"a place briefing never starts an activity",
+	)
+	production_hud.clear_activity_tutorial(&"place_done")
+	flow._activity_tutorial_active_id = &""
 
 	# Retained-HUD re-entry redraws the live briefing without re-arming it.
 	production_hud.clear_activity_tutorial(&"reentry_case")
@@ -380,6 +419,16 @@ func _run() -> void:
 		and reloaded_flow.has_seen_activity_tutorial(&"cinder_platform_supply_run")
 		and not reloaded_flow.has_seen_activity_tutorial(&"station_defense"),
 		"a fresh session reloads the persisted seen-set from the same document",
+	)
+	_check(
+		reloaded_flow.has_seen_activity_tutorial(&"cinder_hulk_power_restoration")
+		and reloaded_flow.has_seen_activity_tutorial(
+			&"cinder_asteroid_field_threading_run"
+		)
+		and not reloaded_flow.publish_activity_tutorial_briefing(
+			&"cinder_hulk_power_restoration"
+		),
+		"a re-entered session remembers both sector places and never re-briefs them",
 	)
 	_check(
 		not reloaded_flow.publish_activity_tutorial_briefing(&"cinder_relay_patrol"),

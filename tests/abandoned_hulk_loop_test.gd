@@ -321,6 +321,87 @@ func _test_production_loop() -> void:
 		await _cleanup(game)
 		return
 
+	# --- The cockpit can see where this place is -----------------------------
+	# Until now the hulk was reached by walking to a breaker you had to already
+	# know about. Flying out with the sector resident must mark it.
+	var was_piloting := bool(game.get("_piloting"))
+	game.set("_piloting", true)
+	var flying_markers := _marker_positions(game)
+	_check(
+		flying_markers.has(&"nearby_hulk_dock")
+		and flying_markers.has(&"nearby_belt_bore")
+		and flying_markers.has(&"nearby_route_beacon")
+		and flying_markers.has(&"nearby_ringed_moonlet")
+		and flying_markers.has(&"nearby_extraction_platform")
+		and flying_markers.has(&"nearby_debris_field"),
+		"a resident sector marks every named place on the cockpit minimap"
+	)
+	_check(
+		(flying_markers.get(&"nearby_route_beacon", []) as Array).size() == 4
+		and ((flying_markers.get(&"nearby_hulk_dock", []) as Array)[0] as Vector3)
+			.is_equal_approx(hulk.get_dock_world_transform().origin),
+		"the hulk's mark is its real dock and the beacon chain marks all four"
+	)
+
+	# One briefing, the first time the pilot comes close, then silence.
+	var dock_position := hulk.get_dock_world_transform().origin
+	game.set("_piloting", true)
+	_check(
+		not game.has_seen_activity_tutorial(&"cinder_hulk_power_restoration"),
+		"the hulk has not briefed the pilot before the first approach"
+	)
+	game.call(&"_advance_nearby_destination_briefings", {
+		"available": true, "position": dock_position,
+	})
+	_check(
+		game.has_seen_activity_tutorial(&"cinder_hulk_power_restoration")
+		and StringName(game.get("_activity_tutorial_active_id"))
+			== &"cinder_hulk_power_restoration"
+		and not game.has_seen_activity_tutorial(
+			&"cinder_asteroid_field_threading_run"
+		),
+		"the first approach to the hulk briefs that place and only that place"
+	)
+	game.set("_activity_tutorial_active_id", &"")
+	game.call(&"_advance_nearby_destination_briefings", {
+		"available": true, "position": dock_position,
+	})
+	_check(
+		StringName(game.get("_activity_tutorial_active_id")).is_empty(),
+		"a second approach to the hulk is silent"
+	)
+	# Far away in the same resident sector, nothing is published.
+	var distant := dock_position + Vector3(0.0, 0.0, 5000.0)
+	game.call(&"_advance_nearby_destination_briefings", {
+		"available": true, "position": distant,
+	})
+	_check(
+		StringName(game.get("_activity_tutorial_active_id")).is_empty()
+		and not game.has_seen_activity_tutorial(
+			&"cinder_asteroid_field_threading_run"
+		),
+		"a place the pilot has not flown near is never briefed"
+	)
+	var belt_family := flying_markers.get(&"nearby_belt_bore", []) as Array
+	game.call(&"_advance_nearby_destination_briefings", {
+		"available": true, "position": belt_family[0] as Vector3,
+	})
+	_check(
+		game.has_seen_activity_tutorial(&"cinder_asteroid_field_threading_run"),
+		"coming up on the belt bore briefs the threading run once"
+	)
+	game.set("_activity_tutorial_active_id", &"")
+
+	# The Destination Board now offers both places, because they are out there.
+	var resident_board := game.get_planetary_destination_catalog_snapshot()
+	_check(
+		int(resident_board.get("sector_site_count", -1)) == 2
+		and (resident_board.get("available_sector_site_ids", PackedStringArray())
+			as PackedStringArray).size() == 2,
+		"the Destination Board offers both places while the sector is resident"
+	)
+	game.set("_piloting", was_piloting)
+
 	# --- Dock ----------------------------------------------------------------
 	# Park on the berth's own clear staging pose and hand the existing landing
 	# path the same request the pause-menu landing command issues.
@@ -368,6 +449,11 @@ func _test_production_loop() -> void:
 		not player.is_seated()
 		and player.global_position.distance_to(route[0]) < 6.0,
 		"the pilot leaves the seat and stands on the hulk's dock shelf"
+	)
+	game.set("_piloting", false)
+	_check(
+		_marker_positions(game).is_empty(),
+		"a pilot out of the seat gets no flight destination marks"
 	)
 
 	# --- Walk the interior ---------------------------------------------------
@@ -524,11 +610,52 @@ func _test_production_loop() -> void:
 		) == &"claimed",
 		"the recovered cell survives the trip home with the destination unloaded"
 	)
+	game.set("_piloting", true)
+	_check(
+		_marker_positions(game).is_empty(),
+		"the streamed-out sector takes every one of its marks off the map"
+	)
+	var away_board := game.get_planetary_destination_catalog_snapshot()
+	_check(
+		int(away_board.get("sector_site_count", -1)) == 2
+		and (away_board.get("available_sector_site_ids", PackedStringArray())
+			as PackedStringArray).is_empty()
+		and not bool(game.call(
+			&"_on_hud_sector_site_briefing_requested", &"cinder_hulk_dock_site"
+		)),
+		"the board still lists both places but refuses them once the sector is away"
+	)
+	# A pilot who comes back is not briefed a second time.
+	game.set("_activity_tutorial_active_id", &"")
+	_check(
+		not game.publish_activity_tutorial_briefing(
+			&"cinder_hulk_power_restoration"
+		)
+		and game.has_seen_activity_tutorial(&"cinder_hulk_power_restoration"),
+		"the sector briefings stay remembered across the round trip"
+	)
 
 	await _cleanup(game)
 
 
 # --- Helpers -----------------------------------------------------------------
+
+
+## Nearby-sector destination marks currently on the published minimap roster,
+## grouped by family. Every other objective marker is ignored.
+func _marker_positions(game: GameFlow) -> Dictionary:
+	var families: Dictionary = {}
+	for marker_variant: Variant in (
+		game.get_minimap_snapshot().get("objective_markers", []) as Array
+	):
+		var marker := marker_variant as Dictionary
+		var marker_id := StringName(marker.get("id", &""))
+		if not String(marker_id).begins_with("nearby_"):
+			continue
+		if not families.has(marker_id):
+			families[marker_id] = []
+		(families[marker_id] as Array).append(marker.get("position", Vector3.INF))
+	return families
 
 
 func _reward_counts(game: GameFlow) -> Dictionary:

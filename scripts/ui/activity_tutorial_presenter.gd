@@ -23,6 +23,8 @@ const ACTIVITY_ORDER := [
 	&"cinder_debris_beacon_traversal",
 	&"cinder_platform_supply_run",
 	&"station_defense",
+	&"cinder_hulk_power_restoration",
+	&"cinder_asteroid_field_threading_run",
 ]
 
 const ACTIVITY_COPY := {
@@ -88,6 +90,24 @@ const ACTIVITY_COPY := {
 		"accessible": "Use the interact control to take on cargo, then deliver it before the clock runs out.",
 		"next_action": "LOAD CARGO // DELIVER BEFORE THE CLOCK",
 		"recovery": "RUN STALLED // RETURN TO THE SUPPLY PLATFORM",
+	},
+	&"cinder_hulk_power_restoration": {
+		"title": "Dock at the abandoned hulk",
+		"label": "ABANDONED STATION HULK",
+		"controller": "Dock on the hulk's lit face, leave the seat, then press {interact} on the breaker inside.",
+		"keyboard": "Dock on the hulk's lit face, leave the seat, then press {interact} on the breaker inside.",
+		"accessible": "Dock on the lit face of the hulk, leave the pilot seat, walk in and use the interact control on the breaker.",
+		"next_action": "DOCK ON THE LIT FACE // WALK IN TO THE BREAKER",
+		"recovery": "DRIFTED OFF // LINE BACK UP ON THE HULK DOCK",
+	},
+	&"cinder_asteroid_field_threading_run": {
+		"title": "Thread the belt bore",
+		"label": "ASTEROID BELT THREADING RUN",
+		"controller": "The belt has one cut bore. Enter at the ringed mouth and hold {move_forward} through all five gates.",
+		"keyboard": "The belt has one cut bore. Enter at the ringed mouth and hold {move_forward} through all five gates.",
+		"accessible": "The belt has one cut bore. Enter at the ringed mouth and fly forward through all five marked gates in order.",
+		"next_action": "ENTER AT THE RINGED MOUTH // FIVE GATES IN ORDER",
+		"recovery": "BORE LOST // SWING BACK OUT TO THE RINGED MOUTH",
 	},
 	&"station_defense": {
 		"title": "Hold the station perimeter",
