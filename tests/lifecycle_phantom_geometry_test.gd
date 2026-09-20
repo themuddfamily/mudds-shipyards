@@ -109,6 +109,84 @@ extends "res://tests/long_session_soak_test.gd"
 
 const HalyardTransport := preload("res://scripts/ships/halyard_crew_transport.gd")
 const BunkInteraction := preload("res://scripts/interaction/ship_bunk.gd")
+const Cadence := preload("res://tests/fixed_physics_cadence.gd")
+
+## Per-physics-tick rest-window sampler.
+##
+## The light series is stated per physics tick over `LIGHT_SERIES_SECONDS` of
+## simulated time, and the held rest pose is stated per physics tick too. An
+## `await physics_frame` / `await process_frame` round is one tick on an idle
+## machine and several on a loaded one, because the engine catches up by
+## running up to `Engine.max_physics_steps_per_frame` steps in one rendered
+## frame. A loop that samples once per round therefore samples a window several
+## times longer than the one it divides by: the yard's authored 0.605 Hz
+## ambient pulse read as 1.25-1.50 Hz on a loaded machine and failed the
+## reduced-flash contract, with nothing wrong in the scene.
+##
+## So the sampling runs where the ticks are - in `_physics_process`, after
+## everything else has moved - and the awaited loop only waits for the sample
+## count to reach the window. The window the rate is divided by is then the
+## number of ticks actually sampled, not the number of rounds awaited.
+class RestWindowSampler extends Node:
+	var suite = null
+	var lights: Array[Node] = []
+	var minimums := PackedFloat32Array()
+	var maximums := PackedFloat32Array()
+	var previous := PackedFloat32Array()
+	var direction := PackedInt32Array()
+	var turns := PackedInt32Array()
+	var samples := 0
+	var sampling := false
+	## `REST_LIGHT_ENERGY_EPSILON`, handed in by the suite: an inner class
+	## cannot read the outer script's constants.
+	var energy_epsilon := 0.001
+
+	func _ready() -> void:
+		process_physics_priority = 10000
+
+	func begin(p_lights: Array[Node]) -> void:
+		lights = p_lights
+		var count := lights.size()
+		minimums.resize(count)
+		maximums.resize(count)
+		previous.resize(count)
+		direction.resize(count)
+		turns.resize(count)
+		for index in count:
+			var light := lights[index] as Light3D
+			var energy := float(light.light_energy) if is_instance_valid(light) else 0.0
+			minimums[index] = energy
+			maximums[index] = energy
+			previous[index] = energy
+			direction[index] = 0
+			turns[index] = 0
+		samples = 0
+		sampling = true
+
+	func finish() -> void:
+		sampling = false
+
+	func _physics_process(_delta: float) -> void:
+		if suite != null:
+			suite._hold_rest_pose()
+		if not sampling:
+			return
+		samples += 1
+		for index in lights.size():
+			var light := lights[index] as Light3D
+			if not is_instance_valid(light):
+				continue
+			var energy := float(light.light_energy)
+			minimums[index] = minf(minimums[index], energy)
+			maximums[index] = maxf(maximums[index], energy)
+			var delta := energy - previous[index]
+			if absf(delta) > energy_epsilon:
+				var sign_value := 1 if delta > 0.0 else -1
+				if direction[index] != 0 and sign_value != direction[index]:
+					turns[index] = turns[index] + 1
+				direction[index] = sign_value
+			previous[index] = energy
+
 
 const DEFAULT_PHANTOM_CYCLES := 4
 ## Two cycles, for the same reason the long-session soak warms up for four: the
@@ -805,15 +883,25 @@ func _snapshot_rest_state(
 		)
 	elif not player.is_seated():
 		player.teleport_to(world.get_player_spawn())
+	# The rest window is measured in physics ticks, so it is held and sampled
+	# in `_physics_process` rather than once per awaited round - see
+	# `RestWindowSampler`.
+	var sampler := RestWindowSampler.new()
+	sampler.name = "PhantomRestWindowSampler"
+	sampler.suite = self
+	sampler.energy_epsilon = REST_LIGHT_ENERGY_EPSILON
+	root.add_child(sampler)
 	_hold_rest_pose()
-	for _settle_tick in REST_SETTLE_TICKS:
+	var settled := int(Engine.get_physics_frames()) + REST_SETTLE_TICKS
+	while int(Engine.get_physics_frames()) < settled:
 		await physics_frame
 		await process_frame
-		_hold_rest_pose()
 
 	var opening := _walk_renderers()
-	var series := await _sample_light_series(opening.light_nodes as Array[Node])
+	var series := await _sample_light_series(sampler, opening.light_nodes as Array[Node])
 	var closing := _walk_renderers()
+	sampler.suite = null
+	sampler.queue_free()
 	_held_craft = null
 	_states_snapshotted += 1
 
@@ -850,6 +938,10 @@ func _snapshot_rest_state(
 	var over_contract := series.over_contract as Array[Dictionary]
 	var lifecycle_flashing := series.lifecycle_flashing as Array[Dictionary]
 	record["flashing_lights"] = flashers.size()
+	record["light_series_window_seconds"] = float(series.get("window_seconds", 0.0))
+	record["light_series_window_ticks"] = int(series.get("window_ticks", 0))
+	record["worst_flash_hz"] = float(series.get("worst_flash_hz", 0.0))
+	record["worst_flash_depth"] = float(series.get("worst_flash_depth", 0.0))
 	record["lights_over_flash_contract"] = over_contract.size()
 	record["lifecycle_lights_flashing"] = lifecycle_flashing.size()
 	if not over_contract.is_empty() or not lifecycle_flashing.is_empty() \
@@ -1079,46 +1171,32 @@ func _collect_renderers(
 ## extremes, the turning-point count and the endpoints are retained: a series is
 ## a flash if its amplitude is non-zero, and its period follows from how many
 ## times it turned around inside a known window.
-func _sample_light_series(lights: Array[Node]) -> Dictionary:
+func _sample_light_series(sampler: RestWindowSampler, lights: Array[Node]) -> Dictionary:
 	var ticks := maxi(
 		2, int(round(LIGHT_SERIES_SECONDS * float(Engine.physics_ticks_per_second)))
 	)
-	var minimums := PackedFloat32Array()
-	var maximums := PackedFloat32Array()
-	var previous := PackedFloat32Array()
-	var direction := PackedInt32Array()
-	var turns := PackedInt32Array()
-	minimums.resize(lights.size())
-	maximums.resize(lights.size())
-	previous.resize(lights.size())
-	direction.resize(lights.size())
-	turns.resize(lights.size())
-	for index in lights.size():
-		var energy := float((lights[index] as Light3D).light_energy)
-		minimums[index] = energy
-		maximums[index] = energy
-		previous[index] = energy
-		direction[index] = 0
-		turns[index] = 0
-
-	for _tick in ticks:
+	sampler.begin(lights)
+	# The window closes on the sample count, not on a round count. The bounded
+	# wall-clock escape is generous by a wide margin - the ticks arrive at or
+	# above real time even when the machine is catching up - and exists only so
+	# a stalled simulation cannot hang the suite.
+	var deadline := Time.get_ticks_msec() + int(ceil(LIGHT_SERIES_SECONDS * 1000.0)) * 20 + 10000
+	while sampler.samples < ticks:
 		await physics_frame
 		await process_frame
-		_hold_rest_pose()
-		for index in lights.size():
-			var light := lights[index] as Light3D
-			if not is_instance_valid(light):
-				continue
-			var energy := float(light.light_energy)
-			minimums[index] = minf(minimums[index], energy)
-			maximums[index] = maxf(maximums[index], energy)
-			var delta := energy - previous[index]
-			if absf(delta) > REST_LIGHT_ENERGY_EPSILON:
-				var sign_value := 1 if delta > 0.0 else -1
-				if direction[index] != 0 and sign_value != direction[index]:
-					turns[index] = turns[index] + 1
-				direction[index] = sign_value
-			previous[index] = energy
+		if Time.get_ticks_msec() >= deadline:
+			break
+	sampler.finish()
+	var minimums := sampler.minimums
+	var maximums := sampler.maximums
+	var turns := sampler.turns
+	# Divide by the window the engine actually ran, in ticks, at the live tick
+	# rate: on a loaded machine the awaited rounds above span more than one
+	# tick each, and dividing a turning-point count by the nominal two seconds
+	# reported the yard's authored 0.605 Hz pulse as 1.5 Hz.
+	var window_seconds := maxf(
+		Cadence.ticks_to_seconds(sampler.samples), Cadence.ticks_to_seconds(1)
+	)
 
 	var flashing: Array[Dictionary] = []
 	var unsafe_declared: Array[Dictionary] = []
@@ -1143,11 +1221,11 @@ func _sample_light_series(lights: Array[Node]) -> Dictionary:
 			# Two turning points make one full period, so the window holds
 			# `turns / 2` periods.
 			"period_seconds": (
-				snappedf(LIGHT_SERIES_SECONDS / (float(turns[index]) * 0.5), 0.001)
+				snappedf(window_seconds / (float(turns[index]) * 0.5), 0.001)
 				if turns[index] > 0 else 0.0
 			),
 			"flash_hz": (
-				snappedf(float(turns[index]) * 0.5 / LIGHT_SERIES_SECONDS, 0.01)
+				snappedf(float(turns[index]) * 0.5 / window_seconds, 0.01)
 				if turns[index] > 0 else 0.0
 			),
 			"reduced_flash_safe": bool(light.get_meta(&"reduced_flash_safe", false)),
@@ -1160,11 +1238,20 @@ func _sample_light_series(lights: Array[Node]) -> Dictionary:
 			over_contract.append(descriptor)
 		if _matches_any(String(descriptor.path), LIFECYCLE_PATH_MARKERS):
 			lifecycle_flashing.append(descriptor)
+	var worst_hz := 0.0
+	var worst_depth := 0.0
+	for descriptor in flashing:
+		worst_hz = maxf(worst_hz, float(descriptor.get("flash_hz", 0.0)))
+		worst_depth = maxf(worst_depth, float(descriptor.get("depth", 0.0)))
 	return {
 		"flashing": flashing,
 		"unsafe_declared": unsafe_declared,
 		"over_contract": over_contract,
 		"lifecycle_flashing": lifecycle_flashing,
+		"window_seconds": snappedf(window_seconds, 0.001),
+		"window_ticks": sampler.samples,
+		"worst_flash_hz": snappedf(worst_hz, 0.01),
+		"worst_flash_depth": snappedf(worst_depth, 0.001),
 	}
 
 

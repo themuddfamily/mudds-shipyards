@@ -37,6 +37,7 @@ const Intent := preload("res://scripts/network/network_movement_intent.gd")
 const IntentSource := preload("res://scripts/network/network_remote_body_intent_source.gd")
 const MovementAuthority := preload("res://scripts/network/network_movement_authority.gd")
 const RemoteBodySimulation := preload("res://scripts/network/network_remote_body_simulation.gd")
+const Cadence := preload("res://tests/fixed_physics_cadence.gd")
 
 const SHIP_ID: StringName = &"halyard_new_design"
 const FRAME_ID: StringName = &"frame_halyard_new_design"
@@ -52,6 +53,11 @@ const BACKWARD := Vector2(0.0, 1.0)
 const MIN_AISLE_PROGRESS := 3.0
 ## The Halyard's published cabin movement envelope, with the deck's own margin.
 const BOUNDS_MARGIN := 0.35
+## Ticks a body that has come to rest is given to report deck support. A capsule
+## re-seating on a translating deck takes a tick or two; anything that is
+## genuinely unsupported is still falling at the end of this window, and the
+## envelope check beside it catches a body that left the deck at all.
+const SUPPORT_SETTLE_TICKS := 20
 
 const PROFILES := [
 	{"name": "clean", "delay_ms": 0.0, "jitter_ms": 0.0, "loss": 0.0, "rounds": 60},
@@ -132,6 +138,8 @@ class TickDriver extends Node:
 			suite._on_physics_tick()
 
 
+var _cadence := Cadence.new()
+
 var _game: GameFlow = null
 var _craft: HalyardCrewTransport = null
 var _player: PlayerController = null
@@ -186,8 +194,9 @@ func _build_world() -> bool:
 	# is polled once per frame, so several physics steps in one frame would
 	# batch a 15 Hz intent cadence into bursts and starve the body between
 	# them — a property of the harness, not of the production peer, which
-	# streams and polls on the same frame.
-	Engine.max_physics_steps_per_frame = 1
+	# streams and polls on the same frame. Restored in
+	# `_finish_remote_bodies()` rather than left set on the engine.
+	_cadence.pin()
 	_game = MAIN_SCENE.instantiate() as GameFlow
 	if _game == null:
 		_check(false, "production scene instantiates for the remote-body sweep")
@@ -375,15 +384,27 @@ func _assert_the_body_walks_the_aisle_on_intent() -> void:
 		"a frozen body stands where the last ordered intent left it (%.3f m drift)"
 			% frozen_at.distance_to(still))
 
-	# Resume, and keep walking until the cabin stops the body.
+	# Resume, and keep walking until the cabin stops the body. "Stopped" has to
+	# mean the cabin stopped it, not that delivery stalled: loopback ENet is
+	# polled on the rendered frame, so on a loaded machine an intent can arrive
+	# late enough to open a hold-window gap and freeze a body that is still
+	# mid-aisle. A frozen body holds perfectly still, which is exactly what the
+	# settle predicate is looking for, so the predicate has to exclude it.
 	_set_plan(0, FORWARD, true)
 	var stopped := false
 	var last := still
 	var settled_ticks := 0
+	var freezes_during_walk := 0
 	for _round in 30:
 		await _drive(10)
 		var now := _frame.get_occupant_frame_local_transform(body).origin
-		if now.distance_to(last) < 0.02:
+		var driven := not bool(
+			_game.get_network_remote_body_simulation()
+				.get_body_record(WALKER_ENTITIES[0]).get("frozen", false)
+		)
+		if not driven:
+			freezes_during_walk += 1
+		if driven and now.distance_to(last) < 0.02:
 			settled_ticks += 1
 		else:
 			settled_ticks = 0
@@ -402,7 +423,10 @@ func _assert_the_body_walks_the_aisle_on_intent() -> void:
 		"the body never leaves the cabin floor while walking (%d floor samples)" % _pose_samples)
 	_check(_bounds_violations == 0,
 		"the body never leaves the cabin envelope while walking (%d envelope samples)" % _pose_samples)
-	_check(body.is_on_floor(), "the body is supported by the deck when it stops")
+	var support := await _settle_on_deck(body)
+	_check(bool(support.get("supported", false)) and int(support.get("off_deck_ticks", 0)) == 0,
+		"the body is supported by the deck when it stops (on the deck after %d settling ticks, %d ticks airborne, %d delivery freezes during the walk)"
+			% [int(support.get("ticks", 0)), int(support.get("off_deck_ticks", 0)), freezes_during_walk])
 	_set_plan(0, Vector2.ZERO, true)
 	await _drive(12)
 	var observed := _latest(_clients[OBSERVER_INDEX], WALKER_ENTITIES[0])
@@ -534,8 +558,12 @@ func _assert_the_body_sleeps_in_the_bunk_and_wakes() -> void:
 	observed = _latest(_clients[OBSERVER_INDEX], WALKER_ENTITIES[0])
 	_check(int(observed.get("occupancy_state", -1)) == Relationship.STATE_WALKING,
 		"the publication returns the body to walking after it stands")
-	_check(body.is_on_floor() and _bounds.has_point(_frame.get_occupant_frame_local_transform(body).origin),
-		"the body stands on the deck inside the cabin after waking")
+	var stood_support := await _settle_on_deck(body)
+	_check(bool(stood_support.get("supported", false))
+		and int(stood_support.get("off_deck_ticks", 0)) == 0
+		and _bounds.has_point(_frame.get_occupant_frame_local_transform(body).origin),
+		"the body stands on the deck inside the cabin after waking (on the deck after %d settling ticks, %d ticks airborne)"
+			% [int(stood_support.get("ticks", 0)), int(stood_support.get("off_deck_ticks", 0))])
 	# And walking is accepted again on the same stream.
 	_intent_statuses.clear()
 	var applied_before := int(_game.get_network_remote_body_audit().get("intents_applied", 0))
@@ -945,6 +973,30 @@ func _walker_count() -> int:
 	return count
 
 
+## Support is a per-tick property of the last `move_and_slide()`, not a level to
+## settle at: a body standing on a deck that is itself translating reports
+## `is_on_floor()` false for the odd tick while the capsule re-seats, and which
+## tick that is depends on when the machine happened to run the step. So the
+## claim is checked as a bounded predicate rather than as one instantaneous
+## sample - the body must be standing on the deck within `SUPPORT_SETTLE_TICKS`
+## and must never leave it on the way, which is strictly more than the single
+## sample proved.
+func _settle_on_deck(body: PlayerController) -> Dictionary:
+	var off_deck := 0
+	var ticks := 0
+	var supported := body.is_on_floor()
+	while ticks < SUPPORT_SETTLE_TICKS:
+		var local := _frame.get_occupant_frame_local_transform(body).origin
+		if local.y > _bounds.position.y + 0.9:
+			off_deck += 1
+		if supported:
+			break
+		await _drive(1)
+		ticks += 1
+		supported = body.is_on_floor()
+	return {"supported": supported, "ticks": ticks, "off_deck_ticks": off_deck}
+
+
 ## Waits `rounds` physics steps. The host publishes and simulates from its own
 ## `_physics_process`; the walkers stream and the harness samples from the
 ## tick driver, so nothing here depends on how many steps one await spans.
@@ -1122,6 +1174,7 @@ func _finish_remote_bodies() -> void:
 		set_multiplayer(null, path)
 	_branches.clear()
 	await process_frame
+	_cadence.restore()
 	if _failures.is_empty():
 		print("NETWORK_REMOTE_BODY_SIMULATION_TEST_OK: %d assertions" % _assertion_count)
 		quit(0)

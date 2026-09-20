@@ -35,6 +35,7 @@ extends "res://tests/in_flight_cabin_integration_test.gd"
 const Adapter := preload("res://scripts/network/network_enet_session_adapter.gd")
 const Presenter := preload("res://scripts/network/network_moving_interior_presenter.gd")
 const Relationship := preload("res://scripts/network/moving_interior_relationship.gd")
+const Cadence := preload("res://tests/fixed_physics_cadence.gd")
 
 const SHIP_ID: StringName = &"halyard_new_design"
 const PILOT_ENTITY: StringName = &"pilot_halyard_new_design"
@@ -54,6 +55,8 @@ const AISLE_TICK_BUDGET := 1500
 ## production rigid-delta path rather than being re-seated by a discontinuity.
 const LEG_RADIUS := 240.0
 const LEG_ANGLE_STEP := 0.004
+
+var _cadence := Cadence.new()
 
 var _game: GameFlow = null
 var _craft: HalyardCrewTransport = null
@@ -98,6 +101,15 @@ func _run() -> void:
 
 
 func _build_world() -> bool:
+	# Every claim below is stated in server ticks: a keep-alive cadence, an
+	# interpolation horizon, and one step of the turning leg per driven round.
+	# On a loaded machine the engine catches up by running several physics
+	# steps in one rendered frame, so one `_drive(1)` round would span several
+	# ticks while the clients still poll ENet once - the cadence the host
+	# actually keeps would then be measured against a round that is not a tick.
+	# Pin one step per frame, as `network_remote_body_simulation_test.gd` does,
+	# and restore it in `_finish_publication()`.
+	_cadence.pin()
 	_game = MAIN_SCENE.instantiate() as GameFlow
 	if _game == null:
 		_check(false, "production scene instantiates for the publication sweep")
@@ -271,12 +283,29 @@ func _assert_a_busy_cabin_never_coalesces_the_seat() -> void:
 		and secured + skipped >= ticks,
 		"an unchanged seat pose is published as a bounded keep-alive, not every tick (%d secured, %d keepalives, %d skipped in %d ticks)"
 			% [secured, keepalives, skipped, ticks])
+	# The cadence is measured against the stream the client is actually
+	# receiving, not against the host's live tick.
+	#
+	# Both are on loopback ENet in one process, and ENet throttles a peer's
+	# reliable send rate from its own round-trip measurements. On a loaded
+	# machine those measurements spike, the throttle closes, and every
+	# moving-interior packet queues: one recorded run had the client twenty-two
+	# ticks behind the host across the whole window, with the ordering buffer
+	# releasing packets in order and rejecting none. Subtracting the host's tick
+	# from a sample's tick measures that backlog, which is a property of the
+	# socket under load. What this assertion is about is the host's keep-alive
+	# cadence: how far behind the freshest thing the client has from the host
+	# the seat's pose is allowed to fall. A stall delays the walker's packets
+	# and the seat's keep-alives together, so it cancels out of that difference
+	# - while a host that stopped re-stating the seat would let the walker's
+	# packets run away from it, which is exactly the failure this is for.
 	var seat_lag := 0
+	var seat_delivery_lag := 0
 	var walker_lag := 0
 	var seat_parked := false
 	var walker_parked := false
-	# On a loaded machine one round spans several physics ticks; the lag a
-	# round can observe is the cadence plus however many ticks that round took.
+	# One round is one physics tick under the pinned cadence; measured rather
+	# than assumed, and carried into the bound either way.
 	var round_ticks := 1
 	var last_tick := int(_game.get_network_moving_interior_publication_audit().get("server_tick", 0))
 	for _round in 30:
@@ -284,21 +313,24 @@ func _assert_a_busy_cabin_never_coalesces_the_seat() -> void:
 		var tick := int(_game.get_network_moving_interior_publication_audit().get("server_tick", 0))
 		round_ticks = maxi(round_ticks, tick - last_tick)
 		last_tick = tick
-		seat_lag = maxi(seat_lag, tick - int(_sample(_clients[0], PILOT_ENTITY).get("server_tick", 0)))
+		var stream_tick: int = _clients[0].get_moving_interior_latest_server_tick()
+		var seat_tick := int(_sample(_clients[0], PILOT_ENTITY).get("server_tick", 0))
+		seat_lag = maxi(seat_lag, stream_tick - seat_tick)
+		seat_delivery_lag = maxi(seat_delivery_lag, tick - seat_tick)
 		var walker := _sample(_clients[0], CREW_ENTITY)
 		if not walker.is_empty():
-			walker_lag = maxi(walker_lag, tick - int(walker.get("server_tick", 0)))
+			walker_lag = maxi(walker_lag, stream_tick - int(walker.get("server_tick", 0)))
 		var pending: Dictionary = _server._moving_recipient_pending.get(viewer, {}) as Dictionary
 		seat_parked = seat_parked or pending.has(PILOT_ENTITY)
 		walker_parked = walker_parked or pending.has(CREW_ENTITY)
 	_check(seat_lag <= GameFlow.NETWORK_MOVING_INTERIOR_SECURED_KEEPALIVE_TICKS + round_ticks + 1,
-		"the seat pose is refreshed within the keep-alive cadence (worst lag %d ticks, rounds of up to %d ticks)"
-			% [seat_lag, round_ticks])
+		"the seat pose is refreshed within the keep-alive cadence (worst lag %d ticks behind the stream, rounds of up to %d ticks; %d ticks behind the host's own clock including loopback delivery)"
+			% [seat_lag, round_ticks, seat_delivery_lag])
 	_check(int(_clients[0]._moving_stall_rebaselines) == 0,
 		"the keep-alive cadence never looks like a stall to the client's ordering buffer (%d re-baselines)"
 			% int(_clients[0]._moving_stall_rebaselines))
 	_check(not seat_parked and walker_parked,
-		"the walking occupant is the one the budget parks; the seat snapshot never is (walker lag %d ticks)"
+		"the walking occupant is the one the budget parks; the seat snapshot never is (walker lag %d ticks behind the stream)"
 			% walker_lag)
 	# The second crew member belongs to the second client, which is simulating
 	# that body itself. Handing it back its own echo would stand two of them in
@@ -641,6 +673,7 @@ func _finish_publication() -> void:
 		set_multiplayer(null, path)
 	_branches.clear()
 	await process_frame
+	_cadence.restore()
 	if _failures.is_empty():
 		print("NETWORK_MOVING_INTERIOR_PUBLICATION_TEST_OK: %d assertions" % _assertion_count)
 		quit(0)
