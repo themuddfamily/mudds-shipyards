@@ -656,6 +656,8 @@ var _hulk_power_breaker: Node
 var _hulk_power_ledger_restored := false
 var _last_hulk_power_result: Dictionary = {}
 var _last_hulk_power_reward_result: Dictionary = {}
+var _station_defense_reward_configuration: Dictionary = {}
+var _station_defense_bindings_ready := false
 var _game_flow_reward_adapter: RefCounted
 var _game_flow_reward_configuration: Dictionary = {}
 var _heavy_breach_reward_configuration: Dictionary = {}
@@ -4075,6 +4077,7 @@ func _physics_process(delta: float) -> void:
 	_advance_network_remote_body_intent_stream()
 	_advance_safe_start_recovery_physics(delta)
 	_advance_session_diagnostics_physics(delta)
+	_advance_station_defense_encounter(delta)
 	if _caption_presentation_service != null:
 		_caption_presentation_service.advance_physics(delta)
 	var actor_sample := _capture_cinder_actor_sample()
@@ -4643,6 +4646,55 @@ func _get_opponent_pulse_network_identity(request: ShotRequestType) -> Dictionar
 		"hostile_id": hostile_id,
 		"handle_generation": handle_generation,
 		"activity_generation": activity_generation,
+	}.duplicate(true)
+
+
+## Binds the physical defense board to this coordinator's single reward
+## authority and its single user-data store, then hands the running encounter
+## the fixed physics delta it has no clock of its own to read.
+##
+## Without this the board could be pressed but the waves never advanced: the
+## content is deliberately clockless and the board grants nothing. Every wave,
+## hostile, protected object, terminal and reward ledger still belongs to the
+## content and its adapter; this coordinator only supplies time and the grant.
+func _ensure_station_defense_encounter_bindings() -> void:
+	if _station_defense_bindings_ready or _game_flow_reward_authority == null:
+		return
+	if not is_instance_valid(world) \
+			or not world.has_method(&"configure_station_defense_reward_handoff"):
+		return
+	var content := _get_station_defense_content()
+	if not is_instance_valid(content) or not content.is_content_ready():
+		return
+	if not bool(_station_defense_reward_configuration.get("accepted", false)):
+		_station_defense_reward_configuration = world.call(
+			&"configure_station_defense_reward_handoff",
+			Callable(self, &"_commit_game_flow_activity_reward")
+		) as Dictionary
+	_station_defense_bindings_ready = bool(
+		_station_defense_reward_configuration.get("accepted", false)
+	)
+
+
+func _advance_station_defense_encounter(delta: float) -> void:
+	_ensure_station_defense_encounter_bindings()
+	var content := _get_station_defense_content()
+	if not is_instance_valid(content) or not content.is_encounter_active():
+		return
+	content.advance_physics(delta, content.get_generation())
+
+
+## Detached status for the physical defense board's encounter wiring.
+func get_station_defense_encounter_status() -> Dictionary:
+	var content := _get_station_defense_content()
+	return {
+		"bindings_ready": _station_defense_bindings_ready,
+		"reward_configuration": _station_defense_reward_configuration.duplicate(true),
+		"session_persistence_owned_here": false,
+		"encounter_active": is_instance_valid(content) and content.is_encounter_active(),
+		"generation": content.get_generation() if is_instance_valid(content) else 0,
+		"reward_authority": false,
+		"activity_authority": false,
 	}.duplicate(true)
 
 

@@ -23,6 +23,7 @@ const CINDER_CARGO_ACTIVITY_ID: StringName = &"cinder_kit_cargo_run"
 const CINDER_SCAN_ACTIVITY_ID: StringName = &"cinder_derelict_structure_scan"
 const CINDER_BEACON_ACTIVITY_ID: StringName = &"cinder_debris_beacon_traversal"
 const HEAVY_BREACH_ACTIVITY_ID: StringName = &"shipyard_heavy_breach"
+const STATION_DEFENSE_ACTIVITY_ID: StringName = &"shipyard_perimeter_defense"
 const EMBER_RELAY_ACTIVITY_ID: StringName = &"ember_beacon_survey"
 const HULK_POWER_ACTIVITY_ID: StringName = &"cinder_hulk_power_restoration"
 
@@ -33,6 +34,7 @@ const CARGO_REWARD_ID: StringName = &"return_fabrication_kits_to_shipyard"
 const CINDER_SCAN_REWARD_ID: StringName = &"derelict_material_sample"
 const CINDER_BEACON_REWARD_ID: StringName = &"debris_route_navigation_data"
 const HEAVY_BREACH_REWARD_ID: StringName = &"return_heavy_breach_credit"
+const STATION_DEFENSE_REWARD_ID: StringName = &"return_defense_report_to_shipyard"
 const EMBER_RELAY_REWARD_ID: StringName = &"ember_beacon_data"
 const HULK_POWER_REWARD_ID: StringName = &"hulk_auxiliary_power_cell"
 
@@ -46,6 +48,7 @@ const ACTIVITY_REWARDS := {
 	CINDER_SCAN_ACTIVITY_ID: CINDER_SCAN_REWARD_ID,
 	CINDER_BEACON_ACTIVITY_ID: CINDER_BEACON_REWARD_ID,
 	HEAVY_BREACH_ACTIVITY_ID: HEAVY_BREACH_REWARD_ID,
+	STATION_DEFENSE_ACTIVITY_ID: STATION_DEFENSE_REWARD_ID,
 	EMBER_RELAY_ACTIVITY_ID: EMBER_RELAY_REWARD_ID,
 	HULK_POWER_ACTIVITY_ID: HULK_POWER_REWARD_ID,
 }
@@ -57,6 +60,7 @@ const REWARD_LABELS := {
 	CINDER_SCAN_REWARD_ID: "Derelict material sample recorded",
 	CINDER_BEACON_REWARD_ID: "Debris navigation data recorded",
 	HEAVY_BREACH_REWARD_ID: "Heavy Breach credit logged",
+	STATION_DEFENSE_REWARD_ID: "Perimeter defense report accepted",
 	EMBER_RELAY_REWARD_ID: "Survey data accepted",
 	HULK_POWER_REWARD_ID: "Salvaged auxiliary power cell logged",
 }
