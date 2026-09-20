@@ -506,8 +506,10 @@ func _caldera_expeditions(
 		var trailhead_distance := -1.0
 		if trailhead is Vector3 and (trailhead as Vector3).is_finite():
 			trailhead_distance = (trailhead as Vector3).distance_to(actor_position)
+		# Only a point the pilot is actually standing on may advertise a press;
+		# a distant offer is named and measured, never keyed.
 		var prompt := str(report.get("prompt", "")) \
-			if bool(report.get("active", false)) else ""
+			if bool(report.get("pressable", false)) else ""
 		var entry := {
 			"activity_id": activity_id,
 			"label": label,
