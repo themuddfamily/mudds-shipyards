@@ -963,6 +963,15 @@ var _ember_interrupted_journey_route: Dictionary = {}
 var _ember_interrupted_journey_restore_attempted := false
 const EMBER_RELAY_SURVEY_PERSISTENCE_SLOT: StringName = \
 	&"ember_relay_survey_completion"
+## An Aurora visit that is running when this `Main` leaves the tree is recorded
+## here, so the next `Main` can put the same pilot back on Aurora with the same
+## craft instead of quietly ending the trip.
+const AURORA_EXPEDITION_PERSISTENCE_SLOT: StringName = \
+	&"aurora_expedition_active_visit"
+var _aurora_expedition_persistence_binding: AuroraExpeditionPersistenceBinding
+var _aurora_interrupted_visit_save_status: Dictionary = {}
+var _aurora_interrupted_visit_restore_status: Dictionary = {}
+var _aurora_interrupted_visit_restore_attempted := false
 const EMBER_INTERRUPTED_JOURNEY_COMMIT_PREFIX := "ember-active-journey-"
 const EMBER_INTERRUPTED_JOURNEY_RETIRE_PREFIX := "ember-active-journey-retire-"
 const CINDER_RACE_BEST_PERSISTENCE_SLOT: StringName = &"cinder_race_best_result"
@@ -1249,6 +1258,10 @@ func _on_game_flow_tree_exiting() -> void:
 func _exit_tree() -> void:
 	_minimap_pending_actor_sample.clear()
 	_minimap_update_pending = false
+	# Record the visit before the cancel below ends it. The cancel is still the
+	# thing that leaves nobody stranded in a tree that is going away; this only
+	# makes the trip something the next `Main` can hand back.
+	save_interrupted_aurora_visit()
 	_aurora_expedition.cancel()
 	_detach_first_sortie_tutorial_presentation(&"game_flow_detached")
 	_detach_activity_tutorial_presentation(&"game_flow_detached")
@@ -2535,6 +2548,7 @@ func _start_up_persisted_state() -> void:
 	_initialize_game_flow_reward_authority()
 	bind_planetary_return_persistence(ember_surface_loop_production_binding)
 	bind_ember_relay_survey_persistence(ember_surface_loop_production_binding)
+	bind_aurora_expedition_persistence()
 	_restore_and_retire_planetary_return_persistence()
 	_initialize_session_diagnostics()
 	_apply_command_line_recovery_args(OS.get_cmdline_args())
@@ -3665,6 +3679,19 @@ func _initialize_planetary_destination_catalog() -> void:
 	if not bool(placement.get("accepted", false)):
 		push_error("Planetary destination catalog could not resolve Ember's orbital datum")
 		return
+	# Aurora is the second world with a real absolute body-centre datum, so the
+	# board reads its distance from the same registry Ember's comes from rather
+	# than from a literal that nothing could keep honest.
+	var aurora_placement := registry.relative_position_meters(
+		NearbySectorOrbitalRegistryType.STATION_DATUM_ID,
+		NearbySectorOrbitalRegistryType.AURORA_BODY_CENTER_ID,
+	)
+	if not bool(aurora_placement.get("accepted", false)):
+		push_error("Planetary destination catalog could not resolve Aurora's orbital datum")
+		return
+	var aurora_relative_position := aurora_placement.get(
+		"position_meters", Vector3.ZERO
+	) as Vector3
 	var relative_position := placement.get("position_meters", Vector3.ZERO) as Vector3
 	var catalog: PlanetaryDestinationCatalogType = PlanetaryDestinationCatalogType.new()
 	var ember_result := catalog.register_destination(EmberWorldDefinition, {
@@ -3677,7 +3704,7 @@ func _initialize_planetary_destination_catalog() -> void:
 	var aurora_result := catalog.register_destination(AuroraWorldDefinition, {
 		"route_id": &"aurora_exploration",
 		"route_available": true,
-		"orbital_distance_meters": 12000000.0,
+		"orbital_distance_meters": aurora_relative_position.length(),
 		"travel_summary": "JUMP // LAND // COASTAL EXPLORATION // RETURN",
 		"unavailable_reason": "",
 	})
@@ -6549,6 +6576,7 @@ func start_shift() -> void:
 	hud.toast("Shipyard access granted", "Guided Torrent test and free-flight fleet access are available")
 	audio.set_on_foot(true)
 	audio.play_ui_confirm()
+	restore_interrupted_aurora_visit()
 
 
 ## Recomputes the on-foot interaction targets from live world state.
@@ -10546,6 +10574,99 @@ func save_interrupted_ember_journey() -> Dictionary:
 ## Loads and validates a passive recovery receipt during normal Ember surface
 ## admission. The restored contract is retained only as evidence; its route is
 ## not installed into ActivityDirector and no actor state is applied.
+## Binds the interrupted-Aurora-visit bridge to this `Main`'s already-loaded
+## atomic store. No filesystem, berth or movement authority is created.
+func bind_aurora_expedition_persistence() -> Dictionary:
+	if _runtime_settings_user_data_store == null:
+		return {"accepted": false, "reason": &"aurora_visit_persistence_unavailable"}
+	if _aurora_expedition_persistence_binding != null:
+		return {"accepted": true, "reason": &"aurora_visit_persistence_already_bound"}
+	var binding := AuroraExpeditionPersistenceBinding.new()
+	var configured := binding.configure(
+		_runtime_settings_user_data_store, AURORA_EXPEDITION_PERSISTENCE_SLOT
+	)
+	if bool(configured.get("accepted", false)):
+		_aurora_expedition_persistence_binding = binding
+	return configured
+
+
+## Records a running Aurora visit so a whole-`Main` re-entry can resume it. A
+## visit that has already started its return leg, and an ordinary shutdown with
+## no visit at all, both commit nothing.
+func save_interrupted_aurora_visit() -> Dictionary:
+	var visit := _aurora_expedition.capture_interrupted_visit()
+	if visit.is_empty():
+		_aurora_interrupted_visit_save_status = {
+			"accepted": true, "reason": &"aurora_visit_not_running",
+		}
+		return _aurora_interrupted_visit_save_status.duplicate(true)
+	if _aurora_expedition_persistence_binding == null:
+		_aurora_interrupted_visit_save_status = {
+			"accepted": false, "reason": &"aurora_visit_persistence_unavailable",
+		}
+		return _aurora_interrupted_visit_save_status.duplicate(true)
+	_aurora_interrupted_visit_save_status = \
+		_aurora_expedition_persistence_binding.save_interrupted_visit(
+			visit,
+			"aurora-active-visit-%s" % str(visit.get("craft_home_berth_id", "")),
+		)
+	return _aurora_interrupted_visit_save_status.duplicate(true)
+
+
+## Resumes exactly one recorded Aurora visit, once per `Main`. The receipt is
+## retired only after the resume is accepted, so an interrupted resume stays
+## retryable rather than losing the trip.
+func restore_interrupted_aurora_visit() -> Dictionary:
+	if _aurora_interrupted_visit_restore_attempted:
+		return {"accepted": false, "reason": &"aurora_visit_restore_already_attempted"}
+	_aurora_interrupted_visit_restore_attempted = true
+	if _aurora_expedition_persistence_binding == null:
+		_aurora_interrupted_visit_restore_status = {
+			"accepted": false, "reason": &"aurora_visit_persistence_unavailable",
+		}
+		return _aurora_interrupted_visit_restore_status.duplicate(true)
+	var loaded := _aurora_expedition_persistence_binding.load_interrupted_visit()
+	if not bool(loaded.get("accepted", false)):
+		_aurora_interrupted_visit_restore_status = loaded.duplicate(true)
+		return _aurora_interrupted_visit_restore_status.duplicate(true)
+	var restored := _aurora_expedition.restore_interrupted_visit(
+		loaded.get("visit", {}) as Dictionary
+	)
+	# Retire only behind an accepted resume. A refused one leaves the receipt
+	# where it is, so the trip is still there to hand back next time.
+	var retired := {
+		"accepted": false, "reason": &"aurora_visit_restore_refused",
+	}
+	if bool(restored.get("accepted", false)):
+		retired = _aurora_expedition_persistence_binding.retire_interrupted_visit(
+			int(loaded.get("store_generation", -1)),
+			str(loaded.get("receipt_sha256", "")),
+			"aurora-active-visit-retire-%s" % str(
+				(loaded.get("visit", {}) as Dictionary).get("craft_home_berth_id", "")
+			),
+		)
+	_aurora_interrupted_visit_restore_status = {
+		"accepted": bool(restored.get("accepted", false)),
+		"reason": restored.get("reason", &"aurora_visit_restore_refused"),
+		"restore": restored.duplicate(true),
+		"retire": retired.duplicate(true),
+	}
+	return _aurora_interrupted_visit_restore_status.duplicate(true)
+
+
+## Detached diagnostics for the interrupted-Aurora-visit bridge.
+func get_aurora_interrupted_visit_status() -> Dictionary:
+	return {
+		"save": _aurora_interrupted_visit_save_status.duplicate(true),
+		"restore": _aurora_interrupted_visit_restore_status.duplicate(true),
+		"restore_attempted": _aurora_interrupted_visit_restore_attempted,
+		"binding": (
+			_aurora_expedition_persistence_binding.get_snapshot()
+			if _aurora_expedition_persistence_binding != null else {}
+		),
+	}.duplicate(true)
+
+
 func restore_interrupted_ember_journey() -> Dictionary:
 	if _ember_interrupted_journey_restore_attempted:
 		return {"accepted": false, "reason": &"ember_active_journey_restore_already_attempted"}

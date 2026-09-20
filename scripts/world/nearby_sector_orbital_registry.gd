@@ -14,6 +14,14 @@ const STATION_DATUM_ID: StringName = &"shipyard_station_datum"
 const EMBER_BODY_CENTER_ID: StringName = &"ember_body_center"
 const EMBER_WORLD_ID: StringName = &"ember_moon"
 const EMBER_BODY_ID: StringName = &"ember_body"
+## Aurora's absolute body centre. It is a second, independently reachable world
+## in the same absolute frame, so a single common-world origin owner can rebase
+## whichever of the two is streamed. The round 12,000 km on station-relative +X
+## is a game-scale placement, deliberately on a different axis from Ember's
+## 8,000 km on -Z so the two destinations are never confused for one another.
+const AURORA_BODY_CENTER_ID: StringName = &"aurora_body_center"
+const AURORA_WORLD_ID: StringName = &"aurora_temperate_world"
+const AURORA_BODY_ID: StringName = &"aurora_temperate_body"
 const CELL_SIZE_METERS := 1_000_000.0
 const MAX_SAFE_INTEGER := 9_007_199_254_740_991
 const MAX_RELATIVE_COMPONENT_METERS := 1_000_000_000.0
@@ -44,12 +52,18 @@ func get_coordinate(point_id: StringName) -> Dictionary:
 			return _coordinate(0, 0, 0, Vector3.ZERO)
 		EMBER_BODY_CENTER_ID:
 			return _coordinate(0, 0, -8, Vector3.ZERO)
+		AURORA_BODY_CENTER_ID:
+			return _coordinate(12, 0, 0, Vector3.ZERO)
 		_:
 			return {}
 
 
 func get_point_ids() -> PackedStringArray:
-	return PackedStringArray([str(EMBER_BODY_CENTER_ID), str(STATION_DATUM_ID)])
+	return PackedStringArray([
+		str(AURORA_BODY_CENTER_ID),
+		str(EMBER_BODY_CENTER_ID),
+		str(STATION_DATUM_ID),
+	])
 
 
 func validate_coordinate(candidate: Variant) -> Dictionary:
@@ -117,6 +131,10 @@ func get_snapshot() -> Dictionary:
 		"ember_world_id": EMBER_WORLD_ID,
 		"ember_body_id": EMBER_BODY_ID,
 		"ember_body_center_coordinate": get_coordinate(EMBER_BODY_CENTER_ID),
+		"aurora_body_center_id": AURORA_BODY_CENTER_ID,
+		"aurora_world_id": AURORA_WORLD_ID,
+		"aurora_body_id": AURORA_BODY_ID,
+		"aurora_body_center_coordinate": get_coordinate(AURORA_BODY_CENTER_ID),
 	}.duplicate(true)
 
 
@@ -124,14 +142,23 @@ func audit() -> Dictionary:
 	var errors := PackedStringArray()
 	var station_validation := validate_coordinate(get_coordinate(STATION_DATUM_ID))
 	var ember_validation := validate_coordinate(get_coordinate(EMBER_BODY_CENTER_ID))
+	var aurora_validation := validate_coordinate(get_coordinate(AURORA_BODY_CENTER_ID))
 	var placement := relative_position_meters(STATION_DATUM_ID, EMBER_BODY_CENTER_ID)
+	var aurora_placement := relative_position_meters(
+		STATION_DATUM_ID, AURORA_BODY_CENTER_ID
+	)
 	if not bool(station_validation.get("accepted", false)):
 		errors.append("station datum is invalid")
 	if not bool(ember_validation.get("accepted", false)):
 		errors.append("Ember body-centre datum is invalid")
+	if not bool(aurora_validation.get("accepted", false)):
+		errors.append("Aurora body-centre datum is invalid")
 	if not bool(placement.get("accepted", false)) \
 			or placement.get("position_meters") != Vector3(0.0, 0.0, -8_000_000.0):
 		errors.append("Ember must remain exactly 8,000 km on station-relative -Z")
+	if not bool(aurora_placement.get("accepted", false)) \
+			or aurora_placement.get("position_meters") != Vector3(12_000_000.0, 0.0, 0.0):
+		errors.append("Aurora must remain exactly 12,000 km on station-relative +X")
 	var authority := {}
 	for key in COMMON_AUTHORITY_KEYS:
 		authority[key] = false

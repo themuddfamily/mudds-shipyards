@@ -12,10 +12,81 @@ lowland, highland, rock and snow. The complete 600 m approach box sits inside a
 composition remains the sole `WorldEnvironment` owner; this scene does not
 configure it automatically.
 
-It owns no streaming, player, camera, gameplay, landing decision, origin
-shifting, save, network, navigation, or production binding. Terrain rebuilds
-remain explicit caller operations and collision currently ends at the terrain
-profile's 1.5 km physical boundary. It does not make Aurora visitable.
+The *scene* still owns no streaming, player, camera, gameplay, landing
+decision, origin shifting, save, network, navigation, or production binding.
+Terrain rebuilds remain explicit caller operations and collision ends at the
+terrain profile's 1.5 km physical boundary. What has changed since this
+paragraph was first written is that something else now owns those things for
+it: `scripts/game/aurora_expedition.gd` stands this scene up as a real visit.
+The section below records that route and, just as importantly, what about it is
+still not Ember-grade.
+
+## The production visit
+
+Aurora is a second visitable world. A player gets there like this: take a small
+or medium craft's pilot seat at Mudds, open `Esc` -> Destination Board, and
+press **Aurora Temperate World**. The board row is registered from Aurora's own
+`PlanetaryWorldDefinition` and now reads its distance from
+`NearbySectorOrbitalRegistry`'s `aurora_body_center` datum -- 12,000 km on
+station-relative +X, deliberately a different axis from Ember's 8,000 km on
+-Z -- rather than from a literal nothing could keep honest.
+
+What arrives is not a reskin of Ember. Ember is airless: its streaming
+bootstrap composes an airless sun rig and scales the station Environment's
+ambient down into vacuum. Aurora hands the viewport its own
+`PlanetaryAtmosphereComposition` instead, so the existing atmosphere, sky,
+cloud and sun adapters run together and the pilot lands into fog, an
+atmospheric horizon and a cloud deck. Under the craft is Aurora's own bounded
+terrain generator, and around the pad is a coast: an amber gravel trail with
+posts, a signed lookout deck with rails and two instrument scopes, a ring of
+standing stones, coast-facing tree clusters, shore rocks and a live waterline.
+
+The loop is: land on the authored pad through a real `ShipBerth` lease and
+`HeroShip.request_berth_landing()`; leave the seat with a real `interact`;
+walk the authored patch on real collision; walk back to the craft's
+`ShipBoardingArea` and re-board with a real `interact`; and choose the board's
+return action to fly home and dock at the pilot's own registered berth.
+Departing frees the streamed world, restores the station's presentation and
+leaves no Aurora nodes under `Main`. Abandoning mid-visit returns a
+controllable explorer to the yard with their craft docked at home and no held
+reservation. `tests/aurora_visit_loop_test.gd` drives all of that through a
+real composed `Main`.
+
+### Surviving a re-entry
+
+A visit that is running when `Main` leaves the tree used to end silently: the
+pilot woke up back at Mudds with no record they had ever gone.
+`AuroraExpeditionPersistenceBinding` now commits a small detached record --
+the visit phase, the craft named by its registered home berth, and whether the
+pilot was out of the seat -- into the same `UserDataStore` the game already
+ships with. The next `Main` loads it at the end of `start_shift()`, stands the
+world back up through the *same* `_compose_surface()` a fresh arrival uses,
+gives the craft a real lease and a real assisted landing on the pad, and
+recovers the pilot on foot beside its ramp. The receipt is retired only once
+that resume is accepted, so an interrupted resume leaves the trip retryable
+rather than losing it. A pilot who had already asked to go home is deliberately
+not brought back.
+
+### What is still Ember's and not yet Aurora's
+
+Ember reaches its moon through `PlanetaryJourneyCoordinator`,
+`PlanetaryCruiseProductionBinding`, `EmberMoonStreamingProductionBinding` and
+`CommonWorldOriginRebaseOwner`: a real cruise out, a streamed generation that
+loads as the craft closes, an authored approach corridor flown under the
+final-approach controller, and committed common-world origin rebases on the way
+down. Aurora does none of that. Its outbound leg is an explicit 1.2 s jump, the
+world is instantiated directly rather than loaded through
+`WorldStreamingCoordinator`, and no origin rebase happens because nothing moves
+far enough from the streaming origin to need one.
+
+Closing that gap is not a matter of pointing Aurora at the existing owners.
+`CommonWorldOriginRebaseOwner` and `PlanetaryCruiseProductionBinding` each bind
+exactly one bootstrap/binding pair at `_ready` and are statically typed to
+Ember's classes, and the origin owner translates *every* live root -- the
+station included -- so a second streamed body needs that ownership widened
+before it can stream at all. `PlanetaryStreamingBootstrap` (extracted from
+`EmberMoonStreamingBootstrap`) is the first step of that work and is in place;
+the owner widening is not.
 
 ## Detached surface-route and landmark audit
 

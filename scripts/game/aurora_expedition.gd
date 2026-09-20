@@ -246,7 +246,11 @@ func _near_ship() -> bool:
 	var area := _ship.get_node_or_null("ShipBoardingArea")
 	return area != null and area in _flow.player.get_nearby_interactables()
 
-func _arrive() -> void:
+## Stands the authored world, its exploration berth on the authored landing
+## region, and Aurora's own atmosphere in front of the viewport. Shared by a
+## fresh arrival and by an interrupted visit resumed on a later `Main`, so the
+## two can never drift into composing the place differently.
+func _compose_surface() -> void:
 	_surface = WORLD.instantiate() as Node3D
 	_surface.position = SURFACE_ORIGIN - Vector3.UP * 120000.0
 	_flow.add_child(_surface)
@@ -261,18 +265,121 @@ func _arrive() -> void:
 	_berth.dock_transform.origin.y = -bounds.position.y + 0.03
 	_surface.get_node("LandingRegion").add_child(_berth)
 	_surface_token = _berth.try_reserve(_ship, _ship.get_ship_definition())
-	_ship.global_transform = _berth.get_assist_staging_transform()
-	_ship.reset_physics_interpolation()
-	_ship.velocity = Vector3.ZERO
 	_flow.world.visible = false
 	var atmosphere := _surface.get_node("AuroraAtmosphereComposition")
 	atmosphere.configure()
 	atmosphere.present_observation({"body_local_observer_m": Vector3(0, 120040, 30), "view_direction_body_local": Vector3.FORWARD, "fog_path_distance_m": 12000.0, "speed_mps": 0.0, "weather_scalar": 0.4, "cloud_scalar": 0.5, "caller_time_seconds": 0.0}, 1)
 	_flow.get_viewport().world_3d.environment = atmosphere.get_world_environment().environment
+
+
+func _arrive() -> void:
+	_compose_surface()
+	_ship.global_transform = _berth.get_assist_staging_transform()
+	_ship.reset_physics_interpolation()
+	_ship.velocity = Vector3.ZERO
 	state = &"landing"
 	_landing_elapsed = 0.0
 	if _surface_token.is_empty() or not _ship.request_berth_landing(_berth):
 		cancel()
+
+
+## Describes an in-progress visit for the interrupted-visit store, or nothing
+## when there is nothing worth coming back to. A pilot who has already asked to
+## go home is deliberately not brought back.
+func capture_interrupted_visit() -> Dictionary:
+	if not is_active() or state in [&"return_jump", &"return_landing"]:
+		return {}
+	if not is_instance_valid(_ship):
+		return {}
+	var berth_id := String(_ship.get_home_berth_id())
+	if berth_id.strip_edges().is_empty():
+		return {}
+	return {
+		"visit_state": String(state),
+		"craft_home_berth_id": berth_id,
+		"on_foot": not _flow.player.is_seated(),
+	}
+
+
+## Puts a pilot back on Aurora after a whole-`Main` re-entry.
+##
+## The record names only which craft and which phase; everything physical is
+## re-established through the same production calls a fresh visit uses. The
+## craft is stood on the authored pad and given a real assisted landing through
+## a real berth lease, and the pilot is recovered on foot beside its ramp, which
+## is the one embodiment that needs no seat transition to be correct. From there
+## the ordinary re-board and the ordinary Destination Board return both work.
+func restore_interrupted_visit(visit: Dictionary) -> Dictionary:
+	if is_active():
+		return {"accepted": false, "reason": &"aurora_visit_already_active"}
+	if not is_instance_valid(_flow.world) or not is_instance_valid(_flow.player):
+		return {"accepted": false, "reason": &"aurora_visit_host_unavailable"}
+	var berth_id := StringName(str(visit.get("craft_home_berth_id", "")))
+	var craft := _craft_for_home_berth(berth_id)
+	if not is_instance_valid(craft) or craft.is_destroyed():
+		return {"accepted": false, "reason": &"aurora_visit_craft_unavailable"}
+	var home := _flow.world.get_berth_node(berth_id) as ShipBerth
+	if not is_instance_valid(home):
+		return {"accepted": false, "reason": &"aurora_visit_home_berth_unavailable"}
+	_ship = craft
+	_home = home
+	_departure = craft.global_transform
+	_station_visible = _flow.world.visible
+	_station_environment = _flow.get_viewport().world_3d.environment
+	_flow._release_ship_berth(_ship)
+	_ship.request_engine_stop(false)
+	_ship.velocity = Vector3.ZERO
+	_compose_surface()
+	if _surface_token.is_empty():
+		_clear_surface()
+		_ship = null
+		_home = null
+		return {"accepted": false, "reason": &"aurora_visit_berth_lease_refused"}
+	_ship.global_transform = _berth.get_dock_transform()
+	_ship.reset_physics_interpolation()
+	_ship.velocity = Vector3.ZERO
+	if not _ship.request_berth_landing(_berth):
+		_berth.release(_ship, _surface_token)
+		_clear_surface()
+		_ship = null
+		_home = null
+		return {"accepted": false, "reason": &"aurora_visit_landing_refused"}
+	var shutdown := _ship.request_engine_stop.bind(false)
+	if not _ship.landing_completed.is_connected(shutdown):
+		_ship.landing_completed.connect(shutdown, CONNECT_ONE_SHOT)
+	_ship.set_piloted(false)
+	_flow.active_ship = _ship
+	_flow._piloting = false
+	_flow._transition_busy = false
+	_flow.phase = GameFlow.Phase.APPROACH_SHIP
+	_flow.player.force_recovery_to_on_foot(_ship.get_exit_transform())
+	_flow.player.set_camera_active(true)
+	_flow.player.set_control_enabled(true)
+	_flow.hud.set_mode("on-foot")
+	_flow.audio.set_on_foot(true)
+	state = &"surface"
+	_flow.hud.set_objective(
+		"Back on Aurora - explore, then board your ship to return", "AURORA SURFACE"
+	)
+	_flow.hud.toast(
+		"Aurora visit resumed", "Your ship is on the pad where you left it", 3.0
+	)
+	return {
+		"accepted": true,
+		"reason": &"aurora_visit_restored",
+		"craft_home_berth_id": String(berth_id),
+		"visit_state": String(state),
+	}
+
+
+func _craft_for_home_berth(berth_id: StringName) -> HeroShip:
+	if String(berth_id).strip_edges().is_empty():
+		return null
+	for candidate in _flow.ships:
+		var craft := candidate as HeroShip
+		if is_instance_valid(craft) and craft.get_home_berth_id() == berth_id:
+			return craft
+	return null
 
 func _begin_return() -> void:
 	if is_instance_valid(_berth):
@@ -350,7 +457,11 @@ func cancel() -> void:
 	_flow._piloting = false
 	_flow._landing_request_active = false
 	_flow._active_landing_berth_id = &""
-	var recovery := _flow.world.get_player_spawn() as Transform3D
+	var recovery := (
+		_flow.world.get_player_spawn() as Transform3D
+		if is_instance_valid(_flow.world) and _flow.world.is_inside_tree()
+		else _departure
+	)
 	if is_instance_valid(_ship) and not _ship.is_destroyed():
 		_ship.set_piloted(false)
 		_ship.request_engine_stop(false)
