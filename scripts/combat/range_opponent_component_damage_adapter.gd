@@ -197,6 +197,39 @@ func apply_hull_damage(amount: float, maximum_health: float) -> Dictionary:
 	return (operations[0] as Dictionary).duplicate(true)
 
 
+## Applies one bounded field patch to every component this craft models, using
+## the same ComponentDamageModel batch the damage path already owns. The model
+## keeps its own per-component ceiling, so a patch can never raise a component
+## above its authored maximum, and the operation is rejected wholesale when the
+## captured maximum has drifted.
+func apply_field_repair(amount: float, maximum_health: float) -> Dictionary:
+	if not configuration_matches(maximum_health):
+		return _adapter_result(false, &"maximum_health_drift")
+	if not is_configuration_valid():
+		return _adapter_result(false, &"invalid_configuration")
+	if not is_finite(amount) or amount <= 0.0:
+		return _adapter_result(false, &"invalid_repair_amount")
+	var contexts: Array[Dictionary] = []
+	for component_id in [
+		HULL_COMPONENT_ID,
+		ENGINE_COMPONENT_ID,
+		WEAPON_COMPONENT_ID,
+		SENSOR_COMPONENT_ID,
+	]:
+		contexts.append({
+			"component_id": component_id,
+			"repair": amount,
+			"generation": _model.get_generation(),
+			"sequence": _next_damage_sequence + contexts.size(),
+		})
+	var batch := _model.apply_component_repair_batch(contexts)
+	if not bool(batch.get("accepted", false)):
+		return batch.duplicate(true)
+	_next_damage_sequence += contexts.size()
+	var operations := batch.get("operations", []) as Array
+	return (operations[0] as Dictionary).duplicate(true)
+
+
 func get_health() -> float:
 	if _model == null:
 		return 0.0

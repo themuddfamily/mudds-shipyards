@@ -175,6 +175,98 @@ const PRESSURE_TURN_TELEGRAPH_LARGE_SCALE := 1.38
 const PRESSURE_TURN_TELEGRAPH_SMALL_SCALE := 0.72
 const PRESSURE_TURN_TELEGRAPH_ID: StringName = &"pressure_turn_side"
 
+## ---------------------------------------------------------------- role tactics
+##
+## Three encounter-selectable postures that reuse this craft's *existing*
+## authorities: the same `_physics_process` state machine, the same
+## `_choose_motion_direction` steering, the same `projectile_fired` dispatch,
+## and the same pair of charge lenses for the cue. Nothing here owns combat
+## resolution, damage, or a HUD element.
+##
+## Each posture is readable before it commits and each one states the counter
+## the player already has the controls for:
+##
+## * `bracket_squeeze` — two craft hold opposite flanks and then cut in
+##   together. Countered by killing or driving off either half, or by breaking
+##   out past the release range; both drop the pair to `broken` for the rest of
+##   the activation.
+## * `withdraw_repair` — a hurt craft breaks off, patches itself, and comes
+##   back permanently damaged. Countered by chasing it down inside the silent
+##   window, or by closing on it while it works so the patch is interrupted and
+##   it returns with nothing.
+## * `cover_peek` — a craft puts station geometry or debris between itself and
+##   the player and only leans out to shoot. Countered by flanking until no
+##   occluder is left, which forces it into the open.
+const ROLE_TACTIC_NONE: StringName = &"none"
+const ROLE_TACTIC_BRACKET_SQUEEZE: StringName = &"bracket_squeeze"
+const ROLE_TACTIC_WITHDRAW_REPAIR: StringName = &"withdraw_repair"
+const ROLE_TACTIC_COVER_PEEK: StringName = &"cover_peek"
+const ROLE_TACTIC_IDS: Array[StringName] = [
+	ROLE_TACTIC_BRACKET_SQUEEZE, ROLE_TACTIC_WITHDRAW_REPAIR, ROLE_TACTIC_COVER_PEEK,
+]
+
+const BRACKET_FALLBACK_HOLD_RANGE := 46.0
+const BRACKET_CLOSE_RANGE := 92.0
+const BRACKET_RELEASE_RANGE := 124.0
+## A bracket has to *form* before it can close. The pair must hold opposite
+## flanks for this long before either half commits, which is what makes the
+## squeeze readable rather than a random lunge — and what lets a player who
+## keeps moving through the pair prevent it from ever arming.
+const BRACKET_FORM_SECONDS := 1.5
+const BRACKET_SQUEEZE_DURATION_SECONDS := 2.2
+const BRACKET_REARM_SECONDS := 2.2
+const BRACKET_SQUEEZE_SPEED_MULTIPLIER := 1.35
+const BRACKET_SQUEEZE_INWARD_WEIGHT := 0.96
+const BRACKET_SQUEEZE_LATERAL_WEIGHT := 0.24
+const BRACKET_CLOSING_TELEGRAPH_ID: StringName = &"bracket_side_lean"
+const BRACKET_SQUEEZE_TELEGRAPH_ID: StringName = &"bracket_squeeze_tight"
+const BRACKET_CLOSING_TELEGRAPH_SCALES := [1.26, 0.74]
+const BRACKET_SQUEEZE_TELEGRAPH_SCALES := [0.62, 0.62]
+
+const WITHDRAW_REPAIR_TRIGGER_HEALTH_RATIO := 0.45
+const WITHDRAW_REPAIR_STANDOFF_METRES := 105.0
+const WITHDRAW_REPAIR_MAX_WITHDRAW_SECONDS := 3.5
+const WITHDRAW_REPAIR_SECONDS := 2.2
+const WITHDRAW_REPAIR_INTERRUPT_RANGE := 30.0
+const WITHDRAW_REPAIR_FRACTION := 0.28
+const WITHDRAW_REPAIR_HEALTH_CEILING_RATIO := 0.7
+const WITHDRAW_REPAIR_SPEED_MULTIPLIER := 1.3
+const WITHDRAW_RETURN_SPEED_MULTIPLIER := 1.18
+const WITHDRAW_TELEGRAPH_ID: StringName = &"withdraw_break_off"
+const WITHDRAW_REPAIR_TELEGRAPH_ID: StringName = &"withdraw_field_repair"
+const WITHDRAW_RETURN_TELEGRAPH_ID: StringName = &"withdraw_return_damaged"
+const WITHDRAW_TELEGRAPH_SCALES := [1.5, 1.5]
+const WITHDRAW_REPAIR_TELEGRAPH_SCALES := [1.5, 0.5]
+const WITHDRAW_RETURN_TELEGRAPH_SCALES := [1.1, 1.1]
+
+const COVER_STANDOFF_METRES := 26.0
+const COVER_SEEK_TIMEOUT_SECONDS := 1.4
+const COVER_HOLD_SECONDS := 1.15
+const COVER_PEEK_SECONDS := 1.35
+const COVER_REEVALUATE_SECONDS := 0.4
+const COVER_ANCHOR_ARRIVAL_METRES := 8.0
+const COVER_ANCHOR_HOLD_METRES := 3.2
+const COVER_PEEK_LATERAL_WEIGHT := 0.94
+const COVER_TELEGRAPH_ID: StringName = &"cover_hold_low"
+const COVER_PEEK_TELEGRAPH_ID: StringName = &"cover_peek_side"
+const COVER_HOLD_TELEGRAPH_SCALES := [0.5, 0.5]
+const COVER_PEEK_TELEGRAPH_SCALES := [1.38, 0.64]
+## Fixed probe basis (away-from-player, lateral, vertical) for the cover
+## search. The candidate is accepted only when the existing world-layer ray
+## says the target is occluded from it and the craft can reach it, so the
+## occluder is whatever station geometry or debris actually stands there.
+const COVER_PROBE_WEIGHTS := [
+	Vector3(1.0, 0.0, 0.0),
+	Vector3(0.75, 0.66, 0.0),
+	Vector3(0.75, -0.66, 0.0),
+	Vector3(0.2, 0.98, 0.0),
+	Vector3(0.2, -0.98, 0.0),
+	Vector3(0.7, 0.0, 0.72),
+	Vector3(0.7, 0.0, -0.72),
+	Vector3(-0.35, 0.94, 0.0),
+	Vector3(-0.35, -0.94, 0.0),
+]
+
 ## The paired gun housings are immutable presentation shells. Weapon authority
 ## remains on the root and its two muzzle markers; charge animation remains on
 ## the independent lens nodes. One bounded batch therefore preserves both
@@ -277,6 +369,25 @@ var _pressure_turn_direction_sign := 1.0
 var _pressure_turn_completed_cycles := 0
 var _pressure_turn_last_mobility := 1.0
 var _pressure_turn_automatic_enabled := true
+var _role_tactic_id: StringName = ROLE_TACTIC_NONE
+var _role_tactic_state: StringName = &"idle"
+var _role_tactic_elapsed_seconds := 0.0
+var _role_tactic_generation := -1
+var _role_tactic_counter_reason: StringName = &""
+var _bracket_side_sign := 1.0
+var _bracket_partner: Node3D
+var _bracket_squeeze_count := 0
+var _bracket_rearm_remaining := 0.0
+var _withdraw_repair_consumed := false
+var _withdraw_repair_interrupted := false
+var _withdraw_repair_restored_health := 0.0
+var _cover_anchor := Vector3.ZERO
+var _cover_anchor_valid := false
+var _cover_peek_sign := 1.0
+var _cover_probe_remaining := 0.0
+var _cover_seek_elapsed_seconds := 0.0
+var _cover_peek_count := 0
+var _cover_exposed_count := 0
 var _orbit_sign := 1.0
 var _target: Node3D
 var _alternate_muzzle := false
@@ -390,6 +501,7 @@ func _physics_process(delta: float) -> void:
 	if distance <= 0.001:
 		return
 	var target_direction := offset / distance
+	_update_role_tactic_state(delta, modifiers, distance, target_position)
 	_update_evasive_maneuver_state(delta, modifiers)
 	_update_pressure_turn_state(delta, modifiers)
 	var desired_direction := _choose_motion_direction(target_direction, distance)
@@ -400,6 +512,10 @@ func _physics_process(delta: float) -> void:
 		desired_speed = maxf(cruise_speed, chase_speed * 0.8) * LATERAL_BREAK_SPEED_MULTIPLIER
 	elif _pressure_turn_state == &"active":
 		desired_speed = maxf(cruise_speed, chase_speed * 0.72) * PRESSURE_TURN_SPEED_MULTIPLIER
+	if _role_tactic_holds_station():
+		desired_speed = 0.0
+	else:
+		desired_speed *= _role_tactic_speed_multiplier()
 	desired_speed *= mobility
 	velocity = velocity.move_toward(
 		desired_direction * desired_speed,
@@ -524,6 +640,7 @@ func activate_with_result(spawn_transform: Transform3D) -> Dictionary:
 	_evasive_maneuver_elapsed_seconds = 0.0
 	_evasive_maneuver_last_mobility = 1.0
 	_reset_pressure_turn_tactic()
+	_reset_role_tactic_for_activation()
 	# A regenerated or reused hull starts its new epoch with a cold gun.
 	_reset_weapon_heat_presentation()
 	visible = true
@@ -564,6 +681,7 @@ func deactivate() -> void:
 	_clear_pending_pattern_projectiles()
 	_clear_evasive_maneuver_configuration(&"deactivated")
 	_reset_pressure_turn_tactic()
+	_clear_role_tactic(&"deactivated")
 	_reset_weapon_heat_presentation()
 	_clear_component_damage_presentation()
 	if _visual_root != null:
@@ -822,6 +940,597 @@ func get_pressure_turn_snapshot() -> Dictionary:
 		"combat_authority": false,
 		"damage_authority": false,
 	}.duplicate(true)
+
+
+## Selects one bounded role posture for this craft. The posture supersedes the
+## base defender's automatic pressure turn, is cleared by activation reuse and
+## by destruction, and never becomes a second combat, damage or HUD authority.
+##
+## `options` accepts `side_sign` (which flank a bracket half takes) and
+## `partner` (the other half of a bracket pair). Both are ignored by the other
+## postures.
+func configure_role_tactic(tactic_id: StringName, options: Dictionary = {}) -> Dictionary:
+	if tactic_id == ROLE_TACTIC_NONE:
+		_clear_role_tactic(&"role_cleared")
+		return {
+			"accepted": true,
+			"reason": &"role_tactic_cleared",
+			"tactic_id": _role_tactic_id,
+			"state_id": _role_tactic_state,
+		}.duplicate(true)
+	if tactic_id not in ROLE_TACTIC_IDS:
+		return {
+			"accepted": false,
+			"reason": &"unknown_role_tactic",
+			"tactic_id": _role_tactic_id,
+			"state_id": _role_tactic_state,
+		}.duplicate(true)
+	# An explicit role posture owns this craft's cadence decisions for the rest
+	# of the activation, exactly as an explicit firing pattern already does.
+	_pressure_turn_automatic_enabled = false
+	_reset_pressure_turn_tactic()
+	var partner := options.get("partner") as Node3D
+	if partner != null:
+		_bracket_partner = partner
+	if options.has("side_sign"):
+		var requested_sign := float(options.get("side_sign", 1.0))
+		_bracket_side_sign = -1.0 if requested_sign < 0.0 else 1.0
+	if (
+		tactic_id == _role_tactic_id
+		and _role_tactic_generation == _activation_generation
+		and _role_tactic_state != &"idle"
+	):
+		return {
+			"accepted": true,
+			"reason": &"role_tactic_unchanged",
+			"tactic_id": _role_tactic_id,
+			"state_id": _role_tactic_state,
+		}.duplicate(true)
+	_role_tactic_id = tactic_id
+	_role_tactic_generation = _activation_generation
+	_role_tactic_elapsed_seconds = 0.0
+	_role_tactic_counter_reason = &""
+	_bracket_squeeze_count = 0
+	_bracket_rearm_remaining = 0.0
+	_withdraw_repair_consumed = false
+	_withdraw_repair_interrupted = false
+	_withdraw_repair_restored_health = 0.0
+	_cover_anchor = Vector3.ZERO
+	_cover_anchor_valid = false
+	_cover_probe_remaining = 0.0
+	_cover_seek_elapsed_seconds = 0.0
+	_cover_peek_count = 0
+	_cover_exposed_count = 0
+	match tactic_id:
+		ROLE_TACTIC_BRACKET_SQUEEZE:
+			_role_tactic_state = &"closing"
+		ROLE_TACTIC_WITHDRAW_REPAIR:
+			_role_tactic_state = &"engaged"
+		ROLE_TACTIC_COVER_PEEK:
+			_role_tactic_state = &"seeking_cover"
+	return {
+		"accepted": true,
+		"reason": &"role_tactic_configured",
+		"tactic_id": _role_tactic_id,
+		"state_id": _role_tactic_state,
+	}.duplicate(true)
+
+
+## Names the other half of a bracket pair. The partner is read for liveness and
+## world position only; neither craft drives the other's physics or weapon.
+func set_bracket_partner(partner: Node3D) -> void:
+	_bracket_partner = partner
+
+
+func get_role_tactic_snapshot() -> Dictionary:
+	return {
+		"tactic_id": _role_tactic_id,
+		"state_id": _role_tactic_state,
+		"activation_generation": _activation_generation,
+		"configured_activation_generation": _role_tactic_generation,
+		"elapsed_seconds": _role_tactic_elapsed_seconds,
+		"countered": _role_tactic_state in [&"broken", &"exposed"],
+		"counter_reason": _role_tactic_counter_reason,
+		"suppresses_fire": _role_tactic_suppresses_fire(),
+		"holds_station": _role_tactic_holds_station(),
+		"pre_discharge_telegraph_id": _get_role_tactic_telegraph_identity(),
+		"pre_discharge_scale_multipliers": _get_role_tactic_telegraph_multipliers(),
+		"pre_discharge_uses_static_geometry": true,
+		"pre_discharge_color_only": false,
+		"pre_discharge_motion_added": false,
+		"telegraphing": _role_tactic_is_telegraphing(),
+		"bracket": {
+			"side_sign": _bracket_side_sign,
+			"partner_instance_id": (
+				_bracket_partner.get_instance_id()
+				if is_instance_valid(_bracket_partner) else 0
+			),
+			"partner_engaged": _bracket_partner_engaged(),
+			"squeeze_count": _bracket_squeeze_count,
+			"rearm_remaining_seconds": _bracket_rearm_remaining,
+			"hold_range_metres": _bracket_hold_range(),
+			"close_range_metres": BRACKET_CLOSE_RANGE,
+			"form_seconds": BRACKET_FORM_SECONDS,
+			"squeeze_duration_seconds": BRACKET_SQUEEZE_DURATION_SECONDS,
+			"release_range_metres": BRACKET_RELEASE_RANGE,
+		},
+		"withdraw_repair": {
+			"trigger_health_ratio": WITHDRAW_REPAIR_TRIGGER_HEALTH_RATIO,
+			"consumed": _withdraw_repair_consumed,
+			"interrupted": _withdraw_repair_interrupted,
+			"restored_health": _withdraw_repair_restored_health,
+			"health_ceiling_ratio": WITHDRAW_REPAIR_HEALTH_CEILING_RATIO,
+			"interrupt_range_metres": WITHDRAW_REPAIR_INTERRUPT_RANGE,
+			"returned_damaged": (
+				_role_tactic_state in [&"returning", &"returned"]
+				and get_health() < get_maximum_health()
+			),
+		},
+		"cover": {
+			"anchor_valid": _cover_anchor_valid,
+			"anchor": _cover_anchor,
+			"peek_sign": _cover_peek_sign,
+			"peek_count": _cover_peek_count,
+			"exposed_count": _cover_exposed_count,
+			"standoff_metres": COVER_STANDOFF_METRES,
+			"probe_count": COVER_PROBE_WEIGHTS.size(),
+		},
+		"uses_existing_movement_authority": true,
+		"uses_existing_projectile_signal": true,
+		"uses_existing_charge_lenses": true,
+		"adds_hud_element": false,
+		"combat_authority": false,
+		"damage_authority": false,
+	}.duplicate(true)
+
+
+func _clear_role_tactic(reason: StringName) -> void:
+	if _role_tactic_id != ROLE_TACTIC_NONE and _role_tactic_state not in [
+		&"idle", &"broken", &"exposed",
+	]:
+		_role_tactic_counter_reason = reason
+	_role_tactic_id = ROLE_TACTIC_NONE
+	_role_tactic_state = &"idle"
+	_role_tactic_elapsed_seconds = 0.0
+	_role_tactic_generation = -1
+	_bracket_rearm_remaining = 0.0
+	_cover_anchor_valid = false
+	_cover_probe_remaining = 0.0
+	_cover_seek_elapsed_seconds = 0.0
+
+
+func _reset_role_tactic_for_activation() -> void:
+	_role_tactic_id = ROLE_TACTIC_NONE
+	_role_tactic_state = &"idle"
+	_role_tactic_elapsed_seconds = 0.0
+	_role_tactic_generation = -1
+	_role_tactic_counter_reason = &""
+	_bracket_partner = null
+	_bracket_side_sign = 1.0
+	_bracket_squeeze_count = 0
+	_bracket_rearm_remaining = 0.0
+	_withdraw_repair_consumed = false
+	_withdraw_repair_interrupted = false
+	_withdraw_repair_restored_health = 0.0
+	_cover_anchor = Vector3.ZERO
+	_cover_anchor_valid = false
+	_cover_peek_sign = 1.0
+	_cover_probe_remaining = 0.0
+	_cover_seek_elapsed_seconds = 0.0
+	_cover_peek_count = 0
+	_cover_exposed_count = 0
+
+
+func _break_role_tactic(reason: StringName) -> void:
+	_role_tactic_counter_reason = reason
+	_role_tactic_state = &"broken"
+	_role_tactic_elapsed_seconds = 0.0
+	_bracket_rearm_remaining = 0.0
+
+
+func _role_tactic_is_running() -> bool:
+	return (
+		_role_tactic_id != ROLE_TACTIC_NONE
+		and _role_tactic_state not in [&"idle", &"broken"]
+	)
+
+
+## A posture that has committed to breaking off, patching itself, or sitting
+## behind an occluder does not shoot. The player reads a silent craft and can
+## take the window; nothing about weapon authority moves here.
+func _role_tactic_suppresses_fire() -> bool:
+	if _role_tactic_id == ROLE_TACTIC_WITHDRAW_REPAIR:
+		return _role_tactic_state in [&"withdrawing", &"repairing"]
+	if _role_tactic_id == ROLE_TACTIC_COVER_PEEK:
+		return _role_tactic_state in [&"seeking_cover", &"in_cover"]
+	return false
+
+
+func _role_tactic_holds_station() -> bool:
+	if _role_tactic_id == ROLE_TACTIC_WITHDRAW_REPAIR:
+		return _role_tactic_state == &"repairing"
+	if _role_tactic_id == ROLE_TACTIC_COVER_PEEK:
+		return (
+			_role_tactic_state == &"in_cover"
+			and _cover_anchor_valid
+			and global_position.distance_to(_cover_anchor) <= COVER_ANCHOR_HOLD_METRES
+		)
+	return false
+
+
+func _role_tactic_speed_multiplier() -> float:
+	if _role_tactic_id == ROLE_TACTIC_BRACKET_SQUEEZE:
+		if _role_tactic_state == &"squeeze":
+			return BRACKET_SQUEEZE_SPEED_MULTIPLIER
+	elif _role_tactic_id == ROLE_TACTIC_WITHDRAW_REPAIR:
+		if _role_tactic_state == &"withdrawing":
+			return WITHDRAW_REPAIR_SPEED_MULTIPLIER
+		if _role_tactic_state == &"returning":
+			return WITHDRAW_RETURN_SPEED_MULTIPLIER
+	return 1.0
+
+
+func _role_tactic_is_telegraphing() -> bool:
+	return _get_role_tactic_telegraph_identity() != &""
+
+
+func _get_role_tactic_telegraph_identity() -> StringName:
+	if _role_tactic_id == ROLE_TACTIC_BRACKET_SQUEEZE:
+		if _role_tactic_state == &"closing":
+			return BRACKET_CLOSING_TELEGRAPH_ID
+		if _role_tactic_state == &"squeeze":
+			return BRACKET_SQUEEZE_TELEGRAPH_ID
+	elif _role_tactic_id == ROLE_TACTIC_WITHDRAW_REPAIR:
+		if _role_tactic_state == &"withdrawing":
+			return WITHDRAW_TELEGRAPH_ID
+		if _role_tactic_state == &"repairing":
+			return WITHDRAW_REPAIR_TELEGRAPH_ID
+		if _role_tactic_state == &"returning":
+			return WITHDRAW_RETURN_TELEGRAPH_ID
+	elif _role_tactic_id == ROLE_TACTIC_COVER_PEEK:
+		if _role_tactic_state in [&"seeking_cover", &"in_cover"]:
+			return COVER_TELEGRAPH_ID
+		if _role_tactic_state == &"peek":
+			return COVER_PEEK_TELEGRAPH_ID
+	return &""
+
+
+## Static, colour-free scale on the two existing charge spheres. Unlike the
+## firing-pattern cue this one is held for the whole posture rather than only
+## while a shot charges, because the posture itself is what the player has to
+## read and answer.
+func _get_role_tactic_telegraph_multipliers() -> PackedFloat32Array:
+	var identity := _get_role_tactic_telegraph_identity()
+	var configured: Array = []
+	if identity == BRACKET_CLOSING_TELEGRAPH_ID:
+		configured = (
+			BRACKET_CLOSING_TELEGRAPH_SCALES
+			if _bracket_side_sign >= 0.0
+			else [
+				BRACKET_CLOSING_TELEGRAPH_SCALES[1],
+				BRACKET_CLOSING_TELEGRAPH_SCALES[0],
+			]
+		)
+	elif identity == BRACKET_SQUEEZE_TELEGRAPH_ID:
+		configured = BRACKET_SQUEEZE_TELEGRAPH_SCALES
+	elif identity == WITHDRAW_TELEGRAPH_ID:
+		configured = WITHDRAW_TELEGRAPH_SCALES
+	elif identity == WITHDRAW_REPAIR_TELEGRAPH_ID:
+		configured = WITHDRAW_REPAIR_TELEGRAPH_SCALES
+	elif identity == WITHDRAW_RETURN_TELEGRAPH_ID:
+		configured = WITHDRAW_RETURN_TELEGRAPH_SCALES
+	elif identity == COVER_TELEGRAPH_ID:
+		configured = COVER_HOLD_TELEGRAPH_SCALES
+	elif identity == COVER_PEEK_TELEGRAPH_ID:
+		configured = (
+			COVER_PEEK_TELEGRAPH_SCALES
+			if _cover_peek_sign >= 0.0
+			else [
+				COVER_PEEK_TELEGRAPH_SCALES[1],
+				COVER_PEEK_TELEGRAPH_SCALES[0],
+			]
+		)
+	else:
+		return PackedFloat32Array()
+	var multipliers := PackedFloat32Array()
+	for index in WEAPON_TELEGRAPH_COPY_COUNT:
+		multipliers.append(clampf(
+			float(configured[index]) if index < configured.size() else 1.0,
+			0.5,
+			1.5
+		))
+	return multipliers
+
+
+func _get_presentation_telegraph_multipliers() -> PackedFloat32Array:
+	var role_multipliers := _get_role_tactic_telegraph_multipliers()
+	if not role_multipliers.is_empty():
+		return role_multipliers
+	return _get_firing_pattern_telegraph_scale_multipliers()
+
+
+func _bracket_hold_range() -> float:
+	return (
+		preferred_range
+		if is_finite(preferred_range) and preferred_range > 0.0
+		else BRACKET_FALLBACK_HOLD_RANGE
+	)
+
+
+func _bracket_partner_engaged() -> bool:
+	return (
+		is_instance_valid(_bracket_partner)
+		and _bracket_partner.is_inside_tree()
+		and not _bracket_partner.is_queued_for_deletion()
+		and _bracket_partner.has_method(&"is_active")
+		and bool(_bracket_partner.call(&"is_active"))
+	)
+
+
+## The two halves count as bracketing only when the player actually sits
+## between them. One craft alone is a chase, not a bracket.
+func _bracket_pair_is_opposed(target_position: Vector3) -> bool:
+	if not _bracket_partner_engaged():
+		return false
+	var mine := global_position - target_position
+	var theirs := _bracket_partner.global_position - target_position
+	mine.y = 0.0
+	theirs.y = 0.0
+	if mine.length_squared() <= 0.01 or theirs.length_squared() <= 0.01:
+		return false
+	return mine.normalized().dot(theirs.normalized()) < 0.0
+
+
+func _position_has_line_of_sight(from_position: Vector3, to_position: Vector3) -> bool:
+	if not is_inside_tree():
+		return true
+	var query := PhysicsRayQueryParameters3D.create(
+		from_position,
+		to_position,
+		WORLD_LAYER,
+		[get_rid()]
+	)
+	return get_world_3d().direct_space_state.intersect_ray(query).is_empty()
+
+
+func _refresh_cover_anchor(delta: float, target_position: Vector3) -> void:
+	_cover_probe_remaining = maxf(0.0, _cover_probe_remaining - maxf(delta, 0.0))
+	if _cover_anchor_valid and _cover_probe_remaining > 0.0:
+		return
+	_cover_probe_remaining = COVER_REEVALUATE_SECONDS
+	_cover_anchor_valid = false
+	if not is_inside_tree():
+		return
+	var away := global_position - target_position
+	away.y = 0.0
+	if away.length_squared() <= 0.01:
+		away = -global_basis.z
+	away = away.normalized()
+	var lateral := Vector3.UP.cross(away).normalized()
+	for weight: Vector3 in COVER_PROBE_WEIGHTS:
+		var offset := away * weight.x + lateral * weight.y + Vector3.UP * weight.z
+		if offset.length_squared() <= 0.001:
+			continue
+		var candidate := global_position + offset.normalized() * COVER_STANDOFF_METRES
+		if _position_has_line_of_sight(candidate, target_position):
+			continue
+		if not _position_has_line_of_sight(global_position, candidate):
+			continue
+		_cover_anchor = candidate
+		_cover_anchor_valid = true
+		return
+
+
+## One deterministic posture step. Movement, firing and damage stay on this
+## craft's existing authorities; this only moves the posture's own state.
+func _update_role_tactic_state(
+	delta: float,
+	modifiers: Dictionary,
+	distance: float,
+	target_position: Vector3
+	) -> void:
+	if not _role_tactic_is_running():
+		return
+	if _role_tactic_generation != _activation_generation:
+		_clear_role_tactic(&"activation_reused")
+		return
+	var mobility := clampf(float(modifiers.get("mobility_multiplier", 0.0)), 0.0, 1.0)
+	if mobility <= 0.0 or bool(modifiers.get("mobility_disabled", true)):
+		_break_role_tactic(&"engine_mobility_lost")
+		return
+	var step := maxf(delta, 0.0)
+	if _role_tactic_id == ROLE_TACTIC_BRACKET_SQUEEZE:
+		_update_bracket_squeeze(step, distance, target_position)
+	elif _role_tactic_id == ROLE_TACTIC_WITHDRAW_REPAIR:
+		_update_withdraw_repair(step, distance)
+	elif _role_tactic_id == ROLE_TACTIC_COVER_PEEK:
+		_update_cover_peek(step, target_position)
+
+
+func _update_bracket_squeeze(delta: float, distance: float, target_position: Vector3) -> void:
+	if _role_tactic_state == &"closing":
+		if not _bracket_partner_engaged():
+			_break_role_tactic(&"bracket_partner_lost")
+			return
+		if distance > BRACKET_RELEASE_RANGE:
+			_break_role_tactic(&"player_broke_out")
+			return
+		if distance > BRACKET_CLOSE_RANGE or not _bracket_pair_is_opposed(target_position):
+			_role_tactic_elapsed_seconds = 0.0
+			return
+		_role_tactic_elapsed_seconds += delta
+		if _role_tactic_elapsed_seconds >= BRACKET_FORM_SECONDS:
+			_role_tactic_state = &"squeeze"
+			_role_tactic_elapsed_seconds = 0.0
+			_bracket_squeeze_count += 1
+	elif _role_tactic_state == &"squeeze":
+		if not _bracket_partner_engaged():
+			_break_role_tactic(&"bracket_partner_lost")
+			return
+		if distance > BRACKET_RELEASE_RANGE:
+			_break_role_tactic(&"player_broke_out")
+			return
+		_role_tactic_elapsed_seconds += delta
+		if _role_tactic_elapsed_seconds >= BRACKET_SQUEEZE_DURATION_SECONDS:
+			_role_tactic_state = &"released"
+			_role_tactic_elapsed_seconds = 0.0
+			_bracket_rearm_remaining = BRACKET_REARM_SECONDS
+	elif _role_tactic_state == &"released":
+		if not _bracket_partner_engaged():
+			_break_role_tactic(&"bracket_partner_lost")
+			return
+		if distance > BRACKET_RELEASE_RANGE:
+			_break_role_tactic(&"player_broke_out")
+			return
+		_bracket_rearm_remaining = maxf(0.0, _bracket_rearm_remaining - delta)
+		if is_zero_approx(_bracket_rearm_remaining):
+			_role_tactic_state = &"closing"
+			_role_tactic_elapsed_seconds = 0.0
+
+
+func _update_withdraw_repair(delta: float, distance: float) -> void:
+	var maximum := maxf(get_maximum_health(), 0.001)
+	var health_ratio := clampf(get_health() / maximum, 0.0, 1.0)
+	if _role_tactic_state == &"engaged":
+		if _withdraw_repair_consumed:
+			return
+		if health_ratio <= WITHDRAW_REPAIR_TRIGGER_HEALTH_RATIO:
+			_withdraw_repair_consumed = true
+			_role_tactic_state = &"withdrawing"
+			_role_tactic_elapsed_seconds = 0.0
+			_telegraph_remaining = 0.0
+			_clear_pending_pattern_projectiles()
+	elif _role_tactic_state == &"withdrawing":
+		_role_tactic_elapsed_seconds += delta
+		if (
+			distance >= WITHDRAW_REPAIR_STANDOFF_METRES
+			or _role_tactic_elapsed_seconds >= WITHDRAW_REPAIR_MAX_WITHDRAW_SECONDS
+		):
+			_role_tactic_state = &"repairing"
+			_role_tactic_elapsed_seconds = 0.0
+	elif _role_tactic_state == &"repairing":
+		if distance <= WITHDRAW_REPAIR_INTERRUPT_RANGE:
+			_withdraw_repair_interrupted = true
+			_role_tactic_counter_reason = &"repair_interrupted"
+			_role_tactic_state = &"returning"
+			_role_tactic_elapsed_seconds = 0.0
+			return
+		_role_tactic_elapsed_seconds += delta
+		if _role_tactic_elapsed_seconds >= WITHDRAW_REPAIR_SECONDS:
+			_apply_withdrawn_field_repair()
+			_role_tactic_state = &"returning"
+			_role_tactic_elapsed_seconds = 0.0
+	elif _role_tactic_state == &"returning":
+		_role_tactic_elapsed_seconds += delta
+		if distance <= preferred_range * 1.35:
+			_role_tactic_state = &"returned"
+			_role_tactic_elapsed_seconds = 0.0
+
+
+## A bounded field patch through the craft's own component damage model. The
+## ceiling is what makes the craft come back *damaged*: it can never buy its
+## way back to a full hull, and the player's earlier hits are never erased.
+func _apply_withdrawn_field_repair() -> void:
+	if _hull_damage == null:
+		return
+	var maximum := get_maximum_health()
+	var ceiling := maximum * WITHDRAW_REPAIR_HEALTH_CEILING_RATIO
+	var before := get_health()
+	var amount := minf(maximum * WITHDRAW_REPAIR_FRACTION, maxf(0.0, ceiling - before))
+	if amount <= 0.0:
+		_withdraw_repair_restored_health = 0.0
+		return
+	var result := _hull_damage.apply_field_repair(amount, maximum_health)
+	if not bool(result.get("accepted", false)):
+		_withdraw_repair_restored_health = 0.0
+		return
+	_withdraw_repair_restored_health = maxf(0.0, get_health() - before)
+	_set_damage_stage()
+	health_changed.emit(get_health(), get_maximum_health())
+
+
+func _update_cover_peek(delta: float, target_position: Vector3) -> void:
+	if _role_tactic_state == &"seeking_cover":
+		_role_tactic_elapsed_seconds += delta
+		_cover_seek_elapsed_seconds += delta
+		_refresh_cover_anchor(delta, target_position)
+		if (
+			_cover_anchor_valid
+			and global_position.distance_to(_cover_anchor) <= COVER_ANCHOR_ARRIVAL_METRES
+			and not _has_line_of_sight(target_position)
+		):
+			_role_tactic_state = &"in_cover"
+			_role_tactic_elapsed_seconds = 0.0
+			_cover_seek_elapsed_seconds = 0.0
+		elif (
+			not _cover_anchor_valid
+			and _cover_seek_elapsed_seconds >= COVER_SEEK_TIMEOUT_SECONDS
+		):
+			_role_tactic_counter_reason = &"no_cover_available"
+			_role_tactic_state = &"exposed"
+			_role_tactic_elapsed_seconds = 0.0
+			_cover_exposed_count += 1
+	elif _role_tactic_state == &"in_cover":
+		_role_tactic_elapsed_seconds += delta
+		if _has_line_of_sight(target_position):
+			# The player flanked the occluder; this spot is no longer cover.
+			_cover_anchor_valid = false
+			_cover_probe_remaining = 0.0
+			_cover_seek_elapsed_seconds = 0.0
+			_role_tactic_state = &"seeking_cover"
+			_role_tactic_elapsed_seconds = 0.0
+			return
+		if _role_tactic_elapsed_seconds >= COVER_HOLD_SECONDS:
+			_cover_peek_sign = -_cover_peek_sign
+			_cover_peek_count += 1
+			_role_tactic_state = &"peek"
+			_role_tactic_elapsed_seconds = 0.0
+	elif _role_tactic_state == &"peek":
+		_role_tactic_elapsed_seconds += delta
+		if _role_tactic_elapsed_seconds >= COVER_PEEK_SECONDS:
+			_role_tactic_state = &"in_cover"
+			_role_tactic_elapsed_seconds = 0.0
+	elif _role_tactic_state == &"exposed":
+		_role_tactic_elapsed_seconds += delta
+		_refresh_cover_anchor(delta, target_position)
+		if _cover_anchor_valid:
+			_cover_seek_elapsed_seconds = 0.0
+			_role_tactic_state = &"seeking_cover"
+			_role_tactic_elapsed_seconds = 0.0
+
+
+## Role-posture steering. Returns `Vector3.ZERO` when the posture has nothing
+## to say, so the base defender's orbit remains the single fallback.
+func _role_tactic_motion_direction(target_direction: Vector3, distance: float) -> Vector3:
+	var lateral := Vector3.UP.cross(target_direction).normalized()
+	if _role_tactic_id == ROLE_TACTIC_BRACKET_SQUEEZE:
+		# `closing` and `released` deliberately steer with nothing of their own:
+		# each half keeps the flank and stand-off range its encounter authored,
+		# and the posture only watches for the moment both sides are opposed.
+		# The squeeze is the whole of what this tactic adds to the craft.
+		if _role_tactic_state == &"squeeze":
+			return (
+				target_direction * BRACKET_SQUEEZE_INWARD_WEIGHT
+				+ lateral * _bracket_side_sign * BRACKET_SQUEEZE_LATERAL_WEIGHT
+			)
+	elif _role_tactic_id == ROLE_TACTIC_WITHDRAW_REPAIR:
+		if _role_tactic_state == &"withdrawing":
+			return -target_direction * 0.94 + lateral * 0.2 + Vector3.UP * 0.1
+		if _role_tactic_state == &"repairing":
+			return -target_direction * 0.2 + Vector3.UP * 0.04
+		if _role_tactic_state == &"returning":
+			return target_direction * 0.95 + lateral * 0.2
+	elif _role_tactic_id == ROLE_TACTIC_COVER_PEEK:
+		if _role_tactic_state in [&"seeking_cover", &"in_cover"] and _cover_anchor_valid:
+			var to_anchor := _cover_anchor - global_position
+			if to_anchor.length_squared() > 0.01:
+				return to_anchor.normalized()
+		if _role_tactic_state == &"peek":
+			return (
+				lateral * _cover_peek_sign * COVER_PEEK_LATERAL_WEIGHT
+				+ target_direction * 0.3
+			)
+	return Vector3.ZERO
 
 
 ## Renderer-independent audit for the base defender's four paired box families.
@@ -1472,6 +2181,9 @@ func _add_heat_vent_batch(parent: Node3D) -> MultiMeshInstance3D:
 
 
 func _choose_motion_direction(target_direction: Vector3, distance: float) -> Vector3:
+	var role_direction := _role_tactic_motion_direction(target_direction, distance)
+	if role_direction.length_squared() > 0.001:
+		return role_direction.normalized()
 	if (
 		_evasive_maneuver_id == EVASIVE_MANEUVER_LATERAL_BREAK
 		and _evasive_maneuver_state == &"active"
@@ -1670,6 +2382,10 @@ func _update_weapon(target_position: Vector3, target_direction: Vector3, distanc
 		_telegraph_remaining = 0.0
 		_clear_pending_pattern_projectiles()
 		_cancel_pressure_turn(&"weapon_disabled")
+		return
+	if _role_tactic_suppresses_fire():
+		_telegraph_remaining = 0.0
+		_clear_pending_pattern_projectiles()
 		return
 	if _pattern_projectiles_remaining > 0:
 		_update_pattern_followup(
@@ -1907,12 +2623,12 @@ func _update_presentation(delta: float) -> void:
 		charge = 1.0 - _telegraph_remaining / maxf(telegraph_time, 0.001)
 		charge = clampf(charge, 0.0, 1.0)
 		charge = 0.22 + charge * 1.15 + sin(_elapsed * 34.0) * 0.08
-	var telegraph_multipliers := _get_firing_pattern_telegraph_scale_multipliers()
+	var telegraph_multipliers := _get_presentation_telegraph_multipliers()
 	var retained_telegraph_index := 0
 	for lens in _warning_lenses:
 		var pattern_multiplier := 1.0
 		if (
-			charge_active
+			(charge_active or _role_tactic_is_telegraphing())
 			and _weapon_telegraph_mesh != null
 			and lens.mesh == _weapon_telegraph_mesh
 		):
@@ -1967,6 +2683,7 @@ func _destroy_interceptor(death_position: Vector3) -> void:
 	_clear_pending_pattern_projectiles()
 	_clear_evasive_maneuver_configuration(&"destroyed")
 	_reset_pressure_turn_tactic()
+	_clear_role_tactic(&"destroyed")
 	_reset_weapon_heat_presentation()
 	destroyed.emit(death_position)
 
