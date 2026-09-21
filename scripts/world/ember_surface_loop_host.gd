@@ -70,7 +70,6 @@ const ORIGIN_REBASE_RECEIPT_KEYS := [
 	"adjusted_actor_sample",
 	"covered_instance_ids",
 	"covered_node_count",
-	"ember_streaming",
 	"reason",
 	"request_id",
 	"root_roster",
@@ -78,6 +77,8 @@ const ORIGIN_REBASE_RECEIPT_KEYS := [
 	"source_generation",
 	"target_generation",
 	"transaction_index",
+	"world_id",
+	"world_streaming",
 	"world_translation_delta",
 ]
 const ORIGIN_REBASE_ROOT_RECORD_KEYS := ["instance_id", "mode", "path"]
@@ -1599,6 +1600,34 @@ func get_travel_session_observation_source() -> Object:
 	return _session
 
 
+## Declares this Host as a final-approach source for the cruise binding.
+##
+## The binding needs five generation scalars and a readiness flag, and nothing
+## else: it must never learn that an Ember surface loop is what is on the other
+## end. A Host is ready exactly while it is attached and still IDLE, which is
+## the only phase in which an approach has not yet been handed over.
+func get_final_approach_source_snapshot() -> Dictionary:
+	return {
+		"ready": _attached and _phase == Phase.IDLE,
+		"generation": _generation,
+		"attachment_generation": _attachment_generation,
+		"coordinate_frame_generation": _coordinate_frame_generation,
+		"location_generation": _location_generation,
+	}.duplicate(true)
+
+
+## Declares that this node's transform is not a common-world position.
+##
+## The Host is a logic node pinned to Main's own origin: it is the reference
+## identity a surface visit measures against, and every spatial thing it owns
+## lives under the streamed world root or under the actors, all of which the
+## origin owner translates in their own right. Translating the Host as well
+## would move that reference out from under the measurement. This is what the
+## origin owner used to hard-code as "not an EmberSurfaceLoopHost".
+func is_common_world_translation_root() -> bool:
+	return false
+
+
 ## Current scalar state for the production caller; diagnostics remain detached.
 func is_attached() -> bool:
 	return _attached
@@ -1773,6 +1802,18 @@ func get_snapshot() -> Dictionary:
 
 func audit() -> Dictionary:
 	var errors := PackedStringArray()
+	# Exactly one Host may stand under a composition root. That used to be
+	# implied by the origin owner excluding "the" Host from its roster by class;
+	# now that the exclusion is a capability any node may declare, the Host
+	# states its own singularity here, as the origin owner already states its.
+	if _attached and _composition_root != null:
+		# A standalone composition roots the Host at itself, so the root counts.
+		var host_count := 1 if _composition_root is EmberSurfaceLoopHost else 0
+		for candidate in _composition_root.find_children("*", "", true, false):
+			if candidate is EmberSurfaceLoopHost:
+				host_count += 1
+		if host_count != 1:
+			errors.append("a composition root must contain exactly one surface Host")
 	if not _configuration_error.is_empty():
 		errors.append("configuration failed: %s" % _configuration_error)
 	if _attached and _phase not in [Phase.COMPLETED, Phase.FAILED] \
@@ -2373,8 +2414,12 @@ func _validate_dependencies(
 				or origin_owner.get_parent() != composition_root \
 				or not bool(origin_owner.audit().get("valid", false)):
 			return {"accepted": false, "reason": &"origin_owner_mismatch"}
-		var owner_snapshot := origin_owner.get_snapshot()
-		if int(owner_snapshot.get("bootstrap_instance_id", 0)) \
+		# The owner serves every composed world; ask it for this body's record
+		# rather than for "the" pair it happens to hold.
+		var owner_snapshot := origin_owner.get_world_binding_snapshot(WORLD_ID)
+		if owner_snapshot.is_empty() \
+				or not String(owner_snapshot.get("identity_error", &"")).is_empty() \
+				or int(owner_snapshot.get("bootstrap_instance_id", 0)) \
 				!= bootstrap.get_instance_id() \
 				or int(owner_snapshot.get("coordinate_frame_instance_id", 0)) \
 					!= frame.get_instance_id():
@@ -2593,8 +2638,8 @@ func _validate_committed_origin_receipt(receipt: Variant) -> Dictionary:
 			or int(bootstrap_snapshot.get("loaded_instance_id", 0)) \
 				!= _loaded_scene_instance_id:
 		return {"accepted": false, "reason": &"origin_receipt_stream_generation_mismatch"}
-	var streaming := value.ember_streaming as Dictionary \
-			if value.ember_streaming is Dictionary else {}
+	var streaming := value.world_streaming as Dictionary \
+			if value.world_streaming is Dictionary else {}
 	if not bool(streaming.get("accepted", false)) \
 			or int(streaming.get("coordinate_frame_generation", 0)) != target_generation \
 			or int(streaming.get("location_generation", -1)) != _location_generation:
@@ -2669,13 +2714,20 @@ func _origin_owner_receipt_rejection(
 		return &"origin_owner_identity_mismatch"
 	var owner_audit := _origin_owner.audit()
 	var owner_snapshot := _origin_owner.get_snapshot()
+	# The owner serves every composed world, so prove it is paired with *this*
+	# body's bootstrap/binding/frame, and that the receipt is for this body at
+	# all. A receipt for another world is never this Host's to adopt.
+	var owner_world := _origin_owner.get_world_binding_snapshot(WORLD_ID)
 	if not bool(owner_audit.get("valid", false)) \
 			or int(owner_audit.get("owner_count", 0)) != 1 \
-			or int(owner_snapshot.get("bootstrap_instance_id", 0)) \
+			or owner_world.is_empty() \
+			or not String(owner_world.get("identity_error", &"")).is_empty() \
+			or receipt.get("world_id", &"") != WORLD_ID \
+			or int(owner_world.get("bootstrap_instance_id", 0)) \
 				!= _bootstrap.get_instance_id() \
-			or int(owner_snapshot.get("binding_instance_id", 0)) \
+			or int(owner_world.get("binding_instance_id", 0)) \
 				!= _origin_binding_instance_id \
-			or int(owner_snapshot.get("coordinate_frame_instance_id", 0)) \
+			or int(owner_world.get("coordinate_frame_instance_id", 0)) \
 				!= _frame.get_instance_id():
 		return &"origin_owner_identity_mismatch"
 	if int(owner_snapshot.get("last_source_generation", 0)) != source_generation \
@@ -2700,6 +2752,16 @@ func _origin_owner_receipt_rejection(
 	return &""
 
 
+## Mirrors the origin owner's root rule exactly: every live Node3D is a
+## common-world root unless it declares that its transform is not a common-world
+## position. Expressed here rather than called from the owner so this Host can
+## rebuild the roster the owner froze and compare it record for record.
+func _node_is_common_world_translation_root(node: Node3D) -> bool:
+	if node.has_method(&"is_common_world_translation_root"):
+		return bool(node.call(&"is_common_world_translation_root"))
+	return true
+
+
 func _origin_receipt_roster_rejection(receipt: Dictionary) -> StringName:
 	if _composition_root == self:
 		return &"origin_adoption_requires_shared_root"
@@ -2721,7 +2783,7 @@ func _origin_receipt_roster_rejection(receipt: Dictionary) -> StringName:
 	var expected_roots: Array[Node3D] = []
 	for node in expected_covered_nodes:
 		if (node.get_parent() == _composition_root or node.top_level) \
-				and not node is EmberSurfaceLoopHost:
+				and _node_is_common_world_translation_root(node):
 			expected_roots.append(node)
 	if roots.size() != expected_roots.size():
 		return &"origin_receipt_roster_count_mismatch"

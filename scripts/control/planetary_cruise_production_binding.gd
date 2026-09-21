@@ -1,13 +1,21 @@
 class_name PlanetaryCruiseProductionBinding
 extends Node
 
-## Main-owned, caller-driven production adapter for one Ember cruise request.
+## Main-owned, caller-driven production adapter for one planetary cruise request.
 ##
-## GameFlow supplies its already adjusted actor sample after Ember streaming and
-## any common-origin transaction. This component decodes the one retained
-## absolute Ember navigation anchor in the exact current coordinate frame, then
-## delegates proof, policy evaluation, and detached intent delivery to its one
-## PlanetaryCruisePhysicalController. HeroShip remains the only mover.
+## GameFlow supplies its already adjusted actor sample after that world's
+## streaming and any common-origin transaction. This component decodes the one
+## retained absolute navigation anchor of the world it is bound to, in the exact
+## current coordinate frame, then delegates proof, policy evaluation, and
+## detached intent delivery to its one PlanetaryCruisePhysicalController.
+## HeroShip remains the only mover.
+##
+## Nothing here names a body. The bound world is whichever
+## [PlanetaryStreamingBootstrap] the composition resolved, or whichever one
+## `bind_world()` later re-pointed this binding at, and the destination anchor
+## comes from that bootstrap's own registered location definition. A final
+## approach is likewise requested against whatever node declares the
+## final-approach-source capability, not against one world's host class.
 
 signal engagement_changed(snapshot: Dictionary)
 signal tick_committed(receipt: Dictionary)
@@ -17,13 +25,20 @@ signal return_approach_completed(receipt: Dictionary)
 const SCHEMA_VERSION := 1
 const MAX_SAFE_INTEGER := 9_007_199_254_740_991
 const DEFAULT_BOOTSTRAP_PATH := NodePath("../EmberMoonStreamingBootstrap")
-const DESTINATION_ID: StringName = &"ember_navigation"
-const DESTINATION_SOURCE_ID: StringName = &"ember_navigation_body_local"
-const DESTINATION_RESOURCE_PATH := "res://assets/world/locations/ember_moon.tres"
 const _ControllerType := preload(
 	"res://scripts/control/planetary_cruise_physical_controller.gd"
 )
-const _EMBER_LOCATION := preload(DESTINATION_RESOURCE_PATH)
+## The six scalars a final-approach source must publish through
+## `get_final_approach_source_snapshot()`. Any node that answers this with a
+## ready generation-stamped record can own a final approach; no world's concrete
+## host class appears in this component.
+const FINAL_APPROACH_SOURCE_KEYS := [
+	"ready",
+	"generation",
+	"attachment_generation",
+	"coordinate_frame_generation",
+	"location_generation",
+]
 const _SAMPLE_KEYS := [
 	"actor_instance_id",
 	"actor_kind",
@@ -39,14 +54,19 @@ const _COMMON_AUTHORITY_KEYS := [
 @export var bootstrap_path: NodePath = DEFAULT_BOOTSTRAP_PATH
 
 var _controller: PlanetaryCruisePhysicalController
-var _bootstrap: EmberMoonStreamingBootstrap
+var _bootstrap: PlanetaryStreamingBootstrap
 var _frame: PlanetaryCoordinateFrame
 var _activated := false
 var _configuration_error: StringName = &""
 var _bootstrap_instance_id := 0
 var _frame_instance_id := 0
 var _controller_instance_id := 0
+var _bound_world_id: StringName = &""
+var _destination_id: StringName = &""
+var _destination_source_id: StringName = &""
 var _canonical_destination_orbital: Dictionary = {}
+var _world_bind_count := 0
+var _last_world_bind_result: Dictionary = {}
 var _generation := 1
 var _engagement_requested := false
 var _engaged_ship_ref: WeakRef
@@ -119,8 +139,9 @@ func _exit_tree() -> void:
 	set_physics_process(false)
 
 
-## Starts one explicit Ember-navigation cruise request. This records desired
-## participation only after the exact live ship and current frame are bound.
+## Starts one explicit cruise request toward the bound world's navigation
+## anchor. This records desired participation only after the exact live ship and
+## current frame are bound.
 ## Policy and movement do not begin until the next accepted caller tick.
 func request_engage(
 		ship: HeroShip,
@@ -207,8 +228,15 @@ func request_disengage(
 	return retired.duplicate(true)
 
 
+## Arms one final approach for whichever world the craft is travelling to.
+##
+## `source` is any node that declares the final-approach-source capability -
+## `get_final_approach_source_snapshot()` returning the five generation scalars
+## in `FINAL_APPROACH_SOURCE_KEYS`. That is the whole contract: this component
+## never learns which world's host class it was handed, and re-checks the exact
+## same record every tick to detect drift.
 func request_final_approach(
-		host: EmberSurfaceLoopHost,
+		host: Node,
 		landing_root: Node3D,
 		approach_envelope: Dictionary,
 	expected_coordinate_frame_generation: int,
@@ -235,11 +263,13 @@ func request_final_approach(
 			or expected_host_attachment_generation > MAX_SAFE_INTEGER:
 		return _result(false, &"host_generation_out_of_bounds")
 	if host == null or not is_instance_valid(host) \
-			or host.is_queued_for_deletion() or not host.is_inside_tree():
+			or host.is_queued_for_deletion() or not host.is_inside_tree() \
+			or not host.has_method(&"get_final_approach_source_snapshot"):
 		return _result(false, &"final_approach_host_unavailable")
-	var host_snapshot := host.get_snapshot()
-	if not bool(host_snapshot.get("attached", false)) \
-			or int(host_snapshot.get("phase", -1)) != EmberSurfaceLoopHost.Phase.IDLE \
+	var host_snapshot := _final_approach_source_snapshot(host)
+	if host_snapshot.is_empty():
+		return _result(false, &"final_approach_source_capability_invalid")
+	if not bool(host_snapshot.get("ready", false)) \
 			or int(host_snapshot.get("generation", -1)) != expected_host_generation \
 			or int(host_snapshot.get("attachment_generation", -1)) \
 				!= expected_host_attachment_generation \
@@ -658,7 +688,7 @@ func physics_tick_from_caller_sample(
 		"caller_tick": caller_tick,
 		"coordinate_frame_generation": expected_coordinate_frame_generation,
 		"ship_instance_id": _engaged_ship_instance_id,
-		"destination_id": DESTINATION_ID,
+		"destination_id": _destination_id,
 		"destination_orbital": _canonical_destination_orbital.duplicate(true),
 		"destination_world": destination_world,
 		"controller": evaluation.duplicate(true),
@@ -694,8 +724,11 @@ func get_snapshot() -> Dictionary:
 		"current_coordinate_frame_generation": (
 			_frame.get_generation() if _frame != null else 0
 		),
-		"destination_id": DESTINATION_ID,
-		"destination_source_id": DESTINATION_SOURCE_ID,
+		"world_id": _bound_world_id,
+		"destination_id": _destination_id,
+		"destination_source_id": _destination_source_id,
+		"world_bind_count": _world_bind_count,
+		"last_world_bind_result": _last_world_bind_result.duplicate(true),
 		"canonical_destination_orbital": (
 			_canonical_destination_orbital.duplicate(true)
 		),
@@ -770,8 +803,8 @@ func audit() -> Dictionary:
 		"binding_count": binding_count,
 		"controller_count": controller_count,
 		"snapshot": get_snapshot(),
-		"destination_policy": &"canonical_absolute_ember_navigation_anchor_decode_each_current_generation",
-		"physics_order_policy": &"gameflow_actor_then_ember_then_optional_rebase_then_cruise_then_hero",
+		"destination_policy": &"canonical_absolute_bound_world_navigation_anchor_decode_each_current_generation",
+		"physics_order_policy": &"gameflow_actor_then_world_streaming_then_optional_rebase_then_cruise_then_hero",
 		"command_delivery": &"one_fresh_envelope_for_next_hero_physics_tick",
 		"controller_audit": controller_audit.duplicate(true),
 		"common_authority": _zero_authority(),
@@ -802,46 +835,127 @@ func audit() -> Dictionary:
 	}.duplicate(true)
 
 
-func _activate_scene_binding() -> void:
-	if _activated or not is_inside_tree() or is_queued_for_deletion():
-		return
-	_bootstrap = get_node_or_null(bootstrap_path) as EmberMoonStreamingBootstrap
-	if _bootstrap == null or _bootstrap.is_queued_for_deletion():
-		_configuration_error = &"bootstrap_unavailable"
-		return
-	_frame = _bootstrap.get_coordinate_frame_for_session()
-	if _frame == null or not _frame.is_configured():
-		_configuration_error = &"coordinate_frame_unavailable"
-		return
+## Points this binding at one composed world.
+##
+## This is the seam a caller uses to travel to a second destination: the same
+## adapter, the same controller, a different bootstrap, frame and navigation
+## anchor. It is fenced. A live engagement, an armed approach, an unconsumed
+## completion or a transaction in flight all refuse, because re-pointing a
+## cruise mid-flight would silently retarget a moving craft.
+func bind_world(bootstrap: PlanetaryStreamingBootstrap) -> Dictionary:
+	if _mutation_active or _signal_dispatch_active:
+		return _bind_result(false, &"rebind_during_transaction")
+	if not is_inside_tree() or is_queued_for_deletion():
+		return _bind_result(false, &"binding_unavailable")
+	if _engagement_requested:
+		return _bind_result(false, &"rebind_while_engaged")
+	if _final_approach_target_generation > 0 \
+			and not _final_approach_completion_consumed:
+		return _bind_result(false, &"final_approach_completion_unconsumed")
+	var composed := _compose_world_binding(bootstrap)
+	if not bool(composed.get("accepted", false)):
+		return _bind_result(
+			false, composed.get("reason", &"world_composition_invalid") as StringName
+		)
+	_final_approach_target_generation = 0
+	_final_approach_location_generation = 0
+	_final_approach_host_generation = -1
+	_final_approach_host_attachment_generation = 0
+	_final_approach_host_ref = null
+	_final_approach_host_instance_id = 0
+	_final_approach_landing_root_ref = null
+	_final_approach_landing_root_instance_id = 0
+	_final_approach_landing_root_transform = Transform3D.IDENTITY
+	_final_approach_completion_receipt.clear()
+	_final_approach_completion_consumed = false
+	_approach_kind = &""
+	_return_approach_home_target_transform = Transform3D.IDENTITY
+	_bound_frame_generation = 0
+	_last_destination_world = Vector3.ZERO
+	_world_bind_count += 1
+	_configuration_error = &""
+	_activated = true
+	_last_reason = &"world_bound"
+	return _bind_result(true, &"world_bound", {
+		"world_id": _bound_world_id,
+		"destination_id": _destination_id,
+	})
+
+
+func get_bound_world_id() -> StringName:
+	return _bound_world_id
+
+
+func get_bound_bootstrap() -> PlanetaryStreamingBootstrap:
+	return _bootstrap if _activated and is_instance_valid(_bootstrap) else null
+
+
+func _compose_world_binding(
+		bootstrap: PlanetaryStreamingBootstrap
+	) -> Dictionary:
+	if bootstrap == null or not is_instance_valid(bootstrap) \
+			or bootstrap.is_queued_for_deletion() or not bootstrap.is_inside_tree():
+		return _result(false, &"bootstrap_unavailable")
+	var frame := bootstrap.get_coordinate_frame_for_session()
+	if frame == null or not frame.is_configured():
+		return _result(false, &"coordinate_frame_unavailable")
 	if (
 		_controller == null
 		or not is_instance_valid(_controller)
 		or _controller.is_queued_for_deletion()
 		or _controller.get_parent() != self
 	):
-		_configuration_error = &"controller_unavailable"
-		return
-	if (
-		_EMBER_LOCATION.location_id != EmberMoonStreamingBootstrap.LOCATION_ID
-		or _EMBER_LOCATION.anchor_source_id != DESTINATION_SOURCE_ID
-		or not _EMBER_LOCATION.anchor_position.is_finite()
-		or not _EMBER_LOCATION.get_validation_errors().is_empty()
-	):
-		_configuration_error = &"ember_destination_contract_invalid"
-		return
-	var encoded := _frame.body_local_to_orbital_position(
-		_EMBER_LOCATION.anchor_position,
-		_frame.get_generation(),
+		return _result(false, &"controller_unavailable")
+	var destination := bootstrap.get_navigation_destination()
+	var definition := bootstrap.get_location_definition()
+	if destination.is_empty() or definition == null \
+			or definition.location_id != bootstrap.get_location_id() \
+			or not (destination.get(
+				"body_local_position_meters", Vector3.INF
+			) as Vector3).is_finite() \
+			or not definition.get_validation_errors().is_empty():
+		return _result(false, &"destination_contract_invalid")
+	var encoded := frame.body_local_to_orbital_position(
+		destination.get("body_local_position_meters", Vector3.INF) as Vector3,
+		frame.get_generation(),
 	)
 	if not bool(encoded.get("accepted", false)):
-		_configuration_error = &"ember_destination_encoding_rejected"
-		return
+		return _result(false, &"destination_encoding_rejected")
+	_bootstrap = bootstrap
+	_frame = frame
+	_bound_world_id = bootstrap.get_world_id()
+	_destination_id = destination.get("destination_id", &"") as StringName
+	_destination_source_id = destination.get("source_id", &"") as StringName
+	if _destination_id.is_empty() or _destination_source_id.is_empty():
+		return _result(false, &"destination_contract_invalid")
 	_canonical_destination_orbital = (
 		encoded.get("coordinate", {}) as Dictionary
 	).duplicate(true)
 	_bootstrap_instance_id = _bootstrap.get_instance_id()
 	_frame_instance_id = _frame.get_instance_id()
 	_controller_instance_id = _controller.get_instance_id()
+	return _result(true, &"world_composition_valid")
+
+
+func _bind_result(
+		accepted: bool,
+		reason: StringName,
+		extra: Dictionary = {},
+	) -> Dictionary:
+	_last_world_bind_result = _result(accepted, reason, extra)
+	return _last_world_bind_result.duplicate(true)
+
+
+func _activate_scene_binding() -> void:
+	if _activated or not is_inside_tree() or is_queued_for_deletion():
+		return
+	var bootstrap := get_node_or_null(bootstrap_path) as PlanetaryStreamingBootstrap
+	var composed := _compose_world_binding(bootstrap)
+	if not bool(composed.get("accepted", false)):
+		_configuration_error = composed.get(
+			"reason", &"world_composition_invalid"
+		) as StringName
+		return
 	_configuration_error = &""
 	_activated = true
 	_last_reason = &"activated"
@@ -966,6 +1080,29 @@ func _complete_final_approach_guarded(
 	return _last_result.duplicate(true)
 
 
+## Reads one declared final-approach source record, or `{}` when the node does
+## not publish the capability in the exact shape this binding requires.
+func _final_approach_source_snapshot(source: Node) -> Dictionary:
+	if not source.has_method(&"get_final_approach_source_snapshot"):
+		return {}
+	var candidate: Variant = source.call(&"get_final_approach_source_snapshot")
+	if not candidate is Dictionary:
+		return {}
+	var record := candidate as Dictionary
+	for key in FINAL_APPROACH_SOURCE_KEYS:
+		if not record.has(key):
+			return {}
+	if record.get("ready") is not bool:
+		return {}
+	for key in [
+		"generation", "attachment_generation",
+		"coordinate_frame_generation", "location_generation",
+	]:
+		if record.get(key) is not int:
+			return {}
+	return record.duplicate(true)
+
+
 func _validate_final_approach_envelope(envelope: Dictionary) -> StringName:
 	for key in [
 		"corridor_id", "target_pad_id",
@@ -1015,16 +1152,17 @@ func _final_approach_source_rejection() -> StringName:
 	if _final_approach_host_ref == null:
 		return &"final_approach_host_lost"
 	var host_candidate: Variant = _final_approach_host_ref.get_ref()
-	if not host_candidate is EmberSurfaceLoopHost \
+	if not host_candidate is Node \
 			or not is_instance_valid(host_candidate) \
-			or (host_candidate as EmberSurfaceLoopHost).is_queued_for_deletion() \
-			or not (host_candidate as EmberSurfaceLoopHost).is_inside_tree() \
-			or (host_candidate as EmberSurfaceLoopHost).get_instance_id() \
+			or (host_candidate as Node).is_queued_for_deletion() \
+			or not (host_candidate as Node).is_inside_tree() \
+			or (host_candidate as Node).get_instance_id() \
 				!= _final_approach_host_instance_id:
 		return &"final_approach_host_lost"
-	var host_snapshot := (host_candidate as EmberSurfaceLoopHost).get_snapshot()
-	if not bool(host_snapshot.get("attached", false)) \
-			or int(host_snapshot.get("phase", -1)) != EmberSurfaceLoopHost.Phase.IDLE \
+	var host_snapshot := _final_approach_source_snapshot(host_candidate as Node)
+	if host_snapshot.is_empty():
+		return &"final_approach_host_lost"
+	if not bool(host_snapshot.get("ready", false)) \
 			or int(host_snapshot.get("generation", -1)) \
 				!= _final_approach_host_generation \
 			or int(host_snapshot.get("attachment_generation", -1)) \

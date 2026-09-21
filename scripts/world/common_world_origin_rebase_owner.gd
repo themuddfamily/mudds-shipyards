@@ -1,34 +1,50 @@
 class_name CommonWorldOriginRebaseOwner
 extends Node
 
-## Main-owned atomic floating-origin transaction for the production Ember frame.
+## Main-owned atomic floating-origin transaction for every production planetary
+## frame composed under this Main.
+##
 ## It owns coordinate-space translation only: never gameplay motion, landing,
 ## streaming generations, activity, combat, rewards, save, or networking.
+##
+## The owner is deliberately world-plural. Each composed world brings its own
+## [PlanetaryStreamingProductionBinding] and [PlanetaryStreamingBootstrap] pair
+## and therefore its own [PlanetaryCoordinateFrame]; this component binds every
+## such pair it finds beside it and routes each transaction to the one the
+## incoming preview names. The common world is shared — a committed translation
+## moves *every* root under Main once, whichever world asked for it — so there
+## can still be only one owner, and only one transaction at a time.
 
 signal rebase_committed(receipt: Dictionary)
 
 const SCHEMA_VERSION := 1
 const MAX_DERIVED_DESCENDANT_RESPONSE_METERS := 0.1
-const DEFAULT_BOOTSTRAP_PATH := NodePath("../EmberMoonStreamingBootstrap")
-const DEFAULT_BINDING_PATH := NodePath("../EmberMoonStreamingProductionBinding")
 
-@export var bootstrap_path := DEFAULT_BOOTSTRAP_PATH
-@export var binding_path := DEFAULT_BINDING_PATH
 
-var _bootstrap: EmberMoonStreamingBootstrap
-var _binding: EmberMoonStreamingProductionBinding
-var _frame: PlanetaryCoordinateFrame
+## A node that answers `false` declares that its transform does not express a
+## position in the common world, so translating it would move something the
+## owner does not own. Everything that does not declare the capability is an
+## ordinary common-world root and is translated. `EmberSurfaceLoopHost` is the
+## one production declarer: it is a logic node pinned to Main's own origin and
+## used as the reference identity a surface visit measures against.
+static func node_is_common_world_translation_root(node: Node3D) -> bool:
+	if node.has_method(&"is_common_world_translation_root"):
+		return bool(node.call(&"is_common_world_translation_root"))
+	return true
+
+
+var _worlds: Array[Dictionary] = []
 var _activated := false
 var _configuration_error: StringName = &""
-var _bootstrap_instance_id := 0
-var _binding_instance_id := 0
-var _frame_instance_id := 0
 var _mutation_active := false
 var _signal_dispatch_active := false
 var _transaction_count := 0
 var _rejection_count := 0
 var _rollback_count := 0
 var _reentrant_rejection_count := 0
+var _bind_count := 0
+var _unbind_count := 0
+var _last_world_id: StringName = &""
 var _last_source_generation := 0
 var _last_target_generation := 0
 var _last_translation_delta := Vector3.ZERO
@@ -66,6 +82,125 @@ func set_commit_adapter_for_test(adapter: Callable) -> bool:
 	return true
 
 
+# --- world roster ------------------------------------------------------------
+
+
+## Binds one composed world's observation binding and its bootstrap's frame.
+##
+## Fenced: a world can compose or retire between transactions, never inside one.
+## The roster is keyed by world id, so a second composition of the same body is
+## refused rather than silently shadowing the live one.
+func bind_world(binding: PlanetaryStreamingProductionBinding) -> Dictionary:
+	if _mutation_active or _signal_dispatch_active:
+		return _result(false, &"rebind_during_transaction")
+	if not is_inside_tree() or is_queued_for_deletion():
+		return _result(false, &"owner_unavailable")
+	var record := _compose_record(binding)
+	if record.is_empty():
+		return _result(false, &"world_composition_invalid")
+	var world_id := record.get("world_id", &"") as StringName
+	if _find_world_index(world_id) >= 0:
+		return _result(false, &"world_already_bound")
+	_worlds.append(record)
+	_worlds.sort_custom(func(a: Dictionary, b: Dictionary) -> bool:
+		return String(a.get("world_id", &"")) < String(b.get("world_id", &""))
+	)
+	_bind_count += 1
+	_activated = true
+	_configuration_error = &""
+	return _result(true, &"world_bound", {
+		"world_id": world_id,
+		"world_count": _worlds.size(),
+	})
+
+
+## Retires one composed world. Fenced for the same reason as `bind_world`.
+func unbind_world(world_id: StringName) -> Dictionary:
+	if _mutation_active or _signal_dispatch_active:
+		return _result(false, &"rebind_during_transaction")
+	var index := _find_world_index(world_id)
+	if index < 0:
+		return _result(false, &"world_not_bound")
+	_worlds.remove_at(index)
+	_unbind_count += 1
+	if _worlds.is_empty():
+		_activated = false
+		_configuration_error = &"missing_world_composition"
+	return _result(true, &"world_unbound", {
+		"world_id": world_id,
+		"world_count": _worlds.size(),
+	})
+
+
+## Reconciles the roster with what is actually composed beside this owner right
+## now: binds every activated sibling world it does not already hold, and drops
+## every record whose binding, bootstrap or frame identity has gone away. This
+## is the seam a caller uses when a world composes or retires mid-session.
+func rebind_composed_worlds() -> Dictionary:
+	if _mutation_active or _signal_dispatch_active:
+		return _result(false, &"rebind_during_transaction")
+	if not is_inside_tree() or is_queued_for_deletion():
+		return _result(false, &"owner_unavailable")
+	var bound := PackedStringArray()
+	var dropped := PackedStringArray()
+	for index in range(_worlds.size() - 1, -1, -1):
+		var record := _worlds[index]
+		if not _record_identity_reason(record).is_empty():
+			dropped.append(String(record.get("world_id", &"")))
+			_worlds.remove_at(index)
+			_unbind_count += 1
+	for candidate in _composed_bindings():
+		var binding := candidate as PlanetaryStreamingProductionBinding
+		var world_id := binding.get_bound_world_id()
+		if world_id.is_empty() or _find_world_index(world_id) >= 0:
+			continue
+		var record := _compose_record(binding)
+		if record.is_empty():
+			continue
+		_worlds.append(record)
+		_bind_count += 1
+		bound.append(String(world_id))
+	_worlds.sort_custom(func(a: Dictionary, b: Dictionary) -> bool:
+		return String(a.get("world_id", &"")) < String(b.get("world_id", &""))
+	)
+	_activated = not _worlds.is_empty()
+	_configuration_error = &"" if _activated else &"missing_world_composition"
+	return _result(_activated, &"worlds_rebound" if _activated else &"missing_world_composition", {
+		"bound_world_ids": bound,
+		"dropped_world_ids": dropped,
+		"world_count": _worlds.size(),
+	})
+
+
+func get_bound_world_ids() -> PackedStringArray:
+	var ids := PackedStringArray()
+	for record in _worlds:
+		ids.append(String(record.get("world_id", &"")))
+	return ids
+
+
+## Detached identity evidence for exactly one bound world, for a consumer that
+## must prove the owner is paired with *its* composition and no other. Empty
+## when that world is not bound.
+func get_world_binding_snapshot(world_id: StringName) -> Dictionary:
+	var index := _find_world_index(world_id)
+	if index < 0:
+		return {}
+	var record := _worlds[index]
+	var frame := record.get("frame") as PlanetaryCoordinateFrame
+	return {
+		"world_id": world_id,
+		"bootstrap_instance_id": int(record.get("bootstrap_instance_id", 0)),
+		"binding_instance_id": int(record.get("binding_instance_id", 0)),
+		"coordinate_frame_instance_id": int(record.get("frame_instance_id", 0)),
+		"coordinate_frame_generation": frame.get_generation() if frame != null else 0,
+		"identity_error": _record_identity_reason(record),
+	}.duplicate(true)
+
+
+# --- transaction -------------------------------------------------------------
+
+
 ## Consumes the exact preview produced from the shared physics actor sample.
 ## On success the returned actor sample is the same observation translated into
 ## the newly committed local frame; GameFlow must use it for later consumers.
@@ -75,18 +210,29 @@ func consume_rebase_preview(preview: Variant, actor_sample: Variant) -> Dictiona
 		return _reject(&"reentrant_call")
 	if not _activated or not is_inside_tree() or is_queued_for_deletion():
 		return _reject(&"owner_unavailable")
-	var identity_reason := _identity_preflight()
+	if not preview is Dictionary or not actor_sample is Dictionary:
+		return _reject(&"invalid_rebase_input")
+	var world_index := _find_world_index(
+		(preview as Dictionary).get("world_id", &"") as StringName
+	)
+	if world_index < 0:
+		return _reject(&"unbound_rebase_world")
+	var record := _worlds[world_index]
+	var identity_reason := _record_identity_reason(record)
 	if not identity_reason.is_empty():
 		return _reject(identity_reason)
-	var validation := _validate_preview_and_actor(preview, actor_sample)
+	var binding := record.get("binding") as PlanetaryStreamingProductionBinding
+	var frame := record.get("frame") as PlanetaryCoordinateFrame
+	var validation := _validate_preview_and_actor(frame, preview, actor_sample)
 	if not bool(validation.get("accepted", false)):
 		return _reject(validation.get("reason", &"invalid_rebase_preview") as StringName)
 	var preview_value := preview as Dictionary
 	var sample_value := actor_sample as Dictionary
 	if not bool(preview_value.get("rebase_required", false)):
 		return _result(true, &"no_rebase_required", {
+			"world_id": record.get("world_id", &""),
 			"actor_sample": sample_value.duplicate(true),
-			"coordinate_frame_generation": _frame.get_generation(),
+			"coordinate_frame_generation": frame.get_generation(),
 		})
 	var quiescence_reason := _world_quiescence_preflight()
 	if not quiescence_reason.is_empty():
@@ -102,21 +248,21 @@ func consume_rebase_preview(preview: Variant, actor_sample: Variant) -> Dictiona
 	var delta := preview_value.get("world_translation_delta", Vector3.INF) as Vector3
 
 	_mutation_active = true
-	var request_result := _frame.request_rebase(focus, source_generation)
+	var request_result := frame.request_rebase(focus, source_generation)
 	if not bool(request_result.get("accepted", false)):
 		_mutation_active = false
 		return _reject(request_result.get("reason", &"rebase_request_rejected") as StringName)
 	var request := (request_result.get("request", {}) as Dictionary).duplicate(true)
-	var binding_preflight := _binding.preflight_external_origin_rebase(
+	var binding_preflight := binding.preflight_external_origin_rebase(
 		preview_value, request
 	)
 	if not bool(binding_preflight.get("accepted", false)):
-		_frame.cancel_rebase(int(request.get("request_id", 0)), source_generation)
+		frame.cancel_rebase(int(request.get("request_id", 0)), source_generation)
 		_mutation_active = false
 		return _reject(binding_preflight.get("reason", &"binding_preflight_rejected") as StringName)
 	if not _apply_root_translation(roots, delta):
 		var apply_rollback_synchronized := _rollback_world(roots, covered)
-		_frame.cancel_rebase(int(request.get("request_id", 0)), source_generation)
+		frame.cancel_rebase(int(request.get("request_id", 0)), source_generation)
 		_rollback_count += 1
 		_mutation_active = false
 		if not apply_rollback_synchronized:
@@ -124,7 +270,7 @@ func consume_rebase_preview(preview: Variant, actor_sample: Variant) -> Dictiona
 		return _reject(&"translation_apply_failed")
 	if not _verify_covered_translation(covered, roots, delta):
 		var verification_rollback_synchronized := _rollback_world(roots, covered)
-		_frame.cancel_rebase(int(request.get("request_id", 0)), source_generation)
+		frame.cancel_rebase(int(request.get("request_id", 0)), source_generation)
 		_rollback_count += 1
 		_mutation_active = false
 		if not verification_rollback_synchronized:
@@ -138,20 +284,20 @@ func consume_rebase_preview(preview: Variant, actor_sample: Variant) -> Dictiona
 	# roster before the coordinate-frame commit is exposed.
 	if not _synchronize_collision_transforms(covered):
 		var synchronization_rollback_synchronized := _rollback_world(roots, covered)
-		_frame.cancel_rebase(int(request.get("request_id", 0)), source_generation)
+		frame.cancel_rebase(int(request.get("request_id", 0)), source_generation)
 		_rollback_count += 1
 		_mutation_active = false
 		if not synchronization_rollback_synchronized:
 			return _reject(&"collision_transform_rollback_desynchronized")
 		return _reject(&"collision_transform_synchronization_failed")
 	var commit := _commit_frame_rebase(
-		int(request.get("request_id", 0)), source_generation
+		frame, int(request.get("request_id", 0)), source_generation
 	)
 	if not bool(commit.get("accepted", false)):
 		var commit_rollback_synchronized := _rollback_world(roots, covered)
-		var pending := _frame.get_snapshot().get("pending_rebase", {}) as Dictionary
+		var pending := frame.get_snapshot().get("pending_rebase", {}) as Dictionary
 		if int(pending.get("request_id", 0)) == int(request.get("request_id", 0)):
-			_frame.cancel_rebase(int(request.get("request_id", 0)), source_generation)
+			frame.cancel_rebase(int(request.get("request_id", 0)), source_generation)
 		_rollback_count += 1
 		_mutation_active = false
 		if not commit_rollback_synchronized:
@@ -160,7 +306,7 @@ func consume_rebase_preview(preview: Variant, actor_sample: Variant) -> Dictiona
 	var target_generation := int(request.get("target_generation", 0))
 	var adjusted_sample := sample_value.duplicate(true)
 	adjusted_sample["position"] = focus + delta
-	var binding_commit := _binding.accept_committed_origin_rebase(
+	var binding_commit := binding.accept_committed_origin_rebase(
 		preview_value, request, adjusted_sample, target_generation
 	)
 	if not bool(binding_commit.get("accepted", false)):
@@ -177,6 +323,7 @@ func consume_rebase_preview(preview: Variant, actor_sample: Variant) -> Dictiona
 	_notify_committed_translation(roots, covered, delta, target_generation)
 
 	_transaction_count += 1
+	_last_world_id = record.get("world_id", &"") as StringName
 	_last_source_generation = source_generation
 	_last_target_generation = target_generation
 	_last_translation_delta = delta
@@ -187,6 +334,7 @@ func consume_rebase_preview(preview: Variant, actor_sample: Variant) -> Dictiona
 		"schema_version": SCHEMA_VERSION,
 		"reason": &"rebase_committed",
 		"transaction_index": _transaction_count,
+		"world_id": _last_world_id,
 		"source_generation": source_generation,
 		"target_generation": target_generation,
 		"request_id": int(request.get("request_id", 0)),
@@ -200,13 +348,14 @@ func consume_rebase_preview(preview: Variant, actor_sample: Variant) -> Dictiona
 		"root_roster": _last_root_roster.duplicate(true),
 		"covered_node_count": _last_covered_node_count,
 		"covered_instance_ids": _last_covered_instance_ids.duplicate(),
-		"ember_streaming": binding_commit.get("streaming", {}).duplicate(true),
+		"world_streaming": binding_commit.get("streaming", {}).duplicate(true),
 	}.duplicate(true)
 	_mutation_active = false
 	_signal_dispatch_active = true
 	rebase_committed.emit(_last_receipt.duplicate(true))
 	_signal_dispatch_active = false
 	return _result(true, &"rebase_committed", {
+		"world_id": _last_world_id,
 		"actor_sample": adjusted_sample.duplicate(true),
 		"receipt": _last_receipt.duplicate(true),
 		"coordinate_frame_generation": target_generation,
@@ -214,6 +363,17 @@ func consume_rebase_preview(preview: Variant, actor_sample: Variant) -> Dictiona
 
 
 func get_snapshot() -> Dictionary:
+	var worlds: Array[Dictionary] = []
+	for record in _worlds:
+		var frame := record.get("frame") as PlanetaryCoordinateFrame
+		worlds.append({
+			"world_id": record.get("world_id", &""),
+			"bootstrap_instance_id": int(record.get("bootstrap_instance_id", 0)),
+			"binding_instance_id": int(record.get("binding_instance_id", 0)),
+			"coordinate_frame_instance_id": int(record.get("frame_instance_id", 0)),
+			"coordinate_frame_generation": frame.get_generation() if frame != null else 0,
+			"identity_error": _record_identity_reason(record),
+		})
 	return {
 		"schema_version": SCHEMA_VERSION,
 		"activated": _activated,
@@ -221,14 +381,16 @@ func get_snapshot() -> Dictionary:
 		"inside_tree": is_inside_tree(),
 		"automatic_process": is_processing(),
 		"automatic_physics_process": is_physics_processing(),
-		"bootstrap_instance_id": _bootstrap_instance_id,
-		"binding_instance_id": _binding_instance_id,
-		"coordinate_frame_instance_id": _frame_instance_id,
-		"coordinate_frame_generation": _frame.get_generation() if _frame != null else 0,
+		"world_count": _worlds.size(),
+		"world_ids": get_bound_world_ids(),
+		"worlds": worlds.duplicate(true),
+		"bind_count": _bind_count,
+		"unbind_count": _unbind_count,
 		"transaction_count": _transaction_count,
 		"rejection_count": _rejection_count,
 		"rollback_count": _rollback_count,
 		"reentrant_rejection_count": _reentrant_rejection_count,
+		"last_world_id": _last_world_id,
 		"last_source_generation": _last_source_generation,
 		"last_target_generation": _last_target_generation,
 		"last_translation_delta": _last_translation_delta,
@@ -241,11 +403,15 @@ func get_snapshot() -> Dictionary:
 
 func audit() -> Dictionary:
 	var errors := PackedStringArray()
-	var identity_reason := _identity_preflight()
-	if not _activated:
+	if not _activated or _worlds.is_empty():
 		errors.append("common-world origin owner is not activated: %s" % _configuration_error)
-	elif not identity_reason.is_empty():
-		errors.append("bound identity invalid: %s" % identity_reason)
+	else:
+		for record in _worlds:
+			var reason := _record_identity_reason(record)
+			if not reason.is_empty():
+				errors.append("bound %s identity invalid: %s" % [
+					String(record.get("world_id", &"")), reason,
+				])
 	if _commit_adapter.is_valid():
 		errors.append("production owner cannot retain a test commit adapter")
 	if is_processing() or is_physics_processing():
@@ -261,7 +427,10 @@ func audit() -> Dictionary:
 		"valid": errors.is_empty() and count == 1,
 		"errors": errors,
 		"owner_count": count,
+		"world_count": _worlds.size(),
+		"world_ids": get_bound_world_ids(),
 		"snapshot": get_snapshot(),
+		"world_binding_policy": &"every_composed_planetary_streaming_binding_pair_routed_by_preview_world_id",
 		"roster_policy": &"all_live_direct_node3d_roots_plus_every_nested_top_level_node3d",
 		"covered_policy": &"exact_roots_exact_descendant_local_transforms_camera_rig_bounded_response",
 		"maximum_derived_descendant_response_meters": MAX_DERIVED_DESCENDANT_RESPONSE_METERS,
@@ -270,6 +439,7 @@ func audit() -> Dictionary:
 			"coordinate_frame_rebase_commit": true,
 			"common_world_translation": true,
 			"collision_transform_synchronization": true,
+			"multi_world_binding": true,
 		},
 		"collision_transform_synchronization_policy": &"exact_covered_collision_object_roster_before_commit_and_after_rollback",
 		"adjacent_authority": {
@@ -287,46 +457,93 @@ func audit() -> Dictionary:
 	}.duplicate(true)
 
 
+# --- internals ---------------------------------------------------------------
+
+
 func _activate_scene_binding() -> void:
 	if _activated or not is_inside_tree() or is_queued_for_deletion():
 		return
-	_bootstrap = get_node_or_null(bootstrap_path) as EmberMoonStreamingBootstrap
-	_binding = get_node_or_null(binding_path) as EmberMoonStreamingProductionBinding
-	if not is_instance_valid(_bootstrap) or not is_instance_valid(_binding):
-		_configuration_error = &"missing_ember_composition"
-		return
-	_frame = _bootstrap.get_coordinate_frame_for_session()
-	if _frame == null:
-		_configuration_error = &"missing_coordinate_frame"
-		return
-	_bootstrap_instance_id = _bootstrap.get_instance_id()
-	_binding_instance_id = _binding.get_instance_id()
-	_frame_instance_id = _frame.get_instance_id()
-	_activated = true
-	_configuration_error = &""
+	var rebound := rebind_composed_worlds()
+	if not bool(rebound.get("accepted", false)):
+		_configuration_error = &"missing_world_composition"
 
 
-func _identity_preflight() -> StringName:
+func _composed_bindings() -> Array[PlanetaryStreamingProductionBinding]:
+	var bindings: Array[PlanetaryStreamingProductionBinding] = []
+	var host := get_parent()
+	if host == null:
+		return bindings
+	for candidate in host.find_children("*", "", true, false):
+		if candidate is PlanetaryStreamingProductionBinding:
+			bindings.append(candidate as PlanetaryStreamingProductionBinding)
+	return bindings
+
+
+func _compose_record(binding: PlanetaryStreamingProductionBinding) -> Dictionary:
+	if not is_instance_valid(binding) or binding.is_queued_for_deletion() \
+			or not binding.is_inside_tree() or binding.get_parent() != get_parent():
+		return {}
+	var bootstrap := binding.get_bound_bootstrap()
+	if not is_instance_valid(bootstrap) or bootstrap.is_queued_for_deletion() \
+			or not bootstrap.is_inside_tree() \
+			or bootstrap.get_parent() != get_parent():
+		return {}
+	var frame := bootstrap.get_coordinate_frame_for_session()
+	if frame == null:
+		return {}
+	var world_id := binding.get_bound_world_id()
+	if world_id.is_empty():
+		return {}
+	return {
+		"world_id": world_id,
+		"binding": binding,
+		"bootstrap": bootstrap,
+		"frame": frame,
+		"binding_instance_id": binding.get_instance_id(),
+		"bootstrap_instance_id": bootstrap.get_instance_id(),
+		"frame_instance_id": frame.get_instance_id(),
+	}
+
+
+func _find_world_index(world_id: StringName) -> int:
+	if world_id.is_empty():
+		return -1
+	for index in _worlds.size():
+		if _worlds[index].get("world_id", &"") == world_id:
+			return index
+	return -1
+
+
+func _record_identity_reason(record: Dictionary) -> StringName:
 	var host := get_parent()
 	if is_queued_for_deletion() or host == null or host.is_queued_for_deletion():
 		return &"owner_or_host_unavailable"
-	if not is_instance_valid(_bootstrap) or _bootstrap.is_queued_for_deletion() \
-			or not _bootstrap.is_inside_tree() \
-			or _bootstrap.get_instance_id() != _bootstrap_instance_id \
-			or _bootstrap.get_parent() != host:
+	var bootstrap := record.get("bootstrap") as PlanetaryStreamingBootstrap
+	var binding := record.get("binding") as PlanetaryStreamingProductionBinding
+	var frame := record.get("frame") as PlanetaryCoordinateFrame
+	if not is_instance_valid(bootstrap) or bootstrap.is_queued_for_deletion() \
+			or not bootstrap.is_inside_tree() \
+			or bootstrap.get_instance_id() != int(record.get("bootstrap_instance_id", 0)) \
+			or bootstrap.get_parent() != host:
 		return &"bootstrap_identity_drift"
-	if not is_instance_valid(_binding) or _binding.is_queued_for_deletion() \
-			or not _binding.is_inside_tree() \
-			or _binding.get_instance_id() != _binding_instance_id \
-			or _binding.get_parent() != host:
+	if not is_instance_valid(binding) or binding.is_queued_for_deletion() \
+			or not binding.is_inside_tree() \
+			or binding.get_instance_id() != int(record.get("binding_instance_id", 0)) \
+			or binding.get_parent() != host \
+			or binding.get_bound_world_id() != record.get("world_id", &""):
 		return &"binding_identity_drift"
-	if _frame == null or _frame.get_instance_id() != _frame_instance_id \
-			or _bootstrap.get_coordinate_frame_for_session() != _frame:
+	if frame == null \
+			or frame.get_instance_id() != int(record.get("frame_instance_id", 0)) \
+			or bootstrap.get_coordinate_frame_for_session() != frame:
 		return &"coordinate_frame_identity_drift"
 	return &""
 
 
-func _validate_preview_and_actor(preview: Variant, actor_sample: Variant) -> Dictionary:
+func _validate_preview_and_actor(
+		frame: PlanetaryCoordinateFrame,
+		preview: Variant,
+		actor_sample: Variant,
+	) -> Dictionary:
 	if not preview is Dictionary or not actor_sample is Dictionary:
 		return _result(false, &"invalid_rebase_input")
 	var p := preview as Dictionary
@@ -334,7 +551,7 @@ func _validate_preview_and_actor(preview: Variant, actor_sample: Variant) -> Dic
 	if not bool(p.get("accepted", false)) or p.get("reason") != &"origin_rebase_preview":
 		return _result(false, &"invalid_rebase_preview")
 	var generation := int(p.get("coordinate_frame_generation", 0))
-	if generation != _frame.get_generation():
+	if generation != frame.get_generation():
 		return _result(false, &"stale_coordinate_frame_generation")
 	var focus: Variant = p.get("focus_world_streaming_position", Vector3.INF)
 	var delta: Variant = p.get("world_translation_delta", Vector3.INF)
@@ -373,7 +590,7 @@ func _capture_live_roster() -> Dictionary:
 			"transform": node.transform,
 		})
 		if (node.get_parent() == host or node.top_level) \
-				and not node is EmberSurfaceLoopHost:
+				and node_is_common_world_translation_root(node):
 			roots.append({
 				"node": node,
 				"instance_id": node.get_instance_id(),
@@ -542,10 +759,14 @@ func _synchronize_collision_transforms(covered: Array) -> bool:
 	return true
 
 
-func _commit_frame_rebase(request_id: int, source_generation: int) -> Dictionary:
+func _commit_frame_rebase(
+		frame: PlanetaryCoordinateFrame,
+		request_id: int,
+		source_generation: int,
+	) -> Dictionary:
 	if _commit_adapter.is_valid():
 		return _commit_adapter.call(request_id, source_generation) as Dictionary
-	return _frame.commit_rebase(request_id, source_generation)
+	return frame.commit_rebase(request_id, source_generation)
 
 
 func _public_root_roster(roots: Array) -> Array[Dictionary]:

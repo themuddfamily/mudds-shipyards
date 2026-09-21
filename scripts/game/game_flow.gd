@@ -626,6 +626,12 @@ var cinder_streaming_binding: CinderStreamingProductionBinding
 var cinder_streaming_coordinator: WorldStreamingCoordinator
 var ember_streaming_bootstrap: EmberMoonStreamingBootstrap
 var ember_streaming_binding: EmberMoonStreamingProductionBinding
+## Aurora's own streaming pair. It is composed beside Ember's, not instead of
+## it: the one `CommonWorldOriginRebaseOwner` binds both, and the one
+## `PlanetaryCruiseProductionBinding` is pointed at whichever world a trip is
+## going to.
+var aurora_streaming_bootstrap: AuroraTemperateStreamingBootstrap
+var aurora_streaming_binding: AuroraTemperateStreamingProductionBinding
 var ember_surface_loop_production_binding: EmberSurfaceLoopProductionBinding
 var ember_surface_loop_host: EmberSurfaceLoopHost
 var ember_surface_berth: EmberSurfaceBerth
@@ -1731,6 +1737,14 @@ func _resolve_scene_bindings() -> void:
 	ember_streaming_binding = (
 		get_node_or_null(^"EmberMoonStreamingProductionBinding")
 		as EmberMoonStreamingProductionBinding
+	)
+	aurora_streaming_bootstrap = (
+		get_node_or_null(^"AuroraTemperateStreamingBootstrap")
+		as AuroraTemperateStreamingBootstrap
+	)
+	aurora_streaming_binding = (
+		get_node_or_null(^"AuroraTemperateStreamingProductionBinding")
+		as AuroraTemperateStreamingProductionBinding
 	)
 	ember_surface_loop_production_binding = (
 		get_node_or_null(^"EmberSurfaceLoopProductionBinding")

@@ -23,11 +23,15 @@ const MAX_SAFE_INTEGER := 9_007_199_254_740_991
 const ACTOR_SAMPLE_KEYS := [
 	"actor_instance_id", "actor_kind", "available", "position",
 ]
+## The origin owner serves every composed world, so each of its results names
+## the world it acted for. This binding admits Ember's and nothing else.
 const NO_REBASE_RESULT_KEYS := [
 	"accepted", "actor_sample", "coordinate_frame_generation", "reason",
+	"world_id",
 ]
 const COMMITTED_REBASE_RESULT_KEYS := [
-	"accepted", "actor_sample", "coordinate_frame_generation", "reason", "receipt",
+	"accepted", "actor_sample", "coordinate_frame_generation", "reason",
+	"receipt", "world_id",
 ]
 const HAND_BACK_RECEIPT_KEYS := [
 	"boarding_area_instance_id", "boarding_reservation_retained",
@@ -3143,6 +3147,8 @@ func _validate_origin_result(
 		return {"accepted": false, "reason": &"origin_result_schema_mismatch"}
 	if reason not in [&"no_rebase_required", &"rebase_committed"]:
 		return {"accepted": false, "reason": &"origin_result_reason_invalid"}
+	if result.get("world_id", &"") != EmberSurfaceLoopHost.WORLD_ID:
+		return {"accepted": false, "reason": &"origin_result_world_mismatch"}
 	if result.get("actor_sample", {}) != sample \
 			or not result.get("coordinate_frame_generation", 0) is int \
 			or int(result.coordinate_frame_generation) != current_frame_generation:

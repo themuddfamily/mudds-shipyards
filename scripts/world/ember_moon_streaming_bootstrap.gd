@@ -60,6 +60,7 @@ func _create_profile() -> Dictionary:
 		"location_definition": _LOCATION_DEFINITION,
 		"location_scene": _LOCATION_SCENE,
 		"datum_point_id": NearbySectorOrbitalRegistry.EMBER_BODY_CENTER_ID,
+		"navigation_destination_id": &"ember_navigation",
 		"body_radius_meters": BODY_RADIUS_METERS,
 		"load_radius_meters": LOAD_RADIUS_METERS,
 		"unload_radius_meters": UNLOAD_RADIUS_METERS,

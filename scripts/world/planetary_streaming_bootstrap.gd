@@ -34,6 +34,7 @@ const PROFILE_KEYS := [
 	"location_definition",
 	"location_scene",
 	"datum_point_id",
+	"navigation_destination_id",
 	"body_radius_meters",
 	"load_radius_meters",
 	"unload_radius_meters",
@@ -202,6 +203,31 @@ func get_world_id() -> StringName:
 
 func get_body_id() -> StringName:
 	return _profile.get("body_id", &"") as StringName
+
+
+## The authored location definition this body registered. It carries the
+## navigation anchor a cruise decodes as its destination, so a cruise binding
+## can ask whichever world it is bound to rather than preloading one body's
+## `.tres`.
+func get_location_definition() -> WorldLocationDefinition:
+	return _profile.get("location_definition") as WorldLocationDefinition
+
+
+## The canonical navigation-anchor identity a cruise destination is decoded
+## from: `{source_id, body_local_position}` for this body, empty when the
+## bootstrap never configured.
+func get_navigation_destination() -> Dictionary:
+	var definition := get_location_definition()
+	if not _configured or definition == null:
+		return {}
+	return {
+		"location_id": get_location_id(),
+		"world_id": get_world_id(),
+		"body_id": get_body_id(),
+		"destination_id": _profile.get("navigation_destination_id", &"") as StringName,
+		"source_id": definition.anchor_source_id,
+		"body_local_position_meters": definition.get_anchor_position(),
+	}.duplicate(true)
 
 
 ## Returns the exact immutable-config frame instance required by

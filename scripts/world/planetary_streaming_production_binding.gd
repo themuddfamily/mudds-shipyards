@@ -1,0 +1,553 @@
+class_name PlanetaryStreamingProductionBinding
+extends Node
+
+## Shared production caller-physics adapter for one [PlanetaryStreamingBootstrap].
+##
+## This is the world-agnostic half of what `EmberMoonStreamingProductionBinding`
+## used to be on its own. GameFlow supplies its one detached ship-or-player
+## position sample. This component encodes that local position into the bound
+## bootstrap's exact absolute orbital frame and asks the bootstrap to evaluate
+## its existing streaming contract. It deliberately cannot request, commit, or
+## apply an origin rebase: that authority belongs to the single
+## [CommonWorldOriginRebaseOwner], which drives this adapter's preflight and
+## acceptance seams.
+##
+## Nothing here names a body. A subclass supplies only its default composition
+## path and its display label; every world in the sector uses the same
+## observation cadence, the same preview contract and the same committed-rebase
+## reconciliation, which is what lets one origin owner serve N worlds.
+
+const SCHEMA_VERSION := 1
+const EXPECTED_INITIAL_FRAME_GENERATION := 1
+const VALID_ACTOR_KINDS := [&"player", &"ship"]
+const SAMPLE_KEYS := [
+	"actor_instance_id",
+	"actor_kind",
+	"available",
+	"position",
+]
+const UNAVAILABLE_SAMPLE_KEYS := ["available", "reason"]
+
+@export var bootstrap_path: NodePath = NodePath()
+
+var _bootstrap: PlanetaryStreamingBootstrap
+var _coordinate_frame: PlanetaryCoordinateFrame
+var _activated := false
+var _configuration_error: StringName = &""
+var _bound_frame_generation := 0
+var _bootstrap_instance_id := 0
+var _frame_instance_id := 0
+var _tick_active := false
+var _physics_tick_count := 0
+var _accepted_sample_count := 0
+var _rejected_sample_count := 0
+var _invalid_delta_count := 0
+var _reentrant_rejection_count := 0
+var _generation_drift_rejection_count := 0
+var _last_actor_kind: StringName = &""
+var _last_actor_instance_id := 0
+var _last_world_streaming_position := Vector3.ZERO
+var _last_absolute_coordinate: Dictionary = {}
+var _last_streaming_result: Dictionary = {}
+var _last_tick_result: Dictionary = {}
+var _external_rebase_commit_count := 0
+var _last_external_rebase_rejection: Dictionary = {}
+
+
+# --- subclass seam -----------------------------------------------------------
+
+
+## The authored sibling this binding resolves when nothing overrides it.
+func _default_bootstrap_path() -> NodePath:
+	return NodePath()
+
+
+## Human-readable body name used only in audit copy.
+func _world_label() -> String:
+	return "planetary"
+
+
+## The world id this binding must end up bound to, or `&""` to accept whichever
+## world the resolved bootstrap declares.
+func _expected_world_id() -> StringName:
+	return &""
+
+
+## Rejects a resolved bootstrap that is not this binding's body.
+func _bootstrap_is_expected(bootstrap: PlanetaryStreamingBootstrap) -> bool:
+	var expected := _expected_world_id()
+	return expected.is_empty() or bootstrap.get_world_id() == expected
+
+
+# --- lifecycle ---------------------------------------------------------------
+
+
+func _enter_tree() -> void:
+	set_process(false)
+	set_physics_process(false)
+
+
+func _ready() -> void:
+	set_process(false)
+	set_physics_process(false)
+	if bootstrap_path.is_empty():
+		bootstrap_path = _default_bootstrap_path()
+	call_deferred(&"_activate_scene_binding")
+
+
+func _exit_tree() -> void:
+	# The exact bootstrap/frame identities remain descendants of the same Main.
+	# A whole-Main detach pauses caller ticks but is not a new streaming lifetime.
+	set_process(false)
+	set_physics_process(false)
+
+
+# --- shared API --------------------------------------------------------------
+
+
+## The body this binding observes for, once activated.
+func get_bound_world_id() -> StringName:
+	if is_instance_valid(_bootstrap):
+		return _bootstrap.get_world_id()
+	return _expected_world_id()
+
+
+## The exact bootstrap identity the common-world origin owner must pair with
+## this binding. Null until activation succeeds.
+func get_bound_bootstrap() -> PlanetaryStreamingBootstrap:
+	return _bootstrap if _activated and is_instance_valid(_bootstrap) else null
+
+
+func is_activated() -> bool:
+	return _activated
+
+
+## Consumes one already-captured production sample. No engine callback in this
+## component can create a competing observation cadence.
+func physics_tick_from_caller_sample(delta: float, sample: Variant) -> Dictionary:
+	if not _activated or not is_inside_tree() or is_queued_for_deletion():
+		return _result(false, &"binding_unavailable")
+	if _tick_active:
+		_reentrant_rejection_count += 1
+		return _result(false, &"reentrant_call")
+	if not is_finite(delta) or delta < 0.0:
+		_invalid_delta_count += 1
+		return _result(false, &"invalid_delta")
+	var identity_error := _validate_bound_identity()
+	if not identity_error.is_empty():
+		_generation_drift_rejection_count += 1
+		return _result(false, identity_error)
+	var sample_validation := _validate_available_sample(sample)
+	if not bool(sample_validation.get("accepted", false)):
+		_rejected_sample_count += 1
+		_invalidate_actor_preview()
+		_last_tick_result = sample_validation.duplicate(true)
+		return _last_tick_result.duplicate(true)
+
+	_tick_active = true
+	var sample_dictionary := sample as Dictionary
+	var position := sample_dictionary.get("position", Vector3.INF) as Vector3
+	var absolute_result := _coordinate_frame.world_streaming_to_orbital_position(
+		position, _bound_frame_generation
+	)
+	if not bool(absolute_result.get("accepted", false)):
+		_rejected_sample_count += 1
+		_invalidate_actor_preview()
+		_last_tick_result = _result(
+			false,
+			absolute_result.get("reason", &"absolute_coordinate_rejected") as StringName,
+		)
+		_tick_active = false
+		return _last_tick_result.duplicate(true)
+
+	var absolute_coordinate := (
+		absolute_result.get("coordinate", {}) as Dictionary
+	).duplicate(true)
+	var streaming_result := _bootstrap.update_absolute_focus(
+		absolute_coordinate, _bound_frame_generation
+	)
+	_physics_tick_count += 1
+	_accepted_sample_count += 1
+	_last_actor_kind = sample_dictionary.get("actor_kind", &"") as StringName
+	_last_actor_instance_id = int(sample_dictionary.get("actor_instance_id", 0))
+	_last_world_streaming_position = position
+	_last_absolute_coordinate = absolute_coordinate.duplicate(true)
+	_last_streaming_result = streaming_result.duplicate(true)
+	_last_tick_result = _result(
+		bool(streaming_result.get("accepted", false)),
+		streaming_result.get("reason", &"streaming_update_rejected") as StringName,
+		{
+			"coordinate_frame_generation": _bound_frame_generation,
+			"absolute_coordinate": absolute_coordinate.duplicate(true),
+			"streaming": streaming_result.duplicate(true),
+		},
+	)
+	_tick_active = false
+	return _last_tick_result.duplicate(true)
+
+
+## Read-only origin-shift seam for the common-world origin owner. It derives the
+## exact request inputs from the last committed actor observation, but does not
+## create pending frame state or translate any node.
+func preview_origin_rebase(expected_frame_generation: int) -> Dictionary:
+	if _tick_active:
+		_reentrant_rejection_count += 1
+		return _result(false, &"reentrant_call")
+	if not _activated or not is_inside_tree() or is_queued_for_deletion():
+		return _result(false, &"binding_unavailable")
+	var identity_error := _validate_bound_identity()
+	if not identity_error.is_empty():
+		return _result(false, identity_error)
+	if expected_frame_generation != _bound_frame_generation:
+		return _result(false, &"stale_coordinate_frame_generation")
+	if _last_absolute_coordinate.is_empty():
+		return _result(false, &"actor_not_observed")
+	var evaluation := _coordinate_frame.evaluate_origin_shift(
+		_last_world_streaming_position, expected_frame_generation
+	)
+	if not bool(evaluation.get("accepted", false)):
+		return _result(
+			false,
+			evaluation.get("reason", &"origin_shift_evaluation_rejected") as StringName,
+		)
+	return _result(true, &"origin_rebase_preview", {
+		"coordinate_frame_generation": _bound_frame_generation,
+		"world_id": get_bound_world_id(),
+		"actor_instance_id": _last_actor_instance_id,
+		"actor_kind": _last_actor_kind,
+		"absolute_coordinate": _last_absolute_coordinate.duplicate(true),
+		"focus_world_streaming_position": _last_world_streaming_position,
+		"world_translation_delta": -_last_world_streaming_position,
+		"distance_from_origin_meters": evaluation.get(
+			"distance_from_origin_meters", INF
+		),
+		"threshold_meters": evaluation.get("threshold_meters", INF),
+		"rebase_required": bool(evaluation.get("rebase_required", false)),
+		"binding_can_request_rebase": false,
+		"binding_can_apply_translation": false,
+		"binding_can_commit_rebase": false,
+		"required_application_owner": &"common_world_origin_owner",
+	})
+
+
+## Validates the exact pending request created by the sole common-world owner.
+## This does not move a node, commit the frame, or change the bound generation.
+func preflight_external_origin_rebase(preview: Variant, request: Variant) -> Dictionary:
+	if _tick_active:
+		return _result(false, &"reentrant_call")
+	if not preview is Dictionary or not request is Dictionary:
+		return _result(false, &"invalid_rebase_contract")
+	var p := preview as Dictionary
+	var r := request as Dictionary
+	if p.get("reason") != &"origin_rebase_preview" \
+			or not bool(p.get("rebase_required", false)) \
+			or int(p.get("coordinate_frame_generation", 0)) != _bound_frame_generation \
+			or p.get("absolute_coordinate") != _last_absolute_coordinate \
+			or int(p.get("actor_instance_id", 0)) != _last_actor_instance_id \
+			or p.get("actor_kind") != _last_actor_kind:
+		return _result(false, &"preview_identity_mismatch")
+	if int(r.get("source_generation", 0)) != _bound_frame_generation \
+			or int(r.get("target_generation", 0)) != _bound_frame_generation + 1 \
+			or r.get("focus_world_streaming_position") != _last_world_streaming_position \
+			or r.get("world_translation_delta") != -_last_world_streaming_position \
+			or r.get("target_origin_orbital_coordinate") != _last_absolute_coordinate:
+		return _result(false, &"request_identity_mismatch")
+	var pending := _coordinate_frame.get_snapshot().get("pending_rebase", {}) as Dictionary
+	if pending != r:
+		return _result(false, &"pending_request_mismatch")
+	return _result(true, &"external_rebase_preflighted")
+
+
+## Reconciles this observation adapter after the common-world owner has applied
+## and committed the exact preflighted transaction. It cannot request or commit
+## a rebase itself.
+func accept_committed_origin_rebase(
+		preview: Variant,
+		request: Variant,
+		adjusted_actor_sample: Variant,
+		target_generation: int,
+	) -> Dictionary:
+	# A detached, inactive or re-entered binding refuses without retaining
+	# anything: its snapshot must stay byte-identical across the refusal
+	# (common_world_origin_rebase_production_journey_test), and a refusal that
+	# never reached this adapter's own checks is not a diagnostic of them.
+	if not _activated or not is_inside_tree() or is_queued_for_deletion():
+		return _result(false, &"binding_unavailable")
+	if _tick_active:
+		return _result(false, &"reentrant_call")
+	if not preview is Dictionary or not request is Dictionary \
+			or not adjusted_actor_sample is Dictionary:
+		return _reject_committed_rebase(&"invalid_rebase_contract")
+	var p := preview as Dictionary
+	var r := request as Dictionary
+	var sample := adjusted_actor_sample as Dictionary
+	if target_generation != _bound_frame_generation + 1 \
+			or int(r.get("source_generation", 0)) != _bound_frame_generation \
+			or int(r.get("target_generation", 0)) != target_generation \
+			or p.get("absolute_coordinate") != _last_absolute_coordinate \
+			or _coordinate_frame.get_generation() != target_generation \
+			or _coordinate_frame.has_pending_rebase():
+		return _reject_committed_rebase(&"committed_rebase_mismatch")
+	if not bool(sample.get("available", false)) \
+			or sample.get("actor_kind") != _last_actor_kind \
+			or int(sample.get("actor_instance_id", 0)) != _last_actor_instance_id:
+		return _reject_committed_rebase(&"adjusted_actor_mismatch")
+	var adjusted_position := sample.get("position", Vector3.INF) as Vector3
+	var converted := _coordinate_frame.world_streaming_to_orbital_position(
+		adjusted_position, target_generation
+	)
+	if not bool(converted.get("accepted", false)) \
+			or converted.get("coordinate") != _last_absolute_coordinate:
+		return _reject_committed_rebase(&"absolute_coordinate_drift")
+	if not bool(_bootstrap.audit().get("valid", false)):
+		return _reject_committed_rebase(&"bootstrap_alignment_invalid")
+	_bound_frame_generation = target_generation
+	_last_world_streaming_position = adjusted_position
+	var streaming := _bootstrap.update_absolute_focus(
+		_last_absolute_coordinate, target_generation
+	)
+	_last_streaming_result = streaming.duplicate(true)
+	_external_rebase_commit_count += 1
+	return _result(true, &"external_rebase_accepted", {
+		"coordinate_frame_generation": target_generation,
+		"absolute_coordinate": _last_absolute_coordinate.duplicate(true),
+		"streaming": streaming.duplicate(true),
+	})
+
+
+func get_snapshot() -> Dictionary:
+	var frame_snapshot := (
+		_coordinate_frame.get_snapshot()
+		if _coordinate_frame != null
+		else {}
+	)
+	var bootstrap_snapshot := (
+		_bootstrap.get_snapshot()
+		if is_instance_valid(_bootstrap)
+		else {}
+	)
+	return {
+		"schema_version": SCHEMA_VERSION,
+		"activated": _activated,
+		"world_id": get_bound_world_id(),
+		"configuration_error": _configuration_error,
+		"inside_tree": is_inside_tree(),
+		"automatic_process": is_processing(),
+		"automatic_physics_process": is_physics_processing(),
+		"bootstrap_instance_id": _bootstrap_instance_id,
+		"coordinate_frame_instance_id": _frame_instance_id,
+		"bound_coordinate_frame_generation": _bound_frame_generation,
+		"last_external_rebase_rejection": _last_external_rebase_rejection.duplicate(true),
+		"current_coordinate_frame_generation": int(frame_snapshot.get("generation", 0)),
+		"physics_tick_count": _physics_tick_count,
+		"accepted_sample_count": _accepted_sample_count,
+		"rejected_sample_count": _rejected_sample_count,
+		"invalid_delta_count": _invalid_delta_count,
+		"reentrant_rejection_count": _reentrant_rejection_count,
+		"generation_drift_rejection_count": _generation_drift_rejection_count,
+		"external_rebase_commit_count": _external_rebase_commit_count,
+		"last_actor_kind": _last_actor_kind,
+		"last_actor_instance_id": _last_actor_instance_id,
+		"last_world_streaming_position": _last_world_streaming_position,
+		"last_absolute_coordinate": _last_absolute_coordinate.duplicate(true),
+		"last_streaming_result": _last_streaming_result.duplicate(true),
+		"last_tick_result": _last_tick_result.duplicate(true),
+		"coordinate_frame": frame_snapshot,
+		"bootstrap": bootstrap_snapshot,
+	}.duplicate(true)
+
+
+func audit() -> Dictionary:
+	var errors := PackedStringArray()
+	var label := _world_label()
+	var world_id := get_bound_world_id()
+	var host := get_parent()
+	var binding_count := 0
+	var bootstrap_count := 0
+	# Count this body's composition only. A second world composed beside this one
+	# is not a duplicate of it, which is exactly what makes N worlds possible.
+	if host != null:
+		for candidate in host.find_children("*", "", true, false):
+			if candidate is PlanetaryStreamingProductionBinding:
+				if (candidate as PlanetaryStreamingProductionBinding
+					).get_bound_world_id() == world_id:
+					binding_count += 1
+			elif candidate is PlanetaryStreamingBootstrap:
+				if (candidate as PlanetaryStreamingBootstrap
+					).get_world_id() == world_id:
+					bootstrap_count += 1
+	if not _activated:
+		errors.append("production %s binding is not activated: %s" % [
+			label, _configuration_error,
+		])
+	var identity_error := _validate_bound_identity()
+	if not identity_error.is_empty():
+		errors.append("bound %s identity is invalid: %s" % [label, identity_error])
+	if binding_count != 1 or bootstrap_count != 1:
+		errors.append(
+			"Main must contain exactly one %s binding and bootstrap" % label
+		)
+	if is_processing() or is_physics_processing():
+		errors.append("binding must not own an engine process callback")
+	if _accepted_sample_count != _physics_tick_count:
+		errors.append("accepted caller samples and physics ticks diverged")
+	var authority := {
+		"activity": false,
+		"cargo": false,
+		"cinder_streaming": false,
+		"combat": false,
+		"gameplay": false,
+		"landing": false,
+		"movement": false,
+		"network": false,
+		"origin_rebase_application": false,
+		"origin_rebase_commit": false,
+		"origin_rebase_request": false,
+		"reward": false,
+		"save": false,
+		"ship": false,
+		"streaming_generation": false,
+	}
+	return {
+		"schema_version": SCHEMA_VERSION,
+		"valid": errors.is_empty(),
+		"errors": errors,
+		"snapshot": get_snapshot(),
+		"world_id": world_id,
+		"binding_count": binding_count,
+		"bootstrap_count": bootstrap_count,
+		"observation_authority": &"one_detached_actor_sample_from_game_flow_physics",
+		"owned_capabilities": {
+			"absolute_coordinate_encoding": true,
+			"origin_rebase_preview": true,
+			"streaming_update_cadence": true,
+		},
+		"absolute_coordinate_policy": &"current_frame_generation_exact_conversion",
+		"origin_rebase_policy": &"detached_preview_exact_common_world_owner_commit",
+		"can_make_world_resident": true,
+		"requires_external_common_world_origin_owner": true,
+		"adjacent_authority": authority,
+	}.duplicate(true)
+
+
+# --- internals ---------------------------------------------------------------
+
+
+## The common-world owner reports a refused acceptance as one opaque
+## `binding_commit_desynchronized`, because by then the frame commit is
+## irreversible. This retains which of this adapter's own checks refused, as
+## diagnostics only.
+func _reject_committed_rebase(reason: StringName) -> Dictionary:
+	_last_external_rebase_rejection = {
+		"reason": reason,
+		"bound_coordinate_frame_generation": _bound_frame_generation,
+		"bootstrap_audit": _bootstrap.audit() if is_instance_valid(_bootstrap) else {},
+	}.duplicate(true)
+	return _result(false, reason)
+
+
+func _activate_scene_binding() -> void:
+	if _activated or is_queued_for_deletion() or not is_inside_tree():
+		return
+	_bootstrap = get_node_or_null(bootstrap_path) as PlanetaryStreamingBootstrap
+	if not is_instance_valid(_bootstrap) or _bootstrap.get_parent() != get_parent() \
+			or not _bootstrap_is_expected(_bootstrap):
+		_configuration_error = &"missing_streaming_bootstrap"
+		return
+	if not bool(_bootstrap.audit().get("valid", false)):
+		_configuration_error = &"invalid_streaming_bootstrap"
+		return
+	_coordinate_frame = _bootstrap.get_coordinate_frame_for_session()
+	if _coordinate_frame == null:
+		_configuration_error = &"missing_coordinate_frame"
+		return
+	var generation := _coordinate_frame.get_generation()
+	if generation != EXPECTED_INITIAL_FRAME_GENERATION:
+		_configuration_error = &"unexpected_initial_coordinate_frame_generation"
+		return
+	if _coordinate_frame.has_pending_rebase():
+		_configuration_error = &"coordinate_frame_rebase_pending"
+		return
+	_bootstrap_instance_id = _bootstrap.get_instance_id()
+	_frame_instance_id = _coordinate_frame.get_instance_id()
+	_bound_frame_generation = generation
+	_activated = true
+	_configuration_error = &""
+
+
+func _validate_bound_identity() -> StringName:
+	if is_queued_for_deletion():
+		return &"binding_queued_for_deletion"
+	var host := get_parent()
+	if host == null or host.is_queued_for_deletion():
+		return &"host_identity_drift"
+	if not is_instance_valid(_bootstrap) \
+			or _bootstrap.is_queued_for_deletion() \
+			or not _bootstrap.is_inside_tree() \
+			or _bootstrap.get_instance_id() != _bootstrap_instance_id \
+			or _bootstrap.get_parent() != host:
+		return &"bootstrap_identity_drift"
+	if _coordinate_frame == null \
+			or _coordinate_frame.get_instance_id() != _frame_instance_id \
+			or _bootstrap.get_coordinate_frame_for_session() != _coordinate_frame:
+		return &"coordinate_frame_identity_drift"
+	if _coordinate_frame.get_generation() != _bound_frame_generation:
+		return &"coordinate_frame_generation_drift"
+	if _coordinate_frame.has_pending_rebase():
+		return &"coordinate_frame_rebase_pending"
+	if not _bootstrap.is_runtime_contract_valid():
+		return &"bootstrap_audit_invalid"
+	return &""
+
+
+func _validate_available_sample(sample: Variant) -> Dictionary:
+	if not sample is Dictionary:
+		return _result(false, &"invalid_actor_sample")
+	var value := sample as Dictionary
+	var keys := value.keys()
+	keys.sort()
+	var unavailable_keys := UNAVAILABLE_SAMPLE_KEYS.duplicate()
+	unavailable_keys.sort()
+	if keys == unavailable_keys:
+		if value.get("available") is not bool \
+				or bool(value.get("available", true)) \
+				or value.get("reason") is not StringName \
+				or (value.get("reason", &"") as StringName).is_empty():
+			return _result(false, &"invalid_actor_sample")
+		return _result(false, &"actor_unavailable", {
+			"actor_reason": value.get("reason", &"") as StringName,
+		})
+	var expected_keys := SAMPLE_KEYS.duplicate()
+	expected_keys.sort()
+	if keys != expected_keys:
+		return _result(false, &"actor_sample_schema_mismatch")
+	if value.get("available") is not bool or not bool(value.get("available", false)):
+		return _result(false, &"actor_unavailable")
+	if value.get("position") is not Vector3 \
+			or not (value.get("position") as Vector3).is_finite():
+		return _result(false, &"invalid_actor_position")
+	if value.get("actor_kind") is not StringName \
+			or not VALID_ACTOR_KINDS.has(value.get("actor_kind") as StringName):
+		return _result(false, &"invalid_actor_kind")
+	if value.get("actor_instance_id") is not int \
+			or int(value.get("actor_instance_id", 0)) <= 0:
+		return _result(false, &"invalid_actor_instance_id")
+	return _result(true, &"actor_sample_valid")
+
+
+func _invalidate_actor_preview() -> void:
+	_last_actor_kind = &""
+	_last_actor_instance_id = 0
+	_last_world_streaming_position = Vector3.ZERO
+	_last_absolute_coordinate.clear()
+
+
+func _result(
+	accepted: bool,
+	reason: StringName,
+	extra: Dictionary = {},
+	) -> Dictionary:
+	var result := {"accepted": accepted, "reason": reason}
+	for key: Variant in extra:
+		result[key] = extra[key]
+	return result.duplicate(true)

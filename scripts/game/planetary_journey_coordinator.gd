@@ -123,7 +123,7 @@ func advance_world(delta: float, actor_sample: Dictionary) -> Dictionary:
 						if preview_requires_rebase:
 							required_origin_rebase_uncommitted = false
 							var receipt := rebase.get("receipt", {}) as Dictionary
-							var streaming := receipt.get("ember_streaming", {}) as Dictionary
+							var streaming := receipt.get("world_streaming", {}) as Dictionary
 							ember_streaming_accepted = bool(streaming.get("accepted", false))
 							ember_streaming_residency_required = (
 								ember_streaming_accepted

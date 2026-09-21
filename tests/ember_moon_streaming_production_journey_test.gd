@@ -130,7 +130,8 @@ func _test_composition_and_absolute_observation(
 			and authority.size() == 15
 			and report.get("origin_rebase_policy")
 				== &"detached_preview_exact_common_world_owner_commit"
-			and bool(report.get("can_make_ember_resident", false)),
+			and bool(report.get("can_make_world_resident", false))
+			and report.get("world_id") == EmberMoonStreamingBootstrap.WORLD_ID,
 		"audit freezes the complete false adjacent-authority boundary",
 	)
 
