@@ -340,13 +340,21 @@ func accept_common_world_translation(
 		return _reject_committed_rebase(&"committed_rebase_mismatch")
 	if not bool(_bootstrap.audit().get("valid", false)):
 		return _reject_committed_rebase(&"bootstrap_alignment_invalid")
+	# The absolute coordinate is the authority and did not move: this world is
+	# in the same place, described in a local space that has slid. Re-derive the
+	# local expression from that absolute record in the new generation rather
+	# than carrying the translated one forward, because over a multi-thousand
+	# kilometre delta the translated float is a metre or so away from the exact
+	# decode and every later exact-identity check would refuse it.
 	var translated := _last_world_streaming_position + delta
 	if not _last_absolute_coordinate.is_empty():
-		var converted := _coordinate_frame.world_streaming_to_orbital_position(
-			translated, target_generation
+		var decoded := _coordinate_frame.orbital_to_world_streaming_position(
+			_last_absolute_coordinate, target_generation
 		)
-		if not bool(converted.get("accepted", false)) \
-				or converted.get("coordinate") != _last_absolute_coordinate:
+		if not bool(decoded.get("accepted", false)):
+			return _reject_committed_rebase(&"absolute_coordinate_drift")
+		translated = decoded.get("position", Vector3.INF) as Vector3
+		if not translated.is_finite():
 			return _reject_committed_rebase(&"absolute_coordinate_drift")
 	_bound_frame_generation = target_generation
 	_last_world_streaming_position = translated

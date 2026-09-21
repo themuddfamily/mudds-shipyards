@@ -53,3 +53,47 @@ The remaining player-facing gap is travel and landing orchestration: no
 production travel session selects Ember, transitions orbit/atmosphere/descent,
 or grants a landing. This owner only makes the existing absolute Ember streaming
 composition spatially reachable without losing local precision.
+
+## Serving more than one world
+
+The owner is world-plural. It binds every `PlanetaryStreamingProductionBinding`
+composed beside it, pairs each with the bootstrap that binding resolved and with
+that bootstrap's own `PlanetaryCoordinateFrame`, and routes each transaction to
+the world its preview names. `bind_world()`, `unbind_world()` and
+`rebind_composed_worlds()` are the seams for a world that composes or retires;
+all three are fenced and refuse while a transaction is in flight. An unnamed or
+unbound world is refused as `unbound_rebase_world` rather than served by the
+wrong frame.
+
+The common world is shared, so one committed translation moves every bound
+world's local space at once. A transaction therefore opens a pending rebase on
+*every* bound frame for the same focus - either all are pending or none is - and
+the requesting world commits first, while the whole transaction is still
+reversible and a refused commit still cancels every pending request and restores
+every root, derived local transform and PhysicsServer transform. The remaining
+frames commit after it; a refusal there is an invariant breach reported
+fail-closed as `common_world_frame_commit_desynchronized`, exactly as a refused
+binding acceptance already is. A world left at its old generation would have had
+its bootstrap root translated out from under it and would have refused every
+later focus update, which is precisely what an Ember expedition would have done
+to Aurora the moment a second world was composed.
+
+Node translation is announced before any adapter is asked to accept, because a
+streamed world root re-expresses away the float rounding the translation just
+introduced and the accepting adapter audits that exact alignment. Each streamed
+root is told the generation *its own* frame reached, which is not the requesting
+world's. Worlds that did not ask are then reconciled through
+`accept_common_world_translation()`, which advances their bound generation and
+re-derives their retained local position from their unchanged absolute
+coordinate. It cannot request, commit or re-evaluate streaming.
+
+The root rule no longer names a class. A node is a common-world root unless it
+declares `is_common_world_translation_root()` returning `false`; that is the
+capability `EmberSurfaceLoopHost` declares, because it is a logic node pinned to
+Main's own origin and is the reference identity a surface visit measures
+against. `EmberSurfaceLoopHost` mirrors the same rule when it rebuilds the
+roster a receipt froze.
+
+The receipt names the world it acted for and carries the per-world generation
+roster, and every consumer checks it: a Host refuses a receipt for another body,
+and the surface-loop binding refuses an origin result for another body.

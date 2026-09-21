@@ -128,3 +128,24 @@ reports, and whole-Main re-entry. Player-activation evidence additionally drives
 the existing pause/controller focus route, the typed request serial, all exact
 HUD states and bounded gate copy, braking disengage, layout endpoints, and
 re-entry without ghost engagement.
+
+## One binding, whichever world the trip is to
+
+The binding no longer names Ember. It resolves its bootstrap by the shared
+`PlanetaryStreamingBootstrap` type and takes its destination anchor from that
+bootstrap's own registered `WorldLocationDefinition`, so `destination_id`,
+`destination_source_id` and the canonical absolute coordinate are whatever the
+bound world declares. `bind_world()` re-points the same binding, the same
+controller and the same command delivery at a second world; it is fenced and
+refuses while an engagement is live, while an approach is armed, or while a
+completion is unconsumed, because re-pointing a cruise in flight would silently
+retarget a moving craft.
+
+`request_final_approach()` takes any node that publishes
+`get_final_approach_source_snapshot()` - a readiness flag and the four
+generation scalars in `FINAL_APPROACH_SOURCE_KEYS`. No world's host class
+appears in this component. `EmberSurfaceLoopHost` declares the capability from
+its attached-and-IDLE state; an Aurora visit declares it through the much
+smaller `AuroraVisitApproachSource`, which owns nothing but those two facts.
+The same record is re-read every tick, so a source that stops being ready drops
+the approach exactly as a drifting Host generation already did.

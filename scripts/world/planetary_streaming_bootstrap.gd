@@ -20,7 +20,18 @@ extends Node3D
 
 ## The largest residual this root will silently re-express away after a committed
 ## common-world translation. It is a rounding allowance, not a correction budget.
+##
+## A fixed centimetre is only honest for a short translation. `Transform3D`
+## stores float32 components, so a translation of D metres can introduce a
+## residual on the order of D * 2^-23 - about 1.4 m over a twelve-thousand
+## kilometre delta - and a second world's root would then stay misaligned for
+## the rest of the session. The allowance is therefore the larger of the
+## centimetre and a relative budget of 2^-20 (eight float32 units of least
+## precision) of the largest magnitude involved, which is the same relative
+## rounding budget `HeroShip` already applies to its re-expressed landing
+## targets. Anything beyond it is a real move and not this seam's business.
 const ORIGIN_TRANSLATION_ROUNDING_TOLERANCE_M := 0.01
+const ORIGIN_TRANSLATION_RELATIVE_ROUNDING_BUDGET := 1.0 / 1048576.0
 
 const SCHEMA_VERSION := 1
 
@@ -674,8 +685,16 @@ func notify_common_world_translation(
 	if not bool(expected.get("accepted", false)):
 		return
 	var exact := expected.get("position", Vector3.INF) as Vector3
-	if not exact.is_finite() \
-			or position.distance_to(exact) > ORIGIN_TRANSLATION_ROUNDING_TOLERANCE_M:
+	if not exact.is_finite():
+		return
+	var magnitude := maxf(
+		delta.abs().length(), maxf(position.abs().length(), exact.abs().length())
+	)
+	var allowance := maxf(
+		ORIGIN_TRANSLATION_ROUNDING_TOLERANCE_M,
+		magnitude * ORIGIN_TRANSLATION_RELATIVE_ROUNDING_BUDGET,
+	)
+	if position.distance_to(exact) > allowance:
 		return
 	position = exact
 

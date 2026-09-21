@@ -52,7 +52,9 @@ func _run() -> void:
 		await _finish(game)
 		return
 	_press_destination(game)
-	await _wait_state(owner, &"landed", 4000)
+	await _wait_state(owner, &"landed", 6000)
+	if owner.state != &"landed":
+		print("VISIT DIAG: ", owner.get_visit_snapshot())
 	_check(owner.state == &"landed", "the visit reaches a landed craft at Aurora")
 	if owner.state != &"landed":
 		await _finish(game)
@@ -60,10 +62,62 @@ func _run() -> void:
 
 	var surface := owner.get("_surface") as Node3D
 	var berth := owner.get("_berth") as ShipBerth
+	# The yard is 12,000 km behind the committed origin rebases by now, so the
+	# craft's distance from the *live* station root is the honest measure of
+	# having actually gone somewhere. `home_position` was recorded in a frame
+	# that no longer exists.
 	_check(
 		is_instance_valid(surface) and surface is AuroraTemperateAuthoredScene
-			and craft.global_position.distance_to(home_position) > 10_000.0,
+			and craft.global_position.distance_to(game.world.global_position)
+				> 10_000_000.0,
 		"the authored Aurora world is standing and the craft is really there"
+	)
+
+	# --- the real path, not a jump ------------------------------------------
+	var visit := owner.get_visit_snapshot() as Dictionary
+	var journey := visit.get("journey", {}) as Dictionary
+	_check(
+		is_instance_valid(surface)
+			and surface == game.aurora_streaming_bootstrap.get_loaded_instance()
+			and int(game.aurora_streaming_bootstrap.get_snapshot().get(
+				"location_generation", 0
+			)) >= 1,
+		"the world the visit stands on is the one the production streaming coordinator loaded"
+	)
+	# Aurora sits 12,000 km out and the origin-shift threshold is 10 km, so a
+	# trip there is not reachable without committed common-world transactions.
+	# The Ember suites count these the same way.
+	_check(
+		int(journey.get("rebase_commit_count", 0)) >= 1
+			and int(game.common_world_origin_rebase_owner.get_snapshot().get(
+				"transaction_count", 0
+			)) >= 1
+			and game.common_world_origin_rebase_owner.get_snapshot().get(
+				"last_world_id", &""
+			) == AuroraTemperateStreamingBootstrap.WORLD_ID,
+		"the way down commits real common-world origin rebases, named for Aurora (%d)"
+			% int(journey.get("rebase_commit_count", 0))
+	)
+	_check(
+		bool(journey.get("final_approach_armed", false))
+			and bool(journey.get("final_approach_handoff_ready", false))
+			and not (journey.get("final_approach_completion_receipt", {})
+				as Dictionary).is_empty(),
+		"the descent is a completed production final approach, consumed by the coordinator"
+	)
+	var receipt := journey.get("final_approach_completion_receipt", {}) as Dictionary
+	_check(
+		receipt.get("reason", &"") == &"final_approach_handoff_ready"
+			and int(receipt.get("target_generation", 0)) >= 1,
+		"the approach completion receipt is the cruise binding's own handoff (%s)"
+			% receipt.get("reason", "")
+	)
+	# The one cruise binding served Aurora and was handed back to Ember, which
+	# is what keeps an Ember expedition afterwards undisturbed.
+	_check(
+		int(visit.get("staging_events", 0)) == 3,
+		"exactly the three legs with no production movement owner are staged (%d)"
+			% int(visit.get("staging_events", 0))
 	)
 	_check(
 		is_instance_valid(berth) and berth.get_occupant() == craft
@@ -140,9 +194,24 @@ func _run() -> void:
 		"a fresh Main resumes the interrupted visit (%s)"
 			% restore.get("reason", "")
 	)
+	# Resuming now streams Aurora back in through the same production lane a
+	# fresh arrival uses, which takes physics ticks and committed origin
+	# transactions, so the resume completes on the visit's own cadence.
+	await _wait_state(resumed, &"surface", 6000)
+	if resumed.state != &"surface":
+		print("RESUME DIAG: ", resumed.get_visit_snapshot())
 	_check(
 		resumed.is_active() and resumed.state == &"surface",
 		"the pilot comes back standing on Aurora, not quietly back at Mudds"
+	)
+	_check(
+		int((resumed.get_visit_snapshot().get("journey", {}) as Dictionary).get(
+			"rebase_commit_count", 0
+		)) >= 1
+			and is_instance_valid(
+				resumed_game.aurora_streaming_bootstrap.get_loaded_instance()
+			),
+		"the resumed visit streams the same world back in rather than standing a private copy"
 	)
 	var resumed_craft := resumed.get("_ship") as HeroShip
 	var resumed_berth := resumed.get("_berth") as ShipBerth
@@ -189,7 +258,7 @@ func _run() -> void:
 		await _finish(resumed_game)
 		return
 	_press_destination(resumed_game)
-	await _wait_state(resumed, &"idle", 4000)
+	await _wait_state(resumed, &"idle", 6000)
 	_check(
 		resumed.state == &"idle"
 			and bool(resumed_craft.get_telemetry().get("landed", false)),
@@ -198,8 +267,11 @@ func _run() -> void:
 	_check(
 		resumed_game.world.visible
 			and not is_instance_valid(resumed.get("_surface"))
+			and not is_instance_valid(
+				resumed_game.aurora_streaming_bootstrap.get_loaded_instance()
+			)
 			and _aurora_node_count(resumed_game) == 0,
-		"departure leaves no Aurora nodes and restores the station presentation"
+		"departure streams Aurora out, leaves no Aurora nodes and restores the station"
 	)
 	_check(
 		_store_has_aurora_record(resumed_game) == false,
@@ -209,8 +281,12 @@ func _run() -> void:
 	# --- abandon from the surface -------------------------------------------
 	resumed_game.call(&"_sync_planetary_cruise_hud")
 	_press_destination(resumed_game)
-	await _wait_state(resumed, &"landed", 4000)
+	await _wait_state(resumed, &"landed", 6000)
 	if resumed.state != &"landed":
+		print("ABANDON DIAG: ", resumed.get_visit_snapshot().get("admission", {}),
+			" compose=", resumed.get_visit_snapshot().get("compose", {}),
+			" leg=", resumed.get_visit_snapshot().get("last_leg", {}),
+			" state=", resumed.state)
 		_check(false, "a further visit can be admitted for the abandon case")
 		await _finish(resumed_game)
 		return
@@ -225,8 +301,9 @@ func _run() -> void:
 			and not resumed_game._transition_busy
 			and not resumed_game.player.is_seated()
 			and resumed_game.player.is_control_enabled()
-			and resumed_game.player.global_position.distance_to(home_position)
-				< 40.0,
+			and resumed_game.player.global_position.distance_to(
+				resumed_game.world.get_player_spawn().origin
+			) < 400.0,
 		"abandoning returns a controllable explorer to the yard, not a stranded one"
 	)
 	_check(

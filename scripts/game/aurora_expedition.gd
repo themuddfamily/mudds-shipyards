@@ -1,10 +1,48 @@
 extends RefCounted
-## A repeatable jump expedition. Jump travel changes scenes explicitly; touchdown
-## and embodiment use the same physical ship and player as the station.
-const WORLD := preload("res://scenes/world/planets/aurora_temperate_world.tscn")
+## A repeatable Aurora visit on the production planetary path.
+##
+## This used to be a 1.2 s jump that instantiated the authored world locally.
+## It now goes through exactly the components an Ember expedition uses: the
+## journey coordinator admits it, the one `PlanetaryCruiseProductionBinding` is
+## pointed at Aurora's bootstrap and engaged, Aurora's own
+## `PlanetaryStreamingProductionBinding` observes the craft, the one
+## `CommonWorldOriginRebaseOwner` commits the common-world rebases that bring
+## the body inside the streaming envelope, the authored approach corridor is
+## flown by the real cruise controller, and the touchdown is a real
+## `ShipBerth` lease on the streamed world's own landing region.
+##
+## Two legs have no production movement owner anywhere in this repository - the
+## interplanetary transit and the last kilometre into the corridor mouth - and
+## `docs/EMBER_MOON_ORBITAL_STREAMING.md` records that gap for Ember as well.
+## This visit plays exactly that missing owner and nothing else: it holds the
+## craft at Aurora's canonical navigation standoff until the real cruise binding
+## reports its approach ACTIVE, and places it once at the authored corridor
+## entry pose. Both placements are counted as `staging_events`. Every metre
+## after them is produced by a production movement owner.
 const DESTINATION_ID: StringName = &"aurora_temperate_world"
-const SURFACE_ORIGIN := Vector3(20000.0, 0.0, 0.0)
-const JUMP_SECONDS := 1.2
+const LANDING_REGION_PATH := ^"LandingRegion"
+const LANDING_REGION_RESOURCE_PATH := \
+	"res://assets/world/planets/aurora_foundation_landing.tres"
+const _LANDING_REGION := preload(LANDING_REGION_RESOURCE_PATH)
+const ApproachSourceType := preload(
+	"res://scripts/world/aurora_visit_approach_source.gd"
+)
+## Matches the standoff the Ember loop soak holds its craft at while the real
+## cruise binding arms: far enough out to be a hold, close enough to be inside
+## the streaming envelope once the rebase has committed.
+const ORBIT_STANDOFF_M := 500.0
+const ORBIT_HOLD_SPEED_MPS := 8.0
+## The approach entry volume the corridor is measured against. Taken from the
+## Ember Host's own envelope constant so both worlds present the same tolerance.
+const APPROACH_ENTRY_POSITION_HALF_EXTENTS_M := Vector3(42.0, 25.0, 75.0)
+const APPROACH_MAXIMUM_SPEED_MPS := 12.0
+const APPROACH_MAXIMUM_ATTITUDE_DEGREES := 12.0
+const APPROACH_HULL_MARGIN_M := 0.05
+## Bounded tick budgets. Every wait in this visit is a tick budget, never a
+## wall clock, and every exhausted budget cancels rather than stalling.
+const ORBIT_STAGE_TICK_BUDGET := 900
+const CORRIDOR_TICK_BUDGET := 3000
+const DEPARTURE_TICK_BUDGET := 900
 
 var _flow: GameFlow
 var state: StringName = &"idle"
@@ -13,13 +51,22 @@ var _surface: Node3D
 var _berth: ShipBerth
 var _home: ShipBerth
 var _departure := Transform3D.IDENTITY
-var _jump_remaining := 0.0
 var _surface_token: StringName = &""
 var _station_environment: Environment
 var _station_visible := true
 var _landing_elapsed := 0.0
-var _jump_fade_layer: CanvasLayer
-var _jump_fade: ColorRect
+var _approach_source: AuroraVisitApproachSource
+var _staging_events := 0
+var _orbit_ticks := 0
+var _corridor_ticks := 0
+var _departure_ticks := 0
+var _retire_ticks := 0
+var _committed_rebases_outbound := 0
+var _last_admission: Dictionary = {}
+var _last_compose_result: Dictionary = {}
+var _last_leg_result: Dictionary = {}
+var _fade_layer: CanvasLayer
+var _fade: ColorRect
 var _fade_opacity := 0.0
 
 func _init(flow: GameFlow) -> void:
@@ -33,10 +80,21 @@ func runtime_state() -> Dictionary:
 	var enabled := reason.is_empty()
 	var copy := "READY — AURORA LANDING"
 	if is_active():
-		enabled = _flow._piloting and not _flow._transition_busy and state not in [&"return_jump", &"return_landing"]
-		copy = "RETURN TO MUDDS" if enabled else "BOARD YOUR SHIP TO RETURN"
-		if state in [&"return_jump", &"return_landing"]:
+		# A visit that has arrived is asked to go home; a visit still on its way
+		# out is asked to give up, which is the one control a pilot has over an
+		# approach in flight. Neither is offered while a transition owns the
+		# actors or while the way home is already under way.
+		enabled = not _flow._transition_busy \
+			and state in [&"landed", &"surface", &"outbound", &"corridor"]
+		if state in [&"landed", &"surface"]:
+			enabled = enabled and _flow._piloting
+			copy = "RETURN TO MUDDS" if enabled else "BOARD YOUR SHIP TO RETURN"
+		elif state in [&"outbound", &"corridor"]:
+			copy = "ABANDON THE AURORA APPROACH"
+		elif state in [&"return_cruise", &"return_landing"]:
 			copy = "RETURNING TO MUDDS"
+		else:
+			copy = "APPROACHING AURORA"
 	elif not enabled:
 		copy = reason
 	return {"status_id": &"ready" if enabled else &"unavailable", "status_text": copy,
@@ -71,44 +129,104 @@ func request() -> bool:
 	if is_active():
 		if not bool(runtime_state().action_enabled):
 			return false
-		_begin_return()
+		if state in [&"outbound", &"corridor"]:
+			cancel()
+		else:
+			_begin_return()
 		return true
 	if not _launch_rejection().is_empty():
 		return false
-	_ship = _flow.active_ship
-	_home = _flow.world.get_berth_node(_ship.get_home_berth_id()) as ShipBerth
-	_departure = _ship.global_transform
-	_station_visible = _flow.world.visible
-	_station_environment = _flow.get_viewport().world_3d.environment
-	_flow._release_ship_berth(_ship)
-	_ship.request_engine_stop(false)
-	_ship.velocity = Vector3.ZERO
-	state = &"outbound_jump"
-	_jump_remaining = JUMP_SECONDS
+	var craft := _flow.active_ship
+	var home := _flow.world.get_berth_node(craft.get_home_berth_id()) as ShipBerth
+	var departure := craft.global_transform
+	var station_visible := _flow.world.visible
+	var station_environment := _flow.get_viewport().world_3d.environment
+	_flow._release_ship_berth(craft)
 	_flow.phase = GameFlow.Phase.FREE_FLIGHT
-	_flow.hud.toast("Jump to Aurora", "Preparing atmospheric landing approach", 2.5)
+	# Admission is the journey coordinator's, exactly as an Ember expedition's
+	# is: it points the one cruise binding at Aurora, makes sure the one origin
+	# owner holds Aurora's pair, and engages the cruise.
+	_last_admission = _flow._planetary_journey.admit_aurora_visit(craft, false)
+	if not bool(_last_admission.get("accepted", false)):
+		_flow._reserve_berth_for_ship(craft, craft.get_home_berth_id(), false)
+		_flow.hud.toast(
+			"Aurora expedition unavailable",
+			str(_last_admission.get("reason", &"aurora_visit_refused")), 2.4
+		)
+		return false
+	_ship = craft
+	_home = home
+	_departure = departure
+	_station_visible = station_visible
+	_station_environment = station_environment
+	_ship.velocity = Vector3.ZERO
+	_staging_events = 0
+	_orbit_ticks = 0
+	_corridor_ticks = 0
+	_departure_ticks = 0
+	_committed_rebases_outbound = 0
+	state = &"outbound"
+	_flow._sortie_departed_berth = true
+	# The craft is still in its berth, ringed by station geometry the cruise
+	# controller's full-hull clearance sweep would read as an obstacle on its
+	# very first tick and disengage for. The one staged transit placement
+	# therefore happens here, before any production component has observed the
+	# craft, rather than a tick later.
+	_stage_orbital_standoff()
+	_flow.hud.toast(
+		"Cruise to Aurora", "Streaming the world and arming the landing approach",
+		2.5
+	)
 	_flow.hud.set_paused(false)
 	return true
+
+
+## Detached evidence for a visit in progress. Counts the two staged placements
+## by name so a caller can tell production movement from staged movement.
+func get_visit_snapshot() -> Dictionary:
+	return {
+		"state": state,
+		"staging_events": _staging_events,
+		"committed_rebases_outbound": _committed_rebases_outbound,
+		"orbit_ticks": _orbit_ticks,
+		"corridor_ticks": _corridor_ticks,
+		"departure_ticks": _departure_ticks,
+		"retire_ticks": _retire_ticks,
+		"streamed_world_resident": is_instance_valid(_surface),
+		"berth_leased": is_instance_valid(_berth) and not _surface_token.is_empty(),
+		"approach_source": _approach_source.get_snapshot() \
+			if is_instance_valid(_approach_source) else {},
+		"admission": _last_admission.duplicate(true),
+		"compose": _last_compose_result.duplicate(true),
+		"last_leg": _last_leg_result.duplicate(true),
+		"journey": _flow._planetary_journey.get_aurora_visit_snapshot(),
+	}.duplicate(true)
 
 func physics_tick(delta: float) -> void:
 	if not is_active():
 		return
-	if state in [&"outbound_jump", &"return_jump"]:
-		_present_jump_fade(clampf(1.0 - _jump_remaining / JUMP_SECONDS, 0.0, 1.0))
-	elif _fade_opacity > 0.0:
-		_present_jump_fade(move_toward(_fade_opacity, 0.0, delta * 2.5))
+	if _fade_opacity > 0.0:
+		_present_transition_fade(move_toward(_fade_opacity, 0.0, delta * 2.5))
+	if state == &"retiring":
+		_advance_retiring()
+		return
 	if not is_instance_valid(_ship) or _ship.is_destroyed() or _flow.active_ship != _ship:
 		cancel()
 		return
-	if state in [&"outbound_jump", &"return_jump"]:
-		_ship.velocity = Vector3.ZERO
-		_jump_remaining -= delta
-		if _jump_remaining <= 0.0:
-			if state == &"outbound_jump":
-				_arrive()
-			else:
-				_arrive_home()
-	elif state in [&"landing", &"return_landing"]:
+	match state:
+		&"outbound":
+			_advance_outbound()
+			return
+		&"corridor":
+			_advance_corridor()
+			return
+		&"restoring":
+			_advance_restoring()
+			return
+		&"return_cruise":
+			_advance_return_cruise()
+			return
+	if state in [&"landing", &"return_landing"]:
 		_landing_elapsed += delta
 		if not _ship.is_landing_active():
 			if bool(_ship.get_telemetry().get("landed", false)) and _ship.get_landing_contract_report().get("phase") == HeroShip.LANDING_PHASE_DOCKED:
@@ -119,8 +237,10 @@ func physics_tick(delta: float) -> void:
 					state = &"landed"
 					_flow.hud.toast("Welcome to Aurora", "E: leave the ship. Explore the lookout, then board to return.", 4.0)
 			elif _landing_elapsed > 0.25:
+				_note_leg_failure(&"aurora_landing_inactive_without_dock")
 				cancel()
 		elif _landing_elapsed > 60.0:
+			_note_leg_failure(&"aurora_landing_timed_out")
 			cancel()
 	elif state == &"disembarking" and not _flow.player.is_seated() and _flow.player.collision_layer != 0:
 		_flow._piloting = false
@@ -141,9 +261,153 @@ func physics_tick(delta: float) -> void:
 		_flow.hud.set_mode("piloting")
 		_flow.audio.set_on_foot(false)
 		state = &"landed"
-	if state == &"surface" and _flow.player.global_position.y < -15.0:
+	if state == &"surface" and is_instance_valid(_surface) \
+			and _flow.player.global_position.distance_to(
+				_landing_region_origin()
+			) > 20_000.0:
 		_flow.player.teleport_to(_ship.get_exit_transform())
 		_flow.hud.toast("Surface rescue", "Returned to your ship's access ramp")
+
+
+## The one leg production has no movement owner for. The craft is held at
+## Aurora's canonical navigation standoff, decoded live from the cruise
+## binding's own absolute destination in the current frame, until the real
+## cruise binding reports its authored approach ACTIVE. The rebases that bring
+## Aurora inside its streaming envelope, and the load itself, are committed by
+## the production lane, not here.
+func _advance_outbound() -> void:
+	var journey := _flow._planetary_journey
+	var visit := journey.get_aurora_visit_snapshot()
+	_committed_rebases_outbound = int(visit.get("rebase_commit_count", 0))
+	var bootstrap := _flow.aurora_streaming_bootstrap
+	var cruise := _flow.planetary_cruise_binding
+	if not is_instance_valid(bootstrap) or not is_instance_valid(cruise):
+		cancel()
+		return
+	var loaded := bootstrap.get_loaded_instance()
+	if is_instance_valid(loaded) and not is_instance_valid(_approach_source):
+		_compose_streamed_surface(loaded)
+		if not is_active():
+			return
+	var controller := cruise.get_snapshot().get("controller", {}) as Dictionary
+	var approach := controller.get("final_approach", {}) as Dictionary
+	if StringName(approach.get("state_id", &"")) == &"final_approach":
+		_stage_corridor_entry()
+		return
+	_stage_orbital_standoff()
+	_orbit_ticks += 1
+	if _orbit_ticks > ORBIT_STAGE_TICK_BUDGET:
+		_last_leg_result = {
+			"accepted": false,
+			"reason": &"aurora_orbit_budget_exhausted",
+			"navigation": _navigation_standoff_target(),
+			"ship": _ship.global_position if is_instance_valid(_ship) else Vector3.INF,
+			"streaming": visit.get("last_streaming_result", {}),
+			"origin": visit.get("last_origin_result", {}),
+			"binding_rejection": _flow.aurora_streaming_binding.get_snapshot().get(
+				"last_external_rebase_rejection", {}
+			).get("reason", &""),
+			"bootstrap_errors": _flow.aurora_streaming_bootstrap.audit().get("errors", []),
+		}
+		cancel()
+
+
+## Holds the craft at Aurora's canonical navigation standoff, decoded live from
+## the cruise binding's own absolute destination in the current frame. Counted
+## once as a staging event however many ticks the hold lasts.
+func _stage_orbital_standoff() -> void:
+	var navigation := _navigation_standoff_target()
+	if not navigation.is_finite() or not is_instance_valid(_ship):
+		return
+	if _staging_events == 0:
+		_staging_events += 1
+	_ship.global_position = navigation + Vector3.BACK * ORBIT_STANDOFF_M
+	_ship.global_basis = Basis.IDENTITY
+	_ship.reset_physics_interpolation()
+	_ship.velocity = (
+		navigation - _ship.global_position
+	).normalized() * ORBIT_HOLD_SPEED_MPS
+
+
+## Everything from here down is flown by the production cruise controller
+## through the authored corridor; this only watches for the handoff the
+## coordinator consumes and turns it into the real berth landing request.
+func _advance_corridor() -> void:
+	_corridor_ticks += 1
+	_committed_rebases_outbound = int(
+		_flow._planetary_journey.get_aurora_visit_snapshot().get(
+			"rebase_commit_count", _committed_rebases_outbound
+		)
+	)
+	if _flow._planetary_journey.aurora_final_approach_handoff_ready():
+		_begin_touchdown()
+		return
+	if _corridor_ticks > CORRIDOR_TICK_BUDGET:
+		var region := _landing_region()
+		_last_leg_result = {
+			"accepted": false,
+			"reason": &"aurora_corridor_budget_exhausted",
+			"ship_region_local": region.to_local(_ship.global_position) \
+				if is_instance_valid(region) else Vector3.INF,
+			"ship_speed": _ship.velocity.length(),
+			"cruise": _flow._planetary_journey.get_aurora_visit_snapshot().get(
+				"last_cruise_result", {}
+			),
+		}
+		cancel()
+
+
+## The interrupted-visit resume. It streams Aurora back in through the same lane
+## a fresh arrival uses rather than standing a private copy of the world, then
+## puts the craft on the authored pad through a real lease and the pilot on foot
+## beside its ramp. There is no corridor here: a resumed visit is already down.
+func _advance_restoring() -> void:
+	var bootstrap := _flow.aurora_streaming_bootstrap
+	if not is_instance_valid(bootstrap):
+		cancel()
+		return
+	var loaded := bootstrap.get_loaded_instance()
+	if is_instance_valid(loaded):
+		_complete_restore(loaded)
+		return
+	var navigation := _navigation_standoff_target()
+	if navigation.is_finite():
+		if _staging_events == 0:
+			_staging_events += 1
+		# The lane observes whichever actor GameFlow samples; a resumed pilot is
+		# on foot, so the pilot is the observation that carries the visit back.
+		_flow.player.teleport_to(Transform3D(
+			_flow.player.global_basis, navigation + Vector3.BACK * ORBIT_STANDOFF_M
+		))
+		_ship.global_position = navigation + Vector3.BACK * ORBIT_STANDOFF_M \
+			+ Vector3.RIGHT * 30.0
+		_ship.velocity = Vector3.ZERO
+	_orbit_ticks += 1
+	if _orbit_ticks > ORBIT_STAGE_TICK_BUDGET:
+		cancel()
+
+
+## Holds the craft at its registered home pad's staging pose so the lane's next
+## committed rebase brings the common origin back to the yard, which is what
+## streams Aurora out behind the departing craft.
+func _advance_return_cruise() -> void:
+	_departure_ticks += 1
+	if is_instance_valid(_home) and _home.is_inside_tree():
+		if _departure_ticks == 1:
+			_staging_events += 1
+		_ship.global_transform = _home.get_assist_staging_transform()
+		_ship.velocity = Vector3.ZERO
+		if is_instance_valid(_flow.player) and not _flow.player.is_seated():
+			_flow.player.teleport_to(_ship.get_exit_transform())
+	var bootstrap := _flow.aurora_streaming_bootstrap
+	if not is_instance_valid(bootstrap) \
+			or not is_instance_valid(bootstrap.get_loaded_instance()):
+		_arrive_home()
+		return
+	if _departure_ticks > DEPARTURE_TICK_BUDGET:
+		cancel()
+
+
 
 func update_presentation() -> void:
 	if _flow._piloting:
@@ -153,10 +417,16 @@ func update_presentation() -> void:
 		_flow._update_on_foot_flow()
 		return
 	match state:
-		&"outbound_jump":
-			_flow.hud.set_objective("Jumping to Aurora — preparing atmospheric approach", "AURORA EXPEDITION")
-			_flow.hud.set_interaction("JUMP DRIVE ENGAGED")
-		&"return_jump", &"return_landing":
+		&"outbound":
+			_flow.hud.set_objective("Cruising to Aurora — streaming the world and arming the approach", "AURORA EXPEDITION")
+			_flow.hud.set_interaction("CRUISE ENGAGED")
+		&"corridor":
+			_flow.hud.set_objective("Flying Aurora's authored approach corridor", "AURORA EXPEDITION")
+			_flow.hud.set_interaction("FINAL APPROACH — PLEASE WAIT")
+		&"restoring":
+			_flow.hud.set_objective("Returning you to Aurora", "AURORA SURFACE")
+			_flow.hud.set_interaction("STREAMING AURORA")
+		&"return_cruise", &"return_landing":
 			_flow.hud.set_objective("Returning to your registered berth at Mudds", "HOMEWARD BOUND")
 			_flow.hud.set_interaction("RETURN APPROACH IN PROGRESS")
 		&"landing":
@@ -246,14 +516,67 @@ func _near_ship() -> bool:
 	var area := _ship.get_node_or_null("ShipBoardingArea")
 	return area != null and area in _flow.player.get_nearby_interactables()
 
-## Stands the authored world, its exploration berth on the authored landing
-## region, and Aurora's own atmosphere in front of the viewport. Shared by a
-## fresh arrival and by an interrupted visit resumed on a later `Main`, so the
-## two can never drift into composing the place differently.
-func _compose_surface() -> void:
-	_surface = WORLD.instantiate() as Node3D
-	_surface.position = SURFACE_ORIGIN - Vector3.UP * 120000.0
-	_flow.add_child(_surface)
+## Composes the visit against the world the production streaming coordinator
+## has just made resident. The world itself is never instantiated here: this
+## only leases the exploration berth on the streamed scene's own authored
+## landing region, stands the visit's approach source, arms the authored
+## corridor through the journey coordinator, and hands the viewport Aurora's own
+## atmosphere. The berth is parented to the live landing region, so its dock is
+## expressed in the streamed world's frame rather than in Main's.
+func _compose_streamed_surface(loaded: Node3D) -> void:
+	var region := loaded.get_node_or_null(LANDING_REGION_PATH) as Node3D
+	if not is_instance_valid(region) or not region.is_inside_tree():
+		_last_compose_result = {
+			"accepted": false, "reason": &"aurora_landing_region_unavailable",
+		}
+		return
+	_surface = loaded
+	_lease_surface_berth(region)
+	if _surface_token.is_empty():
+		_last_compose_result = {
+			"accepted": false, "reason": &"aurora_berth_lease_refused",
+		}
+		cancel()
+		return
+	_present_aurora_environment()
+	var bootstrap := _flow.aurora_streaming_bootstrap
+	var frame := bootstrap.get_coordinate_frame_for_session()
+	if frame == null:
+		_last_compose_result = {
+			"accepted": false, "reason": &"aurora_coordinate_frame_unavailable",
+		}
+		cancel()
+		return
+	# Engage only now: a cruise engaged before Aurora was resident would have
+	# been engaged across the committed rebase that made it resident, and would
+	# have retired itself on that tick.
+	var engaged := _flow._planetary_journey.engage_aurora_cruise(_ship)
+	if not bool(engaged.get("accepted", false)):
+		_last_compose_result = engaged.duplicate(true)
+		cancel()
+		return
+	_approach_source = ApproachSourceType.new() as AuroraVisitApproachSource
+	_approach_source.name = "AuroraVisitApproachSource"
+	_flow.add_child(_approach_source)
+	var armed_source := _approach_source.arm(
+		frame.get_generation(),
+		int(bootstrap.get_snapshot().get("location_generation", 0)),
+	)
+	if not bool(armed_source.get("accepted", false)):
+		_last_compose_result = armed_source.duplicate(true)
+		cancel()
+		return
+	var armed := _flow._planetary_journey.arm_aurora_final_approach(
+		_approach_source, region, _approach_envelope()
+	)
+	_last_compose_result = armed.duplicate(true)
+	if not bool(armed.get("accepted", false)):
+		cancel()
+
+
+func _lease_surface_berth(region: Node3D) -> void:
+	if is_instance_valid(_berth):
+		return
 	_berth = ShipBerth.new()
 	_berth.name = "AuroraExplorationBerth"
 	_berth.berth_id = &"aurora_exploration_pad"
@@ -263,31 +586,194 @@ func _compose_surface() -> void:
 	_berth.assist_capture_half_extents = Vector3(45.0, 60.0, 300.0)
 	var bounds: AABB = _ship.get_landing_collision_report().get("local_bounds", AABB())
 	_berth.dock_transform.origin.y = -bounds.position.y + 0.03
-	_surface.get_node("LandingRegion").add_child(_berth)
+	region.add_child(_berth)
 	_surface_token = _berth.try_reserve(_ship, _ship.get_ship_definition())
+
+
+func _present_aurora_environment() -> void:
 	_flow.world.visible = false
-	var atmosphere := _surface.get_node("AuroraAtmosphereComposition")
-	atmosphere.configure()
-	atmosphere.present_observation({"body_local_observer_m": Vector3(0, 120040, 30), "view_direction_body_local": Vector3.FORWARD, "fog_path_distance_m": 12000.0, "speed_mps": 0.0, "weather_scalar": 0.4, "cloud_scalar": 0.5, "caller_time_seconds": 0.0}, 1)
-	_flow.get_viewport().world_3d.environment = atmosphere.get_world_environment().environment
+	var environment := _flow.aurora_streaming_bootstrap.get_scene_environment() \
+		if is_instance_valid(_flow.aurora_streaming_bootstrap) else null
+	if environment != null and _flow.is_inside_tree():
+		_flow.get_viewport().world_3d.environment = environment
 
 
-func _arrive() -> void:
-	_compose_surface()
-	_ship.global_transform = _berth.get_assist_staging_transform()
-	_ship.reset_physics_interpolation()
+## The authored corridor, read from Aurora's own landing-region resource. These
+## are exactly the nine typed keys `PlanetaryCruiseProductionBinding` validates,
+## and nothing in them is Ember's.
+func _approach_envelope() -> Dictionary:
+	var collision := _ship.get_landing_collision_report()
+	return {
+		"corridor_id": StringName(_LANDING_REGION.approach_corridor_ids[0]),
+		"target_pad_id": StringName(
+			_LANDING_REGION.approach_corridor_target_pad_ids[0]
+		),
+		"corridor_transform_region_local_m":
+			_LANDING_REGION.approach_corridor_transforms_region_local_m[0],
+		"corridor_half_extents_m": _LANDING_REGION.approach_corridor_half_extents_m[0],
+		"entry_position_half_extents_m": APPROACH_ENTRY_POSITION_HALF_EXTENTS_M,
+		"maximum_speed_mps": APPROACH_MAXIMUM_SPEED_MPS,
+		"maximum_attitude_degrees": APPROACH_MAXIMUM_ATTITUDE_DEGREES,
+		"hull_margin_m": APPROACH_HULL_MARGIN_M,
+		"collision_bounds": collision.get("local_bounds", AABB()) as AABB,
+	}.duplicate(true)
+
+
+## The second and last staged placement: the authored corridor entry pose the
+## armed approach is written against. Everything after this is flown.
+func _stage_corridor_entry() -> void:
+	var region := _landing_region()
+	if not is_instance_valid(region):
+		cancel()
+		return
+	var corridor := _LANDING_REGION.approach_corridor_transforms_region_local_m[0] \
+		as Transform3D
+	_staging_events += 1
+	_ship.global_transform = region.global_transform * corridor
 	_ship.velocity = Vector3.ZERO
+	_ship.reset_physics_interpolation()
+	_corridor_ticks = 0
+	state = &"corridor"
+
+
+## The completed production approach hands over here. The visit takes the real
+## berth lease it already holds and asks HeroShip for a real assisted landing;
+## nothing manufactures a landed flag.
+func _begin_touchdown() -> void:
+	if is_instance_valid(_approach_source):
+		_approach_source.retire(&"aurora_touchdown")
+	if is_instance_valid(_flow.planetary_cruise_binding):
+		_flow.planetary_cruise_binding.request_disengage(
+			_flow.planetary_cruise_binding.get_generation(), true
+		)
 	state = &"landing"
 	_landing_elapsed = 0.0
-	if _surface_token.is_empty() or not _ship.request_berth_landing(_berth):
+	if is_instance_valid(_berth) and _berth.is_inside_tree():
+		# The third and last staged placement. Ember flies the 300 m from the
+		# corridor mouth to its pad with `EmberSurfaceLoopHost`, which owns a
+		# phased surface descent; Aurora has no such Host and should not grow
+		# one for a coastal visit, and the cruise controller only ever measures
+		# arrival at an approach target rather than flying to it. So the craft
+		# is placed once at the berth's own assist staging pose, and the last
+		# forty metres onto the pad are flown by the production landing assist
+		# through the real lease this visit already holds.
+		_staging_events += 1
+		_ship.global_transform = _berth.get_assist_staging_transform()
+		_ship.velocity = Vector3.ZERO
+		_ship.reset_physics_interpolation()
+	if _surface_token.is_empty() or not is_instance_valid(_berth):
+		_last_leg_result = {
+			"accepted": false, "reason": &"aurora_berth_unavailable",
+		}
 		cancel()
+		return
+	var requested := _ship.request_berth_landing(_berth)
+	_last_leg_result = {
+		"accepted": requested,
+		"reason": &"aurora_berth_landing_requested" if requested
+			else &"aurora_berth_landing_refused",
+		"ship_region_local": _landing_region().to_local(_ship.global_position)
+			if is_instance_valid(_landing_region()) else Vector3.INF,
+		"landing_report": _ship.get_landing_contract_report(),
+		"berth": _berth.audit() if _berth.has_method(&"audit") else {},
+	}
+	if not requested:
+		cancel()
+
+
+func _complete_restore(loaded: Node3D) -> void:
+	var region := loaded.get_node_or_null(LANDING_REGION_PATH) as Node3D
+	if not is_instance_valid(region) or not region.is_inside_tree():
+		cancel()
+		return
+	_surface = loaded
+	_lease_surface_berth(region)
+	if _surface_token.is_empty():
+		cancel()
+		return
+	_present_aurora_environment()
+	_ship.global_transform = _berth.get_dock_transform()
+	_ship.reset_physics_interpolation()
+	_ship.velocity = Vector3.ZERO
+	if not _ship.request_berth_landing(_berth):
+		cancel()
+		return
+	var shutdown := _ship.request_engine_stop.bind(false)
+	if not _ship.landing_completed.is_connected(shutdown):
+		_ship.landing_completed.connect(shutdown, CONNECT_ONE_SHOT)
+	_ship.set_piloted(false)
+	_flow.active_ship = _ship
+	_flow._piloting = false
+	_flow._transition_busy = false
+	_flow.phase = GameFlow.Phase.APPROACH_SHIP
+	_flow.player.force_recovery_to_on_foot(_ship.get_exit_transform())
+	_flow.player.set_camera_active(true)
+	_flow.player.set_control_enabled(true)
+	_flow.hud.set_mode("on-foot")
+	_flow.audio.set_on_foot(true)
+	state = &"surface"
+	_flow.hud.set_objective(
+		"Back on Aurora - explore, then board your ship to return", "AURORA SURFACE"
+	)
+	_flow.hud.toast(
+		"Aurora visit resumed", "Your ship is on the pad where you left it", 3.0
+	)
+
+
+func _note_leg_failure(reason: StringName) -> void:
+	_last_leg_result = {
+		"accepted": false,
+		"reason": reason,
+		"elapsed": _landing_elapsed,
+		"landing_report": _ship.get_landing_contract_report() \
+			if is_instance_valid(_ship) else {},
+		"telemetry": _ship.get_telemetry() if is_instance_valid(_ship) else {},
+	}
+
+
+func _landing_region() -> Node3D:
+	if not is_instance_valid(_surface) or not _surface.is_inside_tree():
+		return null
+	return _surface.get_node_or_null(LANDING_REGION_PATH) as Node3D
+
+
+func _landing_region_origin() -> Vector3:
+	var region := _landing_region()
+	return region.global_position if is_instance_valid(region) else Vector3.INF
+
+
+## The live world position of Aurora's canonical navigation anchor, decoded from
+## the cruise binding's own absolute destination in the current frame.
+func _navigation_standoff_target() -> Vector3:
+	var bootstrap := _flow.aurora_streaming_bootstrap
+	var cruise := _flow.planetary_cruise_binding
+	if not is_instance_valid(bootstrap) or not is_instance_valid(cruise):
+		return Vector3.INF
+	var frame := bootstrap.get_coordinate_frame_for_session()
+	if frame == null:
+		return Vector3.INF
+	var canonical := cruise.get_snapshot().get(
+		"canonical_destination_orbital", {}
+	) as Dictionary
+	if canonical.is_empty():
+		return Vector3.INF
+	var decoded := frame.orbital_to_world_streaming_position(
+		canonical, frame.get_generation()
+	)
+	if not bool(decoded.get("accepted", false)):
+		return Vector3.INF
+	return decoded.get("position", Vector3.INF) as Vector3
+
 
 
 ## Describes an in-progress visit for the interrupted-visit store, or nothing
 ## when there is nothing worth coming back to. A pilot who has already asked to
 ## go home is deliberately not brought back.
 func capture_interrupted_visit() -> Dictionary:
-	if not is_active() or state in [&"return_jump", &"return_landing"]:
+	if not is_active() or state in [
+		&"outbound", &"corridor", &"restoring", &"retiring",
+		&"return_cruise", &"return_landing",
+	]:
 		return {}
 	if not is_instance_valid(_ship):
 		return {}
@@ -321,52 +807,41 @@ func restore_interrupted_visit(visit: Dictionary) -> Dictionary:
 	var home := _flow.world.get_berth_node(berth_id) as ShipBerth
 	if not is_instance_valid(home):
 		return {"accepted": false, "reason": &"aurora_visit_home_berth_unavailable"}
+	var station_visible := _flow.world.visible
+	var station_environment := _flow.get_viewport().world_3d.environment
+	_flow._release_ship_berth(craft)
+	# Streaming a world in takes physics ticks and committed origin transactions,
+	# so a resume is admitted here and completed by the visit's own cadence. It
+	# is admitted without a cruise: a resumed visit is already on the ground and
+	# has no approach left to fly.
+	_last_admission = _flow._planetary_journey.admit_aurora_visit(craft, false)
+	if not bool(_last_admission.get("accepted", false)):
+		_flow._reserve_berth_for_ship(craft, berth_id, false)
+		return {
+			"accepted": false,
+			"reason": &"aurora_visit_restore_refused",
+			"admission_reason": _last_admission.get("reason", &"unknown"),
+		}
 	_ship = craft
 	_home = home
+	# The resumed craft is the one the pilot flew out in, not whichever craft a
+	# fresh `Main` happens to start with. Adopt it before the visit's own
+	# cadence starts, because that cadence refuses to run for another craft.
+	_flow.active_ship = craft
 	_departure = craft.global_transform
-	_station_visible = _flow.world.visible
-	_station_environment = _flow.get_viewport().world_3d.environment
-	_flow._release_ship_berth(_ship)
+	_station_visible = station_visible
+	_station_environment = station_environment
 	_ship.request_engine_stop(false)
 	_ship.velocity = Vector3.ZERO
-	_compose_surface()
-	if _surface_token.is_empty():
-		_clear_surface()
-		_ship = null
-		_home = null
-		return {"accepted": false, "reason": &"aurora_visit_berth_lease_refused"}
-	_ship.global_transform = _berth.get_dock_transform()
-	_ship.reset_physics_interpolation()
-	_ship.velocity = Vector3.ZERO
-	if not _ship.request_berth_landing(_berth):
-		_berth.release(_ship, _surface_token)
-		_clear_surface()
-		_ship = null
-		_home = null
-		return {"accepted": false, "reason": &"aurora_visit_landing_refused"}
-	var shutdown := _ship.request_engine_stop.bind(false)
-	if not _ship.landing_completed.is_connected(shutdown):
-		_ship.landing_completed.connect(shutdown, CONNECT_ONE_SHOT)
-	_ship.set_piloted(false)
-	_flow.active_ship = _ship
-	_flow._piloting = false
-	_flow._transition_busy = false
-	_flow.phase = GameFlow.Phase.APPROACH_SHIP
-	_flow.player.force_recovery_to_on_foot(_ship.get_exit_transform())
-	_flow.player.set_camera_active(true)
-	_flow.player.set_control_enabled(true)
-	_flow.hud.set_mode("on-foot")
-	_flow.audio.set_on_foot(true)
-	state = &"surface"
-	_flow.hud.set_objective(
-		"Back on Aurora - explore, then board your ship to return", "AURORA SURFACE"
-	)
-	_flow.hud.toast(
-		"Aurora visit resumed", "Your ship is on the pad where you left it", 3.0
-	)
+	_staging_events = 0
+	_orbit_ticks = 0
+	_corridor_ticks = 0
+	_departure_ticks = 0
+	_committed_rebases_outbound = 0
+	state = &"restoring"
 	return {
 		"accepted": true,
-		"reason": &"aurora_visit_restored",
+		"reason": &"aurora_visit_restoring",
 		"craft_home_berth_id": String(berth_id),
 		"visit_state": String(state),
 	}
@@ -382,18 +857,20 @@ func _craft_for_home_berth(berth_id: StringName) -> HeroShip:
 	return null
 
 func _begin_return() -> void:
-	if is_instance_valid(_berth):
-		_berth.release(_ship, _surface_token)
+	_release_surface_lease()
 	_ship.call(&"_end_landing_for_lifecycle", &"aurora_return")
 	_ship.request_engine_stop(false)
 	_ship.velocity = Vector3.ZERO
-	state = &"return_jump"
-	_jump_remaining = JUMP_SECONDS
+	state = &"return_cruise"
+	_departure_ticks = 0
 	_flow.hud.set_paused(false)
-	_flow.hud.toast("Returning to Mudds", "Jump drive preparing your home approach", 2.0)
+	_flow.hud.toast(
+		"Returning to Mudds", "Aurora streams out behind you on the way home", 2.0
+	)
 
 func _arrive_home() -> void:
 	_clear_surface()
+	_flow._planetary_journey.retire_aurora_visit()
 	if not is_instance_valid(_home) or not _flow._reserve_berth_for_ship(_ship, _home.berth_id, false):
 		cancel()
 		return
@@ -406,7 +883,7 @@ func _arrive_home() -> void:
 		cancel()
 
 func _finish_return() -> void:
-	_clear_jump_fade()
+	_clear_transition_fade()
 	state = &"idle"
 	_flow.phase = GameFlow.Phase.SHUT_DOWN
 	_flow._sortie_departed_berth = false
@@ -418,22 +895,36 @@ func _finish_return() -> void:
 	_home = null
 	_flow._sync_planetary_cruise_hud()
 
+## Releases this visit's lease and its own nodes. The streamed world itself is
+## never freed here: it belongs to the production streaming coordinator, which
+## unloads it once the departing craft leaves its envelope.
+func _release_surface_lease() -> void:
+	if is_instance_valid(_approach_source):
+		_approach_source.retire(&"aurora_visit_ended")
+		_approach_source.queue_free()
+	_approach_source = null
+	if is_instance_valid(_berth):
+		if not _surface_token.is_empty():
+			_berth.release(_ship, _surface_token)
+		if is_instance_valid(_berth.get_parent()):
+			_berth.get_parent().remove_child(_berth)
+		_berth.queue_free()
+	_berth = null
+	_surface_token = &""
+
+
 func _clear_surface() -> void:
+	_release_surface_lease()
 	if is_instance_valid(_flow.world):
 		_flow.world.visible = _station_visible
-	if is_instance_valid(_surface):
-		_surface.get_parent().remove_child(_surface)
-		_surface.queue_free()
 	if _flow.is_inside_tree():
 		_flow.get_viewport().world_3d.environment = _station_environment
 	_surface = null
-	_berth = null
-	_surface_token = &""
 
 func cancel() -> void:
 	if not is_active():
 		return
-	_clear_jump_fade()
+	_clear_transition_fade()
 	if is_instance_valid(_ship):
 		_ship.call(&"_end_landing_for_lifecycle", &"aurora_cancelled")
 	if _flow._recovering:
@@ -467,16 +958,14 @@ func cancel() -> void:
 		_ship.request_engine_stop(false)
 		_ship.velocity = Vector3.ZERO
 		_ship.global_transform = _departure
-		# Recover the craft to its home pad if available. One normal physical
-		# touchdown re-establishes occupancy; no landed flag is manufactured.
-		if is_instance_valid(_home) and _home.can_accept(_ship.get_ship_definition(), _ship):
+		# Park the craft on its home pad's live pose. The touchdown that
+		# re-establishes occupancy is deliberately deferred to the end of the
+		# wind-down: the common origin is still out at Aurora at this instant,
+		# and a landing assist started here would be running across the very
+		# rebase that brings the yard back under the craft.
+		if is_instance_valid(_home) and _home.is_inside_tree():
 			_ship.global_transform = _home.get_dock_transform()
-			if _flow._reserve_berth_for_ship(_ship, _home.berth_id, false):
-				if _ship.request_berth_landing(_home):
-					var shutdown := _ship.request_engine_stop.bind(false)
-					if not _ship.landing_completed.is_connected(shutdown):
-						_ship.landing_completed.connect(shutdown, CONNECT_ONE_SHOT)
-				recovery = _ship.get_exit_transform()
+			recovery = _ship.get_exit_transform()
 		_ship.reset_physics_interpolation()
 	_flow.player.force_recovery_to_on_foot(recovery)
 	_flow.player.set_camera_active(true)
@@ -487,27 +976,72 @@ func cancel() -> void:
 	_flow.hud.set_mode("on-foot")
 	_flow.hud.set_objective("Board your ship to try another expedition", "BACK AT MUDDS")
 	_flow.hud.toast("Expedition interrupted", "Returned safely to Mudds; the route can be retried", 3.0)
+	# The actors are home, but the common origin is still out at Aurora and
+	# Aurora is still resident. Keep the lane running for a bounded wind-down so
+	# the production streaming coordinator commits the rebase back to the yard
+	# and unloads Aurora itself, rather than this visit deleting a world it does
+	# not own and leaving the origin twelve thousand kilometres from the station.
+	state = &"retiring"
+	_retire_ticks = 0
+
+
+## The bounded wind-down. It moves nothing: the actors are already home, and the
+## lane's own streaming observation is what retires Aurora.
+func _advance_retiring() -> void:
+	_retire_ticks += 1
+	# Hold the craft and the pilot on the yard's live poses so the lane's own
+	# observation is what asks for the rebase home.
+	if is_instance_valid(_ship) and is_instance_valid(_home) and _home.is_inside_tree():
+		_ship.global_transform = _home.get_dock_transform()
+		_ship.velocity = Vector3.ZERO
+		if is_instance_valid(_flow.player) and not _flow.player.is_seated():
+			_flow.player.teleport_to(_ship.get_exit_transform())
+	var bootstrap := _flow.aurora_streaming_bootstrap
+	var resident := is_instance_valid(bootstrap) \
+		and is_instance_valid(bootstrap.get_loaded_instance())
+	if resident and _retire_ticks <= DEPARTURE_TICK_BUDGET:
+		return
+	_flow._planetary_journey.retire_aurora_visit()
+	# The yard is back under the craft, so the ordinary home touchdown can run.
+	# One normal physical landing re-establishes occupancy; no landed flag is
+	# manufactured anywhere in this path.
+	if is_instance_valid(_ship) and not _ship.is_destroyed() \
+			and is_instance_valid(_home) and _home.is_inside_tree() \
+			and _home.can_accept(_ship.get_ship_definition(), _ship):
+		_ship.global_transform = _home.get_dock_transform()
+		_ship.reset_physics_interpolation()
+		if _flow._reserve_berth_for_ship(_ship, _home.berth_id, false):
+			if _ship.request_berth_landing(_home):
+				var shutdown := _ship.request_engine_stop.bind(false)
+				if not _ship.landing_completed.is_connected(shutdown):
+					_ship.landing_completed.connect(shutdown, CONNECT_ONE_SHOT)
+			if is_instance_valid(_flow.player) and not _flow.player.is_seated():
+				_flow.player.force_recovery_to_on_foot(_ship.get_exit_transform())
+				_flow.player.set_camera_active(true)
+				_flow.player.set_control_enabled(true)
+	state = &"idle"
 	_ship = null
 	_home = null
+	_flow._sync_planetary_cruise_hud()
 
 
-func _present_jump_fade(opacity: float) -> void:
+func _present_transition_fade(opacity: float) -> void:
 	_fade_opacity = opacity
-	if not is_instance_valid(_jump_fade_layer):
-		_jump_fade_layer = CanvasLayer.new()
-		_jump_fade_layer.name = "AuroraJumpTransition"
-		_jump_fade_layer.layer = 7
-		_jump_fade = ColorRect.new()
-		_jump_fade.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-		_jump_fade.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		_jump_fade_layer.add_child(_jump_fade)
-		_flow.add_child(_jump_fade_layer)
-	_jump_fade.color = Color(0.005, 0.018, 0.028, opacity)
+	if not is_instance_valid(_fade_layer):
+		_fade_layer = CanvasLayer.new()
+		_fade_layer.name = "AuroraVisitTransition"
+		_fade_layer.layer = 7
+		_fade = ColorRect.new()
+		_fade.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+		_fade.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		_fade_layer.add_child(_fade)
+		_flow.add_child(_fade_layer)
+	_fade.color = Color(0.005, 0.018, 0.028, opacity)
 
 
-func _clear_jump_fade() -> void:
+func _clear_transition_fade() -> void:
 	_fade_opacity = 0.0
-	if is_instance_valid(_jump_fade_layer):
-		_jump_fade_layer.queue_free()
-	_jump_fade_layer = null
-	_jump_fade = null
+	if is_instance_valid(_fade_layer):
+		_fade_layer.queue_free()
+	_fade_layer = null
+	_fade = null

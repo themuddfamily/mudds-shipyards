@@ -4253,6 +4253,12 @@ func _physics_process(delta: float) -> void:
 	# request blocks every later press behind `boarding_request_in_flight`.
 	_advance_network_client_boarding_request(delta)
 	if _aurora_expedition.is_active():
+		# An Aurora visit is a peer of an Ember expedition, not a bypass of the
+		# planetary subsystem: the same one actor read drives Aurora's streaming
+		# binding, the one common-world origin owner and the one cruise binding,
+		# and the visit itself only consumes what that lane reports.
+		var aurora_sample := _capture_cinder_actor_sample()
+		_planetary_journey.advance_aurora_visit(delta, aurora_sample)
 		_aurora_expedition.physics_tick(delta)
 		return
 	if is_instance_valid(network_session) and _network_session_mode == &"server":

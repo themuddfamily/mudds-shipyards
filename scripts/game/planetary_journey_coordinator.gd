@@ -59,6 +59,22 @@ var _mudds_return_approach_active := false
 var _mudds_return_approach_completion_attempted := false
 var _mudds_return_approach_completion_receipt: Dictionary = {}
 var _last_mudds_return_approach_result: Dictionary = {}
+## The Aurora visit lane. Aurora is the second world the planetary subsystem
+## serves, and it is admitted, cruised, streamed, rebased and approached through
+## exactly the components Ember uses - the one cruise binding pointed at
+## Aurora's bootstrap, the one common-world origin owner, and Aurora's own
+## streaming binding. It has no surface Host: a coastal visit has no expedition
+## loop to run, so the visit itself owns embodiment once the craft is docked.
+var _aurora_visit_active := false
+var _aurora_visit_rebase_commit_count := 0
+var _aurora_final_approach_handoff_ready := false
+var _aurora_final_approach_armed := false
+var _aurora_final_approach_completion_receipt: Dictionary = {}
+var _last_aurora_streaming_result: Dictionary = {}
+var _last_aurora_origin_result: Dictionary = {}
+var _last_aurora_cruise_result: Dictionary = {}
+var _last_aurora_admission_result: Dictionary = {}
+var _last_aurora_retirement_result: Dictionary = {}
 var _planetary_return_physical_arrival_required := false
 var _planetary_return_physical_arrival_armed := false
 var _last_planetary_return_physical_arrival_result: Dictionary = {}
@@ -224,7 +240,334 @@ func advance_world(delta: float, actor_sample: Dictionary) -> Dictionary:
 
 
 
+# --- the Aurora visit lane ----------------------------------------------------
+
+
+## Admits one Aurora visit: points the one cruise binding at Aurora's bootstrap,
+## makes sure the origin owner holds Aurora's pair, and engages the cruise. No
+## craft moves here; the first accepted lane tick is what starts the trip.
+func admit_aurora_visit(ship: HeroShip, engage_cruise: bool = true) -> Dictionary:
+	if _aurora_visit_active:
+		return _aurora_admitted(false, &"aurora_visit_already_active")
+	if _ember_surface_journey_active or not _pending_ember_surface_request.is_empty():
+		return _aurora_admitted(false, &"ember_surface_journey_active")
+	if not is_instance_valid(ship) or ship.is_destroyed() \
+			or (engage_cruise and not ship.is_piloted()):
+		return _aurora_admitted(false, &"aurora_visit_craft_unavailable")
+	if not is_instance_valid(_flow.aurora_streaming_bootstrap) \
+			or not is_instance_valid(_flow.aurora_streaming_binding) \
+			or not is_instance_valid(_flow.planetary_cruise_binding) \
+			or not is_instance_valid(_flow.common_world_origin_rebase_owner):
+		return _aurora_admitted(false, &"aurora_composition_unavailable")
+	var owner_rebind := _flow.common_world_origin_rebase_owner.rebind_composed_worlds()
+	if not bool(owner_rebind.get("accepted", false)) \
+			or not owner_rebind.get("world_count", 0) is int \
+			or not _flow.common_world_origin_rebase_owner.get_bound_world_ids().has(
+				String(AuroraTemperateStreamingBootstrap.WORLD_ID)
+			):
+		return _aurora_admitted(false, &"aurora_origin_owner_unbound")
+	var bound := _flow.planetary_cruise_binding.bind_world(
+		_flow.aurora_streaming_bootstrap
+	)
+	if not bool(bound.get("accepted", false)):
+		return _aurora_admitted(
+			false, bound.get("reason", &"aurora_cruise_bind_refused") as StringName
+		)
+	var frame := _flow.aurora_streaming_bootstrap.get_coordinate_frame_for_session()
+	if frame == null:
+		return _aurora_admitted(false, &"aurora_coordinate_frame_unavailable")
+	var engaged: Dictionary = {"accepted": true, "reason": &"cruise_not_requested"}
+	if engage_cruise:
+		engaged = _flow.planetary_cruise_binding.request_engage(
+			ship, frame.get_generation(), &"",
+			_flow.planetary_cruise_binding.get_generation(),
+		)
+	if not bool(engaged.get("accepted", false)):
+		_restore_ember_cruise_binding()
+		return _aurora_admitted(
+			false, engaged.get("reason", &"aurora_cruise_engage_refused") as StringName
+		)
+	_aurora_visit_active = true
+	_aurora_visit_rebase_commit_count = 0
+	_aurora_final_approach_handoff_ready = false
+	_aurora_final_approach_armed = false
+	_aurora_final_approach_completion_receipt.clear()
+	_last_aurora_streaming_result.clear()
+	_last_aurora_origin_result.clear()
+	_last_aurora_cruise_result.clear()
+	return _aurora_admitted(true, &"aurora_visit_admitted", {
+		"coordinate_frame_generation": frame.get_generation(),
+	})
+
+
+## One physics tick of the Aurora lane, in the same order Ember's runs: the
+## world's own streaming observation, then the caller-owned origin transaction,
+## then the cruise. Returns the actor sample later consumers must use, which is
+## the translated one whenever a rebase committed on this tick.
+func advance_aurora_visit(delta: float, actor_sample: Dictionary) -> Dictionary:
+	if not _aurora_visit_active:
+		return {"accepted": false, "reason": &"aurora_visit_inactive",
+			"actor_sample": actor_sample.duplicate(true)}
+	var binding := _flow.aurora_streaming_binding
+	var bootstrap := _flow.aurora_streaming_bootstrap
+	if not is_instance_valid(binding) or not is_instance_valid(bootstrap):
+		return {"accepted": false, "reason": &"aurora_composition_unavailable",
+			"actor_sample": actor_sample.duplicate(true)}
+	var streaming_tick := binding.physics_tick_from_caller_sample(delta, actor_sample)
+	_last_aurora_streaming_result = streaming_tick.duplicate(true)
+	var streaming_accepted := bool(streaming_tick.get("accepted", false))
+	var coordinate_frame_generation := int(
+		streaming_tick.get("coordinate_frame_generation", 0)
+	)
+	var residency_required := false
+	var rebase_uncommitted := false
+	if streaming_tick.has("coordinate_frame_generation"):
+		var preview := binding.preview_origin_rebase(coordinate_frame_generation)
+		if bool(preview.get("accepted", false)):
+			var required := bool(preview.get("rebase_required", false))
+			rebase_uncommitted = required
+			var rebase := _flow.common_world_origin_rebase_owner.consume_rebase_preview(
+				preview, actor_sample
+			)
+			_last_aurora_origin_result = rebase.duplicate(true)
+			if required and bool(rebase.get("accepted", false)):
+				rebase_uncommitted = false
+				_aurora_visit_rebase_commit_count += 1
+				actor_sample = (
+					rebase.get("actor_sample", {}) as Dictionary
+				).duplicate(true)
+				coordinate_frame_generation = int(rebase.get(
+					"coordinate_frame_generation", coordinate_frame_generation
+				))
+				var committed_streaming := (
+					rebase.get("receipt", {}) as Dictionary
+				).get("world_streaming", {}) as Dictionary
+				streaming_accepted = bool(committed_streaming.get("accepted", false))
+				residency_required = streaming_accepted \
+					and committed_streaming.get("action", &"") == &"load"
+	var gate_reason: StringName = _aurora_cruise_gate_reason()
+	if rebase_uncommitted:
+		gate_reason = &"origin_rebase_required"
+	elif not streaming_accepted:
+		gate_reason = &"aurora_streaming_unavailable"
+	elif residency_required and not is_instance_valid(bootstrap.get_loaded_instance()):
+		gate_reason = &"aurora_streaming_pending"
+	# The cruise only participates while the craft is actually travelling. Once
+	# the visit has landed and disengaged, the lane keeps streaming and rebasing
+	# without pretending a cruise is in flight.
+	if is_instance_valid(_flow.planetary_cruise_binding) and bool(
+		_flow.planetary_cruise_binding.get_snapshot().get("engagement_requested", false)
+	):
+		if _planetary_cruise_caller_tick >= _flow.PLANETARY_CRUISE_MAX_CALLER_TICK:
+			_flow.planetary_cruise_binding.request_caller_tick_exhausted(
+				_flow.planetary_cruise_binding.get_generation()
+			)
+		else:
+			_planetary_cruise_caller_tick += 1
+			var cruise_tick := _flow.planetary_cruise_binding.physics_tick_from_caller_sample(
+				_planetary_cruise_caller_tick,
+				actor_sample,
+				_flow.active_ship,
+				coordinate_frame_generation,
+				_flow._planetary_cruise_combat_active(),
+				gate_reason,
+				int(bootstrap.get_snapshot().get("location_generation", 0)),
+			)
+			_last_aurora_cruise_result = cruise_tick.duplicate(true)
+			if cruise_tick.get("reason") == &"final_approach_handoff_ready":
+				var consumed := _flow.planetary_cruise_binding.consume_final_approach_completion(
+					int(cruise_tick.get("target_generation", 0)),
+					_flow.planetary_cruise_binding.get_generation(),
+				)
+				if bool(consumed.get("accepted", false)):
+					_aurora_final_approach_completion_receipt = consumed.duplicate(true)
+					_aurora_final_approach_handoff_ready = true
+	return {
+		"accepted": true,
+		"reason": &"aurora_visit_advanced",
+		"actor_sample": actor_sample.duplicate(true),
+		"coordinate_frame_generation": coordinate_frame_generation,
+		"streaming_accepted": streaming_accepted,
+		"gate_reason": gate_reason,
+		"rebase_commit_count": _aurora_visit_rebase_commit_count,
+		"final_approach_handoff_ready": _aurora_final_approach_handoff_ready,
+	}.duplicate(true)
+
+
+## Engages the one cruise binding for an admitted Aurora visit.
+##
+## Deliberately separate from admission: a cruise engaged before the world is
+## resident is engaged across the committed origin transaction that makes it
+## resident, and the binding fails that tick closed and retires itself. The
+## visit therefore engages once Aurora is actually standing and no rebase is
+## outstanding, which is the state an Ember expedition is in when its own
+## approach is armed.
+func engage_aurora_cruise(ship: HeroShip) -> Dictionary:
+	if not _aurora_visit_active:
+		return {"accepted": false, "reason": &"aurora_visit_inactive"}
+	if not is_instance_valid(_flow.planetary_cruise_binding) \
+			or not is_instance_valid(_flow.aurora_streaming_bootstrap):
+		return {"accepted": false, "reason": &"aurora_composition_unavailable"}
+	var cruise := _flow.planetary_cruise_binding
+	if bool(cruise.get_snapshot().get("engagement_requested", false)):
+		return {"accepted": true, "reason": &"already_engaged"}
+	var frame := _flow.aurora_streaming_bootstrap.get_coordinate_frame_for_session()
+	if frame == null:
+		return {"accepted": false, "reason": &"aurora_coordinate_frame_unavailable"}
+	if not (frame.get_snapshot().get("pending_rebase", {}) as Dictionary).is_empty():
+		return {"accepted": false, "reason": &"origin_rebase_pending"}
+	return cruise.request_engage(
+		ship, frame.get_generation(), _aurora_cruise_gate_reason(),
+		cruise.get_generation(),
+	)
+
+
+## Arms the authored Aurora approach corridor against the streamed world's own
+## landing region. `source` is the visit's approach source - any node declaring
+## `get_final_approach_source_snapshot()`; the cruise binding never learns which
+## world's host is on the other end.
+func arm_aurora_final_approach(
+		source: Node,
+		landing_root: Node3D,
+		envelope: Dictionary,
+	) -> Dictionary:
+	if not _aurora_visit_active:
+		return {"accepted": false, "reason": &"aurora_visit_inactive"}
+	if _aurora_final_approach_armed:
+		return {"accepted": true, "reason": &"aurora_final_approach_already_armed"}
+	if not is_instance_valid(_flow.planetary_cruise_binding) \
+			or not is_instance_valid(_flow.aurora_streaming_bootstrap):
+		return {"accepted": false, "reason": &"aurora_composition_unavailable"}
+	var bootstrap_snapshot := _flow.aurora_streaming_bootstrap.get_snapshot()
+	var frame := _flow.aurora_streaming_bootstrap.get_coordinate_frame_for_session()
+	if frame == null:
+		return {"accepted": false, "reason": &"aurora_coordinate_frame_unavailable"}
+	var record := source.call(&"get_final_approach_source_snapshot") as Dictionary
+	var armed := _flow.planetary_cruise_binding.request_final_approach(
+		source,
+		landing_root,
+		envelope,
+		frame.get_generation(),
+		int(bootstrap_snapshot.get("location_generation", 0)),
+		int(record.get("generation", -1)),
+		int(record.get("attachment_generation", 0)),
+		_flow.planetary_cruise_binding.get_generation(),
+	)
+	if bool(armed.get("accepted", false)):
+		_aurora_final_approach_armed = true
+	return armed
+
+
+## Ends the lane and gives the one cruise binding back to Ember, so the next
+## Ember expedition finds the composition exactly as it was.
+func retire_aurora_visit() -> Dictionary:
+	if not _aurora_visit_active:
+		return _aurora_retired(true, &"aurora_visit_inactive")
+	_aurora_visit_active = false
+	_aurora_final_approach_handoff_ready = false
+	_aurora_final_approach_armed = false
+	_aurora_final_approach_completion_receipt.clear()
+	var disengaged: Dictionary = {}
+	if is_instance_valid(_flow.planetary_cruise_binding):
+		disengaged = _flow.planetary_cruise_binding.request_disengage(
+			_flow.planetary_cruise_binding.get_generation(), true
+		)
+	var restored := _restore_ember_cruise_binding()
+	return _aurora_retired(
+		bool(restored.get("accepted", false)), &"aurora_visit_retired", {
+			"disengage": disengaged.duplicate(true),
+			"cruise_rebind": restored.duplicate(true),
+		}
+	)
+
+
+func is_aurora_visit_active() -> bool:
+	return _aurora_visit_active
+
+
+func aurora_final_approach_handoff_ready() -> bool:
+	return _aurora_final_approach_handoff_ready
+
+
+func get_aurora_visit_snapshot() -> Dictionary:
+	return {
+		"active": _aurora_visit_active,
+		"rebase_commit_count": _aurora_visit_rebase_commit_count,
+		"final_approach_armed": _aurora_final_approach_armed,
+		"final_approach_handoff_ready": _aurora_final_approach_handoff_ready,
+		"final_approach_completion_receipt":
+			_aurora_final_approach_completion_receipt.duplicate(true),
+		"last_streaming_result": _last_aurora_streaming_result.duplicate(true),
+		"last_origin_result": _last_aurora_origin_result.duplicate(true),
+		"last_cruise_result": _last_aurora_cruise_result.duplicate(true),
+		"last_admission_result": _last_aurora_admission_result.duplicate(true),
+		"last_retirement_result": _last_aurora_retirement_result.duplicate(true),
+	}.duplicate(true)
+
+
+## The production gate for an Aurora cruise. It is `_planetary_cruise_gate_reason`
+## without the clause that refuses while an Aurora visit is running, and against
+## Aurora's own frame rather than Ember's.
+func _aurora_cruise_gate_reason() -> StringName:
+	if not _flow.is_inside_tree() or _flow.is_queued_for_deletion():
+		return &"main_unavailable"
+	var ship := _flow.active_ship
+	if not is_instance_valid(ship) or ship.is_queued_for_deletion() \
+			or not ship.is_inside_tree():
+		return &"active_ship_unavailable"
+	if ship.is_destroyed():
+		return &"ship_destroyed"
+	if not _flow._piloting or not ship.is_piloted():
+		return &"pilot_unseated"
+	if _flow._landing_request_active or ship.is_landing_active():
+		return &"landing_active"
+	if _flow._planetary_cruise_combat_active():
+		return &"combat_active"
+	if _flow._recovering or _flow.phase == GameFlow.Phase.RECOVERING:
+		return &"ship_recovery"
+	if not is_instance_valid(_flow.aurora_streaming_bootstrap):
+		return &"coordinate_frame_unavailable"
+	var frame := _flow.aurora_streaming_bootstrap.get_coordinate_frame_for_session()
+	if frame == null:
+		return &"coordinate_frame_unavailable"
+	if not (frame.get_snapshot().get("pending_rebase", {}) as Dictionary).is_empty():
+		return &"origin_rebase_pending"
+	return &""
+
+
+func _restore_ember_cruise_binding() -> Dictionary:
+	if not is_instance_valid(_flow.planetary_cruise_binding) \
+			or not is_instance_valid(_flow.ember_streaming_bootstrap):
+		return {"accepted": false, "reason": &"ember_composition_unavailable"}
+	if _flow.planetary_cruise_binding.get_bound_world_id() \
+			== EmberMoonStreamingBootstrap.WORLD_ID:
+		return {"accepted": true, "reason": &"already_bound_to_ember"}
+	return _flow.planetary_cruise_binding.bind_world(_flow.ember_streaming_bootstrap)
+
+
+func _aurora_admitted(
+		accepted: bool, reason: StringName, extra: Dictionary = {}
+	) -> Dictionary:
+	var result := {"accepted": accepted, "reason": reason}
+	for key: Variant in extra:
+		result[key] = extra[key]
+	_last_aurora_admission_result = result.duplicate(true)
+	return result.duplicate(true)
+
+
+func _aurora_retired(
+		accepted: bool, reason: StringName, extra: Dictionary = {}
+	) -> Dictionary:
+	var result := {"accepted": accepted, "reason": reason}
+	for key: Variant in extra:
+		result[key] = extra[key]
+	_last_aurora_retirement_result = result.duplicate(true)
+	return result.duplicate(true)
+
+
 func detach() -> void:
+	if _aurora_visit_active:
+		retire_aurora_visit()
 	if _planetary_return_physical_arrival_armed:
 		_abort_planetary_return_physical_arrival(&"return_main_detached")
 		_flow._landing_request_active = false

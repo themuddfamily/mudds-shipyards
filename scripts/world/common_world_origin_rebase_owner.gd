@@ -321,6 +321,21 @@ func consume_rebase_preview(preview: Variant, actor_sample: Variant) -> Dictiona
 	if not _commit_remaining_frames(requests, record.get("world_id", &"") as StringName):
 		_mutation_active = false
 		return _reject(&"common_world_frame_commit_desynchronized")
+
+	# The transaction is irreversible from here. Actors and world roots that
+	# froze a world-space value before it are now holding pre-translation
+	# coordinates; tell exactly those that ask to be told, before any adapter is
+	# asked to accept. This is notification, not authority: the owner writes no
+	# actor state beyond the translation it already applied.
+	#
+	# It has to happen before the acceptances rather than after them, because a
+	# streamed world root re-expresses away the float rounding the translation
+	# just introduced and the accepting adapter audits that exact alignment.
+	# Over a twelve-thousand kilometre delta the unrounded root is more than a
+	# metre out, and every acceptance would refuse a transaction that is in fact
+	# already committed.
+	_notify_committed_translation(roots, covered, delta, requests)
+
 	var adjusted_sample := sample_value.duplicate(true)
 	adjusted_sample["position"] = focus + delta
 	var binding_commit := binding.accept_committed_origin_rebase(
@@ -332,12 +347,6 @@ func consume_rebase_preview(preview: Variant, actor_sample: Variant) -> Dictiona
 		# commit. Report fail-closed rather than pretending rollback is possible.
 		_mutation_active = false
 		return _reject(&"binding_commit_desynchronized")
-
-	# The commit is irreversible from here. Actors that froze a world-space target
-	# before it are now holding pre-translation coordinates; tell exactly those
-	# that ask to be told. This is notification, not authority: the owner writes
-	# no actor state beyond the translation it already applied.
-	_notify_committed_translation(roots, covered, delta, requests)
 
 	# Every other composed world's observation adapter now holds a pre-translation
 	# local position for an absolute coordinate that did not move. Reconcile them

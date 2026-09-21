@@ -139,3 +139,57 @@ visitability, Player or production-camera ownership, movement, landing
 eligibility, collision beyond the current 1.5 km profile boundary, runtime
 focus updates, weather/time progression, audio, save/networking, performance, visual fidelity,
 or production visual quality.
+
+## How Aurora is reached
+
+Aurora used to be reached by an explicit 1.2 s jump that instantiated this scene
+locally under `Main`. It is now streamed and visited through the same production
+planetary subsystem Ember uses.
+
+`AuroraTemperateStreamingBootstrap` is a second `PlanetaryStreamingBootstrap`
+standing in `Main` beside Ember's. It registers
+`assets/world/locations/aurora_temperate.tres` against the body-centre datum
+`NearbySectorOrbitalRegistry` already declares 12,000 km on station-relative +X,
+and it drives this scene's own `PlanetaryAtmosphereComposition` where Ember's
+bootstrap drives its airless sun rig - configuring it against the live
+generation and feeding it one body-local observation per accepted focus.
+`AuroraTemperateStreamingProductionBinding` is its caller-physics adapter and is
+thirty lines: everything it does is shared.
+
+A visit is admitted by `PlanetaryJourneyCoordinator.admit_aurora_visit()`, which
+points the one `PlanetaryCruiseProductionBinding` at Aurora's bootstrap and makes
+sure the one `CommonWorldOriginRebaseOwner` holds Aurora's pair. Each physics
+tick the coordinator's Aurora lane runs the same order Ember's does: Aurora's own
+streaming observation from GameFlow's single actor read, then the caller-owned
+origin transaction, then the cruise. Aurora sits 12,000 km out and the
+origin-shift threshold is 10 km, so the world is not reachable at all without
+committed common-world rebases; the visit counts them. Once Aurora is resident
+the visit leases its exploration berth on *this* scene's own `LandingRegion`,
+stands an `AuroraVisitApproachSource`, engages the cruise and arms the authored
+corridor from `aurora_foundation_landing.tres`. The touchdown is a real
+`ShipBerth` lease and a real `HeroShip.request_berth_landing()`, and the
+departure is a committed rebase back to the yard that streams Aurora out behind
+the craft. An abandoned visit takes the same bounded wind-down.
+
+### What is staged, and why
+
+Three legs have no production movement owner anywhere in this repository, and
+the visit plays exactly that missing owner and nothing else. Each is counted in
+`get_visit_snapshot().staging_events`:
+
+1. the interplanetary transit - the craft is held at Aurora's canonical
+   navigation standoff, decoded live from the cruise binding's own absolute
+   destination, until the real cruise binding reports its approach ACTIVE;
+2. the authored corridor entry pose the armed approach is measured against -
+   the same single placement `tests/ember_loop_soak_evidence.gd` makes for
+   Ember, because the cruise controller measures arrival at an approach target
+   rather than flying to it;
+3. the corridor mouth to the berth's assist staging pose - Ember flies this leg
+   with `EmberSurfaceLoopHost`, which owns a phased surface descent. Aurora has
+   no such Host and should not grow one for a coastal visit, and the production
+   landing assist cannot cover 300 m inside its own 24 s timeout.
+
+Everything between and after those placements is produced by a production
+owner: the streaming residency, every committed origin rebase, the armed and
+completed final approach, the berth lease, the touchdown, the disembark, the
+walk on this scene's own collision, the re-board and the way home.

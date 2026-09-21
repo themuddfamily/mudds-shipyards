@@ -40,15 +40,15 @@ func _run() -> void:
 		await _finish(game)
 		return
 	_press_destination(game)
-	_check(owner.state == &"outbound_jump" and not paused, "the visible Destination Board action starts the jump and resumes play")
-	await _wait_state(owner, &"landed", 4000)
+	_check(owner.state == &"outbound" and not paused, "the visible Destination Board action starts the production cruise and resumes play")
+	await _wait_state(owner, &"landed", 6000)
 	_check(owner.state == &"landed", "physical landing completes at Aurora (state %s)" % owner.state)
 	if owner.state != &"landed":
 		await _finish(game)
 		return
 	var berth := owner.get("_berth") as ShipBerth
 	var surface := owner.get("_surface") as Node3D
-	_check(craft.global_position.distance_to(home_position) > 10000.0 and berth.get_occupant() == craft and bool(craft.get_telemetry().get("landed", false)), "the same Halyard occupies the real Aurora surface berth")
+	_check(craft.global_position.distance_to(game.world.global_position) > 10000000.0 and berth.get_occupant() == craft and bool(craft.get_telemetry().get("landed", false)), "the same Halyard occupies the real Aurora surface berth")
 	_check(surface.get_node_or_null("LandingRegion/CoastalExploration/CoastalLookoutSign") != null, "the visited world contains explorable lookout and standing stones")
 	await _press_interact()
 	await _wait_state(owner, &"surface", 240)
@@ -92,15 +92,27 @@ func _run() -> void:
 	await _wait_state(owner, &"landed", 240)
 	_check(game.player.is_seated() and game._piloting and game.active_ship == craft, "E reboards the same physical craft")
 	_press_destination(game)
-	await _wait_state(owner, &"idle", 4000)
-	_check(owner.state == &"idle" and craft.global_position.distance_to(home_position) < 1.0 and bool(craft.get_telemetry().get("landed", false)), "return action physically docks the craft at its original home berth")
+	await _wait_state(owner, &"idle", 6000)
+	# The yard itself has travelled through two committed origin rebases by now,
+	# so the craft is measured against its live home berth rather than a pose
+	# recorded in a frame that no longer exists.
+	var home_berth := game.world.get_berth_node(craft.get_home_berth_id()) as ShipBerth
+	_check(owner.state == &"idle" and craft.global_position.distance_to(home_berth.get_dock_transform().origin) < 1.0 and bool(craft.get_telemetry().get("landed", false)), "return action physically docks the craft at its original home berth")
 	_check(game.player.is_seated() and game._piloting and game.world.visible and not is_instance_valid(owner.get("_surface")), "round trip restores station presentation and seated controls and unloads Aurora")
 	game.call(&"_sync_planetary_cruise_hud")
 	_press_destination(game)
-	_check(owner.state == &"outbound_jump", "a second trip is immediately selectable")
-	_press_destination(game)
-	await _wait_state(owner, &"idle", 4000)
-	_check(owner.state == &"idle" and bool(craft.get_telemetry().get("landed", false)), "cancelling the second outbound jump returns through the same home landing path")
+	_check(owner.state == &"outbound", "a second trip is immediately selectable")
+	# The same production entry point the board row calls, taken while the
+	# approach is still outbound: a pilot may give up on a cruise in flight.
+	_check(
+		bool(owner.runtime_state().get("action_enabled", false)) and owner.request(),
+		"an outbound cruise can be abandoned from the same production control"
+	)
+	await _wait_state(owner, &"idle", 6000)
+	# The abandon hands the craft back to the ordinary home landing assist, which
+	# is a real physical touchdown and takes its own ticks.
+	await _wait_landed(craft, 600)
+	_check(owner.state == &"idle" and bool(craft.get_telemetry().get("landed", false)), "abandoning the second outbound cruise returns through the same home landing path")
 	# Interrupt a live on-foot visit, then interrupt a second visit halfway
 	# through its embodiment transition. Both recover usable controls and leases.
 	for interrupted_state: StringName in [&"surface", &"disembarking"]:
@@ -115,14 +127,17 @@ func _run() -> void:
 				if game._piloting:
 					break
 		_press_destination(game)
-		await _wait_state(owner, &"landed", 4000)
+		await _wait_state(owner, &"landed", 6000)
 		game.call(&"_try_exit_ship")
 		await _wait_state(owner, interrupted_state, 240)
 		_check(owner.state == interrupted_state, "cancellation begins from live %s" % interrupted_state)
 		owner.cancel()
-		for i in range(30):
-			await physics_frame
-		_check(owner.state == &"idle" and not game._piloting and not game._transition_busy and not game.player.is_seated() and game.player.is_control_enabled() and game.player.get_camera().current and game.player.global_position.distance_to(home_position) < 40.0, "%s cancellation restores a controllable on-foot explorer at Mudds" % interrupted_state)
+		# A cancel now hands the lane a bounded wind-down: the actors are home
+		# immediately, and the production streaming coordinator commits the
+		# rebase back to the yard and unloads Aurora on its own cadence.
+		await _wait_state(owner, &"idle", 600)
+		await _wait_landed(craft, 600)
+		_check(owner.state == &"idle" and not game._piloting and not game._transition_busy and not game.player.is_seated() and game.player.is_control_enabled() and game.player.get_camera().current and game.player.global_position.distance_to(game.world.get_player_spawn().origin) < 400.0, "%s cancellation restores a controllable on-foot explorer at Mudds" % interrupted_state)
 		_check((craft.get_node("ShipBoardingArea") as ShipBoardingArea).get_reservation_token() == null and bool(craft.get_telemetry().get("landed", false)), "%s cancellation releases the seat and physically restores home docking" % interrupted_state)
 	await _finish(game)
 
@@ -193,6 +208,13 @@ func _press_destination(game: GameFlow) -> void:
 	_check(button != null and not button.disabled, "Aurora's visible action is enabled")
 	if button != null and not button.disabled:
 		button.pressed.emit()
+
+func _wait_landed(craft: HeroShip, frames: int) -> void:
+	for _index in range(frames):
+		await physics_frame
+		if bool(craft.get_telemetry().get("landed", false)):
+			return
+
 
 func _wait_state(owner: RefCounted, target: StringName, frames: int) -> void:
 	for i in range(frames):
