@@ -316,7 +316,7 @@ var _array_receiver_mesh: SphereMesh
 var _access_upper_hinge: Node3D
 var _access_lower_hinge: Node3D
 var _access_canopy_carrier: Node3D
-var _cockpit_console_key_mesh: BoxMesh
+var _cockpit_console_key_mesh: Mesh
 var _engine_collar_mesh: TorusMesh
 var _refractory_nozzle_mesh: ArrayMesh
 var _engine_collars: Array[MeshInstance3D] = []
@@ -2151,14 +2151,19 @@ func _arrow_instrument_socket_mesh() -> ArrayMesh:
 func _share_inherited_console_key_meshes(cockpit: Node3D) -> void:
 	if cockpit == null:
 		return
-	var shared_mesh: BoxMesh
+	# The inherited keys are chamfered stock, as every other craft's already
+	# were: the Arrow's own `_box` override used to intercept the base builder's
+	# cockpit and hand it raw primitives. What this routine needs of them is
+	# unchanged — one surface, one material, one envelope — so it is expressed
+	# against `Mesh` and the envelope it already compared below.
+	var shared_mesh: Mesh
 	for key_name: String in COCKPIT_CONSOLE_KEY_SHARED_MESH_ROSTER:
 		var key := cockpit.get_node_or_null(NodePath(key_name)) as MeshInstance3D
-		if key == null or key.mesh is not BoxMesh \
+		if key == null or key.mesh == null \
 				or key.material_override != _arrow_materials.sensor:
 			return
 		if shared_mesh == null:
-			shared_mesh = key.mesh as BoxMesh
+			shared_mesh = key.mesh
 		elif key.mesh.surface_get_material(0) != shared_mesh.surface_get_material(0) \
 				or not key.mesh.get_aabb().is_equal_approx(shared_mesh.get_aabb()):
 			return
@@ -2567,10 +2572,10 @@ func _inspect_recon_pulse_emitters() -> Dictionary:
 		var shroud := emitter.get_node_or_null("CompactGraphiteShroud") as MeshInstance3D
 		var barrel := emitter.get_node_or_null("LightPulseBarrel") as MeshInstance3D
 		var lens := emitter.get_node_or_null("CyanMuzzleLens") as MeshInstance3D
-		if mount == null or not (mount.mesh is BoxMesh) \
-				or (mount.mesh as BoxMesh).size != RECON_PULSE_MOUNT_SIZE \
+		if mount == null or mount.mesh == null \
+				or not mount.mesh.get_aabb().size.is_equal_approx(RECON_PULSE_MOUNT_SIZE) \
 				or mount.position != Vector3(0.0, 0.09, 0.31) \
-				or (mount.mesh as BoxMesh).material != _arrow_materials.graphite:
+				or mount.mesh.surface_get_material(0) != _arrow_materials.graphite:
 			errors.append("%s compact graphite recessed-mount dimensions drift" % emitter_name)
 		if shroud == null or not (shroud.mesh is TorusMesh) \
 				or not is_equal_approx((shroud.mesh as TorusMesh).inner_radius, RECON_PULSE_SHROUD_INNER_RADIUS) \
@@ -2748,7 +2753,7 @@ func _inspect_wing_root_rib_batch() -> Dictionary:
 			"errors": PackedStringArray(["wing-root rib batch is missing"]),
 		}.duplicate(true)
 	var multimesh := batch.multimesh
-	var mesh := multimesh.mesh as BoxMesh
+	var mesh := multimesh.mesh
 	if _arrow_visual.get_node_or_null("WingRootRib") != null:
 		errors.append("retired ordinary wing-root rib renderer remains")
 	if multimesh.transform_format != MultiMesh.TRANSFORM_3D:
@@ -2758,9 +2763,13 @@ func _inspect_wing_root_rib_batch() -> Dictionary:
 	if multimesh.instance_count != WING_ROOT_RIB_VISIBLE_COPIES \
 		or multimesh.visible_instance_count != WING_ROOT_RIB_VISIBLE_COPIES:
 		errors.append("wing-root rib visible-copy roster drift")
-	if mesh == null or not mesh.size.is_equal_approx(WING_ROOT_RIB_SIZE):
+	# The rib is the swept fillet where the wing meets the fuselage, so it is
+	# chamfered stock rather than a primitive. Its authored envelope is
+	# preserved exactly, and that is what the culling bounds below are built
+	# from, so the audit measures the envelope and the bound material.
+	if mesh == null or not mesh.get_aabb().size.is_equal_approx(WING_ROOT_RIB_SIZE):
 		errors.append("wing-root rib primitive allocation drift")
-	elif mesh.material != _arrow_materials.titanium:
+	elif mesh.surface_get_material(0) != _arrow_materials.titanium:
 		errors.append("wing-root rib material identity drift")
 	var expected_transforms := _wing_root_rib_transforms()
 	if not _transform_arrays_match(
@@ -3268,9 +3277,14 @@ func _multi_mesh_box(
 	material: Material,
 	transforms: Array[Transform3D]
 	) -> MultiMeshInstance3D:
-	var mesh := BoxMesh.new()
-	mesh.size = size
-	mesh.material = material
+	# One call site: the two swept wing-root ribs, the fillet where the wing
+	# meets the fuselage. That is the junction the Torrent's own treatment
+	# fillets, and on the Arrow it was a bare slab; the fleet chamfer eases it
+	# into both surfaces it lands on. One shared mesh, two copies, as before.
+	var mesh := ShipChamferedStock.box_mesh(
+		size, ShipChamferedStock.fleet_box_bevel(size), ShipChamferedStock.StockUV.FACE_GRID
+	)
+	mesh.surface_set_material(0, material)
 	return _multi_mesh_from_mesh(parent, node_name, mesh, transforms)
 
 
@@ -3746,14 +3760,34 @@ func _curve_tube(
 	return root
 
 
+## Fitted box stock, at the fleet's own chamfer.
+##
+## This override exists because the Arrow's `_box` predates `_rounded_box_mesh`
+## and was never brought forward: every other craft in the fleet builds its
+## fitted stock through `HeroShip._box`, which chamfers, while the Arrow alone
+## shipped 61 renderers of raw `BoxMesh` — sills, pressure walls, saddles, end
+## shields, canopy rails and seals, emitter mounts, window and duct recesses.
+## That is the whole of its cockpit surround and most of its close dressing,
+## and it is stock the player stands beside on the pad and sits inside in
+## flight, where a zero-width 90-degree edge has no pixels to hold a highlight
+## and the part reads as a shaded primitive.
+##
+## `ShipChamferedStock.fleet_box_bevel` is `HeroShip._rounded_box_mesh`'s own
+## rule, mirrored, so the Arrow now earns exactly the chamfer its sisters do at
+## every size; `box_mesh` then picks the cheap tangent facet or the authored
+## two-segment roll by that width, as it does for the rest of the fleet. The
+## material moves from `BoxMesh.material` onto the single surface, so one
+## renderer still submits one surface with one material and the AABB is the
+## authored `size` to the millimetre.
 func _box(parent: Node3D, node_name: String, position: Vector3, size: Vector3, material: Material, rotation := Vector3.ZERO) -> MeshInstance3D:
 	var instance := MeshInstance3D.new()
 	instance.name = node_name
 	instance.position = position
 	instance.rotation = rotation
-	var mesh := BoxMesh.new()
-	mesh.size = size
-	mesh.material = material
+	var mesh := ShipChamferedStock.box_mesh(
+		size, ShipChamferedStock.fleet_box_bevel(size), ShipChamferedStock.StockUV.FACE_GRID
+	)
+	mesh.surface_set_material(0, material)
 	instance.mesh = mesh
 	parent.add_child(instance)
 	return instance
@@ -3915,8 +3949,8 @@ func _inspect_cockpit_console_key_mesh_sharing() -> Dictionary:
 				continue
 			keys.append(key)
 			node_paths.append(str(_arrow_visual.get_path_to(key)))
-			if key.mesh == null or key.mesh is not BoxMesh \
-					or not (key.mesh as BoxMesh).size.is_equal_approx(COCKPIT_CONSOLE_KEY_SIZE):
+			if key.mesh == null \
+					or not key.mesh.get_aabb().size.is_equal_approx(COCKPIT_CONSOLE_KEY_SIZE):
 				errors.append("console-key primitive recipe drift: %s" % key_name)
 				continue
 			var expected_transform := _cockpit_console_key_transforms().get(key_name) as Transform3D

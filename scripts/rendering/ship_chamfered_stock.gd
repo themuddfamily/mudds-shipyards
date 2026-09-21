@@ -203,6 +203,62 @@ static func rolled_edge_is_resolvable(bevel: float) -> bool:
 	return EDGE_OUTWARD_FRACTION * bevel > ShipGeometryBudget.WALKING_ALLOWANCE_METRES
 
 
+## Widest chamfer the single tangent facet carries before the authored rolled
+## edge has to come back, in metres.
+##
+## This is `rolled_edge_is_resolvable` solved for the bevel rather than tested
+## against it: the width at which `EDGE_OUTWARD_FRACTION * bevel` reaches
+## `ShipGeometryBudget.WALKING_ALLOWANCE_METRES`, which is 38.2 mm. It is
+## published because a *builder* asks the other direction of the same question —
+## not "may I chamfer this width" but "what is the widest chamfer I can cut and
+## still get the 44-triangle recipe" — and answering that by hand at each call
+## site is how two builders end up with two numbers.
+static func largest_resolvable_chamfer() -> float:
+	return ShipGeometryBudget.WALKING_ALLOWANCE_METRES / EDGE_OUTWARD_FRACTION
+
+
+## Chamfer width for authored **station structure** — deck plate, walkway,
+## chord, frame, gantry, mast — cut on the cheap tangent facet.
+##
+## `StationSurfaceKit.bevel_for_size` answers for a *fitting*, where the chamfer
+## scales with the part because the part is small and its edge is the whole
+## read. It does not answer for structure, and the failure is in both
+## directions at once. At 0.22 of the shortest side a 0.6 m walkway deck earns a
+## 0.132 m chamfer: that is not an edge on a deck plate, it is a 13 cm nosing
+## that eats a fifth of the plate's thickness and visibly changes its section.
+## It is also well over `largest_resolvable_chamfer()`, so the 108-triangle
+## rolled recipe comes back and the piece costs 96 extra triangles instead of 32
+## — the most expensive answer for the least wanted shape.
+##
+## Both problems have one answer, and it is the one a fabricator would give: a
+## chamfer is a **tool width**, not a proportion of the stock. A 24 m blast
+## datum and a 1.2 m frame leg come off the same edge tool and carry the same
+## chamfer. So structure is held at `largest_resolvable_chamfer()` — this
+## project's own calibrated 38.2 mm, already the width at which one facet and a
+## two-segment roll are indistinguishable at walking range — and only stock too
+## thin to carry that keeps the proportional rule, which is exactly the case
+## where the proportion is the physical answer again.
+static func structural_chamfer_for_size(size: Vector3) -> float:
+	return minf(StationSurfaceKit.bevel_for_size(size), largest_resolvable_chamfer())
+
+
+## Station structural stock at the tangent chamfer: one surface, the exact
+## authored AABB, 44 triangles whatever the size.
+##
+## Deliberately calls `chamfered_box_mesh` rather than `box_mesh`: the width has
+## already been chosen *by* the gate, so re-testing it would only let a
+## floating-point hair at the boundary silently return the 108-triangle form.
+##
+## `material` is bound to the single surface when given, so a caller replacing a
+## `BoxMesh` that carried `mesh.material` keeps the same material on the same
+## one surface and no material census moves.
+static func structural_box_mesh(size: Vector3, material: Material = null) -> ArrayMesh:
+	var mesh := chamfered_box_mesh(size, structural_chamfer_for_size(size), StockUV.FACE_GRID)
+	if material != null:
+		mesh.surface_set_material(0, material)
+	return mesh
+
+
 ## Fitted visual stock, at whichever edge resolution the chamfer width earns.
 ## Matches `StationSurfaceKit.rounded_box_mesh_with_bevel`'s outer contract:
 ## same size, same chamfer width, same AABB, one surface, tangents generated.

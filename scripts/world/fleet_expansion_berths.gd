@@ -903,8 +903,13 @@ func get_access_circulation_audit() -> Dictionary:
 		else:
 			collision_valid = collision_valid and collision.shape is BoxShape3D \
 				and (collision.shape as BoxShape3D).size.is_equal_approx(expected_size)
-			render_valid = render_valid and surface.mesh is BoxMesh \
-				and (surface.mesh as BoxMesh).size.is_equal_approx(expected_size)
+			# The deck is chamfered stock now, not a primitive. What the audit
+			# has to hold is the *drawn envelope* — the number the collider and
+			# the walkable census both agree with — and the chamfer preserves
+			# that to the millimetre, so the mesh's own AABB is the honest
+			# measurement and is exactly as strict as reading `BoxMesh.size` was.
+			render_valid = render_valid and surface.mesh is ArrayMesh \
+				and surface.mesh.get_aabb().size.is_equal_approx(expected_size)
 		if not collision_valid:
 			errors.append("access surface collision drift: %s" % surface_name)
 		if not render_valid:
@@ -944,10 +949,11 @@ func get_access_circulation_audit() -> Dictionary:
 			errors.append("access support batch roster drift")
 		else:
 			var post_batch := support_batches[0] as MultiMeshInstance3D
-			var post_mesh := post_batch.multimesh.mesh as BoxMesh \
+			var post_mesh := post_batch.multimesh.mesh \
 				if post_batch.multimesh != null else null
 			if post_batch.name != &"UnderframeSupportBatch" \
-					or post_mesh == null or not post_mesh.size.is_equal_approx(UNDERFRAME_SUPPORT_SIZE) \
+					or post_mesh == null \
+					or not post_mesh.get_aabb().size.is_equal_approx(UNDERFRAME_SUPPORT_SIZE) \
 					or post_batch.multimesh.instance_count != UNDERFRAME_SUPPORT_TRANSFORMS.size() \
 					or post_batch.material_override != _service_materials["access_support"] \
 					or post_batch.cast_shadow != GeometryInstance3D.SHADOW_CASTING_SETTING_OFF \
@@ -1113,8 +1119,9 @@ func _batch_matches_recipe(batch: MultiMeshInstance3D, recipe: Dictionary) -> bo
 		if not _freight_shell_matches(batch, recipe):
 			return false
 	else:
-		var mesh := batch.multimesh.mesh as BoxMesh
-		if mesh == null or not mesh.size.is_equal_approx(recipe["mesh_size"] as Vector3):
+		var mesh := batch.multimesh.mesh
+		if mesh == null \
+				or not mesh.get_aabb().size.is_equal_approx(recipe["mesh_size"] as Vector3):
 			return false
 	var expected: Array[Transform3D] = []
 	if recipe.has("transforms"):
@@ -1641,8 +1648,14 @@ func _add_access_surface(
 	body.add_child(collision)
 	var surface := MeshInstance3D.new()
 	surface.name = "Surface"
-	var mesh := BoxMesh.new()
-	mesh.size = size
+	# The walkway's own edge. These decks are 0.6 m thick and a player walks the
+	# length of every one of them with the edge under their own feet, so the
+	# 90-degree corner along it was the most-looked-at flat edge in the module.
+	# One mesh per piece exactly as before, so the resource allocation, the
+	# submission and the drawn copy are unchanged; the AABB is the authored
+	# `size` to the millimetre, which is what the collider and the walkable
+	# census read.
+	var mesh := ShipChamferedStock.structural_box_mesh(size)
 	surface.mesh = mesh
 	surface.material_override = _service_materials["access_deck"]
 	body.add_child(surface)
@@ -1673,8 +1686,9 @@ func _build_access_underframe(circulation: Node3D) -> void:
 
 
 func _build_underframe_support_batch(underframe: Node3D) -> void:
-	var post_mesh := BoxMesh.new()
-	post_mesh.size = UNDERFRAME_SUPPORT_SIZE
+	# Eleven 0.55 m posts standing under the walkway a player looks straight
+	# down at from the deck above. One shared mesh before and after.
+	var post_mesh := ShipChamferedStock.structural_box_mesh(UNDERFRAME_SUPPORT_SIZE)
 	var multimesh := MultiMesh.new()
 	multimesh.transform_format = MultiMesh.TRANSFORM_3D
 	multimesh.mesh = post_mesh
@@ -1960,8 +1974,8 @@ func _structural_collider_matches_renderer(pad: Node3D, piece: Dictionary) -> bo
 	var instance := int(piece["instance"])
 	if instance < 0:
 		var mesh_instance := drawn as MeshInstance3D
-		var box := mesh_instance.mesh as BoxMesh if mesh_instance != null else null
-		return box != null and box.size.is_equal_approx(size) \
+		var drawn_mesh := mesh_instance.mesh if mesh_instance != null else null
+		return drawn_mesh != null and drawn_mesh.get_aabb().size.is_equal_approx(size) \
 			and mesh_instance.position.is_equal_approx(position) \
 			and _basis_rotation_matches(mesh_instance.basis, expected_rotation)
 	var batch := drawn as MultiMeshInstance3D
@@ -1993,8 +2007,9 @@ func _basis_rotation_matches(drawn: Basis, expected: Basis) -> bool:
 
 
 func _build_launch_rail_batch(service: Node3D) -> void:
-	var rail_mesh := BoxMesh.new()
-	rail_mesh.size = LAUNCH_RAIL_SIZE
+	# Two 22 m launch rails running the length of the interceptor pad, seen
+	# end-on down the lane and side-on from the apron. One shared mesh as before.
+	var rail_mesh := ShipChamferedStock.structural_box_mesh(LAUNCH_RAIL_SIZE)
 	var multimesh := MultiMesh.new()
 	multimesh.transform_format = MultiMesh.TRANSFORM_3D
 	multimesh.mesh = rail_mesh
@@ -2153,9 +2168,13 @@ func _visual_box(
 	instance.position = position_value
 	var mesh := shared_mesh
 	if mesh == null:
-		var box := BoxMesh.new()
-		box.size = size
-		mesh = box
+		# Chords, crane, launch frames, ordnance gantry and blast datum. Every
+		# one of these is metres of unbroken slab held against vacuum, and a
+		# real one carries a cut edge along its whole length; without it the
+		# structure reads as a shaded primitive at exactly the range the player
+		# walks past it. One mesh per piece as before — the chamfer is an edge
+		# treatment, not an allocation change.
+		mesh = ShipChamferedStock.structural_box_mesh(size)
 	instance.mesh = mesh
 	instance.material_override = material
 	instance.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF

@@ -165,7 +165,13 @@ func _test_wingtip_sensor_housings(arrow: ArrowReconShip) -> void:
 			var normals: PackedVector3Array = arrays[Mesh.ARRAY_NORMAL]
 			var uvs: PackedVector2Array = arrays[Mesh.ARRAY_TEX_UV]
 			var tangents: PackedFloat32Array = arrays[Mesh.ARRAY_TANGENT]
-			var indices: PackedInt32Array = arrays[Mesh.ARRAY_INDEX]
+			# A `SurfaceTool` surface that was never de-duplicated carries no
+			# index array at all, which is what the chamfered stock this window
+			# is now built from commits. The triangle walk below already has the
+			# unindexed branch; this only stops the null reaching a typed local.
+			var indices := PackedInt32Array()
+			if arrays[Mesh.ARRAY_INDEX] != null:
+				indices = arrays[Mesh.ARRAY_INDEX] as PackedInt32Array
 			geometry_valid = geometry_valid and normals.size() == vertices.size() and uvs.size() == vertices.size() and tangents.size() == vertices.size() * 4
 			for index in vertices.size():
 				geometry_valid = geometry_valid and vertices[index].is_finite() and normals[index].is_finite() and absf(normals[index].length() - 1.0) < 0.001 and uvs[index].is_finite()
@@ -639,8 +645,8 @@ func _test_recon_pulse_emitter_assemblies(arrow: ArrowReconShip) -> void:
 		var barrel := emitter.get_node_or_null("LightPulseBarrel") as MeshInstance3D
 		var lens := emitter.get_node_or_null("CyanMuzzleLens") as MeshInstance3D
 		_check(
-			mount != null and mount.mesh is BoxMesh
-			and (mount.mesh as BoxMesh).size == Vector3(0.38, 0.22, 0.62)
+			mount != null and mount.mesh != null
+			and mount.mesh.get_aabb().size.is_equal_approx(Vector3(0.38, 0.22, 0.62))
 			and shroud != null and shroud.mesh is TorusMesh
 			and is_equal_approx((shroud.mesh as TorusMesh).outer_radius, 0.155),
 			"%s uses a compact recessed mount and shroud envelope" % emitter.name
@@ -1492,10 +1498,15 @@ func _test_visual_performance_batch(arrow: ArrowReconShip) -> void:
 			"structured-red: hiding one batched rib fails the visible-copy roster"
 		)
 		batch.multimesh.visible_instance_count = 2
-		var box := batch.multimesh.mesh as BoxMesh
-		if box != null:
-			var authored_size := box.size
-			box.size.x += 0.1
+		# The rib is chamfered stock, so the drift witness swaps the batch onto a
+		# wider mesh of the same recipe rather than mutating a primitive's size.
+		var authored_rib_mesh := batch.multimesh.mesh
+		if authored_rib_mesh != null:
+			batch.multimesh.mesh = ShipChamferedStock.box_mesh(
+				ArrowReconShip.WING_ROOT_RIB_SIZE + Vector3(0.1, 0.0, 0.0),
+				ShipChamferedStock.fleet_box_bevel(ArrowReconShip.WING_ROOT_RIB_SIZE),
+				ShipChamferedStock.StockUV.FACE_GRID
+			)
 			_check(
 				not bool(arrow.get_arrow_audit_report().valid)
 				and _report_has_error(
@@ -1504,7 +1515,7 @@ func _test_visual_performance_batch(arrow: ArrowReconShip) -> void:
 				),
 				"structured-red: shared rib primitive mutation fails presentation audit"
 			)
-			box.size = authored_size
+			batch.multimesh.mesh = authored_rib_mesh
 	var lateral_report := (
 		arrow.get_arrow_visual_performance_report()
 			.lateral_array_curve_joint_sharing as Dictionary

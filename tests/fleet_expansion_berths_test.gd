@@ -383,7 +383,9 @@ func _test_launch_rail_batch(berths: Node3D, audit: Dictionary) -> void:
 	var batch := service.get_node_or_null(^"LaunchRailBatch") as MultiMeshInstance3D \
 		if service != null else null
 	var presentation := audit.get("service_presentation", {}) as Dictionary
-	var rail_mesh := batch.multimesh.mesh as BoxMesh \
+	# Chamfered stock, whose AABB is the authored size exactly; the drawn
+	# envelope is what the collider pairing and the lane clearance read.
+	var rail_mesh := batch.multimesh.mesh \
 		if batch != null and batch.multimesh != null else null
 	var expected_transforms: Array[Transform3D] = [
 		Transform3D(Basis.IDENTITY, Vector3(-11.0, 0.5, 9.5)),
@@ -402,7 +404,7 @@ func _test_launch_rail_batch(berths: Node3D, audit: Dictionary) -> void:
 	var material := batch.material_override as StandardMaterial3D if batch != null else null
 	_check(
 		batch != null and rail_mesh != null
-		and rail_mesh.size.is_equal_approx(Vector3(1.0, 1.0, 22.0))
+		and rail_mesh.get_aabb().size.is_equal_approx(Vector3(1.0, 1.0, 22.0))
 		and transforms_exact
 		and material != null and material.emission_enabled
 		and material.emission.is_equal_approx(Color("61e4ee"))
@@ -519,7 +521,7 @@ func _test_underframe_support_batch(berths: Node3D, audit: Dictionary) -> void:
 	) as Node3D
 	var batch := underframe.get_node_or_null(^"UnderframeSupportBatch") as MultiMeshInstance3D \
 		if underframe != null else null
-	var post_mesh := batch.multimesh.mesh as BoxMesh \
+	var post_mesh := batch.multimesh.mesh \
 		if batch != null and batch.multimesh != null else null
 	var expected_transforms: Array[Transform3D] = [
 		Transform3D(Basis.IDENTITY, Vector3(-15.0, -1.75, 0.5)),
@@ -539,7 +541,7 @@ func _test_underframe_support_batch(berths: Node3D, audit: Dictionary) -> void:
 			).is_equal_approx(expected_transforms[index])
 	_check(
 		batch != null and post_mesh != null
-		and post_mesh.size.is_equal_approx(Vector3(0.55, 2.5, 0.55))
+		and post_mesh.get_aabb().size.is_equal_approx(Vector3(0.55, 2.5, 0.55))
 		and batch.multimesh.instance_count == 6
 		and transforms_exact
 		and batch.cast_shadow == GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
