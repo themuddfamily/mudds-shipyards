@@ -320,8 +320,8 @@ const MAIN_SCENE := preload("res://scenes/main.tscn")
 # copies, 35 lights, 590 nodes) and every loaded-minus-resident delta holds at
 # its frozen value, which is what says the pass reached only the station-
 # resident scene.
-const RESIDENT_FINGERPRINT := "44d3e7fc4b4be6311482250f85360deee307ffc72f8fde5ff74ed8834dfd25f9"
-const CINDER_LOADED_FINGERPRINT := "b651ea37e21566d03094449fe98095aaa27c7ddfc4a0f142c78a54575d5ff380"
+const RESIDENT_FINGERPRINT := "c585691db580e7c77349bf3f6dbcdd29df6883018d6c44258ae7db2948fead34"
+const CINDER_LOADED_FINGERPRINT := "ea51c9054d09adaa22f990229578a0720c09d97ea215fe736d4bf868a9243fac"
 
 var _assertions := 0
 var _failures := PackedStringArray()
@@ -379,10 +379,10 @@ func _run() -> void:
 	)
 	_check(
 		int(resident.get("bound_phase_unique_materials", -1)) == 716
-			and int(resident.get("retained_reachable_unique_materials", -1)) == 1019
+			and int(resident.get("retained_reachable_unique_materials", -1)) == 1024
 			and int(resident.get("lights", -1)) == 341
-			and int(resident.get("nodes", -1)) == 10393,
-		"resident resource roster freezes 716 bound / 1,019 retained materials, 341 lights, and 10,393 nodes"
+			and int(resident.get("nodes", -1)) == 10396,
+		"resident resource roster freezes 716 bound / 1,024 retained materials, 341 lights, and 10,396 nodes"
 	)
 	_check(
 		str(resident.get("measurement_fingerprint", "")) == RESIDENT_FINGERPRINT,
@@ -447,10 +447,10 @@ func _run() -> void:
 	)
 	_check(
 		int(loaded.get("bound_phase_unique_materials", -1)) == 768
-			and int(loaded.get("retained_reachable_unique_materials", -1)) == 1076
+			and int(loaded.get("retained_reachable_unique_materials", -1)) == 1081
 			and int(loaded.get("lights", -1)) == 376
-			and int(loaded.get("nodes", -1)) == 10980,
-		"loaded resource roster freezes 768 bound / 1,076 retained materials, 376 lights, and 10,980 nodes"
+			and int(loaded.get("nodes", -1)) == 10983,
+		"loaded resource roster freezes 768 bound / 1,081 retained materials, 376 lights, and 10,983 nodes"
 	)
 	var cinder_bucket := (loaded.get("buckets", {}) as Dictionary).get(
 		"CinderStreamingBootstrap", {}
