@@ -3185,3 +3185,266 @@ the software/remote-display caveats at the top of this document apply — both
 renderers here were captured on llvmpipe, because the WSL d3d12 path segfaults
 inside `libnvwgf2umx.so` when Godot's GL compatibility backend loads it. **No
 ceiling in this document has been raised.**
+
+## Bevel pass (2026-09-21): curved and bevelled authored geometry, +3,808 resident triangles
+
+Every trim above this line removes geometry. This one adds it, which is why it
+needed a budget stated before it started rather than measured afterwards:
+**no more than +4,500 resident triangles** (0.24% of the 1,907,275 the scene
+was frozen at, 0.25% of the 1,800,000 ceiling), and no movement in unique
+meshes, surfaces, drawn copies or any AABB. Measured with
+`tests/geometry_census_scenario_test.gd` under fresh private user data, the
+pass lands at **+3,808 (1,907,275 -> 1,911,083, +0.20%)**. **The ceiling is
+still not met**: the scene was 5.96% over it and is now 6.17% over.
+
+ROADMAP Phase 2 asks for the bounded Torrent/central-berth realism treatment —
+rolled shoulders, eased transitions, fillets at load-bearing junctions — to
+reach the remaining station and ships. The geometric half of that item was
+still open: the station material-family work before it changed bindings only.
+
+### What was still flat, and why almost none of it was reachable
+
+A live probe of every `BoxMesh` renderer in the production scene found 387 of
+them, and the first useful result was how few were both *visible* and
+*chamferable*:
+
+* **`salvage_terrace.gd`.** Its six deck and ramp slabs share **one unit
+  `BoxMesh` scaled by each renderer's transform**, and its nineteen safety-rail
+  renderers are `visible = false` — the rails a player sees are the 126-copy
+  `RailDetailBatch`, also a scaled unit box. A chamfer cannot ride a
+  non-uniform instance scale: on a 12 x 0.30 x 8 deck a shared 38 mm chamfer
+  would come out 456 mm wide in x and 11 mm in y. Chamfering the decks means
+  six mesh resources where there is one, against a contract
+  (`tests/salvage_terrace_test.gd`, `mesh_resource_allocations 1`, plus a
+  dedicated sharing suite) that an earlier pass established deliberately — to
+  buy a 27 mm edge roll that stands behind a 1.3 m safety rail on every
+  approach. **Left flat.**
+* **`observation_logistics_spur.gd`.** Thirteen of its batches share one unit
+  box the same way, and almost every per-piece `_box` call in it *frees its own
+  renderer* immediately after building the collision body — the visible
+  geometry is the MultiMesh batches. What is left with a real per-size mesh is
+  `ObservationBench` and five light lenses. **Left flat**: there is nothing
+  there to treat.
+* **`fleet_expansion_berths.gd`.** The one station module whose visible flat
+  stock is per-piece meshes. **Treated.**
+* The other eleven station module builders are already fully on
+  `StationSurfaceKit`. `jovian_freight_berth.gd` keeps its own local chamfer on
+  a rationale written into the file; that is an intentional exception, not a
+  gap.
+* **`arrow_recon_ship.gd`.** The Arrow overrides `HeroShip._box` with a raw
+  `BoxMesh`, and has since before the base builder chamfered. Because the
+  override is virtual it also intercepts the **inherited** cockpit interior, so
+  the Arrow alone shipped 61 unchamfered renderers — sills, pressure walls,
+  console keys, seat rails, saddles, end shields, canopy rails and seals,
+  emitter mounts, window and duct recesses — while every sister craft's
+  identical parts were chamfered. **Treated.**
+
+### The rule that made it affordable
+
+`ShipChamferedStock`'s tangent chamfer costs 44 triangles against a primitive's
+12; the authored two-segment roll costs 108. Which one a part gets is decided
+by `rolled_edge_is_resolvable`, and on *structure* the existing bevel rule
+picks the expensive one for the wrong reason: at 0.22 of the shortest side a
+0.6 m walkway deck earns a 0.132 m chamfer, which is not an edge on a deck
+plate but a 13 cm nosing that visibly changes its section — and, being over the
+gate, costs 96 extra triangles instead of 32.
+
+`structural_chamfer_for_size` answers both at once with the answer a fabricator
+would give: **a chamfer is a tool width, not a proportion of the stock.** Large
+structure is held at `largest_resolvable_chamfer()` — 38.2 mm, this project's
+own calibrated width, the point at which one facet and a two-segment roll stop
+being distinguishable at 1.5 m — and only stock too thin to carry that keeps
+the proportional rule, which is the case where the proportion *is* the physical
+answer. A 24 m blast datum and a 1.2 m frame leg come off the same edge tool.
+
+### The numbers
+
+| resident row | before | after | delta |
+| --- | ---: | ---: | ---: |
+| triangles | 1,907,275 | 1,911,083 | **+3,808** |
+| mesh renderers | 5,366 | 5,350 | -16 |
+| surfaces | 5,895 | 5,884 | -11 |
+| unique meshes | 2,945 | 2,929 | -16 |
+| scene nodes | 10,409 | 10,393 | -16 |
+| bound / retained materials | 716 / 1,019 | 716 / 1,019 | 0 |
+| lights, shaders, textures, texture bytes, particle systems | - | - | all identical |
+
+The loaded scenario moves by exactly the same amounts (2,060,681 ->
+2,064,489), the streamed Cinder bucket is byte-identical, and every
+loaded-minus-resident delta holds at its frozen value — which is what says the
+pass reached only the station-resident scene.
+
+The triangles break down as +1,024 on the station (19 single renderers at +32
+each, 11 batched underframe posts, 2 batched launch rails) and +2,784 on the
+Arrow, whose 61 renderers take the fleet rule and so land on 44 or 108
+depending on their own chamfer width.
+
+**The -16 is a consequence, not a decision, and it is entirely the Arrow.**
+`ShipFitoutBatch` never folds live `PrimitiveMesh` stock, because the tree-wide
+geometry-budget sweep re-tessellates exactly those renderers and baking one
+into a merged `ArrayMesh` takes it out of that sweep. Sixteen Arrow renderers
+were refused on that ground alone; once they stopped being primitives the
+existing batcher folded them on its existing rules. A direct roster probe of
+the two touched subtrees attributes it exactly:
+
+| subtree | nodes | mesh instances | MultiMesh | unique meshes | surfaces |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| `ArrowReconShip` before | 322 | 244 | 2 | 195 | 251 |
+| `ArrowReconShip` after | 306 | 228 | 2 | 179 | 240 |
+| `FleetExpansionBerths` before | 105 | 21 | 7 | 25 | 31 |
+| `FleetExpansionBerths` after | 105 | 21 | 7 | 25 | 31 |
+
+### Envelopes, and what did not move
+
+The chamfer preserves the authored AABB exactly — every face plane is
+untouched and each chamfer endpoint lies on one — so no collider, interaction
+area, marker, route or published envelope moves. That is measured rather than
+asserted:
+
+* **`tools/station_walkability_sweep.gd` is byte-identical.** 82 surfaces,
+  135,137 cells, 39,939 blocked, 19 findings (0 invisible blockers, 19
+  walk-throughs, 0 chokes, 0 gaps), 345 lanes measured, and all twelve reported
+  lane widths and all nineteen finding rows unchanged to the node path.
+* `tests/station_walkable_area_census_test.gd` passes unmoved, which freezes
+  the station's walkable envelope in m2.
+* The fleet expansion module's own access audit still reports
+  `gross_horizontal_m2 57.399999 / unique_horizontal_m2 55.399999`.
+
+Four in-builder audits and five test assertions that read `BoxMesh.size` now
+read the drawn mesh's `get_aabb().size`. That is the number the collider and
+the walkable census actually have to agree with, it is exactly as strict, and
+`fleet_expansion_berths.gd` already used that reasoning for its MultiMesh
+envelopes ("what has to match is the *drawn envelope*, not the mesh class").
+
+### The seam audit, which is not identical
+
+`tools/coplanar_seam_audit.gd` moves, in two modules, and the movement is worth
+setting out because the headline count goes the *wrong* way while the
+physically meaningful number goes the right way.
+
+| | before | after |
+| --- | ---: | ---: |
+| reported pairs | 1,245 | 1,254 |
+| back-to-back / buried / declared | 1,316 / 293 / 20 | 1,316 / 293 / 20 |
+| distinct renderer families | 366 | 362 |
+| total flush overlap | 285.007 m2 | 283.693 m2 |
+| `ArrowReconShip` | 29 pairs, 1.953 m2 | 25 pairs, 1.827 m2 |
+| `ShipyardWorld/FleetExpansionProductionBinding` | 77 pairs, 34.639 m2 | 90 pairs, 33.450 m2 |
+
+Every other module row is unchanged. The two movements have different causes
+and both are the ones this pass is allowed to make.
+
+**The expansion berths gain 13 reported pairs inside the *same* families.** No
+new renderer pair appears there at all — the family set changes only on the
+Arrow. A chamfered box presents 26 planar faces to the pairwise test where a
+primitive presented 6, so one unchanged renderer contact is now enumerated
+across more and smaller polygons. The area of that contact *fell* by 1.19 m2,
+because the chamfer pulls each face plane back from the join. The two worst
+families in the module are the same two before and after, and both improve:
+`BomberBerthLeg/Surface` against `BomberBoardingLeg/Surface` goes 0.13293 x4
+3.200 m2 -> 0.12800 x9 3.024 m2, and `CargoTrunkLeg/Surface` against
+`CargoBoardingLeg/Surface` goes 0.04379 x3 2.200 m2 -> 0.03995 x8 2.112 m2.
+
+**Seven Arrow families disappear and three appear.** Three of the new ones are
+the same contact re-attributed to the local `FitoutRenderBatch01` the folded
+renderers went into (`CockpitFloor` against `PortSeatRail`, and the two escape
+pods' `SeparationClampBed` against `PodIdentityStripe`). The other **four are
+seams that genuinely stopped existing**: `PrimaryFlightDisplay` against
+`DisplayBezelBottom`, `PortConsoleKey02` against `ThrottleGate`, and both
+`RecessedGraphiteMount` against `LightPulseBarrel`. In each case two faces that
+had been flush are now a chamfer and a face, so there is no coplanar overlap
+left to report.
+
+### Rendered evidence
+
+Twelve fixed viewpoints at **1280x720 on both renderers**, each parked at the
+range a player actually stands at from a piece this pass altered: three walking
+the pedestrian access decks, one under the underframe, one on the dock 04 crane,
+two on the dock 05 ordnance gantry and blast datum, two on the dock 06 launch
+frame and rails, and three on the Arrow — two seated in the cockpit and one
+walk-up on the pad. Camera transforms are literal world coordinates, so a
+folded node cannot move a viewpoint between the two sides of a pair. Temporal
+anti-aliasing and MSAA are both off, because a chamfer band is a geometric edge
+and a resolve that changes frame to frame would put the floor above the signal.
+
+Frames, harness (`tests/capture_station_bevel_pass.gd`) and 8x-amplified
+difference images are under
+`/root/.cache/mudds-shipyards/agent-bevel/captures/{before,after,afterrepeat}_{forward_plus,gl_compatibility}`
+and `.../captures/diff_*`. Each side was captured twice on the *same* build so
+the before/after cell sits against its own noise floor. Figures are the share
+of pixels whose largest channel moves by more than 2, and the mean absolute RGB
+difference, of 255.
+
+Both renderers report `llvmpipe`. The d3d12 Gallium path cannot open a
+GLX/EGL context under Xvfb on this box (`glx: failed to create drisw screen`,
+then `EGL version is too old! 1.0 < 1.4`), which is the same limitation the
+tenth trim recorded. **These are software-rasteriser frames; they establish
+what the geometry looks like, not what it costs.**
+
+| View | compat before->after | compat floor | fp before->after | fp floor |
+| --- | ---: | ---: | ---: | ---: |
+| `01_cargo_trunk_walkway` | 1.146% / 0.223 | 0.000% / 0.000 | 40.17% / 5.651 | 39.90% / 5.576 |
+| `02_cargo_boarding_leg` | 1.241% / 0.336 | 0.004% / 0.002 | 67.48% / 7.848 | 67.30% / 7.620 |
+| `03_bomber_berth_leg` | 0.879% / 0.286 | 0.007% / 0.002 | 62.57% / 8.091 | 62.53% / 8.061 |
+| `04_access_underframe` | 1.713% / 0.720 | 0.065% / 0.017 | 59.04% / 7.451 | 58.50% / 7.076 |
+| `05_cargo_crane` | 0.141% / 0.081 | 0.000% / 0.000 | 74.64% / 12.284 | 74.64% / 12.264 |
+| `06_blast_datum` | 0.559% / 0.254 | 0.255% / 0.123 | 39.89% / 6.968 | 39.88% / 6.939 |
+| `07_ordnance_gantry` | 0.434% / 0.275 | 0.014% / 0.005 | 65.46% / 7.661 | 65.45% / 7.584 |
+| `08_launch_frame` | 0.268% / 0.106 | 0.014% / 0.005 | 50.20% / 7.904 | 50.20% / 7.896 |
+| `09_launch_rail_walkup` | 0.185% / 0.080 | 0.002% / 0.000 | 55.14% / 7.219 | 55.12% / 7.193 |
+| `10_arrow_cockpit` | 0.947% / 0.359 | 0.156% / 0.101 | 81.32% / 7.402 | 81.29% / 7.303 |
+| `11_arrow_cockpit_sill` | 2.089% / 0.908 | 0.176% / 0.160 | 91.70% / 11.442 | 91.49% / 10.954 |
+| `12_arrow_walkup` | 0.943% / 0.319 | 0.733% / 0.235 | 58.35% / 7.905 | 58.35% / 7.796 |
+| **mean** | **0.879% / 0.329** | **0.119% / 0.054** | **62.16% / 8.152** | **62.05% / 8.022** |
+
+**Read the compatibility column only.** Forward+ on this software rasteriser
+has a 62%-of-pixels noise floor — its before->after figure is inside its own
+same-build repeat on every single view, so for this renderer the per-pixel test
+carries no information about this change. What the Forward+ frames do
+establish is that the scene builds and renders correctly on that path; they are
+not a measurement. On `gl_compatibility` the floor is 0.119% and the change is
+0.879%, about seven times it, and it is concentrated exactly where a chamfer
+should be: on edges.
+
+### The honest verdict, from the frames
+
+**Where it reads, it reads clearly.** The strongest view is
+`11_arrow_cockpit_sill`, the cockpit side-console corner about 0.6 m from the
+pilot's eye. Before, the pale top face meets the dark side face on a single
+zero-width line and the part reads as a shaded primitive. After, a chamfer band
+runs the length of that corner carrying a bright specular highlight that
+brightens toward the near end, and a second softer chamfer picks up the lower
+edge. It is the difference between a box and a machined console, the broad
+shape and silhouette are identical, and it shows at 1:1. `04_access_underframe`
+is the station equivalent: the gold underframe chord's lower boundary gains a
+distinct intermediate tone where it previously went straight from lit face to
+dark face.
+
+**Where it does not read, it does not.** `05_cargo_crane` (0.141%),
+`09_launch_rail_walkup` (0.185%) and `08_launch_frame` (0.268%) are barely
+above their floor, and magnifying `03_bomber_berth_leg` 5x on its hottest
+window shows a support post whose new corner is, honestly, not visible: a
+38 mm chamfer at 12 m is under a pixel. Roughly 860 of the 3,808 triangles went
+to structure that does not resolve at the distance these viewpoints frame it
+from. They are kept for two reasons — the apron is walkable, so the crane,
+gantry and launch frame *can* be approached much closer than these frames
+stand, and a module whose big structure is chamfered and whose bigger structure
+is not would read as an inconsistency rather than as a saving — but the frames
+do not demonstrate a benefit at these ranges and this document is not going to
+claim one.
+
+**No broad shape, silhouette, published envelope or composition changes on any
+of the twenty-four frames.** That was the constraint and the frames hold it.
+
+### Suites
+
+`fleet_expansion_*` (11), `arrow_*` (9), every `station_*` (46 plus the 7 under
+`tests/audio/`), every `*silhouette*` (15), every `*census*` (5), `hero_*`,
+`vertical_slice_test`, `smoke_test`, `tow_tractor_test` — 96 suites at
+`--jobs 3`, 4,695 pass assertions, all green except
+`geometry_census_scenario_test`, refrozen here from its own printed lines and
+green afterwards. `tests/station_surface_playability_test.gd` is not in the
+matrix master list (it is a package probe) and was fixed and run by hand.
+
+**No ceiling in this document has been raised, and no native-hardware or
+human-review gate is claimed.**

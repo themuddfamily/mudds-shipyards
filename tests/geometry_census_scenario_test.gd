@@ -280,8 +280,47 @@ const MAIN_SCENE := preload("res://scenes/main.tscn")
 #
 #   resident nodes  10,391 -> 10,409
 #   loaded nodes    10,978 -> 10,996
-const RESIDENT_FINGERPRINT := "f24952b2d46054f63a958cd868e77d5bd1316abd2b2c9f090bad1ddac2ca712d"
-const CINDER_LOADED_FINGERPRINT := "64e1c85301295a57c2ade5ef8ebed6168b80b342b702b7695d9ee4b3df244492"
+#
+# Refrozen 2026-09-21 for the curved/bevelled authored-geometry pass, which
+# chamfers the fleet expansion berths' structural slab stock and replaces the
+# Arrow's raw-`BoxMesh` `_box` override with the fleet chamfer. Two rows move,
+# in opposite directions, and they have different causes.
+#
+#   resident triangles  1,907,275 -> 1,911,083   (+3,808, +0.20%)
+#   loaded triangles    2,060,681 -> 2,064,489   (+3,808, the same pieces)
+#
+# The triangles are the chamfer itself: a 44-triangle tangent-chamfered box, or
+# the fleet's 108-triangle rolled edge where the chamfer is wide enough to earn
+# it, in place of a 12-triangle primitive. Measured with the roster probe, the
+# station half is +1,024 across 19 single renderers, 11 batched support posts
+# and 2 batched launch rails; the rest is the Arrow's 61 fitted renderers.
+#
+#   resident meshes 5,366 -> 5,350, surfaces 5,895 -> 5,884,
+#                   unique meshes 2,945 -> 2,929, nodes 10,409 -> 10,393
+#   loaded  meshes 5,622 -> 5,606, surfaces 6,151 -> 6,140,
+#                   unique meshes 3,117 -> 3,101, nodes 10,996 -> 10,980
+#
+# That -16 is **entirely the Arrow** and it is a consequence, not a decision.
+# `ShipFitoutBatch` refuses to fold live `PrimitiveMesh` stock, because the
+# tree-wide geometry-budget sweep re-tessellates exactly those renderers and
+# baking one into a merged `ArrayMesh` takes it out of that sweep. Sixteen of
+# the Arrow's renderers were refused on that ground alone; once they stopped
+# being primitives the existing batcher folded them on its existing rules. A
+# direct roster probe of the two touched subtrees confirms the attribution:
+# `ArrowReconShip` goes 322 -> 306 nodes, 244 -> 228 mesh instances, 195 -> 179
+# unique meshes and 251 -> 240 surfaces, while
+# `FleetExpansionBerths` is byte-identical at 105 nodes, 21 mesh instances,
+# 7 MultiMesh batches, 25 unique meshes and 31 surfaces.
+#
+# Everything else is byte-identical on both scenarios: 716/768 bound and
+# 1,019/1,076 retained materials, 341/376 lights, 7 shaders, 39 textures,
+# 85,977,416 texture bytes, 54 particle systems. The streamed Cinder bucket is
+# untouched (153,406 triangles, 256 instances, 256 surfaces, 712 MultiMesh
+# copies, 35 lights, 590 nodes) and every loaded-minus-resident delta holds at
+# its frozen value, which is what says the pass reached only the station-
+# resident scene.
+const RESIDENT_FINGERPRINT := "44d3e7fc4b4be6311482250f85360deee307ffc72f8fde5ff74ed8834dfd25f9"
+const CINDER_LOADED_FINGERPRINT := "b651ea37e21566d03094449fe98095aaa27c7ddfc4a0f142c78a54575d5ff380"
 
 var _assertions := 0
 var _failures := PackedStringArray()
@@ -331,18 +370,18 @@ func _run() -> void:
 		"resident report freezes schema, scenario identity, and exact loaded count"
 	)
 	_check(
-		int(resident.get("total_triangles", -1)) == 1907275
-			and int(resident.get("total_mesh_instances", -1)) == 5366
-			and int(resident.get("total_surfaces", -1)) == 5895
-			and int(resident.get("unique_meshes", -1)) == 2945,
-		"resident geometry freezes 1,907,275 triangles / 5,366 meshes / 5,895 surfaces / 2,945 unique meshes"
+		int(resident.get("total_triangles", -1)) == 1911083
+			and int(resident.get("total_mesh_instances", -1)) == 5350
+			and int(resident.get("total_surfaces", -1)) == 5884
+			and int(resident.get("unique_meshes", -1)) == 2929,
+		"resident geometry freezes 1,911,083 triangles / 5,350 meshes / 5,884 surfaces / 2,929 unique meshes"
 	)
 	_check(
 		int(resident.get("bound_phase_unique_materials", -1)) == 716
 			and int(resident.get("retained_reachable_unique_materials", -1)) == 1019
 			and int(resident.get("lights", -1)) == 341
-			and int(resident.get("nodes", -1)) == 10409,
-		"resident resource roster freezes 716 bound / 1,019 retained materials, 341 lights, and 10,409 nodes"
+			and int(resident.get("nodes", -1)) == 10393,
+		"resident resource roster freezes 716 bound / 1,019 retained materials, 341 lights, and 10,393 nodes"
 	)
 	_check(
 		str(resident.get("measurement_fingerprint", "")) == RESIDENT_FINGERPRINT,
@@ -399,18 +438,18 @@ func _run() -> void:
 		"loaded report freezes destination identity and one committed generation"
 	)
 	_check(
-		int(loaded.get("total_triangles", -1)) == 2060681
-			and int(loaded.get("total_mesh_instances", -1)) == 5622
-			and int(loaded.get("total_surfaces", -1)) == 6151
-			and int(loaded.get("unique_meshes", -1)) == 3117,
-		"loaded geometry freezes 2,060,681 triangles / 5,622 meshes / 6,151 surfaces / 3,117 unique meshes"
+		int(loaded.get("total_triangles", -1)) == 2064489
+			and int(loaded.get("total_mesh_instances", -1)) == 5606
+			and int(loaded.get("total_surfaces", -1)) == 6140
+			and int(loaded.get("unique_meshes", -1)) == 3101,
+		"loaded geometry freezes 2,064,489 triangles / 5,606 meshes / 6,140 surfaces / 3,101 unique meshes"
 	)
 	_check(
 		int(loaded.get("bound_phase_unique_materials", -1)) == 768
 			and int(loaded.get("retained_reachable_unique_materials", -1)) == 1076
 			and int(loaded.get("lights", -1)) == 376
-			and int(loaded.get("nodes", -1)) == 10996,
-		"loaded resource roster freezes 768 bound / 1,076 retained materials, 376 lights, and 10,996 nodes"
+			and int(loaded.get("nodes", -1)) == 10980,
+		"loaded resource roster freezes 768 bound / 1,076 retained materials, 376 lights, and 10,980 nodes"
 	)
 	var cinder_bucket := (loaded.get("buckets", {}) as Dictionary).get(
 		"CinderStreamingBootstrap", {}
