@@ -315,6 +315,49 @@ func accept_committed_origin_rebase(
 	})
 
 
+## Reconciles a world that did not ask for this transaction but whose local
+## space moved with it anyway.
+##
+## Nothing absolute changed: the last observation describes the same place in
+## the same orbital frame, expressed in a local space the common-world owner has
+## just slid by `delta`. This advances the bound generation and re-expresses the
+## retained local position, and nothing else. It cannot request or commit a
+## rebase, and it never re-evaluates streaming - the world that was not
+## travelled to is simply kept honest.
+func accept_common_world_translation(
+		delta: Vector3,
+		target_generation: int,
+	) -> Dictionary:
+	if not _activated or not is_inside_tree() or is_queued_for_deletion():
+		return _result(false, &"binding_unavailable")
+	if _tick_active:
+		return _result(false, &"reentrant_call")
+	if not delta.is_finite():
+		return _reject_committed_rebase(&"invalid_rebase_contract")
+	if target_generation != _bound_frame_generation + 1 \
+			or _coordinate_frame.get_generation() != target_generation \
+			or _coordinate_frame.has_pending_rebase():
+		return _reject_committed_rebase(&"committed_rebase_mismatch")
+	if not bool(_bootstrap.audit().get("valid", false)):
+		return _reject_committed_rebase(&"bootstrap_alignment_invalid")
+	var translated := _last_world_streaming_position + delta
+	if not _last_absolute_coordinate.is_empty():
+		var converted := _coordinate_frame.world_streaming_to_orbital_position(
+			translated, target_generation
+		)
+		if not bool(converted.get("accepted", false)) \
+				or converted.get("coordinate") != _last_absolute_coordinate:
+			return _reject_committed_rebase(&"absolute_coordinate_drift")
+	_bound_frame_generation = target_generation
+	_last_world_streaming_position = translated
+	_external_rebase_commit_count += 1
+	return _result(true, &"common_world_translation_accepted", {
+		"world_id": get_bound_world_id(),
+		"coordinate_frame_generation": target_generation,
+		"absolute_coordinate": _last_absolute_coordinate.duplicate(true),
+	})
+
+
 func get_snapshot() -> Dictionary:
 	var frame_snapshot := (
 		_coordinate_frame.get_snapshot()

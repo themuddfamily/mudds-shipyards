@@ -77,6 +77,7 @@ const ORIGIN_REBASE_RECEIPT_KEYS := [
 	"source_generation",
 	"target_generation",
 	"transaction_index",
+	"world_generations",
 	"world_id",
 	"world_streaming",
 	"world_translation_delta",

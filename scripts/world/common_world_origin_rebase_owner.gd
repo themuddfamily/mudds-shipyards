@@ -248,21 +248,32 @@ func consume_rebase_preview(preview: Variant, actor_sample: Variant) -> Dictiona
 	var delta := preview_value.get("world_translation_delta", Vector3.INF) as Vector3
 
 	_mutation_active = true
-	var request_result := frame.request_rebase(focus, source_generation)
-	if not bool(request_result.get("accepted", false)):
+	# The common world is shared, so a committed translation moves every world's
+	# local space at once. Open the pending request on *every* bound frame, not
+	# just the one that asked: a frame left behind would have its bootstrap root
+	# translated out from under it and would refuse every later focus update.
+	var opened := _open_pending_rebases(focus)
+	if not bool(opened.get("accepted", false)):
 		_mutation_active = false
-		return _reject(request_result.get("reason", &"rebase_request_rejected") as StringName)
-	var request := (request_result.get("request", {}) as Dictionary).duplicate(true)
+		return _reject(opened.get("reason", &"rebase_request_rejected") as StringName)
+	var requests := opened.get("requests", []) as Array
+	var request := _request_for_world(
+		requests, record.get("world_id", &"") as StringName
+	)
+	if int(request.get("source_generation", -1)) != source_generation:
+		_cancel_pending_rebases(requests)
+		_mutation_active = false
+		return _reject(&"rebase_request_rejected")
 	var binding_preflight := binding.preflight_external_origin_rebase(
 		preview_value, request
 	)
 	if not bool(binding_preflight.get("accepted", false)):
-		frame.cancel_rebase(int(request.get("request_id", 0)), source_generation)
+		_cancel_pending_rebases(requests)
 		_mutation_active = false
 		return _reject(binding_preflight.get("reason", &"binding_preflight_rejected") as StringName)
 	if not _apply_root_translation(roots, delta):
 		var apply_rollback_synchronized := _rollback_world(roots, covered)
-		frame.cancel_rebase(int(request.get("request_id", 0)), source_generation)
+		_cancel_pending_rebases(requests)
 		_rollback_count += 1
 		_mutation_active = false
 		if not apply_rollback_synchronized:
@@ -270,7 +281,7 @@ func consume_rebase_preview(preview: Variant, actor_sample: Variant) -> Dictiona
 		return _reject(&"translation_apply_failed")
 	if not _verify_covered_translation(covered, roots, delta):
 		var verification_rollback_synchronized := _rollback_world(roots, covered)
-		frame.cancel_rebase(int(request.get("request_id", 0)), source_generation)
+		_cancel_pending_rebases(requests)
 		_rollback_count += 1
 		_mutation_active = false
 		if not verification_rollback_synchronized:
@@ -284,26 +295,32 @@ func consume_rebase_preview(preview: Variant, actor_sample: Variant) -> Dictiona
 	# roster before the coordinate-frame commit is exposed.
 	if not _synchronize_collision_transforms(covered):
 		var synchronization_rollback_synchronized := _rollback_world(roots, covered)
-		frame.cancel_rebase(int(request.get("request_id", 0)), source_generation)
+		_cancel_pending_rebases(requests)
 		_rollback_count += 1
 		_mutation_active = false
 		if not synchronization_rollback_synchronized:
 			return _reject(&"collision_transform_rollback_desynchronized")
 		return _reject(&"collision_transform_synchronization_failed")
+	# The requesting world commits first, while every other frame is still only
+	# pending and the whole transaction is still reversible.
 	var commit := _commit_frame_rebase(
 		frame, int(request.get("request_id", 0)), source_generation
 	)
 	if not bool(commit.get("accepted", false)):
 		var commit_rollback_synchronized := _rollback_world(roots, covered)
-		var pending := frame.get_snapshot().get("pending_rebase", {}) as Dictionary
-		if int(pending.get("request_id", 0)) == int(request.get("request_id", 0)):
-			frame.cancel_rebase(int(request.get("request_id", 0)), source_generation)
+		_cancel_pending_rebases(requests)
 		_rollback_count += 1
 		_mutation_active = false
 		if not commit_rollback_synchronized:
 			return _reject(&"collision_transform_rollback_desynchronized")
 		return _reject(commit.get("reason", &"rebase_commit_rejected") as StringName)
 	var target_generation := int(request.get("target_generation", 0))
+	# From here the transaction is irreversible. Every remaining frame was
+	# synchronously validated and left pending under this same guard, so a
+	# refusal now is an invariant breach, reported fail-closed.
+	if not _commit_remaining_frames(requests, record.get("world_id", &"") as StringName):
+		_mutation_active = false
+		return _reject(&"common_world_frame_commit_desynchronized")
 	var adjusted_sample := sample_value.duplicate(true)
 	adjusted_sample["position"] = focus + delta
 	var binding_commit := binding.accept_committed_origin_rebase(
@@ -320,7 +337,17 @@ func consume_rebase_preview(preview: Variant, actor_sample: Variant) -> Dictiona
 	# before it are now holding pre-translation coordinates; tell exactly those
 	# that ask to be told. This is notification, not authority: the owner writes
 	# no actor state beyond the translation it already applied.
-	_notify_committed_translation(roots, covered, delta, target_generation)
+	_notify_committed_translation(roots, covered, delta, requests)
+
+	# Every other composed world's observation adapter now holds a pre-translation
+	# local position for an absolute coordinate that did not move. Reconcile them
+	# against their own committed generation.
+	var unreconciled := _reconcile_other_worlds(
+		requests, record.get("world_id", &"") as StringName, delta
+	)
+	if not unreconciled.is_empty():
+		_mutation_active = false
+		return _reject(&"common_world_binding_reconciliation_desynchronized")
 
 	_transaction_count += 1
 	_last_world_id = record.get("world_id", &"") as StringName
@@ -348,6 +375,7 @@ func consume_rebase_preview(preview: Variant, actor_sample: Variant) -> Dictiona
 		"root_roster": _last_root_roster.duplicate(true),
 		"covered_node_count": _last_covered_node_count,
 		"covered_instance_ids": _last_covered_instance_ids.duplicate(),
+		"world_generations": _public_world_generations(requests),
 		"world_streaming": binding_commit.get("streaming", {}).duplicate(true),
 	}.duplicate(true)
 	_mutation_active = false
@@ -631,8 +659,23 @@ func _notify_committed_translation(
 		roots: Array,
 		covered: Array,
 		delta: Vector3,
-		target_generation: int,
+		requests: Array,
 	) -> void:
+	# A streamed world root re-expresses itself against its *own* frame, so each
+	# one is told the generation its own frame just reached. Everything else in
+	# the common world shares one translation and is told the requesting world's.
+	var generation_by_bootstrap := {}
+	var default_generation := 0
+	for entry_value in requests:
+		var entry := entry_value as Dictionary
+		var entry_bootstrap := entry.get("bootstrap") as PlanetaryStreamingBootstrap
+		var entry_target := int((entry.get("request", {}) as Dictionary).get(
+			"target_generation", 0
+		))
+		if is_instance_valid(entry_bootstrap):
+			generation_by_bootstrap[entry_bootstrap.get_instance_id()] = entry_target
+		if default_generation == 0:
+			default_generation = entry_target
 	var notified := {}
 	for group: Array in [roots, covered]:
 		for record_value in group:
@@ -641,7 +684,112 @@ func _notify_committed_translation(
 				continue
 			notified[node.get_instance_id()] = true
 			if node.has_method(&"notify_common_world_translation"):
-				node.call(&"notify_common_world_translation", delta, target_generation)
+				node.call(
+					&"notify_common_world_translation",
+					delta,
+					int(generation_by_bootstrap.get(
+						node.get_instance_id(), default_generation
+					)),
+				)
+
+
+## Opens one pending rebase on every bound frame for the same shared focus.
+## Either all of them are pending on return, or none is.
+func _open_pending_rebases(focus: Vector3) -> Dictionary:
+	var requests: Array = []
+	for world_record in _worlds:
+		var world_frame := world_record.get("frame") as PlanetaryCoordinateFrame
+		var source := world_frame.get_generation()
+		var world_opened := world_frame.request_rebase(focus, source)
+		if not bool(world_opened.get("accepted", false)):
+			_cancel_pending_rebases(requests)
+			return _result(
+				false,
+				world_opened.get("reason", &"rebase_request_rejected") as StringName,
+			)
+		requests.append({
+			"world_id": world_record.get("world_id", &""),
+			"frame": world_frame,
+			"binding": world_record.get("binding"),
+			"bootstrap": world_record.get("bootstrap"),
+			"source_generation": source,
+			"request": (world_opened.get("request", {}) as Dictionary).duplicate(true),
+		})
+	if requests.is_empty():
+		return _result(false, &"missing_world_composition")
+	return {"accepted": true, "reason": &"pending_rebases_opened", "requests": requests}
+
+
+func _cancel_pending_rebases(requests: Array) -> void:
+	for index in range(requests.size() - 1, -1, -1):
+		var entry := requests[index] as Dictionary
+		var world_frame := entry.get("frame") as PlanetaryCoordinateFrame
+		var entry_request := entry.get("request", {}) as Dictionary
+		var still_pending := world_frame.get_snapshot().get(
+			"pending_rebase", {}
+		) as Dictionary
+		if int(still_pending.get("request_id", 0)) \
+				== int(entry_request.get("request_id", 0)):
+			world_frame.cancel_rebase(
+				int(entry_request.get("request_id", 0)),
+				int(entry.get("source_generation", 0)),
+			)
+
+
+func _request_for_world(requests: Array, world_id: StringName) -> Dictionary:
+	for entry_value in requests:
+		var entry := entry_value as Dictionary
+		if entry.get("world_id", &"") == world_id:
+			return (entry.get("request", {}) as Dictionary).duplicate(true)
+	return {}
+
+
+func _commit_remaining_frames(requests: Array, committed_world_id: StringName) -> bool:
+	for entry_value in requests:
+		var entry := entry_value as Dictionary
+		if entry.get("world_id", &"") == committed_world_id:
+			continue
+		var world_frame := entry.get("frame") as PlanetaryCoordinateFrame
+		var entry_request := entry.get("request", {}) as Dictionary
+		var committed := world_frame.commit_rebase(
+			int(entry_request.get("request_id", 0)),
+			int(entry.get("source_generation", 0)),
+		)
+		if not bool(committed.get("accepted", false)):
+			return false
+	return true
+
+
+## Hands every non-requesting world's adapter its own committed generation and
+## the shared translation. Returns the first world id that refused, or `&""`.
+func _reconcile_other_worlds(
+		requests: Array,
+		committed_world_id: StringName,
+		delta: Vector3,
+	) -> StringName:
+	for entry_value in requests:
+		var entry := entry_value as Dictionary
+		var entry_world_id := entry.get("world_id", &"") as StringName
+		if entry_world_id == committed_world_id:
+			continue
+		var other := entry.get("binding") as PlanetaryStreamingProductionBinding
+		var entry_request := entry.get("request", {}) as Dictionary
+		var accepted := other.accept_common_world_translation(
+			delta, int(entry_request.get("target_generation", 0))
+		)
+		if not bool(accepted.get("accepted", false)):
+			return entry_world_id
+	return &""
+
+
+func _public_world_generations(requests: Array) -> Dictionary:
+	var generations := {}
+	for entry_value in requests:
+		var entry := entry_value as Dictionary
+		generations[String(entry.get("world_id", &""))] = int(
+			(entry.get("request", {}) as Dictionary).get("target_generation", 0)
+		)
+	return generations.duplicate(true)
 
 
 func _apply_root_translation(roots: Array, delta: Vector3) -> bool:

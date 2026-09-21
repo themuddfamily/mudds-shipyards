@@ -3,7 +3,7 @@ extends SceneTree
 const MAIN_SCENE := preload("res://scenes/main.tscn")
 const Store := preload("res://scripts/persistence/user_data_store.gd")
 const STORE_PATH := "memory://common-origin-owner-settings.json"
-const EXPECTED_ASSERTIONS := 24
+const EXPECTED_ASSERTIONS := 31
 
 var _assertions := 0
 var _failures: Array[String] = []
@@ -53,10 +53,28 @@ func _run() -> void:
 	var ember := game.get_node_or_null(^"EmberMoonStreamingBootstrap") as EmberMoonStreamingBootstrap
 	var cinder_binding := game.get_node_or_null(^"CinderStreamingProductionBinding") as CinderStreamingProductionBinding
 	var cinder := game.get_node_or_null(^"CinderStreamingBootstrap") as CinderStreamingBootstrap
+	var aurora_binding := game.get_node_or_null(^"AuroraTemperateStreamingProductionBinding") as AuroraTemperateStreamingProductionBinding
+	var aurora := game.get_node_or_null(^"AuroraTemperateStreamingBootstrap") as AuroraTemperateStreamingBootstrap
 	var player := game.get_node_or_null(^"Player") as PlayerController
-	_check(owner != null and ember_binding != null and ember != null and cinder_binding != null and cinder != null and player != null, "all production identities resolve")
-	if owner == null or ember_binding == null or ember == null or cinder_binding == null or cinder == null or player == null:
+	_check(owner != null and ember_binding != null and ember != null and cinder_binding != null and cinder != null and aurora_binding != null and aurora != null and player != null, "all production identities resolve")
+	if owner == null or ember_binding == null or ember == null or cinder_binding == null or cinder == null or aurora_binding == null or aurora == null or player == null:
 		await _cleanup(game); _finish(); return
+	var aurora_frame := aurora.get_coordinate_frame_for_session()
+	var ember_world_record := owner.get_world_binding_snapshot(EmberMoonStreamingBootstrap.WORLD_ID)
+	var aurora_world_record := owner.get_world_binding_snapshot(AuroraTemperateStreamingBootstrap.WORLD_ID)
+	_check(
+		owner.get_bound_world_ids() == PackedStringArray([
+			String(AuroraTemperateStreamingBootstrap.WORLD_ID),
+			String(EmberMoonStreamingBootstrap.WORLD_ID),
+		])
+			and int(owner.get_snapshot().world_count) == 2
+			and int(ember_world_record.get("binding_instance_id", 0)) == ember_binding.get_instance_id()
+			and int(ember_world_record.get("bootstrap_instance_id", 0)) == ember.get_instance_id()
+			and int(aurora_world_record.get("binding_instance_id", 0)) == aurora_binding.get_instance_id()
+			and int(aurora_world_record.get("bootstrap_instance_id", 0)) == aurora.get_instance_id()
+			and String(aurora_world_record.get("identity_error", &"")).is_empty(),
+		"one owner binds both composed worlds by their own bootstrap/binding pairs"
+	)
 	var initial_actor_reads := int(game.get_activity_integration_report().get("actor_position_sample_count", -1))
 	_check(initial_actor_reads > 0 and int(ember_binding.get_snapshot().get("accepted_sample_count", -1)) == initial_actor_reads, "GameFlow's one actor read drives Ember without a second sampler")
 	game.set_physics_process(false)
@@ -104,6 +122,24 @@ func _run() -> void:
 	_check(_reentry_reason == &"reentrant_call" and _signal_receipt.reason == &"rebase_committed", "committed signal observes final state and rejects reentry")
 	var frame := ember.get_coordinate_frame_for_session()
 	_check(frame.get_generation() == 2 and (frame.get_snapshot().pending_rebase as Dictionary).is_empty(), "frame advances exactly once with no pending request")
+	# The common world is shared. A translation asked for by one world moves the
+	# local space of both, so the world that was not travelled to must come with
+	# it rather than be left behind holding a stale origin.
+	var first_receipt := result.get("receipt", {}) as Dictionary
+	_check(
+		aurora_frame.get_generation() == 2
+			and (aurora_frame.get_snapshot().pending_rebase as Dictionary).is_empty()
+			and aurora.global_position.is_equal_approx(
+				AuroraTemperateStreamingBootstrap.INITIAL_BODY_CENTER_WORLD_POSITION + delta
+			)
+			and bool(aurora.audit().get("valid", false))
+			and int(aurora_binding.get_snapshot().bound_coordinate_frame_generation) == 2
+			and (first_receipt.get("world_generations", {}) as Dictionary) == {
+				String(AuroraTemperateStreamingBootstrap.WORLD_ID): 2,
+				String(EmberMoonStreamingBootstrap.WORLD_ID): 2,
+			},
+		"an Ember transaction carries the untravelled second world's frame, root and adapter with it"
+	)
 	_check(player.global_position == Vector3.ZERO and world.global_position.is_equal_approx(before_positions.world + delta) and ship.global_position.is_equal_approx(before_positions.ship + delta), "actor, station, and fleet roots receive one exact delta")
 	_check(cinder.global_position.is_equal_approx(before_positions.cinder + delta) and cinder_loaded.global_position.is_equal_approx(before_positions.cinder_loaded + delta) and cinder.get_loaded_instance() == cinder_loaded and int(cinder.get_snapshot().loaded_generation) == 1, "Cinder bootstrap and live generation translate without retirement")
 	_check(ember.global_position.is_equal_approx(before_positions.ember + delta) and top_probe.global_position.is_equal_approx(before_positions.top + delta), "Ember and nested top-level nodes receive the same delta")
@@ -194,6 +230,101 @@ func _run() -> void:
 			and reentry_transaction.reason == &"rebase_committed"
 			and int(ember_binding.get_snapshot().get("external_rebase_commit_count", 0)) == 2,
 		"a reattached Ember binding accepts one fresh live origin-rebase transaction"
+	)
+
+	# --- the same owner, the second world -------------------------------------
+	# Aurora is 12,000 km out on +X, Ember 8,000 km out on -Z. Standing at
+	# Aurora's own navigation anchor is a fresh transaction for a different
+	# world, through the one owner that already served Ember twice.
+	player.global_position = aurora.global_position + Vector3(0.0, 130_000.0, 0.0)
+	var aurora_sample := _sample(player)
+	var aurora_tick := aurora_binding.physics_tick_from_caller_sample(1.0 / 60.0, aurora_sample)
+	var aurora_preview := aurora_binding.preview_origin_rebase(int(aurora_tick.coordinate_frame_generation))
+	_check(
+		aurora_tick.reason == &"rebase_required_before_load"
+			and bool(aurora_preview.rebase_required)
+			and aurora_preview.world_id == AuroraTemperateStreamingBootstrap.WORLD_ID,
+		"a near-Aurora sample produces Aurora's own required preview, named for its world"
+	)
+
+	# A world that has retired is not a world the owner will act for, and a
+	# rebind restores it without replaying anything.
+	var unbound := owner.unbind_world(AuroraTemperateStreamingBootstrap.WORLD_ID)
+	var refused := owner.consume_rebase_preview(aurora_preview, aurora_sample)
+	var rebound := owner.rebind_composed_worlds()
+	_check(
+		bool(unbound.accepted) and int(unbound.world_count) == 1
+			and not bool(refused.accepted) and refused.reason == &"unbound_rebase_world"
+			and bool(rebound.accepted)
+			and (rebound.bound_world_ids as PackedStringArray) == PackedStringArray([
+				String(AuroraTemperateStreamingBootstrap.WORLD_ID),
+			])
+			and int(owner.get_snapshot().world_count) == 2
+			and int(owner.get_snapshot().transaction_count) == transaction_count + 1,
+		"a retired world is refused by name and a rebind restores it without replaying a transaction"
+	)
+
+	var aurora_ember_generation_before := frame.get_generation()
+	var aurora_generation_before := aurora_frame.get_generation()
+	var aurora_ember_loaded_before := ember.get_loaded_instance()
+	var aurora_transaction := owner.consume_rebase_preview(aurora_preview, aurora_sample)
+	var aurora_delta := aurora_preview.world_translation_delta as Vector3
+	var aurora_receipt := aurora_transaction.get("receipt", {}) as Dictionary
+	_check(
+		bool(aurora_transaction.accepted)
+			and aurora_transaction.reason == &"rebase_committed"
+			and aurora_transaction.world_id == AuroraTemperateStreamingBootstrap.WORLD_ID
+			and player.global_position == Vector3.ZERO
+			and aurora_frame.get_generation() == aurora_generation_before + 1
+			and frame.get_generation() == aurora_ember_generation_before + 1
+			and (aurora_receipt.get("world_generations", {}) as Dictionary) == {
+				String(AuroraTemperateStreamingBootstrap.WORLD_ID): aurora_generation_before + 1,
+				String(EmberMoonStreamingBootstrap.WORLD_ID): aurora_ember_generation_before + 1,
+			}
+			and int(aurora_binding.get_snapshot().external_rebase_commit_count) >= 1,
+		"the second world commits its own transaction through the same owner"
+	)
+	await process_frame
+	await process_frame
+	_check(
+		is_instance_valid(aurora.get_loaded_instance())
+			and aurora.get_loaded_instance() is AuroraTemperateAuthoredScene
+			and int(aurora.get_snapshot().location_generation) == 1
+			and ember.get_loaded_instance() == aurora_ember_loaded_before
+			and int(ember_binding.get_snapshot().bound_coordinate_frame_generation)
+				== frame.get_generation()
+			and bool(ember.audit().valid) and bool(aurora.audit().valid),
+		"Aurora's committed rebase streams Aurora's own world in and leaves Ember's generation and adapter intact"
+	)
+
+	# A failed commit must roll back exactly as it does for the first world.
+	player.global_position = aurora.global_position + Vector3(0.0, 150_000.0, 0.0)
+	var aurora_rollback_sample := _sample(player)
+	var aurora_rollback_tick := aurora_binding.physics_tick_from_caller_sample(1.0 / 60.0, aurora_rollback_sample)
+	var aurora_rollback_preview := aurora_binding.preview_origin_rebase(int(aurora_rollback_tick.coordinate_frame_generation))
+	var aurora_world_before := world.global_transform
+	var aurora_root_before := aurora.global_transform
+	var aurora_loaded_before := aurora.get_loaded_instance() as Node3D
+	var aurora_loaded_transform_before := aurora_loaded_before.global_transform
+	var aurora_frame_generation_before := aurora_frame.get_generation()
+	var aurora_ember_frame_before := frame.get_generation()
+	var aurora_rollback_count_before := int(owner.get_snapshot().rollback_count)
+	owner._commit_adapter = Callable(self, &"_reject_commit")
+	var aurora_rejected := owner.consume_rebase_preview(aurora_rollback_preview, aurora_rollback_sample)
+	owner._commit_adapter = Callable()
+	_check(
+		aurora_rejected.reason == &"forced_commit_rejection"
+			and world.global_transform.is_equal_approx(aurora_world_before)
+			and aurora.global_transform.is_equal_approx(aurora_root_before)
+			and aurora.get_loaded_instance() == aurora_loaded_before
+			and aurora_loaded_before.global_transform.is_equal_approx(aurora_loaded_transform_before)
+			and aurora_frame.get_generation() == aurora_frame_generation_before
+			and frame.get_generation() == aurora_ember_frame_before
+			and (aurora_frame.get_snapshot().pending_rebase as Dictionary).is_empty()
+			and (frame.get_snapshot().pending_rebase as Dictionary).is_empty()
+			and int(owner.get_snapshot().rollback_count) == aurora_rollback_count_before + 1
+			and bool(owner.audit().valid),
+		"a failed commit for the second world rolls every root and every bound frame back"
 	)
 
 	var queued_binding_before := ember_binding.get_snapshot()
