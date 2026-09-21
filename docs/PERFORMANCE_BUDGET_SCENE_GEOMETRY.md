@@ -3274,10 +3274,15 @@ The loaded scenario moves by exactly the same amounts (2,060,681 ->
 loaded-minus-resident delta holds at its frozen value — which is what says the
 pass reached only the station-resident scene.
 
-The triangles break down as +1,024 on the station (19 single renderers at +32
-each, 11 batched underframe posts, 2 batched launch rails) and +2,784 on the
-Arrow, whose 61 renderers take the fleet rule and so land on 44 or 108
-depending on their own chamfer width.
+The triangles break down as **+896 on the station** and **+2,912 on the
+Arrow**. The station figure is 28 drawn copies at +32 each, every one of them
+on the tangent chamfer by construction: 6 pedestrian access decks, 5
+underframe chords, 3 cargo-crane members, 3 ordnance members, 3 launch-frame
+members, 6 batched underframe support posts and 2 batched launch rails. The
+Arrow's 63 drawn copies take the *fleet* rule rather than the structural one,
+so they land on 44 or 108 by their own chamfer width; the arithmetic resolves
+to 49 pieces on the tangent facet and 14 — the ones over 0.159 m in their
+shortest dimension — on the authored two-segment roll.
 
 **The -16 is a consequence, not a decision, and it is entirely the Arrow.**
 `ShipFitoutBatch` never folds live `PrimitiveMesh` stock, because the tree-wide

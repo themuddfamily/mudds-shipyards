@@ -292,8 +292,9 @@ const MAIN_SCENE := preload("res://scenes/main.tscn")
 # The triangles are the chamfer itself: a 44-triangle tangent-chamfered box, or
 # the fleet's 108-triangle rolled edge where the chamfer is wide enough to earn
 # it, in place of a 12-triangle primitive. Measured with the roster probe, the
-# station half is +1,024 across 19 single renderers, 11 batched support posts
-# and 2 batched launch rails; the rest is the Arrow's 61 fitted renderers.
+# station half is +896 across 28 drawn copies — 6 access decks, 5 underframe
+# chords, 9 dock service members, 6 batched support posts and 2 batched launch
+# rails — and the remaining +2,912 is the Arrow's 63 fitted copies.
 #
 #   resident meshes 5,366 -> 5,350, surfaces 5,895 -> 5,884,
 #                   unique meshes 2,945 -> 2,929, nodes 10,409 -> 10,393
