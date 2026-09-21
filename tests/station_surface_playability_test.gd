@@ -1577,9 +1577,12 @@ func _test_fleet_expansion_surface_honesty(world: ShipyardWorld) -> void:
 		var collision := body.get_node_or_null(^"Collision") as CollisionShape3D
 		var shape := collision.shape as BoxShape3D if collision != null else null
 		var surface := body.get_node_or_null(^"Surface") as MeshInstance3D
-		var mesh := surface.mesh as BoxMesh if surface != null else null
+		# The deck is chamfered stock; its AABB is the authored size exactly, so
+		# the collider still has to agree with the drawn envelope to the
+		# millimetre and that is what is compared.
+		var mesh := surface.mesh if surface != null else null
 		exact = exact and shape != null and mesh != null and not collision.disabled \
-			and shape.size.is_equal_approx(mesh.size) \
+			and shape.size.is_equal_approx(mesh.get_aabb().size) \
 			and body.collision_layer == WORLD_LAYER and body.collision_mask == 0 \
 			and bool(body.get_meta(&"walkable_surface", false)) \
 			and StringName(body.get_meta(&"walkable_surface_owner", &"")) == &"fleet-expansion-berths" \
