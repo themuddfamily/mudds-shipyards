@@ -3443,13 +3443,16 @@ of the twenty-four frames.** That was the constraint and the frames hold it.
 
 ### Suites
 
-`fleet_expansion_*` (11), `arrow_*` (9), every `station_*` (46 plus the 7 under
-`tests/audio/`), every `*silhouette*` (15), every `*census*` (5), `hero_*`,
-`vertical_slice_test`, `smoke_test`, `tow_tractor_test` — 96 suites at
-`--jobs 3`, 4,695 pass assertions, all green except
-`geometry_census_scenario_test`, refrozen here from its own printed lines and
-green afterwards. `tests/station_surface_playability_test.gd` is not in the
-matrix master list (it is a package probe) and was fixed and run by hand.
+`station_*`, `*silhouette*`, `*census*`, `fleet_expansion_*`, `arrow_*`,
+`hero_*`, `vertical_slice_test`, `smoke_test` and `tow_tractor_test` —
+**115 suites, 5,369 pass assertions, `Overall status: PASS`** with a matching
+source manifest and a stable import cache, at
+`/root/.cache/mudds-shipyards/agent-bevel/results/`.
+`geometry_census_scenario_test` was refrozen here from its own printed lines
+and is green inside that run. `tests/station_surface_playability_test.gd` is
+not in the matrix master list (it is a package probe, listed by
+`tools/release/run_package_probes.sh`), so it was fixed and run by hand: 89
+assertions, `STATION_SURFACE_PLAYABILITY_TEST_OK`.
 
 **No ceiling in this document has been raised, and no native-hardware or
 human-review gate is claimed.**
