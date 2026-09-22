@@ -208,7 +208,7 @@ the cached landing root and its live parent/local composition. The fix preserves
 that composition order through rebases without widening tolerances. The same
 reproduction now lands (14 assertions); the existing handoff regression passes
 27 assertions, including rejection of genuine local movement and reparenting.
-This is not a full-flight pass. The test ends the automatically selected Cinder activity through the
+That original run remains failed. The test ends the automatically selected Cinder activity through the
 public session-fenced failure API, so it does not establish a complete fresh-save
 objective playthrough. Logs: `aurora-production-isolated.log`,
 `aurora-visit-loop-isolated.log` and `aurora-full-flight-frozen.log` under
@@ -218,5 +218,22 @@ The combined candidate `bc38358ef` includes this fix and physical return.
 Separate return checks pass real departure/unload (20 assertions), near-home
 flight/docking/walking (10, Torrent), Halyard local landing/walking (5), and
 existing Aurora suites (68 and 49). These separate fixtures do not establish a
-full same-craft round trip. That explicit Halyard acceptance is pending; the
-latest published checkpoint remains `080f6ae`.
+full same-craft round trip. The explicit same-Halyard run on `bc38358ef` has
+now passed its complete outbound touchdown: 12,011,875.865 metres flown,
+1,163 origin shifts, maximum ship and pilot steps of 333.332 metres, full
+190/190 hull, exact retained pilot ownership and zero actor placements. The
+same process is continuing home; the full round-trip verdict is still pending.
+Its log is `/tmp/aurora-full-roundtrip-bc38358ef.log`. The latest published
+checkpoint remains `080f6ae`.
+
+Normal variable-frame regression testing exposed two sampling assumptions in
+the test fixtures. A render-observed interval can contain several physics ticks,
+so a fixed input hold could last too long and endpoint speeds could miss an
+intermediate speed peak. The production and visit-loop fixtures now count and
+observe physics ticks directly; both pass at normal matrix timing (117
+assertions) without changing gameplay or movement tolerances. The return
+fixture's separate per-tick sampler also passes at fixed and variable timing
+(20 assertions each). A paired run measured the old sampler's 2,666.667-metre
+maximum across eight ticks while the corrected sampler measured at most
+333.334 metres in a single tick. Its 335-metre limit and exact pilot checks
+remain unchanged, and the bounded cruise now counts 2,400 physics ticks.
