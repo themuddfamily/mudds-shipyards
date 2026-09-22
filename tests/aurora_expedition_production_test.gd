@@ -298,9 +298,9 @@ func _prepare_bounded_outbound(game: GameFlow) -> void:
 			"parked Aurora action asks the pilot to physically depart first")
 		Input.action_press(&"hover")
 		Input.action_press(&"move_forward")
+		# Hold controls for physics ticks, independent of render catch-up batches.
 		for i in 180:
 			await physics_frame
-			await process_frame
 		Input.action_release(&"hover")
 		Input.action_release(&"move_forward")
 		for i in 4:
@@ -405,8 +405,9 @@ func _wait_state(owner: RefCounted, target: StringName, frames: int) -> void:
 		var previous_basis := craft.global_basis if physical else Basis.IDENTITY
 		var previous_tick := Engine.get_physics_frames()
 		samples.delta = Vector3.ZERO
+		# Endpoint speed bounds apply to one physics step, not a render batch
+		# that can contain both acceleration and braking around a speed peak.
 		await physics_frame
-		await process_frame
 		if physical:
 			var elapsed := float(Engine.get_physics_frames() - previous_tick) / float(Engine.physics_ticks_per_second)
 			var translation := samples.delta as Vector3
