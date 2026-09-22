@@ -393,6 +393,37 @@ func _physical_abandon_return(game: GameFlow) -> void:
 	if not player.is_seated() or not craft.is_piloted():
 		return
 	var sampler := LegSampler.new()
+	# Host owns takeoff through its surface-clear commit. The authored departure
+	# then hands the pilot local flight; use ordinary thrust to clear the caldera
+	# before releasing controls to the queued return. No placement occurs here.
+	var departure_ready := false
+	for _tick in 1800:
+		await physics_frame
+		await process_frame
+		sampler.step(game)
+		if int(host.get_abandon_snapshot().get("commit_count", 0)) > 0:
+			departure_ready = true
+			break
+	_check(departure_ready, "Host physically clears the surface before handing off manual departure")
+	if not departure_ready:
+		return
+	var surface_berth := game.ember_surface_berth as EmberSurfaceBerth
+	var cleared_surface := false
+	Input.action_press(&"move_forward")
+	for _tick in 2400:
+		await physics_frame
+		await process_frame
+		sampler.step(game)
+		var altitude := (craft.global_position - surface_berth.global_position).dot(surface_berth.global_basis.y)
+		if altitude >= 1200.0:
+			cleared_surface = true
+			break
+		if craft.is_destroyed() or not craft.is_piloted():
+			break
+	Input.action_release(&"move_forward")
+	_check(cleared_surface, "ordinary pilot thrust clears the local terrain before queued return cruise")
+	if not cleared_surface:
+		return
 	var completed := false
 	var left_ember := false
 	for tick in 42_000:

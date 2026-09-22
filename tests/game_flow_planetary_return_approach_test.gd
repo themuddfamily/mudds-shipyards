@@ -272,6 +272,7 @@ func _run() -> void:
 	)
 
 	craft.set_piloted(true)
+	_check_abandon_departure_intent(game, craft)
 	game.ember_surface_loop_host.set("_phase", EmberSurfaceLoopHost.Phase.LANDED)
 	cadence.fake_phase = EmberSurfaceLoopHost.Phase.LANDED
 	var landed_sample := game._capture_cinder_actor_sample()
@@ -621,6 +622,106 @@ func _run() -> void:
 	game.queue_free()
 	await process_frame
 	_finish()
+
+
+func _check_abandon_departure_intent(game: GameFlow, craft: HeroShip) -> void:
+	var previous_phase := game.phase
+	var previous_departed: bool = game.get("_sortie_departed_berth")
+	var previous_piloting: bool = game.get("_piloting")
+	game.phase = GameFlow.Phase.FREE_FLIGHT
+	game.set("_sortie_departed_berth", true)
+	game.set("_piloting", true)
+	var journey: Object = game.get("_planetary_journey")
+	journey.set("_ember_abandon_return_arm_pending", true)
+	journey.set("_ember_abandon_return_active", true)
+	journey.call(&"_observe_abandon_return_departure_tick", {
+		"accepted": false, "reason": &"obstacle_detected",
+	})
+	_check(journey.is_return_departure_pending(),
+		"an initial terrain refusal retains the queued return before cruise propulsion")
+	var previous_command: ShipCommand = craft.get("_last_ship_command")
+	var manual := ShipCommand.new()
+	manual.set("_throttle", 1.0)
+	craft.set("_last_ship_command", manual)
+	var attempts := int(journey.get("_ember_abandon_return_arm_attempts"))
+	for _tick in 1000:
+		journey.call(&"_retry_ember_abandon_return_approach", 1)
+	_check(journey.is_return_departure_pending()
+		and int(journey.get("_ember_abandon_return_arm_attempts")) == attempts,
+		"held ordinary departure input preserves the queue without exhausting its retry budget")
+	journey.call(&"_observe_abandon_return_departure_tick", {
+		"accepted": false, "reason": &"ship_attachment_retired",
+	})
+	_check(journey.is_return_departure_pending(),
+		"manual flight before propulsion can retire an armed attachment without losing departure intent")
+	journey.call(&"_observe_abandon_return_departure_tick", {
+		"accepted": false, "reason": &"coordinate_frame_generation_mismatch",
+	})
+	_check(not journey.is_return_departure_pending(),
+		"fatal frame failure retires queued departure even while controls are held")
+	craft.set("_last_ship_command", ShipCommand.new())
+	var previous_cruise_state: StringName = craft.get("_planetary_cruise_state")
+	craft.set("_planetary_cruise_state", HeroShip.PLANETARY_CRUISE_STATE_BRAKING)
+	journey.set("_ember_abandon_return_arm_pending", true)
+	var braking: Dictionary = journey.call(&"_retry_ember_abandon_return_approach", 1)
+	_check(journey.is_return_departure_pending() and braking.get("reason") == &"braking_in_progress",
+		"the existing fail-closed brake can settle before queued return admission retries")
+	craft.set("_planetary_cruise_state", previous_cruise_state)
+	craft.set("_last_ship_command", previous_command)
+	journey.set("_ember_abandon_return_arm_pending", true)
+	journey.set("_ember_abandon_return_active", true)
+	var cancelled: Dictionary = journey.cancel_return_departure(&"player_cancelled", false)
+	_check(bool(cancelled.get("accepted", false)) and not journey.is_return_departure_pending()
+		and not bool(journey.get("_ember_abandon_return_active")),
+		"explicit cancellation clears the queued return before a cruise attachment exists")
+	journey.set("_ember_abandon_return_arm_pending", true)
+	journey.set("_ember_abandon_return_active", true)
+	journey.call(&"_observe_abandon_return_departure_tick", {
+		"accepted": true, "controller": {"policy": {"desired_cruise_participation": true}},
+	})
+	journey.call(&"_observe_abandon_return_departure_tick", {
+		"accepted": false, "reason": &"obstacle_detected",
+	})
+	_check(not journey.is_return_departure_pending(),
+		"after first propulsion an interrupted return never recreates departure intent")
+	journey.cancel_return_departure()
+	journey.set("_ember_abandon_return_arm_pending", true)
+	journey.set("_ember_abandon_return_arm_attempts", 900)
+	journey.call(&"_retry_ember_abandon_return_approach", 1)
+	_check(not journey.is_return_departure_pending()
+		and journey.get("_last_ember_abandon_return_arm_result").get("reason") == &"abandon_return_arm_exhausted",
+		"a permanently refused unattended return expires its bounded retry intent")
+	journey.set("_ember_abandon_return_arm_attempts", 0)
+	journey.set("_ember_abandon_return_arm_pending", true)
+	craft.set_piloted(false)
+	journey.call(&"_retry_ember_abandon_return_approach", 1)
+	_check(not journey.is_return_departure_pending(),
+		"pilot detachment retires queued departure instead of resuming on a later boarding")
+	craft.set_piloted(true)
+	journey.set("_ember_abandon_return_arm_pending", true)
+	journey.set("_ember_abandon_return_active", true)
+	journey.detach()
+	_check(not journey.is_return_departure_pending()
+		and not bool(journey.get("_ember_abandon_return_active")),
+		"Main detachment clears pending and active return intent")
+	journey.set("_ember_abandon_return_arm_pending", true)
+	journey.call(&"_observe_abandon_return_departure_tick", {
+		"accepted": true, "reason": &"return_approach_handoff_ready",
+	})
+	_check(not journey.is_return_departure_pending(),
+		"an already arrived return handoff cannot rearm a second departure without propulsion")
+	journey.set("_ember_abandon_return_arm_pending", true)
+	craft.set("_last_ship_command", manual)
+	var recovering: bool = game.get("_recovering")
+	game.set("_recovering", true)
+	journey.call(&"_retry_ember_abandon_return_approach", 1)
+	_check(not journey.is_return_departure_pending(),
+		"a recovery gate retires pending departure even while manual input is held")
+	game.set("_recovering", recovering)
+	craft.set("_last_ship_command", previous_command)
+	game.phase = previous_phase
+	game.set("_sortie_departed_berth", previous_departed)
+	game.set("_piloting", previous_piloting)
 
 
 func _station_return_intent(

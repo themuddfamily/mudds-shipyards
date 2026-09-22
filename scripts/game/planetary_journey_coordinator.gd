@@ -228,6 +228,8 @@ func advance_world(delta: float, actor_sample: Dictionary) -> Dictionary:
 				cruise_gate_reason,
 				location_generation,
 			)
+			if return_approach_cadence:
+				_observe_abandon_return_departure_tick(cruise_tick)
 			if cruise_tick.get("reason") == &"final_approach_handoff_ready":
 				_consume_ember_final_approach_completion(cruise_tick)
 			elif cruise_tick.get("reason") == &"return_approach_handoff_ready":
@@ -576,6 +578,7 @@ func _aurora_retired(
 
 
 func detach() -> void:
+	cancel_return_departure(&"return_main_detached")
 	if _aurora_visit_active:
 		retire_aurora_visit()
 	if _planetary_return_physical_arrival_armed:
@@ -1768,7 +1771,7 @@ func abandon_ember_surface_journey(
 ## expedition whose Host went terminal — a lost craft, a lost dependency — as an
 ## abandon rather than leaving the retained `Main` refusing every later visit.
 func _advance_ember_surface_abandon(coordinate_frame_generation: int) -> Dictionary:
-	if _ember_abandon_return_arm_pending:
+	if _ember_abandon_return_arm_pending and not _mudds_return_approach_active:
 		_retry_ember_abandon_return_approach(coordinate_frame_generation)
 	if not _ember_surface_journey_active:
 		return {"accepted": false, "reason": &"ember_surface_abandon_not_active"}
@@ -1837,12 +1840,12 @@ func _complete_ember_surface_abandon(
 	var armed := _arm_ember_abandon_return_approach(coordinate_frame_generation)
 	if is_instance_valid(_flow.hud):
 		_flow.hud.set_objective(
-			"Cruising back to Mudds Shipyards — land at a compatible registered berth",
+			"Fly clear of Ember's surface, then release flight controls for the Mudds return",
 			"EXPEDITION ABANDONED",
 		)
 		_flow.hud.toast(
 			"Ember expedition abandoned",
-			"No survey reward was granted — the return approach is flying you home",
+			"No survey reward was granted — fly clear of the terrain to begin the return",
 			3.0,
 		)
 	return {
@@ -1863,9 +1866,23 @@ func _arm_ember_abandon_return_approach(
 	if not is_instance_valid(_flow.planetary_cruise_binding) \
 			or not is_instance_valid(_flow.active_ship) \
 			or not _flow.active_ship.is_piloted():
+		_ember_abandon_return_arm_pending = false
+		_ember_abandon_return_active = false
 		_last_ember_abandon_return_arm_result = {
 			"accepted": false, "reason": &"abandon_return_actor_unavailable",
 		}.duplicate(true)
+		return _last_ember_abandon_return_arm_result.duplicate(true)
+	var gate_reason := _flow._planetary_cruise_gate_reason(false)
+	if not gate_reason.is_empty():
+		var refusal := {"accepted": false, "reason": gate_reason}
+		if gate_reason != &"origin_rebase_pending":
+			return _retire_abandon_return_departure(refusal)
+		_last_ember_abandon_return_arm_result = refusal
+		return refusal
+	if _flow.active_ship.has_manual_flight_intent():
+		_last_ember_abandon_return_arm_result = {
+			"accepted": false, "reason": &"manual_departure_required",
+		}
 		return _last_ember_abandon_return_arm_result.duplicate(true)
 	var frame_generation := coordinate_frame_generation
 	if frame_generation < 1:
@@ -1875,26 +1892,23 @@ func _arm_ember_abandon_return_approach(
 			"accepted": false,
 			"reason": &"abandon_return_coordinate_frame_unavailable",
 		}.duplicate(true)
-		return _last_ember_abandon_return_arm_result.duplicate(true)
+		return _retire_abandon_return_departure(_last_ember_abandon_return_arm_result)
 	var target_result := _build_mudds_return_approach_target()
 	if not bool(target_result.get("accepted", false)):
-		_last_ember_abandon_return_arm_result = target_result.duplicate(true)
-		return target_result
+		return _retire_abandon_return_departure(target_result)
 	var cruise := _flow.planetary_cruise_binding
-	var gate_reason := _flow._planetary_cruise_gate_reason(false)
-	if not gate_reason.is_empty():
-		_last_ember_abandon_return_arm_result = {
-			"accepted": false, "reason": gate_reason,
-		}.duplicate(true)
-		return _last_ember_abandon_return_arm_result.duplicate(true)
 	if not bool(cruise.get_snapshot().get("engagement_requested", false)):
 		var engaged := cruise.request_engage(
 			_flow.active_ship, frame_generation, gate_reason,
 			cruise.get_generation(), true,
 		)
 		if not bool(engaged.get("accepted", false)):
-			_last_ember_abandon_return_arm_result = engaged.duplicate(true)
-			return engaged
+			# A refused terrain proof first releases the attachment with braking.
+			# Wait for that existing brake to settle before retrying admission.
+			if engaged.get("reason") == &"braking_in_progress":
+				_last_ember_abandon_return_arm_result = engaged.duplicate(true)
+				return engaged
+			return _retire_abandon_return_departure(engaged)
 	var armed := cruise.request_return_approach(
 		target_result.get("target", {}) as Dictionary,
 		frame_generation,
@@ -1902,9 +1916,8 @@ func _arm_ember_abandon_return_approach(
 		_flow.world.ship_spawn,
 	)
 	if not bool(armed.get("accepted", false)):
-		_last_ember_abandon_return_arm_result = armed.duplicate(true)
-		return armed
-	_ember_abandon_return_arm_pending = false
+		return _retire_abandon_return_departure(armed)
+	# Metadata admission is not flight: terrain may still refuse the first proof.
 	_ember_abandon_return_active = true
 	_mudds_return_approach_active = true
 	_last_ember_abandon_return_arm_result = armed.duplicate(true)
@@ -1912,18 +1925,81 @@ func _arm_ember_abandon_return_approach(
 	return armed
 
 
-## The craft may still be inside the caldera's clearance envelope when an
-## abandon commits, so the return approach is retried on the ordinary cadence
-## until it arms. The bound exists so a permanently refused arm stops asking; the
-## pilot still has their craft and full manual control either way.
+## A queued return survives local clearance refusal only until its first actual
+## cruise participation. Manual ascent uses no retry budget; after cruise starts,
+## ordinary manual override cancels it permanently.
+func _observe_abandon_return_departure_tick(tick: Dictionary) -> void:
+	if not _ember_abandon_return_arm_pending:
+		return
+	if tick.get("reason") == &"return_approach_handoff_ready":
+		_ember_abandon_return_arm_pending = false
+		return
+	var controller := tick.get("controller", {}) as Dictionary
+	var policy := controller.get("policy", {}) as Dictionary
+	if bool(tick.get("accepted", false)):
+		if bool(policy.get("desired_cruise_participation", false)):
+			_ember_abandon_return_arm_pending = false
+		return
+	var reason := StringName(tick.get("reason", &""))
+	if reason == &"obstacle_detected":
+		_last_ember_abandon_return_arm_result = tick.duplicate(true)
+		return
+	# Holding flight controls before propulsion is the authored local departure,
+	# not cancellation of a journey that has started. Actor loss is always final.
+	if reason == &"ship_attachment_retired" \
+			and is_instance_valid(_flow.active_ship) and _flow.active_ship.is_piloted() \
+			and _flow.active_ship.has_manual_flight_intent():
+		_last_ember_abandon_return_arm_result = {
+			"accepted": false, "reason": &"manual_departure_required",
+		}
+		return
+	_ember_abandon_return_arm_pending = false
+	_ember_abandon_return_active = false
+	_last_ember_abandon_return_arm_result = tick.duplicate(true)
+
+
+func is_return_departure_pending() -> bool:
+	return _ember_abandon_return_arm_pending
+
+
+func cancel_return_departure(
+	reason: StringName = &"player_cancelled", brake_to_stop: bool = true
+) -> Dictionary:
+	if not _ember_abandon_return_arm_pending and not _ember_abandon_return_active:
+		return {"accepted": false, "reason": &"return_departure_not_pending"}
+	if is_instance_valid(_flow.planetary_cruise_binding):
+		var cruise := _flow.planetary_cruise_binding
+		if bool(cruise.get_snapshot().get("engagement_requested", false)):
+			var released := cruise.request_disengage(cruise.get_generation(), brake_to_stop)
+			if not bool(released.get("accepted", false)):
+				return released
+	_ember_abandon_return_arm_pending = false
+	_ember_abandon_return_active = false
+	_mudds_return_approach_active = false
+	_last_ember_abandon_return_arm_result = {"accepted": true, "reason": reason}
+	return _last_ember_abandon_return_arm_result.duplicate(true)
+
+
 func _retry_ember_abandon_return_approach(
 	coordinate_frame_generation: int
 ) -> Dictionary:
 	if _ember_abandon_return_arm_attempts >= MAX_ABANDON_RETURN_ARM_ATTEMPTS:
-		_ember_abandon_return_arm_pending = false
-		return {"accepted": false, "reason": &"abandon_return_arm_exhausted"}
-	_ember_abandon_return_arm_attempts += 1
-	return _arm_ember_abandon_return_approach(coordinate_frame_generation)
+		# A held local departure remains flyable even after earlier idle refusals.
+		if not is_instance_valid(_flow.active_ship) \
+				or not _flow.active_ship.has_manual_flight_intent():
+			return _retire_abandon_return_departure({
+				"accepted": false, "reason": &"abandon_return_arm_exhausted",
+			})
+	var result := _arm_ember_abandon_return_approach(coordinate_frame_generation)
+	if result.get("reason") != &"manual_departure_required":
+		_ember_abandon_return_arm_attempts += 1
+	return result
+
+
+func _retire_abandon_return_departure(result: Dictionary) -> Dictionary:
+	cancel_return_departure(StringName(result.get("reason", &"return_departure_refused")))
+	_last_ember_abandon_return_arm_result = result.duplicate(true)
+	return result
 
 
 func cancel_ember_surface_journey() -> Dictionary:
