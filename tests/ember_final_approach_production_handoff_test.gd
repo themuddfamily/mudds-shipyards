@@ -2,6 +2,13 @@ extends SceneTree
 
 const MAIN_SCENE := preload("res://scenes/main.tscn")
 
+class RebaseApproachSource:
+	extends Node
+	var frame_generation := 1
+	func get_final_approach_source_snapshot() -> Dictionary:
+		return {"ready": true, "generation": 1, "attachment_generation": 1,
+			"coordinate_frame_generation": frame_generation, "location_generation": 1}
+
 var _checks := 0
 var _failures: Array[String] = []
 
@@ -11,6 +18,7 @@ func _init() -> void:
 
 
 func _run() -> void:
+	await _test_common_rebase_target_expression()
 	var game := MAIN_SCENE.instantiate() as GameFlow
 	root.add_child(game)
 	for _index in 120:
@@ -199,6 +207,113 @@ func _run() -> void:
 	game.queue_free()
 	await process_frame
 	_finish()
+
+
+func _test_common_rebase_target_expression() -> void:
+	var stage := Node3D.new()
+	root.add_child(stage)
+	var bootstrap := EmberMoonStreamingBootstrap.new()
+	bootstrap.name = "EmberMoonStreamingBootstrap"
+	stage.add_child(bootstrap)
+	var cruise := PlanetaryCruiseProductionBinding.new()
+	stage.add_child(cruise)
+	var source := RebaseApproachSource.new()
+	stage.add_child(source)
+	var parent := Node3D.new()
+	stage.add_child(parent)
+	parent.position.y = -110_000.0
+	var landing_root := Node3D.new()
+	parent.add_child(landing_root)
+	landing_root.position.y = 120_000.0
+	var ship := preload("res://scenes/ships/torrent_interceptor.tscn").instantiate() as HeroShip
+	stage.add_child(ship)
+	ship.set_piloted(true)
+	ship.set_physics_process(false)
+	await process_frame
+	var frame := bootstrap.get_coordinate_frame_for_session()
+	source.frame_generation = frame.get_generation()
+	var corridor := Transform3D(Basis.IDENTITY, Vector3(0.0, 60.125, 300.0))
+	var envelope := {
+		"corridor_id": &"rebase_corridor", "target_pad_id": &"rebase_pad",
+		"corridor_transform_region_local_m": corridor,
+		"corridor_half_extents_m": Vector3(45.0, 60.0, 300.0),
+		"entry_position_half_extents_m": Vector3(42.0, 25.0, 75.0),
+		"maximum_speed_mps": 12.0, "maximum_attitude_degrees": 12.0,
+		"hull_margin_m": 0.05,
+		"collision_bounds": ship.get_landing_collision_report().get("local_bounds", AABB()),
+	}
+	ship.global_transform = landing_root.global_transform * corridor
+	ship.global_position += Vector3.BACK * 1000.0
+	ship.velocity = Vector3.FORWARD * 10.0
+	var engaged := cruise.request_engage(ship, frame.get_generation(), &"", cruise.get_generation(), true)
+	var armed := cruise.request_final_approach(source, landing_root, envelope,
+		frame.get_generation(), 1, 1, 1, cruise.get_generation())
+	var controller := cruise.get_controller()
+	var activated := controller.evaluate_and_submit(ship.global_position + Vector3.FORWARD * 30_000.0,
+		false, frame.get_generation(), controller.get_generation())
+	_check(bool(engaged.get("accepted", false)) and bool(armed.get("accepted", false))
+		and bool(activated.get("accepted", false)), "large-datum fixture arms a live carried approach")
+	var old_root := landing_root.global_transform
+	var requested := frame.request_rebase(Vector3(0.0, 10_199.31, 0.0), frame.get_generation())
+	var committed := frame.commit_rebase(int(requested.request.request_id), frame.get_generation())
+	var receipt := (committed.get("rebase", {}) as Dictionary).duplicate(true)
+	receipt["reason"] = &"rebase_committed"
+	receipt["world_id"] = cruise.get_bound_world_id()
+	var delta := receipt.get("world_translation_delta", Vector3.ZERO) as Vector3
+	parent.global_position += delta
+	ship.global_position += delta
+	source.frame_generation = frame.get_generation()
+	old_root.origin += delta
+	_check(not old_root.is_equal_approx(landing_root.global_transform),
+		"120 km local datum exposes different rounding from translating a cached global root")
+	var adopted := cruise.accept_committed_origin_rebase(receipt, cruise.get_generation())
+	var target := (controller.get_snapshot().get("final_approach", {}) as Dictionary).get("target", {}) as Dictionary
+	_check(bool(adopted.get("accepted", false))
+		and target.get("target_world_transform") == landing_root.global_transform * corridor,
+		"authenticated rebase re-expresses the controller target exactly as live root times corridor")
+	var tick := _rebase_fixture_tick(cruise, ship, frame.get_generation())
+	_check(bool(tick.get("accepted", false))
+		and bool(cruise.get_snapshot().get("engagement_requested", false)),
+		"large-datum rebase retains the physical approach on its next production binding tick")
+	# Give each negative case its own current binding, even on the broken runtime.
+	cruise.request_disengage(cruise.get_generation(), false)
+	ship.velocity = Vector3.ZERO
+	ship._physics_process(0.0)
+	var move_engaged := cruise.request_engage(ship, frame.get_generation(), &"", cruise.get_generation(), true)
+	var move_armed := cruise.request_final_approach(source, landing_root, envelope,
+		frame.get_generation(), 1, 1, 1, cruise.get_generation())
+	landing_root.position.x += 0.25
+	var moved := _rebase_fixture_tick(cruise, ship, frame.get_generation())
+	_check(bool(move_engaged.get("accepted", false)) and bool(move_armed.get("accepted", false))
+		and not bool(moved.get("accepted", true))
+		and moved.get("reason") == &"final_approach_landing_root_transform_drift",
+		"a genuine local landing-root movement still retires the approach")
+	ship.velocity = Vector3.ZERO
+	ship._physics_process(0.0)
+	var reengaged := cruise.request_engage(ship, frame.get_generation(), &"", cruise.get_generation(), true)
+	var rearmed := cruise.request_final_approach(source, landing_root, envelope,
+		frame.get_generation(), 1, 1, 1, cruise.get_generation())
+	var replacement_parent := Node3D.new()
+	stage.add_child(replacement_parent)
+	replacement_parent.global_transform = parent.global_transform
+	var before_reparent := landing_root.global_transform
+	landing_root.reparent(replacement_parent, true)
+	var reparented := _rebase_fixture_tick(cruise, ship, frame.get_generation())
+	_check(bool(reengaged.get("accepted", false)) and bool(rearmed.get("accepted", false))
+		and landing_root.global_transform == before_reparent
+		and not bool(reparented.get("accepted", true))
+		and reparented.get("reason") == &"final_approach_landing_root_transform_drift",
+		"same-pose reparenting cannot inherit the previous landing-parent authority")
+	stage.queue_free()
+	await process_frame
+	await process_frame
+
+
+func _rebase_fixture_tick(cruise: PlanetaryCruiseProductionBinding, ship: HeroShip, generation: int) -> Dictionary:
+	return cruise.physics_tick_from_caller_sample(
+		int(cruise.get_snapshot().get("last_caller_tick", 0)) + 1,
+		{"available": true, "position": ship.global_position, "actor_kind": &"ship",
+			"actor_instance_id": ship.get_instance_id()}, ship, generation, false, &"", 1)
 
 
 ## The two seams that let an admitted expedition survive the tick its own braking
