@@ -17086,6 +17086,25 @@ func _planetary_cruise_presentation() -> Dictionary:
 			"engagement_requested": true,
 			"public_gate": &"",
 		}
+	if _ember_surface_journey_active \
+			and is_instance_valid(ember_surface_loop_host) \
+			and ember_surface_loop_host.is_inside_tree() \
+			and not ember_surface_loop_host.is_queued_for_deletion() \
+			and ember_surface_loop_host.is_attached() \
+			and ember_surface_loop_host.get_phase() in [
+				EmberSurfaceLoopHost.Phase.TAKEOFF,
+				EmberSurfaceLoopHost.Phase.ASCENT,
+				EmberSurfaceLoopHost.Phase.ORBIT_RETURN,
+			]:
+		# The surface owner still flies the completed expedition's departure.
+		# Cruise cannot offer another outbound trip during this handoff.
+		return {
+			"status_id": &"unavailable",
+			"status_text": "UNAVAILABLE — RETURN ASCENT",
+			"toggle_enabled": false,
+			"engagement_requested": false,
+			"public_gate": &"surface_return_ascent",
+		}
 	var binding_snapshot: Dictionary = {}
 	if is_instance_valid(planetary_cruise_binding):
 		binding_snapshot = planetary_cruise_binding.get_snapshot().duplicate(true)

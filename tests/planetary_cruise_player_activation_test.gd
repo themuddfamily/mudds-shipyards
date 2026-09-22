@@ -3,7 +3,7 @@ extends SceneTree
 const MAIN_SCENE := preload("res://scenes/main.tscn")
 const Store := preload("res://scripts/persistence/user_data_store.gd")
 const STORE_PATH := "memory://planetary-cruise-player-activation-settings.json"
-const EXPECTED_ASSERTIONS := 32
+const EXPECTED_ASSERTIONS := 37
 
 var _assertions := 0
 var _failures: Array[String] = []
@@ -191,6 +191,37 @@ func _run() -> void:
 	# Keep the remaining ordinary outbound checks independent on baseline too.
 	journey.set("_ember_abandon_return_arm_pending", false)
 	journey.set("_last_ember_abandon_return_arm_result", {})
+	game.call("_sync_planetary_cruise_hud")
+
+	# Completed expeditions retain surface flight ownership through ascent.
+	var return_host := game.ember_surface_loop_host
+	var old_host_phase := return_host.get_phase()
+	var old_host_attached := return_host.is_attached()
+	var old_journey_active: bool = game.get("_ember_surface_journey_active")
+	return_host.set("_attached", true)
+	game.set("_ember_surface_journey_active", true)
+	for departure_phase in [EmberSurfaceLoopHost.Phase.TAKEOFF,
+			EmberSurfaceLoopHost.Phase.ASCENT, EmberSurfaceLoopHost.Phase.ORBIT_RETURN]:
+		return_host.set("_phase", departure_phase)
+		game.call("_sync_planetary_cruise_hud")
+		var ascent := hud.get_planetary_cruise_presentation_report()
+		var ascent_row := _destination_row(game.get_planetary_destination_catalog_snapshot(), &"ember_moon")
+		_check(ascent.get("status_text") == "UNAVAILABLE — RETURN ASCENT"
+			and not bool(ascent.get("toggle_enabled", true))
+			and not bool(ascent.get("engagement_requested", true))
+			and not bool(ascent_row.get("action_enabled", true))
+			and not bool(binding.get_snapshot().get("engagement_requested", true)),
+			"surface-owned departure phase %s suppresses outbound launch without engaging cruise" % departure_phase)
+	return_host.set("_attached", false)
+	_check((game.call("_planetary_cruise_presentation") as Dictionary).get("status_id") == &"ready",
+		"a detached Host's retained ascent phase cannot override current cruise presentation")
+	return_host.set("_attached", true)
+	game.set("_ember_surface_journey_active", false)
+	_check((game.call("_planetary_cruise_presentation") as Dictionary).get("status_id") == &"ready",
+		"completed journey handback restores the ordinary cruise presentation")
+	return_host.set("_phase", old_host_phase)
+	return_host.set("_attached", old_host_attached)
+	game.set("_ember_surface_journey_active", old_journey_active)
 	game.call("_sync_planetary_cruise_hud")
 
 	# Bypass only the title splash. Pause, controller focus navigation, and accept
