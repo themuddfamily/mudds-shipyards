@@ -102,12 +102,20 @@ Production `Main` owns one lifetime-stable bootstrap, one caller-physics
 observation binding, and one `CommonWorldOriginRebaseOwner`. The owner consumes
 the binding's detached preview, translates the common live spatial roster, and
 commits the coordinate frame; it does not grant travel, landing, or gameplay
-authority. The newer Ember surface-loop host remains a standalone focused proof
-with no production GameFlow/activity selection or handoff. Also deferred are
-production motion and travel handoff, TravelSession streaming-generation
-binding, landing selection/authority, global terrain/LOD/collision, production
-actor staging, persistence/networking, and production performance/render
-validation. These foundations do not by themselves make Ember visitable.
+authority. `GameFlow` composes the journey coordinator, cruise binding and
+surface-loop host for production activity selection and landing handoff.
+The cruise controller owns the typed approach and its lead-in route;
+`HeroShip` owns physical translation, bounded attitude changes and collision
+accounting. The surface host and real berth lease own the subsequent landing.
+An attached host can adopt an authenticated committed rebase before its
+approach starts, keeping the retained entry envelope in the current frame.
+None of these consumers transfers movement or landing authority to the
+streaming bootstrap.
+
+The explicit outbound movement soak in `EMBER_LOOP_SOAK.md` checks the long
+flight and terrain-clearing approach separately from the repeated surface-loop
+soak. A staged arrival is not proof of that flight. Continuous return travel,
+native rendered performance and human play review remain separate gates.
 
 Focused verification covers exact cells and detachment, canonical rejection,
 the required initial rebase, both inclusive distance boundaries, coordinator

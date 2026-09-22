@@ -27,6 +27,28 @@ KETH_EMBER_SOAK_CYCLES=18 godot --headless --audio-driver Dummy --path . \
 
 ## What is real and what is staged
 
+The separate `tests/ember_transit_movement_soak.gd` checks the outbound leg
+without placing the craft in flight. Run it explicitly from a checkout that
+contains the transit implementation:
+
+```sh
+timeout 1800 godot --headless --audio-driver Dummy --fixed-fps 60 --path . \
+  --script res://tests/ember_transit_movement_soak.gd
+```
+
+It places the on-foot pilot near the yard craft, then uses walking, boarding
+and held launch input. Acceptance requires over 7,800 km of physical flight,
+over 700 committed origin shifts, continuous craft and seated-pilot movement,
+and an occupied surface berth after landing. It also checks manual control,
+explicit cancellation, whole-Main re-entry and rejected origin-receipt replays.
+Exit zero and `EMBER_TRANSIT_MOVEMENT_TEST_OK` are required; a staged arrival
+diagnostic does not satisfy this check. The eight-million-metre leg already
+takes about 400 seconds at the authored maximum speed, before acceleration and
+landing, so this is an explicit long soak rather than a default 300-second
+matrix suite. The fixed frame interval preserves the normal 60 Hz movement
+step; it does not raise the craft's speed. This check does not establish the
+return leg, repeated visits, or native rendered performance.
+
 Real, per cycle: walking to the craft and boarding it with one `interact` press;
 launching with held flight input; opening the expedition through
 `GameFlow.begin_ember_surface_journey()`; `EmberMoonStreamingProductionBinding`
@@ -41,11 +63,11 @@ walk back to the real `ShipBoardingArea` and a real `interact` at it.
 Staged, twice per cycle and counted as `staging_events`: the craft is held at
 Ember's canonical navigation anchor until the real cruise binding reports its
 final-approach target ACTIVE, then placed once at the authored corridor entry
-pose. Production has no owner that physically flies a craft the 8,000 km from
-the yard or the last 10 km into the corridor — `EMBER_MOON_ORBITAL_STREAMING.md`
-records that gap — so the suite plays exactly that missing owner and nothing
-else. Both placements reset the discontinuity tracker by name; every metre after
-them is produced by a production movement owner. This is the precedent
+pose. These placements bound the cost of repeated surface cycles; this harness
+does not establish continuous outbound travel. The separate movement soak
+above checks the production cruise owner, terrain-clearing lead-in and corridor
+entry from a yard launch. Both placements reset the discontinuity tracker by
+name; every metre after them is produced by a production movement owner. This is the precedent
 `long_session_soak_test.gd` sets for the yard approach lane.
 
 ## Where the loop stops
