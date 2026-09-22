@@ -92,9 +92,12 @@ func _run() -> void:
 
 	var spawn := world.get_player_spawn()
 	player.teleport_to(spawn)
-	await _advance(4)
+	var spawn_grounded := await _wait_until(
+		func() -> bool: return player.is_on_floor(),
+		PHASE_SETTLE_SECONDS
+	)
 	_check(
-		player.is_on_floor(),
+		spawn_grounded,
 		"the player still spawns standing on the deck with the tractor in the world"
 	)
 	var station := tractor.get_driver_station()
