@@ -15,6 +15,33 @@ var _original_time_scale := 1.0
 var _active_production: EmberSurfaceLoopProductionBinding
 
 
+class MemoryFilesystem extends UserDataFilesystem:
+	var files: Dictionary = {}
+	func file_exists(path: String) -> bool: return files.has(path)
+	func directory_exists(_path: String) -> bool: return false
+	func ensure_parent_directory(_path: String) -> Error: return OK
+	func read_bytes(path: String, maximum_bytes: int) -> Dictionary:
+		if not files.has(path):
+			return {"error": ERR_FILE_NOT_FOUND, "bytes": PackedByteArray()}
+		var bytes := (files[path] as PackedByteArray).duplicate()
+		if bytes.size() > maximum_bytes:
+			return {"error": ERR_FILE_CORRUPT, "bytes": PackedByteArray()}
+		return {"error": OK, "bytes": bytes}
+	func write_bytes_and_flush(path: String, bytes: PackedByteArray) -> Error:
+		files[path] = bytes.duplicate()
+		return OK
+	func remove_path(path: String) -> Error:
+		if not files.has(path): return ERR_FILE_NOT_FOUND
+		files.erase(path)
+		return OK
+	func rename_path(from_path: String, to_path: String) -> Error:
+		if not files.has(from_path): return ERR_FILE_NOT_FOUND
+		if files.has(to_path): return ERR_ALREADY_EXISTS
+		files[to_path] = (files[from_path] as PackedByteArray).duplicate()
+		files.erase(from_path)
+		return OK
+
+
 class CountingProduction:
 	extends EmberSurfaceLoopProductionBinding
 	var snapshot_count := 0
@@ -436,8 +463,12 @@ func _test_real_scheduler_complete_loop() -> void:
 	early.journey_flow.player = player
 	early.journey_flow.ember_surface_loop_host = host
 	early.journey_flow.ember_surface_loop_production_binding = production
-	var reward_store := UserDataStore.new("user://ember-survey-production.json")
-	_check(bool(reward_store.load().accepted), "production survey uses the real atomic user-data store")
+	# Keep the real store/commit protocol while giving every run a fresh payload.
+	# A fixed user:// file accumulates prior rewards and touches user persistence.
+	var reward_store := UserDataStore.new(
+		"memory://ember-survey-production.json", MemoryFilesystem.new()
+	)
+	_check(bool(reward_store.load().accepted), "production survey uses the atomic user-data store with isolated files")
 	early.journey_flow.set("_runtime_settings_user_data_store", reward_store)
 	early.journey_flow.set("_runtime_settings_persistence_injected", true)
 	early.journey_flow.call("_initialize_game_flow_reward_authority")
