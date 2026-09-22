@@ -123,10 +123,12 @@ takeoff, and the abandon commits itself once the craft is physically off the pad
 Host back at `IDLE`, still attached, no terminal reason, caldera lease released,
 pilot flying, zero reward receipts.
 
-What the suite still stages is the 8,000 km flight home, exactly as it stages the
-8,000 km flight out (`EMBER_MOON_ORBITAL_STREAMING.md` records that production
-has no owner for either). `_reset_for_next_cycle()` releases the abandoned
+The repeated-cycle suite still stages the 8,000 km flight home, just as it
+stages the outbound transit. `_reset_for_next_cycle()` releases the abandoned
 visit's live return approach and places the craft and pilot back at the yard.
+Production cruise now owns both long legs; the explicit movement soak above
+checks them separately from these bounded repeated surface cycles. A reset
+placement never counts as a successful physical return.
 Everything else in the reset is production: the expedition is ended by the
 production abandon, which leaves the retained Host attached and `IDLE` and
 retires the visit-scoped surface composition by itself. There is no longer a
