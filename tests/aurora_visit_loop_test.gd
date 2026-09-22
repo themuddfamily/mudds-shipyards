@@ -265,26 +265,25 @@ func _run() -> void:
 	if resumed.state != &"landed":
 		await _finish(resumed_game)
 		return
+	var return_pose := resumed_craft.global_transform
+	var return_berth := resumed.get("_berth") as ShipBerth
 	await _press_destination(resumed_game)
-	await _wait_state(resumed, &"idle", 6000)
-	_check(
-		resumed.state == &"idle"
-			and bool(resumed_craft.get_telemetry().get("landed", false)),
-		"the return leg docks the craft back at the yard"
-	)
-	_check(
-		resumed_game.world.visible
-			and not is_instance_valid(resumed.get("_surface"))
-			and not is_instance_valid(
-				resumed_game.aurora_streaming_bootstrap.get_loaded_instance()
-			)
-			and _aurora_node_count(resumed_game) == 0,
-		"departure streams Aurora out, leaves no Aurora nodes and restores the station"
-	)
-	_check(
-		_store_has_aurora_record(resumed_game) == false,
-		"a completed visit leaves no interrupted-visit record behind"
-	)
+	for tick in 20:
+		await physics_frame
+		await process_frame
+	_check(resumed.state == &"return_cruise"
+		and resumed_game._planetary_journey.is_return_departure_pending()
+		and resumed_craft.global_transform == return_pose
+		and return_berth.get_occupant() == resumed_craft,
+		"restored visit queues real manual departure without moving the occupied craft")
+	resumed.cancel()
+	_check(resumed.state == &"idle" and resumed_game.player.is_seated()
+		and resumed_craft.global_transform == return_pose and resumed_craft.is_piloted(),
+		"canceling return preserves the same current pilot and craft instead of rescue placement")
+	_check(not _store_has_aurora_record(resumed_game),
+		"the resumed and then canceled visit leaves no interrupted-visit record")
+	# Actual Aurora unload and home docking/exit/walk are exercised by the
+	# physical departure test and the explicit return soak respectively.
 
 	# --- abandon from the surface -------------------------------------------
 	resumed_game.call(&"_sync_planetary_cruise_hud")

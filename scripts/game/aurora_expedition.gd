@@ -13,8 +13,8 @@ extends RefCounted
 ##
 ## Outbound movement belongs to the shared cruise controller and HeroShip's
 ## berth landing assist. The visit only admits, observes and leases the route.
-## Interrupted-visit restoration and the return leg still retain their existing
-## explicit recovery placements; neither is outbound travel.
+## Return uses the same cruise and hands local home flight to GameFlow. Only
+## interrupted restoration and explicit surface rescue use recovery placements.
 const DESTINATION_ID: StringName = &"aurora_temperate_world"
 const LANDING_REGION_PATH := ^"LandingRegion"
 const LANDING_REGION_RESOURCE_PATH := \
@@ -38,7 +38,7 @@ const ORBIT_STAGE_TICK_BUDGET := 900
 const OUTBOUND_TICK_BUDGET := 48_000
 const MAX_CRUISE_RESUME_ATTEMPTS := 600
 const CORRIDOR_TICK_BUDGET := 12_000
-const DEPARTURE_TICK_BUDGET := 900
+const RESCUE_RETIRE_TICK_BUDGET := 900
 
 var _flow: GameFlow
 var state: StringName = &"idle"
@@ -88,7 +88,7 @@ func runtime_state() -> Dictionary:
 			copy = "RETURN TO MUDDS" if enabled else "BOARD YOUR SHIP TO RETURN"
 		elif state in [&"outbound", &"corridor"]:
 			copy = "ABANDON THE AURORA APPROACH"
-		elif state in [&"return_cruise", &"return_landing"]:
+		elif state == &"return_cruise":
 			copy = "RETURNING TO MUDDS"
 		else:
 			copy = "APPROACHING AURORA"
@@ -222,16 +222,13 @@ func physics_tick(delta: float) -> void:
 		&"return_cruise":
 			_advance_return_cruise()
 			return
-	if state in [&"landing", &"return_landing"]:
+	if state == &"landing":
 		_landing_elapsed += delta
 		if not _ship.is_landing_active():
 			if bool(_ship.get_telemetry().get("landed", false)) and _ship.get_landing_contract_report().get("phase") == HeroShip.LANDING_PHASE_DOCKED:
 				_ship.request_engine_stop(false)
-				if state == &"return_landing":
-					_finish_return()
-				else:
-					state = &"landed"
-					_flow.hud.toast("Welcome to Aurora", "E: leave the ship. Explore the lookout, then board to return.", 4.0)
+				state = &"landed"
+				_flow.hud.toast("Welcome to Aurora", "E: leave the ship. Explore the lookout, then board to return.", 4.0)
 			elif _landing_elapsed > 0.25:
 				_note_leg_failure(&"aurora_landing_inactive_without_dock")
 				cancel()
@@ -392,24 +389,16 @@ func _advance_restoring() -> void:
 		cancel()
 
 
-## Holds the craft at its registered home pad's staging pose so the lane's next
-## committed rebase brings the common origin back to the yard, which is what
-## streams Aurora out behind the departing craft.
+## Observe real takeoff and the shared return receipt without moving actors.
 func _advance_return_cruise() -> void:
 	_departure_ticks += 1
-	if is_instance_valid(_home) and _home.is_inside_tree():
-		if _departure_ticks == 1:
-			_staging_events += 1
-		_ship.global_transform = _home.get_assist_staging_transform()
-		_ship.velocity = Vector3.ZERO
-		if is_instance_valid(_flow.player) and not _flow.player.is_seated():
-			_flow.player.teleport_to(_ship.get_exit_transform())
-	var bootstrap := _flow.aurora_streaming_bootstrap
-	if not is_instance_valid(bootstrap) \
-			or not is_instance_valid(bootstrap.get_loaded_instance()):
+	# Retain the occupied surface berth until HeroShip reports real takeoff.
+	if is_instance_valid(_berth) and not bool(_ship.get_telemetry().get("landed", true)):
+		_release_surface_lease()
+	var visit := _flow._planetary_journey.get_aurora_visit_snapshot()
+	if bool(visit.get("return_handoff_ready", false)):
 		_arrive_home()
-		return
-	if _departure_ticks > DEPARTURE_TICK_BUDGET:
+	elif not bool(visit.get("return_active", false)):
 		cancel()
 
 
@@ -431,9 +420,11 @@ func update_presentation() -> void:
 		&"restoring":
 			_flow.hud.set_objective("Returning you to Aurora", "AURORA SURFACE")
 			_flow.hud.set_interaction("STREAMING AURORA")
-		&"return_cruise", &"return_landing":
+		&"return_cruise":
 			_flow.hud.set_objective("Returning to your registered berth at Mudds", "HOMEWARD BOUND")
-			_flow.hud.set_interaction("RETURN APPROACH IN PROGRESS")
+			_flow.hud.set_interaction("LIFT OFF AND CLEAR THE SURFACE — RELEASE CONTROLS TO CRUISE"
+				if _flow._planetary_journey.is_return_departure_pending()
+				else "RETURN CRUISE — MANUAL INPUT TO CANCEL")
 		&"landing":
 			_flow.hud.set_objective("Landing at Aurora's coastal exploration pad", "AURORA EXPEDITION")
 			_flow.hud.set_interaction("AUTOMATIC LANDING — PLEASE WAIT")
@@ -831,40 +822,28 @@ func _craft_for_home_berth(berth_id: StringName) -> HeroShip:
 	return null
 
 func _begin_return() -> void:
-	_release_surface_lease()
-	_ship.call(&"_end_landing_for_lifecycle", &"aurora_return")
-	_ship.request_engine_stop(false)
-	_ship.velocity = Vector3.ZERO
+	var admitted := _flow._planetary_journey.begin_aurora_return()
+	if not bool(admitted.get("accepted", false)):
+		_last_leg_result = admitted.duplicate(true)
+		return
 	state = &"return_cruise"
 	_departure_ticks = 0
 	_flow.hud.set_paused(false)
-	_flow.hud.toast(
-		"Returning to Mudds", "Aurora streams out behind you on the way home", 2.0
-	)
+	_flow.hud.toast("Returning to Mudds",
+		"Lift off and clear Aurora's surface; release controls to engage return cruise", 4.0)
+
 
 func _arrive_home() -> void:
+	# The typed shared return receipt proves the shell handoff. Ordinary manual
+	# flight and the registered berth now own the remaining physical approach.
 	_clear_surface()
 	_flow._planetary_journey.retire_aurora_visit()
-	if not is_instance_valid(_home) or not _flow._reserve_berth_for_ship(_ship, _home.berth_id, false):
-		cancel()
-		return
-	_ship.global_transform = _home.get_assist_staging_transform()
-	_ship.reset_physics_interpolation()
-	_ship.velocity = Vector3.ZERO
-	state = &"return_landing"
-	_landing_elapsed = 0.0
-	if not _ship.request_berth_landing(_home):
-		cancel()
-
-func _finish_return() -> void:
 	_clear_transition_fade()
 	state = &"idle"
-	_flow.phase = GameFlow.Phase.SHUT_DOWN
-	_flow._sortie_departed_berth = false
-	_flow._landing_request_active = false
-	_flow._active_landing_berth_id = &""
-	_flow.hud.set_objective("Home at Mudds — E to exit, or choose another destination", "EXPEDITION COMPLETE")
-	_flow.hud.toast("Aurora expedition complete", "Your ship is safely docked at Mudds", 3.0)
+	_flow.phase = GameFlow.Phase.FREE_FLIGHT
+	_flow._sortie_departed_berth = true
+	_flow.hud.set_objective("Fly to your registered berth and press L to land", "MUDDS HOME APPROACH")
+	_flow.hud.toast("Mudds home approach", "Manual flight and normal berth landing are now available", 4.0)
 	_ship = null
 	_home = null
 	_flow._sync_planetary_cruise_hud()
@@ -898,7 +877,7 @@ func _clear_surface() -> void:
 func cancel() -> void:
 	if not is_active():
 		return
-	if state in [&"outbound", &"corridor", &"landing"]:
+	if state in [&"outbound", &"corridor", &"landing", &"return_cruise"]:
 		# Revoking travel leaves the same live pilot in direct control at the
 		# current pose. Recovery/return placements are not cancellation movement.
 		_clear_transition_fade()
@@ -986,7 +965,7 @@ func _advance_retiring() -> void:
 	var bootstrap := _flow.aurora_streaming_bootstrap
 	var resident := is_instance_valid(bootstrap) \
 		and is_instance_valid(bootstrap.get_loaded_instance())
-	if resident and _retire_ticks <= DEPARTURE_TICK_BUDGET:
+	if resident and _retire_ticks <= RESCUE_RETIRE_TICK_BUDGET:
 		return
 	_flow._planetary_journey.retire_aurora_visit()
 	# The yard is back under the craft, so the ordinary home touchdown can run.

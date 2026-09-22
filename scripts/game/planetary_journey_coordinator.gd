@@ -71,6 +71,11 @@ var _last_mudds_return_approach_result: Dictionary = {}
 ## streaming binding. It has no surface Host: a coastal visit has no expedition
 ## loop to run, so the visit itself owns embodiment once the craft is docked.
 var _aurora_visit_active := false
+var _aurora_return_active := false
+var _aurora_return_departure_pending := false
+var _aurora_return_handoff_ready := false
+var _aurora_return_arm_attempts := 0
+var _last_aurora_return_result: Dictionary = {}
 var _aurora_visit_rebase_commit_count := 0
 var _aurora_final_approach_handoff_ready := false
 var _aurora_final_approach_armed := false
@@ -373,6 +378,8 @@ func advance_aurora_visit(delta: float, actor_sample: Dictionary) -> Dictionary:
 		gate_reason = &"aurora_streaming_unavailable"
 	elif residency_required and not is_instance_valid(bootstrap.get_loaded_instance()):
 		gate_reason = &"aurora_streaming_pending"
+	if _aurora_return_departure_pending and not _mudds_return_approach_active:
+		_retry_aurora_return_approach(coordinate_frame_generation)
 	# The cruise only participates while the craft is actually travelling. Once
 	# the visit has landed and disengaged, the lane keeps streaming and rebasing
 	# without pretending a cruise is in flight.
@@ -395,6 +402,7 @@ func advance_aurora_visit(delta: float, actor_sample: Dictionary) -> Dictionary:
 				int(bootstrap.get_snapshot().get("location_generation", 0)),
 			)
 			_last_aurora_cruise_result = cruise_tick.duplicate(true)
+			_observe_aurora_return_tick(cruise_tick)
 			if cruise_tick.get("reason") == &"final_approach_handoff_ready":
 				var consumed := _flow.planetary_cruise_binding.consume_final_approach_completion(
 					int(cruise_tick.get("target_generation", 0)),
@@ -416,6 +424,86 @@ func advance_aurora_visit(delta: float, actor_sample: Dictionary) -> Dictionary:
 		"rebase_commit_count": _aurora_visit_rebase_commit_count,
 		"final_approach_handoff_ready": _aurora_final_approach_handoff_ready,
 	}.duplicate(true)
+
+
+## RETURN revokes the consumed outbound source, not the landed craft's lease.
+## The pilot owns lift-off; the existing cruise admits flight after clearance.
+func begin_aurora_return() -> Dictionary:
+	if not _aurora_visit_active or _aurora_return_active:
+		return {"accepted": false, "reason": &"aurora_return_unavailable"}
+	if not is_instance_valid(_flow.active_ship) or not _flow.active_ship.is_piloted():
+		return {"accepted": false, "reason": &"pilot_unseated"}
+	_aurora_final_approach_source_ref = null
+	_aurora_final_approach_armed = false
+	_aurora_return_active = true
+	_aurora_return_departure_pending = true
+	_aurora_return_handoff_ready = false
+	_aurora_return_arm_attempts = 0
+	_mudds_return_approach_active = false
+	_mudds_return_approach_completion_attempted = false
+	_mudds_return_approach_completion_receipt.clear()
+	_last_aurora_return_result = {"accepted": true, "reason": &"manual_departure_required"}
+	return _last_aurora_return_result.duplicate(true)
+
+
+func _retry_aurora_return_approach(frame_generation: int) -> void:
+	var gate := _aurora_cruise_gate_reason()
+	if not gate.is_empty():
+		if gate != &"origin_rebase_pending":
+			cancel_return_departure(gate)
+		return
+	var ship := _flow.active_ship
+	if ship.has_manual_flight_intent() or bool(ship.get_telemetry().get("landed", true)):
+		_last_aurora_return_result = {"accepted": false, "reason": &"manual_departure_required"}
+		return
+	if _aurora_return_arm_attempts >= MAX_ABANDON_RETURN_ARM_ATTEMPTS:
+		cancel_return_departure(&"aurora_return_arm_exhausted")
+		return
+	_aurora_return_arm_attempts += 1
+	var target := _build_mudds_return_approach_target()
+	if not bool(target.get("accepted", false)):
+		cancel_return_departure(StringName(target.get("reason", &"return_target_unavailable")))
+		return
+	var cruise := _flow.planetary_cruise_binding
+	var engaged := engage_aurora_cruise(ship, true)
+	if not bool(engaged.get("accepted", false)):
+		_last_aurora_return_result = engaged.duplicate(true)
+		if engaged.get("reason") != &"braking_in_progress":
+			cancel_return_departure(StringName(engaged.get("reason", &"return_engagement_refused")))
+		return
+	var armed := cruise.request_return_approach(
+		target.get("target", {}) as Dictionary, frame_generation,
+		cruise.get_generation(), _flow.world.ship_spawn)
+	_last_aurora_return_result = armed.duplicate(true)
+	if not bool(armed.get("accepted", false)):
+		cancel_return_departure(StringName(armed.get("reason", &"return_arm_refused")))
+		return
+	_mudds_return_approach_active = true
+
+
+func _observe_aurora_return_tick(tick: Dictionary) -> void:
+	if not _aurora_return_active:
+		return
+	_last_aurora_return_result = tick.duplicate(true)
+	if tick.get("reason") == &"return_approach_handoff_ready":
+		_aurora_return_departure_pending = false
+		var consumed := _consume_mudds_return_approach_completion(tick)
+		if not bool(consumed.get("accepted", false)):
+			cancel_return_departure(StringName(consumed.get("reason", &"return_completion_refused")), false)
+			_last_aurora_return_result = consumed.duplicate(true)
+		return
+	if bool(tick.get("accepted", false)):
+		var policy := (tick.get("controller", {}) as Dictionary).get("policy", {}) as Dictionary
+		if bool(policy.get("desired_cruise_participation", false)):
+			_aurora_return_departure_pending = false
+		return
+	_mudds_return_approach_active = false
+	var reason := StringName(tick.get("reason", &"return_cruise_refused"))
+	if _aurora_return_departure_pending and (reason == &"obstacle_detected" or (
+			reason == &"ship_attachment_retired" and is_instance_valid(_flow.active_ship)
+			and _flow.active_ship.is_piloted() and _flow.active_ship.has_manual_flight_intent())):
+		return
+	cancel_return_departure(reason, false)
 
 
 ## Both observers adopt the same committed receipt before the next cruise tick.
@@ -516,6 +604,9 @@ func retire_aurora_visit() -> Dictionary:
 	if not _aurora_visit_active:
 		return _aurora_retired(true, &"aurora_visit_inactive")
 	_aurora_visit_active = false
+	if _aurora_return_active:
+		cancel_return_departure(&"aurora_visit_retired")
+	_aurora_return_departure_pending = false
 	_aurora_final_approach_handoff_ready = false
 	_aurora_final_approach_armed = false
 	_aurora_final_approach_source_ref = null
@@ -545,6 +636,10 @@ func aurora_final_approach_handoff_ready() -> bool:
 func get_aurora_visit_snapshot() -> Dictionary:
 	return {
 		"active": _aurora_visit_active,
+		"return_active": _aurora_return_active,
+		"return_departure_pending": _aurora_return_departure_pending,
+		"return_handoff_ready": _aurora_return_handoff_ready,
+		"last_return_result": _last_aurora_return_result.duplicate(true),
 		"rebase_commit_count": _aurora_visit_rebase_commit_count,
 		"final_approach_armed": _aurora_final_approach_armed,
 		"final_approach_handoff_ready": _aurora_final_approach_handoff_ready,
@@ -1578,6 +1673,16 @@ func _consume_mudds_return_approach_completion(receipt: Dictionary) -> Dictionar
 		return consumed
 	_mudds_return_approach_completion_receipt = consumed.duplicate(true)
 	_mudds_return_approach_active = false
+	# Aurora owns no Ember reward/arrival state. Consume the same authenticated
+	# corridor receipt, then let the ordinary berth lifecycle own local flight.
+	if _aurora_return_active:
+		_aurora_return_active = false
+		_aurora_return_departure_pending = false
+		_aurora_return_handoff_ready = true
+		_last_aurora_return_result = {"accepted": true,
+			"reason": &"aurora_return_handed_to_station_lifecycle",
+			"receipt": consumed.duplicate(true)}
+		return _last_aurora_return_result.duplicate(true)
 	_ember_surface_journey_active = false
 	if _ember_abandon_return_active:
 		# An abandoned visit earned no station-return contract and carries no
@@ -2000,13 +2105,14 @@ func _observe_abandon_return_departure_tick(tick: Dictionary) -> void:
 
 
 func is_return_departure_pending() -> bool:
-	return _ember_abandon_return_arm_pending
+	return _ember_abandon_return_arm_pending or _aurora_return_departure_pending
 
 
 func cancel_return_departure(
 	reason: StringName = &"player_cancelled", brake_to_stop: bool = true
 ) -> Dictionary:
-	if not _ember_abandon_return_arm_pending and not _ember_abandon_return_active:
+	if not _ember_abandon_return_arm_pending and not _ember_abandon_return_active \
+			and not _aurora_return_active:
 		return {"accepted": false, "reason": &"return_departure_not_pending"}
 	if is_instance_valid(_flow.planetary_cruise_binding):
 		var cruise := _flow.planetary_cruise_binding
@@ -2014,6 +2120,10 @@ func cancel_return_departure(
 			var released := cruise.request_disengage(cruise.get_generation(), brake_to_stop)
 			if not bool(released.get("accepted", false)):
 				return released
+	if _aurora_return_active:
+		_aurora_return_departure_pending = false
+		_aurora_return_active = false
+		_last_aurora_return_result = {"accepted": true, "reason": reason}
 	_ember_abandon_return_arm_pending = false
 	_ember_abandon_return_active = false
 	_mudds_return_approach_active = false

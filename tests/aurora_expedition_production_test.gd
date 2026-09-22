@@ -110,17 +110,24 @@ func _run() -> void:
 	await _press_interact()
 	await _wait_state(owner, &"landed", 240)
 	_check(game.player.is_seated() and game._piloting and game.active_ship == craft, "E reboards the same physical craft")
+	var return_pose := craft.global_transform
+	var return_berth := owner.get("_berth") as ShipBerth
 	await _press_destination(game)
-	await _wait_state(owner, &"idle", 6000)
-	# The yard itself has travelled through two committed origin rebases by now,
-	# so the craft is measured against its live home berth rather than a pose
-	# recorded in a frame that no longer exists.
-	var home_berth := game.world.get_berth_node(craft.get_home_berth_id()) as ShipBerth
-	_check(owner.state == &"idle" and craft.global_position.distance_to(home_berth.get_dock_transform().origin) < 1.0 and bool(craft.get_telemetry().get("landed", false)), "return action physically docks the craft at its original home berth")
-	_check(game.player.is_seated() and game._piloting and game.world.visible and not is_instance_valid(owner.get("_surface")), "round trip restores station presentation and seated controls and unloads Aurora")
+	for tick in 20:
+		await physics_frame
+		await process_frame
+	_check(owner.state == &"return_cruise" and game._planetary_journey.is_return_departure_pending()
+		and craft.global_transform == return_pose and return_berth.get_occupant() == craft,
+		"return queues manual departure at the occupied surface berth without actor placement")
+	# Full physical home cruise, registered docking, exit and walking live in the
+	# explicit Aurora return soak; this bounded visit checks cancel/retry access.
+	owner.cancel()
+	_check(owner.state == &"idle" and game.player.is_seated() and game._piloting
+		and craft.global_transform == return_pose and game.world.visible,
+		"canceling queued return releases control at the current surface pose")
 	game.call(&"_sync_planetary_cruise_hud")
 	await _press_destination(game)
-	_check(owner.state == &"outbound", "a second trip is immediately selectable")
+	_check(owner.state == &"outbound", "a further bounded visit is selectable after physical departure")
 	# The same production entry point the board row calls, taken while the
 	# approach is still outbound: a pilot may give up on a cruise in flight.
 	Input.action_press(&"move_right")
