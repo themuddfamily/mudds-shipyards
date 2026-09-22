@@ -196,7 +196,11 @@ walking, reboarding, save restoration, repeat departure and cancellation. Their
 bounded fixture places the craft 70 km away before requesting outbound travel.
 The optional `--aurora-full-flight` mode uses held-input departure, climb and
 orientation from the yard without subsequent actor placement; its full 12,000 km
-run is pending. It ends the automatically selected Cinder activity through the
+run on `727f2588e` failed before landing: the craft flew over 12,000 km with
+continuous actor movement and 1,200 origin shifts, but final approach retired
+after descent and exhausted 600 re-engagement attempts. The last refusal was
+`alignment_below_threshold`; the first retirement cause is under investigation.
+This is not a full-flight pass. The test ends the automatically selected Cinder activity through the
 public session-fenced failure API, so it does not establish a complete fresh-save
 objective playthrough. Logs: `aurora-production-isolated.log`,
 `aurora-visit-loop-isolated.log` and `aurora-full-flight-frozen.log` under
