@@ -314,6 +314,11 @@ func _test_routed_approach() -> void:
 			if blocked_ticks == 10:
 				_check(ship.velocity.is_zero_approx(), "route turn holds still against a blocking rotation pose")
 				var old_envelope := attachment.get("last_envelope", {}) as Dictionary
+				var turn := controller.get_final_approach_turn_target(old_envelope)
+				var turn_basis := turn.get("target_basis", Basis.IDENTITY) as Basis
+				_check(turn_basis.x.dot(target.target_world_transform.basis.x) > 0.99
+					and rad_to_deg(Quaternion(target.target_world_transform.basis).angle_to(Quaternion(turn_basis))) <= 90.1,
+					"vertical descent preserves corridor right axis with a 90 degree pitch instead of inversion")
 				var before_destination := controller._final_approach_policy_destination()
 				var delta := Vector3(15.0, -20.0, 30.0)
 				ship.global_position += delta
@@ -336,6 +341,23 @@ func _test_routed_approach() -> void:
 	_check(turned_down and maximum_turn <= 1.05,
 		"production physics performs the 90 degree route turn at no more than 60 degrees per second")
 	_check(not completion.is_empty(), "routed descent turns back and reaches the typed entry: %s / %s" % [last.get("reason"), ship.get_planetary_cruise_attachment_report().get("reason")])
+	# Ascending to the high leg preserves the same authored right axis.
+	ship.set_physics_process(false)
+	controller.disengage(controller.get_generation(), false)
+	ship.global_transform = Transform3D(Basis.IDENTITY,
+		target.target_world_transform * Vector3(0.0, target.lead_in_height_m - 20.0, target.corridor_half_extents_m.z))
+	ship.velocity = Vector3.ZERO
+	controller.bind_ship(ship, frame, controller.get_generation())
+	target.target_generation += 1
+	controller.arm_final_approach(target, frame, controller.get_generation())
+	var ascending := controller.evaluate_and_submit(ship.global_position + Vector3.FORWARD * 30_000.0,
+		false, frame, controller.get_generation())
+	var ascending_turn := controller.get_final_approach_turn_target(ascending.get("envelope", {}))
+	var ascending_basis := ascending_turn.get("target_basis", Basis.IDENTITY) as Basis
+	_check(ascending_basis.x.dot(target.target_world_transform.basis.x) > 0.99
+		and (-ascending_basis.z).dot(Vector3.UP) > 0.99
+		and rad_to_deg(Quaternion.IDENTITY.angle_to(Quaternion(ascending_basis))) <= 90.1,
+		"vertical ascent also preserves corridor right axis with a 90 degree pitch")
 	# A lateral impulse during the next turn must use normal collision accounting.
 	ship.set_physics_process(false)
 	controller.disengage(controller.get_generation(), false)

@@ -1038,7 +1038,8 @@ func get_final_approach_turn_target(envelope: Dictionary) -> Dictionary:
 	var direction := (_final_approach_policy_destination() - ship.global_position).normalized()
 	var up := target.target_world_transform.basis.y.normalized()
 	if absf(direction.dot(up)) > 0.99:
-		up = target.target_world_transform.basis.z.normalized()
+		up = target.target_world_transform.basis.z.normalized() \
+			* (1.0 if direction.dot(up) > 0.0 else -1.0)
 	return {"target_basis": Basis.looking_at(direction, up), "leg": _final_approach_leg}
 
 
