@@ -322,6 +322,22 @@ func _run() -> void:
 	game.set("_ember_surface_journey_active", true)
 	game.phase = GameFlow.Phase.FREE_FLIGHT
 
+	# The production yard registry was populated before the outbound origin shift.
+	# Its current return target must follow the actual registered dock and marker.
+	var cached_home: Transform3D = game.world.get_ship_spawn()
+	var home_rebases_accepted := true
+	# Rebase out and back, ending in a locally precise yard frame for the
+	# existing physical exit below, as the real origin owner does on arrival.
+	for focus: Vector3 in [Vector3(17000.0, 125000.0, -8000000.0), Vector3(-17000.0, -125000.0, 7999970.0)]:
+		var home_rebase := frame.request_rebase(focus, frame.get_generation())
+		var home_commit := frame.commit_rebase(int(home_rebase.request.request_id), frame.get_generation())
+		var home_translation := (home_commit.get("rebase", {}) as Dictionary).get("world_translation_delta", Vector3.ZERO) as Vector3
+		game.world.global_position += home_translation
+		home_rebases_accepted = home_rebases_accepted and bool(home_commit.get("accepted", false))
+	var live_home: Transform3D = game.world.get_berth_node(ShipyardWorld.CENTRAL_BERTH_ID).get_dock_transform()
+	_check(home_rebases_accepted and game.world.get_ship_spawn() == live_home
+		and game.world.ship_spawn.global_transform == live_home and live_home != cached_home,
+		"a production yard rebase resolves home from the live registered berth instead of its construction cache")
 	var home_transform := game.world.call(&"get_ship_spawn") as Transform3D
 	craft.global_transform = Transform3D(
 		home_transform.basis,

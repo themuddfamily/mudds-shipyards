@@ -4075,6 +4075,13 @@ func has_berth(berth_id: StringName) -> bool:
 
 
 func get_berth_transform(berth_id: StringName) -> Transform3D:
+	# Registry poses describe construction time. A common-origin rebase moves
+	# the live berth, so placement and return consumers must read its dock now.
+	var berth := _berth_nodes.get(berth_id) as ShipBerth
+	if is_instance_valid(berth):
+		return berth.get_dock_transform()
+	if berth_id == CENTRAL_BERTH_ID:
+		return ship_spawn.global_transform
 	return _berth_transforms.get(berth_id, ship_spawn.global_transform) as Transform3D
 
 

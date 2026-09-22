@@ -147,6 +147,48 @@ func _run() -> void:
 		"completion-detach-rebind admits one fresh fenced return generation",
 	)
 
+	controller.disengage(controller.get_generation(), false)
+	ship.global_position = Vector3(5000.0, 1000.0, 3000.0)
+	ship.global_basis = Basis.IDENTITY
+	ship.velocity = Vector3.ZERO
+	controller.bind_ship(ship, FRAME_GENERATION, controller.get_generation())
+	target = _target_for(ship, 3)
+	controller.arm_return_approach(target, FRAME_GENERATION, controller.get_generation())
+	var physical_completed := false
+	var previous := ship.global_position
+	var largest_step := 0.0
+	var live_frame := FRAME_GENERATION
+	var translated := false
+	for tick in 4000:
+		var physical := controller.evaluate_and_submit(
+			target.home_target_world_transform.origin, false, live_frame, controller.get_generation())
+		if physical.get("reason") == &"return_approach_completed":
+			physical_completed = true
+			break
+		if not bool(physical.get("accepted", false)):
+			print("RETURN_ROUTE_REJECTED ", physical)
+			break
+		await physics_frame
+		largest_step = maxf(largest_step, ship.global_position.distance_to(previous))
+		previous = ship.global_position
+		if tick == 60:
+			var translation := Vector3(-4000.0, -500.0, -2000.0)
+			ship.global_position += translation
+			previous += translation
+			var old_envelope := (controller.get_snapshot().get("last_envelope", {}) as Dictionary).duplicate(true)
+			var carried := controller.rebind_coordinate_frame(
+				ship, live_frame + 1, controller.get_generation(), translation)
+			_check(controller.get_final_approach_turn_target(old_envelope).is_empty(),
+				"a pre-rebase return envelope cannot authorize a turn in the new frame")
+			translated = bool(carried.get("accepted", false))
+			live_frame += 1
+	_check(physical_completed and translated,
+		"an off-axis physical return carries its route through a rebase and stops in the home corridor")
+	_check(largest_step <= 5000.0 / Engine.physics_ticks_per_second + 1.0,
+		"return steering and braking integrate bounded craft movement without placement")
+	if not physical_completed:
+		print("RETURN_ROUTE_STATE ", controller.get_snapshot(), " ship=", ship.global_transform, " speed=", ship.velocity)
+
 	stage.queue_free()
 	await process_frame
 	_finish()

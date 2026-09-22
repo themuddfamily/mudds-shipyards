@@ -144,6 +144,56 @@ func _run() -> void:
 		"post-rebase cadence retires the stale attachment before any new envelope",
 	)
 
+	var yard_origin := Node3D.new()
+	stage.add_child(yard_origin)
+	var home_anchor := Marker3D.new()
+	yard_origin.add_child(home_anchor)
+	home_anchor.position = Vector3(0.0, 3.275, 0.0)
+	return_target["home_target_world_transform"] = home_anchor.global_transform
+	ship.global_position = home_anchor.global_position + Vector3(0.0, 0.0, 100.0)
+	var carried_engage := binding.request_engage(
+		ship, frame.get_generation(), &"", binding.get_generation(), true)
+	var carried_arm := binding.request_return_approach(
+		return_target, frame.get_generation(), binding.get_generation(), home_anchor)
+	var carry_request := frame.request_rebase(
+		Vector3(36_000.0, 0.0, 0.0), frame.get_generation())
+	var carry_commit := frame.commit_rebase(
+		int((carry_request.get("request", {}) as Dictionary).get("request_id", 0)),
+		frame.get_generation())
+	carry_commit = (carry_commit.get("rebase", {}) as Dictionary).duplicate(true)
+	carry_commit["reason"] = &"rebase_committed"
+	carry_commit["world_id"] = &"ember_moon"
+	ship.global_position += carry_commit.get("world_translation_delta", Vector3.ZERO) as Vector3
+	yard_origin.global_position += carry_commit.get("world_translation_delta", Vector3.ZERO) as Vector3
+	var carried := binding.accept_committed_origin_rebase(carry_commit, binding.get_generation())
+	var before_replay := binding.get_controller().get_snapshot()
+	var replay := binding.accept_committed_origin_rebase(carry_commit, binding.get_generation())
+	_check(bool(carried_engage.get("accepted", false)) and bool(carried_arm.get("accepted", false))
+		and bool(carried.get("accepted", false)) and not bool(replay.get("accepted", true))
+		and binding.get_controller().get_snapshot() == before_replay,
+		"the committed common translation carries a return target once and rejects receipt replay")
+	var every_home_exact := true
+	for index in 800:
+		var focus := Vector3(0.0, 151.251, -10000.25) * (1.0 if index < 400 else -1.0)
+		var request := frame.request_rebase(focus, frame.get_generation())
+		var commit := frame.commit_rebase(int(request.request.request_id), frame.get_generation())
+		var receipt := (commit.get("rebase", {}) as Dictionary).duplicate(true)
+		receipt["reason"] = &"rebase_committed"
+		receipt["world_id"] = binding.get_bound_world_id()
+		var translation := receipt.get("world_translation_delta", Vector3.ZERO) as Vector3
+		ship.global_position += translation
+		yard_origin.global_position += translation
+		var accepted := binding.accept_committed_origin_rebase(receipt, binding.get_generation())
+		var target_snapshot := (binding.get_controller().get_snapshot().get("final_approach", {}) as Dictionary).get("target", {}) as Dictionary
+		every_home_exact = every_home_exact and bool(accepted.get("accepted", false)) \
+			and target_snapshot.get("home_target_world_transform") == home_anchor.global_transform
+	_check(every_home_exact,
+		"800 committed rebases preserve the exact yard-parent home marker composition without a tolerance")
+	var carried_completion := binding.physics_tick_from_caller_sample(
+		3, _sample(ship), ship, frame.get_generation(), false, &"")
+	_check(carried_completion.get("reason") == &"return_approach_handoff_ready",
+		"the translated return completes against the same live home corridor")
+
 	stage.queue_free()
 	await process_frame
 	_finish()

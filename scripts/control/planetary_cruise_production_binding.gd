@@ -379,6 +379,7 @@ func request_return_approach(
 		return_target: Dictionary,
 		expected_coordinate_frame_generation: int,
 		expected_generation: int,
+		home_anchor: Node3D = null,
 	) -> Dictionary:
 	var preflight := _mutation_preflight(expected_generation)
 	if not preflight.is_empty():
@@ -416,6 +417,14 @@ func request_return_approach(
 	target.home_target_world_transform = return_target.get(
 		"home_target_world_transform", Transform3D.IDENTITY
 	) as Transform3D
+	if home_anchor != null:
+		var home_origin := home_anchor.get_parent() as Node3D
+		if not home_anchor.is_inside_tree() or home_origin == null \
+				or home_anchor.global_transform != target.home_target_world_transform:
+			return _result(false, &"return_approach_home_anchor_mismatch")
+		target.home_origin_tracking = true
+		target.home_origin_world_transform = home_origin.global_transform
+		target.home_origin_local_transform = home_anchor.transform
 	target.corridor_half_extents_m = return_target.get(
 		"corridor_half_extents_m", Vector3.ZERO
 	) as Vector3
@@ -703,6 +712,8 @@ func physics_tick_from_caller_sample(
 	)
 	if not bool(policy.get("desired_cruise_participation", false)) \
 			and final_state not in [&"final_approach", &"return_approach"] \
+			and not (_approach_kind == _ControllerType.RETURN_APPROACH_KIND
+				and final_state == &"armed" and policy.get("reason") == &"alignment_below_threshold") \
 			and not (_carry_transit and bool(policy.get("braking_requested", false)) \
 				and policy.get("reason", &"") in [
 					&"insufficient_verified_clearance", &"destination_braking_envelope"]):
@@ -781,7 +792,10 @@ func accept_committed_origin_rebase(
 	_bound_frame_generation = target_generation
 	_rebind_count += 1
 	_final_approach_landing_root_transform.origin += delta
-	_return_approach_home_target_transform.origin += delta
+	if carried.has("return_home_target_world_transform"):
+		_return_approach_home_target_transform = carried.return_home_target_world_transform as Transform3D
+	else:
+		_return_approach_home_target_transform.origin += delta
 	_translated_frame_generation = target_generation
 	_mutation_active = false
 	return _result(true, &"origin_translation_accepted", {

@@ -1,6 +1,9 @@
 extends SceneTree
 
 ## Production outbound flight from a real yard launch, with no flight staging.
+## KETH_EMBER_PHYSICAL_RETURN=1 adds the long ABANDON round trip and ordinary
+## pilot-input berth landing. KETH_RETURN_ARRIVAL_DIAGNOSTIC=1 runs only a real
+## yard launch and input-driven return to the same berth (no flight staging).
 
 const MAIN_SCENE := preload("res://scenes/main.tscn")
 const Store := preload("res://scripts/persistence/user_data_store.gd")
@@ -179,6 +182,18 @@ func _run() -> void:
 		await _tear_down(game)
 		_finish()
 		return
+	if OS.get_environment("KETH_RETURN_ARRIVAL_DIAGNOSTIC") == "1":
+		Input.action_press(&"hover")
+		Input.action_press(&"move_forward")
+		for tick in 180:
+			await physics_frame
+			await process_frame
+		_release_all_actions()
+		var arrived := await _fly_home_berth(game, LegSampler.new())
+		_check(arrived, "ordinary flight inputs return the launch to its home berth and disembark")
+		await _tear_down(game)
+		_finish()
+		return
 	game.set("_active_activity_id", &"")
 	var aurora: Object = game.get("_aurora_expedition")
 	if aurora != null and bool(aurora.call(&"is_active")):
@@ -334,8 +349,164 @@ func _run() -> void:
 			and sampler.occupancy_failures == 0 and landing_max_step <= landing_step_limit,
 			"physical handoff and landing preserve craft, pilot and seat continuity")
 		print("OUTBOUND_LANDING phase=", host.get_phase(), " max_step=", landing_max_step, " telemetry=", craft.get_telemetry())
+		if landed and OS.get_environment("KETH_EMBER_PHYSICAL_RETURN") == "1":
+			await _physical_abandon_return(game)
+
 	await _tear_down(game)
 	_finish()
+
+
+func _physical_abandon_return(game: GameFlow) -> void:
+	var craft := game.active_ship as HeroShip
+	var player := game.player as PlayerController
+	var host := game.ember_surface_loop_host as EmberSurfaceLoopHost
+	var on_foot := await _wait_until(func() -> bool:
+		return host.get_phase() == EmberSurfaceLoopHost.Phase.SURFACE_OUTBOUND \
+			and not player.is_seated() and player.is_control_enabled(), 30.0)
+	_check(on_foot, "physical arrival disembarks the pilot before ABANDON")
+	if not on_foot:
+		return
+	var abandon := game.abandon_ember_surface_journey(&"player_abandoned")
+	_check(bool(abandon.get("accepted", false)), "the player ABANDON request remains pending for real reboarding and takeoff")
+	var boarding := craft.get_node("ShipBoardingArea") as ShipBoardingArea
+	for tick in 900:
+		if player.is_seated() and craft.is_piloted():
+			break
+		_release_all_actions()
+		if player.is_seated():
+			await physics_frame
+			await process_frame
+			continue
+		if boarding in player.get_nearby_interactables():
+			if tick % 12 == 0:
+				await _press_live_action(&"interact", 2)
+		else:
+			var offset := craft.get_boarding_position() - player.global_position
+			var right: Vector3 = player.call(&"_camera_relative_direction", Vector2.RIGHT)
+			var forward: Vector3 = player.call(&"_camera_relative_direction", Vector2.UP)
+			_set_signed_action(&"move_right", &"move_left", offset.normalized().dot(right))
+			_set_signed_action(&"move_forward", &"move_back", offset.normalized().dot(forward))
+		await physics_frame
+		await process_frame
+	_release_all_actions()
+	_check(player.is_seated() and craft.is_piloted(), "the abandoned pilot reboards through the live boarding interaction")
+	if not player.is_seated() or not craft.is_piloted():
+		return
+	var sampler := LegSampler.new()
+	var completed := false
+	var left_ember := false
+	for tick in 42_000:
+		await physics_frame
+		await process_frame
+		sampler.step(game)
+		left_ember = left_ember or not is_instance_valid(game.ember_streaming_bootstrap.get_loaded_instance())
+		var result := game.get("_last_mudds_return_approach_result") as Dictionary
+		if tick % 1200 == 0:
+			print("RETURN tick=", tick, " home_distance=", craft.global_position.distance_to(game.world.get_ship_spawn().origin),
+				" speed=", craft.velocity.length(), " rebases=", sampler.rebase_count,
+				" cruise=", game.planetary_cruise_binding.get_snapshot().get("last_reason"), " result=", result.get("reason"))
+		if result.get("reason") == &"abandoned_return_handed_to_station_lifecycle":
+			completed = true
+			break
+		if craft.is_destroyed() or sampler.occupancy_failures > 0:
+			break
+	_check(completed and left_ember and sampler.rebase_count > 700,
+		"ABANDON physically returns through origin rebases, unloads Ember and enters the typed home corridor")
+	_check(sampler.max_ship_step_m <= TICK_STEP_LIMIT_M and sampler.max_player_step_m <= TICK_STEP_LIMIT_M
+		and sampler.occupancy_failures == 0, "the return preserves ship and seated pilot continuity without recovery placement")
+	if completed:
+		_check(await _fly_home_berth(game, sampler),
+			"ordinary pilot inputs finish the return at the actual home lease and leave a controllable disembarked pilot")
+	print("PHYSICAL_RETURN_RESULT completed=", completed, " ticks=", sampler.ticks,
+		" rebases=", sampler.rebase_count, " distance=", sampler.distance_flown_m,
+		" max_steps=", sampler.max_ship_step_m, "/", sampler.max_player_step_m)
+
+
+## A test pilot issues only the same held actions as a player. Cruise has already
+## handed back authority; no transform, velocity, lease or completion is written.
+func _fly_home_berth(game: GameFlow, sampler: LegSampler) -> bool:
+	var craft := game.active_ship as HeroShip
+	var player := game.player as PlayerController
+	var berth := game.world.get_berth_node(craft.get_home_berth_id()) as ShipBerth
+	var landing_requested := false
+	var approach_leg := 0
+	var docked := false
+	var tick_budget := 3000 if OS.get_environment("KETH_RETURN_ARRIVAL_DIAGNOSTIC") == "1" else 48_000
+	for tick in tick_budget:
+		_release_flight_controls(craft)
+		var report := game.call(&"_get_active_landing_assist_report") as Dictionary
+		if not landing_requested and report.get("selected_berth_id") == craft.get_home_berth_id() \
+				and bool(report.get("assist_capture_accepted", false)):
+			Input.action_press(&"landing_assist")
+			landing_requested = true
+		elif not landing_requested:
+			# Cross the yard above its walls, then descend from the open approach side.
+			var waypoint := berth.get_dock_transform() * Vector3(0.0, 120.0, -200.0) \
+				if approach_leg == 0 else berth.get_assist_capture_transform().origin
+			var offset := waypoint - craft.global_position
+			if approach_leg == 0 and offset.length() < 12.0 and craft.velocity.length() < 10.0:
+				approach_leg = 1
+			var local := craft.global_basis.inverse() * offset.normalized()
+			var yaw := atan2(local.x, -local.z)
+			var pitch := atan2(local.y, Vector2(local.x, local.z).length())
+			_set_signed_action(&"move_right", &"move_left", yaw * 3.0)
+			_set_signed_action(&"pitch_up", &"pitch_down", pitch * 3.0)
+			var desired_up := berth.global_basis.y.normalized()
+			var roll := atan2(desired_up.dot(craft.global_basis.x), desired_up.dot(craft.global_basis.y))
+			_set_signed_action(&"roll_right", &"roll_left", roll * 3.0)
+			var desired_speed := minf(craft.maximum_speed * 0.9,
+				sqrt(maxf(0.0, offset.length() - 5.0) * craft.brake_acceleration) * 0.6)
+			if absf(yaw) < 0.08 and absf(pitch) < 0.08 and craft.velocity.length() < desired_speed:
+				Input.action_press(&"move_forward")
+			else:
+				Input.action_press(&"brake")
+		await physics_frame
+		await process_frame
+		sampler.step(game)
+		if tick % (120 if OS.get_environment("KETH_RETURN_ARRIVAL_DIAGNOSTIC") == "1" else 1200) == 0:
+			print("BERTH_RETURN tick=", tick, " distance=", craft.global_position.distance_to(berth.get_dock_transform().origin),
+				" speed=", craft.velocity.length(), " requested=", landing_requested, " phase=", game.phase,
+				" local_target=", craft.global_basis.inverse() * (berth.get_assist_capture_transform().origin - craft.global_position),
+				" report=", report.get("errors", []))
+		if craft.is_destroyed():
+			break
+		if bool(craft.get_telemetry().get("landing_dock_accepted", false)) \
+				and not craft.is_landing_active() and berth.get_occupant() == craft:
+			docked = true
+			break
+		if landing_requested and not craft.is_landing_active() and not bool(craft.get_telemetry().get("landed", false)):
+			landing_requested = false
+	_release_all_actions()
+	var token := berth.get_reservation_token(craft)
+	if not docked or token.is_empty() \
+			or token != StringName((game.get("_berth_tokens") as Dictionary).get(craft.get_instance_id(), &"")):
+		return false
+	_check(sampler.max_ship_step_m <= TICK_STEP_LIMIT_M and sampler.max_player_step_m <= TICK_STEP_LIMIT_M
+		and sampler.occupancy_failures == 0,
+		"ordinary flight and physical berth landing preserve craft/pilot continuity and occupied seat until disembark")
+	for tick in 900:
+		if not player.is_seated() and player.is_control_enabled() and not bool(game.get("_transition_busy")):
+			if craft.is_piloted() or player.global_position.distance_to(craft.get_boarding_position()) >= 20.0:
+				return false
+			var walk_start := player.global_position
+			await _press_live_action(&"move_back", 20)
+			var walk_distance := player.global_position.distance_to(walk_start)
+			_check(walk_distance > 0.25 and walk_distance < 5.0 and player.is_control_enabled(),
+				"the disembarked pilot physically walks on the home berth under held movement input")
+			return walk_distance > 0.25 and walk_distance < 5.0 and player.is_control_enabled()
+		if tick % 30 == 0:
+			await _press_live_action(&"interact", 2)
+		await physics_frame
+		await process_frame
+	print("BERTH_EXIT_STALLED phase=", game.phase, " piloting=", game.get("_piloting"), " transition=", game.get("_transition_busy"), " seated=", player.is_seated(), " enabled=", player.is_control_enabled(), " telemetry=", craft.get_telemetry())
+	return false
+
+
+func _set_signed_action(positive: StringName, negative: StringName, strength: float) -> void:
+	Input.action_release(positive)
+	Input.action_release(negative)
+	if absf(strength) > 0.005:
+		Input.action_press(positive if strength > 0.0 else negative, minf(1.0, absf(strength)))
 
 
 func _walk_and_board(game: GameFlow, player: PlayerController, craft: HeroShip) -> bool:

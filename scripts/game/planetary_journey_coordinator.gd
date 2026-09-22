@@ -1357,7 +1357,7 @@ func _advance_mudds_return_approach_handoff(
 	var engaged := _flow.planetary_cruise_binding.request_engage(
 		_flow.active_ship, coordinate_frame_generation,
 		_flow._planetary_cruise_gate_reason(false),
-		_flow.planetary_cruise_binding.get_generation(),
+		_flow.planetary_cruise_binding.get_generation(), true,
 	)
 	if not bool(engaged.get("accepted", false)):
 		_last_mudds_return_approach_result = engaged.duplicate(true)
@@ -1366,6 +1366,7 @@ func _advance_mudds_return_approach_handoff(
 		target_result.get("target", {}) as Dictionary,
 		coordinate_frame_generation,
 		_flow.planetary_cruise_binding.get_generation(),
+		_flow.world.ship_spawn,
 	)
 	if not bool(armed.get("accepted", false)):
 		_flow.planetary_cruise_binding.request_disengage(
@@ -1889,7 +1890,7 @@ func _arm_ember_abandon_return_approach(
 	if not bool(cruise.get_snapshot().get("engagement_requested", false)):
 		var engaged := cruise.request_engage(
 			_flow.active_ship, frame_generation, gate_reason,
-			cruise.get_generation(),
+			cruise.get_generation(), true,
 		)
 		if not bool(engaged.get("accepted", false)):
 			_last_ember_abandon_return_arm_result = engaged.duplicate(true)
@@ -1898,6 +1899,7 @@ func _arm_ember_abandon_return_approach(
 		target_result.get("target", {}) as Dictionary,
 		frame_generation,
 		cruise.get_generation(),
+		_flow.world.ship_spawn,
 	)
 	if not bool(armed.get("accepted", false)):
 		_last_ember_abandon_return_arm_result = armed.duplicate(true)

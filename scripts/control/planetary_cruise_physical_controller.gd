@@ -145,6 +145,9 @@ class ReturnApproachTarget:
 	var coordinate_frame_generation := 0
 	var home_target_id: StringName = &""
 	var home_target_world_transform := Transform3D.IDENTITY
+	var home_origin_tracking := false
+	var home_origin_world_transform := Transform3D.IDENTITY
+	var home_origin_local_transform := Transform3D.IDENTITY
 	var corridor_half_extents_m := Vector3.ZERO
 	var brake_shell_min_distance_m := 0.0
 	var brake_shell_max_distance_m := 0.0
@@ -165,6 +168,11 @@ class ReturnApproachTarget:
 				or not collision_bounds.position.is_finite() \
 				or not collision_bounds.size.is_finite():
 			return &"return_approach_target_nonfinite"
+		if home_origin_tracking and (
+			not FinalApproachTarget._transform_is_finite(home_origin_world_transform)
+			or not FinalApproachTarget._transform_is_finite(home_origin_local_transform)
+			or home_origin_world_transform * home_origin_local_transform != home_target_world_transform):
+			return &"return_approach_home_origin_invalid"
 		if corridor_half_extents_m.x <= 0.0 \
 				or corridor_half_extents_m.y <= 0.0 \
 				or corridor_half_extents_m.z < CLEARANCE_PROOF_HORIZON_METERS \
@@ -250,6 +258,8 @@ class ReturnApproachTarget:
 			"fleet_ids": RETURN_APPROACH_FLEET_IDS.duplicate(),
 			"hulls": hulls.duplicate(true),
 		}.duplicate(true)
+
+var _return_route_enabled := false
 
 var _policy := PlanetaryCruisePolicyType.new()
 var _ship_ref: WeakRef
@@ -397,6 +407,17 @@ func arm_return_approach(
 	_mutation_active = true
 	_final_approach_target = target
 	_approach_kind = RETURN_APPROACH_KIND
+	# An Ember departure is generally outside the narrow home-axis corridor.
+	# Fly to its positive-Z lead-in, stop and turn, then approach the shell.
+	var ship := _resolve_ship()
+	var home_local := target.home_target_world_transform.affine_inverse() * ship.global_position
+	_return_route_enabled = absf(home_local.x) > target.corridor_half_extents_m.x \
+		or absf(home_local.y) > target.corridor_half_extents_m.y \
+		or home_local.z < 0.0 \
+		or rad_to_deg(Quaternion(ship.global_basis.orthonormalized()).angle_to(
+			Quaternion(target.home_target_world_transform.basis.orthonormalized()))) \
+			> target.maximum_attitude_degrees
+	_final_approach_leg = 0
 	_final_approach_generation = target.target_generation
 	_final_approach_state = FinalApproachState.ARMED
 	_last_final_approach_reason = &"return_approach_armed"
@@ -521,6 +542,12 @@ func evaluate_and_submit(
 					.home_target_world_transform.origin
 			):
 		return _receipt(false, &"return_approach_home_target_mismatch")
+	if _approach_kind == RETURN_APPROACH_KIND and _return_route_enabled:
+		if _final_approach_leg == 0 \
+				and ship.global_position.distance_to(_return_approach_policy_destination()) <= 8.0 \
+				and ship.velocity.length() <= 4.0:
+			_final_approach_leg = 1
+		destination_world = _return_approach_policy_destination()
 	if _final_approach_state == FinalApproachState.ACTIVE:
 		if _approach_kind == RETURN_APPROACH_KIND:
 			var return_completion := _measure_return_approach(ship)
@@ -594,7 +621,7 @@ func evaluate_and_submit(
 		"combat_active": combat_active,
 	}.duplicate(true)
 	if _final_approach_state == FinalApproachState.ACTIVE \
-			and _approach_kind == FINAL_APPROACH_KIND:
+			and (_approach_kind == FINAL_APPROACH_KIND or _return_route_enabled):
 		observation["final_approach"] = true
 	var policy_result := _policy.evaluate(
 		observation,
@@ -625,14 +652,17 @@ func evaluate_and_submit(
 			_mutation_active = false
 			_emit_final_approach_changed()
 			return evaluate_and_submit(
-				destination_world, combat_active,
+				(_final_approach_target as ReturnApproachTarget).home_target_world_transform.origin
+					if _approach_kind == RETURN_APPROACH_KIND else destination_world, combat_active,
 				expected_coordinate_frame_generation, expected_generation
 			)
-		_mutation_active = true
-		_final_approach_state = FinalApproachState.ABORTED
-		_last_final_approach_reason = policy_reason
-		_mutation_active = false
-		_emit_final_approach_changed()
+		if not (_approach_kind == RETURN_APPROACH_KIND and _return_route_enabled
+				and policy_reason == &"alignment_below_threshold"):
+			_mutation_active = true
+			_final_approach_state = FinalApproachState.ABORTED
+			_last_final_approach_reason = policy_reason
+			_mutation_active = false
+			_emit_final_approach_changed()
 	if _sequence >= MAX_SAFE_INTEGER:
 		return _commit_evaluation_rejection(&"sequence_exhausted", {})
 	var candidate_sequence := _sequence + 1
@@ -750,7 +780,14 @@ func rebind_coordinate_frame(
 	if _final_approach_target is FinalApproachTarget:
 		(_final_approach_target as FinalApproachTarget).target_world_transform.origin += world_translation
 	elif _final_approach_target is ReturnApproachTarget:
-		(_final_approach_target as ReturnApproachTarget).home_target_world_transform.origin += world_translation
+		var home := _final_approach_target as ReturnApproachTarget
+		if home.home_origin_tracking:
+			# Match the yard's parent/local composition, including float rounding.
+			# Translating the already-composed marker separately slowly drifts.
+			home.home_origin_world_transform.origin += world_translation
+			home.home_target_world_transform = home.home_origin_world_transform * home.home_origin_local_transform
+		else:
+			home.home_target_world_transform.origin += world_translation
 	_coordinate_frame_generation = coordinate_frame_generation
 	if _final_approach_target is FinalApproachTarget:
 		(_final_approach_target as FinalApproachTarget).coordinate_frame_generation = (
@@ -764,7 +801,10 @@ func rebind_coordinate_frame(
 	_last_envelope = {}
 	_mutation_active = false
 	_emit_binding_changed()
-	return _receipt(true, &"coordinate_frame_rebound")
+	var receipt := _receipt(true, &"coordinate_frame_rebound")
+	if _final_approach_target is ReturnApproachTarget:
+		receipt["return_home_target_world_transform"] = (_final_approach_target as ReturnApproachTarget).home_target_world_transform
+	return receipt
 
 
 func disengage(expected_generation: int, brake_to_stop: bool = true) -> Dictionary:
@@ -952,7 +992,8 @@ func _measure_return_approach(ship: HeroShip) -> Dictionary:
 	var fleet_proof := target.get_snapshot().get(
 		"fleet_corridor_proof", {}
 	) as Dictionary
-	var accepted := shell_inside and root_inside and hull_inside \
+	var accepted := (not _return_route_enabled or _final_approach_leg == 1) \
+		and shell_inside and root_inside and hull_inside \
 		and bool(fleet_proof.get("accepted", false)) \
 		and speed <= target.maximum_speed_mps \
 		and attitude <= target.maximum_attitude_degrees
@@ -981,9 +1022,14 @@ func _measure_return_approach(ship: HeroShip) -> Dictionary:
 ## HeroShip checks this again when accepting and consuming the envelope. An
 ## arbitrary cruise observation cannot opt into the shorter stopping profile.
 func validate_final_approach_envelope(envelope: Dictionary) -> bool:
-	if _final_approach_state != FinalApproachState.ACTIVE \
-			or _approach_kind != FINAL_APPROACH_KIND \
-			or not _final_approach_target is FinalApproachTarget \
+	return _final_approach_state == FinalApproachState.ACTIVE \
+		and _validate_approach_route_envelope(envelope)
+
+
+func _validate_approach_route_envelope(envelope: Dictionary) -> bool:
+	if _final_approach_state not in [FinalApproachState.ARMED, FinalApproachState.ACTIVE] \
+			or not (_final_approach_target is FinalApproachTarget \
+				or (_final_approach_target is ReturnApproachTarget and _return_route_enabled)) \
 			or int(envelope.get("controller_generation", 0)) != _generation \
 			or int(envelope.get("ship_instance_id", 0)) != _ship_instance_id \
 			or int(envelope.get("ship_attachment_generation", 0)) != _ship_attachment_generation \
@@ -992,12 +1038,22 @@ func validate_final_approach_envelope(envelope: Dictionary) -> bool:
 	var ship := _resolve_ship()
 	if ship == null:
 		return false
-	var offset := _final_approach_policy_destination() - ship.global_position
+	var destination := _return_approach_policy_destination() \
+		if _approach_kind == RETURN_APPROACH_KIND else _final_approach_policy_destination()
+	var offset := destination - ship.global_position
 	var observation := envelope.get("observation", {}) as Dictionary
 	return offset.length() > 0.0 \
 		and float(observation.get("distance_to_destination_meters", -1.0)) == offset.length() \
 		and (envelope.get("destination_direction_world", Vector3.ZERO) as Vector3) \
 			.is_equal_approx(offset.normalized())
+
+
+func _return_approach_policy_destination() -> Vector3:
+	var target := _final_approach_target as ReturnApproachTarget
+	var shell_center := (target.brake_shell_min_distance_m + target.brake_shell_max_distance_m) * 0.5
+	var lead_in := target.brake_shell_max_distance_m + shell_center
+	return target.home_target_world_transform * Vector3(0.0, 0.0,
+		lead_in if _final_approach_leg == 0 else shell_center)
 
 
 func _final_approach_policy_destination() -> Vector3:
@@ -1024,21 +1080,27 @@ func _advance_final_approach_leg(ship: HeroShip) -> void:
 ## Read only authority for HeroShip's bounded, stationary route turn. Reuses the
 ## exact envelope/frame/attachment and current-leg destination authentication.
 func get_final_approach_turn_target(envelope: Dictionary) -> Dictionary:
-	if not validate_final_approach_envelope(envelope):
+	if not _validate_approach_route_envelope(envelope):
 		return {}
+	var return_route := _approach_kind == RETURN_APPROACH_KIND
 	var target := _final_approach_target as FinalApproachTarget
-	if target.lead_in_height_m <= 0.0:
+	if not return_route and (target.lead_in_height_m <= 0.0
+			or _final_approach_state != FinalApproachState.ACTIVE):
 		return {}
 	var reason := StringName(envelope.get("policy_reason", &""))
 	if reason not in [&"alignment_below_threshold", &"cruise_participation_desired"]:
 		return {}
 	var ship := _resolve_ship()
-	if ship == null or (_final_approach_leg == 0 and ship.velocity.length() > 12.0):
+	if ship == null or (not return_route and _final_approach_leg == 0 and ship.velocity.length() > 12.0):
 		return {}
-	var direction := (_final_approach_policy_destination() - ship.global_position).normalized()
-	var up := target.target_world_transform.basis.y.normalized()
+	var destination := _return_approach_policy_destination() if return_route \
+		else _final_approach_policy_destination()
+	var target_transform := (_final_approach_target as ReturnApproachTarget).home_target_world_transform \
+		if return_route else target.target_world_transform
+	var direction := (destination - ship.global_position).normalized()
+	var up := target_transform.basis.y.normalized()
 	if absf(direction.dot(up)) > 0.99:
-		up = target.target_world_transform.basis.z.normalized() \
+		up = target_transform.basis.z.normalized() \
 			* (1.0 if direction.dot(up) > 0.0 else -1.0)
 	return {"target_basis": Basis.looking_at(direction, up), "leg": _final_approach_leg}
 
