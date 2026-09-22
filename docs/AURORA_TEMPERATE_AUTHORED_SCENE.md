@@ -168,11 +168,11 @@ the visit leases its exploration berth on *this* scene's own `LandingRegion`,
 stands an `AuroraVisitApproachSource`, engages the cruise and arms the authored
 corridor from `aurora_foundation_landing.tres`. The touchdown is a real
 `ShipBerth` lease and a real `HeroShip.request_berth_landing()`, and the
-existing return places the craft near its home berth, then commits a rebase
-that streams Aurora out. Surface abandonment retains that restoration path;
-outbound cancellation leaves the craft at its current physical pose.
+return now uses physical departure and shared cruise before ordinary home
+landing. Explicit surface rescue retains its restoration path; cancellation
+leaves the craft at its current physical pose.
 
-### Physical outbound travel and remaining placements
+### Physical travel and remaining recovery placements
 
 A new visit requires a physically departed craft. The pilot climbs clear of the
 yard and faces Aurora before requesting cruise; existing active-flight-objective
@@ -187,8 +187,11 @@ Fresh outbound travel makes no orbital-standoff, corridor-entry or berth-staging
 placement. Cancelling outbound releases its own cruise and landing ownership at
 the current pose without overwriting recovery or a replacement craft's lifecycle.
 Manual input retains priority; the requested visit can resume when input ends.
-Interrupted-visit restoration and the return leg still use explicit placements.
-Physical outbound completion does not establish a physical Aurora return.
+Interrupted-visit restoration and explicit rescue still use placements. RETURN
+retains the occupied surface lease until real takeoff, queues cruise while the
+pilot climbs clear, and carries the same craft through origin shifts. Its
+authenticated home-shell receipt hands control to ordinary manual flight and
+registered-berth landing; reaching that shell does not claim docking.
 
 The isolated production and visit-loop suites pass 69 and 50 assertions on
 `727f2588e`: physical approach and docking, pilot continuity, cabin sleep/wake,
@@ -199,9 +202,21 @@ orientation from the yard without subsequent actor placement; its full 12,000 km
 run on `727f2588e` failed before landing: the craft flew over 12,000 km with
 continuous actor movement and 1,200 origin shifts, but final approach retired
 after descent and exhausted 600 re-engagement attempts. The last refusal was
-`alignment_below_threshold`; the first retirement cause is under investigation.
+`alignment_below_threshold`. The first retirement was subsequently reproduced:
+a low-descent rebase introduced 8.8 mm of floating-point disagreement between
+the cached landing root and its live parent/local composition. The fix preserves
+that composition order through rebases without widening tolerances. The same
+reproduction now lands (14 assertions); the existing handoff regression passes
+27 assertions, including rejection of genuine local movement and reparenting.
 This is not a full-flight pass. The test ends the automatically selected Cinder activity through the
 public session-fenced failure API, so it does not establish a complete fresh-save
 objective playthrough. Logs: `aurora-production-isolated.log`,
 `aurora-visit-loop-isolated.log` and `aurora-full-flight-frozen.log` under
 `/root/.cache/mudds-shipyards/`.
+
+The combined candidate `bc38358ef` includes this fix and physical return.
+Separate return checks pass real departure/unload (20 assertions), near-home
+flight/docking/walking (10, Torrent), Halyard local landing/walking (5), and
+existing Aurora suites (68 and 49). These separate fixtures do not establish a
+full same-craft round trip. That explicit Halyard acceptance is pending; the
+latest published checkpoint remains `080f6ae`.
