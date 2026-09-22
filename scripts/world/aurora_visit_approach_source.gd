@@ -25,6 +25,9 @@ var _coordinate_frame_generation := 0
 var _location_generation := 0
 var _arm_count := 0
 var _retire_count := 0
+var _bootstrap: AuroraTemperateStreamingBootstrap
+var _origin_owner: CommonWorldOriginRebaseOwner
+var _frame_instance_id := 0
 
 
 func _enter_tree() -> void:
@@ -44,11 +47,25 @@ func _ready() -> void:
 func arm(
 		coordinate_frame_generation: int,
 		location_generation: int,
+		bootstrap: AuroraTemperateStreamingBootstrap = null,
+		origin_owner: CommonWorldOriginRebaseOwner = null,
 	) -> Dictionary:
 	if _ready_for_approach:
 		return _result(false, &"approach_source_already_armed")
 	if coordinate_frame_generation < 1 or location_generation < 1:
 		return _result(false, &"approach_source_generation_invalid")
+	if bootstrap != null or origin_owner != null:
+		if not is_instance_valid(bootstrap) or not is_instance_valid(origin_owner) \
+				or not bootstrap.is_inside_tree() or not origin_owner.is_inside_tree() \
+				or bootstrap.get_parent() != get_parent() or origin_owner.get_parent() != get_parent():
+			return _result(false, &"approach_source_composition_invalid")
+		var frame := bootstrap.get_coordinate_frame_for_session()
+		if frame == null or frame.get_generation() != coordinate_frame_generation \
+				or int(bootstrap.get_snapshot().get("location_generation", 0)) != location_generation:
+			return _result(false, &"approach_source_frame_invalid")
+		_bootstrap = bootstrap
+		_origin_owner = origin_owner
+		_frame_instance_id = frame.get_instance_id()
 	_coordinate_frame_generation = coordinate_frame_generation
 	_location_generation = location_generation
 	_attachment_generation += 1
@@ -60,6 +77,37 @@ func arm(
 	})
 
 
+## Advances only this readiness fence after the common owner committed the
+## exact Aurora transaction. Geometry belongs to the translated landing root.
+func accept_committed_origin_rebase(
+	receipt: Dictionary, expected_generation: int, expected_attachment_generation: int
+) -> Dictionary:
+	if not _ready_for_approach or not is_inside_tree() or is_queued_for_deletion() \
+			or expected_generation != _generation \
+			or expected_attachment_generation != _attachment_generation:
+		return _result(false, &"approach_source_stale_attachment")
+	if not is_instance_valid(_bootstrap) or not _bootstrap.is_inside_tree() \
+			or _bootstrap.is_queued_for_deletion() \
+			or not is_instance_valid(_origin_owner) or not _origin_owner.is_inside_tree() \
+			or _origin_owner.is_queued_for_deletion() \
+			or _bootstrap.get_parent() != get_parent() or _origin_owner.get_parent() != get_parent():
+		return _result(false, &"approach_source_composition_invalid")
+	var frame := _bootstrap.get_coordinate_frame_for_session()
+	var target_generation := int(receipt.get("target_generation", 0))
+	var delta: Variant = receipt.get("world_translation_delta")
+	if receipt != _origin_owner.get_snapshot().get("last_receipt", {}) \
+			or receipt.get("world_id", &"") != AuroraTemperateStreamingBootstrap.WORLD_ID \
+			or int(receipt.get("source_generation", 0)) != _coordinate_frame_generation \
+			or target_generation != _coordinate_frame_generation + 1 \
+			or not delta is Vector3 or not (delta as Vector3).is_finite() \
+			or frame == null or frame.get_instance_id() != _frame_instance_id \
+			or frame.get_generation() != target_generation \
+			or int(_bootstrap.get_snapshot().get("location_generation", 0)) != _location_generation:
+		return _result(false, &"approach_source_origin_receipt_invalid")
+	_coordinate_frame_generation = target_generation
+	return _result(true, &"approach_source_origin_adopted")
+
+
 ## Withdraws readiness. A cruise still flying an approach against this source
 ## will see it stop being ready and drop the approach, which is the intended
 ## fail-closed behaviour for a visit that is ending.
@@ -67,6 +115,9 @@ func retire(reason: StringName = &"approach_source_retired") -> Dictionary:
 	if not _ready_for_approach:
 		return _result(true, &"approach_source_already_retired")
 	_ready_for_approach = false
+	_bootstrap = null
+	_origin_owner = null
+	_frame_instance_id = 0
 	_generation += 1
 	_coordinate_frame_generation = 0
 	_location_generation = 0

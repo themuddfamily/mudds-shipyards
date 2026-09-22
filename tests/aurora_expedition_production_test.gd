@@ -6,11 +6,17 @@ const EXPEDITION := preload("res://scripts/game/aurora_expedition.gd")
 const SUCCESS_MARKER := "AURORA_EXPEDITION_PRODUCTION_TEST_OK"
 var _failures: Array[String] = []
 var _assertions := 0
+var _outbound_fixture_ready := false
+var _full_flight := false
+var _travel_distance_m := 0.0
+var _travel_rebases := 0
+var _travel_max_step := 0.0
 
 func _init() -> void:
 	call_deferred(&"_run")
 
 func _run() -> void:
+	_full_flight = "--aurora-full-flight" in OS.get_cmdline_user_args()
 	await _test_arrow_access_forwarding()
 	var game := MAIN.instantiate() as GameFlow
 	root.add_child(game)
@@ -34,14 +40,17 @@ func _run() -> void:
 	var home_position := craft.global_position
 	var owner = game.get("_aurora_expedition")
 	game.call(&"_sync_planetary_cruise_hud")
+	await _prepare_bounded_outbound(game)
 	var row := _row(game)
 	_check(bool(row.get("route_available", false)) and bool(row.get("action_enabled", false)), "Aurora is a selectable production destination: %s" % row.get("status_text"))
 	if not bool(row.get("action_enabled", false)):
 		await _finish(game)
 		return
-	_press_destination(game)
+	await _press_destination(game)
 	_check(owner.state == &"outbound" and not paused, "the visible Destination Board action starts the production cruise and resumes play")
-	await _wait_state(owner, &"landed", 6000)
+	if not _full_flight:
+		await _check_cancel_lifecycle_ownership(game, craft, owner)
+	await _wait_state(owner, &"landed", 48_000 if _full_flight else 6500)
 	_check(owner.state == &"landed", "physical landing completes at Aurora (state %s)" % owner.state)
 	if owner.state != &"landed":
 		await _finish(game)
@@ -50,6 +59,16 @@ func _run() -> void:
 	var surface := owner.get("_surface") as Node3D
 	_check(craft.global_position.distance_to(game.world.global_position) > 10000000.0 and berth.get_occupant() == craft and bool(craft.get_telemetry().get("landed", false)), "the same Halyard occupies the real Aurora surface berth")
 	_check(surface.get_node_or_null("LandingRegion/CoastalExploration/CoastalLookoutSign") != null, "the visited world contains explorable lookout and standing stones")
+	_check(int(owner.get_visit_snapshot().get("staging_events", -1)) == 0,
+		"outbound expedition makes zero actor placements")
+	_check(is_equal_approx(float(craft.get_telemetry().get("hull", 0)), float(craft.get_telemetry().get("maximum_hull", -1))),
+		"physical arrival preserves full hull health")
+	if _full_flight:
+		_check(_travel_distance_m > 11_800_000.0 and _travel_rebases > 1100,
+			"unstaged outbound physically crosses twelve million metres and over1100 rebases")
+		print("AURORA_FULL_OUTBOUND distance=", _travel_distance_m, " rebases=", _travel_rebases, " max_step=", _travel_max_step, " hull=", craft.get_telemetry().get("hull"))
+		await _finish(game)
+		return
 	await _press_interact()
 	await _wait_state(owner, &"surface", 240)
 	for i in range(30):
@@ -91,7 +110,7 @@ func _run() -> void:
 	await _press_interact()
 	await _wait_state(owner, &"landed", 240)
 	_check(game.player.is_seated() and game._piloting and game.active_ship == craft, "E reboards the same physical craft")
-	_press_destination(game)
+	await _press_destination(game)
 	await _wait_state(owner, &"idle", 6000)
 	# The yard itself has travelled through two committed origin rebases by now,
 	# so the craft is measured against its live home berth rather than a pose
@@ -100,19 +119,32 @@ func _run() -> void:
 	_check(owner.state == &"idle" and craft.global_position.distance_to(home_berth.get_dock_transform().origin) < 1.0 and bool(craft.get_telemetry().get("landed", false)), "return action physically docks the craft at its original home berth")
 	_check(game.player.is_seated() and game._piloting and game.world.visible and not is_instance_valid(owner.get("_surface")), "round trip restores station presentation and seated controls and unloads Aurora")
 	game.call(&"_sync_planetary_cruise_hud")
-	_press_destination(game)
+	await _press_destination(game)
 	_check(owner.state == &"outbound", "a second trip is immediately selectable")
 	# The same production entry point the board row calls, taken while the
 	# approach is still outbound: a pilot may give up on a cruise in flight.
+	Input.action_press(&"move_right")
+	for i in 6:
+		await physics_frame
+		await process_frame
+	_check(craft.has_manual_flight_intent() and not bool(game.planetary_cruise_binding.get_snapshot().get("engagement_requested", true)),
+		"held manual input retains control instead of automatic transit retry")
+	var cancel_pose := craft.global_transform
+	var cancel_velocity := craft.velocity
 	_check(
 		bool(owner.runtime_state().get("action_enabled", false)) and owner.request(),
 		"an outbound cruise can be abandoned from the same production control"
 	)
-	await _wait_state(owner, &"idle", 6000)
-	# The abandon hands the craft back to the ordinary home landing assist, which
-	# is a real physical touchdown and takes its own ticks.
-	await _wait_landed(craft, 600)
-	_check(owner.state == &"idle" and bool(craft.get_telemetry().get("landed", false)), "abandoning the second outbound cruise returns through the same home landing path")
+	_check(owner.state == &"idle" and craft.global_transform == cancel_pose
+		and craft.velocity == cancel_velocity and game.player.is_seated()
+		and craft.is_piloted() and game.phase == GameFlow.Phase.FREE_FLIGHT,
+		"abandoning outbound releases autopilot at the current pose with pilot control retained")
+	Input.action_release(&"move_right")
+	for i in 4:
+		await physics_frame
+		await process_frame
+	_check(not bool(game.planetary_cruise_binding.get_snapshot().get("engagement_requested", true)),
+		"explicit cancellation stays final after manual input is released")
 	# Interrupt a live on-foot visit, then interrupt a second visit halfway
 	# through its embodiment transition. Both recover usable controls and leases.
 	for interrupted_state: StringName in [&"surface", &"disembarking"]:
@@ -126,7 +158,7 @@ func _run() -> void:
 				await physics_frame
 				if game._piloting:
 					break
-		_press_destination(game)
+		await _press_destination(game)
 		await _wait_state(owner, &"landed", 6000)
 		game.call(&"_try_exit_ship")
 		await _wait_state(owner, interrupted_state, 240)
@@ -201,13 +233,144 @@ func _row(game: GameFlow) -> Dictionary:
 			return row
 	return {}
 
+func _check_cancel_lifecycle_ownership(game: GameFlow, craft: HeroShip, owner: RefCounted) -> void:
+	var pose := craft.global_transform
+	var velocity := craft.velocity
+	var prior_phase := game.phase
+	var prior_landing := game._landing_request_active
+	var prior_berth := game._active_landing_berth_id
+	game._recovering = true
+	game.phase = GameFlow.Phase.FAILED
+	game._landing_request_active = true
+	game._active_landing_berth_id = &"recovery_owner"
+	owner.cancel()
+	_check(game.phase == GameFlow.Phase.FAILED and game._landing_request_active
+		and game._active_landing_berth_id == &"recovery_owner"
+		and craft.global_transform == pose and craft.velocity == velocity,
+		"outbound cancellation preserves recovery-owned lifecycle and actor pose")
+	game._recovering = false
+	game.phase = prior_phase
+	game._landing_request_active = prior_landing
+	game._active_landing_berth_id = prior_berth
+	for i in 6:
+		await physics_frame
+		await process_frame
+	_check(owner.request(), "fresh request after recovery-fence fixture reopens travel")
+	pose = craft.global_transform
+	velocity = craft.velocity
+	game.active_ship = game.ship
+	game.phase = GameFlow.Phase.SHUT_DOWN
+	game._landing_request_active = true
+	game._active_landing_berth_id = &"replacement_owner"
+	owner.physics_tick(1.0 / 60.0)
+	_check(owner.state == &"idle" and game.active_ship == game.ship
+		and game.phase == GameFlow.Phase.SHUT_DOWN and game._landing_request_active
+		and game._active_landing_berth_id == &"replacement_owner"
+		and craft.global_transform == pose and craft.velocity == velocity,
+		"stale voyage cancellation preserves the replacement craft's lifecycle")
+	game.active_ship = craft
+	game.phase = prior_phase
+	game._landing_request_active = prior_landing
+	game._active_landing_berth_id = prior_berth
+	for i in 6:
+		await physics_frame
+		await process_frame
+	_check(owner.request(), "fresh request after replacement-fence fixture reopens travel")
+
+
+## Explicit bounded-test setup. Real boarding/departure precede this distance
+## placement; production expedition movement begins only after it. Full 12 Mm
+## travel is qualified separately and is never inferred from this fixture.
+func _prepare_bounded_outbound(game: GameFlow) -> void:
+	var owner: RefCounted = game.get("_aurora_expedition")
+	if owner.is_active() or _outbound_fixture_ready:
+		return
+	var craft := game.active_ship as HeroShip
+	if bool(craft.get_telemetry().get("landed", true)):
+		_check(not bool(owner.runtime_state().get("action_enabled", true)),
+			"parked Aurora action asks the pilot to physically depart first")
+		Input.action_press(&"hover")
+		Input.action_press(&"move_forward")
+		for i in 180:
+			await physics_frame
+			await process_frame
+		Input.action_release(&"hover")
+		Input.action_release(&"move_forward")
+		for i in 4:
+			await physics_frame
+			await process_frame
+	print("AURORA_DEPARTURE phase=", game.phase, " landed=", craft.get_telemetry().get("landed"), " departed=", game._sortie_departed_berth)
+	_check(game.phase in [GameFlow.Phase.FREE_FLIGHT, GameFlow.Phase.SHUT_DOWN] and game._sortie_departed_berth and not bool(craft.get_telemetry().get("landed", true)),
+		"held pilot controls physically depart the yard")
+	# Isolate this arrival fixture from the unrelated automatically selected activity.
+	var activity := game.cinder_race_session.get_presentation_snapshot()
+	if bool(activity.get("running", false)):
+		game.cinder_race_session.fail(&"arrival_fixture_activity_ended", game.cinder_race_session.get_session_generation())
+	var bootstrap := game.aurora_streaming_bootstrap
+	var frame := bootstrap.get_coordinate_frame_for_session()
+	var encoded := frame.body_local_to_orbital_position(
+		bootstrap.get_navigation_destination().get("body_local_position_meters"), frame.get_generation())
+	var anchor := frame.orbital_to_world_streaming_position(
+		encoded.get("coordinate"), frame.get_generation()).get("position", Vector3.INF) as Vector3
+	if _full_flight:
+		var departure_origin := craft.global_position
+		Input.action_press(&"move_forward")
+		for i in 1800:
+			var climb_local := craft.global_basis.inverse() * Vector3(0.0, 0.8, -0.6)
+			Input.action_release(&"pitch_up")
+			Input.action_release(&"pitch_down")
+			if absf(climb_local.y) > 0.01:
+				Input.action_press(&"pitch_up" if climb_local.y > 0.0 else &"pitch_down", minf(absf(climb_local.y) * 2.0, 1.0))
+			await physics_frame
+			await process_frame
+			if craft.global_position.distance_to(departure_origin) > 500.0:
+				break
+		Input.action_release(&"move_forward")
+		Input.action_release(&"pitch_up")
+		Input.action_release(&"pitch_down")
+		_check(craft.global_position.distance_to(departure_origin) > 500.0,
+			"pilot flies clear of the shipyard before turning toward Aurora")
+		# Real pilot controls align the yard-departed craft toward Aurora at +X.
+		var aligned := false
+		for i in 900:
+			var direction := (anchor - craft.global_position).normalized()
+			var local_direction := craft.global_basis.inverse() * direction
+			for action in [&"move_left", &"move_right", &"pitch_up", &"pitch_down"]:
+				Input.action_release(action)
+			if (-craft.global_basis.z).dot(direction) > 0.99995:
+				aligned = true
+				break
+			Input.action_press(&"move_right" if local_direction.x > 0.0 else &"move_left", minf(absf(local_direction.x) * 2.0, 1.0))
+			Input.action_press(&"pitch_up" if local_direction.y > 0.0 else &"pitch_down", minf(absf(local_direction.y) * 2.0, 1.0))
+			await physics_frame
+			await process_frame
+		for action in [&"move_left", &"move_right", &"pitch_up", &"pitch_down"]:
+			Input.action_release(action)
+		for i in 4:
+			await physics_frame
+			await process_frame
+		_check(aligned, "held pilot yaw and pitch physically align the craft toward Aurora")
+		_outbound_fixture_ready = true
+		return
+	craft.global_transform = Transform3D(Basis.IDENTITY, anchor + Vector3.BACK * 70_000.0)
+	craft.velocity = Vector3.ZERO
+	craft.reset_physics_interpolation()
+	for i in 2:
+		await physics_frame
+		await process_frame
+	_outbound_fixture_ready = true
+	print("AURORA_BOUNDED_FIXTURE: distance staged before request; outbound owner must make zero placements")
+
+
 func _press_destination(game: GameFlow) -> void:
+	await _prepare_bounded_outbound(game)
 	game.call(&"_sync_planetary_cruise_hud")
 	game.hud.open_planetary_destination_board()
 	var button := game.hud.find_child("PlanetaryDestinationAction_aurora_temperate_world", true, false) as Button
 	_check(button != null and not button.disabled, "Aurora's visible action is enabled")
 	if button != null and not button.disabled:
 		button.pressed.emit()
+	_outbound_fixture_ready = false
 
 func _wait_landed(craft: HeroShip, frames: int) -> void:
 	for _index in range(frames):
@@ -217,11 +380,54 @@ func _wait_landed(craft: HeroShip, frames: int) -> void:
 
 
 func _wait_state(owner: RefCounted, target: StringName, frames: int) -> void:
-	for i in range(frames):
+	var game := owner.get("_flow") as GameFlow
+	var craft := owner.get("_ship") as HeroShip
+	var samples := {"delta": Vector3.ZERO}
+	var origin: CommonWorldOriginRebaseOwner = game.common_world_origin_rebase_owner if is_instance_valid(game) else null
+	var receive_rebase := func(receipt: Dictionary) -> void:
+		samples.delta = (samples.delta as Vector3) + (receipt.get("world_translation_delta", Vector3.ZERO) as Vector3)
+		_travel_rebases += 1
+	if is_instance_valid(origin):
+		origin.rebase_committed.connect(receive_rebase)
+	var fault := ""
+	for i in frames:
+		var physical: bool = owner.state in [&"outbound", &"corridor", &"landing"] and is_instance_valid(craft) and is_instance_valid(origin)
+		var previous_ship := craft.global_position if physical else Vector3.ZERO
+		var previous_player := game.player.global_position if physical else Vector3.ZERO
+		var previous_speed := craft.velocity.length() if physical else 0.0
+		var previous_basis := craft.global_basis if physical else Basis.IDENTITY
+		var previous_tick := Engine.get_physics_frames()
+		samples.delta = Vector3.ZERO
 		await physics_frame
-		if owner.get("state") == target:
-			return
-	print("WAIT ENDED: ", owner.get("state"), " wanted ", target)
+		await process_frame
+		if physical:
+			var elapsed := float(Engine.get_physics_frames() - previous_tick) / float(Engine.physics_ticks_per_second)
+			var translation := samples.delta as Vector3
+			var ship_step := craft.global_position.distance_to(previous_ship + translation)
+			_travel_distance_m += ship_step
+			_travel_max_step = maxf(_travel_max_step, ship_step)
+			if _full_flight and i % 600 == 0:
+				print("AURORA_FULL_TICK tick=", i, " state=", owner.state, " distance=", _travel_distance_m, " rebases=", _travel_rebases, " speed=", craft.velocity.length(), " cruise=", game.planetary_cruise_binding.get_snapshot().get("last_reason"))
+			var motion_bound := maxf(previous_speed, craft.velocity.length()) * elapsed + 0.25
+			var seat_radius := craft.get_pilot_seat_anchor().global_position.distance_to(craft.global_position)
+			var rotation_allowance := Quaternion(previous_basis).angle_to(Quaternion(craft.global_basis)) * seat_radius
+			if craft.global_position.distance_to(previous_ship + translation) > motion_bound \
+					or game.player.global_position.distance_to(previous_player + translation) > motion_bound + rotation_allowance:
+				fault = "outbound actor moved beyond physical velocity and seat rotation"
+			var area := craft.get_node("ShipBoardingArea") as ShipBoardingArea
+			if not craft.is_piloted() or not game.player.is_seated_at(craft.get_pilot_seat_anchor()) \
+					or area.get_reservation_token() != game.player:
+				fault = "outbound lost the exact seated pilot reservation"
+			if not fault.is_empty():
+				break
+		if owner.state == target:
+			break
+	if is_instance_valid(origin):
+		origin.rebase_committed.disconnect(receive_rebase)
+	_check(fault.is_empty(), "physical arrival preserves per-tick actor continuity and exact pilot ownership: " + fault)
+	if owner.state != target:
+		print("WAIT ENDED: ", owner.state, " wanted ", target, " snapshot=", owner.get_visit_snapshot() if owner.has_method("get_visit_snapshot") else {})
+
 
 func _press_interact() -> void:
 	Input.action_press(&"interact")

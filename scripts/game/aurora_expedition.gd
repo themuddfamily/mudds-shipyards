@@ -11,14 +11,10 @@ extends RefCounted
 ## flown by the real cruise controller, and the touchdown is a real
 ## `ShipBerth` lease on the streamed world's own landing region.
 ##
-## Two legs have no production movement owner anywhere in this repository - the
-## interplanetary transit and the last kilometre into the corridor mouth - and
-## `docs/EMBER_MOON_ORBITAL_STREAMING.md` records that gap for Ember as well.
-## This visit plays exactly that missing owner and nothing else: it holds the
-## craft at Aurora's canonical navigation standoff until the real cruise binding
-## reports its approach ACTIVE, and places it once at the authored corridor
-## entry pose. Both placements are counted as `staging_events`. Every metre
-## after them is produced by a production movement owner.
+## Outbound movement belongs to the shared cruise controller and HeroShip's
+## berth landing assist. The visit only admits, observes and leases the route.
+## Interrupted-visit restoration and the return leg still retain their existing
+## explicit recovery placements; neither is outbound travel.
 const DESTINATION_ID: StringName = &"aurora_temperate_world"
 const LANDING_REGION_PATH := ^"LandingRegion"
 const LANDING_REGION_RESOURCE_PATH := \
@@ -27,11 +23,9 @@ const _LANDING_REGION := preload(LANDING_REGION_RESOURCE_PATH)
 const ApproachSourceType := preload(
 	"res://scripts/world/aurora_visit_approach_source.gd"
 )
-## Matches the standoff the Ember loop soak holds its craft at while the real
-## cruise binding arms: far enough out to be a hold, close enough to be inside
-## the streaming envelope once the rebase has committed.
+## Interrupted-visit restoration alone uses this recovery offset. Ordinary
+## outbound travel never stages at the navigation anchor.
 const ORBIT_STANDOFF_M := 500.0
-const ORBIT_HOLD_SPEED_MPS := 8.0
 ## The approach entry volume the corridor is measured against. Taken from the
 ## Ember Host's own envelope constant so both worlds present the same tolerance.
 const APPROACH_ENTRY_POSITION_HALF_EXTENTS_M := Vector3(42.0, 25.0, 75.0)
@@ -41,7 +35,9 @@ const APPROACH_HULL_MARGIN_M := 0.05
 ## Bounded tick budgets. Every wait in this visit is a tick budget, never a
 ## wall clock, and every exhausted budget cancels rather than stalling.
 const ORBIT_STAGE_TICK_BUDGET := 900
-const CORRIDOR_TICK_BUDGET := 3000
+const OUTBOUND_TICK_BUDGET := 48_000
+const MAX_CRUISE_RESUME_ATTEMPTS := 600
+const CORRIDOR_TICK_BUDGET := 12_000
 const DEPARTURE_TICK_BUDGET := 900
 
 var _flow: GameFlow
@@ -58,6 +54,7 @@ var _landing_elapsed := 0.0
 var _approach_source: AuroraVisitApproachSource
 var _staging_events := 0
 var _orbit_ticks := 0
+var _cruise_resume_attempts := 0
 var _corridor_ticks := 0
 var _departure_ticks := 0
 var _retire_ticks := 0
@@ -115,8 +112,10 @@ func _launch_rejection() -> String:
 		return "CANCEL EMBER CRUISE FIRST"
 	if _flow._planetary_cruise_combat_active() or _flow._selected_activity_is_running():
 		return "FINISH THE ACTIVE FLIGHT OBJECTIVE"
-	if _flow.phase not in [GameFlow.Phase.START_ENGINES, GameFlow.Phase.FREE_FLIGHT, GameFlow.Phase.SHUT_DOWN]:
-		return "FREE FLIGHT REQUIRED"
+	var departed_return := _flow.phase == GameFlow.Phase.SHUT_DOWN and _flow._sortie_departed_berth
+	if (_flow.phase != GameFlow.Phase.FREE_FLIGHT and not departed_return) \
+			or bool(_flow.active_ship.get_telemetry().get("landed", true)):
+		return "DEPART SHIPYARD, THEN FACE AURORA"
 	var definition := _flow.active_ship.get_ship_definition()
 	if definition == null or not ("small_craft" in definition.compatibility_tags or "medium_craft" in definition.compatibility_tags):
 		return "SMALL OR MEDIUM CRAFT REQUIRED"
@@ -141,38 +140,35 @@ func request() -> bool:
 	var departure := craft.global_transform
 	var station_visible := _flow.world.visible
 	var station_environment := _flow.get_viewport().world_3d.environment
-	_flow._release_ship_berth(craft)
-	_flow.phase = GameFlow.Phase.FREE_FLIGHT
 	# Admission is the journey coordinator's, exactly as an Ember expedition's
 	# is: it points the one cruise binding at Aurora, makes sure the one origin
 	# owner holds Aurora's pair, and engages the cruise.
 	_last_admission = _flow._planetary_journey.admit_aurora_visit(craft, false)
 	if not bool(_last_admission.get("accepted", false)):
-		_flow._reserve_berth_for_ship(craft, craft.get_home_berth_id(), false)
 		_flow.hud.toast(
 			"Aurora expedition unavailable",
 			str(_last_admission.get("reason", &"aurora_visit_refused")), 2.4
 		)
 		return false
+	_flow.phase = GameFlow.Phase.FREE_FLIGHT
 	_ship = craft
 	_home = home
 	_departure = departure
 	_station_visible = station_visible
 	_station_environment = station_environment
-	_ship.velocity = Vector3.ZERO
 	_staging_events = 0
+	_cruise_resume_attempts = 0
 	_orbit_ticks = 0
 	_corridor_ticks = 0
 	_departure_ticks = 0
 	_committed_rebases_outbound = 0
 	state = &"outbound"
 	_flow._sortie_departed_berth = true
-	# The craft is still in its berth, ringed by station geometry the cruise
-	# controller's full-hull clearance sweep would read as an obstacle on its
-	# very first tick and disengage for. The one staged transit placement
-	# therefore happens here, before any production component has observed the
-	# craft, rather than a tick later.
-	_stage_orbital_standoff()
+	var engaged := _flow._planetary_journey.engage_aurora_cruise(_ship, true)
+	if not bool(engaged.get("accepted", false)):
+		_last_leg_result = engaged.duplicate(true)
+		cancel()
+		return false
 	_flow.hud.toast(
 		"Cruise to Aurora", "Streaming the world and arming the landing approach",
 		2.5
@@ -181,14 +177,14 @@ func request() -> bool:
 	return true
 
 
-## Detached evidence for a visit in progress. Counts the two staged placements
-## by name so a caller can tell production movement from staged movement.
+## Detached visit state. Fresh outbound travel records no staging events.
 func get_visit_snapshot() -> Dictionary:
 	return {
 		"state": state,
 		"staging_events": _staging_events,
 		"committed_rebases_outbound": _committed_rebases_outbound,
 		"orbit_ticks": _orbit_ticks,
+		"cruise_resume_attempts": _cruise_resume_attempts,
 		"corridor_ticks": _corridor_ticks,
 		"departure_ticks": _departure_ticks,
 		"retire_ticks": _retire_ticks,
@@ -269,12 +265,8 @@ func physics_tick(delta: float) -> void:
 		_flow.hud.toast("Surface rescue", "Returned to your ship's access ramp")
 
 
-## The one leg production has no movement owner for. The craft is held at
-## Aurora's canonical navigation standoff, decoded live from the cruise
-## binding's own absolute destination in the current frame, until the real
-## cruise binding reports its authored approach ACTIVE. The rebases that bring
-## Aurora inside its streaming envelope, and the load itself, are committed by
-## the production lane, not here.
+## Streaming becomes resident during physical braking, then the same carried
+## cruise consumes the authored final approach. No actor placement occurs here.
 func _advance_outbound() -> void:
 	var journey := _flow._planetary_journey
 	var visit := journey.get_aurora_visit_snapshot()
@@ -284,6 +276,8 @@ func _advance_outbound() -> void:
 	if not is_instance_valid(bootstrap) or not is_instance_valid(cruise):
 		cancel()
 		return
+	if not _ensure_outbound_cruise():
+		return
 	var loaded := bootstrap.get_loaded_instance()
 	if is_instance_valid(loaded) and not is_instance_valid(_approach_source):
 		_compose_streamed_surface(loaded)
@@ -292,11 +286,11 @@ func _advance_outbound() -> void:
 	var controller := cruise.get_snapshot().get("controller", {}) as Dictionary
 	var approach := controller.get("final_approach", {}) as Dictionary
 	if StringName(approach.get("state_id", &"")) == &"final_approach":
-		_stage_corridor_entry()
+		_corridor_ticks = 0
+		state = &"corridor"
 		return
-	_stage_orbital_standoff()
 	_orbit_ticks += 1
-	if _orbit_ticks > ORBIT_STAGE_TICK_BUDGET:
+	if _orbit_ticks > OUTBOUND_TICK_BUDGET:
 		_last_leg_result = {
 			"accepted": false,
 			"reason": &"aurora_orbit_budget_exhausted",
@@ -312,21 +306,30 @@ func _advance_outbound() -> void:
 		cancel()
 
 
-## Holds the craft at Aurora's canonical navigation standoff, decoded live from
-## the cruise binding's own absolute destination in the current frame. Counted
-## once as a staging event however many ticks the hold lasts.
-func _stage_orbital_standoff() -> void:
-	var navigation := _navigation_standoff_target()
-	if not navigation.is_finite() or not is_instance_valid(_ship):
-		return
-	if _staging_events == 0:
-		_staging_events += 1
-	_ship.global_position = navigation + Vector3.BACK * ORBIT_STANDOFF_M
-	_ship.global_basis = Basis.IDENTITY
-	_ship.reset_physics_interpolation()
-	_ship.velocity = (
-		navigation - _ship.global_position
-	).normalized() * ORBIT_HOLD_SPEED_MPS
+## Manual controls retain priority. A released override may resume this same
+## requested visit; repeated failures consume one finite budget until cancelled.
+func _ensure_outbound_cruise() -> bool:
+	if _ship.has_manual_flight_intent():
+		return false
+	var cruise := _flow.planetary_cruise_binding
+	if not bool(cruise.get_snapshot().get("engagement_requested", false)):
+		_cruise_resume_attempts += 1
+		if _cruise_resume_attempts > MAX_CRUISE_RESUME_ATTEMPTS:
+			_note_leg_failure(&"aurora_cruise_resume_budget_exhausted")
+			cancel()
+			return false
+		var engaged := _flow._planetary_journey.engage_aurora_cruise(_ship, true)
+		if not bool(engaged.get("accepted", false)):
+			_last_leg_result = engaged.duplicate(true)
+			return false
+	if is_instance_valid(_approach_source) and _approach_source.is_ready_for_approach():
+		var armed := _flow._planetary_journey.arm_aurora_final_approach(
+			_approach_source, _landing_region(), _approach_envelope()
+		)
+		if not bool(armed.get("accepted", false)):
+			_last_leg_result = armed.duplicate(true)
+			return false
+	return true
 
 
 ## Everything from here down is flown by the production cruise controller
@@ -341,6 +344,8 @@ func _advance_corridor() -> void:
 	)
 	if _flow._planetary_journey.aurora_final_approach_handoff_ready():
 		_begin_touchdown()
+		return
+	if not _ensure_outbound_cruise():
 		return
 	if _corridor_ticks > CORRIDOR_TICK_BUDGET:
 		var region := _landing_region()
@@ -547,10 +552,8 @@ func _compose_streamed_surface(loaded: Node3D) -> void:
 		}
 		cancel()
 		return
-	# Engage only now: a cruise engaged before Aurora was resident would have
-	# been engaged across the committed rebase that made it resident, and would
-	# have retired itself on that tick.
-	var engaged := _flow._planetary_journey.engage_aurora_cruise(_ship)
+	# Retain the same physical transit attachment when streaming becomes resident.
+	var engaged := _flow._planetary_journey.engage_aurora_cruise(_ship, true)
 	if not bool(engaged.get("accepted", false)):
 		_last_compose_result = engaged.duplicate(true)
 		cancel()
@@ -561,6 +564,7 @@ func _compose_streamed_surface(loaded: Node3D) -> void:
 	var armed_source := _approach_source.arm(
 		frame.get_generation(),
 		int(bootstrap.get_snapshot().get("location_generation", 0)),
+		bootstrap, _flow.common_world_origin_rebase_owner,
 	)
 	if not bool(armed_source.get("accepted", false)):
 		_last_compose_result = armed_source.duplicate(true)
@@ -619,23 +623,6 @@ func _approach_envelope() -> Dictionary:
 	}.duplicate(true)
 
 
-## The second and last staged placement: the authored corridor entry pose the
-## armed approach is written against. Everything after this is flown.
-func _stage_corridor_entry() -> void:
-	var region := _landing_region()
-	if not is_instance_valid(region):
-		cancel()
-		return
-	var corridor := _LANDING_REGION.approach_corridor_transforms_region_local_m[0] \
-		as Transform3D
-	_staging_events += 1
-	_ship.global_transform = region.global_transform * corridor
-	_ship.velocity = Vector3.ZERO
-	_ship.reset_physics_interpolation()
-	_corridor_ticks = 0
-	state = &"corridor"
-
-
 ## The completed production approach hands over here. The visit takes the real
 ## berth lease it already holds and asks HeroShip for a real assisted landing;
 ## nothing manufactures a landed flag.
@@ -648,19 +635,6 @@ func _begin_touchdown() -> void:
 		)
 	state = &"landing"
 	_landing_elapsed = 0.0
-	if is_instance_valid(_berth) and _berth.is_inside_tree():
-		# The third and last staged placement. Ember flies the 300 m from the
-		# corridor mouth to its pad with `EmberSurfaceLoopHost`, which owns a
-		# phased surface descent; Aurora has no such Host and should not grow
-		# one for a coastal visit, and the cruise controller only ever measures
-		# arrival at an approach target rather than flying to it. So the craft
-		# is placed once at the berth's own assist staging pose, and the last
-		# forty metres onto the pad are flown by the production landing assist
-		# through the real lease this visit already holds.
-		_staging_events += 1
-		_ship.global_transform = _berth.get_assist_staging_transform()
-		_ship.velocity = Vector3.ZERO
-		_ship.reset_physics_interpolation()
 	if _surface_token.is_empty() or not is_instance_valid(_berth):
 		_last_leg_result = {
 			"accepted": false, "reason": &"aurora_berth_unavailable",
@@ -923,6 +897,19 @@ func _clear_surface() -> void:
 
 func cancel() -> void:
 	if not is_active():
+		return
+	if state in [&"outbound", &"corridor", &"landing"]:
+		# Revoking travel leaves the same live pilot in direct control at the
+		# current pose. Recovery/return placements are not cancellation movement.
+		_clear_transition_fade()
+		if is_instance_valid(_ship):
+			_ship.call(&"_end_landing_for_lifecycle", &"aurora_cancelled")
+		_flow._planetary_journey.retire_aurora_visit()
+		_clear_surface()
+		state = &"idle"
+		_flow._sync_planetary_cruise_hud()
+		_ship = null
+		_home = null
 		return
 	_clear_transition_fade()
 	if is_instance_valid(_ship):
