@@ -3,7 +3,7 @@ extends SceneTree
 const MAIN_SCENE := preload("res://scenes/main.tscn")
 const Store := preload("res://scripts/persistence/user_data_store.gd")
 const STORE_PATH := "memory://common-origin-owner-settings.json"
-const EXPECTED_ASSERTIONS := 31
+const EXPECTED_ASSERTIONS := 34
 
 var _assertions := 0
 var _failures: Array[String] = []
@@ -39,6 +39,7 @@ func _init() -> void:
 
 
 func _run() -> void:
+	await _check_aurora_transit_carry()
 	var game := MAIN_SCENE.instantiate() as GameFlow
 	_check(game != null, "production Main instantiates")
 	if game == null: _finish(); return
@@ -345,6 +346,59 @@ func _run() -> void:
 	rollback_area.queue_free()
 	await _cleanup(game)
 	_finish()
+
+
+func _check_aurora_transit_carry() -> void:
+	var game := MAIN_SCENE.instantiate() as GameFlow
+	game.configure_runtime_settings_persistence(
+		Store.new("memory://aurora-carry.json", MemoryFilesystem.new()),
+		"memory://aurora-carry-legacy.cfg")
+	root.add_child(game)
+	await process_frame
+	await physics_frame
+	await process_frame
+	game.set_process(false)
+	game.set_physics_process(false)
+	var ship := game.active_ship
+	ship.set_physics_process(false)
+	ship.set_piloted(true)
+	game.set("_piloting", true)
+	game.phase = GameFlow.Phase.FREE_FLIGHT
+	game.opponent.deactivate()
+	# Isolate the origin-carry boundary, not a physical departure flight.
+	ship.global_position = Vector3(11_000.0, 150.0, 0.0)
+	ship.global_basis = Basis.looking_at(Vector3.RIGHT)
+	var before := ship.global_transform
+	var journey: RefCounted = game.get("_planetary_journey")
+	var admitted: Dictionary = journey.call(&"admit_aurora_visit", ship, false)
+	var local: Dictionary = journey.call(&"engage_aurora_cruise", ship)
+	var carried: Dictionary = journey.call(&"engage_aurora_cruise", ship, true)
+	var binding := game.planetary_cruise_binding
+	_check(bool(admitted.get("accepted", false))
+		and bool(local.get("accepted", false)) and bool(carried.get("accepted", false))
+		and bool(binding.get_snapshot().get("carry_transit", false))
+		and ship.global_transform == before,
+		"an admitted Aurora cruise upgrades to continuous transit without placing the craft")
+	var advanced: Dictionary = journey.call(&"advance_aurora_visit", 1.0 / 60.0,
+		game.call(&"_capture_cinder_actor_sample"))
+	var visit: Dictionary = journey.call(&"get_aurora_visit_snapshot")
+	var origin := visit.get("last_origin_result", {}) as Dictionary
+	var adoption := origin.get("adoption", {}) as Dictionary
+	var cruise_adoption := adoption.get("cruise", {}) as Dictionary
+	_check(bool(advanced.get("accepted", false))
+		and int(visit.get("rebase_commit_count", 0)) == 1
+		and bool(adoption.get("accepted", false))
+		and cruise_adoption.get("reason") == &"origin_translation_accepted"
+		and (advanced.get("actor_sample", {}) as Dictionary).get("position") == ship.global_position,
+		"the Aurora caller adopts its real common-origin receipt before the next cruise tick")
+	var repeated := binding.accept_committed_origin_rebase(
+		origin.get("receipt", {}) as Dictionary, binding.get_generation())
+	_check(not bool(repeated.get("accepted", false)),
+		"the same committed Aurora receipt cannot translate the controller twice")
+	journey.call(&"retire_aurora_visit")
+	ship.set_piloted(false)
+	game.set("_piloting", false)
+	await _cleanup(game)
 
 
 func _sample(actor: Node3D) -> Dictionary:
