@@ -101,6 +101,12 @@ Each cycle walks up to the authored relay survey and then takes the production
 exit a player takes when they give up on it, recorded as `stopped_at:
 abandoned_expedition`.
 
+A separate diagnostic on `1255b5426` completed both mandatory checkpoints by
+held production Player input, walked back and reboarded the Arrow through the
+live interaction without ABANDON (exit 0, 19 assertions). Arrival was staged
+before walking, so this proves the surface route and reboarding, not a complete
+physical visit or station reward delivery. No runtime change was needed.
+
 The survey gate itself is still asserted by name first.
 `_consume_ember_surface_reboard_interaction()` answers a real `interact` at the
 boarding area with "Survey return pending" until the survey's mandatory route is
