@@ -247,9 +247,16 @@ func _run() -> void:
 	for tick in 12:
 		await physics_frame
 		await process_frame
+	var reentry_occupancy_current: bool = craft.is_piloted() \
+		and player.is_seated_at(craft.get_pilot_seat_anchor()) \
+		and craft.get_node("ShipBoardingArea").get_reservation_token() == player
 	_check(not bool(cruise.get_snapshot().get("engagement_requested", true))
 		and (game.get("_pending_ember_surface_request") as Dictionary).is_empty()
-		and craft.is_piloted() and player.is_seated(), "whole-Main re-entry aborts pending transit with pilot retained")
+		and reentry_occupancy_current, "whole-Main re-entry aborts pending transit with pilot reservation retained")
+	if not reentry_occupancy_current:
+		await _tear_down(game)
+		_finish()
+		return
 	var reopened := game.begin_ember_surface_journey(host, game.activity_director, Callable(self, &"_on_reward"), 3)
 	_check(bool(reopened.get("accepted", false)), "fresh request after re-entry resumes from current craft position")
 	var sampler := LegSampler.new()
@@ -260,6 +267,9 @@ func _run() -> void:
 		await physics_frame
 		await process_frame
 		sampler.step(game)
+		if sampler.occupancy_failures > 0:
+			print("OUTBOUND_OCCUPANCY_LOST tick=", tick, " unpiloted=", sampler.occupancy_unpiloted, " unreserved=", sampler.occupancy_unreserved)
+			break
 		if sampler.rebase_count > 0 and not _replayed_rebase_checked:
 			var receipt := owner.get_snapshot().get("last_receipt", {}) as Dictionary
 			var before_replay := cruise.get_controller().get_snapshot()
@@ -307,6 +317,9 @@ func _run() -> void:
 			await physics_frame
 			await process_frame
 			sampler.step(game)
+			if sampler.occupancy_failures > 0:
+				print("LANDING_OCCUPANCY_LOST tick=", tick)
+				break
 			landing_max_step = maxf(landing_max_step, maxf(sampler.last_ship_step_m, sampler.last_player_step_m))
 			if host.get_phase() in [EmberSurfaceLoopHost.Phase.LANDED, EmberSurfaceLoopHost.Phase.FAILED]:
 				landed = host.get_phase() == EmberSurfaceLoopHost.Phase.LANDED

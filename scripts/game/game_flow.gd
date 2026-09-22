@@ -803,6 +803,8 @@ var destroyed_targets := 0
 var total_targets := 0
 var _near_ship := false
 var _piloting := false
+## One-use ownership witness for the retained Main subtree leaving the tree.
+var _pilot_reentry_reservation: Dictionary = {}
 ## True only while the same visible pilot is seated in the deck tow tractor.
 ## Deliberately separate from `_piloting`: the tractor is a ground vehicle and
 ## must never reach the flight, berth, landing, combat or regeneration paths that
@@ -1262,6 +1264,7 @@ func _on_game_flow_tree_exiting() -> void:
 
 
 func _exit_tree() -> void:
+	_capture_pilot_reservation_for_reentry()
 	_minimap_pending_actor_sample.clear()
 	_minimap_update_pending = false
 	# Record the visit before the cancel below ends it. The cancel is still the
@@ -5642,6 +5645,7 @@ func _restore_runtime_bindings_after_reentry() -> void:
 	# only re-states the observed session state so a re-entered tree cannot resume
 	# under a stale one.
 	_update_music_bed_state()
+	_restore_pilot_reservation_after_reentry()
 	_restore_cabin_occupancy_after_reentry()
 	# The frames, their occupants and the fleet are the same instances, but the
 	# roster was torn down on the way out. Rebuild it from what is aboard now.
@@ -5660,6 +5664,40 @@ func _restore_runtime_bindings_after_reentry() -> void:
 	_restore_session_recovery_hud_after_reentry()
 	_republish_first_sortie_tutorial_presentation()
 	_republish_activity_tutorial_presentation()
+
+
+func _capture_pilot_reservation_for_reentry() -> void:
+	_pilot_reentry_reservation.clear()
+	if is_queued_for_deletion() or not _piloting or _transition_busy \
+			or not is_instance_valid(active_ship) or not is_instance_valid(player) \
+			or not is_instance_valid(_boarding_area) \
+			or not is_ancestor_of(active_ship) or not is_ancestor_of(player) \
+			or _boarding_area.get_ship() != active_ship \
+			or active_ship.is_destroyed() or not active_ship.is_piloted():
+		return
+	var anchor := active_ship.get_pilot_seat_anchor()
+	if not player.is_seated_at(anchor) \
+			or not _boarding_area.consume_detached_reservation(player):
+		return
+	_pilot_reentry_reservation = {
+		"ship": active_ship, "player": player, "area": _boarding_area,
+		"anchor": anchor, "transition_generation": _transition_generation, "phase": phase,
+	}
+
+
+func _restore_pilot_reservation_after_reentry() -> void:
+	var witness := _pilot_reentry_reservation
+	_pilot_reentry_reservation = {}
+	if witness.is_empty() or not _piloting or _transition_busy \
+			or _transition_generation != int(witness.transition_generation) \
+			or phase != int(witness.phase) \
+			or not is_instance_valid(active_ship) or active_ship != witness.ship \
+			or not is_instance_valid(player) or player != witness.player \
+			or not is_instance_valid(_boarding_area) or _boarding_area != witness.area \
+			or not is_ancestor_of(active_ship) or not is_ancestor_of(player) \
+			or not is_instance_valid(witness.anchor):
+		return
+	_boarding_area.restore_seated_pilot_reservation(player, active_ship, witness.anchor)
 
 
 func _restore_live_combat_after_reentry() -> void:

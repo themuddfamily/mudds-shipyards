@@ -826,6 +826,11 @@ func is_seated() -> bool:
 	return _embodiment_state == EmbodimentState.SEATED
 
 
+## Read-only identity check for restoring ownership of an already occupied seat.
+func is_seated_at(anchor: Node3D) -> bool:
+	return is_seated() and is_instance_valid(anchor) and _seat_anchor == anchor
+
+
 ## Enables look/zoom and the interact edge while an ordinary station chair owns
 ## the seated handoff. Locomotion remains bypassed by the embodiment state.
 func set_station_seated_context(enabled: bool) -> void:

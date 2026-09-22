@@ -41,9 +41,11 @@ var _last_reported_availability := false
 var _detaching := false
 var _initialized := false
 var _audio_binding: RefCounted
+var _detached_reservation_token: Variant = null
 
 
 func _enter_tree() -> void:
+	_detached_reservation_token = null
 	_detaching = false
 	if _initialized:
 		_bind_audio()
@@ -65,6 +67,7 @@ func _exit_tree() -> void:
 	# so an observer cannot claim this seat again while this node is still inside
 	# the exiting parent tree.
 	_detaching = true
+	_detached_reservation_token = get_reservation_token()
 	clear_reservation()
 	_emit_availability_if_changed()
 	_unbind_audio()
@@ -138,6 +141,46 @@ func try_reserve(token: Variant) -> bool:
 	_has_reservation = true
 	_reservation_token = token
 	reservation_changed.emit(true, token)
+	_emit_availability_if_changed()
+	return true
+
+
+## Main exits after its children. Let that coordinator consume the exact claim
+## released by this detach; a ship-only re-entry invalidates it immediately.
+func consume_detached_reservation(token: Variant) -> bool:
+	if is_inside_tree() or not _detaching:
+		return false
+	var matches := token != null and _tokens_match(_detached_reservation_token, token)
+	_detached_reservation_token = null
+	return matches
+
+
+## Whole-composition lifecycle restoration only: the coordinator must have
+## witnessed this exact reservation before detachment. Ordinary boarding still
+## goes through try_reserve; this cannot seat a player or start a ship.
+func restore_seated_pilot_reservation(
+	pilot: PlayerController, expected_ship: Node3D, expected_anchor: Node3D
+) -> bool:
+	if not _can_mutate_runtime() or not boarding_enabled \
+			or not is_instance_valid(pilot) or not pilot.is_inside_tree() \
+			or pilot.is_queued_for_deletion() \
+			or not is_instance_valid(expected_ship) or get_ship() != expected_ship \
+			or not expected_ship.is_inside_tree() or expected_ship.is_queued_for_deletion() \
+			or not is_instance_valid(expected_anchor) or not expected_anchor.is_inside_tree() \
+			or expected_anchor.is_queued_for_deletion() \
+			or expected_ship.call(&"get_pilot_seat_anchor") != expected_anchor \
+			or not pilot.is_seated_at(expected_anchor) \
+			or not expected_ship.has_method(&"is_piloted") \
+			or not bool(expected_ship.call(&"is_piloted")) \
+			or not expected_ship.has_method(&"is_destroyed") \
+			or bool(expected_ship.call(&"is_destroyed")):
+		return false
+	_clear_stale_reservation()
+	if _has_reservation:
+		return _tokens_match(_reservation_token, pilot)
+	_has_reservation = true
+	_reservation_token = pilot
+	reservation_changed.emit(true, pilot)
 	_emit_availability_if_changed()
 	return true
 

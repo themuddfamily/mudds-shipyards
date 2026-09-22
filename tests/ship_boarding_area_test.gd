@@ -13,6 +13,8 @@ var _availability_events: Array[bool] = []
 
 class DummyCompatibleShip extends Node3D:
 	var boardable := true
+	var piloted := false
+	var destroyed := false
 	var seat_anchor: Marker3D
 
 
@@ -32,6 +34,14 @@ class DummyCompatibleShip extends Node3D:
 
 	func is_boardable() -> bool:
 		return boardable
+
+
+	func is_piloted() -> bool:
+		return piloted
+
+
+	func is_destroyed() -> bool:
+		return destroyed
 
 
 func _init() -> void:
@@ -244,6 +254,7 @@ func _run() -> void:
 		"queued boarding-area disposal publishes no late availability after the deferred turn"
 	)
 
+	await _test_pilot_reservation_restore(area_scene, player_scene, host)
 	await _test_boarding_audio_cycles(area_scene, host)
 	await _test_live_enablement_currentness(area_scene, host)
 
@@ -265,6 +276,53 @@ func _run() -> void:
 	await process_frame
 	_check(root.get_child_count() == original_root_child_count, "boarding-area fixture cleans up every node")
 	_finish()
+
+
+func _test_pilot_reservation_restore(area_scene: PackedScene, player_scene: PackedScene, host: Node3D) -> void:
+	var ship := DummyCompatibleShip.new()
+	host.add_child(ship)
+	var area := area_scene.instantiate() as ShipBoardingArea
+	ship.add_child(area)
+	var pilot := player_scene.instantiate() as PlayerController
+	host.add_child(pilot)
+	pilot.set_physics_process(false)
+	pilot.set_process(false)
+	_check(area.try_reserve(pilot) and pilot.begin_boarding(pilot.global_transform, ship.seat_anchor, 0.0),
+		"pilot restore fixture owns a completed physical seat")
+	ship.piloted = true
+	ship.boardable = false
+	host.remove_child(ship)
+	_check(not area.is_reserved() and area.consume_detached_reservation(pilot)
+		and not area.consume_detached_reservation(pilot), "detach clears live claim and exposes one-use exact ownership receipt")
+	host.add_child(ship)
+	var wrong_anchor := Marker3D.new()
+	ship.add_child(wrong_anchor)
+	_check(not area.restore_seated_pilot_reservation(pilot, ship, wrong_anchor)
+		and not area.restore_seated_pilot_reservation(pilot, host, ship.seat_anchor)
+		and not area.is_reserved(), "wrong seat or ship cannot restore pilot ownership")
+	_check(not area.try_reserve(pilot)
+		and area.restore_seated_pilot_reservation(pilot, ship, ship.seat_anchor)
+		and area.get_reservation_token() == pilot, "already seated pilot restores without reopening ordinary boarding")
+	host.remove_child(ship)
+	host.add_child(ship)
+	_check(not area.is_reserved() and not area.consume_detached_reservation(pilot),
+		"ship-only re-entry invalidates the old receipt and never revives a claim")
+	ship.boardable = true
+	area.try_reserve(&"contender")
+	_check(not area.restore_seated_pilot_reservation(pilot, ship, ship.seat_anchor)
+		and area.get_reservation_token() == &"contender", "pilot restoration cannot steal another token")
+	area.clear_reservation()
+	ship.destroyed = true
+	_check(not area.restore_seated_pilot_reservation(pilot, ship, ship.seat_anchor), "destroyed ship cannot restore a pilot claim")
+	ship.destroyed = false
+	area.set_boarding_enabled(false)
+	_check(not area.restore_seated_pilot_reservation(pilot, ship, ship.seat_anchor), "disabled boarding point cannot restore a claim")
+	area.set_boarding_enabled(true)
+	pilot.force_recovery_to_on_foot(Transform3D.IDENTITY)
+	_check(not area.restore_seated_pilot_reservation(pilot, ship, ship.seat_anchor), "recovered on-foot player cannot restore a stale pilot claim")
+	ship.queue_free()
+	pilot.queue_free()
+	await process_frame
 
 
 func _test_boarding_audio_cycles(area_scene: PackedScene, host: Node3D) -> void:
