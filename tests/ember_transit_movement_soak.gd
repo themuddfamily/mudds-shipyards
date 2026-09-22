@@ -79,6 +79,7 @@ class LegSampler extends RefCounted:
 		var player := game.player as PlayerController
 		var owner := game.common_world_origin_rebase_owner as CommonWorldOriginRebaseOwner
 		if not is_instance_valid(craft) or not is_instance_valid(player):
+			occupancy_failures += 1
 			return
 		var origin := owner.get_snapshot() if is_instance_valid(owner) else {}
 		var transactions := int(origin.get("transaction_count", 0))
@@ -107,14 +108,13 @@ class LegSampler extends RefCounted:
 		var state := StringName(craft.get_planetary_cruise_attachment_report().get("state", &""))
 		cruise_states[state] = int(cruise_states.get(state, 0)) + 1
 		var area := craft.get_node_or_null(^"ShipBoardingArea") as ShipBoardingArea
-		if player.is_seated():
-			if not craft.is_piloted():
-				occupancy_unpiloted += 1
-			if is_instance_valid(area) and area.get_reservation_token() != player:
-				occupancy_unreserved += 1
-			if not craft.is_piloted() \
-					or (is_instance_valid(area) and area.get_reservation_token() != player):
-				occupancy_failures += 1
+		var unseated := not player.is_seated()
+		var unpiloted := not craft.is_piloted()
+		var unreserved := not is_instance_valid(area) or area.get_reservation_token() != player
+		occupancy_unpiloted += int(unpiloted)
+		occupancy_unreserved += int(unreserved)
+		occupancy_failures += int(unseated or unpiloted or unreserved)
+
 
 
 var _checks := 0
