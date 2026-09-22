@@ -55,6 +55,22 @@ func _run() -> void:
 		area.is_reserved() and area.get_reservation_token() == player,
 		"successful bridge observation preserves ShipBoardingArea's exact token authority",
 	)
+	var parent := game.get_parent()
+	parent.remove_child(game)
+	await process_frame
+	_check(not area.is_reserved(), "detached Main retires its boarding reservation")
+	parent.add_child(game)
+	_check(
+		await _wait_until(func() -> bool:
+			return area.get_reservation_token() == player, 120),
+		"whole-Main re-entry restores the exact retained pilot reservation",
+	)
+	_check(player.is_seated() and ship.is_piloted(),
+		"restoring the reservation preserves the already seated pilot")
+	var contender := Node3D.new()
+	game.add_child(contender)
+	_check(not area.try_reserve(contender) and area.get_reservation_token() == player,
+		"a contender cannot replace the restored pilot reservation")
 
 	game.queue_free()
 	await process_frame
