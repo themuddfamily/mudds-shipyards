@@ -49,6 +49,25 @@ matrix suite. The fixed frame interval preserves the normal 60 Hz movement
 step; it does not raise the craft's speed. This check does not establish the
 return leg, repeated visits, or native rendered performance.
 
+The same explicit movement soak can exercise the physical ABANDON return:
+
+```sh
+KETH_EMBER_PHYSICAL_RETURN=1 timeout 7200 godot --headless --audio-driver Dummy \
+  --fixed-fps 60 --path . --script res://tests/ember_transit_movement_soak.gd
+```
+
+This adds surface disembarkation, the ordinary ABANDON request, walking back
+and reboarding, physical takeoff and return across origin shifts, Ember unload,
+and the typed home corridor handoff. A test pilot then uses ordinary held
+flight and landing inputs to reach the home berth, verifies its actual lease,
+disembarks and walks. It does not place the craft or write its velocity during
+these legs. The final ordinary-flight leg can take several minutes at the
+craft's authored speed, in addition to both interplanetary legs; the long wall
+budget also accommodates slower headless hosts. A local launch/landing
+probe (`KETH_RETURN_ARRIVAL_DIAGNOSTIC=1`) is only a diagnostic and does not
+qualify the round trip. The full round-trip result remains pending until an
+unchanged-source run exits zero with all enabled assertions passing.
+
 Real, per cycle: walking to the craft and boarding it with one `interact` press;
 launching with held flight input; opening the expedition through
 `GameFlow.begin_ember_surface_journey()`; `EmberMoonStreamingProductionBinding`
