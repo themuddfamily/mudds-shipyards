@@ -313,6 +313,8 @@ func _run() -> void:
 	if handed_off:
 		var landed := false
 		var landing_max_step := 0.0
+		# Host SURFACE_APPROACH uses ordinary flight before landing assist.
+		var landing_step_limit := craft.maximum_speed / float(Engine.physics_ticks_per_second) + 0.01
 		for tick in LANDING_TICK_BUDGET:
 			await physics_frame
 			await process_frame
@@ -329,7 +331,7 @@ func _run() -> void:
 			"surface Host physically lands the arriving craft")
 		_check(sampler.max_ship_step_m <= TICK_STEP_LIMIT_M
 			and sampler.max_player_step_m <= TICK_STEP_LIMIT_M
-			and sampler.occupancy_failures == 0 and landing_max_step <= 1.0,
+			and sampler.occupancy_failures == 0 and landing_max_step <= landing_step_limit,
 			"physical handoff and landing preserve craft, pilot and seat continuity")
 		print("OUTBOUND_LANDING phase=", host.get_phase(), " max_step=", landing_max_step, " telemetry=", craft.get_telemetry())
 	await _tear_down(game)
