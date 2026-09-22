@@ -473,6 +473,9 @@ func _check(ok: bool, message: String) -> void:
 	else:
 		print("PASS: ", message)
 
+func _completion_marker() -> String:
+	return SUCCESS_MARKER
+
 func _finish(game: GameFlow) -> void:
 	Input.action_release(&"move_right")
 	Input.action_release(&"move_forward")
@@ -481,5 +484,6 @@ func _finish(game: GameFlow) -> void:
 	game.queue_free()
 	await process_frame
 	await process_frame
-	print("%s: %d assertions" % [SUCCESS_MARKER if _failures.is_empty() else "AURORA_EXPEDITION_PRODUCTION_TEST_FAILED", _assertions])
+	var marker := _completion_marker()
+	print("%s: %d assertions" % [marker if _failures.is_empty() else marker.trim_suffix("_OK") + "_FAILED", _assertions])
 	quit(0 if _failures.is_empty() else 1)

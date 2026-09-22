@@ -52,6 +52,9 @@ class ReturnSampler extends Node:
 		cadence_failures += int(process_physics_priority <= craft.process_physics_priority
 			or process_physics_priority <= player.process_physics_priority)
 
+func _completion_marker() -> String:
+	return "AURORA_PHYSICAL_RETURN_TEST_OK"
+
 func _run() -> void:
 	var game := MAIN.instantiate() as GameFlow
 	game.configure_runtime_settings_persistence(TransitSoak.Store.new("memory://aurora-return-departure.json", TransitSoak.MemoryFilesystem.new()), "memory://aurora-return-departure.cfg")
