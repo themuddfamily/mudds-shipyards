@@ -42,6 +42,9 @@ var _detaching := false
 var _initialized := false
 var _audio_binding: RefCounted
 var _detached_reservation_token: Variant = null
+var _reservation_detach_generation := 0
+var _pilot_restore_generation := 0
+var _pilot_restore_token: Variant = null
 
 
 func _enter_tree() -> void:
@@ -67,6 +70,7 @@ func _exit_tree() -> void:
 	# so an observer cannot claim this seat again while this node is still inside
 	# the exiting parent tree.
 	_detaching = true
+	_reservation_detach_generation += 1
 	_detached_reservation_token = get_reservation_token()
 	clear_reservation()
 	_emit_availability_if_changed()
@@ -147,27 +151,35 @@ func try_reserve(token: Variant) -> bool:
 
 ## Main exits after its children. Let that coordinator consume the exact claim
 ## released by this detach; a ship-only re-entry invalidates it immediately.
-func consume_detached_reservation(token: Variant) -> bool:
+func consume_detached_reservation(token: Variant) -> int:
 	if is_inside_tree() or not _detaching:
-		return false
+		return 0
 	var matches := token != null and _tokens_match(_detached_reservation_token, token)
 	_detached_reservation_token = null
-	return matches
+	if not matches:
+		return 0
+	_pilot_restore_generation = _reservation_detach_generation
+	_pilot_restore_token = token
+	return _pilot_restore_generation
 
 
 ## Whole-composition lifecycle restoration only: the coordinator must have
 ## witnessed this exact reservation before detachment. Ordinary boarding still
 ## goes through try_reserve; this cannot seat a player or start a ship.
 func restore_seated_pilot_reservation(
-	pilot: PlayerController, expected_ship: Node3D, expected_anchor: Node3D
+	pilot: PlayerController, expected_ship: Node3D, expected_anchor: Node3D,
+	detach_generation: int = 0
 ) -> bool:
-	if not _can_mutate_runtime() or not boarding_enabled \
+	if detach_generation <= 0 or detach_generation != _pilot_restore_generation \
+			or not _tokens_match(_pilot_restore_token, pilot) \
+			or not _can_mutate_runtime() or not boarding_enabled \
 			or not is_instance_valid(pilot) or not pilot.is_inside_tree() \
 			or pilot.is_queued_for_deletion() \
 			or not is_instance_valid(expected_ship) or get_ship() != expected_ship \
 			or not expected_ship.is_inside_tree() or expected_ship.is_queued_for_deletion() \
 			or not is_instance_valid(expected_anchor) or not expected_anchor.is_inside_tree() \
 			or expected_anchor.is_queued_for_deletion() \
+			or not expected_ship.has_method(&"get_pilot_seat_anchor") \
 			or expected_ship.call(&"get_pilot_seat_anchor") != expected_anchor \
 			or not pilot.is_seated_at(expected_anchor) \
 			or not expected_ship.has_method(&"is_piloted") \
@@ -176,8 +188,12 @@ func restore_seated_pilot_reservation(
 			or bool(expected_ship.call(&"is_destroyed")):
 		return false
 	_clear_stale_reservation()
+	if _has_reservation and not _tokens_match(_reservation_token, pilot):
+		return false
+	_pilot_restore_generation = 0
+	_pilot_restore_token = null
 	if _has_reservation:
-		return _tokens_match(_reservation_token, pilot)
+		return true
 	_has_reservation = true
 	_reservation_token = pilot
 	reservation_changed.emit(true, pilot)
@@ -196,6 +212,8 @@ func release_reservation(token: Variant) -> bool:
 
 ## Administrative release used when a ship is disabled, destroyed, or reset.
 func clear_reservation() -> void:
+	_pilot_restore_generation = 0
+	_pilot_restore_token = null
 	_clear_stale_reservation()
 	if _has_reservation:
 		_clear_reservation_internal(true)

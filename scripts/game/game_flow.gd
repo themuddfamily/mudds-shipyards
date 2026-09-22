@@ -5676,12 +5676,15 @@ func _capture_pilot_reservation_for_reentry() -> void:
 			or active_ship.is_destroyed() or not active_ship.is_piloted():
 		return
 	var anchor := active_ship.get_pilot_seat_anchor()
-	if not player.is_seated_at(anchor) \
-			or not _boarding_area.consume_detached_reservation(player):
+	if not player.is_seated_at(anchor):
+		return
+	var detach_generation := _boarding_area.consume_detached_reservation(player)
+	if detach_generation <= 0:
 		return
 	_pilot_reentry_reservation = {
 		"ship": active_ship, "player": player, "area": _boarding_area,
 		"anchor": anchor, "transition_generation": _transition_generation, "phase": phase,
+		"detach_generation": detach_generation,
 	}
 
 
@@ -5697,7 +5700,9 @@ func _restore_pilot_reservation_after_reentry() -> void:
 			or not is_ancestor_of(active_ship) or not is_ancestor_of(player) \
 			or not is_instance_valid(witness.anchor):
 		return
-	_boarding_area.restore_seated_pilot_reservation(player, active_ship, witness.anchor)
+	_boarding_area.restore_seated_pilot_reservation(
+		player, active_ship, witness.anchor, int(witness.detach_generation)
+	)
 
 
 func _restore_live_combat_after_reentry() -> void:

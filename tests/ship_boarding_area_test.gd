@@ -292,34 +292,53 @@ func _test_pilot_reservation_restore(area_scene: PackedScene, player_scene: Pack
 	ship.piloted = true
 	ship.boardable = false
 	host.remove_child(ship)
-	_check(not area.is_reserved() and area.consume_detached_reservation(pilot)
-		and not area.consume_detached_reservation(pilot), "detach clears live claim and exposes one-use exact ownership receipt")
+	var detach_generation := area.consume_detached_reservation(pilot)
+	_check(not area.is_reserved() and detach_generation > 0
+		and area.consume_detached_reservation(pilot) == 0, "detach clears live claim and exposes one-use exact ownership receipt")
 	host.add_child(ship)
 	var wrong_anchor := Marker3D.new()
 	ship.add_child(wrong_anchor)
-	_check(not area.restore_seated_pilot_reservation(pilot, ship, wrong_anchor)
-		and not area.restore_seated_pilot_reservation(pilot, host, ship.seat_anchor)
+	_check(not area.restore_seated_pilot_reservation(pilot, ship, wrong_anchor, detach_generation)
+		and not area.restore_seated_pilot_reservation(pilot, host, ship.seat_anchor, detach_generation)
 		and not area.is_reserved(), "wrong seat or ship cannot restore pilot ownership")
 	_check(not area.try_reserve(pilot)
-		and area.restore_seated_pilot_reservation(pilot, ship, ship.seat_anchor)
+		and not area.restore_seated_pilot_reservation(pilot, ship, ship.seat_anchor)
+		and area.restore_seated_pilot_reservation(pilot, ship, ship.seat_anchor, detach_generation)
 		and area.get_reservation_token() == pilot, "already seated pilot restores without reopening ordinary boarding")
+	_check(not area.restore_seated_pilot_reservation(pilot, ship, ship.seat_anchor, detach_generation),
+		"successful restore consumes its authorization before any replay")
 	host.remove_child(ship)
 	host.add_child(ship)
-	_check(not area.is_reserved() and not area.consume_detached_reservation(pilot),
+	_check(not area.is_reserved() and area.consume_detached_reservation(pilot) == 0
+		and not area.restore_seated_pilot_reservation(pilot, ship, ship.seat_anchor, detach_generation),
 		"ship-only re-entry invalidates the old receipt and never revives a claim")
 	ship.boardable = true
+	area.try_reserve(pilot)
+	host.remove_child(ship)
+	detach_generation = area.consume_detached_reservation(pilot)
+	host.add_child(ship)
 	area.try_reserve(&"contender")
-	_check(not area.restore_seated_pilot_reservation(pilot, ship, ship.seat_anchor)
+	_check(not area.restore_seated_pilot_reservation(pilot, ship, ship.seat_anchor, detach_generation)
 		and area.get_reservation_token() == &"contender", "pilot restoration cannot steal another token")
 	area.clear_reservation()
+	_check(not area.restore_seated_pilot_reservation(pilot, ship, ship.seat_anchor, detach_generation),
+		"administrative clear invalidates even a captured restore permit")
+	area.try_reserve(pilot)
+	host.remove_child(ship)
+	detach_generation = area.consume_detached_reservation(pilot)
+	host.add_child(ship)
 	ship.destroyed = true
-	_check(not area.restore_seated_pilot_reservation(pilot, ship, ship.seat_anchor), "destroyed ship cannot restore a pilot claim")
+	_check(not area.restore_seated_pilot_reservation(pilot, ship, ship.seat_anchor, detach_generation), "destroyed ship cannot restore a pilot claim")
 	ship.destroyed = false
 	area.set_boarding_enabled(false)
-	_check(not area.restore_seated_pilot_reservation(pilot, ship, ship.seat_anchor), "disabled boarding point cannot restore a claim")
+	_check(not area.restore_seated_pilot_reservation(pilot, ship, ship.seat_anchor, detach_generation), "disabled boarding point cannot restore a claim")
 	area.set_boarding_enabled(true)
+	area.try_reserve(pilot)
+	host.remove_child(ship)
+	detach_generation = area.consume_detached_reservation(pilot)
+	host.add_child(ship)
 	pilot.force_recovery_to_on_foot(Transform3D.IDENTITY)
-	_check(not area.restore_seated_pilot_reservation(pilot, ship, ship.seat_anchor), "recovered on-foot player cannot restore a stale pilot claim")
+	_check(not area.restore_seated_pilot_reservation(pilot, ship, ship.seat_anchor, detach_generation), "recovered on-foot player cannot restore a stale pilot claim")
 	ship.queue_free()
 	pilot.queue_free()
 	await process_frame
