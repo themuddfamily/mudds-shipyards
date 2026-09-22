@@ -65,6 +65,12 @@ class FinalApproachTarget:
 	var corridor_id: StringName = &""
 	var target_pad_id: StringName = &""
 	var target_world_transform := Transform3D.IDENTITY
+	# Preserve Node3D parent/local arithmetic across origin shifts. Translating
+	# an already-composed global pose loses different bits near a large datum.
+	var landing_origin_tracking := false
+	var landing_parent_world_transform := Transform3D.IDENTITY
+	var landing_root_local_transform := Transform3D.IDENTITY
+	var corridor_local_transform := Transform3D.IDENTITY
 	var corridor_half_extents_m := Vector3.ZERO
 	var entry_position_half_extents_m := Vector3.ZERO
 	var maximum_speed_mps := 0.0
@@ -84,6 +90,12 @@ class FinalApproachTarget:
 			return &"final_approach_target_generation_invalid"
 		if corridor_id.is_empty() or target_pad_id.is_empty():
 			return &"final_approach_corridor_identity_invalid"
+		if landing_origin_tracking and (
+			not _transform_is_finite(landing_parent_world_transform)
+			or not _transform_is_finite(landing_root_local_transform)
+			or not _transform_is_finite(corridor_local_transform)
+		):
+			return &"final_approach_target_nonfinite"
 		if not _transform_is_finite(target_world_transform) \
 				or not corridor_half_extents_m.is_finite() \
 				or not entry_position_half_extents_m.is_finite() \
@@ -778,7 +790,13 @@ func rebind_coordinate_frame(
 			StringName(retargeted.get("reason", &"ship_frame_retarget_rejected"))
 		)
 	if _final_approach_target is FinalApproachTarget:
-		(_final_approach_target as FinalApproachTarget).target_world_transform.origin += world_translation
+		var target := _final_approach_target as FinalApproachTarget
+		if target.landing_origin_tracking:
+			target.landing_parent_world_transform.origin += world_translation
+			var landing_root := target.landing_parent_world_transform * target.landing_root_local_transform
+			target.target_world_transform = landing_root * target.corridor_local_transform
+		else:
+			target.target_world_transform.origin += world_translation
 	elif _final_approach_target is ReturnApproachTarget:
 		var home := _final_approach_target as ReturnApproachTarget
 		if home.home_origin_tracking:
@@ -802,6 +820,10 @@ func rebind_coordinate_frame(
 	_mutation_active = false
 	_emit_binding_changed()
 	var receipt := _receipt(true, &"coordinate_frame_rebound")
+	if _final_approach_target is FinalApproachTarget:
+		var target := _final_approach_target as FinalApproachTarget
+		if target.landing_origin_tracking:
+			receipt["landing_root_world_transform"] = target.landing_parent_world_transform * target.landing_root_local_transform
 	if _final_approach_target is ReturnApproachTarget:
 		receipt["return_home_target_world_transform"] = (_final_approach_target as ReturnApproachTarget).home_target_world_transform
 	return receipt

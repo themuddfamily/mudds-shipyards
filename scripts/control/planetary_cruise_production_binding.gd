@@ -90,6 +90,8 @@ var _final_approach_host_instance_id := 0
 var _final_approach_landing_root_ref: WeakRef
 var _final_approach_landing_root_instance_id := 0
 var _final_approach_landing_root_transform := Transform3D.IDENTITY
+var _final_approach_landing_parent_ref: WeakRef
+var _final_approach_landing_local_transform := Transform3D.IDENTITY
 var _final_approach_completion_receipt: Dictionary = {}
 var _final_approach_completion_consumed := false
 var _final_approach_completion_count := 0
@@ -201,6 +203,8 @@ func request_engage(
 		_final_approach_landing_root_ref = null
 		_final_approach_landing_root_instance_id = 0
 		_final_approach_landing_root_transform = Transform3D.IDENTITY
+		_final_approach_landing_parent_ref = null
+		_final_approach_landing_local_transform = Transform3D.IDENTITY
 		_approach_kind = &""
 		_return_approach_home_target_transform = Transform3D.IDENTITY
 	_mutation_active = true
@@ -320,6 +324,12 @@ func request_final_approach(
 		"corridor_transform_region_local_m", Transform3D.IDENTITY
 	) as Transform3D
 	target.target_world_transform = landing_root.global_transform * corridor_local
+	var landing_parent := landing_root.get_parent() as Node3D
+	if landing_parent != null and not landing_root.top_level:
+		target.landing_origin_tracking = true
+		target.landing_parent_world_transform = landing_parent.global_transform
+		target.landing_root_local_transform = landing_root.transform
+		target.corridor_local_transform = corridor_local
 	target.corridor_half_extents_m = approach_envelope.get(
 		"corridor_half_extents_m", Vector3.ZERO
 	) as Vector3
@@ -364,6 +374,8 @@ func request_final_approach(
 	_final_approach_landing_root_ref = weakref(landing_root)
 	_final_approach_landing_root_instance_id = landing_root.get_instance_id()
 	_final_approach_landing_root_transform = landing_root.global_transform
+	_final_approach_landing_parent_ref = weakref(landing_parent) if target.landing_origin_tracking else null
+	_final_approach_landing_local_transform = landing_root.transform
 	_final_approach_completion_receipt.clear()
 	_final_approach_completion_consumed = false
 	_last_reason = &"final_approach_armed"
@@ -542,6 +554,8 @@ func discard_final_approach_completion(
 	_final_approach_landing_root_ref = null
 	_final_approach_landing_root_instance_id = 0
 	_final_approach_landing_root_transform = Transform3D.IDENTITY
+	_final_approach_landing_parent_ref = null
+	_final_approach_landing_local_transform = Transform3D.IDENTITY
 	_approach_kind = &""
 	_return_approach_home_target_transform = Transform3D.IDENTITY
 	_last_reason = reason
@@ -791,7 +805,10 @@ func accept_committed_origin_rebase(
 		return _result(false, StringName(carried.get("reason", &"frame_rebind_rejected")))
 	_bound_frame_generation = target_generation
 	_rebind_count += 1
-	_final_approach_landing_root_transform.origin += delta
+	if carried.has("landing_root_world_transform"):
+		_final_approach_landing_root_transform = carried.landing_root_world_transform as Transform3D
+	else:
+		_final_approach_landing_root_transform.origin += delta
 	if carried.has("return_home_target_world_transform"):
 		_return_approach_home_target_transform = carried.return_home_target_world_transform as Transform3D
 	else:
@@ -965,6 +982,8 @@ func bind_world(bootstrap: PlanetaryStreamingBootstrap) -> Dictionary:
 	_final_approach_landing_root_ref = null
 	_final_approach_landing_root_instance_id = 0
 	_final_approach_landing_root_transform = Transform3D.IDENTITY
+	_final_approach_landing_parent_ref = null
+	_final_approach_landing_local_transform = Transform3D.IDENTITY
 	_final_approach_completion_receipt.clear()
 	_final_approach_completion_consumed = false
 	_approach_kind = &""
@@ -1281,6 +1300,12 @@ func _final_approach_source_rejection() -> StringName:
 			or (candidate as Node3D).get_instance_id() \
 				!= _final_approach_landing_root_instance_id:
 		return &"final_approach_landing_root_lost"
+	if _final_approach_landing_parent_ref != null:
+		var parent: Variant = _final_approach_landing_parent_ref.get_ref()
+		if not is_instance_valid(parent) or (candidate as Node3D).get_parent() != parent \
+				or (candidate as Node3D).top_level \
+				or (candidate as Node3D).transform != _final_approach_landing_local_transform:
+			return &"final_approach_landing_root_transform_drift"
 	if not (candidate as Node3D).global_transform.is_equal_approx(
 		_final_approach_landing_root_transform
 	):
@@ -1378,6 +1403,8 @@ func _retire_engagement_guarded(
 	_final_approach_landing_root_ref = null
 	_final_approach_landing_root_instance_id = 0
 	_final_approach_landing_root_transform = Transform3D.IDENTITY
+	_final_approach_landing_parent_ref = null
+	_final_approach_landing_local_transform = Transform3D.IDENTITY
 	_final_approach_location_generation = 0
 	_final_approach_host_generation = -1
 	_final_approach_host_attachment_generation = 0
