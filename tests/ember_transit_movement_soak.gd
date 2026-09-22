@@ -520,11 +520,16 @@ func _fly_home_berth(game: GameFlow, sampler: LegSampler) -> bool:
 			if craft.is_piloted() or player.global_position.distance_to(craft.get_boarding_position()) >= 20.0:
 				return false
 			var walk_start := player.global_position
-			await _press_live_action(&"move_back", 20)
-			var walk_distance := player.global_position.distance_to(walk_start)
-			_check(walk_distance > 0.25 and walk_distance < 5.0 and player.is_control_enabled(),
-				"the disembarked pilot physically walks on the home berth under held movement input")
-			return walk_distance > 0.25 and walk_distance < 5.0 and player.is_control_enabled()
+			# Halyard exits facing inboard at the apron edge; walk along the apron,
+			# since backing away crosses its deliberately open outboard gap.
+			var walk_action: StringName = &"move_right" if craft.get_ship_id() == &"halyard_new_design" else &"move_back"
+			await _press_live_action(walk_action, 20)
+			var walk_distance := (player.global_position - walk_start).slide(player.up_direction).length()
+			var supported_walk := walk_distance > 0.25 and walk_distance < 5.0 \
+				and player.is_on_floor() and player.is_control_enabled()
+			_check(supported_walk,
+				"the disembarked pilot physically walks along supported home berth ground under held movement input")
+			return supported_walk
 		if tick % 30 == 0:
 			await _press_live_action(&"interact", 2)
 		await physics_frame
