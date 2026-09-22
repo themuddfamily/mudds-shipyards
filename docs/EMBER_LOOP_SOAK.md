@@ -57,7 +57,8 @@ KETH_EMBER_PHYSICAL_RETURN=1 timeout 7200 godot --headless --audio-driver Dummy 
 ```
 
 This adds surface disembarkation, the ordinary ABANDON request, walking back
-and reboarding, physical takeoff and return across origin shifts, Ember unload,
+and reboarding, physical takeoff, ordinary forward thrust until 1,200 m above
+the surface berth, queued return cruise across origin shifts, Ember unload,
 and the typed home corridor handoff. A test pilot then uses ordinary held
 flight and landing inputs to reach the home berth, verifies its actual lease,
 disembarks and walks. It does not place the craft or write its velocity during
