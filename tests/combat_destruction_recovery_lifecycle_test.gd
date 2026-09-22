@@ -124,6 +124,11 @@ func _run() -> void:
 		"player loss recalls immediately and clearly schedules the first safe regeneration attempt for two seconds"
 	)
 
+	# The production two-second deadline was checked above. Hold this fixture's
+	# pending epoch until the explicit expiry below: whole-Main re-entry can
+	# legitimately take longer than two seconds on a busy machine.
+	recovery_entry["ready_at_msec"] = 0x7fffffffffffffff
+
 	var recovery_health_before: float = recovery_target.damageable.get_health()
 	var request_index := _arrow_requests.size()
 	var destroyed_source_result := _shoot(authority, arrow, recovery_target.body)
@@ -232,6 +237,15 @@ func _run() -> void:
 
 	arrow.global_transform = Transform3D(Basis.IDENTITY, OPEN_ARENA)
 	await physics_frame
+	var recovered_replay := resolver.resolve_hitscan(destroyed_epoch_request)
+	_check(
+		not bool(recovered_replay.get("accepted", true))
+		and recovered_replay.get("status", &"") in [
+			&"duplicate_sequence", &"out_of_order_sequence",
+		]
+		and is_equal_approx(recovery_target.damageable.get_health(), recovery_health_before),
+		"same-instance regeneration preserves the retired request's replay fence"
+	)
 	var recovered_result := _shoot(authority, arrow, recovery_target.body)
 	_check(
 		bool(recovered_result.get("accepted", false))
