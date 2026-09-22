@@ -547,15 +547,17 @@ func _test_common_room_glazing_and_furniture(module: HabitatSpine) -> void:
 			and is_equal_approx(mesh.outer_radius, 0.24) \
 			and mesh.rings == 24 \
 			and mesh.ring_segments == 8 \
+			and is_equal_approx(TorusGeometryBudget.nearest_view_for(mesh), 1.0) \
+			and mesh.surface_get_arrays(0)[Mesh.ARRAY_INDEX].size() == 384 * 3 \
 			and mesh.get_surface_count() == 1 \
 			and mesh.get_aabb().is_equal_approx(before_aabb)
 	_check(
 		bearings_exact,
-		"all eight visual-only bearings retain transforms, copper material, radii, bounds, and one surface"
+		"all eight visual-only bearings retain transforms, copper material, radii, bounds, one-metre view and 384-triangle surfaces"
 	)
 	_check(
-		bearing_triangles_before == 6656 and bearing_triangles_after == 4096,
-		"chair-bearing family freezes at 6656 -> 4096 triangles across eight unchanged instances"
+		bearing_triangles_before == 6656 and bearing_triangles_after == 3072,
+		"chair-bearing family freezes at 6656 -> 3072 triangles across eight unchanged instances"
 	)
 
 	_check(module.get_window_pane_count() >= 9, "common area exposes broad multi-pane glazing")
@@ -1989,7 +1991,7 @@ func _test_nutrient_tank_band_batch(module: HabitatSpine) -> void:
 		and batch.material_override == copper_reference.material_override
 		and batch.cast_shadow == GeometryInstance3D.SHADOW_CASTING_SETTING_ON
 		and batch.layers == 1,
-		"batch preserves the prior live 40x12 recipe, 48x16 authored metadata, copper identity, shadows and render layer"
+		"batch preserves the distance-budgeted 32x12 recipe, 48x16 authored metadata, copper identity, shadows and render layer"
 	)
 	var tanks := service.get_children().filter(
 		func(candidate: Node) -> bool:
@@ -2058,7 +2060,9 @@ func _test_nutrient_tank_band_batch(module: HabitatSpine) -> void:
 		and bool(report.nutrient_tank_band_recipe_matches_authored)
 		and bool(report.nutrient_tank_band_budget_metadata_matches_authored)
 		and report.nutrient_tank_band_authored_tessellation == Vector2i(48, 16)
-		and report.nutrient_tank_band_live_tessellation == Vector2i(40, 12)
+		and report.nutrient_tank_band_live_tessellation == Vector2i(32, 12)
+		and is_equal_approx(TorusGeometryBudget.nearest_view_for(torus), 1.0)
+		and torus.surface_get_arrays(0)[Mesh.ARRAY_INDEX].size() == 768 * 3
 		and bool(report.nutrient_tank_band_material_matches_authored)
 		and bool(report.nutrient_tank_band_renderer_state_matches_authored)
 		and bool(report.nutrient_tank_band_authority_clean)
@@ -2179,7 +2183,7 @@ func _test_nutrient_valve_batch(module: HabitatSpine) -> void:
 		and batch.material_override == red_reference.material_override
 		and batch.cast_shadow == GeometryInstance3D.SHADOW_CASTING_SETTING_ON
 		and batch.layers == 1,
-		"batch preserves the prior live 32x12 recipe, 48x16 authored metadata, red identity, shadows and render layer"
+		"batch preserves the distance-budgeted 24x12 recipe, 48x16 authored metadata, red identity, shadows and render layer"
 	)
 	var old_valves := service.get_children().filter(
 		func(candidate: Node) -> bool:
@@ -2239,7 +2243,9 @@ func _test_nutrient_valve_batch(module: HabitatSpine) -> void:
 		and bool(report.nutrient_valve_recipe_matches_authored)
 		and bool(report.nutrient_valve_budget_metadata_matches_authored)
 		and report.nutrient_valve_authored_tessellation == Vector2i(48, 16)
-		and report.nutrient_valve_live_tessellation == Vector2i(32, 12)
+		and report.nutrient_valve_live_tessellation == Vector2i(24, 12)
+		and is_equal_approx(TorusGeometryBudget.nearest_view_for(torus), 0.8)
+		and torus.surface_get_arrays(0)[Mesh.ARRAY_INDEX].size() == 576 * 3
 		and bool(report.nutrient_valve_material_matches_authored)
 		and bool(report.nutrient_valve_renderer_state_matches_authored)
 		and bool(report.nutrient_valve_authority_clean)
