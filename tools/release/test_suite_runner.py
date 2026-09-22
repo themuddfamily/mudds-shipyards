@@ -253,6 +253,7 @@ print('OK: network lane fixture')
                 script = root / 'tests' / relative
                 script.parent.mkdir(parents=True, exist_ok=True)
                 script.write_text('print("OK: fixture (%d assertions)" % 2)\n' + ('await RenderingServer.frame_post_draw\n' if relative.startswith('ui/') else ''))
+            (root / 'tests/probe_support.py').write_text('VALUE = 1\n')
             fake = root / 'fake-godot'
             fake.write_text('''#!/usr/bin/env python3
 import os,sys,pathlib
@@ -263,6 +264,8 @@ if '--editor' in args:
     pathlib.Path('import-seen').write_text('yes')
     sys.exit(0)
 script=args[args.index('--script')+1]
+sys.path.insert(0, 'tests')
+import probe_support
 assert ('--headless' in args) == ('/ui/' not in script)
 if '/ui/' in script:
     assert args[args.index('--display-driver')+1] == 'x11'
@@ -279,6 +282,7 @@ print('OK: fixture (2 assertions)')
             self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
             self.assertIn('NOT_RUN (graphical;', result.stdout)
             self.assertTrue((root / 'import-seen').exists())
+            self.assertFalse((root / 'tests/__pycache__').exists())
             manifest = (root / 'results/headless/run-manifest.txt').read_text()
             self.assertIn('scope_specs=headless:all', manifest)
             self.assertIn('mode_excluded_suite_count=1', manifest)
