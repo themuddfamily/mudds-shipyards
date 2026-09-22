@@ -110,7 +110,7 @@ class LegSampler extends RefCounted:
 		var area := craft.get_node_or_null(^"ShipBoardingArea") as ShipBoardingArea
 		var unseated := not player.is_seated()
 		var unpiloted := not craft.is_piloted()
-		var unreserved := not is_instance_valid(area) or area.get_reservation_token() != player
+		var unreserved: bool = not is_instance_valid(area) or area.get_reservation_token() != player
 		occupancy_unpiloted += int(unpiloted)
 		occupancy_unreserved += int(unreserved)
 		occupancy_failures += int(unseated or unpiloted or unreserved)
