@@ -168,28 +168,36 @@ the visit leases its exploration berth on *this* scene's own `LandingRegion`,
 stands an `AuroraVisitApproachSource`, engages the cruise and arms the authored
 corridor from `aurora_foundation_landing.tres`. The touchdown is a real
 `ShipBerth` lease and a real `HeroShip.request_berth_landing()`, and the
-departure is a committed rebase back to the yard that streams Aurora out behind
-the craft. An abandoned visit takes the same bounded wind-down.
+existing return places the craft near its home berth, then commits a rebase
+that streams Aurora out. Surface abandonment retains that restoration path;
+outbound cancellation leaves the craft at its current physical pose.
 
-### What is staged, and why
+### Physical outbound travel and remaining placements
 
-Three legs have no production movement owner anywhere in this repository, and
-the visit plays exactly that missing owner and nothing else. Each is counted in
-`get_visit_snapshot().staging_events`:
+A new visit requires a physically departed craft. The pilot climbs clear of the
+yard and faces Aurora before requesting cruise; existing active-flight-objective
+restrictions remain in force. Cruise retains the same seated craft across origin
+shifts. Once Aurora streams in, its approach source authenticates each committed
+frame change before the next movement tick. The controller flies into the authored
+corridor and hands off to the berth's physical landing assistance. Landing gets a
+fixed deadline based on the accepted travel distance, retaining independent
+obstruction, clearance and lease checks.
 
-1. the interplanetary transit - the craft is held at Aurora's canonical
-   navigation standoff, decoded live from the cruise binding's own absolute
-   destination, until the real cruise binding reports its approach ACTIVE;
-2. the authored corridor entry pose the armed approach is measured against -
-   the same single placement `tests/ember_loop_soak_evidence.gd` makes for
-   Ember, because the cruise controller measures arrival at an approach target
-   rather than flying to it;
-3. the corridor mouth to the berth's assist staging pose - Ember flies this leg
-   with `EmberSurfaceLoopHost`, which owns a phased surface descent. Aurora has
-   no such Host and should not grow one for a coastal visit, and the production
-   landing assist cannot cover 300 m inside its own 24 s timeout.
+Fresh outbound travel makes no orbital-standoff, corridor-entry or berth-staging
+placement. Cancelling outbound releases its own cruise and landing ownership at
+the current pose without overwriting recovery or a replacement craft's lifecycle.
+Manual input retains priority; the requested visit can resume when input ends.
+Interrupted-visit restoration and the return leg still use explicit placements.
+Physical outbound completion does not establish a physical Aurora return.
 
-Everything between and after those placements is produced by a production
-owner: the streaming residency, every committed origin rebase, the armed and
-completed final approach, the berth lease, the touchdown, the disembark, the
-walk on this scene's own collision, the re-board and the way home.
+The isolated production and visit-loop suites pass 69 and 50 assertions on
+`727f2588e`: physical approach and docking, pilot continuity, cabin sleep/wake,
+walking, reboarding, save restoration, repeat departure and cancellation. Their
+bounded fixture places the craft 70 km away before requesting outbound travel.
+The optional `--aurora-full-flight` mode uses held-input departure, climb and
+orientation from the yard without subsequent actor placement; its full 12,000 km
+run is pending. It ends the automatically selected Cinder activity through the
+public session-fenced failure API, so it does not establish a complete fresh-save
+objective playthrough. Logs: `aurora-production-isolated.log`,
+`aurora-visit-loop-isolated.log` and `aurora-full-flight-frozen.log` under
+`/root/.cache/mudds-shipyards/`.
