@@ -218,13 +218,25 @@ The combined candidate `bc38358ef` includes this fix and physical return.
 Separate return checks pass real departure/unload (20 assertions), near-home
 flight/docking/walking (10, Torrent), Halyard local landing/walking (5), and
 existing Aurora suites (68 and 49). These separate fixtures do not establish a
-full same-craft round trip. The explicit same-Halyard run on `bc38358ef` has
-now passed its complete outbound touchdown: 12,011,875.865 metres flown,
+full same-craft round trip; the original Halyard fixture also omitted a floor
+support assertion. The explicit same-Halyard run on `bc38358ef` passed its
+complete outbound touchdown: 12,011,875.865 metres flown,
 1,163 origin shifts, maximum ship and pilot steps of 333.332 metres, full
 190/190 hull, exact retained pilot ownership and zero actor placements. The
-same process is continuing home; the full round-trip verdict is still pending.
-Its log is `/tmp/aurora-full-roundtrip-bc38358ef.log`. The latest published
-checkpoint remains `080f6ae`.
+same process then flew 12,113,017.312 metres home through 1,174 further origin
+shifts, acquired the actual Halyard home lease, docked and exited. The run failed
+its final walking support check (13 of 14 assertions passed). Its log remains
+`/tmp/aurora-full-roundtrip-bc38358ef.log`; that result is not a full pass.
+
+Local and shifted-world reproductions established the cause: the generic test
+walked backward from the Halyard's port exit into the authored apron gap. Floor
+support disappeared at yard-local X=30.686 metres. The corrected helper walks
+along the apron and requires immediate floor support, enabled controls and
+0.25–5 metres of planar movement. Both Halyard fixtures pass (5 assertions each),
+walking 1.548 metres with every observed sample supported; the unchanged Torrent
+route also passes the stronger assertion (7). This changes test input only.
+A corrected full journey is required before claiming round-trip qualification.
+The latest published checkpoint remains `080f6ae`.
 
 Normal variable-frame regression testing exposed two sampling assumptions in
 the test fixtures. A render-observed interval can contain several physics ticks,
