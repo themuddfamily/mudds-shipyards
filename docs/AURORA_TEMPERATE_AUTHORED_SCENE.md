@@ -249,3 +249,14 @@ fixture's separate per-tick sampler also passes at fixed and variable timing
 maximum across eight ticks while the corrected sampler measured at most
 333.334 metres in a single tick. Its 335-metre limit and exact pilot checks
 remain unchanged, and the bounded cruise now counts 2,400 physics ticks.
+
+The full isolated regression run on `1af47a39d` finished with 954 of 955 suites
+passing and 35,311 passing assertions. All suite processes exited zero; the
+remaining runner failure was the return test printing its inherited parent's
+completion marker. `e0a418605` corrects that marker. A separate canonical run
+passes both affected suites (68 and 20 assertions), with each correct marker
+printed exactly once and no diagnostics. The original full-run failure is
+retained; it is not relabelled as a wholly passing run. Its source manifest and
+import cache stayed stable, with three previously accepted `RENDER-001` warning
+blocks and no other assessed diagnostics. This does not establish native GPU
+performance or human review.
