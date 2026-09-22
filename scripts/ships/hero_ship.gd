@@ -3278,6 +3278,11 @@ func _validate_planetary_cruise_envelope(
 		or braking > PLANETARY_CRUISE_MAX_ACCELERATION_METERS_PER_SECOND_SQUARED:
 		return &"braking_acceleration_out_of_bounds"
 	var observation := (envelope.observation as Dictionary).duplicate(true)
+	if observation.get("final_approach", false) == true:
+		var controller := instance_from_id(_planetary_cruise_controller_instance_id)
+		if not controller is PlanetaryCruisePhysicalController \
+				or not controller.validate_final_approach_envelope(envelope):
+			return &"final_approach_authority_mismatch"
 	var policy_result := _planetary_cruise_policy.evaluate(
 		observation,
 		frame_generation

@@ -145,7 +145,88 @@ func _run() -> void:
 
 	stage.queue_free()
 	await process_frame
+	await _test_physical_approach()
 	_finish()
+
+
+func _test_physical_approach() -> void:
+	var stage := Node3D.new()
+	root.add_child(stage)
+	var ship := TORRENT_SCENE.instantiate() as HeroShip
+	stage.add_child(ship)
+	ship.global_position = Vector3(0.0, 100.0, 1_000.0)
+	ship.set_piloted(true)
+	await physics_frame
+	var controller := ControllerType.new() as PlanetaryCruisePhysicalController
+	stage.add_child(controller)
+	controller.bind_ship(ship, FRAME_GENERATION, controller.get_generation())
+	var ordinary := controller.evaluate_and_submit(
+		ship.global_position + Vector3.FORWARD * 1_000_000.0,
+		false, FRAME_GENERATION, controller.get_generation()
+	)
+	var forged_profile := (ordinary.get("envelope", {}) as Dictionary).duplicate(true)
+	forged_profile.sequence += 1
+	forged_profile.observation["final_approach"] = true
+	_check(ship.submit_planetary_cruise_envelope(forged_profile).get("reason") \
+		== &"final_approach_authority_mismatch", "ordinary cruise cannot opt into final approach")
+	var target := ControllerType.FinalApproachTarget.new()
+	target.target_generation = 1
+	target.coordinate_frame_generation = FRAME_GENERATION
+	target.location_generation = 3
+	target.landing_root_instance_id = stage.get_instance_id()
+	target.corridor_id = &"caldera_approach"
+	target.target_pad_id = &"caldera_pad"
+	target.target_world_transform = Transform3D(Basis.IDENTITY, Vector3(0.0, 100.0, 0.0))
+	target.corridor_half_extents_m = Vector3(45.0, 60.0, 300.0)
+	target.entry_position_half_extents_m = Vector3(42.0, 25.0, 75.0)
+	target.maximum_speed_mps = 12.0
+	target.maximum_attitude_degrees = 12.0
+	target.hull_margin_m = 0.05
+	target.collision_bounds = ship.get_landing_collision_report().get("local_bounds", AABB())
+	controller.arm_final_approach(target, FRAME_GENERATION, controller.get_generation())
+	controller.evaluate_and_submit(target.target_world_transform.origin, false, FRAME_GENERATION, controller.get_generation())
+	var start := ship.global_position
+	var completion: Dictionary = {}
+	var last: Dictionary = {}
+	var safe_commands := true
+	for tick in 2_000:
+		await physics_frame
+		last = controller.evaluate_and_submit(
+			target.target_world_transform.origin, false, FRAME_GENERATION, controller.get_generation()
+		)
+		if last.get("reason") == &"final_approach_completed":
+			completion = last.get("completion_receipt", {})
+			break
+		if not bool(last.get("accepted", false)):
+			break
+		var envelope := last.get("envelope", {}) as Dictionary
+		safe_commands = safe_commands and bool(envelope.get("clearance_full_hull", false)) \
+			and bool(envelope.get("clearance_verified", false)) \
+			and not bool(envelope.get("obstacle_detected", true)) \
+			and bool(envelope.get("desired_participation", false))
+		if tick == 0:
+			var forged := envelope.duplicate(true)
+			forged.sequence += 1
+			forged.observation.distance_to_destination_meters += 1.0
+			_check(ship.submit_planetary_cruise_envelope(forged).get("reason") \
+				== &"final_approach_authority_mismatch", "ship rejects a profile aimed away from the active entry")
+	_check(not completion.is_empty(), "resting craft physically reaches final approach: %s" % last.get("reason"))
+	_check(safe_commands and start.distance_to(ship.global_position) > 900.0,
+		"full-hull proved approach moves production Torrent over 900 m without staging")
+	var measurement := completion.get("measurement", {}) as Dictionary
+	_check(float(measurement.get("speed_mps", INF)) <= 12.0 \
+		and bool(measurement.get("full_hull_inside_authored_corridor", false)),
+		"moving approach ends at admitted hull clearance and handoff speed")
+	# After its target is completed, even the last otherwise valid envelope
+	# cannot reclaim the short-leg profile.
+	var retired := last.get("envelope", {}) as Dictionary
+	if retired.is_empty():
+		retired = controller.get_snapshot().get("last_envelope", {})
+	retired.sequence += 1
+	_check(ship.submit_planetary_cruise_envelope(retired).get("reason") == &"final_approach_authority_mismatch",
+		"completed target cannot re-authorize an old approach envelope")
+	stage.queue_free()
+	await process_frame
 
 
 func _check(condition: bool, message: String) -> void:

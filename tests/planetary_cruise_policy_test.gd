@@ -1,7 +1,7 @@
 extends SceneTree
 
 const PolicyScript := preload("res://scripts/world/planetary_cruise_policy.gd")
-const EXPECTED_ASSERTIONS := 30
+const EXPECTED_ASSERTIONS := 37
 const COMMON_AUTHORITY_KEYS := [
 	"renderer", "gameplay", "streaming", "save", "network", "physics",
 	"world_generation", "terrain_generation", "collision_generation",
@@ -23,6 +23,7 @@ func _run() -> void:
 	_test_alignment_and_deadband_exact_boundaries()
 	_test_geometry_proof_structured_red()
 	_test_schema_bounds_determinism_detachment_and_authority()
+	_test_short_leg_profile()
 	_finish()
 
 
@@ -424,6 +425,40 @@ func _test_schema_bounds_determinism_detachment_and_authority() -> void:
 		},
 		"policy owns no ship, input, movement, collision, gameplay, or streaming authority"
 	)
+
+
+func _test_short_leg_profile() -> void:
+	var policy := PolicyScript.new() as PlanetaryCruisePolicy
+	var observation := _observation()
+	observation["final_approach"] = true
+	observation.distance_to_destination_meters = 1_000.0
+	_set_motion(observation, 0.0, 1.0)
+	_set_clear_proof(observation, 1_000.0)
+	var result := _evaluate(policy, observation)
+	_check(bool(result.desired_cruise_participation) and result.desired_speed_meters_per_second > 0.0
+		and result.desired_speed_meters_per_second < 5_000.0, "short leg accelerates safely from rest")
+	var legacy := observation.duplicate(true)
+	legacy.erase("final_approach")
+	_check(_evaluate(policy, legacy).reason == &"insufficient_verified_clearance",
+		"same short distance still refuses an ordinary long-leg engagement")
+	_set_motion(observation, 2_000.0, 1.0)
+	result = _evaluate(policy, observation)
+	_check(result.reason == &"insufficient_verified_clearance" and bool(result.braking_requested),
+		"short profile retains current-speed braking clearance even when point is too close")
+	_set_motion(observation, 10.0, 1.0)
+	_set_obstacle_proof(observation, 500.0, 1_000.0)
+	_check(_evaluate(policy, observation).reason == &"obstacle_detected", "short profile refuses a blocked hull sweep")
+	_set_clear_proof(observation, 1_000.0)
+	_set_motion(observation, 10.0, 0.5)
+	_check(_evaluate(policy, observation).reason == &"alignment_below_threshold", "short profile retains alignment gate")
+	_set_motion(observation, 0.0, 1.0)
+	observation.distance_to_destination_meters = 0.5
+	_set_clear_proof(observation, 0.5)
+	result = _evaluate(policy, observation)
+	_check(bool(result.desired_cruise_participation) and result.desired_speed_meters_per_second > 0.0,
+		"small entry volumes remain reachable without a fixed stand-off")
+	observation.final_approach = 1
+	_check(not bool(_evaluate(policy, observation).accepted), "short profile requires an explicit boolean selector")
 
 
 func _observation() -> Dictionary:

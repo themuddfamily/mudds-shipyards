@@ -1,7 +1,7 @@
 class_name PlanetaryCruisePolicy
 extends RefCounted
 
-## Pure, caller-driven long-leg cruise recommendation policy.
+## Pure, caller-driven cruise and typed final-approach recommendation policy.
 ##
 ## The policy evaluates one detached observation and returns desired cruise
 ## participation plus speed, acceleration, and braking hints. It never samples
@@ -25,6 +25,14 @@ const ENGAGE_ALIGNMENT_DOT := 0.995
 const RETAIN_ALIGNMENT_DOT := 0.980
 const SPEED_DEADBAND_METERS_PER_SECOND := 1.0
 const EMBER_REFERENCE_LEG_METERS := 8_000_000.0
+## A typed active final approach uses a bounded speed profile toward its real
+## entry point. Keep two seconds of response and a physical braking reserve;
+## the 25 km long-leg margin/minimum acceleration run do not fit this leg.
+const APPROACH_SPEED_LIMIT_MPS := 5_000.0
+const APPROACH_PROFILE_DECELERATION_MPS2 := 600.0
+## Plan below the live envelope even after the next physics step has advanced
+## toward the target. The clearance gate itself retains the full response time.
+const APPROACH_PROFILE_RESPONSE_SECONDS := BRAKE_RESPONSE_SECONDS + 0.25
 
 const MAX_DISTANCE_METERS := 1_000_000_000.0
 const MAX_ABSOLUTE_SPEED_METERS_PER_SECOND := 100_000.0
@@ -91,6 +99,18 @@ func evaluate(
 	var current_braking_envelope := _braking_envelope_meters(
 		ship_speed
 	)
+	var final_approach := bool(observation.get("final_approach", false))
+	var target_speed := TARGET_CRUISE_SPEED_METERS_PER_SECOND
+	if final_approach:
+		var response_speed := APPROACH_PROFILE_DECELERATION_MPS2 \
+			* APPROACH_PROFILE_RESPONSE_SECONDS
+		target_speed = minf(APPROACH_SPEED_LIMIT_MPS, maxf(0.0,
+			sqrt(response_speed * response_speed
+				+ 2.0 * APPROACH_PROFILE_DECELERATION_MPS2 * distance) - response_speed
+		))
+		current_braking_envelope = ship_speed * ship_speed \
+			/ (2.0 * BRAKING_HINT_METERS_PER_SECOND_SQUARED) \
+			+ ship_speed * BRAKE_RESPONSE_SECONDS
 	var target_braking_envelope := _braking_envelope_meters(
 		TARGET_CRUISE_SPEED_METERS_PER_SECOND
 	)
@@ -103,7 +123,9 @@ func evaluate(
 		+ acceleration_distance
 	var required_clearance := current_braking_envelope
 	var required_destination_distance := current_braking_envelope
-	if not currently_participating:
+	if final_approach:
+		minimum_engage_distance = 0.0
+	elif not currently_participating:
 		required_clearance = maxf(
 			required_clearance, minimum_engage_distance
 		)
@@ -146,12 +168,11 @@ func evaluate(
 	var acceleration_hint := 0.0
 	var braking_requested := false
 	var state: StringName = &"cruise"
-	if closing_speed < TARGET_CRUISE_SPEED_METERS_PER_SECOND \
-		- SPEED_DEADBAND_METERS_PER_SECOND:
+	var speed_deadband := 0.0 if final_approach else SPEED_DEADBAND_METERS_PER_SECOND
+	if closing_speed < target_speed - speed_deadband:
 		acceleration_hint = ACCELERATION_HINT_METERS_PER_SECOND_SQUARED
 		state = &"accelerate"
-	elif closing_speed > TARGET_CRUISE_SPEED_METERS_PER_SECOND \
-		+ SPEED_DEADBAND_METERS_PER_SECOND:
+	elif closing_speed > target_speed + speed_deadband:
 		acceleration_hint = -BRAKING_HINT_METERS_PER_SECOND_SQUARED
 		braking_requested = true
 		state = &"brake_to_cruise_speed"
@@ -164,9 +185,7 @@ func evaluate(
 			"observation": detached_observation,
 			"desired_cruise_participation": true,
 			"state": state,
-			"desired_speed_meters_per_second": (
-				TARGET_CRUISE_SPEED_METERS_PER_SECOND
-			),
+			"desired_speed_meters_per_second": target_speed,
 			"acceleration_hint_meters_per_second_squared": acceleration_hint,
 			"braking_requested": braking_requested,
 			"braking_acceleration_hint_meters_per_second_squared": (
@@ -259,7 +278,12 @@ static func _validate_observation(
 	observation: Dictionary,
 	expected_coordinate_frame_generation: int
 ) -> StringName:
-	if not _has_exact_keys(observation, _OBSERVATION_KEYS):
+	var required_keys := _OBSERVATION_KEYS.duplicate()
+	if observation.has("final_approach"):
+		if not observation.final_approach is bool:
+			return &"final_approach_not_bool"
+		required_keys.append("final_approach")
+	if not _has_exact_keys(observation, required_keys):
 		return &"observation_schema_mismatch"
 	for key in [
 		"distance_to_destination_meters",

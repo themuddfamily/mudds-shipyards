@@ -524,7 +524,7 @@ func evaluate_and_submit(
 			if bool(completion.get("accepted", false)):
 				return _commit_final_approach_completion(completion)
 			final_approach_measurement = completion.duplicate(true)
-			var retarget := _final_approach_policy_destination(ship)
+			var retarget := _final_approach_policy_destination()
 			if not retarget.is_finite():
 				return _commit_evaluation_rejection(
 					&"final_approach_retarget_nonfinite", completion
@@ -585,6 +585,9 @@ func evaluate_and_submit(
 		"landing_active": ship.is_landing_active(),
 		"combat_active": combat_active,
 	}.duplicate(true)
+	if _final_approach_state == FinalApproachState.ACTIVE \
+			and _approach_kind == FINAL_APPROACH_KIND:
+		observation["final_approach"] = true
 	var policy_result := _policy.evaluate(
 		observation,
 		expected_coordinate_frame_generation
@@ -791,7 +794,7 @@ func audit() -> Dictionary:
 		"movement_owner": &"hero_ship",
 		"command_delivery": &"one_detached_envelope_per_physics_tick",
 		"fixed_orientation": true,
-		"final_approach_policy": &"existing_cruise_policy_dynamic_brake_retarget",
+		"final_approach_policy": &"entry_point_speed_profile",
 		"return_approach_policy": &"existing_cruise_policy_brake_complete_shell",
 		"common_authority": _zero_authority(),
 		"adjacent_capabilities": {
@@ -914,25 +917,32 @@ func _measure_return_approach(ship: HeroShip) -> Dictionary:
 	}.duplicate(true)
 
 
-func _final_approach_policy_destination(ship: HeroShip) -> Vector3:
+## HeroShip checks this again when accepting and consuming the envelope. An
+## arbitrary cruise observation cannot opt into the shorter stopping profile.
+func validate_final_approach_envelope(envelope: Dictionary) -> bool:
+	if _final_approach_state != FinalApproachState.ACTIVE \
+			or _approach_kind != FINAL_APPROACH_KIND \
+			or not _final_approach_target is FinalApproachTarget \
+			or int(envelope.get("controller_generation", 0)) != _generation \
+			or int(envelope.get("ship_instance_id", 0)) != _ship_instance_id \
+			or int(envelope.get("ship_attachment_generation", 0)) != _ship_attachment_generation \
+			or int(envelope.get("coordinate_frame_generation", 0)) != _coordinate_frame_generation:
+		return false
+	var ship := _resolve_ship()
+	if ship == null:
+		return false
+	var offset := _final_approach_policy_destination() - ship.global_position
+	var observation := envelope.get("observation", {}) as Dictionary
+	return offset.length() > 0.0 \
+		and float(observation.get("distance_to_destination_meters", -1.0)) == offset.length() \
+		and (envelope.get("destination_direction_world", Vector3.ZERO) as Vector3) \
+			.is_equal_approx(offset.normalized())
+
+
+func _final_approach_policy_destination() -> Vector3:
 	if not _final_approach_target is FinalApproachTarget:
 		return Vector3.INF
-	var target := _final_approach_target as FinalApproachTarget
-	var approach_direction := (
-		-target.target_world_transform.basis.z
-	).normalized()
-	if not approach_direction.is_finite() or approach_direction.is_zero_approx():
-		return Vector3.INF
-	# The existing policy adds response distance and a fixed braking margin to
-	# its physical stopping distance. Placing its ephemeral destination exactly
-	# that far beyond the accepted entry centre makes its unchanged brake-shell
-	# predicate reduce to `distance_to_entry <= physical_stopping_distance`.
-	# The Hero remains the only body that integrates the resulting envelope.
-	var policy_lead := ship.velocity.length() \
-		* PlanetaryCruisePolicyType.BRAKE_RESPONSE_SECONDS \
-		+ PlanetaryCruisePolicyType.BRAKE_FIXED_MARGIN_METERS
-	return target.target_world_transform.origin \
-		+ approach_direction * policy_lead
+	return (_final_approach_target as FinalApproachTarget).target_world_transform.origin
 
 
 func _commit_final_approach_completion(measurement: Dictionary) -> Dictionary:
