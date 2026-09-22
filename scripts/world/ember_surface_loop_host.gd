@@ -60,6 +60,8 @@ const ROUTE_ANCHOR_RADIUS_M := 1.35
 ## after the same large common-origin translation because Transform3D stores
 ## float components. This is a precision allowance, not a landing-volume one.
 const ORIGIN_REBASE_SURFACE_FRAME_TOLERANCE_M := 0.01
+# Match the common bootstrap's float32 translation/re-expression allowance.
+const ORIGIN_REBASE_SURFACE_RELATIVE_ROUNDING_BUDGET := 1.0 / 1048576.0
 const APPROACH_READY_PROBE_SCHEMA_VERSION := 1
 const MAX_CALLER_DELTA_SECONDS := PlanetaryTravelSession.MAX_CALLER_PHYSICS_DELTA_SECONDS
 const MAX_SAFE_INTEGER := 9_007_199_254_740_991
@@ -1394,7 +1396,7 @@ func adopt_committed_origin_rebase(
 		return _finish(false, rejection)
 	if expected_location_generation != _location_generation:
 		return _finish(false, &"stale_location_generation")
-	if _phase < Phase.ORBIT_APPROACH or _phase > Phase.ORBIT_RETURN:
+	if _phase > Phase.ORBIT_RETURN or (_phase == Phase.IDLE and not _attached):
 		return _finish(false, &"origin_adoption_out_of_order")
 	var validation := _validate_committed_origin_receipt(receipt)
 	if not bool(validation.get("accepted", false)):
@@ -1403,6 +1405,10 @@ func adopt_committed_origin_rebase(
 			validation.get("reason", &"invalid_origin_rebase_receipt") as StringName,
 		)
 	_coordinate_frame_generation = int(validation.get("target_generation", 0))
+	# Before Host.start(), the retained typed entry is still the arrival
+	# authority. Carry its frame fence in this same validated transaction.
+	if _phase == Phase.IDLE and _approach_entry_envelope != null:
+		_approach_entry_envelope.coordinate_frame_generation = _coordinate_frame_generation
 	_origin_adoption_count += 1
 	_last_origin_adoption_receipt = (receipt as Dictionary).duplicate(true)
 	return _finish(true, &"committed_origin_adopted")
@@ -2645,13 +2651,20 @@ func _validate_committed_origin_receipt(receipt: Variant) -> Dictionary:
 			or int(streaming.get("coordinate_frame_generation", 0)) != target_generation \
 			or int(streaming.get("location_generation", -1)) != _location_generation:
 		return {"accepted": false, "reason": &"origin_receipt_streaming_mismatch"}
+	# The body root is canonically re-expressed after translation; its independent
+	# berth retains float32 addition rounding. Compare at their representation scale.
+	var surface_rounding_allowance := maxf(
+		ORIGIN_REBASE_SURFACE_FRAME_TOLERANCE_M,
+		maxf(delta.length(), _bootstrap.global_position.length())
+			* ORIGIN_REBASE_SURFACE_RELATIVE_ROUNDING_BUDGET
+	)
 	if not _berth.global_basis.is_equal_approx(_landing_root.global_basis) \
 			or _berth.global_position.distance_to(_landing_root.global_position) \
-				> ORIGIN_REBASE_SURFACE_FRAME_TOLERANCE_M \
+				> surface_rounding_allowance \
 			or not _landing_root.global_basis.is_equal_approx(_reference_tangent_basis_body) \
 			or _landing_root.global_position.distance_to(
 				_bootstrap.global_position + _REGION.body_local_center_m
-			) > ORIGIN_REBASE_SURFACE_FRAME_TOLERANCE_M:
+			) > surface_rounding_allowance:
 		return {"accepted": false, "reason": &"origin_receipt_surface_frame_drift"}
 
 	var sample := value.adjusted_actor_sample as Dictionary \

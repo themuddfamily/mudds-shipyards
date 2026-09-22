@@ -10,6 +10,11 @@ extends RefCounted
 ## refused arm from asking every tick forever.
 const MAX_ABANDON_RETURN_ARM_ATTEMPTS := 900
 
+const MAX_TRANSIT_RESUME_ATTEMPTS := 600
+var _last_ember_origin_announcement: Dictionary = {}
+var _ember_outbound_resume_attempts := 0
+var _last_ember_outbound_resume_result: Dictionary = {}
+
 var _flow: GameFlow
 
 var _planetary_return_receipt_consumed := false
@@ -154,6 +159,9 @@ func advance_world(delta: float, actor_sample: Dictionary) -> Dictionary:
 			"coordinate_frame_generation": coordinate_frame_generation,
 			"reason": &"no_rebase_required",
 		}.duplicate(true)
+	if ember_origin_result.get("reason", &"") == &"rebase_committed":
+		_last_ember_origin_announcement = _announce_committed_origin_rebase(
+			ember_origin_result.get("receipt", {}) as Dictionary)
 	var ember_host_bind_result := _ensure_ember_surface_loop_host_bound(
 		ember_streaming_accepted and not required_origin_rebase_uncommitted
 	)
@@ -176,6 +184,8 @@ func advance_world(delta: float, actor_sample: Dictionary) -> Dictionary:
 				_rearm_retired_ember_final_approach()
 			if bool(_last_ember_final_approach_rearm_result.get("accepted", false)):
 				_ember_final_approach_rearm_count += 1
+	if not required_origin_rebase_uncommitted and ember_streaming_accepted:
+		_last_ember_outbound_resume_result = _resume_ember_outbound_transit(coordinate_frame_generation)
 	if not required_origin_rebase_uncommitted:
 		_consume_mudds_station_return_handoff_intent(
 			coordinate_frame_generation
@@ -893,12 +903,13 @@ func begin_ember_surface_journey(
 	var cruise_snapshot := _flow.planetary_cruise_binding.get_snapshot()
 	if not bool(cruise_snapshot.get("activated", false)):
 		return {"accepted": false, "reason": &"ember_cruise_binding_not_ready"}
-	if not bool(cruise_snapshot.get("engagement_requested", false)):
+	if not bool(cruise_snapshot.get("engagement_requested", false)) \
+			or not bool(cruise_snapshot.get("carry_transit", false)):
 		var engaged := _flow.planetary_cruise_binding.request_engage(
 			_flow.active_ship,
 			int(cruise_snapshot.get("current_coordinate_frame_generation", 0)),
 			&"",
-			_flow.planetary_cruise_binding.get_generation()
+			_flow.planetary_cruise_binding.get_generation(), true
 		)
 		if not bool(engaged.get("accepted", false)):
 			return engaged
@@ -1059,6 +1070,8 @@ func _rearm_retired_ember_final_approach() -> Dictionary:
 			or not is_instance_valid(_flow.active_ship) \
 			or not _flow.active_ship.is_piloted():
 		return {"accepted": false, "reason": &"ember_final_approach_rearm_unavailable"}
+	if _flow.active_ship.has_manual_flight_intent():
+		return {"accepted": false, "reason": &"manual_flight_intent"}
 	var host_snapshot := _flow.ember_surface_loop_host.get_snapshot()
 	if not bool(host_snapshot.get("attached", false)) \
 			or int(host_snapshot.get("phase", -1)) != EmberSurfaceLoopHost.Phase.IDLE:
@@ -1072,11 +1085,14 @@ func _rearm_retired_ember_final_approach() -> Dictionary:
 	if not gate_reason.is_empty():
 		return {"accepted": false, "reason": gate_reason}
 	if not bool(cruise_snapshot.get("engagement_requested", false)):
+		if _ember_outbound_resume_attempts >= MAX_TRANSIT_RESUME_ATTEMPTS:
+			return {"accepted": false, "reason": &"outbound_transit_resume_exhausted"}
+		_ember_outbound_resume_attempts += 1
 		var engaged := _flow.planetary_cruise_binding.request_engage(
 			_flow.active_ship,
 			int(cruise_snapshot.get("current_coordinate_frame_generation", 0)),
 			&"",
-			_flow.planetary_cruise_binding.get_generation()
+			_flow.planetary_cruise_binding.get_generation(), true
 		)
 		if not bool(engaged.get("accepted", false)):
 			return engaged
@@ -2068,3 +2084,74 @@ func consume_planetary_return_receipt(
 		_flow.hud.set_objective("Hold controls neutral, then exit %s" % craft.name)
 		_flow.hud.toast("Return complete", "Authoritative Mudds Shipyards berth occupied — propulsion will idle offline")
 	return {"accepted": true, "reason": &"planetary_return_consumed", "phase": _flow.Phase.SHUT_DOWN, "berth_id": berth.get_berth_id(), "craft_instance_id": craft_id, "actor_instance_id": actor_id}
+
+
+func _announce_committed_origin_rebase(receipt: Dictionary) -> Dictionary:
+	var result := {"cruise": {}, "host": {}}
+	if is_instance_valid(_flow.planetary_cruise_binding) \
+			and bool(_flow.planetary_cruise_binding.get_snapshot().get(
+				"engagement_requested", false
+			)):
+		result["cruise"] = _flow.planetary_cruise_binding.accept_committed_origin_rebase(
+			receipt, _flow.planetary_cruise_binding.get_generation()
+		)
+	var host := _flow.ember_surface_loop_host
+	if is_instance_valid(host) and host.is_attached() \
+			and host.get_phase() == EmberSurfaceLoopHost.Phase.IDLE \
+			and (_ember_surface_journey_active
+				or not _pending_ember_surface_request.is_empty()):
+		result["host"] = host.adopt_committed_origin_rebase(
+			receipt, host.get_generation(), host.get_attachment_generation(),
+			host.get_location_generation()
+		)
+	return result.duplicate(true)
+
+
+func _ember_outbound_transit_wanted() -> bool:
+	if _mudds_return_approach_active or _ember_abandon_return_active:
+		return false
+	if not _pending_ember_surface_request.is_empty():
+		return true
+	if not _ember_surface_journey_active or _ember_final_approach_handoff_ready \
+			or not _ember_final_approach_completion_receipt.is_empty():
+		return false
+	var host := _flow.ember_surface_loop_host
+	return not is_instance_valid(host) or not host.is_attached() \
+		or host.get_phase() == EmberSurfaceLoopHost.Phase.IDLE
+
+
+## Keeps the outbound cruise engaged for the whole 8,000 km. The cruise binding
+## releases the craft to its pilot on any refusal — a manual flight command, an
+## obstacle in the swept corridor, a whole-Main re-entry — and while the
+## expedition is still wanted the transit owner asks for it again on the next
+## clean tick. A pilot holding the controls therefore keeps them; releasing them
+## resumes the leg. The armed approach is re-established by the existing re-arm.
+func _resume_ember_outbound_transit(coordinate_frame_generation: int) -> Dictionary:
+	if not _ember_outbound_transit_wanted():
+		_ember_outbound_resume_attempts = 0
+		return {"accepted": false, "reason": &"outbound_transit_not_wanted"}
+	if not is_instance_valid(_flow.planetary_cruise_binding) \
+			or not is_instance_valid(_flow.active_ship):
+		return {"accepted": false, "reason": &"outbound_transit_unavailable"}
+	if _flow.active_ship.has_manual_flight_intent():
+		return {"accepted": false, "reason": &"manual_flight_intent"}
+	var cruise := _flow.planetary_cruise_binding
+	var snapshot := cruise.get_snapshot()
+	if bool(snapshot.get("engagement_requested", false)):
+		return {"accepted": false, "reason": &"outbound_transit_engaged"}
+	if _ember_outbound_resume_attempts >= MAX_TRANSIT_RESUME_ATTEMPTS:
+		return {"accepted": false, "reason": &"outbound_transit_resume_exhausted"}
+	var gate_reason := _flow._planetary_cruise_gate_reason(false)
+	if not gate_reason.is_empty():
+		return {"accepted": false, "reason": gate_reason}
+	if coordinate_frame_generation < 1 \
+			or coordinate_frame_generation \
+				!= int(snapshot.get("current_coordinate_frame_generation", 0)):
+		return {"accepted": false, "reason": &"outbound_transit_frame_unavailable"}
+	_ember_outbound_resume_attempts += 1
+	var engaged := cruise.request_engage(
+		_flow.active_ship, coordinate_frame_generation, &"",
+		cruise.get_generation(),
+		true,
+	)
+	return engaged

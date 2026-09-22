@@ -71,8 +71,12 @@ class FinalApproachTarget:
 	var maximum_attitude_degrees := 0.0
 	var hull_margin_m := 0.0
 	var collision_bounds := AABB()
+	# Optional Ember orbital lead-in; expressed in the authored entry frame.
+	var lead_in_height_m := 0.0
 
 	func validation_reason() -> StringName:
+		if not is_finite(lead_in_height_m) or lead_in_height_m < 0.0 or lead_in_height_m > 100_000.0:
+			return &"final_approach_lead_in_invalid"
 		if target_id != FINAL_APPROACH_TARGET_ID or target_generation < 1:
 			return &"final_approach_target_identity_invalid"
 		if coordinate_frame_generation < 1 or location_generation < 1 \
@@ -110,6 +114,7 @@ class FinalApproachTarget:
 
 	func get_snapshot() -> Dictionary:
 		return {
+			"lead_in_height_m": lead_in_height_m,
 			"target_id": target_id,
 			"target_generation": target_generation,
 			"coordinate_frame_generation": coordinate_frame_generation,
@@ -259,6 +264,7 @@ var _signal_dispatch_active := false
 var _last_result: Dictionary = {}
 var _last_envelope: Dictionary = {}
 var _final_approach_target: Variant
+var _final_approach_leg := 0
 var _approach_kind: StringName = &""
 var _final_approach_state := FinalApproachState.NONE
 var _final_approach_generation := 0
@@ -353,6 +359,7 @@ func arm_final_approach(
 		return _receipt(false, &"final_approach_already_requested")
 	_mutation_active = true
 	_final_approach_target = target
+	_final_approach_leg = 0
 	_approach_kind = FINAL_APPROACH_KIND
 	_final_approach_generation = target.target_generation
 	_final_approach_state = FinalApproachState.ARMED
@@ -520,6 +527,7 @@ func evaluate_and_submit(
 			if bool(return_completion.get("accepted", false)):
 				return _commit_return_approach_completion(return_completion)
 		else:
+			_advance_final_approach_leg(ship)
 			var completion := _measure_final_approach(ship)
 			if bool(completion.get("accepted", false)):
 				return _commit_final_approach_completion(completion)
@@ -704,6 +712,59 @@ func evaluate_and_submit(
 	_mutation_active = false
 	_emit_evaluation_committed()
 	return _last_result.duplicate(true)
+
+
+## Carries the authenticated attachment and frozen target across a common rebase.
+func rebind_coordinate_frame(
+	ship: HeroShip,
+	coordinate_frame_generation: int,
+	expected_generation: int,
+	world_translation: Vector3
+) -> Dictionary:
+	if _mutation_active or _signal_dispatch_active:
+		return _receipt(false, &"reentrant_call")
+	var binding_reason := _validate_binding(
+		_coordinate_frame_generation, expected_generation
+	)
+	if not binding_reason.is_empty():
+		return _receipt(false, binding_reason)
+	if not world_translation.is_finite():
+		return _receipt(false, &"translation_nonfinite")
+	if coordinate_frame_generation != _coordinate_frame_generation + 1:
+		return _receipt(false, &"coordinate_frame_generation_jump")
+	var live := _resolve_ship()
+	if live == null or live != ship:
+		return _receipt(false, &"ship_instance_mismatch")
+	_mutation_active = true
+	var retargeted := ship.retarget_planetary_cruise_coordinate_frame(
+		get_instance_id(),
+		_ship_attachment_generation,
+		coordinate_frame_generation
+	)
+	if not bool(retargeted.get("accepted", false)):
+		_mutation_active = false
+		return _receipt(
+			false,
+			StringName(retargeted.get("reason", &"ship_frame_retarget_rejected"))
+		)
+	if _final_approach_target is FinalApproachTarget:
+		(_final_approach_target as FinalApproachTarget).target_world_transform.origin += world_translation
+	elif _final_approach_target is ReturnApproachTarget:
+		(_final_approach_target as ReturnApproachTarget).home_target_world_transform.origin += world_translation
+	_coordinate_frame_generation = coordinate_frame_generation
+	if _final_approach_target is FinalApproachTarget:
+		(_final_approach_target as FinalApproachTarget).coordinate_frame_generation = (
+			coordinate_frame_generation
+		)
+	elif _final_approach_target is ReturnApproachTarget:
+		(_final_approach_target as ReturnApproachTarget).coordinate_frame_generation = (
+			coordinate_frame_generation
+		)
+	_generation = 1 if _generation >= MAX_SAFE_INTEGER else _generation + 1
+	_last_envelope = {}
+	_mutation_active = false
+	_emit_binding_changed()
+	return _receipt(true, &"coordinate_frame_rebound")
 
 
 func disengage(expected_generation: int, brake_to_stop: bool = true) -> Dictionary:
@@ -942,7 +1003,44 @@ func validate_final_approach_envelope(envelope: Dictionary) -> bool:
 func _final_approach_policy_destination() -> Vector3:
 	if not _final_approach_target is FinalApproachTarget:
 		return Vector3.INF
-	return (_final_approach_target as FinalApproachTarget).target_world_transform.origin
+	var target := _final_approach_target as FinalApproachTarget
+	if target.lead_in_height_m > 0.0 and _final_approach_leg < 2:
+		return target.target_world_transform * Vector3(
+			0.0, target.lead_in_height_m if _final_approach_leg == 0 else 0.0,
+			target.corridor_half_extents_m.z
+		)
+	return target.target_world_transform.origin
+
+
+func _advance_final_approach_leg(ship: HeroShip) -> void:
+	var target := _final_approach_target as FinalApproachTarget
+	if target == null or target.lead_in_height_m <= 0.0 or _final_approach_leg >= 2:
+		return
+	if ship.global_position.distance_to(_final_approach_policy_destination()) <= 8.0 \
+			and ship.velocity.length() <= 4.0:
+		_final_approach_leg += 1
+
+
+## Read only authority for HeroShip's bounded, stationary route turn. Reuses the
+## exact envelope/frame/attachment and current-leg destination authentication.
+func get_final_approach_turn_target(envelope: Dictionary) -> Dictionary:
+	if not validate_final_approach_envelope(envelope):
+		return {}
+	var target := _final_approach_target as FinalApproachTarget
+	if target.lead_in_height_m <= 0.0:
+		return {}
+	var reason := StringName(envelope.get("policy_reason", &""))
+	if reason not in [&"alignment_below_threshold", &"cruise_participation_desired"]:
+		return {}
+	var ship := _resolve_ship()
+	if ship == null or (_final_approach_leg == 0 and ship.velocity.length() > 12.0):
+		return {}
+	var direction := (_final_approach_policy_destination() - ship.global_position).normalized()
+	var up := target.target_world_transform.basis.y.normalized()
+	if absf(direction.dot(up)) > 0.99:
+		up = target.target_world_transform.basis.z.normalized()
+	return {"target_basis": Basis.looking_at(direction, up), "leg": _final_approach_leg}
+
 
 
 func _commit_final_approach_completion(measurement: Dictionary) -> Dictionary:
@@ -959,6 +1057,7 @@ func _commit_final_approach_completion(measurement: Dictionary) -> Dictionary:
 		"coordinate_frame_generation": _coordinate_frame_generation,
 		"ship_instance_id": _ship_instance_id,
 		"ship_attachment_generation": _ship_attachment_generation,
+		"lead_in_leg": _final_approach_leg,
 		"target": _final_approach_target.get_snapshot(),
 		"measurement": measurement.duplicate(true),
 	}.duplicate(true)
@@ -992,6 +1091,7 @@ func _commit_return_approach_completion(measurement: Dictionary) -> Dictionary:
 		"coordinate_frame_generation": _coordinate_frame_generation,
 		"ship_instance_id": _ship_instance_id,
 		"ship_attachment_generation": _ship_attachment_generation,
+		"lead_in_leg": _final_approach_leg,
 		"target": _final_approach_target.get_snapshot(),
 		"measurement": measurement.duplicate(true),
 	}.duplicate(true)
@@ -1018,6 +1118,7 @@ func _final_approach_snapshot() -> Dictionary:
 		"state_id": _final_approach_state_id(_final_approach_state),
 		"target_generation": _final_approach_generation,
 		"reason": _last_final_approach_reason,
+		"lead_in_leg": _final_approach_leg,
 		"target": _final_approach_target.get_snapshot() \
 			if _final_approach_target != null else {},
 		"last_completion_receipt": _last_final_approach_receipt.duplicate(true),
@@ -1135,6 +1236,7 @@ func _clear_binding(reason: StringName, advance_generation: bool) -> void:
 	_last_final_approach_reason = reason
 	_last_final_approach_receipt.clear()
 	_final_approach_target = null
+	_final_approach_leg = 0
 	_last_result = {
 		"accepted": true,
 		"reason": reason,

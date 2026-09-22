@@ -95,6 +95,8 @@ var _final_approach_completion_consumed := false
 var _final_approach_completion_count := 0
 var _approach_kind: StringName = &""
 var _return_approach_home_target_transform := Transform3D.IDENTITY
+var _carry_transit := false
+var _translated_frame_generation := 0
 var _mutation_active := false
 var _signal_dispatch_active := false
 
@@ -148,12 +150,11 @@ func request_engage(
 		expected_coordinate_frame_generation: int,
 		production_gate_reason: StringName,
 		expected_generation: int,
+		carry_transit: bool = false,
 	) -> Dictionary:
 	var preflight := _mutation_preflight(expected_generation)
 	if not preflight.is_empty():
 		return _result(false, preflight)
-	if _engagement_requested:
-		return _result(false, &"already_engaged")
 	# One further generation is reserved for the retirement of every accepted
 	# engagement. Accepting at MAX-1 would bind a live controller at MAX and make
 	# every later fail-closed release unrepresentable.
@@ -169,6 +170,25 @@ func request_engage(
 		return _result(false, ship_reason)
 	if expected_coordinate_frame_generation != _frame.get_generation():
 		return _result(false, &"coordinate_frame_generation_mismatch")
+	if _engagement_requested:
+		if not carry_transit or _carry_transit:
+			return _result(false, &"already_engaged")
+		var live_reason := _validate_engaged_ship(ship)
+		if not live_reason.is_empty():
+			return _result(false, live_reason)
+		if expected_coordinate_frame_generation != _bound_frame_generation:
+			return _result(false, &"coordinate_frame_generation_mismatch")
+		var current := _ensure_current_frame_binding(ship, expected_coordinate_frame_generation)
+		if not bool(current.get("accepted", false)):
+			return _result(false, StringName(current.get("reason", &"binding_unavailable")))
+		_mutation_active = true
+		_carry_transit = true
+		_generation = _next_generation(_generation)
+		_last_reason = &"transit_continuity_requested"
+		_last_result = _result(true, _last_reason)
+		_mutation_active = false
+		_emit_engagement_changed()
+		return _last_result.duplicate(true)
 	if _final_approach_target_generation > 0:
 		if not _final_approach_completion_consumed:
 			return _result(false, &"final_approach_completion_unconsumed")
@@ -196,6 +216,8 @@ func request_engage(
 			StringName(bind.get("reason", &"controller_bind_rejected")),
 		)
 	_engagement_requested = true
+	_carry_transit = carry_transit
+	_translated_frame_generation = 0
 	_engaged_ship_ref = weakref(ship)
 	_engaged_ship_instance_id = ship.get_instance_id()
 	_bound_frame_generation = expected_coordinate_frame_generation
@@ -312,6 +334,17 @@ func request_final_approach(
 	)
 	target.hull_margin_m = float(approach_envelope.get("hull_margin_m", -1.0))
 	target.collision_bounds = approach_envelope.get("collision_bounds", AABB()) as AABB
+	# Long Ember arrivals first cross above the flattened pad disk, then descend
+	# inside it and turn onto the authored corridor axis. Nearby entries stay direct.
+	var craft := _resolve_engaged_ship_even_if_detached()
+	if _carry_transit and craft != null \
+			and craft.global_position.distance_to(target.target_world_transform.origin) > 2_000.0:
+		var orbital_entry := _frame.orbital_to_world_streaming_position(
+			_canonical_destination_orbital, expected_coordinate_frame_generation)
+		if bool(orbital_entry.get("accepted", false)):
+			target.lead_in_height_m = maxf(0.0,
+				((orbital_entry.get("position", Vector3.ZERO) as Vector3)
+					- target.target_world_transform.origin).dot(target.target_world_transform.basis.y))
 	_mutation_active = true
 	var armed := _controller.arm_final_approach(
 		target, expected_coordinate_frame_generation, _controller.get_generation()
@@ -597,20 +630,12 @@ func physics_tick_from_caller_sample(
 	var ship_reason := _validate_engaged_ship(ship)
 	if not ship_reason.is_empty():
 		return _fail_tick_guarded(ship_reason, true)
-	if _final_approach_target_generation > 0:
-		if _approach_kind == _ControllerType.FINAL_APPROACH_KIND:
-			if expected_location_generation != _final_approach_location_generation:
-				return _fail_tick_guarded(&"location_generation_mismatch", true)
-			var target_source_reason := _final_approach_source_rejection()
-			if not target_source_reason.is_empty():
-				return _fail_tick_guarded(target_source_reason, true)
-		if expected_coordinate_frame_generation != _bound_frame_generation:
-			return _fail_tick_guarded(
-				&"return_approach_rebase_aborted" \
-					if _approach_kind == _ControllerType.RETURN_APPROACH_KIND \
-					else &"final_approach_rebase_aborted",
-				true,
-			)
+	if _final_approach_target_generation > 0 \
+			and expected_coordinate_frame_generation != _bound_frame_generation \
+			and _translated_frame_generation != expected_coordinate_frame_generation:
+		return _fail_tick_guarded(
+			&"return_approach_rebase_aborted" if _approach_kind == _ControllerType.RETURN_APPROACH_KIND \
+				else &"final_approach_rebase_aborted", true)
 	if expected_coordinate_frame_generation != _frame.get_generation():
 		return _fail_tick_guarded(&"coordinate_frame_generation_mismatch", true)
 	var frame_binding := _ensure_current_frame_binding(
@@ -633,6 +658,12 @@ func physics_tick_from_caller_sample(
 			StringName(frame_binding.get("reason", &"frame_rebind_rejected")),
 			true,
 		)
+	if _final_approach_target_generation > 0 and _approach_kind == _ControllerType.FINAL_APPROACH_KIND:
+		if expected_location_generation != _final_approach_location_generation:
+			return _fail_tick_guarded(&"location_generation_mismatch", true)
+		var target_source_reason := _final_approach_source_rejection()
+		if not target_source_reason.is_empty():
+			return _fail_tick_guarded(target_source_reason, true)
 	var destination_world := _return_approach_home_target_transform.origin \
 		if _approach_kind == _ControllerType.RETURN_APPROACH_KIND \
 		else Vector3.INF
@@ -671,7 +702,10 @@ func physics_tick_from_caller_sample(
 			.get("state_id", &"none"))
 	)
 	if not bool(policy.get("desired_cruise_participation", false)) \
-			and final_state not in [&"final_approach", &"return_approach"]:
+			and final_state not in [&"final_approach", &"return_approach"] \
+			and not (_carry_transit and bool(policy.get("braking_requested", false)) \
+				and policy.get("reason", &"") in [
+					&"insufficient_verified_clearance", &"destination_braking_envelope"]):
 		return _fail_tick_guarded(
 			StringName(policy.get("reason", &"policy_disengaged")),
 			true,
@@ -706,6 +740,56 @@ func get_controller() -> PlanetaryCruisePhysicalController:
 	return _controller
 
 
+## Accepts only the bound frame's latest committed translation.
+func accept_committed_origin_rebase(
+		receipt: Dictionary,
+		expected_generation: int,
+	) -> Dictionary:
+	var preflight := _mutation_preflight(expected_generation)
+	if not preflight.is_empty():
+		return _result(false, preflight)
+	if not _engagement_requested or not _carry_transit:
+		return _result(false, &"not_engaged")
+	if receipt.get("reason", &"") != &"rebase_committed" \
+			or not receipt.get("source_generation") is int \
+			or not receipt.get("target_generation") is int \
+			or not receipt.get("world_translation_delta") is Vector3:
+		return _result(false, &"origin_receipt_invalid")
+	var source_generation := int(receipt.source_generation)
+	var target_generation := int(receipt.target_generation)
+	var delta := receipt.world_translation_delta as Vector3
+	if not delta.is_finite():
+		return _result(false, &"origin_translation_nonfinite")
+	if source_generation != _bound_frame_generation \
+			or target_generation != source_generation + 1:
+		return _result(false, &"origin_receipt_generation_mismatch")
+	var committed := _frame.get_snapshot().get("last_rebase_result", {}) as Dictionary
+	if _frame.get_generation() != target_generation \
+			or receipt.get("world_id", &"") != _bound_world_id \
+			or not receipt.get("request_id") is int \
+			or int(receipt.get("request_id", 0)) != int(committed.get("request_id", -1)) \
+			or int(committed.get("source_generation", 0)) != source_generation \
+			or committed.get("world_translation_delta", Vector3.INF) != delta:
+		return _result(false, &"origin_receipt_not_current")
+	_mutation_active = true
+	var ship := _resolve_engaged_ship_even_if_detached()
+	var carried := _controller.rebind_coordinate_frame(
+		ship, target_generation, _controller.get_generation(), delta)
+	if not bool(carried.get("accepted", false)):
+		_mutation_active = false
+		return _result(false, StringName(carried.get("reason", &"frame_rebind_rejected")))
+	_bound_frame_generation = target_generation
+	_rebind_count += 1
+	_final_approach_landing_root_transform.origin += delta
+	_return_approach_home_target_transform.origin += delta
+	_translated_frame_generation = target_generation
+	_mutation_active = false
+	return _result(true, &"origin_translation_accepted", {
+		"target_generation": target_generation,
+		"world_translation_delta": delta,
+	})
+
+
 func get_snapshot() -> Dictionary:
 	return {
 		"schema_version": SCHEMA_VERSION,
@@ -719,6 +803,7 @@ func get_snapshot() -> Dictionary:
 		"controller_instance_id": _controller_instance_id,
 		"generation": _generation,
 		"engagement_requested": _engagement_requested,
+		"carry_transit": _carry_transit,
 		"engaged_ship_instance_id": _engaged_ship_instance_id,
 		"bound_coordinate_frame_generation": _bound_frame_generation,
 		"current_coordinate_frame_generation": (
@@ -1222,6 +1307,8 @@ func _ensure_current_frame_binding(
 		return {"accepted": false, "reason": &"ship_attachment_retired"}
 	if expected_coordinate_frame_generation != _bound_frame_generation + 1:
 		return {"accepted": false, "reason": &"coordinate_frame_generation_jump"}
+	if _carry_transit:
+		return {"accepted": false, "reason": &"origin_translation_not_announced"}
 	var release := _release_controller(false)
 	if not bool(release.get("accepted", false)):
 		return release

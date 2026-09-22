@@ -541,6 +541,18 @@ func _test_committed_origin_receipt_adoption() -> void:
 		"committed-origin adoption rejects a forged adjusted position before changing its frame fence",
 	)
 
+	var berth := fixture.berth as EmberSurfaceBerth
+	var berth_before := berth.global_position
+	berth.global_position += Vector3(1.0, 0.0, 0.0)
+	var drift_before := host.get_snapshot()
+	rejected = host.adopt_committed_origin_rebase(
+		receipt, host.get_generation(), host.get_attachment_generation(), 1
+	)
+	_check(rejected.reason == &"origin_receipt_surface_frame_drift"
+		and host.get_snapshot() == drift_before,
+		"representation allowance rejects a real metre of berth drift without advancing Host")
+	berth.global_position = berth_before
+
 	var adopted := host.adopt_committed_origin_rebase(
 		receipt,
 		host.get_generation(),

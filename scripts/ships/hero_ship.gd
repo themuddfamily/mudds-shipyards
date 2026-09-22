@@ -102,6 +102,8 @@ const PLANETARY_CRUISE_STATE_ACCELERATING: StringName = &"accelerating"
 const PLANETARY_CRUISE_STATE_CRUISING: StringName = &"cruising"
 const PLANETARY_CRUISE_STATE_BRAKING_TO_SPEED: StringName = &"braking_to_speed"
 const PLANETARY_CRUISE_STATE_BRAKING: StringName = &"braking"
+const PLANETARY_CRUISE_STATE_ALIGNING: StringName = &"approach_aligning"
+const PLANETARY_CRUISE_TURN_RATE_RADIANS := PI / 3.0
 const PLANETARY_CRUISE_CLEARANCE_PROOF_KEYS := [
 	"accepted",
 	"reason",
@@ -1797,6 +1799,41 @@ func submit_planetary_cruise_envelope(envelope: Dictionary) -> Dictionary:
 	return _planetary_cruise_receipt(true, &"envelope_queued")
 
 
+## Carries an attached controller across one committed coordinate-frame change.
+func retarget_planetary_cruise_coordinate_frame(
+	controller_instance_id: int,
+	expected_attachment_generation: int,
+	coordinate_frame_generation: int
+) -> Dictionary:
+	if _reset_for_reuse_mutation_blocked() \
+			or _planetary_cruise_mutation_active or _planetary_cruise_signal_dispatch_active:
+		return _planetary_cruise_receipt(false, &"reentrant_call")
+	if controller_instance_id == 0 \
+			or controller_instance_id != _planetary_cruise_controller_instance_id:
+		return _planetary_cruise_receipt(false, &"controller_identity_mismatch")
+	if expected_attachment_generation != _planetary_cruise_attachment_generation:
+		return _planetary_cruise_receipt(false, &"attachment_generation_mismatch")
+	if coordinate_frame_generation < 1 \
+			or coordinate_frame_generation > PLANETARY_CRUISE_MAX_SAFE_INTEGER:
+		return _planetary_cruise_receipt(false, &"coordinate_frame_generation_out_of_bounds")
+	var pending_frame_generation := int(
+		_planetary_cruise_pending_envelope.get(
+			"coordinate_frame_generation",
+			_planetary_cruise_coordinate_frame_generation
+		)
+	)
+	if coordinate_frame_generation <= max(
+		_planetary_cruise_coordinate_frame_generation, pending_frame_generation
+	):
+		return _planetary_cruise_receipt(false, &"stale_coordinate_frame_generation")
+	_planetary_cruise_mutation_active = true
+	_planetary_cruise_pending_envelope.clear()
+	_planetary_cruise_pending_clearance_proof.clear()
+	_planetary_cruise_coordinate_frame_generation = coordinate_frame_generation
+	_planetary_cruise_mutation_active = false
+	return _planetary_cruise_receipt(true, &"coordinate_frame_retargeted")
+
+
 ## Explicitly retires the bound controller and any pending/active envelope. The
 ## body begins a bounded HeroShip-owned brake when that is physically allowed.
 func disengage_planetary_cruise(
@@ -2999,6 +3036,11 @@ func _command_requires_engine(command: ShipCommand) -> bool:
 	)
 
 
+## Read the already-consumed command; transit retry never samples input twice.
+func has_manual_flight_intent() -> bool:
+	return _command_requires_engine(_last_ship_command)
+
+
 func _command_interrupts_planetary_cruise(command: ShipCommand) -> bool:
 	return (
 		_planetary_cruise_state != PLANETARY_CRUISE_STATE_INACTIVE
@@ -3010,6 +3052,37 @@ func _command_interrupts_planetary_cruise(command: ShipCommand) -> bool:
 func _planetary_cruise_has_propulsion_demand() -> bool:
 	return not _planetary_cruise_pending_envelope.is_empty() \
 		or _planetary_cruise_state != PLANETARY_CRUISE_STATE_INACTIVE
+
+
+## Turns only against a live typed route leg. Policy still forbids thrust while
+## misaligned; rotation starts after momentum is removed and checks both poses.
+func _update_planetary_approach_turn(envelope: Dictionary, delta: float) -> bool:
+	var controller := instance_from_id(_planetary_cruise_controller_instance_id)
+	if not controller is PlanetaryCruisePhysicalController:
+		return false
+	var command: Dictionary = controller.get_final_approach_turn_target(envelope)
+	if command.is_empty():
+		return false
+	var target := command.target_basis as Basis
+	var angle := Quaternion(global_basis.orthonormalized()).angle_to(Quaternion(target))
+	if angle <= deg_to_rad(0.5):
+		return false
+	_planetary_cruise_state = PLANETARY_CRUISE_STATE_ALIGNING
+	_planetary_cruise_reason = &"approach_aligning"
+	_throttle = 0.0
+	velocity = velocity.move_toward(Vector3.ZERO,
+		PlanetaryCruisePolicyType.BRAKING_HINT_METERS_PER_SECOND_SQUARED * maxf(delta, 0.0))
+	if velocity.length_squared() > 0.0:
+		_move_planetary_cruise_body()
+		return true
+	var proposed := Basis(Quaternion(global_basis.orthonormalized()).slerp(
+		Quaternion(target), minf(1.0, PLANETARY_CRUISE_TURN_RATE_RADIANS * maxf(delta, 0.0) / angle)))
+	if _is_landing_pose_obstructed(global_transform) \
+			or _is_landing_pose_obstructed(Transform3D(proposed, global_position)):
+		_planetary_cruise_reason = &"approach_turn_obstructed"
+		return true
+	global_basis = proposed
+	return true
 
 
 ## Returns true only when this physics tick was fully integrated by the cruise
@@ -3048,6 +3121,8 @@ func _update_planetary_cruise_physics(delta: float) -> bool:
 		_planetary_cruise_braking_acceleration = absf(float(
 			envelope.braking_acceleration_hint_meters_per_second_squared
 		))
+		if _update_planetary_approach_turn(envelope, delta):
+			return true
 		if bool(envelope.desired_participation):
 			if bool(envelope.braking_requested) or signed_acceleration < 0.0:
 				_planetary_cruise_state = PLANETARY_CRUISE_STATE_BRAKING_TO_SPEED
@@ -3064,6 +3139,7 @@ func _update_planetary_cruise_physics(delta: float) -> bool:
 			return false
 		_emit_planetary_cruise_state_changed()
 	elif _planetary_cruise_state in [
+		PLANETARY_CRUISE_STATE_ALIGNING,
 		PLANETARY_CRUISE_STATE_ACCELERATING,
 		PLANETARY_CRUISE_STATE_CRUISING,
 		PLANETARY_CRUISE_STATE_BRAKING_TO_SPEED,
@@ -3103,6 +3179,17 @@ func _update_planetary_cruise_physics(delta: float) -> bool:
 				< _planetary_cruise_desired_speed
 			else 0.0
 		)
+	if _move_planetary_cruise_body():
+		return true
+	if _planetary_cruise_state == PLANETARY_CRUISE_STATE_BRAKING \
+		and velocity.length() <= PlanetaryCruisePolicyType.SPEED_DEADBAND_METERS_PER_SECOND:
+		velocity = Vector3.ZERO
+		_retire_planetary_cruise(&"braking_complete", true)
+	return true
+
+
+## Shared movement and collision accounting for thrust and route-turn braking.
+func _move_planetary_cruise_body() -> bool:
 	var pre_collision_velocity := velocity
 	var pre_move_position := global_position
 	if velocity.length_squared() > 0.0:
@@ -3118,11 +3205,7 @@ func _update_planetary_cruise_physics(delta: float) -> bool:
 	if get_slide_collision_count() > 0:
 		_retire_planetary_cruise(&"physical_collision", true)
 		return true
-	if _planetary_cruise_state == PLANETARY_CRUISE_STATE_BRAKING \
-		and velocity.length() <= PlanetaryCruisePolicyType.SPEED_DEADBAND_METERS_PER_SECOND:
-		velocity = Vector3.ZERO
-		_retire_planetary_cruise(&"braking_complete", true)
-	return true
+	return false
 
 
 func _validate_planetary_cruise_query_context(
