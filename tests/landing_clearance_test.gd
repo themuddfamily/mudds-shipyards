@@ -20,6 +20,7 @@ func _run() -> void:
 	await _test_oriented_berth_acceptance()
 	await _test_production_fleet_collision_envelopes()
 	await _test_strict_assist_lifecycle()
+	await _test_long_capture_approach()
 	await _test_landing_authority_invalidation()
 	await _test_landing_survives_caldera_scale_rebase()
 	await _test_active_landing_lifecycle_teardown()
@@ -186,6 +187,39 @@ func _test_strict_assist_lifecycle() -> void:
 	_check(not ship.is_landing_active() and not bool(ship.get_telemetry().landed), "timed-out assist fails safely without claiming a landing")
 	_check(aborted_reasons.size() == 1 and aborted_reasons[0] == &"assist_timeout", "assist timeout emits an auditable abort reason once")
 	_check(ship.get_telemetry().landing_abort_reason == &"assist_timeout", "telemetry retains the last landing abort reason")
+	stage.queue_free()
+	await process_frame
+	await process_frame
+
+
+func _test_long_capture_approach() -> void:
+	var stage := Node3D.new()
+	root.add_child(stage)
+	var berth := BERTH_SCRIPT.new() as ShipBerth
+	berth.berth_id = &"long_capture_berth"
+	berth.landing_half_extents = Vector3(12.0, 3.8, 17.0)
+	berth.assist_capture_half_extents = Vector3(30.0, 30.0, 360.0)
+	stage.add_child(berth)
+	var ship := TORRENT_SCENE.instantiate() as HeroShip
+	ship.ship_definition = TORRENT_DEFINITION
+	stage.add_child(ship)
+	await process_frame
+	ship.global_transform = berth.get_assist_staging_transform()
+	ship.global_position += Vector3(0.0, 0.0, 300.0)
+	ship.velocity = Vector3.ZERO
+	_check(not berth.try_reserve(ship, ship.get_ship_definition()).is_empty(), "long approach obtains a real berth lease")
+	_check(ship.request_berth_landing(berth), "broad capture accepts the distant complete hull")
+	var deadline := float(ship.get_landing_contract_report().timeout_seconds)
+	_check(deadline > 30.0 and deadline < 60.0, "accepted long approach has a finite physical travel deadline")
+	var maximum_step := 0.0
+	for tick in range(3600):
+		var previous := ship.global_position
+		await physics_frame
+		maximum_step = maxf(maximum_step, previous.distance_to(ship.global_position))
+		if not ship.is_landing_active():
+			break
+	_check(bool(ship.get_telemetry().landed) and berth.get_occupant() == ship, "long capture physically completes staging and docking without timeout")
+	_check(maximum_step < 0.5, "long landing preserves ordinary physical movement without placement")
 	stage.queue_free()
 	await process_frame
 	await process_frame

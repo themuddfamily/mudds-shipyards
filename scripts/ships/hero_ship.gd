@@ -157,6 +157,7 @@ const PLANETARY_CRUISE_ENVELOPE_KEYS := [
 ]
 const LANDING_CONTRACT_SCHEMA_VERSION := 3
 const LANDING_TIMEOUT_SECONDS := 24.0
+const LANDING_STAGING_SPEED := 12.0
 const LANDING_STALL_TIMEOUT_SECONDS := 4.0
 const LANDING_PROGRESS_EPSILON := 0.0001
 const LANDING_COMPLETION_DISTANCE := 0.16
@@ -328,6 +329,7 @@ var _landing_staging_target := Transform3D.IDENTITY
 var _landing_phase: StringName = LANDING_PHASE_NONE
 var _landing_after_brake_phase: StringName = LANDING_PHASE_FINAL_APPROACH
 var _landing_elapsed := 0.0
+var _landing_timeout_seconds := LANDING_TIMEOUT_SECONDS
 var _landing_stall_elapsed := 0.0
 var _landing_previous_distance := INF
 var _landing_last_abort_reason: StringName = &""
@@ -1288,6 +1290,20 @@ func request_berth_landing(berth: ShipBerth) -> bool:
 		acceptance
 	)
 	_landing_after_brake_phase = phase_after_braking
+	if phase_after_braking == LANDING_PHASE_MOVE_TO_STAGING:
+		# Broad capture volumes can admit a longer physical approach than the
+		# default deadline permits. Snapshot a travel budget once; progress stalls
+		# and lease/clearance loss still abort independently on every tick.
+		var braking_seconds := velocity.length() / maxf(brake_acceleration, 48.0)
+		var braking_distance := velocity.length() * braking_seconds * 0.5
+		var staging_seconds := (
+			global_position.distance_to(staging_snapshot.origin) + braking_distance
+		) / LANDING_STAGING_SPEED
+		var descent_seconds := staging_snapshot.origin.distance_to(dock_snapshot.origin) / 5.0
+		_landing_timeout_seconds = maxf(
+			LANDING_TIMEOUT_SECONDS,
+			braking_seconds + staging_seconds + descent_seconds + 8.0
+		)
 	_landing_berth = weakref(berth)
 	_landing_berth_instance_id = berth.get_instance_id()
 	var berth_parent := berth.get_parent()
@@ -1341,6 +1357,7 @@ func _begin_landing_assist(
 	_landed = false
 	_throttle = 0.0
 	_clear_landing_authority_snapshot()
+	_landing_timeout_seconds = LANDING_TIMEOUT_SECONDS
 	_landing_contract = acceptance.duplicate(true)
 	_landing_elapsed = 0.0
 	_landing_stall_elapsed = 0.0
@@ -1920,7 +1937,7 @@ func get_landing_contract_report() -> Dictionary:
 		"reservation_token_bound": lease_still_valid,
 		"elapsed": _landing_elapsed,
 		"stall_elapsed": _landing_stall_elapsed,
-		"timeout_seconds": LANDING_TIMEOUT_SECONDS,
+		"timeout_seconds": _landing_timeout_seconds,
 		"stall_timeout_seconds": LANDING_STALL_TIMEOUT_SECONDS,
 		"last_abort_reason": _landing_last_abort_reason,
 		"target": _landing_target,
@@ -3881,7 +3898,7 @@ func _update_landing(delta: float) -> void:
 	if not authority_failure.is_empty():
 		_abort_landing(authority_failure)
 		return
-	if _landing_elapsed > LANDING_TIMEOUT_SECONDS:
+	if _landing_elapsed > _landing_timeout_seconds:
 		_abort_landing(&"assist_timeout")
 		return
 	if berth != null:
@@ -3927,8 +3944,8 @@ func _update_landing_brake(delta: float) -> void:
 func _update_landing_staging(delta: float) -> void:
 	var offset := _landing_staging_target.origin - global_position
 	var desired_velocity := offset * 1.35
-	if desired_velocity.length() > 12.0:
-		desired_velocity = desired_velocity.normalized() * 12.0
+	if desired_velocity.length() > LANDING_STAGING_SPEED:
+		desired_velocity = desired_velocity.normalized() * LANDING_STAGING_SPEED
 	velocity = velocity.lerp(desired_velocity, 1.0 - exp(-4.5 * delta))
 	move_and_slide()
 	var remaining_distance := global_position.distance_to(_landing_staging_target.origin)
