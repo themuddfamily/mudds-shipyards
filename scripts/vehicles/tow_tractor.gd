@@ -171,7 +171,9 @@ var _airborne_seconds := 0.0
 var _vertical_speed := 0.0
 var _recovery_reported := false
 var _deck_normal := Vector3.UP
-var _home_transform := Transform3D.IDENTITY
+# The yard owns this frame. A world-space cache becomes stale whenever the
+# common origin moves the yard during planetary flight.
+var _home_local_transform := Transform3D.IDENTITY
 var _camera_yaw_offset := 0.0
 var _authored_camera_fov := 72.0
 var _limit_ultrawide_fov := true
@@ -214,7 +216,7 @@ func _ready() -> void:
 	# bit, which is the direction of that pair that works.
 	collision_layer = PhysicsLayers.GROUND_VEHICLE_BODY_LAYER
 	collision_mask = PhysicsLayers.GROUND_VEHICLE_BODY_MASK
-	_home_transform = global_transform
+	_home_local_transform = transform
 	_camera_pitch_pivot.rotation.x = _camera_pitch
 	_configure_camera_arm()
 	_camera.current = false
@@ -322,7 +324,9 @@ func has_reported_recovery() -> bool:
 
 
 func get_home_transform() -> Transform3D:
-	return _home_transform
+	var yard_frame := get_parent_node_3d()
+	return yard_frame.global_transform * _home_local_transform \
+		if is_instance_valid(yard_frame) else _home_local_transform
 
 
 func get_camera() -> Camera3D:
@@ -603,7 +607,7 @@ func recover_to_home_transform() -> void:
 	if not _can_mutate_live_vehicle():
 		return
 	set_driven(false)
-	global_transform = _home_transform
+	transform = _home_local_transform
 	velocity = Vector3.ZERO
 	_forward_speed = 0.0
 	_vertical_speed = 0.0
@@ -789,12 +793,13 @@ func _probe_ground(point: Vector3, rise: float, drop: float) -> Vector3:
 
 
 ## The recovery net is independent of geometry and of how the vehicle reached
-## this pose.
+## this pose. Its floor is expressed in the same yard frame as the authored
+## parking pose, so a common world-origin translation cannot trigger recovery.
 func _check_recovery_conditions() -> void:
 	if _recovery_reported:
 		return
 	var reason := &""
-	if global_position.y < RECOVERY_FLOOR_Y or not global_position.is_finite():
+	if position.y < RECOVERY_FLOOR_Y or not global_position.is_finite():
 		reason = &"fell_below_station"
 	elif _airborne_seconds > MAXIMUM_AIRBORNE_SECONDS:
 		reason = &"airborne_beyond_limit"

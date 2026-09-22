@@ -51,6 +51,7 @@ func _run() -> void:
 	await _check_slope_and_kerb()
 	await _check_seat_contract()
 	await _check_recovery_net()
+	await _check_origin_rebase_recovery()
 	await _check_boarding_currentness()
 	await _check_tractor_mutator_currentness()
 	await _check_driver_station_currentness()
@@ -746,6 +747,36 @@ func _check_recovery_net() -> void:
 	)
 	_tractor.recover_to_home_transform()
 	await _settle(20)
+
+
+func _check_origin_rebase_recovery() -> void:
+	_tractor.recover_to_home_transform()
+	await _settle(4)
+	var authored_local_home := _root.global_transform.affine_inverse() * _tractor.get_home_transform()
+	var previous_root := _root.transform
+	_root.position += Vector3(25_000.0, -120_000.0, 8_000_000.0)
+	_root.reset_physics_interpolation()
+	await _advance(8)
+	_check(not _tractor.has_reported_recovery(),
+		"a common yard translation below the old world floor never recalls its parked tractor")
+	var translated_home := _root.global_transform * authored_local_home
+	_check(_tractor.get_home_transform().is_equal_approx(translated_home),
+		"the tractor's authored home follows the live yard frame after a megameter origin shift")
+	# A genuine fall in the same translated yard must still report and recover.
+	_tractor.position.y = TowTractor.RECOVERY_FLOOR_Y - 1.0
+	_tractor.velocity = Vector3.ZERO
+	await _advance(2)
+	_check(_tractor.has_reported_recovery(),
+		"the recovery floor still catches a genuine below-deck fall in a translated yard")
+	_tractor.recover_to_home_transform()
+	_check(_tractor.global_transform.is_equal_approx(translated_home)
+		and _tractor.transform.is_equal_approx(authored_local_home)
+		and not _tractor.has_reported_recovery(),
+		"recovery parks at the translated yard rather than materializing near the flying ship's origin")
+	_root.transform = previous_root
+	_root.reset_physics_interpolation()
+	_tractor.recover_to_home_transform()
+	await _settle(4)
 
 
 # ------------------------------------------------ station currentness contract
