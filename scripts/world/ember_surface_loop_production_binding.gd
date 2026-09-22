@@ -2467,8 +2467,8 @@ func audit() -> Dictionary:
 
 
 func _physics_process(_engine_delta: float) -> void:
-	if is_instance_valid(_staging_relay_proximity):
-		if is_instance_valid(_staging_relay_access_marker):
+	if _node_current(_staging_relay_proximity):
+		if _node_current(_staging_relay_access_marker):
 			_staging_relay_proximity.global_transform = \
 				_staging_relay_access_marker.global_transform
 			_staging_relay_proximity.call(&"refresh_authoritative_state")

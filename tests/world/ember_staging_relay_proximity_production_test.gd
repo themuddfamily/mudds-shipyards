@@ -177,6 +177,36 @@ func _run() -> void:
 		"failed re-entry rolls back both layers before one fenced retry retains completion"
 	)
 
+	# Streaming removes the authored subtree before its deferred free. The
+	# marker is still a valid Object here, but no longer has a world transform.
+	var relay_transform := diagnostic.global_transform
+	runtime_parent.remove_child(authored)
+	owner.call(&"_physics_process", 1.0 / 60.0)
+	var unloaded := diagnostic.call(&"get_snapshot") as Dictionary
+	_check(
+		is_instance_valid(access) and not access.is_inside_tree()
+			and not bool(unloaded.attached)
+			and not bool(unloaded.physical.marker_visible)
+			and diagnostic.global_transform == relay_transform,
+		"stream unload detaches the relay without reading the removed marker's world transform"
+	)
+	runtime_parent.add_child(authored)
+	host.set("_attachment_generation", 3)
+	var streamed_reentry: Dictionary = owner.reenter_planetary_surface()
+	var original_runtime_position := runtime_parent.position
+	runtime_parent.position += Vector3(4.0, 0.0, -7.0)
+	owner.call(&"_physics_process", 1.0 / 60.0)
+	var streamed_current := diagnostic.call(&"get_snapshot") as Dictionary
+	_check(
+		bool(streamed_reentry.accepted) and bool(streamed_current.active)
+			and bool(streamed_current.completed)
+			and int(streamed_current.attachment_generation) == 3
+			and diagnostic.global_transform == access.global_transform,
+		"re-entry retains completion and follows the live marker through a world translation"
+	)
+	runtime_parent.position = original_runtime_position
+	owner.call(&"_physics_process", 1.0 / 60.0)
+
 	owner.call(&"_retire_staging_relay_proximity")
 	await process_frame
 	var fresh_owner := OwnerScript.new()
