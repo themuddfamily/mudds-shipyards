@@ -3,7 +3,7 @@ extends SceneTree
 const MAIN_SCENE := preload("res://scenes/main.tscn")
 const Store := preload("res://scripts/persistence/user_data_store.gd")
 const STORE_PATH := "memory://planetary-cruise-player-activation-settings.json"
-const EXPECTED_ASSERTIONS := 30
+const EXPECTED_ASSERTIONS := 32
 
 var _assertions := 0
 var _failures: Array[String] = []
@@ -165,6 +165,33 @@ func _run() -> void:
 			== &"ready",
 		"multiple production-ready ticks never auto-engage or attach a controller",
 	)
+
+	# A return waiting for safe surface departure remains a cancelable intent;
+	# it must not advertise launching another Ember expedition.
+	var journey: RefCounted = game.get("_planetary_journey")
+	journey.set("_ember_abandon_return_arm_pending", true)
+	journey.set("_last_ember_abandon_return_arm_result", {
+		"accepted": false, "reason": &"obstacle_detected",
+	})
+	game.call("_sync_planetary_cruise_hud")
+	var return_wait := hud.get_planetary_cruise_presentation_report()
+	var return_row := _destination_row(game.get_planetary_destination_catalog_snapshot(), &"ember_moon")
+	_check(return_wait.get("status_id") == &"queued"
+		and return_wait.get("status_text") == "RETURN — CLEAR SURFACE"
+		and bool(return_wait.get("toggle_enabled", false))
+		and bool(return_wait.get("engagement_requested", false))
+		and return_row.get("action_text") == "CANCEL EXPEDITION"
+		and not bool(binding.get_snapshot().get("engagement_requested", true)),
+		"pending surface return shows a cancelable clearance cue without engaging cruise")
+	var return_cancel := game.disengage_planetary_cruise(false)
+	_check(bool(return_cancel.get("accepted", false))
+		and not bool(journey.get("_ember_abandon_return_arm_pending"))
+		and not bool(binding.get_snapshot().get("engagement_requested", true)),
+		"explicit disengage cancels return intent before cruise has engaged")
+	# Keep the remaining ordinary outbound checks independent on baseline too.
+	journey.set("_ember_abandon_return_arm_pending", false)
+	journey.set("_last_ember_abandon_return_arm_result", {})
+	game.call("_sync_planetary_cruise_hud")
 
 	# Bypass only the title splash. Pause, controller focus navigation, and accept
 	# below all use the real shipping HUD routes and typed request signal.

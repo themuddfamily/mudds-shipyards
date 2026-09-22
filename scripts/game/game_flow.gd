@@ -17026,6 +17026,14 @@ func _begin_player_ember_surface_journey(caller_serial: int) -> Dictionary:
 
 
 func disengage_planetary_cruise(brake_to_stop: bool = true) -> Dictionary:
+	# A return can still be waiting for terrain clearance with no live cruise
+	# attachment. Cancel that retained intent before falling back to the binding.
+	var return_cancel := _planetary_journey.cancel_return_departure(
+		&"player_cancelled", brake_to_stop
+	)
+	if return_cancel.get("reason") != &"return_departure_not_pending":
+		_sync_planetary_cruise_hud()
+		return return_cancel
 	if not is_instance_valid(planetary_cruise_binding):
 		_sync_planetary_cruise_hud()
 		return {"accepted": false, "reason": &"binding_unavailable"}
@@ -17068,6 +17076,16 @@ func _planetary_cruise_public_gate_copy(reason: StringName) -> String:
 
 
 func _planetary_cruise_presentation() -> Dictionary:
+	if _planetary_journey.is_return_departure_pending():
+		# The retained destination is cancelable before the physical controller
+		# starts. This presentation flag is not a claim of ship engagement.
+		return {
+			"status_id": &"queued",
+			"status_text": "RETURN — CLEAR SURFACE",
+			"toggle_enabled": true,
+			"engagement_requested": true,
+			"public_gate": &"",
+		}
 	var binding_snapshot: Dictionary = {}
 	if is_instance_valid(planetary_cruise_binding):
 		binding_snapshot = planetary_cruise_binding.get_snapshot().duplicate(true)

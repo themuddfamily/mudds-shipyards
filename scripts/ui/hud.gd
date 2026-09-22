@@ -8729,7 +8729,7 @@ func set_planetary_cruise_state(
 		return false
 	var exact_text := {
 		&"ready": "READY — EMBER MOON",
-		&"queued": "QUEUED",
+		&"queued": "RETURN — CLEAR SURFACE" if bounded_text == "RETURN — CLEAR SURFACE" else "QUEUED",
 		&"accelerating": "ACCELERATING",
 		&"cruising": "CRUISING",
 		&"braking_to_speed": "BRAKING TO SPEED",
