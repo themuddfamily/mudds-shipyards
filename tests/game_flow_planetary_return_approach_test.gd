@@ -329,7 +329,7 @@ func _run() -> void:
 	var home_rebases_accepted := true
 	# Rebase out and back, ending in a locally precise yard frame for the
 	# existing physical exit below, as the real origin owner does on arrival.
-	for focus: Vector3 in [Vector3(17000.0, 125000.0, -8000000.0), Vector3(-17000.0, -125000.0, 7999970.0)]:
+	for focus: Vector3 in [Vector3(17000.0, 125000.0, -8000000.0), Vector3(-17000.0, -124880.0, 7999970.0)]:
 		var home_rebase := frame.request_rebase(focus, frame.get_generation())
 		var home_commit := frame.commit_rebase(int(home_rebase.request.request_id), frame.get_generation())
 		var home_translation := (home_commit.get("rebase", {}) as Dictionary).get("world_translation_delta", Vector3.ZERO) as Vector3
@@ -616,6 +616,30 @@ func _run() -> void:
 			and home_berth.get_occupant() == craft,
 		"the consumed physical arrival reaches the existing automatic shutdown and disembark lifecycle",
 	)
+
+	for _tick in 240:
+		await physics_frame
+		await process_frame
+		if game.player.is_control_enabled() and not bool(game.get("_transition_busy")):
+			break
+	var walk_start := game.player.global_position
+	Input.action_press(&"move_back")
+	for _tick in 20:
+		await physics_frame
+		await process_frame
+	Input.action_release(&"move_back")
+	var walk_distance := game.player.global_position.distance_to(walk_start)
+	_check(walk_start.y < -24.0 and walk_distance > 0.25 and walk_distance < 5.0
+		and game.player.is_control_enabled(),
+		"the returned pilot walks normally on a yard translated below the old world-space recall floor")
+	# A genuine below-deck fall still reaches the live station spawn. This is a
+	# separate recovery witness after the physical return and walking assertion.
+	game.player.global_position = game.world.to_global(Vector3(0.0, -30.0, 0.0))
+	game.player.velocity = Vector3.ZERO
+	await process_frame
+	await process_frame
+	_check(game.player.global_position.distance_to(game.world.get_player_spawn().origin) < 1.0,
+		"the yard-relative recovery floor still recalls a genuine below-deck fall")
 
 	game.ember_surface_loop_production_binding = null
 	surface.free()

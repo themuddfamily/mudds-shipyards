@@ -3313,11 +3313,11 @@ func _process(delta: float) -> void:
 		_update_station_seat_flow()
 	else:
 		_update_on_foot_flow()
-		# The below-deck recall is a station-floor backstop expressed in world
-		# space. A crew member aboard a craft under way is legitimately anywhere,
+		# The below-deck recall follows the yard's frame across origin rebases.
+		# A crew member aboard a craft under way is legitimately anywhere,
 		# including well below the yard; their backstop is cabin containment.
 		if (
-			player.global_position.y < -24.0
+			world.to_local(player.global_position).y < -24.0
 			and not _transition_busy
 			and phase != Phase.IN_FLIGHT_CABIN
 			and not player.is_cabin_containment_active()
