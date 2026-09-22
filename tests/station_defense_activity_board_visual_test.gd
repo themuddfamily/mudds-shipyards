@@ -181,18 +181,18 @@ func _run() -> void:
 		and int(activity.get("wave_number", 0)) == 2
 		and int(activity.get("current_wave_hostile_count", 0)) == 2
 		and not bool(activity.get("wave_active", true))
-		and is_equal_approx(float(activity.get("wave_delay_remaining_seconds", 0.0)), 0.5),
+		and is_equal_approx(float(activity.get("wave_delay_remaining_seconds", 0.0)), 2.5),
 		"wave-1 clearance settles on the reachable positive-delay wave-2 snapshot"
 	)
 	await _capture(
-		viewport, status, &"inter_wave", "[~] NEXT WAVE 2 / 3\nDEPLOY IN 0.5 S"
+		viewport, status, &"inter_wave", "[~] NEXT WAVE 2 / 3\nDEPLOY IN 2.5 S"
 	)
 
-	content.advance_physics(0.5, generation)
+	content.advance_physics(2.5, generation)
 	await physics_frame
 	var beta_terminal := await _destroy(authority, attacker, beta)
 	var gamma_terminal := await _destroy(authority, attacker, gamma)
-	content.advance_physics(1.25, generation)
+	content.advance_physics(8.0, generation)
 	await physics_frame
 	var picket_terminal := await _destroy(authority, attacker, picket, 8)
 	await process_frame
@@ -222,17 +222,18 @@ func _run() -> void:
 	_check(
 		bool(reset.get("accepted", false))
 		and failed_started
-		and bool(failed.get("accepted", false)),
+		and bool(failed.get("accepted", false))
+		and bool(content.get_snapshot().host.activity.get("recovery_available", false)),
 		"public reset, start, and fail APIs reach failed state"
 	)
 	await _capture(
-		viewport, status, &"failed", "[X] FAILED // RESET REQUIRED"
+		viewport, status, &"failed", "[!] FAILED // RESUME AT WAVE 1"
 	)
 	_check(
 		not board.interact(actor)
 		and content.get_generation() == failed_generation
 		and content.get_snapshot().host.activity.state_id == &"failed",
-		"failed capture retains direct interaction reset-required semantics"
+		"failed capture preserves recovery availability without direct board restart"
 	)
 	var final_image := viewport.get_texture().get_image()
 	var final_save_error := final_image.save_png(OUTPUT_PATH) if final_image != null and not final_image.is_empty() \
