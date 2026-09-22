@@ -27,7 +27,7 @@ class ExportWindowsProgressBuildTest(unittest.TestCase):
         ])
         result = export_windows(Path("/repo"), Path("builds/windows/fresh.exe"), runner)
         self.assertEqual(result, 0)
-        self.assertEqual(runner.call_args_list[1].args[0], ["godot", "--headless", "--export-release", "Windows Desktop", "/repo/builds/windows/fresh.exe"])
+        self.assertEqual(runner.call_args_list[1].args[0], ["godot", "--headless", "--audio-driver", "Dummy", "--export-release", "Windows Desktop", "/repo/builds/windows/fresh.exe"])
 
     def _git_fixture(self, root):
         for name, content in {
@@ -59,6 +59,7 @@ class ExportWindowsProgressBuildTest(unittest.TestCase):
                     def runner(command, **kwargs):
                         if command[0] != "godot":
                             return subprocess.run(command, **kwargs)
+                        self.assertEqual(command[1:5], ["--headless", "--audio-driver", "Dummy", "--export-release"])
                         Path(command[-1]).write_bytes(b"exe")
                         if phase == "export":
                             change_source()
@@ -102,6 +103,7 @@ class ExportWindowsProgressBuildTest(unittest.TestCase):
             def runner(command, **kwargs):
                 if command[0] != "godot":
                     return subprocess.run(command, **kwargs)
+                self.assertEqual(command[1:5], ["--headless", "--audio-driver", "Dummy", "--export-release"])
                 Path(command[-1]).write_bytes(b"exe")
                 return subprocess.CompletedProcess(command, 0)
             args = (
@@ -128,6 +130,7 @@ class ExportWindowsProgressBuildTest(unittest.TestCase):
                     return subprocess.CompletedProcess(command, 0, stdout="", stderr="")
                 if command[:3] == ["git", "rev-parse", "HEAD"]:
                     return subprocess.CompletedProcess(command, 0, stdout="a" * 40 + "\n", stderr="")
+                self.assertEqual(command[1:5], ["--headless", "--audio-driver", "Dummy", "--export-release"])
                 Path(command[-1]).write_bytes(b"exe")
                 return subprocess.CompletedProcess(command, 0, stdout="", stderr="")
             def fake_assembler(artifact, output_root, version, commit, readme_path, license_path, config_path):

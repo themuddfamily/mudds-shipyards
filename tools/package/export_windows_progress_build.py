@@ -68,7 +68,7 @@ def export_windows(root: Path, output: Path, runner=subprocess.run) -> int:
         raise ValueError("Windows progress output must be under builds/")
     assert_source_clean(root, runner)
     completed = runner(
-        ["godot", "--headless", "--export-release", "Windows Desktop", str(output)],
+        ["godot", "--headless", "--audio-driver", "Dummy", "--export-release", "Windows Desktop", str(output)],
         cwd=root,
         check=False,
     )
@@ -104,7 +104,7 @@ def export_and_assemble(
         staging = Path(temporary)
         staged_exe = staging / "MuddsShipyards.exe"
         exported = runner(
-            ["godot", "--headless", "--export-release", "Windows Desktop", str(staged_exe)],
+            ["godot", "--headless", "--audio-driver", "Dummy", "--export-release", "Windows Desktop", str(staged_exe)],
             cwd=root,
             check=False,
         )
