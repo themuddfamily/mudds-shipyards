@@ -6931,6 +6931,14 @@ func _cancel_ground_transition_for_detach() -> void:
 func _recover_from_lost_tractor(reason: StringName) -> void:
 	if _recovering:
 		return
+	# An unattended vehicle cannot invalidate a passenger's boarding, bunk or
+	# ship-exit transition elsewhere. Only an active tractor handoff owns that
+	# player generation; the parked vehicle may independently reset itself.
+	if not _driving and not _ground_transition_active:
+		if is_instance_valid(tow_tractor):
+			tow_tractor.recover_to_home_transform()
+		_last_tractor_recovery_reason = reason
+		return
 	var had_driver := _driving
 	_recovering = true
 	_invalidate_transition_generation()

@@ -14,6 +14,17 @@ func _run() -> void:
 	player.teleport_to(bunk.get_exit_transform())
 	game._sit_in_station_seat(bunk)
 	_check(await _wait_until(func() -> bool: return player.is_sleeping(), 2.0), "landed bunk accepts sleep in approach phase")
+	game._stand_from_station_seat()
+	var wake_generation := game._transition_generation
+	game._recover_from_lost_tractor(&"airborne_beyond_limit")
+	_check(game._transition_generation == wake_generation and game._transition_busy,
+		"unattended tractor recovery preserves the active bunk wake transition")
+	_check(await _wait_until(func() -> bool: return not game._station_seated and player.is_control_enabled(), 2.0),
+		"wake completes and restores controls after unattended tractor recovery")
+	_check(bunk.is_available() and not player.is_sleeping(), "wake releases its bunk after independent vehicle recovery")
+	player.teleport_to(bunk.get_exit_transform())
+	game._sit_in_station_seat(bunk)
+	_check(await _wait_until(func() -> bool: return player.is_sleeping(), 2.0), "bunk remains usable after independent vehicle recovery")
 	game.hud.set_paused(true)
 	for tick in 3:
 		await process_frame
