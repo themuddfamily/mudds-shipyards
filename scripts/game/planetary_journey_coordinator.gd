@@ -74,6 +74,7 @@ var _aurora_visit_active := false
 var _aurora_visit_rebase_commit_count := 0
 var _aurora_final_approach_handoff_ready := false
 var _aurora_final_approach_armed := false
+var _aurora_final_approach_source_ref: WeakRef
 var _aurora_final_approach_completion_receipt: Dictionary = {}
 var _last_aurora_streaming_result: Dictionary = {}
 var _last_aurora_origin_result: Dictionary = {}
@@ -303,6 +304,7 @@ func admit_aurora_visit(ship: HeroShip, engage_cruise: bool = true) -> Dictionar
 	_aurora_visit_rebase_commit_count = 0
 	_aurora_final_approach_handoff_ready = false
 	_aurora_final_approach_armed = false
+	_aurora_final_approach_source_ref = null
 	_aurora_final_approach_completion_receipt.clear()
 	_last_aurora_streaming_result.clear()
 	_last_aurora_origin_result.clear()
@@ -333,6 +335,7 @@ func advance_aurora_visit(delta: float, actor_sample: Dictionary) -> Dictionary:
 	)
 	var residency_required := false
 	var rebase_uncommitted := false
+	var origin_adoption_rejected := false
 	if streaming_tick.has("coordinate_frame_generation"):
 		var preview := binding.preview_origin_rebase(coordinate_frame_generation)
 		if bool(preview.get("accepted", false)):
@@ -357,8 +360,14 @@ func advance_aurora_visit(delta: float, actor_sample: Dictionary) -> Dictionary:
 				streaming_accepted = bool(committed_streaming.get("accepted", false))
 				residency_required = streaming_accepted \
 					and committed_streaming.get("action", &"") == &"load"
+				var adopted := _adopt_aurora_origin_receipt(
+					rebase.get("receipt", {}) as Dictionary)
+				_last_aurora_origin_result["adoption"] = adopted.duplicate(true)
+				origin_adoption_rejected = not bool(adopted.get("accepted", false))
 	var gate_reason: StringName = _aurora_cruise_gate_reason()
-	if rebase_uncommitted:
+	if origin_adoption_rejected:
+		gate_reason = &"aurora_origin_adoption_rejected"
+	elif rebase_uncommitted:
 		gate_reason = &"origin_rebase_required"
 	elif not streaming_accepted:
 		gate_reason = &"aurora_streaming_unavailable"
@@ -394,6 +403,9 @@ func advance_aurora_visit(delta: float, actor_sample: Dictionary) -> Dictionary:
 				if bool(consumed.get("accepted", false)):
 					_aurora_final_approach_completion_receipt = consumed.duplicate(true)
 					_aurora_final_approach_handoff_ready = true
+			if not _aurora_final_approach_handoff_ready and not bool(
+					_flow.planetary_cruise_binding.get_snapshot().get("engagement_requested", false)):
+				_aurora_final_approach_armed = false
 	return {
 		"accepted": true,
 		"reason": &"aurora_visit_advanced",
@@ -406,22 +418,49 @@ func advance_aurora_visit(delta: float, actor_sample: Dictionary) -> Dictionary:
 	}.duplicate(true)
 
 
-## Engages the one cruise binding for an admitted Aurora visit.
-##
-## Deliberately separate from admission: a cruise engaged before the world is
-## resident is engaged across the committed origin transaction that makes it
-## resident, and the binding fails that tick closed and retires itself. The
-## visit therefore engages once Aurora is actually standing and no rebase is
-## outstanding, which is the state an Ember expedition is in when its own
-## approach is armed.
-func engage_aurora_cruise(ship: HeroShip) -> Dictionary:
+## Both observers adopt the same committed receipt before the next cruise tick.
+## The source retains its approach identity; only its coordinate-frame fence moves.
+func _adopt_aurora_origin_receipt(receipt: Dictionary) -> Dictionary:
+	var result := {"accepted": true, "source": {}, "cruise": {}}
+	if _aurora_final_approach_source_ref != null:
+		var source := _aurora_final_approach_source_ref.get_ref() as Node
+		if not is_instance_valid(source) or not source.is_inside_tree() \
+				or source.is_queued_for_deletion() \
+				or not source.has_method(&"accept_committed_origin_rebase"):
+			return {"accepted": false, "reason": &"aurora_approach_source_unavailable"}
+		var record := source.call(&"get_final_approach_source_snapshot") as Dictionary
+		var adopted := source.call(&"accept_committed_origin_rebase", receipt,
+			int(record.get("generation", -1)),
+			int(record.get("attachment_generation", -1))) as Dictionary
+		result["source"] = adopted.duplicate(true)
+		if not bool(adopted.get("accepted", false)):
+			result["accepted"] = false
+			return result
+	var cruise := _flow.planetary_cruise_binding
+	if is_instance_valid(cruise):
+		var current := cruise.get_snapshot()
+		if bool(current.get("engagement_requested", false)) \
+				and bool(current.get("carry_transit", false)):
+			var adopted := cruise.accept_committed_origin_rebase(
+				receipt, cruise.get_generation())
+			result["cruise"] = adopted.duplicate(true)
+			result["accepted"] = bool(adopted.get("accepted", false))
+	return result
+
+
+## Engages an admitted Aurora visit. Physical outbound travel carries the
+## attached controller through authenticated origin shifts; local/legacy callers
+## can retain the default generation-bound engagement.
+func engage_aurora_cruise(ship: HeroShip, carry_transit: bool = false) -> Dictionary:
 	if not _aurora_visit_active:
 		return {"accepted": false, "reason": &"aurora_visit_inactive"}
 	if not is_instance_valid(_flow.planetary_cruise_binding) \
 			or not is_instance_valid(_flow.aurora_streaming_bootstrap):
 		return {"accepted": false, "reason": &"aurora_composition_unavailable"}
 	var cruise := _flow.planetary_cruise_binding
-	if bool(cruise.get_snapshot().get("engagement_requested", false)):
+	var current := cruise.get_snapshot()
+	if bool(current.get("engagement_requested", false)) \
+			and (not carry_transit or bool(current.get("carry_transit", false))):
 		return {"accepted": true, "reason": &"already_engaged"}
 	var frame := _flow.aurora_streaming_bootstrap.get_coordinate_frame_for_session()
 	if frame == null:
@@ -430,7 +469,7 @@ func engage_aurora_cruise(ship: HeroShip) -> Dictionary:
 		return {"accepted": false, "reason": &"origin_rebase_pending"}
 	return cruise.request_engage(
 		ship, frame.get_generation(), _aurora_cruise_gate_reason(),
-		cruise.get_generation(),
+		cruise.get_generation(), carry_transit,
 	)
 
 
@@ -467,6 +506,7 @@ func arm_aurora_final_approach(
 	)
 	if bool(armed.get("accepted", false)):
 		_aurora_final_approach_armed = true
+		_aurora_final_approach_source_ref = weakref(source)
 	return armed
 
 
@@ -478,6 +518,7 @@ func retire_aurora_visit() -> Dictionary:
 	_aurora_visit_active = false
 	_aurora_final_approach_handoff_ready = false
 	_aurora_final_approach_armed = false
+	_aurora_final_approach_source_ref = null
 	_aurora_final_approach_completion_receipt.clear()
 	var disengaged: Dictionary = {}
 	if is_instance_valid(_flow.planetary_cruise_binding):
