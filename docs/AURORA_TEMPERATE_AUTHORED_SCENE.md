@@ -286,3 +286,14 @@ at its actual home berth and walked 1.548 metres with floor support and controls
 enabled. Hull remained 190/190, with zero occupancy failures or outbound staging.
 The earlier failed walking run remains failed. This full journey predates the
 survey feature; the focused survey run establishes its separate acceptance scope.
+
+### Altitude presentation, 2026-09-23
+
+`c1ab8bcd1` gives Aurora a dark orbital sky and attenuates ambient light above
+its 20 km atmosphere top. Descent smoothly restores the authored sky, terrain
+fill and coastal fog; solar/weather recipe updates and scene re-entry retain the
+altitude response. This is a renderer-state change with no new per-frame process
+loop or geometry. The production Aurora scene's high, middle and surface
+observations passed seven focused assertions. Existing composition, rig, recipe,
+aerial, authored-scene and Ember airless/surface-loop checks also passed headless
+with Dummy audio. Rendered human judgement and native GPU behaviour remain open.
