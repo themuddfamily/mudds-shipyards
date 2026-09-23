@@ -44,7 +44,11 @@ const CINDER_ASTEROID_RUN_REWARD_ID: StringName = &"return_asteroid_survey_to_sh
 const EMBER_LAVA_TUBE_REWARD_ID: StringName = &"ember_lava_tube_sounding_data"
 const EMBER_LANDER_WRECK_REWARD_ID: StringName = &"ember_lander_wreck_salvage_log"
 
+const AURORA_SURVEY_ACTIVITY_ID: StringName = &"aurora_coastal_observation"
+const AURORA_SURVEY_REWARD_ID: StringName = &"aurora_coastal_survey_data"
+
 const ACTIVITY_REWARDS := {
+	AURORA_SURVEY_ACTIVITY_ID: AURORA_SURVEY_REWARD_ID,
 	RACE_ACTIVITY_ID: RACE_REWARD_ID,
 	PATROL_ACTIVITY_ID: PATROL_REWARD_ID,
 	PLATFORM_PATROL_ACTIVITY_ID: PATROL_REWARD_ID,
@@ -62,6 +66,7 @@ const ACTIVITY_REWARDS := {
 	EMBER_LANDER_WRECK_ACTIVITY_ID: EMBER_LANDER_WRECK_REWARD_ID,
 }
 const REWARD_LABELS := {
+	AURORA_SURVEY_REWARD_ID: "Aurora coastal survey data recorded",
 	RACE_REWARD_ID: "Race record accepted",
 	PATROL_REWARD_ID: "Patrol log accepted",
 	CONVOY_REWARD_ID: "Emberline escort credit logged",
@@ -183,6 +188,15 @@ func commit(request: Variant) -> Dictionary:
 				"reason", &"reward_store_payload_corrupt"
 			)))
 		current = (stored as Dictionary).duplicate(true)
+
+	# Aurora is a one-time discovery across Main re-entry and interrupted saves.
+	# Read the durable ledger here, before consuming the caller's generation.
+	if activity_id == AURORA_SURVEY_ACTIVITY_ID and int(
+		(current.get("reward_counts", {}) as Dictionary).get(String(reward_id), 0)
+	) > 0:
+		_record = current
+		_commit_active = false
+		return _reject(&"reward_already_recorded")
 
 	var receipt_serial := int(current.get("receipt_serial", 0)) + 1
 	if receipt_serial < 1 or receipt_serial > MAX_SAFE_GENERATION:

@@ -7,6 +7,7 @@ const FilesystemScript := preload("res://scripts/persistence/user_data_filesyste
 
 class MemoryFilesystem extends FilesystemScript:
 	var files: Dictionary = {}
+	var reject_writes := false
 
 	func file_exists(path: String) -> bool:
 		return files.has(path)
@@ -30,6 +31,8 @@ class MemoryFilesystem extends FilesystemScript:
 		}
 
 	func write_bytes_and_flush(path: String, bytes: PackedByteArray) -> Error:
+		if reject_writes:
+			return ERR_CANT_CREATE
 		files[path] = bytes.duplicate()
 		return OK
 
@@ -268,6 +271,29 @@ func _run() -> void:
 			and corrupt_configuration.reason == &"reward_store_payload_corrupt",
 		"a corrupt reward namespace fails closed instead of being overwritten"
 	)
+
+	# Aurora discovery rewards remain one-time even if a visit save lags behind
+	# the reward write, while a failed write leaves the same adapter retryable.
+	var aurora_fs := MemoryFilesystem.new()
+	var aurora_store := StoreScript.new("memory://aurora-rewards.json", aurora_fs)
+	aurora_store.load()
+	var aurora_authority := AuthorityScript.new()
+	aurora_authority.configure(aurora_store)
+	var adapter := NearbyActivityRewardAdapter.new()
+	adapter.configure(Callable(aurora_authority, &"commit"), AuthorityScript.AURORA_SURVEY_ACTIVITY_ID, AuthorityScript.AURORA_SURVEY_REWARD_ID)
+	var completed := {"activity_id": AuthorityScript.AURORA_SURVEY_ACTIVITY_ID,
+		"generation": 1, "state_id": &"completed", "outcome": &"cleared"}
+	aurora_fs.reject_writes = true
+	_check(not bool(adapter.consume(completed, 1).get("accepted", true)), "a failed Aurora reward write rejects the adapter handoff")
+	aurora_fs.reject_writes = false
+	_check(bool(adapter.consume(completed, 1).get("accepted", false)), "the same completed survey can retry after a failed reward write")
+	var durable_generation := aurora_store.get_generation()
+	var restarted_authority := AuthorityScript.new()
+	restarted_authority.configure(aurora_store)
+	var duplicate_aurora := restarted_authority.commit(_request(AuthorityScript.AURORA_SURVEY_ACTIVITY_ID, 900, AuthorityScript.AURORA_SURVEY_REWARD_ID))
+	_check(not bool(duplicate_aurora.get("accepted", true)) and duplicate_aurora.get("reason") == &"reward_already_recorded"
+		and aurora_store.get_generation() == durable_generation,
+		"fresh authority rejects a second Aurora discovery using durable counts, regardless of activity generation")
 
 	for failure in _failures:
 		push_error(failure)

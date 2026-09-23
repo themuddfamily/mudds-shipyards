@@ -1271,7 +1271,7 @@ func _exit_tree() -> void:
 	# thing that leaves nobody stranded in a tree that is going away; this only
 	# makes the trip something the next `Main` can hand back.
 	save_interrupted_aurora_visit()
-	_aurora_expedition.cancel()
+	_aurora_expedition.cancel(true)
 	_detach_first_sortie_tutorial_presentation(&"game_flow_detached")
 	_detach_activity_tutorial_presentation(&"game_flow_detached")
 	_planetary_journey.detach()

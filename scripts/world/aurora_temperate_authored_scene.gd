@@ -317,6 +317,7 @@ func _build_exploration_landmarks() -> void:
 	ink.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 	sign.material_override = ink
 	content.add_child(sign)
+	_survey_anchor(sign, "SurveyTrailSign", Vector3(0, -1.9, 1.4))
 	_exploration_box(sign, "SignBackboard", Vector3(0, 0, -0.12), Vector3(4.6, 1.1, 0.18), metal)
 	for side in [-1.0, 1.0]:
 		_exploration_box(sign, "Signpost%s" % side, Vector3(side * 1.7, -0.9, -0.13), Vector3(0.16, 2.0, 0.16), metal)
@@ -337,6 +338,8 @@ func _build_exploration_landmarks() -> void:
 		scope.height = 1.15
 		var telescope := _exploration_prop(content, "LookoutScope%s" % z, Vector3(68, 1.55, z), scope, amber)
 		telescope.rotation.z = PI * 0.5
+		if z == -17.0:
+			_survey_anchor(telescope, "SurveyLookout", Vector3.ZERO)
 
 	# Weathered standing stones form a sheltered stopping point beside the trail.
 	for i in range(7):
@@ -349,6 +352,8 @@ func _build_exploration_landmarks() -> void:
 		rock.radial_segments = 5
 		var visual := _exploration_prop(content, "StandingStone%d" % i, point + Vector3.UP * rock.height * 0.5, rock, stone if i % 2 else dark_stone, Vector3(1.3, rock.height, 1.3))
 		visual.rotation.y = angle
+		if i == 0:
+			_survey_anchor(visual, "SurveyStones", Vector3(-2, -0.7, 0))
 		visual.scale = Vector3(1.0, 1.0, 0.65 + float(i % 3) * 0.17)
 
 	# Coast-facing clusters replace the evenly spaced cone trees. Their broken
@@ -474,3 +479,11 @@ func _exploration_prop(parent: Node3D, prop_name: String, point: Vector3, mesh: 
 		body.add_child(collision)
 		visual.add_child(body)
 	return visual
+
+
+## Anchors inherit authored landmark transforms and common-world rebases.
+func _survey_anchor(parent: Node3D, anchor_name: String, offset: Vector3) -> void:
+	var anchor := Marker3D.new()
+	anchor.name = anchor_name
+	parent.add_child(anchor)
+	anchor.position = offset

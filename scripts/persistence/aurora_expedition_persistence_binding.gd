@@ -12,10 +12,12 @@ extends RefCounted
 ## The record is deliberately tiny and carries no authority. It names the visit
 ## phase, the craft by its registered home berth, and whether the pilot was out
 ## of the seat. It restores no berth lease, no landing, no movement, no reward
-## and no ActivityDirector state: the resume path re-establishes all of those
+## or actor state. Optional survey progress is validated by the route contract;
+## the resume path re-establishes physical ownership
 ## through the same production calls a fresh visit uses. `UserDataStore` remains
 ## the only filesystem and transaction authority.
 
+const SurveyType := preload("res://scripts/activities/aurora_coastal_survey.gd")
 const SCHEMA_VERSION := 1
 const PAYLOAD_KIND := "aurora_expedition_active_visit"
 const RECORD_KEYS := [
@@ -74,7 +76,7 @@ func save_interrupted_visit(visit: Variant, commit_id: String) -> Dictionary:
 	var payload := _store.call(&"get_snapshot") as Dictionary
 	payload[String(_slot_id)] = record
 	var committed := _store.call(
-		&"commit", payload, expected_generation, commit_id
+		&"commit", payload, expected_generation, "%s-%010d" % [commit_id, expected_generation + 1]
 	) as Dictionary
 	committed["binding_reason"] = (
 		&"aurora_visit_saved" if bool(committed.get("accepted", false))
@@ -161,6 +163,15 @@ func normalize_visit(candidate: Variant) -> Dictionary:
 	var berth_id := str(source.get("craft_home_berth_id", "")).strip_edges()
 	if berth_id.is_empty() or berth_id.length() > 128:
 		return _result(false, &"aurora_visit_craft_unidentified")
+	var progress: Variant = source.get("survey", {})
+	if not SurveyType.valid_progress(progress):
+		return _result(false, &"aurora_survey_progress_invalid")
+	# UserDataStore's JSON round-trip decodes numbers as floats. Hash the same
+	# representation on both sides, preserving the original three-field digest.
+	var normalized_progress := (progress as Dictionary).duplicate(true)
+	for key in ["schema_version", "state", "generation", "next_checkpoint_index"]:
+		if normalized_progress.has(key):
+			normalized_progress[key] = float(normalized_progress[key])
 	var on_foot := bool(source.get("on_foot", false))
 	if not RESUMABLE_VISIT_STATES.has(state):
 		state = "surface" if on_foot else "landed"
@@ -169,6 +180,7 @@ func normalize_visit(candidate: Variant) -> Dictionary:
 			"visit_state": state,
 			"craft_home_berth_id": berth_id,
 			"on_foot": on_foot,
+			"survey": normalized_progress,
 		},
 	})
 
@@ -190,7 +202,7 @@ func validate_record(candidate: Variant) -> Dictionary:
 	if visit is not Dictionary:
 		return _result(false, &"aurora_visit_record_invalid")
 	var visit_record := visit as Dictionary
-	if visit_record.size() != VISIT_KEYS.size():
+	if visit_record.size() != VISIT_KEYS.size() + (1 if visit_record.has("survey") else 0):
 		return _result(false, &"aurora_visit_record_invalid")
 	for key: String in VISIT_KEYS:
 		if not visit_record.has(key):
@@ -199,6 +211,8 @@ func validate_record(candidate: Variant) -> Dictionary:
 		return _result(false, &"aurora_visit_state_unresumable")
 	if str(visit_record.get("craft_home_berth_id", "")).strip_edges().is_empty():
 		return _result(false, &"aurora_visit_craft_unidentified")
+	if not SurveyType.valid_progress(visit_record.get("survey", {})):
+		return _result(false, &"aurora_survey_progress_invalid")
 	if visit_record.get("on_foot") is not bool:
 		return _result(false, &"aurora_visit_record_invalid")
 	if str(record.get("receipt_sha256", "")) != _digest(visit_record):

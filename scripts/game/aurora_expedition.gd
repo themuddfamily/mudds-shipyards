@@ -40,6 +40,9 @@ const MAX_CRUISE_RESUME_ATTEMPTS := 600
 const CORRIDOR_TICK_BUDGET := 12_000
 const RESCUE_RETIRE_TICK_BUDGET := 900
 
+const SurveyType := preload("res://scripts/activities/aurora_coastal_survey.gd")
+var survey: RefCounted
+
 var _flow: GameFlow
 var state: StringName = &"idle"
 var _ship: HeroShip
@@ -68,6 +71,7 @@ var _fade_opacity := 0.0
 
 func _init(flow: GameFlow) -> void:
 	_flow = flow
+	survey = SurveyType.new(flow, self)
 
 func is_active() -> bool:
 	return state != &"idle"
@@ -432,8 +436,8 @@ func update_presentation() -> void:
 			_flow._update_on_foot_flow()
 			if is_instance_valid(_flow.station_interaction_candidate):
 				return
-			_flow.hud.set_objective("Explore the lookout and standing stones; return to your ship when ready", "AURORA SURFACE")
-			_flow.hud.set_interaction("[ E ]  BOARD YOUR SHIP" if _near_ship() else "WALK THE COASTAL LOOKOUT")
+			_flow.hud.set_objective(survey.objective(), "AURORA COASTAL SURVEY")
+			_flow.hud.set_interaction("[ E ]  BOARD YOUR SHIP" if _near_ship() else survey.prompt())
 		&"landed":
 			_flow.hud.set_objective("Explore Aurora, or open Esc → Destination Board to return to Mudds", "AURORA EXPEDITION")
 			_flow.hud.set_interaction("[ E ]  EXIT SHIP" if bool(_ship.get_telemetry().get("landed", false)) else "[ L ]  LAND AT AURORA PAD  //  ESC: RETURN TO MUDDS")
@@ -481,6 +485,8 @@ func interact() -> bool:
 		if area != null and area.try_reserve(_flow.player):
 			_flow._boarding_area = area
 			_begin_boarding()
+	elif state == &"surface":
+		survey.interact()
 	return true
 
 func _begin_boarding() -> void:
@@ -527,6 +533,7 @@ func _compose_streamed_surface(loaded: Node3D) -> void:
 		}
 		return
 	_surface = loaded
+	survey.attach(loaded)
 	_lease_surface_berth(region)
 	if _surface_token.is_empty():
 		_last_compose_result = {
@@ -652,6 +659,7 @@ func _complete_restore(loaded: Node3D) -> void:
 		cancel()
 		return
 	_surface = loaded
+	survey.attach(loaded)
 	_lease_surface_berth(region)
 	if _surface_token.is_empty():
 		cancel()
@@ -749,6 +757,7 @@ func capture_interrupted_visit() -> Dictionary:
 		"visit_state": String(state),
 		"craft_home_berth_id": berth_id,
 		"on_foot": not _flow.player.is_seated(),
+		"survey": survey.capture(),
 	}
 
 
@@ -803,6 +812,7 @@ func restore_interrupted_visit(visit: Dictionary) -> Dictionary:
 	_corridor_ticks = 0
 	_departure_ticks = 0
 	_committed_rebases_outbound = 0
+	survey.restore(visit.get("survey", {}) as Dictionary)
 	state = &"restoring"
 	return {
 		"accepted": true,
@@ -826,6 +836,7 @@ func _begin_return() -> void:
 	if not bool(admitted.get("accepted", false)):
 		_last_leg_result = admitted.duplicate(true)
 		return
+	_retire_saved_visit()
 	state = &"return_cruise"
 	_departure_ticks = 0
 	_flow.hud.set_paused(false)
@@ -874,9 +885,26 @@ func _clear_surface() -> void:
 		_flow.get_viewport().world_3d.environment = _station_environment
 	_surface = null
 
-func cancel() -> void:
+## Survey checkpoint saves are active-visit receipts too. Retire them only
+## when the player actually ends this visit; tree shutdown preserves its save.
+func _retire_saved_visit() -> void:
+	var binding := _flow._aurora_expedition_persistence_binding
+	if binding == null:
+		return
+	var loaded := binding.load_interrupted_visit()
+	if not bool(loaded.get("accepted", false)):
+		return
+	var retired := binding.retire_interrupted_visit(int(loaded.get("store_generation", -1)),
+		str(loaded.get("receipt_sha256", "")), "aurora-visit-ended-%010d" % int(loaded.get("store_generation", 0)))
+	if not bool(retired.get("accepted", false)):
+		_flow.hud.toast("Visit save could not be cleared", "Your current controls and return route remain available.", 4.0)
+
+
+func cancel(preserve_interrupted_visit := false) -> void:
 	if not is_active():
 		return
+	if not preserve_interrupted_visit:
+		_retire_saved_visit()
 	if state in [&"outbound", &"corridor", &"landing", &"return_cruise"]:
 		# Revoking travel leaves the same live pilot in direct control at the
 		# current pose. Recovery/return placements are not cancellation movement.

@@ -163,6 +163,8 @@ func _run() -> void:
 		"the surface reads as a coast, not a caldera"
 	)
 
+	_check(not (owner.get("survey") as RefCounted).interact(), "a seated pilot cannot submit coastal observations before reward completion")
+
 	# --- disembark and walk the patch ---------------------------------------
 	await _press_interact()
 	await _wait_state(owner, &"surface", 400)
@@ -184,6 +186,41 @@ func _run() -> void:
 		"the walk is physical ground movement, not a teleport"
 	)
 
+	# The survey is admitted only at the sign, through real on-foot E presses.
+	var survey: RefCounted = owner.get("survey")
+	_check(not survey.interact() and survey.snapshot().is_empty(), "the pad cannot start or satisfy a coastal observation")
+	if not await _checked_coastal_walk(game, owner, [Vector3(-7, 0, -17), Vector3(8, 0, -17), Vector3(20, 0, -7), Vector3(25, 0, 2), Vector3(29, 0, 1)], "held walking reaches the trail sign"):
+		await _finish(game)
+		return
+	await _press_interact()
+	_check(int(survey.snapshot().get("state", -1)) == CheckpointRouteActivity.State.ACTIVE, "E at the sign starts the optional survey")
+	var lease_before: StringName = owner.get("_surface_token")
+	var pose_before := game.player.global_transform
+	await _press_interact()
+	_check(int(survey.snapshot().get("state", -1)) == CheckpointRouteActivity.State.FAILED
+		and owner.get("_surface_token") == lease_before and game.player.global_position.distance_to(pose_before.origin) < 0.15
+		and game.player.is_control_enabled(), "E at the sign abandons without changing movement or the berth lease")
+	await _press_interact()
+	var first_save := game.save_interrupted_aurora_visit()
+	_check(bool(first_save.get("accepted", false)), "consecutive survey saves accept the same caller prefix with unique transaction IDs")
+	var binding := game._aurora_expedition_persistence_binding
+	var legacy_record := (game._runtime_settings_user_data_store.get_snapshot().get(String(GameFlow.AURORA_EXPEDITION_PERSISTENCE_SLOT)) as Dictionary).duplicate(true)
+	(legacy_record.visit as Dictionary).erase("survey")
+	legacy_record.receipt_sha256 = AuroraExpeditionPersistenceBinding._digest(legacy_record.visit)
+	_check(bool(binding.validate_record(legacy_record).get("accepted", false)), "published three-field visit records remain valid without survey progress")
+	var objective_before := String(survey.objective())
+	if not await _checked_coastal_walk(game, owner, [Vector3(33, 0, 2), Vector3(43, 0, -8), Vector3(55, 0, -20), Vector3(60, 0, -20), Vector3(66, 0, -17)], "held walking reaches the lookout through its landward opening"):
+		await _finish(game)
+		return
+	_check(String(survey.objective()) != objective_before and String(survey.prompt()).contains("WATERLINE"), "HUD updates live distance and offers the waterline observation")
+	await _press_interact()
+	_check(int(survey.snapshot().get("next_checkpoint_index", -1)) == 1, "E at the instrument records the first meaningful observation")
+	var latest_progress := game._aurora_expedition_persistence_binding.load_interrupted_visit()
+	_check(int((latest_progress.get("visit", {}) as Dictionary).get("survey", {}).get("next_checkpoint_index", -1)) == 1,
+		"reloading the store returns the latest observation checkpoint, not the earlier start save")
+	await _press_interact()
+	_check(int(survey.snapshot().get("next_checkpoint_index", -1)) == 1 and not survey.reward_recorded(), "repeating the instrument cannot record the stones or grant a reward")
+
 	# --- interrupt: save and whole-Main re-entry -----------------------------
 	var saved := game.save_interrupted_aurora_visit() as Dictionary
 	_check(
@@ -202,6 +239,9 @@ func _run() -> void:
 		"a fresh Main resumes the interrupted visit (%s)"
 			% restore.get("reason", "")
 	)
+	if not bool(restore.get("accepted", false)):
+		await _finish(resumed_game)
+		return
 	# Resuming now streams Aurora back in through the same production lane a
 	# fresh arrival uses, which takes physics ticks and committed origin
 	# transactions, so the resume completes on the visit's own cadence.
@@ -248,6 +288,24 @@ func _run() -> void:
 		"the interrupted-visit receipt is retired once the resume is accepted (%s/%s)"
 			% [retire.get("reason", ""), retire.get("binding_reason", "")]
 	)
+
+	var resumed_survey: RefCounted = resumed.get("survey")
+	_check(int(resumed_survey.snapshot().get("next_checkpoint_index", -1)) == 1
+		and int(resumed_survey.snapshot().get("state", -1)) == CheckpointRouteActivity.State.ACTIVE,
+		"whole-Main re-entry retains exactly the first observation")
+	_check(not resumed_survey.interact(), "the restored pad cannot satisfy the remaining observation")
+	if not await _checked_coastal_walk(resumed_game, resumed, [Vector3(-7, 0, -17), Vector3(8, 0, -17), Vector3(20, 0, -7), Vector3(25, 0, 2), Vector3(33, 0, 2), Vector3(43, 0, -8), Vector3(54, 0, -20), Vector3(52, 0, -27), Vector3(52, 0, -32)], "held walking reaches the standing stones on solid ground"):
+		await _finish(resumed_game)
+		return
+	await _press_interact()
+	_check(resumed_survey.reward_recorded() and int(resumed_survey.snapshot().get("next_checkpoint_index", -1)) == 2, "E at the stones finishes the survey and saves its reward")
+	var store: RefCounted = resumed_game.get("_runtime_settings_user_data_store")
+	var reward_generation := int(store.call(&"get_generation"))
+	await _press_interact()
+	_check(int(store.call(&"get_generation")) == reward_generation, "repeated completed observation cannot write or reward again")
+	if not await _checked_coastal_walk(resumed_game, resumed, [Vector3(52, 0, -27), Vector3(54, 0, -20), Vector3(43, 0, -8), Vector3(33, 0, 2), Vector3(20, 0, -7), Vector3(8, 0, -17), Vector3(-7, 0, -17)], "the explorer walks the coastal trail back to the pad"):
+		await _finish(resumed_game)
+		return
 
 	# --- re-board and return -------------------------------------------------
 	_check(
@@ -597,6 +655,44 @@ func _walk_to_boarding_area(game: GameFlow, craft: HeroShip) -> bool:
 		await physics_frame
 		await process_frame
 	return area in game.player.get_nearby_interactables()
+
+
+func _checked_coastal_walk(game: GameFlow, owner: RefCounted, points: Array, label: String) -> bool:
+	var reached := await _walk_coastal_route(game, owner, points)
+	_check(reached, label)
+	return reached
+
+
+## Targets are region-local and resolved afresh so a common origin shift cannot
+## leave test waypoints behind. Only held input moves the explorer.
+func _walk_coastal_route(game: GameFlow, owner: RefCounted, points: Array) -> bool:
+	var region := (owner.get("_surface") as Node3D).get_node("LandingRegion") as Node3D
+	for point: Vector3 in points:
+		print("SURVEY_WALK start=", region.to_local(game.player.global_position), " target=", point)
+		var arrived := false
+		for tick in 1400:
+			var target := region.to_global(point)
+			var delta := target - game.player.global_position
+			delta.y = 0
+			if delta.length() < 0.7:
+				arrived = true
+				break
+			_look_toward(game.player, target)
+			Input.action_press(&"move_forward")
+			await physics_frame
+			await process_frame
+		Input.action_release(&"move_forward")
+		for tick in 8:
+			await physics_frame
+			await process_frame
+		if not arrived:
+			var obstacles: Array[String] = []
+			for collision_index in game.player.get_slide_collision_count():
+				var collider := game.player.get_slide_collision(collision_index).get_collider() as Node
+				obstacles.append(String(collider.get_path()) if is_instance_valid(collider) else "unknown")
+			print("SURVEY_WALK_BLOCKED player=", region.to_local(game.player.global_position), " target=", point, " floor=", game.player.is_on_floor(), " collisions=", obstacles)
+			return false
+	return game.player.is_on_floor()
 
 
 func _check(ok: bool, message: String) -> void:
