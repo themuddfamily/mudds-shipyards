@@ -260,3 +260,29 @@ retained; it is not relabelled as a wholly passing run. Its source manifest and
 import cache stayed stable, with three previously accepted `RENDER-001` warning
 blocks and no other assessed diagnostics. This does not establish native GPU
 performance or human review.
+
+### Coastal survey and corrected full journey, 2026-09-23
+
+`80ff241d7` adds an optional coastal survey. Interact at the trail sign, observe
+the waterline at the lookout instrument, then record weathering at the standing
+stones. The HUD shows the next destination and distance. Progress saves after
+observations and survives whole-Main re-entry; the existing reward authority
+records the discovery once. Abandoning, boarding and returning remain available.
+Repeated save IDs and integer/float JSON receipt disagreement were fixed at the
+existing persistence boundary, while old three-field visit records remain valid.
+
+The canonical focused run passed all three suites: visit loop 67 assertions,
+authored scene 9 and reward authority 20, with zero diagnostics and stable source
+and import cache. It exercises held walking around the parked ship and through
+the lookout entrance, partial-progress reload, completion, reward retry and
+replay rejection, reboarding and cancellation. This is headless validation;
+rendered human review remains outstanding.
+
+The corrected full journey on `5e5f59f7d` finished with its 14-assertion success
+marker and no error diagnostics. The original process handle was unavailable
+after the session interruption, so its shell exit code was not recovered.
+The same Halyard flew 24,124,893.176 metres through 2,337 origin shifts, docked
+at its actual home berth and walked 1.548 metres with floor support and controls
+enabled. Hull remained 190/190, with zero occupancy failures or outbound staging.
+The earlier failed walking run remains failed. This full journey predates the
+survey feature; the focused survey run establishes its separate acceptance scope.
