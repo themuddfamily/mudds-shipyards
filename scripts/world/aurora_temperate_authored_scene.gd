@@ -415,7 +415,10 @@ func _build_coastal_water(parent: Node3D) -> void:
 	surface.name = "AuroraCoastalWater"
 	surface.mesh = water.commit()
 	var shader := Shader.new()
-	shader.code = "shader_type spatial; render_mode unshaded, cull_disabled; void fragment(){ float ripple = sin(UV.x * 21.0 + TIME * 0.7) * sin(UV.y * 17.0 + TIME * 0.35); ALBEDO = mix(vec3(0.035, 0.19, 0.26), vec3(0.09, 0.36, 0.39), ripple * 0.22 + 0.55); }"
+	# This is a local coastal water patch, not a planet-wide ocean. Fade it at
+	# distance so its rectangular far edge cannot cut across Aurora's orbital
+	# silhouette. VERTEX is view-space in fragment(), so rebases need no update.
+	shader.code = "shader_type spatial; render_mode unshaded, cull_disabled; void fragment(){ float ripple = sin(UV.x * 21.0 + TIME * 0.7) * sin(UV.y * 17.0 + TIME * 0.35); ALBEDO = mix(vec3(0.035, 0.19, 0.26), vec3(0.09, 0.36, 0.39), ripple * 0.22 + 0.55); ALPHA = 1.0 - smoothstep(2500.0, 10000.0, length(VERTEX)); }"
 	var material := ShaderMaterial.new()
 	material.shader = shader
 	surface.material_override = material
