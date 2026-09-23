@@ -6,6 +6,7 @@ const MODULE_SCENE := preload("res://scenes/world/modules/salvage_terrace.tscn")
 const PLAYER_SCENE := preload("res://scenes/player/player.tscn")
 const WORLD_LAYER := 1
 const CAPTURE_PATH := "/tmp/salvage-terrace-forward-plus.png"
+const CLOSE_CAPTURE_PATH := "/tmp/salvage-terrace-bevel-close.png"
 
 var _failures: Array[String] = []
 var _assertions := 0
@@ -13,7 +14,8 @@ var _test_root: Node3D
 
 
 func _init() -> void:
-	if OS.get_cmdline_user_args().has("--capture"):
+	if OS.get_cmdline_user_args().has("--capture") \
+			or OS.get_cmdline_user_args().has("--capture-close"):
 		call_deferred("_capture_forward_plus")
 	else:
 		call_deferred("_run")
@@ -38,7 +40,7 @@ func _run() -> void:
 	_test_origin_slot_and_routes(module)
 	_test_paired_ramp_beacons(module)
 	await _test_exact_surface_union(module)
-	_test_surface_visual_mesh_sharing(module)
+	_test_surface_visual_geometry(module)
 	_test_rails_dressing_and_authority(module)
 	_test_short_side_rail_visual_sharing(module)
 	_test_hazard_dressing_batch(module)
@@ -352,45 +354,58 @@ func _test_exact_surface_union(module: SalvageTerrace) -> void:
 	)
 
 
-func _test_surface_visual_mesh_sharing(module: SalvageTerrace) -> void:
+func _test_surface_visual_geometry(module: SalvageTerrace) -> void:
 	var surface_mesh_ids := {}
 	var collision_shape_ids := {}
 	var exact_visual_recipe := true
+	var metric_chamfers := true
 	var contracts := module.get_standable_surface_contract()
 	for contract_variant in contracts:
 		var contract := contract_variant as Dictionary
 		var body := module.get_node(contract.body_path as NodePath) as StaticBody3D
 		var visual := body.get_node(^"Mesh") as MeshInstance3D
 		var collision := body.get_node(^"Collision") as CollisionShape3D
-		var mesh := visual.mesh as BoxMesh if visual != null else null
+		var mesh := visual.mesh as ArrayMesh if visual != null else null
 		var shape := collision.shape as BoxShape3D if collision != null else null
 		if mesh != null:
 			surface_mesh_ids[mesh.get_instance_id()] = true
+			var size := contract.size as Vector3
+			var half := size * 0.5
+			var expected_inset := ShipChamferedStock.largest_resolvable_chamfer() \
+				* ShipChamferedStock.CHAMFER_INSET_FRACTION
+			var top_corner_found := false
+			for vertex in mesh.get_faces():
+				if absf(vertex.y - half.y) < 0.0001 \
+						and absf(absf(vertex.x) - (half.x - expected_inset)) < 0.0001 \
+						and absf(absf(vertex.z) - (half.z - expected_inset)) < 0.0001:
+					top_corner_found = true
+					break
+			metric_chamfers = metric_chamfers and top_corner_found
 		if shape != null:
 			collision_shape_ids[shape.get_instance_id()] = true
 		exact_visual_recipe = (
 			exact_visual_recipe
 			and visual != null and mesh != null and shape != null
 			and mesh.resource_name == "SalvageTerraceSurfaceVisualMesh"
-			and mesh.size.is_equal_approx(Vector3.ONE)
-			and visual.position.is_equal_approx(Vector3.ZERO)
-			and visual.basis.is_equal_approx(
-				Basis.IDENTITY.scaled(contract.size as Vector3)
-			)
+			and mesh.get_aabb().position.is_equal_approx(-(contract.size as Vector3) * 0.5)
+			and mesh.get_aabb().size.is_equal_approx(contract.size as Vector3)
+			and mesh.get_faces().size() == 44 * 3
+			and visual.transform.is_equal_approx(Transform3D.IDENTITY)
 			and shape.size.is_equal_approx(contract.size as Vector3)
 			and visual.material_override == (module.get("_materials") as Dictionary).deck
 		)
 	print(
-		"SALVAGE_TERRACE_SURFACE_VISUAL_MESHES: allocations 6->%d delta %d" % [
-			surface_mesh_ids.size(), surface_mesh_ids.size() - 6,
+		"SALVAGE_TERRACE_SURFACE_VISUAL_MESHES: metre-sized allocations %d, triangles 72->264, submissions 6->6" % [
+			surface_mesh_ids.size(),
 		]
 	)
 	_check(
 		contracts.size() == 6
-		and surface_mesh_ids.size() == 1
+		and surface_mesh_ids.size() == 6
 		and collision_shape_ids.size() == 6
+		and metric_chamfers
 		and exact_visual_recipe,
-		"six immutable deck/ramp renderers share visual meshes 6->1 while retaining exact scaled geometry and six private collisions"
+		"six deck/ramp renderers retain exact AABBs and private collisions with equal metre-scale chamfers"
 	)
 
 
@@ -1218,8 +1233,13 @@ func _capture_forward_plus() -> void:
 	key_light.shadow_enabled = true
 	stage.add_child(key_light)
 	var camera := Camera3D.new()
-	camera.position = Vector3(45.0, 27.0, -30.0)
-	camera.look_at_from_position(camera.position, Vector3(5.0, 2.0, 9.0), Vector3.UP)
+	var close_capture := OS.get_cmdline_user_args().has("--capture-close")
+	camera.position = Vector3(7.0, 1.6, -1.8) if close_capture else Vector3(45.0, 27.0, -30.0)
+	camera.look_at_from_position(
+		camera.position,
+		Vector3(5.3, -0.15, 1.2) if close_capture else Vector3(5.0, 2.0, 9.0),
+		Vector3.UP
+	)
 	camera.fov = 56.0
 	camera.current = true
 	stage.add_child(camera)
@@ -1230,7 +1250,8 @@ func _capture_forward_plus() -> void:
 	await RenderingServer.frame_post_draw
 	var renderer := RenderingServer.get_current_rendering_method()
 	var image := root.get_texture().get_image()
-	var save_error := image.save_png(CAPTURE_PATH) if image != null and not image.is_empty() else ERR_CANT_CREATE
+	var capture_path := CLOSE_CAPTURE_PATH if close_capture else CAPTURE_PATH
+	var save_error := image.save_png(capture_path) if image != null and not image.is_empty() else ERR_CANT_CREATE
 	var valid := (
 		renderer == &"forward_plus"
 		and image != null
@@ -1240,7 +1261,7 @@ func _capture_forward_plus() -> void:
 	print("SALVAGE_TERRACE_FORWARD_PLUS_CAPTURE: ", {
 		"renderer": renderer,
 		"size": image.get_size() if image != null else Vector2i.ZERO,
-		"path": CAPTURE_PATH,
+		"path": capture_path,
 		"save_error": save_error,
 	})
 	stage.queue_free()
