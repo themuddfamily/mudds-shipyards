@@ -297,3 +297,14 @@ loop or geometry. The production Aurora scene's high, middle and surface
 observations passed seven focused assertions. Existing composition, rig, recipe,
 aerial, authored-scene and Ember airless/surface-loop checks also passed headless
 with Dummy audio. Rendered human judgement and native GPU behaviour remain open.
+
+### Orbital water silhouette repair, 2026-09-23
+
+A rendered 25 km view of the published `57ece81` source showed the local
+30 km coastal water sheet as a hard-edged rectangle across the planet. The
+water shader now fades that local patch between 2.5 and 10 km from the camera
+(`84f9108fb`). This uses view-space distance, so origin rebases require no new
+updates. Isolated Forward+ software-rendered captures show the rectangle gone
+from orbit and the 60 m coastal view unchanged; the authored-scene check passes
+9 assertions. The captures establish appearance on llvmpipe, not native GPU
+performance or a human art sign-off.
