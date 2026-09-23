@@ -18,6 +18,7 @@ var _baseline_environment: Environment
 var _baseline_sun_energy := 1.0
 var _baseline_sun_color := Color.WHITE
 var _baseline_ambient_energy := 1.0
+var _ambient_recipe_energy := 1.0
 var _baseline_cloud_transparency := 0.0
 var _baseline_fog_enabled := false
 var _baseline_fog_density := 0.0
@@ -28,6 +29,8 @@ var _cloud_shadow_projection: MeshInstance3D
 var _graphics_profile: StringName = &"high"
 var _cloud_shadow_enabled := true
 var _cloud_shadow_opacity_scale := 1.0
+var _last_observer_altitude_m := 0.0
+var _has_observer_altitude := false
 
 
 func _ready() -> void:
@@ -44,6 +47,7 @@ func _ready() -> void:
 			_baseline_sun_color = sun.light_color
 		if target != null and target.environment != null:
 			_baseline_ambient_energy = target.environment.ambient_light_energy
+			_ambient_recipe_energy = _baseline_ambient_energy
 			_baseline_fog_enabled = target.environment.fog_enabled
 			_baseline_fog_density = target.environment.fog_density
 			_baseline_fog_sky_affect = target.environment.fog_sky_affect
@@ -99,6 +103,8 @@ func _enter_tree() -> void:
 			apply_retained_presentation_recipe(
 				_last_recipe.solar, _last_recipe.weather
 			)
+		elif _has_observer_altitude:
+			_apply_altitude_ambient(_last_observer_altitude_m)
 
 
 func configure() -> Dictionary:
@@ -125,7 +131,26 @@ func present_observation(observation: Dictionary, expected_generation: int) -> D
 		return {"accepted": false, "reason": &"not_configured"}
 	if is_queued_for_deletion() or not is_inside_tree():
 		return {"accepted": false, "reason": &"composition_detached"}
-	return get_atmosphere_rig().present_observation(observation, expected_generation)
+	var result := get_atmosphere_rig().present_observation(observation, expected_generation)
+	if bool(result.get("accepted", false)):
+		var observer := observation.get("body_local_observer_m", Vector3.ZERO) as Vector3
+		_last_observer_altitude_m = observer.length() - world_definition.body_radius_metres
+		_has_observer_altitude = true
+		_apply_altitude_ambient(_last_observer_altitude_m)
+	return result
+
+
+func _apply_altitude_ambient(altitude_m: float) -> void:
+	var target := get_world_environment()
+	if target == null or target.environment == null:
+		return
+	var top := atmosphere_profile.atmosphere_top_altitude_m
+	var air := clampf(1.0 - altitude_m / top, 0.0, 1.0)
+	air = air * air * (3.0 - 2.0 * air)
+	# The rig's fog and sky adapters own their renderer properties. This one
+	# independent ambient control keeps orbital terrain dim while the atmosphere
+	# progressively lights the coast on descent.
+	target.environment.ambient_light_energy = _ambient_recipe_energy * lerpf(0.25, 1.0, air)
 
 
 func apply_retained_presentation_recipe(
@@ -149,7 +174,8 @@ func apply_retained_presentation_recipe(
 		return {"accepted": false, "reason": &"presentation_target_unavailable"}
 	sun.light_energy = clampf(float(solar.get("sun_energy_unitless", 0.0)) * 1.2 + 0.1, 0.1, 1.3)
 	sun.light_color = solar.get("sun_color", _baseline_sun_color) as Color
-	target.environment.ambient_light_energy = clampf(float(solar.get("sky_exposure_unitless", 0.16)), 0.16, 1.0)
+	_ambient_recipe_energy = clampf(float(solar.get("sky_exposure_unitless", 0.16)), 0.16, 1.0)
+	target.environment.ambient_light_energy = _ambient_recipe_energy
 	var altitude_m := float(weather_snapshot.get("altitude_m", 0.0)) if weather_snapshot is Dictionary else 0.0
 	var aerial := clampf(altitude_m / 20000.0, 0.0, 1.0) if is_finite(altitude_m) else 0.0
 	target.environment.fog_enabled = _baseline_fog_enabled or aerial < 0.95
@@ -172,6 +198,8 @@ func apply_retained_presentation_recipe(
 		"weather": retained_weather,
 		"aerial_factor_unitless": aerial,
 	}.duplicate(true)
+	if _has_observer_altitude:
+		_apply_altitude_ambient(_last_observer_altitude_m)
 	return {"accepted": true, "reason": &"presentation_recipe_applied", "solar": solar, "weather": weather, "aerial_factor_unitless": aerial}.duplicate(true)
 
 
@@ -186,6 +214,7 @@ func get_presentation_snapshot() -> Dictionary:
 		"sun_energy": sun.light_energy if sun != null else 0.0,
 		"sun_color": sun.light_color if sun != null else Color.BLACK,
 		"ambient_energy": target.environment.ambient_light_energy if target != null and target.environment != null else 0.0,
+		"observer_altitude_m": _last_observer_altitude_m if _has_observer_altitude else null,
 		"cloud_transparency": cloud.transparency if cloud != null else 1.0,
 		"cloud_shadow_visible": shadow.visible if shadow != null else false,
 		"fog_enabled": target.environment.fog_enabled if target != null and target.environment != null else false,
