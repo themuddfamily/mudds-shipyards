@@ -109,6 +109,7 @@ ACTION_SPECS = [
     {"source": "run-loop", "runtime": "run", "duration": 0.56, "loop": True},
     {"source": "jump", "runtime": "jump", "duration": 0.42, "loop": False},
     {"source": "airborne-loop", "runtime": "airborne", "duration": 0.9, "loop": True},
+    {"source": "landing_recovery", "runtime": "landing_recovery", "duration": 0.34, "loop": False},
     {"source": "boarding", "runtime": "boarding", "duration": 1.1, "loop": False},
     {"source": "seated_control-loop", "runtime": "seated_control", "duration": 2.4, "loop": True},
     {"source": "disembark_recovery", "runtime": "disembark_recovery", "duration": 0.9, "loop": False},
@@ -1084,6 +1085,38 @@ def build_actions(rig: bpy.types.Object) -> None:
         return merge(STANDING, overlay), locations
 
     make_action(rig, "airborne-loop", 0.9, airborne_pose)
+
+    # ---------------------------------------------------------- landing
+    # Contact folds the hips and knees while the planted boots stay level.
+    # The torso and arms counter the impact, then the suit returns to the
+    # standing pose. This clip only deforms the mesh; Player owns the contact,
+    # capsule and velocity. The grounded sole solve sets the hip height from
+    # the boots at each keyed frame, including the compression peak.
+    LANDING_FLEX = [(0.0, 0.72), (0.07, 1.0), (0.16, 0.55), (0.25, 0.12), (0.34, 0.0)]
+
+    def landing_pose(time: float) -> tuple[dict, dict]:
+        compression = timed(LANDING_FLEX, time)
+        overlay = {
+            "spine_01": (compression * 12.0, 0.0, 0.0),
+            "spine_02": (compression * 5.0, 0.0, 0.0),
+            "chest": (compression * 3.0, 0.0, 0.0),
+            "head": (compression * -10.0, 0.0, 0.0),
+            "upper_arm_l": (compression * 29.0, compression * -7.0, 0.0),
+            "upper_arm_r": (compression * 29.0, compression * 7.0, 0.0),
+            "forearm_l": (compression * 22.0, 0.0, 0.0),
+            "forearm_r": (compression * 22.0, 0.0, 0.0),
+            "thigh_l": (compression * 38.0, 0.0, 0.0),
+            "thigh_r": (compression * 38.0, 0.0, 0.0),
+            "calf_l": (compression * -73.0, 0.0, 0.0),
+            "calf_r": (compression * -73.0, 0.0, 0.0),
+            "foot_l": (compression * 35.0, 0.0, 0.0),
+            "foot_r": (compression * 35.0, 0.0, 0.0),
+        }
+        return merge(STANDING, overlay), {"pelvis": (0.0, 0.0, 0.0)}
+
+    make_action(rig, "landing_recovery", 0.34, landing_pose, ground={
+        "weight": window(0.0, 0.0, True), "minimum": -0.16, "maximum": 0.08,
+    })
 
     # ------------------------------------------------------------ boarding
     # This is the clip the player was complaining about: "the animation turns

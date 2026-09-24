@@ -20,6 +20,7 @@ const EXPECTED_PARENTS := {
 const EXPECTED_DURATIONS := {
 	&"RESET": .001, &"idle": 2.4, &"walk": .8, &"run": .56,
 	&"jump": .42, &"airborne": .9, &"boarding": 1.1,
+	&"landing_recovery": .34,
 	&"seated_control": 2.4, &"disembark_recovery": .9,
 }
 const LOOPING := [&"idle", &"walk", &"run", &"airborne", &"seated_control"]
@@ -28,8 +29,8 @@ const LOOPING := [&"idle", &"walk", &"run", &"airborne", &"seated_control"]
 ## track count went 17 -> 23; the mesh, rig, bind bounds, bone tree, skin,
 ## materials, clip roster and clip durations did not.
 ## The rigid harness-light split and filled, calf-to-foot weighted ankle sleeves
-## change the source graph without changing the armature or nine authored clips.
-const SOURCE_CONTENT_SIGNATURE := "79d93a27f1cf2524a0439d426cf6d9a45debf8ced0655989fb44dd2154d30665"
+## change the source graph without changing the armature or original nine clips.
+const SOURCE_CONTENT_SIGNATURE := "a6ea2d53e335cf4cf6d10f080ad3188b329c9e93133b77aabcbdcc6bd2709dcb"
 
 
 class MaterialPropertyProbe extends PilotSkinnedPresentation:
@@ -119,7 +120,7 @@ func _test_runtime_boundary(presentation: PilotSkinnedPresentation) -> void:
 		)
 	_check(
 		all_animation_paths_are_direct,
-		"audit preserves direct-GLB provenance for all nine authored clips"
+		"audit preserves direct-GLB provenance for all imported authored clips"
 	)
 	_check(absf(float(audit.get("root_motion_horizontal_m", 1.0))) <= .0001, "all imported motion remains horizontally in place")
 	_check(absf(float(audit.get("root_motion_yaw_rad", 1.0))) <= .0001, "all imported motion leaves player yaw to gameplay authority")
@@ -338,8 +339,8 @@ func _test_imported_motion_library(presentation: PilotSkinnedPresentation) -> vo
 		player.callback_mode_process == AnimationMixer.ANIMATION_CALLBACK_MODE_PROCESS_MANUAL,
 		"imported deformation is advanced deterministically by controller physics"
 	)
-	_check(player.get_animation_library_list() == [&""], "nine clips live in one unqualified default AnimationLibrary")
-	_check(player.get_animation_list().size() == EXPECTED_DURATIONS.size(), "import exposes exactly the required nine motion clips")
+	_check(player.get_animation_library_list() == [&""], "imported clips live in one unqualified default AnimationLibrary")
+	_check(player.get_animation_list().size() == EXPECTED_DURATIONS.size(), "import exposes exactly the required ten motion clips")
 	var imported_tracks := 0
 	for clip_name: StringName in EXPECTED_DURATIONS:
 		_check(player.has_animation(clip_name), "%s is callable by its unqualified controller-facing name" % clip_name)
@@ -875,7 +876,7 @@ func _test_manifest() -> void:
 		and int(manifest.get("rigid_mesh_triangles_exported_evaluated", 0)) == 108,
 		"rigid harness lamp stays a bounded rounded box without skinned pole triangles"
 	)
-	_check((manifest.get("actions", []) as Array).size() == 9, "manifest records the complete nine-action source library")
+	_check((manifest.get("actions", []) as Array).size() == 10, "manifest records the complete ten-action source library")
 	_check(str(manifest.get("glb_sha256", "")) == FileAccess.get_sha256(GLB_PATH), "manifest pins the exact runtime GLB hash")
 	_check(str(manifest.get("blend_sha256", "")) == FileAccess.get_sha256(BLEND_PATH), "manifest pins the exact editable Blender source hash")
 	_check(

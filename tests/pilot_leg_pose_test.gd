@@ -36,6 +36,7 @@ const CLIP_DURATIONS := {
 	&"run": 0.56,
 	&"jump": 0.42,
 	&"airborne": 0.9,
+	&"landing_recovery": 0.34,
 	&"boarding": 1.1,
 	&"seated_control": 2.4,
 	&"disembark_recovery": 0.9,

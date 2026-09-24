@@ -38,6 +38,7 @@ const EXPECTED_DURATIONS := {
 	&"run": 0.56,
 	&"jump": 0.42,
 	&"airborne": 0.9,
+	&"landing_recovery": 0.34,
 	&"boarding": 1.1,
 	&"seated_control": 2.4,
 	&"disembark_recovery": 0.9,
@@ -384,9 +385,9 @@ func _test_imported_motion_library(
 			and bool(motion_audit.get("asset_valid", false)),
 		"motion library is persistent imported data accepted by the asset audit"
 	)
-	_check(motion_player.get_animation_library_list() == [&""], "nine clips live in one unqualified default AnimationLibrary")
+	_check(motion_player.get_animation_library_list() == [&""], "imported clips live in one unqualified default AnimationLibrary")
 	var library := motion_player.get_animation_library(&"")
-	_check(library != null and library.get_animation_list().size() == 9, "default library contains exactly the nine required clips")
+	_check(library != null and library.get_animation_list().size() == 10, "default library contains exactly the ten imported clips")
 	if library == null:
 		return
 
@@ -564,8 +565,15 @@ func _test_authored_locomotion_state_machine(player: PlayerController, fixture: 
 			observed_airborne = true
 			break
 	_check(observed_airborne, "descent switches from jump to the imported airborne hold")
-	await _wait_physics_frames(55)
-	_check(player.get_authored_motion_state() == &"idle", "landing returns airborne motion to imported idle")
+	var observed_landing := false
+	for _landing_frame in 55:
+		await physics_frame
+		if player.is_on_floor() and player.get_authored_motion_state() == &"landing_recovery":
+			observed_landing = true
+			break
+	_check(observed_landing, "real grounded contact starts imported landing recovery")
+	await _wait_physics_frames(30)
+	_check(player.get_authored_motion_state() == &"idle", "landing recovery releases to imported idle")
 
 	player.set_physics_process(false)
 	player.teleport_to(Transform3D.IDENTITY)

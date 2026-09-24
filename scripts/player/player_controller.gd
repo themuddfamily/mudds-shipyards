@@ -122,10 +122,15 @@ const MOTION_WALK := &"walk"
 const MOTION_RUN := &"run"
 const MOTION_JUMP := &"jump"
 const MOTION_AIRBORNE := &"airborne"
+const MOTION_LANDING_RECOVERY := &"landing_recovery"
 const MOTION_BOARDING := &"boarding"
 const MOTION_SEATED_CONTROL := &"seated_control"
 const MOTION_DISEMBARK_RECOVERY := &"disembark_recovery"
 const MOTION_BLEND_TIME := 0.12
+const LANDING_RECOVERY_LENGTH := 0.34
+const LANDING_RECOVERY_BLEND_TIME := 0.065
+const LANDING_MIN_FLIGHT_SECONDS := 0.12
+const LANDING_MIN_DESCENT_SPEED := 1.2
 const TRANSITION_MOTION_BLEND_TIME := 0.16
 const PILOT_INTEGRITY_PROBE_INTERVAL := 0.2
 ## A sole sits 0.15 m below the imported ankle joint. Start above the ankle and
@@ -142,6 +147,8 @@ const PILOT_MOTION_VERSION := &"blender_skinned_motion_v2"
 ## use -Z as forward, so the visible imported presentation needs one mount-only
 ## half turn. This never changes input, CharacterBody velocity, or clip playback.
 const IMPORTED_PILOT_FACING_YAW_OFFSET := PI
+## Frozen scene-authored fallback library. The imported GLB has one extra
+## landing clip; never mutate this legacy roster to accommodate it.
 const PILOT_MOTION_CLIPS: Array[StringName] = [
 	MOTION_RESET,
 	MOTION_IDLE,
@@ -291,6 +298,10 @@ var _pilot_fallback_presentation_builder := PilotFallbackPresentationBuilder.new
 var _motion_animation_player: AnimationPlayer
 var _using_imported_pilot_presentation := false
 var _motion_playback_rate := 1.0
+var _was_airborne := false
+var _airborne_elapsed := 0.0
+var _last_airborne_descent_speed := 0.0
+var _landing_recovery_remaining := 0.0
 var _legacy_motion_library_backup: AnimationLibrary
 var _legacy_motion_pristine_library: AnimationLibrary
 var _legacy_motion_library_id := 0
@@ -415,7 +426,7 @@ func _physics_process(delta: float) -> void:
 	_move_in_interior_collision_frame(delta)
 	_resolve_cabin_containment()
 	_update_facing(desired_direction, delta)
-	_update_authored_locomotion(is_sprinting)
+	_update_authored_locomotion(is_sprinting, delta)
 	_advance_motion_animation(delta)
 	_update_grounded_foot_placement()
 
@@ -686,6 +697,7 @@ func teleport_to(target: Transform3D) -> void:
 	global_transform = target
 	reset_physics_interpolation()
 	velocity = Vector3.ZERO
+	_clear_landing_recovery()
 	_camera_yaw.rotation.y = 0.0
 	_reset_body_facing()
 	if _embodiment_state == EmbodimentState.ON_FOOT:
@@ -712,6 +724,7 @@ func begin_boarding(
 
 	_control_enabled = false
 	velocity = Vector3.ZERO
+	_clear_landing_recovery()
 	# Locomotion turns the presentation pivot independently of the physical
 	# CharacterBody. A boarding transition owns the root's world-space facing,
 	# so carrying that last strafe yaw into its authored clips would leave the
@@ -761,6 +774,7 @@ func begin_disembark(
 
 	_control_enabled = false
 	velocity = Vector3.ZERO
+	_clear_landing_recovery()
 	_reset_body_facing()
 	_bind_transition_frame(reference_frame)
 	_set_transition_waypoints(exit_waypoints)
@@ -808,6 +822,7 @@ func force_recovery_to_on_foot(target: Transform3D) -> void:
 	_transition_duration = 0.0
 	global_transform = _transition_start
 	velocity = Vector3.ZERO
+	_clear_landing_recovery()
 	_seat_anchor = null
 	process_physics_priority = _standing_physics_priority
 	_camera_yaw.rotation.y = 0.0
@@ -1061,6 +1076,7 @@ func get_pilot_motion_audit() -> Dictionary:
 		"has_run": library != null and library.has_animation(MOTION_RUN),
 		"has_jump": library != null and library.has_animation(MOTION_JUMP),
 		"has_airborne": library != null and library.has_animation(MOTION_AIRBORNE),
+		"has_landing_recovery": library != null and library.has_animation(MOTION_LANDING_RECOVERY),
 		"has_boarding": library != null and library.has_animation(MOTION_BOARDING),
 		"has_seated_control": library != null
 			and library.has_animation(MOTION_SEATED_CONTROL),
@@ -1394,6 +1410,7 @@ func _complete_disembark() -> void:
 	_transition_frame = null
 	_set_transition_waypoints([])
 	velocity = Vector3.ZERO
+	_clear_landing_recovery()
 	_seat_anchor = null
 	_station_seated_context = false
 	_sleeping_context = false
@@ -2836,7 +2853,7 @@ func _update_grounded_foot_placement() -> void:
 		not _using_imported_pilot_presentation
 		or _embodiment_state != EmbodimentState.ON_FOOT
 		or not is_on_floor()
-		or _motion_state not in [MOTION_IDLE, MOTION_WALK, MOTION_RUN]
+		or _motion_state not in [MOTION_IDLE, MOTION_WALK, MOTION_RUN, MOTION_LANDING_RECOVERY]
 	):
 		_pilot_presentation.clear_foot_placement(generation, &"grounded_state_inactive")
 		return
@@ -2919,16 +2936,44 @@ func _update_facing(desired_direction: Vector3, delta: float) -> void:
 	)
 
 
-func _update_authored_locomotion(sprinting: bool) -> void:
+func _clear_landing_recovery() -> void:
+	_was_airborne = false
+	_airborne_elapsed = 0.0
+	_last_airborne_descent_speed = 0.0
+	_landing_recovery_remaining = 0.0
+
+
+func _update_authored_locomotion(sprinting: bool, delta: float) -> void:
 	var movement_up := _get_movement_up_direction()
 	var horizontal_speed := (velocity - movement_up * velocity.dot(movement_up)).length()
 	if not is_on_floor():
+		_was_airborne = true
+		_airborne_elapsed += delta
+		_landing_recovery_remaining = 0.0
 		var upward_speed := velocity.dot(movement_up)
+		_last_airborne_descent_speed = maxf(0.0, -upward_speed)
 		_set_motion_state(
 			MOTION_JUMP if upward_speed > 0.25 else MOTION_AIRBORNE,
 			MOTION_BLEND_TIME
 		)
 		return
+	if _was_airborne:
+		_was_airborne = false
+		var real_impact := (
+			_airborne_elapsed >= LANDING_MIN_FLIGHT_SECONDS
+			and _last_airborne_descent_speed >= LANDING_MIN_DESCENT_SPEED
+		)
+		_airborne_elapsed = 0.0
+		_last_airborne_descent_speed = 0.0
+		if real_impact and _using_imported_pilot_presentation:
+			_landing_recovery_remaining = LANDING_RECOVERY_LENGTH
+			_set_motion_state(MOTION_LANDING_RECOVERY, LANDING_RECOVERY_BLEND_TIME, 1.0, true)
+			return
+	if _landing_recovery_remaining > 0.0 and _using_imported_pilot_presentation:
+		_landing_recovery_remaining = maxf(0.0, _landing_recovery_remaining - delta)
+		if _landing_recovery_remaining > 0.0:
+			_set_motion_state(MOTION_LANDING_RECOVERY, LANDING_RECOVERY_BLEND_TIME)
+			return
 
 	if horizontal_speed <= 0.15:
 		_set_motion_state(MOTION_IDLE, MOTION_BLEND_TIME)
@@ -2960,7 +3005,7 @@ func _set_motion_state(
 		push_error("Player motion playback rate must be finite and positive")
 		return
 	if (
-		state not in [MOTION_IDLE, MOTION_WALK, MOTION_RUN]
+		state not in [MOTION_IDLE, MOTION_WALK, MOTION_RUN, MOTION_LANDING_RECOVERY]
 		and _pilot_presentation != null
 		and is_instance_valid(_pilot_presentation)
 	):
@@ -3008,7 +3053,7 @@ func _set_motion_state(
 	elif sample_immediately:
 		_motion_animation_player.advance(0.0)
 	if (
-		state not in [MOTION_IDLE, MOTION_WALK, MOTION_RUN]
+		state not in [MOTION_IDLE, MOTION_WALK, MOTION_RUN, MOTION_LANDING_RECOVERY]
 		and _pilot_presentation != null
 		and is_instance_valid(_pilot_presentation)
 	):

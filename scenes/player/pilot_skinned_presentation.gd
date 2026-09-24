@@ -18,7 +18,8 @@ const MANIFEST_PATH := "res://assets/models/pilot/pilot_motion_v2_asset_manifest
 ## lerps between a handful of keys. Boarding folded a standing man in half on
 ## the spot; the walk and run were symmetric scissors whose arms swung with the
 ## same-side leg; idle's only travel was a 0.8 mm pelvis nudge, and that nudge
-## was horizontal. All nine clips are now sampled from authored timing curves.
+## was horizontal. The original nine clips are sampled from authored timing
+## curves; landing recovery is a tenth imported clip.
 ##
 ##   GLB            b869688643a78ba1... -> b2d0c05e29c5ab03...
 ##   .blend         e7001460e6223b8f... -> aa0700ece03c76cd...
@@ -31,9 +32,9 @@ const MANIFEST_PATH := "res://assets/models/pilot/pilot_motion_v2_asset_manifest
 ## spine_02 at runtime. Windows Forward+ intermittently expanded triangles from
 ## its former joined skinned surface into the reported screen-sized red panes;
 ## rigid single-bone detail has no reason to enter the GPU skinning buffer.
-const EXPECTED_ASSET_SHA256 := "71fd1695d678fc364ae5715d5af69b1ccb8ed9575e3331ccfb4c4f6fff2e3835"
-const EXPECTED_SOURCE_SHA256 := "749906a1f73d4d5443dc84b375702a9fae2a72a5933075d5dce38694c00a8fe8"
-const EXPECTED_SOURCE_CONTENT_SHA256 := "79d93a27f1cf2524a0439d426cf6d9a45debf8ced0655989fb44dd2154d30665"
+const EXPECTED_ASSET_SHA256 := "760db1cc8f524770b9290609201806feda546e5cfa6b290ad02d7dd12bc38659"
+const EXPECTED_SOURCE_SHA256 := "c6ed2c39f2f4acdded8f216f9a48d38b8a6cadccc7df3695e394ec4e08a4e9db"
+const EXPECTED_SOURCE_CONTENT_SHA256 := "a6ea2d53e335cf4cf6d10f080ad3188b329c9e93133b77aabcbdcc6bd2709dcb"
 const EXPECTED_MESH_RESOURCE_PATH := ASSET_PATH + "::ArrayMesh_38ank"
 const EXPECTED_RIGID_HARNESS_MESH_RESOURCE_PATH := ASSET_PATH + "::ArrayMesh_dfldj"
 const EXPECTED_SKIN_RESOURCE_PATH := ASSET_PATH + "::Skin_l0rqn"
@@ -50,13 +51,14 @@ const EXPECTED_MATERIAL_RESOURCE_PATHS := [
 const EXPECTED_ANIMATION_RESOURCE_PATHS := {
 	&"RESET": ASSET_PATH + "::Animation_78yge",
 	&"airborne": ASSET_PATH + "::Animation_ptm1b",
+	&"landing_recovery": ASSET_PATH + "::Animation_hq1nq",
 	&"boarding": ASSET_PATH + "::Animation_5fek6",
 	&"disembark_recovery": ASSET_PATH + "::Animation_bp0df",
 	&"idle": ASSET_PATH + "::Animation_iusdu",
 	&"jump": ASSET_PATH + "::Animation_yxp60",
-	&"run": ASSET_PATH + "::Animation_hq1nq",
-	&"seated_control": ASSET_PATH + "::Animation_3a2f5",
-	&"walk": ASSET_PATH + "::Animation_at33j",
+	&"run": ASSET_PATH + "::Animation_3a2f5",
+	&"seated_control": ASSET_PATH + "::Animation_at33j",
+	&"walk": ASSET_PATH + "::Animation_spexa",
 }
 
 const EXPECTED_NODE_PATHS := {
@@ -103,6 +105,7 @@ const REQUIRED_CLIP_DURATIONS := {
 	&"run": 0.56,
 	&"jump": 0.42,
 	&"airborne": 0.9,
+	&"landing_recovery": 0.34,
 	&"boarding": 1.1,
 	&"seated_control": 2.4,
 	&"disembark_recovery": 0.9,
@@ -129,7 +132,7 @@ const FOOT_PLACEMENT_SLOPE_FADE_RAD := PI / 180.0
 const FOOT_PLACEMENT_MAX_PELVIS_DROP_M := 0.04
 const FOOT_PLACEMENT_PELVIS_SPEED_MPS := 0.36
 const FOOT_PLACEMENT_PLANTED_CORRECTION_M := 0.045
-const FOOT_PLACEMENT_MOTION_STATES := [&"idle", &"walk", &"run"]
+const FOOT_PLACEMENT_MOTION_STATES := [&"idle", &"walk", &"run", &"landing_recovery"]
 const FOOT_CHAIN_BONES := {
 	&"l": [&"thigh_l", &"calf_l", &"foot_l"],
 	&"r": [&"thigh_r", &"calf_r", &"foot_r"],
@@ -145,6 +148,7 @@ const EXPECTED_CLIP_TRACK_COUNTS := {
 	&"run": 23,
 	&"jump": 23,
 	&"airborne": 23,
+	&"landing_recovery": 23,
 	&"boarding": 23,
 	&"seated_control": 23,
 	&"disembark_recovery": 23,
@@ -1330,7 +1334,7 @@ func get_asset_audit_report(full_resource_scan: bool = true) -> Dictionary:
 			errors.append("imported motion is not configured for deterministic manual sampling")
 		var animation_names := _animation_player.get_animation_list()
 		if animation_names.size() != REQUIRED_CLIP_DURATIONS.size():
-			errors.append("animation player does not contain the exact nine-clip library")
+			errors.append("animation player does not contain the exact imported clip library")
 		for clip_name: StringName in REQUIRED_CLIP_DURATIONS:
 			if not _animation_player.has_animation(clip_name):
 				errors.append("required imported clip is missing: %s" % clip_name)

@@ -37,6 +37,12 @@
       "source": "airborne-loop"
     },
     {
+      "duration": 0.34,
+      "loop": false,
+      "runtime": "landing_recovery",
+      "source": "landing_recovery"
+    },
+    {
       "duration": 1.1,
       "loop": false,
       "runtime": "boarding",
@@ -74,7 +80,7 @@
       1.945
     ]
   },
-  "blend_sha256": "749906a1f73d4d5443dc84b375702a9fae2a72a5933075d5dce38694c00a8fe8",
+  "blend_sha256": "c6ed2c39f2f4acdded8f216f9a48d38b8a6cadccc7df3695e394ec4e08a4e9db",
   "blender_version": "4.0.2",
   "bone_count": 23,
   "bone_tree": {
@@ -114,8 +120,8 @@
     "source": "Blender Z-up, -Y forward, metres"
   },
   "generator": "tools/blender/generate_pilot_motion_v2.py",
-  "generator_sha256": "0b4629f7e4cb3d813e36bc75f531ecc677e0d6b25368dac1b78b7883fc43e85b",
-  "glb_sha256": "71fd1695d678fc364ae5715d5af69b1ccb8ed9575e3331ccfb4c4f6fff2e3835",
+  "generator_sha256": "1d2dad31a017f232d376ca44daf2a394e67b4ca704f9703edca2247d35f05b9b",
+  "glb_sha256": "760db1cc8f524770b9290609201806feda546e5cfa6b290ad02d7dd12bc38659",
   "hierarchy_contract": [
     "PilotArt",
     "HarnessRelease",
