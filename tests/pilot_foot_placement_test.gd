@@ -412,18 +412,28 @@ func _test_clip_release(player: PlayerController, world: Node3D, clip: StringNam
 	var prior_head_offset := _bone_world_position(presentation, &"head") - _bone_world_position(reference, &"head")
 	var largest_pelvis_step := 0.0
 	var largest_head_step := 0.0
-	var generation := presentation.get_foot_placement_attachment_generation()
+	var immediate_pelvis_step := 0.0
+	var immediate_head_step := 0.0
+	var blend_time := 0.16 if clip == &"boarding" else 0.12
 	for sample in 8:
 		await physics_frame
 		if sample == 0:
-			live_animation.play(clip, 0.0)
-			reference_animation.play(clip, 0.0)
-			live_animation.seek(0.0, true)
+			# This is the production order: state change clears placement, then
+			# play/seek samples the new pose. Inspect the pose at a possible
+			# render boundary before the next grounded-foot update.
+			player.call("_set_motion_state", clip, blend_time, 1.0, true, true)
+			reference_animation.play(clip, blend_time)
 			reference_animation.seek(0.0, true)
+			var immediate_pelvis_offset := _bone_world_position(presentation, &"pelvis") - _bone_world_position(reference, &"pelvis")
+			var immediate_head_offset := _bone_world_position(presentation, &"head") - _bone_world_position(reference, &"head")
+			immediate_pelvis_step = immediate_pelvis_offset.distance_to(prior_pelvis_offset)
+			immediate_head_step = immediate_head_offset.distance_to(prior_head_offset)
+			prior_pelvis_offset = immediate_pelvis_offset
+			prior_head_offset = immediate_head_offset
 		else:
 			live_animation.advance(1.0 / 60.0)
 			reference_animation.advance(1.0 / 60.0)
-		presentation.clear_foot_placement(generation, StringName("test_%s_transition" % clip))
+		player.call("_update_grounded_foot_placement")
 		var pelvis_offset := _bone_world_position(presentation, &"pelvis") - _bone_world_position(reference, &"pelvis")
 		var head_offset := _bone_world_position(presentation, &"head") - _bone_world_position(reference, &"head")
 		largest_pelvis_step = maxf(largest_pelvis_step, pelvis_offset.distance_to(prior_pelvis_offset))
@@ -431,6 +441,10 @@ func _test_clip_release(player: PlayerController, world: Node3D, clip: StringNam
 		prior_pelvis_offset = pelvis_offset
 		prior_head_offset = head_offset
 	_check(starting_drop > 0.01, "%s transition begins from a real sloped idle correction" % clip)
+	_check(
+		immediate_pelvis_step <= 0.0061 and immediate_head_step <= 0.0061,
+		"%s immediate sampled clip keeps world pelvis/head correction continuous at render boundary (%.4f/%.4f m)" % [clip, immediate_pelvis_step, immediate_head_step]
+	)
 	_check(
 		largest_pelvis_step <= 0.0061 and largest_head_step <= 0.0061,
 		"%s authored clip releases world pelvis/head offset by at most 6 mm per physics frame (%.4f/%.4f m)" % [clip, largest_pelvis_step, largest_head_step]

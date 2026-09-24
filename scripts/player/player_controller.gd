@@ -3006,6 +3006,18 @@ func _set_motion_state(
 		_motion_animation_player.seek(0.0, sample_immediately, true)
 	elif sample_immediately:
 		_motion_animation_player.advance(0.0)
+	if (
+		state not in [MOTION_IDLE, MOTION_WALK, MOTION_RUN]
+		and _pilot_presentation != null
+		and is_instance_valid(_pilot_presentation)
+	):
+		# The immediate clip sample can re-key the pelvis after the clear above.
+		# Reapply its residual correction before this state change can render;
+		# duplicate clears in one physics frame do not advance the release twice.
+		_pilot_presentation.clear_foot_placement(
+			_pilot_presentation.get_foot_placement_attachment_generation(),
+			&"motion_state_sampled"
+		)
 
 
 func _get_accepted_imported_motion_player() -> AnimationPlayer:
