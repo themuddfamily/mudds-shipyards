@@ -225,6 +225,7 @@ var _terminal_approach: Marker3D
 var _route_markers: Array[Marker3D] = []
 var _materials: Dictionary = {}
 var _static_box_mesh_cache: Dictionary = {}
+var _walkable_deck_mesh_cache: Dictionary = {}
 var _terminal_actor: WeakRef
 var _terminal_actor_ship: WeakRef
 var _terminal_actor_lease: StringName = &""
@@ -792,7 +793,7 @@ func get_static_box_visual_allocation_audit() -> Dictionary:
 	for body_node in find_children("*", "StaticBody3D", true, false):
 		var body := body_node as StaticBody3D
 		var view := body.get_node_or_null(^"Mesh") as MeshInstance3D
-		var mesh := view.mesh as BoxMesh if view != null else null
+		var mesh := view.mesh if view != null else null
 		var collision := body.get_node_or_null(^"Collision") as CollisionShape3D
 		var shape := collision.shape as BoxShape3D if collision != null else null
 		if mesh == null and body.name not in TERMINAL_APPROACH_SUPPORT_NODE_NAMES \
@@ -860,7 +861,7 @@ func get_static_box_visual_allocation_audit() -> Dictionary:
 		errors.append("static_box_mesh_resource_count_drift")
 	if collision_resource_ids.size() != STATIC_BOX_COLLISION_RESOURCE_ALLOCATIONS:
 		errors.append("static_box_collision_resource_count_drift")
-	if _static_box_mesh_cache.size() != STATIC_BOX_MESH_RESOURCE_ALLOCATIONS:
+	if _static_box_mesh_cache.size() + _walkable_deck_mesh_cache.size() != STATIC_BOX_MESH_RESOURCE_ALLOCATIONS:
 		errors.append("static_box_cache_recipe_count_drift")
 	_validate_shared_static_box_family(
 		[^"Rails/StairRailPort", ^"Rails/StairRailStarboard"], errors
@@ -1798,7 +1799,10 @@ func _static_box(
 	if create_visual:
 		var visible := MeshInstance3D.new()
 		visible.name = "Mesh"
-		var mesh := _shared_static_box_mesh(size)
+		# Form the eleven route surfaces at their authored metre dimensions. The
+		# 38.2 mm tool width stays constant across wide slabs and narrow steps;
+		# only the renderer changes, while each private BoxShape keeps its size.
+		var mesh: Mesh = _walkable_deck_mesh(size) if walkable else _shared_static_box_mesh(size)
 		visible.mesh = mesh
 		visible.material_override = material
 		visible.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
@@ -1818,6 +1822,14 @@ func _shared_static_box_mesh(size: Vector3) -> BoxMesh:
 	var mesh := BoxMesh.new()
 	mesh.size = size
 	_static_box_mesh_cache[size] = mesh
+	return mesh
+
+
+func _walkable_deck_mesh(size: Vector3) -> ArrayMesh:
+	if _walkable_deck_mesh_cache.has(size):
+		return _walkable_deck_mesh_cache[size] as ArrayMesh
+	var mesh := ShipChamferedStock.structural_box_mesh(size)
+	_walkable_deck_mesh_cache[size] = mesh
 	return mesh
 
 

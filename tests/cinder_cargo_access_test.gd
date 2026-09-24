@@ -114,6 +114,7 @@ func _run() -> void:
 	_check(bool(cluster_audit.valid), "cargo access placement remains inside the production cluster audit budget")
 
 	_test_identity_placement_budget_and_authority(access, terminal)
+	_test_walkable_deck_bevel(access)
 	var fit := await _test_jovian_fit_capture_and_sweep(stage, access)
 	var ship := fit.get("ship") as HeroShip
 	var lease_token := StringName(fit.get("lease_token", &""))
@@ -132,6 +133,48 @@ func _run() -> void:
 	await process_frame
 	await process_frame
 	_finish()
+
+
+func _test_walkable_deck_bevel(access: CinderCargoAccess) -> void:
+	var formed_count := 0
+	var triangles := 0
+	var exact := true
+	for body_node in access.find_children("*", "StaticBody3D", true, false):
+		var body := body_node as StaticBody3D
+		if not bool(body.get_meta("walkable_surface", false)):
+			continue
+		formed_count += 1
+		var view := body.get_node_or_null(^"Mesh") as MeshInstance3D
+		var collision := body.get_node_or_null(^"Collision") as CollisionShape3D
+		var shape := collision.shape as BoxShape3D if collision != null else null
+		var mesh := view.mesh as ArrayMesh if view != null else null
+		if mesh == null or shape == null:
+			exact = false
+			continue
+		var size := shape.size
+		var arrays := mesh.surface_get_arrays(0)
+		var vertices := arrays[Mesh.ARRAY_VERTEX] as PackedVector3Array
+		var face_triangles := vertices.size() / 3
+		triangles += face_triangles
+		var part_exact := mesh.get_surface_count() == 1 \
+			and face_triangles == 44 \
+			and mesh.get_aabb().is_equal_approx(AABB(-size * 0.5, size)) \
+			and is_equal_approx(
+				ShipChamferedStock.structural_chamfer_for_size(size),
+				ShipChamferedStock.largest_resolvable_chamfer()
+			) \
+			and view.material_override != null \
+			and not collision.disabled
+		if not part_exact:
+			print("CINDER_ACCESS_DECK_BEVEL_DIAG: ", body.name, " size=", size,
+				" tris=", face_triangles, " aabb=", mesh.get_aabb(),
+				" bevel=", ShipChamferedStock.structural_chamfer_for_size(size))
+		exact = exact and part_exact
+	_check(
+		formed_count == CinderCargoAccess.WALKABLE_SURFACE_COUNT
+		and formed_count == 11 and exact and triangles == 484,
+		"all eleven authored-size access decks and steps retain exact box collider AABBs, material bindings, and one 44-triangle 38.2 mm chamfer surface each"
+	)
 
 
 func _test_live_cargo_binding(
