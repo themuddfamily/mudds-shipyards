@@ -258,13 +258,16 @@ func _run() -> void:
 	)
 	_returned_craft_ids.sort()
 	var never_returned: Array[StringName] = []
-	for craft: HeroShip in fleet:
+	# An environment-shortened run checks the craft it actually flew. The
+	# default twelve-cycle run still checks the complete nine-craft fleet.
+	for index in mini(_cycle_count, fleet.size()):
+		var craft := fleet[index]
 		if not _returned_craft_ids.has(craft.get_ship_id()) \
 				and not KNOWN_OBSTRUCTED_RETURN_CRAFT_IDS.has(craft.get_ship_id()):
 			never_returned.append(craft.get_ship_id())
 	_check(
 		never_returned.is_empty(),
-		"every craft outside that set completed at least one physical berth return (missing %s)"
+		"every flown craft outside that set completed a physical berth return (missing %s)"
 			% ", ".join(_stringify(never_returned))
 	)
 	_check(
@@ -459,14 +462,35 @@ func _walk_and_board(game: GameFlow, player: PlayerController, craft: HeroShip) 
 	var boarding := craft.get_boarding_position()
 	var up := craft.global_basis.y.normalized()
 	var approach := craft.global_basis.x.normalized()
+	var stage := boarding + up * 0.05 + approach * 6.0
+	if craft.get_ship_id() == &"cinder_long_range_bomber":
+		# Dock 05's bomber sits four metres above a narrow service leg. Its
+		# boarding projection is approached along local +Z at deck height; the
+		# generic +X stage lands beside that leg and falls away from the hatch.
+		stage = boarding + craft.global_basis * Vector3(0.0, 0.0, 5.0)
+		stage.y = boarding.y - 3.0
+		approach = (stage - boarding).slide(Vector3.UP).normalized()
 	player.teleport_to(Transform3D(
 		Basis.looking_at(-approach, Vector3.UP),
-		boarding + up * 0.05 + approach * 6.0
+		stage
 	))
 	player.set_control_enabled(true)
 	for _stage_tick in 4:
 		await physics_frame
 		await process_frame
+	if craft.get_ship_id() == &"cinder_long_range_bomber":
+		# Its raised hatch may already be in discovery range at this staging
+		# point, so cross the first part of the deck before checking the prompt.
+		var deck_start := player.global_position
+		Input.action_press(&"move_forward")
+		for _approach_tick in 12:
+			await physics_frame
+			await process_frame
+		Input.action_release(&"move_forward")
+		var deck_travel := (player.global_position - deck_start).slide(Vector3.UP).length()
+		print("SOAK_BOMBER_BOARD_WALK metres=%.3f" % deck_travel)
+		if deck_travel < 0.25:
+			return false
 	var arrived := await _walk_until(
 		&"move_forward",
 		func() -> bool: return game.boarding_candidate == craft,
