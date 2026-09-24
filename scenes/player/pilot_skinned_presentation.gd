@@ -204,6 +204,8 @@ var _visual_pelvis_drop_m := 0.0
 var _visual_pelvis_source_position := Vector3.ZERO
 var _visual_pelvis_applied_position := Vector3.ZERO
 var _visual_pelvis_offset_applied := false
+var _visual_pelvis_up_world := Vector3.UP
+var _last_pelvis_release_physics_frame := -1
 var _last_pelvis_animation_name := StringName()
 var _last_pelvis_animation_time := -INF
 
@@ -217,6 +219,8 @@ func _enter_tree() -> void:
 	_last_foot_placement_physics_frame = -1
 	_visual_pelvis_drop_m = 0.0
 	_visual_pelvis_offset_applied = false
+	_visual_pelvis_up_world = Vector3.UP
+	_last_pelvis_release_physics_frame = -1
 	_last_pelvis_animation_name = &""
 	_last_pelvis_animation_time = -INF
 	_foot_placement_snapshot = _empty_foot_placement_snapshot(&"attached")
@@ -226,6 +230,7 @@ func _exit_tree() -> void:
 	_clear_material_property_names_cache()
 	_restore_visual_pelvis_source()
 	_visual_pelvis_drop_m = 0.0
+	_last_pelvis_release_physics_frame = -1
 	_foot_placement_attached = false
 	_last_foot_placement_physics_frame = -1
 	_foot_placement_snapshot = _empty_foot_placement_snapshot(&"detached")
@@ -1633,14 +1638,15 @@ func apply_foot_placement(sample: Variant, expected_attachment_generation: int) 
 			_animation_player.current_animation_position, _last_pelvis_animation_time
 		)
 	)
+	var normalized_up := (movement_up as Vector3).normalized()
+	_visual_pelvis_up_world = normalized_up
 	_restore_visual_pelvis_source()
 	if motion_state not in FOOT_PLACEMENT_MOTION_STATES:
-		_visual_pelvis_drop_m = 0.0
+		_advance_visual_pelvis_release()
 		_foot_placement_snapshot = _empty_foot_placement_snapshot(
 			&"motion_state_inactive", physics_frame, motion_state
 		)
 		return _foot_placement_result(true, &"foot_placement_inactive")
-	var normalized_up := (movement_up as Vector3).normalized()
 	if animation_advanced:
 		# A shared hip drop is safe while standing on two planted boots. A walk
 		# or run contains swing phases where the same drop can drive the lifted
@@ -1653,7 +1659,7 @@ func apply_foot_placement(sample: Variant, expected_attachment_generation: int) 
 		if _visual_pelvis_drop_m > 0.0001:
 			_apply_visual_pelvis_drop(normalized_up, _visual_pelvis_drop_m)
 	else:
-		_visual_pelvis_drop_m = 0.0
+		_advance_visual_pelvis_release()
 	if is_instance_valid(_animation_player):
 		_last_pelvis_animation_name = _animation_player.assigned_animation
 		_last_pelvis_animation_time = _animation_player.current_animation_position
@@ -1691,9 +1697,22 @@ func clear_foot_placement(expected_attachment_generation: int, reason: StringNam
 	):
 		return _foot_placement_result(false, &"stale_foot_placement_attachment")
 	_restore_visual_pelvis_source()
-	_visual_pelvis_drop_m = 0.0
+	_advance_visual_pelvis_release()
 	_foot_placement_snapshot = _empty_foot_placement_snapshot(reason)
 	return _foot_placement_result(true, &"foot_placement_cleared")
+
+
+func _advance_visual_pelvis_release() -> void:
+	if _visual_pelvis_drop_m <= 0.0 or not is_instance_valid(_skeleton):
+		_visual_pelvis_drop_m = 0.0
+		return
+	var physics_frame := Engine.get_physics_frames()
+	if physics_frame != _last_pelvis_release_physics_frame:
+		var step := FOOT_PLACEMENT_PELVIS_SPEED_MPS / maxf(1.0, Engine.physics_ticks_per_second)
+		_visual_pelvis_drop_m = move_toward(_visual_pelvis_drop_m, 0.0, step)
+		_last_pelvis_release_physics_frame = physics_frame
+	if _visual_pelvis_drop_m > 0.0001:
+		_apply_visual_pelvis_drop(_visual_pelvis_up_world, _visual_pelvis_drop_m)
 
 
 func _restore_visual_pelvis_source() -> void:
@@ -1988,7 +2007,7 @@ func _empty_foot_placement_snapshot(
 		"physics_frame": physics_frame,
 		"motion_state": motion_state,
 		"reason": reason,
-		"visual_pelvis_drop_m": 0.0,
+		"visual_pelvis_drop_m": _visual_pelvis_drop_m,
 		"feet": {},
 		"modifier_node_count": find_children("*", "SkeletonModifier3D", true, false).size(),
 	}.duplicate(true)

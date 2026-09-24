@@ -57,23 +57,40 @@ func _run() -> void:
 	_check_ramp_boot_sole_contact(player, "negative six-degree ramp")
 	await _sweep_idle_ramp(player, "negative six-degree ramp")
 	var ramp_presentation := player.find_child("PilotSkinnedPresentation", true, false) as PilotSkinnedPresentation
-	var ramp_skeleton := ramp_presentation.get_skeleton()
-	var pelvis_index := ramp_skeleton.find_bone(&"pelvis")
-	var dropped_pelvis_position := ramp_skeleton.get_bone_pose_position(pelvis_index)
+	var pelvis_before_clear := _bone_world_position(ramp_presentation, &"pelvis")
+	var head_before_clear := _bone_world_position(ramp_presentation, &"head")
 	var ramp_drop := float(ramp_presentation.get_foot_placement_snapshot().get("visual_pelvis_drop_m", 0.0))
 	var ramp_animation_time := ramp_presentation.get_animation_player().current_animation_position
-	ramp_presentation.clear_foot_placement(
-		ramp_presentation.get_foot_placement_attachment_generation(), &"test_no_animation_advance"
+	var generation := ramp_presentation.get_foot_placement_attachment_generation()
+	var stale_clear := ramp_presentation.clear_foot_placement(generation - 1, &"test_stale_generation")
+	_check(
+		not bool(stale_clear.get("accepted", true))
+		and _bone_world_position(ramp_presentation, &"pelvis").is_equal_approx(pelvis_before_clear),
+		"stale attachment generation cannot release the pelvis offset"
 	)
+	ramp_presentation.clear_foot_placement(
+		generation, &"test_no_animation_advance"
+	)
+	var pelvis_after_clear := _bone_world_position(ramp_presentation, &"pelvis")
+	var head_after_clear := _bone_world_position(ramp_presentation, &"head")
+	var first_release := float(ramp_presentation.get_foot_placement_snapshot().get("visual_pelvis_drop_m", INF))
 	_check(
 		ramp_drop > 0.01
-		and is_zero_approx(float(ramp_presentation.get_foot_placement_snapshot().get("visual_pelvis_drop_m", INF)))
-		and is_equal_approx(
-			ramp_skeleton.get_bone_pose_position(pelvis_index).distance_to(dropped_pelvis_position), ramp_drop
-		)
+		and first_release > 0.0
+		and ramp_drop - first_release <= 0.0061
+		and pelvis_after_clear.distance_to(pelvis_before_clear) <= 0.0061
+		and head_after_clear.distance_to(head_before_clear) <= 0.0061
 		and ramp_presentation.get_animation_player().current_animation_position == ramp_animation_time,
-		"clearing without animation advance restores the authored pelvis pose and timing"
+		"clearing without animation advance releases at most 6 mm of pelvis/head offset"
 	)
+	ramp_presentation.clear_foot_placement(generation, &"test_duplicate_same_frame")
+	_check(
+		_bone_world_position(ramp_presentation, &"pelvis").is_equal_approx(pelvis_after_clear)
+		and _bone_world_position(ramp_presentation, &"head").is_equal_approx(head_after_clear),
+		"duplicate same-frame clear cannot release another pelvis step"
+	)
+	await _test_clip_release(player, world, &"jump")
+	await _test_clip_release(player, world, &"boarding")
 
 	opposite_ramp.queue_free()
 	await physics_frame
@@ -369,6 +386,63 @@ func _boot_sole_gaps(presentation: PilotSkinnedPresentation, side: StringName, r
 			minimum = minf(minimum, gap)
 			maximum = maxf(maximum, gap)
 	return Vector2(minimum, maximum)
+
+
+func _bone_world_position(presentation: PilotSkinnedPresentation, bone_name: StringName) -> Vector3:
+	var skeleton := presentation.get_skeleton()
+	skeleton.force_update_all_bone_transforms()
+	return skeleton.global_transform * skeleton.get_bone_global_pose(skeleton.find_bone(bone_name)).origin
+
+
+func _test_clip_release(player: PlayerController, world: Node3D, clip: StringName) -> void:
+	await _settle(48)
+	var presentation := player.find_child("PilotSkinnedPresentation", true, false) as PilotSkinnedPresentation
+	var starting_drop := float(presentation.get_foot_placement_snapshot().get("visual_pelvis_drop_m", 0.0))
+	player.set_physics_process(false)
+	var reference := PRESENTATION_SCENE.instantiate() as PilotSkinnedPresentation
+	world.add_child(reference)
+	reference.global_transform = presentation.global_transform
+	var live_animation := presentation.get_animation_player()
+	var reference_animation := reference.get_animation_player()
+	reference_animation.callback_mode_process = AnimationMixer.ANIMATION_CALLBACK_MODE_PROCESS_MANUAL
+	reference_animation.play(&"idle")
+	reference_animation.seek(live_animation.current_animation_position, true)
+	reference_animation.advance(0.0)
+	var prior_pelvis_offset := _bone_world_position(presentation, &"pelvis") - _bone_world_position(reference, &"pelvis")
+	var prior_head_offset := _bone_world_position(presentation, &"head") - _bone_world_position(reference, &"head")
+	var largest_pelvis_step := 0.0
+	var largest_head_step := 0.0
+	var generation := presentation.get_foot_placement_attachment_generation()
+	for sample in 8:
+		await physics_frame
+		if sample == 0:
+			live_animation.play(clip, 0.0)
+			reference_animation.play(clip, 0.0)
+			live_animation.seek(0.0, true)
+			reference_animation.seek(0.0, true)
+		else:
+			live_animation.advance(1.0 / 60.0)
+			reference_animation.advance(1.0 / 60.0)
+		presentation.clear_foot_placement(generation, StringName("test_%s_transition" % clip))
+		var pelvis_offset := _bone_world_position(presentation, &"pelvis") - _bone_world_position(reference, &"pelvis")
+		var head_offset := _bone_world_position(presentation, &"head") - _bone_world_position(reference, &"head")
+		largest_pelvis_step = maxf(largest_pelvis_step, pelvis_offset.distance_to(prior_pelvis_offset))
+		largest_head_step = maxf(largest_head_step, head_offset.distance_to(prior_head_offset))
+		prior_pelvis_offset = pelvis_offset
+		prior_head_offset = head_offset
+	_check(starting_drop > 0.01, "%s transition begins from a real sloped idle correction" % clip)
+	_check(
+		largest_pelvis_step <= 0.0061 and largest_head_step <= 0.0061,
+		"%s authored clip releases world pelvis/head offset by at most 6 mm per physics frame (%.4f/%.4f m)" % [clip, largest_pelvis_step, largest_head_step]
+	)
+	_check(
+		prior_pelvis_offset.length() <= 0.001 and prior_head_offset.length() <= 0.001,
+		"%s authored clip fully releases the prior ramp offset" % clip
+	)
+	reference.queue_free()
+	await process_frame
+	player.set_physics_process(true)
+	await _settle(48)
 
 
 func _test_rotated_presentation_and_seat_clips(world: Node3D) -> void:
