@@ -229,6 +229,8 @@ func _surface_roster_matches(owner: Node3D, paths: Array) -> bool:
 			valid = false
 			continue
 		var mesh_instance := body.get_node_or_null(^"Mesh") as MeshInstance3D
+		if mesh_instance == null and owner is ObservationLogisticsSpur:
+			mesh_instance = body.get_node_or_null(^"Mesh/SlabRenderer") as MeshInstance3D
 		if mesh_instance == null:
 			mesh_instance = body.get_node_or_null(^"RampMesh") as MeshInstance3D
 		if mesh_instance == null:
@@ -261,22 +263,6 @@ func _surface_roster_matches(owner: Node3D, paths: Array) -> bool:
 
 
 func _has_exact_batched_surface_visual(owner: Node3D, body: StaticBody3D) -> bool:
-	if owner is ObservationLogisticsSpur:
-		var anchor := body.get_node_or_null(^"Mesh") as Marker3D
-		var batch := owner.get_node_or_null(
-			^"Structure/Walkable/WalkableDeckRenderBatch"
-		) as MultiMeshInstance3D
-		var collision := body.get_node_or_null(^"CollisionShape3D") as CollisionShape3D
-		var shape := collision.shape as BoxShape3D if collision != null else null
-		var transforms := batch.get_meta("authored_instance_transforms", []) as Array if batch != null else []
-		var expected := Transform3D(
-			Basis.from_scale(shape.size), body.position
-		) if shape != null else Transform3D.IDENTITY
-		return anchor != null \
-			and bool(anchor.get_meta("visual_detail_only", false)) \
-			and bool(anchor.get_meta("batched_visual_anchor", false)) \
-			and batch != null and batch.multimesh != null \
-			and transforms.has(expected)
 	if owner is FabricationAnnex:
 		var surface_id := StringName(body.get_meta(&"walkable_surface_id", &""))
 		var collision := body.get_node_or_null(^"Collision") as CollisionShape3D

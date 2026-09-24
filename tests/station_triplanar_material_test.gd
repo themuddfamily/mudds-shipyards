@@ -707,12 +707,14 @@ func _test_live_station_coverage(
 	# — from the same `FreightCrateKit` recipes, at the same 0.30 m scale.
 	# 19 x 1 = 19. Their stencilled stores plate stays outside the family for the
 	# reason the berth's does, and the 0.22 and 0.28 columns do not move.
+	# Observation Logistics Spur's five authored-size deck renders replace one
+	# mapped deck batch: +5 mapped ordinary surfaces at 0.30 m, -1 mapped batch.
 	_check(
-		mapped_surface_count == 1945
+		mapped_surface_count == 1950
 		and scale_022_count == 45
 		and scale_028_count == 643
-		and scale_030_count == 1257,
-		"live static station binds exactly 1945 ordinary mapped surfaces with all seven couriers dispatched"
+		and scale_030_count == 1262,
+		"live static station binds exactly 1950 ordinary mapped surfaces with all seven couriers dispatched"
 	)
 	_check(exact_recipe, "every mapped station surface uses the matched world-triplanar albedo/normal/roughness recipe")
 	_check(forbidden_ship_atlas_count == 0, "no live station surface reuses the Arrow or Jovian directional ship atlases")
@@ -899,8 +901,8 @@ func _test_instanced_station_family(
 	# the next drift is visible instead of silent.
 	print("LIVE_STATION_INSTANCED_FAMILY: batches=", batches, " mapped=", mapped)
 	_check(
-		batches == 214 and mapped == 129,
-		"instanced station structure is exactly 214 batches, 129 of them mapped"
+		batches == 213 and mapped == 128,
+		"instanced station structure is exactly 213 batches, 128 of them mapped"
 	)
 	_check(exact, "every mapped instanced batch uses the same recipe and frozen scale as drawn surfaces")
 
@@ -936,10 +938,9 @@ func _test_recent_module_material_rosters(world: ShipyardWorld) -> void:
 		# snapshot; each contributes seven renderers, five of them registered station
 		# structure. The post-stage navigation owner checks their full recipe directly.
 		"OperationalLattice/ServiceAgents/FabricationAnnexServiceCourier": [7, 5, 0, 0],
-		# Five mapped walkable decks move into one batch; canopy consolidation
-		# then removes one mapped batch. The deck and canopy copies retain their
-		# registered recipes through the 2/1 ordinary and 28/17 batch profile.
-		"ObservationLogisticsSpur": [2, 1, 28, 17],
+		# Five authored-size walkable decks now render as five ordinary mapped
+		# surfaces with exact local bounds; canopy batching is retained.
+		"ObservationLogisticsSpur": [7, 6, 27, 16],
 		"ExposedDockLattice/ObservationLogisticsConnector": [3, 3, 0, 0],
 		"OperationalLattice/ServiceAgents/ObservationLogisticsServiceCourier": [7, 5, 0, 0],
 		# The emissive-dressing merge removes one unmapped ordinary renderer;
