@@ -136,22 +136,22 @@ const OBSERVATION_LENS_CULLING_BOUNDS := AABB(
 ## district in the Phase 10 walkability pass; they are physics, not renderers, so
 ## both the batched and the un-batched baseline grow by the same twelve.
 const BASELINE_VISUAL_DESCENDANT_NODE_COUNT := 156
-const VISUAL_DESCENDANT_NODE_COUNT := 164
+const VISUAL_DESCENDANT_NODE_COUNT := 168
 const BASELINE_RENDERER_NODE_COUNT := 42
-const RENDERER_NODE_COUNT := 30
+const RENDERER_NODE_COUNT := 34
 const BASELINE_DRAWN_COPY_COUNT := 270
 const DRAWN_COPY_COUNT := 278
 const BASELINE_SURFACE_SUBMISSION_COUNT := 42
-const SURFACE_SUBMISSION_COUNT := 30
+const SURFACE_SUBMISSION_COUNT := 34
 const BASELINE_MESH_RESOURCE_COUNT := 34
-const MESH_RESOURCE_COUNT := 15
+const MESH_RESOURCE_COUNT := 19
 const BASELINE_MATERIAL_RESOURCE_COUNT := 10
 const MATERIAL_RESOURCE_COUNT := 10
 const WALKABLE_DECK_COPY_COUNT := 5
 const BASELINE_WALKABLE_DECK_RENDERER_NODE_COUNT := 5
-const WALKABLE_DECK_RENDERER_NODE_COUNT := 1
+const WALKABLE_DECK_RENDERER_NODE_COUNT := 5
 const BASELINE_WALKABLE_DECK_MESH_RESOURCE_COUNT := 5
-const WALKABLE_DECK_MESH_RESOURCE_COUNT := 1
+const WALKABLE_DECK_MESH_RESOURCE_COUNT := 4
 const BASELINE_OBSERVATION_LENS_MESH_RESOURCE_COUNT := 3
 const OBSERVATION_LENS_MESH_RESOURCE_COUNT := 1
 const OBSERVATION_LENS_COPY_COUNT := 3
@@ -487,8 +487,8 @@ func get_authority_contract() -> Dictionary:
 
 
 func get_performance_contract() -> Dictionary:
-	# Exact standalone build census, frozen rather than estimated: 164 descendant
-	# nodes, 2 MeshInstance3D nodes plus twenty-eight MultiMesh batches,
+	# Exact standalone build census, frozen rather than estimated: 168 descendant
+	# nodes, 7 MeshInstance3D nodes plus twenty-seven MultiMesh batches,
 	# 40 bodies, 42 shapes, four Label3Ds and six practicals. Six of those bodies
 	# are the light masts, which the Phase 10 walkability sweep found drawn but
 	# not solid. The fifteen conservative
@@ -498,7 +498,7 @@ func get_performance_contract() -> Dictionary:
 	# band material for the two perimeter pavilions.
 	# Any later content must declare its cost here.
 	var contract := StationModuleContract.build_performance_contract(self, {
-		"mesh_instances": 2,
+		"mesh_instances": 7,
 		"static_bodies": 40,
 		"collision_shapes": 42,
 		"labels": 4,
@@ -1145,29 +1145,24 @@ func get_visual_resource_contract() -> Dictionary:
 			and authored_portal_transforms == expected_batch_transforms
 		)
 	var walkable_deck_mesh_resource_ids := {}
-	var walkable_deck_identities_exact := is_instance_valid(_scaled_visual_box_mesh)
-	var walkable_deck_batch := get_node_or_null(
-		^"Structure/Walkable/WalkableDeckRenderBatch"
-	) as MultiMeshInstance3D
-	var authored_walkable_transforms := (
-		walkable_deck_batch.get_meta("authored_instance_transforms", []) as Array
-		if walkable_deck_batch != null else []
-	)
-	var expected_walkable_transforms: Array[Transform3D] = []
+	var walkable_deck_identities_exact := true
 	for spec_variant in WALKABLE_SURFACE_SPECS:
 		var spec := spec_variant as Dictionary
-		var expected_transform := Transform3D(
-			Basis.from_scale(spec.size as Vector3), spec.center as Vector3
-		)
-		expected_walkable_transforms.append(expected_transform)
 		var body := get_node_or_null(NodePath(
 			"Structure/Walkable/%s" % str(spec.node_name)
 		)) as StaticBody3D
 		var anchor := body.get_node_or_null(^"Mesh") as Marker3D if body != null else null
+		var renderer := (
+			anchor.get_node_or_null(^"SlabRenderer") as MeshInstance3D
+			if anchor != null else null
+		)
 		var collision := (
 			body.get_node_or_null(^"CollisionShape3D") as CollisionShape3D
 			if body != null else null
 		)
+		var walkable_mesh := renderer.mesh as ArrayMesh if renderer != null else null
+		if walkable_mesh != null:
+			walkable_deck_mesh_resource_ids[walkable_mesh.get_instance_id()] = true
 		walkable_deck_identities_exact = (
 			walkable_deck_identities_exact
 			and body != null
@@ -1175,34 +1170,25 @@ func get_visual_resource_contract() -> Dictionary:
 			and anchor != null
 			and anchor.transform.is_equal_approx(Transform3D.IDENTITY)
 			and bool(anchor.get_meta("visual_detail_only", false))
-			and bool(anchor.get_meta("batched_visual_anchor", false))
+			and bool(anchor.get_meta("slab_visual_anchor", false))
+			and renderer != null
+			and walkable_mesh != null
+			and walkable_mesh.get_surface_count() == 1
+			and walkable_mesh.get_aabb().is_equal_approx(AABB(
+				-(spec.size as Vector3) * 0.5, spec.size as Vector3
+			))
+			and renderer.material_override == _materials.get("deck")
+			and renderer.transform.is_equal_approx(Transform3D.IDENTITY)
+			and renderer.cast_shadow == GeometryInstance3D.SHADOW_CASTING_SETTING_ON
+			and renderer.layers == 1
+			and is_zero_approx(renderer.extra_cull_margin)
+			and not renderer.ignore_occlusion_culling
+			and renderer.get_child_count() == 0
+			and bool(renderer.get_meta("visual_detail_only", false))
 			and collision != null
 			and collision.shape is BoxShape3D
 			and (collision.shape as BoxShape3D).size.is_equal_approx(spec.size as Vector3)
 		)
-	if walkable_deck_batch != null and walkable_deck_batch.multimesh != null:
-		var walkable_mesh := walkable_deck_batch.multimesh.mesh as BoxMesh
-		if walkable_mesh != null:
-			walkable_deck_mesh_resource_ids[walkable_mesh.get_instance_id()] = true
-		walkable_deck_identities_exact = (
-			walkable_deck_identities_exact
-			and walkable_mesh == _scaled_visual_box_mesh
-			and walkable_mesh != null
-			and walkable_mesh.size.is_equal_approx(Vector3.ONE)
-			and walkable_deck_batch.material_override == _materials.get("deck")
-			and walkable_deck_batch.transform.is_equal_approx(Transform3D.IDENTITY)
-			and walkable_deck_batch.cast_shadow
-				== GeometryInstance3D.SHADOW_CASTING_SETTING_ON
-			and walkable_deck_batch.layers == 1
-			and is_zero_approx(walkable_deck_batch.extra_cull_margin)
-			and not walkable_deck_batch.ignore_occlusion_culling
-			and walkable_deck_batch.get_child_count() == 0
-			and bool(walkable_deck_batch.get_meta("visual_detail_only", false))
-			and walkable_deck_batch.multimesh.instance_count == WALKABLE_DECK_COPY_COUNT
-			and authored_walkable_transforms == expected_walkable_transforms
-		)
-	else:
-		walkable_deck_identities_exact = false
 	var descendant_nodes := find_children("*", "Node", true, false).size()
 	var renderer_nodes := mesh_nodes.size() + batch_nodes.size()
 	var exact := (
@@ -1628,7 +1614,7 @@ func _build_module() -> void:
 	var walkable := Node3D.new()
 	walkable.name = "Walkable"
 	structure.add_child(walkable)
-	var walkable_visual_transforms: Array[Transform3D] = []
+	var walkable_meshes := {}
 	for spec_variant in WALKABLE_SURFACE_SPECS:
 		var spec := spec_variant as Dictionary
 		var body := _box(
@@ -1646,23 +1632,23 @@ func _build_module() -> void:
 		var visual_anchor := Marker3D.new()
 		visual_anchor.name = "Mesh"
 		visual_anchor.set_meta("visual_detail_only", true)
-		visual_anchor.set_meta("batched_visual_anchor", true)
+		visual_anchor.set_meta("slab_visual_anchor", true)
 		body.add_child(visual_anchor)
-		walkable_visual_transforms.append(Transform3D(
-			Basis.from_scale(spec.size as Vector3), spec.center as Vector3
-		))
+		var slab_size := spec.size as Vector3
+		if not walkable_meshes.has(slab_size):
+			walkable_meshes[slab_size] = ShipChamferedStock.structural_box_mesh(slab_size)
+		var slab_renderer := MeshInstance3D.new()
+		slab_renderer.name = "SlabRenderer"
+		slab_renderer.mesh = walkable_meshes[slab_size]
+		slab_renderer.material_override = _materials["deck"]
+		slab_renderer.set_meta("visual_detail_only", true)
+		visual_anchor.add_child(slab_renderer)
 		body.set_meta("walkable_surface", true)
 		body.set_meta("walkable_surface_id", StringName(spec.id))
 		body.set_meta("walkable_surface_kind", &"level")
 		body.set_meta("walkable_surface_owner", MODULE_ID)
 		body.set_meta("horizontal_area_m2", float(spec.area_m2))
 		_walkable_surfaces.append(body)
-	_multimesh_scaled_boxes(
-		walkable,
-		"WalkableDeckRenderBatch",
-		_materials["deck"],
-		walkable_visual_transforms
-	)
 
 	var safety := Node3D.new()
 	safety.name = "SafetyRails"

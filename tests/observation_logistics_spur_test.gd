@@ -371,11 +371,11 @@ func _test_surface_roster_and_area(module: ObservationLogisticsSpur) -> void:
 	var performance := module.get_performance_contract()
 	_check(
 		bool(performance.within_budget)
-		and int(performance.mesh_instances) == 2
+		and int(performance.mesh_instances) == 7
 		and int(performance.static_bodies) == 40
 		and int(performance.collision_shapes) == 42
-		and module.find_children("*", "Node", true, false).size() == 164,
-		"finished district freezes 164 nodes, 2 meshes, 40 bodies and 42 shapes"
+		and module.find_children("*", "Node", true, false).size() == 168,
+		"finished district freezes 168 nodes, 7 meshes, 40 bodies and 42 shapes"
 	)
 	_check(int(performance.lights) == 6 and int(performance.labels) == 4 and int(performance.process_loops) == 0, "restrained presentation uses six practicals, four district signs and no frame loop")
 	var marker_batch := module.get_node_or_null(^"Structure/Dressing/ConnectorMarkers") as MultiMeshInstance3D
@@ -437,7 +437,7 @@ func _test_material_retention(module: ObservationLogisticsSpur) -> void:
 		and int(materials.retained_unique_materials) == 10,
 		"finished pavilions retain ten shared material recipes including their dark view band"
 	)
-	var deck_material := (module.get_node(^"Structure/Walkable/WalkableDeckRenderBatch") as MultiMeshInstance3D).material_override as StandardMaterial3D
+	var deck_material := (module.get_node(^"Structure/Walkable/ExposedConnectorDeck/Mesh/SlabRenderer") as MeshInstance3D).material_override as StandardMaterial3D
 	var grip_material := (module.get_node(^"Structure/Dressing/LogisticsPalletRenderBatch") as MultiMeshInstance3D).material_override as StandardMaterial3D
 	var shell_material := (module.get_node(^"Structure/Dressing/ObservationConsoleRenderBatch") as MultiMeshInstance3D).material_override as StandardMaterial3D
 	var service_material := (module.get_node(^"Structure/Dressing/LogisticsCaseRenderBatch") as MultiMeshInstance3D).material_override as StandardMaterial3D
@@ -489,19 +489,19 @@ func _test_visual_resource_sharing(module: ObservationLogisticsSpur) -> void:
 		and bool(performance.headless_safe)
 		and StringName(performance.selected_family) == &"pad_canopy_frame_renderers"
 		and int(performance.baseline_descendant_nodes) == 156
-		and int(performance.descendant_nodes) == 164
+		and int(performance.descendant_nodes) == 168
 		and int(performance.baseline_renderer_nodes) == 42
-		and int(performance.renderer_nodes) == 30
+		and int(performance.renderer_nodes) == 34
 		and int(performance.baseline_drawn_copies) == 270
 		and int(performance.drawn_copies) == 278
 		and int(performance.baseline_surface_submissions) == 42
-		and int(performance.surface_submissions) == 30,
-		"batched visuals preserve 278 supported visible copies and reduce the district to 30 submissions"
+		and int(performance.surface_submissions) == 34,
+		"authored deck visuals preserve 278 supported visible copies in 34 submissions"
 	)
 	_check(
 		int(performance.baseline_mesh_resources) == 34
-		and int(performance.mesh_resources) == 15
-		and int(performance.mesh_resource_delta) == -19
+		and int(performance.mesh_resources) == 19
+		and int(performance.mesh_resource_delta) == -15
 		and int(performance.baseline_material_resources) == 10
 		and int(performance.material_resources) == 10
 		and int(performance.baseline_family_nodes) == 2
@@ -512,48 +512,67 @@ func _test_visual_resource_sharing(module: ObservationLogisticsSpur) -> void:
 		and int(performance.family_mesh_resources) == 1,
 		"the selected canopy-frame family reduces two renderers, submissions and meshes to one"
 	)
-	var walkable_batch := module.get_node_or_null(
-		^"Structure/Walkable/WalkableDeckRenderBatch"
-	) as MultiMeshInstance3D
-	var walkable_transforms := (
-		walkable_batch.get_meta("authored_instance_transforms", []) as Array
-		if walkable_batch != null else []
-	)
-	var walkable_exact := walkable_batch != null \
-		and walkable_batch.multimesh != null \
-		and walkable_batch.multimesh.instance_count == 5 \
-		and walkable_transforms.size() == 5
-	for surface_index in ObservationLogisticsSpur.WALKABLE_SURFACE_SPECS.size():
-		var spec := ObservationLogisticsSpur.WALKABLE_SURFACE_SPECS[surface_index] as Dictionary
+	var walkable_exact := true
+	var slab_geometry_exact := true
+	var deck_mesh_ids := {}
+	for spec_variant in ObservationLogisticsSpur.WALKABLE_SURFACE_SPECS:
+		var spec := spec_variant as Dictionary
 		var body := module.get_node_or_null(NodePath(
 			"Structure/Walkable/%s" % str(spec.node_name)
 		)) as StaticBody3D
 		var anchor := body.get_node_or_null(^"Mesh") as Marker3D if body != null else null
+		var renderer := (
+			anchor.get_node_or_null(^"SlabRenderer") as MeshInstance3D
+			if anchor != null else null
+		)
 		var collision := (
 			body.get_node_or_null(^"CollisionShape3D") as CollisionShape3D
 			if body != null else null
 		)
+		var mesh := renderer.mesh as ArrayMesh if renderer != null else null
+		var size := spec.size as Vector3
+		var half := size * 0.5
 		walkable_exact = walkable_exact \
 			and body != null \
 			and body.position.is_equal_approx(spec.center as Vector3) \
 			and anchor != null \
 			and anchor.transform.is_equal_approx(Transform3D.IDENTITY) \
-			and bool(anchor.get_meta("batched_visual_anchor", false)) \
+			and bool(anchor.get_meta("slab_visual_anchor", false)) \
+			and renderer != null \
+			and renderer.transform.is_equal_approx(Transform3D.IDENTITY) \
+			and renderer.material_override is StandardMaterial3D \
+			and mesh != null \
 			and collision != null \
 			and collision.shape is BoxShape3D \
-			and (collision.shape as BoxShape3D).size.is_equal_approx(spec.size as Vector3) \
-			and (walkable_transforms[surface_index] as Transform3D).is_equal_approx(
-				Transform3D(Basis.from_scale(spec.size as Vector3), spec.center as Vector3)
-			)
+			and (collision.shape as BoxShape3D).size.is_equal_approx(size)
+		if mesh == null:
+			slab_geometry_exact = false
+			continue
+		deck_mesh_ids[mesh.get_instance_id()] = true
+		var arrays := mesh.surface_get_arrays(0)
+		var vertices := arrays[Mesh.ARRAY_VERTEX] as PackedVector3Array
+		var bevel := ShipChamferedStock.structural_chamfer_for_size(size)
+		var inset := bevel * ShipChamferedStock.CHAMFER_INSET_FRACTION
+		var top_bevel_vertex := Vector3(half.x - inset, half.y, half.z - inset)
+		var has_top_bevel := false
+		for vertex in vertices:
+			has_top_bevel = has_top_bevel or vertex.is_equal_approx(top_bevel_vertex)
+		slab_geometry_exact = slab_geometry_exact \
+			and mesh.get_surface_count() == 1 \
+			and vertices.size() == 44 * 3 \
+			and mesh.get_aabb().is_equal_approx(AABB(-half, size)) \
+			and absf(bevel - 0.0382) < 0.0002 \
+			and has_top_bevel
 	_check(
-		walkable_exact
-		and walkable_batch.get_child_count() == 0
-		and walkable_batch.material_override is StandardMaterial3D
-		and (walkable_batch.multimesh.mesh as BoxMesh).size.is_equal_approx(Vector3.ONE)
-		and int(performance.walkable_deck_renderer_delta) == -4
-		and int(performance.walkable_deck_mesh_resource_delta) == -4
+		walkable_exact and deck_mesh_ids.size() == 4
+		and int(performance.walkable_deck_renderer_delta) == 0
+		and int(performance.walkable_deck_mesh_resource_delta) == -1
 		and bool(performance.walkable_deck_identities_exact),
-		"walkable batching preserves every named body, local Mesh anchor, exact transform, deck material and collision extent"
+		"five deck renderers preserve named bodies, local Mesh anchors, material and collision extents"
+	)
+	_check(
+		slab_geometry_exact,
+		"each metre-sized slab keeps its exact local AABB and calibrated structural top bevel (44 triangles)"
 	)
 	var portal_posts := module.get_node_or_null(
 		^"Structure/Dressing/ConnectorPortalPosts"
