@@ -28,8 +28,9 @@
   gameplay or graphics checkpoint is reached. Do not leave hours of completed
   changes without a new playable build.
 - Use the existing safe export workflow from a clean commit, run the relevant
-  focused checks and a silent isolated package smoke check, then put the EXE and
-  a checkpoint ZIP in `/mnt/c/Users/themu/Downloads/` when that mount is available.
+  focused checks and a silent isolated package smoke check, then put the EXE,
+  checkpoint ZIP, and build notes in this repository's `builds/windows/`.
+  Do not publish checkpoints to Downloads unless the user explicitly asks.
 - Package startup checks must use `--startup-check` and require both exit 0 and
   `STARTUP_MENU_READY_OK`. A fixed `--quit-after` frame count does not establish
   menu readiness. Export templates can ignore external `--script` overrides.
