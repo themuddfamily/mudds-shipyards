@@ -1964,10 +1964,11 @@ func _apply_foot_chain(
 	# number while physically separating the boot from the ankle whenever the
 	# requested target lies beyond the two-bone chain's reachable limit.
 	var chain_ankle := foot_pose.origin
-	# Standing on a ramp keeps the existing sole-plane alignment. Moving feet
-	# retain their authored pitch and toe-off, including during ankle lift.
+	# Settled standing on a ramp keeps the existing sole-plane alignment. During
+	# a moving-to-idle blend, that rotation can lift a pitched boot far above the
+	# deck, so keep the authored pitch until the blend finishes.
 	var support_tilt := up_local.angle_to(support_normal_local)
-	if support_tilt > 0.00001 and motion_state == &"idle":
+	if support_tilt > 0.00001 and motion_state == &"idle" and not guard_idle_blend:
 		# Read the sole from the restored clip pose, not the temporary foot
 		# orientation inherited from the calf solve.
 		foot_pose.basis = original_foot_basis
