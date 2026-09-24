@@ -318,7 +318,10 @@ func _test_drives_up_aft_ramp_into_workpost(
 	var target_transform := crate.global_transform * Transform3D(
 		Basis.IDENTITY, crate.mesh.get_aabb().get_center()
 	)
-	var approach := Vector3(-5.36, 0.0, 52.0)
+	# Start inside the clear ramp lane. Under a busy matrix the settle frames
+	# previously left the chassis at z=51.60, touching StairBaseSouthRail before
+	# the held-input run; that tested the rail rather than the workpost.
+	var approach := Vector3(-5.36, 0.0, 52.5)
 	var travelled := await _drive_at(
 		tractor, approach, Vector3.BACK, target, StringName(body.name),
 		target_shape, target_transform
