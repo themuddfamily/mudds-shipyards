@@ -395,14 +395,17 @@ func _play(
 		or not is_equal_approx(player.unit_size, REFERENCE_DISTANCE)
 	):
 		return false
-	player.stop()
-	player.global_position = world_position
-	player.stream = stream
 	var occluded_volume_db := volume_db - 12.0 * _occlusion
 	var occluded_pitch_scale := pitch_scale * lerpf(1.0, 0.96, _occlusion)
-	player.volume_db = occluded_volume_db
-	player.pitch_scale = occluded_pitch_scale
-	player.play()
+	# Dummy has no output device. Keep the semantic cue and fixed pool cursor,
+	# but do not hand a stream to Godot's native playback queue.
+	if _audio_available:
+		player.stop()
+		player.global_position = world_position
+		player.stream = stream
+		player.volume_db = occluded_volume_db
+		player.pitch_scale = occluded_pitch_scale
+		player.play()
 	if not _request_player_playback(player):
 		_stop_and_detach_player(player)
 		return false

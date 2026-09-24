@@ -70,6 +70,12 @@ func _test_default_playback_accepts_and_counts() -> void:
 		accepted,
 		"default combat audio playback reports acceptance when backend accepts"
 	)
+	if AudioServer.get_driver_name() == "Dummy":
+		var selected_voice := presentation.get_node("FireVoice0") as AudioStreamPlayer3D
+		_check(
+			selected_voice != null and not selected_voice.playing and selected_voice.stream == null,
+			"Dummy accepts the semantic fire cue without queuing a native audio stream"
+		)
 	var after := presentation.get_state_snapshot()
 	_check(
 		int(after.get("cue_count", -1)) == int(before.get("cue_count", -2)) + 1,
