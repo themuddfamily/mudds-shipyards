@@ -101,9 +101,7 @@ func _run() -> void:
 		console_body.get_node_or_null(^"ActivityBoardConsole") as MeshInstance3D
 		if console_body != null else null
 	)
-	var console_mesh := (
-		board_console.mesh as BoxMesh if board_console != null else null
-	)
+	var console_mesh := board_console.mesh as Mesh if board_console != null else null
 	var board_label := board.get_node_or_null(^"ActivityLabel") as Label3D
 	var central_berth := world.get_node(^"CentralBerth") as ShipBerth
 	var console_minimum_x := (
@@ -127,7 +125,7 @@ func _run() -> void:
 		and "STATION" in board_label.text
 		and "DEFENSE" in board_label.text
 		and console_mesh != null
-		and board_label.get_aabb().size.x <= console_mesh.size.x,
+		and board_label.get_aabb().size.x <= console_mesh.get_aabb().size.x,
 		"physical defense board keeps its station-defense identity inside the actual display face"
 	)
 	var torrent := TORRENT_SCENE.instantiate() as HeroShip
