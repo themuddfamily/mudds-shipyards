@@ -576,6 +576,8 @@ that overlaps the shin and boot and blends from foot weighting at its lower rim
 to calf weighting at its upper rim. The solve remains procedural, and human
 animation review is still open.
 
+**Sloped-sole follow-up, 2026-09-24 (`d0ebb4e5a`):** while walking on a ramp, the planted pilot boot now rotates its actual skinned sole plane toward the sampled support normal without moving the ankle joint, player root, collision, or animation clock. On the shipped rig a +6° ramp previously left 27.8 mm of height spread across one sole; the corners now share one plane. Opposite slopes, a rotated presentation, flat gait samples and boarding/seated inactivity pass the focused tests (691 assertions across foot placement, visual, leg pose and asset suites). This is an orientation fix, **not complete contact**: the far boot still hovers about 22.3 mm above that ramp because the two-bone leg reaches its limit. A gait-aware visual pelvis/leg reach correction and human animation review remain open.
+
 - [ ] Conduct external playtests for flight feel, camera comfort, and nostalgia recognition.
 - [ ] Establish performance budgets for a representative mid-range Windows PC.
 
