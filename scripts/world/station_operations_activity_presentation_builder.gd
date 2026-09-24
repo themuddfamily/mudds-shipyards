@@ -267,7 +267,10 @@ func _apply_station_panel_family() -> void:
 	var panel_roughness := load(StationSurfaceKit.PANEL_ROUGHNESS_PATH) as Texture2D
 	if panel_albedo == null or panel_normal == null or panel_roughness == null:
 		return
-	for key in ["frame", "frame_edge", "graphite", "ceramic", "crate", "crate_alt"]:
+	# Amber safety bands, rail stops and handling collars are painted station
+	# hardware too; keep their existing colour and scalar PBR response while
+	# giving them the same metric grain as adjacent structural stock.
+	for key in ["frame", "frame_edge", "graphite", "ceramic", "crate", "crate_alt", "orange"]:
 		var panel_material := _materials[key] as StandardMaterial3D
 		panel_material.albedo_texture = panel_albedo
 		panel_material.normal_enabled = true
