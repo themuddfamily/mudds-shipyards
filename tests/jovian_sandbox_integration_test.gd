@@ -617,19 +617,29 @@ func _test_public_pilot_doorway_starts(game: GameFlow, ship: JovianLightFreighte
 		var motions: Array[bool] = []
 		var listener := func(open: bool) -> void: motions.append(open)
 		ship.canopy_motion_finished.connect(listener)
+		var boarding_start_physics_frame := Engine.get_physics_frames()
 		game.call("_board_ship", ship)
-		var frames := 0
+		var saw_boarding_in_progress := game.phase == GameFlow.Phase.BOARDING and not player.is_seated()
 		var stayed_forward := true
 		for tick in 120:
 			if game.phase == GameFlow.Phase.START_ENGINES:
 				break
 			await physics_frame
 			await process_frame
-			frames += 1
+			saw_boarding_in_progress = saw_boarding_in_progress or (
+				game.phase == GameFlow.Phase.BOARDING and not player.is_seated())
 			if local_start.x > -6.7 and not cabin_start:
 				stayed_forward = stayed_forward and ship.to_local(player.global_position).x >= local_start.x - 0.12
 		ship.canopy_motion_finished.disconnect(listener)
-		_check(game.phase == GameFlow.Phase.START_ENGINES and player.is_seated() and frames >= 10 and stayed_forward,
+		# The physics/process awaits can skip ticks when rendering is slow. Count
+		# actual physics ticks so the 0.5-second boarding motion cannot pass instantly.
+		var elapsed_physics_frames := Engine.get_physics_frames() - boarding_start_physics_frame
+		var minimum_boarding_physics_frames := maxi(1,
+			int(floor(game.boarding_motion_time * float(Engine.physics_ticks_per_second))) - 1)
+		_check(game.phase == GameFlow.Phase.START_ENGINES and player.is_seated()
+			and saw_boarding_in_progress
+			and elapsed_physics_frames >= minimum_boarding_physics_frames
+			and stayed_forward,
 			"public GameFlow boards from actual approach without backtracking through stairs: %s" % local_start)
 		_check(motions.is_empty() if cabin_start else motions == [true, false],
 			"landed cabin keeps interior bypass while exterior starts cycle actual door: %s" % local_start)
