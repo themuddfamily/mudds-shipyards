@@ -129,10 +129,11 @@ const MOTION_BLEND_TIME := 0.12
 const TRANSITION_MOTION_BLEND_TIME := 0.16
 const PILOT_INTEGRITY_PROBE_INTERVAL := 0.2
 ## A sole sits 0.15 m below the imported ankle joint. Start above the ankle and
-## finish below the sole so one bounded query sees flat decks and shallow ramps
-## without becoming a general-purpose terrain probe.
+## finish below the lowest swung, skinned toe seen during the grounded motion
+## blend. The presentation only acts on a sole below the sampled plane, so a
+## clear swing over a valid deck keeps its authored pose.
 const FOOT_SUPPORT_RAY_RISE_M := 0.18
-const FOOT_SUPPORT_RAY_DROP_M := 0.27
+const FOOT_SUPPORT_RAY_DROP_M := 0.37
 const BOARDING_CLIP_LENGTH := 1.1
 const DISEMBARK_CLIP_LENGTH := 0.9
 const PILOT_MOTION_VERSION := &"blender_skinned_motion_v2"

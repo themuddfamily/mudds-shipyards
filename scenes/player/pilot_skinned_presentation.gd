@@ -121,6 +121,8 @@ const PLAYER_CANONICAL_FORWARD_AXIS := Vector3.FORWARD
 ## target without querying physics or moving the Player root.
 const FOOT_SOLE_CLEARANCE_M := 0.15
 const FOOT_PLACEMENT_MAX_CORRECTION_M := 0.10
+const FOOT_PLACEMENT_MAX_SOLE_LIFT_M := 0.16
+const FOOT_PLACEMENT_IDLE_BLEND_SECONDS := 0.12
 const FOOT_PLACEMENT_CONTACT_LIMIT_M := 0.08
 const FOOT_PLACEMENT_MAX_SOLE_TILT_RAD := PI / 6.0
 const FOOT_PLACEMENT_SLOPE_FADE_RAD := PI / 180.0
@@ -199,6 +201,7 @@ var _canonical_resource_contract: Dictionary = {}
 var _foot_placement_attachment_generation := 0
 var _foot_placement_attached := false
 var _last_foot_placement_physics_frame := -1
+var _idle_blend_sole_guard_until_frame := -1
 var _foot_placement_snapshot: Dictionary = {}
 var _visual_pelvis_drop_m := 0.0
 var _visual_pelvis_source_position := Vector3.ZERO
@@ -217,6 +220,7 @@ func _enter_tree() -> void:
 	_foot_placement_attachment_generation += 1
 	_foot_placement_attached = true
 	_last_foot_placement_physics_frame = -1
+	_idle_blend_sole_guard_until_frame = -1
 	_visual_pelvis_drop_m = 0.0
 	_visual_pelvis_offset_applied = false
 	_visual_pelvis_up_world = Vector3.UP
@@ -233,6 +237,7 @@ func _exit_tree() -> void:
 	_last_pelvis_release_physics_frame = -1
 	_foot_placement_attached = false
 	_last_foot_placement_physics_frame = -1
+	_idle_blend_sole_guard_until_frame = -1
 	_foot_placement_snapshot = _empty_foot_placement_snapshot(&"detached")
 
 
@@ -1632,6 +1637,17 @@ func apply_foot_placement(sample: Variant, expected_attachment_generation: int) 
 	):
 		return _foot_placement_result(false, &"invalid_foot_placement_sample")
 	_last_foot_placement_physics_frame = physics_frame
+	# The blend can keep an old moving sole below the floor after the controller
+	# has already entered idle. Retain the sole guard only for that blend; the
+	# settled idle solver needs its original ankle/plane placement on ramps.
+	var previous_motion_state := StringName(_foot_placement_snapshot.get("motion_state", &""))
+	if motion_state == &"idle" and previous_motion_state in [&"walk", &"run"]:
+		_idle_blend_sole_guard_until_frame = physics_frame + ceili(
+			FOOT_PLACEMENT_IDLE_BLEND_SECONDS * Engine.physics_ticks_per_second
+		)
+	elif motion_state != &"idle":
+		_idle_blend_sole_guard_until_frame = -1
+	var guard_idle_blend := motion_state == &"idle" and physics_frame <= _idle_blend_sole_guard_until_frame
 	var animation_advanced := is_instance_valid(_animation_player) and (
 		_animation_player.assigned_animation != _last_pelvis_animation_name
 		or not is_equal_approx(
@@ -1670,7 +1686,7 @@ func apply_foot_placement(sample: Variant, expected_attachment_generation: int) 
 			corrected_feet[side] = _inactive_foot_record(&"support_missing")
 			continue
 		corrected_feet[side] = _apply_foot_chain(
-			side, support as Dictionary, normalized_up
+			side, support as Dictionary, normalized_up, motion_state, guard_idle_blend
 		)
 	var any_foot_active := false
 	for record: Variant in corrected_feet.values():
@@ -1697,6 +1713,7 @@ func clear_foot_placement(expected_attachment_generation: int, reason: StringNam
 	):
 		return _foot_placement_result(false, &"stale_foot_placement_attachment")
 	_restore_visual_pelvis_source()
+	_idle_blend_sole_guard_until_frame = -1
 	_advance_visual_pelvis_release()
 	_foot_placement_snapshot = _empty_foot_placement_snapshot(reason)
 	return _foot_placement_result(true, &"foot_placement_cleared")
@@ -1820,7 +1837,8 @@ func _required_visual_pelvis_drop(feet: Dictionary, movement_up_world: Vector3) 
 
 
 func _apply_foot_chain(
-		side: StringName, support: Dictionary, movement_up_world: Vector3
+		side: StringName, support: Dictionary, movement_up_world: Vector3,
+		motion_state: StringName, guard_idle_blend: bool
 	) -> Dictionary:
 	var support_position: Variant = support.get("position", Vector3.INF)
 	var support_normal: Variant = support.get("normal", Vector3.ZERO)
@@ -1854,17 +1872,49 @@ func _apply_foot_chain(
 	var ankle := foot_pose.origin
 	var sole := ankle - up_local * FOOT_SOLE_CLEARANCE_M
 	var requested_correction := (support_local - sole).dot(up_local)
-	if absf(requested_correction) > FOOT_PLACEMENT_CONTACT_LIMIT_M:
+	var source_sole_min_gap := _boot_sole_min_gap_local(
+		side, foot_index, toe_index, support_local, support_normal_local
+	)
+	var protect_sole := motion_state != &"idle" or guard_idle_blend
+	var sole_needs_lift := protect_sole and source_sole_min_gap < -0.001
+	if absf(requested_correction) > FOOT_PLACEMENT_CONTACT_LIMIT_M and not sole_needs_lift:
 		return {
 			"active": false,
 			"reason": &"foot_not_in_contact_phase",
 			"requested_correction_m": requested_correction,
+			"source_sole_min_gap_m": source_sole_min_gap,
 		}.duplicate(true)
 	var correction := clampf(
 		requested_correction,
 		-FOOT_PLACEMENT_MAX_CORRECTION_M,
 		FOOT_PLACEMENT_MAX_CORRECTION_M
 	)
+	# During locomotion, a clear sole is the authored swing pose. The ankle
+	# proxy can still sit near the support and would otherwise pull that pose
+	# downward until the toe cuts through the floor.
+	if motion_state != &"idle" and not sole_needs_lift:
+		return {
+			"active": source_sole_min_gap <= 0.01,
+			"reason": &"authored_sole_clear",
+			"requested_correction_m": requested_correction,
+			"applied_correction_m": 0.0,
+			"source_sole_min_gap_m": source_sole_min_gap,
+			"corrected_sole_min_gap_m": source_sole_min_gap,
+			"reach_saturation_m": 0.0,
+			"sole_error_m": absf(requested_correction),
+			"ankle_chain_error_m": 0.0,
+			"support_position": support_position,
+			"support_normal": (support_normal as Vector3).normalized(),
+			"ankle_position": _skeleton.global_transform * ankle,
+			"sole_position": _skeleton.global_transform * sole,
+		}.duplicate(true)
+	# The true skinned minimum bounds downward placement, including the first
+	# frames of a moving-to-idle blend. Correct the ankle through the leg chain;
+	# the foot and toe keep their authored relative orientation.
+	if protect_sole:
+		correction = maxf(correction, -source_sole_min_gap + 0.001)
+	if sole_needs_lift:
+		correction = minf(correction, FOOT_PLACEMENT_MAX_SOLE_LIFT_M)
 	var target_ankle := ankle + up_local * correction
 	var upper_length := hip.distance_to(knee)
 	var lower_length := knee.distance_to(ankle)
@@ -1914,13 +1964,10 @@ func _apply_foot_chain(
 	# number while physically separating the boot from the ankle whenever the
 	# requested target lies beyond the two-bone chain's reachable limit.
 	var chain_ankle := foot_pose.origin
-	# BootSole is skinned 62% to the foot and 38% to the toe. Its actual bottom
-	# plane need not equal either bone's axis or the movement-up vector, even on
-	# flat ground. A shortest-arc rotation carries that plane toward the support
-	# normal while retaining the clip's tangent/yaw and the solved ankle joint.
-	# Flat ground keeps the authored pose exactly, including its toe-off.
+	# Standing on a ramp keeps the existing sole-plane alignment. Moving feet
+	# retain their authored pitch and toe-off, including during ankle lift.
 	var support_tilt := up_local.angle_to(support_normal_local)
-	if support_tilt > 0.00001:
+	if support_tilt > 0.00001 and motion_state == &"idle":
 		# Read the sole from the restored clip pose, not the temporary foot
 		# orientation inherited from the calf solve.
 		foot_pose.basis = original_foot_basis
@@ -1943,6 +1990,9 @@ func _apply_foot_chain(
 	var corrected_ankle := _skeleton.get_bone_global_pose(foot_index).origin
 	var corrected_sole := corrected_ankle - up_local * FOOT_SOLE_CLEARANCE_M
 	var sole_error := absf((support_local - corrected_sole).dot(up_local))
+	var corrected_sole_min_gap := _boot_sole_min_gap_local(
+		side, foot_index, toe_index, support_local, support_normal_local
+	)
 	var ankle_chain_error := corrected_ankle.distance_to(chain_ankle)
 	return {
 		"active": true,
@@ -1950,12 +2000,37 @@ func _apply_foot_chain(
 		"requested_correction_m": requested_correction,
 		"applied_correction_m": correction,
 		"sole_error_m": sole_error,
+		"source_sole_min_gap_m": source_sole_min_gap,
+		"corrected_sole_min_gap_m": corrected_sole_min_gap,
+		"reach_saturation_m": target_ankle.distance_to(solved_ankle),
 		"ankle_chain_error_m": ankle_chain_error,
 		"support_position": support_position,
 		"support_normal": (support_normal as Vector3).normalized(),
 		"ankle_position": _skeleton.global_transform * corrected_ankle,
 		"sole_position": _skeleton.global_transform * corrected_sole,
 	}.duplicate(true)
+
+
+func _boot_sole_min_gap_local(
+		side: StringName, foot_index: int, toe_index: int,
+		support_local: Vector3, support_normal_local: Vector3
+	) -> float:
+	var foot_deform := (
+		_skeleton.get_bone_global_pose(foot_index)
+		* _skeleton.get_bone_global_rest(foot_index).affine_inverse()
+	)
+	var toe_deform := (
+		_skeleton.get_bone_global_pose(toe_index)
+		* _skeleton.get_bone_global_rest(toe_index).affine_inverse()
+	)
+	var center_x := -0.14 if side == &"l" else 0.14
+	var minimum := INF
+	for offset_x in [-0.095, 0.095]:
+		for z in [-0.085, 0.295]:
+			var bind := Vector3(center_x + offset_x, 0.0, z)
+			var deformed := foot_deform * bind * 0.62 + toe_deform * bind * 0.38
+			minimum = minf(minimum, (deformed - support_local).dot(support_normal_local))
+	return minimum
 
 
 func _boot_sole_up_local(side: StringName, foot_index: int, toe_index: int) -> Vector3:
