@@ -122,6 +122,8 @@ const PLAYER_CANONICAL_FORWARD_AXIS := Vector3.FORWARD
 const FOOT_SOLE_CLEARANCE_M := 0.15
 const FOOT_PLACEMENT_MAX_CORRECTION_M := 0.10
 const FOOT_PLACEMENT_CONTACT_LIMIT_M := 0.08
+const FOOT_PLACEMENT_MAX_SOLE_TILT_RAD := PI / 6.0
+const FOOT_PLACEMENT_SLOPE_FADE_RAD := PI / 180.0
 const FOOT_PLACEMENT_MOTION_STATES := [&"idle", &"walk", &"run"]
 const FOOT_CHAIN_BONES := {
 	&"l": [&"thigh_l", &"calf_l", &"foot_l"],
@@ -1669,11 +1671,15 @@ func _apply_foot_chain(
 	var thigh_index := _skeleton.find_bone(chain[0])
 	var calf_index := _skeleton.find_bone(chain[1])
 	var foot_index := _skeleton.find_bone(chain[2])
-	if thigh_index < 0 or calf_index < 0 or foot_index < 0:
+	var toe_index := _skeleton.find_bone("toe_" + String(side))
+	if thigh_index < 0 or calf_index < 0 or foot_index < 0 or toe_index < 0:
 		return _inactive_foot_record(&"bone_missing")
 	_skeleton.force_update_all_bone_transforms()
 	var to_skeleton := _skeleton.global_transform.affine_inverse()
 	var up_local := (_skeleton.global_basis.inverse() * movement_up_world).normalized()
+	var support_normal_local := (
+		_skeleton.global_basis.inverse() * (support_normal as Vector3).normalized()
+	).normalized()
 	var support_local := to_skeleton * (support_position as Vector3)
 	var thigh_pose := _skeleton.get_bone_global_pose(thigh_index)
 	var calf_pose := _skeleton.get_bone_global_pose(calf_index)
@@ -1741,10 +1747,32 @@ func _apply_foot_chain(
 	# Keep the foot joint exactly where the solved calf placed it. Translating the
 	# child foot bone to `target_ankle` independently can improve the sole-to-floor
 	# number while physically separating the boot from the ankle whenever the
-	# requested target lies beyond the two-bone chain's reachable limit. Preserve
-	# only the animated foot orientation; the leg chain remains continuous.
+	# requested target lies beyond the two-bone chain's reachable limit.
 	var chain_ankle := foot_pose.origin
-	foot_pose.basis = original_foot_basis
+	# BootSole is skinned 62% to the foot and 38% to the toe. Its actual bottom
+	# plane need not equal either bone's axis or the movement-up vector, even on
+	# flat ground. A shortest-arc rotation carries that plane toward the support
+	# normal while retaining the clip's tangent/yaw and the solved ankle joint.
+	# Flat ground keeps the authored pose exactly, including its toe-off.
+	var support_tilt := up_local.angle_to(support_normal_local)
+	if support_tilt > 0.00001:
+		# Read the sole from the restored clip pose, not the temporary foot
+		# orientation inherited from the calf solve.
+		foot_pose.basis = original_foot_basis
+		_set_foot_chain_global_rotation(foot_index, foot_pose.basis)
+		_skeleton.force_update_all_bone_transforms()
+		var sole_up := _boot_sole_up_local(side, foot_index, toe_index)
+		var tilt := sole_up.angle_to(support_normal_local)
+		var plane_rotation := Quaternion(sole_up, support_normal_local)
+		var slope_weight := clampf(support_tilt / FOOT_PLACEMENT_SLOPE_FADE_RAD, 0.0, 1.0)
+		slope_weight = slope_weight * slope_weight * (3.0 - 2.0 * slope_weight)
+		var bounded_rotation := Quaternion.IDENTITY.slerp(
+			plane_rotation,
+			slope_weight * minf(1.0, FOOT_PLACEMENT_MAX_SOLE_TILT_RAD / maxf(tilt, 0.00001))
+		)
+		foot_pose.basis = Basis(bounded_rotation) * original_foot_basis
+	else:
+		foot_pose.basis = original_foot_basis
 	_set_foot_chain_global_rotation(foot_index, foot_pose.basis)
 	_skeleton.force_update_all_bone_transforms()
 	var corrected_ankle := _skeleton.get_bone_global_pose(foot_index).origin
@@ -1763,6 +1791,28 @@ func _apply_foot_chain(
 		"ankle_position": _skeleton.global_transform * corrected_ankle,
 		"sole_position": _skeleton.global_transform * corrected_sole,
 	}.duplicate(true)
+
+
+func _boot_sole_up_local(side: StringName, foot_index: int, toe_index: int) -> Vector3:
+	var x := -0.14 if side == &"l" else 0.14
+	var foot_deform := (
+		_skeleton.get_bone_global_pose(foot_index)
+		* _skeleton.get_bone_global_rest(foot_index).affine_inverse()
+	)
+	var toe_deform := (
+		_skeleton.get_bone_global_pose(toe_index)
+		* _skeleton.get_bone_global_rest(toe_index).affine_inverse()
+	)
+	var left := Vector3(x - 0.095, 0.0, -0.085)
+	var right := Vector3(x + 0.095, 0.0, -0.085)
+	var front := Vector3(x - 0.095, 0.0, 0.295)
+	var across := (foot_deform * right * 0.62 + toe_deform * right * 0.38) - (
+		foot_deform * left * 0.62 + toe_deform * left * 0.38
+	)
+	var forward := (foot_deform * front * 0.62 + toe_deform * front * 0.38) - (
+		foot_deform * left * 0.62 + toe_deform * left * 0.38
+	)
+	return forward.cross(across).normalized()
 
 
 func _set_foot_chain_global_rotation(bone_index: int, global_basis: Basis) -> void:

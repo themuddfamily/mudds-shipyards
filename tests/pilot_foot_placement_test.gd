@@ -1,9 +1,11 @@
 extends SceneTree
 
 const PLAYER_SCENE := preload("res://scenes/player/player.tscn")
+const PRESENTATION_SCENE := preload("res://scenes/player/pilot_skinned_presentation.tscn")
 const SHALLOW_RAMP_DEGREES := 6.0
 const MAX_SOLE_ERROR_M := 0.025
 const MAX_ANKLE_CHAIN_ERROR_M := 0.001
+const MAX_BOOT_SOLE_PLANE_SPREAD_M := 0.010
 
 var _failures := PackedStringArray()
 var _assertions := 0
@@ -26,6 +28,7 @@ func _run() -> void:
 	player.teleport_to(Transform3D(Basis.IDENTITY, Vector3(0.0, 0.35, 0.0)))
 	await _settle(36)
 	_check_grounded_snapshot(player, "flat deck")
+	_check_ramp_boot_sole_contact(player, "flat deck")
 
 	flat.queue_free()
 	await physics_frame
@@ -34,6 +37,24 @@ func _run() -> void:
 	player.teleport_to(Transform3D(Basis.IDENTITY, Vector3(0.0, 0.55, 0.0)))
 	await _settle(48)
 	_check_grounded_snapshot(player, "six-degree ramp")
+	_check_ramp_boot_sole_contact(player, "positive six-degree ramp")
+
+	ramp.queue_free()
+	await physics_frame
+	var opposite_ramp := _make_support(&"OppositeRamp", Vector3.ZERO, -SHALLOW_RAMP_DEGREES)
+	world.add_child(opposite_ramp)
+	player.teleport_to(Transform3D(Basis.IDENTITY, Vector3(0.0, 0.55, 0.0)))
+	await _settle(48)
+	_check_grounded_snapshot(player, "negative six-degree ramp")
+	_check_ramp_boot_sole_contact(player, "negative six-degree ramp")
+
+	opposite_ramp.queue_free()
+	await physics_frame
+	var repeated_flat := _make_support(&"RepeatedFlatDeck", Vector3.ZERO, 0.0)
+	world.add_child(repeated_flat)
+	player.teleport_to(Transform3D(Basis.IDENTITY, Vector3(0.0, 0.35, 0.0)))
+	await _settle(36)
+	_check_grounded_snapshot(player, "repeated flat deck")
 
 	var collision := player.get_node("PlayerCollision") as CollisionShape3D
 	var capsule := collision.shape as CapsuleShape3D
@@ -65,6 +86,7 @@ func _run() -> void:
 	)
 
 	_test_repeated_foot_placement(player)
+	await _test_rotated_presentation_and_seat_clips(world)
 
 	player.set_physics_process(true)
 	player.velocity = Vector3.UP * 2.0
@@ -199,6 +221,88 @@ func _check_grounded_snapshot(player: PlayerController, surface_name: String) ->
 		int(snapshot.get("modifier_node_count", -1)) == 1,
 		surface_name + " uses only the one engine compatibility modifier"
 	)
+
+
+func _check_ramp_boot_sole_contact(player: PlayerController, label: String) -> void:
+	var presentation := player.find_child("PilotSkinnedPresentation", true, false) as PilotSkinnedPresentation
+	_check_boot_sole_plane(presentation, label)
+
+
+func _check_boot_sole_plane(presentation: PilotSkinnedPresentation, label: String) -> void:
+	var skeleton := presentation.get_skeleton()
+	var feet: Dictionary = presentation.get_foot_placement_snapshot().feet
+	for side: StringName in [&"l", &"r"]:
+		var record: Dictionary = feet[side]
+		var support_position: Vector3 = record.support_position
+		var support_normal: Vector3 = record.support_normal
+		var foot_index := skeleton.find_bone("foot_" + String(side))
+		var toe_index := skeleton.find_bone("toe_" + String(side))
+		var foot_deform := skeleton.get_bone_global_pose(foot_index) * skeleton.get_bone_global_rest(foot_index).affine_inverse()
+		var toe_deform := skeleton.get_bone_global_pose(toe_index) * skeleton.get_bone_global_rest(toe_index).affine_inverse()
+		var center_x := -0.14 if side == &"l" else 0.14
+		var minimum := INF
+		var maximum := -INF
+		# The shipped BootSole uses 62% foot and 38% toe weights at every
+		# vertex. Probe its four bottom corners against the sampled ramp plane.
+		for offset_x in [-0.095, 0.095]:
+			for z in [-0.085, 0.295]:
+				var bind := Vector3(center_x + offset_x, 0.0, z)
+				var deformed := foot_deform * bind * 0.62 + toe_deform * bind * 0.38
+				var point := skeleton.global_transform * deformed
+				var gap := (point - support_position).dot(support_normal)
+				minimum = minf(minimum, gap)
+				maximum = maxf(maximum, gap)
+		_check(
+			maximum - minimum <= MAX_BOOT_SOLE_PLANE_SPREAD_M,
+			"%s %s boot sole follows support plane (corner gaps %+.4f to %+.4f m)" % [label, side, minimum, maximum]
+		)
+
+
+func _test_rotated_presentation_and_seat_clips(world: Node3D) -> void:
+	var presentation := PRESENTATION_SCENE.instantiate() as PilotSkinnedPresentation
+	world.add_child(presentation)
+	presentation.global_basis = Basis(Vector3.FORWARD, deg_to_rad(30.0))
+	await process_frame
+	var animation := presentation.get_animation_player()
+	animation.callback_mode_process = AnimationMixer.ANIMATION_CALLBACK_MODE_PROCESS_MANUAL
+	animation.play(&"idle")
+	animation.seek(0.0, true)
+	animation.advance(0.0)
+	var movement_up := presentation.global_basis * Vector3.UP
+	var support_normal := Basis(Vector3.FORWARD, deg_to_rad(6.0)) * movement_up
+	var anchors := presentation.get_animated_foot_anchors()
+	var feet := {}
+	for side: StringName in [&"l", &"r"]:
+		feet[side] = {
+			"position": (anchors[side] as Vector3) - movement_up * PilotSkinnedPresentation.FOOT_SOLE_CLEARANCE_M,
+			"normal": support_normal,
+		}
+	var result := presentation.apply_foot_placement({
+		"physics_frame": 1, "motion_state": &"idle",
+		"movement_up": movement_up, "feet": feet,
+	}, presentation.get_foot_placement_attachment_generation())
+	_check(bool(result.get("accepted", false)), "rotated presentation accepts a planted support sample")
+	_check_boot_sole_plane(presentation, "rotated presentation six-degree ramp")
+	var skeleton := presentation.get_skeleton()
+	for clip: StringName in [&"boarding", &"seated_control", &"disembark_recovery"]:
+		animation.play(clip)
+		animation.seek(0.3, true)
+		animation.advance(0.0)
+		var foot_index := skeleton.find_bone(&"foot_l")
+		var before := skeleton.get_bone_global_pose(foot_index)
+		var time_before := animation.current_animation_position
+		presentation.apply_foot_placement({
+			"physics_frame": 2 + [&"boarding", &"seated_control", &"disembark_recovery"].find(clip),
+			"motion_state": clip, "movement_up": movement_up, "feet": feet,
+		}, presentation.get_foot_placement_attachment_generation())
+		_check(
+			not bool(presentation.get_foot_placement_snapshot().get("active", true))
+			and skeleton.get_bone_global_pose(foot_index).is_equal_approx(before)
+			and animation.current_animation_position == time_before,
+			"%s keeps the authored seated/transition pose and timing" % clip
+		)
+	presentation.queue_free()
+	await process_frame
 
 
 func _check(condition: bool, description: String) -> void:
