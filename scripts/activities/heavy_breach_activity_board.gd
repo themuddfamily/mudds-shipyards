@@ -21,6 +21,7 @@ const PEDESTAL_SIZE := Vector3(1.4, 1.0, 2.2)
 const CONSOLE_OFFSET := Vector3(0.0, 0.0, 0.0)
 const HEADER_SIZE := Vector3(1.25, 1.25, 0.10)
 const HEADER_POSITION := Vector3(0.0, 1.5, 0.97)
+const HOUSING_CHAMFER := 0.08
 
 var _director: EncounterScenarioDirector
 var _combat_authority: LiveCombatAuthority
@@ -413,16 +414,18 @@ func _build_physical_board() -> void:
 	body.add_child(body_shape)
 	var pedestal_mesh := MeshInstance3D.new()
 	pedestal_mesh.name = "Pedestal"
-	var pedestal_box := BoxMesh.new()
-	pedestal_box.size = PEDESTAL_SIZE
-	pedestal_mesh.mesh = pedestal_box
+	# A fixed housing chamfer catches the station's edge light without changing
+	# the pedestal's exact outer bounds or its separate collision box.
+	pedestal_mesh.mesh = StationSurfaceKit.rounded_box_mesh_with_bevel(
+		PEDESTAL_SIZE, HOUSING_CHAMFER
+	)
 	pedestal_mesh.position = body_shape.position
 	body.add_child(pedestal_mesh)
 	var console := MeshInstance3D.new()
 	console.name = "ActivityBoardConsole"
-	var console_box := BoxMesh.new()
-	console_box.size = BOARD_SIZE
-	console.mesh = console_box
+	console.mesh = StationSurfaceKit.rounded_box_mesh_with_bevel(
+		BOARD_SIZE, HOUSING_CHAMFER
+	)
 	console.position = CONSOLE_OFFSET + Vector3(0.0, 0.62, 0.0)
 	body.add_child(console)
 	var material := StandardMaterial3D.new()

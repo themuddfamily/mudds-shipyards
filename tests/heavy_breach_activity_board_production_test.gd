@@ -78,6 +78,12 @@ func _run() -> void:
 	var board_console := board.get_node(
 		^"CollisionBackedConsole/ActivityBoardConsole"
 	) as MeshInstance3D
+	var board_pedestal := board.get_node(
+		^"CollisionBackedConsole/Pedestal"
+	) as MeshInstance3D
+	var pedestal_collision := board.get_node(
+		^"CollisionBackedConsole/Collision"
+	) as CollisionShape3D
 	var board_header := board.get_node(
 		^"CollisionBackedConsole/ActivityBoardSilhouette"
 	) as MeshInstance3D
@@ -86,6 +92,17 @@ func _run() -> void:
 	var objective_marker := objective.get_node(^"ProtectedObjectiveMarker") as MeshInstance3D
 	var objective_label := objective.get_node(^"ProtectedObjectiveLabel") as Label3D
 	var objective_mesh := objective_marker.mesh as CylinderMesh
+	_check(
+		_has_housing_chamfer(board_pedestal.mesh, Vector3(1.4, 1.0, 2.2), 0.08)
+			and _has_housing_chamfer(board_console.mesh, Vector3(0.75, 1.35, 1.8), 0.08)
+			and board_pedestal.position == Vector3(0.0, -0.5, 0.0)
+			and board_console.position == Vector3(0.0, 0.62, 0.0)
+			and board_pedestal.material_override == null
+			and (pedestal_collision.shape as BoxShape3D).size == Vector3(1.4, 1.0, 2.2)
+			and pedestal_collision.position == board_pedestal.position
+			and board.find_children("*", "CollisionShape3D", true, false).size() == 2,
+		"board pedestal and console have fixed-width chamfers with exact bounds, materials, and collision placement"
+	)
 	_check(
 		(board_header.mesh as BoxMesh).size == Vector3(1.25, 1.25, 0.10)
 			and is_equal_approx(board_header.rotation.z, PI * 0.25)
@@ -228,6 +245,21 @@ func _wire(craft: Node) -> void:
 	craft.set("encounter_host_path", NodePath(".."))
 	if craft is ResolverBackedOpponent:
 		craft.set("scenario_director_path", NodePath("../EncounterScenarios"))
+
+
+func _has_housing_chamfer(mesh: Mesh, size: Vector3, width: float) -> bool:
+	if not mesh is ArrayMesh or mesh.get_surface_count() != 1:
+		return false
+	var half := size * 0.5
+	if not mesh.get_aabb().is_equal_approx(AABB(-half, size)):
+		return false
+	var vertices := mesh.surface_get_arrays(0)[Mesh.ARRAY_VERTEX] as PackedVector3Array
+	for vertex in vertices:
+		if is_equal_approx(absf(vertex.x), half.x - width) \
+				and is_equal_approx(absf(vertex.y), half.y) \
+				and is_equal_approx(absf(vertex.z), half.z - width):
+			return true
+	return false
 
 
 func _accept_reward_request(request: Dictionary) -> Dictionary:
