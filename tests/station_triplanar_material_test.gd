@@ -35,6 +35,18 @@ func _run() -> void:
 	var world := game.get_node_or_null(^"ShipyardWorld") as ShipyardWorld
 	_check(world != null, "production ShipyardWorld is present")
 	if world != null:
+		# The four structural service dressings gate four batches each by graphics
+		# quality. Audit the complete production presentation independently of a
+		# saved user profile or safe-startup fallback.
+		world.apply_visual_quality(StationStructuralServiceDressing.DetailQuality.HIGH)
+		var dressings := world.get_station_structural_service_dressings()
+		var all_high := dressings.size() == 4
+		for dressing in dressings:
+			all_high = all_high and dressing.get_quality_level() == StationStructuralServiceDressing.DetailQuality.HIGH
+		_check(
+			world.visual_quality_level == StationStructuralServiceDressing.DetailQuality.HIGH and all_high,
+			"station material census includes all four dressings at High visual quality"
+		)
 		_test_live_station_coverage(world, cluster_fixture)
 		_test_live_central_deck_uv0(world)
 	_test_four_ship_material_identity(game)
@@ -918,13 +930,14 @@ func _test_instanced_station_family(
 	# the family in some earlier pass that did not re-freeze this number; it is
 	# recorded here as measured rather than left red, and the count is printed so
 	# the next drift is visible instead of silent.
-	# On this base the unchanged material measured 197/116, already below the
-	# previous freeze. Mapping shared amber paint adds seven mapped batches,
-	# without creating or removing any batch: 197/123.
+	# Low quality hides the four dressings' ConduitClamp, RadiatorVent,
+	# TaskStrip and FasciaFastener batches: 16 fewer batches, 12 fewer mapped.
+	# At High the parent of 8eee567cf measures 213/128. That commit maps seven
+	# existing orange batches, making the complete High roster 213/135.
 	print("LIVE_STATION_INSTANCED_FAMILY: batches=", batches, " mapped=", mapped)
 	_check(
-		batches == 197 and mapped == 123,
-		"instanced station structure is exactly 197 batches, 123 of them mapped"
+		batches == 213 and mapped == 135,
+		"instanced station structure is exactly 213 batches, 135 of them mapped"
 	)
 	_check(exact, "every mapped instanced batch uses the same recipe and frozen scale as drawn surfaces")
 
