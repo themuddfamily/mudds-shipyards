@@ -24,6 +24,7 @@ const CinderNavigatorPingHudCompositionType := preload(
 const FinalApproachHudCompositionType := preload("res://scripts/ui/final_approach_hud_composition.gd")
 const ActivityTutorialPresenterType := preload("res://scripts/ui/activity_tutorial_presenter.gd")
 const TutorialPromptSeenStoreType := preload("res://scripts/settings/tutorial_prompt_seen_store.gd")
+const ACTIVITY_BOARD_PROXIMITY_PROMPT_ID := &"activity_board_proximity"
 const WeaponDefinitionResolverProfileType := preload(
 	"res://scripts/combat/weapon_definition_resolver_profile.gd"
 )
@@ -558,6 +559,7 @@ var _planetary_journey := PlanetaryJourneyCoordinatorType.new(self)
 var world: Node3D
 var player: CharacterBody3D
 var activity_board_console: Area3D
+var _activity_board_proximity_prompt_rendered := false
 var planetary_destination_console: Area3D
 var ship_service_console: Area3D
 var fleet_registry_console: Area3D
@@ -1264,6 +1266,7 @@ func _on_game_flow_tree_exiting() -> void:
 
 
 func _exit_tree() -> void:
+	_activity_board_proximity_prompt_rendered = false
 	_capture_pilot_reservation_for_reentry()
 	_minimap_pending_actor_sample.clear()
 	_minimap_update_pending = false
@@ -6705,12 +6708,15 @@ func _refresh_interaction_targets() -> void:
 		) > BOARDING_FALLBACK_REACH:
 			_reboard_blocked_ship = null
 	station_interaction_candidate = _find_station_interaction_candidate()
+	if station_interaction_candidate != activity_board_console:
+		_activity_board_proximity_prompt_rendered = false
 	boarding_candidate = _find_boarding_candidate()
 	_near_ship = is_instance_valid(boarding_candidate)
 
 
 func _update_on_foot_flow() -> void:
 	_refresh_interaction_targets()
+	_activity_board_proximity_prompt_rendered = false
 	if phase in [Phase.BOARDING, Phase.DISEMBARKING, Phase.FAILED, Phase.RECOVERING]:
 		hud.set_interaction("", false)
 		return
@@ -6730,7 +6736,13 @@ func _update_on_foot_flow() -> void:
 		# centered over the console the player is actually reading; leaving the
 		# console recreates the card from the live boarding candidate as before.
 		_detach_boarding_confirmation_hud_composition()
-		hud.set_interaction(str(station_interaction_candidate.call("get_interaction_prompt")))
+		var interaction_text := str(station_interaction_candidate.call("get_interaction_prompt"))
+		var show_board_tutorial := station_interaction_candidate == activity_board_console \
+			and _should_show_activity_board_proximity_tutorial()
+		if show_board_tutorial:
+			interaction_text += "  //  CHOOSE A SORTIE OR REVIEW RETURNS"
+		hud.set_interaction(interaction_text)
+		_activity_board_proximity_prompt_rendered = show_board_tutorial
 	elif _near_ship:
 		_present_boarding_confirmation(&"available", boarding_candidate)
 		if _first_sortie_tutorial_active_step == &"walk_interact" \
@@ -7305,6 +7317,7 @@ func _on_heavy_breach_board_snapshot_changed(_snapshot: Dictionary) -> void:
 func _on_activity_board_console_open_requested(actor: Node) -> void:
 	if (
 		actor != player
+		or activity_board_console != station_interaction_candidate
 		or _piloting
 		or _transition_busy
 		or _station_seated
@@ -7316,7 +7329,25 @@ func _on_activity_board_console_open_requested(actor: Node) -> void:
 		or not hud.has_method(&"open_activity_board")
 	):
 		return
-	hud.call(&"open_activity_board")
+	var tutorial_visible := _activity_board_proximity_prompt_rendered \
+		and _should_show_activity_board_proximity_tutorial()
+	if bool(hud.call(&"open_activity_board")):
+		_activity_board_proximity_prompt_rendered = false
+		if tutorial_visible:
+			_ensure_tutorial_prompt_seen_store()
+			_record_activity_tutorial_seen(ACTIVITY_BOARD_PROXIMITY_PROMPT_ID)
+
+
+## The ordinary interaction panel owns this context. Its production candidate
+## already comes from the player's Area3D overlap and facing selection, so a
+## competing station control or walking away removes the hint on the next pass.
+func _should_show_activity_board_proximity_tutorial() -> bool:
+	return phase in [Phase.APPROACH_SHIP, Phase.COMPLETE] \
+		and not _piloting and not _transition_busy and not _station_seated \
+		and is_instance_valid(player) and player.is_control_enabled() \
+		and not player.is_seated() \
+		and (runtime_settings == null or runtime_settings.show_tutorials) \
+		and not has_seen_activity_tutorial(ACTIVITY_BOARD_PROXIMITY_PROMPT_ID)
 
 
 ## The navigation console only opens the already-owned HUD catalog. The

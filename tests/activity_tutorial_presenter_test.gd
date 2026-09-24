@@ -400,12 +400,14 @@ func _run() -> void:
 	)
 
 	# Whole-Main re-entry and a reload both keep the seen-set.
+	flow._record_activity_tutorial_seen(GameFlowType.ACTIVITY_BOARD_PROXIMITY_PROMPT_ID)
 	flow._sync_production_runtime_settings_state()
 	var reentered_flow := GameFlowType.new()
 	reentered_flow._adopt_production_runtime_settings_state()
 	_check(
-		reentered_flow._tutorial_prompt_seen_store == flow._tutorial_prompt_seen_store
-		and reentered_flow.has_seen_activity_tutorial(&"cinder_relay_patrol"),
+			reentered_flow._tutorial_prompt_seen_store == flow._tutorial_prompt_seen_store
+		and reentered_flow.has_seen_activity_tutorial(&"cinder_relay_patrol")
+		and reentered_flow.has_seen_activity_tutorial(GameFlowType.ACTIVITY_BOARD_PROXIMITY_PROMPT_ID),
 		"a re-entered Main adopts the same process-lifetime seen-set",
 	)
 	GameFlowType._production_runtime_settings_state = {}
@@ -417,6 +419,7 @@ func _run() -> void:
 	_check(
 		reloaded_flow.has_seen_activity_tutorial(&"cinder_relay_patrol")
 		and reloaded_flow.has_seen_activity_tutorial(&"cinder_platform_supply_run")
+		and reloaded_flow.has_seen_activity_tutorial(GameFlowType.ACTIVITY_BOARD_PROXIMITY_PROMPT_ID)
 		and not reloaded_flow.has_seen_activity_tutorial(&"station_defense"),
 		"a fresh session reloads the persisted seen-set from the same document",
 	)

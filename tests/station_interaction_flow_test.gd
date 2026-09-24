@@ -2,6 +2,7 @@ extends SceneTree
 
 const MAIN_SCENE := preload("res://scenes/main.tscn")
 const DOOR_SCENE := preload("res://scenes/world/components/station_door.tscn")
+const SEEN_STORE := preload("res://scripts/settings/tutorial_prompt_seen_store.gd")
 
 ## Extra simulated physics frames allowed on top of the exact number the door's
 ## own `motion_duration` requires. This is a frame count, never a wall-clock
@@ -153,10 +154,23 @@ func _test_activity_board_console(game: GameFlow, player: PlayerController) -> v
 	_check(console != null, "Aft Operations ConsoleBay02 exposes one physical Activity Board interaction")
 	if console == null or hud == null:
 		return
+	# Keep this physical-route check independent of a developer's user:// save.
+	game._tutorial_prompt_seen_store = SEEN_STORE.new()
 	var selection_before := game.get_activity_integration_report()
 	var console_connections := console.get_signal_connection_list(&"open_requested")
 	var approach := console.global_position + Vector3(0.0, 0.0, -1.05)
 	player.teleport_to(Transform3D(Basis(Vector3.UP, PI), approach))
+	# A physics press can reach the board before the idle pass paints its hint.
+	# It may open the page, but cannot consume guidance the player did not see.
+	await physics_frame
+	game.call(&"_refresh_interaction_targets")
+	console.call(&"interact", player)
+	_check(
+		(hud.get("_activity_selection_page") as Control).visible
+		and not game.has_seen_activity_tutorial(GameFlow.ACTIVITY_BOARD_PROXIMITY_PROMPT_ID),
+		"an open request before the board hint renders does not mark it seen"
+	)
+	hud.set_paused(false)
 	await physics_frame
 	await physics_frame
 	# process_frame resumes before node _process callbacks. Cross a completed
@@ -168,13 +182,105 @@ func _test_activity_board_console(game: GameFlow, player: PlayerController) -> v
 		and "ACTIVITY BOARD" in str(console.call(&"get_interaction_prompt")),
 		"facing the physical console selects its shared on-foot prompt"
 	)
+	var prompt := hud.get("_interaction_label") as Label
+	_check(
+		prompt != null and "CHOOSE A SORTIE OR REVIEW RETURNS" in prompt.text
+		and prompt.text.begins_with("[ %s ]" % hud.get_action_prompt(&"interact"))
+		and not game.has_seen_activity_tutorial(GameFlow.ACTIVITY_BOARD_PROXIMITY_PROMPT_ID),
+		"physical approach shows the keyboard-bound tutorial without marking it seen"
+	)
+	hud.call(&"_on_controller_glyph_family_selected", 2)
+	await process_frame
+	await process_frame
+	_check(
+		prompt.text.begins_with("[ %s ]" % hud.get_action_prompt(&"interact"))
+		and "CHOOSE A SORTIE OR REVIEW RETURNS" in prompt.text,
+		"the live board hint follows the selected controller glyph"
+	)
+	var default_profile: InputBindingProfile = hud.get("_input_binding_profile").duplicate_profile()
+	var remapped_profile := default_profile.duplicate_profile()
+	remapped_profile.set_bindings(&"interact", [{
+		"device": &"keyboard", "type": &"key", "physical_keycode": KEY_TAB,
+	}])
+	hud.set_settings_snapshot({"input_binding_profile": remapped_profile.to_dictionary()})
+	var glyph_presenter: Variant = hud.get("_runtime_input_glyph_presenter")
+	glyph_presenter.set_device_family(&"keyboard")
+	await process_frame
+	await process_frame
+	_check(
+		prompt.text.begins_with("[ Tab ]")
+		and "CHOOSE A SORTIE OR REVIEW RETURNS" in prompt.text,
+		"a remapped keyboard interact binding redraws the same live board hint"
+	)
+	hud.set_settings_snapshot({"input_binding_profile": default_profile.to_dictionary()})
+	player.teleport_to(game.world.get_player_spawn())
+	await physics_frame
+	await physics_frame
+	await process_frame
+	await process_frame
+	_check(
+		not "CHOOSE A SORTIE" in prompt.text
+		and not game.has_seen_activity_tutorial(GameFlow.ACTIVITY_BOARD_PROXIMITY_PROMPT_ID),
+		"leaving board range clears the hint without consuming it"
+	)
+	player.teleport_to(Transform3D(Basis(Vector3.UP, PI), approach))
+	await physics_frame
+	await physics_frame
+	await process_frame
+	await process_frame
+	var competing_door := game.get_node("IntegrationDoor") as StationDoor
+	var prior_door_position := competing_door.global_position
+	competing_door.global_position = (
+		player.get_interaction_origin() + player.get_interaction_direction() * 0.4
+	)
+	await physics_frame
+	await physics_frame
+	await process_frame
+	await process_frame
+	_check(
+		game.station_interaction_candidate == competing_door
+		and not "CHOOSE A SORTIE" in prompt.text,
+		"a higher-priority nearby interaction clears the board guidance"
+	)
+	console.emit_signal(&"open_requested", player)
+	_check(
+		not (hud.get("_pause") as Control).visible
+		and not game.has_seen_activity_tutorial(GameFlow.ACTIVITY_BOARD_PROXIMITY_PROMPT_ID),
+		"a displaced board signal cannot open the page or consume its tutorial"
+	)
+	competing_door.global_position = prior_door_position
+	await physics_frame
+	await physics_frame
+	await process_frame
+	await process_frame
+	_check(game.station_interaction_candidate == console, "leaving the competing control restores the board candidate")
+	game.runtime_settings.show_tutorials = false
+	await process_frame
+	await process_frame
+	_check(not "CHOOSE A SORTIE" in prompt.text, "the tutorial setting suppresses board guidance")
 	game.call(&"_on_interact_requested")
 	var pause_overlay := hud.get("_pause") as Control
 	var activity_page := hud.get("_activity_selection_page") as Control
 	_check(
 		pause_overlay != null and pause_overlay.visible
+		and activity_page != null and activity_page.visible
+		and not game.has_seen_activity_tutorial(GameFlow.ACTIVITY_BOARD_PROXIMITY_PROMPT_ID),
+		"opening while tutorials are disabled does not consume guidance the player never saw"
+	)
+	hud.set_paused(false)
+	game.runtime_settings.show_tutorials = true
+	await process_frame
+	await process_frame
+	_check("CHOOSE A SORTIE" in prompt.text, "re-enabling tutorials restores unconsumed guidance")
+	game.call(&"_on_interact_requested")
+	_check(
+		pause_overlay != null and pause_overlay.visible
 		and activity_page != null and activity_page.visible,
 		"one embodied interaction pauses and focuses the existing Activity Board page"
+	)
+	_check(
+		game.has_seen_activity_tutorial(GameFlow.ACTIVITY_BOARD_PROXIMITY_PROMPT_ID),
+		"the tutorial is marked seen only after the Activity Board actually opens"
 	)
 	var selection_after := game.get_activity_integration_report()
 	_check(
@@ -184,6 +290,12 @@ func _test_activity_board_console(game: GameFlow, player: PlayerController) -> v
 		"opening the console changes no selection, start, generation, or reward authority"
 	)
 	hud.set_paused(false)
+	await process_frame
+	await process_frame
+	_check(
+		not "CHOOSE A SORTIE" in prompt.text,
+		"the ordinary board interaction remains after the one-time hint is consumed"
+	)
 	var combat_authority := game.get_combat_authority()
 	var combat_resolver := game.get_combat_resolver()
 	var startup_roster := game.get_live_combat_source_roster_audit()
