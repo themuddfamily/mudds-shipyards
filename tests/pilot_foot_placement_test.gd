@@ -6,6 +6,8 @@ const SHALLOW_RAMP_DEGREES := 6.0
 const MAX_SOLE_ERROR_M := 0.025
 const MAX_ANKLE_CHAIN_ERROR_M := 0.001
 const MAX_BOOT_SOLE_PLANE_SPREAD_M := 0.010
+const MAX_BOOT_SOLE_GAP_M := 0.010
+const MIN_BOOT_SOLE_GAP_M := -0.005
 
 var _failures := PackedStringArray()
 var _assertions := 0
@@ -38,6 +40,12 @@ func _run() -> void:
 	await _settle(48)
 	_check_grounded_snapshot(player, "six-degree ramp")
 	_check_ramp_boot_sole_contact(player, "positive six-degree ramp")
+	await _sweep_idle_ramp(player, "positive six-degree ramp")
+	player.set_control_enabled(true)
+	await _exercise_sloped_locomotion(player, &"walk", false)
+	await _exercise_sloped_locomotion(player, &"run", true)
+	player.set_control_enabled(false)
+	await _settle(30)
 
 	ramp.queue_free()
 	await physics_frame
@@ -47,6 +55,25 @@ func _run() -> void:
 	await _settle(48)
 	_check_grounded_snapshot(player, "negative six-degree ramp")
 	_check_ramp_boot_sole_contact(player, "negative six-degree ramp")
+	await _sweep_idle_ramp(player, "negative six-degree ramp")
+	var ramp_presentation := player.find_child("PilotSkinnedPresentation", true, false) as PilotSkinnedPresentation
+	var ramp_skeleton := ramp_presentation.get_skeleton()
+	var pelvis_index := ramp_skeleton.find_bone(&"pelvis")
+	var dropped_pelvis_position := ramp_skeleton.get_bone_pose_position(pelvis_index)
+	var ramp_drop := float(ramp_presentation.get_foot_placement_snapshot().get("visual_pelvis_drop_m", 0.0))
+	var ramp_animation_time := ramp_presentation.get_animation_player().current_animation_position
+	ramp_presentation.clear_foot_placement(
+		ramp_presentation.get_foot_placement_attachment_generation(), &"test_no_animation_advance"
+	)
+	_check(
+		ramp_drop > 0.01
+		and is_zero_approx(float(ramp_presentation.get_foot_placement_snapshot().get("visual_pelvis_drop_m", INF)))
+		and is_equal_approx(
+			ramp_skeleton.get_bone_pose_position(pelvis_index).distance_to(dropped_pelvis_position), ramp_drop
+		)
+		and ramp_presentation.get_animation_player().current_animation_position == ramp_animation_time,
+		"clearing without animation advance restores the authored pelvis pose and timing"
+	)
 
 	opposite_ramp.queue_free()
 	await physics_frame
@@ -55,6 +82,11 @@ func _run() -> void:
 	player.teleport_to(Transform3D(Basis.IDENTITY, Vector3(0.0, 0.35, 0.0)))
 	await _settle(36)
 	_check_grounded_snapshot(player, "repeated flat deck")
+	_check_ramp_boot_sole_contact(player, "repeated flat deck")
+	_check(
+		float(player.get_grounded_foot_placement_snapshot().get("visual_pelvis_drop_m", INF)) <= 0.0001,
+		"returning to flat ground releases the visual pelvis drop"
+	)
 
 	var collision := player.get_node("PlayerCollision") as CollisionShape3D
 	var capsule := collision.shape as CapsuleShape3D
@@ -93,8 +125,9 @@ func _run() -> void:
 	await _settle(2)
 	var airborne := player.get_grounded_foot_placement_snapshot()
 	_check(
-		not bool(airborne.get("active", true)),
-		"foot placement is disabled while airborne"
+		not bool(airborne.get("active", true))
+		and is_zero_approx(float(airborne.get("visual_pelvis_drop_m", INF))),
+		"foot placement and visual pelvis drop are disabled while airborne"
 	)
 
 	world.queue_free()
@@ -178,6 +211,75 @@ func _test_repeated_foot_placement(player: PlayerController) -> void:
 	)
 
 
+func _exercise_sloped_locomotion(player: PlayerController, expected_state: StringName, sprint: bool) -> void:
+	var presentation := player.find_child("PilotSkinnedPresentation", true, false) as PilotSkinnedPresentation
+	var prior_drop := float(player.get_grounded_foot_placement_snapshot().get("visual_pelvis_drop_m", 0.0))
+	var largest_step := 0.0
+	var largest_drop := 0.0
+	var lowest_corner := INF
+	var highest_corner := -INF
+	var largest_ankle_error := 0.0
+	var state_frames := 0
+	var contact_samples := 0
+	Input.action_press("move_forward")
+	if sprint:
+		Input.action_press("sprint_boost")
+	for _motion_frame in 36:
+		await physics_frame
+		var snapshot := player.get_grounded_foot_placement_snapshot()
+		var drop := float(snapshot.get("visual_pelvis_drop_m", 0.0))
+		largest_step = maxf(largest_step, absf(drop - prior_drop))
+		largest_drop = maxf(largest_drop, drop)
+		prior_drop = drop
+		if player.get_authored_motion_state() == expected_state:
+			state_frames += 1
+		var feet: Dictionary = snapshot.get("feet", {})
+		for side: StringName in [&"l", &"r"]:
+			var record: Dictionary = feet.get(side, {})
+			if not bool(record.get("active", false)):
+				continue
+			contact_samples += 1
+			var gaps := _boot_sole_gaps(presentation, side, record)
+			lowest_corner = minf(lowest_corner, gaps.x)
+			highest_corner = maxf(highest_corner, gaps.y)
+			largest_ankle_error = maxf(largest_ankle_error, float(record.get("ankle_chain_error_m", INF)))
+	Input.action_release("move_forward")
+	if sprint:
+		Input.action_release("sprint_boost")
+	_check(state_frames >= 20 and contact_samples > 0, "%s exercises supported production locomotion" % expected_state)
+	_check(largest_step <= 0.0061 and largest_drop <= 0.0401, "%s limits visual pelvis travel to 6 mm per tick and 40 mm total (step %.4f m, drop %.4f m)" % [expected_state, largest_step, largest_drop])
+	_check(lowest_corner >= MIN_BOOT_SOLE_GAP_M, "%s never drives a sampled boot corner through the ramp (lowest %+.4f m)" % [expected_state, lowest_corner])
+	_check(largest_ankle_error <= MAX_ANKLE_CHAIN_ERROR_M, "%s keeps both ankle chains continuous (worst %.5f m)" % [expected_state, largest_ankle_error])
+	print("PILOT_SLOPED_MOTION_MEASURE: %s active_corners=%+.4f..%+.4f m" % [expected_state, lowest_corner, highest_corner])
+
+
+func _sweep_idle_ramp(player: PlayerController, label: String) -> void:
+	var presentation := player.find_child("PilotSkinnedPresentation", true, false) as PilotSkinnedPresentation
+	var lowest_corner := INF
+	var highest_corner := -INF
+	var largest_step := 0.0
+	var prior_drop := float(presentation.get_foot_placement_snapshot().get("visual_pelvis_drop_m", 0.0))
+	var planted_samples := 0
+	for _frame in 144:
+		await physics_frame
+		var snapshot := presentation.get_foot_placement_snapshot()
+		var drop := float(snapshot.get("visual_pelvis_drop_m", 0.0))
+		largest_step = maxf(largest_step, absf(drop - prior_drop))
+		prior_drop = drop
+		var feet: Dictionary = snapshot.get("feet", {})
+		for side: StringName in [&"l", &"r"]:
+			var record: Dictionary = feet.get(side, {})
+			if not bool(record.get("active", false)):
+				continue
+			planted_samples += 1
+			var gaps := _boot_sole_gaps(presentation, side, record)
+			lowest_corner = minf(lowest_corner, gaps.x)
+			highest_corner = maxf(highest_corner, gaps.y)
+	_check(planted_samples == 288, "%s keeps both boots planted through a full idle loop" % label)
+	_check(lowest_corner >= MIN_BOOT_SOLE_GAP_M and highest_corner <= MAX_BOOT_SOLE_GAP_M, "%s full idle loop keeps skinned corners near deck (%+.4f..%+.4f m)" % [label, lowest_corner, highest_corner])
+	_check(largest_step <= 0.0061, "%s full idle loop has no visual pelvis step above 6 mm" % label)
+
+
 func _make_support(node_name: StringName, origin: Vector3, ramp_degrees: float) -> StaticBody3D:
 	var body := StaticBody3D.new()
 	body.name = node_name
@@ -185,7 +287,7 @@ func _make_support(node_name: StringName, origin: Vector3, ramp_degrees: float) 
 	body.rotation.z = deg_to_rad(ramp_degrees)
 	var collision := CollisionShape3D.new()
 	var box := BoxShape3D.new()
-	box.size = Vector3(6.0, 0.2, 6.0)
+	box.size = Vector3(30.0, 0.2, 30.0)
 	collision.shape = box
 	body.add_child(collision)
 	return body
@@ -229,33 +331,44 @@ func _check_ramp_boot_sole_contact(player: PlayerController, label: String) -> v
 
 
 func _check_boot_sole_plane(presentation: PilotSkinnedPresentation, label: String) -> void:
-	var skeleton := presentation.get_skeleton()
 	var feet: Dictionary = presentation.get_foot_placement_snapshot().feet
 	for side: StringName in [&"l", &"r"]:
 		var record: Dictionary = feet[side]
-		var support_position: Vector3 = record.support_position
-		var support_normal: Vector3 = record.support_normal
-		var foot_index := skeleton.find_bone("foot_" + String(side))
-		var toe_index := skeleton.find_bone("toe_" + String(side))
-		var foot_deform := skeleton.get_bone_global_pose(foot_index) * skeleton.get_bone_global_rest(foot_index).affine_inverse()
-		var toe_deform := skeleton.get_bone_global_pose(toe_index) * skeleton.get_bone_global_rest(toe_index).affine_inverse()
-		var center_x := -0.14 if side == &"l" else 0.14
-		var minimum := INF
-		var maximum := -INF
-		# The shipped BootSole uses 62% foot and 38% toe weights at every
-		# vertex. Probe its four bottom corners against the sampled ramp plane.
-		for offset_x in [-0.095, 0.095]:
-			for z in [-0.085, 0.295]:
-				var bind := Vector3(center_x + offset_x, 0.0, z)
-				var deformed := foot_deform * bind * 0.62 + toe_deform * bind * 0.38
-				var point := skeleton.global_transform * deformed
-				var gap := (point - support_position).dot(support_normal)
-				minimum = minf(minimum, gap)
-				maximum = maxf(maximum, gap)
+		var gaps := _boot_sole_gaps(presentation, side, record)
+		var minimum := gaps.x
+		var maximum := gaps.y
 		_check(
 			maximum - minimum <= MAX_BOOT_SOLE_PLANE_SPREAD_M,
 			"%s %s boot sole follows support plane (corner gaps %+.4f to %+.4f m)" % [label, side, minimum, maximum]
 		)
+		_check(
+			minimum >= MIN_BOOT_SOLE_GAP_M and maximum <= MAX_BOOT_SOLE_GAP_M,
+			"%s %s skinned heel and toe contact the support without penetration or hover" % [label, side]
+		)
+
+
+func _boot_sole_gaps(presentation: PilotSkinnedPresentation, side: StringName, record: Dictionary) -> Vector2:
+	var skeleton := presentation.get_skeleton()
+	var support_position: Vector3 = record.support_position
+	var support_normal: Vector3 = record.support_normal
+	var foot_index := skeleton.find_bone("foot_" + String(side))
+	var toe_index := skeleton.find_bone("toe_" + String(side))
+	var foot_deform := skeleton.get_bone_global_pose(foot_index) * skeleton.get_bone_global_rest(foot_index).affine_inverse()
+	var toe_deform := skeleton.get_bone_global_pose(toe_index) * skeleton.get_bone_global_rest(toe_index).affine_inverse()
+	var center_x := -0.14 if side == &"l" else 0.14
+	var minimum := INF
+	var maximum := -INF
+	# The shipped BootSole uses 62% foot and 38% toe weights at every
+	# vertex. Probe its four bottom corners against the sampled ramp plane.
+	for offset_x in [-0.095, 0.095]:
+		for z in [-0.085, 0.295]:
+			var bind := Vector3(center_x + offset_x, 0.0, z)
+			var deformed := foot_deform * bind * 0.62 + toe_deform * bind * 0.38
+			var point := skeleton.global_transform * deformed
+			var gap := (point - support_position).dot(support_normal)
+			minimum = minf(minimum, gap)
+			maximum = maxf(maximum, gap)
+	return Vector2(minimum, maximum)
 
 
 func _test_rotated_presentation_and_seat_clips(world: Node3D) -> void:
@@ -297,6 +410,7 @@ func _test_rotated_presentation_and_seat_clips(world: Node3D) -> void:
 		}, presentation.get_foot_placement_attachment_generation())
 		_check(
 			not bool(presentation.get_foot_placement_snapshot().get("active", true))
+			and is_zero_approx(float(presentation.get_foot_placement_snapshot().get("visual_pelvis_drop_m", INF)))
 			and skeleton.get_bone_global_pose(foot_index).is_equal_approx(before)
 			and animation.current_animation_position == time_before,
 			"%s keeps the authored seated/transition pose and timing" % clip

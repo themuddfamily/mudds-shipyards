@@ -124,6 +124,9 @@ const FOOT_PLACEMENT_MAX_CORRECTION_M := 0.10
 const FOOT_PLACEMENT_CONTACT_LIMIT_M := 0.08
 const FOOT_PLACEMENT_MAX_SOLE_TILT_RAD := PI / 6.0
 const FOOT_PLACEMENT_SLOPE_FADE_RAD := PI / 180.0
+const FOOT_PLACEMENT_MAX_PELVIS_DROP_M := 0.04
+const FOOT_PLACEMENT_PELVIS_SPEED_MPS := 0.36
+const FOOT_PLACEMENT_PLANTED_CORRECTION_M := 0.045
 const FOOT_PLACEMENT_MOTION_STATES := [&"idle", &"walk", &"run"]
 const FOOT_CHAIN_BONES := {
 	&"l": [&"thigh_l", &"calf_l", &"foot_l"],
@@ -197,6 +200,12 @@ var _foot_placement_attachment_generation := 0
 var _foot_placement_attached := false
 var _last_foot_placement_physics_frame := -1
 var _foot_placement_snapshot: Dictionary = {}
+var _visual_pelvis_drop_m := 0.0
+var _visual_pelvis_source_position := Vector3.ZERO
+var _visual_pelvis_applied_position := Vector3.ZERO
+var _visual_pelvis_offset_applied := false
+var _last_pelvis_animation_name := StringName()
+var _last_pelvis_animation_time := -INF
 
 
 func _enter_tree() -> void:
@@ -206,11 +215,17 @@ func _enter_tree() -> void:
 	_foot_placement_attachment_generation += 1
 	_foot_placement_attached = true
 	_last_foot_placement_physics_frame = -1
+	_visual_pelvis_drop_m = 0.0
+	_visual_pelvis_offset_applied = false
+	_last_pelvis_animation_name = &""
+	_last_pelvis_animation_time = -INF
 	_foot_placement_snapshot = _empty_foot_placement_snapshot(&"attached")
 
 
 func _exit_tree() -> void:
 	_clear_material_property_names_cache()
+	_restore_visual_pelvis_source()
+	_visual_pelvis_drop_m = 0.0
 	_foot_placement_attached = false
 	_last_foot_placement_physics_frame = -1
 	_foot_placement_snapshot = _empty_foot_placement_snapshot(&"detached")
@@ -1585,7 +1600,7 @@ func get_foot_placement_snapshot() -> Dictionary:
 
 
 ## Applies one caller-physics sample after the imported AnimationPlayer has
-## advanced. The operation changes only the current thigh/calf/foot bone poses;
+## advanced. The operation changes only the current pelvis/thigh/calf/foot bone poses;
 ## it creates no modifier nodes, edits no animation resource, and has no body,
 ## collision, input, camera, traversal, or timing authority.
 func apply_foot_placement(sample: Variant, expected_attachment_generation: int) -> Dictionary:
@@ -1612,12 +1627,36 @@ func apply_foot_placement(sample: Variant, expected_attachment_generation: int) 
 	):
 		return _foot_placement_result(false, &"invalid_foot_placement_sample")
 	_last_foot_placement_physics_frame = physics_frame
+	var animation_advanced := is_instance_valid(_animation_player) and (
+		_animation_player.assigned_animation != _last_pelvis_animation_name
+		or not is_equal_approx(
+			_animation_player.current_animation_position, _last_pelvis_animation_time
+		)
+	)
+	_restore_visual_pelvis_source()
 	if motion_state not in FOOT_PLACEMENT_MOTION_STATES:
+		_visual_pelvis_drop_m = 0.0
 		_foot_placement_snapshot = _empty_foot_placement_snapshot(
 			&"motion_state_inactive", physics_frame, motion_state
 		)
 		return _foot_placement_result(true, &"foot_placement_inactive")
 	var normalized_up := (movement_up as Vector3).normalized()
+	if animation_advanced:
+		# A shared hip drop is safe while standing on two planted boots. A walk
+		# or run contains swing phases where the same drop can drive the lifted
+		# sole through the deck, so ease it away as locomotion begins.
+		var needed_drop := 0.0
+		if motion_state == &"idle":
+			needed_drop = _required_visual_pelvis_drop(feet as Dictionary, normalized_up)
+		var step := FOOT_PLACEMENT_PELVIS_SPEED_MPS / maxf(1.0, Engine.physics_ticks_per_second)
+		_visual_pelvis_drop_m = move_toward(_visual_pelvis_drop_m, needed_drop, step)
+		if _visual_pelvis_drop_m > 0.0001:
+			_apply_visual_pelvis_drop(normalized_up, _visual_pelvis_drop_m)
+	else:
+		_visual_pelvis_drop_m = 0.0
+	if is_instance_valid(_animation_player):
+		_last_pelvis_animation_name = _animation_player.assigned_animation
+		_last_pelvis_animation_time = _animation_player.current_animation_position
 	var corrected_feet := {}
 	for side: StringName in FOOT_CHAIN_BONES:
 		var support: Variant = (feet as Dictionary).get(side, {})
@@ -1638,6 +1677,7 @@ func apply_foot_placement(sample: Variant, expected_attachment_generation: int) 
 		"attachment_generation": _foot_placement_attachment_generation,
 		"physics_frame": physics_frame,
 		"motion_state": motion_state,
+		"visual_pelvis_drop_m": _visual_pelvis_drop_m,
 		"feet": corrected_feet.duplicate(true),
 		"modifier_node_count": find_children("*", "SkeletonModifier3D", true, false).size(),
 	}.duplicate(true)
@@ -1650,8 +1690,114 @@ func clear_foot_placement(expected_attachment_generation: int, reason: StringNam
 		or expected_attachment_generation != _foot_placement_attachment_generation
 	):
 		return _foot_placement_result(false, &"stale_foot_placement_attachment")
+	_restore_visual_pelvis_source()
+	_visual_pelvis_drop_m = 0.0
 	_foot_placement_snapshot = _empty_foot_placement_snapshot(reason)
 	return _foot_placement_result(true, &"foot_placement_cleared")
+
+
+func _restore_visual_pelvis_source() -> void:
+	if not _visual_pelvis_offset_applied or not is_instance_valid(_skeleton):
+		return
+	var pelvis_index := _skeleton.find_bone(&"pelvis")
+	if pelvis_index >= 0 and _skeleton.get_bone_pose_position(pelvis_index).is_equal_approx(
+		_visual_pelvis_applied_position
+	):
+		_skeleton.set_bone_pose_position(pelvis_index, _visual_pelvis_source_position)
+	_visual_pelvis_offset_applied = false
+
+
+func _apply_visual_pelvis_drop(movement_up_world: Vector3, drop_m: float) -> void:
+	var pelvis_index := _skeleton.find_bone(&"pelvis")
+	if pelvis_index < 0:
+		return
+	_skeleton.force_update_all_bone_transforms()
+	var parent_index := _skeleton.get_bone_parent(pelvis_index)
+	if parent_index < 0:
+		return
+	var up_local := _skeleton.global_basis.inverse() * movement_up_world
+	var parent_basis := _skeleton.get_bone_global_pose(parent_index).basis
+	_visual_pelvis_source_position = _skeleton.get_bone_pose_position(pelvis_index)
+	_visual_pelvis_applied_position = (
+		_visual_pelvis_source_position - parent_basis.inverse() * up_local * drop_m
+	)
+	_skeleton.set_bone_pose_position(pelvis_index, _visual_pelvis_applied_position)
+	_visual_pelvis_offset_applied = true
+	_skeleton.force_update_all_bone_transforms()
+
+
+func _required_visual_pelvis_drop(feet: Dictionary, movement_up_world: Vector3) -> float:
+	# Find the smallest shared hip drop that puts every planted ankle within its
+	# unchanged two-bone reach. Only source poses with a nearby support and a
+	# sloped normal participate; a lifted swing foot cannot pull the torso down.
+	var sloped_support := false
+	for support: Variant in feet.values():
+		if support is Dictionary:
+			var normal: Variant = (support as Dictionary).get("normal", Vector3.ZERO)
+			if (
+				normal is Vector3 and (normal as Vector3).is_finite()
+				and not (normal as Vector3).is_zero_approx()
+				and movement_up_world.angle_to((normal as Vector3).normalized()) > 0.00001
+			):
+				sloped_support = true
+				break
+	if not sloped_support:
+		return 0.0
+	_skeleton.force_update_all_bone_transforms()
+	var to_skeleton := _skeleton.global_transform.affine_inverse()
+	var up_local := (_skeleton.global_basis.inverse() * movement_up_world).normalized()
+	var needed := 0.0
+	var available := FOOT_PLACEMENT_MAX_PELVIS_DROP_M
+	var planted := 0
+	for side: StringName in FOOT_CHAIN_BONES:
+		var support: Variant = feet.get(side, {})
+		if not support is Dictionary:
+			continue
+		var position: Variant = (support as Dictionary).get("position", Vector3.INF)
+		var normal: Variant = (support as Dictionary).get("normal", Vector3.ZERO)
+		if (
+			not position is Vector3 or not (position as Vector3).is_finite()
+			or not normal is Vector3 or not (normal as Vector3).is_finite()
+			or (normal as Vector3).is_zero_approx()
+		):
+			continue
+		var slope := movement_up_world.angle_to((normal as Vector3).normalized())
+		var chain: Array = FOOT_CHAIN_BONES[side]
+		var thigh_index := _skeleton.find_bone(chain[0])
+		var calf_index := _skeleton.find_bone(chain[1])
+		var foot_index := _skeleton.find_bone(chain[2])
+		if thigh_index < 0 or calf_index < 0 or foot_index < 0:
+			continue
+		var hip := _skeleton.get_bone_global_pose(thigh_index).origin
+		var knee := _skeleton.get_bone_global_pose(calf_index).origin
+		var ankle := _skeleton.get_bone_global_pose(foot_index).origin
+		var support_local := to_skeleton * (position as Vector3)
+		var correction := (support_local - (ankle - up_local * FOOT_SOLE_CLEARANCE_M)).dot(up_local)
+		if absf(correction) >= FOOT_PLACEMENT_PLANTED_CORRECTION_M:
+			continue
+		planted += 1
+		available = minf(available, FOOT_PLACEMENT_CONTACT_LIMIT_M - absf(correction))
+		if slope < 0.00001:
+			continue
+		var target := ankle + up_local * correction
+		var delta := target - hip
+		var reach := hip.distance_to(knee) + knee.distance_to(ankle) - 0.0005
+		if delta.length() <= reach:
+			continue
+		var axial := delta.dot(up_local)
+		var perpendicular_squared := maxf(0.0, delta.length_squared() - axial * axial)
+		if perpendicular_squared >= reach * reach:
+			continue
+		var drop := maxf(0.0, -axial - sqrt(reach * reach - perpendicular_squared))
+		var confidence := clampf(
+			(FOOT_PLACEMENT_PLANTED_CORRECTION_M - absf(correction)) / 0.02, 0.0, 1.0
+		)
+		var slope_weight := clampf(slope / FOOT_PLACEMENT_SLOPE_FADE_RAD, 0.0, 1.0)
+		slope_weight = slope_weight * slope_weight * (3.0 - 2.0 * slope_weight)
+		needed = maxf(needed, (drop + 0.001) * confidence * slope_weight)
+	if planted != 2:
+		return 0.0
+	return clampf(needed, 0.0, available)
 
 
 func _apply_foot_chain(
@@ -1842,6 +1988,7 @@ func _empty_foot_placement_snapshot(
 		"physics_frame": physics_frame,
 		"motion_state": motion_state,
 		"reason": reason,
+		"visual_pelvis_drop_m": 0.0,
 		"feet": {},
 		"modifier_node_count": find_children("*", "SkeletonModifier3D", true, false).size(),
 	}.duplicate(true)
