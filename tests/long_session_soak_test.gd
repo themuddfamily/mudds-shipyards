@@ -489,7 +489,9 @@ func _walk_and_board(game: GameFlow, player: PlayerController, craft: HeroShip) 
 		Input.action_release(&"move_forward")
 		var deck_travel := (player.global_position - deck_start).slide(Vector3.UP).length()
 		print("SOAK_BOMBER_BOARD_WALK metres=%.3f" % deck_travel)
-		if deck_travel < 0.25:
+		# The hatch can enter range within a few centimetres; only require
+		# observable horizontal movement, not an arbitrary approach distance.
+		if deck_travel < 0.05:
 			return false
 	var arrived := await _walk_until(
 		&"move_forward",
