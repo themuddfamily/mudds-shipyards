@@ -302,6 +302,18 @@ func _build_exploration_landmarks() -> void:
 			var point := start.lerp(finish, (float(j) + 0.4) / 3.0) + edge
 			_exploration_box(content, "TrailPost%d_%d" % [i, j], point + Vector3.UP * 0.3, Vector3(0.13, 0.6, 0.13), metal)
 			_exploration_box(content, "TrailCap%d_%d" % [i, j], point + Vector3.UP * 0.62, Vector3(0.19, 0.06, 0.19), amber)
+	# The second survey stop is south of the lookout. A branch from the
+	# landward entrance carries the same gravel cue into interaction range.
+	var stone_branch_start := Vector3(55.0, 0.0, -20.0)
+	var stone_branch_end := Vector3(51.0, 0.0, -32.0)
+	var branch_direction := stone_branch_end - stone_branch_start
+	var stone_branch := _exploration_box(content, "StoneTrail", (stone_branch_start + stone_branch_end) * 0.5 + Vector3.UP * 0.035, Vector3(2.8, 0.035, branch_direction.length() + 0.6), deck)
+	stone_branch.rotation.y = atan2(branch_direction.x, branch_direction.z)
+	var branch_edge := Vector3(branch_direction.z, 0, -branch_direction.x).normalized() * 1.6
+	for j in range(2):
+		var point := stone_branch_start.lerp(stone_branch_end, (float(j) + 0.5) / 2.0) + branch_edge
+		_exploration_box(content, "StoneTrailPost%d" % j, point + Vector3.UP * 0.3, Vector3(0.13, 0.6, 0.13), metal)
+		_exploration_box(content, "StoneTrailCap%d" % j, point + Vector3.UP * 0.62, Vector3(0.19, 0.06, 0.19), amber)
 
 	# Grounded wayfinding: the sign is attached to a backboard and two posts.
 	var sign := MeshInstance3D.new()

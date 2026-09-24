@@ -8,7 +8,7 @@ const WORLD := preload("res://assets/world/planets/aurora_temperate_world.tres")
 const ATMOSPHERE := preload("res://assets/world/planets/aurora_temperate_atmosphere.tres")
 const TERRAIN := preload("res://assets/world/planets/aurora_temperate_terrain.tres")
 const LANDING := preload("res://assets/world/planets/aurora_foundation_landing.tres")
-const EXPECTED_ASSERTIONS := 9
+const EXPECTED_ASSERTIONS := 10
 var failures := PackedStringArray()
 var assertions := 0
 func _init() -> void: call_deferred("run")
@@ -30,6 +30,16 @@ func run() -> void:
 	var environments := scene.find_children("*", "WorldEnvironment", true, false)
 	check(environments.size() == 1 and environments[0] == scene.get_node("AuroraAtmosphereComposition/WorldEnvironment") and not scene.is_processing() and bool(scene.audit().valid), "composition remains the exactly-one WorldEnvironment owner and scene has no cadence")
 	check(scene.get_node("LandingRegion/Markers/ApproachEntry").position == Vector3(0,60,300) and scene.get_node("LandingRegion/Markers/AuroraEgress").position == Vector3(18,0,0), "scene markers match the bounded landing declaration")
+	var branch := scene.get_node("LandingRegion/CoastalExploration/StoneTrail") as MeshInstance3D
+	var stones := scene.find_child("SurveyStones", true, false) as Marker3D
+	var branch_end := branch.global_transform * Vector3(0, 0, (branch.mesh as BoxMesh).size.z * 0.5 - 0.3)
+	var grounded := true
+	for fraction in [0.0, 0.5, 1.0]:
+		var position := branch.global_transform * Vector3(0, 0, ((branch.mesh as BoxMesh).size.z - 0.6) * (fraction - 0.5))
+		var ray := PhysicsRayQueryParameters3D.create(position + Vector3.UP * 3.0, position - Vector3.UP * 5.0, 1)
+		var hit := scene.get_world_3d().direct_space_state.intersect_ray(ray)
+		grounded = grounded and not hit.is_empty() and absf((hit.position as Vector3).y - position.y) < 1.0
+	check(branch != null and stones != null and branch_end.distance_to(stones.global_position) < 3.2 and grounded and branch.get_child_count() == 0, "the visible branch reaches the standing-stone survey prompt on supported ground without adding collision")
 	var audit := scene.audit()
 	var surface_content := audit.get("surface_content", {}) as Dictionary
 	check(surface_content.get("route_id") == &"aurora_pad_to_staging" and surface_content.get("route_points_region_local_m") == PackedVector3Array([Vector3.ZERO, Vector3(18,0,0), Vector3(42,0,0)]) and (surface_content.get("landmark_positions_region_local_m", {}) as Dictionary).get(&"aurora_staging") == Vector3(42,0,0) and not bool(surface_content.get("traversable", true)) and not bool(surface_content.get("route_authority", true)) and not bool((audit.get("authority", {}) as Dictionary).get("surface_route", true)), "Aurora publishes only the exact detached pad-to-staging route and landmark data")
