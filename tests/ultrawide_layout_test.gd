@@ -294,6 +294,17 @@ func _exercise_state(resolution: Vector2i, preset_id: StringName, state: StringN
 	await process_frame
 	await process_frame
 	var report := _measure(resolution, preset_id, state)
+	if state == &"ship_rest_overlay":
+		var caption := _rest_overlay.get("_caption") as Label
+		var shade := _rest_overlay.get("_shade") as ColorRect
+		_check(Contract.safe_rect(root.get_visible_rect().size,
+			float(_rest_overlay.get("_ui_scale"))).encloses(caption.get_global_rect()),
+			"%dx%d %s keeps the wake instruction in the readable band" % [
+				resolution.x, resolution.y, preset_id])
+		if bool(_rest_overlay.get("_reduced_motion")):
+			_check(is_equal_approx(shade.color.a, 0.985) and not _rest_overlay.is_processing(),
+				"%dx%d %s shows the rest shade immediately" % [
+					resolution.x, resolution.y, preset_id])
 	print("ULTRAWIDE_LAYOUT ", JSON.stringify(report))
 	var label := "%dx%d %s/%s" % [resolution.x, resolution.y, preset_id, state]
 	_check(
@@ -692,6 +703,8 @@ func _enter_state(state: StringName) -> void:
 				_rest_overlay = RestOverlayType.new() as CanvasLayer
 				_rest_overlay.name = "UltrawideRestOverlay"
 				_game.add_child(_rest_overlay)
+			_rest_overlay.call(&"configure_accessibility", _hud.get_ui_scale(),
+				_hud.is_reduced_motion())
 			_rest_overlay.call(&"begin_rest", "Cinder long-range bomber", "E")
 		&"pause_menu":
 			_hud.set_paused(true)

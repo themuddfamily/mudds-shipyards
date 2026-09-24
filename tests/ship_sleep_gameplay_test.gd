@@ -7,6 +7,7 @@ extends "res://tests/in_flight_cabin_integration_test.gd"
 # engine catches up several ticks per process frame, which is the only reason the
 # shared 400-iteration budget used to suffice. Size the budget for the walk.
 const AISLE_TICK_BUDGET := 1500
+const SafeArea := preload("res://scripts/ui/ultrawide_safe_area_contract.gd")
 
 
 func _run() -> void:
@@ -63,6 +64,8 @@ func _run() -> void:
 	await process_frame
 	_check(_hud_interaction_text(game).contains("SLEEP"), "physical bunk offers the visible sleep prompt")
 	var camera_mode := player.get_camera_view_mode()
+	game.runtime_settings.ui_scale = 1.6
+	game.runtime_settings.reduced_motion = true
 	await _press_live_action(&"interact", 1)
 	var sleeping := await _wait_until(func() -> bool: return player.is_sleeping(), 2.0)
 	_check(sleeping, "E lies down and enters sleep")
@@ -73,6 +76,56 @@ func _run() -> void:
 		return
 	_check(bunk.is_reserved_for(player) and not craft.is_piloted(), "sleep reserves the bunk without granting ship controls")
 	_check(game._ship_rest_overlay != null and game._ship_rest_overlay.visible, "rest has a visible wake instruction")
+	var rest_caption := game._ship_rest_overlay.get("_caption") as Label
+	var rest_shade := game._ship_rest_overlay.get("_shade") as ColorRect
+	_check(rest_caption.get_theme_font_size(&"font_size") == 42
+		and SafeArea.safe_rect(root.get_visible_rect().size, 1.6).encloses(rest_caption.get_global_rect()),
+		"large wake text stays in the readable viewport band")
+	_check(is_equal_approx(rest_shade.color.a, 0.985)
+		and not game._ship_rest_overlay.is_processing(),
+		"reduced motion shows the sleep shade immediately")
+	_check(rest_caption.text.contains(game.hud.get_action_prompt(&"interact")),
+		"wake instruction uses the current interaction glyph")
+	var previous_size := root.size
+	var previous_content_size := root.content_scale_size
+	var previous_aspect := root.content_scale_aspect
+	root.content_scale_aspect = Window.CONTENT_SCALE_ASPECT_EXPAND
+	for resolution in [Vector2i(1024, 768), Vector2i(5120, 1440)]:
+		root.content_scale_size = resolution
+		root.size = resolution
+		await process_frame
+		await process_frame
+		_check(SafeArea.safe_rect(root.get_visible_rect().size, 1.6).encloses(
+			rest_caption.get_global_rect()),
+			"occupied bunk keeps large wake text in the readable %dx%d band" % [
+				resolution.x, resolution.y])
+	root.content_scale_size = previous_content_size
+	root.content_scale_aspect = previous_aspect
+	root.size = previous_size
+	await process_frame
+	game.runtime_settings.ui_scale = 0.75
+	_check(rest_caption.get_theme_font_size(&"font_size") == 20,
+		"live UI scale changes update the occupied bunk")
+	game.runtime_settings.ui_scale = 1.6
+	game.runtime_settings.reduced_motion = false
+	game.runtime_settings.reduced_motion = true
+	_check(is_equal_approx(rest_shade.color.a, 0.985)
+		and not game._ship_rest_overlay.is_processing(),
+		"live reduced-motion change keeps the occupied bunk's shade immediate")
+	var original_profile := game.runtime_settings.get_input_binding_profile()
+	var remapped_profile := original_profile.duplicate_profile()
+	var interact_bindings := remapped_profile.get_bindings(&"interact")
+	for binding in interact_bindings:
+		if StringName(binding.get("device", &"")) == &"keyboard":
+			binding["physical_keycode"] = KEY_F13
+	_check(remapped_profile.set_bindings(&"interact", interact_bindings)
+		and game.runtime_settings.set_input_binding_profile(remapped_profile),
+		"live input remap is accepted during sleep")
+	await process_frame
+	_check(game.hud.get_action_prompt(&"interact") == "F13"
+		and rest_caption.text.contains("[ F13 ]"),
+		"occupied bunk refreshes the remapped wake glyph")
+	game.runtime_settings.set_input_binding_profile(original_profile)
 	var start := craft.global_position
 	craft.velocity = craft.global_basis.x * 3.0
 	Input.action_press(&"move_forward")

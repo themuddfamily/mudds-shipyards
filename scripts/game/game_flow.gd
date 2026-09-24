@@ -7828,6 +7828,10 @@ func _set_seat_rest_context(seat: StationSeat, enabled: bool) -> void:
 				_ship_rest_overlay = ShipRestOverlayType.new()
 				_ship_rest_overlay.name = "ShipRestOverlay"
 				add_child(_ship_rest_overlay)
+			_ship_rest_overlay.configure_accessibility(
+				runtime_settings.ui_scale if runtime_settings != null else 1.0,
+				runtime_settings.reduced_motion if runtime_settings != null else false
+			)
 			_ship_rest_overlay.begin_rest(
 				(seat as ShipBunk).get_ship().get_display_name(), hud.get_action_prompt(&"interact")
 			)
@@ -17967,6 +17971,10 @@ func _sync_server_browser_defaults() -> void:
 func _apply_accessibility_settings() -> void:
 	if runtime_settings == null:
 		return
+	if is_instance_valid(_ship_rest_overlay):
+		_ship_rest_overlay.configure_accessibility(
+			runtime_settings.ui_scale, runtime_settings.reduced_motion
+		)
 	_bind_station_solar_runtime_settings()
 	if hud.has_method("set_accessibility"):
 		hud.set_accessibility(runtime_settings.get_accessibility_descriptor())
