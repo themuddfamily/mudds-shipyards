@@ -58,6 +58,10 @@ func _run() -> void:
 	var body := board.get_node_or_null(^"CollisionBackedConsole") as StaticBody3D
 	var body_collision := body.get_node_or_null(^"Collision") as CollisionShape3D \
 		if body != null else null
+	var pedestal := body.get_node_or_null(^"Pedestal") as MeshInstance3D \
+		if body != null else null
+	var console := body.get_node_or_null(^"ActivityBoardConsole") as MeshInstance3D \
+		if body != null else null
 	var interaction := board.get_node_or_null(^"InteractionCollision") as CollisionShape3D
 	var readability := body.get_node_or_null(^"StationDefenseReadability") as Node3D \
 		if body != null else null
@@ -117,6 +121,14 @@ func _run() -> void:
 		and interaction.position == Vector3(1.25, 0.25, 0.45)
 		and board.collision_layer == PHYSICS_LAYERS.INTERACTABLE_AREA_LAYER,
 		"presentation leaves body collision, interaction envelope, and layer unchanged"
+	)
+	_check(
+		_housing_matches(pedestal, Vector3(1.4, 1.0, 2.2), Vector3(1.25, -0.5, 0.0))
+		and _housing_matches(console, Vector3(0.75, 1.35, 1.8), Vector3(1.25, 0.62, 0.0))
+		and body_collision != null
+		and pedestal != null and pedestal.position == body_collision.position
+		and (body_collision.shape as BoxShape3D).size == pedestal.mesh.get_aabb().size,
+		"pedestal and console have real fixed-width chamfers with unchanged visual and collision envelopes"
 	)
 	var snapshot: Dictionary = board.get_snapshot()
 	_check(
@@ -254,6 +266,21 @@ func _run() -> void:
 func _check(condition: bool, message: String) -> void:
 	if not condition:
 		_failures.append("FAIL: " + message)
+
+
+func _housing_matches(mesh_instance: MeshInstance3D, size: Vector3, position: Vector3) -> bool:
+	if mesh_instance == null or mesh_instance.position != position:
+		return false
+	var contract := StationSurfaceKit.structural_bevel_contract(mesh_instance.mesh, size, 0.04)
+	if not bool(contract.get("valid", false)):
+		return false
+	var vertices := mesh_instance.mesh.surface_get_arrays(0)[Mesh.ARRAY_VERTEX] as PackedVector3Array
+	var half := size * 0.5
+	var edge_vertex := Vector3(half.x, half.y - 0.04, half.z - 0.04)
+	for vertex in vertices:
+		if vertex.is_equal_approx(edge_vertex):
+			return true
+	return false
 
 
 func _capture(
