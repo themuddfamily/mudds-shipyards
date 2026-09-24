@@ -9,6 +9,10 @@ gates that remain open.
 
 ## Building
 
+Keep checkpoint executables, installers, ZIPs and notes in this repository's
+`builds/windows/`. The older Downloads location mentioned in the historical
+verification result below is no longer a publication destination.
+
 ```sh
 tools/release/build_windows_installer.sh builds/windows/MuddsShipyards-<sha7>.exe
 ```
