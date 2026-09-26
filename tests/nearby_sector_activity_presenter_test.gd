@@ -24,10 +24,44 @@ func _initialize() -> void:
 	activity_ids.sort()
 	_check(activity_ids == [
 		"cinder_debris_beacon_traversal", "cinder_derelict_structure_scan",
+		"cinder_hulk_power_restoration",
 		"cinder_platform_mining_run", "cinder_platform_supply_run",
 		"cinder_reach_checkpoint_route", "cinder_reach_emberline_convoy",
 		"cinder_relay_patrol", "station_defense",
 	], "the presenter renders each integrated activity once regardless of priority order")
+	var hulk_id: StringName = &"cinder_hulk_power_restoration"
+	var away_hulk := _card(view, hulk_id)
+	_check(away_hulk.get("state_id") == &"unavailable"
+		and "FLY TOWARD CINDER REACH" in str(away_hulk.get("text", ""))
+		and "DESTINATION BOARD" in str(away_hulk.get("text", "")),
+		"the unloaded hulk row guides the pilot into sensor range")
+	var dock_position := Vector3(-135.0, 24.0, -470.0)
+	var loaded_hulk := _card(presenter.present({"binding_available": true,
+		"hulk_power": {"state_id": &"idle", "hulk_loaded": true,
+			"dock_position": dock_position}}), hulk_id)
+	_check(loaded_hulk.get("state_id") == &"available"
+		and loaded_hulk.get("dock_position") == dock_position
+		and "HULK DOCK MINIMAP MARK" in str(loaded_hulk.get("text", ""))
+		and "THROW THE BREAKER" in str(loaded_hulk.get("text", "")),
+		"the loaded row points at the real dock and the on-foot breaker")
+	var restoring_hulk := _card(presenter.present({"hulk_power": {
+		"state_id": &"active", "hulk_loaded": true,
+	}}), hulk_id)
+	_check(restoring_hulk.get("state_id") == &"active"
+		and "HOLD THE REACTOR GALLERY" in str(restoring_hulk.get("text", "")),
+		"the board follows the breaker while power is restoring")
+	var claimed_hulk := _card(presenter.present({"binding_available": false,
+		"hulk_power": {"state_id": &"claimed", "reward_claimed": true,
+			"hulk_loaded": false}}), hulk_id)
+	_check(claimed_hulk.get("state_id") == &"completed"
+		and "POWER CELL SECURED" in str(claimed_hulk.get("text", "")),
+		"the durable claim remains complete when the sector unloads")
+	_check((claimed_hulk.get("intents", []) as Array).is_empty()
+		and not bool(claimed_hulk.get("actions_enabled", true))
+		and not bool(presenter.select(hulk_id).get("accepted", true))
+		and not bool(presenter.start_intent(hulk_id).get("accepted", true))
+		and not bool(presenter.reset_intent(hulk_id).get("accepted", true)),
+		"the hulk row has no board path to start, reset or claim salvage")
 	var mining_card := _card(view, &"cinder_platform_mining_run")
 	_check("COMPLETED" in str(mining_card.get("text", "")) and bool(mining_card.get("reward_pending", false)), "completed mining text includes state and pending reward")
 	var scan_card := _card(view, &"cinder_derelict_structure_scan")

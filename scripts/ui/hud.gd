@@ -5679,7 +5679,7 @@ func _build_nearby_activity_page() -> void:
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	stack.add_child(title)
 	var subtitle := _label(
-		"Eight activity records. Start/reset requests still obey ship, route and physical-board gates.",
+		"Activity records and a hulk salvage guide. Start/reset requests obey physical gates.",
 		11,
 		MUTED,
 	)
@@ -6463,7 +6463,7 @@ func _add_nearby_activity_row(card: Dictionary) -> void:
 	label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	row.add_child(label)
-	for action in [&"select", &"start", &"reset"]:
+	for action in card.get("intents", [&"select", &"start", &"reset"]):
 		var action_label := str(card.get("reset_label", "RESET")) \
 			if action == &"reset" else str(action).to_upper()
 		var button := _menu_button(action_label, MUTED)
@@ -6471,7 +6471,24 @@ func _add_nearby_activity_row(card: Dictionary) -> void:
 		button.disabled = not bool(card.get("actions_enabled", true))
 		button.pressed.connect(_forward_nearby_activity_intent.bind(action, activity_id))
 		row.add_child(button)
+	if activity_id == &"cinder_hulk_power_restoration":
+		var briefing := _menu_button("BRIEFING", MUTED)
+		briefing.name = "HulkSalvageBriefingButton"
+		briefing.disabled = not bool(card.get("briefing_available", false))
+		briefing.tooltip_text = "Show the hulk's existing destination briefing."
+		briefing.pressed.connect(_request_hulk_activity_briefing)
+		row.add_child(briefing)
 	_nearby_activity_rows.add_child(row)
+
+
+func _request_hulk_activity_briefing() -> void:
+	var hulk := _nearby_activity_snapshot.get("hulk_power", {}) as Dictionary
+	if not bool(hulk.get("hulk_loaded", false)) \
+			or bool(hulk.get("reward_claimed", false)):
+		return
+	# GameFlow resolves this existing sector-site request through the destination
+	# catalog and checks live reachability before publishing the authored card.
+	sector_site_briefing_requested.emit(&"cinder_hulk_dock_site")
 
 
 func _update_nearby_activity_row(row: Control, card: Dictionary) -> void:
@@ -6485,6 +6502,10 @@ func _update_nearby_activity_row(row: Control, card: Dictionary) -> void:
 			)
 	if row.get_child_count() > 3 and row.get_child(3) is Button:
 		(row.get_child(3) as Button).text = str(card.get("reset_label", "RESET"))
+	if StringName(card.get("activity_id", &"")) == &"cinder_hulk_power_restoration":
+		var briefing := row.find_child("HulkSalvageBriefingButton", false, false) as Button
+		if is_instance_valid(briefing):
+			briefing.disabled = not bool(card.get("briefing_available", false))
 
 
 func _forward_nearby_activity_intent(action: StringName, activity_id: StringName) -> void:

@@ -44,8 +44,8 @@ func _run() -> void:
 	var defense_row := _row(rows, &"station_defense")
 	_check(
 		nearby_page != null and nearby_page.visible and not activity_page.visible
-		and rows != null and rows.get_child_count() == 8,
-		"one exclusive page exposes all eight production activity cards"
+		and rows != null and rows.get_child_count() == 9,
+		"one exclusive page exposes eight activities and the hulk salvage guide"
 	)
 	_check(
 		race_row != null

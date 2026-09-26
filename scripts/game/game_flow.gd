@@ -14866,6 +14866,7 @@ func _sync_nearby_activity_hud() -> void:
 	_sync_hulk_power_restoration_binding()
 	var snapshot := binding.call(&"get_snapshot") as Dictionary
 	snapshot["binding_available"] = true
+	snapshot["hulk_power"] = get_hulk_power_restoration_snapshot()
 	_sync_nearby_activity_audio(snapshot)
 	if hud.has_method(&"set_nearby_activity_snapshot"):
 		hud.call(&"set_nearby_activity_snapshot", snapshot)
@@ -14874,9 +14875,11 @@ func _sync_nearby_activity_hud() -> void:
 func _set_unloaded_nearby_activity_hud() -> void:
 	if not is_instance_valid(hud) or not hud.has_method(&"set_nearby_activity_snapshot"):
 		return
+	_sync_hulk_power_restoration_binding()
 	hud.call(&"set_nearby_activity_snapshot", {
 		"binding_available": false,
 		"station_defense": _station_defense_nearby_activity_snapshot(),
+		"hulk_power": get_hulk_power_restoration_snapshot(),
 	})
 
 
@@ -16481,6 +16484,7 @@ func _on_hulk_breaker_engaged(_actor: Node) -> void:
 	_last_hulk_power_result = _hulk_power_activity.engage(
 		player.global_position
 	).duplicate(true)
+	_sync_nearby_activity_hud()
 	if bool(_last_hulk_power_result.get("accepted", false)) and is_instance_valid(hud):
 		hud.set_objective(
 			"Hold the gallery while the auxiliary bus comes up",
@@ -16526,6 +16530,7 @@ func _commit_hulk_power_reward() -> Dictionary:
 	receipt["activity_id"] = StringName(receipt.get("activity_id", &""))
 	var claimed := _hulk_power_activity.commit_reward_receipt(receipt)
 	if bool(claimed.get("accepted", false)):
+		_sync_nearby_activity_hud()
 		if is_instance_valid(_hulk_power_breaker):
 			_hulk_power_breaker.call(&"set_engaged", true)
 		if is_instance_valid(hud):
@@ -16550,6 +16555,9 @@ func get_hulk_power_restoration_snapshot() -> Dictionary:
 	snapshot["available"] = true
 	snapshot["hulk_loaded"] = is_instance_valid(_get_station_hulk())
 	snapshot["breaker_bound"] = is_instance_valid(_hulk_power_breaker)
+	var berth := get_station_hulk_berth()
+	if is_instance_valid(berth) and berth.is_inside_tree():
+		snapshot["dock_position"] = berth.get_dock_transform().origin
 	snapshot["last_reward_result"] = _last_hulk_power_reward_result.duplicate(true)
 	return snapshot
 

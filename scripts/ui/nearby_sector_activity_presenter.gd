@@ -8,6 +8,7 @@ extends RefCounted
 ## input authority; a caller must route any returned intent explicitly.
 
 const SCHEMA_VERSION := 1
+const HULK_POWER_ACTIVITY_ID: StringName = &"cinder_hulk_power_restoration"
 const ACTIVITY_IDS: Array[StringName] = [
 	&"cinder_reach_emberline_convoy",
 	&"cinder_reach_checkpoint_route",
@@ -42,6 +43,7 @@ func present(snapshot: Dictionary) -> Dictionary:
 			+ ACTIVITY_IDS.find(StringName(right.get("activity_id", &"")))
 		return left_key < right_key
 	)
+	cards.append(_hulk_power_card(_snapshot.get("hulk_power", {}) as Dictionary))
 	return {
 		"schema_version": SCHEMA_VERSION,
 		"selected_activity": _selected_activity,
@@ -52,6 +54,44 @@ func present(snapshot: Dictionary) -> Dictionary:
 		"reward_authority": false,
 		"actions": _persistence_actions(),
 		"persistence_feedback": {"status": &"none", "text": "No progress result received."},
+	}.duplicate(true)
+
+
+## The hulk is a physical, one-shot salvage site. Its board entry only points
+## to the streamed dock; it deliberately has no start, reset or reward intent.
+func _hulk_power_card(state: Dictionary) -> Dictionary:
+	var claimed := bool(state.get("reward_claimed", false)) \
+		or StringName(state.get("state_id", &"")) == &"claimed"
+	var loaded := bool(state.get("hulk_loaded", false))
+	var restoring := StringName(state.get("state_id", &"")) in [&"active", &"complete"]
+	var status: StringName = &"completed" if claimed else (
+		&"active" if loaded and restoring else (
+			&"available" if loaded else &"unavailable"
+		)
+	)
+	var guidance := "SALVAGED POWER CELL SECURED — AUXILIARY BUS RESTORED" if claimed else (
+		"AUXILIARY BUS RESTORING — HOLD THE REACTOR GALLERY"
+		if restoring else
+		"DOCK AT THE HULK'S LIT FACE, THEN WALK IN AND THROW THE BREAKER; FOLLOW THE HULK DOCK MINIMAP MARK"
+		if loaded else
+		"FLY TOWARD CINDER REACH TO LOAD THE HULK; CHECK ITS DOCK ON THE DESTINATION BOARD"
+	)
+	return {
+		"activity_id": HULK_POWER_ACTIVITY_ID,
+		"title": "ABANDONED HULK SALVAGE",
+		"state_id": status,
+		"text": "ABANDONED HULK SALVAGE — %s  //  %s" % [
+			_state_text(status), guidance,
+		],
+		"objective_text": guidance,
+		"dock_position": state.get("dock_position", Vector3.ZERO),
+		"destination_site_id": &"cinder_hulk_dock_site",
+		"briefing_available": loaded and not claimed,
+		"focusable": false,
+		"actions_enabled": false,
+		"intents": [],
+		"activity_authority": false,
+		"reward_authority": false,
 	}.duplicate(true)
 
 

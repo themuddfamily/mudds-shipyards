@@ -280,6 +280,7 @@ func _test_production_loop() -> void:
 	) as CinderStreamingProductionBinding
 	var player := game.get_node_or_null(^"Player") as PlayerController
 	var ship := game.get_guided_ship()
+	var hud := game.hud as GameHUD
 	_check(
 		world != null and bootstrap != null and binding != null
 		and player != null and ship != null,
@@ -295,6 +296,12 @@ func _test_production_loop() -> void:
 		and game.get_station_hulk_berth() == null,
 		"the station starts with no hulk and no streamed berth at all"
 	)
+	var hulk_board_row := _hulk_board_row(hud)
+	_check(hulk_board_row != null and hulk_board_row.get_child_count() == 2
+		and "FLY TOWARD CINDER REACH" in (hulk_board_row.get_child(0) as Label).text
+		and (hulk_board_row.get_child(1) as Button).disabled
+		and int(_reward_counts(game).get(String(EXPECTED_REWARD_ID), 0)) == 0,
+		"the Activity Board discovers unloaded salvage without a reward action")
 
 	# --- Fly out -------------------------------------------------------------
 	var anchor := NearbySectorCluster.PLATFORM_ANCHOR
@@ -320,6 +327,17 @@ func _test_production_loop() -> void:
 	if hulk == null or berth == null:
 		await _cleanup(game)
 		return
+	hulk_board_row = _hulk_board_row(hud)
+	var hulk_board_snapshot := (hud.get_nearby_activity_report().get("snapshot", {}) as Dictionary).get(
+		"hulk_power", {}
+	) as Dictionary
+	_check(hulk_board_row != null and hulk_board_row.get_child_count() == 2
+		and "HULK DOCK MINIMAP MARK" in (hulk_board_row.get_child(0) as Label).text
+		and not (hulk_board_row.get_child(1) as Button).disabled
+		and (hulk_board_snapshot.get("dock_position", Vector3.ZERO) as Vector3)
+			.is_equal_approx(berth.get_dock_transform().origin)
+		and int(_reward_counts(game).get(String(EXPECTED_REWARD_ID), 0)) == 0,
+		"the loaded board points to the streamed dock without starting salvage")
 
 	# --- The cockpit can see where this place is -----------------------------
 	# Until now the hulk was reached by walking to a breaker you had to already
@@ -400,6 +418,12 @@ func _test_production_loop() -> void:
 			as PackedStringArray).size() == 2,
 		"the Destination Board offers both places while the sector is resident"
 	)
+	(hulk_board_row.get_child(1) as Button).emit_signal("pressed")
+	_check(StringName(game.get("_activity_tutorial_active_id")) == EXPECTED_ACTIVITY_ID
+		and StringName(game.get_hulk_power_restoration_snapshot().get("state_id", &""))
+			== &"idle"
+		and int(_reward_counts(game).get(String(EXPECTED_REWARD_ID), 0)) == 0,
+		"the board's briefing button reopens the authored card without starting or rewarding salvage")
 	game.set("_piloting", was_piloting)
 
 	# --- Dock ----------------------------------------------------------------
@@ -531,6 +555,12 @@ func _test_production_loop() -> void:
 		and bool(claimed.get("reward_claimed", false)),
 		"holding the gallery brings the auxiliary bus up and claims the cell"
 	)
+	hulk_board_row = _hulk_board_row(hud)
+	_check(hulk_board_row != null and hulk_board_row.get_child_count() == 2
+		and "COMPLETED" in (hulk_board_row.get_child(0) as Label).text
+		and "POWER CELL SECURED" in (hulk_board_row.get_child(0) as Label).text
+		and (hulk_board_row.get_child(1) as Button).disabled,
+		"the Activity Board reports the persisted one-shot completion")
 
 	# --- Exactly once --------------------------------------------------------
 	var ledger := _reward_counts(game)
@@ -570,6 +600,10 @@ func _test_production_loop() -> void:
 		and int(_reward_counts(game).get(String(EXPECTED_REWARD_ID), 0)) == 1,
 		"whole-Main re-entry keeps the cell claimed and the ledger at one receipt"
 	)
+	hulk_board_row = _hulk_board_row(hud)
+	_check(hulk_board_row != null and "COMPLETED" in
+		(hulk_board_row.get_child(0) as Label).text,
+		"whole-Main re-entry restores the completed Activity Board row")
 
 	# A fresh authority configured from the same saved store — the shape a new
 	# process takes — must also read the claim back rather than reopening it.
@@ -656,6 +690,14 @@ func _marker_positions(game: GameFlow) -> Dictionary:
 			families[marker_id] = []
 		(families[marker_id] as Array).append(marker.get("position", Vector3.INF))
 	return families
+
+
+func _hulk_board_row(hud: GameHUD) -> Control:
+	if not is_instance_valid(hud):
+		return null
+	return hud.find_child(
+		"NearbyActivityRow_cinder_hulk_power_restoration", true, false
+	) as Control
 
 
 func _reward_counts(game: GameFlow) -> Dictionary:
