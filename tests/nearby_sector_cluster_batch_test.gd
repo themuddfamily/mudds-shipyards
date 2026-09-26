@@ -49,14 +49,16 @@ func _run() -> void:
 	# 30 asteroids x 3 lobes over six shared stock recipes, 18 safe-lane
 	# chevrons and 20 threading-gate chevrons. Solid bodies are not renderers,
 	# so its 30 colliders cost nothing in this census.
+	# Eleven cargo access decks and steps now carry 44-triangle structural
+	# chamfers instead of 12-triangle boxes: +352 visible triangles only.
 	var census := _census(cluster)
 	_check(
 		int(census["mesh_nodes"]) == 231
 		and int(census["batch_nodes"]) == 25
 		and int(census["submissions"]) == 256
 		and int(census["visible_copies"]) == 925
-		and int(census["triangles"]) == 145766,
-		"the belt keeps 256 submissions and 145766 triangles within 231 Mesh + 25 MultiMesh renderers"
+		and int(census["triangles"]) == 146118,
+		"the belt keeps 256 submissions and 146118 triangles within 231 Mesh + 25 MultiMesh renderers"
 	)
 	cluster.queue_free()
 	await process_frame

@@ -123,12 +123,15 @@ const EXPECTED_GANTRY_RAIL_FAMILY_ID: StringName = &"nearby-gantry-rails"
 # shapes (62 -> 81, the hulk's 18 solids plus its breaker volume). No
 # MultiMesh batch changed, and the station-resident census is untouched
 # because the whole sector still streams.
+# The eleven cargo access decks and steps subsequently gained 44-triangle
+# structural chamfers in place of 12-triangle boxes, adding exactly 352
+# streamed triangles while renderer, submission and collision counts stay fixed.
 const EXPECTED_LOCAL_MESH_NODES := 231
 const EXPECTED_LOCAL_MULTIMESH_NODES := 25
 const EXPECTED_LOCAL_RENDERER_NODES := 256
 const EXPECTED_LOCAL_VISIBLE_COPIES := 925
 const EXPECTED_LOCAL_SURFACE_SUBMISSIONS := 256
-const EXPECTED_LOCAL_TRIANGLES := 145766
+const EXPECTED_LOCAL_TRIANGLES := 146118
 const EXPECTED_LOCAL_STATIC_BODIES := 109
 const EXPECTED_LOCAL_COLLISION_SHAPES := 111
 ## The dock gate's four fixed rails remain one renderer/submission, but now
@@ -999,7 +1002,7 @@ func _test_processing_spine_rib_batch(cluster: NearbySectorCluster) -> void:
 		int(geometry["visible_copies"]) == EXPECTED_LOCAL_VISIBLE_COPIES
 		and int(geometry["surface_submissions"]) == EXPECTED_LOCAL_SURFACE_SUBMISSIONS
 		and int(geometry["triangles"]) == EXPECTED_LOCAL_TRIANGLES,
-		"the local census freezes 797 renderer copies, 131942 triangles, and 248 submissions"
+		"the local census freezes 925 renderer copies, 146118 triangles, and 256 submissions"
 	)
 	_check(
 		int(geometry["static_bodies"]) == EXPECTED_LOCAL_STATIC_BODIES
