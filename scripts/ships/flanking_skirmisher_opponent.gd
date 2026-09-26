@@ -83,6 +83,21 @@ const REAR_CROSS_CUE_COLOR := Color("baffd0")
 const REAR_CROSS_CUE_SIZE := Vector3(1.5, 0.12, 4.8)
 const REAR_CROSS_CUE_POSITION := Vector3(0.0, 0.2, -0.95)
 
+# Two steady coral strokes above the craft name what the wing role is doing
+# right now, read from the state that already drives movement and fire: the
+# anchor SCREENING in the player's windscreen, a flanker FLANKING (swinging wide
+# through the front hemisphere, gun safed), ATTACKING (inside the rear arc) or
+# CROSSING (the committed post-shot rear cross). Presentation only.
+const POSTURE_CUE_ID: StringName = &"skirmisher_wing_posture"
+const POSTURE_NONE: StringName = &""
+const POSTURE_SCREENING: StringName = &"screening"
+const POSTURE_FLANKING: StringName = &"flanking"
+const POSTURE_ATTACKING: StringName = &"attacking"
+const POSTURE_CROSSING: StringName = &"crossing"
+const POSTURE_STROKE_WIDTH := 0.6
+const POSTURE_STROKE_DEPTH := 0.35
+const POSTURE_CORAL := Color("ff7a5c")
+
 # Component-local static presentation budget. The old build retained one
 # Mesh per wing, chalk-band and winglet-fin node. Each mirrored pair has one
 # exact immutable recipe; the asymmetric wing is authored once on port and the
@@ -113,7 +128,9 @@ const WINGLET_FIN_ROTATIONS := [
 	Vector3(0.0, -0.16, 0.22),
 	Vector3(0.0, 0.16, -0.22),
 ]
-const PRESENTATION_DESCENDANT_NODE_COUNT := 37
+# 37 hull/effect descendants plus the three-node posture cue (a holder and
+# two strokes). The cue sits on the body, never under the visual root.
+const PRESENTATION_DESCENDANT_NODE_COUNT := 40
 const PRESENTATION_VISUAL_NODE_COUNT := 26
 const PRESENTATION_MESH_INSTANCE_COUNT := 19
 const PRESENTATION_LIGHT_NODE_COUNT := 5
@@ -183,6 +200,12 @@ var _weapon_definition: WeaponDefinition
 var _heavy_standoff_posture: StringName = &""
 var _heavy_standoff_generation := 0
 var _heavy_standoff_activation_generation := 0
+var _posture_cue: Node3D
+var _posture_strokes: Array[MeshInstance3D] = []
+var _posture_visible: StringName = POSTURE_NONE
+var _posture_visible_direction_sign := 0.0
+var _posture_target_instance_id := 0
+var _posture_activation_generation := 0
 
 
 # ------------------------------------------------------------- lifecycle ----
@@ -212,6 +235,7 @@ func _exit_tree() -> void:
 	# base. The short tactical pass is deliberately not replayed after absence.
 	_reset_rear_cross_tactic()
 	_clear_heavy_standoff_posture()
+	_clear_posture_cue()
 	super()
 
 
@@ -224,6 +248,8 @@ func activate(spawn_transform: Transform3D) -> Dictionary:
 	_shots_arc_denied = 0
 	_set_weapon_safed(true)
 	_apply_role_presentation()
+	_clear_posture_cue()
+	_sync_posture_cue()
 	return activation
 
 
@@ -233,6 +259,7 @@ func deactivate() -> void:
 	_clear_heavy_standoff_posture()
 	_assign_wing_role_internal(WingCoordinator.ROLE_UNASSIGNED)
 	_set_weapon_safed(true)
+	_clear_posture_cue()
 
 
 func _destroy_interceptor(death_position: Vector3) -> void:
@@ -240,6 +267,7 @@ func _destroy_interceptor(death_position: Vector3) -> void:
 	_clear_heavy_standoff_posture()
 	_assign_wing_role_internal(WingCoordinator.ROLE_UNASSIGNED)
 	_set_weapon_safed(true)
+	_clear_posture_cue()
 	super(death_position)
 
 
@@ -304,9 +332,13 @@ func assign_wing_role(role: StringName) -> void:
 ## Preserve the inherited coordinator-owned target assignment and only observe
 ## its loss so no stale committed intent remains visible between frames.
 func set_target(target: Node3D) -> void:
+	var previous_id := _target.get_instance_id() if is_instance_valid(_target) else 0
 	super(target)
 	if not _has_current_target():
 		_reset_rear_cross_tactic()
+	if not is_instance_valid(_target) or _target.get_instance_id() != previous_id:
+		_clear_posture_cue()
+	_sync_posture_cue()
 
 
 func _can_assign_wing_role() -> bool:
@@ -338,6 +370,24 @@ func present_heavy_standoff_posture(
 	_heavy_standoff_activation_generation = _activation_generation
 	_apply_role_presentation()
 	return true
+
+
+## Detached view of the posture strokes. The posture is derived from the wing
+## role, the rear-arc test and the rear-cross tactic that already own movement
+## and fire; the cue selects nothing and moves nothing.
+func get_posture_cue_snapshot() -> Dictionary:
+	var active := _is_posture_cue_current()
+	return {
+		"cue_id": POSTURE_CUE_ID,
+		"active": active,
+		"posture": _posture_visible if active else POSTURE_NONE,
+		"direction_sign": _posture_visible_direction_sign if active else 0.0,
+		"target_instance_id": _posture_target_instance_id if active else 0,
+		"activation_generation": _posture_activation_generation if active else 0,
+		"presentation_only": true,
+		"movement_authority": false,
+		"fire_authority": false,
+	}.duplicate(true)
 
 
 func get_heavy_standoff_cue_snapshot() -> Dictionary:
@@ -1142,6 +1192,7 @@ func _begin_rear_cross() -> void:
 	_rear_cross_state = &"active"
 	_rear_cross_activation_generation = _activation_generation
 	_apply_rear_cross_presentation()
+	_sync_posture_cue()
 
 
 func _refresh_rear_cross_state() -> void:
@@ -1170,6 +1221,7 @@ func _complete_rear_cross() -> void:
 	_rear_cross_completed_count += 1
 	_rear_cross_activation_generation = 0
 	_apply_rear_cross_presentation()
+	_sync_posture_cue()
 
 
 func _reset_rear_cross_tactic() -> void:
@@ -1179,6 +1231,7 @@ func _reset_rear_cross_tactic() -> void:
 	_rear_cross_completed_count = 0
 	_rear_cross_activation_generation = 0
 	_apply_rear_cross_presentation()
+	_sync_posture_cue()
 
 
 func _is_fire_authorized() -> bool:
@@ -1199,6 +1252,7 @@ func _assign_wing_role_internal(role: StringName) -> void:
 		_reset_rear_cross_tactic()
 	_wing_role = next
 	_apply_role_presentation()
+	_sync_posture_cue()
 	wing_role_changed.emit(_wing_role)
 
 
@@ -1207,6 +1261,7 @@ func _set_weapon_safed(safed: bool) -> void:
 		return
 	_weapon_safed = safed
 	_apply_role_presentation()
+	_sync_posture_cue()
 	weapon_safed_changed.emit(_weapon_safed)
 
 
@@ -1281,6 +1336,7 @@ func _update_presentation(delta: float) -> void:
 	# the same tactic station now so the non-top-level vane remains world-true
 	# after its hull and every transformed ancestor have moved or rotated.
 	_apply_rear_cross_presentation()
+	_sync_posture_cue()
 	if (
 		_active
 		and not _weapon_safed
@@ -1328,6 +1384,144 @@ func _apply_rear_cross_presentation() -> void:
 		presentation_up
 	)
 	_rear_cross_cue.visible = true
+
+
+func _build_posture_cue() -> void:
+	if is_instance_valid(_posture_cue):
+		return
+	var stroke := BoxMesh.new()
+	stroke.size = Vector3(1.0, POSTURE_STROKE_WIDTH, POSTURE_STROKE_DEPTH)
+	stroke.material = _material(POSTURE_CORAL, 0.1, 0.2, POSTURE_CORAL, 4.8)
+	_posture_cue = Node3D.new()
+	_posture_cue.name = "WingPostureCue"
+	_posture_cue.visible = false
+	_posture_cue.process_mode = Node.PROCESS_MODE_DISABLED
+	_posture_cue.set_meta(&"presentation_only", true)
+	_posture_cue.set_meta(&"cue_id", POSTURE_CUE_ID)
+	add_child(_posture_cue)
+	for index in 2:
+		var instance := MeshInstance3D.new()
+		instance.name = "PortStroke" if index == 0 else "StarboardStroke"
+		instance.mesh = stroke
+		instance.layers = 1
+		instance.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		_posture_cue.add_child(instance)
+		_posture_strokes.append(instance)
+
+
+## A stroke from `from_point` to `to_point` in the craft's local XY plane.
+func _posture_stroke(from_point: Vector3, to_point: Vector3) -> Transform3D:
+	var vector := to_point - from_point
+	var angle := atan2(vector.y, vector.x)
+	return Transform3D(
+		Basis(Vector3.BACK, angle) * Basis.from_scale(Vector3(vector.length(), 1.0, 1.0)),
+		(from_point + to_point) * 0.5
+	)
+
+
+func _is_posture_target_live() -> bool:
+	if not _has_current_target():
+		return false
+	if _target.has_method(&"is_active") and not bool(_target.call(&"is_active")):
+		return false
+	if _target.has_method(&"get_health") and float(_target.call(&"get_health")) <= 0.0:
+		return false
+	return true
+
+
+## The one mapping from authoritative state to posture. Nothing here writes
+## tactic, target, movement or weapon state.
+func _derive_posture() -> StringName:
+	if not _active or not is_inside_tree() or not _is_posture_target_live():
+		return POSTURE_NONE
+	if _wing_role == WingCoordinator.ROLE_ANCHOR:
+		return POSTURE_SCREENING
+	if _wing_role != WingCoordinator.ROLE_FLANKER:
+		return POSTURE_NONE
+	if _rear_cross_state == &"active" \
+			and _rear_cross_activation_generation == _activation_generation:
+		return POSTURE_CROSSING
+	if _is_firing_arc_open():
+		return POSTURE_ATTACKING
+	return POSTURE_FLANKING
+
+
+## The flanking swing's lateral request is `UP x target_direction * orbit`;
+## with the nose on the target that is the craft's local -X times the orbit.
+func _derive_posture_direction_sign(posture: StringName) -> float:
+	if posture != POSTURE_FLANKING:
+		return 0.0
+	return -1.0 if _orbit_sign >= 0.0 else 1.0
+
+
+func _is_posture_cue_current() -> bool:
+	if not is_instance_valid(_posture_cue) or not _posture_cue.visible:
+		return false
+	var posture := _derive_posture()
+	return (
+		posture != POSTURE_NONE
+		and posture == _posture_visible
+		and _posture_visible_direction_sign == _derive_posture_direction_sign(posture)
+		and _posture_target_instance_id == _target.get_instance_id()
+		and _posture_activation_generation == _activation_generation
+	)
+
+
+func _sync_posture_cue() -> void:
+	if not is_instance_valid(_posture_cue):
+		return
+	var posture := _derive_posture()
+	if posture == POSTURE_NONE:
+		_clear_posture_cue()
+		return
+	if _is_posture_cue_current():
+		return
+	var side := _derive_posture_direction_sign(posture)
+	var left_from := Vector3.ZERO
+	var left_to := Vector3.ZERO
+	var right_from := Vector3.ZERO
+	var right_to := Vector3.ZERO
+	match posture:
+		POSTURE_SCREENING:
+			# Two upright bars: a wall across the player's nose.
+			left_from = Vector3(-1.8, 2.6, 0.4)
+			left_to = Vector3(-1.8, 6.0, 0.4)
+			right_from = Vector3(1.8, 2.6, 0.4)
+			right_to = Vector3(1.8, 6.0, 0.4)
+		POSTURE_FLANKING:
+			# A sideways chevron pointing along the swing.
+			left_from = Vector3(side * 3.6, 4.3, 0.4)
+			left_to = Vector3(-side * 1.2, 6.4, 0.4)
+			right_from = left_from
+			right_to = Vector3(-side * 1.2, 2.2, 0.4)
+		POSTURE_ATTACKING:
+			# A crossed reticle: this one can shoot you now.
+			left_from = Vector3(-2.4, 2.2, 0.4)
+			left_to = Vector3(2.4, 6.4, 0.4)
+			right_from = Vector3(-2.4, 6.4, 0.4)
+			right_to = Vector3(2.4, 2.2, 0.4)
+		POSTURE_CROSSING:
+			# Two stacked level bars: passing across your wake.
+			left_from = Vector3(-3.2, 3.0, 0.4)
+			left_to = Vector3(3.2, 3.0, 0.4)
+			right_from = Vector3(-3.2, 5.6, 0.4)
+			right_to = Vector3(3.2, 5.6, 0.4)
+	_posture_strokes[0].transform = _posture_stroke(left_from, left_to)
+	_posture_strokes[1].transform = _posture_stroke(right_from, right_to)
+	_posture_visible = posture
+	_posture_visible_direction_sign = side
+	_posture_target_instance_id = _target.get_instance_id()
+	_posture_activation_generation = _activation_generation
+	_posture_cue.visible = true
+
+
+func _clear_posture_cue() -> void:
+	_posture_visible = POSTURE_NONE
+	_posture_visible_direction_sign = 0.0
+	_posture_target_instance_id = 0
+	_posture_activation_generation = 0
+	if is_instance_valid(_posture_cue):
+		_posture_cue.visible = false
 
 
 # ---------------------------------------------------------------- geometry ----
@@ -1479,6 +1673,7 @@ func _build_interceptor() -> void:
 			Vector3(side * 1.0, 0.37, 2.38), Vector2(0.8, 0.4), Vector3.UP, Vector3(side, 0, 0))
 	_build_collision()
 	_build_damage_effects()
+	_build_posture_cue()
 
 
 ## Formed forward pressure volume; retains the authored bounds and shared finishes.
