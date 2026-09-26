@@ -737,22 +737,63 @@ func _test_heavy_standoff_advances_on_range_or_health() -> void:
 	else:
 		flank = fixture.skirmishers[1]
 	var standoff_intent := director.get_member_tactic_intent(anchor)
+	var role_lamp := anchor.get_node(^"WingSkirmisherVisual/RoleLamp") as MeshInstance3D
+	var role_material := role_lamp.get_active_material(0) as StandardMaterial3D
+	var hold_cue := anchor.get_heavy_standoff_cue_snapshot()
+	var first_generation := director.get_scenario_generation()
 	_check(
 		standoff_intent.action == EncounterScenarioDirector.TACTIC_STANDOFF
 			and bool(standoff_intent.fire_authorized)
 			and is_equal_approx(float(anchor.get("anchor_station_range")), 60.0)
-			and standoff_intent.role == WingCoordinator.ROLE_ANCHOR,
-		"the existing anchor role consumes the caller range as a heavy stand-off station"
+			and standoff_intent.role == WingCoordinator.ROLE_ANCHOR
+			and bool(hold_cue.visible)
+			and hold_cue.posture == &"standoff"
+			and int(hold_cue.generation) == first_generation
+			and role_material.albedo_color.is_equal_approx(
+				FlankingSkirmisherOpponent.STANDOFF_HOLD_LAMP
+			)
+			and role_lamp.scale.is_equal_approx(Vector3.ONE * 1.8)
+			and not bool(flank.get_heavy_standoff_cue_snapshot().visible),
+		"the healthy target leaves the anchor at the authored hold range with a blue dorsal cue"
 	)
-	target.health = 25.0
+	target.health = 35.0
 	director._physics_process(0.01)
 	var advance_intent := director.get_member_tactic_intent(anchor)
+	var advance_cue := anchor.get_heavy_standoff_cue_snapshot()
 	_check(
 		advance_intent.action == EncounterScenarioDirector.TACTIC_ADVANCE
+			and bool(advance_intent.fire_authorized)
 			and is_equal_approx(float(anchor.get("anchor_station_range")), 33.0)
+			and bool(advance_cue.visible)
+			and advance_cue.posture == &"advance"
+			and role_material.albedo_color.is_equal_approx(
+				FlankingSkirmisherOpponent.STANDOFF_ADVANCE_LAMP
+			)
+			and role_lamp.scale.is_equal_approx(Vector3.ONE * 2.5)
 			and director.get_member_tactic_intent(flank).action
 			== EncounterScenarioDirector.TACTIC_FLANK_UNDER_COVER,
-		"caller hull pressure changes only the anchor to the existing advance posture"
+		"the 35% hull threshold shortens the anchor range and visibly enlarges its magenta advance cue"
+	)
+	director.abort()
+	_check(
+		not bool(anchor.get_heavy_standoff_cue_snapshot().visible)
+			and role_lamp.scale.is_equal_approx(Vector3.ONE),
+		"terminal stand-down clears the posture cue and restores the role lamp"
+	)
+	target.health = 100.0
+	_check(director.begin_heavy_standoff(target, 60.0, 0.35),
+		"a fresh heavy stand-off generation reuses the wing")
+	anchor = coordinator.get_anchor() as FlankingSkirmisherOpponent
+	var fresh_cue := anchor.get_heavy_standoff_cue_snapshot()
+	var stale_accepted := anchor.present_heavy_standoff_posture(
+		director, first_generation, EncounterScenarioDirector.TACTIC_ADVANCE
+	)
+	_check(
+		int(fresh_cue.generation) > first_generation
+			and fresh_cue.posture == &"standoff"
+			and not stale_accepted
+			and anchor.get_heavy_standoff_cue_snapshot().posture == &"standoff",
+		"a stale scenario generation cannot repaint a reused anchor"
 	)
 	anchor.apply_damage(
 		anchor.maximum_health * (1.0 - coordinator.critical_disengage_ratio + 0.01),

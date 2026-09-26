@@ -72,6 +72,8 @@ const HULL_MOSS := Color("55665c")
 const HULL_CHALK := Color("9ba79d")
 const ROLE_ANCHOR_LAMP := Color("ffb347")
 const ROLE_FLANKER_LAMP := Color("58ff9b")
+const STANDOFF_HOLD_LAMP := Color("8ad5ff")
+const STANDOFF_ADVANCE_LAMP := Color("ff4eaf")
 const SKIRMISHER_ENGINE := Color("b6ffe3")
 const REPEATER_CHARGE_SCALE := Vector3(0.62, 1.6, 0.62)
 ## One broad, steady dorsal arrow for the already-committed rear cross. Its
@@ -178,6 +180,9 @@ var _rear_cross_activation_generation := 0
 var _rear_cross_cue: MeshInstance3D
 var _rear_cross_cue_mesh: ArrayMesh
 var _weapon_definition: WeaponDefinition
+var _heavy_standoff_posture: StringName = &""
+var _heavy_standoff_generation := 0
+var _heavy_standoff_activation_generation := 0
 
 
 # ------------------------------------------------------------- lifecycle ----
@@ -206,6 +211,7 @@ func _exit_tree() -> void:
 	# Streaming re-entry restores combat registration in the resolver-backed
 	# base. The short tactical pass is deliberately not replayed after absence.
 	_reset_rear_cross_tactic()
+	_clear_heavy_standoff_posture()
 	super()
 
 
@@ -214,6 +220,7 @@ func activate(spawn_transform: Transform3D) -> Dictionary:
 	if not bool(activation.get("accepted", false)):
 		return activation
 	_reset_rear_cross_tactic()
+	_clear_heavy_standoff_posture()
 	_shots_arc_denied = 0
 	_set_weapon_safed(true)
 	_apply_role_presentation()
@@ -223,12 +230,14 @@ func activate(spawn_transform: Transform3D) -> Dictionary:
 func deactivate() -> void:
 	super()
 	_reset_rear_cross_tactic()
+	_clear_heavy_standoff_posture()
 	_assign_wing_role_internal(WingCoordinator.ROLE_UNASSIGNED)
 	_set_weapon_safed(true)
 
 
 func _destroy_interceptor(death_position: Vector3) -> void:
 	_reset_rear_cross_tactic()
+	_clear_heavy_standoff_posture()
 	_assign_wing_role_internal(WingCoordinator.ROLE_UNASSIGNED)
 	_set_weapon_safed(true)
 	super(death_position)
@@ -310,6 +319,38 @@ func get_wing_role() -> StringName:
 
 func is_anchor() -> bool:
 	return _wing_role == WingCoordinator.ROLE_ANCHOR
+
+
+## A director-owned readout only. The existing station fields and inherited
+## movement/fire paths remain the authorities for what the craft does.
+func present_heavy_standoff_posture(
+		owner: Node, expected_generation: int, posture: StringName
+	) -> bool:
+	if not _active or _wing_role != WingCoordinator.ROLE_ANCHOR \
+			or not is_instance_valid(owner) \
+			or owner != get_node_or_null(scenario_director_path) \
+			or not owner.has_method(&"is_heavy_standoff_cue_authorized") \
+			or not bool(owner.call(&"is_heavy_standoff_cue_authorized", self, expected_generation)) \
+			or (posture != &"standoff" and posture != &"advance"):
+		return false
+	_heavy_standoff_posture = posture
+	_heavy_standoff_generation = expected_generation
+	_heavy_standoff_activation_generation = _activation_generation
+	_apply_role_presentation()
+	return true
+
+
+func get_heavy_standoff_cue_snapshot() -> Dictionary:
+	var visible := _active and _wing_role == WingCoordinator.ROLE_ANCHOR \
+		and _heavy_standoff_generation > 0 \
+		and _heavy_standoff_activation_generation == _activation_generation
+	return {
+		"visible": visible,
+		"posture": _heavy_standoff_posture if visible else &"",
+		"generation": _heavy_standoff_generation if visible else 0,
+		"activation_generation": _heavy_standoff_activation_generation if visible else 0,
+		"presentation_only": true,
+	}.duplicate(true)
 
 
 ## True while the gun cannot arm. Always true for a flanker outside its rear
@@ -1152,6 +1193,8 @@ func _assign_wing_role_internal(role: StringName) -> void:
 	var next := role if WingCoordinator.ROLES.has(role) else WingCoordinator.ROLE_UNASSIGNED
 	if _wing_role == next:
 		return
+	if next != WingCoordinator.ROLE_ANCHOR:
+		_clear_heavy_standoff_posture()
 	if next != WingCoordinator.ROLE_FLANKER:
 		_reset_rear_cross_tactic()
 	_wing_role = next
@@ -1165,6 +1208,13 @@ func _set_weapon_safed(safed: bool) -> void:
 	_weapon_safed = safed
 	_apply_role_presentation()
 	weapon_safed_changed.emit(_weapon_safed)
+
+
+func _clear_heavy_standoff_posture() -> void:
+	_heavy_standoff_posture = &""
+	_heavy_standoff_generation = 0
+	_heavy_standoff_activation_generation = 0
+	_apply_role_presentation()
 
 
 ## A step function of role and safing state. Deliberately not driven from a
@@ -1182,10 +1232,23 @@ func _apply_role_presentation() -> void:
 	if _wing_role == WingCoordinator.ROLE_ANCHOR:
 		lamp_colour = ROLE_ANCHOR_LAMP
 		lamp_energy = 3.4
+		if _heavy_standoff_activation_generation == _activation_generation:
+			if _heavy_standoff_posture == &"standoff":
+				lamp_colour = STANDOFF_HOLD_LAMP
+				lamp_energy = 4.4
+			elif _heavy_standoff_posture == &"advance":
+				lamp_colour = STANDOFF_ADVANCE_LAMP
+				lamp_energy = 5.2
 	elif _wing_role == WingCoordinator.ROLE_FLANKER:
 		lamp_colour = ROLE_FLANKER_LAMP
 		lamp_energy = 3.4
 	if is_instance_valid(_role_lamp):
+		_role_lamp.scale = Vector3.ONE * (
+			2.5 if _heavy_standoff_posture == &"advance" and
+			_heavy_standoff_activation_generation == _activation_generation else
+			1.8 if _heavy_standoff_posture == &"standoff" and
+			_heavy_standoff_activation_generation == _activation_generation else 1.0
+		)
 		var lamp_material := _role_lamp.get_active_material(0) as StandardMaterial3D
 		if lamp_material != null:
 			lamp_material.albedo_color = lamp_colour

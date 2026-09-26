@@ -316,6 +316,20 @@ func is_running() -> bool:
 	return _state == STATE_RUNNING
 
 
+## The skirmisher asks this before accepting a presentation-only posture.
+## Old scenario generations cannot repaint a reused craft.
+func is_heavy_standoff_cue_authorized(member: Node, expected_generation: int) -> bool:
+	if not _is_current() or _state != STATE_RUNNING \
+			or _scenario != SCENARIO_HEAVY_STANDOFF \
+			or expected_generation != _scenario_generation \
+			or not is_instance_valid(member) or not _roster.has(member):
+		return false
+	var coordinator := _get_wing_coordinator()
+	return is_instance_valid(coordinator) \
+		and coordinator.get_anchor() == member \
+		and _is_participant_active(member as Node3D)
+
+
 func is_concluded() -> bool:
 	return _state == STATE_CONCLUDED
 
@@ -1143,7 +1157,8 @@ func _update_heavy_posture() -> void:
 	if not is_instance_valid(anchor):
 		return
 	var desired_range := _heavy_standoff_range
-	if _heavy_should_advance(anchor):
+	var advancing := _heavy_should_advance(anchor)
+	if advancing:
 		desired_range = maxf(25.0, _heavy_standoff_range * 0.55)
 	if anchor.get(&"anchor_station_range") != null:
 		anchor.set("anchor_station_range", desired_range)
@@ -1151,6 +1166,11 @@ func _update_heavy_posture() -> void:
 		anchor.set("preferred_range", desired_range)
 	if anchor.get(&"retreat_range") != null:
 		anchor.set("retreat_range", maxf(12.0, desired_range * 0.5))
+	if anchor.has_method(&"present_heavy_standoff_posture"):
+		anchor.call(
+			&"present_heavy_standoff_posture", self, _scenario_generation,
+			TACTIC_ADVANCE if advancing else TACTIC_STANDOFF,
+		)
 
 
 func _heavy_should_advance(member: Node3D) -> bool:
