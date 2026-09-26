@@ -147,8 +147,8 @@ func _map_state(state: StringName, toggle_enabled: bool, engagement_requested: b
 			status_id = &"queued"
 			status_text = "QUEUED"
 		&"approaching":
-			status_id = &"accelerating"
-			status_text = "ACCELERATING"
+			status_id = &"final_approach"
+			status_text = "FINAL APPROACH"
 		&"aligned":
 			status_id = &"cruising"
 			status_text = "CRUISING"
@@ -162,7 +162,7 @@ func _map_state(state: StringName, toggle_enabled: bool, engagement_requested: b
 			return _reject(&"unknown_state")
 	var exact_semantics := (
 		(status_id == &"queued" and toggle_enabled and engagement_requested)
-		or (status_id == &"accelerating" and toggle_enabled and engagement_requested)
+		or (status_id == &"final_approach" and toggle_enabled and engagement_requested)
 		or (status_id == &"cruising" and toggle_enabled and engagement_requested)
 		or (status_id == &"braking" and not toggle_enabled and not engagement_requested)
 		or (status_id == &"unavailable" and not toggle_enabled and not engagement_requested)

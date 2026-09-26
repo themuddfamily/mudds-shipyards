@@ -502,6 +502,7 @@ func _test_exact_presentation_vocabulary(hud: GameHUD) -> void:
 		[&"ready", "READY — EMBER MOON", true, false],
 		[&"queued", "QUEUED", true, true],
 		[&"accelerating", "ACCELERATING", true, true],
+		[&"final_approach", "FINAL APPROACH", true, true],
 		[&"cruising", "CRUISING", true, true],
 		[&"braking_to_speed", "BRAKING TO SPEED", true, true],
 		[&"braking", "BRAKING", false, false],
@@ -517,7 +518,7 @@ func _test_exact_presentation_vocabulary(hud: GameHUD) -> void:
 		exact = exact and report.get("status_text") == state[1]
 		exact = exact and bool(report.get("toggle_enabled")) == state[2]
 		exact = exact and bool(report.get("engagement_requested")) == state[3]
-	_check(exact, "HUD freezes all seven exact detached cruise presentation states")
+	_check(exact, "HUD freezes all eight exact detached cruise presentation states")
 	var before := hud.get_planetary_cruise_presentation_report()
 	var mismatched := hud.set_planetary_cruise_state(
 		&"queued", "CRUISING", true, true

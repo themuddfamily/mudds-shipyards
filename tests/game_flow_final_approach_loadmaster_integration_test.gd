@@ -39,7 +39,7 @@ func _run() -> void:
 			"controller": {"final_approach": {"state_id": &"final_approach"}},
 		})
 		_check(
-			hud.get_planetary_cruise_presentation_report().status_id == &"accelerating",
+			hud.get_planetary_cruise_presentation_report().status_id == &"final_approach",
 			"final approach receipt overrides the ordinary cruise row"
 		)
 		game.call("_detach_final_approach_hud_composition")

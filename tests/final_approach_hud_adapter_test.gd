@@ -53,7 +53,7 @@ func _run() -> void:
 	}})
 	var approaching := binding.get_presenter_snapshot()
 	_check(bool(adapter.apply_view(approaching, true, true).get("accepted", false)), "approaching view maps without owning engagement")
-	_check(hud.get_planetary_cruise_presentation_report().status_id == &"accelerating", "approaching state uses bounded HUD vocabulary")
+	_check(hud.get_planetary_cruise_presentation_report().status_id == &"final_approach" and hud.get_planetary_cruise_presentation_report().status_text == "FINAL APPROACH", "active approach row names the actual flight phase")
 	guidance = hud.find_child("FinalApproachGuidance", true, false) as Label
 	_check(guidance != null and guidance.text == "[>] FINAL APPROACH ACTIVE — FOLLOW GUIDANCE\nLAT LEFT / VERT DOWN / RANGE FWD / ALIGN CORRECT", "active final approach adds explicit state shape and corrective guidance")
 	await _capture_if_requested("02_active_correction")

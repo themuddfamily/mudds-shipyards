@@ -342,6 +342,7 @@ const PLANETARY_CRUISE_STATUS_IDS := [
 	&"ready",
 	&"queued",
 	&"accelerating",
+	&"final_approach",
 	&"cruising",
 	&"braking_to_speed",
 	&"braking",
@@ -8732,6 +8733,7 @@ func set_planetary_cruise_state(
 		&"ready": "READY — EMBER MOON",
 		&"queued": "RETURN — CLEAR SURFACE" if bounded_text == "RETURN — CLEAR SURFACE" else "QUEUED",
 		&"accelerating": "ACCELERATING",
+		&"final_approach": "FINAL APPROACH",
 		&"cruising": "CRUISING",
 		&"braking_to_speed": "BRAKING TO SPEED",
 		&"braking": "BRAKING",
@@ -8748,7 +8750,7 @@ func set_planetary_cruise_state(
 		(status_id == &"ready" and toggle_enabled and not engagement_requested)
 		or (status_id == &"queued" and toggle_enabled and engagement_requested)
 		or (
-			status_id in [&"accelerating", &"cruising", &"braking_to_speed"]
+			status_id in [&"accelerating", &"final_approach", &"cruising", &"braking_to_speed"]
 			and toggle_enabled == engagement_requested
 		)
 		or (

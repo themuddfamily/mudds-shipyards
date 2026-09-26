@@ -41,7 +41,7 @@ func _run() -> void:
 	var measured_tick := {"generation": 2, "accepted": true, "controller": {"final_approach_measurement": {"position_offset_entry_local_m": Vector3(3.0, -2.0, 8.0), "speed_mps": 6.0, "attitude_degrees": 4.0}}}
 	source.tick_committed.emit(measured_tick)
 	_check(
-		hud.get_planetary_cruise_presentation_report().status_id == &"accelerating",
+		hud.get_planetary_cruise_presentation_report().status_id == &"final_approach",
 		"binding presentation signal updates HUD without polling",
 	)
 	var guidance := hud.find_child("FinalApproachGuidance", true, false) as Label
