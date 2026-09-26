@@ -6,6 +6,12 @@ const SurfaceAudioCatalog := preload("res://assets/audio/planetary/temperate_sur
 const WaterContactAudioBindingType := preload("res://scripts/audio/water_contact_audio_binding.gd")
 const SettlementInteractionAudioBindingType := preload("res://scripts/audio/settlement_interaction_audio_binding.gd")
 
+# The exterior wind voice routes through its own bus (sending on into
+# Ambience, so the shared bus's volume/mute still cascades) purely so its
+# authored-wind low-pass filter never reaches any other Ambience-bus sound.
+const WIND_FILTER_BUS_NAME: StringName = &"AuroraExteriorWind"
+const WIND_FILTER_NEUTRAL_HZ := 18_000.0
+
 const WORLD_PATH := "res://assets/world/planets/aurora_temperate_world.tres"
 const ATMOSPHERE_PATH := "res://assets/world/planets/aurora_temperate_atmosphere.tres"
 const TERRAIN_PATH := "res://assets/world/planets/aurora_temperate_terrain.tres"
@@ -34,6 +40,7 @@ const SURFACE_LANDMARK_MARKER_PATHS := {
 var _surface_audio_binding: RefCounted
 var _exterior_voice: AudioStreamPlayer
 var _interior_voice: AudioStreamPlayer
+var _wind_filter: AudioEffectLowPassFilter
 var _water_contact_audio_binding: RefCounted
 var _settlement_audio_binding: RefCounted
 var _terrain_clipmap: PlanetaryTerrainClipmapRenderer
@@ -79,6 +86,9 @@ func _ready() -> void:
 			or _exterior_voice.stream != SurfaceAudioCatalog.exterior_stream \
 			or _interior_voice.stream != SurfaceAudioCatalog.interior_stream:
 		push_error("Aurora surface ambience voice contract is unavailable")
+	_wind_filter = _ensure_wind_filter_bus()
+	if _exterior_voice != null:
+		_exterior_voice.bus = WIND_FILTER_BUS_NAME
 	_water_contact_audio_binding = WaterContactAudioBindingType.new()
 	_water_contact_audio_binding.attach(0)
 	_settlement_audio_binding = SettlementInteractionAudioBindingType.new()
@@ -134,6 +144,12 @@ func _apply_surface_audio_mix() -> void:
 	var interior_level := clampf(float(mix.get("wind", 0.0)) * 0.35 + float(mix.get("distant_water", 0.0)) * 0.2, 0.0, 1.0)
 	_set_surface_voice(_exterior_voice, exterior_level if perspective == &"exterior" else exterior_level * 0.12)
 	_set_surface_voice(_interior_voice, interior_level if perspective == &"cockpit" else 0.0)
+	# The authored wind reading brightens the exterior loop's pitch and its
+	# dedicated low-pass cutoff: calm air stays quiet and muffled, strong wind
+	# gets louder (via the gain above) and audibly brighter.
+	_exterior_voice.pitch_scale = float(mix.get("pitch_scale", 1.0))
+	if _wind_filter != null:
+		_wind_filter.cutoff_hz = float(mix.get("low_pass_hz", WIND_FILTER_NEUTRAL_HZ))
 
 func _set_surface_voice(voice: AudioStreamPlayer, level: float) -> void:
 	if level <= 0.001:
@@ -149,6 +165,27 @@ func _stop_surface_audio() -> void:
 		if is_instance_valid(voice):
 			voice.stop()
 			voice.volume_db = -80.0
+			voice.pitch_scale = 1.0
+	if _wind_filter != null:
+		_wind_filter.cutoff_hz = WIND_FILTER_NEUTRAL_HZ
+
+## Idempotent: reuses the bus and its filter across a streamed unload/reload
+## instead of leaking a fresh AudioServer bus on every visit.
+func _ensure_wind_filter_bus() -> AudioEffectLowPassFilter:
+	var bus_index := AudioServer.get_bus_index(WIND_FILTER_BUS_NAME)
+	if bus_index < 0:
+		bus_index = AudioServer.bus_count
+		AudioServer.add_bus(bus_index)
+		AudioServer.set_bus_name(bus_index, WIND_FILTER_BUS_NAME)
+		AudioServer.set_bus_send(bus_index, &"Ambience")
+	for effect_index in AudioServer.get_bus_effect_count(bus_index):
+		var effect := AudioServer.get_bus_effect(bus_index, effect_index)
+		if effect is AudioEffectLowPassFilter:
+			return effect
+	var filter := AudioEffectLowPassFilter.new()
+	filter.cutoff_hz = WIND_FILTER_NEUTRAL_HZ
+	AudioServer.add_bus_effect(bus_index, filter)
+	return filter
 
 func present_water_contact_audio_receipt(receipt: Dictionary) -> Dictionary:
 	if _water_contact_audio_binding == null:
