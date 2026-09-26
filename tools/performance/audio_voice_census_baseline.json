@@ -10,7 +10,7 @@
   "scenarios": {
     "station_resident": {
       "loaded_instance_count": 0,
-      "measurement_fingerprint": "8afaf6e1b75598d6745eee4e6d0b98d32f3ad7c7ff70593eb570b821397da101",
+      "measurement_fingerprint": "64d3bcfc8db0835b5c21d31781942a521db8fee207dbd28fd8b6ab6248ff42f2",
       "totals": {
         "player_nodes": 80,
         "audio_stream_player_nodes": 8,
@@ -43,13 +43,13 @@
         "TorrentInterceptor": 6,
         "ZenithInterceptor": 6
       },
-      "retained_unique_streams": 88,
-      "retained_payload_bytes": 1790420,
+      "retained_unique_streams": 90,
+      "retained_payload_bytes": 2558420,
       "retained_unknown_payload_count": 0
     },
     "cinder_loaded": {
       "loaded_instance_count": 1,
-      "measurement_fingerprint": "94ffdf18f8dc1a83323920953c00d77fd9abca8da619249b6e4d349e41bc30ee",
+      "measurement_fingerprint": "687941d7ea401eb8ce68e58ac54c1e5fa58fc6edbfcff5fdea39f27ac80aea13",
       "totals": {
         "player_nodes": 80,
         "audio_stream_player_nodes": 8,
@@ -82,8 +82,8 @@
         "TorrentInterceptor": 6,
         "ZenithInterceptor": 6
       },
-      "retained_unique_streams": 91,
-      "retained_payload_bytes": 3907220,
+      "retained_unique_streams": 93,
+      "retained_payload_bytes": 4675220,
       "retained_unknown_payload_count": 0
     }
   },
@@ -111,8 +111,8 @@
   "composition_notes": [
     "Nine craft each own six spatial players: the original five, Bulwark, and the FleetExpansionProductionBinding Cinder interceptor, hauler, and bomber. These 54 ship players plus 26 director/combat/station/music players total 80.",
     "Each ship rig retains four loop WAVs and two reusable cue WAVs. Cue sample byte caches are separate PackedByteArrays, outside the reachable AudioStream.data payload scope; the 18 idle cue WAVs expose empty data and hash as empty bytes.",
-    "Station-resident retains 54 ship, 15 AudioDirector, 7 combat, and 12 station machinery WAV resources (88 total). The disabled music bed releases its three imported streams.",
-    "Cinder-loaded enables the existing music bed and retains three imported WAVs (2,116,800 bytes), totaling 91 resources without adding players. Imported combat/music payloads are nonempty in this profile.",
+    "Station-resident retains 54 ship, 15 AudioDirector, 7 combat, 12 station machinery, and two Aurora WAV resources (90 total). The preloaded Aurora scene retains its exterior and cabin streams; the disabled music bed releases its three imported streams.",
+    "Cinder-loaded enables the existing music bed and retains three imported WAVs (2,116,800 bytes), totaling 93 resources without adding players. Imported combat/music payloads are nonempty in this profile.",
     "Payload bytes measure exposed AudioStream.data arrays only, not total sample caches, files on disk, native buffers, or process memory. Scene Node origins use stable hierarchy paths rather than runtime instance-ID dictionary keys."
   ]
 }

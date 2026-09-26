@@ -85,11 +85,12 @@ func _run() -> void:
 		"Dummy freeze observes zero attached playback and all 80 exposed polyphony fields"
 	)
 	var resident_streams := resident.get("retained_streams", {}) as Dictionary
+	# Main preloads Aurora's scene, retaining its exterior and cabin WAVs even while resident.
 	_check(
-		int(resident_streams.get("unique_count", -1)) == 88
-		and int(resident_streams.get("payload_bytes", -1)) == 1790420
+		int(resident_streams.get("unique_count", -1)) == 90
+		and int(resident_streams.get("payload_bytes", -1)) == 2558420
 		and int(resident_streams.get("unknown_payload_count", -1)) == 0,
-		"resident retained graph freezes 88 reachable WAV resources / 1,790,420 exposed data bytes"
+		"resident retained graph freezes 90 reachable WAV resources / 2,558,420 exposed data bytes"
 	)
 	_check(
 		_bus_player_counts(resident) == {
