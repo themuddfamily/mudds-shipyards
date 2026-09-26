@@ -290,12 +290,28 @@ func _test_reentry_completion_and_lifecycle_failures(
 		and int(game.get_live_combat_source_roster_audit().get("expected_convoy_source_count", 0)) == 1,
 		"one real attacker registers for the accepted escort generation"
 	)
+	var peak_bolts_in_flight := 0
+	var bolt_seen_before_damage := false
 	for _tick in 20:
 		ship.global_position = (host.get_snapshot().get("entity_position") as Vector3) \
 			+ GameFlow.CINDER_CONVOY_ESCORT_LANE_OFFSET
 		game.call("_physics_process", 0.25)
 		await physics_frame
+		var tick_threat := threat.get_snapshot()
+		peak_bolts_in_flight = maxi(peak_bolts_in_flight, int(tick_threat.get("bolts_in_flight", 0)))
+		if peak_bolts_in_flight > 0 and float(tick_threat.get("tender_health", 0.0)) == 75.0:
+			bolt_seen_before_damage = true
 	var attacked := threat.get_snapshot()
+	var bolt_stats := attacked.get("bolt_statistics", {}) as Dictionary
+	_check(
+		CombatResolver.profile_is_projectile(
+			CinderConvoyThreat.WEAPON_PROFILE[CinderConvoyThreat.WEAPON_ID]
+		)
+		and bolt_seen_before_damage
+		and int(bolt_stats.get("launched", 0)) == int(attacked.get("shots_fired", -1))
+		and int(bolt_stats.get("resolved", 0)) >= 1,
+		"raider shots are visible travelling bolts that land through the resolver flight ledger"
+	)
 	_check(
 		int(attacked.get("shots_fired", 0)) >= 1
 		and float(attacked.get("tender_health", 75.0)) < 75.0
@@ -334,6 +350,11 @@ func _test_reentry_completion_and_lifecycle_failures(
 		and bool(game.get_live_combat_source_roster_audit().get("valid", false))
 		and int(game.get_live_combat_source_roster_audit().get("expected_convoy_source_count", 1)) == 0,
 		"a real player weapon destroys the raider and retires its source before the lethal third shot"
+	)
+	_check(
+		int(threat.get_snapshot().get("bolts_in_flight", -1)) == 0
+		and game.get_combat_authority().get_active_projectile_flight_count() == 0,
+		"no raider bolt or authority flight outlives the destroyed raider"
 	)
 	var host_id := host.get_instance_id()
 	var generation := host.get_generation()
