@@ -677,6 +677,17 @@ func get_streaming_transition_snapshot() -> Dictionary:
 	return _streaming_transition.get_snapshot()
 
 
+## The hulk owns its fixture state; the streamed transition owns its fade.
+func refresh_station_hulk_light_energy(light: OmniLight3D, authored_energy: float) -> bool:
+	if not is_instance_valid(_hulk) or not is_instance_valid(light) \
+			or not _hulk.is_ancestor_of(light):
+		return false
+	if _streaming_transition == null:
+		light.light_energy = authored_energy
+		return true
+	return _streaming_transition.refresh_light_baseline(light, authored_energy)
+
+
 func get_streaming_transition_audit() -> Dictionary:
 	if _streaming_transition == null:
 		return {

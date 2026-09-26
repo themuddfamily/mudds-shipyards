@@ -16454,6 +16454,7 @@ func _sync_hulk_power_restoration_binding() -> void:
 	if not is_instance_valid(breaker):
 		_hulk_power_breaker = null
 		return
+	hulk.set_auxiliary_power_restored(_hulk_power_activity.is_claimed())
 	if breaker == _hulk_power_breaker \
 			and breaker.is_connected(&"breaker_engaged", _on_hulk_breaker_engaged):
 		return
@@ -16531,6 +16532,9 @@ func _commit_hulk_power_reward() -> Dictionary:
 	var claimed := _hulk_power_activity.commit_reward_receipt(receipt)
 	if bool(claimed.get("accepted", false)):
 		_sync_nearby_activity_hud()
+		var hulk := _get_station_hulk()
+		if is_instance_valid(hulk):
+			hulk.set_auxiliary_power_restored(true)
 		if is_instance_valid(_hulk_power_breaker):
 			_hulk_power_breaker.call(&"set_engaged", true)
 		if is_instance_valid(hud):

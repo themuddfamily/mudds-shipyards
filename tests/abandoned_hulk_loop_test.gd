@@ -538,6 +538,8 @@ func _test_production_loop() -> void:
 		and StringName(before.get("state_id", &"")) == &"idle",
 		"the physical breaker is bound and the salvage run has not started"
 	)
+	_check(_interior_lighting_matches(hulk, false),
+		"unclaimed hulk fixtures retain dim emergency lighting")
 	_check(
 		breaker.call(&"interact", player),
 		"the on-foot pilot can operate the auxiliary breaker"
@@ -548,6 +550,8 @@ func _test_production_loop() -> void:
 		and int(engaged.get("generation", 0)) == 1,
 		"throwing the breaker starts exactly one generation of the salvage run"
 	)
+	_check(_interior_lighting_matches(hulk, false),
+		"throwing the breaker alone does not light the bus before its reward commits")
 	await _advance_until_claimed(game)
 	var claimed := game.get_hulk_power_restoration_snapshot()
 	_check(
@@ -555,6 +559,10 @@ func _test_production_loop() -> void:
 		and bool(claimed.get("reward_claimed", false)),
 		"holding the gallery brings the auxiliary bus up and claims the cell"
 	)
+	_check(_interior_lighting_matches(hulk, true),
+		"the committed claim changes seven existing interior fixtures to restored bus lighting")
+	_check(bool(cluster.get_streaming_transition_audit().get("valid", false)),
+		"the restored fixture energy remains on the sector's audited stream fade")
 	hulk_board_row = _hulk_board_row(hud)
 	_check(hulk_board_row != null and hulk_board_row.get_child_count() == 2
 		and "COMPLETED" in (hulk_board_row.get_child(0) as Label).text
@@ -600,6 +608,8 @@ func _test_production_loop() -> void:
 		and int(_reward_counts(game).get(String(EXPECTED_REWARD_ID), 0)) == 1,
 		"whole-Main re-entry keeps the cell claimed and the ledger at one receipt"
 	)
+	_check(_interior_lighting_matches(hulk, true),
+		"whole-Main re-entry preserves restored lighting on the loaded hulk")
 	hulk_board_row = _hulk_board_row(hud)
 	_check(hulk_board_row != null and "COMPLETED" in
 		(hulk_board_row.get_child(0) as Label).text,
@@ -644,6 +654,19 @@ func _test_production_loop() -> void:
 		) == &"claimed",
 		"the recovered cell survives the trip home with the destination unloaded"
 	)
+	ship.global_position = anchor + toward_station * STREAM_LOAD_SAMPLE
+	await _wait_for_cluster(bootstrap, true)
+	for _fade_frame in 36:
+		await physics_frame
+	var reloaded_hulk := _get_reloaded_hulk(bootstrap)
+	_check(reloaded_hulk != null and reloaded_hulk != hulk
+		and _interior_lighting_matches(reloaded_hulk, true)
+		and bool((bootstrap.get_loaded_instance() as NearbySectorCluster)
+			.get_streaming_transition_audit().get("valid", false))
+		and int(_reward_counts(game).get(String(EXPECTED_REWARD_ID), 0)) == 1,
+		"stream re-entry restores bus lighting on a new hulk with one reward receipt")
+	ship.global_position = anchor + toward_station * STREAM_UNLOAD_SAMPLE
+	await _wait_for_cluster(bootstrap, false)
 	game.set("_piloting", true)
 	_check(
 		_marker_positions(game).is_empty(),
@@ -673,6 +696,37 @@ func _test_production_loop() -> void:
 
 
 # --- Helpers -----------------------------------------------------------------
+
+
+func _get_reloaded_hulk(bootstrap: CinderStreamingBootstrap) -> AbandonedStationHulk:
+	var cluster := bootstrap.get_loaded_instance() as NearbySectorCluster
+	return cluster.get_station_hulk() if cluster != null else null
+
+
+func _interior_lighting_matches(hulk: AbandonedStationHulk, restored: bool) -> bool:
+	if hulk == null or hulk.is_auxiliary_power_restored() != restored:
+		return false
+	var interiors := 0
+	var dock := 0
+	for light in hulk.get_light_nodes():
+		if light.name == "DockShelfPractical":
+			if (light.light_color.is_equal_approx(HULK.DOCK_CYAN)
+					and light.light_energy < 1.0):
+				dock += 1
+			continue
+		if restored:
+			if (light.light_color.is_equal_approx(HULK.RESTORED_BUS_COLOR)
+					and is_equal_approx(light.light_energy, HULK.RESTORED_PRACTICAL_ENERGY)
+					and is_equal_approx(light.omni_range, HULK.RESTORED_PRACTICAL_RANGE)
+					and is_equal_approx(light.omni_attenuation,
+						HULK.RESTORED_PRACTICAL_ATTENUATION)):
+				interiors += 1
+		elif (light.light_energy <= 1.0 and light.omni_range == HULK.PRACTICAL_RANGE
+				and is_equal_approx(light.omni_attenuation,
+					HULK.EMERGENCY_PRACTICAL_ATTENUATION)
+				and not light.light_color.is_equal_approx(HULK.RESTORED_BUS_COLOR)):
+			interiors += 1
+	return interiors == 7 and dock == 1 and hulk.get_light_nodes().size() == 8
 
 
 ## Nearby-sector destination marks currently on the published minimap roster,

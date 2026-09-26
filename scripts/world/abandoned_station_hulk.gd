@@ -116,6 +116,11 @@ const BREAKER_INTERACTION_EXTENTS := Vector3(1.6, 1.8, 1.6)
 const LIGHT_BUDGET := 8
 const PRACTICAL_ENERGY := 0.85
 const PRACTICAL_RANGE := 11.0
+const RESTORED_PRACTICAL_ENERGY := 2.1
+const RESTORED_PRACTICAL_RANGE := 18.0
+const RESTORED_PRACTICAL_ATTENUATION := 0.8
+const EMERGENCY_PRACTICAL_ATTENUATION := 2.1
+const RESTORED_BUS_COLOR := Color("b9e9ff")
 const PRACTICAL_FADE_BEGIN := 60.0
 const PRACTICAL_FADE_LENGTH := 25.0
 const EMERGENCY_AMBER := Color("ff9f43")
@@ -147,6 +152,7 @@ var _fitting_root: Node3D
 var _berth: ShipBerth
 var _breaker: Area3D
 var _lights: Array[OmniLight3D] = []
+var _auxiliary_power_restored := false
 var _materials: Dictionary = {}
 var _box_cache: Dictionary = {}
 var _cylinder_cache: Dictionary = {}
@@ -268,6 +274,36 @@ func get_light_nodes() -> Array[OmniLight3D]:
 		if is_instance_valid(light):
 			result.append(light)
 	return result
+
+
+## Presentation only. The reward authority supplies the claimed state; this
+## component never decides whether the breaker earned a cell.
+func set_auxiliary_power_restored(restored: bool) -> void:
+	_auxiliary_power_restored = restored
+	for light in get_light_nodes():
+		if light.name == "DockShelfPractical":
+			continue
+		light.light_color = (
+			RESTORED_BUS_COLOR if restored else light.get_meta("emergency_color") as Color
+		)
+		light.omni_range = RESTORED_PRACTICAL_RANGE if restored else PRACTICAL_RANGE
+		light.omni_attenuation = (
+			RESTORED_PRACTICAL_ATTENUATION
+			if restored else EMERGENCY_PRACTICAL_ATTENUATION
+		)
+		var authored_energy := (
+			RESTORED_PRACTICAL_ENERGY
+			if restored else float(light.get_meta("emergency_energy"))
+		)
+		var cluster := get_parent()
+		if cluster != null and cluster.has_method(&"refresh_station_hulk_light_energy"):
+			cluster.call(&"refresh_station_hulk_light_energy", light, authored_energy)
+		else:
+			light.light_energy = authored_energy
+
+
+func is_auxiliary_power_restored() -> bool:
+	return _auxiliary_power_restored
 
 
 func count_live_nodes() -> Dictionary:
@@ -584,8 +620,10 @@ func _build_practicals() -> void:
 		light.position = spec["position"] as Vector3
 		light.light_color = spec["color"] as Color
 		light.light_energy = float(spec["energy"]) * PRACTICAL_ENERGY
+		light.set_meta("emergency_color", light.light_color)
+		light.set_meta("emergency_energy", light.light_energy)
 		light.omni_range = PRACTICAL_RANGE
-		light.omni_attenuation = 2.1
+		light.omni_attenuation = EMERGENCY_PRACTICAL_ATTENUATION
 		light.shadow_enabled = false
 		light.distance_fade_enabled = true
 		light.distance_fade_begin = PRACTICAL_FADE_BEGIN

@@ -277,6 +277,20 @@ func scale_dynamic_light_energy(authored_energy: float) -> float:
 	return authored_energy * _opacity if _bound else authored_energy
 
 
+## A streamed fixture can change its authored state after bind. Keep that
+## fixture on the same opacity curve as every other light in this generation.
+func refresh_light_baseline(light: Light3D, authored_energy: float) -> bool:
+	if not _bound or not is_instance_valid(light) \
+			or not is_finite(authored_energy) or authored_energy < 0.0:
+		return false
+	for record in _lights:
+		if record.node == light:
+			record.authored_energy = authored_energy
+			light.light_energy = authored_energy * _opacity
+			return true
+	return false
+
+
 func get_snapshot() -> Dictionary:
 	return {
 		"schema_version": SCHEMA_VERSION,
