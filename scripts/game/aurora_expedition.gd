@@ -68,6 +68,8 @@ var _last_leg_result: Dictionary = {}
 var _fade_layer: CanvasLayer
 var _fade: ColorRect
 var _fade_opacity := 0.0
+var _surface_audio_settings_instance_id := 0
+var _surface_audio_reduced_dynamic_range := false
 
 func _init(flow: GameFlow) -> void:
 	_flow = flow
@@ -205,6 +207,18 @@ func get_visit_snapshot() -> Dictionary:
 func physics_tick(delta: float) -> void:
 	if not is_active():
 		return
+	if is_instance_valid(_flow.aurora_streaming_bootstrap) and is_instance_valid(_flow.player):
+		_flow.aurora_streaming_bootstrap.set_surface_audio_perspective(
+			&"cockpit" if _flow.player.is_seated() else &"exterior"
+		)
+		var resident := _flow.aurora_streaming_bootstrap.get_loaded_instance() as AuroraTemperateAuthoredScene
+		if is_instance_valid(resident):
+			var reduced_range := bool(_flow.get("_reduced_dynamic_range"))
+			if resident.get_instance_id() != _surface_audio_settings_instance_id \
+					or reduced_range != _surface_audio_reduced_dynamic_range:
+				resident.set_surface_audio_reduced_dynamic_range(reduced_range)
+				_surface_audio_settings_instance_id = resident.get_instance_id()
+				_surface_audio_reduced_dynamic_range = reduced_range
 	if _fade_opacity > 0.0:
 		_present_transition_fade(move_toward(_fade_opacity, 0.0, delta * 2.5))
 	if state == &"retiring":

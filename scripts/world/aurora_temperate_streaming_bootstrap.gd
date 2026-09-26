@@ -45,6 +45,16 @@ var _atmosphere_generation := 0
 var _last_atmosphere_result: Dictionary = {}
 var _atmosphere_configure_count := 0
 var _atmosphere_retire_count := 0
+var _surface_audio_perspective: StringName = &"cockpit"
+var _surface_audio_source_generation := 0
+var _last_surface_audio_result: Dictionary = {}
+
+## The visit owner supplies seated/on-foot truth; streaming only forwards it.
+func set_surface_audio_perspective(perspective: StringName) -> Dictionary:
+	if perspective not in [&"cockpit", &"exterior"]:
+		return {"accepted": false, "reason": &"invalid_ship_perspective"}
+	_surface_audio_perspective = perspective
+	return {"accepted": true, "reason": &"perspective_accepted"}
 
 
 func _create_profile() -> Dictionary:
@@ -109,6 +119,7 @@ func _on_generation_loaded(
 		location_generation: int,
 	) -> void:
 	_retire_atmosphere(&"replacement_before_attach")
+	_surface_audio_source_generation = 0
 	var candidate := instance.get_node_or_null(
 		ATMOSPHERE_COMPOSITION_PATH
 	) as PlanetaryAtmosphereComposition
@@ -145,6 +156,7 @@ func _on_generation_load_failed(reason: StringName) -> void:
 
 func _on_generation_unloaded() -> void:
 	_retire_atmosphere(&"aurora_unloaded")
+	_surface_audio_perspective = &"cockpit"
 
 
 func _present_environment(
@@ -176,6 +188,19 @@ func _present_environment(
 		},
 	)
 	_last_atmosphere_result = result.duplicate(true)
+	var world := get_loaded_instance() as AuroraTemperateAuthoredScene
+	if is_instance_valid(world) and bool(presented.get("accepted", false)):
+		_surface_audio_source_generation += 1
+		var altitude := maxf(0.0, body_local_observer.length() - BODY_RADIUS_METERS)
+		_last_surface_audio_result = world.present_surface_audio_snapshot({
+			"generation": _surface_audio_source_generation,
+			"altitude_m": altitude,
+			"weather_intensity_unitless": OBSERVATION_WEATHER_SCALAR,
+			"water_exposure_unitless": 1.0,
+			"day_night_unitless": 0.5,
+			"settlement_activity_unitless": 0.0,
+			"ship_perspective": _surface_audio_perspective,
+		})
 	return result.duplicate(true)
 
 
@@ -194,6 +219,11 @@ func _extend_snapshot(snapshot: Dictionary) -> void:
 		"last_body_local_focus_meters": _last_body_local_focus,
 		"last_focus_frame_generation": _last_focus_frame_generation,
 		"last_result": _last_atmosphere_result.duplicate(true),
+	}
+	snapshot["surface_audio"] = {
+		"perspective": _surface_audio_perspective,
+		"source_generation": _surface_audio_source_generation,
+		"last_result": _last_surface_audio_result.duplicate(true),
 	}
 
 
@@ -224,6 +254,8 @@ func _evidence() -> Dictionary:
 
 
 func _retire_atmosphere(reason: StringName) -> void:
+	_surface_audio_source_generation = 0
+	_last_surface_audio_result.clear()
 	if not is_instance_valid(_atmosphere):
 		_atmosphere = null
 		_atmosphere_generation = 0

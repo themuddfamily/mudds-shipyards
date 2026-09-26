@@ -1,8 +1,10 @@
-[gd_scene load_steps=13 format=3]
+[gd_scene load_steps=15 format=3]
 
 [ext_resource type="Script" path="res://scripts/world/aurora_temperate_authored_scene.gd" id="1_scene"]
 [ext_resource type="PackedScene" path="res://scenes/world/components/aurora_temperate_atmosphere_composition.tscn" id="2_composition"]
 [ext_resource type="Script" path="res://scripts/world/planetary_terrain_clipmap_renderer.gd" id="3_terrain_clipmap"]
+[ext_resource type="AudioStream" path="res://assets/audio/planetary/temperate_exterior_wind_air_v1.wav" id="4_exterior_audio"]
+[ext_resource type="AudioStream" path="res://assets/audio/planetary/temperate_interior_cabin_air_v1.wav" id="5_interior_audio"]
 
 [sub_resource type="StandardMaterial3D" id="BodyMaterial"]
 shading_mode = 0
@@ -34,6 +36,17 @@ size = Vector3(96, 0.5, 96)
 [node name="AuroraTemperateWorld" type="Node3D"]
 script = ExtResource("1_scene")
 [node name="AuroraAtmosphereComposition" parent="." instance=ExtResource("2_composition")]
+[node name="SurfaceAmbience" type="Node" parent="."]
+[node name="ExteriorVoice" type="AudioStreamPlayer" parent="SurfaceAmbience"]
+stream = ExtResource("4_exterior_audio")
+bus = &"Ambience"
+volume_db = -80.0
+max_polyphony = 1
+[node name="InteriorVoice" type="AudioStreamPlayer" parent="SurfaceAmbience"]
+stream = ExtResource("5_interior_audio")
+bus = &"Ambience"
+volume_db = -80.0
+max_polyphony = 1
 [node name="BodyVisual" type="MeshInstance3D" parent="."]
 cast_shadow = 0
 gi_mode = 0

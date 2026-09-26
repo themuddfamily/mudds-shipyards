@@ -57,6 +57,23 @@ func _run() -> void:
 		return
 	var berth := owner.get("_berth") as ShipBerth
 	var surface := owner.get("_surface") as Node3D
+	var landed_audio := surface.call(&"get_surface_audio_snapshot") as Dictionary
+	var landed_playback := landed_audio.get("playback", {}) as Dictionary
+	var streamed_audio := game.aurora_streaming_bootstrap.get_snapshot().get("surface_audio", {}) as Dictionary
+	_check(bool((streamed_audio.get("last_result", {}) as Dictionary).get("accepted", false))
+		and landed_audio.get("ship_perspective", &"") == &"cockpit"
+		and bool(landed_playback.get("interior_playing", false))
+		and int(landed_playback.get("voice_count", 0)) == 2,
+		"landed production streaming feeds both bounded Aurora voice routes")
+	var cabin_volume := float(landed_playback.get("interior_volume_db", -80.0))
+	game.set_reduced_dynamic_range(true)
+	for _audio_tick in range(2):
+		await physics_frame
+	var reduced_audio := surface.call(&"get_surface_audio_snapshot") as Dictionary
+	_check(bool(reduced_audio.get("reduced_dynamic_range", false))
+		and float((reduced_audio.get("playback", {}) as Dictionary).get("interior_volume_db", 0.0)) < cabin_volume,
+		"the live accessibility setting attenuates Aurora's cabin player")
+	game.set_reduced_dynamic_range(false)
 	_check(craft.global_position.distance_to(game.world.global_position) > 10000000.0 and berth.get_occupant() == craft and bool(craft.get_telemetry().get("landed", false)), "the same Halyard occupies the real Aurora surface berth")
 	_check(surface.get_node_or_null("LandingRegion/CoastalExploration/CoastalLookoutSign") != null, "the visited world contains explorable lookout and standing stones")
 	_check(int(owner.get_visit_snapshot().get("staging_events", -1)) == 0,
@@ -74,6 +91,14 @@ func _run() -> void:
 	for i in range(30):
 		await physics_frame
 	_check(owner.state == &"surface" and not game.player.is_seated() and game.player.is_control_enabled() and game.player.is_on_floor(), "exit restores ordinary walking and physical surface support")
+	var walking_audio := surface.call(&"get_surface_audio_snapshot") as Dictionary
+	_check(walking_audio.get("ship_perspective", &"") == &"exterior"
+		and bool((walking_audio.get("playback", {}) as Dictionary).get("exterior_playing", false))
+		and not bool((walking_audio.get("playback", {}) as Dictionary).get("interior_playing", true)),
+		"disembarking routes live Aurora ambience to the exterior loop")
+	if "--aurora-audio-check" in OS.get_cmdline_user_args():
+		await _finish(game)
+		return
 	_check(not bool(_row(game).get("action_enabled", true)), "return action asks the on-foot explorer to board first")
 	# From the planet apron, walk through the actual hatch and aft to the berth.
 	_check(await _walk_to_local(game.player, craft, Vector3(-3.1, 0.0, craft.AIRSTAIR_Z)), "walk from Aurora surface to the Halyard stair")

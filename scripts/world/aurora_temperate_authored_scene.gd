@@ -2,6 +2,7 @@ class_name AuroraTemperateAuthoredScene
 extends Node3D
 
 const AuroraSurfaceAudioBindingType := preload("res://scripts/audio/aurora_surface_audio_binding.gd")
+const SurfaceAudioCatalog := preload("res://assets/audio/planetary/temperate_surface_audio_catalog.tres")
 const WaterContactAudioBindingType := preload("res://scripts/audio/water_contact_audio_binding.gd")
 const SettlementInteractionAudioBindingType := preload("res://scripts/audio/settlement_interaction_audio_binding.gd")
 
@@ -31,6 +32,8 @@ const SURFACE_LANDMARK_MARKER_PATHS := {
 }
 
 var _surface_audio_binding: RefCounted
+var _exterior_voice: AudioStreamPlayer
+var _interior_voice: AudioStreamPlayer
 var _water_contact_audio_binding: RefCounted
 var _settlement_audio_binding: RefCounted
 var _terrain_clipmap: PlanetaryTerrainClipmapRenderer
@@ -69,12 +72,20 @@ func _ready() -> void:
 			)
 	_surface_audio_binding = AuroraSurfaceAudioBindingType.new()
 	_surface_audio_binding.attach(0)
+	_exterior_voice = get_node_or_null(^"SurfaceAmbience/ExteriorVoice") as AudioStreamPlayer
+	_interior_voice = get_node_or_null(^"SurfaceAmbience/InteriorVoice") as AudioStreamPlayer
+	if _exterior_voice == null or _interior_voice == null \
+			or not SurfaceAudioCatalog.is_definition_valid() \
+			or _exterior_voice.stream != SurfaceAudioCatalog.exterior_stream \
+			or _interior_voice.stream != SurfaceAudioCatalog.interior_stream:
+		push_error("Aurora surface ambience voice contract is unavailable")
 	_water_contact_audio_binding = WaterContactAudioBindingType.new()
 	_water_contact_audio_binding.attach(0)
 	_settlement_audio_binding = SettlementInteractionAudioBindingType.new()
 	_settlement_audio_binding.attach(0)
 
 func _exit_tree() -> void:
+	_stop_surface_audio()
 	if _surface_audio_binding != null:
 		_surface_audio_binding.detach()
 		_surface_audio_binding = null
@@ -88,15 +99,56 @@ func _exit_tree() -> void:
 func present_surface_audio_snapshot(snapshot: Dictionary) -> Dictionary:
 	if _surface_audio_binding == null:
 		return {"accepted": false, "reason": &"audio_binding_unavailable"}
-	return _surface_audio_binding.present_snapshot(snapshot)
+	var result: Dictionary = _surface_audio_binding.present_snapshot(snapshot)
+	if bool(result.get("accepted", false)):
+		_apply_surface_audio_mix()
+	return result
 
 func set_surface_audio_reduced_dynamic_range(enabled: bool) -> Dictionary:
 	if _surface_audio_binding == null:
 		return {"accepted": false, "reason": &"audio_binding_unavailable"}
-	return _surface_audio_binding.set_reduced_dynamic_range(enabled)
+	var result: Dictionary = _surface_audio_binding.set_reduced_dynamic_range(enabled)
+	if bool(result.get("accepted", false)):
+		_apply_surface_audio_mix()
+	return result
 
 func get_surface_audio_snapshot() -> Dictionary:
-	return _surface_audio_binding.get_snapshot() if _surface_audio_binding != null else {"attached": false}
+	var snapshot: Dictionary = _surface_audio_binding.get_snapshot() if _surface_audio_binding != null else {"attached": false}
+	snapshot["playback"] = {
+		"exterior_playing": _exterior_voice.playing if is_instance_valid(_exterior_voice) else false,
+		"interior_playing": _interior_voice.playing if is_instance_valid(_interior_voice) else false,
+		"exterior_volume_db": _exterior_voice.volume_db if is_instance_valid(_exterior_voice) else -80.0,
+		"interior_volume_db": _interior_voice.volume_db if is_instance_valid(_interior_voice) else -80.0,
+		"voice_count": find_children("*", "AudioStreamPlayer", true, false).size(),
+		"authority": {"audio": true, "weather": false, "water": false, "perspective": false},
+	}
+	return snapshot.duplicate(true)
+
+func _apply_surface_audio_mix() -> void:
+	if not is_instance_valid(_exterior_voice) or not is_instance_valid(_interior_voice):
+		return
+	var state := _surface_audio_binding.get_snapshot() as Dictionary
+	var mix := state.get("mix", {}) as Dictionary
+	var perspective := StringName(state.get("ship_perspective", &"exterior"))
+	var exterior_level := clampf(float(mix.get("wind", 0.0)) * 0.65 + float(mix.get("distant_water", 0.0)) * 0.35, 0.0, 1.0)
+	var interior_level := clampf(float(mix.get("wind", 0.0)) * 0.35 + float(mix.get("distant_water", 0.0)) * 0.2, 0.0, 1.0)
+	_set_surface_voice(_exterior_voice, exterior_level if perspective == &"exterior" else exterior_level * 0.12)
+	_set_surface_voice(_interior_voice, interior_level if perspective == &"cockpit" else 0.0)
+
+func _set_surface_voice(voice: AudioStreamPlayer, level: float) -> void:
+	if level <= 0.001:
+		voice.stop()
+		voice.volume_db = -80.0
+		return
+	voice.volume_db = clampf(linear_to_db(level) - 16.0, -60.0, -12.0)
+	if not voice.playing:
+		voice.play()
+
+func _stop_surface_audio() -> void:
+	for voice in [_exterior_voice, _interior_voice]:
+		if is_instance_valid(voice):
+			voice.stop()
+			voice.volume_db = -80.0
 
 func present_water_contact_audio_receipt(receipt: Dictionary) -> Dictionary:
 	if _water_contact_audio_binding == null:
@@ -187,9 +239,12 @@ func audit() -> Dictionary:
 	var environments := find_children("*", "WorldEnvironment", true, false)
 	if environments.size() != 1 or environments[0] != get_node_or_null("AuroraAtmosphereComposition/WorldEnvironment"):
 		errors.append("world_environment_census_drift")
+	var audio_players := find_children("*", "AudioStreamPlayer", true, false)
+	if audio_players.size() != 2 or not audio_players.has(_exterior_voice) or not audio_players.has(_interior_voice):
+		errors.append("surface_audio_voice_census_drift")
 	if is_processing() or is_physics_processing():
 		errors.append("process_authority_added")
-	return {"valid": errors.is_empty(), "errors": errors, "world_composition": world_composition, "landing_composition": landing_composition, "terrain_clipmap": terrain_clipmap_audit, "surface_content": _surface_content_snapshot(landing), "authority": {"renderer": true, "gameplay": false, "streaming": false, "physics": true, "world_generation": false, "terrain_generation": true, "collision_generation": true, "origin_shift": false, "save": false, "network": false, "audio": false, "camera": false, "surface_route": false}}.duplicate(true)
+	return {"valid": errors.is_empty(), "errors": errors, "world_composition": world_composition, "landing_composition": landing_composition, "terrain_clipmap": terrain_clipmap_audit, "surface_content": _surface_content_snapshot(landing), "authority": {"renderer": true, "gameplay": false, "streaming": false, "physics": true, "world_generation": false, "terrain_generation": true, "collision_generation": true, "origin_shift": false, "save": false, "network": false, "audio": true, "camera": false, "surface_route": false}}.duplicate(true)
 
 
 func _validate_surface_route(errors: PackedStringArray, landing: PlanetaryLandingRegionDefinition) -> void:

@@ -4,7 +4,7 @@ extends RefCounted
 ## Presentation-only mix plan for detached Aurora environment snapshots.
 ## Weather, water, day/night, and ship perspective authority stay with callers.
 
-const MAXIMUM_VOICES := 4
+const MAXIMUM_VOICES := 2
 const MAX_SAFE_GENERATION := 9_007_199_254_740_991
 
 var _attached := false
@@ -25,6 +25,7 @@ func attach(expected_generation: int = 0) -> Dictionary:
 func set_reduced_dynamic_range(enabled: bool) -> Dictionary:
 	_reduced_dynamic_range = enabled
 	if not _last_snapshot.is_empty():
+		_last_source_generation = -1
 		present_snapshot(_last_snapshot)
 	return _result(true, &"mix_updated")
 
@@ -37,12 +38,15 @@ func present_snapshot(snapshot: Dictionary) -> Dictionary:
 	var day: Variant = snapshot.get("day_night_unitless", 0.5)
 	var settlement: Variant = snapshot.get("settlement_activity_unitless", 0.0)
 	var perspective: Variant = snapshot.get("ship_perspective", &"exterior")
+	var altitude: Variant = snapshot.get("altitude_m", 0.0)
 	if not generation is int or int(generation) < 0 or int(generation) > MAX_SAFE_GENERATION:
 		return _result(false, &"invalid_generation")
 	if not _unitless(weather) or not _unitless(water) or not _unitless(day) or not _unitless(settlement):
 		return _result(false, &"invalid_environment_snapshot")
 	if perspective not in [&"cockpit", &"exterior"]:
 		return _result(false, &"invalid_ship_perspective")
+	if not (altitude is float or altitude is int) or not is_finite(float(altitude)) or float(altitude) < 0.0:
+		return _result(false, &"invalid_altitude")
 	if int(generation) < _last_source_generation:
 		return _result(false, &"stale_generation")
 	if int(generation) == _last_source_generation and snapshot == _last_snapshot:
@@ -50,9 +54,10 @@ func present_snapshot(snapshot: Dictionary) -> Dictionary:
 	_last_source_generation = int(generation)
 	var cabin := 0.62 if perspective == &"cockpit" else 1.0
 	var dynamic := 0.75 if _reduced_dynamic_range else 1.0
+	var surface_presence := 1.0 - clampf(float(altitude) / 2500.0, 0.0, 1.0)
 	_mix = {
-		"wind": clampf(float(weather) * cabin * dynamic, 0.0, 1.0),
-		"distant_water": clampf(float(water) * (0.55 + 0.2 * float(day)) * dynamic, 0.0, 1.0),
+		"wind": clampf(float(weather) * cabin * dynamic * surface_presence, 0.0, 1.0),
+		"distant_water": clampf(float(water) * (0.55 + 0.2 * float(day)) * dynamic * surface_presence, 0.0, 1.0),
 		"weather": clampf(float(weather) * (0.4 + 0.6 * float(day)) * cabin * dynamic, 0.0, 1.0),
 		"settlement": clampf(float(settlement) * (0.8 if perspective == &"cockpit" else 1.0) * dynamic, 0.0, 1.0),
 		"low_pass_hz": lerpf(18_000.0, 3_200.0, float(weather) * (1.0 if perspective == &"exterior" else 0.7)),
@@ -72,7 +77,7 @@ func detach() -> Dictionary:
 	return _result(true, &"detached")
 
 func get_snapshot() -> Dictionary:
-	return {"attached": _attached, "generation": _generation, "last_source_generation": _last_source_generation, "mix": _mix.duplicate(true), "reduced_dynamic_range": _reduced_dynamic_range, "maximum_simultaneous_voices": MAXIMUM_VOICES, "authority": {"weather": false, "water": false, "day_night": false, "movement": false, "audio": true}}.duplicate(true)
+	return {"attached": _attached, "generation": _generation, "last_source_generation": _last_source_generation, "ship_perspective": _last_snapshot.get("ship_perspective", &"exterior"), "mix": _mix.duplicate(true), "reduced_dynamic_range": _reduced_dynamic_range, "maximum_simultaneous_voices": MAXIMUM_VOICES, "authority": {"weather": false, "water": false, "day_night": false, "movement": false, "audio": true}}.duplicate(true)
 
 func _unitless(value: Variant) -> bool:
 	return (value is float or value is int) and is_finite(float(value)) and float(value) >= 0.0 and float(value) <= 1.0
