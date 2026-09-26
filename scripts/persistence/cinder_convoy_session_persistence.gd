@@ -6,7 +6,7 @@ extends RefCounted
 ## transaction authority; this adapter owns no route, clock, entity, arrival,
 ## reward, ship, streaming, or gameplay lifecycle.
 
-const SESSION_SCHEMA_VERSION := 1
+const SESSION_SCHEMA_VERSION := 2
 const ACTIVITY_KIND := "convoy_escort"
 const PHASE_ID := "escort"
 const STREAM_LOCATION_ID := "cinder_reach"
@@ -50,15 +50,17 @@ func load(host: CinderConvoyEscortHost) -> Dictionary:
 func save(
 		host: CinderConvoyEscortHost,
 		escort_ship_id: StringName,
-		commit_id: String
+		commit_id: String,
+		threat: CinderConvoyThreat = null
 	) -> Dictionary:
 	if not is_instance_valid(host):
 		return _result(false, &"convoy_session_save_invalid")
 	return save_state(
-		_capture_session_state(host, escort_ship_id),
+		_capture_session_state(host, escort_ship_id, threat),
 		host,
 		escort_ship_id,
-		commit_id
+		commit_id,
+		threat
 	)
 
 
@@ -68,7 +70,8 @@ func save_state(
 		state: Dictionary,
 		host: CinderConvoyEscortHost,
 		escort_ship_id: StringName,
-		commit_id: String
+		commit_id: String,
+		threat: CinderConvoyThreat = null
 	) -> Dictionary:
 	if not _configured() or not is_instance_valid(host) \
 			or not _stable_ship_id(str(escort_ship_id)) \
@@ -76,7 +79,7 @@ func save_state(
 		return _result(false, &"convoy_session_save_invalid")
 	var canonical_state := _canonical_state(state)
 	var canonical_live_state := _canonical_state(
-		_capture_session_state(host, escort_ship_id)
+		_capture_session_state(host, escort_ship_id, threat)
 	)
 	if canonical_state.is_empty() or canonical_live_state.is_empty():
 		return _result(false, &"convoy_session_save_invalid")
@@ -206,9 +209,10 @@ func validate_session_state(
 	if not candidate is Dictionary or not is_instance_valid(host):
 		return _result(false, &"malformed_convoy_session_state")
 	var state := candidate as Dictionary
-	if state.size() != 7 \
-			or not _integral(state.get("schema_version")) \
-			or int(state.get("schema_version", 0)) != SESSION_SCHEMA_VERSION \
+	var schema_version := int(state.get("schema_version", 0))
+	if not _integral(state.get("schema_version")) \
+			or schema_version not in [1, SESSION_SCHEMA_VERSION] \
+			or state.size() != (7 if schema_version == 1 else 8) \
 			or str(state.get("activity_kind", "")) != ACTIVITY_KIND \
 			or str(state.get("activity_id", "")) \
 			!= str(CinderConvoyEscortHost.ROUTE.activity_id) \
@@ -221,6 +225,13 @@ func validate_session_state(
 	var host_validation := host.validate_persistence_state(state.host_state)
 	if not bool(host_validation.get("accepted", false)):
 		return host_validation
+	if schema_version == SESSION_SCHEMA_VERSION:
+		var host_state := state.host_state as Dictionary
+		var activity_state := host_state.get("activity_state", {}) as Dictionary
+		if not CinderConvoyThreat.validate_persistence_state(
+			state.get("threat_state"), int(activity_state.get("generation", 0))
+		):
+			return _result(false, &"invalid_convoy_threat_state")
 	return _result(true, &"convoy_session_state_valid")
 
 
@@ -230,8 +241,10 @@ func get_store_generation() -> int:
 
 func _capture_session_state(
 		host: CinderConvoyEscortHost,
-		escort_ship_id: StringName
+		escort_ship_id: StringName,
+		threat: CinderConvoyThreat = null
 	) -> Dictionary:
+	var generation := host.get_generation()
 	return {
 		"schema_version": SESSION_SCHEMA_VERSION,
 		"activity_kind": ACTIVITY_KIND,
@@ -240,6 +253,11 @@ func _capture_session_state(
 		"escort_ship_id": String(escort_ship_id),
 		"stream_location_id": STREAM_LOCATION_ID,
 		"host_state": host.capture_persistence_state(),
+		"threat_state": (
+			threat.capture_persistence_state()
+			if is_instance_valid(threat) and bool(threat.get_snapshot().get("active", false))
+			else CinderConvoyThreat.pristine_persistence_state(generation)
+		),
 	}.duplicate(true)
 
 
@@ -280,6 +298,13 @@ func _validate_transition(existing: Dictionary, candidate: Dictionary) -> Dictio
 		return _result(false, &"convoy_session_ship_identity_changed")
 	var old_host := existing.host_state as Dictionary
 	var new_host := candidate.host_state as Dictionary
+	if existing.has("threat_state") and candidate.has("threat_state"):
+		var old_threat := existing.threat_state as Dictionary
+		var new_threat := candidate.threat_state as Dictionary
+		if float(new_threat.get("tender_health", 0.0)) > float(old_threat.get("tender_health", 0.0)) \
+				or float(new_threat.get("attacker_health", 0.0)) > float(old_threat.get("attacker_health", 0.0)) \
+				or int(new_threat.get("shots_fired", 0)) < int(old_threat.get("shots_fired", 0)):
+			return _result(false, &"stale_convoy_threat_state")
 	var old_activity := old_host.activity_state as Dictionary
 	var new_activity := new_host.activity_state as Dictionary
 	var old_generation := int(old_activity.get("generation", -1))

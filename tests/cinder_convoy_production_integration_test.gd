@@ -280,6 +280,61 @@ func _test_reentry_completion_and_lifecycle_failures(
 	hud: GameHUD,
 	ship: HeroShip
 	) -> void:
+	var threat := game.cinder_convoy_threat as CinderConvoyThreat
+	var threat_before := threat.get_snapshot()
+	_check(
+		bool(threat_before.get("active", false))
+		and int(threat_before.get("generation", 0)) == host.get_generation()
+		and int(threat_before.get("registration_count", 0)) == 1
+		and bool(game.get_live_combat_source_roster_audit().get("valid", false))
+		and int(game.get_live_combat_source_roster_audit().get("expected_convoy_source_count", 0)) == 1,
+		"one real attacker registers for the accepted escort generation"
+	)
+	for _tick in 20:
+		ship.global_position = (host.get_snapshot().get("entity_position") as Vector3) \
+			+ GameFlow.CINDER_CONVOY_ESCORT_LANE_OFFSET
+		game.call("_physics_process", 0.25)
+		await physics_frame
+	var attacked := threat.get_snapshot()
+	_check(
+		int(attacked.get("shots_fired", 0)) >= 1
+		and float(attacked.get("tender_health", 75.0)) < 75.0
+		and game.get_active_activity_snapshot().get("state_id", &"") == &"active",
+		"resolver-backed raider fire damages the tender before arrival"
+	)
+	var health_before_reentry := float(attacked.get("tender_health", 0.0))
+	root.remove_child(game)
+	await process_frame
+	root.add_child(game)
+	await process_frame
+	await process_frame
+	game.set_physics_process(false)
+	var live_reentry := threat.get_snapshot()
+	_check(
+		is_equal_approx(float(live_reentry.get("tender_health", 0.0)), health_before_reentry)
+		and int(live_reentry.get("registration_count", 0)) == 1
+		and game.get_combat_authority().get_source_id(
+			threat.get_attacker()
+		) == CinderConvoyThreat.ATTACKER_SOURCE_ID,
+		"whole-Main re-entry retains tender damage and one attacker source registration"
+	)
+	var attacker := threat.get_attacker() as Node3D
+	ship.global_position = attacker.global_position + Vector3(0.0, 0.0, 12.0)
+	await physics_frame
+	var shot := game.get_combat_authority().submit_hitscan(
+		ship,
+		GameFlow.RANGE_WEAPON_ID,
+		ship.global_position,
+		attacker.global_position - ship.global_position
+	)
+	_check(
+		bool(shot.get("destroyed", false))
+		and is_zero_approx(float(threat.get_snapshot().get("attacker_health", 35.0)))
+		and game.get_combat_authority().get_source_id(attacker) == 0
+		and bool(game.get_live_combat_source_roster_audit().get("valid", false))
+		and int(game.get_live_combat_source_roster_audit().get("expected_convoy_source_count", 1)) == 0,
+		"a real player weapon destroys the raider and retires its source before the lethal third shot"
+	)
 	var host_id := host.get_instance_id()
 	var generation := host.get_generation()
 	var before_detach := game.get_active_activity_snapshot()
@@ -351,6 +406,33 @@ func _test_reentry_completion_and_lifecycle_failures(
 	# Generation replacement is fail-closed even if a stale observer tries to
 	# report against the prior completed incarnation.
 	_check(game.reset_active_activity(), "completed convoy resets explicitly")
+	ship.global_position = GameFlow.CINDER_CONVOY_ACTIVATION_CENTER
+	_check(
+		bool(game.request_activity_start(GameFlow.CINDER_CONVOY_ACTIVITY_ID).get("accepted", false)),
+		"a new escort generation rearms one tender and one raider"
+	)
+	var undefended_generation := host.get_generation()
+	for _tick in 28:
+		if game.get_active_activity_snapshot().get("state_id", &"") != &"active":
+			break
+		ship.global_position = (host.get_snapshot().get("entity_position") as Vector3) \
+			+ GameFlow.CINDER_CONVOY_ESCORT_LANE_OFFSET
+		game.call("_physics_process", 0.25)
+		await physics_frame
+	var undefended := game.get_active_activity_snapshot()
+	var reward_after_loss := (
+		(game.get_activity_reward_report().get("authority", {}) as Dictionary).get("record", {})
+		as Dictionary
+	).get("last_receipt", {}) as Dictionary
+	_check(
+		undefended.get("state_id", &"") == &"failed"
+		and undefended.get("terminal_reason", &"") == &"convoy_destroyed"
+		and int(undefended.get("generation", 0)) == undefended_generation
+		and float((undefended.get("threat", {}) as Dictionary).get("tender_health", 1.0)) == 0.0
+		and reward_after_loss == reward_receipt,
+		"unintercepted resolver fire destroys the exact tender generation before arrival without a second payout"
+	)
+	_check(game.reset_active_activity(), "destroyed convoy resets explicitly")
 	ship.global_position = GameFlow.CINDER_CONVOY_ACTIVATION_CENTER
 	var replacement_start := game.request_activity_start(
 		GameFlow.CINDER_CONVOY_ACTIVITY_ID

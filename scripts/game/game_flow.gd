@@ -6,6 +6,7 @@ const PlanetaryJourneyCoordinatorType := preload("res://scripts/game/planetary_j
 const ShipRestOverlayType := preload("res://scripts/ui/ship_rest_overlay.gd")
 
 const LiveCombatAuthorityType := preload("res://scripts/combat/live_combat_authority.gd")
+const CinderConvoyThreatType := preload("res://scripts/activities/cinder_convoy_threat.gd")
 const ShotRequestType := preload("res://scripts/combat/shot_request.gd")
 const LifecycleDamageableAdapterType := preload("res://scripts/combat/lifecycle_damageable_adapter.gd")
 const CombatResolverType := preload("res://scripts/combat/combat_resolver.gd")
@@ -623,6 +624,7 @@ var activity_director: ActivityDirector
 var cinder_race_session: CinderTimedRaceSession
 var patrol_activity: PatrolActivity
 var cinder_convoy_host: CinderConvoyEscortHost
+var cinder_convoy_threat: CinderConvoyThreat
 var cinder_streaming_bootstrap: CinderStreamingBootstrap
 var cinder_streaming_binding: CinderStreamingProductionBinding
 var cinder_streaming_coordinator: WorldStreamingCoordinator
@@ -1064,6 +1066,7 @@ var _cinder_convoy_session_restore_status: Dictionary = {}
 var _cinder_convoy_session_save_status: Dictionary = {}
 var _cinder_convoy_session_saved_fingerprint := ""
 var _cinder_convoy_restored_ship_id: StringName = &""
+var _cinder_convoy_restored_threat_state: Dictionary = {}
 var _cinder_convoy_runtime_rebind_pending := false
 ## Diagnostic only: exactly one increment accompanies each production physics
 ## position sample, proving no second adapter or retired director sampler is live.
@@ -2145,6 +2148,61 @@ func _initialize_cinder_convoy_host() -> void:
 	cinder_convoy_host.visible = false
 
 
+func _initialize_cinder_convoy_threat() -> void:
+	if not is_instance_valid(cinder_convoy_host) or not is_instance_valid(combat_authority):
+		return
+	if not is_instance_valid(cinder_convoy_threat):
+		cinder_convoy_threat = CinderConvoyThreatType.new() as CinderConvoyThreat
+		cinder_convoy_threat.name = "CinderConvoyThreat"
+		cinder_convoy_host.add_child(cinder_convoy_threat)
+		cinder_convoy_threat.configure(cinder_convoy_host, combat_authority)
+		cinder_convoy_threat.tender_destroyed.connect(_on_cinder_convoy_tender_destroyed)
+		cinder_convoy_threat.tender_damaged.connect(_on_cinder_convoy_tender_damaged)
+		cinder_convoy_threat.attacker_damaged.connect(_on_cinder_convoy_attacker_damaged)
+		if _convoy_is_running():
+			var generation := cinder_convoy_host.get_generation()
+			var armed := cinder_convoy_threat.start(generation)
+			var restored := armed and (
+				_cinder_convoy_restored_threat_state.is_empty()
+				or cinder_convoy_threat.restore_persistence_state(
+					_cinder_convoy_restored_threat_state, generation
+				)
+			)
+			if not restored:
+				_convoy_terminal_reason = &"convoy_threat_restore_failed"
+				cinder_convoy_host.report_convoy_lost(generation)
+				_retire_cinder_convoy_session()
+			_cinder_convoy_restored_threat_state.clear()
+	else:
+		cinder_convoy_threat.rebind()
+
+
+func _on_cinder_convoy_tender_destroyed(generation: int) -> void:
+	if is_instance_valid(cinder_convoy_host) and generation == cinder_convoy_host.get_generation() \
+			and _convoy_is_running():
+		_fail_active_activity(&"convoy_destroyed")
+
+
+func _on_cinder_convoy_tender_damaged(generation: int, current: float, maximum: float) -> void:
+	if not is_instance_valid(cinder_convoy_host) \
+			or generation != cinder_convoy_host.get_generation() \
+			or not _convoy_is_running() or current <= 0.0:
+		return
+	if is_instance_valid(hud):
+		hud.toast(
+			"Emberline tender under fire",
+			"Hull %.0f/%.0f — intercept the red raider" % [current, maximum],
+			2.5
+		)
+	save_cinder_convoy_session()
+
+
+func _on_cinder_convoy_attacker_damaged(generation: int, _current: float) -> void:
+	if is_instance_valid(cinder_convoy_host) and generation == cinder_convoy_host.get_generation() \
+			and _convoy_is_running():
+		save_cinder_convoy_session()
+
+
 func _initialize_cinder_convoy_session_persistence() -> void:
 	if _cinder_convoy_session_persistence == null \
 			and _runtime_settings_user_data_store != null:
@@ -2167,6 +2225,9 @@ func _initialize_cinder_convoy_session_persistence() -> void:
 	if not bool(loaded.get("accepted", false)):
 		return
 	var session_state := loaded.get("session_state", {}) as Dictionary
+	_cinder_convoy_restored_threat_state = (
+		(session_state.get("threat_state", {}) as Dictionary).duplicate(true)
+	)
 	var restored := cinder_convoy_host.restore_persistence_state(
 		session_state.get("host_state", {}),
 		cinder_convoy_host.get_generation()
@@ -2214,8 +2275,11 @@ func save_cinder_convoy_session() -> Dictionary:
 		CINDER_CONVOY_SESSION_COMMIT_PREFIX,
 		next_generation,
 	]
+	if not is_instance_valid(cinder_convoy_threat) \
+			or not bool(cinder_convoy_threat.get_snapshot().get("active", false)):
+		return {"accepted": false, "reason": &"convoy_threat_unavailable"}
 	_cinder_convoy_session_save_status = _cinder_convoy_session_persistence.save(
-		cinder_convoy_host, escort_ship_id, commit_id
+		cinder_convoy_host, escort_ship_id, commit_id, cinder_convoy_threat
 	).duplicate(true)
 	if bool(_cinder_convoy_session_save_status.get("accepted", false)):
 		_cinder_convoy_session_saved_fingerprint = _cinder_convoy_save_fingerprint(
@@ -2593,6 +2657,7 @@ func _start_up_activities() -> void:
 	_initialize_cinder_race_session()
 	_initialize_caption_presentation()
 	_initialize_live_combat()
+	_initialize_cinder_convoy_threat()
 	_sync_fleet_ship_semantic_audio()
 	_initialize_nearby_activity_audio()
 	_initialize_halyard_crew_semantic_audio()
@@ -5711,6 +5776,8 @@ func _restore_pilot_reservation_after_reentry() -> void:
 func _restore_live_combat_after_reentry() -> void:
 	if not _initialized or is_queued_for_deletion() or not is_inside_tree():
 		return
+	if is_instance_valid(cinder_convoy_threat):
+		cinder_convoy_threat.rebind()
 	_initialize_live_combat()
 
 
@@ -12246,6 +12313,25 @@ func get_live_combat_source_roster_audit() -> Dictionary:
 			"weapon_ids": profiles.keys(),
 			"exact": exact,
 		})
+	var convoy_source_count := 0
+	var convoy_source_exact := false
+	if is_instance_valid(cinder_convoy_threat):
+		var threat_snapshot := cinder_convoy_threat.get_snapshot()
+		if bool(threat_snapshot.get("active", false)) \
+				and float(threat_snapshot.get("attacker_health", 0.0)) > 0.0:
+			var raider := cinder_convoy_threat.get_attacker() as Node3D
+			convoy_source_count = 1
+			convoy_source_exact = _combat_registration_matches(
+				raider,
+				CinderConvoyThreat.ATTACKER_SOURCE_ID,
+				CinderConvoyThreat.ATTACKER_FACTION,
+				CinderConvoyThreat.WEAPON_PROFILE
+			)
+			if seen_source_ids.has(CinderConvoyThreat.ATTACKER_SOURCE_ID):
+				errors.append("convoy raider source ID collides with an existing source")
+			seen_source_ids[CinderConvoyThreat.ATTACKER_SOURCE_ID] = true
+			if not convoy_source_exact:
+				errors.append("convoy raider combat source registration is not exact")
 
 	var encounter_present := false
 	var encounter_ready := false
@@ -12280,7 +12366,7 @@ func get_live_combat_source_roster_audit() -> Dictionary:
 		resolver.get_registered_source_count() if is_instance_valid(resolver) else 0
 	)
 	var expected_source_count := player_rows.size() + 1 + expected_encounter_sources \
-		+ reinforcement_rows.size()
+		+ reinforcement_rows.size() + convoy_source_count
 	if actual_source_count != expected_source_count:
 		errors.append(
 			"live source count differs from exact composed roster: %d != %d"
@@ -12302,6 +12388,8 @@ func get_live_combat_source_roster_audit() -> Dictionary:
 		"expected_player_source_count": player_rows.size(),
 		"expected_opponent_source_count": 1,
 		"expected_reinforcement_source_count": reinforcement_rows.size(),
+		"expected_convoy_source_count": convoy_source_count,
+		"convoy_source_exact": convoy_source_exact,
 		"reinforcement_sources": reinforcement_rows,
 		"expected_station_defense_source_count": expected_encounter_sources,
 		"authored_station_defense_source_count": authored_encounter_sources,
@@ -13168,6 +13256,9 @@ func _start_cinder_convoy(sampled_world_position: Variant) -> Dictionary:
 	var started := cinder_convoy_host.start(cinder_convoy_host.get_generation())
 	if not bool(started.get("accepted", false)):
 		return started
+	if not is_instance_valid(cinder_convoy_threat) or not cinder_convoy_threat.start(cinder_convoy_host.get_generation()):
+		cinder_convoy_host.report_convoy_lost(cinder_convoy_host.get_generation())
+		return {"accepted": false, "reason": &"convoy_threat_unavailable"}
 	_convoy_stream_instance_id = loaded_instance_id
 	_convoy_stream_generation = loaded_generation
 	_convoy_active_ship_instance_id = active_ship.get_instance_id()
@@ -13492,6 +13583,8 @@ func _advance_cinder_convoy(delta: float, world_position: Vector3) -> void:
 	)
 	if not bool(advanced.get("accepted", false)) and _convoy_is_running():
 		_fail_active_activity(&"convoy_advance_rejected")
+	if _convoy_is_running() and is_instance_valid(cinder_convoy_threat):
+		cinder_convoy_threat.advance(delta, generation)
 
 
 func _advance_patrol(
@@ -13926,6 +14019,8 @@ func _on_cinder_convoy_presentation_changed(snapshot: Dictionary) -> void:
 
 
 func _on_cinder_convoy_safely_arrived(snapshot: Dictionary) -> void:
+	if is_instance_valid(cinder_convoy_threat):
+		cinder_convoy_threat.retire(int((snapshot.get("activity", {}) as Dictionary).get("generation", 0)))
 	_retire_cinder_convoy_session()
 	var activity := snapshot.get("activity", {}) as Dictionary
 	var reward := _request_game_flow_activity_reward(
@@ -13941,6 +14036,8 @@ func _on_cinder_convoy_safely_arrived(snapshot: Dictionary) -> void:
 
 
 func _on_cinder_convoy_failed(snapshot: Dictionary) -> void:
+	if is_instance_valid(cinder_convoy_threat):
+		cinder_convoy_threat.retire(int((snapshot.get("activity", {}) as Dictionary).get("generation", 0)))
 	_retire_cinder_convoy_session()
 	if _convoy_terminal_reason.is_empty():
 		var activity := snapshot.get("activity", {}) as Dictionary
@@ -14559,6 +14656,8 @@ func _try_rebind_restored_cinder_convoy() -> bool:
 	_convoy_active_ship_instance_id = active_ship.get_instance_id()
 	_cinder_convoy_runtime_rebind_pending = false
 	cinder_convoy_host.visible = true
+	if is_instance_valid(cinder_convoy_threat):
+		cinder_convoy_threat.rebind()
 	return true
 
 
@@ -15703,6 +15802,8 @@ func _get_convoy_activity_snapshot() -> Dictionary:
 	if not is_instance_valid(cinder_convoy_host):
 		return {}
 	var snapshot := cinder_convoy_host.get_snapshot()
+	if is_instance_valid(cinder_convoy_threat):
+		snapshot["threat"] = cinder_convoy_threat.get_snapshot()
 	var activity := snapshot.get("activity", {}) as Dictionary
 	for key: Variant in activity:
 		snapshot[key] = activity[key]

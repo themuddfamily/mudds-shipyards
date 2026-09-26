@@ -18,6 +18,8 @@ const STORE_PATH := "memory://cinder-convoy-session.json"
 const CORRUPT_STORE_PATH := "memory://corrupt-cinder-convoy-session.json"
 const RADIUS_STORE_PATH := "memory://cinder-convoy-radius-session.json"
 const CENTERED_STORE_PATH := "memory://cinder-convoy-centered-session.json"
+const THREAT_STORE_PATH := "memory://cinder-convoy-threat-session.json"
+const LEGACY_THREAT_STORE_PATH := "memory://cinder-convoy-legacy-threat-session.json"
 const SLOT: StringName = &"cinder_convoy_session"
 
 
@@ -229,7 +231,8 @@ func _run() -> void:
 		live_session,
 		restored_host,
 		restored_craft.get_ship_id(),
-		"exact-live-cinder-convoy-session"
+		"exact-live-cinder-convoy-session",
+		second.cinder_convoy_threat
 	)
 	var generation_before_rejection := second_store.get_generation()
 	var signals_before_rejection := signal_counts.duplicate(true)
@@ -264,7 +267,8 @@ func _run() -> void:
 			forged_cases[case_index],
 			restored_host,
 			restored_craft.get_ship_id(),
-			"rejected-cinder-convoy-session-%d" % case_index
+			"rejected-cinder-convoy-session-%d" % case_index,
+			second.cinder_convoy_threat
 		))
 	_check(
 		bool(exact_live.get("accepted", false))
@@ -333,7 +337,117 @@ func _run() -> void:
 		)
 		await _retire_game(corrupt_game)
 
+	await _exercise_threat_save_restore(filesystem)
 	_finish()
+
+
+func _exercise_threat_save_restore(filesystem: MemoryFilesystem) -> void:
+	var store := Store.new(THREAT_STORE_PATH, filesystem) as UserDataStore
+	store.load()
+	var first := await _make_game(store)
+	if first == null:
+		return
+	first.set_physics_process(false)
+	first.select_activity_kind(GameFlow.ACTIVITY_KIND_CONVOY_ESCORT)
+	var craft := first.get_flyable_ships()[1] as HeroShip
+	craft.set_piloted(true)
+	first.active_ship = craft
+	first.set("_piloting", true)
+	first.set("_sortie_departed_berth", true)
+	first.phase = GameFlow.Phase.FREE_FLIGHT
+	craft.global_position = GameFlow.CINDER_CONVOY_ACTIVATION_CENTER
+	first.call("_physics_process", 0.1)
+	await _wait_until(
+		func() -> bool:
+			return is_instance_valid(
+				(first.cinder_streaming_bootstrap as CinderStreamingBootstrap).get_loaded_instance()
+			),
+		20
+	)
+	var started := first.request_activity_start(GameFlow.CINDER_CONVOY_ACTIVITY_ID)
+	var host := first.cinder_convoy_host as CinderConvoyEscortHost
+	_check(
+		bool(started.get("accepted", false))
+		and int(_stored_session_state(store).get("schema_version", 0))
+		== SessionPersistence.SESSION_SCHEMA_VERSION,
+		"accepted convoy start saves the armed threat before the next physics tick"
+	)
+	for _tick in 14:
+		craft.global_position = (host.get_snapshot().get("entity_position") as Vector3) \
+			+ GameFlow.CINDER_CONVOY_ESCORT_LANE_OFFSET
+		first.call("_physics_process", 0.25)
+		await physics_frame
+	var threat := first.cinder_convoy_threat as CinderConvoyThreat
+	var wounded := threat.get_snapshot()
+	var auto_saved_wound: float = float(
+		(_stored_session_state(store).get("threat_state", {}) as Dictionary).get("tender_health", 75.0)
+	)
+	var attacker := threat.get_attacker()
+	craft.global_position = attacker.global_position + Vector3(0.0, 0.0, 12.0)
+	await physics_frame
+	var intercepted := first.get_combat_authority().submit_hitscan(
+		craft, GameFlow.RANGE_WEAPON_ID, craft.global_position,
+		attacker.global_position - craft.global_position
+	)
+	var neutralized := threat.get_snapshot()
+	var auto_saved_neutralization: bool = bool(
+		(_stored_session_state(store).get("threat_state", {}) as Dictionary).get("attacker_neutralized", false)
+	)
+	var saved := first.save_cinder_convoy_session()
+	_check(
+		bool(started.get("accepted", false))
+		and float(wounded.get("tender_health", 75.0)) < 75.0
+		and is_equal_approx(float(auto_saved_wound), float(wounded.get("tender_health", 0.0)))
+		and bool(intercepted.get("destroyed", false))
+		and is_zero_approx(float(neutralized.get("attacker_health", 35.0)))
+		and bool(auto_saved_neutralization)
+		and bool(saved.get("accepted", false)),
+		"live tender damage and raider neutralization are saved in the existing session slot"
+	)
+	var saved_state := _stored_session_state(store)
+	var saved_threat := saved_state.get("threat_state", {}) as Dictionary
+	_check(
+		int(saved_state.get("schema_version", 0)) == SessionPersistence.SESSION_SCHEMA_VERSION
+		and is_equal_approx(float(saved_threat.get("tender_health", 0.0)), float(neutralized.get("tender_health", -1.0)))
+		and bool(saved_threat.get("attacker_neutralized", false)),
+		"saved session carries generation-bound tender hull, raider death, and attack clock"
+	)
+	var legacy_payload := store.get_snapshot().duplicate(true)
+	var legacy_record := legacy_payload[String(SLOT)] as Dictionary
+	var legacy_activity := (legacy_record.activities as Array)[0] as Dictionary
+	var legacy_progress := legacy_activity.progress as Dictionary
+	var legacy_state := legacy_progress.convoy_session_state as Dictionary
+	legacy_state.erase("threat_state")
+	legacy_state.schema_version = 1
+	var legacy_store := Store.new(LEGACY_THREAT_STORE_PATH, filesystem) as UserDataStore
+	legacy_store.load()
+	legacy_store.commit(legacy_payload, legacy_store.get_generation(), "legacy-convoy-threat-fixture")
+	await _retire_game(first)
+
+	var restored_store := Store.new(THREAT_STORE_PATH, filesystem) as UserDataStore
+	var second := await _make_game(restored_store)
+	if second != null:
+		var restored_threat := second.cinder_convoy_threat.get_snapshot()
+		_check(
+			bool((second.get_cinder_convoy_session_persistence_report().restore_status as Dictionary).get("accepted", false))
+			and is_equal_approx(float(restored_threat.get("tender_health", 0.0)), float(neutralized.get("tender_health", -1.0)))
+			and is_zero_approx(float(restored_threat.get("attacker_health", 35.0)))
+			and is_equal_approx(float(second.cinder_convoy_threat.capture_persistence_state().get("attack_clock", INF)), float(saved_threat.get("attack_clock", -INF)))
+			and second.get_combat_authority().get_source_id(second.cinder_convoy_threat.get_attacker()) == 0,
+			"fresh Main restores the wounded tender and neutralized raider without a new source"
+		)
+		await _retire_game(second)
+
+	var legacy := await _make_game(legacy_store)
+	if legacy != null:
+		var legacy_threat := legacy.cinder_convoy_threat.get_snapshot()
+		_check(
+			bool((legacy.get_cinder_convoy_session_persistence_report().restore_status as Dictionary).get("accepted", false))
+			and is_equal_approx(float(legacy_threat.get("tender_health", 0.0)), 75.0)
+			and is_equal_approx(float(legacy_threat.get("attacker_health", 0.0)), 35.0),
+			"existing schema-one active saves migrate to a fresh escort threat"
+		)
+		await _retire_game(legacy)
 
 
 func _exercise_checkpoint_radius_and_corruption_contract(
