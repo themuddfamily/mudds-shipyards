@@ -44,10 +44,13 @@ enum State {
 }
 
 const MAX_ACCEPTED_ASSET_EVENTS := 1024
-## A failure is a setback, not a dead end: the player may resume the run
-## once, at the wave he lost, with the kills he had already banked. A
-## second failure ends the run and the board's ordinary reset applies.
-const MAX_RECOVERIES := 1
+## A failure is a setback, not a dead end: every failure of a run may be
+## resumed at the wave it died on, with the kills already banked kept, for
+## as long as the protected asset the run defends is still standing. There
+## is no cap on how many times a single run may be resumed — the second and
+## later failures resume exactly the way the first one does. Only the
+## protected asset's actual destruction, an explicit abort, or the player's
+## own reset ends the run for good.
 ## An inter-wave delay at or above this is a *lull*: long enough for the
 ## player to break contact, fly back to a berth and repair before the next
 ## wave forms. Shorter delays are only spacing between arrivals.
@@ -248,8 +251,9 @@ func fail(reason: StringName, expected_generation: int) -> Dictionary:
 ## its authored delay so the player has a moment to get back into position —
 ## but the wave index and every hostile already destroyed are kept, so the
 ## recovery is a second chance at the same fight rather than a new run. It is
-## refused once the protected asset is actually gone, and it is available at
-## most `MAX_RECOVERIES` times per run.
+## refused once the protected asset is actually gone. There is no cap on how
+## many times one run may be recovered: a second, third, or later failure
+## resumes exactly the way the first one did.
 func recover(expected_generation: int) -> Dictionary:
 	if _mutation_active:
 		return _result(false, &"reentrant_call")
@@ -259,8 +263,6 @@ func recover(expected_generation: int) -> Dictionary:
 		return _result(false, &"detached")
 	if _state not in [State.FAILED, State.TIMED_OUT]:
 		return _result(false, &"recovery_unavailable")
-	if _recovery_count >= MAX_RECOVERIES:
-		return _result(false, &"recovery_exhausted")
 	if _any_protected_asset_destroyed():
 		return _result(false, &"protected_asset_destroyed")
 	if _current_wave_index < 0 or _current_wave_index >= _get_wave_count():
@@ -286,7 +288,6 @@ func is_recovery_available() -> bool:
 	return (
 		_attached
 		and _state in [State.FAILED, State.TIMED_OUT]
-		and _recovery_count < MAX_RECOVERIES
 		and not _any_protected_asset_destroyed()
 		and _current_wave_index >= 0
 		and _current_wave_index < _get_wave_count()
@@ -515,7 +516,6 @@ func get_snapshot() -> Dictionary:
 		"lull_minimum_seconds": LULL_MINIMUM_SECONDS,
 		"recovery_available": is_recovery_available(),
 		"recovery_count": _recovery_count,
-		"maximum_recoveries": MAX_RECOVERIES,
 		"current_wave_hostile_count": (wave.get("hostile_handles", []) as Array).size(),
 		"current_wave_destroyed_count": _destroyed_count_for_wave(wave),
 		"active_hostile_handles": active_handles,
@@ -538,7 +538,7 @@ func audit() -> Dictionary:
 		errors.append("destroyed hostile ledger exceeds the contract")
 	if _accepted_asset_event_keys.size() > MAX_ACCEPTED_ASSET_EVENTS:
 		errors.append("protected asset event ledger exceeds its bound")
-	if _recovery_count < 0 or _recovery_count > MAX_RECOVERIES:
+	if _recovery_count < 0:
 		errors.append("recovery ledger is outside its bound")
 	if _state == State.COMPLETED:
 		if _remaining_hostile_count() != 0:
@@ -553,7 +553,6 @@ func audit() -> Dictionary:
 		"errors": errors,
 		"limits": {
 			"maximum_accepted_asset_events": MAX_ACCEPTED_ASSET_EVENTS,
-			"maximum_recoveries": MAX_RECOVERIES,
 			"lull_minimum_seconds": LULL_MINIMUM_SECONDS,
 			"maximum_waves": StationDefenseContract.MAX_WAVES,
 			"maximum_total_hostiles": StationDefenseContract.MAX_TOTAL_HOSTILES,

@@ -20,6 +20,7 @@ func _run() -> void:
 	_test_protected_asset_observations()
 	_test_protected_asset_generation_renewal()
 	_test_timeout_fail_abort_and_reset()
+	_test_repeated_recovery_across_multiple_failures()
 	_test_signal_reentry_and_hud_snapshot_detachment()
 	_test_contract_validation_and_exact_authority_exclusions()
 	_finish()
@@ -369,6 +370,62 @@ func _test_timeout_fail_abort_and_reset() -> void:
 		and int(activity.get_snapshot().state) == ActivityScript.State.ABORTED
 		and activity.get_snapshot().failure_reason == &"aborted",
 		"abort is a distinct finite terminal state"
+	)
+
+
+## A failure is a setback the player may resume, not a one-shot mercy. The
+## second and later failures of the same run must resume exactly like the
+## first, for as long as the run's protected asset is still standing; only
+## its actual destruction closes the run for good.
+func _test_repeated_recovery_across_multiple_failures() -> void:
+	var activity := ActivityScript.new(_contract()) as StationDefenseActivity
+	var generation := int(activity.start(0).generation)
+	activity.fail(&"hostiles_escaped", generation)
+	_check(
+		activity.is_recovery_available()
+		and int(activity.get_snapshot().recovery_count) == 0,
+		"a first failure is recoverable and starts with no recoveries spent"
+	)
+	var first_recovery := activity.recover(generation)
+	generation = int(first_recovery.generation)
+	_check(
+		first_recovery.accepted
+		and first_recovery.reason == &"recovered"
+		and int(first_recovery.state) == ActivityScript.State.ACTIVE
+		and int(first_recovery.current_wave_index) == 0
+		and int(first_recovery.recovery_count) == 1,
+		"the first recovery resumes at the same wave and banks one recovery"
+	)
+	activity.fail(&"hostiles_escaped", generation)
+	_check(
+		activity.is_recovery_available(),
+		"a second failure of the same run stays recoverable exactly like the first"
+	)
+	var second_recovery := activity.recover(generation)
+	generation = int(second_recovery.generation)
+	_check(
+		second_recovery.accepted
+		and second_recovery.reason == &"recovered"
+		and int(second_recovery.current_wave_index) == 0
+		and int(second_recovery.recovery_count) == 2,
+		"the second recovery succeeds instead of falling back to the board's reset"
+	)
+	activity.fail(&"hostiles_escaped", generation)
+	var third_recovery := activity.recover(generation)
+	generation = int(third_recovery.generation)
+	_check(
+		third_recovery.accepted and int(third_recovery.recovery_count) == 3,
+		"a third failure of the same run remains recoverable with no artificial cap"
+	)
+	var destroyed := activity.protected_asset_destroyed(
+		_asset(&"command_core", 4), _event(&"destroyed_final", 1), generation
+	)
+	_check(
+		destroyed.accepted
+		and int(destroyed.state) == ActivityScript.State.FAILED
+		and not activity.is_recovery_available()
+		and activity.recover(generation).reason == &"protected_asset_destroyed",
+		"only the protected asset's actual destruction ends the run, never a recovery count"
 	)
 
 
