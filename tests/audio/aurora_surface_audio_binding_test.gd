@@ -60,6 +60,9 @@ func _run() -> void:
 		"the re-entered world accepts a fresh source generation")
 	reentered.queue_free()
 	await process_frame
+	# The audio server retires stopped WAV playback after the scene has left the tree.
+	for _frame in range(10):
+		await process_frame
 	if _failures.is_empty():
 		print("PASS aurora_surface_audio_binding_test (%d assertions)" % _assertions)
 		quit(0)
