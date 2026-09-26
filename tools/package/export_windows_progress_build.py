@@ -62,10 +62,16 @@ def assert_source_identity(root: Path, source_commit: str, runner=subprocess.run
         raise ExportBlocked(f"source HEAD changed during export: {source_commit} -> {current}")
 
 
-def export_windows(root: Path, output: Path, runner=subprocess.run) -> int:
+def windows_output_path(root: Path, output: Path) -> Path:
     output = output if output.is_absolute() else root / output
-    if output.resolve().relative_to(root.resolve()).parts[0] != "builds":
-        raise ValueError("Windows progress output must be under builds/")
+    output = output.resolve()
+    if output.parent != (root.resolve() / "builds" / "windows") or output.suffix.lower() != ".exe":
+        raise ValueError("Windows progress output must be an .exe directly in builds/windows/")
+    return output
+
+
+def export_windows(root: Path, output: Path, runner=subprocess.run) -> int:
+    output = windows_output_path(root, output)
     assert_source_clean(root, runner)
     completed = runner(
         ["godot", "--headless", "--audio-driver", "Dummy", "--export-release", "Windows Desktop", str(output)],
@@ -87,10 +93,7 @@ def export_and_assemble(
     archive_verify=_read_archive,
 ) -> dict[str, object]:
     """Export and publish an assembled package only after every check passes."""
-    output = output if output.is_absolute() else root / output
-    output = output.resolve()
-    if output.relative_to(root.resolve()).parts[0] != "builds":
-        raise ValueError("Windows progress output must be under builds/")
+    output = windows_output_path(root, output)
     assert_source_clean(root, runner)
     commit_result = runner(["git", "rev-parse", "HEAD"], cwd=root, check=True, capture_output=True, text=True)
     source_commit = commit_result.stdout.strip()
@@ -115,8 +118,8 @@ def export_and_assemble(
         archive = Path(assembled["archive"])
         archive_verify(archive)
         assert_source_identity(root, source_commit, runner)
-        final_archive = root / "builds" / "distributions" / archive.name
-        final_directory = root / "builds" / "distributions" / Path(assembled["directory"]).name
+        final_archive = output.parent / archive.name
+        final_directory = output.parent / Path(assembled["directory"]).name
         for destination in (output, final_archive, final_directory):
             if destination.exists():
                 raise FileExistsError(f"refusing to overwrite existing artifact: {destination}")

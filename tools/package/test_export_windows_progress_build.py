@@ -5,7 +5,7 @@ import unittest
 from pathlib import Path
 from unittest.mock import Mock, patch
 
-from tools.package.export_windows_progress_build import ExportBlocked, assert_source_clean, dirty_source_paths, export_and_assemble, export_windows
+from tools.package.export_windows_progress_build import ExportBlocked, assert_source_clean, dirty_source_paths, export_and_assemble, export_windows, windows_output_path
 from tools.package.windows_distribution_assembler import assemble_distribution
 from tools.package.windows_portable_installer import _read_archive
 
@@ -28,6 +28,14 @@ class ExportWindowsProgressBuildTest(unittest.TestCase):
         result = export_windows(Path("/repo"), Path("builds/windows/fresh.exe"), runner)
         self.assertEqual(result, 0)
         self.assertEqual(runner.call_args_list[1].args[0], ["godot", "--headless", "--audio-driver", "Dummy", "--export-release", "Windows Desktop", "/repo/builds/windows/fresh.exe"])
+
+    def test_output_stays_in_windows_build_folder(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            self.assertEqual(windows_output_path(root, Path("builds/windows/fresh.exe")), root / "builds/windows/fresh.exe")
+            for output in (Path("builds/elsewhere/fresh.exe"), Path("../Downloads/fresh.exe"), Path("builds/windows/fresh.zip")):
+                with self.subTest(output=output), self.assertRaises(ValueError):
+                    windows_output_path(root, output)
 
     def _git_fixture(self, root):
         for name, content in {
@@ -112,6 +120,7 @@ class ExportWindowsProgressBuildTest(unittest.TestCase):
             )
             result = export_and_assemble(*args)
             self.assertEqual(result["commit"], git("rev-parse", "HEAD").stdout.strip())
+            self.assertEqual(Path(result["archive"]).parent, root / "builds/windows")
             _read_archive(Path(result["archive"]))
             previous_files = {p: p.read_bytes() for p in (root / "builds").rglob("*") if p.is_file()}
             with self.assertRaises(FileExistsError):
