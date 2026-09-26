@@ -14,7 +14,7 @@ func _initialize() -> void:
 	await process_frame
 	var view := hud.set_nearby_activity_snapshot({"cargo": _cargo_snapshot(1, 0)})
 	_check(bool(view.get("focusable", false)), "HUD accepts the detached presenter view")
-	_check(int(hud.get_nearby_activity_report().get("row_count", 0)) == 8, "HUD retains one row per production nearby activity")
+	_check(int(hud.get_nearby_activity_report().get("row_count", 0)) == 9, "HUD retains one row per production nearby activity")
 	_check(hud.open_activity_board(), "the existing pause Activity Board opens through its public route")
 	var open_button := (
 		hud.get("_activity_selection_page") as Control

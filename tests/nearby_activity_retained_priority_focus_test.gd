@@ -48,7 +48,7 @@ func _run() -> void:
 	_check(second_ids.slice(3) == [
 		&"cinder_reach_emberline_convoy", &"cinder_reach_checkpoint_route",
 		&"cinder_derelict_structure_scan", &"cinder_debris_beacon_traversal",
-		&"station_defense",
+		&"station_defense", &"cinder_hulk_power_restoration",
 	], "standard available and completed items retain deterministic authored order")
 
 	hud.queue_free()
