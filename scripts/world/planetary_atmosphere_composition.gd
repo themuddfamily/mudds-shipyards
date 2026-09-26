@@ -29,6 +29,9 @@ var _cloud_shadow_projection: MeshInstance3D
 var _graphics_profile: StringName = &"high"
 var _cloud_shadow_enabled := true
 var _cloud_shadow_opacity_scale := 1.0
+var _cloud_shadow_wind_velocity_mps := Vector3.ZERO
+var _cloud_shadow_wind_origin_m := Vector3.ZERO
+var _cloud_shadow_wind_epoch_seconds := 0.0
 var _last_observer_altitude_m := 0.0
 var _has_observer_altitude := false
 
@@ -59,10 +62,44 @@ func _ready() -> void:
 	var shadow_mesh := QuadMesh.new()
 	shadow_mesh.size = Vector2(64.0, 64.0)
 	_cloud_shadow_projection.mesh = shadow_mesh
-	_cloud_shadow_projection.rotation_degrees.x = -90.0
+	var landing_region := get_parent().get_node_or_null(^"LandingRegion") as Node3D if get_parent() != null else null
+	if landing_region != null:
+		# Follow the authored landing frame through parent rebases and re-entry.
+		# Its pad surface is 0.04 m above the frame; 0.06 m clears it.
+		_cloud_shadow_projection.transform = global_transform.affine_inverse() * landing_region.global_transform * Transform3D(
+			Basis(Vector3.RIGHT, -PI * 0.5), Vector3.UP * 0.06
+		)
+	else:
+		# Standalone composition tests have no landing sibling.
+		_cloud_shadow_projection.rotation_degrees.x = -90.0
+		_cloud_shadow_projection.position.y = world_definition.body_radius_metres + 0.06
 	var shadow_material := ShaderMaterial.new()
 	var shadow_shader := Shader.new()
-	shadow_shader.code = "shader_type spatial; render_mode unshaded, cull_disabled, blend_mix; uniform float shadow_opacity; uniform vec3 wind_offset; void fragment(){ ALBEDO = vec3(0.015, 0.02, 0.025); ALPHA = shadow_opacity; }"
+	shadow_shader.code = """
+shader_type spatial;
+render_mode unshaded, cull_disabled, blend_mix, depth_draw_never;
+
+uniform float shadow_opacity;
+uniform vec3 wind_velocity_mps;
+uniform vec3 wind_origin_m;
+uniform float wind_epoch_seconds;
+
+void fragment() {
+	// The 64 m quad supplies a fixed ground scale. TIME belongs to the
+	// renderer, so a retained recipe and streamed re-entry keep one phase.
+	vec2 ground_m = vec2(UV.x, 1.0 - UV.y) * 64.0;
+	vec2 advected_m = ground_m - wind_origin_m.xz
+		- wind_velocity_mps.xz * (TIME - wind_epoch_seconds);
+	float broad = sin(advected_m.x * 0.18 + sin(advected_m.y * 0.13) * 1.2)
+		* sin(advected_m.y * 0.15 - advected_m.x * 0.04);
+	float detail = sin(advected_m.x * 0.53 + advected_m.y * 0.37) * 0.18;
+	float cloud_mask = smoothstep(-0.2, 0.35, broad + detail);
+	vec2 edge = min(UV, vec2(1.0) - UV);
+	float edge_fade = smoothstep(0.0, 0.12, min(edge.x, edge.y));
+	ALBEDO = vec3(0.015, 0.02, 0.025);
+	ALPHA = shadow_opacity * cloud_mask * edge_fade;
+}
+"""
 	shadow_material.shader = shadow_shader
 	_cloud_shadow_projection.material_override = shadow_material
 	_cloud_shadow_projection.visible = false
@@ -188,8 +225,19 @@ func apply_retained_presentation_recipe(
 	var shadow_material := _cloud_shadow_projection.material_override as ShaderMaterial
 	if shadow_material != null:
 		var shadow_opacity := clampf(float(weather.get("cloud_opacity_unitless", 0.0)) * 0.35 * _cloud_shadow_opacity_scale, 0.0, 0.35)
+		var wind_velocity := weather.get("wind_velocity_mps", Vector3.ZERO) as Vector3
+		if wind_velocity != _cloud_shadow_wind_velocity_mps:
+			var now_seconds := float(Time.get_ticks_usec()) / 1_000_000.0
+			if _cloud_shadow_wind_epoch_seconds > 0.0:
+				_cloud_shadow_wind_origin_m += _cloud_shadow_wind_velocity_mps * (
+					now_seconds - _cloud_shadow_wind_epoch_seconds
+				)
+			_cloud_shadow_wind_velocity_mps = wind_velocity
+			_cloud_shadow_wind_epoch_seconds = now_seconds
 		shadow_material.set_shader_parameter("shadow_opacity", shadow_opacity)
-		shadow_material.set_shader_parameter("wind_offset", weather.get("wind_velocity_mps", Vector3.ZERO))
+		shadow_material.set_shader_parameter("wind_velocity_mps", _cloud_shadow_wind_velocity_mps)
+		shadow_material.set_shader_parameter("wind_origin_m", _cloud_shadow_wind_origin_m)
+		shadow_material.set_shader_parameter("wind_epoch_seconds", _cloud_shadow_wind_epoch_seconds)
 		_cloud_shadow_projection.visible = _cloud_shadow_enabled and shadow_opacity > 0.01
 	var retained_weather := (weather_snapshot as Dictionary).duplicate(true)
 	retained_weather["altitude_m"] = altitude_m
