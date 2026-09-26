@@ -329,8 +329,14 @@ const MAIN_SCENE := preload("res://scenes/main.tscn")
 # The defense and heavy-breach activity boards replace four BoxMesh housing
 # pieces with authored-width chamfers: +384 triangles in both scenarios, with
 # every renderer, surface, mesh-resource, material, light and node count fixed.
+# Cinder's eleven walkable cargo access decks and steps now use 44-triangle
+# structural chamfers instead of 12-triangle boxes. The visible deck edges add
+# 11 * (44 - 12) = 352 triangles only to the streamed Cinder generation; its
+# renderer, surface, unique-mesh, material, light and node rosters stay fixed.
+# Loaded triangles and the Cinder bucket therefore rise by exactly 352 while
+# the station-resident baseline remains unchanged.
 const RESIDENT_FINGERPRINT := "4f629469d87d8fdd9841859e28c4e099de02976c525e1b0d9ab17d2b4174c966"
-const CINDER_LOADED_FINGERPRINT := "812929195daf663ed7e4246398af7f6984f2593539c488a4aac4d60f2d634eec"
+const CINDER_LOADED_FINGERPRINT := "eeb651021334e71287dbd314cfaf0e601078cec41adaa1fccb443d5d9bcf7d8d"
 
 var _assertions := 0
 var _failures := PackedStringArray()
@@ -448,11 +454,11 @@ func _run() -> void:
 		"loaded report freezes destination identity and one committed generation"
 	)
 	_check(
-		int(loaded.get("total_triangles", -1)) == 2065225
+		int(loaded.get("total_triangles", -1)) == 2065577
 			and int(loaded.get("total_mesh_instances", -1)) == 5610
 			and int(loaded.get("total_surfaces", -1)) == 6144
 			and int(loaded.get("unique_meshes", -1)) == 3110,
-		"loaded geometry freezes 2,065,225 triangles / 5,610 meshes / 6,144 surfaces / 3,110 unique meshes"
+		"loaded geometry freezes 2,065,577 triangles / 5,610 meshes / 6,144 surfaces / 3,110 unique meshes"
 	)
 	_check(
 		int(loaded.get("bound_phase_unique_materials", -1)) == 768
@@ -468,7 +474,7 @@ func _run() -> void:
 	# should read the streamed destination's new roster straight off the run.
 	print("GEOMETRY_CENSUS_LOADED_CINDER_BUCKET: ", cinder_bucket)
 	_check(
-		int(cinder_bucket.get("triangles", -1)) == 153406
+		int(cinder_bucket.get("triangles", -1)) == 153758
 			and int(cinder_bucket.get("instances", -1)) == 256
 			and int(cinder_bucket.get("surfaces", -1)) == 256
 			and int(cinder_bucket.get("multimesh_instances", -1)) == 712
@@ -477,7 +483,7 @@ func _run() -> void:
 		"the streamed Cinder bucket independently accounts for its exact renderer and node roster"
 	)
 	_check(
-		int(loaded.get("total_triangles", 0)) - int(resident.get("total_triangles", 0)) == 153406
+		int(loaded.get("total_triangles", 0)) - int(resident.get("total_triangles", 0)) == 153758
 			and int(loaded.get("total_mesh_instances", 0)) - int(resident.get("total_mesh_instances", 0)) == 256
 			and int(loaded.get("unique_meshes", 0)) - int(resident.get("unique_meshes", 0)) == 172
 			and int(loaded.get("retained_reachable_unique_materials", 0)) - int(resident.get("retained_reachable_unique_materials", 0)) == 57
