@@ -28,6 +28,8 @@ func _run() -> void:
 	var hud := HudType.new()
 	root.add_child(hud)
 	await process_frame
+	if "--ui-scale-75" in OS.get_cmdline_user_args():
+		hud.set_ui_scale(0.75)
 	# Capture the production pause-row context rather than an invisible HUD tree.
 	hud.set_paused(true)
 	await process_frame
@@ -138,12 +140,22 @@ func _capture_if_requested(name: String) -> void:
 	DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path(CAPTURE_DIR))
 	var image := root.get_texture().get_image()
 	var row := root.find_child("PlanetaryCruiseRow", true, false) as Control
+	var button := root.find_child("PlanetaryCruiseToggleButton", true, false) as Button
+	var status := root.find_child("PlanetaryCruiseStatus", true, false) as Label
 	var guidance := root.find_child("FinalApproachGuidance", true, false) as Label
 	_check(
 		row != null and guidance != null and guidance.visible
 			and row.get_global_rect().grow(0.01).encloses(guidance.get_global_rect())
 			and guidance.get_visible_line_count() == guidance.get_line_count(),
 		"HUD feedback for %s is fully enclosed by the production cruise row" % name,
+	)
+	_check(
+		row != null and button != null and status != null and guidance != null
+			and status.get_visible_line_count() == status.get_line_count()
+			and row.get_global_rect().grow(0.01).encloses(status.get_global_rect())
+			and button.get_global_rect().end.y <= status.get_global_rect().position.y
+			and status.get_global_rect().end.y <= guidance.get_global_rect().position.y,
+		"cruise status for %s fits between its button and approach guidance" % name,
 	)
 	_check(image.get_size() == Vector2i(1280, 720), "HUD feedback for %s captures at 1280x720" % name)
 	var pixels := image.get_data()
@@ -153,7 +165,8 @@ func _capture_if_requested(name: String) -> void:
 			"HUD feedback for %s produces non-identical visible output" % name,
 		)
 	_captured_pixels.append(pixels)
+	var capture_suffix := "_75" if "--ui-scale-75" in OS.get_cmdline_user_args() else ""
 	_check(
-		image.save_png(CAPTURE_DIR.path_join("%s.png" % name)) == OK,
+		image.save_png(CAPTURE_DIR.path_join("%s%s.png" % [name, capture_suffix])) == OK,
 		"Forward+ HUD state capture saves for %s" % name,
 	)

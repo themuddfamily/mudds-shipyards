@@ -5418,8 +5418,8 @@ func _build_pause_main_page() -> void:
 	cruise_row.add_child(_planetary_cruise_button)
 	_planetary_cruise_status_label = _label(
 		_planetary_cruise_status_text,
-		10,
-		MUTED,
+		12,
+		PRIMARY,
 	)
 	_planetary_cruise_status_label.name = "PlanetaryCruiseStatus"
 	_planetary_cruise_status_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
