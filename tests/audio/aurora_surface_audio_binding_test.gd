@@ -19,10 +19,14 @@ func _run() -> void:
 	_check(exterior.stream != null and interior.stream != null and exterior.stream != interior.stream, "production voices retain distinct imported loops")
 	var snapshot := {"generation": 1, "weather_intensity_unitless": 0.8, "water_exposure_unitless": 0.6, "day_night_unitless": 0.3, "settlement_activity_unitless": 0.4, "ship_perspective": &"exterior"}
 	_check(bool(world.present_surface_audio_snapshot(snapshot).get("accepted", false)), "Aurora accepts detached environment evidence")
-	_check(exterior.playing and not interior.playing and exterior.bus == &"Ambience", "exterior snapshot drives the live wind/coast voice")
+	_check(exterior.playing and not interior.playing and exterior.bus == &"AuroraExteriorWind", "exterior snapshot drives the live wind/coast voice through its own wind-filtered bus")
+	_check(AudioServer.get_bus_send(AudioServer.get_bus_index(&"AuroraExteriorWind")) == &"Ambience", "the exterior wind bus still cascades into the shared Ambience bus")
 	var mix := world.get_surface_audio_snapshot().get("mix", {}) as Dictionary
 	_check(float(mix.get("wind", 0.0)) > 0.0 and float(mix.get("distant_water", 0.0)) > 0.0, "weather and water produce bounded ambience gains")
 	_check(float(mix.get("low_pass_hz", 0.0)) < 18_000.0 and float(mix.get("pitch_scale", 0.0)) > 0.0, "environment changes bounded filter and pitch")
+	var wind_filter := AudioServer.get_bus_effect(AudioServer.get_bus_index(&"AuroraExteriorWind"), 0) as AudioEffectLowPassFilter
+	_check(is_equal_approx(exterior.pitch_scale, float(mix.get("pitch_scale", 1.0))), "the live exterior voice picks up the mix's wind pitch")
+	_check(wind_filter != null and is_equal_approx(wind_filter.cutoff_hz, float(mix.get("low_pass_hz", 0.0))), "the dedicated wind bus filter tracks the mix's cutoff")
 	_check(world.present_surface_audio_snapshot(snapshot).get("reason", &"") == &"duplicate_snapshot", "identical snapshot is deduplicated")
 	var cockpit := snapshot.duplicate(true)
 	cockpit["ship_perspective"] = &"cockpit"
@@ -33,6 +37,26 @@ func _run() -> void:
 	_check(interior.volume_db < cockpit_volume, "reduced range attenuates live playback")
 	var reduced := world.get_surface_audio_snapshot().get("mix", {}) as Dictionary
 	_check(float(reduced.get("wind", 1.0)) < float(mix.get("wind", 0.0)), "reduced range attenuates ambience")
+	# Standalone bindings isolate the wind-strength comparisons from the
+	# world's own generation sequence used below.
+	var calm_wind := BINDING.new()
+	_check(bool(calm_wind.attach().get("accepted", false)), "calm-wind binding attaches")
+	_check(bool(calm_wind.present_snapshot({"generation": 0, "weather_intensity_unitless": 0.7, "water_exposure_unitless": 0.6, "day_night_unitless": 0.3, "settlement_activity_unitless": 0.4, "wind_strength_unitless": 0.0, "ship_perspective": &"exterior"}).get("accepted", false)), "calm wind reading is accepted despite heavy weather")
+	var calm_mix := calm_wind.get_snapshot().get("mix", {}) as Dictionary
+	_check(is_equal_approx(float(calm_mix.get("wind", -1.0)), 0.0) and float(calm_mix.get("low_pass_hz", 99_999.0)) < 1_000.0, "calm wind is silent and muffled even under heavy weather")
+	var strong_wind := BINDING.new()
+	_check(bool(strong_wind.attach().get("accepted", false)), "strong-wind binding attaches")
+	_check(bool(strong_wind.present_snapshot({"generation": 0, "weather_intensity_unitless": 0.1, "water_exposure_unitless": 0.6, "day_night_unitless": 0.3, "settlement_activity_unitless": 0.4, "wind_strength_unitless": 1.0, "ship_perspective": &"exterior"}).get("accepted", false)), "strong wind reading is accepted despite light weather")
+	var strong_mix := strong_wind.get_snapshot().get("mix", {}) as Dictionary
+	_check(
+		float(strong_mix.get("wind", 0.0)) > float(calm_mix.get("wind", 0.0))
+		and float(strong_mix.get("low_pass_hz", 0.0)) > float(calm_mix.get("low_pass_hz", 0.0))
+		and float(strong_mix.get("pitch_scale", 0.0)) > float(calm_mix.get("pitch_scale", 0.0)),
+		"strong wind is louder, brighter and pitched up than calm wind despite lighter weather",
+	)
+	_check(strong_wind.present_snapshot({"generation": 1, "weather_intensity_unitless": 0.1, "water_exposure_unitless": 0.6, "day_night_unitless": 0.3, "settlement_activity_unitless": 0.4, "wind_strength_unitless": 1.4, "ship_perspective": &"exterior"}).get("reason", &"") == &"invalid_environment_snapshot", "out-of-range wind strength is rejected")
+	_check(bool(strong_wind.detach().get("accepted", false)), "strong-wind binding detaches")
+	_check(float(strong_wind.get_snapshot().get("mix", {}).get("wind", 1.0)) == 0.0, "unload resets exterior wind ambience to silence")
 	var binding := BINDING.new()
 	_check(bool(binding.attach().get("accepted", false)), "standalone Aurora binding attaches")
 	_check(binding.present_snapshot({"generation": 0, "weather_intensity_unitless": 0.0, "water_exposure_unitless": 0.0, "day_night_unitless": 0.5, "settlement_activity_unitless": 0.0, "ship_perspective": &"exterior"}).get("accepted", false), "neutral snapshot is accepted")
@@ -49,6 +73,8 @@ func _run() -> void:
 	world.queue_free()
 	await process_frame
 	_check(not is_instance_valid(exterior) and not is_instance_valid(interior), "stream unload releases both playback nodes")
+	var unloaded_filter := AudioServer.get_bus_effect(AudioServer.get_bus_index(&"AuroraExteriorWind"), 0) as AudioEffectLowPassFilter
+	_check(unloaded_filter != null and is_equal_approx(unloaded_filter.cutoff_hz, 18_000.0), "unload resets the shared wind filter to a neutral, unmuffled cutoff")
 	var reentered := SCENE.instantiate()
 	root.add_child(reentered)
 	await process_frame
