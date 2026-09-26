@@ -4,9 +4,9 @@ const Berths := preload("res://scripts/world/fleet_expansion_berths.gd")
 const EXPECTED_LEGEND := "FLEET EXPANSION // BERTH ASSIGNMENTS\nSOUTH   DOCK 04  CARGO HAULER\nNORTH   DOCK 05  BOMBER\nEAST    DOCK 06  INTERCEPTOR"
 const PRODUCTION_BASIS := Basis(Vector3.UP, PI * 0.5)
 const EXPECTED_ANCHORS := {
-	&"dock_04_cargo": Vector3(-16.4, 4.0, -5.0),
-	&"dock_05_bomber": Vector3(34.0, 4.0, -18.0),
-	&"dock_06_interceptor": Vector3(0.0, 4.0, 34.0),
+	&"dock_04_cargo": Vector3(-16.4, 1.61, -5.0),
+	&"dock_05_bomber": Vector3(34.0, 1.335, -27.0),
+	&"dock_06_interceptor": Vector3(-17.0, 1.06, 52.0),
 }
 const EXPECTED_FASCIAS := {
 	&"dock_04_cargo": [
@@ -21,7 +21,7 @@ const EXPECTED_FASCIAS := {
 	],
 	&"dock_06_interceptor": [
 		"DOCK 06  INTERCEPTOR  //  APPROACH CLEAR",
-		Vector3(-3.035, 1.25, 34.0), Vector3(0.0, 90.0, 0.0),
+		Vector3(-3.035, 2.6, 34.0), Vector3(0.0, 90.0, 0.0),
 		Vector3.RIGHT, &"InterceptorBoardingToe", &"interceptor",
 	],
 }
@@ -111,8 +111,8 @@ func _initialize() -> void:
 		and berths.find_children("*", "StaticBody3D", true, false).size() == Berths.EXPECTED_STATIC_BODIES
 		and berths.find_children("*", "CollisionShape3D", true, false).size() == Berths.EXPECTED_COLLISION_SHAPES
 		and berths.find_children("*", "StaticBody3D", true, false).size()
-			== 6 + Berths.SERVICE_STRUCTURE_BODIES,
-		"readability polish preserves landing anchors, authority, six walkable bodies and the service-structure colliders"
+			== 6 + Berths.SERVICE_STRUCTURE_BODIES + Berths.LANDING_DECK_COUNT,
+		"readability polish preserves landing anchors, authority, six walkable routes, four landing decks and the service-structure colliders"
 	)
 
 	berths.queue_free()

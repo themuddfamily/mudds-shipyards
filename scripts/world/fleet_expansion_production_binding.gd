@@ -19,17 +19,17 @@ const CRAFT_SPECS: Array[Dictionary] = [
 	{"pad_id": &"dock_05_bomber", "craft_id": &"cinder_long_range_bomber", "script": Bomber},
 	{"pad_id": &"dock_06_interceptor", "craft_id": &"cinder_light_interceptor", "script": Interceptor},
 ]
-## The Cinder hulls sit on four-metre landing anchors while their six narrow
-## pedestrian surfaces remain at deck level. HeroShip's generic exit marker is
-## therefore neither a safe height nor inside these pad-specific routes. Bind
-## the existing boarding/exit seam to the exact collision-backed endpoint owned
-## by each pad after every attachment; no parallel interaction authority is
-## introduced here.
+## The Cinder hulls rest on their pads' landing decks. HeroShip's generic exit
+## marker is not guaranteed to land on that deck, so bind the existing
+## boarding/exit seam to the collision-backed deck each pad owns after every
+## attachment; no parallel interaction authority is introduced here.
 const PEDESTRIAN_HANDOFF_SUPPORTS := {
-	&"dock_04_cargo": ^"AccessCirculation/CargoBoardingLeg",
-	&"dock_05_bomber": ^"AccessCirculation/BomberBoardingLeg",
-	&"dock_06_interceptor": ^"AccessCirculation/InterceptorBoardingToe",
+	&"dock_04_cargo": ^"LandingDecks/dock_04_cargo",
+	&"dock_05_bomber": ^"LandingDecks/dock_05_bomber",
+	&"dock_06_interceptor": ^"LandingDecks/dock_06_interceptor",
 }
+## Player capsule radius (0.38 m) plus a small margin.
+const HANDOFF_HULL_CLEARANCE := 0.45
 const AUDIO_RECIPE_BY_CRAFT := {
 	&"cinder_cargo_hauler": &"cargo_craft",
 	&"cinder_long_range_bomber": &"bomber",
@@ -413,10 +413,23 @@ func _bind_pedestrian_handoff(
 	if support_bounds.size == Vector3.ZERO or not is_instance_valid(authored_marker) \
 			or boarding_point == null or exit_point == null:
 		return {"accepted": false, "reason": &"pedestrian_handoff_node_missing"}
+	# The craft rest on the deck now, so the authored marker (tucked under the
+	# port wing or in the door sill) would stand a pilot inside the hull's
+	# collision. Step the handoff out sideways until a standing player clears it.
+	var marker_local := craft.to_local(authored_marker.global_position)
+	var hull_bounds := _craft_collision_local_bounds(craft)
+	if hull_bounds.size != Vector3.ZERO \
+			and marker_local.z >= hull_bounds.position.z - HANDOFF_HULL_CLEARANCE \
+			and marker_local.z <= hull_bounds.end.z + HANDOFF_HULL_CLEARANCE:
+		if marker_local.x <= hull_bounds.get_center().x:
+			marker_local.x = minf(marker_local.x, hull_bounds.position.x - HANDOFF_HULL_CLEARANCE)
+		else:
+			marker_local.x = maxf(marker_local.x, hull_bounds.end.x + HANDOFF_HULL_CLEARANCE)
+	var handoff_global := craft.to_global(marker_local)
 	var deck_position := Vector3(
-		authored_marker.global_position.x,
+		handoff_global.x,
 		support_bounds.end.y,
-		authored_marker.global_position.z
+		handoff_global.z
 	)
 	if not _support_contains_xz(support_bounds, deck_position):
 		return {"accepted": false, "reason": &"pedestrian_handoff_off_support"}
@@ -441,6 +454,21 @@ func _bind_pedestrian_handoff(
 		"position": deck_position,
 		"support_path": support.get_path(),
 	}.duplicate(true)
+
+
+## Craft-local bounds of the craft's own body collision boxes.
+func _craft_collision_local_bounds(craft: Node3D) -> AABB:
+	var bounds := AABB()
+	var found := false
+	for child in craft.get_children():
+		var collision := child as CollisionShape3D
+		if collision == null or collision.disabled or collision.shape is not BoxShape3D:
+			continue
+		var size := (collision.shape as BoxShape3D).size
+		var box := collision.transform * AABB(-size * 0.5, size)
+		bounds = box if not found else bounds.merge(box)
+		found = true
+	return bounds
 
 
 func _box_support_bounds(body: StaticBody3D) -> AABB:

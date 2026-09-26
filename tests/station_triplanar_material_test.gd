@@ -742,12 +742,14 @@ func _test_live_station_coverage(
 	# mapped deck batch: +5 mapped ordinary surfaces at 0.30 m, -1 mapped batch.
 	# The shared operations amber paint now maps 21 ordinary handling-hardware
 	# surfaces at 0.30 m; the same material also maps seven existing batches.
+	# The Aft stair handoff cue's rear face (UPPER OPERATIONS now reads from the
+	# southern approach too) maps one more ordinary brass surface at 0.30 m.
 	_check(
-		mapped_surface_count == 1971
+		mapped_surface_count == 1972
 		and scale_022_count == 45
 		and scale_028_count == 643
-		and scale_030_count == 1283,
-		"live static station binds exactly 1971 ordinary mapped surfaces with all seven couriers dispatched"
+		and scale_030_count == 1284,
+		"live static station binds exactly 1972 ordinary mapped surfaces with all seven couriers dispatched"
 	)
 	_check(exact_recipe, "every mapped station surface uses the matched world-triplanar albedo/normal/roughness recipe")
 	_check(forbidden_ship_atlas_count == 0, "no live station surface reuses the Arrow or Jovian directional ship atlases")

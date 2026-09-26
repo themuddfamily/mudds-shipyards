@@ -300,15 +300,18 @@ const APPROACH_EDGE_COLLAR_COPY_COUNT := 6
 # copy, submission, mesh or material moves, and the ribs still draw as the same
 # two batched submissions.
 const BASELINE_RENDER_DESCENDANT_NODE_COUNT := 1204
-const RENDER_DESCENDANT_NODE_COUNT := 1169
+# The stair handoff cue's rear face (two chevron strokes and a second header,
+# so the southern approach no longer reads the plate's back) adds three nodes,
+# renderers, copies and submissions, and one TextMesh resource.
+const RENDER_DESCENDANT_NODE_COUNT := 1172
 const BASELINE_RENDERER_NODE_COUNT := 868
-const RENDERER_NODE_COUNT := 754
+const RENDERER_NODE_COUNT := 757
 const BASELINE_DRAWN_COPY_COUNT := 878
-const DRAWN_COPY_COUNT := 894
+const DRAWN_COPY_COUNT := 897
 const BASELINE_SURFACE_SUBMISSION_COUNT := 868
-const SURFACE_SUBMISSION_COUNT := 754
+const SURFACE_SUBMISSION_COUNT := 757
 const BASELINE_MESH_RESOURCE_COUNT := 332
-const MESH_RESOURCE_COUNT := 308
+const MESH_RESOURCE_COUNT := 309
 const BASELINE_MATERIAL_RESOURCE_COUNT := 39
 const MATERIAL_RESOURCE_COUNT := 39
 
@@ -3735,6 +3738,38 @@ func _build_stair_handoff_cue(circulation: Node3D) -> void:
 		0.21,
 		_materials["brass"]
 	)
+	# The stair foot is reached from both sides: from the lower junction (the
+	# face above) and straight up the southern approach from the spawn deck,
+	# which met only the plate's back and read the extruded header mirrored.
+	# The rear face repeats the header and chevron, mirrored so both read
+	# left-to-right with the arrow on the reader's right.
+	_box(
+		cue,
+		"RearPortArrowStroke",
+		Vector3(-1.13, 2.42, -0.005),
+		Vector3(0.08, 0.30, 0.04),
+		_materials["brass"],
+		false,
+		Vector3(0.0, 0.0, 38.0)
+	)
+	_box(
+		cue,
+		"RearStarboardArrowStroke",
+		Vector3(-1.29, 2.42, -0.005),
+		Vector3(0.08, 0.30, 0.04),
+		_materials["brass"],
+		false,
+		Vector3(0.0, 0.0, -38.0)
+	)
+	var rear_label := _text_sign(
+		cue,
+		"UPPER OPERATIONS",
+		Vector3(0.30, 2.42, -0.005),
+		Vector3(0.0, 180.0, 0.0),
+		0.21,
+		_materials["brass"]
+	)
+	rear_label.name = "Sign_UPPER_OPERATIONS_Rear"
 
 
 func _build_upper_transfer_gate(upper: Node3D) -> void:

@@ -69,8 +69,8 @@ func _run() -> void:
 		"the alignment ladder advances toward the bomber fascia inside the one-metre bridge"
 	)
 
-	var landing_before := Vector3(34.0, 4.0, -18.0)
-	var approach_before := Vector3(34.0, 0.0, 12.0)
+	var landing_before := Vector3(34.0, 1.335, -27.0)
+	var approach_before := Vector3(34.0, 0.0, 3.0)
 	var contract: Dictionary = berths.get_landing_contract(&"dock_05_bomber")
 	var audit: Dictionary = berths.get_audit_report()
 	_check(

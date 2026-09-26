@@ -87,9 +87,9 @@ func _initialize() -> void:
 	var binding := world.get_fleet_expansion_production_binding()
 	var berths := binding.get_node(^"FleetExpansionBerths") as Node3D
 	var endpoint_paths := {
-		&"dock_04_cargo": ^"AccessCirculation/CargoBoardingLeg",
-		&"dock_05_bomber": ^"AccessCirculation/BomberBoardingLeg",
-		&"dock_06_interceptor": ^"AccessCirculation/InterceptorBoardingToe",
+		&"dock_04_cargo": ^"LandingDecks/dock_04_cargo",
+		&"dock_05_bomber": ^"LandingDecks/dock_05_bomber",
+		&"dock_06_interceptor": ^"LandingDecks/dock_06_interceptor",
 	}
 	var player := flow.get_node(^"Player") as PlayerController
 	for craft_id: StringName in [

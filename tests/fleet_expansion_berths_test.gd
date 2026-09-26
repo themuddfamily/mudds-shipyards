@@ -9,14 +9,16 @@ const EXPECTED_PAD_IDS: Array[StringName] = [
 ## Dock 04 moved 3.0 m outboard (pad-local z -8.0 -> -5.0) once the long-session
 ## soak proved its published approach lane ran 1.55 m through `VipReceptionSuite`.
 const EXPECTED_PAD_POSITIONS: Array[Vector3] = [
-	Vector3(-16.4, 0.0, -5.0), Vector3(34.0, 0.0, -18.0), Vector3(0.0, 0.0, 34.0)
+	Vector3(-16.4, 0.0, -5.0), Vector3(34.0, 0.0, -27.0), Vector3(-17.0, 0.0, 52.0)
 ]
 const EXPECTED_SERVICE_MESHES := [3, 3, 3]
 const EXPECTED_SERVICE_BATCHES := [3, 0, 3]
 const EXPECTED_SERVICE_COPIES := [38, 3, 44]
 const EXPECTED_SERVICE_LIGHTS := [2, 1, 2]
 const EXPECTED_SERVICE_MESH_RESOURCE_ALLOCATIONS := 12
-const EXPECTED_COMPONENT_MESH_RESOURCE_ALLOCATIONS := 25
+const EXPECTED_COMPONENT_MESH_RESOURCE_ALLOCATIONS := 29
+## Craft rest on their landing decks: origin height above the pad plane.
+const EXPECTED_LANDING_HEIGHTS: Array[float] = [1.61, 1.335, 1.06]
 const EXPECTED_SERVICE_ROLES: Array[StringName] = [
 	&"cargo_crane_and_container_apron",
 	&"ordnance_safe_gantry_markers",
@@ -120,25 +122,25 @@ func _test_service_presentations(berths: Node3D, audit: Dictionary) -> void:
 	_check(
 		bool(presentation.get("valid", false))
 		and (presentation.get("errors", PackedStringArray()) as PackedStringArray).is_empty()
-		and int(audit.get("static_bodies", -1)) == 8
-		and int(audit.get("collision_shapes", -1)) == 42
-		and int(audit.get("mesh_instances", -1)) == 21
+		and int(audit.get("static_bodies", -1)) == 12
+		and int(audit.get("collision_shapes", -1)) == 46
+		and int(audit.get("mesh_instances", -1)) == 25
 		and int(audit.get("multimesh_instances", -1)) == 7
-		and int(audit.get("renderer_nodes", -1)) == 28
+		and int(audit.get("renderer_nodes", -1)) == 32
 		and int(audit.get("mesh_resource_allocations", -1)) == EXPECTED_COMPONENT_MESH_RESOURCE_ALLOCATIONS
 		and int(audit.get("service_mesh_resource_allocations", -1)) == EXPECTED_SERVICE_MESH_RESOURCE_ALLOCATIONS
 		and int(audit.get("guide_lights", -1)) == 5
-		and int(audit.get("descendants", -1)) == 104
-		and int(budgets.get("static_bodies", -1)) == 8
-		and int(budgets.get("collision_shapes", -1)) == 42
-		and int(budgets.get("mesh_instances", -1)) == 21
+		and int(audit.get("descendants", -1)) == 117
+		and int(budgets.get("static_bodies", -1)) == 12
+		and int(budgets.get("collision_shapes", -1)) == 46
+		and int(budgets.get("mesh_instances", -1)) == 25
 		and int(budgets.get("multimesh_instances", -1)) == 7
-		and int(budgets.get("renderer_nodes", -1)) == 28
+		and int(budgets.get("renderer_nodes", -1)) == 32
 		and int(budgets.get("mesh_resource_allocations", -1)) == EXPECTED_COMPONENT_MESH_RESOURCE_ALLOCATIONS
 		and int(budgets.get("service_mesh_resource_allocations", -1)) == EXPECTED_SERVICE_MESH_RESOURCE_ALLOCATIONS
 		and int(budgets.get("guide_lights", -1)) == 5
-		and int(budgets.get("descendants", -1)) == 104,
-		"three logical pads and six honest routes freeze at 28 renderers, 25 resources, 104 descendants, six exact walkable boxes and 36 service-structure colliders"
+		and int(budgets.get("descendants", -1)) == 117,
+		"three logical pads and six honest routes freeze at 32 renderers, 29 resources, 117 descendants, six exact walkable boxes, four landing decks and 36 service-structure colliders"
 	)
 	var expected_bounds: Array[AABB] = [
 		AABB(Vector3(-18.75, 0.0, -15.2), Vector3(32.65, 12.0, 35.830929)),
@@ -164,7 +166,7 @@ func _test_service_presentations(berths: Node3D, audit: Dictionary) -> void:
 			if pad != null else null
 		var pad_report := (presentation.get("pads", {}) as Dictionary).get(pad_id, {}) as Dictionary
 		var contract: Dictionary = berths.call("get_landing_contract", pad_id)
-		var expected_landing := EXPECTED_PAD_POSITIONS[pad_index] + Vector3(0.0, 4.0, 0.0)
+		var expected_landing := EXPECTED_PAD_POSITIONS[pad_index] + Vector3(0.0, EXPECTED_LANDING_HEIGHTS[pad_index], 0.0)
 		var expected_approach := EXPECTED_PAD_POSITIONS[pad_index] + Vector3(0.0, 0.0, 30.0)
 		var sign := pad.get_node_or_null(^"PadSign") as Label3D if pad != null else null
 		var expected_sign := "DOCK %02d  %s  //  APPROACH CLEAR" % [
@@ -555,8 +557,8 @@ func _test_underframe_support_batch(berths: Node3D, audit: Dictionary) -> void:
 	_check(
 		int(access.get("support_meshes", -1)) == 11
 		and int(access.get("support_renderer_nodes", -1)) == 6
-		and int(audit.get("renderer_nodes", -1)) == 28
-		and int(audit.get("mesh_resource_allocations", -1)) == 25,
+		and int(audit.get("renderer_nodes", -1)) == 32
+		and int(audit.get("mesh_resource_allocations", -1)) == 29,
 		"the support-post family removes five renderer submissions and mesh allocations while retaining all 11 underframe copies"
 	)
 	_check(

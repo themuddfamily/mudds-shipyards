@@ -24,12 +24,52 @@ const PAD_IDS: Array[StringName] = [&"dock_04_cargo", &"dock_05_bomber", &"dock_
 ## outboard along its own `CargoBoardingLeg`, leaving 1.45 m of hull clearance
 ## and 0.95 m for the full declared landing volume. The walking leg runs 9.5 m
 ## along that same axis, so the boarding projection stays on its support.
+##
+## Dock 05 and Dock 06 were spread out when the craft came down onto real
+## landing decks. Dock 05 sat at pad-local z = -18.0, which parked the bomber
+## directly over the AftSpine walkway from the spawn deck; a deck under it would
+## have roofed that walkway, so the pad moved 9.0 m further out along its own
+## z (world -x) and its deck now stops 1.9 m clear of the spine. Dock 06 sat at
+## x = 0.0, straight over the fleet-dock comb's 4.8 m `Trunk`: a craft resting
+## there would have closed the only walkway to Docks 01-03, so it moved 17.0 m
+## to the comb's open north flank and 18.0 m further along it, which keeps its
+## blast fence out of Dock 04's approach lane; its deck meets the trunk edge
+## flush from `InterceptorBoardingToe` to the trunk's end.
 const PAD_POSITIONS: Array[Vector3] = [
-	Vector3(-16.4, 0.0, -5.0), Vector3(34.0, 0.0, -18.0), Vector3(0.0, 0.0, 34.0)
+	Vector3(-16.4, 0.0, -5.0), Vector3(34.0, 0.0, -27.0), Vector3(-17.0, 0.0, 52.0)
 ]
 const PAD_SIZE := Vector3(28.0, 0.6, 42.0)
 const APPROACH_OFFSET := Vector3(0.0, 0.0, 30.0)
-const LANDING_ANCHOR_Y := 4.0
+## Height of each craft's origin above its pad plane when parked. Each figure
+## is the craft's lowest drawn point below its own origin plus 30 mm, so the
+## landing gear rests on the landing deck (`LANDING_DECK_TOP_Y`) instead of the
+## hull hanging four metres above a one-metre walkway as it used to, and the
+## hull collision clears the raised access strips crossing the deck by 10 mm.
+const PAD_LANDING_ANCHOR_HEIGHTS := {
+	&"dock_04_cargo": 1.61,
+	&"dock_05_bomber": 1.335,
+	&"dock_06_interceptor": 1.06,
+}
+## Landing decks sit 20 mm under the access routes so the six narrow routes
+## still read as raised walkway strips where they cross a deck.
+const LANDING_DECK_TOP_Y := -0.02
+const LANDING_DECK_THICKNESS := 0.6
+## Pad-local footprint (x/z centre and size) of every landing deck. Each covers
+## the parked craft plus the pad's own floor-standing service dressing, which
+## until now stood on nothing. Measured against the production world: Dock 04
+## stops 0.45 m short of `VipReceptionSuite`'s reception wall, Dock 05 stops
+## 1.9 m short of the AftSpine walkway and keeps clear of the Aft stair, and
+## Dock 04/06 meet the comb trunk's north edge flush at pad-local world x 12,
+## and Dock 05's south edge stops 0.1 m short of `JunctionPortalPost`.
+## Dock 05's ordnance gantry stands outboard of the craft, so it gets its own
+## footing rather than a deck wide enough to reach the Aft stair.
+const LANDING_DECK_COUNT := 4
+const LANDING_DECK_SPECS: Array[Dictionary] = [
+	{"name": &"dock_04_cargo", "pad_id": &"dock_04_cargo", "centre": Vector2(0.0, 5.7), "size": Vector2(28.0, 25.4)},
+	{"name": &"dock_05_bomber", "pad_id": &"dock_05_bomber", "centre": Vector2(-0.6, -5.05), "size": Vector2(23.2, 28.3)},
+	{"name": &"dock_05_gantry_footing", "pad_id": &"dock_05_bomber", "centre": Vector2(-15.7, -5.0), "size": Vector2(7.0, 4.0)},
+	{"name": &"dock_06_interceptor", "pad_id": &"dock_06_interceptor", "centre": Vector2(0.0, -0.05), "size": Vector2(29.2, 41.1)},
+]
 const PAD_COMPATIBILITY_TAGS := {
 	&"dock_04_cargo": ["cargo_hauler"],
 	&"dock_05_bomber": ["bomber"],
@@ -69,13 +109,13 @@ const ACCESS_SUPPORT_MESH_COUNT := 11
 ## structural body because none of its dressing was found intruded.
 const SERVICE_STRUCTURE_BODIES := 2
 const SERVICE_STRUCTURE_SHAPES := 36
-const MAX_STATIC_BODIES := 6 + SERVICE_STRUCTURE_BODIES
+const MAX_STATIC_BODIES := 6 + SERVICE_STRUCTURE_BODIES + LANDING_DECK_COUNT
 const MAX_MESH_INSTANCES := 38
-const EXPECTED_STATIC_BODIES := 6 + SERVICE_STRUCTURE_BODIES
-const EXPECTED_COLLISION_SHAPES := 6 + SERVICE_STRUCTURE_SHAPES
-const EXPECTED_MESH_INSTANCES := 21
+const EXPECTED_STATIC_BODIES := 6 + SERVICE_STRUCTURE_BODIES + LANDING_DECK_COUNT
+const EXPECTED_COLLISION_SHAPES := 6 + SERVICE_STRUCTURE_SHAPES + LANDING_DECK_COUNT
+const EXPECTED_MESH_INSTANCES := 25
 const EXPECTED_MULTIMESH_INSTANCES := 7
-const EXPECTED_RENDERER_NODES := 28
+const EXPECTED_RENDERER_NODES := 32
 const EXPECTED_WAYFINDING_MESH_INSTANCES := 1
 const EXPECTED_WAYFINDING_LABELS := 1
 const EXPECTED_WAYFINDING_BOXES := 17
@@ -100,9 +140,9 @@ const EXPECTED_SERVICE_RENDERER_NODES := 15
 ## future batching pass has to beat.
 const EXPECTED_SERVICE_GEOMETRY_SUBMISSIONS := 18
 const EXPECTED_SERVICE_MESH_RESOURCE_ALLOCATIONS := 12
-const EXPECTED_COMPONENT_MESH_RESOURCE_ALLOCATIONS := 25
+const EXPECTED_COMPONENT_MESH_RESOURCE_ALLOCATIONS := 29
 const EXPECTED_GUIDE_LIGHTS := 5
-const EXPECTED_DESCENDANTS := 104
+const EXPECTED_DESCENDANTS := 117
 const SERVICE_MESH_COUNTS := {
 	&"dock_04_cargo": 38,
 	&"dock_05_bomber": 3,
@@ -178,14 +218,19 @@ const PAD_BOARDING_FASCIA_SPECS := {
 		"craft_role": &"cargo_hauler",
 	},
 	&"dock_05_bomber": {
-		"position": Vector3(-3.8, 1.25, 0.035),
+		# World position unchanged by Dock 05's 9.0 m move: still the end face
+		# of `BomberBoardingLeg`.
+		"position": Vector3(-3.8, 1.25, 9.035),
 		"rotation_degrees": Vector3(0.0, 180.0, 0.0),
 		"approach_normal": Vector3.FORWARD,
 		"support": &"BomberBoardingLeg",
 		"craft_role": &"bomber",
 	},
 	&"dock_06_interceptor": {
-		"position": Vector3(-3.035, 1.25, 0.0),
+		# Still 35 mm past the toe's outboard face, which is now where the
+		# route steps from the trunk onto Dock 06's deck; raised to a header so
+		# the walker passes beneath it instead of through it.
+		"position": Vector3(13.965, 2.6, -18.0),
 		"rotation_degrees": Vector3(0.0, 90.0, 0.0),
 		"approach_normal": Vector3.RIGHT,
 		"support": &"InterceptorBoardingToe",
@@ -487,6 +532,7 @@ func _ready() -> void:
 		_publish_pad_presentation(PAD_IDS[index])
 	_build_service_structure_collision()
 	_build_access_circulation()
+	_build_landing_decks()
 
 
 func get_pad_ids() -> Array[StringName]:
@@ -797,7 +843,8 @@ func get_service_presentation_audit() -> Dictionary:
 			StationSurfaceKit.TRIM_CLEARCOAT_ROUGHNESS
 		):
 			errors.append("service marker station material drift: %s" % pad_id)
-		var expected_landing := PAD_POSITIONS[pad_index] + Vector3(0.0, LANDING_ANCHOR_Y, 0.0)
+		var expected_landing := PAD_POSITIONS[pad_index] \
+			+ Vector3(0.0, float(PAD_LANDING_ANCHOR_HEIGHTS[pad_id]), 0.0)
 		var expected_approach := PAD_POSITIONS[pad_index] + APPROACH_OFFSET
 		var contract := get_landing_contract(pad_id)
 		if (contract.get("landing_anchor", Vector3.INF) as Vector3) != expected_landing \
@@ -1344,8 +1391,9 @@ func _build_pad(pad_id: StringName, pad_position: Vector3, index: int) -> void:
 	pad.name = String(pad_id)
 	pad.berth_id = pad_id
 	pad.compatibility_tags = PackedStringArray(PAD_COMPATIBILITY_TAGS[pad_id] as Array)
+	var anchor_height := float(PAD_LANDING_ANCHOR_HEIGHTS[pad_id])
 	pad.dock_transform = Transform3D(
-		Basis.IDENTITY, Vector3(0.0, LANDING_ANCHOR_Y, 0.0)
+		Basis.IDENTITY, Vector3(0.0, anchor_height, 0.0)
 	)
 	pad.landing_half_extents = PAD_LANDING_HALF_EXTENTS[pad_id] as Vector3
 	pad.assist_capture_center = LANDING_ASSIST_CAPTURE_CENTER
@@ -1360,7 +1408,7 @@ func _build_pad(pad_id: StringName, pad_position: Vector3, index: int) -> void:
 	pad.add_child(route)
 	var landing := Marker3D.new()
 	landing.name = "LandingContractAnchor"
-	landing.position = Vector3(0.0, LANDING_ANCHOR_Y, 0.0)
+	landing.position = Vector3(0.0, anchor_height, 0.0)
 	landing.set_meta(&"landing_contract", true)
 	pad.add_child(landing)
 	var sign := Label3D.new()
@@ -1397,6 +1445,46 @@ func _build_pad(pad_id: StringName, pad_position: Vector3, index: int) -> void:
 
 func _on_pad_occupancy_changed(_occupant: Node, pad_id: StringName) -> void:
 	_publish_pad_presentation(pad_id)
+
+
+## One colliding, walkable deck per `LANDING_DECK_SPECS` row. They live under
+## their own `LandingDecks` node, never under a logical pad, so the pads keep
+## owning no collision; the production binding hands each craft's pilot off
+## onto its deck.
+func _build_landing_decks() -> void:
+	var decks := Node3D.new()
+	decks.name = "LandingDecks"
+	decks.set_meta(&"component_id", &"fleet-expansion-landing-decks")
+	add_child(decks)
+	for spec in LANDING_DECK_SPECS:
+		var pad_index := PAD_IDS.find(spec.pad_id as StringName)
+		var centre := spec.centre as Vector2
+		var footprint := spec.size as Vector2
+		var size := Vector3(footprint.x, LANDING_DECK_THICKNESS, footprint.y)
+		var body := StaticBody3D.new()
+		body.name = String(spec.name)
+		body.position = PAD_POSITIONS[pad_index] + Vector3(
+			centre.x, LANDING_DECK_TOP_Y - LANDING_DECK_THICKNESS * 0.5, centre.y
+		)
+		body.collision_layer = WORLD_LAYER
+		body.collision_mask = 0
+		body.set_meta(&"walkable_surface", true)
+		body.set_meta(&"walkable_surface_id", StringName("fleet-expansion-landing-deck-" + String(spec.name)))
+		body.set_meta(&"walkable_surface_kind", &"landing_deck")
+		body.set_meta(&"walkable_surface_owner", COMPONENT_ID)
+		body.set_meta(&"pad_id", spec.pad_id)
+		decks.add_child(body)
+		var collision := CollisionShape3D.new()
+		collision.name = "Collision"
+		var shape := BoxShape3D.new()
+		shape.size = size
+		collision.shape = shape
+		body.add_child(collision)
+		var surface := MeshInstance3D.new()
+		surface.name = "Surface"
+		surface.mesh = ShipChamferedStock.structural_box_mesh(size)
+		surface.material_override = _service_materials["pad_deck"]
+		body.add_child(surface)
 
 
 func _build_access_circulation() -> void:

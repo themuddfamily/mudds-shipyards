@@ -1093,18 +1093,18 @@ func _test_pod_corner_collar_visual_resource_sharing(
 			"family_mesh_resource_allocations": 4,
 		}
 		and report.current == {
-			"descendant_nodes": 1169,
-			"renderer_nodes": 754,
-			"drawn_copies": 894,
-			"surface_submissions": 754,
-			"mesh_resource_allocations": 308,
+			"descendant_nodes": 1172,
+			"renderer_nodes": 757,
+			"drawn_copies": 897,
+			"surface_submissions": 757,
+			"mesh_resource_allocations": 309,
 			"material_resource_allocations": 39,
 			"family_visual_nodes": 4,
 			"family_visible_copies": 4,
 			"family_surface_submissions": 4,
 			"family_mesh_resource_allocations": 1,
 		},
-		"shared collar families plus all three station consoles freeze 1169 descendants, 754 renderers/submissions, 894 copies, and 308 mesh allocations"
+		"shared collar families plus all three station consoles freeze 1172 descendants, 757 renderers/submissions, 897 copies, and 309 mesh allocations"
 	)
 	_check(
 		report.reductions == {
@@ -1184,7 +1184,7 @@ func _test_pod_corner_collar_visual_resource_sharing(
 	(report.behavior_rows as Array).clear()
 	var detached := module.get_pod_corner_collar_visual_allocation_audit()
 	_check(
-		int(detached.current.mesh_resource_allocations) == 308
+		int(detached.current.mesh_resource_allocations) == 309
 		and (detached.behavior_rows as Array).size() == 4,
 		"component-local allocation and transform evidence is deeply detached"
 	)
@@ -1226,7 +1226,7 @@ func _test_pod_corner_collar_visual_resource_sharing(
 		and (identity_red.errors as PackedStringArray).has(
 			"pod_corner_collar_mesh_identity_not_shared"
 		)
-		and int(identity_red.current.mesh_resource_allocations) == 309
+		and int(identity_red.current.mesh_resource_allocations) == 310
 		and int(identity_red.current.family_mesh_resource_allocations) == 2,
 		"RED identity mutation rejects an exact-looking private collar mesh allocation"
 	)

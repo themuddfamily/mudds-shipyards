@@ -19,9 +19,9 @@ func _initialize() -> void:
 	_check((snapshot.get("craft", []) as Array).size() == 3, "fleet snapshot publishes all composed craft")
 	var berths := binding.get_node_or_null(^"FleetExpansionBerths") as Node3D
 	var endpoint_paths := {
-		&"dock_04_cargo": ^"AccessCirculation/CargoBoardingLeg",
-		&"dock_05_bomber": ^"AccessCirculation/BomberBoardingLeg",
-		&"dock_06_interceptor": ^"AccessCirculation/InterceptorBoardingToe",
+		&"dock_04_cargo": ^"LandingDecks/dock_04_cargo",
+		&"dock_05_bomber": ^"LandingDecks/dock_05_bomber",
+		&"dock_06_interceptor": ^"LandingDecks/dock_06_interceptor",
 	}
 	for craft in snapshot.get("craft", []) as Array:
 		var row := craft as Dictionary

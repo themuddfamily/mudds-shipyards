@@ -407,8 +407,19 @@ func _build_weapon_definition() -> WeaponDefinition:
 	return definition
 
 
+## The hull box keeps its top, width and length, but its floor is the lowest
+## drawn point of the craft (1.05 m below the origin), not 0.2 m below it.
+## The oversize floor used to sink into the Dock 06 landing deck when parked.
+const HULL_COLLISION_FLOOR_Y := -1.05
+
+
 func _build_collision() -> void:
-	_add_box_collision_shape("InterceptorHullCollision", Vector3.ZERO, HULL_SIZE)
+	var height := HULL_SIZE.y * 0.5 - HULL_COLLISION_FLOOR_Y
+	_add_box_collision_shape(
+		"InterceptorHullCollision",
+		Vector3(0.0, HULL_COLLISION_FLOOR_Y + height * 0.5, 0.0),
+		Vector3(HULL_SIZE.x, height, HULL_SIZE.z)
+	)
 
 
 func _build_hull(visual: Node3D) -> void:

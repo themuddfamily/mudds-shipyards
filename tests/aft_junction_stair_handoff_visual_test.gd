@@ -34,6 +34,8 @@ func _initialize() -> void:
 			var plate := cue.get_node_or_null(^"BackingPlate") as MeshInstance3D
 			var label := cue.get_node_or_null(^"Sign_UPPER_OPERATIONS") as MeshInstance3D
 			var label_mesh := label.mesh as TextMesh if label != null else null
+			var rear_label := cue.get_node_or_null(^"Sign_UPPER_OPERATIONS_Rear") as MeshInstance3D
+			var rear_mesh := rear_label.mesh as TextMesh if rear_label != null else null
 			var renderers := cue.find_children("*", "MeshInstance3D", true, false)
 			var collision := cue.find_children("*", "CollisionObject3D", true, false)
 			var shapes := cue.find_children("*", "CollisionShape3D", true, false)
@@ -51,8 +53,18 @@ func _initialize() -> void:
 					and material != null and not material.emission_enabled
 			_check(
 				plate != null and label_mesh != null and label_mesh.text == "UPPER OPERATIONS" \
-					and renderers.size() == 7 and authority_free and all_non_emissive,
-				"the seven-leaf cue is labelled, static, collision-free, light-free, and non-emissive"
+					and renderers.size() == 10 and authority_free and all_non_emissive,
+				"the ten-leaf cue is labelled, static, collision-free, light-free, and non-emissive"
+			)
+			# Each face must read forwards to the viewer standing on its side:
+			# a TextMesh's readable face points along its local +Z.
+			var front_facing := label.global_basis.z.normalized() if label != null else Vector3.ZERO
+			var rear_facing := rear_label.global_basis.z.normalized() if rear_label != null else Vector3.ZERO
+			_check(
+				rear_mesh != null and rear_mesh.text == "UPPER OPERATIONS" \
+					and front_facing.dot(Vector3.BACK) > 0.99 \
+					and rear_facing.dot(Vector3.FORWARD) > 0.99,
+				"the header reads forwards from both the lower junction and the southern approach"
 			)
 			var lane_min_x := -5.7 - AftJunctionStack.STAIR_CLEAR_WIDTH * 0.5
 			var lane_max_x := -5.7 + AftJunctionStack.STAIR_CLEAR_WIDTH * 0.5

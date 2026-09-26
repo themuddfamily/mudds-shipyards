@@ -718,10 +718,12 @@ func _test_cinder_boarding_positions_from_real_spawn(
 			Vector3(7.05, 0.0, -20.7), Vector3(6.7, 0.0, -20.7),
 			Vector3(6.7, 0.0, -22.8), Vector3(13.0, 0.0, -22.8),
 			Vector3(20.0, 0.0, -22.8), Vector3(25.0, 0.0, -22.8),
-			Vector3(30.2, 0.0, -22.8), Vector3(30.2, 0.0, -18.0),
+			# The bomber rests on Dock 05's deck now: pass its port flank to the
+			# stepped-out boarding position rather than walking under the hull.
+			Vector3(29.9, 0.0, -22.8), Vector3(30.05, 0.0, -27.5),
 		]),
 		"cinder_light_interceptor": PackedVector3Array([
-			Vector3(30.2, 0.0, -22.8), Vector3(25.0, 0.0, -22.8),
+			Vector3(29.9, 0.0, -22.8), Vector3(25.0, 0.0, -22.8),
 			Vector3(20.0, 0.0, -22.8), Vector3(13.0, 0.0, -22.8),
 			Vector3(6.7, 0.0, -22.8),
 			Vector3(6.7, 0.0, -20.7), Vector3(7.05, 0.0, -20.7),
@@ -731,13 +733,22 @@ func _test_cinder_boarding_positions_from_real_spawn(
 			Vector3(0.0, 0.0, 0.6), Vector3(0.0, 0.0, 24.0),
 			Vector3(0.0, 0.0, 34.0), Vector3(-2.4, 0.0, 34.0),
 			Vector3(-2.7, 0.0, 34.0),
+			# Onto Dock 06's deck, north of the blast fence and the launch frame's
+			# starboard post, then down the interceptor's port flank.
+			Vector3(-3.5, 0.0, 34.0), Vector3(-3.5, 0.0, 40.0),
+			Vector3(-19.85, 0.0, 40.0), Vector3(-19.85, 0.0, 52.0),
 		]),
 		"cinder_cargo_hauler": PackedVector3Array([
-			Vector3(-2.7, 0.0, 34.0), Vector3(-2.4, 0.0, 34.0),
+			Vector3(-19.85, 0.0, 52.0), Vector3(-19.85, 0.0, 40.0),
+			Vector3(-3.5, 0.0, 40.0), Vector3(-3.5, 0.0, 34.0),
+			Vector3(-2.4, 0.0, 34.0),
 			Vector3(-0.2, 0.0, 34.0), Vector3(-0.2, 0.0, 30.0),
 			Vector3(-0.2, 0.0, 20.0), Vector3(0.0, 0.0, 0.6),
-			Vector3(-2.4, 0.0, 0.6), Vector3(-10.0, 0.0, 0.6),
-			Vector3(-19.8, 0.0, 0.6), Vector3(-19.8, 0.0, -8.0),
+			# Through the container row's gap, then round the resting hauler's
+			# nose to its stepped-out port boarding position.
+			Vector3(-2.4, 0.0, 0.5), Vector3(-9.0, 0.0, 0.5),
+			Vector3(-12.0, 0.0, 2.0), Vector3(-20.55, 0.0, 2.0),
+			Vector3(-20.55, 0.0, -5.0),
 		]),
 	}
 	var route_distance := float(lower_leg.get("distance", 0.0)) \

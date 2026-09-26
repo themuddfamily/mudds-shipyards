@@ -1522,10 +1522,20 @@ func _test_discovered_walkable_surface_support(world: ShipyardWorld) -> void:
 			continue
 
 		candidates += 1
+		# A parked craft's own interior (the Dock 04 hauler's sill, step and
+		# loadmaster deck rest at deck height now) is carried by that craft's
+		# body collision, not by station World collision.
+		var support_mask := WORLD_LAYER
+		var owner_cursor := mesh_instance.get_parent()
+		while owner_cursor != null and owner_cursor != world:
+			if owner_cursor is HeroShip:
+				support_mask |= PhysicsLayers.SHIP
+				break
+			owner_cursor = owner_cursor.get_parent()
 		var ray := PhysicsRayQueryParameters3D.create(
 			top_world + Vector3.UP * 0.08,
 			top_world + Vector3.DOWN * 0.55,
-			WORLD_LAYER
+			support_mask
 		)
 		ray.collide_with_areas = false
 		ray.collide_with_bodies = true

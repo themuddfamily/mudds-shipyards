@@ -74,9 +74,9 @@ const EXPECTED_BERTH_IDS: Array[StringName] = [
 ]
 const EXPECTED_BERTH_TRANSFORMS := {
 	&"bulwark_fleet_dock_berth": Transform3D(Basis.IDENTITY, Vector3(52.0, 7.68, 53.05)),
-	&"dock_04_cargo": Transform3D(Basis(Vector3.UP, PI * 0.5), Vector3(7.0, 8.2, 84.7)),
-	&"dock_05_bomber": Transform3D(Basis(Vector3.UP, PI * 0.5), Vector3(-6.0, 8.2, 34.3)),
-	&"dock_06_interceptor": Transform3D(Basis(Vector3.UP, PI * 0.5), Vector3(46.0, 8.2, 68.3)),
+	&"dock_04_cargo": Transform3D(Basis(Vector3.UP, PI * 0.5), Vector3(7.0, 5.81, 84.7)),
+	&"dock_05_bomber": Transform3D(Basis(Vector3.UP, PI * 0.5), Vector3(-15.0, 5.535, 34.3)),
+	&"dock_06_interceptor": Transform3D(Basis(Vector3.UP, PI * 0.5), Vector3(64.0, 5.26, 85.3)),
 	&"central_berth": Transform3D(Basis.IDENTITY, Vector3(0.0, 1.15, -10.0)),
 	&"arrow_recon_berth": Transform3D(Basis(Vector3.UP, PI * 0.5), Vector3(-43.0, 1.15, 15.5)),
 	&"jovian_freight_berth": Transform3D(Basis(Vector3.UP, PI), Vector3(-53.0, 1.63, 57.3)),
