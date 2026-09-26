@@ -114,6 +114,13 @@ func _process(delta: float) -> void:
 	material.set_shader_parameter("wind_offset_m", _cloud_shadow_wind_offset_m)
 
 
+func _sync_cloud_shadow_processing() -> void:
+	var ground_wind_active := not is_zero_approx(_cloud_shadow_wind_velocity_mps.x) \
+		or not is_zero_approx(_cloud_shadow_wind_velocity_mps.z)
+	set_process(_cloud_shadow_enabled and _cloud_shadow_projection != null
+		and _cloud_shadow_projection.visible and ground_wind_active)
+
+
 func _exit_tree() -> void:
 	if _configured:
 		var target := get_world_environment()
@@ -136,6 +143,7 @@ func _exit_tree() -> void:
 				cloud.transparency = _baseline_cloud_transparency
 		if _cloud_shadow_projection != null:
 			_cloud_shadow_projection.visible = false
+		_sync_cloud_shadow_processing()
 
 
 func _enter_tree() -> void:
@@ -234,11 +242,10 @@ func apply_retained_presentation_recipe(
 	if shadow_material != null:
 		var shadow_opacity := clampf(float(weather.get("cloud_opacity_unitless", 0.0)) * 0.35 * _cloud_shadow_opacity_scale, 0.0, 0.35)
 		_cloud_shadow_wind_velocity_mps = weather.get("wind_velocity_mps", Vector3.ZERO) as Vector3
-		set_process(not is_zero_approx(_cloud_shadow_wind_velocity_mps.x)
-			or not is_zero_approx(_cloud_shadow_wind_velocity_mps.z))
 		shadow_material.set_shader_parameter("shadow_opacity", shadow_opacity)
 		shadow_material.set_shader_parameter("wind_offset_m", _cloud_shadow_wind_offset_m)
 		_cloud_shadow_projection.visible = _cloud_shadow_enabled and shadow_opacity > 0.01
+		_sync_cloud_shadow_processing()
 	var retained_weather := (weather_snapshot as Dictionary).duplicate(true)
 	retained_weather["altitude_m"] = altitude_m
 	_last_recipe = {
@@ -284,6 +291,7 @@ func apply_graphics_profile(profile: StringName) -> Dictionary:
 		_cloud_shadow_projection.visible = false
 	elif _cloud_shadow_enabled and not _last_recipe.is_empty():
 		apply_retained_presentation_recipe(_last_recipe.solar, _last_recipe.weather)
+	_sync_cloud_shadow_processing()
 	return {"accepted": true, "reason": &"graphics_profile_applied", "profile": _graphics_profile}
 
 
@@ -303,7 +311,9 @@ func audit() -> Dictionary:
 		errors.append("authored_scene_contract_invalid")
 	var ground_wind_active := not is_zero_approx(_cloud_shadow_wind_velocity_mps.x) \
 		or not is_zero_approx(_cloud_shadow_wind_velocity_mps.z)
-	if is_processing() != ground_wind_active or is_physics_processing():
+	var shadow_active := _cloud_shadow_enabled and _cloud_shadow_projection != null \
+		and _cloud_shadow_projection.visible and ground_wind_active
+	if is_processing() != shadow_active or is_physics_processing():
 		errors.append("shadow_presentation_process_drift")
 	if _configured and (
 		target == null

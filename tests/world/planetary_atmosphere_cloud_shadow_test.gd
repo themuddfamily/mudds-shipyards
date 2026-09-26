@@ -79,16 +79,41 @@ func _run() -> void:
 	)), "changed wind advects from the retained phase")
 	composition.apply_retained_presentation_recipe(SOLAR, _weather(wind))
 	_check(composition.apply_graphics_profile(&"medium").accepted and shadow.visible
+		and composition.is_processing()
 		and is_equal_approx(float(material.get_shader_parameter("shadow_opacity")), high_opacity * 0.6),
 		"medium profile dims the moving pattern")
-	_check(composition.apply_graphics_profile(&"low").accepted and not shadow.visible,
-		"low profile omits the projection")
-	_check(composition.apply_graphics_profile(&"high").accepted and shadow.visible
+	var before_low := material.get_shader_parameter("wind_offset_m") as Vector2
+	var low := composition.apply_graphics_profile(&"low")
+	await create_timer(0.06).timeout
+	_check(low.accepted and not shadow.visible and not composition.is_processing()
+		and (material.get_shader_parameter("wind_offset_m") as Vector2).is_equal_approx(before_low)
+		and bool(composition.audit().valid),
+		"low profile hides and freezes the projection")
+	var high := composition.apply_graphics_profile(&"high")
+	var high_start := material.get_shader_parameter("wind_offset_m") as Vector2
+	_check(high.accepted and shadow.visible and composition.is_processing()
+		and high_start.is_equal_approx(before_low)
 		and is_equal_approx(float(material.get_shader_parameter("shadow_opacity")), high_opacity),
-		"high profile restores the pattern strength")
+		"high profile resumes the retained pattern without a phase jump")
+	await create_timer(0.06).timeout
+	_check(not (material.get_shader_parameter("wind_offset_m") as Vector2).is_equal_approx(high_start),
+		"restored high profile advances with wind")
+	var clear_weather := _weather(wind)
+	clear_weather["intensity_unitless"] = 0.0
+	var clear := composition.apply_retained_presentation_recipe(SOLAR, clear_weather)
+	var before_clear := material.get_shader_parameter("wind_offset_m") as Vector2
+	await create_timer(0.06).timeout
+	_check(clear.accepted and not shadow.visible and not composition.is_processing()
+		and (material.get_shader_parameter("wind_offset_m") as Vector2).is_equal_approx(before_clear),
+		"clear weather freezes the invisible projection")
+	var restored := composition.apply_retained_presentation_recipe(SOLAR, _weather(wind))
+	var restored_offset := material.get_shader_parameter("wind_offset_m") as Vector2
+	_check(restored.accepted and shadow.visible and composition.is_processing()
+		and restored_offset.is_equal_approx(before_clear),
+		"cloud return resumes the retained pattern without a phase jump")
 	var still := composition.apply_retained_presentation_recipe(SOLAR, _weather(Vector3.ZERO))
 	_check(still.accepted and not composition.is_processing()
-		and (material.get_shader_parameter("wind_offset_m") as Vector2).is_equal_approx(changed_offset),
+		and (material.get_shader_parameter("wind_offset_m") as Vector2).is_equal_approx(restored_offset),
 		"zero wind freezes the projection phase")
 	var capture_dir := OS.get_environment(CAPTURE_DIR_ENV)
 	if not capture_dir.is_empty():
