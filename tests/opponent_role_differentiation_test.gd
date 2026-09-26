@@ -312,9 +312,11 @@ func _test_skirmisher_mirrored_trim_resource_sharing() -> void:
 	# 80e1ab9e3 ("Fit registry and service artwork to encounter hull skins")
 	# added the registry artwork receivers (descendants 33 -> 37, visual nodes
 	# 22 -> 26). The mirrored slots themselves still submit two copies each.
+	# The wing posture cue (WingPostureCue + two strokes, on the body rather
+	# than the visual root) added three descendants: 37 -> 40.
 	_check(
-		int(audit.descendant_nodes_old) == 37
-		and int(audit.descendant_nodes_new) == 37 + int(audit.surface_marking_costs.nodes)
+		int(audit.descendant_nodes_old) == 40
+		and int(audit.descendant_nodes_new) == 40 + int(audit.surface_marking_costs.nodes)
 		and int(audit.visual_nodes_old) == 26
 		and int(audit.visual_nodes_new) == 26
 		and int(audit.mesh_instance_nodes_old) == 19
