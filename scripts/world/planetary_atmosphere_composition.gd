@@ -3,7 +3,8 @@ extends Node3D
 
 ## Explicit standalone owner that installs one configured rig Environment into
 ## its sibling WorldEnvironment. It owns no clock, camera, streaming, gameplay,
-## or production-world binding.
+## or production-world binding. Its optional process only advances an owned
+## material offset from the scene tree's frame delta while horizontal wind blows.
 
 const COMPONENT_ID: StringName = &"planetary-atmosphere-composition"
 const SCENE_PATH := "res://scenes/world/components/aurora_temperate_atmosphere_composition.tscn"
@@ -30,8 +31,7 @@ var _graphics_profile: StringName = &"high"
 var _cloud_shadow_enabled := true
 var _cloud_shadow_opacity_scale := 1.0
 var _cloud_shadow_wind_velocity_mps := Vector3.ZERO
-var _cloud_shadow_wind_origin_m := Vector3.ZERO
-var _cloud_shadow_wind_epoch_seconds := 0.0
+var _cloud_shadow_wind_offset_m := Vector2.ZERO
 var _last_observer_altitude_m := 0.0
 var _has_observer_altitude := false
 
@@ -80,19 +80,16 @@ shader_type spatial;
 render_mode unshaded, cull_disabled, blend_mix, depth_draw_never;
 
 uniform float shadow_opacity;
-uniform vec3 wind_velocity_mps;
-uniform vec3 wind_origin_m;
-uniform float wind_epoch_seconds;
+uniform vec2 wind_offset_m;
 
 void fragment() {
-	// The 64 m quad supplies a fixed ground scale. TIME belongs to the
-	// renderer, so a retained recipe and streamed re-entry keep one phase.
+	// Integer harmonics make the 64 m field periodic, matching the bounded
+	// material offset through long sessions and streamed re-entry.
 	vec2 ground_m = vec2(UV.x, 1.0 - UV.y) * 64.0;
-	vec2 advected_m = ground_m - wind_origin_m.xz
-		- wind_velocity_mps.xz * (TIME - wind_epoch_seconds);
-	float broad = sin(advected_m.x * 0.18 + sin(advected_m.y * 0.13) * 1.2)
-		* sin(advected_m.y * 0.15 - advected_m.x * 0.04);
-	float detail = sin(advected_m.x * 0.53 + advected_m.y * 0.37) * 0.18;
+	vec2 phase = (ground_m - wind_offset_m) * (TAU / 64.0);
+	float broad = sin(phase.x * 3.0 + sin(phase.y * 2.0) * 1.2)
+		* sin(phase.y * 2.0 - phase.x);
+	float detail = sin(phase.x * 7.0 + phase.y * 5.0) * 0.18;
 	float cloud_mask = smoothstep(-0.2, 0.35, broad + detail);
 	vec2 edge = min(UV, vec2(1.0) - UV);
 	float edge_fade = smoothstep(0.0, 0.12, min(edge.x, edge.y));
@@ -104,6 +101,17 @@ void fragment() {
 	_cloud_shadow_projection.material_override = shadow_material
 	_cloud_shadow_projection.visible = false
 	add_child(_cloud_shadow_projection)
+
+
+func _process(delta: float) -> void:
+	# Only presentation changes here. Godot supplies a scaled frame delta and
+	# stops this callback when the scene is paused or detached.
+	var ground_wind := Vector2(_cloud_shadow_wind_velocity_mps.x, _cloud_shadow_wind_velocity_mps.z)
+	_cloud_shadow_wind_offset_m += ground_wind * delta
+	_cloud_shadow_wind_offset_m.x = fposmod(_cloud_shadow_wind_offset_m.x, 64.0)
+	_cloud_shadow_wind_offset_m.y = fposmod(_cloud_shadow_wind_offset_m.y, 64.0)
+	var material := _cloud_shadow_projection.material_override as ShaderMaterial
+	material.set_shader_parameter("wind_offset_m", _cloud_shadow_wind_offset_m)
 
 
 func _exit_tree() -> void:
@@ -225,19 +233,11 @@ func apply_retained_presentation_recipe(
 	var shadow_material := _cloud_shadow_projection.material_override as ShaderMaterial
 	if shadow_material != null:
 		var shadow_opacity := clampf(float(weather.get("cloud_opacity_unitless", 0.0)) * 0.35 * _cloud_shadow_opacity_scale, 0.0, 0.35)
-		var wind_velocity := weather.get("wind_velocity_mps", Vector3.ZERO) as Vector3
-		if wind_velocity != _cloud_shadow_wind_velocity_mps:
-			var now_seconds := float(Time.get_ticks_usec()) / 1_000_000.0
-			if _cloud_shadow_wind_epoch_seconds > 0.0:
-				_cloud_shadow_wind_origin_m += _cloud_shadow_wind_velocity_mps * (
-					now_seconds - _cloud_shadow_wind_epoch_seconds
-				)
-			_cloud_shadow_wind_velocity_mps = wind_velocity
-			_cloud_shadow_wind_epoch_seconds = now_seconds
+		_cloud_shadow_wind_velocity_mps = weather.get("wind_velocity_mps", Vector3.ZERO) as Vector3
+		set_process(not is_zero_approx(_cloud_shadow_wind_velocity_mps.x)
+			or not is_zero_approx(_cloud_shadow_wind_velocity_mps.z))
 		shadow_material.set_shader_parameter("shadow_opacity", shadow_opacity)
-		shadow_material.set_shader_parameter("wind_velocity_mps", _cloud_shadow_wind_velocity_mps)
-		shadow_material.set_shader_parameter("wind_origin_m", _cloud_shadow_wind_origin_m)
-		shadow_material.set_shader_parameter("wind_epoch_seconds", _cloud_shadow_wind_epoch_seconds)
+		shadow_material.set_shader_parameter("wind_offset_m", _cloud_shadow_wind_offset_m)
 		_cloud_shadow_projection.visible = _cloud_shadow_enabled and shadow_opacity > 0.01
 	var retained_weather := (weather_snapshot as Dictionary).duplicate(true)
 	retained_weather["altitude_m"] = altitude_m
@@ -301,8 +301,10 @@ func audit() -> Dictionary:
 	var errors := PackedStringArray()
 	if scene_file_path != SCENE_PATH or target == null or rig == null:
 		errors.append("authored_scene_contract_invalid")
-	if is_processing() or is_physics_processing():
-		errors.append("process_authority_added")
+	var ground_wind_active := not is_zero_approx(_cloud_shadow_wind_velocity_mps.x) \
+		or not is_zero_approx(_cloud_shadow_wind_velocity_mps.z)
+	if is_processing() != ground_wind_active or is_physics_processing():
+		errors.append("shadow_presentation_process_drift")
 	if _configured and (
 		target == null
 		or rig == null

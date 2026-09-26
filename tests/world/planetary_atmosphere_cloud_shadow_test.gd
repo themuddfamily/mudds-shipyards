@@ -52,9 +52,32 @@ func _run() -> void:
 	var material := shadow.material_override as ShaderMaterial
 	var wind := Vector3(15.0, 0.0, -5.0)
 	var windy := composition.apply_retained_presentation_recipe(SOLAR, _weather(wind))
-	_check(windy.accepted and shadow.visible and material.get_shader_parameter("wind_velocity_mps") == wind,
+	_check(windy.accepted and shadow.visible and composition.is_processing(),
 		"authored wind reaches the visible projection")
 	var high_opacity := float(material.get_shader_parameter("shadow_opacity"))
+	var initial_offset := material.get_shader_parameter("wind_offset_m") as Vector2
+	composition._process(3599.0)
+	composition._process(2.0)
+	var long_offset := material.get_shader_parameter("wind_offset_m") as Vector2
+	var expected_long_offset := Vector2(
+		fposmod(initial_offset.x + wind.x * 3601.0, 64.0),
+		fposmod(initial_offset.y + wind.z * 3601.0, 64.0)
+	)
+	_check(long_offset.is_equal_approx(expected_long_offset)
+		and long_offset.x >= 0.0 and long_offset.x < 64.0
+		and long_offset.y >= 0.0 and long_offset.y < 64.0,
+		"ground phase stays bounded across the former 3600-second shader rollover")
+	var changed_wind := Vector3(-8.0, 0.0, 2.0)
+	_check(composition.apply_retained_presentation_recipe(SOLAR, _weather(changed_wind)).accepted
+		and (material.get_shader_parameter("wind_offset_m") as Vector2).is_equal_approx(long_offset),
+		"changing wind preserves the current ground phase")
+	composition._process(0.5)
+	var changed_offset := material.get_shader_parameter("wind_offset_m") as Vector2
+	_check(changed_offset.is_equal_approx(Vector2(
+		fposmod(long_offset.x + changed_wind.x * 0.5, 64.0),
+		fposmod(long_offset.y + changed_wind.z * 0.5, 64.0)
+	)), "changed wind advects from the retained phase")
+	composition.apply_retained_presentation_recipe(SOLAR, _weather(wind))
 	_check(composition.apply_graphics_profile(&"medium").accepted and shadow.visible
 		and is_equal_approx(float(material.get_shader_parameter("shadow_opacity")), high_opacity * 0.6),
 		"medium profile dims the moving pattern")
@@ -64,7 +87,8 @@ func _run() -> void:
 		and is_equal_approx(float(material.get_shader_parameter("shadow_opacity")), high_opacity),
 		"high profile restores the pattern strength")
 	var still := composition.apply_retained_presentation_recipe(SOLAR, _weather(Vector3.ZERO))
-	_check(still.accepted and material.get_shader_parameter("wind_velocity_mps") == Vector3.ZERO,
+	_check(still.accepted and not composition.is_processing()
+		and (material.get_shader_parameter("wind_offset_m") as Vector2).is_equal_approx(changed_offset),
 		"zero wind freezes the projection phase")
 	var capture_dir := OS.get_environment(CAPTURE_DIR_ENV)
 	if not capture_dir.is_empty():
@@ -78,7 +102,7 @@ func _run() -> void:
 	root.add_child(scene)
 	await process_frame
 	_check(shadow.global_position.distance_to(landing.to_global(Vector3.UP * 0.06)) < 0.02
-		and shadow.visible and material.get_shader_parameter("wind_velocity_mps") == wind
+		and shadow.visible and composition.is_processing()
 		and bool(composition.audit().valid),
 		"streamed re-entry retains the surface anchor and wind recipe")
 
@@ -139,7 +163,7 @@ func _capture_motion(
 	var calm_difference := _image_difference(calm_a, calm_b)
 	_check(calm_difference < 0.002, "zero-wind ground pattern stays still in rendered frames")
 	_check(composition.apply_retained_presentation_recipe(SOLAR, _weather(wind)).accepted
-		and shadow.visible and material.get_shader_parameter("wind_velocity_mps") == wind,
+		and shadow.visible and composition.is_processing(),
 		"render capture uses the retained authored wind")
 	await _settle_draws(5)
 	var windy_a := root.get_texture().get_image()
@@ -149,6 +173,20 @@ func _capture_motion(
 	var windy_difference := _image_difference(windy_a, windy_b)
 	_check(windy_difference > calm_difference + 0.003,
 		"wind visibly advects the projected ground pattern")
+	var moving_offset := material.get_shader_parameter("wind_offset_m") as Vector2
+	paused = true
+	await create_timer(0.35, true, false, true).timeout
+	await _settle_draws(2)
+	_check((material.get_shader_parameter("wind_offset_m") as Vector2).is_equal_approx(moving_offset),
+		"scene pause freezes the wind phase")
+	paused = false
+	Engine.time_scale = 0.0
+	var unscaled_offset := material.get_shader_parameter("wind_offset_m") as Vector2
+	await create_timer(0.35, true, false, true).timeout
+	await _settle_draws(2)
+	_check((material.get_shader_parameter("wind_offset_m") as Vector2).is_equal_approx(unscaled_offset),
+		"zero game time scale freezes the wind phase")
+	Engine.time_scale = 1.0
 	_check(composition.apply_retained_presentation_recipe(SOLAR, _weather(Vector3.ZERO)).accepted,
 		"wind can stop after moving across the ground")
 	await _settle_draws(2)
@@ -158,6 +196,15 @@ func _capture_motion(
 	var stopped_b := root.get_texture().get_image()
 	var stopped_difference := _image_difference(stopped_a, stopped_b)
 	_check(stopped_difference < 0.002, "zero wind freezes the last advected pattern")
+	_check(_image_difference(windy_b, stopped_a) < 0.002,
+		"stopping wind does not jump to a different pattern")
+	var retained_offset := material.get_shader_parameter("wind_offset_m") as Vector2
+	material.set_shader_parameter("wind_offset_m", retained_offset + Vector2(64.0, 64.0))
+	await _settle_draws(2)
+	var tiled_phase := root.get_texture().get_image()
+	_check(_image_difference(stopped_b, tiled_phase) < 0.002,
+		"one full ground-pattern period has no visible seam")
+	material.set_shader_parameter("wind_offset_m", retained_offset)
 	var directory := DirAccess.open(capture_dir)
 	_check(directory != null, "capture directory exists")
 	if directory != null:
