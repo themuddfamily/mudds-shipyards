@@ -45,6 +45,9 @@ func _run() -> void:
 	await process_frame
 
 	var cue := picket.get_node_or_null("StandoffTargetingRails") as MultiMeshInstance3D
+	var posture := picket.get_node_or_null("MovementPostureCue") as Node3D
+	var port_stroke := posture.get_node_or_null("PortStroke") as MeshInstance3D
+	var starboard_stroke := posture.get_node_or_null("StarboardStroke") as MeshInstance3D
 	var dormant := picket.get_standoff_intent_cue_snapshot()
 	_check(
 		cue != null
@@ -55,6 +58,21 @@ func _run() -> void:
 		and not cue.visible
 		and not bool(dormant.active),
 		"the dormant picket retains one hidden two-rail cue renderer"
+	)
+	_check(
+		posture != null and port_stroke != null and starboard_stroke != null
+		and port_stroke.mesh == starboard_stroke.mesh
+		and not posture.visible
+		and not bool(picket.get_posture_cue_snapshot().active),
+		"the dormant picket retains two hidden movement-posture strokes"
+	)
+	_check(
+		not posture.is_processing() and not posture.is_physics_processing()
+		and not _tree_contains_type(posture, "Timer")
+		and not _tree_contains_type(posture, "Light3D")
+		and not _tree_contains_type(posture, "CollisionObject3D")
+		and not _tree_contains_type(posture, "CollisionShape3D"),
+		"the posture cue owns only retained renderers, with no timer, light or collision"
 	)
 	_check(
 		cue.get_child_count() == 0
@@ -91,6 +109,13 @@ func _run() -> void:
 		and cue.visible
 		and (-cue.global_basis.z).dot(expected_direction) > 0.9999,
 		"an active assigned target raises steady twin rails from the muzzle toward the protected asset"
+	)
+	_check(
+		posture.visible
+		and picket.get_posture_cue_snapshot().state == StandoffPicketOpponent.STATE_CLOSING
+		and port_stroke.position.z < -5.0
+		and starboard_stroke.position.z < -5.0,
+		"activation shows a forward chevron for the published closing posture"
 	)
 	_check(
 		is_equal_approx(cue_mesh.size.z, 14.0)
@@ -170,29 +195,66 @@ func _run() -> void:
 		"the same rails follow the already-assigned actor without replacing resources or target identity"
 	)
 
+	# The cue follows the physics state, with a distinct silhouette for each
+	# distance band. These target positions are test controls; the state machine
+	# still makes each transition on its real fixed step.
+	target.position = Vector3(0.0, 0.0, -picket.standoff_range)
+	await physics_frame
+	await physics_frame
+	_check(
+		picket.get_engagement_state() == StandoffPicketOpponent.STATE_HOLDING
+		and picket.get_posture_cue_snapshot().state == StandoffPicketOpponent.STATE_HOLDING
+		and posture.visible
+		and is_equal_approx(port_stroke.position.z, -4.0)
+		and is_equal_approx(starboard_stroke.position.z, -4.0),
+		"the holding band shows a level pair of strokes"
+	)
+	target.position = Vector3(0.0, 0.0, -picket.minimum_arming_range * 0.5)
+	await physics_frame
+	await physics_frame
+	_check(
+		picket.get_engagement_state() == StandoffPicketOpponent.STATE_BREAKING
+		and picket.get_posture_cue_snapshot().state == StandoffPicketOpponent.STATE_BREAKING
+		and port_stroke.position.z > 4.0
+		and starboard_stroke.position.z > 4.0,
+		"inside the arming radius the published breaking state shows an aft chevron"
+	)
+	target.position = Vector3(0.0, 0.0, -picket.standoff_range * 1.5)
+	await physics_frame
+	await physics_frame
+	_check(
+		picket.get_engagement_state() == StandoffPicketOpponent.STATE_CLOSING
+		and picket.get_posture_cue_snapshot().state == StandoffPicketOpponent.STATE_CLOSING,
+		"leaving the band restores the closing read from the state machine"
+	)
+
 	# Terminal target state clears the cue and cannot revive without a fresh
 	# assignment, even if a pooled fixture toggles the same actor active again.
 	target.active = false
 	picket.call("_update_presentation", 0.0)
 	_check(
 		not cue.visible
+		and not posture.visible
 		and not bool(picket.get_standoff_intent_cue_snapshot().active)
 		and int(picket.get_standoff_intent_cue_snapshot().target_instance_id) == 0,
 		"terminal target state clears the targeting cue"
 	)
 	target.active = true
 	picket.call("_update_presentation", 0.0)
-	_check(not cue.visible, "actor reuse alone cannot revive a cleared target generation")
+	_check(not cue.visible and not posture.visible,
+		"actor reuse alone cannot revive a cleared target generation")
 	picket.set_target(target)
 	picket.call("_update_presentation", 0.0)
 	_check(cue.visible, "a fresh authoritative assignment restores the reused actor cue")
 
 	host.remove_child(target)
 	picket.call("_update_presentation", 0.0)
-	_check(not cue.visible, "detached target loss clears the cue immediately")
+	_check(not cue.visible and not posture.visible,
+		"detached target loss clears both cues immediately")
 	host.add_child(target)
 	picket.call("_update_presentation", 0.0)
-	_check(not cue.visible, "reattaching an actor cannot resurrect its cleared cue")
+	_check(not cue.visible and not posture.visible,
+		"reattaching an actor cannot resurrect its cleared cue")
 	picket.set_target(target)
 	picket.call("_update_presentation", 0.0)
 	_check(cue.visible, "the reattached actor requires a current assignment")
@@ -200,13 +262,15 @@ func _run() -> void:
 	# Picket detach clears immediately; validated re-entry may re-derive the cue
 	# from this same active generation and current authoritative target.
 	host.remove_child(picket)
-	_check(not cue.visible, "picket detach clears the cue before re-entry")
+	_check(not cue.visible and not posture.visible,
+		"picket detach clears both cues before re-entry")
 	host.add_child(picket)
 	await process_frame
 	await process_frame
 	picket.call("_update_presentation", 0.0)
 	_check(
 		cue.visible
+		and posture.visible
 		and int(picket.get_standoff_intent_cue_snapshot().activation_generation)
 			== int(active.activation_generation),
 		"validated re-entry re-derives the cue only for the retained current generation"
@@ -216,14 +280,17 @@ func _run() -> void:
 		picket.get_standoff_intent_cue_snapshot().activation_generation
 	)
 	picket.deactivate()
-	_check(not cue.visible, "withdrawal clears the cue synchronously")
+	_check(not cue.visible and not posture.visible,
+		"withdrawal clears target and posture cues synchronously")
 	picket.activate(Transform3D.IDENTITY)
 	picket.call("_update_presentation", 0.0)
 	var reused := picket.get_standoff_intent_cue_snapshot()
 	_check(
 		bool(reused.active)
 		and int(reused.activation_generation) > previous_activation_generation
-		and int(reused.mesh_instance_id) == mesh_id,
+		and int(reused.mesh_instance_id) == mesh_id
+		and int(picket.get_posture_cue_snapshot().activation_generation)
+			== int(reused.activation_generation),
 		"activation reuse re-derives the retained authoritative target only in the new generation"
 	)
 
@@ -232,6 +299,7 @@ func _run() -> void:
 	_check(
 		not picket.is_active()
 		and not cue.visible
+		and not posture.visible
 		and target.global_transform == target_pose_before_terminal
 		and target.active,
 		"picket terminal loss clears the cue without affecting the protected actor"

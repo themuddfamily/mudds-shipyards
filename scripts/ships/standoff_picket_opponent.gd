@@ -87,6 +87,13 @@ const STANDOFF_INTENT_RAIL_LENGTH := 14.0
 const STANDOFF_INTENT_RAIL_SEPARATION := 1.7
 const STANDOFF_INTENT_RAIL_THICKNESS := 0.22
 
+# Two steady violet strokes show the movement posture at the authored combat
+# band: forward, level, aft, or the committed side of a post-shot relocation.
+# The existing magenta sighting rails remain the weapon/target read.
+const POSTURE_CUE_ID: StringName = &"picket_movement_posture"
+const POSTURE_STROKE_WIDTH := 0.38
+const POSTURE_STROKE_HEIGHT := 0.25
+
 const MAX_PENDING_LANCE_RECEIPTS := 8
 ## One bolt is in flight for at most ~3.7s against a 4.8s trigger cadence, so a
 ## two-slot pool is already headroom. Saturation fails the shot closed.
@@ -198,6 +205,12 @@ var _standoff_intent_cue: MultiMeshInstance3D
 var _standoff_intent_mesh: BoxMesh
 var _standoff_intent_target_instance_id := 0
 var _standoff_intent_activation_generation := 0
+var _posture_cue: Node3D
+var _posture_strokes: Array[MeshInstance3D] = []
+var _posture_target_instance_id := 0
+var _posture_activation_generation := 0
+var _posture_visible_state: StringName = STATE_DORMANT
+var _posture_visible_direction_sign := 0.0
 var _bolt_pool: TravellingBoltProjectile
 ## Launch context for the bolts currently in the air, keyed by the authority's
 ## flight ID. Bounded by the pool capacity; never grows with encounter length.
@@ -231,6 +244,7 @@ func _ready() -> void:
 func _exit_tree() -> void:
 	_discard_lance_bolts(&"detached")
 	_clear_standoff_intent_cue()
+	_clear_posture_cue()
 	_unbind_siege_lance_audio()
 	_revoke_dispatch_authorization(&"detached")
 	_disconnect_pulse_signals()
@@ -255,6 +269,7 @@ func _physics_process(delta: float) -> void:
 	if _lance_charge_armed and not _has_current_target():
 		_cancel_lance_charge(&"target_lost", false)
 	_update_engagement_state()
+	_sync_posture_cue()
 
 
 # -------------------------------------------------------- public contract ----
@@ -302,6 +317,7 @@ func set_target(target: Node3D) -> void:
 	var next_id := target.get_instance_id() if is_instance_valid(target) else 0
 	var previous_id := _target.get_instance_id() if is_instance_valid(_target) else 0
 	if next_id != previous_id:
+		_clear_posture_cue()
 		if _telegraph_remaining > 0.0:
 			_cancel_lance_charge(&"target_changed", false)
 		_lance_charge_generation += 1
@@ -311,6 +327,7 @@ func set_target(target: Node3D) -> void:
 		_standoff_intent_target_instance_id = _target.get_instance_id()
 		_standoff_intent_activation_generation = _activation_generation
 	_sync_standoff_intent_cue()
+	_sync_posture_cue()
 
 
 ## Detached caller-physics charge state for HUD/counterplay consumers. The
@@ -376,6 +393,18 @@ func get_standoff_intent_cue_snapshot() -> Dictionary:
 		"fire_authority": false,
 		"damage_authority": false,
 		"reward_authority": false,
+	}.duplicate(true)
+
+
+func get_posture_cue_snapshot() -> Dictionary:
+	var active := _is_posture_cue_current()
+	return {
+		"cue_id": POSTURE_CUE_ID,
+		"active": active,
+		"state": _posture_visible_state if active else STATE_DORMANT,
+		"target_instance_id": _posture_target_instance_id if active else 0,
+		"activation_generation": _posture_activation_generation if active else 0,
+		"direction_sign": _posture_visible_direction_sign if active else 0.0,
 	}.duplicate(true)
 
 
@@ -670,6 +699,7 @@ func activate(spawn_transform: Transform3D) -> Dictionary:
 	_post_shot_relocation_remaining = 0.0
 	_post_shot_relocation_sign = 1.0
 	_clear_standoff_intent_cue()
+	_clear_posture_cue()
 	_cancel_lance_charge(&"activation_reset", false)
 	_lance_charge_generation = 0
 	_lance_charge_target_instance_id = 0
@@ -687,6 +717,7 @@ func activate(spawn_transform: Transform3D) -> Dictionary:
 		_standoff_intent_target_instance_id = _target.get_instance_id()
 		_standoff_intent_activation_generation = _activation_generation
 	_sync_standoff_intent_cue()
+	_sync_posture_cue()
 	return activation
 
 
@@ -744,6 +775,7 @@ func deactivate() -> void:
 	_revoke_dispatch_authorization(&"deactivated")
 	_post_shot_relocation_remaining = 0.0
 	_clear_standoff_intent_cue()
+	_clear_posture_cue()
 	_cancel_lance_charge(&"deactivated", false)
 	_lance_charge_target_instance_id = 0
 	_release_combat_registration()
@@ -773,6 +805,7 @@ func _destroy_interceptor(death_position: Vector3) -> void:
 	_revoke_dispatch_authorization(&"destroyed")
 	_post_shot_relocation_remaining = 0.0
 	_clear_standoff_intent_cue()
+	_clear_posture_cue()
 	_cancel_lance_charge(&"destroyed", false)
 	_lance_charge_target_instance_id = 0
 	_release_combat_registration()
@@ -796,6 +829,7 @@ func _restore_after_reentry() -> void:
 			_standoff_intent_target_instance_id = _target.get_instance_id()
 			_standoff_intent_activation_generation = _activation_generation
 	_sync_standoff_intent_cue()
+	_sync_posture_cue()
 
 
 # --------------------------------------------------------------- dispatch ----
@@ -1132,6 +1166,7 @@ func _set_engagement_state(state: StringName) -> void:
 	if _engagement_state == state:
 		return
 	_engagement_state = state
+	_sync_posture_cue()
 	engagement_state_changed.emit(state)
 
 
@@ -1605,6 +1640,109 @@ func _disconnect_pulse_signals() -> void:
 
 # ---------------------------------------------------------- presentation ----
 
+func _build_posture_cue() -> void:
+	if is_instance_valid(_posture_cue):
+		return
+	var stroke := BoxMesh.new()
+	stroke.size = Vector3(POSTURE_STROKE_WIDTH, POSTURE_STROKE_HEIGHT, 1.0)
+	stroke.material = _materials.picket_violet_emissive
+	_posture_cue = Node3D.new()
+	_posture_cue.name = "MovementPostureCue"
+	_posture_cue.visible = false
+	_posture_cue.set_meta(&"presentation_only", true)
+	_posture_cue.set_meta(&"cue_id", POSTURE_CUE_ID)
+	add_child(_posture_cue)
+	for index in 2:
+		var instance := MeshInstance3D.new()
+		instance.name = "PortStroke" if index == 0 else "StarboardStroke"
+		instance.mesh = stroke
+		instance.layers = 1
+		instance.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		instance.set_meta(&"presentation_only", true)
+		_posture_cue.add_child(instance)
+		_posture_strokes.append(instance)
+
+
+func _posture_stroke(from_point: Vector3, to_point: Vector3) -> Transform3D:
+	var vector := to_point - from_point
+	var angle := atan2(vector.x, vector.z)
+	return Transform3D(
+		Basis(Vector3.UP, angle).scaled(Vector3(1.0, 1.0, vector.length())),
+		(from_point + to_point) * 0.5
+	)
+
+
+func _is_posture_cue_current() -> bool:
+	return (
+		is_instance_valid(_posture_cue)
+		and _posture_cue.visible
+		and _is_standoff_intent_target_current()
+		and _posture_target_instance_id == _target.get_instance_id()
+		and _posture_activation_generation == _activation_generation
+		and _posture_visible_state == _engagement_state
+		and _posture_visible_direction_sign == (
+			signf(_post_shot_relocation_sign) if _engagement_state == STATE_RELOCATING else 0.0
+		)
+		and _engagement_state != STATE_DORMANT
+	)
+
+
+func _sync_posture_cue() -> void:
+	if not is_instance_valid(_posture_cue):
+		return
+	if not _is_standoff_intent_target_current() or _engagement_state == STATE_DORMANT:
+		_clear_posture_cue()
+		return
+	if _is_posture_cue_current():
+		return
+	var left_from := Vector3.ZERO
+	var left_to := Vector3.ZERO
+	var right_from := Vector3.ZERO
+	var right_to := Vector3.ZERO
+	match _engagement_state:
+		STATE_CLOSING:
+			left_from = Vector3(0.0, 3.0, -9.0)
+			left_to = Vector3(-3.2, 3.0, -3.7)
+			right_from = left_from
+			right_to = Vector3(3.2, 3.0, -3.7)
+		STATE_HOLDING:
+			left_from = Vector3(-6.0, 3.0, -4.0)
+			left_to = Vector3(-0.8, 3.0, -4.0)
+			right_from = Vector3(0.8, 3.0, -4.0)
+			right_to = Vector3(6.0, 3.0, -4.0)
+		STATE_BREAKING:
+			left_from = Vector3(0.0, 3.0, 8.5)
+			left_to = Vector3(-3.2, 3.0, 3.2)
+			right_from = left_from
+			right_to = Vector3(3.2, 3.0, 3.2)
+		STATE_RELOCATING:
+			var side := signf(_post_shot_relocation_sign)
+			left_from = Vector3(side * 8.0, 3.0, 0.0)
+			left_to = Vector3(side * 2.7, 3.0, -3.0)
+			right_from = left_from
+			right_to = Vector3(side * 2.7, 3.0, 3.0)
+		_:
+			_clear_posture_cue()
+			return
+	_posture_strokes[0].transform = _posture_stroke(left_from, left_to)
+	_posture_strokes[1].transform = _posture_stroke(right_from, right_to)
+	_posture_target_instance_id = _target.get_instance_id()
+	_posture_activation_generation = _activation_generation
+	_posture_visible_state = _engagement_state
+	_posture_visible_direction_sign = signf(_post_shot_relocation_sign) \
+		if _engagement_state == STATE_RELOCATING else 0.0
+	_posture_cue.visible = true
+
+
+func _clear_posture_cue() -> void:
+	_posture_target_instance_id = 0
+	_posture_activation_generation = 0
+	_posture_visible_state = STATE_DORMANT
+	_posture_visible_direction_sign = 0.0
+	if is_instance_valid(_posture_cue):
+		_posture_cue.visible = false
+
+
 ## Two long parallel rails form a readable sighting corridor at the picket's
 ## authored 132 m combat band. They are direct presentation children rather
 ## than hull geometry, so they never enter the hull collision or static visual
@@ -1720,6 +1858,7 @@ func _clear_standoff_intent_cue() -> void:
 func _update_presentation(delta: float) -> void:
 	super(delta)
 	_sync_standoff_intent_cue()
+	_sync_posture_cue()
 	if not _active or _telegraph_remaining <= 0.0:
 		return
 	if is_instance_valid(_lance_emitter):
@@ -1746,6 +1885,7 @@ func _build_interceptor() -> void:
 	_create_materials()
 	_create_picket_materials()
 	_build_standoff_intent_cue()
+	_build_posture_cue()
 	_visual_root = Node3D.new()
 	_visual_root.name = "StandoffPicketVisual"
 	add_child(_visual_root)

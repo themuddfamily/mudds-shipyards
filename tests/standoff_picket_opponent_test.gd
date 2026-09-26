@@ -1569,6 +1569,17 @@ func _test_post_shot_relocation() -> void:
 		live_lateral_break,
 		"the live production movement loop publishes relocation and drives mostly sideways"
 	)
+	var posture := picket.get_node_or_null("MovementPostureCue") as Node3D
+	var posture_stroke := posture.get_node_or_null("PortStroke") as MeshInstance3D
+	var relocation_cue := picket.get_posture_cue_snapshot()
+	_check(
+		posture != null and posture.visible
+		and bool(relocation_cue.active)
+		and relocation_cue.state == StandoffPicketOpponent.STATE_RELOCATING
+		and signf(posture_stroke.position.x)
+			== signf(float(first_break.direction_sign)),
+		"the real sideways break displays a violet arrow on its committed side"
+	)
 
 	# The bolt keeps the committed world-space line while its launcher breaks
 	# away, and the one resolver commits the damage only where the bolt arrives.
@@ -1597,6 +1608,14 @@ func _test_post_shot_relocation() -> void:
 		and first_direction.dot(second_direction) < -0.75,
 		"successive lance shots relocate to opposite sides instead of repeating one bearing"
 	)
+	await _advance_physics(1)
+	_check(
+		posture.visible
+		and picket.get_posture_cue_snapshot().state == StandoffPicketOpponent.STATE_RELOCATING
+		and signf(posture_stroke.position.x)
+			== signf(float(second_break.direction_sign)),
+		"a later accepted shot flips the visible arrow with the real relocation sign"
+	)
 
 	var remaining := float(second_break.get("remaining", 0.0))
 	picket.deactivate()
@@ -1604,7 +1623,8 @@ func _test_post_shot_relocation() -> void:
 	_check(
 		remaining > 0.0
 		and not bool(dormant_break.get("active", true))
-		and is_zero_approx(float(dormant_break.get("remaining", -1.0))),
+		and is_zero_approx(float(dormant_break.get("remaining", -1.0)))
+		and not posture.visible,
 		"withdrawal clears the bounded relocation state so redeployment cannot inherit it"
 	)
 
