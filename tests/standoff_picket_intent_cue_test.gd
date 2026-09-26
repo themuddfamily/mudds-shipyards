@@ -62,6 +62,8 @@ func _run() -> void:
 	_check(
 		posture != null and port_stroke != null and starboard_stroke != null
 		and port_stroke.mesh == starboard_stroke.mesh
+		and port_stroke.mesh is BoxMesh
+		and (port_stroke.mesh as BoxMesh).size.y >= 0.8
 		and not posture.visible
 		and not bool(picket.get_posture_cue_snapshot().active),
 		"the dormant picket retains two hidden movement-posture strokes"
@@ -113,8 +115,8 @@ func _run() -> void:
 	_check(
 		posture.visible
 		and picket.get_posture_cue_snapshot().state == StandoffPicketOpponent.STATE_CLOSING
-		and port_stroke.position.z < -5.0
-		and starboard_stroke.position.z < -5.0,
+		and port_stroke.transform.basis.x.y < -1.0
+		and starboard_stroke.transform.basis.x.y < -1.0,
 		"activation shows a forward chevron for the published closing posture"
 	)
 	_check(
@@ -205,8 +207,8 @@ func _run() -> void:
 		picket.get_engagement_state() == StandoffPicketOpponent.STATE_HOLDING
 		and picket.get_posture_cue_snapshot().state == StandoffPicketOpponent.STATE_HOLDING
 		and posture.visible
-		and is_equal_approx(port_stroke.position.z, -4.0)
-		and is_equal_approx(starboard_stroke.position.z, -4.0),
+		and is_zero_approx(port_stroke.transform.basis.x.y)
+		and is_zero_approx(starboard_stroke.transform.basis.x.y),
 		"the holding band shows a level pair of strokes"
 	)
 	target.position = Vector3(0.0, 0.0, -picket.minimum_arming_range * 0.5)
@@ -215,8 +217,8 @@ func _run() -> void:
 	_check(
 		picket.get_engagement_state() == StandoffPicketOpponent.STATE_BREAKING
 		and picket.get_posture_cue_snapshot().state == StandoffPicketOpponent.STATE_BREAKING
-		and port_stroke.position.z > 4.0
-		and starboard_stroke.position.z > 4.0,
+		and port_stroke.transform.basis.x.y > 1.0
+		and starboard_stroke.transform.basis.x.y > 1.0,
 		"inside the arming radius the published breaking state shows an aft chevron"
 	)
 	target.position = Vector3(0.0, 0.0, -picket.standoff_range * 1.5)

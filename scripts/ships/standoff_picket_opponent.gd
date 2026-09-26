@@ -91,8 +91,9 @@ const STANDOFF_INTENT_RAIL_THICKNESS := 0.22
 # band: forward, level, aft, or the committed side of a post-shot relocation.
 # The existing magenta sighting rails remain the weapon/target read.
 const POSTURE_CUE_ID: StringName = &"picket_movement_posture"
-const POSTURE_STROKE_WIDTH := 0.38
-const POSTURE_STROKE_HEIGHT := 0.25
+const POSTURE_STROKE_WIDTH := 0.85
+const POSTURE_STROKE_HEIGHT := 0.45
+const POSTURE_LAVENDER := Color("c9b6ff")
 
 const MAX_PENDING_LANCE_RECEIPTS := 8
 ## One bolt is in flight for at most ~3.7s against a 4.8s trigger cadence, so a
@@ -1644,8 +1645,10 @@ func _build_posture_cue() -> void:
 	if is_instance_valid(_posture_cue):
 		return
 	var stroke := BoxMesh.new()
-	stroke.size = Vector3(POSTURE_STROKE_WIDTH, POSTURE_STROKE_HEIGHT, 1.0)
-	stroke.material = _materials.picket_violet_emissive
+	stroke.size = Vector3(1.0, POSTURE_STROKE_WIDTH, POSTURE_STROKE_HEIGHT)
+	# Brighter and higher than the magenta sighting corridor so posture remains
+	# legible at the 132 m band without changing the weapon/target cue.
+	stroke.material = _material(POSTURE_LAVENDER, 0.1, 0.2, POSTURE_LAVENDER, 4.8)
 	_posture_cue = Node3D.new()
 	_posture_cue.name = "MovementPostureCue"
 	_posture_cue.visible = false
@@ -1665,9 +1668,9 @@ func _build_posture_cue() -> void:
 
 func _posture_stroke(from_point: Vector3, to_point: Vector3) -> Transform3D:
 	var vector := to_point - from_point
-	var angle := atan2(vector.x, vector.z)
+	var angle := atan2(vector.y, vector.x)
 	return Transform3D(
-		Basis(Vector3.UP, angle).scaled(Vector3(1.0, 1.0, vector.length())),
+		Basis(Vector3.BACK, angle) * Basis.from_scale(Vector3(vector.length(), 1.0, 1.0)),
 		(from_point + to_point) * 0.5
 	)
 
@@ -1701,26 +1704,26 @@ func _sync_posture_cue() -> void:
 	var right_to := Vector3.ZERO
 	match _engagement_state:
 		STATE_CLOSING:
-			left_from = Vector3(0.0, 3.0, -9.0)
-			left_to = Vector3(-3.2, 3.0, -3.7)
+			left_from = Vector3(0.0, 9.0, -2.0)
+			left_to = Vector3(-5.6, 4.2, -2.0)
 			right_from = left_from
-			right_to = Vector3(3.2, 3.0, -3.7)
+			right_to = Vector3(5.6, 4.2, -2.0)
 		STATE_HOLDING:
-			left_from = Vector3(-6.0, 3.0, -4.0)
-			left_to = Vector3(-0.8, 3.0, -4.0)
-			right_from = Vector3(0.8, 3.0, -4.0)
-			right_to = Vector3(6.0, 3.0, -4.0)
+			left_from = Vector3(-7.2, 6.6, -2.0)
+			left_to = Vector3(-1.0, 6.6, -2.0)
+			right_from = Vector3(1.0, 6.6, -2.0)
+			right_to = Vector3(7.2, 6.6, -2.0)
 		STATE_BREAKING:
-			left_from = Vector3(0.0, 3.0, 8.5)
-			left_to = Vector3(-3.2, 3.0, 3.2)
+			left_from = Vector3(0.0, 4.2, -2.0)
+			left_to = Vector3(-5.6, 9.0, -2.0)
 			right_from = left_from
-			right_to = Vector3(3.2, 3.0, 3.2)
+			right_to = Vector3(5.6, 9.0, -2.0)
 		STATE_RELOCATING:
 			var side := signf(_post_shot_relocation_sign)
-			left_from = Vector3(side * 8.0, 3.0, 0.0)
-			left_to = Vector3(side * 2.7, 3.0, -3.0)
+			left_from = Vector3(side * 9.5, 6.6, -2.0)
+			left_to = Vector3(side * 2.8, 3.2, -2.0)
 			right_from = left_from
-			right_to = Vector3(side * 2.7, 3.0, 3.0)
+			right_to = Vector3(side * 2.8, 10.0, -2.0)
 		_:
 			_clear_posture_cue()
 			return
