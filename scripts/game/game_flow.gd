@@ -2159,6 +2159,7 @@ func _initialize_cinder_convoy_threat() -> void:
 		cinder_convoy_threat.tender_destroyed.connect(_on_cinder_convoy_tender_destroyed)
 		cinder_convoy_threat.tender_damaged.connect(_on_cinder_convoy_tender_damaged)
 		cinder_convoy_threat.attacker_damaged.connect(_on_cinder_convoy_attacker_damaged)
+		_apply_opponent_weapon_heat_presentation_profile()
 		if _convoy_is_running():
 			var generation := cinder_convoy_host.get_generation()
 			var armed := cinder_convoy_threat.start(generation)
@@ -18141,7 +18142,14 @@ func _apply_bomber_payload_presentation_profile(target: CinderLongRangeBomber = 
 ## glow. RuntimeSettings stays the sole value authority and the vent stays a
 ## steady fade at every setting; this only lowers its brightest frame.
 func _apply_opponent_weapon_heat_presentation_profile() -> void:
-	if runtime_settings == null or not is_instance_valid(opponent):
+	if runtime_settings == null:
+		return
+	# The Emberline raider's travelling bolts honour the same setting.
+	if is_instance_valid(cinder_convoy_threat):
+		var bolt_pool := cinder_convoy_threat.get_bolt_pool()
+		if is_instance_valid(bolt_pool):
+			bolt_pool.set_reduced_flash_enabled(runtime_settings.reduced_flash)
+	if not is_instance_valid(opponent):
 		return
 	if opponent.has_method(&"set_reduced_flash_enabled"):
 		opponent.call(&"set_reduced_flash_enabled", runtime_settings.reduced_flash)

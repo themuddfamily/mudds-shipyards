@@ -290,6 +290,16 @@ func _test_reentry_completion_and_lifecycle_failures(
 		and int(game.get_live_combat_source_roster_audit().get("expected_convoy_source_count", 0)) == 1,
 		"one real attacker registers for the accepted escort generation"
 	)
+	var flash_before := bool(game.runtime_settings.reduced_flash)
+	game.runtime_settings.reduced_flash = true
+	game._on_runtime_setting_changed(&"reduced_flash", true)
+	var flash_on := threat.get_bolt_pool().is_reduced_flash_enabled()
+	game.runtime_settings.reduced_flash = flash_before
+	game._on_runtime_setting_changed(&"reduced_flash", flash_before)
+	_check(
+		flash_on and threat.get_bolt_pool().is_reduced_flash_enabled() == flash_before,
+		"raider bolts follow the reduced-flash setting"
+	)
 	var peak_bolts_in_flight := 0
 	var bolt_seen_before_damage := false
 	for _tick in 20:
