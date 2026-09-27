@@ -6,7 +6,9 @@ extends SceneTree
 ## the three player-facing outcomes the torpedo boat exists for — a torpedo that
 ## reaches you hits once, a hard break across its nose makes it overshoot and
 ## miss, and a shot that destroys it cancels its hit — plus the bounded seeker
-## turn rate and clean teardown when the launcher dies.
+## turn rate and clean teardown when the launcher dies. A ship-shaped target
+## whose boarding sphere sits off its hull proves the seeker aims and fuses on
+## the strikable hull, never on an interaction volume the resolver cannot hit.
 
 const TorpedoPoolScript := preload("res://scripts/combat/seeker_torpedo_projectile.gd")
 const Layers := preload("res://scripts/core/physics_layers.gd")
@@ -75,6 +77,7 @@ func _run() -> void:
 	await _test_hit_and_bounded_turn(authority, pool, launcher, target, target_health)
 	await _test_dodge(authority, pool, launcher, target, target_health)
 	await _test_shoot_down(authority, pool, launcher, target, target_health, gun)
+	await _test_offset_interaction_volume(authority, pool, launcher, host, target)
 	await _test_launcher_loss(authority, pool, launcher, target)
 
 	var reduced := pool.set_reduced_flash_enabled(true)
@@ -227,6 +230,96 @@ func _test_shoot_down(
 		hurtbox.collision_layer == 0 and not pool.get_torpedo_damageable(slot_index).damage_enabled,
 		"the freed slot stops exposing a hurtbox"
 	)
+
+
+## Production hero ships carry a 4.5 m ShipBoardingArea sphere offset from the
+## hull on the INTERACTABLE layer, which the hitscan resolver never queries. A
+## torpedo arriving from that side must still steer at and strike the hull.
+func _test_offset_interaction_volume(
+		authority: LiveCombatAuthority,
+		pool: SeekerTorpedoProjectile,
+		launcher: Node3D,
+		host: Node3D,
+		original_target: Node3D
+	) -> void:
+	original_target.global_position = Vector3(200.0, 0.0, 200.0)
+	var ship := CharacterBody3D.new()
+	ship.name = "BoardableShip"
+	ship.collision_layer = Layers.SHIP
+	ship.collision_mask = 0
+	# The boarding volume is added before the hull, as on the production ships,
+	# so a first-shape search would pick it.
+	var boarding := Area3D.new()
+	boarding.name = "ShipBoardingArea"
+	boarding.collision_layer = Layers.INTERACTABLE_AREA_LAYER
+	boarding.collision_mask = Layers.INTERACTABLE_AREA_MASK
+	boarding.position = Vector3(0.0, 0.0, 6.0)
+	ship.add_child(boarding)
+	var boarding_shape := CollisionShape3D.new()
+	boarding_shape.name = "BoardingRange"
+	var sphere := SphereShape3D.new()
+	sphere.radius = 4.5
+	boarding_shape.shape = sphere
+	boarding.add_child(boarding_shape)
+	var hull_shape := CollisionShape3D.new()
+	hull_shape.name = "HullCollision"
+	var hull_box := BoxShape3D.new()
+	hull_box.size = Vector3(4.0, 3.0, 8.0)
+	hull_shape.shape = hull_box
+	ship.add_child(hull_shape)
+	var ship_health := Damageable.new()
+	ship_health.name = "Damageable"
+	ship_health.maximum_health = TARGET_HEALTH
+	ship_health.faction_id = PLAYER_FACTION
+	ship.add_child(ship_health)
+	host.add_child(ship)
+	# The boarding sphere faces the launcher: its centre is 6 m nearer than the
+	# hull's, and the hull's near face is 2 m beyond the sphere centre.
+	ship.global_position = Vector3(0.0, 0.0, -70.0)
+	await physics_frame
+	await physics_frame
+
+	var aim := pool.call(&"_find_aim_shape", ship) as WeakRef
+	_check(
+		aim != null and aim.get_ref() == hull_shape,
+		"the seeker aims at the hull body, not the off-hull boarding sphere"
+	)
+	var volume_only := Node3D.new()
+	volume_only.name = "VolumeOnlyTarget"
+	var lone_area := Area3D.new()
+	lone_area.collision_layer = Layers.INTERACTABLE_AREA_LAYER
+	volume_only.add_child(lone_area)
+	var lone_shape := CollisionShape3D.new()
+	lone_shape.shape = SphereShape3D.new()
+	lone_area.add_child(lone_shape)
+	host.add_child(volume_only)
+	_check(
+		pool.call(&"_find_aim_shape", volume_only) == null,
+		"a target with only interaction volumes falls back to its own origin"
+	)
+	volume_only.queue_free()
+
+	var resolved: Array[Dictionary] = []
+	var on_resolved := func(record: Dictionary, result: Dictionary) -> void:
+		resolved.append({"record": record, "result": result})
+	pool.torpedo_resolved.connect(on_resolved)
+	var origin := launcher.global_position + Vector3(0.0, 0.0, -5.0)
+	var launch := pool.launch(launcher, WEAPON_ID, origin, Vector3.FORWARD, ship)
+	_check(bool(launch.get("accepted", false)), "a torpedo launches at the boardable ship")
+	for _index in 600:
+		if pool.get_active_torpedo_count() == 0:
+			break
+		await physics_frame
+	pool.torpedo_resolved.disconnect(on_resolved)
+	_check(
+		resolved.size() == 1
+			and bool((resolved[0].result as Dictionary).get("damaged", false))
+			and is_equal_approx(ship_health.get_health(), TARGET_HEALTH - 34.0)
+			and authority.get_active_projectile_flight_count() == 0,
+		"a torpedo arriving on the boarding-sphere side still strikes the hull once"
+	)
+	ship.queue_free()
+	await physics_frame
 
 
 func _test_launcher_loss(

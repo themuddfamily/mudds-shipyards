@@ -499,14 +499,38 @@ func _target_point(slot: Dictionary) -> Vector3:
 	return target.global_position
 
 
+## The seeker steers at, and fuses on, a shape the arrival sweep can actually
+## strike: one owned by a collision object on a hitscan-queried layer. Ships
+## carry interaction volumes (the boarding sphere sits metres off the hull on
+## the INTERACTABLE layer) that the resolver never sees; aiming at one of those
+## fuses the warhead beside the ship and the sweep misses. With no strikable
+## shape the seeker falls back to the target's own origin.
 func _find_aim_shape(target: Node3D) -> WeakRef:
 	if not is_instance_valid(target):
 		return null
 	for candidate in target.find_children("*", "CollisionShape3D", true, false):
 		var shape := candidate as CollisionShape3D
-		if shape != null and not shape.disabled and shape.shape != null:
-			return weakref(shape)
+		if shape == null or shape.disabled or shape.shape == null:
+			continue
+		var owner_object := shape.get_parent() as CollisionObject3D
+		if owner_object == null \
+				or (owner_object.collision_layer & PhysicsLayerContract.HITSCAN_QUERY_MASK) == 0:
+			continue
+		if _is_under_torpedo_pool(shape, target):
+			continue
+		return weakref(shape)
 	return null
+
+
+## A target that carries its own torpedo pool must not lend the seeker one of
+## that pool's flying hurtboxes as its aim point.
+func _is_under_torpedo_pool(node: Node, stop_at: Node) -> bool:
+	var cursor := node.get_parent()
+	while cursor != null and cursor != stop_at:
+		if cursor is SeekerTorpedoProjectile:
+			return true
+		cursor = cursor.get_parent()
+	return false
 
 
 func _detect_contact(
@@ -567,10 +591,19 @@ func _terminate_slot(
 		source_entity, flight_id, start, terminal_position, -1
 	)
 	_resolved_count += 1
-	if bool(result.get("damaged", false)) or reason == &"proximity_fuse":
+	var damaged := bool(result.get("damaged", false))
+	# A fuse that fired but whose sweep struck nothing is a near miss: it keeps
+	# the same small fizzle burst an abandoned warhead shows, but it must not
+	# voice a detonation, which reads as a hit that dealt no damage.
+	var fuse_near_miss := reason == &"proximity_fuse" and not damaged
+	if damaged or fuse_near_miss:
 		_start_burst(slot_index, terminal_position)
 	if is_instance_valid(_audio):
-		_audio.present_resolved(record, result)
+		var audio_record := record
+		if fuse_near_miss:
+			audio_record = record.duplicate(true)
+			audio_record["terminal_reason"] = &"proximity_fuse_near_miss"
+		_audio.present_resolved(audio_record, result)
 	torpedo_resolved.emit(record, result)
 
 
