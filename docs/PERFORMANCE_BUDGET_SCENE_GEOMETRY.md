@@ -3456,3 +3456,119 @@ assertions, `STATION_SURFACE_PLAYABILITY_TEST_OK`.
 
 **No ceiling in this document has been raised, and no native-hardware or
 human-review gate is claimed.**
+
+## Eleventh trim (2026-09-27): the Torrent joins the fitout pass, three roster families migrate, -161 resident nodes
+
+Phase 10 §2's tenth-trim remainder named two node sources: ~126 nodes in craft
+that never call the fitout batcher (the Torrent and four combat opponents) and
+~1,481 behind the two protected-name rosters, reachable only by migrating each
+family's consumers to the piece index. This pass takes the Torrent share of the
+first (the opponents belong to the combat workstream and are untouched) and
+migrates three families of the second.
+
+Measured with `tools/geometry_census.gd`, station-resident scenario, fresh
+private user data, before on `1012233cd` and after on `56f77367f`:
+
+| resident row | before | after | delta |
+| --- | ---: | ---: | ---: |
+| scene tree nodes | 10,451 | 10,290 | **-161** |
+| mesh renderers | 5,374 | 5,213 | -161 |
+| surfaces | 5,908 | 5,785 | -123 |
+| unique meshes | 2,953 | 2,834 | -119 |
+| triangles | 1,907,469 | 1,907,469 | 0 |
+| bound / retained materials | 724 / 1,037 | 723 / 1,037 | -1 / 0 |
+| lights (shadowed), shaders, textures, particle systems | 344 (20), 8, 40, 54 | identical | 0 |
+
+Per bucket (renderers / surfaces): `TorrentInterceptor` 258/258 -> 229/233,
+`HabitatSpine` 848/975 -> 800/943, `FleetExpansionProductionBinding` (the three
+resident Cinder craft) 574/595 -> 541/568, `JovianLightFreighter` 421/455 ->
+410/446, `HalyardCrewTransport` 317/340 -> 307/332, `ArrowReconShip` 234/244 ->
+223/235, `BulwarkHeavyGunship` 203/213 -> 192/204, `AftJunctionStack` 397/492 ->
+389/488. Every other bucket is byte-identical.
+
+**The node ceiling is still not met**: 10,290 against 7,000, 47% over. **The
+triangle ceiling is still not met**: 1,907,469 against 1,800,000, 5.97% over.
+No ceiling has been raised.
+
+### What folds now
+
+A batch-membership probe over the live main scene (every piece recorded in a
+fitout or dressing piece index, before and after) shows **only additions** —
+no piece that was folded before stopped being folded, and no batch lost a
+member:
+
+* **The Torrent runs `ShipFitoutBatch`** (`HeroShip._consolidate_torrent_fitout`,
+  Torrent presentation only; every variant still consolidates its own
+  replacement visual). It folds 32 pieces into 3 batches, 357 -> 328 craft
+  nodes: the legacy cockpit's seat rails, seat shells, shoulder supports,
+  harness webbing and trigger (16 into one batch), and the eight stator vanes
+  of each legacy engine. `get_torrent_render_allocation_report()` restates the
+  batches through `authored_render_census_delta`, so its frozen roster
+  (`component_without_markings` 320/248/6/268/254/220/40, fallback
+  109/87/6/107/93) still reads exactly what the craft allocates and
+  `exact_counts` stays true; the Torrent art audit stays valid.
+* **Shared cockpit restraints and seat shells leave `PROTECTED_FITOUT_NAMES`**
+  (`ShoulderBeltLeft/Right`, `LapBeltLeft/Right`, `BeltAntiSub`,
+  `SeatPanShell`, `HeadrestShell`, `Port/StarboardShoulderSupport`,
+  `StarboardSeatShellReturn`, `StarboardSeatRail`) and fold in all eight
+  resident craft that inherit the `HeroShip` cockpit (Torrent, Arrow, Jovian,
+  Halyard, Bulwark and the three Cinder craft). Their only consumers were the
+  `*Belt*` restraint count in the Torrent art audit and the same glob in
+  `tests/torrent_2011_reconstruction_test.gd`; both now count through the new
+  `ShipFitoutBatch.find_authored_pieces()` / `count_authored_pieces()`, the
+  index-aware form of `find_children(glob)`.
+* **HabitatSpine bunk soft goods leave `PROTECTED_DRESSING_NAMES`**
+  (`MouthHead`, `BerthShelf`, `BerthBlanket`, `BerthCoverall`,
+  `BerthStowageNet`, `BerthFoldedLinen`, `LockerShutter`, `Pillow`: 40 pieces
+  over six alcoves). Consumers migrated: the seated-geometry roster in
+  `tests/station_presentation_defect_witness_test.gd`, which now measures a
+  folded piece's own recorded bound (`StationDressingBatch.authored_piece_global_aabb`)
+  against everything drawn except itself — other pieces of its own batch count
+  one by one, never the batch's merged bound — and the mouth-head reveal check
+  in `tests/habitat_spine_test.gd`.
+* **Station chair arm pads and coordinator headrests leave the station roster**
+  (12 `ArmPad`s over the eight observation chairs and four coordinator chairs,
+  4 `Headrest`s). The only station consumer was
+  `HabitatSpine.get_observation_chair_material_audit()`, which now reads each
+  pad's resolved material through `StationDressingBatch.find_authored_child_pieces()`
+  and requires both pads per chair, so a fold can no longer make it silently
+  audit nothing. The whole-name hits that first protected these names were
+  cockpit parts in ship tests, which never reach a station module.
+
+Every seat, back, pedestal, plinth, mattress, jamb, `StationSeat`, collider,
+marker and interaction area keeps its own node; no collision shape is created,
+moved or removed. The one bound material that leaves the census sample is not a
+lost binding: a probe over the same scene confirms that every folded piece's
+resolved material is still actively bound by some renderer, so the missing
+sample is a mesh-embedded surface material that a source's own override was
+already shadowing.
+
+### Triangles: why this pass takes none
+
+The task allowed the cheapest *invisible* triangle savings. A probe of every
+hidden resident renderer found **340,954 triangles** that the station view
+never draws, but none is free to take:
+
+* the Torrent's legacy fallback (`LegacyFarPresentation` 32,884,
+  `LegacyCockpitArt` 18,268, `LegacyCanopyArt` 5,008) is live lifecycle
+  authority — `_get_live_torrent_hero_presentation()` re-shows it the moment
+  the imported presentation is lost;
+* about 150,000 are inactive combat opponents (range targets and the station
+  defence roster), which belong to the combat workstream;
+* the Zenith's hidden B7 reference batches (~50,000) are the retained
+  evidence package its imported allocation reports audit, and LOD1 bands are
+  camera-distance authority.
+
+Freeing any of those is a contract change, not a trim. The next triangle
+headroom is still the imported-hero-art silhouette decision.
+
+### Frozen counts expected to move
+
+Not refrozen here. `tests/geometry_census_scenario_test.gd` freezes the resident
+scene at 1,914,445 triangles / 5,374 renderers / 2,950 unique meshes / 10,450
+nodes, which was already stale on `1012233cd` (1,907,469 / 5,374 / 2,953 /
+10,451 after the station-visual pass); this trim moves renderers by -161,
+surfaces by -123, unique meshes by -119 and nodes by -161, and the loaded
+scenario by the same amounts. Craft suites whose live cockpit or bunk-alcove
+node counts do not restate batched members through the authored census may
+move by the folded counts above.
