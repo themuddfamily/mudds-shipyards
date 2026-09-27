@@ -98,6 +98,11 @@ const REGION_PLACEMENT_HEIGHT_M := 30.0
 var _surface_audio_binding: RefCounted
 var _exterior_voice: AudioStreamPlayer
 var _interior_voice: AudioStreamPlayer
+## Rime's own exterior-wind low-pass bus: sealing the cabin muffles the wind as
+## well as quieting it, driven by the same shared surface-audio mix as Aurora.
+const WIND_FILTER_BUS_NAME: StringName = &"RimeExteriorWind"
+const WIND_FILTER_NEUTRAL_HZ := 18_000.0
+var _wind_filter: AudioEffectLowPassFilter
 var _terrain_clipmap: PlanetaryTerrainClipmapRenderer
 var _terrain_glazed := false
 
@@ -143,6 +148,9 @@ func _ready() -> void:
 	_interior_voice = get_node_or_null(^"SurfaceAmbience/InteriorVoice") as AudioStreamPlayer
 	if _exterior_voice == null or _interior_voice == null:
 		push_error("Rime surface ambience voice contract is unavailable")
+	_wind_filter = _ensure_wind_filter_bus()
+	if _exterior_voice != null:
+		_exterior_voice.bus = WIND_FILTER_BUS_NAME
 
 
 func _exit_tree() -> void:
@@ -191,13 +199,21 @@ func _apply_surface_audio_mix() -> void:
 	var state := _surface_audio_binding.get_snapshot() as Dictionary
 	var mix := state.get("mix", {}) as Dictionary
 	var perspective := StringName(state.get("ship_perspective", &"exterior"))
+	# Continuous interior blend (0 outside .. 1 sealed cabin) from the flight
+	# effects: the voices cross-fade as the pilot boards or steps out, exactly as
+	# on Aurora. Without a supplied blend it is the seated/on-foot perspective.
+	var interior_blend := clampf(float(state.get(
+		"interior_blend", 1.0 if perspective == &"cockpit" else 0.0
+	)), 0.0, 1.0)
 	# Rime has no surf: the whole exterior bed is the thin, hard wind.
 	var exterior_level := clampf(float(mix.get("wind", 0.0)) * 0.85, 0.0, 1.0)
 	var interior_level := clampf(float(mix.get("wind", 0.0)) * 0.4, 0.0, 1.0)
-	_set_surface_voice(_exterior_voice, exterior_level if perspective == &"exterior" else exterior_level * 0.12)
-	_set_surface_voice(_interior_voice, interior_level if perspective == &"cockpit" else 0.0)
+	_set_surface_voice(_exterior_voice, exterior_level * lerpf(1.0, 0.12, interior_blend))
+	_set_surface_voice(_interior_voice, interior_level * interior_blend)
 	# Thin cold air carries a slightly higher, thinner wind than Aurora's coast.
 	_exterior_voice.pitch_scale = float(mix.get("pitch_scale", 1.0)) * 1.08
+	if _wind_filter != null:
+		_wind_filter.cutoff_hz = float(mix.get("low_pass_hz", WIND_FILTER_NEUTRAL_HZ))
 
 
 func _set_surface_voice(voice: AudioStreamPlayer, level: float) -> void:
@@ -216,6 +232,27 @@ func _stop_surface_audio() -> void:
 			voice.stop()
 			voice.volume_db = -80.0
 			voice.pitch_scale = 1.0
+	if _wind_filter != null:
+		_wind_filter.cutoff_hz = WIND_FILTER_NEUTRAL_HZ
+
+
+## Idempotent: reuses the bus and its filter across a streamed unload/reload
+## instead of adding a fresh AudioServer bus on every visit.
+func _ensure_wind_filter_bus() -> AudioEffectLowPassFilter:
+	var bus_index := AudioServer.get_bus_index(WIND_FILTER_BUS_NAME)
+	if bus_index < 0:
+		bus_index = AudioServer.bus_count
+		AudioServer.add_bus(bus_index)
+		AudioServer.set_bus_name(bus_index, WIND_FILTER_BUS_NAME)
+		AudioServer.set_bus_send(bus_index, &"Ambience")
+	for effect_index in AudioServer.get_bus_effect_count(bus_index):
+		var effect := AudioServer.get_bus_effect(bus_index, effect_index)
+		if effect is AudioEffectLowPassFilter:
+			return effect
+	var filter := AudioEffectLowPassFilter.new()
+	filter.cutoff_hz = WIND_FILTER_NEUTRAL_HZ
+	AudioServer.add_bus_effect(bus_index, filter)
+	return filter
 
 
 # --- detached reads ------------------------------------------------------------
