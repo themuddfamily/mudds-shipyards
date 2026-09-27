@@ -22,6 +22,12 @@ const EMBER_BODY_ID: StringName = &"ember_body"
 const AURORA_BODY_CENTER_ID: StringName = &"aurora_body_center"
 const AURORA_WORLD_ID: StringName = &"aurora_temperate_world"
 const AURORA_BODY_ID: StringName = &"aurora_temperate_body"
+## Rime's absolute body centre: the third reachable world, a cold thin-air
+## glacial body 10,000 km on station-relative -X, so each of the three
+## destinations sits on its own axis and is never mistaken for another.
+const RIME_BODY_CENTER_ID: StringName = &"rime_body_center"
+const RIME_WORLD_ID: StringName = &"rime_glacial_world"
+const RIME_BODY_ID: StringName = &"rime_glacial_body"
 const CELL_SIZE_METERS := 1_000_000.0
 const MAX_SAFE_INTEGER := 9_007_199_254_740_991
 const MAX_RELATIVE_COMPONENT_METERS := 1_000_000_000.0
@@ -54,6 +60,8 @@ func get_coordinate(point_id: StringName) -> Dictionary:
 			return _coordinate(0, 0, -8, Vector3.ZERO)
 		AURORA_BODY_CENTER_ID:
 			return _coordinate(12, 0, 0, Vector3.ZERO)
+		RIME_BODY_CENTER_ID:
+			return _coordinate(-10, 0, 0, Vector3.ZERO)
 		_:
 			return {}
 
@@ -62,6 +70,7 @@ func get_point_ids() -> PackedStringArray:
 	return PackedStringArray([
 		str(AURORA_BODY_CENTER_ID),
 		str(EMBER_BODY_CENTER_ID),
+		str(RIME_BODY_CENTER_ID),
 		str(STATION_DATUM_ID),
 	])
 
@@ -135,6 +144,10 @@ func get_snapshot() -> Dictionary:
 		"aurora_world_id": AURORA_WORLD_ID,
 		"aurora_body_id": AURORA_BODY_ID,
 		"aurora_body_center_coordinate": get_coordinate(AURORA_BODY_CENTER_ID),
+		"rime_body_center_id": RIME_BODY_CENTER_ID,
+		"rime_world_id": RIME_WORLD_ID,
+		"rime_body_id": RIME_BODY_ID,
+		"rime_body_center_coordinate": get_coordinate(RIME_BODY_CENTER_ID),
 	}.duplicate(true)
 
 
@@ -147,6 +160,8 @@ func audit() -> Dictionary:
 	var aurora_placement := relative_position_meters(
 		STATION_DATUM_ID, AURORA_BODY_CENTER_ID
 	)
+	var rime_validation := validate_coordinate(get_coordinate(RIME_BODY_CENTER_ID))
+	var rime_placement := relative_position_meters(STATION_DATUM_ID, RIME_BODY_CENTER_ID)
 	if not bool(station_validation.get("accepted", false)):
 		errors.append("station datum is invalid")
 	if not bool(ember_validation.get("accepted", false)):
@@ -159,6 +174,11 @@ func audit() -> Dictionary:
 	if not bool(aurora_placement.get("accepted", false)) \
 			or aurora_placement.get("position_meters") != Vector3(12_000_000.0, 0.0, 0.0):
 		errors.append("Aurora must remain exactly 12,000 km on station-relative +X")
+	if not bool(rime_validation.get("accepted", false)):
+		errors.append("Rime body-centre datum is invalid")
+	if not bool(rime_placement.get("accepted", false)) \
+			or rime_placement.get("position_meters") != Vector3(-10_000_000.0, 0.0, 0.0):
+		errors.append("Rime must remain exactly 10,000 km on station-relative -X")
 	var authority := {}
 	for key in COMMON_AUTHORITY_KEYS:
 		authority[key] = false

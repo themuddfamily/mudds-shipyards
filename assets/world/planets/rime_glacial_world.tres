@@ -1,0 +1,26 @@
+[gd_resource type="Resource" script_class="PlanetaryWorldDefinition" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/world/definitions/planetary_world_definition.gd" id="1_world"]
+
+[resource]
+script = ExtResource("1_world")
+world_id = &"rime_glacial_world"
+display_name = "Rime Glacial World"
+sector_id = &"rime_icefall_sector"
+content_note = "Modern cold thin-atmosphere glacial world reached through the shared planetary cruise, with drifting ice haze, an icefall landing shelf, a drill rig, a serac field and a pressure-ridge strain gauge."
+scene_path = "res://scenes/world/planets/rime_glacial_world.tscn"
+scene_anchor_id = &"rime_scene_origin"
+scene_anchor = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0)
+navigation_anchor_id = &"rime_navigation"
+navigation_anchor = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 130000, 0)
+orbital_anchor_id = &"rime_orbit"
+orbital_anchor = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 140000, 0)
+surface_anchor_id = &"rime_surface"
+surface_anchor = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 120000, 0)
+body_radius_metres = 120000.0
+has_atmosphere = true
+atmosphere_definition_id = &"rime_glacial_atmosphere"
+terrain_definition_id = &"rime_glacial_terrain"
+landing_region_ids = PackedStringArray("rime_icefall_landing")
+evidence_status = 3
+evidence_notes = "Modern cold atmospheric world with a production cruise route; native hardware and human visual review remain separate gates."

@@ -1,0 +1,12 @@
+[gd_resource type="Resource" script_class="PlanetaryTerrainProfile" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/world/planetary_terrain_profile.gd" id="1_profile"]
+
+[resource]
+script = ExtResource("1_profile")
+profile_id = &"rime_glacial_terrain"
+display_name = "Rime glacial terrain"
+evidence_notes = "NEW modern game-scale terrain constraints for Rime's glacial shelf: a shallower relief envelope under a continuous ice sheet."
+reference_planet_radius_meters = 120000.0
+minimum_elevation_meters = -1800.0
+maximum_elevation_meters = 6200.0
