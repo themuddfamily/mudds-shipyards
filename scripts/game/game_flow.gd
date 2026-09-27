@@ -209,6 +209,7 @@ const CINDER_CONVOY_ACTIVATION_RADIUS := 4.0
 const CINDER_CONVOY_ESCORT_LANE_OFFSET := Vector3(0.0, 20.0, 0.0)
 const CARGO_DELIVERY_ACTIVITY_ID: StringName = &"jovian_fabrication_kit_delivery"
 const HEAVY_BREACH_REWARD_ACTIVITY_ID: StringName = &"shipyard_heavy_breach"
+const TORPEDO_RUN_REWARD_ACTIVITY_ID: StringName = &"shipyard_torpedo_run"
 const CINDER_RACE_REWARD_ID: StringName = &"return_race_record_to_shipyard"
 const CINDER_PATROL_REWARD_ID: StringName = &"return_patrol_log_to_shipyard"
 const CINDER_CONVOY_REWARD_ID: StringName = &"return_convoy_credit_to_shipyard"
@@ -14548,7 +14549,12 @@ func _commit_game_flow_activity_reward(request: Dictionary) -> Dictionary:
 		return {"accepted": false, "reason": &"reward_authority_unavailable"}
 	var result := _game_flow_reward_authority.call(&"commit", request) as Dictionary
 	_last_game_flow_reward_result = result.duplicate(true)
-	var is_heavy_breach := (
+	var is_torpedo_run := (
+		StringName(request.get("activity_id", &""))
+		== TORPEDO_RUN_REWARD_ACTIVITY_ID
+	)
+	# Both board contracts share the cleared-sortie feedback below.
+	var is_heavy_breach := is_torpedo_run or (
 		StringName(request.get("activity_id", &""))
 		== HEAVY_BREACH_REWARD_ACTIVITY_ID
 	)
@@ -14569,12 +14575,13 @@ func _commit_game_flow_activity_reward(request: Dictionary) -> Dictionary:
 	if is_heavy_breach and is_instance_valid(hud):
 		var receipt := result.get("receipt", {}) as Dictionary
 		var detail := (
-			"Breach credit receipt #%d saved"
-			% int(receipt.get("receipt_id", 0))
+			"%s credit receipt #%d saved"
+			% ["Torpedo Run" if is_torpedo_run else "Breach", int(receipt.get("receipt_id", 0))]
 			if bool(result.get("accepted", false))
-			else "Breach cleared — reward receipt could not be saved"
+			else "%s cleared — reward receipt could not be saved"
+			% ("Torpedo Run" if is_torpedo_run else "Breach")
 		)
-		var cleared_title := "Heavy Breach cleared"
+		var cleared_title := "Torpedo Run cleared" if is_torpedo_run else "Heavy Breach cleared"
 		var cleared_director := get_node_or_null(^"EncounterScenarios") as EncounterScenarioDirector
 		if is_instance_valid(cleared_director) \
 				and cleared_director.get_active_scenario() \

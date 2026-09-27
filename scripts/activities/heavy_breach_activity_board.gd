@@ -12,13 +12,18 @@ extends Area3D
 ## sortie it launched concludes: Heavy Breach (break the charged picket), then
 ## Torpedo Run (kill a torpedo boat whose seekers can be dodged or shot down).
 ## Both pay through the same generation-fenced reward handoff, once per cleared
-## director generation.
+## director generation; each contract files its own reward id.
 
 signal interaction_resolved(actor: Node, result: Dictionary)
 signal snapshot_changed(snapshot: Dictionary)
 
 const COMPONENT_ID: StringName = &"heavy-breach-activity-board"
 const ACTIVITY_ID: StringName = &"shipyard_heavy_breach"
+const REWARD_ID: StringName = &"return_heavy_breach_credit"
+## The reward identity a cleared Torpedo Run files. The board's own snapshot and
+## HUD identity stay ACTIVITY_ID; only the reward request names the contract.
+const TORPEDO_RUN_ACTIVITY_ID: StringName = &"shipyard_torpedo_run"
+const TORPEDO_RUN_REWARD_ID: StringName = &"return_torpedo_run_credit"
 const REWARD_ADAPTER := preload("res://scripts/world/nearby_activity_reward_adapter.gd")
 const BOARD_AUDIO_BINDING := preload("res://scripts/audio/heavy_breach_activity_board_audio_binding.gd")
 const INTERACTION_RADIUS := 2.8
@@ -139,10 +144,15 @@ func configure_reward_handoff(callback: Callable) -> Dictionary:
 		return _result(false, &"reward_handoff_already_configured")
 	var adapter := REWARD_ADAPTER.new() as RefCounted
 	var configured: Dictionary = adapter.call(
-		"configure", callback, ACTIVITY_ID, &"return_heavy_breach_credit"
+		"configure", callback, ACTIVITY_ID, REWARD_ID
 	)
 	if not bool(configured.get("accepted", false)):
 		return configured
+	var registered: Dictionary = adapter.call(
+		"register_activity", TORPEDO_RUN_ACTIVITY_ID, TORPEDO_RUN_REWARD_ID
+	)
+	if not bool(registered.get("accepted", false)):
+		return registered
 	_reward_adapter = adapter
 	return _result(true, &"reward_handoff_configured")
 
@@ -418,7 +428,7 @@ func _on_scenario_concluded(scenario_id: StringName, outcome: StringName) -> voi
 	if outcome == EncounterScenarioDirector.OUTCOME_CLEARED \
 			and _reward_adapter != null and generation > _highest_reward_generation:
 		var request := {
-			"activity_id": ACTIVITY_ID,
+			"activity_id": _reward_activity_id(scenario_id),
 			"state_id": &"concluded",
 			"outcome": outcome,
 			"generation": generation,
@@ -453,6 +463,12 @@ func _begin_offered_scenario(target: Node3D) -> bool:
 			return _director.begin_torpedo_run(target)
 		_:
 			return _director.begin_heavy_breach(target, _protected_objective)
+
+
+func _reward_activity_id(scenario_id: StringName) -> StringName:
+	if scenario_id == EncounterScenarioDirector.SCENARIO_TORPEDO_RUN:
+		return TORPEDO_RUN_ACTIVITY_ID
+	return ACTIVITY_ID
 
 
 func _started_reason(scenario_id: StringName) -> StringName:

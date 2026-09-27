@@ -254,6 +254,39 @@ func _run() -> void:
 		"reload retains the receipt summary without inventing currency or inventory authority"
 	)
 
+	var torpedo_run := restored_authority.commit(_request(
+		&"shipyard_torpedo_run",
+		1,
+		&"return_torpedo_run_credit"
+	))
+	var torpedo_as_breach := restored_authority.commit(_request(
+		&"shipyard_torpedo_run",
+		2,
+		&"return_heavy_breach_credit"
+	))
+	var torpedo_duplicate := restored_authority.commit(_request(
+		&"shipyard_torpedo_run",
+		1,
+		&"return_torpedo_run_credit"
+	))
+	var after_torpedo_run := reloaded_store.get_snapshot().game_flow_reward_store as Dictionary
+	_check(
+		bool(torpedo_run.accepted)
+			and (torpedo_run.receipt as Dictionary).reward_label \
+				== "Torpedo Run credit logged"
+			and (torpedo_run.receipt as Dictionary).reward_id == "return_torpedo_run_credit"
+			and int((after_torpedo_run.reward_counts as Dictionary).return_torpedo_run_credit) == 1
+			and int((after_torpedo_run.reward_counts as Dictionary).return_heavy_breach_credit) == 1,
+		"a cleared Torpedo Run files its own receipt after reload without touching the Heavy Breach counter"
+	)
+	_check(
+		not bool(torpedo_as_breach.accepted)
+			and torpedo_as_breach.reason == &"reward_contract_mismatch"
+			and not bool(torpedo_duplicate.accepted)
+			and torpedo_duplicate.reason == &"reward_generation_already_committed",
+		"Torpedo Run cannot claim Heavy Breach credit or pay one generation twice"
+	)
+
 	var corrupt_filesystem := MemoryFilesystem.new()
 	var corrupt_store := StoreScript.new(
 		"memory://corrupt-game-flow-rewards.json", corrupt_filesystem
