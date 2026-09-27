@@ -1484,7 +1484,15 @@ const CONSOLIDATED_DRESSING_MODULES: Array[StringName] = [
 ## `tests/station_presentation_defect_witness_test.gd` and the mouth-head reveal
 ## check in `tests/habitat_spine_test.gd`; both now resolve through the index.
 ## Every body in the alcove (plinth, mattress, head unit, jambs) keeps its own
-## node: this pass never folds collision authority.
+## node: this pass never folds collision authority. Also migrated: the seat
+## `ArmPad`s of the eight HabitatSpine observation chairs and four AftJunction
+## coordinator chairs, and the coordinator chairs' `Headrest`. The only station
+## consumer was `HabitatSpine.get_observation_chair_material_audit()`, which now
+## reads each pad's resolved material through
+## `StationDressingBatch.find_authored_child_pieces()`; the whole-name hits that
+## first protected them were cockpit parts in ship tests, which never reach a
+## station module. Seats, backs, pedestals and every `StationSeat` keep their
+## own nodes.
 const PROTECTED_DRESSING_NAMES: Array[String] = [
 
 		"DockUmbilicalHead02",  # FleetDockComb freezes its renderer/batch/copy/submission roster
@@ -1570,7 +1578,7 @@ const PROTECTED_DRESSING_NAMES: Array[String] = [
 	"StarboardYokeBrace",  # matches *Brace
 	"TailYokeCap",  # resolved at tests/halyard_engine_damage_silhouette_test.gd:13
 	"AftModuleConnector", "AftSpine", "AngledConsole", "ApronDeck01", "ApronDeck02", "ApronDeck03",
-	"ApronDeck04", "ArmPad", "ArrivalHookRail", "ArrivalShelf", "Back", "BackingPlate",
+	"ApronDeck04", "ArrivalHookRail", "ArrivalShelf", "Back", "BackingPlate",
 	"BasePlate", "BaySeatedPin00", "BaySeatedPin01", "Beacon", "BeaconMast", "BedKerb01",
 	"BedKerb02", "BedKerb03", "BedKerb04", "BedKerb05", "BedKerb06", "BedKerb07", "BedKerb08",
 	"BenchLeg", "BenchLeg2", "BenchLeg3", "BenchLeg4", "BenchShelf", "BenchTop", "BinStock0001",
@@ -1605,7 +1613,7 @@ const PROTECTED_DRESSING_NAMES: Array[String] = [
 	"GantryHeaderEndCapPort", "GantryHeaderEndCapStarboard", "GantryHeaderFascia",
 	"GantryHeaderLiftAxis", "GardenBench01", "GardenBench02", "GardenBench03", "GardenFloor",
 	"HabitatCeiling", "HalyardApronNose", "HalyardApronTailPort", "HalyardApronTailStarboard",
-	"HatchFastener", "HeadServiceUnit", "Headrest", "HitchBar", "HoistBeam", "HoistBridge",
+	"HatchFastener", "HeadServiceUnit", "HitchBar", "HoistBeam", "HoistBridge",
 	"HoistCarriage", "HoistHook", "HoistPost", "HoistPost2", "HoistPost3", "HoistPost4",
 	"HoistRail", "HoistRail2", "Hull", "JigPost", "JunctionAccessRamp", "JunctionAccessTread01",
 	"JunctionAccessTread02", "JunctionAccessTread03", "JunctionAccessTread04",

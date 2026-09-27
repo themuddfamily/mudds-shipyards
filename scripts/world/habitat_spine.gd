@@ -638,9 +638,16 @@ func get_observation_chair_material_audit() -> Dictionary:
 			collision_count += 1
 		if seat_mesh == null or seat_mesh.material_override != fabric_material:
 			errors.append("observation seat material hierarchy drift")
-		for arm in chair.find_children("ArmPad", "MeshInstance3D", false, false):
-			if (arm as MeshInstance3D).material_override != dark_material:
-				errors.append("observation arm material hierarchy drift")
+		# Arm pads are visual-only dressing the station pass may fold into one
+		# renderer per chair; the piece index still answers each pad's own
+		# resolved material, which is the material its override bound.
+		var arm_pads := StationDressingBatch.find_authored_child_pieces(chair, "ArmPad")
+		if arm_pads.size() != 2:
+			errors.append("observation arm pad roster drift")
+		for arm: Dictionary in arm_pads:
+			for arm_material in arm.get("materials", []) as Array:
+				if arm_material != dark_material:
+					errors.append("observation arm material hierarchy drift")
 	if backrest_material == null \
 			or not backrest_material.albedo_color.is_equal_approx(OBSERVATION_BACKREST_COLOR) \
 			or not is_equal_approx(backrest_material.metallic, OBSERVATION_BACKREST_METALLIC) \
