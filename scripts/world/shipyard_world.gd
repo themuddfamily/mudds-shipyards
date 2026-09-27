@@ -526,6 +526,22 @@ const AURORA_ORBITAL_ATMOSPHERE_COLOR := Color("38a8db")
 const AURORA_ORBITAL_LAND_THRESHOLD := 0.04
 const AURORA_ORBITAL_CLOUD_COVERAGE := 0.48
 const AURORA_ORBITAL_ATMOSPHERE_STRENGTH := 0.30
+## Rime, the third visitable world, is the pale body in the backdrop: glacial
+## bands, dark fractures, bright caps and a thin cold limb in one submission.
+const RIME_ORBITAL_BODY_ID: StringName = &"CelestialGreyBody"
+const RIME_ORBITAL_DESTINATION_ID: StringName = &"rime_glacial_world"
+const RIME_ORBITAL_SHADER_PATH := "res://scripts/rendering/rime_orbital_silhouette.gdshader"
+const RIME_ORBITAL_SHADER := preload(
+	"res://scripts/rendering/rime_orbital_silhouette.gdshader"
+)
+const RIME_ORBITAL_ICE_COLOR := Color("bdd6e3")
+const RIME_ORBITAL_SHELF_COLOR := Color("85a8c2")
+const RIME_ORBITAL_FRACTURE_COLOR := Color("294d70")
+const RIME_ORBITAL_CAP_COLOR := Color("eef5fa")
+const RIME_ORBITAL_HAZE_COLOR := Color("9ec7eb")
+const RIME_ORBITAL_BAND_FREQUENCY := 11.0
+const RIME_ORBITAL_FRACTURE_STRENGTH := 0.55
+const RIME_ORBITAL_HAZE_STRENGTH := 0.36
 const SPACE_BACKDROP_BODY_SPECS := {
 	&"CelestialGreenBody": {
 		"position": Vector3(-310.0, 100.0, -890.0),
@@ -545,9 +561,10 @@ const SPACE_BACKDROP_BODY_SPECS := {
 	&"CelestialGreyBody": {
 		"position": Vector3(70.0, 230.0, -1250.0),
 		"radius": 85.0,
-		"palette_role": &"grey",
-		"color": Color("86878c"),
-		"surface_kind": 1,
+		"palette_role": &"rime_glacial",
+		"color": Color("bdd6e3"),
+		"destination_id": RIME_ORBITAL_DESTINATION_ID,
+		"presentation_recipe": &"procedural_glacial_ice_haze",
 	},
 	&"CelestialOrangeBody": {
 		"position": Vector3(-500.0, -160.0, -1150.0),
@@ -6016,6 +6033,12 @@ func get_space_backdrop_audit_report() -> Dictionary:
 				and body.get_meta(&"destination_id", &"")
 					== AURORA_ORBITAL_DESTINATION_ID
 			)
+		elif body_name == RIME_ORBITAL_BODY_ID:
+			material_contract_valid = (
+				_rime_orbital_material_matches(material as ShaderMaterial)
+				and body.get_meta(&"destination_id", &"")
+					== RIME_ORBITAL_DESTINATION_ID
+			)
 		else:
 			var surface := material as ShaderMaterial
 			material_contract_valid = (
@@ -9807,6 +9830,8 @@ func _build_space_backdrop() -> void:
 		var body_material: ShaderMaterial
 		if body_name == AURORA_ORBITAL_BODY_ID:
 			body_material = _aurora_orbital_material()
+		elif body_name == RIME_ORBITAL_BODY_ID:
+			body_material = _rime_orbital_material()
 		else:
 			body_material = ShaderMaterial.new()
 			body_material.shader = ORBITAL_SURFACE_SHADER
@@ -9825,6 +9850,9 @@ func _build_space_backdrop() -> void:
 		body.gi_mode = GeometryInstance3D.GI_MODE_DISABLED
 		body.set_meta(&"palette_role", spec.palette_role)
 		body.set_meta(&"visual_resource_family_id", SPACE_BACKDROP_BODY_MESH_FAMILY_ID)
+		if body_name == RIME_ORBITAL_BODY_ID:
+			body.set_meta(&"destination_id", RIME_ORBITAL_DESTINATION_ID)
+			body.set_meta(&"presentation_recipe", &"procedural_glacial_ice_haze")
 		if body_name == AURORA_ORBITAL_BODY_ID:
 			body.set_meta(&"destination_id", AURORA_ORBITAL_DESTINATION_ID)
 			body.set_meta(
@@ -9832,6 +9860,32 @@ func _build_space_backdrop() -> void:
 				&"procedural_ocean_land_cloud_atmosphere",
 			)
 		backdrop.add_child(body)
+
+
+func _rime_orbital_material() -> ShaderMaterial:
+	var material := ShaderMaterial.new()
+	material.shader = RIME_ORBITAL_SHADER
+	material.set_shader_parameter(&"ice_color", RIME_ORBITAL_ICE_COLOR)
+	material.set_shader_parameter(&"shelf_color", RIME_ORBITAL_SHELF_COLOR)
+	material.set_shader_parameter(&"fracture_color", RIME_ORBITAL_FRACTURE_COLOR)
+	material.set_shader_parameter(&"cap_color", RIME_ORBITAL_CAP_COLOR)
+	material.set_shader_parameter(&"haze_color", RIME_ORBITAL_HAZE_COLOR)
+	material.set_shader_parameter(&"band_frequency", RIME_ORBITAL_BAND_FREQUENCY)
+	material.set_shader_parameter(&"fracture_strength", RIME_ORBITAL_FRACTURE_STRENGTH)
+	material.set_shader_parameter(&"haze_strength", RIME_ORBITAL_HAZE_STRENGTH)
+	return material
+
+
+static func _rime_orbital_material_matches(material: ShaderMaterial) -> bool:
+	return (
+		material != null
+		and material.shader != null
+		and material.shader.resource_path == RIME_ORBITAL_SHADER_PATH
+		and _sky_color_matches(material, &"ice_color", RIME_ORBITAL_ICE_COLOR)
+		and _sky_color_matches(material, &"fracture_color", RIME_ORBITAL_FRACTURE_COLOR)
+		and _sky_color_matches(material, &"cap_color", RIME_ORBITAL_CAP_COLOR)
+		and _sky_scalar_matches(material, &"band_frequency", RIME_ORBITAL_BAND_FREQUENCY)
+	)
 
 
 func _aurora_orbital_material() -> ShaderMaterial:
