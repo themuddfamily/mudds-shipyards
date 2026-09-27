@@ -154,7 +154,18 @@ func republish_for_peer(peer_id: int) -> int:
 	var sent := 0
 	for active_variant in _active.values():
 		var active := active_variant as Dictionary
-		var projectile := _projectile_from_record(active, active.record as Dictionary, &"flying", {})
+		var record := (active.record as Dictionary).duplicate(true)
+		if StringName(active.kind) == KIND_SLUG:
+			# A slug's only record is its launch; a late peer is shown it where
+			# it has flown to since, not back at the muzzle.
+			var elapsed := float(Time.get_ticks_msec() - int(active.get("launched_msec", 0))) / 1000.0
+			var origin: Variant = record.get("origin", record.get("position"))
+			var direction: Variant = record.get("direction", Vector3.FORWARD)
+			if origin is Vector3 and direction is Vector3 and (origin as Vector3).is_finite():
+				record["position"] = (origin as Vector3) \
+					+ (direction as Vector3).normalized() * float(record.get("speed", 0.0)) * elapsed
+				record["elapsed"] = float(record.get("elapsed", 0.0)) + elapsed
+		var projectile := _projectile_from_record(active, record, &"flying", {})
 		if not projectile.is_empty() and bool(_publish(projectile, false, [peer_id]).get("accepted", false)):
 			sent += 1
 	return sent
@@ -211,6 +222,7 @@ func _on_launched(record: Dictionary, pool_key: int) -> void:
 		"source": entry.source,
 		"pool_key": pool_key,
 		"record": record.duplicate(true),
+		"launched_msec": Time.get_ticks_msec(),
 	}
 	_active[_active_key(pool_key, flight_id)] = active
 	var projectile := _projectile_from_record(active, record, &"flying", {})
