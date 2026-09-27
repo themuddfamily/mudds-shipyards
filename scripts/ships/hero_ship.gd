@@ -309,6 +309,10 @@ const TORRENT_MODERN_UNIQUE_MATERIAL_RESOURCE_COUNT := 12
 
 var _engine_state: StringName = ENGINE_OFFLINE
 var _piloted := false
+## True while `_piloted` comes from `set_remote_piloted()`: the craft simulates
+## flight from an injected (network) helm, but nobody on this machine is aboard,
+## so it owns neither a current camera, the mouse mode, nor this machine's input.
+var _remote_piloted := false
 var _landed := true
 var _landing_active := false
 var _docked_latch := false
@@ -567,8 +571,8 @@ func _ready() -> void:
 	# Fleet subclasses finish replacing the base visual after super._ready().
 	# Discover their retained muzzle lenses only after that replacement settles.
 	call_deferred("_initialize_weapon_component_presentation")
-	_set_camera_current(_piloted)
-	if _piloted and DisplayServer.get_name() != "headless":
+	_set_camera_current(_is_piloted_from_this_machine())
+	if _is_piloted_from_this_machine() and DisplayServer.get_name() != "headless":
 		Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
 
 
@@ -631,7 +635,9 @@ func _physics_process(delta: float) -> void:
 func _unhandled_input(event: InputEvent) -> void:
 	if _reset_for_reuse_mutation_blocked():
 		return
-	if not _piloted:
+	# A craft flown from a remote helm is not this machine's: its viewer's
+	# wheel, clicks and pause belong to whatever the viewer is controlling.
+	if not _piloted or _remote_piloted:
 		return
 	if event.is_action_pressed("pause"):
 		Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
@@ -672,6 +678,7 @@ func set_piloted(piloted: bool) -> void:
 			true
 		)
 	_piloted = piloted
+	_remote_piloted = false
 	# No producer may carry undelivered lifecycle edges across a pilot-authority
 	# boundary. The local adapter additionally starts a new stream epoch and clears
 	# device-specific edge/mouse accumulation; remote/replay producers otherwise
@@ -688,13 +695,49 @@ func set_piloted(piloted: bool) -> void:
 		_clear_pending_look_motion()
 
 
+## Enables or suspends flight simulation for a craft flown from an injected
+## remote helm (`set_command_source()`) that nobody on this machine is aboard.
+## Flight, engines and cruise behave exactly as under `set_piloted()`, but the
+## craft never takes this machine's camera, mouse mode or `_unhandled_input`.
+## `set_remote_piloted(false)` only releases a remote helm: a craft this
+## machine has since taken over with `set_piloted(true)` stays piloted.
+func set_remote_piloted(piloted: bool) -> void:
+	if _reset_for_reuse_mutation_blocked():
+		return
+	if not piloted and not _remote_piloted:
+		return
+	_ensure_command_source()
+	_invalidate_command_delivery(_command_source)
+	if _piloted != piloted:
+		_retire_planetary_cruise(
+			&"pilot_attached" if piloted else &"pilot_unseated",
+			true
+		)
+	_piloted = piloted
+	_remote_piloted = piloted
+	if _command_source is LocalShipInputSource:
+		(_command_source as LocalShipInputSource).reset_stream()
+	if not piloted:
+		_clear_pending_look_motion()
+
+
+## True while the craft simulates flight from a remote helm (see
+## `set_remote_piloted()`); `is_piloted()` is true then as well.
+func is_remote_piloted() -> bool:
+	return _piloted and _remote_piloted
+
+
+func _is_piloted_from_this_machine() -> bool:
+	return _piloted and not _remote_piloted
+
+
 ## Backwards-compatible deterministic mouse hook. Both test-injected motion and
 ## real `_unhandled_input()` events are forwarded to the current source, so the
 ## ship never maintains a second accumulator or consumes one event twice.
 func apply_look_motion(relative: Vector2) -> void:
 	if _reset_for_reuse_mutation_blocked():
 		return
-	if _piloted and not _landing_active:
+	if _is_piloted_from_this_machine() and not _landing_active:
 		_queue_look_motion(relative)
 
 
@@ -958,7 +1001,7 @@ func set_cockpit_view(enabled: bool) -> void:
 	# the prior view prevents a same-frame mouse event becoming an attitude snap.
 	_clear_pending_look_motion()
 	_snap_chase_camera_response()
-	_set_camera_current(_piloted)
+	_set_camera_current(_is_piloted_from_this_machine())
 	camera_view_changed.emit(get_camera_view())
 
 
@@ -2408,6 +2451,7 @@ func commit_reset_for_reuse(receipt: Dictionary) -> Dictionary:
 	_landed = true
 	_docked_latch = true
 	_piloted = false
+	_remote_piloted = false
 	_impact_cooldown_remaining = 0.0
 	_collision_component_routing_active = false
 	if _ship_audio_rig != null:
@@ -7140,7 +7184,7 @@ func _build_markers_and_camera() -> void:
 	_cockpit_camera.far = 1800.0
 	_cockpit_root.add_child(_cockpit_camera)
 	_snap_chase_camera_response()
-	_set_camera_current(_piloted)
+	_set_camera_current(_is_piloted_from_this_machine())
 
 
 func _enforce_chase_camera_self_hull_boundary() -> void:
