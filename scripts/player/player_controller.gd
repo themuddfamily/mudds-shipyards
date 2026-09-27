@@ -2857,6 +2857,16 @@ func _update_grounded_foot_placement() -> void:
 	):
 		_pilot_presentation.clear_foot_placement(generation, &"grounded_state_inactive")
 		return
+	if _pilot_presentation.is_foot_support_sampling_gated():
+		# Gated foot IK (far from the camera, remote body on a headless peer,
+		# shaking deck) only blends out, so cast no ankle rays for it.
+		_pilot_presentation.apply_foot_placement({
+			"physics_frame": Engine.get_physics_frames(),
+			"motion_state": _motion_state,
+			"movement_up": _get_movement_up_direction(),
+			"feet": {},
+		}, generation)
+		return
 	var anchors := _pilot_presentation.get_animated_foot_anchors()
 	if anchors.size() != 2 or get_world_3d() == null:
 		_pilot_presentation.clear_foot_placement(generation, &"foot_anchors_unavailable")
