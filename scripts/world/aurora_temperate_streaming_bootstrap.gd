@@ -48,6 +48,13 @@ var _atmosphere_retire_count := 0
 var _surface_audio_perspective: StringName = &"cockpit"
 var _surface_audio_source_generation := 0
 var _last_surface_audio_result: Dictionary = {}
+## Caller-smoothed atmosphere state from [PlanetaryAtmosphereFlightEffects].
+## Negative means "not supplied": audio falls back to the seated/on-foot
+## perspective and the weather intensity, and the cloud shell stays at rest.
+var _surface_audio_interior_blend := -1.0
+var _surface_audio_wind_strength := -1.0
+var _weather_clock_seconds := 0.0
+var _last_surface_audio_altitude_m := -1.0
 
 ## The visit owner supplies seated/on-foot truth; streaming only forwards it.
 func set_surface_audio_perspective(perspective: StringName) -> Dictionary:
@@ -55,6 +62,43 @@ func set_surface_audio_perspective(perspective: StringName) -> Dictionary:
 		return {"accepted": false, "reason": &"invalid_ship_perspective"}
 	_surface_audio_perspective = perspective
 	return {"accepted": true, "reason": &"perspective_accepted"}
+
+
+## The weather multiplier this bootstrap presents Aurora's atmosphere with, so
+## wind drift samples exactly the wind the cloud shell is drawn moving with.
+func get_atmosphere_weather_scalar() -> float:
+	return OBSERVATION_WEATHER_SCALAR
+
+
+## Accepts one tick of caller-smoothed atmosphere state: the interior blend
+## (0 outside .. 1 sealed cabin), the gusting wind strength for exterior audio
+## and the weather clock that advances the cloud shell's wind offset. Audio is
+## re-presented immediately when the blend or wind moved, so a cross-fade keeps
+## running even while the streaming focus is unchanged.
+func set_surface_atmosphere_state(
+		interior_blend: float, wind_strength: float, weather_clock_seconds: float
+	) -> Dictionary:
+	if not is_finite(interior_blend) or interior_blend > 1.0 \
+			or not is_finite(wind_strength) or wind_strength > 1.0 \
+			or not is_finite(weather_clock_seconds) or weather_clock_seconds < 0.0:
+		return {"accepted": false, "reason": &"invalid_atmosphere_state"}
+	var blend := interior_blend if interior_blend >= 0.0 else -1.0
+	var wind := wind_strength if wind_strength >= 0.0 else -1.0
+	var audible_change := absf(blend - _surface_audio_interior_blend) > 0.001 \
+		or absf(wind - _surface_audio_wind_strength) > 0.005
+	_surface_audio_interior_blend = blend
+	_surface_audio_wind_strength = wind
+	_weather_clock_seconds = weather_clock_seconds
+	if audible_change and _last_surface_audio_altitude_m >= 0.0 \
+			and is_instance_valid(_atmosphere):
+		_present_surface_audio(_last_surface_audio_altitude_m)
+	return {"accepted": true, "reason": &"atmosphere_state_accepted"}
+
+
+func clear_surface_atmosphere_state() -> void:
+	_surface_audio_interior_blend = -1.0
+	_surface_audio_wind_strength = -1.0
+	_weather_clock_seconds = 0.0
 
 
 func _create_profile() -> Dictionary:
@@ -157,6 +201,7 @@ func _on_generation_load_failed(reason: StringName) -> void:
 func _on_generation_unloaded() -> void:
 	_retire_atmosphere(&"aurora_unloaded")
 	_surface_audio_perspective = &"cockpit"
+	clear_surface_atmosphere_state()
 
 
 func _present_environment(
@@ -176,7 +221,7 @@ func _present_environment(
 		"speed_mps": 0.0,
 		"weather_scalar": OBSERVATION_WEATHER_SCALAR,
 		"cloud_scalar": OBSERVATION_CLOUD_SCALAR,
-		"caller_time_seconds": 0.0,
+		"caller_time_seconds": _weather_clock_seconds,
 	}, _atmosphere_generation)
 	var result := _presentation_result(
 		bool(presented.get("accepted", false)),
@@ -188,20 +233,33 @@ func _present_environment(
 		},
 	)
 	_last_atmosphere_result = result.duplicate(true)
-	var world := get_loaded_instance() as AuroraTemperateAuthoredScene
-	if is_instance_valid(world) and bool(presented.get("accepted", false)):
-		_surface_audio_source_generation += 1
-		var altitude := maxf(0.0, body_local_observer.length() - BODY_RADIUS_METERS)
-		_last_surface_audio_result = world.present_surface_audio_snapshot({
-			"generation": _surface_audio_source_generation,
-			"altitude_m": altitude,
-			"weather_intensity_unitless": OBSERVATION_WEATHER_SCALAR,
-			"water_exposure_unitless": 1.0,
-			"day_night_unitless": 0.5,
-			"settlement_activity_unitless": 0.0,
-			"ship_perspective": _surface_audio_perspective,
-		})
+	if bool(presented.get("accepted", false)):
+		_present_surface_audio(
+			maxf(0.0, body_local_observer.length() - BODY_RADIUS_METERS)
+		)
 	return result.duplicate(true)
+
+
+func _present_surface_audio(altitude: float) -> void:
+	var world := get_loaded_instance() as AuroraTemperateAuthoredScene
+	if not is_instance_valid(world):
+		return
+	_last_surface_audio_altitude_m = altitude
+	_surface_audio_source_generation += 1
+	var snapshot := {
+		"generation": _surface_audio_source_generation,
+		"altitude_m": altitude,
+		"weather_intensity_unitless": OBSERVATION_WEATHER_SCALAR,
+		"water_exposure_unitless": 1.0,
+		"day_night_unitless": 0.5,
+		"settlement_activity_unitless": 0.0,
+		"ship_perspective": _surface_audio_perspective,
+	}
+	if _surface_audio_interior_blend >= 0.0:
+		snapshot["interior_blend_unitless"] = _surface_audio_interior_blend
+	if _surface_audio_wind_strength >= 0.0:
+		snapshot["wind_strength_unitless"] = _surface_audio_wind_strength
+	_last_surface_audio_result = world.present_surface_audio_snapshot(snapshot)
 
 
 func _retire_environment(reason: StringName) -> void:
@@ -222,6 +280,9 @@ func _extend_snapshot(snapshot: Dictionary) -> void:
 	}
 	snapshot["surface_audio"] = {
 		"perspective": _surface_audio_perspective,
+		"interior_blend": _surface_audio_interior_blend,
+		"wind_strength": _surface_audio_wind_strength,
+		"weather_clock_seconds": _weather_clock_seconds,
 		"source_generation": _surface_audio_source_generation,
 		"last_result": _last_surface_audio_result.duplicate(true),
 	}
@@ -255,6 +316,7 @@ func _evidence() -> Dictionary:
 
 func _retire_atmosphere(reason: StringName) -> void:
 	_surface_audio_source_generation = 0
+	_last_surface_audio_altitude_m = -1.0
 	_last_surface_audio_result.clear()
 	if not is_instance_valid(_atmosphere):
 		_atmosphere = null
