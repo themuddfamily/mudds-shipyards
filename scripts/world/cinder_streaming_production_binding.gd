@@ -455,6 +455,9 @@ func _synchronize_loaded_cluster_quality() -> void:
 	# its already-retained presentation profile and Main's established immutable
 	# torus budget to the new streamed generation.
 	cluster.set_detail_quality(world.visual_quality_level)
+	cluster.set_reduced_flash_enabled(
+		bool(world.get_station_solar_readability_report().get("reduced_flash", false))
+	)
 	TorusGeometryBudget.normalise_tree(cluster)
 	_quality_synced_instance_id = instance_id
 	_quality_sync_count += 1

@@ -55,7 +55,9 @@ const HULK_ANCHOR := Vector3(-120.0, 26.0, -470.0)
 const HULL_LENGTH := 78.0
 ## Everything the hulk physically occupies fits inside this radius of the
 ## anchor: half the hull, plus the dock shelf, plus the raked mast.
-const HULL_BOUNDING_RADIUS := 46.0
+## The broken bow truss is the furthest-reaching piece; it is presentation only
+## and carries no collision, but the envelope still reserves it.
+const HULL_BOUNDING_RADIUS := 54.0
 const HULL_HEIGHT := 12.0
 const HULL_DEPTH := 22.0
 const HULL_PLATE := 2.0
@@ -132,7 +134,8 @@ const DOCK_CYAN := Color("48dbe2")
 ## exact nodes one loaded Cinder generation gains.
 const PERFORMANCE_BUDGET := {
 	"static_bodies": 18,
-	"mesh_instances": 39,
+	# 39 structural/fitting meshes plus the one merged silhouette-detail renderer.
+	"mesh_instances": 40,
 	"omni_lights": LIGHT_BUDGET,
 	"spot_lights": 0,
 	"shadow_casting_lights": 0,
@@ -141,6 +144,39 @@ const PERFORMANCE_BUDGET := {
 	"animation_players": 0,
 	"ship_berths": 1,
 }
+
+## Approach-silhouette pass. Everything that makes the hulk read as a derelict
+## *station* from 400+ m (broken bow truss, antenna stubs, proud hull plates in two
+## tones, dark port rows and breaches, and a warm light pool on the dock shelf)
+## is merged into one presentation-only renderer with one surface per finish, so
+## the pass costs one node, five submissions and no light at all. Emergency
+## practicals fade out at 85 m; from the lane only emissive and silhouette read.
+const SILHOUETTE_DETAIL_NAME := "SilhouetteDetail"
+const SILHOUETTE_TRIANGLE_BUDGET := 2500
+const SILHOUETTE_SURFACE_ROLES: Array[StringName] = [
+	&"pale_structure", &"dark_plate", &"aperture", &"warm_lamp", &"warm_pool",
+]
+const WARM_POOL_COLOR := Color("ffb46a")
+const WARM_POOL_ENERGY := 1.6
+## Interior partitions, fittings and the breaker are only visible through the
+## walk-in aperture and the bow break; past this range they are not drawn at all.
+const INTERIOR_VISIBILITY_END := 160.0
+const INTERIOR_VISIBILITY_MARGIN := 40.0
+## Small exterior trim (guide fins, ribs) stops drawing where it is sub-pixel.
+const SMALL_TRIM_VISIBILITY_END := 520.0
+const SMALL_TRIM_VISIBILITY_MARGIN := 80.0
+const WARM_POOL_SHADER_CODE := """
+shader_type spatial;
+render_mode unshaded, blend_add, cull_disabled, depth_draw_never, shadows_disabled;
+uniform vec4 pool_color : source_color = vec4(1.0, 0.7, 0.42, 1.0);
+uniform float pool_energy = 1.6;
+void fragment() {
+	float d = length(UV - vec2(0.5)) * 2.0;
+	float falloff = 1.0 - smoothstep(0.0, 1.0, d);
+	falloff *= falloff;
+	ALBEDO = pool_color.rgb * pool_energy * falloff * COLOR.a;
+}
+"""
 
 const HULL_STEEL := Color("2f3a44")
 const HULL_PALE := Color("55606a")
@@ -185,9 +221,11 @@ func build(
 	_build_interior_partitions()
 	_build_interior_fittings()
 	_build_exterior_detail()
+	_build_silhouette_detail()
 	_build_practicals()
 	_build_berth()
 	_build_breaker()
+	_apply_visibility_ranges()
 	_audit_report = _compose_audit_report()
 	return true
 
@@ -412,7 +450,7 @@ func _build_dock_face() -> void:
 	# Two low guide fins frame the shelf. They are presentation only: a fin that
 	# could catch a descending hull would be a second landing contract.
 	for side: float in [-1.0, 1.0]:
-		_box(
+		var fin := _box(
 			_exterior_root,
 			"DockGuideFin",
 			Vector3(
@@ -424,6 +462,7 @@ func _build_dock_face() -> void:
 			_materials["hulk_trim"],
 			false
 		)
+		fin.set_meta(&"small_trim", true)
 	# One lit approach stripe down the shelf centreline, and the aperture
 	# surround, so the docking face is findable from the lane without a HUD.
 	_box(
@@ -598,6 +637,354 @@ func _build_exterior_detail() -> void:
 	)
 
 
+## The approach silhouette. One presentation-only renderer, no collision and no
+## light: everything here is read from the lane, so none of it may change what a
+## hull can hit or what the walk-in route looks like from the deck.
+func _build_silhouette_detail() -> void:
+	var tools: Array[SurfaceTool] = []
+	for _role in SILHOUETTE_SURFACE_ROLES:
+		var tool := SurfaceTool.new()
+		tool.begin(Mesh.PRIMITIVE_TRIANGLES)
+		tools.append(tool)
+	var pale := tools[0]
+	var dark := tools[1]
+	var aperture := tools[2]
+	var lamp := tools[3]
+	var pool := tools[4]
+	var half_length := HULL_LENGTH * 0.5
+	var half_depth := HULL_DEPTH * 0.5
+	var top_y := OVERHEAD_Y + HULL_PLATE
+
+	# Broken bow truss: the station's service boom, torn off at the break. Four
+	# longerons of uneven length, square frames where both sides survive, one
+	# diagonal per bay, and one longeron snapped and hanging.
+	var truss_y := 1.6
+	var truss_half := 1.6
+	var longeron_lengths: Array[float] = [14.0, 10.0, 12.5, 6.0]
+	var corners: Array[Vector2] = [
+		Vector2(truss_half, truss_half), Vector2(truss_half, -truss_half),
+		Vector2(-truss_half, -truss_half), Vector2(-truss_half, truss_half),
+	]
+	var root_x := -half_length + 1.0
+	for index in corners.size():
+		var corner := corners[index]
+		var start := Vector3(root_x, truss_y + corner.x, corner.y)
+		_emit_beam(pale, start, start + Vector3(-longeron_lengths[index], 0.0, 0.0), 0.45)
+	# The short longeron broke and swung down.
+	var snapped_root := Vector3(root_x - longeron_lengths[3], truss_y - truss_half, truss_half)
+	_emit_beam(pale, snapped_root, snapped_root + Vector3(-3.6, -2.4, 0.8), 0.4)
+	var frame_x := root_x - 3.0
+	var bay := 0
+	while frame_x > root_x - 12.6:
+		var reach := root_x - frame_x
+		var alive: Array[bool] = []
+		for length in longeron_lengths:
+			alive.append(length >= reach)
+		for index in corners.size():
+			var next := (index + 1) % corners.size()
+			if alive[index] and alive[next]:
+				_emit_beam(
+					pale,
+					Vector3(frame_x, truss_y + corners[index].x, corners[index].y),
+					Vector3(frame_x, truss_y + corners[next].x, corners[next].y),
+					0.3
+				)
+		if alive[0] and alive[1]:
+			var z_from := corners[0].y if bay % 2 == 0 else corners[1].y
+			var z_to := corners[1].y if bay % 2 == 0 else corners[0].y
+			_emit_beam(
+				pale,
+				Vector3(frame_x + 3.0, truss_y + truss_half, z_from),
+				Vector3(frame_x, truss_y + truss_half, z_to),
+				0.25
+			)
+		frame_x -= 3.0
+		bay += 1
+	# Torn overhead frame and keel stubs peeling away from the break.
+	_emit_beam(pale, Vector3(-half_length + 3.0, top_y + 0.4, 7.0), Vector3(-45.0, 9.5, 9.0), 0.6)
+	_emit_beam(pale, Vector3(-half_length + 3.0, top_y + 0.4, -6.0), Vector3(-43.0, 7.8, -7.5), 0.5)
+	_emit_beam(pale, Vector3(-30.0, -6.5, 5.0), Vector3(-44.0, -9.0, 6.0), 0.55)
+	_emit_beam(pale, Vector3(-30.0, -6.5, -5.0), Vector3(-41.0, -8.0, -6.0), 0.5)
+
+	# Antenna stubs on the dorsal face: one standing mast with its yards, one
+	# raked, one snapped short, and a dead dish on its pedestal at the aft end.
+	_emit_beam(pale, Vector3(6.0, top_y, 4.0), Vector3(6.0, top_y + 9.0, 4.0), 0.35)
+	_emit_beam(pale, Vector3(6.0, top_y + 7.6, 1.0), Vector3(6.0, top_y + 7.6, 7.0), 0.25)
+	_emit_beam(pale, Vector3(6.0, top_y + 5.2, 2.4), Vector3(6.0, top_y + 5.2, 5.6), 0.2)
+	_emit_beam(pale, Vector3(10.0, top_y, -4.0), Vector3(12.5, top_y + 5.5, -5.0), 0.3)
+	_emit_beam(pale, Vector3(31.0, top_y, 2.0), Vector3(31.0, top_y + 3.5, 2.0), 0.4)
+	_emit_beam(pale, Vector3(31.0, top_y + 3.5, 2.0), Vector3(32.4, top_y + 4.4, 2.8), 0.3)
+	_emit_beam(pale, Vector3(34.0, top_y, -5.0), Vector3(34.0, top_y + 1.6, -5.0), 0.6)
+	_emit_box(
+		pale,
+		Transform3D(
+			Basis.from_euler(Vector3(deg_to_rad(8.0), 0.0, deg_to_rad(30.0))),
+			Vector3(34.0, top_y + 2.0, -5.0)
+		),
+		Vector3(3.2, 0.25, 3.2)
+	)
+	# Dorsal girder between the collars, and the aft docking-probe stubs.
+	_emit_beam(pale, Vector3(-18.0, top_y + 0.7, -7.0), Vector3(12.0, top_y + 0.7, -7.0), 0.7)
+	for post_x: float in [-12.0, 0.0, 9.0]:
+		_emit_beam(pale, Vector3(post_x, top_y, -7.0), Vector3(post_x, top_y + 0.7, -7.0), 0.4)
+	_emit_beam(pale, Vector3(half_length + 1.5, 3.0, 4.0), Vector3(47.0, 3.5, 4.0), 0.5)
+	_emit_beam(pale, Vector3(half_length + 1.5, -3.0, -4.0), Vector3(45.0, -3.2, -4.5), 0.45)
+
+	# Hull-plate breakup: plates stand proud of the flanks and the dorsal face in
+	# two tones, and some cells are missing so the base hull shows between them.
+	# Exclusions keep the walk-in aperture, its surround and the scorch marks
+	# clear; the collar bands are skipped on every face.
+	var exclusions_starboard: Array[Rect2] = [
+		Rect2(APERTURE_MIN_X - 2.5, -6.0, APERTURE_WIDTH + 5.0, 12.0),
+		Rect2(-37.5, 0.7, 9.0, 5.0),
+		Rect2(-28.5, -5.5, 9.0, 5.0),
+	]
+	var exclusions_port: Array[Rect2] = [
+		Rect2(-18.5, -0.1, 9.0, 5.0),
+		Rect2(-33.0, -3.5, 6.0, 5.0),
+	]
+	var collar_bands: Array[Vector2] = [Vector2(-23.6, -20.4), Vector2(16.4, 19.6)]
+	var random := RandomNumberGenerator.new()
+	random.seed = 4470012
+	var cell_width := 6.4
+	var cell_x := -half_length + 0.6
+	while cell_x + cell_width <= half_length - 0.4:
+		for row in 2:
+			var y0 := -5.2 + float(row) * 5.4
+			for face in 3:
+				if random.randf() < 0.3:
+					continue
+				var tone := dark if random.randf() < 0.45 else pale
+				var trim_x := absf(random.randf_range(-0.6, 0.6))
+				var plate := Rect2(cell_x + 0.3, y0 + 0.2, cell_width - 0.6 - trim_x, 4.4)
+				if _rect_hits_bands(plate, collar_bands):
+					continue
+				var center := plate.get_center()
+				match face:
+					0:
+						if _rect_hits_any(plate, exclusions_starboard):
+							continue
+						_emit_box(tone, Transform3D(Basis.IDENTITY,
+							Vector3(center.x, center.y, half_depth + 0.14)),
+							Vector3(plate.size.x, plate.size.y, 0.28))
+					1:
+						if _rect_hits_any(plate, exclusions_port):
+							continue
+						_emit_box(tone, Transform3D(Basis.IDENTITY,
+							Vector3(center.x, center.y, -half_depth - 0.14)),
+							Vector3(plate.size.x, plate.size.y, 0.28))
+					2:
+						# The dorsal face uses the row as a lateral band instead.
+						_emit_box(tone, Transform3D(Basis.IDENTITY,
+							Vector3(center.x, top_y + 0.14, -5.4 + float(row) * 10.8)),
+							Vector3(plate.size.x, 0.28, 9.4))
+		cell_x += cell_width
+
+	# Dark apertures: a port row on both flanks and three breaches. Unlit black
+	# reads as open hull against sunlit plate at any range.
+	var window_x := -34.0
+	while window_x <= 36.0:
+		var window := Rect2(window_x - 0.5, 2.15, 1.0, 0.9)
+		if not _rect_hits_bands(window, collar_bands):
+			if not _rect_hits_any(window, exclusions_starboard):
+				_emit_box(aperture, Transform3D(Basis.IDENTITY,
+					Vector3(window_x, 2.6, half_depth + 0.18)), Vector3(1.0, 0.9, 0.36))
+			if not _rect_hits_any(window, exclusions_port):
+				_emit_box(aperture, Transform3D(Basis.IDENTITY,
+					Vector3(window_x, 2.6, -half_depth - 0.18)), Vector3(1.0, 0.9, 0.36))
+		window_x += 3.5
+	_emit_box(aperture, Transform3D(Basis.IDENTITY,
+		Vector3(-33.0, top_y + 0.2, -3.0)), Vector3(7.0, 0.4, 6.0))
+	_emit_box(aperture, Transform3D(Basis.IDENTITY,
+		Vector3(-30.0, -1.0, -half_depth - 0.2)), Vector3(6.0, 5.0, 0.4))
+	_emit_box(aperture, Transform3D(Basis.IDENTITY,
+		Vector3(8.0, -3.2, half_depth + 0.2)), Vector3(4.0, 2.5, 0.4))
+
+	# Warm dock-shelf lamps: two heads over the walk-in aperture, two at the
+	# shelf's outer corners and a lip strip the pilot sees from below the shelf.
+	var shelf_top := DOCK_SHELF_CENTER.y + DOCK_SHELF_SIZE.y * 0.5
+	var shelf_front_z := DOCK_SHELF_CENTER.z + DOCK_SHELF_SIZE.z * 0.5
+	var shelf_min_x := DOCK_SHELF_CENTER.x - DOCK_SHELF_SIZE.x * 0.5
+	var shelf_max_x := DOCK_SHELF_CENTER.x + DOCK_SHELF_SIZE.x * 0.5
+	for lamp_x: float in [APERTURE_MIN_X - 0.8, APERTURE_MAX_X + 0.8]:
+		_emit_box(lamp, Transform3D(Basis.IDENTITY,
+			Vector3(lamp_x, 4.6, half_depth + 0.5)), Vector3(1.4, 0.5, 0.8))
+	for lamp_x: float in [shelf_min_x + 1.0, shelf_max_x - 1.0]:
+		_emit_box(lamp, Transform3D(Basis.IDENTITY,
+			Vector3(lamp_x, shelf_top + 0.3, shelf_front_z - 0.6)), Vector3(0.8, 0.6, 0.8))
+	_emit_box(lamp, Transform3D(Basis.IDENTITY,
+		Vector3(DOCK_SHELF_CENTER.x, DOCK_SHELF_CENTER.y, shelf_front_z + 0.12)),
+		Vector3(DOCK_SHELF_SIZE.x - 6.0, 0.35, 0.24))
+
+	# The light pool itself: an additive radial pool on the shelf deck and a wash
+	# on the flank above it, falling off from the shelf upward.
+	var inset := 1.0
+	var pool_y := shelf_top + 0.07
+	_emit_pool_quad(pool, [
+		Vector3(shelf_min_x + inset, pool_y, shelf_front_z - inset),
+		Vector3(shelf_max_x - inset, pool_y, shelf_front_z - inset),
+		Vector3(shelf_max_x - inset, pool_y, half_depth + inset),
+		Vector3(shelf_min_x + inset, pool_y, half_depth + inset),
+	], [Vector2(0, 1), Vector2(1, 1), Vector2(1, 0), Vector2(0, 0)], 1.0)
+	_emit_pool_quad(pool, [
+		Vector3(shelf_min_x + 3.0, shelf_top, half_depth + 0.42),
+		Vector3(shelf_max_x - 3.0, shelf_top, half_depth + 0.42),
+		Vector3(shelf_max_x - 3.0, OVERHEAD_Y + 1.0, half_depth + 0.42),
+		Vector3(shelf_min_x + 3.0, OVERHEAD_Y + 1.0, half_depth + 0.42),
+	], [Vector2(0, 0.5), Vector2(1, 0.5), Vector2(1, 0.0), Vector2(0, 0.0)], 0.75)
+
+	var mesh := ArrayMesh.new()
+	var materials: Array[Material] = [
+		_materials["hulk_trim"],
+		_materials["hulk_plate_dark"],
+		_materials["hulk_aperture"],
+		_materials["hulk_warm_lamp"],
+		_materials["hulk_warm_pool"],
+	]
+	for index in tools.size():
+		tools[index].commit(mesh)
+		mesh.surface_set_material(index, materials[index])
+	var detail := MeshInstance3D.new()
+	detail.name = SILHOUETTE_DETAIL_NAME
+	detail.mesh = mesh
+	detail.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	detail.gi_mode = GeometryInstance3D.GI_MODE_DISABLED
+	detail.set_meta(&"presentation_only", true)
+	detail.set_meta(&"silhouette_surface_roles", SILHOUETTE_SURFACE_ROLES.duplicate())
+	_exterior_root.add_child(detail)
+
+
+func get_silhouette_detail() -> MeshInstance3D:
+	if not is_instance_valid(_exterior_root):
+		return null
+	return _exterior_root.get_node_or_null(SILHOUETTE_DETAIL_NAME) as MeshInstance3D
+
+
+func get_silhouette_triangle_count() -> int:
+	var detail := get_silhouette_detail()
+	if detail == null or detail.mesh == null:
+		return 0
+	var triangles := 0
+	for surface in detail.mesh.get_surface_count():
+		var arrays := detail.mesh.surface_get_arrays(surface)
+		var indices: Variant = arrays[Mesh.ARRAY_INDEX]
+		if indices is PackedInt32Array and not (indices as PackedInt32Array).is_empty():
+			triangles += (indices as PackedInt32Array).size() / 3
+		else:
+			triangles += (arrays[Mesh.ARRAY_VERTEX] as PackedVector3Array).size() / 3
+	return triangles
+
+
+func _rect_hits_any(rect: Rect2, exclusions: Array[Rect2]) -> bool:
+	for exclusion in exclusions:
+		if rect.intersects(exclusion):
+			return true
+	return false
+
+
+func _rect_hits_bands(rect: Rect2, bands: Array[Vector2]) -> bool:
+	for band in bands:
+		if rect.position.x < band.y and rect.end.x > band.x:
+			return true
+	return false
+
+
+## A beam between two points with a square cross-section.
+func _emit_beam(tool: SurfaceTool, from: Vector3, to: Vector3, thickness: float) -> void:
+	var axis := to - from
+	var length := axis.length()
+	if length < 0.001:
+		return
+	var x_axis := axis / length
+	var hint := Vector3.UP if absf(x_axis.dot(Vector3.UP)) < 0.95 else Vector3.FORWARD
+	var z_axis := x_axis.cross(hint).normalized()
+	var y_axis := z_axis.cross(x_axis).normalized()
+	_emit_box(
+		tool,
+		Transform3D(Basis(x_axis, y_axis, z_axis), (from + to) * 0.5),
+		Vector3(length, thickness, thickness)
+	)
+
+
+## Twelve sharp triangles, clockwise-front like every Godot surface, with the
+## normals and positions carried through the supplied rigid transform.
+func _emit_box(tool: SurfaceTool, xform: Transform3D, size: Vector3) -> void:
+	var half := size * 0.5
+	for axis in 3:
+		for sign_value: float in [1.0, -1.0]:
+			var normal := Vector3.ZERO
+			normal[axis] = sign_value
+			var u_axis := (axis + 1) % 3
+			var v_axis := (axis + 2) % 3
+			var u := Vector3.ZERO
+			u[u_axis] = 1.0
+			var v := normal.cross(u)
+			var center := normal * half[axis]
+			var u_half := u * half[u_axis]
+			var v_half := v * half[v_axis]
+			var quad: Array[Vector3] = [
+				center - u_half - v_half,
+				center + u_half - v_half,
+				center + u_half + v_half,
+				center - u_half + v_half,
+			]
+			var world_normal := (xform.basis * normal).normalized()
+			for corner_index: int in [0, 2, 1, 0, 3, 2]:
+				tool.set_normal(world_normal)
+				tool.set_uv(Vector2(
+					1.0 if corner_index == 1 or corner_index == 2 else 0.0,
+					1.0 if corner_index >= 2 else 0.0
+				))
+				tool.set_color(Color.WHITE)
+				tool.add_vertex(xform * quad[corner_index])
+
+
+## Additive pool quad; the pool shader disables culling so both faces draw and
+## the winding does not matter. Vertex alpha scales the pool's strength.
+func _emit_pool_quad(
+		tool: SurfaceTool,
+		corners: Array[Vector3],
+		uvs: Array[Vector2],
+		strength: float
+	) -> void:
+	var normal := (corners[1] - corners[0]).cross(corners[3] - corners[0]).normalized()
+	for corner_index: int in [0, 2, 1, 0, 3, 2]:
+		tool.set_normal(normal)
+		tool.set_uv(uvs[corner_index])
+		tool.set_color(Color(1.0, 1.0, 1.0, strength))
+		tool.add_vertex(corners[corner_index])
+
+
+## Interior spaces and fittings are only visible through the aperture and the
+## bow break; they stop drawing well before the hulk is small in the canopy.
+## Collision is untouched: only renderers take a range.
+func _apply_visibility_ranges() -> void:
+	for holder: Node in [_interior_root, _fitting_root, _breaker]:
+		if not is_instance_valid(holder):
+			continue
+		for candidate in holder.find_children("*", "GeometryInstance3D", true, false):
+			_set_visibility_range(
+				candidate as GeometryInstance3D,
+				INTERIOR_VISIBILITY_END,
+				INTERIOR_VISIBILITY_MARGIN
+			)
+	for candidate in _exterior_root.find_children("*", "GeometryInstance3D", true, false):
+		var renderer := candidate as GeometryInstance3D
+		var parent := renderer.get_parent()
+		if renderer.has_meta(&"small_trim") \
+				or (parent != null and parent.name == &"HullRibTrim"):
+			_set_visibility_range(
+				renderer, SMALL_TRIM_VISIBILITY_END, SMALL_TRIM_VISIBILITY_MARGIN
+			)
+
+
+func _set_visibility_range(renderer: GeometryInstance3D, end: float, margin: float) -> void:
+	renderer.visibility_range_begin = 0.0
+	renderer.visibility_range_end = end
+	renderer.visibility_range_end_margin = margin
+	renderer.visibility_range_fade_mode = GeometryInstance3D.VISIBILITY_RANGE_FADE_SELF
+
+
 ## Emergency practicals. Shadowless, short-range, distance-faded and dim, in the
 ## same recipe the station's own modules use for fitting lights, so the hulk
 ## shades the way the place the pilot just left does. There is no room light.
@@ -711,6 +1098,25 @@ func _create_local_materials() -> void:
 	_materials["hulk_char"] = _flat_material(HULL_CHAR, 0.1, 0.94)
 	_materials["hulk_dead_panel"] = _flat_material(Color("101820"), 0.4, 0.72)
 	_materials["hulk_dock_glow"] = _flat_material(DOCK_CYAN, 0.0, 0.3, DOCK_CYAN, 1.3)
+	# Second plate tone for the silhouette breakup: darker, rougher steel than
+	# the hull so replaced and missing plates read against it at range.
+	_materials["hulk_plate_dark"] = _panel_material(
+		HULL_STEEL.darkened(0.35), 0.3, 0.74, 0.1, StationSurfaceKit.PanelFinish.STRUCTURAL_ALLOY
+	)
+	var aperture := StandardMaterial3D.new()
+	aperture.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	aperture.albedo_color = Color(0.012, 0.014, 0.018)
+	_materials["hulk_aperture"] = aperture
+	_materials["hulk_warm_lamp"] = _flat_material(
+		WARM_POOL_COLOR, 0.0, 0.4, WARM_POOL_COLOR, 2.2
+	)
+	var pool_shader := Shader.new()
+	pool_shader.code = WARM_POOL_SHADER_CODE
+	var pool := ShaderMaterial.new()
+	pool.shader = pool_shader
+	pool.set_shader_parameter(&"pool_color", WARM_POOL_COLOR)
+	pool.set_shader_parameter(&"pool_energy", WARM_POOL_ENERGY)
+	_materials["hulk_warm_pool"] = pool
 	_materials["hulk_breaker_lens"] = _flat_material(
 		EMERGENCY_RED, 0.0, 0.3, EMERGENCY_RED, 1.5
 	)
@@ -864,6 +1270,16 @@ func _compose_audit_report() -> Dictionary:
 		errors.append("hulk dock berth is not a valid landing contract")
 	if not is_instance_valid(_breaker):
 		errors.append("hulk auxiliary breaker missing")
+	var silhouette := get_silhouette_detail()
+	var silhouette_triangles := get_silhouette_triangle_count()
+	if silhouette == null or silhouette.mesh == null \
+			or silhouette.mesh.get_surface_count() != SILHOUETTE_SURFACE_ROLES.size():
+		errors.append("hulk approach silhouette detail missing")
+	elif silhouette_triangles > SILHOUETTE_TRIANGLE_BUDGET:
+		errors.append(
+			"hulk silhouette detail %d triangles exceeds budget %d"
+			% [silhouette_triangles, SILHOUETTE_TRIANGLE_BUDGET]
+		)
 	for key: String in PERFORMANCE_BUDGET:
 		if int(counts.get(key, 0)) > int(PERFORMANCE_BUDGET[key]):
 			errors.append(
@@ -882,6 +1298,8 @@ func _compose_audit_report() -> Dictionary:
 		"interior_space_ids": SPACE_IDS.duplicate(),
 		"interior_space_count": SPACE_IDS.size(),
 		"light_budget": LIGHT_BUDGET,
+		"silhouette_triangle_count": silhouette_triangles,
+		"silhouette_triangle_budget": SILHOUETTE_TRIANGLE_BUDGET,
 		"counts": counts,
 		"budget": PERFORMANCE_BUDGET.duplicate(true),
 		"grants_rewards": false,

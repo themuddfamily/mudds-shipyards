@@ -19,11 +19,13 @@ const MAX_RETAINED_DISTANCE_METERS := 725.0
 # destination the pilot can stand inside must not pop.
 # The starboard asteroid belt then adds +8 renderers - six shared-stock batches,
 # one safe-lane chevron batch and one threading-gate chevron batch - and no
-# lights at all. This roster is a *closed* gate: an unrecognised renderer or
+# lights at all. The Cinder art pass then adds +1 renderer - the hulk's merged
+# approach-silhouette detail (truss, antennas, plates, apertures, warm dock
+# pool) - and no lights. This roster is a *closed* gate: an unrecognised renderer or
 # light count hides the whole sector rather than fading in a half-built one, so
 # it is refrozen with every authored addition.
-const EXPECTED_AUTHORED_RENDERER_COUNT := 258
-const EXPECTED_BOUND_RENDERER_COUNT := 262
+const EXPECTED_AUTHORED_RENDERER_COUNT := 259
+const EXPECTED_BOUND_RENDERER_COUNT := 263
 const EXPECTED_LIGHT_COUNT := 35
 const EPSILON := 0.000001
 const EXTRACTION_ARM_COLLAR_FAMILY_ID: StringName = &"cinder-extraction-arm-collars"

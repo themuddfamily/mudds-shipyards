@@ -5798,6 +5798,11 @@ func bind_station_solar_runtime_settings(settings: RuntimeSettings) -> Dictionar
 
 func set_station_solar_reduced_flash(enabled: bool) -> Dictionary:
 	_station_solar_reduced_flash = enabled
+	# A loaded Cinder generation follows the same setting (its belt chevrons
+	# step down); the streaming binding forwards it to each new generation.
+	var cluster := get_nearby_sector_cluster()
+	if is_instance_valid(cluster):
+		cluster.set_reduced_flash_enabled(enabled)
 	if _station_solar_readability_presentation == null:
 		return {
 			"accepted": true,
