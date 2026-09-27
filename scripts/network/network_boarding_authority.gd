@@ -153,9 +153,79 @@ func accept_intent(source_peer_id: int, wire: Dictionary) -> Dictionary:
 	var seat_status := _validate_seat_generation(seat, intent)
 	if not seat_status.is_empty():
 		return _remember(_result(false, seat_status))
-	if intent.get_action() == Intent.ACTION_BOARD:
-		return _remember(_board(intent, seat, avatar_key))
+	match intent.get_action():
+		Intent.ACTION_BOARD:
+			return _remember(_board(intent, seat, avatar_key))
+		Intent.ACTION_BOARD_ANY:
+			return _remember(_board_any(intent, seat, avatar_key))
+		Intent.ACTION_SWAP:
+			return _remember(_swap(intent, seat, avatar_key))
 	return _remember(_disembark(intent, seat, avatar_key))
+
+
+func get_server_tick() -> int:
+	return _server_tick
+
+
+## The authority's own seat. The host player does not send itself packets, so
+## its occupancy is written here directly -- but into the same ledger, under
+## the same one-seat-per-avatar and one-avatar-per-seat rules, so a remote
+## claim on a seat the host is sitting in is refused exactly as a claim on a
+## seat another peer holds is. Moving the host to a different seat is one
+## transaction; a seat another occupant holds leaves the host where it was.
+func claim_authority_seat(
+	source_peer_id: int, avatar_id: StringName, seat_id: StringName
+) -> Dictionary:
+	if source_peer_id != _authority_peer_id:
+		return _remember(_result(false, &"unauthorized_source"))
+	if not _valid_id(avatar_id):
+		return _remember(_result(false, &"invalid_avatar_identity"))
+	if not _seats.has(seat_id):
+		return _remember(_result(false, &"unknown_seat"))
+	var avatar_key := _avatar_key(_authority_peer_id, avatar_id)
+	var held: Dictionary = _occupancies.get(avatar_key, {}) as Dictionary
+	if not held.is_empty() and StringName(held.seat_id) == seat_id:
+		return _remember(_result(true, &"authority_already_seated", {"occupancy": held}))
+	var holder := _occupancy_for_seat(seat_id)
+	if not holder.is_empty():
+		return _remember(_result(false, &"seat_occupied", {"holder_peer_id": int(holder.peer_id)}))
+	var seat := _seats[seat_id] as Dictionary
+	var assignment := _assignment_for(
+		_authority_peer_id, avatar_id, seat, int(held.get("claim_sequence", 0)) + 1
+	)
+	_occupancies[avatar_key] = assignment
+	_event_sequence += 1
+	var payload := {"occupancy": assignment}
+	if not held.is_empty():
+		payload["released_occupancy"] = held
+	return _remember(_result(true, &"authority_seated", payload))
+
+
+func release_authority_seat(source_peer_id: int, avatar_id: StringName) -> Dictionary:
+	if source_peer_id != _authority_peer_id:
+		return _remember(_result(false, &"unauthorized_source"))
+	var avatar_key := _avatar_key(_authority_peer_id, avatar_id)
+	if not _occupancies.has(avatar_key):
+		return _remember(_result(true, &"authority_not_seated"))
+	var released := _occupancies[avatar_key] as Dictionary
+	_occupancies.erase(avatar_key)
+	_event_sequence += 1
+	return _remember(_result(true, &"authority_released", {"occupancy": released}))
+
+
+## Session end. Every occupancy -- remote and the authority's own -- and every
+## per-avatar sequence stream goes, and the tick clock rewinds, so the next
+## session starts from an empty ledger. Ships and seats are server lifecycle
+## data that a new session re-registers idempotently; they are kept.
+func end_session(source_peer_id: int) -> Dictionary:
+	if source_peer_id != _authority_peer_id:
+		return _remember(_result(false, &"unauthorized_source"))
+	var released := _occupancies.size()
+	_occupancies.clear()
+	_last_sequence_by_avatar.clear()
+	_server_tick = 0
+	_event_sequence += 1
+	return _remember(_result(true, &"session_ended", {"released": released}))
 
 
 func get_occupancy(peer_id: int, avatar_id: StringName) -> Dictionary:
@@ -278,6 +348,88 @@ func _board(intent, seat: Dictionary, avatar_key: StringName) -> Dictionary:
 	_occupancies[avatar_key] = assignment
 	_event_sequence += 1
 	return _result(true, &"boarded", {"occupancy": assignment})
+
+
+## One round trip for "put me aboard". The named seat is only a preference:
+## when somebody holds it, the ledger picks the first free seat of the same role
+## on the same ship (ordered by seat id, so every host picks the same one) and
+## answers with the seat it actually assigned. Only when none is free does it
+## answer `craft_full` -- or `seat_occupied` for a role with a single seat, where
+## "full" and "taken" are the same fact.
+func _board_any(intent, seat: Dictionary, avatar_key: StringName) -> Dictionary:
+	if _occupancies.has(avatar_key):
+		return _result(false, &"avatar_already_occupied")
+	var chosen := seat
+	if not _occupancy_for_seat(intent.get_seat_id()).is_empty():
+		chosen = {}
+		var candidate_ids: Array = []
+		for seat_id_variant in _seats.keys():
+			var candidate := _seats[seat_id_variant] as Dictionary
+			if StringName(candidate.ship_id) == intent.get_ship_id() \
+					and StringName(candidate.role) == intent.get_role() \
+					and StringName(candidate.seat_id) != intent.get_seat_id():
+				candidate_ids.append(str(candidate.seat_id))
+		candidate_ids.sort()
+		for candidate_id in candidate_ids:
+			if _occupancy_for_seat(StringName(candidate_id)).is_empty():
+				chosen = _seats[StringName(candidate_id)] as Dictionary
+				break
+		if chosen.is_empty():
+			return _result(false, &"craft_full" if not candidate_ids.is_empty() else &"seat_occupied")
+	var assignment := _assignment_for(
+		intent.get_peer_id(), intent.get_avatar_id(), chosen, intent.get_sequence()
+	)
+	_occupancies[avatar_key] = assignment
+	_event_sequence += 1
+	return _result(true, &"boarded", {"occupancy": assignment})
+
+
+## Atomic seat swap: release the held seat and claim the named one in one
+## transaction. Every refusal leaves the held seat exactly as it was, so a
+## passenger whose promotion is refused is still a passenger, never nobody.
+func _swap(intent, seat: Dictionary, avatar_key: StringName) -> Dictionary:
+	if not _occupancies.has(avatar_key):
+		return _result(false, &"occupancy_not_found")
+	var held := _occupancies[avatar_key] as Dictionary
+	if StringName(held.ship_id) != intent.get_ship_id():
+		return _result(false, &"swap_ship_mismatch")
+	if StringName(held.seat_id) == intent.get_seat_id():
+		return _result(false, &"already_seated")
+	if not _occupancy_for_seat(intent.get_seat_id()).is_empty():
+		return _result(false, &"seat_occupied")
+	var assignment := _assignment_for(
+		intent.get_peer_id(), intent.get_avatar_id(), seat, intent.get_sequence()
+	)
+	_occupancies[avatar_key] = assignment
+	_event_sequence += 1
+	return _result(true, &"seat_swapped", {
+		"occupancy": assignment, "released_occupancy": held.duplicate(true),
+	})
+
+
+func _occupancy_for_seat(seat_id: StringName) -> Dictionary:
+	for occupancy_variant in _occupancies.values():
+		var occupancy := occupancy_variant as Dictionary
+		if StringName(occupancy.seat_id) == seat_id:
+			return occupancy
+	return {}
+
+
+func _assignment_for(
+	peer_id: int, avatar_id: StringName, seat: Dictionary, claim_sequence: int
+) -> Dictionary:
+	return {
+		"peer_id": peer_id,
+		"avatar_id": avatar_id,
+		"ship_id": seat.ship_id,
+		"ship_generation": int(seat.ship_generation),
+		"frame_id": seat.frame_id,
+		"frame_generation": int(seat.frame_generation),
+		"seat_id": seat.seat_id,
+		"seat_generation": int(seat.seat_generation),
+		"role": seat.role,
+		"claim_sequence": claim_sequence,
+	}
 
 
 func _disembark(intent, seat: Dictionary, avatar_key: StringName) -> Dictionary:

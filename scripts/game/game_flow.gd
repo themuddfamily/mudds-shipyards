@@ -113,6 +113,10 @@ const NETWORK_REMOTE_BODY_CORRECTION_METRES := 0.5
 ## berth, so this is also the hatch's headcount per craft.
 const NETWORK_CABIN_BERTH_COUNT := 4
 const NETWORK_CABIN_BERTH_ROLE: StringName = &"passenger"
+## Craft-local horizontal metres from the pilot seat anchor within which a
+## networked passenger's cabin press asks to be promoted into the pilot seat
+## (an atomic ledger swap) rather than to leave through the hatch.
+const NETWORK_PILOT_SEAT_SWAP_REACH := 2.2
 ## How long a client waits for the authority's answer to one boarding request.
 ## The ledger answers on the same reliable channel the request travelled, so
 ## the only ways this expires are a host that never saw the packet and a
@@ -707,6 +711,12 @@ var _network_landing_request_sequence := 0
 var _network_landing_server_tick := 0
 var _network_boarding_entities: Dictionary = {}
 var _network_boarding_server_tick := 0
+## The host player's own seat in the boarding ledger ({ship_id, seat_id}),
+## empty when the host holds none, and the one seat the ledger last refused the
+## host (so a held seat is not re-asked every tick). Server-only; see
+## `_advance_network_boarding_authority()`.
+var _network_host_boarding_seat: Dictionary = {}
+var _network_host_boarding_refused_seat: StringName = &""
 ## Client half of the hatch. `_network_client_boarding_request` is the one
 ## outstanding request this peer is waiting on (empty when idle), and
 ## `_network_client_boarding_claim` is the seat the ledger has confirmed for it
@@ -734,6 +744,8 @@ var _network_client_boarding_audit: Dictionary = {
 	"last_seat_id": &"",
 	"claimed_seat_id": &"",
 	"abandoned_grants": 0,
+	"seat_swaps": 0,
+	"released_seat_id": &"",
 }
 ## What the hatch seam did with each confirmed networked boarding; see
 ## `_on_network_boarding_intent_result()`.
@@ -742,6 +754,10 @@ var _network_hatch_audit: Dictionary = {
 	"hatch_releases": 0,
 	"hatch_pilot_seats": 0,
 	"hatch_refusals": 0,
+	"hatch_seat_swaps": 0,
+	"host_seat_claims": 0,
+	"host_seat_refusals": 0,
+	"host_seat_releases": 0,
 	"last_hatch_status": &"",
 }
 ## Authoritative moving-interior occupancy publication state. See
@@ -4381,6 +4397,10 @@ func _physics_process(delta: float) -> void:
 	# request blocks every later press behind `boarding_request_in_flight`.
 	_advance_network_client_boarding_request(delta)
 	_advance_planetary_atmosphere_flight_effects(delta)
+	# Authority-side boarding ledger clock and the host's own seat. Above the
+	# expedition's early return for the same reason: clients extrapolate this
+	# clock from the physics frames they run, so it must never stand still.
+	_advance_network_boarding_authority()
 	if _aurora_expedition.is_active():
 		# An Aurora visit is a peer of an Ember expedition, not a bypass of the
 		# planetary subsystem: the same one actor read drives Aurora's streaming
@@ -6128,6 +6148,8 @@ func _on_network_session_started(mode: StringName) -> void:
 		# sat in it: the ledger has to know the ship before it can accept a
 		# peer's berth claim, and it is this seam that admits the body.
 		_network_boarding_entities.clear()
+		_network_host_boarding_seat = {}
+		_network_host_boarding_refused_seat = &""
 		for fleet_ship in ships:
 			if is_instance_valid(fleet_ship) and not fleet_ship.is_destroyed() \
 					and fleet_ship.supports_in_flight_cabin_access():
@@ -6164,6 +6186,10 @@ func _on_network_session_stopped(reason: StringName) -> void:
 	# The boarding ledger went with the adapter; the next session registers
 	# its ships and berths afresh rather than believing they are still known.
 	_network_boarding_entities.clear()
+	# The host's own seat went with that ledger (`end_session`); forget it
+	# here without asking a stopped adapter to release it.
+	_network_host_boarding_seat = {}
+	_network_host_boarding_refused_seat = &""
 	_detach_network_ship_authority_composition(reason)
 	_detach_network_halyard_command_bridge()
 	_detach_halyard_crew_semantic_audio()
@@ -6973,7 +6999,7 @@ func _update_on_foot_flow() -> void:
 		if station_interaction_candidate is ShipBunk:
 			hud.set_interaction(station_interaction_candidate.get_interaction_prompt())
 		elif _near_ship and boarding_candidate == _cabin_ship:
-			hud.set_interaction("[ E ]  TAKE THE PILOT SEAT")
+			hud.set_interaction(_network_cabin_interaction_prompt())
 		else:
 			hud.set_interaction(
 				"WALK AFT TO THE BUNKS  //  FORWARD TO THE COCKPIT"
@@ -8177,6 +8203,20 @@ func _board_ship(candidate: HeroShip = null) -> void:
 				and _network_client_boarding_request.is_empty():
 			candidate_area.release_reservation(player)
 		return
+	# Host half: the host's own seat is a ledger occupancy like anybody's, so a
+	# pilot seat a remote peer already holds is refused to the host too.
+	var host_claim := _claim_network_host_pilot_seat(candidate)
+	if StringName(host_claim.get("status", &"")) == &"seat_occupied":
+		if candidate_area != null and _boarding_area != candidate_area:
+			candidate_area.release_reservation(player)
+		_present_boarding_confirmation(&"rejected", candidate, &"seat_occupied")
+		if is_instance_valid(hud):
+			hud.toast(
+				"Pilot seat taken",
+				"A crewmate is flying %s" % candidate.get_display_name(),
+				2.6
+			)
+		return
 	_board_ship_locally(candidate, candidate_area)
 
 
@@ -8538,6 +8578,116 @@ static func network_cabin_berth_seat_id(ship_id: StringName, berth_index: int) -
 ## pilot seat.
 static func is_network_cabin_berth_seat(ship_id: StringName, seat_id: StringName) -> bool:
 	return String(seat_id).begins_with("%s_cabin_" % String(ship_id))
+
+
+# --- boarding ledger clock and the host's own seat (authority) --------------
+#
+# Two things the ledger could not do on its own. Its tick window was inert
+# because nothing ever advanced its clock, and it held no occupancy for the
+# host player, so a remote peer could claim the very pilot seat the host was
+# flying from. Both are driven from here, once per physics tick, on the host.
+
+
+## One authority physics tick of the boarding ledger: advance its clock, then
+## make the host's own ledger seat match what the host is actually doing.
+func _advance_network_boarding_authority() -> void:
+	if _network_session_mode != &"server" or not is_instance_valid(network_session) \
+			or not network_session.is_server():
+		return
+	_network_boarding_server_tick += 1
+	network_session.advance_boarding_server_tick(_network_boarding_server_tick)
+	_reconcile_network_host_boarding_seat()
+
+
+## The craft whose pilot seat the host player is in or climbing into, or null.
+func _network_host_desired_pilot_ship() -> HeroShip:
+	if not is_instance_valid(active_ship) or active_ship.is_destroyed():
+		return null
+	if phase == Phase.BOARDING:
+		return active_ship
+	if _piloting and active_ship.is_piloted() and phase != Phase.DISEMBARKING:
+		return active_ship
+	return null
+
+
+## Keeps the host's ledger seat equal to the seat the host occupies. Reconciled
+## rather than event-driven, so every way out of a seat -- a disembark on a
+## berth, leaving the seat into the cabin, an aborted boarding, a destroyed
+## craft, a respawn -- releases it without each path having to remember to.
+func _reconcile_network_host_boarding_seat() -> void:
+	var desired := _network_host_desired_pilot_ship()
+	var desired_seat: StringName = &""
+	if desired != null:
+		desired_seat = StringName("%s_pilot" % String(desired.get_ship_id()))
+	if desired_seat.is_empty():
+		_network_host_boarding_refused_seat = &""
+		_release_network_host_boarding_seat()
+		return
+	if desired_seat == StringName(_network_host_boarding_seat.get("seat_id", &"")):
+		return
+	# A seat the ledger refused the host is re-asked twice a second, not every
+	# tick: the peer holding it may let go, and the host is sitting in it.
+	if desired_seat == _network_host_boarding_refused_seat \
+			and _network_boarding_server_tick % 30 != 0:
+		return
+	_claim_network_host_pilot_seat(desired)
+
+
+## Writes the host player's claim on `craft`'s pilot seat into the ledger. Not a
+## network session host: nothing to claim, and the caller proceeds as offline.
+func _claim_network_host_pilot_seat(craft: HeroShip) -> Dictionary:
+	if _network_session_mode != &"server" or not is_instance_valid(network_session) \
+			or not network_session.is_server():
+		return {"accepted": true, "status": &"no_host_ledger"}
+	if not is_instance_valid(craft):
+		return {"accepted": false, "status": &"craft_unavailable"}
+	var registered := _ensure_network_boarding_ship_registered(craft)
+	if not bool(registered.get("accepted", false)):
+		return registered
+	var seat_id := StringName("%s_pilot" % String(craft.get_ship_id()))
+	var claimed: Dictionary = network_session.claim_host_boarding_seat(
+		network_client_boarding_avatar_id(NetworkSessionAdapterType.AUTHORITY_PEER_ID), seat_id
+	)
+	if bool(claimed.get("accepted", false)):
+		_network_host_boarding_seat = {"ship_id": craft.get_ship_id(), "seat_id": seat_id}
+		_network_host_boarding_refused_seat = &""
+		_network_hatch_audit["host_seat_claims"] = int(_network_hatch_audit["host_seat_claims"]) + 1
+	else:
+		_network_host_boarding_refused_seat = seat_id
+		_network_hatch_audit["host_seat_refusals"] = int(_network_hatch_audit["host_seat_refusals"]) + 1
+	_network_hatch_audit["last_hatch_status"] = StringName(claimed.get("status", &"?"))
+	return claimed
+
+
+func _release_network_host_boarding_seat() -> void:
+	if _network_host_boarding_seat.is_empty():
+		return
+	_network_host_boarding_seat = {}
+	_network_hatch_audit["host_seat_releases"] = int(_network_hatch_audit["host_seat_releases"]) + 1
+	if is_instance_valid(network_session) and network_session.is_server():
+		network_session.release_host_boarding_seat(
+			network_client_boarding_avatar_id(NetworkSessionAdapterType.AUTHORITY_PEER_ID)
+		)
+
+
+## The host player's current ledger seat, empty when it holds none.
+func get_network_host_boarding_seat() -> Dictionary:
+	return _network_host_boarding_seat.duplicate(true)
+
+
+## True when this player stands within reach of `craft`'s pilot seat, measured
+## on the craft's own deck plane so a drifting or banked hull does not change
+## the answer.
+func _network_client_near_pilot_seat(craft: HeroShip) -> bool:
+	if not is_instance_valid(craft) or not is_instance_valid(player):
+		return false
+	var anchor := craft.get_pilot_seat_anchor()
+	if anchor == null:
+		return false
+	var seat_local := craft.to_local(anchor.global_position)
+	var player_local := craft.to_local(player.global_position)
+	return Vector2(seat_local.x - player_local.x, seat_local.z - player_local.z).length() \
+		<= NETWORK_PILOT_SEAT_SWAP_REACH
 
 
 ## Seat transitions. Taking or leaving the pilot seat changes a posture, never
@@ -9348,6 +9498,19 @@ func _on_network_boarding_intent_result(result: Dictionary) -> void:
 			_network_hatch_audit["hatch_refusals"] = int(_network_hatch_audit["hatch_refusals"]) + 1
 		_network_hatch_audit["last_hatch_status"] = StringName(admitted.get("status", &"?"))
 		return
+	if status == &"seat_swapped":
+		# A passenger promoted to the pilot seat in one ledger transaction. The
+		# pilot seat keeps its seat seam (nobody walks to it), so the berth's
+		# walking body is the only thing to retire, and it goes in this frame.
+		_network_hatch_audit["hatch_seat_swaps"] = int(_network_hatch_audit["hatch_seat_swaps"]) + 1
+		if _network_remote_body_simulation != null \
+				and is_instance_valid(_network_remote_body_simulation) \
+				and _network_remote_body_simulation.has_body(avatar_id) \
+				and int(_network_remote_body_simulation.get_body_record(avatar_id).get(
+					"owner_peer_id", 0)) == peer_id:
+			release_network_remote_body(avatar_id, &"seat_swap")
+		_network_hatch_audit["last_hatch_status"] = &"seat_swapped"
+		return
 	if status == &"disembarked":
 		if _network_remote_body_simulation == null \
 				or not is_instance_valid(_network_remote_body_simulation) \
@@ -9444,6 +9607,29 @@ func _network_client_boarding_is_live() -> bool:
 	return _network_session_mode == &"client" and _network_client_peer_id() > 1
 
 
+## What the cabin's boarding press will do, said before it is pressed. Offline,
+## a host, or a networked pilot: retake the seat. A networked passenger holding
+## a berth: take the seat at the cockpit (an atomic ledger swap), and leave
+## through the hatch anywhere else in the cabin.
+func _network_cabin_interaction_prompt() -> String:
+	if _network_client_boarding_is_live() and _network_client_boarding_holds(_cabin_ship) \
+			and StringName(_network_client_boarding_claim.get("role", &"")) \
+				!= NetworkBoardingIntentType.ROLE_PILOT \
+			and not _network_client_near_pilot_seat(_cabin_ship):
+		return "[ E ]  LEAVE THROUGH THE HATCH  //  FORWARD TO TAKE THE PILOT SEAT"
+	return "[ E ]  TAKE THE PILOT SEAT"
+
+
+## The ledger tick a request is stamped with: the adapter's estimate of the
+## authority's clock now (last heard tick plus the physics frames since), never
+## behind the last answer this coordinator saw.
+func _network_client_boarding_tick_stamp() -> int:
+	var estimate := _network_client_boarding_server_tick
+	if is_instance_valid(network_session):
+		estimate = maxi(estimate, network_session.get_boarding_server_tick_estimate())
+	return estimate
+
+
 func _network_client_peer_id() -> int:
 	if not is_instance_valid(network_session) or not network_session.is_inside_tree() \
 			or network_session.is_server():
@@ -9464,9 +9650,9 @@ func _network_client_boarding_holds(craft: HeroShip) -> bool:
 ## while already aboard, or whose pilot seat the ledger has since released --
 ## is claiming the pilot role by pressing the seat prompt. Everyone else
 ## arriving at the hatch is asking for a berth, and which berth is free is the
-## ledger's to say. A peer that already holds a berth presses to leave, not to
-## be promoted: a seat swap is a second occupancy change and the ledger has no
-## atomic form of it.
+## ledger's to say. A peer that already holds a berth never reaches this: at the
+## cockpit it asks for an atomic swap into the pilot seat, anywhere else in the
+## cabin it asks to leave (see `_request_network_client_boarding()`).
 func _network_client_claims_pilot_seat(craft: HeroShip) -> bool:
 	if not craft.supports_in_flight_cabin_access():
 		return true
@@ -9491,6 +9677,18 @@ func _request_network_client_boarding(
 			# changes a posture, not an occupancy, so there is nothing to ask.
 			_board_ship_locally(craft, area)
 			return {"accepted": true, "status": &"pilot_seat_retained"}
+		# A passenger at the cockpit asks to be promoted in place: one atomic
+		# ledger swap from the berth to the pilot seat. Refused, it stays a
+		# passenger -- the ledger never leaves it holding nothing.
+		if held_role != NetworkBoardingIntentType.ROLE_PILOT \
+				and phase == Phase.IN_FLIGHT_CABIN and craft == _cabin_ship \
+				and _network_client_near_pilot_seat(craft):
+			var pilot_seats: Array[StringName] = []
+			pilot_seats.append(StringName("%s_pilot" % String(ship_id)))
+			return _begin_network_client_boarding_request(
+				craft, area, NetworkBoardingIntentType.ACTION_SWAP,
+				NetworkBoardingIntentType.ROLE_PILOT, pilot_seats
+			)
 		var held_seats: Array[StringName] = []
 		held_seats.append(StringName(_network_client_boarding_claim.get("seat_id", &"")))
 		return _begin_network_client_boarding_request(
@@ -9498,15 +9696,17 @@ func _request_network_client_boarding(
 		)
 	var seats: Array[StringName] = []
 	var role := NETWORK_CABIN_BERTH_ROLE
+	var action := NetworkBoardingIntentType.ACTION_BOARD
 	if _network_client_claims_pilot_seat(craft):
 		role = NetworkBoardingIntentType.ROLE_PILOT
 		seats.append(StringName("%s_pilot" % String(ship_id)))
 	else:
-		for index in NETWORK_CABIN_BERTH_COUNT:
-			seats.append(network_cabin_berth_seat_id(ship_id, index + 1))
-	return _begin_network_client_boarding_request(
-		craft, area, NetworkBoardingIntentType.ACTION_BOARD, role, seats
-	)
+		# One ask, whatever the cabin holds: the ledger answers with the berth
+		# it assigned or one `craft_full`, instead of this peer walking the
+		# berths one refusal at a time.
+		action = NetworkBoardingIntentType.ACTION_BOARD_ANY
+		seats.append(network_cabin_berth_seat_id(ship_id, 1))
+	return _begin_network_client_boarding_request(craft, area, action, role, seats)
 
 
 func _begin_network_client_boarding_request(
@@ -9564,7 +9764,7 @@ func _send_network_client_boarding_intent() -> Dictionary:
 		1,
 		StringName(_network_client_boarding_request.get("role", &"")),
 		_network_client_boarding_sequence,
-		_network_client_boarding_server_tick,
+		_network_client_boarding_tick_stamp(),
 		StringName(_network_client_boarding_request.get("action", &""))
 	)
 	if not intent.is_valid():
@@ -9598,7 +9798,7 @@ func _on_network_client_boarding_answer(result: Dictionary) -> void:
 	var status := StringName(result.get("status", &""))
 	_network_client_boarding_audit["last_status"] = status
 	if bool(result.get("accepted", false)):
-		_confirm_network_client_boarding()
+		_confirm_network_client_boarding(result)
 		return
 	# The authority's tick window moved under this request. The answer carried
 	# the window with it, so the same seat is worth exactly one more ask.
@@ -9637,10 +9837,31 @@ func _network_client_boarding_matches_abandoned(
 		return true
 	_network_client_boarding_audit["abandoned_grants"] = \
 		int(_network_client_boarding_audit.get("abandoned_grants", 0)) + 1
+	# The seat the ledger actually granted, which for a `board_any` may not be
+	# the one this peer named.
+	var granted_seat := StringName(result.get("seat_id", &""))
+	if String(granted_seat).is_empty():
+		granted_seat = StringName(abandoned.get("seat_id", &""))
+	if StringName(abandoned.get("action", &"")) == NetworkBoardingIntentType.ACTION_SWAP:
+		# A late promotion. The berth is already gone -- the swap released it in
+		# the same transaction -- so handing the pilot seat back would leave this
+		# peer holding nothing aboard a craft it is standing in. Adopt the seat
+		# instead: the walking body the berth had is retired on the host, and
+		# the next press at the cockpit simply sits down in the seat it holds.
+		if StringName(_network_client_boarding_claim.get("ship_id", &"")) \
+				== StringName(abandoned.get("ship_id", &"")):
+			_network_client_boarding_claim = {
+				"ship_id": StringName(abandoned.get("ship_id", &"")),
+				"seat_id": granted_seat,
+				"role": NetworkBoardingIntentType.ROLE_PILOT,
+			}
+			_network_client_boarding_audit["claimed_seat_id"] = granted_seat
+			unbind_network_remote_body()
+		return true
 	_send_network_client_boarding_release(
 		StringName(abandoned.get("ship_id", &"")),
-		StringName(abandoned.get("seat_id", &"")),
-		StringName(abandoned.get("role", &""))
+		granted_seat,
+		StringName(result.get("role", abandoned.get("role", &"")))
 	)
 	return true
 
@@ -9660,7 +9881,7 @@ func _send_network_client_boarding_release(
 	var intent = NetworkBoardingIntentType.create(
 		_network_client_peer_id(), network_client_boarding_avatar_id(_network_client_peer_id()),
 		ship_id, 1, StringName("frame_%s" % String(ship_id)), 1, seat_id, 1, role,
-		_network_client_boarding_sequence, _network_client_boarding_server_tick,
+		_network_client_boarding_sequence, _network_client_boarding_tick_stamp(),
 		NetworkBoardingIntentType.ACTION_DISEMBARK
 	)
 	if not intent.is_valid():
@@ -9668,7 +9889,7 @@ func _send_network_client_boarding_release(
 	return network_session.send_boarding_intent(intent.to_dictionary())
 
 
-func _confirm_network_client_boarding() -> void:
+func _confirm_network_client_boarding(answer: Dictionary = {}) -> void:
 	var request := _network_client_boarding_request
 	_network_client_boarding_request = {}
 	_network_client_boarding_audit["confirmations"] = \
@@ -9680,6 +9901,10 @@ func _confirm_network_client_boarding() -> void:
 	var seats: Array = request.get("seats", [])
 	var index := clampi(int(request.get("seat_index", 0)), 0, maxi(0, seats.size() - 1))
 	var seat_id: StringName = StringName(seats[index]) if not seats.is_empty() else &""
+	# The seat the ledger assigned wins over the one this peer named: a
+	# `board_any` whose preferred berth was held is seated in another.
+	if not String(answer.get("seat_id", "")).is_empty():
+		seat_id = StringName(answer.get("seat_id"))
 	if action == NetworkBoardingIntentType.ACTION_DISEMBARK:
 		_release_network_client_boarding_presentation(craft, area)
 		return
@@ -9689,12 +9914,47 @@ func _confirm_network_client_boarding() -> void:
 		"role": role,
 	}
 	_network_client_boarding_audit["claimed_seat_id"] = seat_id
+	if action == NetworkBoardingIntentType.ACTION_SWAP:
+		_present_network_client_seat_swap(craft, area, answer)
+		return
 	if not is_instance_valid(craft):
 		return
 	if role == NetworkBoardingIntentType.ROLE_PILOT:
 		_board_ship_locally(craft, area)
 		return
 	_present_network_client_cabin_boarding(craft, area)
+
+
+## A passenger promoted to the pilot seat. The ledger has already released the
+## berth and claimed the seat in one transaction, and the host has retired the
+## berth's walking body; what is left is the presentation, and it is the very
+## seam a host pilot uses to retake the seat of the craft whose cabin they are
+## walking -- `_board_ship_locally()` from `Phase.IN_FLIGHT_CABIN`.
+func _present_network_client_seat_swap(
+	craft: HeroShip, area: ShipBoardingArea, answer: Dictionary
+) -> void:
+	_network_client_boarding_audit["seat_swaps"] = \
+		int(_network_client_boarding_audit.get("seat_swaps", 0)) + 1
+	_network_client_boarding_audit["released_seat_id"] = StringName(
+		answer.get("released_seat_id", &"")
+	)
+	unbind_network_remote_body()
+	if not is_instance_valid(craft) or craft != _cabin_ship \
+			or phase != Phase.IN_FLIGHT_CABIN:
+		return
+	if _transition_busy or _station_seated:
+		# Busy with another transition (a bunk, a seat motion). The seat is this
+		# peer's in the ledger either way; the next press at the cockpit sits
+		# down in it without asking again.
+		return
+	if is_instance_valid(hud):
+		hud.toast(
+			"Pilot seat confirmed",
+			"The session host moved you from your berth to the helm of %s"
+				% craft.get_display_name(),
+			2.6
+		)
+	_board_ship_locally(craft, area)
 
 
 ## Presents a confirmed berth exactly the way a locally boarded player standing
@@ -9880,8 +10140,12 @@ func _advance_network_client_boarding_request(delta: float) -> void:
 func _abandon_network_client_boarding_request() -> void:
 	if _network_client_boarding_request.is_empty():
 		return
-	if StringName(_network_client_boarding_request.get("action", &"")) \
-			!= NetworkBoardingIntentType.ACTION_BOARD:
+	var action := StringName(_network_client_boarding_request.get("action", &""))
+	if action not in [
+		NetworkBoardingIntentType.ACTION_BOARD,
+		NetworkBoardingIntentType.ACTION_BOARD_ANY,
+		NetworkBoardingIntentType.ACTION_SWAP,
+	]:
 		return
 	var seats: Array = _network_client_boarding_request.get("seats", [])
 	var index := int(_network_client_boarding_request.get("seat_index", 0))
@@ -9889,6 +10153,7 @@ func _abandon_network_client_boarding_request() -> void:
 		return
 	_network_client_boarding_abandoned = {
 		"sequence": int(_network_client_boarding_request.get("sequence", -1)),
+		"action": action,
 		"ship_id": StringName(_network_client_boarding_request.get("ship_id", &"")),
 		"seat_id": StringName(seats[index]),
 		"role": StringName(_network_client_boarding_request.get("role", &"")),
