@@ -2230,7 +2230,9 @@ func _build_banquette_segment(
 	# Preserve the stable cushion path, transform, mesh and upholstery material
 	# as a hidden inspection anchor; the Fitout batch owns the visible copy.
 	cushion_anchor.visible = false
-	_box(segment, "Back", Vector3(0.0, 0.34, -0.34), Vector3(1.02, 0.7, 0.16), _materials["upholstery"], false, Vector3(-9.0, 0.0, 0.0))
+	# Named apart from the solid armchair and habitat chair `Back` bodies the
+	# station roster protects, so this visual-only board can fold with its fillet.
+	_box(segment, "BanquetteBack", Vector3(0.0, 0.34, -0.34), Vector3(1.02, 0.7, 0.16), _materials["upholstery"], false, Vector3(-9.0, 0.0, 0.0))
 	_box(segment, "BackFillet", Vector3(0.0, 0.7, -0.38), Vector3(1.06, 0.06, 0.2), _materials["bronze"], false)
 	# Segment joints. Photographed from the entry, seven touching segments read as
 	# one continuous tub; a piece of furniture has joints and these are them.
