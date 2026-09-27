@@ -646,6 +646,36 @@ further without contradicting a registered source observation.
   under Linux; cross-libm byte identity, historical authenticity, real-output
   audibility, and final mix quality are not claimed.
 
+## `assets/audio/combat/torpedo_run/`
+
+- Purpose: the Torpedo Run's own cue bank, voiced by
+  `scripts/combat/torpedo_run_audio.gd` (one bank per seeker-torpedo pool, on
+  the `Weapons` bus) and by the Heavy Breach activity board's positional cue
+  voice (`UI` bus).
+  - `torpedo_launch_v1.wav` (0.95 s): rising ignition hiss over a tube kick.
+  - `torpedo_seeker_lock_v1.wav` (0.14 s): a 1760 Hz seeker pip, played once
+    per closing lock-bracket step at rising pitch.
+  - `torpedo_flight_loop_v1.wav` (1.0 s, forward loop): motor drone that rides
+    each live torpedo; every partial and the wobble are whole cycles per loop
+    and the noise bed is wrapped across the join.
+  - `torpedo_intercept_v1.wav` (0.6 s): bright crackling pop of a shot-down
+    torpedo.
+  - `torpedo_detonation_v1.wav` (1.5 s): heavy low warhead boom.
+  - `torpedo_board_armed_v1.wav`, `torpedo_board_cleared_v1.wav`,
+    `torpedo_board_failed_v1.wav`: two rising, three rising and two falling
+    board tones in D minor (Heavy Breach reuses them a fourth lower).
+- Format: checked-in mono 48 kHz signed 16-bit little-endian PCM WAV, peak
+  normalised to -3 dBFS; import sidecars keep `compress/mode=0`, and only the
+  flight drone uses `edit/loop_mode=2`.
+- Editable source: `tools/audio/generate_torpedo_run_audio.py`, fixed-seed
+  offline standard-library synthesis (explicit xorshift32 noise, no wall-clock,
+  no runtime generation). Byte-identical regeneration was verified on CPython
+  3.12 under Linux.
+- Project status: original project work tagged `modern_interpretation`; no
+  recorded, sampled or third-party material.
+- **Not signed off:** a human listening pass and real-device mix review remain
+  outstanding.
+
 ## `assets/audio/music/`
 
 - Purpose: nine seamless loops that make up three bounded music/ambient beds for
