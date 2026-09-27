@@ -34,10 +34,21 @@ var _last_sample: Dictionary = {}
 var _last_result: Dictionary = {}
 
 
-func attach(ship: HeroShip, hud: GameHUD) -> Dictionary:
+## [param envelope_name] names the retained envelope node. The default name is
+## the Ember surface loop's fleet envelope, which leaves the Arrow to its own
+## entry-owned presenter. Any other name (the atmosphere-world flight effects use
+## [constant PlanetaryAtmosphereFlightEffects.ENVELOPE_NAME]) is a separate,
+## generic attachment that accepts every flyable HeroShip, the Arrow included,
+## so all nine craft present one collision-anchored compression envelope.
+func attach(
+		ship: HeroShip, hud: GameHUD, envelope_name: StringName = ENVELOPE_NAME
+	) -> Dictionary:
 	if _attached:
 		return _result(false, &"already_attached")
-	if ship == null or not is_instance_valid(ship) or ship is ArrowReconShip:
+	if envelope_name == &"":
+		return _result(false, &"invalid_envelope_name")
+	if ship == null or not is_instance_valid(ship) \
+			or (ship is ArrowReconShip and envelope_name == ENVELOPE_NAME):
 		return _result(false, &"unsupported_craft")
 	if hud == null or not is_instance_valid(hud) \
 			or not hud.has_method(&"get_accessibility_report"):
@@ -46,7 +57,7 @@ func attach(ship: HeroShip, hud: GameHUD) -> Dictionary:
 	var craft_id := _craft_id_for(ship, visual_root)
 	if visual_root == null or craft_id == &"":
 		return _result(false, &"unsupported_craft")
-	if visual_root.get_node_or_null(NodePath(String(ENVELOPE_NAME))) != null:
+	if visual_root.get_node_or_null(NodePath(String(envelope_name))) != null:
 		return _result(false, &"duplicate_envelope")
 	var collision := ship.get_landing_collision_report()
 	if not bool(collision.get("valid", false)):
@@ -70,7 +81,7 @@ func attach(ship: HeroShip, hud: GameHUD) -> Dictionary:
 		bounds.position.z + bounds.size.z * 0.78,
 	)
 	var envelope := EnvelopeScript.new() as Node3D
-	envelope.name = String(ENVELOPE_NAME)
+	envelope.name = String(envelope_name)
 	envelope.scale = silhouette_scale
 	envelope.position = desired_center - Vector3(
 		ARROW_ENVELOPE_CENTER.x * silhouette_scale.x,
@@ -228,6 +239,12 @@ func _craft_id_for(ship: HeroShip, visual_root: Node3D) -> StringName:
 		return &"halyard"
 	if visual_root != null and visual_root.name == &"TorrentVisual":
 		return &"torrent"
+	# Every other flyable craft (Arrow, Bulwark and the three runtime-composed
+	# Cinder craft) is identified by its authored definition id.
+	var definition := ship.get_ship_definition() if ship != null else null
+	if definition != null and definition.ship_id != &"" \
+			and definition.ship_id != &"unnamed_ship":
+		return definition.ship_id
 	return &""
 
 

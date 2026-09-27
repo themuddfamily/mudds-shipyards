@@ -366,12 +366,28 @@ func _test_cloud_wind_entry_and_optional_scalars() -> void:
 		0.0,
 		profile.entry_effect_full_speed_mps
 	)
+	# The altitude envelope follows the density model: D = (rho(h) - rho_start)
+	# / (rho_full - rho_start), times the linear speed envelope (0.5 here).
+	var density_at := func(altitude_m: float) -> float:
+		return exp(-pow(
+			maxf(altitude_m - profile.reference_altitude_m, 0.0)
+				/ profile.density_scale_height_m,
+			profile.density_falloff_exponent
+		))
+	var expected_middle := 0.5 * (
+		float(density_at.call(middle_altitude))
+		- float(density_at.call(profile.entry_effect_start_altitude_m))
+	) / (
+		float(density_at.call(profile.entry_effect_full_altitude_m))
+		- float(density_at.call(profile.entry_effect_start_altitude_m))
+	)
 	_check(
-		is_equal_approx(float(entry_middle.entry_effect_intensity), 0.25)
+		is_equal_approx(float(entry_middle.entry_effect_intensity), expected_middle)
+			and float(entry_middle.entry_effect_intensity) < 0.25
 			and is_zero_approx(float(entry_start.entry_effect_intensity))
 			and is_zero_approx(float(entry_minimum.entry_effect_intensity))
 			and is_equal_approx(float(entry_full.entry_effect_intensity), 1.0),
-		"entry intensity multiplies exact linear altitude and speed envelopes"
+		"entry intensity multiplies the exact density ramp by the linear speed envelope"
 	)
 
 	var bounded := sampler.sample(

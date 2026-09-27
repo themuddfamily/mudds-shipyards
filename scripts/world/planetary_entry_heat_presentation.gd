@@ -387,7 +387,7 @@ func audit() -> Dictionary:
 		"owned_shader_parameters": [String(OWNED_SHADER_PARAMETER)],
 		"boundaries": {
 			"at_or_above_atmosphere_top": &"exact_zero_vacuum",
-			"entry_altitude": &"zero_at_start_full_at_or_below_full",
+			"entry_altitude": &"density_ramp_zero_at_start_full_at_or_below_full",
 			"entry_speed": &"zero_at_minimum_full_at_or_above_full",
 			"mapping": &"sampler_entry_effect_intensity_exact",
 			"baseline": &"exact_zero",
