@@ -7,7 +7,12 @@ extends Node3D
 ## material offset from the scene tree's frame delta while horizontal wind blows.
 
 const COMPONENT_ID: StringName = &"planetary-atmosphere-composition"
+## Aurora's authored composition scene, the first one. Kept for callers that
+## instantiate it by path; [method audit] validates every composition against
+## its own authored scene and world definition instead of this one.
 const SCENE_PATH := "res://scenes/world/components/aurora_temperate_atmosphere_composition.tscn"
+const AUTHORED_SCENE_DIRECTORY := "res://scenes/world/components/"
+const AUTHORED_SCENE_SUFFIX := "_atmosphere_composition.tscn"
 
 @export var world_definition: PlanetaryWorldDefinition
 @export var atmosphere_profile: PlanetaryAtmosphereProfile
@@ -197,7 +202,7 @@ func _apply_altitude_ambient(altitude_m: float) -> void:
 	var target := get_world_environment()
 	if target == null or target.environment == null:
 		return
-	var top := atmosphere_profile.atmosphere_top_altitude_m
+	var top := _atmosphere_top_m()
 	var air := clampf(1.0 - altitude_m / top, 0.0, 1.0)
 	air = air * air * (3.0 - 2.0 * air)
 	# The rig's fog and sky adapters own their renderer properties. This one
@@ -230,7 +235,9 @@ func apply_retained_presentation_recipe(
 	_ambient_recipe_energy = clampf(float(solar.get("sky_exposure_unitless", 0.16)), 0.16, 1.0)
 	target.environment.ambient_light_energy = _ambient_recipe_energy
 	var altitude_m := float(weather_snapshot.get("altitude_m", 0.0)) if weather_snapshot is Dictionary else 0.0
-	var aerial := clampf(altitude_m / 20000.0, 0.0, 1.0) if is_finite(altitude_m) else 0.0
+	# Aerial perspective thins out to the world's own atmosphere top (20 km on
+	# Aurora, 14 km on Rime), so a thin world reaches its orbital-dark sky lower.
+	var aerial := clampf(altitude_m / _atmosphere_top_m(), 0.0, 1.0) if is_finite(altitude_m) else 0.0
 	target.environment.fog_enabled = _baseline_fog_enabled or aerial < 0.95
 	target.environment.fog_density = clampf(_baseline_fog_density * (1.0 - aerial * 0.85), 0.0, 0.2)
 	target.environment.fog_sky_affect = clampf(_baseline_fog_sky_affect * (1.0 - aerial) + aerial * 0.15, 0.0, 1.0)
@@ -307,7 +314,8 @@ func audit() -> Dictionary:
 	var target := get_world_environment()
 	var rig := get_atmosphere_rig()
 	var errors := PackedStringArray()
-	if scene_file_path != SCENE_PATH or target == null or rig == null:
+	var authored_errors := _authored_scene_errors()
+	if target == null or rig == null or not authored_errors.is_empty():
 		errors.append("authored_scene_contract_invalid")
 	var ground_wind_active := not is_zero_approx(_cloud_shadow_wind_velocity_mps.x) \
 		or not is_zero_approx(_cloud_shadow_wind_velocity_mps.z)
@@ -328,6 +336,9 @@ func audit() -> Dictionary:
 		"component_id": COMPONENT_ID,
 		"valid": errors.is_empty(),
 		"errors": errors,
+		"authored_scene_errors": authored_errors,
+		"world_id": world_definition.world_id if world_definition != null else &"",
+		"scene_path": scene_file_path,
 		"configured": _configured,
 		"generation": _generation,
 		"authority": {
@@ -338,3 +349,38 @@ func audit() -> Dictionary:
 			"weather_clock": false, "audio": false,
 		},
 	}.duplicate(true)
+
+
+## The authored-scene contract, validated against this composition's own world
+## rather than any one world's path: it must be instantiated from an authored
+## `scenes/world/components/*_atmosphere_composition.tscn`, its three resources
+## must be present and name each other (the world definition's atmosphere and
+## terrain ids are the profiles' ids), and when it sits inside a streamed world
+## scene that scene must be the one its world definition names.
+func _authored_scene_errors() -> PackedStringArray:
+	var errors := PackedStringArray()
+	if not scene_file_path.begins_with(AUTHORED_SCENE_DIRECTORY) \
+			or not scene_file_path.ends_with(AUTHORED_SCENE_SUFFIX):
+		errors.append("composition_scene_not_authored")
+	if world_definition == null or atmosphere_profile == null or terrain_profile == null:
+		errors.append("composition_resource_missing")
+		return errors
+	if world_definition.atmosphere_definition_id != atmosphere_profile.profile_id:
+		errors.append("atmosphere_profile_not_world_atmosphere")
+	if world_definition.terrain_definition_id != terrain_profile.profile_id:
+		errors.append("terrain_profile_not_world_terrain")
+	var world_scene := owner
+	if world_scene != null and not world_scene.scene_file_path.is_empty() \
+			and world_scene.scene_file_path != world_definition.scene_path:
+		errors.append("composition_outside_its_world_scene")
+	return errors
+
+
+## The world's own atmosphere top. Every altitude attenuation in this component
+## is relative to it, never to another world's height.
+func _atmosphere_top_m() -> float:
+	if atmosphere_profile == null \
+			or not is_finite(atmosphere_profile.atmosphere_top_altitude_m) \
+			or atmosphere_profile.atmosphere_top_altitude_m <= 0.0:
+		return 20_000.0
+	return atmosphere_profile.atmosphere_top_altitude_m
