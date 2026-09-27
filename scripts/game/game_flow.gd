@@ -2847,6 +2847,8 @@ func _publish_recovery_choice_to_hud() -> void:
 			)
 		return
 	var recommendation := get_session_start_recommendation()
+	if hud.has_method(&"set_session_recovery_save_summary"):
+		hud.call(&"set_session_recovery_save_summary", get_session_recovery_save_summary())
 	if hud.has_method(&"present_session_recovery_notice"):
 		var presentation := hud.call(
 			&"present_session_recovery_notice",
@@ -3120,6 +3122,8 @@ func _handle_hud_session_recovery_choice(
 			result = acknowledge_recovery()
 		&"discard":
 			result = discard_recovery()
+			if bool(result.get("accepted", false)):
+				result["start_fresh"] = _start_fresh_after_interrupted_session()
 		_:
 			result = {"accepted": false, "reason": &"invalid_recovery_choice"}
 	var status := _record_session_recovery_hud_result(
@@ -3145,6 +3149,45 @@ func _handle_hud_session_recovery_choice(
 				{"available": false, "requires_caller_choice": false}
 			)
 	return status
+
+
+# --- Release: interrupted-session resume / start fresh (begin) -------------
+## One line for the interrupted-session card naming the save that "Resume Last
+## Save" continues from. It reflects the startup load of the shared user-data
+## document, including a fallback to `.bak` or an older rotated copy.
+func get_session_recovery_save_summary() -> String:
+	var status := _runtime_settings_load_status
+	var store_status := status.get("store_status", {}) as Dictionary
+	var store_reason := StringName(str(status.get("store_reason", &"")))
+	var generation := int(status.get("generation", 0))
+	if store_reason == &"primary_invalid_backup_loaded":
+		if StringName(str(store_status.get("fallback", &""))) == &"rotated_history":
+			return (
+				"Your latest save and its backup were damaged. Resume uses an older good save (save %d, rotated copy %d)."
+				% [generation, int(store_status.get("history_index", 0))]
+			)
+		return "Your latest save was damaged. Resume uses the previous good save (save %d)." % generation
+	if bool(status.get("accepted", false)) and generation > 0:
+		return "Resume continues from your last good save (save %d)." % generation
+	if store_reason == &"empty":
+		return "No earlier save was found; progress starts from the dock."
+	return "Your save could not be read; defaults are in use until it is repaired."
+
+
+## "Start Fresh" keeps settings and earned progress but abandons whichever
+## in-progress activity the startup restored from the interrupted session, so
+## the pilot begins a new sortie from the dock instead of mid-mission.
+func _start_fresh_after_interrupted_session() -> Dictionary:
+	if _active_activity_id.is_empty():
+		return {"accepted": true, "reason": &"no_activity_in_progress", "abandoned_activity": false}
+	var abandoned := _fail_active_activity(&"returned_to_shipyard")
+	_reset_terminal_activity_for_next_sortie()
+	return {
+		"accepted": abandoned,
+		"reason": &"activity_abandoned" if abandoned else &"activity_abandon_rejected",
+		"abandoned_activity": abandoned,
+	}
+# --- Release: interrupted-session resume / start fresh (end) ---------------
 
 
 func _record_session_recovery_hud_result(
