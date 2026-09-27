@@ -485,6 +485,7 @@ func _test_rotated_presentation_and_seat_clips(world: Node3D) -> void:
 	_check(bool(result.get("accepted", false)), "rotated presentation accepts a planted support sample")
 	_check_boot_sole_plane(presentation, "rotated presentation six-degree ramp")
 	var skeleton := presentation.get_skeleton()
+	var seat_frame := 2
 	for clip: StringName in [&"boarding", &"seated_control", &"disembark_recovery"]:
 		animation.play(clip)
 		animation.seek(0.3, true)
@@ -492,12 +493,28 @@ func _test_rotated_presentation_and_seat_clips(world: Node3D) -> void:
 		var foot_index := skeleton.find_bone(&"foot_l")
 		var before := skeleton.get_bone_global_pose(foot_index)
 		var time_before := animation.current_animation_position
-		presentation.apply_foot_placement({
-			"physics_frame": 2 + [&"boarding", &"seated_control", &"disembark_recovery"].find(clip),
-			"motion_state": clip, "movement_up": movement_up, "feet": feet,
-		}, presentation.get_foot_placement_attachment_generation())
+		# The last leg solve fades out over the seated/transition clip rather
+		# than snapping; once its weight reaches zero the authored pose is exact.
+		var first_weight := -1.0
+		for _fade in 30:
+			presentation.apply_foot_placement({
+				"physics_frame": seat_frame,
+				"motion_state": clip, "movement_up": movement_up, "feet": feet,
+			}, presentation.get_foot_placement_attachment_generation())
+			seat_frame += 1
+			var weight := float(presentation.get_foot_placement_snapshot().get("ik_weight", -1.0))
+			if first_weight < 0.0:
+				first_weight = weight
+			if is_zero_approx(weight):
+				break
+		if clip == &"boarding":
+			_check(
+				first_weight > 0.0 and first_weight < 1.0,
+				"boarding fades the prior leg IK instead of snapping it off (%.3f)" % first_weight
+			)
 		_check(
 			not bool(presentation.get_foot_placement_snapshot().get("active", true))
+			and is_zero_approx(float(presentation.get_foot_placement_snapshot().get("ik_weight", -1.0)))
 			and is_zero_approx(float(presentation.get_foot_placement_snapshot().get("visual_pelvis_drop_m", INF)))
 			and skeleton.get_bone_global_pose(foot_index).is_equal_approx(before)
 			and animation.current_animation_position == time_before,
