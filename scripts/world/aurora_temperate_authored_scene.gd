@@ -140,10 +140,15 @@ func _apply_surface_audio_mix() -> void:
 	var state := _surface_audio_binding.get_snapshot() as Dictionary
 	var mix := state.get("mix", {}) as Dictionary
 	var perspective := StringName(state.get("ship_perspective", &"exterior"))
+	# Continuous interior blend (0 outside .. 1 sealed cabin): the two voices
+	# cross-fade instead of switching when the pilot boards or disembarks.
+	var interior_blend := clampf(float(state.get(
+		"interior_blend", 1.0 if perspective == &"cockpit" else 0.0
+	)), 0.0, 1.0)
 	var exterior_level := clampf(float(mix.get("wind", 0.0)) * 0.65 + float(mix.get("distant_water", 0.0)) * 0.35, 0.0, 1.0)
 	var interior_level := clampf(float(mix.get("wind", 0.0)) * 0.35 + float(mix.get("distant_water", 0.0)) * 0.2, 0.0, 1.0)
-	_set_surface_voice(_exterior_voice, exterior_level if perspective == &"exterior" else exterior_level * 0.12)
-	_set_surface_voice(_interior_voice, interior_level if perspective == &"cockpit" else 0.0)
+	_set_surface_voice(_exterior_voice, exterior_level * lerpf(1.0, 0.12, interior_blend))
+	_set_surface_voice(_interior_voice, interior_level * interior_blend)
 	# The authored wind reading brightens the exterior loop's pitch and its
 	# dedicated low-pass cutoff: calm air stays quiet and muffled, strong wind
 	# gets louder (via the gain above) and audibly brighter.

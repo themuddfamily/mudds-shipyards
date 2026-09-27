@@ -11,12 +11,22 @@ extends RefCounted
 ## function of its inputs, so a caller that re-presents a smoothly changing
 ## wind reading every tick (as the authored weather field already produces)
 ## gets a smoothly interpolated mix with no internal state or discontinuity.
+##
+## Interior/exterior is a continuous blend, not a switch. A caller may supply
+## `interior_blend_unitless` (0 = standing outside, 1 = sealed cabin), which
+## PlanetaryAtmosphereFlightEffects eases over about a second whenever the pilot
+## boards, disembarks, opens the canopy or walks into a craft's cabin. The blend
+## quiets the exterior, raises the cabin bed and sweeps the exterior low-pass
+## down (log-frequency) to a sealed-cabin ceiling. Without it the blend is taken
+## from `ship_perspective` (cockpit = 1, exterior = 0), exactly as before.
 
 const MAXIMUM_VOICES := 2
 const MAX_SAFE_GENERATION := 9_007_199_254_740_991
 const WIND_CALM_LOW_PASS_HZ := 900.0
 const WIND_STRONG_LOW_PASS_HZ := 18_000.0
 const WIND_CALM_PITCH_SCALE := 0.97
+## Highest exterior cutoff heard through a sealed cockpit or cabin wall.
+const SEALED_CABIN_LOW_PASS_HZ := 1_400.0
 const WIND_STRONG_PITCH_SCALE := 1.06
 
 var _attached := false
@@ -24,6 +34,7 @@ var _generation := 0
 var _last_source_generation := -1
 var _last_snapshot: Dictionary = {}
 var _mix := {"wind": 0.0, "distant_water": 0.0, "weather": 0.0, "settlement": 0.0, "low_pass_hz": 18_000.0, "pitch_scale": 1.0}
+var _interior_blend := 0.0
 var _reduced_dynamic_range := false
 
 func attach(expected_generation: int = 0) -> Dictionary:
@@ -62,6 +73,11 @@ func present_snapshot(snapshot: Dictionary) -> Dictionary:
 		return _result(false, &"invalid_environment_snapshot")
 	if perspective not in [&"cockpit", &"exterior"]:
 		return _result(false, &"invalid_ship_perspective")
+	var interior: Variant = snapshot.get(
+		"interior_blend_unitless", 1.0 if perspective == &"cockpit" else 0.0
+	)
+	if not _unitless(interior):
+		return _result(false, &"invalid_interior_blend")
 	if not (altitude is float or altitude is int) or not is_finite(float(altitude)) or float(altitude) < 0.0:
 		return _result(false, &"invalid_altitude")
 	if int(generation) < _last_source_generation:
@@ -69,19 +85,28 @@ func present_snapshot(snapshot: Dictionary) -> Dictionary:
 	if int(generation) == _last_source_generation and snapshot == _last_snapshot:
 		return _result(false, &"duplicate_snapshot")
 	_last_source_generation = int(generation)
-	var cabin := 0.62 if perspective == &"cockpit" else 1.0
+	var blend := float(interior)
+	var cabin := lerpf(1.0, 0.62, blend)
 	# Sealing in the cockpit both quiets and further muffles the exterior wind,
-	# same direction as real cabin insulation.
-	var cabin_muffle := 1.0 if perspective == &"exterior" else 0.55
+	# same direction as real cabin insulation. The cutoff sweeps in log
+	# frequency so the fade sounds even from open air to a closed hatch.
+	var open_air_cutoff := clampf(
+		lerpf(WIND_CALM_LOW_PASS_HZ, WIND_STRONG_LOW_PASS_HZ, float(wind)),
+		200.0, WIND_STRONG_LOW_PASS_HZ,
+	)
+	var sealed_cutoff := clampf(
+		minf(open_air_cutoff * 0.55, SEALED_CABIN_LOW_PASS_HZ),
+		200.0, WIND_STRONG_LOW_PASS_HZ,
+	)
 	var dynamic := 0.75 if _reduced_dynamic_range else 1.0
 	var surface_presence := 1.0 - clampf(float(altitude) / 2500.0, 0.0, 1.0)
 	_mix = {
 		"wind": clampf(float(wind) * cabin * dynamic * surface_presence, 0.0, 1.0),
 		"distant_water": clampf(float(water) * (0.55 + 0.2 * float(day)) * dynamic * surface_presence, 0.0, 1.0),
 		"weather": clampf(float(weather) * (0.4 + 0.6 * float(day)) * cabin * dynamic, 0.0, 1.0),
-		"settlement": clampf(float(settlement) * (0.8 if perspective == &"cockpit" else 1.0) * dynamic, 0.0, 1.0),
+		"settlement": clampf(float(settlement) * lerpf(1.0, 0.8, blend) * dynamic, 0.0, 1.0),
 		"low_pass_hz": clampf(
-			lerpf(WIND_CALM_LOW_PASS_HZ, WIND_STRONG_LOW_PASS_HZ, float(wind)) * cabin_muffle,
+			exp(lerpf(log(open_air_cutoff), log(sealed_cutoff), blend)),
 			200.0, WIND_STRONG_LOW_PASS_HZ,
 		),
 		"pitch_scale": lerpf(
@@ -89,6 +114,7 @@ func present_snapshot(snapshot: Dictionary) -> Dictionary:
 			clampf(float(wind) * 0.7 + float(water) * 0.3, 0.0, 1.0),
 		),
 	}
+	_interior_blend = blend
 	_last_snapshot = snapshot.duplicate(true)
 	return _result(true, &"snapshot_presented")
 
@@ -99,11 +125,12 @@ func detach() -> Dictionary:
 	_last_source_generation = -1
 	_last_snapshot.clear()
 	_mix = {"wind": 0.0, "distant_water": 0.0, "weather": 0.0, "settlement": 0.0, "low_pass_hz": 18_000.0, "pitch_scale": 1.0}
+	_interior_blend = 0.0
 	_generation += 1
 	return _result(true, &"detached")
 
 func get_snapshot() -> Dictionary:
-	return {"attached": _attached, "generation": _generation, "last_source_generation": _last_source_generation, "ship_perspective": _last_snapshot.get("ship_perspective", &"exterior"), "mix": _mix.duplicate(true), "reduced_dynamic_range": _reduced_dynamic_range, "maximum_simultaneous_voices": MAXIMUM_VOICES, "authority": {"weather": false, "water": false, "day_night": false, "movement": false, "audio": true}}.duplicate(true)
+	return {"attached": _attached, "generation": _generation, "last_source_generation": _last_source_generation, "ship_perspective": _last_snapshot.get("ship_perspective", &"exterior"), "interior_blend": _interior_blend, "mix": _mix.duplicate(true), "reduced_dynamic_range": _reduced_dynamic_range, "maximum_simultaneous_voices": MAXIMUM_VOICES, "authority": {"weather": false, "water": false, "day_night": false, "movement": false, "audio": true}}.duplicate(true)
 
 func _unitless(value: Variant) -> bool:
 	return (value is float or value is int) and is_finite(float(value)) and float(value) >= 0.0 and float(value) <= 1.0
