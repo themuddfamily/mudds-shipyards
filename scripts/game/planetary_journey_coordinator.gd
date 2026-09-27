@@ -93,6 +93,17 @@ const SURFACE_VISIT_WORLD_IDS: Array[StringName] = [
 	AuroraTemperateStreamingBootstrap.WORLD_ID,
 	RimeGlacialStreamingBootstrap.WORLD_ID,
 ]
+## The GameFlow members holding each admissible world's streaming pair, as
+## [bootstrap, production binding]. A further atmospheric world is one row here
+## plus its id above; the lane itself never branches on which world it serves.
+const SURFACE_VISIT_STREAMING_PAIRS: Dictionary = {
+	AuroraTemperateStreamingBootstrap.WORLD_ID: [
+		&"aurora_streaming_bootstrap", &"aurora_streaming_binding",
+	],
+	RimeGlacialStreamingBootstrap.WORLD_ID: [
+		&"rime_streaming_bootstrap", &"rime_streaming_binding",
+	],
+}
 var _visit_world_id: StringName = AuroraTemperateStreamingBootstrap.WORLD_ID
 var _planetary_return_physical_arrival_required := false
 var _planetary_return_physical_arrival_armed := false
@@ -707,15 +718,22 @@ func get_visit_world_id() -> StringName:
 
 
 func _visit_bootstrap() -> PlanetaryStreamingBootstrap:
-	if _visit_world_id == RimeGlacialStreamingBootstrap.WORLD_ID:
-		return _flow.rime_streaming_bootstrap
-	return _flow.aurora_streaming_bootstrap
+	return _visit_pair_member(0) as PlanetaryStreamingBootstrap
 
 
 func _visit_binding() -> PlanetaryStreamingProductionBinding:
-	if _visit_world_id == RimeGlacialStreamingBootstrap.WORLD_ID:
-		return _flow.rime_streaming_binding
-	return _flow.aurora_streaming_binding
+	return _visit_pair_member(1) as PlanetaryStreamingProductionBinding
+
+
+## The admitted world's live streaming node, or null. Unknown ids fall back to
+## Aurora's pair, as the lane always has before any admission.
+func _visit_pair_member(index: int) -> Node:
+	var pair: Array = SURFACE_VISIT_STREAMING_PAIRS.get(
+		_visit_world_id,
+		SURFACE_VISIT_STREAMING_PAIRS[AuroraTemperateStreamingBootstrap.WORLD_ID],
+	)
+	var member: Variant = _flow.get(pair[index])
+	return member as Node if is_instance_valid(member) else null
 
 
 func _restore_ember_cruise_binding() -> Dictionary:
