@@ -3180,6 +3180,10 @@ func get_session_recovery_save_summary() -> String:
 func _start_fresh_after_interrupted_session() -> Dictionary:
 	if _active_activity_id.is_empty():
 		return {"accepted": true, "reason": &"no_activity_in_progress", "abandoned_activity": false}
+	var state_id := StringName(str(get_active_activity_snapshot().get("state_id", &"idle")))
+	if state_id in [&"", &"idle", &"completed", &"failed", &"aborted", &"expired"]:
+		# Nothing was mid-mission; an idle or finished activity is left as is.
+		return {"accepted": true, "reason": &"no_activity_in_progress", "abandoned_activity": false}
 	var abandoned := _fail_active_activity(&"returned_to_shipyard")
 	_reset_terminal_activity_for_next_sortie()
 	return {
