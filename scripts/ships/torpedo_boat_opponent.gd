@@ -362,6 +362,19 @@ func _on_torpedo_abandoned(_record: Dictionary, _reason: StringName) -> void:
 
 func _update_presentation(delta: float) -> void:
 	super(delta)
+	if _reduced_flash and _built and _active and _telegraph_remaining > 0.0:
+		# The inherited charge lenses carry a small ~5 Hz shimmer and a pulsing
+		# warning light. Under reduced flash they swell steadily instead and the
+		# light stays dark; the lime lock brackets carry the read on their own.
+		var progress := clampf(
+			1.0 - _telegraph_remaining / maxf(telegraph_time, 0.001), 0.0, 1.0
+		)
+		var steady := Vector3.ONE * (0.8 + (0.22 + progress * 1.15) * 0.55)
+		for lens in _warning_lenses:
+			if is_instance_valid(lens):
+				lens.scale = steady
+		if is_instance_valid(_warning_light):
+			_warning_light.light_energy = 0.0
 	_sync_lock_cue()
 
 
