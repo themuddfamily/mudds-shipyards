@@ -32,6 +32,12 @@ const PORT_APERTURE_Z_MIN := -2.30
 const PORT_APERTURE_Z_MAX := 2.30
 const EXTERIOR_SHELL_THICKNESS := 0.30
 const WEAPON_ID: StringName = &"cinder_cargo_mass_driver"
+## Authored travel envelope for the mass driver. 150 m/s for 1.2 s is exactly the
+## 180 m range, so a slug visibly crosses a dogfight distance in well under a
+## second: slow enough to read and lead, fast enough to stay an arcade gun.
+const MASS_DRIVER_SPEED_MPS := 150.0
+const MASS_DRIVER_LIFETIME_SECONDS := 1.2
+const MASS_DRIVER_RADIUS_METERS := 0.45
 ## Shared damage-presentation anchors, on this hull's own geometry. Hull sparks
 ## sit on the forward port cargo load-frame rib (the z -4.65 rib canted in to
 ## x -3.06, standing from y -1.0 to y 1.4); engine smoke, engine-failure sparks
@@ -1056,7 +1062,12 @@ func _build_weapon_definition() -> WeaponDefinition:
 	definition.evidence_notes = "Original-modern cargo defensive tuning; not a recovered historical weapon specification."
 	definition.range_meters = 180.0
 	definition.damage_per_hit = 26.0
-	definition.cadence_shots_per_second = 1.8
+	# The authored cadence is the hull's own fire gate, so the weapon identity and
+	# the trigger the pilot actually feels can never drift apart.
+	definition.cadence_shots_per_second = 1.0 / SHIP_DEFINITION_TEMPLATE.weapon_cooldown
+	definition.projectile_speed_mps = MASS_DRIVER_SPEED_MPS
+	definition.projectile_lifetime_seconds = MASS_DRIVER_LIFETIME_SECONDS
+	definition.projectile_radius_meters = MASS_DRIVER_RADIUS_METERS
 	definition.presentation_id = &"cinder_cargo_mass_driver"
 	definition.fire_audio_id = &"cinder_cargo_mass_driver_fire"
 	definition.impact_audio_id = &"cinder_cargo_mass_driver_impact"

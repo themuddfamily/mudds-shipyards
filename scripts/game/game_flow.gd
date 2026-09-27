@@ -12,6 +12,7 @@ const LifecycleDamageableAdapterType := preload("res://scripts/combat/lifecycle_
 const CombatResolverType := preload("res://scripts/combat/combat_resolver.gd")
 const RepairAuthorityType := preload("res://scripts/combat/repair_authority.gd")
 const BomberPayloadProjectileType := preload("res://scripts/combat/bomber_payload_projectile.gd")
+const MassDriverBoltPoolType := preload("res://scripts/combat/mass_driver_bolt_pool.gd")
 const BomberPayloadCombatAdapterType := preload("res://scripts/combat/bomber_payload_combat_adapter.gd")
 const CinderLongRangeBomberType := preload("res://scripts/ships/cinder_long_range_bomber.gd")
 const CinderCargoHaulerType := preload("res://scripts/ships/cinder_cargo_hauler.gd")
@@ -369,6 +370,7 @@ const PLAYER_SOURCE_IDS := {
 	&"cinder_long_range_bomber": 1106,
 	&"bulwark_heavy_gunship": 1107,
 	&"cinder_light_interceptor": 1108,
+	&"cinder_cargo_hauler": 1109,
 }
 const FLIGHT_PATH_MINIMUM_SPEED := 1.5
 const FLIGHT_PATH_PROJECTION_DISTANCE := 100.0
@@ -465,6 +467,18 @@ const CINDER_LIGHT_INTERCEPTOR_IMPACT_AUDIO_ID: StringName = &"hull_impact_mediu
 const CINDER_LIGHT_INTERCEPTOR_DRY_FIRE_AUDIO_ID: StringName = &"dry_fire_click"
 const CINDER_CARGO_SHIP_ID: StringName = &"cinder_cargo_hauler"
 const CINDER_CARGO_LEGACY_SHIP_ID: StringName = &"cinder-cargo-hauler"
+## The hauler's mass driver is the first player weapon that travels. Its profile
+## carries the authored speed/lifetime/radius envelope, so every trigger pull
+## opens one resolver flight instead of an instantaneous hitscan.
+const CINDER_CARGO_WEAPON_ID: StringName = &"cinder_cargo_mass_driver"
+const CINDER_CARGO_ORIGIN_TOLERANCE_METERS := 24.0
+const CINDER_CARGO_PRESENTATION_ID: StringName = &"cinder_cargo_mass_driver"
+const CINDER_CARGO_FIRE_AUDIO_ID: StringName = &"cinder_cargo_mass_driver_fire"
+const CINDER_CARGO_IMPACT_AUDIO_ID: StringName = &"cinder_cargo_mass_driver_impact"
+const CINDER_CARGO_DRY_FIRE_AUDIO_ID: StringName = &"cinder_cargo_mass_driver_dry_fire"
+## At the hull's 0.7 s fire gate and the slug's 1.2 s flight, two slugs are ever
+## in the air at once; the third slot absorbs a hitch without dropping a shot.
+const PLAYER_BOLT_POOL_CAPACITY := 3
 const CINDER_BOMBER_SHIP_ID: StringName = &"cinder_long_range_bomber"
 const CINDER_BOMBER_LEGACY_SHIP_ID: StringName = &"cinder-long-range-bomber"
 const CINDER_BOMBER_WEAPON_ID: StringName = &"bomber_payload_release"
@@ -597,6 +611,8 @@ var _bomber_payload_ship: CinderLongRangeBomber
 var _bomber_payload_generation := 0
 var _bomber_payload_request_sequence := 0
 var _bomber_payload_projectiles: Array[BomberPayloadProjectile] = []
+## Pool for player weapons that travel (the Cinder cargo hauler mass driver).
+var _player_bolt_pool: MassDriverBoltPool
 var _bomber_payload_adapter: BomberPayloadCombatAdapter
 var _last_bomber_payload_result: Dictionary = {}
 var _bomber_payload_server_tick := 0
@@ -10614,10 +10630,81 @@ func _on_projectile_fired(origin: Vector3, direction: Vector3, source_ship: Hero
 		if firing_ship == ship and phase in [Phase.LAUNCH, Phase.TARGET_PRACTICE]
 		else _get_player_combat_weapon_id(firing_ship)
 	)
+	if _player_weapon_is_travelling(firing_ship, weapon_id):
+		_last_player_shot_result = _launch_player_travelling_bolt(
+			firing_ship, weapon_id, origin, direction
+		)
+		return
 	var result: Dictionary = combat_authority.submit_hitscan_with_deferred_presentation(
 		firing_ship, weapon_id, origin, direction
 	)
 	_last_player_shot_result = result.duplicate(true)
+
+
+# ---------------------------------------------- player travelling bolts ----
+# One GameFlow-owned pool for player weapons whose registered profile carries a
+# travel envelope (today only the Cinder cargo hauler's mass driver). The pool
+# opens an authority flight per trigger pull; the resolver commits the terminal
+# segment, so nothing here applies damage or runs a committing ray.
+
+func _player_weapon_is_travelling(firing_ship: HeroShip, weapon_id: StringName) -> bool:
+	if weapon_id.is_empty() or not is_instance_valid(combat_authority):
+		return false
+	return WeaponDefinitionResolverProfileType.profile_is_projectile(
+		combat_authority.get_weapon_profile(firing_ship, weapon_id)
+	)
+
+
+func _ensure_player_bolt_pool() -> MassDriverBoltPool:
+	if is_instance_valid(_player_bolt_pool) and not _player_bolt_pool.is_queued_for_deletion():
+		if _player_bolt_pool.get_bound_authority() != combat_authority:
+			_player_bolt_pool.bind_authority(combat_authority)
+		return _player_bolt_pool
+	var pool := MassDriverBoltPoolType.new() as MassDriverBoltPool
+	pool.name = "PlayerMassDriverBolts"
+	pool.pool_capacity = PLAYER_BOLT_POOL_CAPACITY
+	add_child(pool)
+	pool.bind_authority(combat_authority)
+	pool.bolt_resolved.connect(_on_player_travelling_bolt_resolved)
+	if runtime_settings != null:
+		pool.set_reduced_flash_enabled(runtime_settings.reduced_flash)
+	_player_bolt_pool = pool
+	return pool
+
+
+func get_player_bolt_pool() -> MassDriverBoltPool:
+	return _player_bolt_pool if is_instance_valid(_player_bolt_pool) else null
+
+
+func _launch_player_travelling_bolt(
+	firing_ship: HeroShip,
+	weapon_id: StringName,
+	origin: Vector3,
+	direction: Vector3
+	) -> Dictionary:
+	var pool := _ensure_player_bolt_pool()
+	var launch := pool.launch(firing_ship, weapon_id, origin, direction)
+	if bool(launch.get("accepted", false)) and is_instance_valid(combat_audio):
+		combat_audio.play_player_fire(origin, firing_ship.get_instance_id())
+	return launch.duplicate(true)
+
+
+## Presentation-only consumer of an already-committed arrival. The target has
+## reacted synchronously inside the resolver (no deferred receipt travels with a
+## slug), so this only voices the contact.
+func _on_player_travelling_bolt_resolved(record: Dictionary, result: Dictionary) -> void:
+	if not bool(result.get("hit", false)) or not is_instance_valid(combat_audio):
+		return
+	var position: Variant = result.get("position", record.get("terminal_position", Vector3.INF))
+	if not position is Vector3 or not (position as Vector3).is_finite():
+		return
+	var source_instance_id := 0
+	if is_instance_valid(active_ship):
+		source_instance_id = active_ship.get_instance_id()
+	if bool(result.get("damaged", false)):
+		combat_audio.play_impact(position as Vector3, 0.9, source_instance_id)
+		if bool(result.get("destroyed", false)):
+			combat_audio.play_explosion(position as Vector3, source_instance_id)
 
 
 func _on_authoritative_shot_submitted(request: ShotRequestType, result: Dictionary) -> void:
@@ -13141,6 +13228,12 @@ func _get_player_weapon_profiles(candidate: HeroShip) -> Dictionary:
 			return {}
 		profiles[CINDER_LIGHT_INTERCEPTOR_WEAPON_ID] = migrated_profile
 		return profiles
+	if candidate.get_ship_id() == CINDER_CARGO_SHIP_ID:
+		var migrated_profile := _get_cinder_cargo_mass_driver_profile(candidate)
+		if migrated_profile.is_empty():
+			return {}
+		profiles[CINDER_CARGO_WEAPON_ID] = migrated_profile
+		return profiles
 	if candidate.get_ship_id() == CINDER_BOMBER_SHIP_ID:
 		profiles[CINDER_BOMBER_WEAPON_ID] = CINDER_BOMBER_PAYLOAD_PROFILE.duplicate(true)
 		return profiles
@@ -13165,6 +13258,8 @@ func _get_player_combat_weapon_id(candidate: HeroShip) -> StringName:
 			return BULWARK_COMBAT_WEAPON_ID
 		CINDER_LIGHT_INTERCEPTOR_SHIP_ID:
 			return CINDER_LIGHT_INTERCEPTOR_WEAPON_ID
+		CINDER_CARGO_SHIP_ID:
+			return CINDER_CARGO_WEAPON_ID
 		_:
 			return &""
 
@@ -13264,6 +13359,28 @@ func _get_cinder_light_interceptor_combat_weapon_profile(
 		CINDER_LIGHT_INTERCEPTOR_IMPACT_AUDIO_ID,
 		CINDER_LIGHT_INTERCEPTOR_DRY_FIRE_AUDIO_ID
 	)
+
+
+func _get_cinder_cargo_mass_driver_profile(candidate: HeroShip) -> Dictionary:
+	if not is_instance_valid(candidate) \
+			or not candidate.has_method(&"get_weapon_definition"):
+		return {}
+	var definition := candidate.call(&"get_weapon_definition") as WeaponDefinition
+	var profile := _get_migrated_player_combat_weapon_profile(
+		candidate,
+		definition,
+		CINDER_CARGO_WEAPON_ID,
+		CINDER_CARGO_ORIGIN_TOLERANCE_METERS,
+		CINDER_CARGO_PRESENTATION_ID,
+		CINDER_CARGO_FIRE_AUDIO_ID,
+		CINDER_CARGO_IMPACT_AUDIO_ID,
+		CINDER_CARGO_DRY_FIRE_AUDIO_ID
+	)
+	# Fail closed: an unauthored or half-authored envelope must never register as
+	# an instantaneous shot under the travelling weapon's identity.
+	if not WeaponDefinitionResolverProfileType.profile_is_projectile(profile):
+		return {}
+	return profile
 
 
 func _get_migrated_player_combat_weapon_profile(
@@ -18785,6 +18902,9 @@ func _apply_bomber_payload_presentation_profile(target: CinderLongRangeBomber = 
 func _apply_opponent_weapon_heat_presentation_profile() -> void:
 	if runtime_settings == null:
 		return
+	# The hauler's mass-driver slugs honour the same setting.
+	if is_instance_valid(_player_bolt_pool):
+		_player_bolt_pool.set_reduced_flash_enabled(runtime_settings.reduced_flash)
 	# The Emberline raider's travelling bolts honour the same setting.
 	if is_instance_valid(cinder_convoy_threat):
 		var bolt_pool := cinder_convoy_threat.get_bolt_pool()
