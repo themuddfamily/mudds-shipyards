@@ -33,6 +33,8 @@ const ArrowShipType := preload("res://scripts/ships/arrow_recon_ship.gd")
 ## changes that convention.
 
 const ENGINE_CALIBRATION_MESHES := ["BoxMesh", "CylinderMesh", "SphereMesh"]
+## Arrow cockpit controls whose UV and tangent frames are scored live or folded.
+const ARROW_CONTROL_PIECES := ["ControlStickGrip", "ControlStickBoot", "ThrottlePalmGrip"]
 
 ## Every production flyable and encounter craft. Packed craft use their shipping scene; the three
 ## Cinder craft use the same script construction path as the production fleet
@@ -361,6 +363,7 @@ func _check_craft(expected_sign: int) -> void:
 		var opaque_procedural_materials: Dictionary = {}
 		var culled_opaque_materials := PackedStringArray()
 		var worst: Array[String] = []
+		var controls_scored := {}
 		for candidate in craft.find_children("*", "MeshInstance3D", true, false):
 			var instance := candidate as MeshInstance3D
 			if instance == null or instance.mesh == null:
@@ -368,6 +371,17 @@ func _check_craft(expected_sign: int) -> void:
 			if not instance.mesh.resource_path.is_empty():
 				imported_meshes += 1
 				continue
+			if label == "Arrow":
+				# The cockpit controls fold into a `ShipFitoutBatch` renderer; a
+				# folded control is scored from its own recorded index runs.
+				for record_variant in ShipFitoutBatch.authored_piece_index(instance):
+					var record := record_variant as Dictionary
+					var piece_name := String(record.get("name", ""))
+					if piece_name in ARROW_CONTROL_PIECES:
+						_assert_control_ranges_have_frames(
+							piece_name, instance.mesh, record.get("index_ranges", []) as Array
+						)
+						controls_scored[piece_name] = true
 			_collect_opaque_material_culling(
 				instance.mesh,
 				instance.material_override,
@@ -375,7 +389,8 @@ func _check_craft(expected_sign: int) -> void:
 				opaque_procedural_materials,
 				culled_opaque_materials
 			)
-			if label == "Arrow" and instance.name in ["ControlStickGrip", "ControlStickBoot", "ThrottlePalmGrip"]:
+			if label == "Arrow" and String(instance.name) in ARROW_CONTROL_PIECES:
+				controls_scored[String(instance.name)] = true
 				_assert_uv_faces_have_area(str(instance.name), instance.mesh)
 				var control_arrays := instance.mesh.surface_get_arrays(0)
 				var tangents: PackedFloat32Array = control_arrays[Mesh.ARRAY_TANGENT]
@@ -395,6 +410,12 @@ func _check_craft(expected_sign: int) -> void:
 				worst.append("%s (%d/%d)" % [instance.name, mesh_backwards, mesh_triangles])
 			closed_lofts += _check_closed_lofts(
 				"%s/%s" % [label, craft.get_path_to(instance)], instance, expected_sign
+			)
+		if label == "Arrow":
+			_assert(
+				controls_scored.size() == ARROW_CONTROL_PIECES.size(),
+				"Arrow scores the UV and tangent frame of all three cockpit controls, live or folded (%d found)"
+				% controls_scored.size()
 			)
 		if meshes == 0:
 			_assert(
@@ -638,6 +659,59 @@ func _check_mirrored_placement_merge(expected_sign: int) -> void:
 
 ## Normal mapping needs two independent UV axes on every face, including
 ## side and top plates. XY-only projection collapses their tangent frames.
+## `_assert_uv_faces_have_area` plus the unit-tangent check, restricted to the
+## index runs a fitout batch published for one folded cockpit control.
+func _assert_control_ranges_have_frames(label: String, mesh: Mesh, ranges: Array) -> void:
+	var faces := 0
+	var degenerate := 0
+	var valid_tangents := not ranges.is_empty()
+	for run_variant in ranges:
+		var run := run_variant as Dictionary
+		var surface := int(run.get("surface", -1))
+		if mesh == null or surface < 0 or surface >= mesh.get_surface_count():
+			valid_tangents = false
+			continue
+		var arrays := mesh.surface_get_arrays(surface)
+		var uv: PackedVector2Array = (
+			arrays[Mesh.ARRAY_TEX_UV] if arrays[Mesh.ARRAY_TEX_UV] != null else PackedVector2Array()
+		)
+		var tangents: PackedFloat32Array = (
+			arrays[Mesh.ARRAY_TANGENT] if arrays[Mesh.ARRAY_TANGENT] != null else PackedFloat32Array()
+		)
+		var indices: PackedInt32Array = (
+			arrays[Mesh.ARRAY_INDEX] if arrays[Mesh.ARRAY_INDEX] != null else PackedInt32Array()
+		)
+		var cursor := int(run.get("index_start", 0))
+		var stop := mini(cursor + int(run.get("index_count", 0)), indices.size())
+		while cursor + 3 <= stop:
+			var corners := [indices[cursor], indices[cursor + 1], indices[cursor + 2]]
+			cursor += 3
+			faces += 1
+			if uv.is_empty():
+				degenerate += 1
+				continue
+			var a := uv[corners[0]]
+			var b := uv[corners[1]]
+			var c := uv[corners[2]]
+			if absf((b - a).cross(c - a)) < 0.000001:
+				degenerate += 1
+			for corner: int in corners:
+				if tangents.size() < (corner + 1) * 4:
+					valid_tangents = false
+					continue
+				var tangent := Vector3(
+					tangents[corner * 4], tangents[corner * 4 + 1], tangents[corner * 4 + 2]
+				)
+				valid_tangents = valid_tangents and tangent.is_finite() \
+					and absf(tangent.length() - 1.0) < 0.001 \
+					and absf(absf(tangents[corner * 4 + 3]) - 1.0) < 0.001
+	_assert(
+		faces > 0 and degenerate == 0,
+		"%s has a usable normal-map tangent frame on every face (%d degenerate triangles)" % [label, degenerate]
+	)
+	_assert(valid_tangents, "%s has finite unit tangents and valid handedness" % label)
+
+
 func _assert_uv_faces_have_area(label: String, mesh: Mesh) -> void:
 	var arrays := mesh.surface_get_arrays(0)
 	var uv: PackedVector2Array = arrays[Mesh.ARRAY_TEX_UV]
