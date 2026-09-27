@@ -3572,3 +3572,94 @@ surfaces by -123, unique meshes by -119 and nodes by -161. The loaded (Cinder) s
 the same resident deltas plus whatever the streamed craft fold. Craft suites whose live cockpit or bunk-alcove
 node counts do not restate batched members through the authored census may
 move by the folded counts above.
+
+## Twelfth trim (2026-09-27): dormant opponents leave the resident tree, -174,872 resident triangles
+
+The eleventh trim left 158,310 resident triangles in inactive combat opponents:
+craft that are hidden until an encounter activates them but still carried
+their whole visual subtree in the tree. This pass takes them out, and migrates
+two more protected-name families.
+
+Measured with `tools/geometry_census.gd`, station-resident scenario, fresh
+private user data, before on `e50ef49de` and after on `95e9b00c9`:
+
+| resident row | before | after | delta |
+| --- | ---: | ---: | ---: |
+| triangles | 1,925,408 | 1,750,536 | **-174,872** |
+| scene tree nodes | 10,393 | 10,090 | **-303** |
+| mesh renderers | 5,255 | 5,025 | -230 |
+| surfaces | 5,829 | 5,585 | -244 |
+| unique meshes | 2,860 | 2,691 | -169 |
+| lights (shadowed) | 350 (20) | 327 (20) | -23 |
+| bound / retained materials | 739 / 1,062 | 646 / 1,062 | -93 / 0 |
+| shaders, textures, particle systems | 9, 40, 57 | identical | 0 |
+
+(`e50ef49de` already measured 1,925,408 rather than the eleventh trim's
+1,907,469: the dormant `TorpedoBoat` and Rime's streaming nodes landed in
+between.)
+
+Per bucket (triangles / renderers / surfaces): `RangeOpponent` 16,438/29/31 ->
+0/0/0, `StandoffPicket` 18,508/31/34 -> 48/3/3, `WingSkirmisherLead` and
+`WingSkirmisherWing` 18,520/22/24 -> 24/2/2 each, `CourierRunner` 19,846/28/30 ->
+180/3/3, `TorpedoBoat` 17,918/42/44 -> 1,032/10/10,
+`ShipyardWorld/StationDefenseEncounter` 67,038/44/67 -> 608/6/6. Renderer-only:
+`TorrentInterceptor` 229 -> 225, `ArrowReconShip` 223 -> 219,
+`BulwarkHeavyGunship` 192 -> 188, `JovianLightFreighter` 410 -> 406,
+`HalyardCrewTransport` 307 -> 304, `FleetExpansionProductionBinding` 541 -> 529,
+`VipReceptionSuite` 177 -> 170. Every other bucket is identical.
+
+**The triangle ceiling is now met**: 1,750,536 against 1,800,000, 2.7% under.
+**The node ceiling is still not met**: 10,090 against 7,000, 44% over. No
+ceiling has been raised. The loaded (Cinder) scenario was not measured.
+
+### Dormant presentation residency
+
+`RangeOpponent.release_visuals_while_dormant` (default `false`). The six
+main-scene opponents and the four station-defence roster craft set it. While
+such a craft is dormant, its visual root (`RangeInterceptorVisual`,
+`StandoffPicketVisual`, `WingSkirmisherVisual`, `ContractCourierVisual`) is
+removed from the tree by a deferred pass. The pass runs only after any pending
+terminal presentation, destruction light and debris have finished. The next
+accepted activation reattaches the same node at its authored child index before
+the rest of activation runs. The craft keeps as its own children: the body,
+every collision shape, the muzzles, the warning light, particle emitters,
+posture/intent/lock cues and the torpedo pool, as well as its damage adapter,
+combat registration, identity metadata and re-entry hooks. Encounter
+directors, combat-source registration, damageable proxies and save/re-entry
+see the same craft they did before. A released root is freed with its craft.
+Presentation audits already read `_visual_root` directly, so they read the
+released root unchanged. Station defence content now restyles dormant raider
+telegraphs through `get_presentation_root()` instead of a child path.
+
+Because the raiders release before the world's staged dressing pass runs,
+their visuals are no longer folded into station `DressingRenderBatch`es. An
+active raider draws its authored pieces, so per-piece damage presentation works
+on it again.
+
+### Opponents through the fitout batcher: not done
+
+Once dormant opponents are out of the tree, folding their pieces would save
+nodes only while an encounter is live. The resident census would not change.
+It would also break the opponents' per-child allocation audits
+(`get_symmetric_hull_box_allocation_audit()`, the telegraph, prong and
+multimesh audits, and the skirmisher trim roster). Those audits find direct
+visual-root children by position and name. The saving belongs to the
+active-encounter budget, which has not been measured.
+
+### Families migrated
+
+* **Cockpit flight controls** leave `PROTECTED_FITOUT_NAMES`
+  (`ControlStickGrip/Boot/Gimbal/Shaft`, `ThrottleGate`, `Throttle`,
+  `ThrottlePalmGrip`). Primitive and shared stock among them still never folds.
+  About four renderers fold per HeroShip-cockpit craft.
+* **VIP banquette back boards** are renamed `BanquetteBack`. They shared the
+  station roster name `Back` with the solid armchair and habitat chair bodies.
+  The seven visual-only boards now fold with their fillets. The suite's render
+  contract already restates dressing batches.
+
+### Frozen counts expected to move
+
+Not refrozen. `tests/geometry_census_scenario_test.gd` (resident totals, already
+stale). Craft suites whose live cockpit renderer counts do not restate batched
+members may move by the folded controls. Station-wide renderer walks that
+included raider pieces may move by the raider share above.
