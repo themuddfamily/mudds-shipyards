@@ -6093,6 +6093,7 @@ func _publish_network_session_result(result: Dictionary, role: StringName) -> vo
 
 
 func _on_network_session_started(mode: StringName) -> void:
+	_sync_lan_discovery_responder(mode)
 	_network_hud_session_epoch += 1
 	_network_hud_session_retired = false
 	_network_hud_migration_generation = 0
@@ -6121,6 +6122,7 @@ func _on_network_session_started(mode: StringName) -> void:
 
 
 func _on_network_session_stopped(reason: StringName) -> void:
+	_stop_lan_discovery_responder()
 	_bomber_payload_canonical_publish_pending = false
 	_bomber_payload_network_source_generation = 0
 	_player_pulse_canonical_publish_pending = false
@@ -6548,6 +6550,8 @@ func _handle_server_browser_intent(payload: Dictionary) -> void:
 			)
 			if request_generation is int and int(request_generation) > 0:
 				refresh_result["request_generation"] = int(request_generation)
+			if _begin_lan_server_browser_refresh(session, refresh_result):
+				return
 			_on_server_browser_result(refresh_result)
 		&"join":
 			var session_id := StringName(str(payload.get("session_id", &"")))
@@ -6558,6 +6562,7 @@ func _handle_server_browser_intent(payload: Dictionary) -> void:
 				)
 				return
 			_network_session_mode = &"client"
+			_apply_lan_endpoint_for_join(session_id)
 			var started := session.consume_join_intent(
 				intent.get("intent", {}) as Dictionary,
 				_network_session_address,
@@ -6584,6 +6589,119 @@ func _handle_server_browser_intent(payload: Dictionary) -> void:
 				_network_session_port = int(joined.get("port", 0))
 			_publish_network_session_result(joined, &"client")
 			_publish_server_browser_feedback(joined)
+
+
+# --- Release: LAN server-browser discovery (begin) -------------------------
+const NetworkLanDiscoveryType := preload(
+	"res://scripts/network/network_server_browser_lan_discovery.gd"
+)
+const LAN_DISCOVERY_NODE_NAME := "NetworkLanDiscovery"
+
+var _lan_discovery: NetworkLanDiscoveryType
+var _lan_refresh_request_generation := 0
+var _lan_directory_generation := 0
+var _lan_directory_tick := 0
+
+
+func get_lan_discovery() -> NetworkLanDiscoveryType:
+	return _lan_discovery
+
+
+func _ensure_lan_discovery() -> NetworkLanDiscoveryType:
+	if is_instance_valid(_lan_discovery) and not _lan_discovery.is_queued_for_deletion():
+		return _lan_discovery
+	if not is_inside_tree():
+		return null
+	_lan_discovery = NetworkLanDiscoveryType.new() as NetworkLanDiscoveryType
+	_lan_discovery.name = LAN_DISCOVERY_NODE_NAME
+	add_child(_lan_discovery)
+	_lan_discovery.discovery_completed.connect(_on_lan_discovery_completed)
+	return _lan_discovery
+
+
+## A browsing (non-hosting) game refreshes by probing the LAN. The HUD already
+## shows its fenced "refreshing" state; the answer arrives through
+## `_on_lan_discovery_completed` with the same request generation.
+func _begin_lan_server_browser_refresh(session: Variant, refresh_result: Dictionary) -> bool:
+	if session == null or not is_instance_valid(session) or session.is_server():
+		return false
+	var discovery := _ensure_lan_discovery()
+	if discovery == null:
+		return false
+	_lan_refresh_request_generation = int(refresh_result.get("request_generation", 0))
+	discovery.begin_refresh()
+	return true
+
+
+func _on_lan_discovery_completed(request_id: int, entries: Array) -> void:
+	if not is_instance_valid(_lan_discovery) or request_id != _lan_discovery.get_request_id():
+		return
+	var result := {"accepted": true, "status": &"snapshot_refreshed"}
+	if _lan_refresh_request_generation > 0:
+		result["request_generation"] = _lan_refresh_request_generation
+	if not is_instance_valid(network_session) or network_session.is_server():
+		return
+	_lan_directory_generation += 1
+	_lan_directory_tick += 1
+	var published: Dictionary = network_session.apply_server_directory_snapshot(
+		_lan_directory_generation, _lan_directory_tick, entries
+	)
+	if not bool(published.get("accepted", false)):
+		result = {
+			"accepted": false,
+			"reason": &"directory_unavailable",
+			"message": "LAN search returned an unusable host list.",
+			"retryable": true,
+		}
+		if _lan_refresh_request_generation > 0:
+			result["request_generation"] = _lan_refresh_request_generation
+	_on_server_browser_result(result)
+
+
+## Joining a LAN row connects to the address the host answered from.
+func _apply_lan_endpoint_for_join(session_id: StringName) -> void:
+	if not is_instance_valid(_lan_discovery):
+		return
+	var endpoint := _lan_discovery.get_endpoint(session_id)
+	if endpoint.is_empty():
+		return
+	_network_session_address = str(endpoint.get("address", _network_session_address))
+	_network_session_port = int(endpoint.get("port", _network_session_port))
+
+
+func _sync_lan_discovery_responder(mode: StringName) -> void:
+	if mode != &"server":
+		_stop_lan_discovery_responder()
+		return
+	var discovery := _ensure_lan_discovery()
+	if discovery == null:
+		return
+	var display_name := "Pilot"
+	if runtime_settings != null and not str(runtime_settings.multiplayer_display_name).strip_edges().is_empty():
+		display_name = str(runtime_settings.multiplayer_display_name).strip_edges()
+	var game_port := _network_session_port
+	if is_instance_valid(network_session) and network_session.get_local_port() > 0:
+		game_port = network_session.get_local_port()
+	var responded := discovery.start_responding({
+		"title": "%s's shipyard" % display_name,
+		"game_port": game_port,
+		"protocol_version": NetworkSessionAdapterType.NETWORK_PROTOCOL_VERSION,
+		"build_version": NetworkSessionAdapterType.NETWORK_BUILD_VERSION,
+	}, Callable(self, &"_lan_discovery_capacity"))
+	if not bool(responded.get("accepted", false)):
+		push_warning("LAN discovery unavailable while hosting: %s" % str(responded.get("status", &"unknown")))
+
+
+func _stop_lan_discovery_responder() -> void:
+	if is_instance_valid(_lan_discovery):
+		_lan_discovery.stop_responding()
+
+
+func _lan_discovery_capacity() -> Dictionary:
+	if not is_instance_valid(network_session):
+		return {}
+	return network_session.get_session_capacity_snapshot()
+# --- Release: LAN server-browser discovery (end) ---------------------------
 
 
 func _connect_flyable_ship_signals(candidate: HeroShip) -> void:

@@ -6576,7 +6576,7 @@ func _build_server_browser_page() -> void:
 	_server_browser_title = _label("SERVER BROWSER", 26, PRIMARY)
 	_server_browser_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	stack.add_child(_server_browser_title)
-	_server_browser_detail = _label("Select refresh to request a detached directory snapshot.", 12, MUTED)
+	_server_browser_detail = _label("Select REFRESH to find sessions hosted on your local network, or enter an address and choose MANUAL JOIN.", 12, MUTED)
 	_server_browser_detail.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_server_browser_detail.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	stack.add_child(_server_browser_detail)
