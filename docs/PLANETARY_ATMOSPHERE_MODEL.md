@@ -91,8 +91,8 @@ craft (see Wind).
 
 ## Entry heat and compression
 
-The sampler computes one intensity. The Arrow's heat overlay, the fleet
-compression envelope and the entry audio beds all consume that same number.
+The sampler computes one intensity. The compression envelopes, the Arrow's
+Ember-path heat adapter and the entry audio beds all consume that same number.
 
 ```
 I      = D(rho) * S(v)                                    unitless, [0, 1]
@@ -127,18 +127,22 @@ physics tick) attaches one `HeroAtmosphericEntryEnvelopeBinding` under the
 node name `PlanetaryAtmosphereEntryEnvelope` to whichever of the nine flyable
 craft is active: Torrent, Arrow, Jovian, Zenith, Halyard, Bulwark, and the
 three runtime-composed Cinder craft. The envelope is anchored to the craft's
-landing-collision silhouette, so it fits every hull. On the Arrow the
-component also drives the authored heat overlay material. The node name
-differs from the Ember surface loop's `AtmosphericEntryExteriorEnvelope`, so
-the two owners can never collide on one craft.
+landing-collision silhouette, so it fits every hull. The node name differs
+from the Ember surface loop's `AtmosphericEntryExteriorEnvelope`, so the two
+owners can never collide on one craft.
+
+The Arrow's authored heat overlay (`PlanetaryEntryHeatPresentation`) is
+deliberately not driven on Aurora. Its configuration is permanent, and a
+configured target is what makes the Arrow's Ember-owned presenter treat a
+descent as atmospheric. Configuring it for Aurora would therefore light plasma
+on the next airless Ember descent. The Arrow gets the same generic envelope as
+the other eight craft.
 
 **Accessibility.** Under reduced flash the envelope is capped to a steady
-cue of at most 0.42 opacity, and the Arrow's additive overlay is held at zero.
-The reduced-motion setting is forwarded to the envelope, and it also calms
+cue of at most 0.42 opacity. The reduced-motion setting is forwarded to the envelope, and it also calms
 the wind gusts (see Wind).
 
-**Lifecycle.** The envelope is released, and the Arrow overlay reset to zero,
-in each of these cases:
+**Lifecycle.** The envelope is released in each of these cases:
 
 - the atmosphere world unloads or is replaced by a new streamed generation
 - the craft is lost, destroyed or replaced
@@ -247,9 +251,8 @@ fade keeps running even while the streaming focus is still.
 ## Performance trade-offs
 
 - **No new renderer passes or lights.** The envelope is one small retained
-  node tree per active craft, and only one craft is active at a time. The Arrow
-  overlay writes one existing uniform. The clouds write one uniform per
-  presented focus.
+  node tree per active craft, and only one craft is active at a time. The
+  clouds write one uniform per presented focus.
 - **Per physics tick** while an atmosphere world is resident, the flight
   effects do the following:
   - two pure sampler evaluations (entry and wind): arithmetic plus one
@@ -281,7 +284,7 @@ fade keeps running even while the streaming focus is still.
 | Density, optics, cloud, wind and entry equations | `scripts/world/planetary_atmosphere_sampler.gd` |
 | Per-tick flight effects (entry, wind, interior blend, weather clock) | `scripts/world/planetary_atmosphere_flight_effects.gd` |
 | Generic craft compression envelope | `scripts/ships/hero_atmospheric_entry_envelope_binding.gd` |
-| Arrow heat overlay adapter | `scripts/world/planetary_entry_heat_presentation.gd` |
+| Arrow heat overlay adapter (Ember path; same equation) | `scripts/world/planetary_entry_heat_presentation.gd` |
 | Wind drift application | `scripts/ships/hero_ship.gd`, "Atmospheric wind drift" block |
 | Clock, blend and wind forwarding for Aurora | `scripts/world/aurora_temperate_streaming_bootstrap.gd` |
 | Ambience mix | `scripts/audio/aurora_surface_audio_binding.gd` |
