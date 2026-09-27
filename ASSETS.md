@@ -715,3 +715,38 @@ assets or scripts are bundled.
 - Final prompt:
 
 > Use case: logo-brand. Asset type: square Windows PC game application icon and Godot project icon. An original emblem for Keth Shipyards: Reforged, centered on a clean broad arrowhead spacecraft silhouette inspired by the project's pale off-white Torrent-class interceptor, seen from a slightly raised front/top angle, framed by a precise orbital shipyard ring. Polished stylized 3D game icon, bold readable geometry, premium modern science-fiction finish, not photorealistic. Centered symmetrical emblem, generous safe margin, immediately readable at 32px and 64px, square 1:1. Optimistic adventurous deep-space glow. Deep navy-black background, warm off-white ship, luminous cyan-teal cockpit/ring, restrained amber-gold navigation accents. Clean painted hull, subtle metallic ring, glassy cyan canopy. No text, letters, logos, watermark, humans, Roblox styling, generic rockets, realistic NASA insignia, dark military aesthetic, clutter, tiny details, or purple vaporwave.
+
+## `assets/audio/music/combat_*` — adaptive combat music layer v1
+
+- Purpose: the music that plays *during* a live encounter and when it ends,
+  consumed by `scripts/audio/combat_music_layer.gd` on the `Music` bus. The calm
+  beds above yield to combat; this layer is what replaces them.
+  - Three sample-locked 10 s stems (four bars at 96 BPM on Dm | Bb | C | A):
+    `combat_stem_floor_v1.wav` (low eighth-note ostinato with a sub root),
+    `combat_stem_drive_v1.wav` (synthetic percussion: a pitch-dropping low body
+    on every beat, a noise snap on two and four, off-beat ticks and a fill into
+    the loop) and `combat_stem_lead_v1.wav` (a sustained brass-like upper
+    voicing that only joins against two or more hostiles).
+  - Two one-shot stingers: `combat_stinger_victory_v1.wav` (4.5 s, an A major
+    pickup landing on D major, the only major landing in the score) and
+    `combat_stinger_failure_v1.wav` (5.5 s, a subdued descending D minor line
+    over a fading pedal, authored 6 dB under the victory stinger).
+- Format: checked-in mono 22.05 kHz signed 16-bit little-endian PCM WAV with
+  `compress/mode=0`; the stems import with `edit/loop_mode=2` (forward across the
+  full range) and the stingers with `edit/loop_mode=0`.
+- Editable source: `tools/audio/generate_combat_music.py`, **fixed-seed offline
+  synthesis** with numpy and scipy (seeded `numpy.random.default_rng`, no
+  wall-clock, no runtime generation), reusing the station generator's WAV writer
+  and measurements. Per-asset hashes, PCM hashes, frame counts, peak/RMS and
+  loop-join measurements are pinned by `combat_music_v1_asset_manifest.json`.
+  Byte-identical regeneration was verified on CPython 3.12.3, numpy 2.4.2 and
+  scipy 1.17.1 under Linux.
+- Musical content: D natural minor at A4 = 440 Hz like the calm beds, so going
+  into and out of combat changes energy rather than key; 96 BPM is four times the
+  surface bed's 24 BPM pulse. Each stem is rendered into a loop-length buffer
+  with every tail wrapped across the join, so it is periodic by construction.
+- Project status: original project work tagged `modern_interpretation`; no
+  recorded, sampled or third-party material, and no claim to recover any
+  original Keth Shipyards music.
+- **Not signed off:** a human listening pass and real-device mix review of the
+  combat layer remain outstanding.
