@@ -154,6 +154,29 @@ const FOOT_IK_STEP_KNEE_SLACK_M := 0.01
 const FOOT_IK_STEP_PELVIS_SPEED_MPS := 0.9
 ## Rigid-boot bind-space point probed by the supplementary toe ray.
 const FOOT_IK_TOE_PROBE_BIND_Z := 0.26
+## Locomotion IK (walk/run). Each boot's stance weight comes from the live clip
+## pose (see [PilotFootIK]): a stance boot's lowest sole corner is planted on
+## its ray-found support within one stair step, a swing boot stays on the clip
+## and only lifts to clear the support under or just ahead of its toe, and the
+## visual pelvis follows continuously so the lower stance leg reaches its tread.
+const FOOT_IK_LOCOMOTION_STATES := [&"walk", &"run"]
+## Gap a planted sole keeps above its support, matching the sole-lift guard.
+const FOOT_IK_PLANT_SOLE_GAP_M := 0.001
+## Clearance a swing sole keeps over a tread that is higher than the deck the
+## capsule stands on (the next stair nosing going up, a rising ramp).
+const FOOT_IK_SWING_TREAD_CLEARANCE_M := 0.03
+## A swing boot's toe ray looks this far ahead of the toe, so the boot starts
+## to lift before it reaches the next riser instead of after it has cut in.
+const FOOT_IK_SWING_TOE_PROBE_LEAD_M := 0.14
+## While walking or running on stairs the pelvis may travel faster than the
+## standing stair speed: this fraction of the capsule's planar speed, so it can
+## always keep up with a 30/70 flight's average descent (0.43 x speed).
+const FOOT_IK_LOCOMOTION_PELVIS_SPEED_PER_MPS := 0.6
+## Bounds on the pelvis offset while it absorbs a capsule stair snap: negative
+## raises the pelvis to hide a floor-snap drop, positive lowers it to hide a
+## step-up.
+const FOOT_IK_MIN_PELVIS_OFFSET_M := -0.32
+const FOOT_IK_MAX_ABSORBED_PELVIS_DROP_M := 0.45
 const PilotFootIKScript := preload("res://scripts/player/pilot_foot_ik.gd")
 ## 22 bone rotation tracks plus one pelvis position track. The import drops
 ## immutable tracks, so this is exactly the set of bones the authored clips
@@ -1638,6 +1661,17 @@ func get_foot_placement_snapshot() -> Dictionary:
 	return _foot_placement_snapshot.duplicate(true)
 
 
+## True when this physics tick's foot IK is gated (beyond the camera distance,
+## a remote-driven body on a headless peer, a shaking carried frame) or the
+## presentation is detached. Such a tick only blends the last solve out, so the
+## gameplay owner can skip its own ankle support rays for it. Read-only apart
+## from the gate's once-per-tick bookkeeping, which is keyed to the tick.
+func is_foot_support_sampling_gated() -> bool:
+	if not _foot_placement_attached or not is_inside_tree():
+		return true
+	return not _foot_ik.evaluate_gate(self, Engine.get_physics_frames()).is_empty()
+
+
 ## Applies one caller-physics sample after the imported AnimationPlayer has
 ## advanced. The operation changes only the current pelvis/thigh/calf/foot bone poses;
 ## it creates no modifier nodes, edits no animation resource, and has no body,
@@ -1704,45 +1738,106 @@ func apply_foot_placement(sample: Variant, expected_attachment_generation: int) 
 		# Walk, run and landing recovery rely on the sole lift to keep a boot out
 		# of the deck from the first grounded tick; only standing fades in.
 		_foot_ik.snap_weight(physics_frame)
+	# Stance per boot, read from the clip pose before any IK. Standing holds both
+	# boots planted; the moving-to-idle blend judges by sole height alone.
+	var locomotion := motion_state in FOOT_IK_LOCOMOTION_STATES
+	var clip_clock := _clip_clock()
+	if locomotion or guard_idle_blend:
+		_foot_ik.update_stance(
+			_clip_stance_samples(), StringName(clip_clock[0]), float(clip_clock[1]),
+			float(clip_clock[2]), physics_frame, guard_idle_blend
+		)
+	else:
+		_foot_ik.hold_stance_planted(StringName(clip_clock[0]), float(clip_clock[1]), physics_frame)
+	var stance: Dictionary = _foot_ik.stance_weights.duplicate()
 	_foot_ik.toe_probe_count = 0
 	var supports := {}
 	for side: StringName in FOOT_CHAIN_BONES:
 		var heel_support: Variant = (feet as Dictionary).get(side, null)
+		var toe_lead := 0.0
+		if locomotion:
+			toe_lead = FOOT_IK_SWING_TOE_PROBE_LEAD_M * (1.0 - clampf(float(stance.get(side, 1.0)), 0.0, 1.0))
 		supports[side] = PilotFootIKScript.merge_toe_support(
-			heel_support, _foot_ik.probe_toe_support(self, _toe_probe_world(side), normalized_up)
+			heel_support,
+			_foot_ik.probe_toe_support(self, _toe_probe_world(side, toe_lead), normalized_up)
 		)
+	# A capsule stair snap (floor snap down a riser, step-up assist) moves the
+	# whole suit a riser in one tick. While walking or running the pelvis offset
+	# absorbs it, so the torso stays where it was and eases onto the new tread.
+	var body_step := _foot_ik.take_body_step(self, normalized_up, physics_frame, locomotion)
+	if body_step != 0.0:
+		_visual_pelvis_drop_m = clampf(
+			_visual_pelvis_drop_m + body_step,
+			FOOT_IK_MIN_PELVIS_OFFSET_M, FOOT_IK_MAX_ABSORBED_PELVIS_DROP_M
+		)
+	var absorbed_drop := _visual_pelvis_drop_m
 	if animation_advanced:
-		# A shared hip drop is safe while standing on two planted boots. A walk
-		# or run contains swing phases where the same drop can drive the lifted
-		# sole through the deck, so ease it away as locomotion begins.
+		# A shared hip drop is safe while standing on two planted boots. Walk and
+		# run drop only as far as their stance boots need (weighted by stance), so
+		# a swing boot is never driven through the deck by a standing drop.
 		var needed_drop := 0.0
+		var speed_floor := 0.0
 		if motion_state == &"idle":
 			needed_drop = _required_visual_pelvis_drop(supports, normalized_up)
 			if not guard_idle_blend:
 				needed_drop = maxf(needed_drop, _required_step_pelvis_drop(supports, normalized_up))
-		_visual_pelvis_drop_m = move_toward(
-			_visual_pelvis_drop_m, needed_drop,
-			_visual_pelvis_step_m(_visual_pelvis_drop_m, needed_drop)
-		)
-		if _visual_pelvis_drop_m > 0.0001:
+			else:
+				# Stopping on stairs: keep the stance boot on its lower tread.
+				var stopping := _required_locomotion_pelvis_drop(supports, normalized_up, stance)
+				if stopping.y > 0.5:
+					needed_drop = maxf(needed_drop, stopping.x)
+		elif locomotion:
+			needed_drop = _required_locomotion_pelvis_drop(supports, normalized_up, stance).x
+			speed_floor = (
+				FOOT_IK_LOCOMOTION_PELVIS_SPEED_PER_MPS
+				* PilotFootIKScript.planar_speed(self, normalized_up)
+			)
+		var pelvis_step := _visual_pelvis_step_m(_visual_pelvis_drop_m, needed_drop, speed_floor)
+		if locomotion and (body_step != 0.0 or _visual_pelvis_drop_m < 0.0):
+			# An absorbed snap always eases at the stair pace, even a small one,
+			# so it can never pile up tick after tick on a steep ramp.
+			pelvis_step = maxf(
+				pelvis_step,
+				maxf(FOOT_IK_STEP_PELVIS_SPEED_MPS, speed_floor)
+				/ maxf(1.0, float(Engine.physics_ticks_per_second))
+			)
+		_visual_pelvis_drop_m = move_toward(_visual_pelvis_drop_m, needed_drop, pelvis_step)
+		if absf(_visual_pelvis_drop_m) > 0.0001:
 			_apply_visual_pelvis_drop(normalized_up, _visual_pelvis_drop_m)
 	else:
 		_advance_visual_pelvis_release()
 	if is_instance_valid(_animation_player):
 		_last_pelvis_animation_name = _animation_player.assigned_animation
 		_last_pelvis_animation_time = _animation_player.current_animation_position
+	# A boot may lower relative to its clip pose at the descent rate plus
+	# whatever the pelvis itself rose this tick (the absorbed snap excluded).
+	var max_boot_descent := (
+		PilotFootIKScript.LOCOMOTION_FOOT_DESCENT_MPS / maxf(1.0, float(Engine.physics_ticks_per_second))
+		+ absf(_visual_pelvis_drop_m - absorbed_drop)
+	)
 	var corrected_feet := {}
 	for side: StringName in FOOT_CHAIN_BONES:
 		var support: Variant = supports.get(side, null)
 		if not support is Dictionary:
 			corrected_feet[side] = _inactive_foot_record(&"support_missing")
+			_foot_ik.record_foot_correction(side, 0.0, physics_frame)
 			continue
-		corrected_feet[side] = _apply_foot_chain(
-			side, support as Dictionary, normalized_up, motion_state, guard_idle_blend
+		var side_stance := -1.0
+		if locomotion or guard_idle_blend:
+			side_stance = clampf(float(stance.get(side, 0.0)), 0.0, 1.0)
+		var record := _apply_foot_chain(
+			side, support as Dictionary, normalized_up, motion_state, guard_idle_blend,
+			side_stance, physics_frame, max_boot_descent
+		)
+		corrected_feet[side] = record
+		_foot_ik.record_foot_correction(
+			side,
+			float(record.get("applied_correction_m", 0.0)) if bool(record.get("active", false)) else 0.0,
+			physics_frame
 		)
 		var toe_raised := float((support as Dictionary).get("toe_raised_m", 0.0))
 		if toe_raised > 0.0:
-			(corrected_feet[side] as Dictionary)["toe_raised_m"] = toe_raised
+			record["toe_raised_m"] = toe_raised
 	_foot_ik.commit_leg_solution(_skeleton, leg_bones)
 	_skeleton.force_update_all_bone_transforms()
 	var any_foot_active := false
@@ -1759,6 +1854,8 @@ func apply_foot_placement(sample: Variant, expected_attachment_generation: int) 
 		"visual_pelvis_drop_m": _visual_pelvis_drop_m,
 		"ik_weight": _foot_ik.weight,
 		"toe_probe_count": _foot_ik.toe_probe_count,
+		"stance_weights": stance.duplicate(),
+		"body_step_absorbed_m": body_step,
 		"feet": corrected_feet.duplicate(true),
 		"modifier_node_count": find_children("*", "SkeletonModifier3D", true, false).size(),
 	}.duplicate(true)
@@ -1785,7 +1882,8 @@ func clear_foot_placement(expected_attachment_generation: int, reason: StringNam
 
 
 func _advance_visual_pelvis_release() -> void:
-	if _visual_pelvis_drop_m <= 0.0 or not is_instance_valid(_skeleton):
+	# Signed: an absorbed floor-snap raise (negative) eases back just like a drop.
+	if is_zero_approx(_visual_pelvis_drop_m) or not is_instance_valid(_skeleton):
 		_visual_pelvis_drop_m = 0.0
 		return
 	var physics_frame := Engine.get_physics_frames()
@@ -1794,7 +1892,7 @@ func _advance_visual_pelvis_release() -> void:
 			_visual_pelvis_drop_m, 0.0, _visual_pelvis_step_m(_visual_pelvis_drop_m, 0.0)
 		)
 		_last_pelvis_release_physics_frame = physics_frame
-	if _visual_pelvis_drop_m > 0.0001:
+	if absf(_visual_pelvis_drop_m) > 0.0001:
 		_apply_visual_pelvis_drop(_visual_pelvis_up_world, _visual_pelvis_drop_m)
 
 
@@ -1828,12 +1926,15 @@ func _apply_visual_pelvis_drop(movement_up_world: Vector3, drop_m: float) -> voi
 	_skeleton.force_update_all_bone_transforms()
 
 
-func _visual_pelvis_step_m(current_drop: float, target_drop: float) -> float:
+func _visual_pelvis_step_m(
+		current_drop: float, target_drop: float, speed_floor_mps: float = 0.0
+	) -> float:
 	# Ramp-sized drops keep their original 6 mm/tick easing; only the part of a
-	# stair stance beyond the ramp limit travels faster.
+	# stair stance (or an absorbed stair snap) beyond the ramp limit travels
+	# faster, and walking/running on stairs may raise that to keep pace.
 	var speed := FOOT_PLACEMENT_PELVIS_SPEED_MPS
-	if maxf(current_drop, target_drop) > FOOT_PLACEMENT_MAX_PELVIS_DROP_M + 0.0005:
-		speed = FOOT_IK_STEP_PELVIS_SPEED_MPS
+	if maxf(absf(current_drop), absf(target_drop)) > FOOT_PLACEMENT_MAX_PELVIS_DROP_M + 0.0005:
+		speed = maxf(FOOT_IK_STEP_PELVIS_SPEED_MPS, speed_floor_mps)
 	return speed / maxf(1.0, Engine.physics_ticks_per_second)
 
 
@@ -1849,9 +1950,53 @@ func _leg_ik_bone_indices() -> Array[int]:
 	return result
 
 
+## Clip name, playback position and length for the stance clock.
+func _clip_clock() -> Array:
+	if not is_instance_valid(_animation_player):
+		return [&"", 0.0, 0.0]
+	var clip_name := _animation_player.assigned_animation
+	var clip := _animation_player.get_animation(clip_name) if _animation_player.has_animation(clip_name) else null
+	return [clip_name, _animation_player.current_animation_position, clip.length if clip != null else 0.0]
+
+
+## Per boot, Vector2(lowest sole corner height above the clip floor, sole
+## forward coordinate) in skeleton space, from the current (clip) pose. The
+## imported suit faces skeleton +Z, and its clips stand on skeleton Y = 0.
+func _clip_stance_samples() -> Dictionary:
+	var result := {}
+	if not is_instance_valid(_skeleton):
+		return result
+	_skeleton.force_update_all_bone_transforms()
+	for side: StringName in FOOT_CHAIN_BONES:
+		var foot_index := _skeleton.find_bone(FOOT_CHAIN_BONES[side][2])
+		var toe_index := _skeleton.find_bone("toe_" + String(side))
+		if foot_index < 0 or toe_index < 0:
+			continue
+		var foot_deform := (
+			_skeleton.get_bone_global_pose(foot_index)
+			* _skeleton.get_bone_global_rest(foot_index).affine_inverse()
+		)
+		var toe_deform := (
+			_skeleton.get_bone_global_pose(toe_index)
+			* _skeleton.get_bone_global_rest(toe_index).affine_inverse()
+		)
+		var center_x := -0.14 if side == &"l" else 0.14
+		var lowest := INF
+		var forward := 0.0
+		for offset_x in [-0.095, 0.095]:
+			for z in [-0.085, 0.295]:
+				var bind := Vector3(center_x + offset_x, 0.0, z)
+				var deformed := foot_deform * bind * 0.62 + toe_deform * bind * 0.38
+				lowest = minf(lowest, deformed.y)
+				forward += deformed.z * 0.25
+		result[side] = Vector2(lowest, forward)
+	return result
+
+
 ## World position of the boot's forefoot sole under the current pose, using the
-## same rigid 62/38 foot/toe weighting as the sole-contact probes.
-func _toe_probe_world(side: StringName) -> Vector3:
+## same rigid 62/38 foot/toe weighting as the sole-contact probes. `lead_m`
+## moves the probe ahead of the toe along the suit's facing (swing boots).
+func _toe_probe_world(side: StringName, lead_m: float = 0.0) -> Vector3:
 	if not is_instance_valid(_skeleton):
 		return Vector3.INF
 	var foot_index := _skeleton.find_bone(FOOT_CHAIN_BONES[side][2])
@@ -1869,7 +2014,9 @@ func _toe_probe_world(side: StringName) -> Vector3:
 	)
 	# The rig's `_l` side sits at negative X; keep the suffixes as authored.
 	var bind := Vector3(-0.14 if side == &"l" else 0.14, 0.0, FOOT_IK_TOE_PROBE_BIND_Z)
-	return _skeleton.global_transform * (foot_deform * bind * 0.62 + toe_deform * bind * 0.38)
+	return _skeleton.global_transform * (
+		foot_deform * bind * 0.62 + toe_deform * bind * 0.38 + IMPORTED_VISUAL_FORWARD_AXIS * lead_m
+	)
 
 
 ## Pelvis drop for a standing pilot whose two supports differ by more than the
@@ -1931,6 +2078,79 @@ func _required_step_pelvis_drop(feet: Dictionary, movement_up_world: Vector3) ->
 			continue
 		needed = maxf(needed, -axial - sqrt(reach * reach - perpendicular_squared))
 	return clampf(needed, 0.0, FOOT_IK_MAX_STEP_PELVIS_DROP_M)
+
+
+## Walk/run pelvis drop: the smallest shared hip drop that lets every stance
+## boot's lowest sole corner reach the support it plants on, scaled by each
+## boot's stance weight so it follows heel strike and toe-off continuously.
+## Returns Vector2(drop, 1.0 when a stance boot stands on stepped support such
+## as a lower stair tread, else 0.0). Stepped drops may reach the stair limit;
+## otherwise only a sloped support contributes, bounded by the ramp limit, and
+## flat decks need none. Reads the clip pose, so call it before the drop.
+func _required_locomotion_pelvis_drop(
+		feet: Dictionary, movement_up_world: Vector3, stance: Dictionary
+	) -> Vector2:
+	if not is_instance_valid(_skeleton):
+		return Vector2.ZERO
+	_skeleton.force_update_all_bone_transforms()
+	var to_skeleton := _skeleton.global_transform.affine_inverse()
+	var up_local := (_skeleton.global_basis.inverse() * movement_up_world).normalized()
+	var step_need := 0.0
+	var ramp_need := 0.0
+	var stepped := false
+	for side: StringName in FOOT_CHAIN_BONES:
+		var weight := clampf(float(stance.get(side, 0.0)), 0.0, 1.0)
+		if weight <= 0.01:
+			continue
+		var support: Variant = feet.get(side, null)
+		if not support is Dictionary:
+			continue
+		var position: Variant = (support as Dictionary).get("position", Vector3.INF)
+		var normal: Variant = (support as Dictionary).get("normal", Vector3.ZERO)
+		if (
+			not position is Vector3 or not (position as Vector3).is_finite()
+			or not normal is Vector3 or not (normal as Vector3).is_finite()
+			or (normal as Vector3).is_zero_approx()
+		):
+			continue
+		var chain: Array = FOOT_CHAIN_BONES[side]
+		var thigh_index := _skeleton.find_bone(chain[0])
+		var calf_index := _skeleton.find_bone(chain[1])
+		var foot_index := _skeleton.find_bone(chain[2])
+		var toe_index := _skeleton.find_bone("toe_" + String(side))
+		if thigh_index < 0 or calf_index < 0 or foot_index < 0 or toe_index < 0:
+			continue
+		var support_local := to_skeleton * (position as Vector3)
+		var normal_local := (_skeleton.global_basis.inverse() * (normal as Vector3).normalized()).normalized()
+		var side_stepped := absf(support_local.dot(normal_local)) > FOOT_PLACEMENT_PLANTED_CORRECTION_M
+		var gap := _boot_sole_min_gap_local(side, foot_index, toe_index, support_local, normal_local)
+		var plant := (FOOT_IK_PLANT_SOLE_GAP_M - gap) / maxf(0.5, up_local.dot(normal_local))
+		var down_limit := FOOT_IK_MAX_STEP_DROP_M if side_stepped else FOOT_PLACEMENT_CONTACT_LIMIT_M
+		if plant < -down_limit or plant > FOOT_IK_MAX_STEP_RISE_M:
+			continue
+		stepped = stepped or side_stepped
+		var hip := _skeleton.get_bone_global_pose(thigh_index).origin
+		var knee := _skeleton.get_bone_global_pose(calf_index).origin
+		var ankle := _skeleton.get_bone_global_pose(foot_index).origin
+		var delta := ankle + up_local * plant - hip
+		var reach := (
+			hip.distance_to(knee) + knee.distance_to(ankle)
+			- 0.0005 - FOOT_IK_STEP_KNEE_SLACK_M
+		)
+		if reach <= 0.0 or delta.length() <= reach:
+			continue
+		var axial := delta.dot(up_local)
+		var perpendicular_squared := maxf(0.0, delta.length_squared() - axial * axial)
+		if perpendicular_squared >= reach * reach:
+			continue
+		var drop := maxf(0.0, -axial - sqrt(reach * reach - perpendicular_squared)) * weight
+		if side_stepped:
+			step_need = maxf(step_need, drop)
+		elif up_local.angle_to(normal_local) > 0.00001:
+			ramp_need = maxf(ramp_need, drop)
+	if stepped:
+		return Vector2(clampf(maxf(step_need, ramp_need), 0.0, FOOT_IK_MAX_STEP_PELVIS_DROP_M), 1.0)
+	return Vector2(clampf(ramp_need, 0.0, FOOT_PLACEMENT_MAX_PELVIS_DROP_M), 0.0)
 
 
 func _required_visual_pelvis_drop(feet: Dictionary, movement_up_world: Vector3) -> float:
@@ -2007,9 +2227,14 @@ func _required_visual_pelvis_drop(feet: Dictionary, movement_up_world: Vector3) 
 	return clampf(needed, 0.0, available)
 
 
+## `stance_weight` < 0 keeps the standing/landing behaviour. Walk and run pass
+## the boot's stance weight in [0, 1]; the moving-to-idle blend passes it too,
+## and uses it only on stepped support (a stair), where it keeps the stance
+## boot planted instead of popping it back to the clip for the blend.
 func _apply_foot_chain(
 		side: StringName, support: Dictionary, movement_up_world: Vector3,
-		motion_state: StringName, guard_idle_blend: bool
+		motion_state: StringName, guard_idle_blend: bool,
+		stance_weight: float = -1.0, tick_key: int = -1, max_descent_m: float = INF
 	) -> Dictionary:
 	var support_position: Variant = support.get("position", Vector3.INF)
 	var support_normal: Variant = support.get("normal", Vector3.ZERO)
@@ -2048,58 +2273,91 @@ func _apply_foot_chain(
 	)
 	var protect_sole := motion_state != &"idle" or guard_idle_blend
 	var sole_needs_lift := protect_sole and source_sole_min_gap < -0.001
-	# A settled standing boot is planted on its own support anywhere within one
-	# stair step: up onto a higher tread (the knee folds, lifted further by any
-	# stair pelvis drop) or down to a lower one (reach-limited by the chain
-	# solve). Not during the moving-to-idle blend, where a still-lifted swing
-	# boot would otherwise be pulled to the deck in a single tick.
-	var standing := motion_state == &"idle" and not guard_idle_blend
-	var down_limit := FOOT_IK_MAX_STEP_DROP_M if standing else FOOT_PLACEMENT_CONTACT_LIMIT_M
-	var up_limit := (
-		FOOT_IK_MAX_STEP_RISE_M + _visual_pelvis_drop_m
-		if standing else FOOT_PLACEMENT_CONTACT_LIMIT_M
-	)
-	if (
-		(requested_correction > up_limit or requested_correction < -down_limit)
-		and not sole_needs_lift
+	# Distance from the capsule's deck (skeleton origin) to this support plane:
+	# beyond the planted tolerance the boot is over another stair tread.
+	var stepped_support := absf(support_local.dot(support_normal_local)) > FOOT_PLACEMENT_PLANTED_CORRECTION_M
+	var locomotion_stance := -1.0
+	var correction := 0.0
+	if stance_weight >= 0.0 and (
+		motion_state in FOOT_IK_LOCOMOTION_STATES or (guard_idle_blend and stepped_support)
 	):
-		return {
-			"active": false,
-			"reason": &"foot_not_in_contact_phase",
-			"requested_correction_m": requested_correction,
-			"source_sole_min_gap_m": source_sole_min_gap,
-		}.duplicate(true)
-	var correction := clampf(
-		requested_correction,
-		-maxf(FOOT_PLACEMENT_MAX_CORRECTION_M, down_limit if standing else 0.0),
-		maxf(FOOT_PLACEMENT_MAX_CORRECTION_M, up_limit if standing else 0.0)
-	)
-	# During locomotion, a clear sole is the authored swing pose. The ankle
-	# proxy can still sit near the support and would otherwise pull that pose
-	# downward until the toe cuts through the floor.
-	if motion_state != &"idle" and not sole_needs_lift:
-		return {
-			"active": source_sole_min_gap <= 0.01,
-			"reason": &"authored_sole_clear",
-			"requested_correction_m": requested_correction,
-			"applied_correction_m": 0.0,
-			"source_sole_min_gap_m": source_sole_min_gap,
-			"corrected_sole_min_gap_m": source_sole_min_gap,
-			"reach_saturation_m": 0.0,
-			"sole_error_m": absf(requested_correction),
-			"ankle_chain_error_m": 0.0,
-			"support_position": support_position,
-			"support_normal": (support_normal as Vector3).normalized(),
-			"ankle_position": _skeleton.global_transform * ankle,
-			"sole_position": _skeleton.global_transform * sole,
-		}.duplicate(true)
-	# The true skinned minimum bounds downward placement, including the first
-	# frames of a moving-to-idle blend. Correct the ankle through the leg chain;
-	# the foot and toe keep their authored relative orientation.
-	if protect_sole:
-		correction = maxf(correction, -source_sole_min_gap + 0.001)
-	if sole_needs_lift:
-		correction = minf(correction, FOOT_PLACEMENT_MAX_SOLE_LIFT_M)
+		var plan := _locomotion_foot_correction(
+			source_sole_min_gap, support_local, up_local, support_normal_local,
+			clampf(stance_weight, 0.0, 1.0), stepped_support
+		)
+		locomotion_stance = plan.y
+		correction = _foot_ik.limit_foot_descent(side, plan.x, tick_key, max_descent_m)
+		if absf(correction) <= 0.00001 and locomotion_stance <= 0.01:
+			# A clear swing sole is the authored pose.
+			return {
+				"active": source_sole_min_gap <= 0.01,
+				"reason": &"authored_sole_clear",
+				"stance_weight": clampf(stance_weight, 0.0, 1.0),
+				"requested_correction_m": requested_correction,
+				"applied_correction_m": 0.0,
+				"source_sole_min_gap_m": source_sole_min_gap,
+				"corrected_sole_min_gap_m": source_sole_min_gap,
+				"reach_saturation_m": 0.0,
+				"sole_error_m": absf(requested_correction),
+				"ankle_chain_error_m": 0.0,
+				"support_position": support_position,
+				"support_normal": (support_normal as Vector3).normalized(),
+				"ankle_position": _skeleton.global_transform * ankle,
+				"sole_position": _skeleton.global_transform * sole,
+			}.duplicate(true)
+	else:
+		# A settled standing boot is planted on its own support anywhere within one
+		# stair step: up onto a higher tread (the knee folds, lifted further by any
+		# stair pelvis drop) or down to a lower one (reach-limited by the chain
+		# solve). Not during the moving-to-idle blend, where a still-lifted swing
+		# boot would otherwise be pulled to the deck in a single tick.
+		var standing := motion_state == &"idle" and not guard_idle_blend
+		var down_limit := FOOT_IK_MAX_STEP_DROP_M if standing else FOOT_PLACEMENT_CONTACT_LIMIT_M
+		var up_limit := (
+			FOOT_IK_MAX_STEP_RISE_M + _visual_pelvis_drop_m
+			if standing else FOOT_PLACEMENT_CONTACT_LIMIT_M
+		)
+		if (
+			(requested_correction > up_limit or requested_correction < -down_limit)
+			and not sole_needs_lift
+		):
+			return {
+				"active": false,
+				"reason": &"foot_not_in_contact_phase",
+				"requested_correction_m": requested_correction,
+				"source_sole_min_gap_m": source_sole_min_gap,
+			}.duplicate(true)
+		correction = clampf(
+			requested_correction,
+			-maxf(FOOT_PLACEMENT_MAX_CORRECTION_M, down_limit if standing else 0.0),
+			maxf(FOOT_PLACEMENT_MAX_CORRECTION_M, up_limit if standing else 0.0)
+		)
+		# During locomotion, a clear sole is the authored swing pose. The ankle
+		# proxy can still sit near the support and would otherwise pull that pose
+		# downward until the toe cuts through the floor.
+		if motion_state != &"idle" and not sole_needs_lift:
+			return {
+				"active": source_sole_min_gap <= 0.01,
+				"reason": &"authored_sole_clear",
+				"requested_correction_m": requested_correction,
+				"applied_correction_m": 0.0,
+				"source_sole_min_gap_m": source_sole_min_gap,
+				"corrected_sole_min_gap_m": source_sole_min_gap,
+				"reach_saturation_m": 0.0,
+				"sole_error_m": absf(requested_correction),
+				"ankle_chain_error_m": 0.0,
+				"support_position": support_position,
+				"support_normal": (support_normal as Vector3).normalized(),
+				"ankle_position": _skeleton.global_transform * ankle,
+				"sole_position": _skeleton.global_transform * sole,
+			}.duplicate(true)
+		# The true skinned minimum bounds downward placement, including the first
+		# frames of a moving-to-idle blend. Correct the ankle through the leg chain;
+		# the foot and toe keep their authored relative orientation.
+		if protect_sole:
+			correction = maxf(correction, -source_sole_min_gap + 0.001)
+		if sole_needs_lift:
+			correction = minf(correction, FOOT_PLACEMENT_MAX_SOLE_LIFT_M)
 	var target_ankle := ankle + up_local * correction
 	var upper_length := hip.distance_to(knee)
 	var lower_length := knee.distance_to(ankle)
@@ -2180,9 +2438,17 @@ func _apply_foot_chain(
 		side, foot_index, toe_index, support_local, support_normal_local
 	)
 	var ankle_chain_error := corrected_ankle.distance_to(chain_ankle)
+	var reason := &"support_corrected"
+	if locomotion_stance >= 0.0:
+		# A moving boot's heel or toe may be lifted by the clip, so its error is
+		# the lowest sole corner's gap to the support it is planted on.
+		reason = &"stance_planted" if locomotion_stance >= 0.5 else &"swing_clearance"
+		sole_error = absf(corrected_sole_min_gap - FOOT_IK_PLANT_SOLE_GAP_M)
 	return {
 		"active": true,
-		"reason": &"support_corrected",
+		"reason": reason,
+		"stance_weight": locomotion_stance,
+		"stepped_support": stepped_support,
 		"requested_correction_m": requested_correction,
 		"applied_correction_m": correction,
 		"sole_error_m": sole_error,
@@ -2195,6 +2461,40 @@ func _apply_foot_chain(
 		"ankle_position": _skeleton.global_transform * corrected_ankle,
 		"sole_position": _skeleton.global_transform * corrected_sole,
 	}.duplicate(true)
+
+
+## Walk/run correction for one boot, along movement up relative to its clip
+## pose (pelvis offset included). Returns Vector2(correction, effective stance).
+## Stance plants the lowest sole corner on the support within one stair step
+## (down to a lower tread only on stepped support, so ramps and flat decks keep
+## their contact limit); swing lifts only as far as the support needs, with
+## extra clearance over a tread higher than the capsule's deck. Both keep the
+## sole at or above its support, so their blend does too.
+func _locomotion_foot_correction(
+		sole_min_gap: float, support_local: Vector3, up_local: Vector3,
+		support_normal_local: Vector3, stance_weight: float, stepped_support: bool
+	) -> Vector2:
+	var tilt_cos := maxf(0.5, up_local.dot(support_normal_local))
+	var plant := (FOOT_IK_PLANT_SOLE_GAP_M - sole_min_gap) / tilt_cos
+	# The limits are relative to the clip pose, which the pelvis offset has
+	# already moved: a lowered pelvis widens the reach up, a raised one (an
+	# absorbed floor snap) widens it down by the same amount.
+	var down_limit := (
+		(FOOT_IK_MAX_STEP_DROP_M if stepped_support else FOOT_PLACEMENT_CONTACT_LIMIT_M)
+		+ maxf(0.0, -_visual_pelvis_drop_m)
+	)
+	var up_limit := FOOT_IK_MAX_STEP_RISE_M + maxf(0.0, _visual_pelvis_drop_m)
+	var effective := stance_weight
+	if plant < -down_limit or plant > up_limit:
+		effective = 0.0
+	var tread_rise := support_local.dot(up_local)
+	var clearance := lerpf(
+		FOOT_IK_PLANT_SOLE_GAP_M, FOOT_IK_SWING_TREAD_CLEARANCE_M,
+		smoothstep(PilotFootIKScript.TOE_STEP_MIN_M, 0.06, tread_rise)
+	)
+	var swing := maxf(0.0, (clearance - sole_min_gap) / tilt_cos)
+	var correction := clampf(lerpf(swing, plant, effective), -down_limit, up_limit)
+	return Vector2(correction, effective)
 
 
 func _boot_sole_min_gap_local(

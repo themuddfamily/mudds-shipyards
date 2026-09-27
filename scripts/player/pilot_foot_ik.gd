@@ -37,6 +37,47 @@ const TOE_RAY_DROP_M := 0.37
 ## step or bump under the toe, not ramp or triangle noise.
 const TOE_STEP_MIN_M := 0.015
 
+## --- Locomotion stance (walk/run) ------------------------------------------
+## The walk and run clips are treadmill cycles authored on a flat deck: the
+## skeleton origin is the floor, and a boot in stance slides backward toward
+## the heel while its lowest sole corner sits near that floor. Stance is read
+## from the live (possibly blended) clip pose every tick, so idle/walk/run
+## blends need no per-clip tables: a foot is in stance when its sole is within
+## a few centimetres of the clip floor AND it is travelling backward in clip
+## time. Swing feet (moving forward, including the placeholder walk's toe drag)
+## stay on the clip.
+const STANCE_HEIGHT_FULL_M := 0.06
+const STANCE_HEIGHT_NONE_M := 0.10
+## Backward sole speed in clip seconds (independent of playback rate).
+const STANCE_BACKWARD_SPEED_NONE_MPS := -0.2
+const STANCE_BACKWARD_SPEED_FULL_MPS := 0.4
+## Stance weight travel time, so heel strike and toe-off ramp in and out over a
+## few ticks instead of switching the plant in one.
+const STANCE_BLEND_SECONDS := 0.05
+## A carried body that moves this far along its up axis in ONE grounded tick
+## snapped over a stair nosing (floor snap down or step-up assist). The visual
+## pelvis absorbs the jump and eases it out, so the torso never pops a riser.
+## Smaller per-tick changes are ordinary ramp travel; larger ones are teleports.
+const BODY_STEP_ABSORB_MIN_M := 0.03
+const BODY_STEP_ABSORB_MAX_M := 0.36
+## A planted or lifted boot lowers relative to its clip pose at most this fast
+## (plus whatever the pelvis moved that tick): a stance boot sliding off a tread
+## edge settles onto the lower tread instead of dropping a riser in one tick.
+## Rising is never limited, because a sole must not cut through a tread.
+const LOCOMOTION_FOOT_DESCENT_MPS := 3.0
+
+var stance_weights := {&"l": 1.0, &"r": 1.0}
+var _stance_motion := {&"l": 1.0, &"r": 1.0}
+var _stance_forward := {}
+var _stance_clip := StringName()
+var _stance_clip_time := -INF
+var _stance_tick := -1
+var _stance_held := false
+var _body_height := NAN
+var _body_height_tick := -1
+var _foot_correction := {}
+var _foot_correction_tick := {}
+
 var weight := 1.0
 var gate_reason := StringName()
 var toe_probe_count := 0
@@ -63,6 +104,21 @@ func reset() -> void:
 	_leg_source.clear()
 	_leg_applied.clear()
 	_leg_delta.clear()
+	reset_locomotion()
+
+
+func reset_locomotion() -> void:
+	stance_weights = {&"l": 1.0, &"r": 1.0}
+	_stance_motion = {&"l": 1.0, &"r": 1.0}
+	_stance_forward.clear()
+	_stance_clip = &""
+	_stance_clip_time = -INF
+	_stance_tick = -1
+	_stance_held = false
+	_body_height = NAN
+	_body_height_tick = -1
+	_foot_correction.clear()
+	_foot_correction_tick.clear()
 
 
 ## Returns an empty reason when the presentation may solve this tick, or the
@@ -184,12 +240,7 @@ func probe_toe_support(presentation: Node3D, toe_world: Vector3, movement_up: Ve
 	var world := body.get_world_3d()
 	if world == null:
 		return {}
-	var collision_transform := Transform3D.IDENTITY
-	var frame_owner: Variant = _frame_owner(body)
-	if frame_owner != null and frame_owner.has_method(&"get_occupant_collision_transform"):
-		var published: Variant = frame_owner.call(&"get_occupant_collision_transform", body)
-		if published is Transform3D and (published as Transform3D).is_finite():
-			collision_transform = published as Transform3D
+	var collision_transform := _collision_transform(body)
 	var query := PhysicsRayQueryParameters3D.create(
 		collision_transform * (toe_world + movement_up * TOE_RAY_RISE_M),
 		collision_transform * (toe_world - movement_up * TOE_RAY_DROP_M),
@@ -244,6 +295,147 @@ static func merge_toe_support(heel: Variant, toe: Dictionary) -> Variant:
 		"normal": normal,
 		"toe_raised_m": rise,
 	}
+
+
+# --- Locomotion stance, body-step absorption and boot descent ---------------
+
+## Stance weight per foot for a walk/run tick. `samples` maps each side to
+## Vector2(lowest clip sole corner height above the clip floor, sole forward
+## coordinate), both in skeleton space from the clip pose before any IK.
+## `assume_planted` (the moving-to-idle blend) treats both boots as travelling
+## backward, so only sole height decides.
+func update_stance(
+		samples: Dictionary, clip: StringName, clip_time: float, clip_length: float,
+		tick_key: int, assume_planted: bool = false
+	) -> Dictionary:
+	if tick_key == _stance_tick:
+		return stance_weights.duplicate()
+	var consecutive := tick_key == _stance_tick + 1
+	var clip_dt := 0.0
+	if consecutive and clip == _stance_clip and is_finite(_stance_clip_time):
+		clip_dt = clip_time - _stance_clip_time
+		if clip_length > 0.0 and clip_dt < -0.5 * clip_length:
+			clip_dt += clip_length
+	var ticks := maxf(1.0, float(Engine.physics_ticks_per_second))
+	var blend_step := 1.0 / maxf(1.0, STANCE_BLEND_SECONDS * ticks)
+	for side: StringName in [&"l", &"r"]:
+		var sample: Variant = samples.get(side, null)
+		if not sample is Vector2 or not (sample as Vector2).is_finite():
+			stance_weights[side] = move_toward(float(stance_weights.get(side, 1.0)), 0.0, blend_step)
+			_stance_forward.erase(side)
+			continue
+		var height := (sample as Vector2).x
+		var forward := (sample as Vector2).y
+		if assume_planted:
+			_stance_motion[side] = 1.0
+		elif clip_dt > 0.00001 and _stance_forward.has(side):
+			_stance_motion[side] = stance_motion_factor(
+				(float(_stance_forward[side]) - forward) / clip_dt
+			)
+		var raw := float(_stance_motion.get(side, 1.0)) * stance_height_factor(height)
+		# Leaving idle or landing (or after a gated gap) starts from what the
+		# pose shows now, so a boot already lifted is never pulled down to ramp out.
+		var previous := raw
+		if consecutive and not _stance_held:
+			previous = float(stance_weights.get(side, 1.0))
+		stance_weights[side] = move_toward(previous, raw, blend_step)
+		_stance_forward[side] = forward
+	_stance_clip = clip
+	_stance_clip_time = clip_time
+	_stance_tick = tick_key
+	_stance_held = false
+	return stance_weights.duplicate()
+
+
+## Standing: both boots are planted. Keeps the stance clock continuous so the
+## first walk tick after idle starts from planted feet instead of a guess.
+func hold_stance_planted(clip: StringName, clip_time: float, tick_key: int) -> void:
+	stance_weights = {&"l": 1.0, &"r": 1.0}
+	_stance_motion = {&"l": 1.0, &"r": 1.0}
+	_stance_forward.clear()
+	_stance_clip = clip
+	_stance_clip_time = clip_time
+	_stance_tick = tick_key
+	_stance_held = true
+
+
+static func stance_height_factor(sole_height_m: float) -> float:
+	return 1.0 - smoothstep(STANCE_HEIGHT_FULL_M, STANCE_HEIGHT_NONE_M, sole_height_m)
+
+
+static func stance_motion_factor(backward_speed_mps: float) -> float:
+	return smoothstep(
+		STANCE_BACKWARD_SPEED_NONE_MPS, STANCE_BACKWARD_SPEED_FULL_MPS, backward_speed_mps
+	)
+
+
+## Signed displacement of the carried body along its up axis since the previous
+## consecutive tick when it is a stair snap the visual pelvis should absorb;
+## 0.0 for ordinary travel, teleports, frame changes or a broken tick chain.
+## Measured in the owner's collision frame, so a moving ship adds nothing.
+func take_body_step(presentation: Node3D, movement_up: Vector3, tick_key: int, absorb: bool) -> float:
+	if tick_key == _body_height_tick:
+		return 0.0
+	var body := find_body(presentation)
+	var height := NAN
+	if (
+		body != null and body.is_inside_tree()
+		and movement_up.is_finite() and not movement_up.is_zero_approx()
+	):
+		var collision_transform := _collision_transform(body)
+		var collision_up := (collision_transform.basis * movement_up).normalized()
+		height = (collision_transform * body.global_position).dot(collision_up)
+	var step := 0.0
+	if (
+		absorb and tick_key == _body_height_tick + 1
+		and is_finite(height) and is_finite(_body_height)
+	):
+		# Travel the body's own velocity explains (a steep ramp at a sprint) is
+		# not a snap; only the unexplained remainder is absorbed.
+		var ticks := maxf(1.0, float(Engine.physics_ticks_per_second))
+		var velocity_rise := 0.0
+		if body.velocity.is_finite():
+			velocity_rise = body.velocity.dot(movement_up.normalized()) / ticks
+		var delta := height - _body_height
+		var snap := delta - velocity_rise
+		if absf(snap) >= BODY_STEP_ABSORB_MIN_M and absf(delta) <= BODY_STEP_ABSORB_MAX_M:
+			step = snap
+	_body_height = height
+	_body_height_tick = tick_key
+	return step
+
+
+## Holds a boot's IK correction (metres along movement up, relative to its clip
+## pose) from falling faster than `max_step` per consecutive tick. It only ever
+## raises the requested correction, so it can never push a sole into support.
+func limit_foot_descent(side: StringName, correction: float, tick_key: int, max_step: float) -> float:
+	if int(_foot_correction_tick.get(side, -2)) == tick_key - 1 and _foot_correction.has(side):
+		correction = maxf(correction, float(_foot_correction[side]) - maxf(0.0, max_step))
+	return correction
+
+
+func record_foot_correction(side: StringName, correction: float, tick_key: int) -> void:
+	_foot_correction[side] = correction if is_finite(correction) else 0.0
+	_foot_correction_tick[side] = tick_key
+
+
+static func planar_speed(presentation: Node, movement_up: Vector3) -> float:
+	var body := find_body(presentation)
+	if body == null or not body.velocity.is_finite():
+		return 0.0
+	var up := Vector3.UP
+	if movement_up.is_finite() and not movement_up.is_zero_approx():
+		up = movement_up.normalized()
+	return (body.velocity - up * body.velocity.dot(up)).length()
+
+
+static func _collision_transform(body: Node) -> Transform3D:
+	var frame_owner: Variant = _frame_owner(body)
+	if frame_owner != null and frame_owner.has_method(&"get_occupant_collision_transform"):
+		var published: Variant = frame_owner.call(&"get_occupant_collision_transform", body)
+		if published is Transform3D and (published as Transform3D).is_finite():
+			return published as Transform3D
+	return Transform3D.IDENTITY
 
 
 static func find_body(presentation: Node) -> CharacterBody3D:
