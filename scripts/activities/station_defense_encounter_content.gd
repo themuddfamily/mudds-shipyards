@@ -1625,8 +1625,10 @@ func _get_tactic_telegraph_nodes(
 	var nodes: Array[MeshInstance3D] = []
 	if not is_instance_valid(entity):
 		return nodes
-	var visual := entity.get_node_or_null(^"RangeInterceptorVisual") as Node3D
-	if not is_instance_valid(visual):
+	# The accessor, not a child path: a dormant production raider's visual root
+	# is out of the tree (`release_visuals_while_dormant`) yet still restyled.
+	var visual := entity.get_presentation_root()
+	if not is_instance_valid(visual) or visual.name != &"RangeInterceptorVisual":
 		return nodes
 	var paths := node_paths
 	if paths.is_empty():

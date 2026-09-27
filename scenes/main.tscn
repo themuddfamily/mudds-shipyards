@@ -65,18 +65,24 @@ ship_definition = ExtResource("8_torrent_definition")
 [node name="BulwarkHeavyGunship" parent="." instance=ExtResource("35_bulwark")]
 
 [node name="RangeOpponent" parent="." instance=ExtResource("7_opponent")]
+release_visuals_while_dormant = true
 
 [node name="StandoffPicket" parent="." instance=ExtResource("16_picket")]
+release_visuals_while_dormant = true
 
 [node name="WingSkirmisherLead" parent="." instance=ExtResource("18_skirmisher")]
+release_visuals_while_dormant = true
 source_id = 2103
 
 [node name="WingSkirmisherWing" parent="." instance=ExtResource("18_skirmisher")]
+release_visuals_while_dormant = true
 source_id = 2104
 
 [node name="CourierRunner" parent="." instance=ExtResource("19_courier")]
+release_visuals_while_dormant = true
 
 [node name="TorpedoBoat" parent="." instance=ExtResource("40_torpedo_boat")]
+release_visuals_while_dormant = true
 
 [node name="EncounterScenarios" type="Node" parent="."]
 script = ExtResource("20_scenarios")

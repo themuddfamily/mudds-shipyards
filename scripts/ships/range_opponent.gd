@@ -344,6 +344,20 @@ const FORWARD_PRONG_POSITIONS := [
 @export_range(0.2, 8.0, 0.05) var weapon_cooldown := 1.55
 @export_range(20.0, 400.0, 1.0) var projectile_speed := 135.0
 
+@export_category("Residency")
+## Production craft that wait dormant in a resident scene set this so their
+## visual subtree leaves the scene tree while stood down and returns on the next
+## activation (Phase 10 §2 resident ceilings). The body, colliders, muzzles,
+## cues, damage and combat registration and identity never leave. Fixtures keep
+## the default and always see the subtree. Clearing it restores the subtree.
+@export var release_visuals_while_dormant := false:
+	set(value):
+		release_visuals_while_dormant = value
+		if value:
+			_schedule_dormant_presentation_release()
+		else:
+			_restore_dormant_presentation()
+
 ## Instance-owned, so the meshes are freed with the craft and never outlive it.
 var _chamfered_cylinder_cache: Dictionary = {}
 var _active := false
@@ -435,6 +449,9 @@ var _weapon_heat_lockout_remaining := 0.0
 var _heat_lockout_announced := false
 var _heat_lockout_dry_fire_count := 0
 var _reduced_flash := false
+var _presentation_released := false
+var _presentation_release_pending := false
+var _presentation_release_index := -1
 
 
 func _enter_tree() -> void:
@@ -545,6 +562,7 @@ func _process(delta: float) -> void:
 		and _debris.is_empty()
 	):
 		visible = false
+		_schedule_dormant_presentation_release()
 
 
 ## Assigns the craft that the range defender should pursue and engage.
@@ -618,6 +636,7 @@ func activate_with_result(spawn_transform: Transform3D) -> Dictionary:
 			"reason": reset_result.get("reason", &"damage_model_reset_rejected"),
 			"damage_model": reset_result.duplicate(true),
 		}.duplicate(true)
+	_restore_dormant_presentation()
 	_build_interceptor()
 	_ensure_weapon_component_damage_presentation()
 	_ensure_sensor_component_damage_presentation()
@@ -688,6 +707,79 @@ func deactivate() -> void:
 		_visual_root.visible = true
 	_clear_destruction_effects()
 	visible = false
+	_schedule_dormant_presentation_release()
+
+
+# --- Dormant presentation residency (Phase 10 §2) (begin) --------------------
+
+## The craft's visual root whether or not it is currently in the scene tree.
+## Content and audits that restyle or read the presentation while the craft is
+## dormant use this instead of a child-path lookup.
+func get_presentation_root() -> Node3D:
+	return _visual_root if is_instance_valid(_visual_root) else null
+
+
+## True while the visual root is attached to this craft.
+func is_presentation_resident() -> bool:
+	return is_instance_valid(_visual_root) and not _presentation_released
+
+
+func _notification(what: int) -> void:
+	# A released visual root is an orphan this craft still owns.
+	if what == NOTIFICATION_PREDELETE and _presentation_released:
+		_presentation_released = false
+		if is_instance_valid(_visual_root) and _visual_root.get_parent() == null:
+			_visual_root.free()
+		_visual_root = null
+
+
+func _can_release_dormant_presentation() -> bool:
+	return (
+		release_visuals_while_dormant
+		and _built
+		and not _active
+		and not _presentation_released
+		and is_instance_valid(_visual_root)
+		and _visual_root.get_parent() == self
+		and _pending_terminal_presentation_sequence < 0
+		and _destruction_time <= 0.0
+		and _debris.is_empty()
+		and not is_queued_for_deletion()
+	)
+
+
+## Deferred so `_ready`, `deactivate()` from a tree notification and a derived
+## `deactivate()` that finishes after `super()` all complete first; the release
+## re-checks every condition when it runs.
+func _schedule_dormant_presentation_release() -> void:
+	if _presentation_release_pending or not _can_release_dormant_presentation():
+		return
+	_presentation_release_pending = true
+	call_deferred(&"_release_dormant_presentation")
+
+
+func _release_dormant_presentation() -> void:
+	_presentation_release_pending = false
+	if not _can_release_dormant_presentation():
+		return
+	_presentation_release_index = _visual_root.get_index()
+	remove_child(_visual_root)
+	_presentation_released = true
+
+
+func _restore_dormant_presentation() -> void:
+	if not _presentation_released:
+		return
+	_presentation_released = false
+	if not is_instance_valid(_visual_root):
+		_visual_root = null
+		return
+	add_child(_visual_root)
+	if _presentation_release_index >= 0 and _presentation_release_index < get_child_count():
+		move_child(_visual_root, _presentation_release_index)
+	_presentation_release_index = -1
+
+# --- Dormant presentation residency (Phase 10 §2) (end) ----------------------
 
 
 ## Applies hull damage immediately, with optional sequence-keyed presentation delay.
