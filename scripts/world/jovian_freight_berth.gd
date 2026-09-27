@@ -24,6 +24,8 @@ const WORLD_LAYER := PhysicsLayers.WORLD
 ## space per texture repeat. Frozen. Walked-on deck and room floors use the
 ## tighter plate so foot-scale surfaces keep a readable tread size.
 const PANEL_SURFACE_SCALE := 0.30
+## Visual-only lift/inset of every second lapped apron leaf (coplanar seams).
+const APRON_LEAF_VISUAL_LIFT := 0.005
 const WALKED_PANEL_SURFACE_SCALE := 0.22
 
 ## Distance fade applied to every light this module builds. Measured, not chosen:
@@ -2031,6 +2033,8 @@ func _create_materials() -> void:
 			WALKED_PANEL_SURFACE_SCALE if key in ["ceramic_floor", "deck", "deck_grip"] else PANEL_SURFACE_SCALE,
 			finish_by_key[key]
 		)
+		# Packed occlusion, and metal modulation on metal finishes (ORM set).
+		StationSurfaceKit.apply_panel_orm(panel, finish_by_key[key])
 
 
 func _create_guide_lens_mesh() -> void:
@@ -2121,8 +2125,16 @@ func _build_loading_apron() -> void:
 	# Large but segmented load-bearing leaves avoid a single featureless slab.
 	for index in 4:
 		var z_position := 13.6 + float(index) * 9.75
-		_rounded_box(apron, "ApronDeck%02d" % (index + 1), Vector3(0, -0.37, z_position), Vector3(31.6, 0.74, 10.0), _materials["deck"])
-		_rounded_box(apron, "CentreGrip%02d" % (index + 1), Vector3(0, 0.025, z_position), Vector3(7.5, 0.045, 9.45), _materials["deck_grip"], false)
+		var apron_leaf := _rounded_box(apron, "ApronDeck%02d" % (index + 1), Vector3(0, -0.37, z_position), Vector3(31.6, 0.74, 10.0), _materials["deck"])
+		# Adjacent leaves lap 0.25 m on identical top, underside and side planes,
+		# 7.9 m² of coplanar deck per joint (docs/COPLANAR_SEAM_AUDIT.md). Every
+		# second leaf's drawn plate stands `APRON_LEAF_VISUAL_LIFT` higher and
+		# sits that much narrower, so the lap has one owner. Colliders are unchanged.
+		var leaf_lift := APRON_LEAF_VISUAL_LIFT if index % 2 == 1 else 0.0
+		if index % 2 == 1:
+			_lift_apron_leaf_visual(apron_leaf, Vector3(31.6, 0.74, 10.0))
+		# The grip keeps its clearance over its own leaf's drawn top.
+		_rounded_box(apron, "CentreGrip%02d" % (index + 1), Vector3(0, 0.025 + leaf_lift, z_position), Vector3(7.5, 0.045, 9.45), _materials["deck_grip"], false)
 
 	# Side service shelves make the apron asymmetrical and operational.
 	_rounded_box(apron, "CargoRackShelf", Vector3(-19.15, -0.31, 28.0), Vector3(6.4, 0.62, 27.0), _materials["deck"])
@@ -3644,6 +3656,17 @@ func _transformed_mesh_bounds(
 		result = transformed if first else result.merge(transformed)
 		first = false
 	return result
+
+
+## Lifts a lapped apron leaf's drawn plate `APRON_LEAF_VISUAL_LIFT` above, and
+## insets it that much inside, its neighbours' side planes; the leaf's
+## `BoxShape3D` keeps the authored size.
+func _lift_apron_leaf_visual(leaf: Node3D, authored_size: Vector3) -> void:
+	var visual := leaf.get_node_or_null(^"Mesh") as MeshInstance3D if leaf != null else null
+	if visual == null:
+		return
+	visual.mesh = _rounded_box_mesh(authored_size - Vector3(APRON_LEAF_VISUAL_LIFT * 2.0, 0.0, 0.0))
+	visual.position.y = APRON_LEAF_VISUAL_LIFT
 
 
 func _rounded_box(

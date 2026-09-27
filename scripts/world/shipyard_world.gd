@@ -1147,6 +1147,10 @@ var _crane_hook: Node3D
 var _built := false
 ## Phase 10 §2 node arithmetic from the last `_consolidate_station_dressing()`.
 var _dressing_consolidation_report: Dictionary = {}
+# Station-visual structural edge treatment: caller-owned tool-chamfer mesh cache
+# and the last pass's per-piece report.
+var _structural_edge_cache: Dictionary = {}
+var _structural_edge_report: Dictionary = {}
 ## Set only by a boot loader, through `prepare_staged_construction()`, before
 ## this world enters the tree. Retained until every construction stage finishes.
 var _staged_construction := false
@@ -1335,6 +1339,9 @@ const BUILD_STAGES: Array[Array] = [
 	[&"_apply_operational_dressing_quality", "Applying visual quality"],
 	[&"_restore_station_activity_state", "Starting station life"],
 	[&"_apply_sign_geometry_budget", "Setting the signage"],
+	# Station-visual: re-cut hub structural stock at the 38.2 mm tool edge before
+	# the dressing batcher folds it (see StationStructuralEdgeTreatment).
+	[&"_apply_structural_edge_treatment", "Finishing structural edges"],
 	[&"_consolidate_station_dressing", "Batching station dressing"],
 ]
 
@@ -2006,6 +2013,22 @@ func _consolidate_station_dressing() -> void:
 ## The last consolidation pass's exact node arithmetic, for tests and probes.
 func get_dressing_consolidation_report() -> Dictionary:
 	return _dressing_consolidation_report.duplicate(true)
+
+
+# --- Station-visual: structural edge treatment (begin) -----------------------
+
+## Re-cuts the lattice decks, catwalk landing/ramp, Dock Operations control pod
+## and launch-arm stock at the station's 38.2 mm tool chamfer. Visual meshes
+## only; every collider, route and marker is left exactly as built.
+func _apply_structural_edge_treatment() -> void:
+	_structural_edge_report = StationStructuralEdgeTreatment.apply(self, _structural_edge_cache)
+
+
+## The last structural edge pass's per-piece record, for tests and probes.
+func get_structural_edge_treatment_report() -> Dictionary:
+	return _structural_edge_report.duplicate(true)
+
+# --- Station-visual: structural edge treatment (end) -------------------------
 
 
 ## The final sign sweep can exceed a loading frame on its own. Resume the same
@@ -6433,6 +6456,12 @@ func _apply_station_panel_family() -> void:
 			0.3,
 			finish_by_key.get(key, StationSurfaceKit.PanelFinish.STRUCTURAL_ALLOY)
 		)
+		# Station-visual: packed ORM occlusion/metal response for the lattice,
+		# catwalk, control-room and trim roles.
+		StationSurfaceKit.apply_panel_orm(
+			panel_material,
+			finish_by_key.get(key, StationSurfaceKit.PanelFinish.STRUCTURAL_ALLOY)
+		)
 
 
 ## Unit vector pointing from the station *toward* the sun.
@@ -6613,12 +6642,17 @@ func _build_environment() -> void:
 	# of blue laid over everything.
 	environment.fog_enabled = true
 	environment.fog_mode = Environment.FOG_MODE_DEPTH
-	environment.fog_depth_begin = 55.0
+	# Station-visual readability tune: begin at 60 m (was 55 m) so every walked
+	# berth apron, including the far side of the Fleet Dock comb from the central
+	# junction, keeps its full material contrast; the far-field cue is unchanged.
+	environment.fog_depth_begin = 60.0
 	environment.fog_depth_end = 260.0
 	environment.fog_depth_curve = 0.55
 	environment.fog_density = 0.42
 	environment.fog_light_color = Color("4a6e82")
-	environment.fog_light_energy = 1.6
+	# 1.5 (was 1.6): the haze still sits above the shadow side, but no longer
+	# lifts mid-distance painted and bare-metal roles to one value.
+	environment.fog_light_energy = 1.5
 	environment.fog_sky_affect = 0.0
 	world_environment.environment = environment
 	add_child(world_environment)
@@ -7301,7 +7335,9 @@ func _build_halyard_berth_apron(shell: Node3D) -> void:
 			apron,
 			"HalyardApronChord",
 			Vector3(float(chord_x), chord_centre_y, HALYARD_APRON_NOSE_MIN_Z + nose_depth * 0.5),
-			Vector3(0.55, 1.4, nose_depth - 0.4),
+			# 0.57 m, 10 mm wider than the 0.55 m struts that pass through it, so
+			# strut and chord no longer share side planes (coplanar seam audit).
+			Vector3(0.57, 1.4, nose_depth - 0.4),
 			_materials["steel_blue"],
 			false
 		)
@@ -7311,7 +7347,7 @@ func _build_halyard_berth_apron(shell: Node3D) -> void:
 			apron,
 			"HalyardApronChord",
 			Vector3(float(chord_x), chord_centre_y, tail_centre_z),
-			Vector3(0.55, 1.4, tail_depth - 0.4),
+			Vector3(0.57, 1.4, tail_depth - 0.4),
 			_materials["steel_blue"],
 			false
 		)
@@ -8765,8 +8801,11 @@ func _build_dock_operations_room(upper: Node3D) -> void:
 	for light_spec: Array in room_light_specs:
 		var light_name := light_spec[0] as String
 		var light_position := light_spec[1] as Vector3
-		_box(room, light_name + "Body", Vector3(light_position.x, 5.57, light_position.z), Vector3(2.15, 0.11, 0.44), _materials["black"], false)
-		_box(room, light_name + "Lens", Vector3(light_position.x, 5.4975, light_position.z), Vector3(1.85, 0.035, 0.20), _materials["white_glow"], false)
+		# Body top bears 5 mm into the roof's underside, as the ceiling ribs do;
+		# flush at 5.625 it shared the roof plane (coplanar seam audit). The lens
+		# follows so it still meets the body's underside.
+		_box(room, light_name + "Body", Vector3(light_position.x, 5.575, light_position.z), Vector3(2.15, 0.11, 0.44), _materials["black"], false)
+		_box(room, light_name + "Lens", Vector3(light_position.x, 5.5025, light_position.z), Vector3(1.85, 0.035, 0.20), _materials["white_glow"], false)
 		var room_light := SpotLight3D.new()
 		room_light.name = light_name
 		room_light.position = light_position

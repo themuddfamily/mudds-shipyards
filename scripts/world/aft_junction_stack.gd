@@ -388,6 +388,8 @@ const UPPER_TRANSFER_EAST_LANE_WIDTH := 1.60
 # beside the ramp collision without moving the stair, route stripe, or signs.
 const STAIR_BASE_LANDING_CENTRE := Vector3(-4.78, -0.32, 3.25)
 const STAIR_BASE_LANDING_SIZE := Vector3(4.76, 0.64, 3.5)
+## Visual-only lift of the landing's drawn plate over ConnectionDeck's lap.
+const STAIR_BASE_LANDING_VISUAL_LIFT := 0.005
 
 ## Physical size of one station panel plate in this module, in metres of world
 ## space per texture repeat. Frozen; the Fleet Dock comb and the hub match it so
@@ -3250,6 +3252,8 @@ func _create_materials() -> void:
 			PANEL_SURFACE_SCALE,
 			finish_by_key[key]
 		)
+		# Packed occlusion, and metal modulation on metal finishes (ORM set).
+		StationSurfaceKit.apply_panel_orm(_materials[key] as StandardMaterial3D, finish_by_key[key])
 
 
 func _create_structure() -> Node3D:
@@ -3290,7 +3294,14 @@ func _build_open_lower_deck(structure: Node3D) -> void:
 	# straight, level run onto the unchanged ramp. It shares its whole eastern
 	# strip with ConnectionDeck: the two are coplanar, and that strip is the gate
 	# onto the stair, so no rail may stand in it (MAP-001).
-	_box(lower, "StairBaseLanding", STAIR_BASE_LANDING_CENTRE, STAIR_BASE_LANDING_SIZE, _materials["off_white_floor"])
+	var stair_base_landing := _box(lower, "StairBaseLanding", STAIR_BASE_LANDING_CENTRE, STAIR_BASE_LANDING_SIZE, _materials["off_white_floor"])
+	# That shared strip put both slabs' tops and undersides on one plane over
+	# 2.6 m² (docs/COPLANAR_SEAM_AUDIT.md). The landing's drawn plate stands
+	# `STAIR_BASE_LANDING_VISUAL_LIFT` proud of ConnectionDeck so one surface owns
+	# the gate strip; the landing's collider and the MAP-001 gate stay exact.
+	var stair_base_landing_visual := stair_base_landing.get_node_or_null(^"Mesh") as MeshInstance3D
+	if stair_base_landing_visual != null:
+		stair_base_landing_visual.position.y = STAIR_BASE_LANDING_VISUAL_LIFT
 	_box(lower, "JunctionInset", Vector3(0.0, 0.025, 7.35), Vector3(5.8, 0.05, 3.5), _materials["off_white_floor"], false)
 	# Turn the cyan ribbon across the supported junction/landing overlap, directly
 	# between the published lower-junction and stair-base markers. The previous

@@ -1221,6 +1221,8 @@ func _create_materials() -> void:
 	# thick better than the 0.28/0.30 wall scales.
 	for panel_key in ["frame", "frame_edge", "radiator"]:
 		StationSurfaceKit.apply_panel_triplanar(_materials[panel_key] as StandardMaterial3D, 0.22)
+		# Structural trim takes the packed occlusion and metal mask (ORM set).
+		StationSurfaceKit.apply_panel_orm(_materials[panel_key] as StandardMaterial3D)
 
 
 func _apply_evidence_metadata() -> void:
