@@ -1279,6 +1279,7 @@ func _exit_tree() -> void:
 	save_interrupted_aurora_visit()
 	_aurora_expedition.cancel(true)
 	_planetary_atmosphere_flight_effects.reset(&"game_flow_detached")
+	_detach_rime_expedition_for_exit()
 	_detach_first_sortie_tutorial_presentation(&"game_flow_detached")
 	_detach_activity_tutorial_presentation(&"game_flow_detached")
 	_planetary_journey.detach()
@@ -1756,6 +1757,7 @@ func _resolve_scene_bindings() -> void:
 		get_node_or_null(^"AuroraTemperateStreamingProductionBinding")
 		as AuroraTemperateStreamingProductionBinding
 	)
+	_resolve_rime_streaming_composition()
 	ember_surface_loop_production_binding = (
 		get_node_or_null(^"EmberSurfaceLoopProductionBinding")
 		as EmberSurfaceLoopProductionBinding
@@ -2635,6 +2637,7 @@ func _start_up_persisted_state() -> void:
 	bind_planetary_return_persistence(ember_surface_loop_production_binding)
 	bind_ember_relay_survey_persistence(ember_surface_loop_production_binding)
 	bind_aurora_expedition_persistence()
+	bind_rime_expedition_persistence()
 	_restore_and_retire_planetary_return_persistence()
 	_initialize_session_diagnostics()
 	_apply_command_line_recovery_args(OS.get_cmdline_args())
@@ -3406,6 +3409,9 @@ func _process(delta: float) -> void:
 	if _aurora_expedition.is_active() and not _station_seated:
 		_aurora_expedition.update_presentation()
 		return
+	if _rime_expedition.is_active() and not _station_seated:
+		_rime_expedition.update_presentation()
+		return
 	if _heavy_breach_activity_is_presentable():
 		_heavy_breach_hud_refresh_elapsed += delta
 		if _heavy_breach_hud_refresh_elapsed >= HEAVY_BREACH_HUD_REFRESH_SECONDS:
@@ -3870,9 +3876,11 @@ func _initialize_planetary_destination_catalog() -> void:
 		"engagement_text": "IN SENSOR RANGE — LINE UP ON THE RINGED MOUTH",
 		"unreachable_text": "OUT OF SENSOR RANGE — FLY OUT TO CINDER REACH",
 	})
+	var rime_result := _register_rime_destination(catalog, registry)
 	if (
 		not bool(ember_result.get("accepted", false))
 		or not bool(aurora_result.get("accepted", false))
+		or not bool(rime_result.get("accepted", false))
 		or not bool(hulk_site.get("accepted", false))
 		or not bool(bore_site.get("accepted", false))
 	):
@@ -4381,6 +4389,11 @@ func _physics_process(delta: float) -> void:
 		var aurora_sample := _capture_cinder_actor_sample()
 		_planetary_journey.advance_aurora_visit(delta, aurora_sample)
 		_aurora_expedition.physics_tick(delta)
+		return
+	if _rime_expedition.is_active():
+		# Rime rides the same surface-visit lane, admitted with Rime's world id.
+		_planetary_journey.advance_aurora_visit(delta, _capture_cinder_actor_sample())
+		_rime_expedition.physics_tick(delta)
 		return
 	if is_instance_valid(network_session) and _network_session_mode == &"server":
 		var composition_attachment := _attach_network_ship_authority_composition()
@@ -5643,7 +5656,7 @@ func _consume_ember_surface_reboard_interaction() -> bool:
 ## request. This observes already-authoritative lifecycle state only; it does
 ## not decide combat, landing, activity, or ship ownership.
 func _planetary_cruise_gate_reason(include_combat: bool = true) -> StringName:
-	if _aurora_expedition.is_active():
+	if _aurora_expedition.is_active() or _rime_expedition.is_active():
 		return &"activity_running"
 	if not is_inside_tree() or is_queued_for_deletion():
 		return &"main_unavailable"
@@ -6878,6 +6891,7 @@ func start_shift() -> void:
 	audio.set_on_foot(true)
 	audio.play_ui_confirm()
 	restore_interrupted_aurora_visit()
+	restore_interrupted_rime_visit()
 
 
 ## Recomputes the on-foot interaction targets from live world state.
@@ -7904,6 +7918,8 @@ func _try_launch_armed_heavy_breach() -> bool:
 func _on_interact_requested() -> void:
 	if _aurora_expedition.is_active() and _aurora_expedition.interact():
 		return
+	if _rime_expedition.is_active() and _rime_expedition.interact():
+		return
 	if _consume_ember_surface_reboard_interaction():
 		return
 	if _piloting or _transition_busy:
@@ -8325,6 +8341,9 @@ func _reset_lifecycle_command_cursor() -> void:
 func _try_exit_ship() -> void:
 	if _aurora_expedition.is_active():
 		_aurora_expedition.request_exit()
+		return
+	if _rime_expedition.is_active():
+		_rime_expedition.request_exit()
 		return
 	if _transition_busy or not _piloting or not is_instance_valid(active_ship):
 		return
@@ -10640,7 +10659,7 @@ func _ensure_network_landing_handoff_committed(
 
 
 func _on_landing_completed(source_ship: HeroShip = null) -> void:
-	if _aurora_expedition.is_active():
+	if _aurora_expedition.is_active() or _rime_expedition.is_active():
 		return
 	if _network_session_mode == &"client":
 		return
@@ -11691,7 +11710,7 @@ func consume_planetary_return_receipt(
 
 
 func _on_landing_aborted(reason: StringName, source_ship: HeroShip = null) -> void:
-	if _aurora_expedition.is_active():
+	if _aurora_expedition.is_active() or _rime_expedition.is_active():
 		return
 	if _network_session_mode == &"client":
 		return
@@ -13013,6 +13032,9 @@ func _get_active_landing_assist_report() -> Dictionary:
 func _try_request_landing() -> void:
 	if _aurora_expedition.is_active():
 		_aurora_expedition.request_landing()
+		return
+	if _rime_expedition.is_active():
+		_rime_expedition.request_landing()
 		return
 	if not is_instance_valid(active_ship):
 		return
@@ -16328,6 +16350,8 @@ func _on_hud_planetary_destination_requested(
 			hud.toast("AURORA EXPEDITION UNAVAILABLE", str(_aurora_expedition.runtime_state().get("status_text", "Board your ship first")), 2.4)
 		_sync_planetary_cruise_hud()
 		return
+	if _route_rime_destination_request(destination_id, route):
+		return
 	_sync_planetary_cruise_hud()
 	if is_instance_valid(hud):
 		hud.toast(
@@ -17561,6 +17585,7 @@ func get_planetary_destination_catalog_snapshot() -> Dictionary:
 ## A HUD refresh already sampled cruise state. Reuse it for the destination row
 ## so both controls describe one observation without repeating the live query.
 func _make_planetary_destination_catalog_snapshot(presentation: Dictionary) -> Dictionary:
+	var surface_visits := _surface_visit_runtime_states()
 	var snapshot := _planetary_destination_catalog.get_presentation_snapshot({
 		EMBER_DESTINATION_ID: {
 			"status_id": StringName(presentation.get("status_id", &"unavailable")),
@@ -17568,11 +17593,13 @@ func _make_planetary_destination_catalog_snapshot(presentation: Dictionary) -> D
 			"action_enabled": bool(presentation.get("toggle_enabled", false)),
 			"engagement_requested": bool(presentation.get("engagement_requested", false)),
 		},
-		AuroraExpeditionType.DESTINATION_ID: _aurora_expedition.runtime_state(),
+		AuroraExpeditionType.DESTINATION_ID: surface_visits[AuroraExpeditionType.DESTINATION_ID],
+		RimeExpeditionType.DESTINATION_ID: surface_visits[RimeExpeditionType.DESTINATION_ID],
 	}, _get_nearby_sector_site_runtime_states())
 	for row: Dictionary in snapshot.get("destinations", []):
 		if row.get("destination_id") == AuroraExpeditionType.DESTINATION_ID and _aurora_expedition.is_active():
 			row["action_text"] = "RETURN TO MUDDS" if bool(row.get("action_enabled", false)) else "RETURN REQUIRES PILOT SEAT"
+		_decorate_rime_destination_row(row)
 	return snapshot
 
 
@@ -18846,6 +18873,8 @@ func _advance_planetary_atmosphere_flight_effects(delta: float) -> void:
 	var sources: Array = []
 	if is_instance_valid(aurora_streaming_bootstrap):
 		sources.append(aurora_streaming_bootstrap)
+	if is_instance_valid(rime_streaming_bootstrap):
+		sources.append(rime_streaming_bootstrap)
 	if sources.is_empty():
 		if _planetary_atmosphere_flight_effects.is_active():
 			_planetary_atmosphere_flight_effects.reset(&"atmosphere_sources_unavailable")
@@ -18862,3 +18891,191 @@ func _advance_planetary_atmosphere_flight_effects(delta: float) -> void:
 func get_planetary_atmosphere_flight_effects_snapshot() -> Dictionary:
 	return _planetary_atmosphere_flight_effects.get_snapshot()
 # --- end planetary atmosphere flight effects ----------------------------------
+
+
+# --- Rime glacial world: the third visitable world ---------------------------
+# Everything GameFlow needs to host a Rime visit lives in this block; the call
+# sites elsewhere are one-line peers of Aurora's. Rime shares the journey
+# coordinator's one surface-visit lane with Aurora (admitted with Rime's world
+# id), so only one of the two can ever be active.
+
+const RimeExpeditionType := preload("res://scripts/game/rime_expedition.gd")
+const RimeWorldDefinition := preload(
+	"res://assets/world/planets/rime_glacial_world.tres"
+)
+const RIME_DESTINATION_ROUTE_ID: StringName = &"rime_exploration"
+const RIME_EXPEDITION_PERSISTENCE_SLOT: StringName = \
+	&"rime_expedition_active_visit"
+
+var _rime_expedition := RimeExpeditionType.new(self)
+var rime_streaming_bootstrap: RimeGlacialStreamingBootstrap
+var rime_streaming_binding: RimeGlacialStreamingProductionBinding
+var _rime_expedition_persistence_binding: RimeExpeditionPersistenceBinding
+var _rime_interrupted_visit_save_status: Dictionary = {}
+var _rime_interrupted_visit_restore_status: Dictionary = {}
+var _rime_interrupted_visit_restore_attempted := false
+
+
+func _resolve_rime_streaming_composition() -> void:
+	rime_streaming_bootstrap = (
+		get_node_or_null(^"RimeGlacialStreamingBootstrap")
+		as RimeGlacialStreamingBootstrap
+	)
+	rime_streaming_binding = (
+		get_node_or_null(^"RimeGlacialStreamingProductionBinding")
+		as RimeGlacialStreamingProductionBinding
+	)
+
+
+## Registers Rime on the Destination Board, reading its distance from the same
+## absolute orbital registry Ember's and Aurora's come from.
+func _register_rime_destination(catalog: RefCounted, registry: RefCounted) -> Dictionary:
+	var placement := registry.call(
+		&"relative_position_meters",
+		NearbySectorOrbitalRegistry.STATION_DATUM_ID,
+		NearbySectorOrbitalRegistry.RIME_BODY_CENTER_ID,
+	) as Dictionary
+	if not bool(placement.get("accepted", false)):
+		push_error("Planetary destination catalog could not resolve Rime's orbital datum")
+		return placement
+	return catalog.call(&"register_destination", RimeWorldDefinition, {
+		"route_id": RIME_DESTINATION_ROUTE_ID,
+		"route_available": true,
+		"orbital_distance_meters": (
+			placement.get("position_meters", Vector3.ZERO) as Vector3
+		).length(),
+		"travel_summary": "CRUISE // LAND // ICE-CORE SURVEY // RETURN",
+		"unavailable_reason": "",
+	}) as Dictionary
+
+
+## Board ingress for Rime. Returns true when the request was Rime's.
+func _route_rime_destination_request(destination_id: StringName, route: Dictionary) -> bool:
+	if not bool(route.get("accepted", false)) \
+			or destination_id != RimeExpeditionType.DESTINATION_ID:
+		return false
+	if not _rime_expedition.request() and is_instance_valid(hud):
+		hud.toast(
+			"RIME EXPEDITION UNAVAILABLE",
+			str(_rime_expedition.runtime_state().get("status_text", "Board your ship first")),
+			2.4,
+		)
+	_sync_planetary_cruise_hud()
+	return true
+
+
+## The Aurora and Rime rows share one surface-visit lane; while either visit is
+## running, the other row is shown unavailable rather than offering a press the
+## coordinator would refuse.
+func _surface_visit_runtime_states() -> Dictionary:
+	var aurora := _aurora_expedition.runtime_state() as Dictionary
+	var rime := _rime_expedition.runtime_state() as Dictionary
+	if _rime_expedition.is_active() and not _aurora_expedition.is_active():
+		aurora = {"status_id": &"unavailable", "status_text": "RIME EXPEDITION ACTIVE",
+			"action_enabled": false, "engagement_requested": false}
+	elif _aurora_expedition.is_active() and not _rime_expedition.is_active():
+		rime = {"status_id": &"unavailable", "status_text": "AURORA EXPEDITION ACTIVE",
+			"action_enabled": false, "engagement_requested": false}
+	return {
+		AuroraExpeditionType.DESTINATION_ID: aurora,
+		RimeExpeditionType.DESTINATION_ID: rime,
+	}
+
+
+func _decorate_rime_destination_row(row: Dictionary) -> void:
+	if row.get("destination_id") == RimeExpeditionType.DESTINATION_ID \
+			and _rime_expedition.is_active():
+		row["action_text"] = "RETURN TO MUDDS" if bool(row.get("action_enabled", false)) \
+			else "RETURN REQUIRES PILOT SEAT"
+
+
+## Records the running Rime visit and then ends it, exactly as Aurora's exit
+## path does: the record is what the next `Main` hands back.
+func _detach_rime_expedition_for_exit() -> void:
+	save_interrupted_rime_visit()
+	_rime_expedition.cancel(true)
+
+
+func bind_rime_expedition_persistence() -> Dictionary:
+	if _runtime_settings_user_data_store == null:
+		return {"accepted": false, "reason": &"rime_visit_persistence_unavailable"}
+	if _rime_expedition_persistence_binding != null:
+		return {"accepted": true, "reason": &"rime_visit_persistence_already_bound"}
+	var binding := RimeExpeditionPersistenceBinding.new()
+	var configured := binding.configure(
+		_runtime_settings_user_data_store, RIME_EXPEDITION_PERSISTENCE_SLOT
+	)
+	if bool(configured.get("accepted", false)):
+		_rime_expedition_persistence_binding = binding
+	return configured
+
+
+## Records a running Rime visit so a whole-`Main` re-entry can resume it. A
+## visit already on its way home, or no visit at all, commits nothing.
+func save_interrupted_rime_visit() -> Dictionary:
+	var visit := _rime_expedition.capture_interrupted_visit() as Dictionary
+	if visit.is_empty():
+		_rime_interrupted_visit_save_status = {
+			"accepted": true, "reason": &"rime_visit_not_running",
+		}
+		return _rime_interrupted_visit_save_status.duplicate(true)
+	if _rime_expedition_persistence_binding == null:
+		_rime_interrupted_visit_save_status = {
+			"accepted": false, "reason": &"rime_visit_persistence_unavailable",
+		}
+		return _rime_interrupted_visit_save_status.duplicate(true)
+	_rime_interrupted_visit_save_status = \
+		_rime_expedition_persistence_binding.save_interrupted_visit(
+			visit,
+			"rime-active-visit-%s" % str(visit.get("craft_home_berth_id", "")),
+		)
+	return _rime_interrupted_visit_save_status.duplicate(true)
+
+
+## Resumes exactly one recorded Rime visit, once per `Main`. The receipt is
+## retired only behind an accepted resume, so an interrupted resume stays
+## retryable.
+func restore_interrupted_rime_visit() -> Dictionary:
+	if _rime_interrupted_visit_restore_attempted:
+		return {"accepted": false, "reason": &"rime_visit_restore_already_attempted"}
+	_rime_interrupted_visit_restore_attempted = true
+	if _rime_expedition_persistence_binding == null:
+		_rime_interrupted_visit_restore_status = {
+			"accepted": false, "reason": &"rime_visit_persistence_unavailable",
+		}
+		return _rime_interrupted_visit_restore_status.duplicate(true)
+	var loaded := _rime_expedition_persistence_binding.load_interrupted_visit()
+	if not bool(loaded.get("accepted", false)):
+		_rime_interrupted_visit_restore_status = loaded.duplicate(true)
+		return _rime_interrupted_visit_restore_status.duplicate(true)
+	var restored := _rime_expedition.restore_interrupted_visit(
+		loaded.get("visit", {}) as Dictionary
+	) as Dictionary
+	var retired := {"accepted": false, "reason": &"rime_visit_restore_refused"}
+	if bool(restored.get("accepted", false)):
+		retired = _rime_expedition_persistence_binding.retire_interrupted_visit(
+			int(loaded.get("store_generation", -1)),
+			str(loaded.get("receipt_sha256", "")),
+			"rime-active-visit-retire-%s" % str(
+				(loaded.get("visit", {}) as Dictionary).get("craft_home_berth_id", "")
+			),
+		)
+	_rime_interrupted_visit_restore_status = {
+		"accepted": bool(restored.get("accepted", false)),
+		"reason": restored.get("reason", &"rime_visit_restore_refused"),
+		"restore": restored.duplicate(true),
+		"retire": retired.duplicate(true),
+	}
+	return _rime_interrupted_visit_restore_status.duplicate(true)
+
+
+func get_rime_interrupted_visit_status() -> Dictionary:
+	return {
+		"save": _rime_interrupted_visit_save_status.duplicate(true),
+		"restore": _rime_interrupted_visit_restore_status.duplicate(true),
+		"restore_attempted": _rime_interrupted_visit_restore_attempted,
+		"binding": (
+			_rime_expedition_persistence_binding.get_snapshot()
+			if _rime_expedition_persistence_binding != null else {}
+		),
+	}.duplicate(true)

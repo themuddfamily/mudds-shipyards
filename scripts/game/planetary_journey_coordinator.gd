@@ -86,6 +86,14 @@ var _last_aurora_origin_result: Dictionary = {}
 var _last_aurora_cruise_result: Dictionary = {}
 var _last_aurora_admission_result: Dictionary = {}
 var _last_aurora_retirement_result: Dictionary = {}
+## The surface-visit lane serves exactly one admitted world at a time. Aurora
+## was its first world, which is why its members still carry Aurora's name;
+## Rime is admitted through the same lane with its own streaming pair.
+const SURFACE_VISIT_WORLD_IDS: Array[StringName] = [
+	AuroraTemperateStreamingBootstrap.WORLD_ID,
+	RimeGlacialStreamingBootstrap.WORLD_ID,
+]
+var _visit_world_id: StringName = AuroraTemperateStreamingBootstrap.WORLD_ID
 var _planetary_return_physical_arrival_required := false
 var _planetary_return_physical_arrival_armed := false
 var _last_planetary_return_physical_arrival_result: Dictionary = {}
@@ -264,16 +272,23 @@ func advance_world(delta: float, actor_sample: Dictionary) -> Dictionary:
 ## Admits one Aurora visit: points the one cruise binding at Aurora's bootstrap,
 ## makes sure the origin owner holds Aurora's pair, and engages the cruise. No
 ## craft moves here; the first accepted lane tick is what starts the trip.
-func admit_aurora_visit(ship: HeroShip, engage_cruise: bool = true) -> Dictionary:
+func admit_aurora_visit(
+		ship: HeroShip,
+		engage_cruise: bool = true,
+		world_id: StringName = AuroraTemperateStreamingBootstrap.WORLD_ID,
+	) -> Dictionary:
 	if _aurora_visit_active:
 		return _aurora_admitted(false, &"aurora_visit_already_active")
+	if world_id not in SURFACE_VISIT_WORLD_IDS:
+		return _aurora_admitted(false, &"surface_visit_world_unknown")
+	_visit_world_id = world_id
 	if _ember_surface_journey_active or not _pending_ember_surface_request.is_empty():
 		return _aurora_admitted(false, &"ember_surface_journey_active")
 	if not is_instance_valid(ship) or ship.is_destroyed() \
 			or (engage_cruise and not ship.is_piloted()):
 		return _aurora_admitted(false, &"aurora_visit_craft_unavailable")
-	if not is_instance_valid(_flow.aurora_streaming_bootstrap) \
-			or not is_instance_valid(_flow.aurora_streaming_binding) \
+	if not is_instance_valid(_visit_bootstrap()) \
+			or not is_instance_valid(_visit_binding()) \
 			or not is_instance_valid(_flow.planetary_cruise_binding) \
 			or not is_instance_valid(_flow.common_world_origin_rebase_owner):
 		return _aurora_admitted(false, &"aurora_composition_unavailable")
@@ -281,17 +296,17 @@ func admit_aurora_visit(ship: HeroShip, engage_cruise: bool = true) -> Dictionar
 	if not bool(owner_rebind.get("accepted", false)) \
 			or not owner_rebind.get("world_count", 0) is int \
 			or not _flow.common_world_origin_rebase_owner.get_bound_world_ids().has(
-				String(AuroraTemperateStreamingBootstrap.WORLD_ID)
+				String(_visit_world_id)
 			):
 		return _aurora_admitted(false, &"aurora_origin_owner_unbound")
 	var bound := _flow.planetary_cruise_binding.bind_world(
-		_flow.aurora_streaming_bootstrap
+		_visit_bootstrap()
 	)
 	if not bool(bound.get("accepted", false)):
 		return _aurora_admitted(
 			false, bound.get("reason", &"aurora_cruise_bind_refused") as StringName
 		)
-	var frame := _flow.aurora_streaming_bootstrap.get_coordinate_frame_for_session()
+	var frame := _visit_bootstrap().get_coordinate_frame_for_session()
 	if frame == null:
 		return _aurora_admitted(false, &"aurora_coordinate_frame_unavailable")
 	var engaged: Dictionary = {"accepted": true, "reason": &"cruise_not_requested"}
@@ -327,8 +342,8 @@ func advance_aurora_visit(delta: float, actor_sample: Dictionary) -> Dictionary:
 	if not _aurora_visit_active:
 		return {"accepted": false, "reason": &"aurora_visit_inactive",
 			"actor_sample": actor_sample.duplicate(true)}
-	var binding := _flow.aurora_streaming_binding
-	var bootstrap := _flow.aurora_streaming_bootstrap
+	var binding := _visit_binding()
+	var bootstrap := _visit_bootstrap()
 	if not is_instance_valid(binding) or not is_instance_valid(bootstrap):
 		return {"accepted": false, "reason": &"aurora_composition_unavailable",
 			"actor_sample": actor_sample.duplicate(true)}
@@ -543,14 +558,14 @@ func engage_aurora_cruise(ship: HeroShip, carry_transit: bool = false) -> Dictio
 	if not _aurora_visit_active:
 		return {"accepted": false, "reason": &"aurora_visit_inactive"}
 	if not is_instance_valid(_flow.planetary_cruise_binding) \
-			or not is_instance_valid(_flow.aurora_streaming_bootstrap):
+			or not is_instance_valid(_visit_bootstrap()):
 		return {"accepted": false, "reason": &"aurora_composition_unavailable"}
 	var cruise := _flow.planetary_cruise_binding
 	var current := cruise.get_snapshot()
 	if bool(current.get("engagement_requested", false)) \
 			and (not carry_transit or bool(current.get("carry_transit", false))):
 		return {"accepted": true, "reason": &"already_engaged"}
-	var frame := _flow.aurora_streaming_bootstrap.get_coordinate_frame_for_session()
+	var frame := _visit_bootstrap().get_coordinate_frame_for_session()
 	if frame == null:
 		return {"accepted": false, "reason": &"aurora_coordinate_frame_unavailable"}
 	if not (frame.get_snapshot().get("pending_rebase", {}) as Dictionary).is_empty():
@@ -575,10 +590,10 @@ func arm_aurora_final_approach(
 	if _aurora_final_approach_armed:
 		return {"accepted": true, "reason": &"aurora_final_approach_already_armed"}
 	if not is_instance_valid(_flow.planetary_cruise_binding) \
-			or not is_instance_valid(_flow.aurora_streaming_bootstrap):
+			or not is_instance_valid(_visit_bootstrap()):
 		return {"accepted": false, "reason": &"aurora_composition_unavailable"}
-	var bootstrap_snapshot := _flow.aurora_streaming_bootstrap.get_snapshot()
-	var frame := _flow.aurora_streaming_bootstrap.get_coordinate_frame_for_session()
+	var bootstrap_snapshot := _visit_bootstrap().get_snapshot()
+	var frame := _visit_bootstrap().get_coordinate_frame_for_session()
 	if frame == null:
 		return {"accepted": false, "reason": &"aurora_coordinate_frame_unavailable"}
 	var record := source.call(&"get_final_approach_source_snapshot") as Dictionary
@@ -636,6 +651,7 @@ func aurora_final_approach_handoff_ready() -> bool:
 func get_aurora_visit_snapshot() -> Dictionary:
 	return {
 		"active": _aurora_visit_active,
+		"world_id": _visit_world_id,
 		"return_active": _aurora_return_active,
 		"return_departure_pending": _aurora_return_departure_pending,
 		"return_handoff_ready": _aurora_return_handoff_ready,
@@ -673,14 +689,33 @@ func _aurora_cruise_gate_reason() -> StringName:
 		return &"combat_active"
 	if _flow._recovering or _flow.phase == GameFlow.Phase.RECOVERING:
 		return &"ship_recovery"
-	if not is_instance_valid(_flow.aurora_streaming_bootstrap):
+	if not is_instance_valid(_visit_bootstrap()):
 		return &"coordinate_frame_unavailable"
-	var frame := _flow.aurora_streaming_bootstrap.get_coordinate_frame_for_session()
+	var frame := _visit_bootstrap().get_coordinate_frame_for_session()
 	if frame == null:
 		return &"coordinate_frame_unavailable"
 	if not (frame.get_snapshot().get("pending_rebase", {}) as Dictionary).is_empty():
 		return &"origin_rebase_pending"
 	return &""
+
+
+# --- surface-visit lane world selection (Aurora or Rime) ----------------------
+
+
+func get_visit_world_id() -> StringName:
+	return _visit_world_id
+
+
+func _visit_bootstrap() -> PlanetaryStreamingBootstrap:
+	if _visit_world_id == RimeGlacialStreamingBootstrap.WORLD_ID:
+		return _flow.rime_streaming_bootstrap
+	return _flow.aurora_streaming_bootstrap
+
+
+func _visit_binding() -> PlanetaryStreamingProductionBinding:
+	if _visit_world_id == RimeGlacialStreamingBootstrap.WORLD_ID:
+		return _flow.rime_streaming_binding
+	return _flow.aurora_streaming_binding
 
 
 func _restore_ember_cruise_binding() -> Dictionary:
