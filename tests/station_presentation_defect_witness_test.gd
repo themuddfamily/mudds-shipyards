@@ -27,6 +27,7 @@ extends SceneTree
 ##   godot --headless --path . --script tests/station_presentation_defect_witness_test.gd
 
 const MAIN_SCENE := preload("res://scenes/main.tscn")
+const StationDressingBatch := preload("res://scripts/world/station_dressing_batch.gd")
 const WORLD_LAYER := PhysicsLayers.WORLD
 
 ## MAP-004. Facade and terminal legends whose readable face must point at the
@@ -437,14 +438,30 @@ func _test_structural_pieces_rest_on_drawn_geometry(world: ShipyardWorld) -> voi
 	var floating := PackedStringArray()
 	for path in SEATED_ON_GEOMETRY_PATHS:
 		var piece := world.get_node_or_null(NodePath(path)) as MeshInstance3D
-		if piece == null or piece.mesh == null:
+		# A piece the dressing pass folded is not a node any more. It resolves
+		# through the batch index to its own recorded placement and bound, and is
+		# measured against everything drawn *except itself*: the other pieces of
+		# its own batch count one by one, never the batch's merged bound, which
+		# would trivially contain the piece it is asked about.
+		var folded := {} if piece != null else _folded_seated_piece(world, path)
+		if (piece == null or piece.mesh == null) and folded.is_empty():
 			floating.append("%s <missing>" % path)
 			continue
-		var box := (piece.global_transform * piece.mesh.get_aabb()).abs().grow(SEATED_ON_GEOMETRY_TOLERANCE)
+		var box := (
+			(piece.global_transform * piece.mesh.get_aabb()).abs()
+			if piece != null
+			else StationDressingBatch.authored_piece_global_aabb(folded).abs()
+		).grow(SEATED_ON_GEOMETRY_TOLERANCE)
+		var holder := folded.get("node", null) as MeshInstance3D
 		var seated := false
 		for entry in drawn:
 			var other := entry["node"] as MeshInstance3D
-			if other == piece or piece.is_ancestor_of(other) or other.is_ancestor_of(piece):
+			if piece != null and (other == piece or piece.is_ancestor_of(other) or other.is_ancestor_of(piece)):
+				continue
+			if holder != null and other == holder:
+				if _batch_siblings_support(holder, int(folded.get("index_position", -1)), box):
+					seated = true
+					break
 				continue
 			if box.intersects(entry["box"] as AABB):
 				seated = true
@@ -668,6 +685,44 @@ func _test_orphan_dock_guide_lens(world: ShipyardWorld) -> void:
 		drop <= 0.35,
 		"the freight dock guide lens sits on the apron it marks instead of hanging in open space"
 	)
+
+
+## The folded piece a seated-geometry path names, resolved in the batch index
+## of that path's own parent (never deeper), or empty.
+func _folded_seated_piece(world: ShipyardWorld, path: String) -> Dictionary:
+	var slash := path.rfind("/")
+	if slash <= 0:
+		return {}
+	var parent := world.get_node_or_null(NodePath(path.substr(0, slash))) as Node3D
+	var leaf := path.substr(slash + 1)
+	if parent == null:
+		return {}
+	for child in parent.get_children():
+		var index := StationDressingBatch.authored_piece_index(child)
+		for position in index.size():
+			var record := index[position] as Dictionary
+			if String(record.get("name", "")) != leaf:
+				continue
+			var resolved := record.duplicate()
+			resolved["batched"] = true
+			resolved["node"] = child
+			resolved["index_position"] = position
+			return resolved
+	return {}
+
+
+## Whether any *other* piece folded into `holder` bears on `box`.
+func _batch_siblings_support(holder: MeshInstance3D, own_position: int, box: AABB) -> bool:
+	var index := StationDressingBatch.authored_piece_index(holder)
+	for position in index.size():
+		if position == own_position:
+			continue
+		var record := (index[position] as Dictionary).duplicate()
+		record["batched"] = true
+		record["node"] = holder
+		if box.intersects(StationDressingBatch.authored_piece_global_aabb(record).abs()):
+			return true
+	return false
 
 
 func _drop_below(mesh_instance: MeshInstance3D) -> float:
