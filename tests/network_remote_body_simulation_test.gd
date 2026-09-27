@@ -633,16 +633,19 @@ func _assert_the_hatch_admits_and_releases_a_body() -> void:
 	await _wait_until(func() -> bool: return _boarding_results.size() >= 1, 4.0)
 	_check(_boarding_results.size() >= 1 and _boarding_results[0].get("status") == &"seat_occupied",
 		"a berth already held is refused to the next peer")
-	# A pilot claim keeps the seat seam: no body is stood up for it.
+	# The host is flying this Halyard, and the host's own seat is an occupancy
+	# in the same ledger: a remote pilot claim on it is refused by name and
+	# stands nobody up.
 	_boarding_results.clear()
 	_send_boarding(2, StringName(WALKER_ENTITIES[2]), pilot_seat, &"pilot", 1, BoardingIntent.ACTION_BOARD)
 	await _wait_until(func() -> bool: return _boarding_results.size() >= 1, 4.0)
 	await _drive(4)
 	audit = _game.get_network_remote_body_audit()
-	_check(_boarding_results.size() >= 1 and _boarding_results[0].get("status") == &"boarded"
+	_check(_boarding_results.size() >= 1 and _boarding_results[0].get("status") == &"seat_occupied"
 		and _body(StringName(WALKER_ENTITIES[2])) == null
-		and int(audit.get("hatch_pilot_seats", 0)) == 1 and int(audit.get("bodies", 0)) == bodies_before + 1,
-		"a remote pilot who boards and sits still gets the pilot seat and no walking body")
+		and int(audit.get("hatch_pilot_seats", 0)) == 0 and int(audit.get("bodies", 0)) == bodies_before + 1,
+		"a remote pilot claim on the seat the host is flying from is refused and stands nobody up (%s)"
+			% String(_boarding_results[0].get("status", &"?") if not _boarding_results.is_empty() else &"none"))
 	_boarding_results.clear()
 	_send_boarding(2, StringName(WALKER_ENTITIES[2]), pilot_seat, &"pilot", 2, BoardingIntent.ACTION_DISEMBARK)
 	await _wait_until(func() -> bool: return _boarding_results.size() >= 1, 4.0)
@@ -696,7 +699,10 @@ func _send_boarding(
 ) -> void:
 	var intent = BoardingIntent.create(
 		_client_peer_ids[client_index], avatar_id, SHIP_ID, 1, FRAME_ID, 1,
-		seat_id, 1, role, sequence, 0, action
+		seat_id, 1, role, sequence,
+		# The host's ledger clock advances every physics tick, so a request
+		# stamped 0 would be refused `client_tick_too_old` a few seconds in.
+		_clients[client_index].get_boarding_server_tick_estimate(), action
 	)
 	_clients[client_index].send_boarding_intent(intent.to_dictionary())
 
