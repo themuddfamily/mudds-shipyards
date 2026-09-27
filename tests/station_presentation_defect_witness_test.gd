@@ -452,13 +452,15 @@ func _test_structural_pieces_rest_on_drawn_geometry(world: ShipyardWorld) -> voi
 			if piece != null
 			else StationDressingBatch.authored_piece_global_aabb(folded).abs()
 		).grow(SEATED_ON_GEOMETRY_TOLERANCE)
-		var holder := folded.get("node", null) as MeshInstance3D
+		# A visual batch is itself the renderer; a solid batch draws through
+		# its `Mesh` child. Either way that renderer is the piece's own holder.
+		var holder := folded.get("node", null) as Node
 		var seated := false
 		for entry in drawn:
 			var other := entry["node"] as MeshInstance3D
 			if piece != null and (other == piece or piece.is_ancestor_of(other) or other.is_ancestor_of(piece)):
 				continue
-			if holder != null and other == holder:
+			if holder != null and (other == holder or other.get_parent() == holder):
 				if _batch_siblings_support(holder, int(folded.get("index_position", -1)), box):
 					seated = true
 					break
@@ -712,7 +714,7 @@ func _folded_seated_piece(world: ShipyardWorld, path: String) -> Dictionary:
 
 
 ## Whether any *other* piece folded into `holder` bears on `box`.
-func _batch_siblings_support(holder: MeshInstance3D, own_position: int, box: AABB) -> bool:
+func _batch_siblings_support(holder: Node, own_position: int, box: AABB) -> bool:
 	var index := StationDressingBatch.authored_piece_index(holder)
 	for position in index.size():
 		if position == own_position:
