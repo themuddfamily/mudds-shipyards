@@ -877,6 +877,110 @@ holds). The seam suite's full-craft group now expects `craft_full` in one ask,
 and `tests/network_remote_body_simulation_test.gd` now expects a remote pilot
 claim on the seat the host is flying from to be refused.
 
+## Craft poses, the seated remote pilot, ship ownership and remote projectiles (2026-09-27)
+
+Seven of the gaps the previous section recorded are closed here. **The suites
+below are written but have not been run yet** (testing for this wave is
+deferred until the roadmap work is complete); nothing here is a measured
+result.
+
+**Host-authoritative craft poses.** `NetworkRemoteCraftPoseStream` is the
+missing host -> client half of remote flight. Every third authority tick
+(20 Hz) the host builds one movement record per *piloted* craft -- every remote
+pilot's craft and the host's own while it flies it -- carrying position,
+rotation, world velocity, the pilot peer and the boarding-ledger tick the pose
+was taken on (`pose_tick`), and hands them to the existing authoritative
+snapshot through the ship-telemetry bridge (`submit(..., extra_movement)`), so
+they ride the delta codec, the fragmenter and the client's snapshot jitter
+buffer. A craft whose pilot lets go is published for 600 more ticks so the
+other clients watch it settle where the host's copy settles. On a client,
+GameFlow feeds `snapshot_applied` into the stream and, once per physics tick:
+
+* the craft it pilots is **reconciled**: the host's pose is extrapolated by
+  how far the local prediction leads it (sample age on the stream's own clock,
+  plus the transport RTT, plus the helm's 2-tick send quantisation, capped at
+  30 ticks), and the local copy is pulled toward it -- nothing inside 0.5 m /
+  0.05 rad, an exponential blend beyond (4/s position, 3/s rotation, 2/s
+  velocity), a hard snap past 15 m / 60 degrees;
+* every other piloted craft is **interpolated** 6 ticks behind the newest
+  arrival between the two bracketing samples (extrapolated for at most 15 ticks
+  when the stream stalls), which is what makes a passenger's cabin -- and the
+  host's own craft -- actually move on every client.
+
+The snapshot's server tick is now the boarding ledger's clock rather than the
+composition's event counter, which restarted at 1 whenever the host changed
+craft and made every later publication "stale". And the client's snapshot
+jitter buffer no longer strands the whole stream after a gap: a reliable,
+ordered stream never re-sends the revision a `snapshot_gap_too_large` or
+`buffer_full` rejection was waiting for, so the complete decoded packet is
+validated and re-adopted as a fresh baseline (`get_snapshot_jitter_state()
+["rebaselines"]`). Before this, one surface visit or long stall on the host
+silently ended every snapshot-borne record for the rest of the session.
+
+**The remote pilot is drawn in the seat.** The moving-interior roster now
+adopts each remote pilot as the seated occupant of its craft, posed at the
+pilot seat anchor, under the same entity id its berth body had
+(`peer_<id>_crew`), so a promoted passenger is seen to sit down instead of
+vanishing; it stays live exactly as long as the host flies that craft from that
+peer's helm, and it is withheld from the pilot itself. On every client the
+presenter now excludes this peer's own avatar id instead of
+`pilot_<active_ship>` -- that id is the *host's* player on every client, so a
+passenger in the host's cabin was never shown the host at the helm.
+
+**Ship ownership has production callers.** Every production craft is
+registered with `NetworkShipOwnershipAuthority` (unowned) when the host starts
+and whenever the ledger learns a craft; a ledger pilot grant (board or swap)
+is a `claim_ship_for_peer()` and a craft the ownership authority will not give
+the peer is not bound to its helm; unbinding the helm (disembark, reverse swap,
+craft lost, disconnect, session stop) releases it. The owner record reaches
+the clients in the canonical snapshot's ownership section.
+
+**Leaving the flying pilot seat tells the ledger.** A client that holds the
+pilot seat and walks back into the cabin now sends one atomic `swap` from the
+pilot seat into the first free cabin berth (walking the four berths on
+`seat_occupied`). The host unbinds the helm and admits the berth's walking
+body at the cabin stand pose the client stepped out to; the client binds its
+intent stream to that body. A late grant adopts the berth. Refused (every
+berth held), the peer keeps the pilot seat and the next press at the cockpit
+sits back down.
+
+**Remote projectiles.** `NetworkRemoteProjectileReplicator` observes the
+player mass-driver pool and the torpedo boat's seeker pool on the host and
+turns each launch / resolve / abandon / intercept into a record on the existing
+projectile snapshot path, stamped on the player-pulse clock so every
+projectile publisher shares one monotonic tick; torpedoes are restated every 6
+ticks because they steer. A client draws slugs and torpedoes from those
+records only -- flown forward at the published speed, eased onto each newer
+record, a short burst at the terminal (dimmer with reduced flash), retired
+after the published lifetime if a terminal never arrives. Nothing on a client
+opens a flight, reads a collision or applies damage. A peer admitted
+mid-flight is sent every live flight.
+
+**Remote crew animate.** The production pilot visual runs its
+`AnimationPlayer` in manual process mode and nothing advanced a remote
+crewmate's, so every drawn crew member held the first frame of its clip.
+`NetworkMovingInteriorPresenter` now advances each avatar's clip by the
+rendered frame's delta.
+
+**A remote pilot's lost craft is presented.** A craft destroyed while the pose
+stream tracks it is published with `destroyed = true`. The pilot's client
+hands the ledger seat back, stops its helm and runs the same recall to the
+deck a host pilot gets (`_recover_from_destroyed_ship()`); every other client
+hears the explosion once.
+
+**Suites written for this (not yet run):**
+`tests/network_remote_craft_pose_test.gd` (production host `Main` plus a bare
+pilot and a bare crewmate: ownership registered and claimed on the grant and
+replicated; the pose record on the snapshot; a 3 m-off pilot copy pulled on
+smoothly and a 40 m-off one snapped; the crewmate's copy interpolating; the
+remote pilot published SEATED to the crewmate and not to itself; ownership
+released on disembark, re-claimed, released on disconnect),
+`tests/network_remote_projectile_test.gd` (bare loopback adapters and pools
+emitting the production pool signals: launch, flight, burst, steering updates,
+intercept, abandon, late-join resync, lifetime expiry, no client authority),
+and `tests/network_snapshot_gap_rebaseline_test.gd` (a 200-tick publishing gap
+no longer strands the snapshot stream).
+
 ## What remains before broadening player counts
 
 * **The budget ceiling is the crowd's floor.** The second crowd table is the
@@ -896,29 +1000,37 @@ claim on the seat the host is flying from to be refused.
   multi-process transport; joining the two is the remaining gate.
 * **The hatch holds four berths per craft.** The berth count is the ledger's
   one-avatar-per-seat rule, not the cabin's volume, and it is unchanged.
-* **Remote flight is authoritative on the host but not yet replicated back.**
-  The host now simulates a remote-piloted craft from the pilot's validated
-  helm, but the pilot's own client still flies its local copy from the same
-  input as an uncorrected prediction: no host-to-client craft pose stream or
-  correction exists yet, so the two copies drift apart over a long flight. The
-  helm also carries held axes only; mouse-look flight, barrel roll and the
-  camera stay local, and engine start/stop, landing, interact and fire stay the
-  host's decisions (landing and fire are already host-gated for clients).
-* **A remote pilot is not drawn in the seat.** The moving-interior publisher
-  publishes the host's own pilot and every server-simulated body; a remote
-  peer holding a ledger pilot seat has no published relationship, so after a
-  swap crewmates see the promoted passenger disappear rather than sit down.
-* **The rest of the Phase 7 list, audited.** Projectiles (player pulse, bomber
-  payload, opponent fire), landing requests and completion, and damage are
-  already host-gated on a client (`client_projectile_authority_forbidden`,
-  "Landing controlled by host", the terminal handlers return on a client).
-  Ship ownership for a remote pilot is the ledger seat plus the helm
-  registration; the separate `NetworkShipOwnershipAuthority` record
-  (`register_owned_ship` / `claim_ship_for_peer`) still has no production
-  caller for any craft, host or remote. Respawn of a remote pilot's craft
-  follows the host's damage authority, but there is no client-side recovery
-  presentation for a pilot whose host-side craft is destroyed beyond the
-  session's existing snapshots.
+* **Remote flight is replicated back, but the helm is still axes only.**
+  The host's pose now corrects the pilot's copy and drives everyone else's,
+  but reconciliation is a blend toward an extrapolated pose, not a replay of
+  unacknowledged helm input, so a hard manoeuvre under the 350 ms profile is
+  corrected over a few hundred milliseconds rather than exactly. Mouse-look
+  flight, barrel roll and the camera stay local, and engine start/stop,
+  landing, interact and fire stay the host's decisions. Craft poses ride the
+  host's authoritative snapshot, which publishes only while the host has an
+  active ship (a fallback publishes the poses alone otherwise) and not while
+  the host is on a surface visit; the gap re-baseline keeps the stream alive
+  across that, but the craft are not moved during it. The observer copies are
+  moved kinematically: a craft's landing, docking and engine presentation on a
+  client still follow its own local state, not the host's.
+* **A client that is refused the berth swap keeps the pilot seat.** When all
+  four berths are held, a pilot who walks into the cabin is shown the refusal
+  and still holds the seat; its walk is not a server body until it sits back
+  down or leaves through the hatch.
+* **Projectile coverage is the travelling weapons.** Player pulse, bomber
+  payload and opponent pulses were already replicated; slugs and seeker
+  torpedoes are now too. The torpedo boat's own AI still runs on each
+  client's copy, and whether a client copy launches its own local torpedoes
+  there has not been audited. The Emberline raider's travelling bolts are not
+  replicated yet.
+* **A destroyed craft's hull on a client** stays visible: only the host hides
+  and regenerates it (the client's copy was never damaged, so its own
+  regeneration does not run), and the client's copy is moved to the host's
+  regenerated berth pose only if that lands inside the pose stream's 10 s
+  coast window. Damage presentation
+  for remote-piloted craft beyond the loss itself (hull state, component
+  damage) is still not replicated. Landing requests and completion and damage
+  themselves stay host-gated on a client, as audited before.
 * **Five clients on loopback.** Interest management and the resync baseline
   under many occupants are still untested at latency.
 * **Loss is injected above ENet.** The relationship RPC is reliable, so the 2 %
