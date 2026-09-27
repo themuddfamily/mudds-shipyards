@@ -10,11 +10,13 @@ extends RefCounted
 ## 1. Entry heat / compression. Attaches one generic, collision-anchored
 ##    compression envelope ([HeroAtmosphericEntryEnvelopeBinding] under
 ##    [constant ENVELOPE_NAME]) to whichever of the nine flyable craft is active,
-##    and on the Arrow also drives its authored heat overlay material. Intensity
-##    is the sampler's density x speed entry model
+##    the Arrow included. Intensity is the sampler's density x speed entry model
 ##    ([method PlanetaryAtmosphereSampler._entry_effect_intensity]). Reduced
-##    flash caps the envelope to a steady low-opacity cue and holds the Arrow's
-##    additive overlay at zero.
+##    flash caps the envelope to a steady low-opacity cue. The Arrow's own heat
+##    overlay is deliberately left alone: its adapter's configuration is
+##    permanent, and a configured target is what makes the Arrow's Ember-owned
+##    presenter treat a later descent as atmospheric, so configuring it for
+##    Aurora would light plasma over airless Ember.
 ## 2. Weather wind response. Below a wind ceiling, a piloted craft in ordinary
 ##    flight receives a bounded lateral drift/buffet from the authored wind
 ##    vector, submitted through [method HeroShip.submit_atmospheric_wind_drift].
@@ -98,7 +100,6 @@ var _entry_ship_instance_id := 0
 var _entry_attach_cooldown := 0
 var _entry_intensity := 0.0
 var _entry_presented_once := false
-var _arrow_overlay_ref: WeakRef
 var _last_entry_result: Dictionary = {}
 
 var _wind_drift_body_mps := Vector3.ZERO
@@ -154,7 +155,6 @@ func advance(
 	var accessibility := hud.get_accessibility_report() \
 		if hud != null and is_instance_valid(hud) \
 			and hud.has_method(&"get_accessibility_report") else {}
-	var reduced_flash := bool(accessibility.get("reduced_flash", false))
 	var reduced_motion := bool(accessibility.get("reduced_motion", false))
 
 	var live_craft: HeroShip = craft
@@ -162,20 +162,24 @@ func advance(
 			or not live_craft.is_inside_tree() \
 			or live_craft.is_queued_for_deletion() or live_craft.is_destroyed()):
 		live_craft = null
-	# The listener position drives wind sampling when no craft is flown.
-	var observer: Node3D = live_craft
-	if observer == null and player != null and is_instance_valid(player) \
-			and player.is_inside_tree():
-		observer = player
-	var body_local := Vector3.ZERO
+	var live_player: Node3D = player if player != null \
+		and is_instance_valid(player) and player.is_inside_tree() else null
+	# Entry heat and drift are measured at the craft. The wind the listener
+	# hears is measured at the craft while it is flown and at the pilot on foot.
+	var craft_body_local := loaded.to_local(live_craft.global_position) \
+		if live_craft != null else Vector3.INF
+	var observer: Node3D = live_craft if piloting or live_player == null \
+		else live_player
+	var body_local := Vector3.INF
 	var altitude_m := -1.0
 	if observer != null:
-		body_local = loaded.to_local(observer.global_position)
+		body_local = craft_body_local if observer == live_craft \
+			else loaded.to_local(observer.global_position)
 		if body_local.is_finite():
 			altitude_m = maxf(0.0, body_local.length() - _body_radius_m)
 	_last_altitude_m = altitude_m
 
-	_update_entry(live_craft, loaded, hud, body_local, reduced_flash)
+	_update_entry(live_craft, hud, craft_body_local)
 	var wind_sample := _sample_wind(altitude_m, body_local, reduced_motion)
 	_update_wind_drift(live_craft, piloting, loaded, wind_sample, delta)
 	_update_interior_blend(player, live_craft, delta)
@@ -240,8 +244,6 @@ func get_snapshot() -> Dictionary:
 			"craft_instance_id": _entry_ship_instance_id,
 			"intensity_unitless": _entry_intensity,
 			"envelope_name": ENVELOPE_NAME,
-			"arrow_overlay_bound": _arrow_overlay_ref != null \
-				and _arrow_overlay_ref.get_ref() != null,
 			"binding": _entry_binding.call(&"get_snapshot") \
 				if _entry_binding != null else {"attached": false},
 			"last_result": _last_entry_result.duplicate(true),
@@ -332,8 +334,7 @@ func _bind_atmosphere(resolved: Dictionary) -> bool:
 # --- Entry heat / compression -----------------------------------------------
 
 func _update_entry(
-		craft: HeroShip, loaded: Node3D, hud: GameHUD, body_local: Vector3,
-		reduced_flash: bool
+		craft: HeroShip, hud: GameHUD, body_local: Vector3
 	) -> void:
 	if craft == null or hud == null or not is_instance_valid(hud):
 		_detach_entry(&"craft_unavailable")
@@ -378,7 +379,6 @@ func _update_entry(
 		return
 	_entry_presented_once = true
 	_entry_intensity = intensity
-	_present_arrow_overlay(craft, altitude, speed, reduced_flash)
 
 
 func _attach_entry(craft: HeroShip, hud: GameHUD) -> bool:
@@ -403,56 +403,10 @@ func _attach_entry(craft: HeroShip, hud: GameHUD) -> bool:
 	return true
 
 
-func _present_arrow_overlay(
-		craft: HeroShip, altitude: float, speed: float, reduced_flash: bool
-	) -> void:
-	if not craft is ArrowReconShip:
-		return
-	var presentation: PlanetaryEntryHeatPresentation = (
-		_arrow_overlay_ref.get_ref() as PlanetaryEntryHeatPresentation
-		if _arrow_overlay_ref != null else null
-	)
-	if presentation == null:
-		var target := (craft as ArrowReconShip).get_entry_heat_target()
-		if target == null:
-			return
-		presentation = target.get_presentation()
-		if presentation == null:
-			return
-		var state := presentation.get_state_snapshot()
-		if not bool(state.get("configured", false)):
-			var configured := presentation.configure(
-				_profile, target.get_material()
-			)
-			if not bool(configured.get("accepted", false)):
-				return
-		elif StringName(state.get("profile_id", &"")) != _profile_id:
-			# Configured for another atmosphere by another owner; leave it.
-			return
-		_arrow_overlay_ref = weakref(presentation)
-	# The overlay is an additive emissive rim with no temporal modulation, but
-	# a sudden full-hull glow is exactly what reduced flash exists to avoid, so
-	# it is held at zero there and the capped envelope carries the cue alone.
-	var result := presentation.present_observation(
-		altitude, 0.0 if reduced_flash else speed, presentation.get_generation()
-	)
-	if not bool(result.get("accepted", false)):
-		_arrow_overlay_ref = null
-
-
 func _detach_entry(reason: StringName) -> void:
 	if _entry_binding != null:
 		_entry_binding.call(&"detach")
 	_entry_binding = null
-	var presentation: PlanetaryEntryHeatPresentation = (
-		_arrow_overlay_ref.get_ref() as PlanetaryEntryHeatPresentation
-		if _arrow_overlay_ref != null else null
-	)
-	if presentation != null and is_instance_valid(presentation) \
-			and presentation.is_inside_tree() \
-			and bool(presentation.get_state_snapshot().get("configured", false)):
-		presentation.reset_for_reuse(presentation.get_generation())
-	_arrow_overlay_ref = null
 	_entry_ship_ref = null
 	_entry_ship_instance_id = 0
 	_entry_intensity = 0.0

@@ -157,10 +157,17 @@ func _exercise(craft_name: String, craft: HeroShip) -> void:
 		"%s shows a compression envelope in fast atmospheric descent" % craft_name
 	)
 	if craft is ArrowReconShip:
-		var material := (craft as ArrowReconShip).get_entry_heat_target().get_material()
+		# The Arrow's overlay adapter configures permanently, and a configured
+		# target makes its Ember-owned presenter treat Ember as atmospheric.
+		var arrow_target := (craft as ArrowReconShip).get_entry_heat_target()
 		_check(
-			float(material.get_shader_parameter(OVERLAY_PARAMETER)) > 0.0,
-			"Arrow's authored heat overlay glows from the same density x speed model"
+			not bool(arrow_target.get_presentation().get_state_snapshot().get(
+				"configured", true
+			))
+				and float(arrow_target.get_material().get_shader_parameter(
+					OVERLAY_PARAMETER
+				)) == 0.0,
+			"Aurora never configures the Arrow's permanent heat overlay (no Ember plasma later)"
 		)
 
 	_hud.set_reduced_flash(true)
@@ -174,12 +181,6 @@ func _exercise(craft_name: String, craft: HeroShip) -> void:
 			and float(reduced.get("effect_opacity", 1.0)) <= hot_opacity,
 		"%s caps the envelope under reduced flash" % craft_name
 	)
-	if craft is ArrowReconShip:
-		var material := (craft as ArrowReconShip).get_entry_heat_target().get_material()
-		_check(
-			float(material.get_shader_parameter(OVERLAY_PARAMETER)) == 0.0,
-			"reduced flash holds the Arrow's additive overlay at zero"
-		)
 	_hud.set_reduced_flash(false)
 
 	craft.velocity = Vector3(0.0, -100.0, 0.0)
@@ -221,12 +222,6 @@ func _exercise(craft_name: String, craft: HeroShip) -> void:
 			and _source.cleared == cleared_before + 1,
 		"%s reset removes the envelope and clears the source state" % craft_name
 	)
-	if craft is ArrowReconShip:
-		var material := (craft as ArrowReconShip).get_entry_heat_target().get_material()
-		_check(
-			float(material.get_shader_parameter(OVERLAY_PARAMETER)) == 0.0,
-			"reset returns the Arrow's heat overlay to zero"
-		)
 	_exercised.append(craft_name)
 	craft.queue_free()
 	await process_frame

@@ -88,7 +88,8 @@ func _run() -> void:
 		return
 	await _press_interact()
 	await _wait_state(owner, &"surface", 240)
-	for i in range(30):
+	# 90 ticks (1.5 s) outlasts the 1.1 s interior-to-exterior ambience fade.
+	for i in range(90):
 		await physics_frame
 	_check(owner.state == &"surface" and not game.player.is_seated() and game.player.is_control_enabled() and game.player.is_on_floor(), "exit restores ordinary walking and physical surface support")
 	var walking_audio := surface.call(&"get_surface_audio_snapshot") as Dictionary
