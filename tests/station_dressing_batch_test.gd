@@ -483,15 +483,19 @@ func _test_authored_piece_index() -> void:
 		"a batch is never answered as an authored piece"
 	)
 	var folded_bound := BATCH.authored_piece_global_aabb(second)
+	var expected_folded := module.global_transform \
+		* Transform3D(Basis.IDENTITY, Vector3(0.8, 0.2, 0.0)) * shared_mesh.get_aabb()
 	_check(
-		folded_bound.get_center().is_equal_approx(
-			module.global_transform * Vector3(0.8, 0.2, 0.0)
-		) and folded_bound.size.is_equal_approx(shared_mesh.get_aabb().size),
+		folded_bound.position.is_equal_approx(expected_folded.position)
+			and folded_bound.size.is_equal_approx(expected_folded.size),
 		"a folded piece's world bound is its own, not the merged batch's"
 	)
+	var odd_node := tagged_odd["node"] as MeshInstance3D
 	var live_bound := BATCH.authored_piece_global_aabb(tagged_odd)
+	var expected_live := odd_node.global_transform * odd_node.mesh.get_aabb()
 	_check(
-		live_bound.get_center().is_equal_approx(module.global_transform * Vector3(1.6, 1.4, 0.0)),
+		live_bound.position.is_equal_approx(expected_live.position)
+			and live_bound.size.is_equal_approx(expected_live.size),
 		"a live piece's world bound is read from its own renderer"
 	)
 	module.queue_free()
