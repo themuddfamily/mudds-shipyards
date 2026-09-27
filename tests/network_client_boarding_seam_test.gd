@@ -585,19 +585,27 @@ func _assert_a_passenger_is_promoted_to_pilot_in_place() -> void:
 func _assert_the_host_is_refused_a_seat_a_crewmate_holds() -> void:
 	var host_player := _host.get_node("Player") as PlayerController
 	var phase_before := _host.phase
+	# The promotion bound the host's own Halyard to the crewmate's helm.
+	_check(_host_craft.get_command_source() is NetworkRemotePilotCommandSource
+		and _host_craft.is_piloted(),
+		"the host's Halyard now flies from the promoted crewmate's helm")
 	var claim: Dictionary = _host._claim_network_host_pilot_seat(_host_craft)
 	_check(claim.get("status") == &"seat_occupied",
 		"the host's own claim on the seat a crewmate holds is refused (%s)"
 			% String(claim.get("status", &"?")))
 	_host._board_ship(_host_craft)
 	await _drive_session(4)
-	_check(_host.phase == phase_before and not _host_craft.is_piloted(),
-		"the host's boarding press is refused and nothing moves")
+	_check(_host.phase == phase_before
+		and _host_craft.get_command_source() is NetworkRemotePilotCommandSource,
+		"the host's boarding press is refused and the crewmate keeps the helm")
 	var report: Dictionary = _host.get_boarding_confirmation_presentation_report()
 	var view: Dictionary = (report.get("adapter", {}) as Dictionary).get("view", {}) as Dictionary
+	# A craft someone is flying is refused before the ledger is asked
+	# (`craft_unavailable`); the ledger's `seat_occupied` is the line behind it.
 	_check(StringName(view.get("state", &"")) == &"rejected"
-		and String(view.get("message", "")).contains("SEAT OCCUPIED"),
-		"the host sees the ledger's reason on the existing card (%s)" % String(view.get("message", "")))
+		and (String(view.get("message", "")).contains("SEAT OCCUPIED")
+			or String(view.get("message", "")).contains("CRAFT UNAVAILABLE")),
+		"the host sees the refusal on the existing card (%s)" % String(view.get("message", "")))
 	_check(_host.get_network_host_boarding_seat().is_empty() and not host_player.is_seated(),
 		"the host holds no seat and is left on foot")
 
