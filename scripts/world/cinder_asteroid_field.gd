@@ -133,11 +133,14 @@ const OUTBOUND_GUARD_RADIUS := 48.0
 ## Bore markers: six cyan chevrons on the rim at each mouth and at the waist.
 const LANE_MARKER_RING_PARAMETERS: Array[float] = [0.0, 0.5, 1.0]
 const LANE_MARKER_RING_COPIES := 6
-const LANE_MARKER_SIZE := Vector3(9.0, 1.1, 1.1)
+## Sized for cruise distance: at 250 m a 1.1 m bar was two pixels wide and
+## aliased away between frames, so the chevrons are thick enough to hold their
+## shape from the outbound route without growing into the bore.
+const LANE_MARKER_SIZE := Vector3(12.0, 2.2, 2.2)
 const LANE_MARKER_FAMILY_ID: StringName = &"cinder-asteroid-lane-chevrons"
 ## Gate markers: four chevrons boxing each threading gate.
 const GATE_MARKER_COPIES := 4
-const GATE_MARKER_SIZE := Vector3(7.0, 1.2, 1.2)
+const GATE_MARKER_SIZE := Vector3(10.0, 2.4, 2.4)
 const GATE_MARKER_RADIUS := 17.0
 const GATE_MARKER_FAMILY_ID: StringName = &"cinder-asteroid-threading-gates"
 const ASTEROID_BATCH_FAMILY_ID: StringName = &"cinder-asteroid-belt-stock"
@@ -159,20 +162,42 @@ const PRESENTATION_SUBMISSION_DELTA := 0
 const ROCK_TINTS: Array[Color] = [
 	Color("4a5057"), Color("634a38"), Color("6a737a"),
 ]
+## Per-rock surface variation, drawn from its own generator so placement stays
+## byte-identical: every rock takes one of the three family tints, then a value
+## jitter and a warm (rust) or cool (basalt) drift, plus its own roughness.
+const SURFACE_VARIATION_SEED := 9120443
+const TINT_VALUE_RANGE := Vector2(0.8, 1.14)
+const TINT_DRIFT_MAXIMUM := 0.28
+const TINT_WARM_DRIFT := Color("7a5842")
+const TINT_COOL_DRIFT := Color("4f5d69")
+const ROCK_ROUGHNESS_RANGE := Vector2(0.74, 0.97)
+const ROCK_SHADER := preload("res://shaders/cinder_belt_rock.gdshader")
+## Chevron emission. The belt owns its marker materials (the sector's shared
+## glow roles also light beacons and signs), so it can hold the bore readable
+## at cruise distance and step down under reduced flash without touching
+## anything else. Nothing here pulses in either mode.
+const LANE_MARKER_EMISSION := 3.2
+const GATE_MARKER_EMISSION := 3.0
+const REDUCED_FLASH_MARKER_EMISSION := 1.5
+const LANE_MARKER_COLOR := Color("48dbe2")
+const GATE_MARKER_COLOR := Color("ff9f43")
 
 var _built := false
 var _asteroids: Array[Dictionary] = []
 var _stock_batches: Array[MultiMeshInstance3D] = []
 var _lane_markers: MultiMeshInstance3D
 var _gate_markers: MultiMeshInstance3D
-var _rock_material: StandardMaterial3D
+var _rock_material: ShaderMaterial
+var _lane_marker_material: StandardMaterial3D
+var _gate_marker_material: StandardMaterial3D
+var _reduced_flash := false
 var _presentation_snapshot: Dictionary = {}
 var _bodies_root: Node3D
 var _visuals_root: Node3D
 
 
 ## Builds the belt. `materials` is the cluster's own material dictionary so the
-## bore and gate chevrons use the sector's published glow roles; `rock_mesh_cache`
+## bore and gate chevrons start from copies of the sector's glow roles; `rock_mesh_cache`
 ## is the cluster's rock mesh cache, so a stock recipe already cut for a Cinder
 ## Reach boulder is reused rather than duplicated.
 func build(materials: Dictionary, rock_mesh_cache: Dictionary) -> void:
@@ -187,17 +212,17 @@ func build(materials: Dictionary, rock_mesh_cache: Dictionary) -> void:
 	_visuals_root.name = "BeltVisuals"
 	add_child(_visuals_root)
 
-	# One neutral vertex-colour material for the whole belt. Three rock tints
-	# arrive per instance, so six shared-stock batches cover eighteen
-	# rock-and-shape combinations without eighteen renderers or eighteen
-	# materials.
-	_rock_material = StandardMaterial3D.new()
-	_rock_material.albedo_color = Color.WHITE
-	_rock_material.metallic = 0.03
-	_rock_material.roughness = 0.93
-	_rock_material.vertex_color_use_as_albedo = true
+	# One shared shader material for the whole belt. Each rock's tint arrives
+	# as the instance colour and its roughness and breakup seed as instance
+	# custom data, so thirty distinct rocks cost six batches and one material.
+	_rock_material = ShaderMaterial.new()
+	_rock_material.shader = ROCK_SHADER
+	_lane_marker_material = _marker_material(LANE_MARKER_COLOR, materials.get("cyan_glow"))
+	_gate_marker_material = _marker_material(GATE_MARKER_COLOR, materials.get("orange_glow"))
+	_apply_marker_emission()
 
 	_place_asteroids()
+	_author_surface_variation()
 	_build_stock_batches(rock_mesh_cache)
 	_build_lane_markers(materials)
 	_build_gate_markers(materials)
@@ -463,6 +488,74 @@ func _author_asteroid(
 	}
 
 
+## Tint and roughness per rock from a generator separate from placement.
+func _author_surface_variation() -> void:
+	var random := RandomNumberGenerator.new()
+	random.seed = SURFACE_VARIATION_SEED
+	for record in _asteroids:
+		var base := ROCK_TINTS[int(record["index"]) % ROCK_TINTS.size()]
+		var drift_target := TINT_WARM_DRIFT if random.randf() < 0.5 else TINT_COOL_DRIFT
+		var tint := base.lerp(drift_target, random.randf_range(0.0, TINT_DRIFT_MAXIMUM))
+		var value := random.randf_range(TINT_VALUE_RANGE.x, TINT_VALUE_RANGE.y)
+		tint = Color(
+			clampf(tint.r * value, 0.0, 1.0),
+			clampf(tint.g * value, 0.0, 1.0),
+			clampf(tint.b * value, 0.0, 1.0),
+			1.0
+		)
+		record["tint"] = tint
+		record["roughness"] = random.randf_range(ROCK_ROUGHNESS_RANGE.x, ROCK_ROUGHNESS_RANGE.y)
+		record["surface_seed"] = random.randf()
+
+
+## Reduced flash lowers both chevron families to the sector's standard glow.
+## The chevrons never animate, so this is a steady-state brightness choice.
+func set_reduced_flash_enabled(enabled: bool) -> void:
+	_reduced_flash = enabled
+	_apply_marker_emission()
+
+
+func is_reduced_flash_enabled() -> bool:
+	return _reduced_flash
+
+
+func get_marker_emission_energies() -> Dictionary:
+	return {
+		"lane": _lane_marker_material.emission_energy_multiplier
+			if _lane_marker_material != null else 0.0,
+		"gate": _gate_marker_material.emission_energy_multiplier
+			if _gate_marker_material != null else 0.0,
+	}
+
+
+func get_rock_material() -> ShaderMaterial:
+	return _rock_material
+
+
+func _marker_material(color: Color, template: Variant) -> StandardMaterial3D:
+	var result: StandardMaterial3D
+	if template is StandardMaterial3D:
+		result = (template as StandardMaterial3D).duplicate() as StandardMaterial3D
+	else:
+		result = StandardMaterial3D.new()
+		result.albedo_color = color
+		result.roughness = 0.3
+	result.emission_enabled = true
+	result.emission = color
+	return result
+
+
+func _apply_marker_emission() -> void:
+	if _lane_marker_material != null:
+		_lane_marker_material.emission_energy_multiplier = (
+			REDUCED_FLASH_MARKER_EMISSION if _reduced_flash else LANE_MARKER_EMISSION
+		)
+	if _gate_marker_material != null:
+		_gate_marker_material.emission_energy_multiplier = (
+			REDUCED_FLASH_MARKER_EMISSION if _reduced_flash else GATE_MARKER_EMISSION
+		)
+
+
 # --- Construction -------------------------------------------------------------
 
 
@@ -495,6 +588,12 @@ func _build_stock_batches(rock_mesh_cache: Dictionary) -> void:
 					(record["position"] as Vector3) + (lobe["offset"] as Vector3),
 				),
 				"color": record["tint"] as Color,
+				"custom": Color(
+					float(record.get("roughness", 0.9)),
+					float(record.get("surface_seed", 0.0)),
+					0.0,
+					0.0
+				),
 			})
 
 	for stock_index in STOCK_SIZES.size():
@@ -502,6 +601,7 @@ func _build_stock_batches(rock_mesh_cache: Dictionary) -> void:
 		var multimesh := MultiMesh.new()
 		multimesh.transform_format = MultiMesh.TRANSFORM_3D
 		multimesh.use_colors = true
+		multimesh.use_custom_data = true
 		multimesh.mesh = _stock_mesh(stock_index, rock_mesh_cache)
 		multimesh.instance_count = entries.size()
 		# The authored transforms and colours are also published as metadata.
@@ -510,14 +610,17 @@ func _build_stock_batches(rock_mesh_cache: Dictionary) -> void:
 		# the buffer would be measuring the driver rather than the belt.
 		var authored_transforms: Array[Transform3D] = []
 		var authored_colors := PackedColorArray()
+		var authored_custom := PackedColorArray()
 		for entry_index in entries.size():
 			var entry := entries[entry_index] as Dictionary
 			var entry_transform := entry["transform"] as Transform3D
 			var entry_color := entry["color"] as Color
 			multimesh.set_instance_transform(entry_index, entry_transform)
 			multimesh.set_instance_color(entry_index, entry_color)
+			multimesh.set_instance_custom_data(entry_index, entry["custom"] as Color)
 			authored_transforms.append(entry_transform)
 			authored_colors.append(entry_color)
+			authored_custom.append(entry["custom"] as Color)
 		multimesh.visible_instance_count = entries.size()
 		var batch := MultiMeshInstance3D.new()
 		batch.name = "AsteroidStock%d" % (stock_index + 1)
@@ -530,6 +633,8 @@ func _build_stock_batches(rock_mesh_cache: Dictionary) -> void:
 		batch.set_meta(&"authored_visible_copy_count", entries.size())
 		batch.set_meta(&"authored_instance_transforms", authored_transforms)
 		batch.set_meta(&"authored_instance_colors", authored_colors)
+		# r = roughness, g = breakup seed; read by the shared rock shader.
+		batch.set_meta(&"authored_instance_custom", authored_custom)
 		_visuals_root.add_child(batch)
 		_stock_batches.append(batch)
 
@@ -550,7 +655,7 @@ func _stock_mesh(stock_index: int, rock_mesh_cache: Dictionary) -> ArrayMesh:
 	return mesh
 
 
-func _build_lane_markers(materials: Dictionary) -> void:
+func _build_lane_markers(_materials: Dictionary) -> void:
 	var transforms: Array[Transform3D] = []
 	var starboard := get_lane_starboard_axis()
 	var up := get_lane_up_axis()
@@ -560,26 +665,35 @@ func _build_lane_markers(materials: Dictionary) -> void:
 			var angle := TAU * float(copy_index) / float(LANE_MARKER_RING_COPIES)
 			var radial := starboard * cos(angle) + up * sin(angle)
 			transforms.append(Transform3D(
-				Basis(radial, up.cross(radial).normalized(), get_lane_axis_direction()),
+				_ring_marker_basis(radial, get_lane_axis_direction()),
 				centre + radial * LANE_RADIUS,
 			))
 	_lane_markers = _build_marker_batch(
 		"SafeLaneChevrons",
 		LANE_MARKER_SIZE,
 		transforms,
-		materials.get("cyan_glow") as Material,
+		_lane_marker_material,
 		LANE_MARKER_FAMILY_ID,
 	)
 
 
-func _build_gate_markers(materials: Dictionary) -> void:
+func _build_gate_markers(_materials: Dictionary) -> void:
 	_gate_markers = _build_marker_batch(
 		"ThreadingGateChevrons",
 		GATE_MARKER_SIZE,
 		_gate_marker_transforms({}),
-		materials.get("orange_glow") as Material,
+		_gate_marker_material,
 		GATE_MARKER_FAMILY_ID,
 	)
+
+
+## Radial bar on a ring around `forward`: X runs out along the radius, Y is the
+## tangent and Z runs with the bore. The earlier `up.cross(radial)` tangent
+## collapsed onto the bore axis (or to zero at the 90/270 degree copies), which
+## flattened every chevron into a sliver edge-on to the pilot.
+func _ring_marker_basis(radial: Vector3, forward: Vector3) -> Basis:
+	var tangent := forward.cross(radial).normalized()
+	return Basis(radial, tangent, forward)
 
 
 func _build_marker_batch(
@@ -678,7 +792,7 @@ func _gate_marker_transforms(snapshot: Dictionary) -> Array[Transform3D]:
 			var angle := TAU * float(copy_index) / float(GATE_MARKER_COPIES)
 			var radial := starboard * cos(angle) + up * sin(angle)
 			transforms.append(Transform3D(
-				Basis(radial, up.cross(radial).normalized(), forward).scaled(scale_value),
+				_ring_marker_basis(radial, forward) * Basis.from_scale(scale_value),
 				checkpoints[gate_index] + radial * radius,
 			))
 	return transforms

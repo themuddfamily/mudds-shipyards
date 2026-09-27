@@ -389,7 +389,7 @@ const PERFORMANCE_BUDGET := {
 	# only bodies in the sector the pilot is expected to hit, and they are
 	# counted in the cluster's own budget because the cluster owns the subtree.
 	"static_bodies": 109,
-	"mesh_instances": 231,
+	"mesh_instances": 232,
 	# Bounded visual batches retain the debris shell, processing-spine ribs,
 	# gantry rails, race-return crown supports, streamed aperture lenses, and
 	# the belt's six shared-stock batches plus its lane and gate chevrons,
@@ -418,6 +418,22 @@ const MOONLET_CRATER_COUNT := 6
 const MOONLET_CRATER_RIM_FAMILY_ID: StringName = &"cinder-moonlet-crater-rims"
 const MOONLET_CRATER_RIM_INNER_RADIUS := 1.0
 const MOONLET_CRATER_RIM_OUTER_RADIUS := 1.28
+const MOONLET_SURFACE_SHADER := preload("res://shaders/cinder_moonlet_surface.gdshader")
+const MOONLET_RING_SHADER := preload("res://shaders/cinder_moonlet_ring.gdshader")
+
+## Distant-silhouette pass. Small opaque renderers stop drawing once they fall
+## under roughly two pixels at 720p (distance = longest extent x this factor),
+## with a fade margin so nothing pops in the canopy. Emissive cues (lamps,
+## chevrons, signal rings), presentation-state families, MultiMesh batches that
+## span the sector and anything already ranged keep their authored behaviour,
+## so every readability cue still reads at the published approach distances.
+const FAR_RANGE_PIXEL_FACTOR := 240.0
+const FAR_RANGE_MINIMUM_END := 90.0
+const FAR_RANGE_MARGIN_PROPORTION := 0.25
+## Renderers whose longest extent is at least this big stay unranged: at the
+## sector's 725 m retention limit they are still several pixels tall.
+const FAR_RANGE_MAXIMUM_EXTENT := 3.0
+const FAR_RANGE_META: StringName = &"sector_far_visibility_range"
 
 @export_category("Presentation")
 @export var starts_enabled := true
@@ -457,6 +473,7 @@ var _structure_scan_presentation_snapshot: Dictionary = {}
 var _beacon_traversal_presentation_snapshot: Dictionary = {}
 var _race_gate_presentation_snapshot: Dictionary = {}
 var _patrol_marker_presentation_snapshot: Dictionary = {}
+var _reduced_flash_enabled := false
 
 
 func _enter_tree() -> void:
@@ -566,6 +583,7 @@ func _ready() -> void:
 	_build_asteroid_field()
 	_build_extraction_platform()
 	_build_station_hulk()
+	_apply_far_visibility_ranges()
 	_audit_report = _compose_audit_report()
 	set_cluster_enabled(starts_enabled)
 	_arm_streaming_transition()
@@ -2537,6 +2555,9 @@ func _build_debris_chips() -> void:
 	# crushed the field to near-black before lighting was even evaluated.
 	var chip_material := _material(DEBRIS_CHIP_NEUTRAL_BASE, 0.04, 0.9)
 	chip_material.vertex_color_use_as_albedo = true
+	# The flank tints are authored in sRGB like every other colour here; read
+	# raw they rendered as linear and washed the chips out to pale grey.
+	chip_material.vertex_color_is_srgb = true
 	var chip_mesh := StationSurfaceKit.rounded_box_mesh_with_bevel(
 		DEBRIS_CHIP_MESH_SIZE,
 		minf(DEBRIS_CHIP_MESH_SIZE.x, DEBRIS_CHIP_MESH_SIZE.y) * ROCK_BEVEL_PROPORTION
@@ -2801,6 +2822,7 @@ func _build_asteroid_field() -> void:
 	if not is_instance_valid(_asteroid_field):
 		return
 	_asteroid_field.build(_materials, _rock_mesh_cache)
+	_asteroid_field.set_reduced_flash_enabled(_reduced_flash_enabled)
 	_activity_binding.call("bind_asteroid_field", _asteroid_field)
 	_activity_binding.call(
 		"bind_asteroid_field_presentation",
@@ -3957,9 +3979,13 @@ func _create_materials() -> void:
 	_materials["rock_basalt"] = _material(ROCK_BASALT, 0.04, 0.93)
 	_materials["rock_rust"] = _material(ROCK_RUST, 0.06, 0.9)
 	_materials["rock_pale"] = _material(ROCK_PALE, 0.05, 0.88)
-	_materials["moonlet"] = _material(MOONLET_TEAL, 0.0, 0.94)
-	_materials["ring"] = _material(MOONLET_RING, 0.0, 1.0)
-	_materials["ring_pale"] = _material(MOONLET_RING.darkened(0.18), 0.0, 1.0)
+	# The moonlet and its bands are shaded procedurally (craters, maria, rim
+	# regolith, ringlets and a gap) so the reachable body reads as a place.
+	_materials["moonlet"] = _moonlet_surface_material()
+	_materials["ring"] = _moonlet_ring_material(MOONLET_RING, 116.0, 132.0, 7.0, 0.62)
+	_materials["ring_pale"] = _moonlet_ring_material(
+		MOONLET_RING.darkened(0.18), 140.0, 148.0, 4.0, 0.35
+	)
 	_materials["moonlet_crater"] = _material(MOONLET_TEAL.darkened(0.42), 0.0, 0.96)
 	_materials["solar"] = _material(Color("15384a"), 0.55, 0.24, Color("1d6f7f"), 0.35)
 	_materials["solar_dead"] = _material(Color("101820"), 0.4, 0.72)
@@ -4053,6 +4079,92 @@ func _panel_material(
 	var result := _material(color, metallic, roughness)
 	StationSurfaceKit.apply_panel_triplanar(result, uv_scale, finish)
 	return result
+
+
+func _moonlet_surface_material() -> ShaderMaterial:
+	var result := ShaderMaterial.new()
+	result.shader = MOONLET_SURFACE_SHADER
+	result.set_shader_parameter(&"base_color", MOONLET_TEAL)
+	result.set_shader_parameter(&"maria_color", MOONLET_TEAL.darkened(0.38))
+	result.set_shader_parameter(&"rim_color", MOONLET_TEAL.lerp(Color("b8c2b8"), 0.62))
+	result.set_shader_parameter(&"body_radius", MOONLET_RADIUS)
+	return result
+
+
+func _moonlet_ring_material(
+		color: Color,
+		inner_radius: float,
+		outer_radius: float,
+		ringlets: float,
+		gap_position: float
+	) -> ShaderMaterial:
+	var result := ShaderMaterial.new()
+	result.shader = MOONLET_RING_SHADER
+	result.set_shader_parameter(&"band_color", color)
+	result.set_shader_parameter(&"inner_radius", inner_radius)
+	result.set_shader_parameter(&"outer_radius", outer_radius)
+	result.set_shader_parameter(&"ringlet_count", ringlets)
+	result.set_shader_parameter(&"gap_position", gap_position)
+	return result
+
+
+## See `FAR_RANGE_PIXEL_FACTOR`. Runs once after the whole subtree is built.
+func _apply_far_visibility_ranges() -> void:
+	for candidate in find_children("*", "MeshInstance3D", true, false):
+		var renderer := candidate as MeshInstance3D
+		if renderer.mesh == null or renderer.visibility_range_end > 0.0:
+			continue
+		if renderer.has_meta(&"presentation_only") \
+				or renderer.has_meta(&"visual_batch_family_id"):
+			continue
+		if _renderer_is_emissive(renderer):
+			continue
+		var extent := renderer.get_aabb().size * renderer.global_basis.get_scale().abs()
+		var longest := maxf(extent.x, maxf(extent.y, extent.z))
+		if longest <= 0.0 or longest >= FAR_RANGE_MAXIMUM_EXTENT:
+			continue
+		var end := maxf(FAR_RANGE_MINIMUM_END, longest * FAR_RANGE_PIXEL_FACTOR)
+		renderer.visibility_range_begin = 0.0
+		renderer.visibility_range_end = end
+		renderer.visibility_range_end_margin = end * FAR_RANGE_MARGIN_PROPORTION
+		renderer.visibility_range_fade_mode = GeometryInstance3D.VISIBILITY_RANGE_FADE_SELF
+		renderer.set_meta(FAR_RANGE_META, end)
+
+
+func _renderer_is_emissive(renderer: MeshInstance3D) -> bool:
+	var materials: Array[Material] = [renderer.material_override]
+	for surface in renderer.mesh.get_surface_count():
+		materials.append(renderer.get_surface_override_material(surface))
+		materials.append(renderer.mesh.surface_get_material(surface))
+	for material in materials:
+		if material is BaseMaterial3D and (material as BaseMaterial3D).emission_enabled:
+			return true
+		if material is ShaderMaterial:
+			return true
+	return false
+
+
+## Every renderer the distant-silhouette pass ranged, with its end distance.
+func get_far_visibility_range_report() -> Dictionary:
+	var ranged: Array[Dictionary] = []
+	for candidate in find_children("*", "GeometryInstance3D", true, false):
+		var renderer := candidate as GeometryInstance3D
+		if renderer.visibility_range_end > 0.0:
+			ranged.append({
+				"path": get_path_to(renderer),
+				"end": renderer.visibility_range_end,
+				"end_margin": renderer.visibility_range_end_margin,
+				"fade_mode": renderer.visibility_range_fade_mode,
+			})
+	return {"ranged_count": ranged.size(), "ranged": ranged}
+
+
+## Forwarded from the settings consumer (ShipyardWorld) to each loaded
+## generation. Only the belt's chevrons change; nothing in the sector pulses.
+func set_reduced_flash_enabled(enabled: bool) -> void:
+	_reduced_flash_enabled = enabled
+	if is_instance_valid(_asteroid_field):
+		_asteroid_field.set_reduced_flash_enabled(enabled)
 
 
 func _lens_material(color: Color) -> StandardMaterial3D:
