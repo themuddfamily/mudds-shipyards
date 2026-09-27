@@ -31,7 +31,7 @@ extends "res://tests/in_flight_cabin_integration_test.gd"
 ##   B. the hatch disembark sends the matching intent and only releases the
 ##      local presentation on the confirmation, leaving the player on the deck;
 ##   C. a second client whose berths are all held is refused with the ledger's
-##      own reason, and does not move;
+##      own `craft_full` verdict in one round trip, and does not move;
 ##   D. a request the host never answers times out, leaves the client exactly
 ##      where it stood, and shows one refusal.
 ##
@@ -82,6 +82,9 @@ func _run() -> void:
 	await _assert_a_full_ledger_refuses_the_next_client()
 	await _assert_an_unanswered_request_times_out()
 	await _assert_an_expiry_does_not_lock_the_peer_out()
+	await _assert_the_host_ledger_clock_runs_every_physics_tick()
+	await _assert_a_passenger_is_promoted_to_pilot_in_place()
+	await _assert_the_host_is_refused_a_seat_a_crewmate_holds()
 	await _finish_client_boarding()
 
 
@@ -331,6 +334,11 @@ func _assert_the_hatch_disembark_waits_for_the_ledger() -> void:
 	var deck: Vector3 = (game.world.get_player_spawn() as Transform3D).origin
 	_check(client_player.global_position.distance_to(deck) > 2.0,
 		"the client's player is aboard, not on the deck, before the hatch press")
+	# The cabin stand faces aft, so group B's held forward walked the player
+	# down the aisle, away from the cockpit where a berth holder's press asks
+	# for the pilot seat instead of the hatch.
+	_check(not game._network_client_near_pilot_seat(craft),
+		"the passenger stands aft of the cockpit's reach before pressing the hatch")
 	await _press_the_hatch(game, client_player, craft)
 	var released := await _wait_until(
 		func() -> bool: return _client_is_unberthed(game), 8.0
@@ -384,17 +392,22 @@ func _assert_a_full_ledger_refuses_the_next_client() -> void:
 	var stood := client_player.global_transform
 	var phase_before := game.phase
 	var refusals_before := int(game.get_network_client_boarding_audit().get("refusals", 0))
+	var requests_before := int(game.get_network_client_boarding_audit().get("requests", 0))
 	await _press_interact()
 	var refused := await _wait_until(
 		func() -> bool: return _client_refusals(game) > refusals_before, 10.0
 	)
 	var audit: Dictionary = game.get_network_client_boarding_audit()
-	_check(refused and audit.get("last_status") == &"seat_occupied",
+	_check(refused and audit.get("last_status") == &"craft_full",
 		"the second client is refused with the ledger's own reason (%s)"
 			% String(audit.get("last_status", &"none")))
-	_check(int(audit.get("requests", 0)) >= GameFlow.NETWORK_CABIN_BERTH_COUNT,
-		"it asked for every berth the craft offers before giving up (%d asks)"
-			% int(audit.get("requests", 0)))
+	_check(int(audit.get("requests", 0)) == requests_before + 1,
+		"a full craft costs one ask, not one per berth (%d asks)"
+			% (int(audit.get("requests", 0)) - requests_before))
+	_check(StringName(first.get_network_client_boarding_audit().get("claimed_seat_id", &""))
+			== GameFlow.network_cabin_berth_seat_id(SHIP_ID, GameFlow.NETWORK_CABIN_BERTH_COUNT),
+		"the first client was assigned the one free berth in a single answer (%s)"
+			% String(first.get_network_client_boarding_audit().get("claimed_seat_id", &"?")))
 	_check(audit.get("claim", {}).is_empty() and not bool(
 			game.get_network_remote_body_audit().get("intent_source_bound", true)),
 		"a refused client holds no berth and drives no body")
@@ -404,7 +417,7 @@ func _assert_a_full_ledger_refuses_the_next_client() -> void:
 	var report: Dictionary = game.get_boarding_confirmation_presentation_report()
 	var view: Dictionary = (report.get("adapter", {}) as Dictionary).get("view", {}) as Dictionary
 	_check(StringName(view.get("state", &"")) == &"rejected"
-		and String(view.get("message", "")).contains("SEAT OCCUPIED"),
+		and String(view.get("message", "")).contains("CRAFT FULL"),
 		"the existing refusal presentation carries the ledger's reason (%s)"
 			% String(view.get("message", "")))
 
@@ -494,7 +507,115 @@ func _assert_an_expiry_does_not_lock_the_peer_out() -> void:
 		"the host stands a body for the second client too")
 
 
+# --- G. the ledger clock is live --------------------------------------------
+
+
+func _assert_the_host_ledger_clock_runs_every_physics_tick() -> void:
+	var before: int = _server.get_boarding_server_tick()
+	await _drive_session(12)
+	var after: int = _server.get_boarding_server_tick()
+	_check(after >= before + 12,
+		"the host's GameFlow advances the ledger clock every physics tick (%d -> %d)" % [before, after])
+	var session = _client_games[1].get_network_session()
+	_check(absi(session.get_boarding_server_tick_estimate() - after) <= 12,
+		"the client's estimate of that clock tracks it from the frames it runs (%d vs %d)"
+			% [session.get_boarding_server_tick_estimate(), after])
+	_check(_host.get_network_host_boarding_seat().is_empty(),
+		"the host standing on the deck holds no seat in the ledger")
+
+
+# --- H. a passenger is promoted in place ------------------------------------
+
+
+func _assert_a_passenger_is_promoted_to_pilot_in_place() -> void:
+	var game := _client_games[1]
+	var craft := _client_crafts[1] as HalyardCrewTransport
+	var client_player := _client_players[1] as PlayerController
+	var entity := GameFlow.network_client_boarding_avatar_id(
+		game.get_network_session().multiplayer.get_unique_id()
+	)
+	_check(game.phase == GameFlow.Phase.IN_FLIGHT_CABIN and _host_body(entity) != null,
+		"the second client stands in the cabin on a berth before walking forward")
+	_check(not game._network_client_near_pilot_seat(craft),
+		"the cabin stand pose is outside the cockpit's reach, so a fresh berth press is the hatch's")
+	# Walk to the cockpit on held input, exactly as a player does. The cabin
+	# stand faces aft down the aisle, so the cockpit is behind the player.
+	_only_this_player_hears_the_key(client_player)
+	client_player.set_control_enabled(true)
+	Input.action_press(&"move_back")
+	var reached := await _wait_until(
+		func() -> bool: return game._network_client_near_pilot_seat(craft), 6.0
+	)
+	Input.action_release(&"move_back")
+	await _drive_session(10)
+	_check(reached and game._network_client_near_pilot_seat(craft),
+		"the passenger reached the cockpit")
+	var swaps_before := int(_host.get_network_remote_body_audit().get("hatch_seat_swaps", 0))
+	var requests_before := int(game.get_network_client_boarding_audit().get("requests", 0))
+	await _press_interact()
+	var promoted := await _wait_until(
+		func() -> bool: return _client_holds_role(game, &"pilot"), 8.0
+	)
+	var audit: Dictionary = game.get_network_client_boarding_audit()
+	_check(promoted and audit.get("last_status") == &"seat_swapped",
+		"one press at the cockpit promotes the passenger through the ledger (%s)"
+			% String(audit.get("last_status", &"none")))
+	_check(int(audit.get("requests", 0)) == requests_before + 1,
+		"the promotion is one request, not a leave and a re-board")
+	_check(StringName(audit.get("claimed_seat_id", &"")) == StringName("%s_pilot" % String(SHIP_ID))
+		and StringName(audit.get("released_seat_id", &"")) \
+			== GameFlow.network_cabin_berth_seat_id(SHIP_ID, 1),
+		"the answer named the pilot seat claimed and the berth released")
+	await _drive_session(20)
+	_check(craft.is_piloted() and game.phase != GameFlow.Phase.IN_FLIGHT_CABIN,
+		"the client is presented in the pilot seat through the retake-the-seat seam")
+	_check(not bool(game.get_network_remote_body_audit().get("intent_source_bound", true)),
+		"the client stopped driving the berth's walking body")
+	_check(_host_body(entity) == null
+		and int(_host.get_network_remote_body_audit().get("hatch_seat_swaps", 0)) == swaps_before + 1,
+		"the host retired the berth's walking body in the same verdict")
+	_check(_ledger_holder(StringName("%s_pilot" % String(SHIP_ID))) == entity
+		and _ledger_holder(GameFlow.network_cabin_berth_seat_id(SHIP_ID, 1)) == &"",
+		"the host's ledger holds the pilot seat for the promoted peer and the berth is free")
+
+
+# --- I. the host's seat is judged by the same ledger ------------------------
+
+
+func _assert_the_host_is_refused_a_seat_a_crewmate_holds() -> void:
+	var host_player := _host.get_node("Player") as PlayerController
+	var phase_before := _host.phase
+	var claim: Dictionary = _host._claim_network_host_pilot_seat(_host_craft)
+	_check(claim.get("status") == &"seat_occupied",
+		"the host's own claim on the seat a crewmate holds is refused (%s)"
+			% String(claim.get("status", &"?")))
+	_host._board_ship(_host_craft)
+	await _drive_session(4)
+	_check(_host.phase == phase_before and not _host_craft.is_piloted(),
+		"the host's boarding press is refused and nothing moves")
+	var report: Dictionary = _host.get_boarding_confirmation_presentation_report()
+	var view: Dictionary = (report.get("adapter", {}) as Dictionary).get("view", {}) as Dictionary
+	_check(StringName(view.get("state", &"")) == &"rejected"
+		and String(view.get("message", "")).contains("SEAT OCCUPIED"),
+		"the host sees the ledger's reason on the existing card (%s)" % String(view.get("message", "")))
+	_check(_host.get_network_host_boarding_seat().is_empty() and not host_player.is_seated(),
+		"the host holds no seat and is left on foot")
+
+
 # --- helpers ----------------------------------------------------------------
+
+
+func _client_holds_role(game: GameFlow, role: StringName) -> bool:
+	var claim := game.get_network_client_boarding_audit().get("claim", {}) as Dictionary
+	return StringName(claim.get("role", &"")) == role
+
+
+func _ledger_holder(seat_id: StringName) -> StringName:
+	for occupancy_variant in _server.get_boarding_snapshot().get("occupancies", []) as Array:
+		var occupancy := occupancy_variant as Dictionary
+		if StringName(occupancy.get("seat_id", &"")) == seat_id:
+			return StringName(occupancy.get("avatar_id", &""))
+	return &""
 
 
 ## The approach half of a real boarding interaction: stand clear first so any
@@ -586,7 +707,8 @@ func _send_filler_boarding(
 ) -> void:
 	var intent = BoardingIntent.create(
 		_filler_peer_ids[index], avatar_id, SHIP_ID, 1, FRAME_ID, 1,
-		seat_id, 1, GameFlow.NETWORK_CABIN_BERTH_ROLE, sequence, 0, action
+		seat_id, 1, GameFlow.NETWORK_CABIN_BERTH_ROLE, sequence,
+		_fillers[index].get_boarding_server_tick_estimate(), action
 	)
 	_fillers[index].send_boarding_intent(intent.to_dictionary())
 
