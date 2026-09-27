@@ -131,7 +131,7 @@ func _test_calm_engaged_victory_calm() -> void:
 
 	layer.observe({"engaged": false, "hostile_count": 0, "outcome": &"victory", "outcome_serial": 1})
 	_check(layer.get_state() == CombatMusicLayer.STATE_VICTORY, "engaged -> victory when the encounter is cleared")
-	_check(_stingers == [&"victory"], "the victory stinger starts exactly once")
+	_check(_stingers.size() == 1 and _stingers[0] == &"victory", "the victory stinger starts exactly once")
 	_check(bool(layer.get_snapshot()["stinger_attached"]), "the victory stinger attaches to its voice")
 	_check(not layer.is_holding_bed(), "the bed is released to return under the stinger")
 	layer.observe({"engaged": false, "hostile_count": 0, "outcome": &"victory", "outcome_serial": 1})
@@ -154,7 +154,7 @@ func _test_failure_stinger() -> void:
 	_advance(layer, 1.0)
 	layer.observe({"engaged": false, "hostile_count": 0, "outcome": &"failure", "outcome_serial": 1})
 	_check(layer.get_state() == CombatMusicLayer.STATE_FAILURE, "engaged -> failure when the encounter is lost")
-	_check(_stingers == [&"failure"], "the failure stinger plays once")
+	_check(_stingers.size() == 1 and _stingers[0] == &"failure", "the failure stinger plays once")
 	var failure_volume := float(layer.get_snapshot()["stinger_volume_db"])
 	_advance(layer, CombatMusicLayer.FAILURE_HOLD_SECONDS + 0.1)
 	_check(layer.get_state() == CombatMusicLayer.STATE_CALM, "failure -> calm after its hold")
@@ -270,9 +270,13 @@ func _test_production_main_composes_layer() -> void:
 	if game == null:
 		return
 	root.add_child(game)
-	for _frame in 6:
+	# GameFlow composes the layer from its first initialized _process frame.
+	var layer: CombatMusicLayer = null
+	for _frame in 120:
 		await process_frame
-	var layer := game.get_combat_music_layer()
+		layer = game.get_combat_music_layer()
+		if layer != null:
+			break
 	_check(layer != null, "GameFlow composes the combat music layer beside the calm bed")
 	if layer != null:
 		_check(layer.get_state() == CombatMusicLayer.STATE_CALM, "the station at rest is calm")
