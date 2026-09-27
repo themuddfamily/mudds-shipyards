@@ -30,6 +30,7 @@ extends ResolverBackedOpponent
 ##                                               damages like any other target
 ##   * hull/damage/destruction lifecycle      -> inherited from RangeOpponent
 ##   * fire/impact cues                       -> the shared CombatAudioPresentation
+##   * launch/lock/flight/intercept/detonation -> the pool's TorpedoRunAudio bank
 ##   * fire rights                            -> the dispatching scenario, re-asked on
 ##                                               the launch frame
 ##
@@ -549,6 +550,9 @@ func _sync_lock_cue() -> void:
 	_lock_target_instance_id = _target.get_instance_id()
 	_lock_activation_generation = _activation_generation
 	_lock_cue.visible = true
+	# Lock pips: the pool's audio bank voices each closing bracket step.
+	if is_instance_valid(_torpedoes):
+		_torpedoes.present_lock_cue(posture, step, global_position, _activation_generation)
 
 
 func _lock_stroke(from_point: Vector3, to_point: Vector3) -> Transform3D:
@@ -561,6 +565,8 @@ func _lock_stroke(from_point: Vector3, to_point: Vector3) -> Transform3D:
 
 
 func _clear_lock_cue() -> void:
+	if is_instance_valid(_torpedoes):
+		_torpedoes.present_lock_cue(POSTURE_NONE, -1, Vector3.INF, _activation_generation)
 	_lock_visible = POSTURE_NONE
 	_lock_visible_step = -1
 	_lock_target_instance_id = 0

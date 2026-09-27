@@ -14,6 +14,9 @@ extends Node3D
 ##   * a cheap, non-committing detection sweep and proximity fuse that nominate
 ##     *where* the torpedo ended
 ##   * its own small Damageable, so a player shot can destroy it in flight
+##   * its TorpedoRunAudio bank: launch, flight loop, intercept and detonation
+##     cues, plus the launcher's lock pips forwarded through
+##     [method present_lock_cue] (presentation only)
 ##
 ## What it deliberately does not own:
 ##   * damage, range, speed, lifetime, radius or faction of the *warhead*. Those
@@ -46,6 +49,7 @@ const COMPONENT_ID: StringName = &"seeker-torpedo-projectile"
 const EVIDENCE_STATUS: StringName = &"modern_interpretation"
 
 const PhysicsLayerContract := preload("res://scripts/core/physics_layers.gd")
+const TorpedoRunAudioScript := preload("res://scripts/combat/torpedo_run_audio.gd")
 
 const DEFAULT_POOL_CAPACITY := 2
 const MAX_POOL_CAPACITY := 4
@@ -111,6 +115,7 @@ var _abandoned_count := 0
 var _rejected_count := 0
 var _detection_query := PhysicsRayQueryParameters3D.new()
 var _authority: LiveCombatAuthority
+var _audio: TorpedoRunAudio
 
 
 func _ready() -> void:
@@ -220,6 +225,8 @@ func launch(
 	_refresh_slot_visual(slot_index)
 	_refresh_processing()
 	var record := _slot_record(slot)
+	if is_instance_valid(_audio):
+		_audio.present_launch(record)
 	torpedo_launched.emit(record)
 	return {
 		"accepted": true,
@@ -264,6 +271,22 @@ func set_reduced_flash_enabled(enabled: bool) -> Dictionary:
 	for slot_index in _slots.size():
 		_refresh_slot_visual(slot_index)
 	return get_presentation_profile_snapshot()
+
+
+## Forwards the launcher's lock posture to the audio bank. Presentation only:
+## the launcher derives the posture from state it already owns.
+func present_lock_cue(
+		posture: StringName,
+		lock_step: int,
+		world_position: Vector3,
+		activation_generation: int
+	) -> void:
+	if is_instance_valid(_audio):
+		_audio.present_lock_posture(posture, lock_step, world_position, activation_generation)
+
+
+func get_audio() -> TorpedoRunAudio:
+	return _audio if is_instance_valid(_audio) else null
 
 
 func is_reduced_flash_enabled() -> bool:
@@ -536,6 +559,8 @@ func _terminate_slot(
 	_release_slot(slot_index)
 	if authority == null:
 		_abandoned_count += 1
+		if is_instance_valid(_audio):
+			_audio.present_abandoned(record)
 		torpedo_abandoned.emit(record, &"authority_unavailable")
 		return
 	var result := authority.resolve_projectile_arrival(
@@ -544,6 +569,8 @@ func _terminate_slot(
 	_resolved_count += 1
 	if bool(result.get("damaged", false)) or reason == &"proximity_fuse":
 		_start_burst(slot_index, terminal_position)
+	if is_instance_valid(_audio):
+		_audio.present_resolved(record, result)
 	torpedo_resolved.emit(record, result)
 
 
@@ -561,6 +588,8 @@ func _abandon_slot(slot_index: int, reason: StringName, fizzle: bool) -> bool:
 	_abandoned_count += 1
 	if fizzle and position.is_finite():
 		_start_burst(slot_index, position)
+	if is_instance_valid(_audio):
+		_audio.present_abandoned(record)
 	torpedo_abandoned.emit(record, reason)
 	return true
 
@@ -591,6 +620,8 @@ func _on_torpedo_destroyed(
 	if position.is_finite():
 		_start_burst(slot_index, position)
 	_refresh_processing()
+	if is_instance_valid(_audio):
+		_audio.present_intercept(record)
 	torpedo_intercepted.emit(record)
 
 
@@ -698,6 +729,8 @@ func _refresh_slot_visual(slot_index: int) -> void:
 		return
 	holder.visible = true
 	holder.global_transform = Transform3D(_basis_for_forward(slot.direction as Vector3), position)
+	if is_instance_valid(_audio):
+		_audio.follow_flight(int(slot.get("flight_id", 0)), position)
 	var seeker := slot.get("seeker") as MeshInstance3D
 	if is_instance_valid(seeker):
 		seeker.material_override = (
@@ -840,6 +873,11 @@ func _build_pool() -> void:
 			"burst": burst,
 			"burst_remaining": 0.0,
 		})
+	# One flight voice per slot bounds the loop voices by the pool itself.
+	_audio = TorpedoRunAudioScript.new() as TorpedoRunAudio
+	_audio.name = "TorpedoAudio"
+	_audio.flight_voice_count = capacity
+	add_child(_audio)
 	_built = true
 
 
