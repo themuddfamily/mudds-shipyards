@@ -910,6 +910,12 @@ func _unhandled_input(event: InputEvent) -> void:
 		else:
 			set_paused(not _pause.visible)
 		get_viewport().set_input_as_handled()
+	elif (
+		_started
+		and _is_controller_back_event(event)
+		and _back_out_of_pause_subpage()
+	):
+		get_viewport().set_input_as_handled()
 	elif event.is_action_pressed("toggle_controls_overlay") and _started:
 		# One InputMap action now owns the overlay so `F1` and the gamepad Back
 		# button reach the identical toggle. `is_action_pressed()` still rejects
@@ -920,6 +926,39 @@ func _unhandled_input(event: InputEvent) -> void:
 			_refresh_help_page()
 			if is_instance_valid(_help_close_button):
 				_help_close_button.grab_focus()
+
+
+# --- Controller Back (B) on pause sub-pages --------------------------------
+# The pad's cancel button (ui_cancel, B / Circle) steps back out of a pause
+# sub-page — Destination Board, Activity Board, Nearby Activity, Settings,
+# Server Browser — exactly like Start does there. It never opens the pause
+# overlay and never resumes from the main pause page, so the same press cannot
+# leak into flight as a barrel roll. Keyboard Escape keeps its existing route
+# through the `pause` action.
+func _is_controller_back_event(event: InputEvent) -> bool:
+	return (
+		event is InputEventJoypadButton
+		and event.is_action_pressed(&"ui_cancel")
+	)
+
+
+func _back_out_of_pause_subpage() -> bool:
+	if _pause == null or not _pause.visible:
+		return false
+	if _nearby_activity_page != null and _nearby_activity_page.visible:
+		_show_activity_selection_page()
+		return true
+	for page: Control in [
+		_planetary_destination_page,
+		_activity_selection_page,
+		_settings_page,
+		_server_browser_page,
+	]:
+		if page != null and page.visible:
+			_show_pause_main()
+			return true
+	return false
+# --- end controller Back ------------------------------------------------------
 
 
 func _is_screenshot_capture_event(event: InputEvent) -> bool:
@@ -1324,8 +1363,9 @@ func _has_cinder_bomber_identity() -> bool:
 
 
 func set_objective(text: String, kicker: String = "CURRENT OBJECTIVE") -> void:
+	_objective_source_text = text
 	_objective_kicker.text = kicker
-	_objective_label.text = text
+	_objective_label.text = _controller_prompt_text(text)
 	_queue_objective_panel_fit()
 
 
@@ -1805,13 +1845,99 @@ func get_action_prompt(action: StringName) -> String:
 func set_interaction(text: String, is_visible: bool = true) -> void:
 	if not is_inside_tree() or is_queued_for_deletion():
 		return
+	_interaction_source_text = text
+	_interaction_label.text = _live_interaction_text(text)
+	_interaction_panel.visible = is_visible and not text.is_empty()
+
+
+func _live_interaction_text(text: String) -> String:
 	var display_text := text
 	if text.begins_with("[ E ]"):
 		var interact_prompt := _action_prompts([&"interact"])
 		if not interact_prompt.is_empty():
 			display_text = "[ %s ]%s" % [interact_prompt, text.substr(5)]
-	_interaction_label.text = display_text
-	_interaction_panel.visible = is_visible and not text.is_empty()
+	return _controller_prompt_text(display_text)
+
+
+# --- Controller-only prompt glyphs -------------------------------------------
+# Several flight and planetary-expedition callers still author a keyboard key in
+# their copy ("[ L ]  LAND AT AURORA PAD  //  ESC: RETURN TO MUDDS", "press L",
+# "[ W/S / LEFT STICK ]"). While a gamepad family is the live prompt device,
+# those tokens are replaced with the bound controller glyph for the same
+# InputMap action, so a pad-only player is never told to press a key. Keyboard
+# and mouse presentation is left byte-for-byte unchanged.
+
+## [legacy token, actions whose live glyph replaces it, replacement format].
+const _CONTROLLER_PROMPT_TOKENS := [
+	["[ W/S / LEFT STICK ]", [&"move_forward", &"move_back"], "[ %s ]"],
+	["[ L / D-PAD LEFT ]", [&"landing_assist"], "[ %s ]"],
+	["[ L ]", [&"landing_assist"], "[ %s ]"],
+	["ESC: ", [&"pause"], "%s: "],
+	["Esc → ", [&"pause"], "%s → "],
+	["press L to ", [&"landing_assist"], "press %s to "],
+]
+const _CONTROLLER_PROMPT_TRAILING_TOKENS := [
+	["press L", [&"landing_assist"], "press %s"],
+]
+
+## Raw caller copy, retained so a device switch re-renders the live glyph even
+## when the owning flow does not republish the prompt (for example while paused).
+var _interaction_source_text := ""
+var _objective_source_text := ""
+
+
+func _controller_prompt_active() -> bool:
+	return (
+		_input_glyph_resolver != null
+		and _runtime_input_glyph_presenter != null
+		and InputGlyphResolverType.GAMEPAD_FAMILIES.has(
+			_input_glyph_resolver.get_preferred_device_family()
+		)
+	)
+
+
+func _controller_prompt_text(text: String) -> String:
+	if text.is_empty() or not _controller_prompt_active():
+		return text
+	var result := text
+	for entry: Array in _CONTROLLER_PROMPT_TOKENS:
+		var token := str(entry[0])
+		if not result.contains(token):
+			continue
+		var glyph := _controller_prompt_glyph(entry[1] as Array)
+		if not glyph.is_empty():
+			result = result.replace(token, str(entry[2]) % glyph)
+	for entry: Array in _CONTROLLER_PROMPT_TRAILING_TOKENS:
+		var token := str(entry[0])
+		if not result.ends_with(token):
+			continue
+		var glyph := _controller_prompt_glyph(entry[1] as Array)
+		if not glyph.is_empty():
+			result = result.left(result.length() - token.length()) + str(entry[2]) % glyph
+	return result
+
+
+func _controller_prompt_glyph(actions: Array) -> String:
+	var typed: Array[StringName] = []
+	for action: Variant in actions:
+		typed.append(StringName(action))
+	var glyph := _action_prompts(typed)
+	return "" if glyph == "Unbound Input" else glyph
+
+
+## Re-renders the retained interaction and objective copy for the current prompt
+## device. Visibility stays owned by the callers.
+func _refresh_controller_prompt_surfaces() -> void:
+	if is_queued_for_deletion():
+		return
+	if is_instance_valid(_interaction_label) and not _interaction_source_text.is_empty():
+		_interaction_label.text = _live_interaction_text(_interaction_source_text)
+	if is_instance_valid(_objective_label) and not _objective_source_text.is_empty():
+		var rendered := _controller_prompt_text(_objective_source_text)
+		if _objective_label.text != rendered:
+			_objective_label.text = rendered
+			_queue_objective_panel_fit()
+# --- end controller-only prompt glyphs ---------------------------------------
 
 
 ## Presentation-only transition copy for the first boarding/seat handoff. The
@@ -2480,7 +2606,7 @@ func toast(title: String, detail: String = "", duration: float = 3.2) -> void:
 	_toast_serial += 1
 	var serial := _toast_serial
 	_toast_title.text = title.to_upper()
-	_toast_detail.text = detail
+	_toast_detail.text = _controller_prompt_text(detail)
 	_toast_panel.modulate = Color.WHITE if _reduced_motion else Color.TRANSPARENT
 	_toast_panel.visible = true
 	if _reduced_motion:
@@ -6050,15 +6176,19 @@ func _first_planetary_destination_focus_target() -> Control:
 
 func _configure_planetary_destination_focus_order() -> void:
 	var ordered: Array[Control] = []
-	for row_variant: Variant in _planetary_destination_snapshot.get(
-		"destinations", []
-	) as Array:
-		var destination_id := StringName(
-			(row_variant as Dictionary).get("destination_id", &"")
-		)
-		var button := _planetary_destination_buttons.get(destination_id) as Button
-		if is_instance_valid(button) and not button.disabled:
-			ordered.append(button)
+	# Worlds, then sector sites, then Back: the same order the rows render in,
+	# so every enabled row (including a site's briefing action) sits on the
+	# D-pad / stick chain rather than being skipped between a world and Back.
+	for roster_key: String in ["destinations", "sector_sites"]:
+		for row_variant: Variant in _planetary_destination_snapshot.get(
+			roster_key, []
+		) as Array:
+			var destination_id := StringName(
+				(row_variant as Dictionary).get("destination_id", &"")
+			)
+			var button := _planetary_destination_buttons.get(destination_id) as Button
+			if is_instance_valid(button) and not button.disabled:
+				ordered.append(button)
 	if is_instance_valid(_planetary_destination_back_button):
 		ordered.append(_planetary_destination_back_button)
 	for index in ordered.size():
@@ -8011,6 +8141,7 @@ func _matching_axis_deadzone(event: InputEventJoypadMotion) -> float:
 
 func _refresh_input_prompts() -> void:
 	_refresh_all_binding_rows()
+	_refresh_controller_prompt_surfaces()
 	if is_instance_valid(_help_panel):
 		_set_help_text(_help_rows_with_role_context(_state_mode))
 	_refresh_retained_bomber_payload_input_prompts()
