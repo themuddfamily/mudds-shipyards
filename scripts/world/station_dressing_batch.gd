@@ -931,6 +931,41 @@ static func find_authored_piece(search_root: Node, piece_name: String) -> Dictio
 	return {}
 
 
+## Every authored piece whose name matches the glob `pattern` among the direct
+## children of `parent`, whether it still stands as its own renderer (or `_box`
+## body) or has been folded into a batch in that parent.
+##
+## The index-aware form of `parent.find_children(pattern, "MeshInstance3D",
+## false, false)`, which is how a module audits a family of sibling pieces. A
+## batch never crosses a parent boundary, so a piece folded out of `parent` is
+## always recorded by one of `parent`'s own children. Records carry the same
+## keys as `find_authored_piece()`; batches are never returned as pieces.
+static func find_authored_child_pieces(parent: Node, pattern: String) -> Array[Dictionary]:
+	var out: Array[Dictionary] = []
+	if parent == null or not is_instance_valid(parent):
+		return out
+	for child in parent.get_children():
+		var index := authored_piece_index(child)
+		if index.is_empty():
+			if child.has_meta(BATCH_META) or not String(child.name).match(pattern):
+				continue
+			var visual := child as MeshInstance3D
+			if visual == null:
+				visual = child.get_node_or_null(NodePath(MESH_CHILD_NAME)) as MeshInstance3D
+			if visual != null:
+				out.append(_live_piece_record(visual))
+			continue
+		for record_variant in index:
+			var record := record_variant as Dictionary
+			if not String(record.get("name", "")).match(pattern):
+				continue
+			var resolved := record.duplicate()
+			resolved["batched"] = true
+			resolved["node"] = child
+			out.append(resolved)
+	return out
+
+
 ## The world-space bound of a record `find_authored_piece()` returned, whether
 ## the piece still stands as its own renderer or was folded into a batch.
 ##

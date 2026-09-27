@@ -468,6 +468,32 @@ func _test_authored_piece_index() -> void:
 		BATCH.find_authored_piece(module, "NoSuchPiece").is_empty(),
 		"the index reports nothing for a piece that was never built"
 	)
+	# Family lookups used by migrated roster consumers: a glob over one parent's
+	# own children answers folded and live pieces alike, and never the batch.
+	var tagged_family := BATCH.find_authored_child_pieces(module, "Tagged*")
+	var folded_members := 0
+	for record in tagged_family:
+		folded_members += 1 if bool(record.get("batched", false)) else 0
+	_check(
+		tagged_family.size() == 3 and folded_members == 2,
+		"a child glob answers two folded and one live member of the Tagged family"
+	)
+	_check(
+		BATCH.find_authored_child_pieces(module, "DressingRenderBatch*").is_empty(),
+		"a batch is never answered as an authored piece"
+	)
+	var folded_bound := BATCH.authored_piece_global_aabb(second)
+	_check(
+		folded_bound.get_center().is_equal_approx(
+			module.global_transform * Vector3(0.8, 0.2, 0.0)
+		) and folded_bound.size.is_equal_approx(shared_mesh.get_aabb().size),
+		"a folded piece's world bound is its own, not the merged batch's"
+	)
+	var live_bound := BATCH.authored_piece_global_aabb(tagged_odd)
+	_check(
+		live_bound.get_center().is_equal_approx(module.global_transform * Vector3(1.6, 1.4, 0.0)),
+		"a live piece's world bound is read from its own renderer"
+	)
 	module.queue_free()
 	await process_frame
 
