@@ -1,14 +1,17 @@
 class_name RimeGlacialStreamingBootstrap
-extends PlanetaryStreamingBootstrap
+extends "res://scripts/world/planetary_surface_visit_streaming_bootstrap.gd"
 
 ## Explicit, opt-in Rime orbital placement and streaming composition.
 ##
 ## Rime is the third body on [PlanetaryStreamingBootstrap]. The datum, frame,
 ## registration, focus hysteresis, travel observation and committed-rebase
-## re-expression are all the shared base. What is Rime's own is its authored
-## [PlanetaryAtmosphereComposition] - a cold, thin, hazy one - configured against
-## the live generation and fed one body-local observation per accepted focus,
-## and the surface-audio snapshot handed to its authored scene.
+## re-expression are all the shared base, and the atmospheric half - composition
+## configure/observe, the flight-effects weather scalar, interior blend, gust
+## and weather-clock seams, and the surface-audio snapshot - is the shared
+## surface-visit streaming bootstrap Aurora runs too. What is Rime's own is its
+## authored [PlanetaryAtmosphereComposition] - a cold, thin, hazy one whose
+## 14 km atmosphere top goes orbital-dark lower than Aurora's - and the tuning
+## and hard, waterless wind it is observed with.
 
 const LOCATION_ID: StringName = &"rime_glacial_world"
 const WORLD_ID: StringName = &"rime_glacial_world"
@@ -34,23 +37,8 @@ const OBSERVATION_VIEW_DIRECTION_BODY_LOCAL := Vector3.FORWARD
 const OBSERVATION_FOG_PATH_DISTANCE_M := 6_000.0
 const OBSERVATION_WEATHER_SCALAR := 0.66
 const OBSERVATION_CLOUD_SCALAR := 0.74
-
-var _atmosphere: PlanetaryAtmosphereComposition
-var _atmosphere_generation := 0
-var _last_atmosphere_result: Dictionary = {}
-var _atmosphere_configure_count := 0
-var _atmosphere_retire_count := 0
-var _surface_audio_perspective: StringName = &"cockpit"
-var _surface_audio_source_generation := 0
-var _last_surface_audio_result: Dictionary = {}
-
-
-## The visit owner supplies seated/on-foot truth; streaming only forwards it.
-func set_surface_audio_perspective(perspective: StringName) -> Dictionary:
-	if perspective not in [&"cockpit", &"exterior"]:
-		return {"accepted": false, "reason": &"invalid_ship_perspective"}
-	_surface_audio_perspective = perspective
-	return {"accepted": true, "reason": &"perspective_accepted"}
+## Exterior wind reading used before the flight effects supply a gust sample.
+const SURFACE_AUDIO_RESTING_WIND_UNITLESS := 0.78
 
 
 func _create_profile() -> Dictionary:
@@ -81,157 +69,37 @@ func _create_profile() -> Dictionary:
 	}
 
 
-## The live atmosphere composition while Rime is resident; read-only identity.
-func get_atmosphere_composition() -> PlanetaryAtmosphereComposition:
-	return _atmosphere if is_instance_valid(_atmosphere) else null
-
-
-## The environment a viewport owner may present while Rime is resident. Null
-## whenever the composition is not configured against a live generation.
-func get_scene_environment() -> Environment:
-	if not is_instance_valid(_atmosphere):
-		return null
-	var world_environment := _atmosphere.get_world_environment()
-	return world_environment.environment if world_environment != null else null
-
-
 func _loaded_instance_is_expected(instance: Node3D) -> bool:
 	return instance is RimeGlacialAuthoredScene
 
 
-func _environment_result_key() -> String:
-	return "atmosphere_presentation"
+func _atmosphere_composition_path() -> NodePath:
+	return ATMOSPHERE_COMPOSITION_PATH
 
 
-func _not_loaded_reason() -> StringName:
-	return &"rime_not_loaded"
+func _observation_view_direction_body_local() -> Vector3:
+	return OBSERVATION_VIEW_DIRECTION_BODY_LOCAL
 
 
-func _on_generation_loaded(
-		instance: Node3D,
-		frame_generation: int,
-		location_generation: int,
-	) -> void:
-	_retire_atmosphere(&"replacement_before_attach")
-	_surface_audio_source_generation = 0
-	var candidate := instance.get_node_or_null(
-		ATMOSPHERE_COMPOSITION_PATH
-	) as PlanetaryAtmosphereComposition
-	if candidate == null:
-		_last_atmosphere_result = _presentation_result(
-			false, &"atmosphere_composition_unavailable"
-		)
-		return
-	var configured := candidate.configure()
-	if not bool(configured.get("accepted", false)):
-		_last_atmosphere_result = _presentation_result(
-			false, &"atmosphere_configuration_failed", {
-				"composition_reason": configured.get("reason", &"unknown"),
-			}
-		)
-		return
-	_atmosphere = candidate
-	_atmosphere_generation = int(configured.get("generation", 0))
-	_atmosphere_configure_count += 1
-	if _last_focus_frame_generation == frame_generation:
-		_present_environment(
-			_last_body_local_focus, frame_generation, location_generation
-		)
-	else:
-		_last_atmosphere_result = _presentation_result(true, &"awaiting_current_focus")
+func _observation_fog_path_distance_m() -> float:
+	return OBSERVATION_FOG_PATH_DISTANCE_M
 
 
-func _on_generation_load_failed(reason: StringName) -> void:
-	_retire_atmosphere(&"load_failed")
-	_last_atmosphere_result = _presentation_result(false, &"rime_load_failed", {
-		"streaming_reason": reason,
-	})
+func _observation_weather_scalar() -> float:
+	return OBSERVATION_WEATHER_SCALAR
 
 
-func _on_generation_unloaded() -> void:
-	_retire_atmosphere(&"rime_unloaded")
-	_surface_audio_perspective = &"cockpit"
+func _observation_cloud_scalar() -> float:
+	return OBSERVATION_CLOUD_SCALAR
 
 
-func _present_environment(
-		body_local_observer: Vector3,
-		frame_generation: int,
-		location_generation: int,
-	) -> Dictionary:
-	if not is_instance_valid(_atmosphere):
-		_last_atmosphere_result = _presentation_result(
-			false, &"atmosphere_composition_unavailable"
-		)
-		return _last_atmosphere_result.duplicate(true)
-	var presented := _atmosphere.present_observation({
-		"body_local_observer_m": body_local_observer,
-		"view_direction_body_local": OBSERVATION_VIEW_DIRECTION_BODY_LOCAL,
-		"fog_path_distance_m": OBSERVATION_FOG_PATH_DISTANCE_M,
-		"speed_mps": 0.0,
-		"weather_scalar": OBSERVATION_WEATHER_SCALAR,
-		"cloud_scalar": OBSERVATION_CLOUD_SCALAR,
-		"caller_time_seconds": 0.0,
-	}, _atmosphere_generation)
-	var result := _presentation_result(
-		bool(presented.get("accepted", false)),
-		presented.get("reason", &"atmosphere_presentation_rejected") as StringName,
-		{
-			"coordinate_frame_generation": frame_generation,
-			"location_generation": location_generation,
-			"composition": presented.duplicate(true),
-		},
-	)
-	_last_atmosphere_result = result.duplicate(true)
-	var world := get_loaded_instance() as RimeGlacialAuthoredScene
-	if is_instance_valid(world) and bool(presented.get("accepted", false)):
-		_surface_audio_source_generation += 1
-		var altitude := maxf(0.0, body_local_observer.length() - BODY_RADIUS_METERS)
-		_last_surface_audio_result = world.present_surface_audio_snapshot({
-			"generation": _surface_audio_source_generation,
-			"altitude_m": altitude,
-			"weather_intensity_unitless": OBSERVATION_WEATHER_SCALAR,
-			"wind_strength_unitless": 0.78,
-			"water_exposure_unitless": 0.0,
-			"day_night_unitless": 0.5,
-			"settlement_activity_unitless": 0.0,
-			"ship_perspective": _surface_audio_perspective,
-		})
-	return result.duplicate(true)
-
-
-func _retire_environment(reason: StringName) -> void:
-	_retire_atmosphere(reason)
-
-
-func _extend_snapshot(snapshot: Dictionary) -> void:
-	snapshot["atmosphere"] = {
-		"active": is_instance_valid(_atmosphere),
-		"composition_instance_id": _atmosphere.get_instance_id() \
-			if is_instance_valid(_atmosphere) else 0,
-		"composition_generation": _atmosphere_generation,
-		"configure_count": _atmosphere_configure_count,
-		"retire_count": _atmosphere_retire_count,
-		"last_body_local_focus_meters": _last_body_local_focus,
-		"last_focus_frame_generation": _last_focus_frame_generation,
-		"last_result": _last_atmosphere_result.duplicate(true),
+## No open water on the ice; a hard steady wind is the resting reading until the
+## flight effects supply the gusting one sampled from Rime's own wind profile.
+func _surface_audio_environment() -> Dictionary:
+	return {
+		"water_exposure_unitless": 0.0,
+		"wind_strength_unitless": SURFACE_AUDIO_RESTING_WIND_UNITLESS,
 	}
-	snapshot["surface_audio"] = {
-		"perspective": _surface_audio_perspective,
-		"source_generation": _surface_audio_source_generation,
-		"last_result": _last_surface_audio_result.duplicate(true),
-	}
-
-
-func _collect_presentation_contract_errors(
-		errors: PackedStringArray,
-		loaded_instance: Node3D,
-	) -> void:
-	if is_instance_valid(_atmosphere):
-		if not is_instance_valid(loaded_instance) \
-				or _atmosphere.get_parent() != loaded_instance:
-			errors.append("Rime atmosphere outlived its streamed generation")
-	elif is_instance_valid(loaded_instance):
-		errors.append("loaded Rime generation is missing its atmosphere")
 
 
 func _evidence() -> Dictionary:
@@ -244,19 +112,3 @@ func _evidence() -> Dictionary:
 		]),
 		"notes": "Rime-only streaming composition; production observation remains external and owns no Ember, Aurora, Cinder, SpaceBackdrop, motion, or GameFlow authority.",
 	}
-
-
-func _retire_atmosphere(reason: StringName) -> void:
-	_surface_audio_source_generation = 0
-	_last_surface_audio_result.clear()
-	if not is_instance_valid(_atmosphere):
-		_atmosphere = null
-		_atmosphere_generation = 0
-		return
-	var retired_id := _atmosphere.get_instance_id()
-	_atmosphere = null
-	_atmosphere_generation = 0
-	_atmosphere_retire_count += 1
-	_last_atmosphere_result = _presentation_result(true, reason, {
-		"retired_composition_instance_id": retired_id,
-	})
