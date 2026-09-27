@@ -3553,7 +3553,7 @@ never draws, but none is free to take:
   `LegacyCockpitArt` 18,268, `LegacyCanopyArt` 5,008) is live lifecycle
   authority — `_get_live_torrent_hero_presentation()` re-shows it the moment
   the imported presentation is lost;
-* about 150,000 are inactive combat opponents (range targets and the station
+* 158,310 are inactive combat opponents (range targets and the station
   defence roster), which belong to the combat workstream;
 * the Zenith's hidden B7 reference batches (~50,000) are the retained
   evidence package its imported allocation reports audit, and LOD1 bands are
@@ -3568,7 +3568,7 @@ Not refrozen here. `tests/geometry_census_scenario_test.gd` freezes the resident
 scene at 1,914,445 triangles / 5,374 renderers / 2,950 unique meshes / 10,450
 nodes, which was already stale on `1012233cd` (1,907,469 / 5,374 / 2,953 /
 10,451 after the station-visual pass); this trim moves renderers by -161,
-surfaces by -123, unique meshes by -119 and nodes by -161, and the loaded
-scenario by the same amounts. Craft suites whose live cockpit or bunk-alcove
+surfaces by -123, unique meshes by -119 and nodes by -161. The loaded (Cinder) scenario was not measured here; expect
+the same resident deltas plus whatever the streamed craft fold. Craft suites whose live cockpit or bunk-alcove
 node counts do not restate batched members through the authored census may
 move by the folded counts above.
