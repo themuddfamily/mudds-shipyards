@@ -17,6 +17,9 @@ extends "res://tests/in_flight_cabin_integration_test.gd"
 ##      craft moves;
 ##   C. a peer that does not hold the seat cannot steer it (refused by name);
 ##   D. a helm that goes silent falls to neutral;
+##   D2. a helm stream the pilot restarts at sequence zero (it left the seat
+##      locally and sat back down, with no ledger event) is accepted as a new,
+##      higher stream, while a restart on the old stream id is still refused;
 ##   E. the ledger disembark, a peer disconnect and a session stop each hand the
 ##      craft back to its own local input, unpiloted.
 ##
@@ -53,6 +56,7 @@ func _run() -> void:
 		await _assert_the_remote_throttle_flies_the_host_craft()
 		await _assert_a_stranger_cannot_steer()
 		await _assert_a_silent_helm_falls_neutral()
+		await _assert_a_restarted_helm_stream_is_accepted()
 		await _assert_every_release_hands_the_craft_back()
 	await _finish_remote_helm()
 
@@ -185,6 +189,31 @@ func _assert_a_silent_helm_falls_neutral() -> void:
 	_check(consumed != null and is_zero_approx(consumed.throttle)
 		and not pilots.is_empty() and not bool((pilots[0] as Dictionary).get("holding", true)),
 		"a helm silent for longer than the hold falls to neutral, not full throttle")
+
+
+# --- D2 -----------------------------------------------------------------------
+
+
+func _assert_a_restarted_helm_stream_is_accepted() -> void:
+	var peer_id := _pilot.multiplayer.get_unique_id()
+	_movement_results.clear()
+	_helm_stamp = maxi(_pilot.get_boarding_server_tick_estimate(), _helm_stamp + 1)
+	_pilot.send_movement_intent(RemotePilotSource.build_helm_intent(
+		peer_id, SHIP_ID, 1, 0, _helm_stamp, null, 0
+	))
+	await _wait_until(func() -> bool: return not _movement_results.is_empty(), 4.0)
+	_check(not _movement_results.is_empty()
+		and _movement_results[0].get("status") == &"stale_sequence",
+		"a restart at sequence zero on the old stream id is still refused as stale")
+	_movement_results.clear()
+	_helm_stamp += 1
+	_pilot.send_movement_intent(RemotePilotSource.build_helm_intent(
+		peer_id, SHIP_ID, 1, 0, _helm_stamp, null, 1
+	))
+	await _wait_until(func() -> bool: return not _movement_results.is_empty(), 4.0)
+	_check(not _movement_results.is_empty() and bool(_movement_results[0].get("accepted", false)),
+		"a restarted helm stream on a higher stream id is accepted from sequence zero (%s)"
+			% String(_movement_results[0].get("status", &"none") if not _movement_results.is_empty() else &"none"))
 
 
 # --- E ------------------------------------------------------------------------

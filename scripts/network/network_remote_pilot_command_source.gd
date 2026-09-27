@@ -89,10 +89,12 @@ func _sample_controls() -> Dictionary:
 
 
 ## Pilot-side half: the movement intent that carries `command`'s held helm to
-## the host for `ship_id`.
+## the host for `ship_id`. `stream_id` is the pilot's helm stream epoch: a
+## restarted stream (sequence back at zero) must carry a higher one, because
+## the host's record for the seat still remembers the old stream's sequence.
 static func build_helm_intent(
 	peer_id: int, ship_id: StringName, entity_generation: int, sequence: int,
-	client_tick: int, command: ShipCommand
+	client_tick: int, command: ShipCommand, stream_id: int = 0
 ) -> Dictionary:
 	var throttle := 0.0
 	var yaw := 0.0
@@ -113,7 +115,7 @@ static func build_helm_intent(
 	if axis.length() > 1.0:
 		axis = axis.normalized()
 	return MovementIntent.create(
-		peer_id, ship_id, entity_generation, 0, sequence, client_tick, axis,
+		peer_id, ship_id, entity_generation, maxi(stream_id, 0), sequence, client_tick, axis,
 		false, &"", false, clampf(roll, -1.0, 1.0), clampf(pitch, -1.0, 1.0),
 		boost, brake, hover, 0
 	).to_dictionary()
