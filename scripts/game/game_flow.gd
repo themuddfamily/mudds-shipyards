@@ -8749,13 +8749,19 @@ func _advance_network_boarding_authority() -> void:
 	_advance_network_remote_pilots(_network_boarding_server_tick)
 
 
-## The craft whose pilot seat the host player is in or climbing into, or null.
+## The craft whose pilot seat the host player is in, climbing into or still
+## climbing out of, or null. The seat is held for as long as `_piloting` is --
+## through the whole of a disembark or a leave-seat-into-cabin, not just until
+## the exit starts -- because that is exactly the window in which
+## `_bind_network_remote_pilot()` refuses the craft (`host_is_piloting`). A peer
+## claiming the seat then is refused `seat_occupied` and can retry, instead of
+## being granted a seat whose helm is never bound.
 func _network_host_desired_pilot_ship() -> HeroShip:
 	if not is_instance_valid(active_ship) or active_ship.is_destroyed():
 		return null
 	if phase == Phase.BOARDING:
 		return active_ship
-	if _piloting and active_ship.is_piloted() and phase != Phase.DISEMBARKING:
+	if _piloting:
 		return active_ship
 	return null
 

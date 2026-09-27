@@ -120,6 +120,7 @@ func _build() -> bool:
 
 
 func _assert_a_pilot_grant_binds_the_helm() -> void:
+	_assert_the_host_keeps_its_seat_while_climbing_out()
 	var host_camera := _host.get_viewport().get_camera_3d()
 	var granted := await _board(BoardingIntent.ACTION_BOARD)
 	_check(granted.get("status") == &"boarded",
@@ -132,6 +133,29 @@ func _assert_a_pilot_grant_binds_the_helm() -> void:
 		"exactly one helm binding was made")
 	_check(_host.get_viewport().get_camera_3d() == host_camera,
 		"binding the helm did not take the host's own camera")
+
+
+## The host's ledger seat lasts exactly as long as the window in which
+## `_bind_network_remote_pilot()` refuses its craft (`_piloting`): mid-disembark
+## (seat already `set_piloted(false)`) it is still the host's, so a peer is
+## refused `seat_occupied` rather than granted a helm that is never bound.
+## A synchronous probe of the reconciler's input; nothing is awaited.
+func _assert_the_host_keeps_its_seat_while_climbing_out() -> void:
+	var ship: HeroShip = _host.active_ship
+	if not is_instance_valid(ship):
+		_check(false, "the host has an active craft to probe its seat with")
+		return
+	var saved_phase = _host.phase
+	var saved_piloting: bool = _host._piloting
+	_host._piloting = true
+	_host.phase = GameFlow.Phase.DISEMBARKING
+	var held_mid_exit: bool = _host._network_host_desired_pilot_ship() == ship
+	_host._piloting = false
+	var released_on_foot: bool = _host._network_host_desired_pilot_ship() == null
+	_host._piloting = saved_piloting
+	_host.phase = saved_phase
+	_check(held_mid_exit, "the host holds its seat while it is still climbing out of it")
+	_check(released_on_foot, "the host's seat is released once it is on foot")
 
 
 # --- B ------------------------------------------------------------------------
