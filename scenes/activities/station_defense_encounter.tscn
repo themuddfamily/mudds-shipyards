@@ -88,6 +88,7 @@ shape = SubResource("Sphere_keep_clear")
 [node name="OpponentRoster" type="Node3D" parent="."]
 
 [node name="PerimeterRaiderAlpha" parent="OpponentRoster" instance=ExtResource("6_opponent")]
+release_visuals_while_dormant = true
 cruise_speed = 18.0
 chase_speed = 26.0
 acceleration = 16.0
@@ -99,6 +100,7 @@ metadata/hostile_id = &"perimeter_raider_alpha"
 metadata/handle_generation = 1
 
 [node name="PerimeterRaiderBeta" parent="OpponentRoster" instance=ExtResource("6_opponent")]
+release_visuals_while_dormant = true
 cruise_speed = 18.0
 chase_speed = 26.0
 acceleration = 16.0
@@ -110,6 +112,7 @@ metadata/hostile_id = &"perimeter_raider_beta"
 metadata/handle_generation = 2
 
 [node name="PerimeterRaiderGamma" parent="OpponentRoster" instance=ExtResource("6_opponent")]
+release_visuals_while_dormant = true
 cruise_speed = 18.0
 chase_speed = 26.0
 acceleration = 16.0
@@ -121,6 +124,7 @@ metadata/hostile_id = &"perimeter_raider_gamma"
 metadata/handle_generation = 3
 
 [node name="PerimeterHeavyPicket" parent="OpponentRoster" instance=ExtResource("8_picket")]
+release_visuals_while_dormant = true
 source_id = 2124
 faction_id = &"perimeter_raiders"
 standoff_range = 118.0

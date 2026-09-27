@@ -2037,7 +2037,8 @@ func _count_direct_opponents(roster: Node3D) -> int:
 
 func _weapon_telegraph_nodes(opponent: RangeOpponent) -> Array[MeshInstance3D]:
 	var nodes: Array[MeshInstance3D] = []
-	var visual := opponent.get_node(^"RangeInterceptorVisual") as Node3D
+	# Dormant production raiders keep their visual root out of the tree.
+	var visual := opponent.get_presentation_root()
 	var audit := opponent.get_weapon_telegraph_mesh_allocation_audit()
 	for path_text in audit.get("node_paths", PackedStringArray()) as PackedStringArray:
 		var node := visual.get_node(NodePath(path_text)) as MeshInstance3D
