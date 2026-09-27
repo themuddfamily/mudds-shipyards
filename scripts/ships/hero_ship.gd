@@ -577,6 +577,7 @@ func _physics_process(delta: float) -> void:
 	# body also makes a deliberately delayed external transaction deterministic.
 	if _reset_for_reuse_mutation_blocked():
 		_discard_pending_planetary_surface_gravity(&"reset_mutation_blocked")
+		_discard_pending_atmospheric_wind_drift()
 		return
 	_elapsed += delta
 	_weapon_timer = maxf(0.0, _weapon_timer - delta)
@@ -618,6 +619,7 @@ func _physics_process(delta: float) -> void:
 	# A sample is deliberately one ship tick wide. Landing, shutdown, boarding,
 	# or any other branch that did not consume it closes the capability here.
 	_discard_pending_planetary_surface_gravity(&"not_applied_this_ship_tick")
+	_discard_pending_atmospheric_wind_drift()
 	# Publish the state produced by this immutable command, including same-tick
 	# throttle, boost, landing, shutdown, and destruction transitions.
 	_sync_ship_audio(command)
@@ -3860,9 +3862,13 @@ func _update_flight(delta: float, command: ShipCommand, suppress_look: bool = fa
 		velocity = velocity.normalized() * speed_limit
 	if command.fire and _uses_inherited_primary_weapon():
 		_fire_weapon()
+	# Atmospheric wind drift rides this one move only (see the delimited block).
+	var atmospheric_wind_drift := _consume_atmospheric_wind_drift()
+	velocity += atmospheric_wind_drift
 	var pre_collision_velocity := velocity
 	var pre_move_position := global_position
 	move_and_slide()
+	_remove_atmospheric_wind_drift(atmospheric_wind_drift)
 	# A throttle tap is not an authoritative departure. Keep the berth latch until
 	# post-collision motion proves that the craft has actually begun moving; this
 	# also prevents a blocked craft from releasing its occupied berth in GameFlow.
@@ -8641,3 +8647,79 @@ func _wedge(parent: Node3D, node_name: String, position: Vector3, size: Vector3,
 	mesh_instance.set_meta("ring_count", RING_COUNT)
 	parent.add_child(mesh_instance)
 	return mesh_instance
+
+
+# --- Atmospheric wind drift (PlanetaryAtmosphereFlightEffects) ---------------
+# One caller-owned, tick-wide lateral drift velocity from an atmosphere world's
+# authored wind field. It is carried through this tick's move_and_slide() and
+# removed again afterwards, so it never accumulates in `velocity`, never fights
+# flight assist or passive drag, and stops the instant the caller stops
+# submitting. It is honoured only in ordinary piloted flight: landed, berthed
+# (docked latch), landing assist, planetary cruise, unpiloted, engine-off and
+# destroyed states all ignore it, so landings stay exactly as stable as before.
+
+## Hard ceiling on any submitted drift, in metres per second.
+const ATMOSPHERIC_WIND_DRIFT_MAX_MPS := 8.0
+
+var _pending_atmospheric_wind_drift_mps := Vector3.ZERO
+var _last_applied_atmospheric_wind_drift_mps := Vector3.ZERO
+var _atmospheric_wind_drift_application_count := 0
+
+
+## True only while the flight branch that honours wind drift can run.
+func is_atmospheric_wind_drift_eligible() -> bool:
+	return _piloted and not _destroyed and not _landed \
+		and not _landing_active and not _docked_latch \
+		and _engine_state == ENGINE_ONLINE \
+		and _planetary_cruise_state == PLANETARY_CRUISE_STATE_INACTIVE
+
+
+## Queues one world-space lateral drift velocity (m/s) for the next flight tick.
+## Non-finite values are refused; magnitudes are clamped to the hard ceiling.
+func submit_atmospheric_wind_drift(drift_velocity_mps: Vector3) -> bool:
+	if not drift_velocity_mps.is_finite():
+		return false
+	_pending_atmospheric_wind_drift_mps = drift_velocity_mps.limit_length(
+		ATMOSPHERIC_WIND_DRIFT_MAX_MPS
+	)
+	return true
+
+
+func get_atmospheric_wind_drift_snapshot() -> Dictionary:
+	return {
+		"eligible": is_atmospheric_wind_drift_eligible(),
+		"pending_mps": _pending_atmospheric_wind_drift_mps,
+		"last_applied_mps": _last_applied_atmospheric_wind_drift_mps,
+		"application_count": _atmospheric_wind_drift_application_count,
+		"max_mps": ATMOSPHERIC_WIND_DRIFT_MAX_MPS,
+	}
+
+
+func _consume_atmospheric_wind_drift() -> Vector3:
+	var drift := _pending_atmospheric_wind_drift_mps
+	_pending_atmospheric_wind_drift_mps = Vector3.ZERO
+	if drift == Vector3.ZERO or _landed or _landing_active or _docked_latch \
+			or _destroyed or not _piloted:
+		_last_applied_atmospheric_wind_drift_mps = Vector3.ZERO
+		return Vector3.ZERO
+	_last_applied_atmospheric_wind_drift_mps = drift
+	_atmospheric_wind_drift_application_count += 1
+	return drift
+
+
+## Removes the part of this tick's drift that move_and_slide() did not already
+## slide away against a collision, leaving `velocity` exactly the craft's own.
+func _remove_atmospheric_wind_drift(drift: Vector3) -> void:
+	if drift == Vector3.ZERO:
+		return
+	var residual := drift
+	for index in get_slide_collision_count():
+		var collision := get_slide_collision(index)
+		if collision != null:
+			residual = residual.slide(collision.get_normal())
+	velocity -= residual
+
+
+func _discard_pending_atmospheric_wind_drift() -> void:
+	_pending_atmospheric_wind_drift_mps = Vector3.ZERO
+# --- end atmospheric wind drift ----------------------------------------------

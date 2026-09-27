@@ -1278,6 +1278,7 @@ func _exit_tree() -> void:
 	# makes the trip something the next `Main` can hand back.
 	save_interrupted_aurora_visit()
 	_aurora_expedition.cancel(true)
+	_planetary_atmosphere_flight_effects.reset(&"game_flow_detached")
 	_detach_first_sortie_tutorial_presentation(&"game_flow_detached")
 	_detach_activity_tutorial_presentation(&"game_flow_detached")
 	_planetary_journey.detach()
@@ -4371,6 +4372,7 @@ func _physics_process(delta: float) -> void:
 	# clock stops is a request that never expires, and a never-expiring
 	# request blocks every later press behind `boarding_request_in_flight`.
 	_advance_network_client_boarding_request(delta)
+	_advance_planetary_atmosphere_flight_effects(delta)
 	if _aurora_expedition.is_active():
 		# An Aurora visit is a peer of an Ember expedition, not a bypass of the
 		# planetary subsystem: the same one actor read drives Aurora's streaming
@@ -18827,3 +18829,36 @@ func _present_pulse_shot(
 		hit,
 		presentation_receipt_id
 	)
+
+
+# --- Planetary atmosphere flight effects --------------------------------------
+# Entry heat on every flyable craft, weather wind drift and interior/exterior
+# ambience cross-fades while an atmosphere world is resident. The component
+# resolves the resident world itself and resets whenever none is; GameFlow only
+# supplies the live actors once per physics tick and resets it on detach.
+const PlanetaryAtmosphereFlightEffectsType := preload(
+	"res://scripts/world/planetary_atmosphere_flight_effects.gd"
+)
+var _planetary_atmosphere_flight_effects := PlanetaryAtmosphereFlightEffectsType.new()
+
+
+func _advance_planetary_atmosphere_flight_effects(delta: float) -> void:
+	var sources: Array = []
+	if is_instance_valid(aurora_streaming_bootstrap):
+		sources.append(aurora_streaming_bootstrap)
+	if sources.is_empty():
+		if _planetary_atmosphere_flight_effects.is_active():
+			_planetary_atmosphere_flight_effects.reset(&"atmosphere_sources_unavailable")
+		return
+	var craft: HeroShip = active_ship if is_instance_valid(active_ship) else null
+	_planetary_atmosphere_flight_effects.advance(
+		delta, craft, _piloting and is_instance_valid(player) and player.is_seated(),
+		player if is_instance_valid(player) else null,
+		hud as GameHUD if is_instance_valid(hud) else null,
+		sources,
+	)
+
+
+func get_planetary_atmosphere_flight_effects_snapshot() -> Dictionary:
+	return _planetary_atmosphere_flight_effects.get_snapshot()
+# --- end planetary atmosphere flight effects ----------------------------------
