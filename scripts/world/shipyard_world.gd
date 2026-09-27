@@ -1475,6 +1475,16 @@ const CONSOLIDATED_DRESSING_MODULES: Array[StringName] = [
 ## its six lights: that audit asks whether the spill comes from a *drawn lens*, and
 ## a merged renderer would answer "some geometry is near", which is a weaker
 ## question. They keep their own nodes so the question stays the original one.
+##
+## Families leave this roster only when every consumer resolves them through
+## `StationDressingBatch.find_authored_piece()`. Perf-trim (2026-09-27): the
+## HabitatSpine bunk soft goods -- `MouthHead`, `BerthShelf`, `BerthBlanket`,
+## `BerthCoverall`, `BerthStowageNet`, `BerthFoldedLinen`, `LockerShutter` and
+## `Pillow`. Their consumers were the seated-geometry roster in
+## `tests/station_presentation_defect_witness_test.gd` and the mouth-head reveal
+## check in `tests/habitat_spine_test.gd`; both now resolve through the index.
+## Every body in the alcove (plinth, mattress, head unit, jambs) keeps its own
+## node: this pass never folds collision authority.
 const PROTECTED_DRESSING_NAMES: Array[String] = [
 
 		"DockUmbilicalHead02",  # FleetDockComb freezes its renderer/batch/copy/submission roster
@@ -1563,8 +1573,7 @@ const PROTECTED_DRESSING_NAMES: Array[String] = [
 	"ApronDeck04", "ArmPad", "ArrivalHookRail", "ArrivalShelf", "Back", "BackingPlate",
 	"BasePlate", "BaySeatedPin00", "BaySeatedPin01", "Beacon", "BeaconMast", "BedKerb01",
 	"BedKerb02", "BedKerb03", "BedKerb04", "BedKerb05", "BedKerb06", "BedKerb07", "BedKerb08",
-	"BenchLeg", "BenchLeg2", "BenchLeg3", "BenchLeg4", "BenchShelf", "BenchTop", "BerthBlanket",
-	"BerthCoverall", "BerthFoldedLinen", "BerthShelf", "BerthStowageNet", "BinStock0001",
+	"BenchLeg", "BenchLeg2", "BenchLeg3", "BenchLeg4", "BenchShelf", "BenchTop", "BinStock0001",
 	"BinStock0101", "BoardFoot", "BoardLampLens", "Bonnet", "BonnetVent", "BranchRail",
 	"BranchRailPost", "BridgeBeam", "BunkPlinth", "CabinetDoorSeam", "CabinetHandle",
 	"CabinetStatus", "CableDrum", "CargoPod", "CargoRackShelf", "CarouselTool3", "CarpetFront",
@@ -1605,9 +1614,9 @@ const PROTECTED_DRESSING_NAMES: Array[String] = [
 	"JunctionStairRail", "LandingConsoleReadout", "LandingDeckInset", "LandingEquipmentLocker",
 	"LandingObservationConsole", "LandingRail", "LandingViewerHead", "LaneEdge",
 	"LanternCoveFront", "LedgePlanter", "LedgeScopeBody", "LinkCoveLens", "LinkFloor", "LinkSill",
-	"LockerBody", "LockerShutter", "LowerCrossBrace", "LowerTrussStrut", "Mast", "MastBaseFlange",
+	"LockerBody", "LowerCrossBrace", "LowerTrussStrut", "Mast", "MastBaseFlange",
 	"MastFootLens", "Mattress", "MessBoot", "MessBowl", "MessPendantLens", "MessPendantShade",
-	"MessTableTop", "MessThermos", "MessTrestleTie", "MouthHead", "MouthJambAft",
+	"MessTableTop", "MessThermos", "MessTrestleTie", "MouthJambAft",
 	"MouthJambForward", "MusterLampLens", "MusterLockerBody", "MusterRouteBoard", "NoticeBoard",
 	"NoticeBoardLampHousing", "NoticeBoardLampLens", "NoticeSheet00", "NoticeSheet01",
 	"NoticeSheet02", "NoticeSheet03", "NoticeSheet04", "NoticeSheet05", "NoticeSheet06",
@@ -1617,7 +1626,7 @@ const PROTECTED_DRESSING_NAMES: Array[String] = [
 	"OperationsPodBack", "OperationsPodFloor", "OutboardMarkerLamp01", "OutboardMarkerLamp02",
 	"OutboardSillCap", "OutboardSillCove", "OverheadRail", "OverheadRail2", "PalletDeckInbound",
 	"PalletDeckOutbound", "PalletDeckPort", "PalletDeckStarboard", "PartsBin0000", "PartsBin0002",
-	"PartsBin0100", "PartsBin0102", "Pedestal", "Pillow", "PlinthLegendRule", "PlotDutyMug",
+	"PartsBin0100", "PartsBin0102", "Pedestal", "PlinthLegendRule", "PlotDutyMug",
 	"PlotLogbookPages", "PlotTableBase", "PlotToken00", "PlotToken01", "PlotToken02",
 	"PlotToken03", "PlotToken04", "PortBerthNode", "PortBranchArm", "PortDadoRail", "PortMount",
 	"PortPilaster01", "PortPilaster02", "PortPilaster03", "PortPilaster04", "PortPod",

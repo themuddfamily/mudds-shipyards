@@ -931,6 +931,29 @@ static func find_authored_piece(search_root: Node, piece_name: String) -> Dictio
 	return {}
 
 
+## The world-space bound of a record `find_authored_piece()` returned, whether
+## the piece still stands as its own renderer or was folded into a batch.
+##
+## Seating and overlap audits ask where a named piece's own drawn volume is. A
+## folded piece's node is the batch, whose bound covers every piece in it, so
+## the answer is composed from the piece's recorded placement (in the batch
+## parent's space) and its own untransformed mesh bound instead. Empty when the
+## record is empty or its node has left the tree.
+static func authored_piece_global_aabb(record: Dictionary) -> AABB:
+	if record.is_empty():
+		return AABB()
+	var node := record.get("node", null) as Node3D
+	if node == null or not is_instance_valid(node) or not node.is_inside_tree():
+		return AABB()
+	var bound: AABB = record.get("aabb", AABB())
+	if not bool(record.get("batched", false)):
+		return node.global_transform * bound
+	var parent := node.get_parent() as Node3D
+	if parent == null:
+		return AABB()
+	return parent.global_transform * (record.get("transform", Transform3D.IDENTITY) as Transform3D) * bound
+
+
 static func _find_live_piece(search_root: Node, piece_name: String) -> MeshInstance3D:
 	if search_root is MeshInstance3D and String(search_root.name) == piece_name:
 		return search_root as MeshInstance3D

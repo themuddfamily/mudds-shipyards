@@ -430,12 +430,16 @@ func _test_bunk_alcoves(module: HabitatSpine) -> void:
 		# over the lap and the two finishes fought there from the lane. It now
 		# carries a real reveal.
 		var jamb := bunk.get_node_or_null("BerthLife/MouthJambForward") as Node3D
-		var head := bunk.get_node_or_null("BerthLife/MouthHead") as Node3D
+		# The head is foldable dressing; resolve it through the batch index so the
+		# reveal is measured from its own authored placement either way.
+		var head := StationDressingBatch.find_authored_piece(
+			bunk.get_node_or_null("BerthLife"), "MouthHead"
+		)
 		var reveal := 0.0
-		if jamb != null and head != null:
-			reveal = absf(head.position.x) - absf(jamb.position.x)
+		if jamb != null and not head.is_empty():
+			reveal = absf((head["transform"] as Transform3D).origin.x) - absf(jamb.position.x)
 		_check(
-			jamb != null and head != null
+			jamb != null and not head.is_empty()
 				and is_equal_approx(reveal, HabitatSpine.BUNK_MOUTH_HEAD_STANDOFF),
 			"bunk mouth head stands off its jambs rather than sharing their plane: %s" % room_id
 		)
