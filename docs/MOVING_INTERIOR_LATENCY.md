@@ -782,6 +782,101 @@ stops answering a flooding peer — times out with one refusal, no claim and no
 body; and that the peer whose request expired still boards the next berth that
 frees up, which is the lockout above stated as a test.
 
+## Seat swap, one-round-trip boarding, a live ledger clock and the host's seat (2026-09-27)
+
+The four ledger gaps the previous section left open are closed in the ledger
+itself (`NetworkBoardingAuthority`), carried over the existing adapter RPCs,
+and driven by production `GameFlow`. **The suites below are written but have
+not been run yet** (testing for this wave is deferred until the roadmap work is
+complete); nothing here is a measured result.
+
+**An atomic seat swap.** `NetworkBoardingIntent` gains the action `swap`: an
+avatar that already holds a seat on a ship asks for another seat on the same
+ship, and the ledger releases the held seat and claims the target in one
+transaction (one `event_sequence` step). Every refusal -- `seat_occupied`,
+`already_seated`, `swap_ship_mismatch`, `occupancy_not_found` -- leaves the held
+seat exactly as it was, so a passenger whose promotion is refused is still a
+passenger, never nobody. The verdict travels on the existing server-to-client
+boarding answer RPC with **one added field**, `released_seat_id`. On the
+client, a berth holder standing within 2.2 m (craft-local, deck plane) of the
+pilot seat anchor who presses the cabin's boarding key sends the swap; anywhere
+else in the cabin the same key still leaves through the hatch, and the cabin
+prompt now says which (`LEAVE THROUGH THE HATCH // FORWARD TO TAKE THE PILOT
+SEAT` aft, `TAKE THE PILOT SEAT` at the cockpit). A confirmed swap unbinds the
+berth's body stream and is presented through `_board_ship_locally()` from
+`Phase.IN_FLIGHT_CABIN` -- the very seam a host pilot uses to retake the seat
+of the craft whose cabin they are walking. The host retires the berth's walking
+body in the same verdict. A swap grant that arrives after the four-second
+expiry is adopted (the berth is already gone, so handing the seat back would
+leave the peer holding nothing), and the next press at the cockpit sits down.
+
+**One round trip for "put me aboard".** The action `board_any` names a
+preferred seat; when it is held the ledger picks the first free seat of the
+same role on the same ship, ordered by seat id, and the answer's `seat_id` is
+the seat actually assigned. Only when none is free does it answer
+`craft_full` (or `seat_occupied` for a role with one seat). The production
+client now boards a walkable craft with a single `board_any` for berth 01, so a
+full craft is one refusal instead of four. The exact `board` action keeps its
+`seat_occupied` contract.
+
+**The tick handshake is live.** The host's `GameFlow` advances the ledger tick
+once per physics tick (`_advance_network_boarding_authority()`, above the
+Aurora early return so the clock never stands still), and a regressed tick is
+refused `stale_server_tick`. The admission offer carries the ledger tick
+(`boarding_server_tick`), and a client stamps each request with
+`get_boarding_server_tick_estimate()` -- the last tick it heard plus the physics
+frames since -- so even the first request after joining lands in the window.
+The production window is 180 ticks behind / 30 ahead (one round trip plus the
+350 ms profile and a 1.5 s stall behind; a briefly slow host ahead); outside it
+a request is refused `client_tick_too_old` / `client_tick_too_far_ahead`, and
+the existing one-restamp retry uses the tick the refusal carried. On the client
+an answer stamped behind a tick already heard from the same authority
+generation is refused `stale_server_tick`.
+
+**The host's own seat is a ledger occupancy.** `claim_authority_seat` /
+`release_authority_seat` write the host player's seat into the same ledger
+under the same rules; `GameFlow` reconciles it every authority tick from what
+the host is actually doing (boarding or seated at the helm of `active_ship`),
+so a disembark, leaving the seat into the cabin, an aborted boarding, a lost
+craft or a respawn all release it without each path remembering to. A remote
+claim or swap onto the seat the host is flying from is refused
+`seat_occupied`; the host's own boarding press on a pilot seat a crewmate holds
+is refused with the same reason on the existing card. A session stop ends the
+ledger session (`end_session`: every occupancy, every sequence stream, clock to
+0), and a whole-`Main` re-entry retires the adapter that held it.
+
+**Remote pilots fly the host's craft (the audit's fix).** Auditing Phase 7's
+list for production paths that were still client-authoritative found that a
+peer the ledger seated in a pilot seat flew a private copy of the craft on its
+own machine while the host's copy -- the one every other crew member stands in
+-- stayed parked; `consume_remote_ship_command()` had no production caller.
+Now a ledger pilot grant (board or swap) binds the host's craft to a
+`NetworkRemotePilotCommandSource` through `HeroShip.set_command_source()` (the
+host's camera is put back), the host delivers at most one validated helm
+command per craft per physics tick (owner, generation, stream order, tick
+window, axis bound and rate are still `NetworkRemoteShipCommandSource`'s), and
+the pilot's client streams its held helm at 15 Hz on the existing movement RPC:
+`move_axis` = (yaw, throttle) in the unit disc, `look_yaw` = roll,
+`look_pitch` = pitch, `run`/`crouch`/`jump` = boost/brake/hover. Commands are
+sample-and-hold and fall to neutral after 30 silent ticks, and no GameFlow edge
+(interact, landing, fire) travels, so a remote helm can never exit, land or
+fire on the host's behalf. The binding goes with the ledger disembark, the
+peer's disconnect, the craft's loss and the session.
+
+**Suites written for this (not yet run):**
+`tests/network/network_enet_boarding_ledger_test.gd` (bare adapters over
+loopback ENet: tick handshake, `board_any`, the swap, the host seat, session
+stop), `tests/network_remote_pilot_helm_test.gd` (production host `Main` plus
+bare peers: the helm binds without taking the host camera, the host craft moves
+under the remote throttle, a stranger is refused `pilot_owner_mismatch`, a
+silent helm goes neutral, disembark/disconnect/stop hand the craft back), and
+new groups G-I in `tests/network_client_boarding_seam_test.gd` (the host clock
+advances every physics tick and the client estimate tracks it; one press at the
+cockpit promotes a passenger in place; the host is refused a seat a crewmate
+holds). The seam suite's full-craft group now expects `craft_full` in one ask,
+and `tests/network_remote_body_simulation_test.gd` now expects a remote pilot
+claim on the seat the host is flying from to be refused.
+
 ## What remains before broadening player counts
 
 * **The budget ceiling is the crowd's floor.** The second crowd table is the
@@ -799,17 +894,31 @@ frees up, which is the lockout above stated as a test.
   one frame clock, so a real scheduling divergence between host and client is
   still unmodelled here. `network_authority_three_process_test` covers the
   multi-process transport; joining the two is the remaining gate.
-* **The hatch still holds four berths per craft, and the ledger still has no
-  occupancy for the host's own seat.** The berth count is the ledger's
-  one-avatar-per-seat rule, not the cabin's volume, and it is unchanged. A
-  remote pilot's claim on a craft the host is flying is still accepted,
-  because the ledger holds no occupancy for the host's seat — that remains the
-  ledger's contract to change, not the hatch seam's, and the client seam
-  deliberately does not paper over it.
-* **The client asks for berths one at a time.** A full craft costs four round
-  trips before the refusal, because the answer names one seat's verdict and
-  the ledger publishes no free-berth list. Correct and bounded, but it is a
-  latency cost that grows with the berth count if that count ever does.
+* **The hatch holds four berths per craft.** The berth count is the ledger's
+  one-avatar-per-seat rule, not the cabin's volume, and it is unchanged.
+* **Remote flight is authoritative on the host but not yet replicated back.**
+  The host now simulates a remote-piloted craft from the pilot's validated
+  helm, but the pilot's own client still flies its local copy from the same
+  input as an uncorrected prediction: no host-to-client craft pose stream or
+  correction exists yet, so the two copies drift apart over a long flight. The
+  helm also carries held axes only; mouse-look flight, barrel roll and the
+  camera stay local, and engine start/stop, landing, interact and fire stay the
+  host's decisions (landing and fire are already host-gated for clients).
+* **A remote pilot is not drawn in the seat.** The moving-interior publisher
+  publishes the host's own pilot and every server-simulated body; a remote
+  peer holding a ledger pilot seat has no published relationship, so after a
+  swap crewmates see the promoted passenger disappear rather than sit down.
+* **The rest of the Phase 7 list, audited.** Projectiles (player pulse, bomber
+  payload, opponent fire), landing requests and completion, and damage are
+  already host-gated on a client (`client_projectile_authority_forbidden`,
+  "Landing controlled by host", the terminal handlers return on a client).
+  Ship ownership for a remote pilot is the ledger seat plus the helm
+  registration; the separate `NetworkShipOwnershipAuthority` record
+  (`register_owned_ship` / `claim_ship_for_peer`) still has no production
+  caller for any craft, host or remote. Respawn of a remote pilot's craft
+  follows the host's damage authority, but there is no client-side recovery
+  presentation for a pilot whose host-side craft is destroyed beyond the
+  session's existing snapshots.
 * **Five clients on loopback.** Interest management and the resync baseline
   under many occupants are still untested at latency.
 * **Loss is injected above ENet.** The relationship RPC is reliable, so the 2 %
