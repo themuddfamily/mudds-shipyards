@@ -423,7 +423,9 @@ const MODE_DRIVING: StringName = &"driving"
 ## Release exports use this exact filename stamp. The pause footer only claims
 ## a source revision when the running executable still carries that stamp;
 ## renamed packages deliberately fall back to an honest unversioned label.
-const BUILD_FILENAME_PATTERN := "^MuddsShipyards-([0-9a-fA-F]{7})\\.exe$"
+## Windows exports end in `.exe`; Linux exports (tools/release/
+## export_linux_candidate.sh) end in `.x86_64`.
+const BUILD_FILENAME_PATTERN := "^MuddsShipyards-([0-9a-fA-F]{7})\\.(?:exe|x86_64)$"
 
 var _root: Control
 var _debug_overlay: DebugOverlay
