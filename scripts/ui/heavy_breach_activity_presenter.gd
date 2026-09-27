@@ -23,13 +23,17 @@ func present(snapshot: Dictionary) -> Dictionary:
 		# state explicitly instead of leaking a prior terminal director snapshot
 		# while the player walks to the next craft.
 		state = &"armed"
-		scenario = &"heavy_breach"
+		scenario = StringName(snapshot.get("offered_scenario", &"heavy_breach"))
 		outcome = &"pending"
 	var generation := int(snapshot.get("generation", director.get("scenario_generation", 0)))
 	var objective := str(director.get("protected_anchor", "")).strip_edges()
 	if objective.is_empty():
 		objective = str(snapshot.get("protected_objective", "")).strip_edges()
 	var picket := str(director.get("breach_picket", "")).strip_edges()
+	# The same board posts a Torpedo Run; its objective is the boat, not a picket.
+	var torpedo_run := scenario == &"torpedo_run"
+	var boat := str(director.get("torpedo_boat", "")).strip_edges()
+	var title := "TORPEDO RUN" if torpedo_run else "HEAVY BREACH"
 	var launched := bool(director.get("launched", false))
 	var elapsed := maxf(float(director.get("elapsed", 0.0)), 0.0)
 	var state_text := str(state).replace("_", " ").to_upper()
@@ -39,6 +43,10 @@ func present(snapshot: Dictionary) -> Dictionary:
 		objective if not objective.is_empty() else "UNAVAILABLE",
 		picket if not picket.is_empty() else "UNAVAILABLE",
 	]
+	if torpedo_run:
+		asset_text = "TARGET  %s  —  DODGE OR SHOOT DOWN ITS SEEKERS" % (
+			boat if not boat.is_empty() else "TORPEDO BOAT"
+		)
 	var reward_text := "REWARD  HANDOFF READY" if bool(reward.get("configured", false)) else "REWARD  UNAVAILABLE"
 	if not last_reward.is_empty():
 		reward_text = "REWARD  %s%s" % [
@@ -50,9 +58,10 @@ func present(snapshot: Dictionary) -> Dictionary:
 	if TERMINAL_OUTCOMES.has(outcome):
 		failure_text = "RESULT  %s" % outcome_text
 	var lines := PackedStringArray([
-		"[◆] HEAVY BREACH  %s" % (
-			"SORTIE ARMED" if sortie_armed else ("LAUNCHED" if launched else "READY")
-		),
+		"[◆] %s  %s" % [
+			title,
+			"SORTIE ARMED" if sortie_armed else ("LAUNCHED" if launched else "READY"),
+		],
 		phase_text,
 		asset_text,
 		"ELAPSED  %.1fs  GENERATION  %d" % [elapsed, generation],
@@ -69,6 +78,8 @@ func present(snapshot: Dictionary) -> Dictionary:
 		"generation": generation,
 		"protected_objective": objective,
 		"breach_picket": picket,
+		"torpedo_boat": boat,
+		"title": title,
 		"reward": reward_text,
 		"failure": failure_text,
 		"icon": &"diamond_activity_board",

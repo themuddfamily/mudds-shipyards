@@ -1,0 +1,24 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/ships/torpedo_boat_opponent.gd" id="1_torpedo_boat"]
+
+[node name="TorpedoBoat" type="CharacterBody3D"]
+collision_layer = 0
+collision_mask = 0
+motion_mode = 1
+floor_stop_on_slope = false
+script = ExtResource("1_torpedo_boat")
+maximum_health = 70.0
+cruise_speed = 30.0
+chase_speed = 48.0
+acceleration = 18.0
+turn_speed_degrees = 40.0
+preferred_range = 140.0
+retreat_range = 70.0
+engagement_range = 230.0
+telegraph_time = 1.6
+weapon_cooldown = 4.2
+source_id = 2106
+weapon_range = 250.0
+weapon_damage = 34.0
+weapon_origin_tolerance = 14.0
