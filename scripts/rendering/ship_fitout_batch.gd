@@ -264,6 +264,15 @@ const PROTECTED_FITOUT_CONTAINERS: Array[String] = [
 ##   the same glob in `tests/torrent_2011_reconstruction_test.gd`; both now
 ##   count through `find_authored_pieces()`. Their port twins were never
 ##   protected and already folded.
+## * **Cockpit flight controls (2026-09-27).** `ControlStickGrip`,
+##   `ControlStickBoot`, `ControlStickGimbal`, `ControlStickShaft`,
+##   `ThrottleGate`, `Throttle` and `ThrottlePalmGrip`, which `HeroShip` builds
+##   into every inheriting cockpit. The Jovian moves its throttle trio while it
+##   is still building, before its own pass runs; the `ControlStick*` and
+##   `Throttle*` globs in `tests/torrent_2011_reconstruction_test.gd` were
+##   already index-aware; and the Arrow grip/boot/palm-grip UV and tangent guard
+##   in `tests/ship_surface_winding_test.gd` now scores a folded control from
+##   its own `index_ranges`. Primitive stock among them still never folds.
 const PROTECTED_FITOUT_NAMES: Array[String] = [
 
 		"DockUmbilicalHead02",  # FleetDockComb freezes its renderer/batch/copy/submission roster
@@ -377,8 +386,7 @@ const PROTECTED_FITOUT_NAMES: Array[String] = [
 	"CompactGraphiteShroud", "CompressionBow", "ContainerCornerStarboard00",
 	"ContainerCornerStarboard01", "ContainerDataPlateStarboard00",
 	"ContainerDataPlateStarboard01", "ContainerRecessStarboard00",
-	"ContainerRecessStarboard01", "ContinuousFreightLoadFrame", "ControlStickBoot",
-	"ControlStickGimbal", "ControlStickGrip", "ControlStickShaft", "CopilotSeatBase",
+	"ContainerRecessStarboard01", "ContinuousFreightLoadFrame", "CopilotSeatBase",
 	"CurveJoint", "CyanMuzzleLens", "DamageScorch", "DisplayBezelBottom",
 	"DisplayBezelTop", "EngineBreachScorch", "EngineCollar", "EngineIsolationBlade",
 	"ExposedDamageVane", "ExposedWingSpar", "FlightDeckQuarterlightSeal",
@@ -462,8 +470,8 @@ const PROTECTED_FITOUT_NAMES: Array[String] = [
 	"StarboardWingService-0_2Gasket", "StarboardWingService-0_2Panel",
 	"StarboardWingService0_6Gasket", "StarboardWingService0_6Panel",
 	"StarboardWingService1_4Gasket", "StarboardWingService1_4Panel", "SurveyFrontAperture",
-	"SurveyServiceCovers", "SurveyServiceGasket", "SurveyServiceLatches", "Throttle",
-	"ThrottleGate", "ThrottlePalmGrip", "VentralKeel", "VentralSensorGimbal",
+	"SurveyServiceCovers", "SurveyServiceGasket", "SurveyServiceLatches",
+	"VentralKeel", "VentralSensorGimbal",
 	"VentralSensorLens", "WarningStrip",
 ]
 
