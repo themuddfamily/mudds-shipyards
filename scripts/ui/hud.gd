@@ -302,15 +302,25 @@ const ACTIVITY_REWARD_SUMMARY_KEYS := [
 	"last_receipt_id",
 	"last_reward_label",
 ]
+## Every label GameFlowRewardAuthority.REWARD_LABELS can file; the summary is
+## rejected for any other. tests/activity_reward_label_coverage_test.gd keeps
+## the two in step.
 const ACTIVITY_REWARD_LABELS := [
 	"Race record accepted",
 	"Patrol log accepted",
 	"Emberline escort credit logged",
 	"Fabrication kits returned",
 	"Heavy Breach credit logged",
+	"Torpedo Run credit logged",
+	"Perimeter defense report accepted",
 	"Survey data accepted",
 	"Derelict material sample recorded",
 	"Debris navigation data recorded",
+	"Salvaged auxiliary power cell logged",
+	"Belt threading survey accepted",
+	"Lava-tube sounding data accepted",
+	"Lander wreck salvage log accepted",
+	"Aurora coastal survey data recorded",
 	"Rime ice-core record logged",
 ]
 const MAX_SESSION_RECOVERY_TOKEN := 9_007_199_254_740_991

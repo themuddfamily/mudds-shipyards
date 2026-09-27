@@ -238,6 +238,12 @@ func _test_scenario_contract(
 			and int(_reward_requests[0].get("activity_generation", 0)) == generation,
 		"killing the boat clears the run and pays exactly one reward for that generation"
 	)
+	_check(
+		_reward_requests.size() == 1
+			and StringName(_reward_requests[0].get("activity_id", &"")) == &"shipyard_torpedo_run"
+			and StringName(_reward_requests[0].get("reward_id", &"")) == &"return_torpedo_run_credit",
+		"a cleared Torpedo Run files its own reward id rather than Heavy Breach credit"
+	)
 	board.call(&"_on_scenario_concluded", EncounterScenarioDirector.SCENARIO_TORPEDO_RUN, EncounterScenarioDirector.OUTCOME_CLEARED)
 	_check(_reward_requests.size() == 1, "a duplicate conclusion cannot pay the run twice")
 	_check(
