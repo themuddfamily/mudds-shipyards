@@ -889,6 +889,9 @@ func _unhandled_input(event: InputEvent) -> void:
 		_capture_screenshot()
 		get_viewport().set_input_as_handled()
 		return
+	if _handle_credits_page_input(event):
+		get_viewport().set_input_as_handled()
+		return
 	if _server_browser_opened_from_intro and event.is_action_pressed("pause"):
 		close_intro_server_browser()
 		get_viewport().set_input_as_handled()
@@ -2722,6 +2725,8 @@ func _pause_focus_fallback() -> Control:
 		return _first_planetary_destination_focus_target()
 	if _pause_main_page != null and _pause_main_page.visible:
 		return _pause_main_page.find_child("ResumeButton", true, false) as Control
+	if is_credits_page_open():
+		return _credits_scroll
 	return null
 
 
@@ -3324,6 +3329,7 @@ func layout_for_viewport(viewport_size: Vector2) -> float:
 	safe_right = maxf(safe_right, (viewport_size.x - contract_safe.end.x) / maxf(effective, 0.01))
 	safe_bottom = maxf(safe_bottom, (viewport_size.y - contract_safe.end.y) / maxf(effective, 0.01))
 	_apply_safe_area_offsets(safe_left, safe_top, safe_right, safe_bottom)
+	_layout_intro_credits_button(viewport_size)
 	for layer in _scaled_layers:
 		if not is_instance_valid(layer):
 			continue
@@ -4511,6 +4517,7 @@ func _build_intro() -> void:
 	start.pressed.connect(_begin)
 	stack.add_child(start)
 	_add_intro_server_browser_button(stack, start)
+	_add_intro_credits_button()
 
 	# "STANDALONE FAN PROTOTYPE" is the in-game half of the unofficial-fan-project
 	# boundary README and ROADMAP rely on, so the footer stays. The second clause
@@ -5527,6 +5534,7 @@ func _build_pause() -> void:
 	_build_planetary_destination_page()
 	_build_server_browser_page()
 	_build_settings_page()
+	_build_credits_page()
 	_show_pause_main()
 
 
@@ -5650,6 +5658,7 @@ func _build_pause_main_page() -> void:
 		_planetary_cruise_button.get_path_to(restart)
 	)
 	restart.focus_neighbor_top = restart.get_path_to(_planetary_cruise_button)
+	_add_pause_credits_button(menu_row, activity_board, resume, server_browser)
 
 
 ## Resolves the player-facing build stamp without consulting Git or mutable
@@ -9696,3 +9705,320 @@ func _set_mouse_passthrough(control: Control) -> void:
 	for child in control.get_children():
 		if child is Control:
 			_set_mouse_passthrough(child as Control)
+
+
+# --- Credits page (start) ------------------------------------------------------
+# A CREDITS page reachable from the startup menu and the pause menu. It lives in
+# the pause overlay's scaled panel layer beside Settings, so it follows the UI
+# scale, the pause layout ceiling and the centred ultrawide band, and it paints
+# through the shared palette registry so high contrast repaints it. Content
+# comes from CreditsCatalog; the long Godot third-party notices are a secondary
+# section built only when the player expands it. Esc, Start and B return to the
+# page that opened it, exactly as the other pause sub-pages do.
+const CreditsCatalogType := preload("res://scripts/ui/credits_catalog.gd")
+const CreditsScrollAreaType := preload("res://scripts/ui/credits_scroll_area.gd")
+const CREDITS_CONTENT_WIDTH := 760.0
+
+var _credits_page: PanelContainer
+var _credits_scroll: ScrollContainer
+var _credits_content: VBoxContainer
+var _credits_notices_box: VBoxContainer
+var _credits_notices_button: Button
+var _credits_back_button: Button
+var _credits_footer_label: Label
+var _credits_pause_button: Button
+var _credits_intro_button: Button
+var _credits_opened_from_intro := false
+var _credits_notices_built := false
+
+
+func _build_credits_page() -> void:
+	_credits_page = PanelContainer.new()
+	_credits_page.name = "CreditsPage"
+	_credits_page.set_anchors_preset(Control.PRESET_CENTER)
+	_credits_page.grow_horizontal = Control.GROW_DIRECTION_BOTH
+	_credits_page.grow_vertical = Control.GROW_DIRECTION_BOTH
+	_credits_page.position = Vector2(-430.0, -330.0)
+	_credits_page.size = Vector2(860.0, 660.0)
+	_credits_page.mouse_filter = Control.MOUSE_FILTER_STOP
+	_credits_page.add_theme_stylebox_override("panel", _border_box(PANEL_SOLID, 10, NOMINAL))
+	_credits_page.visible = false
+	_pause_panels.add_child(_credits_page)
+	var margin := _margin(30, 24, 30, 24)
+	_credits_page.add_child(margin)
+	var page_stack := VBoxContainer.new()
+	page_stack.add_theme_constant_override("separation", 12)
+	margin.add_child(page_stack)
+	page_stack.add_child(_label("CREDITS", 25, PRIMARY))
+	page_stack.add_child(_label(
+		"Scroll with Up/Down, the D-pad or either stick. Esc or B returns.", 12, MUTED
+	))
+
+	_credits_scroll = CreditsScrollAreaType.new()
+	_credits_scroll.name = "CreditsScroll"
+	_credits_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	_credits_scroll.mouse_filter = Control.MOUSE_FILTER_STOP
+	page_stack.add_child(_credits_scroll)
+	_credits_content = VBoxContainer.new()
+	_credits_content.name = "CreditsContent"
+	_credits_content.custom_minimum_size.x = CREDITS_CONTENT_WIDTH
+	_credits_content.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_credits_content.add_theme_constant_override("separation", 10)
+	_credits_scroll.add_child(_credits_content)
+	for section: Dictionary in CreditsCatalogType.sections():
+		_add_credits_section(_credits_content, str(section.title), section.entries as Array)
+	_credits_notices_box = VBoxContainer.new()
+	_credits_notices_box.name = "CreditsEngineNotices"
+	_credits_notices_box.add_theme_constant_override("separation", 8)
+	_credits_notices_box.visible = false
+	_credits_content.add_child(_credits_notices_box)
+
+	var footer_row := HBoxContainer.new()
+	footer_row.add_theme_constant_override("separation", 12)
+	page_stack.add_child(footer_row)
+	_credits_footer_label = _label(
+		CreditsCatalogType.version_footer(
+			str(_build_identity_snapshot.get("display_text", ""))
+		), 11, MUTED
+	)
+	_credits_footer_label.name = "CreditsVersionFooter"
+	_credits_footer_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_credits_footer_label.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	_credits_footer_label.clip_text = true
+	_credits_footer_label.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+	_credits_footer_label.tooltip_text = _credits_footer_label.text
+	_credits_footer_label.mouse_filter = Control.MOUSE_FILTER_PASS
+	footer_row.add_child(_credits_footer_label)
+	_credits_notices_button = _menu_button("SHOW GODOT THIRD-PARTY NOTICES", NOMINAL_SOFT)
+	_credits_notices_button.name = "CreditsEngineNoticesButton"
+	_credits_notices_button.custom_minimum_size.x = 290.0
+	_credits_notices_button.focus_mode = Control.FOCUS_ALL
+	_credits_notices_button.pressed.connect(func() -> void:
+		set_credits_engine_notices_expanded(not is_credits_engine_notices_expanded())
+	)
+	footer_row.add_child(_credits_notices_button)
+	_credits_back_button = _menu_button("BACK", NOMINAL)
+	_credits_back_button.name = "CreditsBackButton"
+	_credits_back_button.custom_minimum_size.x = 120.0
+	_credits_back_button.focus_mode = Control.FOCUS_ALL
+	_credits_back_button.pressed.connect(close_credits_page)
+	footer_row.add_child(_credits_back_button)
+
+	# Controller path: the scroll region hands off to the buttons at its bottom
+	# end, and the buttons return to it on Up.
+	_credits_scroll.focus_neighbor_bottom = _credits_scroll.get_path_to(_credits_notices_button)
+	_credits_scroll.focus_neighbor_top = _credits_scroll.get_path_to(_credits_scroll)
+	_credits_notices_button.focus_neighbor_top = _credits_notices_button.get_path_to(_credits_scroll)
+	_credits_notices_button.focus_neighbor_right = _credits_notices_button.get_path_to(_credits_back_button)
+	_credits_back_button.focus_neighbor_top = _credits_back_button.get_path_to(_credits_scroll)
+	_credits_back_button.focus_neighbor_left = _credits_back_button.get_path_to(_credits_notices_button)
+
+	# Any other pause page taking over, or the overlay closing, retires Credits
+	# so two pages can never be visible at once.
+	for page: Control in [
+		_pause_main_page, _activity_selection_page, _nearby_activity_page,
+		_planetary_destination_page, _server_browser_page, _settings_page,
+	]:
+		if page != null:
+			page.visibility_changed.connect(_on_other_pause_page_visibility_changed.bind(page))
+	_pause.visibility_changed.connect(_on_pause_overlay_visibility_changed_for_credits)
+
+
+func _add_credits_section(parent: Control, title: String, entries: Array) -> void:
+	parent.add_child(_label(title, 17, CAUTION))
+	var rule := ColorRect.new()
+	rule.custom_minimum_size = Vector2(92.0, 2.0)
+	rule.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
+	rule.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_tint_rect(rule, CAUTION)
+	parent.add_child(rule)
+	for raw_entry: Variant in entries:
+		if not raw_entry is Dictionary:
+			continue
+		var entry := raw_entry as Dictionary
+		var entry_heading := str(entry.get("heading", ""))
+		if not entry_heading.is_empty():
+			var entry_label := _label(entry_heading, 13, PRIMARY)
+			entry_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+			entry_label.custom_minimum_size.x = CREDITS_CONTENT_WIDTH
+			parent.add_child(entry_label)
+		var body := _label(str(entry.get("body", "")), 12, MUTED)
+		body.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		body.custom_minimum_size.x = CREDITS_CONTENT_WIDTH
+		parent.add_child(body)
+	var spacer := Control.new()
+	spacer.custom_minimum_size.y = 8.0
+	spacer.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	parent.add_child(spacer)
+
+
+func is_credits_engine_notices_expanded() -> bool:
+	return is_instance_valid(_credits_notices_box) and _credits_notices_box.visible
+
+
+## Expands or collapses the Godot third-party notices. They are built once, on
+## first expansion, because the engine's notice set is long.
+func set_credits_engine_notices_expanded(expanded: bool) -> void:
+	if not is_instance_valid(_credits_notices_box):
+		return
+	if expanded and not _credits_notices_built:
+		_credits_notices_built = true
+		var component_entries: Array = []
+		for notice: String in CreditsCatalogType.engine_component_notices():
+			component_entries.append({"heading": "", "body": notice})
+		_add_credits_section(
+			_credits_notices_box, "GODOT ENGINE THIRD-PARTY COMPONENTS", component_entries
+		)
+		var license_entries: Array = []
+		for text: String in CreditsCatalogType.engine_license_texts():
+			license_entries.append({"heading": "", "body": text})
+		_add_credits_section(
+			_credits_notices_box, "THIRD-PARTY LICENCE TEXTS", license_entries
+		)
+	_credits_notices_box.visible = expanded
+	if is_instance_valid(_credits_notices_button):
+		_credits_notices_button.text = (
+			"HIDE GODOT THIRD-PARTY NOTICES" if expanded
+			else "SHOW GODOT THIRD-PARTY NOTICES"
+		)
+	if expanded:
+		_scroll_credits_to_notices.call_deferred()
+
+
+func _scroll_credits_to_notices() -> void:
+	if is_instance_valid(_credits_scroll) and is_instance_valid(_credits_notices_box) \
+			and _credits_notices_box.visible:
+		_credits_scroll.scroll_vertical = int(_credits_notices_box.position.y)
+
+
+func is_credits_page_open() -> bool:
+	return is_instance_valid(_credits_page) and _credits_page.visible
+
+
+func is_credits_opened_from_intro() -> bool:
+	return _credits_opened_from_intro
+
+
+## Opens Credits over the startup menu, the way the server browser opens there.
+func open_intro_credits() -> bool:
+	if _started or _server_browser_opened_from_intro \
+			or not is_instance_valid(_credits_page) or not is_instance_valid(_pause):
+		return false
+	_credits_opened_from_intro = true
+	_pause.visible = true
+	_show_credits_page()
+	return true
+
+
+func _show_credits_page() -> void:
+	if not is_instance_valid(_credits_page):
+		return
+	for page: Control in [
+		_pause_main_page, _activity_selection_page, _nearby_activity_page,
+		_planetary_destination_page, _server_browser_page, _settings_page,
+	]:
+		if page != null:
+			page.visible = false
+	_credits_page.visible = true
+	_credits_scroll.scroll_vertical = 0
+	_credits_scroll.grab_focus()
+
+
+## Leaves Credits for the page that opened it: the startup menu or pause main.
+func close_credits_page() -> void:
+	if not is_credits_page_open():
+		return
+	var from_intro := _credits_opened_from_intro
+	_credits_opened_from_intro = false
+	_credits_page.visible = false
+	if from_intro:
+		if is_instance_valid(_pause_main_page):
+			_pause_main_page.visible = true
+		if is_instance_valid(_pause):
+			_pause.visible = false
+		if is_instance_valid(_credits_intro_button) and _credits_intro_button.is_visible_in_tree():
+			_credits_intro_button.grab_focus()
+		return
+	_show_pause_main()
+	if is_instance_valid(_credits_pause_button) and _credits_pause_button.is_visible_in_tree():
+		_credits_pause_button.grab_focus()
+
+
+func _on_other_pause_page_visibility_changed(page: Control) -> void:
+	if is_instance_valid(page) and page.visible and is_credits_page_open():
+		_credits_page.visible = false
+		_credits_opened_from_intro = false
+
+
+func _on_pause_overlay_visibility_changed_for_credits() -> void:
+	if not is_instance_valid(_pause) or _pause.visible or not is_credits_page_open():
+		return
+	_credits_page.visible = false
+	_credits_opened_from_intro = false
+	if is_instance_valid(_pause_main_page):
+		_pause_main_page.visible = true
+
+
+## Esc/Start (`pause`) and pad B (`ui_cancel`) step back out of Credits. While
+## Credits covers the startup menu, the intro's begin keys are swallowed so a
+## press meant for the page cannot start a shift underneath it.
+func _handle_credits_page_input(event: InputEvent) -> bool:
+	if not is_credits_page_open():
+		return false
+	if event.is_action_pressed(&"pause") or event.is_action_pressed(&"ui_cancel"):
+		close_credits_page()
+		return true
+	if _credits_opened_from_intro and (
+		event.is_action_pressed(&"interact") or event.is_action_pressed(&"jump")
+	):
+		return true
+	return false
+
+
+func _add_pause_credits_button(
+	menu_row: Control, activity_board: Button, resume: Button, server_browser: Button,
+) -> void:
+	_credits_pause_button = _menu_button("CREDITS", NOMINAL_SOFT)
+	_credits_pause_button.name = "CreditsOpenButton"
+	_credits_pause_button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_credits_pause_button.focus_mode = Control.FOCUS_ALL
+	_credits_pause_button.pressed.connect(_show_credits_page)
+	menu_row.add_child(_credits_pause_button)
+	activity_board.focus_neighbor_right = activity_board.get_path_to(_credits_pause_button)
+	_credits_pause_button.focus_neighbor_left = _credits_pause_button.get_path_to(activity_board)
+	_credits_pause_button.focus_neighbor_top = _credits_pause_button.get_path_to(resume)
+	_credits_pause_button.focus_neighbor_bottom = _credits_pause_button.get_path_to(server_browser)
+
+
+func _add_intro_credits_button() -> void:
+	if not is_instance_valid(_intro):
+		return
+	_credits_intro_button = _menu_button("CREDITS", NOMINAL_SOFT)
+	_credits_intro_button.name = "IntroCreditsButton"
+	_credits_intro_button.focus_mode = Control.FOCUS_ALL
+	_credits_intro_button.set_anchors_preset(Control.PRESET_BOTTOM_RIGHT)
+	_credits_intro_button.grow_horizontal = Control.GROW_DIRECTION_BEGIN
+	_credits_intro_button.grow_vertical = Control.GROW_DIRECTION_BEGIN
+	_credits_intro_button.pressed.connect(open_intro_credits)
+	_intro.add_child(_credits_intro_button)
+	_layout_intro_credits_button(_viewport_size())
+	var above: Button = _intro_server_browser_button \
+		if is_instance_valid(_intro_server_browser_button) else _intro_start_button
+	if is_instance_valid(above):
+		above.focus_neighbor_bottom = above.get_path_to(_credits_intro_button)
+		_credits_intro_button.focus_neighbor_top = _credits_intro_button.get_path_to(above)
+		_credits_intro_button.focus_neighbor_left = _credits_intro_button.get_path_to(above)
+
+
+## Keeps the startup CREDITS button above the footer and inside the centred
+## ultrawide band rather than against a 21:9/32:9 physical edge.
+func _layout_intro_credits_button(viewport_size: Vector2) -> void:
+	if not is_instance_valid(_credits_intro_button):
+		return
+	var safe := UltrawideSafeAreaContractType.safe_rect(viewport_size, 1.0)
+	var right_inset := 0.0 if safe.size.x <= 1.0 else maxf(0.0, viewport_size.x - safe.end.x)
+	_credits_intro_button.offset_right = -40.0 - right_inset
+	_credits_intro_button.offset_left = -240.0 - right_inset
+	_credits_intro_button.offset_bottom = -72.0
+	_credits_intro_button.offset_top = -112.0
+# --- Credits page (end) --------------------------------------------------------
