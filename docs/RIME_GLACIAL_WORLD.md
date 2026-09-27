@@ -29,6 +29,35 @@ cruise binding, the origin transaction, the final-approach handoff and the
 return) is the code Aurora already runs. While either visit holds the lane, the
 other world's board row is shown unavailable.
 
+The reusable planetary-world contract is shared code, not copies:
+
+- `scripts/game/planetary_surface_visit_expedition.gd` is the one visit
+  implementation. `aurora_expedition.gd` and `rime_expedition.gd` are thin
+  wrappers that supply a `PlanetarySurfaceVisitProfile`
+  (`scripts/game/planetary_surface_visit_profile.gd`): world id, GameFlow
+  streaming-pair and save-slot member names, landing region, approach source,
+  optional activity (its `physics_tick`/`detach` are used when declared), berth
+  identity and copy.
+- `scripts/persistence/planetary_surface_visit_persistence_binding.gd` is the
+  one interrupted-visit bridge; each world supplies its payload kind, reason
+  prefix and survey validator.
+- `scripts/world/planetary_surface_visit_streaming_bootstrap.gd` is the
+  atmospheric half of both streaming bootstraps: composition configure and
+  observation, and the flight-effects seams `get_atmosphere_weather_scalar()`
+  (Rime 0.66), `set_surface_atmosphere_state()` and
+  `clear_surface_atmosphere_state()`. On Rime the entry heat, wind drift, the
+  drifting cloud shell's weather clock and the interior/exterior ambience
+  cross-fade (with its own `RimeExteriorWind` low-pass bus) run as on Aurora.
+- `PlanetaryAtmosphereComposition` attenuates ambient fill and aerial
+  perspective against the world's own atmosphere top (14 km on Rime, 20 km on
+  Aurora), and `audit()` validates each composition against its own authored
+  scene and world definition.
+- The journey coordinator resolves the lane's streaming pair from
+  `SURFACE_VISIT_STREAMING_PAIRS`.
+
+A further atmospheric world needs its content, a streaming bootstrap subclass,
+a profile wrapper, a persistence wrapper and one row in that table.
+
 ## The place
 
 Pad at region origin; the approach corridor runs out along +Z and is kept clear.
@@ -93,5 +122,10 @@ exact numbers and `audit()` enforces the budgets.
   `Main`. It covers the board, cruise, rebases, landing, walking, the survey and
   its cold failure, re-entry, the one-time reward, reboarding, return and
   abandon.
+- `tests/planetary_surface_visit_expedition_test.gd`: the profile-driven visit
+  on both Aurora and Rime, including atmosphere flight-effects binding.
+- `tests/world/rime_atmosphere_altitude_transition_test.gd`: Rime's 14 km
+  altitude attenuation, the world-relative composition audit and the
+  bootstrap's flight-effects seams.
 
 Native GPU rendering and human visual review have not been run (`NOT_RUN`).
