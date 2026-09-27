@@ -154,11 +154,11 @@ func _peer_visit_holds_lane() -> bool:
 	var peer_property: StringName = profile.peer_expedition_property
 	if not String(peer_property).is_empty():
 		var peer: Variant = _flow.get(peer_property)
-		if peer is Object and is_instance_valid(peer) and peer != self \
+		if is_instance_valid(peer) and peer is Object and peer != self \
 				and (peer as Object).has_method(&"is_active") and bool(peer.call(&"is_active")):
 			return true
 	var journey: Variant = _flow.get("_planetary_journey")
-	if journey is Object and is_instance_valid(journey) \
+	if is_instance_valid(journey) and journey is Object \
 			and (journey as Object).has_method(&"is_aurora_visit_active") \
 			and bool(journey.call(&"is_aurora_visit_active")):
 		return StringName(journey.call(&"get_visit_world_id")) != profile.world_id
