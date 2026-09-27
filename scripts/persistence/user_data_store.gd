@@ -25,6 +25,11 @@ const MAX_SAFE_JSON_INTEGER := 9007199254740991
 const _TEMP_SUFFIX := ".tmp"
 const _BACKUP_SUFFIX := ".bak"
 const _RECOVERY_SUFFIX := ".recovery"
+## Older good generations kept behind `.bak` (`.bak.1` is the newest). Load
+## falls back through them, newest first, when primary and `.bak` are both
+## unusable, so one damaged save plus one damaged backup no longer resets the
+## pilot's progress. Rotation is best effort and never blocks a commit.
+const HISTORY_DEPTH := 3
 const _ENVELOPE_KEYS := ["schema_version", "generation", "commit", "payload"]
 const _COMMIT_KEYS := ["id", "parent_generation", "parent_id", "payload_sha256"]
 
@@ -36,6 +41,8 @@ var _commit_metadata: Dictionary = {}
 var _snapshot: Dictionary = {}
 var _loaded_from := &"none"
 var _recovery_receipt: Dictionary = {}
+## Index of the rotated history copy the loaded state came from, or -1.
+var _loaded_history_index := -1
 
 
 func _init(path: String, filesystem: UserDataFilesystem = null) -> void:
@@ -93,6 +100,20 @@ func _load(read_only: bool) -> Dictionary:
 		var result := _load_result(true, &"primary_invalid_backup_loaded", &"backup", primary, backup)
 		result["recovery_receipt"] = _recovery_receipt.duplicate(true)
 		return result
+	# Primary and `.bak` are both unusable: fall back to the newest valid rotated
+	# copy. It is reported exactly like a backup load, so every existing
+	# "store recovery required" guard and the confirmed repair path apply.
+	var history_fallback := _newest_valid_history()
+	if not history_fallback.is_empty():
+		_install_document(history_fallback.document as Dictionary, &"backup")
+		_loaded_history_index = int(history_fallback.index)
+		if not read_only and bool(primary.exists) and not bool(primary.valid):
+			_recovery_receipt = _quarantine_corrupt_primary(primary)
+		var history_result := _load_result(true, &"primary_invalid_backup_loaded", &"backup", primary, backup)
+		history_result["fallback"] = &"rotated_history"
+		history_result["history_index"] = _loaded_history_index
+		history_result["recovery_receipt"] = _recovery_receipt.duplicate(true)
+		return history_result
 	_restore_state(previous)
 	var both_missing := not bool(primary.exists) and not bool(backup.exists)
 	if both_missing:
@@ -179,6 +200,8 @@ func recover_interrupted_transaction() -> Dictionary:
 	var encoded := JSON.stringify(staged).to_utf8_buffer()
 	var moved_primary := false
 	if bool(primary.valid):
+		if bool(backup.valid):
+			_rotate_backup_into_history()
 		if _filesystem.file_exists(_backup_path()):
 			var remove_backup_error: Error = _filesystem.remove_path(_backup_path())
 			if remove_backup_error != OK:
@@ -383,6 +406,8 @@ func commit(payload: Variant, expected_generation: int, commit_id: String) -> Di
 	var moved_primary := false
 	var backup_is_authority := _loaded_from == &"backup" and bool(current_backup.valid)
 	if bool(current_primary.valid):
+		if bool(current_backup.valid):
+			_rotate_backup_into_history()
 		if _filesystem.file_exists(_backup_path()):
 			var backup_cleanup: Error = _filesystem.remove_path(_backup_path())
 			if backup_cleanup != OK:
@@ -530,6 +555,7 @@ func _read_document(path: String) -> Dictionary:
 
 func _install_document(document: Dictionary, source: StringName) -> void:
 	_loaded = true
+	_loaded_history_index = -1
 	_generation = int(document.generation)
 	_commit_metadata = (document.commit as Dictionary).duplicate(true)
 	_snapshot = (document.payload as Dictionary).duplicate(true)
@@ -580,6 +606,7 @@ func _state_record() -> Dictionary:
 		"commit": _commit_metadata.duplicate(true),
 		"snapshot": _snapshot.duplicate(true),
 		"source": _loaded_from,
+		"history_index": _loaded_history_index,
 	}
 
 
@@ -589,6 +616,7 @@ func _restore_state(state: Dictionary) -> void:
 	_commit_metadata = (state.commit as Dictionary).duplicate(true)
 	_snapshot = (state.snapshot as Dictionary).duplicate(true)
 	_loaded_from = StringName(state.source)
+	_loaded_history_index = int(state.get("history_index", -1))
 
 
 func _authority_matches_loaded_state(primary: Dictionary, backup: Dictionary) -> bool:
@@ -598,6 +626,16 @@ func _authority_matches_loaded_state(primary: Dictionary, backup: Dictionary) ->
 		&"primary":
 			return bool(primary.valid) and _document_matches_loaded(primary.document as Dictionary)
 		&"backup":
+			if _loaded_history_index >= 1:
+				var history := _read_document(_history_path(_loaded_history_index))
+				return (
+					not bool(primary.valid)
+					and str(primary.reason) != "newer_schema"
+					and not bool(backup.valid)
+					and str(backup.reason) != "newer_schema"
+					and bool(history.valid)
+					and _document_matches_loaded(history.document as Dictionary)
+				)
 			return (
 				not bool(primary.valid)
 				and str(primary.reason) != "newer_schema"
@@ -657,6 +695,52 @@ func _temp_path() -> String:
 
 func _backup_path() -> String:
 	return _path + _BACKUP_SUFFIX
+
+
+## `.bak.1` is the newest rotated copy, `.bak.<HISTORY_DEPTH>` the oldest.
+func _history_path(index: int) -> String:
+	return "%s%s.%d" % [_path, _BACKUP_SUFFIX, index]
+
+
+func get_history_paths() -> PackedStringArray:
+	var paths := PackedStringArray()
+	for index in range(1, HISTORY_DEPTH + 1):
+		paths.append(_history_path(index))
+	return paths
+
+
+func get_loaded_history_index() -> int:
+	return _loaded_history_index
+
+
+## Returns {index, document} for the newest valid rotated copy, or {}. Newer
+## schema copies are skipped rather than loaded by an older build.
+func _newest_valid_history() -> Dictionary:
+	for index in range(1, HISTORY_DEPTH + 1):
+		var candidate := _read_document(_history_path(index))
+		if bool(candidate.valid):
+			return {"index": index, "document": candidate.document}
+	return {}
+
+
+## Shifts `.bak` into the rotated history before a commit replaces it. Every
+## step is best effort: a failure leaves the caller's existing cleanup to remove
+## `.bak`, which is the pre-rotation behaviour, and never fails the commit.
+func _rotate_backup_into_history() -> void:
+	if HISTORY_DEPTH <= 0 or not _filesystem.file_exists(_backup_path()):
+		return
+	for index in range(1, HISTORY_DEPTH + 1):
+		if _filesystem.directory_exists(_history_path(index)):
+			return
+	var oldest := _history_path(HISTORY_DEPTH)
+	if _filesystem.file_exists(oldest) and _filesystem.remove_path(oldest) != OK:
+		return
+	for index in range(HISTORY_DEPTH - 1, 0, -1):
+		var from_path := _history_path(index)
+		if _filesystem.file_exists(from_path):
+			if _filesystem.rename_path(from_path, _history_path(index + 1)) != OK:
+				return
+	_filesystem.rename_path(_backup_path(), _history_path(1))
 
 
 static func _valid_commit_id(commit_id: String) -> bool:
