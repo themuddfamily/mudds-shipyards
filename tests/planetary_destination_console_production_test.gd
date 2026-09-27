@@ -53,14 +53,14 @@ func _run() -> void:
 	var report := console.call(&"get_presentation_snapshot") as Dictionary
 	var authority := report.get("authority", {}) as Dictionary
 	_check(
-		int(report.get("destination_count", 0)) == 2
-		and int(report.get("routed_destination_count", 0)) == 2
-		and str(report.get("status_text", "")) == "2 WORLDS // 2 ROUTES"
+		int(report.get("destination_count", 0)) == 3
+		and int(report.get("routed_destination_count", 0)) == 3
+		and str(report.get("status_text", "")) == "3 WORLDS // 3 ROUTES"
 		and str(report.get("route_text", "")).begins_with("EMBER // ")
 		and authority.values().all(
 			func(value: Variant) -> bool: return value == false
 		),
-		"GameFlow mirrors the retained two-world catalog without giving the console gameplay authority",
+		"GameFlow mirrors the retained three-world catalog without giving the console gameplay authority",
 	)
 	var retained_report := report.duplicate(true)
 	_check(
@@ -131,7 +131,7 @@ func _run() -> void:
 	for row_variant: Variant in site_rows:
 		site_ids.append(str((row_variant as Dictionary).get("destination_id", &"")))
 	_check(
-		int(board_snapshot.get("destination_count", -1)) == 2
+		int(board_snapshot.get("destination_count", -1)) == 3
 		and int(board_snapshot.get("sector_site_count", -1)) == 2
 		and site_ids == PackedStringArray([
 			"cinder_hulk_dock_site", "cinder_belt_bore_site",
@@ -168,7 +168,7 @@ func _run() -> void:
 	)
 	var catalog_after_site := game.get_planetary_destination_catalog_snapshot()
 	_check(
-		catalog_after_site.get("destination_count") == 2
+		catalog_after_site.get("destination_count") == 3
 		and catalog_after_site.get("sector_site_count") == 2
 		and (catalog_after_site.get("available_sector_site_ids", PackedStringArray())
 			as PackedStringArray).is_empty(),
