@@ -490,6 +490,8 @@ func _sample_production_actor_position() -> Dictionary:
 			is_instance_valid(active_ship)
 			and active_ship.is_inside_tree()
 			and active_ship.is_piloted()
+			# A craft a network crewmate flies is not this machine's actor.
+			and not active_ship.is_remote_piloted()
 			and not active_ship.is_destroyed()
 			and active_ship.global_position.is_finite()
 		):
