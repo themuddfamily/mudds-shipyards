@@ -511,6 +511,10 @@ func _build_glacier_exploration() -> void:
 	lettering.text = "ICE-CORE SURVEY  >\nDRILL RIG  /  SERACS  /  RIDGE GAUGE\nSUIT HEATER DRAINS - WARM UP AT THE HUT"
 	lettering.font_size = 44
 	lettering.pixel_size = 0.0055
+	# Coarser glyph curves: the sign is read from metres away, and the three
+	# lines otherwise dominate the authored triangle budget.
+	lettering.curve_step = 2.0
+	lettering.depth = 0.01
 	sign.mesh = lettering
 	sign.position = Vector3(-1.2, 1.9, 4.2)
 	sign.rotation.y = PI * 0.5

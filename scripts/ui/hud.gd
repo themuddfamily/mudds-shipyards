@@ -311,6 +311,7 @@ const ACTIVITY_REWARD_LABELS := [
 	"Survey data accepted",
 	"Derelict material sample recorded",
 	"Debris navigation data recorded",
+	"Rime ice-core record logged",
 ]
 const MAX_SESSION_RECOVERY_TOKEN := 9_007_199_254_740_991
 const MAX_SESSION_RECOVERY_PHYSICS_SECONDS := 2_592_000.0

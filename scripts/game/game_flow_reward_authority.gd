@@ -46,9 +46,18 @@ const EMBER_LANDER_WRECK_REWARD_ID: StringName = &"ember_lander_wreck_salvage_lo
 
 const AURORA_SURVEY_ACTIVITY_ID: StringName = &"aurora_coastal_observation"
 const AURORA_SURVEY_REWARD_ID: StringName = &"aurora_coastal_survey_data"
+const RIME_SURVEY_ACTIVITY_ID: StringName = &"rime_ice_core_survey"
+const RIME_SURVEY_REWARD_ID: StringName = &"rime_ice_core_record"
+## Planetary discoveries record once per save, across Main re-entry and
+## interrupted visits.
+const ONE_TIME_DISCOVERY_ACTIVITY_IDS := [
+	AURORA_SURVEY_ACTIVITY_ID,
+	RIME_SURVEY_ACTIVITY_ID,
+]
 
 const ACTIVITY_REWARDS := {
 	AURORA_SURVEY_ACTIVITY_ID: AURORA_SURVEY_REWARD_ID,
+	RIME_SURVEY_ACTIVITY_ID: RIME_SURVEY_REWARD_ID,
 	RACE_ACTIVITY_ID: RACE_REWARD_ID,
 	PATROL_ACTIVITY_ID: PATROL_REWARD_ID,
 	PLATFORM_PATROL_ACTIVITY_ID: PATROL_REWARD_ID,
@@ -67,6 +76,7 @@ const ACTIVITY_REWARDS := {
 }
 const REWARD_LABELS := {
 	AURORA_SURVEY_REWARD_ID: "Aurora coastal survey data recorded",
+	RIME_SURVEY_REWARD_ID: "Rime ice-core record logged",
 	RACE_REWARD_ID: "Race record accepted",
 	PATROL_REWARD_ID: "Patrol log accepted",
 	CONVOY_REWARD_ID: "Emberline escort credit logged",
@@ -189,9 +199,10 @@ func commit(request: Variant) -> Dictionary:
 			)))
 		current = (stored as Dictionary).duplicate(true)
 
-	# Aurora is a one-time discovery across Main re-entry and interrupted saves.
-	# Read the durable ledger here, before consuming the caller's generation.
-	if activity_id == AURORA_SURVEY_ACTIVITY_ID and int(
+	# Aurora and Rime are one-time discoveries across Main re-entry and
+	# interrupted saves. Read the durable ledger here, before consuming the
+	# caller's generation.
+	if activity_id in ONE_TIME_DISCOVERY_ACTIVITY_IDS and int(
 		(current.get("reward_counts", {}) as Dictionary).get(String(reward_id), 0)
 	) > 0:
 		_record = current
