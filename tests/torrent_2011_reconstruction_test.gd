@@ -6,6 +6,7 @@ const ArrowShipType := preload("res://scripts/ships/arrow_recon_ship.gd")
 const TORRENT_SCENE := preload("res://scenes/ships/torrent_interceptor.tscn")
 const ARROW_SCENE := preload("res://scenes/ships/arrow_recon_ship.tscn")
 const JOVIAN_SCENE := preload("res://scenes/ships/jovian_light_freighter.tscn")
+const ShipFitoutBatch := preload("res://scripts/rendering/ship_fitout_batch.gd")
 
 const RECONSTRUCTION_AUDIT_METHOD := &"get_torrent_reconstruction_audit_report"
 const SPEC_SPAN_LENGTH_MIN := 0.85
@@ -433,15 +434,33 @@ func _test_modern_system_labels(torrent: HeroShip) -> void:
 		"*CanopyLatchStriker", "CanopyHingeBar", "*CanopyHingeMount",
 	])
 	var unsupported_nodes: Array[Node] = []
+	# Folded fitout is no longer a node of its own. The Torrent's fitout pass
+	# records every piece it merged, so each pattern also resolves through the
+	# piece index and a folded piece is audited from its own recorded metadata
+	# and the batch parent it still lives under.
+	var folded_pieces: Array[Dictionary] = []
 	for pattern: String in unsupported_patterns:
 		var candidates := visual.find_children(pattern, "", true, false)
-		_check(not candidates.is_empty(), "implemented modern-system pattern %s resolves to physical nodes" % pattern)
+		var folded := ShipFitoutBatch.find_authored_pieces(visual, pattern).filter(
+			func(record: Dictionary) -> bool: return bool(record.get("batched", false))
+		)
+		_check(
+			not candidates.is_empty() or not folded.is_empty(),
+			"implemented modern-system pattern %s resolves to physical nodes" % pattern
+		)
 		for candidate: Node in candidates:
 			if not unsupported_nodes.has(candidate):
 				unsupported_nodes.append(candidate)
+		for record: Dictionary in folded:
+			folded_pieces.append(record)
 	_check(not unsupported_nodes.is_empty(), "implemented modern systems remain discoverable for evidence auditing")
 	for node: Node in unsupported_nodes:
 		_check(_is_explicitly_modern(node), "%s is explicitly tagged presentation-only or modern" % node.name)
+	for record: Dictionary in folded_pieces:
+		_check(
+			_is_explicitly_modern_folded_piece(record),
+			"folded %s is explicitly tagged presentation-only or modern" % String(record.get("name", ""))
+		)
 
 
 func _test_runtime_contracts(torrent: HeroShip) -> void:
@@ -669,6 +688,21 @@ func _is_pale_yellow_translucent(colour: Color) -> bool:
 		and colour.b >= 0.24
 		and colour.r > colour.b * 1.12 and colour.g > colour.b * 1.08
 	)
+
+
+## A folded piece carries its own metadata in its index record, and the batch
+## standing in for it lives under the piece's original parent, so the piece's
+## ancestry is the batch's parent chain.
+func _is_explicitly_modern_folded_piece(record: Dictionary) -> bool:
+	var holder := record.get("node", null) as Node
+	if holder == null:
+		return false
+	var carrier := Node.new()
+	for key: Variant in (record.get("metadata", {}) as Dictionary):
+		carrier.set_meta(StringName(String(key)), (record["metadata"] as Dictionary)[key])
+	var own := _is_explicitly_modern(carrier)
+	carrier.free()
+	return own or _is_explicitly_modern(holder.get_parent())
 
 
 func _is_explicitly_modern(node: Node) -> bool:

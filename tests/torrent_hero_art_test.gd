@@ -6,6 +6,7 @@ const ArrowShipType := preload("res://scripts/ships/arrow_recon_ship.gd")
 const TORRENT_SCENE := preload("res://scenes/ships/torrent_interceptor.tscn")
 const ARROW_SCENE := preload("res://scenes/ships/arrow_recon_ship.tscn")
 const JOVIAN_SCENE := preload("res://scenes/ships/jovian_light_freighter.tscn")
+const ShipFitoutBatch := preload("res://scripts/rendering/ship_fitout_batch.gd")
 
 const HERO_ATLAS_PATHS := {
 	"albedo": "res://assets/models/torrent/textures/torrent-hero-trim-albedo-runtime-v2.png",
@@ -247,7 +248,9 @@ func _test_propulsion_and_hardware(torrent: HeroShip) -> void:
 		_check(not bool(engine.get_meta("exposed_emissive_disc", true)), "%s explicitly rejects the glowing-disc treatment" % engine.name)
 		_check(engine.get_node_or_null("ForwardMountCollar") is MeshInstance3D and engine.get_node_or_null("EngineCollar") is MeshInstance3D, "%s has structural mount and aft collars" % engine.name)
 		_check(engine.get_node_or_null("EngineNozzle") is MeshInstance3D and engine.get_node_or_null("NozzleThermalLip") is MeshInstance3D, "%s has a divergent nozzle and thermal lip" % engine.name)
-		_check(engine.find_children("TurbineStatorVane*", "MeshInstance3D", false, false).size() == 8, "%s has eight visible stator vanes" % engine.name)
+		# The vanes are anonymous fitout the Torrent folds into one merged renderer
+		# per engine; the piece index still names all eight.
+		_check(ShipFitoutBatch.count_authored_pieces(engine, "TurbineStatorVane*") == 8, "%s has eight visible stator vanes" % engine.name)
 		var core := engine.get_node_or_null("EngineCore") as MeshInstance3D
 		var plume := engine.get_node_or_null("EnginePlume") as MeshInstance3D
 		_check(core != null and not _material_emits(core.mesh.surface_get_material(0)), "%s mechanical core is non-emissive" % engine.name)

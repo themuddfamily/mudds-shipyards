@@ -250,6 +250,20 @@ const PROTECTED_FITOUT_CONTAINERS: Array[String] = [
 ## instrument faces, hatches, route inlays, damage cues, hull markings, canopy
 ## hardware and every resource-sharing audit's subject keep the node identity
 ## their consumer looks them up by.
+##
+## Families leave this roster only by migrating every consumer to the piece
+## index (`find_authored_piece()` / `find_authored_pieces()`), never by deciding
+## a name "looks free". Migrated so far:
+##
+## * **Shared cockpit restraints and seat shells (2026-09-27).** The five harness
+##   webbing runs (`ShoulderBeltLeft/Right`, `LapBeltLeft/Right`, `BeltAntiSub`),
+##   `SeatPanShell`, `HeadrestShell`, `Port/StarboardShoulderSupport`,
+##   `StarboardSeatShellReturn` and `StarboardSeatRail` that `HeroShip` builds
+##   into every inheriting craft's cockpit. Their only consumers were the
+##   `*Belt*` restraint count in `HeroShip.get_torrent_art_audit_report()` and
+##   the same glob in `tests/torrent_2011_reconstruction_test.gd`; both now
+##   count through `find_authored_pieces()`. Their port twins were never
+##   protected and already folded.
 const PROTECTED_FITOUT_NAMES: Array[String] = [
 
 		"DockUmbilicalHead02",  # FleetDockComb freezes its renderer/batch/copy/submission roster
@@ -342,7 +356,7 @@ const PROTECTED_FITOUT_NAMES: Array[String] = [
 	"AftBayCeiling", "AftBayDeck", "AftHull", "AftPressureCap", "AftPressureWall",
 	"ArmoredCentralSlab", "ArmoredNose", "ArrayCrossbar", "AttitudeLadder00",
 	"AttitudeLadder01", "AttitudeLadder02", "AttitudeLadder03", "AttitudeLadder04",
-	"AvionicsCartridge", "BeltAntiSub", "BinnacleAndControls", "BowDockingArchSegment01",
+	"AvionicsCartridge", "BinnacleAndControls", "BowDockingArchSegment01",
 	"BowDockingArchSegment03", "BowDockingArchStrut00", "BowDockingArchStrut01",
 	"BowDockingTargetPlate", "CabinCeiling", "CabinDeck", "CabinFoldingTable",
 	"CabinLightStrip", "CabinPortalUpright", "CabinSidewall", "CabinStatusPanel",
@@ -374,8 +388,8 @@ const PROTECTED_FITOUT_NAMES: Array[String] = [
 	"GunnerConsole", "GunnerConsolePedestal", "GunnerDisplay", "GunnerHeadrest",
 	"GunnerHeadrestShell", "GunnerLumbarCushion", "GunnerRearSplinterShield", "GunnerSeat",
 	"GunnerSeatBack", "GunnerSeatPanShell", "GunnerSeatShell", "Harness", "HarnessBuckle",
-	"Headrest", "HeadrestShell", "HighVisibilityHull", "IndustrialHull", "InstrumentHood",
-	"LadderStock", "LandingBogieStrut", "LandingDamper", "LapBeltLeft", "LapBeltRight",
+	"Headrest", "HighVisibilityHull", "IndustrialHull", "InstrumentHood",
+	"LadderStock", "LandingBogieStrut", "LandingDamper",
 	"LightPulseBarrel", "LockerDisplay", "LongRangeHull", "LongRangeSensor",
 	"LongRangeTailplane", "MainGearFoot", "MainGearStrut", "MastPedestal", "MastStem",
 	"NoseBelly", "NoseCapBelly", "NoseGearDamper", "NoseGearFoot", "NoseGearStrut",
@@ -397,7 +411,7 @@ const PROTECTED_FITOUT_NAMES: Array[String] = [
 	"PortNozzleLip", "PortPressureShoulder", "PortRadiator", "PortRecessedThroat",
 	"PortRefractoryNozzle", "PortRootServiceGasket", "PortRootServicePanel",
 	"PortRudderPedal", "PortSeatBolster", "PortSensorWingSkin0", "PortSensorWingSkin1",
-	"PortSensorWingSkin2", "PortShoulderSupport", "PortSideConsole", "PortSidewall",
+	"PortSensorWingSkin2", "PortSideConsole", "PortSidewall",
 	"PortSill", "PortStatusRepeater", "PortSurveyRecognitionMark", "PortThrustPlug",
 	"PortUpperEngineCollar", "PortUpperEngineCollarRecessedThroat", "PortUpperEngineCore",
 	"PortWingArmor", "PortWingInset", "PortWingOuterSkin", "PortWingService-0_2Gasket",
@@ -406,8 +420,8 @@ const PROTECTED_FITOUT_NAMES: Array[String] = [
 	"PrimaryFlightDisplay", "RaisedBreachVane", "RapidResponseWing", "RearPressureWall",
 	"RecessedGraphiteMount", "RepairWorkLamp", "RoofService-3_6Gasket",
 	"RoofService3_7Gasket", "SeatBack", "SeatBackShell", "SeatBase", "SeatHeadrest",
-	"SeatPan", "SeatPanShell", "Segment00", "Segment01", "Segment02", "Segment03",
-	"ServicePocketLiner", "ShoulderBeltLeft", "ShoulderBeltRight", "ShoulderBreachScorch",
+	"SeatPan", "Segment00", "Segment01", "Segment02", "Segment03",
+	"ServicePocketLiner", "ShoulderBreachScorch",
 	"StarboardAftBaySidewall", "StarboardBlendedDeltaWing", "StarboardBomberFin",
 	"StarboardCabinSidewall", "StarboardCannonMount", "StarboardCanopyLaminateEdge",
 	"StarboardCanopyLatchHook", "StarboardCanopyLatchStriker",
@@ -435,9 +449,9 @@ const PROTECTED_FITOUT_NAMES: Array[String] = [
 	"StarboardOutboardSkirt", "StarboardPressureShoulder", "StarboardRadiator",
 	"StarboardRecessedThroat", "StarboardRefractoryNozzle", "StarboardRootServiceGasket",
 	"StarboardRootServicePanel", "StarboardRudderPedal", "StarboardSeatBolster",
-	"StarboardSeatRail", "StarboardSeatReclinePivot", "StarboardSeatShellReturn",
+	"StarboardSeatReclinePivot",
 	"StarboardSensorWingSkin0", "StarboardSensorWingSkin1", "StarboardSensorWingSkin2",
-	"StarboardShoulderSupport", "StarboardSideConsole", "StarboardSidewall",
+	"StarboardSideConsole", "StarboardSidewall",
 	"StarboardSill", "StarboardSkirtClamp-0_3", "StarboardSkirtClamp1_46",
 	"StarboardStatusRepeater", "StarboardSurveyRecognitionMark", "StarboardThrustPlug",
 	"StarboardTurbineCase", "StarboardUpperEngineCollar",
@@ -986,6 +1000,48 @@ static func authored_piece_mesh(search_root: Node, piece_name: String) -> Mesh:
 	if record.is_empty():
 		return null
 	return record.get("mesh", null) as Mesh
+
+
+## Every authored piece under `search_root` whose name matches the glob
+## `pattern`, whether it still stands as its own renderer or has been folded.
+##
+## This is the index-aware form of `find_children(pattern, "MeshInstance3D")`,
+## which is how most craft audits count a family of pieces ("*Belt*",
+## "TurbineStatorVane*", "*ServicePanel"). A folded piece is not a node any more,
+## so that call silently stops seeing it; this one answers the same question on
+## a batched and an unbatched build. Records carry the same keys as
+## `find_authored_piece()`. Batches themselves are never returned as live
+## pieces: a merged renderer is not an authored piece of the craft, and a glob
+## such as `"*"` must not count it beside the pieces it stands in for.
+static func find_authored_pieces(search_root: Node, pattern: String) -> Array[Dictionary]:
+	var out: Array[Dictionary] = []
+	if search_root == null or not is_instance_valid(search_root):
+		return out
+	var candidates := search_root.find_children("*", "", true, false)
+	candidates.push_front(search_root)
+	for candidate in candidates:
+		var index := authored_piece_index(candidate)
+		if index.is_empty():
+			if candidate is MeshInstance3D \
+					and not _carries_batch_metadata(candidate) \
+					and String(candidate.name).match(pattern):
+				out.append(_live_piece_record(candidate as MeshInstance3D))
+			continue
+		for record_variant in index:
+			var record := record_variant as Dictionary
+			if not String(record.get("name", "")).match(pattern):
+				continue
+			var resolved := record.duplicate()
+			resolved["batched"] = true
+			resolved["node"] = candidate
+			out.append(resolved)
+	return out
+
+
+## How many authored pieces under `search_root` match `pattern`. See
+## `find_authored_pieces()`.
+static func count_authored_pieces(search_root: Node, pattern: String) -> int:
+	return find_authored_pieces(search_root, pattern).size()
 
 
 ## Replaces N sibling renderers with one merged renderer in the same parent.
