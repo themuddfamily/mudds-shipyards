@@ -119,7 +119,7 @@ func _init() -> void:
 func _run() -> void:
 	_check(
 		Presenter.ACTIVITY_ORDER.size() == Presenter.ACTIVITY_COPY.size()
-		and Presenter.ACTIVITY_ORDER.size() == 10,
+		and Presenter.ACTIVITY_ORDER.size() == 16,
 		"the activity briefing family is frozen at one prompt per offered activity",
 	)
 	var hud := HUD_SCENE.instantiate()
@@ -338,7 +338,7 @@ func _run() -> void:
 		and flow.activity_tutorial_prompt_id(GameFlowType.CARGO_DELIVERY_ACTIVITY_ID)
 			== &"cinder_platform_supply_run"
 		and flow.activity_tutorial_prompt_id(&"heavy_breach").is_empty(),
-		"free-flight sortie kinds and route ids resolve onto the same ten briefings",
+		"free-flight sortie kinds and route ids resolve onto the same Cinder Reach briefings",
 	)
 
 	# The two places in the sector that have an inside get the same one-shot

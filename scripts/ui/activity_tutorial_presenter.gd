@@ -12,8 +12,11 @@ extends RefCounted
 
 const COMPONENT_ID: StringName = &"activity-tutorial-presenter"
 
-## Frozen activity family. Kept aligned with NearbySectorActivityPresenter's
-## production activity identifiers so every offered activity has one briefing.
+## Activity family. The first ten stay aligned with NearbySectorActivityPresenter's
+## production activity identifiers so every offered activity has one briefing;
+## the rest are the shipyard deck-board sorties and the planetary surface
+## activities, published from GameFlow's board-arm, errand-start and
+## surface-arrival seams.
 const ACTIVITY_ORDER := [
 	&"cinder_reach_emberline_convoy",
 	&"cinder_reach_checkpoint_route",
@@ -25,6 +28,12 @@ const ACTIVITY_ORDER := [
 	&"station_defense",
 	&"cinder_hulk_power_restoration",
 	&"cinder_asteroid_field_threading_run",
+	&"shipyard_heavy_breach",
+	&"shipyard_torpedo_run",
+	&"aurora_coastal_observation",
+	&"rime_ice_core_survey",
+	&"ember_beacon_survey",
+	&"ember_caldera_errands",
 ]
 
 const ACTIVITY_COPY := {
@@ -118,12 +127,73 @@ const ACTIVITY_COPY := {
 		"next_action": "HOLD THE PERIMETER // ENGAGE THE WAVE",
 		"recovery": "PERIMETER BREACHED // FALL BACK TO THE STATION RING",
 	},
+	&"shipyard_heavy_breach": {
+		"title": "Break the charged picket",
+		"label": "HEAVY BREACH SORTIE",
+		"controller": "Board a combat craft and clear its berth; the picket commits after departure. Press {fire} on it before it reaches the protected asset.",
+		"keyboard": "Board a combat craft and clear its berth; the picket commits after departure. Press {fire} on it before it reaches the protected asset.",
+		"accessible": "Board a combat-capable craft and fly clear of its berth. The charged picket commits after you depart; use the fire control on it before it reaches the protected station asset.",
+		"next_action": "LAUNCH A COMBAT CRAFT // DESTROY THE PICKET",
+		"recovery": "PICKET THROUGH // RETURN TO THE DECK BOARD AND ARM AGAIN",
+	},
+	&"shipyard_torpedo_run": {
+		"title": "Survive the torpedo run",
+		"label": "TORPEDO RUN SORTIE",
+		"controller": "Launch and hunt the torpedo boat. When a torpedo locks, break hard across its nose with {pitch_up} and {sprint_boost}, or shoot it down with {fire}.",
+		"keyboard": "Launch and hunt the torpedo boat. When a torpedo locks, break hard across its nose with {pitch_up} and {sprint_boost}, or shoot it down with {fire}.",
+		"accessible": "Launch and hunt the torpedo boat. When a torpedo locks on, turn hard across its path and boost, or shoot the torpedo down with the fire control.",
+		"next_action": "HUNT THE TORPEDO BOAT // BREAK ACROSS OR SHOOT DOWN TORPEDOES",
+		"recovery": "TORPEDO LOCK // TURN HARD ACROSS ITS NOSE AND BOOST",
+	},
+	&"aurora_coastal_observation": {
+		"title": "Survey the Aurora coast",
+		"label": "AURORA COASTAL SURVEY",
+		"controller": "Walk the coast to the trail sign, the lookout instrument and the standing stones, pressing {interact} at each.",
+		"keyboard": "Walk the coast to the trail sign, the lookout instrument and the standing stones, pressing {interact} at each.",
+		"accessible": "Walk the coast to the trail sign, the lookout instrument and the standing stones in turn, using the interact control at each one.",
+		"next_action": "FOLLOW THE OBJECTIVE // INTERACT AT EACH MARK",
+		"recovery": "TRAIL LOST // THE OBJECTIVE NAMES THE NEXT MARK AND ITS DISTANCE",
+	},
+	&"rime_ice_core_survey": {
+		"title": "Drill the Rime ice core",
+		"label": "RIME ICE-CORE SURVEY",
+		"controller": "Press {interact} at the orange survey beacon, drill a core at the rig, then log the ridge strain gauge. Your SUIT HEATER drains away from warmth: stay near your ship or the rig's heated hut to refill it.",
+		"keyboard": "Press {interact} at the orange survey beacon, drill a core at the rig, then log the ridge strain gauge. Your SUIT HEATER drains away from warmth: stay near your ship or the rig's heated hut to refill it.",
+		"accessible": "Use the interact control at the orange survey beacon, drill a core at the rig, then log the ridge strain gauge. Your suit heater drains while you are away from warmth; standing near your ship or inside the drill rig's heated hut refills it.",
+		"next_action": "BEACON // DRILL RIG // STRAIN GAUGE // WATCH THE SUIT HEATER",
+		"recovery": "HEATER LOW // WARM UP BY YOUR SHIP OR IN THE HEATED HUT, THEN RESTART AT THE BEACON",
+	},
+	&"ember_beacon_survey": {
+		"title": "Fly the Ember expedition",
+		"label": "EMBER RELAY SURVEY",
+		"controller": "Cruise to the Ember Moon, fly the caldera corridor down and settle on the pad. On foot, press {interact} at each relay beacon.",
+		"keyboard": "Cruise to the Ember Moon, fly the caldera corridor down and settle on the pad. On foot, press {interact} at each relay beacon.",
+		"accessible": "Cruise to the Ember Moon, follow the caldera approach corridor down and settle on the landing pad. On foot, use the interact control at each relay beacon.",
+		"next_action": "CRUISE TO EMBER // FOLLOW THE CALDERA CORRIDOR",
+		"recovery": "CORRIDOR LOST // SLOW DOWN AND LINE UP ON THE NEXT CORRIDOR MARKER",
+	},
+	&"ember_caldera_errands": {
+		"title": "Run a caldera errand",
+		"label": "EMBER CALDERA ERRAND",
+		"controller": "Walk the marked route from the trailhead to the landmark: the collapsed lava tube west of the pad, or the wrecked lander to the south-east. Press {interact} at the landmark.",
+		"keyboard": "Walk the marked route from the trailhead to the landmark: the collapsed lava tube west of the pad, or the wrecked lander to the south-east. Press {interact} at the landmark.",
+		"accessible": "Walk the marked route from the trailhead to the landmark: the collapsed lava tube west of the pad, or the wrecked survey lander to the south-east. Use the interact control at the landmark.",
+		"next_action": "FOLLOW THE ROUTE MARKERS // INTERACT AT THE LANDMARK",
+		"recovery": "ROUTE LOST // RETURN TO THE TRAILHEAD TO ABANDON OR RESTART",
+	},
+}
+
+## Production identifiers that share one authored briefing, so both caldera
+## errands brief the pilot only once between them.
+const ACTIVITY_ALIASES := {
+	&"ember_lava_tube_sounding": &"ember_caldera_errands",
+	&"ember_lander_wreck_survey": &"ember_caldera_errands",
 }
 
 ## Glyph tokens the authored copy above can contain. The HUD resolves these
 ## through InputGlyphResolver; this list only tells the caller what to resolve.
 const GLYPH_ACTIONS: Array[StringName] = [
-	&"interact", &"fire", &"move_forward", &"sprint_boost", &"brake",
+	&"interact", &"fire", &"move_forward", &"sprint_boost", &"brake", &"pitch_up",
 ]
 
 var _snapshot: Dictionary = {}
@@ -135,6 +205,13 @@ var _attached := false
 
 static func is_known_activity(activity_id: StringName) -> bool:
 	return ACTIVITY_ORDER.has(activity_id)
+
+
+## The authored briefing id for a production activity id, or `&""`.
+static func briefing_id_for(activity_id: StringName) -> StringName:
+	if ACTIVITY_ALIASES.has(activity_id):
+		return ACTIVITY_ALIASES[activity_id] as StringName
+	return activity_id if ACTIVITY_ORDER.has(activity_id) else &""
 
 
 func present_snapshot(source: Dictionary) -> Dictionary:
