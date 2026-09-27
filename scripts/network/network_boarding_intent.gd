@@ -14,7 +14,15 @@ const MAX_ID_LENGTH := 64
 
 const ACTION_BOARD: StringName = &"board"
 const ACTION_DISEMBARK: StringName = &"disembark"
-const ACTIONS := [ACTION_BOARD, ACTION_DISEMBARK]
+## Board the named seat, or -- when it is held -- whichever seat of the same
+## role on the same ship the authority finds free. The authority answers with
+## the seat it actually assigned, or one `craft_full`, in a single round trip.
+const ACTION_BOARD_ANY: StringName = &"board_any"
+## Move an avatar that already holds a seat on this ship to the named seat in
+## one ledger transaction: the old seat is released and the new one claimed
+## together, or nothing changes at all.
+const ACTION_SWAP: StringName = &"swap"
+const ACTIONS := [ACTION_BOARD, ACTION_DISEMBARK, ACTION_BOARD_ANY, ACTION_SWAP]
 
 const ROLE_PILOT: StringName = &"pilot"
 const ROLE_GUNNER: StringName = &"gunner"
@@ -209,7 +217,7 @@ func _validate(data: Dictionary) -> PackedStringArray:
 	if not ROLES.has(_role):
 		errors.append("role must be a supported crew role")
 	if not ACTIONS.has(_action):
-		errors.append("action must be board or disembark")
+		errors.append("action must be board, board_any, swap or disembark")
 	for key in ["sequence", "client_tick"]:
 		if not _valid_nonnegative_integer(int(data.get(key, -1))):
 			errors.append("%s must be a non-negative safe integer" % key)

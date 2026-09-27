@@ -89,6 +89,18 @@ const PROJECTILE_TOMBSTONE_RETENTION_TICKS := 120
 const MOVING_INTERIOR_BUDGET_WINDOW_TICKS := 10
 const MOVING_INTERIOR_MAX_SNAPSHOTS_PER_WINDOW := 8
 const MOVING_INTERIOR_MAX_BYTES_PER_WINDOW := 24000
+## The production boarding ledger's tick window, in authority physics ticks.
+## The authority advances its tick every physics tick (60 Hz), and a client
+## stamps its request with its estimate of that tick -- the last tick it heard
+## plus the physics frames since -- so a request arrives roughly one round trip
+## behind the authority. Three seconds behind covers the 350 ms + jitter
+## latency profile and a 1.5 s delivery stall with margin; anything older is a
+## request made before a gap the requester never saw and is refused by name
+## (`client_tick_too_old`). Half a second ahead absorbs a host whose physics ran
+## briefly slower than the client's; a tick further ahead than that was never
+## heard from this host (`client_tick_too_far_ahead`).
+const BOARDING_MAX_TICK_BEHIND := 180
+const BOARDING_MAX_TICK_AHEAD := 30
 
 ## Publication priority for one moving-interior relationship, and the whole of
 ## the rule the per-recipient budget applies to it.
@@ -236,6 +248,12 @@ var _boarding_transition_states: Dictionary = {}
 var _boarding_intent_result_replica: Dictionary = {}
 var _boarding_result_server_tick := 0
 var _boarding_answer_revision := 0
+## The engine physics frame on which this client last heard the ledger tick
+## (from the admission offer or a boarding answer), or -1 before it has heard
+## one. The authority advances its tick once per physics tick, so the heard
+## tick plus the physics frames since is the client's estimate of "now" on the
+## host -- behind it by the one-way latency, which the ledger's window absorbs.
+var _boarding_heard_physics_frame := -1
 var _migration_jitter
 var _migration_replica_generation := 0
 var _migration_replica_samples: Dictionary = {}
@@ -295,7 +313,9 @@ func _init() -> void:
 	_transport = TransportSecurity.new(AUTHORITY_PEER_ID)
 	_movement = MovementAuthority.new(AUTHORITY_PEER_ID)
 	_remote_ship_commands = RemoteShipCommandSource.new()
-	_boarding = BoardingAuthority.new(AUTHORITY_PEER_ID)
+	_boarding = BoardingAuthority.new(
+		AUTHORITY_PEER_ID, BOARDING_MAX_TICK_BEHIND, BOARDING_MAX_TICK_AHEAD
+	)
 	_projectile = ProjectileAuthority.new(AUTHORITY_PEER_ID)
 	_landing = LandingAuthority.new(AUTHORITY_PEER_ID)
 	_damage_respawn = DamageRespawnIntegration.new(AUTHORITY_PEER_ID)
@@ -508,7 +528,11 @@ func shutdown(reason: StringName = &"requested") -> Dictionary:
 	_boarding_transition_states.clear()
 	_boarding_intent_result_replica.clear()
 	_boarding_result_server_tick = 0
+	_boarding_heard_physics_frame = -1
 	_boarding_answer_revision = 0
+	# Every occupancy -- the host's own seat included -- and the ledger clock
+	# go with the session, so a re-host starts from an empty ledger at tick 0.
+	_boarding.end_session(AUTHORITY_PEER_ID)
 	_peer_keepalive_deadlines.clear()
 	_session_max_clients = DEFAULT_MAX_CLIENTS
 	_server_offer.clear()
@@ -756,6 +780,54 @@ func set_boarding_server_tick(server_tick: int) -> Dictionary:
 	return _remember(_boarding.set_server_tick(AUTHORITY_PEER_ID, server_tick))
 
 
+## The per-physics-tick form of `set_boarding_server_tick()`. Same ledger
+## validation (a regressed tick is refused `stale_server_tick`), but it does not
+## overwrite this adapter's last remembered result sixty times a second.
+func advance_boarding_server_tick(server_tick: int) -> Dictionary:
+	if not is_server():
+		return _result(false, &"authority_required")
+	return _boarding.set_server_tick(AUTHORITY_PEER_ID, server_tick)
+
+
+## The ledger's current tick on the authority.
+func get_boarding_server_tick() -> int:
+	return _boarding.get_server_tick()
+
+
+## Client estimate of the authority's ledger tick right now: the last tick this
+## peer heard (admission offer or boarding answer) plus the physics frames that
+## have run here since. 0 before anything was heard. This is what a boarding
+## request is stamped with, so a first request made straight after joining
+## already lands inside the authority's window rather than costing a refusal
+## and a re-stamp.
+func get_boarding_server_tick_estimate() -> int:
+	if _boarding_heard_physics_frame < 0:
+		return _boarding_result_server_tick
+	return _boarding_result_server_tick + maxi(
+		0, Engine.get_physics_frames() - _boarding_heard_physics_frame
+	)
+
+
+## The host player's own seat, written into the same ledger remote claims are
+## judged against. Only the authority may call it; a seat any occupant already
+## holds is refused `seat_occupied` and leaves the host where it was.
+func claim_host_boarding_seat(avatar_id: StringName, seat_id: StringName) -> Dictionary:
+	if not is_server():
+		return _remember(_result(false, &"authority_required"))
+	return _remember(_boarding.claim_authority_seat(AUTHORITY_PEER_ID, avatar_id, seat_id))
+
+
+func release_host_boarding_seat(avatar_id: StringName) -> Dictionary:
+	if not is_server():
+		return _remember(_result(false, &"authority_required"))
+	return _remember(_boarding.release_authority_seat(AUTHORITY_PEER_ID, avatar_id))
+
+
+func _note_boarding_server_tick_heard(server_tick: int) -> void:
+	_boarding_result_server_tick = maxi(0, server_tick)
+	_boarding_heard_physics_frame = Engine.get_physics_frames()
+
+
 func send_boarding_intent(wire: Dictionary) -> Dictionary:
 	if is_server():
 		return _remember(_result(false, &"client_required"))
@@ -823,22 +895,31 @@ func _boarding_intent_answer_packet(result: Dictionary, request: Dictionary) -> 
 	var occupancy: Dictionary = {}
 	if result.get("occupancy") is Dictionary:
 		occupancy = result.get("occupancy") as Dictionary
+	var released: Dictionary = {}
+	if result.get("released_occupancy") is Dictionary:
+		released = result.get("released_occupancy") as Dictionary
 	_boarding_answer_revision += 1
+	# `seat_id` is the seat the ledger actually assigned when it assigned one
+	# (a `board_any` whose preferred berth was held lands in another), and the
+	# requested seat otherwise. `released_seat_id` is the one added field: the
+	# seat an accepted swap gave up in the same transaction, empty for anything
+	# else.
 	return {
 		"revision": _boarding_answer_revision,
 		"migration_generation": int(
 			_migration.get_snapshot().get("migration_generation", 1)
 		),
-		"server_tick": int(_boarding.get_snapshot().get("server_tick", 0)),
+		"server_tick": _boarding.get_server_tick(),
 		"result": {
 			"accepted": bool(result.get("accepted", false)),
 			"status": StringName(result.get("status", &"")),
 			"action": StringName(request.get("action", &"")),
 			"ship_id": StringName(request.get("ship_id", &"")),
-			"seat_id": StringName(request.get("seat_id", &"")),
+			"seat_id": StringName(occupancy.get("seat_id", request.get("seat_id", &""))),
 			"role": StringName(occupancy.get("role", request.get("role", &""))),
 			"avatar_id": StringName(request.get("avatar_id", &"")),
 			"sequence": int(request.get("sequence", -1)),
+			"released_seat_id": StringName(released.get("seat_id", &"")),
 		},
 	}
 
@@ -867,7 +948,17 @@ func consume_boarding_intent_result(packet: Dictionary) -> Dictionary:
 		_boarding_intent_result_replica.clear()
 	if revision <= int(_boarding_intent_result_replica.get("revision", 0)):
 		return _result(false, &"stale_boarding_result")
-	_boarding_result_server_tick = maxi(0, int(packet.get("server_tick", 0)))
+	# The authority's ledger tick only ever advances within one generation. An
+	# answer stamped behind the tick this peer already heard from the same
+	# authority is not a newer verdict whatever its revision says, and taking
+	# its tick would drag every later request out of the window.
+	var answer_tick := int(packet.get("server_tick", -1))
+	if answer_tick < 0:
+		return _result(false, &"invalid_boarding_result")
+	if not _boarding_intent_result_replica.is_empty() \
+			and answer_tick < int(_boarding_intent_result_replica.get("server_tick", 0)):
+		return _result(false, &"stale_server_tick")
+	_note_boarding_server_tick_heard(answer_tick)
 	var applied := {
 		"accepted": bool(answer.get("accepted", false)),
 		"status": status,
@@ -877,6 +968,7 @@ func consume_boarding_intent_result(packet: Dictionary) -> Dictionary:
 		"role": StringName(answer.get("role", &"")),
 		"avatar_id": StringName(answer.get("avatar_id", &"")),
 		"sequence": sequence,
+		"released_seat_id": StringName(answer.get("released_seat_id", &"")),
 		"server_tick": _boarding_result_server_tick,
 		"revision": revision,
 		"migration_generation": generation,
@@ -2689,6 +2781,7 @@ func reset_snapshot_jitter(migration_generation: int = 1) -> Dictionary:
 	_boarding_transition_states.clear()
 	_boarding_intent_result_replica.clear()
 	_boarding_result_server_tick = 0
+	_boarding_heard_physics_frame = -1
 	_boarding_answer_revision = 0
 	_boarding_jitter.reset(migration_generation)
 	_migration_replica_generation = migration_generation
@@ -4294,6 +4387,9 @@ func _receive_hello(wire: Dictionary) -> void:
 			"auth_token": registered.get("auth_token", ""),
 		},
 		"capacity": get_session_capacity_snapshot(),
+		# The boarding ledger's clock, so this peer's first boarding request is
+		# stamped inside the authority's window instead of at 0.
+		"boarding_server_tick": _boarding.get_server_tick(),
 	}
 	_send_server_offer.rpc_id(source_peer_id, offer)
 	# The shared encoder already advanced before a late peer connected. Seed
@@ -4313,6 +4409,8 @@ func _send_server_offer(offer: Dictionary) -> void:
 	if is_server():
 		return
 	_server_offer = offer.duplicate(true)
+	if offer.get("boarding_server_tick") is int and int(offer.get("boarding_server_tick")) >= 0:
+		_note_boarding_server_tick_heard(int(offer.get("boarding_server_tick")))
 	var peer: Dictionary = offer.get("transport", {}) as Dictionary
 	_transport.register_peer(
 		AUTHORITY_PEER_ID, int(peer.get("peer_id", 0)), int((offer.get("admission", {}) as Dictionary).get("peer", {}).get("peer_generation", 0))
@@ -4497,7 +4595,8 @@ func _send_boarding_intent_result(packet: Dictionary) -> void:
 		return
 	var applied := consume_boarding_intent_result(packet)
 	var status := StringName(applied.get("status", &""))
-	if status == &"invalid_boarding_result" or status == &"stale_boarding_result":
+	if status == &"invalid_boarding_result" or status == &"stale_boarding_result" \
+			or status == &"stale_server_tick":
 		return
 	boarding_intent_result.emit(applied.duplicate(true))
 	_last_result = applied.duplicate(true)
