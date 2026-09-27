@@ -17,6 +17,9 @@ const EVIDENCE_STATUS: StringName = &"modern_interpretation"
 ## Declared station connection slot. `ShipyardWorld` publishes the matching hub
 ## endpoint; the pair is what `StationRouteRegistry` records as one graph edge.
 const HUB_CONNECTION_SLOT: StringName = &"hub-fleet-dock-comb"
+## Height a rung's drawn plate stands above the trunk it laps (visual only).
+## Lifting rather than sinking keeps everything seated on the rung in contact.
+const RUNG_VISUAL_LIFT := 0.005
 const WORLD_LAYER := PhysicsLayers.WORLD
 
 const TRUNK_LENGTH := 48.0
@@ -1410,6 +1413,11 @@ func _apply_station_panel_family() -> void:
 			0.30,
 			finish_by_key.get(key, StationSurfaceKit.PanelFinish.STRUCTURAL_ALLOY)
 		)
+		# Packed occlusion, and metal modulation on metal finishes (ORM set).
+		StationSurfaceKit.apply_panel_orm(
+			panel_material,
+			finish_by_key.get(key, StationSurfaceKit.PanelFinish.STRUCTURAL_ALLOY)
+		)
 
 
 func _build_structure() -> void:
@@ -1427,6 +1435,13 @@ func _build_structure() -> void:
 	_register_surface(_surface_box(surfaces, "Rung01", Vector3(5.5, -0.3, 10.0), Vector3(7.0, 0.6, 3.6), _materials["deck_light"]), &"rung-01", &"orthogonal-rung")
 	_register_surface(_surface_box(surfaces, "DockSlab01", ASSIGNED_DOCK_01_CENTER, ASSIGNED_DOCK_01_SIZE, _materials["deck"]), &"dock-slab-01", &"broad-assigned-slab")
 	_register_surface(_surface_box(surfaces, "Rung02", Vector3(5.5, -0.3, 25.0), Vector3(7.0, 0.6, 3.6), _materials["deck_light"]), &"rung-02", &"orthogonal-rung")
+	# Each rung laps 0.4 m onto the trunk with its top and underside on the
+	# trunk's own planes, so the two deck finishes fought for 0.45 m² of walked
+	# surface at every junction (the highest-scored station seam in
+	# docs/COPLANAR_SEAM_AUDIT.md). The rung's *drawn* plate stands
+	# `RUNG_VISUAL_LIFT` proud so it owns the lap; its collider does not move.
+	for rung_name in ["Rung01", "Rung02"]:
+		_lift_rung_visual_over_trunk(surfaces.get_node(NodePath(rung_name)) as StaticBody3D)
 	_register_surface(_surface_box(surfaces, "DockSlab02", Vector3(15.0, -0.3, 25.0), Vector3(12.0, 0.6, 12.0), _materials["deck"]), &"dock-slab-02", &"broad-assigned-slab")
 
 	var ramp_start := Vector3(2.0, LOWER_DECK_ELEVATION, 40.0)
@@ -2210,6 +2225,13 @@ func _register_surface(body: StaticBody3D, surface_id: StringName, surface_role:
 	body.set_meta("surface_role", surface_role)
 	body.set_meta("walkable_surface", true)
 	_surface_nodes[surface_id] = body
+
+
+## Raises a rung's drawn plate by `RUNG_VISUAL_LIFT` so it owns the trunk lap.
+func _lift_rung_visual_over_trunk(rung: StaticBody3D) -> void:
+	var visual := rung.get_node_or_null(^"Mesh") as MeshInstance3D if rung != null else null
+	if visual != null:
+		visual.position.y = RUNG_VISUAL_LIFT
 
 
 func _surface_box(

@@ -32,6 +32,11 @@ extends RefCounted
 const PANEL_ALBEDO_PATH := "res://assets/materials/manufactured-paint-albedo.png"
 const PANEL_NORMAL_PATH := "res://assets/materials/manufactured-paint-normal.png"
 const PANEL_ROUGHNESS_PATH := "res://assets/materials/manufactured-paint-roughness.png"
+## Channel-packed occlusion/roughness/metal set derived from the three maps
+## above by `tools/generate_station_orm_map.py` (registered in ASSETS.md):
+## R = cavity occlusion from the normal map, G = the roughness map verbatim,
+## B = a near-white metal mask that lowers metalness where the grain is rough.
+const PANEL_ORM_PATH := "res://assets/materials/manufactured-paint-orm.png"
 const PANEL_NORMAL_SCALE := 0.32
 const PANEL_TRIPLANAR_SHARPNESS := 4.0
 
@@ -910,6 +915,56 @@ static func apply_panel_triplanar(
 	material.texture_repeat = true
 	_apply_panel_finish(material, finish)
 	return true
+
+
+## Per-finish ORM response for the station material families.
+##
+## `ao_light_affect` is how strongly the packed cavity channel darkens direct
+## light as well as ambient; `metal_mask` says whether the finish is bare or
+## clear-coated metal whose metalness the packed B channel modulates. Painted
+## and walked finishes keep their scalar metalness untouched, because the paint
+## or grip layer, not the steel under it, is what a highlight lands on. The
+## scalar metallic/roughness values stay caller-owned, exactly as the clearcoat
+## hierarchy above leaves them.
+const PANEL_ORM_RESPONSE := {
+	PanelFinish.STRUCTURAL_ALLOY: {"ao_light_affect": 0.20, "metal_mask": true},
+	PanelFinish.WALKED_DECK: {"ao_light_affect": 0.35, "metal_mask": false},
+	PanelFinish.METAL_TRIM: {"ao_light_affect": 0.12, "metal_mask": true},
+	PanelFinish.PAINTED_METAL: {"ao_light_affect": 0.15, "metal_mask": false},
+}
+
+
+## Binds the packed ORM set on top of `apply_panel_triplanar`: occlusion from R
+## for every finish and, for the metal finishes, metalness modulation from B.
+## Roughness stays on the registered red-channel roughness map the triplanar
+## recipe already binds (G is the same data), so no roughness value moves.
+## Returns false, leaving the material untouched, when the packed set is missing
+## or the material was never given the triplanar microfinish.
+static func apply_panel_orm(
+		material: StandardMaterial3D,
+		finish: PanelFinish = PanelFinish.STRUCTURAL_ALLOY
+	) -> bool:
+	if material == null or not material.uv1_triplanar:
+		return false
+	var orm := load(PANEL_ORM_PATH) as Texture2D
+	if orm == null:
+		return false
+	var response: Dictionary = PANEL_ORM_RESPONSE.get(
+		finish, PANEL_ORM_RESPONSE[PanelFinish.STRUCTURAL_ALLOY]
+	)
+	material.ao_enabled = true
+	material.ao_texture = orm
+	material.ao_texture_channel = BaseMaterial3D.TEXTURE_CHANNEL_RED
+	material.ao_light_affect = float(response["ao_light_affect"])
+	if bool(response["metal_mask"]):
+		material.metallic_texture = orm
+		material.metallic_texture_channel = BaseMaterial3D.TEXTURE_CHANNEL_BLUE
+	return true
+
+
+## Resource path of `texture`, or "" for a missing or unsaved texture.
+static func texture_path(texture: Texture2D) -> String:
+	return texture.resource_path if texture != null else ""
 
 
 static func _apply_panel_finish(material: StandardMaterial3D, finish: PanelFinish) -> void:

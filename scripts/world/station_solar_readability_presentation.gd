@@ -15,9 +15,16 @@ const MAX_TONEMAP_EXPOSURE := 1.08
 const MAX_GLOW_INTENSITY := 0.34
 const MAX_GLOW_STRENGTH := 1.05
 const MAX_GLOW_BLOOM := 0.006
-const MIN_GLOW_HDR_THRESHOLD := 1.35
+## Material hierarchy: glow belongs to the emissive practicals (signage, lamps,
+## lenses at 1.4-2.0 emission), not to a clearcoat or polished-metal highlight.
+## With the station families now carrying packed occlusion and metal masks, a
+## 1.35 threshold let the brightest steel-trim speculars bleed into bloom and
+## read as light sources. 1.45 keeps every authored emissive above the line and
+## the lower luminance cap stops one hot highlight from haloing a whole rail.
+## Reduced-flash stays strictly tighter on both (1.65 / 2.4).
+const MIN_GLOW_HDR_THRESHOLD := 1.45
 const MAX_GLOW_HDR_SCALE := 2.0
-const MAX_GLOW_HDR_LUMINANCE_CAP := 3.5
+const MAX_GLOW_HDR_LUMINANCE_CAP := 3.0
 const MAX_FOG_SUN_SCATTER := 0.04
 const MAX_VOLUMETRIC_FOG_ANISOTROPY := 0.35
 const GLOW_LEVEL_CAPS := [0.0, 0.7, 0.5, 0.18, 0.0, 0.0, 0.0]

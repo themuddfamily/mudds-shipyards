@@ -53,6 +53,16 @@ variation; hull panels and joints are modelled separately. No third-party or
 generated-image source is used. `ShipSurfaceDetail.bind_manufactured_paint`
 shares these maps while each ship retains its own tint, UVs and material roles.
 
+`assets/materials/manufactured-paint-orm.png` is a project-original 512px
+channel pack derived only from those three maps by
+`tools/generate_station_orm_map.py`: R is a cavity occlusion term from the
+normal map's tilt (0.89–1.0), G is the roughness map verbatim, and B is a
+near-white metal mask (0.86–1.0) that falls where the grain is rougher than its
+mean. `StationSurfaceKit.apply_panel_orm` binds it to the station material
+families (occlusion on every finish, metal modulation on structural alloy and
+metal trim) on top of the existing triplanar microfinish. No new source image,
+scan or third-party input is used; it is not a ship atlas.
+
 ## Zenith B7 evidence and project-original runtime assets
 
 The B7-observed Zenith implementation adds no source media or derived historical

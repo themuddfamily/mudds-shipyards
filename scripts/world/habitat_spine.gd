@@ -199,6 +199,8 @@ const BUNK_BERTH_OCCUPANCY := [true, true, false, true, false, true]
 ## millimetres separates the two finishes by more than the depth buffer can
 ## resolve at corridor range while still reading as one surround.
 const BUNK_MOUTH_HEAD_STANDOFF := 0.005
+## Authored (collider) section of the observation common's deferred facade header.
+const DEFERRED_FACADE_HEADER_SIZE := Vector3(0.42, 0.72, 3.65)
 const BUNK_MOUTH_AFT_FACE := [-2.63, -2.08, -2.08]
 const BUNK_MOUTH_FORWARD_FACE := [2.08, 2.08, 2.73]
 
@@ -2267,6 +2269,8 @@ func _create_materials() -> void:
 			PANEL_SURFACE_SCALE,
 			finish_by_key[key]
 		)
+		# Packed occlusion, and metal modulation on metal finishes (ORM set).
+		StationSurfaceKit.apply_panel_orm(_materials[key] as StandardMaterial3D, finish_by_key[key])
 
 
 ## The soft-goods and small-object palette the living quarters need.
@@ -2605,7 +2609,17 @@ func _build_observation_common(structure: Node3D) -> void:
 	# solid for the explicitly deferred StationDoor landmark.
 	_build_side_window_wall(common, -1.0, [19.7, 23.25, 26.75])
 	_build_side_window_wall(common, 1.0, [23.25, 26.75], [[18.16, 0.52], [25.04, 6.52]])
-	_box(common, "DeferredFacadeHeader", Vector3(7.5, 4.45, 20.0), Vector3(0.42, 0.72, 3.65), _materials["shell_mid"])
+	var deferred_header := _box(common, "DeferredFacadeHeader", Vector3(7.5, 4.45, 20.0), DEFERRED_FACADE_HEADER_SIZE, _materials["shell_mid"])
+	# The header was exactly as deep as the facade wall it spans, so both of its
+	# broad faces lay on the wall's own planes (1.84 m² per side in
+	# docs/COPLANAR_SEAM_AUDIT.md). Its drawn section stands
+	# `BUNK_MOUTH_HEAD_STANDOFF` proud of both wall faces, as a mounted header
+	# would; the collider keeps the authored 0.42 m section.
+	var deferred_header_visual := deferred_header.get_node_or_null(^"Mesh") as MeshInstance3D
+	if deferred_header_visual != null:
+		deferred_header_visual.mesh = _rounded_box_mesh(
+			DEFERRED_FACADE_HEADER_SIZE + Vector3(BUNK_MOUTH_HEAD_STANDOFF * 2.0, 0.0, 0.0)
+		)
 
 	# Six chairs make a calm, readable observation line. Two transverse chairs
 	# and a shared table support a common-room use without asserting provenance.
