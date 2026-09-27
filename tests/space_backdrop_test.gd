@@ -69,9 +69,9 @@ const EXPECTED_BODY_SPECS := {
 	&"CelestialGreyBody": {
 		"position": Vector3(70.0, 230.0, -1250.0),
 		"radius": 85.0,
-		"palette_role": &"grey",
-		"color": Color("86878c"),
-		"surface_kind": 1,
+		"palette_role": &"rime_glacial",
+		"color": Color("bdd6e3"),
+		"destination_id": &"rime_glacial_world",
 	},
 	&"CelestialOrangeBody": {
 		"position": Vector3(-500.0, -160.0, -1150.0),
@@ -472,6 +472,16 @@ func _test_exact_body_roster(world: ShipyardWorld) -> void:
 				and body.cast_shadow == GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 				and body.gi_mode == GeometryInstance3D.GI_MODE_DISABLED,
 				"Aurora uses one exact ocean/land/cloud/atmosphere orbital material",
+			)
+		elif body_name == &"CelestialGreyBody":
+			var rime_material := material as ShaderMaterial
+			_check(
+				rime_material != null and rime_material.shader != null
+				and rime_material.shader.resource_path == "res://scripts/rendering/rime_orbital_silhouette.gdshader"
+				and body.get_meta(&"destination_id", &"") == &"rime_glacial_world"
+				and body.get_meta(&"presentation_recipe", &"") == &"procedural_glacial_ice_haze"
+				and body.cast_shadow == GeometryInstance3D.SHADOW_CASTING_SETTING_OFF,
+				"Rime uses its glacial orbital silhouette material",
 			)
 		else:
 			var surface := material as ShaderMaterial
