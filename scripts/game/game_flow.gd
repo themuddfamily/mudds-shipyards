@@ -157,6 +157,7 @@ const NearbySectorActivityAudioBindingType := preload(
 const NearbySectorActivityMusicAdapterType := preload(
 	"res://scripts/audio/nearby_sector_activity_music_adapter.gd"
 )
+const CombatMusicLayerType := preload("res://scripts/audio/combat_music_layer.gd")
 const HalyardCrewSemanticAudioBindingType := preload(
 	"res://scripts/audio/halyard_crew_semantic_audio_binding.gd"
 )
@@ -3446,6 +3447,7 @@ func _process(delta: float) -> void:
 	_flush_minimap_update()
 	_update_debug_overlay()
 	_update_pending_regeneration(delta)
+	_sync_combat_music_layer()
 	_update_music_bed_state()
 	_sync_halyard_crew_semantic_audio()
 	if _aurora_expedition.is_active() and not _station_seated:
@@ -18536,6 +18538,7 @@ func _update_music_bed_state() -> void:
 	if (
 		phase == Phase.INTERCEPTOR_ENGAGEMENT
 		or (is_instance_valid(opponent) and opponent.is_active())
+		or _combat_music_holds_bed()
 	):
 		presentation_state = &"combat"
 	elif (
@@ -18551,6 +18554,57 @@ func _update_music_bed_state() -> void:
 	elif _piloting:
 		presentation_state = &"orbit"
 	music_bed.notify_music_phase(presentation_state)
+
+
+# ---------------------------------------------------- combat music layer ----
+# Presentation-only adaptive combat music. GameFlow hands the layer detached
+# copies of state it already owns; the layer never reports back into gameplay.
+
+func get_combat_music_layer() -> CombatMusicLayerType:
+	return get_node_or_null(^"CombatMusicLayer") as CombatMusicLayerType
+
+
+func _sync_combat_music_layer() -> void:
+	if not is_instance_valid(music_bed):
+		return
+	var layer := get_combat_music_layer()
+	if layer == null:
+		layer = CombatMusicLayerType.new()
+		layer.name = "CombatMusicLayer"
+		add_child(layer)
+		layer.configure(music_bed.get_music_director())
+	if not layer.is_sample_due():
+		return
+	layer.set_muted(runtime_settings != null and runtime_settings.music_volume <= 0.0)
+	layer.set_reduced_dynamic_range(_reduced_dynamic_range)
+	layer.observe_sources(_collect_combat_music_sources())
+
+
+func _collect_combat_music_sources() -> Dictionary:
+	var sources := {
+		"legacy_engaged": (
+			phase == Phase.INTERCEPTOR_ENGAGEMENT
+			or (is_instance_valid(opponent) and opponent.is_active())
+		),
+	}
+	var director := get_node_or_null(^"EncounterScenarios") as EncounterScenarioDirector
+	if director != null:
+		sources["encounter"] = {
+			"state": director.get_state(),
+			"generation": director.get_scenario_generation(),
+			"outcome": director.get_outcome(),
+			"hostile_count": director.get_roster().size(),
+		}
+	sources["station_defense"] = _station_defense_nearby_activity_snapshot()
+	if is_instance_valid(cinder_convoy_threat):
+		sources["convoy_threat"] = cinder_convoy_threat.get_snapshot()
+	return sources
+
+
+func _combat_music_holds_bed() -> bool:
+	var layer := get_combat_music_layer()
+	return layer != null and layer.is_holding_bed()
+# ------------------------------------------------ end combat music layer ----
 
 
 func get_last_player_shot_result() -> Dictionary:
