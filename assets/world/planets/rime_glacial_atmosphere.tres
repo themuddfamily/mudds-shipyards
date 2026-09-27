@@ -1,0 +1,36 @@
+[gd_resource type="Resource" script_class="PlanetaryAtmosphereProfile" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/world/definitions/planetary_atmosphere_profile.gd" id="1_profile"]
+
+[resource]
+script = ExtResource("1_profile")
+profile_id = &"rime_glacial_atmosphere"
+display_name = "Rime glacial atmosphere"
+evidence_notes = "NEW modern game-scale parameters for Rime: a cold, thin atmosphere with a low ice-crystal overcast and drifting surface haze."
+planet_radius_m = 120000.0
+reference_altitude_m = 0.0
+atmosphere_top_altitude_m = 14000.0
+reference_density_kg_m3 = 0.38
+density_scale_height_m = 6200.0
+density_falloff_exponent = 1.0
+rayleigh_scattering_per_m = Color(3.4e-06, 9.2e-06, 2.6e-05, 1)
+mie_scattering_per_m = Color(6.2e-05, 6.4e-05, 7e-05, 1)
+absorption_per_m = Color(2e-07, 6e-07, 1e-07, 1)
+mie_anisotropy_unitless = 0.84
+maximum_visibility_m = 9000.0
+fog_start_distance_m = 220.0
+fog_end_distance_m = 6200.0
+fog_density_unitless = 0.46
+cloud_base_altitude_m = 1200.0
+cloud_top_altitude_m = 2600.0
+cloud_coverage_unitless = 0.74
+wind_velocity_mps = Vector3(-21, 0, 8)
+weather_intensity_unitless = 0.66
+entry_effect_start_altitude_m = 12000.0
+entry_effect_full_altitude_m = 6000.0
+entry_effect_minimum_speed_mps = 160.0
+entry_effect_full_speed_mps = 340.0
+exterior_audio_profile_id = &"temperate_exterior"
+interior_audio_profile_id = &"temperate_interior"
+exterior_wind_gain_db = -3.0
+interior_attenuation_db = -18.0
