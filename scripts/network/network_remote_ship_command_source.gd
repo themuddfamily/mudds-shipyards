@@ -8,7 +8,14 @@ const MAX_COMMANDS_PER_TICK := 1
 const MAX_COMMANDS_PER_WINDOW := 8
 const RATE_WINDOW_TICKS := 10
 
-var _authority := MovementAuthority.new(1, 6, 2)
+## Helm commands are stamped the way boarding requests are: with the client's
+## estimate of the authority clock, which reaches the host about one round trip
+## behind it. The window is therefore the boarding ledger's, not the 100 ms an
+## on-foot intent is allowed.
+const MAX_TICK_BEHIND := 180
+const MAX_TICK_AHEAD := 30
+
+var _authority := MovementAuthority.new(1, MAX_TICK_BEHIND, MAX_TICK_AHEAD)
 var _registered: Dictionary = {}
 var _last_result: Dictionary = {"accepted": false, "status": &"uninitialized"}
 var _rate_windows: Dictionary = {}
@@ -63,6 +70,12 @@ func accept_command(peer_id: int, command: Dictionary) -> Dictionary:
 	return _remember(result)
 
 
+## The authority clock helm commands are judged against. The host advances it
+## once per physics tick; a regressed tick is refused `stale_server_tick`.
+func set_server_tick(server_tick: int) -> Dictionary:
+	return _authority.set_server_tick(1, server_tick)
+
+
 func consume(ship_id: StringName, server_tick: int) -> Dictionary:
 	var identity: Dictionary = _registered.get(ship_id, {}) as Dictionary
 	if identity.is_empty():
@@ -78,6 +91,17 @@ func reset(ship_id: StringName, reason: StringName = &"reset") -> Dictionary:
 	_registered.erase(ship_id)
 	_rate_windows.erase(int(identity.get("peer_id", 0)))
 	_audit.resets += 1
+	return _remember(_result(true, reason))
+
+
+## Session end: every registered helm is retired and the command clock rewinds,
+## so a re-host neither routes a stale ship id here nor judges new commands
+## against the previous session's tick.
+func reset_all(reason: StringName = &"session_ended") -> Dictionary:
+	for ship_id_variant in _registered.keys():
+		reset(StringName(ship_id_variant), reason)
+	_authority = MovementAuthority.new(1, MAX_TICK_BEHIND, MAX_TICK_AHEAD)
+	_rate_windows.clear()
 	return _remember(_result(true, reason))
 
 

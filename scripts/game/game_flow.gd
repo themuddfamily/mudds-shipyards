@@ -94,6 +94,9 @@ const NetworkBoardingIntentType := preload(
 const NetworkRemoteBodyIntentSourceType := preload(
 	"res://scripts/network/network_remote_body_intent_source.gd"
 )
+const NetworkRemotePilotCommandSourceType := preload(
+	"res://scripts/network/network_remote_pilot_command_source.gd"
+)
 ## Client-tick window the movement authority applies to on-foot intents. A
 ## remote body's owner stamps from the newest server tick it has observed on
 ## the relationship stream, which under the 350 ms latency profile trails the
@@ -717,6 +720,13 @@ var _network_boarding_server_tick := 0
 ## `_advance_network_boarding_authority()`.
 var _network_host_boarding_seat: Dictionary = {}
 var _network_host_boarding_refused_seat: StringName = &""
+## Crafts a remote peer is flying from the host's ledger pilot seat, by ship id:
+## {peer_id, craft, source}. Server-only; see `_bind_network_remote_pilot()`.
+var _network_remote_pilots: Dictionary = {}
+## Client-only: the helm stream this peer sends while it holds a ledger pilot
+## seat ({ship_id, sequence, ticks}); empty when it is not flying over the wire.
+var _network_remote_helm: Dictionary = {}
+var _network_remote_helm_sent := 0
 ## Client half of the hatch. `_network_client_boarding_request` is the one
 ## outstanding request this peer is waiting on (empty when idle), and
 ## `_network_client_boarding_claim` is the seat the ledger has confirmed for it
@@ -4430,6 +4440,8 @@ func _physics_process(delta: float) -> void:
 	# Client-side: this peer's own on-foot intent for the body the server is
 	# simulating for it, and the bounded correction of its local prediction.
 	_advance_network_remote_body_intent_stream()
+	# Client-side: the helm this peer flies from a ledger pilot seat.
+	_advance_network_remote_helm_stream()
 	_advance_safe_start_recovery_physics(delta)
 	_advance_session_diagnostics_physics(delta)
 	_advance_station_defense_encounter(delta)
@@ -6190,6 +6202,10 @@ func _on_network_session_stopped(reason: StringName) -> void:
 	# here without asking a stopped adapter to release it.
 	_network_host_boarding_seat = {}
 	_network_host_boarding_refused_seat = &""
+	# Every remote helm goes with the session: the craft falls back to its own
+	# local input source, unpiloted, exactly as a disembark leaves it.
+	_release_all_network_remote_pilots(reason)
+	_network_remote_helm = {}
 	_detach_network_ship_authority_composition(reason)
 	_detach_network_halyard_command_bridge()
 	_detach_halyard_crew_semantic_audio()
@@ -6242,6 +6258,8 @@ func _on_network_peer_disconnected(peer_id: int, _receipt: Dictionary) -> void:
 		_network_ship_authority_composition.release_peer(peer_id)
 	if _network_remote_body_simulation != null and is_instance_valid(_network_remote_body_simulation):
 		_network_remote_body_simulation.release_peer(peer_id, &"peer_disconnected")
+	# The ledger released the peer's seats with it; its helm goes too.
+	_unbind_network_remote_pilots_for_peer(peer_id, &"peer_disconnected")
 
 
 func _on_network_transport_rejected(status: StringName) -> void:
@@ -8596,7 +8614,9 @@ func _advance_network_boarding_authority() -> void:
 		return
 	_network_boarding_server_tick += 1
 	network_session.advance_boarding_server_tick(_network_boarding_server_tick)
+	network_session.advance_remote_ship_command_tick(_network_boarding_server_tick)
 	_reconcile_network_host_boarding_seat()
+	_advance_network_remote_pilots(_network_boarding_server_tick)
 
 
 ## The craft whose pilot seat the host player is in or climbing into, or null.
@@ -8673,6 +8693,156 @@ func _release_network_host_boarding_seat() -> void:
 ## The host player's current ledger seat, empty when it holds none.
 func get_network_host_boarding_seat() -> Dictionary:
 	return _network_host_boarding_seat.duplicate(true)
+
+
+# --- remote pilots fly the host's craft (authority) --------------------------
+#
+# A peer the ledger seats in a pilot seat used to fly a private copy of the
+# craft on its own machine while the host's copy -- the one the rest of the
+# crew is standing in -- sat still. Here the host binds that craft to the
+# peer's validated helm stream through the ship's own command-source seam and
+# simulates it; the binding goes with the seat.
+
+
+func _bind_network_remote_pilot(peer_id: int, ship_id: StringName) -> Dictionary:
+	if _network_session_mode != &"server" or not is_instance_valid(network_session) \
+			or not network_session.is_server():
+		return {"accepted": false, "status": &"authority_required"}
+	var craft := _find_flyable_ship_by_id(ship_id)
+	if not is_instance_valid(craft) or craft.is_destroyed():
+		return {"accepted": false, "status": &"unknown_craft"}
+	if craft == active_ship and _piloting:
+		# The ledger would not have seated a peer here; never take the helm
+		# out from under the host's own hands if it somehow did.
+		return {"accepted": false, "status": &"host_is_piloting"}
+	_unbind_network_remote_pilot(ship_id, &"pilot_replaced")
+	# A registration the host's own boarding left behind for this craft must
+	# not shadow the peer's.
+	network_session.reset_remote_ship_pilot(ship_id, &"pilot_replaced")
+	var registered: Dictionary = network_session.register_remote_ship_pilot(peer_id, ship_id, 1)
+	if not bool(registered.get("accepted", false)):
+		return registered
+	var source := NetworkRemotePilotCommandSourceType.new()
+	source.name = "NetworkRemotePilotCommandSource"
+	source.bind_pilot(peer_id, ship_id)
+	var viewer_camera := get_viewport().get_camera_3d() if is_inside_tree() else null
+	craft.set_command_source(source)
+	craft.set_piloted(true)
+	# `set_piloted()` makes the craft's own camera current; that is the remote
+	# pilot's view, not the host's. Put the host's view back.
+	if is_instance_valid(viewer_camera) and viewer_camera != craft.get_camera():
+		viewer_camera.current = true
+	_network_remote_pilots[ship_id] = {"peer_id": peer_id, "craft": craft, "source": source}
+	_network_hatch_audit["remote_pilot_binds"] = \
+		int(_network_hatch_audit.get("remote_pilot_binds", 0)) + 1
+	return {"accepted": true, "status": &"remote_pilot_bound", "ship_id": ship_id}
+
+
+func _unbind_network_remote_pilot(ship_id: StringName, reason: StringName) -> void:
+	if not _network_remote_pilots.has(ship_id):
+		return
+	var record := _network_remote_pilots[ship_id] as Dictionary
+	_network_remote_pilots.erase(ship_id)
+	var source = record.get("source")
+	var craft = record.get("craft")
+	if is_instance_valid(craft):
+		var hero := craft as HeroShip
+		if hero.get_command_source() == source:
+			var viewer_camera := get_viewport().get_camera_3d() if is_inside_tree() else null
+			hero.set_command_source(null)
+			# Leave the craft flyable by whoever the ledger seats next; the host
+			# retaking it runs its own `set_piloted(true)` through boarding.
+			if not (hero == active_ship and _piloting):
+				hero.set_piloted(false)
+			if is_instance_valid(viewer_camera) and viewer_camera != hero.get_camera() \
+					and not viewer_camera.current:
+				viewer_camera.current = true
+	if is_instance_valid(network_session) and network_session.is_server():
+		network_session.reset_remote_ship_pilot(ship_id, reason)
+	if is_instance_valid(source):
+		(source as Node).free()
+	_network_hatch_audit["remote_pilot_releases"] = \
+		int(_network_hatch_audit.get("remote_pilot_releases", 0)) + 1
+
+
+func _unbind_network_remote_pilots_for_peer(peer_id: int, reason: StringName) -> void:
+	for ship_id_variant in _network_remote_pilots.keys():
+		if int((_network_remote_pilots[ship_id_variant] as Dictionary).get("peer_id", 0)) == peer_id:
+			_unbind_network_remote_pilot(StringName(ship_id_variant), reason)
+
+
+func _release_all_network_remote_pilots(reason: StringName) -> void:
+	for ship_id_variant in _network_remote_pilots.keys():
+		_unbind_network_remote_pilot(StringName(ship_id_variant), reason)
+
+
+## One authority tick of every remote helm: at most one validated command per
+## craft is delivered and held, and a craft that is gone takes its binding
+## with it.
+func _advance_network_remote_pilots(tick: int) -> void:
+	for ship_id_variant in _network_remote_pilots.keys():
+		var ship_id := StringName(ship_id_variant)
+		var record := _network_remote_pilots[ship_id] as Dictionary
+		var craft = record.get("craft")
+		var source = record.get("source")
+		if not is_instance_valid(craft) or (craft as HeroShip).is_destroyed() \
+				or not is_instance_valid(source):
+			_unbind_network_remote_pilot(ship_id, &"craft_lost")
+			continue
+		var delivered: Dictionary = network_session.drain_remote_ship_command(ship_id, tick)
+		if bool(delivered.get("accepted", false)) and delivered.get("intent") is Dictionary:
+			source.apply_intent(delivered.get("intent") as Dictionary)
+		source.advance_tick()
+
+
+func get_network_remote_pilot_audit() -> Dictionary:
+	var pilots: Array = []
+	for ship_id_variant in _network_remote_pilots.keys():
+		var record := _network_remote_pilots[ship_id_variant] as Dictionary
+		var source = record.get("source")
+		pilots.append(source.get_audit() if is_instance_valid(source) else {"ship_id": ship_id_variant})
+	return {
+		"pilots": pilots,
+		"helm_stream": _network_remote_helm.duplicate(true),
+		"helm_sent": _network_remote_helm_sent,
+	}
+
+
+## Client half: while this peer holds a ledger pilot seat and is flying that
+## craft, its held helm goes to the host every `SEND_INTERVAL_TICKS` physics
+## ticks on the one movement RPC. The local craft keeps flying from the same
+## input as a prediction; the host's copy is the one the crew aboard rides.
+func _advance_network_remote_helm_stream() -> void:
+	if not _network_client_boarding_is_live() \
+			or StringName(_network_client_boarding_claim.get("role", &"")) \
+				!= NetworkBoardingIntentType.ROLE_PILOT \
+			or not _piloting or not is_instance_valid(active_ship) \
+			or active_ship.get_ship_id() != StringName(_network_client_boarding_claim.get("ship_id", &"")):
+		_network_remote_helm = {}
+		return
+	var ship_id := active_ship.get_ship_id()
+	if StringName(_network_remote_helm.get("ship_id", &"")) != ship_id:
+		# A new helm binding on the host starts a new avatar record, so the
+		# stream starts again at sequence zero.
+		_network_remote_helm = {"ship_id": ship_id, "sequence": 0, "ticks": 0}
+	var ticks := int(_network_remote_helm.get("ticks", 0))
+	_network_remote_helm["ticks"] = ticks + 1
+	if ticks % NetworkRemotePilotCommandSourceType.SEND_INTERVAL_TICKS != 0:
+		return
+	var sequence := int(_network_remote_helm.get("sequence", 0))
+	# The authority orders one stream by client tick too, so the stamp never
+	# repeats or runs backwards even if an answer re-bases the estimate.
+	var stamp := maxi(
+		_network_client_boarding_tick_stamp(), int(_network_remote_helm.get("last_stamp", -1)) + 1
+	)
+	var wire: Dictionary = NetworkRemotePilotCommandSourceType.build_helm_intent(
+		_network_client_peer_id(), ship_id, 1, sequence, stamp, active_ship.get_last_ship_command()
+	)
+	var sent: Dictionary = network_session.send_movement_intent(wire)
+	if bool(sent.get("accepted", false)):
+		_network_remote_helm["sequence"] = sequence + 1
+		_network_remote_helm["last_stamp"] = stamp
+		_network_remote_helm_sent += 1
 
 
 ## True when this player stands within reach of `craft`'s pilot seat, measured
@@ -9480,11 +9650,15 @@ func _on_network_boarding_intent_result(result: Dictionary) -> void:
 	if peer_id <= 1 or avatar_id.is_empty() or ship_id.is_empty():
 		return
 	var status := StringName(result.get("status", &""))
+	var pilot_seat := StringName(occupancy.get("role", &"")) == &"pilot" \
+		or not is_network_cabin_berth_seat(ship_id, seat_id)
 	if status == &"boarded":
-		if StringName(occupancy.get("role", &"")) == &"pilot" \
-				or not is_network_cabin_berth_seat(ship_id, seat_id):
+		if pilot_seat:
 			_network_hatch_audit["hatch_pilot_seats"] = int(_network_hatch_audit["hatch_pilot_seats"]) + 1
 			_network_hatch_audit["last_hatch_status"] = &"pilot_seat_retained"
+			# The seat is the helm: the host flies this craft from the peer's
+			# validated commands from now until the ledger lets the seat go.
+			_bind_network_remote_pilot(peer_id, ship_id)
 			return
 		var craft := _find_flyable_ship_by_id(ship_id)
 		if not is_instance_valid(craft):
@@ -9509,7 +9683,15 @@ func _on_network_boarding_intent_result(result: Dictionary) -> void:
 				and int(_network_remote_body_simulation.get_body_record(avatar_id).get(
 					"owner_peer_id", 0)) == peer_id:
 			release_network_remote_body(avatar_id, &"seat_swap")
+		if pilot_seat:
+			_bind_network_remote_pilot(peer_id, ship_id)
 		_network_hatch_audit["last_hatch_status"] = &"seat_swapped"
+		return
+	if status == &"disembarked" and pilot_seat:
+		if _network_remote_pilots.has(ship_id) and int(
+				(_network_remote_pilots[ship_id] as Dictionary).get("peer_id", 0)) == peer_id:
+			_unbind_network_remote_pilot(ship_id, &"pilot_disembarked")
+		_network_hatch_audit["last_hatch_status"] = &"pilot_seat_released"
 		return
 	if status == &"disembarked":
 		if _network_remote_body_simulation == null \

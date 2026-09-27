@@ -533,6 +533,7 @@ func shutdown(reason: StringName = &"requested") -> Dictionary:
 	# Every occupancy -- the host's own seat included -- and the ledger clock
 	# go with the session, so a re-host starts from an empty ledger at tick 0.
 	_boarding.end_session(AUTHORITY_PEER_ID)
+	_remote_ship_commands.reset_all(reason)
 	_peer_keepalive_deadlines.clear()
 	_session_max_clients = DEFAULT_MAX_CLIENTS
 	_server_offer.clear()
@@ -846,6 +847,24 @@ func register_remote_ship_pilot(peer_id: int, ship_id: StringName, generation: i
 	if not is_server():
 		return _remember(_result(false, &"authority_required"))
 	return _remember(_remote_ship_commands.register_pilot(peer_id, ship_id, generation))
+
+
+## Per-physics-tick clock for remote helm commands, kept equal to the boarding
+## ledger's so one client estimate stamps both. Not remembered, like
+## `advance_boarding_server_tick()`.
+func advance_remote_ship_command_tick(server_tick: int) -> Dictionary:
+	if not is_server():
+		return _result(false, &"authority_required")
+	return _remote_ship_commands.set_server_tick(server_tick)
+
+
+## The per-physics-tick form of `consume_remote_ship_command()`: the same one
+## delivered command per ship and tick, without overwriting this adapter's last
+## remembered result every tick.
+func drain_remote_ship_command(ship_id: StringName, server_tick: int) -> Dictionary:
+	if not is_server():
+		return _result(false, &"authority_required")
+	return _remote_ship_commands.consume(ship_id, server_tick)
 
 
 func consume_remote_ship_command(ship_id: StringName, server_tick: int) -> Dictionary:
