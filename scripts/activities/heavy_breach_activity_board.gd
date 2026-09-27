@@ -33,6 +33,11 @@ const CONSOLE_OFFSET := Vector3(0.0, 0.0, 0.0)
 const HEADER_SIZE := Vector3(1.25, 1.25, 0.10)
 const HEADER_POSITION := Vector3(0.0, 1.5, 0.97)
 const HOUSING_CHAMFER := 0.08
+## The board's own positional voice for its armed/cleared/failed tones.
+const BOARD_VOICE_BUS: StringName = &"UI"
+const BOARD_VOICE_MAX_DISTANCE := 60.0
+const BOARD_VOICE_UNIT_SIZE := 6.0
+const BOARD_VOICE_POSITION := Vector3(0.0, 1.5, 0.6)
 const OFFERED_SCENARIOS: Array[StringName] = [
 	EncounterScenarioDirector.SCENARIO_HEAVY_BREACH,
 	EncounterScenarioDirector.SCENARIO_TORPEDO_RUN,
@@ -62,18 +67,32 @@ var _active_scenario_id: StringName = &""
 var _built := false
 var _attached := false
 var _audio_binding: RefCounted
+var _board_voice: AudioStreamPlayer3D
+var _board_streams: Dictionary = {}
+var _board_voice_available := false
+var _exiting := false
+var _last_board_cue: StringName = &""
+var _board_cue_count := 0
 
 
 func _enter_tree() -> void:
 	_attached = true
+	_exiting = false
 	if _generation < 1:
 		_generation = 1
+	# _ready runs once; a streamed re-entry re-attaches the binding it detached.
+	if _audio_binding != null and not bool(_audio_binding.get_snapshot().get("attached", false)):
+		_audio_binding.attach(int(_audio_binding.get_snapshot().get("generation", 0)))
 
 
 func _exit_tree() -> void:
 	# Streaming the world out is an explicit activity boundary. Abort before
 	# clearing our references so the director stands down the real picket/screen
 	# roster and cannot leave a live combat source behind on re-entry.
+	# The stand-down is a world boundary, not a failed contract: keep it silent.
+	_exiting = true
+	if is_instance_valid(_board_voice):
+		_board_voice.stop()
 	if _board_scenario_is_running():
 		_director.abort(EncounterScenarioDirector.OUTCOME_WITHDRAWN)
 	_active_director_generation = 0
@@ -100,10 +119,63 @@ func _ready() -> void:
 	_audio_binding = BOARD_AUDIO_BINDING.new() as RefCounted
 	_audio_binding.attach()
 	interaction_resolved.connect(_on_audio_interaction_resolved)
+	_build_board_voice()
+	_audio_binding.semantic_board_cue_emitted.connect(_on_board_cue_emitted)
 
 
 func get_audio_binding_snapshot() -> Dictionary:
 	return _audio_binding.get_snapshot() if _audio_binding != null else {"attached": false}
+
+
+## Voices one board cue through the board's positional voice. Under the Dummy
+## driver the cue is counted but no stream is handed to the audio server.
+func _on_board_cue_emitted(cue_id: StringName, _intensity: float) -> void:
+	if _exiting or not _attached or not is_inside_tree() or is_queued_for_deletion() \
+			or not is_instance_valid(_board_voice) or _audio_binding == null:
+		return
+	var entry: Array = _audio_binding.get_cue_stream(cue_id)
+	if entry.size() != 2:
+		return
+	var path := str(entry[0])
+	if not _board_streams.has(path):
+		_board_streams[path] = load(path) as AudioStream
+	var stream := _board_streams.get(path) as AudioStream
+	if stream == null:
+		return
+	_last_board_cue = cue_id
+	_board_cue_count += 1
+	if not _board_voice_available:
+		return
+	_board_voice.stop()
+	_board_voice.stream = stream
+	_board_voice.pitch_scale = float(entry[1])
+	_board_voice.play()
+
+
+func get_board_voice_snapshot() -> Dictionary:
+	return {
+		"voice_present": is_instance_valid(_board_voice),
+		"bus": _board_voice.bus if is_instance_valid(_board_voice) else &"",
+		"audio_available": _board_voice_available,
+		"last_cue_id": _last_board_cue,
+		"voiced_cue_count": _board_cue_count,
+	}.duplicate(true)
+
+
+func _build_board_voice() -> void:
+	if is_instance_valid(_board_voice):
+		return
+	_board_voice_available = AudioServer.get_driver_name() != "Dummy"
+	_board_voice = AudioStreamPlayer3D.new()
+	_board_voice.name = "BoardCueVoice"
+	_board_voice.bus = BOARD_VOICE_BUS
+	_board_voice.position = BOARD_VOICE_POSITION
+	_board_voice.max_polyphony = 1
+	_board_voice.unit_size = BOARD_VOICE_UNIT_SIZE
+	_board_voice.max_distance = BOARD_VOICE_MAX_DISTANCE
+	_board_voice.volume_db = -4.0
+	_board_voice.doppler_tracking = AudioStreamPlayer3D.DOPPLER_TRACKING_DISABLED
+	add_child(_board_voice)
 
 
 func _on_audio_interaction_resolved(_actor: Node, result: Dictionary) -> void:
