@@ -3451,6 +3451,7 @@ func _process(delta: float) -> void:
 	_sync_combat_music_layer()
 	_update_music_bed_state()
 	_sync_halyard_crew_semantic_audio()
+	_observe_planetary_survey_briefings()
 	if _aurora_expedition.is_active() and not _station_seated:
 		_aurora_expedition.update_presentation()
 		return
@@ -6518,9 +6519,7 @@ func activity_tutorial_prompt_id(activity_id: StringName) -> StringName:
 			return DEFAULT_FREE_FLIGHT_ACTIVITY_ID
 		ACTIVITY_KIND_CONVOY_ESCORT:
 			return CINDER_CONVOY_ACTIVITY_ID
-	if ActivityTutorialPresenterType.is_known_activity(activity_id):
-		return activity_id
-	return &""
+	return ActivityTutorialPresenterType.briefing_id_for(activity_id)
 
 
 func has_seen_activity_tutorial(prompt_id: StringName) -> bool:
@@ -6555,6 +6554,53 @@ func publish_activity_tutorial_briefing(
 		"actor_attached": true,
 		"session_active": true,
 	})
+
+
+# --- New-activity first-start briefings (start) --------------------------------
+# The shipyard deck-board sorties and the planetary surface activities brief the
+# pilot once, through the same presenter, HUD card and seen-set as the Cinder
+# Reach activities. Their owners are not edited: the board sortie is observed at
+# GameFlow's own arm seam, an Ember errand at GameFlow's start seam, and the
+# Aurora/Rime surveys by observing each visit reaching its surface state.
+const HEAVY_BREACH_BRIEFING_ID: StringName = &"shipyard_heavy_breach"
+const TORPEDO_RUN_BRIEFING_ID: StringName = &"shipyard_torpedo_run"
+const AURORA_SURVEY_BRIEFING_ID: StringName = &"aurora_coastal_observation"
+const RIME_SURVEY_BRIEFING_ID: StringName = &"rime_ice_core_survey"
+
+## Briefings already offered during the current surface visit of each world, so
+## the per-frame observer publishes at most once per arrival.
+var _planetary_survey_briefing_offered: Dictionary = {}
+
+
+func _publish_board_sortie_briefing(torpedo_run: bool) -> bool:
+	return publish_activity_tutorial_briefing(
+		TORPEDO_RUN_BRIEFING_ID if torpedo_run else HEAVY_BREACH_BRIEFING_ID
+	)
+
+
+func _publish_accepted_start_briefing(started: Dictionary, activity_id: StringName) -> bool:
+	if not bool(started.get("accepted", false)):
+		return false
+	return publish_activity_tutorial_briefing(activity_id)
+
+
+func _observe_planetary_survey_briefings() -> void:
+	for pair: Array in [
+		[_aurora_expedition, AURORA_SURVEY_BRIEFING_ID],
+		[_rime_expedition, RIME_SURVEY_BRIEFING_ID],
+	]:
+		var visit := pair[0] as RefCounted
+		var briefing_id := pair[1] as StringName
+		var on_surface := visit != null and bool(visit.call(&"is_active")) \
+			and StringName(str(visit.get(&"state"))) == &"surface"
+		if not on_surface:
+			_planetary_survey_briefing_offered.erase(briefing_id)
+			continue
+		if _planetary_survey_briefing_offered.has(briefing_id):
+			continue
+		_planetary_survey_briefing_offered[briefing_id] = true
+		publish_activity_tutorial_briefing(briefing_id)
+# --- New-activity first-start briefings (end) ----------------------------------
 
 
 func _record_activity_tutorial_seen(prompt_id: StringName) -> Dictionary:
@@ -7881,6 +7927,7 @@ func _arm_heavy_breach_sortie(board: Area3D) -> bool:
 		board.call(&"get_offered_scenario")
 	) == EncounterScenarioDirector.SCENARIO_TORPEDO_RUN:
 		posted_title = "Torpedo run"
+	_publish_board_sortie_briefing(posted_title == "Torpedo run")
 	if is_instance_valid(hud):
 		hud.set_objective(
 			"Board a combat-capable spacecraft and physically clear its berth",
@@ -12093,7 +12140,9 @@ func begin_ember_surface_journey(
 func begin_ember_caldera_expedition(activity_id: StringName) -> Dictionary:
 	if not is_instance_valid(ember_surface_loop_production_binding):
 		return {"accepted": false, "reason": &"ember_surface_binding_unavailable"}
-	return ember_surface_loop_production_binding.start_caldera_expedition(activity_id)
+	var started := ember_surface_loop_production_binding.start_caldera_expedition(activity_id)
+	_publish_accepted_start_briefing(started, activity_id)
+	return started
 
 
 func abandon_ember_caldera_expedition(
