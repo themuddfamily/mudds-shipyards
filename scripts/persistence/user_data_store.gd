@@ -723,14 +723,28 @@ func _newest_valid_history() -> Dictionary:
 	return {}
 
 
-## Shifts `.bak` into the rotated history before a commit replaces it. Every
-## step is best effort: a failure leaves the caller's existing cleanup to remove
-## `.bak`, which is the pre-rotation behaviour, and never fails the commit.
+## Copies the verified `.bak` into the rotated history before a commit replaces
+## it, shifting older copies down and dropping the oldest. `.bak` itself is left
+## for the caller's existing cleanup, so a commit that later fails keeps exactly
+## the authority it had. Every step is best effort and never fails the commit;
+## a backup already equal to `.bak.1` (a retried commit) is not copied twice.
 func _rotate_backup_into_history() -> void:
 	if HISTORY_DEPTH <= 0 or not _filesystem.file_exists(_backup_path()):
 		return
 	for index in range(1, HISTORY_DEPTH + 1):
 		if _filesystem.directory_exists(_history_path(index)):
+			return
+	var backup_read := _filesystem.read_bytes(_backup_path(), MAX_DOCUMENT_BYTES)
+	if int(backup_read.get("error", FAILED)) != OK:
+		return
+	var backup_bytes := backup_read.get("bytes", PackedByteArray()) as PackedByteArray
+	if backup_bytes.is_empty():
+		return
+	var newest := _history_path(1)
+	if _filesystem.file_exists(newest):
+		var newest_read := _filesystem.read_bytes(newest, MAX_DOCUMENT_BYTES)
+		if int(newest_read.get("error", FAILED)) == OK \
+				and (newest_read.get("bytes", PackedByteArray()) as PackedByteArray) == backup_bytes:
 			return
 	var oldest := _history_path(HISTORY_DEPTH)
 	if _filesystem.file_exists(oldest) and _filesystem.remove_path(oldest) != OK:
@@ -740,7 +754,9 @@ func _rotate_backup_into_history() -> void:
 		if _filesystem.file_exists(from_path):
 			if _filesystem.rename_path(from_path, _history_path(index + 1)) != OK:
 				return
-	_filesystem.rename_path(_backup_path(), _history_path(1))
+	if _filesystem.write_bytes_and_flush(newest, backup_bytes) != OK:
+		if _filesystem.file_exists(newest):
+			_filesystem.remove_path(newest)
 
 
 static func _valid_commit_id(commit_id: String) -> bool:
