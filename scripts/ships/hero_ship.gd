@@ -5104,12 +5104,47 @@ func _build_ship() -> void:
 	_build_collision()
 	if _uses_torrent_reconstruction_presentation():
 		_install_torrent_hero_presentation()
+		_consolidate_torrent_fitout()
 
 
 ## Variants override this before HeroShip._ready() builds the temporary common
 ## rig. This keeps Torrent-only evidence claims and colour cues off Arrow/Jovian.
 func _uses_torrent_reconstruction_presentation() -> bool:
 	return true
+
+
+# --- Perf-trim: Torrent fitout consolidation (begin) -------------------------
+
+var _torrent_fitout_consolidation_report: Dictionary = {}
+
+
+## Phase 10 section 2 scene-node trim for the Torrent itself. Every fleet craft
+## runs `ShipFitoutBatch` as the last step of its own build; the Torrent never
+## did. This is the same pass with the same roster, run once the imported hero
+## presentation, the legacy fallback gates, collision and markers have all
+## resolved the tree they expect. It folds anonymous sibling dressing only and
+## never touches a collider, marker, interaction area, scripted node or any
+## renderer a live variable still reaches. Variants return false from
+## `_uses_torrent_reconstruction_presentation()` and consolidate their own
+## replacement visual instead, so this never runs twice over one craft.
+func _consolidate_torrent_fitout() -> void:
+	if not _uses_torrent_reconstruction_presentation():
+		return
+	if _visual_root == null or not is_instance_valid(_visual_root):
+		return
+	_torrent_fitout_consolidation_report = ShipFitoutBatch.consolidate(
+		[_visual_root],
+		ShipFitoutBatch.PROTECTED_FITOUT_NAMES,
+		get_tree().root if is_inside_tree() else self
+	)
+
+
+## The Torrent's last fitout consolidation report, for tests and probes. Empty
+## before the craft has built and on every variant.
+func get_torrent_fitout_consolidation_report() -> Dictionary:
+	return _torrent_fitout_consolidation_report.duplicate(true)
+
+# --- Perf-trim: Torrent fitout consolidation (end) ---------------------------
 
 
 func _apply_torrent_reconstruction_metadata() -> void:
@@ -5806,13 +5841,26 @@ func _collect_torrent_render_census(search_root: Node) -> Dictionary:
 		_collect_torrent_active_material_ids(
 			batch.multimesh.mesh, batch.material_override, material_resource_ids
 		)
+	# The Torrent folds anonymous fitout into merged renderers as the last step
+	# of its build (`_consolidate_torrent_fitout`). This census states what the
+	# craft *allocates*, so each batch is put back as the nodes, renderers,
+	# copies, submissions, meshes and materials it stands in for. Every term is
+	# zero when nothing under `search_root` was folded.
+	var authored := ShipFitoutBatch.authored_render_census_delta(search_root)
+	for retired_id in authored.retired_mesh_resource_ids as PackedInt64Array:
+		mesh_resource_ids.erase(retired_id)
+	for mesh_id in authored.mesh_resource_ids as PackedInt64Array:
+		mesh_resource_ids[mesh_id] = true
+	for material_id in authored.material_resource_ids as PackedInt64Array:
+		material_resource_ids[material_id] = true
 	return {
-		"descendant_nodes": search_root.find_children("*", "Node", true, false).size(),
-		"mesh_instances": mesh_nodes.size(),
+		"descendant_nodes": search_root.find_children("*", "Node", true, false).size()
+			+ int(authored.descendant_nodes),
+		"mesh_instances": mesh_nodes.size() + int(authored.renderer_nodes),
 		"multimesh_batches": batch_nodes.size(),
 		"multimesh_resources": multimesh_resource_ids.size(),
-		"drawn_copies": drawn_copies,
-		"geometry_submissions": submissions,
+		"drawn_copies": drawn_copies + int(authored.drawn_copies),
+		"geometry_submissions": submissions + int(authored.surface_submissions),
 		"unique_mesh_resources": mesh_resource_ids.size(),
 		"unique_material_resources": material_resource_ids.size(),
 	}
@@ -5905,7 +5953,8 @@ func get_torrent_reconstruction_audit_report() -> Dictionary:
 	var engine_count := modern_systems.find_children("*EngineAssembly", "Node3D", true, false).size() if modern_systems != null else 0
 	var gear_count := modern_systems.find_children("*GearAssembly", "Node3D", true, false).size() if modern_systems != null else 0
 	var rcs_count := modern_systems.find_children("*RCSCluster", "Node3D", true, false).size() if modern_systems != null else 0
-	var service_panel_count := modern_systems.find_children("*ServicePanel", "MeshInstance3D", true, false).size() if modern_systems != null else 0
+	# Counted through the fitout piece index so a folded panel is still counted.
+	var service_panel_count := ShipFitoutBatch.count_authored_pieces(modern_systems, "*ServicePanel") if modern_systems != null else 0
 	if engine_count != 2:
 		errors.append("two modern engine interpretations are required")
 	if gear_count != 3:
@@ -5920,8 +5969,9 @@ func get_torrent_reconstruction_audit_report() -> Dictionary:
 		if _canopy_pivot != null and is_instance_valid(_canopy_pivot)
 		else 0
 	)
+	# The harness webbing is foldable fitout; count it through the piece index.
 	var restraint_count := (
-		_cockpit_root.find_children("*Belt*", "MeshInstance3D", true, false).size()
+		ShipFitoutBatch.count_authored_pieces(_cockpit_root, "*Belt*")
 		if _cockpit_root != null and is_instance_valid(_cockpit_root)
 		else 0
 	)
