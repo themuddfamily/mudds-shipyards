@@ -8,6 +8,12 @@ const AURORA_ATMOSPHERE := preload(
 	"res://assets/world/planets/aurora_temperate_atmosphere.tres"
 )
 
+
+## Entry intensity at 14 km and full speed on the default 4 km scale height:
+## the sampler's density ramp (rho(14 km) - rho(18 km)) / (rho(10 km) - rho(18 km)).
+const DENSITY_RAMP_AT_14_KM := (0.030197383422318501 - 0.011108996538242306) \
+	/ (0.0820849986238988 - 0.011108996538242306)
+
 var _failures := PackedStringArray()
 
 
@@ -424,10 +430,10 @@ func _run() -> void:
 		and bool(atmospheric_midpoint.get("accepted", false))
 		and is_equal_approx(float(midpoint_entry.get(
 			"entry_intensity", -1.0
-		)), 0.5)
+		)), DENSITY_RAMP_AT_14_KM)
 		and is_equal_approx(float(midpoint_exterior.get(
 			"atmospheric_intensity", -1.0
-		)), 0.5)
+		)), DENSITY_RAMP_AT_14_KM)
 		and is_equal_approx(float(entry.get("entry_intensity", 0.0)), 1.0)
 		and atmospheric_wash.get("last_reason") == &"atmospheric_branch_zero"
 		and is_zero_approx(float(atmospheric_wash.get("dust_opacity", -1.0)))
