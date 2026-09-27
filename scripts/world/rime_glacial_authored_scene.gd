@@ -501,7 +501,7 @@ func _build_glacier_exploration() -> void:
 	var trailhead := Node3D.new()
 	trailhead.name = "SurveyBeaconTrailhead"
 	content.add_child(trailhead)
-	trailhead.position = Vector3(-26.0, 0.0, -19.0)
+	trailhead.position = Vector3(-28.0, 0.0, -14.0)
 	_box(trailhead, "BeaconMast", Vector3(0, 3.0, 0), Vector3(0.2, 6.0, 0.2), metal)
 	_prop(trailhead, "BeaconLamp", Vector3(0, 6.2, 0), _sphere(0.32, 8, 4), survey_lamp)
 	_light(trailhead, "BeaconLight", Vector3(0, 6.0, 0), SURVEY_BEACON_COLOR, 1.1, 16.0)
@@ -516,7 +516,7 @@ func _build_glacier_exploration() -> void:
 	lettering.curve_step = 2.0
 	lettering.depth = 0.01
 	sign.mesh = lettering
-	sign.position = Vector3(-1.2, 1.9, 4.2)
+	sign.position = Vector3(1.0, 1.9, 0.0)
 	sign.rotation.y = PI * 0.5
 	var ink := _material(Color("ffe2b8"))
 	ink.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
@@ -620,7 +620,7 @@ func _build_drill_rig(parent: Node3D, hut_paint: Material, metal: Material,
 	string_mesh.radial_segments = 8
 	_prop(rig, "DrillString", Vector3(-56.0, 3.6, -52.0), string_mesh, metal)
 	_box(rig, "CoreHoleCollar", Vector3(-56.0, 0.1, -52.0), Vector3(1.2, 0.2, 1.2), slate)
-	var crate := _box(rig, "CoreCrate", Vector3(-52.6, 0.35, -49.2), Vector3(1.8, 0.7, 0.9), slate, true)
+	var crate := _box(rig, "CoreCrate", Vector3(-53.8, 0.35, -49.4), Vector3(1.8, 0.7, 0.9), slate, true)
 	for core_index in 3:
 		var core_mesh := CylinderMesh.new()
 		core_mesh.top_radius = 0.09
@@ -750,7 +750,7 @@ func _scatter_point_clear(point: Vector3) -> bool:
 		if point.distance_to(serac) < 4.0:
 			return false
 	if point.distance_to(Vector3(-60.0, 0.0, -46.0)) < 9.0 \
-			or point.distance_to(Vector3(-26.0, 0.0, -19.0)) < 6.0 \
+			or point.distance_to(Vector3(-28.0, 0.0, -14.0)) < 6.0 \
 			or (point.x > 30.0 and point.x < 68.0 and point.z < -54.0 and point.z > -72.0):
 		return false
 	return true
