@@ -133,6 +133,8 @@ func _assert_a_pilot_grant_binds_the_helm() -> void:
 		"exactly one helm binding was made")
 	_check(_host.get_viewport().get_camera_3d() == host_camera,
 		"binding the helm did not take the host's own camera")
+	_check(_craft.is_remote_piloted(),
+		"the helm binding is the remote flight mode, which leaves the host's mouse and input alone")
 
 
 ## The host's ledger seat lasts exactly as long as the window in which
@@ -247,7 +249,8 @@ func _assert_every_release_hands_the_craft_back() -> void:
 	var left := await _board(BoardingIntent.ACTION_DISEMBARK)
 	_check(left.get("status") == &"disembarked", "the remote pilot leaves the seat through the ledger")
 	await _drive(2)
-	_check(_craft.get_command_source() == _craft.get_local_input_source() and not _craft.is_piloted(),
+	_check(_craft.get_command_source() == _craft.get_local_input_source() and not _craft.is_piloted()
+		and not _craft.is_remote_piloted(),
 		"the ledger disembark hands the craft back to its own input, unpiloted")
 	_check(int(_server.get_remote_ship_command_snapshot().get("pilot_count", -1)) == 0,
 		"the helm registration went with the seat")

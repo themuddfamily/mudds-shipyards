@@ -8868,13 +8868,10 @@ func _bind_network_remote_pilot(peer_id: int, ship_id: StringName) -> Dictionary
 	var source := NetworkRemotePilotCommandSourceType.new()
 	source.name = "NetworkRemotePilotCommandSource"
 	source.bind_pilot(peer_id, ship_id)
-	var viewer_camera := get_viewport().get_camera_3d() if is_inside_tree() else null
 	craft.set_command_source(source)
-	craft.set_piloted(true)
-	# `set_piloted()` makes the craft's own camera current; that is the remote
-	# pilot's view, not the host's. Put the host's view back.
-	if is_instance_valid(viewer_camera) and viewer_camera != craft.get_camera():
-		viewer_camera.current = true
+	# Flight simulation only: the remote pilot's craft never takes the host's
+	# camera, mouse mode or input (`set_piloted()` would take all three).
+	craft.set_remote_piloted(true)
 	_network_remote_pilots[ship_id] = {"peer_id": peer_id, "craft": craft, "source": source}
 	# The remote pilot is published as the seated occupant of this craft.
 	_network_moving_interior_dirty = true
@@ -8895,15 +8892,12 @@ func _unbind_network_remote_pilot(ship_id: StringName, reason: StringName) -> vo
 	if is_instance_valid(craft):
 		var hero := craft as HeroShip
 		if hero.get_command_source() == source:
-			var viewer_camera := get_viewport().get_camera_3d() if is_inside_tree() else null
 			hero.set_command_source(null)
 			# Leave the craft flyable by whoever the ledger seats next; the host
-			# retaking it runs its own `set_piloted(true)` through boarding.
+			# retaking it runs its own `set_piloted(true)` through boarding, which
+			# already ended the remote mode, so this releases only a remote helm.
 			if not (hero == active_ship and _piloting):
-				hero.set_piloted(false)
-			if is_instance_valid(viewer_camera) and viewer_camera != hero.get_camera() \
-					and not viewer_camera.current:
-				viewer_camera.current = true
+				hero.set_remote_piloted(false)
 	if is_instance_valid(network_session) and network_session.is_server():
 		network_session.reset_remote_ship_pilot(ship_id, reason)
 	if is_instance_valid(source):
