@@ -153,6 +153,27 @@ by whoever owns them:
 | dock slab / slab inset × Halyard landing gear feet | `scripts/world/fleet_dock_comb.gd`, `scripts/ships/halyard_crew_transport.gd` |
 | AftJunctionStack (248 pairs, 47.70 m²) and JovianFreightBerth (125 pairs, 59.17 m²) | `scripts/world/aft_junction_stack.gd`, `scripts/world/jovian_freight_berth.gd` |
 
+## Station-visual pass, 2026-09-27
+
+Ranked from the last recorded audit JSON (2026-09-21) over station-owned files;
+the audit itself was not re-run in this pass, so the new totals are pending.
+All fixes move or resize *drawn* geometry only; no collider moves.
+
+| family (score) | owner | change |
+| --- | --- | --- |
+| comb `Trunk` × `Rung02` (0.054), × `Rung01` (0.034) | `fleet_dock_comb.gd` | rung plates drawn `RUNG_VISUAL_LIFT` (5 mm) proud, owning the lap |
+| Aft `ConnectionDeck` × `StairBaseLanding` (0.024) | `aft_junction_stack.gd` | landing plate drawn 5 mm proud over the shared gate strip |
+| Halyard apron chord × strut batches, nose and tail (0.0168, 0.0038) | `shipyard_world.gd` | chords 0.55 → 0.57 m so strut and chord stop sharing side planes |
+| Jovian `ApronDeck` 01/02, 02/03, 03/04 laps (0.0043, 0.0043, 0.0040) | `jovian_freight_berth.gd` | leaves 02 and 04 drawn 5 mm higher and 10 mm narrower |
+| Dock Ops pod roof × both ceiling light bodies (0.0039, 0.0022) | `shipyard_world.gd` | bodies and lenses bear 5 mm into the roof, as the ribs already did |
+| Habitat `DeferredFacadeHeader` × facade (0.0038) | `habitat_spine.gd` | header drawn 5 mm proud of both wall faces |
+
+The seven `station_door.gd` `FrameVisuals/*Post` × `FramePostRenderBatch`
+families that score between 0.0115 and 0.0022 are not fights: the door batches
+its two posts and sets the source renderers to render layer 0, so only the batch
+is ever drawn. The audit counts the layer-0 sources because it does not read
+render layers.
+
 ## Known unrelated failure
 
 `tests/geometry_census_scenario_test.gd` fails on the current baseline with a
