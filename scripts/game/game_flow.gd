@@ -751,6 +751,13 @@ var _network_remote_pilots: Dictionary = {}
 ## seat ({ship_id, sequence, ticks}); empty when it is not flying over the wire.
 var _network_remote_helm: Dictionary = {}
 var _network_remote_helm_sent := 0
+## Client-only: the stream id of the helm stream, raised every time the stream
+## is recreated. The host keeps a peer's helm record (and its last accepted
+## sequence) for as long as the ledger seat is held, so a stream that restarts
+## at sequence zero -- the pilot briefly left the seat and sat back down without
+## a ledger event -- must be a new, higher stream, or every packet would be
+## refused `stale_sequence` until the new sequence overtook the old one.
+var _network_remote_helm_stream_epoch := -1
 ## Host-authoritative craft poses: published by the host for every piloted
 ## craft and reconciled / interpolated on each client. See
 ## `NetworkRemoteCraftPoseStream` and the "craft pose replication" block.
@@ -8956,9 +8963,14 @@ func _advance_network_remote_helm_stream() -> void:
 		return
 	var ship_id := active_ship.get_ship_id()
 	if StringName(_network_remote_helm.get("ship_id", &"")) != ship_id:
-		# A new helm binding on the host starts a new avatar record, so the
-		# stream starts again at sequence zero.
-		_network_remote_helm = {"ship_id": ship_id, "sequence": 0, "ticks": 0}
+		# Every (re)started helm stream is a new, higher stream id starting at
+		# sequence zero: a fresh host record accepts any stream, and a record
+		# the host kept from before a local seat-leave accepts a higher one.
+		_network_remote_helm_stream_epoch += 1
+		_network_remote_helm = {
+			"ship_id": ship_id, "sequence": 0, "ticks": 0,
+			"stream_id": _network_remote_helm_stream_epoch,
+		}
 	var ticks := int(_network_remote_helm.get("ticks", 0))
 	_network_remote_helm["ticks"] = ticks + 1
 	if ticks % NetworkRemotePilotCommandSourceType.SEND_INTERVAL_TICKS != 0:
@@ -8970,7 +8982,8 @@ func _advance_network_remote_helm_stream() -> void:
 		_network_client_boarding_tick_stamp(), int(_network_remote_helm.get("last_stamp", -1)) + 1
 	)
 	var wire: Dictionary = NetworkRemotePilotCommandSourceType.build_helm_intent(
-		_network_client_peer_id(), ship_id, 1, sequence, stamp, active_ship.get_last_ship_command()
+		_network_client_peer_id(), ship_id, 1, sequence, stamp, active_ship.get_last_ship_command(),
+		int(_network_remote_helm.get("stream_id", 0))
 	)
 	var sent: Dictionary = network_session.send_movement_intent(wire)
 	if bool(sent.get("accepted", false)):
