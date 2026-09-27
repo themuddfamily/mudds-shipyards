@@ -38,6 +38,7 @@ const OBSERVED_ACTIVITY_KINDS: Array[StringName] = [
 	&"race", &"patrol", &"convoy", &"cargo", &"defense", &"mining", &"salvage", &"beacon",
 ]
 const OBSERVED_ACTIVITY_STATES: Array[StringName] = [&"active", &"complete", &"reset", &"idle"]
+const OBSERVED_COMBAT_OUTCOMES: Array[StringName] = [&"victory", &"failure"]
 const MAX_COMBAT_INTENSITY := 1.0
 const SEMANTIC_THRESHOLD := 0.25
 
@@ -47,6 +48,7 @@ var _observation_count := 0
 var _combat_intensity := 0.0
 var _activity_kind: StringName = &""
 var _activity_state: StringName = &"idle"
+var _last_combat_outcome: StringName = &""
 
 
 ## Records the already-decided station-bed session vocabulary.
@@ -123,6 +125,22 @@ func get_combat_intensity() -> float:
 	return _combat_intensity
 
 
+## Records how an observed encounter ended, as reported by CombatMusicLayer.
+## Presentation-only: it emits the matching semantic cue for captions and
+## changes neither the bed state nor anything in gameplay.
+func observe_combat_outcome(outcome: StringName) -> Dictionary:
+	if not OBSERVED_COMBAT_OUTCOMES.has(outcome):
+		return _rejected(&"unknown_combat_outcome")
+	_last_combat_outcome = outcome
+	semantic_music_cue_emitted.emit(StringName("music_combat_%s" % outcome), 1.0)
+	return {
+		"accepted": true,
+		"reason": &"combat_outcome_recorded",
+		"combat_outcome": outcome,
+		"presentation_only": true,
+	}.duplicate(true)
+
+
 func set_accessibility_muted(muted: bool) -> Dictionary:
 	return _transition.set_accessibility_muted(muted)
 
@@ -146,6 +164,7 @@ func get_snapshot() -> Dictionary:
 	snapshot["combat_intensity"] = _combat_intensity
 	snapshot["activity_kind"] = _activity_kind
 	snapshot["activity_state"] = _activity_state
+	snapshot["last_combat_outcome"] = _last_combat_outcome
 	return snapshot.duplicate(true)
 
 
