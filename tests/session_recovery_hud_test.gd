@@ -61,8 +61,8 @@ func _run() -> void:
 	_check(
 		actions.get_child_count() == 4
 		and (actions.get_child(0) as Button).text == "Safe Recovery"
-		and (actions.get_child(1) as Button).text == "Continue"
-		and (actions.get_child(2) as Button).text == "Discard"
+		and (actions.get_child(1) as Button).text == "Resume Last Save"
+		and (actions.get_child(2) as Button).text == "Start Fresh"
 		and (actions.get_child(3) as Button).text == "Save Support Summary",
 		"the recovery choices and receipt-fenced support action use readable labels"
 	)

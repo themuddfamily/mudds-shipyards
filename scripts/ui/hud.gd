@@ -676,6 +676,8 @@ var _recovery_prompt_detail: Label
 var _recovery_prompt_actions: HBoxContainer
 var _recovery_prompt_dismiss_button: Button
 var _session_recovery_snapshot: Dictionary = {}
+## Caller-supplied one-line statement of which save "Resume Last Save" keeps.
+var _session_recovery_save_summary := ""
 var _session_recovery_recommendation: Dictionary = {}
 var _session_recovery_support_summary: Dictionary = {}
 var _session_recovery_token := 0
@@ -3839,6 +3841,8 @@ func _render_session_recovery_notice() -> void:
 		unfinished,
 		str(advice).replace("_", " ").to_upper(),
 	]
+	if not _session_recovery_save_summary.is_empty():
+		_recovery_prompt_detail.text += "\n" + _session_recovery_save_summary
 	if bool(_session_recovery_support_summary.get("available", false)):
 		_recovery_prompt_detail.text += (
 			"\nSupport summary: session %d  //  retained events: %d  //  last mode: %s"
@@ -3851,8 +3855,8 @@ func _render_session_recovery_notice() -> void:
 	_clear_recovery_action_controls()
 	for action_data: Dictionary in [
 		{"id": &"safe", "label": "Safe Recovery", "role": CAUTION},
-		{"id": &"continue", "label": "Continue", "role": NOMINAL},
-		{"id": &"discard", "label": "Discard", "role": MUTED},
+		{"id": &"continue", "label": "Resume Last Save", "role": NOMINAL},
+		{"id": &"discard", "label": "Start Fresh", "role": MUTED},
 		{"id": &"support_export", "label": "Save Support Summary", "role": MUTED},
 	]:
 		var action := StringName(action_data.id)
@@ -3951,6 +3955,27 @@ func present_session_recovery_support_export_result(
 		"export_accepted": accepted,
 		"presentation_only": true,
 	}.duplicate(true)
+
+
+# --- Release: crash-recovery save summary (begin) ---------------------------
+const MAX_SESSION_RECOVERY_SAVE_SUMMARY_LENGTH := 200
+
+
+## Sets the line naming the save that "Resume Last Save" continues from (and
+## whether it came from a rotated backup). Call before presenting the notice;
+## a visible notice is re-rendered in place without changing its fence.
+func set_session_recovery_save_summary(summary: String) -> void:
+	_session_recovery_save_summary = summary.strip_edges().left(
+		MAX_SESSION_RECOVERY_SAVE_SUMMARY_LENGTH
+	)
+	if (
+		is_instance_valid(_recovery_prompt_panel)
+		and _recovery_prompt_panel.visible
+		and _session_recovery_token > 0
+		and not _session_recovery_choice_latched
+	):
+		_render_session_recovery_notice()
+# --- Release: crash-recovery save summary (end) -----------------------------
 
 
 func clear_session_recovery_notice(restore_runtime_cards: bool = true) -> void:
