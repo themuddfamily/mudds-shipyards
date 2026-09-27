@@ -42,7 +42,17 @@ SetCompressor /SOLID lzma
 SetCompressorDictSize 32
 ShowInstDetails show
 ShowUninstDetails show
-BrandingText "${PRODUCT_NAME} checkpoint ${SHORT_COMMIT} (unsigned)"
+!ifdef SIGNING_LABEL
+  BrandingText "${PRODUCT_NAME} checkpoint ${SHORT_COMMIT} (${SIGNING_LABEL})"
+!else
+  BrandingText "${PRODUCT_NAME} checkpoint ${SHORT_COMMIT} (unsigned)"
+!endif
+!ifdef UNINSTALL_SIGN_COMMAND
+  ; Sign the uninstaller before it is embedded (NSIS 3.08+). The command is
+  ; tools/release/sign_windows_artifacts.sh --sign-in-place; its PFX and
+  ; password come from the environment makensis inherits.
+  !uninstfinalize '${UNINSTALL_SIGN_COMMAND} "%1"' = 0
+!endif
 
 VIProductVersion "${PRODUCT_VERSION}.0"
 VIAddVersionKey "ProductName" "${PRODUCT_NAME}"
@@ -88,7 +98,11 @@ Section "Install" SEC_MAIN
   FileWrite $0 "version=${PRODUCT_VERSION}$\r$\n"
   FileWrite $0 "build_label=${BUILD_LABEL}$\r$\n"
   FileWrite $0 "source_commit=${FULL_COMMIT}$\r$\n"
+!ifdef SIGNING_LABEL
+  FileWrite $0 "signing=${SIGNING_LABEL}$\r$\n"
+!else
   FileWrite $0 "signing=unsigned$\r$\n"
+!endif
   FileClose $0
 
   WriteUninstaller "$INSTDIR\${UNINSTALL_EXE}"
