@@ -210,12 +210,15 @@ func _test_exact_sampler_boundaries() -> void:
 	_check(
 		midpoint.accepted
 		and is_equal_approx(
-			midpoint.observation.entry_effect_intensity_unitless, 0.25
+			midpoint.observation.entry_effect_intensity_unitless,
+			# Density ramp at 14 km on the default 4 km scale height, times
+			# the 0.5 speed envelope at 250 m/s.
+			0.5 * (exp(-3.5) - exp(-4.5)) / (exp(-2.5) - exp(-4.5))
 		)
 		and midpoint.observation.sample.inputs.path_distance_m == 0.0
 		and midpoint.observation.sample.inputs.weather_scalar == 0.0
 		and midpoint.observation.sample.inputs.cloud_scalar == 0.0,
-		"midpoint multiplies altitude/speed factors and samples no optics/weather"
+		"midpoint multiplies density/speed factors and samples no optics/weather"
 	)
 
 

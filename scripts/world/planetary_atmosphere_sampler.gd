@@ -143,7 +143,7 @@ func audit() -> Dictionary:
 			"below_reference": &"clamp_density_to_reference",
 			"at_or_above_atmosphere_top": &"exact_vacuum",
 			"cloud_layer": &"base_inclusive_top_exclusive_box",
-			"entry_altitude": &"zero_at_start_full_at_or_below_full",
+			"entry_altitude": &"density_ramp_zero_at_start_full_at_or_below_full",
 			"entry_speed": &"zero_at_minimum_full_at_or_above_full",
 			"optional_scalar_default": 1.0,
 		},
@@ -381,6 +381,21 @@ func _cloud_layer_factor(
 	)
 
 
+## Entry heat / compression intensity, unitless in [0, 1].
+##
+## Game-scale model (documented in docs/PLANETARY_ATMOSPHERE_MODEL.md):
+##
+##     I = D(rho) * S(v)
+##     D(rho) = clamp((rho(h) - rho_start) / (rho_full - rho_start), 0, 1)
+##     S(v)   = clamp((v - v_min) / (v_full - v_min), 0, 1)
+##
+## where rho(h) is this sampler's own density model in kg/m^3, rho_start and
+## rho_full are that same model evaluated at the profile's entry start/full
+## altitudes (m), and v is the caller's airspeed in m/s. Density rather than
+## altitude drives the envelope, so the glow builds the way air actually thickens
+## (slowly near the top, quickly low down) while both profile boundaries stay
+## exact: zero at the start altitude or minimum speed, one at or below the full
+## altitude at or above full speed. Vacuum is always exactly zero.
 func _entry_effect_intensity(
 		altitude_m: float,
 		speed_mps: float,
@@ -392,13 +407,31 @@ func _entry_effect_intensity(
 	var full_altitude := float(_entry_effects.full_altitude_m)
 	var minimum_speed := float(_entry_effects.minimum_speed_mps)
 	var full_speed := float(_entry_effects.full_speed_mps)
-	var altitude_factor := 0.0
+	var density_factor := 0.0
 	if altitude_m <= full_altitude:
-		altitude_factor = 1.0
+		density_factor = 1.0
 	elif altitude_m < start_altitude:
-		altitude_factor = (
-			start_altitude - altitude_m
-		) / (start_altitude - full_altitude)
+		var atmosphere_top := float(_geometry.atmosphere_top_altitude_m)
+		var start_density := _density_ratio(
+			start_altitude, start_altitude >= atmosphere_top
+		)
+		var full_density := _density_ratio(
+			full_altitude, full_altitude >= atmosphere_top
+		)
+		if full_density > start_density:
+			density_factor = clampf(
+				(_density_ratio(altitude_m, false) - start_density)
+				/ (full_density - start_density),
+				0.0,
+				1.0
+			)
+		else:
+			# A profile whose entry band sits wholly below the reference
+			# altitude has no density gradient to follow; fall back to the
+			# linear altitude envelope so the band still ramps.
+			density_factor = (
+				start_altitude - altitude_m
+			) / (start_altitude - full_altitude)
 	var speed_factor := 0.0
 	if speed_mps >= full_speed:
 		speed_factor = 1.0
@@ -406,7 +439,7 @@ func _entry_effect_intensity(
 		speed_factor = (
 			speed_mps - minimum_speed
 		) / (full_speed - minimum_speed)
-	return clampf(altitude_factor * speed_factor, 0.0, 1.0)
+	return clampf(density_factor * speed_factor, 0.0, 1.0)
 
 
 func _sample_is_finite_and_bounded(candidate: Dictionary) -> bool:
