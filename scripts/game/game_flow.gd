@@ -3594,11 +3594,20 @@ func _get_debug_actor() -> Node3D:
 	if (
 		is_instance_valid(active_ship)
 		and active_ship.is_inside_tree()
-		and (_piloting or active_ship.is_piloted())
+		and _active_ship_flown_from_here()
 		and not active_ship.is_destroyed()
 	):
 		return active_ship
 	return player if is_instance_valid(player) and player.is_inside_tree() else null
+
+
+## Whether the local player's embodiment is `active_ship`: the sortie latch, or
+## the craft flown by this machine's own input. A craft a remote crewmate is
+## flying through `_bind_network_remote_pilot()` is piloted, but not from here,
+## so the host's observed actor (minimap, streaming, origin) stays on its own
+## body instead of following the crewmate's craft.
+func _active_ship_flown_from_here() -> bool:
+	return _piloting or (active_ship.is_piloted() and not active_ship.is_remote_piloted())
 
 
 func _get_debug_camera(actor: Node3D) -> Camera3D:
@@ -5684,7 +5693,7 @@ func _capture_cinder_actor_sample() -> Dictionary:
 	if (
 		is_instance_valid(active_ship)
 		and active_ship.is_inside_tree()
-		and (_piloting or active_ship.is_piloted())
+		and _active_ship_flown_from_here()
 		and not active_ship.is_destroyed()
 	):
 		var ship_position := active_ship.global_position
