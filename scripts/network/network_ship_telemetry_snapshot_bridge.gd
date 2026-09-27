@@ -34,7 +34,14 @@ func detach(reason: StringName = &"detached") -> Dictionary:
 	return _result(true, reason)
 
 
-func submit(server_tick: int, ship_generation: int, event_sequence: int) -> Dictionary:
+## `extra_movement` carries other server-built movement records -- today the
+## piloted-craft poses of `NetworkRemoteCraftPoseStream` -- so they ride the
+## same authoritative snapshot as this ship's telemetry sample. An extra record
+## whose identity collides with the telemetry sample is dropped rather than
+## allowed to reject the whole publication.
+func submit(
+	server_tick: int, ship_generation: int, event_sequence: int, extra_movement: Array = []
+) -> Dictionary:
 	if _detached or _adapter == null or _ship == null:
 		return _result(false, &"detached")
 	if server_tick < 0 or ship_generation <= 0 or event_sequence < 0:
@@ -45,7 +52,12 @@ func submit(server_tick: int, ship_generation: int, event_sequence: int) -> Dict
 	var sample := _sample_from_telemetry(telemetry, ship_generation)
 	if sample.is_empty():
 		return _result(false, &"invalid_ship_telemetry")
-	var result: Dictionary = _adapter.publish_snapshot(server_tick, [sample], [], [])
+	var movement: Array = [sample]
+	for extra_variant in extra_movement:
+		if extra_variant is Dictionary \
+				and StringName((extra_variant as Dictionary).get("entity_id", &"")) != StringName(sample.entity_id):
+			movement.append((extra_variant as Dictionary).duplicate(true))
+	var result: Dictionary = _adapter.publish_snapshot(server_tick, movement, [], [])
 	if bool(result.get("accepted", false)):
 		_last_generation = ship_generation
 		_last_sequence = event_sequence

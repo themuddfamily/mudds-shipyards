@@ -209,6 +209,9 @@ var _moving_interior_transport_hook := Callable()
 ## Counts the times a delivery stall longer than the ordering window forced the
 ## per-recipient moving cursor to re-baseline. Observation only.
 var _moving_stall_rebaselines := 0
+## Authoritative-snapshot baselines re-adopted after a gap the jitter window
+## could never fill. See `_broadcast_snapshot_fragment()`.
+var _snapshot_rebaselines := 0
 var _projectile_jitter
 var _projectile_replica_samples: Dictionary = {}
 var _projectile_snapshot_revision := 0
@@ -3354,7 +3357,22 @@ func consume_projectile_snapshot(packet: Dictionary, alpha: float = 1.0) -> Dict
 
 
 func get_snapshot_jitter_state() -> Dictionary:
-	return _snapshot_jitter.get_snapshot()
+	var state: Dictionary = _snapshot_jitter.get_snapshot()
+	state["rebaselines"] = _snapshot_rebaselines
+	return state
+
+
+## Client only: the transport's current round-trip time to the host, in
+## milliseconds, or 0 when there is no host link. Remote-pilot reconciliation
+## uses it to extrapolate the host's craft pose to where the local prediction
+## already is.
+func get_round_trip_milliseconds() -> int:
+	if _peer == null or _is_server or not _configured:
+		return 0
+	var host_link := _peer.get_peer(AUTHORITY_PEER_ID)
+	if host_link == null:
+		return 0
+	return maxi(0, int(host_link.get_statistic(ENetPacketPeer.PEER_ROUND_TRIP_TIME)))
 
 
 func get_moving_interior_jitter_state() -> Dictionary:
@@ -4467,6 +4485,24 @@ func _broadcast_snapshot_fragment(fragment: Dictionary) -> void:
 		return
 	var buffered: Dictionary = _snapshot_jitter.push(decoded_packet)
 	if not bool(buffered.get("accepted", false)):
+		# The stream is reliable and ordered, so a tick gap past the window (the
+		# host skipped publishing through a long stall or a surface visit) or a
+		# full window means the missing revisions are never coming. Without
+		# this the buffer waited for them forever and every later snapshot --
+		# movement, ownership, projectiles, craft poses -- was dropped for the
+		# rest of the session. The decoded packet is complete, so it is
+		# validated as a fresh baseline and the window restarts behind it.
+		var status := StringName(buffered.get("status", &""))
+		if status == &"snapshot_gap_too_large" or status == &"buffer_full":
+			var rebased: Dictionary = _lifecycle.apply_replica_snapshot(AUTHORITY_PEER_ID, decoded_packet)
+			if bool(rebased.get("accepted", false)):
+				_snapshot_jitter.reset(int(ordering.migration_generation), int(decoded_packet.revision))
+				_snapshot_jitter.push(decoded_packet)
+				_snapshot_jitter.pop_ready()
+				_snapshot_rebaselines += 1
+				snapshot_applied.emit(rebased.duplicate(true))
+				_last_result = rebased.duplicate(true)
+				return
 		_last_result = buffered.duplicate(true)
 		return
 	while true:

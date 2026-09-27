@@ -70,10 +70,12 @@ func detach(reason: StringName = &"detached") -> Dictionary:
 	return _result(true, reason, {"cinder_navigator_ping": navigator_result.duplicate(true)})
 
 
-func submit_server_physics_tick(server_tick: int, event_sequence: int) -> Dictionary:
+func submit_server_physics_tick(
+	server_tick: int, event_sequence: int, extra_movement: Array = []
+) -> Dictionary:
 	if _telemetry_bridge == null:
 		return _result(false, &"detached")
-	return _telemetry_bridge.submit(server_tick, _ship_generation, event_sequence)
+	return _telemetry_bridge.submit(server_tick, _ship_generation, event_sequence, extra_movement)
 
 
 func submit_cinder_manifest(peer_id: int, peer_generation: int, avatar_id: StringName, seat_generation: int, request_sequence: int, payload: Dictionary) -> Dictionary:
