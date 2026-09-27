@@ -876,7 +876,11 @@ func _unhandled_input(event: InputEvent) -> void:
 		_capture_screenshot()
 		get_viewport().set_input_as_handled()
 		return
-	if not _started and (event.is_action_pressed("interact") or event.is_action_pressed("jump")):
+	if _server_browser_opened_from_intro and event.is_action_pressed("pause"):
+		close_intro_server_browser()
+		get_viewport().set_input_as_handled()
+	elif not _started and not _server_browser_opened_from_intro \
+			and (event.is_action_pressed("interact") or event.is_action_pressed("jump")):
 		_begin()
 		get_viewport().set_input_as_handled()
 	elif event.is_action_pressed("pause") and _started:
@@ -1097,6 +1101,7 @@ func show_intro() -> void:
 	_hud.visible = false
 	_pause.visible = false
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
+	_focus_intro_start_button()
 
 
 ## `mode` names the embodiment and `on_foot_location` names where the player is
@@ -4263,6 +4268,8 @@ func _submit_caption_request(request: Dictionary) -> bool:
 func _begin() -> void:
 	if _started:
 		return
+	if _server_browser_opened_from_intro:
+		close_intro_server_browser()
 	_started = true
 	var tween := create_tween()
 	tween.set_pause_mode(Tween.TWEEN_PAUSE_PROCESS)
@@ -4364,6 +4371,7 @@ func _build_intro() -> void:
 	start.add_theme_stylebox_override("pressed", _fill_box(CAUTION, 4))
 	start.pressed.connect(_begin)
 	stack.add_child(start)
+	_add_intro_server_browser_button(stack, start)
 
 	# "STANDALONE FAN PROTOTYPE" is the in-game half of the unofficial-fan-project
 	# boundary README and ROADMAP rely on, so the footer stays. The second clause
@@ -6714,10 +6722,76 @@ func _build_server_browser_page() -> void:
 	_server_browser_actions.add_child(manual_join)
 	var back := _menu_button("BACK", MUTED)
 	back.name = "ServerBrowserBackButton"
-	back.pressed.connect(_show_pause_main)
+	back.pressed.connect(_on_server_browser_back_pressed)
 	_server_browser_actions.add_child(back)
 	_configure_server_browser_focus_order(refresh, host, manual_join, back)
 	_server_browser_page.visible = false
+
+
+# --- Release: server browser reachable from the startup menu (begin) --------
+var _server_browser_opened_from_intro := false
+var _intro_start_button: Button
+var _intro_server_browser_button: Button
+
+
+func _add_intro_server_browser_button(stack: Control, start: Button) -> void:
+	_intro_start_button = start
+	start.name = "IntroBeginShiftButton"
+	start.focus_mode = Control.FOCUS_ALL
+	var browser := _menu_button("MULTIPLAYER  /  SERVER BROWSER", NOMINAL_SOFT)
+	browser.name = "IntroServerBrowserButton"
+	browser.custom_minimum_size = Vector2(280.0, 40.0)
+	browser.focus_mode = Control.FOCUS_ALL
+	browser.pressed.connect(open_intro_server_browser)
+	stack.add_child(browser)
+	_intro_server_browser_button = browser
+	start.focus_neighbor_bottom = start.get_path_to(browser)
+	browser.focus_neighbor_top = browser.get_path_to(start)
+
+
+func _focus_intro_start_button() -> void:
+	if is_instance_valid(_intro_start_button) and _intro_start_button.is_inside_tree() \
+			and _intro_start_button.is_visible_in_tree():
+		_intro_start_button.grab_focus()
+
+
+func is_intro_server_browser_open() -> bool:
+	return _server_browser_opened_from_intro
+
+
+## Opens the pause overlay's server browser over the startup menu, so a player
+## can host, find LAN sessions or join by address before beginning a shift.
+func open_intro_server_browser() -> bool:
+	if _started or not is_instance_valid(_server_browser_page) or not is_instance_valid(_pause):
+		return false
+	_server_browser_opened_from_intro = true
+	_pause.visible = true
+	_show_server_browser_page()
+	return true
+
+
+func close_intro_server_browser() -> void:
+	if not _server_browser_opened_from_intro:
+		return
+	_server_browser_opened_from_intro = false
+	if is_instance_valid(_server_browser_page):
+		_render_server_browser(_server_browser_presenter.close_view())
+		_server_browser_accept_results = false
+		_server_browser_page.visible = false
+	if is_instance_valid(_pause_main_page):
+		_pause_main_page.visible = true
+	if is_instance_valid(_pause):
+		_pause.visible = false
+	if is_instance_valid(_intro_server_browser_button) and _intro_server_browser_button.is_visible_in_tree():
+		_intro_server_browser_button.grab_focus()
+
+
+func _on_server_browser_back_pressed() -> void:
+	if _server_browser_opened_from_intro:
+		close_intro_server_browser()
+	else:
+		_show_pause_main()
+# --- Release: server browser reachable from the startup menu (end) ----------
 
 
 func _configure_server_browser_focus_order(
