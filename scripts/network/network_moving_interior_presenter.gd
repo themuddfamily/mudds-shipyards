@@ -230,6 +230,12 @@ func get_drawn_entity_ids() -> Array:
 	return _avatars.keys()
 
 
+## How many rendered frames this crew member's clip has been advanced by --
+## presentation audit only.
+func get_avatar_animation_advances(entity_id: StringName) -> int:
+	return int((_avatars.get(entity_id, {}) as Dictionary).get("advanced_frames", 0))
+
+
 ## The motion clip the drawn crew member is currently playing, or `&""`. Chosen
 ## from the smoothed frame-local speed of the poses the server published.
 func get_avatar_animation_clip(entity_id: StringName) -> StringName:
@@ -467,6 +473,7 @@ func _advance_avatar_animation(
 	record["speed"] = speed
 	record["last_origin"] = origin
 	record["has_last_origin"] = true
+	var animation_player := player_variant as AnimationPlayer
 	var clip: StringName = &"idle"
 	if SECURED_OCCUPANCY_CLIPS.has(occupancy_state):
 		# A secured occupant is where the authority put them. Their remaining
@@ -480,12 +487,20 @@ func _advance_avatar_animation(
 		clip = &"run"
 	elif speed >= WALK_ANIMATION_SPEED:
 		clip = &"walk"
-	if StringName(record.get("clip", &"")) == clip:
-		return
-	record["clip"] = clip
-	var animation_player := player_variant as AnimationPlayer
-	if animation_player.has_animation(String(clip)):
-		animation_player.play(String(clip))
+	if StringName(record.get("clip", &"")) != clip:
+		record["clip"] = clip
+		if animation_player.has_animation(String(clip)):
+			animation_player.play(String(clip))
+			# Pose the new clip's first frame now rather than a frame late.
+			animation_player.advance(0.0)
+	# The production pilot visual runs its AnimationPlayer in manual process
+	# mode (`PilotSkinnedPresentation` owns that contract, and the local
+	# `PlayerController` advances its own). Nothing advanced a remote crew
+	# member's, so every drawn crewmate held the first frame of its clip
+	# forever. Each rendered frame advances it by the frame's own delta.
+	if animation_player.is_playing() and delta > 0.0:
+		animation_player.advance(delta)
+		record["advanced_frames"] = int(record.get("advanced_frames", 0)) + 1
 
 
 ## First clip in `candidates` the suit actually has, or the last one as the
