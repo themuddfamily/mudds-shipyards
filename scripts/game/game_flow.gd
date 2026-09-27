@@ -7873,13 +7873,18 @@ func _arm_heavy_breach_sortie(board: Area3D) -> bool:
 			)
 		return false
 	_heavy_breach_sortie_generation = int(result.get("sortie_generation", 0))
+	var posted_title := "Heavy breach"
+	if board.has_method(&"get_offered_scenario") and StringName(
+		board.call(&"get_offered_scenario")
+	) == EncounterScenarioDirector.SCENARIO_TORPEDO_RUN:
+		posted_title = "Torpedo run"
 	if is_instance_valid(hud):
 		hud.set_objective(
 			"Board a combat-capable spacecraft and physically clear its berth",
-			"HEAVY BREACH SORTIE ARMED"
+			"%s SORTIE ARMED" % posted_title.to_upper()
 		)
 		hud.toast(
-			"Heavy breach sortie armed",
+			"%s sortie armed" % posted_title,
 			"Choose a craft and launch; the contact will commit after departure",
 			3.6
 		)
@@ -7967,10 +7972,16 @@ func _try_launch_armed_heavy_breach() -> bool:
 	if is_instance_valid(audio) and audio.has_method(&"play_combat_alert"):
 		audio.call(&"play_combat_alert")
 	if is_instance_valid(hud):
-		hud.set_objective(
-			"Destroy the charged picket before it reaches the protected station asset",
-			"HEAVY BREACH"
-		)
+		if StringName(result.get("scenario", &"")) == EncounterScenarioDirector.SCENARIO_TORPEDO_RUN:
+			hud.set_objective(
+				"Destroy the torpedo boat — break across its torpedoes or shoot them down",
+				"TORPEDO RUN"
+			)
+		else:
+			hud.set_objective(
+				"Destroy the charged picket before it reaches the protected station asset",
+				"HEAVY BREACH"
+			)
 	_sync_activity_hud()
 	return true
 
@@ -13011,6 +13022,7 @@ func get_live_combat_source_roster_audit() -> Dictionary:
 		{"entity": get_node_or_null("WingSkirmisherLead") as FlankingSkirmisherOpponent, "source_id": 2103},
 		{"entity": get_node_or_null("WingSkirmisherWing") as FlankingSkirmisherOpponent, "source_id": 2104},
 		{"entity": get_node_or_null("CourierRunner") as CourierRunnerOpponent, "source_id": 2105},
+		{"entity": get_node_or_null("TorpedoBoat") as TorpedoBoatOpponent, "source_id": 2106},
 	]
 	for authored in authored_reinforcements:
 		var reinforcement := authored["entity"] as RangeOpponent
@@ -14560,7 +14572,13 @@ func _commit_game_flow_activity_reward(request: Dictionary) -> Dictionary:
 			if bool(result.get("accepted", false))
 			else "Breach cleared — reward receipt could not be saved"
 		)
-		hud.toast("Heavy Breach cleared", detail, 3.2)
+		var cleared_title := "Heavy Breach cleared"
+		var cleared_director := get_node_or_null(^"EncounterScenarios") as EncounterScenarioDirector
+		if is_instance_valid(cleared_director) \
+				and cleared_director.get_active_scenario() \
+					== EncounterScenarioDirector.SCENARIO_TORPEDO_RUN:
+			cleared_title = "Torpedo Run cleared"
+		hud.toast(cleared_title, detail, 3.2)
 	return result.duplicate(true)
 
 
@@ -15483,8 +15501,10 @@ func _heavy_breach_activity_is_presentable(snapshot: Dictionary = {}) -> bool:
 		return true
 	var director := current.get("director", {}) as Dictionary
 	return (
-		StringName(director.get("scenario", &""))
-			== EncounterScenarioDirector.SCENARIO_HEAVY_BREACH
+		EncounterScenarioDirector.BOARD_SCENARIO_IDS.has(
+			StringName(director.get("scenario", &""))
+		)
+		and bool(director.get("board_sortie", false))
 		and StringName(director.get("state", &""))
 			== EncounterScenarioDirector.STATE_RUNNING
 	)
@@ -15496,7 +15516,18 @@ func _sync_heavy_breach_activity_hud() -> bool:
 	var snapshot := _get_heavy_breach_activity_snapshot()
 	if not _heavy_breach_activity_is_presentable(snapshot):
 		return false
-	hud.call(&"set_activity_objective", "Heavy breach", snapshot)
+	var running_scenario := StringName(
+		(snapshot.get("director", {}) as Dictionary).get("scenario", &"")
+	)
+	if bool(snapshot.get("sortie_armed", false)):
+		running_scenario = StringName(snapshot.get("offered_scenario", running_scenario))
+	hud.call(
+		&"set_activity_objective",
+		"Torpedo run"
+			if running_scenario == EncounterScenarioDirector.SCENARIO_TORPEDO_RUN
+			else "Heavy breach",
+		snapshot
+	)
 	return true
 
 
@@ -18902,6 +18933,10 @@ func _apply_bomber_payload_presentation_profile(target: CinderLongRangeBomber = 
 func _apply_opponent_weapon_heat_presentation_profile() -> void:
 	if runtime_settings == null:
 		return
+	# The torpedo boat's lock cue and torpedoes honour the same setting.
+	var torpedo_boat := get_node_or_null(^"TorpedoBoat") as TorpedoBoatOpponent
+	if is_instance_valid(torpedo_boat):
+		torpedo_boat.set_reduced_flash_enabled(runtime_settings.reduced_flash)
 	# The hauler's mass-driver slugs honour the same setting.
 	if is_instance_valid(_player_bolt_pool):
 		_player_bolt_pool.set_reduced_flash_enabled(runtime_settings.reduced_flash)

@@ -84,11 +84,23 @@ const SCENARIO_WING_REGROUP: StringName = &"wing_regroup"
 ## A heavy picket charges a caller-owned protected objective while one paired
 ## wing member screens the caller. The picket is the breach objective.
 const SCENARIO_HEAVY_BREACH: StringName = &"heavy_breach"
+## A torpedo boat holds stand-off range and hunts the caller with slow,
+## telegraphed seeker torpedoes that can be dodged or shot down. The boat is the
+## objective.
+const SCENARIO_TORPEDO_RUN: StringName = &"torpedo_run"
 const SCENARIO_IDS: Array[StringName] = [
 	SCENARIO_COURIER_INTERCEPT, SCENARIO_PAIRED_WING, SCENARIO_STATION_DEFENSE,
 	SCENARIO_CONVOY_INTERDICTION, SCENARIO_HEAVY_STANDOFF, SCENARIO_WING_REGROUP,
-	SCENARIO_HEAVY_BREACH,
+	SCENARIO_HEAVY_BREACH, SCENARIO_TORPEDO_RUN,
 ]
+## Scenarios a physical station board arms before launch. They are authorized in
+## sandbox FREE_FLIGHT for the sortie the board admitted, and only then.
+const BOARD_SCENARIO_IDS: Array[StringName] = [SCENARIO_HEAVY_BREACH, SCENARIO_TORPEDO_RUN]
+## Where the torpedo boat enters relative to the caller: ahead, high and wide,
+## already at the edge of its stand-off band so the first lock reads at once.
+const TORPEDO_RUN_ENTRY_DISTANCE := 170.0
+const TORPEDO_RUN_ENTRY_LATERAL := 60.0
+const TORPEDO_RUN_ENTRY_HEIGHT := 24.0
 
 const STATE_IDLE: StringName = &"idle"
 const STATE_ARMING: StringName = &"arming"
@@ -126,6 +138,7 @@ const TACTIC_ADVANCE: StringName = &"advance"
 const TACTIC_REGROUP: StringName = &"regroup"
 const TACTIC_COVER_RECOVERY: StringName = &"cover_recovery"
 const TACTIC_BREACH: StringName = &"breach"
+const TACTIC_TORPEDO_ATTACK: StringName = &"torpedo_attack"
 
 const DEFAULT_HEAVY_STANDOFF_RANGE := 120.0
 const DEFAULT_HEAVY_ADVANCE_HEALTH_RATIO := 0.35
@@ -148,7 +161,7 @@ const CONTENT_NOTE := (
 ## cycling. A second sortie is therefore a different fight, which is the whole
 ## point of the roster.
 @export var scenario_sequence: Array[StringName] = [
-	SCENARIO_COURIER_INTERCEPT, SCENARIO_PAIRED_WING,
+	SCENARIO_COURIER_INTERCEPT, SCENARIO_PAIRED_WING, SCENARIO_TORPEDO_RUN,
 ]
 ## Accumulated physics seconds after the phase opens before a scenario launches,
 ## so it reads as a second contact rather than as part of the first spawn.
@@ -186,6 +199,7 @@ const CONTENT_NOTE := (
 	NodePath("../WingSkirmisherLead"), NodePath("../WingSkirmisherWing"),
 ]
 @export var breach_picket_path := NodePath("../StandoffPicket")
+@export var torpedo_boat_path := NodePath("../TorpedoBoat")
 
 var _state: StringName = STATE_IDLE
 var _scenario: StringName = SCENARIO_NONE
@@ -205,6 +219,10 @@ var _target: Node3D
 var _protected_anchor: Node3D
 var _cargo_target: Node3D
 var _breach_picket: Node3D
+var _torpedo_boat: Node3D
+## True while the running scenario was admitted by a physical station board and
+## so belongs to sandbox FREE_FLIGHT rather than the guided engagement phase.
+var _board_sortie := false
 var _heavy_standoff_range := DEFAULT_HEAVY_STANDOFF_RANGE
 var _heavy_advance_health_ratio := DEFAULT_HEAVY_ADVANCE_HEALTH_RATIO
 var _regroup_range := DEFAULT_REGROUP_RANGE
@@ -312,8 +330,32 @@ func get_heavy_breach_receipt(expected_generation: int = 0) -> Dictionary:
 	}.duplicate(true)
 
 
+## Generation-fenced objective receipt for a running torpedo run. A caller that
+## admitted one sortie can prove it is still observing that same generation.
+func get_torpedo_run_receipt(expected_generation: int = 0) -> Dictionary:
+	if _scenario != SCENARIO_TORPEDO_RUN or not _is_current():
+		return {"accepted": false, "reason": &"torpedo_run_inactive"}
+	if expected_generation > 0 and expected_generation != _scenario_generation:
+		return {"accepted": false, "reason": &"stale_generation"}
+	return {
+		"accepted": true,
+		"generation": _scenario_generation,
+		"scenario": _scenario,
+		"board_sortie": _board_sortie,
+		"torpedo_boat": String(_torpedo_boat.name) if is_instance_valid(_torpedo_boat) else "",
+		"torpedo_boat_instance_id": _torpedo_boat.get_instance_id()
+			if is_instance_valid(_torpedo_boat) else 0,
+		"authority": {"motion": false, "fire": false, "damage": false},
+	}.duplicate(true)
+
+
 func is_running() -> bool:
 	return _state == STATE_RUNNING
+
+
+## True while the running scenario is one a physical station board admitted.
+func is_board_sortie_running() -> bool:
+	return _state == STATE_RUNNING and _board_sortie and BOARD_SCENARIO_IDS.has(_scenario)
 
 
 ## The skirmisher asks this before accepting a presentation-only posture.
@@ -418,6 +460,9 @@ func is_fire_authorized(member: Node) -> bool:
 		return _is_target_alive() and not _is_regrouping_member(member as Node3D)
 	if _scenario == SCENARIO_HEAVY_BREACH:
 		return _is_heavy_breach_live()
+	if _scenario == SCENARIO_TORPEDO_RUN:
+		return _is_target_alive() and member == _torpedo_boat \
+			and _is_participant_active(_torpedo_boat)
 	if _paired_wing_suppression_active():
 		if is_instance_valid(coordinator):
 			return coordinator.get_role(member as Node3D) == WingCoordinator.ROLE_ANCHOR
@@ -487,6 +532,8 @@ func get_member_tactic_intent(member: Node) -> Dictionary:
 			action = TACTIC_BREACH
 		else:
 			action = TACTIC_SCREEN_GUARD
+	elif _scenario == SCENARIO_TORPEDO_RUN and member == _torpedo_boat and authorized:
+		action = TACTIC_TORPEDO_ATTACK
 	elif _paired_wing_suppression_active():
 		action = (
 			TACTIC_SUPPRESS
@@ -533,6 +580,25 @@ func _paired_wing_suppression_active() -> bool:
 ## deterministically without staging a whole guided sortie.
 func begin_scenario(scenario_id: StringName, target: Node3D) -> bool:
 	return _begin_scenario(scenario_id, target, null)
+
+
+## Admits one board-armed torpedo run against the caller's live craft. The boat
+## and the caller remain caller-owned; this director only publishes objective and
+## dispatch authorization, and the run belongs to sandbox FREE_FLIGHT.
+func begin_torpedo_run(target: Node3D) -> bool:
+	if not is_instance_valid(_get_torpedo_boat()):
+		return false
+	return _begin_scenario(
+		SCENARIO_TORPEDO_RUN,
+		target,
+		null,
+		null,
+		DEFAULT_HEAVY_STANDOFF_RANGE,
+		DEFAULT_HEAVY_ADVANCE_HEALTH_RATIO,
+		DEFAULT_REGROUP_RANGE,
+		DEFAULT_REGROUP_HEALTH_RATIO,
+		true,
+	)
 
 
 ## Explicit admission for the caller-owned defense anchor. The director retains
@@ -644,7 +710,8 @@ func _begin_scenario(
 		heavy_standoff_range: float = DEFAULT_HEAVY_STANDOFF_RANGE,
 		heavy_advance_health_ratio: float = DEFAULT_HEAVY_ADVANCE_HEALTH_RATIO,
 		regroup_range: float = DEFAULT_REGROUP_RANGE,
-		regroup_health_ratio: float = DEFAULT_REGROUP_HEALTH_RATIO
+		regroup_health_ratio: float = DEFAULT_REGROUP_HEALTH_RATIO,
+		board_sortie: bool = false
 	) -> bool:
 	if not _is_current():
 		return false
@@ -672,7 +739,11 @@ func _begin_scenario(
 			or not is_instance_valid(_get_breach_picket())
 			or _get_skirmishers().is_empty()):
 		return false
+	if scenario_id == SCENARIO_TORPEDO_RUN and not is_instance_valid(_get_torpedo_boat()):
+		return false
 	_reset_run_state()
+	_board_sortie = board_sortie or scenario_id == SCENARIO_HEAVY_BREACH
+	_torpedo_boat = _get_torpedo_boat() if scenario_id == SCENARIO_TORPEDO_RUN else null
 	_protected_anchor = protected_anchor if scenario_id == SCENARIO_STATION_DEFENSE else null
 	if scenario_id == SCENARIO_CONVOY_INTERDICTION:
 		_protected_anchor = protected_anchor
@@ -717,6 +788,8 @@ func _begin_scenario(
 			_launch_wing()
 		SCENARIO_HEAVY_BREACH:
 			_launch_heavy_breach()
+		SCENARIO_TORPEDO_RUN:
+			_launch_torpedo_run()
 	if scenario_id == SCENARIO_HEAVY_STANDOFF:
 		_update_heavy_posture()
 	if scenario_id == SCENARIO_WING_REGROUP:
@@ -808,6 +881,13 @@ func _evaluate_termination(delta: float) -> StringName:
 		if not _is_breach_picket_destroyed() \
 				and not _is_participant_active(_breach_picket):
 			return OUTCOME_ABORTED
+	if _scenario == SCENARIO_TORPEDO_RUN and _launched:
+		# Destroying the boat is the objective (CLEARED below). A boat that left
+		# the tree or was stood down healthy invalidates the run instead.
+		if not is_instance_valid(_torpedo_boat) or not _torpedo_boat.is_inside_tree():
+			return OUTCOME_ABORTED
+		if not _is_torpedo_boat_destroyed() and not _is_participant_active(_torpedo_boat):
+			return OUTCOME_ABORTED
 	# 2. The host left the authorized phase.
 	if not _is_phase_authorized():
 		return OUTCOME_WITHDRAWN
@@ -879,6 +959,9 @@ func _evaluate_objective() -> StringName:
 				return OUTCOME_CLEARED
 		SCENARIO_HEAVY_BREACH:
 			if _is_breach_picket_destroyed():
+				return OUTCOME_CLEARED
+		SCENARIO_TORPEDO_RUN:
+			if _is_torpedo_boat_destroyed():
 				return OUTCOME_CLEARED
 	return OUTCOME_PENDING
 
@@ -971,6 +1054,7 @@ func _stand_down() -> void:
 	_protected_anchor = null
 	_cargo_target = null
 	_breach_picket = null
+	_torpedo_boat = null
 	_regroup_original_postures.clear()
 
 
@@ -1120,6 +1204,52 @@ func _launch_heavy_breach() -> void:
 	_roster.append(screen)
 
 
+func _launch_torpedo_run() -> void:
+	var boat := _torpedo_boat
+	if not is_instance_valid(boat) or not is_instance_valid(_target):
+		return
+	var player_forward := -_target.global_basis.z
+	if player_forward.length_squared() <= 0.001:
+		player_forward = Vector3.FORWARD
+	player_forward = player_forward.normalized()
+	var lateral := Vector3.UP.cross(player_forward)
+	if lateral.length_squared() <= 0.001:
+		lateral = Vector3.RIGHT
+	lateral = lateral.normalized()
+	var spawn := (
+		_target.global_position
+		+ player_forward * TORPEDO_RUN_ENTRY_DISTANCE
+		+ lateral * TORPEDO_RUN_ENTRY_LATERAL
+		+ Vector3.UP * TORPEDO_RUN_ENTRY_HEIGHT
+	)
+	var facing := _target.global_position - spawn
+	if facing.length_squared() <= 0.001:
+		facing = -player_forward
+	facing = facing.normalized()
+	var up := Vector3.UP if absf(facing.dot(Vector3.UP)) < 0.965 else Vector3.FORWARD
+	var activation: Variant = boat.call(
+		&"activate", Transform3D(Basis.looking_at(facing, up).orthonormalized(), spawn)
+	)
+	if activation is Dictionary and not bool((activation as Dictionary).get("accepted", false)):
+		return
+	boat.call(&"set_target", _target)
+	_roster.append(boat)
+
+
+func _is_torpedo_boat_destroyed() -> bool:
+	if not is_instance_valid(_torpedo_boat):
+		return false
+	if _torpedo_boat.has_method(&"is_destroyed"):
+		return bool(_torpedo_boat.call(&"is_destroyed"))
+	if _torpedo_boat.has_method(&"get_health"):
+		return float(_torpedo_boat.call(&"get_health")) <= 0.0
+	return false
+
+
+func _get_torpedo_boat() -> Node3D:
+	return get_node_or_null(torpedo_boat_path) as Node3D
+
+
 func _update_courier_scenario(delta: float) -> void:
 	var courier := _get_courier()
 	if not _is_participant_active(courier):
@@ -1262,7 +1392,7 @@ func _is_phase_authorized() -> bool:
 		# actually departed into FREE_FLIGHT. Keep that one explicit scenario
 		# authorized for its sortie without widening the guided interceptor phase
 		# or allowing any other automatic scenario to start in sandbox flight.
-		if _state == STATE_RUNNING and _scenario == SCENARIO_HEAVY_BREACH:
+		if _state == STATE_RUNNING and _board_sortie and BOARD_SCENARIO_IDS.has(_scenario):
 			return (host as GameFlow).phase == GameFlow.Phase.FREE_FLIGHT
 		return (host as GameFlow).phase == GameFlow.Phase.INTERCEPTOR_ENGAGEMENT
 	# A non-coordinator host (isolated fixtures, evidence harnesses, tools) has
@@ -1437,6 +1567,12 @@ func _announce_begin() -> void:
 				"Break the charged picket before it reaches the protected objective",
 				4.0
 			)
+		SCENARIO_TORPEDO_RUN:
+			_toast(
+				"Torpedo boat on approach",
+				"Watch for the lime lock — dodge its torpedoes or shoot them down, then kill the boat",
+				4.0
+			)
 
 
 func _announce_conclusion(outcome: StringName) -> void:
@@ -1448,6 +1584,8 @@ func _announce_conclusion(outcome: StringName) -> void:
 				_toast("Cargo protected", "The interdiction wing is broken", 3.2)
 			elif _scenario == SCENARIO_HEAVY_BREACH:
 				_toast("Breach stopped", "The heavy picket is down", 3.2)
+			elif _scenario == SCENARIO_TORPEDO_RUN:
+				_toast("Torpedo boat destroyed", "No more seekers in the air", 3.2)
 			else:
 				_toast("Wing broken", "Both contacts are down", 3.2)
 		OUTCOME_ESCAPED:
@@ -1483,6 +1621,7 @@ func get_evidence_metadata() -> Dictionary:
 			"caller-bounded heavy stand-off and health-triggered anchor advance",
 			"caller-bounded damaged-wing regroup and cover-recovery posture",
 			"caller-bounded heavy picket breach with protected-objective screening",
+			"board-armed torpedo run against a stand-off seeker-torpedo boat",
 			"distress broadcast and escort response timing",
 			"every scenario duration, radius, and delay",
 		]),
@@ -1539,6 +1678,8 @@ func get_audit_report() -> Dictionary:
 		),
 		"cargo_target": String(_cargo_target.name) if is_instance_valid(_cargo_target) else "",
 		"breach_picket": String(_breach_picket.name) if is_instance_valid(_breach_picket) else "",
+		"torpedo_boat": String(_torpedo_boat.name) if is_instance_valid(_torpedo_boat) else "",
+		"board_sortie": _board_sortie,
 		"heavy_standoff_range": _heavy_standoff_range,
 		"heavy_advance_health_ratio": _heavy_advance_health_ratio,
 		"regroup_range": _regroup_range,
@@ -1588,6 +1729,9 @@ func get_validation_errors() -> PackedStringArray:
 	if _state == STATE_RUNNING and _scenario == SCENARIO_HEAVY_BREACH \
 			and (not _is_protected_anchor_alive() or not is_instance_valid(_breach_picket)):
 		errors.append("a running heavy breach must retain its protected objective and picket")
+	if _state == STATE_RUNNING and _scenario == SCENARIO_TORPEDO_RUN \
+			and not is_instance_valid(_torpedo_boat):
+		errors.append("a running torpedo run must retain its torpedo boat")
 	if not is_finite(_elapsed) or _elapsed < 0.0:
 		errors.append("scenario elapsed time must be finite and non-negative")
 	if _state == STATE_RUNNING and _elapsed > scenario_time_limit:

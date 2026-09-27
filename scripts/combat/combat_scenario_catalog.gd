@@ -171,6 +171,17 @@ static func _default_scenarios() -> Array:
 			"runner_escape_distance": 0.0,
 			"protected_health_floor": 0.35,
 		},
+		# The production Heavy Breach board's second posted contract
+		# (`EncounterScenarioDirector.SCENARIO_TORPEDO_RUN`): destroy the boat.
+		{
+			"id": &"torpedo_run",
+			"objective": OBJECTIVE_BREAK_WING,
+			"roster": [&"seeker_torpedo"],
+			"primary_profile": &"seeker_torpedo",
+			"duration_seconds": 150.0,
+			"runner_escape_distance": 0.0,
+			"protected_health_floor": 0.0,
+		},
 	]
 
 

@@ -7,6 +7,12 @@ extends Area3D
 ## only. EncounterScenarioDirector remains the objective authority, the
 ## injected LiveCombatAuthority remains the combat authority, and the world
 ## owns the protected objective node.
+##
+## The board posts one contract at a time and rotates to the next after every
+## sortie it launched concludes: Heavy Breach (break the charged picket), then
+## Torpedo Run (kill a torpedo boat whose seekers can be dodged or shot down).
+## Both pay through the same generation-fenced reward handoff, once per cleared
+## director generation.
 
 signal interaction_resolved(actor: Node, result: Dictionary)
 signal snapshot_changed(snapshot: Dictionary)
@@ -22,6 +28,15 @@ const CONSOLE_OFFSET := Vector3(0.0, 0.0, 0.0)
 const HEADER_SIZE := Vector3(1.25, 1.25, 0.10)
 const HEADER_POSITION := Vector3(0.0, 1.5, 0.97)
 const HOUSING_CHAMFER := 0.08
+const OFFERED_SCENARIOS: Array[StringName] = [
+	EncounterScenarioDirector.SCENARIO_HEAVY_BREACH,
+	EncounterScenarioDirector.SCENARIO_TORPEDO_RUN,
+]
+const SCENARIO_TITLES := {
+	EncounterScenarioDirector.SCENARIO_HEAVY_BREACH: "HEAVY BREACH",
+	EncounterScenarioDirector.SCENARIO_TORPEDO_RUN: "TORPEDO RUN",
+}
+const LABEL_BASE_TEXT := "HEAVY BREACH\nACTIVITY BOARD"
 
 var _director: EncounterScenarioDirector
 var _combat_authority: LiveCombatAuthority
@@ -35,6 +50,10 @@ var _highest_reward_generation := 0
 var _sortie_armed := false
 var _sortie_generation := 0
 var _armed_actor_instance_id := 0
+## The contract the next armed sortie will launch, and the one the running
+## director generation was launched as. Rotates only on a concluded sortie.
+var _offered_index := 0
+var _active_scenario_id: StringName = &""
 var _built := false
 var _attached := false
 var _audio_binding: RefCounted
@@ -50,10 +69,10 @@ func _exit_tree() -> void:
 	# Streaming the world out is an explicit activity boundary. Abort before
 	# clearing our references so the director stands down the real picket/screen
 	# roster and cannot leave a live combat source behind on re-entry.
-	if is_instance_valid(_director) and _director.is_running() \
-			and _director.get_active_scenario() == EncounterScenarioDirector.SCENARIO_HEAVY_BREACH:
+	if _board_scenario_is_running():
 		_director.abort(EncounterScenarioDirector.OUTCOME_WITHDRAWN)
 	_active_director_generation = 0
+	_active_scenario_id = &""
 	_sortie_armed = false
 	_sortie_generation += 1
 	_armed_actor_instance_id = 0
@@ -137,12 +156,16 @@ func get_generation() -> int:
 ## craft departs; isolated callers may still use [method interact] for the
 ## immediate board-owned contract exercised by the component tests.
 func get_interaction_prompt() -> String:
-	if is_instance_valid(_director) and _director.is_running() \
-			and _director.get_active_scenario() == EncounterScenarioDirector.SCENARIO_HEAVY_BREACH:
-		return "[ E ]  HEAVY BREACH ACTIVE"
+	if _board_scenario_is_running():
+		return "[ E ]  %s ACTIVE" % _scenario_title(_director.get_active_scenario())
 	if _sortie_armed:
-		return "[ E ]  CANCEL HEAVY BREACH SORTIE"
-	return "[ E ]  ARM HEAVY BREACH SORTIE"
+		return "[ E ]  CANCEL %s SORTIE" % _scenario_title(get_offered_scenario())
+	return "[ E ]  ARM %s SORTIE" % _scenario_title(get_offered_scenario())
+
+
+## The contract the next armed sortie launches.
+func get_offered_scenario() -> StringName:
+	return OFFERED_SCENARIOS[posmod(_offered_index, OFFERED_SCENARIOS.size())]
 
 
 func is_sortie_armed() -> bool:
@@ -238,14 +261,17 @@ func launch_armed_sortie(target: Node3D, expected_sortie_generation: int) -> Dic
 		return _result(false, &"invalid_sortie_target")
 	if _director.is_running():
 		return _result(false, &"activity_busy")
-	var accepted := _director.begin_heavy_breach(target, _protected_objective)
+	var scenario_id := get_offered_scenario()
+	var accepted := _begin_offered_scenario(target)
 	if accepted:
 		_sortie_armed = false
 		_armed_actor_instance_id = 0
 		_active_director_generation = _director.get_scenario_generation()
+		_active_scenario_id = scenario_id
 	_last_result = {
 		"accepted": accepted,
-		"reason": &"heavy_breach_started" if accepted else &"director_rejected_start",
+		"reason": _started_reason(scenario_id) if accepted else &"director_rejected_start",
+		"scenario": scenario_id,
 		"generation": _generation,
 		"sortie_generation": _sortie_generation,
 		"director_generation": _director.get_scenario_generation(),
@@ -266,10 +292,14 @@ func interact(actor: Node = null, expected_generation: int = 0) -> bool:
 		_last_result = _result(false, &"activity_busy")
 		interaction_resolved.emit(actor, _last_result.duplicate(true))
 		return false
-	var accepted := _director.begin_heavy_breach(actor as Node3D, _protected_objective)
+	var scenario_id := get_offered_scenario()
+	var accepted := _begin_offered_scenario(actor as Node3D)
+	if accepted:
+		_active_scenario_id = scenario_id
 	_last_result = {
 		"accepted": accepted,
-		"reason": &"heavy_breach_started" if accepted else &"director_rejected_start",
+		"reason": _started_reason(scenario_id) if accepted else &"director_rejected_start",
+		"scenario": scenario_id,
 		"generation": _generation,
 		"director_generation": _director.get_scenario_generation(),
 		"snapshot": get_snapshot(),
@@ -291,11 +321,11 @@ func abort_and_reset(actor: Node, expected_generation: int = 0) -> Dictionary:
 		_last_result = gate.duplicate(true)
 		return _last_result.duplicate(true)
 	var aborted := false
-	if _director.is_running() \
-			and _director.get_active_scenario() == EncounterScenarioDirector.SCENARIO_HEAVY_BREACH:
+	if _board_scenario_is_running():
 		_director.abort(EncounterScenarioDirector.OUTCOME_WITHDRAWN)
 		aborted = true
 	_active_director_generation = 0
+	_active_scenario_id = &""
 	_sortie_armed = false
 	_sortie_generation += 1
 	_armed_actor_instance_id = 0
@@ -337,6 +367,8 @@ func get_snapshot() -> Dictionary:
 		"active_director_generation": _active_director_generation,
 		"sortie_armed": _sortie_armed,
 		"sortie_generation": _sortie_generation,
+		"offered_scenario": get_offered_scenario(),
+		"active_scenario": _active_scenario_id,
 		"armed_actor_instance_id": _armed_actor_instance_id,
 		"attached": _attached,
 		"configured": is_instance_valid(_director) and is_instance_valid(_protected_objective),
@@ -371,8 +403,14 @@ func get_snapshot() -> Dictionary:
 
 
 func _on_scenario_concluded(scenario_id: StringName, outcome: StringName) -> void:
-	if scenario_id != EncounterScenarioDirector.SCENARIO_HEAVY_BREACH \
-			or _active_director_generation < 1:
+	if not OFFERED_SCENARIOS.has(scenario_id) or _active_director_generation < 1:
+		return
+	# Only the generation this board launched may conclude it; a guided-phase
+	# torpedo run cycled by the director is not a board sortie and pays nothing.
+	if not _active_scenario_id.is_empty() and scenario_id != _active_scenario_id:
+		return
+	if is_instance_valid(_director) \
+			and _director.get_scenario_generation() != _active_director_generation:
 		return
 	var generation := _active_director_generation
 	if _audio_binding != null:
@@ -396,7 +434,46 @@ func _on_scenario_concluded(scenario_id: StringName, outcome: StringName) -> voi
 			if _audio_binding != null:
 				_audio_binding.present_reward(_last_reward_result, generation)
 	_active_director_generation = 0
+	_active_scenario_id = &""
+	# Post the next contract. Any concluded sortie rotates, so a failed run
+	# still offers the other fight next rather than repeating the same one.
+	_offered_index = posmod(_offered_index + 1, OFFERED_SCENARIOS.size())
+	_refresh_board_label()
 	snapshot_changed.emit(get_snapshot())
+
+
+func _board_scenario_is_running() -> bool:
+	return is_instance_valid(_director) and _director.is_running() \
+		and OFFERED_SCENARIOS.has(_director.get_active_scenario())
+
+
+func _begin_offered_scenario(target: Node3D) -> bool:
+	match get_offered_scenario():
+		EncounterScenarioDirector.SCENARIO_TORPEDO_RUN:
+			return _director.begin_torpedo_run(target)
+		_:
+			return _director.begin_heavy_breach(target, _protected_objective)
+
+
+func _started_reason(scenario_id: StringName) -> StringName:
+	if scenario_id == EncounterScenarioDirector.SCENARIO_TORPEDO_RUN:
+		return &"torpedo_run_started"
+	return &"heavy_breach_started"
+
+
+func _scenario_title(scenario_id: StringName) -> String:
+	return str(SCENARIO_TITLES.get(scenario_id, "HEAVY BREACH"))
+
+
+## The header keeps its authored text while Heavy Breach is posted and adds one
+## line naming any other posted contract, so the board reads from across the deck.
+func _refresh_board_label() -> void:
+	var label := get_node_or_null(^"ActivityLabel") as Label3D
+	if label == null:
+		return
+	var offered := get_offered_scenario()
+	label.text = LABEL_BASE_TEXT if offered == EncounterScenarioDirector.SCENARIO_HEAVY_BREACH \
+		else "%s\nPOSTED: %s" % [LABEL_BASE_TEXT, _scenario_title(offered)]
 
 
 func _build_physical_board() -> void:
@@ -448,7 +525,7 @@ func _build_physical_board() -> void:
 	body.add_child(header)
 	var label := Label3D.new()
 	label.name = "ActivityLabel"
-	label.text = "HEAVY BREACH\nACTIVITY BOARD"
+	label.text = LABEL_BASE_TEXT
 	label.font_size = 25
 	label.modulate = Color("ffd08e")
 	label.position = CONSOLE_OFFSET + Vector3(0.0, 1.5, 1.04)

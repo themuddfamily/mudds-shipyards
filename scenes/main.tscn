@@ -1,4 +1,4 @@
-[gd_scene load_steps=35 format=3]
+[gd_scene load_steps=36 format=3]
 
 [ext_resource type="Script" path="res://scripts/game/game_flow.gd" id="1_flow"]
 [ext_resource type="PackedScene" path="res://scenes/world/shipyard_world.tscn" id="2_world"]
@@ -20,6 +20,7 @@
 [ext_resource type="PackedScene" path="res://scenes/ships/halyard_crew_transport.tscn" id="18_halyard"]
 [ext_resource type="PackedScene" path="res://scenes/ships/flanking_skirmisher_opponent.tscn" id="18_skirmisher"]
 [ext_resource type="PackedScene" path="res://scenes/ships/courier_runner_opponent.tscn" id="19_courier"]
+[ext_resource type="PackedScene" path="res://scenes/ships/torpedo_boat_opponent.tscn" id="40_torpedo_boat"]
 [ext_resource type="Script" path="res://scripts/combat/encounter_scenario_director.gd" id="20_scenarios"]
 [ext_resource type="Script" path="res://scripts/combat/wing_coordinator.gd" id="21_wing"]
 [ext_resource type="Script" path="res://scripts/activities/activity_director.gd" id="22_activity_director"]
@@ -74,6 +75,8 @@ source_id = 2103
 source_id = 2104
 
 [node name="CourierRunner" parent="." instance=ExtResource("19_courier")]
+
+[node name="TorpedoBoat" parent="." instance=ExtResource("40_torpedo_boat")]
 
 [node name="EncounterScenarios" type="Node" parent="."]
 script = ExtResource("20_scenarios")

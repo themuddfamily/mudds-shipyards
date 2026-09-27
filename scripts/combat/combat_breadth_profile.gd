@@ -27,7 +27,9 @@ const MAX_SPREAD_DEGREES := 45.0
 const ROLE_REPEATER: StringName = &"repeater"
 const ROLE_LANCE: StringName = &"lance"
 const ROLE_SCATTER: StringName = &"scatter"
-const ROLE_IDS: Array[StringName] = [ROLE_REPEATER, ROLE_LANCE, ROLE_SCATTER]
+## A slow, destructible seeker: the torpedo boat's weapon.
+const ROLE_TORPEDO: StringName = &"torpedo"
+const ROLE_IDS: Array[StringName] = [ROLE_REPEATER, ROLE_LANCE, ROLE_SCATTER, ROLE_TORPEDO]
 
 var _profile_id: StringName
 var _opponent_id: StringName
@@ -211,6 +213,30 @@ static func build_examples() -> Array:
 				"retreat_health_ratio": 0.25,
 				"telegraph_time": 0.3,
 				"weapon_cooldown": 0.4,
+			}
+		),
+		# Mirrors the production `TorpedoBoatOpponent` envelope.
+		new(
+			&"seeker_torpedo",
+			&"torpedo_boat_standoff",
+			{
+				"weapon_id": &"torpedo_boat_seeker",
+				"weapon_role": ROLE_TORPEDO,
+				"range": 250.0,
+				"damage_per_shot": 34.0,
+				"cadence_shots_per_second": 1.0 / 4.2,
+				"spread_degrees": 0.0,
+				"origin_tolerance": 14.0,
+			},
+			TacticContract.STRATEGY_STANDOFF,
+			{
+				"engagement_range": 230.0,
+				"preferred_engagement_distance": 140.0,
+				"minimum_arming_range": 40.0,
+				"aim_cosine": 0.94,
+				"retreat_health_ratio": 0.3,
+				"telegraph_time": 1.6,
+				"weapon_cooldown": 4.2,
 			}
 		),
 	]
