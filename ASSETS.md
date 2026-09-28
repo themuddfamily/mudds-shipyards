@@ -780,3 +780,25 @@ assets or scripts are bundled.
   original Keth Shipyards music.
 - **Not signed off:** a human listening pass and real-device mix review of the
   combat layer remain outstanding.
+
+## `assets/signage/station_wayfinding_atlas.svg` — station wayfinding sign atlas
+
+- Content: a 1024 × 1024 SVG atlas of twenty-nine 512 × 64 sign plates (one per
+  destination label), one spare label cell, one up-pointing arrow cell and one blank plate cell,
+  sampled by the single material of `scripts/world/station_wayfinding_signage.gd`.
+- Source: generated deterministically by
+  `python3 tools/signage/generate_station_wayfinding_atlas.py` using only the
+  Python standard library. The label table is read from `SIGN_LABELS` in the
+  GDScript component (single source of truth; row index = cell index), and the
+  lettering reuses the project's own font-free engineering alphabet from
+  `tools/generate_ship_markings.py`. No external fonts, images or generated-image
+  inputs.
+- Visual language: dark `#0e171e` plate, pale `#eef3f1` lettering and border,
+  and a per-family silhouette icon (ring, disc, square, triangle, diamond,
+  chevron, plus, hexagon, pentagon) with an Okabe-Ito accent. The accent always
+  accompanies a distinct shape, text and arrow, so no destination is identified
+  by colour alone.
+- Import: mipmaps on, lossless, no VRAM auto-compression (keeps the lettering
+  crisp at reading distance).
+- Project status: original project work tagged `modern_interpretation`; a
+  readability layer for the remake, not a recovered original sign scheme.
