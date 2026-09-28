@@ -69,38 +69,41 @@ func _run() -> void:
 	)
 	var resident_totals := resident.get("totals", {}) as Dictionary
 	_check(
-		int(resident_totals.get("player_nodes", -1)) == 80
-		and int(resident_totals.get("audio_stream_player_nodes", -1)) == 8
+		int(resident_totals.get("player_nodes", -1)) == 91
+		and int(resident_totals.get("audio_stream_player_nodes", -1)) == 12
 		and int(resident_totals.get("audio_stream_player_2d_nodes", -1)) == 0
-		and int(resident_totals.get("audio_stream_player_3d_nodes", -1)) == 72
-		and int(resident_totals.get("summed_max_polyphony_ceiling", -1)) == 80,
-		"resident graph freezes 80 players: 8 plain / 0 2D / 72 3D with ceiling 80"
+		and int(resident_totals.get("audio_stream_player_3d_nodes", -1)) == 79
+		and int(resident_totals.get("summed_max_polyphony_ceiling", -1)) == 91,
+		"resident graph freezes 91 players: 12 plain / 0 2D / 79 3D with ceiling 91"
 	)
 	_check(
 		int(resident_totals.get("currently_playing_nodes", -1)) == 0
 		and int(resident_totals.get("currently_playing_voice_lower_bound", -1)) == 0
 		and int(resident_totals.get("currently_playing_voice_ceiling", -1)) == 0
-		and int(resident_totals.get("max_polyphony_exposed_nodes", -1)) == 80
+		and int(resident_totals.get("max_polyphony_exposed_nodes", -1)) == 91
 		and int(resident_totals.get("max_polyphony_unexposed_nodes", -1)) == 0,
-		"Dummy freeze observes zero attached playback and all 80 exposed polyphony fields"
+		"Dummy freeze observes zero attached playback and all 91 exposed polyphony fields"
 	)
 	var resident_streams := resident.get("retained_streams", {}) as Dictionary
 	# Main preloads Aurora's scene, retaining its exterior and cabin WAVs even while resident.
+	# The resident TorpedoBoat retains its five Torpedo Run WAVs (19e819638);
+	# its six torpedo voices, the combat music layer's four stems (67e76f407)
+	# and the activity board's cue voice (794ca97a0) take players 80 -> 91.
 	_check(
-		int(resident_streams.get("unique_count", -1)) == 90
-		and int(resident_streams.get("payload_bytes", -1)) == 2558420
+		int(resident_streams.get("unique_count", -1)) == 95
+		and int(resident_streams.get("payload_bytes", -1)) == 2960660
 		and int(resident_streams.get("unknown_payload_count", -1)) == 0,
-		"resident retained graph freezes 90 reachable WAV resources / 2,558,420 exposed data bytes"
+		"resident retained graph freezes 95 reachable WAV resources / 2,960,660 exposed data bytes"
 	)
 	_check(
 		_bus_player_counts(resident) == {
 			"Ambience": 9,
 			"Engines": 36,
-			"Music": 3,
-			"UI": 13,
-			"Weapons": 19,
+			"Music": 7,
+			"UI": 14,
+			"Weapons": 25,
 		},
-		"resident bus split accounts for all 80 player nodes exactly"
+		"resident bus split accounts for all 91 player nodes exactly"
 	)
 	_check(
 		_component_player_counts(resident) == _integer_map(
