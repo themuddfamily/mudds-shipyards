@@ -28,6 +28,7 @@ func _test_project_layer_mapping() -> void:
 		[Layers.INTERACTABLE_INDEX, Layers.INTERACTABLE, "Interactable"],
 		[Layers.PROJECTILE_INDEX, Layers.PROJECTILE, "Projectile"],
 		[Layers.TARGET_INDEX, Layers.TARGET, "Target"],
+		[Layers.FOOT_SUPPORT_INDEX, Layers.FOOT_SUPPORT, "FootSupport"],
 	]
 	for entry: Array in expected:
 		var layer_index := int(entry[0])
@@ -52,6 +53,7 @@ func _test_unique_layer_bits() -> void:
 		Layers.INTERACTABLE,
 		Layers.PROJECTILE,
 		Layers.TARGET,
+		Layers.FOOT_SUPPORT,
 	]
 	var combined := 0
 	for layer_bit in named_layers:
@@ -66,7 +68,7 @@ func _test_unique_layer_bits() -> void:
 		combined |= layer_bit
 	_check(
 		combined == Layers.ALL_NAMED_LAYERS,
-		"ALL_NAMED_LAYERS is the exact union of the six project layers"
+		"ALL_NAMED_LAYERS is the exact union of the seven project layers"
 	)
 
 

@@ -142,6 +142,7 @@ toggle_first_person={
 3d_physics/layer_4="Interactable"
 3d_physics/layer_5="Projectile"
 3d_physics/layer_6="Target"
+3d_physics/layer_7="FootSupport"
 
 [physics]
 

@@ -247,7 +247,8 @@ func release(skeleton: Skeleton3D, bone_indices: Array[int]) -> void:
 
 
 ## One ray under the boot toe, cast in the same collision space as the gameplay
-## owner's ankle ray. Returns {} when there is no walkable support or no body
+## owner's ankle ray (the body's mask plus FootSupport, so a visible tread over a
+## continuous collision ramp carries the boot). Returns {} when there is no walkable support or no body
 ## context (a bare presentation in a capture harness).
 func probe_toe_support(presentation: Node3D, toe_world: Vector3, movement_up: Vector3) -> Dictionary:
 	var body := find_body(presentation)
@@ -260,7 +261,7 @@ func probe_toe_support(presentation: Node3D, toe_world: Vector3, movement_up: Ve
 	var query := PhysicsRayQueryParameters3D.create(
 		collision_transform * (toe_world + movement_up * TOE_RAY_RISE_M),
 		collision_transform * (toe_world - movement_up * TOE_RAY_DROP_M),
-		body.collision_mask
+		body.collision_mask | PhysicsLayers.FOOT_SUPPORT
 	)
 	query.exclude = [body.get_rid()]
 	query.collide_with_areas = false

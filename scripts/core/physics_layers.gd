@@ -13,6 +13,7 @@ const SHIP_INDEX := 3
 const INTERACTABLE_INDEX := 4
 const PROJECTILE_INDEX := 5
 const TARGET_INDEX := 6
+const FOOT_SUPPORT_INDEX := 7
 
 const WORLD := 1 << (WORLD_INDEX - 1)
 const PLAYER := 1 << (PLAYER_INDEX - 1)
@@ -20,6 +21,10 @@ const SHIP := 1 << (SHIP_INDEX - 1)
 const INTERACTABLE := 1 << (INTERACTABLE_INDEX - 1)
 const PROJECTILE := 1 << (PROJECTILE_INDEX - 1)
 const TARGET := 1 << (TARGET_INDEX - 1)
+## Presentation-only walkable surfaces (visible stair treads over a continuous
+## collision ramp). No body masks it, so capsules and hulls pass through; only
+## the pilot's foot-support rays add it, so boots plant on what is drawn.
+const FOOT_SUPPORT := 1 << (FOOT_SUPPORT_INDEX - 1)
 
 const NONE := 0
 const SOLID_ACTOR_LAYERS := PLAYER | SHIP
@@ -27,7 +32,7 @@ const SOLID_BODY_MASK := WORLD | SOLID_ACTOR_LAYERS
 const DAMAGEABLE_LAYERS := PLAYER | SHIP | TARGET
 const QUERY_ONLY_LAYERS := INTERACTABLE | TARGET
 const ALL_NAMED_LAYERS := (
-	WORLD | PLAYER | SHIP | INTERACTABLE | PROJECTILE | TARGET
+	WORLD | PLAYER | SHIP | INTERACTABLE | PROJECTILE | TARGET | FOOT_SUPPORT
 )
 
 # Body/area matrix. Static world geometry is detected by moving actors, so it
@@ -71,3 +76,5 @@ const INTERACTION_QUERY_MASK := INTERACTABLE
 const HITSCAN_QUERY_MASK := WORLD | DAMAGEABLE_LAYERS
 const CAMERA_OBSTRUCTION_QUERY_MASK := WORLD | SHIP
 const AI_AVOIDANCE_QUERY_MASK := WORLD | SHIP
+const FOOT_SUPPORT_BODY_LAYER := FOOT_SUPPORT
+const FOOT_SUPPORT_BODY_MASK := NONE

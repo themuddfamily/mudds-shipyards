@@ -2884,7 +2884,8 @@ func _update_grounded_foot_placement() -> void:
 		var query := PhysicsRayQueryParameters3D.create(
 			collision_transform * ((ankle as Vector3) + movement_up * FOOT_SUPPORT_RAY_RISE_M),
 			collision_transform * ((ankle as Vector3) - movement_up * FOOT_SUPPORT_RAY_DROP_M),
-			collision_mask
+			# FootSupport: drawn treads the capsule rides past on a ramp.
+			collision_mask | PhysicsLayers.FOOT_SUPPORT
 		)
 		query.exclude = [get_rid()]
 		query.collide_with_areas = false
