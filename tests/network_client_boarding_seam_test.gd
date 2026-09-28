@@ -309,6 +309,8 @@ func _assert_the_bound_client_drives_the_server_body() -> void:
 	var end_client := client_frame.get_occupant_frame_local_transform(client_player).origin
 	var server_walk := start_server.distance_to(end_server)
 	var client_walk := start_client.distance_to(end_client)
+	if end_server.distance_to(end_client) >= 1.5:
+		print("BODY_PREDICTION_AUDIT: ", game.get_network_remote_body_intent_source().get_audit())
 	_check(client_walk >= MIN_WALK_PROGRESS,
 		"the client's own player walked the cabin on held input (%.2f m)" % client_walk)
 	_check(server_walk >= MIN_WALK_PROGRESS,

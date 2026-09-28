@@ -28,9 +28,6 @@ func _run() -> void:
 		"production player enters a conflicting seated state for the failure reproduction",
 	)
 	await process_frame
-	# Freeze only the coordinator's idle prompt refresh so its ordinary AVAILABLE
-	# repaint cannot overwrite the synchronous rejected receipt before inspection.
-	game.set_process(false)
 	game.call(&"_board_ship", ship)
 	_check(
 		await _wait_until(func() -> bool: return _presented_state(game) == &"rejected", 30),
@@ -41,9 +38,16 @@ func _run() -> void:
 		"failed production board releases the exact player reservation",
 	)
 	_check(game.phase == GameFlow.Phase.APPROACH_SHIP, "failed production board returns to approach")
+	await process_frame
+	await process_frame
+	_check(_presented_state(game) == &"rejected",
+		"idle prompt refresh preserves the readable rejection")
+	await create_timer(2.9).timeout
+	game.call(&"_present_boarding_confirmation", &"available", ship)
+	_check(_presented_state(game) == &"available",
+		"the ordinary hatch prompt returns after the refusal reading window")
 
 	player.force_recovery_to_on_foot(game.world.get_player_spawn())
-	game.set_process(true)
 	await process_frame
 	game.call(&"_board_ship", ship)
 	_check(

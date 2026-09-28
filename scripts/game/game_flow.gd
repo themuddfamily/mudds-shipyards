@@ -683,6 +683,8 @@ var _final_approach_hud_composition: FinalApproachHudComposition
 var _cinder_loadmaster_hud_binding: CinderLoadmasterHudBinding
 var _cinder_loadmaster_hud_craft: CinderCargoHauler
 var _boarding_confirmation_hud_composition: BoardingConfirmationHudComposition
+var _boarding_confirmation_rejected_craft: HeroShip
+var _boarding_confirmation_rejected_until_msec := 0
 var _cinder_navigator_ping_hud_composition: RefCounted
 var _cinder_navigator_presentation_ship_generation := 0
 var cargo_transfer_authority: CargoTransferAuthority
@@ -18725,6 +18727,16 @@ func _present_boarding_confirmation(
 	) -> void:
 	if not is_instance_valid(hud):
 		return
+	# Proximity is refreshed every frame. Keep a refusal readable instead of
+	# immediately replacing it with the same hatch's ordinary boarding prompt.
+	# Another craft or an actual transition always supersedes the refusal.
+	if state == &"available" and is_instance_valid(craft) \
+			and craft == _boarding_confirmation_rejected_craft \
+			and Time.get_ticks_msec() < _boarding_confirmation_rejected_until_msec:
+		return
+	_boarding_confirmation_rejected_craft = craft if state == &"rejected" else null
+	_boarding_confirmation_rejected_until_msec = \
+		Time.get_ticks_msec() + 2800 if state == &"rejected" else 0
 	if _boarding_confirmation_hud_composition == null:
 		_boarding_confirmation_hud_composition = BoardingConfirmationHudCompositionType.new()
 		var attached := _boarding_confirmation_hud_composition.attach(hud)
@@ -18802,6 +18814,8 @@ func _clear_boarding_confirmation_reservation() -> void:
 
 
 func _detach_boarding_confirmation_hud_composition() -> void:
+	_boarding_confirmation_rejected_craft = null
+	_boarding_confirmation_rejected_until_msec = 0
 	if _boarding_confirmation_hud_composition != null:
 		_boarding_confirmation_hud_composition.detach()
 	_boarding_confirmation_hud_composition = null
