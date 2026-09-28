@@ -38,6 +38,19 @@ const PILOT_AVATAR: StringName = &"remote_pilot"
 ## suite believes the helm flew it rather than the berth settling it.
 const MIN_REMOTE_FLIGHT := 1.0
 
+## Records attempted device delivery even though production remote sources
+## deliberately do not implement these local-input hooks.
+class InputProbeSource extends NetworkRemotePilotCommandSource:
+	var look_motion := Vector2.ZERO
+	var camera_steps := 0.0
+
+	func queue_look_motion(relative: Vector2) -> void:
+		look_motion += relative
+
+	func queue_camera_distance_delta(steps: float) -> void:
+		camera_steps += steps
+
+
 var _host: GameFlow = null
 var _craft: HalyardCrewTransport = null
 var _server = null
@@ -79,6 +92,8 @@ func _build() -> bool:
 		"the host's subtree supplies the Halyard a remote pilot will fly")
 	if _craft == null:
 		return false
+	# Reproduce the retained active_ship pointer after the host disembarks.
+	_host.active_ship = _craft
 	set_multiplayer(SceneMultiplayer.new(), _host.get_path())
 	var adapters: Array = []
 	for index in 2:
@@ -121,7 +136,9 @@ func _build() -> bool:
 
 func _assert_a_pilot_grant_binds_the_helm() -> void:
 	_assert_the_host_keeps_its_seat_while_climbing_out()
+	_assert_a_remote_helm_cannot_replace_a_local_pilot()
 	var host_camera := _host.get_viewport().get_camera_3d()
+	var host_mouse_mode := Input.mouse_mode
 	var granted := await _board(BoardingIntent.ACTION_BOARD)
 	_check(granted.get("status") == &"boarded",
 		"the ledger seats the remote peer in the Halyard's pilot seat (%s)"
@@ -135,6 +152,65 @@ func _assert_a_pilot_grant_binds_the_helm() -> void:
 		"binding the helm did not take the host's own camera")
 	_check(_craft.is_remote_piloted(),
 		"the helm binding is the remote flight mode, which leaves the host's mouse and input alone")
+	_check(Input.mouse_mode == host_mouse_mode, "binding the helm preserves the host's mouse mode")
+	_assert_remote_mode_ignores_host_input()
+
+
+func _assert_a_remote_helm_cannot_replace_a_local_pilot() -> void:
+	var host_camera := _host.get_viewport().get_camera_3d()
+	var host_mouse_mode := Input.mouse_mode
+	_craft.set_piloted(true)
+	var source := _craft.get_command_source()
+	var local_sample := _host._capture_cinder_actor_sample()
+	var local_streaming := _host.cinder_streaming_binding._sample_production_actor_position()
+	_check(not _host._piloting and _host._get_debug_actor() == _craft
+		and local_sample.get("actor_instance_id") == _craft.get_instance_id()
+		and local_streaming.get("actor_instance_id") == _craft.get_instance_id(),
+		"local set_piloted still selects the craft without GameFlow's sortie latch")
+	_craft.set_remote_piloted(true)
+	_check(_craft.is_piloted() and not _craft.is_remote_piloted()
+		and _craft.get_command_source() == source and _craft.get_camera().current,
+		"a remote mode request cannot downgrade a local pilot or camera")
+	_craft.set_remote_piloted(false)
+	_check(_craft.is_piloted(), "releasing remote mode cannot unseat a local pilot")
+	_craft.set_piloted(false)
+	if is_instance_valid(host_camera):
+		host_camera.make_current()
+	Input.mouse_mode = host_mouse_mode
+
+
+func _assert_remote_mode_ignores_host_input() -> void:
+	var source := _craft.get_command_source()
+	var probe := InputProbeSource.new()
+	_craft.add_child(probe)
+	_craft.set_command_source(probe)
+	var host_mouse_mode := Input.mouse_mode
+	var distance := _craft.get_chase_camera_distance()
+	var wheel := InputEventMouseButton.new()
+	wheel.button_index = MOUSE_BUTTON_WHEEL_UP
+	wheel.pressed = true
+	_craft._unhandled_input(wheel)
+	var click := InputEventMouseButton.new()
+	click.button_index = MOUSE_BUTTON_LEFT
+	click.pressed = true
+	_craft._unhandled_input(click)
+	_check(Input.mouse_mode == host_mouse_mode, "a remote craft leaves the host's click alone")
+	var pause := InputEventAction.new()
+	pause.action = &"pause"
+	pause.pressed = true
+	_craft._unhandled_input(pause)
+	_check(Input.mouse_mode == host_mouse_mode, "a remote craft leaves the host's pause alone")
+	Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
+	var motion := InputEventMouseMotion.new()
+	motion.relative = Vector2(40.0, -20.0)
+	_craft._unhandled_input(motion)
+	_craft.apply_look_motion(motion.relative)
+	_check(is_equal_approx(distance, _craft.get_chase_camera_distance())
+		and is_zero_approx(probe.camera_steps), "remote mode neither zooms nor queues the host's wheel")
+	_check(probe.look_motion == Vector2.ZERO, "remote mode queues no host look motion")
+	Input.mouse_mode = host_mouse_mode
+	_craft.set_command_source(source)
+	probe.free()
 
 
 ## The host's ledger seat lasts exactly as long as the window in which
@@ -152,11 +228,14 @@ func _assert_the_host_keeps_its_seat_while_climbing_out() -> void:
 	_host._piloting = true
 	_host.phase = GameFlow.Phase.DISEMBARKING
 	var held_mid_exit: bool = _host._network_host_desired_pilot_ship() == ship
+	_host.phase = GameFlow.Phase.IN_FLIGHT_CABIN
+	var held_entering_cabin: bool = _host._network_host_desired_pilot_ship() == ship
 	_host._piloting = false
 	var released_on_foot: bool = _host._network_host_desired_pilot_ship() == null
 	_host._piloting = saved_piloting
 	_host.phase = saved_phase
 	_check(held_mid_exit, "the host holds its seat while it is still climbing out of it")
+	_check(held_entering_cabin, "the host holds its seat during the leave-into-cabin transition")
 	_check(released_on_foot, "the host's seat is released once it is on foot")
 
 
@@ -164,6 +243,7 @@ func _assert_the_host_keeps_its_seat_while_climbing_out() -> void:
 
 
 func _assert_the_remote_throttle_flies_the_host_craft() -> void:
+	_assert_the_host_observes_its_own_body("while the peer holds the helm")
 	var origin := _craft.global_position
 	var full := ShipCommand.from_dictionary({
 		"schema_version": ShipCommand.SCHEMA_VERSION, "sequence": 0, "timestamp_usec": 0,
@@ -186,6 +266,22 @@ func _assert_the_remote_throttle_flies_the_host_craft() -> void:
 	var flown := _craft.global_position.distance_to(origin)
 	_check(flown >= MIN_REMOTE_FLIGHT,
 		"the host's own Halyard moved under the remote helm (%.2f m)" % flown)
+	_assert_the_host_observes_its_own_body("after the peer flies away")
+
+
+func _assert_the_host_observes_its_own_body(context: String) -> void:
+	_check(_host.active_ship == _craft and not _host._piloting,
+		"the actor probe uses the remotely flown active_ship with its host on foot")
+	var sample := _host._capture_cinder_actor_sample()
+	_check(sample.get("actor_kind") == &"player"
+		and sample.get("actor_instance_id") == _host.player.get_instance_id(),
+		"the common-origin actor is the host's body %s" % context)
+	_check(_host._get_debug_actor() == _host.player,
+		"the debug/minimap actor is the host's body %s" % context)
+	var streaming := _host.cinder_streaming_binding._sample_production_actor_position()
+	_check(streaming.get("actor_kind") == &"player"
+		and streaming.get("actor_instance_id") == _host.player.get_instance_id(),
+		"the streaming actor is the host's body %s" % context)
 
 
 # --- C ------------------------------------------------------------------------
@@ -241,6 +337,44 @@ func _assert_a_restarted_helm_stream_is_accepted() -> void:
 		"a restarted helm stream on a higher stream id is accepted from sequence zero (%s)"
 			% String(_movement_results[0].get("status", &"none") if not _movement_results.is_empty() else &"none"))
 
+	await _assert_game_flow_restarts_the_helm_stream()
+
+
+func _assert_game_flow_restarts_the_helm_stream() -> void:
+	# Exercise the production client method with the already admitted adapter.
+	# This coordinator is detached so it has no automatic simulation or scene.
+	var client := GameFlow.new()
+	client.network_session = _pilot
+	client._network_session_mode = &"client"
+	client.active_ship = _craft
+	client._piloting = true
+	client._network_client_boarding_claim = {"ship_id": SHIP_ID, "role": &"pilot"}
+	client._network_remote_helm_stream_epoch = 1 # D2 already delivered stream 1.
+	client._network_client_boarding_server_tick = _helm_stamp + 1
+	_movement_results.clear()
+	client._advance_network_remote_helm_stream()
+	await _wait_until(func() -> bool: return not _movement_results.is_empty(), 4.0)
+	_check(not _movement_results.is_empty() and bool(_movement_results[0].get("accepted", false)),
+		"the production client starts an accepted helm stream")
+	var first: Dictionary = client._network_remote_helm.duplicate(true)
+	var claim: Dictionary = client._network_client_boarding_claim.duplicate(true)
+	client._piloting = false
+	client._advance_network_remote_helm_stream()
+	_check(client._network_remote_helm.is_empty(), "leaving the seat locally retires its helm stream")
+	client._piloting = true
+	client._network_client_boarding_server_tick = int(first.get("last_stamp", _helm_stamp)) + 1
+	_movement_results.clear()
+	client._advance_network_remote_helm_stream()
+	await _wait_until(func() -> bool: return not _movement_results.is_empty(), 4.0)
+	_check(int(client._network_remote_helm.get("stream_id", -1)) > int(first.get("stream_id", -1))
+		and int(client._network_remote_helm.get("sequence", -1)) == 1,
+		"the production client recreated its helm with a higher epoch and sent sequence zero")
+	_check(client._network_client_boarding_claim == claim
+		and not _movement_results.is_empty() and bool(_movement_results[0].get("accepted", false)),
+		"the host accepts the recreated client stream without changing its ledger seat")
+	client.network_session = null
+	client.free()
+
 
 # --- E ------------------------------------------------------------------------
 
@@ -252,6 +386,7 @@ func _assert_every_release_hands_the_craft_back() -> void:
 	_check(_craft.get_command_source() == _craft.get_local_input_source() and not _craft.is_piloted()
 		and not _craft.is_remote_piloted(),
 		"the ledger disembark hands the craft back to its own input, unpiloted")
+	_assert_the_host_observes_its_own_body("after ledger release")
 	_check(int(_server.get_remote_ship_command_snapshot().get("pilot_count", -1)) == 0,
 		"the helm registration went with the seat")
 	var again := await _board(BoardingIntent.ACTION_BOARD)
@@ -264,6 +399,7 @@ func _assert_every_release_hands_the_craft_back() -> void:
 	)
 	_check(dropped and not _craft.is_piloted(),
 		"a pilot's disconnect hands the craft back to its own input, unpiloted")
+	_assert_the_host_observes_its_own_body("after peer disconnect")
 	_check(_host.get_network_host_boarding_seat().is_empty()
 		and (_server.get_boarding_snapshot().get("occupancies", []) as Array).is_empty(),
 		"the ledger holds nothing for the dropped pilot")

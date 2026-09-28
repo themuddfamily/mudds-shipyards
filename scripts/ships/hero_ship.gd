@@ -704,6 +704,8 @@ func set_piloted(piloted: bool) -> void:
 func set_remote_piloted(piloted: bool) -> void:
 	if _reset_for_reuse_mutation_blocked():
 		return
+	if piloted and _piloted and not _remote_piloted:
+		return # A remote helm cannot take over this machine's pilot.
 	if not piloted and not _remote_piloted:
 		return
 	_ensure_command_source()
