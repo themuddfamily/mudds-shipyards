@@ -641,7 +641,7 @@ func get_observation_chair_material_audit() -> Dictionary:
 		# Arm pads are visual-only dressing the station pass may fold into one
 		# renderer per chair; the piece index still answers each pad's own
 		# resolved material, which is the material its override bound.
-		var arm_pads := StationDressingBatch.find_authored_child_pieces(chair, "ArmPad")
+		var arm_pads := StationDressingBatch.find_authored_child_pieces(chair, "ArmPad*")
 		if arm_pads.size() != 2:
 			errors.append("observation arm pad roster drift")
 		for arm: Dictionary in arm_pads:
@@ -2877,7 +2877,9 @@ func _build_common_chair(parent: Node3D, index: int, chair_position: Vector3, ya
 	for side in [-1.0, 1.0]:
 		var arm_x := float(side) * 0.54
 		_beam_between(chair, "ArmSupport", Vector3(arm_x, 0.83, -0.05), Vector3(arm_x, 1.17, -0.05), 0.045, _materials["structural"], false)
-		_box(chair, "ArmPad", Vector3(arm_x, 1.2, 0), Vector3(0.14, 0.1, 0.58), _materials["fabric_dark"], false)
+		# Side-suffixed: two siblings both named `ArmPad` leave the second one
+		# engine-renamed to `@MeshInstance3D@N`, which no audit can address.
+		_box(chair, "ArmPadPort" if side < 0.0 else "ArmPadStarboard", Vector3(arm_x, 1.2, 0), Vector3(0.14, 0.1, 0.58), _materials["fabric_dark"], false)
 
 
 func _build_service_detail(structure: Node3D) -> void:
