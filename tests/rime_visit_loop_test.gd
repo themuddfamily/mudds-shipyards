@@ -1,4 +1,5 @@
 extends SceneTree
+## test-matrix-timeout-seconds: 900
 ## Drives one complete Rime visit through a real composed `Main`, modelled on
 ## the Aurora production visit loop: the destination is chosen from the real
 ## Destination Board, the craft cruises out through the shared cruise lane with

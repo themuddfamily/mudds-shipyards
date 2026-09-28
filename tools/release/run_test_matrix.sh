@@ -544,6 +544,19 @@ fi
 if (( mode_excluded_count > 0 )) && [[ "$SCOPE_LABEL" == all ]]; then
 	SCOPE_LABEL="$MODE:all"
 fi
+# A suite whose honest single-run duration exceeds the global timeout (long
+# physical-flight journeys) declares `## test-matrix-timeout-seconds: N` in its
+# first 40 lines. The larger of N and the global timeout applies, so the marker
+# can only lengthen, never shorten, a run.
+suite_timeout_seconds() {
+	local declared
+	declared="$(head -n 40 "$1" | sed -n 's/^## test-matrix-timeout-seconds: *\([0-9][0-9]*\) *$/\1/p' | head -n 1)"
+	if [[ -n "$declared" ]] && (( declared > TIMEOUT_SECONDS )); then
+		printf '%s' "$declared"
+	else
+		printf '%s' "$TIMEOUT_SECONDS"
+	fi
+}
 network_suite() {
 	local relative="${1#"$PROJECT_ROOT"/}"
 	[[ "$relative" == tests/network/* || ( "$relative" == tests/network_* && "${relative#tests/}" != */* ) ]]
@@ -628,7 +641,7 @@ run_suite_worker() {
 
 	if (( HAVE_TIMEOUT_BIN == 1 )); then
 		env XDG_DATA_HOME="$suite_user_data_dir" \
-			timeout "${TIMEOUT_SECONDS}s" "${GODOT_ARGS[@]}" > "$log_path" 2>&1
+			timeout "$(suite_timeout_seconds "$test_file")s" "${GODOT_ARGS[@]}" > "$log_path" 2>&1
 		exit_code="$?"
 	else
 		env XDG_DATA_HOME="$suite_user_data_dir" \

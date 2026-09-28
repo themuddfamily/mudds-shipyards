@@ -1,4 +1,5 @@
 extends SceneTree
+## test-matrix-timeout-seconds: 900
 ## Drives one complete Aurora visit through a real composed `Main`, and then
 ## does to it the three things that break a world which is only half-wired: it
 ## interrupts the visit with a whole-`Main` re-entry, it departs and checks that

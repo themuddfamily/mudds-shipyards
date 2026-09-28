@@ -1,4 +1,5 @@
 extends SceneTree
+## test-matrix-timeout-seconds: 900
 const MAIN := preload("res://scenes/main.tscn")
 const ARROW := preload("res://scenes/ships/arrow_recon_ship.tscn")
 const PLAYER := preload("res://scenes/player/player.tscn")

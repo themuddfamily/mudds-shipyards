@@ -1,4 +1,5 @@
 extends SceneTree
+## test-matrix-timeout-seconds: 900
 
 const BOOTSTRAP_SCENE := preload(
 	"res://scenes/world/components/ember_moon_streaming_bootstrap.tscn"
