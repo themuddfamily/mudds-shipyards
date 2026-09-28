@@ -199,6 +199,19 @@ func detach() -> Dictionary:
 	return _result(true, &"expedition_interaction_detached")
 
 
+## The offers are composed before Host.start() advances the run generation
+## exactly once. The owner forwards that committed fact here so the trailheads
+## fence against the running visit rather than the pre-start one.
+func adopt_started_host_generation(expected_previous_generation: int) -> Dictionary:
+	if not _configured or _host == null or not is_instance_valid(_host) \
+			or _host_generation != expected_previous_generation \
+			or int(_host.call(&"get_generation")) != expected_previous_generation + 1:
+		return _result(false, &"stale_expedition_interaction_generation")
+	_host_generation = expected_previous_generation + 1
+	_apply_presentation()
+	return _result(true, &"expedition_interaction_generation_adopted")
+
+
 func reenter(next_attachment_generation: int) -> Dictionary:
 	if not _configured or _attached \
 			or not _valid_generation(next_attachment_generation) \
