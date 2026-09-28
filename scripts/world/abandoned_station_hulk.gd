@@ -1335,10 +1335,12 @@ class HulkPowerBreaker:
 			return "[ E ]  AUXILIARY BUS ENGAGED"
 		return "[ E ]  ENGAGE AUXILIARY POWER BREAKER"
 
+	## Pressing only reports the throw. Whether the bus is engaged is the
+	## activity's decision (it refuses a press from outside its reach), so the
+	## panel shows "engaged" only once its owner says so via [method set_engaged].
 	func interact(actor: Node = null) -> bool:
 		if not is_inside_tree():
 			return false
-		_engaged = true
 		breaker_engaged.emit(actor)
 		return true
 
