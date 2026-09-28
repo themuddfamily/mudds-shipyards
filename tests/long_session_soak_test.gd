@@ -1,4 +1,5 @@
 extends SceneTree
+## test-matrix-timeout-seconds: 900
 
 ## Headless long-session soak for the whole production loop (ROADMAP Phase 10 §1).
 ##

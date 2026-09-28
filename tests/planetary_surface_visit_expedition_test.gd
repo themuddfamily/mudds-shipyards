@@ -1,4 +1,5 @@
 extends SceneTree
+## test-matrix-timeout-seconds: 900
 ## One profile-driven surface visit, run for each atmospheric world.
 ##
 ## Aurora and Rime are the same `PlanetarySurfaceVisitExpedition` configured by

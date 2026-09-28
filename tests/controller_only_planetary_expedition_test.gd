@@ -1,4 +1,5 @@
 extends SceneTree
+## test-matrix-timeout-seconds: 900
 
 ## Controller-only, production-scene proof of an Ember expedition.
 ##

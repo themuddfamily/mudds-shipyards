@@ -1,4 +1,5 @@
 extends "res://tests/long_session_soak_test.gd"
+## test-matrix-timeout-seconds: 900
 
 ## Headless visible-renderer audit for lifecycle-dependent phantom geometry and
 ## flashing materials/lights (ROADMAP Phase 10 §1).
