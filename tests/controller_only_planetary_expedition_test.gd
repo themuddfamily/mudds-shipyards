@@ -6,8 +6,9 @@ extends SceneTree
 ## `Input` singleton: X starts the shift, the left stick walks, X boards, A plus
 ## the left stick lift off, Start opens pause, the D-pad walks the pause page
 ## and Destination Board, A accepts, B backs out, X takes and abandons an errand
-## at its trailhead, X logs the survey bunker, A jumps on foot without ending
-## the visit, the pause-row cruise action abandons the expedition, and X
+## at its trailhead, X logs the survey bunker, A jumps on foot and from the
+## landed craft's own hull without ending the visit, the pause-row cruise
+## action abandons the expedition, and X
 ## reboards for the Host's own takeoff home. No keyboard or mouse event and no
 ## gameplay method stands in for a press.
 ##
@@ -354,6 +355,52 @@ func _run() -> void:
 				and host.get_phase() == EmberSurfaceLoopHost.Phase.ON_FOOT
 				and bool(game.get("_ember_surface_journey_active")),
 			"controller A jumps on the surface and the expedition survives the landing"
+		)
+
+	# --- Standing on and jumping from the landed craft's own hull ----------
+	var hull_query := PhysicsRayQueryParameters3D.create(
+		craft.global_position + Vector3.UP * 20.0,
+		craft.global_position + Vector3.DOWN * 20.0,
+		PhysicsLayers.SHIP
+	)
+	var hull_hit := player.get_world_3d().direct_space_state.intersect_ray(hull_query)
+	_check(hull_hit.get("collider") == craft, "the landed craft has a hull top to stand on")
+	if hull_hit.get("collider") == craft:
+		player.teleport_to(Transform3D(
+			player.global_basis, (hull_hit.position as Vector3) + Vector3.UP * 0.05
+		))
+		var on_hull := await _wait_for(
+			func() -> bool:
+				if not player.is_on_floor():
+					return false
+				for index in player.get_slide_collision_count():
+					if player.get_slide_collision(index).get_collider() == craft:
+						return true
+				return false,
+			60
+		)
+		await _settle(8)
+		_check(
+			on_hull and host.get_phase() == EmberSurfaceLoopHost.Phase.ON_FOOT
+				and bool(game.get("_ember_surface_journey_active")),
+			"the pilot stands on their own landed craft without ending the expedition"
+		)
+		await _tap_joy(BUTTON_A)
+		var left_hull := await _wait_for(
+			func() -> bool: return not player.is_on_floor(), 10
+		)
+		var landed_again := left_hull and await _wait_for(
+			func() -> bool: return (
+				player.is_on_floor()
+				or host.get_phase() != EmberSurfaceLoopHost.Phase.ON_FOOT
+			),
+			JUMP_TICK_BUDGET
+		)
+		_check(
+			left_hull and landed_again and player.is_on_floor()
+				and host.get_phase() == EmberSurfaceLoopHost.Phase.ON_FOOT
+				and bool(game.get("_ember_surface_journey_active")),
+			"controller A jumps from the craft's hull and the expedition survives the landing"
 		)
 
 	# --- Abandon the expedition from the pause-row cruise action ----------
