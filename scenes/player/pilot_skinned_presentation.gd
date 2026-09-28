@@ -297,6 +297,16 @@ func _ready() -> void:
 	_build_once()
 
 
+## Children leave the tree before this presentation's `_exit_tree`, and a
+## Skeleton3D outside the tree does not dirty its global poses on
+## `set_bone_pose_*`. Put the clip pose back while the skeleton is still in the
+## tree, or its stale IK global pose survives re-entry and the integrity audit
+## rejects it as a persistent override (the pilot then falls back for good).
+func _on_skeleton_tree_exiting() -> void:
+	_restore_visual_pelvis_source()
+	_foot_ik.release(_skeleton, _leg_ik_bone_indices())
+
+
 func _build_once() -> void:
 	if _built:
 		return
@@ -333,6 +343,8 @@ func _build_once() -> void:
 	if _skeleton == null and _rig_root != null:
 		_skeleton = _rig_root.find_child("PilotSkeleton", true, false) as Skeleton3D
 	_animation_player = _import_root.find_child("AnimationPlayer", true, false) as AnimationPlayer
+	if _skeleton != null:
+		_skeleton.tree_exiting.connect(_on_skeleton_tree_exiting)
 	_capture_source_resource_contract()
 	_normalize_runtime_names()
 	_attach_rigid_harness_release()
