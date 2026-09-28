@@ -349,6 +349,9 @@ const SESSION_RECOVERY_CHOICES := [
 	&"safe_graphics_windowed",
 	&"discard",
 ]
+## Queued-row copy while a started Ember expedition is on foot: the row's press
+## abandons it, and the pilot then walks back and boards to leave.
+const PLANETARY_CRUISE_ABANDON_STATUS_TEXT := "EXPEDITION — ABANDON"
 const PLANETARY_CRUISE_STATUS_IDS := [
 	&"ready",
 	&"queued",
@@ -9004,7 +9007,9 @@ func set_planetary_cruise_state(
 		return false
 	var exact_text := {
 		&"ready": "READY — EMBER MOON",
-		&"queued": "RETURN — CLEAR SURFACE" if bounded_text == "RETURN — CLEAR SURFACE" else "QUEUED",
+		&"queued": bounded_text if bounded_text in [
+			"RETURN — CLEAR SURFACE", PLANETARY_CRUISE_ABANDON_STATUS_TEXT
+		] else "QUEUED",
 		&"accelerating": "ACCELERATING",
 		&"final_approach": "FINAL APPROACH",
 		&"cruising": "CRUISING",
