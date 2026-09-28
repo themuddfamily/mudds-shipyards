@@ -385,6 +385,14 @@ func adopt_started_host_generation(
 			or current_generation != expected_previous_generation + 1 \
 			or current_attachment != expected_attachment_generation:
 		return _result(false, &"host_start_adoption_generation_mismatch")
+	for fenced: Area3D in [_survey_interaction, _sample_rack_interaction]:
+		if fenced == null:
+			continue
+		var fence_adopted: Dictionary = fenced.call(
+			&"adopt_started_host_generation", expected_previous_generation
+		)
+		if not bool(fence_adopted.get("accepted", false)):
+			return _result(false, &"host_start_adoption_generation_mismatch")
 	for activity_id: StringName in _expedition_interactions:
 		var offer_adopted: Dictionary = (
 			_expedition_interactions[activity_id] as Area3D
