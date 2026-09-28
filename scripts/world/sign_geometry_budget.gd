@@ -60,6 +60,10 @@ extends RefCounted
 ## Same-camera 3840x2160 Forward+ comparisons of the junction and Cinder legends
 ## retain the visible contour/readability margin. This is a font comparison,
 ## not a native-hardware performance or whole-scene readability acceptance.
+## The 44th sign (the Aft stair's rear UPPER OPERATIONS header, f2d41984f) took
+## the station to 81,226. That was answered in `sign_geometry_budget_test.gd`
+## with a documented 88,000 ceiling rather than a further font cut; any later
+## overrun is the LOD/baked-quad work above, not 47 -> 46.
 const FONT_SIZE := 47
 const AUTHORED_FONT_SIZE := 64
 

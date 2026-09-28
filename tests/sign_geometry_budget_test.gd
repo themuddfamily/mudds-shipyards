@@ -14,7 +14,19 @@ const WORLD_SCENE := preload("res://scenes/world/shipyard_world.tscn")
 ## sign 4,239. The ceilings carry roughly 30% headroom so that adding legitimate
 ## new signage does not trip the gate, while a return to unbudgeted `TextMesh`
 ## (which cost 315,360 across the same 31 signs) trips it immediately.
-const TOTAL_SIGN_TRIANGLE_CEILING := 80_000
+##
+## Re-frozen 80,000 -> 88,000. Thirteen legitimate budgeted signs (console
+## headers and statuses, dock-ops bays, the double-faced Aft stair header from
+## f2d41984f) spent the 30% headroom: 44 signs now cost 81,226 triangles at an
+## average of 1,846, below the original 1,962 per sign, and each one passes the
+## shared-budget and per-sign checks. The earlier 48 -> 47 font cut already
+## spent the curve margin, so the ceiling keeps the rationale's second, stronger
+## half instead: reverting any one average sign to unbudgeted `TextMesh`
+## (~10,172, i.e. +8,326 over its budgeted cost) must still trip the gate
+## immediately, which holds for any ceiling below 89,552. 88,000 leaves room for
+## roughly three more average signs; the next overrun needs LOD or baked quads,
+## not another ceiling or a coarser curve.
+const TOTAL_SIGN_TRIANGLE_CEILING := 88_000
 const PER_SIGN_TRIANGLE_CEILING := 6_000
 ## The census counted 31 live signs. Held as a floor, not an equality: signs may
 ## legitimately be added, and this suite exists to bound their cost, not their
