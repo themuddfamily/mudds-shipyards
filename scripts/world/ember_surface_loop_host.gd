@@ -56,6 +56,11 @@ const ORBIT_RETURN_ALTITUDE_M := 20_000.0
 const APPROACH_BRAKE_Z_M := 45.0
 const APPROACH_HANDOFF_MAXIMUM_SPEED_MPS := 1.0
 const ROUTE_ANCHOR_RADIUS_M := 1.35
+## Bounded on-foot airborne tolerance. A full jump in Ember's composed surface
+## gravity stays up roughly nine seconds; longer, or a drop this far below the
+## last supported footing, is a genuine loss of support.
+const SURFACE_AIRBORNE_GRACE_S := 12.0
+const SURFACE_AIRBORNE_MAX_DROP_M := 20.0
 ## Direct-root and streamed-child transforms can differ by a few millimetres
 ## after the same large common-origin translation because Transform3D stores
 ## float components. This is a precision allowance, not a landing-volume one.
@@ -389,6 +394,8 @@ var _gravity_sample_count := 0
 var _gravity_application_count := 0
 var _ship_gravity_submission_count := 0
 var _surface_route_outbound_complete := false
+var _surface_airborne_since_s := -1.0
+var _surface_last_supported_height_m := INF
 var _surface_route_return_complete := false
 var _return_departed_staging := false
 var _disembark_requested := false
@@ -1566,6 +1573,7 @@ func _reset_repeat_visit_state() -> void:
 	_gravity_application_count = 0
 	_ship_gravity_submission_count = 0
 	_surface_route_outbound_complete = false
+	_clear_surface_airborne_state()
 	_surface_route_return_complete = false
 	_return_departed_staging = false
 	_disembark_requested = false
@@ -2033,6 +2041,7 @@ func _advance_disembarking() -> Dictionary:
 	)
 	if not bool(result.get("accepted", false)) or result.get("state_id") != &"on_foot":
 		return {"accepted": false, "reason": &"disembark_desynchronized"}
+	_clear_surface_airborne_state()
 	_set_phase(Phase.SURFACE_OUTBOUND)
 	return {"accepted": true, "reason": &"surface_traverse_started"}
 
@@ -3090,12 +3099,43 @@ func _tangent_distance(first: Vector3, second: Vector3) -> float:
 
 
 func _surface_actor_supported() -> bool:
-	if not _dependencies_current() or not _player.is_on_floor():
+	if not _dependencies_current():
 		return false
 	var player_tangent := _world_to_reference_tangent(_player.global_position)
 	var live_surface_local := _landing_root.to_local(_player.global_position)
 	if player_tangent.distance_to(live_surface_local) > 0.02:
 		return false
+	if not _player.is_on_floor():
+		return _surface_airborne_within_grace(live_surface_local.y)
+	if not _surface_contact_supported(live_surface_local):
+		return false
+	_surface_airborne_since_s = -1.0
+	_surface_last_supported_height_m = live_surface_local.y
+	return true
+
+
+## An on-foot pilot is off the floor for ordinary reasons: a jump arc lasts
+## about nine seconds in Ember's low gravity, and stepping off a small ledge
+## drops a few metres. The visit survives that airborne time. It still fails a
+## genuine loss of support: an arc that never comes down, or a fall that has
+## taken the pilot far below the last surface they stood on (off the world or
+## through the terrain). Heights are in the landing root's frame, so a
+## world-origin rebase mid-arc changes nothing.
+func _surface_airborne_within_grace(height_m: float) -> bool:
+	if _surface_airborne_since_s < 0.0:
+		_surface_airborne_since_s = _elapsed_seconds
+		if not is_finite(_surface_last_supported_height_m):
+			_surface_last_supported_height_m = height_m
+	return _elapsed_seconds - _surface_airborne_since_s <= SURFACE_AIRBORNE_GRACE_S \
+		and _surface_last_supported_height_m - height_m <= SURFACE_AIRBORNE_MAX_DROP_M
+
+
+func _clear_surface_airborne_state() -> void:
+	_surface_airborne_since_s = -1.0
+	_surface_last_supported_height_m = INF
+
+
+func _surface_contact_supported(live_surface_local: Vector3) -> bool:
 	var surface_up := _landing_root.global_basis.y.normalized()
 	var query := PhysicsRayQueryParameters3D.create(
 		_player.global_position + surface_up * 0.25,

@@ -32,7 +32,7 @@ func _run() -> void:
 	await _test_command_source_currentness()
 	await _test_exact_generation_and_loaded_root_freshness()
 	await _test_tangent_frame_and_continuous_support_fail_closed()
-	await _test_terrain_contact_rejects_airborne()
+	await _test_terrain_contact_tolerates_bounded_airborne()
 	await _test_synchronous_destruction_first_wins()
 	await _test_composition_reentry_preserves_the_live_visit()
 	await _test_airborne_abandon_releases_the_visit_for_the_next_one()
@@ -1150,7 +1150,7 @@ func _test_tangent_frame_and_continuous_support_fail_closed() -> void:
 	await _cleanup(fixture)
 
 
-func _test_terrain_contact_rejects_airborne() -> void:
+func _test_terrain_contact_tolerates_bounded_airborne() -> void:
 	for kind in [&"too_high", &"rising"]:
 		var fixture := await _fixture_at_surface_outbound()
 		if fixture.is_empty():
@@ -1188,15 +1188,70 @@ func _test_terrain_contact_rejects_airborne() -> void:
 		else:
 			expected_observation = expected_observation and absf(gap) <= 0.02 \
 				and player.velocity.dot(up) > 0.0
-		var rejected := host.advance_physics(
+		var tolerated := host.advance_physics(
 			PHYSICS_DELTA, host.get_generation(), host.get_attachment_generation(),
 			(fixture.frame as PlanetaryCoordinateFrame).get_generation(), 1
 		)
 		_check(
-			expected_observation and rejected.reason == &"surface_support_lost",
-			"authored terrain support rejects an airborne actor: " + str(kind),
+			expected_observation and bool(tolerated.get("accepted", false))
+				and host.get_phase() == EmberSurfaceLoopHost.Phase.ON_FOOT,
+			"ordinary airborne time over authored terrain keeps the visit: " + str(kind),
 		)
+		if kind == &"too_high":
+			# Held off the floor past the bounded grace: an arc that never
+			# comes down is a genuine loss of support.
+			var hover := player.global_transform
+			var held := tolerated
+			var held_seconds := PHYSICS_DELTA
+			while bool(held.get("accepted", false)) \
+					and held_seconds <= EmberSurfaceLoopHost.SURFACE_AIRBORNE_GRACE_S + 1.0:
+				player.velocity = Vector3.ZERO
+				player.teleport_to(hover)
+				held = await _tick(fixture)
+				held_seconds += PHYSICS_DELTA
+			_check(
+				not player.is_on_floor() and held.reason == &"surface_support_lost"
+					and held_seconds > EmberSurfaceLoopHost.SURFACE_AIRBORNE_GRACE_S
+					and host.get_phase() == EmberSurfaceLoopHost.Phase.FAILED,
+				"airborne time beyond the grace fails the visit (%.2f s, %s)" % [held_seconds, held.reason],
+			)
 		await _cleanup(fixture)
+	# A pilot who drops far below the last surface they stood on (through the
+	# terrain or off the world) fails at once, before the time grace runs out.
+	var fall_fixture := await _fixture_at_surface_outbound()
+	if fall_fixture.is_empty():
+		return
+	var fall_host := fall_fixture.host as EmberSurfaceLoopHost
+	if not await _walk_outbound_route(fall_fixture):
+		_check(false, "fall-through fixture reaches ON_FOOT through real walking")
+		await _cleanup(fall_fixture)
+		return
+	var faller := fall_fixture.player as PlayerController
+	var fall_up := (fall_fixture.landing_root as Node3D).global_basis.y.normalized()
+	faller.velocity = Vector3.ZERO
+	await physics_frame
+	await physics_frame
+	var standing := fall_host.advance_physics(
+		PHYSICS_DELTA, fall_host.get_generation(), fall_host.get_attachment_generation(),
+		(fall_fixture.frame as PlanetaryCoordinateFrame).get_generation(), 1
+	)
+	faller.teleport_to(Transform3D(
+		faller.global_basis,
+		faller.global_position
+			- fall_up * (EmberSurfaceLoopHost.SURFACE_AIRBORNE_MAX_DROP_M + 5.0)
+	))
+	await physics_frame
+	var fell := fall_host.advance_physics(
+		PHYSICS_DELTA, fall_host.get_generation(), fall_host.get_attachment_generation(),
+		(fall_fixture.frame as PlanetaryCoordinateFrame).get_generation(), 1
+	)
+	_check(
+		bool(standing.get("accepted", false)) and not faller.is_on_floor()
+			and fell.reason == &"surface_support_lost"
+			and fall_host.get_phase() == EmberSurfaceLoopHost.Phase.FAILED,
+		"a fall far below the last supported footing fails the visit at once",
+	)
+	await _cleanup(fall_fixture)
 
 
 func _replace_pad_with_tagged_support(fixture: Dictionary, parent: Node) -> void:
