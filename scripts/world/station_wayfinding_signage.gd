@@ -257,6 +257,7 @@ func build(world: Node3D) -> Dictionary:
 		_mesh_instance.layers = 1
 		_mesh_instance.set_meta(&"presentation_only", true)
 		_mesh_instance.set_meta(&"non_authoritative_visual", true)
+		_mesh_instance.set_meta(&"non_walkable_reason", "Vertical wayfinding plates and posts; presentation only, clear of walking surfaces.")
 		_mesh_instance.set_meta(&"evidence_status", EVIDENCE_STATUS)
 		add_child(_mesh_instance)
 	_build_duration_usec = Time.get_ticks_usec() - build_started
@@ -553,6 +554,15 @@ func _plan_sites(world: Node, report: Dictionary, modules: Dictionary, destinati
 		if forward == Vector3.ZERO:
 			forward = _flat(entry - hub_origin, Vector3.FORWARD)
 		var midpoint := (anchor + entry) * 0.5
+		# A narrow railed connector may have no safe shoulder at its midpoint.
+		# Also search the module end of the declared edge, where the arrival
+		# landing can support a panel without reducing collision clearance.
+		var threshold_alongs := THRESHOLD_ALONGS.duplicate()
+		var entry_offset := Vector2(entry.x - midpoint.x, entry.z - midpoint.z).length()
+		for along: float in THRESHOLD_ALONGS:
+			var at_entry := entry_offset + along
+			if not threshold_alongs.has(at_entry):
+				threshold_alongs.append(at_entry)
 		var front: Array = [{
 			"label": destination.title,
 			"position": entry,
@@ -567,7 +577,7 @@ func _plan_sites(world: Node, report: Dictionary, modules: Dictionary, destinati
 			"floor_reference": entry.y,
 			"forward": forward,
 			"laterals": THRESHOLD_LATERALS,
-			"alongs": THRESHOLD_ALONGS,
+			"alongs": threshold_alongs,
 			"front": front,
 			"front_max": THRESHOLD_MAX_ROWS,
 			"front_keep_first": true,
