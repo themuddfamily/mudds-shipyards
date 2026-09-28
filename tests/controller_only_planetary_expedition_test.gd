@@ -248,6 +248,13 @@ func _run() -> void:
 		_finish()
 		return
 
+	# --- Outbound route: the errands open once the pilot is out on foot ----
+	# The Host only reaches ON_FOOT after the pilot has crossed the authored
+	# egress and staging anchors; the caldera trailheads and their errands are
+	# offered from that phase, never from the pad (d88409c8f).
+	var crossed := await _cross_outbound_route(player, host)
+	_check(crossed, "the pilot crosses the caldera's outbound route onto foot")
+
 	# --- Errand trailhead: take it, then abandon it, with X ----------------
 	var trailhead := _available_trailhead(game)
 	_check(trailhead != null, "a caldera errand trailhead is offered on the surface")
@@ -436,6 +443,39 @@ func _advance_to_phase(host: EmberSurfaceLoopHost, phase: int, tick_budget: int)
 	return host.get_phase() == phase
 
 
+## Stands the pilot on each authored route anchor in order and waits for the
+## Host's own route observation to accept it, ending in its ON_FOOT phase.
+func _cross_outbound_route(player: PlayerController, host: EmberSurfaceLoopHost) -> bool:
+	for anchor_key in ["egress_anchor", "staging_anchor"]:
+		var route := host.get_return_status_snapshot().get("surface_route", {}) as Dictionary
+		var anchor := route.get(anchor_key, Vector3.INF) as Vector3
+		if not anchor.is_finite():
+			return false
+		player.teleport_to(Transform3D(player.global_basis, anchor + Vector3.UP * 0.3))
+		var accepted := await _wait_for(
+			func() -> bool:
+				if anchor_key == "staging_anchor":
+					return host.get_phase() == EmberSurfaceLoopHost.Phase.ON_FOOT
+				return bool((host.get_snapshot().get("surface_route", {}) as Dictionary)
+					.get("outbound_complete", false)),
+			TRAILHEAD_TICK_BUDGET
+		)
+		if not accepted:
+			return false
+	return host.get_phase() == EmberSurfaceLoopHost.Phase.ON_FOOT
+
+
+## The walkable floor directly below `point`, where a teleported pilot keeps
+## their footing instead of dropping onto it.
+func _ground_below(player: PlayerController, point: Vector3) -> Vector3:
+	var query := PhysicsRayQueryParameters3D.create(
+		point + Vector3.UP * 2.0, point + Vector3.DOWN * 4.0, PhysicsLayers.WORLD_BODY_LAYER
+	)
+	query.exclude = [player.get_rid()]
+	var hit := player.get_world_3d().direct_space_state.intersect_ray(query)
+	return hit.get("position", Vector3.INF) as Vector3
+
+
 func _available_trailhead(game: GameFlow) -> Area3D:
 	for node in game.find_children("*", "EmberCalderaExpeditionInteractionBinding", true, false):
 		var trailhead := node as Area3D
@@ -457,12 +497,17 @@ func _reboard(
 	var area := craft.get_node_or_null(^"ShipBoardingArea") as ShipBoardingArea
 	if not is_instance_valid(area):
 		return false
+	# Stand on the real ground three metres outboard of the boarding
+	# point, facing the craft. The Host fails the visit the first tick the pilot
+	# is not supported, so the placement must land on the floor, not above it.
 	var boarding := craft.get_boarding_position()
-	var approach := craft.global_basis.x.normalized()
-	player.teleport_to(Transform3D(
-		Basis.looking_at(-approach, Vector3.UP),
-		boarding + craft.global_basis.y.normalized() * 0.05 + approach * 4.0
-	))
+	var outward := boarding - craft.global_position
+	outward.y = 0.0
+	outward = outward.normalized()
+	var stand := _ground_below(player, boarding + outward * 3.0)
+	if not stand.is_finite():
+		return false
+	player.teleport_to(Transform3D(Basis.looking_at(-outward, Vector3.UP), stand))
 	await _settle(4)
 	if not (area in player.get_nearby_interactables()):
 		if not await _stick_walk_until(
