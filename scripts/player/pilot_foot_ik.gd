@@ -51,6 +51,12 @@ const STANCE_HEIGHT_NONE_M := 0.10
 ## Backward sole speed in clip seconds (independent of playback rate).
 const STANCE_BACKWARD_SPEED_NONE_MPS := -0.2
 const STANCE_BACKWARD_SPEED_FULL_MPS := 0.4
+## Upward sole speed in clip seconds. A sole the clip is lifting off the floor
+## is toe-off, not stance, even while it still travels backward and sits within
+## the stance height: planting it pulled a run boot 35-55 mm under a clip pose
+## rising ~70 mm per tick, and that hold then popped when it let go.
+const STANCE_LIFT_SPEED_FULL_MPS := 0.3
+const STANCE_LIFT_SPEED_NONE_MPS := 1.2
 ## Stance weight travel time, so heel strike and toe-off ramp in and out over a
 ## few ticks instead of switching the plant in one.
 const STANCE_BLEND_SECONDS := 0.05
@@ -65,10 +71,18 @@ const BODY_STEP_ABSORB_MAX_M := 0.36
 ## edge settles onto the lower tread instead of dropping a riser in one tick.
 ## Rising is never limited, because a sole must not cut through a tread.
 const LOCOMOTION_FOOT_DESCENT_MPS := 3.0
+## A boot the plant pulled below its clip pose returns to that pose at most
+## this fast. At run toe-off the clip lifts the sole ~70 mm per tick, so a
+## plant still holding it lower and cut in one tick adds that hold to the
+## clip's own rise and pops the ankle. The release never takes the sole below
+## its support, so it cannot cut through a tread.
+const LOCOMOTION_FOOT_RELEASE_MPS := 1.0
 
 var stance_weights := {&"l": 1.0, &"r": 1.0}
 var _stance_motion := {&"l": 1.0, &"r": 1.0}
 var _stance_forward := {}
+var _stance_lift := {&"l": 1.0, &"r": 1.0}
+var _stance_height := {}
 var _stance_clip := StringName()
 var _stance_clip_time := -INF
 var _stance_tick := -1
@@ -111,6 +125,8 @@ func reset_locomotion() -> void:
 	stance_weights = {&"l": 1.0, &"r": 1.0}
 	_stance_motion = {&"l": 1.0, &"r": 1.0}
 	_stance_forward.clear()
+	_stance_lift = {&"l": 1.0, &"r": 1.0}
+	_stance_height.clear()
 	_stance_clip = &""
 	_stance_clip_time = -INF
 	_stance_tick = -1
@@ -323,16 +339,25 @@ func update_stance(
 		if not sample is Vector2 or not (sample as Vector2).is_finite():
 			stance_weights[side] = move_toward(float(stance_weights.get(side, 1.0)), 0.0, blend_step)
 			_stance_forward.erase(side)
+			_stance_height.erase(side)
 			continue
 		var height := (sample as Vector2).x
 		var forward := (sample as Vector2).y
 		if assume_planted:
 			_stance_motion[side] = 1.0
+			_stance_lift[side] = 1.0
 		elif clip_dt > 0.00001 and _stance_forward.has(side):
 			_stance_motion[side] = stance_motion_factor(
 				(float(_stance_forward[side]) - forward) / clip_dt
 			)
-		var raw := float(_stance_motion.get(side, 1.0)) * stance_height_factor(height)
+			if _stance_height.has(side):
+				_stance_lift[side] = stance_lift_factor(
+					(height - float(_stance_height[side])) / clip_dt
+				)
+		var raw := (
+			float(_stance_motion.get(side, 1.0)) * float(_stance_lift.get(side, 1.0))
+			* stance_height_factor(height)
+		)
 		# Leaving idle or landing (or after a gated gap) starts from what the
 		# pose shows now, so a boot already lifted is never pulled down to ramp out.
 		var previous := raw
@@ -340,6 +365,7 @@ func update_stance(
 			previous = float(stance_weights.get(side, 1.0))
 		stance_weights[side] = move_toward(previous, raw, blend_step)
 		_stance_forward[side] = forward
+		_stance_height[side] = height
 	_stance_clip = clip
 	_stance_clip_time = clip_time
 	_stance_tick = tick_key
@@ -353,6 +379,8 @@ func hold_stance_planted(clip: StringName, clip_time: float, tick_key: int) -> v
 	stance_weights = {&"l": 1.0, &"r": 1.0}
 	_stance_motion = {&"l": 1.0, &"r": 1.0}
 	_stance_forward.clear()
+	_stance_lift = {&"l": 1.0, &"r": 1.0}
+	_stance_height.clear()
 	_stance_clip = clip
 	_stance_clip_time = clip_time
 	_stance_tick = tick_key
@@ -361,6 +389,10 @@ func hold_stance_planted(clip: StringName, clip_time: float, tick_key: int) -> v
 
 static func stance_height_factor(sole_height_m: float) -> float:
 	return 1.0 - smoothstep(STANCE_HEIGHT_FULL_M, STANCE_HEIGHT_NONE_M, sole_height_m)
+
+
+static func stance_lift_factor(upward_speed_mps: float) -> float:
+	return 1.0 - smoothstep(STANCE_LIFT_SPEED_FULL_MPS, STANCE_LIFT_SPEED_NONE_MPS, upward_speed_mps)
 
 
 static func stance_motion_factor(backward_speed_mps: float) -> float:
@@ -412,6 +444,20 @@ func limit_foot_descent(side: StringName, correction: float, tick_key: int, max_
 	if int(_foot_correction_tick.get(side, -2)) == tick_key - 1 and _foot_correction.has(side):
 		correction = maxf(correction, float(_foot_correction[side]) - maxf(0.0, max_step))
 	return correction
+
+
+## Eases a boot that was pulled below its clip pose last tick back up at
+## `max_step` per tick, never below `sole_on_support` (the correction that
+## rests the lowest sole corner on its support).
+func limit_foot_release(
+		side: StringName, correction: float, tick_key: int, max_step: float, sole_on_support: float
+	) -> float:
+	if int(_foot_correction_tick.get(side, -2)) != tick_key - 1 or not _foot_correction.has(side):
+		return correction
+	var previous := float(_foot_correction[side])
+	if previous >= 0.0 or correction <= previous + max_step:
+		return correction
+	return minf(correction, maxf(previous + maxf(0.0, max_step), sole_on_support))
 
 
 func record_foot_correction(side: StringName, correction: float, tick_key: int) -> void:

@@ -2299,6 +2299,11 @@ func _apply_foot_chain(
 		)
 		locomotion_stance = plan.y
 		correction = _foot_ik.limit_foot_descent(side, plan.x, tick_key, max_descent_m)
+		correction = _foot_ik.limit_foot_release(
+			side, correction, tick_key,
+			PilotFootIKScript.LOCOMOTION_FOOT_RELEASE_MPS / maxf(1.0, float(Engine.physics_ticks_per_second)),
+			(FOOT_IK_PLANT_SOLE_GAP_M - source_sole_min_gap) / maxf(0.5, up_local.dot(support_normal_local))
+		)
 		if absf(correction) <= 0.00001 and locomotion_stance <= 0.01:
 			# A clear swing sole is the authored pose.
 			return {
