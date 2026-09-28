@@ -11,6 +11,9 @@ const ENTRY_SHADER := preload(
 )
 const EXPECTED_ASSERTIONS := 44
 const OWNED_PARAMETER: StringName = &"entry_effect_intensity_unitless"
+# Density ramp at 14 km on the default 4 km scale height, times the 0.5 speed
+# envelope at 250 m/s (c5d4cd01a replaced the linear altitude ramp).
+var _midpoint_intensity := 0.5 * (exp(-3.5) - exp(-4.5)) / (exp(-2.5) - exp(-4.5))
 const COMMON_AUTHORITY_KEYS := [
 	"renderer", "gameplay", "streaming", "save", "network", "physics",
 	"world_generation", "terrain_generation", "collision_generation",
@@ -211,9 +214,7 @@ func _test_exact_sampler_boundaries() -> void:
 		midpoint.accepted
 		and is_equal_approx(
 			midpoint.observation.entry_effect_intensity_unitless,
-			# Density ramp at 14 km on the default 4 km scale height, times
-			# the 0.5 speed envelope at 250 m/s.
-			0.5 * (exp(-3.5) - exp(-4.5)) / (exp(-2.5) - exp(-4.5))
+			_midpoint_intensity
 		)
 		and midpoint.observation.sample.inputs.path_distance_m == 0.0
 		and midpoint.observation.sample.inputs.weather_scalar == 0.0
@@ -307,6 +308,9 @@ func _test_owned_drift_and_non_owned_uniform() -> void:
 
 func _test_resource_changed_transactions() -> void:
 	_adapter.present_observation(14000.0, 250.0, 1)
+	var midpoint_presented: Variant = _material.get_shader_parameter(
+		OWNED_PARAMETER
+	)
 	var before := _adapter.get_state_snapshot()
 	var events_before := _events.size()
 	_material_attack_mode = &"property"
@@ -316,7 +320,8 @@ func _test_resource_changed_transactions() -> void:
 		property_attack.reason == &"renderer_state_changed_during_apply"
 		and _adapter.get_state_snapshot() == before
 		and _events.size() == events_before
-		and _material.get_shader_parameter(OWNED_PARAMETER) == 0.25,
+		and _material.get_shader_parameter(OWNED_PARAMETER) == midpoint_presented
+		and is_equal_approx(midpoint_presented, _midpoint_intensity),
 		"Resource.changed property overwrite rolls back with no false commit"
 	)
 	_check(
@@ -342,7 +347,7 @@ func _test_resource_changed_transactions() -> void:
 		"callback target replacement cannot create a successful commit"
 	)
 	_material.shader = _shader
-	_material.set_shader_parameter(OWNED_PARAMETER, 0.25)
+	_material.set_shader_parameter(OWNED_PARAMETER, midpoint_presented)
 	_material_reentry_results.clear()
 	var shader_code := _shader.code
 	_material_attack_mode = &"schema"
@@ -360,7 +365,7 @@ func _test_resource_changed_transactions() -> void:
 		"callback shader-schema drift cannot create a successful commit"
 	)
 	_shader.code = shader_code
-	_material.set_shader_parameter(OWNED_PARAMETER, 0.25)
+	_material.set_shader_parameter(OWNED_PARAMETER, midpoint_presented)
 	_check(
 		bool(_adapter.audit().valid),
 		"restored exact shader/material chain returns audit green"
@@ -411,7 +416,10 @@ func _test_signal_reentry_and_detachment() -> void:
 		and reentry_state.requires_fresh_observation
 		and reentry_state.renderer.expected[OWNED_PARAMETER] == 0.0
 		and fresh.accepted
-		and _material.get_shader_parameter(OWNED_PARAMETER) == 0.25
+		and is_equal_approx(
+			_material.get_shader_parameter(OWNED_PARAMETER),
+			_midpoint_intensity
+		)
 		and _adapter.get_generation() == generation,
 		"tree reentry holds a neutral baseline until a fresh observation prevents stale heat pop"
 	)
