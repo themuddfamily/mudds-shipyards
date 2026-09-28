@@ -60,6 +60,7 @@ func _run() -> void:
 	_test_clear_of_collision(world, report)
 	_test_atlas_table()
 	_test_concave_collision()
+	_test_static_floor_support()
 	_test_deferred_berths(world, signage)
 	await _test_follows_registry_marker(world, signage)
 
@@ -282,6 +283,34 @@ func _test_concave_collision() -> void:
 	shape.set_faces(corners)
 	signage._collect_solids(fixture)
 	_check(signage._obstruction(Vector3.ZERO, Vector3.RIGHT, Vector3.BACK, 2.0, 0.5).is_empty(), "trimesh bounds do not falsely close an empty doorway")
+	fixture.free()
+
+
+func _test_static_floor_support() -> void:
+	var fixture := Node3D.new()
+	fixture.name = "WayfindingFloorFixture"
+	root.add_child(fixture)
+	var floor_body := StaticBody3D.new()
+	fixture.add_child(floor_body)
+	var ramp := CollisionShape3D.new()
+	var box := BoxShape3D.new()
+	box.size = Vector3(4.0, 0.4, 4.0)
+	ramp.shape = box
+	ramp.rotation.z = 0.2
+	floor_body.add_child(ramp)
+	var signage := WAYFINDING.new()
+	fixture.add_child(signage)
+	signage._collect_solids(fixture)
+	var height: Variant = signage._find_floor(Vector3.ZERO, 0.0)
+	_check(height != null and is_equal_approx(float(height), 0.2 / cos(0.2)), "ramp support uses its real face instead of the AABB top")
+	floor_body.name = "TestDoorSupport"
+	signage._collect_solids(fixture)
+	_check(signage._find_floor(Vector3.ZERO, 0.0) == null, "door geometry cannot support a static sign")
+	var moving := AnimatableBody3D.new()
+	fixture.add_child(moving)
+	ramp.reparent(moving, false)
+	signage._collect_solids(fixture)
+	_check(signage._find_floor(Vector3.ZERO, 0.0) == null, "moving body geometry cannot support a static sign")
 	fixture.free()
 
 
