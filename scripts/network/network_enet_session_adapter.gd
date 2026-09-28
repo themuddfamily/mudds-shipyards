@@ -4803,6 +4803,11 @@ func _hold_peer_packet_throttle(peer_id: int) -> void:
 	var enet := _peer as ENetMultiplayerPeer
 	if enet == null:
 		return
+	# A client's only direct ENet link is the server; `peer_connected` also
+	# announces relayed crewmates, which `get_peer()` would log as missing.
+	if enet.get_unique_id() != MultiplayerPeer.TARGET_PEER_SERVER \
+			and peer_id != MultiplayerPeer.TARGET_PEER_SERVER:
+		return
 	var link := enet.get_peer(peer_id)
 	if link == null:
 		return
