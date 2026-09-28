@@ -100,6 +100,9 @@ var _entry_ship_instance_id := 0
 var _entry_attach_cooldown := 0
 var _entry_intensity := 0.0
 var _entry_presented_once := false
+## Whether the envelope still shows anything (segments or its timed
+## entry-recovery hold) after the last presentation.
+var _entry_envelope_visible := false
 var _last_entry_result: Dictionary = {}
 
 var _wind_drift_body_mps := Vector3.ZERO
@@ -366,8 +369,11 @@ func _update_entry(
 		float(sample.get("entry_effect_intensity", 0.0)), 0.0, 1.0
 	) if bool(sample.get("accepted", false)) else 0.0
 	# Slow flight low down is the common case: once the envelope has presented
-	# zero, keep it there without re-presenting every tick.
-	if _entry_presented_once and intensity == 0.0 and _entry_intensity == 0.0:
+	# zero and shows nothing, keep it there without re-presenting every tick.
+	# A hot-to-zero drop arms a timed recovery hold that only counts down on
+	# observations, so keep presenting until that cue has run out.
+	if _entry_presented_once and intensity == 0.0 and _entry_intensity == 0.0 \
+			and not _entry_envelope_visible:
 		return
 	var presented := _entry_binding.call(
 		&"present_observation", altitude, speed, true
@@ -379,6 +385,10 @@ func _update_entry(
 		return
 	_entry_presented_once = true
 	_entry_intensity = intensity
+	_entry_envelope_visible = bool(
+		((presented.get("snapshot", {}) as Dictionary).get("envelope", {}) \
+			as Dictionary).get("visible", false)
+	)
 
 
 func _attach_entry(craft: HeroShip, hud: GameHUD) -> bool:
@@ -399,6 +409,7 @@ func _attach_entry(craft: HeroShip, hud: GameHUD) -> bool:
 	_entry_ship_instance_id = craft.get_instance_id()
 	_entry_intensity = 0.0
 	_entry_presented_once = false
+	_entry_envelope_visible = false
 	_last_entry_result = configured.duplicate(true)
 	return true
 
@@ -411,6 +422,7 @@ func _detach_entry(reason: StringName) -> void:
 	_entry_ship_instance_id = 0
 	_entry_intensity = 0.0
 	_entry_presented_once = false
+	_entry_envelope_visible = false
 	if reason != &"":
 		_last_entry_result = {"accepted": true, "reason": reason}
 
