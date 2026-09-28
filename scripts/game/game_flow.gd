@@ -11114,6 +11114,7 @@ func _ensure_player_bolt_pool() -> MassDriverBoltPool:
 	if is_instance_valid(_player_bolt_pool) and not _player_bolt_pool.is_queued_for_deletion():
 		if _player_bolt_pool.get_bound_authority() != combat_authority:
 			_player_bolt_pool.bind_authority(combat_authority)
+		_observe_player_bolt_pool_for_network(_player_bolt_pool)
 		return _player_bolt_pool
 	var pool := MassDriverBoltPoolType.new() as MassDriverBoltPool
 	pool.name = "PlayerMassDriverBolts"
@@ -11124,7 +11125,19 @@ func _ensure_player_bolt_pool() -> MassDriverBoltPool:
 	if runtime_settings != null:
 		pool.set_reduced_flash_enabled(runtime_settings.reduced_flash)
 	_player_bolt_pool = pool
+	_observe_player_bolt_pool_for_network(pool)
 	return pool
+
+
+## Launch emits synchronously, so observation must precede the first launch,
+## including when a pool created offline is reused immediately after hosting.
+func _observe_player_bolt_pool_for_network(pool: MassDriverBoltPool) -> void:
+	if _network_session_mode != &"server" or not is_instance_valid(network_session) \
+			or not network_session.is_server():
+		return
+	_ensure_network_remote_projectile_replicator().observe_pool(
+		pool, NetworkRemoteProjectileReplicatorType.KIND_SLUG, &"player-mass-driver"
+	)
 
 
 func get_player_bolt_pool() -> MassDriverBoltPool:

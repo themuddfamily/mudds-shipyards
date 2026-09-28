@@ -98,6 +98,12 @@ func _build() -> bool:
 		"the host's subtree supplies the Halyard a remote pilot will fly")
 	if _craft == null:
 		return false
+	# Offline pool construction must not create a network presentation service.
+	var offline_pool := _host._ensure_player_bolt_pool()
+	_check(_host.get_network_remote_projectile_replicator() == null,
+		"solo hauler pool construction does not create a replicator")
+	offline_pool.free()
+	_check(_host.get_player_bolt_pool() == null, "hosting starts without a player bolt pool")
 	set_multiplayer(SceneMultiplayer.new(), _host.get_path())
 	var adapters: Array = []
 	for index in 2:
@@ -127,6 +133,7 @@ func _build() -> bool:
 	_server = _host.get_network_session()
 	if _server == null:
 		return false
+	_assert_first_host_slug_is_published()
 	_server.boarding_intent_result.connect(func(result: Dictionary) -> void:
 		_boarding_results.append(result.duplicate(true)))
 	_pilot.join("127.0.0.1", port)
@@ -137,6 +144,41 @@ func _build() -> bool:
 	)
 	_check(offered, "both peers are admitted and hold the host's offer")
 	return offered
+
+
+## No await or network advance may occur between hosting, launch and these
+## checks: that is the first-shot window the production pool used to miss.
+func _assert_first_host_slug_is_published() -> void:
+	var hauler: HeroShip = null
+	for fleet_ship in _host.ships:
+		if is_instance_valid(fleet_ship) and fleet_ship.get_ship_id() == GameFlow.CINDER_CARGO_SHIP_ID:
+			hauler = fleet_ship
+			break
+	_check(hauler != null, "the host supplies the production Cinder hauler")
+	if hauler == null:
+		return
+	var weapon_id := _host._get_player_combat_weapon_id(hauler)
+	_check(_host._player_weapon_is_travelling(hauler, weapon_id),
+		"the production hauler weapon uses travelling bolts")
+	_check(_host.get_player_bolt_pool() == null, "the first host slug creates its pool lazily")
+	var launch := _host._launch_player_travelling_bolt(
+		hauler, weapon_id, hauler.global_position - hauler.global_basis.z * 7.0,
+		-hauler.global_basis.z
+	)
+	_check(bool(launch.get("accepted", false)), "the host accepts its first hauler slug")
+	var replicator := _host.get_network_remote_projectile_replicator()
+	_check(replicator != null, "the first launch already has a network observer")
+	if replicator == null:
+		return
+	var audit := replicator.get_audit()
+	_check(int(audit.get("published", 0)) == 1 and int(audit.get("active_flights", 0)) == 1,
+		"the first slug publishes one launch before any physics tick")
+	# A source retirement is a real terminal, without waiting for world collision.
+	_host.get_player_bolt_pool().abandon_all(&"test_source_retired")
+	audit = replicator.get_audit()
+	_check(int(audit.get("published", 0)) == 2 and int(audit.get("active_flights", -1)) == 0
+		and int(audit.get("publish_failures", -1)) == 0,
+		"the first slug also publishes its terminal and retires the replicated flight")
 
 
 # --- A ------------------------------------------------------------------------
