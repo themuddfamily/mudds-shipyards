@@ -126,12 +126,15 @@ const EXPECTED_GANTRY_RAIL_FAMILY_ID: StringName = &"nearby-gantry-rails"
 # The eleven cargo access decks and steps subsequently gained 44-triangle
 # structural chamfers in place of 12-triangle boxes, adding exactly 352
 # streamed triangles while renderer, submission and collision counts stay fixed.
-const EXPECTED_LOCAL_MESH_NODES := 231
+# The Cinder Reach art pass (fcd9389bc) merged the hulk's silhouette dressing
+# into one presentation-only renderer with five finish surfaces and 1,264
+# triangles: +1 mesh renderer and copy, +5 submissions, +1,264 triangles.
+const EXPECTED_LOCAL_MESH_NODES := 232
 const EXPECTED_LOCAL_MULTIMESH_NODES := 25
-const EXPECTED_LOCAL_RENDERER_NODES := 256
-const EXPECTED_LOCAL_VISIBLE_COPIES := 925
-const EXPECTED_LOCAL_SURFACE_SUBMISSIONS := 256
-const EXPECTED_LOCAL_TRIANGLES := 146118
+const EXPECTED_LOCAL_RENDERER_NODES := 257
+const EXPECTED_LOCAL_VISIBLE_COPIES := 926
+const EXPECTED_LOCAL_SURFACE_SUBMISSIONS := 261
+const EXPECTED_LOCAL_TRIANGLES := 147382
 const EXPECTED_LOCAL_STATIC_BODIES := 109
 const EXPECTED_LOCAL_COLLISION_SHAPES := 111
 ## The dock gate's four fixed rails remain one renderer/submission, but now
@@ -996,13 +999,13 @@ func _test_processing_spine_rib_batch(cluster: NearbySectorCluster) -> void:
 		int(geometry["mesh_nodes"]) == EXPECTED_LOCAL_MESH_NODES
 		and int(geometry["multimesh_nodes"]) == EXPECTED_LOCAL_MULTIMESH_NODES
 		and int(geometry["renderer_nodes"]) == EXPECTED_LOCAL_RENDERER_NODES,
-		"NearbySectorCluster owns 231 Mesh + 17 MultiMesh renderers with the hulk and all three activity landmarks"
+		"NearbySectorCluster owns 232 Mesh + 25 MultiMesh renderers with the hulk and all three activity landmarks"
 	)
 	_check(
 		int(geometry["visible_copies"]) == EXPECTED_LOCAL_VISIBLE_COPIES
 		and int(geometry["surface_submissions"]) == EXPECTED_LOCAL_SURFACE_SUBMISSIONS
 		and int(geometry["triangles"]) == EXPECTED_LOCAL_TRIANGLES,
-		"the local census freezes 925 renderer copies, 146118 triangles, and 256 submissions"
+		"the local census freezes 926 renderer copies, 147382 triangles, and 261 submissions"
 	)
 	_check(
 		int(geometry["static_bodies"]) == EXPECTED_LOCAL_STATIC_BODIES
