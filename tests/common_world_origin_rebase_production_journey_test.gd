@@ -3,7 +3,7 @@ extends SceneTree
 const MAIN_SCENE := preload("res://scenes/main.tscn")
 const Store := preload("res://scripts/persistence/user_data_store.gd")
 const STORE_PATH := "memory://common-origin-owner-settings.json"
-const EXPECTED_ASSERTIONS := 34
+const EXPECTED_ASSERTIONS := 35
 
 var _assertions := 0
 var _failures: Array[String] = []
@@ -61,20 +61,28 @@ func _run() -> void:
 	if owner == null or ember_binding == null or ember == null or cinder_binding == null or cinder == null or aurora_binding == null or aurora == null or player == null:
 		await _cleanup(game); _finish(); return
 	var aurora_frame := aurora.get_coordinate_frame_for_session()
+	# Rime is bound by discovery too; it is never travelled to here, but every
+	# committed transaction carries its frame along with the others.
+	var rime := game.get_node_or_null(^"RimeGlacialStreamingBootstrap") as RimeGlacialStreamingBootstrap
+	_check(rime != null, "the third composed world resolves")
+	if rime == null:
+		await _cleanup(game); _finish(); return
+	var rime_frame := rime.get_coordinate_frame_for_session()
 	var ember_world_record := owner.get_world_binding_snapshot(EmberMoonStreamingBootstrap.WORLD_ID)
 	var aurora_world_record := owner.get_world_binding_snapshot(AuroraTemperateStreamingBootstrap.WORLD_ID)
 	_check(
 		owner.get_bound_world_ids() == PackedStringArray([
 			String(AuroraTemperateStreamingBootstrap.WORLD_ID),
 			String(EmberMoonStreamingBootstrap.WORLD_ID),
+			String(RimeGlacialStreamingBootstrap.WORLD_ID),
 		])
-			and int(owner.get_snapshot().world_count) == 2
+			and int(owner.get_snapshot().world_count) == 3
 			and int(ember_world_record.get("binding_instance_id", 0)) == ember_binding.get_instance_id()
 			and int(ember_world_record.get("bootstrap_instance_id", 0)) == ember.get_instance_id()
 			and int(aurora_world_record.get("binding_instance_id", 0)) == aurora_binding.get_instance_id()
 			and int(aurora_world_record.get("bootstrap_instance_id", 0)) == aurora.get_instance_id()
 			and String(aurora_world_record.get("identity_error", &"")).is_empty(),
-		"one owner binds both composed worlds by their own bootstrap/binding pairs"
+		"one owner binds every composed world by its own bootstrap/binding pair"
 	)
 	var initial_actor_reads := int(game.get_activity_integration_report().get("actor_position_sample_count", -1))
 	_check(initial_actor_reads > 0 and int(ember_binding.get_snapshot().get("accepted_sample_count", -1)) == initial_actor_reads, "GameFlow's one actor read drives Ember without a second sampler")
@@ -138,7 +146,9 @@ func _run() -> void:
 			and (first_receipt.get("world_generations", {}) as Dictionary) == {
 				String(AuroraTemperateStreamingBootstrap.WORLD_ID): 2,
 				String(EmberMoonStreamingBootstrap.WORLD_ID): 2,
-			},
+				String(RimeGlacialStreamingBootstrap.WORLD_ID): 2,
+			}
+			and rime_frame.get_generation() == 2,
 		"an Ember transaction carries the untravelled second world's frame, root and adapter with it"
 	)
 	_check(player.global_position == Vector3.ZERO and world.global_position.is_equal_approx(before_positions.world + delta) and ship.global_position.is_equal_approx(before_positions.ship + delta), "actor, station, and fleet roots receive one exact delta")
@@ -254,19 +264,20 @@ func _run() -> void:
 	var refused := owner.consume_rebase_preview(aurora_preview, aurora_sample)
 	var rebound := owner.rebind_composed_worlds()
 	_check(
-		bool(unbound.accepted) and int(unbound.world_count) == 1
+		bool(unbound.accepted) and int(unbound.world_count) == 2
 			and not bool(refused.accepted) and refused.reason == &"unbound_rebase_world"
 			and bool(rebound.accepted)
 			and (rebound.bound_world_ids as PackedStringArray) == PackedStringArray([
 				String(AuroraTemperateStreamingBootstrap.WORLD_ID),
 			])
-			and int(owner.get_snapshot().world_count) == 2
+			and int(owner.get_snapshot().world_count) == 3
 			and int(owner.get_snapshot().transaction_count) == transaction_count + 1,
 		"a retired world is refused by name and a rebind restores it without replaying a transaction"
 	)
 
 	var aurora_ember_generation_before := frame.get_generation()
 	var aurora_generation_before := aurora_frame.get_generation()
+	var rime_generation_before := rime_frame.get_generation()
 	var aurora_ember_loaded_before := ember.get_loaded_instance()
 	var aurora_transaction := owner.consume_rebase_preview(aurora_preview, aurora_sample)
 	var aurora_delta := aurora_preview.world_translation_delta as Vector3
@@ -281,6 +292,7 @@ func _run() -> void:
 			and (aurora_receipt.get("world_generations", {}) as Dictionary) == {
 				String(AuroraTemperateStreamingBootstrap.WORLD_ID): aurora_generation_before + 1,
 				String(EmberMoonStreamingBootstrap.WORLD_ID): aurora_ember_generation_before + 1,
+				String(RimeGlacialStreamingBootstrap.WORLD_ID): rime_generation_before + 1,
 			}
 			and int(aurora_binding.get_snapshot().external_rebase_commit_count) >= 1,
 		"the second world commits its own transaction through the same owner"
