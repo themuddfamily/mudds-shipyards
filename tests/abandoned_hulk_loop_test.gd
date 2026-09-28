@@ -542,6 +542,38 @@ func _test_production_loop() -> void:
 	)
 	_check(_interior_lighting_matches(hulk, false),
 		"unclaimed hulk fixtures retain dim emergency lighting")
+	# The pilot's 2.35 m interaction sphere reaches the breaker's box from
+	# diagonally off its corner, more than the activity's 4 m reach from the
+	# breaker itself. That press is refused, and the panel must keep offering
+	# the breaker rather than claiming the bus is engaged.
+	var fringe := hulk.get_breaker_world_position() + Vector3(3.1, 0.0, 3.1)
+	player.teleport_to(Transform3D(
+		Basis.looking_at(Vector3(-1.0, 0.0, -1.0).normalized(), Vector3.UP), fringe
+	))
+	player.velocity = Vector3.ZERO
+	for _settle in 6:
+		await physics_frame
+	var fringe_reachable := player.get_nearby_interactables().has(breaker) \
+		and player.global_position.distance_to(
+			POWER_ACTIVITY.BREAKER_ANCHOR
+		) > POWER_ACTIVITY.INTERACTION_RADIUS
+	breaker.call(&"interact", player)
+	var refused := game.get_hulk_power_restoration_snapshot()
+	_check(
+		fringe_reachable
+		and StringName(refused.get("state_id", &"")) == &"idle"
+		and str(breaker.call(&"get_interaction_prompt")).contains(
+			"ENGAGE AUXILIARY POWER BREAKER"
+		),
+		"a refused press from the fringe of reach leaves the breaker offered, not engaged (%s, %s, reach %s)"
+			% [str(breaker.call(&"get_interaction_prompt")), refused.get("state_id", &""),
+				fringe_reachable]
+	)
+	player.teleport_to(
+		Transform3D(Basis.IDENTITY, hulk.get_breaker_world_position())
+	)
+	await physics_frame
+	await physics_frame
 	_check(
 		breaker.call(&"interact", player),
 		"the on-foot pilot can operate the auxiliary breaker"
