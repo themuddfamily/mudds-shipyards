@@ -136,6 +136,24 @@ func _initialize() -> void:
 	_check(_client_replicator.get_drawn_projectile_ids().is_empty()
 		and int(_client_replicator.get_audit().get("terminals", 0)) == 1,
 		"a resolved slug bursts and stops being drawn")
+	_check(int(_client_replicator.get_audit().get("bursts", 0)) == 1, "a slug that hit something bursts")
+	# A slug that runs out of range without touching anything ends quietly on the
+	# host (no impact cue, no burst); the client must not detonate it in empty sky.
+	var missed := _record(8, origin, Vector3.FORWARD, 180.0, 2.0)
+	bolts.bolt_launched.emit(missed)
+	await _pump(func() -> bool: return _client_replicator.get_drawn_projectile_ids().size() == 1)
+	var missed_terminal := missed.duplicate(true)
+	missed_terminal["terminal_position"] = origin + Vector3.FORWARD * 360.0
+	missed_terminal["terminal_reason"] = &"range"
+	var bursts_before_miss := int(_client_replicator.get_audit().get("bursts", 0))
+	var terminals_before_miss := int(_client_replicator.get_audit().get("terminals", 0))
+	bolts.bolt_resolved.emit(missed_terminal, {"hit": false, "damaged": false})
+	await _pump(func() -> bool:
+		return int(_client_replicator.get_audit().get("terminals", 0)) == terminals_before_miss + 1)
+	_check(_client_replicator.get_drawn_projectile_ids().is_empty()
+		and int(_client_replicator.get_audit().get("bursts", 0)) == bursts_before_miss,
+		"a slug that missed is retired without a burst (bursts %d -> %d)"
+		% [bursts_before_miss, int(_client_replicator.get_audit().get("bursts", 0))])
 
 	# D
 	var torpedo_origin := Vector3(0.0, 5.0, 0.0)
@@ -177,11 +195,35 @@ func _initialize() -> void:
 	var live := _record(13, origin, Vector3.LEFT, 10.0, 20.0)
 	bolts.bolt_launched.emit(live)
 	await _pump(func() -> bool: return _client_replicator.get_drawn_projectile_ids().size() == 1)
+	# A torpedo that has already steered far from its launch point.
+	var live_torpedo := _record(17, torpedo_origin, Vector3.FORWARD, 40.0, 20.0)
+	torpedoes.records = [live_torpedo]
+	torpedoes.torpedo_launched.emit(live_torpedo)
+	await _pump(func() -> bool: return _client_replicator.get_drawn_projectile_ids().size() == 2)
+	var flown := live_torpedo.duplicate(true)
+	flown["position"] = Vector3(-60.0, 5.0, -80.0)
+	flown["direction"] = Vector3.RIGHT
+	flown["elapsed"] = 2.0
+	torpedoes.records = [flown]
+	for _frame in Replicator.TORPEDO_UPDATE_INTERVAL_TICKS:
+		_host_replicator.advance_host()
 	_check(_late.join("127.0.0.1", port).accepted, "a late peer connects mid-flight")
 	await _pump(func() -> bool: return not _late.get_server_offer().is_empty())
 	_host_replicator.republish_for_peer(_late.multiplayer.get_unique_id())
-	await _pump(func() -> bool: return _late_replicator.get_drawn_projectile_ids().size() == 1)
-	_check(_late_replicator.get_drawn_projectile_ids().size() == 1, "the late peer is sent the live slug")
+	await _pump(func() -> bool: return _late_replicator.get_drawn_projectile_ids().size() == 2)
+	_check(_late_replicator.get_drawn_projectile_ids().size() == 2, "the late peer is sent the live slug and torpedo")
+	var late_torpedo_id := &""
+	for drawn_id in _late_replicator.get_drawn_projectile_ids():
+		if String(drawn_id).begins_with("torpedo"):
+			late_torpedo_id = StringName(drawn_id)
+	var late_torpedo_error := _late_replicator.get_visual_position(late_torpedo_id).distance_to(
+		flown.position as Vector3)
+	_check(late_torpedo_error < 12.0,
+		"the late peer sees the torpedo where it has steered to, not at its launch (%.2f m off)"
+		% late_torpedo_error)
+	torpedoes.records = []
+	torpedoes.torpedo_intercepted.emit(flown)
+	await _pump(func() -> bool: return _client_replicator.get_drawn_projectile_ids().size() == 1)
 
 	# G
 	var orphan := _record(15, origin, Vector3.UP, 5.0, 0.3)

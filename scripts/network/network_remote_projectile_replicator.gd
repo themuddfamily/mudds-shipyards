@@ -61,6 +61,7 @@ var _reduced_flash := false
 var _presented_count := 0
 var _terminal_count := 0
 var _expired_count := 0
+var _burst_count := 0
 
 
 func _ready() -> void:
@@ -144,6 +145,9 @@ func advance_host() -> void:
 			if not _active.has(active_key):
 				continue
 			var active := _active[active_key] as Dictionary
+			# The newest steered pose is what a late peer is shown and what an
+			# abort names, not the launch record.
+			active["record"] = record.duplicate(true)
 			var projectile := _projectile_from_record(active, record, &"flying", {})
 			if not projectile.is_empty():
 				_publish(projectile, false)
@@ -349,7 +353,11 @@ func present_packet(packet: Dictionary, status: StringName) -> Dictionary:
 		else Vector3.FORWARD
 	if status == &"projectile_terminal_applied":
 		_terminal_count += 1
-		_retire_visual(projectile_id, position as Vector3, not (projectile.get("terminal_intent", {}) as Dictionary).is_empty())
+		# Only a contact bursts. A flight that ran out of lifetime or range ends
+		# quietly on the host, so it must not detonate in empty sky here.
+		var intent := projectile.get("terminal_intent", {}) as Dictionary
+		_retire_visual(projectile_id, position as Vector3,
+			not intent.is_empty() and StringName(intent.get("kind", &"")) == &"impact")
 		return {"accepted": true, "status": &"remote_projectile_terminal_presented"}
 	if status not in [&"projectile_presented", &"projectile_waiting_for_gap"]:
 		return {"accepted": false, "status": &"remote_projectile_not_presentable"}
@@ -405,6 +413,7 @@ func get_audit() -> Dictionary:
 		"presented": _presented_count,
 		"terminals": _terminal_count,
 		"expired": _expired_count,
+		"bursts": _burst_count,
 		"owns_combat_authority": false,
 	}
 
@@ -452,6 +461,7 @@ func _retire_visual(projectile_id: StringName, position: Vector3, burst: bool) -
 		_visuals.erase(projectile_id)
 		_free_visuals.append(visual)
 		return
+	_burst_count += 1
 	visual["position"] = position
 	visual["bursting"] = true
 	visual["remaining"] = BURST_SECONDS
