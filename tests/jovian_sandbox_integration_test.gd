@@ -64,7 +64,7 @@ func _run() -> void:
 		&"cinder_long_range_bomber": 1106,
 		&"bulwark_heavy_gunship": 1107,
 		&"cinder_light_interceptor": 1108,
-		&"cinder_cargo_hauler": 0,
+		&"cinder_cargo_hauler": 1109,
 	}
 	var observed_sources: Dictionary = {}
 	for craft in fleet:
@@ -77,8 +77,8 @@ func _run() -> void:
 	_check(ship_ids.size() == 9, "all nine registered flyables have unique stable ship IDs")
 	_check(berth_ids.size() == 9, "all nine registered flyables have unique home-berth IDs")
 	_check(
-		source_ids.size() == 8 and observed_sources == expected_sources,
-		"eight armed craft retain exact unique combat sources; the cargo hauler remains unarmed"
+		source_ids.size() == 9 and observed_sources == expected_sources,
+		"all nine craft retain exact unique combat sources, including the armed cargo hauler as 1109"
 	)
 	_check(int(combat_authority.get_source_id(jovian)) == 1103, "Jovian owns stable production combat source 1103")
 	_check(int(combat_authority.get_source_id(zenith)) == 1104, "Zenith owns stable production combat source 1104")

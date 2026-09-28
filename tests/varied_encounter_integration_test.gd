@@ -95,9 +95,9 @@ func _test_paired_wing_scatter_scenario() -> void:
 		func() -> bool: return picket.is_active(), SETTLE_FRAME_BUDGET
 	)
 	_check(
-		picket_launched and resolver.get_registered_source_count() == 15
+		picket_launched and resolver.get_registered_source_count() == 16
 		and bool(game.get_live_combat_source_roster_audit().valid),
-		"the paired wing and picket compose exactly fifteen audited live sources"
+		"the paired wing and picket compose exactly sixteen audited live sources"
 	)
 	root.remove_child(game)
 	await process_frame
@@ -111,9 +111,9 @@ func _test_paired_wing_scatter_scenario() -> void:
 	await process_frame
 	_check(
 		director.is_running() and coordinator.get_active_member_count() == 2
-		and resolver.get_registered_source_count() == 15
+		and resolver.get_registered_source_count() == 16
 		and bool(game.get_live_combat_source_roster_audit().valid),
-		"whole-Main reentry restores the running pair and picket with fifteen exact sources"
+		"whole-Main reentry restores the running pair and picket with sixteen exact sources"
 	)
 	flanker.acceleration = 0.0
 	flanker.velocity = Vector3.ZERO
@@ -230,11 +230,12 @@ func _test_production_encounter() -> void:
 			bool(craft.call(&"get_audit_report").valid),
 			"%s audits clean at boot: %s" % [craft.name, craft.call(&"get_validation_errors")]
 		)
-	# The settled production fleet and defence roster has twelve sources.
+	# The settled production fleet and defence roster has thirteen sources
+	# (a2c1a7a5f armed the Cinder cargo hauler as player source 1109).
 	# Dormant scenario opponents must add none until admitted by the director.
 	_check(
-		baseline_sources == 12 and bool(game.get_live_combat_source_roster_audit().valid),
-		"the new craft leave the coordinator's twelve-source census exactly as it was (%d)"
+		baseline_sources == 13 and bool(game.get_live_combat_source_roster_audit().valid),
+		"the new craft leave the coordinator's thirteen-source census exactly as it was (%d)"
 			% baseline_sources
 	)
 
@@ -564,7 +565,7 @@ func _test_production_encounter() -> void:
 	_check(
 		resolver.get_registered_source_count() == baseline_sources
 		and bool(game.get_live_combat_source_roster_audit().valid),
-		"the withdrawn scenario returns the source census to the twelve baseline sources (%d)"
+		"the withdrawn scenario returns the source census to the thirteen baseline sources (%d)"
 			% resolver.get_registered_source_count()
 	)
 	_check(
