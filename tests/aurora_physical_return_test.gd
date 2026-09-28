@@ -1,4 +1,5 @@
 extends "res://tests/aurora_expedition_production_test.gd"
+## test-matrix-timeout-seconds: 900
 
 ## Bounded production departure: staging is only before outbound admission.
 ## From Aurora touchdown onward the same actors move only through real inputs

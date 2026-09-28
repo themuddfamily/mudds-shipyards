@@ -1,4 +1,5 @@
 extends SceneTree
+## test-matrix-timeout-seconds: 900
 
 ## A repeat Ember visit lands.
 ##
