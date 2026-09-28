@@ -107,8 +107,21 @@ func _initialize() -> void:
 	_check(
 		bool(collision.get("valid", false))
 			and int(collision.get("shape_count", 0)) == 1
+			# The hull box keeps its top, width and length; its floor is the
+			# drawn hull's lowest point so a parked craft rests on the deck.
 			and (collision.get("local_bounds", AABB()) as AABB).is_equal_approx(
-				AABB(-Interceptor.HULL_SIZE * 0.5, Interceptor.HULL_SIZE)
+				AABB(
+					Vector3(
+						-Interceptor.HULL_SIZE.x * 0.5,
+						Interceptor.HULL_COLLISION_FLOOR_Y,
+						-Interceptor.HULL_SIZE.z * 0.5
+					),
+					Vector3(
+						Interceptor.HULL_SIZE.x,
+						Interceptor.HULL_SIZE.y * 0.5 - Interceptor.HULL_COLLISION_FLOOR_Y,
+						Interceptor.HULL_SIZE.z
+					)
+				)
 			)
 			and bool(first_audit.get("valid", false))
 			and bool(second_audit.get("valid", false))

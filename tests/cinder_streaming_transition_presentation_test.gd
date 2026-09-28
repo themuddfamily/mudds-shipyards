@@ -6,8 +6,10 @@ const GENERATION := 7
 const TICK := 1.0 / 60.0
 # Refrozen for the abandoned station hulk: +39 authored renderers, which the
 # transition binds and fades with everything else in the sector.
-const EXPECTED_AUTHORED_RENDERER_COUNT := 258
-const EXPECTED_BOUND_RENDERER_COUNT := 262
+# The Cinder Reach art pass (fcd9389bc) added the hulk's merged
+# silhouette-detail renderer.
+const EXPECTED_AUTHORED_RENDERER_COUNT := 259
+const EXPECTED_BOUND_RENDERER_COUNT := 263
 const EXPECTED_INTEGRATED_BATCH_FINGERPRINT := (
 	"ExtractionPlatform/CinderReachPlatform/ExtractionArmCollars"
 	+ "|cinder-extraction-arm-collars|6|-1;"
