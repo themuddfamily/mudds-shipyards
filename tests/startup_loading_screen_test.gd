@@ -478,10 +478,16 @@ func _detach_and_reattach_staged_world(world: ShipyardWorld) -> void:
 	root.add_child(world)
 
 
+# Every sibling the atomic store can load from, including the rotated `.bak.N`
+# history it falls back to since fe0a916d5; a leftover history copy would
+# otherwise be loaded as the authority and stale the fixture's generation-0 commit.
+const _STORE_FIXTURE_SUFFIXES := [".tmp", "", ".bak", ".bak.1", ".bak.2", ".bak.3", ".recovery"]
+
+
 func _test_atomic_graphics_profile_precedes_world_construction() -> void:
 	var path := RuntimeSettingsStoreAdapter.DEFAULT_STORE_PATH
 	var original_files: Dictionary = {}
-	for suffix in ["", ".bak", ".tmp", ".recovery"]:
+	for suffix in _STORE_FIXTURE_SUFFIXES:
 		if FileAccess.file_exists(path + suffix):
 			original_files[suffix] = FileAccess.get_file_as_bytes(path + suffix)
 			DirAccess.remove_absolute(ProjectSettings.globalize_path(path + suffix))
@@ -523,7 +529,7 @@ func _test_atomic_graphics_profile_precedes_world_construction() -> void:
 	await process_frame
 	await process_frame
 	GameFlow._production_runtime_settings_state = retained_process_settings
-	for suffix in ["", ".bak", ".tmp", ".recovery"]:
+	for suffix in _STORE_FIXTURE_SUFFIXES:
 		if FileAccess.file_exists(path + suffix):
 			DirAccess.remove_absolute(ProjectSettings.globalize_path(path + suffix))
 		if original_files.has(suffix):
