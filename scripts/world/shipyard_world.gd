@@ -1064,8 +1064,8 @@ const KEY_LIGHT_ROTATION_DEGREES := Vector3(-42.0, -28.0, 0.0)
 ##   Halyard         9.60 x 5.58 x 28.35  y <= 3.90      y >= 1.10
 ##   Bulwark        11.60 x 3.43 x 10.80  y <= 5.50      y >= 0.60
 ##   Cinder cargo    7.10 x 3.20 x 12.00  y <= 6.60      y >= 1.40
-##   Cinder bomber   7.00 x 3.00 x 15.50  y <= 6.90      y >= 1.60
-##   Cinder light    4.80 x 2.50 x  8.80  y <= 7.20      y >= 1.30
+##   Cinder bomber   7.00 x 2.83 x 15.50  y <= 6.90      y >= 1.40
+##   Cinder light    4.80 x 2.30 x  8.80  y <= 7.20      y >= 1.10
 ##
 ## The aperture is uniform across the whole span: every sampled x from -35 to +35
 ## gives a Torrent the same 4.70 m ceiling, so there is no lateral way around it
@@ -1078,11 +1078,13 @@ const KEY_LIGHT_ROTATION_DEGREES := Vector3(-42.0, -28.0, 0.0)
 ##
 ## `OUTBOUND_CLEARANCE_CEILING` is the fleet-worst ceiling from the Jovian's
 ## tallest vertical landing envelope. `OUTBOUND_CLEARANCE_FLOOR` is independently
-## fleet-worst at the corridor mouth from the Cinder bomber. The launch gate is
-## aimed at the centre of their shared band, leaving every production craft at
-## least one metre below the beam and above the deck.
+## fleet-worst at the corridor mouth, shared by the Cinder cargo hauler and the
+## Cinder bomber since the bomber's hull collision floor was raised to its drawn
+## hull. The launch gate aim is retained at 2.70, inside their shared band,
+## leaving every production craft at least one metre below the beam and above
+## the deck.
 const OUTBOUND_CLEARANCE_CEILING := 3.80
-const OUTBOUND_CLEARANCE_FLOOR := 1.60
+const OUTBOUND_CLEARANCE_FLOOR := 1.40
 const LAUNCH_GATE_AIM_Y := 2.70
 ## Central launch signal crossbeam. Its old 176 mm proportional bevel still read
 ## as a rectangular bar from the berth approach; this half-height capsule radius
