@@ -4641,12 +4641,10 @@ func _apply_projectile_replica_snapshot(packet: Dictionary) -> Dictionary:
 	return _remember(applied)
 
 
-## A retired id keeps only its generation fence (the lifecycle receipt GameFlow
-## checks); its tick and revision cursors go now, and the oldest fence goes once
-## more than `PROJECTILE_REPLICA_TOMBSTONE_LIMIT` ids have retired after it.
+## A retired id keeps its fences (generation, revision and tick cursors, and
+## the lifecycle receipt GameFlow checks) until more than
+## `PROJECTILE_REPLICA_TOMBSTONE_LIMIT` ids have retired after it.
 func _retire_projectile_replica_id(projectile_id: StringName) -> void:
-	_projectile_replica_ticks.erase(projectile_id)
-	_projectile_replica_packet_revisions.erase(projectile_id)
 	_projectile_replica_tombstones.erase(projectile_id)
 	_projectile_replica_tombstones[projectile_id] = true
 	while _projectile_replica_tombstones.size() > PROJECTILE_REPLICA_TOMBSTONE_LIMIT:
@@ -4655,6 +4653,8 @@ func _retire_projectile_replica_id(projectile_id: StringName) -> void:
 		_projectile_replica_generations.erase(oldest)
 		_projectile_replica_terminal_generations.erase(oldest)
 		_projectile_replica_samples.erase(oldest)
+		_projectile_replica_ticks.erase(oldest)
+		_projectile_replica_packet_revisions.erase(oldest)
 
 
 func _reset_projectile_replica_state(migration_generation: int) -> void:
