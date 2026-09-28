@@ -38,6 +38,14 @@ body.set_meta("walkable_surface_owner", &"stable_module_owner")
 body.set_meta("walkable_surface_kind", &"level") # or &"ramp"
 ```
 
+Craft landing decks publish `walkable_surface_kind = &"landing_deck"`. They
+are validated like any other surface (one enabled level box, World-only
+collision, live support at all five probes) but are parking pads for a hull,
+not pedestrian circulation, so they are reported separately as
+`landing_deck_count` / `landing_deck_projected_horizontal_m2` and never join
+the circulation roster, coplanar union or expansion totals. Any other kind
+invalidates the report.
+
 The aggregate JSON includes its schema/profile, Godot version, Git source SHA,
 owner totals, support counts, and exact six-decimal area totals. At the current
 production baseline it reports 54 surfaces, including three ramps:

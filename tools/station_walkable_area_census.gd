@@ -22,6 +22,12 @@ const MINIMUM_UP_DOT := 0.55
 const LEVEL_UP_DOT := 0.999
 const OVERLAP_ELEVATION_TOLERANCE := 0.04
 const OVERLAP_AXIS_TOLERANCE := 0.0001
+## Craft landing decks (FleetExpansionBerths) are standable World collision the
+## pilot is handed off onto, but they are parking pads for a hull rather than
+## pedestrian circulation. They are validated like any declared surface (single
+## level box, World-only policy, live support) and reported separately; they
+## never join the circulation roster, union or expansion totals.
+const LANDING_DECK_KIND := &"landing_deck"
 
 const WORLD_SCENE := preload("res://scenes/world/shipyard_world.tscn")
 
@@ -151,6 +157,7 @@ static func measure(
 	var seen_ids := {}
 	var seen_paths := {}
 	var rows: Array[Dictionary] = []
+	var landing_deck_rows: Array[Dictionary] = []
 	for declaration: Dictionary in merged:
 		var owner := StringName(str(declaration.get("owner", "")))
 		var surface_id := StringName(str(declaration.get("surface_id", "")))
@@ -188,15 +195,25 @@ static func measure(
 		var inferred_kind := &"level" if up_dot >= LEVEL_UP_DOT else &"ramp"
 		if kind.is_empty():
 			kind = inferred_kind
-		if kind not in [&"level", &"ramp"]:
+		if kind not in [&"level", &"ramp", LANDING_DECK_KIND]:
 			errors.append("unknown surface kind for %s: %s" % [identity, kind])
 			continue
-		if kind != inferred_kind:
+		if kind != inferred_kind and not (kind == LANDING_DECK_KIND and inferred_kind == &"level"):
 			errors.append("surface kind disagrees with live collision normal: %s" % identity)
 
 		var supported_samples := _physics_support_count(geometry.sample_points, space)
 		if space != null and supported_samples == 0:
 			errors.append("no representative live physics support: %s" % identity)
+		if kind == LANDING_DECK_KIND:
+			landing_deck_rows.append({
+				"owner": String(owner),
+				"surface_id": String(surface_id),
+				"path": path_text,
+				"projected_horizontal_m2": _rounded(float(geometry.projected_horizontal_m2)),
+				"support_samples": supported_samples,
+				"support_samples_total": (geometry.sample_points as Array).size(),
+			})
+			continue
 		rows.append({
 			"owner": String(owner),
 			"surface_id": String(surface_id),
@@ -219,7 +236,10 @@ static func measure(
 	_find_overlaps(rows, errors, union_coplanar_handoffs)
 	_assign_counted_projected_areas(rows)
 	errors.sort()
-	return _build_report(rows, errors)
+	landing_deck_rows.sort_custom(func(a: Dictionary, b: Dictionary) -> bool:
+		return "%s/%s" % [a.owner, a.surface_id] < "%s/%s" % [b.owner, b.surface_id]
+	)
+	return _build_report(rows, errors, landing_deck_rows)
 
 
 static func _merge_tagged_surfaces(
@@ -441,7 +461,18 @@ static func _polygon_area_micro(polygon: PackedVector2Array) -> int:
 	return roundi(absf(twice_area) * 500000.0)
 
 
-static func _build_report(rows: Array[Dictionary], errors: PackedStringArray) -> Dictionary:
+static func _build_report(
+		rows: Array[Dictionary],
+		errors: PackedStringArray,
+		landing_deck_rows: Array[Dictionary] = []
+	) -> Dictionary:
+	var landing_deck_projected_micro := 0
+	var landing_deck_support_samples := 0
+	var landing_deck_support_total := 0
+	for deck: Dictionary in landing_deck_rows:
+		landing_deck_projected_micro += _to_micro(float(deck.projected_horizontal_m2))
+		landing_deck_support_samples += int(deck.support_samples)
+		landing_deck_support_total += int(deck.support_samples_total)
 	var level_projected_micro := 0
 	var ramp_projected_micro := 0
 	var ramp_true_micro := 0
@@ -512,6 +543,11 @@ static func _build_report(rows: Array[Dictionary], errors: PackedStringArray) ->
 		"total_true_surface_m2": _from_micro(level_projected_micro + ramp_true_micro),
 		"physics_support_samples": support_samples,
 		"physics_support_samples_total": support_total,
+		"landing_deck_rows": landing_deck_rows,
+		"landing_deck_count": landing_deck_rows.size(),
+		"landing_deck_projected_horizontal_m2": _from_micro(landing_deck_projected_micro),
+		"landing_deck_support_samples": landing_deck_support_samples,
+		"landing_deck_support_samples_total": landing_deck_support_total,
 	}
 
 
@@ -520,6 +556,8 @@ static func aggregate(report: Dictionary) -> Dictionary:
 		"engine": report.engine,
 		"errors": report.errors,
 		"gross_projected_horizontal_m2": report.gross_projected_horizontal_m2,
+		"landing_deck_count": report.landing_deck_count,
+		"landing_deck_projected_horizontal_m2": report.landing_deck_projected_horizontal_m2,
 		"level_projected_horizontal_m2": report.level_projected_horizontal_m2,
 		"owner_totals": report.owner_totals,
 		"physics_support_samples": report.physics_support_samples,
