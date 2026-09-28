@@ -1,5 +1,10 @@
 # Handoff implementation status — 2026-09-28
 
+**Update:** The user subsequently authorized validation. See
+[VALIDATION_RESULTS.md](VALIDATION_RESULTS.md) for executed checks, discovered
+fixes, measured signage results, checkpoint details and remaining gates.
+The implementation-only snapshot below preserves the earlier deferred state.
+
 This report records the implementation pass against the seven 2026-09-27 briefs.
 Four agents worked in separate worktrees; the coordinating agent reviewed and
 integrated their commits into `main`. The original briefs and frozen worktrees
