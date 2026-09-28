@@ -13,10 +13,17 @@ func _init() -> void:
 func _run() -> void:
 	var catalog := Catalog.new()
 	_check(catalog.is_configuration_valid(), "the authored scenario catalog validates")
-	_check(catalog.get_scenario_ids().size() == 3, "the catalog has three bounded scenarios")
+	_check(catalog.get_scenario_ids().size() == 4, "the catalog has four bounded scenarios")
 	_check(catalog.get_scenario_ids()[0] == &"courier_intercept", "courier intercept is the first deterministic sortie")
 	_check(catalog.get_scenario_ids()[1] == &"paired_wing_break", "paired wing supplies a distinct second sortie")
 	_check(catalog.get_scenario_ids()[2] == &"perimeter_hold", "perimeter hold supplies a distinct protection objective")
+	_check(catalog.get_scenario_ids()[3] == &"torpedo_run", "torpedo run mirrors the Heavy Breach board's second contract")
+	var torpedo_run := catalog.get_scenario(&"torpedo_run")
+	_check(
+		torpedo_run.objective == Catalog.OBJECTIVE_BREAK_WING
+		and torpedo_run.roster == [&"seeker_torpedo"],
+		"torpedo run asks the pilot to destroy the single torpedo boat"
+	)
 
 	var courier := catalog.get_scenario(&"courier_intercept")
 	var wing := catalog.get_scenario(&"paired_wing_break")
@@ -32,7 +39,7 @@ func _run() -> void:
 	_check(catalog.get_profile_snapshot(&"standoff_lance").tactics.preferred_engagement_distance == 300.0, "scenario profiles retain their standoff distance")
 	_check(catalog.get_profile_snapshot(&"flank_scatter").weapon.weapon_role == &"scatter", "scenario profiles retain their weapon role")
 	_check(catalog.get_profile_snapshot(&"missing").is_empty(), "unknown profiles fail closed")
-	_check(catalog.select_scenario(0).id == catalog.select_scenario(3).id, "sortie selection wraps deterministically")
+	_check(catalog.select_scenario(0).id == catalog.select_scenario(4).id, "sortie selection wraps deterministically")
 	_check(catalog.select_scenario(-1).is_empty(), "negative sortie indexes fail closed")
 	_check(catalog.select_scenario(0).id != catalog.select_scenario(1).id, "adjacent sorties are not the same encounter")
 

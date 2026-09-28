@@ -12,7 +12,7 @@ func _init() -> void:
 
 func _run() -> void:
 	var profiles: Array = Profile.build_examples()
-	_check(profiles.size() == 3, "the bounded catalog contains three detached loadout examples")
+	_check(profiles.size() == 4, "the bounded catalog contains four detached loadout examples")
 	var ids := {}
 	var roles := {}
 	for profile in profiles:
@@ -24,7 +24,7 @@ func _run() -> void:
 		var snapshot: Dictionary = profile.get_snapshot()
 		_check(snapshot.evidence.status == &"modern_interpretation", "combat breadth remains explicitly modern interpretation")
 		_check(not bool(snapshot.authority.combat_resolution) and not bool(snapshot.authority.damage), "profile owns no combat or damage authority")
-	_check(roles.size() == 3, "repeater, lance, and scatter roles remain distinct")
+	_check(roles.size() == 4, "repeater, lance, scatter, and torpedo roles remain distinct")
 
 	var press: Profile = profiles[0]
 	var fire := press.evaluate(70.0, 0.98, 1.0)
@@ -36,6 +36,12 @@ func _run() -> void:
 	var scatter: Profile = profiles[2]
 	_check(scatter.evaluate(60.0, 0.99, 1.0, false).action == &"flank", "safed flanker cannot skip its coordinator role gate")
 	_check(scatter.evaluate(60.0, 0.99, 1.0).action == &"fire", "ready flanker can use its short-range scatter envelope")
+	var torpedo: Profile = profiles[3]
+	_check(
+		torpedo.get_profile_id() == &"seeker_torpedo"
+		and torpedo.get_weapon_profile().weapon_role == Profile.ROLE_TORPEDO,
+		"the torpedo boat's seeker is the fourth, distinct loadout"
+	)
 
 	var mutable_weapon := {
 		"weapon_id": &"mutating",
