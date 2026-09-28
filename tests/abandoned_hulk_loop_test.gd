@@ -38,7 +38,9 @@ const EXPECTED_REWARD_ID: StringName = &"hulk_auxiliary_power_cell"
 const EXPECTED_INTERIOR_SPACES := 3
 const EXPECTED_LIGHT_BUDGET := 8
 const EXPECTED_STATIC_BODIES := 18
-const EXPECTED_MESH_INSTANCES := 39
+# 39 structural/fitting meshes plus the merged silhouette-detail renderer
+# added by the Cinder Reach art pass (fcd9389bc).
+const EXPECTED_MESH_INSTANCES := 40
 const EXPECTED_BREAKER_ANCHOR := Vector3(-146.0, 23.8, -467.0)
 ## Nothing the hulk builds may crowd the station or leave the sector envelope.
 const STATION_EXCLUSION_RADIUS := 200.0
