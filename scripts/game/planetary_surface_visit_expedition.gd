@@ -460,6 +460,17 @@ func _advance_return_cruise() -> void:
 	if bool(visit.get("return_handoff_ready", false)):
 		_arrive_home()
 	elif not bool(visit.get("return_active", false)):
+		# A return withdrawn before lift-off (the queued-return cruise toggle)
+		# leaves the craft on the pad it still leases: the visit simply goes
+		# back to landed, rather than ending with the pilot on the far world.
+		if is_instance_valid(_berth) and not _surface_token.is_empty() \
+				and bool(_ship.get_telemetry().get("landed", false)):
+			state = &"landed"
+			_departure_ticks = 0
+			_flow._sync_planetary_cruise_hud()
+			_flow.hud.toast("Return cancelled",
+				"Your ship is still on the %s pad" % profile.display_name, 3.0)
+			return
 		cancel()
 
 

@@ -258,6 +258,29 @@ func _run() -> void:
 			and resumed_game._planetary_journey.is_return_departure_pending()
 			and resumed_craft.global_transform == return_pose,
 		"return queues real manual departure without moving the occupied craft")
+	# The pause menu's cruise toggle withdraws a queued return. Still sitting on
+	# the leased pad, that must leave the visit landed, not end it on Rime.
+	var resumed_lease: StringName = resumed.get("_surface_token")
+	resumed_game.call(&"_sync_planetary_cruise_hud")
+	resumed_game.hud.call(&"_request_planetary_cruise_toggle")
+	for _tick in 20:
+		await physics_frame
+		await process_frame
+	_check(resumed.state == &"landed" and resumed.get("_surface_token") == resumed_lease
+			and resumed_berth.get_occupant() == resumed_craft
+			and resumed_game.player.is_seated()
+			and resumed_game._planetary_journey.is_aurora_visit_active()
+			and not resumed_game._planetary_journey.is_return_departure_pending()
+			and bool(resumed.runtime_state().get("action_enabled", false)),
+		"withdrawing a queued return on the pad keeps the landed visit and its lease (%s)"
+			% resumed.state)
+	await _press_destination(resumed_game)
+	for _tick in 20:
+		await physics_frame
+		await process_frame
+	_check(resumed.state == &"return_cruise"
+			and resumed_game._planetary_journey.is_return_departure_pending(),
+		"the return can be queued again after it was withdrawn")
 	resumed.cancel()
 	_check(resumed.state == &"idle" and resumed_game.player.is_seated()
 			and not _store_has_rime_record(resumed_game),
