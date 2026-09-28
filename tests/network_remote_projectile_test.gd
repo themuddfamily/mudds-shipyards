@@ -29,6 +29,9 @@ extends SceneTree
 
 const Adapter := preload("res://scripts/network/network_enet_session_adapter.gd")
 const Replicator := preload("res://scripts/network/network_remote_projectile_replicator.gd")
+const STORM_SLUGS := 200
+## Live flights plus the retired-id tombstones the fencing needs.
+const STORM_BOUND := 160
 
 
 class FakeBoltPool extends Node:
@@ -223,6 +226,64 @@ func _initialize() -> void:
 		% late_torpedo_error)
 	torpedoes.records = []
 	torpedoes.torpedo_intercepted.emit(flown)
+	await _pump(func() -> bool: return _client_replicator.get_drawn_projectile_ids().size() == 1)
+
+	# H. A long fight: every retired flight's per-id bookkeeping is pruned to a
+	# bounded tombstone ring on the client, and forgotten per peer on the host,
+	# so the lifecycle receipt does not grow with session length.
+	var storm_terminals_before := int(_client_replicator.get_audit().get("terminals", 0))
+	var captured := {}
+	var capture := func(packet: Dictionary, _result: Dictionary) -> void:
+		captured["packet"] = packet.duplicate(true)
+	for batch in STORM_SLUGS / 10:
+		var fired: Array = []
+		for index in 10:
+			var storm_slug := _record(1000 + batch * 10 + index, origin, Vector3.DOWN, 50.0, 2.0)
+			bolts.bolt_launched.emit(storm_slug)
+			fired.append(storm_slug)
+		if batch == STORM_SLUGS / 10 - 1:
+			_client.projectile_replica_packet.connect(capture)
+		for storm_slug: Dictionary in fired:
+			bolts.bolt_resolved.emit(storm_slug, {"hit": false, "damaged": false})
+		var expected := storm_terminals_before + (batch + 1) * 10
+		await _pump(func() -> bool: return int(_client_replicator.get_audit().get("terminals", 0)) >= expected)
+	_client.projectile_replica_packet.disconnect(capture)
+	_check(int(_client_replicator.get_audit().get("terminals", 0)) == storm_terminals_before + STORM_SLUGS,
+		"every one of %d slugs reaches the client's terminal" % STORM_SLUGS)
+	var lifecycle := _client.get_projectile_replica_lifecycle_snapshot()
+	var client_sizes := [
+		(lifecycle.generations as Dictionary).size(),
+		(lifecycle.terminal_generations as Dictionary).size(),
+		(_client.get("_projectile_replica_ticks") as Dictionary).size(),
+		(_client.get("_projectile_replica_packet_revisions") as Dictionary).size(),
+		(_client.get("_projectile_replica_samples") as Dictionary).size(),
+	]
+	_check(client_sizes.all(func(size: int) -> bool: return size <= STORM_BOUND),
+		"the client's per-projectile state stays bounded after %d slugs (%s)" % [STORM_SLUGS, str(client_sizes)])
+	var host_published := _server.get("_projectile_published_generations") as Dictionary
+	var host_sizes: Array = host_published.values().map(func(ids: Variant) -> int: return (ids as Dictionary).size())
+	_check(host_sizes.all(func(size: int) -> bool: return size <= STORM_BOUND),
+		"the host forgets retired projectiles per peer (%s)" % str(host_sizes))
+	# The newest terminal is still fenced: a late copy of a flying packet for it
+	# is refused and cannot resurrect the replica.
+	var resurrect := (captured.get("packet", {}) as Dictionary).duplicate(true)
+	var resurrect_projectile := resurrect.get("projectile", {}) as Dictionary
+	resurrect_projectile["state"] = &"flying"
+	resurrect_projectile.erase("terminal_intent")
+	resurrect["terminal"] = false
+	_check(not resurrect_projectile.is_empty()
+		and not bool(_client.call("_apply_projectile_replica_snapshot", resurrect).get("accepted", true)),
+		"a late duplicate of a retired projectile is refused")
+	# Each batch spent more than the ordering window's tick gap on terminals; a
+	# slug fired afterwards is still drawn (the window re-baselines instead of
+	# waiting forever for the ticks the terminals used).
+	var after_storm := _record(2000, origin, Vector3.RIGHT, 5.0, 20.0)
+	bolts.bolt_launched.emit(after_storm)
+	var drawn_after_storm := await _pump(
+		func() -> bool: return _client_replicator.get_drawn_projectile_ids().size() == 2)
+	_check(drawn_after_storm, "a slug fired after a burst of retired slugs is still drawn (presented %d)"
+		% int(_client_replicator.get_audit().get("presented", 0)))
+	bolts.bolt_abandoned.emit(after_storm, &"test_cleanup")
 	await _pump(func() -> bool: return _client_replicator.get_drawn_projectile_ids().size() == 1)
 
 	# G

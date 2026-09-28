@@ -86,6 +86,11 @@ const PROJECTILE_MAX_SNAPSHOTS_PER_WINDOW := 16
 const PROJECTILE_MAX_BYTES_PER_WINDOW := 24000
 const PROJECTILE_CANONICAL_MAX_RECORDS := 256
 const PROJECTILE_TOMBSTONE_RETENTION_TICKS := 120
+## Retired projectile ids a client keeps fenced. The projectile channel is
+## reliable and ordered and the host drops a retired id's coalesced packets, so
+## nothing for an id arrives after its terminal except a genuinely new
+## generation; the ring only has to outlast in-flight duplicates.
+const PROJECTILE_REPLICA_TOMBSTONE_LIMIT := 128
 const MOVING_INTERIOR_BUDGET_WINDOW_TICKS := 10
 const MOVING_INTERIOR_MAX_SNAPSHOTS_PER_WINDOW := 8
 const MOVING_INTERIOR_MAX_BYTES_PER_WINDOW := 24000
@@ -222,6 +227,9 @@ var _projectile_replica_generations: Dictionary = {}
 var _projectile_replica_ticks: Dictionary = {}
 var _projectile_replica_packet_revisions: Dictionary = {}
 var _projectile_replica_terminal_generations: Dictionary = {}
+## Insertion-ordered set of retired ids, oldest first. See
+## `PROJECTILE_REPLICA_TOMBSTONE_LIMIT`.
+var _projectile_replica_tombstones: Dictionary = {}
 var _projectile_replica_revision := 0
 var _projectile_replica_migration_generation := 1
 var _canonical_projectile_revision := 0
@@ -1118,7 +1126,14 @@ func publish_projectile_snapshot(
 		elif budget.get("status") == &"coalesced":
 			coalesced += 1
 		if bool(budget.get("accepted", false)):
-			published[projectile_id] = int(projectile.get("projectile_generation", 0))
+			if terminal:
+				# A retired id is forgotten for this peer, and any flying update
+				# still coalesced behind the budget is dropped rather than sent
+				# after its terminal.
+				published.erase(projectile_id)
+				(_projectile_recipient_pending.get(peer_id, {}) as Dictionary).erase(projectile_id)
+			else:
+				published[projectile_id] = int(projectile.get("projectile_generation", 0))
 			_projectile_published_generations[peer_id] = published
 	_commit_canonical_projectile_record(canonical_stage)
 	var status: StringName = &"projectile_snapshot_coalesced" if coalesced == target_peers.size() and not target_peers.is_empty() else &"projectile_snapshot_published"
@@ -4599,11 +4614,13 @@ func _apply_projectile_replica_snapshot(packet: Dictionary) -> Dictionary:
 		_projectile_replica_samples.erase(projectile_id)
 		_projectile_replica_generations[projectile_id] = generation
 		_projectile_replica_terminal_generations.erase(projectile_id)
+		_projectile_replica_tombstones.erase(projectile_id)
 	_projectile_replica_packet_revisions[projectile_id] = packet_revision
 	_projectile_replica_ticks[projectile_id] = server_tick
 	if bool(packet.get("terminal", false)) or StringName(projectile.get("state", &"")) != &"flying":
 		_projectile_replica_samples.erase(projectile_id)
 		_projectile_replica_terminal_generations[projectile_id] = generation
+		_retire_projectile_replica_id(projectile_id)
 		return _remember(_result(true, &"projectile_terminal_applied", {
 			"projectile_id": projectile_id,
 			"state": StringName(projectile.get("state", &"")),
@@ -4612,10 +4629,36 @@ func _apply_projectile_replica_snapshot(packet: Dictionary) -> Dictionary:
 	_projectile_replica_revision += 1
 	local_packet["revision"] = _projectile_replica_revision
 	var applied := consume_projectile_snapshot(local_packet)
+	var status := StringName(applied.get("status", &""))
+	if status == &"snapshot_gap_too_large" or status == &"buffer_full":
+		# The channel is reliable and ordered and local revisions are
+		# contiguous, so a server-tick gap here is ticks spent on terminals or
+		# other peers' packets, never a packet still to come. Without this the
+		# refused revision was never released and every later flying update
+		# was held until the window filled, then dropped for the session.
+		_projectile_jitter.reset(_projectile_replica_migration_generation, _projectile_replica_revision)
+		applied = consume_projectile_snapshot(local_packet)
 	return _remember(applied)
 
 
+## A retired id keeps only its generation fence (the lifecycle receipt GameFlow
+## checks); its tick and revision cursors go now, and the oldest fence goes once
+## more than `PROJECTILE_REPLICA_TOMBSTONE_LIMIT` ids have retired after it.
+func _retire_projectile_replica_id(projectile_id: StringName) -> void:
+	_projectile_replica_ticks.erase(projectile_id)
+	_projectile_replica_packet_revisions.erase(projectile_id)
+	_projectile_replica_tombstones.erase(projectile_id)
+	_projectile_replica_tombstones[projectile_id] = true
+	while _projectile_replica_tombstones.size() > PROJECTILE_REPLICA_TOMBSTONE_LIMIT:
+		var oldest := StringName(_projectile_replica_tombstones.keys()[0])
+		_projectile_replica_tombstones.erase(oldest)
+		_projectile_replica_generations.erase(oldest)
+		_projectile_replica_terminal_generations.erase(oldest)
+		_projectile_replica_samples.erase(oldest)
+
+
 func _reset_projectile_replica_state(migration_generation: int) -> void:
+	_projectile_replica_tombstones.clear()
 	_projectile_replica_samples.clear()
 	_projectile_replica_generations.clear()
 	_projectile_replica_ticks.clear()
