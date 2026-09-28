@@ -4785,6 +4785,32 @@ func _broadcast_prediction_correction(packet: Dictionary) -> void:
 	# Transport delivery alone never mutates prediction or gameplay state.
 
 
+## ENet's packet throttle also sizes a peer's reliable window. Every stream
+## here is reliable and already rate-limited by its own per-recipient budget,
+## but ENet read round-trip spikes from a host frame stall as congestion and
+## stepped the throttle down, to 0 for some peers: one MTU in flight per round
+## trip. That peer's snapshot and moving-interior streams then fell tens of
+## ticks behind the others, and every intent it stamped from that stale clock
+## was either refused as too old or reconciled against a pose tens of ticks old.
+## The throttle is kept at full scale (no deceleration); the interval and the
+## acceleration are ENet's defaults. Configured on both ends of the link.
+const PEER_THROTTLE_INTERVAL_MSEC := 5000
+const PEER_THROTTLE_ACCELERATION := 2
+const PEER_THROTTLE_DECELERATION := 0
+
+
+func _hold_peer_packet_throttle(peer_id: int) -> void:
+	var enet := _peer as ENetMultiplayerPeer
+	if enet == null:
+		return
+	var link := enet.get_peer(peer_id)
+	if link == null:
+		return
+	link.throttle_configure(
+		PEER_THROTTLE_INTERVAL_MSEC, PEER_THROTTLE_ACCELERATION, PEER_THROTTLE_DECELERATION
+	)
+
+
 func _configure_multiplayer() -> void:
 	if _configured:
 		return
@@ -4799,6 +4825,7 @@ func _configure_multiplayer() -> void:
 
 
 func _on_peer_connected(peer_id: int) -> void:
+	_hold_peer_packet_throttle(peer_id)
 	if is_server() or peer_id != AUTHORITY_PEER_ID:
 		return
 	var hello := LifecycleAdapter.create_hello(

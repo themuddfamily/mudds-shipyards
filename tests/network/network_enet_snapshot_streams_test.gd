@@ -40,6 +40,15 @@ func _initialize() -> void:
 	_check(_client.join("127.0.0.1", port).accepted, "connect real ENet client")
 	await _pump(func() -> bool: return not _client.get_server_offer().is_empty())
 	_check(not _client.get_server_offer().is_empty(), "client admitted")
+	# A host frame stall must not throttle a peer's reliable window down to one
+	# MTU per round trip: both ends of the link hold the throttle at full scale.
+	var host_link := (_server.multiplayer.multiplayer_peer as ENetMultiplayerPeer) \
+		.get_peer(_client.multiplayer.get_unique_id())
+	var client_link := (_client.multiplayer.multiplayer_peer as ENetMultiplayerPeer).get_peer(1)
+	_check(host_link != null and client_link != null
+		and host_link.get_statistic(ENetPacketPeer.PEER_PACKET_THROTTLE_DECELERATION) == 0
+		and client_link.get_statistic(ENetPacketPeer.PEER_PACKET_THROTTLE_DECELERATION) == 0,
+		"neither end of the link decelerates the ENet packet throttle")
 	await _pump(func() -> bool: return _canonical.size() == 1)
 	_check(_canonical.size() == 1 and _canonical[0].accepted, "late client immediately applies current full revision")
 	_check(_client.get_authoritative_snapshot().revision == 5, "late join bootstraps latest published state")
