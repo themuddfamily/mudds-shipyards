@@ -153,14 +153,17 @@ func _run() -> void:
 		"an exhausted suit heater fails the survey without moving, hurting or stranding anyone"
 	)
 	_check(String(survey.objective()).contains("restart"), "the HUD objective explains how to recover")
+	var press_frame := Engine.get_physics_frames()
 	await _press_interact()
-	# The restart refills the heater; the press helper then spends one more
-	# physics tick out in the cold, which the live survey correctly drains.
+	# The restart refills the heater; the physics ticks the press helper then
+	# spends out in the cold (more under load) are correctly drained.
+	var cold_ticks := Engine.get_physics_frames() - press_frame
 	var restarted_heat := survey.get_heat_snapshot() as Dictionary
 	_check(int(survey.snapshot().get("state", -1)) == CheckpointRouteActivity.State.ACTIVE
 			and int(restarted_heat.get("failures", 0)) == 1
 			and float(restarted_heat.get("heat_s", 0.0))
-				>= SurveyType.HEAT_CAPACITY_S - 2.0 / float(Engine.physics_ticks_per_second),
+				>= SurveyType.HEAT_CAPACITY_S
+					- float(cold_ticks) / float(Engine.physics_ticks_per_second) - 0.0001,
 		"the beacon starts a fresh survey with a full heater (%s)" % restarted_heat)
 	var first_save := game.save_interrupted_rime_visit() as Dictionary
 	_check(bool(first_save.get("accepted", false)), "survey progress commits an interrupted-visit record")
