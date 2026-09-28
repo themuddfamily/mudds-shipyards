@@ -539,7 +539,13 @@ func _finalize_shot_receipt(
 	# still ours to raise, because the coordinator holds no record of a shot it
 	# did not submit and would otherwise leave a destroyed hull silent.
 	if is_instance_valid(target) and target.has_method(&"commit_deferred_damage_presentation"):
-		target.call(&"commit_deferred_damage_presentation", receipt_id)
+		if play_impact_cue:
+			target.call(&"commit_deferred_damage_presentation", receipt_id)
+		else:
+			# Aborts arrive from a presentation's `_exit_tree`, while the tree is
+			# busy removing nodes and cannot host the impact effect. Release the
+			# held presentation one frame later; a freed target skips it.
+			Callable(target, &"commit_deferred_damage_presentation").call_deferred(receipt_id)
 	if bool(record.get("terminal", false)) and is_instance_valid(audio) and is_inside_tree():
 		var effect_position := record.get("terminal_position", endpoint) as Vector3
 		if not effect_position.is_finite():
