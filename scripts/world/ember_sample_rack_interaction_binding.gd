@@ -240,6 +240,20 @@ func detach() -> Dictionary:
 	return _result(true, &"sample_rack_detached")
 
 
+## Composed before Host.start() advances the run generation exactly once; the
+## owner forwards that committed fact so the rack fences against the running
+## visit rather than the pre-start one. Any other generation is still refused.
+func adopt_started_host_generation(expected_previous_generation: int) -> Dictionary:
+	if not _configured or _host == null or not is_instance_valid(_host) \
+			or _host_generation != expected_previous_generation \
+			or expected_previous_generation >= MAX_SAFE_GENERATION \
+			or int(_host.call(&"get_generation")) != expected_previous_generation + 1:
+		return _result(false, &"stale_sample_rack_generation")
+	_host_generation = expected_previous_generation + 1
+	_apply_presentation()
+	return _result(true, &"sample_rack_generation_adopted")
+
+
 func reenter(next_attachment_generation: int) -> Dictionary:
 	if not _configured or _attached or not _valid_generation(next_attachment_generation) \
 			or next_attachment_generation <= _attachment_generation \
