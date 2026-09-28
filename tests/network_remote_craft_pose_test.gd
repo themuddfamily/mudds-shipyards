@@ -214,10 +214,17 @@ func _assert_a_grant_claims_ownership() -> void:
 
 
 func _assert_b_host_publishes_the_pose() -> void:
+	# Pose reconciliation below models unobstructed flight. Lift the real craft
+	# clear of berth/station collision before comparing it with shapeless proxies.
+	_craft.global_position += Vector3.UP * 200.0
+	_craft.reset_physics_interpolation()
+	var flight_origin := _craft.global_position
 	for frame in 90:
 		_fly_frame(frame)
 		await physics_frame
 		await process_frame
+	_check(_craft.global_position.distance_to(flight_origin) > 5.0,
+		"the pose fixture flies through clear space before replica checks")
 	var pose_id := PoseStream.pose_entity_id(SHIP_ID)
 	# Poses go out on every third authority tick, so the newest snapshot need
 	# not carry one; the newest one that does is the record under test.
