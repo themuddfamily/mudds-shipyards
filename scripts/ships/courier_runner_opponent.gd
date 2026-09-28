@@ -960,7 +960,7 @@ func _count_bound_mesh_materials(mesh: Mesh) -> int:
 
 func _visual_material_binding_contract() -> Dictionary:
 	var bindings := {}
-	for candidate in find_children("*", "", true, false):
+	for candidate in find_owned_descendants():
 		var mesh: Mesh
 		if candidate is MeshInstance3D:
 			mesh = (candidate as MeshInstance3D).mesh
@@ -968,7 +968,7 @@ func _visual_material_binding_contract() -> Dictionary:
 			mesh = (candidate as CPUParticles3D).mesh
 		if mesh == null:
 			continue
-		var relative_path := str(get_path_to(candidate))
+		var relative_path := get_owned_path_to(candidate)
 		for surface_index in mesh.get_surface_count():
 			var material := mesh.surface_get_material(surface_index)
 			bindings["%s#%d" % [relative_path, surface_index]] = (

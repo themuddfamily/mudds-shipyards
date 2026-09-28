@@ -807,7 +807,7 @@ func get_wing_chalk_band_resource_audit() -> Dictionary:
 				"material": "skirmisher_chalk",
 			})
 
-		var descendants := find_children("*", "Node", true, false)
+		var descendants := find_owned_descendants()
 		descendant_node_count = descendants.size()
 		# CombatAuthority attaches this exact lifecycle adapter in production.
 		# It owns damage admission, not mirrored-trim presentation geometry.
