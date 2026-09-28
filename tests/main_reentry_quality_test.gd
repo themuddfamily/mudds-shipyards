@@ -331,8 +331,8 @@ func _test_whole_main_reentry(
 		for instance_id in restored_resource_ids.values():
 			unique_resource_ids[int(instance_id)] = true
 		_check(
-			resolver.get_registered_source_count() == 12
-			and int(authority.get("_registrations_by_instance").size()) == 12
+			resolver.get_registered_source_count() == 13
+			and int(authority.get("_registrations_by_instance").size()) == 13
 			and authority.get_source_id(torrent) == 1101
 			and authority.get_source_id(arrow) == 1102
 			and authority.get_source_id(jovian) == 1103
@@ -341,7 +341,7 @@ func _test_whole_main_reentry(
 			and authority.get_source_id(bulwark) == 1107
 			and authority.get_source_id(opponent) == GameFlow.OPPONENT_SOURCE_ID
 			and bool(game.get_live_combat_source_roster_audit().get("valid", false)),
-			"re-entry cycle %d restores the settled exact twelve-source production roster" % (cycle + 1)
+			"re-entry cycle %d restores the settled exact thirteen-source production roster" % (cycle + 1)
 		)
 		_check(
 			bool(restored_audio.resources_ready)
@@ -473,8 +473,8 @@ func _test_queued_main_reentry_restore() -> void:
 	var resolver := game.get_combat_resolver() as CombatResolver
 	var parent := game.get_parent()
 	_check(
-		resolver != null and resolver.get_registered_source_count() == 12,
-		"queued-reentry fixture begins with the settled twelve-source combat registry"
+		resolver != null and resolver.get_registered_source_count() == 13,
+		"queued-reentry fixture begins with the settled thirteen-source combat registry"
 	)
 	if resolver == null or parent == null:
 		await _clean_up(game)
@@ -774,9 +774,9 @@ func _await_settled_roster(game: GameFlow) -> Dictionary:
 	for _attempt in 120:
 		audit = game.get_live_combat_source_roster_audit()
 		if bool(audit.get("valid", false)) \
-				and int(audit.get("expected_player_source_count", 0)) == 8 \
-				and int(audit.get("expected_source_count", 0)) == 12 \
-				and int(audit.get("actual_source_count", 0)) == 12:
+				and int(audit.get("expected_player_source_count", 0)) == 9 \
+				and int(audit.get("expected_source_count", 0)) == 13 \
+				and int(audit.get("actual_source_count", 0)) == 13:
 			return audit
 		await process_frame
 	return audit
@@ -802,6 +802,15 @@ func _descendant_instance_ids(search_root: Node) -> PackedInt64Array:
 		if _is_optional_semantic_runtime_adapter(node) or _is_regenerated_presentation(node, search_root):
 			continue
 		ids.append(node.get_instance_id())
+		# aca8cb9e4: a dormant production opponent parks its visual root out of
+		# the tree and reattaches the same root on activation. That retained
+		# subtree is still this Main's identity whether or not it is attached.
+		if node is RangeOpponent and not (node as RangeOpponent).is_presentation_resident():
+			var parked := (node as RangeOpponent).get_presentation_root()
+			if parked != null:
+				ids.append(parked.get_instance_id())
+				for parked_node in parked.find_children("*", "", true, false):
+					ids.append(parked_node.get_instance_id())
 	ids.sort()
 	return ids
 
