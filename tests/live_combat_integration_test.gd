@@ -33,11 +33,14 @@ func _run() -> void:
 	var bulwark := game.get_node("BulwarkHeavyGunship") as HeroShip
 	var cinder_bomber: HeroShip
 	var cinder_light: HeroShip
+	var cinder_cargo: HeroShip
 	for craft in game.get_flyable_ships():
 		if craft.get_ship_id() == GameFlow.CINDER_BOMBER_SHIP_ID:
 			cinder_bomber = craft
 		elif craft.get_ship_id() == GameFlow.CINDER_LIGHT_INTERCEPTOR_SHIP_ID:
 			cinder_light = craft
+		elif craft.get_ship_id() == GameFlow.CINDER_CARGO_SHIP_ID:
+			cinder_cargo = craft
 	var opponent := game.get_node("RangeOpponent") as CharacterBody3D
 	var hud := game.get_node("HUD") as CanvasLayer
 	var authority := game.call("get_combat_authority") as LiveCombatAuthority
@@ -50,11 +53,11 @@ func _run() -> void:
 	resolver.shot_resolved.connect(_on_shot_resolved)
 	_check(
 		bool(roster_audit.get("valid", false))
-		and int(roster_audit.get("expected_player_source_count", 0)) == 8
-		and int(roster_audit.get("expected_source_count", 0)) == 12
-		and int(roster_audit.get("actual_source_count", 0)) == 12
-		and resolver.get_registered_source_count() == 12,
-		"settled production audit owns eight player, one opponent, and three station sources"
+		and int(roster_audit.get("expected_player_source_count", 0)) == 9
+		and int(roster_audit.get("expected_source_count", 0)) == 13
+		and int(roster_audit.get("actual_source_count", 0)) == 13
+		and resolver.get_registered_source_count() == 13,
+		"settled production audit owns nine player, one opponent, and three station sources"
 	)
 	_check(authority.get_source_id(hero) == 1101, "Torrent keeps its explicit stable combat identity")
 	_check(authority.get_source_id(reserve) == 1102, "Arrow owns an explicit stable combat identity")
@@ -64,6 +67,8 @@ func _run() -> void:
 	_check(cinder_bomber != null and authority.get_source_id(cinder_bomber) == 1106, "Cinder bomber keeps stable combat identity 1106")
 	_check(authority.get_source_id(bulwark) == 1107, "Bulwark owns unique stable combat identity 1107")
 	_check(cinder_light != null and authority.get_source_id(cinder_light) == 1108, "Cinder light owns stable combat identity 1108")
+	# a2c1a7a5f armed the Cinder cargo hauler as player source 1109.
+	_check(cinder_cargo != null and authority.get_source_id(cinder_cargo) == 1109, "armed Cinder cargo hauler owns stable combat identity 1109")
 	_check(authority.get_source_id(opponent) == GameFlow.OPPONENT_SOURCE_ID, "opponent source keeps its explicit stable combat identity")
 	_check(authority.get_source_id(hero) != authority.get_source_id(reserve), "physical player craft never share a source ledger")
 	_check(
@@ -750,9 +755,9 @@ func _await_settled_roster(game: GameFlow) -> Dictionary:
 	for _attempt in 120:
 		audit = game.get_live_combat_source_roster_audit()
 		if bool(audit.get("valid", false)) \
-				and int(audit.get("expected_player_source_count", 0)) == 8 \
-				and int(audit.get("expected_source_count", 0)) == 12 \
-				and int(audit.get("actual_source_count", 0)) == 12:
+				and int(audit.get("expected_player_source_count", 0)) == 9 \
+				and int(audit.get("expected_source_count", 0)) == 13 \
+				and int(audit.get("actual_source_count", 0)) == 13:
 			return audit
 		await process_frame
 	return audit

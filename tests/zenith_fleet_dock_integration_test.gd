@@ -105,7 +105,7 @@ func _test_fleet_definition_and_combat(
 		&"cinder_long_range_bomber": 1106,
 		&"bulwark_heavy_gunship": 1107,
 		&"cinder_light_interceptor": 1108,
-		&"cinder_cargo_hauler": 0,
+		&"cinder_cargo_hauler": 1109,
 	}
 	var observed_sources: Dictionary = {}
 	for craft in fleet:
@@ -120,8 +120,8 @@ func _test_fleet_definition_and_combat(
 		"the nine-craft registry has unique ship and home-berth identities"
 	)
 	_check(
-		source_ids.size() == 8 and observed_sources == expected_sources,
-		"eight armed craft retain exact unique combat sources; the cargo hauler remains unarmed"
+		source_ids.size() == 9 and observed_sources == expected_sources,
+		"all nine craft retain exact unique combat sources, including the armed cargo hauler as 1109"
 	)
 	_check(
 		game.get_guided_ship() == torrent
