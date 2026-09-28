@@ -235,9 +235,11 @@ func _on_launched(record: Dictionary, pool_key: int) -> void:
 
 
 func _on_resolved(record: Dictionary, result: Dictionary, pool_key: int) -> void:
-	var hit := bool(result.get("hit", false))
+	# The host presents a detonation only for an arrival that did damage (a
+	# no-damage proximity fuse is a near miss), so only that is an impact here.
+	var damaged := bool(result.get("damaged", false))
 	_end_flight(record, pool_key, &"resolved", {
-		"kind": &"impact" if hit else &"expiry",
+		"kind": &"impact" if damaged else &"expiry",
 		"reason": StringName(record.get("terminal_reason", &"")),
 	})
 

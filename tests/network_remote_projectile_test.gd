@@ -179,6 +179,26 @@ func _initialize() -> void:
 	_check(tracked.distance_to(Vector3(30.0, 5.0, -5.0)) < 12.0,
 		"the client's torpedo follows the host's steering (%.2f m off)" % tracked.distance_to(Vector3(30.0, 5.0, -5.0)))
 
+	# A proximity fuse whose arrival sweep damaged nothing is a near miss: the
+	# host shows no detonation burst, so neither does the client.
+	var fused := _record(10, torpedo_origin, Vector3.FORWARD, 40.0, 8.0)
+	torpedoes.records = [steered, fused]
+	torpedoes.torpedo_launched.emit(fused)
+	await _pump(func() -> bool: return _client_replicator.get_drawn_projectile_ids().size() == 2)
+	var fused_terminal := fused.duplicate(true)
+	fused_terminal["terminal_reason"] = &"proximity_fuse"
+	fused_terminal["terminal_position"] = torpedo_origin + Vector3.FORWARD * 12.0
+	var bursts_before_fuse := int(_client_replicator.get_audit().get("bursts", 0))
+	var terminals_before_fuse := int(_client_replicator.get_audit().get("terminals", 0))
+	torpedoes.records = [steered]
+	torpedoes.torpedo_resolved.emit(fused_terminal, {"hit": true, "damaged": false})
+	await _pump(func() -> bool:
+		return int(_client_replicator.get_audit().get("terminals", 0)) == terminals_before_fuse + 1)
+	_check(_client_replicator.get_drawn_projectile_ids().size() == 1
+		and int(_client_replicator.get_audit().get("bursts", 0)) == bursts_before_fuse,
+		"a torpedo fuse that damaged nothing is retired without a burst (bursts %d -> %d)"
+		% [bursts_before_fuse, int(_client_replicator.get_audit().get("bursts", 0))])
+
 	# E
 	torpedoes.records = []
 	torpedoes.torpedo_intercepted.emit(steered)
