@@ -724,6 +724,27 @@ func is_presentation_resident() -> bool:
 	return is_instance_valid(_visual_root) and not _presentation_released
 
 
+## Every descendant this craft owns, including a released visual root and its
+## subtree. Presentation audits count and path nodes through this so a dormant
+## craft whose root is parked out of the tree still audits the same subtree.
+func find_owned_descendants() -> Array[Node]:
+	var nodes := find_children("*", "", true, false)
+	if _presentation_released and is_instance_valid(_visual_root) \
+			and _visual_root.get_parent() == null:
+		nodes.append(_visual_root)
+		nodes.append_array(_visual_root.find_children("*", "", true, false))
+	return nodes
+
+
+## The path from this craft to an owned node, as it reads while attached.
+func get_owned_path_to(node: Node) -> String:
+	if _presentation_released and is_instance_valid(_visual_root) \
+			and (node == _visual_root or _visual_root.is_ancestor_of(node)):
+		return String(_visual_root.name) if node == _visual_root \
+			else "%s/%s" % [_visual_root.name, _visual_root.get_path_to(node)]
+	return str(get_path_to(node))
+
+
 func _notification(what: int) -> void:
 	# A released visual root is an orphan this craft still owns.
 	if what == NOTIFICATION_PREDELETE and _presentation_released:
