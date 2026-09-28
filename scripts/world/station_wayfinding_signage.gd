@@ -808,6 +808,7 @@ func _collect_solids(world: Node) -> void:
 			"half": half,
 			"aabb": xform * AABB(-half, half * 2.0),
 			"concave": concave,
+			"floor_box": shape_node.shape is BoxShape3D,
 			"triangles": triangles,
 			"swing": _is_moving_or_door(shape_node),
 			"path": str(shape_node.get_path()),
@@ -858,6 +859,9 @@ func _is_moving_or_door(shape_node: Node) -> bool:
 func _find_floor(foot: Vector3, reference_y: float) -> Variant:
 	var best: Variant = null
 	for solid: Dictionary in _solids:
+		# Static signs need static support, never a parked craft or moving door.
+		if bool(solid.swing):
+			continue
 		var aabb := solid.aabb as AABB
 		if foot.x < aabb.position.x + 0.05 or foot.x > aabb.end.x - 0.05:
 			continue
@@ -873,11 +877,45 @@ func _find_floor(foot: Vector3, reference_y: float) -> Variant:
 				if hit is Vector3 and (best == null or (hit as Vector3).y > float(best)):
 					best = (hit as Vector3).y
 			continue
+		# Primitive bounds are conservative blockers, but only actual box faces
+		# qualify as support. Intersect the oriented box so ramps never use the
+		# elevated corner of their world AABB as a fictitious horizontal floor.
+		if not bool(solid.floor_box):
+			continue
+		var surface_y: Variant = _box_surface_y(solid, foot)
+		if surface_y == null:
+			continue
+		top = float(surface_y)
 		if top < reference_y - FLOOR_SEARCH_BELOW or top > reference_y + FLOOR_SEARCH_ABOVE:
 			continue
 		if best == null or top > float(best):
 			best = top
 	return best
+
+
+## Vertical segment / oriented box slab intersection, returning its upper face.
+func _box_surface_y(solid: Dictionary, foot: Vector3) -> Variant:
+	var bounds := solid.aabb as AABB
+	var xform := solid.xform as Transform3D
+	var inverse := xform.affine_inverse()
+	var half := solid.half as Vector3
+	var from := inverse * Vector3(foot.x, bounds.end.y + 1.0, foot.z)
+	var to := inverse * Vector3(foot.x, bounds.position.y - 1.0, foot.z)
+	var direction := to - from
+	var enter := 0.0
+	var leave := 1.0
+	for axis in 3:
+		if absf(direction[axis]) < 0.000001:
+			if absf(from[axis]) > half[axis]:
+				return null
+			continue
+		var first := (-half[axis] - from[axis]) / direction[axis]
+		var second := (half[axis] - from[axis]) / direction[axis]
+		enter = maxf(enter, minf(first, second))
+		leave = minf(leave, maxf(first, second))
+		if enter > leave:
+			return null
+	return (xform * (from + direction * enter)).y
 
 
 ## Returns the path of the first solid the panel or post volume would enter
