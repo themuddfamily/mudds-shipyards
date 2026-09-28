@@ -1355,6 +1355,8 @@ const BUILD_STAGES: Array[Array] = [
 	[&"_connect_operational_lattice_audio", "Wiring station audio"],
 	[&"_apply_operational_dressing_quality", "Applying visual quality"],
 	[&"_restore_station_activity_state", "Starting station life"],
+	# Phase 10 §3: registry-driven wayfinding panels, placed once collision exists.
+	[&"_build_station_wayfinding", "Posting station wayfinding"],
 	[&"_apply_sign_geometry_budget", "Setting the signage"],
 	# Station-visual: re-cut hub structural stock at the 38.2 mm tool edge before
 	# the dressing batcher folds it (see StationStructuralEdgeTreatment).
@@ -3158,6 +3160,7 @@ func refresh_deferred_fleet_expansion_berths() -> bool:
 		var pad_id := StringName(row.get("pad_id", &""))
 		if pad_id.is_empty() or get_berth_node(pad_id) == null:
 			return false
+	_refresh_station_wayfinding()
 	return true
 
 
@@ -4588,6 +4591,38 @@ func _initialize_station_route_registry() -> void:
 	_station_navigation_graph_report = _station_navigation_graph.build_from_registry_report(
 		_station_route_registry_report
 	)
+
+
+# --- Station wayfinding (Phase 10 §3 art-direction pass) -------------------
+## One registry-driven sign layer (`StationWayfindingSignage`): built once after
+## the route registry and every collision pass, then left static. Re-entry keeps
+## the same panels because they are derived from unchanged station geometry.
+var _station_wayfinding: StationWayfindingSignage
+
+
+func _build_station_wayfinding() -> void:
+	if is_instance_valid(_station_wayfinding):
+		return
+	_station_wayfinding = StationWayfindingSignage.new()
+	add_child(_station_wayfinding)
+	_station_wayfinding.build(self)
+
+
+## Re-derives the signs once the deferred fleet-expansion berths are indexed.
+func _refresh_station_wayfinding() -> void:
+	if is_instance_valid(_station_wayfinding) and is_inside_tree():
+		_station_wayfinding.refresh_berths(self)
+
+
+func get_station_wayfinding() -> StationWayfindingSignage:
+	return _station_wayfinding if is_instance_valid(_station_wayfinding) else null
+
+
+func get_station_wayfinding_report() -> Dictionary:
+	if not is_instance_valid(_station_wayfinding):
+		return {}
+	return _station_wayfinding.get_wayfinding_report()
+# --- End station wayfinding ------------------------------------------------
 
 
 ## The world owns placement, so it also owns the hub half of every station
