@@ -6,7 +6,8 @@ extends SceneTree
 ## `Input` singleton: X starts the shift, the left stick walks, X boards, A plus
 ## the left stick lift off, Start opens pause, the D-pad walks the pause page
 ## and Destination Board, A accepts, B backs out, X takes and abandons an errand
-## at its trailhead, the pause-row cruise action abandons the expedition, and X
+## at its trailhead, X logs the survey bunker, A jumps on foot without ending
+## the visit, the pause-row cruise action abandons the expedition, and X
 ## reboards for the Host's own takeoff home. No keyboard or mouse event and no
 ## gameplay method stands in for a press.
 ##
@@ -48,6 +49,8 @@ const HANDOFF_TICK_BUDGET := 600
 const LANDING_TICK_BUDGET := 1500
 const DISEMBARK_TICK_BUDGET := 600
 const TRAILHEAD_TICK_BUDGET := 120
+## Ember's low surface gravity keeps a full jump aloft about nine seconds.
+const JUMP_TICK_BUDGET := 900
 const REBOARD_TICK_BUDGET := 600
 const ABANDON_TICK_BUDGET := 2400
 ## Keyboard-authored tokens a pad-only player must never be shown.
@@ -297,6 +300,62 @@ func _run() -> void:
 			"a second controller X abandons the errand"
 		)
 
+	# --- Survey bunker: its point is live in the started visit -----------
+	# Like the trailheads, the bunker is composed before Host.start() raises
+	# the run generation; it must fence against the running visit.
+	var bunker := game.find_child("OwnedSurveyBunkerInteraction", true, false) as Area3D
+	_check(bunker != null, "the surface composes the survey bunker access point")
+	if bunker != null:
+		player.teleport_to(Transform3D(
+			Basis.looking_at(Vector3.LEFT, Vector3.UP),
+			bunker.global_position + Vector3(1.0, 0.3, 0.0)
+		))
+		var at_bunker := await _wait_for(
+			func() -> bool: return game.station_interaction_candidate == bunker,
+			TRAILHEAD_TICK_BUDGET
+		)
+		_check(at_bunker, "standing at the survey bunker makes it the interaction candidate")
+		await _settle(4)
+		_check(
+			_interaction_text(hud).begins_with("[ %s ]" % hud.get_action_prompt(&"interact"))
+				and _interaction_text(hud).contains("BUNKER"),
+			"the bunker prompt shows the live controller interact glyph (%s)"
+				% _interaction_text(hud)
+		)
+		await _tap_joy(BUTTON_X)
+		await _settle(6)
+		_check(
+			bool(bunker.call(&"get_snapshot").get("completed", false)),
+			"controller X logs the bunker / gantry survey"
+		)
+
+	# --- A jump on foot is ordinary airborne time, not a lost visit -------
+	var route := host.get_return_status_snapshot().get("surface_route", {}) as Dictionary
+	var jump_from := _ground_below(
+		player, route.get("staging_anchor", Vector3.INF) as Vector3
+	)
+	_check(jump_from.is_finite(), "the staging anchor has walkable ground to jump from")
+	if jump_from.is_finite():
+		player.teleport_to(Transform3D(player.global_basis, jump_from))
+		await _settle(8)
+		await _tap_joy(BUTTON_A)
+		var left_floor := await _wait_for(
+			func() -> bool: return not player.is_on_floor(), 10
+		)
+		var came_down := left_floor and await _wait_for(
+			func() -> bool: return (
+				player.is_on_floor()
+				or host.get_phase() != EmberSurfaceLoopHost.Phase.ON_FOOT
+			),
+			JUMP_TICK_BUDGET
+		)
+		_check(
+			left_floor and came_down and player.is_on_floor()
+				and host.get_phase() == EmberSurfaceLoopHost.Phase.ON_FOOT
+				and bool(game.get("_ember_surface_journey_active")),
+			"controller A jumps on the surface and the expedition survives the landing"
+		)
+
 	# --- Abandon the expedition from the pause-row cruise action ----------
 	await _tap_joy(BUTTON_START)
 	_check(pause.visible, "controller Start opens pause on the surface")
@@ -498,8 +557,7 @@ func _reboard(
 	if not is_instance_valid(area):
 		return false
 	# Stand on the real ground three metres outboard of the boarding
-	# point, facing the craft. The Host fails the visit the first tick the pilot
-	# is not supported, so the placement must land on the floor, not above it.
+	# point, facing the craft, placed on the floor rather than dropped onto it.
 	var boarding := craft.get_boarding_position()
 	var outward := boarding - craft.global_position
 	outward.y = 0.0
