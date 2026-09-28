@@ -31,6 +31,10 @@ window/size/resizable=true
 
 [input]
 
+ui_cancel={
+"deadzone": 0.5,
+"events": [Object(InputEventKey,"keycode":4194305), Object(InputEventJoypadButton,"button_index":1)]
+}
 move_forward={
 "deadzone": 0.18,
 "events": [Object(InputEventKey,"physical_keycode":87), Object(InputEventJoypadMotion,"axis":1,"axis_value":-1.0)]
