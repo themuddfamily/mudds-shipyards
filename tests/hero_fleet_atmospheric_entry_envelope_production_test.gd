@@ -172,7 +172,10 @@ func _run() -> void:
 			and silhouette_scale.y >= 0.75 and silhouette_scale.y <= 2.0
 			and is_equal_approx(float(midpoint_envelope.get(
 				"atmospheric_intensity", -1.0
-			)), 0.5)
+			)),
+				# Density ramp at 14 km on the default 4 km scale height;
+				# 345 m/s is past the 340 m/s full-speed envelope.
+				(exp(-3.5) - exp(-4.5)) / (exp(-2.5) - exp(-4.5)))
 			and midpoint_opacity > 0.0 and midpoint_scale > 1.0
 			and bool(full.get("accepted", false))
 			and is_equal_approx(float(full_envelope.get(
