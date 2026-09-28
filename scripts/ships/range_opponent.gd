@@ -573,9 +573,22 @@ func set_target(target: Node3D) -> void:
 		return
 	for candidate in _target.find_children("*", "CollisionShape3D", true, false):
 		var collision_shape := candidate as CollisionShape3D
-		if collision_shape != null and not collision_shape.disabled and collision_shape.shape != null:
+		if is_strikable_aim_shape(collision_shape):
 			_target_aim_shape = collision_shape
 			break
+
+
+## True for a shape a weapon's hitscan or arrival sweep can actually strike: an
+## enabled shape owned by a collision object on a hitscan-queried layer. Ships
+## also carry interaction volumes (the boarding sphere sits metres beside the
+## hull on the INTERACTABLE layer, ahead of the hull shapes in tree order) that
+## no shot can hit; aiming at one of those fires past a narrow craft.
+static func is_strikable_aim_shape(shape: CollisionShape3D) -> bool:
+	if shape == null or shape.disabled or shape.shape == null:
+		return false
+	var owner_object := shape.get_parent() as CollisionObject3D
+	return owner_object != null \
+		and (owner_object.collision_layer & PhysicsLayers.HITSCAN_QUERY_MASK) != 0
 
 
 func _get_target_aim_position() -> Vector3:

@@ -510,11 +510,7 @@ func _find_aim_shape(target: Node3D) -> WeakRef:
 		return null
 	for candidate in target.find_children("*", "CollisionShape3D", true, false):
 		var shape := candidate as CollisionShape3D
-		if shape == null or shape.disabled or shape.shape == null:
-			continue
-		var owner_object := shape.get_parent() as CollisionObject3D
-		if owner_object == null \
-				or (owner_object.collision_layer & PhysicsLayerContract.HITSCAN_QUERY_MASK) == 0:
+		if not RangeOpponent.is_strikable_aim_shape(shape):
 			continue
 		if _is_under_torpedo_pool(shape, target):
 			continue
