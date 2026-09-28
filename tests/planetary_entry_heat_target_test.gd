@@ -326,7 +326,12 @@ func _test_adapter_lifecycle(target: PlanetaryEntryHeatTarget) -> void:
 	var midpoint := presentation.present_observation(14000.0, 250.0, 1)
 	_check(
 		midpoint.accepted
-		and is_equal_approx(material.get_shader_parameter(OWNED_PARAMETER), 0.25)
+		and is_equal_approx(
+			material.get_shader_parameter(OWNED_PARAMETER),
+			# Density ramp at 14 km on the default 4 km scale height, times
+			# the 0.5 speed envelope at 250 m/s.
+			0.5 * (exp(-3.5) - exp(-4.5)) / (exp(-2.5) - exp(-4.5))
+		)
 		and compression.material_override == material,
 		"one resolved intensity continuously drives both hull heat and compression bow"
 	)

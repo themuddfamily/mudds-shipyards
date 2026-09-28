@@ -864,7 +864,10 @@ func _test_entry_heat_attachment(arrow: ArrowReconShip) -> void:
 		bool(presented.get("accepted", false))
 		and is_equal_approx(float(material.get_shader_parameter(
 			PlanetaryEntryHeatTarget.OWNED_PARAMETER
-		)), 0.25)
+		)),
+			# Density ramp at 14 km on the default 4 km scale height, times
+			# the 0.5 speed envelope at 250 m/s.
+			0.5 * (exp(-3.5) - exp(-4.5)) / (exp(-2.5) - exp(-4.5)))
 		and bool(arrow.get_arrow_audit_report().valid),
 		"bounded externally driven live intensity remains valid without giving Arrow sampling authority"
 	)
