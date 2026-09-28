@@ -189,6 +189,25 @@ func _exercise(craft_name: String, craft: HeroShip) -> void:
 		float((effects.get_snapshot().entry as Dictionary).intensity_unitless) == 0.0,
 		"%s is cold below the entry minimum speed" % craft_name
 	)
+	# Dropping straight from a hot descent to zero arms the envelope's brief
+	# "ENTRY RECOVER" hold. Flying on slowly (touchdown, taxi, parked) must let
+	# that hold run out rather than leave the ring and marker up for good.
+	var hot_level := int(roundi(float(
+		(snapshot.get("entry", {}) as Dictionary).get("intensity_unitless", 0.0)
+	) * 5.0))
+	for _i in 120:
+		effects.advance(TICK, craft, true, null, _hud, [_source])
+	var settled := (
+		((effects.get_snapshot().entry as Dictionary).binding as Dictionary)
+			.get("envelope", {})
+	) as Dictionary
+	_check(
+		hot_level >= 3 and not bool(settled.get("visible", true))
+			and not bool(settled.get("recovery_ring_visible", true))
+			and str(settled.get("marker_text", "?")).is_empty(),
+		"%s clears the entry-recovery cue once slow flight settles (level %d, %s)"
+			% [craft_name, hot_level, settled.get("marker_text", "?")]
+	)
 	craft.global_position = Vector3(0.0, BODY_RADIUS_M + 25_000.0, 0.0)
 	craft.velocity = Vector3(0.0, -2_000.0, 0.0)
 	effects.advance(TICK, craft, true, null, _hud, [_source])
