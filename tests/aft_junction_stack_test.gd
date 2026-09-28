@@ -2619,8 +2619,8 @@ func _test_vip_facade_column_trim_batch(module: AftJunctionStack) -> void:
 		and int(authority.lease_authority_count) == 0
 		and int(authority.spawn_authority_count) == 0
 		and str(authority.network_authority_role) == "none"
-		and int(collision.body_count) == 112
-		and int(collision.shape_count) == 125
+		and int(collision.body_count) == 113
+		and int(collision.shape_count) == 140
 		and module.get_operations_entrance() != null
 		and module.get_vip_access() != null
 		and vip != null
@@ -3029,7 +3029,10 @@ func _test_collision_matrix(module: AftJunctionStack) -> void:
 	for candidate in bodies:
 		var body := candidate as StaticBody3D
 		var layer_is_valid := body.collision_layer == WORLD_LAYER
-		if body.name == "PortalBlocker":
+		if bool(body.get_meta(StationModuleContract.FOOT_SUPPORT_BODY_META, false)):
+			# The drawn stair treads' ray-only support is on FootSupport, never World.
+			layer_is_valid = body.collision_layer == PhysicsLayers.FOOT_SUPPORT
+		elif body.name == "PortalBlocker":
 			# The reusable StationDoor deliberately clears only its portal blocker's
 			# layer while fully open; all other static structure stays on World.
 			layer_is_valid = body.collision_layer == WORLD_LAYER or body.collision_layer == 0

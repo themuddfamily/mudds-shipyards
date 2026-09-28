@@ -1,16 +1,17 @@
 extends SceneTree
 
-## Locomotion foot IK for the skinned pilot on a real stair flight (the Aft
-## Junction's authored 0.30 m riser / 0.70 m run): walking down and back up,
-## and running down, each stance boot is planted on its own tread, the visual
-## pelvis never jumps a riser in one tick when the capsule snaps a nosing, the
+## Locomotion foot IK for the skinned pilot on the production Aft Junction stair
+## (the real module scene: a continuous collision ramp under fifteen drawn
+## 0.30 m riser / 0.70 m run treads, each carrying a FootSupport shape that only
+## the pilot's foot rays cast). Walking down and back up, and running down, each
+## stance boot is planted on the drawn tread under it, no IK boot corner is
+## driven into a tread, the visual pelvis never jumps a riser in one tick, the
 ## ray budget stays at two queries per foot, the IK weight is zero while
 ## airborne, and gated (distant) pilots cast no support rays. Presentation only:
-## the capsule and collision authority are unchanged.
+## the capsule rides the ramp and collision authority is unchanged.
 
 const PLAYER_SCENE := preload("res://scenes/player/player.tscn")
-const STAIR_STEPS := 8
-const STAIR_WIDTH_M := 2.92
+const AFT_SCENE := preload("res://scenes/world/modules/aft_junction_stack.tscn")
 ## A planted stance boot's lowest sole corner sits this close to its tread.
 const MAX_STANCE_SOLE_ERROR_M := 0.03
 ## Share of stance samples that must meet the tolerance (heel strike on a lower
@@ -24,8 +25,9 @@ const MAX_PELVIS_VERTICAL_STEP_M := {&"walk": 0.12, &"run": 0.15}
 
 var _failures := PackedStringArray()
 var _assertions := 0
-var _rise := 0.0
-var _run := 0.0
+var _stair_x := 0.0
+var _bottom_z := 0.0
+var _top_z := 0.0
 
 
 func _init() -> void:
@@ -33,22 +35,35 @@ func _init() -> void:
 
 
 func _run_test() -> void:
-	_rise = AftJunctionStack.STAIR_RISE
-	_run = AftJunctionStack.STAIR_RUN
-	_check(
-		is_equal_approx(snappedf(_rise, 0.001), 0.3) and _run > 0.6,
-		"the flight uses the station's authored stair (riser %.3f m, run %.3f m)" % [_rise, _run]
-	)
 	var world := Node3D.new()
 	world.name = "PilotLocomotionFootIKWorld"
 	root.add_child(world)
-	_build_flight(world)
+	var module := AFT_SCENE.instantiate() as AftJunctionStack
+	world.add_child(module)
+	await physics_frame
+	var profile := module.get_stair_profile()
+	var samples := module.get_stair_surface_samples()
+	_stair_x = samples[0].x
+	_bottom_z = samples[0].z
+	_top_z = samples[samples.size() - 1].z
+	_check(
+		is_equal_approx(snappedf(float(profile.riser_height), 0.001), 0.3)
+		and float(profile.tread_run) > 0.6
+		and profile.collision_solution == &"continuous_ramp_beneath_visible_treads",
+		"the flight is the station's authored stair (riser %.3f m, run %.3f m, %s)" % [
+			float(profile.riser_height), float(profile.tread_run), profile.collision_solution
+		]
+	)
+
 	var player := PLAYER_SCENE.instantiate() as PlayerController
 	world.add_child(player)
 	player.set_camera_active(false)
 	player.set_control_enabled(false)
-	var top := _rise * STAIR_STEPS
-	player.teleport_to(Transform3D(Basis.IDENTITY, Vector3(0.0, top + 0.2, 1.6)))
+	_check_tread_foot_support(module, player)
+	player.teleport_to(Transform3D(
+		Basis.IDENTITY,
+		Vector3(_stair_x, AftJunctionStack.UPPER_FLOOR_ELEVATION + 0.4, _top_z + 1.6)
+	))
 	await _settle(48)
 	_check(player.is_on_floor(), "the pilot settles on the upper landing")
 
@@ -59,15 +74,17 @@ func _run_test() -> void:
 	var layer_before := player.collision_layer
 	var mask_before := player.collision_mask
 
+	# Down the flight is -Z. The stair-base landing's south rail stands 1.44 m
+	# short of the ramp foot, so a descent is done 0.6 m clear of the foot.
 	player.set_control_enabled(true)
 	await _traverse(player, &"move_forward", false, &"walk", "walking down", func(p: PlayerController) -> bool:
-		return p.global_position.z < -_run * STAIR_STEPS - 1.2)
+		return p.global_position.z < _bottom_z - 0.6)
 	await _settle(30)
 	await _traverse(player, &"move_back", false, &"walk", "walking up", func(p: PlayerController) -> bool:
-		return p.global_position.z > 1.2)
+		return p.global_position.z > _top_z + 1.2)
 	await _settle(30)
 	await _traverse(player, &"move_forward", true, &"run", "running down", func(p: PlayerController) -> bool:
-		return p.global_position.z < -_run * STAIR_STEPS - 1.5)
+		return p.global_position.z < _bottom_z - 0.6)
 	player.set_control_enabled(false)
 	await _settle(40)
 
@@ -87,24 +104,38 @@ func _run_test() -> void:
 	_finish()
 
 
-## Upper landing behind z = 0, then STAIR_STEPS solid treads descending toward
-## -Z (the pilot's forward), then a lower landing at y = 0.
-func _build_flight(world: Node3D) -> void:
-	var top := _rise * STAIR_STEPS
-	world.add_child(_make_box(
-		&"UpperLanding", Vector3(0.0, (top - 0.2) * 0.5, 4.0), Vector3(STAIR_WIDTH_M, top + 0.2, 8.0)
-	))
-	for step in range(1, STAIR_STEPS):
-		var tread_top := top - _rise * step
-		world.add_child(_make_box(
-			StringName("Tread%02d" % step),
-			Vector3(0.0, (tread_top - 0.2) * 0.5, -_run * (step - 0.5)),
-			Vector3(STAIR_WIDTH_M, tread_top + 0.2, _run)
-		))
-	var lower_start := -_run * (STAIR_STEPS - 1)
-	world.add_child(_make_box(
-		&"LowerLanding", Vector3(0.0, -0.1, lower_start - 5.0), Vector3(STAIR_WIDTH_M + 4.0, 0.2, 10.0)
-	))
+## Every drawn tread carries a FootSupport shape at its exact pose and size,
+## which the capsule's mask excludes: the ramp stays the only body it rides.
+func _check_tread_foot_support(module: AftJunctionStack, player: PlayerController) -> void:
+	var circulation := module.find_child("Circulation", true, false) as Node3D
+	var support: StaticBody3D = null
+	var ramp: StaticBody3D = null
+	if circulation != null:
+		support = circulation.get_node_or_null(^"VisibleTreadFootSupport") as StaticBody3D
+		ramp = circulation.get_node_or_null(^"ContinuousStairRamp") as StaticBody3D
+	var matched := 0
+	for index in AftJunctionStack.STAIR_STEP_COUNT:
+		if circulation == null or support == null:
+			break
+		var anchor := circulation.get_node_or_null(NodePath("VisibleTread%02d" % index)) as Node3D
+		var shape := support.get_node_or_null(NodePath("TreadFootSupport%02d" % index)) as CollisionShape3D
+		var box := shape.shape as BoxShape3D if shape != null else null
+		if (
+			anchor != null and box != null
+			and shape.global_transform.is_equal_approx(anchor.global_transform)
+			and box.size.is_equal_approx(AftJunctionStack.STAIR_TREAD_SIZE)
+		):
+			matched += 1
+	_check(
+		matched == AftJunctionStack.STAIR_STEP_COUNT
+		and support.collision_layer == PhysicsLayers.FOOT_SUPPORT
+		and (player.collision_mask & PhysicsLayers.FOOT_SUPPORT) == 0
+		and ramp != null and ramp.collision_layer == PhysicsLayers.WORLD
+		and (player.collision_mask & PhysicsLayers.WORLD) != 0,
+		"every drawn tread carries a FootSupport shape the capsule ignores; the ramp carries the capsule (%d/%d)" % [
+			matched, AftJunctionStack.STAIR_STEP_COUNT
+		]
+	)
 
 
 func _traverse(
@@ -122,6 +153,7 @@ func _traverse(
 	var stepped_stance := 0
 	var worst_stance_error := 0.0
 	var lowest_gap := INF
+	var reach_limited_lifts := 0
 	var largest_pelvis_step := 0.0
 	var absorbed_snaps := 0
 	var max_toe_probes := 0
@@ -154,7 +186,17 @@ func _traverse(
 			if not bool(record.get("active", false)):
 				continue
 			var gap := float(record.get("corrected_sole_min_gap_m", INF))
-			lowest_gap = minf(lowest_gap, gap)
+			# A swing boot lifted by the full step reach toward a tread its toe
+			# probe found ahead can still sit below that tread's plane: the IK
+			# raised it as far as it may and drove nothing down. On this stair the
+			# capsule rides the ramp up to 0.15 m below a nosing, so the next
+			# tread can be more than one reach above the deck.
+			var reach_up := PilotSkinnedPresentation.FOOT_IK_MAX_STEP_RISE_M \
+				+ maxf(0.0, float(snapshot.get("visual_pelvis_drop_m", 0.0)))
+			if float(record.get("applied_correction_m", 0.0)) >= reach_up - 0.001:
+				reach_limited_lifts += 1
+			else:
+				lowest_gap = minf(lowest_gap, gap)
 			if record.get("reason", &"") != &"stance_planted" or float(record.get("stance_weight", 0.0)) < 0.9:
 				continue
 			stance_samples += 1
@@ -169,8 +211,11 @@ func _traverse(
 		Input.action_release(&"sprint_boost")
 	var within_share := float(stance_within) / maxf(1.0, float(stance_samples))
 	print(
-		"PILOT_LOCOMOTION_FOOT_IK_MEASURE: %s frames=%d stance=%d stepped=%d within=%.2f worst=%.4f m lowest_gap=%+.4f m pelvis_step=%.4f m snaps_absorbed=%d"
-		% [label, state_frames, stance_samples, stepped_stance, within_share, worst_stance_error, lowest_gap, largest_pelvis_step, absorbed_snaps]
+		"PILOT_LOCOMOTION_FOOT_IK_MEASURE: %s frames=%d stance=%d stepped=%d within=%.2f worst=%.4f m lowest_gap=%+.4f m reach_limited_lifts=%d pelvis_step=%.4f m snaps_absorbed=%d"
+		% [
+			label, state_frames, stance_samples, stepped_stance, within_share, worst_stance_error,
+			lowest_gap, reach_limited_lifts, largest_pelvis_step, absorbed_snaps
+		]
 	)
 	_check(reached, "%s reaches the far landing" % label)
 	_check(state_frames >= 20, "%s runs the %s clip on the flight (%d ticks)" % [label, expected_state, state_frames])
@@ -230,18 +275,6 @@ func _check_distant_pilot_casts_no_rays(player: PlayerController, world: Node3D)
 
 func _presentation(player: PlayerController) -> PilotSkinnedPresentation:
 	return player.find_child("PilotSkinnedPresentation", true, false) as PilotSkinnedPresentation
-
-
-func _make_box(node_name: StringName, origin: Vector3, size: Vector3) -> StaticBody3D:
-	var body := StaticBody3D.new()
-	body.name = node_name
-	body.position = origin
-	var collision := CollisionShape3D.new()
-	var box := BoxShape3D.new()
-	box.size = size
-	collision.shape = box
-	body.add_child(collision)
-	return body
 
 
 func _settle(frame_count: int) -> void:

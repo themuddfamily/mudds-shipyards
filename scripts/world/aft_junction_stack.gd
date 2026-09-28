@@ -997,7 +997,10 @@ func get_performance_contract() -> Dictionary:
 		# shape ceiling had one shape of headroom left, so it moves with the
 		# built figure rather than silently absorbing physics the module means to
 		# declare. No mesh, renderer, submission or light moves with it.
-		"collision_shapes": 132,
+		# 132 -> 147 against 140 built: the fifteen drawn stair treads each carry
+		# one FootSupport box that only the pilot's foot rays cast (the capsule
+		# still rides the continuous ramp), in one extra body within its ceiling.
+		"collision_shapes": 147,
 		"labels": 4,
 		# Light ceiling re-frozen in the open, 12 -> 32 -> 40. The module built 11
 		# lights against that 12; the fixture pass took it to 32, all of them
@@ -3129,7 +3132,9 @@ func _render_descendant_count() -> int:
 		var cursor := candidate as Node
 		var interaction_owned := false
 		while cursor != null and cursor != self:
-			if cursor is StationSeat:
+			# Seats are interaction, and the tread FootSupport shapes are
+			# ray-only support: neither can change the draw roster.
+			if cursor is StationSeat or cursor.has_meta(StationModuleContract.FOOT_SUPPORT_BODY_META):
 				interaction_owned = true
 				break
 			cursor = cursor.get_parent()
@@ -3562,6 +3567,24 @@ func _build_stair_and_upper_structure(structure: Node3D) -> void:
 		_materials["off_white_floor"],
 		tread_transforms
 	)
+	# The drawn treads stand up to 0.14 m proud of the ramp at their nosings. The
+	# ramp stays the only body the capsule touches; these FootSupport shapes are
+	# cast only by the pilot's foot-support rays, so a boot plants on the tread it
+	# is drawn on instead of sinking through it to the ramp.
+	var tread_foot_support := StaticBody3D.new()
+	tread_foot_support.name = "VisibleTreadFootSupport"
+	tread_foot_support.collision_layer = PhysicsLayers.FOOT_SUPPORT_BODY_LAYER
+	tread_foot_support.collision_mask = PhysicsLayers.FOOT_SUPPORT_BODY_MASK
+	tread_foot_support.set_meta(StationModuleContract.FOOT_SUPPORT_BODY_META, true)
+	circulation.add_child(tread_foot_support)
+	for index in STAIR_STEP_COUNT:
+		var tread_shape := CollisionShape3D.new()
+		tread_shape.name = "TreadFootSupport%02d" % index
+		tread_shape.transform = tread_transforms[index]
+		var tread_box := BoxShape3D.new()
+		tread_box.size = STAIR_TREAD_SIZE
+		tread_shape.shape = tread_box
+		tread_foot_support.add_child(tread_shape)
 
 	# Twin tubular stringers make the climb read as an engineered assembly rather
 	# than fifteen floating boxes. They sit beneath the unchanged navigation ramp.

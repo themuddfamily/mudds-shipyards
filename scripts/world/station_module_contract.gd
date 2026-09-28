@@ -238,6 +238,20 @@ static func expected_collision_layer(world_layer: int, module_enabled: bool) -> 
 	return world_layer if module_enabled else 0
 
 
+## A static body tagged with this meta is presentation-only foot support (drawn
+## stair treads over a collision ramp): it follows the lifecycle like every
+## other body, but on the FootSupport layer that only the pilot's foot rays cast.
+const FOOT_SUPPORT_BODY_META := &"station_foot_support_only"
+
+
+static func expected_body_collision_layer(body: Node, world_layer: int, module_enabled: bool) -> int:
+	var enabled_layer := (
+		PhysicsLayers.FOOT_SUPPORT_BODY_LAYER
+		if bool(body.get_meta(FOOT_SUPPORT_BODY_META, false)) else world_layer
+	)
+	return expected_collision_layer(enabled_layer, module_enabled)
+
+
 ## Shared node census for a component roster. Callers add their own module id and
 ## the counts only they can answer (chairs, bunks, dock slabs, and so on).
 static func build_component_roster(module: Node) -> Dictionary:
@@ -261,7 +275,6 @@ static func build_collision_contract(
 	) -> Dictionary:
 	var bodies := collect_static_bodies(module)
 	var shapes := module.find_children("*", "CollisionShape3D", true, false)
-	var expected_layer := expected_collision_layer(world_layer, module_enabled)
 	var body_paths := PackedStringArray()
 	var all_layers_valid := true
 	var all_masks_valid := true
@@ -274,7 +287,8 @@ static func build_collision_contract(
 		# through a disable is exactly the mutation this field exists to catch,
 		# and a form that only reports "everything matched == enabled" cannot
 		# see it: with the module disabled the conjunction is already false.
-		all_layers_valid = all_layers_valid and body.collision_layer == expected_layer
+		all_layers_valid = all_layers_valid \
+			and body.collision_layer == expected_body_collision_layer(body, world_layer, module_enabled)
 		all_masks_valid = all_masks_valid and body.collision_mask == 0
 	# Shapes are checked across the whole module, not per static body, so a
 	# disabled shape under an Area3D is reported too - `shape_count` counts them
@@ -369,7 +383,6 @@ static func build_lifecycle_contract(
 		visibility_root: Node3D
 	) -> Dictionary:
 	var bodies := collect_static_bodies(module)
-	var expected_layer := expected_collision_layer(world_layer, module_enabled)
 	var surface_ids := PackedInt64Array()
 	var collision_matches := true
 	# Only the visibility root follows the enabled flag. Individual surfaces keep
@@ -380,7 +393,8 @@ static func build_lifecycle_contract(
 	for raw_body in bodies:
 		var body := raw_body as StaticBody3D
 		surface_ids.append(body.get_instance_id())
-		collision_matches = collision_matches and body.collision_layer == expected_layer
+		collision_matches = collision_matches \
+			and body.collision_layer == expected_body_collision_layer(body, world_layer, module_enabled)
 		visible_matches = visible_matches and body.visible
 	return {
 		"mode": &"identity_preserving_enable_disable",
@@ -414,11 +428,11 @@ static func apply_enabled_state(
 	) -> void:
 	if visibility_root != null and visibility_root.visible != module_enabled:
 		visibility_root.visible = module_enabled
-	var layer := expected_collision_layer(world_layer, module_enabled)
 	for raw_body in bodies:
 		var body := raw_body as StaticBody3D
 		if body == null:
 			continue
+		var layer := expected_body_collision_layer(body, world_layer, module_enabled)
 		# Write only on a real change. Reassigning an identical collision layer
 		# still re-registers the body with the physics server, which reorders the
 		# broadphase and flips which of two intentionally overlapping decks a ray
