@@ -3,6 +3,7 @@ extends SceneTree
 const WORLD_SCENE := preload("res://scenes/world/shipyard_world.tscn")
 const PICKET_SCENE := preload("res://scenes/ships/standoff_picket_opponent.tscn")
 const SKIRMISHER_SCENE := preload("res://scenes/ships/flanking_skirmisher_opponent.tscn")
+const TORPEDO_BOAT_SCENE := preload("res://scenes/ships/torpedo_boat_opponent.tscn")
 
 var _assertions := 0
 var _failures: Array[String] = []
@@ -50,6 +51,12 @@ func _run() -> void:
 	second_screen.source_id = 2104
 	_wire(second_screen)
 	host.add_child(second_screen)
+	# 7680a0cd0 made the board rotate to Torpedo Run after a concluded sortie,
+	# so the production harness carries the torpedo boat Main places.
+	var torpedo_boat := TORPEDO_BOAT_SCENE.instantiate() as TorpedoBoatOpponent
+	torpedo_boat.name = "TorpedoBoat"
+	_wire(torpedo_boat)
+	host.add_child(torpedo_boat)
 	var world := WORLD_SCENE.instantiate() as ShipyardWorld
 	host.add_child(world)
 	await process_frame
@@ -206,7 +213,13 @@ func _run() -> void:
 	target.global_position = board.global_position + Vector3(1.5, 0.0, 0.0)
 	var active_again: bool = board.interact(target, next_generation)
 	var active_director_generation := director.get_scenario_generation()
-	_check(active_again and director.is_running(), "a fresh board generation admits a new breach")
+	_check(
+		active_again
+			and director.is_running()
+			and director.get_active_scenario() == EncounterScenarioDirector.SCENARIO_TORPEDO_RUN
+			and board.get_snapshot().active_scenario == EncounterScenarioDirector.SCENARIO_TORPEDO_RUN,
+		"a fresh board generation admits the rotated Torpedo Run contract"
+	)
 	var board_id: int = board.get_instance_id()
 	host.remove_child(world)
 	await process_frame
@@ -215,7 +228,7 @@ func _run() -> void:
 			and director.get_outcome() == EncounterScenarioDirector.OUTCOME_WITHDRAWN
 			and director.get_roster().is_empty()
 			and _reward_requests.size() == 1,
-		"world detach withdraws the live breach roster without producing a reward"
+		"world detach withdraws the live board sortie roster without producing a reward"
 	)
 	host.add_child(world)
 	await process_frame
