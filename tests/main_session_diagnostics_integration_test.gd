@@ -33,6 +33,13 @@ class MemoryFilesystem extends Filesystem:
 		return {"error": OK, "bytes": bytes}
 
 	func write_bytes_and_flush(path: String, bytes: PackedByteArray) -> Error:
+		# Rotated `.bak.N` history copies (fe0a916d5) are best-effort side
+		# copies, not diagnostic commit attempts, so they are not counted.
+		if path.get_extension().is_valid_int() and path.get_basename().ends_with(".bak"):
+			if fail_all_writes:
+				return ERR_FILE_CANT_WRITE
+			files[path] = bytes.duplicate()
+			return OK
 		write_count += 1
 		if fail_all_writes or write_count == fail_write_number:
 			return ERR_FILE_CANT_WRITE
