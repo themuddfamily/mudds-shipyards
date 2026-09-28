@@ -11,13 +11,20 @@ const ROSTER_FINGERPRINT := "43dabfe2e1cb3cc47caa41c34df8c71a2af9f955b8048d3c129
 # light was added, moved, recoloured or re-ranged; only the per-point
 # contributor measurement moved with the station content that has landed since
 # the previous freeze. The 2026-09-14 geometry trim adds and removes no light.
-const STATION_RESIDENT_MEASUREMENT_FINGERPRINT := "ab7df9447a6b2020f8eb338c32127323006a4d30b0bf5c9bda4095980c359af1"
+# Refrozen 2026-09-28. Enabled, shadow-casting and spot lights and the roster
+# fingerprint are unchanged. Only disabled omni practicals moved: 7680a0cd0's
+# torpedo boat added nine hidden torpedo/burst lights (341 -> 350) and
+# aca8cb9e4 released dormant opponents' visual subtrees, taking their 23
+# disabled damage practicals out of the resident tree (350 -> 327). The
+# per-point measurement also moved with f2d41984f's Dock 05/06 relocation.
+const STATION_RESIDENT_MEASUREMENT_FINGERPRINT := "72d36025865c507cd7d89d19df1cdd0e3c8e6508d7f2d6043d77d76170f64554"
 # Refrozen: the abandoned station hulk in the streamed nearby sector hangs eight
 # shadowless omni practicals (`AbandonedStationHulk._build_practicals`, all
 # `shadow_enabled = false`) off the Cinder-loaded scenario. Only this scenario
 # moves; the station-resident roster and fingerprint above are untouched, which
 # is what says no station light was added, moved, recoloured or re-ranged.
-const CINDER_LOADED_MEASUREMENT_FINGERPRINT := "503818ae8dec5c0310aa672c251e7220098aecd831bfa6dd07eae8bc54a20b89"
+# Refrozen 2026-09-28 for the same disabled-practical and dock moves as above.
+const CINDER_LOADED_MEASUREMENT_FINGERPRINT := "4797f6c71c08db3fe16e56cefb7ad71f7b5b737bb748177028d20b2c40d1700e"
 const FABRICATION_LIGHT_PATHS := [
 	"ShipyardWorld/FabricationAnnex/GeneratedAnnex/PracticalPoolCentral",
 	"ShipyardWorld/FabricationAnnex/GeneratedAnnex/PracticalPoolPort",
@@ -305,18 +312,18 @@ func _test_production_main_roster_and_measurement() -> void:
 		int(report.schema_version) == CENSUS.SCHEMA_VERSION
 		and report.scenario == CENSUS.SCENARIO_STATION_RESIDENT
 		and int(report.loaded_instance_count) == 0
-		and int(scene_lights.total) == 341
+		and int(scene_lights.total) == 327
 		and int(scene_lights.enabled) == 258
-		and int(scene_lights.disabled) == 83
+		and int(scene_lights.disabled) == 69
 		and int(scene_lights.shadow_casting_total) == 20
 		and int(scene_lights.enabled_shadow_casting) == 20
 		and int((by_type.directional as Dictionary).total) == 3
 		and int((by_type.directional as Dictionary).enabled) == 3
-		and int((by_type.omni as Dictionary).total) == 325
+		and int((by_type.omni as Dictionary).total) == 311
 		and int((by_type.omni as Dictionary).enabled) == 242
 		and int((by_type.spot as Dictionary).total) == 13
 		and int((by_type.spot as Dictionary).enabled) == 13,
-		"station-resident HIGH freezes 341 total / 258 enabled lights and exact type/shadow splits"
+		"station-resident HIGH freezes 327 total / 258 enabled lights and exact type/shadow splits"
 	)
 	_test_expansion_light_provenance(game, report)
 	var expected_worst := [
@@ -457,18 +464,18 @@ func _test_cinder_loaded_production_scenario(
 		report.scenario == CENSUS.SCENARIO_CINDER_LOADED
 		and int(report.loaded_instance_count) == 1
 		# Refrozen: +8 shadowless omni practicals from the abandoned station hulk.
-		and int(lights.total) == 376
+		and int(lights.total) == 362
 		and int(lights.enabled) == 293
-		and int(lights.disabled) == 83
+		and int(lights.disabled) == 69
 		and int(lights.shadow_casting_total) == 20
 		and int(lights.enabled_shadow_casting) == 20
 		and int((by_type.directional as Dictionary).total) == 3
 		and int((by_type.directional as Dictionary).enabled) == 3
-		and int((by_type.omni as Dictionary).total) == 359
+		and int((by_type.omni as Dictionary).total) == 345
 		and int((by_type.omni as Dictionary).enabled) == 276
 		and int((by_type.spot as Dictionary).total) == 14
 		and int((by_type.spot as Dictionary).enabled) == 14,
-		"Cinder-loaded HIGH freezes 376 total / 293 enabled lights and exact type/shadow splits"
+		"Cinder-loaded HIGH freezes 362 total / 293 enabled lights and exact type/shadow splits"
 	)
 	# Refrozen: the hulk's eight practicals raise the streaming delta from +26 to
 	# +34 omni. They cast no shadows and disable nothing, so every other term of
