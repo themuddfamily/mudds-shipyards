@@ -129,11 +129,10 @@ func present_intercept(record: Dictionary) -> bool:
 	return _present_terminal(record, CUE_INTERCEPT, record.get("position", Vector3.INF) as Vector3)
 
 
-## The warhead committed an arrival: a hit or a proximity fuse detonates, a
-## flown-out torpedo only goes quiet.
+## The warhead committed an arrival: confirmed damage detonates. A proximity
+## fuse whose sweep misses expires, just like a torpedo that flies out.
 func present_resolved(record: Dictionary, result: Dictionary) -> bool:
-	var reason := StringName(record.get("terminal_reason", &""))
-	var detonated := bool(result.get("damaged", false)) or reason == &"proximity_fuse"
+	var detonated := bool(result.get("damaged", false))
 	return _present_terminal(
 		record,
 		CUE_DETONATION if detonated else CUE_EXPIRED,

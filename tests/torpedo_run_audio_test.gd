@@ -132,6 +132,31 @@ func _run() -> void:
 		"a torpedo that hits detonates once and its flight loop stops"
 	)
 
+	# The audio presenter receives the ordinary fuse reason, including for a
+	# miss. The resolver outcome, not a rewritten reason, selects expiration.
+	var near_miss_record := {
+		"flight_id": 1000000,
+		"origin": origin,
+		"terminal_reason": &"proximity_fuse",
+		"terminal_position": Vector3(0.0, 0.0, -40.0),
+	}
+	var near_miss_result := {"damaged": false, "hit": false}
+	var expired_before := _count(audio, TorpedoRunAudio.CUE_EXPIRED)
+	_check(audio.present_launch(near_miss_record), "a near-miss flight starts its audio loop")
+	_check(
+		audio.present_resolved(near_miss_record, near_miss_result)
+			and _count(audio, TorpedoRunAudio.CUE_EXPIRED) == expired_before + 1
+			and _count(audio, TorpedoRunAudio.CUE_DETONATION) == 1
+			and int(audio.get_snapshot().active_flight_loops) == 0
+			and near_miss_record.terminal_reason == &"proximity_fuse",
+		"a proximity-fuse miss expires without a detonation and preserves the terminal reason"
+	)
+	_check(
+		not audio.present_resolved(near_miss_record, near_miss_result)
+			and _count(audio, TorpedoRunAudio.CUE_EXPIRED) == expired_before + 1,
+		"a repeated near-miss resolution cannot replay its terminal cue"
+	)
+
 	# Shoot-down.
 	target.global_position = Vector3(0.0, 0.0, -120.0)
 	await physics_frame

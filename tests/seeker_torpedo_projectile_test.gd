@@ -78,6 +78,7 @@ func _run() -> void:
 	await _test_dodge(authority, pool, launcher, target, target_health)
 	await _test_shoot_down(authority, pool, launcher, target, target_health, gun)
 	await _test_offset_interaction_volume(authority, pool, launcher, host, target)
+	await _test_proximity_fuse_near_miss(authority, pool, launcher, host, target_health)
 	await _test_launcher_loss(authority, pool, launcher, target)
 
 	var reduced := pool.set_reduced_flash_enabled(true)
@@ -319,6 +320,68 @@ func _test_offset_interaction_volume(
 		"a torpedo arriving on the boarding-sphere side still strikes the hull once"
 	)
 	ship.queue_free()
+	await physics_frame
+
+
+## A target with no strikable body uses its origin for seeking. Reaching that
+## origin must resolve a miss, without suggesting damage through a full burst.
+func _test_proximity_fuse_near_miss(
+		authority: LiveCombatAuthority,
+		pool: SeekerTorpedoProjectile,
+		launcher: Node3D,
+		host: Node3D,
+		original_health: Damageable
+	) -> void:
+	var target := Node3D.new()
+	target.name = "NearMissTarget"
+	host.add_child(target)
+	target.global_position = Vector3(0.0, 0.0, -60.0)
+	var health := Damageable.new()
+	health.name = "Damageable"
+	health.maximum_health = TARGET_HEALTH
+	health.faction_id = PLAYER_FACTION
+	target.add_child(health)
+	var original_health_before := original_health.get_health()
+	var resolved: Array[Dictionary] = []
+	var on_resolved := func(record: Dictionary, result: Dictionary) -> void:
+		resolved.append({
+			"record": record, "result": result,
+			"bursts": pool.get_active_burst_count(),
+		})
+	pool.torpedo_resolved.connect(on_resolved)
+	for reduced_flash in [false, true]:
+		pool.set_reduced_flash_enabled(reduced_flash)
+		resolved.clear()
+		var origin := launcher.global_position + Vector3(0.0, 0.0, -5.0)
+		var launch := pool.launch(launcher, WEAPON_ID, origin, Vector3.FORWARD, target)
+		_check(bool(launch.get("accepted", false)), "a torpedo launches at an origin without a strikable body")
+		for _index in 600:
+			if pool.get_active_torpedo_count() == 0:
+				break
+			await physics_frame
+		_check(
+			resolved.size() == 1
+				and StringName((resolved[0].record as Dictionary).get("terminal_reason", &"")) == &"proximity_fuse"
+				and bool((resolved[0].result as Dictionary).get("resolved", false))
+				and not bool((resolved[0].result as Dictionary).get("damaged", true))
+				and not bool((resolved[0].result as Dictionary).get("hit", true)),
+			"an origin-only target produces one authoritative proximity-fuse miss"
+		)
+		_check(
+			is_equal_approx(health.get_health(), TARGET_HEALTH)
+				and is_equal_approx(original_health.get_health(), original_health_before)
+				and pool.get_active_torpedo_count() == 0
+				and authority.get_active_projectile_flight_count() == 0,
+			"a proximity-fuse miss changes no health and releases its flight"
+		)
+		_check(
+			resolved.size() == 1 and int(resolved[0].bursts) == 0
+				and pool.get_active_burst_count() == 0,
+			"a proximity-fuse miss shows no burst (reduced flash: %s)" % reduced_flash
+		)
+	pool.torpedo_resolved.disconnect(on_resolved)
+	pool.set_reduced_flash_enabled(false)
+	target.queue_free()
 	await physics_frame
 
 

@@ -592,18 +592,12 @@ func _terminate_slot(
 	)
 	_resolved_count += 1
 	var damaged := bool(result.get("damaged", false))
-	# A fuse that fired but whose sweep struck nothing is a near miss: it keeps
-	# the same small fizzle burst an abandoned warhead shows, but it must not
-	# voice a detonation, which reads as a hit that dealt no damage.
-	var fuse_near_miss := reason == &"proximity_fuse" and not damaged
-	if damaged or fuse_near_miss:
+	# Only confirmed damage earns a detonation burst. A fuse whose arrival
+	# sweep misses goes quiet, while keeping its authoritative terminal reason.
+	if damaged:
 		_start_burst(slot_index, terminal_position)
 	if is_instance_valid(_audio):
-		var audio_record := record
-		if fuse_near_miss:
-			audio_record = record.duplicate(true)
-			audio_record["terminal_reason"] = &"proximity_fuse_near_miss"
-		_audio.present_resolved(audio_record, result)
+		_audio.present_resolved(record, result)
 	torpedo_resolved.emit(record, result)
 
 
