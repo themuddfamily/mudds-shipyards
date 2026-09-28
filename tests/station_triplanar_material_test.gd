@@ -744,12 +744,16 @@ func _test_live_station_coverage(
 	# surfaces at 0.30 m; the same material also maps seven existing batches.
 	# The Aft stair handoff cue's rear face (UPPER OPERATIONS now reads from the
 	# southern approach too) maps one more ordinary brass surface at 0.30 m.
+	# The dressing-roster migrations cfba12a64 (Habitat bunk soft goods) and
+	# fc4828756 (chair arm pads, coordinator headrests) fold 14 mapped 0.28 m
+	# surfaces into dressing batches, 643 -> 629; restoring those names to
+	# PROTECTED_DRESSING_NAMES restores exactly 1972 / 643.
 	_check(
-		mapped_surface_count == 1972
+		mapped_surface_count == 1958
 		and scale_022_count == 45
-		and scale_028_count == 643
+		and scale_028_count == 629
 		and scale_030_count == 1284,
-		"live static station binds exactly 1972 ordinary mapped surfaces with all seven couriers dispatched"
+		"live static station binds exactly 1958 ordinary mapped surfaces with all seven couriers dispatched"
 	)
 	_check(exact_recipe, "every mapped station surface uses the matched world-triplanar albedo/normal/roughness recipe")
 	_check(forbidden_ship_atlas_count == 0, "no live station surface reuses the Arrow or Jovian directional ship atlases")
