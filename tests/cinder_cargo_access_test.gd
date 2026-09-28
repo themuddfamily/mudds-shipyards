@@ -1,4 +1,5 @@
 extends SceneTree
+## test-matrix-timeout-seconds: 1200
 
 ## Focused production journey for the streamed Cinder cargo berth/access module.
 ## The cluster must compose its real access scene and destination terminal; this

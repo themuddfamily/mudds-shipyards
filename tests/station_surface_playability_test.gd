@@ -1,4 +1,5 @@
 extends SceneTree
+## test-matrix-timeout-seconds: 900
 
 ## Production-capsule coverage for every authored station stair/ramp and the
 ## collision-backed floor roster used by reachable station routes. Movement
