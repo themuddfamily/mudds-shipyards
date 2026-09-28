@@ -3135,12 +3135,17 @@ func _clear_surface_airborne_state() -> void:
 	_surface_last_supported_height_m = INF
 
 
+## The pilot's footing must be this visit's own surface: the exact pad, the
+## pilot's own craft while it sits landed on its berth, and once on foot the
+## authored scene's generated terrain or its authored landmark bodies. Runtime
+## substitutes and foreign bodies (another craft, a tagged copy, anything
+## outside the authored scene) are never support.
 func _surface_contact_supported(live_surface_local: Vector3) -> bool:
 	var surface_up := _landing_root.global_basis.y.normalized()
 	var query := PhysicsRayQueryParameters3D.create(
 		_player.global_position + surface_up * 0.25,
 		_player.global_position - surface_up * 2.5,
-		PhysicsLayers.WORLD_BODY_LAYER
+		PhysicsLayers.WORLD_BODY_LAYER | PhysicsLayers.SHIP
 	)
 	query.exclude = [_player.get_rid()]
 	query.collide_with_areas = false
@@ -3150,13 +3155,26 @@ func _surface_contact_supported(live_surface_local: Vector3) -> bool:
 		return false
 	var collider := hit.get("collider") as Node
 	if collider == _walkable_body:
-		if live_surface_local.y < -0.1 or live_surface_local.y > 2.5:
-			return false
-	elif _phase != Phase.ON_FOOT or not collider is StaticBody3D \
-			or not _scene.is_ancestor_of(collider) \
-			or not bool(collider.get_meta(&"generated_planetary_terrain", false)):
+		return live_surface_local.y >= -0.1 and live_surface_local.y <= 2.5
+	if collider == _ship:
+		return _landed_public_state_is_exact()
+	if _phase != Phase.ON_FOOT or not collider is StaticBody3D \
+			or not _scene.is_ancestor_of(collider):
 		return false
-	return true
+	if bool(collider.get_meta(&"generated_planetary_terrain", false)):
+		return true
+	return _is_authored_surface_landmark(collider as StaticBody3D)
+
+
+## An authored caldera landmark: a solid body the Ember scene file itself
+## places under `LandingRegion/SurfaceLandmarks`. A body added at runtime has no
+## scene owner, so a copy under the same parent is not accepted.
+func _is_authored_surface_landmark(body: StaticBody3D) -> bool:
+	var landmarks := _landing_root.get_node_or_null(^"SurfaceLandmarks")
+	return landmarks != null and body.get_parent() == landmarks \
+		and body.owner == _scene \
+		and bool(body.get_meta(&"solid_visual_collision", false)) \
+		and body.collision_layer == PhysicsLayers.WORLD_BODY_LAYER
 
 
 func _connect_dependency_signals() -> void:

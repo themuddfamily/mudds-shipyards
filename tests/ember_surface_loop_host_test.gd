@@ -33,6 +33,7 @@ func _run() -> void:
 	await _test_exact_generation_and_loaded_root_freshness()
 	await _test_tangent_frame_and_continuous_support_fail_closed()
 	await _test_terrain_contact_tolerates_bounded_airborne()
+	await _test_own_craft_and_authored_landmarks_support_the_visit()
 	await _test_synchronous_destruction_first_wins()
 	await _test_composition_reentry_preserves_the_live_visit()
 	await _test_airborne_abandon_releases_the_visit_for_the_next_one()
@@ -2113,3 +2114,157 @@ func _finish() -> void:
 	for failure in _failures:
 		push_error("EMBER_SURFACE_LOOP_HOST_TEST: " + failure)
 	quit(1)
+
+
+
+## The pilot of a landed craft jumps onto its hull and onto the caldera's
+## authored landmarks. Those are the visit's own surfaces and keep it alive;
+## a runtime substitute landmark and a foreign craft body still fail closed.
+func _test_own_craft_and_authored_landmarks_support_the_visit() -> void:
+	var fixture := await _fixture_at_surface_outbound()
+	if fixture.is_empty():
+		return
+	var host := fixture.host as EmberSurfaceLoopHost
+	var player := fixture.player as PlayerController
+	var ship := fixture.ship as ArrowReconShip
+	var landing_root := fixture.landing_root as Node3D
+	var up := landing_root.global_basis.y.normalized()
+	var pad_stand := player.global_transform
+	var hull_top := _body_top(ship, ship.global_position, PhysicsLayers.SHIP)
+	var on_hull := await _stand_on(fixture, hull_top)
+	var hull_height := landing_root.to_local(player.global_position).y
+	var outbound_on_hull := await _tick(fixture)
+	_check(
+		on_hull == ship and hull_height > 1.0
+			and bool(outbound_on_hull.get("accepted", false))
+			and host.get_phase() == EmberSurfaceLoopHost.Phase.SURFACE_OUTBOUND,
+		"standing on the pilot's own landed craft keeps the outbound visit (%s, %.2f m, %s)"
+			% [on_hull, hull_height, outbound_on_hull.get("reason", &"")],
+	)
+	await _stand_on(fixture, pad_stand.origin)
+	if not await _walk_outbound_route(fixture):
+		_check(false, "own-craft fixture reaches ON_FOOT through real walking")
+		await _cleanup(fixture)
+		return
+	on_hull = await _stand_on(fixture, hull_top)
+	var on_foot_on_hull := await _tick(fixture)
+	_check(
+		on_hull == ship and bool(on_foot_on_hull.get("accepted", false))
+			and host.get_phase() == EmberSurfaceLoopHost.Phase.ON_FOOT,
+		"standing on the pilot's own landed craft keeps the on-foot visit (%s, %s)"
+			% [on_hull, on_foot_on_hull.get("reason", &"")],
+	)
+	var bunker := landing_root.get_node(^"SurfaceLandmarks/SurveyServiceBunker") as StaticBody3D
+	var on_bunker := await _stand_on(
+		fixture, _body_top(bunker, bunker.global_position, PhysicsLayers.WORLD_BODY_LAYER)
+	)
+	var bunker_result := await _tick(fixture)
+	_check(
+		on_bunker == bunker and bool(bunker_result.get("accepted", false))
+			and host.get_phase() == EmberSurfaceLoopHost.Phase.ON_FOOT,
+		"standing on an authored caldera landmark roof keeps the on-foot visit (%s)"
+			% bunker_result.get("reason", &""),
+	)
+	# Jumping down from the roof is ordinary airborne time.
+	player.teleport_to(Transform3D(player.global_basis, player.global_position + up * 0.5))
+	await physics_frame
+	var off_roof := await _tick(fixture)
+	_check(
+		not player.is_on_floor() and bool(off_roof.get("accepted", false)),
+		"stepping off a landmark roof is bounded airborne time (%s)" % off_roof.get("reason", &""),
+	)
+	# A runtime copy of a landmark, even under the authored landmark parent with
+	# the authored metadata, is not the scene's own collision.
+	var substitute := bunker.duplicate() as StaticBody3D
+	substitute.name = "SubstituteLandmark"
+	bunker.get_parent().add_child(substitute)
+	substitute.global_transform = bunker.global_transform
+	bunker.collision_layer = PhysicsLayers.NONE
+	await physics_frame
+	var on_substitute := await _stand_on(
+		fixture, _body_top(substitute, substitute.global_position, PhysicsLayers.WORLD_BODY_LAYER)
+	)
+	var substitute_result := await _tick(fixture)
+	_check(
+		on_substitute == substitute and substitute_result.reason == &"surface_support_lost"
+			and host.get_phase() == EmberSurfaceLoopHost.Phase.FAILED,
+		"a runtime substitute landmark cannot support the visit (%s)"
+			% substitute_result.get("reason", &""),
+	)
+	await _cleanup(fixture)
+
+	# Another craft's hull is not the pilot's landed craft.
+	fixture = await _fixture_at_surface_outbound()
+	if fixture.is_empty():
+		return
+	host = fixture.host as EmberSurfaceLoopHost
+	if not await _walk_outbound_route(fixture):
+		_check(false, "foreign-craft fixture reaches ON_FOOT through real walking")
+		await _cleanup(fixture)
+		return
+	player = fixture.player as PlayerController
+	var foreign_craft := StaticBody3D.new()
+	foreign_craft.name = "ForeignCraftHull"
+	foreign_craft.collision_layer = PhysicsLayers.SHIP
+	foreign_craft.collision_mask = PhysicsLayers.NONE
+	var hull_shape := CollisionShape3D.new()
+	var box := BoxShape3D.new()
+	box.size = Vector3(4.0, 2.0, 4.0)
+	hull_shape.shape = box
+	foreign_craft.add_child(hull_shape)
+	(fixture.world as Node).add_child(foreign_craft)
+	var beside := (fixture.landing_root as Node3D).to_local(player.global_position) \
+		+ Vector3(6.0, 1.0, 0.0)
+	foreign_craft.global_transform = (fixture.landing_root as Node3D).global_transform \
+		* Transform3D(Basis.IDENTITY, beside)
+	await physics_frame
+	var on_foreign := await _stand_on(
+		fixture,
+		_body_top(foreign_craft, foreign_craft.global_position, PhysicsLayers.SHIP)
+	)
+	var foreign_result := await _tick(fixture)
+	_check(
+		on_foreign == foreign_craft and foreign_result.reason == &"surface_support_lost"
+			and host.get_phase() == EmberSurfaceLoopHost.Phase.FAILED,
+		"a foreign craft hull cannot support the visit (%s, %s)"
+			% [on_foreign, foreign_result.get("reason", &"")],
+	)
+	await _cleanup(fixture)
+
+
+## The highest point of `body` straight above `near` along the landing up axis.
+func _body_top(body: CollisionObject3D, near: Vector3, mask: int) -> Vector3:
+	var up := Vector3.UP
+	var landing := body.get_tree().root.find_child("LandingRegion", true, false) as Node3D
+	if landing != null:
+		up = landing.global_basis.y.normalized()
+	var query := PhysicsRayQueryParameters3D.create(near + up * 30.0, near - up * 30.0, mask)
+	query.collide_with_areas = false
+	query.collide_with_bodies = true
+	var hit := body.get_world_3d().direct_space_state.intersect_ray(query)
+	if hit.is_empty() or hit.get("collider") != body:
+		return Vector3.INF
+	return hit.get("position", Vector3.INF) as Vector3
+
+
+## Places the pilot's feet on `point` and lets physics settle without advancing
+## the Host. Returns the body the pilot's floor contact is on, or null.
+func _stand_on(fixture: Dictionary, point: Vector3) -> Object:
+	var player := fixture.player as PlayerController
+	if not point.is_finite():
+		return null
+	var up := (fixture.landing_root as Node3D).global_basis.y.normalized()
+	player.velocity = Vector3.ZERO
+	player.teleport_to(Transform3D(player.global_basis, point + up * 0.05))
+	for _index in 60:
+		await physics_frame
+		if not player.is_on_floor():
+			continue
+		for collision_index in player.get_slide_collision_count():
+			var collision := player.get_slide_collision(collision_index)
+			if collision.get_normal().dot(up) >= cos(player.floor_max_angle):
+				return collision.get_collider()
+	push_error("STAND no floor contact at %s local=%s" % [
+		point, (fixture.landing_root as Node3D).to_local(player.global_position)
+	])
+	return null
