@@ -10,80 +10,86 @@
   "scenarios": {
     "station_resident": {
       "loaded_instance_count": 0,
-      "measurement_fingerprint": "64d3bcfc8db0835b5c21d31781942a521db8fee207dbd28fd8b6ab6248ff42f2",
+      "measurement_fingerprint": "4821d66b0b16ea2ab667923815ceef351bd9b74cd8c0e50c457932e95c8764f2",
       "totals": {
-        "player_nodes": 80,
-        "audio_stream_player_nodes": 8,
+        "player_nodes": 91,
+        "audio_stream_player_nodes": 12,
         "audio_stream_player_2d_nodes": 0,
-        "audio_stream_player_3d_nodes": 72,
+        "audio_stream_player_3d_nodes": 79,
         "currently_playing_nodes": 0,
         "currently_playing_voice_lower_bound": 0,
         "currently_playing_voice_ceiling": 0,
-        "max_polyphony_exposed_nodes": 80,
+        "max_polyphony_exposed_nodes": 91,
         "max_polyphony_unexposed_nodes": 0,
-        "summed_max_polyphony_ceiling": 80
+        "summed_max_polyphony_ceiling": 91
       },
       "bus_player_nodes": {
         "Ambience": 9,
         "Engines": 36,
-        "Music": 3,
-        "UI": 13,
-        "Weapons": 19
+        "Music": 7,
+        "UI": 14,
+        "Weapons": 25
       },
       "component_player_nodes": {
         "ArrowReconShip": 6,
         "AudioDirector": 5,
         "BulwarkHeavyGunship": 6,
         "CombatAudioPresentation": 10,
+        "CombatMusicLayer": 4,
         "HalyardCrewTransport": 6,
         "JovianLightFreighter": 6,
         "ShipyardWorld/FleetExpansionProductionBinding": 18,
+        "ShipyardWorld/HeavyBreachActivityBoard": 1,
         "ShipyardWorld/OperationalLattice": 8,
         "StationMusicBed": 3,
+        "TorpedoBoat": 6,
         "TorrentInterceptor": 6,
         "ZenithInterceptor": 6
       },
-      "retained_unique_streams": 90,
-      "retained_payload_bytes": 2558420,
+      "retained_unique_streams": 95,
+      "retained_payload_bytes": 2960660,
       "retained_unknown_payload_count": 0
     },
     "cinder_loaded": {
       "loaded_instance_count": 1,
-      "measurement_fingerprint": "687941d7ea401eb8ce68e58ac54c1e5fa58fc6edbfcff5fdea39f27ac80aea13",
+      "measurement_fingerprint": "dc64d23d11da014f9065e11239dd672eb8c3cc9e1f615dd278d40f5589ebd2f1",
       "totals": {
-        "player_nodes": 80,
-        "audio_stream_player_nodes": 8,
+        "player_nodes": 91,
+        "audio_stream_player_nodes": 12,
         "audio_stream_player_2d_nodes": 0,
-        "audio_stream_player_3d_nodes": 72,
+        "audio_stream_player_3d_nodes": 79,
         "currently_playing_nodes": 0,
         "currently_playing_voice_lower_bound": 0,
         "currently_playing_voice_ceiling": 0,
-        "max_polyphony_exposed_nodes": 80,
+        "max_polyphony_exposed_nodes": 91,
         "max_polyphony_unexposed_nodes": 0,
-        "summed_max_polyphony_ceiling": 80
+        "summed_max_polyphony_ceiling": 91
       },
       "bus_player_nodes": {
         "Ambience": 9,
         "Engines": 36,
-        "Music": 3,
-        "UI": 13,
-        "Weapons": 19
+        "Music": 7,
+        "UI": 14,
+        "Weapons": 25
       },
       "component_player_nodes": {
         "ArrowReconShip": 6,
         "AudioDirector": 5,
         "BulwarkHeavyGunship": 6,
         "CombatAudioPresentation": 10,
+        "CombatMusicLayer": 4,
         "HalyardCrewTransport": 6,
         "JovianLightFreighter": 6,
         "ShipyardWorld/FleetExpansionProductionBinding": 18,
+        "ShipyardWorld/HeavyBreachActivityBoard": 1,
         "ShipyardWorld/OperationalLattice": 8,
         "StationMusicBed": 3,
+        "TorpedoBoat": 6,
         "TorrentInterceptor": 6,
         "ZenithInterceptor": 6
       },
-      "retained_unique_streams": 93,
-      "retained_payload_bytes": 4675220,
+      "retained_unique_streams": 98,
+      "retained_payload_bytes": 5077460,
       "retained_unknown_payload_count": 0
     }
   },
@@ -110,9 +116,10 @@
   ],
   "composition_notes": [
     "Nine craft each own six spatial players: the original five, Bulwark, and the FleetExpansionProductionBinding Cinder interceptor, hauler, and bomber. These 54 ship players plus 26 director/combat/station/music players total 80.",
+    "The hostile TorpedoBoat's SeekerTorpedoes own six Weapons-bus spatial players (three cue, two flight, one lock), CombatMusicLayer owns four Music-bus stem/stinger players, and the HeavyBreachActivityBoard owns one UI-bus cue voice: 91 players in total.",
     "Each ship rig retains four loop WAVs and two reusable cue WAVs. Cue sample byte caches are separate PackedByteArrays, outside the reachable AudioStream.data payload scope; the 18 idle cue WAVs expose empty data and hash as empty bytes.",
-    "Station-resident retains 54 ship, 15 AudioDirector, 7 combat, 12 station machinery, and two Aurora WAV resources (90 total). The preloaded Aurora scene retains its exterior and cabin streams; the disabled music bed releases its three imported streams.",
-    "Cinder-loaded enables the existing music bed and retains three imported WAVs (2,116,800 bytes), totaling 93 resources without adding players. Imported combat/music payloads are nonempty in this profile.",
+    "Station-resident retains 54 ship, 15 AudioDirector, 7 combat, 12 station machinery, two Aurora, and five Torpedo Run WAV resources (95 total). The preloaded Aurora scene retains its exterior and cabin streams; the disabled music bed releases its three imported streams.",
+    "Cinder-loaded enables the existing music bed and retains three imported WAVs (2,116,800 bytes), totaling 98 resources without adding players. Imported combat/music payloads are nonempty in this profile.",
     "Payload bytes measure exposed AudioStream.data arrays only, not total sample caches, files on disk, native buffers, or process memory. Scene Node origins use stable hierarchy paths rather than runtime instance-ID dictionary keys."
   ]
 }
