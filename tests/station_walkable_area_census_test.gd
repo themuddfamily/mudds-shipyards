@@ -52,13 +52,27 @@ func _run() -> void:
 
 
 func _test_production_baseline(world: Node3D, report: Dictionary) -> void:
-	print("STATION_WALKABLE_AREA_CENSUS: surfaces=%d ramps=%d gross=%.6f union=%.6f true=%.6f ramp_projected=%.9f ramp_true=%.9f support=%d/%d" % [
+	print("STATION_WALKABLE_AREA_CENSUS: surfaces=%d ramps=%d gross=%.6f union=%.6f true=%.6f ramp_projected=%.9f ramp_true=%.9f support=%d/%d landing_decks=%d landing_deck_projected=%.6f landing_deck_support=%d/%d" % [
 		report.surface_count, report.ramp_count, report.gross_projected_horizontal_m2,
 		report.total_projected_horizontal_m2, report.total_true_surface_m2,
 		report.ramp_projected_horizontal_m2, report.ramp_true_surface_m2,
 		report.physics_support_samples, report.physics_support_samples_total,
+		report.landing_deck_count, report.landing_deck_projected_horizontal_m2,
+		report.landing_deck_support_samples, report.landing_deck_support_samples_total,
 	])
+	for error: String in report.errors:
+		print("STATION_WALKABLE_AREA_ERROR: ", error)
 	_check(bool(report.valid) and (report.errors as PackedStringArray).is_empty(), "production census is structurally valid")
+	# f2d41984f seated the Cinder craft on four colliding `landing_deck` bodies.
+	# They are validated and fully supported but reported apart from the
+	# pedestrian circulation roster, so the frozen totals below do not move.
+	_check(
+		int(report.landing_deck_count) == 4
+		and _near(report.landing_deck_projected_horizontal_m2, 2595.880005)
+		and int(report.landing_deck_support_samples) == 20
+		and int(report.landing_deck_support_samples_total) == 20,
+		"four Cinder landing decks report 2595.880005 m2 separately with live support at every probe"
+	)
 	_check(int(report.surface_count) == 82 and int(report.ramp_count) == 5, "trimmed station roster contains exactly 82 surfaces and five ramps")
 	_check(_near(report.gross_projected_horizontal_m2, EXPECTED_GROSS_PROJECTED_M2), "raw declared footprint is frozen at 8577.079173 m2")
 	_check(_near(report.total_projected_horizontal_m2, EXPECTED_COUNTED_PROJECTED_M2), "coplanar-unioned walkable baseline is frozen at 8406.793383 m2")
