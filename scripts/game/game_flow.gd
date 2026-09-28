@@ -877,6 +877,7 @@ var phase := Phase.INTRO
 var destroyed_targets := 0
 var total_targets := 0
 var _near_ship := false
+var _ember_surface_point_prompt_shown := false
 var _piloting := false
 ## One-use ownership witness for the retained Main subtree leaving the tree.
 var _pilot_reentry_reservation: Dictionary = {}
@@ -3501,6 +3502,7 @@ func _process(delta: float) -> void:
 	if _piloting:
 		_consume_active_ship_command_edges()
 		_update_pilot_flow()
+		_update_ember_surface_on_foot_interaction()
 	elif _driving:
 		# A seated driver is not on foot. Running the on-foot flow here would draw
 		# station prompts the seated player cannot reach and, worse, would let the
@@ -7184,6 +7186,34 @@ func _update_on_foot_flow() -> void:
 		audio.play_footstep(clampf(player.velocity.length() / 9.2, 0.0, 1.0))
 
 
+## On the Ember surface the pilot walks the caldera while GameFlow keeps them as
+## the landed craft's pilot of record, so the on-foot flow never runs there. The
+## Ember-owned surface points (caldera errand trailheads, the survey bunker) are
+## still selected and prompted through the one generic candidate seam.
+func _ember_surface_on_foot_interactions_live() -> bool:
+	return _piloting and _ember_surface_journey_active \
+		and is_instance_valid(ember_surface_loop_host) \
+		and ember_surface_loop_host.get_phase() == EmberSurfaceLoopHost.Phase.ON_FOOT \
+		and is_instance_valid(player) and not player.is_seated() \
+		and player.is_control_enabled()
+
+
+func _update_ember_surface_on_foot_interaction() -> void:
+	var surface_point: Node3D = null
+	if _ember_surface_on_foot_interactions_live():
+		_refresh_interaction_targets()
+		if is_instance_valid(station_interaction_candidate) and bool(
+			station_interaction_candidate.get_meta("ember_surface_survey_interaction", false)
+		):
+			surface_point = station_interaction_candidate
+	if surface_point != null:
+		hud.set_interaction(str(surface_point.call("get_interaction_prompt")))
+		_ember_surface_point_prompt_shown = true
+	elif _ember_surface_point_prompt_shown:
+		hud.set_interaction("", false)
+		_ember_surface_point_prompt_shown = false
+
+
 ## Resolves the station's drivable ground vehicle.
 ##
 ## Scoped to this coordinator's own world subtree rather than a scene-tree group,
@@ -8105,6 +8135,18 @@ func _on_interact_requested() -> void:
 	if _rime_expedition.is_active() and _rime_expedition.interact():
 		return
 	if _consume_ember_surface_reboard_interaction():
+		return
+	if _ember_surface_on_foot_interactions_live():
+		# The reboard consumer only lets a press through when an Ember-owned
+		# surface point is the nearby candidate. The pilot is still the craft's
+		# pilot of record here, so the generic seat gate below would drop it.
+		_refresh_interaction_targets()
+		var surface_point := station_interaction_candidate
+		if is_instance_valid(surface_point) \
+				and bool(surface_point.get_meta("ember_surface_survey_interaction", false)) \
+				and bool(surface_point.call("interact", player)):
+			audio.play_ui_confirm()
+			_sync_activity_hud()
 		return
 	if _piloting or _transition_busy:
 		return
@@ -18536,6 +18578,26 @@ func _planetary_cruise_presentation() -> Dictionary:
 			"toggle_enabled": false,
 			"engagement_requested": false,
 			"public_gate": &"surface_return_ascent",
+		}
+	if _ember_surface_journey_active \
+			and is_instance_valid(ember_surface_loop_host) \
+			and ember_surface_loop_host.is_inside_tree() \
+			and not ember_surface_loop_host.is_queued_for_deletion() \
+			and ember_surface_loop_host.is_attached() \
+			and ember_surface_loop_host.get_phase() in [
+				EmberSurfaceLoopHost.Phase.SURFACE_OUTBOUND,
+				EmberSurfaceLoopHost.Phase.ON_FOOT,
+			] \
+			and not bool(ember_surface_loop_host.get_abandon_snapshot().get("requested", false)):
+		# On foot the pilot is out of the seat, so the ordinary cruise gates
+		# would disable the row. The toggle handler abandons a started
+		# expedition, and this row is the player's only way to reach it.
+		return {
+			"status_id": &"queued",
+			"status_text": GameHUD.PLANETARY_CRUISE_ABANDON_STATUS_TEXT,
+			"toggle_enabled": true,
+			"engagement_requested": true,
+			"public_gate": &"",
 		}
 	var binding_snapshot: Dictionary = {}
 	if is_instance_valid(planetary_cruise_binding):
