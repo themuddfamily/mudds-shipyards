@@ -706,6 +706,16 @@ func refresh_station_hulk_light_energy(light: OmniLight3D, authored_energy: floa
 	return _streaming_transition.refresh_light_baseline(light, authored_energy)
 
 
+## Activity presenters write authored light energy directly. A streamed
+## generation re-applies its bind-time light baselines on every caller physics
+## tick, so adopt the newly presented energy as this light's baseline (and scale
+## it by the current fade) instead of letting the next tick revert it.
+func _retain_presented_light_energy(light: Light3D) -> void:
+	if _streaming_transition == null or not is_instance_valid(light):
+		return
+	_streaming_transition.refresh_light_baseline(light, light.light_energy)
+
+
 func get_streaming_transition_audit() -> Dictionary:
 	if _streaming_transition == null:
 		return {
@@ -1506,6 +1516,7 @@ func _apply_beacon_visual_state(
 	for light_index in lights.size():
 		lights[light_index].light_energy = energies[light_index]
 		lights[light_index].set_meta(&"base_energy", energies[light_index])
+		_retain_presented_light_energy(lights[light_index])
 	home.light_color = KETH_CYAN if status_color == KETH_ORANGE else status_color
 	outbound.light_color = status_color
 	foot.light_color = status_color
@@ -3301,6 +3312,8 @@ func _apply_mining_activity_presentation(snapshot: Dictionary) -> Dictionary:
 		"activity_authority": false,
 		"reward_authority": false,
 	}.duplicate(true)
+	_retain_presented_light_energy(port)
+	_retain_presented_light_energy(starboard)
 	return {"accepted": true, "reason": &"mining_presentation_applied"}
 
 
@@ -3638,6 +3651,8 @@ func _apply_structure_scan_activity_presentation(snapshot: Dictionary) -> Dictio
 		"scan_authority": false,
 		"reward_authority": false,
 	}.duplicate(true)
+	_retain_presented_light_energy(port)
+	_retain_presented_light_energy(starboard)
 	return {"accepted": true, "reason": &"structure_scan_presentation_applied"}
 
 
