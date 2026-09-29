@@ -1847,9 +1847,12 @@ func _build_reception_shell(structure: Node3D) -> void:
 		_box(room, str(edge[0]), edge[1] as Vector3, edge[2] as Vector3, _materials["bronze"], false)
 
 	# Two step runs into the well, each a single 0.225 m riser onto a broad tread
-	# and a second onto the well floor. Both stand on the pan.
+	# and a second onto the well floor. Both stand on the pan. The banquette arc
+	# sits on the entry step's back edge, so that tread runs 1.35 m deep to leave
+	# a usable tread in front of it; at 0.7 m the banquette covered it and the
+	# well could not be climbed out of toward the door.
 	for step in [
-		["WellStepEntry", Vector3(-1.1, -0.5375, 6.25), Vector3(3.0, 0.625, 0.7)],
+		["WellStepEntry", Vector3(-1.1, -0.5375, 6.575), Vector3(3.0, 0.625, 1.35)],
 		["WellStepPort", Vector3(-4.25, -0.5375, 9.0), Vector3(0.7, 0.625, 2.4)],
 	]:
 		var tread := _box(
