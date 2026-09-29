@@ -895,7 +895,9 @@ func _unhandled_input(event: InputEvent) -> void:
 	if _handle_credits_page_input(event):
 		get_viewport().set_input_as_handled()
 		return
-	if _server_browser_opened_from_intro and event.is_action_pressed("pause"):
+	if _server_browser_opened_from_intro and (
+		event.is_action_pressed("pause") or _is_controller_back_event(event)
+	):
 		close_intro_server_browser()
 		get_viewport().set_input_as_handled()
 	elif not _started and not _server_browser_opened_from_intro \
@@ -903,30 +905,9 @@ func _unhandled_input(event: InputEvent) -> void:
 		_begin()
 		get_viewport().set_input_as_handled()
 	elif event.is_action_pressed("pause") and _started:
-		if (
-			_pause.visible
-			and _nearby_activity_page != null
-			and _nearby_activity_page.visible
-		):
-			_show_activity_selection_page()
-		elif (
-			_pause.visible
-			and _planetary_destination_page != null
-			and _planetary_destination_page.visible
-		):
-			_show_pause_main()
-		elif (
-			_pause.visible
-			and (
-				(_settings_page != null and _settings_page.visible)
-				or (
-					_activity_selection_page != null
-					and _activity_selection_page.visible
-				)
-			)
-		):
-			_show_pause_main()
-		else:
+		# Esc/Start steps back out of every pause sub-page (Server Browser
+		# included) and only toggles the overlay from the main page.
+		if not _back_out_of_pause_subpage():
 			set_paused(not _pause.visible)
 		get_viewport().set_input_as_handled()
 	elif (
@@ -935,7 +916,13 @@ func _unhandled_input(event: InputEvent) -> void:
 		and _back_out_of_pause_subpage()
 	):
 		get_viewport().set_input_as_handled()
-	elif event.is_action_pressed("toggle_controls_overlay") and _started:
+	elif (
+		event.is_action_pressed("toggle_controls_overlay")
+		and _started
+		and not _pause.visible
+	):
+		# The overlay sits under the pause dimmer; toggling it there would move
+		# controller focus off the pause menu onto a covered Close button.
 		# One InputMap action now owns the overlay so `F1` and the gamepad Back
 		# button reach the identical toggle. `is_action_pressed()` still rejects
 		# key repeats, so the previous physical-`F1` behaviour is unchanged.

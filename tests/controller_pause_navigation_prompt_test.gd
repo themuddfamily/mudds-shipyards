@@ -15,6 +15,7 @@ const HudType := preload("res://scripts/ui/hud.gd")
 
 const BUTTON_A := 0
 const BUTTON_B := 1
+const BUTTON_BACK := 4
 const BUTTON_START := 6
 const BUTTON_DPAD_DOWN := 12
 
@@ -38,8 +39,11 @@ func _run() -> void:
 	var hud := HudType.new()
 	root.add_child(hud)
 	await process_frame
+	await _test_intro_server_browser_controller_back(hud)
 	hud.set("_started", true)
 	await _test_destination_board_controller_path(hud)
+	await _test_server_browser_escape_steps_back(hud)
+	await _test_controls_overlay_toggle_keeps_pause_focus(hud)
 	await _test_controller_prompt_glyphs(hud)
 	hud.set_paused(false)
 	paused = false
@@ -99,6 +103,74 @@ func _test_destination_board_controller_path(hud: GameHUD) -> void:
 	_check(main_page.visible and pause.visible, "Start still steps back from the board")
 	await _tap_joy(BUTTON_START)
 	_check(not pause.visible and not paused, "Start still closes the pause overlay")
+
+
+## 3. Controller B leaves the Server Browser opened from the startup menu, as it
+##    leaves every other overlay page; before the fix only Start/Esc closed it.
+func _test_intro_server_browser_controller_back(hud: GameHUD) -> void:
+	var pause := hud.get("_pause") as Control
+	var intro_browser := hud.find_child("IntroServerBrowserButton", true, false) as Button
+	_check(hud.open_intro_server_browser(), "the startup menu opens the Server Browser")
+	await process_frame
+	await _tap_joy(BUTTON_B)
+	_check(
+		not hud.is_intro_server_browser_open() and not pause.visible
+			and root.gui_get_focus_owner() == intro_browser,
+		"controller B closes the startup Server Browser back to its menu button"
+	)
+
+
+## 4. Keyboard Esc on the pause Server Browser steps back to the pause page like
+##    every other sub-page, instead of resuming flight from inside the browser.
+func _test_server_browser_escape_steps_back(hud: GameHUD) -> void:
+	var pause := hud.get("_pause") as Control
+	var main_page := hud.get("_pause_main_page") as Control
+	var browser_page := hud.get("_server_browser_page") as Control
+	hud.set_paused(true)
+	await process_frame
+	var browser_button := hud.find_child("ServerBrowserButton", true, false) as Button
+	browser_button.emit_signal(&"pressed")
+	await process_frame
+	_check(browser_page.visible, "the pause Server Browser opens")
+	await _tap_key(KEY_ESCAPE)
+	_check(
+		pause.visible and paused and main_page.visible and not browser_page.visible
+			and root.gui_get_focus_owner() == browser_button,
+		"Esc on the pause Server Browser returns to the pause page without resuming"
+	)
+	hud.set_paused(false)
+	paused = false
+	await process_frame
+
+
+## 5. The controls overlay (F1 / pad Back) sits under the pause dimmer, so its
+##    toggle must not take controller focus off the pause menu.
+func _test_controls_overlay_toggle_keeps_pause_focus(hud: GameHUD) -> void:
+	(hud.get("_hud") as Control).visible = true
+	var help := hud.get("_help_panel") as Control
+	help.visible = false
+	hud.set_paused(true)
+	await process_frame
+	var resume := hud.find_child("ResumeButton", true, false) as Button
+	await _tap_joy(BUTTON_BACK)
+	_check(
+		not help.visible and root.gui_get_focus_owner() == resume,
+		"pad Back while paused leaves focus on Resume instead of the covered overlay"
+	)
+	await _tap_joy(BUTTON_DPAD_DOWN)
+	_check(
+		root.gui_get_focus_owner() != null and hud.get("_pause_main_page").is_ancestor_of(
+			root.gui_get_focus_owner()
+		),
+		"D-pad navigation still moves within the pause menu afterwards"
+	)
+	hud.set_paused(false)
+	paused = false
+	await process_frame
+	await _tap_joy(BUTTON_BACK)
+	_check(help.visible, "pad Back still toggles the controls overlay in flight")
+	await _tap_joy(BUTTON_BACK)
+	_check(not help.visible, "pad Back closes the controls overlay again in flight")
 
 
 func _test_controller_prompt_glyphs(hud: GameHUD) -> void:
@@ -226,6 +298,21 @@ func _tap_joy(button_index: int) -> void:
 	await process_frame
 	var released_event := InputEventJoypadButton.new()
 	released_event.button_index = button_index
+	released_event.pressed = false
+	root.push_input(released_event)
+	await process_frame
+
+
+func _tap_key(keycode: Key) -> void:
+	var pressed_event := InputEventKey.new()
+	pressed_event.physical_keycode = keycode
+	pressed_event.keycode = keycode
+	pressed_event.pressed = true
+	root.push_input(pressed_event)
+	await process_frame
+	var released_event := InputEventKey.new()
+	released_event.physical_keycode = keycode
+	released_event.keycode = keycode
 	released_event.pressed = false
 	root.push_input(released_event)
 	await process_frame
