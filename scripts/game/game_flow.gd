@@ -18755,7 +18755,7 @@ func _make_planetary_destination_catalog_snapshot(presentation: Dictionary) -> D
 	}, _get_nearby_sector_site_runtime_states())
 	for row: Dictionary in snapshot.get("destinations", []):
 		if row.get("destination_id") == AuroraExpeditionType.DESTINATION_ID and _aurora_expedition.is_active():
-			row["action_text"] = "RETURN TO MUDDS" if bool(row.get("action_enabled", false)) else "RETURN REQUIRES PILOT SEAT"
+			row["action_text"] = _aurora_expedition.board_action_text()
 		_decorate_rime_destination_row(row)
 	return snapshot
 
@@ -20216,8 +20216,7 @@ func _surface_visit_runtime_states() -> Dictionary:
 func _decorate_rime_destination_row(row: Dictionary) -> void:
 	if row.get("destination_id") == RimeExpeditionType.DESTINATION_ID \
 			and _rime_expedition.is_active():
-		row["action_text"] = "RETURN TO MUDDS" if bool(row.get("action_enabled", false)) \
-			else "RETURN REQUIRES PILOT SEAT"
+		row["action_text"] = _rime_expedition.board_action_text()
 
 
 ## Records the running Rime visit and then ends it, exactly as Aurora's exit
