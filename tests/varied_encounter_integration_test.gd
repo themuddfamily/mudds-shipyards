@@ -20,8 +20,14 @@ extends SceneTree
 ## against a fixture.
 ##
 ## Every wait is a bounded frame budget on the fixed physics step; nothing here
-## reads a wall clock.
+## reads a wall clock. The suite pins one physics step per rendered frame for
+## its whole run: on a loaded machine the engine otherwise catches up with
+## several ticks per awaited round, so a "20-round" settle could fly the
+## withdrawing defender past its 105 m standoff into `repairing`, and a
+## "1-round" staging step could let the live flanker fire its own fan before the
+## test's trigger.
 
+const Cadence := preload("res://tests/fixed_physics_cadence.gd")
 const MAIN_SCENE := preload("res://scenes/main.tscn")
 
 const DISPATCH_FRAME_BUDGET := 420
@@ -33,6 +39,7 @@ const COURIER_TEST_DISTANCE := 70.0
 var _failures: Array[String] = []
 var _assertion_count := 0
 var _conclusions: Array[Dictionary] = []
+var _cadence := Cadence.new()
 
 
 func _init() -> void:
@@ -40,6 +47,7 @@ func _init() -> void:
 
 
 func _run() -> void:
+	_cadence.pin()
 	var original_root_child_count := root.get_child_count()
 	await _test_production_encounter()
 	await _test_paired_wing_scatter_scenario()
@@ -49,6 +57,7 @@ func _run() -> void:
 		root.get_child_count() == original_root_child_count,
 		"the production encounter fixture cleans up without leaving scene nodes"
 	)
+	_cadence.restore()
 	_finish()
 
 
@@ -128,6 +137,11 @@ func _test_paired_wing_scatter_scenario() -> void:
 	flanker.set_target(target)
 	await _advance_physics(1)
 	var presented_before := int(pulse.get_statistics().presented)
+	# The flanker is a live craft; a fan it fired on its own a moment earlier may
+	# still be in flight. The claim below is about this one trigger's rays.
+	var prior_shot_ids := {}
+	for snapshot: Dictionary in pulse.get_active_shot_snapshots():
+		prior_shot_ids[int(snapshot.get("shot_id", 0))] = true
 	var sequence_before := resolver.get_last_sequence(flanker, flanker.source_id)
 	flanker.set("_cooldown_remaining", 0.0)
 	flanker.call("_fire_at_target", target.global_position)
@@ -135,7 +149,10 @@ func _test_paired_wing_scatter_scenario() -> void:
 	var source_snapshots := 0
 	var all_scatter_amber := true
 	for snapshot: Dictionary in pulse.get_active_shot_snapshots():
-		if int(snapshot.get("source_instance_id", 0)) != flanker.get_instance_id():
+		if (
+			int(snapshot.get("source_instance_id", 0)) != flanker.get_instance_id()
+			or prior_shot_ids.has(int(snapshot.get("shot_id", 0)))
+		):
 			continue
 		source_snapshots += 1
 		all_scatter_amber = (
@@ -153,6 +170,10 @@ func _test_paired_wing_scatter_scenario() -> void:
 		int(pulse.get_statistics().presented) == presented_before + 3
 		and source_snapshots == 3 and all_scatter_amber,
 		"paired_wing visibly launches a bounded three-ray amber scatter fan"
+			+ " (presented +%d, rays %d, amber %s)" % [
+				int(pulse.get_statistics().presented) - presented_before,
+				source_snapshots, all_scatter_amber,
+			]
 	)
 	director.abort()
 	await _advance_physics(1)
@@ -1032,7 +1053,8 @@ func _test_opponent_role_tactics() -> void:
 		) > 0.5,
 		"a badly hurt defender breaks off, stops shooting, and opens both lenses wide on the way out"
 			+ " (%s %.2f)" % [
-				withdrawing.state_id,
+				str(withdrawing.state_id) + " at %.1f m" % \
+					defender.global_position.distance_to(torrent.global_position),
 				defender.velocity.dot(
 					(defender.global_position - torrent.global_position).normalized()
 				),
