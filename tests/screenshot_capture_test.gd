@@ -36,8 +36,10 @@ func _run() -> void:
 	_check(
 		int(hud.get("_toast_serial")) == toast_serial_before_rebind
 		and StringName(binding_report.get("capturing_action", &"")) == &""
-		and bool(binding_report.get("has_pending_conflict", false)),
-		"an active settings rebind receives reserved F2 through its normal conflict path without starting a screenshot capture"
+		# F2 is refused outright rather than offered as a Replace conflict, so
+		# the screenshot action (which has no settings row) keeps its key.
+		and not bool(binding_report.get("has_pending_conflict", true)),
+		"an active settings rebind refuses reserved F2 without starting a screenshot capture"
 	)
 
 	hud._unhandled_input(event)
