@@ -206,6 +206,8 @@ var _triangle_count := 0
 var _solids: Array = []
 var _concave_shapes_checked := 0
 var _berth_poses := {}
+## World pose `_berth_poses` were read under.
+var _berth_poses_world := Transform3D.IDENTITY
 var _build_duration_usec := 0
 var _label_index := {}
 var _world_to_local := Transform3D.IDENTITY
@@ -231,6 +233,7 @@ func build(world: Node3D) -> Dictionary:
 		_skipped.append({"site": "all", "reason": "no station route registry"})
 		return get_wayfinding_report()
 	_berth_poses = _read_berth_poses(world)
+	_berth_poses_world = world.global_transform if world.is_inside_tree() else Transform3D.IDENTITY
 	var report := world.call(&"get_station_route_registry_report") as Dictionary
 	var modules := _collect_modules(world)
 	_collect_solids(world)
@@ -285,7 +288,7 @@ func rebuild(world: Node3D) -> Dictionary:
 func refresh_berths(world: Node3D) -> Dictionary:
 	if not _built:
 		return build(world)
-	if _read_berth_poses(world) == _berth_poses:
+	if _world_frame_poses(world, _read_berth_poses(world)) == _world_frame_poses(world, _berth_poses, _berth_poses_world):
 		return get_wayfinding_report()
 	return rebuild(world)
 
@@ -298,6 +301,21 @@ func _read_berth_poses(world: Node) -> Dictionary:
 		if bool(world.call(&"has_berth", berth_id)):
 			poses[berth_id] = (world.call(&"get_berth_transform", berth_id) as Transform3D).origin
 	return poses
+
+
+## Berth poses are global. A common-origin rebase translates the whole station,
+## signs included, so compare them in the world's own frame: only a berth that
+## moved relative to the station changes a row. `world_xform` is the world pose
+## the poses were read under (defaults to the current one).
+func _world_frame_poses(world: Node, poses: Dictionary, world_xform: Variant = null) -> Dictionary:
+	if not (world is Node3D) or not (world as Node3D).is_inside_tree():
+		return poses
+	var inverse := ((world_xform if world_xform is Transform3D else (world as Node3D).global_transform) as Transform3D).affine_inverse()
+	var local := {}
+	for berth_id: Variant in poses:
+		# Snap away float noise from the round trip through the world transform.
+		local[berth_id] = (inverse * (poses[berth_id] as Vector3)).snappedf(0.001)
+	return local
 
 
 func is_built() -> bool:
@@ -425,13 +443,23 @@ func _module_destinations(world: Node, report: Dictionary, modules: Dictionary) 
 			"slot_id": slot_id,
 			"slot_route": slot_route,
 			"entry": entry_position,
-			"anchor": ((endpoint.get("anchor_transform", Transform3D.IDENTITY)) as Transform3D).origin,
+			"anchor": _hub_anchor_position(world, endpoint),
 			"landmarks": landmarks,
 		}
 	_attach_board_consoles(world, result)
 	_attach_through_modules(modules, report, result)
 	_attach_berths(world, modules, report, result)
 	return result
+
+
+## The registry report freezes each hub anchor's construction-time global pose.
+## A common-origin rebase moves the station under it, so read the live anchor
+## node the report names and fall back to the frozen pose only without one.
+func _hub_anchor_position(world: Node, endpoint: Dictionary) -> Vector3:
+	var anchor := world.get_node_or_null(NodePath(String(endpoint.get("anchor_path", "")))) as Node3D
+	if anchor != null and is_instance_valid(anchor) and anchor.is_inside_tree():
+		return anchor.global_position
+	return ((endpoint.get("anchor_transform", Transform3D.IDENTITY)) as Transform3D).origin
 
 
 ## The two board consoles are real interaction nodes inside the Aft Operations

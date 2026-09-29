@@ -63,6 +63,7 @@ func _run() -> void:
 	_test_static_floor_support()
 	_test_deferred_berths(world, signage)
 	await _test_follows_registry_marker(world, signage)
+	await _test_origin_rebase(game, world, signage)
 
 	await _cleanup(game)
 	_finish()
@@ -351,6 +352,43 @@ func _test_follows_registry_marker(world: ShipyardWorld, signage: StationWayfind
 	marker.global_position = original
 	signage.rebuild(world)
 	await process_frame
+
+
+## A planet visit leaves every Main root translated by the common-origin rebase
+## (measured about (-31, -4, -48)). The signs travel with the world; a later
+## berth refresh must neither rebuild for the translation alone nor, when it
+## does rebuild, route panels from the registry's construction-time anchors.
+func _test_origin_rebase(game: Node, world: ShipyardWorld, signage: StationWayfindingSignage) -> void:
+	var offset := Vector3(-31.0, -4.0, -48.0)
+	var before := signage.get_wayfinding_report()
+	var batch := signage.get_sign_batch()
+	for child in game.get_children():
+		if child is Node3D:
+			(child as Node3D).global_position += offset
+	await physics_frame
+	await physics_frame
+	world.refresh_deferred_fleet_expansion_berths()
+	_check(
+		int(signage.get_wayfinding_report().get("build_count", 0)) == int(before.get("build_count", -1))
+		and signage.get_sign_batch() == batch,
+		"a berth refresh after an origin rebase keeps the translated sign layer instead of rebuilding"
+	)
+	var rebuilt := signage.rebuild(world)
+	var matches := int(rebuilt.get("sign_count", 0)) == int(before.get("sign_count", -1))
+	var drift := PackedStringArray()
+	for sign: Dictionary in (before.get("signs", []) as Array):
+		var moved := _sign_by_id(rebuilt, String(sign.get("id", "")))
+		if moved.is_empty() or not ((moved.get("position", Vector3.INF) as Vector3) - offset).is_equal_approx(sign.get("position", Vector3.ZERO) as Vector3):
+			drift.append(String(sign.get("id", "")))
+	_check(
+		matches and drift.is_empty(),
+		"a rebuild after an origin rebase places every sign where it was, translated (drift=%s count %d->%d)"
+			% [drift, int(before.get("sign_count", -1)), int(rebuilt.get("sign_count", -1))]
+	)
+	for child in game.get_children():
+		if child is Node3D:
+			(child as Node3D).global_position -= offset
+	await physics_frame
 
 
 func _sign_by_id(report: Dictionary, id: String) -> Dictionary:
