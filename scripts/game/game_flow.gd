@@ -7499,6 +7499,13 @@ func _update_pilot_flow() -> void:
 	elif phase == Phase.RETURN_TO_YARD or phase == Phase.FREE_FLIGHT:
 		if phase == Phase.FREE_FLIGHT and _heavy_breach_sortie_is_armed():
 			_try_launch_armed_heavy_breach()
+		# A free sortie has no range step to hand over to; once it is as far out
+		# as the guided launch threshold, retire the launch card rather than let
+		# it resurface in open flight. Landing still publishes the exit step.
+		if phase == Phase.FREE_FLIGHT and distance_from_pad > 70.0 \
+				and _first_sortie_tutorial_active_step == &"launch":
+			_detach_first_sortie_tutorial_presentation(&"launch_cleared")
+			_first_sortie_tutorial_active_step = &""
 		var landing_report := _get_active_landing_assist_report()
 		var landing_berth := StringName(landing_report.get("selected_berth_id", &""))
 		if _landing_request_active:
