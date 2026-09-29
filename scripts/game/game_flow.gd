@@ -7485,7 +7485,13 @@ func _update_pilot_flow() -> void:
 				hud.set_objective("Launch through the illuminated bay aperture")
 				hud.toast("Departure confirmed", "Flight surfaces and inertial dampers responding")
 	elif phase == Phase.LAUNCH:
-		if not _launch_registered and (active_ship.global_position.z < -66.0 or distance_from_pad > 70.0):
+		# The aperture plane is in the yard's frame, which a planetary return can
+		# leave offset from the common-world origin.
+		var launch_z := (
+			world.to_local(active_ship.global_position).z
+			if is_instance_valid(world) else active_ship.global_position.z
+		)
+		if not _launch_registered and (launch_z < -66.0 or distance_from_pad > 70.0):
 			_launch_registered = true
 			if destroyed_targets >= total_targets:
 				_begin_interceptor_engagement()
@@ -12898,10 +12904,13 @@ func _begin_interceptor_engagement() -> void:
 		_opponent_pulse_network_generation += 1
 	_opponent_spawned = true
 	phase = Phase.INTERCEPTOR_ENGAGEMENT
-	var spawn_direction := (active_ship.global_position - ENEMY_SPAWN).normalized()
+	# ENEMY_SPAWN is authored in the yard's frame; a planetary return can leave
+	# the common-world origin offset from it while the guided test is pending.
+	var enemy_spawn := world.global_transform * ENEMY_SPAWN if is_instance_valid(world) else ENEMY_SPAWN
+	var spawn_direction := (active_ship.global_position - enemy_spawn).normalized()
 	var spawn_up := Vector3.FORWARD if absf(spawn_direction.dot(Vector3.UP)) > 0.98 else Vector3.UP
 	var spawn_basis := Basis.looking_at(spawn_direction, spawn_up)
-	opponent.activate(Transform3D(spawn_basis, ENEMY_SPAWN))
+	opponent.activate(Transform3D(spawn_basis, enemy_spawn))
 	opponent.set_target(active_ship)
 	hud.set_enemy_status(
 		"Mudds range defence interceptor",
