@@ -44,6 +44,14 @@ func _run() -> void:
 	var reset_button := (hud.get("_binding_reset_buttons") as Dictionary).get(&"fire") as Button
 	reset_button.pressed.emit()
 	_check(fire_button.text != "F13", "reset refreshes the row through the presenter profile intent")
+	_check(
+		_has_binding(
+			(hud.get("_input_binding_profile") as InputBindingProfile).get_bindings(&"barrel_roll"),
+			&"key",
+			KEY_G
+		),
+		"a cancelled conflict does not leak its stripped draft into a later per-action reset"
+	)
 	await _test_gui_routed_capture(hud)
 	hud.queue_free()
 	await process_frame

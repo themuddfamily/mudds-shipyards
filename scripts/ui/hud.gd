@@ -8019,9 +8019,14 @@ func _cancel_input_binding_capture() -> void:
 func _reset_input_action(action: StringName) -> void:
 	if _runtime_input_rebind_presenter == null or not _input_binding_defaults.bindings.has(action):
 		return
-	var result: Dictionary = _runtime_input_rebind_presenter.reset_action(
-		action,
-		int(_runtime_input_rebind_presenter.get_snapshot().get("generation", -1))
+	# The presenter's draft can be a family-stripped capture base left by a
+	# cancelled conflict, or predate an options commit. Reset one action on
+	# the committed profile so no other action's bindings/options change.
+	var attached: Dictionary = _runtime_input_rebind_presenter.attach(_input_binding_profile)
+	var result: Dictionary = (
+		_runtime_input_rebind_presenter.reset_action(action, int(attached.generation))
+		if bool(attached.get("attached", false))
+		else {}
 	)
 	if not bool(result.get("accepted", false)):
 		set_settings_status("RESET FAILED  //  %s" % _input_action_label(action).to_upper(), false)
