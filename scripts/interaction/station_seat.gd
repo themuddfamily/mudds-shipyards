@@ -77,6 +77,18 @@ func _build_contract(
 	add_child(collision_shape)
 
 
+## Moves the shared entry/exit pose, and the prompt volume with it, to a floor
+## point given in the seat root's own space, facing back toward the seat. For a
+## seat whose straight-ahead pose would land inside the furniture it faces.
+func move_stand_pose(seat_root_local_pose: Vector3) -> void:
+	var local_pose := transform.affine_inverse() * seat_root_local_pose
+	var toward_seat := Vector3(-local_pose.x, 0.0, -local_pose.z).normalized()
+	_exit_anchor.position = local_pose
+	_entry_anchor.position = local_pose
+	_entry_anchor.rotation.y = atan2(-toward_seat.x, -toward_seat.z)
+	(get_node(^"InteractionShape") as CollisionShape3D).position = local_pose + Vector3.UP * 0.9
+
+
 func get_interaction_prompt() -> String:
 	if not is_available():
 		return ""
