@@ -4375,8 +4375,8 @@ func _get_active_route_minimap_marker(
 		or next_checkpoint_index >= route.get_checkpoint_count()
 	):
 		return {}
-	var checkpoint_position := route.get_checkpoint_position(
-		next_checkpoint_index
+	var checkpoint_position := _cinder_authored_frame_to_world(
+		route.get_checkpoint_position(next_checkpoint_index)
 	)
 	if not checkpoint_position.is_finite():
 		return {}
@@ -14853,7 +14853,30 @@ func _advance_selected_activity(delta: float, world_position: Vector3) -> void:
 	if advanced.get("state_id", &"") != &"active":
 		return
 	_cinder_position_sample_count += 1
-	cinder_race_session.submit_position(world_position, generation)
+	cinder_race_session.submit_position(
+		_cinder_authored_frame_position(world_position), generation
+	)
+
+
+## The Cinder route gates and dwell points are authored in the streamed Cinder
+## root's frame, where its beacons stand. A common-origin rebase translates that
+## root (a planet round trip leaves it tens of metres off), so measure there.
+func _cinder_authored_frame_position(world_position: Vector3) -> Vector3:
+	if not world_position.is_finite() or not _cinder_authored_frame_live():
+		return world_position
+	return cinder_streaming_bootstrap.global_transform.affine_inverse() * world_position
+
+
+func _cinder_authored_frame_to_world(authored_position: Vector3) -> Vector3:
+	if not authored_position.is_finite() or not _cinder_authored_frame_live():
+		return authored_position
+	return cinder_streaming_bootstrap.global_transform * authored_position
+
+
+func _cinder_authored_frame_live() -> bool:
+	return is_instance_valid(cinder_streaming_bootstrap) \
+		and cinder_streaming_bootstrap.is_inside_tree() \
+		and not cinder_streaming_bootstrap.is_queued_for_deletion()
 
 
 func _advance_cinder_convoy(delta: float, world_position: Vector3) -> void:
@@ -14903,7 +14926,8 @@ func _advance_patrol(
 	# signal remains observable even when no later GameFlow physics tick exists.
 	_cinder_position_sample_count += 1
 	patrol_activity.advance_actor_physics(
-		delta, patrol_actor, sampled_world_position, generation
+		delta, patrol_actor,
+		_cinder_authored_frame_position(sampled_world_position), generation
 	)
 
 

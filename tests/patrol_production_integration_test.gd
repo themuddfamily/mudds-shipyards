@@ -615,8 +615,16 @@ func _test_platform_branch_choice() -> void:
 		"whole-Main detach and re-entry retain the locked branch and its ordered progress"
 	)
 
+	# A planet visit round trip leaves the common origin away from the authored
+	# one (a Rime abandon measured (-31, -4.2, -48.5)); the patrol gates are the
+	# streamed Cinder beacons, so they must be flown where they now stand.
+	var cinder_root := game.cinder_streaming_bootstrap
+	for common_root: Node3D in [game.world, cinder_root]:
+		common_root.global_position += Vector3(-31.0, -4.203125, -48.5)
 	for checkpoint_index in range(PLATFORM_ROUTE.get_checkpoint_count()):
-		route_ship.global_position = PLATFORM_ROUTE.get_checkpoint_position(checkpoint_index)
+		route_ship.global_position = cinder_root.to_global(
+			PLATFORM_ROUTE.get_checkpoint_position(checkpoint_index)
+		)
 		game.call("_physics_process", 2.0)
 	var completed := game.get_active_activity_snapshot()
 	var reward_record := (
@@ -632,7 +640,8 @@ func _test_platform_branch_choice() -> void:
 		and receipt.get("activity_id", "") == "cinder_platform_patrol"
 		and receipt.get("reward_id", "") == "return_patrol_log_to_shipyard"
 		and bool(receipt.get("granted", false)),
-		"Platform Sweep completes through the same authority and records exactly one branch-specific receipt"
+		"Platform Sweep completes after an origin rebase through the same authority and records exactly one branch-specific receipt (%s)"
+			% str(completed.get("state_id", &""))
 	)
 	await _clean_up(game)
 
