@@ -64,6 +64,17 @@ func _run() -> void:
 		and StringName(hud.get_input_binding_report().capturing_action).is_empty(),
 		"the screenshot key, which has no settings row, cannot be stolen through conflict Replace"
 	)
+	_check(hud.begin_input_binding_capture(&"fire"), "pause-guard probe listens on Fire")
+	hud._unhandled_input(_joy(JOY_BUTTON_START, true))
+	if (hud.get("_binding_conflict_panel") as Control).visible:
+		replace_button.pressed.emit()
+	guarded = hud.get("_input_binding_profile") as InputBindingProfile
+	_check(
+		_has_binding(guarded.get_bindings(&"pause"), &"joy_button", JOY_BUTTON_START)
+		and not _has_binding(guarded.get_bindings(&"fire"), &"joy_button", JOY_BUTTON_START)
+		and not (hud.get("_binding_conflict_panel") as Control).visible,
+		"Replace cannot take pad Start, the last controller Pause binding"
+	)
 	await _test_gui_routed_capture(hud)
 	hud.queue_free()
 	await process_frame
