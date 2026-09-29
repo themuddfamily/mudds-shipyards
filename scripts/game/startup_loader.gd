@@ -359,6 +359,10 @@ func _check_presented_menu(startup_generation: int) -> void:
 			return
 	var ready := is_title_menu_ready(_main)
 	print("STARTUP_MENU_READY_%s: %s" % ["OK" if ready else "FAILED", JSON.stringify(get_startup_report())])
+	# A check run is an orderly exit; left open, the next launch on the same
+	# profile would offer crash recovery for a session that never crashed.
+	if is_instance_valid(_main) and _main.has_method(&"mark_orderly_shutdown"):
+		_main.call(&"mark_orderly_shutdown")
 	tree.quit(0 if ready else 1)
 
 
