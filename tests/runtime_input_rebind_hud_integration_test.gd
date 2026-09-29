@@ -52,6 +52,18 @@ func _run() -> void:
 		),
 		"a cancelled conflict does not leak its stripped draft into a later per-action reset"
 	)
+	_check(hud.begin_input_binding_capture(&"fire"), "reserved-key probe listens on Fire")
+	hud._unhandled_input(_key(KEY_F2, true))
+	var replace_button := hud.get("_binding_conflict_replace_button") as Button
+	if (hud.get("_binding_conflict_panel") as Control).visible:
+		replace_button.pressed.emit()
+	var guarded := hud.get("_input_binding_profile") as InputBindingProfile
+	_check(
+		_has_binding(guarded.get_bindings(&"capture_screenshot"), &"key", KEY_F2)
+		and not _has_binding(guarded.get_bindings(&"fire"), &"key", KEY_F2)
+		and StringName(hud.get_input_binding_report().capturing_action).is_empty(),
+		"the screenshot key, which has no settings row, cannot be stolen through conflict Replace"
+	)
 	await _test_gui_routed_capture(hud)
 	hud.queue_free()
 	await process_frame

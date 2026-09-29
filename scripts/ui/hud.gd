@@ -7923,6 +7923,18 @@ func _capture_binding_event(event: InputEvent) -> void:
 
 
 func _attempt_input_rebind(action: StringName, candidate: Dictionary) -> void:
+	# The screenshot action has no settings row, so a conflict Replace would
+	# strip its binding with no way to restore it short of Reset All.
+	for conflict: Dictionary in _input_rebind_service.find_conflicts(
+		_input_binding_profile, action, candidate
+	):
+		if StringName(conflict.action) == SCREENSHOT_ACTION:
+			set_settings_status(
+				"%s IS RESERVED FOR SCREENSHOTS" % _binding_text(candidate).to_upper(),
+				false
+			)
+			_refresh_all_binding_rows()
+			return
 	var replacement_base := _profile_without_binding_family(
 		_input_binding_profile,
 		action,
