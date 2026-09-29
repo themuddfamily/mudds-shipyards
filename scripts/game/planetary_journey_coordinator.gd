@@ -51,6 +51,10 @@ var _last_ember_surface_abandon_result: Dictionary = {}
 ## caldera, so it is retried on the ordinary cadence until it takes.
 var _ember_abandon_return_active := false
 var _ember_abandon_return_arm_pending := false
+## A completed expedition's return the pilot interrupted by taking the controls.
+## It re-arms through the abandon return's departure path but keeps the
+## station-return contract, so arrival still takes the physical berth handoff.
+var _ember_completed_return_resume := false
 var _ember_abandon_return_arm_attempts := 0
 var _last_ember_abandon_return_arm_result: Dictionary = {}
 var _ember_final_approach_handoff_ready := false
@@ -266,12 +270,18 @@ func advance_world(delta: float, actor_sample: Dictionary) -> Dictionary:
 				_mudds_return_approach_active = false
 				_ember_surface_journey_active = false
 				_last_mudds_return_approach_result = cruise_tick.duplicate(true)
-				if _ember_abandon_return_active and _pilot_holds_flight_controls():
+				var completed_return := not _ember_abandon_return_active \
+					and not _aurora_return_active \
+					and not _mudds_return_handback_receipt.is_empty()
+				if (_ember_abandon_return_active or completed_return) \
+						and _pilot_holds_flight_controls():
 					# The pilot took the controls on the way home. Like the
 					# outbound leg, the return is queued again and resumes once
 					# they let go; the pause row still withdraws it outright.
+					# A completed expedition's return stays completed.
 					_ember_abandon_return_arm_pending = true
 					_ember_abandon_return_arm_attempts = 0
+					_ember_completed_return_resume = completed_return
 	# The completing cruise tick releases its Hero attachment before this one
 	# retained late Host envelope is prepared. Keeping both operations in the same
 	# GameFlow callback prevents a new origin transaction from reaching an IDLE
@@ -1174,6 +1184,7 @@ func begin_ember_surface_journey(
 	_ember_abandon_return_active = false
 	_ember_abandon_return_arm_pending = false
 	_ember_abandon_return_arm_attempts = 0
+	_ember_completed_return_resume = false
 	_ember_abandon_observed_commit_count = int(
 		host.call(&"get_abandon_snapshot").get("commit_count", 0)
 	)
@@ -1745,6 +1756,7 @@ func _consume_mudds_return_approach_completion(receipt: Dictionary) -> Dictionar
 			"receipt": consumed.duplicate(true)}
 		return _last_aurora_return_result.duplicate(true)
 	_ember_surface_journey_active = false
+	_ember_completed_return_resume = false
 	if _ember_abandon_return_active:
 		# An abandoned visit earned no station-return contract and carries no
 		# physical arrival receipt, so the ordinary sandbox berth lifecycle owns
@@ -2044,6 +2056,7 @@ func _complete_ember_surface_abandon(
 	_planetary_return_physical_arrival_armed = false
 	_ember_abandon_return_arm_pending = true
 	_ember_abandon_return_arm_attempts = 0
+	_ember_completed_return_resume = false
 	var armed := _arm_ember_abandon_return_approach(coordinate_frame_generation)
 	if is_instance_valid(_flow.hud):
 		_flow.hud.set_objective(
@@ -2125,7 +2138,7 @@ func _arm_ember_abandon_return_approach(
 	if not bool(armed.get("accepted", false)):
 		return _retire_abandon_return_departure(armed)
 	# Metadata admission is not flight: terrain may still refuse the first proof.
-	_ember_abandon_return_active = true
+	_ember_abandon_return_active = not _ember_completed_return_resume
 	_mudds_return_approach_active = true
 	_last_ember_abandon_return_arm_result = armed.duplicate(true)
 	_last_mudds_return_approach_result = armed.duplicate(true)
