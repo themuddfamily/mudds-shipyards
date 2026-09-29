@@ -52,6 +52,8 @@ func _run() -> void:
 	_test_crash_between_backup_and_publish_reloads_and_saves()
 	_test_crash_after_staging_reloads_and_saves()
 	_test_crash_during_first_ever_save_reloads_and_saves()
+	_test_crash_during_commit_from_backup_reloads_and_saves()
+	_test_crash_during_commit_from_rotated_copy_reloads_and_saves()
 	_finish()
 
 
@@ -151,6 +153,69 @@ func _test_crash_during_first_ever_save_reloads_and_saves() -> void:
 	settings.camera_fov = 95.0
 	_check(not bool(adapter.save("settings-1").accepted) and crash_fs.crashed, "%s: the first save stops before publishing" % label)
 	_relaunch_expect_usable(label, 95.0)
+
+
+func _truncate(path: String) -> void:
+	var file := FileAccess.open(path, FileAccess.READ)
+	var bytes := file.get_buffer(file.get_length())
+	file.close()
+	file = FileAccess.open(path, FileAccess.WRITE)
+	file.store_buffer(bytes.slice(0, bytes.size() / 2))
+	file.close()
+
+
+## Loads a damaged profile from its fallback and commits the recovered payload
+## (as the startup session record and the confirmed repair both do) on a
+## filesystem that stops at the requested step.
+func _crash_commit_from_fallback(label: String, crash_fs: CrashingFilesystem, expected_source_generation: int) -> void:
+	var path := _store_path(label)
+	var fallback := Store.new(path, crash_fs) as UserDataStore
+	var loaded := fallback.load()
+	_check(
+		bool(loaded.accepted) and loaded.reason == &"primary_invalid_backup_loaded"
+			and int(loaded.generation) == expected_source_generation,
+		"%s: the damaged profile loads its fallback generation %d" % [label, expected_source_generation]
+	)
+	var committed := fallback.commit(fallback.get_snapshot(), fallback.get_generation(), "repair-from-fallback")
+	_check(not bool(committed.accepted) and crash_fs.crashed, "%s: the fallback commit stops mid-transaction" % label)
+
+
+func _test_crash_during_commit_from_backup_reloads_and_saves() -> void:
+	var label := "backup_repair_crash"
+	var crash_fs := CrashingFilesystem.new()
+	crash_fs.crash_after_write_to = _store_path(label) + ".tmp"
+	_crash_third_save_setup_only(label)
+	_truncate(_store_path(label))
+	_crash_commit_from_fallback(label, crash_fs, 1)
+	_relaunch_expect_usable(label, 80.0)
+
+
+func _test_crash_during_commit_from_rotated_copy_reloads_and_saves() -> void:
+	var label := "history_repair_crash"
+	var path := _store_path(label)
+	_crash_third_save_setup_only(label)
+	var settings := _settings_for(label)
+	var adapter := Adapter.new(settings, Store.new(path), settings.config_path)
+	adapter.load()
+	settings.camera_fov = 110.0
+	_check(bool(adapter.save("settings-3").accepted), "%s: a third save rotates the oldest backup" % label)
+	_truncate(path)
+	_truncate(path + ".bak")
+	var crash_fs := CrashingFilesystem.new()
+	crash_fs.crash_before_rename_to = path
+	_crash_commit_from_fallback(label, crash_fs, 1)
+	_relaunch_expect_usable(label, 80.0)
+
+
+func _crash_third_save_setup_only(label: String) -> void:
+	var path := _store_path(label)
+	var settings := _settings_for(label)
+	var adapter := Adapter.new(settings, Store.new(path), settings.config_path)
+	_check(bool(adapter.load().accepted), "%s: a fresh profile opens" % label)
+	settings.camera_fov = 80.0
+	_check(bool(adapter.save("settings-1").accepted), "%s: first save publishes" % label)
+	settings.camera_fov = 90.0
+	_check(bool(adapter.save("settings-2").accepted), "%s: second save publishes" % label)
 
 
 func _check(condition: bool, description: String) -> void:

@@ -171,21 +171,29 @@ func recover_interrupted_transaction() -> Dictionary:
 		return _commit_result(false, &"newer_schema")
 	if not bool(temporary.valid):
 		return _commit_result(false, &"no_interrupted_transaction")
-	# Never consume a corrupt/unreadable artifact as part of recovery.
-	if bool(primary.exists) and not bool(primary.valid):
-		return _commit_result(false, &"invalid_primary")
-	if bool(backup.exists) and not bool(backup.valid):
-		return _commit_result(false, &"invalid_backup")
 	if bool(primary.valid) and bool(backup.valid) and not _documents_form_chain(
 		primary.document as Dictionary, backup.document as Dictionary
 	):
 		return _commit_result(false, &"incoherent_primary_backup")
 	var staged := temporary.document as Dictionary
+	# The authority is the document load() would select. A commit made after a
+	# fallback load (corrupt primary, and possibly a corrupt `.bak` with a rotated
+	# copy loaded) stages its successor beside those corrupt artifacts, so they
+	# are replaced exactly as that commit would have replaced them.
 	var authority: Dictionary = {}
 	if bool(primary.valid):
 		authority = primary.document as Dictionary
 	elif bool(backup.valid):
 		authority = backup.document as Dictionary
+	else:
+		var history_fallback := _newest_valid_history()
+		if not history_fallback.is_empty():
+			authority = history_fallback.document as Dictionary
+	# Never consume a corrupt/unreadable artifact without a verified parent.
+	if authority.is_empty() and bool(primary.exists) and not bool(primary.valid):
+		return _commit_result(false, &"invalid_primary")
+	if authority.is_empty() and bool(backup.exists) and not bool(backup.valid):
+		return _commit_result(false, &"invalid_backup")
 	if authority.is_empty():
 		if int(staged.generation) != 1 or int((staged.commit as Dictionary).parent_generation) != 0 \
 			or str((staged.commit as Dictionary).parent_id) != "":
@@ -210,6 +218,9 @@ func recover_interrupted_transaction() -> Dictionary:
 		if backup_error != OK:
 			return _commit_result(false, &"backup_publication_failed")
 		moved_primary = true
+	elif bool(primary.exists):
+		if _filesystem.remove_path(_path) != OK:
+			return _commit_result(false, &"corrupt_primary_cleanup_failed")
 	var publish_error: Error = _filesystem.rename_path(_temp_path(), _path)
 	if publish_error != OK:
 		if moved_primary and not _filesystem.file_exists(_path):
