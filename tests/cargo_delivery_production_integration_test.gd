@@ -10,10 +10,12 @@ const STORE_PATH := "memory://cargo-delivery-production-settings.json"
 
 var _assertions := 0
 var _failures: Array[String] = []
+var _filesystem: MemoryFilesystem
 
 
 class MemoryFilesystem extends UserDataFilesystem:
 	var files: Dictionary = {}
+	var reject_writes := false
 
 	func file_exists(path: String) -> bool:
 		return files.has(path)
@@ -34,6 +36,8 @@ class MemoryFilesystem extends UserDataFilesystem:
 		}
 
 	func write_bytes_and_flush(path: String, bytes: PackedByteArray) -> Error:
+		if reject_writes:
+			return ERR_CANT_CREATE
 		files[path] = bytes.duplicate()
 		return OK
 
@@ -59,7 +63,8 @@ func _initialize() -> void:
 
 func _run() -> void:
 	var game := MAIN_SCENE.instantiate() as GameFlow
-	var store := Store.new(STORE_PATH, MemoryFilesystem.new()) as UserDataStore
+	_filesystem = MemoryFilesystem.new()
+	var store := Store.new(STORE_PATH, _filesystem) as UserDataStore
 	_check(
 		game.configure_runtime_settings_persistence(
 			store, "memory://cargo-delivery-production-legacy.cfg"
@@ -429,6 +434,9 @@ func _test_physics_reentry_and_physical_delivery(
 	jovian.velocity = Vector3.ZERO
 	jovian.set("_landed", false)
 	game.call("_mark_sortie_departed")
+	# The save store cannot write while the delivery lands, so its reward
+	# receipt is rejected and must stay owed rather than being lost.
+	_filesystem.reject_writes = true
 	game.call("_try_request_landing")
 	_check(
 		bool(game.get("_landing_request_active")) and jovian.is_landing_active(),
@@ -438,6 +446,7 @@ func _test_physics_reentry_and_physical_delivery(
 		func() -> bool: return game.phase == GameFlow.Phase.SHUT_DOWN,
 		720
 	)
+	_filesystem.reject_writes = false
 	var completed := game.get_active_activity_snapshot()
 	var receipt := completed.get("accepted_receipt", {}) as Dictionary
 	_check(
@@ -469,14 +478,9 @@ func _test_physics_reentry_and_physical_delivery(
 	)
 	var reward_receipt := reward_record.get("last_receipt", {}) as Dictionary
 	_check(
-		int(reward_record.get("total_receipts", 0)) == 1
-			and reward_receipt.get("activity_id", "") \
-				== "jovian_fabrication_kit_delivery"
-			and reward_receipt.get("reward_id", "") \
-				== "return_fabrication_kits_to_shipyard"
-			and bool(reward_receipt.get("granted", false))
-			and not bool(reward_receipt.get("replay_allowed", true)),
-		"the landed delivery persists one non-replayable fabrication-kit return receipt"
+		int(reward_record.get("total_receipts", -1)) == 0
+			and reward_receipt.is_empty(),
+		"a landed delivery whose receipt the store rejects records no receipt yet"
 	)
 	_check(
 		"DELIVERY  COMPLETE  2 FABRICATION KITS"
@@ -496,6 +500,23 @@ func _test_failure_expiry_reset_and_authority(game: GameFlow, hud: GameHUD) -> v
 	) as CargoDeliveryActivity
 	var completed_generation := activity.get_generation()
 	_check(game.reset_active_activity(), "completed delivery resets explicitly")
+	var reward_record := (
+		(game.get_activity_reward_report().get("authority", {}) as Dictionary).get(
+			"record", {}
+		) as Dictionary
+	)
+	var reward_receipt := reward_record.get("last_receipt", {}) as Dictionary
+	_check(
+		int(reward_record.get("total_receipts", 0)) == 1
+			and reward_receipt.get("activity_id", "") \
+				== "jovian_fabrication_kit_delivery"
+			and int(reward_receipt.get("activity_generation", 0)) == completed_generation
+			and reward_receipt.get("reward_id", "") \
+				== "return_fabrication_kits_to_shipyard"
+			and bool(reward_receipt.get("granted", false))
+			and not bool(reward_receipt.get("replay_allowed", true)),
+		"the next reset pays the owed delivery as one non-replayable fabrication-kit receipt"
+	)
 	game.phase = GameFlow.Phase.FREE_FLIGHT
 	var restarted := game.request_activity_start(GameFlow.CARGO_DELIVERY_ACTIVITY_ID)
 	var failure_generation := int(restarted.get("session_generation", -1))
