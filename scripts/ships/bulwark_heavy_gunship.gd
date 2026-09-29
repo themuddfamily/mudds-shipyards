@@ -1898,6 +1898,16 @@ func _build_gunner_station_feedback() -> Dictionary:
 			),
 		}, true)
 		return feedback
+	# `_consume_gunner_fire_intent` refuses every trigger with engine_not_online
+	# while the ship is parked with its engines idled.
+	if _engine_state != ENGINE_ONLINE:
+		feedback.merge({
+			"state": GUNNER_FEEDBACK_DENIED,
+			"text": "! ENGINES OFFLINE",
+			"color": Color("ff6b5f"),
+			"denial_reason": StringName(&"engine_not_online"),
+		}, true)
+		return feedback
 
 	var charge := _gunner_role_charges.get(actor_key, {}) as Dictionary
 	if not charge.is_empty():

@@ -117,8 +117,21 @@ func _run() -> void:
 			and readout.text.contains("READY"),
 		"target selection makes lock and fire readiness readable at the station"
 	)
+	# Parked with the engines idled offline, the lance refuses every trigger
+	# (engine_not_online), so the station must not advertise LOCKED // READY.
+	craft.set("_engine_state", HeroShip.ENGINE_OFFLINE)
+	var parked_trigger := _submit_gunner(craft, true, 3)
+	feedback = craft.call("get_gunner_station_feedback_snapshot") as Dictionary
+	_check(
+		(parked_trigger.get("effect", {}) as Dictionary).get("status", &"") == &"engine_not_online"
+			and feedback.get("state", &"") == Bulwark.GUNNER_FEEDBACK_DENIED
+			and feedback.get("denial_reason", &"") == &"engine_not_online"
+			and not readout.text.contains("READY"),
+		"a parked Bulwark with offline engines reads the gunner lance as denied, not ready"
+	)
+	craft.set("_engine_state", HeroShip.ENGINE_ONLINE)
 
-	var charge := _submit_gunner(craft, true, 3)
+	var charge := _submit_gunner(craft, true, 4)
 	feedback = craft.call("get_gunner_station_feedback_snapshot") as Dictionary
 	_check(
 		bool(charge.get("consumed", false))
@@ -132,7 +145,7 @@ func _run() -> void:
 	for _frame in 30:
 		await physics_frame
 
-	var fired := _submit_gunner(craft, true, 4)
+	var fired := _submit_gunner(craft, true, 5)
 	feedback = craft.call("get_gunner_station_feedback_snapshot") as Dictionary
 	_check(
 		bool(fired.get("consumed", false))
@@ -152,7 +165,7 @@ func _run() -> void:
 		"component denial replaces cooldown with an explicit weapon-offline cue"
 	)
 	var released: Dictionary = craft.release_crew_role(
-		1, 88, &"bulwark_gunner", &"gunner_station", 5
+		1, 88, &"bulwark_gunner", &"gunner_station", 6
 	)
 	feedback = craft.call("get_gunner_station_feedback_snapshot") as Dictionary
 	_check(
