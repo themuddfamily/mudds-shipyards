@@ -116,6 +116,18 @@ func runtime_state() -> Dictionary:
 	return {"status_id": &"ready" if enabled else &"unavailable", "status_text": copy,
 		"action_enabled": enabled, "engagement_requested": is_active()}
 
+## The Destination Board button label for this world's row while the visit
+## runs. It names what a press actually does: abandoning an approach in flight
+## is not a return, and a seated pilot mid-transition needs no seat.
+func board_action_text() -> String:
+	var runtime := runtime_state()
+	var enabled := bool(runtime.get("action_enabled", false))
+	if state in [&"outbound", &"corridor"] and enabled:
+		return "ABANDON APPROACH"
+	if state in [&"landed", &"surface"]:
+		return "RETURN TO MUDDS" if enabled else "RETURN REQUIRES PILOT SEAT"
+	return str(runtime.get("status_text", "UNAVAILABLE"))
+
 func _launch_rejection() -> String:
 	if not _flow._piloting or not is_instance_valid(_flow.active_ship) or not _flow.player.is_seated():
 		return "TAKE A SHIP'S PILOT SEAT"

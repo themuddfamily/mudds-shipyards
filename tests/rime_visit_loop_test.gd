@@ -57,6 +57,11 @@ func _run() -> void:
 		owner.is_active() and not bool(aurora_row.get("action_enabled", true)),
 		"while Rime's visit holds the shared surface-visit lane, Aurora's row is refused"
 	)
+	var outbound_row := _row(game, DESTINATION_ID)
+	_check(owner.state in [&"outbound", &"corridor"]
+			and str(outbound_row.get("action_text", "")) == "ABANDON APPROACH",
+		"mid-cruise the Rime button names the abandon it performs, not a return (%s)"
+			% outbound_row.get("action_text", ""))
 	await _wait_state(owner, &"landed", 6000)
 	if owner.state != &"landed":
 		print("RIME VISIT DIAG: ", owner.get_visit_snapshot())
@@ -258,6 +263,10 @@ func _run() -> void:
 			and resumed_game._planetary_journey.is_return_departure_pending()
 			and resumed_craft.global_transform == return_pose,
 		"return queues real manual departure without moving the occupied craft")
+	var queued_row := _row(resumed_game, DESTINATION_ID)
+	_check(str(queued_row.get("action_text", "")) == "RETURNING TO MUDDS",
+		"a seated pilot on a queued return is not told the return needs the seat (%s)"
+			% queued_row.get("action_text", ""))
 	# The pause menu's cruise toggle withdraws a queued return. Still sitting on
 	# the leased pad, that must leave the visit landed, not end it on Rime.
 	var resumed_lease: StringName = resumed.get("_surface_token")
