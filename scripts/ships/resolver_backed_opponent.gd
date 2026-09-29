@@ -512,13 +512,14 @@ func _on_shot_receipt_aborted(receipt_id: int) -> void:
 	# The visual was recycled or torn down before arrival. Damage authority is
 	# already committed, so release the queued target presentation now instead of
 	# leaving a damaged hull visually pending forever.
-	_finalize_shot_receipt(receipt_id, Vector3.INF, true)
+	_finalize_shot_receipt(receipt_id, Vector3.INF, true, true)
 
 
 func _finalize_shot_receipt(
 		receipt_id: int,
 		arrival_position: Vector3,
-		play_impact_cue: bool
+		play_impact_cue: bool,
+		from_abort := false
 	) -> void:
 	var record := _shot_receipts.get(receipt_id, {}) as Dictionary
 	_shot_receipts.erase(receipt_id)
@@ -539,7 +540,7 @@ func _finalize_shot_receipt(
 	# still ours to raise, because the coordinator holds no record of a shot it
 	# did not submit and would otherwise leave a destroyed hull silent.
 	if is_instance_valid(target) and target.has_method(&"commit_deferred_damage_presentation"):
-		if play_impact_cue:
+		if not from_abort:
 			target.call(&"commit_deferred_damage_presentation", receipt_id)
 		else:
 			# Aborts arrive from a presentation's `_exit_tree`, while the tree is
