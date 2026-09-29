@@ -5156,7 +5156,7 @@ func _update_zenith_engine_presentation(delta: float) -> void:
 		target_level = 0.48 + clampf(velocity.length() / maxf(maximum_speed, 1.0), 0.0, 1.0) * 0.52
 		var damage := get_damage_presentation()
 		if damage != null:
-			target_level *= clampf(damage.get_engine_power_multiplier(), 0.0, 1.0)
+			target_level *= clampf(damage.get_engine_glow_multiplier(), 0.0, 1.0)
 	target_level *= float(exhaust_profile.get("intensity_multiplier", 1.0))
 	var exhaust_geometry := float(exhaust_profile.get("geometry_multiplier", 1.0))
 	for plume in _engine_plumes:
