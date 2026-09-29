@@ -154,6 +154,9 @@ const PEDESTAL_BEARING_BUDGETED_RINGS := 24
 const PEDESTAL_BEARING_BUDGETED_RING_SEGMENTS := 8
 const PEDESTAL_BEARING_COPY_COUNT := 4
 const PEDESTAL_BEARING_LOCAL_POSITION := Vector3(0.0, 0.68, 0.0)
+## Chair-local stand pose for the coordinator chair: beside the seat on the
+## Operations doorway side, clear of the desk it faces.
+const COORDINATOR_CHAIR_STAND_POSE := Vector3(-1.2, 0.0, -0.3)
 ## Three brass visual collars around the service wall's existing conduit
 ## renderers. The childless collar nodes and their exact presentation stay in
 ## place; only their identical TorusMesh recipe becomes one component-local
@@ -5347,7 +5350,12 @@ func _build_chair(parent: Node3D, chair_index: int, chair_position: Vector3, yaw
 	_chair_nodes.append(chair)
 	# Cushion top 0.99 minus the pilot rig's 0.72 m hip height. BackFrame is on
 	# local +Z, so the native -Z player-forward convention already faces the desk.
-	StationSeat.install(chair, 0.27, 0.0, 1.2, 0.0, "OPERATIONS CHAIR %02d" % (chair_index + 1))
+	var seat := StationSeat.install(chair, 0.27, 0.0, 1.2, 0.0, "OPERATIONS CHAIR %02d" % (chair_index + 1))
+	if chair_index == 3:
+		# The coordinator desk stands 1.09 m ahead of this chair, so the default
+		# straight-ahead stand pose lands inside it and wedges the pilot between
+		# desk and chair. Stand up beside the chair, on the doorway side instead.
+		_move_seat_stand_pose(seat, COORDINATOR_CHAIR_STAND_POSE)
 	_cylinder(chair, "Pedestal", Vector3(0, 0.38, 0), 0.18, 0.76, _materials["mid_grey"], true)
 	_cylinder(chair, "Foot", Vector3(0, 0.08, 0), 0.52, 0.12, _materials["graphite"], true)
 	_interface_collar(
@@ -5377,6 +5385,19 @@ func _build_chair(parent: Node3D, chair_index: int, chair_position: Vector3, yaw
 		_box(chair, "StowedCoverall", Vector3(0.0, 1.66, 0.50), Vector3(0.84, 0.62, 0.11), _materials["fabric"], false, Vector3(-9, 0, 0))
 		_box(chair, "StowedCoverallCollar", Vector3(0.0, 1.98, 0.47), Vector3(0.52, 0.14, 0.15), _materials["fabric"], false, Vector3(-9, 0, 0))
 		_box(chair, "StowedCoverallSleeve", Vector3(-0.40, 1.34, 0.46), Vector3(0.16, 0.52, 0.12), _materials["fabric"], false, Vector3(-6, 0, 7))
+
+
+## Moves a seat's shared entry/exit pose (and its prompt volume) to a chair-local
+## floor point, facing back toward the seat.
+func _move_seat_stand_pose(seat: StationSeat, chair_local_pose: Vector3) -> void:
+	var exit_anchor := seat.get_node(^"ExitAnchor") as Marker3D
+	var entry_anchor := seat.get_node(^"EntryAnchor") as Marker3D
+	var prompt_shape := seat.get_node(^"InteractionShape") as CollisionShape3D
+	var toward_seat := Vector3(-chair_local_pose.x, 0.0, -chair_local_pose.z).normalized()
+	exit_anchor.position = chair_local_pose
+	entry_anchor.position = chair_local_pose
+	entry_anchor.rotation.y = atan2(-toward_seat.x, -toward_seat.z)
+	prompt_shape.position = chair_local_pose + Vector3.UP * 0.9
 
 
 func _build_service_wall(room: Node3D) -> void:
