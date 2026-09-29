@@ -963,6 +963,9 @@ func _apply_race_gate_presentation(snapshot: Dictionary) -> Dictionary:
 		"reward_authority": false,
 	}.duplicate(true)
 	_apply_race_return_crown_presentation(state_id, next_checkpoint, reset)
+	if _streaming_transition != null:
+		# A streamed generation draws the hidden trim rings through one batch.
+		_streaming_transition.sync_beacon_trim_ring_batch()
 	return {"accepted": true, "reason": &"race_gate_presentation_applied"}
 
 

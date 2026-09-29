@@ -708,9 +708,10 @@ func _build_scorched_bay_batch(
 	return batch
 
 
-## The four beacon trim rings are static orange presentation trim. Signal rings
+## The four beacon trim rings share one orange presentation recipe. Signal rings
 ## remain separate because their material expresses activity state; trim rings
-## retain hidden named source paths while this batch draws every exact copy.
+## retain hidden named source paths while this batch draws every exact copy, and
+## `sync_beacon_trim_ring_batch()` follows the race presenter's ring transforms.
 func _validate_beacon_trim_ring_family(content_root: Node3D) -> Array[MeshInstance3D]:
 	var family: Array[MeshInstance3D] = []
 	var exemplar: MeshInstance3D
@@ -760,8 +761,7 @@ func _build_beacon_trim_ring_batch(
 	multi.mesh = exemplar.mesh
 	multi.instance_count = transforms.size()
 	multi.visible_instance_count = transforms.size()
-	for index in transforms.size():
-		multi.set_instance_transform(index, transforms[index])
+	_write_instance_transforms(multi, transforms)
 	multi.custom_aabb = bounds
 
 	var batch := MultiMeshInstance3D.new()
@@ -788,6 +788,60 @@ func _build_beacon_trim_ring_batch(
 	for trim_ring in family:
 		trim_ring.visible = false
 	return batch
+
+
+## The race gate presenter scales, offsets and turns the hidden semantic trim
+## rings. Redraw the batch from their live transforms so the streamed generation
+## shows the same gate state as an unbatched cluster.
+func sync_beacon_trim_ring_batch() -> bool:
+	if _mutation_active or not _bound or not is_instance_valid(_content_root) \
+			or not _content_root.is_inside_tree():
+		return false
+	var batch := _content_root.get_node_or_null(
+		NodePath(String(BEACON_TRIM_RING_BATCH_NAME))
+	) as MultiMeshInstance3D
+	if batch == null or batch.multimesh == null \
+			or batch.multimesh.instance_count != BEACON_TRIM_RING_PATHS.size():
+		return false
+	var root_inverse := _content_root.global_transform.affine_inverse()
+	var transforms: Array[Transform3D] = []
+	var bounds := AABB()
+	for index in BEACON_TRIM_RING_PATHS.size():
+		var trim_ring := _content_root.get_node_or_null(
+			BEACON_TRIM_RING_PATHS[index]
+		) as MeshInstance3D
+		if trim_ring == null or trim_ring.mesh == null:
+			return false
+		var instance_transform := root_inverse * trim_ring.global_transform
+		transforms.append(instance_transform)
+		var instance_bounds := instance_transform * trim_ring.mesh.get_aabb()
+		bounds = instance_bounds if index == 0 else bounds.merge(instance_bounds)
+	_write_instance_transforms(batch.multimesh, transforms)
+	batch.multimesh.custom_aabb = bounds
+	return true
+
+
+func _write_instance_transforms(
+		multi: MultiMesh, transforms: Array[Transform3D]
+	) -> void:
+	var buffer := PackedFloat32Array()
+	buffer.resize(transforms.size() * 12)
+	for index in transforms.size():
+		var value := transforms[index]
+		var offset := index * 12
+		buffer[offset + 0] = value.basis.x.x
+		buffer[offset + 1] = value.basis.y.x
+		buffer[offset + 2] = value.basis.z.x
+		buffer[offset + 3] = value.origin.x
+		buffer[offset + 4] = value.basis.x.y
+		buffer[offset + 5] = value.basis.y.y
+		buffer[offset + 6] = value.basis.z.y
+		buffer[offset + 7] = value.origin.y
+		buffer[offset + 8] = value.basis.x.z
+		buffer[offset + 9] = value.basis.y.z
+		buffer[offset + 10] = value.basis.z.z
+		buffer[offset + 11] = value.origin.z
+	multi.buffer = buffer
 
 
 ## The four route-beacon masts are static visual guides with one cached mesh,
