@@ -595,6 +595,8 @@ var ship_service_console: Area3D
 var fleet_registry_console: Area3D
 var heavy_breach_activity_board: Area3D
 var _heavy_breach_sortie_generation := 0
+## True while the primary objective names a launched board sortie.
+var _heavy_breach_objective_posted := false
 var _heavy_breach_hud_refresh_elapsed := 0.0
 ## Legacy primary alias retained for the guided vertical-slice tests. Runtime
 ## gameplay uses `active_ship` and the physical `ships` registry below.
@@ -7757,7 +7759,16 @@ func _bind_heavy_breach_activity_board() -> void:
 	)
 
 
-func _on_heavy_breach_board_snapshot_changed(_snapshot: Dictionary) -> void:
+func _on_heavy_breach_board_snapshot_changed(snapshot: Dictionary) -> void:
+	# A concluded sortie must not leave its kill order as the primary objective.
+	if _heavy_breach_objective_posted \
+			and int(snapshot.get("active_director_generation", 0)) == 0:
+		_heavy_breach_objective_posted = false
+		if phase == Phase.FREE_FLIGHT and _piloting and is_instance_valid(hud):
+			hud.set_objective(
+				"Free flight — explore, fight, or return to a compatible registered berth",
+				"SANDBOX SORTIE"
+			)
 	_sync_activity_hud()
 
 
@@ -8112,6 +8123,7 @@ func _try_launch_armed_heavy_breach() -> bool:
 			)
 		return false
 	_heavy_breach_sortie_generation = 0
+	_heavy_breach_objective_posted = true
 	if is_instance_valid(audio) and audio.has_method(&"play_combat_alert"):
 		audio.call(&"play_combat_alert")
 	if is_instance_valid(hud):

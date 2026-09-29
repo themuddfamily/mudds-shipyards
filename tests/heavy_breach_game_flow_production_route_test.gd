@@ -330,6 +330,17 @@ func _run() -> void:
 		_audio_cues.count(&"enemy_destroyed") == 1,
 		"the persisted Heavy Breach clear plays one bounded production success cue"
 	)
+	var objective_kicker := hud.get("_objective_kicker") as Label
+	for _frame in 3:
+		await physics_frame
+		await process_frame
+	_check(
+		game.phase == GameFlow.Phase.FREE_FLIGHT
+		and not "charged picket" in str(hud.get("_objective_source_text"))
+		and objective_kicker != null
+		and objective_kicker.text != "HEAVY BREACH",
+		"a concluded sortie hands the primary objective back to free flight"
+	)
 	var store_generation_after_reward := int(
 		reward_authority.get("store_generation", -1)
 	)
