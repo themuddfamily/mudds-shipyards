@@ -72,7 +72,48 @@ func _run() -> void:
 	_check(bool(notice.get("active", false)),
 		"the HUD shows the session recovery card (%s)"
 			% recovered.get("_session_recovery_hud_status"))
+
+	# --- BEGIN SHIFT with the choice still open -----------------------------
+	# The player presses BEGIN SHIFT on the title without answering the card.
+	var begin := _begin_shift_button(recovered)
+	_check(begin != null and begin.is_visible_in_tree() and not begin.disabled,
+		"BEGIN SHIFT stays available while the recovery choice is open")
+	if begin == null:
+		_finish()
+		return
+	begin.pressed.emit()
+	for _i in range(90):
+		await process_frame
+		if recovered.phase != GameFlow.Phase.INTRO:
+			break
+	for _i in range(4):
+		await process_frame
+	var status := recovered.get("_session_recovery_hud_status") as Dictionary
+	_check(recovered.phase == GameFlow.Phase.APPROACH_SHIP, "BEGIN SHIFT starts the shift")
+	_check(
+		bool(status.get("accepted", false))
+			and StringName(status.get("choice", &"")) == &"normal_start"
+			and StringName(status.get("source", &"")) == &"begin_shift"
+			and recovered.get_recovery_available_snapshot().is_empty(),
+		"BEGIN SHIFT answers the open choice as Resume Last Save (%s)" % status
+	)
+	_check(not bool(recovered.hud.get_session_recovery_notice_snapshot().get("active", true))
+		and not (recovered.hud.get("_recovery_prompt_panel") as Control).visible,
+		"the recovery card does not stay over gameplay")
+	_check(
+		recovered.get("_first_sortie_tutorial_active_step") == &"walk_interact"
+			and (recovered.hud.get("_runtime_status_panel") as Control).visible
+			and (recovered.hud.get("_runtime_status_title") as Label).text == "Reach the craft",
+		"the first tutorial card is visible once the shift begins"
+	)
 	_finish()
+
+
+func _begin_shift_button(main: Node) -> Button:
+	for button: Button in main.find_children("*", "Button", true, false):
+		if button.text.begins_with("BEGIN SHIFT"):
+			return button
+	return null
 
 
 func _await_main(previous: GameFlow) -> GameFlow:
