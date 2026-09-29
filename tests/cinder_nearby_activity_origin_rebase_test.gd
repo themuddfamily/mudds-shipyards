@@ -57,12 +57,16 @@ func _run() -> void:
 	var held := (binding.call(&"get_snapshot") as Dictionary).get("mining", {}) as Dictionary
 	_check(StringName(held.get("state_id", &"")) == &"active",
 		"holding at the visible platform keeps extracting after an origin rebase (%s)" % held.get("state_id", &""))
+	_check_marker(game, binding, &"active_mining_hold", bootstrap.to_global(MINING.APPROACH_ANCHOR),
+		"the minimap's mining hold marker sits on the visible platform approach after an origin rebase")
 	binding.call(&"reset_mining_activity")
 
 	ship.global_position = bootstrap.to_global(SCAN.APPROACH_ANCHOR)
 	var scan := game.call("_start_nearby_activity", binding, &"cinder_derelict_structure_scan") as Dictionary
 	_check(bool(scan.get("accepted", false)),
 		"the structure scan starts at the visible derelict after an origin rebase (%s)" % scan.get("reason", &""))
+	_check_marker(game, binding, &"active_structure_scan_hold", bootstrap.to_global(SCAN.APPROACH_ANCHOR),
+		"the minimap's scan hold marker sits on the visible derelict after an origin rebase")
 	binding.call(&"reset_structure_scan")
 
 	ship.global_position = bootstrap.to_global(BEACON.BEACONS[0])
@@ -70,6 +74,8 @@ func _run() -> void:
 	_check(bool(beacon.get("accepted", false)),
 		"the beacon traversal starts at the visible first beacon after an origin rebase (%s)" % beacon.get("reason", &""))
 	if bool(beacon.get("accepted", false)):
+		_check_marker(game, binding, &"active_debris_beacon", bootstrap.to_global(BEACON.BEACONS[0]),
+			"the minimap's next-beacon marker sits on the visible first beacon after an origin rebase")
 		for index in 2:
 			ship.global_position = bootstrap.to_global(BEACON.BEACONS[index])
 			game.call("_physics_process", 0.1)
@@ -84,6 +90,15 @@ func _run() -> void:
 	_check(bool(belt.get("accepted", false)),
 		"the belt threading run opens at the visible first gate after an origin rebase (%s)" % belt.get("reason", &""))
 	await _finish(game)
+
+
+func _check_marker(game: GameFlow, binding: Node, marker_id: StringName, expected: Vector3, message: String) -> void:
+	var found := Vector3.INF
+	for marker: Dictionary in game.call("_get_active_nearby_minimap_markers", binding, 0) as Array:
+		if StringName(marker.get("id", &"")) == marker_id:
+			found = marker.get("position", Vector3.INF) as Vector3
+	_check(found.is_finite() and found.distance_to(expected) < 0.01,
+		"%s (marker %s, visible %s)" % [message, found, expected])
 
 
 func _check(ok: bool, message: String) -> void:

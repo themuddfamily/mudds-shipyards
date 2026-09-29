@@ -4446,6 +4446,10 @@ func _get_active_nearby_minimap_markers(
 				or not (position as Vector3).is_finite() \
 				or generation < 1:
 			continue
+		# Hold points and beacons are authored in the Cinder root's frame; the
+		# cargo target is already live world space. A rebase moves that root.
+		if profile.position_key != &"minimap_target_position":
+			position = _cinder_authored_frame_to_world(position as Vector3)
 		markers.append({
 			"id": profile.marker_id,
 			"position": position as Vector3,
