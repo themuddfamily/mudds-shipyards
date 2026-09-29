@@ -19758,6 +19758,7 @@ func _apply_runtime_settings_to_fleet_ship(fleet_ship: HeroShip) -> void:
 		_apply_bomber_payload_presentation_profile(
 			fleet_ship as CinderLongRangeBomber
 		)
+	_apply_combat_effect_reduced_flash(fleet_ship)
 
 
 func _sync_runtime_settings_hud() -> void:
@@ -19825,6 +19826,27 @@ func _apply_accessibility_settings() -> void:
 		)
 	_apply_bomber_payload_presentation_profile()
 	_apply_opponent_weapon_heat_presentation_profile()
+	_apply_combat_effect_reduced_flash()
+
+
+## Hands reduced flash to the shared combat effects: the pulse muzzle and impact
+## practicals, and each fleet hull's damage presentation (hit and destruction
+## lights, alarm, failing-engine and section glows). `target` limits the pass to
+## one late-admitted craft.
+func _apply_combat_effect_reduced_flash(target: HeroShip = null) -> void:
+	if runtime_settings == null:
+		return
+	var enabled := bool(runtime_settings.reduced_flash)
+	if target == null and is_instance_valid(pulse_presentation):
+		pulse_presentation.set_reduced_flash_enabled(enabled)
+	var candidates: Array = [target] if target != null else ships
+	for candidate in candidates:
+		var fleet_ship := candidate as HeroShip
+		if not is_instance_valid(fleet_ship):
+			continue
+		var damage := fleet_ship.get_damage_presentation()
+		if is_instance_valid(damage):
+			damage.set_reduced_flash_enabled(enabled)
 
 
 ## Gives the station's zero-budget Environment presenter the validated setting;
@@ -20070,6 +20092,7 @@ func _on_runtime_setting_changed(setting: StringName, _value: Variant) -> void:
 	elif setting in [&"reduced_flash", &"payload_visual_intensity"]:
 		_apply_bomber_payload_presentation_profile()
 		_apply_opponent_weapon_heat_presentation_profile()
+		_apply_combat_effect_reduced_flash()
 	elif setting in [
 		&"ui_scale", &"colorblind_palette", &"high_contrast_hud", &"reticle_style",
 		&"reduced_motion", &"captions_enabled",

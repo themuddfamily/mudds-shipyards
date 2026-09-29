@@ -146,6 +146,9 @@ var _finished_count := 0
 var _recycled_count := 0
 var _rejected_count := 0
 var _lifecycle_transaction_active := false
+## Accessibility: reduced flash keeps every pulse, flare and spark readable but
+## never lights the scene with the muzzle or impact practicals.
+var _reduced_flash := false
 
 
 func _enter_tree() -> void:
@@ -406,6 +409,25 @@ func set_presentation_enabled(enabled: bool) -> void:
 
 func is_presentation_enabled() -> bool:
 	return _presentation_enabled
+
+
+## Accessibility seam, shaped like `TravellingBoltProjectile`'s. Reduced flash
+## drops the muzzle and impact dynamic lights, the parts that flash the whole
+## scene, while the pulse, flare and sparks still show where each shot went.
+## Active shots are repainted at once so a flash already on screen obeys it.
+func set_reduced_flash_enabled(enabled: bool) -> void:
+	if _reduced_flash == enabled:
+		return
+	_reduced_flash = enabled
+	if not _built:
+		return
+	for slot_index in _slots.size():
+		if bool(_slots[slot_index].get("active", false)):
+			_update_slot(slot_index)
+
+
+func is_reduced_flash_enabled() -> bool:
+	return _reduced_flash
 
 
 func set_auto_advance_enabled(enabled: bool) -> void:
@@ -1026,7 +1048,7 @@ func _update_slot(slot_index: int) -> void:
 	var muzzle_visible := age < minf(MUZZLE_DURATION, travel_duration)
 	var muzzle_ratio := clampf(1.0 - age / MUZZLE_DURATION, 0.0, 1.0)
 	muzzle.visible = muzzle_visible
-	muzzle_light.visible = muzzle_visible
+	muzzle_light.visible = muzzle_visible and not _reduced_flash
 	if muzzle_visible:
 		_set_world_mesh_transform(
 			muzzle,
@@ -1035,7 +1057,10 @@ func _update_slot(slot_index: int) -> void:
 			Vector3(1.15, 0.82, 1.0) * (0.48 + muzzle_ratio * 0.52) * width_scale
 		)
 		muzzle_light.global_position = origin
-		muzzle_light.light_energy = (0.55 + muzzle_ratio * 1.85) * _style_light(style_id)
+		muzzle_light.light_energy = (
+			0.0 if _reduced_flash
+			else (0.55 + muzzle_ratio * 1.85) * _style_light(style_id)
+		)
 	else:
 		muzzle_light.light_energy = 0.0
 
@@ -1133,7 +1158,7 @@ func _update_impact(
 	var visible := bool(slot.get("hit", false)) and impact_age >= 0.0 and impact_age < IMPACT_DURATION
 	impact.visible = visible
 	impact_backwash.visible = visible
-	impact_light.visible = visible
+	impact_light.visible = visible and not _reduced_flash
 	for spark in sparks:
 		spark.visible = visible
 	if not visible:
@@ -1150,7 +1175,9 @@ func _update_impact(
 		Vector3(1.12, 1.12, 1.0) * flare_scale * impact_profile_scale
 	)
 	impact_light.global_position = end
-	impact_light.light_energy = (1.0 - phase) * 2.7 * _style_light(style_id)
+	impact_light.light_energy = (
+		0.0 if _reduced_flash else (1.0 - phase) * 2.7 * _style_light(style_id)
+	)
 
 	# The billboarded flare reads from any camera angle but cannot show which way
 	# the resolved pulse arrived. This preallocated streak kicks back along the

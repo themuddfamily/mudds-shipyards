@@ -69,6 +69,15 @@ const ENGINE_SMOKE_CRITICAL_AMOUNT := 18
 const ENGINE_SMOKE_SEVERE_AMOUNT := 34
 const DEBRIS_AFTERGLOW_LIFETIME := 2.4
 const DEBRIS_FINAL_FADE_WINDOW := 1.2
+## Reduced flash: the brightest any transient practical (hull hit, destruction)
+## may get, and the steady levels that replace the alarm, failing-engine and
+## section-glow oscillations. Each steady level is its oscillation's mean, so a
+## cue stays lit and legible without flashing.
+const REDUCED_FLASH_IMPACT_LIGHT_PEAK := 1.8
+const REDUCED_FLASH_DESTRUCTION_LIGHT_PEAK := 3.0
+const REDUCED_FLASH_WARNING_PULSE := 0.5
+const REDUCED_FLASH_ENGINE_STUTTER := 0.48
+const REDUCED_FLASH_COMPONENT_FLICKER := 0.5
 
 @export_category("Damage thresholds")
 @export_range(0.05, 0.95, 0.01) var damaged_threshold := 0.68
@@ -99,6 +108,7 @@ var _pending_destruction_pose := Transform3D.IDENTITY
 var _pending_destruction_pose_valid := false
 var _destruction_remaining := 0.0
 var _tearing_down := false
+var _reduced_flash := false
 const MAX_PENDING_DAMAGE_PRESENTATIONS := 16
 var _pending_damage_presentations: Dictionary = {}
 var _pending_damage_presentation_order: Array[int] = []
@@ -176,6 +186,18 @@ func _exit_tree() -> void:
 	_tearing_down = true
 	_clear_component_repair_cues(false)
 	_clear_all_world_effects(false)
+
+
+## Accessibility seam. Reduced flash caps the hull-hit and destruction
+## practicals and holds the alarm, failing-engine and section lights steady.
+## Presentation lights only: the engine power multiplier the flight model reads
+## keeps its authored behaviour at every setting.
+func set_reduced_flash_enabled(enabled: bool) -> void:
+	_reduced_flash = enabled
+
+
+func is_reduced_flash_enabled() -> bool:
+	return _reduced_flash
 
 
 ## Applies the authoritative ship state to the presentation.
@@ -275,7 +297,7 @@ func present_impact(
 	var practical := OmniLight3D.new()
 	practical.name = "ImpactLight"
 	practical.light_color = DAMAGE_AMBER
-	practical.light_energy = 5.2 * minf(safe_intensity, 1.6)
+	practical.light_energy = _cap_transient_light(5.2 * minf(safe_intensity, 1.6))
 	practical.omni_range = lerpf(
 		IMPACT_LIGHT_MINIMUM_RANGE,
 		IMPACT_LIGHT_MAXIMUM_RANGE,
@@ -292,7 +314,7 @@ func present_impact(
 		"intensity": safe_intensity,
 		"flash": flash,
 		"light": practical,
-		"light_peak": practical.light_energy,
+		"light_peak": 5.2 * minf(safe_intensity, 1.6),
 		"light_base_range": practical.omni_range,
 	})
 
@@ -853,7 +875,10 @@ func _update_component_cues() -> void:
 			continue
 		var phase := _elapsed * (17.0 if state >= COMPONENT_STATE_FAILED else 9.0)
 		phase += float(index) * 1.37
-		var flicker := clampf(0.5 + 0.5 * sin(phase) + 0.18 * sin(phase * 2.7), 0.08, 1.0)
+		var flicker := (
+			REDUCED_FLASH_COMPONENT_FLICKER if _reduced_flash
+			else clampf(0.5 + 0.5 * sin(phase) + 0.18 * sin(phase * 2.7), 0.08, 1.0)
+		)
 		var peak := 4.6 if state >= COMPONENT_STATE_FAILED else 2.4
 		glow.light_energy = peak * flicker
 
@@ -1427,6 +1452,14 @@ func _apply_resolved_damage_severity() -> void:
 	_engine_smoke.scale_amount_max = lerpf(1.45, 2.05, failure_severity)
 
 
+func _cap_transient_light(peak: float) -> float:
+	return minf(peak, REDUCED_FLASH_IMPACT_LIGHT_PEAK) if _reduced_flash else peak
+
+
+func _destruction_light_peak() -> float:
+	return REDUCED_FLASH_DESTRUCTION_LIGHT_PEAK if _reduced_flash else 13.0
+
+
 func _is_powered_active() -> bool:
 	return _ship_state not in [STATE_POWERED_DOWN, STATE_HIDDEN, STATE_DESTROYED]
 
@@ -1435,7 +1468,10 @@ func _update_local_cues() -> void:
 	if not _built:
 		return
 	if _alarm_active:
-		var warning_pulse := 0.5 + 0.5 * sin(_elapsed * (13.0 if _stage == DamageStage.CRITICAL else 7.0))
+		var warning_pulse := (
+			REDUCED_FLASH_WARNING_PULSE if _reduced_flash
+			else 0.5 + 0.5 * sin(_elapsed * (13.0 if _stage == DamageStage.CRITICAL else 7.0))
+		)
 		_warning_light.light_color = DAMAGE_RED if _stage == DamageStage.CRITICAL else DAMAGE_AMBER
 		_warning_light.light_energy = (1.4 + warning_pulse * 3.4) * _alarm_urgency
 	else:
@@ -1445,7 +1481,10 @@ func _update_local_cues() -> void:
 		var stutter := 0.48 + 0.28 * sin(_elapsed * 29.0) + 0.18 * sin(_elapsed * 61.0 + 0.7)
 		stutter = clampf(stutter, 0.12, 0.88)
 		_engine_power_multiplier = stutter
-		_engine_failure_light.light_energy = 2.8 * stutter
+		# The multiplier above feeds flight; only the light is held steady.
+		_engine_failure_light.light_energy = 2.8 * (
+			REDUCED_FLASH_ENGINE_STUTTER if _reduced_flash else stutter
+		)
 	else:
 		_engine_failure_light.light_energy = 0.0
 
@@ -1482,7 +1521,7 @@ func _spawn_destruction_effects(
 	_destruction_flash = OmniLight3D.new()
 	_destruction_flash.name = "ExplosionFlash"
 	_destruction_flash.light_color = DAMAGE_ORANGE
-	_destruction_flash.light_energy = 13.0
+	_destruction_flash.light_energy = _destruction_light_peak()
 	_destruction_flash.omni_range = 9.0
 	_destruction_flash.shadow_enabled = false
 	_destruction_root.add_child(_destruction_flash)
@@ -1599,7 +1638,7 @@ func _update_destruction_effects(delta: float) -> void:
 	var age := destruction_effect_lifetime - _destruction_remaining
 	if is_instance_valid(_destruction_flash):
 		var flash_ratio := clampf(1.0 - age / 0.72, 0.0, 1.0)
-		_destruction_flash.light_energy = 13.0 * flash_ratio * flash_ratio
+		_destruction_flash.light_energy = _destruction_light_peak() * flash_ratio * flash_ratio
 		_destruction_flash.omni_range = 9.0 + age * 4.0
 	if is_instance_valid(_explosion_core):
 		var core_ratio := clampf(1.0 - age / 0.82, 0.0, 1.0)
@@ -1658,7 +1697,9 @@ func _update_transient_effects(delta: float) -> void:
 			var practical := effect.get("light") as OmniLight3D
 			if is_instance_valid(practical):
 				var decay := 1.0 - progress
-				practical.light_energy = float(effect.get("light_peak", 0.0)) * decay * decay
+				practical.light_energy = (
+					_cap_transient_light(float(effect.get("light_peak", 0.0))) * decay * decay
+				)
 				practical.omni_range = lerpf(
 					float(effect.get("light_base_range", IMPACT_LIGHT_MINIMUM_RANGE)),
 					IMPACT_LIGHT_MAXIMUM_RANGE,
