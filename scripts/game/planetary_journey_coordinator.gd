@@ -264,6 +264,12 @@ func advance_world(delta: float, actor_sample: Dictionary) -> Dictionary:
 				_mudds_return_approach_active = false
 				_ember_surface_journey_active = false
 				_last_mudds_return_approach_result = cruise_tick.duplicate(true)
+				if _ember_abandon_return_active and _pilot_holds_flight_controls():
+					# The pilot took the controls on the way home. Like the
+					# outbound leg, the return is queued again and resumes once
+					# they let go; the pause row still withdraws it outright.
+					_ember_abandon_return_arm_pending = true
+					_ember_abandon_return_arm_attempts = 0
 	# The completing cruise tick releases its Hero attachment before this one
 	# retained late Host envelope is prepared. Keeping both operations in the same
 	# GameFlow callback prevents a new origin transaction from reaching an IDLE
@@ -2126,7 +2132,8 @@ func _arm_ember_abandon_return_approach(
 
 ## A queued return survives local clearance refusal only until its first actual
 ## cruise participation. Manual ascent uses no retry budget; after cruise starts,
-## ordinary manual override cancels it permanently.
+## a manual override re-queues it (see `advance_world`) and only the pause row's
+## withdrawal cancels it.
 func _observe_abandon_return_departure_tick(tick: Dictionary) -> void:
 	if not _ember_abandon_return_arm_pending:
 		return
@@ -2145,9 +2152,7 @@ func _observe_abandon_return_departure_tick(tick: Dictionary) -> void:
 		return
 	# Holding flight controls before propulsion is the authored local departure,
 	# not cancellation of a journey that has started. Actor loss is always final.
-	if reason == &"ship_attachment_retired" \
-			and is_instance_valid(_flow.active_ship) and _flow.active_ship.is_piloted() \
-			and _flow.active_ship.has_manual_flight_intent():
+	if reason == &"ship_attachment_retired" and _pilot_holds_flight_controls():
 		_last_ember_abandon_return_arm_result = {
 			"accepted": false, "reason": &"manual_departure_required",
 		}
@@ -2155,6 +2160,11 @@ func _observe_abandon_return_departure_tick(tick: Dictionary) -> void:
 	_ember_abandon_return_arm_pending = false
 	_ember_abandon_return_active = false
 	_last_ember_abandon_return_arm_result = tick.duplicate(true)
+
+
+func _pilot_holds_flight_controls() -> bool:
+	return is_instance_valid(_flow.active_ship) and _flow.active_ship.is_piloted() \
+		and _flow.active_ship.has_manual_flight_intent()
 
 
 func is_return_departure_pending() -> bool:
