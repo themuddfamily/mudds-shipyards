@@ -7935,6 +7935,19 @@ func _attempt_input_rebind(action: StringName, candidate: Dictionary) -> void:
 			)
 			_refresh_all_binding_rows()
 			return
+		# Replacing Pause's last binding on this device family would leave a
+		# controller-only (or keyboard-only) player unable to open the menu.
+		if (
+			StringName(conflict.action) == &"pause"
+			and action != &"pause"
+			and _family_binding_count(&"pause", _binding_device_family(candidate)) <= 1
+		):
+			set_settings_status(
+				"%s IS NEEDED TO PAUSE" % _binding_text(candidate).to_upper(),
+				false
+			)
+			_refresh_all_binding_rows()
+			return
 	var replacement_base := _profile_without_binding_family(
 		_input_binding_profile,
 		action,
@@ -8073,6 +8086,14 @@ func _profile_without_binding_family(
 			retained.append(existing)
 	updated.set_bindings(action, retained)
 	return updated
+
+
+func _family_binding_count(action: StringName, family: StringName) -> int:
+	var count := 0
+	for existing: Dictionary in _input_binding_profile.get_bindings(action):
+		if _binding_device_family(existing) == family:
+			count += 1
+	return count
 
 
 func _binding_device_family(binding: Dictionary) -> StringName:
