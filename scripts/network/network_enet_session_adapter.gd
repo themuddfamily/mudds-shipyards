@@ -574,6 +574,12 @@ func is_server() -> bool:
 	return _is_server and _configured
 
 
+## True from a successful `host()`/`join()` until `shutdown()`: a new host or
+## join request is refused (`already_started`) for exactly this long.
+func is_session_active() -> bool:
+	return _configured
+
+
 func get_local_port() -> int:
 	return _bound_port
 

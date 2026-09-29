@@ -1459,6 +1459,9 @@ func host_network_session(
 	var session := _ensure_network_session()
 	if session == null:
 		return {"accepted": false, "status": &"game_flow_not_in_tree"}
+	# The running session keeps its role; the adapter refuses this request.
+	if session.is_session_active():
+		return session.host(port, max_clients)
 	_network_session_mode = &"server"
 	_set_station_defense_network_presentation_only(false)
 	_network_session_port = port
@@ -1475,6 +1478,9 @@ func join_network_session(
 	var session := _ensure_network_session()
 	if session == null:
 		return {"accepted": false, "status": &"game_flow_not_in_tree"}
+	# The running session keeps its role; the adapter refuses this request.
+	if session.is_session_active():
+		return session.join(address, port)
 	_network_session_mode = &"client"
 	_set_station_defense_network_presentation_only(true)
 	_network_session_address = address
@@ -6735,6 +6741,11 @@ func _handle_server_browser_intent(payload: Dictionary) -> void:
 	var action := StringName(str(payload.get("action", &"")))
 	var session = network_session if is_instance_valid(network_session) else _ensure_network_session()
 	if session == null:
+		return
+	# A join from the browser while a session runs is refused by the adapter;
+	# refuse it before this game's session role is rewritten to "client".
+	if action in [&"join", &"manual_join"] and session.is_session_active():
+		_publish_server_browser_feedback({"accepted": false, "status": &"already_started"})
 		return
 	match action:
 		&"refresh":
