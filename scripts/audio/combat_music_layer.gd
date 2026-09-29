@@ -274,6 +274,8 @@ func set_reduced_dynamic_range(enabled: bool) -> void:
 	if _reduced_dynamic_range == enabled:
 		return
 	_reduced_dynamic_range = enabled
+	if is_instance_valid(_stinger_player) and _stinger_player.stream != null:
+		_stinger_player.volume_db = _stinger_volume_db()
 	_resolve_targets()
 	_apply_playback()
 
