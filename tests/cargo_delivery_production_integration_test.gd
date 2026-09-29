@@ -570,6 +570,33 @@ func _test_failure_expiry_reset_and_authority(game: GameFlow, hud: GameHUD) -> v
 		and not bool(final_inventory.get("cargo_historical_authenticity_claim", true)),
 		"GameFlow/HUD retain zero adjacent authority and label the delivery as modern interpretation"
 	)
+	# Every run moves two of the Jovian's six kits. Drain the hold through two
+	# more real deliveries; the next departure must not start a run whose
+	# landing transfer can only be rejected.
+	for run in 2:
+		_check(game.reset_active_activity(), "terminal delivery resets for another run")
+		game.phase = GameFlow.Phase.FREE_FLIGHT
+		var run_start := game.request_activity_start(GameFlow.CARGO_DELIVERY_ACTIVITY_ID)
+		_check(
+			bool(run_start.get("accepted", false))
+			and bool(game.call("_complete_cargo_delivery_on_return")),
+			"a later delivery in the same session starts and delivers"
+		)
+	var drained := game.get_activity_integration_report()
+	_check(
+		_manifest_quantity(drained.get("cargo_source_manifest", {}) as Dictionary) == 0
+		and _manifest_quantity(drained.get("cargo_destination_manifest", {}) as Dictionary) == 6,
+		"three deliveries move all six kits to the freight berth"
+	)
+	_check(game.reset_active_activity(), "the drained delivery resets")
+	game.phase = GameFlow.Phase.FREE_FLIGHT
+	var empty_start := game.request_activity_start(GameFlow.CARGO_DELIVERY_ACTIVITY_ID)
+	_check(
+		not bool(empty_start.get("accepted", true))
+		and empty_start.get("reason", &"") == &"insufficient_source_quantity"
+		and game.get_active_activity_snapshot().get("state_id", &"") == &"idle",
+		"an empty Jovian hold refuses the run at departure instead of failing it on landing"
+	)
 
 
 func _find_ship(game: GameFlow, ship_id: StringName) -> HeroShip:
