@@ -38,6 +38,8 @@ class MemoryUserDataStore extends RefCounted:
 var _assertions := 0
 var _failures: Array[String] = []
 var _reward_requests: Array[Dictionary] = []
+var _rejected_reward_requests: Array[Dictionary] = []
+var _reject_rewards := false
 
 
 func _init() -> void:
@@ -214,6 +216,9 @@ func _run() -> void:
 	var gamma_terminal := await _destroy_with_torrent(authority, torrent, gamma)
 	var reinforcement := content.advance_physics(8.0, generation)
 	await physics_frame
+	# The reward authority rejects this completion, as it does while the save
+	# store cannot commit. The earned report must stay owed, not vanish.
+	_reject_rewards = true
 	var picket_terminal := await _destroy_with_torrent(authority, torrent, picket, 8)
 	await process_frame
 	var reward_snapshot: Dictionary = board.get_reward_handoff_snapshot()
@@ -232,23 +237,36 @@ func _run() -> void:
 		and bool(reinforcement.get("accepted", false))
 		and bool(picket_terminal.get("destroyed", false))
 		and content.get_snapshot().host.activity.state_id == &"completed"
-		and _reward_requests.size() == 1
-		and int(_reward_requests[0].activity_generation) == generation
-		and int(reward_snapshot.highest_reward_generation) == generation
+		and not _rejected_reward_requests.is_empty()
+		and int(_rejected_reward_requests[0].activity_generation) == generation
+		and _reward_requests.is_empty()
+		and int(reward_snapshot.highest_reward_generation) == 0
 		and bool(completed_save.get("accepted", false))
 		and persisted_history.get("state_id") == &"completed"
-		and int(persisted_history.get("reward_handoff_generation", 0)) == generation
+		and int(persisted_history.get("reward_handoff_generation", -1)) == 0
 		and not bool(persisted_history.get("reward_replayable", true))
 		and authority.get_resolver().get_registered_source_count() == 1,
-		"real fleet fire must neutralize the heavy picket before completion feeds the shared reward adapter exactly once"
+		"real fleet fire must neutralize the heavy picket before completion feeds the shared reward adapter, which rejects it"
 	)
-	content.snapshot_changed.emit(content.get_snapshot())
+	# The store recovers while the finished run sits on the board.
+	_reject_rewards = false
+	for _frame in 4:
+		await physics_frame
+		await process_frame
+	var completed_snapshot := content.get_snapshot()
+	var completed_reset: Dictionary = board.abort_and_reset(actor, generation)
+	_check(
+		_reward_requests.size() == 1
+		and int(_reward_requests[0].activity_generation) == generation
+		and int(board.get_reward_handoff_snapshot().highest_reward_generation) == generation,
+		"resetting the completed board first pays the owed report exactly once"
+	)
+	content.snapshot_changed.emit(completed_snapshot)
 	_check(
 		_reward_requests.size() == 1,
 		"a repeated completed snapshot cannot duplicate the committed reward handoff"
 	)
 
-	var completed_reset: Dictionary = board.abort_and_reset(actor, generation)
 	var failure_start_generation := int(
 		(completed_reset.get("reset", {}) as Dictionary).get("activity", {}).get("generation", 0)
 	)
@@ -339,6 +357,9 @@ func _run() -> void:
 
 
 func _accept_reward_request(request: Dictionary) -> Dictionary:
+	if _reject_rewards:
+		_rejected_reward_requests.append(request.duplicate(true))
+		return {"accepted": false, "reason": &"reward_store_commit_rejected"}
 	_reward_requests.append(request.duplicate(true))
 	return {"accepted": true, "grant_count": _reward_requests.size()}
 

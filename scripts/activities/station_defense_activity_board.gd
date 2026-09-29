@@ -236,6 +236,9 @@ func abort_and_reset(actor: Node, expected_generation: int) -> Dictionary:
 		"activity", {}
 	) as Dictionary
 	var state_id := StringName(activity.get("state_id", &""))
+	# Resetting discards the completed run, so settle an owed reward first.
+	if state_id == &"completed":
+		_request_completed_reward(activity)
 	var aborted: Dictionary = {}
 	if state_id == &"active":
 		aborted = _content.abort(expected_generation)
@@ -328,6 +331,16 @@ func _on_content_snapshot_changed(snapshot: Dictionary) -> void:
 	if generation < _presentation_generation:
 		return
 	_refresh_presentation(snapshot)
+	_request_completed_reward(activity)
+	_capture_safe_history(snapshot)
+
+
+## Pays a completed run once. A rejected handoff (the store could not commit)
+## stays owed: every later completed snapshot and the physical reset retry it,
+## and the adapter's generation fence prevents a second grant.
+func _request_completed_reward(activity_snapshot: Dictionary) -> void:
+	var activity := activity_snapshot.duplicate(true)
+	var generation := int(activity.get("generation", 0))
 	if (
 		_reward_adapter != null
 		and StringName(activity.get("state_id", &"")) == &"completed"
@@ -343,7 +356,6 @@ func _on_content_snapshot_changed(snapshot: Dictionary) -> void:
 		_last_reward_result = _reward_adapter.call("consume", activity, generation)
 		if bool(_last_reward_result.get("accepted", false)):
 			_highest_reward_generation = generation
-	_capture_safe_history(snapshot)
 
 
 func _refresh_presentation(snapshot: Dictionary) -> void:
