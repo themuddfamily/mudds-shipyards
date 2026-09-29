@@ -254,6 +254,11 @@ const PANEL_INTERACTION_WIDTH := 424.0
 ## minimum, so a longer toast wraps instead of widening the panel.
 const PANEL_TOAST_WIDTH := 468.0
 const PANEL_TELEMETRY_WIDTH := 312.0
+## Authored bottom-left minimap footprint, and the clearance it keeps below a
+## tall objective card when it has to yield height (see _fit_minimap_below_objective).
+const MINIMAP_AUTHORED_WIDTH := 240.0
+const MINIMAP_AUTHORED_TOP_OFFSET := 270.0
+const MINIMAP_OBJECTIVE_GAP := 12.0
 ## The telemetry geometry is authored as one logical band. Construction and
 ## safe-area relayout must share the same top reservation so the first frame and
 ## every later viewport update agree about where the occupied band begins.
@@ -443,6 +448,8 @@ const BUILD_FILENAME_PATTERN := "^MuddsShipyards-([0-9a-fA-F]{7})\\.(?:exe|x86_6
 var _root: Control
 var _debug_overlay: DebugOverlay
 var _minimap: Minimap
+## Logical bottom safe inset last applied to the minimap by the safe-area pass.
+var _minimap_bottom_inset := 0.0
 var _intro: Control
 var _hud: Control
 var _hud_panels: Control
@@ -3333,6 +3340,8 @@ func layout_for_viewport(viewport_size: Vector2) -> float:
 		layer.position = Vector2.ZERO
 		layer.size = logical
 		layer.scale = Vector2(effective, effective)
+	# The gutter panels now have their final logical parent size.
+	_fit_minimap_below_objective()
 	# The modal pause pages are laid out against their own, larger contract; see
 	# MIN_PAUSE_LOGICAL_HEIGHT. This deliberately runs after the shared loop so
 	# the pause layer stays in _scaled_layers for the accessibility report while
@@ -3548,10 +3557,9 @@ func _apply_safe_area_offsets(left: float, top: float, right: float, bottom: flo
 		_semantic_transcript_panel.offset_top = top
 		_semantic_transcript_panel.offset_bottom = top + PANEL_SEMANTIC_TRANSCRIPT_MIN_HEIGHT
 	if is_instance_valid(_minimap):
+		_minimap_bottom_inset = bottom
 		_minimap.offset_left = PANEL_MARGIN + left
-		_minimap.offset_right = PANEL_MARGIN + 240.0 + left
-		_minimap.offset_top = -270.0 - bottom
-		_minimap.offset_bottom = -PANEL_MARGIN - bottom
+		_fit_minimap_below_objective()
 	if is_instance_valid(_telemetry_panel):
 		_telemetry_panel.offset_left = (
 			-(PANEL_TELEMETRY_WIDTH + PANEL_MARGIN + right)
@@ -4678,12 +4686,40 @@ func _build_minimap() -> void:
 	_minimap.name = "Minimap"
 	_minimap.set_anchors_preset(Control.PRESET_BOTTOM_LEFT)
 	_minimap.offset_left = PANEL_MARGIN
-	_minimap.offset_right = PANEL_MARGIN + 240.0
-	_minimap.offset_top = -270.0
+	_minimap.offset_right = PANEL_MARGIN + MINIMAP_AUTHORED_WIDTH
+	_minimap.offset_top = -MINIMAP_AUTHORED_TOP_OFFSET
 	_minimap.offset_bottom = -PANEL_MARGIN
 	_minimap.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_minimap.set_palette(_palette)
 	_hud_panels.add_child(_minimap)
+	if is_instance_valid(_objective_panel):
+		_objective_panel.resized.connect(_fit_minimap_below_objective)
+		_objective_panel.visibility_changed.connect(_fit_minimap_below_objective)
+
+
+## The objective card and the minimap share the left gutter. The card grows
+## downwards with its wrapped objective and activity rows; at the 690 px logical
+## floor a three-line objective plus an activity row reached 12 px into the
+## minimap and hid the card's last row. The minimap keeps its bottom edge and
+## yields height (and matching width) to the card, never below its minimum size.
+func _fit_minimap_below_objective() -> void:
+	if not is_instance_valid(_minimap) or not is_instance_valid(_hud_panels):
+		return
+	var bottom_offset := -PANEL_MARGIN - _minimap_bottom_inset
+	var top_offset := -MINIMAP_AUTHORED_TOP_OFFSET - _minimap_bottom_inset
+	var minimum_side := _minimap.custom_minimum_size.y
+	var parent_height := _hud_panels.size.y
+	if is_instance_valid(_objective_panel) and _objective_panel.visible and parent_height > 1.0:
+		var objective_bottom := (
+			_objective_panel.position.y + _objective_panel.size.y + MINIMAP_OBJECTIVE_GAP
+		)
+		top_offset = maxf(top_offset, objective_bottom - parent_height)
+		top_offset = minf(top_offset, bottom_offset - minimum_side)
+	_minimap.offset_top = top_offset
+	_minimap.offset_bottom = bottom_offset
+	_minimap.offset_right = _minimap.offset_left + clampf(
+		bottom_offset - top_offset, _minimap.custom_minimum_size.x, MINIMAP_AUTHORED_WIDTH
+	)
 
 
 func _build_telemetry() -> void:
