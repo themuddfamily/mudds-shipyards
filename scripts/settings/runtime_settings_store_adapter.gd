@@ -63,7 +63,7 @@ func load_read_only() -> Dictionary:
 func _load(read_only: bool = false) -> Dictionary:
 	if _settings == null or _store == null:
 		return _status(false, &"invalid_owner", false, false, {})
-	var store_load := _store.load_read_only() if read_only else _store.load()
+	var store_load := _store.load_read_only() if read_only else _load_store_resolving_interruption()
 	if not bool(store_load.accepted):
 		return _status(false, &"store_load_failed", false, false, store_load)
 	if _is_genuinely_empty(store_load):
@@ -102,7 +102,7 @@ func save(commit_id: String, confirmed_display: Dictionary = {}) -> Dictionary:
 func _save(commit_id: String, confirmed_display: Dictionary) -> Dictionary:
 	if _settings == null or _store == null:
 		return _status(false, &"invalid_owner", false, false, {})
-	var store_load := _store.load()
+	var store_load := _load_store_resolving_interruption()
 	if not bool(store_load.accepted):
 		return _status(false, &"store_load_failed", false, false, store_load)
 	if store_load.reason == &"primary_invalid_backup_loaded":
@@ -131,6 +131,26 @@ func _save(commit_id: String, confirmed_display: Dictionary) -> Dictionary:
 	if not bool(committed.accepted):
 		return _status(false, &"store_commit_failed", false, false, committed)
 	return _status(true, &"saved", false, false, committed)
+
+
+## A process that stopped mid-commit leaves a verified staged document that the
+## store deliberately refuses to load implicitly, and nothing else in the game
+## resolves it. The settings owner is that explicit caller: roll a staged
+## successor of the published generation forward, otherwise discard the
+## unpublished stage, then load again. Without this the player boots on
+## defaults forever and every later save is refused.
+func _load_store_resolving_interruption() -> Dictionary:
+	var store_load := _store.load()
+	if bool(store_load.accepted) or store_load.get("reason", &"") != &"interrupted_transaction":
+		return store_load
+	var resolution := _store.recover_interrupted_transaction()
+	if not bool(resolution.accepted):
+		resolution = _store.discard_interrupted_transaction()
+	if not bool(resolution.accepted):
+		return store_load
+	var reloaded := _store.load()
+	reloaded["interrupted_transaction_resolution"] = resolution.get("reason", &"")
+	return reloaded
 
 
 func _load_empty_store(store_load: Dictionary, read_only: bool = false) -> Dictionary:
