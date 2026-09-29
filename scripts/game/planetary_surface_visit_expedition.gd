@@ -831,10 +831,12 @@ func _navigation_standoff_target() -> Vector3:
 
 ## Describes an in-progress visit for the interrupted-visit store, or nothing
 ## when there is nothing worth coming back to. A pilot who has already asked to
-## go home is deliberately not brought back.
+## go home is deliberately not brought back. A resume that is still streaming
+## the world in is captured: its receipt was retired when the resume was
+## admitted, so leaving now must record the visit again or it is lost.
 func capture_interrupted_visit() -> Dictionary:
 	if not is_active() or state in [
-		&"outbound", &"corridor", &"restoring", &"retiring",
+		&"outbound", &"corridor", &"retiring",
 		&"return_cruise", &"return_landing",
 	]:
 		return {}
