@@ -201,6 +201,28 @@ func _test_reduced_dynamic_range() -> void:
 	)
 	_release(layer)
 	await process_frame
+	# Toggling the setting while a stinger already sounds must reach that voice.
+	var live := _make_layer("ReducedRangeLiveLayer")
+	await process_frame
+	live.observe(_engaged(2))
+	_advance(live, 1.0)
+	live.observe({"engaged": false, "hostile_count": 0, "outcome": &"victory", "outcome_serial": 1})
+	_check(bool(live.get_snapshot()["stinger_attached"]), "the victory stinger is attached before the toggle")
+	live.set_reduced_dynamic_range(true)
+	_check(
+		is_equal_approx(
+			float(live.get_snapshot()["stinger_volume_db"]),
+			CombatMusicLayer.STINGER_VOLUME_DB + CombatMusicLayer.REDUCED_RANGE_STINGER_TRIM_DB
+		),
+		"enabling reduced dynamic range trims an already-playing stinger"
+	)
+	live.set_reduced_dynamic_range(false)
+	_check(
+		is_equal_approx(float(live.get_snapshot()["stinger_volume_db"]), CombatMusicLayer.STINGER_VOLUME_DB),
+		"disabling reduced dynamic range restores an already-playing stinger"
+	)
+	_release(live)
+	await process_frame
 
 
 func _test_mute() -> void:
