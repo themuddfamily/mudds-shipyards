@@ -4364,6 +4364,10 @@ func notify_common_world_translation(
 	) -> void:
 	if not delta.is_finite() or delta.is_zero_approx():
 		return
+	# A walkable interior moved with the hull; its occupants moved too.
+	for child in get_children():
+		if child is MovingInteriorFrame:
+			(child as MovingInteriorFrame).accept_common_world_translation(delta)
 	if _landing_contract.is_empty() and not _landing_active:
 		return
 	var rounding_budget := _common_world_translation_rounding_budget(delta)
