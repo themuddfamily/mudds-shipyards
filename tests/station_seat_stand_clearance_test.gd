@@ -8,6 +8,11 @@ extends SceneTree
 ## inside the desk: after "[E] STAND" the capsule was wedged between desk and
 ## chair and could not move in any direction. This suite sits and stands through
 ## GameFlow's real seat flow, then drives real movement input from the pose.
+##
+## Standing must also leave the pilot where the stand pose says. The VIP well
+## armchairs declared theirs 0.35 m inside the WellTable; depenetration shoved
+## the capsule 0.33 m sideways onto the table rim, 0.1 m off the well floor and
+## blocked in one heading, and an overlap check taken after settling saw nothing.
 
 const MAIN_SCENE := preload("res://scenes/main.tscn")
 const SEAT_OWNERS: Array[NodePath] = [
@@ -21,6 +26,9 @@ const WALK_FRAMES := 40
 const WALK_AWAY_METRES := 0.75
 ## Of eight headings, at least this many must carry the pilot clear of the pose.
 const MINIMUM_OPEN_HEADINGS := 3
+## How far standing may push the pilot sideways off the declared stand pose.
+## Stepping straight up onto a tread under the pose is not a shove.
+const MAXIMUM_STAND_SHOVE_METRES := 0.20
 
 var _failures: Array[String] = []
 
@@ -87,6 +95,12 @@ func _test_seat(game: GameFlow, world: ShipyardWorld, player: PlayerController, 
 	var pose := player.global_position
 	var overlaps := _world_overlaps(player)
 	_check(overlaps.is_empty(), "%s: the standing pose is clear of solid geometry %s" % [label, overlaps])
+	var declared := seat.get_exit_transform().origin
+	var shove := Vector2(pose.x - declared.x, pose.z - declared.z).length()
+	_check(
+		shove <= MAXIMUM_STAND_SHOVE_METRES,
+		"%s: the pilot stands where the stand pose says, not %.2f m to one side of it" % [label, shove]
+	)
 
 	var distances := PackedFloat32Array()
 	var open_headings := 0

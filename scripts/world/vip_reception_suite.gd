@@ -112,6 +112,11 @@ const SHELL_LAP_DECLARATION := "shell boxes lap at corners in one pearl finish"
 ## less than half the production capsule's measured no-jump step, so the well can
 ## never become a place a player falls into and cannot leave.
 const WELL_FLOOR := -0.45
+## Chair-local stand pose for the port well armchair (mirrored in X for the
+## starboard one): beside the seat on the well's rear side. The chairs face the
+## WellTable across 0.72 m, less than the 0.76 m capsule, so the default pose
+## 1.05 m straight ahead stood the pilot 0.35 m inside the table rim.
+const WELL_ARMCHAIR_STAND_POSE := Vector3(-1.06, 0.0, 0.29)
 const WELL_STEP_RISE := 0.225
 const WELL_X_MIN := -4.6
 const WELL_X_MAX := 1.4
@@ -2263,7 +2268,10 @@ func _build_armchair(
 	chair.set_meta("seat_class", &"armchair")
 	parent.add_child(chair)
 	_seat_nodes.append(chair)
-	StationSeat.install(chair, -0.20, 180.0, 1.05, 0.0, "RECEPTION ARMCHAIR %02d" % (index + 1))
+	var seat := StationSeat.install(chair, -0.20, 180.0, 1.05, 0.0, "RECEPTION ARMCHAIR %02d" % (index + 1))
+	if index < 2:
+		# The two well chairs face the table too closely to stand up in front of it.
+		seat.move_stand_pose(WELL_ARMCHAIR_STAND_POSE * Vector3(1.0 if index == 0 else -1.0, 1.0, 1.0))
 
 	var pedestal := _cylinder(chair, "Pedestal", Vector3(0.0, 0.05, 0.0), 0.28, 0.1, _materials["bronze"], true)
 	_register_support(pedestal, &"armchair", &"floor beneath it")
