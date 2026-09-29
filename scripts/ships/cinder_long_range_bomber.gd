@@ -366,6 +366,11 @@ func _get_cockpit_system_readout() -> Dictionary:
 	var active := bool(payload.get("active", false))
 	var ammunition := maxi(0, int(payload.get("ammunition_remaining", 0)))
 	var cooldown := maxf(0.0, float(payload.get("cooldown_remaining", 0.0)))
+	if _get_payload_component_hold_reason() == &"weapon_component_failed":
+		return {
+			"text": "PAYLOAD WING FAILED  //  AMMO %d  //  RELEASE LOCKED" % ammunition,
+			"color": Color("ff6b5f"),
+		}.duplicate(true)
 	if not active:
 		return {
 			"text": "PAYLOAD OFFLINE  //  AMMO %d  //  RELEASE LOCKED" % ammunition,
@@ -388,6 +393,18 @@ func _get_cockpit_system_readout() -> Dictionary:
 		"text": "PAYLOAD READY  //  AMMO %d  //  RELEASE READY" % ammunition,
 		"color": Color("8de8e4"),
 	}.duplicate(true)
+
+
+func _get_payload_component_hold_reason() -> StringName:
+	if is_destroyed():
+		return &"ship_destroyed"
+	var modifiers := get_operational_modifiers()
+	if not modifiers.is_empty() and (
+		bool(modifiers.get("fire_disabled", false))
+		or float(modifiers.get("fire_multiplier", 1.0)) <= 0.0
+	):
+		return &"weapon_component_failed"
+	return &""
 
 
 func get_payload_presentation():
@@ -437,6 +454,12 @@ func request_payload_release(
 ) -> Dictionary:
 	if hardpoint_index < 0 or hardpoint_index >= _payload_hardpoints.size():
 		return {"accepted": false, "reason": &"invalid_hardpoint"}
+	# The hardpoints hang from the wings, so the payload obeys the same weapon
+	# component gate as every other craft's cannon: a failed wing (or a dead
+	# hull) holds the release until repair or regeneration, spending no ammo.
+	var hold_reason := _get_payload_component_hold_reason()
+	if not hold_reason.is_empty():
+		return {"accepted": false, "reason": hold_reason}
 	var hardpoint := _payload_hardpoints[hardpoint_index]
 	if not is_instance_valid(hardpoint):
 		return {"accepted": false, "reason": &"hardpoint_unavailable"}
