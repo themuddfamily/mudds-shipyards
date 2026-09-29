@@ -11,6 +11,11 @@ const Store := preload("res://scripts/persistence/user_data_store.gd")
 
 ## Oscillation amplitude above which a light is treated as flashing.
 const STEADY_TOLERANCE := 0.01
+## Every authored opponent in Main; each shares RangeOpponent's destruction flash.
+const OPPONENT_PATHS: Array[NodePath] = [
+	^"RangeOpponent", ^"StandoffPicket", ^"WingSkirmisherLead",
+	^"WingSkirmisherWing", ^"CourierRunner", ^"TorpedoBoat",
+]
 
 var _failures: Array[String] = []
 var _assertions := 0
@@ -81,6 +86,14 @@ func _run() -> void:
 	settings.reset_to_defaults()
 	await process_frame
 	var damage := fleet[0].get_damage_presentation()
+	# A hull that drives HeroShip's own exhaust lights (variant craft own theirs).
+	var glow_ship: HeroShip = null
+	for candidate in fleet:
+		if not (candidate.get("_engine_lights") as Array).is_empty() \
+				and candidate.get_damage_presentation() != null and candidate != fleet[1]:
+			glow_ship = candidate
+			break
+	_check(glow_ship != null, "a fleet hull drives HeroShip's shared exhaust lights")
 	var terminal_damage := fleet[1].get_damage_presentation()
 	_check(damage != null and terminal_damage != null, "fleet hulls carry the damage presentation")
 	if damage == null or terminal_damage == null:
@@ -99,6 +112,15 @@ func _run() -> void:
 		"baseline: a hull hit throws a bright practical light")
 	_check(_light_swing(damage, "EngineFailureLight") > 0.5,
 		"baseline: a failing engine light stutters with reduced flash off")
+	_check(_engine_glow_swing(glow_ship) > 0.5,
+		"baseline: a failing engine's exhaust light stutters with reduced flash off")
+	_check(_spool_glow_swing(glow_ship) > 0.5,
+		"baseline: the spool-up exhaust light pulses with reduced flash off")
+	var courier := game.get_node_or_null(^"CourierRunner") as RangeOpponent
+	var early_flash := _spawn_opponent_flash(courier)
+	_check(early_flash != null and early_flash.light_energy >= 9.0,
+		"baseline: an opponent destruction flash peaks at full strength")
+	var thrust_before := _thrust_swing(glow_ship)
 
 	# Live toggle through the production settings authority.
 	settings.reduced_flash = true
@@ -110,7 +132,12 @@ func _run() -> void:
 	damage._update_transient_effects(0.0)
 	_check(is_instance_valid(impact_before) and impact_before.light_energy <= 2.0,
 		"a hull-hit light spawned before the toggle is capped")
-	await _check_reduced(game, fleet[0], pulse, damage, "after the live toggle")
+	courier._process(0.01)
+	_check(is_instance_valid(early_flash) and early_flash.light_energy <= 3.0,
+		"an opponent destruction flash spawned before the toggle is capped")
+	_check(is_equal_approx(_thrust_swing(glow_ship), thrust_before) and thrust_before > 0.1,
+		"reduced flash leaves the failing engine's thrust multiplier untouched")
+	await _check_reduced(game, fleet[0], glow_ship, pulse, damage, "after the live toggle")
 
 	# Whole-Main detach and re-entry keeps the accepted setting.
 	var parent := game.get_parent()
@@ -122,7 +149,7 @@ func _run() -> void:
 	await process_frame
 	_check(settings.reduced_flash, "reduced flash survives a whole-Main re-entry")
 	pulse.set_auto_advance_enabled(false)
-	await _check_reduced(game, fleet[0], pulse, damage, "after whole-Main re-entry")
+	await _check_reduced(game, fleet[0], glow_ship, pulse, damage, "after whole-Main re-entry")
 
 	# The terminal destruction flash is capped too.
 	terminal_damage.present_destruction(Vector3.ZERO)
@@ -138,6 +165,8 @@ func _run() -> void:
 	_check(_muzzle_light_energy(pulse) > 0.5, "reduced flash off restores the muzzle light")
 	_check(_light_swing(damage, "EngineFailureLight") > 0.5,
 		"reduced flash off restores the authored engine stutter")
+	_check(_engine_glow_swing(glow_ship) > 0.5,
+		"reduced flash off restores the failing engine's exhaust stutter")
 	pulse.set_auto_advance_enabled(true)
 	await _clean_up(game)
 	_finish()
@@ -146,6 +175,7 @@ func _run() -> void:
 func _check_reduced(
 		game: GameFlow,
 		shooter: HeroShip,
+		glow_ship: HeroShip,
 		pulse: PulseWeaponPresentation,
 		damage: HeroDamagePresentation,
 		context: String
@@ -164,9 +194,82 @@ func _check_reduced(
 		"the damage alarm light holds steady " + context)
 	_check(_max_light(damage, "DamageWarningLight") > 0.0,
 		"the damage alarm is still lit, only steady, " + context)
+	_check(_engine_glow_swing(glow_ship) <= STEADY_TOLERANCE,
+		"a failing engine's exhaust light holds steady " + context)
+	_check(_spool_glow_swing(glow_ship) <= STEADY_TOLERANCE,
+		"the spool-up exhaust light holds steady " + context)
+	for path in OPPONENT_PATHS:
+		var opponent := game.get_node_or_null(path) as RangeOpponent
+		_check(opponent != null and bool(
+			opponent.get_weapon_heat_presentation_state().get("reduced_flash", false)
+		), "%s receives reduced flash %s" % [path, context])
+		var picket := opponent as StandoffPicketOpponent
+		if picket != null:
+			_check(bool((picket.get_lance_bolt_snapshot().get("presentation", {}) as Dictionary).get("reduced_flash", false)),
+				"the picket's lance bolts receive reduced flash " + context)
+	var flash := _spawn_opponent_flash(game.get_node_or_null(^"WingSkirmisherLead") as RangeOpponent)
+	_check(flash != null and flash.light_energy <= 3.0,
+		"a new opponent destruction flash is capped " + context)
 	# Leave the hull healthy for the next leg.
 	damage.update_state(1.0, HeroDamagePresentation.STATE_ACTIVE)
 	await process_frame
+
+
+## Spawns only the detached destruction art; health and combat are untouched.
+func _spawn_opponent_flash(opponent: RangeOpponent) -> OmniLight3D:
+	if opponent == null:
+		return null
+	opponent._spawn_destruction_burst(Vector3.ZERO, opponent.global_transform)
+	return opponent.get("_destruction_light") as OmniLight3D
+
+
+## Peak-to-peak engine-light energy of a critically damaged, online hull.
+func _engine_glow_swing(ship: HeroShip) -> float:
+	var damage := ship.get_damage_presentation()
+	damage.update_state(0.05, HeroDamagePresentation.STATE_ACTIVE)
+	ship.set("_engine_state", HeroShip.ENGINE_ONLINE)
+	ship.set("_throttle", 1.0)
+	var energies: Array[float] = []
+	for step in 50:
+		damage.set("_elapsed", float(step) * 0.01)
+		damage._update_local_cues()
+		ship._sync_engine_visuals_immediately()
+		energies.append((ship.get("_engine_lights") as Array)[0].light_energy)
+	_restore_engine(ship)
+	return energies.max() - energies.min()
+
+
+## Peak-to-peak engine-light energy while the engine spools up.
+func _spool_glow_swing(ship: HeroShip) -> float:
+	ship.get_damage_presentation().update_state(1.0, HeroDamagePresentation.STATE_ACTIVE)
+	ship.set("_engine_state", HeroShip.ENGINE_STARTING)
+	var energies: Array[float] = []
+	for step in 50:
+		ship.set("_elapsed", float(step) * 0.01)
+		ship._update_presentation(0.0, ShipCommand.new())
+		energies.append((ship.get("_engine_lights") as Array)[0].light_energy)
+	_restore_engine(ship)
+	return energies.max() - energies.min()
+
+
+## Peak-to-peak thrust multiplier a failing engine hands the flight integrator.
+func _thrust_swing(ship: HeroShip) -> float:
+	var damage := ship.get_damage_presentation()
+	damage.update_state(0.05, HeroDamagePresentation.STATE_ACTIVE)
+	var values: Array[float] = []
+	for step in 50:
+		damage.set("_elapsed", float(step) * 0.01)
+		damage._update_local_cues()
+		values.append(damage.get_engine_power_multiplier())
+	damage.update_state(1.0, HeroDamagePresentation.STATE_ACTIVE)
+	return values.max() - values.min()
+
+
+func _restore_engine(ship: HeroShip) -> void:
+	ship.get_damage_presentation().update_state(1.0, HeroDamagePresentation.STATE_ACTIVE)
+	ship.set("_engine_state", HeroShip.ENGINE_OFFLINE)
+	ship.set("_throttle", 0.0)
+	ship._sync_engine_visuals_immediately()
 
 
 func _present_hit(game: GameFlow, shooter: HeroShip) -> bool:

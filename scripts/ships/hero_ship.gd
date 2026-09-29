@@ -4625,12 +4625,15 @@ func _update_presentation(delta: float, command: ShipCommand) -> void:
 	var engine_level := 0.0
 	var exhaust_profile := get_engine_exhaust_damage_presentation_profile()
 	if _engine_state == ENGINE_STARTING:
-		engine_level = 0.25 + 0.15 * sin(_elapsed * 18.0)
+		# Reduced flash holds the spool-up glow steady instead of a 2.9 Hz pulse.
+		engine_level = 0.25 if _is_engine_glow_reduced_flash() else (
+			0.25 + 0.15 * sin(_elapsed * 18.0)
+		)
 	elif _engine_state == ENGINE_ONLINE:
 		engine_level = 0.42 + absf(_throttle) * 0.58
 		if _damage_presentation != null:
 			engine_level *= clampf(
-				_damage_presentation.get_engine_power_multiplier(), 0.0, 1.0
+				_damage_presentation.get_engine_glow_multiplier(), 0.0, 1.0
 			)
 	engine_level *= float(exhaust_profile.get("intensity_multiplier", 1.0))
 	var exhaust_geometry := float(exhaust_profile.get("geometry_multiplier", 1.0))
@@ -7408,7 +7411,7 @@ func _sync_engine_visuals_immediately() -> void:
 		engine_level = 0.42 + absf(_throttle) * 0.58
 		if _damage_presentation != null:
 			engine_level *= clampf(
-				_damage_presentation.get_engine_power_multiplier(), 0.0, 1.0
+				_damage_presentation.get_engine_glow_multiplier(), 0.0, 1.0
 			)
 	engine_level *= float(exhaust_profile.get("intensity_multiplier", 1.0))
 	var geometry_multiplier := float(exhaust_profile.get("geometry_multiplier", 1.0))
@@ -7426,6 +7429,12 @@ func _sync_engine_visuals_immediately() -> void:
 		_engine_glows, _engine_lights, engine_active, exhaust_profile
 	)
 	_sync_variant_engine_presentation_immediately()
+
+
+## Engine glows read reduced flash from the hull's damage presentation, which
+## GameFlow keeps on the accepted setting. Glow only; thrust never reads this.
+func _is_engine_glow_reduced_flash() -> bool:
+	return _damage_presentation != null and _damage_presentation.is_reduced_flash_enabled()
 
 
 ## One virtual same-tick seam for fleet-specific plume/core/light rosters. Base
