@@ -5074,6 +5074,8 @@ func _sync_damage_presentation() -> void:
 
 
 func _apply_collision_damage(pre_collision_velocity: Vector3) -> void:
+	if not _landing_active:
+		_shed_velocity_into_contacts()
 	if _impact_cooldown_remaining > 0.0 or _landing_active or _destroyed:
 		return
 	var strongest_closing_speed := 0.0
@@ -5105,6 +5107,20 @@ func _apply_collision_damage(pre_collision_velocity: Vector3) -> void:
 	# GameFlow into the authored positional impact bank.
 	if not _destroyed and _ship_audio_rig != null:
 		_ship_audio_rig.play_hull_hit(clampf(impact_damage / 18.0, 0.35, 1.5))
+
+
+## Floating-mode `move_and_slide()` stops the body at a wall but leaves
+## `velocity` untouched, so a craft pinned against structure kept its full
+## closing speed and re-rammed on every impact cooldown. The wall absorbs the
+## part of the velocity that points into it; motion along it is kept.
+func _shed_velocity_into_contacts() -> void:
+	for collision_index in get_slide_collision_count():
+		var normal := get_slide_collision(collision_index).get_normal()
+		if not normal.is_finite() or normal.is_zero_approx():
+			continue
+		normal = normal.normalized()
+		if velocity.dot(normal) < 0.0:
+			velocity = velocity.slide(normal)
 
 
 ## Keeps collision routing inside the existing virtual damage chain so every
