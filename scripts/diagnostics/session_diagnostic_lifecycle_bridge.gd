@@ -14,6 +14,15 @@ const STATE_STARTING := "starting"
 const STATE_STABLE := "stable"
 const STATE_CLEAN := "clean"
 const LIFECYCLE_FLUSH_EVENT_THRESHOLD := 4
+const RECOVERY_RECEIPT_KEYS := [
+	"schema_version",
+	"state",
+	"session_id",
+	"startup_generation",
+	"unclean_start_count",
+	"last_physics_tick",
+	"last_elapsed_physics_seconds",
+]
 
 var _coordinator: CrashRecoveryCoordinator
 var _record: SessionDiagnosticRecord
@@ -61,7 +70,12 @@ func begin_session(session_id: int, commit_id: String, physics_tick: int, elapse
 		return _status(false, &"diagnostic_attach_failed", {"record_status": attached})
 	if bool(begun.get("recovered", false)):
 		if prior_was_unclean:
-			_recovery_available_snapshot = prior.duplicate(true)
+			# The receipt is the persisted marker only. The coordinator's live
+			# runtime flags are not part of it, and the HUD's recovery card
+			# refuses a receipt that carries them.
+			_recovery_available_snapshot = {}
+			for key: String in RECOVERY_RECEIPT_KEYS:
+				_recovery_available_snapshot[key] = prior.get(key)
 		var flushed := _coordinator.publish_recovery_event(
 			_record, _sink, physics_tick, elapsed_physics_seconds
 		)

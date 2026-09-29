@@ -12876,6 +12876,9 @@ func _on_landing_aborted(reason: StringName, source_ship: HeroShip = null) -> vo
 
 
 func _restart_shift() -> void:
+	# RESTART SHIFT is the player closing this session on purpose. Without the
+	# clean marker the reloaded title reads it as a crash and offers recovery.
+	mark_orderly_shutdown()
 	get_tree().reload_current_scene()
 
 
