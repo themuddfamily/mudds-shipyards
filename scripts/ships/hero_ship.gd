@@ -3078,8 +3078,14 @@ func _update_automatic_engine_control(delta: float, command: ShipCommand) -> voi
 	if not _piloted or _destroyed or _hull <= 0.0:
 		_automatic_engine_idle_elapsed = 0.0
 		return
+	# A barrel roll is one press that the flight integrator finishes over several
+	# seconds on slow-rolling craft; idling mid-roll would freeze it on its side.
+	var roll_in_progress := _roll_animation > 0.0 \
+		and not _landed \
+		and _get_damage_engine_multiplier() > 0.0
 	var propulsion_demand := _landing_active \
 		or _command_requires_engine(command) \
+		or roll_in_progress \
 		or _planetary_cruise_has_propulsion_demand()
 	if propulsion_demand:
 		_automatic_engine_idle_elapsed = 0.0
