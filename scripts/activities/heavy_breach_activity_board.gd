@@ -57,6 +57,10 @@ var _last_result: Dictionary = {}
 var _generation := 1
 var _active_director_generation := 0
 var _highest_reward_generation := 0
+## A cleared sortie whose reward the authority rejected (for example the save
+## store could not commit). The credit stays owed and is retried on the next
+## board interaction; the adapter's generation fence prevents a double grant.
+var _pending_reward_request: Dictionary = {}
 var _sortie_armed := false
 var _sortie_generation := 0
 var _armed_actor_instance_id := 0
@@ -296,6 +300,7 @@ func arm_sortie(actor: Node, expected_generation: int = 0) -> Dictionary:
 		_last_result = gate.duplicate(true)
 		interaction_resolved.emit(actor, _last_result.duplicate(true))
 		return _last_result.duplicate(true)
+	_retry_pending_reward()
 	if _director.is_running():
 		_last_result = _result(false, &"activity_busy")
 		interaction_resolved.emit(actor, _last_result.duplicate(true))
@@ -370,6 +375,7 @@ func interact(actor: Node = null, expected_generation: int = 0) -> bool:
 		_last_result = gate.duplicate(true)
 		interaction_resolved.emit(actor, _last_result.duplicate(true))
 		return false
+	_retry_pending_reward()
 	if _director.is_running():
 		_last_result = _result(false, &"activity_busy")
 		interaction_resolved.emit(actor, _last_result.duplicate(true))
@@ -431,6 +437,7 @@ func get_reward_handoff_snapshot() -> Dictionary:
 	return {
 		"configured": _reward_adapter != null,
 		"highest_reward_generation": _highest_reward_generation,
+		"pending_reward_generation": int(_pending_reward_request.get("generation", 0)),
 		"last_result": _last_reward_result.duplicate(true),
 		"adapter": _reward_adapter.call("get_snapshot")
 			if _reward_adapter != null else {},
@@ -510,11 +517,7 @@ func _on_scenario_concluded(scenario_id: StringName, outcome: StringName) -> voi
 				if is_instance_valid(_protected_objective) else ""
 			),
 		}.duplicate(true)
-		_last_reward_result = _reward_adapter.call("consume", request, generation)
-		if bool(_last_reward_result.get("accepted", false)):
-			_highest_reward_generation = generation
-			if _audio_binding != null:
-				_audio_binding.present_reward(_last_reward_result, generation)
+		_submit_reward_request(request)
 	_active_director_generation = 0
 	_active_scenario_id = &""
 	# Post the next contract. Any concluded sortie rotates, so a failed run
@@ -522,6 +525,26 @@ func _on_scenario_concluded(scenario_id: StringName, outcome: StringName) -> voi
 	_offered_index = posmod(_offered_index + 1, OFFERED_SCENARIOS.size())
 	_refresh_board_label()
 	snapshot_changed.emit(get_snapshot())
+
+
+func _submit_reward_request(request: Dictionary) -> void:
+	var generation := int(request.get("generation", 0))
+	_last_reward_result = _reward_adapter.call("consume", request, generation)
+	if bool(_last_reward_result.get("accepted", false)):
+		_highest_reward_generation = maxi(_highest_reward_generation, generation)
+		_pending_reward_request.clear()
+		if _audio_binding != null:
+			_audio_binding.present_reward(_last_reward_result, generation)
+	elif StringName(_last_reward_result.get("reason", &"")) == &"reward_callback_rejected":
+		_pending_reward_request = request.duplicate(true)
+	else:
+		_pending_reward_request.clear()
+
+
+func _retry_pending_reward() -> void:
+	if _pending_reward_request.is_empty() or _reward_adapter == null:
+		return
+	_submit_reward_request(_pending_reward_request.duplicate(true))
 
 
 func _board_scenario_is_running() -> bool:

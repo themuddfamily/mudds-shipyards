@@ -8,6 +8,8 @@ const TORPEDO_BOAT_SCENE := preload("res://scenes/ships/torpedo_boat_opponent.ts
 var _assertions := 0
 var _failures: Array[String] = []
 var _reward_requests: Array[Dictionary] = []
+var _rejected_reward_requests: Array[Dictionary] = []
+var _reject_next_reward := false
 
 
 func _init() -> void:
@@ -186,19 +188,24 @@ func _run() -> void:
 				== EncounterScenarioDirector.TACTIC_SCREEN_GUARD,
 		"board admission launches the default escort-mode picket with explicit director authority and one screen"
 	)
+	# The reward authority rejects the first clear, as it does when the save
+	# store cannot commit. The earned credit must stay owed, not vanish.
+	_reject_next_reward = true
 	picket.apply_damage(picket.maximum_health, picket.global_position)
 	for _frame in 8:
 		await physics_frame
 		await process_frame
+	var cleared_generation := int(started_snapshot.active_director_generation)
 	_check(
 		director.is_concluded()
 			and director.get_outcome() == EncounterScenarioDirector.OUTCOME_CLEARED
-			and _reward_requests.size() == 1
-			and int(_reward_requests[0].activity_generation)
-			== int(started_snapshot.active_director_generation)
-			and int(board.get_reward_handoff_snapshot().highest_reward_generation)
-			== int(started_snapshot.active_director_generation),
-		"picket destruction clears the production contract and submits exactly one reward request"
+			and _rejected_reward_requests.size() == 1
+			and int(_rejected_reward_requests[0].activity_generation) == cleared_generation
+			and _reward_requests.is_empty()
+			and int(board.get_reward_handoff_snapshot().highest_reward_generation) == 0
+			and int(board.get_reward_handoff_snapshot().get("pending_reward_generation", -1))
+			== cleared_generation,
+		"picket destruction clears the contract and keeps a rejected reward owed for retry"
 	)
 	var completed_generation := generation
 	var reset: Dictionary = board.abort_and_reset(target, generation)
@@ -207,8 +214,8 @@ func _run() -> void:
 		bool(reset.get("accepted", false))
 			and next_generation > completed_generation
 			and not board.interact(target, completed_generation)
-			and _reward_requests.size() == 1,
-		"reset advances the board generation and fences stale retries without duplicating reward"
+			and _reward_requests.is_empty(),
+		"reset advances the board generation and fences stale callers without paying the owed reward"
 	)
 	target.global_position = board.global_position + Vector3(1.5, 0.0, 0.0)
 	var active_again: bool = board.interact(target, next_generation)
@@ -219,6 +226,14 @@ func _run() -> void:
 			and director.get_active_scenario() == EncounterScenarioDirector.SCENARIO_TORPEDO_RUN
 			and board.get_snapshot().active_scenario == EncounterScenarioDirector.SCENARIO_TORPEDO_RUN,
 		"a fresh board generation admits the rotated Torpedo Run contract"
+	)
+	_check(
+		_reward_requests.size() == 1
+			and int(_reward_requests[0].activity_generation) == cleared_generation
+			and int(board.get_reward_handoff_snapshot().highest_reward_generation)
+			== cleared_generation
+			and int(board.get_reward_handoff_snapshot().get("pending_reward_generation", -1)) == 0,
+		"the next board interaction retries the owed Heavy Breach reward exactly once"
 	)
 	var board_id: int = board.get_instance_id()
 	host.remove_child(world)
@@ -276,6 +291,10 @@ func _has_housing_chamfer(mesh: Mesh, size: Vector3, width: float) -> bool:
 
 
 func _accept_reward_request(request: Dictionary) -> Dictionary:
+	if _reject_next_reward:
+		_reject_next_reward = false
+		_rejected_reward_requests.append(request.duplicate(true))
+		return {"accepted": false, "reason": &"reward_store_commit_rejected"}
 	_reward_requests.append(request.duplicate(true))
 	return {"accepted": true, "count": _reward_requests.size()}
 
