@@ -10,6 +10,9 @@ extends SceneTree
 ## 8,000 km cruise home retired the approach for good, leaving the pilot out at
 ## Ember with no route back (the pause row offered a new Ember expedition).
 ##
+## Withdrawing the return from the pause row stranded the pilot the same way:
+## out at Ember the row read "READY — EMBER MOON". It now offers the return.
+##
 ## Staging is ember_repeat_visit_landing_test's: the craft is held at the
 ## navigation anchor until the real final approach activates, then placed once
 ## at the corridor entry. The descent, landing, disembark, abandon, re-board,
@@ -198,8 +201,39 @@ func _run() -> void:
 		resumed,
 		"releasing the controls resumes the cruise home from %.0f km out" % (distance_after / 1000.0)
 	)
+	# The pause row withdraws the return. Out here that must not leave Ember as
+	# the only destination on offer: the same row brings the return back.
+	_press_cruise_row(game)
+	var withdrawn := await _wait_for(
+		func() -> bool: return not bool(game.get("_mudds_return_approach_active")) \
+			and not bool(cruise.get_snapshot().get("engagement_requested", true)), 60)
+	_check(withdrawn, "the pause row withdraws the queued return")
+	for _drift in 30:
+		await physics_frame
+		await process_frame
+	var row := game.call(&"_planetary_cruise_presentation") as Dictionary
+	print("WITHDRAWN row=%s distance=%.0f km" % [
+		row.get("status_text", "?"), craft.global_position.distance_to(home) / 1000.0])
+	_check(
+		bool(row.get("toggle_enabled", false)) and str(row.get("status_text", "")).contains("MUDDS"),
+		"out at Ember the withdrawn return is what the pause row offers (%s)" % row.get("status_text", "?")
+	)
+	_press_cruise_row(game)
+	var requeued := await _wait_for(func() -> bool: return _return_cruising(game, craft), 1800)
+	_check(
+		requeued and not bool(game.get("_ember_surface_journey_active"))
+			and (game.get("_pending_ember_surface_request") as Dictionary).is_empty(),
+		"pressing it again flies the pilot home rather than starting another Ember expedition"
+	)
 	await _tear_down(game)
 	_finish()
+
+
+func _press_cruise_row(game: GameFlow) -> void:
+	game.call(
+		&"_on_hud_planetary_cruise_toggle_requested",
+		int(game.get("_last_hud_planetary_cruise_toggle_serial")) + 1
+	)
 
 
 func _return_cruising(game: GameFlow, craft: HeroShip) -> bool:
