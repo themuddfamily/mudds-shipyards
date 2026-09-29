@@ -9264,7 +9264,38 @@ func _build_network_craft_pose_entries() -> Array:
 		pilots[active_ship.get_ship_id()] = {
 			"craft": active_ship, "peer_id": NetworkSessionAdapterType.AUTHORITY_PEER_ID,
 		}
-	return _network_craft_pose_stream.build_host_entries(pilots, _network_boarding_server_tick)
+	var entries := _network_craft_pose_stream.build_host_entries(pilots, _network_boarding_server_tick)
+	return _shift_network_craft_pose_entries(entries, -_network_station_frame_origin())
+
+
+## Where this game's station stands in its own world space. Every peer's
+## world starts at the authored origin, but each planet visit's common-world
+## origin rebase moves it (a Rime round trip leaves it ~58 m off), and no peer
+## shares another's rebases. Craft poses therefore cross the wire in the
+## station's frame: the host subtracts its own offset and each client adds its
+## own, so a craft sits at the same berth, gantry and hull on every screen.
+## The rebase is a pure translation, so the frame is this one offset.
+func _network_station_frame_origin() -> Vector3:
+	return world.global_position if is_instance_valid(world) else Vector3.ZERO
+
+
+## `entries` with every craft-pose position moved by `offset`; other movement
+## entries and every non-positional field are passed through untouched.
+func _shift_network_craft_pose_entries(entries: Array, offset: Vector3) -> Array:
+	if offset == Vector3.ZERO:
+		return entries
+	var shifted: Array = []
+	for entry_variant: Variant in entries:
+		if entry_variant is Dictionary \
+				and StringName((entry_variant as Dictionary).get("mode", &"")) \
+					== NetworkRemoteCraftPoseStreamType.MODE \
+				and (entry_variant as Dictionary).get("position") is Vector3:
+			var entry := (entry_variant as Dictionary).duplicate()
+			entry["position"] = (entry.get("position") as Vector3) + offset
+			shifted.append(entry)
+		else:
+			shifted.append(entry_variant)
+	return shifted
 
 
 ## Client: every authoritative snapshot this peer applies may carry craft
@@ -9276,7 +9307,10 @@ func _on_network_snapshot_applied(result: Dictionary) -> void:
 	var sections := snapshot.get("sections", {}) as Dictionary
 	var movement: Variant = sections.get(&"movement", sections.get("movement", []))
 	if movement is Array:
-		_network_craft_pose_stream.consume_movement_section(movement as Array)
+		# Station frame on the wire; this peer's own world space here.
+		_network_craft_pose_stream.consume_movement_section(
+			_shift_network_craft_pose_entries(movement as Array, _network_station_frame_origin())
+		)
 
 
 ## Client: one physics tick of the craft-pose replica. A host-side loss of the
