@@ -8,8 +8,13 @@ extends SceneTree
 ## through the single live `CombatResolver`, and proves the guided Torrent
 ## activity, the existing defender, and the coordinator's combat-source census
 ## are all unchanged. Every wait is a bounded frame budget on the fixed physics
-## step; nothing here reads a wall clock.
+## step; nothing here reads a wall clock. The suite pins one physics step per
+## rendered frame: on a loaded machine the engine otherwise catches up with
+## several ticks per awaited round, and the 420-round boundary wait with a lone
+## live defender became long enough for it to close on the parked Torrent and
+## wear its hull down to below one lance, so the lance destroyed it.
 
+const Cadence := preload("res://tests/fixed_physics_cadence.gd")
 const MAIN_SCENE := preload("res://scenes/main.tscn")
 
 const DISPATCH_FRAME_BUDGET := 420
@@ -24,6 +29,7 @@ var _failures: Array[String] = []
 var _assertion_count := 0
 var _picket_pulse_events: Array[Dictionary] = []
 var _picket_pulse_source_instance_id := 0
+var _cadence := Cadence.new()
 
 
 func _init() -> void:
@@ -31,12 +37,14 @@ func _init() -> void:
 
 
 func _run() -> void:
+	_cadence.pin()
 	var original_root_child_count := root.get_child_count()
 	await _test_production_encounter()
 	_check(
 		root.get_child_count() == original_root_child_count,
 		"the production encounter fixture cleans up without leaving scene nodes"
 	)
+	_cadence.restore()
 	_finish()
 
 
@@ -222,7 +230,8 @@ func _test_production_encounter() -> void:
 	)
 	_check(
 		is_equal_approx(float(torrent.get_telemetry().get("hull", 0.0)), hull_before - picket.lance_damage),
-		"the player craft loses exactly the lance damage and nothing more"
+		"the player craft loses exactly the lance damage and nothing more (%.1f -> %.1f)"
+			% [hull_before, float(torrent.get_telemetry().get("hull", 0.0))]
 	)
 	_check(
 		resolver.get_last_sequence(picket, picket.source_id) == lance_sequence_before + 1,
