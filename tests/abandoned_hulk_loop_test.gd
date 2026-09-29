@@ -569,6 +569,10 @@ func _test_production_loop() -> void:
 			% [str(breaker.call(&"get_interaction_prompt")), refused.get("state_id", &""),
 				fringe_reachable]
 	)
+	# A common-origin rebase leaves the streamed Cinder roots away from their
+	# authored world position; the breaker must still be reachable there.
+	var rebase_offset := Vector3(2000.0, 0.0, 0.0)
+	bootstrap.global_position += rebase_offset
 	player.teleport_to(
 		Transform3D(Basis.IDENTITY, hulk.get_breaker_world_position())
 	)
@@ -582,8 +586,19 @@ func _test_production_loop() -> void:
 	_check(
 		StringName(engaged.get("state_id", &"")) == &"active"
 		and int(engaged.get("generation", 0)) == 1,
-		"throwing the breaker starts exactly one generation of the salvage run"
+		"throwing the breaker starts exactly one generation of the salvage run, even after an origin rebase (%s)"
+			% str(engaged.get("state_id", &""))
 	)
+	_check(
+		str(breaker.call(&"get_interaction_prompt")).contains("ENGAGED"),
+		"an accepted throw shows the bus engaged while it restores (%s)"
+			% str(breaker.call(&"get_interaction_prompt"))
+	)
+	bootstrap.global_position -= rebase_offset
+	player.teleport_to(
+		Transform3D(Basis.IDENTITY, hulk.get_breaker_world_position())
+	)
+	await physics_frame
 	_check(_interior_lighting_matches(hulk, false),
 		"throwing the breaker alone does not light the bus before its reward commits")
 	await _advance_until_claimed(game)

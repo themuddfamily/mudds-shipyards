@@ -17901,10 +17901,21 @@ func _restore_hulk_power_from_reward_ledger() -> void:
 func _on_hulk_breaker_engaged(_actor: Node) -> void:
 	if _hulk_power_activity == null or not is_instance_valid(player):
 		return
-	_last_hulk_power_result = _hulk_power_activity.engage(
-		player.global_position
-	).duplicate(true)
+	# The activity measures reach against the breaker's authored cluster
+	# position, but a common-origin rebase moves the streamed hulk in world
+	# space. Express the player's offset from the live breaker in that frame.
+	var hulk := _get_station_hulk()
+	var actor_position := player.global_position
+	if is_instance_valid(hulk):
+		actor_position = DerelictPowerRestorationActivity.BREAKER_ANCHOR + (
+			player.global_position - hulk.get_breaker_world_position()
+		)
+	_last_hulk_power_result = _hulk_power_activity.engage(actor_position).duplicate(true)
 	_sync_nearby_activity_hud()
+	if bool(_last_hulk_power_result.get("accepted", false)) \
+			and is_instance_valid(_hulk_power_breaker):
+		# Only an accepted throw reads as engaged; a refused one keeps its prompt.
+		_hulk_power_breaker.call(&"set_engaged", true)
 	if bool(_last_hulk_power_result.get("accepted", false)) and is_instance_valid(hud):
 		hud.set_objective(
 			"Hold the gallery while the auxiliary bus comes up",
