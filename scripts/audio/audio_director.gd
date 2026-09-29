@@ -330,8 +330,7 @@ func set_on_foot(on_foot: bool) -> void:
 	if not _can_mutate_runtime_state():
 		return
 	_desired_ambience_volume_db = -10.0 if on_foot else -18.0
-	if is_instance_valid(_ambience):
-		_ambience.volume_db = _desired_ambience_volume_db
+	_apply_runtime_mix()
 
 
 func get_resident_stream_ids() -> PackedStringArray:

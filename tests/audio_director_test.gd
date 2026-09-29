@@ -29,12 +29,31 @@ func _run() -> void:
 
 	_test_fixed_hierarchy(director)
 	_test_resident_bank(director)
+	_test_reduced_range_survives_mix_mode(director)
 	await _test_request_churn(director)
 	await _test_detach_reentry_cycles(director)
 	await _test_queued_public_mutators_are_inert()
 	await _test_queued_reentry_restore_is_inert()
 	await _test_clean_lifecycle(director)
 	_finish()
+
+
+## Reduced dynamic range must hold across the on-foot/piloting ambience mode
+## switches that happen after the setting was enabled.
+func _test_reduced_range_survives_mix_mode(director: AudioDirector) -> void:
+	director.set_reduced_dynamic_range(true)
+	for on_foot in [true, false]:
+		director.set_on_foot(on_foot)
+		var expected := (-10.0 if on_foot else -18.0) + AudioDirector.REDUCED_RANGE_AMBIENCE_DB
+		_check(
+			is_equal_approx(float(director.get_runtime_mix_snapshot()["ambience_volume_db"]), expected),
+			"reduced range still attenuates ambience after set_on_foot(%s)" % on_foot
+		)
+	director.set_reduced_dynamic_range(false)
+	_check(
+		is_equal_approx(float(director.get_runtime_mix_snapshot()["ambience_volume_db"]), -18.0),
+		"disabling reduced range restores the piloting ambience level"
+	)
 
 
 func _test_fixed_hierarchy(director: AudioDirector) -> void:
