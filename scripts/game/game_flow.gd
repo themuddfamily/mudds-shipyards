@@ -717,6 +717,10 @@ var _cinder_asteroid_field_reward_configuration: Dictionary = {}
 var _last_cinder_asteroid_field_reward_result: Dictionary = {}
 var _cinder_beacon_hud_elapsed := 0.0
 var _last_game_flow_reward_result: Dictionary = {}
+## Route completions whose receipt the store could not save. Each stays owed and
+## is retried at the next activity reset, start or shipyard landing; the adapter
+## and authority generation fences keep every retry single-pay.
+var _owed_game_flow_activity_rewards: Array[Dictionary] = []
 ## Opt-in multiplayer transport. Normal solo startup never creates this node;
 ## explicit host/join calls retain the ENet/lifecycle seam beneath GameFlow.
 var network_session: NetworkSessionAdapterType
@@ -11854,6 +11858,7 @@ func _on_landing_completed(source_ship: HeroShip = null) -> void:
 	else:
 		_fail_active_activity(&"returned_to_shipyard")
 	_return_registered = true
+	_retry_owed_game_flow_activity_rewards()
 	phase = Phase.SHUT_DOWN
 	publish_first_sortie_tutorial_phase(&"exit", _first_sortie_tutorial_generation)
 	hud.set_objective("Hold controls neutral, then exit %s" % active_ship.get_display_name())
@@ -14482,6 +14487,7 @@ func request_activity_start(
 	) -> Dictionary:
 	if is_queued_for_deletion() or not is_inside_tree():
 		return {"accepted": false, "reason": &"detached"}
+	_retry_owed_game_flow_activity_rewards()
 	if (
 		not is_instance_valid(activity_director)
 		or cinder_race_session == null
@@ -14621,6 +14627,7 @@ func fail_active_activity(reason: StringName) -> bool:
 func reset_active_activity() -> bool:
 	if not _can_recover_live_activity():
 		return false
+	_retry_owed_game_flow_activity_rewards()
 	if (
 		cinder_race_session == null
 		or patrol_activity == null
@@ -15207,7 +15214,35 @@ func _request_game_flow_activity_reward(
 	_last_game_flow_reward_result = _game_flow_reward_adapter.call(
 		&"consume", completed, activity_generation
 	) as Dictionary
+	var authority_reason := StringName(
+		(_game_flow_reward_authority.call(&"get_snapshot") as Dictionary).get(
+			"last_result", {}
+		).get("reason", &"")
+	)
+	var owed := {"activity_id": activity_id, "generation": activity_generation}
+	var owed_index := _owed_game_flow_activity_rewards.find(owed)
+	if bool(_last_game_flow_reward_result.get("accepted", false)):
+		if owed_index >= 0:
+			_owed_game_flow_activity_rewards.remove_at(owed_index)
+	elif authority_reason == &"reward_store_commit_rejected" and owed_index < 0:
+		_owed_game_flow_activity_rewards.append(owed)
 	return _last_game_flow_reward_result.duplicate(true)
+
+
+func _retry_owed_game_flow_activity_rewards() -> void:
+	for owed: Dictionary in _owed_game_flow_activity_rewards.duplicate():
+		var retried := _request_game_flow_activity_reward(
+			StringName(owed.activity_id), int(owed.generation)
+		)
+		if bool(retried.get("accepted", false)) and is_instance_valid(hud):
+			hud.toast(
+				"Reward receipt saved",
+				_activity_reward_toast_detail("Owed activity credit", retried),
+				3.2
+			)
+		elif not bool(retried.get("accepted", false)) \
+				and _owed_game_flow_activity_rewards.has(owed):
+			return
 
 
 func _activity_reward_toast_detail(
