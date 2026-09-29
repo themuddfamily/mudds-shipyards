@@ -14,6 +14,9 @@ const MAX_TOPOLOGY_NODES := 512
 const MAX_TOPOLOGY_EDGES := 1024
 const MAX_CONTACTS := 256
 const MAX_OBJECTIVE_MARKERS := 32
+const OBJECTIVE_FONT_SIZE := 10
+const OBJECTIVE_TEXT_INSET := 12.0
+const OBJECTIVE_RIM_INSET := 12.0
 
 const INK := Color("07111d")
 const GLASS := Color("0b1c2ae6")
@@ -292,21 +295,50 @@ func _draw() -> void:
 		var marker := marker_record as Dictionary
 		if not bool(marker.get("active", true)):
 			continue
-		var point := _project(marker.position, center, radius)
+		# An objective beyond range is clamped inside the rim, not onto it: the
+		# frame ring is drawn last and would otherwise cover the glyph.
+		var point := _project(
+			marker.position, center, radius, maxf(radius - OBJECTIVE_RIM_INSET, 1.0)
+		)
 		var marker_id := StringName(marker.id)
 		var marker_color := _caution_color if marker_id == &"station_defense_activity_board" else _nominal_color
 		var glyph := str(marker.get("glyph", "◆"))
 		var label := str(marker.get("label", marker_id)).to_upper()
 		var distance: float = marker.position.distance_to(_snapshot.center_position as Vector2)
-		# Keep the static glyph/label shaped independently of the changing
-		# distance. Unicode fallback lookup otherwise repeats for every new
-		# distance string, even though the glyph and label never change.
-		var prefix := glyph + " " + label + "  "
 		var font := ThemeDB.fallback_font
-		var text_position := point + Vector2(7.0, 4.0)
-		draw_string(font, text_position, prefix, HORIZONTAL_ALIGNMENT_LEFT, -1.0, 10, marker_color)
-		text_position.x += _get_objective_prefix_advance(prefix, font)
-		draw_string(font, text_position, "%.0fM" % distance, HORIZONTAL_ALIGNMENT_LEFT, -1.0, 10, marker_color)
+		# The glyph is the marker's only mark, so it is centred on the projected
+		# point. Its label and distance form one line directly below it (above it
+		# on the southern rim), clamped inside the clipped map so a target due east
+		# or clamped to the rim never draws past the control's edge.
+		var ascent := font.get_ascent(OBJECTIVE_FONT_SIZE)
+		var line_height := ascent + font.get_descent(OBJECTIVE_FONT_SIZE)
+		var glyph_width := _get_objective_prefix_advance(glyph, font)
+		var glyph_baseline := Vector2(
+			point.x - glyph_width * 0.5, point.y - line_height * 0.5 + ascent
+		)
+		_draw_objective_text(font, glyph_baseline, glyph, marker_color)
+		# Keep the static label shaped independently of the changing distance.
+		# Unicode fallback lookup otherwise repeats for every new distance string.
+		var prefix := label + "  "
+		var distance_text := "%.0fM" % distance
+		var prefix_advance := _get_objective_prefix_advance(prefix, font)
+		var label_width := prefix_advance + font.get_string_size(
+			distance_text, HORIZONTAL_ALIGNMENT_LEFT, -1.0, OBJECTIVE_FONT_SIZE
+		).x
+		var label_top := point.y + line_height * 0.5
+		if label_top + line_height > size.y - OBJECTIVE_TEXT_INSET:
+			label_top = point.y - line_height * 1.5
+		var text_position := Vector2(
+			clampf(
+				point.x - label_width * 0.5,
+				OBJECTIVE_TEXT_INSET,
+				maxf(size.x - OBJECTIVE_TEXT_INSET - label_width, OBJECTIVE_TEXT_INSET)
+			),
+			label_top + ascent
+		)
+		_draw_objective_text(font, text_position, prefix, marker_color)
+		text_position.x += prefix_advance
+		_draw_objective_text(font, text_position, distance_text, marker_color)
 	var legend_y := size.y - 12.0
 	for legend in get_visible_objective_marker_legend():
 		draw_string(ThemeDB.fallback_font, Vector2(10.0, legend_y), "%s %s" % [legend.get("glyph", ""), legend.get("label", "")], HORIZONTAL_ALIGNMENT_LEFT, -1.0, 9, _muted_color)
@@ -331,6 +363,12 @@ func _draw() -> void:
 		draw_colored_polygon(arrow, _nominal_color)
 	_draw_frame(center, radius)
 	_draw_offscreen_marker(center, radius)
+
+
+## The single draw seam for objective marker text, so focused checks can
+## measure where each glyph and label actually lands on the map.
+func _draw_objective_text(font: Font, baseline: Vector2, text: String, color: Color) -> void:
+	draw_string(font, baseline, text, HORIZONTAL_ALIGNMENT_LEFT, -1.0, OBJECTIVE_FONT_SIZE, color)
 
 
 func _get_objective_prefix_advance(prefix: String, font: Font) -> float:
@@ -434,14 +472,20 @@ func _draw_offscreen_marker(center: Vector2, radius: float) -> void:
 	)
 
 
-func _project(world_position: Vector2, center: Vector2, radius: float) -> Vector2:
+func _project(
+	world_position: Vector2, center: Vector2, radius: float, clamp_radius: float = -1.0
+) -> Vector2:
 	var relative := world_position - (_snapshot.center_position as Vector2)
-	# World X is screen right and world -Z is screen up. The map remains north-up;
-	# heading belongs only to the player marker.
-	var map_vector := Vector2(relative.x, -relative.y)
+	# World X is screen right and world -Z is screen up: the stored Vector2 is
+	# (x, z) and screen Y already grows southwards, so no axis is negated. This
+	# matches the player arrow (heading 0 faces -Z, drawn up) and the offscreen
+	# route marker, whose direction is the same (dx, dz). The map remains
+	# north-up; heading belongs only to the player marker.
+	var map_vector := relative
 	var projected := map_vector * (radius / float(_snapshot.range_meters))
-	if projected.length() > radius:
-		projected = projected.normalized() * radius
+	var limit := radius if clamp_radius <= 0.0 else minf(clamp_radius, radius)
+	if projected.length() > limit:
+		projected = projected.normalized() * limit
 	return center + projected
 
 
