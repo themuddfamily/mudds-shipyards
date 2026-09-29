@@ -121,8 +121,11 @@ func objective() -> String:
 	var route := snapshot()
 	if int(route.get("state", 0)) == CheckpointRouteActivity.State.COMPLETED:
 		return "Observations complete — return to the standing stones to retry saving the reward"
-	return "%s — %.0f m  |  %d/2 observations%s" % [LABELS[index], distance,
-		int(route.get("next_checkpoint_index", 0)), "  |  Trail sign: abandon survey" if index > 0 else "  |  Optional coastal survey"]
+	# An abandoned run keeps its reached index, but its observations are lost.
+	if int(route.get("state", 0)) != CheckpointRouteActivity.State.ACTIVE:
+		return "%s — %.0f m  |  Optional coastal survey" % [LABELS[index], distance]
+	return "%s — %.0f m  |  %d/2 observations  |  Trail sign: abandon survey" % [LABELS[index], distance,
+		int(route.get("next_checkpoint_index", 0))]
 
 func prompt() -> String:
 	if not _on_foot() or reward_recorded():
