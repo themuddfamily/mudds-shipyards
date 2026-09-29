@@ -2787,6 +2787,10 @@ func _initialize_session_diagnostics() -> void:
 	var sink := SessionDiagnosticFileSinkType.new(
 		"user://diagnostics", _session_diagnostics_filesystem
 	)
+	# Ordinary appends refuse a malformed log, so an empty or truncated file
+	# left by a crash would block every later crash record. Quarantine it (or
+	# promote a valid interrupted stage) once, before this session writes.
+	sink.recover_prior_log()
 	var restored := coordinator.restore()
 	if not bool(restored.accepted):
 		_session_diagnostics_last_status = {"accepted": false, "reason": &"restore_failed", "status": restored}

@@ -205,6 +205,7 @@ func _run() -> void:
 	_test_persistent_diagnostic_write_failure()
 	_test_orderly_shutdown_composition()
 	await _test_detach_reentry_and_free_remain_dirty()
+	_test_malformed_crash_log_is_repaired_at_startup()
 	if _failures.is_empty():
 		print("MAIN_SESSION_DIAGNOSTICS_INTEGRATION_TEST_OK: %d assertions" % _assertions)
 		quit(0)
@@ -440,6 +441,48 @@ func _test_detach_reentry_and_free_remain_dirty() -> void:
 		and StringName(restarted_store.get_snapshot().crash_recovery.state) == &"running",
 		"queued free leaves both dirty markers for fresh-process recovery instead of inferring shutdown"
 	)
+
+
+## A crash-log.json left empty or truncated (power loss, disk fault) was never
+## repaired: every later append refused it as `log_invalid`, so no launch after
+## that could record a crash or a lifecycle observation in the local log.
+func _test_malformed_crash_log_is_repaired_at_startup() -> void:
+	var filesystem := MemoryFilesystem.new()
+	var path := "memory://malformed-crash-log.json"
+	var log_path := "user://diagnostics/crash-log.json"
+	var truncated := '[{"capacity": 64, "events": [{"event_co'.to_utf8_buffer()
+	filesystem.files[log_path] = truncated
+	var store := Store.new(path, filesystem)
+	_check(bool(store.load().get("accepted", false)), "malformed-log fixture store loads empty")
+	var crashed := GameFlowType.new()
+	crashed.set("_runtime_settings_user_data_store", store)
+	crashed.set_session_diagnostics_filesystem(filesystem)
+	crashed._initialize_session_diagnostics()
+	crashed.free()
+	var relaunched_store := Store.new(path, filesystem)
+	_check(bool(relaunched_store.load().get("accepted", false)), "malformed-log fixture relaunch loads the running marker")
+	var relaunched := GameFlowType.new()
+	relaunched.set("_runtime_settings_user_data_store", relaunched_store)
+	relaunched.set_session_diagnostics_filesystem(filesystem)
+	relaunched._initialize_session_diagnostics()
+	var status := relaunched.get_session_diagnostics_snapshot()
+	var written := filesystem.read_bytes(log_path, 256 * 1024)
+	var parsed: Variant = JSON.parse_string(
+		(written.get("bytes", PackedByteArray()) as PackedByteArray).get_string_from_utf8()
+	)
+	_check(
+		StringName(status.last_status.get("reason", &"")) == &"recovered"
+			and not bool(status.bridge.get("recovery_flush_pending", true))
+			and parsed is Array and not (parsed as Array).is_empty(),
+		"startup repairs a malformed crash log so the prior crash is recorded (%s)"
+			% status.last_status.get("reason", "")
+	)
+	_check(
+		filesystem.files.get(log_path + ".rejected", PackedByteArray()) == truncated,
+		"the malformed crash log is quarantined intact rather than discarded"
+	)
+	relaunched.mark_orderly_session_shutdown()
+	relaunched.free()
 
 
 func _new_composed_marker_flow(
