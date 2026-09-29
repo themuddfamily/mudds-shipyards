@@ -7082,6 +7082,7 @@ func start_shift() -> void:
 	if phase != Phase.INTRO:
 		return
 	phase = Phase.APPROACH_SHIP
+	var resumed_interrupted_session := _resume_pending_session_recovery_for_shift()
 	player.set_camera_active(true)
 	player.set_control_enabled(true)
 	hud.set_mode("on-foot")
@@ -7090,11 +7091,41 @@ func start_shift() -> void:
 	)
 	_present_boarding_confirmation(&"approach", ship)
 	publish_first_sortie_tutorial_phase(&"walk_interact", _first_sortie_tutorial_generation)
-	hud.toast("Shipyard access granted", "Guided Torrent test and free-flight fleet access are available")
+	if resumed_interrupted_session:
+		hud.toast("Interrupted session resumed", get_session_recovery_save_summary(), 5.0)
+	else:
+		hud.toast("Shipyard access granted", "Guided Torrent test and free-flight fleet access are available")
 	audio.set_on_foot(true)
 	audio.play_ui_confirm()
 	restore_interrupted_aurora_visit()
 	restore_interrupted_rime_visit()
+
+
+## BEGIN SHIFT with the interrupted-session choice still open is the player
+## carrying on with what was loaded, which is exactly "Resume Last Save": the
+## save, any restored activity and any interrupted visit are all kept, and no
+## setting changes. Leaving the choice open instead would keep its modal card
+## over gameplay for the whole shift, hiding every runtime status card behind
+## it. Returns whether an open choice was resolved this way.
+func _resume_pending_session_recovery_for_shift() -> bool:
+	var pending := get_recovery_available_snapshot()
+	if pending.is_empty():
+		return false
+	var status := _handle_hud_session_recovery_choice(
+		&"normal_start",
+		int(pending.get("session_id", 0)),
+		int(pending.get("startup_generation", 0))
+	)
+	status["source"] = &"begin_shift"
+	_session_recovery_hud_status = status.duplicate(true)
+	if not bool(status.get("accepted", false)):
+		return false
+	# The choice handler defers its cleanup past a button's pressed signal. No
+	# button is on the stack here, and the card must be gone before this
+	# shift's first tutorial and status cards are published.
+	if is_instance_valid(hud) and hud.has_method(&"clear_session_recovery_notice"):
+		hud.call(&"clear_session_recovery_notice")
+	return true
 
 
 ## Recomputes the on-foot interaction targets from live world state.
