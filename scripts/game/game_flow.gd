@@ -3872,6 +3872,14 @@ func get_minimap_snapshot(actor_sample: Dictionary = {}) -> Dictionary:
 func _minimap_actor_forward(actor: Node3D) -> Vector3:
 	if not is_instance_valid(actor):
 		return Vector3.FORWARD
+	# In first person the view is the embodied facing: the hidden suit only turns
+	# while walking, so mouse or stick look in place would leave a stale arrow.
+	if actor == player and player.has_method(&"is_first_person_active") \
+			and bool(player.call(&"is_first_person_active")) \
+			and player.has_method(&"get_interaction_direction"):
+		var view_forward := player.call(&"get_interaction_direction") as Vector3
+		if view_forward.is_finite() and Vector2(view_forward.x, view_forward.z).length_squared() > 0.000001:
+			return view_forward.normalized()
 	if actor == player and player.has_method(&"get_pilot_visual_forward_direction"):
 		var visual_forward := player.call(&"get_pilot_visual_forward_direction") as Vector3
 		if visual_forward.is_finite() and visual_forward.length_squared() > 0.000001:
