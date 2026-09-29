@@ -874,6 +874,12 @@ func _on_viewport_gui_focus_changed(control: Control) -> void:
 
 func _input(event: InputEvent) -> void:
 	_observe_prompt_device(event)
+	# An armed capture must see the raw press before GUI focus handling does:
+	# otherwise D-pad/arrow presses move focus instead of binding, and an
+	# Enter/Space/pad-A press binds but its release re-presses the focused row
+	# and silently re-arms capture for the next control.
+	if not _binding_capture_action.is_empty():
+		_capture_binding_event(event)
 
 
 func _unhandled_input(event: InputEvent) -> void:

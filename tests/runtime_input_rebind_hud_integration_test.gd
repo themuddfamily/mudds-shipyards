@@ -44,6 +44,7 @@ func _run() -> void:
 	var reset_button := (hud.get("_binding_reset_buttons") as Dictionary).get(&"fire") as Button
 	reset_button.pressed.emit()
 	_check(fire_button.text != "F13", "reset refreshes the row through the presenter profile intent")
+	await _test_gui_routed_capture(hud)
 	hud.queue_free()
 	await process_frame
 	if _failures.is_empty():
@@ -53,6 +54,79 @@ func _run() -> void:
 	for failure in _failures:
 		push_error(failure)
 	quit(1)
+
+
+## Real players reach capture through the focused row, so these events travel
+## the viewport's GUI route (root.push_input) rather than a direct callback.
+func _test_gui_routed_capture(hud: Node) -> void:
+	root.content_scale_size = Vector2i(1280, 720)
+	hud.set_paused(true)
+	var main_page := hud.get("_pause_main_page") as Control
+	(main_page.find_child("SettingsOpenButton", true, false) as Button).pressed.emit()
+	await process_frame
+	var interact_button := (hud.get("_binding_buttons") as Dictionary).get(&"interact") as Button
+	interact_button.grab_focus()
+	await process_frame
+	await _press_and_release(_key(KEY_ENTER, true), _key(KEY_ENTER, false))
+	_check(
+		StringName(hud.get_input_binding_report().capturing_action) == &"interact",
+		"Enter on a focused binding row arms capture through the GUI route"
+	)
+	await _press_and_release(_key(KEY_KP_ENTER, true), _key(KEY_KP_ENTER, false))
+	var report: Dictionary = hud.get_input_binding_report()
+	_check(
+		StringName(report.capturing_action).is_empty()
+		and _has_binding(report.bindings[&"interact"], &"key", KEY_KP_ENTER),
+		"binding a menu-accept key completes capture instead of re-arming the row on release"
+	)
+	interact_button.grab_focus()
+	await process_frame
+	await _press_and_release(_joy(JOY_BUTTON_A, true), _joy(JOY_BUTTON_A, false))
+	_check(
+		StringName(hud.get_input_binding_report().capturing_action) == &"interact",
+		"pad A on a focused binding row arms capture"
+	)
+	await _press_and_release(_joy(JOY_BUTTON_DPAD_DOWN, true), _joy(JOY_BUTTON_DPAD_DOWN, false))
+	report = hud.get_input_binding_report()
+	_check(
+		StringName(report.capturing_action).is_empty()
+		and _has_binding(report.bindings[&"interact"], &"joy_button", JOY_BUTTON_DPAD_DOWN)
+		and interact_button.has_focus(),
+		"a D-pad press is captured as the binding instead of moving focus off an armed row"
+	)
+	(hud.get("_binding_reset_buttons") as Dictionary)[&"interact"].pressed.emit()
+	hud.set_paused(false)
+
+
+func _press_and_release(pressed: InputEvent, released: InputEvent) -> void:
+	root.push_input(pressed)
+	await process_frame
+	root.push_input(released)
+	await process_frame
+
+
+func _key(code: Key, pressed: bool) -> InputEventKey:
+	var event := InputEventKey.new()
+	event.physical_keycode = code
+	event.keycode = code
+	event.pressed = pressed
+	return event
+
+
+func _joy(button: JoyButton, pressed: bool) -> InputEventJoypadButton:
+	var event := InputEventJoypadButton.new()
+	event.button_index = button
+	event.pressed = pressed
+	return event
+
+
+func _has_binding(bindings: Array, type: StringName, code: int) -> bool:
+	for binding: Dictionary in bindings:
+		if StringName(binding.get("type", &"")) != type:
+			continue
+		if int(binding.get("physical_keycode", binding.get("button_index", -1))) == code:
+			return true
+	return false
 
 
 func _check(condition: bool, message: String) -> void:
