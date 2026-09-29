@@ -9,6 +9,7 @@ const MAIN_SCENE := preload("res://scenes/main.tscn")
 const ROUTE := preload("res://assets/activities/cinder_reach_checkpoint_route.tres")
 const Store := preload("res://scripts/persistence/user_data_store.gd")
 const Filesystem := preload("res://scripts/persistence/user_data_filesystem.gd")
+const ROUNDTRIP_ORIGIN_OFFSET := Vector3(-31.0, -4.203125, -48.5)
 
 class MemoryFilesystem extends Filesystem:
 	var files: Dictionary = {}
@@ -230,8 +231,13 @@ func _test_countdown_pause_progress_reentry_and_completion(
 		"the countdown boundary activates and samples the real ship exactly once in that physics tick"
 	)
 
+	# A planet visit round trip leaves the common origin away from the authored
+	# one (a Rime abandon measured ShipyardWorld at (-31, -4.2, -48.5)). The
+	# visible beacons move with the streamed Cinder root; so must the gates.
+	var cinder_root := game.cinder_streaming_bootstrap
+	world_offset_roots(game, ROUNDTRIP_ORIGIN_OFFSET)
 	# A later anchor occupied first must preserve route order.
-	route_ship.global_position = ROUTE.get_checkpoint_position(1)
+	route_ship.global_position = cinder_root.to_global(ROUTE.get_checkpoint_position(1))
 	var before_out_of_order_samples := int(
 		game.get_activity_integration_report().get("position_sample_count", -1)
 	)
@@ -242,12 +248,21 @@ func _test_countdown_pause_progress_reentry_and_completion(
 		== before_out_of_order_samples + 1,
 		"one production tick performs one sample and rejects an out-of-order physical anchor"
 	)
-	route_ship.global_position = ROUTE.get_checkpoint_position(0)
+	route_ship.global_position = cinder_root.to_global(ROUTE.get_checkpoint_position(0))
 	game.call("_physics_process", 0.1)
 	_check(
 		int(game.get_active_activity_snapshot().get("next_checkpoint_index", -1)) == 1
 		and "G2/5" in str(hud.get_activity_objective_report().get("text", "")),
-		"occupying gate one advances the shared director, timed session, and HUD once"
+		"occupying the visible gate one after an origin rebase advances the shared director, timed session, and HUD once (next %d)"
+			% int(game.get_active_activity_snapshot().get("next_checkpoint_index", -1))
+	)
+	var route_marker := game.call("_get_active_route_minimap_marker", 0) as Dictionary
+	_check(
+		(route_marker.get("position", Vector3.INF) as Vector3).is_equal_approx(
+			cinder_root.to_global(ROUTE.get_checkpoint_position(1)))
+		,
+		"the minimap's next-gate marker sits on the live beacon after an origin rebase (%s)"
+			% str(route_marker.get("position", Vector3.INF))
 	)
 
 	var integration_before_reentry := game.get_activity_integration_report()
@@ -294,7 +309,7 @@ func _test_countdown_pause_progress_reentry_and_completion(
 			completion_witness["count"] = int(completion_witness["count"]) + 1
 	)
 	for index in range(1, ROUTE.get_checkpoint_count()):
-		route_ship.global_position = ROUTE.get_checkpoint_position(index)
+		route_ship.global_position = cinder_root.to_global(ROUTE.get_checkpoint_position(index))
 		var sample_before := int(
 			game.get_activity_integration_report().get("position_sample_count", -1)
 		)
@@ -497,6 +512,13 @@ func _test_reward_summary_restore(filesystem: MemoryFilesystem) -> void:
 		"a fresh Main startup restores the saved receipt onto both Activity Board surfaces"
 	)
 	await _clean_up(restored_game)
+
+
+## Stand-in for a committed common-origin rebase: every common root moves by the
+## same delta, exactly as CommonWorldOriginRebaseOwner translates them.
+func world_offset_roots(game: GameFlow, delta: Vector3) -> void:
+	for root_node: Node3D in [game.world, game.cinder_streaming_bootstrap, game.player]:
+		root_node.global_position += delta
 
 
 func _clean_up(game: GameFlow) -> void:
