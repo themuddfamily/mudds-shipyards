@@ -517,6 +517,26 @@ func reset_frame_tracking(
 	frame_reset.emit()
 
 
+## Re-expresses the frame's sampled history after a common-world origin rebase
+## has translated the moving frame *and* every occupant by the same `delta`.
+## Without this the next step reads the translation as frame motion and carries
+## each occupant by it a second time, throwing a crew member walking the cabin
+## kilometres outside the hull. The owning craft forwards the owner's
+## notification here, because this component is not a Node3D the owner visits.
+func accept_common_world_translation(delta: Vector3) -> void:
+	if not delta.is_finite() or delta.is_zero_approx():
+		return
+	if _has_frame_sample:
+		_previous_frame_transform.origin += delta
+		_sampled_frame_origin += delta
+	for occupant_id: int in _occupants.keys():
+		var state: Dictionary = _occupants[occupant_id]
+		var previous: Transform3D = state["previous_frame_transform"]
+		previous.origin += delta
+		state["previous_frame_transform"] = previous
+		_occupants[occupant_id] = state
+
+
 func get_frame_linear_velocity() -> Vector3:
 	return _frame_linear_velocity
 
