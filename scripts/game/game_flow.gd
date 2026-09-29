@@ -15382,7 +15382,7 @@ func _commit_game_flow_activity_reward(request: Dictionary) -> Dictionary:
 				and cleared_director.get_active_scenario() \
 					== EncounterScenarioDirector.SCENARIO_TORPEDO_RUN:
 			cleared_title = "Torpedo Run cleared"
-		hud.toast(cleared_title, detail, 3.2)
+		hud.toast(cleared_title, detail, 3.2, true)
 	return result.duplicate(true)
 
 
@@ -15429,7 +15429,8 @@ func _retry_owed_game_flow_activity_rewards() -> void:
 			hud.toast(
 				"Reward receipt saved",
 				_activity_reward_toast_detail("Owed activity credit", retried),
-				3.2
+				3.2,
+				true
 			)
 		elif not bool(retried.get("accepted", false)) \
 				and _owed_game_flow_activity_rewards.has(owed):
@@ -15565,7 +15566,8 @@ func _on_cinder_session_completed(snapshot: Dictionary) -> void:
 		hud.toast(
 			"Cinder Reach race complete",
 			_activity_reward_toast_detail("Time recorded", reward),
-			3.2
+			3.2,
+			true
 		)
 
 
@@ -15609,7 +15611,8 @@ func _on_patrol_completed(snapshot: Dictionary) -> void:
 		hud.toast(
 			"Cinder Reach patrol complete",
 			_activity_reward_toast_detail("Sweep recorded", reward),
-			3.2
+			3.2,
+			true
 		)
 
 
@@ -15635,7 +15638,8 @@ func _on_cinder_convoy_safely_arrived(snapshot: Dictionary) -> void:
 		hud.toast(
 			"Emberline tender arrived",
 			_activity_reward_toast_detail("Escort recorded", reward),
-			3.2
+			3.2,
+			true
 		)
 
 
@@ -15650,7 +15654,8 @@ func _on_cinder_convoy_failed(snapshot: Dictionary) -> void:
 		hud.toast(
 			"Emberline escort ended",
 			str(_convoy_terminal_reason).replace("_", " ").capitalize(),
-			3.2
+			3.2,
+			true
 		)
 
 
@@ -16320,7 +16325,8 @@ func _on_cargo_delivery_completed(
 				% int(receipt.get("quantity", 0)),
 				reward
 			),
-			3.2
+			3.2,
+			true
 		)
 
 

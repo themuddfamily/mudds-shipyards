@@ -447,6 +447,24 @@ func _test_physics_reentry_and_physical_delivery(
 		720
 	)
 	_filesystem.reject_writes = false
+	# The same landing call completes the delivery and then docks; the routine
+	# docking toast must not erase the delivery's reward-failure toast.
+	var landed_toast_title := (hud.get("_toast_title") as Label).text
+	var landed_toast_detail := (hud.get("_toast_detail") as Label).text
+	_check(
+		landed_toast_title == "FABRICATION KITS DELIVERED"
+		and "reward receipt could not be saved" in landed_toast_detail,
+		"the delivery reward-failure toast survives the same-frame docking toast (got %s: %s)"
+		% [landed_toast_title, landed_toast_detail]
+	)
+	var docking_toast_follows := false
+	for _frame in 600:
+		if (hud.get("_toast_title") as Label).text == "LANDING COMPLETE" \
+				and (hud.get("_toast_panel") as Control).visible:
+			docking_toast_follows = true
+			break
+		await process_frame
+	_check(docking_toast_follows, "the held docking toast is shown once the reward toast finishes")
 	var completed := game.get_active_activity_snapshot()
 	var receipt := completed.get("accepted_receipt", {}) as Dictionary
 	_check(
