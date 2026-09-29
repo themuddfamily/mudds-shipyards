@@ -1776,7 +1776,7 @@ func handoff_crew_role(
 
 
 func get_gunner_gameplay_state() -> Dictionary:
-	var ready := _weapon_timer <= 0.0 and not is_destroyed()
+	var ready := _is_gunner_weapon_ready()
 	var engineer_repair := get_engineer_repair_state()
 	return {
 		"schema_version": 1,
@@ -1799,6 +1799,34 @@ func get_gunner_gameplay_state() -> Dictionary:
 			and not bool(engineer_repair.get("active", false)),
 		"gunner_component": _get_gunner_component_operational_state(),
 	}.duplicate(true)
+
+
+## The siege lance's own readiness: the seated gunner's cooldown and
+## ammunition plus the gates `_consume_gunner_fire_intent` applies. The pilot
+## cannon's `_weapon_timer` is a separate weapon and never gates the gunner.
+func _is_gunner_weapon_ready() -> bool:
+	if is_destroyed() or _crew_role_authority == null:
+		return false
+	if StringName(get_telemetry().get("engine_state", &"")) != ENGINE_ONLINE:
+		return false
+	if _gunner_combat_authority == null or not is_instance_valid(_gunner_combat_authority):
+		return false
+	if not bool(_get_gunner_component_operational_state().get("available", false)):
+		return false
+	for assignment_variant in _crew_role_authority.get_snapshot().get("assignments", []) as Array:
+		if not assignment_variant is Dictionary:
+			continue
+		var assignment := assignment_variant as Dictionary
+		if StringName(assignment.get("seat_id", &"")) != GUNNER_SEAT_ID \
+				or StringName(assignment.get("role", &"")) != CrewRoleGameplayProfileType.ROLE_GUNNER:
+			continue
+		var actor_key := _gunner_role_actor_key_from_values(
+			int(assignment.get("occupant_peer_id", 0)),
+			StringName(assignment.get("avatar_id", &""))
+		)
+		return float(_gunner_role_cooldowns.get(actor_key, 0.0)) <= 0.0 \
+			and int(_gunner_role_ammunition.get(actor_key, MAX_GUNNER_AMMUNITION)) > 0
+	return true
 
 
 ## Player-facing projection of the already-authoritative gunner state. This is

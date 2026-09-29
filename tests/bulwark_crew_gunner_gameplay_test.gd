@@ -226,6 +226,11 @@ func _run() -> void:
 			and emitted[0] == 0,
 		"gunner siege-lance cadence blocks a second request without affecting pilot fire"
 	)
+	craft.set("_weapon_timer", 0.0)
+	_check(
+		not bool(craft.get_gunner_gameplay_state().get("weapon_ready", true)),
+		"gunner readiness reports the seated gunner's own siege-lance cooldown, not the idle pilot cannon"
+	)
 
 	var handoff = craft.handoff_crew_role(
 		1,
@@ -243,6 +248,11 @@ func _run() -> void:
 			and cleared[0] == 1
 			and clear_reason[0] == &"role_handoff",
 		"gunner handoff clears the outgoing target exactly once"
+	)
+	craft.set("_weapon_timer", 10.0)
+	_check(
+		bool(craft.get_gunner_gameplay_state().get("weapon_ready", false)),
+		"a fresh gunner's siege lance reads ready while only the pilot cannon is cooling"
 	)
 
 	var stale = craft.submit_crew_intent(
