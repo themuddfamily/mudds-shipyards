@@ -94,6 +94,7 @@ assist_capture_center = Vector3(0, 11, -24)
 assist_capture_half_extents = Vector3(24, 16, 44)
 assist_capture_maximum_speed = 22.0
 assist_maximum_tilt_degrees = 75.0
+departure_lift_height = 4.0
 
 [node name="BerthFeedback" parent="HalyardFleetDockBerth" instance=ExtResource("6_berth_feedback")]
 position = Vector3(0, -1.21, 0)

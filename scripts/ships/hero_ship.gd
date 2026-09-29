@@ -71,6 +71,8 @@ const WEAPON_RECOVERY_HEAT := 0.35
 const FAILED_ENGINE_MANUAL_BRAKE_FACTOR := 0.35
 const DEPARTURE_SPEED_THRESHOLD := 0.25
 const DEPARTURE_MOTION_EPSILON_SQUARED := 0.000001
+## Full-thrust climb rate of a berth departure lift (`ShipBerth.departure_lift_height`).
+const DEPARTURE_LIFT_SPEED := 8.0
 const PLANETARY_CRUISE_PHYSICAL_SCHEMA_VERSION := 1
 const PLANETARY_CRUISE_ENVELOPE_SCHEMA_VERSION := 1
 const PLANETARY_CRUISE_MAX_SAFE_INTEGER := 9_007_199_254_740_991
@@ -314,6 +316,13 @@ var _piloted := false
 ## so it owns neither a current camera, the mouse mode, nor this machine's input.
 var _remote_piloted := false
 var _landed := true
+## A berth departure lift in progress: the craft rises `_departure_lift_height`
+## along `_departure_lift_up` from `_departure_lift_origin` before nose-forward
+## flight takes over. See `ShipBerth.departure_lift_height`.
+var _departure_lift_active := false
+var _departure_lift_origin := Vector3.ZERO
+var _departure_lift_up := Vector3.UP
+var _departure_lift_height := 0.0
 var _landing_active := false
 var _docked_latch := false
 var _landing_target := Transform3D.IDENTITY
@@ -1397,6 +1406,7 @@ func _begin_landing_assist(
 	_landing_target = dock_target
 	_landing_staging_target = staging_target
 	_landing_active = true
+	_departure_lift_active = false
 	# A production landing owns propulsion until touchdown. Internal callers can
 	# enter this seam without a preceding player command, so guarantee power here.
 	_wake_engine_for_automatic_demand()
@@ -2451,6 +2461,7 @@ func commit_reset_for_reuse(receipt: Dictionary) -> Dictionary:
 	_landing_previous_distance = INF
 	_landing_last_abort_reason = &""
 	_landed = true
+	_departure_lift_active = false
 	_docked_latch = true
 	_piloted = false
 	_remote_piloted = false
@@ -3798,6 +3809,10 @@ func _update_flight(delta: float, command: ShipCommand, suppress_look: bool = fa
 		if command.fire and _uses_inherited_primary_weapon():
 			_fire_weapon()
 		return
+	if _landed and not _departure_lift_active:
+		_arm_departure_lift()
+	if _departure_lift_active and _update_departure_lift(delta, command):
+		return
 	var boosting := command.boost and _throttle > 0.05
 	var damage_power := _get_damage_engine_multiplier()
 	var manual_brake_power := lerpf(
@@ -3925,6 +3940,62 @@ func _update_flight(delta: float, command: ShipCommand, suppress_look: bool = fa
 	):
 		_landed = false
 	_apply_collision_damage(pre_collision_velocity)
+
+
+## Arms the departure lift of the berth this craft is parked on, if it has one.
+func _arm_departure_lift() -> void:
+	if not is_inside_tree():
+		return
+	for node in get_tree().get_nodes_in_group(ShipBerth.GROUP):
+		var berth := node as ShipBerth
+		if berth == null:
+			continue
+		var lift := berth.get_departure_lift_for(global_position)
+		if lift.is_empty():
+			continue
+		_departure_lift_active = true
+		_departure_lift_origin = global_position
+		_departure_lift_up = lift["up"] as Vector3
+		_departure_lift_height = float(lift["height"])
+		return
+
+
+## One tick of a berth departure lift. Thrust demand of either sign climbs the
+## craft straight up the dock's up axis at up to `DEPARTURE_LIFT_SPEED`, with its
+## attitude held, until it has risen the berth's height; then ordinary
+## nose-forward flight resumes on the same tick. Returns false once the lift is
+## complete (or blocked) so the caller runs ordinary flight instead.
+func _update_departure_lift(delta: float, command: ShipCommand) -> bool:
+	var risen := (global_position - _departure_lift_origin).dot(_departure_lift_up)
+	var remaining := _departure_lift_height - risen
+	if remaining <= 0.01:
+		_departure_lift_active = false
+		velocity = Vector3.ZERO
+		return false
+	_clear_pending_look_motion()
+	var speed := minf(
+		DEPARTURE_LIFT_SPEED * absf(_throttle) * _get_damage_engine_multiplier(),
+		remaining / maxf(delta, 0.0001)
+	)
+	velocity = _departure_lift_up * speed
+	if command.fire and _uses_inherited_primary_weapon():
+		_fire_weapon()
+	var pre_collision_velocity := velocity
+	var pre_move_position := global_position
+	move_and_slide()
+	if (
+		_landed
+		and velocity.length() > DEPARTURE_SPEED_THRESHOLD
+		and global_position.distance_squared_to(pre_move_position) > DEPARTURE_MOTION_EPSILON_SQUARED
+	):
+		_landed = false
+	_apply_collision_damage(pre_collision_velocity)
+	# Something overhead: hand the craft back to the pilot rather than hovering
+	# against it.
+	var climbed := (global_position - pre_move_position).dot(_departure_lift_up)
+	if speed * delta > 0.01 and climbed < speed * delta * 0.25:
+		_departure_lift_active = false
+	return true
 
 
 func _planetary_hover_target_basis(radial_up: Vector3) -> Basis:
@@ -4144,6 +4215,7 @@ func _complete_landing(berth: ShipBerth, target_basis: Basis) -> void:
 	velocity = Vector3.ZERO
 	_landing_active = false
 	_landed = true
+	_departure_lift_active = false
 	_docked_latch = true
 	_set_landing_phase(LANDING_PHASE_DOCKED)
 	if _ship_audio_rig != null:

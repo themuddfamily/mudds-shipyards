@@ -221,6 +221,10 @@ const SHIP_BERTH_FEEDBACK_SPECS := {
 		"assist_capture_half_extents": Vector3(24.0, 16.0, 44.0),
 		"assist_capture_maximum_speed": 22.0,
 		"assist_maximum_tilt_degrees": 75.0,
+		# The Halyard's nose stands 8 m short of the Upper Operations pod's back
+		# wall at deck height; held thrust flew it straight in. A 2 m climb clears
+		# the pod roof, so the berth lifts it 4 m before forward flight.
+		"departure_lift_height": 4.0,
 		# Class-specific, like Dock 01. ShipBerth uses any-tag matching, so
 		# advertising `medium_craft` here would also admit the Jovian, whose
 		# 18.55 m span does not fit between this dock and its neighbours.
@@ -4269,6 +4273,11 @@ func get_ship_berth_feedback_audit_report() -> Dictionary:
 				float(spec.get("assist_maximum_tilt_degrees", -1.0))
 			):
 				errors.append("berth_assist_maximum_tilt_drift_%s" % berth_id)
+			if not is_equal_approx(
+				berth.get_departure_lift_height(),
+				float(spec.get("departure_lift_height", 0.0))
+			):
+				errors.append("berth_departure_lift_height_drift_%s" % berth_id)
 			var expected_tags := PackedStringArray(
 				spec.get("compatibility_tags", []) as Array
 			)
