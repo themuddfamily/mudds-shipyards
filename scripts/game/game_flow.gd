@@ -1473,6 +1473,8 @@ func host_network_session(
 	# The running session keeps its role; the adapter refuses this request.
 	if session.is_session_active():
 		return session.host(port, max_clients)
+	if _planetary_visit_blocks_network_session():
+		return _refuse_network_session_during_planetary_visit(&"server")
 	_network_session_mode = &"server"
 	_network_session_retry_mode = &"server"
 	_set_station_defense_network_presentation_only(false)
@@ -1494,6 +1496,8 @@ func join_network_session(
 	# The running session keeps its role; the adapter refuses this request.
 	if session.is_session_active():
 		return session.join(address, port)
+	if _planetary_visit_blocks_network_session():
+		return _refuse_network_session_during_planetary_visit(&"client")
 	_network_session_mode = &"client"
 	_network_session_retry_mode = &"client"
 	_set_station_defense_network_presentation_only(true)
@@ -1511,6 +1515,43 @@ func shutdown_network_session(reason: StringName = &"requested") -> Dictionary:
 	var result := network_session.shutdown(reason)
 	_publish_network_session_snapshot(&"disconnected", _network_session_ended_role(), "Session closed: %s" % reason, true)
 	return result
+
+
+## Planet visits are solo exploration. A cruise or visit moves this game's
+## whole world under the common-world origin rebase, which no peer shares, so a
+## session may not open while one is under way (and none may start while a
+## session is up: `_planetary_cruise_gate_reason`, `_launch_rejection`).
+func _planetary_visit_blocks_network_session() -> bool:
+	if (_aurora_expedition != null and _aurora_expedition.is_active()) \
+			or (_rime_expedition != null and _rime_expedition.is_active()):
+		return true
+	if _planetary_journey != null:
+		if _planetary_journey._ember_surface_journey_active \
+				or not _planetary_journey._pending_ember_surface_request.is_empty() \
+				or _planetary_journey._mudds_return_approach_active \
+				or _planetary_journey._ember_abandon_return_active \
+				or _planetary_journey.is_return_departure_pending() \
+				or _planetary_journey.stranded_return_available():
+			return true
+	return is_instance_valid(planetary_cruise_binding) \
+		and bool(planetary_cruise_binding.get_snapshot().get("engagement_requested", false))
+
+
+func _refuse_network_session_during_planetary_visit(role: StringName) -> Dictionary:
+	var result := {
+		"accepted": false,
+		"status": &"planetary_visit_active",
+		"message": "Return to Mudds before starting a multiplayer session.",
+	}
+	_publish_network_session_snapshot(
+		&"failed", role, "Planet visits are solo: return to Mudds before starting a session.", false
+	)
+	return result
+
+
+## True while a network session is actually up, whatever role it plays.
+func _network_session_is_live() -> bool:
+	return is_instance_valid(network_session) and network_session.is_session_active()
 
 
 ## A host or join the adapter refused outright never started a session, so it
@@ -5823,6 +5864,10 @@ func _planetary_cruise_gate_reason(include_combat: bool = true) -> StringName:
 		return &"ship_destroyed"
 	if not _piloting or not active_ship.is_piloted():
 		return &"pilot_unseated"
+	# Planet visits are solo exploration, as Aurora's and Rime's are: the cruise
+	# rebases this game's whole world, and no connected peer shares that frame.
+	if _network_session_is_live():
+		return &"network_session_active"
 	if _landing_request_active or active_ship.is_landing_active():
 		return &"landing_active"
 	var combat_active := _planetary_cruise_combat_active()
@@ -6796,6 +6841,9 @@ func _handle_server_browser_intent(payload: Dictionary) -> void:
 	# refuse it before this game's session role is rewritten to "client".
 	if action in [&"join", &"manual_join"] and session.is_session_active():
 		_publish_server_browser_feedback({"accepted": false, "status": &"already_started"})
+		return
+	if action in [&"join", &"manual_join"] and _planetary_visit_blocks_network_session():
+		_publish_server_browser_feedback(_refuse_network_session_during_planetary_visit(&"client"))
 		return
 	match action:
 		&"refresh":
@@ -18762,6 +18810,8 @@ func _planetary_cruise_public_gate_copy(reason: StringName) -> String:
 			return "NAVIGATION OFFLINE"
 		&"origin_rebase_pending":
 			return "ORIGIN SHIFT PENDING"
+		&"network_session_active":
+			return "SOLO EXPLORATION ONLY"
 		_:
 			return "NOT AVAILABLE"
 
