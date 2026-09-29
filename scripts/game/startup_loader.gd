@@ -254,6 +254,11 @@ func run_startup() -> Node:
 			"MUDDS SHIPYARDS", "Startup interrupted", 1, 1
 		)
 		_finish_startup(startup_generation)
+		# Like the other failure branches: a package check must fail, not hang
+		# until the harness deadline.
+		if CLI_STARTUP_CHECK in OS.get_cmdline_args():
+			print("STARTUP_MENU_READY_FAILED: main scene unavailable")
+			tree.quit(1)
 		return null
 
 	# Resolving GameFlow/ShipyardWorld while this script compiles pulls their
