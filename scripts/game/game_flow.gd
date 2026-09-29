@@ -729,7 +729,14 @@ var _network_ship_authority_composition: NetworkShipAuthorityComposition
 var _network_composition_ship: HeroShip
 var _network_ship_generation := 0
 var _network_ship_event_sequence := 0
+## The role this game plays in the session that is running *now*; empty
+## while no session is up. Every authority gate reads it (a "client" never
+## lands, fires or visits a planet on its own), so it must not outlive the
+## session: a player whose host dropped is a solo player again.
 var _network_session_mode: StringName = &""
+## The role of the last session this game started, kept after it ends so the
+## HUD's RETRY reopens the same kind of session.
+var _network_session_retry_mode: StringName = &""
 var _network_session_address := "127.0.0.1"
 var _network_session_port := NetworkSessionAdapterType.DEFAULT_PORT
 var _network_session_max_clients := NetworkSessionAdapterType.DEFAULT_MAX_CLIENTS
@@ -1467,10 +1474,12 @@ func host_network_session(
 	if session.is_session_active():
 		return session.host(port, max_clients)
 	_network_session_mode = &"server"
+	_network_session_retry_mode = &"server"
 	_set_station_defense_network_presentation_only(false)
 	_network_session_port = port
 	_network_session_max_clients = max_clients
 	var result := session.host(port, max_clients)
+	_settle_refused_network_start(session)
 	_publish_network_session_result(result, &"server")
 	return result
 
@@ -1486,10 +1495,12 @@ func join_network_session(
 	if session.is_session_active():
 		return session.join(address, port)
 	_network_session_mode = &"client"
+	_network_session_retry_mode = &"client"
 	_set_station_defense_network_presentation_only(true)
 	_network_session_address = address
 	_network_session_port = port
 	var result := session.join(address, port)
+	_settle_refused_network_start(session)
 	_publish_network_session_result(result, &"client")
 	return result
 
@@ -1498,8 +1509,24 @@ func shutdown_network_session(reason: StringName = &"requested") -> Dictionary:
 	if not is_instance_valid(network_session):
 		return {"accepted": false, "status": &"not_started"}
 	var result := network_session.shutdown(reason)
-	_publish_network_session_snapshot(&"disconnected", _network_session_mode, "Session closed: %s" % reason, true)
+	_publish_network_session_snapshot(&"disconnected", _network_session_ended_role(), "Session closed: %s" % reason, true)
 	return result
+
+
+## A host or join the adapter refused outright never started a session, so it
+## leaves no session role behind it (the retry role is kept).
+func _settle_refused_network_start(session: NetworkSessionAdapterType) -> void:
+	if is_instance_valid(session) and session.is_session_active():
+		return
+	_network_session_mode = &""
+	_set_station_defense_network_presentation_only(false)
+
+
+## The role to name for a session that has ended: the live one if a session is
+## still up, otherwise the one it had.
+func _network_session_ended_role() -> StringName:
+	return _network_session_mode if not _network_session_mode.is_empty() \
+		else _network_session_retry_mode
 
 
 func get_network_session() -> NetworkSessionAdapterType:
@@ -6312,8 +6339,14 @@ func _on_network_session_stopped(reason: StringName) -> void:
 	_detach_network_ship_authority_composition(reason)
 	_detach_network_halyard_command_bridge()
 	_detach_halyard_crew_semantic_audio()
+	# The session is gone, and its role with it: a client whose host dropped
+	# lands, fires and travels on its own again rather than waiting on a host
+	# that is no longer there. RETRY still knows which role to reopen.
+	if not _network_session_mode.is_empty():
+		_network_session_retry_mode = _network_session_mode
+	_network_session_mode = &""
 	_publish_network_session_snapshot(
-		&"disconnected", _network_session_mode, "Session closed: %s" % reason, true
+		&"disconnected", _network_session_retry_mode, "Session closed: %s" % reason, true
 	)
 
 
@@ -6449,9 +6482,10 @@ func _on_hud_presentation_intent_requested(kind: StringName, payload: Dictionary
 		return
 	match StringName(str(payload.get("action", &""))):
 		&"retry":
-			if _network_session_mode == &"server":
+			var retry_role := _network_session_ended_role()
+			if retry_role == &"server":
 				host_network_session(_network_session_port, _network_session_max_clients)
-			elif _network_session_mode == &"client":
+			elif retry_role == &"client":
 				join_network_session(_network_session_address, _network_session_port)
 		&"cancel", &"disconnect":
 			shutdown_network_session(&"ui_%s" % payload.get("action", &"cancel"))
@@ -6784,12 +6818,14 @@ func _handle_server_browser_intent(payload: Dictionary) -> void:
 				)
 				return
 			_network_session_mode = &"client"
+			_network_session_retry_mode = &"client"
 			_apply_lan_endpoint_for_join(session_id)
 			var started := session.consume_join_intent(
 				intent.get("intent", {}) as Dictionary,
 				_network_session_address,
 				_network_session_port
 			)
+			_settle_refused_network_start(session)
 			_publish_network_session_result(started, &"client")
 		&"host_session":
 			var host_port := int(payload.get("port", runtime_settings.network_default_port if runtime_settings != null else NetworkSessionAdapterType.DEFAULT_PORT))
@@ -6804,8 +6840,10 @@ func _handle_server_browser_intent(payload: Dictionary) -> void:
 				"package_generation": payload.get("package_generation", NetworkSessionAdapterType.NETWORK_BUILD_VERSION),
 			}
 			_network_session_mode = &"client"
+			_network_session_retry_mode = &"client"
 			_set_station_defense_network_presentation_only(true)
 			var joined := session.consume_direct_connect_intent(direct_connect_intent)
+			_settle_refused_network_start(session)
 			if bool(joined.get("accepted", false)):
 				_network_session_address = str(joined.get("address", ""))
 				_network_session_port = int(joined.get("port", 0))
