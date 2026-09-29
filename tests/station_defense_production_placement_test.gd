@@ -421,6 +421,9 @@ func _verify_terminal_history_reload(
 			== int(persisted_history.generation),
 		"the loaded terminal generation is permanently fenced from reward replay"
 	)
+	# A common-origin rebase translates the whole ShipyardWorld root; the
+	# encounter still sits at its audited site within the yard.
+	world.global_position += Vector3(2048.0, 0.0, -512.0)
 	var actor := Node3D.new()
 	reload_root.add_child(actor)
 	actor.global_position = board.global_position + Vector3(1.5, 0.0, 0.0)
@@ -430,7 +433,15 @@ func _verify_terminal_history_reload(
 		and content.get_generation() > int(persisted_history.generation)
 		and authority.get_resolver().get_registered_source_count() == before_sources
 		and _reward_requests.size() == reward_before,
-		"the restored board starts a fresh higher generation without replaying the prior reward or duplicating sources"
+		"the restored board starts a fresh higher generation after an origin rebase without replaying the prior reward or duplicating sources (%s)"
+			% str(board.get_last_result().get("reason", &""))
+	)
+	var rebased_tick := content.advance_physics(0.0, content.get_generation())
+	_check(
+		StringName(content.get_snapshot().host.activity.state_id) == &"active"
+		and rebased_tick.get("reason") != &"audited_world_pose_changed",
+		"a rebased yard keeps the live defense run instead of aborting it (%s)"
+			% str(rebased_tick.get("reason", &""))
 	)
 	board.abort_and_reset(actor, content.get_generation())
 	var fleet_expansion := world.get_fleet_expansion_production_binding()

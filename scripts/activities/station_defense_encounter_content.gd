@@ -2504,7 +2504,11 @@ func _count_authored_descendants(node: Node) -> int:
 	return count
 
 
+## The audited site is a pose within the yard. A common-origin rebase
+## translates the whole world root, so measure against the parent frame.
 func _live_pose_matches_audited_site() -> bool:
+	if not top_level and get_parent() is Node3D:
+		return transform.is_equal_approx(AUDITED_WORLD_TRANSFORM)
 	return _get_live_world_transform().is_equal_approx(AUDITED_WORLD_TRANSFORM)
 
 

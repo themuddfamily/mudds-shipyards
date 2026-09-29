@@ -159,6 +159,13 @@ func register_hostile(
 		"adapter": weakref(adapter),
 		"adapter_instance_id": adapter.get_instance_id(),
 		"spawn_transform": spawn_transform,
+		# A common-origin rebase translates this host with the yard; keep the
+		# spawn in the host frame so a later wave spawns where it was authored.
+		"spawn_host_transform": (
+			global_transform.affine_inverse() * spawn_transform
+			if is_inside_tree() else Transform3D()
+		),
+		"spawn_host_relative": is_inside_tree(),
 		"faction_id": faction_id,
 		"state_id": &"registered",
 		"activation_generation": 0,
@@ -707,7 +714,10 @@ func _synchronize_active_roster() -> void:
 			continue
 		record["state_id"] = &"active"
 		record["activation_generation"] = _activity.get_generation()
-		entity.activate(record.spawn_transform)
+		var spawn := record.spawn_transform as Transform3D
+		if bool(record.get("spawn_host_relative", false)) and is_inside_tree():
+			spawn = global_transform * (record.spawn_host_transform as Transform3D)
+		entity.activate(spawn)
 
 
 func _retire_active_roster() -> void:
