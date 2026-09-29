@@ -85,6 +85,8 @@ func attach(surface: Node3D) -> void:
 	if not _pending_restore.is_empty():
 		_flow.activity_director.restore_activity_persistence_state(ACTIVITY_ID, _pending_restore)
 		_pending_restore.clear()
+	else:
+		_clear_previous_visit_run()
 
 
 ## Drops every reference to a surface that is going away. Progress already in
@@ -95,6 +97,17 @@ func detach() -> void:
 	_anchors.clear()
 	_heat_s = HEAT_CAPACITY_S
 	_heat_warning_shown = false
+
+
+## The director outlives a visit, but survey progress belongs to the visit that
+## made it: its save is retired when the visit ends. A fresh arrival must not
+## inherit a run (or a failure) left over from an earlier visit this session.
+## A completed run whose reward is still unsaved is kept so it can be retried.
+func _clear_previous_visit_run() -> void:
+	var route := snapshot()
+	if int(route.get("state", CheckpointRouteActivity.State.IDLE)) in [
+			CheckpointRouteActivity.State.ACTIVE, CheckpointRouteActivity.State.FAILED]:
+		_flow.activity_director.reset_activity(ACTIVITY_ID, int(route.get("generation", -1)))
 
 
 func restore(progress: Dictionary) -> void:
