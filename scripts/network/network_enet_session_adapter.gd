@@ -4397,11 +4397,11 @@ func _receive_hello(wire: Dictionary) -> void:
 		return
 	var source_peer_id := multiplayer.get_remote_sender_id()
 	if not _peer_generations.has(source_peer_id) and _peer_generations.size() >= _session_max_clients:
-		transport_rejected.emit(&"session_full")
+		_refuse_hello(source_peer_id, &"session_full")
 		return
 	var admitted: Dictionary = _lifecycle.admit_peer(source_peer_id, wire)
 	if not bool(admitted.get("accepted", false)):
-		transport_rejected.emit(StringName(admitted.get("status", &"admission_rejected")))
+		_refuse_hello(source_peer_id, StringName(admitted.get("status", &"admission_rejected")))
 		return
 	var peer: Dictionary = admitted.get("peer", {}) as Dictionary
 	var peer_id := int(peer.get("peer_id", 0))
@@ -4411,7 +4411,7 @@ func _receive_hello(wire: Dictionary) -> void:
 	)
 	if not bool(registered.get("accepted", false)):
 		_lifecycle.disconnect_peer(AUTHORITY_PEER_ID, peer_id, peer_generation)
-		transport_rejected.emit(StringName(registered.get("status", &"transport_rejected")))
+		_refuse_hello(source_peer_id, StringName(registered.get("status", &"transport_rejected")))
 		return
 	_peer_generations[peer_id] = peer_generation
 	_peer_admission_epoch += 1
@@ -4429,7 +4429,7 @@ func _receive_hello(wire: Dictionary) -> void:
 		_lifecycle.disconnect_peer(AUTHORITY_PEER_ID, peer_id, peer_generation)
 		_peer_generations.erase(peer_id)
 		_peer_admission_epoch += 1
-		transport_rejected.emit(StringName(migration_registered.get("status", &"migration_rejected")))
+		_refuse_hello(source_peer_id, StringName(migration_registered.get("status", &"migration_rejected")))
 		return
 	var offer := {
 		"admission": admitted,
@@ -4454,6 +4454,28 @@ func _receive_hello(wire: Dictionary) -> void:
 			_broadcast_snapshot_fragment.rpc_id(source_peer_id, fragment)
 	peer_admitted.emit(peer_id, offer.duplicate(true))
 	_refresh_hosted_directory()
+
+
+## A refused hello is answered, not ignored: the peer is told why and its ENet
+## link is closed once that answer has gone out. Left connected, a refused peer
+## sat on a host slot forever and its player watched "Contacting the session
+## host." with nothing ever coming back.
+func _refuse_hello(source_peer_id: int, status: StringName) -> void:
+	transport_rejected.emit(status)
+	if _peer == null or source_peer_id <= AUTHORITY_PEER_ID \
+			or not multiplayer.get_peers().has(source_peer_id):
+		return
+	_send_admission_refused.rpc_id(source_peer_id, String(status))
+	var link := _peer.get_peer(source_peer_id)
+	if link != null:
+		link.peer_disconnect_later()
+
+
+@rpc("authority", "call_remote", "reliable")
+func _send_admission_refused(status: String) -> void:
+	if is_server() or not _configured:
+		return
+	shutdown(StringName(status) if not status.is_empty() else &"admission_rejected")
 
 
 @rpc("authority", "call_remote", "reliable")
@@ -4869,6 +4891,8 @@ func _configure_multiplayer() -> void:
 		multiplayer.peer_disconnected.connect(_on_peer_disconnected)
 	if not multiplayer.server_disconnected.is_connected(_on_server_disconnected):
 		multiplayer.server_disconnected.connect(_on_server_disconnected)
+	if not multiplayer.connection_failed.is_connected(_on_connection_failed):
+		multiplayer.connection_failed.connect(_on_connection_failed)
 	multiplayer.multiplayer_peer = _peer
 
 
@@ -5001,6 +5025,14 @@ func _on_peer_disconnected(peer_id: int, reason: StringName = &"disconnect") -> 
 func _on_server_disconnected() -> void:
 	if not is_server():
 		shutdown(&"server_disconnected")
+
+
+## ENet gave up reaching the host. The client was never connected, so this is
+## not `server_disconnected`; without it the join stayed "connecting" forever
+## and every later join answered `already_started`.
+func _on_connection_failed() -> void:
+	if _configured and not is_server():
+		shutdown(&"connection_failed")
 
 
 func _release_moving_interior_entities_for_remaining_peers(entities: Dictionary) -> void:
