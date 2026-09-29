@@ -14698,6 +14698,12 @@ func request_activity_start(
 		ACTIVITY_KIND_CARGO_DELIVERY:
 			if not _restore_cargo_delivery_bindings():
 				return {"accepted": false, "reason": &"cargo_authority_detached"}
+			# Nothing refills the Jovian's hold, so a run it cannot cover would
+			# only end in a rejected transfer after the whole flight.
+			if cargo_transfer_authority.get_quantity(
+				_cargo_delivery_source_handle, CARGO_DELIVERY_ITEM_ID
+			) < CARGO_DELIVERY_QUANTITY:
+				return {"accepted": false, "reason": &"insufficient_source_quantity"}
 			started = cargo_delivery_activity.start(
 				cargo_delivery_activity.get_generation()
 			)
@@ -15024,6 +15030,16 @@ func _start_default_free_flight_activity() -> void:
 		hud.toast(
 			"Delivery craft required",
 			"Board the Jovian light freighter for this fabrication-kit run",
+			3.2
+		)
+	elif (
+		_selected_activity_kind == ACTIVITY_KIND_CARGO_DELIVERY
+		and result.get("reason", &"") == &"insufficient_source_quantity"
+		and is_instance_valid(hud)
+	):
+		hud.toast(
+			"Jovian hold empty",
+			"Every fabrication kit has been delivered to the freight berth",
 			3.2
 		)
 
