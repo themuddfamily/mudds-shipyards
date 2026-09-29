@@ -19,6 +19,8 @@ var _assertions := 0
 var _failures: Array[String] = []
 
 
+const ROUNDTRIP_ORIGIN_OFFSET := Vector3(-31.0, -4.203125, -48.5)
+
 func _init() -> void:
 	call_deferred(&"_run")
 
@@ -391,9 +393,14 @@ func _test_reentry_completion_and_lifecycle_failures(
 		"re-entry restores the same one host and current activity identity"
 	)
 
+	# A planet visit round trip leaves the common origin away from the authored
+	# one (a Rime abandon measured (-31, -4.2, -48.5)); the host and its tender
+	# move with it, and flying beside the visible tender must still escort it.
+	for common_root: Node3D in [game.world, bootstrap, host]:
+		common_root.global_position += ROUNDTRIP_ORIGIN_OFFSET
 	var budget := 40
 	while game.get_active_activity_snapshot().get("state_id", &"") == &"active" and budget > 0:
-		ship.global_position = (
+		ship.global_position = host.to_global(
 			host.get_snapshot().get("entity_position") as Vector3
 		) + GameFlow.CINDER_CONVOY_ESCORT_LANE_OFFSET
 		game.call("_physics_process", 0.25)
@@ -405,8 +412,11 @@ func _test_reentry_completion_and_lifecycle_failures(
 		and int(completed.get("completed_checkpoint_count", 0)) == 4
 		and float(completed.get("current_time_seconds", 0.0)) > 0.0
 		and "CONVOY  ARRIVED" in str(hud.get_activity_objective_report().get("text", "")),
-		"the real host traverses all four raw points beside the +20m lane and presents safe arrival"
+		"the real host traverses all four raw points beside the +20m lane and presents safe arrival after an origin rebase (%s %s)"
+			% [completed.get("state_id", &""), completed.get("terminal_reason", &"")]
 	)
+	for common_root: Node3D in [game.world, bootstrap, host]:
+		common_root.global_position -= ROUNDTRIP_ORIGIN_OFFSET
 	_check(
 		_find_minimap_marker(
 			game.get_minimap_snapshot().get("objective_markers", []) as Array,
