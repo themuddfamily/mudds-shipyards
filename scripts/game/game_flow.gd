@@ -15560,7 +15560,7 @@ func _advance_cinder_mining_extraction(
 	var advanced := binding.call(
 		&"advance_mining_activity_from_caller_sample",
 		delta,
-		_cinder_nearby_activity_ship_position(actor_sample),
+		_cinder_nearby_activity_authored_position(actor_sample),
 	) as Dictionary
 	var reason := StringName(advanced.get("reason", &""))
 	var interrupted := reason == &"extraction_interrupted"
@@ -15610,7 +15610,7 @@ func _advance_cinder_structure_scan(
 	):
 		return {"accepted": false, "reason": &"structure_scan_inactive"}
 	var reward_handoff_ready := _cinder_structure_scan_reward_handoff_ready(binding)
-	var caller_position := _cinder_nearby_activity_ship_position(actor_sample)
+	var caller_position := _cinder_nearby_activity_authored_position(actor_sample)
 	var previous_reason := StringName(scan.get("presentation_reason", &""))
 	var advanced := binding.call(
 		&"advance_structure_scan_from_caller_sample", delta, caller_position
@@ -15660,7 +15660,7 @@ func _advance_cinder_beacon_traversal(
 		_cinder_beacon_hud_elapsed = 0.0
 		return {"accepted": false, "reason": &"beacon_traversal_inactive"}
 	var reward_handoff_ready := _cinder_beacon_traversal_reward_handoff_ready(binding)
-	var caller_position := _cinder_nearby_activity_ship_position(actor_sample)
+	var caller_position := _cinder_nearby_activity_authored_position(actor_sample)
 	var previous_reason := StringName(traversal.get("presentation_reason", &""))
 	var advanced := binding.call(
 		&"advance_beacon_traversal_from_caller_sample", caller_position
@@ -15716,7 +15716,7 @@ func _advance_cinder_asteroid_field_run(
 	):
 		return {"accepted": false, "reason": &"asteroid_field_run_inactive"}
 	var reward_handoff_ready := _cinder_asteroid_field_reward_handoff_ready(binding)
-	var caller_position := _cinder_nearby_activity_ship_position(actor_sample)
+	var caller_position := _cinder_nearby_activity_authored_position(actor_sample)
 	var previous_reason := StringName(run.get("presentation_reason", &""))
 	var advanced := binding.call(
 		&"advance_asteroid_field_run_from_caller_sample", caller_position
@@ -15807,6 +15807,14 @@ func _cinder_nearby_activity_ship_position(actor_sample: Dictionary) -> Vector3:
 	):
 		return actor_sample.get("position") as Vector3
 	return Vector3.INF
+
+
+## The platform, derelict, beacon and belt anchors are authored in the streamed
+## Cinder root's frame; the cargo run instead reads its live berth in world space.
+func _cinder_nearby_activity_authored_position(actor_sample: Dictionary) -> Vector3:
+	return _cinder_authored_frame_position(
+		_cinder_nearby_activity_ship_position(actor_sample)
+	)
 
 
 func _authorize_cinder_cargo_terminal_actor(ship_to_authorize: Node) -> Dictionary:
@@ -16957,7 +16965,7 @@ func _start_nearby_activity(binding: Node, activity_id: StringName) -> Dictionar
 					return receipt_result
 			return binding.call(
 				&"start_mining_activity",
-				active_ship.global_position
+				_cinder_authored_frame_position(active_ship.global_position)
 					if is_instance_valid(active_ship) else Vector3.ZERO,
 			)
 		&"cinder_derelict_structure_scan":
@@ -16983,7 +16991,7 @@ func _start_nearby_activity(binding: Node, activity_id: StringName) -> Dictionar
 				return retry
 			return binding.call(
 				&"start_structure_scan",
-				active_ship.global_position
+				_cinder_authored_frame_position(active_ship.global_position)
 					if is_instance_valid(active_ship) else Vector3.ZERO,
 			)
 		&"cinder_debris_beacon_traversal":
@@ -17008,7 +17016,7 @@ func _start_nearby_activity(binding: Node, activity_id: StringName) -> Dictionar
 				return retry
 			return binding.call(
 				&"start_beacon_traversal",
-				active_ship.global_position
+				_cinder_authored_frame_position(active_ship.global_position)
 					if is_instance_valid(active_ship) else Vector3.ZERO,
 			)
 		&"cinder_asteroid_field_threading_run":
@@ -17035,7 +17043,7 @@ func _start_nearby_activity(binding: Node, activity_id: StringName) -> Dictionar
 				return belt_retry
 			return binding.call(
 				&"start_asteroid_field_run",
-				active_ship.global_position
+				_cinder_authored_frame_position(active_ship.global_position)
 					if is_instance_valid(active_ship) else Vector3.ZERO,
 			)
 		&"cinder_platform_supply_run":
