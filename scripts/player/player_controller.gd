@@ -33,6 +33,11 @@ const DEFAULT_AUTHORED_CAMERA_FOV := 72.0
 const BOARDING_ENTRY_FRACTION := 0.42
 const BOARDING_STEP_HEIGHT := 0.16
 const DISEMBARK_STEP_HEIGHT := 0.12
+## `settle_exit_onto_support()` probes from just above an exit pose to this far
+## below it; a gap within the tolerance is left to the ordinary floor snap.
+const EXIT_SUPPORT_PROBE_RISE := 0.3
+const EXIT_SUPPORT_MAX_DROP := 2.5
+const EXIT_SUPPORT_TOLERANCE := 0.05
 
 ## Locomotion step-up assist.
 ##
@@ -797,6 +802,43 @@ func begin_disembark(
 	if is_zero_approx(_transition_duration):
 		_complete_disembark()
 	return true
+
+
+## Lowers an exit pose onto the walkable support directly beneath it.
+##
+## A craft's exit marker is authored against the craft, not against whatever it
+## happens to be parked on, so it can float above the deck (the Zenith's sits
+## 0.53 m over Fleet Dock slab 01). A disembark that ends there drops the pilot
+## and plays the airborne and landing-recovery clips beside the hull. Only ever
+## lowers, never raises, and only onto walkable support within
+## `EXIT_SUPPORT_MAX_DROP`; with nothing below, the authored pose is returned.
+func settle_exit_onto_support(exit_transform: Transform3D) -> Transform3D:
+	var clean := _clean_transform(exit_transform)
+	var world := get_world_3d() if is_inside_tree() else null
+	if world == null or not clean.origin.is_finite():
+		return clean
+	var up := clean.basis.y.normalized()
+	if not up.is_finite() or up.is_zero_approx():
+		up = Vector3.UP
+	var query := PhysicsRayQueryParameters3D.create(
+		clean.origin + up * EXIT_SUPPORT_PROBE_RISE,
+		clean.origin - up * EXIT_SUPPORT_MAX_DROP,
+		_standing_collision_mask
+	)
+	query.exclude = [get_rid()]
+	query.collide_with_areas = false
+	query.hit_from_inside = false
+	var hit := world.direct_space_state.intersect_ray(query)
+	if hit.is_empty():
+		return clean
+	var normal := hit.get("normal", Vector3.ZERO) as Vector3
+	if normal.normalized().dot(up) < cos(floor_max_angle):
+		return clean
+	var drop := (clean.origin - (hit.get("position") as Vector3)).dot(up)
+	if drop <= EXIT_SUPPORT_TOLERANCE:
+		return clean
+	clean.origin -= up * drop
+	return clean
 
 
 ## Cancels any in-progress seat transition and restores one coherent physical

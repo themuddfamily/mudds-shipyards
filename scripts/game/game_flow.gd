@@ -8645,7 +8645,9 @@ func _try_exit_ship() -> void:
 	active_ship.get_camera().current = false
 	player.set_camera_active(true)
 	var exterior_waypoints := active_ship.get_exterior_exit_waypoints()
-	if not player.begin_disembark(active_ship.get_exit_transform(), disembarking_motion_time,
+	if not player.begin_disembark(
+			player.settle_exit_onto_support(active_ship.get_exit_transform()),
+			disembarking_motion_time,
 			active_ship if not exterior_waypoints.is_empty() else null, exterior_waypoints):
 		_transition_busy = false
 		_present_boarding_confirmation(&"rejected", transition_ship, &"disembark_transition_failed")
