@@ -11,6 +11,8 @@ extends RefCounted
 const MAX_ABANDON_RETURN_ARM_ATTEMPTS := 900
 
 const MAX_TRANSIT_RESUME_ATTEMPTS := 600
+## Beyond the Mudds return corridor's reach; no local flight gets this far.
+const STRANDED_RETURN_MINIMUM_DISTANCE_M := 1_000_000.0
 var _last_ember_origin_announcement: Dictionary = {}
 var _ember_outbound_resume_attempts := 0
 var _last_ember_outbound_resume_result: Dictionary = {}
@@ -2160,6 +2162,37 @@ func _observe_abandon_return_departure_tick(tick: Dictionary) -> void:
 	_ember_abandon_return_arm_pending = false
 	_ember_abandon_return_active = false
 	_last_ember_abandon_return_arm_result = tick.duplicate(true)
+
+
+## True when the seated pilot is out past any local flight — only a planetary
+## trip goes this far — with no journey or return left to bring them home: a
+## withdrawn return, or one a refusal retired. Ember is then the wrong offer.
+func stranded_return_available() -> bool:
+	if _ember_abandon_return_arm_pending or _ember_abandon_return_active \
+			or _mudds_return_approach_active or _ember_surface_journey_active \
+			or not _pending_ember_surface_request.is_empty() or _aurora_visit_active:
+		return false
+	if not is_instance_valid(_flow.active_ship) or not _flow.active_ship.is_piloted() \
+			or not is_instance_valid(_flow.world) or not _flow.world.has_method(&"get_ship_spawn"):
+		return false
+	var home := (_flow.world.call(&"get_ship_spawn") as Transform3D).origin
+	return _flow.active_ship.global_position.distance_to(home) \
+		> STRANDED_RETURN_MINIMUM_DISTANCE_M
+
+
+## Queues the Mudds return for a stranded pilot through the abandon return's
+## own departure path: it waits for released controls and clear terrain.
+func request_stranded_return() -> Dictionary:
+	if not stranded_return_available():
+		return {"accepted": false, "reason": &"stranded_return_unavailable"}
+	_mudds_return_approach_completion_attempted = false
+	_mudds_return_approach_completion_receipt.clear()
+	_ember_abandon_return_arm_pending = true
+	_ember_abandon_return_arm_attempts = 0
+	_last_ember_abandon_return_arm_result = {
+		"accepted": true, "reason": &"stranded_return_queued",
+	}
+	return _last_ember_abandon_return_arm_result.duplicate(true)
 
 
 func _pilot_holds_flight_controls() -> bool:

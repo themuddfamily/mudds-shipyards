@@ -17459,6 +17459,9 @@ func _on_hud_planetary_cruise_toggle_requested(request_serial: int) -> void:
 		result = abandon_ember_surface_journey(&"player_abandoned")
 	elif bool(before.get("engagement_requested", false)):
 		result = disengage_planetary_cruise(true)
+	elif bool(before.get("toggle_enabled", false)) \
+			and _planetary_journey.stranded_return_available():
+		result = _planetary_journey.request_stranded_return()
 	elif (
 		before.get("status_id", &"") == &"ready"
 		and bool(before.get("toggle_enabled", false))
@@ -18734,7 +18737,11 @@ func _planetary_cruise_presentation() -> Dictionary:
 				)
 				if gate_reason.is_empty():
 					status_id = &"ready"
-					status_text = "READY — EMBER MOON"
+					status_text = (
+						"READY — RETURN TO MUDDS"
+						if _planetary_journey.stranded_return_available()
+						else "READY — EMBER MOON"
+					)
 					toggle_enabled = true
 				else:
 					status_id = &"unavailable"
