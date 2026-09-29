@@ -14902,9 +14902,11 @@ func _advance_cinder_convoy(delta: float, world_position: Vector3) -> void:
 		return
 	_cinder_position_sample_count += 1
 	var generation := cinder_convoy_host.get_generation()
+	# The host measures escort separation against its tender in its own frame,
+	# which a common-origin rebase translates; hand it the escort in that frame.
 	var advanced := cinder_convoy_host.advance_physics(
 		delta,
-		world_position,
+		cinder_convoy_host.global_transform.affine_inverse() * world_position,
 		generation
 	)
 	if not bool(advanced.get("accepted", false)) and _convoy_is_running():
