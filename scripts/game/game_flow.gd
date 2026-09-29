@@ -6468,6 +6468,10 @@ func publish_first_sortie_tutorial_phase(
 		return false
 	if _first_sortie_tutorial_dismissed_generation == _first_sortie_tutorial_generation:
 		return false
+	# The first sortie is over once the guided test completes; later sorties'
+	# seat and landing hooks must not restart its card part-way through.
+	if _guided_activity_complete:
+		return false
 	_first_sortie_tutorial_revision += 1
 	_first_sortie_tutorial_active_step = step_id
 	_first_sortie_tutorial_craft_context = (
