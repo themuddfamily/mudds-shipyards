@@ -80,6 +80,21 @@ const PAD_LANDING_HALF_EXTENTS := {
 	&"dock_05_bomber": Vector3(3.9, 2.0, 8.2),
 	&"dock_06_interceptor": Vector3(2.8, 1.7, 4.8),
 }
+## How far each craft climbs straight up off its deck when its pilot applies
+## thrust (`ShipBerth.departure_lift_height`). Resting on the decks puts every
+## hull among deck-height kerbs and beams, and nose-forward flight cannot climb:
+## holding thrust used to fly the hauler into `VipReceptionSuite`'s glazing
+## 1.2 m off its nose, the bomber into `ModernFleetRegistry`'s roof and the
+## interceptor into Dock 04's threshold beam, which destroyed it. Measured by
+## sweeping each production hull forward from its dock pose at every lifted
+## height: the hauler clears the reception suite's lantern from 7 m, the bomber
+## the registry from 2 m, and the interceptor clears everything from 11 m (from
+## 8 to 10 m its own launch-frame header stands across the line).
+const PAD_DEPARTURE_LIFT_HEIGHTS := {
+	&"dock_04_cargo": 9.0,
+	&"dock_05_bomber": 4.0,
+	&"dock_06_interceptor": 12.0,
+}
 const LANDING_ASSIST_CAPTURE_CENTER := Vector3(0.0, 8.0, 30.0)
 const LANDING_ASSIST_CAPTURE_HALF_EXTENTS := Vector3(12.0, 12.0, 18.0)
 ## The craft are held by their kinematic attachment contracts four metres above
@@ -1398,6 +1413,7 @@ func _build_pad(pad_id: StringName, pad_position: Vector3, index: int) -> void:
 	pad.landing_half_extents = PAD_LANDING_HALF_EXTENTS[pad_id] as Vector3
 	pad.assist_capture_center = LANDING_ASSIST_CAPTURE_CENTER
 	pad.assist_capture_half_extents = LANDING_ASSIST_CAPTURE_HALF_EXTENTS
+	pad.departure_lift_height = float(PAD_DEPARTURE_LIFT_HEIGHTS[pad_id])
 	pad.position = pad_position
 	pad.set_meta(&"landing_contract_anchor", true)
 	add_child(pad)

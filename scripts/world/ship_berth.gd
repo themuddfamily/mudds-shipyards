@@ -32,6 +32,21 @@ const ASSIST_CAPTURE_SCHEMA_VERSION := 1
 @export_range(1.0, 80.0, 0.5) var assist_capture_maximum_speed := 32.0
 @export_range(1.0, 89.0, 0.5) var assist_maximum_tilt_degrees := 75.0
 
+@export_category("Departure")
+## Height a craft parked at this berth's exact dock pose rises, straight up the
+## dock's own up axis, when its pilot first applies thrust, before nose-forward
+## flight takes over. It is the landing assist's final vertical descent run in
+## reverse, for berths whose craft sit on a deck among kerbs, beams or buildings
+## that level forward thrust cannot climb over. Zero keeps the plain departure.
+@export_range(0.0, 30.0, 0.1) var departure_lift_height := 0.0
+
+## Every berth joins this group so a departing craft can find the one it is
+## parked on without the berth holding any reference to the craft.
+const GROUP := &"ship_berth_nodes"
+## How far a craft may sit from the exact dock origin and still be departing
+## from this berth rather than from somewhere near it.
+const DEPARTURE_DOCK_TOLERANCE := 0.75
+
 var _reservation_owner: WeakRef
 var _occupant: WeakRef
 var _reservation_token: StringName = &""
@@ -39,8 +54,28 @@ var _reserved_ship_id: StringName = &""
 var _token_serial := 0
 
 
+func _enter_tree() -> void:
+	add_to_group(GROUP)
+
+
 func get_berth_id() -> StringName:
 	return berth_id
+
+
+func get_departure_lift_height() -> float:
+	return departure_lift_height
+
+
+## The lift a craft at `world_position` receives when it departs: this berth's
+## height and the dock's up axis if the craft sits on the exact dock pose,
+## otherwise an empty dictionary.
+func get_departure_lift_for(world_position: Vector3) -> Dictionary:
+	if departure_lift_height <= 0.0 or not is_inside_tree():
+		return {}
+	var dock := get_dock_transform()
+	if dock.origin.distance_to(world_position) > DEPARTURE_DOCK_TOLERANCE:
+		return {}
+	return {"height": departure_lift_height, "up": dock.basis.y.normalized()}
 
 
 func get_dock_transform() -> Transform3D:
