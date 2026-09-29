@@ -295,6 +295,10 @@ const HEAT_VENT_HEIGHT := 0.14
 ## player has asked for reduced flash.
 const HEAT_VENT_EMISSION_ENERGY := 5.4
 const HEAT_VENT_REDUCED_FLASH_EMISSION_ENERGY := 1.9
+## Destruction practical peak, and its reduced-flash cap (the same ceiling the
+## hull destruction flash in `HeroDamagePresentation` uses).
+const DESTRUCTION_LIGHT_PEAK := 10.0
+const DESTRUCTION_REDUCED_FLASH_LIGHT_PEAK := 3.0
 ## Below this the gun reads as cold and the collars are simply not drawn.
 const HEAT_VENT_VISIBLE_RATIO := 0.02
 
@@ -550,7 +554,9 @@ func _process(delta: float) -> void:
 		_destruction_time = maxf(0.0, _destruction_time - delta)
 		if _destruction_light != null:
 			var normalized_time := _destruction_time / 0.72
-			_destruction_light.light_energy = 10.0 * normalized_time * normalized_time
+			_destruction_light.light_energy = (
+				_destruction_light_peak() * normalized_time * normalized_time
+			)
 			_destruction_light.omni_range = 7.0 + 8.0 * (1.0 - normalized_time)
 			if _destruction_time <= 0.0:
 				_destruction_light.queue_free()
@@ -2174,6 +2180,10 @@ func set_reduced_flash_enabled(enabled: bool) -> Dictionary:
 	}.duplicate(true)
 
 
+func _destruction_light_peak() -> float:
+	return DESTRUCTION_REDUCED_FLASH_LIGHT_PEAK if _reduced_flash else DESTRUCTION_LIGHT_PEAK
+
+
 func _heat_vent_peak_emission_energy() -> float:
 	return (
 		HEAT_VENT_REDUCED_FLASH_EMISSION_ENERGY
@@ -3109,7 +3119,7 @@ func _spawn_destruction_burst(
 	_destruction_light = OmniLight3D.new()
 	_destruction_light.name = "DestructionFlash"
 	_destruction_light.light_color = SIGNAL_AMBER
-	_destruction_light.light_energy = 10.0
+	_destruction_light.light_energy = _destruction_light_peak()
 	_destruction_light.omni_range = 7.0
 	_destruction_light.shadow_enabled = false
 	_destruction_root.add_child(_destruction_light)

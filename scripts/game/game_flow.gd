@@ -19906,6 +19906,17 @@ func _apply_opponent_weapon_heat_presentation_profile() -> void:
 		var bolt_pool := cinder_convoy_threat.get_bolt_pool()
 		if is_instance_valid(bolt_pool):
 			bolt_pool.set_reduced_flash_enabled(runtime_settings.reduced_flash)
+	# The authored reinforcements (picket, wing pair, courier) share the range
+	# opponent's heat vent and destruction flash; the picket's lance bolts too.
+	for reinforcement_path: NodePath in [
+		^"StandoffPicket", ^"WingSkirmisherLead", ^"WingSkirmisherWing", ^"CourierRunner",
+	]:
+		var reinforcement := get_node_or_null(reinforcement_path) as RangeOpponent
+		if is_instance_valid(reinforcement):
+			reinforcement.set_reduced_flash_enabled(runtime_settings.reduced_flash)
+		var picket := reinforcement as StandoffPicketOpponent
+		if is_instance_valid(picket):
+			picket.set_lance_bolt_reduced_flash(runtime_settings.reduced_flash)
 	if not is_instance_valid(opponent):
 		return
 	if opponent.has_method(&"set_reduced_flash_enabled"):

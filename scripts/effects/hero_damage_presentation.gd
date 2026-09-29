@@ -200,6 +200,15 @@ func is_reduced_flash_enabled() -> bool:
 	return _reduced_flash
 
 
+## Presentation-only engine value for exhaust glows and engine lights. Under
+## reduced flash a failing engine's glow holds the stutter's mean instead of
+## flickering; `get_engine_power_multiplier()` still drives thrust unchanged.
+func get_engine_glow_multiplier() -> float:
+	if _reduced_flash and _engine_failure_active:
+		return REDUCED_FLASH_ENGINE_STUTTER
+	return _engine_power_multiplier
+
+
 ## Applies the authoritative ship state to the presentation.
 ##
 ## [param health_ratio] is clamped to 0..1. [param ship_state] should normally
