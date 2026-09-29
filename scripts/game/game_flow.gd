@@ -4143,7 +4143,16 @@ func _get_minimap_contacts() -> Array[Dictionary]:
 ## transforms from surviving a rebase or unload.
 func _get_minimap_objective_markers(coordinate_frame_generation: int = 0) -> Array[Dictionary]:
 	var markers: Array[Dictionary] = []
-	if is_instance_valid(world):
+	# The station's own fixtures are only map objectives while the player is in
+	# the station's frame. On a planet visit the yard is thousands of km away
+	# (Ember) or hidden (Aurora, Rime); clamped to the rim, its board would sit
+	# on the surface map as a live "DEFENSE BOARD" objective.
+	var station_frame_current := (
+		is_instance_valid(world)
+		and world.is_visible_in_tree()
+		and not _ember_surface_journey_active
+	)
+	if station_frame_current:
 		var board: Area3D = world.get_station_defense_activity_board()
 		if is_instance_valid(board) and board.is_inside_tree() and board.global_position.is_finite():
 			markers.append({

@@ -289,6 +289,7 @@ func _visit(
 			% [label, host.get_phase()]
 	)
 	_check_authored_interaction_points_are_reachable(game, host, player, label)
+	_check_surface_minimap_withholds_station_objectives(game, label)
 
 	# Leave through the production exit: the abandon lifts the survey gate, the
 	# pilot re-boards with a real interact press, the Host's own takeoff carries
@@ -313,6 +314,24 @@ func _visit(
 	)
 	await _reset_for_next_visit(game, player, host, craft)
 	return landed and on_foot
+
+
+## The yard is 8,000 km behind the pilot on the caldera floor. Its fixtures
+## must not be clamped onto the surface minimap's rim as live objectives, while
+## the Ember surface's own route marker stays published.
+func _check_surface_minimap_withholds_station_objectives(
+		game: GameFlow, label: String
+	) -> void:
+	var marker_ids: Array[StringName] = []
+	for marker: Dictionary in game.get_minimap_snapshot().get("objective_markers", []):
+		marker_ids.append(StringName(marker.get("id", &"")))
+	_check(
+		not marker_ids.has(&"station_defense_activity_board")
+			and not marker_ids.has(&"cinder_cargo_terminal")
+			and marker_ids.has(&"active_ember_surface_route"),
+		"%s shows the Ember route, not the distant yard's board, on the surface minimap %s"
+			% [label, marker_ids]
+	)
 
 
 ## The Main-composed reach check. Both authored interaction points are placed
