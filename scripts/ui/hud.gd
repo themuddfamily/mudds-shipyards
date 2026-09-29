@@ -622,6 +622,8 @@ var _reticle_state: StringName = &"searching"
 var _sensor_reticle_profile: Dictionary = {}
 var _flight_cue_layer: FlightPathCue
 var _toast_serial := 0
+var _toast_important_serial := 0
+var _toast_deferred: Dictionary = {}
 var _toast_tween: Tween
 ## A focused suite supplies a tiny CPU image here so it can prove the complete
 ## F2-to-file path without depending on a GPU-backed test viewport. Production
@@ -2619,11 +2621,22 @@ func flash_damage(intensity: float = 1.0, direction: Vector2 = Vector2.ZERO) -> 
 	)
 
 
-func toast(title: String, detail: String = "", duration: float = 3.2) -> void:
+## An `important` toast (a reward receipt or failure the player must read) holds
+## the panel for its full duration: a routine toast raised meanwhile, often by the
+## same call chain in the same frame, waits and is shown when it finishes. A
+## newer important toast still replaces the current one.
+func toast(title: String, detail: String = "", duration: float = 3.2, important: bool = false) -> void:
+	if not important and _toast_important_serial != 0 \
+			and _toast_important_serial == _toast_serial and _toast_panel.visible:
+		_toast_deferred = {"title": title, "detail": detail, "duration": duration}
+		return
 	if is_instance_valid(_toast_tween):
 		_toast_tween.kill()
 	_toast_serial += 1
 	var serial := _toast_serial
+	_toast_important_serial = serial if important else 0
+	if not important:
+		_toast_deferred = {}
 	_toast_title.text = title.to_upper()
 	_toast_detail.text = _controller_prompt_text(detail)
 	_toast_panel.modulate = Color.WHITE if _reduced_motion else Color.TRANSPARENT
@@ -2634,7 +2647,7 @@ func toast(title: String, detail: String = "", duration: float = 3.2) -> void:
 		var reduced_timer := get_tree().create_timer(duration, true, false, true)
 		reduced_timer.timeout.connect(func() -> void:
 			if serial == _toast_serial:
-				_toast_panel.visible = false
+				_finish_toast()
 		)
 		return
 	_toast_tween = create_tween()
@@ -2644,9 +2657,19 @@ func toast(title: String, detail: String = "", duration: float = 3.2) -> void:
 	_toast_tween.tween_property(_toast_panel, "modulate", Color.TRANSPARENT, get_toast_fade_seconds())
 	_toast_tween.tween_callback(func() -> void:
 		if serial == _toast_serial:
-			_toast_panel.visible = false
 			_toast_tween = null
+			_finish_toast()
 	)
+
+
+func _finish_toast() -> void:
+	_toast_panel.visible = false
+	_toast_important_serial = 0
+	if _toast_deferred.is_empty():
+		return
+	var deferred := _toast_deferred
+	_toast_deferred = {}
+	toast(str(deferred.title), str(deferred.detail), float(deferred.duration))
 
 
 func set_paused(paused: bool) -> void:
