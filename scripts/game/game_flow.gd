@@ -19877,6 +19877,12 @@ func _apply_reduced_dynamic_range_setting() -> Dictionary:
 		_ember_surface_loop_audio_composition.call(
 			&"set_reduced_dynamic_range", _reduced_dynamic_range
 		)
+	# The Dock 04/05/06 craft own their engine and payload voices; the binding
+	# keeps the policy for craft it builds later.
+	if is_instance_valid(world) and world.has_method(&"get_fleet_expansion_production_binding"):
+		var fleet := world.call(&"get_fleet_expansion_production_binding") as Node
+		if is_instance_valid(fleet) and fleet.has_method(&"set_reduced_dynamic_range"):
+			fleet.call(&"set_reduced_dynamic_range", _reduced_dynamic_range)
 	if is_instance_valid(audio) and audio.has_method(&"set_reduced_dynamic_range"):
 		return audio.call(&"set_reduced_dynamic_range", _reduced_dynamic_range)
 	return {"accepted": true, "reason": &"retained_until_audio_ready"}
