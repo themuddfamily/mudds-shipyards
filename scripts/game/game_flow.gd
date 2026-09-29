@@ -8522,7 +8522,16 @@ func _board_ship_locally(candidate: HeroShip, candidate_area: ShipBoardingArea) 
 	# Switching hulls is a terminal actor replacement even for the adapters that
 	# do not own a convoy entity; otherwise their clock/progress survives and the
 	# newly boarded craft silently resumes another ship's activity.
-	if _selected_activity_is_running() and candidate != active_ship:
+	# A convoy restored from a save is not bound to any live hull yet: it stays
+	# frozen until its saved escort craft is flying again. Main starts in the
+	# Torrent, so boarding that saved craft is always a switch and must rebind
+	# the session rather than fail it.
+	var restored_convoy_awaits_rebind := (
+		_selected_activity_kind == ACTIVITY_KIND_CONVOY_ESCORT
+		and _cinder_convoy_runtime_rebind_pending
+	)
+	if _selected_activity_is_running() and candidate != active_ship \
+			and not restored_convoy_awaits_rebind:
 		_fail_active_activity(&"active_ship_replaced")
 	if candidate != active_ship:
 		if hud.has_method("clear_hero_component_ship"):
