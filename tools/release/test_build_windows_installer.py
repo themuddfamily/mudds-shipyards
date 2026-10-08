@@ -221,7 +221,8 @@ try {
     $interrupted.payload | Add-Member -NotePropertyName crash_recovery -NotePropertyValue @{ state = 'running'; startup_generation = 1; unclean_start_count = 0 }
     $encodedDocument = [Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes(($interrupted | ConvertTo-Json -Depth 12)))
     $childPidPath = Join-Path $ProbeRoot 'child-pid.txt'
-    $childSource = "[IO.File]::WriteAllText('$childPidPath', [string]`$PID); [IO.File]::WriteAllText('$document', [Text.Encoding]::UTF8.GetString([Convert]::FromBase64String('$encodedDocument'))); [IO.File]::WriteAllText('$ProbeRoot\forced-kill-1-startup.log', 'STARTUP begin'); Start-Sleep -Seconds 60"
+    $childLogPath = Join-Path $ProbeRoot 'forced-kill-1-startup.log'
+    $childSource = "[IO.File]::WriteAllText('$childPidPath', [string]`$PID); [IO.File]::WriteAllText('$document', [Text.Encoding]::UTF8.GetString([Convert]::FromBase64String('$encodedDocument'))); [IO.File]::WriteAllText('$childLogPath', 'STARTUP begin'); Start-Sleep -Seconds 60"
     $script:childEncoded = [Convert]::ToBase64String([Text.Encoding]::Unicode.GetBytes($childSource))
     function New-OwnedBootInfo([string]$log, [bool]$startupCheck) {
         $info = New-Object Diagnostics.ProcessStartInfo
