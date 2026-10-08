@@ -145,7 +145,6 @@ by whoever owns them:
 
 | seam | owner |
 | --- | --- |
-| bomber and cargo berth legs × boarding legs (3.20 m², ×4 each) | `scripts/world/fleet_expansion_berths.gd` |
 | dock lattice connector deck × cargo container batch (30.76 m²) | `scripts/world/shipyard_world.gd`, `scripts/world/ship_berth.gd` |
 | dock slab / slab inset × Halyard landing gear feet | `scripts/world/fleet_dock_comb.gd`, `scripts/ships/halyard_crew_transport.gd` |
 | AftJunctionStack (248 pairs, 47.70 m²) and JovianFreightBerth (125 pairs, 59.17 m²) | `scripts/world/aft_junction_stack.gd`, `scripts/world/jovian_freight_berth.gd` |
@@ -242,3 +241,18 @@ its `invalid-script-only-*` records are retained and excluded from acceptance.
 Rendering used silent isolated Xvfb/x11 Forward+ software rendering. No source,
 collision, source-core/evidence-status or census change was needed; native GPU
 and full gameplay-distance visual acceptance remain open.
+
+## Cargo and bomber berth-leg joints — no defect found 2026-10-08
+
+The deferred `CargoTrunkLeg` × `CargoBoardingLeg` and `BomberBerthLeg` ×
+`BomberBoardingLeg` family was inspected on `b7f5fb1b8`. Current emitted
+geometry has 17 coincident face pairs, but both legs share the identical
+`StationSurfaceKit` material, world-space triplanar projection and face
+orientation. Either face therefore shades the overlap identically.
+
+Original-resolution 1600×900 cargo and bomber gameplay-eye-height images were
+inspected and show clean joins. Captures, live material proof, audit and logs
+remain under `/root/.cache/mudds-shipyards/roadmap-validation/cinder-berth-leg-visuals/`.
+Rendering used silent isolated Xvfb/x11 Forward+ software rendering. No source,
+collision, route, berth, material or census change was needed. This removes the
+named family from the actionable defect list; native visual review remains open.

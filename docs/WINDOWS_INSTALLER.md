@@ -8,6 +8,26 @@ by default; optional signing is described in
 [Windows code signing](WINDOWS_CODE_SIGNING.md). A green verification does not
 grant distribution rights or replace the human gates that remain open.
 
+## Native checkpoint `2e4ffb6` result — 2026-10-08
+
+The unsigned `MuddsShipyards-2e4ffb6-setup.exe` is published in
+`builds/windows/`, with payload/source/build metadata and [installer notes](../builds/windows/MuddsShipyards-2e4ffb6-installer-notes.txt).
+The existing native verifier passes all 11 steps for actual
+`9e7545f` → `2e4ffb6` → `9e7545f` installation, upgrade and rollback.
+Blocked replacement exits 2 with the previous executable, provenance,
+registry and player data intact. Each transition checks exact hashes and
+commit identities; all three installed silent startup checks exit 0 with
+exactly one `STARTUP_MENU_READY_OK` and zero engine/script/leak diagnostics.
+Uninstall removes the owned install, shortcuts and registry while retaining
+byte-identical seeded player data.
+
+Installer SHA-256: `89989b5cb1140eb0350256157751d69fb5a8b9e7aaf69e25ddf5929650370fbe`.
+Native result and raw startup logs remain under
+`/root/.cache/mudds-shipyards/roadmap-validation/installer-9e7545f-2e4ffb6-native*`.
+This is checkpoint-specific silent acceptance. Interactive installation,
+installed corrupt-data recovery, clean-machine/hardware/platform review,
+trusted signing and final-candidate release acceptance remain open.
+
 ## Building
 
 Keep checkpoint executables, installers, ZIPs and notes in this repository's
