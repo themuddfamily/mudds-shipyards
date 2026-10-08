@@ -1057,7 +1057,8 @@ func discard_deferred_damage_presentations() -> void:
 ## space. The owner can hide or recycle its hull without moving the explosion.
 func present_destruction(
 		world_velocity: Vector3 = Vector3.ZERO,
-		world_pose: Variant = null
+		world_pose: Variant = null,
+		play_effects: bool = true
 	) -> void:
 	_ensure_built()
 	if is_queued_for_deletion() or _stage == DamageStage.DESTROYED:
@@ -1068,6 +1069,9 @@ func present_destruction(
 	_ship_state = STATE_DESTROYED
 	_set_stage(DamageStage.DESTROYED)
 	_apply_stage_visuals()
+	# Late adoption keeps the terminal silhouette without replaying an old burst.
+	if not play_effects:
+		return
 	_pending_destruction_pose = world_pose as Transform3D if world_pose is Transform3D else global_transform
 	_pending_destruction_pose.basis = _pending_destruction_pose.basis.orthonormalized()
 	_pending_destruction_pose_valid = true

@@ -68,9 +68,11 @@ const CLOCK_SLEW := 0.1
 
 # Host state.
 var _published: Dictionary = {}
+var _observed_damage: Dictionary = {}
 
 # Client state.
 var _samples: Dictionary = {}
+var _epoch := 0
 var _clock := -1.0
 var _heard_tick := -1
 var _heard_frame := -1
@@ -97,9 +99,11 @@ static func build_pose_entry(
 	var transform := craft.global_transform
 	if not transform.origin.is_finite() or not velocity.is_finite():
 		return {}
+	var hull: Dictionary = (craft as HeroShip).get_network_damage_presentation_snapshot() if craft is HeroShip else {}
 	return {
 		"entity_id": pose_entity_id(ship_id),
-		"entity_generation": 1,
+		"entity_generation": maxi(1, int(hull.get("component_generation", 1))),
+		"hull_presentation": hull,
 		"owner_peer_id": maxi(1, pilot_peer_id),
 		"mode": MODE,
 		"ship_id": ship_id,
@@ -121,7 +125,7 @@ static func should_publish(server_tick: int) -> bool:
 ## `pilots` maps ship_id -> {"craft": Node3D, "peer_id": int} for every craft
 ## that is piloted right now. Returns the movement entries to publish this tick
 ## (empty on a tick that is not a publish tick).
-func build_host_entries(pilots: Dictionary, server_tick: int) -> Array:
+func build_host_entries(pilots: Dictionary, server_tick: int, observed_craft: Array = [], epoch: int = 1) -> Array:
 	var entries: Array = []
 	for ship_id_variant in pilots.keys():
 		var ship_id := StringName(ship_id_variant)
@@ -134,6 +138,24 @@ func build_host_entries(pilots: Dictionary, server_tick: int) -> Array:
 		}
 	if not should_publish(server_tick):
 		return entries
+	# Read committed owners after their transactions. Changes reopen the same
+	# coast window, so regeneration at a berth is published even after the pilot
+	# and old pose stream have gone. Hits never manufacture a new generation.
+	for craft: HeroShip in observed_craft:
+		if not is_instance_valid(craft) or not craft.is_inside_tree():
+			continue
+		var ship_id := craft.get_ship_id()
+		var hull := craft.get_network_damage_presentation_snapshot()
+		if hull.is_empty():
+			continue
+		var prior := _observed_damage.get(ship_id, {}) as Dictionary
+		var changed := not prior.is_empty() and prior != hull
+		var already_damaged := float(hull.health) < float(hull.maximum_health) or int(hull.component_generation) > 1
+		for component: Dictionary in hull.components:
+			already_damaged = already_damaged or int(component.state) != 0
+		if changed or (prior.is_empty() and already_damaged):
+			_published[ship_id] = {"craft": craft, "peer_id": int((_published.get(ship_id, {}) as Dictionary).get("peer_id", 1)), "last_piloted_tick": server_tick}
+		_observed_damage[ship_id] = hull
 	for ship_id_variant in _published.keys():
 		var ship_id := StringName(ship_id_variant)
 		var record := _published[ship_id_variant] as Dictionary
@@ -141,7 +163,8 @@ func build_host_entries(pilots: Dictionary, server_tick: int) -> Array:
 		if not is_instance_valid(craft) or not (craft as Node).is_inside_tree():
 			_published.erase(ship_id_variant)
 			continue
-		if server_tick - int(record.get("last_piloted_tick", server_tick)) > COAST_TICKS:
+		if server_tick - int(record.get("last_piloted_tick", server_tick)) > COAST_TICKS \
+				and not (craft.has_method(&"is_destroyed") and bool(craft.call(&"is_destroyed"))):
 			_published.erase(ship_id_variant)
 			continue
 		var destroyed: bool = craft.has_method(&"is_destroyed") and bool(craft.call(&"is_destroyed"))
@@ -149,6 +172,7 @@ func build_host_entries(pilots: Dictionary, server_tick: int) -> Array:
 			craft as Node3D, ship_id, int(record.get("peer_id", 1)), server_tick, destroyed
 		)
 		if not entry.is_empty():
+			entry["craft_epoch"] = maxi(1, epoch)
 			entries.append(entry)
 	return entries
 
@@ -159,6 +183,7 @@ func is_host_tracking(ship_id: StringName) -> bool:
 
 func clear_host() -> void:
 	_published.clear()
+	_observed_damage.clear()
 
 
 # --- client half -------------------------------------------------------------
@@ -181,7 +206,19 @@ func consume_movement_section(movement: Array, physics_frame: int = -1) -> int:
 			_rejected += 1
 			continue
 		var ship_id := StringName(sample.get("ship_id", &""))
+		if _epoch > 0 and int(sample.craft_epoch) != _epoch:
+			_rejected += 1
+			continue
+		_epoch = int(sample.craft_epoch)
 		var history: Array = _samples.get(ship_id, [])
+		if not history.is_empty():
+			var previous := history.back() as Dictionary
+			if int(sample.entity_generation) < int(previous.entity_generation) \
+					or (int(sample.entity_generation) == int(previous.entity_generation) and bool(previous.destroyed) and not bool(sample.destroyed)):
+				_rejected += 1
+				continue
+			if int(sample.entity_generation) > int(previous.entity_generation):
+				history = []
 		if not history.is_empty() and int(sample.pose_tick) <= int((history.back() as Dictionary).pose_tick):
 			continue
 		history.append(sample)
@@ -214,6 +251,7 @@ func forget(ship_id: StringName) -> void:
 
 func clear_replica() -> void:
 	_samples.clear()
+	_epoch = 0
 	_clock = -1.0
 	_heard_tick = -1
 	_heard_frame = -1
@@ -408,7 +446,15 @@ func _sample_from_entry(entry: Dictionary) -> Dictionary:
 		return {}
 	if not pose_tick is int or int(pose_tick) < 0:
 		return {}
+	var generation: Variant = entry.get("entity_generation", 1)
+	var epoch: Variant = entry.get("craft_epoch", 1)
+	if not generation is int or int(generation) < 1 or not epoch is int or int(epoch) < 1:
+		return {}
+	var hull: Variant = entry.get("hull_presentation", {})
+	if not hull is Dictionary or (not (hull as Dictionary).is_empty() and not _valid_hull_presentation(hull, generation, bool(entry.get("destroyed", false)))):
+		return {}
 	return {
+		"entity_generation": int(generation), "craft_epoch": int(epoch), "hull_presentation": (hull as Dictionary).duplicate(true),
 		"ship_id": ship_id,
 		"pose_tick": int(pose_tick),
 		"pilot_peer_id": int(entry.get("owner_peer_id", 1)),
@@ -417,3 +463,29 @@ func _sample_from_entry(entry: Dictionary) -> Dictionary:
 		"velocity_world": velocity,
 		"destroyed": bool(entry.get("destroyed", false)),
 	}
+
+
+func _valid_hull_presentation(hull: Dictionary, generation: int, destroyed: bool) -> bool:
+	for field in ["health", "maximum_health"]:
+		if not (hull.get(field) is float or hull.get(field) is int) or not is_finite(float(hull[field])):
+			return false
+	if float(hull.maximum_health) <= 0.0 or float(hull.health) < 0.0 or float(hull.health) > float(hull.maximum_health) \
+			or destroyed != is_zero_approx(float(hull.health)) \
+			or not hull.get("component_generation") is int or int(hull.component_generation) != generation \
+			or not hull.get("components") is Array or (hull.components as Array).size() != ShipComponentDamage.COMPONENT_ORDER.size():
+		return false
+	var ids: Dictionary = {}
+	for row: Variant in hull.components:
+		if not row is Dictionary:
+			return false
+		var id := StringName(row.get("id", &""))
+		if id not in ShipComponentDamage.COMPONENT_ORDER or ids.has(id) \
+				or not (row.get("integrity") is float or row.get("integrity") is int) or not is_finite(float(row.integrity)) \
+				or float(row.integrity) < 0.0 or float(row.integrity) > 1.0 \
+				or not row.get("state") is int or int(row.state) != ShipComponentDamage.state_for_integrity(float(row.integrity)) \
+				or not row.get("local_position") is Vector3 or not (row.local_position as Vector3).is_finite() \
+				or not (row.get("local_radius") is float or row.get("local_radius") is int) \
+				or not is_finite(float(row.local_radius)) or float(row.local_radius) <= 0.0:
+			return false
+		ids[id] = true
+	return true

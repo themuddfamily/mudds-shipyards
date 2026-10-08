@@ -423,6 +423,11 @@ var _weapon_component_fallback_mesh_count := 0
 var _weapon_component_presentation_initialized := false
 var _materials: Dictionary = {}
 var _fire_from_left := true
+var _network_damage_presentation_enabled := false
+var _network_damage_presentation: HeroDamagePresentation
+var _network_damage_state: Dictionary = {}
+var _network_damage_source_visibility: Dictionary = {}
+var _network_damage_cues := 0
 var _damage_presentation: HeroDamagePresentation
 ## Observational component model. It never owns hull; see
 ## `scripts/combat/ship_component_damage.gd` for the authority boundary.
@@ -542,6 +547,7 @@ func _enter_tree() -> void:
 
 
 func _exit_tree() -> void:
+	clear_network_damage_presentation()
 	_unbind_viewport_field_of_view_policy()
 	# A detached body performs no physics. Fence every envelope captured against
 	# the old World3D so re-entry requires a new physical proof and submission.
@@ -2172,6 +2178,113 @@ func _on_viewport_size_changed() -> void:
 
 func get_damage_presentation() -> HeroDamagePresentation:
 	return _damage_presentation
+
+
+## Read-only host projection. The existing component ledger advances this life
+## only when its owning reset transaction commits, never for an ordinary hit.
+func get_network_damage_presentation_snapshot() -> Dictionary:
+	if _component_damage == null or not _component_damage.is_configured():
+		return {}
+	return {"health": _hull, "maximum_health": maximum_hull,
+		"component_generation": _component_damage.get_ledger_generation(),
+		"components": _component_damage.get_component_states()}
+
+
+func set_network_damage_presentation_enabled(enabled: bool) -> void:
+	_network_damage_presentation_enabled = enabled
+	if not enabled:
+		clear_network_damage_presentation()
+
+
+## Applies only validated host display facts. The separate shared rig has no
+## Hero signal bindings: its engine multiplier cannot enter flight handling,
+## and neither hull nor the local component ledger is touched by this path.
+func apply_network_damage_presentation(sample: Dictionary) -> Dictionary:
+	if not _network_damage_presentation_enabled or not is_inside_tree():
+		return {"applied": false}
+	var state := sample.get("hull_presentation", {}) as Dictionary
+	if state.is_empty() or _damage_presentation == null or _visual_root == null:
+		return {"applied": false}
+	var generation := int(sample.get("entity_generation", 0))
+	var tick := int(sample.get("pose_tick", -1))
+	var previous_generation := int(_network_damage_state.get("generation", 0))
+	if generation < previous_generation or (generation == previous_generation
+			and tick <= int(_network_damage_state.get("tick", -1))):
+		return {"applied": false}
+	var destroyed := bool(sample.get("destroyed", false))
+	if generation == previous_generation and bool(_network_damage_state.get("destroyed", false)) and not destroyed:
+		return {"applied": false}
+	if _network_damage_source_visibility.is_empty():
+		_network_damage_source_visibility = {"hull": _visual_root.visible,
+			"rig": _damage_presentation.visible, "layer": collision_layer, "mask": collision_mask}
+	if _network_damage_presentation == null:
+		_network_damage_presentation = SHARED_DAMAGE_PRESENTATION_SCENE.instantiate() as HeroDamagePresentation
+		_network_damage_presentation.name = "NetworkHeroDamagePresentation"
+		_network_damage_presentation.transform = _damage_presentation.transform
+		_network_damage_presentation.spark_anchor = _damage_presentation.spark_anchor
+		_network_damage_presentation.smoke_anchor = _damage_presentation.smoke_anchor
+		_network_damage_presentation.warning_anchor = _damage_presentation.warning_anchor
+		_network_damage_presentation.damaged_threshold = _damage_presentation.damaged_threshold
+		_network_damage_presentation.critical_threshold = _damage_presentation.critical_threshold
+		_network_damage_presentation.impact_effect_lifetime = _damage_presentation.impact_effect_lifetime
+		_network_damage_presentation.destruction_effect_lifetime = _damage_presentation.destruction_effect_lifetime
+		_network_damage_presentation.destruction_debris_count = _damage_presentation.destruction_debris_count
+		add_child(_network_damage_presentation)
+	_network_damage_presentation.set_reduced_flash_enabled(_damage_presentation.is_reduced_flash_enabled())
+	var ratio := float(state.health) / float(state.maximum_health)
+	var new_life := generation != previous_generation
+	if new_life:
+		_network_damage_presentation.reset_for_reuse(maxf(0.001, ratio), HeroDamagePresentation.STATE_POWERED_DOWN, generation)
+	var destruction_started := destroyed and not new_life and not bool(_network_damage_state.get("destroyed", false))
+	if destroyed:
+		_network_damage_presentation.present_destruction(
+			sample.get("velocity_world", Vector3.ZERO),
+			Transform3D(Basis(sample.get("rotation", Quaternion.IDENTITY)), sample.get("position", global_position)) * _network_damage_presentation.transform,
+			destruction_started
+		)
+		if destruction_started:
+			_network_damage_cues += 1
+		collision_layer = 0
+		collision_mask = 0
+	else:
+		collision_layer = int(_network_damage_source_visibility.layer)
+		collision_mask = int(_network_damage_source_visibility.mask)
+		_network_damage_presentation.update_state(ratio, HeroDamagePresentation.STATE_POWERED_DOWN, sample.get("velocity_world", Vector3.ZERO))
+		if new_life or state.components != _network_damage_state.get("components", []):
+			_network_damage_presentation.set_component_damage_states(state.components as Array)
+	_visual_root.visible = not destroyed
+	_damage_presentation.visible = false
+	_network_damage_presentation.visible = true
+	_network_damage_state = {"generation": generation, "tick": tick, "destroyed": destroyed,
+		"health": state.health, "components": (state.components as Array).duplicate(true)}
+	return {"applied": true, "destruction_started": destruction_started}
+
+
+func clear_network_damage_presentation() -> void:
+	if not _network_damage_source_visibility.is_empty():
+		if is_instance_valid(_visual_root):
+			_visual_root.visible = bool(_network_damage_source_visibility.hull)
+		if is_instance_valid(_damage_presentation):
+			_damage_presentation.visible = bool(_network_damage_source_visibility.rig)
+		collision_layer = int(_network_damage_source_visibility.layer)
+		collision_mask = int(_network_damage_source_visibility.mask)
+	_network_damage_source_visibility.clear()
+	_network_damage_state.clear()
+	_network_damage_cues = 0
+	if is_instance_valid(_network_damage_presentation):
+		_network_damage_presentation.reset_for_reuse()
+		_network_damage_presentation.visible = false
+
+
+func set_network_damage_reduced_flash(enabled: bool) -> void:
+	if is_instance_valid(_network_damage_presentation):
+		_network_damage_presentation.set_reduced_flash_enabled(enabled)
+
+
+func get_network_damage_presentation_audit() -> Dictionary:
+	return {"enabled": _network_damage_presentation_enabled, "state": _network_damage_state.duplicate(true),
+		"destruction_cues": _network_damage_cues, "rig": _network_damage_presentation,
+		"owns_damage_authority": false}
 
 
 ## Attaches the one shared damage presentation to a craft that is composed at

@@ -6356,6 +6356,9 @@ func _on_network_session_started(mode: StringName) -> void:
 	_network_hud_migration_generation = 0
 	_set_station_defense_network_presentation_only(mode == &"client")
 	_set_torpedo_boat_network_presentation_only(mode == &"client")
+	for craft: HeroShip in ships:
+		if is_instance_valid(craft):
+			craft.set_network_damage_presentation_enabled(mode == &"client")
 	if mode == &"client" and is_instance_valid(cinder_convoy_threat):
 		_cinder_convoy_client_suspended_threat_state.clear()
 		if _convoy_is_running() and bool(cinder_convoy_threat.get_snapshot().get("active", false)):
@@ -6431,6 +6434,9 @@ func _on_network_session_stopped(reason: StringName) -> void:
 	_network_remote_helm = {}
 	# Craft poses, ownership sequences and replicated projectiles belong to the
 	# session that published them.
+	for craft: HeroShip in ships:
+		if is_instance_valid(craft):
+			craft.set_network_damage_presentation_enabled(false)
 	_network_craft_pose_stream.clear_host()
 	_network_craft_pose_stream.clear_replica()
 	_network_craft_losses_presented.clear()
@@ -9356,7 +9362,7 @@ func _build_network_craft_pose_entries() -> Array:
 		pilots[active_ship.get_ship_id()] = {
 			"craft": active_ship, "peer_id": NetworkSessionAdapterType.AUTHORITY_PEER_ID,
 		}
-	var entries := _network_craft_pose_stream.build_host_entries(pilots, _network_boarding_server_tick)
+	var entries := _network_craft_pose_stream.build_host_entries(pilots, _network_boarding_server_tick, ships, maxi(1, _network_hud_session_epoch))
 	return _shift_network_craft_pose_entries(entries, -_network_station_frame_origin())
 
 
@@ -9473,12 +9479,28 @@ func _advance_network_craft_pose_replica(delta: float) -> void:
 			or network_session.is_server() or not network_session.is_inside_tree():
 		return
 	var piloted := _network_client_remote_helm_ship()
+	var locally_flown: HeroShip = active_ship if _piloting and piloted == null else null
 	var clock := _network_craft_pose_stream.get_clock()
 	for ship_id_variant in _network_craft_pose_stream.get_tracked_ship_ids():
 		var ship_id := StringName(ship_id_variant)
 		var latest := _network_craft_pose_stream.latest_sample(ship_id)
 		var fresh := clock < 0.0 or clock - float(latest.get("pose_tick", 0)) \
 			<= NetworkRemoteCraftPoseStreamType.STALE_SAMPLE_TICKS
+		var replica := _find_flyable_ship_by_id(ship_id)
+		if replica == locally_flown:
+			if is_instance_valid(replica):
+				replica.clear_network_damage_presentation()
+			continue
+		var displayed: Dictionary = {}
+		if is_instance_valid(replica):
+			var hull := latest.get("hull_presentation", {}) as Dictionary
+			var damaged := not hull.is_empty() and float(hull.get("health", 0.0)) < float(hull.get("maximum_health", 0.0))
+			for component: Dictionary in hull.get("components", []):
+				damaged = damaged or int(component.get("state", 0)) != 0
+			if fresh or damaged or bool(latest.get("destroyed", false)):
+				displayed = replica.apply_network_damage_presentation(latest)
+			else:
+				replica.clear_network_damage_presentation()
 		if not bool(latest.get("destroyed", false)) or not fresh:
 			_network_craft_losses_presented.erase(ship_id)
 			continue
@@ -9487,11 +9509,10 @@ func _advance_network_craft_pose_replica(delta: float) -> void:
 		_network_craft_losses_presented[ship_id] = true
 		var lost := _find_flyable_ship_by_id(ship_id)
 		if is_instance_valid(lost) and lost == piloted:
-			_present_network_remote_craft_lost(lost)
+			_present_network_remote_craft_lost(lost, bool(displayed.get("destruction_started", false)))
 			piloted = null
-		elif is_instance_valid(combat_audio) and latest.get("position") is Vector3:
+		elif bool(displayed.get("destruction_started", false)) and is_instance_valid(combat_audio) and latest.get("position") is Vector3:
 			combat_audio.play_explosion(latest.get("position") as Vector3, 0)
-	var locally_flown: HeroShip = active_ship if _piloting and piloted == null else null
 	_network_craft_pose_stream.advance_replica(
 		ships, piloted, locally_flown,
 		float(network_session.get_round_trip_milliseconds()), delta
@@ -9502,7 +9523,7 @@ func _advance_network_craft_pose_replica(delta: float) -> void:
 ## never damaged (damage is the host's), so the loss is presented here: the
 ## ledger seat is handed back, the helm stream stops, and the pilot gets the
 ## same recall to the deck a host pilot gets.
-func _present_network_remote_craft_lost(craft: HeroShip) -> void:
+func _present_network_remote_craft_lost(craft: HeroShip, play_cue: bool = true) -> void:
 	var ship_id := craft.get_ship_id()
 	var seat_id := StringName(_network_client_boarding_claim.get("seat_id", &""))
 	_network_client_boarding_claim = {}
@@ -9511,7 +9532,7 @@ func _present_network_remote_craft_lost(craft: HeroShip) -> void:
 		int(_network_client_boarding_audit.get("remote_craft_losses", 0)) + 1
 	_network_remote_helm = {}
 	_send_network_client_boarding_release(ship_id, seat_id, NetworkBoardingIntentType.ROLE_PILOT)
-	if is_instance_valid(combat_audio):
+	if play_cue and is_instance_valid(combat_audio):
 		combat_audio.play_explosion(craft.global_position, craft.get_instance_id())
 	if not _recovering:
 		_invalidate_transition_generation()
@@ -20057,6 +20078,7 @@ func _apply_combat_effect_reduced_flash(target: HeroShip = null) -> void:
 		var fleet_ship := candidate as HeroShip
 		if not is_instance_valid(fleet_ship):
 			continue
+		fleet_ship.set_network_damage_reduced_flash(enabled)
 		var damage := fleet_ship.get_damage_presentation()
 		if is_instance_valid(damage):
 			damage.set_reduced_flash_enabled(enabled)
