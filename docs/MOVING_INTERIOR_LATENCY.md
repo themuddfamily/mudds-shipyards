@@ -1019,9 +1019,19 @@ no longer strands the snapshot stream).
   down or leaves through the hatch.
 * **Projectile coverage is the travelling weapons.** Player pulse, bomber
   payload and opponent pulses were already replicated; slugs and seeker
-  torpedoes are now too. The torpedo boat's own AI still runs on each
-  client's copy, and whether a client copy launches its own local torpedoes
-  there has not been audited. The Emberline raider's travelling bolts now replicate through this same
+  torpedoes are now too. **Client Torpedo Run authority fixed, 2026-10-08
+  (`9e7545f`):** a production reproduction confirmed that joining with an
+  active solo boat left its seekers live and permitted another local launch.
+  Client joins now suspend boat AI, source registration, collision and direct
+  pool launch authority and retire those flights. Disconnect resumes retained
+  health, target, charge and encounter timer; only Torpedo Run's director
+  clock/termination/admission is suspended, preserving other scenarios.
+  Hosting adopts already-airborne real seekers with current pose and
+  `launch=false`. Browser/refused joins and boat/whole-Main reentry are covered.
+  Seven integrated source suites pass 380 assertions with zero diagnostics;
+  six exact-package owning probes pass 315. The new lifecycle probe includes
+  synthetic current/late seeker receipts and terminal fencing in one process;
+  broad independent-process/native Torpedo Run gameplay remains open. The Emberline raider's travelling bolts now replicate through this same
   host-owned path (`4c4be5430`, 2026-10-08). Current peers receive the red bolt,
   late peers receive its actual pool position without replaying launch, and
   source destruction or retirement clears it. The client neither advances the
