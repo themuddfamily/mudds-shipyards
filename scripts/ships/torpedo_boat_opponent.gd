@@ -95,6 +95,10 @@ var _torpedoes_intercepted := 0
 var _torpedo_hits := 0
 var _launch_warning_given := false
 var _weapon_definition: WeaponDefinition
+var _network_presentation_only := false
+var _network_saved_collision_layer := 0
+var _network_saved_collision_mask := 0
+var _network_saved_visible := false
 
 
 # ------------------------------------------------------------- lifecycle ----
@@ -124,6 +128,8 @@ func _exit_tree() -> void:
 
 
 func activate(spawn_transform: Transform3D) -> Dictionary:
+	if _network_presentation_only:
+		return {"accepted": false, "reason": &"client_projectile_authority_forbidden"}
 	var activation := super(spawn_transform) as Dictionary
 	if not bool(activation.get("accepted", false)):
 		return activation
@@ -138,6 +144,58 @@ func activate(spawn_transform: Transform3D) -> Dictionary:
 	_clear_lock_cue()
 	_sync_lock_cue()
 	return activation
+
+
+func activate_with_result(spawn_transform: Transform3D) -> Dictionary:
+	if _network_presentation_only:
+		return {"accepted": false, "reason": &"client_projectile_authority_forbidden"}
+	return super(spawn_transform)
+
+
+## Joining suspends the retained solo boat without resetting its hull, target,
+## charge or activation generation. Only host records are drawn by clients.
+## Live local flights are retired permanently; disconnect resumes the boat,
+## never the seekers that belonged to the old authority window.
+func set_network_presentation_only(enabled: bool) -> void:
+	if _network_presentation_only == enabled:
+		return
+	_network_presentation_only = enabled
+	if enabled:
+		_network_saved_collision_layer = collision_layer
+		_network_saved_collision_mask = collision_mask
+		_network_saved_visible = visible
+		if is_instance_valid(_torpedoes):
+			_torpedoes.set_network_presentation_only(true)
+		_release_combat_registration()
+		collision_layer = 0
+		collision_mask = 0
+		visible = false
+		_clear_lock_cue()
+	else:
+		if is_instance_valid(_torpedoes):
+			_torpedoes.set_network_presentation_only(false)
+		if _active:
+			collision_layer = _network_saved_collision_layer
+			collision_mask = _network_saved_collision_mask
+			visible = _network_saved_visible
+			if is_inside_tree():
+				_register_combat_source()
+		_sync_lock_cue()
+
+
+func _physics_process(delta: float) -> void:
+	if not _network_presentation_only:
+		super(delta)
+
+
+func _process(delta: float) -> void:
+	if not _network_presentation_only:
+		super(delta)
+
+
+func _register_combat_source() -> void:
+	if not _network_presentation_only:
+		super()
 
 
 func deactivate() -> void:
@@ -285,6 +343,9 @@ func get_resolver_backed_errors() -> PackedStringArray:
 ## frame, exactly like every resolver-backed archetype; the torpedo then belongs
 ## to one authority flight whose arrival the resolver alone commits.
 func _fire_at_target(target_position: Vector3) -> void:
+	if _network_presentation_only:
+		_last_shot_result = {"accepted": false, "status": &"client_projectile_authority_forbidden"}
+		return
 	if not _active or not is_inside_tree():
 		return
 	if not _is_fire_authorized():
@@ -388,6 +449,7 @@ func _ensure_torpedo_pool() -> void:
 	_torpedoes.faction_id = faction_id
 	add_child(_torpedoes)
 	_torpedoes.bind_authority(_get_combat_authority())
+	_torpedoes.set_network_presentation_only(_network_presentation_only)
 	_torpedoes.set_reduced_flash_enabled(_reduced_flash)
 	_torpedoes.torpedo_resolved.connect(_on_torpedo_resolved)
 	_torpedoes.torpedo_intercepted.connect(_on_torpedo_intercepted)
@@ -480,7 +542,7 @@ func _is_lock_target_live() -> bool:
 ## The one mapping from authoritative state to posture. Nothing here writes
 ## charge, target, movement or weapon state.
 func _derive_lock_posture() -> StringName:
-	if not _active or not is_inside_tree() or not _is_lock_target_live():
+	if _network_presentation_only or not _active or not is_inside_tree() or not _is_lock_target_live():
 		return POSTURE_NONE
 	if _telegraph_remaining > 0.0:
 		return POSTURE_LOCKING

@@ -116,6 +116,7 @@ var _rejected_count := 0
 var _detection_query := PhysicsRayQueryParameters3D.new()
 var _authority: LiveCombatAuthority
 var _audio: TorpedoRunAudio
+var _network_presentation_only := false
 
 
 func _ready() -> void:
@@ -156,6 +157,17 @@ func get_bound_authority() -> LiveCombatAuthority:
 	return _authority if is_instance_valid(_authority) and not _authority.is_queued_for_deletion() else null
 
 
+## Retained client pools cannot create resolver flights, even through a caller
+## holding the pool directly. Replicated seekers have a separate visual owner.
+func set_network_presentation_only(enabled: bool) -> void:
+	_network_presentation_only = enabled
+	if enabled:
+		abandon_all(&"client_authority_suspended")
+		for slot_index in _slots.size():
+			_clear_burst(slot_index)
+		_refresh_processing()
+
+
 # ------------------------------------------------------------- lifecycle ----
 
 ## Asks the authority for one flight and, only if accepted, occupies one slot
@@ -168,6 +180,9 @@ func launch(
 		direction: Vector3,
 		target: Node3D
 	) -> Dictionary:
+	if _network_presentation_only:
+		_rejected_count += 1
+		return {"accepted": false, "status": &"client_projectile_authority_forbidden", "flight_id": 0}
 	if not _built:
 		_build_pool()
 	var authority := get_bound_authority()

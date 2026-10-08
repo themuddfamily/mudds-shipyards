@@ -1480,6 +1480,7 @@ func host_network_session(
 	_network_session_mode = &"server"
 	_network_session_retry_mode = &"server"
 	_set_station_defense_network_presentation_only(false)
+	_set_torpedo_boat_network_presentation_only(false)
 	_network_session_port = port
 	_network_session_max_clients = max_clients
 	var result := session.host(port, max_clients)
@@ -1503,6 +1504,7 @@ func join_network_session(
 	_network_session_mode = &"client"
 	_network_session_retry_mode = &"client"
 	_set_station_defense_network_presentation_only(true)
+	_set_torpedo_boat_network_presentation_only(true)
 	_network_session_address = address
 	_network_session_port = port
 	var result := session.join(address, port)
@@ -1563,6 +1565,7 @@ func _settle_refused_network_start(session: NetworkSessionAdapterType) -> void:
 		return
 	_network_session_mode = &""
 	_set_station_defense_network_presentation_only(false)
+	_set_torpedo_boat_network_presentation_only(false)
 
 
 ## The role to name for a session that has ended: the live one if a session is
@@ -6344,6 +6347,7 @@ func _on_network_session_started(mode: StringName) -> void:
 	_network_hud_session_retired = false
 	_network_hud_migration_generation = 0
 	_set_station_defense_network_presentation_only(mode == &"client")
+	_set_torpedo_boat_network_presentation_only(mode == &"client")
 	if mode == &"client" and is_instance_valid(cinder_convoy_threat):
 		_cinder_convoy_client_suspended_threat_state.clear()
 		if _convoy_is_running() and bool(cinder_convoy_threat.get_snapshot().get("active", false)):
@@ -6387,6 +6391,7 @@ func _on_network_session_stopped(reason: StringName) -> void:
 	_player_pulse_network_pending.clear()
 	_player_pulse_network_active_shots.clear()
 	_set_station_defense_network_presentation_only(false)
+	_set_torpedo_boat_network_presentation_only(false)
 	if _network_session_mode == &"client":
 		_clear_bomber_payload_replica_presentation()
 		_clear_player_pulse_replica_presentation()
@@ -6443,6 +6448,15 @@ func _resume_cinder_convoy_solo_threat() -> void:
 	if not cinder_convoy_threat.start(generation) \
 			or not cinder_convoy_threat.restore_persistence_state(saved, generation):
 		_fail_active_activity(&"convoy_threat_restore_failed")
+
+
+func _set_torpedo_boat_network_presentation_only(enabled: bool) -> void:
+	var director := get_node_or_null(^"EncounterScenarios") as EncounterScenarioDirector
+	if is_instance_valid(director):
+		director.set_torpedo_run_network_suspended(enabled)
+	var boat := get_node_or_null(^"TorpedoBoat") as TorpedoBoatOpponent
+	if is_instance_valid(boat):
+		boat.set_network_presentation_only(enabled)
 
 
 func _set_station_defense_network_presentation_only(enabled: bool) -> Dictionary:
@@ -6918,6 +6932,7 @@ func _handle_server_browser_intent(payload: Dictionary) -> void:
 				return
 			_network_session_mode = &"client"
 			_network_session_retry_mode = &"client"
+			_set_torpedo_boat_network_presentation_only(true)
 			_apply_lan_endpoint_for_join(session_id)
 			var started := session.consume_join_intent(
 				intent.get("intent", {}) as Dictionary,
@@ -6941,6 +6956,7 @@ func _handle_server_browser_intent(payload: Dictionary) -> void:
 			_network_session_mode = &"client"
 			_network_session_retry_mode = &"client"
 			_set_station_defense_network_presentation_only(true)
+			_set_torpedo_boat_network_presentation_only(true)
 			var joined := session.consume_direct_connect_intent(direct_connect_intent)
 			_settle_refused_network_start(session)
 			if bool(joined.get("accepted", false)):

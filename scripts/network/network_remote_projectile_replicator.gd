@@ -122,9 +122,10 @@ func observe_pool(pool: Node, kind: StringName, source_entity_id: StringName, so
 		"pool": weakref(pool), "kind": kind, "source": source_entity_id,
 		"generation": source_generation, "bindings": bindings,
 	}
-	# Hosting may begin while an offline convoy shot is already in flight.
-	if kind == KIND_EMBERLINE and pool.has_method(&"get_active_bolt_records"):
-		for record: Dictionary in pool.call(&"get_active_bolt_records"):
+	# Hosting may begin while an offline convoy shot or seeker is in flight.
+	var live_record_method := &"get_active_torpedo_records" if kind == KIND_TORPEDO else &"get_active_bolt_records"
+	if kind in [KIND_EMBERLINE, KIND_TORPEDO] and pool.has_method(live_record_method):
+		for record: Dictionary in pool.call(live_record_method):
 			_on_launched(record, key, false)
 	return {"accepted": true, "status": &"pool_observed", "kind": kind}
 

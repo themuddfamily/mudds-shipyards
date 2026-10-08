@@ -223,6 +223,7 @@ var _torpedo_boat: Node3D
 ## True while the running scenario was admitted by a physical station board and
 ## so belongs to sandbox FREE_FLIGHT rather than the guided engagement phase.
 var _board_sortie := false
+var _torpedo_run_network_suspended := false
 var _heavy_standoff_range := DEFAULT_HEAVY_STANDOFF_RANGE
 var _heavy_advance_health_ratio := DEFAULT_HEAVY_ADVANCE_HEALTH_RATIO
 var _regroup_range := DEFAULT_REGROUP_RANGE
@@ -247,6 +248,8 @@ func _exit_tree() -> void:
 
 func _physics_process(delta: float) -> void:
 	if not _is_current():
+		return
+	if _torpedo_run_network_suspended and _scenario == SCENARIO_TORPEDO_RUN:
 		return
 	if not enabled or not is_finite(delta) or delta < 0.0:
 		return
@@ -423,6 +426,8 @@ func get_roster() -> Array[Node3D]:
 ## frame a shot is dispatched, not on the frame its charge began.
 func is_fire_authorized(member: Node) -> bool:
 	if not _is_current():
+		return false
+	if _torpedo_run_network_suspended and _scenario == SCENARIO_TORPEDO_RUN:
 		return false
 	if _state != STATE_RUNNING:
 		return false
@@ -601,6 +606,12 @@ func begin_torpedo_run(target: Node3D) -> bool:
 	)
 
 
+## A client retains its solo Torpedo Run for disconnect recovery. Its timer
+## and distance/loss observations resume together with the suspended boat.
+func set_torpedo_run_network_suspended(enabled: bool) -> void:
+	_torpedo_run_network_suspended = enabled
+
+
 ## Explicit admission for the caller-owned defense anchor. The director retains
 ## only the live Node identity for scenario distance/loss observations and never
 ## mutates its transform, health, collision, ownership, or lifecycle.
@@ -714,6 +725,8 @@ func _begin_scenario(
 		board_sortie: bool = false
 	) -> bool:
 	if not _is_current():
+		return false
+	if _torpedo_run_network_suspended and scenario_id == SCENARIO_TORPEDO_RUN:
 		return false
 	# An unknown identifier is refused by return value rather than by an engine
 	# diagnostic: `get_validation_errors()` already names an unrecognised entry
