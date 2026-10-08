@@ -3,9 +3,9 @@ extends Resource
 
 ## Strict two-entry resource catalog for the temperate surface-audio policy IDs.
 ##
-## IDs and recipes are code-owned and immutable. The Resource stores only the
-## two imported loop references. It resolves those references for a playback
-## owner, but never loads on demand, plays audio, allocates voices, changes a
+## IDs and recipes are code-owned and immutable. The Resource stores the two
+## imported policy loop references plus an auxiliary Aurora coastal loop. It
+## resolves those references for a playback owner, but never loads on demand, plays audio, allocates voices, changes a
 ## bus, samples a listener, or advances time.
 
 const SCHEMA_VERSION := 1
@@ -17,6 +17,7 @@ const PROFILE_IDS: Array[StringName] = [
 	EXTERIOR_PROFILE_ID,
 	INTERIOR_PROFILE_ID,
 ]
+const COASTAL_STREAM_ID: StringName = &"temperate_coastal_water"
 const SAMPLE_RATE_HZ := 24_000
 const LOOP_FRAME_COUNT := 192_000
 ## AudioStreamWAV's forward-loop end is an inclusive final frame index.
@@ -24,6 +25,12 @@ const LOOP_END_FRAME := LOOP_FRAME_COUNT - 1
 const LOOP_SECONDS := 8.0
 const PCM_BYTE_COUNT := LOOP_FRAME_COUNT * 2
 const STREAM_SPECS := {
+	COASTAL_STREAM_ID: {
+		"resource_path": "res://assets/audio/planetary/temperate_coastal_water.wav",
+		"pcm_payload_sha256": "05ea421a730e946b458a4afcd1f46eaf873b2426a892d613356177d4b84e2661",
+		"raw_file_sha256": "2c17d33104540ef05bc17caf8cdbf24fa87971dab19490a42da112f244f2068b",
+		"role": &"coastal_wave_wash",
+	},
 	EXTERIOR_PROFILE_ID: {
 		"resource_path": "res://assets/audio/planetary/temperate_exterior_wind_air_v1.wav",
 		"pcm_payload_sha256": "aee627cee390c218c22242785257dafc994012f1a00c5a549a9b660e7ca2710e",
@@ -76,6 +83,7 @@ const EVIDENCE := {
 
 @export var exterior_stream: AudioStreamWAV
 @export var interior_stream: AudioStreamWAV
+@export var coastal_stream: AudioStreamWAV
 
 
 func get_profile_ids() -> Array[StringName]:
@@ -95,6 +103,16 @@ func resolve_stream(profile_id: StringName) -> AudioStreamWAV:
 			return interior_stream
 		_:
 			return null
+
+
+## Auxiliary content for Aurora's single mixed exterior output. It is not a
+## third policy route or playback voice, and generic policy IDs stay unchanged.
+func resolve_coastal_stream() -> AudioStreamWAV:
+	var errors := PackedStringArray()
+	_validate_stream(errors, COASTAL_STREAM_ID, coastal_stream)
+	if not errors.is_empty() or coastal_stream == exterior_stream or coastal_stream == interior_stream:
+		return null
+	return coastal_stream
 
 
 func is_definition_valid() -> bool:

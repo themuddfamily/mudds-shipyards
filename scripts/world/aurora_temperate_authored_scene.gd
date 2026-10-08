@@ -2,6 +2,7 @@ class_name AuroraTemperateAuthoredScene
 extends Node3D
 
 const AuroraSurfaceAudioBindingType := preload("res://scripts/audio/aurora_surface_audio_binding.gd")
+const ExteriorAmbienceMixerType := preload("res://scripts/audio/aurora_exterior_ambience_mixer.gd")
 const SurfaceAudioCatalog := preload("res://assets/audio/planetary/temperate_surface_audio_catalog.tres")
 const WaterContactAudioBindingType := preload("res://scripts/audio/water_contact_audio_binding.gd")
 const SettlementInteractionAudioBindingType := preload("res://scripts/audio/settlement_interaction_audio_binding.gd")
@@ -41,6 +42,9 @@ var _surface_audio_binding: RefCounted
 var _exterior_voice: AudioStreamPlayer
 var _interior_voice: AudioStreamPlayer
 var _wind_filter: AudioEffectLowPassFilter
+var _exterior_mixer: RefCounted
+var _exterior_playback: AudioStreamGeneratorPlayback
+var _source_boundary_flushes := 0
 var _water_contact_audio_binding: RefCounted
 var _settlement_audio_binding: RefCounted
 var _terrain_clipmap: PlanetaryTerrainClipmapRenderer
@@ -86,6 +90,14 @@ func _ready() -> void:
 			or _exterior_voice.stream != SurfaceAudioCatalog.exterior_stream \
 			or _interior_voice.stream != SurfaceAudioCatalog.interior_stream:
 		push_error("Aurora surface ambience voice contract is unavailable")
+	_exterior_mixer = ExteriorAmbienceMixerType.new()
+	var output: AudioStreamGenerator = _exterior_mixer.configure(
+		SurfaceAudioCatalog.exterior_stream, SurfaceAudioCatalog.resolve_coastal_stream()
+	)
+	if output == null:
+		push_error("Aurora coastal ambience sources are unavailable")
+	elif _exterior_voice != null:
+		_exterior_voice.stream = output
 	_wind_filter = _ensure_wind_filter_bus()
 	if _exterior_voice != null:
 		_exterior_voice.bus = WIND_FILTER_BUS_NAME
@@ -96,6 +108,7 @@ func _ready() -> void:
 
 func _exit_tree() -> void:
 	_stop_surface_audio()
+	_exterior_mixer = null
 	if _surface_audio_binding != null:
 		_surface_audio_binding.detach()
 		_surface_audio_binding = null
@@ -105,6 +118,10 @@ func _exit_tree() -> void:
 	if _settlement_audio_binding != null:
 		_settlement_audio_binding.detach()
 		_settlement_audio_binding = null
+
+func _process(_delta: float) -> void:
+	if _exterior_mixer != null and _exterior_playback != null:
+		_exterior_mixer.fill(_exterior_playback)
 
 func present_surface_audio_snapshot(snapshot: Dictionary) -> Dictionary:
 	if _surface_audio_binding == null:
@@ -129,6 +146,10 @@ func get_surface_audio_snapshot() -> Dictionary:
 		"interior_playing": _interior_voice.playing if is_instance_valid(_interior_voice) else false,
 		"exterior_volume_db": _exterior_voice.volume_db if is_instance_valid(_exterior_voice) else -80.0,
 		"interior_volume_db": _interior_voice.volume_db if is_instance_valid(_interior_voice) else -80.0,
+		"exterior_output_stream": &"mixed_authored_wind_and_coastal_water",
+		"exterior_mixer": _exterior_mixer.get_snapshot() if _exterior_mixer != null else {},
+		"source_boundary_flushes": _source_boundary_flushes,
+		"generator_buffer_skips": _exterior_playback.get_skips() if _exterior_playback != null else 0,
 		"voice_count": find_children("*", "AudioStreamPlayer", true, false).size(),
 		"authority": {"audio": true, "weather": false, "water": false, "perspective": false},
 	}
@@ -145,10 +166,28 @@ func _apply_surface_audio_mix() -> void:
 	var interior_blend := clampf(float(state.get(
 		"interior_blend", 1.0 if perspective == &"cockpit" else 0.0
 	)), 0.0, 1.0)
-	var exterior_level := clampf(float(mix.get("wind", 0.0)) * 0.65 + float(mix.get("distant_water", 0.0)) * 0.35, 0.0, 1.0)
+	var wind_level := float(mix.get("wind", 0.0)) * 0.65
+	var water_level := float(mix.get("distant_water", 0.0)) * 0.35
+	var exterior_level := clampf(wind_level + water_level, 0.0, 1.0)
+	if _exterior_mixer != null:
+		var source_changed: bool = _exterior_mixer.set_weights(wind_level, water_level)
+		if source_changed and _exterior_playback != null:
+			# Godot refuses clear_buffer() on an active generator. Retire the
+			# one playback instead, then the normal voice setter starts and
+			# primes a fresh ring with the current source weights below.
+			_exterior_voice.stop()
+			_exterior_playback = null
+			_source_boundary_flushes += 1
 	var interior_level := clampf(float(mix.get("wind", 0.0)) * 0.35 + float(mix.get("distant_water", 0.0)) * 0.2, 0.0, 1.0)
 	_set_surface_voice(_exterior_voice, exterior_level * lerpf(1.0, 0.12, interior_blend))
 	_set_surface_voice(_interior_voice, interior_level * interior_blend)
+	_exterior_playback = (
+		_exterior_voice.get_stream_playback() as AudioStreamGeneratorPlayback
+		if _exterior_voice.playing else null
+	)
+	if _exterior_mixer != null and _exterior_playback != null:
+		_exterior_mixer.fill(_exterior_playback)
+	set_process(_exterior_playback != null)
 	# The authored wind reading brightens the exterior loop's pitch and its
 	# dedicated low-pass cutoff: calm air stays quiet and muffled, strong wind
 	# gets louder (via the gain above) and audibly brighter.
@@ -166,6 +205,8 @@ func _set_surface_voice(voice: AudioStreamPlayer, level: float) -> void:
 		voice.play()
 
 func _stop_surface_audio() -> void:
+	set_process(false)
+	_exterior_playback = null
 	for voice in [_exterior_voice, _interior_voice]:
 		if is_instance_valid(voice):
 			voice.stop()

@@ -13,6 +13,11 @@ const SAMPLE_RATE := 24_000
 const LOOP_FRAMES := 192_000
 const LOOP_END_FRAME := LOOP_FRAMES - 1
 const EXPECTED_LOOPS := {
+	"temperate_coastal_water.wav": {
+		"profile_id": &"temperate_coastal_water",
+		"pcm_sha256": "05ea421a730e946b458a4afcd1f46eaf873b2426a892d613356177d4b84e2661",
+		"raw_sha256": "2c17d33104540ef05bc17caf8cdbf24fa87971dab19490a42da112f244f2068b",
+	},
 	"temperate_exterior_wind_air_v1.wav": {
 		"profile_id": &"temperate_exterior",
 		"pcm_sha256": "aee627cee390c218c22242785257dafc994012f1a00c5a549a9b660e7ca2710e",
@@ -50,7 +55,7 @@ func _test_assets_and_manifest() -> void:
 		and str(manifest.get("authorship", "")) == "project_original_fixed_seed_offline_periodic_synthesis"
 		and not bool(manifest.get("recorded_or_sampled_source_material", true))
 		and not bool(manifest.get("runtime_generation", true)),
-		"manifest records two original offline assets without sampled material"
+		"manifest records original offline assets without sampled material"
 	)
 	_check(
 		int(format.get("sample_rate_hz", 0)) == SAMPLE_RATE
@@ -65,7 +70,7 @@ func _test_assets_and_manifest() -> void:
 	for value in manifest.get("loops", []) as Array:
 		if value is Dictionary:
 			records[str((value as Dictionary).get("filename", ""))] = value
-	_check(records.size() == EXPECTED_LOOPS.size(), "manifest has exactly two loop records")
+	_check(records.size() == EXPECTED_LOOPS.size(), "manifest has exactly three authored loop records")
 	for filename in EXPECTED_LOOPS:
 		var expected := EXPECTED_LOOPS[filename] as Dictionary
 		var path := ASSET_DIRECTORY.path_join(filename)
@@ -113,6 +118,17 @@ func _test_catalog_contract() -> void:
 		and catalog.resolve_stream(&"unknown") == null,
 		"catalog resolves exact imported identities and rejects unknown IDs"
 	)
+	var coastal := catalog.resolve_coastal_stream()
+	_check(coastal != null and coastal != exterior and coastal != interior,
+		"Aurora resolves a distinct coastal source without introducing a third policy route")
+	if coastal != null:
+		var coastal_data := coastal.data.duplicate()
+		var corrupted_coastal := coastal_data.duplicate()
+		corrupted_coastal[0] ^= 0x01
+		coastal.data = corrupted_coastal
+		_check(catalog.resolve_coastal_stream() == null and catalog.is_definition_valid(),
+			"coastal PCM drift rejects Aurora's auxiliary source while preserving generic wind/cabin routes")
+		coastal.data = coastal_data
 	if exterior == null:
 		return
 	var baseline := catalog.get_snapshot()

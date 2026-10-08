@@ -1,7 +1,7 @@
 {
   "asset_id": "mudds.audio.planetary.temperate_surface_loops.v1",
   "authorship": "project_original_fixed_seed_offline_periodic_synthesis",
-  "content_note": "Both beds are project-original modern sound design. No source authenticates planetary ambience for the original Keth Shipyards, and automated checks do not establish audibility, comfort, or mix quality.",
+  "content_note": "These beds are project-original modern sound design. No source authenticates planetary ambience for the original Keth Shipyards, and automated checks do not establish audibility, comfort, or mix quality.",
   "evidence_status": "modern_interpretation",
   "format_contract": {
     "bit_depth": 16,
@@ -16,7 +16,7 @@
     "sample_rate_hz": 24000
   },
   "generator": "tools/audio/generate_planetary_surface_audio_v1.py",
-  "generator_sha256": "56d0caaa1e104f5bd875f07df86adb90eadadc481ba21c4e752ee707dc0971b8",
+  "generator_sha256": "a298f8c03f84af63fc619f240b18b10254552f5821d4d5337bd662200ee11aad",
   "historically_supported": false,
   "human_listening_pass": "outstanding",
   "loops": [
@@ -61,6 +61,27 @@
       "role": "attenuated low-passed interior and cabin air bed",
       "seed_u32": 1262834690,
       "target_peak_dbfs": -18.0
+    },
+    {
+      "duration_seconds": 8.0,
+      "filename": "temperate_coastal_water.wav",
+      "first_sample_pcm16": 144,
+      "frame_count": 192000,
+      "last_sample_pcm16": 55,
+      "loop_join_step_pcm16": 89,
+      "maximum_cycles_per_loop": 20000,
+      "maximum_internal_step_pcm16": 2476,
+      "minimum_cycles_per_loop": 96,
+      "partial_count": 208,
+      "pcm_payload_sha256": "05ea421a730e946b458a4afcd1f46eaf873b2426a892d613356177d4b84e2661",
+      "peak_abs_pcm16": 6538,
+      "peak_dbfs": -13.9998,
+      "profile_id": "temperate_coastal_water",
+      "raw_file_sha256": "2c17d33104540ef05bc17caf8cdbf24fa87971dab19490a42da112f244f2068b",
+      "rms_dbfs": -30.3477,
+      "role": "non-positional coastal wave wash and receding water",
+      "seed_u32": 1262834691,
+      "target_peak_dbfs": -14.0
     }
   ],
   "mix_contract": {
@@ -71,10 +92,10 @@
   },
   "recorded_or_sampled_source_material": false,
   "runtime_generation": false,
-  "runtime_intent": "non-positional temperate planetary exterior and interior/cabin ambience",
+  "runtime_intent": "non-positional temperate planetary wind, coastal water and interior/cabin ambience",
   "schema_version": 1,
   "synthesis_contract": {
-    "asset_count": 2,
+    "asset_count": 3,
     "integer_cycles_per_loop": true,
     "loop_seconds": 8.0,
     "periodic_by_construction": true

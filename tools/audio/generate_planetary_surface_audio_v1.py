@@ -67,6 +67,7 @@ class LoopSpec:
     target_peak_dbfs: float
     low_tone_cycles: tuple[int, ...]
     low_tone_gain: float
+    coastal_surge: bool = False
 
 
 LOOPS = (
@@ -95,6 +96,20 @@ LOOPS = (
         target_peak_dbfs=-18.0,
         low_tone_cycles=(5, 9, 16, 29),
         low_tone_gain=0.065,
+    ),
+    LoopSpec(
+        profile_id="temperate_coastal_water",
+        filename="temperate_coastal_water.wav",
+        role="non-positional coastal wave wash and receding water",
+        seed=0x4B455403,
+        partial_count=208,
+        minimum_cycles=96,
+        maximum_cycles=20000,
+        spectral_exponent=0.18,
+        target_peak_dbfs=-14.0,
+        low_tone_cycles=(600, 1100),
+        low_tone_gain=0.015,
+        coastal_surge=True,
     ),
 )
 
@@ -128,6 +143,12 @@ def _render(spec: LoopSpec) -> list[float]:
         # makes the interior loop breathe without introducing a boundary seam.
         gust = 0.76 + 0.16 * math.sin(phase_unit * 2.0 + 0.4) \
             + 0.08 * math.sin(phase_unit * 5.0 + 1.2)
+        if spec.coastal_surge:
+            # Two broad washes per loop with a lighter ripple/recession tail.
+            # Integer-rate envelopes retain the same seamless periodic join.
+            wash = (0.5 + 0.5 * math.sin(phase_unit * 2.0 - 0.8)) ** 3
+            ripple = (0.5 + 0.5 * math.sin(phase_unit * 5.0 + 0.7)) ** 2
+            gust = 0.16 + 0.72 * wash + 0.12 * ripple
         rendered.append(math.tanh(value * gust * 0.72))
     return rendered
 
@@ -204,7 +225,7 @@ def generate(output_directory: Path) -> None:
         "human_listening_pass": "outstanding",
         "generator": "tools/audio/generate_planetary_surface_audio_v1.py",
         "generator_sha256": hashlib.sha256(script_path.read_bytes()).hexdigest(),
-        "runtime_intent": "non-positional temperate planetary exterior and interior/cabin ambience",
+        "runtime_intent": "non-positional temperate planetary wind, coastal water and interior/cabin ambience",
         "format_contract": {
             "container": "RIFF/WAVE",
             "encoding": "linear PCM signed 16-bit little-endian",
@@ -231,7 +252,7 @@ def generate(output_directory: Path) -> None:
             "native_listening_required": True,
         },
         "content_note": (
-            "Both beds are project-original modern sound design. No source authenticates "
+            "These beds are project-original modern sound design. No source authenticates "
             "planetary ambience for the original Keth Shipyards, and automated checks do "
             "not establish audibility, comfort, or mix quality."
         ),

@@ -98,6 +98,15 @@ func _run() -> void:
 		and bool((walking_audio.get("playback", {}) as Dictionary).get("exterior_playing", false))
 		and not bool((walking_audio.get("playback", {}) as Dictionary).get("interior_playing", true)),
 		"disembarking routes live Aurora ambience to the exterior loop")
+	var production_playback := walking_audio.get("playback", {}) as Dictionary
+	var production_mix := production_playback.get("exterior_mixer", {}) as Dictionary
+	_check(surface.get_node(^"SurfaceAmbience/ExteriorVoice").stream is AudioStreamGenerator
+		and int(production_mix.get("output_stream_count", 0)) == 1
+		and str(production_mix.get("water_source_path", "")).ends_with("temperate_coastal_water.wav")
+		and float(production_mix.get("water_weight", 0.0)) > 0.0
+		and int(production_playback.get("generator_buffer_skips", -1)) == 0,
+		"normal disembarkation routes authored coastal PCM through the one exterior output")
+	print("AURORA_PRODUCTION_EXTERIOR_MIXER_PROFILE %s skips=%s" % [production_mix, production_playback.get("generator_buffer_skips", -1)])
 	if "--aurora-audio-check" in OS.get_cmdline_user_args():
 		await _finish(game)
 		return
