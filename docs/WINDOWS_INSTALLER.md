@@ -8,6 +8,31 @@ by default; optional signing is described in
 [Windows code signing](WINDOWS_CODE_SIGNING.md). A green verification does not
 grant distribution rights or replace the human gates that remain open.
 
+## Native checkpoint `9ab49e6` result — 2026-10-08
+
+The unsigned `MuddsShipyards-9ab49e6-setup.exe` is published in
+`builds/windows/`, with payload/source/build metadata and [installer notes](../builds/windows/MuddsShipyards-9ab49e6-installer-notes.txt).
+The existing native verifier exits 0 and passes all 11 steps for actual
+`ef4ad14` → `9ab49e6` → `ef4ad14` installation, upgrade and rollback.
+Blocked replacement exits 2 with the previous executable, provenance,
+registry and player data intact; its pending payload is removed. Each
+transition checks exact hashes, commit identities, versions and shortcuts.
+All three installed silent private-profile startup checks exit 0 with
+exactly one `STARTUP_MENU_READY_OK`, mouse free during loading and zero
+engine/script/leak diagnostics. Upgrade and rollback each emit two
+`settings_missing` warnings while retaining authored defaults; this is not
+zero-warning qualification. Uninstall removes the owned installation,
+shortcuts and registry while retaining byte-identical seeded player data.
+The owned probe profile remains, and raw startup logs are copied to cache.
+
+Installer SHA-256: `5faf65f8cb3033e5da51760c57e4d06a7f63b4cf3a6d3c2cc59dd003c44e7a27`.
+Actual result and raw startup logs remain under
+`/root/.cache/mudds-shipyards/roadmap-validation/installer-ef4ad14-9ab49e6-native*`.
+The builder's metadata still says `native_verification: NOT_RUN`; the
+separate executed verifier result proves the native outcome. Interactive
+installation, installed corrupt-data recovery, clean-machine/platform/
+hardware review, trusted signing and final-candidate acceptance remain open.
+
 ## Native checkpoint `ef4ad14` result — 2026-10-08
 
 The unsigned `MuddsShipyards-ef4ad14-setup.exe` is published in
