@@ -6002,6 +6002,7 @@ func set_planetary_destination_snapshot(snapshot: Dictionary) -> bool:
 	if snapshot == _planetary_destination_snapshot:
 		return true
 	var focused_id := &""
+	var focused_back := false
 	if is_inside_tree() and get_viewport() != null:
 		var focus_owner := get_viewport().gui_get_focus_owner()
 		if (
@@ -6009,13 +6010,14 @@ func set_planetary_destination_snapshot(snapshot: Dictionary) -> bool:
 			and _planetary_destination_page != null
 			and _planetary_destination_page.is_ancestor_of(focus_owner)
 		):
+			focused_back = focus_owner == _planetary_destination_back_button
 			focused_id = StringName(
 				focus_owner.get_meta(&"planetary_destination_id", &"")
 			)
 	_planetary_destination_snapshot = snapshot.duplicate(true)
 	_render_planetary_destination_rows()
 	if _planetary_destination_page.visible:
-		call_deferred(&"_restore_planetary_destination_focus", focused_id)
+		call_deferred(&"_restore_planetary_destination_focus", focused_id, focused_back)
 	return true
 
 
@@ -6230,11 +6232,18 @@ func _request_planetary_destination(destination_id: StringName) -> void:
 	_planetary_cruise_request_dispatch_active = false
 
 
-func _restore_planetary_destination_focus(preferred_id: StringName = &"") -> void:
+func _restore_planetary_destination_focus(
+	preferred_id: StringName = &"", preferred_back: bool = false
+) -> void:
 	if (
 		not is_instance_valid(_planetary_destination_page)
 		or not _planetary_destination_page.visible
 	):
+		return
+	# Catalog updates must preserve the chosen exit action as well as row identity.
+	# Otherwise a refresh can turn the player's next confirm into a travel request.
+	if preferred_back and is_instance_valid(_planetary_destination_back_button):
+		_planetary_destination_back_button.grab_focus()
 		return
 	var target := _planetary_destination_buttons.get(preferred_id) as Button
 	if not is_instance_valid(target) or target.disabled:
