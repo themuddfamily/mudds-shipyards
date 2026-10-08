@@ -145,7 +145,6 @@ by whoever owns them:
 
 | seam | owner |
 | --- | --- |
-| Zenith `PortWingOuterSkin` × `PortBlendedDeltaWing` (0.27 m² at 0.7 m — the highest-scoring finding in the whole scene) | `scripts/ships/zenith_interceptor.gd` |
 | bomber and cargo berth legs × boarding legs (3.20 m², ×4 each) | `scripts/world/fleet_expansion_berths.gd` |
 | dock lattice connector deck × cargo container batch (30.76 m²) | `scripts/world/shipyard_world.gd`, `scripts/world/ship_berth.gd` |
 | dock slab / slab inset × Halyard landing gear feet | `scripts/world/fleet_dock_comb.gd`, `scripts/ships/halyard_crew_transport.gd` |
@@ -222,3 +221,24 @@ logs remain in `/root/.cache/mudds-shipyards/roadmap-validation/bulwark-console-
 Xvfb/x11 Forward+ software rendering. No source, collision, material or census
 change was needed. This finding removes that named contact from the actionable
 defect list, while native visual review remains open.
+
+
+## Zenith curved wing-root contact — no defect found 2026-10-08
+
+The old highest-scoring `PortWingOuterSkin` × `PortBlendedDeltaWing` finding
+still appears as an approximate 0.2655 m² overlap at `ed916ae45`. The current
+production scene uses curved cambered wing-root closures, each with 88
+triangles. The audit convex-hulls groups above 64 triangles; those hulls fill
+space across the shared curved boundary and produce the reported overlap.
+Exact comparison of the emitted triangles yields **0.0 m² competing area**.
+The temporary exact comparison did not modify the repository audit or craft.
+
+The actual `scenes/ships/zenith_interceptor.tscn` complete-craft 1600×900 image
+was inspected and shows a clean wing join. Image, ordinary/triangle-comparison
+logs and temporary helpers are retained under
+`/root/.cache/mudds-shipyards/roadmap-validation/zenith-wing-contact-visuals/`.
+An initial bare-script fixture omitted the production definition and variant;
+its `invalid-script-only-*` records are retained and excluded from acceptance.
+Rendering used silent isolated Xvfb/x11 Forward+ software rendering. No source,
+collision, source-core/evidence-status or census change was needed; native GPU
+and full gameplay-distance visual acceptance remain open.
