@@ -8,6 +8,7 @@ const FilesystemScript := preload("res://scripts/persistence/user_data_filesyste
 
 class MemoryFilesystem extends FilesystemScript:
 	var files: Dictionary = {}
+	var fail_writes := false
 	func file_exists(path: String) -> bool: return files.has(path)
 	func directory_exists(_path: String) -> bool: return false
 	func ensure_parent_directory(_path: String) -> Error: return OK
@@ -17,6 +18,7 @@ class MemoryFilesystem extends FilesystemScript:
 		return {"error": OK if bytes.size() <= maximum_bytes else ERR_FILE_CORRUPT,
 			"bytes": bytes if bytes.size() <= maximum_bytes else PackedByteArray()}
 	func write_bytes_and_flush(path: String, bytes: PackedByteArray) -> Error:
+		if fail_writes: return ERR_CANT_CREATE
 		files[path] = bytes.duplicate(); return OK
 	func remove_path(path: String) -> Error:
 		if not files.has(path): return ERR_FILE_NOT_FOUND
@@ -35,6 +37,7 @@ func _init() -> void:
 
 
 func _run() -> void:
+	await _test_failed_save_recovery()
 	var filesystem := MemoryFilesystem.new()
 	var store := StoreScript.new("memory://cinder-mining-capacity.json", filesystem)
 	_check(bool(store.load().accepted), "the existing atomic store loads")
@@ -107,6 +110,62 @@ func _run() -> void:
 	for failure in _failures: push_error(failure)
 	print("CINDER_MINING_CAPACITY_PERSISTENCE_ROUNDTRIP_TEST_OK: %d assertions" % _assertions)
 	quit(0 if _failures.is_empty() else 1)
+
+
+func _test_failed_save_recovery() -> void:
+	var filesystem := MemoryFilesystem.new()
+	var store := StoreScript.new("memory://cinder-mining-retry.json", filesystem)
+	store.load()
+	var runtime := await _make_runtime(store)
+	var binding := runtime.binding as NearbySectorActivityBinding
+	(runtime.flow as GameFlow).bind_cinder_mining_capacity_persistence(binding)
+	binding.start_mining_activity(CinderMiningPlatformActivity.APPROACH_ANCHOR)
+	binding.advance_mining_activity(CinderMiningPlatformActivity.EXTRACTION_SECONDS)
+	filesystem.fail_writes = true
+	var failed := binding.request_mining_reward()
+	var duplicate := binding.request_mining_reward()
+	var retryable := binding.get_activity_snapshot(&"mining")
+	_check(bool(failed.accepted) and not bool(failed.capacity_persisted)
+		and not bool(duplicate.accepted) and duplicate.reason == &"reward_already_requested"
+		and bool(retryable.get("persistence_retry_available", false))
+		and int(store.get_generation()) == 0,
+		"a rejected duplicate keeps the failed terminal receipt and its save retry available")
+	var failed_retry := binding.retry_mining_capacity_persistence()
+	_check(not bool(failed_retry.accepted)
+		and bool(binding.get_activity_snapshot(&"mining").get("persistence_retry_available", false))
+		and int(store.get_generation()) == 0,
+		"another failed write preserves the same completed extraction for later recovery")
+	filesystem.fail_writes = false
+	var recovered := binding.retry_mining_capacity_persistence()
+	var repeated_retry := binding.retry_mining_capacity_persistence()
+	_check(bool(recovered.accepted) and bool(recovered.get("capacity_persisted", false))
+		and not bool(repeated_retry.accepted)
+		and bool(binding.get_activity_snapshot(&"mining").get("capacity_persisted", false))
+		and int(store.get_generation()) == 1,
+		"recovery commits once and a repeated save retry cannot write the terminal receipt again")
+	await _retire(runtime)
+
+	var reloaded_store := StoreScript.new("memory://cinder-mining-retry.json", filesystem)
+	var reentered := await _make_runtime(reloaded_store)
+	var reentered_binding := reentered.binding as NearbySectorActivityBinding
+	(reentered.flow as GameFlow).bind_cinder_mining_capacity_persistence(reentered_binding)
+	var restored := reentered_binding.get_activity_snapshot(&"mining")
+	var replay := reentered_binding.request_mining_reward()
+	_check(bool(restored.get("capacity_persisted", false)) and not bool(replay.accepted)
+		and int(reloaded_store.get_generation()) == 1,
+		"a recovered capacity receipt survives world reentry without another reward or write")
+	reentered_binding.start_mining_activity(CinderMiningPlatformActivity.APPROACH_ANCHOR)
+	reentered_binding.advance_mining_activity(1.0)
+	var aborted := reentered_binding.advance_mining_activity_from_caller_sample(
+		0.1, CinderMiningPlatformActivity.APPROACH_ANCHOR + Vector3(100.0, 0.0, 0.0))
+	var stale_retry := reentered_binding.retry_mining_capacity_persistence()
+	var restarted := reentered_binding.start_mining_activity(CinderMiningPlatformActivity.APPROACH_ANCHOR)
+	_check(aborted.reason == &"extraction_interrupted" and not bool(stale_retry.accepted)
+		and bool(restarted.accepted) and int(restarted.generation) == 2
+		and is_zero_approx(float(restarted.elapsed_seconds))
+		and int(reloaded_store.get_generation()) == 1,
+		"aborting a later extraction prevents stale receipt retry and starts a fresh empty generation")
+	await _retire(reentered)
 
 
 func _make_runtime(store: UserDataStore) -> Dictionary:
