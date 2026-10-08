@@ -1000,7 +1000,7 @@ no longer strands the snapshot stream).
   multi-process transport; joining the two is the remaining gate.
 * **The hatch holds four berths per craft.** The berth count is the ledger's
   one-avatar-per-seat rule, not the cabin's volume, and it is unchanged.
-* **Remote flight, barrel roll and landing requests reach the host; post-dock exit/reuse remains open.**
+* **Remote flight, barrel roll, landing and docked exterior exit reach their host owners; repeated seated takeoff and native acceptance remain open.**
   The host's pose now corrects the pilot's copy and drives everyone else's,
   but reconciliation is a blend toward an extrapolated pose, not a replay of
   unacknowledged helm input, so a hard manoeuvre under the 350 ms profile is
@@ -1045,15 +1045,28 @@ no longer strands the snapshot stream).
   pass seven suites/472 assertions; independent exact-package host/client
   checks pass 164 assertions, including two embedded-PCK checks, with exit 0
   and zero diagnostics. Source/package checks retain existing rate limits.
-  **Client post-dock exterior exit remains a reproduced production blocker:**
-  physical Interact after committed host docking follows predicted local
-  engine/landing state and retains the pilot claim. Confirmed exterior exit,
-  reboarding and repeated reuse need integration through existing boarding and
-  host physical departure owners; client physics and berth authority remain
-  local prediction only. Supported cabin helm release, unsafe airborne exit
-  refusal and exact input-source recovery need focused qualification. The
-  newer source's full matrix, native normal-controls and human acceptance
-  remain open.
+  **Docked exterior exit/reboarding delivered in `8e05bf3`:** confirmed
+  pilots use committed host operation facts and the host's actual landed,
+  OFFLINE, occupied-berth guard before an exterior departure is accepted.
+  Client prediction does not own landing physics or the berth. Accepted exit
+  temporarily owns its canopy animation and restores the retained input source,
+  avatar controls and on-foot camera. Remote body cameras are disabled before
+  tree admission, preserving the host's other-craft camera; Main detach uses
+  the cached supported exit pose rather than a detached transform.
+  Eleven merged-source suites pass 847 assertions; independent exact-package
+  host/client checks pass 213, including two embedded-PCK checks and two
+  exit/reboard cycles, with zero diagnostics. Unsafe airborne exterior exit
+  is refused while supported cabin helm swaps remain available. Approaches
+  are fixture-positioned; uninterrupted normal-controls journeys remain open.
+  **Separate reproduced seated takeoff blocker:** after docking, actual thrust
+  moves the still-seated pilot's craft 31.816 m and clears landed state, but the
+  exact physical berth/token and `SHUT_DOWN` phase remain. The previous sortie
+  flag bypasses retirement of the newly held berth. Correct the existing owner
+  while preserving completed guided-return/reward state, then qualify repeated
+  takeoff/redock. This correction is not yet integrated or packaged. The earlier
+  intermittent command-clock refusal remains unexplained; final checks do not
+  reproduce it and admission limits remain unchanged. Current-source full
+  matrix, native normal-controls and human acceptance remain open.
 * **A client that is refused the berth swap keeps the pilot seat.** When all
   four berths are held, a pilot who walks into the cabin is shown the refusal
   and still holds the seat; its walk is not a server body until it sits back
