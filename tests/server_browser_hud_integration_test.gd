@@ -68,9 +68,23 @@ func _run() -> void:
 	hud.apply_server_browser_result({"accepted": false, "reason": &"directory_timeout", "message": "Directory timed out.", "retryable": true, "retry_after_milliseconds": 500})
 	_check((hud.get("_server_browser_title") as Label).text == "SERVER LIST UNAVAILABLE", "error state is explicit")
 	_check("500 ms" in (hud.get("_server_browser_detail") as Label).text, "exact caller retry timing is visible without relying on colour")
+	hud.call("_toggle_server_browser_sort_direction")
+	hud.call("_clear_server_browser_filters")
+	var retry := rows.get_node_or_null("ServerBrowserRetryButton") as Button
+	_check((hud.get("_server_browser_title") as Label).text == "SERVER LIST UNAVAILABLE"
+		and "500 ms" in (hud.get("_server_browser_detail") as Label).text
+		and rows.get_child_count() == 1 and retry != null and retry.focus_mode == Control.FOCUS_ALL,
+		"production sort and filter controls preserve failed-directory guidance and retry instead of reviving session rows")
+	_check(retry != null and clear_sort.focus_neighbor_bottom == clear_sort.get_path_to(retry)
+		and retry.focus_neighbor_bottom == retry.get_path_to(refresh),
+		"failure controls keep retry in the controller focus graph after preference changes")
 	var refresh_request := hud.request_server_browser_refresh()
 	_check(_intents.size() == 2 and _intents[1].payload.action == &"refresh" and refresh_request.request_generation > 0, "refresh is forwarded as a generation-fenced caller-owned intent")
 	_check((hud.get("_server_browser_title") as Label).text == "REFRESHING SERVER LIST", "manual refresh immediately exposes pending status")
+	hud.call("_clear_server_browser_sort")
+	_check((hud.get("_server_browser_title") as Label).text == "REFRESHING SERVER LIST"
+		and "WAIT FOR RESULTS OR RETURN" in (hud.get("_server_browser_detail") as Label).text,
+		"production sort controls preserve pending refresh guidance")
 	hud.queue_free()
 	await process_frame
 	if _failures.is_empty():

@@ -215,6 +215,7 @@ func _run() -> void:
 	_check(legacy_advanced.status == &"ready" and legacy_advanced.source_sequence == 45
 		and receipt_after_legacy.status == &"ready" and receipt_after_legacy.source_sequence == 3,
 		"legacy server-tick and local receipt sequences remain independently monotonic public cursor shapes")
+	_check_filter_sort_lifecycle(entries)
 	var audit := presenter.audit()
 	_check(bool(audit.presentation_only) and bool(audit.filters_stale_rows) and not bool(audit.browser_owns_join_authority) and bool(audit.exact_source_cursor_fencing), "audit records presentation and exact cursor boundaries")
 	if _failures.is_empty():
@@ -229,3 +230,45 @@ func _check(condition: bool, description: String) -> void:
 	_assertions += 1
 	if not condition:
 		_failures.append("FAIL: " + description)
+
+func _check_filter_sort_lifecycle(entries: Array) -> void:
+	var lifecycle := Presenter.new()
+	lifecycle.present_result({"accepted": true, "rows": entries})
+	var failure := lifecycle.present_result({"accepted": false, "reason": &"directory_timeout", "retryable": true, "retry_after_milliseconds": 750})
+	var sorted_failure := lifecycle.set_sort(&"latency", true)
+	_check(sorted_failure.status == &"error" and sorted_failure.rows.is_empty()
+		and sorted_failure.error_message == failure.error_message
+		and sorted_failure.actions == failure.actions and sorted_failure.focus_target == &"retry"
+		and sorted_failure.retry_after_milliseconds == 750,
+		"sorting after a directory failure preserves recovery and never resurrects retired rows")
+	var filtered_failure := lifecycle.set_accessibility_filters({"compatible_only": true})
+	_check(filtered_failure.status == &"error" and filtered_failure.rows.is_empty()
+		and filtered_failure.sort.descending and filtered_failure.accessibility_filters.compatible_only
+		and filtered_failure.active_filter_summary == "FILTERS: COMPATIBLE ONLY",
+		"failure-state controls update preferences while retaining the unavailable directory state")
+	var retry := lifecycle.request_retry()
+	_check(retry.accepted, "filter and sort changes leave directory retry available")
+	var filtered_wait := lifecycle.clear_accessibility_filters()
+	_check(filtered_wait.status == &"refreshing" and filtered_wait.rows.is_empty()
+		and filtered_wait.request_generation == retry.get("request_generation", -1)
+		and filtered_wait.next_action == "WAIT FOR RESULTS OR RETURN",
+		"changing filters during a pending retry keeps the request and waiting guidance")
+	var recovered := lifecycle.present_result({"accepted": true, "request_generation": retry.get("request_generation", -1), "rows": entries})
+	_check(recovered.status == &"ready" and recovered.row_count == 2
+		and recovered.rows[0].session_id == &"ember_duel",
+		"the exact retry completion restores fresh rows using preferences changed during failure")
+	var expired := lifecycle.present_result({"accepted": false, "status": &"expired", "reason": &"directory_expired"})
+	var sorted_expired := lifecycle.clear_sort()
+	_check(sorted_expired.status == &"expired" and sorted_expired.rows.is_empty()
+		and sorted_expired.actions == expired.actions and lifecycle.request_retry().accepted,
+		"sorting expired results cannot revive sessions or hide retry")
+	lifecycle.present_result({"accepted": false, "reason": &"directory_closed", "retryable": false})
+	var filtered_terminal := lifecycle.clear_accessibility_filters()
+	_check(filtered_terminal.status == &"error" and not filtered_terminal.retryable
+		and filtered_terminal.actions.size() == 1 and filtered_terminal.actions[0].id == &"cancel"
+		and filtered_terminal.focus_target == &"cancel" and not lifecycle.request_retry().accepted,
+		"filtering a terminal failure retains cancel-only recovery")
+	lifecycle.close_view()
+	var sorted_closed := lifecycle.set_sort(&"latency")
+	_check(sorted_closed.status == &"idle" and not sorted_closed.attached
+		and sorted_closed.rows.is_empty(), "sorting a detached browser retains its idle lifecycle")

@@ -116,12 +116,14 @@ func present_result(result: Dictionary) -> Dictionary:
 				_source_server_tick = int(cursor.get("server_tick", -1))
 	var requested_status := StringName(str(result.get("status", &"")))
 	if requested_status == &"expired" or result.get("reason", &"") in [&"directory_expired", &"results_expired"]:
+		_last_unfiltered_rows.clear()
 		_focus_target = &"retry"
 		return _complete_result(_status_snapshot(
 			&"expired", [], &"directory_expired",
 			"Server list expired. Refresh to see current servers.", true
 		))
 	if not bool(result.get("accepted", false)):
+		_last_unfiltered_rows.clear()
 		var reason := StringName(str(result.get("reason", &"directory_unavailable")))
 		var message := _status_reason_message(reason, str(result.get("message", "")))
 		var retryable := bool(result.get("retryable", true))
@@ -685,6 +687,10 @@ func _active_filter_summary() -> String:
 func _refresh_filtered_snapshot() -> Dictionary:
 	if _last_snapshot.is_empty():
 		return {"accepted": true, "reason": &"filters_applied", "filters": get_accessibility_filters(), "active_filter_summary": _active_filter_summary(), "presentation_only": true}
+	# Preferences apply to the next successful result too, but never complete a
+	# pending refresh or replace the directory owner's failure/recovery state.
+	if _last_snapshot.get("status", &"") not in [&"ready", &"full", &"empty"]:
+		return _preference_snapshot_result()
 	var filtered := _sort_rows(_filter_rows(_last_unfiltered_rows))
 	var all_full := not filtered.is_empty() and filtered.all(
 		func(row: Variant) -> bool: return bool((row as Dictionary).get("full", false))
@@ -710,6 +716,10 @@ func _refresh_filtered_snapshot() -> Dictionary:
 	_last_snapshot["next_action"] = next_action
 	_last_snapshot["next_action_text"] = "NEXT ACTION // %s" % next_action
 	_last_snapshot["focus_target"] = _focus_target
+	return _preference_snapshot_result()
+
+
+func _preference_snapshot_result() -> Dictionary:
 	_last_snapshot["generation"] = _generation
 	_last_snapshot["accessibility_filters"] = get_accessibility_filters()
 	_last_snapshot["active_filter_summary"] = _active_filter_summary()
