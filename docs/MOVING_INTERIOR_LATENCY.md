@@ -1000,13 +1000,14 @@ no longer strands the snapshot stream).
   multi-process transport; joining the two is the remaining gate.
 * **The hatch holds four berths per craft.** The berth count is the ledger's
   one-avatar-per-seat rule, not the cabin's volume, and it is unchanged.
-* **Remote flight is replicated back, but the helm is still axes only.**
+* **Remote flight and barrel roll reach the host; landing/docking remains open.**
   The host's pose now corrects the pilot's copy and drives everyone else's,
   but reconciliation is a blend toward an extrapolated pose, not a replay of
   unacknowledged helm input, so a hard manoeuvre under the 350 ms profile is
   corrected over a few hundred milliseconds rather than exactly. Mouse-look
-  flight, barrel roll and the camera stay local, and engine start/stop,
-  landing, interact and fire stay the host's decisions. Craft poses ride the
+  flight and the camera stay local; held flight input and ordered barrel-roll
+  presses reach host flight. Landing, interact and fire remain host decisions.
+  Existing throttle demand drives the host's automatic engine owner. Craft poses ride the
   host's authoritative snapshot, which publishes only while the host has an
   active ship (a fallback publishes the poses alone otherwise) and not while
   the host is on a surface visit; the gap re-baseline keeps the stream alive
@@ -1024,8 +1025,20 @@ no longer strands the snapshot stream).
   12,000-byte limit, with exact decode parity; oversized full baselines use
   bounded lossless compression in the existing snapshot codec. Native
   normal-controls, rendered/human and audible acceptance remain open.
-  Discrete remote helm actions remain separate implementation work; existing
-  throttle demand already drives the host's automatic engine owner.
+  **Real client input/barrel roll delivered 2026-10-08 (`ef4ad14`):** confirmed
+  pilot input-source authority follows the actual local peer through the
+  existing source API, retaining the exact source and authority for recovery.
+  Presses sampled between 15Hz sends reach host flight once; focus/source
+  changes revoke unsent edges, and the entire previous seat stream is retired
+  so consumed or queued presses cannot replay after rebinding. A fresh epoch
+  works. Failed/cancelled joins, release, disconnect, reconnect and Main
+  re-entry restore the retained source. Clean merged-source six-suite checks
+  pass 382 assertions; independent exact-package host/client physical-input
+  checks pass 106, including two embedded-PCK checks, with exit 0 and zero
+  diagnostics. Full regression on this source, native normal-controls and
+  human/controller qualification remain open. Remote landing/docking requires
+  per-craft request/completion/abort routing through existing authority owners;
+  engine/canopy display alone does not provide that action.
 * **A client that is refused the berth swap keeps the pilot seat.** When all
   four berths are held, a pilot who walks into the cabin is shown the refusal
   and still holds the seat; its walk is not a server body until it sits back
