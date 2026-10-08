@@ -16,8 +16,8 @@ extends ShipCommandSource
 ## Commands are sample-and-hold between deliveries (the client streams at
 ## `SEND_INTERVAL_TICKS`), and a helm that goes silent for `HOLD_TICKS` falls
 ## to neutral: a dropped pilot leaves a coasting craft, never one stuck at full
-## throttle. Only held flight axes and the boost/brake/hover holds travel.
-## GameFlow edges (interact, landing, fire) never do -- they stay the host's own
+## throttle. Held flight axes/boost/brake/hover and ordered barrel-roll presses
+## travel. GameFlow edges (interact, landing, fire) stay the host's own
 ## decisions, so a remote helm cannot exit, land or fire on the host's behalf.
 ##
 ## Wire mapping (encode on the pilot's client, decode here; both halves live in
@@ -26,6 +26,7 @@ extends ShipCommandSource
 ##   look_yaw   = roll  (radians field, value in [-1, 1])
 ##   look_pitch = pitch (radians field, value in [-1, 1])
 ##   run / crouch / jump = boost / brake / hover
+##   interaction_request_id = monotonic barrel-roll request in pilot mode only
 
 const MovementIntent := preload("res://scripts/network/network_movement_intent.gd")
 
@@ -39,13 +40,28 @@ var _age_ticks := HOLD_TICKS + 1
 var _pilot_peer_id := 0
 var _ship_id: StringName = &""
 var _delivered := 0
+var _roll_retired_stream := -1
+var _roll_wire_stream := -1
+var _roll_wire_sequence := -1
+var _roll_request_id := 0
+var _roll_pending := false
+var _roll_delivered := 0
 
 
-func bind_pilot(pilot_peer_id: int, ship_id: StringName) -> void:
+func bind_pilot(pilot_peer_id: int, ship_id: StringName, previous_roll_receipt: Dictionary = {}) -> void:
 	_pilot_peer_id = pilot_peer_id
 	_ship_id = ship_id
 	_controls = {}
 	_age_ticks = HOLD_TICKS + 1
+	_roll_retired_stream = int(previous_roll_receipt.get("stream", -1))
+	_roll_wire_stream = _roll_retired_stream
+	_roll_wire_sequence = int(previous_roll_receipt.get("sequence", -1))
+	_roll_request_id = int(previous_roll_receipt.get("request", 0))
+	_roll_pending = false
+
+
+func get_roll_receipt() -> Dictionary:
+	return {"stream": _roll_wire_stream, "sequence": _roll_wire_sequence, "request": _roll_request_id}
 
 
 func get_pilot_peer_id() -> int:
@@ -61,11 +77,28 @@ func apply_intent(intent: Dictionary) -> void:
 	_controls = decode_intent(intent)
 	_age_ticks = 0
 	_delivered += 1
+	var stream := int(intent.get("stream_id", 0))
+	var sequence := int(intent.get("sequence", 0))
+	# A prior seat lease retires its entire stream, including queued presses.
+	if stream <= _roll_retired_stream or stream < _roll_wire_stream \
+			or (stream == _roll_wire_stream and sequence <= _roll_wire_sequence):
+		return
+	if stream > _roll_wire_stream:
+		_roll_pending = false
+		_roll_request_id = 0
+	_roll_wire_stream = stream
+	_roll_wire_sequence = sequence
+	var request := int(intent.get("interaction_request_id", 0))
+	if request > _roll_request_id:
+		_roll_request_id = request
+		_roll_pending = true
 
 
 ## Once per authority physics tick, delivered or not.
 func advance_tick() -> void:
 	_age_ticks = mini(_age_ticks + 1, HOLD_TICKS + 1)
+	if _age_ticks > HOLD_TICKS:
+		_roll_pending = false
 
 
 func is_holding_command() -> bool:
@@ -79,13 +112,25 @@ func get_audit() -> Dictionary:
 		"delivered": _delivered,
 		"holding": is_holding_command(),
 		"controls": _controls.duplicate(true),
+		"roll_delivered": _roll_delivered,
 	}
 
 
 func _sample_controls() -> Dictionary:
 	if not is_holding_command():
 		return {}
-	return _controls.duplicate(true)
+	var controls := _controls.duplicate(true)
+	controls["barrel_roll"] = _roll_pending
+	if _roll_pending:
+		_roll_delivered += 1
+	_roll_pending = false
+	return controls
+
+
+func _on_delivery_invalidated() -> void:
+	_controls.clear()
+	_age_ticks = HOLD_TICKS + 1
+	_roll_pending = false
 
 
 ## Pilot-side half: the movement intent that carries `command`'s held helm to
@@ -94,7 +139,7 @@ func _sample_controls() -> Dictionary:
 ## the host's record for the seat still remembers the old stream's sequence.
 static func build_helm_intent(
 	peer_id: int, ship_id: StringName, entity_generation: int, sequence: int,
-	client_tick: int, command: ShipCommand, stream_id: int = 0
+	client_tick: int, command: ShipCommand, stream_id: int = 0, roll_request_id: int = 0
 ) -> Dictionary:
 	var throttle := 0.0
 	var yaw := 0.0
@@ -117,7 +162,7 @@ static func build_helm_intent(
 	return MovementIntent.create(
 		peer_id, ship_id, entity_generation, maxi(stream_id, 0), sequence, client_tick, axis,
 		false, &"", false, clampf(roll, -1.0, 1.0), clampf(pitch, -1.0, 1.0),
-		boost, brake, hover, 0
+		boost, brake, hover, maxi(0, roll_request_id)
 	).to_dictionary()
 
 

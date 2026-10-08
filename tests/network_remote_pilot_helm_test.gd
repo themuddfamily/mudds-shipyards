@@ -61,9 +61,29 @@ var _helm_sequence := 0
 var _helm_stamp := -1
 var _movement_results: Array = []
 var _boarding_results: Array = []
+var _roll_directory := ""
+var _roll_port := 0
+var _roll_child_pid := -1
+var _package_under_test := ""
+var _roll_edges := 0
 
 
 func _run() -> void:
+	var args := OS.get_cmdline_user_args()
+	var package_index := args.find("--package-under-test")
+	if package_index >= 0 and package_index + 1 < args.size():
+		_package_under_test = args[package_index + 1]
+		args.remove_at(package_index + 1)
+		args.remove_at(package_index)
+	if not _package_under_test.is_empty():
+		_check(FileAccess.file_exists("res://project.binary"), "helm process loads the requested package")
+	if args.size() == 3 and args[0] == "roll-peer":
+		_roll_port = int(args[1])
+		_roll_directory = args[2]
+		await _run_roll_peer()
+		return
+	_roll_directory = OS.get_user_data_dir().path_join("helm-roll-%d" % OS.get_process_id())
+	DirAccess.make_dir_recursive_absolute(_roll_directory)
 	if await _build():
 		await _assert_a_pilot_grant_binds_the_helm()
 		await _assert_the_remote_throttle_flies_the_host_craft()
@@ -71,6 +91,7 @@ func _run() -> void:
 		await _assert_a_silent_helm_falls_neutral()
 		await _assert_a_restarted_helm_stream_is_accepted()
 		await _assert_every_release_hands_the_craft_back()
+		await _assert_independent_roll_press()
 	await _finish_remote_helm()
 
 
@@ -81,6 +102,8 @@ func _build() -> bool:
 		_check(false, "the production scene instantiates as the session host")
 		return false
 	_host.name = "HelmHostMain"
+	_check(_host.configure_runtime_settings_persistence(UserDataStore.new(_roll_directory + "/host-save.json"),
+		_roll_directory + "/host-legacy.cfg"), "host uses private saves")
 	root.add_child(_host)
 	await process_frame
 	await physics_frame
@@ -113,6 +136,8 @@ func _build() -> bool:
 		return false
 	var port := probe.get_local_port()
 	probe.stop()
+	_roll_port = port
+	_host._ensure_lan_discovery().discovery_port = 0
 	_check(bool(_host.host_network_session(port, 4).get("accepted", false)),
 		"the host GameFlow opens the authoritative session")
 	_server = _host.get_network_session()
@@ -445,6 +470,8 @@ func _finish_remote_helm() -> void:
 		if is_instance_valid(adapter):
 			adapter.shutdown(&"suite_complete")
 	await process_frame
+	if _roll_child_pid > 0 and OS.is_process_running(_roll_child_pid):
+		OS.kill(_roll_child_pid)
 	if _failures.is_empty():
 		print("NETWORK_REMOTE_PILOT_HELM_TEST_OK: %d assertions" % _assertion_count)
 		quit(0)
@@ -452,3 +479,268 @@ func _finish_remote_helm() -> void:
 	print("NETWORK_REMOTE_PILOT_HELM_TEST_FAILED: %d/%d assertions failed: %s"
 		% [_failures.size(), _assertion_count, ", ".join(_failures)])
 	quit(1)
+
+
+# A real production client and host have independent Input/frame clocks.
+# The press intentionally falls between the existing 15Hz helm sends.
+func _assert_independent_roll_press() -> void:
+	_craft.global_position += Vector3(0, 30, 0)
+	_craft.velocity = Vector3.ZERO
+	var camera := _host.get_viewport().get_camera_3d()
+	var previous_xdg := OS.get_environment("XDG_DATA_HOME")
+	OS.set_environment("XDG_DATA_HOME", _roll_directory + "/peer-xdg")
+	var parent_args := OS.get_cmdline_args()
+	var project_path := ProjectSettings.globalize_path("res://")
+	var path_index := parent_args.find("--path")
+	if path_index >= 0 and path_index + 1 < parent_args.size():
+		project_path = parent_args[path_index + 1]
+	elif project_path.is_empty():
+		project_path = DirAccess.open(".").get_current_dir()
+	var args := PackedStringArray(["--headless", "--audio-driver", "Dummy", "--path", project_path,
+		"--log-file", _roll_directory + "/peer.log", "--script", "res://tests/network_remote_pilot_helm_test.gd"])
+	if not _package_under_test.is_empty():
+		args.append_array(PackedStringArray(["--main-pack", _package_under_test]))
+	args.append_array(PackedStringArray(["--", "roll-peer", str(_roll_port), _roll_directory]))
+	if not _package_under_test.is_empty():
+		args.append_array(PackedStringArray(["--package-under-test", _package_under_test]))
+	_roll_child_pid = OS.create_process(OS.get_executable_path(), args)
+	OS.set_environment("XDG_DATA_HOME", previous_xdg)
+	_check(_roll_child_pid > 0, "spawn independent production helm client")
+	if not await _wait_roll_marker("peer", "ready"):
+		return
+	var source := _craft.get_command_source() as RemotePilotSource
+	_check(source != null, "independent pilot claim binds the real host helm")
+	if source == null:
+		return
+	source.command_produced.connect(func(command: ShipCommand, _authority: int) -> void:
+		if command.barrel_roll: _roll_edges += 1)
+	_check(_craft.get_telemetry().get("engine_state") == "ONLINE",
+		"remote throttle already wakes the host engine through automatic demand")
+	_roll_mark("host", "press")
+	if not await _wait_roll_marker("peer", "pressed"):
+		return
+	var received := await _wait_until(func() -> bool: return _roll_edges > 0, 2.0)
+	_check(received and _craft._roll_animation > 0.0,
+		"one independent local barrel-roll press reaches the host flight owner")
+	_roll_mark("host", "observed")
+	if not await _wait_roll_marker("peer", "held"):
+		return
+	_check(_roll_edges == 1, "repeated held helm packets never replay the roll edge")
+	_check(_host.get_viewport().get_camera_3d() == camera and not _host._piloting,
+		"remote action preserves the host on-foot camera and pilot ownership")
+	await _wait_until(func() -> bool: return _craft._roll_animation <= 0.0, 3.0)
+	_roll_mark("host", "invalidate")
+	if not await _wait_roll_marker("peer", "revoked"): return
+	_check(_roll_edges == 1, "source invalidation revokes an unsent roll between cadence sends")
+	_roll_mark("host", "fresh")
+	if not await _wait_roll_marker("peer", "fresh"): return
+	_check(await _wait_until(func() -> bool: return _roll_edges == 2, 2.0),
+		"fresh physical press after source invalidation reaches host once")
+	_roll_mark("host", "release")
+	if not await _wait_roll_marker("peer", "rebound"): return
+	for _step in 8:
+		await physics_frame
+		await process_frame
+	source = _craft.get_command_source() as RemotePilotSource
+	_check(source != null and source.get_audit().delivered == 2 and source.get_audit().roll_delivered == 0,
+		"same-peer rebind admits helm but revokes consumed and queued prior-lease roll streams")
+	_check(_roll_edges == 2, "old-wire first receipt after rebind never repeats the host roll")
+	if source != null:
+		source.command_produced.connect(func(command: ShipCommand, _authority: int) -> void:
+			if command.barrel_roll: _roll_edges += 1)
+	await _wait_until(func() -> bool: return _craft._roll_animation <= 0.0, 3.0)
+	_roll_mark("host", "rebind_press")
+	if not await _wait_roll_marker("peer", "rebind_pressed"): return
+	_check(await _wait_until(func() -> bool: return _roll_edges == 3, 2.0),
+		"new physical press in a higher helm epoch works after seat rebind")
+	_roll_mark("host", "finish")
+	await _wait_roll_marker("peer", "finished")
+	await _wait_until(func() -> bool: return not OS.is_process_running(_roll_child_pid), 10.0)
+	_check(not OS.is_process_running(_roll_child_pid) and not FileAccess.file_exists(_roll_directory + "/peer.failed"),
+		"independent client completes without diagnostic failure")
+	_check(not (_craft.get_command_source() is RemotePilotSource) and not _craft.is_remote_piloted(),
+		"independent disconnect retires the action source and restores local control")
+	_check(_host._network_remote_pilot_roll_receipts.is_empty(), "peer disconnect retires the bounded roll receipt cache")
+
+
+func _run_roll_peer() -> void:
+	Engine.max_fps = 60
+	_host = MAIN_SCENE.instantiate() as GameFlow
+	_host.name = "HelmHostMain"
+	_check(_host.configure_runtime_settings_persistence(UserDataStore.new(_roll_directory + "/peer-save.json"),
+		_roll_directory + "/peer-legacy.cfg"), "independent peer uses private saves")
+	root.add_child(_host)
+	await process_frame
+	await physics_frame
+	_host.start_shift()
+	await process_frame
+	await physics_frame
+	set_multiplayer(SceneMultiplayer.new(), _host.get_path())
+	_craft = _host.get_node("HalyardCrewTransport") as HalyardCrewTransport
+	var local_source := _craft.get_local_input_source()
+	var original_authority := local_source.get_authority_peer_id()
+	var original_enabled := local_source.enabled
+	_check(_host.join_network_session("127.0.0.1", _roll_port).get("accepted", false), "independent Main joins host")
+	_check(local_source.get_authority_peer_id() == original_authority and _host._network_client_helm_input_sources.is_empty(),
+		"joining before a confirmed pilot grant preserves retained input authority")
+	_check(await _wait_until(func() -> bool: return not _host.get_network_session().get_server_offer().is_empty(), 15.0),
+		"independent client admitted")
+	var seats: Array[StringName] = [PILOT_SEAT]
+	_host._begin_network_client_boarding_request(_craft, _craft.get_node("ShipBoardingArea"),
+		BoardingIntent.ACTION_BOARD, BoardingIntent.ROLE_PILOT, seats)
+	_check(await _wait_until(func() -> bool: return _host._piloting and _craft.is_piloted(), 15.0),
+		"host ledger confirms the client pilot presentation")
+	local_source.notification(MainLoop.NOTIFICATION_APPLICATION_FOCUS_IN)
+	_check(local_source.get_authority_peer_id() == _host._network_client_peer_id() and local_source.is_enabled_owner(),
+		"confirmed client pilot owns its actual local input producer")
+	_host._bind_network_client_helm_input_source(_craft)
+	_check((_host._network_client_helm_input_sources[_craft.get_instance_id()] as Dictionary).authority == original_authority,
+		"repeated pilot binding retains the original input authority once")
+	_host.set_physics_process(false)
+	for ship: HeroShip in _host.ships: ship.set_physics_process(false)
+	_roll_key_action(&"move_forward", true)
+	for _step in 120: await _roll_peer_step()
+	_roll_mark("peer", "ready")
+	await _roll_peer_wait("host", "press")
+	while int(_host._network_remote_helm.get("ticks", 0)) % RemotePilotSource.SEND_INTERVAL_TICKS != 1:
+		await _roll_peer_step()
+	_roll_key_action(&"barrel_roll", true)
+	await _roll_peer_step()
+	_roll_key_action(&"barrel_roll", false)
+	_check(_craft.get_last_ship_command().barrel_roll, "supported local source produces the single roll press")
+	_check(_craft._roll_animation > 0.0, "client prediction consumes its own roll press")
+	_roll_key_action(&"move_forward", false)
+	_roll_mark("peer", "pressed")
+	await _roll_peer_wait("host", "observed")
+	for _step in 40: await _roll_peer_step()
+	_roll_mark("peer", "held")
+	await _roll_peer_wait("host", "invalidate")
+	while int(_host._network_remote_helm.get("ticks", 0)) % RemotePilotSource.SEND_INTERVAL_TICKS != 1:
+		await _roll_peer_step()
+	_roll_key_action(&"barrel_roll", true)
+	await _roll_peer_step()
+	_roll_key_action(&"barrel_roll", false)
+	_check(int(_host._network_remote_helm.roll_request_id) == 2, "physical press is retained before its next cadence send")
+	local_source.notification(MainLoop.NOTIFICATION_APPLICATION_FOCUS_OUT)
+	local_source.notification(MainLoop.NOTIFICATION_APPLICATION_FOCUS_IN)
+	for _step in 8: await _roll_peer_step()
+	_check(int(_host._network_remote_helm.roll_request_id) == 0, "focus invalidation discards the pending old-source press")
+	_roll_mark("peer", "revoked")
+	await _roll_peer_wait("host", "fresh")
+	# First packet in this new source epoch carries a real physical edge.
+	local_source.notification(MainLoop.NOTIFICATION_APPLICATION_FOCUS_OUT)
+	local_source.notification(MainLoop.NOTIFICATION_APPLICATION_FOCUS_IN)
+	_craft._physics_process(1.0 / 60.0)
+	_roll_key_action(&"barrel_roll", true)
+	_craft._physics_process(1.0 / 60.0)
+	var edge := _craft.get_last_ship_command()
+	_host._advance_network_remote_helm_stream()
+	var old_wire := RemotePilotSource.build_helm_intent(_host._network_client_peer_id(), SHIP_ID, 1, 0,
+		int(_host._network_remote_helm.last_stamp), edge, int(_host._network_remote_helm.stream_id), 1)
+	_roll_key_action(&"barrel_roll", false)
+	_check(edge.barrel_roll and int(_host._network_remote_helm.sequence) == 1,
+		"new producer epoch sends the physical roll as its first packet")
+	_roll_mark("peer", "fresh")
+	await _roll_peer_wait("host", "release", false)
+	_host._begin_network_client_boarding_request(_craft, _craft.get_node("ShipBoardingArea"),
+		BoardingIntent.ACTION_DISEMBARK, BoardingIntent.ROLE_PILOT, seats)
+	_check(await _wait_until(func() -> bool: return _host._network_client_boarding_claim.is_empty(), 10.0),
+		"typed disembark releases the independent pilot lease")
+	_host._advance_network_remote_helm_stream()
+	_check(local_source.get_authority_peer_id() == original_authority and _host._network_client_helm_input_sources.is_empty(),
+		"seat release restores the exact retained local producer authority")
+	_host._begin_network_client_boarding_request(_craft, _craft.get_node("ShipBoardingArea"),
+		BoardingIntent.ACTION_BOARD, BoardingIntent.ROLE_PILOT, seats)
+	_check(await _wait_until(func() -> bool: return StringName(_host._network_client_boarding_claim.get("role", &"")) == BoardingIntent.ROLE_PILOT, 10.0),
+		"same independent peer reclaims the craft pilot seat")
+	_check(_host.get_network_session().send_movement_intent(old_wire).get("accepted", false), "send exact previous-lease roll packet first after rebind")
+	var queued_old_wire := old_wire.duplicate(true)
+	queued_old_wire.sequence = 1
+	queued_old_wire.client_tick = int(old_wire.client_tick) + 1
+	queued_old_wire.interaction_request_id = 2
+	_check(_host.get_network_session().send_movement_intent(queued_old_wire).get("accepted", false), "send queued newer-sequence roll from the retired lease")
+	_roll_mark("peer", "rebound")
+	await _roll_peer_wait("host", "rebind_press", false)
+	_check(_craft.get_local_input_source() == local_source and local_source.is_enabled_owner(),
+		"regrant binds the same retained producer to the current client")
+	_roll_key_action(&"barrel_roll", true)
+	await _roll_peer_step()
+	_roll_key_action(&"barrel_roll", false)
+	_roll_mark("peer", "rebind_pressed")
+	await _roll_peer_wait("host", "finish")
+	_host.shutdown_network_session(&"roll_peer_complete")
+	_check(local_source.get_authority_peer_id() == original_authority and local_source.enabled == original_enabled
+		and _craft.get_local_input_source() == local_source and _host._network_client_helm_input_sources.is_empty(),
+		"disconnect restores the exact retained solo input source and enable state")
+	_check(not _host.join_network_session("", _roll_port).get("accepted", false)
+		and local_source.get_authority_peer_id() == original_authority, "failed join preserves retained solo input authority")
+	_check(_host.join_network_session("127.0.0.1", _roll_port).get("accepted", false), "reconnect opens a fresh client session")
+	_check(await _wait_until(func() -> bool: return not _host.get_network_session().get_server_offer().is_empty(), 15.0), "reconnected peer is admitted")
+	_host._begin_network_client_boarding_request(_craft, _craft.get_node("ShipBoardingArea"),
+		BoardingIntent.ACTION_BOARD, BoardingIntent.ROLE_PILOT, seats)
+	_host.shutdown_network_session(&"cancel_pending")
+	_check(local_source.get_authority_peer_id() == original_authority and _host._network_client_helm_input_sources.is_empty(),
+		"cancel before pilot confirmation leaves retained authority unchanged")
+	_check(_host.join_network_session("127.0.0.1", _roll_port).get("accepted", false), "reconnect after cancellation uses the same Main")
+	_check(await _wait_until(func() -> bool: return not _host.get_network_session().get_server_offer().is_empty(), 15.0), "post-cancel peer is admitted")
+	_host._begin_network_client_boarding_request(_craft, _craft.get_node("ShipBoardingArea"),
+		BoardingIntent.ACTION_BOARD, BoardingIntent.ROLE_PILOT, seats)
+	_check(await _wait_until(func() -> bool: return _host._piloting and local_source.is_enabled_owner() \
+		and local_source.get_authority_peer_id() == _host._network_client_peer_id(), 15.0), "reconnect confirms a fresh pilot input binding")
+	root.remove_child(_host)
+	_check(local_source.get_authority_peer_id() == original_authority and _host._network_client_helm_input_sources.is_empty(),
+		"Main detach retires the prediction input lease while preserving its source")
+	root.add_child(_host)
+	await process_frame
+	await physics_frame
+	_check(_craft.get_local_input_source() == local_source and local_source.get_authority_peer_id() == original_authority,
+		"Main reentry restores the same solo producer without a stale network binding")
+	_host.queue_free()
+	await process_frame
+	await process_frame
+	if _failures.is_empty():
+		print("NETWORK_REMOTE_HELM_PEER_COMPLETE: %d assertions" % _assertion_count)
+		_roll_mark("peer", "finished")
+		quit(0)
+	else:
+		_roll_mark("peer", "failed")
+		quit(1)
+
+
+func _roll_peer_step(send_helm: bool = true) -> void:
+	_craft._physics_process(1.0 / 60.0)
+	if send_helm: _host._advance_network_remote_helm_stream()
+	await physics_frame
+	await process_frame
+
+
+func _roll_peer_wait(role: String, marker: String, send_helm: bool = true) -> bool:
+	var deadline := Time.get_ticks_msec() + 60000
+	while Time.get_ticks_msec() < deadline:
+		if FileAccess.file_exists(_roll_directory + "/%s.%s" % [role, marker]): return true
+		await _roll_peer_step(send_helm)
+	_check(false, "%s reaches %s" % [role, marker])
+	return false
+
+
+func _wait_roll_marker(role: String, marker: String) -> bool:
+	var arrived := await _wait_until(func() -> bool:
+		return FileAccess.file_exists(_roll_directory + "/%s.%s" % [role, marker]), 60.0)
+	_check(arrived, "%s reaches %s" % [role, marker])
+	return arrived
+
+
+func _roll_mark(role: String, marker: String) -> void:
+	FileAccess.open(_roll_directory + "/%s.%s" % [role, marker], FileAccess.WRITE).store_string("ready")
+
+
+func _roll_key_action(action: StringName, pressed: bool) -> void:
+	for mapped: InputEvent in InputMap.action_get_events(action):
+		if mapped is InputEventKey:
+			var key := mapped.duplicate() as InputEventKey
+			key.pressed = pressed
+			key.echo = false
+			Input.parse_input_event(key)
+			Input.flush_buffered_events()
+			return
+	_check(false, "supported action has an authored physical key: %s" % action)
