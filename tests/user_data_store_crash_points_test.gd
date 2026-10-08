@@ -54,6 +54,7 @@ func _run() -> void:
 	_test_crash_during_first_ever_save_reloads_and_saves()
 	_test_crash_during_commit_from_backup_reloads_and_saves()
 	_test_crash_during_commit_from_rotated_copy_reloads_and_saves()
+	_test_newer_history_survives_saving_and_crash_recovery()
 	_finish()
 
 
@@ -216,6 +217,68 @@ func _crash_third_save_setup_only(label: String) -> void:
 	_check(bool(adapter.save("settings-1").accepted), "%s: first save publishes" % label)
 	settings.camera_fov = 90.0
 	_check(bool(adapter.save("settings-2").accepted), "%s: second save publishes" % label)
+
+
+## An older executable can load a supported primary while an unsupported copy
+## remains in history. Saving and rolling an interrupted save forward must keep
+## that copy at its original path, including when it is the oldest rotation.
+func _test_newer_history_survives_saving_and_crash_recovery() -> void:
+	for history_index in [1, Store.HISTORY_DEPTH]:
+		var path := _store_path("newer_history_%d" % history_index)
+		var store := Store.new(path) as UserDataStore
+		_check(bool(store.load().accepted), "newer history: a fresh profile opens")
+		for generation in range(1, 6):
+			var committed := store.commit(
+				{"credits": generation * 100}, generation - 1, "history-%d" % generation
+			)
+			_check(bool(committed.accepted), "newer history: generation %d publishes" % generation)
+		var unsupported_path := "%s.bak.%d" % [path, history_index]
+		var document: Dictionary = JSON.parse_string(FileAccess.get_file_as_string(unsupported_path))
+		document.schema_version = Store.SCHEMA_VERSION + 1
+		var unsupported_bytes := JSON.stringify(document).to_utf8_buffer()
+		_check(
+			Filesystem.new().write_bytes_and_flush(unsupported_path, unsupported_bytes) == OK,
+			"newer history: an unsupported archived document is on disk"
+		)
+		var original_history: Dictionary = {}
+		for history_path in store.get_history_paths():
+			original_history[history_path] = FileAccess.get_file_as_bytes(history_path)
+		_check(bool(store.commit({"credits": 600}, 5, "history-6").accepted), "newer history: a supported current profile still saves")
+		_check(
+			_history_bytes_match(original_history),
+			"newer history: ordinary saving preserves every archive path and byte (unsupported index %d)"
+				% history_index
+		)
+		var crash_fs := CrashingFilesystem.new()
+		crash_fs.crash_before_rename_to = path
+		var crashing := Store.new(path, crash_fs) as UserDataStore
+		_check(bool(crashing.load().accepted), "newer history: current authority reloads")
+		_check(
+			not bool(crashing.commit({"credits": 700}, 6, "history-7").accepted) and crash_fs.crashed,
+			"newer history: the next save stops before publishing"
+		)
+		var recovered := Store.new(path) as UserDataStore
+		_check(
+			recovered.load().reason == &"interrupted_transaction"
+				and bool(recovered.recover_interrupted_transaction().accepted),
+			"newer history: the supported interrupted save rolls forward"
+		)
+		_check(
+			_history_bytes_match(original_history),
+			"newer history: crash recovery preserves every archive path and byte (unsupported index %d)"
+				% history_index
+		)
+		_check(
+			bool(recovered.load().accepted) and float(recovered.get_snapshot().credits) == 700.0,
+			"newer history: the recovered current progress remains usable"
+		)
+
+
+func _history_bytes_match(expected: Dictionary) -> bool:
+	for history_path in expected:
+		if not FileAccess.file_exists(history_path) or FileAccess.get_file_as_bytes(history_path) != expected[history_path]:
+			return false
+	return true
 
 
 func _check(condition: bool, description: String) -> void:

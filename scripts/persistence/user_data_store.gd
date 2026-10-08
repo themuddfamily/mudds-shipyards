@@ -739,11 +739,17 @@ func _newest_valid_history() -> Dictionary:
 ## for the caller's existing cleanup, so a commit that later fails keeps exactly
 ## the authority it had. Every step is best effort and never fails the commit;
 ## a backup already equal to `.bak.1` (a retried commit) is not copied twice.
+## A newer-schema archive freezes this optional rotation: an older executable
+## may keep saving its supported primary, but cannot move or erase unsupported
+## user data, including the oldest copy that rotation would otherwise delete.
 func _rotate_backup_into_history() -> void:
 	if HISTORY_DEPTH <= 0 or not _filesystem.file_exists(_backup_path()):
 		return
 	for index in range(1, HISTORY_DEPTH + 1):
 		if _filesystem.directory_exists(_history_path(index)):
+			return
+		var history := _read_document(_history_path(index))
+		if str(history.get("reason", "")) == "newer_schema":
 			return
 	var backup_read := _filesystem.read_bytes(_backup_path(), MAX_DOCUMENT_BYTES)
 	if int(backup_read.get("error", FAILED)) != OK:
