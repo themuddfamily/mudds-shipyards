@@ -1064,14 +1064,27 @@ no longer strands the snapshot stream).
   now gives only the parent that marker. Existing slug/torpedo checks pass 42
   assertions, production convoy 44 and convoy save/restore 27 on the unchanged
   runtime. The final `1c1b538` exact-package probe passes 68 assertions with no diagnostics; host and both clients explicitly verify the embedded package instead of falling back to source. Native Windows multiplayer/endurance and human/rendered acceptance remain open.
-* **A destroyed craft's hull on a client** stays visible: only the host hides
-  and regenerates it (the client's copy was never damaged, so its own
-  regeneration does not run), and the client's copy is moved to the host's
-  regenerated berth pose only if that lands inside the pose stream's 10 s
-  coast window. Damage presentation
-  for remote-piloted craft beyond the loss itself (hull state, component
-  damage) is still not replicated. Landing requests and completion and damage
-  themselves stay host-gated on a client, as audited before.
+* **Remote hull/component presentation implemented, 2026-10-08 (`ce15b5c`,
+  packaged in `f889ca9`).** Existing trusted craft snapshots now carry committed
+  hull health and the five-section ledger with its actual reset generation.
+  A retained separate shared rig leaves source hull/components and engine power
+  untouched. Destroyed remote hulls and their collisions disappear and remain
+  terminal beyond movement coast; late adoption is quiet. The real host berth
+  regeneration publishes a new life and reuses the same client hull/rig.
+  Parked damage, including full-hull component-only damage, remains visible
+  beyond stale motion; first hosting observes already damaged sections too.
+  Local-flight eligibility, disconnect and Main re-entry restore the captured
+  source presentation/collision and retained damage. Seven integrated runtime
+  suites pass 455 assertions; final launcher-only correction has a fresh
+  80-assertion source pass. Its exact-PCK independent host/current/late probe
+  passes 83 assertions with three explicit package checks; four standard package
+  probes pass 223 and silent private-profile native Windows startup passes.
+  The original empty packaged child-path failure remains retained; the launcher
+  now follows the existing Emberline explicit parent path/cwd fallback.
+  Fleet-wide native normal-controls damage/repair/loss/regeneration,
+  multiplayer endurance and rendered/human/audio acceptance remain open.
+  Engine/dock presentation and remote helm actions remain separate work above;
+  the observer exhaust/canopy gap has a new independent production reproduction.
 * **Five clients on loopback.** Interest management and the resync baseline
   under many occupants are still untested at latency.
 * **Loss is injected above ENet.** The relationship RPC is reliable, so the 2 %
