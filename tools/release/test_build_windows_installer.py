@@ -88,6 +88,38 @@ class VerifierContract(unittest.TestCase):
         # The verifier never installs into the real per-user Programs folder.
         self.assertIn("$installDir = Join-Path $ProbeRoot 'install'", text)
 
+    def test_cross_build_mode_verifies_each_transition_and_startup(self):
+        text = VERIFY_PS1.read_text(encoding="utf-8")
+        for option in ("PreviousInstaller", "PreviousExpectedExeSha256", "PreviousExpectedCommit"):
+            self.assertIn(f"[string]${option}", text)
+        self.assertIn("must be supplied together", text)
+        self.assertIn("distinct commits and executable hashes", text)
+        self.assertIn("Assert-Installed $ExpectedExeSha256 $ExpectedCommit", text)
+        self.assertIn("Assert-RegistryAndShortcuts $ExpectedCommit $initialCommit", text)
+        self.assertIn("Assert-Installed $PreviousExpectedExeSha256 $PreviousExpectedCommit", text)
+        self.assertIn("Assert-RegistryAndShortcuts $PreviousExpectedCommit $ExpectedCommit", text)
+        for stage in ("installed", "upgraded", "rolled-back"):
+            self.assertIn(f"Run-Startup '{stage}'", text)
+        self.assertIn("$proc.ExitCode -ne 0 -or -not $sentinel", text)
+        self.assertIn("startup log already exists", text)
+        self.assertIn(".Hash -ne $markerHash", text)
+
+    def test_failure_cleanup_is_guarded_and_preserves_original_diagnostic(self):
+        text = VERIFY_PS1.read_text(encoding="utf-8")
+        self.assertIn("default user installation already exists", text)
+        self.assertIn("probe profile already exists", text)
+        self.assertLess(text.index("Step 'preconditions'"), text.index("$script:ownsInstall = $true"))
+        self.assertIn("if ($script:ownsInstall)", text)
+        cleanup = text.split("function Cleanup-OwnedInstallation {", 1)[1].split("Step 'preconditions'", 1)[0]
+        self.assertIn("InstallLocation -ne $installDir", cleanup)
+        self.assertIn("no longer belongs to this probe", cleanup)
+        self.assertNotIn("Remove-Item -LiteralPath $profileRoot", cleanup)
+        self.assertNotIn("Remove-Item -LiteralPath $installDir -Recurse", cleanup)
+        self.assertNotIn("Remove-Item -LiteralPath $startMenu -Recurse", cleanup)
+        failure = text.split("function Step(", 1)[1].split("function Wait-Gone", 1)[0]
+        self.assertLess(failure.index("$entry.detail = $_.Exception.Message"), failure.index("Cleanup-OwnedInstallation"))
+        self.assertIn("$result.cleanup.detail = $_.Exception.Message", failure)
+
 
 class BuildScript(unittest.TestCase):
     def _run(self, *args, env=None):
