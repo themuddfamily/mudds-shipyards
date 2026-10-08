@@ -118,6 +118,16 @@ class VerifierContract(unittest.TestCase):
         self.assertIn("$proc.ExitCode -ne 0 -or -not $sentinel", text)
         self.assertIn("startup log already exists", text)
         self.assertIn(".Hash -ne $markerHash", text)
+        self.assertIn("if ($crossBuild) {\n    Step 'locked_upgrade_preserves_previous'", text)
+        locked = text.split("Step 'locked_upgrade_preserves_previous'", 1)[1].split("Step 'silent_upgrade_over_existing'", 1)[0]
+        self.assertIn("[IO.FileShare]::None", locked)
+        self.assertIn('try { $code = Run-Silent $Installer "/S /D=$installDir" 120000 }', locked)
+        self.assertIn("finally { $lock.Dispose() }", locked)
+        self.assertIn("$code -ne 2", locked)
+        self.assertIn("Assert-Installed $initialHash $initialCommit", locked)
+        self.assertIn("locked upgrade changed provenance bytes", locked)
+        self.assertIn("locked upgrade changed registry metadata", locked)
+        self.assertIn("failed upgrade left pending payload", locked)
 
     def test_failure_cleanup_is_guarded_and_preserves_original_diagnostic(self):
         text = VERIFY_PS1.read_text(encoding="utf-8")

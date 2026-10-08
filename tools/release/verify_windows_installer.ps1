@@ -262,6 +262,30 @@ Step 'installed_files' { Assert-Installed $initialHash $initialCommit }
 Step 'registry_and_shortcuts' { Assert-RegistryAndShortcuts $initialCommit '' }
 Step 'installed_startup_check' { Run-Startup 'installed' }
 
+if ($crossBuild) {
+    Step 'locked_upgrade_preserves_previous' {
+        $path = Join-Path $installDir 'MuddsShipyards.exe'
+        $provenancePath = Join-Path $installDir 'source-commit.txt'
+        $beforeProvenance = [IO.File]::ReadAllBytes($provenancePath)
+        $beforeRegistry = @(Get-ItemProperty -Path $regApp; Get-ItemProperty -Path $regUninstall) | ConvertTo-Json -Depth 3 -Compress
+        # Hold an exclusive read handle: the new installer must fail without
+        # publishing its build identity or modifying the previous executable.
+        # Release even on timeout/exception before Step attempts owned cleanup.
+        $lock = [IO.File]::Open($path, [IO.FileMode]::Open, [IO.FileAccess]::Read, [IO.FileShare]::None)
+        try { $code = Run-Silent $Installer "/S /D=$installDir" 120000 }
+        finally { $lock.Dispose() }
+        if ($code -ne 2) { throw "locked upgrade exit=$code expected=2" }
+        Assert-Installed $initialHash $initialCommit
+        Assert-RegistryAndShortcuts $initialCommit ''
+        $afterProvenance = [IO.File]::ReadAllBytes($provenancePath)
+        if ([Convert]::ToBase64String($beforeProvenance) -ne [Convert]::ToBase64String($afterProvenance)) { throw 'locked upgrade changed provenance bytes' }
+        $afterRegistry = @(Get-ItemProperty -Path $regApp; Get-ItemProperty -Path $regUninstall) | ConvertTo-Json -Depth 3 -Compress
+        if ($beforeRegistry -ne $afterRegistry) { throw 'locked upgrade changed registry metadata' }
+        if (Test-Path -LiteralPath (Join-Path $installDir 'MuddsShipyards.exe.pending')) { throw 'failed upgrade left pending payload' }
+        'exit=2 previous_exe_metadata_and_user_data_preserved=True pending_removed=True'
+    }
+}
+
 Step 'silent_upgrade_over_existing' {
     $code = Run-Silent $Installer "/S /D=$installDir" 600000
     if ($code -ne 0) { throw "upgrade installer exit code $code" }
