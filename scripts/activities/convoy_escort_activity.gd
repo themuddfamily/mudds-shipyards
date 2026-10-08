@@ -470,13 +470,24 @@ func validate_persistence_state(candidate: Variant) -> Dictionary:
 	var escort_position := _decode_vector(saved.escort_position as Dictionary)
 	var escort_distance := float(saved.escort_distance)
 	var sample_count := int(saved.sample_count)
-	if int(saved.state) != State.ACTIVE \
+	if int(saved.state) == State.IDLE:
+		if generation < 1 or generation > MAX_PERSISTED_GENERATION \
+				or int(saved.terminal_result) != TerminalResult.NONE or not str(saved.terminal_reason).is_empty() \
+				or not str(saved.convoy_id).is_empty() or convoy_generation != -1 \
+				or next_leg_index != 0 or not is_zero_approx(elapsed) or not is_zero_approx(separation_elapsed) \
+				or has_sample or sample_count != 0 or not convoy_position.is_zero_approx() \
+				or not escort_position.is_zero_approx() or not is_zero_approx(escort_distance) \
+				or int(saved.convoy_status) != EntityStatus.ACTIVE:
+			return _persistence_result(false, &"invalid_convoy_idle_state")
+		return _persistence_result(true, &"convoy_idle_state_valid")
+	var completed := int(saved.state) == State.COMPLETED
+	if int(saved.state) not in [State.ACTIVE, State.COMPLETED] \
 			or generation < 1 or generation > MAX_PERSISTED_GENERATION \
-			or int(saved.terminal_result) != TerminalResult.NONE \
-			or not str(saved.terminal_reason).is_empty() \
+			or (not completed and (int(saved.terminal_result) != TerminalResult.NONE \
+				or not str(saved.terminal_reason).is_empty())) \
 			or not WorldLocationDefinition._is_stable_id(str(saved.convoy_id)) \
 			or convoy_generation < 1 or convoy_generation > MAX_PERSISTED_GENERATION \
-			or next_leg_index < 0 or next_leg_index >= _definition.get_checkpoint_count() \
+			or next_leg_index < 0 or (not completed and next_leg_index >= _definition.get_checkpoint_count()) \
 			or elapsed < 0.0 or elapsed >= _timeout_seconds \
 			or separation_elapsed < 0.0 \
 			or separation_elapsed >= _maximum_separation_seconds \
@@ -484,6 +495,15 @@ func validate_persistence_state(candidate: Variant) -> Dictionary:
 			or int(saved.convoy_status) != EntityStatus.ACTIVE \
 			or sample_count < 0 or sample_count > MAX_PERSISTED_GENERATION:
 		return _persistence_result(false, &"invalid_convoy_activity_state")
+	if completed:
+		if int(saved.terminal_result) != TerminalResult.SAFELY_ARRIVED \
+				or str(saved.terminal_reason) != "safely_arrived" \
+				or next_leg_index != _definition.get_checkpoint_count() \
+				or not has_sample or sample_count < 1 \
+				or convoy_position.distance_to(_definition.get_checkpoint_position(next_leg_index - 1)) > _definition.checkpoint_radius \
+				or escort_distance > _escort_proximity_radius \
+				or not is_zero_approx(separation_elapsed):
+			return _persistence_result(false, &"invalid_convoy_terminal_state")
 	if not has_sample:
 		if sample_count != 0 or not convoy_position.is_zero_approx() \
 				or not escort_position.is_zero_approx() \
@@ -517,10 +537,10 @@ func restore_persistence_state(candidate: Variant, expected_generation: int) -> 
 	if not bool(validated.get("accepted", false)):
 		return validated
 	var saved := candidate as Dictionary
-	_state = State.ACTIVE
+	_state = int(saved.state)
 	_generation = int(saved.generation)
-	_terminal_result = TerminalResult.NONE
-	_terminal_reason = &""
+	_terminal_result = int(saved.terminal_result)
+	_terminal_reason = StringName(saved.terminal_reason)
 	_convoy_id = StringName(str(saved.convoy_id))
 	_convoy_generation = int(saved.convoy_generation)
 	_next_leg_index = int(saved.next_leg_index)

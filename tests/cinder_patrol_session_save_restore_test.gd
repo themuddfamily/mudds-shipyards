@@ -969,25 +969,37 @@ func _check_adopted_family_reentry(game: GameFlow) -> void:
 		"newly adopted %s keeps its owner, generation, result and receipt through Main re-entry" % kind)
 
 
-func _complete_unrelated_convoy(game: GameFlow) -> void:
-	var route := preload("res://assets/activities/cinder_reach_emberline_convoy_route.tres")
-	var director := ActivityDirector.new()
-	root.add_child(director)
-	director.register_definition(route)
-	var convoy := ConvoyEscortActivity.new(director, route.activity_id)
+func _complete_unrelated_convoy(game: GameFlow, reject_reward: bool = false) -> void:
+	# Bounded typed-host/codec handoff, not a streamed combat journey. The actual
+	# movement owner publishes its terminal before the ordinary reward callback.
+	var store := game.get("_runtime_settings_user_data_store") as UserDataStore
+	var persistence := CinderConvoySessionPersistence.new()
+	persistence.configure(store, &"cinder_convoy_session")
+	var convoy := CinderConvoyEscortHost.new()
 	root.add_child(convoy)
-	convoy.safely_arrived.connect(func(_activity_id: StringName, _generation: int) -> void:
-		game.call("_on_cinder_convoy_safely_arrived", {"activity": convoy.get_snapshot()})
+	var filesystem := store.get("_filesystem") as UserDataFilesystem
+	if reject_reward:
+		filesystem.set("reject_writes", false)
+	convoy.convoy_safely_arrived.connect(func(snapshot: Dictionary) -> void:
+		var saved := persistence.save(convoy, &"torrent", "unit-live-convoy-terminal")
+		_check(bool(saved.get("accepted", false)), "the genuine convoy terminal is durable before its reward handoff")
+		if reject_reward:
+			filesystem.set("reject_writes", true)
+		game.call("_on_cinder_convoy_safely_arrived", snapshot)
 	)
-	convoy.start(&"unit_emberline_tender", 1, 0)
-	for checkpoint in route.get_checkpoint_count():
-		var position := route.get_checkpoint_position(checkpoint)
-		convoy.submit_entity_sample(&"unit_emberline_tender", 1, position, position,
-			ConvoyEscortActivity.EntityStatus.ACTIVE, convoy.get_generation())
-	_check(int(convoy.get_snapshot().get("state", -1)) == ConvoyEscortActivity.State.COMPLETED,
-		"the unrelated reward is produced by the completed authored convoy model")
+	convoy.start(convoy.get_generation())
+	var budget := 60
+	while budget > 0 and convoy.get_snapshot().activity.state_id == &"active":
+		convoy.advance_physics(0.25, convoy.get_snapshot().entity_position as Vector3, convoy.get_generation())
+		if convoy.get_snapshot().activity.state_id == &"active":
+			persistence.save(convoy, &"torrent", "unit-live-convoy-progress-%d" % budget)
+		budget -= 1
+	_check(budget > 0 and convoy.get_snapshot().activity.state_id == &"completed",
+		"the unrelated receipt comes from an exact completed convoy host and codec")
+	if not reject_reward:
+		var retired := persistence.retire(convoy, "unit-convoy-explicit-retirement")
+		_check(bool(retired.get("accepted", false)), "the paid model fixture explicitly retires its convoy slot")
 	convoy.free()
-	director.free()
 
 
 func _total_receipts(game: GameFlow) -> int:

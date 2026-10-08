@@ -44,6 +44,8 @@ func load(host: CinderConvoyEscortHost) -> Dictionary:
 		"reason": &"convoy_session_loaded",
 		"store_generation": _store.get_generation(),
 		"session_state": (decoded.session_state as Dictionary).duplicate(true),
+		"reward_requested": bool((payload[slot_key].activities[0] as Dictionary).reward_requested),
+		"reward_granted": bool((payload[slot_key].activities[0] as Dictionary).reward_granted),
 	}.duplicate(true)
 
 
@@ -96,13 +98,20 @@ func save_state(
 		return _result(false, &"convoy_session_store_recovery_required")
 	var payload := _store.get_snapshot()
 	var slot_key := String(_slot_id)
+	if not payload.has(slot_key) and int((record.activities[0] as Dictionary).state) == ConvoyEscortActivity.State.IDLE:
+		return _result(false, &"unproven_convoy_reset")
 	if payload.has(slot_key):
 		var existing_validation := validate_record(payload.get(slot_key), host)
 		if not bool(existing_validation.get("accepted", false)):
 			return existing_validation
+		var existing_activity := (payload[slot_key].activities[0] as Dictionary)
+		var candidate_activity := (record.activities[0] as Dictionary)
+		if int(existing_activity.generation) == int(candidate_activity.generation):
+			candidate_activity.reward_requested = existing_activity.reward_requested if int(existing_activity.state) == ConvoyEscortActivity.State.COMPLETED else candidate_activity.reward_requested
+			candidate_activity.reward_granted = existing_activity.reward_granted
 		var existing := _decode_record(payload[slot_key] as Dictionary)
 		var transition := _validate_transition(
-			existing.session_state as Dictionary, canonical_state
+			existing.session_state as Dictionary, canonical_state, existing_activity
 		)
 		if not bool(transition.get("accepted", false)):
 			return transition
@@ -121,9 +130,8 @@ func save_state(
 	return committed
 
 
-## Terminal convoy state is never serialized or restored. This separate
-## accepted transaction retires the last active record without inspecting or
-## changing the independent safe-arrival history namespace.
+## Explicit reset/failure retirement changes only the convoy session namespace.
+## An unpaid terminal handoff must remain until its atomic acknowledgement.
 func retire(host: CinderConvoyEscortHost, commit_id: String) -> Dictionary:
 	if not _configured() or not is_instance_valid(host) \
 			or commit_id.strip_edges().is_empty():
@@ -144,6 +152,9 @@ func retire(host: CinderConvoyEscortHost, commit_id: String) -> Dictionary:
 	var validated := validate_record(payload.get(slot_key), host)
 	if not bool(validated.get("accepted", false)):
 		return validated
+	var activity := (payload[slot_key].activities[0] as Dictionary)
+	if activity.reward_requested and not activity.reward_granted:
+		return _result(false, &"convoy_reward_pending")
 	payload.erase(slot_key)
 	var committed := _store.commit(payload, _store.get_generation(), commit_id)
 	committed["binding_reason"] = (
@@ -172,12 +183,13 @@ func validate_record(candidate: Variant, host: CinderConvoyEscortHost) -> Dictio
 			or str(activity.get("activity_id", "")) \
 			!= str(CinderConvoyEscortHost.ROUTE.activity_id) \
 			or not _integral(activity.get("generation")) \
-			or int(activity.get("state", -1)) != ConvoyEscortActivity.State.ACTIVE \
+			or int(activity.get("state", -1)) not in [ConvoyEscortActivity.State.ACTIVE, ConvoyEscortActivity.State.COMPLETED, ConvoyEscortActivity.State.IDLE] \
 			or activity.get("reward_requested") is not bool \
-			or bool(activity.get("reward_requested", true)) \
 			or activity.get("reward_granted") is not bool \
-			or bool(activity.get("reward_granted", true)) \
 			or not activity.get("progress") is Dictionary:
+		return _result(false, &"convoy_session_payload_corrupt")
+	if (activity.reward_granted and not activity.reward_requested) \
+			or ((activity.reward_requested or activity.reward_granted) and int(activity.state) != ConvoyEscortActivity.State.COMPLETED):
 		return _result(false, &"convoy_session_payload_corrupt")
 	var progress := activity.progress as Dictionary
 	if progress.size() != 4 \
@@ -185,7 +197,7 @@ func validate_record(candidate: Variant, host: CinderConvoyEscortHost) -> Dictio
 			or str(progress.get("activity_id", "")) \
 			!= str(CinderConvoyEscortHost.ROUTE.activity_id) \
 			or not _integral(progress.get("generation")) \
-			or int(progress.get("state", -1)) != ConvoyEscortActivity.State.ACTIVE \
+			or int(progress.get("state", -1)) != int(activity.state) \
 			or not progress.get("convoy_session_state") is Dictionary \
 			or int(progress.generation) != int(activity.generation):
 		return _result(false, &"convoy_session_payload_corrupt")
@@ -197,7 +209,8 @@ func validate_record(candidate: Variant, host: CinderConvoyEscortHost) -> Dictio
 		})
 	var host_state := session_state.host_state as Dictionary
 	var activity_state := host_state.activity_state as Dictionary
-	if int(progress.generation) != int(activity_state.get("generation", -1)):
+	if int(progress.generation) != int(activity_state.get("generation", -1)) \
+			or int(progress.state) != int(activity_state.get("state", -1)):
 		return _result(false, &"convoy_session_payload_corrupt")
 	return _result(true, &"convoy_session_payload_valid")
 
@@ -225,6 +238,11 @@ func validate_session_state(
 	var host_validation := host.validate_persistence_state(state.host_state)
 	if not bool(host_validation.get("accepted", false)):
 		return host_validation
+	var saved_activity := (state.host_state as Dictionary).get("activity_state", {}) as Dictionary
+	if int(saved_activity.get("state", -1)) == ConvoyEscortActivity.State.IDLE:
+		if schema_version != SESSION_SCHEMA_VERSION or not state.get("threat_state") is Dictionary \
+				or _canonical_state(state.threat_state as Dictionary) != _canonical_state(CinderConvoyThreat.pristine_persistence_state(int(saved_activity.get("generation", 0)))):
+			return _result(false, &"invalid_convoy_idle_threat_state")
 	if schema_version == SESSION_SCHEMA_VERSION:
 		var host_state := state.host_state as Dictionary
 		var activity_state := host_state.get("activity_state", {}) as Dictionary
@@ -245,6 +263,15 @@ func _capture_session_state(
 		threat: CinderConvoyThreat = null
 	) -> Dictionary:
 	var generation := host.get_generation()
+	var threat_state := CinderConvoyThreat.pristine_persistence_state(generation)
+	if int((host.get_snapshot().get("activity", {}) as Dictionary).get("state", -1)) != ConvoyEscortActivity.State.IDLE and is_instance_valid(threat) and int(threat.get_snapshot().get("generation", -1)) == generation:
+		threat_state = threat.capture_persistence_state()
+	elif int((host.get_snapshot().get("activity", {}) as Dictionary).get("state", -1)) == ConvoyEscortActivity.State.COMPLETED and _configured():
+		var record := _store.get_snapshot().get(String(_slot_id), {}) as Dictionary
+		var activities := record.get("activities", []) as Array
+		if activities.size() == 1 and int((activities[0] as Dictionary).get("generation", -1)) == generation:
+			var saved := ((activities[0] as Dictionary).get("progress", {}) as Dictionary).get("convoy_session_state", {}) as Dictionary
+			threat_state = (saved.get("threat_state", threat_state) as Dictionary).duplicate(true)
 	return {
 		"schema_version": SESSION_SCHEMA_VERSION,
 		"activity_kind": ACTIVITY_KIND,
@@ -253,11 +280,7 @@ func _capture_session_state(
 		"escort_ship_id": String(escort_ship_id),
 		"stream_location_id": STREAM_LOCATION_ID,
 		"host_state": host.capture_persistence_state(),
-		"threat_state": (
-			threat.capture_persistence_state()
-			if is_instance_valid(threat) and bool(threat.get_snapshot().get("active", false))
-			else CinderConvoyThreat.pristine_persistence_state(generation)
-		),
+		"threat_state": threat_state,
 	}.duplicate(true)
 
 
@@ -275,6 +298,8 @@ func _record(state: Dictionary) -> Dictionary:
 		},
 	})
 	var activity := (record.activities as Array)[0] as Dictionary
+	activity.reward_requested = int(activity.state) == ConvoyEscortActivity.State.COMPLETED
+	activity.reward_granted = false
 	activity.activity_id = str(activity.activity_id)
 	var progress := activity.progress as Dictionary
 	progress.activity_id = str(progress.activity_id)
@@ -291,9 +316,29 @@ func _decode_record(record: Dictionary) -> Dictionary:
 	}.duplicate(true)
 
 
-func _validate_transition(existing: Dictionary, candidate: Dictionary) -> Dictionary:
+func _validate_transition(existing: Dictionary, candidate: Dictionary, existing_activity: Dictionary) -> Dictionary:
 	if existing == candidate:
 		return _result(true, &"convoy_session_unchanged")
+	var previous_host := existing.host_state as Dictionary
+	var candidate_host := candidate.host_state as Dictionary
+	var previous_activity := previous_host.activity_state as Dictionary
+	var next_activity := candidate_host.activity_state as Dictionary
+	var old_generation := int(previous_activity.generation)
+	var new_generation := int(next_activity.generation)
+	if new_generation != old_generation:
+		if new_generation != old_generation + 1:
+			return _result(false, &"unproven_convoy_generation")
+		if int(previous_activity.state) == ConvoyEscortActivity.State.COMPLETED \
+				and existing_activity.reward_requested and existing_activity.reward_granted \
+				and int(next_activity.state) == ConvoyEscortActivity.State.IDLE \
+				and int(candidate_host.entity_generation) == int(previous_host.entity_generation) \
+				and str(existing.escort_ship_id) == str(candidate.escort_ship_id):
+			return _result(true, &"convoy_reset_saved")
+		if int(previous_activity.state) == ConvoyEscortActivity.State.IDLE \
+				and int(next_activity.state) == ConvoyEscortActivity.State.ACTIVE \
+				and int(candidate_host.entity_generation) == int(previous_host.entity_generation) + 1:
+			return _result(true, &"convoy_new_run_saved")
+		return _result(false, &"unproven_convoy_generation")
 	if str(existing.get("escort_ship_id", "")) != str(candidate.get("escort_ship_id", "")):
 		return _result(false, &"convoy_session_ship_identity_changed")
 	var old_host := existing.host_state as Dictionary
@@ -307,10 +352,11 @@ func _validate_transition(existing: Dictionary, candidate: Dictionary) -> Dictio
 			return _result(false, &"stale_convoy_threat_state")
 	var old_activity := old_host.activity_state as Dictionary
 	var new_activity := new_host.activity_state as Dictionary
-	var old_generation := int(old_activity.get("generation", -1))
-	var new_generation := int(new_activity.get("generation", -1))
 	if new_generation < old_generation:
 		return _result(false, &"stale_convoy_session")
+	if int(old_activity.get("state", -1)) == ConvoyEscortActivity.State.COMPLETED \
+			and int(new_activity.get("state", -1)) != ConvoyEscortActivity.State.COMPLETED:
+		return _result(false, &"unproven_convoy_state")
 	if new_generation != old_generation:
 		return _result(false, &"unproven_convoy_generation")
 	if int(new_host.get("entity_generation", -1)) \

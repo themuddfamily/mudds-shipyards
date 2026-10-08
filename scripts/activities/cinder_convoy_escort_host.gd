@@ -318,6 +318,45 @@ func reset(expected_generation: int) -> Dictionary:
 	var rejection := _common_mutation_rejection(expected_generation)
 	if not rejection.is_empty():
 		return _finish(false, rejection)
+	return _publish_typed_reset(expected_generation)
+
+
+## Persist a genuine reset on an isolated exact-config owner before publishing
+## it on this owner. The existing latch rejects reentry throughout the commit;
+## a refused write leaves this owner and all its outward signals unchanged.
+func reset_with_persistence(expected_generation: int, persist_reset: Callable) -> Dictionary:
+	if _is_reentrant():
+		return _result(false, &"reentrant_call")
+	if not persist_reset.is_valid():
+		return _result(false, &"reset_persistence_unavailable")
+	_mutation_active = true
+	var rejection := _common_mutation_rejection(expected_generation)
+	if not rejection.is_empty():
+		return _finish(false, rejection)
+	if _activity.get_state() != ConvoyEscortActivity.State.COMPLETED:
+		return _finish(false, &"completed_convoy_reset_required")
+	var candidate := CinderConvoyEscortHost.new(_movement_speed,
+		_escort_proximity_radius, _maximum_separation_seconds, _timeout_seconds)
+	candidate.visible = false
+	add_child(candidate)
+	var adopted := candidate.restore_persistence_state(capture_persistence_state(), 0)
+	if not bool(adopted.get("accepted", false)):
+		candidate.free()
+		return _finish(false, &"reset_candidate_rejected")
+	var staged_reset := candidate.reset(candidate.get_generation())
+	if not bool(staged_reset.get("accepted", false)):
+		candidate.free()
+		return _finish(false, &"reset_candidate_rejected")
+	var saved: Variant = persist_reset.call(candidate)
+	candidate.free()
+	if not saved is Dictionary or not bool(saved.get("accepted", false)):
+		var failed := _finish(false, &"convoy_reset_save_rejected")
+		failed["store_result"] = saved.duplicate(true) if saved is Dictionary else {}
+		return failed
+	return _publish_typed_reset(expected_generation)
+
+
+func _publish_typed_reset(expected_generation: int) -> Dictionary:
 	_restore_missing_convoy_entity()
 	var reset_result := _activity.reset(expected_generation)
 	if not bool(reset_result.get("accepted", false)):
@@ -430,6 +469,7 @@ func validate_persistence_state(candidate: Variant) -> Dictionary:
 	var activity_validation := _activity.validate_persistence_state(activity_state)
 	if not bool(activity_validation.get("accepted", false)):
 		return activity_validation
+	var completed := int(activity_state.get("state", -1)) == ConvoyEscortActivity.State.COMPLETED
 	var entity_generation := int(saved.entity_generation)
 	var next_route_index := int(saved.next_route_index)
 	var movement_distance := float(saved.movement_distance)
@@ -445,10 +485,20 @@ func validate_persistence_state(candidate: Variant) -> Dictionary:
 	)
 	var has_sample := bool(saved.has_escort_sample)
 	var activity_sample_count := int(activity_state.get("sample_count", -1))
+	if int(activity_state.get("state", -1)) == ConvoyEscortActivity.State.IDLE:
+		if entity_generation < 1 or entity_generation > MAX_PERSISTED_COUNTER \
+				or int(saved.entity_status) != ConvoyEscortActivity.EntityStatus.ACTIVE \
+				or next_route_index != 0 or not is_zero_approx(movement_distance) \
+				or not is_zero_approx(movement_backlog) or physics_ticks != 0 or publication_count != 0 \
+				or has_sample or not last_escort_position.is_zero_approx() \
+				or not entity_position.is_equal_approx(ROUTE.get_checkpoint_position(0)) \
+				or not last_entity_position.is_equal_approx(entity_position):
+			return _persistence_result(false, &"invalid_convoy_idle_host_state")
+		return _persistence_result(true, &"convoy_idle_host_state_valid")
 	if entity_generation < 1 \
 			or entity_generation > MAX_PERSISTED_COUNTER \
 			or int(saved.entity_status) != ConvoyEscortActivity.EntityStatus.ACTIVE \
-			or next_route_index < 0 or next_route_index >= ROUTE.get_checkpoint_count() \
+			or next_route_index < 0 or (not completed and next_route_index >= ROUTE.get_checkpoint_count()) \
 			or movement_distance < 0.0 \
 			or movement_backlog < 0.0 \
 			or physics_ticks < 0 or physics_ticks > MAX_PERSISTED_COUNTER \
@@ -488,7 +538,8 @@ func validate_persistence_state(candidate: Variant) -> Dictionary:
 			return _persistence_result(false, &"convoy_tick_progress_mismatch")
 	else:
 		if elapsed <= 0.0 or movement_distance <= 0.0 or not has_sample \
-				or publication_count != physics_ticks * 2:
+				or (publication_count != physics_ticks * 2 \
+				and (not completed or publication_count != physics_ticks * 2 + 1)):
 			return _persistence_result(false, &"convoy_tick_progress_mismatch")
 	if movement_backlog > 0.0 and not _position_can_retain_movement_backlog(
 		entity_position, next_route_index
@@ -538,7 +589,7 @@ func restore_persistence_state(candidate: Variant, expected_generation: int) -> 
 	_sample_publication_count = int(saved.sample_publication_count)
 	_has_escort_sample = bool(saved.has_escort_sample)
 	_last_escort_position = _decode_vector(saved.last_escort_position as Dictionary)
-	_terminal_signal_generation = -1
+	_terminal_signal_generation = get_generation() if int((saved.activity_state as Dictionary).state) == ConvoyEscortActivity.State.COMPLETED else -1
 	_convoy_entity.visible = true
 	_set_entity_position(_decode_vector(saved.entity_position as Dictionary))
 	_orient_toward_route_index(_next_route_index)
@@ -1532,7 +1583,12 @@ func _route_replay_witness(
 				and position.is_equal_approx(ROUTE.get_checkpoint_position(0)) \
 				and available_physics_ticks == 0,
 		}
-	if next_index < 1 or next_index >= ROUTE.get_checkpoint_count():
+	var completed := int(activity_state.get("state", -1)) == ConvoyEscortActivity.State.COMPLETED
+	if completed:
+		if next_index != ROUTE.get_checkpoint_count():
+			return {"accepted": false}
+		next_index -= 1
+	elif next_index < 1 or next_index >= ROUTE.get_checkpoint_count():
 		return {"accepted": false}
 	var replay := _best_route_replay(
 		distance, position, next_index, available_physics_ticks
@@ -1544,6 +1600,8 @@ func _route_replay_witness(
 	var target_distance := position.distance_to(
 		ROUTE.get_checkpoint_position(next_index)
 	)
+	if completed:
+		return {"accepted": target_distance <= ROUTE.checkpoint_radius}
 	if target_distance <= ROUTE.checkpoint_radius:
 		if next_index != ROUTE.get_checkpoint_count() - 1:
 			return {"accepted": false}

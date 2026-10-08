@@ -271,6 +271,42 @@ func commit(request: Variant) -> Dictionary:
 			return _reject(&"reward_generation_already_committed")
 		patrol_completion = saved_patrol
 
+	var convoy_completion: Dictionary = {}
+	if activity_id == CONVOY_ACTIVITY_ID:
+		var convoy_slot: Variant = (payload as Dictionary).get("cinder_convoy_session")
+		if not convoy_slot is Dictionary or not convoy_slot.get("activities") is Array \
+				or (convoy_slot.activities as Array).size() != 1:
+			_commit_active = false
+			return _reject(&"reward_terminal_handoff_invalid")
+		var saved_convoy: Variant = convoy_slot.activities[0]
+		if not saved_convoy is Dictionary \
+				or str(saved_convoy.get("activity_id", "")) != String(CONVOY_ACTIVITY_ID) \
+				or int(saved_convoy.get("state", -1)) != ConvoyEscortActivity.State.COMPLETED \
+				or not _integral(saved_convoy.get("generation")) \
+				or saved_convoy.get("reward_requested") != true \
+				or saved_convoy.get("reward_granted") is not bool \
+				or not saved_convoy.get("progress") is Dictionary:
+			_commit_active = false
+			return _reject(&"reward_terminal_handoff_invalid")
+		var session: Variant = (saved_convoy.progress as Dictionary).get("convoy_session_state")
+		var host_state: Variant = session.get("host_state") if session is Dictionary else null
+		var convoy_state: Variant = host_state.get("activity_state") if host_state is Dictionary else null
+		if not convoy_state is Dictionary \
+				or str(convoy_state.get("activity_id", "")) != String(CONVOY_ACTIVITY_ID) \
+				or int(convoy_state.get("generation", -1)) != int(saved_convoy.generation) \
+				or int(convoy_state.get("state", -1)) != ConvoyEscortActivity.State.COMPLETED \
+				or int(convoy_state.get("terminal_result", -1)) != ConvoyEscortActivity.TerminalResult.SAFELY_ARRIVED:
+			_commit_active = false
+			return _reject(&"reward_terminal_handoff_invalid")
+		if int(saved_convoy.generation) != activity_generation:
+			_commit_active = false
+			return _reject(&"reward_generation_mismatch")
+		if saved_convoy.reward_granted:
+			_record = current
+			_commit_active = false
+			return _reject(&"reward_generation_already_committed")
+		convoy_completion = saved_convoy
+
 	# Aurora and Rime are one-time discoveries across Main re-entry and
 	# interrupted saves. Read the durable ledger here, before consuming the
 	# caller's generation.
@@ -324,6 +360,9 @@ func commit(request: Variant) -> Dictionary:
 		acknowledged.reward_granted = true
 	if not patrol_completion.is_empty():
 		var acknowledged := (next_payload.cinder_patrol_session.activities[0] as Dictionary)
+		acknowledged.reward_granted = true
+	if not convoy_completion.is_empty():
+		var acknowledged := (next_payload.cinder_convoy_session.activities[0] as Dictionary)
 		acknowledged.reward_granted = true
 	var committed := _store.call(
 		&"commit",

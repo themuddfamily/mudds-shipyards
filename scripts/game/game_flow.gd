@@ -1144,8 +1144,8 @@ var _startup_stager: MainStartupStagerType
 var _active_activity_id: StringName = &""
 var _active_activity_generation := 0
 ## Activity kind is selected independently from the shared director route ID.
-## Selection locks on the first accepted start because both typed adapters keep
-## private generation history over that one route and cannot safely alternate.
+## Selection locks on the first accepted start. After an explicit debt-free
+## reset, race/patrol selection adopts the target family through its saved owner.
 var _selected_activity_kind: StringName = ACTIVITY_KIND_TIMED_RACE
 var _activity_selection_locked := false
 var _cinder_family_selection_active := false
@@ -2481,7 +2481,8 @@ func _initialize_cinder_convoy_session_persistence() -> void:
 	_cinder_convoy_restored_ship_id = _canonicalize_flyable_ship_id(
 		StringName(str(session_state.get("escort_ship_id", "")))
 	)
-	_cinder_convoy_runtime_rebind_pending = true
+	var completed := int((session_state.host_state.activity_state as Dictionary).state) == ConvoyEscortActivity.State.COMPLETED
+	_cinder_convoy_runtime_rebind_pending = int((session_state.host_state.activity_state as Dictionary).state) == ConvoyEscortActivity.State.ACTIVE
 	_selected_activity_kind = ACTIVITY_KIND_CONVOY_ESCORT
 	_active_activity_id = CINDER_CONVOY_ACTIVITY_ID
 	_active_activity_generation = cinder_convoy_host.get_generation()
@@ -2495,6 +2496,9 @@ func _initialize_cinder_convoy_session_persistence() -> void:
 		snapshot
 	)
 
+	if completed and bool(loaded.get("reward_requested", false)) and not bool(loaded.get("reward_granted", false)):
+		_owed_game_flow_activity_rewards.append({"activity_id": CINDER_CONVOY_ACTIVITY_ID, "generation": _active_activity_generation})
+
 
 func save_cinder_convoy_session() -> Dictionary:
 	if _cinder_convoy_session_persistence == null \
@@ -2503,7 +2507,7 @@ func save_cinder_convoy_session() -> Dictionary:
 	var activity := cinder_convoy_host.get_snapshot().get("activity", {}) as Dictionary
 	if int(activity.get("generation", 0)) < 1:
 		return {"accepted": true, "reason": &"convoy_session_not_started"}
-	if int(activity.get("state", -1)) != ConvoyEscortActivity.State.ACTIVE:
+	if int(activity.get("state", -1)) not in [ConvoyEscortActivity.State.ACTIVE, ConvoyEscortActivity.State.COMPLETED, ConvoyEscortActivity.State.IDLE]:
 		return {"accepted": false, "reason": &"convoy_session_terminal"}
 	var escort_ship_id := _cinder_convoy_persistence_ship_id()
 	if escort_ship_id.is_empty():
@@ -2515,8 +2519,8 @@ func save_cinder_convoy_session() -> Dictionary:
 		CINDER_CONVOY_SESSION_COMMIT_PREFIX,
 		next_generation,
 	]
-	if not is_instance_valid(cinder_convoy_threat) \
-			or not bool(cinder_convoy_threat.get_snapshot().get("active", false)):
+	if int(activity.get("state", -1)) == ConvoyEscortActivity.State.ACTIVE and (not is_instance_valid(cinder_convoy_threat) \
+			or not bool(cinder_convoy_threat.get_snapshot().get("active", false))):
 		return {"accepted": false, "reason": &"convoy_threat_unavailable"}
 	_cinder_convoy_session_save_status = _cinder_convoy_session_persistence.save(
 		cinder_convoy_host, escort_ship_id, commit_id, cinder_convoy_threat
@@ -2531,6 +2535,16 @@ func save_cinder_convoy_session() -> Dictionary:
 		)
 		_sync_production_runtime_settings_state()
 	return _cinder_convoy_session_save_status.duplicate(true)
+
+
+func _save_cinder_convoy_reset_candidate(candidate: CinderConvoyEscortHost) -> Dictionary:
+	if _cinder_convoy_session_persistence == null or _runtime_settings_user_data_store == null:
+		return {"accepted": false, "reason": &"convoy_session_persistence_unavailable"}
+	var next_generation := _runtime_settings_user_data_store.get_generation() + 1
+	if next_generation <= 0 or next_generation > UserDataStoreType.MAX_GENERATION:
+		return {"accepted": false, "reason": &"convoy_session_commit_id_exhausted"}
+	return _cinder_convoy_session_persistence.save(candidate, _cinder_convoy_persistence_ship_id(),
+		"%s%010d" % [CINDER_CONVOY_SESSION_COMMIT_PREFIX, next_generation])
 
 
 func _retire_cinder_convoy_session() -> Dictionary:
@@ -2580,7 +2594,9 @@ func get_cinder_convoy_session_persistence_report() -> Dictionary:
 
 
 func _cinder_convoy_persistence_ship_id() -> StringName:
-	if _cinder_convoy_runtime_rebind_pending:
+	# Terminal saves retain their proven escort identity without rebind/movement authority.
+	if _cinder_convoy_runtime_rebind_pending or (is_instance_valid(cinder_convoy_host) \
+			and int((cinder_convoy_host.get_snapshot().get("activity", {}) as Dictionary).get("state", -1)) in [ConvoyEscortActivity.State.COMPLETED, ConvoyEscortActivity.State.IDLE]):
 		return _cinder_convoy_restored_ship_id
 	if not is_instance_valid(active_ship) or not active_ship.has_method(&"get_ship_id"):
 		return &""
@@ -15452,6 +15468,9 @@ func request_activity_start(
 	if _has_pending_cinder_patrol_reward():
 		_present_pending_cinder_patrol_reward()
 		return {"accepted": false, "reason": &"patrol_reward_pending"}
+	if _has_pending_cinder_convoy_reward():
+		_present_pending_cinder_convoy_reward()
+		return {"accepted": false, "reason": &"convoy_reward_pending"}
 	if (
 		not is_instance_valid(activity_director)
 		or cinder_race_session == null
@@ -15607,6 +15626,9 @@ func reset_active_activity() -> bool:
 	if _has_pending_cinder_patrol_reward():
 		_present_pending_cinder_patrol_reward()
 		return false
+	if _has_pending_cinder_convoy_reward():
+		_present_pending_cinder_convoy_reward()
+		return false
 	if (
 		cinder_race_session == null
 		or patrol_activity == null
@@ -15627,7 +15649,15 @@ func reset_active_activity() -> bool:
 				cargo_delivery_activity.get_generation()
 			)
 		ACTIVITY_KIND_CONVOY_ESCORT:
-			reset = cinder_convoy_host.reset(cinder_convoy_host.get_generation())
+			if int((cinder_convoy_host.get_snapshot().get("activity", {}) as Dictionary).get("state", -1)) == ConvoyEscortActivity.State.IDLE:
+				return false
+			if int((cinder_convoy_host.get_snapshot().get("activity", {}) as Dictionary).get("state", -1)) == ConvoyEscortActivity.State.COMPLETED:
+				reset = cinder_convoy_host.reset_with_persistence(cinder_convoy_host.get_generation(), _save_cinder_convoy_reset_candidate)
+			else:
+				var retired := _retire_cinder_convoy_session()
+				if not bool(retired.get("accepted", false)):
+					return false
+				reset = cinder_convoy_host.reset(cinder_convoy_host.get_generation())
 		_:
 			reset = cinder_race_session.reset(
 				cinder_race_session.get_session_generation()
@@ -15642,7 +15672,6 @@ func reset_active_activity() -> bool:
 			_convoy_stream_instance_id = 0
 			_convoy_stream_generation = -1
 			_convoy_active_ship_instance_id = 0
-			_cinder_convoy_restored_ship_id = &""
 			_cinder_convoy_runtime_rebind_pending = false
 			_convoy_terminal_reason = &""
 		_sync_activity_hud()
@@ -16234,6 +16263,16 @@ func _request_game_flow_activity_reward(
 					"store_result": terminal_save.duplicate(true),
 				}
 				return _last_game_flow_reward_result.duplicate(true)
+	if activity_id == CINDER_CONVOY_ACTIVITY_ID and is_instance_valid(cinder_convoy_host):
+		var convoy_snapshot := cinder_convoy_host.get_snapshot().get("activity", {}) as Dictionary
+		if convoy_snapshot.get("state_id", &"") == &"completed" and int(convoy_snapshot.get("generation", 0)) == activity_generation:
+			var terminal_save := save_cinder_convoy_session()
+			if not bool(terminal_save.get("accepted", false)):
+				var pending := {"activity_id": activity_id, "generation": activity_generation}
+				if not _owed_game_flow_activity_rewards.has(pending):
+					_owed_game_flow_activity_rewards.append(pending)
+				_last_game_flow_reward_result = {"accepted": false, "reason": &"reward_terminal_save_rejected", "store_result": terminal_save.duplicate(true)}
+				return _last_game_flow_reward_result.duplicate(true)
 	var completed := {
 		"activity_id": activity_id,
 		"state_id": &"completed",
@@ -16312,6 +16351,20 @@ func _present_pending_cinder_patrol_reward() -> void:
 			3.2,
 			true
 		)
+
+
+func _has_pending_cinder_convoy_reward() -> bool:
+	if not is_instance_valid(cinder_convoy_host):
+		return false
+	var snapshot := cinder_convoy_host.get_snapshot().get("activity", {}) as Dictionary
+	return snapshot.get("state_id", &"") == &"completed" and _owed_game_flow_activity_rewards.has({
+		"activity_id": CINDER_CONVOY_ACTIVITY_ID, "generation": int(snapshot.get("generation", 0)),
+	})
+
+
+func _present_pending_cinder_convoy_reward() -> void:
+	if is_instance_valid(hud):
+		hud.toast("Convoy reward waiting", "Saving failed. Your arrived convoy is kept open; try again to save the reward.", 3.2, true)
 
 
 func _retry_owed_game_flow_activity_rewards() -> void:
@@ -16527,14 +16580,13 @@ func _on_cinder_convoy_presentation_changed(snapshot: Dictionary) -> void:
 
 
 func _on_cinder_convoy_safely_arrived(snapshot: Dictionary) -> void:
-	if is_instance_valid(cinder_convoy_threat):
-		cinder_convoy_threat.retire(int((snapshot.get("activity", {}) as Dictionary).get("generation", 0)))
-	_retire_cinder_convoy_session()
 	var activity := snapshot.get("activity", {}) as Dictionary
 	var reward := _request_game_flow_activity_reward(
 		CINDER_CONVOY_ACTIVITY_ID,
 		int(activity.get("generation", 0))
 	)
+	if is_instance_valid(cinder_convoy_threat):
+		cinder_convoy_threat.retire(int(activity.get("generation", 0)))
 	if is_instance_valid(hud):
 		hud.toast(
 			"Emberline tender arrived",

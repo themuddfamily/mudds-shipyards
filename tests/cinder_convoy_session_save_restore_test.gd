@@ -67,6 +67,41 @@ class MemoryFilesystem extends Filesystem:
 		return OK
 
 
+## Real disk refusal at the production reward write, with teardown frozen.
+class InterruptedConvoyRewardFilesystem extends UserDataFilesystem:
+	var stopped := false
+	var reward_rejected := false
+	var interrupt_rewards := true
+	var stage_reward_before_refusal := false
+	var reject_terminal_saves := false
+	var terminal_rejected := false
+
+	func write_bytes_and_flush(path: String, bytes: PackedByteArray) -> Error:
+		if stopped:
+			return ERR_UNAVAILABLE
+		var document: Variant = JSON.parse_string(bytes.get_string_from_utf8())
+		if interrupt_rewards and document is Dictionary and str((document.get("commit", {}) as Dictionary).get("id", "")).begins_with("game-flow-reward-"):
+			if stage_reward_before_refusal:
+				var staged := super.write_bytes_and_flush(path, bytes)
+				if staged != OK:
+					return staged
+			reward_rejected = true
+			stopped = true
+			return ERR_UNAVAILABLE
+		if reject_terminal_saves and document is Dictionary:
+			var activities: Array = ((document.get("payload", {}) as Dictionary).get(String(SLOT), {}) as Dictionary).get("activities", [])
+			if activities.size() == 1 and int((activities[0] as Dictionary).get("state", -1)) == ConvoyEscortActivity.State.COMPLETED:
+				terminal_rejected = true
+				return ERR_UNAVAILABLE
+		return super.write_bytes_and_flush(path, bytes)
+
+	func remove_path(path: String) -> Error:
+		return ERR_UNAVAILABLE if stopped else super.remove_path(path)
+
+	func rename_path(from_path: String, to_path: String) -> Error:
+		return ERR_UNAVAILABLE if stopped else super.rename_path(from_path, to_path)
+
+
 var _assertions := 0
 var _failures := PackedStringArray()
 
@@ -298,9 +333,10 @@ func _run() -> void:
 			and int(signal_counts.arrived) == 1
 			and not bool(duplicate.get("accepted", true))
 			and int(signal_counts.arrived) == 1
-			and not second_store.get_snapshot().has(String(SLOT))
+			and bool((second_store.get_snapshot().get(String(SLOT), {}).get("activities", [{}])[0] as Dictionary).get("reward_granted", false))
+			and _convoy_receipts(second) == 1
 			and not second_store.get_snapshot().has("cinder_convoy_safe_arrival"),
-		"restored progress arrives once, retires only its live slot, and grants nothing"
+		"restored progress arrives once and atomically acknowledges its retained convoy slot"
 	)
 	await _retire_game(second)
 
@@ -338,7 +374,268 @@ func _run() -> void:
 		await _retire_game(corrupt_game)
 
 	await _exercise_threat_save_restore(filesystem)
+	await _test_terminal_convoy_reward_restart()
 	_finish()
+
+
+func _test_terminal_convoy_reward_restart() -> void:
+	var path := "user://convoy_reward_interruption_%d.json" % Time.get_ticks_usec()
+	var filesystem := InterruptedConvoyRewardFilesystem.new()
+	var first_store := Store.new(path, filesystem) as UserDataStore
+	var first := await _make_game(first_store)
+	first.set_physics_process(false)
+	first.call("_on_settings_save_requested")
+	var selected := first.select_activity_kind(GameFlow.ACTIVITY_KIND_CONVOY_ESCORT)
+	var craft := first.get_flyable_ships()[1] as HeroShip
+	craft.set_piloted(true)
+	first.active_ship = craft
+	first.set("_piloting", true)
+	first.set("_sortie_departed_berth", true)
+	first.phase = GameFlow.Phase.FREE_FLIGHT
+	craft.global_position = GameFlow.CINDER_CONVOY_ACTIVATION_CENTER
+	first.call("_physics_process", 0.1)
+	var streamed := await _wait_until(
+		func() -> bool:
+			return is_instance_valid(first.cinder_streaming_bootstrap.get_loaded_instance()), 20)
+	var started := first.request_activity_start(GameFlow.CINDER_CONVOY_ACTIVITY_ID)
+	var host := first.cinder_convoy_host as CinderConvoyEscortHost
+	for _tick in 14:
+		craft.global_position = (host.get_snapshot().entity_position as Vector3) + GameFlow.CINDER_CONVOY_ESCORT_LANE_OFFSET
+		first.call("_physics_process", 0.25)
+		await physics_frame
+	var attacker := first.cinder_convoy_threat.get_attacker()
+	craft.global_position = attacker.global_position + Vector3(0.0, 0.0, 12.0)
+	await physics_frame
+	var intercepted := first.get_combat_authority().submit_hitscan(
+		craft, GameFlow.RANGE_WEAPON_ID, craft.global_position,
+		attacker.global_position - craft.global_position)
+	var budget := 60
+	while budget > 0 and host.get_snapshot().activity.state_id == &"active":
+		craft.global_position = (host.get_snapshot().entity_position as Vector3) + GameFlow.CINDER_CONVOY_ESCORT_LANE_OFFSET
+		first.call("_physics_process", 0.25)
+		budget -= 1
+	_check(bool(selected.accepted) and streamed and bool(started.accepted)
+		and bool(intercepted.get("destroyed", false)) and budget > 0
+		and host.get_snapshot().activity.state_id == &"completed"
+		and filesystem.reward_rejected and filesystem.stopped and _convoy_receipts(first) == 0,
+		"real Main convoy arrives after ordinary raider interception with rejected reward and frozen disk")
+	var disk_store := Store.new(path) as UserDataStore
+	disk_store.load()
+	var record := disk_store.get_snapshot().get(String(SLOT), {}) as Dictionary
+	var activities := record.get("activities", []) as Array
+	_check(activities.size() == 1 and int((activities[0] as Dictionary).get("state", -1)) == ConvoyEscortActivity.State.COMPLETED,
+		"interrupted real files retain the actual completed convoy owner")
+	await _retire_game(first)
+	var retry_filesystem := InterruptedConvoyRewardFilesystem.new()
+	var second_store := Store.new(path, retry_filesystem) as UserDataStore
+	var second := await _make_game(second_store)
+	_check(second.get_active_activity_snapshot().get("state_id") == &"completed"
+		and _convoy_receipts(second) == 0 and retry_filesystem.reward_rejected
+		and not bool(second.cinder_convoy_threat.get_snapshot().get("active", true))
+		and not bool(second.get("_cinder_convoy_runtime_rebind_pending")),
+		"fresh Main restores its durable unpaid convoy without restarting combat")
+	var blocked_start := second.request_activity_start(GameFlow.CINDER_CONVOY_ACTIVITY_ID)
+	_check(not second.reset_active_activity() and not bool(blocked_start.accepted)
+		and blocked_start.reason == &"convoy_reward_pending",
+		"failed reward retry keeps the arrived owner and blocks reset or start")
+	second.active_ship = second.get_flyable_ships()[0] as HeroShip
+	retry_filesystem.interrupt_rewards = false
+	retry_filesystem.stopped = false
+	second.call("_retry_owed_game_flow_activity_rewards")
+	var acknowledged := (second_store.get_snapshot()[String(SLOT)].activities[0] as Dictionary)
+	_check(_convoy_receipts(second) == 1 and acknowledged.reward_requested and acknowledged.reward_granted,
+		"retry from a different craft publishes the original escort receipt and matching acknowledgement")
+	second.save_cinder_convoy_session()
+	_check(bool(second_store.get_snapshot()[String(SLOT)].activities[0].reward_granted),
+		"same-generation terminal save preserves the durable paid marker")
+	_complete_unrelated_race(second)
+	_check(_convoy_receipts(second) == 1 and _total_receipts(second) == 2,
+		"a genuine race handoff becomes the latest receipt after convoy acknowledgement")
+	await _retire_game(second)
+	var third_filesystem := InterruptedConvoyRewardFilesystem.new()
+	third_filesystem.interrupt_rewards = false
+	var third_store := Store.new(path, third_filesystem) as UserDataStore
+	var third := await _make_game(third_store)
+	third.call("_on_cinder_convoy_safely_arrived", third.cinder_convoy_host.get_snapshot())
+	_check(third.cinder_convoy_host.get_generation() == 1,
+		"paid terminal restore retains the exact convoy generation")
+	_check(_convoy_receipts(third) == 1 and _total_receipts(third) == 2 and third.get_active_activity_snapshot().get("state_id") == &"completed",
+		"paid terminal restart and repeated handoff cannot pay a second receipt")
+	var replacement_craft := third.get_flyable_ships()[1] as HeroShip
+	replacement_craft.set_piloted(true)
+	third.active_ship = replacement_craft
+	third.set("_piloting", true)
+	third.set("_sortie_departed_berth", true)
+	third.phase = GameFlow.Phase.FREE_FLIGHT
+	replacement_craft.global_position = GameFlow.CINDER_CONVOY_ACTIVATION_CENTER
+	third.call("_physics_process", 0.1)
+	var streamed_again := await _wait_until(func() -> bool:
+		return is_instance_valid(third.cinder_streaming_bootstrap.get_loaded_instance()), 20)
+	var repeat := third.request_activity_start(GameFlow.CINDER_CONVOY_ACTIVITY_ID)
+	_check(streamed_again and not bool(repeat.accepted) and repeat.reason == &"reset_required",
+		"a paid terminal public start retains the existing explicit reset requirement")
+	var original_host := third.cinder_convoy_host
+	var original_state := original_host.capture_persistence_state()
+	var original_payload := third_store.get_snapshot()
+	var failed_reset_signals := _new_signal_counts()
+	_connect_host_signal_counts(original_host, failed_reset_signals)
+	third_filesystem.stopped = true
+	_check(not third.reset_active_activity() and third.cinder_convoy_host.get_snapshot().activity.state_id == &"completed"
+		and third.cinder_convoy_host.get_generation() == 1
+		and third.cinder_convoy_host == original_host and original_host.capture_persistence_state() == original_state
+		and third_store.get_snapshot() == original_payload and _signal_total(failed_reset_signals) == 0,
+		"rejected staged reset preserves exact completed owner, fields, disk, and outward signals")
+	third_filesystem.stopped = false
+	var reset := third.reset_active_activity()
+	var restarted := third.request_activity_start(GameFlow.CINDER_CONVOY_ACTIVITY_ID)
+	_check(reset and bool(restarted.accepted) and third.cinder_convoy_host.get_generation() > 1
+		and not bool((third_store.get_snapshot()[String(SLOT)].activities[0] as Dictionary).reward_requested)
+		and not bool((third_store.get_snapshot()[String(SLOT)].activities[0] as Dictionary).reward_granted),
+		"successful explicit reset starts a new exact generation without inherited acknowledgement")
+	var new_host := third.cinder_convoy_host as CinderConvoyEscortHost
+	# Ordinary interception preserves the production threat contract in this run.
+	for _tick in 14:
+		replacement_craft.global_position = (new_host.get_snapshot().entity_position as Vector3) + GameFlow.CINDER_CONVOY_ESCORT_LANE_OFFSET
+		third.call("_physics_process", 0.25)
+		await physics_frame
+	var new_attacker := third.cinder_convoy_threat.get_attacker()
+	replacement_craft.global_position = new_attacker.global_position + Vector3(0.0, 0.0, 12.0)
+	await physics_frame
+	var new_intercept := third.get_combat_authority().submit_hitscan(replacement_craft,
+		GameFlow.RANGE_WEAPON_ID, replacement_craft.global_position, new_attacker.global_position - replacement_craft.global_position)
+	_check(bool(new_intercept.get("destroyed", false)), "the next convoy also neutralizes its own real raider")
+	third_filesystem.reject_terminal_saves = true
+	budget = 60
+	while budget > 0 and new_host.get_snapshot().activity.state_id == &"active":
+		replacement_craft.global_position = (new_host.get_snapshot().entity_position as Vector3) + GameFlow.CINDER_CONVOY_ESCORT_LANE_OFFSET
+		third.call("_physics_process", 0.25)
+		budget -= 1
+	_check(budget > 0 and new_host.get_snapshot().activity.state_id == &"completed"
+		and third_filesystem.terminal_rejected and _convoy_receipts(third) == 1
+		and third.get_activity_reward_report().get("last_result", {}).get("reason") == &"reward_terminal_save_rejected",
+		"the new live convoy's rejected final terminal save grants no reward")
+	third_filesystem.reject_terminal_saves = false
+	third_filesystem.interrupt_rewards = true
+	third_filesystem.stage_reward_before_refusal = true
+	third.call("_retry_owed_game_flow_activity_rewards")
+	var staged_generation := new_host.get_generation()
+	_check(third_filesystem.reward_rejected and third_filesystem.stopped and _convoy_receipts(third) == 1,
+		"same-owner retry saves its captured threat and stages the actual acknowledgement before refusal")
+	await _retire_game(third)
+	var fourth_store := Store.new(path) as UserDataStore
+	var fourth := await _make_game(fourth_store)
+	var actual_paid_terminal := (fourth_store.get_snapshot()[String(SLOT)] as Dictionary).duplicate(true)
+	fourth.call("_on_cinder_convoy_safely_arrived", fourth.cinder_convoy_host.get_snapshot())
+	_check(_convoy_receipts(fourth) == 2 and _total_receipts(fourth) == 3
+		and fourth.cinder_convoy_host.get_generation() == staged_generation
+		and not bool(fourth.cinder_convoy_threat.get_snapshot().get("active", true))
+		and fourth.reset_active_activity(),
+		"existing store recovery resolves a staged paid generation once and unblocks reset")
+	var idle_generation := fourth.cinder_convoy_host.get_generation()
+	_check(fourth.get_active_activity_snapshot().get("state_id") == &"idle"
+		and int((fourth_store.get_snapshot()[String(SLOT)].activities[0] as Dictionary).generation) == idle_generation
+		and int((fourth_store.get_snapshot()[String(SLOT)].activities[0] as Dictionary).state) == ConvoyEscortActivity.State.IDLE,
+		"accepted reset publishes the exact real IDLE owner and generation durably")
+	await _retire_game(fourth)
+	var fifth_store := Store.new(path) as UserDataStore
+	var fifth := await _make_game(fifth_store)
+	_check(fifth.get_active_activity_snapshot().get("state_id") == &"idle"
+		and fifth.cinder_convoy_host.get_generation() == idle_generation
+		and not bool(fifth.cinder_convoy_threat.get_snapshot().get("active", true))
+		and not bool(fifth.get("_cinder_convoy_runtime_rebind_pending"))
+		and not fifth.reset_active_activity(),
+		"fresh Main retains the accepted IDLE generation inertly and refuses a redundant reset")
+	var fresh_craft := fifth.get_flyable_ships()[0] as HeroShip
+	fresh_craft.set_piloted(true)
+	fifth.active_ship = fresh_craft
+	fifth.set("_piloting", true)
+	fifth.set("_sortie_departed_berth", true)
+	fifth.phase = GameFlow.Phase.FREE_FLIGHT
+	fresh_craft.global_position = GameFlow.CINDER_CONVOY_ACTIVATION_CENTER + Vector3(4.01, 0.0, 0.0)
+	fifth.call("_physics_process", 0.1)
+	var fresh_stream := await _wait_until(func() -> bool:
+		return is_instance_valid(fifth.cinder_streaming_bootstrap.get_loaded_instance()), 20)
+	fresh_craft.global_position = GameFlow.CINDER_CONVOY_ACTIVATION_CENTER
+	var fresh_start := fifth.request_activity_start(GameFlow.CINDER_CONVOY_ACTIVITY_ID)
+	var active_record := (fifth_store.get_snapshot()[String(SLOT)].activities[0] as Dictionary)
+	_check(fresh_stream and bool(fresh_start.accepted) and fifth.cinder_convoy_host.get_generation() == idle_generation + 1
+		and int(active_record.generation) == idle_generation + 1 and not bool(active_record.reward_requested)
+		and str((active_record.progress.convoy_session_state as Dictionary).escort_ship_id) == String(fresh_craft.get_ship_id()),
+		"real start after saved reset uses the next typed generation and the newly piloted craft")
+	fifth.call("_on_cinder_convoy_safely_arrived", {"activity": {"generation": staged_generation}})
+	_check(_convoy_receipts(fifth) == 2 and fifth.cinder_convoy_host.get_snapshot().activity.state_id == &"active",
+		"an old completion handoff cannot mutate or pay the new active convoy")
+	var final_host := fifth.cinder_convoy_host as CinderConvoyEscortHost
+	for _tick in 14:
+		fresh_craft.global_position = (final_host.get_snapshot().entity_position as Vector3) + GameFlow.CINDER_CONVOY_ESCORT_LANE_OFFSET
+		fifth.call("_physics_process", 0.25)
+		await physics_frame
+	var final_attacker := fifth.cinder_convoy_threat.get_attacker()
+	fresh_craft.global_position = final_attacker.global_position + Vector3(0.0, 0.0, 12.0)
+	await physics_frame
+	var final_intercept := fifth.get_combat_authority().submit_hitscan(fresh_craft,
+		GameFlow.RANGE_WEAPON_ID, fresh_craft.global_position, final_attacker.global_position - fresh_craft.global_position)
+	budget = 60
+	while budget > 0 and final_host.get_snapshot().activity.state_id == &"active":
+		fresh_craft.global_position = (final_host.get_snapshot().entity_position as Vector3) + GameFlow.CINDER_CONVOY_ESCORT_LANE_OFFSET
+		fifth.call("_physics_process", 0.25)
+		budget -= 1
+	_check(bool(final_intercept.get("destroyed", false)) and budget > 0
+		and final_host.get_snapshot().activity.state_id == &"completed"
+		and _convoy_receipts(fifth) == 3 and _total_receipts(fifth) == 4,
+		"the genuine next convoy after reset and restart arrives and earns one distinct new credit")
+	actual_paid_terminal = (fifth_store.get_snapshot()[String(SLOT)] as Dictionary).duplicate(true)
+	await _retire_game(fifth)
+	# Labelled legacy wire compatibility derives solely from the genuine terminal.
+	var legacy_store := Store.new(path) as UserDataStore
+	legacy_store.load()
+	var legacy_payload := legacy_store.get_snapshot()
+	var legacy_record := actual_paid_terminal.duplicate(true)
+	legacy_record.activities[0].reward_requested = false
+	legacy_record.activities[0].reward_granted = false
+	legacy_payload[String(SLOT)] = legacy_record
+	var legacy_saved := legacy_store.commit(legacy_payload, legacy_store.get_generation(), "legacy-convoy-wire-fixture")
+	var legacy := await _make_game(Store.new(path))
+	legacy.call("_on_cinder_convoy_safely_arrived", legacy.cinder_convoy_host.get_snapshot())
+	_check(bool(legacy_saved.accepted) and legacy.get_active_activity_snapshot().get("state_id") == &"completed"
+		and _convoy_receipts(legacy) == 3 and not bool(legacy.call("_has_pending_cinder_convoy_reward"))
+		and not bool((legacy_store.get_snapshot()[String(SLOT)].activities[0] as Dictionary).reward_requested),
+		"legacy false/false terminal remains explicitly ambiguous and receives no inferred credit")
+	await _retire_game(legacy)
+
+
+func _total_receipts(game: GameFlow) -> int:
+	return int((game.get_activity_reward_report().get("authority", {}) as Dictionary).get("record", {}).get("total_receipts", 0))
+
+
+func _complete_unrelated_race(game: GameFlow) -> void:
+	# Main-compatible actual typed race + codec handoff, bounded model scope.
+	var director := ActivityDirector.new()
+	root.add_child(director)
+	director.register_definition(CinderTimedRaceSession.ROUTE)
+	var race := CinderTimedRaceSession.new(GameFlow.CINDER_RACE_LAPS,
+		GameFlow.CINDER_RACE_COUNTDOWN_SECONDS, GameFlow.CINDER_RACE_TIMEOUT_SECONDS)
+	race.attach(director, 0)
+	race.start(0)
+	race.advance_physics(2.0, race.get_session_generation())
+	race.advance_physics(1.0, race.get_session_generation())
+	race.advance_physics(0.25, race.get_session_generation())
+	for checkpoint in CinderTimedRaceSession.ROUTE.get_checkpoint_count():
+		race.submit_position(CinderTimedRaceSession.ROUTE.get_checkpoint_position(checkpoint), race.get_session_generation())
+	var persistence := CinderRaceSessionPersistence.new()
+	persistence.configure(game.get("_runtime_settings_user_data_store") as UserDataStore, &"cinder_timed_race_session")
+	var saved := persistence.save(race, director, "convoy-unrelated-live-race")
+	game.call("_on_cinder_session_completed", race.get_presentation_snapshot())
+	_check(bool(saved.accepted) and int(race.get_presentation_snapshot().get("state", -1)) == TimedCheckpointRace.State.COMPLETED,
+		"the unrelated receipt is produced by the actual Main-compatible race terminal and codec")
+	race.close(race.get_session_generation())
+	director.free()
+
+
+func _convoy_receipts(game: GameFlow) -> int:
+	var authority := game.get_activity_reward_report().get("authority", {}) as Dictionary
+	var record := authority.get("record", {}) as Dictionary
+	return int((record.get("reward_counts", {}) as Dictionary).get("return_convoy_credit_to_shipyard", 0))
 
 
 func _exercise_threat_save_restore(filesystem: MemoryFilesystem) -> void:
@@ -952,6 +1249,28 @@ func _exercise_checkpoint_radius_and_corruption_contract(
 			and _signal_total(pristine_signals) == 0,
 		"the final exact live shortcut state round-trips into a pristine host without signals or store mutation"
 	)
+	var opening := centered_restore_host.advance_physics(0.25,
+		centered_restore_host.get_snapshot().entity_position as Vector3, centered_restore_host.get_generation())
+	var opening_state := centered_restore_host.capture_persistence_state()
+	var opening_saved := centered_adapter.save(centered_restore_host, &"torrent", "actual-opening-arrival")
+	var terminal_host := CinderConvoyEscortHost.new()
+	root.add_child(terminal_host)
+	var terminal_signals := _new_signal_counts()
+	_connect_host_signal_counts(terminal_host, terminal_signals)
+	var terminal_loaded := centered_adapter.load(terminal_host)
+	var terminal_restored := terminal_host.restore_persistence_state(
+		(terminal_loaded.get("session_state", {}) as Dictionary).get("host_state", {}), terminal_host.get_generation())
+	_check(bool(opening.accepted) and bool(opening_saved.accepted) and bool(terminal_restored.accepted)
+		and int(opening_state.sample_publication_count) == int(opening_state.physics_tick_count) * 2 + 1
+		and _canonical(terminal_host.capture_persistence_state()) == _canonical(opening_state)
+		and _signal_total(terminal_signals) == 0,
+		"actual final waiting-point escort return restores its opening-sample safe terminal without replay")
+	var bad_terminal := opening_state.duplicate(true)
+	bad_terminal.sample_publication_count = int(bad_terminal.sample_publication_count) + 1
+	bad_terminal.activity_state.sample_count = bad_terminal.sample_publication_count
+	_check(not bool(terminal_host.validate_persistence_state(bad_terminal).get("accepted", true)),
+		"terminal admission rejects publications beyond the actual opening or closing boundary")
+	terminal_host.queue_free()
 	host.queue_free()
 	threshold_host.queue_free()
 	multi_host.queue_free()
