@@ -1374,11 +1374,12 @@ func request_mining_reward() -> Dictionary:
 	if _mining_activity == null:
 		return _result(false, &"not_ready")
 	var result: Dictionary = _mining_activity.call("request_reward")
-	_last_mining_reward_result = result.duplicate(true)
 	if bool(result.get("accepted", false)):
 		var persisted := _persist_mining_capacity(result)
 		result["persistence_result"] = persisted.duplicate(true)
 		result["capacity_persisted"] = bool(persisted.get("accepted", false))
+		# Keep the terminal request until reset or a new extraction. A duplicate
+		# rejection must not erase the receipt needed to recover a failed save.
 		_last_mining_reward_result = result.duplicate(true)
 	_publish_mining_presentation()
 	return result
@@ -1394,6 +1395,7 @@ func retry_mining_capacity_persistence() -> Dictionary:
 	if (
 		int(snapshot.get("state", -1)) != MINING_ACTIVITY.State.COMPLETE
 		or not bool(snapshot.get("reward_requested", false))
+		or bool(_last_mining_reward_result.get("capacity_persisted", false))
 		or int(request.get("generation", -1)) != int(snapshot.get("generation", 0))
 	):
 		return _result(false, &"mining_capacity_retry_unavailable")
