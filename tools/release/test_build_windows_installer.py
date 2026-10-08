@@ -8,7 +8,6 @@ per-user install, silent flags honoured, and an uninstaller that never reaches
 into %APPDATA% user data.
 """
 
-import base64
 import hashlib
 import json
 import os
@@ -141,7 +140,12 @@ class VerifierContract(unittest.TestCase):
         functions = []
         for name, following in (("Run-Silent", "Assert-UserData"),
                                 ("Assert-UserData", "Assert-Installed"),
-                                ("Assert-StartupLog", "Assert-NewerDocumentDiagnostics")):
+                                ("Assert-StartupLog", "Assert-NewerDocumentDiagnostics"),
+                                ("Seed-ForcedKillFixture", "Read-RecoveryDocument"),
+                                ("Read-RecoveryDocument", "Assert-RecoveryPayload"),
+                                ("Assert-RecoveryPayload", "Wait-OwnedRecoveryMarker"),
+                                ("Wait-OwnedRecoveryMarker", "Run-ForcedKillBoot"),
+                                ("Run-ForcedKillBoot", "Assert-StartupLog")):
             functions.append("function " + name + text.split("function " + name, 1)[1].split("function " + following, 1)[0])
         # Execute the production assertion functions against actual files. A
         # documented application warning is allowed; duplicate/missing menu
@@ -188,14 +192,80 @@ try {
     $code = Run-Silent $childExe "-NoProfile -EncodedCommand $childEncoded" 10000
     $private = (Join-Path $profileRoot 'AppData\Roaming') + '|' + (Join-Path $profileRoot 'AppData\Local') + '|' + $profileRoot
     if ($code -ne 0 -or [IO.File]::ReadAllText($childReport) -ne $private) { throw 'recovery installer environment escaped private profile' }
+
+    # Exercise the existing verifier's OS-kill/abort machinery using an owned
+    # real child that commits a document then stays alive. This verifies the
+    # harness only; installed-game qualification uses the production executable.
+    $ProbeRoot = Join-Path $root 'forced-probe'
+    New-Item -ItemType Directory -Path $ProbeRoot | Out-Null
+    $document = Join-Path $ProbeRoot 'mudds_user_data.json'
+    $UserDataRecoveryFixture = Join-Path $root 'fixture.json'
+    $fixture = @{ schema_version = 1; generation = 2; payload = @{ runtime_settings = @{ values = @{ graphics_profile = 'low'; window_mode = 'windowed' } }; tutorial_prompts_seen = @{ seen_ids = @('retained-prompt') } } }
+    [IO.File]::WriteAllText($UserDataRecoveryFixture, ($fixture | ConvertTo-Json -Depth 12))
+    [IO.File]::WriteAllText($document, 'prior generation 90')
+    foreach ($suffix in @('.bak', '.bak.1', '.bak.2', '.bak.3', '.tmp')) {
+        [IO.File]::WriteAllText(($document + $suffix), ('prior transaction ' + $suffix))
+    }
+    [IO.File]::WriteAllText(($document + '.unrelated'), 'retain unrelated user file')
+    Seed-ForcedKillFixture
+    if ([IO.File]::ReadAllText($document) -ne [IO.File]::ReadAllText($UserDataRecoveryFixture)) { throw 'forced-kill fixture seed changed production document' }
+    foreach ($suffix in @('.bak', '.bak.1', '.bak.2', '.bak.3', '.tmp')) {
+        if (Test-Path -LiteralPath ($document + $suffix)) { throw 'forced-kill fixture retained incoherent prior transaction sibling' }
+        $prior = Join-Path (Join-Path $ProbeRoot 'forced-kill-prior-documents') ('mudds_user_data.json' + $suffix)
+        if ([IO.File]::ReadAllText($prior) -ne ('prior transaction ' + $suffix)) { throw 'forced-kill fixture removed prior transaction without witness' }
+    }
+    if ([IO.File]::ReadAllText(($document + '.unrelated')) -ne 'retain unrelated user file') { throw 'forced-kill fixture seeding changed unrelated file' }
+    $interrupted = $fixture | ConvertTo-Json -Depth 12 | ConvertFrom-Json
+    $interrupted.generation = 3
+    $interrupted.payload | Add-Member -NotePropertyName safe_start_recovery -NotePropertyValue @{ state = 'starting'; startup_generation = 1; consecutive_failure_count = 0; safe_settings_recommended = $false }
+    $interrupted.payload | Add-Member -NotePropertyName crash_recovery -NotePropertyValue @{ state = 'running'; startup_generation = 1; unclean_start_count = 0 }
+    $encodedDocument = [Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes(($interrupted | ConvertTo-Json -Depth 12)))
+    $childPidPath = Join-Path $ProbeRoot 'child-pid.txt'
+    $childSource = "[IO.File]::WriteAllText('$childPidPath', [string]`$PID); [IO.File]::WriteAllText('$document', [Text.Encoding]::UTF8.GetString([Convert]::FromBase64String('$encodedDocument'))); [IO.File]::WriteAllText('$ProbeRoot\forced-kill-1-startup.log', 'STARTUP begin'); Start-Sleep -Seconds 60"
+    $script:childEncoded = [Convert]::ToBase64String([Text.Encoding]::Unicode.GetBytes($childSource))
+    function New-OwnedBootInfo([string]$log, [bool]$startupCheck) {
+        $info = New-Object Diagnostics.ProcessStartInfo
+        $info.FileName = $childExe
+        $info.Arguments = "-NoProfile -NonInteractive -EncodedCommand $script:childEncoded"
+        $info.UseShellExecute = $false
+        $info.CreateNoWindow = $true
+        return $info
+    }
+    $StartupTimeoutMs = 10000
+    $receipt = Run-ForcedKillBoot 1 $false
+    if ($receipt -notmatch 'os_kill_exit=.+interrupted_markers_retained=True') { throw 'owned OS kill receipt missing' }
+    $childPid = [int](Get-Content -LiteralPath $childPidPath -Raw)
+    if (Get-Process -Id $childPid -ErrorAction SilentlyContinue) { throw 'OS-killed owned child still running' }
+    $interrupted.payload.tutorial_prompts_seen.seen_ids = @('reset-prompt')
+    $rejected = $false
+    try { Assert-RecoveryPayload $interrupted $false } catch { $rejected = $true }
+    if (-not $rejected) { throw 'forced-kill lost tutorial progress accepted' }
+    # Stale markers must time out, and finally must terminate only this child.
+    $StartupTimeoutMs = 500
+    $rejected = $false
+    try { Run-ForcedKillBoot 2 $false | Out-Null } catch { $rejected = $true }
+    if (-not $rejected) { throw 'stale interrupted marker accepted as a fresh boot' }
+    $childPid = [int](Get-Content -LiteralPath $childPidPath -Raw)
+    if (Get-Process -Id $childPid -ErrorAction SilentlyContinue) { throw 'timeout left owned child running' }
     Write-Output 'NATIVE_ACCEPTANCE_REGRESSION_OK'
 } finally {
     Remove-Item -LiteralPath $root -Recurse -Force
 }
 """
-        encoded = base64.b64encode(script.encode("utf-16-le")).decode("ascii")
-        proc = subprocess.run([powershell, "-NoProfile", "-NonInteractive", "-EncodedCommand", encoded],
-                              capture_output=True, text=True, timeout=30)
+        # The executable acceptance now exceeds Windows' command-line limit;
+        # pass a real script file, translating its path only for the WSL bridge.
+        with tempfile.TemporaryDirectory(prefix="mudds-verifier-regression-") as tmp:
+            script_path = Path(tmp) / "acceptance.ps1"
+            script_path.write_text(script, encoding="utf-8")
+            launch_path = str(script_path)
+            if powershell.startswith("/mnt/"):
+                launch_path = subprocess.check_output(
+                    ["wslpath", "-w", launch_path], text=True
+                ).strip()
+            proc = subprocess.run(
+                [powershell, "-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-File", launch_path],
+                capture_output=True, text=True, timeout=30
+            )
         self.assertEqual(proc.returncode, 0, proc.stdout + proc.stderr)
         self.assertIn("NATIVE_ACCEPTANCE_REGRESSION_OK", proc.stdout)
 

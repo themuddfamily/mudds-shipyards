@@ -16,6 +16,10 @@ and unsupported-newer document preservation on the target build before rollback.
 The fixture must be a production UserDataStore document with low graphics settings
 and tutorial progress (generate it through RuntimeSettings/UserDataStore APIs).
 Recovery mode also isolates installer environment and Start Menu within the probe.
+ForceKillRecovery additionally kills three owned installed boots after their real
+starting/running markers commit, observes the fourth boot's safe-start recommendation
+and crash journal, then requires menu readiness and orderly shutdown. It requires
+UserDataRecoveryFixture; it never fabricates interrupted markers or crash events.
 Corrupt bytes and recovered settings/tutorial identity are checked; newer-schema
 primary, backup, pending and history bytes are hash checked;
 logs and corrupt witness remain available after uninstall. Application recovery
@@ -32,6 +36,7 @@ param(
     [string]$PreviousExpectedExeSha256,
     [string]$PreviousExpectedCommit,
     [string]$UserDataRecoveryFixture,
+    [switch]$ForceKillRecovery,
     [int]$StartupTimeoutMs = 120000
 )
 $ErrorActionPreference = 'Stop'
@@ -66,6 +71,7 @@ $result = [ordered]@{
     steps = $steps
     cleanup = [ordered]@{ status = 'NOT_RUN'; detail = $null }
     user_data_recovery = $(if ($checkRecovery) { 'REQUESTED' } else { 'NOT_RUN' })
+    forced_kill_recovery = $(if ($ForceKillRecovery) { 'REQUESTED' } else { 'NOT_RUN' })
     recovery_tested_commit = $(if ($checkRecovery) { $ExpectedCommit } else { $null })
     user_data_path = $userData
     status = 'FAIL'
@@ -181,9 +187,19 @@ function Assert-RegistryAndShortcuts([string]$commit, [string]$upgradedFrom) {
 function Run-Startup([string]$stage) {
     $log = Join-Path $ProbeRoot "$stage-startup.log"
     if (Test-Path -LiteralPath $log) { throw "startup log already exists: $log" }
+    $info = New-OwnedBootInfo $log $true
+    $timer = [Diagnostics.Stopwatch]::StartNew()
+    $proc = [System.Diagnostics.Process]::Start($info)
+    if (-not $proc.WaitForExit($StartupTimeoutMs)) { $proc.Kill(); $proc.WaitForExit(); throw "$stage startup check timed out" }
+    Assert-StartupLog $log $proc.ExitCode | Out-Null
+    Assert-UserData
+    return "exit=0 sentinel=True wall_ms=$($timer.ElapsedMilliseconds)"
+}
+function New-OwnedBootInfo([string]$log, [bool]$startupCheck) {
     $info = New-Object System.Diagnostics.ProcessStartInfo
     $info.FileName = Join-Path $installDir 'MuddsShipyards.exe'
-    $info.Arguments = '--headless --audio-driver Dummy --startup-check --log-file "' + $log + '"'
+    $info.Arguments = '--headless --audio-driver Dummy --log-file "' + $log + '"'
+    if ($startupCheck) { $info.Arguments = '--headless --audio-driver Dummy --startup-check --log-file "' + $log + '"' }
     $info.WorkingDirectory = $installDir
     $info.UseShellExecute = $false
     $info.CreateNoWindow = $true
@@ -192,12 +208,114 @@ function Run-Startup([string]$stage) {
     $info.EnvironmentVariables['USERPROFILE'] = $profileRoot
     $info.EnvironmentVariables['TEMP'] = (Join-Path $profileRoot 'Temp')
     $info.EnvironmentVariables['TMP'] = (Join-Path $profileRoot 'Temp')
+    return $info
+}
+function Seed-ForcedKillFixture {
+    # Replace the complete private transaction chain, not only its primary.
+    # Keeping an unrelated old backup would make the production store refuse
+    # this deliberately reset fixture as incoherent_primary_backup.
+    $prior = Join-Path $ProbeRoot 'forced-kill-prior-documents'
+    if (Test-Path -LiteralPath $prior) { throw 'forced-kill prior-document witness already exists' }
+    New-Item -ItemType Directory -Path $prior | Out-Null
+    foreach ($suffix in @('', '.bak', '.bak.1', '.bak.2', '.bak.3', '.tmp')) {
+        $path = $document + $suffix
+        if (Test-Path -LiteralPath $path -PathType Leaf) {
+            Copy-Item -LiteralPath $path -Destination (Join-Path $prior ([IO.Path]::GetFileName($path)))
+            Remove-Item -LiteralPath $path
+        }
+    }
+    Copy-Item -LiteralPath $UserDataRecoveryFixture -Destination $document
+}
+function Read-RecoveryDocument {
+    # Atomic rotation can briefly remove the primary; retry only the read.
+    # Share deletion as well as writes so polling cannot block the game's
+    # production rename/replace transaction on Windows.
+    $stream = $null
+    $reader = $null
+    try {
+        $stream = [IO.File]::Open($document, [IO.FileMode]::Open, [IO.FileAccess]::Read, ([IO.FileShare]::ReadWrite -bor [IO.FileShare]::Delete))
+        $reader = New-Object IO.StreamReader($stream)
+        return ($reader.ReadToEnd() | ConvertFrom-Json)
+    } catch { return $null }
+    finally {
+        if ($null -ne $reader) { $reader.Dispose() }
+        elseif ($null -ne $stream) { $stream.Dispose() }
+    }
+}
+function Assert-RecoveryPayload($snapshot, [bool]$recommended) {
+    if ($null -eq $snapshot -or $snapshot.schema_version -ne 1) { throw 'missing valid recovery document' }
+    $fixture = Get-Content -LiteralPath $UserDataRecoveryFixture -Raw | ConvertFrom-Json
+    if ($recommended) { $fixture.payload.runtime_settings.values.window_mode = 'windowed' }
+    foreach ($namespace in @('runtime_settings', 'tutorial_prompts_seen')) {
+        $expected = $fixture.payload.$namespace | ConvertTo-Json -Depth 12 -Compress
+        $actual = $snapshot.payload.$namespace | ConvertTo-Json -Depth 12 -Compress
+        if ($actual -ne $expected) { throw "forced-kill recovery changed retained $namespace" }
+    }
+    if ($snapshot.generation -le $fixture.generation) { throw 'forced-kill boot did not commit production state' }
+}
+function Wait-OwnedRecoveryMarker($proc, [int]$cycle, [string]$witness) {
     $timer = [Diagnostics.Stopwatch]::StartNew()
-    $proc = [System.Diagnostics.Process]::Start($info)
-    if (-not $proc.WaitForExit($StartupTimeoutMs)) { $proc.Kill(); $proc.WaitForExit(); throw "$stage startup check timed out" }
-    Assert-StartupLog $log $proc.ExitCode | Out-Null
-    Assert-UserData
-    return "exit=0 sentinel=True wall_ms=$($timer.ElapsedMilliseconds)"
+    while (-not $proc.HasExited -and $timer.ElapsedMilliseconds -lt $StartupTimeoutMs) {
+        $snapshot = Read-RecoveryDocument
+        $safe = $snapshot.payload.safe_start_recovery
+        $crash = $snapshot.payload.crash_recovery
+        if ($null -ne $safe -and $null -ne $crash -and
+            $safe.state -eq 'starting' -and $crash.state -eq 'running' -and
+            $safe.startup_generation -eq $cycle -and $crash.startup_generation -eq $cycle) {
+            if ($safe.consecutive_failure_count -ne ($cycle - 1) -or
+                $crash.unclean_start_count -ne ($cycle - 1) -or
+                $safe.safe_settings_recommended -ne ($cycle -eq 4)) { throw 'incorrect forced-kill recovery counters/recommendation' }
+            Assert-RecoveryPayload $snapshot ($cycle -eq 4)
+            [IO.File]::WriteAllText($witness, ($snapshot | ConvertTo-Json -Depth 20))
+            return $snapshot
+        }
+        Start-Sleep -Milliseconds 10
+    }
+    throw "owned boot PID=$($proc.Id) did not commit starting/running generation=$cycle before exit/timeout"
+}
+function Run-ForcedKillBoot([int]$cycle, [bool]$startupCheck) {
+    $log = Join-Path $ProbeRoot "forced-kill-$cycle-startup.log"
+    $witness = Join-Path $ProbeRoot "forced-kill-$cycle-running-document.json"
+    if ((Test-Path -LiteralPath $log) -or (Test-Path -LiteralPath $witness)) { throw 'forced-kill log/witness already exists' }
+    $proc = $null
+    try {
+        $proc = [Diagnostics.Process]::Start((New-OwnedBootInfo $log $startupCheck))
+        $snapshot = Wait-OwnedRecoveryMarker $proc $cycle $witness
+        if ($startupCheck) {
+            if (-not $proc.WaitForExit($StartupTimeoutMs)) { throw 'forced-kill recovery startup timed out' }
+            Assert-StartupLog $log $proc.ExitCode | Out-Null
+            Assert-UserData
+            $closed = Read-RecoveryDocument
+            Assert-RecoveryPayload $closed $true
+            if ($closed.payload.crash_recovery.state -ne 'clean' -or $closed.payload.crash_recovery.unclean_start_count -ne 0 -or
+                $closed.payload.safe_start_recovery.state -ne 'clean_shutdown' -or
+                $closed.payload.crash_recovery.startup_generation -ne $cycle -or $closed.payload.safe_start_recovery.startup_generation -ne $cycle) { throw 'recovered installed startup did not commit orderly shutdown' }
+            $journal = Get-Content -LiteralPath (Join-Path $userData 'diagnostics\crash-log.json') -Raw | ConvertFrom-Json
+            $events = @($journal | ForEach-Object { $_.events } | Where-Object { $_.event_code -eq 'crash_detected' -and $_.session_id -eq $snapshot.payload.crash_recovery.session_id -and $_.fields.recovered -eq $true -and $_.fields.attempt_count -eq 3 })
+            if ($events.Count -lt 1) { throw 'recovered installed startup did not publish its actual crash_detected journal event' }
+            Copy-Item -LiteralPath $document -Destination (Join-Path $ProbeRoot 'forced-kill-recovered-document.json')
+            Copy-Item -LiteralPath (Join-Path $userData 'diagnostics\crash-log.json') -Destination (Join-Path $ProbeRoot 'forced-kill-recovered-journal.json')
+            return "exit=0 sentinel=True safe_start_recommended=True recovered_journal_session=$($snapshot.payload.crash_recovery.session_id) orderly_shutdown=True settings_tutorial_retained=True"
+        }
+        if ($proc.HasExited) { throw 'owned boot exited before OS kill' }
+        $pidKilled = $proc.Id
+        $proc.Kill()
+        if (-not $proc.WaitForExit(10000)) { throw 'owned OS-killed process did not terminate' }
+        if ($proc.ExitCode -eq 0) { throw 'OS-killed process reported orderly exit' }
+        $interrupted = Read-RecoveryDocument
+        Assert-RecoveryPayload $interrupted $false
+        if ($interrupted.payload.safe_start_recovery.state -ne 'starting' -or $interrupted.payload.crash_recovery.state -ne 'running' -or
+            $interrupted.payload.safe_start_recovery.startup_generation -ne $cycle -or $interrupted.payload.crash_recovery.startup_generation -ne $cycle) { throw 'OS kill did not retain actual interrupted startup markers' }
+        Copy-Item -LiteralPath $document -Destination (Join-Path $ProbeRoot "forced-kill-$cycle-interrupted-document.json")
+        if (Select-String -LiteralPath $log -Pattern '(^|\s)(SCRIPT ERROR|ERROR):|STARTUP_MENU_READY_OK:') { throw 'forced-kill boot failed or completed its check before kill' }
+        return "owned_pid=$pidKilled os_kill_exit=$($proc.ExitCode) startup_generation=$cycle interrupted_markers_retained=True"
+    } finally {
+        # Only this Process object can be aborted; no process-name/global kill.
+        if ($null -ne $proc) {
+            if (-not $proc.HasExited) { $proc.Kill(); $proc.WaitForExit(10000) | Out-Null }
+            $proc.Dispose()
+        }
+    }
 }
 function Assert-StartupLog([string]$log, [int]$exitCode) {
     $sentinelCount = 0
@@ -257,6 +375,7 @@ function Cleanup-OwnedInstallation {
 }
 
 Step 'preconditions' {
+    if ($ForceKillRecovery -and -not $checkRecovery) { throw 'ForceKillRecovery requires UserDataRecoveryFixture' }
     $previousArgs = @($PreviousInstaller, $PreviousExpectedExeSha256, $PreviousExpectedCommit) | Where-Object { -not [string]::IsNullOrWhiteSpace($_) }
     if ($previousArgs.Count -ne 0 -and $previousArgs.Count -ne 3) { throw 'PreviousInstaller, PreviousExpectedExeSha256 and PreviousExpectedCommit must be supplied together' }
     if ($ExpectedExeSha256 -notmatch '^[0-9a-fA-F]{64}$' -or $ExpectedCommit -notmatch '^[0-9a-fA-F]{40}$') { throw 'expected hash must be SHA-256 and expected commit must be a full Git commit' }
@@ -344,6 +463,16 @@ Step 'silent_upgrade_over_existing' {
     Assert-RegistryAndShortcuts $ExpectedCommit $initialCommit
 }
 Step 'upgraded_startup_check' { Run-Startup 'upgraded' }
+
+if ($ForceKillRecovery) {
+    Step 'installed_owned_os_kill_startup_cycles' {
+        Assert-Installed $ExpectedExeSha256 $ExpectedCommit
+        Seed-ForcedKillFixture
+        for ($cycle = 1; $cycle -le 3; $cycle++) { Run-ForcedKillBoot $cycle $false }
+    }
+    Step 'installed_forced_kill_safe_start_and_journal_recovery' { Run-ForcedKillBoot 4 $true }
+    $result.forced_kill_recovery = 'PASS'
+}
 
 # Optional installed-document acceptance: use a production-API generated fixture,
 # not a marker masquerading as settings or saved gameplay. A distinctive low
