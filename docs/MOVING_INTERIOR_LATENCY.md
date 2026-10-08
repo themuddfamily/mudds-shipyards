@@ -1037,7 +1037,18 @@ no longer strands the snapshot stream).
   source destruction or retirement clears it. The client neither advances the
   local convoy combat authority nor starts a parallel convoy. Returning to solo
   restores the retained threat generation, attack timing and wounded/neutralized
-  health. Full remote convoy actor/damage presentation remains separate work.
+  health. Remote convoy actor presentation is now implemented in `9193c58`:
+  the existing trusted movement snapshots carry tender/raider pose, health,
+  generation and terminal facts into collision-free visual copies. Current,
+  late and dead-late clients reject old-generation resurrection and destruction
+  replay; disconnect and Main re-entry restore retained solo outcomes. Seven
+  integrated suites pass 300 assertions; the four-process exact-package convoy
+  probe passes 119, including embedded-PCK checks. The clean Windows checkpoint
+  and silent native startup are complete. Two supplementary packaged-template
+  software captures show healthy/damaged materials; they do not establish
+  network alignment or full Main rendered acceptance. Broad native multiplayer,
+  normal-controls visual/audio review and full newer-source qualification remain
+  open. Fleet hull/component replication remains separate work below.
 
   The independent-process production regression covers host/current/late clients
   with different station origins, reduced flash, replacement generations and
