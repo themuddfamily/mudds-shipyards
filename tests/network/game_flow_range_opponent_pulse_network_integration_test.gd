@@ -22,6 +22,9 @@ class StationWorldStub extends Node3D:
 		return content
 
 
+const HOST_STATION_ORIGIN := Vector3(-31.0, -4.0, -48.0)
+const CLIENT_STATION_ORIGIN := Vector3(22.0, 3.0, 17.0)
+
 var _assertions := 0
 var _failures := PackedStringArray()
 
@@ -120,6 +123,12 @@ func _run() -> void:
 		and client_pulse.get_active_effect_count() == 1
 		and client_flow._player_pulse_network_active_shots.is_empty(),
 		"client consumes a receipted enemy launch into amber presentation only")
+	var host_visual := pulse.get_active_shot_snapshots()[0]
+	var client_visual := client_pulse.get_active_shot_snapshots()[0]
+	_check((client_visual.origin as Vector3).is_equal_approx((host_visual.origin as Vector3) - HOST_STATION_ORIGIN + CLIENT_STATION_ORIGIN)
+		and (client_visual.end as Vector3).is_equal_approx((host_visual.end as Vector3) - HOST_STATION_ORIGIN + CLIENT_STATION_ORIGIN)
+		and (client_visual.direction as Vector3).is_equal_approx(host_visual.direction as Vector3),
+		"opponent pulse follows the client station without changing direction")
 	var burst_applied := client._apply_projectile_replica_snapshot(burst_packet)
 	var burst_presented := client_flow._on_projectile_replica_packet(burst_packet, burst_applied)
 	_check(burst_presented.get("status") == &"opponent_pulse_presented"
@@ -133,6 +142,8 @@ func _run() -> void:
 	var presentation_only_content := StationContentStub.new()
 	var presentation_world := StationWorldStub.new()
 	presentation_world.content = presentation_only_content
+	root.add_child(presentation_world)
+	presentation_world.global_position = CLIENT_STATION_ORIGIN
 	client_flow.world = presentation_world
 	var presentation_mode := client_flow._set_station_defense_network_presentation_only(true)
 	presentation_only_content._on_hostile_projectile_fired(
@@ -171,6 +182,11 @@ func _run() -> void:
 		and _canonical_projectile(expiry_canonical, first_id).get("state") == &"expired"
 		and _canonical_projectile(expiry_canonical, second_id).get("state") == &"expired",
 		"every completed burst member retires as its own expiry tombstone")
+	var expiry_projectile := expiry_packet.projectile as Dictionary
+	var expiry_nested := expiry_projectile.get("pulse_record", expiry_projectile.get("opponent_pulse_record", {})) as Dictionary
+	_check((expiry_projectile.position as Vector3).is_equal_approx(expiry_nested.endpoint as Vector3)
+		and (_canonical_projectile(expiry_canonical, expiry_projectile.projectile_id).position as Vector3).is_equal_approx(expiry_projectile.position as Vector3),
+		"pulse terminal and canonical position retain the same station-frame endpoint")
 	var terminal_applied := client._apply_projectile_replica_snapshot(expiry_packet)
 	var terminal_presented := client_flow._on_projectile_replica_packet(expiry_packet, terminal_applied)
 	var reordered := client._apply_projectile_replica_snapshot(burst_packet)
@@ -214,6 +230,8 @@ func _run() -> void:
 	station_content.add_child(station_source)
 	var station_world := StationWorldStub.new()
 	station_world.content = station_content
+	root.add_child(station_world)
+	station_world.global_position = HOST_STATION_ORIGIN
 	flow.world = station_world
 	var station_request := ShotRequest.new(
 		station_source, 2121, &"station_defense_hostile", &"perimeter_defense_pulse", 1,
@@ -238,6 +256,10 @@ func _run() -> void:
 	)
 	_check(station_presented.get("status") == &"opponent_pulse_presented",
 		"client presents a receipted station-defense hostile without owning its pattern")
+	var station_visuals := client_pulse.get_active_shot_snapshots()
+	var station_visual := station_visuals[station_visuals.size() - 1]
+	_check((station_visual.origin as Vector3).is_equal_approx(station_request.origin - HOST_STATION_ORIGIN + CLIENT_STATION_ORIGIN),
+		"station-defense hostile pulse uses the same station frame")
 	flow._on_station_defense_network_snapshot_changed({
 		"host": {"activity": {"state_id": &"aborted", "generation": 4}},
 	})
@@ -319,6 +341,9 @@ func _configure_flow(
 	audio: CombatAudioPresentation,
 	mode: StringName,
 ) -> void:
+	flow.world = Node3D.new()
+	root.add_child(flow.world)
+	flow.world.global_position = HOST_STATION_ORIGIN if mode == &"server" else (CLIENT_STATION_ORIGIN if mode == &"client" else Vector3.ZERO)
 	flow.network_session = adapter
 	flow._network_session_mode = mode
 	flow.opponent = opponent
