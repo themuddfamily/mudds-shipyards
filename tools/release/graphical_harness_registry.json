@@ -233,6 +233,17 @@
       "human_review": {"readiness": "pending", "original_resolution_required": true, "evidence_reference": null}
     },
     {
+      "id": "capture-station-bevel-pass",
+      "script": "tests/capture_station_bevel_pass.gd",
+      "classification": "historical",
+      "output": {"root": "user://station_bevel_capture", "contract": "png_set", "runtime_override_env": "KETH_BEVEL_CAPTURE_DIR"},
+      "render": {"required": true, "profile": "forward_plus_1280x720"},
+      "review_status": "pending",
+      "source_freeze": {"status": "pending", "manifest_sha256": null},
+      "image_inventory": {"status": "pending", "expected_png_count": 12, "inventory_sha256": null},
+      "human_review": {"readiness": "pending", "original_resolution_required": true, "evidence_reference": null}
+    },
+    {
       "id": "capture-station-operations",
       "script": "tests/capture_station_operations.gd",
       "classification": "required",
@@ -450,6 +461,17 @@
       "review_status": "pending",
       "source_freeze": {"status": "pending", "manifest_sha256": null},
       "image_inventory": {"status": "pending", "expected_png_count": null, "inventory_sha256": null},
+      "human_review": {"readiness": "pending", "original_resolution_required": true, "evidence_reference": null}
+    },
+    {
+      "id": "planetary-atmosphere-cloud-shadow-test",
+      "script": "tests/world/planetary_atmosphere_cloud_shadow_test.gd",
+      "classification": "supplementary",
+      "output": {"root": null, "contract": "png_set", "runtime_override_env": "MUDDS_CLOUD_SHADOW_CAPTURE_DIR"},
+      "render": {"required": true, "profile": "forward_plus_runtime_viewport"},
+      "review_status": "pending",
+      "source_freeze": {"status": "pending", "manifest_sha256": null},
+      "image_inventory": {"status": "pending", "expected_png_count": 2, "inventory_sha256": null},
       "human_review": {"readiness": "pending", "original_resolution_required": true, "evidence_reference": null}
     },
     {

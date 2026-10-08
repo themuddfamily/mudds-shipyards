@@ -84,7 +84,7 @@ Every row has:
 
 - `id`: stable lowercase kebab-case identity, independent of file moves;
 - `script`: canonical repository-relative `.gd` path under `tests/` or `tools/`;
-- `classification`: `required`, `historical`, or `deprecated`;
+- `classification`: `required`, `supplementary`, `historical`, or `deprecated`;
 - `output`: the default safe root, `png`/`png_set`/`png_set_and_manifest`
   contract, and an optional documented environment override;
 - `render`: explicit `required: true` plus the expected Forward+ profile; and
@@ -102,6 +102,8 @@ Classification is deliberately separate from matrix membership:
 - `required` means current release or production documentation names the
   harness as an active graphical review surface. It does not join the headless
   matrix and is not run by this tool.
+- `supplementary` means an optional runtime capture supports focused regression
+  review without adding a mandatory release surface.
 - `historical` means the script remains useful for on-demand diagnostic or
   change-specific evidence but is not a current release obligation.
 - `deprecated` means a retired harness remains in the source tree temporarily.
@@ -140,6 +142,14 @@ resolution-specific profile should be added to the validator only when the
 harness freezes that exact viewport; otherwise use `project_forward_plus` or
 `forward_plus_runtime_viewport`. Do not label old evidence `deprecated` merely
 because it is not a release gate.
+
+The station bevel pass is historical change-specific evidence: its twelve frames
+use `user://station_bevel_capture/<tag>` unless `KETH_BEVEL_CAPTURE_DIR` supplies
+another root. The cloud-shadow runtime test has a supplementary two-frame capture
+only when `MUDDS_CLOUD_SHADOW_CAPTURE_DIR` names an existing directory; it has no
+authored output default and freezes a 960 × 720 viewport during capture. Their
+source, image and human-review states remain pending. Adding these registrations
+does not complete any of the thirteen mandatory review surfaces.
 
 ## Known limitations
 
