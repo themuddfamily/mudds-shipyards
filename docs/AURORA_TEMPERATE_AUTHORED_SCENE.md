@@ -308,3 +308,51 @@ updates. Isolated Forward+ software-rendered captures show the rectangle gone
 from orbit and the 60 m coastal view unchanged; the authored-scene check passes
 9 assertions. The captures establish appearance on llvmpipe, not native GPU
 performance or a human art sign-off.
+
+### Distinct coastal ambience, 2026-10-08
+
+Aurora's exterior bed now combines its authored wind loop with a separate
+original coastal wave-wash loop. Water exposure selects actual water PCM;
+calm wind no longer makes coastal exposure merely turn up the wind recording.
+The existing altitude envelope fades surface ambience out by 2.5 km, and the
+existing continuous interior blend retains the cabin bed at the boarding
+midpoint and leads with it inside a sealed craft. Wind pitch, exterior filtering,
+reduced dynamic range and caller-owned weather/perspective snapshots retain
+their existing formulas.
+
+The world still owns exactly two `AudioStreamPlayer` nodes with
+`max_polyphony = 1`. One exterior `AudioStreamGenerator` combines decoded wind
+and water PCM directly into a single output; the second player uses the original
+cabin WAV. There are no additional playback substreams. Both source loops are
+mono PCM16 at 24 kHz and eight seconds long. Decoding happens once on scene
+creation, retaining 1,536,000 bytes of float samples. The refill uses one reusable
+512-frame buffer, at most eight chunks per call and a fixed 0.2-second native
+ring buffer. Sample work runs only while the exterior output plays; silence,
+high altitude and scene unload stop refill work.
+
+Smooth nonzero source-weight changes retain up to the fixed buffer duration of
+queue latency. When wind or water enters or leaves the mix, the owner stops the
+exterior playback, obtains a fresh native playback ring and primes it using the
+current weights. This discards old-source PCM without changing the cabin player.
+Godot rejects clearing an active generator buffer, so the implementation uses
+playback retirement rather than `clear_buffer()`. Streamed world reload starts
+with silent fresh players, a new sample cursor and no old native ring.
+
+The original deterministic asset generator authors the coastal loop with broad
+periodic washes and a lighter ripple/recession envelope. Original wind and cabin
+WAV hashes are unchanged. The existing catalog keeps its two policy IDs and
+resolves the coastal loop separately for Aurora's actual mixer consumer.
+Automated PCM comparison verifies water-only output uses that different waveform,
+combined output contains both sources and the eight-second cursor wraps exactly.
+The focused Aurora audio run passes 47 assertions; the unchanged cabin-transition
+suite passes 27, the asset/catalog foundation 40, generic playback 15, authored
+scene 10 and atmosphere-altitude presentation 7. All used headless Godot with
+Dummy audio. An independent repeat measured 30,720 generated frames over the
+1.2-second native-generator check, zero buffer skips and 261 microseconds for its
+worst refill. Those timings describe this container, not target hardware.
+The production Main-composed `--aurora-audio-check` passes 28 assertions in a
+fresh private user-data directory, including actual coastal PCM after ordinary
+landing and disembarkation. Its mixer generated 1,424,384 frames with zero skips
+and a 495-microsecond worst refill. A 30 fps focused repeat also passed with zero
+skips and a 236-microsecond worst refill. Native audible mix/comfort review and native GPU performance remain
+`NOT_RUN`.
