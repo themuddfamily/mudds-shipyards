@@ -347,6 +347,12 @@ func get_generation() -> int:
 	return _activity.get_generation() if is_instance_valid(_activity) else 0
 
 
+## Read-only renderer template for the host-driven client presentation. Copies
+## reuse its mesh resources; this authoritative actor is never moved by a peer.
+func get_entity_presentation_root() -> Node3D:
+	return _convoy_entity if _has_live_convoy_entity() else null
+
+
 ## Captures the two existing live owners as one exact startup-adoption unit.
 ## The host owns movement/entity facts; ConvoyEscortActivity owns lifecycle,
 ## ordered progress, clocks, and proximity. Arrival and reward identities are

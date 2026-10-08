@@ -7,6 +7,7 @@ const ShipRestOverlayType := preload("res://scripts/ui/ship_rest_overlay.gd")
 
 const LiveCombatAuthorityType := preload("res://scripts/combat/live_combat_authority.gd")
 const CinderConvoyThreatType := preload("res://scripts/activities/cinder_convoy_threat.gd")
+const NetworkEmberlineActorPresenterType := preload("res://scripts/network/network_emberline_actor_presenter.gd")
 const ShotRequestType := preload("res://scripts/combat/shot_request.gd")
 const LifecycleDamageableAdapterType := preload("res://scripts/combat/lifecycle_damageable_adapter.gd")
 const CombatResolverType := preload("res://scripts/combat/combat_resolver.gd")
@@ -660,6 +661,10 @@ var cinder_convoy_host: CinderConvoyEscortHost
 var cinder_convoy_threat: CinderConvoyThreat
 ## A client suspends its retained solo threat; disconnect resumes exact health/timing.
 var _cinder_convoy_client_suspended_threat_state: Dictionary = {}
+var _cinder_convoy_client_host_suspended := false
+var _cinder_convoy_client_host_visible := false
+var _network_emberline_actor_generation := 0
+var _network_emberline_actor_presenter: NetworkEmberlineActorPresenterType
 var cinder_streaming_bootstrap: CinderStreamingBootstrap
 var cinder_streaming_binding: CinderStreamingProductionBinding
 var cinder_streaming_coordinator: WorldStreamingCoordinator
@@ -4602,6 +4607,7 @@ func _physics_process(delta: float) -> void:
 		# ledger's clock: it never restarts when the host changes craft, so a
 		# replacement composition can no longer publish "stale" ticks.
 		var craft_poses := _build_network_craft_pose_entries()
+		craft_poses.append_array(_build_network_emberline_actor_entries())
 		var composition_attachment := _attach_network_ship_authority_composition()
 		if bool(composition_attachment.get("accepted", false)) \
 				and _network_ship_authority_composition != null:
@@ -4656,12 +4662,12 @@ func _physics_process(delta: float) -> void:
 	# residency cannot substitute for the required current caller-sampled update.
 	# If the sole binding is unavailable or rejects its tick, retire before the
 	# host can advance from this physics sample.
-	if _convoy_is_running() and _cinder_convoy_runtime_rebind_pending:
+	if _network_session_mode != &"client" and _convoy_is_running() and _cinder_convoy_runtime_rebind_pending:
 		_try_rebind_restored_cinder_convoy()
-	if _convoy_is_running() and not _cinder_convoy_runtime_rebind_pending \
+	if _network_session_mode != &"client" and _convoy_is_running() and not _cinder_convoy_runtime_rebind_pending \
 			and not bool(cinder_streaming_tick.get("accepted", false)):
 		_fail_active_activity(&"cinder_streaming_unavailable")
-	if _convoy_is_running() and not _cinder_convoy_runtime_rebind_pending \
+	if _network_session_mode != &"client" and _convoy_is_running() and not _cinder_convoy_runtime_rebind_pending \
 			and not _convoy_lifecycle_accepts_sample(actor_sample):
 		_fail_active_activity(_convoy_lifecycle_failure_reason(actor_sample))
 	_update_minimap(actor_sample)
@@ -5980,7 +5986,8 @@ func _restore_runtime_bindings_after_reentry() -> void:
 	_resolve_ground_vehicle()
 	_restore_cargo_delivery_bindings()
 	_restore_cinder_race_session()
-	_sync_cinder_convoy_stream_presence()
+	if not _cinder_convoy_client_host_suspended:
+		_sync_cinder_convoy_stream_presence()
 	_restore_caption_presentation()
 	_connect_runtime_signals()
 	_sync_fleet_ship_semantic_audio()
@@ -6069,6 +6076,7 @@ func _restore_pilot_reservation_after_reentry() -> void:
 func _restore_live_combat_after_reentry() -> void:
 	if not _initialized or is_queued_for_deletion() or not is_inside_tree():
 		return
+	_resume_cinder_convoy_solo_threat()
 	if is_instance_valid(cinder_convoy_threat):
 		cinder_convoy_threat.rebind()
 	_initialize_live_combat()
@@ -6353,6 +6361,11 @@ func _on_network_session_started(mode: StringName) -> void:
 		if _convoy_is_running() and bool(cinder_convoy_threat.get_snapshot().get("active", false)):
 			_cinder_convoy_client_suspended_threat_state = cinder_convoy_threat.capture_persistence_state()
 		cinder_convoy_threat.retire(int(cinder_convoy_threat.get_snapshot().get("generation", 0)))
+		if is_instance_valid(cinder_convoy_host) and not _cinder_convoy_client_host_suspended:
+			_cinder_convoy_client_host_suspended = true
+			_cinder_convoy_client_host_visible = cinder_convoy_host.visible
+			cinder_convoy_host.visible = false
+		_ensure_network_emberline_actor_presenter()
 	elif mode == &"server":
 		_observe_cinder_convoy_bolts_for_network()
 	if mode == &"server" and _bomber_payload_ship != null:
@@ -6422,6 +6435,9 @@ func _on_network_session_stopped(reason: StringName) -> void:
 	_network_craft_pose_stream.clear_replica()
 	_network_craft_losses_presented.clear()
 	_clear_network_remote_projectiles()
+	if is_instance_valid(_network_emberline_actor_presenter):
+		_network_emberline_actor_presenter.clear()
+	_network_emberline_actor_generation = 0
 	_detach_network_ship_authority_composition(reason)
 	_detach_network_halyard_command_bridge()
 	_detach_halyard_crew_semantic_audio()
@@ -6438,6 +6454,15 @@ func _on_network_session_stopped(reason: StringName) -> void:
 
 
 func _resume_cinder_convoy_solo_threat() -> void:
+	# Main exits after its descendants: retain the resume transaction until
+	# their deferred reentry bindings can register the same local source again.
+	if _network_session_mode == &"client" or not is_inside_tree() \
+			or not is_instance_valid(cinder_convoy_host) or not cinder_convoy_host.is_inside_tree() \
+			or not is_instance_valid(cinder_convoy_threat) or not cinder_convoy_threat.is_inside_tree():
+		return
+	if _cinder_convoy_client_host_suspended:
+		_cinder_convoy_client_host_suspended = false
+		cinder_convoy_host.visible = _cinder_convoy_client_host_visible
 	var saved := _cinder_convoy_client_suspended_threat_state
 	_cinder_convoy_client_suspended_threat_state = {}
 	if saved.is_empty() or not _convoy_is_running() or not is_instance_valid(cinder_convoy_threat):
@@ -9398,6 +9423,46 @@ func _on_network_snapshot_applied(result: Dictionary) -> void:
 		_network_craft_pose_stream.consume_movement_section(
 			_shift_network_craft_pose_entries(movement as Array, _network_station_frame_origin())
 		)
+		_ensure_network_emberline_actor_presenter().consume_movement_section(
+			movement as Array, _network_station_frame_origin()
+		)
+
+
+## Emberline actor poses and committed hull outcomes share the existing
+## authenticated snapshot and its host-on-foot publication clock. Fixed rows
+## remain in the late-join baseline after retirement, with presentation off.
+func _build_network_emberline_actor_entries() -> Array:
+	if _network_session_mode != &"server" or not is_instance_valid(network_session) or not network_session.is_server():
+		return []
+	if is_instance_valid(cinder_convoy_host):
+		_network_emberline_actor_generation = maxi(_network_emberline_actor_generation, cinder_convoy_host.get_generation())
+	if is_instance_valid(cinder_convoy_threat):
+		_network_emberline_actor_generation = maxi(_network_emberline_actor_generation,
+			int(cinder_convoy_threat.get_snapshot().get("generation", 0)))
+	return NetworkEmberlineActorPresenterType.build_host_entries(
+		cinder_convoy_host, cinder_convoy_threat, maxi(1, _network_hud_session_epoch),
+		maxi(1, _network_emberline_actor_generation), maxi(0, _network_boarding_server_tick),
+		_network_station_frame_origin()
+	)
+
+
+func _ensure_network_emberline_actor_presenter() -> NetworkEmberlineActorPresenterType:
+	if not is_instance_valid(_network_emberline_actor_presenter):
+		_network_emberline_actor_presenter = NetworkEmberlineActorPresenterType.new()
+		_network_emberline_actor_presenter.name = "NetworkEmberlineActorPresenter"
+		add_child(_network_emberline_actor_presenter)
+		_network_emberline_actor_presenter.actor_destroyed.connect(_on_network_emberline_actor_destroyed)
+	var tender := cinder_convoy_host.get_entity_presentation_root() if is_instance_valid(cinder_convoy_host) else null
+	var raider := cinder_convoy_threat.get_attacker() if is_instance_valid(cinder_convoy_threat) else null
+	_network_emberline_actor_presenter.configure(tender, raider)
+	if runtime_settings != null:
+		_network_emberline_actor_presenter.set_reduced_flash_enabled(runtime_settings.reduced_flash)
+	return _network_emberline_actor_presenter
+
+
+func _on_network_emberline_actor_destroyed(position: Vector3) -> void:
+	if _network_session_mode == &"client" and is_instance_valid(combat_audio):
+		combat_audio.play_explosion(position, 0)
 
 
 ## Client: one physics tick of the craft-pose replica. A host-side loss of the
@@ -15803,7 +15868,9 @@ func _on_cinder_location_loaded(
 	_sync_activity_hud()
 	_sync_planetary_cruise_hud()
 	if is_instance_valid(cinder_convoy_host):
-		cinder_convoy_host.visible = is_instance_valid(instance)
+		cinder_convoy_host.visible = is_instance_valid(instance) and _network_session_mode != &"client"
+	if _network_session_mode == &"client":
+		return
 	if _cinder_convoy_runtime_rebind_pending:
 		return
 	if _convoy_is_running() and (
@@ -15838,7 +15905,7 @@ func _on_cinder_location_unloaded(
 	# the Destination Board's sector-site rows.
 	_sync_activity_hud()
 	_sync_planetary_cruise_hud()
-	if _convoy_is_running() and not _cinder_convoy_runtime_rebind_pending:
+	if _network_session_mode != &"client" and _convoy_is_running() and not _cinder_convoy_runtime_rebind_pending:
 		_fail_active_activity(&"cinder_stream_unloaded")
 	if is_instance_valid(cinder_convoy_host):
 		cinder_convoy_host.visible = false
@@ -15846,6 +15913,9 @@ func _on_cinder_location_unloaded(
 
 func _sync_cinder_convoy_stream_presence() -> void:
 	if not is_instance_valid(cinder_convoy_host):
+		return
+	if _network_session_mode == &"client":
+		cinder_convoy_host.visible = false
 		return
 	var stream := _get_cinder_stream_snapshot()
 	var loaded_instance_id := int(stream.get("loaded_instance_id", 0))
@@ -20028,6 +20098,8 @@ func _apply_opponent_weapon_heat_presentation_profile() -> void:
 	# Replicated slugs and torpedoes drawn on a client honour it too.
 	if is_instance_valid(_network_remote_projectile_replicator):
 		_network_remote_projectile_replicator.set_reduced_flash_enabled(runtime_settings.reduced_flash)
+	if is_instance_valid(_network_emberline_actor_presenter):
+		_network_emberline_actor_presenter.set_reduced_flash_enabled(runtime_settings.reduced_flash)
 	# The Emberline raider's travelling bolts honour the same setting.
 	if is_instance_valid(cinder_convoy_threat):
 		var bolt_pool := cinder_convoy_threat.get_bolt_pool()
