@@ -83,10 +83,15 @@ var _roll_edges := 0
 var _production_max_physics_steps_per_frame := Engine.max_physics_steps_per_frame
 var _clock_trace_rejections := 0
 var _roll_pose_snapshot: Dictionary = {}
+var _immediate_stall_probe := false
+var _immediate_stall_results_start := 0
+var _immediate_stall_claim: Array = []
 
 
 func _run() -> void:
 	var args := OS.get_cmdline_user_args()
+	_immediate_stall_probe = args.has("--immediate-stall-probe")
+	args.erase("--immediate-stall-probe")
 	var package_index := args.find("--package-under-test")
 	if package_index >= 0 and package_index + 1 < args.size():
 		_package_under_test = args[package_index + 1]
@@ -401,12 +406,20 @@ func _assert_game_flow_restarts_the_helm_stream() -> void:
 	# This coordinator is detached so it has no automatic simulation or scene.
 	var client := GameFlow.new()
 	client.network_session = _pilot
+	client.ships = _host.ships
 	client._network_session_mode = &"client"
 	client.active_ship = _craft
 	client._piloting = true
 	client._network_client_boarding_claim = {"ship_id": SHIP_ID, "role": &"pilot"}
 	client._network_remote_helm_stream_epoch = 1 # D2 already delivered stream 1.
 	client._network_client_boarding_server_tick = _helm_stamp + 1
+	# Retain the real production clock prerequisite even though this coordinator
+	# has no scene physics: only accepted claimed-craft snapshots refresh it.
+	_pilot.snapshot_applied.connect(client._on_network_snapshot_applied)
+	var observed := await _wait_until(func() -> bool:
+		var sample := client._network_craft_pose_stream.latest_sample(SHIP_ID)
+		return not sample.is_empty() and int(sample.get("pilot_peer_id", 0)) == _pilot.multiplayer.get_unique_id(), 4.0)
+	_check(observed, "the restart fixture receives its claimed craft through the production snapshot handler")
 	_movement_results.clear()
 	client._advance_network_remote_helm_stream()
 	await _wait_until(func() -> bool: return not _movement_results.is_empty(), 4.0)
@@ -428,6 +441,7 @@ func _assert_game_flow_restarts_the_helm_stream() -> void:
 	_check(client._network_client_boarding_claim == claim
 		and not _movement_results.is_empty() and bool(_movement_results[0].get("accepted", false)),
 		"the host accepts the recreated client stream without changing its ledger seat")
+	_pilot.snapshot_applied.disconnect(client._on_network_snapshot_applied)
 	client.network_session = null
 	client.free()
 
@@ -543,6 +557,7 @@ func _assert_independent_roll_press() -> void:
 	if not _package_under_test.is_empty():
 		args.append_array(PackedStringArray(["--main-pack", _package_under_test]))
 	args.append_array(PackedStringArray(["--", "roll-peer", str(_roll_port), _roll_directory]))
+	if _immediate_stall_probe: args.append("--immediate-stall-probe")
 	if not _package_under_test.is_empty():
 		args.append_array(PackedStringArray(["--package-under-test", _package_under_test]))
 	_roll_child_pid = OS.create_process(OS.get_executable_path(), args)
@@ -559,20 +574,44 @@ func _assert_independent_roll_press() -> void:
 	_check(_craft.get_telemetry().get("engine_state") == "ONLINE",
 		"remote throttle already wakes the host engine through automatic demand")
 	await _assert_clock_stall_recovery(source)
+	if not _immediate_stall_probe: await _assert_long_clock_stall(source, "roll")
 	_roll_mark("host", "press")
 	if not await _wait_roll_marker("peer", "pressed"):
 		return
 	var received := await _wait_until(func() -> bool: return _roll_edges > 0, 2.0)
 	_check(received and _craft._roll_animation > 0.0,
 		"one independent local barrel-roll press reaches the host flight owner")
+	if _immediate_stall_probe:
+		_clock_trace("immediate-host-roll-deadline")
+		print("IMMEDIATE_STALL_ROLL_OWNER: ", {"received_within_two_seconds": received,
+			"edges": _roll_edges, "same_source": _craft.get_command_source() == source,
+			"same_claim": _server.get_boarding_snapshot().get("occupancies", []) == _immediate_stall_claim,
+			"receipt": source.get_roll_receipt(),
+			"movement_results": _movement_results.slice(_immediate_stall_results_start).slice(-12)})
 	_roll_mark("host", "observed")
+	if _immediate_stall_probe:
+		_roll_mark("host", "immediate_finish")
+		await _wait_roll_marker("peer", "finished")
+		await _wait_until(func() -> bool: return not OS.is_process_running(_roll_child_pid), 10.0)
+		_check(not OS.is_process_running(_roll_child_pid), "immediate diagnostic client stops cleanly")
+		return
 	if not await _wait_roll_marker("peer", "held"):
 		return
 	_check(_roll_edges == 1, "repeated held helm packets never replay the roll edge")
 	_check(_host.get_viewport().get_camera_3d() == camera and not _host._piloting,
 		"remote action preserves the host on-foot camera and pilot ownership")
 	await _wait_until(func() -> bool: return _craft._roll_animation <= 0.0, 3.0)
+	var invalidation_main_physics := _host.is_physics_processing()
+	var invalidation_craft_physics := _craft.is_physics_processing()
+	_host.set_physics_process(false)
+	_craft.set_physics_process(false)
 	_roll_mark("host", "invalidate")
+	var revoked_while_stopped := await _wait_roll_marker("peer", "revoked_while_stopped")
+	_host.set_physics_process(invalidation_main_physics)
+	_craft.set_physics_process(invalidation_craft_physics)
+	if not revoked_while_stopped: return
+	_check(_roll_edges == 1, "invalidating a producer revokes its deferred roll while authority physics is stopped")
+	_roll_mark("host", "invalidate_resumed")
 	if not await _wait_roll_marker("peer", "revoked"): return
 	_check(_roll_edges == 1, "source invalidation revokes an unsent roll between cadence sends")
 	# The marker reports a client send, not host consumption. Establish the exact
@@ -643,6 +682,7 @@ func _assert_clock_stall_recovery(source: NetworkRemotePilotCommandSource) -> vo
 	var main_physics := _host.is_physics_processing()
 	var craft_physics := _craft.is_physics_processing()
 	var claim_before: Dictionary = _server.get_boarding_snapshot().duplicate(true)
+	_immediate_stall_claim = claim_before.get("occupancies", []).duplicate(true)
 	var receipt_before := source.get_roll_receipt().duplicate(true)
 	_clock_trace_rejections = 0
 	_movement_results.clear()
@@ -658,14 +698,21 @@ func _assert_clock_stall_recovery(source: NetworkRemotePilotCommandSource) -> vo
 	var refused := false
 	for result: Dictionary in _movement_results:
 		if result.get("status") == &"client_tick_too_far_ahead": refused = true
-	_check(refused, "real host physics stall exposes the existing ahead-tick refusal")
+	_check(not refused, "bounded helm sends avoid ahead-tick refusals throughout the real host stall")
 	_host.set_physics_process(main_physics)
 	_craft.set_physics_process(craft_physics)
 	_check(_host.is_physics_processing() == main_physics and _craft.is_physics_processing() == craft_physics,
 		"host restoration retains the exact Main and craft physics flags")
 	_clock_trace("stall-host-restored")
 	var results_start := _movement_results.size()
+	_immediate_stall_results_start = results_start
 	_roll_mark("host", "resume")
+	if _immediate_stall_probe:
+		_check(_craft.get_command_source() == source
+			and claim_before.occupancies == _server.get_boarding_snapshot().get("occupancies", [])
+			and int(source.get_roll_receipt().stream) == int(receipt_before.stream),
+			"long-stall resume retains the exact pilot claim, authority source and helm stream")
+		return
 	if not await _wait_roll_marker("peer", "stall_sampled"): return
 	_clock_trace("stall-host-after-sampling")
 	var accepted_after := 0
@@ -693,10 +740,67 @@ func _assert_clock_stall_recovery(source: NetworkRemotePilotCommandSource) -> vo
 		"clock recovery preserves the exact pilot claim, authority source and helm stream")
 
 
+func _assert_long_clock_stall(source: NetworkRemotePilotCommandSource, marker: String) -> void:
+	_check(source != null, "%s stall retains a real authority helm source" % marker)
+	if source == null: return
+	var main_physics := _host.is_physics_processing()
+	var craft_physics := _craft.is_physics_processing()
+	var claim: Dictionary = _server.get_boarding_snapshot().duplicate(true)
+	var receipt := source.get_roll_receipt().duplicate(true)
+	var results_start := _movement_results.size()
+	_host.set_physics_process(false)
+	_craft.set_physics_process(false)
+	_clock_trace("%s-long-stall-host-before" % marker)
+	_roll_mark("host", "%s_stall" % marker)
+	var stopped := await _wait_roll_marker("peer", "%s_stalled" % marker)
+	_host.set_physics_process(main_physics)
+	_craft.set_physics_process(craft_physics)
+	if not stopped: return
+	var ahead_refused := 0
+	for result: Dictionary in _movement_results.slice(results_start):
+		if result.get("status") == &"client_tick_too_far_ahead": ahead_refused += 1
+	_check(ahead_refused == 0, "%s long stall produces no ahead-tick authority refusals" % marker)
+	_check(_host.is_physics_processing() == main_physics and _craft.is_physics_processing() == craft_physics
+		and _craft.get_command_source() == source
+		and _server.get_boarding_snapshot().get("occupancies", []) == claim.occupancies
+		and _server.get_boarding_snapshot().get("event_sequence") == claim.event_sequence
+		and int(source.get_roll_receipt().stream) == int(receipt.stream),
+		"%s immediate resume preserves exact physics flags, claim, authority source and helm stream" % marker)
+	_clock_trace("%s-long-stall-host-restored" % marker)
+	_roll_mark("host", "%s_resume" % marker)
+
+
+func _run_long_clock_stall(marker: String) -> void:
+	await _roll_peer_wait("host", "%s_stall" % marker)
+	var producer := int(_host._network_remote_helm.producer_id)
+	var producer_stream := int(_host._network_remote_helm.producer_stream)
+	var helm_stream := int(_host._network_remote_helm.stream_id)
+	var claim := _host._network_client_boarding_claim.duplicate(true)
+	var held: Dictionary = {}
+	for step in 600:
+		await _roll_peer_step()
+		if step == 59: held = _host._network_remote_helm.duplicate(true)
+	var adapter := _host.get_network_session()
+	var helm := _host._network_remote_helm
+	_check(int(helm.last_stamp) <= adapter.get_boarding_result_server_tick() + Adapter.BOARDING_MAX_TICK_AHEAD,
+		"%s long stall bounds the sender by the last real authority observation" % marker)
+	_check(int(helm.sequence) == int(held.sequence) and int(helm.last_stamp) == int(held.last_stamp)
+		and int(helm.sample_sequence) > int(held.sample_sequence),
+		"%s long stall keeps sampling physical input while holding wire sequence and stamp" % marker)
+	print("IMMEDIATE_LONG_STALL_SENDER: ", {"action": marker, "observed_tick": adapter.get_boarding_result_server_tick(),
+		"estimate": adapter.get_boarding_server_tick_estimate(), "held": held, "after": helm})
+	_roll_mark("peer", "%s_stalled" % marker)
+	await _roll_peer_wait("host", "%s_resume" % marker)
+	var resumed := _host._network_remote_helm
+	_check(int(resumed.producer_id) == producer and int(resumed.producer_stream) == producer_stream
+		and int(resumed.stream_id) == helm_stream and _host._network_client_boarding_claim == claim,
+		"%s immediate physical action keeps the exact producer, helm stream and confirmed claim" % marker)
+
+
 func _run_clock_stall_peer() -> void:
 	await _roll_peer_wait("host", "stall")
 	_clock_trace("stall-peer-before")
-	for step in 120:
+	for step in (600 if _immediate_stall_probe else 120):
 		await _roll_peer_step()
 		if step == 59: _clock_trace("stall-peer-mid")
 	_clock_trace("stall-peer-frozen-host")
@@ -737,9 +841,17 @@ func _run_clock_stall_peer() -> void:
 		and _host._network_craft_pose_stream.latest_sample(SHIP_ID) == sample_before,
 		"stale current-craft snapshot cannot refresh the boarding clock")
 	var estimate_before := adapter.get_boarding_server_tick_estimate()
+	_check(int(_host._network_remote_helm.last_stamp) <= adapter.get_boarding_result_server_tick() + Adapter.BOARDING_MAX_TICK_AHEAD,
+		"stalled helm stamps stay inside the last real authority observation's existing window")
 	_roll_mark("peer", "stalled")
 	await _roll_peer_wait("host", "resume")
 	_clock_trace("stall-peer-resumed")
+	if _immediate_stall_probe:
+		_check(int(_host._network_remote_helm.producer_id) == producer_before
+			and int(_host._network_remote_helm.producer_stream) == producer_stream_before
+			and int(_host._network_remote_helm.stream_id) == helm_stream_before,
+			"immediate post-stall action retains its exact physical producer and helm stream")
+		return
 	var refreshed_downward := false
 	for step in 180:
 		await _roll_peer_step()
@@ -817,6 +929,7 @@ func _run_roll_peer() -> void:
 	_roll_mark("peer", "ready")
 	await _run_clock_stall_peer()
 	_host.get_network_session().snapshot_applied.disconnect(capture_pose)
+	if not _immediate_stall_probe: await _run_long_clock_stall("roll")
 	await _roll_peer_wait("host", "press")
 	while int(_host._network_remote_helm.get("ticks", 0)) % RemotePilotSource.SEND_INTERVAL_TICKS != 1:
 		await _roll_peer_step()
@@ -828,19 +941,46 @@ func _run_roll_peer() -> void:
 	_roll_key_action(&"move_forward", false)
 	_roll_mark("peer", "pressed")
 	await _roll_peer_wait("host", "observed")
+	if _immediate_stall_probe:
+		await _roll_peer_wait("host", "immediate_finish")
+		_roll_key_action(&"move_forward", false)
+		_roll_key_action(&"barrel_roll", false)
+		_clock_trace("immediate-peer-before-clean-teardown")
+		_host.shutdown_network_session(&"immediate_probe_complete")
+		_check(local_source.get_authority_peer_id() == original_authority
+			and local_source.enabled == original_enabled, "immediate diagnostic restores retained input authority")
+		_host.queue_free()
+		await process_frame
+		await process_frame
+		_roll_mark("peer", "finished")
+		quit(0 if _failures.is_empty() else 1)
+		return
 	for _step in 40: await _roll_peer_step()
 	_roll_mark("peer", "held")
 	await _roll_peer_wait("host", "invalidate")
+	for _step in 60: await _roll_peer_step()
 	while int(_host._network_remote_helm.get("ticks", 0)) % RemotePilotSource.SEND_INTERVAL_TICKS != 1:
 		await _roll_peer_step()
+	var held_sequence := int(_host._network_remote_helm.sequence)
+	var held_stamp := int(_host._network_remote_helm.last_stamp)
 	_roll_key_action(&"barrel_roll", true)
 	await _roll_peer_step()
 	_roll_key_action(&"barrel_roll", false)
 	_check(int(_host._network_remote_helm.roll_request_id) == 2, "physical press is retained before its next cadence send")
+	for _step in 4: await _roll_peer_step()
+	_check(int(_host._network_remote_helm.sequence) == held_sequence
+		and int(_host._network_remote_helm.last_stamp) == held_stamp,
+		"authority clock hold retains the fresh roll counter without advancing wire sequence or stamp")
 	local_source.notification(MainLoop.NOTIFICATION_APPLICATION_FOCUS_OUT)
 	local_source.notification(MainLoop.NOTIFICATION_APPLICATION_FOCUS_IN)
 	for _step in 8: await _roll_peer_step()
 	_check(int(_host._network_remote_helm.roll_request_id) == 0, "focus invalidation discards the pending old-source press")
+	_check(int(_host._network_remote_helm.sequence) == 0,
+		"invalidated deferred source cannot send its retired physical edge")
+	_roll_mark("peer", "revoked_while_stopped")
+	await _roll_peer_wait("host", "invalidate_resumed")
+	_check(await _wait_peer_until(func() -> bool: return int(_host._network_remote_helm.sequence) > 0, 2.0),
+		"fresh authority observation resumes the new producer's neutral packet")
 	FileAccess.open(_roll_directory + "/peer.revoked", FileAccess.WRITE).store_string(JSON.stringify({
 		"stream_id": _host._network_remote_helm.stream_id,
 		"sequence": int(_host._network_remote_helm.sequence) - 1,
@@ -995,6 +1135,7 @@ func _assert_independent_landing() -> void:
 	var host_request := _host._landing_request_active
 	var host_berth := _host._active_landing_berth_id
 	_place_remote_approach(berth)
+	await _assert_long_clock_stall(_craft.get_command_source() as RemotePilotSource, "landing")
 	_roll_mark("host", "land")
 	if not await _wait_roll_marker("peer", "landing_sent"): return
 	_check(await _wait_until(func() -> bool: return _craft.is_landing_active(), 2.0),
@@ -1003,6 +1144,13 @@ func _assert_independent_landing() -> void:
 	_check(berth.has_valid_lease(_craft, token, SHIP_ID)
 		and _server.get_landing_entity(SHIP_ID).get("state") == &"landing_pending",
 		"remote assist holds the exact existing physical lease and network pending handoff")
+	var landing_result: Dictionary = (_host._network_remote_pilots[SHIP_ID] as Dictionary).get("landing_result", {}).duplicate(true)
+	var landing_source := _craft.get_command_source() as RemotePilotSource
+	await _drive(8)
+	_check(bool(landing_result.get("accepted", false))
+		and (_host._network_remote_pilots[SHIP_ID] as Dictionary).get("landing_result", {}) == landing_result
+		and int(landing_source.get_roll_receipt().landing_request) == 1,
+		"held packets consume the immediate post-stall landing edge once without restarting its request")
 	berth.release(_craft, token)
 	_check(await _wait_until(func() -> bool: return not _craft.is_landing_active() \
 		and _server.get_landing_entity(SHIP_ID).get("state") == &"flying", 2.0),
@@ -1285,6 +1433,7 @@ func _peer_reboard_from_exterior() -> void:
 
 
 func _run_landing_peer_actions(seats: Array[StringName]) -> void:
+	await _run_long_clock_stall("landing")
 	await _roll_peer_wait("host", "land")
 	await _landing_peer_press("landing_sent")
 	await _roll_peer_wait("host", "land_retry")

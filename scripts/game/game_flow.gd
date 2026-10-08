@@ -9581,6 +9581,12 @@ func _advance_network_remote_helm_stream() -> void:
 	var stamp := maxi(
 		_network_client_boarding_tick_stamp(), int(_network_remote_helm.get("last_stamp", -1)) + 1
 	)
+	# Local frames may keep advancing while the authority is stopped. Keep the
+	# proposed stamp inside the last real observation's existing admission
+	# window; fresh authority samples reopen sending without losing sampled
+	# action counters or advancing wire order during the hold.
+	if stamp > network_session.get_boarding_result_server_tick() + NetworkSessionAdapterType.BOARDING_MAX_TICK_AHEAD:
+		return
 	var wire: Dictionary = NetworkRemotePilotCommandSourceType.build_helm_intent(
 		_network_client_peer_id(), ship_id, 1, sequence, stamp, command,
 		int(_network_remote_helm.get("stream_id", 0)), int(_network_remote_helm.get("roll_request_id", 0)),
