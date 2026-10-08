@@ -33,6 +33,41 @@ separate executed verifier result proves the native outcome. Interactive
 installation, installed corrupt-data recovery, clean-machine/platform/
 hardware review, trusted signing and final-candidate acceptance remain open.
 
+## Installed document recovery — checkpoint `9ab49e6`, 2026-10-08
+
+The existing verifier now accepts `-UserDataRecoveryFixture C:\path\fixture.json`
+to exercise recovery on the **target installed executable**, after its upgrade
+and before rollback. Supply a production `UserDataStore` document containing
+low graphics settings and nonempty tutorial progress; the executed fixture was
+created through `RuntimeSettings`, `TutorialPromptSeenStore` and `UserDataStore`.
+The fixture is copied into an owned private Windows profile. Recovery mode
+also keeps installer environment and Start Menu shortcuts inside that profile;
+pre-existing installations, registry keys and real Start Menu folders are refused.
+All game invocations remain headless with Dummy audio.
+
+Actual native `ef4ad14` → `9ab49e6` → `ef4ad14` recovery acceptance passes
+13 steps, exit 0 and cleanup PASS. Target `9ab49e6` boots from a corrupt
+primary and valid backup, selects the low graphics profile, preserves exact
+settings/tutorial payload identity, and retains the corrupt bytes in quarantine.
+Normal startup diagnostics may legitimately append records and rotate valid
+history; byte identity of the entire repaired document is not the contract.
+A subsequent unsupported-newer primary and pending write remain byte-identical,
+along with backups and history, through startup, rollback and uninstall.
+Application recovery warnings remain in the logs. All five startups exit 0
+with exactly one menu-ready record, mouse free during loading and zero
+engine/script/leak diagnostics.
+
+The default path also passes a fresh 11-step native run; three startups meet
+the same readiness/diagnostic checks. Fourteen focused regressions pass on
+merged source, including executed PowerShell checks for environment isolation,
+false readiness, engine/leak failures and changed or lost player documents.
+The successful results, raw logs, fixture and failed probe witnesses remain in
+`/root/.cache/mudds-shipyards/roadmap-validation/installed-recovery-20261008/`.
+The recovery result names the actual tested source and owned user-data path.
+This proves installed startup recovery and document retention for this checkpoint;
+normal-controls recovery, forced OS crashes, interactive installation,
+clean-machine/platform/hardware review and final-candidate acceptance remain open.
+
 ## Native checkpoint `ef4ad14` result — 2026-10-08
 
 The unsigned `MuddsShipyards-ef4ad14-setup.exe` is published in
