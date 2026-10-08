@@ -6386,7 +6386,8 @@ func _on_network_session_started(mode: StringName) -> void:
 	_network_moving_interior_dirty = true
 	_ensure_network_moving_interior_presenter()
 	if mode == &"server":
-		network_session.set_boarding_departure_guard(_network_boarding_departure_status)
+		if is_instance_valid(network_session):
+			network_session.set_boarding_departure_guard(_network_boarding_departure_status)
 		_ensure_network_remote_body_simulation()
 		# Every craft with a walkable interior is boardable through the hatch
 		# from the first tick of the session, whether or not the host has ever
