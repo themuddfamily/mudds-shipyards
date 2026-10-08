@@ -3,9 +3,10 @@
 `tools/release/build_windows_installer.sh` turns an exported checkpoint
 executable into a per-user NSIS installer, and
 `tools/release/verify_windows_installer.ps1` exercises that installer natively
-on Windows. Both are Phase 9 packaging capabilities; neither signs anything, and
-a green verification does not grant distribution rights or replace the human
-gates that remain open.
+on Windows. Both are Phase 9 packaging capabilities. Installers are unsigned
+by default; optional signing is described in
+[Windows code signing](WINDOWS_CODE_SIGNING.md). A green verification does not
+grant distribution rights or replace the human gates that remain open.
 
 ## Building
 
@@ -73,10 +74,13 @@ powershell.exe -NoProfile -NonInteractive -ExecutionPolicy Bypass \
 ```
 
 The verifier refuses to run if the real per-user install (either HKCU key,
-the Start Menu folder, or its own install directory) already exists, installs
+the Start Menu folder, the default installation directory, its own install
+directory or an existing probe profile) already exists, installs
 into `<ProbeRoot>\install`, and seeds an owned `APPDATA`/`LOCALAPPDATA`
 profile under `<ProbeRoot>\profile` with a marker file in the user-data folder.
-Steps, each recorded in the JSON result and fatal on first failure:
+The marker's contents must remain byte-identical through every transition and
+uninstall. Probe roots must be absolute; use a fresh private directory for each
+run. Steps are recorded in the JSON result and fatal on first failure:
 
 1. `silent_install`: `/S /D=` exits 0.
 2. `installed_files`: the installed executable's SHA-256 equals the exported
@@ -89,10 +93,41 @@ Steps, each recorded in the JSON result and fatal on first failure:
    and must exit 0 with `STARTUP_MENU_READY_OK`.
 5. `silent_upgrade_over_existing`: installing the same build again exits 0,
    leaves the executable byte-identical, records `UpgradedFrom`, and keeps
-   the seeded user data.
+   the seeded user data. Hash, provenance, registry and shortcuts are checked
+   again, then `upgraded_startup_check` requires exit 0 and the sentinel.
 6. `silent_uninstall`: `uninstall.exe /S`; the install directory, Start Menu
    folder and both registry keys must be gone within the wait window, and the
    seeded user data must survive.
+
+For a real old-to-new upgrade and rollback, add all three previous-build
+arguments to the invocation above:
+
+```text
+-PreviousInstaller C:\path\MuddsShipyards-<old-sha7>-setup.exe
+-PreviousExpectedExeSha256 <sha256 of the previous exported exe>
+-PreviousExpectedCommit <full previous commit>
+```
+
+This mode requires distinct full commits and executable hashes, and distinct
+installer bytes. It first installs the previous build and runs the same clean
+install checks. `silent_upgrade_over_existing` installs the new build and
+requires the new executable hash, new file/registry provenance and
+`UpgradedFrom=<previous commit>`. After successful new-build startup,
+`silent_rollback_to_previous` reinstalls the previous installer over the same
+location and requires the previous executable hash and provenance, with
+`UpgradedFrom=<new commit>`. `rolled_back_startup_check` then requires the old
+binary to exit 0 with the sentinel before the final uninstall. Each startup
+uses a fresh log to prevent a stale sentinel from passing a failed run.
+
+The schema 1 JSON adds `mode`, previous-build input/hash fields, and `cleanup`.
+A failure preserves its original step diagnostic and attempts guarded cleanup
+only after the probe passed preconditions and started its own installation.
+Cleanup refuses keys or shortcuts pointing at another install, removes only
+the three known installer files, owned shortcuts and registry keys, and never
+recursively removes installation or Start Menu directories. Logs and the seeded
+probe profile remain for inspection. `cleanup.status=FAIL` means cleanup also
+failed; inspect its detail before rerunning in a fresh probe root. A precondition
+failure leaves existing installations untouched and reports `NOT_RUN` cleanup.
 
 ### Result for checkpoint `8e84c94` (2026-09-15)
 
@@ -108,12 +143,17 @@ checkpoint executable in `/mnt/c/Users/themu/Downloads/`.
 
 ## Still open
 
-- Signing: the installer and the executable are unsigned; SmartScreen will
-  warn. Credentials stay outside the repository and no signing step exists.
-- Upgrade across different builds (old → new executable), rollback, corrupt
-  user-data recovery through the installed binary, a second desktop platform,
-  and a human walk through the interactive (non-silent) pages are not covered
-  by the verifier. The compile test in
+- Trusted signing qualification: these checkpoint installer probes are unsigned
+  and do not establish Authenticode trust or SmartScreen reputation. Optional
+  signing tooling exists; see [Windows code signing](WINDOWS_CODE_SIGNING.md).
+  Trusted certificate credentials and qualification remain external gates.
+- Cross-build upgrade and rollback are now supported by this verifier; a passing
+  result requires actually running it against distinct old/new artifacts. The
+  historical result above exercised only same-build reinstallation.
+- Corrupt user-data recovery through the installed binary, a second desktop
+  platform, native GPU behavior and a human walk through the interactive
+  (non-silent) pages are not covered by this silent headless verifier.
+  The compile test in
   `tools/release/test_build_windows_installer.py` pins the script contract
   (per-user, no `HKLM`, no recursive or user-data deletion, provenance
   recorded) and builds a stub installer when `makensis` is present.
