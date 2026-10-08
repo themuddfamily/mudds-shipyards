@@ -343,6 +343,22 @@ func _assert_e_the_remote_pilot_is_seated() -> void:
 
 
 func _assert_f_ownership_is_released() -> void:
+	var source_before := _craft.get_command_source()
+	var owner_before: Dictionary = _server.get_owned_ship(SHIP_ID).duplicate(true)
+	var claim_before: Array = _server.get_boarding_snapshot().get("occupancies", []).duplicate(true)
+	var unsafe := await _board(BoardingIntent.ACTION_DISEMBARK)
+	print("POSE_AIRBORNE_DEPARTURE: ", {"result": unsafe, "telemetry": _craft.get_telemetry(),
+		"same_owner": _server.get_owned_ship(SHIP_ID) == owner_before,
+		"same_claim": _server.get_boarding_snapshot().get("occupancies", []) == claim_before,
+		"same_source": _craft.get_command_source() == source_before})
+	_check(not bool(unsafe.get("accepted", true)) and unsafe.get("status") == &"propulsion_not_offline"
+		and not bool(_craft.get_telemetry().get("landed", true)),
+		"airborne powered pilot departure is refused by its actual propulsion safety guard")
+	_check(_server.get_owned_ship(SHIP_ID) == owner_before
+		and _server.get_boarding_snapshot().get("occupancies", []) == claim_before
+		and _craft.get_command_source() == source_before,
+		"unsafe departure retains the exact pilot claim, ownership record and authority source")
+	if not await _dock_remote_pilot_for_departure(): return
 	var left := await _board(BoardingIntent.ACTION_DISEMBARK)
 	_check(left.get("status") == &"disembarked", "the remote pilot leaves the seat through the ledger")
 	await _drive(2)
@@ -359,6 +375,33 @@ func _assert_f_ownership_is_released() -> void:
 		func() -> bool: return int(_server.get_owned_ship(SHIP_ID).get("owner_peer_id", -1)) == 0, 12.0
 	)
 	_check(released and pilot_id > 1, "the pilot's disconnect releases its ownership of the Halyard")
+
+
+func _dock_remote_pilot_for_departure() -> bool:
+	var berth := _host._resolve_berth_node(_craft.get_home_berth_id())
+	_check(berth != null, "pilot departure resolves the registered physical home berth")
+	if berth == null: return false
+	# Approach setup only. A real helm landing edge must reserve, capture and
+	# commit the craft; no landed flag, owner, lease or completion is assigned.
+	_craft.global_transform = berth.get_dock_transform().translated_local(Vector3(0, 3, 0))
+	_craft.velocity = Vector3.ZERO
+	_helm_stamp = maxi(_pilot.get_boarding_server_tick_estimate(), _helm_stamp + 1)
+	var sent := _pilot.send_movement_intent(RemotePilotSource.build_helm_intent(
+		_pilot_id(), SHIP_ID, 1, _helm_sequence, _helm_stamp, ShipCommand.neutral(), 0, 0, 1))
+	_helm_sequence += 1
+	_check(bool(sent.get("accepted", false)), "pilot sends a neutral helm with a fresh landing edge")
+	_check(await _wait_until(func() -> bool: return _craft.is_landing_active(), 2.0),
+		"validated remote helm starts the host craft's physical landing controller")
+	var docked := await _wait_until(func() -> bool: return berth.get_occupant() == _craft \
+		and bool(_craft.get_telemetry().get("landed", false)), 6.0)
+	_check(docked and _host._ship_owns_exact_occupied_berth(_craft, _craft.get_home_berth_id())
+		and bool(_craft.get_landing_contract_report().get("strict_dock_acceptance", false))
+		and _craft.global_transform.is_equal_approx(berth.get_dock_transform()),
+		"real landing captures and occupies the exact physical berth before pilot departure")
+	var offline := await _wait_until(func() -> bool:
+		return _craft.get_telemetry().get("engine_state") == HeroShip.ENGINE_OFFLINE, 6.0)
+	_check(offline, "the physically docked remote craft automatically idles OFFLINE before departure")
+	return docked and offline
 
 
 # --- helpers ------------------------------------------------------------------
