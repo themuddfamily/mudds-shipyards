@@ -1000,7 +1000,7 @@ no longer strands the snapshot stream).
   multi-process transport; joining the two is the remaining gate.
 * **The hatch holds four berths per craft.** The berth count is the ledger's
   one-avatar-per-seat rule, not the cabin's volume, and it is unchanged.
-* **Remote flight and barrel roll reach the host; landing/docking remains open.**
+* **Remote flight, barrel roll and landing requests reach the host; post-dock exit/reuse remains open.**
   The host's pose now corrects the pilot's copy and drives everyone else's,
   but reconciliation is a blend toward an extrapolated pose, not a replay of
   unacknowledged helm input, so a hard manoeuvre under the 350 ms profile is
@@ -1036,9 +1036,24 @@ no longer strands the snapshot stream).
   pass 382 assertions; independent exact-package host/client physical-input
   checks pass 106, including two embedded-PCK checks, with exit 0 and zero
   diagnostics. Full regression on this source, native normal-controls and
-  human/controller qualification remain open. Remote landing/docking requires
-  per-craft request/completion/abort routing through existing authority owners;
-  engine/canopy display alone does not provide that action.
+  human/controller qualification remain open.
+  **Host landing routing delivered 2026-10-08 (`9ab49e6`):** physical landing
+  presses request the existing host craft assist/berth owner. Per-craft
+  completion, abort, reservation loss and publication retry preserve host
+  camera/UI/solo state, protect occupied berths and retire stale seat input.
+  The actual client lifecycle displays a pending request. Clean source checks
+  pass seven suites/472 assertions; independent exact-package host/client
+  checks pass 164 assertions, including two embedded-PCK checks, with exit 0
+  and zero diagnostics. Source/package checks retain existing rate limits.
+  **Client post-dock exterior exit remains a reproduced production blocker:**
+  physical Interact after committed host docking follows predicted local
+  engine/landing state and retains the pilot claim. Confirmed exterior exit,
+  reboarding and repeated reuse need integration through existing boarding and
+  host physical departure owners; client physics and berth authority remain
+  local prediction only. Supported cabin helm release, unsafe airborne exit
+  refusal and exact input-source recovery need focused qualification. The
+  newer source's full matrix, native normal-controls and human acceptance
+  remain open.
 * **A client that is refused the berth swap keeps the pilot seat.** When all
   four berths are held, a pilot who walks into the cabin is shown the refusal
   and still holds the seat; its walk is not a server body until it sits back
