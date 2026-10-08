@@ -24,6 +24,10 @@ jobs:
     timeout-minutes: 25
     steps:
       - uses: actions/checkout@v4
+      - name: Install release fixture dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y nsis shellcheck
       - name: Release tools and runner fixtures
         run: |
           python3 -m unittest discover -s tools/release -p 'test_*.py'
