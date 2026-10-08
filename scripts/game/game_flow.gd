@@ -658,6 +658,8 @@ var cinder_race_session: CinderTimedRaceSession
 var patrol_activity: PatrolActivity
 var cinder_convoy_host: CinderConvoyEscortHost
 var cinder_convoy_threat: CinderConvoyThreat
+## A client suspends its retained solo threat; disconnect resumes exact health/timing.
+var _cinder_convoy_client_suspended_threat_state: Dictionary = {}
 var cinder_streaming_bootstrap: CinderStreamingBootstrap
 var cinder_streaming_binding: CinderStreamingProductionBinding
 var cinder_streaming_coordinator: WorldStreamingCoordinator
@@ -2316,7 +2318,8 @@ func _initialize_cinder_convoy_threat() -> void:
 		cinder_convoy_threat.tender_damaged.connect(_on_cinder_convoy_tender_damaged)
 		cinder_convoy_threat.attacker_damaged.connect(_on_cinder_convoy_attacker_damaged)
 		_apply_opponent_weapon_heat_presentation_profile()
-		if _convoy_is_running():
+		_observe_cinder_convoy_bolts_for_network()
+		if _convoy_is_running() and _network_session_mode != &"client":
 			var generation := cinder_convoy_host.get_generation()
 			var armed := cinder_convoy_threat.start(generation)
 			var restored := armed and (
@@ -2332,6 +2335,7 @@ func _initialize_cinder_convoy_threat() -> void:
 			_cinder_convoy_restored_threat_state.clear()
 	else:
 		cinder_convoy_threat.rebind()
+		_observe_cinder_convoy_bolts_for_network()
 
 
 func _on_cinder_convoy_tender_destroyed(generation: int) -> void:
@@ -6340,6 +6344,13 @@ func _on_network_session_started(mode: StringName) -> void:
 	_network_hud_session_retired = false
 	_network_hud_migration_generation = 0
 	_set_station_defense_network_presentation_only(mode == &"client")
+	if mode == &"client" and is_instance_valid(cinder_convoy_threat):
+		_cinder_convoy_client_suspended_threat_state.clear()
+		if _convoy_is_running() and bool(cinder_convoy_threat.get_snapshot().get("active", false)):
+			_cinder_convoy_client_suspended_threat_state = cinder_convoy_threat.capture_persistence_state()
+		cinder_convoy_threat.retire(int(cinder_convoy_threat.get_snapshot().get("generation", 0)))
+	elif mode == &"server":
+		_observe_cinder_convoy_bolts_for_network()
 	if mode == &"server" and _bomber_payload_ship != null:
 		_ensure_bomber_payload_network_source()
 	_network_moving_interior_dirty = true
@@ -6415,9 +6426,23 @@ func _on_network_session_stopped(reason: StringName) -> void:
 	if not _network_session_mode.is_empty():
 		_network_session_retry_mode = _network_session_mode
 	_network_session_mode = &""
+	_resume_cinder_convoy_solo_threat()
 	_publish_network_session_snapshot(
 		&"disconnected", _network_session_retry_mode, "Session closed: %s" % reason, true
 	)
+
+
+func _resume_cinder_convoy_solo_threat() -> void:
+	var saved := _cinder_convoy_client_suspended_threat_state
+	_cinder_convoy_client_suspended_threat_state = {}
+	if saved.is_empty() or not _convoy_is_running() or not is_instance_valid(cinder_convoy_threat):
+		return
+	var generation := cinder_convoy_host.get_generation()
+	if int(saved.get("generation", -1)) != generation:
+		return
+	if not cinder_convoy_threat.start(generation) \
+			or not cinder_convoy_threat.restore_persistence_state(saved, generation):
+		_fail_active_activity(&"convoy_threat_restore_failed")
 
 
 func _set_station_defense_network_presentation_only(enabled: bool) -> Dictionary:
@@ -6454,6 +6479,7 @@ func _on_network_migration_result(result: Dictionary) -> void:
 		_clear_bomber_payload_replica_presentation(generation)
 	if generation > 0 and generation != _player_pulse_replica_migration_generation:
 		_clear_player_pulse_replica_presentation(generation)
+		_clear_network_remote_projectiles()
 	# The presenter drops everything it was drawing on its own when the replica's
 	# migration generation moves; this only restates the frames the new
 	# generation resolves against.
@@ -9477,7 +9503,7 @@ func _ensure_network_remote_projectile_replicator() -> NetworkRemoteProjectileRe
 
 
 ## Host: keeps the replicator observing the player mass-driver pool and the
-## torpedo boat's seeker pool (both are created lazily), then advances it.
+## torpedo boat's seeker pool and Emberline raider pool, then advances it.
 func _advance_network_remote_projectiles() -> void:
 	if not is_instance_valid(network_session) or not network_session.is_server():
 		return
@@ -9486,6 +9512,7 @@ func _advance_network_remote_projectiles() -> void:
 		replicator.observe_pool(
 			_player_bolt_pool, NetworkRemoteProjectileReplicatorType.KIND_SLUG, &"player-mass-driver"
 		)
+	_observe_cinder_convoy_bolts_for_network()
 	var torpedo_boat := get_node_or_null(^"TorpedoBoat") as TorpedoBoatOpponent
 	if is_instance_valid(torpedo_boat):
 		var torpedoes := torpedo_boat.get_torpedo_pool()
@@ -9494,6 +9521,21 @@ func _advance_network_remote_projectiles() -> void:
 				torpedoes, NetworkRemoteProjectileReplicatorType.KIND_TORPEDO, &"torpedo-boat"
 			)
 	replicator.advance_host()
+
+
+## Attach before convoy launch (including restored/offline pools), on the same
+## presentation-only owner as player bolts. The activity owns the generation.
+func _observe_cinder_convoy_bolts_for_network() -> void:
+	if _network_session_mode != &"server" or not is_instance_valid(network_session) \
+			or not network_session.is_server() or not is_instance_valid(cinder_convoy_threat):
+		return
+	var pool := cinder_convoy_threat.get_bolt_pool()
+	if not is_instance_valid(pool):
+		return
+	var generation := maxi(1, maxi(cinder_convoy_host.get_generation(), int(cinder_convoy_threat.get_snapshot().get("generation", 0))))
+	_ensure_network_remote_projectile_replicator().observe_pool(
+		pool, NetworkRemoteProjectileReplicatorType.KIND_EMBERLINE, &"emberline-raider", generation
+	)
 
 
 ## The replicator's publisher. Stamped on the player-pulse clock so every
@@ -14805,6 +14847,8 @@ func request_activity_start(
 
 
 func _start_cinder_convoy(sampled_world_position: Variant) -> Dictionary:
+	if _network_session_mode == &"client":
+		return {"accepted": false, "reason": &"client_convoy_authority_forbidden"}
 	if not _sortie_departed_berth:
 		return {"accepted": false, "reason": &"sortie_not_departed"}
 	if _landing_request_active:
@@ -14832,6 +14876,7 @@ func _start_cinder_convoy(sampled_world_position: Variant) -> Dictionary:
 	var started := cinder_convoy_host.start(cinder_convoy_host.get_generation())
 	if not bool(started.get("accepted", false)):
 		return started
+	_observe_cinder_convoy_bolts_for_network()
 	if not is_instance_valid(cinder_convoy_threat) or not cinder_convoy_threat.start(cinder_convoy_host.get_generation()):
 		cinder_convoy_host.report_convoy_lost(cinder_convoy_host.get_generation())
 		return {"accepted": false, "reason": &"convoy_threat_unavailable"}
@@ -15164,6 +15209,8 @@ func _cinder_authored_frame_live() -> bool:
 
 
 func _advance_cinder_convoy(delta: float, world_position: Vector3) -> void:
+	if _network_session_mode == &"client":
+		return
 	if not is_instance_valid(cinder_convoy_host):
 		return
 	if _cinder_convoy_runtime_rebind_pending:
@@ -15196,6 +15243,7 @@ func _advance_cinder_convoy(delta: float, world_position: Vector3) -> void:
 	if not bool(advanced.get("accepted", false)) and _convoy_is_running():
 		_fail_active_activity(&"convoy_advance_rejected")
 	if _convoy_is_running() and is_instance_valid(cinder_convoy_threat):
+		_observe_cinder_convoy_bolts_for_network()
 		cinder_convoy_threat.advance(delta, generation)
 
 

@@ -4894,6 +4894,12 @@ func _configure_multiplayer() -> void:
 	if _configured:
 		return
 	_configured = true
+	# All gameplay and roster messages are admitted and sent by this host.
+	# Engine peer relays would advertise unadmitted clients to each other, and
+	# can send to a second reset ENet link during simultaneous disconnects
+	# before our peer_disconnected callback removes its admission.
+	if _is_server and multiplayer is SceneMultiplayer:
+		(multiplayer as SceneMultiplayer).server_relay = false
 	if not multiplayer.peer_connected.is_connected(_on_peer_connected):
 		multiplayer.peer_connected.connect(_on_peer_connected)
 	if not multiplayer.peer_disconnected.is_connected(_on_peer_disconnected):
