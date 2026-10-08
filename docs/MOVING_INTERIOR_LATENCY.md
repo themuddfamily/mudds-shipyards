@@ -20,7 +20,40 @@ opens real ENet sockets, so it has to take that lane. (The existing
 `tests/network/moving_interior_latency_test.gd` is a different, data-only
 regression over `NetworkMovingInteriorLatencyValidator` and is unchanged.)
 
-## Remote command-clock recovery checkpoint — 2026-10-08
+## Immediate post-stall actions checkpoint — 2026-10-08
+
+Checkpoint `d448e3f` fixes the reproduced immediate-action gap in `d49bde8`:
+a fresh physical roll after 600 stopped-host client steps previously reached
+zero host roll edges within the existing two-second deadline (exit 1).
+
+The sender now defers when its proposed monotonic stamp exceeds the last real
+observed boarding anchor plus the existing 30-tick allowance. Input sampling
+and action capture continue before that gate; wire sequence and last stamp
+remain held. Fresh accepted current-pilot samples reopen sending. Focus/input
+invalidation revokes deferred edges. Host admission/rate/queue/packet limits,
+stream and seat identities, and original action deadlines are unchanged.
+
+The default existing regression separately stops actual host/craft physics for
+600 client steps immediately before physical roll and landing. Both original
+two-second action deadlines pass, with bounded held stamps, continuing physical
+sampling, no tick-ahead refusals, exact claim/source/producer/stream continuity,
+once-only landing and deferred-edge invalidation through the exact neutral
+boundary. Original shorter-stall, duplicate/stale, reuse and disconnect checks
+remain. The first default run failed three detached restart-fixture assertions;
+that fixture now consumes actual authored host snapshots through the production
+handler rather than omitting the clock prerequisite. Both failed raw witnesses
+remain retained.
+
+Independent exact-delta review passes. Clean merged source passes 12 suites/769
+assertions, zero diagnostics and stable source/imports. Exact exported-package
+peers pass 247 assertions with two PCK checks; four standard package probes and
+silent isolated native Windows startup pass. See [build notes](../builds/windows/MuddsShipyards-d448e3f-notes.txt).
+This source's full matrix is `RUNNING` on exact frozen `d448e3fab` (one unfiltered 1,027-suite run, no terminal result); its installer is `NOT_RUN`. The older frozen `6092a52`
+run finished overall FAIL (1,025/1,027 suites pass, 38,012 passing assertions, source/imports stable; HUD and pose failures retained). Supported-craft native normal
+controls, latency/endurance and human acceptance remain open. The older
+intermittent second-landing failure remains causally unexplained.
+
+## Earlier bounded command-clock recovery checkpoint — 2026-10-08
 
 Checkpoint `d49bde8` delivers bounded recovery after an honest host simulation
 stall. The original independent-client witness stopped the host Main and Halyard
@@ -49,10 +82,9 @@ The initial merged run's older airborne-exit pose-fixture failure is also
 retained; the corrected fixture asserts the actual powered-airborne refusal,
 then real strict docking/OFFLINE before ownership release and regrant.
 
-Immediate post-stall action response, supported-craft native normal-controls,
+Immediate post-stall roll/landing is subsequently delivered in `d448e3f` above; supported-craft native normal-controls,
 latency/endurance and full-source acceptance remain open. The new source's full
-matrix is `NOT_RUN`; the frozen `6092a52` run remains `RUNNING` and qualifies only
-its own source. The older intermittent second-landing failure remains
+matrix is `NOT_RUN`; the frozen `6092a52` run finished overall FAIL (1,025/1,027 suites pass) and cannot qualify this source. The older intermittent second-landing failure remains
 causally unexplained. Fixture-positioned approaches and Dummy audio retain
 their existing limits. See [build notes](../builds/windows/MuddsShipyards-d49bde8-notes.txt).
 
@@ -1104,7 +1136,7 @@ no longer strands the snapshot stream).
   vertical slice alongside two same-seat takeoff/redock cycles.
   Eight clean source suites pass 560 assertions; exact-package seated/cabin
   checks pass 163 and independent host/client helm checks pass 213, with zero
-  diagnostics. A full unfiltered matrix is running on this frozen source.
+  diagnostics. The full unfiltered matrix on this frozen source finished overall FAIL (1,025/1,027 suites pass); its HUD and craft-pose failures remain retained.
   An earlier intermittent second remote landing failed before generation
   commitment; the instrumented and final source/package checks pass without
   clock changes, so its cause remains unproven. Admission limits are unchanged.
