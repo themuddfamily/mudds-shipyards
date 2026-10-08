@@ -2106,6 +2106,8 @@ func _initialize_cinder_race_session() -> void:
 	_initialize_cinder_race_session_persistence()
 	_initialize_cinder_patrol_session_persistence()
 	_restore_cinder_race_session()
+	# Restored session captures become available after attachment to the director.
+	_retry_owed_game_flow_activity_rewards()
 
 
 func _initialize_cinder_race_session_persistence() -> void:
@@ -2154,6 +2156,16 @@ func _initialize_cinder_race_session_persistence() -> void:
 	_active_activity_generation = int(snapshot.get("session_generation", 0))
 	_activity_selection_locked = true
 	_cinder_race_session_saved_fingerprint = _cinder_race_save_fingerprint(snapshot)
+	# Restoring state emits no historic completion signal. Reconcile only the
+	# durable pending handoff authored by the terminal save; legacy false/false
+	# results and atomically acknowledged receipts are never presumed unpaid.
+	if snapshot.get("state_id", &"") == &"completed" \
+			and bool(loaded.get("reward_requested", false)) \
+			and not bool(loaded.get("reward_granted", false)):
+		_owed_game_flow_activity_rewards.append({
+			"activity_id": DEFAULT_FREE_FLIGHT_ACTIVITY_ID,
+			"generation": _active_activity_generation,
+		})
 
 
 ## Explicit save surface used by orderly shutdown and meaningful session
@@ -15244,6 +15256,9 @@ func request_activity_start(
 	if is_queued_for_deletion() or not is_inside_tree():
 		return {"accepted": false, "reason": &"detached"}
 	_retry_owed_game_flow_activity_rewards()
+	if _has_pending_cinder_race_reward():
+		_present_pending_cinder_race_reward()
+		return {"accepted": false, "reason": &"race_reward_pending"}
 	if (
 		not is_instance_valid(activity_director)
 		or cinder_race_session == null
@@ -15393,6 +15408,9 @@ func reset_active_activity() -> bool:
 	if not _can_recover_live_activity():
 		return false
 	_retry_owed_game_flow_activity_rewards()
+	if _has_pending_cinder_race_reward():
+		_present_pending_cinder_race_reward()
+		return false
 	if (
 		cinder_race_session == null
 		or patrol_activity == null
@@ -15983,6 +16001,23 @@ func _request_game_flow_activity_reward(
 			"reason": &"reward_handoff_unavailable",
 		}.duplicate(true)
 		return _last_game_flow_reward_result.duplicate(true)
+	# Race completion is emitted before the final presentation autosave. Publish
+	# the exact live terminal handoff first, so its receipt can acknowledge that
+	# handoff atomically. If the save fails, the existing owed retry remains live.
+	if activity_id == DEFAULT_FREE_FLIGHT_ACTIVITY_ID and cinder_race_session != null:
+		var race_snapshot := cinder_race_session.get_presentation_snapshot()
+		if race_snapshot.get("state_id", &"") == &"completed" \
+				and int(race_snapshot.get("activity_generation", 0)) == activity_generation:
+			var terminal_save := save_cinder_race_session()
+			if not bool(terminal_save.get("accepted", false)):
+				var pending := {"activity_id": activity_id, "generation": activity_generation}
+				if not _owed_game_flow_activity_rewards.has(pending):
+					_owed_game_flow_activity_rewards.append(pending)
+				_last_game_flow_reward_result = {
+					"accepted": false, "reason": &"reward_terminal_save_rejected",
+					"store_result": terminal_save.duplicate(true),
+				}
+				return _last_game_flow_reward_result.duplicate(true)
 	var completed := {
 		"activity_id": activity_id,
 		"state_id": &"completed",
@@ -15999,12 +16034,38 @@ func _request_game_flow_activity_reward(
 	)
 	var owed := {"activity_id": activity_id, "generation": activity_generation}
 	var owed_index := _owed_game_flow_activity_rewards.find(owed)
-	if bool(_last_game_flow_reward_result.get("accepted", false)):
+	if bool(_last_game_flow_reward_result.get("accepted", false)) \
+			or authority_reason == &"reward_generation_already_committed":
+		# A recovered staged receipt already acknowledged this exact handoff.
 		if owed_index >= 0:
 			_owed_game_flow_activity_rewards.remove_at(owed_index)
 	elif authority_reason == &"reward_store_commit_rejected" and owed_index < 0:
 		_owed_game_flow_activity_rewards.append(owed)
 	return _last_game_flow_reward_result.duplicate(true)
+
+
+## Keep the existing completed owner until its owed handoff can be paid. A
+## reset/start must not replace the only durable record of the unpaid result.
+func _has_pending_cinder_race_reward() -> bool:
+	if cinder_race_session == null:
+		return false
+	var snapshot := cinder_race_session.get_presentation_snapshot()
+	if snapshot.get("state_id", &"") != &"completed":
+		return false
+	return _owed_game_flow_activity_rewards.has({
+		"activity_id": DEFAULT_FREE_FLIGHT_ACTIVITY_ID,
+		"generation": int(snapshot.get("activity_generation", 0)),
+	})
+
+
+func _present_pending_cinder_race_reward() -> void:
+	if is_instance_valid(hud):
+		hud.toast(
+			"Race reward waiting",
+			"Saving failed. Your race is kept open; try again to save the reward.",
+			3.2,
+			true
+		)
 
 
 func _retry_owed_game_flow_activity_rewards() -> void:

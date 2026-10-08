@@ -74,12 +74,43 @@ func _run() -> void:
 		"the production reward authority adopts the already-loaded store"
 	)
 
+	var missing_handoff := authority.commit(_request(
+		AuthorityScript.RACE_ACTIVITY_ID, 1, AuthorityScript.RACE_REWARD_ID
+	))
+	_check(not bool(missing_handoff.accepted) and missing_handoff.reason == &"reward_terminal_handoff_invalid",
+		"a race request without its durable terminal handoff grants nothing")
+
+	# Build the terminal handoff through its live route/session and exact codec.
+	var director := ActivityDirector.new()
+	root.add_child(director)
+	director.register_definition(CinderTimedRaceSession.ROUTE)
+	var session := CinderTimedRaceSession.new()
+	session.attach(director, 0)
+	session.start(0)
+	session.advance_physics(2.0, session.get_session_generation())
+	session.advance_physics(1.0, session.get_session_generation())
+	session.advance_physics(0.25, session.get_session_generation())
+	for checkpoint in CinderTimedRaceSession.ROUTE.get_checkpoint_count():
+		session.submit_position(CinderTimedRaceSession.ROUTE.get_checkpoint_position(checkpoint), session.get_session_generation())
+	var persistence := CinderRaceSessionPersistence.new()
+	persistence.configure(store, &"cinder_timed_race_session")
+	_check(bool(persistence.save(session, director, "unit-terminal-race").accepted)
+		and session.get_presentation_snapshot().get("state_id") == &"completed",
+		"the race reward requires a real completed session saved by its existing codec")
+	session.close(session.get_session_generation())
+	director.free()
+
 	var race_request := _request(
 		&"cinder_reach_checkpoint_route",
 		1,
 		&"return_race_record_to_shipyard"
 	)
 	var race := authority.commit(race_request)
+	if not bool(race.accepted):
+		_check(false, "the live terminal handoff is eligible (%s)" % race.reason)
+		push_error(_failures[-1])
+		quit(1)
+		return
 	var after_race := store.get_snapshot()
 	var race_record := after_race.get("game_flow_reward_store", {}) as Dictionary
 	var race_receipt := race.get("receipt", {}) as Dictionary

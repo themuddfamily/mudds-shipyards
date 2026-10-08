@@ -44,6 +44,8 @@ func load(
 		"reason": &"race_session_loaded",
 		"store_generation": _store.get_generation(),
 		"session_state": (decoded.session_state as Dictionary).duplicate(true),
+		"reward_requested": bool((payload[slot_key].activities[0] as Dictionary).reward_requested),
+		"reward_granted": bool((payload[slot_key].activities[0] as Dictionary).reward_granted),
 	}.duplicate(true)
 
 
@@ -96,6 +98,14 @@ func save_state(
 		)
 		if not bool(existing_validation.get("accepted", false)):
 			return existing_validation
+		var existing_activity := (payload[slot_key].activities[0] as Dictionary)
+		var candidate_activity := (record.activities[0] as Dictionary)
+		if int(existing_activity.generation) == int(candidate_activity.generation):
+			# Preserve the durable terminal handoff and its atomic receipt ack.
+			# Legacy false/false completions remain ambiguous and are not re-paid.
+			if int(existing_activity.state) == TimedCheckpointRace.State.COMPLETED:
+				candidate_activity.reward_requested = existing_activity.reward_requested
+				candidate_activity.reward_granted = existing_activity.reward_granted
 		var existing_record := _decode_record(payload[slot_key] as Dictionary)
 		var transition := _validate_transition(
 			existing_record.session_state as Dictionary, canonical_state
@@ -140,9 +150,14 @@ func validate_record(
 			!= str(CinderTimedRaceSession.ROUTE.activity_id) \
 			or not _integral(activity_record.get("generation")) \
 			or not _integral(activity_record.get("state")) \
-			or activity_record.get("reward_requested") != false \
-			or activity_record.get("reward_granted") != false \
+			or activity_record.get("reward_requested") is not bool \
+			or activity_record.get("reward_granted") is not bool \
 			or not activity_record.get("progress") is Dictionary:
+		return _result(false, &"race_session_payload_corrupt")
+	if bool(activity_record.reward_granted) and not bool(activity_record.reward_requested):
+		return _result(false, &"race_session_payload_corrupt")
+	if (bool(activity_record.reward_requested) or bool(activity_record.reward_granted)) \
+			and int(activity_record.state) != TimedCheckpointRace.State.COMPLETED:
 		return _result(false, &"race_session_payload_corrupt")
 	var progress := activity_record.progress as Dictionary
 	if progress.size() != 4 \
@@ -292,6 +307,9 @@ func _record(state: Dictionary) -> Dictionary:
 	# stricter; canonicalize only those two copies before the atomic merge.
 	var activity := (record.activities as Array)[0] as Dictionary
 	activity.activity_id = str(activity.activity_id)
+	# A terminal result explicitly owes a receipt until the reward owner marks
+	# granted in the same atomic commit that publishes that receipt.
+	activity.reward_requested = int(activity.state) == TimedCheckpointRace.State.COMPLETED
 	var progress := activity.progress as Dictionary
 	progress.activity_id = str(progress.activity_id)
 	return record.duplicate(true)

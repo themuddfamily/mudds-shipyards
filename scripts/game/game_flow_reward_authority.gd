@@ -206,6 +206,34 @@ func commit(request: Variant) -> Dictionary:
 			)))
 		current = (stored as Dictionary).duplicate(true)
 
+	# The terminal Cinder race is already stored by its live session owner.
+	# Its existing handoff flags survive a process loss and acknowledge payment
+	# independently of whichever unrelated receipt later becomes the latest.
+	var race_completion: Dictionary = {}
+	if activity_id == RACE_ACTIVITY_ID:
+		var race_slot: Variant = (payload as Dictionary).get("cinder_timed_race_session")
+		if not race_slot is Dictionary or not race_slot.get("activities") is Array \
+				or (race_slot.activities as Array).size() != 1:
+			_commit_active = false
+			return _reject(&"reward_terminal_handoff_invalid")
+		var saved_race: Variant = race_slot.activities[0]
+		if not saved_race is Dictionary \
+				or str(saved_race.get("activity_id", "")) != String(RACE_ACTIVITY_ID) \
+				or int(saved_race.get("state", -1)) != TimedCheckpointRace.State.COMPLETED \
+				or not _integral(saved_race.get("generation")) \
+				or saved_race.get("reward_requested") != true \
+				or saved_race.get("reward_granted") is not bool:
+			_commit_active = false
+			return _reject(&"reward_terminal_handoff_invalid")
+		if int(saved_race.get("generation", -1)) != activity_generation:
+			_commit_active = false
+			return _reject(&"reward_generation_mismatch")
+		if saved_race.get("reward_granted") == true:
+			_record = current
+			_commit_active = false
+			return _reject(&"reward_generation_already_committed")
+		race_completion = saved_race
+
 	# Aurora and Rime are one-time discoveries across Main re-entry and
 	# interrupted saves. Read the durable ledger here, before consuming the
 	# caller's generation.
@@ -254,6 +282,9 @@ func commit(request: Variant) -> Dictionary:
 		return _reject(&"reward_store_generation_exhausted")
 	var next_payload := (payload as Dictionary).duplicate(true)
 	next_payload[String(SLOT_ID)] = next_record
+	if not race_completion.is_empty():
+		var acknowledged := (next_payload.cinder_timed_race_session.activities[0] as Dictionary)
+		acknowledged.reward_granted = true
 	var committed := _store.call(
 		&"commit",
 		next_payload,
