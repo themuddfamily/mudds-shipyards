@@ -8,6 +8,7 @@ per-user install, silent flags honoured, and an uninstaller that never reaches
 into %APPDATA% user data.
 """
 
+import base64
 import hashlib
 import json
 import os
@@ -115,7 +116,7 @@ class VerifierContract(unittest.TestCase):
         self.assertIn("Assert-RegistryAndShortcuts $PreviousExpectedCommit $ExpectedCommit", text)
         for stage in ("installed", "upgraded", "rolled-back"):
             self.assertIn(f"Run-Startup '{stage}'", text)
-        self.assertIn("$proc.ExitCode -ne 0 -or -not $sentinel", text)
+        self.assertIn("$exitCode -ne 0 -or -not $sentinel", text)
         self.assertIn("startup log already exists", text)
         self.assertIn(".Hash -ne $markerHash", text)
         self.assertIn("if ($crossBuild) {\n    Step 'locked_upgrade_preserves_previous'", text)
@@ -128,6 +129,75 @@ class VerifierContract(unittest.TestCase):
         self.assertIn("locked upgrade changed provenance bytes", locked)
         self.assertIn("locked upgrade changed registry metadata", locked)
         self.assertIn("failed upgrade left pending payload", locked)
+
+    def test_native_log_and_document_acceptance_rejects_real_regressions(self):
+        powershell = shutil.which("powershell.exe") or shutil.which("pwsh")
+        if not powershell:
+            bridge = Path("/mnt/c/Windows/System32/WindowsPowerShell/v1.0/powershell.exe")
+            powershell = str(bridge) if bridge.is_file() else None
+        if not powershell:
+            self.skipTest("PowerShell is required for executable acceptance checks")
+        text = VERIFY_PS1.read_text(encoding="utf-8")
+        functions = []
+        for name, following in (("Run-Silent", "Assert-UserData"),
+                                ("Assert-UserData", "Assert-Installed"),
+                                ("Assert-StartupLog", "Assert-NewerDocumentDiagnostics")):
+            functions.append("function " + name + text.split("function " + name, 1)[1].split("function " + following, 1)[0])
+        # Execute the production assertion functions against actual files. A
+        # documented application warning is allowed; duplicate/missing menu
+        # readiness, nonzero exits, engine faults and changed/lost saves fail.
+        script = "$ErrorActionPreference = 'Stop'\n" + "\n".join(functions) + r"""
+$root = Join-Path ([IO.Path]::GetTempPath()) ('mudds-verifier-regression-' + [guid]::NewGuid().ToString('N'))
+New-Item -ItemType Directory -Path $root | Out-Null
+try {
+    $log = Join-Path $root 'startup.log'
+    [IO.File]::WriteAllText($log, "WARNING: Atomic runtime settings load retained authored defaults: store_load_failed / newer_schema`nSTARTUP_MENU_READY_OK: {}`n")
+    Assert-StartupLog $log 0 | Out-Null
+    foreach ($case in @(@('', 0), @("STARTUP_MENU_READY_OK: {}`nSTARTUP_MENU_READY_OK: {}", 0), @('STARTUP_MENU_READY_OK: {}', 1), @("SCRIPT ERROR: broken`nSTARTUP_MENU_READY_OK: {}", 0), @("ERROR: broken`nSTARTUP_MENU_READY_OK: {}", 0), @("WARNING: ObjectDB instances leaked at exit`nSTARTUP_MENU_READY_OK: {}", 0))) {
+        [IO.File]::WriteAllText($log, $case[0])
+        $rejected = $false
+        try { Assert-StartupLog $log $case[1] | Out-Null } catch { $rejected = $true }
+        if (-not $rejected) { throw "invalid startup accepted: $($case[0])" }
+    }
+    $marker = Join-Path $root 'marker'
+    $document = Join-Path $root 'mudds_user_data.json'
+    [IO.File]::WriteAllText($marker, 'unchanged marker')
+    [IO.File]::WriteAllText($document, 'saved settings and gameplay')
+    $markerHash = (Get-FileHash -Algorithm SHA256 -LiteralPath $marker).Hash
+    $documentHashes = @{}
+    $documentHashes[$document] = (Get-FileHash -Algorithm SHA256 -LiteralPath $document).Hash
+    Assert-UserData
+    [IO.File]::WriteAllText($document, 'silently reset by startup')
+    $rejected = $false
+    try { Assert-UserData } catch { $rejected = $true }
+    if (-not $rejected) { throw 'changed save accepted with unchanged marker' }
+    Remove-Item -LiteralPath $document
+    $rejected = $false
+    try { Assert-UserData } catch { $rejected = $true }
+    if (-not $rejected) { throw 'missing save accepted with unchanged marker' }
+    $profileRoot = Join-Path $root 'profile'
+    $childReport = Join-Path $root 'child-environment.txt'
+    $childSource = "[IO.File]::WriteAllText('$childReport', (`$env:APPDATA + '|' + `$env:LOCALAPPDATA + '|' + `$env:USERPROFILE))"
+    $childEncoded = [Convert]::ToBase64String([Text.Encoding]::Unicode.GetBytes($childSource))
+    $childExe = [Diagnostics.Process]::GetCurrentProcess().MainModule.FileName
+    $checkRecovery = $false
+    $code = Run-Silent $childExe "-NoProfile -EncodedCommand $childEncoded" 10000
+    $inherited = $env:APPDATA + '|' + $env:LOCALAPPDATA + '|' + $env:USERPROFILE
+    if ($code -ne 0 -or [IO.File]::ReadAllText($childReport) -ne $inherited) { throw 'default installer environment changed' }
+    $checkRecovery = $true
+    $code = Run-Silent $childExe "-NoProfile -EncodedCommand $childEncoded" 10000
+    $private = (Join-Path $profileRoot 'AppData\Roaming') + '|' + (Join-Path $profileRoot 'AppData\Local') + '|' + $profileRoot
+    if ($code -ne 0 -or [IO.File]::ReadAllText($childReport) -ne $private) { throw 'recovery installer environment escaped private profile' }
+    Write-Output 'NATIVE_ACCEPTANCE_REGRESSION_OK'
+} finally {
+    Remove-Item -LiteralPath $root -Recurse -Force
+}
+"""
+        encoded = base64.b64encode(script.encode("utf-16-le")).decode("ascii")
+        proc = subprocess.run([powershell, "-NoProfile", "-NonInteractive", "-EncodedCommand", encoded],
+                              capture_output=True, text=True, timeout=30)
+        self.assertEqual(proc.returncode, 0, proc.stdout + proc.stderr)
+        self.assertIn("NATIVE_ACCEPTANCE_REGRESSION_OK", proc.stdout)
 
     def test_failure_cleanup_is_guarded_and_preserves_original_diagnostic(self):
         text = VERIFY_PS1.read_text(encoding="utf-8")

@@ -11,6 +11,15 @@ match its expected executable hash and source commit, retain seeded player
 data, and exit 0 with STARTUP_MENU_READY_OK under Dummy audio and an owned
 APPDATA/LOCALAPPDATA profile. Existing user installs are refused. Failed probes
 preserve the original diagnostic and attempt cleanup of their owned install.
+Supply UserDataRecoveryFixture to exercise corrupt-primary/valid-backup startup
+and unsupported-newer document preservation on the target build before rollback.
+The fixture must be a production UserDataStore document with low graphics settings
+and tutorial progress (generate it through RuntimeSettings/UserDataStore APIs).
+Recovery mode also isolates installer environment and Start Menu within the probe.
+Corrupt bytes and recovered settings/tutorial identity are checked; newer-schema
+primary, backup, pending and history bytes are hash checked;
+logs and corrupt witness remain available after uninstall. Application recovery
+warnings are retained; engine/script errors, leaks and duplicate readiness fail.
 The JSON result remains schema_version 1; cross-build fields are additive.
 #>
 param(
@@ -22,6 +31,7 @@ param(
     [string]$PreviousInstaller,
     [string]$PreviousExpectedExeSha256,
     [string]$PreviousExpectedCommit,
+    [string]$UserDataRecoveryFixture,
     [int]$StartupTimeoutMs = 120000
 )
 $ErrorActionPreference = 'Stop'
@@ -30,9 +40,14 @@ $regApp = 'HKCU:\Software\Mudds Shipyards'
 $startMenu = Join-Path ([Environment]::GetFolderPath('Programs')) 'Mudds Shipyards'
 $installDir = Join-Path $ProbeRoot 'install'
 $profileRoot = Join-Path $ProbeRoot 'profile'
-$userData = Join-Path $profileRoot 'Roaming\Godot\app_userdata\Mudds Shipyards'
+$userData = Join-Path $profileRoot 'AppData\Roaming\Godot\app_userdata\Mudds Shipyards'
 $marker = Join-Path $userData 'installer-probe-marker.txt'
 $markerHash = $null
+$documentHashes = @{}
+$document = Join-Path $userData 'mudds_user_data.json'
+$checkRecovery = -not [string]::IsNullOrWhiteSpace($UserDataRecoveryFixture)
+$realStartMenu = $startMenu
+if ($checkRecovery) { $startMenu = Join-Path $profileRoot 'AppData\Roaming\Microsoft\Windows\Start Menu\Programs\Mudds Shipyards' }
 $ownsInstall = $false
 $crossBuild = -not [string]::IsNullOrWhiteSpace($PreviousInstaller)
 $steps = New-Object System.Collections.ArrayList
@@ -50,6 +65,9 @@ $result = [ordered]@{
     install_dir = $installDir
     steps = $steps
     cleanup = [ordered]@{ status = 'NOT_RUN'; detail = $null }
+    user_data_recovery = $(if ($checkRecovery) { 'REQUESTED' } else { 'NOT_RUN' })
+    recovery_tested_commit = $(if ($checkRecovery) { $ExpectedCommit } else { $null })
+    user_data_path = $userData
     status = 'FAIL'
 }
 function Save-Result {
@@ -96,6 +114,13 @@ function Run-Silent([string]$file, [string]$arguments, [int]$timeoutMs) {
     $info.Arguments = $arguments
     $info.UseShellExecute = $false
     $info.CreateNoWindow = $true
+    if ($checkRecovery) {
+        $info.EnvironmentVariables['APPDATA'] = (Join-Path $profileRoot 'AppData\Roaming')
+        $info.EnvironmentVariables['LOCALAPPDATA'] = (Join-Path $profileRoot 'AppData\Local')
+        $info.EnvironmentVariables['USERPROFILE'] = $profileRoot
+        $info.EnvironmentVariables['TEMP'] = (Join-Path $profileRoot 'Temp')
+        $info.EnvironmentVariables['TMP'] = (Join-Path $profileRoot 'Temp')
+    }
     $proc = [System.Diagnostics.Process]::Start($info)
     if (-not $proc.WaitForExit($timeoutMs)) { $proc.Kill(); $proc.WaitForExit(); throw "$file timed out after $timeoutMs ms" }
     return $proc.ExitCode
@@ -103,6 +128,9 @@ function Run-Silent([string]$file, [string]$arguments, [int]$timeoutMs) {
 function Assert-UserData {
     if (-not (Test-Path -LiteralPath $marker)) { throw 'installer removed the owned user data' }
     if ((Get-FileHash -Algorithm SHA256 -LiteralPath $marker).Hash -ne $markerHash) { throw 'installer changed the owned user data' }
+    foreach ($path in $documentHashes.Keys) {
+        if (-not (Test-Path -LiteralPath $path -PathType Leaf) -or (Get-FileHash -Algorithm SHA256 -LiteralPath $path).Hash -ne $documentHashes[$path]) { throw "installed startup/transition changed protected document: $path" }
+    }
 }
 function Assert-Installed([string]$hash, [string]$commit) {
     foreach ($name in @('MuddsShipyards.exe', 'uninstall.exe', 'source-commit.txt')) {
@@ -159,15 +187,31 @@ function Run-Startup([string]$stage) {
     $info.WorkingDirectory = $installDir
     $info.UseShellExecute = $false
     $info.CreateNoWindow = $true
-    $info.EnvironmentVariables['APPDATA'] = (Join-Path $profileRoot 'Roaming')
-    $info.EnvironmentVariables['LOCALAPPDATA'] = (Join-Path $profileRoot 'Local')
+    $info.EnvironmentVariables['APPDATA'] = (Join-Path $profileRoot 'AppData\Roaming')
+    $info.EnvironmentVariables['LOCALAPPDATA'] = (Join-Path $profileRoot 'AppData\Local')
+    $info.EnvironmentVariables['USERPROFILE'] = $profileRoot
+    $info.EnvironmentVariables['TEMP'] = (Join-Path $profileRoot 'Temp')
+    $info.EnvironmentVariables['TMP'] = (Join-Path $profileRoot 'Temp')
     $timer = [Diagnostics.Stopwatch]::StartNew()
     $proc = [System.Diagnostics.Process]::Start($info)
     if (-not $proc.WaitForExit($StartupTimeoutMs)) { $proc.Kill(); $proc.WaitForExit(); throw "$stage startup check timed out" }
-    $sentinel = (Test-Path -LiteralPath $log) -and [bool](Select-String -LiteralPath $log -SimpleMatch 'STARTUP_MENU_READY_OK')
-    if ($proc.ExitCode -ne 0 -or -not $sentinel) { throw "exit=$($proc.ExitCode) sentinel=$sentinel" }
+    Assert-StartupLog $log $proc.ExitCode | Out-Null
     Assert-UserData
     return "exit=0 sentinel=True wall_ms=$($timer.ElapsedMilliseconds)"
+}
+function Assert-StartupLog([string]$log, [int]$exitCode) {
+    $sentinelCount = 0
+    if (Test-Path -LiteralPath $log) { $sentinelCount = @(Select-String -LiteralPath $log -Pattern '^STARTUP_MENU_READY_OK:').Count }
+    $sentinel = $sentinelCount -eq 1
+    if ($exitCode -ne 0 -or -not $sentinel) { throw "exit=$($exitCode) sentinel=$sentinel" }
+    if (Select-String -LiteralPath $log -Pattern '(^|\s)(SCRIPT ERROR|ERROR):|ObjectDB instances leaked|resources still in use|RID allocations.*leaked') { throw "engine/script/leak diagnostic in $log" }
+    return 'exit=0 sentinel_count=1 engine_script_leak_diagnostics=0'
+}
+function Assert-NewerDocumentDiagnostics([string]$stage) {
+    $log = Join-Path $ProbeRoot "$stage-startup.log"
+    if (-not (Select-String -LiteralPath $log -SimpleMatch 'Atomic runtime settings load retained authored defaults: store_load_failed / newer_schema')) { throw "missing application newer-schema diagnostic in $log" }
+    if (Test-Path -LiteralPath ($document + '.recovery')) { throw 'newer document was quarantined as corrupt' }
+    return 'application_newer_schema_diagnostic_retained=True'
 }
 function Assert-Uninstalled {
     if (-not (Wait-Gone $installDir 90000)) {
@@ -232,11 +276,18 @@ Step 'preconditions' {
     if (Test-Path -LiteralPath $defaultInstall) { throw "default user installation already exists: $defaultInstall" }
     if (Test-Path $regUninstall) { throw 'an uninstall key for Mudds Shipyards already exists in HKCU; refusing to disturb it' }
     if (Test-Path $regApp) { throw 'HKCU\Software\Mudds Shipyards already exists; refusing to disturb it' }
-    if (Test-Path -LiteralPath $startMenu) { throw "Start Menu folder already exists: $startMenu" }
+    if (Test-Path -LiteralPath $realStartMenu) { throw "Start Menu folder already exists: $realStartMenu" }
+    if (Test-Path -LiteralPath $startMenu) { throw "private Start Menu folder already exists: $startMenu" }
     New-Item -ItemType Directory -Path $ProbeRoot -Force | Out-Null
-    New-Item -ItemType Directory -Path (Join-Path $profileRoot 'Roaming') -Force | Out-Null
-    New-Item -ItemType Directory -Path (Join-Path $profileRoot 'Local') -Force | Out-Null
+    New-Item -ItemType Directory -Path (Join-Path $profileRoot 'AppData\Roaming') -Force | Out-Null
+    New-Item -ItemType Directory -Path (Join-Path $profileRoot 'AppData\Local') -Force | Out-Null
     New-Item -ItemType Directory -Path $userData -Force | Out-Null
+    New-Item -ItemType Directory -Path (Join-Path $profileRoot 'Temp') -Force | Out-Null
+    if ($checkRecovery) {
+        if (-not (Test-Path -LiteralPath $UserDataRecoveryFixture -PathType Leaf)) { throw 'recovery fixture missing' }
+        $fixture = Get-Content -LiteralPath $UserDataRecoveryFixture -Raw | ConvertFrom-Json
+        if ($fixture.schema_version -ne 1 -or $fixture.payload.runtime_settings.values.graphics_profile -ne 'low' -or $fixture.payload.tutorial_prompts_seen.seen_ids.Count -lt 1) { throw 'recovery fixture must contain schema 1, low runtime settings and retained tutorial progress' }
+    }
     [IO.File]::WriteAllText($marker, "seeded before install`n")
     $script:markerHash = (Get-FileHash -Algorithm SHA256 -LiteralPath $marker).Hash
     $result.installer_sha256 = (Get-FileHash -Algorithm SHA256 -LiteralPath $Installer).Hash.ToLowerInvariant()
@@ -294,6 +345,48 @@ Step 'silent_upgrade_over_existing' {
 }
 Step 'upgraded_startup_check' { Run-Startup 'upgraded' }
 
+# Optional installed-document acceptance: use a production-API generated fixture,
+# not a marker masquerading as settings or saved gameplay. A distinctive low
+# graphics profile proves the boot preview actually selected the valid backup.
+if ($checkRecovery) {
+    Step 'installed_corrupt_document_backup_recovery' {
+        Assert-Installed $ExpectedExeSha256 $ExpectedCommit
+        if (Test-Path -LiteralPath $document) { Copy-Item -LiteralPath $document -Destination (Join-Path $ProbeRoot 'ordinary-startup-document-witness.json') }
+        [IO.File]::WriteAllText($document, '{broken-installed-primary')
+        Copy-Item -LiteralPath $UserDataRecoveryFixture -Destination ($document + '.bak')
+        Copy-Item -LiteralPath $document -Destination (Join-Path $ProbeRoot 'corrupt-primary-witness.json')
+        $corruptHash = (Get-FileHash -Algorithm SHA256 -LiteralPath $document).Hash
+        Run-Startup 'corrupt-backup'
+        $log = Join-Path $ProbeRoot 'corrupt-backup-startup.log'
+        if (-not (Select-String -LiteralPath $log -SimpleMatch 'STARTUP graphics profile=low')) { throw 'backup settings were not selected by startup' }
+        $quarantine = $document + '.recovery'
+        if (-not (Test-Path -LiteralPath $quarantine) -or (Get-FileHash -Algorithm SHA256 -LiteralPath $quarantine).Hash -ne $corruptHash) { throw 'corrupt primary was not retained byte-for-byte in recovery quarantine' }
+        $fixture = Get-Content -LiteralPath $UserDataRecoveryFixture -Raw | ConvertFrom-Json
+        $recovered = Get-Content -LiteralPath $document -Raw | ConvertFrom-Json
+        foreach ($namespace in @('runtime_settings', 'tutorial_prompts_seen')) {
+            $expected = $fixture.payload.$namespace | ConvertTo-Json -Depth 12 -Compress
+            $actual = $recovered.payload.$namespace | ConvertTo-Json -Depth 12 -Compress
+            if ($expected -ne $actual) { throw "backup recovery changed retained $namespace identity" }
+        }
+        if ($recovered.schema_version -ne 1 -or $recovered.generation -lt $fixture.generation) { throw 'backup recovery lost document generation' }
+        $documentHashes[$quarantine] = $corruptHash
+        "backup_settings_loaded=True recovered_settings_and_tutorial_identity_preserved=True corrupt_quarantine_sha256=$corruptHash generation=$($recovered.generation)"
+
+    }
+    Step 'installed_unsupported_newer_document_preserved' {
+        # Preserve the corrupt witness before replacing only probe-owned bytes.
+        Copy-Item -LiteralPath $document -Destination (Join-Path $ProbeRoot 'recovered-document-witness.json')
+        $documentHashes.Clear()
+        Remove-Item -LiteralPath ($document + '.recovery')
+        [IO.File]::WriteAllText($document, '{"schema_version":999,"future_player_progress":"retain exactly"}')
+        [IO.File]::WriteAllText(($document + '.tmp'), '{"schema_version":999,"future_pending_progress":"retain exactly"}')
+        foreach ($file in (Get-ChildItem -LiteralPath $userData -Filter 'mudds_user_data.json*' -File)) { $documentHashes[$file.FullName] = (Get-FileHash -Algorithm SHA256 -LiteralPath $file.FullName).Hash }
+        Run-Startup 'unsupported-newer'
+        Assert-NewerDocumentDiagnostics 'unsupported-newer'
+        'newer_primary_pending_and_valid_backup_bytes_preserved=True'
+    }
+}
+
 if ($crossBuild) {
     Step 'silent_rollback_to_previous' {
         $code = Run-Silent $PreviousInstaller "/S /D=$installDir" 600000
@@ -301,7 +394,7 @@ if ($crossBuild) {
         Assert-Installed $PreviousExpectedExeSha256 $PreviousExpectedCommit
         Assert-RegistryAndShortcuts $PreviousExpectedCommit $ExpectedCommit
     }
-    Step 'rolled_back_startup_check' { Run-Startup 'rolled-back' }
+    Step 'rolled_back_startup_check' { Run-Startup 'rolled-back'; if ($checkRecovery) { Assert-NewerDocumentDiagnostics 'rolled-back' } }
 }
 
 Step 'silent_uninstall' {
@@ -313,6 +406,7 @@ Step 'silent_uninstall' {
 $result.cleanup.status = 'PASS'
 $result.cleanup.detail = 'silent uninstall removed the owned installation; probe profile and logs retained'
 $result.status = 'PASS'
+if ($checkRecovery) { $result.user_data_recovery = 'PASS'; $result.protected_document_sha256 = $documentHashes }
 Save-Result
 Write-Output 'INSTALLER_VERIFICATION_OK'
 exit 0
