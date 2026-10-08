@@ -165,6 +165,14 @@ Both installers were compiled using atomic-replacement packaging code `ce2dfa065
 
 This is silent native packaging acceptance on the development machine. Interactive installation, gameplay, clean-machine/hardware qualification and trusted signing remain open.
 
+### Native checkpoint `1c1b538` result — 2026-10-08
+
+The current checkpoint installer passes all 11 existing native verifier steps with `28fc594` → `1c1b538` → `28fc594`: clean install, exact executable/provenance/registry/shortcut checks, blocked replacement preserving the previous payload and metadata (exit 2), successful upgrade, rollback and uninstall retaining seeded user data. All three installed startups use `--headless --audio-driver Dummy --startup-check`, exit 0 and print `STARTUP_MENU_READY_OK`; their actual logs have no engine/script/leak diagnostics. The owned install is removed and the unchanged data marker remains.
+
+The actual result and console are retained as `installer-28fc-1c1b538-native.json` and `installer-28fc-1c1b538-native-console.log` under `/root/.cache/mudds-shipyards/roadmap-validation/`. [Installer notes](../builds/windows/MuddsShipyards-1c1b538-installer-notes.txt) identify the source and validation limits. The installer in `builds/windows/` is 86,489,157 bytes, SHA-256 `e364887a2cdd2227e6c64a346de7edc40f05b04589bf5c94c36d1ab3727bab7b`; its installed executable matches checkpoint SHA-256 `89e93b98664fb5cce871085138a5efa2b61338bead66b141ecaac1d21bb3a17a`. The compile-time result retains `native_verification: NOT_RUN`; subsequent native acceptance is recorded separately. Existing checkpoint ZIP bytes and notes remain historical.
+
+This qualifies silent install/update/rollback/uninstall for these two unsigned fixed-workflow checkpoint installers on the development machine. Interactive installation, installed corrupt-save recovery, clean-machine gameplay, trusted signing, hardware/human acceptance and final-candidate installation remain open.
+
 ## Still open
 
 - Trusted signing qualification: these checkpoint installer probes are unsigned
