@@ -77,6 +77,10 @@ func _initialize() -> void:
 		"two production haulers retain exact cargo-pod bounds and an aligned port opening backed by one immutable geometry and paint recipe"
 	)
 	_check(
+		_cabin_owns_forward_pod_bulkhead(first, first_pod),
+		"the cabin fully covers the forward pod perimeter without a competing coplanar cap"
+	)
+	_check(
 		first.get_cockpit_seat_anchor() != null
 			and second.get_cockpit_seat_anchor() != null
 			and first.get_boarding_marker() != null
@@ -172,3 +176,34 @@ func _check(condition: bool, message: String) -> void:
 	_assertions += 1
 	if not condition:
 		_failures.append(message)
+
+
+func _cabin_owns_forward_pod_bulkhead(craft: CinderCargoHauler, pod: MeshInstance3D) -> bool:
+	var wall := craft.get_node_or_null(^"WalkableInterior/LoadmasterCabin/CabinEndWallBatch") as MultiMeshInstance3D
+	if pod == null or wall == null or wall.multimesh == null:
+		return false
+	var stock := wall.multimesh.mesh as BoxMesh
+	var transforms: Array = wall.get_meta(&"authored_instance_transforms", [])
+	if stock == null or transforms.size() != 2:
+		return false
+	var forward_wall: Transform3D = transforms[0]
+	var wall_bounds := forward_wall * stock.get_aabb()
+	var cap_z := Hauler.CARGO_POD_POSITION.z - Hauler.CARGO_POD_SIZE.z * 0.5
+	if not is_equal_approx(wall_bounds.position.z, cap_z):
+		return false
+	var vertices := pod.mesh.surface_get_arrays(0)[Mesh.ARRAY_VERTEX] as PackedVector3Array
+	var faces := pod.mesh.get_faces()
+	var perimeter_points := 0
+	for point in vertices:
+		var craft_point := pod.transform * point
+		if is_equal_approx(craft_point.z, cap_z):
+			perimeter_points += 1
+			if craft_point.x < wall_bounds.position.x or craft_point.x > wall_bounds.end.x \
+					or craft_point.y < wall_bounds.position.y or craft_point.y > wall_bounds.end.y:
+				return false
+	for triangle in range(0, faces.size(), 3):
+		if is_equal_approx((pod.transform * faces[triangle]).z, cap_z) \
+				and is_equal_approx((pod.transform * faces[triangle + 1]).z, cap_z) \
+				and is_equal_approx((pod.transform * faces[triangle + 2]).z, cap_z):
+			return false
+	return perimeter_points >= 12

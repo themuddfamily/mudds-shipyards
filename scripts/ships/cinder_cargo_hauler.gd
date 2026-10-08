@@ -1611,6 +1611,12 @@ static func _port_aperture_shell_mesh(
 					Vector3(x0, band.x, stations[bay]), Vector3(x0, band.y, stations[bay]),
 					Vector3(x0, band.y, stations[bay + 1]), Vector3(x0, band.x, stations[bay + 1]), Vector3.LEFT)
 	for cap in [0, rings.size() - 1]:
+		# The cabin forward wall already seals the entire cargo-pod end at
+		# craft-local z -2.60. A differently painted cap fought that wall
+		# over 7.5 m². Keep its formed perimeter, but let the cabin own the
+		# drawn bulkhead; the outer hull and aft pod cap remain sealed.
+		if size == CARGO_POD_SIZE and cap == 0:
+			continue
 		var ring := rings[cap]
 		var center := Vector3(0, 0, stations[cap])
 		for edge in section.size():
