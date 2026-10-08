@@ -52,7 +52,10 @@ func _run() -> void:
 		if OS.is_process_running(pid):
 			OS.kill(pid)
 	if _failures.is_empty():
-		print("NETWORK_EMBERLINE_BOLT_TEST_OK %s: %d assertions" % [_role, _assertions])
+		if _role == "host":
+			print("NETWORK_EMBERLINE_BOLT_TEST_OK: %d host assertions" % _assertions)
+		else:
+			print("NETWORK_EMBERLINE_PEER_COMPLETE %s: %d assertions" % [_role, _assertions])
 		_mark("finished")
 		quit(0)
 	else:
