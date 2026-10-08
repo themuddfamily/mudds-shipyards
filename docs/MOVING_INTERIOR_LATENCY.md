@@ -1011,8 +1011,21 @@ no longer strands the snapshot stream).
   active ship (a fallback publishes the poses alone otherwise) and not while
   the host is on a surface visit; the gap re-baseline keeps the stream alive
   across that, but the craft are not moved during it. The observer copies are
-  moved kinematically: a craft's landing, docking and engine presentation on a
-  client still follow its own local state, not the host's.
+  moved kinematically. **Engine/dock display delivered 2026-10-08 (`2e4ffb6`):**
+  the existing craft snapshot now projects host engine/exhaust, canopy,
+  readout and committed dock/landing display without writing those owners.
+  Parked operation facts survive motion coast; settled poses cannot be
+  repeatedly freshened by display-only updates. Current/late peers cover all
+  nine craft, component damage, quiet adoption, origin rebases, root/definition
+  replacement and exact solo/live-policy restoration. Clean merged source
+  passes seven suites/388 reported assertions; the exact-package five-process
+  probe passes 151 assertions with five explicit embedded-PCK checks. Actual
+  varied-nine full/delta envelopes are 4,444/10,856 bytes under the unchanged
+  12,000-byte limit, with exact decode parity; oversized full baselines use
+  bounded lossless compression in the existing snapshot codec. Native
+  normal-controls, rendered/human and audible acceptance remain open.
+  Discrete remote helm actions remain separate implementation work; existing
+  throttle demand already drives the host's automatic engine owner.
 * **A client that is refused the berth swap keeps the pilot seat.** When all
   four berths are held, a pilot who walks into the cabin is shown the refusal
   and still holds the seat; its walk is not a server body until it sits back
@@ -1083,8 +1096,8 @@ no longer strands the snapshot stream).
   now follows the existing Emberline explicit parent path/cwd fallback.
   Fleet-wide native normal-controls damage/repair/loss/regeneration,
   multiplayer endurance and rendered/human/audio acceptance remain open.
-  Engine/dock presentation and remote helm actions remain separate work above;
-  the observer exhaust/canopy gap has a new independent production reproduction.
+  Engine/dock display is delivered in `2e4ffb6` as described above; discrete
+  remote helm actions and native fleet-wide gameplay remain open.
 * **Five clients on loopback.** Interest management and the resync baseline
   under many occupants are still untested at latency.
 * **Loss is injected above ENet.** The relationship RPC is reliable, so the 2 %
