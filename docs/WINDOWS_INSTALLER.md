@@ -8,6 +8,56 @@ by default; optional signing is described in
 [Windows code signing](WINDOWS_CODE_SIGNING.md). A green verification does not
 grant distribution rights or replace the human gates that remain open.
 
+## Native checkpoint `6092a52` result — 2026-10-08
+
+The unsigned [checkpoint installer](../builds/windows/MuddsShipyards-6092a52-setup.exe)
+and [installer notes](../builds/windows/MuddsShipyards-6092a52-installer-notes.txt)
+are published in `builds/windows/`. The installer contains the exact reviewed
+seated repeat-takeoff checkpoint; its payload matches the separately qualified
+EXE. The existing verifier's optional recovery mode exits 0 and passes all
+15 native steps for actual `9ab49e6` → `6092a52` → `9ab49e6` transitions.
+
+- The real locked replacement exits 2 with previous executable, metadata,
+  registry and player data intact; its pending payload is removed. Upgrade and
+  rollback verify exact executable hashes, full source identities and shortcuts.
+- Three owned installed target processes are killed after actual startup
+  generations 1/2/3 commit. Fourth-boot generation 4 records three unfinished
+  starts, recommends safe settings and publishes its own session's matching
+  `crash_detected` journal event with `recovered=true` and `attempt_count=3`.
+  Settings/tutorial identities survive; menu readiness and orderly shutdown
+  commit `clean_shutdown`/`clean` markers.
+- Corrupt-primary/valid-backup recovery retains settings/tutorial identity and
+  corrupt quarantine bytes. Unsupported-newer primary/pending/backup/history
+  hashes remain unchanged through startup, rollback and uninstall.
+- Six completed startups each exit 0 with exactly one menu-ready JSON record,
+  mouse free during loading and zero engine/script/leak diagnostics. The three
+  interrupted logs contain no menu-ready record. All game invocations use
+  headless Dummy audio. Two `settings_missing` warnings on target upgrade and
+  two newer-schema warnings on both target and rollback remain in raw logs;
+  this is not zero-warning qualification.
+- Owned installation, shortcuts and registry are removed. The private profile,
+  raw startup logs and document/journal witnesses remain for inspection.
+
+Installer: 86,540,342 bytes, SHA-256
+`8290d2fe69f6974e1874892c4444f15aa59c7b6921970a9ae9fea959d30b46e8`.
+Payload: 177,511,992 bytes, SHA-256
+`a94dd94301f38b8b11a48f63c8088c44f6e201fc9a9038e23d87eeaea427d44b`,
+source `6092a5285fc25b37491675e76b466a0849f2ac55`.
+Actual result, invocation and witness copies are in
+`/root/.cache/mudds-shipyards/roadmap-validation/installer-6092a52-20261008/`.
+Root independently checked the raw startup records, real recovery generations,
+matching journal, namespaces, exact artifact hashes and protected files on disk
+following uninstall. The compiler metadata retains `native_verification: NOT_RUN`;
+this subsequent executed verifier result proves native acceptance separately.
+Existing default compatibility was qualified previously; no duplicate default
+run or new validator was needed for this checkpoint's complete 15-step contract.
+
+This qualifies silent installation and installed-startup recovery. The full-source
+matrix is reported separately in `ROADMAP.md`; native normal-controls play,
+in-world save/reward/seat recovery, interactive installation, clean-machine/
+platform/hardware review, trusted signing and final distributed-candidate
+acceptance remain open. Earlier checkpoint results below remain historical.
+
 ## Native checkpoint `9ab49e6` result — 2026-10-08
 
 The unsigned `MuddsShipyards-9ab49e6-setup.exe` is published in
