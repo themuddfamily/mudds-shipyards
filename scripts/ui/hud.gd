@@ -490,6 +490,7 @@ var _activity_reward_summary := {
 var _activity_selection_kind: StringName = &"timed_race"
 var _patrol_branch_id: StringName = &"relay_sweep"
 var _activity_selection_locked := false
+var _activity_selection_family_reset_only := false
 var _activity_selection_status_reason: StringName = &""
 var _nearby_activity_presenter: RefCounted
 var _bomber_payload_presenter: RefCounted
@@ -9010,7 +9011,8 @@ func _refresh_activity_reward_summary() -> void:
 func set_activity_selection_state(
 	selected_kind: StringName,
 	selection_locked: bool,
-	status_reason: StringName = &""
+	status_reason: StringName = &"",
+	family_reset_only: bool = false
 	) -> void:
 	if selected_kind not in [
 		&"timed_race", &"patrol", &"cargo_delivery", &"convoy_escort"
@@ -9018,6 +9020,7 @@ func set_activity_selection_state(
 		return
 	_activity_selection_kind = selected_kind
 	_activity_selection_locked = selection_locked
+	_activity_selection_family_reset_only = family_reset_only
 	_activity_selection_status_reason = status_reason
 	_refresh_activity_selection_page(status_reason)
 	if _activity_selection_page != null and _activity_selection_page.visible:
@@ -9239,7 +9242,9 @@ func _refresh_activity_selection_page(status_reason: StringName) -> void:
 		if button == null:
 			continue
 		var selected := activity_kind == _activity_selection_kind
-		button.disabled = _activity_selection_locked and not selected
+		button.disabled = (_activity_selection_locked and not selected) or (
+			_activity_selection_family_reset_only and activity_kind not in [&"timed_race", &"patrol"]
+		)
 		var base_text := {
 			&"timed_race": "TIMED CINDER RACE",
 			&"patrol": "CINDER PATROL",
@@ -9284,7 +9289,7 @@ func _refresh_patrol_branch_choices() -> void:
 		if not is_instance_valid(button):
 			continue
 		var selected := branch_id == _patrol_branch_id
-		button.disabled = _activity_selection_locked
+		button.disabled = _activity_selection_locked or _activity_selection_family_reset_only
 		var base_text := (
 			"PLATFORM SWEEP" if branch_id == &"platform_sweep" else "RELAY SWEEP"
 		)
@@ -9324,6 +9329,7 @@ func get_activity_selection_report() -> Dictionary:
 	return {
 		"selected_activity_kind": _activity_selection_kind,
 		"selection_locked": _activity_selection_locked,
+		"family_reset_only": _activity_selection_family_reset_only,
 		"selected_patrol_branch_id": _patrol_branch_id,
 		"page_visible": (
 			_activity_selection_page != null

@@ -857,17 +857,116 @@ func _test_mixed_race_patrol_restart(race_boundary: StringName) -> void:
 	fresh.active_ship = fresh.get_flyable_ships()[1]
 	fresh.set("_piloting", true)
 	fresh.phase = GameFlow.Phase.FREE_FLIGHT
-	var previous_generation := int(fresh.get_active_activity_snapshot().generation)
+	var paid_patrol_snapshot := fresh.get_active_activity_snapshot()
+	var retired_patrol := fresh.patrol_activity
+	var retired_completion: Callable = retired_patrol.patrol_completed.get_connections()[0].callable
+	var patrol_reset := fresh.reset_active_activity()
+	var retired_route := fresh.get_activity_director().get("_activities").get(ROUTE.activity_id) as CheckpointRouteActivity
+	var retired_source_id := retired_route.get_instance_id()
+	var hud := fresh.get_node("HUD") as GameHUD
+	var choices := hud.get_activity_selection_report()
+	_check(not bool(choices.buttons[GameFlow.ACTIVITY_KIND_TIMED_RACE].disabled)
+		and bool(choices.buttons[GameFlow.ACTIVITY_KIND_CARGO_DELIVERY].disabled)
+		and bool(choices.buttons[GameFlow.ACTIVITY_KIND_CONVOY_ESCORT].disabled),
+		"the production HUD enables only race/patrol choices after an explicit family reset")
+	var race_button := hud.get("_activity_selection_buttons").get(GameFlow.ACTIVITY_KIND_TIMED_RACE) as Button
+	race_button.pressed.emit()
+	var switched := {"accepted": fresh.get_activity_integration_report().selected_activity_kind == GameFlow.ACTIVITY_KIND_TIMED_RACE}
+	_check(patrol_reset and bool(switched.accepted)
+		and fresh.cinder_race_session.get_session_generation() == int(old_race_record.activities[0].generation)
+		and int(fresh.get_activity_integration_report().attached_route_owner_count) == 1,
+		"mixed %s reset activates the exact saved race generation with one owner" % race_boundary)
+	var cargo_locked := fresh.select_activity_kind(GameFlow.ACTIVITY_KIND_CARGO_DELIVERY)
+	_check(not bool(cargo_locked.accepted) and cargo_locked.reason == &"selection_locked",
+		"the family reset capability preserves the unrelated cargo selection lock")
+	if race_boundary != &"reset":
+		if race_boundary == &"legacy":
+			fresh.call("_on_cinder_session_completed", fresh.get_active_activity_snapshot())
+			_check(_total_receipts(fresh) == 2,
+				"adopting a legacy race result confers no inferred reward entitlement")
+		_check(fresh.reset_active_activity(), "the adopted terminal race uses its ordinary reset before starting")
+	var race_started := fresh.request_activity_start(ROUTE.activity_id)
+	fresh.call("_physics_process", GameFlow.CINDER_RACE_COUNTDOWN_SECONDS)
+	var new_generation := fresh.cinder_race_session.get_session_generation()
+	var forwarded_checkpoints := {"count": 0}
+	fresh.get_activity_director().activity_checkpoint_reached.connect(
+		func(_id: StringName, _checkpoint: int, _generation: int) -> void:
+			forwarded_checkpoints.count = int(forwarded_checkpoints.count) + 1
+	)
+	var last_result: Dictionary = fresh.get_activity_reward_report().last_result
+	var old_start := retired_route.start()
+	var old_step := retired_route.submit_position(ROUTE.get_checkpoint_position(0), old_start)
+	retired_completion.call_deferred(paid_patrol_snapshot)
+	await process_frame
+	var stale_retirement := fresh.get_activity_director().retire_inactive_activity(
+		ROUTE.activity_id, new_generation, retired_source_id
+	)
+	var active_retirement := fresh.get_activity_director().retire_inactive_activity(
+		ROUTE.activity_id, new_generation,
+		fresh.get_activity_director().get_activity_instance_id(ROUTE.activity_id)
+	)
+	_check(bool(race_started.accepted) and old_start == new_generation and bool(old_step.accepted)
+		and int(forwarded_checkpoints.count) == 0
+		and int(fresh.get_active_activity_snapshot().next_checkpoint_index) == 0
+		and not bool(stale_retirement.accepted) and stale_retirement.reason == &"stale_route_instance"
+		and not bool(active_retirement.accepted) and active_retirement.reason == &"route_still_active"
+		and fresh.get_activity_reward_report().last_result == last_result
+		and not bool(retired_patrol.submit_position(ROUTE.get_checkpoint_position(0), retired_patrol.get_generation()).accepted),
+		"retired same-generation route events, callbacks and retirement cannot mutate the adopted race")
+	for checkpoint in ROUTE.get_checkpoint_count():
+		fresh.active_ship.global_position = ROUTE.get_checkpoint_position(checkpoint)
+		fresh.call("_physics_process", 0.25)
+	_check(fresh.get_active_activity_snapshot().get("state_id") == &"completed"
+		and _total_receipts(fresh) == 3
+		and int(fresh.get_activity_reward_report().authority.record.reward_counts.return_race_record_to_shipyard) == 2,
+		"mixed %s activated race completes through Main and saves its own new receipt" % race_boundary)
+	await _check_adopted_family_reentry(fresh)
+	fresh.active_ship = fresh.get_flyable_ships()[1]
+	fresh.set("_piloting", true)
+	fresh.phase = GameFlow.Phase.FREE_FLIGHT
+	var terminal_switch := fresh.select_activity_kind(GameFlow.ACTIVITY_KIND_PATROL)
+	_check(not bool(terminal_switch.accepted) and terminal_switch.reason == &"selection_locked",
+		"a completed family stays locked until the player explicitly resets it")
+	var race_reset := fresh.reset_active_activity()
+	var switched_back := fresh.select_activity_kind(GameFlow.ACTIVITY_KIND_PATROL)
+	var restored_patrol_generation := fresh.patrol_activity.get_generation()
 	var repeated := fresh.request_activity_start(ROUTE.activity_id)
-	var fresh_patrol := fresh.get_activity_integration_report().get("patrol_activity") as PatrolActivity
+	var fresh_patrol := fresh.patrol_activity
 	for checkpoint in ROUTE.get_checkpoint_count():
 		fresh.active_ship.global_position = ROUTE.get_checkpoint_position(checkpoint)
 		fresh.call("_physics_process", 0.0)
 		fresh.call("_physics_process", fresh_patrol.dwell_seconds)
-	_check(bool(repeated.accepted) and fresh_patrol.get_generation() > previous_generation
-		and _patrol_receipts(fresh) == 2 and _total_receipts(fresh) == 3,
-		"mixed %s recovery permits a genuine next patrol generation and its own receipt" % race_boundary)
+	_check(race_reset and bool(switched_back.accepted) and restored_patrol_generation == int(paid_patrol_snapshot.generation) + 1
+		and bool(repeated.accepted) and fresh_patrol.get_generation() > restored_patrol_generation
+		and _patrol_receipts(fresh) == 2 and _total_receipts(fresh) == 4
+		and int(fresh.get_activity_integration_report().attached_route_owner_count) == 1,
+		"mixed %s can switch back to the saved patrol and complete its genuine next generation" % race_boundary)
+	await _check_adopted_family_reentry(fresh)
 	await _retire_game(fresh)
+
+
+func _check_adopted_family_reentry(game: GameFlow) -> void:
+	var before := game.get_active_activity_snapshot()
+	var kind := StringName(game.get_activity_integration_report().selected_activity_kind)
+	var owner: RefCounted = game.cinder_race_session if kind == GameFlow.ACTIVITY_KIND_TIMED_RACE else game.patrol_activity
+	var director := game.get_activity_director()
+	var receipts := _total_receipts(game)
+	root.remove_child(game)
+	await process_frame
+	root.add_child(game)
+	await process_frame
+	await physics_frame
+	await process_frame
+	game.set_physics_process(false)
+	var after := game.get_active_activity_snapshot()
+	var current_owner: RefCounted = game.cinder_race_session if kind == GameFlow.ACTIVITY_KIND_TIMED_RACE else game.patrol_activity
+	_check(current_owner == owner and game.get_activity_director() == director
+		and int(after.session_generation) == int(before.session_generation)
+		and after.state_id == before.state_id
+		and is_equal_approx(float(after.current_time_seconds), float(before.current_time_seconds))
+		and int(game.get_activity_integration_report().attached_route_owner_count) == 1
+		and _total_receipts(game) == receipts,
+		"newly adopted %s keeps its owner, generation, result and receipt through Main re-entry" % kind)
 
 
 func _complete_unrelated_convoy(game: GameFlow) -> void:

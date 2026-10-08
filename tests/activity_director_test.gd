@@ -22,7 +22,76 @@ func _run() -> void:
 	await _test_resources_match_the_live_nearby_sector()
 	await _test_route_lifecycle_and_generation_guards()
 	_test_checkpoint_notification_reentrancy()
+	await _test_inactive_route_instance_retirement()
 	_finish()
+
+
+func _test_inactive_route_instance_retirement() -> void:
+	var director := ActivityDirector.new()
+	root.add_child(director)
+	director.register_definition(ROUTE)
+	var started := director.start_activity(ROUTE.activity_id)
+	var old_route := director.get("_activities").get(ROUTE.activity_id) as CheckpointRouteActivity
+	var old_instance_id := old_route.get_instance_id()
+	var active_rejected := director.retire_inactive_activity(ROUTE.activity_id, int(started.generation), old_instance_id)
+	_check(not bool(active_rejected.accepted) and active_rejected.reason == &"route_still_active",
+		"an exact source token still cannot retire an active route")
+	for checkpoint in ROUTE.get_checkpoint_count():
+		director.submit_position(ROUTE.activity_id, ROUTE.get_checkpoint_position(checkpoint), int(started.generation))
+	var saved := old_route.capture_persistence_state()
+	var stale_generation := director.retire_inactive_activity(ROUTE.activity_id, int(started.generation) - 1, old_instance_id)
+	var escaped := {"count": 0}
+	director.activity_started.connect(func(_id: StringName, _generation: int) -> void: escaped.count = int(escaped.count) + 1)
+	var rejected_candidate := {"route": null}
+	var rollback := director.adopt_inactive_activity_owner(
+		ROUTE.activity_id, int(started.generation), old_instance_id,
+		func() -> Dictionary:
+			director.restore_activity_persistence_state(ROUTE.activity_id, saved)
+			rejected_candidate.route = director.get("_activities").get(ROUTE.activity_id)
+			(rejected_candidate.route as CheckpointRouteActivity).start()
+			var model := CinderTimedRaceSession.new()
+			var attached := model.attach(director, 1)
+			model.close(0)
+			return attached
+	)
+	var malformed := director.adopt_inactive_activity_owner(
+		ROUTE.activity_id, int(started.generation), old_instance_id,
+		func() -> Variant: return null
+	)
+	_check(not bool(rollback.accepted) and rollback.reason == &"stale_generation"
+		and not bool(malformed.accepted)
+		and director.get_activity_instance_id(ROUTE.activity_id) == old_instance_id
+		and old_route.capture_persistence_state() == saved,
+		"rejected typed attachment and malformed adoption restore the exact prior route identity and state")
+	var rejected_route := rejected_candidate.route as CheckpointRouteActivity
+	rejected_route.submit_position(ROUTE.get_checkpoint_position(0), int(rejected_route.get_snapshot().generation))
+	_check(int(escaped.count) == 0 and old_route.capture_persistence_state() == saved,
+		"a rejected candidate's later lifecycle cannot escape transaction rollback")
+	var retired := director.retire_inactive_activity(ROUTE.activity_id, int(started.generation), old_instance_id)
+	var restored := director.restore_activity_persistence_state(ROUTE.activity_id, saved)
+	var stale_instance := director.retire_inactive_activity(ROUTE.activity_id, int(started.generation), old_instance_id)
+	_check(not bool(stale_generation.accepted) and bool(retired.accepted) and bool(restored.accepted)
+		and not bool(stale_instance.accepted) and stale_instance.reason == &"stale_route_instance"
+		and director.get_activity_instance_id(ROUTE.activity_id) != old_instance_id
+		and int(director.get_activity_snapshot(ROUTE.activity_id).generation) == int(started.generation),
+		"only the exact inactive instance retires, and an old same-generation token cannot retire its replacement")
+	var events := {"reset": 0, "started": 0}
+	director.activity_reset.connect(func(_id: StringName, _generation: int) -> void: events.reset = int(events.reset) + 1)
+	director.activity_started.connect(func(_id: StringName, _generation: int) -> void: events.started = int(events.started) + 1)
+	var old_reset_forwarder: Callable = old_route.route_reset.get_connections()[0].callable
+	old_reset_forwarder.call_deferred(ROUTE.activity_id, int(started.generation) + 1)
+	old_route.reset(int(started.generation))
+	old_route.start()
+	await process_frame
+	_check(events == {"reset": 0, "started": 0}
+		and int(director.get_activity_snapshot(ROUTE.activity_id).state) == CheckpointRouteActivity.State.COMPLETED,
+		"retired route emissions and queued forwarding cannot reach the replacement owner")
+	director.reset_activity(ROUTE.activity_id, int(started.generation))
+	director.start_activity(ROUTE.activity_id)
+	_check(events == {"reset": 1, "started": 1},
+		"the adopted route still forwards its own ordinary reset and start")
+	director.queue_free()
+	await process_frame
 
 
 func _test_checkpoint_notification_reentrancy() -> void:
