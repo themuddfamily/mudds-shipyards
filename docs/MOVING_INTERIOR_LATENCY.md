@@ -1000,7 +1000,7 @@ no longer strands the snapshot stream).
   multi-process transport; joining the two is the remaining gate.
 * **The hatch holds four berths per craft.** The berth count is the ledger's
   one-avatar-per-seat rule, not the cabin's volume, and it is unchanged.
-* **Remote flight, barrel roll, landing and docked exterior exit reach their host owners; repeated seated takeoff and native acceptance remain open.**
+* **Remote flight, barrel roll, landing and docked exterior exit reach their host owners; seated repeat takeoff is implemented and broad native acceptance remains open.**
   The host's pose now corrects the pilot's copy and drives everyone else's,
   but reconciliation is a blend toward an extrapolated pose, not a replay of
   unacknowledged helm input, so a hard manoeuvre under the 350 ms profile is
@@ -1058,15 +1058,22 @@ no longer strands the snapshot stream).
   exit/reboard cycles, with zero diagnostics. Unsafe airborne exterior exit
   is refused while supported cabin helm swaps remain available. Approaches
   are fixture-positioned; uninterrupted normal-controls journeys remain open.
-  **Separate reproduced seated takeoff blocker:** after docking, actual thrust
-  moves the still-seated pilot's craft 31.816 m and clears landed state, but the
-  exact physical berth/token and `SHUT_DOWN` phase remain. The previous sortie
-  flag bypasses retirement of the newly held berth. Correct the existing owner
-  while preserving completed guided-return/reward state, then qualify repeated
-  takeoff/redock. This correction is not yet integrated or packaged. The earlier
-  intermittent command-clock refusal remains unexplained; final checks do not
-  reproduce it and admission limits remain unchanged. Current-source full
-  matrix, native normal-controls and human acceptance remain open.
+  **Seated repeat takeoff delivered in `6092a52`:** the prior reproduction
+  travelled 31.816 m while retaining the physical dock and `SHUT_DOWN` phase.
+  The existing departure owner now retires a newly occupied exact berth/token
+  despite its historical sortie flag, then resumes free flight without clearing
+  completed return/guided state. Reserved-only approaches and active landing
+  assists remain protected. The initial broader exception broke real solo
+  returns; the corrected occupied-berth guard passes the cabin and guided
+  vertical slice alongside two same-seat takeoff/redock cycles.
+  Eight clean source suites pass 560 assertions; exact-package seated/cabin
+  checks pass 163 and independent host/client helm checks pass 213, with zero
+  diagnostics. A full unfiltered matrix is running on this frozen source.
+  An earlier intermittent second remote landing failed before generation
+  commitment; the instrumented and final source/package checks pass without
+  clock changes, so its cause remains unproven. Admission limits are unchanged.
+  Full-source, uninterrupted native normal-controls and human acceptance
+  remain open.
 * **A client that is refused the berth swap keeps the pilot seat.** When all
   four berths are held, a pilot who walks into the cabin is shown the refusal
   and still holds the seat; its walk is not a server body until it sits back
