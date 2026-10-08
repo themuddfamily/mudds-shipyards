@@ -85,6 +85,9 @@ func _run() -> void:
 	settings.config_path = "user://reduced_flash_combat_%d.cfg" % Time.get_ticks_usec()
 	settings.reset_to_defaults()
 	await process_frame
+	var picket := game.get_node_or_null(^"StandoffPicket") as StandoffPicketOpponent
+	_check(picket != null and not bool(picket.get_lance_bolt_snapshot().get("built", true)),
+		"startup accessibility settings leave the dormant picket's lance pool unallocated")
 	var damage := fleet[0].get_damage_presentation()
 	# A hull that drives HeroShip's own exhaust lights (variant craft own theirs).
 	var glow_ship: HeroShip = null
@@ -124,6 +127,12 @@ func _run() -> void:
 
 	# Live toggle through the production settings authority.
 	settings.reduced_flash = true
+	_check(picket != null and not bool(picket.get_lance_bolt_snapshot().get("built", true)),
+		"reduced flash toggles leave the dormant picket's lance pool unallocated")
+	# Exercise the allocation seam the first accepted lance dispatch uses.
+	var lance_pool := picket._ensure_bolt_pool() if picket != null else null
+	_check(is_instance_valid(lance_pool) and lance_pool.is_reduced_flash_enabled(),
+		"the first lance pool receives the setting retained before allocation")
 	_check(_muzzle_light_energy(pulse) <= 0.0,
 		"a muzzle flash already on screen drops its dynamic light when reduced flash turns on")
 	pulse.advance_simulation(0.3)
@@ -160,6 +169,8 @@ func _run() -> void:
 
 	# Turning it back off restores the authored punch.
 	settings.reduced_flash = false
+	_check(is_instance_valid(lance_pool) and not lance_pool.is_reduced_flash_enabled(),
+		"an allocated lance pool receives later reduced flash changes")
 	pulse.clear_effects()
 	_check(_present_hit(game, fleet[0]), "a pulse shot is accepted after reduced flash turns off")
 	_check(_muzzle_light_energy(pulse) > 0.5, "reduced flash off restores the muzzle light")
