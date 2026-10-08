@@ -8,6 +8,45 @@ by default; optional signing is described in
 [Windows code signing](WINDOWS_CODE_SIGNING.md). A green verification does not
 grant distribution rights or replace the human gates that remain open.
 
+## Native checkpoint `e7dedc2` result — 2026-10-08
+
+The unsigned [installer](../builds/windows/MuddsShipyards-e7dedc2-setup.exe)
+and [notes](../builds/windows/MuddsShipyards-e7dedc2-installer-notes.txt) are
+published in `builds/windows/`. The safe builder exits 0; the existing native
+recovery verifier exits 0 with all 15 steps passing for actual
+`9ab49e6` → `e7dedc2` → `9ab49e6` transitions. Its payload matches the published
+race-recovery EXE and full source identity exactly.
+
+Locked replacement exits 2 with old executable, metadata, registry and player
+data intact. Three owned installed processes are killed after committed startup
+generations 1/2/3; fourth-boot session 4 records three unfinished starts,
+recommends safe start and publishes its matching recovery journal before clean
+shutdown. Backup recovery, settings/tutorial retention and unsupported-newer
+primary/pending/backup/history preservation pass through rollback and uninstall.
+Root independently checks all six protected files on disk after uninstall.
+
+Six completed startup logs each have exactly one menu-ready JSON, mouse free
+during loading and zero engine/script/leak diagnostics. Three interrupted logs
+contain no menu-ready record. All game invocations are headless with Dummy
+audio. Two target-upgrade `settings_missing` warnings and two newer-schema
+warnings each on target and rollback remain in the logs. Owned installation,
+shortcuts and registry are absent; the private profile and witnesses remain.
+
+Installer: 86,547,288 bytes, SHA-256
+`03af878c8c8837969435f7f225d8aebb7ce2b2c151f8cf9ed75982f9cd8e0e83`.
+Payload: 177,516,136 bytes, SHA-256
+`ff685ef23437db29a52c758121421ed1b54018db03608cd3ca260a2ba3eec622`,
+source `e7dedc2062a806f8610ad5c258b0ac677e439a1e`.
+Actual invocation, result and retained logs:
+`/root/.cache/mudds-shipyards/roadmap-validation/race-installer-e7dedc2-20261008/`.
+Compiler metadata retains its original `native_verification: NOT_RUN`; the
+subsequent executed verifier proves this bounded acceptance separately.
+
+This qualifies silent installation and installed-startup recovery. It does not
+qualify later source, interactive installation, in-world OS-crash/reward/seat
+recovery, native normal-controls/hardware reviews, trusted signing or the final
+release candidate. Earlier results remain historical.
+
 ## Native checkpoint `6092a52` result — 2026-10-08
 
 The unsigned [checkpoint installer](../builds/windows/MuddsShipyards-6092a52-setup.exe)
