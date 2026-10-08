@@ -82,6 +82,7 @@ var _package_under_test := ""
 var _roll_edges := 0
 var _production_max_physics_steps_per_frame := Engine.max_physics_steps_per_frame
 var _clock_trace_rejections := 0
+var _roll_pose_snapshot: Dictionary = {}
 
 
 func _run() -> void:
@@ -557,6 +558,7 @@ func _assert_independent_roll_press() -> void:
 		if command.barrel_roll: _roll_edges += 1)
 	_check(_craft.get_telemetry().get("engine_state") == "ONLINE",
 		"remote throttle already wakes the host engine through automatic demand")
+	await _assert_clock_stall_recovery(source)
 	_roll_mark("host", "press")
 	if not await _wait_roll_marker("peer", "pressed"):
 		return
@@ -635,6 +637,126 @@ func _assert_independent_roll_press() -> void:
 		"disconnect during remote landing releases the physical reservation and network handoff")
 
 
+# Stop the real host physics while the independent physical helm keeps sending.
+# Recovery precedes fresh actions, preserving their original delivery deadlines.
+func _assert_clock_stall_recovery(source: NetworkRemotePilotCommandSource) -> void:
+	var main_physics := _host.is_physics_processing()
+	var craft_physics := _craft.is_physics_processing()
+	var claim_before: Dictionary = _server.get_boarding_snapshot().duplicate(true)
+	var receipt_before := source.get_roll_receipt().duplicate(true)
+	_clock_trace_rejections = 0
+	_movement_results.clear()
+	_clock_trace("stall-host-before")
+	_host.set_physics_process(false)
+	_craft.set_physics_process(false)
+	_roll_mark("host", "stall")
+	if not await _wait_roll_marker("peer", "stalled"):
+		_host.set_physics_process(main_physics)
+		_craft.set_physics_process(craft_physics)
+		return
+	_clock_trace("stall-host-frozen")
+	var refused := false
+	for result: Dictionary in _movement_results:
+		if result.get("status") == &"client_tick_too_far_ahead": refused = true
+	_check(refused, "real host physics stall exposes the existing ahead-tick refusal")
+	_host.set_physics_process(main_physics)
+	_craft.set_physics_process(craft_physics)
+	_check(_host.is_physics_processing() == main_physics and _craft.is_physics_processing() == craft_physics,
+		"host restoration retains the exact Main and craft physics flags")
+	_clock_trace("stall-host-restored")
+	var results_start := _movement_results.size()
+	_roll_mark("host", "resume")
+	if not await _wait_roll_marker("peer", "stall_sampled"): return
+	_clock_trace("stall-host-after-sampling")
+	var accepted_after := 0
+	var ahead_after := 0
+	var first_accepted: Dictionary = {}
+	for result: Dictionary in _movement_results.slice(results_start):
+		if result.get("accepted", false):
+			if result.get("entity_id") == SHIP_ID:
+				accepted_after += 1
+				if first_accepted.is_empty(): first_accepted = result.duplicate(true)
+		if result.get("status") == &"client_tick_too_far_ahead": ahead_after += 1
+	var claim_after: Dictionary = _server.get_boarding_snapshot()
+	var receipt_after := source.get_roll_receipt()
+	print("CLOCK_STALL_RECOVERY_OWNER: ", {"accepted": accepted_after, "ahead_refused": ahead_after,
+		"first_accepted": first_accepted, "edges": _roll_edges, "before": receipt_before, "after": receipt_after,
+		"same_source": _craft.get_command_source() == source,
+		"same_claim": claim_before.occupancies == claim_after.occupancies,
+		"event_sequence_before": claim_before.event_sequence, "event_sequence_after": claim_after.event_sequence,
+		"command": _craft.get_last_ship_command().to_dictionary()})
+	_check(accepted_after > 0 and _roll_edges == 0 and _craft.get_last_ship_command().throttle > 0.0,
+		"continuing physical throttle recovers within 180 steps before a fresh action")
+	_check(_craft.get_command_source() == source and claim_before.occupancies == claim_after.occupancies
+		and claim_before.event_sequence == claim_after.event_sequence
+		and int(receipt_before.stream) == int(receipt_after.stream),
+		"clock recovery preserves the exact pilot claim, authority source and helm stream")
+
+
+func _run_clock_stall_peer() -> void:
+	await _roll_peer_wait("host", "stall")
+	_clock_trace("stall-peer-before")
+	for step in 120:
+		await _roll_peer_step()
+		if step == 59: _clock_trace("stall-peer-mid")
+	_clock_trace("stall-peer-frozen-host")
+	var adapter := _host.get_network_session()
+	var heard_before := adapter._boarding_heard_physics_frame
+	var producer_before := int(_host._network_remote_helm.producer_id)
+	var producer_stream_before := int(_host._network_remote_helm.producer_stream)
+	var helm_stream_before := int(_host._network_remote_helm.stream_id)
+	var duplicate := _roll_pose_snapshot.duplicate(true)
+	var sample_before := _host._network_craft_pose_stream.latest_sample(SHIP_ID)
+	_check(not duplicate.is_empty(), "stall fixture retains a real authoritative movement snapshot")
+	_host._on_network_snapshot_applied({"accepted": true, "snapshot": duplicate})
+	_check(adapter._boarding_heard_physics_frame == heard_before
+		and _host._network_craft_pose_stream.latest_sample(SHIP_ID) == sample_before,
+		"duplicate current-craft snapshot cannot refresh the boarding clock")
+	var stale := duplicate.duplicate(true)
+	var movement: Array = stale.get("sections", {}).get("movement", [])
+	var identity := NetworkRemoteCraftPoseStream.pose_entity_id(SHIP_ID)
+	var display := _host._network_craft_pose_stream._display_batch_from_movement(movement)
+	var facts: Array = display.get(identity, [])
+	var current_craft_row := false
+	for row: Dictionary in movement:
+		if row.get("mode") == NetworkRemoteCraftPoseStream.MODE and row.get("entity_id") == identity:
+			current_craft_row = true
+	_check(current_craft_row and facts.size() == 11 and StringName(facts[0]) == SHIP_ID
+		and int(facts[1]) == int(sample_before.pose_tick) and int(facts[1]) > 0,
+		"duplicate and stale checks contain the actual accepted claimed pilot craft facts")
+	if facts.size() == 11 and int(facts[1]) > 0:
+		facts[1] = int(facts[1]) - 1
+		facts[2] = int(facts[2]) - 1
+		var bytes := var_to_bytes(display.values())
+		for row: Dictionary in movement:
+			if row.has("display_facts"):
+				row.display_size = bytes.size()
+				row.display_facts = bytes.compress(FileAccess.COMPRESSION_ZSTD)
+	_host._on_network_snapshot_applied({"accepted": true, "snapshot": stale})
+	_check(adapter._boarding_heard_physics_frame == heard_before
+		and _host._network_craft_pose_stream.latest_sample(SHIP_ID) == sample_before,
+		"stale current-craft snapshot cannot refresh the boarding clock")
+	var estimate_before := adapter.get_boarding_server_tick_estimate()
+	_roll_mark("peer", "stalled")
+	await _roll_peer_wait("host", "resume")
+	_clock_trace("stall-peer-resumed")
+	var refreshed_downward := false
+	for step in 180:
+		await _roll_peer_step()
+		if adapter._boarding_heard_physics_frame > heard_before \
+			and adapter.get_boarding_server_tick_estimate() < estimate_before:
+			refreshed_downward = true
+		if step in [59, 119, 179]: _clock_trace("stall-peer-recovery-%d" % (step + 1))
+	_check(refreshed_downward, "fresh accepted pilot sample corrects the extrapolated boarding clock downward")
+	_check(int(_host._network_remote_helm.producer_id) == producer_before
+		and int(_host._network_remote_helm.producer_stream) == producer_stream_before
+		and int(_host._network_remote_helm.stream_id) == helm_stream_before,
+		"recovery retains the exact physical input producer and helm epoch")
+	_roll_key_action(&"move_forward", false)
+	_roll_key_action(&"move_forward", true)
+	_roll_mark("peer", "stall_sampled")
+
+
 func _run_roll_peer() -> void:
 	Engine.max_fps = 60
 	_host = MAIN_SCENE.instantiate() as GameFlow
@@ -670,11 +792,31 @@ func _run_roll_peer() -> void:
 	_host._bind_network_client_helm_input_source(_craft)
 	_check((_host._network_client_helm_input_sources[_craft.get_instance_id()] as Dictionary).authority == original_authority,
 		"repeated pilot binding retains the original input authority once")
+	# Projectile-only publications can replace canonical movement. Retain the
+	# actual accepted envelope that supplied this pilot's newest validated pose.
+	# GameFlow connected first, so its consumer has committed before this runs.
+	var capture_pose := func(result: Dictionary) -> void:
+		if not result.get("accepted", false): return
+		var snapshot: Dictionary = result.get("snapshot", {})
+		var movement: Array = snapshot.get("sections", {}).get("movement", [])
+		var identity := NetworkRemoteCraftPoseStream.pose_entity_id(SHIP_ID)
+		var facts: Array = _host._network_craft_pose_stream._display_batch_from_movement(movement).get(identity, [])
+		var sample := _host._network_craft_pose_stream.latest_sample(SHIP_ID)
+		if facts.size() != 11 or sample.is_empty(): return
+		for row: Dictionary in movement:
+			if row.get("entity_id") == identity and int(row.get("owner_peer_id", 0)) == _host._network_client_peer_id() \
+				and int(row.get("entity_generation", 0)) == int(sample.entity_generation) \
+				and int(facts[1]) == int(sample.pose_tick) and int(facts[2]) == int(sample.operation_tick) \
+				and int(facts[4]) == int(sample.craft_epoch):
+				_roll_pose_snapshot = snapshot.duplicate(true)
+	_host.get_network_session().snapshot_applied.connect(capture_pose)
 	_host.set_physics_process(false)
 	for ship: HeroShip in _host.ships: ship.set_physics_process(false)
 	_roll_key_action(&"move_forward", true)
 	for _step in 120: await _roll_peer_step()
 	_roll_mark("peer", "ready")
+	await _run_clock_stall_peer()
+	_host.get_network_session().snapshot_applied.disconnect(capture_pose)
 	await _roll_peer_wait("host", "press")
 	while int(_host._network_remote_helm.get("ticks", 0)) % RemotePilotSource.SEND_INTERVAL_TICKS != 1:
 		await _roll_peer_step()

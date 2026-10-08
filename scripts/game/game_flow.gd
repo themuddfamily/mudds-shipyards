@@ -9696,9 +9696,22 @@ func _on_network_snapshot_applied(result: Dictionary) -> void:
 	if movement is Array:
 		# Station frame on the wire; this peer's own world space here.
 		_network_craft_pose_stream.ensure_replica_craft_presentations(ships)
+		var piloted := _network_client_remote_helm_ship()
+		var ship_id := piloted.get_ship_id() if is_instance_valid(piloted) else &""
+		var previous := _network_craft_pose_stream.latest_sample(ship_id)
 		_network_craft_pose_stream.consume_movement_section(
 			movement as Array, -1, _network_station_frame_origin()
 		)
+		var sample := _network_craft_pose_stream.latest_sample(ship_id)
+		# Only the stream's newly accepted current sample may refresh this clock.
+		# Repeated canonical movement rows, stale epochs/generations, other craft
+		# and retired pilots cannot reset the heard frame. The outer snapshot tick
+		# also advances for projectiles, independently of the boarding ledger.
+		if not sample.is_empty() and sample != previous \
+				and StringName(sample.ship_id) == ship_id \
+				and int(sample.pilot_peer_id) == _network_client_peer_id() \
+				and bool(sample.pose_active) and not bool(sample.destroyed):
+			network_session.observe_piloted_craft_boarding_tick(int(sample.operation_tick))
 		_ensure_network_emberline_actor_presenter().consume_movement_section(
 			movement as Array, _network_station_frame_origin()
 		)

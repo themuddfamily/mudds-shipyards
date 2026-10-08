@@ -263,7 +263,8 @@ var _boarding_answer_revision := 0
 ## callback owns no seats; the existing ledger still validates every intent.
 var _boarding_departure_guard: Callable
 ## The engine physics frame on which this client last heard the ledger tick
-## (from the admission offer or a boarding answer), or -1 before it has heard
+## (from admission, a boarding answer or a validated piloted-craft sample), or -1
+## before it has heard
 ## one. The authority advances its tick once per physics tick, so the heard
 ## tick plus the physics frames since is the client's estimate of "now" on the
 ## host -- behind it by the one-way latency, which the ledger's window absorbs.
@@ -817,7 +818,8 @@ func get_boarding_server_tick() -> int:
 
 
 ## Client estimate of the authority's ledger tick right now: the last tick this
-## peer heard (admission offer or boarding answer) plus the physics frames that
+## peer heard (admission, boarding answer or fresh validated pilot craft sample)
+## plus the physics frames that
 ## have run here since. 0 before anything was heard. This is what a boarding
 ## request is stamped with, so a first request made straight after joining
 ## already lands inside the authority's window rather than costing a refusal
@@ -828,6 +830,16 @@ func get_boarding_server_tick_estimate() -> int:
 	return _boarding_result_server_tick + maxi(
 		0, Engine.get_physics_frames() - _boarding_heard_physics_frame
 	)
+
+
+## GameFlow calls this only after accepting a fresh authoritative sample for
+## this client's claimed pilot craft. Compare real observations, not the
+## extrapolated estimate: after a host stall the estimate must move down while
+## the sender's existing monotonic packet stamps catch up at their own cadence.
+func observe_piloted_craft_boarding_tick(server_tick: int) -> void:
+	if is_server() or not _configured or server_tick <= _boarding_result_server_tick:
+		return
+	_note_boarding_server_tick_heard(server_tick)
 
 
 ## The host player's own seat, written into the same ledger remote claims are
