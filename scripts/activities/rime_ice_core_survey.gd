@@ -61,10 +61,19 @@ static func valid_progress(candidate: Variant) -> bool:
 		return false
 	if (candidate as Dictionary).is_empty():
 		return true
+	var route_progress := (candidate as Dictionary).duplicate(true)
+	# Older visits contain only route progress; new visits also retain heat.
+	# Keep the activity authority's six-field contract unchanged.
+	if route_progress.has("heat_s"):
+		var heat: Variant = route_progress.get("heat_s")
+		if not (heat is float or heat is int) or not is_finite(float(heat)) \
+				or float(heat) < 0.0 or float(heat) > HEAT_CAPACITY_S:
+			return false
+		route_progress.erase("heat_s")
 	var validator := CheckpointRouteActivity.new(
 		definition_for(PackedVector3Array([Vector3.ZERO, Vector3.ONE]))
 	)
-	return bool(validator.validate_persistence_state(candidate).get("accepted", false))
+	return bool(validator.validate_persistence_state(route_progress).get("accepted", false))
 
 
 func attach(surface: Node3D) -> void:
@@ -83,7 +92,11 @@ func attach(surface: Node3D) -> void:
 			_region.to_local(_anchors[2].global_position),
 		])))
 	if not _pending_restore.is_empty():
-		_flow.activity_director.restore_activity_persistence_state(ACTIVITY_ID, _pending_restore)
+		var route_progress := _pending_restore.duplicate(true)
+		route_progress.erase("heat_s")
+		var restored := _flow.activity_director.restore_activity_persistence_state(ACTIVITY_ID, route_progress)
+		if bool(restored.get("accepted", false)) and _running():
+			_heat_s = float(_pending_restore.get("heat_s", HEAT_CAPACITY_S))
 		_pending_restore.clear()
 	else:
 		_clear_previous_visit_run()
@@ -124,6 +137,7 @@ func capture() -> Dictionary:
 		"state": int(route.state), "generation": int(route.generation),
 		"next_checkpoint_index": int(route.next_checkpoint_index),
 		"failure_reason": String(route.failure_reason),
+		"heat_s": _heat_s,
 	}
 
 

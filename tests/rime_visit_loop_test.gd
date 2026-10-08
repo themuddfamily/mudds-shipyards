@@ -190,9 +190,25 @@ func _run() -> void:
 			"next_checkpoint_index", -1)) == 1,
 		"the store returns the latest checkpoint, not the earlier start save")
 
+	# Saving away from warmth must retain the spent heater along with readings.
+	if not await _checked_walk(game, owner, [Vector3(-40, 0, -28)],
+			"the explorer leaves the heated hut before interrupting the survey"):
+		await _finish(game)
+		return
+	_check(not bool(survey.get_heat_snapshot().get("warm", true)),
+		"the interrupted survey is outside both heat sources")
+	survey.physics_tick(70.0)
+	var saved_heat := float(survey.get_heat_snapshot().get("heat_s", 0.0))
+	_check(saved_heat > 0.0 and saved_heat < SurveyType.HEAT_CAPACITY_S * 0.5,
+		"the survey has a spent but live heater before saving (%s)" % saved_heat)
+
 	# --- interrupt: whole-Main re-entry ----------------------------------------
 	var saved := game.save_interrupted_rime_visit() as Dictionary
 	_check(bool(saved.get("accepted", false)), "an in-progress Rime visit commits its record")
+	var heat_record := game._rime_expedition_persistence_binding.load_interrupted_visit() as Dictionary
+	var heat_progress := (heat_record.get("visit", {}) as Dictionary).get("survey", {}) as Dictionary
+	_check(is_equal_approx(float(heat_progress.get("heat_s", -1.0)), saved_heat),
+		"the atomic visit store carries the actual heater budget (%s)" % heat_progress)
 	await _shut_down(game)
 
 	var resumed_game := await _boot()
@@ -207,6 +223,11 @@ func _run() -> void:
 	_check(resumed.is_active() and resumed.state == &"surface"
 			and is_instance_valid(resumed_game.rime_streaming_bootstrap.get_loaded_instance()),
 		"the pilot comes back standing on the streamed Rime, not quietly at Mudds")
+	var resumed_survey: RefCounted = resumed.get("survey")
+	var restored_heat := float(resumed_survey.get_heat_snapshot().get("heat_s", -1.0))
+	# At most a few frames of ordinary warmth can run beside the resumed craft.
+	_check(absf(restored_heat - saved_heat) < 2.0,
+		"whole-Main re-entry preserves spent heat instead of refilling (%s -> %s)" % [saved_heat, restored_heat])
 	var resumed_craft := resumed.get("_ship") as HeroShip
 	var resumed_berth := resumed.get("_berth") as ShipBerth
 	_check(is_instance_valid(resumed_craft) and resumed_craft.get_home_berth_id() == home_berth_id
@@ -217,7 +238,6 @@ func _run() -> void:
 	_check(bool((restore.get("retire", {}) as Dictionary).get("accepted", false))
 			and not resumed_game.player.is_seated() and resumed_game.player.is_on_floor(),
 		"the receipt is retired and the resumed explorer stands on the ice")
-	var resumed_survey: RefCounted = resumed.get("survey")
 	_check(int(resumed_survey.snapshot().get("next_checkpoint_index", -1)) == 1
 			and int(resumed_survey.snapshot().get("state", -1)) == CheckpointRouteActivity.State.ACTIVE,
 		"whole-Main re-entry retains exactly the first reading")
