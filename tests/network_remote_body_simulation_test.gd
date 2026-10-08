@@ -256,6 +256,7 @@ func _build_session() -> bool:
 	var port := _reserve_port()
 	if port <= 0:
 		return false
+	_game._ensure_lan_discovery().discovery_port = 0
 	var hosted := _game.host_network_session(port, 8)
 	_check(bool(hosted.get("accepted", false)), "GameFlow hosts the authoritative session")
 	_server = _game.get_network_session()
@@ -658,9 +659,24 @@ func _assert_the_hatch_admits_and_releases_a_body() -> void:
 		and _body(entity) != null,
 		"a disembark from a berth the peer does not hold is refused and releases nobody (%s)"
 			% String(_boarding_results[0].get("status", &"?") if not _boarding_results.is_empty() else &"none"))
-	# The owner's own disembark through the hatch releases the body.
+	# Exterior departure is unsafe even for a confirmed cabin passenger while
+	# the hull is airborne. The guard retains both the body and its exact berth.
 	_boarding_results.clear()
 	_send_boarding(walker_index, entity, berth, &"passenger", 2, BoardingIntent.ACTION_DISEMBARK)
+	var refused := await _wait_until(func() -> bool: return _boarding_results.size() >= 1, 4.0)
+	_check(refused and not bool(_boarding_results[0].get("accepted", true))
+		and _boarding_results[0].get("status") == &"exterior_departure_requires_landing"
+		and not bool(_craft.get_telemetry().get("landed", true))
+		and _body(entity) == body and _frame.is_occupant_registered(body)
+		and (_server.get_boarding_snapshot().get("occupancies", []) as Array).any(
+			func(held: Dictionary) -> bool: return StringName(held.get("avatar_id", &"")) == entity \
+				and StringName(held.get("seat_id", &"")) == berth),
+		"airborne hatch departure is refused while retaining the exact passenger body and ledger berth")
+	if not await _dock_host_for_hatch_departure():
+		return
+	# The same owner's confirmed departure now releases the body at a real dock.
+	_boarding_results.clear()
+	_send_boarding(walker_index, entity, berth, &"passenger", 3, BoardingIntent.ACTION_DISEMBARK)
 	var left := await _wait_until(func() -> bool: return _boarding_results.size() >= 1, 4.0)
 	await _drive(6)
 	audit = _game.get_network_remote_body_audit()
@@ -680,17 +696,38 @@ func _assert_the_hatch_admits_and_releases_a_body() -> void:
 		"the movement authority forgets the released avatar")
 	# The berth is free again: the same peer can board a second time.
 	_boarding_results.clear()
-	_send_boarding(walker_index, entity, berth, &"passenger", 3, BoardingIntent.ACTION_BOARD)
+	_send_boarding(walker_index, entity, berth, &"passenger", 4, BoardingIntent.ACTION_BOARD)
 	await _wait_until(func() -> bool: return _boarding_results.size() >= 1, 4.0)
 	await _drive(4)
 	_check(_body(entity) != null and int(_game.get_network_remote_body_audit().get("hatch_admissions", 0)) == 2,
 		"a released berth can be claimed again and stands a fresh body")
 	_boarding_results.clear()
-	_send_boarding(walker_index, entity, berth, &"passenger", 4, BoardingIntent.ACTION_DISEMBARK)
+	_send_boarding(walker_index, entity, berth, &"passenger", 5, BoardingIntent.ACTION_DISEMBARK)
 	await _wait_until(func() -> bool: return _boarding_results.size() >= 1, 4.0)
 	await _drive(6)
 	_check(_body(entity) == null and int(_game.get_network_remote_body_audit().get("bodies", 0)) == bodies_before,
 		"the cabin is back to where the hatch found it before the crowd is admitted")
+
+
+func _dock_host_for_hatch_departure() -> bool:
+	var berth := _game._resolve_berth_node(_craft.get_home_berth_id())
+	_check(berth != null, "the hatch return resolves the craft's registered physical berth")
+	if berth == null:
+		return false
+	await _wake_engine_with_flight_demand(_craft, "host flight demand wakes propulsion for the hatch return")
+	# Approach setup only: the real controller must reserve, capture and commit
+	# the craft. No landed flag, ledger record or occupancy is assigned here.
+	_craft.global_transform = berth.get_dock_transform().translated_local(Vector3(0, 3, 0))
+	_craft.velocity = Vector3.ZERO
+	await _drive(1)
+	_dispatch_pilot_action(_game, &"landing_assist")
+	var docked := await _wait_until(func() -> bool: return berth.get_occupant() == _craft \
+		and bool(_craft.get_telemetry().get("landed", false)), 6.0)
+	_check(docked and bool(_craft.get_landing_contract_report().get("strict_dock_acceptance", false))
+		and _craft.global_transform.is_equal_approx(berth.get_dock_transform()),
+		"the real host landing controller captures and occupies the exact berth before exterior departures")
+	await _idle_engine_offline(_craft, "the physically docked host idles OFFLINE before passenger departures")
+	return docked and StringName(_craft.get_telemetry().get("engine_state", &"")) == HeroShip.ENGINE_OFFLINE
 
 
 func _send_boarding(
@@ -715,6 +752,26 @@ func _on_server_boarding_result(result: Dictionary) -> void:
 
 
 func _assert_the_crowd_budget() -> void:
+	# Hatch departures required an actual dock. Relaunch with ordinary flight
+	# demand on a new host sortie before the moving-cabin crowd leg resumes.
+	var berth := _game._resolve_berth_node(_craft.get_home_berth_id())
+	print("REMOTE_BODY_HOST_SORTIE_BEFORE_REBOARD: ", {
+		"departed": _game._sortie_departed_berth, "phase": _game.phase,
+		"landed": _craft.get_telemetry().get("landed"),
+		"berth_occupied": berth != null and berth.get_occupant() == _craft})
+	# Docking completed the old sortie; the normal exterior exit and hatch
+	# boarding establish the next sortie's departure owner without flag writes.
+	_dispatch_pilot_action(_game, &"interact")
+	_check(await _wait_for_phase(_game, GameFlow.Phase.APPROACH_SHIP, 1.5),
+		"the docked host exits normally before starting the next crowd flight sortie")
+	await _board_with_real_interaction(_game, _player, _craft)
+	_check(_craft.is_piloted() and _game.phase == GameFlow.Phase.START_ENGINES
+		and not _game._sortie_departed_berth,
+		"normal host hatch reboarding establishes a fresh departure owner for the crowd leg")
+	var clearance := await _thrust_clear_of_the_berth(_craft, 30.0)
+	_check(clearance >= 30.0 and not bool(_craft.get_telemetry().get("landed", true))
+		and berth != null and not berth.is_reserved(),
+		"normal host flight input clears the dock and its physical lease before the moving crowd leg")
 	var installed: Dictionary = _server.set_moving_interior_transport_hook(Callable(_shim, "enqueue"))
 	_check(bool(installed.get("installed", false)),
 		"the relationship stream routes through the latency shim for the crowd budget")
