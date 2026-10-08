@@ -30,8 +30,9 @@ Actual result and raw startup logs remain under
 `/root/.cache/mudds-shipyards/roadmap-validation/installer-ef4ad14-9ab49e6-native*`.
 The builder's metadata still says `native_verification: NOT_RUN`; the
 separate executed verifier result proves the native outcome. Interactive
-installation, installed corrupt-data recovery, clean-machine/platform/
-hardware review, trusted signing and final-candidate acceptance remain open.
+installation, in-world crash/save recovery, clean-machine/platform/
+hardware review, trusted signing and final-candidate acceptance remain open;
+installed document and interrupted-startup recovery are qualified below.
 
 ## Installed document recovery — checkpoint `9ab49e6`, 2026-10-08
 
@@ -64,9 +65,43 @@ false readiness, engine/leak failures and changed or lost player documents.
 The successful results, raw logs, fixture and failed probe witnesses remain in
 `/root/.cache/mudds-shipyards/roadmap-validation/installed-recovery-20261008/`.
 The recovery result names the actual tested source and owned user-data path.
-This proves installed startup recovery and document retention for this checkpoint;
-normal-controls recovery, forced OS crashes, interactive installation,
-clean-machine/platform/hardware review and final-candidate acceptance remain open.
+This proves installed startup recovery and document retention for this checkpoint.
+The subsequent OS-kill result below covers interrupted startup; normal-controls
+in-world recovery, interactive installation, clean-machine/platform/hardware
+review and final-candidate acceptance remain open.
+
+## Installed OS-kill startup recovery — checkpoint `9ab49e6`, 2026-10-08
+
+Add `-ForceKillRecovery` together with `-UserDataRecoveryFixture` to the existing
+native verifier. The optional mode preserves the probe's prior document chain,
+seeds a coherent production fixture, then kills three owned installed processes
+only after each has committed its current `starting`/`running` markers. Reads
+permit Windows atomic rename; timeout cleanup terminates only the owned process.
+The fourth boot must recommend safe settings, publish its actual recovery journal
+event, retain settings/tutorial progress, reach the menu and shut down cleanly.
+No interrupted marker or crash event is fabricated.
+
+Verifier implementation `304a55ec1` passes the actual native 15-step
+`ef4ad14` → `9ab49e6` → `ef4ad14` run, exit 0 and cleanup PASS. Three OS kills
+exit −1 with startup generations 1/2/3 retained. Fourth-boot generation 4 records
+three consecutive unfinished starts, recommends safe settings and publishes
+`crash_detected` for its own session with `recovered=true`, `attempt_count=3`.
+Exact settings and tutorial namespaces survive. The boot exits 0 with exactly
+one menu-ready record and commits `clean_shutdown`/`clean` markers. Backup
+recovery and newer-document retention through rollback/uninstall also pass.
+All six completed startups have mouse-free loading and zero engine/script/leak
+diagnostics; the three interrupted logs have no menu-ready record or such
+diagnostics. Application warnings remain visible.
+
+A fresh default-mode run passes all 11 steps; merged-source regressions pass
+14 tests, including actual owned-child kill and timeout cleanup. Raw results,
+startup logs, interrupted/recovered documents, journal and prior-chain witnesses
+remain in `/root/.cache/mudds-shipyards/roadmap-validation/installed-forced-kill-20261008/`.
+Owned installations, shortcuts and registry entries were removed; private probe
+profiles remain for inspection. The checkpoint executable and installer bytes
+are unchanged. This qualifies interrupted installed Windows startup under
+headless Dummy audio, not in-world save/reward/seat recovery, GPU performance,
+human gameplay or the final distributed candidate.
 
 ## Native checkpoint `ef4ad14` result — 2026-10-08
 
@@ -290,7 +325,7 @@ This is silent packaging acceptance on the development machine for these two uns
 - Cross-build upgrade and rollback are now supported by this verifier; a passing
   result requires actually running it against distinct old/new artifacts. The
   historical result above exercised only same-build reinstallation.
-- Corrupt user-data recovery through the installed binary, a second desktop
+- Final-candidate in-world crash/save recovery, a second desktop
   platform, native GPU behavior and a human walk through the interactive
   (non-silent) pages are not covered by this silent headless verifier.
   The compile test in
