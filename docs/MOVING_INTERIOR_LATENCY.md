@@ -1021,8 +1021,28 @@ no longer strands the snapshot stream).
   payload and opponent pulses were already replicated; slugs and seeker
   torpedoes are now too. The torpedo boat's own AI still runs on each
   client's copy, and whether a client copy launches its own local torpedoes
-  there has not been audited. The Emberline raider's travelling bolts are not
-  replicated yet.
+  there has not been audited. The Emberline raider's travelling bolts now replicate through this same
+  host-owned path (`4c4be5430`, 2026-10-08). Current peers receive the red bolt,
+  late peers receive its actual pool position without replaying launch, and
+  source destruction or retirement clears it. The client neither advances the
+  local convoy combat authority nor starts a parallel convoy. Returning to solo
+  restores the retained threat generation, attack timing and wounded/neutralized
+  health. Full remote convoy actor/damage presentation remains separate work.
+
+  The independent-process production regression covers host/current/late clients
+  with different station origins, reduced flash, replacement generations and
+  simultaneous disconnects. The host-mediated session now disables Godot's
+  unused client-to-client relay: the default relay reproducibly emitted an ENet
+  channel diagnostic when both clients disconnected together, before application
+  disconnect cleanup. The simultaneous test passes with the relay disabled;
+  supported gameplay RPCs remain server-mediated. Original failing logs are
+  retained. On exact `65d5d955f`, the canonical focused run passes 65 assertions,
+  zero diagnostics, unchanged source and stable imports. The first integrated
+  runtime run passed the same assertions but failed the runner's single-marker
+  contract because all three processes printed the parent sentinel; the harness
+  now gives only the parent that marker. Existing slug/torpedo checks pass 42
+  assertions, production convoy 44 and convoy save/restore 27 on the unchanged
+  runtime. The final `1c1b538` exact-package probe passes 68 assertions with no diagnostics; host and both clients explicitly verify the embedded package instead of falling back to source. Native Windows multiplayer/endurance and human/rendered acceptance remain open.
 * **A destroyed craft's hull on a client** stays visible: only the host hides
   and regenerates it (the client's copy was never damaged, so its own
   regeneration does not run), and the client's copy is moved to the host's
