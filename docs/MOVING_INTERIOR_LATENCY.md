@@ -20,6 +20,42 @@ opens real ENet sockets, so it has to take that lane. (The existing
 `tests/network/moving_interior_latency_test.gd` is a different, data-only
 regression over `NetworkMovingInteriorLatencyValidator` and is unchanged.)
 
+## Remote command-clock recovery checkpoint — 2026-10-08
+
+Checkpoint `d49bde8` delivers bounded recovery after an honest host simulation
+stall. The original independent-client witness stopped the host Main and Halyard
+physics for 120 client steps, restored their exact processing flags, then saw
+zero accepted commands and 150 ahead refusals over 600 continuing steps on the
+same valid pilot claim and authority source. The client had kept extrapolating
+its admission-time boarding anchor with local physics frames.
+
+GameFlow now refreshes that anchor only after its existing craft stream accepts
+a fresh sample for the exact currently piloted ship and local pilot. The sample
+uses the boarding-ledger clock; projectile publication advances the outer
+canonical snapshot tick independently. The stream's epoch/generation/freshness
+checks, active-pose/owner checks and adapter's observed-tick guard prevent
+stale/duplicate, other-craft and retired-pilot refreshes. Strict sender ordering,
+seat ownership and all host tick/rate/queue/packet limits remain unchanged.
+
+The existing helm suite observes throttle recovery within 180 continuing client
+steps, preserving the exact claim, source, producer and helm stream, then runs
+the original fresh-roll deadlines and full landing/retirement lifecycle. Eleven
+clean merged-source suites pass 740 assertions with zero diagnostics and stable
+source/imports. Exact-package independent peers pass 225 assertions, including
+two PCK checks, and silent isolated native Windows startup passes. Original
+failed witnesses and the two negative-snapshot fixture failures remain retained
+under `/root/.cache/mudds-shipyards/roadmap-validation/clock-recovery-witnesses/`.
+The initial merged run's older airborne-exit pose-fixture failure is also
+retained; the corrected fixture asserts the actual powered-airborne refusal,
+then real strict docking/OFFLINE before ownership release and regrant.
+
+Immediate post-stall action response, supported-craft native normal-controls,
+latency/endurance and full-source acceptance remain open. The new source's full
+matrix is `NOT_RUN`; the frozen `6092a52` run remains `RUNNING` and qualifies only
+its own source. The older intermittent second-landing failure remains
+causally unexplained. Fixture-positioned approaches and Dummy audio retain
+their existing limits. See [build notes](../builds/windows/MuddsShipyards-d49bde8-notes.txt).
+
 ## The transport shim
 
 There was no send/receive seam on the relationship stream, so one was added:
