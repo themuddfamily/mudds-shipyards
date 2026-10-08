@@ -784,7 +784,10 @@ func _test_mixed_race_patrol_restart(race_boundary: StringName) -> void:
 	var director := ActivityDirector.new()
 	root.add_child(director)
 	director.register_definition(ROUTE)
-	var race := CinderTimedRaceSession.new()
+	var race := CinderTimedRaceSession.new(
+		GameFlow.CINDER_RACE_LAPS, GameFlow.CINDER_RACE_COUNTDOWN_SECONDS,
+		GameFlow.CINDER_RACE_TIMEOUT_SECONDS
+	)
 	race.attach(director, 0)
 	race.start(0)
 	race.advance_physics(2.0, race.get_session_generation())
@@ -808,6 +811,9 @@ func _test_mixed_race_patrol_restart(race_boundary: StringName) -> void:
 		legacy_payload.cinder_timed_race_session.activities[0].reward_requested = false
 		legacy_payload.cinder_timed_race_session.activities[0].reward_granted = false
 		race_saved = store.commit(legacy_payload, store.get_generation(), "mixed-legacy-race-wire-fixture")
+	var compatible_race := race_persistence.load(first.cinder_race_session, first.get_activity_director())
+	_check(bool(compatible_race.get("accepted", false)),
+		"mixed %s race record is admitted by Main's exact configured session" % race_boundary)
 	var old_race_record: Dictionary = store.get_snapshot().cinder_timed_race_session.duplicate(true)
 	_check(bool(race_saved.accepted) and bool(paid.accepted),
 		"mixed %s profile retains a real earlier race boundary" % race_boundary)
@@ -832,6 +838,9 @@ func _test_mixed_race_patrol_restart(race_boundary: StringName) -> void:
 	var fresh_store := Store.new(path, retry_filesystem) as UserDataStore
 	var fresh := await _make_game(fresh_store)
 	var report := fresh.get_activity_integration_report()
+	_check(fresh.get_cinder_race_session_persistence_report().get("restore_status", {}).get("reason")
+		== &"pending_patrol_session_has_priority",
+		"mixed %s startup explicitly prioritizes pending patrol over its valid race" % race_boundary)
 	_check(report.selected_activity_kind == GameFlow.ACTIVITY_KIND_PATROL
 		and int(report.attached_route_owner_count) == 1
 		and fresh.get_active_activity_snapshot().get("state_id") == &"completed"
