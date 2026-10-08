@@ -40,7 +40,7 @@ because it cannot flicker:
 pass and are skipped entirely. Reported normals are facing directions: Godot
 winds front faces clockwise, so the geometric normal is negated on the way out.
 
-## Where the scene stands after this pass
+## Historical scene totals after the first pass
 
 1,411 pairs reported / 419 families, against 1,350 back-to-back, 330 buried and
 28 declared exclusions, over 5,874 renderer placements and 162,073 planar faces.
@@ -146,10 +146,8 @@ by whoever owns them:
 | seam | owner |
 | --- | --- |
 | Zenith `PortWingOuterSkin` × `PortBlendedDeltaWing` (0.27 m² at 0.7 m — the highest-scoring finding in the whole scene) | `scripts/ships/zenith_interceptor.gd` |
-| Bulwark cockpit floor × both side consoles (0.50 m² at 1.9 m, ×2) | `scripts/ships/bulwark_heavy_gunship.gd` |
 | bomber and cargo berth legs × boarding legs (3.20 m², ×4 each) | `scripts/world/fleet_expansion_berths.gd` |
 | dock lattice connector deck × cargo container batch (30.76 m²) | `scripts/world/shipyard_world.gd`, `scripts/world/ship_berth.gd` |
-| Cinder cargo pod × loadmaster cabin end wall (7.51 m²) | `scripts/ships/cinder_cargo_hauler.gd` |
 | dock slab / slab inset × Halyard landing gear feet | `scripts/world/fleet_dock_comb.gd`, `scripts/ships/halyard_crew_transport.gd` |
 | AftJunctionStack (248 pairs, 47.70 m²) and JovianFreightBerth (125 pairs, 59.17 m²) | `scripts/world/aft_junction_stack.gd`, `scripts/world/jovian_freight_berth.gd` |
 
@@ -174,10 +172,53 @@ its two posts and sets the source renderers to render layer 0, so only the batch
 is ever drawn. The audit counts the layer-0 sources because it does not read
 render layers.
 
-## Known unrelated failure
+## Historical unrelated failure — 2026-09-27
 
 `tests/geometry_census_scenario_test.gd` fails on the current baseline with a
 triangle-only drift (resident 1,951,735 vs the frozen 1,951,853; loaded 2,085,869
 vs 2,085,987). It reproduces on an unmodified `scripts/world/` tree, and the
 per-bucket census is byte-identical before and after this pass, so it is not
 caused by these fixes and has not been refrozen here.
+
+## Cinder cargo forward bulkhead — fixed 2026-10-08
+
+`c7466dfab` removes the cargo pod's forward cap where the retained loadmaster
+cabin end wall already closes its entire perimeter. The different finishes
+shared 7.5047 m² at craft-local z = −2.60 and produced visible striping in the
+complete production craft. The cabin wall, pod perimeter, aft cap, collision,
+access and cargo/crew behavior are retained. Only the duplicate 12 triangles
+are removed.
+
+Original-resolution 1600×900 before/after captures show the striped bulkhead
+becoming a clean surface. They were inspected after silent isolated Xvfb/x11
+Forward+ software rendering; native GPU and human gameplay review remain open.
+Raw captures and audit/census comparisons are retained under
+`/root/.cache/mudds-shipyards/roadmap-validation/cinder-cabin-seam-visuals/`.
+The existing hull-resource regression requires the unchanged cabin wall to
+cover the complete pod perimeter and forbids an emitted forward-cap triangle.
+It fails on the old construction and passes nine assertions on the fix.
+
+Fresh private-profile canonical censuses isolate exactly −12 triangles:
+resident 1,751,137 → 1,751,125; loaded Cinder 1,906,159 → 1,906,147. Renderer,
+mesh/material, light and node counts are unchanged. `c42b33fe7` updates these
+exact counts and derived fingerprints in the existing census test; performance
+ceilings are unchanged. Its clean owning/census run passes 26 assertions with
+stable source/imports. These current results supersede the historical census
+failure above for this source; they do not recompute the historical whole-scene
+seam totals or close full-game visual acceptance.
+
+## Bulwark console contact — no defect found 2026-10-08
+
+The recorded floor × side-console overlap (0.502 m² ×2) is contact between
+downward console bottoms and the upward cockpit floor. Inherited disabled
+culling admits the opposing faces into the geometric audit, but the formed
+console crowns and sides hide them in current production geometry. All 24
+sampled sightlines from pilot-height, low aisle and overhead positions hit the
+console's opaque geometry before reaching the contact plane.
+
+The complete production-craft overhead and low-oblique 1600×900 images were
+inspected and show clean console/floor contact. Captures, visibility helper and
+logs remain in `/root/.cache/mudds-shipyards/roadmap-validation/bulwark-console-contact-visuals/`; validation used silent isolated
+Xvfb/x11 Forward+ software rendering. No source, collision, material or census
+change was needed. This finding removes that named contact from the actionable
+defect list, while native visual review remains open.
