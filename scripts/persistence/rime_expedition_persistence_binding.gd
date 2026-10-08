@@ -21,5 +21,18 @@ func _init() -> void:
 	super("rime", PAYLOAD_KIND, SurveyType, true)
 
 
+## UserDataStore uses JSON's default numeric precision. Canonicalize heat to
+## that representation before the full-precision visit receipt hashes it, so
+## fractional physics expenditure survives disk reload with the same receipt.
+func normalize_visit(candidate: Variant) -> Dictionary:
+	var normalized := super.normalize_visit(candidate)
+	if bool(normalized.get("accepted", false)):
+		var visit := normalized.get("visit", {}) as Dictionary
+		var progress := visit.get("survey", {}) as Dictionary
+		if progress.has("heat_s"):
+			progress["heat_s"] = float(JSON.parse_string(JSON.stringify(float(progress["heat_s"]))))
+	return normalized
+
+
 static func _digest(visit: Dictionary) -> String:
 	return digest_visit(visit)
