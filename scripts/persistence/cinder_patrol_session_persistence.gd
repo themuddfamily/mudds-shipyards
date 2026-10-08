@@ -38,6 +38,8 @@ func load(patrol: PatrolActivity, director: ActivityDirector) -> Dictionary:
 		"reason": &"patrol_session_loaded",
 		"store_generation": _store.get_generation(),
 		"patrol_state": (decoded.patrol_state as Dictionary).duplicate(true),
+		"reward_requested": bool((payload[slot_key].activities[0] as Dictionary).reward_requested),
+		"reward_granted": bool((payload[slot_key].activities[0] as Dictionary).reward_granted),
 	}.duplicate(true)
 
 
@@ -87,6 +89,13 @@ func save_state(
 		)
 		if not bool(existing_validation.get("accepted", false)):
 			return existing_validation
+		var existing_activity := (payload[slot_key].activities[0] as Dictionary)
+		var candidate_activity := (record.activities[0] as Dictionary)
+		if int(existing_activity.generation) == int(candidate_activity.generation) \
+				and int(existing_activity.state) == PatrolActivity.State.COMPLETED:
+			# Preserve the atomic receipt ack and ambiguous legacy false/false state.
+			candidate_activity.reward_requested = existing_activity.reward_requested
+			candidate_activity.reward_granted = existing_activity.reward_granted
 		var existing := _decode_record(payload[slot_key] as Dictionary)
 		var transition := _validate_transition(
 			existing.patrol_state as Dictionary, canonical_state
@@ -136,10 +145,13 @@ func validate_record(
 			or not _integral(activity.get("generation")) \
 			or not _integral(activity.get("state")) \
 			or activity.get("reward_requested") is not bool \
-			or bool(activity.get("reward_requested", true)) \
 			or activity.get("reward_granted") is not bool \
-			or bool(activity.get("reward_granted", true)) \
 			or not activity.get("progress") is Dictionary:
+		return _result(false, &"patrol_session_payload_corrupt")
+	if bool(activity.reward_granted) and not bool(activity.reward_requested):
+		return _result(false, &"patrol_session_payload_corrupt")
+	if (bool(activity.reward_requested) or bool(activity.reward_granted)) \
+			and int(activity.state) != PatrolActivity.State.COMPLETED:
 		return _result(false, &"patrol_session_payload_corrupt")
 	var progress := activity.progress as Dictionary
 	if progress.size() != 4 \
@@ -283,6 +295,7 @@ func _record(state: Dictionary) -> Dictionary:
 	})
 	var activity := (record.activities as Array)[0] as Dictionary
 	activity.activity_id = str(activity.activity_id)
+	activity.reward_requested = int(activity.state) == PatrolActivity.State.COMPLETED
 	var progress := activity.progress as Dictionary
 	progress.activity_id = str(progress.activity_id)
 	return record.duplicate(true)

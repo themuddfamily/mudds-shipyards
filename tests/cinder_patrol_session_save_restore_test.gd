@@ -22,6 +22,7 @@ const SLOT: StringName = &"cinder_patrol_session"
 
 class MemoryFilesystem extends Filesystem:
 	var files: Dictionary = {}
+	var reject_writes := false
 
 	func file_exists(path: String) -> bool:
 		return files.has(path)
@@ -45,6 +46,8 @@ class MemoryFilesystem extends Filesystem:
 		}
 
 	func write_bytes_and_flush(path: String, bytes: PackedByteArray) -> Error:
+		if reject_writes:
+			return ERR_UNAVAILABLE
 		files[path] = bytes.duplicate()
 		return OK
 
@@ -62,6 +65,45 @@ class MemoryFilesystem extends Filesystem:
 		files[to_path] = (files[from_path] as PackedByteArray).duplicate()
 		files.erase(from_path)
 		return OK
+
+
+## Real disk: reject a receipt write, then freeze after the live patrol's
+## terminal record publishes. Frozen teardown cannot repair the profile.
+class InterruptedPatrolRewardFilesystem extends UserDataFilesystem:
+	var stopped := false
+	var reward_rejected := false
+	var terminal_staged := false
+	var interrupt_rewards := true
+	var stage_reward_before_refusal := false
+
+	func write_bytes_and_flush(path: String, bytes: PackedByteArray) -> Error:
+		if stopped:
+			return ERR_UNAVAILABLE
+		var document: Variant = JSON.parse_string(bytes.get_string_from_utf8())
+		if interrupt_rewards and document is Dictionary and str((document.get("commit", {}) as Dictionary).get("id", "")).begins_with("game-flow-reward-"):
+			if stage_reward_before_refusal:
+				var staged := super.write_bytes_and_flush(path, bytes)
+				if staged != OK:
+					return staged
+			reward_rejected = true
+			stopped = terminal_staged
+			return ERR_UNAVAILABLE
+		if document is Dictionary and path.ends_with(".tmp"):
+			var slot: Dictionary = (document.get("payload", {}) as Dictionary).get("cinder_patrol_session", {})
+			if slot.get("activities") is Array and not slot.activities.is_empty():
+				terminal_staged = int((slot.activities[0] as Dictionary).get("state", -1)) == PatrolActivity.State.COMPLETED
+		return super.write_bytes_and_flush(path, bytes)
+
+	func remove_path(path: String) -> Error:
+		return ERR_UNAVAILABLE if stopped else super.remove_path(path)
+
+	func rename_path(from_path: String, to_path: String) -> Error:
+		if stopped:
+			return ERR_UNAVAILABLE
+		var result := super.rename_path(from_path, to_path)
+		if result == OK and from_path.ends_with(".tmp") and terminal_staged and reward_rejected and interrupt_rewards:
+			stopped = true
+		return result
 
 
 var _assertions := 0
@@ -395,6 +437,10 @@ func _run() -> void:
 		second_store.get_generation() > stored_generation,
 		"normal resume and exact saves advance only UserDataStore's commit generation"
 	)
+	await _test_terminal_patrol_reward_restart()
+	await _test_terminal_save_failure_and_legacy()
+	for race_boundary in [&"paid", &"reset", &"legacy"]:
+		await _test_mixed_race_patrol_restart(race_boundary)
 	_finish()
 
 
@@ -581,6 +627,269 @@ func _connect_rejection_signal_counts(
 		func(_activity_id: StringName, _generation: int) -> void:
 			counts.director = int(counts.director) + 1
 	)
+
+
+func _test_terminal_patrol_reward_restart() -> void:
+	var path := "user://patrol_reward_interruption_%d.json" % Time.get_ticks_usec()
+	var filesystem := InterruptedPatrolRewardFilesystem.new()
+	var first := await _make_game(Store.new(path, filesystem))
+	first.set_physics_process(false)
+	first.call("_on_settings_save_requested")
+	var selected := first.select_activity_kind(GameFlow.ACTIVITY_KIND_PATROL)
+	var craft := first.get_flyable_ships()[1] as HeroShip
+	first.active_ship = craft
+	first.set("_piloting", true)
+	first.phase = GameFlow.Phase.FREE_FLIGHT
+	var started := first.request_activity_start(ROUTE.activity_id)
+	var patrol := first.get_activity_integration_report().get("patrol_activity") as PatrolActivity
+	for checkpoint in ROUTE.get_checkpoint_count():
+		craft.global_position = ROUTE.get_checkpoint_position(checkpoint)
+		first.call("_physics_process", 0.0)
+		first.call("_physics_process", patrol.dwell_seconds)
+	_check(bool(selected.accepted) and bool(started.accepted)
+		and first.get_active_activity_snapshot().get("state_id") == &"completed"
+		and filesystem.reward_rejected and filesystem.stopped and _patrol_receipts(first) == 0,
+		"a real patrol completes with rejected reward publication and frozen real files")
+	var document: Dictionary = JSON.parse_string(FileAccess.get_file_as_string(path))
+	var saved_patrol := (document.payload.cinder_patrol_session.activities[0] as Dictionary)
+	_check(int(saved_patrol.state) == PatrolActivity.State.COMPLETED,
+		"the interrupted profile contains its live completed patrol on disk")
+	await _retire_game(first)
+	var retry_filesystem := InterruptedPatrolRewardFilesystem.new()
+	var second_store := Store.new(path, retry_filesystem) as UserDataStore
+	var second := await _make_game(second_store)
+	_check(second.get_active_activity_snapshot().get("state_id") == &"completed"
+		and _patrol_receipts(second) == 0 and retry_filesystem.reward_rejected,
+		"fresh Main retries the completed patrol while receipt writes still fail")
+	var blocked_start := second.request_activity_start(ROUTE.activity_id)
+	_check(not second.reset_active_activity() and not bool(blocked_start.accepted)
+		and blocked_start.reason == &"patrol_reward_pending",
+		"reset and automatic repeat preserve an unpaid completed patrol")
+	retry_filesystem.interrupt_rewards = false
+	retry_filesystem.stopped = false
+	second.call("_retry_owed_game_flow_activity_rewards")
+	var acknowledgement := (second_store.get_snapshot().cinder_patrol_session.activities[0] as Dictionary)
+	_check(_patrol_receipts(second) == 1 and acknowledgement.reward_requested and acknowledgement.reward_granted,
+		"the existing retry atomically publishes patrol receipt and acknowledgement")
+	second.save_cinder_patrol_session()
+	_check(bool((second_store.get_snapshot().cinder_patrol_session.activities[0] as Dictionary).reward_granted),
+		"ordinary completed patrol saves retain the paid acknowledgement")
+	_complete_unrelated_convoy(second)
+	_check(_patrol_receipts(second) == 1 and _total_receipts(second) == 2,
+		"a completed convoy model becomes the latest receipt after patrol payment")
+	await _retire_game(second)
+	var staged_filesystem := InterruptedPatrolRewardFilesystem.new()
+	staged_filesystem.interrupt_rewards = false
+	var third_store := Store.new(path, staged_filesystem) as UserDataStore
+	var third := await _make_game(third_store)
+	var paid_snapshot := third.get_active_activity_snapshot()
+	third.call("_on_patrol_completed", paid_snapshot)
+	_check(paid_snapshot.get("state_id") == &"completed" and _patrol_receipts(third) == 1 and _total_receipts(third) == 2,
+		"fresh Main and a repeated completion never repay patrol after an unrelated receipt")
+	third.set_physics_process(false)
+	third.active_ship = third.get_flyable_ships()[1]
+	third.set("_piloting", true)
+	third.phase = GameFlow.Phase.FREE_FLIGHT
+	var repeated := third.request_activity_start(ROUTE.activity_id)
+	var fresh_marker := (third_store.get_snapshot().cinder_patrol_session.activities[0] as Dictionary)
+	_check(bool(repeated.accepted) and not fresh_marker.reward_requested and not fresh_marker.reward_granted,
+		"automatic repeat starts a fresh patrol without the old acknowledgement")
+	staged_filesystem.stage_reward_before_refusal = true
+	var third_patrol := third.get_activity_integration_report().get("patrol_activity") as PatrolActivity
+	for checkpoint in ROUTE.get_checkpoint_count():
+		third.active_ship.global_position = ROUTE.get_checkpoint_position(checkpoint)
+		third.call("_physics_process", 0.0)
+		staged_filesystem.interrupt_rewards = checkpoint == ROUTE.get_checkpoint_count() - 1
+		third.call("_physics_process", third_patrol.dwell_seconds)
+	_check(_patrol_receipts(third) == 1 and FileAccess.file_exists(path + ".tmp"),
+		"interrupted patrol publication stages its real receipt and acknowledgement together")
+	staged_filesystem.interrupt_rewards = false
+	staged_filesystem.stopped = false
+	third.call("_on_settings_save_requested")
+	third.call("_retry_owed_game_flow_activity_rewards")
+	var stale := third.call("_commit_game_flow_activity_reward", {
+		"activity_id": &"cinder_relay_patrol", "activity_generation": int(paid_snapshot.generation),
+		"reward_id": &"return_patrol_log_to_shipyard", "reward_authority": false, "granted": false,
+	}) as Dictionary
+	_check(_patrol_receipts(third) == 2 and _total_receipts(third) == 3
+		and not bool(stale.accepted) and stale.reason == &"reward_generation_mismatch",
+		"staged patrol recovery grants once and rejects the old completion generation")
+	_check(third.reset_active_activity(),
+		"recovering a staged paid patrol receipt resolves its owed retry and permits reset")
+	await _retire_game(third)
+
+
+func _test_terminal_save_failure_and_legacy() -> void:
+	var filesystem := MemoryFilesystem.new()
+	var store := Store.new("memory://patrol-terminal-save-failure.json", filesystem) as UserDataStore
+	var game := await _make_game(store)
+	game.set_physics_process(false)
+	var selected := game.select_patrol_branch(PatrolActivity.BRANCH_PLATFORM_SWEEP)
+	var route := preload("res://assets/activities/cinder_reach_platform_patrol_route.tres")
+	game.active_ship = game.get_flyable_ships()[1]
+	game.set("_piloting", true)
+	game.phase = GameFlow.Phase.FREE_FLIGHT
+	var started := game.request_activity_start(route.activity_id)
+	var patrol := game.get_activity_integration_report().get("patrol_activity") as PatrolActivity
+	for checkpoint in route.get_checkpoint_count():
+		game.active_ship.global_position = route.get_checkpoint_position(checkpoint)
+		game.call("_physics_process", 0.0)
+		# Keep the penultimate progress and final dwell-entry proof durable.
+		filesystem.reject_writes = checkpoint == route.get_checkpoint_count() - 1
+		game.call("_physics_process", patrol.dwell_seconds)
+	_check(bool(selected.accepted) and bool(started.accepted)
+		and game.get_active_activity_snapshot().get("state_id") == &"completed"
+		and _patrol_receipts(game) == 0
+		and game.get_activity_reward_report().get("last_result", {}).get("reason") == &"reward_terminal_save_rejected",
+		"failed final terminal save leaves the live platform patrol unpaid and retryable")
+	filesystem.reject_writes = false
+	game.call("_retry_owed_game_flow_activity_rewards")
+	var wrong_branch := game.call("_commit_game_flow_activity_reward", {
+		"activity_id": &"cinder_relay_patrol", "activity_generation": patrol.get_generation(),
+		"reward_id": &"return_patrol_log_to_shipyard", "reward_authority": false, "granted": false,
+	}) as Dictionary
+	_check(_patrol_receipts(game) == 1 and not bool(wrong_branch.accepted)
+		and wrong_branch.reason == &"reward_terminal_handoff_invalid",
+		"the proven terminal retry pays platform once and rejects the relay reward binding")
+	# Explicit historical wire compatibility: derive the full record from the
+	# actual completed model, then represent its pre-marker false/false flags.
+	var legacy_payload := store.get_snapshot()
+	legacy_payload.cinder_patrol_session.activities[0].reward_requested = false
+	legacy_payload.cinder_patrol_session.activities[0].reward_granted = false
+	var legacy_saved := store.commit(legacy_payload, store.get_generation(), "legacy-patrol-wire-fixture")
+	game.save_cinder_patrol_session()
+	_check(bool(legacy_saved.accepted)
+		and not bool(store.get_snapshot().cinder_patrol_session.activities[0].reward_requested),
+		"same-generation saves preserve explicitly ambiguous legacy patrol flags")
+	await _retire_game(game)
+	var fresh := await _make_game(Store.new("memory://patrol-terminal-save-failure.json", filesystem))
+	fresh.call("_on_patrol_completed", fresh.get_active_activity_snapshot())
+	_check(_patrol_receipts(fresh) == 1
+		and fresh.get_active_activity_snapshot().get("state_id") == &"completed"
+		and not fresh.call("_has_pending_cinder_patrol_reward"),
+		"legacy false/false patrol restores without inferred debt or newly minted credit")
+	await _retire_game(fresh)
+
+
+func _test_mixed_race_patrol_restart(race_boundary: StringName) -> void:
+	var path := "user://mixed_patrol_reward_%s_%d.json" % [race_boundary, Time.get_ticks_usec()]
+	var filesystem := InterruptedPatrolRewardFilesystem.new()
+	filesystem.interrupt_rewards = false
+	var store := Store.new(path, filesystem) as UserDataStore
+	var first := await _make_game(store)
+	first.set_physics_process(false)
+	first.call("_on_settings_save_requested")
+	# Earlier race boundary is a real completed typed session, codec and authority
+	# on this same disk store; the subsequent patrol uses live Main and craft.
+	var director := ActivityDirector.new()
+	root.add_child(director)
+	director.register_definition(ROUTE)
+	var race := CinderTimedRaceSession.new()
+	race.attach(director, 0)
+	race.start(0)
+	race.advance_physics(2.0, race.get_session_generation())
+	race.advance_physics(1.0, race.get_session_generation())
+	race.advance_physics(0.25, race.get_session_generation())
+	for checkpoint in ROUTE.get_checkpoint_count():
+		race.submit_position(ROUTE.get_checkpoint_position(checkpoint), race.get_session_generation())
+	var race_persistence := CinderRaceSessionPersistence.new()
+	race_persistence.configure(store, &"cinder_timed_race_session")
+	var race_saved := race_persistence.save(race, director, "mixed-terminal-race")
+	var paid := first.call("_commit_game_flow_activity_reward", {
+		"activity_id": ROUTE.activity_id, "activity_generation": race.get_session_generation(),
+		"reward_id": &"return_race_record_to_shipyard", "reward_authority": false, "granted": false,
+	}) as Dictionary
+	if race_boundary == &"reset":
+		race.reset(race.get_session_generation())
+		race_saved = race_persistence.save(race, director, "mixed-reset-paid-race")
+	elif race_boundary == &"legacy":
+		# Labelled historical wire fixture, preserving the real terminal capture.
+		var legacy_payload := store.get_snapshot()
+		legacy_payload.cinder_timed_race_session.activities[0].reward_requested = false
+		legacy_payload.cinder_timed_race_session.activities[0].reward_granted = false
+		race_saved = store.commit(legacy_payload, store.get_generation(), "mixed-legacy-race-wire-fixture")
+	var old_race_record: Dictionary = store.get_snapshot().cinder_timed_race_session.duplicate(true)
+	_check(bool(race_saved.accepted) and bool(paid.accepted),
+		"mixed %s profile retains a real earlier race boundary" % race_boundary)
+	race.close(race.get_session_generation())
+	director.free()
+	var selected := first.select_activity_kind(GameFlow.ACTIVITY_KIND_PATROL)
+	first.active_ship = first.get_flyable_ships()[1]
+	first.set("_piloting", true)
+	first.phase = GameFlow.Phase.FREE_FLIGHT
+	var started := first.request_activity_start(ROUTE.activity_id)
+	var patrol := first.get_activity_integration_report().get("patrol_activity") as PatrolActivity
+	filesystem.interrupt_rewards = true
+	for checkpoint in ROUTE.get_checkpoint_count():
+		first.active_ship.global_position = ROUTE.get_checkpoint_position(checkpoint)
+		first.call("_physics_process", 0.0)
+		first.call("_physics_process", patrol.dwell_seconds)
+	_check(bool(selected.accepted) and bool(started.accepted) and filesystem.stopped
+		and filesystem.reward_rejected and _patrol_receipts(first) == 0,
+		"mixed %s profile freezes a genuine completed unpaid Main patrol" % race_boundary)
+	await _retire_game(first)
+	var retry_filesystem := InterruptedPatrolRewardFilesystem.new()
+	var fresh_store := Store.new(path, retry_filesystem) as UserDataStore
+	var fresh := await _make_game(fresh_store)
+	var report := fresh.get_activity_integration_report()
+	_check(report.selected_activity_kind == GameFlow.ACTIVITY_KIND_PATROL
+		and int(report.attached_route_owner_count) == 1
+		and fresh.get_active_activity_snapshot().get("state_id") == &"completed"
+		and _patrol_receipts(fresh) == 0 and retry_filesystem.reward_rejected
+		and not fresh.reset_active_activity(),
+		"mixed %s fresh Main adopts one pending patrol owner and preserves failed retry" % race_boundary)
+	retry_filesystem.interrupt_rewards = false
+	retry_filesystem.stopped = false
+	fresh.call("_retry_owed_game_flow_activity_rewards")
+	_check(_patrol_receipts(fresh) == 1 and _total_receipts(fresh) == 2
+		and fresh_store.get_snapshot().cinder_timed_race_session == old_race_record,
+		"mixed %s recovery acknowledges only patrol and retains the earlier race record" % race_boundary)
+	fresh.set_physics_process(false)
+	fresh.active_ship = fresh.get_flyable_ships()[1]
+	fresh.set("_piloting", true)
+	fresh.phase = GameFlow.Phase.FREE_FLIGHT
+	var previous_generation := int(fresh.get_active_activity_snapshot().generation)
+	var repeated := fresh.request_activity_start(ROUTE.activity_id)
+	var fresh_patrol := fresh.get_activity_integration_report().get("patrol_activity") as PatrolActivity
+	for checkpoint in ROUTE.get_checkpoint_count():
+		fresh.active_ship.global_position = ROUTE.get_checkpoint_position(checkpoint)
+		fresh.call("_physics_process", 0.0)
+		fresh.call("_physics_process", fresh_patrol.dwell_seconds)
+	_check(bool(repeated.accepted) and fresh_patrol.get_generation() > previous_generation
+		and _patrol_receipts(fresh) == 2 and _total_receipts(fresh) == 3,
+		"mixed %s recovery permits a genuine next patrol generation and its own receipt" % race_boundary)
+	await _retire_game(fresh)
+
+
+func _complete_unrelated_convoy(game: GameFlow) -> void:
+	var route := preload("res://assets/activities/cinder_reach_emberline_convoy_route.tres")
+	var director := ActivityDirector.new()
+	root.add_child(director)
+	director.register_definition(route)
+	var convoy := ConvoyEscortActivity.new(director, route.activity_id)
+	root.add_child(convoy)
+	convoy.safely_arrived.connect(func(_activity_id: StringName, _generation: int) -> void:
+		game.call("_on_cinder_convoy_safely_arrived", {"activity": convoy.get_snapshot()})
+	)
+	convoy.start(&"unit_emberline_tender", 1, 0)
+	for checkpoint in route.get_checkpoint_count():
+		var position := route.get_checkpoint_position(checkpoint)
+		convoy.submit_entity_sample(&"unit_emberline_tender", 1, position, position,
+			ConvoyEscortActivity.EntityStatus.ACTIVE, convoy.get_generation())
+	_check(int(convoy.get_snapshot().get("state", -1)) == ConvoyEscortActivity.State.COMPLETED,
+		"the unrelated reward is produced by the completed authored convoy model")
+	convoy.free()
+	director.free()
+
+
+func _total_receipts(game: GameFlow) -> int:
+	return int((game.get_activity_reward_report().get("authority", {}) as Dictionary).get("record", {}).get("total_receipts", 0))
+
+
+func _patrol_receipts(game: GameFlow) -> int:
+	var authority := game.get_activity_reward_report().get("authority", {}) as Dictionary
+	var record := authority.get("record", {}) as Dictionary
+	return int((record.get("reward_counts", {}) as Dictionary).get("return_patrol_log_to_shipyard", 0))
 
 
 func _record_patrol_state(record: Dictionary) -> Dictionary:

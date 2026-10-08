@@ -2140,6 +2140,23 @@ func _initialize_cinder_race_session_persistence() -> void:
 	_cinder_race_session_restore_status = loaded.duplicate(true)
 	if not bool(loaded.get("accepted", false)):
 		return
+	# A nonpending older race must not hide the explicit unpaid patrol handoff. Adopt
+	# that patrol through its normal restore below, retaining its generation and
+	# the single shared route owner for both retry and the player's next run.
+	if not (bool(loaded.get("reward_requested", false)) \
+			and not bool(loaded.get("reward_granted", false))):
+		var patrol_persistence := CinderPatrolSessionPersistenceType.new()
+		patrol_persistence.configure(
+			_runtime_settings_user_data_store, CINDER_PATROL_SESSION_PERSISTENCE_SLOT
+		)
+		var pending_patrol := patrol_persistence.load(patrol_activity, activity_director)
+		if bool(pending_patrol.get("accepted", false)) \
+				and bool(pending_patrol.get("reward_requested", false)) \
+				and not bool(pending_patrol.get("reward_granted", false)):
+			_cinder_race_session_restore_status = {
+				"accepted": false, "reason": &"pending_patrol_session_has_priority",
+			}
+			return
 	var restored := cinder_race_session.restore_persistence_state(
 		activity_director,
 		loaded.get("session_state", {}),
@@ -2275,6 +2292,15 @@ func _initialize_cinder_patrol_session_persistence() -> void:
 	_active_activity_generation = int(snapshot.get("generation", 0))
 	_activity_selection_locked = true
 	_cinder_patrol_session_saved_fingerprint = _cinder_patrol_save_fingerprint(snapshot)
+	# Restore emits no historical completion signal. Only the explicit pending
+	# handoff from a new terminal save is eligible; legacy false/false is ambiguous.
+	if snapshot.get("state_id", &"") == &"completed" \
+			and bool(loaded.get("reward_requested", false)) \
+			and not bool(loaded.get("reward_granted", false)):
+		_owed_game_flow_activity_rewards.append({
+			"activity_id": _cinder_patrol_reward_activity_id(snapshot),
+			"generation": _active_activity_generation,
+		})
 
 
 func save_cinder_patrol_session() -> Dictionary:
@@ -15259,6 +15285,9 @@ func request_activity_start(
 	if _has_pending_cinder_race_reward():
 		_present_pending_cinder_race_reward()
 		return {"accepted": false, "reason": &"race_reward_pending"}
+	if _has_pending_cinder_patrol_reward():
+		_present_pending_cinder_patrol_reward()
+		return {"accepted": false, "reason": &"patrol_reward_pending"}
 	if (
 		not is_instance_valid(activity_director)
 		or cinder_race_session == null
@@ -15410,6 +15439,9 @@ func reset_active_activity() -> bool:
 	_retry_owed_game_flow_activity_rewards()
 	if _has_pending_cinder_race_reward():
 		_present_pending_cinder_race_reward()
+		return false
+	if _has_pending_cinder_patrol_reward():
+		_present_pending_cinder_patrol_reward()
 		return false
 	if (
 		cinder_race_session == null
@@ -16018,6 +16050,22 @@ func _request_game_flow_activity_reward(
 					"store_result": terminal_save.duplicate(true),
 				}
 				return _last_game_flow_reward_result.duplicate(true)
+	if activity_id in [CINDER_PATROL_REWARD_ACTIVITY_ID, CINDER_PLATFORM_PATROL_REWARD_ACTIVITY_ID] \
+			and patrol_activity != null:
+		var patrol_snapshot := patrol_activity.get_presentation_snapshot()
+		if patrol_snapshot.get("state_id", &"") == &"completed" \
+				and int(patrol_snapshot.get("generation", 0)) == activity_generation \
+				and _cinder_patrol_reward_activity_id(patrol_snapshot) == activity_id:
+			var terminal_save := save_cinder_patrol_session()
+			if not bool(terminal_save.get("accepted", false)):
+				var pending := {"activity_id": activity_id, "generation": activity_generation}
+				if not _owed_game_flow_activity_rewards.has(pending):
+					_owed_game_flow_activity_rewards.append(pending)
+				_last_game_flow_reward_result = {
+					"accepted": false, "reason": &"reward_terminal_save_rejected",
+					"store_result": terminal_save.duplicate(true),
+				}
+				return _last_game_flow_reward_result.duplicate(true)
 	var completed := {
 		"activity_id": activity_id,
 		"state_id": &"completed",
@@ -16063,6 +16111,36 @@ func _present_pending_cinder_race_reward() -> void:
 		hud.toast(
 			"Race reward waiting",
 			"Saving failed. Your race is kept open; try again to save the reward.",
+			3.2,
+			true
+		)
+
+
+func _cinder_patrol_reward_activity_id(snapshot: Dictionary) -> StringName:
+	return (
+		CINDER_PLATFORM_PATROL_REWARD_ACTIVITY_ID
+		if StringName(snapshot.get("branch_id", PatrolActivity.BRANCH_RELAY_SWEEP))
+		== PatrolActivity.BRANCH_PLATFORM_SWEEP
+		else CINDER_PATROL_REWARD_ACTIVITY_ID
+	)
+
+
+func _has_pending_cinder_patrol_reward() -> bool:
+	if patrol_activity == null:
+		return false
+	var snapshot := patrol_activity.get_presentation_snapshot()
+	return snapshot.get("state_id", &"") == &"completed" \
+		and _owed_game_flow_activity_rewards.has({
+			"activity_id": _cinder_patrol_reward_activity_id(snapshot),
+			"generation": int(snapshot.get("generation", 0)),
+		})
+
+
+func _present_pending_cinder_patrol_reward() -> void:
+	if is_instance_valid(hud):
+		hud.toast(
+			"Patrol reward waiting",
+			"Saving failed. Your patrol is kept open; try again to save the reward.",
 			3.2,
 			true
 		)
@@ -16245,12 +16323,7 @@ func _cinder_patrol_save_fingerprint(snapshot: Dictionary) -> String:
 
 
 func _on_patrol_completed(snapshot: Dictionary) -> void:
-	var reward_activity_id := (
-		CINDER_PLATFORM_PATROL_REWARD_ACTIVITY_ID
-		if StringName(snapshot.get("branch_id", PatrolActivity.BRANCH_RELAY_SWEEP))
-		== PatrolActivity.BRANCH_PLATFORM_SWEEP
-		else CINDER_PATROL_REWARD_ACTIVITY_ID
-	)
+	var reward_activity_id := _cinder_patrol_reward_activity_id(snapshot)
 	var reward := _request_game_flow_activity_reward(
 		reward_activity_id,
 		int(snapshot.get("generation", 0))

@@ -234,6 +234,43 @@ func commit(request: Variant) -> Dictionary:
 			return _reject(&"reward_generation_already_committed")
 		race_completion = saved_race
 
+	var patrol_completion: Dictionary = {}
+	if activity_id in [PATROL_ACTIVITY_ID, PLATFORM_PATROL_ACTIVITY_ID]:
+		var patrol_slot: Variant = (payload as Dictionary).get("cinder_patrol_session")
+		if not patrol_slot is Dictionary or not patrol_slot.get("activities") is Array \
+				or (patrol_slot.activities as Array).size() != 1:
+			_commit_active = false
+			return _reject(&"reward_terminal_handoff_invalid")
+		var saved_patrol: Variant = patrol_slot.activities[0]
+		var platform_patrol := activity_id == PLATFORM_PATROL_ACTIVITY_ID
+		var expected_route := "cinder_reach_platform_patrol_route" if platform_patrol else String(RACE_ACTIVITY_ID)
+		var expected_branch := PatrolActivity.BRANCH_PLATFORM_SWEEP if platform_patrol else PatrolActivity.BRANCH_RELAY_SWEEP
+		if not saved_patrol is Dictionary \
+				or str(saved_patrol.get("activity_id", "")) != expected_route \
+				or int(saved_patrol.get("state", -1)) != PatrolActivity.State.COMPLETED \
+				or not _integral(saved_patrol.get("generation")) \
+				or saved_patrol.get("reward_requested") != true \
+				or saved_patrol.get("reward_granted") is not bool \
+				or not saved_patrol.get("progress") is Dictionary:
+			_commit_active = false
+			return _reject(&"reward_terminal_handoff_invalid")
+		var patrol_state: Variant = (saved_patrol.progress as Dictionary).get("patrol_state")
+		if not patrol_state is Dictionary \
+				or str(patrol_state.get("activity_id", "")) != expected_route \
+				or StringName(patrol_state.get("branch_id", &"")) != expected_branch \
+				or int(patrol_state.get("generation", -1)) != int(saved_patrol.generation) \
+				or int(patrol_state.get("state", -1)) != PatrolActivity.State.COMPLETED:
+			_commit_active = false
+			return _reject(&"reward_terminal_handoff_invalid")
+		if int(saved_patrol.generation) != activity_generation:
+			_commit_active = false
+			return _reject(&"reward_generation_mismatch")
+		if saved_patrol.reward_granted:
+			_record = current
+			_commit_active = false
+			return _reject(&"reward_generation_already_committed")
+		patrol_completion = saved_patrol
+
 	# Aurora and Rime are one-time discoveries across Main re-entry and
 	# interrupted saves. Read the durable ledger here, before consuming the
 	# caller's generation.
@@ -284,6 +321,9 @@ func commit(request: Variant) -> Dictionary:
 	next_payload[String(SLOT_ID)] = next_record
 	if not race_completion.is_empty():
 		var acknowledged := (next_payload.cinder_timed_race_session.activities[0] as Dictionary)
+		acknowledged.reward_granted = true
+	if not patrol_completion.is_empty():
+		var acknowledged := (next_payload.cinder_patrol_session.activities[0] as Dictionary)
 		acknowledged.reward_granted = true
 	var committed := _store.call(
 		&"commit",

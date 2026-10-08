@@ -145,6 +145,28 @@ func _run() -> void:
 		"duplicate and mismatched handoffs fail without advancing persistent state"
 	)
 
+	var missing_patrol := authority.commit(_request(
+		AuthorityScript.PATROL_ACTIVITY_ID, 1, AuthorityScript.PATROL_REWARD_ID
+	))
+	_check(not bool(missing_patrol.accepted) and missing_patrol.reason == &"reward_terminal_handoff_invalid",
+		"a patrol request without a durable terminal handoff grants nothing")
+	var patrol_director := ActivityDirector.new()
+	root.add_child(patrol_director)
+	patrol_director.register_definition(CinderTimedRaceSession.ROUTE)
+	var patrol_owner := PatrolActivity.new(CinderTimedRaceSession.ROUTE, 1.0)
+	patrol_owner.attach(patrol_director, 0)
+	patrol_owner.start(0)
+	for checkpoint in CinderTimedRaceSession.ROUTE.get_checkpoint_count():
+		var position := CinderTimedRaceSession.ROUTE.get_checkpoint_position(checkpoint)
+		patrol_owner.submit_position(position, patrol_owner.get_generation())
+		patrol_owner.advance_physics(1.0, position, patrol_owner.get_generation())
+	var patrol_persistence := CinderPatrolSessionPersistence.new()
+	patrol_persistence.configure(store, &"cinder_patrol_session")
+	_check(bool(patrol_persistence.save(patrol_owner, patrol_director, "unit-terminal-patrol").accepted),
+		"a real patrol model supplies its completed durable handoff")
+	patrol_owner.close(patrol_owner.get_generation())
+	patrol_director.free()
+
 	var patrol := authority.commit(_request(
 		&"cinder_relay_patrol",
 		1,

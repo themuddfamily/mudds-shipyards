@@ -131,12 +131,11 @@ func _run() -> void:
 		game.call("_physics_process", 0.0)
 	_check(game.get_active_activity_snapshot().get("state_id") == &"completed" and _receipts(game) == 0,
 		"a live race terminal-save failure grants no receipt before its durable handoff exists")
-	game.call("_on_patrol_completed", {"generation": 3})
 	game.call("_on_cinder_convoy_safely_arrived", {"activity": {"generation": 2}})
 	_check(
 		_receipts(game) == 0
 			and not bool(game.get_activity_reward_report().get("last_result", {}).get("accepted", true)),
-		"race, patrol and convoy completions are rejected while the store cannot write"
+		"race and convoy completions are rejected while the store cannot write"
 	)
 	game.reset_active_activity()
 	_check(_receipts(game) == 0 and game.get_active_activity_snapshot().get("state_id") == &"completed", "a retry while the store still fails pays nothing and preserves the completed owner")
@@ -145,15 +144,13 @@ func _run() -> void:
 	game.reset_active_activity()
 	var counts := _reward_counts(game)
 	_check(
-		_receipts(game) == 3
+		_receipts(game) == 2
 			and int(counts.get("return_race_record_to_shipyard", 0)) == 1
-			and int(counts.get("return_patrol_log_to_shipyard", 0)) == 1
 			and int(counts.get("return_convoy_credit_to_shipyard", 0)) == 1,
 		"the next activity reset pays each owed reward once after the store recovers (%s)" % counts
 	)
 	game.reset_active_activity()
-	game.call("_on_patrol_completed", {"generation": 3})
-	_check(_receipts(game) == 3, "later retries and a replayed completion never pay twice")
+	_check(_receipts(game) == 2, "later retries and a replayed completion never pay twice")
 
 	game.queue_free()
 	await process_frame
@@ -209,9 +206,9 @@ func _test_completed_race_reward_crash() -> void:
 	second.save_cinder_race_session()
 	_check(bool((second_store.get_snapshot().cinder_timed_race_session.activities[0] as Dictionary).reward_granted),
 		"ordinary terminal saves preserve the paid acknowledgement")
-	# Bounded reward-handoff boundary: this valid unrelated request is not a
-	# claimed physical patrol journey. Its actual receipt replaces last_receipt.
-	second.call("_on_patrol_completed", {"generation": 7})
+	# An independent live convoy model produces the unrelated completion. This
+	# exercises the reward handoff boundary, not a physical convoy journey.
+	_complete_unrelated_convoy(second)
 	_check(_receipts(second) == 2,
 		"an unrelated valid reward handoff becomes the latest durable receipt")
 	second.queue_free()
@@ -270,6 +267,27 @@ func _make_disk_game(store: UserDataStore) -> GameFlow:
 	await physics_frame
 	await process_frame
 	return game
+
+
+func _complete_unrelated_convoy(game: GameFlow) -> void:
+	var route := preload("res://assets/activities/cinder_reach_emberline_convoy_route.tres")
+	var director := ActivityDirector.new()
+	root.add_child(director)
+	director.register_definition(route)
+	var convoy := ConvoyEscortActivity.new(director, route.activity_id)
+	root.add_child(convoy)
+	convoy.safely_arrived.connect(func(_activity_id: StringName, _generation: int) -> void:
+		game.call("_on_cinder_convoy_safely_arrived", {"activity": convoy.get_snapshot()})
+	)
+	convoy.start(&"unit_emberline_tender", 1, 0)
+	for checkpoint in route.get_checkpoint_count():
+		var position := route.get_checkpoint_position(checkpoint)
+		convoy.submit_entity_sample(&"unit_emberline_tender", 1, position, position,
+			ConvoyEscortActivity.EntityStatus.ACTIVE, convoy.get_generation())
+	_check(int(convoy.get_snapshot().get("state", -1)) == ConvoyEscortActivity.State.COMPLETED,
+		"the unrelated receipt comes from a completed authored convoy model")
+	convoy.free()
+	director.free()
 
 
 func _record(game: GameFlow) -> Dictionary:
