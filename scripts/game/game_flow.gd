@@ -18598,7 +18598,11 @@ func _mark_sortie_departed() -> Dictionary:
 	)
 	# The sortie flag records a historical departure. A later committed dock
 	# is a new lease, even while the same pilot remains seated on that sortie.
-	if _sortie_departed_berth and (berth_id.is_empty() or _network_client_boarding_is_live()):
+	if _sortie_departed_berth and (
+		berth_id.is_empty() or _network_client_boarding_is_live()
+		or active_ship.is_landing_active()
+		or not _ship_owns_exact_occupied_berth(active_ship, berth_id)
+	):
 		return {"accepted": false, "status": &"sortie_departure_unavailable"}
 	var berth := (
 		_resolve_berth_node(berth_id)
