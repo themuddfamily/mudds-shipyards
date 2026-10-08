@@ -45,6 +45,8 @@ const ENTITY_SUFFIX := "-pose"
 const PUBLISH_INTERVAL_TICKS := 3
 const COAST_TICKS := 600
 const TICK_SECONDS := 1.0 / 60.0
+const MAX_DISPLAY_BYTES := 8192
+const MAX_DISPLAY_INFLATED_BYTES := 65536
 
 const SAMPLE_HISTORY := 8
 const STALE_SAMPLE_TICKS := 120
@@ -69,9 +71,14 @@ const CLOCK_SLEW := 0.1
 # Host state.
 var _published: Dictionary = {}
 var _observed_damage: Dictionary = {}
+var _settled: Dictionary = {}
+var _observed_operation: Dictionary = {}
 
 # Client state.
 var _samples: Dictionary = {}
+var _settled_applied: Dictionary = {}
+var _presentation_shapes: Dictionary = {}
+var _presentation_source_keys: Dictionary = {}
 var _epoch := 0
 var _clock := -1.0
 var _heard_tick := -1
@@ -104,6 +111,8 @@ static func build_pose_entry(
 		"entity_id": pose_entity_id(ship_id),
 		"entity_generation": maxi(1, int(hull.get("component_generation", 1))),
 		"hull_presentation": hull,
+		"operation_presentation": (craft as HeroShip).get_network_operation_presentation_snapshot() if craft is HeroShip else {},
+		"operation_tick": maxi(0, pose_tick), "pose_active": true,
 		"owner_peer_id": maxi(1, pilot_peer_id),
 		"mode": MODE,
 		"ship_id": ship_id,
@@ -125,7 +134,7 @@ static func should_publish(server_tick: int) -> bool:
 ## `pilots` maps ship_id -> {"craft": Node3D, "peer_id": int} for every craft
 ## that is piloted right now. Returns the movement entries to publish this tick
 ## (empty on a tick that is not a publish tick).
-func build_host_entries(pilots: Dictionary, server_tick: int, observed_craft: Array = [], epoch: int = 1) -> Array:
+func build_host_entries(pilots: Dictionary, server_tick: int, observed_craft: Array = [], epoch: int = 1, station_origin: Vector3 = Vector3.ZERO) -> Array:
 	var entries: Array = []
 	for ship_id_variant in pilots.keys():
 		var ship_id := StringName(ship_id_variant)
@@ -156,6 +165,16 @@ func build_host_entries(pilots: Dictionary, server_tick: int, observed_craft: Ar
 		if changed or (prior.is_empty() and already_damaged):
 			_published[ship_id] = {"craft": craft, "peer_id": int((_published.get(ship_id, {}) as Dictionary).get("peer_id", 1)), "last_piloted_tick": server_tick}
 		_observed_damage[ship_id] = hull
+		var operation := craft.get_network_operation_presentation_snapshot()
+		var facts := [operation.engine, operation.landed, operation.docked, operation.landing, operation.canopy_open]
+		var operating: bool = operation.engine != HeroShip.ENGINE_OFFLINE or bool(operation.docked) or bool(operation.landing) or not bool(operation.landed) or bool(operation.canopy_open)
+		if (_observed_operation.has(ship_id) and _observed_operation[ship_id] != facts) or (not _observed_operation.has(ship_id) and operating):
+			_published[ship_id] = {"craft": craft, "peer_id": int((_published.get(ship_id, {}) as Dictionary).get("peer_id", 1)), "last_piloted_tick": server_tick}
+		_observed_operation[ship_id] = facts
+		if not _settled.has(ship_id) and _published.has(ship_id):
+			_settled[ship_id] = {"craft": craft, "pose_tick": server_tick, "position": craft.global_position - station_origin,
+				"rotation": craft.global_basis.orthonormalized().get_rotation_quaternion(), "velocity_world": craft.velocity}
+
 	for ship_id_variant in _published.keys():
 		var ship_id := StringName(ship_id_variant)
 		var record := _published[ship_id_variant] as Dictionary
@@ -174,6 +193,28 @@ func build_host_entries(pilots: Dictionary, server_tick: int, observed_craft: Ar
 		if not entry.is_empty():
 			entry["craft_epoch"] = maxi(1, epoch)
 			entries.append(entry)
+			_settled[ship_id] = {"craft": craft, "pose_tick": server_tick, "position": entry.position - station_origin,
+				"rotation": entry.rotation, "velocity_world": entry.velocity_world}
+	# Motion coasts independently of committed parked operation facts. Idle
+	# rows retain their last pose tick: they never manufacture fresh movement.
+	for ship_id: StringName in _settled.keys():
+		if _published.has(ship_id):
+			continue
+		var record: Dictionary = _settled[ship_id]
+		var craft: Node3D = record.craft if is_instance_valid(record.craft) else null
+		if craft == null or not craft.is_inside_tree():
+			_settled.erase(ship_id)
+			_observed_operation.erase(ship_id)
+			continue
+		var entry := build_pose_entry(craft, ship_id, 1, int(record.pose_tick), bool(craft.call(&"is_destroyed")))
+		if not entry.is_empty():
+			entry["craft_epoch"] = maxi(1, epoch)
+			for field: String in ["position", "rotation", "velocity_world"]:
+				entry[field] = record[field]
+			entry["position"] += station_origin
+			entry["pose_active"] = false
+			entry["operation_tick"] = server_tick
+			entries.append(entry)
 	return entries
 
 
@@ -184,6 +225,8 @@ func is_host_tracking(ship_id: StringName) -> bool:
 func clear_host() -> void:
 	_published.clear()
 	_observed_damage.clear()
+	_observed_operation.clear()
+	_settled.clear()
 
 
 # --- client half -------------------------------------------------------------
@@ -193,15 +236,16 @@ func clear_host() -> void:
 ## stream's entries are read; everything else in the section is ignored. A
 ## sample no newer than the newest one already held for that craft (the
 ## canonical republish of an older movement section, say) changes nothing.
-func consume_movement_section(movement: Array, physics_frame: int = -1) -> int:
+func consume_movement_section(movement: Array, physics_frame: int = -1, station_origin: Vector3 = Vector3.ZERO) -> int:
 	var accepted := 0
+	var display_batch := _display_batch_from_movement(movement)
 	for entry_variant in movement:
 		if not entry_variant is Dictionary:
 			continue
 		var entry := entry_variant as Dictionary
 		if StringName(entry.get("mode", &"")) != MODE:
 			continue
-		var sample := _sample_from_entry(entry)
+		var sample := _sample_from_entry(entry, display_batch, station_origin)
 		if sample.is_empty():
 			_rejected += 1
 			continue
@@ -220,6 +264,11 @@ func consume_movement_section(movement: Array, physics_frame: int = -1) -> int:
 			if int(sample.entity_generation) > int(previous.entity_generation):
 				history = []
 		if not history.is_empty() and int(sample.pose_tick) <= int((history.back() as Dictionary).pose_tick):
+			if int(sample.pose_tick) == int((history.back() as Dictionary).pose_tick) \
+					and int(sample.operation_tick) > int((history.back() as Dictionary).get("operation_tick", -1)):
+				history[history.size() - 1] = sample
+				_samples[ship_id] = history
+				accepted += 1
 			continue
 		history.append(sample)
 		while history.size() > SAMPLE_HISTORY:
@@ -230,6 +279,49 @@ func consume_movement_section(movement: Array, physics_frame: int = -1) -> int:
 			_heard_tick = int(sample.pose_tick)
 			_heard_frame = physics_frame if physics_frame >= 0 else Engine.get_physics_frames()
 	return accepted
+
+
+
+## Immutable local authored shapes only. Retained solo damage and operational
+## state cannot affect these fingerprints. Rebind after production variants
+## build at each session; clear retires all source references with that session.
+func bind_replica_craft_presentations(ships: Array) -> void:
+	_presentation_shapes.clear()
+	_presentation_source_keys.clear()
+	for craft: HeroShip in ships:
+		if not is_instance_valid(craft) or not craft.is_inside_tree():
+			continue
+		var hull := craft.get_network_damage_presentation_snapshot()
+		var operation := craft.get_network_operation_presentation_snapshot()
+		if hull.is_empty() or operation.is_empty():
+			continue
+		var placements: Array = []
+		for component: Dictionary in hull.components:
+			placements.append([component.local_position, component.local_radius])
+		var paths: Array = []
+		for renderer: Array in operation.renderers:
+			paths.append(renderer[0])
+		_presentation_shapes[craft.get_ship_id()] = {"placements": placements, "paths": paths,
+			"layout_hash": hash(placements), "roster_hash": hash([paths, operation.renderer_kinds])}
+		_presentation_source_keys[craft.get_ship_id()] = _craft_presentation_source_key(craft)
+
+func _craft_presentation_source_key(craft: HeroShip) -> Array:
+	var visual := craft.get_variant_visual_root()
+	return [craft.get_instance_id(), craft.ship_definition.get_instance_id() if craft.ship_definition != null else 0,
+		visual.get_instance_id() if is_instance_valid(visual) else 0]
+
+
+func ensure_replica_craft_presentations(ships: Array) -> void:
+	var changed := false
+	for craft: HeroShip in ships:
+		if is_instance_valid(craft) and craft.is_inside_tree() \
+				and _presentation_source_keys.get(craft.get_ship_id(), []) != _craft_presentation_source_key(craft):
+			forget(craft.get_ship_id())
+			craft.clear_network_operation_presentation()
+			craft.clear_network_damage_presentation()
+			changed = true
+	if changed:
+		bind_replica_craft_presentations(ships)
 
 
 func has_samples(ship_id: StringName) -> bool:
@@ -247,10 +339,14 @@ func get_tracked_ship_ids() -> Array:
 
 func forget(ship_id: StringName) -> void:
 	_samples.erase(ship_id)
+	_settled_applied.erase(ship_id)
 
 
 func clear_replica() -> void:
 	_samples.clear()
+	_settled_applied.clear()
+	_presentation_shapes.clear()
+	_presentation_source_keys.clear()
 	_epoch = 0
 	_clock = -1.0
 	_heard_tick = -1
@@ -298,6 +394,17 @@ func advance_replica(
 		if not has_samples(ship_id):
 			continue
 		var latest := latest_sample(ship_id)
+		if craft == locally_flown:
+			continue
+		if not bool(latest.get("pose_active", true)):
+			var settled_key := Vector2i(int(latest.entity_generation), int(latest.pose_tick))
+			if _settled_applied.get(ship_id) != settled_key:
+				craft.global_transform = Transform3D(Basis(latest.rotation), latest.position)
+				if craft is CharacterBody3D:
+					craft.velocity = latest.velocity_world
+				_settled_applied[ship_id] = settled_key
+			continue
+		_settled_applied.erase(ship_id)
 		if clock - float(latest.pose_tick) > STALE_SAMPLE_TICKS:
 			continue
 		if craft == piloted:
@@ -429,7 +536,89 @@ func get_audit() -> Dictionary:
 	}
 
 
-func _sample_from_entry(entry: Dictionary) -> Dictionary:
+func _display_batch_from_movement(movement: Array) -> Dictionary:
+	for row: Variant in movement:
+		if not row is Dictionary or StringName(row.get("mode", &"")) != MODE or not row.has("display_facts"):
+			continue
+		var packed: Variant = row.display_facts
+		var inflated_size: Variant = row.get("display_size")
+		if not packed is PackedByteArray or packed.size() < 8 or packed.size() > MAX_DISPLAY_BYTES \
+				or packed[0] != 0x28 or packed[1] != 0xb5 or packed[2] != 0x2f or packed[3] != 0xfd \
+				or not inflated_size is int or int(inflated_size) < 8 or int(inflated_size) > MAX_DISPLAY_INFLATED_BYTES:
+			return {}
+		var inflated: PackedByteArray = packed.decompress(int(inflated_size), FileAccess.COMPRESSION_ZSTD)
+		if inflated.is_empty():
+			return {}
+		var decoded: Variant = bytes_to_var(inflated)
+		if not decoded is Array or decoded.size() > 9:
+			return {}
+		var facts: Dictionary = {}
+		for item: Variant in decoded:
+			if not item is Array or item.size() != 11 or not (item[0] is StringName or item[0] is String):
+				return {}
+			var identity := pose_entity_id(StringName(item[0]))
+			if facts.has(identity):
+				return {}
+			facts[identity] = item
+		return facts
+	return {}
+
+
+func _sample_from_entry(entry: Dictionary, display_batch: Dictionary = {}, station_origin: Vector3 = Vector3.ZERO) -> Dictionary:
+	var display: Dictionary = entry
+	if not entry.has("ship_id"):
+		var identity := StringName(entry.get("entity_id", &""))
+		if not display_batch.has(identity):
+			return {}
+		var decoded: Variant = display_batch[identity]
+		if not decoded is Array or decoded.size() != 11 or not decoded[9] is Array or decoded[9].size() != 10:
+			return {}
+		entry = entry.duplicate()
+		var fields := ["ship_id", "pose_tick", "operation_tick", "pose_active", "craft_epoch", "rotation", "velocity_world", "destroyed", "hull_presentation"]
+		for index in fields.size():
+			entry[fields[index]] = decoded[index]
+		var shape: Dictionary = _presentation_shapes.get(StringName(decoded[0]), {})
+		if shape.is_empty() or not decoded[9][9] is int or int(decoded[9][9]) != int(shape.roster_hash):
+			return {}
+		var operation: Dictionary = {}
+		var operation_fields := ["engine", "landed", "docked", "landing", "canopy", "canopy_open", "readout", "readout_color", "renderers"]
+		for index in operation_fields.size():
+			operation[operation_fields[index]] = decoded[9][index]
+		if not operation.renderers is Array or operation.renderers.size() != shape.paths.size():
+			return {}
+		var renderers: Array = []
+		var indices: Dictionary = {}
+		for row: Variant in operation.renderers:
+			if not row is Array or row.size() != 12 or not row[0] is int or int(row[0]) < 0 \
+					or int(row[0]) >= shape.paths.size() or indices.has(int(row[0])):
+				return {}
+			indices[int(row[0])] = true
+			var renderer: Array = row.duplicate()
+			renderer[0] = shape.paths[int(row[0])]
+			renderers.append(renderer)
+		operation["renderers"] = renderers
+		entry["operation_presentation"] = operation
+		if not decoded[10] is Vector3 or not (decoded[10] as Vector3).is_finite():
+			return {}
+		entry["position"] = (decoded[10] as Vector3) + station_origin
+		display = entry
+		var packed_hull: Variant = display.get("hull_presentation")
+		if not packed_hull is Array or packed_hull.size() != 5 or not packed_hull[3] is Array \
+				or packed_hull[3].size() != ShipComponentDamage.COMPONENT_ORDER.size() \
+				or not packed_hull[4] is int or int(packed_hull[4]) != int(shape.layout_hash):
+			return {}
+		var components: Array = []
+		for index in ShipComponentDamage.COMPONENT_ORDER.size():
+			var row: Variant = packed_hull[3][index]
+			if not _bounded_number(row, 0.0, 1.0):
+				return {}
+			var state := ShipComponentDamage.state_for_integrity(float(row))
+			components.append({"id": ShipComponentDamage.COMPONENT_ORDER[index], "integrity": row,
+				"state": state, "state_id": ShipComponentDamage.state_id_for(state),
+				"local_position": shape.placements[index][0], "local_radius": shape.placements[index][1]})
+		display["hull_presentation"] = {"health": packed_hull[0], "maximum_health": packed_hull[1],
+			"component_generation": packed_hull[2], "components": components}
+
 	var ship_id := StringName(entry.get("ship_id", &""))
 	var position: Variant = entry.get("position")
 	var rotation: Variant = entry.get("rotation")
@@ -450,10 +639,18 @@ func _sample_from_entry(entry: Dictionary) -> Dictionary:
 	var epoch: Variant = entry.get("craft_epoch", 1)
 	if not generation is int or int(generation) < 1 or not epoch is int or int(epoch) < 1:
 		return {}
-	var hull: Variant = entry.get("hull_presentation", {})
+	var hull: Variant = display.get("hull_presentation", {})
 	if not hull is Dictionary or (not (hull as Dictionary).is_empty() and not _valid_hull_presentation(hull, generation, bool(entry.get("destroyed", false)))):
 		return {}
+	var operation: Variant = display.get("operation_presentation", {})
+	var operation_tick: Variant = entry.get("operation_tick", pose_tick)
+	if not operation is Dictionary or (not operation.is_empty() and not _valid_operation_presentation(operation)) \
+			or not operation_tick is int or int(operation_tick) < int(pose_tick) \
+			or not entry.get("pose_active", true) is bool:
+		return {}
 	return {
+		"operation_presentation": (operation as Dictionary).duplicate(true),
+		"operation_tick": int(operation_tick), "pose_active": bool(entry.get("pose_active", true)),
 		"entity_generation": int(generation), "craft_epoch": int(epoch), "hull_presentation": (hull as Dictionary).duplicate(true),
 		"ship_id": ship_id,
 		"pose_tick": int(pose_tick),
@@ -489,3 +686,98 @@ func _valid_hull_presentation(hull: Dictionary, generation: int, destroyed: bool
 			return false
 		ids[id] = true
 	return true
+
+
+func _finite_color(value: Variant) -> bool:
+	return value is Color and is_finite(value.r) and is_finite(value.g) and is_finite(value.b) and is_finite(value.a)
+
+
+func _finite_transform(value: Variant) -> bool:
+	return value is Transform3D and value.origin.is_finite() and value.basis.x.is_finite() \
+		and value.basis.y.is_finite() and value.basis.z.is_finite() \
+		and value.origin.length() < 10000.0 and value.basis.get_scale().length() < 100.0
+
+
+func _bounded_number(value: Variant, lower: float, upper: float) -> bool:
+	return (value is float or value is int) and is_finite(float(value)) and float(value) >= lower and float(value) <= upper
+
+
+func _valid_operation_presentation(operation: Dictionary) -> bool:
+	if StringName(operation.get("engine", &"")) not in [HeroShip.ENGINE_OFFLINE, HeroShip.ENGINE_STARTING, HeroShip.ENGINE_ONLINE]:
+		return false
+	for field: String in ["landed", "docked", "landing", "canopy_open"]:
+		if not operation.get(field) is bool:
+			return false
+	if not _bounded_number(operation.get("canopy"), 0.0, 1.0) or not operation.get("readout") is String \
+			or operation.readout.length() > 256 or not _finite_color(operation.get("readout_color")) \
+			or not operation.get("renderers") is Array or operation.renderers.size() > 64:
+		return false
+	var paths: Dictionary = {}
+	for packed: Variant in operation.renderers:
+		if not packed is Array or packed.size() != 12 or not packed[0] is String:
+			return false
+		var row := HeroShip.unpack_network_engine_renderer(packed)
+		var path: String = row.path
+		if path.is_empty() or path.length() > 256 or path.begins_with("/") or ".." in path or ":" in path or paths.has(path) \
+				or not _finite_transform(row.get("transform")) or not row.get("visible") is bool:
+			return false
+		paths[path] = true
+		for uniform: String in ["plume_damage_mix", "plume_boost"]:
+			if row.has(uniform) and not _bounded_number(row[uniform], 0.0, 1.0):
+				return false
+		if row.has("overlay") and not row.overlay is bool:
+			return false
+		if bool(row.get("overlay", false)) and (not _finite_color(row.get("overlay_color")) or not _bounded_number(row.get("overlay_intensity"), 0.0, 20.0)):
+			return false
+		if row.has("light_energy") and (not _finite_color(row.get("light_color")) or not _bounded_number(row.light_energy, 0.0, 100.0)):
+			return false
+		if row.has("core_material"):
+			if not row.core_material is Array or row.core_material.size() != 4 or not _finite_color(row.core_material[0]) \
+					or not row.core_material[1] is bool or not _finite_color(row.core_material[2]) or not _bounded_number(row.core_material[3], 0.0, 100.0):
+				return false
+		if row.has("slots"):
+			if not row.slots is Array or row.slots.size() > 8 or not row.get("slot_count") is int or int(row.slot_count) < -1 or int(row.slot_count) > row.slots.size():
+				return false
+			for transform: Variant in row.slots:
+				if not _finite_transform(transform):
+					return false
+	return true
+
+
+## Only the fixed, primitive display facts are packed; no node/resource can
+## enter this metadata. Compression keeps parked fleet baselines within the
+## existing fragment envelope. The receiver bounds inflation and then uses
+## exactly the same hull/operation validators as unpacked owning fixtures.
+static func pack_display_facts(entries: Array) -> Array:
+	var packed_entries: Array = []
+	var batch: Array = []
+	for entry: Dictionary in entries:
+		var wire: Dictionary = {}
+		for field: String in ["entity_id", "entity_generation", "owner_peer_id", "mode"]:
+			wire[field] = entry[field]
+		var hull: Dictionary = entry.hull_presentation
+		var components: Array = []
+		var placements: Array = []
+		for component: Dictionary in hull.components:
+			components.append(component.integrity)
+			placements.append([component.local_position, component.local_radius])
+		var operation: Dictionary = entry.operation_presentation
+		var paths: Array = []
+		var renderers: Array = []
+		for row: Array in operation.renderers:
+			var renderer := row.duplicate()
+			renderer[0] = paths.size()
+			paths.append(row[0])
+			renderers.append(renderer)
+		var operation_fields: Array = [operation.engine, operation.landed, operation.docked, operation.landing,
+			operation.canopy, operation.canopy_open, operation.readout, operation.readout_color, renderers, hash([paths, operation.renderer_kinds])]
+		var facts: Array = [entry.ship_id, entry.pose_tick, entry.operation_tick, entry.pose_active,
+			entry.craft_epoch, entry.rotation, entry.velocity_world, entry.destroyed,
+			[hull.health, hull.maximum_health, hull.component_generation, components, hash(placements)], operation_fields, entry.position]
+		batch.append(facts)
+		packed_entries.append(wire)
+	if not packed_entries.is_empty():
+		var bytes := var_to_bytes(batch)
+		packed_entries[0]["display_size"] = bytes.size()
+		packed_entries[0]["display_facts"] = bytes.compress(FileAccess.COMPRESSION_ZSTD)
+	return packed_entries

@@ -117,6 +117,8 @@ func _build() -> bool:
 		adapters.append(adapter)
 	_pilot = adapters[0]
 	_crewmate = adapters[1]
+	_pilot_stream.bind_replica_craft_presentations(_host.ships)
+	_crew_stream.bind_replica_craft_presentations(_host.ships)
 	_pilot.snapshot_applied.connect(func(result: Dictionary) -> void:
 		_pilot_stream.consume_movement_section(_movement_of(result)))
 	_crewmate.snapshot_applied.connect(func(result: Dictionary) -> void:
@@ -128,6 +130,7 @@ func _build() -> bool:
 		return false
 	var port := probe.get_local_port()
 	probe.stop()
+	_host._ensure_lan_discovery().discovery_port = 0
 	_check(bool(_host.host_network_session(port, 4).get("accepted", false)),
 		"the host GameFlow opens the authoritative session")
 	_server = _host.get_network_session()
@@ -242,7 +245,8 @@ func _assert_b_host_publishes_the_pose() -> void:
 		"the host's authoritative snapshot carries the Halyard's pose record")
 	_check(int(entry.get("owner_peer_id", 0)) == _pilot_id(),
 		"the pose record names the remote pilot as the craft's pilot")
-	_check(entry.get("rotation") is Quaternion and entry.get("velocity_world") is Vector3,
+	var validated := _crew_stream.latest_sample(SHIP_ID)
+	_check(validated.get("rotation") is Quaternion and validated.get("velocity_world") is Vector3,
 		"the pose carries rotation and velocity, not only a position")
 	for stream in [_pilot_stream, _crew_stream]:
 		var latest: Dictionary = (stream as PoseStream).latest_sample(SHIP_ID)

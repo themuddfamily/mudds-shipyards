@@ -428,6 +428,24 @@ var _network_damage_presentation: HeroDamagePresentation
 var _network_damage_state: Dictionary = {}
 var _network_damage_source_visibility: Dictionary = {}
 var _network_damage_cues := 0
+# Render-only operation projection. No engine/landing/boarding owners are written.
+const NETWORK_ENGINE_RENDER_PROPERTIES := ["_engine_glows", "_engine_core_glows", "_engine_lights",
+	"_engine_plumes", "_engine_cores", "_arrow_engine_lights", "_jovian_engine_lights",
+	"_halyard_engine_lights", "_close_plume_batch", "_far_plume_batch"]
+var _network_engine_renderers: Dictionary = {}
+var _network_engine_batch_sources: Dictionary = {}
+var _network_engine_visual_root: Node3D
+var _network_engine_definition: ShipDefinition
+var _network_operation_source: Dictionary = {}
+var _network_operation_state: Dictionary = {}
+var _network_operation_overlays: Dictionary = {}
+var _network_operation_batches: Dictionary = {}
+var _network_operation_core_materials: Dictionary = {}
+var _network_operation_queued := false
+var _network_operation_reduced_flash := false
+var _network_operation_starting: Dictionary = {}
+var _network_operation_canopy_restore := -1.0
+var _network_operation_policy_restore := false
 var _damage_presentation: HeroDamagePresentation
 ## Observational component model. It never owns hull; see
 ## `scripts/combat/ship_component_damage.gd` for the authority boundary.
@@ -537,6 +555,7 @@ var _planetary_surface_gravity_mutation_active := false
 
 func _enter_tree() -> void:
 	_bind_viewport_field_of_view_policy()
+	call_deferred("_restore_network_operation_solo_visuals")
 	# Child `_ready()` runs before this ship's `_ready()`. Bind the authored rig to
 	# the definition here so it snapshots the exact profile ID for every variant.
 	var rig := get_node_or_null("ShipAudioRig") as ShipAudioRig
@@ -547,6 +566,7 @@ func _enter_tree() -> void:
 
 
 func _exit_tree() -> void:
+	clear_network_operation_presentation()
 	clear_network_damage_presentation()
 	_unbind_viewport_field_of_view_policy()
 	# A detached body performs no physics. Fence every envelope captured against
@@ -645,6 +665,7 @@ func _physics_process(delta: float) -> void:
 	_update_presentation(delta, command)
 	_sync_damage_presentation()
 	_sync_component_damage(delta)
+	_queue_network_operation_reassert()
 
 
 func _unhandled_input(event: InputEvent) -> void:
@@ -2193,6 +2214,7 @@ func get_network_damage_presentation_snapshot() -> Dictionary:
 func set_network_damage_presentation_enabled(enabled: bool) -> void:
 	_network_damage_presentation_enabled = enabled
 	if not enabled:
+		clear_network_operation_presentation()
 		clear_network_damage_presentation()
 
 
@@ -2277,8 +2299,295 @@ func clear_network_damage_presentation() -> void:
 
 
 func set_network_damage_reduced_flash(enabled: bool) -> void:
+	_network_operation_reduced_flash = enabled
+	_reassert_network_operation_presentation()
 	if is_instance_valid(_network_damage_presentation):
 		_network_damage_presentation.set_reduced_flash_enabled(enabled)
+
+
+
+## Discover only the supported engine renderer properties, once after variant
+## construction. Incoming paths are resolved against this local whitelist.
+func _ensure_network_engine_renderers() -> void:
+	if _network_engine_visual_root == _visual_root and _network_engine_definition == ship_definition \
+			and not _network_engine_renderers.is_empty():
+		return
+	clear_network_operation_presentation()
+	_network_engine_visual_root = _visual_root
+	_network_engine_definition = ship_definition
+	_network_operation_overlays.clear()
+	_network_operation_batches.clear()
+	_network_operation_core_materials.clear()
+	_network_engine_renderers.clear()
+	_network_engine_batch_sources.clear()
+	var properties: Dictionary = {}
+	for property: Dictionary in get_property_list():
+		properties[String(property.name)] = true
+	for property: String in NETWORK_ENGINE_RENDER_PROPERTIES:
+		if not properties.has(property):
+			continue
+		var value: Variant = get(property)
+		var nodes: Array = value if value is Array else [value]
+		for node: Variant in nodes:
+			if is_instance_valid(node) and node is Node3D and is_ancestor_of(node) \
+					and (node is GeometryInstance3D or node is Light3D):
+				var path := String(get_path_to(node))
+				_network_engine_renderers[path] = node
+				if property in ["_close_plume_batch", "_far_plume_batch"]:
+					var source_property := "_close_plume_sources" if property == "_close_plume_batch" else "_far_plume_sources"
+					if properties.has(source_property):
+						_network_engine_batch_sources[path] = get(source_property)
+
+
+# Compact fixed renderer fields keep the existing 12KB snapshot envelope.
+# These are only whitelisted display values, never serialized scene nodes.
+static func _pack_network_engine_renderer(row: Dictionary) -> Array:
+	return [row.path, row.transform, row.visible, row.get("plume_damage_mix", 0.0),
+		row.get("plume_boost", 0.0), row.get("overlay_color") if bool(row.get("overlay", false)) else null,
+		row.get("overlay_intensity", 0.0), row.get("light_color"), row.get("light_energy", 0.0),
+		row.get("slots"), row.get("slot_count", -1), row.get("core_material")]
+
+
+static func unpack_network_engine_renderer(row: Array) -> Dictionary:
+	var result := {"path": row[0], "transform": row[1], "visible": row[2],
+		"plume_damage_mix": row[3], "plume_boost": row[4], "overlay": row[5] != null}
+	if row[5] != null:
+		result["overlay_color"] = row[5]
+		result["overlay_intensity"] = row[6]
+	if row[7] != null:
+		result["light_color"] = row[7]
+		result["light_energy"] = row[8]
+	if row[9] != null:
+		result["slots"] = row[9]
+		result["slot_count"] = row[10]
+	if row[11] != null:
+		result["core_material"] = row[11]
+	return result
+
+
+func _network_engine_renderer_row(path: String, node: Node3D) -> Dictionary:
+	var row := {"path": path, "transform": node.transform, "visible": node.visible}
+	if node is GeometryInstance3D:
+		for uniform: StringName in [&"plume_damage_mix", &"plume_boost"]:
+			var value: Variant = node.get_instance_shader_parameter(uniform)
+			row[String(uniform)] = float(value) if value is float or value is int else 0.0
+		if node is MeshInstance3D:
+			var material := node.get_active_material(0) as StandardMaterial3D
+			if material != null:
+				row["core_material"] = [material.albedo_color, material.emission_enabled, material.emission, material.emission_energy_multiplier]
+		var overlay := node.material_overlay as ShaderMaterial
+		row["overlay"] = overlay != null and overlay.shader == EngineExhaustPresentation.PLUME_SHADER
+		if row.overlay:
+			row["overlay_color"] = overlay.get_shader_parameter(&"exhaust_color")
+			row["overlay_intensity"] = overlay.get_shader_parameter(&"intensity")
+	if node is Light3D:
+		row["light_color"] = node.light_color
+		row["light_energy"] = node.light_energy
+	if node is MultiMeshInstance3D and node.multimesh != null:
+		var slots: Array = []
+		var cpu_sources: Array = []
+		if node.has_meta("authored_instance_transforms"):
+			cpu_sources = _network_engine_batch_sources.get(path, [])
+			for source: Node3D in cpu_sources:
+				if is_instance_valid(source) and source.visible:
+					slots.append(source.transform)
+			# Hidden slots are not drawn; preserve CPU-authored anchors rather
+			# than asking the headless renderer for an unreadable GPU buffer.
+			var authored: Array = node.get_meta("authored_instance_transforms", [])
+			while slots.size() < mini(8, node.multimesh.instance_count):
+				slots.append(authored[slots.size()] if slots.size() < authored.size() else Transform3D.IDENTITY)
+		else:
+			for index in mini(8, node.multimesh.instance_count):
+				slots.append(node.multimesh.get_instance_transform(index))
+		row["slots"] = slots
+		row["slot_count"] = node.multimesh.visible_instance_count
+	return row
+
+
+## Host reads the already-committed owners and renderer state. The row carries
+## display facts only, never an engine/landing command or a berth capability.
+func get_network_operation_presentation_snapshot() -> Dictionary:
+	_ensure_network_engine_renderers()
+	var rows: Array = []
+	for path: String in _network_engine_renderers:
+		var node: Node3D = _network_engine_renderers[path]
+		if is_instance_valid(node):
+			rows.append(_pack_network_engine_renderer(_network_engine_renderer_row(path, node)))
+	return {"engine": _engine_state, "landed": _landed, "docked": _docked_latch,
+		"landing": _landing_active, "canopy": clampf(_canopy_pivot.rotation.x / CANOPY_OPEN_ANGLE, 0.0, 1.0) if is_instance_valid(_canopy_pivot) else 0.0,
+		"canopy_open": _canopy_open, "renderers": rows, "renderer_kinds": get_network_engine_renderer_kinds(),
+		"readout": _cockpit_readout.text if is_instance_valid(_cockpit_readout) else "",
+		"readout_color": _cockpit_readout.modulate if is_instance_valid(_cockpit_readout) else Color.WHITE}
+
+
+func get_network_engine_renderer_kinds() -> Array:
+	var kinds: Array = []
+	for path: String in _network_engine_renderers:
+		var node: Node3D = _network_engine_renderers[path]
+		kinds.append(node.get_class() if is_instance_valid(node) else "")
+	return kinds
+
+
+func apply_network_operation_presentation(sample: Dictionary) -> void:
+	if not _network_damage_presentation_enabled or not is_inside_tree():
+		return
+	var operation := sample.get("operation_presentation", {}) as Dictionary
+	if operation.is_empty():
+		return
+	_ensure_network_engine_renderers()
+	if _network_operation_source.is_empty():
+		_network_operation_source = {"canopy": clampf(_canopy_pivot.rotation.x / CANOPY_OPEN_ANGLE, 0.0, 1.0) if is_instance_valid(_canopy_pivot) else 0.0,
+			"canopy_open": _canopy_open, "renderers": {}, "policy": _network_operation_solo_policy(),
+			"readout": _cockpit_readout.text if is_instance_valid(_cockpit_readout) else "",
+			"readout_color": _cockpit_readout.modulate if is_instance_valid(_cockpit_readout) else Color.WHITE}
+		for path: String in _network_engine_renderers:
+			var node: Node3D = _network_engine_renderers[path]
+			var original := _network_engine_renderer_row(path, node)
+			if node is GeometryInstance3D:
+				original["material_overlay"] = node.material_overlay
+				original["material_override"] = node.material_override
+			if node is MultiMeshInstance3D:
+				original["multimesh"] = node.multimesh
+			_network_operation_source.renderers[path] = original
+	var grade := [int(sample.get("entity_generation", 0)), (sample.get("hull_presentation", {}) as Dictionary).get("components", [])]
+	if operation.engine != _network_operation_state.get("engine", &"") or grade != _network_operation_state.get("grade", []):
+		_network_operation_starting.clear()
+	_network_operation_state = operation
+	_network_operation_state["destroyed"] = bool(sample.get("destroyed", false))
+	_network_operation_state["grade"] = grade
+	if operation.engine == ENGINE_STARTING and _network_operation_starting.is_empty():
+		_network_operation_starting = operation.duplicate(true)
+	_reassert_network_operation_presentation()
+	_queue_network_operation_reassert()
+
+
+func _queue_network_operation_reassert() -> void:
+	if _network_operation_state.is_empty() or _network_operation_queued:
+		return
+	_network_operation_queued = true
+	call_deferred("_reassert_network_operation_presentation")
+
+
+func _reassert_network_operation_presentation() -> void:
+	_network_operation_queued = false
+	if not _network_damage_presentation_enabled or not is_inside_tree() or _network_operation_state.is_empty():
+		return
+	var state := _network_operation_state
+	var rows: Array = _network_operation_starting.renderers if _network_operation_reduced_flash \
+		and state.engine == ENGINE_STARTING and not _network_operation_starting.is_empty() else state.renderers
+	for packed: Array in rows:
+		var row := unpack_network_engine_renderer(packed)
+		var path := String(row.path)
+		var node: Node3D = _network_engine_renderers.get(path)
+		if not is_instance_valid(node) or (node is Light3D and (not row.has("light_color") or not row.has("light_energy"))):
+			continue
+		node.transform = row.transform
+		node.visible = bool(row.visible) and not bool(state.destroyed)
+		if node is GeometryInstance3D:
+			if node is MeshInstance3D and row.has("core_material"):
+				if not _network_operation_core_materials.has(path):
+					var original := node.get_active_material(0) as StandardMaterial3D
+					if original != null:
+						_network_operation_core_materials[path] = original.duplicate()
+				var material := _network_operation_core_materials.get(path) as StandardMaterial3D
+				if material != null:
+					material.albedo_color = row.core_material[0]
+					material.emission_enabled = row.core_material[1]
+					material.emission = row.core_material[2]
+					material.emission_energy_multiplier = row.core_material[3]
+					node.material_override = material
+			node.set_instance_shader_parameter(&"plume_damage_mix", row.get("plume_damage_mix", 0.0))
+			node.set_instance_shader_parameter(&"plume_boost", row.get("plume_boost", 0.0))
+			if bool(row.get("overlay", false)):
+				if not _network_operation_overlays.has(path):
+					_network_operation_overlays[path] = EngineExhaustPresentation.create_damage_overlay()
+				var overlay := _network_operation_overlays[path] as ShaderMaterial
+				overlay.set_shader_parameter(&"exhaust_color", row.overlay_color)
+				overlay.set_shader_parameter(&"intensity", row.overlay_intensity)
+				node.material_overlay = overlay
+			else:
+				node.material_overlay = _network_operation_source.renderers[path].get("material_overlay")
+		if node is Light3D:
+			node.light_color = row.light_color
+			node.light_energy = 0.0 if bool(state.destroyed) else float(row.light_energy)
+		if node is MultiMeshInstance3D and node.multimesh != null and row.has("slots"):
+			if not _network_operation_batches.has(path):
+				var batch := MultiMesh.new()
+				batch.transform_format = node.multimesh.transform_format
+				batch.use_colors = node.multimesh.use_colors
+				batch.use_custom_data = node.multimesh.use_custom_data
+				batch.mesh = node.multimesh.mesh
+				batch.instance_count = node.multimesh.instance_count
+				batch.custom_aabb = node.multimesh.custom_aabb
+				_network_operation_batches[path] = batch
+			node.multimesh = _network_operation_batches[path]
+			for index in mini(node.multimesh.instance_count, row.slots.size()):
+				node.multimesh.set_instance_transform(index, row.slots[index])
+			node.multimesh.visible_instance_count = mini(node.multimesh.instance_count, int(row.slot_count))
+	_set_canopy_open_fraction(float(state.canopy))
+	if is_instance_valid(_cockpit_readout):
+		_cockpit_readout.text = state.readout
+		_cockpit_readout.modulate = state.readout_color
+
+
+func _network_operation_solo_policy() -> Array:
+	return [_engine_state, _throttle, _piloted, _landing_active, _docked_latch,
+		_is_engine_glow_reduced_flash(), get_engine_exhaust_damage_presentation_profile()]
+
+
+func clear_network_operation_presentation() -> void:
+	_network_operation_state.clear()
+	_network_operation_starting.clear()
+	if _network_operation_source.is_empty():
+		return
+	for path: String in _network_operation_source.renderers:
+		var node: Node3D = _network_engine_renderers.get(path)
+		if not is_instance_valid(node):
+			continue
+		var row: Dictionary = _network_operation_source.renderers[path]
+		node.transform = row.transform
+		node.visible = row.visible
+		if node is GeometryInstance3D:
+			node.material_overlay = row.material_overlay
+			node.material_override = row.material_override
+			node.set_instance_shader_parameter(&"plume_damage_mix", row.get("plume_damage_mix", 0.0))
+			node.set_instance_shader_parameter(&"plume_boost", row.get("plume_boost", 0.0))
+		if node is Light3D:
+			node.light_color = row.light_color
+			node.light_energy = row.light_energy
+		if node is MultiMeshInstance3D:
+			node.multimesh = row.multimesh
+	_network_operation_canopy_restore = float(_network_operation_source.canopy) if _canopy_open == bool(_network_operation_source.canopy_open) else (1.0 if _canopy_open else 0.0)
+	if is_instance_valid(_canopy_pivot):
+		_canopy_pivot.rotation.x = CANOPY_OPEN_ANGLE * _network_operation_canopy_restore
+	if is_instance_valid(_cockpit_readout):
+		_cockpit_readout.text = _network_operation_source.readout
+		_cockpit_readout.modulate = _network_operation_source.readout_color
+	var policy_changed: bool = _network_operation_source.policy != _network_operation_solo_policy()
+	_network_operation_source.clear()
+	# Restore captured visuals exactly unless their owning solo policy changed
+	# while projected (e.g. reduced flash or a real source engine transition).
+	_network_operation_policy_restore = policy_changed
+	_restore_network_operation_solo_visuals()
+
+
+func _restore_network_operation_solo_visuals() -> void:
+	if not is_inside_tree() or not _network_operation_state.is_empty() \
+			or not is_instance_valid(_canopy_pivot) or not _canopy_pivot.is_inside_tree():
+		return
+	if _network_operation_canopy_restore >= 0.0:
+		_set_canopy_open_fraction(_network_operation_canopy_restore)
+		_network_operation_canopy_restore = -1.0
+	if _network_operation_policy_restore:
+		_network_operation_policy_restore = false
+		_sync_engine_visuals_immediately()
+
+
+func get_network_operation_presentation_audit() -> Dictionary:
+	return {"state": _network_operation_state.duplicate(true), "source": _network_operation_source.duplicate(),
+		"renderers": _network_engine_renderers, "overlays": _network_operation_overlays,
+		"batches": _network_operation_batches, "core_materials": _network_operation_core_materials,
+		"owns_operation_authority": false}
 
 
 func get_network_damage_presentation_audit() -> Dictionary:

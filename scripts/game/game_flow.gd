@@ -6356,6 +6356,8 @@ func _on_network_session_started(mode: StringName) -> void:
 	_network_hud_migration_generation = 0
 	_set_station_defense_network_presentation_only(mode == &"client")
 	_set_torpedo_boat_network_presentation_only(mode == &"client")
+	if mode == &"client":
+		_network_craft_pose_stream.bind_replica_craft_presentations(ships)
 	for craft: HeroShip in ships:
 		if is_instance_valid(craft):
 			craft.set_network_damage_presentation_enabled(mode == &"client")
@@ -9362,8 +9364,8 @@ func _build_network_craft_pose_entries() -> Array:
 		pilots[active_ship.get_ship_id()] = {
 			"craft": active_ship, "peer_id": NetworkSessionAdapterType.AUTHORITY_PEER_ID,
 		}
-	var entries := _network_craft_pose_stream.build_host_entries(pilots, _network_boarding_server_tick, ships, maxi(1, _network_hud_session_epoch))
-	return _shift_network_craft_pose_entries(entries, -_network_station_frame_origin())
+	var entries := _network_craft_pose_stream.build_host_entries(pilots, _network_boarding_server_tick, ships, maxi(1, _network_hud_session_epoch), _network_station_frame_origin())
+	return NetworkRemoteCraftPoseStreamType.pack_display_facts(_shift_network_craft_pose_entries(entries, -_network_station_frame_origin()))
 
 
 ## Where this game's station stands in its own world space. Every peer's
@@ -9426,8 +9428,9 @@ func _on_network_snapshot_applied(result: Dictionary) -> void:
 	var movement: Variant = sections.get(&"movement", sections.get("movement", []))
 	if movement is Array:
 		# Station frame on the wire; this peer's own world space here.
+		_network_craft_pose_stream.ensure_replica_craft_presentations(ships)
 		_network_craft_pose_stream.consume_movement_section(
-			_shift_network_craft_pose_entries(movement as Array, _network_station_frame_origin())
+			movement as Array, -1, _network_station_frame_origin()
 		)
 		_ensure_network_emberline_actor_presenter().consume_movement_section(
 			movement as Array, _network_station_frame_origin()
@@ -9478,21 +9481,24 @@ func _advance_network_craft_pose_replica(delta: float) -> void:
 	if _network_session_mode != &"client" or not is_instance_valid(network_session) \
 			or network_session.is_server() or not network_session.is_inside_tree():
 		return
+	_network_craft_pose_stream.ensure_replica_craft_presentations(ships)
 	var piloted := _network_client_remote_helm_ship()
 	var locally_flown: HeroShip = active_ship if _piloting and piloted == null else null
 	var clock := _network_craft_pose_stream.get_clock()
 	for ship_id_variant in _network_craft_pose_stream.get_tracked_ship_ids():
 		var ship_id := StringName(ship_id_variant)
 		var latest := _network_craft_pose_stream.latest_sample(ship_id)
-		var fresh := clock < 0.0 or clock - float(latest.get("pose_tick", 0)) \
-			<= NetworkRemoteCraftPoseStreamType.STALE_SAMPLE_TICKS
+		var fresh := bool(latest.get("pose_active", true)) and (clock < 0.0 or clock - float(latest.get("pose_tick", 0)) \
+			<= NetworkRemoteCraftPoseStreamType.STALE_SAMPLE_TICKS)
 		var replica := _find_flyable_ship_by_id(ship_id)
 		if replica == locally_flown:
 			if is_instance_valid(replica):
+				replica.clear_network_operation_presentation()
 				replica.clear_network_damage_presentation()
 			continue
 		var displayed: Dictionary = {}
 		if is_instance_valid(replica):
+			replica.apply_network_operation_presentation(latest)
 			var hull := latest.get("hull_presentation", {}) as Dictionary
 			var damaged := not hull.is_empty() and float(hull.get("health", 0.0)) < float(hull.get("maximum_health", 0.0))
 			for component: Dictionary in hull.get("components", []):
