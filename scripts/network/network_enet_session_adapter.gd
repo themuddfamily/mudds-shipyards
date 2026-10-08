@@ -4666,6 +4666,9 @@ func _apply_projectile_replica_snapshot(packet: Dictionary) -> Dictionary:
 		# was held until the window filled, then dropped for the session.
 		_projectile_jitter.reset(_projectile_replica_migration_generation, _projectile_replica_revision)
 		applied = consume_projectile_snapshot(local_packet)
+	# Consumers use the existing generation fence to distinguish a launch
+	# from later updates, independently of the visual pool lifetime.
+	applied["first_admission"] = generation > prior_generation
 	return _remember(applied)
 
 

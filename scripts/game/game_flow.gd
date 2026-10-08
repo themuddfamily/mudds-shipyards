@@ -9497,9 +9497,20 @@ func _present_network_remote_projectile(packet: Dictionary, result: Dictionary) 
 				StringName(projectile.get("projectile_id", &"")), 0)) \
 				!= int(projectile.get("projectile_generation", -1)):
 		return {"accepted": false, "status": &"projectile_lifecycle_receipt_mismatch"}
-	return _ensure_network_remote_projectile_replicator().present_packet(
-		packet, StringName(result.get("status", &""))
-	)
+	var descriptor := projectile.get(NetworkRemoteProjectileReplicatorType.RECORD_KEY, {}) as Dictionary
+	var launch: Variant = descriptor.get("launch", false)
+	if not launch is bool:
+		return {"accepted": false, "status": &"invalid_remote_projectile_record"}
+	var replicator := _ensure_network_remote_projectile_replicator()
+	var presented := replicator.present_packet(packet, StringName(result.get("status", &"")))
+	if bool(presented.get("accepted", false)) \
+			and presented.get("status") == &"remote_projectile_presented" \
+			and bool(result.get("first_admission", false)) and launch \
+			and StringName(descriptor.get("kind", &"")) == NetworkRemoteProjectileReplicatorType.KIND_SLUG \
+			and StringName(projectile.get("source_entity_id", &"")) == &"player-mass-driver" \
+			and is_instance_valid(combat_audio):
+		combat_audio.play_player_fire(projectile.get("position") as Vector3, replicator.get_instance_id())
+	return presented
 
 
 func get_network_remote_projectile_replicator() -> NetworkRemoteProjectileReplicatorType:

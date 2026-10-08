@@ -229,7 +229,7 @@ func _on_launched(record: Dictionary, pool_key: int) -> void:
 		"launched_msec": Time.get_ticks_msec(),
 	}
 	_active[_active_key(pool_key, flight_id)] = active
-	var projectile := _projectile_from_record(active, record, &"flying", {})
+	var projectile := _projectile_from_record(active, record, &"flying", {}, true)
 	if not projectile.is_empty():
 		_publish(projectile, false)
 
@@ -272,7 +272,8 @@ func _end_flight(record: Dictionary, pool_key: int, state: StringName, terminal_
 
 
 func _projectile_from_record(
-	active: Dictionary, record: Dictionary, state: StringName, terminal_intent: Dictionary
+	active: Dictionary, record: Dictionary, state: StringName, terminal_intent: Dictionary,
+	launch: bool = false
 ) -> Dictionary:
 	var position: Variant = record.get("position", record.get("origin"))
 	var direction: Variant = record.get("direction", Vector3.FORWARD)
@@ -293,6 +294,9 @@ func _projectile_from_record(
 		"state": state,
 		RECORD_KEY: {
 			"kind": StringName(active.kind),
+			# Only the live launch carries this transient cue. Late-join and
+			# steering records describe a flight already underway.
+			"launch": launch,
 			"speed": clampf(float(record.get("speed", 0.0)), 0.0, MAX_SPEED),
 			"lifetime": clampf(float(record.get("lifetime", 0.0)), 0.0, MAX_LIFETIME),
 			"elapsed": maxf(0.0, float(record.get("elapsed", 0.0))),
