@@ -351,8 +351,14 @@ const MAIN_SCENE := preload("res://scenes/main.tscn")
 # (75a35002b/637b58462/85fa9adf9, +380 triangles). The streamed Cinder bucket
 # follows fcd9389bc/196e0103f's hulk art and merged silhouette renderer:
 # +1,264 triangles, +1 renderer, +5 surfaces, +1 node, +6 retained materials.
-const RESIDENT_FINGERPRINT := "919f22d42818958aa30b23541b14c9e737c9b4e872dd53b9d6a412c4ad7ba251"
-const CINDER_LOADED_FINGERPRINT := "80c2ecc794ba46e7925d7b22f1f6ed4ec8d360467bd1eced362345934b12a5a0"
+# 2026-10-08: c7466dfab removes the Cinder pod's redundant forward cap,
+# visibly fighting the unchanged cabin end wall. Fresh canonical before/after
+# checks prove exactly -12 triangles in resident and loaded scenarios; every
+# renderer/surface/mesh/material/light/node row and the loaded delta is fixed.
+# Only those lower triangle rows and their derived fingerprints move. Original
+# fresh-baseline PASS and intended old-freeze FAIL logs remain retained.
+const RESIDENT_FINGERPRINT := "f6711b87bfd50193426454161264301781978d74a433d20424c513de3ad3ddc1"
+const CINDER_LOADED_FINGERPRINT := "64f0b4511d080f31bac77fbab252b5fd4d774f5c55e96fb1ab2bcde62ea63e01"
 
 var _assertions := 0
 var _failures := PackedStringArray()
@@ -402,11 +408,11 @@ func _run() -> void:
 		"resident report freezes schema, scenario identity, and exact loaded count"
 	)
 	_check(
-		int(resident.get("total_triangles", -1)) == 1751137
+		int(resident.get("total_triangles", -1)) == 1751125
 			and int(resident.get("total_mesh_instances", -1)) == 5026
 			and int(resident.get("total_surfaces", -1)) == 5586
 			and int(resident.get("unique_meshes", -1)) == 2692,
-		"resident geometry freezes 1,751,137 triangles / 5,026 meshes / 5,586 surfaces / 2,692 unique meshes"
+		"resident geometry freezes 1,751,125 triangles / 5,026 meshes / 5,586 surfaces / 2,692 unique meshes"
 	)
 	_check(
 		int(resident.get("bound_phase_unique_materials", -1)) == 647
@@ -470,11 +476,11 @@ func _run() -> void:
 		"loaded report freezes destination identity and one committed generation"
 	)
 	_check(
-		int(loaded.get("total_triangles", -1)) == 1906159
+		int(loaded.get("total_triangles", -1)) == 1906147
 			and int(loaded.get("total_mesh_instances", -1)) == 5283
 			and int(loaded.get("total_surfaces", -1)) == 5847
 			and int(loaded.get("unique_meshes", -1)) == 2865,
-		"loaded geometry freezes 1,906,159 triangles / 5,283 meshes / 5,847 surfaces / 2,865 unique meshes"
+		"loaded geometry freezes 1,906,147 triangles / 5,283 meshes / 5,847 surfaces / 2,865 unique meshes"
 	)
 	_check(
 		int(loaded.get("bound_phase_unique_materials", -1)) == 705
