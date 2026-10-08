@@ -56,11 +56,13 @@ func accept_command(peer_id: int, command: Dictionary) -> Dictionary:
 		return _remember(_result(false, &"invalid_command_tick"))
 	if client_tick >= int(rate.get("start", 0)) + RATE_WINDOW_TICKS:
 		rate = {"start": client_tick, "count": 0}
-	if not bool(command.get("board_request", false)) and not bool(command.get("disembark_request", false)):
-		if int(rate.get("count", 0)) >= MAX_COMMANDS_PER_WINDOW:
-			_audit.rate_rejected += 1
-			return _remember(_result(false, &"command_rate_limited"))
-		rate.count = int(rate.get("count", 0)) + 1
+	# Registered craft packets are pilot helm, including ordered landing
+	# markers. Real boarding uses its separate ledger/RPC; these flags never
+	# exempt a pilot's movement packet from the existing helm rate budget.
+	if int(rate.get("count", 0)) >= MAX_COMMANDS_PER_WINDOW:
+		_audit.rate_rejected += 1
+		return _remember(_result(false, &"command_rate_limited"))
+	rate.count = int(rate.get("count", 0)) + 1
 	_rate_windows[peer_id] = rate
 	var result := _authority.accept_intent(peer_id, command)
 	if bool(result.get("accepted", false)):

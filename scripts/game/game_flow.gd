@@ -6436,6 +6436,11 @@ func _on_network_session_stopped(reason: StringName) -> void:
 	# Every remote helm goes with the session: the craft falls back to its own
 	# local input source, unpiloted, exactly as a disembark leaves it.
 	_release_all_network_remote_pilots(reason)
+	# Network landing identities and handoffs belong to this stopped adapter,
+	# including crafts whose assist already aborted. Physical ShipBerth
+	# occupancy remains with its owner for solo play or a fresh session.
+	_network_landing_handoffs.clear()
+	_network_landing_entities.clear()
 	_network_remote_helm = {}
 	# Craft poses, ownership sequences and replicated projectiles belong to the
 	# session that published them.
@@ -7878,6 +7883,13 @@ func _consume_active_ship_command(command: ShipCommand) -> void:
 	_last_lifecycle_command_ship_instance_id = ship_instance_id
 	_last_lifecycle_command_stream_id = command.stream_id
 	_last_lifecycle_command_sequence = command.sequence
+	# Confirmed remote helm already carries this edge to the host, even while
+	# local boarding presentation/solo phase lags the authoritative craft.
+	# Show pending feedback without granting local landing or changing phase.
+	var remote_landing_feedback := command.landing \
+		and _network_client_remote_helm_ship() == active_ship and not get_tree().paused
+	if remote_landing_feedback:
+		_try_request_landing()
 	if phase == Phase.INTRO or get_tree().paused or _transition_busy:
 		return
 	if command.fire_pressed and active_ship is CinderLongRangeBomberType:
@@ -7886,7 +7898,8 @@ func _consume_active_ship_command(command: ShipCommand) -> void:
 		Phase.RETURN_TO_YARD,
 		Phase.FREE_FLIGHT,
 	]:
-		_try_request_landing()
+		if not remote_landing_feedback:
+			_try_request_landing()
 	elif command.interact and phase in [
 		Phase.START_ENGINES,
 		Phase.RETURN_TO_YARD,
@@ -9084,6 +9097,7 @@ func _advance_network_boarding_authority() -> void:
 	network_session.advance_remote_ship_command_tick(_network_boarding_server_tick)
 	_reconcile_network_host_boarding_seat()
 	_advance_network_remote_pilots(_network_boarding_server_tick)
+	_advance_network_remote_landing_handoffs()
 
 
 ## The craft whose pilot seat the host player is in, climbing into or still
@@ -9221,6 +9235,10 @@ func _unbind_network_remote_pilot(ship_id: StringName, reason: StringName) -> vo
 	if not _network_remote_pilots.has(ship_id):
 		return
 	var record := _network_remote_pilots[ship_id] as Dictionary
+	var retiring_craft := record.get("craft") as HeroShip
+	if is_instance_valid(retiring_craft) and retiring_craft.is_landing_active():
+		# Retire the craft's actual assist before its seat/source disappears.
+		retiring_craft._abort_landing(reason)
 	_network_remote_pilots.erase(ship_id)
 	_network_moving_interior_dirty = true
 	_release_network_ship_ownership(int(record.get("peer_id", 0)), ship_id)
@@ -9277,7 +9295,39 @@ func _advance_network_remote_pilots(tick: int) -> void:
 		var delivered: Dictionary = network_session.drain_remote_ship_command(ship_id, tick)
 		if bool(delivered.get("accepted", false)) and delivered.get("intent") is Dictionary:
 			source.apply_intent(delivered.get("intent") as Dictionary)
+		if source.take_landing_request():
+			record["landing_result"] = _try_request_network_remote_landing(int(record.peer_id), craft as HeroShip)
+		var handoff := _network_landing_handoffs.get(ship_id, {}) as Dictionary
+		var landed := bool((craft as HeroShip).get_telemetry().get("landed", true))
+		# Physical takeoff retires this craft's dock, never the host's sortie.
+		if not landed and not (craft as HeroShip).is_landing_active() \
+				and (handoff.is_empty() or handoff.get("state") in [&"landed", &"release_pending_publication"]):
+			var berth_id := StringName(_reserved_berth_ids.get((craft as HeroShip).get_instance_id(), &""))
+			if not berth_id.is_empty():
+				var berth := _resolve_berth_node(berth_id)
+				if bool(_release_network_landing_handoff(craft, berth).get("accepted", false)):
+					_release_ship_berth(craft)
 		source.advance_tick()
+
+
+## Publication belongs to the per-craft handoff, not the pilot source. A
+## released seat/disconnected peer may leave a committed abort to publish.
+func _advance_network_remote_landing_handoffs() -> void:
+	for ship_id: Variant in _network_landing_handoffs.keys():
+		var handoff := _network_landing_handoffs[ship_id] as Dictionary
+		if int(handoff.get("remote_pilot_peer_id", 0)) <= 1:
+			continue
+		var craft := _find_flyable_ship_by_id(StringName(ship_id))
+		if not is_instance_valid(craft) or craft.is_landing_active():
+			continue
+		var landed := bool(craft.get_telemetry().get("landed", true))
+		if handoff.get("state") in [&"landing_pending", &"abort_pending_publication"] \
+				or (handoff.get("state") == &"landed" and bool(handoff.get("completion_retry", false))):
+			_finish_network_remote_landing(craft, &"" if landed else &"assist_aborted")
+		elif handoff.get("state") == &"release_pending_publication":
+			var berth := _resolve_berth_node(StringName(handoff.target_id))
+			if bool(_release_network_landing_handoff(craft, berth).get("accepted", false)):
+				_release_ship_berth(craft)
 
 
 func get_network_remote_pilot_audit() -> Dictionary:
@@ -9357,7 +9407,7 @@ func _advance_network_remote_helm_stream() -> void:
 			"ship_id": ship_id, "sequence": 0, "ticks": 0,
 			"stream_id": _network_remote_helm_stream_epoch,
 			"producer_id": producer_id, "producer_stream": producer_stream,
-			"sample_sequence": -1, "roll_request_id": 0,
+			"sample_sequence": -1, "roll_request_id": 0, "landing_request_id": 0,
 		}
 	# Capture every sampled edge before the lower-rate send gate. Source epochs
 	# revoke unsent edges; repeated polling of one snapshot never adds a press.
@@ -9369,6 +9419,9 @@ func _advance_network_remote_helm_stream() -> void:
 		if command.barrel_roll:
 			_network_remote_helm["roll_request_id"] = mini(
 				int(_network_remote_helm.get("roll_request_id", 0)) + 1, ShipCommand.MAX_SAFE_SERIALIZED_INTEGER)
+		if command.landing:
+			_network_remote_helm["landing_request_id"] = mini(
+				int(_network_remote_helm.get("landing_request_id", 0)) + 1, ShipCommand.MAX_SAFE_SERIALIZED_INTEGER)
 	var ticks := int(_network_remote_helm.get("ticks", 0))
 	_network_remote_helm["ticks"] = ticks + 1
 	if ticks % NetworkRemotePilotCommandSourceType.SEND_INTERVAL_TICKS != 0:
@@ -9381,7 +9434,8 @@ func _advance_network_remote_helm_stream() -> void:
 	)
 	var wire: Dictionary = NetworkRemotePilotCommandSourceType.build_helm_intent(
 		_network_client_peer_id(), ship_id, 1, sequence, stamp, command,
-		int(_network_remote_helm.get("stream_id", 0)), int(_network_remote_helm.get("roll_request_id", 0))
+		int(_network_remote_helm.get("stream_id", 0)), int(_network_remote_helm.get("roll_request_id", 0)),
+		int(_network_remote_helm.get("landing_request_id", 0))
 	)
 	var sent: Dictionary = network_session.send_movement_intent(wire)
 	if bool(sent.get("accepted", false)):
@@ -12223,6 +12277,9 @@ func _ensure_network_landing_handoff_committed(
 
 
 func _on_landing_completed(source_ship: HeroShip = null) -> void:
+	if _is_network_remote_landing(source_ship):
+		_finish_network_remote_landing(source_ship)
+		return
 	if _aurora_expedition.is_active() or _rime_expedition.is_active():
 		return
 	if _network_session_mode == &"client":
@@ -13277,6 +13334,9 @@ func consume_planetary_return_receipt(
 
 
 func _on_landing_aborted(reason: StringName, source_ship: HeroShip = null) -> void:
+	if _is_network_remote_landing(source_ship):
+		_finish_network_remote_landing(source_ship, reason)
+		return
 	if _aurora_expedition.is_active() or _rime_expedition.is_active():
 		return
 	if _network_session_mode == &"client":
@@ -14592,7 +14652,11 @@ func _find_active_landing_berth() -> StringName:
 
 
 func _get_active_landing_assist_report() -> Dictionary:
-	if not is_instance_valid(active_ship):
+	return _get_landing_assist_report_for_ship(active_ship)
+
+
+func _get_landing_assist_report_for_ship(candidate: HeroShip) -> Dictionary:
+	if not is_instance_valid(candidate):
 		return {
 			"valid": false,
 			"assist_capture_accepted": false,
@@ -14602,15 +14666,15 @@ func _get_active_landing_assist_report() -> Dictionary:
 	if world.has_method("get_landing_assist_report"):
 		var resident_report := world.call(
 			"get_landing_assist_report",
-			active_ship,
-			active_ship.get_home_berth_id()
+			candidate,
+			candidate.get_home_berth_id()
 		) as Dictionary
 		if not StringName(resident_report.get("selected_berth_id", &"")).is_empty():
 			return resident_report
 		# The station has nothing for this pose. Out at the hulk that is the
 		# expected answer, so ask the one streamed berth before reporting that
 		# there is nowhere to land.
-		var hulk_report := _get_station_hulk_landing_assist_report(active_ship)
+		var hulk_report := _get_station_hulk_landing_assist_report(candidate)
 		return hulk_report if not hulk_report.is_empty() else resident_report
 	# Compatibility for marker-only custom worlds. Production always uses the
 	# complete non-mutating ShipBerth capture report above.
@@ -14618,12 +14682,12 @@ func _get_active_landing_assist_report() -> Dictionary:
 	if world.has_method("find_landing_berth"):
 		berth_id = world.call(
 			"find_landing_berth",
-			active_ship.global_position,
-			active_ship.get_home_berth_id()
+			candidate.global_position,
+			candidate.get_home_berth_id()
 		) as StringName
-	elif world.is_landing_position(active_ship.global_position):
-		berth_id = active_ship.get_home_berth_id()
-	var accepted := not berth_id.is_empty() and _can_ship_use_berth(active_ship, berth_id)
+	elif world.is_landing_position(candidate.global_position):
+		berth_id = candidate.get_home_berth_id()
+	var accepted := not berth_id.is_empty() and _can_ship_use_berth(candidate, berth_id)
 	return {
 		"valid": accepted,
 		"assist_capture_accepted": accepted,
@@ -14631,6 +14695,75 @@ func _get_active_landing_assist_report() -> Dictionary:
 		"berth_id": berth_id,
 		"selected_berth_id": berth_id,
 	}
+
+
+## A pilot seat grants an input request, never a client pose or berth lease.
+func _try_request_network_remote_landing(peer_id: int, craft: HeroShip) -> Dictionary:
+	if _network_session_mode != &"server" or not is_instance_valid(network_session) \
+			or not network_session.is_server() or not is_instance_valid(craft):
+		return {"accepted": false, "status": &"authority_required"}
+	var binding := _network_remote_pilots.get(craft.get_ship_id(), {}) as Dictionary
+	if int(binding.get("peer_id", 0)) != peer_id or binding.get("craft") != craft \
+			or not craft.is_remote_piloted():
+		return {"accepted": false, "status": &"pilot_seat_required"}
+	var confirmed := false
+	for occupancy: Dictionary in network_session.get_boarding_snapshot().get("occupancies", []):
+		if int(occupancy.get("peer_id", 0)) == peer_id \
+				and StringName(occupancy.get("ship_id", &"")) == craft.get_ship_id() \
+				and StringName(occupancy.get("role", &"")) == NetworkBoardingIntentType.ROLE_PILOT:
+			confirmed = true
+			break
+	if not confirmed:
+		return {"accepted": false, "status": &"pilot_seat_required"}
+	if craft.is_destroyed() or craft.is_landing_active() \
+			or bool(craft.get_telemetry().get("landed", true)):
+		return {"accepted": false, "status": &"landing_unavailable"}
+	var report := _get_landing_assist_report_for_ship(craft)
+	var berth_id := StringName(report.get("selected_berth_id", &""))
+	if berth_id.is_empty() or not bool(report.get("assist_capture_accepted", false)):
+		return {"accepted": false, "status": &"landing_capture_refused"}
+	var berth := _resolve_berth_node(berth_id)
+	if not is_instance_valid(berth) or not _reserve_berth_for_ship(craft, berth_id, false):
+		return {"accepted": false, "status": &"berth_unavailable"}
+	if not craft.request_berth_landing(berth):
+		_release_ship_berth(craft)
+		return {"accepted": false, "status": &"landing_capture_refused"}
+	var begun := _begin_network_landing_handoff(craft, berth)
+	if not bool(begun.get("accepted", false)):
+		craft._abort_landing(&"network_handoff_refused")
+		_release_ship_berth(craft)
+		return begun
+	var handoff := _network_landing_handoffs[craft.get_ship_id()] as Dictionary
+	handoff["remote_pilot_peer_id"] = peer_id
+	return begun
+
+
+func _is_network_remote_landing(craft: HeroShip) -> bool:
+	return _network_session_mode == &"server" and is_instance_valid(craft) \
+		and (craft.is_remote_piloted() or int((_network_landing_handoffs.get(
+			craft.get_ship_id(), {}) as Dictionary).get("remote_pilot_peer_id", 0)) > 1)
+
+
+## Physical owner signals only reconcile this craft's handoff. They do not
+## complete activities, tutorial steps or change the host player's UI/phase.
+func _finish_network_remote_landing(craft: HeroShip, abort_reason: StringName = &"") -> void:
+	var handoff := _network_landing_handoffs.get(craft.get_ship_id(), {}) as Dictionary
+	if handoff.is_empty():
+		_release_ship_berth(craft)
+		return
+	if not abort_reason.is_empty():
+		if bool(_abort_network_landing_handoff(craft).get("accepted", false)):
+			_release_ship_berth(craft)
+		return
+	var report := craft.get_landing_contract_report()
+	var berth := _resolve_berth_node(StringName(handoff.target_id))
+	if not bool(report.get("contract_accepted", false)) \
+			or not bool(report.get("strict_dock_acceptance", false)) \
+			or StringName(report.get("berth_id", &"")) != StringName(handoff.target_id) \
+			or not is_instance_valid(berth) or berth.get_occupant() != craft:
+		return
+	var committed := _commit_network_landing_handoff(craft, berth)
+	handoff["completion_retry"] = not bool(committed.get("accepted", false))
 
 
 func _try_request_landing() -> void:
@@ -14644,10 +14777,10 @@ func _try_request_landing() -> void:
 		return
 	if _network_session_mode == &"client":
 		if is_instance_valid(hud):
-			hud.toast(
-				"Landing controlled by host",
-				"Client landing replicas are presentation-only",
-			)
+			if _network_client_remote_helm_ship() == active_ship:
+				hud.toast("Landing request pending", "Checking the approach and berth availability")
+			else:
+				hud.toast("Landing unavailable", "Take a confirmed pilot seat to request docking")
 		return
 	if _landing_request_active:
 		hud.toast("Landing assist active", "Maintain clearance while the docking sequence completes")
