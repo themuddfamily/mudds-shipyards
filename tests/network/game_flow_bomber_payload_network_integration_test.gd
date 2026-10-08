@@ -6,6 +6,9 @@ const LifecycleAdapter := preload("res://scripts/network/network_snapshot_lifecy
 const Projectile := preload("res://scripts/combat/bomber_payload_projectile.gd")
 const Bomber := preload("res://scripts/ships/cinder_long_range_bomber.gd")
 
+const HOST_STATION_ORIGIN := Vector3(-31.0, -4.0, -48.0)
+const CLIENT_STATION_ORIGIN := Vector3(22.0, 3.0, 17.0)
+
 var _assertions := 0
 var _failures := PackedStringArray()
 
@@ -27,6 +30,8 @@ func _run() -> void:
 	server_bomber.name = &"ServerCinderBomber"
 	root.add_child(server_bomber)
 	await process_frame
+	server_flow.world = _make_station_origin(HOST_STATION_ORIGIN)
+	server_bomber.global_position += HOST_STATION_ORIGIN
 	server_flow.network_session = server
 	server_flow._network_session_mode = &"server"
 	server_flow.active_ship = server_bomber
@@ -129,6 +134,8 @@ func _run() -> void:
 	client_bomber.name = &"ClientCinderBomber"
 	root.add_child(client_bomber)
 	await process_frame
+	client_flow.world = _make_station_origin(CLIENT_STATION_ORIGIN)
+	client_bomber.global_position += CLIENT_STATION_ORIGIN
 	client_flow.network_session = client
 	client_flow._network_session_mode = &"client"
 	client_flow.active_ship = client_bomber
@@ -147,6 +154,12 @@ func _run() -> void:
 		and client_visuals.size() == 1
 		and StringName((client_visuals[0] as Dictionary).get("phase", &"")) == &"flight",
 		"the production replica signal consumes one adapter-receipted launch into presentation only")
+	var host_release := projectile.get_snapshot().release_record as Dictionary
+	_check((launch_projectile.release_record.release_position as Vector3).is_equal_approx((host_release.release_position as Vector3) - HOST_STATION_ORIGIN)
+		and (client_visuals[0].release_position as Vector3).is_equal_approx((host_release.release_position as Vector3) - HOST_STATION_ORIGIN + CLIENT_STATION_ORIGIN)
+		and (client_visuals[0].release_velocity as Vector3).is_equal_approx(host_release.release_velocity as Vector3)
+		and (late_join_packet.projectile.release_record.release_position as Vector3).is_equal_approx(launch_projectile.release_record.release_position as Vector3),
+		"bomber release and resync follow station frames without changing velocity")
 	var forged_owner_packet := tick_packet.duplicate(true)
 	forged_owner_packet.projectile.owner_peer_id = 2
 	var forged_owner_rejected := client_flow._on_projectile_replica_packet(
@@ -224,6 +237,14 @@ func _run() -> void:
 		and StringName((client_visuals[0] as Dictionary).get("phase", &"")) == &"terminal",
 		"client terminal retires flight and presents only the server terminal record")
 
+	var terminal_visual: Dictionary = client_bomber.get_payload_presentation().get_active_snapshots()[0]
+	var host_terminal := projectile.get_terminal_intent()
+	_check((terminal_visual.terminal_position as Vector3).is_equal_approx((host_terminal.position as Vector3) - HOST_STATION_ORIGIN + CLIENT_STATION_ORIGIN)
+		and (terminal_visual.terminal_velocity as Vector3).is_equal_approx(host_terminal.velocity as Vector3)
+		and (terminal_visual.terminal_normal as Vector3).is_equal_approx(host_terminal.normal as Vector3)
+		and (terminal_projectile.terminal_intent.position as Vector3).is_equal_approx((host_terminal.position as Vector3) - HOST_STATION_ORIGIN)
+		and (_canonical_projectile_record(terminal_canonical, terminal_projectile.projectile_id).position as Vector3).is_equal_approx(terminal_projectile.position as Vector3),
+		"bomber contact and canonical terminal use station positions with unchanged velocity and normal")
 	var migrated_packet := launch_packet.duplicate(true)
 	migrated_packet["revision"] = 1
 	migrated_packet["server_tick"] = 1
@@ -373,3 +394,10 @@ func _canonical_projectile_record(
 		if StringName(record.get("projectile_id", &"")) == projectile_id:
 			return record
 	return {}
+
+
+func _make_station_origin(origin: Vector3) -> Node3D:
+	var station := Node3D.new()
+	root.add_child(station)
+	station.global_position = origin
+	return station

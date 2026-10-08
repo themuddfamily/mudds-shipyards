@@ -4954,7 +4954,8 @@ func _publish_bomber_payload_network(
 		),
 	}
 	var published: Dictionary = network_session.publish_projectile_snapshot(
-		packet, recipients, terminal, _bomber_payload_server_tick, true, true
+		_shift_network_projectile_record(packet, -_network_station_frame_origin()),
+		recipients, terminal, _bomber_payload_server_tick, true, true
 	)
 	_last_bomber_payload_network_result = published.duplicate(true)
 	if bool(published.get("accepted", false)):
@@ -5361,7 +5362,7 @@ func _retry_player_pulse_network_publications() -> Dictionary:
 		var pending := _player_pulse_network_pending[0]
 		var record := pending.get("record", {}) as Dictionary
 		var published: Dictionary = network_session.publish_projectile_snapshot(
-			record,
+			_shift_network_projectile_record(record, -_network_station_frame_origin()),
 			[],
 			bool(pending.get("terminal", false)),
 			int(record.get("last_update_tick", 0)),
@@ -5389,7 +5390,8 @@ func _republish_player_pulses_for_peer(peer_id: int) -> Dictionary:
 	for shot_variant: Variant in _player_pulse_network_active_shots.values():
 		var record := shot_variant as Dictionary
 		var published: Dictionary = network_session.publish_projectile_snapshot(
-			record, [peer_id], false, int(record.get("last_update_tick", 0)), false
+			_shift_network_projectile_record(record, -_network_station_frame_origin()),
+			[peer_id], false, int(record.get("last_update_tick", 0)), false
 		)
 		_last_player_pulse_network_result = published.duplicate(true)
 		if not bool(published.get("accepted", false)):
@@ -5560,6 +5562,12 @@ func _on_projectile_replica_packet(packet: Dictionary, result: Dictionary) -> Di
 	if _network_session_mode != &"client" or not bool(result.get("accepted", false)) \
 			or not is_instance_valid(network_session) or network_session.is_server():
 		return {"accepted": false, "status": &"client_replica_authority_required"}
+	# Adapter admission and retained snapshots remain in the station wire
+	# frame. Translate a private copy only at the presentation boundary.
+	packet = packet.duplicate()
+	packet["projectile"] = _shift_network_projectile_record(
+		packet.get("projectile", {}) as Dictionary, _network_station_frame_origin()
+	)
 	var projectile := packet.get("projectile", {}) as Dictionary
 	if projectile.has(NetworkRemoteProjectileReplicatorType.RECORD_KEY):
 		return _present_network_remote_projectile(packet, result)
@@ -9296,6 +9304,26 @@ func _network_station_frame_origin() -> Vector3:
 	return world.global_position if is_instance_valid(world) else Vector3.ZERO
 
 
+## Projectiles share the craft stream's station frame. Shift only finite,
+## explicitly positional fields of shipped presentation records; direction,
+## velocity, normals and identity stay exact. Malformed fields remain intact
+## for each existing consumer to reject, and authority records are never edited.
+func _shift_network_projectile_record(record: Dictionary, offset: Vector3) -> Dictionary:
+	var shifted := record.duplicate(true)
+	var position: Variant = shifted.get("position")
+	if position is Vector3 and (position as Vector3).is_finite():
+		shifted["position"] = (position as Vector3) + offset
+	for record_key in ["pulse_record", "opponent_pulse_record", "release_record", "terminal_intent"]:
+		var nested: Variant = shifted.get(record_key)
+		if not nested is Dictionary:
+			continue
+		for position_key in ["origin", "endpoint", "release_position", "position"]:
+			var nested_position: Variant = (nested as Dictionary).get(position_key)
+			if nested_position is Vector3 and (nested_position as Vector3).is_finite():
+				(nested as Dictionary)[position_key] = (nested_position as Vector3) + offset
+	return shifted
+
+
 ## `entries` with every craft-pose position moved by `offset`; other movement
 ## entries and every non-positional field are passed through untouched.
 func _shift_network_craft_pose_entries(entries: Array, offset: Vector3) -> Array:
@@ -9479,6 +9507,7 @@ func _publish_network_remote_projectile(
 			or not network_session.is_server():
 		return {"accepted": false, "status": &"network_publish_unavailable"}
 	_player_pulse_network_server_tick += 1
+	projectile = _shift_network_projectile_record(projectile, -_network_station_frame_origin())
 	projectile["last_update_tick"] = _player_pulse_network_server_tick
 	var published: Dictionary = network_session.publish_projectile_snapshot(
 		projectile, recipients, terminal, _player_pulse_network_server_tick

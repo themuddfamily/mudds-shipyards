@@ -6,10 +6,10 @@ extends SceneTree
 ## The host side is a `NetworkRemoteProjectileReplicator` observing two pools
 ## that emit exactly the signals `MassDriverBoltPool` (a
 ## `TravellingBoltProjectile`) and `SeekerTorpedoProjectile` emit, publishing
-## through the production `publish_projectile_snapshot()` path on a shared
-## monotonic tick the way GameFlow's publisher does. The client side is a second
-## replicator fed by the client adapter's `projectile_replica_packet`, as the
-## production GameFlow dispatch does, with real CombatAudioPresentation nodes.
+## through GameFlow's production publisher and the existing projectile snapshot
+## path on its shared monotonic tick. The client side uses production GameFlow
+## dispatch with real CombatAudioPresentation nodes. All three peers have
+## different station origins, as after independent planetary world rebases.
 ## Dummy audio verifies cue admission and dispatch; it does not prove audibility.
 ##
 ## What is asserted:
@@ -35,6 +35,9 @@ const Replicator := preload("res://scripts/network/network_remote_projectile_rep
 const GameFlow := preload("res://scripts/game/game_flow.gd")
 const Cargo := preload("res://scripts/ships/cinder_cargo_hauler.gd")
 const AudioScene := preload("res://scenes/audio/combat_audio_presentation.tscn")
+const HOST_STATION_ORIGIN := Vector3(-31.0, -4.0, -48.0)
+const CLIENT_STATION_ORIGIN := Vector3(22.0, 3.0, 17.0)
+const LATE_STATION_ORIGIN := Vector3(-5.0, 2.0, 91.0)
 const STORM_SLUGS := 200
 ## Live flights plus the retired-id tombstones the fencing needs.
 const STORM_BOUND := 160
@@ -65,7 +68,7 @@ var _late: Adapter
 var _host_replicator: Replicator
 var _client_replicator: Replicator
 var _late_replicator: Replicator
-var _tick := 0
+var _host_flow: GameFlow
 var _client_flow: GameFlow
 var _late_flow: GameFlow
 var _client_audio: CombatAudioPresentation
@@ -95,13 +98,17 @@ func _initialize() -> void:
 	root.add_child(_host_replicator)
 	root.add_child(_client_replicator)
 	root.add_child(_late_replicator)
-	_host_replicator.set_publisher(Callable(self, "_publish"))
+	_host_flow = GameFlow.new()
+	_host_flow.network_session = _server
+	_host_flow._network_session_mode = &"server"
+	_host_flow.world = _make_station_origin(HOST_STATION_ORIGIN)
+	_host_replicator.set_publisher(_host_flow._publish_network_remote_projectile)
 	_client_audio = AudioScene.instantiate() as CombatAudioPresentation
 	_late_audio = AudioScene.instantiate() as CombatAudioPresentation
 	root.add_child(_client_audio)
 	root.add_child(_late_audio)
-	_client_flow = _configure_client_flow(_client, _client_replicator, _client_audio)
-	_late_flow = _configure_client_flow(_late, _late_replicator, _late_audio)
+	_client_flow = _configure_client_flow(_client, _client_replicator, _client_audio, CLIENT_STATION_ORIGIN)
+	_late_flow = _configure_client_flow(_late, _late_replicator, _late_audio, LATE_STATION_ORIGIN)
 	_client.projectile_replica_packet.connect(func(packet: Dictionary, result: Dictionary) -> void:
 		if not bool(packet.get("terminal", false)):
 			_last_launch_packet = packet.duplicate(true)
@@ -143,15 +150,20 @@ func _initialize() -> void:
 		"local client fire is fenced without a speculative audio echo")
 
 	# B
-	var origin := Vector3(10.0, 20.0, -30.0)
+	var origin := HOST_STATION_ORIGIN + Vector3(10.0, 20.0, -30.0)
+	var client_origin := origin - HOST_STATION_ORIGIN + CLIENT_STATION_ORIGIN
 	var slug := _record(7, origin, Vector3.FORWARD, 180.0, 2.0)
 	bolts.bolt_launched.emit(slug)
 	await _pump(func() -> bool: return _client_replicator.get_drawn_projectile_ids().size() == 1)
 	var drawn := _client_replicator.get_drawn_projectile_ids()
 	_check(drawn.size() == 1, "the client draws the host's slug")
 	_check(int(_client_audio.get_state_snapshot().cue_count) == 1
-		and (_client_audio.get_state_snapshot().last_world_position as Vector3).is_equal_approx(origin),
+		and (_client_audio.get_state_snapshot().last_world_position as Vector3).is_equal_approx(client_origin),
 		"the accepted host slug dispatches one spatial fire cue through GameFlow")
+	_check((_last_launch_packet.projectile.position as Vector3).is_equal_approx(origin - HOST_STATION_ORIGIN)
+		and (_last_launch_packet.projectile.direction as Vector3).is_equal_approx(Vector3.FORWARD)
+		and is_equal_approx(float((_last_launch_packet.projectile as Dictionary)[Replicator.RECORD_KEY].speed), 180.0),
+		"launch wire uses station position while preserving direction and speed")
 	var duplicate_result := _client._apply_projectile_replica_snapshot(_last_launch_packet)
 	_client_flow._on_projectile_replica_packet(_last_launch_packet, duplicate_result)
 	_check(not bool(duplicate_result.get("accepted", true))
@@ -159,7 +171,7 @@ func _initialize() -> void:
 		"a duplicate launch is rejected without repeating fire audio")
 	var slug_id := StringName(drawn[0]) if not drawn.is_empty() else &""
 	var first := _client_replicator.get_visual_position(slug_id)
-	_check(first.distance_to(origin) < 20.0, "the slug appears at the launch point (%.2f m)" % first.distance_to(origin))
+	_check(first.distance_to(client_origin) < 20.0, "the slug appears at the launch point (%.2f m)" % first.distance_to(client_origin))
 	await _wait_seconds(0.1)
 	var later := _client_replicator.get_visual_position(slug_id)
 	_check((later - first).dot(Vector3.FORWARD) > 1.0, "the slug flies forward between records")
@@ -177,7 +189,7 @@ func _initialize() -> void:
 		and int(_client_audio.get_state_snapshot().cue_count) == 1,
 		"a newer launch restatement after visual retirement cannot replay fire audio")
 	# Avoid overtaking the next host packet with this deliberate restatement.
-	_tick = int(repeated_launch.server_tick)
+	_host_flow._player_pulse_network_server_tick = int(repeated_launch.server_tick)
 	_server._projectile_snapshot_revision = int(repeated_launch.revision)
 
 	# C
@@ -189,6 +201,11 @@ func _initialize() -> void:
 		and int(_client_replicator.get_audit().get("terminals", 0)) == 1,
 		"a resolved slug bursts and stops being drawn")
 	_check(int(_client_replicator.get_audit().get("bursts", 0)) == 1, "a slug that hit something bursts")
+	_check(_client_replicator.get_visual_position(slug_id).is_equal_approx(client_origin + Vector3.FORWARD * 50.0),
+		"a terminal burst uses the client's world frame")
+	var canonical_terminal := _server._projectile_authoritative_records.get(slug_id, {}) as Dictionary
+	_check((canonical_terminal.get("position", Vector3.INF) as Vector3).is_equal_approx(origin - HOST_STATION_ORIGIN + Vector3.FORWARD * 50.0),
+		"canonical terminal retains station-frame position")
 	# A slug that runs out of range without touching anything ends quietly on the
 	# host (no impact cue, no burst); the client must not detonate it in empty sky.
 	var missed := _record(8, origin, Vector3.FORWARD, 180.0, 2.0)
@@ -208,7 +225,7 @@ func _initialize() -> void:
 		% [bursts_before_miss, int(_client_replicator.get_audit().get("bursts", 0))])
 
 	# D
-	var torpedo_origin := Vector3(0.0, 5.0, 0.0)
+	var torpedo_origin := HOST_STATION_ORIGIN + Vector3(0.0, 5.0, 0.0)
 	var torpedo := _record(9, torpedo_origin, Vector3.FORWARD, 40.0, 8.0)
 	torpedoes.records = [torpedo]
 	torpedoes.torpedo_launched.emit(torpedo)
@@ -216,17 +233,17 @@ func _initialize() -> void:
 	var torpedo_id := StringName(_client_replicator.get_drawn_projectile_ids()[0]) \
 		if not _client_replicator.get_drawn_projectile_ids().is_empty() else &""
 	var steered := torpedo.duplicate(true)
-	steered["position"] = Vector3(30.0, 5.0, -5.0)
+	steered["position"] = HOST_STATION_ORIGIN + Vector3(30.0, 5.0, -5.0)
 	steered["direction"] = Vector3.RIGHT
 	torpedoes.records = [steered]
 	for _frame in Replicator.TORPEDO_UPDATE_INTERVAL_TICKS * 2:
 		_host_replicator.advance_host()
 		await process_frame
 	await _pump(func() -> bool:
-		return _client_replicator.get_visual_position(torpedo_id).distance_to(Vector3(30.0, 5.0, -5.0)) < 12.0)
+		return _client_replicator.get_visual_position(torpedo_id).distance_to(CLIENT_STATION_ORIGIN + Vector3(30.0, 5.0, -5.0)) < 12.0)
 	var tracked := _client_replicator.get_visual_position(torpedo_id)
-	_check(tracked.distance_to(Vector3(30.0, 5.0, -5.0)) < 12.0,
-		"the client's torpedo follows the host's steering (%.2f m off)" % tracked.distance_to(Vector3(30.0, 5.0, -5.0)))
+	_check(tracked.distance_to(CLIENT_STATION_ORIGIN + Vector3(30.0, 5.0, -5.0)) < 12.0,
+		"the client's torpedo follows the host's steering (%.2f m off)" % tracked.distance_to(CLIENT_STATION_ORIGIN + Vector3(30.0, 5.0, -5.0)))
 
 	# A proximity fuse whose arrival sweep damaged nothing is a near miss: the
 	# host shows no detonation burst, so neither does the client.
@@ -273,7 +290,7 @@ func _initialize() -> void:
 	torpedoes.torpedo_launched.emit(live_torpedo)
 	await _pump(func() -> bool: return _client_replicator.get_drawn_projectile_ids().size() == 2)
 	var flown := live_torpedo.duplicate(true)
-	flown["position"] = Vector3(-60.0, 5.0, -80.0)
+	flown["position"] = HOST_STATION_ORIGIN + Vector3(-60.0, 5.0, -80.0)
 	flown["direction"] = Vector3.RIGHT
 	flown["elapsed"] = 2.0
 	torpedoes.records = [flown]
@@ -284,6 +301,12 @@ func _initialize() -> void:
 	_host_replicator.republish_for_peer(_late.multiplayer.get_unique_id())
 	await _pump(func() -> bool: return _late_replicator.get_drawn_projectile_ids().size() == 2)
 	_check(_late_replicator.get_drawn_projectile_ids().size() == 2, "the late peer is sent the live slug and torpedo")
+	var late_slug_id := &""
+	for drawn_id in _late_replicator.get_drawn_projectile_ids():
+		if String(drawn_id).begins_with("slug"):
+			late_slug_id = StringName(drawn_id)
+	_check(_late_replicator.get_visual_position(late_slug_id).distance_to(origin - HOST_STATION_ORIGIN + LATE_STATION_ORIGIN) < 20.0,
+		"late-join slug resync uses the late peer's station frame")
 	_check(int(_late_audio.get_state_snapshot().cue_count) == 0,
 		"late-join mid-flight presentation never replays old launch audio")
 	var late_torpedo_id := &""
@@ -291,7 +314,7 @@ func _initialize() -> void:
 		if String(drawn_id).begins_with("torpedo"):
 			late_torpedo_id = StringName(drawn_id)
 	var late_torpedo_error := _late_replicator.get_visual_position(late_torpedo_id).distance_to(
-		flown.position as Vector3)
+		(flown.position as Vector3) - HOST_STATION_ORIGIN + LATE_STATION_ORIGIN)
 	_check(late_torpedo_error < 12.0,
 		"the late peer sees the torpedo where it has steered to, not at its launch (%.2f m off)"
 		% late_torpedo_error)
@@ -379,6 +402,10 @@ func _initialize() -> void:
 
 	for adapter in [_late, _client, _server]:
 		adapter.shutdown(&"suite_complete")
+	_host_flow.world.queue_free()
+	_client_flow.world.queue_free()
+	_late_flow.world.queue_free()
+	_host_flow.free()
 	_client_flow.free()
 	_late_flow.free()
 	await process_frame
@@ -420,13 +447,14 @@ func _check_launch_descriptor_compatibility(launch_packet: Dictionary) -> void:
 			_check(bool(presented.get("accepted", false))
 				and int(audio.get_state_snapshot().cue_count) == 2,
 				"legacy records without a launch marker remain visual-only")
+	flow.world.queue_free()
 	flow.free()
 	adapter.free()
 	replicator.queue_free()
 	audio.queue_free()
 
 
-func _configure_client_flow(adapter: Adapter, replicator: Replicator, audio: CombatAudioPresentation) -> GameFlow:
+func _configure_client_flow(adapter: Adapter, replicator: Replicator, audio: CombatAudioPresentation, station_origin: Vector3 = Vector3.ZERO) -> GameFlow:
 	# Keep unrelated world boot detached; inject the same already-attached
 	# presentation and adapter that production GameFlow dispatch uses.
 	var flow := GameFlow.new()
@@ -434,13 +462,15 @@ func _configure_client_flow(adapter: Adapter, replicator: Replicator, audio: Com
 	flow._network_session_mode = &"client"
 	flow._network_remote_projectile_replicator = replicator
 	flow.combat_audio = audio
+	flow.world = _make_station_origin(station_origin)
 	return flow
 
 
-func _publish(projectile: Dictionary, terminal: bool, recipients: Array = []) -> Dictionary:
-	_tick += 1
-	projectile["last_update_tick"] = _tick
-	return _server.publish_projectile_snapshot(projectile, recipients, terminal, _tick)
+func _make_station_origin(origin: Vector3) -> Node3D:
+	var station := Node3D.new()
+	root.add_child(station)
+	station.global_position = origin
+	return station
 
 
 func _record(flight_id: int, origin: Vector3, direction: Vector3, speed: float, lifetime: float) -> Dictionary:

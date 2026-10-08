@@ -8,6 +8,9 @@ const TorrentScene := preload("res://scenes/ships/torrent_interceptor.tscn")
 const PulseScene := preload("res://scenes/effects/pulse_weapon_presentation.tscn")
 const AudioScene := preload("res://scenes/audio/combat_audio_presentation.tscn")
 
+const HOST_STATION_ORIGIN := Vector3(-31.0, -4.0, -48.0)
+const CLIENT_STATION_ORIGIN := Vector3(22.0, 3.0, 17.0)
+
 var _assertions := 0
 var _failures := PackedStringArray()
 
@@ -90,6 +93,16 @@ func _run() -> void:
 		and client_pulse.get_active_effect_count() == 1
 		and client_flow._player_pulse_network_active_shots.is_empty(),
 		"client consumes the receipted packet into presentation without a local authority record")
+	var host_visual := server_pulse.get_active_shot_snapshots()[0]
+	var client_visual := client_pulse.get_active_shot_snapshots()[0]
+	_check((client_visual.origin as Vector3).is_equal_approx((host_visual.origin as Vector3) - HOST_STATION_ORIGIN + CLIENT_STATION_ORIGIN)
+		and (client_visual.end as Vector3).is_equal_approx((host_visual.end as Vector3) - HOST_STATION_ORIGIN + CLIENT_STATION_ORIGIN)
+		and (client_visual.direction as Vector3).is_equal_approx(host_visual.direction as Vector3),
+		"player pulse origin and endpoint follow the client station with unchanged direction")
+	_check((launch_projectile.position as Vector3).is_equal_approx((host_visual.origin as Vector3) - HOST_STATION_ORIGIN)
+		and ((late_packet.projectile as Dictionary).pulse_record.origin as Vector3).is_equal_approx(launch_projectile.pulse_record.origin as Vector3)
+		and (_canonical_projectile(canonical_launch, projectile_id).position as Vector3).is_equal_approx(launch_projectile.position as Vector3),
+		"player pulse launch, resync and canonical positions share the station wire frame")
 	client_flow._on_projectile_fired(Vector3.ZERO, Vector3.FORWARD, client_ship)
 	_check(client_flow._last_player_shot_result.get("reason")
 			== &"client_projectile_authority_forbidden"
@@ -122,6 +135,11 @@ func _run() -> void:
 		and StringName((expiry_packet.get("projectile", {}) as Dictionary).get("state", &"")) == &"expired"
 		and _canonical_projectile(expiry_canonical, projectile_id).get("state") == &"expired",
 		"a resolved miss retires as an immutable expiry tombstone")
+	var expiry_projectile := expiry_packet.projectile as Dictionary
+	var expiry_nested := expiry_projectile.get("pulse_record", expiry_projectile.get("opponent_pulse_record", {})) as Dictionary
+	_check((expiry_projectile.position as Vector3).is_equal_approx(expiry_nested.endpoint as Vector3)
+		and (_canonical_projectile(expiry_canonical, expiry_projectile.projectile_id).position as Vector3).is_equal_approx(expiry_projectile.position as Vector3),
+		"pulse terminal and canonical position retain the same station-frame endpoint")
 	var terminal_applied := client._apply_projectile_replica_snapshot(expiry_packet)
 	var terminal_presented := client_flow._on_projectile_replica_packet(expiry_packet, terminal_applied)
 	var reordered := client._apply_projectile_replica_snapshot(launch_packet)
@@ -244,6 +262,9 @@ func _configure_flow(
 	audio: CombatAudioPresentation,
 	mode: StringName,
 ) -> void:
+	flow.world = Node3D.new()
+	root.add_child(flow.world)
+	flow.world.global_position = HOST_STATION_ORIGIN if mode == &"server" else (CLIENT_STATION_ORIGIN if mode == &"client" else Vector3.ZERO)
 	flow.network_session = adapter
 	flow._network_session_mode = mode
 	flow._network_ship_generation = 1
