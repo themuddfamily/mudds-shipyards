@@ -9,7 +9,8 @@ extends SceneTree
 ## through the production `publish_projectile_snapshot()` path on a shared
 ## monotonic tick the way GameFlow's publisher does. The client side is a second
 ## replicator fed by the client adapter's `projectile_replica_packet`, as the
-## GameFlow dispatch does.
+## production GameFlow dispatch does, with real CombatAudioPresentation nodes.
+## Dummy audio verifies cue admission and dispatch; it does not prove audibility.
 ##
 ## What is asserted:
 ##   A. only a pool with the right signals is observed, and only once;
@@ -22,13 +23,18 @@ extends SceneTree
 ##      without a burst;
 ##   F. a peer that joins mid-flight is sent every live flight;
 ##   G. a flight whose terminal never arrives is retired on the client after its
-##      published lifetime, and the client never holds combat authority.
+##      published lifetime, and the client never holds combat authority;
+##   H. launch audio plays once for current clients, without local echo, late
+##      join replay, or replay after a visual expires; retirement stays bounded.
 ##
 ## Named `network_*` so the matrix gives it the per-run flock lane: it opens
 ## real `ENetMultiplayerPeer` sockets.
 
 const Adapter := preload("res://scripts/network/network_enet_session_adapter.gd")
 const Replicator := preload("res://scripts/network/network_remote_projectile_replicator.gd")
+const GameFlow := preload("res://scripts/game/game_flow.gd")
+const Cargo := preload("res://scripts/ships/cinder_cargo_hauler.gd")
+const AudioScene := preload("res://scenes/audio/combat_audio_presentation.tscn")
 const STORM_SLUGS := 200
 ## Live flights plus the retired-id tombstones the fencing needs.
 const STORM_BOUND := 160
@@ -60,6 +66,11 @@ var _host_replicator: Replicator
 var _client_replicator: Replicator
 var _late_replicator: Replicator
 var _tick := 0
+var _client_flow: GameFlow
+var _late_flow: GameFlow
+var _client_audio: CombatAudioPresentation
+var _late_audio: CombatAudioPresentation
+var _last_launch_packet := {}
 
 
 func _initialize() -> void:
@@ -85,12 +96,17 @@ func _initialize() -> void:
 	root.add_child(_client_replicator)
 	root.add_child(_late_replicator)
 	_host_replicator.set_publisher(Callable(self, "_publish"))
+	_client_audio = AudioScene.instantiate() as CombatAudioPresentation
+	_late_audio = AudioScene.instantiate() as CombatAudioPresentation
+	root.add_child(_client_audio)
+	root.add_child(_late_audio)
+	_client_flow = _configure_client_flow(_client, _client_replicator, _client_audio)
+	_late_flow = _configure_client_flow(_late, _late_replicator, _late_audio)
 	_client.projectile_replica_packet.connect(func(packet: Dictionary, result: Dictionary) -> void:
-		if bool(result.get("accepted", false)):
-			_client_replicator.present_packet(packet, StringName(result.get("status", &""))))
-	_late.projectile_replica_packet.connect(func(packet: Dictionary, result: Dictionary) -> void:
-		if bool(result.get("accepted", false)):
-			_late_replicator.present_packet(packet, StringName(result.get("status", &""))))
+		if not bool(packet.get("terminal", false)):
+			_last_launch_packet = packet.duplicate(true)
+		_client_flow._on_projectile_replica_packet(packet, result))
+	_late.projectile_replica_packet.connect(_late_flow._on_projectile_replica_packet)
 	var probe := UDPServer.new()
 	_check(probe.listen(0, "127.0.0.1") == OK, "reserve ENet port")
 	var port := probe.get_local_port()
@@ -117,6 +133,15 @@ func _initialize() -> void:
 	_check(_host_replicator.observe_pool(plain, Replicator.KIND_SLUG, &"nothing").status
 		== &"pool_signals_missing", "a node without the pool's signals is refused")
 
+	# Local client fire must wait for the host's accepted projectile: no echo.
+	var cargo := Cargo.new() as HeroShip
+	root.add_child(cargo)
+	_client_flow.active_ship = cargo
+	_client_flow._on_projectile_fired(Vector3.ZERO, Vector3.FORWARD, cargo)
+	_check(int(_client_audio.get_state_snapshot().cue_count) == 0
+		and _client_flow.get_last_player_shot_result().get("reason") == &"client_projectile_authority_forbidden",
+		"local client fire is fenced without a speculative audio echo")
+
 	# B
 	var origin := Vector3(10.0, 20.0, -30.0)
 	var slug := _record(7, origin, Vector3.FORWARD, 180.0, 2.0)
@@ -124,12 +149,36 @@ func _initialize() -> void:
 	await _pump(func() -> bool: return _client_replicator.get_drawn_projectile_ids().size() == 1)
 	var drawn := _client_replicator.get_drawn_projectile_ids()
 	_check(drawn.size() == 1, "the client draws the host's slug")
+	_check(int(_client_audio.get_state_snapshot().cue_count) == 1
+		and (_client_audio.get_state_snapshot().last_world_position as Vector3).is_equal_approx(origin),
+		"the accepted host slug dispatches one spatial fire cue through GameFlow")
+	var duplicate_result := _client._apply_projectile_replica_snapshot(_last_launch_packet)
+	_client_flow._on_projectile_replica_packet(_last_launch_packet, duplicate_result)
+	_check(not bool(duplicate_result.get("accepted", true))
+		and int(_client_audio.get_state_snapshot().cue_count) == 1,
+		"a duplicate launch is rejected without repeating fire audio")
 	var slug_id := StringName(drawn[0]) if not drawn.is_empty() else &""
 	var first := _client_replicator.get_visual_position(slug_id)
 	_check(first.distance_to(origin) < 20.0, "the slug appears at the launch point (%.2f m)" % first.distance_to(origin))
 	await _wait_seconds(0.1)
 	var later := _client_replicator.get_visual_position(slug_id)
 	_check((later - first).dot(Vector3.FORWARD) > 1.0, "the slug flies forward between records")
+
+	# A newer copy of the launch marker is an update, even after the visual
+	# expires locally; audio follows first authority admission, not visual life.
+	_client_replicator._process(4.0)
+	var repeated_launch := _last_launch_packet.duplicate(true)
+	repeated_launch.revision = int(repeated_launch.revision) + 1
+	repeated_launch.server_tick = int(repeated_launch.server_tick) + 1
+	(repeated_launch.projectile as Dictionary)["last_update_tick"] = int(repeated_launch.server_tick)
+	var repeated_result := _client._apply_projectile_replica_snapshot(repeated_launch)
+	_client_flow._on_projectile_replica_packet(repeated_launch, repeated_result)
+	_check(bool(repeated_result.get("accepted", false))
+		and int(_client_audio.get_state_snapshot().cue_count) == 1,
+		"a newer launch restatement after visual retirement cannot replay fire audio")
+	# Avoid overtaking the next host packet with this deliberate restatement.
+	_tick = int(repeated_launch.server_tick)
+	_server._projectile_snapshot_revision = int(repeated_launch.revision)
 
 	# C
 	var terminal := slug.duplicate(true)
@@ -235,6 +284,8 @@ func _initialize() -> void:
 	_host_replicator.republish_for_peer(_late.multiplayer.get_unique_id())
 	await _pump(func() -> bool: return _late_replicator.get_drawn_projectile_ids().size() == 2)
 	_check(_late_replicator.get_drawn_projectile_ids().size() == 2, "the late peer is sent the live slug and torpedo")
+	_check(int(_late_audio.get_state_snapshot().cue_count) == 0,
+		"late-join mid-flight presentation never replays old launch audio")
 	var late_torpedo_id := &""
 	for drawn_id in _late_replicator.get_drawn_projectile_ids():
 		if String(drawn_id).begins_with("torpedo"):
@@ -291,9 +342,13 @@ func _initialize() -> void:
 	resurrect_projectile["state"] = &"flying"
 	resurrect_projectile.erase("terminal_intent")
 	resurrect["terminal"] = false
+	var cues_before_reorder := int(_client_audio.get_state_snapshot().cue_count)
+	var resurrect_result: Dictionary = _client.call("_apply_projectile_replica_snapshot", resurrect)
+	_client_flow._on_projectile_replica_packet(resurrect, resurrect_result)
 	_check(not resurrect_projectile.is_empty()
-		and not bool(_client.call("_apply_projectile_replica_snapshot", resurrect).get("accepted", true)),
-		"a late duplicate of a retired projectile is refused")
+		and not bool(resurrect_result.get("accepted", true))
+		and int(_client_audio.get_state_snapshot().cue_count) == cues_before_reorder,
+		"a late duplicate of a retired projectile is refused without audio replay")
 	# Each batch spent more than the ordering window's tick gap on terminals; a
 	# slug fired afterwards is still drawn (the window re-baselines instead of
 	# waiting forever for the ticks the terminals used).
@@ -320,10 +375,66 @@ func _initialize() -> void:
 	_check(int(_client_replicator.get_audit().get("published", 0)) == 0,
 		"the client never publishes a projectile")
 
+	_check_launch_descriptor_compatibility(_last_launch_packet)
+
 	for adapter in [_late, _client, _server]:
 		adapter.shutdown(&"suite_complete")
+	_client_flow.free()
+	_late_flow.free()
 	await process_frame
 	_finish()
+
+
+func _check_launch_descriptor_compatibility(launch_packet: Dictionary) -> void:
+	var adapter := Adapter.new()
+	var replicator := Replicator.new()
+	var audio := AudioScene.instantiate() as CombatAudioPresentation
+	root.add_child(replicator)
+	root.add_child(audio)
+	var flow := _configure_client_flow(adapter, replicator, audio)
+	for generation in 4:
+		var packet := launch_packet.duplicate(true)
+		packet.revision = int(packet.revision) + generation
+		packet.server_tick = int(packet.server_tick) + generation
+		var projectile := packet.projectile as Dictionary
+		projectile.projectile_generation = generation + 1
+		projectile.source_generation = generation + 1
+		projectile.last_update_tick = packet.server_tick
+		var descriptor := projectile.get(Replicator.RECORD_KEY, {}) as Dictionary
+		if generation == 2:
+			descriptor["launch"] = 1
+		elif generation == 3:
+			descriptor.erase("launch")
+		var admission := adapter._apply_projectile_replica_snapshot(packet)
+		var presented := flow._on_projectile_replica_packet(packet, admission)
+		if generation < 2:
+			_check(bool(admission.get("first_admission", false))
+				and bool(presented.get("accepted", false))
+				and int(audio.get_state_snapshot().cue_count) == generation + 1,
+				"a legitimate launch in generation %d dispatches its own cue" % (generation + 1))
+		elif generation == 2:
+			_check(presented.get("status") == &"invalid_remote_projectile_record"
+				and int(audio.get_state_snapshot().cue_count) == 2,
+				"a nonboolean launch marker is rejected without audio")
+		else:
+			_check(bool(presented.get("accepted", false))
+				and int(audio.get_state_snapshot().cue_count) == 2,
+				"legacy records without a launch marker remain visual-only")
+	flow.free()
+	adapter.free()
+	replicator.queue_free()
+	audio.queue_free()
+
+
+func _configure_client_flow(adapter: Adapter, replicator: Replicator, audio: CombatAudioPresentation) -> GameFlow:
+	# Keep unrelated world boot detached; inject the same already-attached
+	# presentation and adapter that production GameFlow dispatch uses.
+	var flow := GameFlow.new()
+	flow.network_session = adapter
+	flow._network_session_mode = &"client"
+	flow._network_remote_projectile_replicator = replicator
+	flow.combat_audio = audio
+	return flow
 
 
 func _publish(projectile: Dictionary, terminal: bool, recipients: Array = []) -> Dictionary:
