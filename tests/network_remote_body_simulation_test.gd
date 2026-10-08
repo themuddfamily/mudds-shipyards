@@ -179,6 +179,14 @@ func _run() -> void:
 	await _assert_forged_and_stale_intents_are_rejected()
 	await _assert_the_body_sleeps_in_the_bunk_and_wakes()
 	await _assert_the_hatch_admits_and_releases_a_body()
+	for _cycle in 2:
+		var landing_generation := int(_server.get_landing_entity(SHIP_ID).get("entity_generation", 0))
+		await _assert_seated_dock_departure()
+		if not await _dock_host_for_hatch_departure():
+			await _finish_remote_bodies()
+			return
+		_check(int(_server.get_landing_entity(SHIP_ID).get("entity_generation", 0)) > landing_generation,
+			"the same seated pilot's normal landing request commits a fresh dock generation after repeat departure")
 	await _assert_the_crowd_budget()
 	await _assert_a_disconnect_releases_the_body()
 	await _assert_reentry_and_rehost_readmit_the_body()
@@ -749,6 +757,46 @@ func _on_server_boarding_result(result: Dictionary) -> void:
 
 
 # --- the crowd budget -------------------------------------------------------
+
+
+func _assert_seated_dock_departure() -> void:
+	var berth := _game._resolve_berth_node(_craft.get_home_berth_id())
+	var origin := _craft.global_position
+	var completed_guided_activity := _game._guided_activity_complete
+	_trace_seated_dock_departure("before-input", berth, 0.0, _craft.get_last_ship_command().to_dictionary())
+	Input.action_press(&"move_forward")
+	var moved := await _wait_until(func() -> bool: return _craft.global_position.distance_to(origin) >= 30.0, 6.0)
+	var command := _craft.get_last_ship_command().to_dictionary()
+	Input.action_release(&"move_forward")
+	await _drive(4)
+	var displacement := _craft.global_position.distance_to(origin)
+	_trace_seated_dock_departure("after-motion", berth, displacement, command)
+	_check(moved and displacement >= 30.0 and float(command.get("throttle", 0.0)) > 0.0
+		and not bool(_craft.get_telemetry().get("landed", true)) and _craft.is_piloted() and _game._piloting,
+		"ordinary host throttle physically departs the committed dock while the same pilot stays seated")
+	_check(berth != null and not berth.is_reserved()
+		and not _game._reserved_berth_ids.has(_craft.get_instance_id())
+		and not _game._network_landing_handoffs.has(SHIP_ID)
+		and _server.get_landing_entity(SHIP_ID).get("state") == &"flying"
+		and _game.phase == GameFlow.Phase.FREE_FLIGHT and _game._return_registered
+		and _game._guided_activity_complete == completed_guided_activity,
+		"seated repeat departure retires the exact physical/network dock and restores flight without erasing the completed return")
+
+
+func _trace_seated_dock_departure(marker: String, berth: ShipBerth, displacement: float, command: Dictionary) -> void:
+	var token := StringName(_game._berth_tokens.get(_craft.get_instance_id(), &""))
+	print("SEATED_DOCK_DEPARTURE_TRACE: ", {"marker": marker, "displacement": displacement,
+		"command": command, "landed": _craft.get_telemetry().get("landed"),
+		"engine": _craft.get_telemetry().get("engine_state"), "phase": _game.phase,
+		"sortie_departed": _game._sortie_departed_berth, "return_registered": _game._return_registered,
+		"piloting": _game._piloting, "craft_piloted": _craft.is_piloted(), "player_seated": _player.is_seated(),
+		"berth_reserved": berth != null and berth.is_reserved(),
+		"berth_occupant": berth.get_occupant().get_instance_id() if berth != null and is_instance_valid(berth.get_occupant()) else 0,
+		"craft_instance": _craft.get_instance_id(), "physical_token": token,
+		"physical_token_valid": berth != null and berth.has_valid_lease(_craft, token, SHIP_ID),
+		"reserved_berth": _game._reserved_berth_ids.get(_craft.get_instance_id(), &""),
+		"handoff": _game._network_landing_handoffs.get(SHIP_ID, {}).duplicate(true),
+		"network_landing": _server.get_landing_entity(SHIP_ID)})
 
 
 func _assert_the_crowd_budget() -> void:

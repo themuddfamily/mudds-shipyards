@@ -7711,7 +7711,15 @@ func _update_pilot_flow() -> void:
 	var berth_transform := _get_active_berth_transform()
 	var distance_from_pad: float = active_ship.global_position.distance_to(berth_transform.origin)
 	if not landed:
-		_mark_sortie_departed()
+		var departure := _mark_sortie_departed()
+		if bool(departure.get("accepted", false)) and phase == Phase.SHUT_DOWN \
+				and not _network_client_boarding_is_live():
+			# A pilot may take off again without leaving the seat after a return.
+			# Keep its completion receipt, but resume flight only once the dock's
+			# existing owner has retired the physical and network leases.
+			phase = Phase.FREE_FLIGHT
+			hud.set_objective("Free flight — explore, fight, or return to a compatible registered berth", "SANDBOX SORTIE")
+			hud.toast("Departure confirmed", "Dock released — free flight resumed")
 
 	if phase == Phase.START_ENGINES:
 		hud.set_interaction("[ W/S / LEFT STICK ]  APPLY THRUST")
@@ -18583,11 +18591,15 @@ func _ensure_landed_berth_occupancy(candidate: HeroShip) -> bool:
 ## a physically parked craft continues to own its occupied berth until thrust
 ## actually clears the docking latch.
 func _mark_sortie_departed() -> Dictionary:
-	if _sortie_departed_berth or not is_instance_valid(active_ship):
+	if not is_instance_valid(active_ship):
 		return {"accepted": false, "status": &"sortie_departure_unavailable"}
 	var berth_id := StringName(
 		_reserved_berth_ids.get(active_ship.get_instance_id(), &"")
 	)
+	# The sortie flag records a historical departure. A later committed dock
+	# is a new lease, even while the same pilot remains seated on that sortie.
+	if _sortie_departed_berth and (berth_id.is_empty() or _network_client_boarding_is_live()):
+		return {"accepted": false, "status": &"sortie_departure_unavailable"}
 	var berth := (
 		_resolve_berth_node(berth_id)
 		if not berth_id.is_empty() and is_instance_valid(world)

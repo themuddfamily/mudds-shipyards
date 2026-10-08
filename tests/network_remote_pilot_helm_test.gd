@@ -173,6 +173,7 @@ func _build() -> bool:
 		_movement_results.append(result.duplicate(true))
 		if result.get("status") == &"client_tick_too_far_ahead" and _clock_trace_rejections < 8:
 			_clock_trace_rejections += 1
+			print("MOVEMENT_REFUSAL_TRACE: ", result)
 			_clock_trace("host-admission-refusal-%d" % _clock_trace_rejections))
 	_server.boarding_intent_result.connect(func(result: Dictionary) -> void:
 		_boarding_results.append(result.duplicate(true)))
@@ -912,10 +913,24 @@ func _assert_independent_landing() -> void:
 			and is_zero_approx(_craft.get_last_ship_command().throttle), 2.0),
 		"host consumes the exact neutral stream boundary before the second landing approach")
 	_place_remote_approach(berth)
+	_clock_trace_rejections = 0
+	_clock_trace("host-second-dock-before-request")
 	_roll_mark("host", "reuse_redock")
 	if not await _wait_roll_marker("peer", "reuse_redock_pressed"): return
-	_check(await _wait_until(func() -> bool: return berth.get_occupant() == _craft \
+	var second_docked := await _wait_until(func() -> bool: return berth.get_occupant() == _craft \
 		and _server.get_landing_entity(SHIP_ID).get("state") == &"landed", 6.0)
+	_clock_trace("host-second-dock-after-request")
+	print("SECOND_DOCK_HOST_TRACE: ", {"docked": second_docked,
+		"landing_result": (_host._network_remote_pilots.get(SHIP_ID, {}) as Dictionary).get("landing_result", {}),
+		"entity": _server.get_landing_entity(SHIP_ID), "first_generation": first_landing_generation,
+		"handoff": _host._network_landing_handoffs.get(SHIP_ID, {}),
+		"physical_occupant": berth.get_occupant() == _craft,
+		"physical_token": _host._berth_tokens.get(_craft.get_instance_id(), &""),
+		"contract": _craft.get_landing_contract_report(), "telemetry": _craft.get_telemetry(),
+		"command": _craft.get_last_ship_command().to_dictionary(),
+		"receipt": _craft.get_command_source().get_roll_receipt(),
+		"movement_results": _movement_results.slice(maxi(0, _movement_results.size() - 8))})
+	_check(second_docked
 		and int(_server.get_landing_entity(SHIP_ID).get("entity_generation", 0)) > first_landing_generation,
 		"second physical landing request commits a new landing generation on the same unchanged hull")
 	_check(await _wait_until(func() -> bool: return _craft.get_telemetry().get("engine_state") == HeroShip.ENGINE_OFFLINE, 6.0),
@@ -1197,6 +1212,9 @@ func _run_landing_peer_actions(seats: Array[StringName]) -> void:
 		var operation: Dictionary = _host._network_craft_pose_stream.latest_sample(SHIP_ID).get("operation_presentation", {})
 		return operation.get("engine") == HeroShip.ENGINE_OFFLINE and bool(operation.get("docked", false)), 6.0),
 		"client hears actual second dock and automatic shutdown")
+	print("SECOND_DOCK_CLIENT_TRACE: ", {"latest_sample": _host._network_craft_pose_stream.latest_sample(SHIP_ID),
+		"landing": _host.get_network_session().get_authoritative_snapshot().get("sections", {}).get("landing", []),
+		"helm": _host._network_remote_helm.duplicate(true)})
 	await _peer_interact()
 	_check(await _wait_peer_until(func() -> bool: return not _host._piloting and not _host._transition_busy \
 		and _host._network_client_boarding_claim.is_empty() and _host.player.is_control_enabled(), 8.0)
