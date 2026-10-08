@@ -6,6 +6,11 @@ extends RefCounted
 ## detached full packet before lifecycle validation.
 
 const FULL_INTERVAL := 8
+const Fragmenter := preload("res://scripts/network/network_snapshot_fragmenter.gd")
+## Compression changes only oversized full envelopes, never the reconstructed
+## snapshot or transport ceiling. Bound allocation before untrusted inflation.
+const MAX_INFLATED_PACKET_BYTES := 64_000
+const MAX_COMPRESSED_PACKET_BYTES := Fragmenter.MAX_PACKET_BYTES * 3 / 4
 ## The one nested key diffed per entry rather than as a whole: a delta carries
 ## only the sections that changed (`section_changes`) and the ones that went
 ## away (`section_removals`).
@@ -30,7 +35,7 @@ func encode(packet: Dictionary, force_full: bool = false) -> Dictionary:
 		_baseline = packet.duplicate(true)
 		_baseline_revision = revision
 		_packets_since_full = 1
-		return {"kind": &"full", "base_revision": 0, "revision": revision, "packet": packet.duplicate(true)}
+		return _full_envelope(packet, revision)
 	var previous_revision := _baseline_revision
 	var changes: Dictionary = {}
 	var section_changes: Dictionary = {}
@@ -76,7 +81,7 @@ func decode(envelope: Dictionary) -> Dictionary:
 	if revision <= 0:
 		return {"accepted": false, "status": &"invalid_delta_revision"}
 	if kind == &"full":
-		var packet: Dictionary = envelope.get("packet", {}) as Dictionary
+		var packet := _full_packet(envelope)
 		if packet.is_empty() or int(packet.get("revision", 0)) != revision:
 			return {"accepted": false, "status": &"invalid_full_snapshot"}
 		_baseline = packet.duplicate(true)
@@ -107,6 +112,63 @@ func decode(envelope: Dictionary) -> Dictionary:
 	_baseline_revision = revision
 	_packets_since_full += 1
 	return {"accepted": true, "status": &"delta_snapshot", "packet": merged}
+
+
+static func _full_envelope(packet: Dictionary, revision: int) -> Dictionary:
+	var envelope := {"kind": &"full", "base_revision": 0, "revision": revision, "packet": packet.duplicate(true)}
+	if Marshalls.variant_to_base64(envelope).length() <= Fragmenter.MAX_PACKET_BYTES:
+		return envelope
+	var bytes := var_to_bytes(packet)
+	if bytes.size() > MAX_INFLATED_PACKET_BYTES:
+		return envelope
+	var compressed := bytes.compress(FileAccess.COMPRESSION_ZSTD)
+	if compressed.is_empty() or compressed.size() > MAX_COMPRESSED_PACKET_BYTES:
+		return envelope
+	var packed := {"kind": &"full", "base_revision": 0, "revision": revision,
+		"packet": compressed, "packet_size": bytes.size(), "packet_digest": _digest(compressed)}
+	if Marshalls.variant_to_base64(packed).length() > Fragmenter.MAX_PACKET_BYTES:
+		return envelope
+	return packed
+
+
+static func _full_packet(envelope: Dictionary) -> Dictionary:
+	var value: Variant = envelope.get("packet")
+	if value is Dictionary:
+		# Refuse an ambiguous packed/plain full envelope.
+		if envelope.has("packet_size") or envelope.has("packet_digest"):
+			return {}
+		return value
+	if not value is PackedByteArray or not envelope.get("packet_size") is int \
+		or not envelope.get("packet_digest") is PackedByteArray:
+		return {}
+	var size: int = envelope.packet_size
+	var compressed := value as PackedByteArray
+	var digest := envelope.packet_digest as PackedByteArray
+	if size <= 0 or size > MAX_INFLATED_PACKET_BYTES or compressed.is_empty() \
+		or compressed.size() > MAX_COMPRESSED_PACKET_BYTES or digest.size() != 32:
+		return {}
+	if Marshalls.variant_to_base64(envelope).length() > Fragmenter.MAX_PACKET_BYTES \
+		or _digest(compressed) != digest:
+		return {}
+	# Fixed-size ZSTD decompression is supported; the dynamic API is not.
+	var bytes := compressed.decompress(size, FileAccess.COMPRESSION_ZSTD)
+	# Godot's primitive Variant header stores the base type in its low 16 bits.
+	# Reject non-packets before invoking the decoder (including top-level Objects).
+	if bytes.size() != size or size < 4 or (bytes.decode_u32(0) & 0xffff) != TYPE_DICTIONARY:
+		return {}
+	if not bytes.has_encoded_var(0, false):
+		return {}
+	if bytes.decode_var_size(0, false) != size:
+		return {}
+	var parsed: Variant = bytes.decode_var(0, false)
+	return parsed as Dictionary if parsed is Dictionary else {}
+
+
+static func _digest(bytes: PackedByteArray) -> PackedByteArray:
+	var hashing := HashingContext.new()
+	hashing.start(HashingContext.HASH_SHA256)
+	hashing.update(bytes)
+	return hashing.finish()
 
 
 static func _detached(value: Variant) -> Variant:
