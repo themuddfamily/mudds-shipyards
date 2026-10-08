@@ -446,6 +446,8 @@ var _network_operation_reduced_flash := false
 var _network_operation_starting: Dictionary = {}
 var _network_operation_canopy_restore := -1.0
 var _network_operation_policy_restore := false
+var _network_canopy_motion_owner := 0
+var _network_canopy_motion_source_open := false
 var _damage_presentation: HeroDamagePresentation
 ## Observational component model. It never owns hull; see
 ## `scripts/combat/ship_component_damage.gd` for the authority boundary.
@@ -2075,6 +2077,30 @@ func set_canopy_open(open: bool, duration: float = 0.65) -> void:
 	_set_canopy_open_unchecked(open, duration)
 
 
+## An accepted local avatar transition may temporarily animate only the hatch
+## over the host's operation display. Its exact token must hand it back.
+func acquire_network_canopy_motion(owner: int) -> bool:
+	if not _network_damage_presentation_enabled or owner <= 0 \
+			or (_network_canopy_motion_owner != 0 and _network_canopy_motion_owner != owner):
+		return false
+	_network_canopy_motion_owner = owner
+	_network_canopy_motion_source_open = _canopy_open
+	return true
+
+
+func release_network_canopy_motion(owner: int) -> bool:
+	if owner <= 0 or owner != _network_canopy_motion_owner:
+		return false
+	_network_canopy_motion_owner = 0
+	_canopy_open = _network_canopy_motion_source_open
+	_canopy_motion_serial += 1
+	if _canopy_tween != null and _canopy_tween.is_valid():
+		_canopy_tween.kill()
+	_canopy_tween = null
+	_reassert_network_operation_presentation()
+	return true
+
+
 ## Reset owns a private path because its dispatch guard must reject a hostile
 ## callback without blocking the transaction's own authored canopy restoration.
 func _set_canopy_open_unchecked(open: bool, duration: float) -> void:
@@ -2524,7 +2550,8 @@ func _reassert_network_operation_presentation() -> void:
 			for index in mini(node.multimesh.instance_count, row.slots.size()):
 				node.multimesh.set_instance_transform(index, row.slots[index])
 			node.multimesh.visible_instance_count = mini(node.multimesh.instance_count, int(row.slot_count))
-	_set_canopy_open_fraction(float(state.canopy))
+	if _network_canopy_motion_owner == 0:
+		_set_canopy_open_fraction(float(state.canopy))
 	if is_instance_valid(_cockpit_readout):
 		_cockpit_readout.text = state.readout
 		_cockpit_readout.modulate = state.readout_color
@@ -2536,6 +2563,8 @@ func _network_operation_solo_policy() -> Array:
 
 
 func clear_network_operation_presentation() -> void:
+	if _network_canopy_motion_owner > 0:
+		release_network_canopy_motion(_network_canopy_motion_owner)
 	_network_operation_state.clear()
 	_network_operation_starting.clear()
 	if _network_operation_source.is_empty():

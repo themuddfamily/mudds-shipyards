@@ -957,6 +957,10 @@ var _activity_tutorial_active_id: StringName = &""
 var _tutorial_prompt_seen_store: TutorialPromptSeenStoreType
 var _tutorial_prompt_seen_commit_serial := 0
 var _transition_busy := false
+var _network_exterior_canopy_ship: HeroShip
+var _network_exterior_canopy_generation := 0
+var _network_exterior_recovery_pose := Transform3D.IDENTITY
+var _network_exterior_loss_pose := Transform3D.IDENTITY
 ## Every awaited boarding/disembarking coroutine captures this generation. A
 ## destructive recovery advances it before restoring the player, so stale
 ## continuations can never reacquire cameras, seats, phases, or berth state.
@@ -1352,6 +1356,7 @@ func _enter_tree() -> void:
 ## tombstone here, so no client is left drawing a body in a cabin nobody is
 ## flying any more.
 func _on_game_flow_tree_exiting() -> void:
+	_cancel_network_exterior_transition()
 	_retire_all_network_moving_interior_occupancy(&"game_flow_detached")
 	# The session adapter's lifetime is this subtree's tree membership, and this
 	# is the last moment it is still a whole node in a whole tree: it can close
@@ -6381,6 +6386,7 @@ func _on_network_session_started(mode: StringName) -> void:
 	_network_moving_interior_dirty = true
 	_ensure_network_moving_interior_presenter()
 	if mode == &"server":
+		network_session.set_boarding_departure_guard(_network_boarding_departure_status)
 		_ensure_network_remote_body_simulation()
 		# Every craft with a walkable interior is boardable through the hatch
 		# from the first tick of the session, whether or not the host has ever
@@ -6405,6 +6411,7 @@ func _on_network_session_started(mode: StringName) -> void:
 
 
 func _on_network_session_stopped(reason: StringName) -> void:
+	_cancel_network_exterior_transition()
 	_stop_lan_discovery_responder()
 	_bomber_payload_canonical_publish_pending = false
 	_bomber_payload_network_source_generation = 0
@@ -7890,7 +7897,11 @@ func _consume_active_ship_command(command: ShipCommand) -> void:
 		and _network_client_remote_helm_ship() == active_ship and not get_tree().paused
 	if remote_landing_feedback:
 		_try_request_landing()
+	var remote_exit := command.interact and not command.landing \
+		and _network_client_remote_helm_ship() == active_ship and not get_tree().paused
 	if phase == Phase.INTRO or get_tree().paused or _transition_busy:
+		if remote_exit and not _transition_busy:
+			_try_exit_ship()
 		return
 	if command.fire_pressed and active_ship is CinderLongRangeBomberType:
 		_consume_cinder_bomber_fire_pressed()
@@ -7900,12 +7911,12 @@ func _consume_active_ship_command(command: ShipCommand) -> void:
 	]:
 		if not remote_landing_feedback:
 			_try_request_landing()
-	elif command.interact and phase in [
+	elif command.interact and (remote_exit or phase in [
 		Phase.START_ENGINES,
 		Phase.RETURN_TO_YARD,
 		Phase.FREE_FLIGHT,
 		Phase.SHUT_DOWN,
-	]:
+	]):
 		_try_exit_ship()
 
 
@@ -8647,7 +8658,54 @@ func _begin_transition_generation() -> int:
 
 
 func _invalidate_transition_generation() -> void:
+	_release_network_exterior_canopy_motion()
 	_transition_generation += 1
+
+
+func _release_network_exterior_canopy_motion(generation: int = -1) -> void:
+	if generation >= 0 and generation != _network_exterior_canopy_generation:
+		return
+	var craft := _network_exterior_canopy_ship
+	var owner := _network_exterior_canopy_generation
+	_network_exterior_canopy_ship = null
+	_network_exterior_canopy_generation = 0
+	if is_instance_valid(craft):
+		craft.release_network_canopy_motion(owner)
+
+
+## An already-confirmed departure cannot regain a helm on interruption. Recover
+## the avatar through its existing on-foot owner and retire the visual token.
+func _cancel_network_exterior_transition(craft_lost: bool = false) -> void:
+	if _network_exterior_canopy_generation <= 0:
+		return
+	var craft := _network_exterior_canopy_ship
+	var recovery_pose := _network_exterior_recovery_pose
+	var loss_pose := _network_exterior_loss_pose
+	_release_network_exterior_canopy_motion()
+	_transition_generation += 1
+	_transition_busy = false
+	_piloting = false
+	if is_instance_valid(craft):
+		craft.set_piloted(false)
+		craft.get_camera().current = false
+	if is_instance_valid(player) and is_instance_valid(world):
+		var exit_pose: Transform3D = loss_pose if craft_lost or not is_instance_valid(craft) or craft.is_destroyed() else recovery_pose
+		if not craft_lost and is_instance_valid(craft) and craft.is_inside_tree() \
+				and not craft.is_destroyed() and player.is_inside_tree():
+			exit_pose = player.settle_exit_onto_support(craft.get_exit_transform())
+		player.force_recovery_to_on_foot(exit_pose)
+		player.set_camera_active(true)
+		player.set_control_enabled(true)
+	if is_instance_valid(_boarding_area):
+		_boarding_area.release_reservation(player)
+	_boarding_area = null
+	_clear_boarding_confirmation_reservation()
+	_reboard_blocked_ship = craft
+	phase = Phase.COMPLETE if _guided_activity_complete else Phase.APPROACH_SHIP
+	if is_instance_valid(hud):
+		hud.set_mode("on-foot")
+	if is_instance_valid(audio):
+		audio.set_on_foot(true)
 
 
 func _is_transition_current(
@@ -8882,6 +8940,9 @@ func _try_exit_ship() -> void:
 		return
 	if _transition_busy or not _piloting or not is_instance_valid(active_ship):
 		return
+	if _network_client_boarding_is_live():
+		_try_network_client_pilot_exit()
+		return
 	if phase not in [
 		Phase.START_ENGINES,
 		Phase.RETURN_TO_YARD,
@@ -8891,9 +8952,6 @@ func _try_exit_ship() -> void:
 		hud.toast("Exit locked", "Complete the active flight objective before leaving the seat")
 		return
 	var telemetry: Dictionary = active_ship.get_telemetry()
-	var entry := _get_ship_entry_descriptor(active_ship)
-	var entry_noun := str(entry.get("noun", "canopy"))
-	var open_verb := str(entry.get("open_verb", "open"))
 	if str(telemetry.get("engine_state", "ONLINE")).to_upper() != "OFFLINE":
 		hud.toast("Exit waiting", "Release flight controls; propulsion shuts down automatically")
 		return
@@ -8906,50 +8964,132 @@ func _try_exit_ship() -> void:
 	if not _ensure_landed_berth_occupancy(active_ship):
 		hud.toast("Exit locked", "The physical berth must be secured before leaving the seat")
 		return
-	# A seat this peer holds in the host's ledger is released by the ledger, not
-	# by walking out of it. The local disembark runs on the confirmation.
-	if _network_client_boarding_is_live() and _network_client_boarding_holds(active_ship):
-		_request_network_client_boarding(active_ship, _boarding_area)
+	_disembark_ship_to_exterior(active_ship)
+
+
+## Display facts select the supported route; only the host's boarding answer
+## releases a seat. Prediction never acquires a berth or becomes landed here.
+func _try_network_client_pilot_exit() -> void:
+	if _network_client_remote_helm_ship() != active_ship:
+		hud.toast("Exit locked", "A confirmed pilot seat is required")
 		return
+	var sample := _network_craft_pose_stream.latest_sample(active_ship.get_ship_id())
+	var operation := sample.get("operation_presentation", {}) as Dictionary
+	if sample.is_empty() or operation.is_empty() \
+			or bool(sample.get("destroyed", false)):
+		hud.toast("Exit waiting", "Waiting for the host's current craft state")
+		return
+	if StringName(operation.get("engine", &"")) != HeroShip.ENGINE_OFFLINE:
+		hud.toast("Exit waiting", "Release flight controls; propulsion shuts down automatically")
+		return
+	if bool(operation.get("landed", false)) and bool(operation.get("docked", false)):
+		var committed := false
+		var sections := network_session.get_authoritative_snapshot().get("sections", {}) as Dictionary
+		for landing: Dictionary in sections.get("landing", []):
+			if StringName(landing.get("entity_id", &"")) == active_ship.get_ship_id() \
+					and int(landing.get("entity_generation", 0)) > 0:
+				committed = StringName(landing.get("state", &"")) == &"landed"
+				break
+		if not committed:
+			hud.toast("Exit waiting", "Waiting for the host's committed dock")
+			return
+		_request_network_client_boarding(active_ship, _boarding_area)
+	else:
+		_leave_seat_into_cabin()
+
+
+## The seat ledger owns identity and ordering. A matching exterior departure
+## also needs the physical craft's already-held support; a cabin swap does not
+## leave the hull and continues through its existing owner unchanged.
+func _network_boarding_departure_status(peer_id: int, request: Dictionary) -> StringName:
+	if StringName(request.get("action", &"")) != NetworkBoardingIntentType.ACTION_DISEMBARK:
+		return &""
+	var held: Dictionary = {}
+	for occupancy: Dictionary in network_session.get_boarding_snapshot().get("occupancies", []):
+		if int(occupancy.get("peer_id", 0)) == peer_id \
+				and StringName(occupancy.get("avatar_id", &"")) == StringName(request.get("avatar_id", &"")):
+			held = occupancy
+			break
+	if held.is_empty() or StringName(held.get("ship_id", &"")) != StringName(request.get("ship_id", &"")) \
+			or StringName(held.get("seat_id", &"")) != StringName(request.get("seat_id", &"")) \
+			or int(held.get("ship_generation", 0)) != int(request.get("ship_generation", -1)) \
+			or int(held.get("frame_generation", 0)) != int(request.get("frame_generation", -1)) \
+			or int(held.get("seat_generation", 0)) != int(request.get("seat_generation", -1)):
+		return &""
+	var craft := _find_flyable_ship_by_id(StringName(held.get("ship_id", &"")))
+	if not is_instance_valid(craft) or craft.is_destroyed():
+		return &"craft_unavailable"
+	var telemetry := craft.get_telemetry()
+	if StringName(telemetry.get("engine_state", &"")) != HeroShip.ENGINE_OFFLINE:
+		return &"propulsion_not_offline"
+	if not bool(telemetry.get("landed", false)):
+		return &"exterior_departure_requires_landing"
+	var berth_id := StringName(_reserved_berth_ids.get(craft.get_instance_id(), &""))
+	if berth_id.is_empty() or not _ship_owns_exact_occupied_berth(craft, berth_id):
+		return &"physical_berth_not_secured"
+	return &""
+
+
+## Shared exterior motion after local physical acceptance or a confirmed
+## remote departure. It owns avatar/camera presentation, never a berth lease.
+func _disembark_ship_to_exterior(transition_ship: HeroShip) -> void:
+	if not is_instance_valid(transition_ship) or active_ship != transition_ship:
+		return
+	var entry := _get_ship_entry_descriptor(transition_ship)
+	var entry_noun := str(entry.get("noun", "canopy"))
+	var open_verb := str(entry.get("open_verb", "open"))
 	_transition_busy = true
-	var transition_ship := active_ship
 	var transition_generation := _begin_transition_generation()
+	if _network_client_boarding_is_live() and transition_ship.acquire_network_canopy_motion(transition_generation):
+		_network_exterior_canopy_ship = transition_ship
+		_network_exterior_canopy_generation = transition_generation
+		# Main teardown can reach session cleanup after its craft subtree has
+		# left the tree. Retain supported recovery poses before any await.
+		_network_exterior_recovery_pose = player.settle_exit_onto_support(transition_ship.get_exit_transform())
+		_network_exterior_loss_pose = world.get_player_spawn()
 	phase = Phase.DISEMBARKING
 	_present_boarding_confirmation(&"disembarking", transition_ship)
 	hud.set_interaction("", false)
 	hud.set_objective("%s the %s and climb back onto the regeneration deck" % [open_verb.capitalize(), entry_noun])
 	audio.play_canopy(true)
-	active_ship.set_canopy_open(true, canopy_motion_time)
-	await active_ship.canopy_motion_finished
+	transition_ship.set_canopy_open(true, canopy_motion_time)
+	await transition_ship.canopy_motion_finished
 	if not _is_transition_current(transition_generation, transition_ship, Phase.DISEMBARKING):
+		_release_network_exterior_canopy_motion(transition_generation)
 		return
 	_clear_bomber_payload_loop(&"pilot_disembarked")
-	active_ship.set_piloted(false)
-	active_ship.get_camera().current = false
+	transition_ship.set_piloted(false)
+	transition_ship.get_camera().current = false
 	player.set_camera_active(true)
-	var exterior_waypoints := active_ship.get_exterior_exit_waypoints()
+	var exterior_waypoints := transition_ship.get_exterior_exit_waypoints()
 	if not player.begin_disembark(
-			player.settle_exit_onto_support(active_ship.get_exit_transform()),
+			player.settle_exit_onto_support(transition_ship.get_exit_transform()),
 			disembarking_motion_time,
-			active_ship if not exterior_waypoints.is_empty() else null, exterior_waypoints):
+			transition_ship if not exterior_waypoints.is_empty() else null, exterior_waypoints):
+		if _network_exterior_canopy_generation == transition_generation:
+			_cancel_network_exterior_transition()
+			return
 		_transition_busy = false
 		_present_boarding_confirmation(&"rejected", transition_ship, &"disembark_transition_failed")
 		phase = Phase.SHUT_DOWN
 		return
 	await player.disembarking_completed
 	if not _is_transition_current(transition_generation, transition_ship, Phase.DISEMBARKING):
+		_release_network_exterior_canopy_motion(transition_generation)
 		return
 	_authorize_cinder_cargo_terminal_actor(transition_ship)
 	audio.play_canopy(false)
-	active_ship.set_canopy_open(false, canopy_motion_time)
-	await active_ship.canopy_motion_finished
+	transition_ship.set_canopy_open(false, canopy_motion_time)
+	await transition_ship.canopy_motion_finished
 	if not _is_transition_current(transition_generation, transition_ship, Phase.DISEMBARKING):
+		_release_network_exterior_canopy_motion(transition_generation)
 		return
+	_release_network_exterior_canopy_motion(transition_generation)
 	_piloting = false
 	_observe_session_diagnostic_runtime_mode()
 	_landing_request_active = false
 	player.set_control_enabled(true)
-	_reboard_blocked_ship = active_ship
+	_reboard_blocked_ship = transition_ship
 	if _boarding_area != null:
 		_boarding_area.release_reservation(player)
 	_boarding_area = null
@@ -9626,6 +9766,8 @@ func _advance_network_craft_pose_replica(delta: float) -> void:
 				displayed = replica.apply_network_damage_presentation(latest)
 			else:
 				replica.clear_network_damage_presentation()
+		if replica == _network_exterior_canopy_ship and bool(latest.get("destroyed", false)):
+			_cancel_network_exterior_transition(true)
 		if not bool(latest.get("destroyed", false)) or not fresh:
 			_network_craft_losses_presented.erase(ship_id)
 			continue
@@ -11311,9 +11453,11 @@ func _release_network_client_boarding_presentation(
 	_network_client_boarding_audit["claimed_seat_id"] = &""
 	unbind_network_remote_body()
 	if was_pilot:
-		# The seat is the ledger's no longer; the ordinary local disembark can
-		# now run, and its own gate sees no claim to ask about a second time.
-		_try_exit_ship()
+		# Confirmation is the departure boundary. Do not re-enter prediction's
+		# engine/landed/berth gates after the authority has released the seat.
+		_network_remote_helm = {}
+		_piloting = false
+		_disembark_ship_to_exterior(craft)
 		return
 	if not was_aboard:
 		if is_instance_valid(area) and area.get_reservation_token() == player:
@@ -14910,6 +15054,8 @@ func _on_ship_destroyed(
 	) -> void:
 	if not is_instance_valid(source_ship) or not ships.has(source_ship):
 		return
+	if source_ship == _network_exterior_canopy_ship:
+		_cancel_network_exterior_transition()
 	_publish_network_damage_state(source_ship, 0.0, true)
 	if source_ship.get_pending_terminal_damage_presentation_receipt_id() < 0:
 		combat_audio.play_explosion(world_position, source_ship.get_instance_id())

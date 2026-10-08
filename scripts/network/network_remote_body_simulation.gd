@@ -153,8 +153,10 @@ func admit(
 			body.free()
 		return _result(false, &"body_scene_unavailable")
 	body.name = "RemoteBody_%s" % String(entity_id)
-	add_child(body)
+	# Its first ready callback must already know that this body owns neither
+	# the host's camera nor local input, even during synchronous construction.
 	body.set_remote_drive_enabled(true)
+	add_child(body)
 	body.global_transform = stand
 	body.velocity = Vector3.ZERO
 	body.reset_physics_interpolation()

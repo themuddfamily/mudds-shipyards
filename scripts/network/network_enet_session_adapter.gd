@@ -259,6 +259,9 @@ var _boarding_transition_states: Dictionary = {}
 var _boarding_intent_result_replica: Dictionary = {}
 var _boarding_result_server_tick := 0
 var _boarding_answer_revision := 0
+## Production GameFlow supplies physical exterior-departure safety. This
+## callback owns no seats; the existing ledger still validates every intent.
+var _boarding_departure_guard: Callable
 ## The engine physics frame on which this client last heard the ledger tick
 ## (from the admission offer or a boarding answer), or -1 before it has heard
 ## one. The authority advances its tick once per physics tick, so the heard
@@ -437,6 +440,7 @@ func cancel_direct_connect() -> Dictionary:
 
 
 func shutdown(reason: StringName = &"requested") -> Dictionary:
+	_boarding_departure_guard = Callable()
 	if not _configured:
 		return _remember(_result(false, &"not_started"))
 	if _is_server:
@@ -920,6 +924,10 @@ func get_remote_pilot_replica() -> Dictionary:
 
 func get_boarding_snapshot() -> Dictionary:
 	return _boarding.get_snapshot()
+
+
+func set_boarding_departure_guard(guard: Callable) -> void:
+	_boarding_departure_guard = guard
 
 
 ## The authority's answer to one boarding request, addressed to the peer that
@@ -4313,7 +4321,11 @@ func _receive_boarding_intent(wire: Dictionary) -> void:
 	var payload := _accept_secure_rpc(source_peer_id, wire, &"boarding")
 	if payload.is_empty():
 		return
-	var result: Dictionary = _boarding.accept_intent(source_peer_id, payload)
+	var departure_status: StringName = &""
+	if _boarding_departure_guard.is_valid():
+		departure_status = _boarding_departure_guard.call(source_peer_id, payload)
+	var result: Dictionary = _boarding.accept_intent(source_peer_id, payload) \
+		if departure_status.is_empty() else _result(false, departure_status)
 	boarding_intent_result.emit(result.duplicate(true))
 	# Every answered request is answered *to the peer that asked*. A boarding
 	# claim is the one intent stream whose sender has to know the verdict before

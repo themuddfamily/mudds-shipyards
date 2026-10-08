@@ -692,7 +692,11 @@ func set_camera_active(active: bool) -> void:
 	if active and _remote_drive_enabled:
 		return
 	_camera_active = active
-	_camera.current = active
+	# Remote bodies are configured before tree entry. Disable the authored
+	# current camera then, before its enter-tree callback can select a view.
+	var camera := _camera if is_instance_valid(_camera) else get_node_or_null("%PlayerCamera") as Camera3D
+	if is_instance_valid(camera):
+		camera.current = active
 	if active and _control_enabled and DisplayServer.get_name() != "headless":
 		Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
 

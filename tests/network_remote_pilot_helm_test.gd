@@ -81,6 +81,7 @@ var _roll_child_pid := -1
 var _package_under_test := ""
 var _roll_edges := 0
 var _production_max_physics_steps_per_frame := Engine.max_physics_steps_per_frame
+var _clock_trace_rejections := 0
 
 
 func _run() -> void:
@@ -169,7 +170,10 @@ func _build() -> bool:
 	if _server == null:
 		return false
 	_server.movement_intent_result.connect(func(result: Dictionary) -> void:
-		_movement_results.append(result.duplicate(true)))
+		_movement_results.append(result.duplicate(true))
+		if result.get("status") == &"client_tick_too_far_ahead" and _clock_trace_rejections < 8:
+			_clock_trace_rejections += 1
+			_clock_trace("host-admission-refusal-%d" % _clock_trace_rejections))
 	_server.boarding_intent_result.connect(func(result: Dictionary) -> void:
 		_boarding_results.append(result.duplicate(true)))
 	_pilot.join("127.0.0.1", port)
@@ -430,8 +434,12 @@ func _assert_game_flow_restarts_the_helm_stream() -> void:
 
 
 func _assert_every_release_hands_the_craft_back() -> void:
-	var left := await _board(BoardingIntent.ACTION_DISEMBARK)
-	_check(left.get("status") == &"disembarked", "the remote pilot leaves the seat through the ledger")
+	var unsafe := await _board(BoardingIntent.ACTION_DISEMBARK)
+	_check(not unsafe.get("accepted", true) and unsafe.get("status") in [&"propulsion_not_offline", &"exterior_departure_requires_landing"]
+		and _craft.get_command_source() is RemotePilotSource,
+		"the real host refuses an unsafe airborne exterior departure and retains its pilot")
+	var left := await _board(BoardingIntent.ACTION_SWAP, BoardingIntent.ROLE_PASSENGER)
+	_check(left.get("status") == &"seat_swapped", "the airborne pilot releases the helm into a supported cabin berth")
 	await _drive(2)
 	_check(_craft.get_command_source() == _craft.get_local_input_source() and not _craft.is_piloted()
 		and not _craft.is_remote_piloted(),
@@ -439,9 +447,9 @@ func _assert_every_release_hands_the_craft_back() -> void:
 	_assert_the_host_observes_its_own_body("after ledger release")
 	_check(int(_server.get_remote_ship_command_snapshot().get("pilot_count", -1)) == 0,
 		"the helm registration went with the seat")
-	var again := await _board(BoardingIntent.ACTION_BOARD)
+	var again := await _board(BoardingIntent.ACTION_SWAP)
 	await _drive(2)
-	_check(again.get("status") == &"boarded" and _craft.get_command_source() is RemotePilotSource,
+	_check(again.get("status") == &"seat_swapped" and _craft.get_command_source() is RemotePilotSource,
 		"the seat can be taken again and binds a fresh helm")
 	_pilot.shutdown(&"pilot_dropped")
 	var dropped := await _wait_until(
@@ -458,12 +466,13 @@ func _assert_every_release_hands_the_craft_back() -> void:
 # --- helpers ------------------------------------------------------------------
 
 
-func _board(action: StringName) -> Dictionary:
+func _board(action: StringName, role: StringName = BoardingIntent.ROLE_PILOT) -> Dictionary:
 	_boarding_results.clear()
 	_boarding_sequence += 1
 	var intent = BoardingIntent.create(
 		_pilot.multiplayer.get_unique_id(), PILOT_AVATAR, SHIP_ID, 1, FRAME_ID, 1,
-		PILOT_SEAT, 1, &"pilot", _boarding_sequence,
+		PILOT_SEAT if role == BoardingIntent.ROLE_PILOT else GameFlow.network_cabin_berth_seat_id(SHIP_ID, 1),
+		1, role, _boarding_sequence,
 		_pilot.get_boarding_server_tick_estimate(), action
 	)
 	_pilot.send_boarding_intent(intent.to_dictionary())
@@ -711,15 +720,14 @@ func _run_roll_peer() -> void:
 		"new producer epoch sends the physical roll as its first packet")
 	FileAccess.open(_roll_directory + "/peer.fresh", FileAccess.WRITE).store_string(JSON.stringify(old_wire))
 	await _roll_peer_wait("host", "release", false)
-	_host._begin_network_client_boarding_request(_craft, _craft.get_node("ShipBoardingArea"),
-		BoardingIntent.ACTION_DISEMBARK, BoardingIntent.ROLE_PILOT, seats)
-	_check(await _wait_until(func() -> bool: return _host._network_client_boarding_claim.is_empty(), 10.0),
-		"typed disembark releases the independent pilot lease")
+	_host._request_network_client_helm_release(_craft)
+	_check(await _wait_until(func() -> bool: return _host._network_client_boarding_claim.get("role") == BoardingIntent.ROLE_PASSENGER, 10.0),
+		"supported cabin swap releases the independent pilot lease")
 	_host._advance_network_remote_helm_stream()
 	_check(local_source.get_authority_peer_id() == original_authority and _host._network_client_helm_input_sources.is_empty(),
 		"seat release restores the exact retained local producer authority")
 	_host._begin_network_client_boarding_request(_craft, _craft.get_node("ShipBoardingArea"),
-		BoardingIntent.ACTION_BOARD, BoardingIntent.ROLE_PILOT, seats)
+		BoardingIntent.ACTION_SWAP, BoardingIntent.ROLE_PILOT, seats)
 	_check(await _wait_until(func() -> bool: return StringName(_host._network_client_boarding_claim.get("role", &"")) == BoardingIntent.ROLE_PILOT, 10.0),
 		"same independent peer reclaims the craft pilot seat")
 	_check(_host.get_network_session().send_movement_intent(old_wire).get("accepted", false), "send exact previous-lease roll packet first after rebind")
@@ -780,8 +788,24 @@ func _run_roll_peer() -> void:
 func _roll_peer_step(send_helm: bool = true) -> void:
 	_craft._physics_process(1.0 / 60.0)
 	if send_helm: _host._advance_network_remote_helm_stream()
+	_host._advance_network_craft_pose_replica(1.0 / 60.0)
 	await physics_frame
 	await process_frame
+
+
+func _wait_peer_until(predicate: Callable, timeout_seconds: float) -> bool:
+	var deadline := Time.get_ticks_msec() + int(timeout_seconds * 1000.0)
+	while Time.get_ticks_msec() < deadline:
+		if bool(predicate.call()): return true
+		await _roll_peer_step()
+	return bool(predicate.call())
+
+
+func _peer_interact() -> void:
+	_roll_key_action(&"interact", true)
+	await _roll_peer_step()
+	_roll_key_action(&"interact", false)
+	await _roll_peer_step()
 
 
 func _roll_peer_wait(role: String, marker: String, send_helm: bool = true) -> bool:
@@ -862,6 +886,55 @@ func _assert_independent_landing() -> void:
 		and _host._sortie_departed_berth == departed and _host._return_registered == returned
 		and _host._landing_request_active == host_request and _host._active_landing_berth_id == host_berth,
 		"remote docking and abort preserve host on-foot craft, camera, phase and solo completion state")
+	_check(await _wait_until(func() -> bool: return _craft.get_telemetry().get("engine_state") == HeroShip.ENGINE_OFFLINE, 6.0),
+		"host automatically shuts down the actually docked craft before exterior departure")
+	print("DOCK_EXIT_HOST_BEFORE: ", {"engine": _craft.get_telemetry().get("engine_state"),
+		"landed": _craft.get_telemetry().get("landed"), "entity": _server.get_landing_entity(SHIP_ID)})
+	_roll_mark("host", "dock_exit")
+	if not await _wait_roll_marker("peer", "dock_exit_pressed"): return
+	_check(await _wait_until(func() -> bool: return not _host._network_remote_pilots.has(SHIP_ID), 2.0),
+		"actual independent postdock interact releases the host-confirmed pilot seat")
+	if not await _wait_roll_marker("peer", "dock_reboarded"): return
+	_check(_host._network_remote_pilots.has(SHIP_ID) and berth.get_occupant() == _craft,
+		"actual hatch and cockpit keys reuse the same parked craft and pilot owner")
+	var first_landing_generation := int(_server.get_landing_entity(SHIP_ID).get("entity_generation", 0))
+	_roll_mark("host", "reuse_takeoff")
+	_check(await _wait_until(func() -> bool: return not bool(_craft.get_telemetry().get("landed", true)) \
+		and not berth.is_reserved() and _server.get_landing_entity(SHIP_ID).get("state") == &"flying", 6.0),
+		"reused client physical flight control departs and retires the exact parked lease")
+	_roll_mark("host", "reuse_neutral")
+	if not await _wait_roll_marker("peer", "reuse_neutral_sent"): return
+	var neutral := JSON.parse_string(FileAccess.get_file_as_string(_roll_directory + "/peer.reuse_neutral_sent")) as Dictionary
+	_check(await _wait_until(func() -> bool:
+		var receipt: Dictionary = _craft.get_command_source().get_roll_receipt()
+		return int(receipt.get("stream", -1)) == int(neutral.get("stream_id", -2)) \
+			and int(receipt.get("sequence", -1)) >= int(neutral.get("sequence", 0)) \
+			and is_zero_approx(_craft.get_last_ship_command().throttle), 2.0),
+		"host consumes the exact neutral stream boundary before the second landing approach")
+	_place_remote_approach(berth)
+	_roll_mark("host", "reuse_redock")
+	if not await _wait_roll_marker("peer", "reuse_redock_pressed"): return
+	_check(await _wait_until(func() -> bool: return berth.get_occupant() == _craft \
+		and _server.get_landing_entity(SHIP_ID).get("state") == &"landed", 6.0)
+		and int(_server.get_landing_entity(SHIP_ID).get("entity_generation", 0)) > first_landing_generation,
+		"second physical landing request commits a new landing generation on the same unchanged hull")
+	_check(await _wait_until(func() -> bool: return _craft.get_telemetry().get("engine_state") == HeroShip.ENGINE_OFFLINE, 6.0),
+		"redocked craft automatically shuts down before its next physical exterior exit")
+	_roll_mark("host", "reuse_exit")
+	if not await _wait_roll_marker("peer", "reuse_exited"): return
+	_check(not _host._network_remote_pilots.has(SHIP_ID) and berth.get_occupant() == _craft,
+		"second confirmed exterior exit leaves the exact host berth occupied and releases only the pilot")
+	if not await _wait_roll_marker("peer", "reuse_reboarded"): return
+	_check(_host._network_remote_pilots.has(SHIP_ID), "same peer reboards the redocked craft through actual cabin and cockpit keys")
+	_roll_mark("host", "interrupt_exit")
+	if not await _wait_roll_marker("peer", "exit_detached"): return
+	_check(not _host._network_remote_pilots.has(SHIP_ID) and berth.get_occupant() == _craft,
+		"client detach after confirmed exterior departure releases its helm while retaining the physical dock")
+	_roll_mark("host", "exit_reconnect")
+	_clock_trace("host-exit-reconnect")
+	if not await _wait_roll_marker("peer", "exit_restored"): return
+	_clock_trace("host-exit-restored")
+	_check(_host._network_remote_pilots.has(SHIP_ID), "reentered Main reuses the same dock through newly confirmed physical boarding")
 	_check(_host._release_network_landing_handoff(_craft, berth).get("accepted", false),
 		"occupied-berth fixture retires the completed network dock through its existing owner")
 	_host._release_ship_berth(_craft)
@@ -892,7 +965,9 @@ func _assert_independent_landing() -> void:
 	other.set_piloted(true)
 	_host.phase = GameFlow.Phase.FREE_FLIGHT
 	var flying_camera := _host.get_viewport().get_camera_3d()
+	_trace_host_other_craft("before-request", other, flying_camera)
 	_place_remote_approach(berth)
+	_clock_trace("host-before-other-craft-edge")
 	_roll_mark("host", "land_release")
 	if not await _wait_roll_marker("peer", "landing_release_sent"): return
 	var other_craft_landing_active := await _wait_until(func() -> bool: return _craft.is_landing_active(), 2.0)
@@ -905,6 +980,7 @@ func _assert_independent_landing() -> void:
 		"server_tick": _host._network_boarding_server_tick, "physics_catchup": Engine.max_physics_steps_per_frame,
 		"movement_results": _movement_results.slice(maxi(0, _movement_results.size() - 8))})
 	_check(other_craft_landing_active, "remote landing also engages while the host pilots another craft")
+	_trace_host_other_craft("after-request", other, flying_camera)
 	_server.fail_state = &"flying"
 	_roll_mark("host", "release_landing_seat")
 	if not await _wait_roll_marker("peer", "landing_seat_released"): return
@@ -919,6 +995,7 @@ func _assert_independent_landing() -> void:
 		"unbound abort retry publishes flying and retires its handoff")
 	_roll_mark("host", "regrant_landing_seat")
 	if not await _wait_roll_marker("peer", "landing_seat_rebound"): return
+	_trace_host_other_craft("after-rebind", other, flying_camera)
 	_check(await _wait_until(func() -> bool: return not _craft.is_landing_active(), 2.0)
 		and not berth.is_reserved() and _server.get_landing_entity(SHIP_ID).get("state") == &"flying",
 		"seat release aborts the actual remote assist and clears its physical/network reservation")
@@ -927,6 +1004,7 @@ func _assert_independent_landing() -> void:
 		await process_frame
 	_check(not _craft.is_landing_active() and not berth.is_reserved(),
 		"old and queued prior-seat landing packets cannot reacquire a reservation after rebind")
+	_trace_host_other_craft("before-preservation-check", other, flying_camera)
 	_check(_host.active_ship == other and _host._piloting and other.is_piloted()
 		and _host.phase == GameFlow.Phase.FREE_FLIGHT
 		and _host.get_viewport().get_camera_3d() == flying_camera,
@@ -944,6 +1022,19 @@ func _assert_independent_landing() -> void:
 	camera.make_current()
 
 
+func _trace_host_other_craft(marker: String, craft: HeroShip, expected_camera: Camera3D) -> void:
+	var current_camera := _host.get_viewport().get_camera_3d()
+	print("HOST_OTHER_CRAFT_TRACE: ", {"marker": marker,
+		"active_ship": _host.active_ship.get_path() if is_instance_valid(_host.active_ship) else NodePath(),
+		"expected_ship": craft.get_path(), "piloting": _host._piloting,
+		"craft_piloted": craft.is_piloted(), "craft_destroyed": craft.is_destroyed(),
+		"phase": _host.phase, "expected_phase": GameFlow.Phase.FREE_FLIGHT,
+		"camera": current_camera.get_path() if is_instance_valid(current_camera) else NodePath(),
+		"expected_camera": expected_camera.get_path() if is_instance_valid(expected_camera) else NodePath(),
+		"transition_busy": _host._transition_busy, "telemetry": craft.get_telemetry(),
+		"command": craft.get_last_ship_command().to_dictionary()})
+
+
 func _place_remote_approach(berth: ShipBerth) -> void:
 	_craft.global_transform = berth.get_dock_transform().translated_local(Vector3(0, 3, 0))
 	_craft.velocity = Vector3.ZERO
@@ -953,6 +1044,11 @@ func _place_remote_approach(berth: ShipBerth) -> void:
 
 func _landing_peer_press(marker: String) -> void:
 	# Deliberately capture the physical edge between lower-rate helm sends.
+	_clock_trace("peer-before-%s" % marker)
+	if _host._network_client_remote_helm_ship() != _craft:
+		_check(false, "landing fixture has a confirmed pilot before %s" % marker)
+		_roll_mark("peer", marker)
+		return
 	while int(_host._network_remote_helm.get("ticks", 0)) % RemotePilotSource.SEND_INTERVAL_TICKS != 1:
 		await _roll_peer_step()
 	_roll_key_action(&"landing_assist", true)
@@ -969,7 +1065,66 @@ func _landing_peer_press(marker: String) -> void:
 	_check(_landing_toast_is("Landing request pending"), "the actual client lifecycle consumer presents a pending landing request")
 	for _step in 4: await _roll_peer_step()
 	print("LANDING_PEER_EDGE: ", {"marker": marker, "helm": _host._network_remote_helm})
+	_clock_trace("peer-sent-%s" % marker)
 	_roll_mark("peer", marker)
+
+
+func _clock_trace(marker: String) -> void:
+	var adapter := _host.get_network_session()
+	var row := {"marker": marker, "frames": Engine.get_physics_frames(),
+		"main_physics": _host.is_physics_processing(), "craft_physics": _craft.is_physics_processing(),
+		"catchup": Engine.max_physics_steps_per_frame, "flow_boarding_tick": _host._network_boarding_server_tick,
+		"client_answer_tick": _host._network_client_boarding_server_tick,
+		"helm": _host._network_remote_helm.duplicate(true)}
+	if is_instance_valid(adapter):
+		row["answer_anchor"] = adapter._boarding_result_server_tick
+		row["heard_frame"] = adapter._boarding_heard_physics_frame
+		row["estimate"] = adapter.get_boarding_server_tick_estimate()
+		row["flow_stamp"] = _host._network_client_boarding_tick_stamp() if not adapter.is_server() else -1
+		if adapter.is_server():
+			row["command_server_tick"] = adapter._remote_ship_commands._authority._server_tick
+			row["command_snapshot"] = adapter.get_remote_ship_command_snapshot()
+	print("DOCK_EXIT_CLOCK_TRACE: ", row)
+
+
+func _peer_reboard_from_exterior() -> void:
+	# Approach setup uses the actual hatch and production discovery. No direct
+	# board call, claim/phase write, or synthetic logical action replaces the key.
+	_host.player.teleport_to(Transform3D(Basis.IDENTITY, _craft.get_boarding_position() + Vector3(8, 0, 0)))
+	await _roll_peer_step(false)
+	_host._refresh_interaction_targets()
+	_host.player.teleport_to(Transform3D(Basis.IDENTITY, _craft.get_boarding_position()))
+	await _roll_peer_step(false)
+	await _peer_interact()
+	_check(await _wait_peer_until(func() -> bool: return _host.phase == GameFlow.Phase.IN_FLIGHT_CABIN \
+		and _host._network_client_boarding_claim.get("role") == BoardingIntent.ROLE_PASSENGER \
+		and not _host._transition_busy, 8.0), "physical hatch key boards a confirmed cabin berth after exterior exit")
+	_host.player.teleport_to(_craft.get_in_flight_cabin_report().get("stand_transform"))
+	await _roll_peer_step(false)
+	_host._refresh_interaction_targets()
+	print("DOCK_REUSE_COCKPIT_BEFORE: ", {"phase": _host.phase, "busy": _host._transition_busy,
+		"claim": _host._network_client_boarding_claim, "player_local": _craft.to_local(_host.player.global_position),
+		"seat_local": _craft.to_local(_craft.get_pilot_seat_anchor().global_position),
+		"near_pilot": _host._network_client_near_pilot_seat(_craft), "near_ship": _host._near_ship,
+		"candidate": _host.boarding_candidate.get_ship_id() if is_instance_valid(_host.boarding_candidate) else &"",
+		"station": _host.station_interaction_candidate.name if is_instance_valid(_host.station_interaction_candidate) else &""})
+	var supported_approach := _craft.get_in_flight_cabin_report().get("stand_transform") as Transform3D
+	var seat_local := _craft.to_local(_craft.get_pilot_seat_anchor().global_position)
+	var stand_local := _craft.to_local(supported_approach.origin)
+	supported_approach.origin = _craft.to_global(Vector3(seat_local.x, stand_local.y, seat_local.z + 1.0))
+	_host.player.teleport_to(supported_approach)
+	await _roll_peer_step(false)
+	_host._refresh_interaction_targets()
+	_check(_host._network_client_near_pilot_seat(_craft) and _host.boarding_candidate == _craft,
+		"supported cabin approach is within actual cockpit reach before the physical key")
+	await _peer_interact()
+	var cockpit_reused := await _wait_peer_until(func() -> bool: return _host._piloting and _craft.is_piloted() \
+		and _host._network_client_boarding_claim.get("role") == BoardingIntent.ROLE_PILOT \
+		and not _host._transition_busy, 8.0)
+	print("DOCK_REUSE_COCKPIT_AFTER: ", {"reused": cockpit_reused, "phase": _host.phase,
+		"claim": _host._network_client_boarding_claim, "request": _host._network_client_boarding_request,
+		"boarding": _host.get_network_client_boarding_audit(), "player_local": _craft.to_local(_host.player.global_position)})
+	_check(cockpit_reused, "physical cockpit key returns the same client to the confirmed pilot seat")
 
 
 func _run_landing_peer_actions(seats: Array[StringName]) -> void:
@@ -977,6 +1132,113 @@ func _run_landing_peer_actions(seats: Array[StringName]) -> void:
 	await _landing_peer_press("landing_sent")
 	await _roll_peer_wait("host", "land_retry")
 	await _landing_peer_press("landing_retry_sent")
+	await _roll_peer_wait("host", "dock_exit")
+	await _wait_until(func() -> bool: return not _host._transition_busy, 10.0)
+	_check(await _wait_peer_until(func() -> bool:
+		var operation: Dictionary = _host._network_craft_pose_stream.latest_sample(SHIP_ID).get("operation_presentation", {})
+		return operation.get("engine") == HeroShip.ENGINE_OFFLINE and bool(operation.get("landed", false)) \
+			and bool(operation.get("docked", false)), 6.0), "client hears the committed host dock and automatic shutdown")
+	var retained := _craft.get_local_input_source()
+	var retained_authority := int((_host._network_client_helm_input_sources[_craft.get_instance_id()] as Dictionary).authority)
+	print("DOCK_EXIT_CLIENT_BEFORE: ", {"phase": _host.phase, "busy": _host._transition_busy,
+		"predicted_landed": _craft.get_telemetry().get("landed"), "predicted_engine": _craft.get_telemetry().get("engine_state"),
+		"host_operation": _host._network_craft_pose_stream.latest_sample(SHIP_ID).get("operation_presentation", {}).get("docked")})
+	var parked_tick := int(_host._network_craft_pose_stream.latest_sample(SHIP_ID).get("operation_tick", 0))
+	_check(await _wait_peer_until(func() -> bool: return int(_host._network_craft_pose_stream.latest_sample(SHIP_ID).get("operation_tick", 0)) \
+		- parked_tick >= 180, 6.0), "delayed parked physical exit waits on actual host operation ticks")
+	var requests_before := int(_host.get_network_client_boarding_audit().requests)
+	_roll_key_action(&"interact", true)
+	_craft._physics_process(1.0 / 60.0)
+	var stale_exit := _craft.get_last_ship_command()
+	_roll_key_action(&"interact", false)
+	retained.notification(MainLoop.NOTIFICATION_APPLICATION_FOCUS_OUT)
+	retained.notification(MainLoop.NOTIFICATION_APPLICATION_FOCUS_IN)
+	_host._consume_active_ship_command(stale_exit)
+	_check(stale_exit.interact and int(_host.get_network_client_boarding_audit().requests) == requests_before
+		and _host._network_client_boarding_claim.get("role") == BoardingIntent.ROLE_PILOT and _host._piloting,
+		"retired physical exit edge cannot issue a boarding release or change confirmed pilot presentation")
+	await _roll_peer_step()
+	_roll_key_action(&"interact", true)
+	await _roll_peer_step()
+	_roll_key_action(&"interact", false)
+	_host._consume_active_ship_command_edges()
+	_check(_craft.get_last_ship_command().interact, "actual authored postdock interact produces its lifecycle edge")
+	_check(await _wait_peer_until(func() -> bool: return _host.player._embodiment_state == PlayerController.EmbodimentState.DISEMBARKING, 3.0)
+		and float(_craft.get_network_operation_presentation_snapshot().get("canopy", 0.0)) > 0.95,
+		"confirmed avatar passage owns an actually open canopy over the settled host display")
+	await _wait_peer_until(func() -> bool: return not _host._piloting and not _host._transition_busy \
+		and _host._network_client_boarding_claim.is_empty() and _host.player.is_control_enabled(), 8.0)
+	print("DOCK_EXIT_CLIENT_AFTER: ", {"phase": _host.phase, "busy": _host._transition_busy,
+		"piloting": _host._piloting, "claim": _host._network_client_boarding_claim,
+		"request": _host._network_client_boarding_request, "boarding": _host.get_network_client_boarding_audit(),
+		"cursor": _host._last_lifecycle_command_sequence, "toast": _host.hud._toast_title.text})
+	_check(not _host._piloting and _host._network_client_boarding_claim.is_empty(),
+		"normal physical postdock interact confirms exterior disembark")
+	_check(_host.player.is_on_floor() and _host.player.is_control_enabled() and not _host.player.is_seated()
+		and _host.player.get_camera().current, "confirmed exterior departure has physical floor support and the player camera")
+	_check(_craft.get_local_input_source() == retained and retained.get_authority_peer_id() == retained_authority
+		and _host._network_client_helm_input_sources.is_empty(), "external disembark restores the same retained input producer")
+	_check(_craft._network_canopy_motion_owner == 0 and _host._network_exterior_canopy_generation == 0,
+		"completed exterior passage releases its exact canopy token")
+	_roll_mark("peer", "dock_exit_pressed")
+	await _peer_reboard_from_exterior()
+	_roll_mark("peer", "dock_reboarded")
+	await _roll_peer_wait("host", "reuse_takeoff")
+	_roll_key_action(&"move_forward", true)
+	await _roll_peer_wait("host", "reuse_neutral")
+	_roll_key_action(&"move_forward", false)
+	for _step in 4: await _roll_peer_step()
+	FileAccess.open(_roll_directory + "/peer.reuse_neutral_sent", FileAccess.WRITE).store_string(JSON.stringify({
+		"stream_id": _host._network_remote_helm.stream_id, "sequence": int(_host._network_remote_helm.sequence) - 1}))
+	await _roll_peer_wait("host", "reuse_redock")
+	await _landing_peer_press("reuse_redock_pressed")
+	await _roll_peer_wait("host", "reuse_exit")
+	_check(await _wait_peer_until(func() -> bool:
+		var operation: Dictionary = _host._network_craft_pose_stream.latest_sample(SHIP_ID).get("operation_presentation", {})
+		return operation.get("engine") == HeroShip.ENGINE_OFFLINE and bool(operation.get("docked", false)), 6.0),
+		"client hears actual second dock and automatic shutdown")
+	await _peer_interact()
+	_check(await _wait_peer_until(func() -> bool: return not _host._piloting and not _host._transition_busy \
+		and _host._network_client_boarding_claim.is_empty() and _host.player.is_control_enabled(), 8.0)
+		and _host.player.is_on_floor() and _host.player.get_camera().current,
+		"second physical exit completes with floor support despite the newer independent landing generation")
+	_roll_mark("peer", "reuse_exited")
+	await _peer_reboard_from_exterior()
+	_roll_mark("peer", "reuse_reboarded")
+	await _roll_peer_wait("host", "interrupt_exit")
+	_check(await _wait_peer_until(func() -> bool: return _host._network_craft_pose_stream.latest_sample(SHIP_ID) \
+		.get("operation_presentation", {}).get("engine") == HeroShip.ENGINE_OFFLINE, 6.0),
+		"interruption fixture has an actual offline dock before its physical exit request")
+	var canopy_source_open := _craft._canopy_open
+	await _peer_interact()
+	_check(await _wait_peer_until(func() -> bool: return _host._network_exterior_canopy_generation > 0 \
+		and _host._network_client_boarding_claim.is_empty(), 2.0),
+		"physical departure is host-confirmed and owns its canopy before Main removal")
+	var old_answer := _host.get_network_session().get_boarding_intent_result_replica()
+	root.remove_child(_host)
+	_check(_craft._network_canopy_motion_owner == 0 and _host._network_exterior_canopy_generation == 0
+		and not _host._transition_busy and _craft._canopy_open == canopy_source_open,
+		"Main removal retires the exact canopy transition and restores its retained source flag")
+	_check(_craft.get_local_input_source() == retained and retained.get_authority_peer_id() == retained_authority
+		and _host._network_client_helm_input_sources.is_empty(), "interrupted exterior departure restores the exact retained input authority")
+	root.add_child(_host)
+	await process_frame
+	for _step in 4: await _roll_peer_step(false)
+	_host._on_network_client_boarding_answer(old_answer)
+	_check(_host._network_client_boarding_claim.is_empty() and not _host._piloting
+		and _host.player.is_control_enabled() and _host.player.is_on_floor() and _host.player.get_camera().current
+		and not _host.player.is_seated() and is_zero_approx(float(_craft.get_network_operation_presentation_snapshot().get("canopy", -1.0))),
+		"reentered Main has supported external control and a closed canopy; late departure answer cannot revive a seat")
+	_roll_mark("peer", "exit_detached")
+	await _roll_peer_wait("host", "exit_reconnect", false)
+	_clock_trace("peer-before-exit-reconnect")
+	_check(_host.join_network_session("127.0.0.1", _roll_port).get("accepted", false), "interrupted exterior Main reconnects through its public session entry")
+	_check(await _wait_peer_until(func() -> bool: return not _host.get_network_session().get_server_offer().is_empty(), 15.0),
+		"reentered exterior client is admitted before normal physical boarding")
+	_clock_trace("peer-after-exit-reconnect-offer")
+	await _peer_reboard_from_exterior()
+	_clock_trace("peer-after-exit-reconnect-reboard")
+	_roll_mark("peer", "exit_restored")
 	await _roll_peer_wait("host", "land_occupied")
 	await _landing_peer_press("landing_occupied_sent")
 	await _roll_peer_wait("host", "land_release")
@@ -985,24 +1247,26 @@ func _run_landing_peer_actions(seats: Array[StringName]) -> void:
 		int(_host._network_remote_helm.sequence), int(_host._network_remote_helm.last_stamp) + 1,
 		_craft.get_last_ship_command(), int(_host._network_remote_helm.stream_id),
 		int(_host._network_remote_helm.roll_request_id), int(_host._network_remote_helm.landing_request_id))
+	var old_landing_counter := int(_host._network_remote_helm.landing_request_id)
 	await _roll_peer_wait("host", "release_landing_seat", false)
-	_host._begin_network_client_boarding_request(_craft, _craft.get_node("ShipBoardingArea"),
-		BoardingIntent.ACTION_DISEMBARK, BoardingIntent.ROLE_PILOT, seats)
-	_check(await _wait_until(func() -> bool: return _host._network_client_boarding_claim.is_empty(), 10.0),
-		"client releases its real pilot seat during landing")
+	_host._request_network_client_helm_release(_craft)
+	_check(await _wait_until(func() -> bool: return _host._network_client_boarding_claim.get("role") == BoardingIntent.ROLE_PASSENGER, 10.0),
+		"client releases its real pilot seat into the cabin during landing")
 	_check(_host.get_network_session().send_movement_intent(old_wire).get("accepted", false),
 		"send stale landing request after seat release")
 	_roll_mark("peer", "landing_seat_released")
 	await _roll_peer_wait("host", "regrant_landing_seat", false)
 	_host._begin_network_client_boarding_request(_craft, _craft.get_node("ShipBoardingArea"),
-		BoardingIntent.ACTION_BOARD, BoardingIntent.ROLE_PILOT, seats)
-	_check(await _wait_until(func() -> bool: return _host._piloting and _craft.is_piloted(), 10.0),
+		BoardingIntent.ACTION_SWAP, BoardingIntent.ROLE_PILOT, seats)
+	_check(await _wait_until(func() -> bool: return _host._piloting and _craft.is_piloted() \
+		and _host._network_client_boarding_claim.get("role") == BoardingIntent.ROLE_PILOT \
+		and _host._network_client_boarding_request.is_empty(), 10.0),
 		"client reclaims the pilot seat after aborted landing")
 	_check(_host.get_network_session().send_movement_intent(old_wire).get("accepted", false),
 		"send previous-seat landing request first after regrant")
 	old_wire.sequence = int(old_wire.sequence) + 1
 	old_wire.client_tick = int(old_wire.client_tick) + 1
-	old_wire.boarding_target_id = StringName("pilot_landing_%d" % (int(_host._network_remote_helm.landing_request_id) + 1))
+	old_wire.boarding_target_id = StringName("pilot_landing_%d" % (old_landing_counter + 1))
 	_check(_host.get_network_session().send_movement_intent(old_wire).get("accepted", false),
 		"send queued higher-counter landing from the retired helm epoch")
 	_roll_mark("peer", "landing_seat_rebound")
