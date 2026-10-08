@@ -115,7 +115,14 @@ arguments to the invocation above:
 
 This mode requires distinct full commits and executable hashes, and distinct
 installer bytes. It first installs the previous build and runs the same clean
-install checks. `silent_upgrade_over_existing` installs the new build and
+install checks. `locked_upgrade_preserves_previous` then holds an exclusive
+read handle on the previous executable while running the new installer with a
+two-minute process timeout. It requires exit 2, the previous executable hash,
+byte-identical provenance, unchanged values in both registry keys, retained
+user data, and removal of the pending payload. The lock is released in a
+`finally` block before verification or failure cleanup. This regression runs
+only in cross-build mode and requires installers built with staged replacement.
+`silent_upgrade_over_existing` then installs the new build and
 requires the new executable hash, new file/registry provenance and
 `UpgradedFrom=<previous commit>`. After successful new-build startup,
 `silent_rollback_to_previous` reinstalls the previous installer over the same
