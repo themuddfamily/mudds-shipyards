@@ -98,11 +98,21 @@ class BuildScript(unittest.TestCase):
             [str(BUILD_SCRIPT), *args], capture_output=True, text=True, env=merged
         )
 
+    def _run_without_compiler(self, *args):
+        # Keep real input/provenance commands available while excluding NSIS,
+        # even on developer machines where makensis is installed.
+        with tempfile.TemporaryDirectory() as bin_dir:
+            for command in ("bash", "git", "dirname", "basename", "sed", "head"):
+                executable = shutil.which(command)
+                self.assertIsNotNone(executable, f"test requires {command}")
+                (Path(bin_dir) / command).symlink_to(executable)
+            return self._run(*args, env={"PATH": bin_dir})
+
     def test_rejects_unexported_names(self):
         with tempfile.TemporaryDirectory() as tmp:
             bad = Path(tmp) / "game.exe"
             bad.write_bytes(b"x")
-            proc = self._run(str(bad))
+            proc = self._run_without_compiler(str(bad))
         self.assertNotEqual(proc.returncode, 0)
         self.assertIn("must be named MuddsShipyards-<7 hex>.exe", proc.stderr)
 
@@ -121,9 +131,21 @@ class BuildScript(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             bad = Path(tmp) / "MuddsShipyards-fffffff.exe"
             bad.write_bytes(b"x")
-            proc = self._run(str(bad))
+            proc = self._run_without_compiler(str(bad))
         self.assertNotEqual(proc.returncode, 0)
         self.assertIn("is not a commit", proc.stderr)
+
+    def test_valid_input_reports_missing_compiler_without_writing_artifacts(self):
+        full = _head_commit()
+        with tempfile.TemporaryDirectory() as tmp:
+            source = Path(tmp) / f"MuddsShipyards-{full[:7]}.exe"
+            source.write_bytes(b"payload")
+            output = Path(tmp) / f"MuddsShipyards-{full[:7]}-setup.exe"
+            proc = self._run_without_compiler(str(source), str(output))
+            self.assertNotEqual(proc.returncode, 0)
+            self.assertIn("makensis (NSIS 3) is not installed", proc.stderr)
+            self.assertEqual(source.read_bytes(), b"payload")
+            self.assertEqual(list(Path(tmp).iterdir()), [source])
 
     @unittest.skipUnless(HAVE_MAKENSIS, "makensis not installed")
     def test_compiles_installer_and_records_provenance(self):

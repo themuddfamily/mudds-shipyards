@@ -37,7 +37,6 @@ REPO_ROOT="$(git -C "$SCRIPT_DIR" rev-parse --show-toplevel 2>/dev/null)" \
 	|| die "script is not inside a Git worktree"
 NSI="$SCRIPT_DIR/installer/mudds_shipyards.nsi"
 [[ -f "$NSI" ]] || die "installer script missing at $NSI"
-command -v makensis >/dev/null 2>&1 || die "makensis (NSIS 3) is not installed"
 
 source_exe="$1"
 [[ -f "$source_exe" ]] || die "source executable not found: $source_exe"
@@ -82,6 +81,10 @@ case "$sign_mode" in
 		sign_flags=(--dev-self-signed) ;;
 	*) die "MUDDS_INSTALLER_SIGN must be empty, 'pfx' or 'dev-self-signed' (got '$sign_mode')" ;;
 esac
+# Validate the artifact and its provenance before requiring the compiler, so
+# input errors remain actionable on machines without NSIS. Check before signing
+# the payload to avoid modifying it when compilation cannot proceed.
+command -v makensis >/dev/null 2>&1 || die "makensis (NSIS 3) is not installed"
 if [[ -n "$sign_mode" ]]; then
 	[[ -x "$SIGN_SCRIPT" ]] || die "signing requested but $SIGN_SCRIPT is missing"
 	case "$SIGN_SCRIPT" in
