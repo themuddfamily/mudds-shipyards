@@ -173,6 +173,14 @@ The actual result and console are retained as `installer-28fc-1c1b538-native.jso
 
 This qualifies silent install/update/rollback/uninstall for these two unsigned fixed-workflow checkpoint installers on the development machine. Interactive installation, installed corrupt-save recovery, clean-machine gameplay, trusted signing, hardware/human acceptance and final-candidate installation remain open.
 
+### Native checkpoint `9e7545f` result — 2026-10-08
+
+The latest checkpoint installer passes all 11 existing native verifier steps with `1c1b538` → `9e7545f` → `1c1b538`. Exact executable hashes, source commits, registry labels and shortcuts agree through clean install, blocked replacement (exit 2), upgrade and rollback. All three installed binaries exit 0 with `STARTUP_MENU_READY_OK` under `--headless --audio-driver Dummy --startup-check`; actual logs have no engine/script/leak diagnostics. Uninstall removes the owned installation, registry and shortcuts while retaining the unchanged player-data marker.
+
+The installer is in `builds/windows/`, 86,498,195 bytes, SHA-256 `dda2f115bfe267489c0cfd1b123c0b429aed21e659ce2d2fa1bc6e9b85a7ff29`. Its executable matches checkpoint SHA-256 `78efd041fe09a08d68021581f11f16fa138c9e8fa7e7a471999224634adf199e`. [Installer notes](../builds/windows/MuddsShipyards-9e7545f-installer-notes.txt) reference the actual result and console: `installer-1c1b538-9e7545f-native.json` and `installer-1c1b538-9e7545f-native-console.log` under `/root/.cache/mudds-shipyards/roadmap-validation/`. Compile-time `native_verification: NOT_RUN` remains separate from this later acceptance. The checkpoint ZIP is unchanged.
+
+This is silent packaging acceptance on the development machine for these two unsigned fixed-workflow installers. Interactive installation, installed corrupt-save recovery, clean-machine gameplay, trusted signing, hardware/human acceptance and later final-candidate installation remain open; the live full matrix is not qualified by an installer probe.
+
 ## Still open
 
 - Trusted signing qualification: these checkpoint installer probes are unsigned
