@@ -12,6 +12,7 @@ var _children: Array[int] = []
 var _directory := ""
 var _role := "host"
 var _port := 0
+var _package_under_test := ""
 
 func _initialize() -> void:
 	call_deferred("_run")
@@ -19,6 +20,13 @@ func _initialize() -> void:
 func _run() -> void:
 	Engine.max_fps = 60
 	var args := OS.get_cmdline_user_args()
+	var package_index := args.find("--package-under-test")
+	if package_index >= 0 and package_index + 1 < args.size():
+		_package_under_test = args[package_index + 1]
+		args.remove_at(package_index + 1)
+		args.remove_at(package_index)
+	if not _package_under_test.is_empty():
+		_check(FileAccess.file_exists("res://project.binary"), "process loads the embedded package rather than source")
 	if args.size() == 3:
 		_role = args[0]
 		_port = int(args[1])
@@ -213,12 +221,14 @@ func _spawn(role: String) -> void:
 	var engine_args := PackedStringArray([
 		"--headless", "--audio-driver", "Dummy", "--path", project_path,
 		"--log-file", _directory + "/" + role + ".log", "--script", "res://tests/network_emberline_bolt_test.gd"])
-	# Package probes must keep every child on the parent's embedded PCK and
-	# explicit source path: res:// itself has no filesystem path inside a pack.
-	var pack_index := parent_args.find("--main-pack")
-	if pack_index >= 0 and pack_index + 1 < parent_args.size():
-		engine_args.append_array(PackedStringArray(["--main-pack", parent_args[pack_index + 1]]))
+	# Godot consumes --main-pack before exposing engine arguments. Carry the
+	# explicitly supplied package probe path, then verify project.binary in
+	# every process so a child cannot silently fall back to source.
+	if not _package_under_test.is_empty():
+		engine_args.append_array(PackedStringArray(["--main-pack", _package_under_test]))
 	engine_args.append_array(PackedStringArray(["--", role, str(_port), _directory]))
+	if not _package_under_test.is_empty():
+		engine_args.append_array(PackedStringArray(["--package-under-test", _package_under_test]))
 	var pid := OS.create_process(OS.get_executable_path(), engine_args)
 	OS.set_environment("XDG_DATA_HOME", previous_xdg)
 	_check(pid > 0, "spawn independent %s process" % role)
