@@ -213,6 +213,8 @@ var _posture_activation_generation := 0
 var _posture_visible_state: StringName = STATE_DORMANT
 var _posture_visible_direction_sign := 0.0
 var _bolt_pool: TravellingBoltProjectile
+## Retained before the first shot allocates the lance pool.
+var _lance_bolt_reduced_flash := false
 ## Launch context for the bolts currently in the air, keyed by the authority's
 ## flight ID. Bounded by the pool capacity; never grows with encounter length.
 var _lance_flights: Dictionary = {}
@@ -1330,6 +1332,7 @@ func _ensure_bolt_pool() -> TravellingBoltProjectile:
 	if not _bolt_pool.bolt_abandoned.is_connected(_on_lance_bolt_abandoned):
 		_bolt_pool.bolt_abandoned.connect(_on_lance_bolt_abandoned)
 	_bolt_pool.bind_authority(_get_combat_authority())
+	_bolt_pool.set_reduced_flash_enabled(_lance_bolt_reduced_flash)
 	_sync_bolt_presentation_gate()
 	return _bolt_pool
 
@@ -1347,12 +1350,13 @@ func _sync_bolt_presentation_gate() -> void:
 
 ## Accessibility forwarding seam, shaped like the bomber payload's. Reduced
 ## flash keeps the bolt fully readable and only drops its emissive punch, its
-## moving dynamic light, and most of its trail.
+## moving dynamic light, and most of its trail. Settings changes retain the
+## policy without allocating a dormant weapon's renderers and lights.
 func set_lance_bolt_reduced_flash(enabled: bool) -> Dictionary:
-	var pool := _ensure_bolt_pool()
-	if not is_instance_valid(pool):
-		return {"accepted": false, "reason": &"bolt_pool_unavailable"}
-	var snapshot := pool.set_reduced_flash_enabled(enabled)
+	_lance_bolt_reduced_flash = enabled
+	if not is_instance_valid(_bolt_pool):
+		return {"accepted": true, "reduced_flash": enabled, "built": false}
+	var snapshot := _bolt_pool.set_reduced_flash_enabled(enabled)
 	snapshot["accepted"] = true
 	return snapshot
 
