@@ -109,7 +109,16 @@ function Assert-Installed([string]$hash, [string]$commit) {
         if (-not (Test-Path -LiteralPath (Join-Path $installDir $name))) { throw "missing $name" }
     }
     $actual = (Get-FileHash -Algorithm SHA256 -LiteralPath (Join-Path $installDir 'MuddsShipyards.exe')).Hash.ToLowerInvariant()
-    if ($actual -ne $hash.ToLowerInvariant()) { throw "installed exe sha256 $actual != expected $hash" }
+    if ($actual -ne $hash.ToLowerInvariant()) {
+        $fileCommit = 'missing'
+        $registryCommit = 'missing'
+        $provenancePath = Join-Path $installDir 'source-commit.txt'
+        if (Test-Path -LiteralPath $provenancePath) {
+            $fileCommit = (Get-Content -LiteralPath $provenancePath | Where-Object { $_ -like 'source_commit=*' }) -join ','
+        }
+        if (Test-Path $regApp) { $registryCommit = (Get-ItemProperty -Path $regApp).SourceCommit }
+        throw "installed exe sha256 $actual != expected $hash; provenance=$fileCommit registry_source_commit=$registryCommit"
+    }
     $provenance = Get-Content -LiteralPath (Join-Path $installDir 'source-commit.txt')
     if (-not ($provenance -contains "source_commit=$commit")) { throw 'source-commit.txt does not record the expected commit' }
     if (-not ($provenance -contains 'signing=unsigned')) { throw 'source-commit.txt does not declare the build unsigned' }
@@ -187,7 +196,7 @@ function Cleanup-OwnedInstallation {
     }
     # Limited fallback also handles a partially written install whose
     # uninstaller is missing or cannot run. Do not recursively delete files.
-    foreach ($name in @('MuddsShipyards.exe', 'uninstall.exe', 'source-commit.txt')) {
+    foreach ($name in @('MuddsShipyards.exe', 'MuddsShipyards.exe.pending', 'uninstall.exe', 'source-commit.txt')) {
         $path = Join-Path $installDir $name
         if (Test-Path -LiteralPath $path) { Remove-Item -LiteralPath $path -Force }
     }

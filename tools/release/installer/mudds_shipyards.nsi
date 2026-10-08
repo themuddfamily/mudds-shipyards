@@ -28,6 +28,7 @@
 !define PRODUCT_PUBLISHER "Mudds Shipyards"
 !define PRODUCT_EXE "MuddsShipyards.exe"
 !define UNINSTALL_EXE "uninstall.exe"
+!define PENDING_EXE "${PRODUCT_EXE}.pending"
 !define REG_UNINSTALL_KEY "Software\Microsoft\Windows\CurrentVersion\Uninstall\MuddsShipyards"
 !define REG_APP_KEY "Software\Mudds Shipyards"
 !define BUILD_LABEL "${PRODUCT_VERSION}+${SHORT_COMMIT}"
@@ -79,18 +80,61 @@ VIAddVersionKey "LegalCopyright" "Unsigned checkpoint build; no distribution rig
 !insertmacro MUI_LANGUAGE "English"
 
 Var PreviousCommit
+Var OwnsPending
 
 Function .onInit
+  StrCpy $OwnsPending 0
   ; An upgrade over a previous per-user install records what it replaced. The
   ; player's user data lives under %APPDATA%\Godot\app_userdata and is not
   ; part of this install location, so an upgrade never rewrites it.
   ReadRegStr $PreviousCommit HKCU "${REG_APP_KEY}" "SourceCommit"
 FunctionEnd
 
+Function .onInstFailed
+  ; Extraction/replacement failures leave the old executable and its metadata
+  ; intact. Remove only our staging file, never the player's profile.
+  ${If} $OwnsPending == 1
+    Delete "$INSTDIR\${PENDING_EXE}"
+  ${EndIf}
+FunctionEnd
+
 Section "Install" SEC_MAIN
   SetOutPath "$INSTDIR"
-  SetOverwrite on
-  File "/oname=${PRODUCT_EXE}" "${SOURCE_EXE}"
+  ; A direct File overwrite can be silently ignored when Windows denies a
+  ; write handle (for example while a scanner has the old executable open).
+  ; Extract to a sibling so replacing the old payload is a same-volume move,
+  ; and never publish new provenance for an executable that was not replaced.
+  IfFileExists "$INSTDIR\${PENDING_EXE}" 0 staging_available
+    SetErrorLevel 2
+    Abort "A pending executable already exists. Inspect it before retrying; no existing files were changed."
+  staging_available:
+  StrCpy $OwnsPending 1
+  SetOverwrite try
+  ClearErrors
+  File "/oname=${PENDING_EXE}" "${SOURCE_EXE}"
+  IfErrors 0 payload_staged
+    SetErrorLevel 2
+    Abort "Could not stage the executable. The previous installation was kept."
+  payload_staged:
+  StrCpy $2 0
+  replace_payload:
+    ; MOVEFILE_REPLACE_EXISTING (1) | MOVEFILE_WRITE_THROUGH (8). No cross-volume
+    ; copy or reboot scheduling: a successful installer contains the new build.
+    System::Call 'kernel32::MoveFileExW(w "$INSTDIR\${PENDING_EXE}", w "$INSTDIR\${PRODUCT_EXE}", i 9) i .r0 ?e'
+    Pop $1
+    StrCmp $0 0 replacement_blocked payload_replaced
+  replacement_blocked:
+    IntOp $2 $2 + 1
+    IntCmp $2 40 replacement_failed retry_replacement replacement_failed
+  retry_replacement:
+    Sleep 250
+    Goto replace_payload
+  replacement_failed:
+    Delete "$INSTDIR\${PENDING_EXE}"
+    SetErrorLevel 2
+    Abort "Could not replace the executable (Windows error $1). Close the game and retry. The previous installation was kept."
+  payload_replaced:
+  StrCpy $OwnsPending 0
 
   ; Machine-readable provenance beside the executable, for support bundles.
   FileOpen $0 "$INSTDIR\source-commit.txt" w
@@ -139,6 +183,7 @@ Section "Uninstall"
   ; %APPDATA%\Godot\app_userdata\Mudds Shipyards are deliberately left alone;
   ; crash logs the game wrote beside the executable, if any, are removed with it.
   Delete "$INSTDIR\${PRODUCT_EXE}"
+  Delete "$INSTDIR\${PENDING_EXE}"
   Delete "$INSTDIR\source-commit.txt"
   Delete "$INSTDIR\${UNINSTALL_EXE}"
   RMDir "$INSTDIR"
