@@ -63,6 +63,17 @@ Work in the order below: establish the current baseline, close core defects, fin
 
 ### Next delivery and release planning
 
+**Completion priorities, reconciled against all ten original phases on 2026-10-08:** the detailed tasks below cover the remaining commitments. No whole phase can be checked off yet. Use this overview to distinguish missing delivery from acceptance of existing features; it does not create a second checklist.
+
+| Priority | Remaining delivery | Required acceptance |
+| :--- | :--- | :--- |
+| Scope and scheduling | Set the final roster, supported platforms/player limits, owners, dependencies and estimates | Every original commitment has a delivered outcome, named task or explicit owner-approved deferral |
+| Next playable milestone | Finish remote engine/dock presentation and supported remote helm actions | All nine craft fit ordinary/full snapshot budgets; independent packaged peers behave correctly and solo recovery works |
+| Game and content completion | Finish required station/fleet/animation/combat work and any missing activity/planet content | Normal-controls solo, crew, combat and full planetary round trips; failure/retry, rewards, saves and repeat visits |
+| Player and hardware qualification | Fix findings from native multiplayer, first-time-player, controller, accessibility, visual and listening reviews | Supported hardware meets performance/endurance budgets; required graphical reviews and normal-controls scenarios pass |
+| Release candidate | Finish crash recovery, final installation/platform qualification, licensing, trusted signing and distribution | One exact frozen source passes the complete matrix and package/native release gates; distributed bytes match; zero open P0/P1 defects |
+| Historical reconstruction | Obtain missing external evidence and deliver the intended researched fleet as evidence permits | Independent reproducibility and per-craft acceptance; unresolved original scope stays open unless explicitly deferred |
+
 The next playable milestone is to complete remote engine/dock presentation and remote helm actions, then qualify the packaged baseline through native normal-controls gameplay. Preserve solo and multiplayer combat recovery throughout. Fleet hull/component damage, loss and berth-regeneration presentation is implemented in `ce15b5c` and packaged in `f889ca9`; fleet-wide damage/repair/recovery acceptance remains open. Convoy tender/raider actor presentation is packaged in `9193c58`. Checkpoint `9e7545f` closes the reproduced local Torpedo Run authority defect with source/package lifecycle checks; broad independent-process/native gameplay acceptance remains open. The independent engine/dock reproduction shows host-committed start/stop and docking with observer exhaust/canopy still following local state. That visual fix is in progress and unmerged; new remote helm intent actions remain separate work.
 
 Before assigning a final release date, name the shipped station routes, craft/opponents, activities/worlds, multiplayer player/crew limits and desktop targets against the existing phase commitments. Estimate the implementation tasks separately from native-hardware, human-review and external-research dependencies. Retain unresolved commitments in this roadmap; reducing scope requires the explicit owner decision described above. The nine-craft playable checkpoint is a milestone, while completion requires the acceptance conditions below.
