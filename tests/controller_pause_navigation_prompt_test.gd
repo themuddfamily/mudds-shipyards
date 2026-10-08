@@ -42,6 +42,7 @@ func _run() -> void:
 	await _test_intro_server_browser_controller_back(hud)
 	hud.set("_started", true)
 	await _test_destination_board_controller_path(hud)
+	await _test_destination_board_refresh_keeps_back_focus(hud)
 	await _test_server_browser_escape_steps_back(hud)
 	await _test_controls_overlay_toggle_keeps_pause_focus(hud)
 	await _test_controller_prompt_glyphs(hud)
@@ -103,6 +104,37 @@ func _test_destination_board_controller_path(hud: GameHUD) -> void:
 	_check(main_page.visible and pause.visible, "Start still steps back from the board")
 	await _tap_joy(BUTTON_START)
 	_check(not pause.visible and not paused, "Start still closes the pause overlay")
+
+
+## A changed catalog can arrive while the controller player is leaving the board.
+func _test_destination_board_refresh_keeps_back_focus(hud: GameHUD) -> void:
+	_check(hud.open_planetary_destination_board(), "the Destination Board reopens for catalog refresh")
+	await process_frame
+	await _tap_joy(BUTTON_DPAD_DOWN)
+	await _tap_joy(BUTTON_DPAD_DOWN)
+	var back := hud.find_child("PlanetaryDestinationBackButton", true, false) as Button
+	_check(root.gui_get_focus_owner() == back, "controller navigation chooses Back before refresh")
+	var refreshed := _destination_snapshot()
+	(refreshed.destinations[0] as Dictionary).travel_summary = "Updated authored travel briefing."
+	_check(hud.set_planetary_destination_snapshot(refreshed), "the live catalog refresh is accepted")
+	await process_frame
+	await process_frame
+	_check(
+		root.gui_get_focus_owner() == back,
+		"catalog refresh preserves Back instead of moving controller focus onto travel"
+	)
+	await _tap_joy(BUTTON_A)
+	var page := hud.get("_planetary_destination_page") as Control
+	var main_page := hud.get("_pause_main_page") as Control
+	var destinations := hud.find_child("PlanetaryDestinationOpenButton", true, false) as Button
+	_check(
+		main_page.visible and not page.visible
+			and root.gui_get_focus_owner() == destinations,
+		"controller A after refresh activates the chosen Back action"
+	)
+	hud.set_paused(false)
+	paused = false
+	await process_frame
 
 
 ## 3. Controller B leaves the Server Browser opened from the startup menu, as it
