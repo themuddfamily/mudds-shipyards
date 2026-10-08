@@ -154,6 +154,17 @@ installed startup check exit 0 with the sentinel in 13.4 s, upgrade recorded
 the seeded user data. The installer and its `.sha256` sit beside the
 checkpoint executable in `/mnt/c/Users/themu/Downloads/`.
 
+### Native cross-build result — 2026-10-08
+
+The fixed installer workflow passed 11 native steps with checkpoint `fc20b84` as the previous executable and `28fc594` as the new executable: clean install, exact hash/provenance/registry checks, silent startup, a deliberately locked-target failure that preserves the old binary and metadata, successful upgrade/startup, rollback/startup, and uninstall preserving seeded user data. All three startups used `--headless --audio-driver Dummy --startup-check`, exited 0 and printed `STARTUP_MENU_READY_OK`. The original overwrite failure and the passing result are retained under `/root/.cache/mudds-shipyards/roadmap-validation/` (`installer-fc20-6affa-native.json` and `installer-atomic-fc20-28fc-native.json`).
+
+Both installers were compiled using atomic-replacement packaging code `ce2dfa065`; native verification used `3cc442fda`. This proves rollback with a rebuilt previous installer, not every legacy installer. Artifacts remain in `builds/windows/`:
+
+- `MuddsShipyards-28fc594-setup.exe`: SHA-256 `5a16d5d4327cfd4eabc12e1ddf5d5ffb42d40a8716cdb14cc4e74e1e47136568`.
+- `MuddsShipyards-fc20b84-atomic-setup.exe`: SHA-256 `7f8cf93aa393fde5bc8b3e02a1b5c16fb0ac289c184b4492ed1bd0252495644b`.
+
+This is silent native packaging acceptance on the development machine. Interactive installation, gameplay, clean-machine/hardware qualification and trusted signing remain open.
+
 ## Still open
 
 - Trusted signing qualification: these checkpoint installer probes are unsigned
