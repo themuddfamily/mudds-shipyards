@@ -53,8 +53,13 @@ into processes with that name.
   and `UpgradedFrom` when a previous install was replaced).
 - Silent install: `MuddsShipyards-<sha7>-setup.exe /S /D=C:\target` (`/D=` must
   be last and unquoted, as NSIS requires). Silent uninstall: `uninstall.exe /S`.
-- Upgrading is installing the new build over the old location; files are
-  overwritten and the registry rewritten. Player settings and saves live under
+- Upgrading or rolling back installs the requested build over the old location.
+  The payload is extracted to an owned sibling `MuddsShipyards.exe.pending`,
+  then moved into place with `MoveFileExW` replacement. Replacement retries
+  transient file contention for up to 9.75 seconds. A permanent replacement
+  failure exits nonzero and preserves the previous executable and provenance;
+  an existing pending file is refused without changing it. Registry metadata
+  advances only after successful replacement. Player settings and saves live under
   `%APPDATA%\Godot\app_userdata\Mudds Shipyards` and are never written, read
   or removed by the installer or the uninstaller. The uninstaller deletes only
   the three files it wrote, the shortcuts and the two registry keys; a
@@ -123,7 +128,8 @@ The schema 1 JSON adds `mode`, previous-build input/hash fields, and `cleanup`.
 A failure preserves its original step diagnostic and attempts guarded cleanup
 only after the probe passed preconditions and started its own installation.
 Cleanup refuses keys or shortcuts pointing at another install, removes only
-the three known installer files, owned shortcuts and registry keys, and never
+the three known installer files and any probe-owned pending payload, owned
+shortcuts and registry keys, and never
 recursively removes installation or Start Menu directories. Logs and the seeded
 probe profile remain for inspection. `cleanup.status=FAIL` means cleanup also
 failed; inspect its detail before rerunning in a fresh probe root. A precondition

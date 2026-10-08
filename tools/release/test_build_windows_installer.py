@@ -65,6 +65,21 @@ class NsisScriptContract(unittest.TestCase):
         self.assertIn('"UpgradedFrom"', self.text)
         self.assertIn("signing=unsigned", self.text)
 
+    def test_replacement_is_staged_atomic_and_fatal_before_metadata(self):
+        install = self.text.split('Section "Install" SEC_MAIN', 1)[1].split('Section "Uninstall"', 1)[0]
+        self.assertIn('File "/oname=${PENDING_EXE}" "${SOURCE_EXE}"', install)
+        self.assertIn("SetOverwrite try\n  ClearErrors", install)
+        self.assertLess(install.index('IfFileExists "$INSTDIR\\${PENDING_EXE}"'), install.index("StrCpy $OwnsPending 1"))
+        failed = self.text.split("Function .onInstFailed", 1)[1].split("FunctionEnd", 1)[0]
+        self.assertIn("${If} $OwnsPending == 1", failed)
+        self.assertIn("IfErrors 0 payload_staged", install)
+        self.assertIn("kernel32::MoveFileExW", install)
+        self.assertIn("i 9) i .r0 ?e", install)
+        self.assertIn("IntCmp $2 40", install)
+        self.assertIn("SetErrorLevel 2", install)
+        self.assertLess(install.index("payload_replaced:"), install.index('FileOpen $0'))
+        self.assertIn('Delete "$INSTDIR\\${PENDING_EXE}"', self.text)
+
     def test_every_define_is_required(self):
         for define in ("SOURCE_EXE", "SHORT_COMMIT", "FULL_COMMIT", "PRODUCT_VERSION", "OUTPUT_FILE"):
             self.assertRegex(self.text, rf"!ifndef {define}\n\s+!error")
