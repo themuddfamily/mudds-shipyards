@@ -247,9 +247,16 @@ func _client() -> void:
 		"disconnect and whole-Main reentry restore exact solo hull/components/collision/visibility")
 
 func _spawn(role: String) -> void:
+	var parent_args := OS.get_cmdline_args()
+	var project_path := ProjectSettings.globalize_path("res://")
+	var path_index := parent_args.find("--path")
+	if path_index >= 0 and path_index + 1 < parent_args.size():
+		project_path = parent_args[path_index + 1]
+	elif project_path.is_empty():
+		project_path = DirAccess.open(".").get_current_dir()
 	var previous_xdg := OS.get_environment("XDG_DATA_HOME")
 	OS.set_environment("XDG_DATA_HOME", _directory + "/" + role + "-xdg")
-	var args := PackedStringArray(["--headless", "--audio-driver", "Dummy", "--path", ProjectSettings.globalize_path("res://"),
+	var args := PackedStringArray(["--headless", "--audio-driver", "Dummy", "--path", project_path,
 		"--log-file", _directory + "/" + role + ".log", "--script", "res://tests/network_craft_pose_station_frame_test.gd"])
 	if not _package_under_test.is_empty():
 		args.append_array(PackedStringArray(["--main-pack", _package_under_test]))
