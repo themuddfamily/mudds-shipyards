@@ -658,15 +658,14 @@ func _test_real_service_route() -> void:
 		await physics_frame
 		await process_frame
 	Input.action_release(&"move_forward")
-	Input.action_press(&"brake")
-	await _wait_until(func() -> bool: return craft.velocity.length() < 30.0, 4.0)
-	Input.action_release(&"brake")
+	await _brake_actual_craft(craft)
 	for tick in int(ceil(HeroShip.AUTOMATIC_ENGINE_IDLE_SHUTDOWN_SECONDS * Engine.physics_ticks_per_second)) + 4:
 		await physics_frame
 		await process_frame
 	_check(craft.global_position.distance_to(berth_origin) > 100.0
 		and craft.get_telemetry().engine_state == HeroShip.ENGINE_OFFLINE,
 		"ordinary flight carries Bulwark clear before its sealed service-cabin walk")
+	print("BULWARK_ORDINARY_LEAVE: speed=", craft.velocity.length(), " engine=", craft.get_telemetry().engine_state)
 	var event := InputEventAction.new()
 	event.action = &"interact"
 	event.pressed = true
@@ -676,6 +675,7 @@ func _test_real_service_route() -> void:
 	for tick in 8:
 		await physics_frame
 		await process_frame
+	print("BULWARK_ORDINARY_WALK_START: speed=", craft.velocity.length())
 	var hull_origin := craft.global_position
 	var reached_aft := await _walk_route_leg(&"move_back", func() -> bool: return craft.to_local(actor.global_position).z > 1.72)
 	var crossed := await _walk_route_leg(&"move_right", func() -> bool: return craft.to_local(actor.global_position).x > 1.20)
@@ -862,9 +862,7 @@ func _test_gunner_file_recovery_and_cleanup(game: GameFlow, craft: BulwarkHeavyG
 	var launch_origin := craft.global_position
 	await _wait_until(func() -> bool: return craft.global_position.distance_to(launch_origin) > 110.0, 7.0)
 	Input.action_release(&"move_forward")
-	Input.action_press(&"brake")
-	await _wait_until(func() -> bool: return craft.velocity.length() < 30.0, 4.0)
-	Input.action_release(&"brake")
+	await _brake_actual_craft(craft)
 	await _leave_actual_helm(cold, craft)
 	var readmitted := await _walk_and_sit_gunner(cold, craft)
 	_check(readmitted, "ordinary pilot leave/walk/E settles a genuine gunner before its actual craft is freed")
@@ -901,9 +899,7 @@ func _test_retained_foreign_gunner_power() -> void:
 	Input.action_press(&"move_forward")
 	await _wait_until(func() -> bool: return craft.global_position.distance_to(origin) > 110.0, 7.0)
 	Input.action_release(&"move_forward")
-	Input.action_press(&"brake")
-	await _wait_until(func() -> bool: return craft.velocity.length() < 30.0, 4.0)
-	Input.action_release(&"brake")
+	await _brake_actual_craft(craft)
 	await _leave_actual_helm(cold, craft)
 	_check(await _walk_and_sit_gunner(cold, craft), "separate real Main ordinary controls reach the gunner before retained/foreign-owner checks")
 	var retained_authority := craft.get_crew_role_authority()
@@ -957,6 +953,19 @@ func _test_retained_foreign_gunner_power() -> void:
 		"ordinary E refuses the competing chair without stealing its ledger")
 	cold.queue_free()
 	await _settle_frames(3)
+
+func _brake_actual_craft(craft: HeroShip) -> void:
+	var initial_speed := craft.velocity.length()
+	var ticks := 0
+	Input.action_press(&"brake")
+	# Observe each completed physics integration. Awaiting a rendered process
+	# frame here can hold BRAKE through several additional physics substeps.
+	while ticks < int(ceil(4.0 * Engine.physics_ticks_per_second)) and craft.velocity.length() >= 30.0:
+		await physics_frame
+		ticks += 1
+	Input.action_release(&"brake")
+	print("BULWARK_ORDINARY_BRAKE: speed=", [initial_speed, craft.velocity.length()], " physics_ticks=", ticks)
+
 
 func _leave_actual_helm(game: GameFlow, craft: HeroShip) -> void:
 	await _settle_frames(int(ceil(HeroShip.AUTOMATIC_ENGINE_IDLE_SHUTDOWN_SECONDS * Engine.physics_ticks_per_second)) + 4)
