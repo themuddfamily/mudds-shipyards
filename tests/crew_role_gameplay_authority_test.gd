@@ -17,6 +17,7 @@ func _init() -> void:
 
 func _run() -> void:
 	_test_profile_shapes_and_normalization()
+	_test_gunner_aim_receipt()
 	_test_role_intent_authority_and_capabilities()
 	_test_intent_sequence_and_lifecycle_cleanup()
 	if _failures.is_empty():
@@ -73,6 +74,48 @@ func _test_profile_shapes_and_normalization() -> void:
 		{"system_id": "reactor", "repair": 0.5}
 	)
 	_check(not wrong_role.accepted and wrong_role.status == &"action_not_allowed", "role cannot submit another role's action")
+
+
+func _test_gunner_aim_receipt() -> void:
+	var authority := Authority.new(77)
+	authority.register_bulwark_roster()
+	authority.claim(77, 8, &"gunner_avatar", &"gunner_station", Authority.ROLE_GUNNER, 1)
+	var aim := {
+		"weapon_id": &"picket_siege_lance", "target_id": &"DRONE-01",
+		"trigger": true, "target_generation": 1,
+		"origin": Vector3(3.0, 2.0, -4.0), "direction": Vector3(0.25, -0.1, -1.0),
+	}
+	var admitted := authority.submit_intent(77, 8, &"gunner_avatar", Authority.ACTION_GUNNER_FIRE, aim, 2)
+	var receipt := authority.get_last_intent(8, &"gunner_avatar")
+	var normalized := receipt.get("payload", {}) as Dictionary
+	_check(bool(admitted.accepted) and normalized.get("origin") == aim.origin
+		and normalized.get("direction") == aim.direction
+		and receipt.get("seat_id") == &"gunner_station" and int(receipt.get("seat_generation", 0)) == 1,
+		"Main's six-field gunner aim survives the exact authorized seat receipt for shared combat")
+	for invalid_vector: Variant in [Vector3.ZERO, Vector3(INF, 0.0, 1.0), "forward", Vector3(1e20, 1e20, 1e20)]:
+		var invalid := aim.duplicate(true)
+		invalid.direction = invalid_vector
+		var refused := authority.submit_intent(77, 8, &"gunner_avatar", Authority.ACTION_GUNNER_FIRE, invalid, 3)
+		_check(not refused.accepted and refused.status == &"invalid_gunner_fire_aim",
+			"zero, nonfinite, malformed or overflowing gunner directions refuse before entering the role stream")
+	var invalid_origin := aim.duplicate(true)
+	invalid_origin.origin = Vector3(NAN, 0.0, 0.0)
+	var origin_refused := authority.submit_intent(77, 8, &"gunner_avatar", Authority.ACTION_GUNNER_FIRE, invalid_origin, 3)
+	var incomplete := aim.duplicate(true)
+	incomplete.erase("direction")
+	var incomplete_refused := authority.submit_intent(77, 8, &"gunner_avatar", Authority.ACTION_GUNNER_FIRE, incomplete, 3)
+	_check(not origin_refused.accepted and origin_refused.status == &"invalid_gunner_fire_aim"
+		and not incomplete_refused.accepted and incomplete_refused.status == &"invalid_gunner_fire_schema"
+		and authority.get_last_intent(8, &"gunner_avatar") == receipt,
+		"invalid origin and incomplete aim preserve the last legitimate receipt and request sequence")
+	var spoofed := authority.submit_intent(8, 8, &"gunner_avatar", Authority.ACTION_GUNNER_FIRE, aim, 3)
+	_check(not spoofed.accepted and spoofed.status == &"unauthorized_source",
+		"aim-bearing gunner payload retains the existing host-authority fence")
+	var accepted := authority.submit_intent(77, 8, &"gunner_avatar", Authority.ACTION_GUNNER_FIRE, aim, 3)
+	_check(bool(accepted.accepted), "legitimate aim can reuse a sequence refused for malformed vectors")
+	(normalized as Dictionary)["origin"] = Vector3.ZERO
+	_check((authority.get_last_intent(8, &"gunner_avatar").get("payload", {}) as Dictionary).get("origin") == aim.origin,
+		"the exposed aim receipt is detached from the retained downstream combat payload")
 
 
 func _test_role_intent_authority_and_capabilities() -> void:
