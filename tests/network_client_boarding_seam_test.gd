@@ -540,15 +540,16 @@ func _assert_a_passenger_is_promoted_to_pilot_in_place() -> void:
 		"the second client stands in the cabin on a berth before walking forward")
 	_check(not game._network_client_near_pilot_seat(craft),
 		"the cabin stand pose is outside the cockpit's reach, so a fresh berth press is the hatch's")
-	# Walk to the cockpit on held input, exactly as a player does. The cabin
-	# stand faces aft down the aisle, so the cockpit is behind the player.
+	# Look toward the cockpit before walking, so earlier cabin interactions
+	# cannot leave this approach dependent on a retained camera heading.
 	_only_this_player_hears_the_key(client_player)
 	client_player.set_control_enabled(true)
-	Input.action_press(&"move_back")
+	await _look_toward_cockpit(client_player, craft.get_pilot_seat_anchor().global_position)
+	Input.action_press(&"move_forward")
 	var reached := await _wait_until(
 		func() -> bool: return game._network_client_near_pilot_seat(craft), 6.0
 	)
-	Input.action_release(&"move_back")
+	Input.action_release(&"move_forward")
 	await _drive_session(10)
 	_check(reached and game._network_client_near_pilot_seat(craft),
 		"the passenger reached the cockpit")
@@ -560,7 +561,7 @@ func _assert_a_passenger_is_promoted_to_pilot_in_place() -> void:
 		"control": client_player.is_control_enabled(),
 	})
 	_check(not game.station_interaction_candidate is ShipCrewSeat,
-		"network cockpit interaction excludes the unavailable solo passenger chair")
+		"looking toward the cockpit selects the pilot interaction")
 	var swaps_before := int(_host.get_network_remote_body_audit().get("hatch_seat_swaps", 0))
 	var requests_before := int(game.get_network_client_boarding_audit().get("requests", 0))
 	await _press_interact()
@@ -627,6 +628,23 @@ func _assert_the_host_is_refused_a_seat_a_crewmate_holds() -> void:
 func _client_holds_role(game: GameFlow, role: StringName) -> bool:
 	var claim := game.get_network_client_boarding_audit().get("claim", {}) as Dictionary
 	return StringName(claim.get("role", &"")) == role
+
+
+func _look_toward_cockpit(client_player: PlayerController, target: Vector3) -> void:
+	for _index in 4:
+		if Input.mouse_mode != Input.MOUSE_MODE_CAPTURED:
+			var click := InputEventMouseButton.new()
+			click.button_index = MOUSE_BUTTON_LEFT
+			click.pressed = true
+			client_player._unhandled_input(click)
+		var desired := client_player.global_basis.inverse() * (target - client_player.get_camera().global_position).normalized()
+		var current := client_player.global_basis.inverse() * client_player.get_interaction_direction().normalized()
+		var yaw := wrapf(atan2(-desired.x, -desired.z) - atan2(-current.x, -current.z), -PI, PI)
+		var pitch := asin(clampf(desired.y, -1.0, 1.0)) - asin(clampf(current.y, -1.0, 1.0))
+		var event := InputEventMouseMotion.new()
+		event.relative = Vector2(-yaw, pitch * (1.0 if client_player.invert_mouse_y else -1.0)) / client_player.mouse_sensitivity
+		client_player._unhandled_input(event)
+		await _drive_session(1)
 
 
 func _ledger_holder(seat_id: StringName) -> StringName:

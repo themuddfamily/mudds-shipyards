@@ -89,7 +89,11 @@ func admit_peer(source_peer_id: int, wire: Dictionary) -> Dictionary:
 	var peer: Dictionary = accepted.get("peer", {})
 	var peer_id := int(peer.get("peer_id", 0))
 	var peer_generation := int(peer.get("peer_generation", 0))
-	var registered: Dictionary = _interest.register_peer(_authority_peer_id, peer_id)
+	# A newer authenticated hello on the same live link retains its existing
+	# interest subscription. A disconnected peer was removed and registers anew.
+	var registered: Dictionary = {"accepted": true}
+	if not _peers.has(peer_id):
+		registered = _interest.register_peer(_authority_peer_id, peer_id)
 	if not bool(registered.get("accepted", false)):
 		_handshake.release_peer(_authority_peer_id, peer_id, peer_generation)
 		return _remember(_result(false, &"interest_peer_registration_failed", {

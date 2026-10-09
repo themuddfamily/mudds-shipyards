@@ -1692,6 +1692,7 @@ func _network_session_signal_bindings() -> Array:
 		[&"crew_command_result", Callable(self, "_on_network_crew_command_result")],
 		[&"projectile_replica_packet", Callable(self, "_on_projectile_replica_packet")],
 		[&"snapshot_applied", Callable(self, "_on_network_snapshot_applied")],
+		[&"migration_preparing", Callable(self, "_on_network_migration_preparing")],
 		[&"migration_result", Callable(self, "_on_network_migration_result")],
 		[&"server_browser_result", Callable(self, "_on_server_browser_result")],
 	]
@@ -7068,10 +7069,63 @@ func _on_network_peer_admitted(peer_id: int, _receipt: Dictionary) -> void:
 		_network_moving_interior_dirty = true
 		return
 	if _network_session_mode == &"client":
+		var migration: Dictionary = _receipt.get("migration", {})
+		if migration.get("status") == &"peer_rebound" \
+				and _network_remote_body_intent_source != null \
+				and _network_remote_body_intent_source.is_bound():
+			# A fresh authenticated offer reopens the existing entity's source;
+			# sequence zero obtains the real host clock through its usual owner.
+			bind_network_remote_body(_network_remote_body_intent_source.get_entity_id(),
+				_network_remote_body_intent_source.get_entity_generation())
 		_ensure_network_moving_interior_presenter()
 		_publish_network_session_snapshot(
 			&"connected", &"client", "Session host accepted peer %d." % peer_id, false
 		)
+
+
+## Capture only committed boarding receipts immediately before rotation. The
+## authored cabin bounds describe the retained interest; this claims no seat,
+## creates no body, and makes no client-provided attachment authoritative.
+func _on_network_migration_preparing() -> void:
+	if _network_session_mode != &"server" or not is_instance_valid(network_session):
+		return
+	var peer_generations: Dictionary = {}
+	for value in network_session.get_migration_snapshot().get("peers", []):
+		var peer := value as Dictionary
+		if bool(peer.get("active", false)):
+			peer_generations[int(peer.peer_id)] = int(peer.peer_generation)
+	for value in network_session.get_boarding_snapshot().get("occupancies", []):
+		var occupancy := value as Dictionary
+		var peer_id := int(occupancy.get("peer_id", 0))
+		if not peer_generations.has(peer_id):
+			continue
+		var craft := _find_flyable_ship_by_id(StringName(occupancy.get("ship_id", &"")))
+		if not is_instance_valid(craft) or craft.is_destroyed():
+			continue
+		var bounds := craft.get_in_flight_cabin_report().get("local_bounds", AABB()) as AABB
+		if bounds.size.is_zero_approx():
+			continue
+		var committed := network_session.set_peer_lifecycle_interest(peer_id,
+			int(peer_generations[peer_id]), craft.to_global(bounds.get_center()),
+			(bounds.size * craft.global_basis.get_scale().abs()).length() * 0.5,
+			NetworkSessionAdapterType.MAX_PRESENTATION_ENTITIES)
+		if not bool(committed.get("accepted", false)):
+			continue
+		# Read the actual owner's committed record, including the peer generation,
+		# rather than promoting the generated arguments to a retained receipt.
+		var lifecycle: Dictionary = network_session.get_snapshot().get("lifecycle", {})
+		var current := false
+		for peer_value in lifecycle.get("peers", []):
+			var peer := peer_value as Dictionary
+			if int(peer.get("peer_id", 0)) == peer_id:
+				current = int(peer.get("peer_generation", 0)) == int(peer_generations[peer_id])
+		var interest: Dictionary = (lifecycle.get("peer_interest", {}) as Dictionary).get(peer_id, {})
+		if not current or interest.is_empty():
+			continue
+		network_session.bind_migration_attachment(peer_id, int(peer_generations[peer_id]),
+			StringName(occupancy.seat_id), int(occupancy.seat_generation),
+			StringName(occupancy.ship_id), int(occupancy.ship_generation),
+			interest.center, float(interest.radius), int(interest.max_entities))
 
 
 func _on_network_migration_result(result: Dictionary) -> void:

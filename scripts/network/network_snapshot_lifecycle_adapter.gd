@@ -71,6 +71,12 @@ func admit_peer(source_peer_id: int, wire: Dictionary) -> Dictionary:
 	return _remember(_lifecycle.admit_peer(source_peer_id, wire))
 
 
+func set_interest(source_peer_id: int, peer_id: int, peer_generation: int,
+	center: Vector3, radius: float, max_entities: int = 512) -> Dictionary:
+	return _remember(_lifecycle.set_interest(source_peer_id, peer_id, peer_generation,
+		center, radius, max_entities))
+
+
 func register_ship(
 	source_peer_id: int,
 	ship_id: StringName,

@@ -419,6 +419,7 @@ func _initialize() -> void:
 		"recipient_peer_id": client_peer_id, "peer_generation": int((_client.get_server_offer().transport as Dictionary).peer_generation),
 		"transport_session_generation": int(_server.get("_transport").get_snapshot().session_generation),
 		"protocol_version": 1, "package_generation": 1, "session_generation": 3, "migration_generation": 3,
+		"rebind_available": false,
 	}
 	var refused: Array[Dictionary] = []
 	for change in [

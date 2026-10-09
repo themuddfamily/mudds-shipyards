@@ -208,12 +208,25 @@ func _host() -> void:
 	if not await _wait_file("client.migrate", 20.0):
 		return
 	_check(_game.network_session.rotate_session_migration().accepted, "real host migration rotates while passenger seated")
+	var epoch := _game.network_session.get_migration_snapshot()
+	_check(_game.network_session.rotate_session_migration().get("status") == &"rebind_pending"
+		and _game.network_session.get_migration_snapshot() == epoch,
+		"a consecutive rotation cannot overtake the pending authenticated rebind")
 	await _ticks(35)
 	_check(owner.get_assignment(peer, avatar).is_empty() and not body.is_seated() and body.get_cabin_containment_report().active, "migration releases physical passenger and restores retained cabin body")
 	_write("host.migrated", {})
 	if not await _wait_file("client.disconnect_seated", 25.0):
 		return
 	_check(not owner.get_assignment(peer, avatar).is_empty() and body.is_seated(), "passenger physically occupies chair at disconnect boundary")
+	var rebound: Dictionary = _game.network_session.get_migration_snapshot().peers[0]
+	_check(bool(rebound.active) and not bool(rebound.rebind_required)
+		and int(rebound.peer_generation) == 2
+		and rebound.attachment.seat.seat_id == GameFlow.network_cabin_berth_seat_id(_craft.get_ship_id(), 1),
+		"production newer hello rebinds the retained authoritative boarding receipt")
+	_check(rebound.attachment.interest == (_game.network_session.get_snapshot().lifecycle.peer_interest as Dictionary).get(peer, {}),
+		"retained bounded interest is the lifecycle owner's committed record")
+	_check(simulation.get_body(avatar) == body and int(simulation.get_body_record(avatar).entity_generation) == 1,
+		"migration preserves one existing physical body and entity generation")
 	_write("host.disconnect_ready", {})
 	if not await _wait_file("client.disconnected", 20.0):
 		return
@@ -270,6 +283,13 @@ func _client() -> void:
 	if not await _wait_file("host.migrated", 12.0):
 		return
 	_check(await _until(func(): return not _player.is_seated() and _player.is_on_floor() and _player.is_control_enabled() and not bool(_game.get("_transition_busy")), 8.0), "migration restores usable local passenger body")
+	_check(await _until(func():
+		var source := _game.get_network_remote_body_intent_source()
+		return source != null and source.is_bound() and source.get_audit().stream_id == 2 \
+			and bool(source.get_audit().opening_confirmed) \
+			and _game.station_interaction_candidate is ShipCrewSeat \
+			and _game._network_client_boarding_holds(_craft)
+	, 8.0), "fresh authenticated offer reopens the same body stream with the actual host clock")
 	await _look(_craft.get_loadmaster_station_anchor().global_position + Vector3.UP * 1.2)
 	await _press(&"interact")
 	_check(await _until(func(): return _player.is_seated_at(_craft.get_loadmaster_station_anchor()) and not bool(_game.get("_transition_busy")), 8.0), "fresh post-migration ordinary chair claim succeeds")

@@ -66,6 +66,7 @@ signal crew_command_result(result: Dictionary)
 signal crew_snapshot_published(snapshot: Dictionary)
 signal crew_snapshot_applied(result: Dictionary)
 signal cargo_manifest_result(result: Dictionary)
+signal migration_preparing
 signal migration_result(result: Dictionary)
 signal prediction_correction_result(result: Dictionary)
 signal server_browser_result(result: Dictionary)
@@ -291,6 +292,7 @@ var _presentation_evictions := 0
 var _is_server := false
 var _configured := false
 var _peer_generations: Dictionary = {}
+var _migration_captured_peers: Dictionary = {}
 var _peer_admission_epoch := 0
 var _peer_keepalive_deadlines: Dictionary = {}
 var _keepalive_timeout_milliseconds := KEEPALIVE_DEFAULT_TIMEOUT_MILLISECONDS
@@ -531,6 +533,7 @@ func shutdown(reason: StringName = &"requested") -> Dictionary:
 	_configured = false
 	_is_server = false
 	_peer_generations.clear()
+	_migration_captured_peers.clear()
 	_peer_admission_epoch += 1
 	_seat_moving_relationships.clear()
 	_moving_recipient_budgets.clear()
@@ -2818,6 +2821,15 @@ func send_crew_command(
 func rotate_session_migration(next_package_generation: int = -1) -> Dictionary:
 	if not is_server():
 		return _remember(_result(false, &"authority_required"))
+	for value in _migration.get_snapshot().get("peers", []):
+		var peer := value as Dictionary
+		if bool(peer.get("rebind_required", false)) \
+				and _has_current_migration_attachment(int(peer.get("peer_id", 0))):
+			# Serialize epochs while a real retained attachment awaits its new
+			# authenticated hello; a second notice cannot overtake that offer.
+			return _remember(_result(false, &"rebind_pending"))
+	_migration_captured_peers.clear()
+	migration_preparing.emit()
 	var result: Dictionary = _migration.rotate_server(AUTHORITY_PEER_ID, next_package_generation)
 	if bool(result.get("accepted", false)):
 		_moving_snapshot_revision = 0
@@ -2843,9 +2855,32 @@ func rotate_session_migration(next_package_generation: int = -1) -> Dictionary:
 				"transport_session_generation": int(_transport.get_snapshot().session_generation),
 				"protocol_version": int(epoch.protocol_version), "package_generation": int(epoch.package_generation),
 				"session_generation": int(epoch.session_generation), "migration_generation": int(epoch.migration_generation),
+				"rebind_available": _has_current_migration_attachment(int(peer_id)),
 			})
 	migration_result.emit(result.duplicate(true))
 	return _remember(result)
+
+
+func _has_current_migration_attachment(peer_id: int) -> bool:
+	if not _migration_captured_peers.has(peer_id):
+		return false
+	var attachment: Dictionary = _migration.get_peer(peer_id).get("attachment", {})
+	if attachment.is_empty():
+		return false
+	var interest: Dictionary = (_lifecycle.get_snapshot().lifecycle.peer_interest as Dictionary).get(peer_id, {})
+	if interest != attachment.get("interest", {}):
+		return false
+	# Retained metadata is never an occupancy grant. Only a still-held boarding
+	# receipt can reopen the transport through the migration rebind owner.
+	for value in _boarding.get_snapshot().get("occupancies", []):
+		var occupancy := value as Dictionary
+		if int(occupancy.get("peer_id", 0)) == peer_id \
+				and occupancy.get("seat_id") == attachment.seat.seat_id \
+				and occupancy.get("seat_generation") == attachment.seat.seat_generation \
+				and occupancy.get("ship_id") == attachment.ship.ship_id \
+				and occupancy.get("ship_generation") == attachment.ship.ship_generation:
+			return true
+	return false
 
 
 @rpc("authority", "call_remote", "reliable", 0)
@@ -2853,7 +2888,7 @@ func _broadcast_session_migration(packet: Dictionary) -> void:
 	if is_server() or not _configured or multiplayer.get_remote_sender_id() != AUTHORITY_PEER_ID:
 		return
 	var fields := ["recipient_peer_id", "peer_generation", "transport_session_generation", "protocol_version", "package_generation", "session_generation", "migration_generation"]
-	if packet.size() != fields.size():
+	if packet.size() != fields.size() + 1 or not packet.get("rebind_available") is bool:
 		return
 	for field in fields:
 		if not packet.get(field) is int or int(packet[field]) <= 0 or int(packet[field]) > 9007199254740991:
@@ -2869,6 +2904,7 @@ func _broadcast_session_migration(packet: Dictionary) -> void:
 		return
 	_migration = SessionMigration.new(AUTHORITY_PEER_ID, int(packet.protocol_version),
 		int(packet.package_generation), int(packet.session_generation), int(packet.migration_generation))
+	_reset_moving_interior_jitter(int(packet.migration_generation))
 	_engineer_replica_snapshot.clear()
 	_gunner_replica_snapshot.clear()
 	_passenger_replica_snapshot.clear()
@@ -2876,6 +2912,8 @@ func _broadcast_session_migration(packet: Dictionary) -> void:
 	migration_result.emit(_result(true, &"server_rotation_presented", {
 		"migration_generation": int(packet.migration_generation), "presentation_only": true,
 	}))
+	if bool(packet.rebind_available):
+		_send_peer_hello()
 
 
 func accept_migration_packet(source_peer_id: int, packet: Dictionary) -> Dictionary:
@@ -2916,8 +2954,18 @@ func bind_migration_attachment(
 		AUTHORITY_PEER_ID, peer_id, peer_generation, seat_id, seat_generation,
 		ship_id, ship_generation, interest_center, interest_radius, interest_max_entities
 	)
+	if bool(result.get("accepted", false)):
+		_migration_captured_peers[peer_id] = true
 	migration_result.emit(result.duplicate(true))
 	return _remember(result)
+
+
+func set_peer_lifecycle_interest(peer_id: int, peer_generation: int,
+	center: Vector3, radius: float, max_entities: int) -> Dictionary:
+	if not is_server():
+		return _remember(_result(false, &"authority_required"))
+	return _remember(_lifecycle.set_interest(AUTHORITY_PEER_ID, peer_id, peer_generation,
+		center, radius, max_entities))
 
 
 func get_migration_snapshot() -> Dictionary:
@@ -4681,6 +4729,17 @@ func _receive_hello(wire: Dictionary) -> void:
 	if not is_server():
 		return
 	var source_peer_id := multiplayer.get_remote_sender_id()
+	if _peer_generations.has(source_peer_id):
+		var prior: Dictionary = _migration.get_peer(source_peer_id)
+		if bool(prior.get("active", false)) or not bool(prior.get("rebind_required", false)) \
+				or not wire.get("peer_generation") is int \
+				or int(wire.peer_generation) <= int(_peer_generations[source_peer_id]):
+			# A duplicate/late hello cannot tear down a successful admission.
+			transport_rejected.emit(&"stale_peer_generation")
+			return
+		if not _has_current_migration_attachment(source_peer_id):
+			transport_rejected.emit(&"attachment_unavailable")
+			return
 	if not _peer_generations.has(source_peer_id) and _peer_generations.size() >= _session_max_clients:
 		_refuse_hello(source_peer_id, &"session_full")
 		return
@@ -4718,6 +4777,7 @@ func _receive_hello(wire: Dictionary) -> void:
 		return
 	var offer := {
 		"admission": admitted,
+		"migration": migration_registered,
 		"transport": {
 			"peer_id": peer_id,
 			"peer_generation": peer_generation,
@@ -4765,7 +4825,14 @@ func _send_admission_refused(status: String) -> void:
 
 @rpc("authority", "call_remote", "reliable")
 func _send_server_offer(offer: Dictionary) -> void:
-	if is_server():
+	if is_server() or not _configured or multiplayer.get_remote_sender_id() != AUTHORITY_PEER_ID:
+		return
+	var identity: Dictionary = (offer.get("admission", {}) as Dictionary).get("peer", {})
+	if int(identity.get("peer_id", 0)) != multiplayer.get_unique_id() \
+			or int(identity.get("peer_generation", 0)) != _next_peer_generation - 1:
+		return
+	var current_identity: Dictionary = (_server_offer.get("admission", {}) as Dictionary).get("peer", {})
+	if int(current_identity.get("peer_generation", 0)) >= int(identity.peer_generation):
 		return
 	_server_offer = offer.duplicate(true)
 	if offer.get("boarding_server_tick") is int and int(offer.get("boarding_server_tick")) >= 0:
@@ -5194,6 +5261,10 @@ func _on_peer_connected(peer_id: int) -> void:
 	_hold_peer_packet_throttle(peer_id)
 	if is_server() or peer_id != AUTHORITY_PEER_ID:
 		return
+	_send_peer_hello()
+
+
+func _send_peer_hello() -> void:
 	var hello := LifecycleAdapter.create_hello(
 		multiplayer.get_unique_id(), _next_peer_generation,
 		_handshake_protocol_version, _handshake_package_generation, 1

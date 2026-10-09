@@ -16,6 +16,7 @@ func _init() -> void:
 
 func _run() -> void:
 	_test_cleanup_and_rejoin_fence()
+	_test_same_link_new_generation()
 	_test_session_rotation_fence()
 	if _failures.is_empty():
 		print("OK: network disconnect lifecycle (%d assertions)" % _assertions)
@@ -116,6 +117,33 @@ func _test_cleanup_and_rejoin_fence() -> void:
 	)
 	var stale_command := lifecycle.claim_seat(99, 7, 1, &"avatar_old", &"jovian_passenger", Lifecycle.SeatAuthority.ROLE_PASSENGER, 3)
 	_check(not stale_command.accepted and stale_command.status == &"stale_peer_generation", "old peer generation cannot claim a seat after reconnect")
+
+
+func _test_same_link_new_generation() -> void:
+	var lifecycle := _new_lifecycle()
+	_admit_and_seed(lifecycle)
+	var before := lifecycle.get_snapshot()
+	var admitted := lifecycle.admit_peer(7, _hello(2))
+	var after := lifecycle.get_snapshot()
+	_check(admitted.accepted and int(lifecycle.get_peer(7).peer_generation) == 2,
+		"authenticated newer hello advances the same live peer generation")
+	_check((after.peers as Array).size() == 1
+		and after.peer_interest == before.peer_interest
+		and after.seats == before.seats and after.ships == before.ships
+		and after.interest.entities == before.interest.entities
+		and after.interest.peers.size() == 1
+		and after.interest.peers[0].peer_generation == 2
+		and after.interest.peers[0].center == before.interest.peers[0].center
+		and after.interest.peers[0].radius == before.interest.peers[0].radius
+		and after.interest.peers[0].max_entities == before.interest.peers[0].max_entities,
+		"same-link rebind preserves the one seat, ship, entity and interest records")
+	var duplicate := lifecycle.admit_peer(7, _hello(2))
+	var late := lifecycle.admit_peer(7, _hello(1))
+	_check(not duplicate.accepted and not late.accepted
+		and lifecycle.get_snapshot() == after,
+		"duplicate and late hello cannot mutate successful current admission")
+	_check(lifecycle.disconnect_peer(99, 7, 2).accepted,
+		"the fresh same-link generation owns actual disconnect cleanup")
 
 
 func _test_session_rotation_fence() -> void:
