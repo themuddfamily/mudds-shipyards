@@ -1,0 +1,16 @@
+Mudds Shipyards — Linux matching Bulwark gunner checkpoint
+Source: 5d6615c57b0803e58b30d35d26bd202e74577a0d
+Binary: MuddsShipyards-5d6615c.x86_64
+Binary SHA256: b47f812fa324ab78b96862c286b4ac8a5022f5a1d0826c70dd35fa4378b331c0
+Tarball SHA256: 04ccf305ffdbd3ccef3fb41dce43bcd653f619bde59db4bd25c3cfb291234de7
+
+This Linux build matches the published Windows5d6615c runtime: the Bulwark aft vestibule and gunner chair use ordinary crew controls for target selection and siege-lance fire; supported crew/cabin recovery returns the player to the saved craft's home berth without consuming an unpaid reward. Unpack the tarball and run the executable beside the included launcher/icon; no desktop entry was installed during these checks.
+
+Actual Linux qualification: clean exact-source export produces standalone ELF64 x86_64 with1,486 embedded PCK entries and validated payload hashes. The five-member tarball has safe regular-file/directory paths, correct executable modes and exact inner-binary parity. Binary startup and freshly unpacked tar startup each exit0/reaped under privateHOME/XDG, headless and Dummy audio; each has exactly one parsed menu-ready event, mouse-free true, warnings0/diagnostics0. No path/pack/script overrides are used.
+
+Native pilot/cabin/rest/crew interruption each uses the actual ELF: readiness on a real durable document, owned SIGKILL(-9)/reap, fresh same-profile restart(0), unchanged durable convoy/threat/escort/time boundary, receipts1->2 once, one crash event, supported usable context and clean final markers. Pilot exercised Bulwark; cabin/rest/crew exercised Halyard. Crew is the existing Halyard crew_port_00 passenger, not Bulwark gunner interruption coverage. Authored nonpilot walking/ordinary Interact precede retake; subsequent escort positioning remains a fixture. Eight known root/superuser warnings were retained across arm/resume logs; no unexpected warnings or diagnostics. All eight owned game PIDs and interruption profiles are gone; source/import cache/ELF/tarball/export metadata stayed unchanged. Original export metadata retains its build-time startup_check NOT_RUN; separate executed qualification records actual startup results.
+
+Limits: this is native ELF headless acceptance on Linux/WSL using Dummy audio. Clean Linux graphical desktop, launcher/direct-entry installation, ordinary gunner/controller/input/audio/human play, native GPU/performance, endurance, new installer/signing, complete regression/full1027 and final release NOT_RUN. Windows gunner qualification is separate. This artifact is prepared privately; root owns exclusive publication under builds/linux/.
+
+Published: independently reviewed matching checkpoint bytes in builds/linux/.
+This source predates the newer beacon pending-reward guard. Hardware/human/final-release gates remain open.
