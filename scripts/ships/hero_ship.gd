@@ -9456,7 +9456,7 @@ func release_solo_crew_role_occupant(avatar_id: StringName, seat_id: StringName,
 
 ## Actual seated weapon demand may power its craft without releasing its dock
 ## or receiving a pilot command. The tag remembers only power this role woke.
-func request_solo_crew_weapon_power(avatar_id: StringName, seat: ShipCrewSeat, occupant: Node3D) -> bool:
+func request_solo_crew_weapon_power(avatar_id: StringName, seat: ShipCrewSeat, occupant: Node3D, occupant_peer_id: int = 1) -> bool:
 	if _reset_for_reuse_mutation_blocked() or _destroyed or _hull <= 0.0 or not is_inside_tree() \
 			or not is_instance_valid(seat) or seat.get_ship() != self or seat.get_role() != &"gunner" \
 			or not is_instance_valid(occupant) or not occupant.has_method(&"is_seated_at") \
@@ -9465,10 +9465,10 @@ func request_solo_crew_weapon_power(avatar_id: StringName, seat: ShipCrewSeat, o
 	var contract := seat.get_role_contract()
 	var authority: CrewSeatRoleAuthority = call(&"get_crew_role_authority")
 	var metadata := occupant.get_meta(SOLO_CREW_ROLE_OCCUPANT_META, {}) as Dictionary
-	var assignment := authority.get_assignment(1, avatar_id) if authority != null else {}
+	var assignment := authority.get_assignment(occupant_peer_id, avatar_id) if authority != null else {}
 	var frame := contract.get("frame") as MovingInteriorFrame
 	if contract.is_empty() or metadata.get("craft") != self or metadata.get("authority") != authority \
-			or metadata.get("avatar_id") != avatar_id or int(metadata.get("occupant_peer_id", 0)) != 1 \
+			or metadata.get("avatar_id") != avatar_id or int(metadata.get("occupant_peer_id", 0)) != occupant_peer_id \
 			or metadata.get("seat_id") != contract.seat_id or metadata.get("role") != &"gunner" \
 			or assignment.get("seat_id") != contract.seat_id or assignment.get("role") != &"gunner" \
 			or assignment.get("vessel_id") != get_ship_id() \

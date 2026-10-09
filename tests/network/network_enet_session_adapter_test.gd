@@ -404,7 +404,43 @@ func _initialize() -> void:
 		and int(migration_before.get("latest_snapshot_revision", 0)) == 1,
 		"migration state retains the admitted roster and latest snapshot revision"
 	)
+	# An operational epoch is delivered over the actual authority RPC without
+	# granting or rebinding the host's retained peer attachment.
+	var notices: Array[Dictionary] = []
+	_client.migration_result.connect(func(result: Dictionary): notices.append(result.duplicate(true)))
+	var operational := _server.rotate_session_migration()
+	await _pump_until(func(): return notices.size() == 1, 3.0)
+	_check(operational.accepted and notices.size() == 1 and int(_client.get_migration_snapshot().migration_generation) == 2 and int(_client.get_migration_snapshot().session_generation) == 2, "actual accepted authority notice updates both client epoch fields")
+	_check(not bool((_server.get_migration_snapshot().peers[0] as Dictionary).active), "rotation notice does not silently rebind retained server attachment")
+	var prior_client_epoch := _client.get_migration_snapshot()
+	var prior_clock: Variant = _client.get("_boarding_heard_physics_frame")
+	var prior_cursors := _client.get_presentation_cursor_audit()
+	var notice := {
+		"recipient_peer_id": client_peer_id, "peer_generation": int((_client.get_server_offer().transport as Dictionary).peer_generation),
+		"transport_session_generation": int(_server.get("_transport").get_snapshot().session_generation),
+		"protocol_version": 1, "package_generation": 1, "session_generation": 3, "migration_generation": 3,
+	}
+	var refused: Array[Dictionary] = []
+	for change in [
+		{"session_generation": 2, "migration_generation": 2},
+		{"session_generation": 1, "migration_generation": 1},
+		{"recipient_peer_id": client_peer_id + 1}, {"peer_generation": 999},
+		{"transport_session_generation": 999}, {"protocol_version": 999},
+		{"package_generation": 2}, {"session_generation": 102},
+		{"migration_generation": "3"}, {"extra_field": 1},
+	]:
+		var invalid := notice.duplicate(true)
+		invalid.merge(change, true)
+		refused.append(invalid)
+	for invalid in refused:
+		_server._broadcast_session_migration.rpc_id(client_peer_id, invalid)
+		await create_timer(0.05).timeout
+		_check(notices.size() == 1 and _client.get_migration_snapshot() == prior_client_epoch and _client.get("_boarding_heard_physics_frame") == prior_clock and _client.get_presentation_cursor_audit() == prior_cursors, "delayed, foreign identity, type, duplicate, incoherent and incompatible notices leave epoch, clock and presentation untouched")
+	_client.call("_broadcast_session_migration", notice)
+	_check(notices.size() == 1 and _client.get_migration_snapshot() == prior_client_epoch, "local caller without actual authority sender cannot present rotation")
 	var rotated_migration := _server.rotate_session_migration(2)
+	await create_timer(0.1).timeout
+	_check(notices.size() == 1 and _client.get_migration_snapshot() == prior_client_epoch, "actual incompatible package rotation remains refused by running client")
 	_check(
 		bool(rotated_migration.get("accepted", false))
 		and int(_server.get_migration_snapshot().get("latest_snapshot_revision", 0)) == 1

@@ -58,6 +58,8 @@ signal ship_ownership_result(result: Dictionary)
 signal seat_occupancy_result(result: Dictionary)
 signal engineer_intent_requested(peer_id: int, payload: Dictionary)
 signal engineer_snapshot_received(snapshot: Dictionary)
+signal gunner_intent_requested(peer_id: int, payload: Dictionary)
+signal gunner_snapshot_received(snapshot: Dictionary)
 
 signal crew_role_result(result: Dictionary)
 signal crew_command_result(result: Dictionary)
@@ -197,6 +199,8 @@ var _cargo_manifest_terminal_generation := 0
 var _crew_replica_snapshot: Dictionary = {}
 var _engineer_snapshot_revision := 0
 var _engineer_replica_snapshot: Dictionary = {}
+var _gunner_snapshot_revision := 0
+var _gunner_replica_snapshot: Dictionary = {}
 var _moving_replica_samples: Dictionary = {}
 var _moving_relationship_stream
 var _moving_replica
@@ -568,6 +572,8 @@ func shutdown(reason: StringName = &"requested") -> Dictionary:
 	_crew_replica_snapshot.clear()
 	_engineer_snapshot_revision = 0
 	_engineer_replica_snapshot.clear()
+	_gunner_snapshot_revision = 0
+	_gunner_replica_snapshot.clear()
 	# A new admitted peer receives a fresh per-recipient moving stream at revision 1.
 	# Retire the old ordering cursor along with its presentation bindings.
 	_reset_moving_interior_jitter(int(
@@ -2503,6 +2509,59 @@ func _broadcast_engineer_snapshot(packet: Dictionary) -> void:
 	engineer_snapshot_received.emit(packet.duplicate(true))
 
 
+## Only the host physical Bulwark chair binding admits siege-lance requests.
+func send_gunner_intent(payload: Dictionary) -> Dictionary:
+	if is_server() or not _configured:
+		return _result(false, &"client_required")
+	_receive_gunner_intent.rpc_id(AUTHORITY_PEER_ID, _make_secure_rpc_packet(&"gunner", payload))
+	return _result(true, &"queued")
+
+
+func publish_gunner_snapshot(peer_id: int, snapshot: Dictionary) -> Dictionary:
+	if not is_server() or not _peer_generations.has(peer_id):
+		return _result(false, &"peer_not_admitted")
+	var packet := snapshot.duplicate(true)
+	packet["recipient_peer_id"] = peer_id
+	packet["peer_generation"] = int(_peer_generations[peer_id])
+	packet["session_generation"] = int(_transport.get_snapshot().session_generation)
+	packet["migration_generation"] = int(_migration.get_snapshot().migration_generation)
+	_gunner_snapshot_revision += 1
+	packet["revision"] = _gunner_snapshot_revision
+	packet["server_tick"] = get_boarding_server_tick()
+	_broadcast_gunner_snapshot.rpc_id(peer_id, packet)
+	return _result(true, &"published")
+
+
+func get_gunner_replica_snapshot() -> Dictionary:
+	return _gunner_replica_snapshot.duplicate(true)
+
+
+@rpc("any_peer", "call_remote", "reliable", 0)
+func _receive_gunner_intent(wire: Dictionary) -> void:
+	if not is_server():
+		return
+	var peer_id := multiplayer.get_remote_sender_id()
+	var payload := _accept_secure_rpc(peer_id, wire, &"gunner")
+	if not payload.is_empty():
+		gunner_intent_requested.emit(peer_id, payload)
+
+
+@rpc("authority", "call_remote", "reliable", 0)
+func _broadcast_gunner_snapshot(packet: Dictionary) -> void:
+	if is_server() or multiplayer.get_remote_sender_id() != AUTHORITY_PEER_ID:
+		return
+	if int(packet.get("recipient_peer_id", 0)) != multiplayer.get_unique_id() \
+			or int(packet.get("peer_generation", 0)) != _next_peer_generation - 1 \
+			or int(packet.get("session_generation", 0)) != int(_transport.get_snapshot().session_generation) \
+			or int(packet.get("migration_generation", 0)) != int(_migration.get_snapshot().migration_generation) \
+			or int(packet.get("revision", 0)) <= _gunner_snapshot_revision:
+		return
+	_gunner_snapshot_revision = int(packet.revision)
+	_gunner_replica_snapshot = packet.duplicate(true)
+	_note_boarding_server_tick_heard(int(packet.get("server_tick", 0)))
+	gunner_snapshot_received.emit(packet.duplicate(true))
+
+
 func register_crew_seat(
 	seat_id: StringName,
 	vessel_id: StringName,
@@ -2735,8 +2794,47 @@ func rotate_session_migration(next_package_generation: int = -1) -> Dictionary:
 			int(_migration.get_snapshot().get("migration_generation", 1))
 		)
 		_reset_peer_keepalive_deadlines(Time.get_ticks_msec())
+		# Deliver the accepted epoch before the next role/relationship packet.
+		# This mirrors metadata only; retained attachment rebind stays owned
+		# by the existing server migration contract.
+		var epoch: Dictionary = _migration.get_snapshot()
+		for peer_id in _peer_generations:
+			_broadcast_session_migration.rpc_id(int(peer_id), {
+				"recipient_peer_id": int(peer_id), "peer_generation": int(_peer_generations[peer_id]),
+				"transport_session_generation": int(_transport.get_snapshot().session_generation),
+				"protocol_version": int(epoch.protocol_version), "package_generation": int(epoch.package_generation),
+				"session_generation": int(epoch.session_generation), "migration_generation": int(epoch.migration_generation),
+			})
 	migration_result.emit(result.duplicate(true))
 	return _remember(result)
+
+
+@rpc("authority", "call_remote", "reliable", 0)
+func _broadcast_session_migration(packet: Dictionary) -> void:
+	if is_server() or not _configured or multiplayer.get_remote_sender_id() != AUTHORITY_PEER_ID:
+		return
+	var fields := ["recipient_peer_id", "peer_generation", "transport_session_generation", "protocol_version", "package_generation", "session_generation", "migration_generation"]
+	if packet.size() != fields.size():
+		return
+	for field in fields:
+		if not packet.get(field) is int or int(packet[field]) <= 0 or int(packet[field]) > 9007199254740991:
+			return
+	var prior: Dictionary = _migration.get_snapshot()
+	if int(packet.recipient_peer_id) != multiplayer.get_unique_id() \
+			or int(packet.peer_generation) != _next_peer_generation - 1 \
+			or int(packet.transport_session_generation) != int(_transport.get_snapshot().session_generation) \
+			or int(packet.protocol_version) != int(prior.protocol_version) \
+			or int(packet.package_generation) != _handshake_package_generation \
+			or int(packet.session_generation) != int(prior.session_generation) + 1 \
+			or int(packet.migration_generation) != int(prior.migration_generation) + 1:
+		return
+	_migration = SessionMigration.new(AUTHORITY_PEER_ID, int(packet.protocol_version),
+		int(packet.package_generation), int(packet.session_generation), int(packet.migration_generation))
+	_engineer_replica_snapshot.clear()
+	_gunner_replica_snapshot.clear()
+	migration_result.emit(_result(true, &"server_rotation_presented", {
+		"migration_generation": int(packet.migration_generation), "presentation_only": true,
+	}))
 
 
 func accept_migration_packet(source_peer_id: int, packet: Dictionary) -> Dictionary:
@@ -2886,6 +2984,8 @@ func reset_snapshot_jitter(migration_generation: int = 1) -> Dictionary:
 	_crew_replica_snapshot.clear()
 	_engineer_snapshot_revision = 0
 	_engineer_replica_snapshot.clear()
+	_gunner_snapshot_revision = 0
+	_gunner_replica_snapshot.clear()
 	_reset_moving_interior_jitter(migration_generation)
 	_projectile_snapshot_revision = 0
 	_projectile_recipient_budgets.clear()

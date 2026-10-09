@@ -445,7 +445,7 @@ func _try_crew_sit(record: Dictionary) -> bool:
 	var distance := SEAT_MAX_REACH
 	for candidate in body.get_nearby_interactables():
 		if candidate is ShipCrewSeat and candidate.get_ship() == craft \
-				and candidate.get_role() == &"engineer":
+				and candidate.get_role() in [&"engineer", &"gunner"]:
 			var reach: float = body.get_interaction_origin().distance_to(candidate.get_entry_transform().origin)
 			if reach < distance:
 				best = candidate
