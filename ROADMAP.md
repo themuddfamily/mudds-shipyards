@@ -280,6 +280,8 @@ Use the existing 34 tasks as the completion checklist, with three separate accep
 | Player acceptance | Complete ordinary solo/crew/combat and planetary round trips, first-time-player reviews, native multiplayer/endurance, GPU benchmarks, physical-controller/accessibility, visual and listening reviews; fix observed defects. | §1, §3–§5 and graphical review in §6 |
 | Release acceptance | Pass the chosen source's complete regression, matching package and installed recovery, supported-platform installation/update/rollback, licensing, trusted signing and final distributed-build checks. | §1 and §6 |
 
+**Working roster:** [Completion scope inventory](docs/COMPLETION_SCOPE.md) names current craft, station modules, activities/worlds and runtime limits, with remaining actions. It is a starting inventory; final scope, owners, estimates and original-phase reconciliation remain open.
+
 **First planning deliverable (§0):** record an itemized roster of required content and interactions, identifying each as implemented/awaiting acceptance, missing implementation, or blocked by external evidence. Reconcile historical “missing” annotations against current runtime, including the Phase 6 hauler projectile envelope and heavy-picket posture: record the delivered channel or the exact remaining gap before assigning another implementation. Assign an owner, dependency and acceptance scenario to each missing item. This makes broad tasks such as “finish fleet art” schedulable without inventing missing features or treating unperformed reviews as completed work.
 
 ### What must happen before the project can be called done
