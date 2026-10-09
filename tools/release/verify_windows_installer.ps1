@@ -26,13 +26,18 @@ actual durable activity readiness, then restarts that profile to prove exact
 boundary, one new receipt and its crash journal. InWorldRecoveryContext selects
 pilot (default), cabin, rest or crew. Cabin/rest/crew require a matching context
 in both Boot markers; older pilot-only payloads cannot qualify those selections.
-InWorldRecoveryActivity selects convoy (default), beacon, mining or stationdefense. Beacon/mining/stationdefense require pilot
-context and verifies the genuine unpaid terminal, safe-home pilot Resume, ordinary
-throttle and HUD Start payment, and the saved acknowledgement without duplicates.
+InWorldRecoveryActivity selects convoy (default), beacon, mining, stationdefense or hulk.
+Beacon/mining/stationdefense/hulk require pilot context and verify the genuine
+unpaid terminal and safe-home pilot Resume. Beacon/mining/stationdefense also
+verify ordinary throttle, HUD Start payment and the saved acknowledgement without
+duplicates.
 Stationdefense verifies only the earned unpaid report and atomic paid acknowledgement;
 combat actors, elapsed timers, leases, damage and airborne claims are not restored.
 Mining verifies the schema 2 unpaid extraction, one atomic capacity acknowledgement
 with existing non-granting metadata, and unchanged production settings/cargo.
+Hulk verifies genuinely earned unpaid breaker completion, the unchanged terminal
+and exactly one permanent cell ledger receipt through automatic Boot/running
+retry, plus real safe-home Resume/throttle and unchanged settings/cargo.
 InWorldCancelPath (default:
 ProbeRoot\in-world-recovery.cancel) provides an independent owned-child abort.
 The activity profile is removed; logs/documents remain in ProbeRoot. This does
@@ -56,7 +61,7 @@ param(
     [switch]$ForceKillRecovery,
     [switch]$InWorldRecovery,
     [ValidateSet('pilot','cabin','rest','crew')][string]$InWorldRecoveryContext = 'pilot',
-    [ValidateSet('convoy','beacon','mining','stationdefense')][string]$InWorldRecoveryActivity = 'convoy',
+    [ValidateSet('convoy','beacon','mining','stationdefense','hulk')][string]$InWorldRecoveryActivity = 'convoy',
     [string]$InWorldCancelPath,
     [int]$StartupTimeoutMs = 120000
 )
@@ -449,7 +454,7 @@ function Stop-InWorldOwned($proc, $entry, [string]$termination) {
 }
 function Assert-InWorldSelection {
     if (-not $InWorldRecovery -and $InWorldRecoveryActivity -ne 'convoy') { throw 'InWorldRecoveryActivity requires InWorldRecovery' }
-    if ($InWorldRecoveryActivity -in @('beacon','mining','stationdefense') -and $InWorldRecoveryContext -ne 'pilot') { throw "$InWorldRecoveryActivity in-world recovery supports only pilot context" }
+    if ($InWorldRecoveryActivity -in @('beacon','mining','stationdefense','hulk') -and $InWorldRecoveryContext -ne 'pilot') { throw "$InWorldRecoveryActivity in-world recovery supports only pilot context" }
 }
 function InWorld-BeaconCount($payload) {
     if ($null -eq $payload.game_flow_reward_store.reward_counts.debris_route_navigation_data) { return 0 }
@@ -640,6 +645,80 @@ function Assert-InWorldStationRecovered($final, $ready, $recovered, [string]$log
         if ($index -le $last) { throw "missing ordered installed defense recovery assertion: $assertion" }; $last = $index
     }
 }
+function Assert-InWorldHulkNumber($value, [double]$expected) {
+    if (($value -isnot [int] -and $value -isnot [long] -and $value -isnot [double] -and $value -isnot [decimal]) -or [double]::IsNaN([double]$value) -or [double]::IsInfinity([double]$value) -or $value -ne $expected) { throw 'installed hulk numeric boundary differs' }
+}
+function Assert-InWorldHulkRecord($record) {
+    if ($record -isnot [System.Management.Automation.PSCustomObject] -or @($record.PSObject.Properties).Count -ne 5) { throw 'installed hulk terminal shape differs' }
+    foreach ($name in @('schema_version','activity_id','state','generation','elapsed_seconds')) {
+        if ($record.PSObject.Properties.Name -cnotcontains $name) { throw 'installed hulk terminal keys differ' }
+    }
+    Assert-InWorldHulkNumber $record.schema_version 1
+    Assert-InWorldHulkNumber $record.state 2
+    Assert-InWorldHulkNumber $record.generation 1
+    Assert-InWorldHulkNumber $record.elapsed_seconds 3
+    if ($record.activity_id -cne 'cinder_hulk_power_restoration') { throw 'installed hulk terminal identity differs' }
+}
+function Assert-InWorldHulkForeign($payload, $ready) {
+    foreach ($pair in @(@('runtime_settings','foreign_settings'),@('jovian_cargo_session','foreign_cargo'))) {
+        $expected = $ready.($pair[1])
+        if ($expected -isnot [System.Management.Automation.PSCustomObject] -or @($expected.PSObject.Properties).Count -eq 0 -or (InWorld-Canonical $payload.($pair[0])) -ne (InWorld-Canonical $expected)) { throw 'installed hulk changed production settings or cargo' }
+    }
+}
+function Assert-InWorldHulkArm($saved, $ready) {
+    $terminal = $saved.payload.cinder_hulk_power_session
+    Assert-InWorldHulkRecord $terminal
+    Assert-InWorldHulkNumber $ready.receipts 0
+    if ((InWorld-Canonical $terminal) -ne (InWorld-Canonical $ready.boundary) -or $saved.payload.crash_recovery.state -cne 'running') { throw 'installed hulk readiness differs from actual durable running document' }
+    $ledger = $saved.payload.game_flow_reward_store
+    if ($null -ne $ledger) {
+        Assert-InWorldHulkNumber $ledger.total_receipts 0
+        Assert-InWorldHulkNumber $ledger.receipt_serial 0
+        if ($ledger.reward_counts -isnot [System.Management.Automation.PSCustomObject] -or @($ledger.reward_counts.PSObject.Properties).Count -ne 0 -or $ledger.last_receipt -isnot [System.Management.Automation.PSCustomObject] -or @($ledger.last_receipt.PSObject.Properties).Count -ne 0) { throw 'installed hulk arm already has a paid receipt' }
+    }
+    $pilot = $ready.runtime_observation
+    if ($pilot.player_seated -isnot [bool] -or $pilot.player_seated -ne $true -or $pilot.craft_piloted -isnot [bool] -or $pilot.craft_piloted -ne $true -or $pilot.craft_id -cne 'bulwark_heavy_gunship' -or $saved.payload.solo_safe_recovery.mode -cne 'pilot' -or $saved.payload.solo_safe_recovery.craft_id -cne $pilot.craft_id) { throw 'installed hulk arm lacks its actual safe pilot owner' }
+    if ($ready.fixture_method -cne 'on_foot_route_positioning_real_breaker_and_180_owner_physics_ticks_then_real_pilot_boarding') { throw 'installed hulk arm lacks the genuine breaker/tick completion method' }
+    Assert-InWorldHulkForeign $saved.payload $ready
+}
+function Assert-InWorldHulkRecovered($final, $ready, $recovered, [string]$log) {
+    $terminal = $final.payload.cinder_hulk_power_session
+    Assert-InWorldHulkRecord $terminal
+    if ((InWorld-Canonical $terminal) -ne (InWorld-Canonical $ready.boundary) -or (InWorld-Canonical $terminal) -ne (InWorld-Canonical $recovered.paid_boundary)) { throw 'installed hulk retry changed the exact earned terminal' }
+    $ledger = $final.payload.game_flow_reward_store
+    Assert-InWorldHulkNumber $ledger.total_receipts 1
+    Assert-InWorldHulkNumber $ledger.receipt_serial 1
+    if ($ledger.reward_counts -isnot [System.Management.Automation.PSCustomObject] -or @($ledger.reward_counts.PSObject.Properties).Count -ne 1 -or $ledger.reward_counts.PSObject.Properties.Name -cnotcontains 'hulk_auxiliary_power_cell') { throw 'installed hulk lost or invented reward counts' }
+    Assert-InWorldHulkNumber $ledger.reward_counts.hulk_auxiliary_power_cell 1
+    $receipt = $ledger.last_receipt
+    Assert-InWorldHulkNumber $receipt.receipt_id 1
+    Assert-InWorldHulkNumber $receipt.activity_generation $terminal.generation
+    if ($receipt.activity_id -cne 'cinder_hulk_power_restoration' -or $receipt.reward_id -cne 'hulk_auxiliary_power_cell' -or $receipt.granted -isnot [bool] -or $receipt.granted -ne $true -or $receipt.replay_allowed -isnot [bool] -or $receipt.replay_allowed -ne $false -or -not ([string]$recovered.payment_commit.id).StartsWith('game-flow-reward-')) { throw 'installed hulk lacks its single permanent cell receipt' }
+    if ($recovered.receipts_at_boot -ne 0 -and $recovered.receipts_at_boot -ne 1) { throw 'installed hulk Boot receipt baseline differs' }
+    Assert-InWorldHulkNumber $recovered.receipts_at_boot ([double]$recovered.receipts_at_boot)
+    if ($recovered.payment_stage -cne $(if ($recovered.receipts_at_boot -eq 1) { 'boot' } else { 'running_retry' }) -or $recovered.continuation_method -cne 'production_automatic_hulk_retry_and_real_safe_home_pilot_resume') { throw 'installed hulk production payment stage or continuation differs' }
+    Assert-InWorldHulkForeign $final.payload $ready
+    if ((InWorld-Canonical $recovered.foreign_settings) -ne (InWorld-Canonical $ready.foreign_settings) -or (InWorld-Canonical $recovered.foreign_cargo) -ne (InWorld-Canonical $ready.foreign_cargo)) { throw 'installed hulk recovered foreign fields differ' }
+    $pilot = $recovered.safe_recovery_observation
+    foreach ($name in @('player_seated','craft_piloted','piloting')) {
+        if ($pilot.$name -isnot [bool] -or $pilot.$name -ne $true) { throw 'installed hulk Resume did not reacquire its actual safe-home pilot' }
+    }
+    if ($pilot.craft_id -cne 'bulwark_heavy_gunship' -or $pilot.craft_id -cne $ready.runtime_observation.craft_id) { throw 'installed hulk Resume changed its actual pilot craft' }
+    $raw = Read-InWorldLog $log; $last = -1
+    foreach ($assertion in @(
+        'PASS: fresh Boot restores exact earned hulk completion or its legitimately paid ledger and one crash event without replaying the breaker timer',
+        'PASS: ordinary Resume reacquires the exact safe-home pilot while preserving the earned hulk terminal',
+        'PASS: the recovered real pilot accepts ordinary throttle while preserving the exact earned terminal and current receipt count',
+        'PASS: the actual production Boot or running retry owner pays exactly one cell and preserves its exact earned terminal',
+        'PASS: late reward callback and production tick cannot repay the permanently claimed hulk cell',
+        'PASS: hulk recovery preserves unrelated production settings and cargo fields',
+        'PASS: hulk recovery closes both existing crash marker owners',
+        "PASS: hulk recovery retains Boot's exact supplied Main owner"
+    )) {
+        $index = $raw.IndexOf($assertion)
+        if ($index -le $last) { throw "missing ordered installed hulk recovery assertion: $assertion" }; $last = $index
+    }
+}
 function Assert-InWorldContext($token) {
     $activity = $token.PSObject.Properties['activity']
     if ($null -eq $activity) {
@@ -708,6 +787,7 @@ function Run-InWorldRecovery {
             if (Test-Path -LiteralPath ($ownedDocument + '.tmp')) { throw 'installed mining blockage remains at kill boundary' }
         }
         elseif ($InWorldRecoveryActivity -eq 'stationdefense') { Assert-InWorldStationArm $saved $ready }
+        elseif ($InWorldRecoveryActivity -eq 'hulk') { Assert-InWorldHulkArm $saved $ready }
         elseif ((InWorld-Canonical $saved.payload.cinder_convoy_session.activities[0].progress.convoy_session_state) -ne (InWorld-Canonical $ready.boundary) -or $saved.payload.crash_recovery.state -ne 'running') { throw 'installed readiness differs from actual durable document/running marker' }
         Check-InWorldCancel
         if ($arm.HasExited) { throw 'installed arm exited before owned OS kill' }
@@ -758,6 +838,16 @@ function Run-InWorldRecovery {
             $probe.foreign_settings_cargo_rewards_preserved = 'PASS'
             $probe.active_combat_restore = 'NOT_SUPPORTED'
             $probe.elapsed_timer_restore = 'NOT_SUPPORTED'
+        }
+        elseif ($InWorldRecoveryActivity -eq 'hulk') {
+            Assert-InWorldHulkRecovered $final $ready $recovered (Join-Path $ProbeRoot 'in-world-resume.log')
+            $probe.automated_safe_home_berth_boarding = 'PASS'
+            $probe.automated_ordinary_throttle = 'PASS'
+            $probe.earned_terminal_preserved = 'PASS'
+            $probe.production_automatic_cell_payment_once = 'PASS'
+            $probe.payment_stage = $recovered.payment_stage
+            $probe.duplicate_late_callback_refusal = 'PASS'
+            $probe.foreign_settings_cargo_preserved = 'PASS'
         }
         $probe.recovered = $recovered
         Assert-Installed $ExpectedExeSha256 $ExpectedCommit | Out-Null

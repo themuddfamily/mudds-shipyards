@@ -761,6 +761,33 @@ a pass requires actually running it against the installed target payload.
 It does not qualify normal controls, pilot-seat/world restoration, native GPU
 performance, interactive installation, signing or human gameplay.
 
+### Hulk earned completion recovery selection
+
+Use `-InWorldRecovery -InWorldRecoveryActivity hulk` on a payload containing the
+hulk interruption entry (integrated in `709de858a`), with the default `pilot`
+context. Cabin, rest and crew selections are rejected. The same existing
+installed executable arm/kill/resume step, private profile, exact artifact
+checks, cancellation path and owned-process cleanup apply.
+
+The arm must report the real on-foot breaker engagement and 180 owner physics
+ticks, an unpaid generation-one three-second completion saved in
+`cinder_hulk_power_session`, and its actual safe-home pilot. The restart must
+preserve that exact earned terminal and production settings/cargo, reacquire
+the real pilot through ordinary Resume and accept ordinary throttle. Normal
+Boot may pay the cell before the recovery probe observes it, or the running
+production owner may retry afterward; the verifier accepts and records either
+`payment_stage`, requiring exactly one permanent cell receipt with the same
+activity generation. Late callbacks and another production tick must refuse
+another payment and leave the saved bytes unchanged.
+
+Executable fixture checks use the production PowerShell assertions to reject
+changed terminals, duplicate/wrong receipts, changed settings/cargo, missing
+pilot ownership and missing or reordered continuation assertions. These
+fixtures qualify the verifier contract only. Native installed hulk acceptance
+is **NOT_RUN** until this mode is actually run against an authorized exact
+installed artifact; normal physical controls, native GPU and human gameplay
+gates remain open.
+
 ### Native installed result — 2026-10-09
 
 The new mode passes all 16 steps for actual `e7dedc2` → `01e6ec5` →

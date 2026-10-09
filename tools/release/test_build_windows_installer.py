@@ -130,6 +130,17 @@ class VerifierContract(unittest.TestCase):
         self.assertIn("locked upgrade changed registry metadata", locked)
         self.assertIn("failed upgrade left pending payload", locked)
 
+    def test_hulk_recovery_routes_the_existing_installed_consumer(self):
+        text = VERIFY_PS1.read_text(encoding="utf-8")
+        self.assertIn("[ValidateSet('convoy','beacon','mining','stationdefense','hulk')]", text)
+        self.assertIn("-in @('beacon','mining','stationdefense','hulk')", text)
+        flow = text.split("function Run-InWorldRecovery {", 1)[1].split("Step 'preconditions'", 1)[0]
+        self.assertIn("elseif ($InWorldRecoveryActivity -eq 'hulk') { Assert-InWorldHulkArm $saved $ready }", flow)
+        self.assertIn("Assert-InWorldHulkRecovered $final $ready $recovered", flow)
+        self.assertIn("$probe.production_automatic_cell_payment_once = 'PASS'", flow)
+        self.assertIn("$probe.payment_stage = $recovered.payment_stage", flow)
+        self.assertIn("normal_controls='NOT_RUN'; pilot_seat_world_restore='NOT_RUN'; native_gpu='NOT_RUN'", flow)
+
     def test_native_log_and_document_acceptance_rejects_real_regressions(self):
         powershell = shutil.which("powershell.exe") or shutil.which("pwsh")
         if not powershell:
@@ -540,6 +551,120 @@ try {
     [IO.File]::WriteAllText($defenseLog, ($defenseAssertions -join "`n")+"`n"); $rejected=$false
     try { Assert-InWorldStationRecovered $final $ready $recovered $defenseLog } catch { $rejected=$true }
     if (-not $rejected) { throw 'unordered actual defense continuation accepted' }
+    $InWorldRecoveryActivity='hulk'; $InWorldRecoveryContext='pilot'; $InWorldRecovery=$true
+    Assert-InWorldSelection
+    Assert-InWorldContext ([pscustomobject]@{activity='hulk'; recovery_context='pilot'})
+    foreach ($selected in @('cabin','rest','crew')) {
+        $InWorldRecoveryContext=$selected; $rejected=$false
+        try { Assert-InWorldSelection } catch { $rejected=$true }
+        if (-not $rejected) { throw 'hulk nonpilot selection accepted' }
+    }
+    $InWorldRecoveryContext='pilot'; $InWorldRecovery=$false; $rejected=$false
+    try { Assert-InWorldSelection } catch { $rejected=$true }
+    if (-not $rejected) { throw 'hulk without recovery accepted' }
+    foreach ($token in @(@{},@{activity='hulk'},@{activity='HULK'; recovery_context='pilot'},@{activity='stationdefense'; recovery_context='pilot'},@{activity='hulk'; recovery_context='cabin'})) {
+        $rejected=$false
+        try { Assert-InWorldContext ([pscustomobject]$token) } catch { $rejected=$true }
+        if (-not $rejected) { throw 'wrong hulk activity/context token accepted' }
+    }
+    $terminal=[pscustomobject]@{schema_version=1; activity_id='cinder_hulk_power_restoration'; state=2; generation=1; elapsed_seconds=3.0}
+    $ready=[pscustomobject]@{boundary=$terminal; receipts=0; fixture_method='on_foot_route_positioning_real_breaker_and_180_owner_physics_ticks_then_real_pilot_boarding'; foreign_settings=[pscustomobject]@{values=[pscustomobject]@{graphics_profile='low'}}; foreign_cargo=[pscustomobject]@{state=1; generation=1}; runtime_observation=[pscustomobject]@{player_seated=$true; craft_piloted=$true; craft_id='bulwark_heavy_gunship'}}
+    $saved=[pscustomobject]@{payload=[pscustomobject]@{cinder_hulk_power_session=$terminal; runtime_settings=$ready.foreign_settings; jovian_cargo_session=$ready.foreign_cargo; crash_recovery=[pscustomobject]@{state='running'}; solo_safe_recovery=[pscustomobject]@{mode='pilot'; craft_id='bulwark_heavy_gunship'}}}
+    Assert-InWorldHulkArm $saved $ready
+    $emptyLedger=[pscustomobject]@{total_receipts=0; receipt_serial=0; reward_counts=[pscustomobject]@{}; last_receipt=[pscustomobject]@{}}
+    $saved.payload | Add-Member -NotePropertyName game_flow_reward_store -NotePropertyValue $emptyLedger
+    Assert-InWorldHulkArm $saved $ready
+    $armFixture=@($saved,$ready) | ConvertTo-Json -Depth 60
+    foreach ($mutate in @(
+        {$saved.payload.cinder_hulk_power_session.schema_version=2},
+        {$saved.payload.cinder_hulk_power_session.state=1},
+        {$saved.payload.cinder_hulk_power_session.generation=2},
+        {$saved.payload.cinder_hulk_power_session.elapsed_seconds=2.9},
+        {$saved.payload.cinder_hulk_power_session.activity_id='other'},
+        {$saved.payload.cinder_hulk_power_session.generation='1'},
+        {$saved.payload.cinder_hulk_power_session.elapsed_seconds=$true},
+        {$saved.payload.cinder_hulk_power_session | Add-Member -NotePropertyName reward_claimed -NotePropertyValue $true},
+        {$ready.boundary=[pscustomobject]@{}}, {$ready.receipts=1}, {$ready.receipts=$false},
+        {$ready.fixture_method='synthetic_completion'}, {$saved.payload.crash_recovery.state='clean'},
+        {$saved.payload.solo_safe_recovery.mode='cabin'}, {$saved.payload.solo_safe_recovery.craft_id='other'},
+        {$ready.runtime_observation.player_seated='true'}, {$ready.runtime_observation.craft_piloted=$false},
+        {$ready.runtime_observation.craft_id='other'},
+        {$saved.payload.runtime_settings.values.graphics_profile='high'},
+        {$saved.payload.jovian_cargo_session.generation=2},
+        {$saved.payload.game_flow_reward_store.total_receipts=1},
+        {$saved.payload.game_flow_reward_store.receipt_serial=1},
+        {$saved.payload.game_flow_reward_store.reward_counts | Add-Member -NotePropertyName hulk_auxiliary_power_cell -NotePropertyValue 1},
+        {$saved.payload.game_flow_reward_store.last_receipt | Add-Member -NotePropertyName granted -NotePropertyValue $true}
+    )) {
+        $copy=ConvertFrom-Json $armFixture; $saved=$copy[0]; $ready=$copy[1]
+        & $mutate
+        $rejected=$false
+        try { Assert-InWorldHulkArm $saved $ready } catch { $rejected=$true }
+        if (-not $rejected) { throw 'invalid installed hulk unpaid document/token accepted' }
+    }
+    $copy=ConvertFrom-Json $armFixture; $saved=$copy[0]; $ready=$copy[1]
+    $ledger=[pscustomobject]@{total_receipts=1; receipt_serial=1; reward_counts=[pscustomobject]@{hulk_auxiliary_power_cell=1}; last_receipt=[pscustomobject]@{receipt_id=1; activity_id='cinder_hulk_power_restoration'; activity_generation=1; reward_id='hulk_auxiliary_power_cell'; granted=$true; replay_allowed=$false}}
+    $final=[pscustomobject]@{payload=[pscustomobject]@{cinder_hulk_power_session=$ready.boundary; game_flow_reward_store=$ledger; runtime_settings=$ready.foreign_settings; jovian_cargo_session=$ready.foreign_cargo}}
+    $recovered=[pscustomobject]@{paid_boundary=$ready.boundary; receipts_at_boot=0; payment_stage='running_retry'; payment_commit=[pscustomobject]@{id='game-flow-reward-actual'}; foreign_settings=$ready.foreign_settings; foreign_cargo=$ready.foreign_cargo; safe_recovery_observation=[pscustomobject]@{player_seated=$true; craft_piloted=$true; piloting=$true; craft_id='bulwark_heavy_gunship'}; continuation_method='production_automatic_hulk_retry_and_real_safe_home_pilot_resume'}
+    $hulkLog=Join-Path $root 'hulk.log'
+    $hulkAssertions=@(
+        'PASS: fresh Boot restores exact earned hulk completion or its legitimately paid ledger and one crash event without replaying the breaker timer',
+        'PASS: ordinary Resume reacquires the exact safe-home pilot while preserving the earned hulk terminal',
+        'PASS: the recovered real pilot accepts ordinary throttle while preserving the exact earned terminal and current receipt count',
+        'PASS: the actual production Boot or running retry owner pays exactly one cell and preserves its exact earned terminal',
+        'PASS: late reward callback and production tick cannot repay the permanently claimed hulk cell',
+        'PASS: hulk recovery preserves unrelated production settings and cargo fields',
+        'PASS: hulk recovery closes both existing crash marker owners',
+        "PASS: hulk recovery retains Boot's exact supplied Main owner"
+    )
+    [IO.File]::WriteAllText($hulkLog, ($hulkAssertions -join "`n")+"`n")
+    Assert-InWorldHulkRecovered $final $ready $recovered $hulkLog
+    $recovered.receipts_at_boot=1; $recovered.payment_stage='boot'
+    Assert-InWorldHulkRecovered $final $ready $recovered $hulkLog
+    $paidFixture=@($final,$ready,$recovered) | ConvertTo-Json -Depth 60
+    foreach ($mutate in @(
+        {$final.payload.cinder_hulk_power_session.generation=2},
+        {$final.payload.cinder_hulk_power_session.elapsed_seconds=2},
+        {$final.payload.cinder_hulk_power_session.state=3},
+        {$recovered.paid_boundary=[pscustomobject]@{}},
+        {$final.payload.game_flow_reward_store.total_receipts=2},
+        {$final.payload.game_flow_reward_store.receipt_serial=2},
+        {$final.payload.game_flow_reward_store.reward_counts.hulk_auxiliary_power_cell=2},
+        {$final.payload.game_flow_reward_store.reward_counts | Add-Member -NotePropertyName debris_route_navigation_data -NotePropertyValue 1},
+        {$final.payload.game_flow_reward_store.last_receipt.receipt_id=2},
+        {$final.payload.game_flow_reward_store.last_receipt.activity_generation=2},
+        {$final.payload.game_flow_reward_store.last_receipt.activity_id='other'},
+        {$final.payload.game_flow_reward_store.last_receipt.reward_id='other'},
+        {$final.payload.game_flow_reward_store.last_receipt.granted='true'},
+        {$final.payload.game_flow_reward_store.last_receipt.replay_allowed=$true},
+        {$recovered.payment_commit.id='synthetic'},
+        {$recovered.receipts_at_boot=2}, {$recovered.receipts_at_boot='1'},
+        {$recovered.payment_stage='running_retry'}, {$recovered.continuation_method='synthetic_retry'},
+        {$final.payload.runtime_settings.values.graphics_profile='high'},
+        {$final.payload.jovian_cargo_session.generation=2},
+        {$recovered.foreign_settings=[pscustomobject]@{}}, {$recovered.foreign_cargo=[pscustomobject]@{}},
+        {$recovered.safe_recovery_observation.player_seated=$false},
+        {$recovered.safe_recovery_observation.craft_piloted=$false},
+        {$recovered.safe_recovery_observation.piloting='true'},
+        {$recovered.safe_recovery_observation.craft_id='other'}
+    )) {
+        $copy=ConvertFrom-Json $paidFixture; $final=$copy[0]; $ready=$copy[1]; $recovered=$copy[2]
+        & $mutate
+        $rejected=$false
+        try { Assert-InWorldHulkRecovered $final $ready $recovered $hulkLog } catch { $rejected=$true }
+        if (-not $rejected) { throw 'invalid installed hulk permanent receipt or recovery accepted' }
+    }
+    $copy=ConvertFrom-Json $paidFixture; $final=$copy[0]; $ready=$copy[1]; $recovered=$copy[2]
+    foreach ($missing in $hulkAssertions) {
+        [IO.File]::WriteAllText($hulkLog, (($hulkAssertions | Where-Object { $_ -ne $missing }) -join "`n")+"`n")
+        $rejected=$false
+        try { Assert-InWorldHulkRecovered $final $ready $recovered $hulkLog } catch { $rejected=$true }
+        if (-not $rejected) { throw 'missing actual hulk continuation assertion accepted' }
+    }
+    [array]::Reverse($hulkAssertions)
+    [IO.File]::WriteAllText($hulkLog, ($hulkAssertions -join "`n")+"`n"); $rejected=$false
+    try { Assert-InWorldHulkRecovered $final $ready $recovered $hulkLog } catch { $rejected=$true }
+    if (-not $rejected) { throw 'unordered actual hulk continuation accepted' }
     $log = Join-Path $root 'startup.log'
     [IO.File]::WriteAllText($log, "WARNING: Atomic runtime settings load retained authored defaults: store_load_failed / newer_schema`nSTARTUP_MENU_READY_OK: {}`n")
     Assert-StartupLog $log 0 | Out-Null
