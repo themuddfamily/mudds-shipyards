@@ -2,6 +2,23 @@
 set -euo pipefail
 set -o pipefail
 
+# --in-world-interruption runs one actual kill/restart of the existing convoy
+# fixture. --source selects the current project instead of PACKAGE_PATH; source
+# and PCK identities are recorded separately and neither qualifies native input.
+IN_WORLD_INTERRUPTION=0
+SOURCE_MODE=0
+for argument in "$@"; do
+  case "$argument" in
+    --in-world-interruption) IN_WORLD_INTERRUPTION=1 ;;
+    --source) SOURCE_MODE=1 ;;
+    *) echo "Unknown package probe option: $argument" >&2; exit 2 ;;
+  esac
+done
+if (( SOURCE_MODE == 1 && IN_WORLD_INTERRUPTION == 0 )); then
+  echo "--source requires --in-world-interruption" >&2
+  exit 2
+fi
+
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 
@@ -22,7 +39,7 @@ if ! [[ "$TIMEOUT_SECONDS" =~ ^[0-9]+$ ]]; then
   exit 2
 fi
 
-if ! [[ -f "$PACKAGE_PATH" ]]; then
+if (( SOURCE_MODE == 0 )) && ! [[ -f "$PACKAGE_PATH" ]]; then
   echo "Package not found: $PACKAGE_PATH"
   exit 2
 fi
@@ -57,6 +74,207 @@ mkdir -p "$LOG_DIR"
 # Scratch remains outside the published results, matching the source matrix.
 PROBE_WORK_DIR="$(mktemp -d "${TMPDIR:-/tmp}/package-probes-XXXXXX")"
 trap 'rm -rf -- "$PROBE_WORK_DIR"' EXIT
+
+if (( IN_WORLD_INTERRUPTION == 1 )); then
+  interruption_driver_pid=""
+  interruption_cancel_status=0
+  forward_interruption_cancel() {
+    # Once cancellation begins, no repeated signal may interrupt the final wait.
+    trap '' INT TERM HUP
+    interruption_cancel_status="$1"
+    if [[ -n "$interruption_driver_pid" ]]; then
+      kill -TERM "$interruption_driver_pid" 2>/dev/null || true
+    fi
+  }
+  cleanup_interruption() {
+    local status=$?
+    trap - EXIT INT TERM HUP
+    if [[ -n "$interruption_driver_pid" ]]; then
+      kill -TERM "$interruption_driver_pid" 2>/dev/null || true
+      wait "$interruption_driver_pid" 2>/dev/null || true
+    fi
+    rm -rf -- "$PROBE_WORK_DIR"
+    exit "$status"
+  }
+  trap cleanup_interruption EXIT
+  trap 'forward_interruption_cancel 130' INT
+  trap 'forward_interruption_cancel 143' TERM
+  trap 'forward_interruption_cancel 129' HUP
+  env -u DISPLAY -u WAYLAND_DISPLAY PYTHONDONTWRITEBYTECODE=1 python3 - "$PROJECT_ROOT" "$GODOT_BIN" "$PACKAGE_PATH" "$SOURCE_MODE" "$TIMEOUT_SECONDS" "$RUN_DIR" "$PROBE_WORK_DIR" <<'PYPROBE' &
+import hashlib, json, os, pathlib, re, signal, subprocess, sys, time
+root, godot, package, source_mode, timeout, run_dir, profile = sys.argv[1:]
+root, run_dir, profile = map(pathlib.Path, (root, run_dir, profile))
+timeout = int(timeout)
+source_mode = source_mode == "1"
+result_path = run_dir / "in-world-interruption.json"
+result = {"status": "FAIL", "mode": "source" if source_mode else "PCK",
+          "project_root": str(root), "private_profile": str(profile), "package": None if source_mode else package,
+          "source_commit": subprocess.check_output(["git", "-C", str(root), "rev-parse", "HEAD"], text=True).strip(),
+          "native_gpu": "NOT_RUN", "normal_controls": "NOT_RUN",
+          "pilot_seat_world_restore": "NOT_RUN", "processes": []}
+children = []
+registering_child = False
+pending_abort = None
+require_new_result = not result_path.exists()
+if not require_new_result:
+    raise RuntimeError("refusing to overwrite an earlier interruption result")
+def abort_probe(signum, _frame=None):
+    global pending_abort
+    # A signal during Popen must not strand the newly created OS process before
+    # its exact handle and result entry have been registered for final cleanup.
+    if registering_child:
+        pending_abort = pending_abort or signum
+        return
+    # Repeated cancellation cannot interrupt the narrowly owned final cleanup.
+    for handled in (signal.SIGINT, signal.SIGTERM, signal.SIGHUP):
+        signal.signal(handled, signal.SIG_IGN)
+    result["cancelled_by"] = signal.Signals(signum).name
+    raise RuntimeError("interruption probe cancelled by " + signal.Signals(signum).name)
+for handled in (signal.SIGINT, signal.SIGTERM, signal.SIGHUP):
+    signal.signal(handled, abort_probe)
+def digest(path):
+    return hashlib.sha256(path.read_bytes()).hexdigest()
+def manifest(name, scope):
+    path = run_dir / name
+    subprocess.run([sys.executable, str(root / "tools/release/source_manifest.py"),
+                    "--root", str(root), "--output", str(path), *scope], check=True)
+    return digest(path)
+def require(condition, message):
+    if not condition:
+        raise RuntimeError(message)
+def token(log, name):
+    lines = [line[len(name) + 2:] for line in log.read_text(errors="replace").splitlines(keepends=True)
+             if line.endswith("\n") and line.startswith(name + ": ")]
+    require(len(lines) <= 1, "duplicate " + name)
+    return json.loads(lines[0]) if lines else None
+def diagnostics(log):
+    expression = r"^\s*(?:SCRIPT\s+ERROR|ERROR:|FAIL:)|\b(?:FATAL ERROR|ObjectDB|Orphaned|Leaked)\b|Resource.*still in use"
+    return [line for line in log.read_text(errors="replace").splitlines()
+            if re.search(expression, line, re.I)]
+scope = ["project.godot", "export_presets.cfg", "default_bus_layout.tres", "scripts", "scenes", "tests", "assets", "tools", "art_source"]
+source_before = manifest("source-before.csv", scope)
+cache_before = manifest("cache-before.csv", [".godot"])
+if not source_mode:
+    result["package_sha256"] = digest(pathlib.Path(package))
+environment = os.environ.copy()
+for key in ("DISPLAY", "WAYLAND_DISPLAY"):
+    environment.pop(key, None)
+for key, directory in {"HOME": "home", "XDG_DATA_HOME": "data", "XDG_CONFIG_HOME": "config",
+                       "XDG_CACHE_HOME": "cache", "XDG_STATE_HOME": "state", "XDG_RUNTIME_DIR": "runtime"}.items():
+    path = profile / directory
+    path.mkdir(mode=0o700)
+    environment[key] = str(path)
+document = profile / "data/godot/app_userdata/Mudds Shipyards/mudds_user_data.json"
+def start(stage):
+    global registering_child
+    log = run_dir / "logs" / (stage + ".log")
+    command = [godot, "--headless", "--audio-driver", "Dummy", "--path", str(root)]
+    if not source_mode:
+        command += ["--main-pack", package]
+    command += ["--script", "res://tests/cinder_convoy_session_save_restore_test.gd",
+                "--", "--in-world-interruption-stage", stage]
+    with log.open("w") as output:
+        registering_child = True
+        try:
+            process = subprocess.Popen(command, stdout=output, stderr=subprocess.STDOUT,
+                                       stdin=subprocess.DEVNULL, env=environment, start_new_session=True)
+            children.append(process)
+            entry = {"stage": stage, "pid": process.pid, "arguments": command, "log": str(log)}
+            result["processes"].append(entry)
+        finally:
+            registering_child = False
+            if pending_abort is not None:
+                abort_probe(pending_abort)
+    return process, log, entry
+try:
+    arm, arm_log, arm_entry = start("arm")
+    deadline = time.monotonic() + timeout
+    ready = None
+    while time.monotonic() < deadline:
+        ready = token(arm_log, "IN_WORLD_INTERRUPTION_READY")
+        if ready is not None:
+            break
+        require(arm.poll() is None, "arm process exited before actual durable readiness")
+        time.sleep(0.1)
+    require(ready is not None and arm.poll() is None, "missing live IN_WORLD_INTERRUPTION_READY")
+    require(not diagnostics(arm_log), "arm engine/script diagnostics")
+    before = document.read_bytes()
+    saved = json.loads(before)
+    row = saved["payload"]["cinder_convoy_session"]["activities"][0]
+    require(row["progress"]["convoy_session_state"] == ready["boundary"], "readiness differs from real durable document")
+    require(saved["payload"]["crash_recovery"]["state"] == "running", "no durable running marker before kill")
+    (run_dir / "interrupted-document.json").write_bytes(before)
+    # Kill this exact Popen handle only. No PID search, external desktop or
+    # orderly game teardown can substitute for this actual OS interruption.
+    arm.kill()
+    arm_entry["exit_code"] = arm.wait(timeout=15)
+    arm_entry["signal"] = "SIGKILL"
+    require(arm_entry["exit_code"] == -9, "owned kill did not reap as SIGKILL (-9)")
+    require(document.read_bytes() == before, "kill ran an orderly repair/save")
+    result["ready"] = ready
+    resume, resume_log, resume_entry = start("resume")
+    resume_entry["exit_code"] = resume.wait(timeout=timeout)
+    recovered = token(resume_log, "IN_WORLD_RECOVERY_OK")
+    require(resume_entry["exit_code"] == 0 and recovered is not None, "restart did not exit 0 with IN_WORLD_RECOVERY_OK")
+    require(not diagnostics(resume_log), "restart engine/script diagnostics")
+    require(resume_log.read_text(errors="replace").strip().splitlines()[-1].startswith("IN_WORLD_RECOVERY_OK: "), "recovery token is not terminal")
+    require(recovered["boundary"] == ready["boundary"], "fresh process changed durable host/threat/escort/clock/progress")
+    require(recovered["receipts_before"] == ready["receipts"] and recovered["receipts_after"] == ready["receipts"] + 1,
+            "restart lost or duplicated convoy credit")
+    require(recovered["crash_events"] == 1, "actual interruption did not publish one crash event")
+    after = document.read_bytes()
+    final = json.loads(after)
+    (run_dir / "recovered-document.json").write_bytes(after)
+    result["recovered"] = recovered
+    require(final["payload"]["crash_recovery"]["state"] == "clean" and final["payload"]["safe_start_recovery"]["state"] == "clean_shutdown",
+            "recovered orderly process did not close both marker owners")
+    result["status"] = "PASS"
+except Exception as error:
+    result["failure"] = str(error)
+finally:
+    for process in children:
+        if process.poll() is None:
+            process.kill()
+            process.wait(timeout=15)
+            result["processes"][children.index(process)]["cleanup_killed"] = True
+        result["processes"][children.index(process)]["exit_code"] = process.returncode
+    if document.exists():
+        (run_dir / "document-at-exit.json").write_bytes(document.read_bytes())
+    result["owned_children_reaped"] = all(process.poll() is not None for process in children)
+    for entry in result["processes"]:
+        entry["log_sha256"] = digest(pathlib.Path(entry["log"]))
+    result["source_before_sha256"] = source_before
+    result["source_after_sha256"] = manifest("source-after.csv", scope)
+    result["cache_before_sha256"] = cache_before
+    result["cache_after_sha256"] = manifest("cache-after.csv", [".godot"])
+    if result["source_before_sha256"] != result["source_after_sha256"] or result["cache_before_sha256"] != result["cache_after_sha256"]:
+        result["status"] = "FAIL"
+        result["failure"] = "source/import cache changed during interruption check"
+    if not source_mode and digest(pathlib.Path(package)) != result["package_sha256"]:
+        result["status"] = "FAIL"
+        result["failure"] = "package changed during interruption check"
+    result_path.write_text(json.dumps(result, indent=2, sort_keys=True) + "\n")
+print("IN_WORLD_INTERRUPTION_CHECK_" + result["status"] + ": " + str(result_path))
+sys.exit(0 if result["status"] == "PASS" else 1)
+PYPROBE
+  interruption_driver_pid=$!
+  if (( interruption_cancel_status != 0 )); then
+    forward_interruption_cancel "$interruption_cancel_status"
+  fi
+  set +e
+  wait "$interruption_driver_pid"
+  interruption_status=$?
+  if (( interruption_cancel_status != 0 )); then
+    # A trapped signal interrupts bash's first wait. Wait again for Python's
+    # child cleanup before removing its private profile or returning to callers.
+    wait "$interruption_driver_pid" 2>/dev/null
+    interruption_status="$interruption_cancel_status"
+  fi
+  set -e
+  interruption_driver_pid=""
+  trap - INT TERM HUP
+  exit "$interruption_status"
+fi
 
 # Probe list can be overridden with a regex against file names (e.g. "*triplanar*").
 DEFAULT_PROBES=(
