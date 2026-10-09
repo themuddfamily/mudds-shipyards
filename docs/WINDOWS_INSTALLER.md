@@ -502,9 +502,10 @@ Select `-InWorldRecoveryContext cabin` or `-InWorldRecoveryContext rest` with
 verifier passes the selection to both boots and requires an exact
 `recovery_context` in both readiness and recovery records. A pilot-only payload
 cannot qualify a cabin/rest request. The default `pilot` keeps the existing
-invocation compatible with older payloads. Published `3a800bfb4` does not yet
-provide the cabin/rest interruption entry; those installed checks remain
-`NOT_RUN` until a supporting checkpoint is qualified.
+invocation compatible with older payloads. Published `1e47755a8` provides the cabin/rest interruption entry, with source,
+Linux-package and exported-Windows checks passing. Its installer/context
+acceptance is in progress; installed cabin/rest remains unqualified until those
+actual verifier runs finish. Earlier `3a800bfb4` lacks that entry.
 
 The activity case uses a fresh `<ProbeRoot>\in-world-profile`, separate from
 settings/tutorial fixtures and protected newer documents. After genuine convoy
