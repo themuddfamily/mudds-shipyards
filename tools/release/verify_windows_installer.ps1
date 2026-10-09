@@ -26,9 +26,11 @@ actual durable activity readiness, then restarts that profile to prove exact
 boundary, one new receipt and its crash journal. InWorldRecoveryContext selects
 pilot (default), cabin, rest or crew. Cabin/rest/crew require a matching context
 in both Boot markers; older pilot-only payloads cannot qualify those selections.
-InWorldRecoveryActivity selects convoy (default), beacon or mining. Beacon/mining require pilot
+InWorldRecoveryActivity selects convoy (default), beacon, mining or stationdefense. Beacon/mining/stationdefense require pilot
 context and verifies the genuine unpaid terminal, safe-home pilot Resume, ordinary
 throttle and HUD Start payment, and the saved acknowledgement without duplicates.
+Stationdefense verifies only the earned unpaid report and atomic paid acknowledgement;
+combat actors, elapsed timers, leases, damage and airborne claims are not restored.
 Mining verifies the schema 2 unpaid extraction, one atomic capacity acknowledgement
 with existing non-granting metadata, and unchanged production settings/cargo.
 InWorldCancelPath (default:
@@ -54,7 +56,7 @@ param(
     [switch]$ForceKillRecovery,
     [switch]$InWorldRecovery,
     [ValidateSet('pilot','cabin','rest','crew')][string]$InWorldRecoveryContext = 'pilot',
-    [ValidateSet('convoy','beacon','mining')][string]$InWorldRecoveryActivity = 'convoy',
+    [ValidateSet('convoy','beacon','mining','stationdefense')][string]$InWorldRecoveryActivity = 'convoy',
     [string]$InWorldCancelPath,
     [int]$StartupTimeoutMs = 120000
 )
@@ -447,7 +449,7 @@ function Stop-InWorldOwned($proc, $entry, [string]$termination) {
 }
 function Assert-InWorldSelection {
     if (-not $InWorldRecovery -and $InWorldRecoveryActivity -ne 'convoy') { throw 'InWorldRecoveryActivity requires InWorldRecovery' }
-    if ($InWorldRecoveryActivity -in @('beacon','mining') -and $InWorldRecoveryContext -ne 'pilot') { throw "$InWorldRecoveryActivity in-world recovery supports only pilot context" }
+    if ($InWorldRecoveryActivity -in @('beacon','mining','stationdefense') -and $InWorldRecoveryContext -ne 'pilot') { throw "$InWorldRecoveryActivity in-world recovery supports only pilot context" }
 }
 function InWorld-BeaconCount($payload) {
     if ($null -eq $payload.game_flow_reward_store.reward_counts.debris_route_navigation_data) { return 0 }
@@ -545,6 +547,94 @@ function Assert-InWorldMiningRecovered($final, $ready, $recovered, [string]$log)
         $last = $index
     }
 }
+function Assert-InWorldStationKeys($value, [string[]]$names) {
+    if ($value -isnot [System.Management.Automation.PSCustomObject] -or @($value.PSObject.Properties).Count -ne $names.Count) { throw 'installed defense record shape differs' }
+    foreach ($name in $names) { if ($value.PSObject.Properties.Name -cnotcontains $name) { throw 'installed defense record keys differ' } }
+}
+function Assert-InWorldStationInteger($value, [double]$minimum = 0) {
+    if (($value -isnot [int] -and $value -isnot [long] -and $value -isnot [double] -and $value -isnot [decimal]) -or [double]::IsNaN([double]$value) -or [double]::IsInfinity([double]$value) -or $value -lt $minimum -or $value -gt 9007199254740991 -or [math]::Floor([double]$value) -ne $value) { throw 'installed defense numeric cursor differs' }
+}
+function Assert-InWorldStationRecord($record, [bool]$paid) {
+    Assert-InWorldStationKeys $record @('schema_version','payload_kind','slot_id','activity_generation','session')
+    Assert-InWorldStationInteger $record.schema_version
+    Assert-InWorldStationInteger $record.activity_generation
+    if ($record.schema_version -ne 1 -or $record.payload_kind -cne 'nearby_sector_activity_session' -or $record.slot_id -cne 'station_defense_session') { throw 'unsupported installed defense envelope' }
+    $session = $record.session
+    Assert-InWorldStationKeys $session @('schema_version','history','completion')
+    Assert-InWorldStationInteger $session.schema_version
+    if ($session.schema_version -ne 2) { throw 'unsupported installed defense session' }
+    $history = $session.history; $completion = $session.completion
+    Assert-InWorldStationKeys $history @('activity_id','state_id','generation','failure_reason','reward_handoff_generation','reward_replayable')
+    Assert-InWorldStationKeys $completion @('activity_id','generation','reward_requested','reward_granted')
+    Assert-InWorldStationInteger $history.generation 1
+    Assert-InWorldStationInteger $history.reward_handoff_generation
+    Assert-InWorldStationInteger $completion.generation 1
+    if ($history.activity_id -cne 'shipyard_perimeter_defense' -or $completion.activity_id -cne $history.activity_id -or $history.state_id -cne 'completed' -or $history.failure_reason -cne '' -or $completion.generation -ne $history.generation -or $history.reward_handoff_generation -ne $(if ($paid) { $completion.generation } else { 0 })) { throw 'installed defense earned terminal identity differs' }
+    if ($history.reward_replayable -isnot [bool] -or $history.reward_replayable -ne $false -or $completion.reward_requested -isnot [bool] -or $completion.reward_requested -ne $true -or $completion.reward_granted -isnot [bool] -or $completion.reward_granted -ne $paid) { throw 'installed defense payment flags differ' }
+}
+function Assert-InWorldStationForeign($payload, $ready) {
+    foreach ($pair in @(@('runtime_settings','foreign_settings'),@('jovian_cargo_session','foreign_cargo'))) {
+        $expected = $ready.($pair[1])
+        if ($expected -isnot [System.Management.Automation.PSCustomObject] -or @($expected.PSObject.Properties).Count -eq 0 -or (InWorld-Canonical $payload.($pair[0])) -ne (InWorld-Canonical $expected)) { throw 'installed defense changed actual production settings or cargo' }
+    }
+    $counts = $payload.game_flow_reward_store.reward_counts
+    if ($ready.foreign_reward_counts -isnot [System.Management.Automation.PSCustomObject] -or $ready.foreign_reward_counts.debris_route_navigation_data -ne 1) { throw 'installed defense lacks genuinely earned unrelated beacon reward' }
+    foreach ($entry in $ready.foreign_reward_counts.PSObject.Properties) {
+        Assert-InWorldStationInteger $entry.Value
+        Assert-InWorldStationInteger $counts.($entry.Name)
+        if ($counts.($entry.Name) -ne $entry.Value) { throw 'installed defense changed unrelated earned reward count' }
+    }
+}
+function Assert-InWorldStationArm($saved, $ready) {
+    $record = $saved.payload.station_defense_session
+    Assert-InWorldStationRecord $record $false
+    if ((InWorld-Canonical $record) -ne (InWorld-Canonical $ready.boundary) -or $saved.payload.crash_recovery.state -ne 'running' -or $ready.receipts -ne 0) { throw 'installed defense readiness differs from actual durable running document' }
+    $pilot = $ready.runtime_observation
+    if ($pilot.player_seated -ne $true -or $pilot.craft_piloted -ne $true -or $pilot.craft_id -cne 'bulwark_heavy_gunship' -or $saved.payload.solo_safe_recovery.craft_id -cne $pilot.craft_id) { throw 'installed defense arm lacks real safe pilot owner' }
+    if ($ready.armed_elapsed_seconds -isnot [double] -and $ready.armed_elapsed_seconds -isnot [decimal]) { throw 'installed defense elapsed observation is not numeric' }
+    if ($ready.armed_elapsed_seconds -ne 10.5) { throw 'installed defense authored-wave elapsed observation differs' }
+    Assert-InWorldStationForeign $saved.payload $ready
+    Assert-InWorldStationInteger $ready.receipts
+    if ((InWorld-Canonical $saved.payload.game_flow_reward_store.reward_counts) -ne (InWorld-Canonical $ready.foreign_reward_counts)) { throw 'installed defense arm reward ledger differs from actual readiness' }
+    $count = $saved.payload.game_flow_reward_store.reward_counts.return_defense_report_to_shipyard
+    if ($null -ne $count -and $count -ne 0) { throw 'installed defense fresh receipt baseline differs' }
+}
+function Assert-InWorldStationRecovered($final, $ready, $recovered, [string]$log) {
+    $paid = $final.payload.station_defense_session
+    Assert-InWorldStationRecord $paid $true
+    if ((InWorld-Canonical $paid) -ne (InWorld-Canonical $recovered.paid_boundary)) { throw 'installed defense saved paid boundary differs' }
+    $expected = $ready.boundary.session | ConvertTo-Json -Depth 60 | ConvertFrom-Json
+    $expected.completion.reward_granted = $true
+    $expected.history.reward_handoff_generation = $expected.completion.generation
+    if ((InWorld-Canonical $paid.session) -ne (InWorld-Canonical $expected)) { throw 'installed defense paid acknowledgement changed exact earned history or generation' }
+    foreach ($entry in $final.payload.game_flow_reward_store.reward_counts.PSObject.Properties) {
+        Assert-InWorldStationInteger $entry.Value
+        if ($entry.Name -cne 'return_defense_report_to_shipyard' -and $ready.foreign_reward_counts.PSObject.Properties.Name -cnotcontains $entry.Name) { throw 'installed defense invented an unrelated reward count' }
+    }
+    $receipt = $final.payload.game_flow_reward_store.last_receipt
+    Assert-InWorldStationInteger $receipt.activity_generation 1
+    if ($final.payload.game_flow_reward_store.reward_counts.return_defense_report_to_shipyard -ne 1 -or $receipt.activity_id -cne 'shipyard_perimeter_defense' -or $receipt.activity_generation -ne $expected.completion.generation -or $receipt.reward_id -cne 'return_defense_report_to_shipyard' -or $receipt.granted -isnot [bool] -or $receipt.granted -ne $true -or $receipt.replay_allowed -isnot [bool] -or $receipt.replay_allowed -ne $false -or -not ([string]$recovered.payment_commit.id).StartsWith('game-flow-reward-')) { throw 'installed defense lost atomic single receipt acknowledgement' }
+    Assert-InWorldStationForeign $final.payload $ready
+    if ((InWorld-Canonical $recovered.foreign_settings) -ne (InWorld-Canonical $ready.foreign_settings) -or (InWorld-Canonical $recovered.foreign_cargo) -ne (InWorld-Canonical $ready.foreign_cargo) -or (InWorld-Canonical $recovered.foreign_reward_counts) -ne (InWorld-Canonical $ready.foreign_reward_counts)) { throw 'installed defense recovered foreign fields differ' }
+    $pilot = $recovered.safe_recovery_observation
+    if ($pilot.player_seated -ne $true -or $pilot.craft_piloted -ne $true -or $pilot.piloting -ne $true -or $pilot.craft_id -cne $ready.runtime_observation.craft_id) { throw 'installed defense Resume did not reacquire actual safe-home pilot' }
+    if ($recovered.continuation_method -cne 'real_safe_home_pilot_resume_throttle_idle_pilot_exit_then_on_foot_physical_board_HUD_retry' -or $recovered.active_combat_restore -cne 'NOT_SUPPORTED' -or $recovered.elapsed_timer_restore -cne 'NOT_SUPPORTED') { throw 'installed defense continuation/restoration scope differs' }
+    $raw = Read-InWorldLog $log; $last = -1
+    foreach ($assertion in @(
+        'PASS: fresh Boot restores only the exact owed report into safe idle content without old combat, elapsed timer or pilot-claim replay',
+        'PASS: ordinary cold Resume reacquires the real safe-home pilot and preserves the unpaid defense report',
+        'PASS: the recovered real pilot accepts ordinary throttle while the defense report stays unpaid',
+        'PASS: the ordinary idle propulsion and production pilot exit release real seat ownership before the board retry',
+        'PASS: the ordinary on-foot physical board HUD retry atomically publishes one reward receipt and the exact earned report acknowledgement',
+        'PASS: duplicate reward, stale physical reset and genuine late unpaid checkpoint cannot repay or downgrade the acknowledged defense report',
+        'PASS: the existing unrelated earned reward count is preserved',
+        'PASS: the report retry preserves actual production settings and cargo progress',
+        'PASS: defense restart closes both existing recovery marker owners'
+    )) {
+        $index = $raw.IndexOf($assertion)
+        if ($index -le $last) { throw "missing ordered installed defense recovery assertion: $assertion" }; $last = $index
+    }
+}
 function Assert-InWorldContext($token) {
     $activity = $token.PSObject.Properties['activity']
     if ($null -eq $activity) {
@@ -604,14 +694,15 @@ function Run-InWorldRecovery {
         if ((InWorld-LogCounts (Join-Path $ProbeRoot 'in-world-arm.log')).diagnostic_count -ne 0) { throw 'installed arm engine/script/leak diagnostics' }
         $probe.ready = $ready
         $beforeHash = (Get-FileHash -LiteralPath $ownedDocument -Algorithm SHA256).Hash.ToLowerInvariant()
-        $saved = Get-Content -LiteralPath $ownedDocument -Raw | ConvertFrom-Json
         Copy-Item -LiteralPath $ownedDocument -Destination (Join-Path $ProbeRoot 'in-world-interrupted-document.json')
         $probe.interrupted_document_sha256 = $beforeHash
+        $saved = Get-Content -LiteralPath $ownedDocument -Raw | ConvertFrom-Json
         if ($InWorldRecoveryActivity -eq 'beacon') { Assert-InWorldBeaconArm $saved $ready }
         elseif ($InWorldRecoveryActivity -eq 'mining') {
             Assert-InWorldMiningArm $saved $ready
             if (Test-Path -LiteralPath ($ownedDocument + '.tmp')) { throw 'installed mining blockage remains at kill boundary' }
         }
+        elseif ($InWorldRecoveryActivity -eq 'stationdefense') { Assert-InWorldStationArm $saved $ready }
         elseif ((InWorld-Canonical $saved.payload.cinder_convoy_session.activities[0].progress.convoy_session_state) -ne (InWorld-Canonical $ready.boundary) -or $saved.payload.crash_recovery.state -ne 'running') { throw 'installed readiness differs from actual durable document/running marker' }
         Check-InWorldCancel
         if ($arm.HasExited) { throw 'installed arm exited before owned OS kill' }
@@ -628,6 +719,8 @@ function Run-InWorldRecovery {
         $probe.resume_ms = $timer.ElapsedMilliseconds
         if (-not $resume.HasExited) { throw 'installed recovery restart timed out' }
         $resume.WaitForExit()
+        Copy-Item -LiteralPath $ownedDocument -Destination (Join-Path $ProbeRoot 'in-world-recovered-document.json')
+        $probe.recovered_document_sha256 = (Get-FileHash -LiteralPath $ownedDocument -Algorithm SHA256).Hash.ToLowerInvariant()
         $recovered = Read-InWorldToken (Join-Path $ProbeRoot 'in-world-resume.log') 'IN_WORLD_RECOVERY_OK'
         if ($resume.ExitCode -ne 0 -or $null -eq $recovered -or $recovered.entry -ne 'startup_completed' -or $recovered.loaded_main_instance_id -le 0) { throw 'installed restart did not exit0 with its Boot-loaded Main recovery token' }
         Assert-InWorldContext $recovered
@@ -654,8 +747,13 @@ function Run-InWorldRecovery {
             $probe.durable_unpaid_boundary_held_until_retry = 'PASS'
             $probe.foreign_settings_cargo_preserved = 'PASS'
         }
-        Copy-Item -LiteralPath $ownedDocument -Destination (Join-Path $ProbeRoot 'in-world-recovered-document.json')
-        $probe.recovered_document_sha256 = (Get-FileHash -LiteralPath $ownedDocument -Algorithm SHA256).Hash.ToLowerInvariant()
+        elseif ($InWorldRecoveryActivity -eq 'stationdefense') {
+            Assert-InWorldStationRecovered $final $ready $recovered (Join-Path $ProbeRoot 'in-world-resume.log')
+            $probe.earned_report_atomic_payment_once = 'PASS'
+            $probe.foreign_settings_cargo_rewards_preserved = 'PASS'
+            $probe.active_combat_restore = 'NOT_SUPPORTED'
+            $probe.elapsed_timer_restore = 'NOT_SUPPORTED'
+        }
         $probe.recovered = $recovered
         Assert-Installed $ExpectedExeSha256 $ExpectedCommit | Out-Null
         Assert-UserData

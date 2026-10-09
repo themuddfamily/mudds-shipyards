@@ -430,6 +430,104 @@ try {
     $rejected = $false
     try { Assert-InWorldMiningRecovered $final $ready $recovered $miningLog } catch { $rejected = $true }
     if (-not $rejected) { throw 'unordered real mining continuation assertions accepted' }
+    $InWorldRecoveryActivity = 'stationdefense'; $InWorldRecoveryContext = 'pilot'; $InWorldRecovery = $true
+    Assert-InWorldSelection
+    Assert-InWorldContext ([pscustomobject]@{activity='stationdefense'; recovery_context='pilot'})
+    foreach ($selected in @('cabin','rest','crew')) {
+        $InWorldRecoveryContext=$selected; $rejected=$false
+        try { Assert-InWorldSelection } catch { $rejected=$true }
+        if (-not $rejected) { throw 'unsupported defense context accepted' }
+    }
+    $InWorldRecoveryContext='pilot'; $InWorldRecovery=$false; $rejected=$false
+    try { Assert-InWorldSelection } catch { $rejected=$true }
+    if (-not $rejected) { throw 'defense without recovery accepted' }
+    foreach ($token in @(@{},@{activity='stationdefense'},@{activity='STATIONDEFENSE'; recovery_context='pilot'},@{activity='mining'; recovery_context='pilot'},@{activity='stationdefense'; recovery_context='cabin'})) {
+        $rejected=$false
+        try { Assert-InWorldContext ([pscustomobject]$token) } catch { $rejected=$true }
+        if (-not $rejected) { throw 'unsupported defense marker accepted' }
+    }
+    $defense = '{"schema_version":1.0,"payload_kind":"nearby_sector_activity_session","slot_id":"station_defense_session","activity_generation":8.0,"session":{"schema_version":2.0,"history":{"activity_id":"shipyard_perimeter_defense","state_id":"completed","generation":2.0,"failure_reason":"","reward_handoff_generation":0.0,"reward_replayable":false},"completion":{"activity_id":"shipyard_perimeter_defense","generation":2.0,"reward_requested":true,"reward_granted":false}}}' | ConvertFrom-Json
+    $ready = [pscustomobject]@{boundary=$defense; receipts=0; armed_elapsed_seconds=10.5; foreign_settings=[pscustomobject]@{values=[pscustomobject]@{graphics_profile='high'}}; foreign_cargo=[pscustomobject]@{generation=1.0; progress='actual-production'}; foreign_reward_counts=[pscustomobject]@{debris_route_navigation_data=1.0}; runtime_observation=[pscustomobject]@{player_seated=$true; craft_piloted=$true; craft_id='bulwark_heavy_gunship'}}
+    $saved = [pscustomobject]@{payload=[pscustomobject]@{station_defense_session=$defense; runtime_settings=$ready.foreign_settings; jovian_cargo_session=$ready.foreign_cargo; game_flow_reward_store=[pscustomobject]@{reward_counts=$ready.foreign_reward_counts}; crash_recovery=[pscustomobject]@{state='running'}; solo_safe_recovery=[pscustomobject]@{craft_id='bulwark_heavy_gunship'}}}
+    Assert-InWorldStationArm $saved $ready
+    foreach ($mutation in @(
+        {$saved.payload.station_defense_session.schema_version=2.0},
+        {$saved.payload.station_defense_session.session.schema_version=3.0},
+        {$saved.payload.station_defense_session.session.history.generation=2.5},
+        {$saved.payload.station_defense_session.session.history.generation=[double]::NaN},
+        {$saved.payload.station_defense_session.session.history.generation=9007199254740992.0},
+        {$saved.payload.station_defense_session.session.completion.generation=1.0},
+        {$saved.payload.station_defense_session.session.completion.generation='2'},
+        {$saved.payload.station_defense_session.session.history.reward_handoff_generation=2.0},
+        {$saved.payload.station_defense_session.session.history.state_id='active'},
+        {$saved.payload.station_defense_session.session.history.reward_replayable=0},
+        {$saved.payload.station_defense_session.session.completion.reward_requested=1},
+        {$saved.payload.station_defense_session.session.completion.reward_granted=$true},
+        {$saved.payload.station_defense_session.session.history.PSObject.Properties.Remove('generation')},
+        {$saved.payload.station_defense_session.session.completion.PSObject.Properties.Remove('generation'); $saved.payload.station_defense_session.session.completion | Add-Member -NotePropertyName GENERATION -NotePropertyValue 2.0},
+        {$saved.payload.station_defense_session.session.completion | Add-Member -NotePropertyName extra -NotePropertyValue 1},
+        {$saved.payload.station_defense_session.session | Add-Member -NotePropertyName elapsed_seconds -NotePropertyValue 10.5},
+        {$ready.armed_elapsed_seconds=9.0}, {$ready.receipts=1},
+        {$saved.payload.crash_recovery.state='clean'}, {$ready.runtime_observation.player_seated=$false},
+        {$saved.payload.runtime_settings=[pscustomobject]@{changed=$true}},
+        {$ready.foreign_reward_counts.debris_route_navigation_data=0}
+    )) {
+        $savedBaseline=$saved | ConvertTo-Json -Depth 60; $readyBaseline=$ready | ConvertTo-Json -Depth 60
+        & $mutation; $ready.boundary=$saved.payload.station_defense_session; $rejected=$false
+        try { Assert-InWorldStationArm $saved $ready } catch { $rejected=$true }
+        if (-not $rejected) { throw 'invalid matching defense unpaid disk/token accepted' }
+        $saved=$savedBaseline | ConvertFrom-Json; $ready=$readyBaseline | ConvertFrom-Json
+        Assert-InWorldStationArm $saved $ready
+    }
+    $paid=$ready.boundary | ConvertTo-Json -Depth 60 | ConvertFrom-Json
+    $paid.session.completion.reward_granted=$true; $paid.session.history.reward_handoff_generation=$paid.session.completion.generation
+    $final=[pscustomobject]@{payload=[pscustomobject]@{station_defense_session=$paid; runtime_settings=$ready.foreign_settings; jovian_cargo_session=$ready.foreign_cargo; game_flow_reward_store=[pscustomobject]@{reward_counts=[pscustomobject]@{debris_route_navigation_data=1.0; return_defense_report_to_shipyard=1.0}; last_receipt=[pscustomobject]@{activity_id='shipyard_perimeter_defense'; activity_generation=2.0; reward_id='return_defense_report_to_shipyard'; granted=$true; replay_allowed=$false}}}}
+    $recovered=[pscustomobject]@{paid_boundary=$paid; payment_commit=[pscustomobject]@{id='game-flow-reward-actual'}; foreign_settings=$ready.foreign_settings; foreign_cargo=$ready.foreign_cargo; foreign_reward_counts=$ready.foreign_reward_counts; safe_recovery_observation=[pscustomobject]@{player_seated=$true; craft_piloted=$true; piloting=$true; craft_id='bulwark_heavy_gunship'}; continuation_method='real_safe_home_pilot_resume_throttle_idle_pilot_exit_then_on_foot_physical_board_HUD_retry'; active_combat_restore='NOT_SUPPORTED'; elapsed_timer_restore='NOT_SUPPORTED'}
+    $defenseLog=Join-Path $root 'defense.log'
+    $defenseAssertions=@(
+        'PASS: fresh Boot restores only the exact owed report into safe idle content without old combat, elapsed timer or pilot-claim replay',
+        'PASS: ordinary cold Resume reacquires the real safe-home pilot and preserves the unpaid defense report',
+        'PASS: the recovered real pilot accepts ordinary throttle while the defense report stays unpaid',
+        'PASS: the ordinary idle propulsion and production pilot exit release real seat ownership before the board retry',
+        'PASS: the ordinary on-foot physical board HUD retry atomically publishes one reward receipt and the exact earned report acknowledgement',
+        'PASS: duplicate reward, stale physical reset and genuine late unpaid checkpoint cannot repay or downgrade the acknowledged defense report',
+        'PASS: the existing unrelated earned reward count is preserved',
+        'PASS: the report retry preserves actual production settings and cargo progress',
+        'PASS: defense restart closes both existing recovery marker owners'
+    )
+    [IO.File]::WriteAllText($defenseLog, ($defenseAssertions -join "`n")+"`n")
+    Assert-InWorldStationRecovered $final $ready $recovered $defenseLog
+    foreach ($mutation in @(
+        {$final.payload.station_defense_session.session.completion.generation=3.0},
+        {$final.payload.station_defense_session.session.completion.reward_granted=$false},
+        {$final.payload.station_defense_session.session.history.reward_handoff_generation=0.0},
+        {$final.payload.game_flow_reward_store.reward_counts.return_defense_report_to_shipyard=2.0},
+        {$final.payload.game_flow_reward_store.reward_counts.debris_route_navigation_data=0.0},
+        {$final.payload.game_flow_reward_store.reward_counts.return_defense_report_to_shipyard='1'},
+        {$final.payload.game_flow_reward_store.reward_counts | Add-Member -NotePropertyName invented -NotePropertyValue 1.0},
+        {$final.payload.game_flow_reward_store.last_receipt.activity_generation=3.0},
+        {$final.payload.game_flow_reward_store.last_receipt.granted=1},
+        {$final.payload.game_flow_reward_store.last_receipt.replay_allowed=$true},
+        {$recovered.payment_commit.id='non-atomic'}, {$recovered.elapsed_timer_restore='PASS'},
+        {$recovered.active_combat_restore='PASS'}, {$recovered.safe_recovery_observation.piloting=$false},
+        {$recovered.foreign_cargo=[pscustomobject]@{changed=$true}}
+    )) {
+        $finalBaseline=$final | ConvertTo-Json -Depth 60; $recoveredBaseline=$recovered | ConvertTo-Json -Depth 60
+        & $mutation; $recovered.paid_boundary=$final.payload.station_defense_session; $rejected=$false
+        try { Assert-InWorldStationRecovered $final $ready $recovered $defenseLog } catch { $rejected=$true }
+        if (-not $rejected) { throw 'invalid matching defense acknowledgement/receipt accepted' }
+        $final=$finalBaseline | ConvertFrom-Json; $recovered=$recoveredBaseline | ConvertFrom-Json
+        Assert-InWorldStationRecovered $final $ready $recovered $defenseLog
+    }
+    foreach ($missing in $defenseAssertions) {
+        [IO.File]::WriteAllText($defenseLog, (($defenseAssertions | Where-Object {$_ -ne $missing}) -join "`n")+"`n"); $rejected=$false
+        try { Assert-InWorldStationRecovered $final $ready $recovered $defenseLog } catch { $rejected=$true }
+        if (-not $rejected) { throw 'missing actual defense continuation assertion accepted' }
+    }
+    [array]::Reverse($defenseAssertions)
+    [IO.File]::WriteAllText($defenseLog, ($defenseAssertions -join "`n")+"`n"); $rejected=$false
+    try { Assert-InWorldStationRecovered $final $ready $recovered $defenseLog } catch { $rejected=$true }
+    if (-not $rejected) { throw 'unordered actual defense continuation accepted' }
     $log = Join-Path $root 'startup.log'
     [IO.File]::WriteAllText($log, "WARNING: Atomic runtime settings load retained authored defaults: store_load_failed / newer_schema`nSTARTUP_MENU_READY_OK: {}`n")
     Assert-StartupLog $log 0 | Out-Null
