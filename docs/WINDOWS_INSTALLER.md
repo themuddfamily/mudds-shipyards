@@ -466,6 +466,36 @@ probe for these payloads; normal controls, pilot/craft/seat/world restoration,
 native GPU behavior, interactive installation, signing and human review remain
 open.
 
+### Cancellation and checkpoint publication — 2026-10-09
+
+Reviewed author `622ee4d57f48aaf7a7e72542119e213af26b901c` is merged as
+`41c64b880b031a4384b839d51c38c504594836ae`; both file blobs match and the
+existing 14 release tests pass. The unsigned
+[checkpoint installer](../builds/windows/MuddsShipyards-01e6ec5-setup.exe)
+and [notes](../builds/windows/MuddsShipyards-01e6ec5-installer-notes.txt) are
+published in this repository's `builds/windows/`. Setup is 86,605,970 bytes,
+SHA-256 `07bbb293c7d08a1869fcb85e5ec63e4efc731e176124686b2a44fbc9472bc265`.
+Root verifies setup/payload PE, hashes, byte identity and exclusive publication.
+Compiler metadata retains its original build-time `native_verification: NOT_RUN`;
+the separately executed native results establish the bounded checks above.
+
+An independent observer creates the abort file only after the registered owned
+installed ARM is live and Boot has begun. The corrected cancellation invocation
+returns actual verifier exit 1, expected cancelled FAIL and cleanup PASS. Its
+owned child exits −1 through `Process.Kill` and is reaped; the private activity
+profile, installation, shortcuts and HKCU entries are removed. Base marker/data
+and logs remain. Root independently confirms all recorded parent/child PIDs are
+absent, raw hashes match, and installation/profile/HKCU cleanup is complete.
+The first cancellation wrapper omitted exit forwarding and returned 0; that
+attempt remains retained and does not qualify the parent-exit contract.
+Evidence is under `cancel/` and `cancel-second/` beside the completed runs above.
+
+Default startup logs retain four exact `settings_missing` warnings. Combined
+startup logs retain six: two `settings_missing` on upgrade and two
+`store_load_failed / newer_schema` each on unsupported-newer and rollback.
+Activity logs have zero warnings. All have zero engine/script/leak diagnostics;
+this is not a zero-warning qualification of every startup.
+
 ## Still open
 
 - Trusted signing qualification: these checkpoint installer probes are unsigned
