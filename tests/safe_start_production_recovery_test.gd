@@ -20,6 +20,7 @@ var _failures: Array[String] = []
 class FakeFilesystem extends UserDataFilesystem:
 	var files: Dictionary = {}
 	var write_count := 0
+	var safe_start_write_count := 0
 	var fail_write_number := -1
 	var fail_reads := false
 
@@ -44,6 +45,15 @@ class FakeFilesystem extends UserDataFilesystem:
 
 	func write_bytes_and_flush(path: String, bytes: PackedByteArray) -> Error:
 		write_count += 1
+		# Count staging attempts, excluding rotated history and malformed fixtures.
+		if path.ends_with(".tmp"):
+			var parser := JSON.new()
+			if parser.parse(bytes.get_string_from_utf8()) == OK and parser.data is Dictionary:
+				var document := parser.data as Dictionary
+				if str((document.get("commit", {}) as Dictionary).get("id", "")).begins_with(
+					"safe-start-"
+				):
+					safe_start_write_count += 1
 		if write_count == fail_write_number:
 			files[path] = bytes.slice(0, maxi(1, bytes.size() / 2))
 			return ERR_FILE_CANT_WRITE
@@ -139,7 +149,10 @@ func _test_startup_physics_reentry_and_explicit_shutdown() -> void:
 	for _tick in 120:
 		game._physics_process(1.0 / 60.0)
 	var before_detach := game.get_safe_start_recovery_report()
-	var bytes_before_detach := (filesystem.files[STORE_PATH] as PackedByteArray).duplicate()
+	# Main's station-defense session shares this document and saves on detach.
+	# Recovery owns its namespace and lifecycle transactions, not the envelope.
+	var recovery_before_detach := _stored_recovery_bytes(filesystem)
+	var recovery_writes_before_detach := filesystem.safe_start_write_count
 	var parent := game.get_parent()
 	parent.remove_child(game)
 	await process_frame
@@ -156,11 +169,23 @@ func _test_startup_physics_reentry_and_explicit_shutdown() -> void:
 		)
 		and int(detached.policy_instance_id) == int(before_detach.policy_instance_id)
 		and int(reentered.policy_instance_id) == int(before_detach.policy_instance_id)
+		and is_equal_approx(
+			float(detached.physics_elapsed_seconds), float(before_detach.physics_elapsed_seconds)
+		)
+		and is_equal_approx(
+			float(reentered.physics_elapsed_seconds), float(before_detach.physics_elapsed_seconds)
+		)
+		and detached.policy_snapshot == before_detach.policy_snapshot
+		and reentered.policy_snapshot == before_detach.policy_snapshot
 		and int(reentered.startup_generation) == 1
+		and int(reentered.restore_attempt_count) == int(before_detach.restore_attempt_count)
+		and int(reentered.transition_attempt_count)
+			== int(before_detach.transition_attempt_count)
 		and int(reentered.transition_success_count)
 			== int(before_detach.transition_success_count)
 		and int(game.get_runtime_settings_persistence_report().load_attempt_count) == 1
-		and filesystem.files[STORE_PATH] == bytes_before_detach,
+		and _stored_recovery_bytes(filesystem) == recovery_before_detach
+		and filesystem.safe_start_write_count == recovery_writes_before_detach,
 		"whole-Main detach/re-entry preserves policy identity/time and is neither restart nor failure"
 	)
 
@@ -225,6 +250,8 @@ func _test_startup_physics_reentry_and_explicit_shutdown() -> void:
 		and int(game.get_safe_start_recovery_report().transition_success_count) == 3,
 		"HUD exit and window-manager close both use the explicit idempotent orderly seam"
 	)
+	var orderly_recovery := _stored_recovery_bytes(filesystem)
+	var orderly_recovery_writes := filesystem.safe_start_write_count
 	parent.add_child(game)
 	game.set_physics_process(false)
 	await process_frame
@@ -234,9 +261,17 @@ func _test_startup_physics_reentry_and_explicit_shutdown() -> void:
 	_check(
 		store.get_snapshot()[Policy.PAYLOAD_NAMESPACE].state
 			== Record.STATE_CLEAN_SHUTDOWN
-		and filesystem.files[STORE_PATH] == orderly_bytes,
+		and _stored_recovery_bytes(filesystem) == orderly_recovery
+		and filesystem.safe_start_write_count == orderly_recovery_writes,
 		"freeing Main after the explicit seam adds no inferred lifecycle transaction"
 	)
+
+
+func _stored_recovery_bytes(filesystem: FakeFilesystem) -> PackedByteArray:
+	var document := JSON.parse_string(
+		(filesystem.files[STORE_PATH] as PackedByteArray).get_string_from_utf8()
+	) as Dictionary
+	return JSON.stringify(document.payload[Policy.PAYLOAD_NAMESPACE]).to_utf8_buffer()
 
 
 func _test_physics_window_at_fixed_rates() -> void:
