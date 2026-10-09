@@ -369,7 +369,8 @@ func _run() -> void:
 			and rejected_reward.get("reason", &"") \
 				== &"structure_scan_reward_handoff_rejected"
 			and not bool(completed_scan.get("reward_requested", true))
-			and "COMPLETE — CLAIM SAMPLE" in str(
+			and bool(completed_scan.get("reward_pending", false))
+			and "COMPLETE — REWARD PENDING" in str(
 				retained_hud.get_activity_objective_report().get("text", "")
 			),
 		"a rejected receipt leaves the completed scan unconsumed and visibly retryable",
