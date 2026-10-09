@@ -183,7 +183,7 @@ func validate_record(candidate: Variant, host: CinderConvoyEscortHost) -> Dictio
 			or str(activity.get("activity_id", "")) \
 			!= str(CinderConvoyEscortHost.ROUTE.activity_id) \
 			or not _integral(activity.get("generation")) \
-			or int(activity.get("state", -1)) not in [ConvoyEscortActivity.State.ACTIVE, ConvoyEscortActivity.State.COMPLETED, ConvoyEscortActivity.State.IDLE] \
+			or int(activity.get("state", -1)) not in [ConvoyEscortActivity.State.ACTIVE, ConvoyEscortActivity.State.COMPLETED, ConvoyEscortActivity.State.IDLE, ConvoyEscortActivity.State.FAILED] \
 			or activity.get("reward_requested") is not bool \
 			or activity.get("reward_granted") is not bool \
 			or not activity.get("progress") is Dictionary:
@@ -246,9 +246,11 @@ func validate_session_state(
 	if schema_version == SESSION_SCHEMA_VERSION:
 		var host_state := state.host_state as Dictionary
 		var activity_state := host_state.get("activity_state", {}) as Dictionary
-		if not CinderConvoyThreat.validate_persistence_state(
-			state.get("threat_state"), int(activity_state.get("generation", 0))
-		):
+		var lost_terminal := int(activity_state.get("state", -1)) == ConvoyEscortActivity.State.FAILED \
+			and int(activity_state.get("terminal_result", -1)) == ConvoyEscortActivity.TerminalResult.CONVOY_LOST
+		var threat_valid := CinderConvoyThreat.validate_lost_terminal_persistence_state(state.get("threat_state"), int(activity_state.get("generation", 0))) \
+			if lost_terminal else CinderConvoyThreat.validate_persistence_state(state.get("threat_state"), int(activity_state.get("generation", 0)))
+		if not threat_valid:
 			return _result(false, &"invalid_convoy_threat_state")
 	return _result(true, &"convoy_session_state_valid")
 
@@ -266,7 +268,7 @@ func _capture_session_state(
 	var threat_state := CinderConvoyThreat.pristine_persistence_state(generation)
 	if int((host.get_snapshot().get("activity", {}) as Dictionary).get("state", -1)) != ConvoyEscortActivity.State.IDLE and is_instance_valid(threat) and int(threat.get_snapshot().get("generation", -1)) == generation:
 		threat_state = threat.capture_persistence_state()
-	elif int((host.get_snapshot().get("activity", {}) as Dictionary).get("state", -1)) == ConvoyEscortActivity.State.COMPLETED and _configured():
+	elif int((host.get_snapshot().get("activity", {}) as Dictionary).get("state", -1)) in [ConvoyEscortActivity.State.COMPLETED, ConvoyEscortActivity.State.FAILED] and _configured():
 		var record := _store.get_snapshot().get(String(_slot_id), {}) as Dictionary
 		var activities := record.get("activities", []) as Array
 		if activities.size() == 1 and int((activities[0] as Dictionary).get("generation", -1)) == generation:
@@ -334,6 +336,12 @@ func _validate_transition(existing: Dictionary, candidate: Dictionary, existing_
 				and int(candidate_host.entity_generation) == int(previous_host.entity_generation) \
 				and str(existing.escort_ship_id) == str(candidate.escort_ship_id):
 			return _result(true, &"convoy_reset_saved")
+		if int(previous_activity.state) in [ConvoyEscortActivity.State.ACTIVE, ConvoyEscortActivity.State.FAILED] \
+				and not existing_activity.reward_requested and not existing_activity.reward_granted \
+				and int(next_activity.state) == ConvoyEscortActivity.State.IDLE \
+				and int(candidate_host.entity_generation) == int(previous_host.entity_generation) \
+				and str(existing.escort_ship_id) == str(candidate.escort_ship_id):
+			return _result(true, &"convoy_reset_saved")
 		if int(previous_activity.state) == ConvoyEscortActivity.State.IDLE \
 				and int(next_activity.state) == ConvoyEscortActivity.State.ACTIVE \
 				and int(candidate_host.entity_generation) == int(previous_host.entity_generation) + 1:
@@ -354,8 +362,8 @@ func _validate_transition(existing: Dictionary, candidate: Dictionary, existing_
 	var new_activity := new_host.activity_state as Dictionary
 	if new_generation < old_generation:
 		return _result(false, &"stale_convoy_session")
-	if int(old_activity.get("state", -1)) == ConvoyEscortActivity.State.COMPLETED \
-			and int(new_activity.get("state", -1)) != ConvoyEscortActivity.State.COMPLETED:
+	if int(old_activity.get("state", -1)) in [ConvoyEscortActivity.State.COMPLETED, ConvoyEscortActivity.State.FAILED] \
+			and int(new_activity.get("state", -1)) != int(old_activity.state):
 		return _result(false, &"unproven_convoy_state")
 	if new_generation != old_generation:
 		return _result(false, &"unproven_convoy_generation")

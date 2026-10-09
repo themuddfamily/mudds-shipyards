@@ -374,11 +374,12 @@ func _run() -> void:
 		await _retire_game(corrupt_game)
 
 	await _exercise_threat_save_restore(filesystem)
-	await _test_terminal_convoy_reward_restart()
+	var paid_profile := await _test_terminal_convoy_reward_restart()
+	await _test_failed_convoy_reset_restart(paid_profile)
 	_finish()
 
 
-func _test_terminal_convoy_reward_restart() -> void:
+func _test_terminal_convoy_reward_restart() -> String:
 	var path := "user://convoy_reward_interruption_%d.json" % Time.get_ticks_usec()
 	var filesystem := InterruptedConvoyRewardFilesystem.new()
 	var first_store := Store.new(path, filesystem) as UserDataStore
@@ -587,21 +588,308 @@ func _test_terminal_convoy_reward_restart() -> void:
 	actual_paid_terminal = (fifth_store.get_snapshot()[String(SLOT)] as Dictionary).duplicate(true)
 	await _retire_game(fifth)
 	# Labelled legacy wire compatibility derives solely from the genuine terminal.
-	var legacy_store := Store.new(path) as UserDataStore
+	var legacy_path := path + "_legacy"
+	var legacy_store := Store.new(legacy_path) as UserDataStore
 	legacy_store.load()
-	var legacy_payload := legacy_store.get_snapshot()
+	var legacy_payload := fifth_store.get_snapshot()
 	var legacy_record := actual_paid_terminal.duplicate(true)
 	legacy_record.activities[0].reward_requested = false
 	legacy_record.activities[0].reward_granted = false
 	legacy_payload[String(SLOT)] = legacy_record
 	var legacy_saved := legacy_store.commit(legacy_payload, legacy_store.get_generation(), "legacy-convoy-wire-fixture")
-	var legacy := await _make_game(Store.new(path))
+	var legacy := await _make_game(Store.new(legacy_path))
 	legacy.call("_on_cinder_convoy_safely_arrived", legacy.cinder_convoy_host.get_snapshot())
 	_check(bool(legacy_saved.accepted) and legacy.get_active_activity_snapshot().get("state_id") == &"completed"
 		and _convoy_receipts(legacy) == 3 and not bool(legacy.call("_has_pending_cinder_convoy_reward"))
 		and not bool((legacy_store.get_snapshot()[String(SLOT)].activities[0] as Dictionary).reward_requested),
 		"legacy false/false terminal remains explicitly ambiguous and receives no inferred credit")
 	await _retire_game(legacy)
+	return path
+
+
+func _test_failed_convoy_reset_restart(path: String) -> void:
+	var filesystem := InterruptedConvoyRewardFilesystem.new()
+	filesystem.interrupt_rewards = false
+	var store := Store.new(path, filesystem) as UserDataStore
+	var first := await _make_game(store)
+	first.set_physics_process(false)
+	var craft := first.get_flyable_ships()[1] as HeroShip
+	craft.set_piloted(true)
+	first.active_ship = craft
+	first.set("_piloting", true)
+	first.set("_sortie_departed_berth", true)
+	first.phase = GameFlow.Phase.FREE_FLIGHT
+	craft.global_position = GameFlow.CINDER_CONVOY_ACTIVATION_CENTER + Vector3(4.01, 0.0, 0.0)
+	first.call("_physics_process", 0.1)
+	var streamed := await _wait_until(func() -> bool:
+		return is_instance_valid(first.cinder_streaming_bootstrap.get_loaded_instance()), 20)
+	craft.global_position = GameFlow.CINDER_CONVOY_ACTIVATION_CENTER
+	var previous_generation := first.cinder_convoy_host.get_generation()
+	var paid_reset := first.reset_active_activity()
+	var started := first.request_activity_start(GameFlow.CINDER_CONVOY_ACTIVITY_ID)
+	for _tick in 2:
+		craft.global_position = (first.cinder_convoy_host.get_snapshot().entity_position as Vector3) + GameFlow.CINDER_CONVOY_ESCORT_LANE_OFFSET
+		first.call("_physics_process", 0.25)
+	# The existing public failure seam reports the current tender lost, as on
+	# pilot departure/return. It does not author a state or activity generation.
+	var failed := first.fail_active_activity(&"returned_to_shipyard")
+	var failed_generation := first.cinder_convoy_host.get_generation()
+	var failed_epoch := int(first.cinder_convoy_host.get_snapshot().entity_generation)
+	var failed_snapshot := first.cinder_convoy_host.get_snapshot().activity as Dictionary
+	_check(streamed and paid_reset and bool(started.accepted) and failed
+		and failed_generation > previous_generation and _convoy_receipts(first) == 3
+		and failed_snapshot.state_id == &"failed"
+		and int(failed_snapshot.terminal_result) == ConvoyEscortActivity.TerminalResult.CONVOY_LOST,
+		"after an actual paid convoy, the next live Main run ends through its ordinary loss authority without reward")
+	var original_host := first.cinder_convoy_host
+	var original_state := original_host.capture_persistence_state()
+	var original_payload := store.get_snapshot()
+	var reset_signals := _new_signal_counts()
+	_connect_host_signal_counts(original_host, reset_signals)
+	filesystem.stopped = true
+	_check(not first.reset_active_activity() and first.cinder_convoy_host == original_host
+		and original_host.capture_persistence_state() == original_state
+		and store.get_snapshot() == original_payload and _signal_total(reset_signals) == 0,
+		"a rejected failed-run reset preserves the exact live owner, fields, disk, and events")
+	filesystem.stopped = false
+	var reset := first.reset_active_activity()
+	var idle_generation := first.cinder_convoy_host.get_generation()
+	_check(reset and first.cinder_convoy_host.get_snapshot().activity.state_id == &"idle"
+		and idle_generation == failed_generation + 1,
+		"ordinary failed-run reset is accepted and derives its next typed generation")
+	var reset_record := store.get_snapshot().get(String(SLOT), {}) as Dictionary
+	var activities := reset_record.get("activities", []) as Array
+	_check(activities.size() == 1 and int((activities[0] as Dictionary).get("state", -1)) == ConvoyEscortActivity.State.IDLE
+		and int((activities[0] as Dictionary).get("generation", -1)) == idle_generation,
+		"accepted failed-run reset retains its exact IDLE generation on real disk")
+	await _retire_game(first)
+	var fresh := await _make_game(Store.new(path, filesystem))
+	fresh.set_physics_process(false)
+	var adopted: bool = fresh.get_active_activity_snapshot().get("state_id") == &"idle" \
+		and fresh.cinder_convoy_host.get_generation() == idle_generation \
+		and int(fresh.cinder_convoy_host.get_snapshot().entity_generation) == failed_epoch
+	_check(adopted and _convoy_receipts(fresh) == 3
+		and not bool(fresh.cinder_convoy_threat.get_snapshot().get("active", true)),
+		"fresh Main adopts the failed-run reset IDLE generation and entity epoch without combat or inferred debt")
+	if adopted:
+		var next_craft := fresh.get_flyable_ships()[1] as HeroShip
+		next_craft.set_piloted(true)
+		fresh.active_ship = next_craft
+		fresh.set("_piloting", true)
+		fresh.set("_sortie_departed_berth", true)
+		fresh.phase = GameFlow.Phase.FREE_FLIGHT
+		next_craft.global_position = GameFlow.CINDER_CONVOY_ACTIVATION_CENTER + Vector3(4.01, 0.0, 0.0)
+		fresh.call("_physics_process", 0.1)
+		var stream_ready := await _wait_until(func() -> bool:
+			return is_instance_valid(fresh.cinder_streaming_bootstrap.get_loaded_instance()), 20)
+		next_craft.global_position = GameFlow.CINDER_CONVOY_ACTIVATION_CENTER
+		var next_start := fresh.request_activity_start(GameFlow.CINDER_CONVOY_ACTIVITY_ID)
+		var host := fresh.cinder_convoy_host as CinderConvoyEscortHost
+		for _tick in 14:
+			next_craft.global_position = (host.get_snapshot().entity_position as Vector3) + GameFlow.CINDER_CONVOY_ESCORT_LANE_OFFSET
+			fresh.call("_physics_process", 0.25)
+			await physics_frame
+		var attacker := fresh.cinder_convoy_threat.get_attacker()
+		next_craft.global_position = attacker.global_position + Vector3(0.0, 0.0, 12.0)
+		await physics_frame
+		var intercepted := fresh.get_combat_authority().submit_hitscan(next_craft,
+			GameFlow.RANGE_WEAPON_ID, next_craft.global_position, attacker.global_position - next_craft.global_position)
+		var budget := 60
+		while budget > 0 and host.get_snapshot().activity.state_id == &"active":
+			next_craft.global_position = (host.get_snapshot().entity_position as Vector3) + GameFlow.CINDER_CONVOY_ESCORT_LANE_OFFSET
+			fresh.call("_physics_process", 0.25)
+			budget -= 1
+		_check(stream_ready and bool(next_start.accepted) and bool(intercepted.get("destroyed", false))
+			and budget > 0 and host.get_snapshot().activity.state_id == &"completed"
+			and host.get_generation() == idle_generation + 1
+			and int(host.get_snapshot().entity_generation) == failed_epoch + 1
+			and _convoy_receipts(fresh) == 4,
+			"the genuine next convoy after failed reset and restart keeps its new identity and earns exactly one credit")
+	else:
+		_check(false, "the next genuine convoy cannot recover its saved failed-reset identity")
+	if adopted:
+		await _exercise_abort_actor_and_combat_reset(fresh, path, filesystem)
+	else:
+		await _retire_game(fresh)
+	await _exercise_failed_clock_witnesses()
+
+
+func _exercise_abort_actor_and_combat_reset(game: GameFlow, path: String, filesystem: InterruptedConvoyRewardFilesystem) -> void:
+	game.active_ship.global_position = GameFlow.CINDER_CONVOY_ACTIVATION_CENTER
+	var paid_reset := game.reset_active_activity()
+	var start := game.request_activity_start(GameFlow.CINDER_CONVOY_ACTIVITY_ID)
+	var host := game.cinder_convoy_host as CinderConvoyEscortHost
+	var active_generation := host.get_generation()
+	var epoch := int(host.get_snapshot().entity_generation)
+	var bolt_budget := 20
+	while bolt_budget > 0 and int(game.cinder_convoy_threat.get_snapshot().bolts_in_flight) == 0:
+		game.active_ship.global_position = (host.get_snapshot().entity_position as Vector3) + GameFlow.CINDER_CONVOY_ESCORT_LANE_OFFSET
+		game.call("_physics_process", 0.25)
+		await physics_frame
+		bolt_budget -= 1
+	var active_state := host.capture_persistence_state()
+	var active_threat := game.cinder_convoy_threat.get_snapshot()
+	var store := game.get("_runtime_settings_user_data_store") as UserDataStore
+	var payload := store.get_snapshot()
+	var signals := _new_signal_counts()
+	_connect_host_signal_counts(host, signals)
+	filesystem.stopped = true
+	_check(not game.reset_active_activity() and game.cinder_convoy_host == host
+		and host.capture_persistence_state() == active_state
+		and store.get_snapshot() == payload and _signal_total(signals) == 0
+		and bolt_budget > 0 and int(active_threat.bolts_in_flight) > 0
+		and game.cinder_convoy_threat.get_snapshot() == active_threat,
+		"a refused ACTIVE-abort reset write preserves its exact owner, state, disk, events, threat, and real bolts")
+	filesystem.stopped = false
+	# A normal public reset of a running convoy is the production abort surface.
+	# The actual reset candidate is committed before this owner publishes IDLE.
+	var aborted := game.reset_active_activity()
+	var reset_generation := host.get_generation()
+	_check(paid_reset and bool(start.accepted) and aborted
+		and active_state.activity_state.state == ConvoyEscortActivity.State.ACTIVE
+		and reset_generation == active_generation + 1
+		and int(host.get_snapshot().entity_generation) == epoch and _convoy_receipts(game) == 4
+		and not bool(game.cinder_convoy_threat.get_snapshot().active)
+		and int(game.cinder_convoy_threat.get_snapshot().bolts_in_flight) == 0,
+		"ordinary ACTIVE convoy abort/reset persists IDLE with a new model generation and unchanged entity epoch")
+	game.active_ship.global_position = GameFlow.CINDER_CONVOY_ACTIVATION_CENTER
+	var resumed := game.request_activity_start(GameFlow.CINDER_CONVOY_ACTIVITY_ID)
+	_check(bool(resumed.accepted) and host.get_generation() == reset_generation + 1
+		and bool(game.cinder_convoy_threat.get_snapshot().active)
+		and int(game.cinder_convoy_threat.get_snapshot().generation) == host.get_generation(),
+		"accepted ACTIVE abort immediately permits a genuine same-process new convoy and threat")
+	var resumed_loss := game.fail_active_activity(&"returned_to_shipyard")
+	var resumed_reset := game.reset_active_activity()
+	_check(resumed_loss and resumed_reset and host.get_snapshot().activity.state_id == &"idle"
+		and not bool(game.cinder_convoy_threat.get_snapshot().active) and _convoy_receipts(game) == 4,
+		"the new same-process convoy uses ordinary loss/reset without inherited debt")
+	reset_generation = host.get_generation()
+	epoch = int(host.get_snapshot().entity_generation)
+	await _retire_game(game)
+	var fresh := await _make_game(Store.new(path))
+	fresh.set_physics_process(false)
+	_check(fresh.cinder_convoy_host.get_generation() == reset_generation
+		and fresh.get_active_activity_snapshot().state_id == &"idle"
+		and int(fresh.cinder_convoy_host.get_snapshot().entity_generation) == epoch,
+		"fresh Main retains the accepted ACTIVE-abort reset identity")
+	var craft := await _prepare_convoy_craft(fresh)
+	var actor_start := fresh.request_activity_start(GameFlow.CINDER_CONVOY_ACTIVITY_ID)
+	host = fresh.cinder_convoy_host
+	craft.global_position = (host.get_snapshot().entity_position as Vector3) + GameFlow.CINDER_CONVOY_ESCORT_LANE_OFFSET
+	fresh.call("_physics_process", 0.25)
+	var retained_position := host.capture_persistence_state().entity_position as Dictionary
+	host.get_entity_presentation_root().free()
+	fresh.call("_physics_process", 0.25)
+	var actor_failed := host.capture_persistence_state()
+	var actor_record := (fresh.get("_runtime_settings_user_data_store") as UserDataStore).get_snapshot().get(String(SLOT), {}) as Dictionary
+	_check(bool(actor_start.accepted) and actor_failed.activity_state.state == ConvoyEscortActivity.State.FAILED
+		and actor_failed.entity_position == retained_position
+		and not is_instance_valid(host.get_entity_presentation_root())
+		and actor_record.activities.size() == 1 and int(actor_record.activities[0].state) == ConvoyEscortActivity.State.FAILED,
+		"actual tender actor removal persists loss from its retained last position without respawning")
+	var actor_generation := host.get_generation()
+	var actor_reset := fresh.reset_active_activity()
+	_check(actor_reset and host.get_generation() == actor_generation + 1
+		and is_instance_valid(host.get_entity_presentation_root()) and host.get_snapshot().activity.state_id == &"idle",
+		"only a committed ordinary actor-loss reset recreates the tender and retains generation")
+	var combat_start := fresh.request_activity_start(GameFlow.CINDER_CONVOY_ACTIVITY_ID)
+	var budget := 100
+	while budget > 0 and host.get_snapshot().activity.state_id == &"active":
+		craft.global_position = (host.get_snapshot().entity_position as Vector3) + GameFlow.CINDER_CONVOY_ESCORT_LANE_OFFSET
+		fresh.call("_physics_process", 0.25)
+		await physics_frame
+		budget -= 1
+	var threat := fresh.cinder_convoy_threat.capture_persistence_state()
+	var combat_record := (fresh.get("_runtime_settings_user_data_store") as UserDataStore).get_snapshot().get(String(SLOT), {}) as Dictionary
+	_check(bool(combat_start.accepted) and budget > 0 and host.get_snapshot().activity.state_id == &"failed"
+		and float(threat.tender_health) == 0.0 and int(threat.shots_fired) > 0
+		and combat_record.activities.size() == 1 and int(combat_record.activities[0].state) == ConvoyEscortActivity.State.FAILED
+		and float(combat_record.activities[0].progress.convoy_session_state.threat_state.tender_health) == 0.0,
+		"actual hostile bolts destroy the tender and persist its unmodified zero-health terminal threat")
+	var combat_generation := host.get_generation()
+	var combat_epoch := int(host.get_snapshot().entity_generation)
+	await _retire_game(fresh)
+	var final_game := await _make_game(Store.new(path))
+	final_game.set_physics_process(false)
+	_check(final_game.cinder_convoy_host.get_generation() == combat_generation
+		and final_game.get_active_activity_snapshot().state_id == &"failed"
+		and not bool(final_game.cinder_convoy_threat.get_snapshot().active) and _convoy_receipts(final_game) == 4,
+		"fresh Main restores actual combat loss inertly with no reward entitlement")
+	var combat_reset := final_game.reset_active_activity()
+	var combat_idle_generation := final_game.cinder_convoy_host.get_generation()
+	await _retire_game(final_game)
+	var next_game := await _make_game(Store.new(path))
+	next_game.set_physics_process(false)
+	_check(combat_reset and next_game.get_active_activity_snapshot().state_id == &"idle"
+		and next_game.cinder_convoy_host.get_generation() == combat_idle_generation
+		and combat_idle_generation == combat_generation + 1
+		and int(next_game.cinder_convoy_host.get_snapshot().entity_generation) == combat_epoch,
+		"combat-loss reset survives another fresh Main with exact IDLE generation and epoch")
+	var next_craft := await _prepare_convoy_craft(next_game)
+	var next_start := next_game.request_activity_start(GameFlow.CINDER_CONVOY_ACTIVITY_ID)
+	var next_host := next_game.cinder_convoy_host as CinderConvoyEscortHost
+	for _tick in 14:
+		next_craft.global_position = (next_host.get_snapshot().entity_position as Vector3) + GameFlow.CINDER_CONVOY_ESCORT_LANE_OFFSET
+		next_game.call("_physics_process", 0.25)
+		await physics_frame
+	var attacker := next_game.cinder_convoy_threat.get_attacker()
+	next_craft.global_position = attacker.global_position + Vector3(0.0, 0.0, 12.0)
+	await physics_frame
+	var intercepted := next_game.get_combat_authority().submit_hitscan(next_craft,
+		GameFlow.RANGE_WEAPON_ID, next_craft.global_position, attacker.global_position - next_craft.global_position)
+	budget = 60
+	while budget > 0 and next_host.get_snapshot().activity.state_id == &"active":
+		next_craft.global_position = (next_host.get_snapshot().entity_position as Vector3) + GameFlow.CINDER_CONVOY_ESCORT_LANE_OFFSET
+		next_game.call("_physics_process", 0.25)
+		budget -= 1
+	_check(bool(next_start.accepted) and bool(intercepted.get("destroyed", false)) and budget > 0
+		and next_host.get_snapshot().activity.state_id == &"completed"
+		and next_host.get_generation() == combat_idle_generation + 1
+		and int(next_host.get_snapshot().entity_generation) == combat_epoch + 1
+		and _convoy_receipts(next_game) == 5,
+		"after combat-loss reset and fresh Main the actual next convoy earns its fifth distinct credit")
+	await _retire_game(next_game)
+
+
+func _prepare_convoy_craft(game: GameFlow) -> HeroShip:
+	var craft := game.get_flyable_ships()[1] as HeroShip
+	craft.set_piloted(true)
+	game.active_ship = craft
+	game.set("_piloting", true)
+	game.set("_sortie_departed_berth", true)
+	game.phase = GameFlow.Phase.FREE_FLIGHT
+	craft.global_position = GameFlow.CINDER_CONVOY_ACTIVATION_CENTER + Vector3(4.01, 0.0, 0.0)
+	game.call("_physics_process", 0.1)
+	await _wait_until(func() -> bool:
+		return is_instance_valid(game.cinder_streaming_bootstrap.get_loaded_instance()), 20)
+	craft.global_position = GameFlow.CINDER_CONVOY_ACTIVATION_CENTER
+	return craft
+
+
+func _exercise_failed_clock_witnesses() -> void:
+	for scenario in ["reported", "separation", "timeout", "separation_after_tick", "timeout_after_tick"]:
+		var host := CinderConvoyEscortHost.new()
+		root.add_child(host)
+		host.start(0)
+		var generation := host.get_generation()
+		if scenario.ends_with("after_tick"):
+			host.advance_physics(0.25, CinderConvoyEscortHost.ROUTE.get_checkpoint_position(0), generation)
+		if scenario == "reported":
+			host.report_convoy_lost(generation)
+		elif scenario.begins_with("separation"):
+			host.advance_physics(301.0, Vector3(10000.0, 0.0, 0.0), generation)
+		else:
+			host.advance_physics(301.0, (host.get_snapshot().entity_position as Vector3), generation)
+		var state := host.capture_persistence_state()
+		var validated := host.validate_persistence_state(state)
+		var restored := CinderConvoyEscortHost.new()
+		root.add_child(restored)
+		var adopted := restored.restore_persistence_state(state, 0)
+		_check(bool(validated.accepted) and bool(adopted.accepted)
+			and restored.capture_persistence_state() == state,
+			"exact actual terminal sample/clock witness restores without mutation: %s" % scenario)
+		restored.free()
+		host.free()
 
 
 func _total_receipts(game: GameFlow) -> int:

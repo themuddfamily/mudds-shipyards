@@ -2507,7 +2507,7 @@ func save_cinder_convoy_session() -> Dictionary:
 	var activity := cinder_convoy_host.get_snapshot().get("activity", {}) as Dictionary
 	if int(activity.get("generation", 0)) < 1:
 		return {"accepted": true, "reason": &"convoy_session_not_started"}
-	if int(activity.get("state", -1)) not in [ConvoyEscortActivity.State.ACTIVE, ConvoyEscortActivity.State.COMPLETED, ConvoyEscortActivity.State.IDLE]:
+	if int(activity.get("state", -1)) not in [ConvoyEscortActivity.State.ACTIVE, ConvoyEscortActivity.State.COMPLETED, ConvoyEscortActivity.State.IDLE, ConvoyEscortActivity.State.FAILED]:
 		return {"accepted": false, "reason": &"convoy_session_terminal"}
 	var escort_ship_id := _cinder_convoy_persistence_ship_id()
 	if escort_ship_id.is_empty():
@@ -2596,7 +2596,7 @@ func get_cinder_convoy_session_persistence_report() -> Dictionary:
 func _cinder_convoy_persistence_ship_id() -> StringName:
 	# Terminal saves retain their proven escort identity without rebind/movement authority.
 	if _cinder_convoy_runtime_rebind_pending or (is_instance_valid(cinder_convoy_host) \
-			and int((cinder_convoy_host.get_snapshot().get("activity", {}) as Dictionary).get("state", -1)) in [ConvoyEscortActivity.State.COMPLETED, ConvoyEscortActivity.State.IDLE]):
+			and int((cinder_convoy_host.get_snapshot().get("activity", {}) as Dictionary).get("state", -1)) in [ConvoyEscortActivity.State.COMPLETED, ConvoyEscortActivity.State.IDLE, ConvoyEscortActivity.State.FAILED]):
 		return _cinder_convoy_restored_ship_id
 	if not is_instance_valid(active_ship) or not active_ship.has_method(&"get_ship_id"):
 		return &""
@@ -15651,13 +15651,7 @@ func reset_active_activity() -> bool:
 		ACTIVITY_KIND_CONVOY_ESCORT:
 			if int((cinder_convoy_host.get_snapshot().get("activity", {}) as Dictionary).get("state", -1)) == ConvoyEscortActivity.State.IDLE:
 				return false
-			if int((cinder_convoy_host.get_snapshot().get("activity", {}) as Dictionary).get("state", -1)) == ConvoyEscortActivity.State.COMPLETED:
-				reset = cinder_convoy_host.reset_with_persistence(cinder_convoy_host.get_generation(), _save_cinder_convoy_reset_candidate)
-			else:
-				var retired := _retire_cinder_convoy_session()
-				if not bool(retired.get("accepted", false)):
-					return false
-				reset = cinder_convoy_host.reset(cinder_convoy_host.get_generation())
+			reset = cinder_convoy_host.reset_with_persistence(cinder_convoy_host.get_generation(), _save_cinder_convoy_reset_candidate)
 		_:
 			reset = cinder_race_session.reset(
 				cinder_race_session.get_session_generation()
@@ -15669,6 +15663,8 @@ func reset_active_activity() -> bool:
 			_activity_selection_locked = false
 			_cinder_family_reset_selection = true
 		if _selected_activity_kind == ACTIVITY_KIND_CONVOY_ESCORT:
+			if is_instance_valid(cinder_convoy_threat):
+				cinder_convoy_threat.retire(cinder_convoy_host.get_generation() - 1)
 			_convoy_stream_instance_id = 0
 			_convoy_stream_generation = -1
 			_convoy_active_ship_instance_id = 0
@@ -16597,11 +16593,15 @@ func _on_cinder_convoy_safely_arrived(snapshot: Dictionary) -> void:
 
 
 func _on_cinder_convoy_failed(snapshot: Dictionary) -> void:
+	var activity := snapshot.get("activity", {}) as Dictionary
+	if not is_instance_valid(cinder_convoy_host) \
+			or int(activity.get("generation", -1)) != cinder_convoy_host.get_generation() \
+			or int((cinder_convoy_host.get_snapshot().get("activity", {}) as Dictionary).get("state", -1)) != ConvoyEscortActivity.State.FAILED:
+		return
+	save_cinder_convoy_session()
 	if is_instance_valid(cinder_convoy_threat):
-		cinder_convoy_threat.retire(int((snapshot.get("activity", {}) as Dictionary).get("generation", 0)))
-	_retire_cinder_convoy_session()
+		cinder_convoy_threat.retire(int(activity.get("generation", 0)))
 	if _convoy_terminal_reason.is_empty():
-		var activity := snapshot.get("activity", {}) as Dictionary
 		_convoy_terminal_reason = StringName(activity.get("terminal_reason", &"convoy_lost"))
 	if is_instance_valid(hud):
 		hud.toast(

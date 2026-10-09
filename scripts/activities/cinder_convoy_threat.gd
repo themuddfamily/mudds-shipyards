@@ -238,6 +238,16 @@ static func pristine_persistence_state(generation: int) -> Dictionary:
 
 
 static func validate_persistence_state(candidate: Variant, expected_generation: int) -> bool:
+	return _validate_persistence_fields(candidate, expected_generation, false)
+
+
+## A lost terminal owner can retain the tender's actual destroyed health.
+## This does not admit that record to live combat restoration.
+static func validate_lost_terminal_persistence_state(candidate: Variant, expected_generation: int) -> bool:
+	return _validate_persistence_fields(candidate, expected_generation, true)
+
+
+static func _validate_persistence_fields(candidate: Variant, expected_generation: int, allow_destroyed_tender: bool) -> bool:
 	if not candidate is Dictionary:
 		return false
 	var saved := candidate as Dictionary
@@ -254,7 +264,7 @@ static func validate_persistence_state(candidate: Variant, expected_generation: 
 	var attacker_health := float(saved.attacker_health)
 	var tender_health := float(saved.tender_health)
 	return attacker_health >= 0.0 and attacker_health <= 35.0 \
-		and tender_health > 0.0 and tender_health <= 75.0 \
+		and (tender_health > 0.0 or (allow_destroyed_tender and tender_health == 0.0)) and tender_health <= 75.0 \
 		and float(saved.attack_clock) >= -FIRST_ATTACK_DELAY \
 		and float(saved.attack_clock) <= 90.0 \
 		and int(saved.shots_fired) >= 0 and int(saved.shots_fired) <= MAX_PERSISTED_COUNTER \

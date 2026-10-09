@@ -333,8 +333,8 @@ func reset_with_persistence(expected_generation: int, persist_reset: Callable) -
 	var rejection := _common_mutation_rejection(expected_generation)
 	if not rejection.is_empty():
 		return _finish(false, rejection)
-	if _activity.get_state() != ConvoyEscortActivity.State.COMPLETED:
-		return _finish(false, &"completed_convoy_reset_required")
+	if _activity.get_state() not in [ConvoyEscortActivity.State.ACTIVE, ConvoyEscortActivity.State.COMPLETED, ConvoyEscortActivity.State.FAILED]:
+		return _finish(false, &"convoy_reset_state_unavailable")
 	var candidate := CinderConvoyEscortHost.new(_movement_speed,
 		_escort_proximity_radius, _maximum_separation_seconds, _timeout_seconds)
 	candidate.visible = false
@@ -411,7 +411,7 @@ func capture_persistence_state() -> Dictionary:
 		"entity_generation": _entity_generation,
 		"entity_status": _entity_status,
 		"entity_position": _encode_vector(
-			_convoy_entity.position if is_instance_valid(_convoy_entity) else Vector3.ZERO
+			_convoy_entity.position if is_instance_valid(_convoy_entity) else _last_entity_position
 		),
 		"last_entity_position": _encode_vector(_last_entity_position),
 		"next_route_index": _next_route_index,
@@ -430,7 +430,10 @@ func capture_persistence_state() -> Dictionary:
 
 func validate_persistence_state(candidate: Variant) -> Dictionary:
 	if not candidate is Dictionary or not _built \
-			or not is_instance_valid(_activity) or not is_instance_valid(_convoy_entity):
+			or not is_instance_valid(_activity):
+		return _persistence_result(false, &"malformed_convoy_host_state")
+	if not is_instance_valid(_convoy_entity) and (_activity.get_state() != ConvoyEscortActivity.State.FAILED \
+			or int(_activity.get_snapshot().get("terminal_result", -1)) != ConvoyEscortActivity.TerminalResult.CONVOY_LOST):
 		return _persistence_result(false, &"malformed_convoy_host_state")
 	var saved := candidate as Dictionary
 	if saved.size() != 23 \
@@ -470,6 +473,8 @@ func validate_persistence_state(candidate: Variant) -> Dictionary:
 	if not bool(activity_validation.get("accepted", false)):
 		return activity_validation
 	var completed := int(activity_state.get("state", -1)) == ConvoyEscortActivity.State.COMPLETED
+	var failed := int(activity_state.get("state", -1)) == ConvoyEscortActivity.State.FAILED
+	var reported_loss := failed and str(activity_state.get("terminal_reason", "")) == "convoy_reported_lost"
 	var entity_generation := int(saved.entity_generation)
 	var next_route_index := int(saved.next_route_index)
 	var movement_distance := float(saved.movement_distance)
@@ -485,6 +490,13 @@ func validate_persistence_state(candidate: Variant) -> Dictionary:
 	)
 	var has_sample := bool(saved.has_escort_sample)
 	var activity_sample_count := int(activity_state.get("sample_count", -1))
+	# An immediate loss submits the entity itself as the escort fallback without
+	# creating a host escort observation. This is an exact terminal-only witness.
+	var initial_loss := reported_loss and physics_ticks == 0 and not has_sample \
+		and bool(activity_state.get("has_entity_sample", false)) \
+		and last_escort_position.is_zero_approx() \
+		and _decode_vector(activity_state.escort_position as Dictionary).is_equal_approx(entity_position) \
+		and is_zero_approx(float(activity_state.escort_distance))
 	if int(activity_state.get("state", -1)) == ConvoyEscortActivity.State.IDLE:
 		if entity_generation < 1 or entity_generation > MAX_PERSISTED_COUNTER \
 				or int(saved.entity_status) != ConvoyEscortActivity.EntityStatus.ACTIVE \
@@ -497,7 +509,7 @@ func validate_persistence_state(candidate: Variant) -> Dictionary:
 		return _persistence_result(true, &"convoy_idle_host_state_valid")
 	if entity_generation < 1 \
 			or entity_generation > MAX_PERSISTED_COUNTER \
-			or int(saved.entity_status) != ConvoyEscortActivity.EntityStatus.ACTIVE \
+			or int(saved.entity_status) != (ConvoyEscortActivity.EntityStatus.LOST if failed and int(activity_state.terminal_result) == ConvoyEscortActivity.TerminalResult.CONVOY_LOST else ConvoyEscortActivity.EntityStatus.ACTIVE) \
 			or next_route_index < 0 or (not completed and next_route_index >= ROUTE.get_checkpoint_count()) \
 			or movement_distance < 0.0 \
 			or movement_backlog < 0.0 \
@@ -508,16 +520,32 @@ func validate_persistence_state(candidate: Variant) -> Dictionary:
 			or str(activity_state.get("convoy_id", "")) != str(CONVOY_ID) \
 			or next_route_index != int(activity_state.get("next_leg_index", -1)) \
 			or publication_count != activity_sample_count \
-			or has_sample \
-			!= bool(activity_state.get("has_entity_sample", false)):
+			or (has_sample != bool(activity_state.get("has_entity_sample", false)) and not initial_loss):
 		return _persistence_result(false, &"convoy_host_activity_mismatch")
 	if separation_elapsed > elapsed:
 		return _persistence_result(false, &"convoy_clock_progress_mismatch")
-	var expected_movement := _movement_speed * elapsed
+	var movement_elapsed := elapsed
+	if failed:
+		if publication_count != physics_ticks * 2 + 1:
+			return _persistence_result(false, &"convoy_failure_publication_mismatch")
+		if not reported_loss:
+			# The last opening sample precedes the failed clock. No movement or
+			# closing publication belongs to that final delta.
+			movement_elapsed = (movement_distance + movement_backlog) / _movement_speed
+			var final_delta := elapsed - movement_elapsed
+			if not is_finite(final_delta) or final_delta <= 0.0 or movement_elapsed >= _timeout_seconds:
+				return _persistence_result(false, &"convoy_failure_clock_mismatch")
+			if float(activity_state.escort_distance) > _escort_proximity_radius:
+				var previous_separation := separation_elapsed - final_delta
+				if previous_separation < 0.0 or previous_separation >= _maximum_separation_seconds \
+						or previous_separation > movement_elapsed:
+					return _persistence_result(false, &"convoy_failure_clock_mismatch")
+	var expected_movement := _movement_speed * movement_elapsed
 	if not is_finite(expected_movement) or not is_equal_approx(
 		movement_distance + movement_backlog, expected_movement
 	):
 		return _persistence_result(false, &"convoy_movement_progress_mismatch")
+	var initial_failure := failed and physics_ticks == 0
 	var route_replay := _route_replay_witness(
 		movement_distance,
 		entity_position,
@@ -526,9 +554,16 @@ func validate_persistence_state(candidate: Variant) -> Dictionary:
 		activity_state,
 		physics_ticks
 	)
-	if not bool(route_replay.get("accepted", false)):
+	if not initial_failure and not bool(route_replay.get("accepted", false)):
 		return _persistence_result(false, &"convoy_route_progress_mismatch")
-	if physics_ticks == 0:
+	if initial_failure:
+		if not is_zero_approx(movement_elapsed) or not is_zero_approx(movement_distance) \
+				or not is_zero_approx(movement_backlog) or publication_count != 1 \
+				or not entity_position.is_equal_approx(ROUTE.get_checkpoint_position(0)) \
+				or next_route_index != (0 if reported_loss else 1) \
+				or (reported_loss and not initial_loss) or (not reported_loss and not has_sample):
+			return _persistence_result(false, &"convoy_failure_opening_mismatch")
+	elif physics_ticks == 0:
 		if not is_zero_approx(elapsed) \
 				or not is_zero_approx(separation_elapsed) \
 				or not is_zero_approx(movement_distance) \
@@ -539,7 +574,7 @@ func validate_persistence_state(candidate: Variant) -> Dictionary:
 	else:
 		if elapsed <= 0.0 or movement_distance <= 0.0 or not has_sample \
 				or (publication_count != physics_ticks * 2 \
-				and (not completed or publication_count != physics_ticks * 2 + 1)):
+				and (not completed and not failed or publication_count != physics_ticks * 2 + 1)):
 			return _persistence_result(false, &"convoy_tick_progress_mismatch")
 	if movement_backlog > 0.0 and not _position_can_retain_movement_backlog(
 		entity_position, next_route_index
@@ -553,6 +588,8 @@ func validate_persistence_state(candidate: Variant) -> Dictionary:
 		):
 			return _persistence_result(false, &"convoy_sample_progress_mismatch")
 	elif not last_escort_position.is_zero_approx():
+		return _persistence_result(false, &"convoy_sample_progress_mismatch")
+	if initial_loss and not entity_position.is_equal_approx(_decode_vector(activity_state.convoy_position as Dictionary)):
 		return _persistence_result(false, &"convoy_sample_progress_mismatch")
 	return _persistence_result(true, &"convoy_host_state_valid")
 
@@ -581,7 +618,7 @@ func restore_persistence_state(candidate: Variant, expected_generation: int) -> 
 	if not bool(restored_activity.get("accepted", false)):
 		return restored_activity
 	_entity_generation = int(saved.entity_generation)
-	_entity_status = ConvoyEscortActivity.EntityStatus.ACTIVE
+	_entity_status = int(saved.entity_status)
 	_next_route_index = int(saved.next_route_index)
 	_movement_distance = float(saved.movement_distance)
 	_movement_backlog = float(saved.movement_backlog)
@@ -589,8 +626,8 @@ func restore_persistence_state(candidate: Variant, expected_generation: int) -> 
 	_sample_publication_count = int(saved.sample_publication_count)
 	_has_escort_sample = bool(saved.has_escort_sample)
 	_last_escort_position = _decode_vector(saved.last_escort_position as Dictionary)
-	_terminal_signal_generation = get_generation() if int((saved.activity_state as Dictionary).state) == ConvoyEscortActivity.State.COMPLETED else -1
-	_convoy_entity.visible = true
+	_terminal_signal_generation = get_generation() if int((saved.activity_state as Dictionary).state) in [ConvoyEscortActivity.State.COMPLETED, ConvoyEscortActivity.State.FAILED] else -1
+	_convoy_entity.visible = _entity_status == ConvoyEscortActivity.EntityStatus.ACTIVE
 	_set_entity_position(_decode_vector(saved.entity_position as Dictionary))
 	_orient_toward_route_index(_next_route_index)
 	_apply_visual_feedback()

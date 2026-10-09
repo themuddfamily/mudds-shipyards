@@ -481,20 +481,37 @@ func validate_persistence_state(candidate: Variant) -> Dictionary:
 			return _persistence_result(false, &"invalid_convoy_idle_state")
 		return _persistence_result(true, &"convoy_idle_state_valid")
 	var completed := int(saved.state) == State.COMPLETED
-	if int(saved.state) not in [State.ACTIVE, State.COMPLETED] \
+	var failed := int(saved.state) == State.FAILED
+	if int(saved.state) not in [State.ACTIVE, State.COMPLETED, State.FAILED] \
 			or generation < 1 or generation > MAX_PERSISTED_GENERATION \
-			or (not completed and (int(saved.terminal_result) != TerminalResult.NONE \
+			or (not completed and not failed and (int(saved.terminal_result) != TerminalResult.NONE \
 				or not str(saved.terminal_reason).is_empty())) \
 			or not WorldLocationDefinition._is_stable_id(str(saved.convoy_id)) \
 			or convoy_generation < 1 or convoy_generation > MAX_PERSISTED_GENERATION \
 			or next_leg_index < 0 or (not completed and next_leg_index >= _definition.get_checkpoint_count()) \
-			or elapsed < 0.0 or elapsed >= _timeout_seconds \
+			or elapsed < 0.0 or (not failed and elapsed >= _timeout_seconds) \
 			or separation_elapsed < 0.0 \
-			or separation_elapsed >= _maximum_separation_seconds \
+			or (not failed and separation_elapsed >= _maximum_separation_seconds) \
 			or separation_elapsed > elapsed \
-			or int(saved.convoy_status) != EntityStatus.ACTIVE \
+			or (not failed and int(saved.convoy_status) != EntityStatus.ACTIVE) \
 			or sample_count < 0 or sample_count > MAX_PERSISTED_GENERATION:
 		return _persistence_result(false, &"invalid_convoy_activity_state")
+	if failed:
+		var reported_loss := int(saved.terminal_result) == TerminalResult.CONVOY_LOST \
+			and str(saved.terminal_reason) == "convoy_reported_lost" \
+			and int(saved.convoy_status) == EntityStatus.LOST \
+			and elapsed < _timeout_seconds and separation_elapsed < _maximum_separation_seconds
+		var separation_loss := int(saved.terminal_result) == TerminalResult.CONVOY_LOST \
+			and str(saved.terminal_reason) == "escort_separation_exceeded" \
+			and int(saved.convoy_status) == EntityStatus.ACTIVE \
+			and separation_elapsed >= _maximum_separation_seconds \
+			and escort_distance > _escort_proximity_radius
+		var timed_out := int(saved.terminal_result) == TerminalResult.TIMEOUT \
+			and str(saved.terminal_reason) == "timeout" \
+			and int(saved.convoy_status) == EntityStatus.ACTIVE \
+			and elapsed >= _timeout_seconds and separation_elapsed < _maximum_separation_seconds
+		if not has_sample or sample_count < 1 or not (reported_loss or separation_loss or timed_out):
+			return _persistence_result(false, &"invalid_convoy_failure_state")
 	if completed:
 		if int(saved.terminal_result) != TerminalResult.SAFELY_ARRIVED \
 				or str(saved.terminal_reason) != "safely_arrived" \
@@ -550,7 +567,7 @@ func restore_persistence_state(candidate: Variant, expected_generation: int) -> 
 	_convoy_position = _decode_vector(saved.convoy_position as Dictionary)
 	_escort_position = _decode_vector(saved.escort_position as Dictionary)
 	_escort_distance = float(saved.escort_distance)
-	_last_entity_status = EntityStatus.ACTIVE
+	_last_entity_status = int(saved.convoy_status)
 	_sample_count = int(saved.sample_count)
 	return _persistence_result(true, &"convoy_activity_state_restored")
 
