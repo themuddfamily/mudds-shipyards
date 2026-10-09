@@ -696,29 +696,53 @@ func _use_bunk(
 func _retake_pilot_seat(game: GameFlow, player: PlayerController, craft: HeroShip) -> bool:
 	var report := craft.get_in_flight_cabin_report()
 	var stand := report.get("stand_transform", Transform3D.IDENTITY) as Transform3D
-	player.teleport_to(stand)
+	var connector := craft.get_node_or_null("WalkableInterior/FlightDeckConnector") as Node3D
+	if not is_instance_valid(connector):
+		return false
+	# The cabin stand faces aft toward the now-usable passenger chair. The
+	# retained hatch still lists this craft as boardable, so that alone cannot
+	# identify which owner a normal E press will reach. Walk forward through
+	# the actual flight-deck connector until the helm owns that interaction.
+	player.teleport_to(Transform3D(
+		Basis.looking_at(-craft.global_basis.z, craft.global_basis.y), stand.origin
+	))
 	for _stage_tick in 8:
 		await physics_frame
 		await process_frame
-	if game.boarding_candidate != craft:
-		# Turn on the spot toward the craft's own forward axis; the seat's
-		# boarding area is discovered by the same facing-weighted proximity rule
-		# the production cabin uses, and the stand pose is already inside it.
-		player.teleport_to(Transform3D(
-			Basis.looking_at(-craft.global_basis.z, craft.global_basis.y),
-			player.global_position
-		))
-		await _wait_until(func() -> bool: return game.boarding_candidate == craft, 1.0)
-	if game.boarding_candidate != craft:
-		return false
-	await _press_live_action(&"interact", 1)
-	return await _wait_until(
+	var connector_z := craft.to_local(connector.global_position).z
+	var reached_helm := await _walk_until(
+		&"move_forward",
 		func() -> bool: return (
-			player.is_seated() and craft.is_piloted()
+			craft.to_local(player.global_position).z <= connector_z
+			and player.is_on_floor() and player.is_control_enabled()
+			and game.boarding_candidate == craft
+			and not is_instance_valid(game.station_interaction_candidate)
+		),
+		LOCOMOTION_TICK_BUDGET
+	)
+	if not reached_helm:
+		return false
+	var selected_station := str(game.station_interaction_candidate.get_path()) if is_instance_valid(game.station_interaction_candidate) else ""
+	await _press_live_action(&"interact", 1)
+	var reseated := await _wait_until(
+		func() -> bool: return (
+			player.is_seated_at(craft.get_pilot_seat_anchor()) and craft.is_piloted()
+			and not player.is_station_seated() and not player.is_cabin_containment_active()
+			and game.get_solo_crew_seat_status().get("assignment", {}).is_empty()
 			and not bool(game.get("_transition_busy"))
 		),
 		3.0
 	)
+	if not reseated:
+		print("PHANTOM_RETAKE_OWNER_DIAGNOSTIC ", JSON.stringify({
+			"selected_station": selected_station, "phase": game.phase,
+			"local_player": str(craft.to_local(player.global_position)),
+			"seated_at_helm": player.is_seated_at(craft.get_pilot_seat_anchor()),
+			"station_seated": player.is_station_seated(), "piloted": craft.is_piloted(),
+			"transition_busy": bool(game.get("_transition_busy")),
+			"crew_assignment": game.get_solo_crew_seat_status().get("assignment", {}),
+		}))
+	return reseated
 
 
 ## Damage a parked craft to critical, confirm the audit can actually see its
