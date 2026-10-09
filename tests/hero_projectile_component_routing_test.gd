@@ -161,6 +161,7 @@ func _test_craft(
 			var applied := float(result.get("applied_damage", 0.0))
 			receipt_point_valid = receipt_point_valid \
 				and bool(result.get("damaged", false)) \
+				and result.get("target_entity") == craft \
 				and hit_position.is_finite() \
 				and _nearest_functional_component(report, craft.to_local(hit_position)) == target_id
 			exact_hull_spend = exact_hull_spend and is_equal_approx(
@@ -260,7 +261,12 @@ func _find_functional_ray(
 		)
 		query.exclude = [opponent.get_rid()]
 		var hit := space_state.intersect_ray(query)
-		if hit.get("collider") != craft:
+		# Walkable cabins own physical child skins. CombatResolver walks those
+		# ancestors to the same craft Damageable; the hit need not be its root
+		# body. Keep foreign colliders excluded and prove actual target ownership
+		# through the production receipt below.
+		var collider := hit.get("collider") as Node
+		if collider != craft and (collider == null or not craft.is_ancestor_of(collider)):
 			continue
 		var hit_position := hit.get("position", Vector3.INF) as Vector3
 		if hit_position.is_finite() \
