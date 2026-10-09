@@ -1,0 +1,18 @@
+Mudds Shipyards — network engineer checkpoint
+Source: 2205dc35f50b8b0e27005a5b4dc6fc274d46c3a2
+EXE SHA256: 27315f28a9d820a92208880cb589e9908df23fd9f5e6244804087ab83cd46c99
+EXE bytes: 177721600
+
+A connected crew member can board the Jovian, walk to its engineer chair, select a damaged component with ordinary remappable controls, perform a finite kit repair, stand and reseat. The host owns assignment and repair authority; stale claims and forged component requests are refused. Peer lifecycle checks cover migration and disconnect cleanup. Exported-package peer launch now loads the actual embedded game package for the orchestrator, host and client.
+
+Fresh clean-source import and safe Windows export both exit 0. Eight source and embedded-package focused fixtures pass, 479 assertions each: solo engineer 48, crew engineer 42, remote-body simulation 163, session UI 15, crew command 10, transformed intent 42, Halyard 64 and Bulwark 95. Fresh sequential source peer route passes 64 checks and PCK peer route passes 67 checks, both real host/client OS exits 0 and all recorded actors absent. All three PCK main-pack guards pass. Strict Linux/embedded-PCK startup exits 0 with exactly one parsed STARTUP_MENU_READY_OK. The embedded inventory has 1488 entries; AMD64 PE and executable hash verified. Source/import-cache/executable guards remain unchanged.
+
+Retained failure: the initial source peer run alongside focused fixture execution failed 64 checks / 4 orchestrator failures, including finite-repair stock checks; host/client both exited1. One fresh-profile sequential rerun of identical frozen source passed 64 checks / 0 failures, actual exits 0. The initial failure remains retained; concurrency causation is not established. The earlier 102e47f candidate's empty executable launch path and path-only negative-request failures remain separate retained evidence and do not qualify this artifact.
+
+Native Windows menu passed for these exact authorized bytes: real exported EXE exit 0, exactly one parsed readiness record, mouse free during load, no warnings or errors. Its private GUID/profile was removed. Root independent final CIM readback found the game and PowerShell parent PIDs absent and zero processes under the removed private root; Linux launcher and bridge also absent. Native graphical/network gameplay, native GPU/performance, human/controller/audio play, installed-game checks, signing and full-release qualification remain NOT_RUN. Xvfb/software renderer results qualify only their test environments. Root alone publishes after independent review.
+
+The checkpoint ZIP preserves this immutable initial note and the exact EXE. Publication and ZIP hashes are sidecar-only; root alone publishes.
+
+Published reviewed checkpoint in builds/windows/.
+ZIP SHA256: d63f2e97a176047056fea9c1880fe70f9f41ff2b4912dfd1dfe635163e891769
+The ZIP retains the immutable initial note; this sidecar identifies publication and the ZIP hash. Earlier empty-path failures concern the child project path. The retained stock-check failure remains disclosed without a causal claim. Native menu-only acceptance does not establish graphical/network gameplay or final-release readiness. New Bulwark multiplayer gunner work is excluded.
