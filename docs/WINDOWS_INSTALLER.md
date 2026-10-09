@@ -405,6 +405,67 @@ The installer is in `builds/windows/`, 86,498,195 bytes, SHA-256 `dda2f115bfe267
 
 This is silent packaging acceptance on the development machine for these two unsigned fixed-workflow installers. Interactive installation, installed corrupt-save recovery, clean-machine gameplay, trusted signing, hardware/human acceptance and later final-candidate installation remain open; the live full matrix is not qualified by an installer probe.
 
+## Installed in-world OS interruption probe
+
+Add `-InWorldRecovery` to the existing native verifier invocation to exercise
+only the target build after its successful upgrade. The optional step boots the
+installed executable with `--headless --audio-driver Dummy` and the packaged
+`--in-world-interruption-stage=arm|resume` entry. It uses Boot's loaded Main,
+not an external script override. Older and rollback payloads keep their normal
+menu checks.
+
+The activity case uses a fresh `<ProbeRoot>\in-world-profile`, separate from
+settings/tutorial fixtures and protected newer documents. After genuine convoy
+completion/payment and reset, the next active convoy must commit its exact
+host/threat/escort/generation/clock/progress boundary. The verifier kills that
+exact live process handle, records its actual Windows exit code and requires
+unchanged document bytes. A fresh process in the same profile must exit 0 with
+one recovery token, preserve that boundary, advance credits from 1 to 2 once
+despite retries, record one crash event and close both recovery marker owners.
+Engine/script/leak diagnostics fail; raw warning counts and log hashes remain
+in the existing schema 1 result.
+
+For independent cancellation, create `<ProbeRoot>\in-world-recovery.cancel`
+while this step runs, or pass an absolute unused `-InWorldCancelPath`. Polling
+then unwinds through cleanup of only the recorded process handles. The activity
+profile is removed after reaping; its logs and interrupted/recovered documents
+remain under ProbeRoot. The original verifier profile, marker and protected
+transaction chain remain available for backup/newer-data/rollback/uninstall
+checks. New-mode installer environment and Start Menu are isolated in the
+original private profile even when no recovery fixture was supplied.
+
+Without this option, existing 11-step cross-build and 15-step forced-startup
+recovery behavior remains unchanged. With the full existing recovery options,
+the new activity step makes 16. This is an executable acceptance capability;
+a pass requires actually running it against the installed target payload.
+It does not qualify normal controls, pilot-seat/world restoration, native GPU
+performance, interactive installation, signing or human gameplay.
+
+### Native installed result — 2026-10-09
+
+The new mode passes all 16 steps for actual `e7dedc2` → `01e6ec5` →
+`e7dedc2` installation, upgrade and rollback, exit 0 and cleanup PASS. The
+installed target EXE matches SHA-256
+`56495d6aa8723e5998c3f91396ed42606f6fcabee90d50026cbbece2b54fabc7`;
+the locally built unsigned installer matches
+`07bbb293c7d08a1869fcb85e5ec63e4efc731e176124686b2a44fbc9472bc265`.
+The actual in-world kill exits −1, its document bytes stay unchanged, and the
+fresh installed process exits 0 with the exact saved boundary, credits 1 → 2,
+one crash event and clean recovery markers. Both activity logs have zero
+engine/script/leak diagnostics and zero warnings. Their owned processes and
+parent are gone, and the separate activity profile is removed.
+
+Existing forced-startup recovery, settings/tutorial and backup recovery,
+unsupported-newer retention, locked replacement, rollback and uninstall also
+pass. A separate default invocation passes all 11 original steps. Seeded
+verifier profiles remain for inspection; installation, shortcuts and registry
+entries are removed. Actual results, raw logs and document witnesses remain in
+`/root/.cache/mudds-shipyards/roadmap-validation/installed-inworld-author-20261009/`
+under `default/` and `combined/`. This qualifies the installed headless activity
+probe for these payloads; normal controls, pilot/craft/seat/world restoration,
+native GPU behavior, interactive installation, signing and human review remain
+open.
+
 ## Still open
 
 - Trusted signing qualification: these checkpoint installer probes are unsigned

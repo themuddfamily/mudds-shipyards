@@ -20,6 +20,13 @@ ForceKillRecovery additionally kills three owned installed boots after their rea
 starting/running markers commit, observes the fourth boot's safe-start recommendation
 and crash journal, then requires menu readiness and orderly shutdown. It requires
 UserDataRecoveryFixture; it never fabricates interrupted markers or crash events.
+InWorldRecovery additionally exercises the target installed payload's ordinary
+Boot entry in a separate throwaway profile. It kills one owned process after
+actual durable convoy readiness, then restarts that profile to prove exact
+progress, one new receipt and its crash journal. InWorldCancelPath (default:
+ProbeRoot\in-world-recovery.cancel) provides an independent owned-child abort.
+The activity profile is removed; logs/documents remain in ProbeRoot. This does
+not qualify normal controls, pilot-seat/world restoration or native GPU work.
 Corrupt bytes and recovered settings/tutorial identity are checked; newer-schema
 primary, backup, pending and history bytes are hash checked;
 logs and corrupt witness remain available after uninstall. Application recovery
@@ -37,6 +44,8 @@ param(
     [string]$PreviousExpectedCommit,
     [string]$UserDataRecoveryFixture,
     [switch]$ForceKillRecovery,
+    [switch]$InWorldRecovery,
+    [string]$InWorldCancelPath,
     [int]$StartupTimeoutMs = 120000
 )
 $ErrorActionPreference = 'Stop'
@@ -51,8 +60,9 @@ $markerHash = $null
 $documentHashes = @{}
 $document = Join-Path $userData 'mudds_user_data.json'
 $checkRecovery = -not [string]::IsNullOrWhiteSpace($UserDataRecoveryFixture)
+$isolateInstaller = $checkRecovery -or $InWorldRecovery
 $realStartMenu = $startMenu
-if ($checkRecovery) { $startMenu = Join-Path $profileRoot 'AppData\Roaming\Microsoft\Windows\Start Menu\Programs\Mudds Shipyards' }
+if ($isolateInstaller) { $startMenu = Join-Path $profileRoot 'AppData\Roaming\Microsoft\Windows\Start Menu\Programs\Mudds Shipyards' }
 $ownsInstall = $false
 $crossBuild = -not [string]::IsNullOrWhiteSpace($PreviousInstaller)
 $steps = New-Object System.Collections.ArrayList
@@ -72,13 +82,14 @@ $result = [ordered]@{
     cleanup = [ordered]@{ status = 'NOT_RUN'; detail = $null }
     user_data_recovery = $(if ($checkRecovery) { 'REQUESTED' } else { 'NOT_RUN' })
     forced_kill_recovery = $(if ($ForceKillRecovery) { 'REQUESTED' } else { 'NOT_RUN' })
+    in_world_recovery = $(if ($InWorldRecovery) { 'REQUESTED' } else { 'NOT_RUN' })
     recovery_tested_commit = $(if ($checkRecovery) { $ExpectedCommit } else { $null })
     user_data_path = $userData
     status = 'FAIL'
 }
 function Save-Result {
     $result.steps = @($steps)
-    $json = $result | ConvertTo-Json -Depth 6
+    $json = $result | ConvertTo-Json -Depth $(if ($InWorldRecovery) { 60 } else { 6 })
     [IO.File]::WriteAllText($ResultPath, $json + "`n")
 }
 function Step([string]$name, [scriptblock]$body) {
@@ -120,7 +131,7 @@ function Run-Silent([string]$file, [string]$arguments, [int]$timeoutMs) {
     $info.Arguments = $arguments
     $info.UseShellExecute = $false
     $info.CreateNoWindow = $true
-    if ($checkRecovery) {
+    if ($checkRecovery -or $InWorldRecovery) {
         $info.EnvironmentVariables['APPDATA'] = (Join-Path $profileRoot 'AppData\Roaming')
         $info.EnvironmentVariables['LOCALAPPDATA'] = (Join-Path $profileRoot 'AppData\Local')
         $info.EnvironmentVariables['USERPROFILE'] = $profileRoot
@@ -195,7 +206,8 @@ function Run-Startup([string]$stage) {
     Assert-UserData
     return "exit=0 sentinel=True wall_ms=$($timer.ElapsedMilliseconds)"
 }
-function New-OwnedBootInfo([string]$log, [bool]$startupCheck) {
+function New-OwnedBootInfo([string]$log, [bool]$startupCheck, [string]$ownedProfileRoot = '') {
+    if ([string]::IsNullOrEmpty($ownedProfileRoot)) { $ownedProfileRoot = $profileRoot }
     $info = New-Object System.Diagnostics.ProcessStartInfo
     $info.FileName = Join-Path $installDir 'MuddsShipyards.exe'
     $info.Arguments = '--headless --audio-driver Dummy --log-file "' + $log + '"'
@@ -203,11 +215,11 @@ function New-OwnedBootInfo([string]$log, [bool]$startupCheck) {
     $info.WorkingDirectory = $installDir
     $info.UseShellExecute = $false
     $info.CreateNoWindow = $true
-    $info.EnvironmentVariables['APPDATA'] = (Join-Path $profileRoot 'AppData\Roaming')
-    $info.EnvironmentVariables['LOCALAPPDATA'] = (Join-Path $profileRoot 'AppData\Local')
-    $info.EnvironmentVariables['USERPROFILE'] = $profileRoot
-    $info.EnvironmentVariables['TEMP'] = (Join-Path $profileRoot 'Temp')
-    $info.EnvironmentVariables['TMP'] = (Join-Path $profileRoot 'Temp')
+    $info.EnvironmentVariables['APPDATA'] = (Join-Path $ownedProfileRoot 'AppData\Roaming')
+    $info.EnvironmentVariables['LOCALAPPDATA'] = (Join-Path $ownedProfileRoot 'AppData\Local')
+    $info.EnvironmentVariables['USERPROFILE'] = $ownedProfileRoot
+    $info.EnvironmentVariables['TEMP'] = (Join-Path $ownedProfileRoot 'Temp')
+    $info.EnvironmentVariables['TMP'] = (Join-Path $ownedProfileRoot 'Temp')
     return $info
 }
 function Seed-ForcedKillFixture {
@@ -374,7 +386,167 @@ function Cleanup-OwnedInstallation {
     return Assert-Uninstalled
 }
 
+function Read-InWorldLog([string]$log) {
+    $stream = [IO.File]::Open($log, [IO.FileMode]::Open, [IO.FileAccess]::Read, [IO.FileShare]::ReadWrite)
+    $reader = New-Object System.IO.StreamReader($stream)
+    try { return $reader.ReadToEnd() } finally { $reader.Dispose() }
+}
+function Read-InWorldToken([string]$log,[string]$name) {
+    if (-not (Test-Path -LiteralPath $log)) { return $null }
+    $text = (Read-InWorldLog $log)
+    # Do not interpret a partially flushed last line as a completed handshake.
+    $lines = @($text -split '\r?\n')
+    if ($lines.Count -lt 2) { return $null }
+    $matches = @($lines[0..($lines.Count-2)] | Where-Object { $_.StartsWith($name + ': ') })
+    if ($matches.Count -gt 1) { throw "duplicate $name" }
+    if ($matches.Count -eq 1) { return ($matches[0].Substring($name.Length+2) | ConvertFrom-Json) }
+    return $null
+}
+function Sorted-InWorldValue($value) {
+    if ($null -eq $value) { return $null }
+    if ($value -is [System.Management.Automation.PSCustomObject]) {
+        $ordered = [ordered]@{}
+        foreach ($property in @($value.PSObject.Properties | Sort-Object Name)) { $ordered[$property.Name] = Sorted-InWorldValue $property.Value }
+        return [pscustomobject]$ordered
+    }
+    if ($value -is [Array]) {
+        $items = @(); foreach ($item in $value) { $items += ,(Sorted-InWorldValue $item) }; return ,$items
+    }
+    return $value
+}
+function InWorld-Canonical($value) { return (Sorted-InWorldValue $value | ConvertTo-Json -Depth 60 -Compress) }
+function InWorld-LogCounts([string]$log) {
+    $text = (Read-InWorldLog $log)
+    return [ordered]@{
+        diagnostic_count=[regex]::Matches($text,'(?im)^\s*(?:SCRIPT\s+ERROR|ERROR:|FAIL:)|\b(?:FATAL ERROR|ObjectDB|Orphaned|Leaked)\b|Resource.*still in use').Count
+        warning_count=[regex]::Matches($text,'(?im)^\s*WARNING:').Count
+    }
+}
+function Check-InWorldCancel {
+    if (Test-Path -LiteralPath $InWorldCancelPath) { throw 'installed in-world probe cancelled through its independent abort file' }
+}
+function Stop-InWorldOwned($proc, $entry, [string]$termination) {
+    if (-not $proc.HasExited) {
+        $proc.Kill()
+        $entry.kill_called = $true
+        $entry.termination = $termination
+    }
+    if (-not $proc.WaitForExit(15000)) { throw 'owned in-world process did not reap after Kill' }
+}
+function Start-InWorldOwned([string]$stage, [string]$ownedProfile, $children) {
+    Check-InWorldCancel
+    $log = Join-Path $ProbeRoot ("in-world-$stage.log")
+    if (Test-Path -LiteralPath $log) { throw "in-world log already exists: $log" }
+    $info = New-OwnedBootInfo $log $false $ownedProfile
+    $info.Arguments += ' --in-world-interruption-stage=' + $stage
+    $info.EnvironmentVariables.Remove('DISPLAY')
+    $info.EnvironmentVariables.Remove('WAYLAND_DISPLAY')
+    $proc = [Diagnostics.Process]::Start($info)
+    # Cancellation is polled only outside successful spawn/handle registration.
+    [void]$children.Add([pscustomobject]@{Process=$proc; Entry=[ordered]@{
+        stage=$stage; pid=$proc.Id; arguments=$info.Arguments; log=$log; exit_code=$null; reaped=$false; kill_called=$false; termination=$null
+    }})
+    Write-Host ("OWNED_IN_WORLD_PID=$($proc.Id) stage=$stage")
+    return $proc
+}
+function Run-InWorldRecovery {
+    Assert-Installed $ExpectedExeSha256 $ExpectedCommit | Out-Null
+    Assert-UserData
+    $ownedProfile = Join-Path $ProbeRoot 'in-world-profile'
+    if (Test-Path -LiteralPath $ownedProfile) { throw 'in-world profile already exists; refusing to overwrite it' }
+    $probe = [ordered]@{status='FAIL'; parent_windows_pid=$PID; tested_commit=$ExpectedCommit; installed_exe_sha256=$ExpectedExeSha256.ToLowerInvariant(); private_profile=$ownedProfile; cancel_path=$InWorldCancelPath; processes=@(); profile_removed=$false; normal_controls='NOT_RUN'; pilot_seat_world_restore='NOT_RUN'; native_gpu='NOT_RUN'}
+    $result.in_world_probe = $probe
+    $children = New-Object System.Collections.ArrayList
+    $completed = $false
+    try {
+        New-Item -ItemType Directory -Path (Join-Path $ownedProfile 'AppData\Roaming'),(Join-Path $ownedProfile 'AppData\Local'),(Join-Path $ownedProfile 'Temp') -Force | Out-Null
+        $ownedDocument = Join-Path $ownedProfile 'AppData\Roaming\Godot\app_userdata\Mudds Shipyards\mudds_user_data.json'
+        $arm = Start-InWorldOwned 'arm' $ownedProfile $children
+        $timer = [Diagnostics.Stopwatch]::StartNew()
+        $ready = $null
+        while (-not $arm.HasExited -and $timer.ElapsedMilliseconds -lt $StartupTimeoutMs) {
+            Check-InWorldCancel
+            $ready = Read-InWorldToken (Join-Path $ProbeRoot 'in-world-arm.log') 'IN_WORLD_INTERRUPTION_READY'
+            if ($null -ne $ready) { break }
+            Start-Sleep -Milliseconds 100
+        }
+        $probe.handshake_ms = $timer.ElapsedMilliseconds
+        if ($null -eq $ready -or $arm.HasExited) { throw 'missing live installed in-world readiness before exit/timeout' }
+        if ($ready.entry -ne 'startup_completed' -or $ready.loaded_main_instance_id -le 0 -or $ready.receipts -ne 1) { throw 'installed arm did not use its Boot-loaded Main and one genuine prior receipt' }
+        if ((InWorld-LogCounts (Join-Path $ProbeRoot 'in-world-arm.log')).diagnostic_count -ne 0) { throw 'installed arm engine/script/leak diagnostics' }
+        $probe.ready = $ready
+        $beforeHash = (Get-FileHash -LiteralPath $ownedDocument -Algorithm SHA256).Hash.ToLowerInvariant()
+        $saved = Get-Content -LiteralPath $ownedDocument -Raw | ConvertFrom-Json
+        if ((InWorld-Canonical $saved.payload.cinder_convoy_session.activities[0].progress.convoy_session_state) -ne (InWorld-Canonical $ready.boundary) -or $saved.payload.crash_recovery.state -ne 'running') { throw 'installed readiness differs from actual durable document/running marker' }
+        Copy-Item -LiteralPath $ownedDocument -Destination (Join-Path $ProbeRoot 'in-world-interrupted-document.json')
+        $probe.interrupted_document_sha256 = $beforeHash
+        Check-InWorldCancel
+        if ($arm.HasExited) { throw 'installed arm exited before owned OS kill' }
+        $probe.arm_live_before_kill = $true
+        Stop-InWorldOwned $arm $children[0].Entry 'Windows Process.Kill exact owned handle after durable in-world readiness'
+        if (-not $children[0].Entry.kill_called) { throw 'installed arm exited without the required owned OS kill' }
+        if ($arm.ExitCode -eq 0) { throw 'installed OS kill unexpectedly reported orderly exit' }
+        $probe.after_kill_document_sha256 = (Get-FileHash -LiteralPath $ownedDocument -Algorithm SHA256).Hash.ToLowerInvariant()
+        if ($probe.after_kill_document_sha256 -ne $beforeHash) { throw 'installed OS kill performed an orderly save' }
+        $resume = Start-InWorldOwned 'resume' $ownedProfile $children
+        $timer = [Diagnostics.Stopwatch]::StartNew()
+        while (-not $resume.HasExited -and $timer.ElapsedMilliseconds -lt $StartupTimeoutMs) { Check-InWorldCancel; Start-Sleep -Milliseconds 100 }
+        $probe.resume_ms = $timer.ElapsedMilliseconds
+        if (-not $resume.HasExited) { throw 'installed recovery restart timed out' }
+        $resume.WaitForExit()
+        $recovered = Read-InWorldToken (Join-Path $ProbeRoot 'in-world-resume.log') 'IN_WORLD_RECOVERY_OK'
+        if ($resume.ExitCode -ne 0 -or $null -eq $recovered -or $recovered.entry -ne 'startup_completed' -or $recovered.loaded_main_instance_id -le 0) { throw 'installed restart did not exit0 with its Boot-loaded Main recovery token' }
+        if ((InWorld-LogCounts (Join-Path $ProbeRoot 'in-world-resume.log')).diagnostic_count -ne 0) { throw 'installed restart engine/script/leak diagnostics' }
+        $lines = @((Read-InWorldLog (Join-Path $ProbeRoot 'in-world-resume.log')) -split '\r?\n' | Where-Object { $_.Trim().Length -gt 0 })
+        if (-not $lines[-1].StartsWith('IN_WORLD_RECOVERY_OK: ')) { throw 'installed recovery token is not terminal' }
+        if ((InWorld-Canonical $recovered.boundary) -ne (InWorld-Canonical $ready.boundary) -or $recovered.receipts_before -ne 1 -or $recovered.receipts_after -ne 2 -or $recovered.crash_events -ne 1) { throw 'installed restart lost durable boundary or lost/duplicated convoy payout/crash event' }
+        $final = Get-Content -LiteralPath $ownedDocument -Raw | ConvertFrom-Json
+        if ($final.payload.crash_recovery.state -ne 'clean' -or $final.payload.safe_start_recovery.state -ne 'clean_shutdown') { throw 'installed recovered process did not close both marker owners' }
+        Copy-Item -LiteralPath $ownedDocument -Destination (Join-Path $ProbeRoot 'in-world-recovered-document.json')
+        $probe.recovered_document_sha256 = (Get-FileHash -LiteralPath $ownedDocument -Algorithm SHA256).Hash.ToLowerInvariant()
+        $probe.recovered = $recovered
+        Assert-Installed $ExpectedExeSha256 $ExpectedCommit | Out-Null
+        Assert-UserData
+        $completed = $true
+    } finally {
+        $cleanupFailure = $null
+        foreach ($child in $children) {
+            try {
+                Stop-InWorldOwned $child.Process $child.Entry 'Windows Process.Kill exact owned handle during cleanup'
+                $child.Entry.exit_code = $child.Process.ExitCode
+                $child.Entry.reaped = $child.Process.HasExited
+                if (Test-Path -LiteralPath $child.Entry.log) {
+                    $child.Entry.log_sha256 = (Get-FileHash -LiteralPath $child.Entry.log -Algorithm SHA256).Hash.ToLowerInvariant()
+                    $counts = InWorld-LogCounts $child.Entry.log
+                    $child.Entry.diagnostic_count = $counts.diagnostic_count
+                    $child.Entry.warning_count = $counts.warning_count
+                }
+            } catch { $cleanupFailure = $_.Exception.Message }
+            finally { $child.Process.Dispose() }
+        }
+        $probe.processes = @($children | ForEach-Object { $_.Entry })
+        if (@($children | Where-Object { -not $_.Entry.reaped }).Count -eq 0) {
+            try { if (Test-Path -LiteralPath $ownedProfile) { Remove-Item -LiteralPath $ownedProfile -Recurse -Force } } catch { $cleanupFailure = $_.Exception.Message }
+        } else { $cleanupFailure = 'owned process not reaped; private profile retained' }
+        $probe.profile_removed = -not (Test-Path -LiteralPath $ownedProfile)
+        if ($null -ne $cleanupFailure -or -not $probe.profile_removed) {
+            $probe.cleanup_failure = $cleanupFailure
+            $completed = $false
+        }
+        $probe.status = $(if ($completed) { 'PASS' } else { 'FAIL' })
+        $result.in_world_recovery = $probe.status
+        if ($null -ne $cleanupFailure -and $completed -eq $false) { Write-Warning "in-world cleanup: $cleanupFailure" }
+    }
+    if (-not $completed) { throw 'installed in-world cleanup failed' }
+    return 'exact_installed_boot_main=True os_kill_reaped=True exact_durable_boundary=True receipts=1_to_2 crash_events=1 markers_clean=True private_profile_removed=True'
+}
+
 Step 'preconditions' {
+    if (-not $InWorldRecovery -and -not [string]::IsNullOrWhiteSpace($InWorldCancelPath)) { throw 'InWorldCancelPath requires InWorldRecovery' }
+    if ($InWorldRecovery) {
+        if ([string]::IsNullOrWhiteSpace($InWorldCancelPath)) { $script:InWorldCancelPath = Join-Path $ProbeRoot 'in-world-recovery.cancel' }
+        if (-not [IO.Path]::IsPathRooted($InWorldCancelPath) -or (Test-Path -LiteralPath $InWorldCancelPath)) { throw 'in-world abort path must be an absolute unused file path' }
+    }
     if ($ForceKillRecovery -and -not $checkRecovery) { throw 'ForceKillRecovery requires UserDataRecoveryFixture' }
     $previousArgs = @($PreviousInstaller, $PreviousExpectedExeSha256, $PreviousExpectedCommit) | Where-Object { -not [string]::IsNullOrWhiteSpace($_) }
     if ($previousArgs.Count -ne 0 -and $previousArgs.Count -ne 3) { throw 'PreviousInstaller, PreviousExpectedExeSha256 and PreviousExpectedCommit must be supplied together' }
@@ -463,6 +635,10 @@ Step 'silent_upgrade_over_existing' {
     Assert-RegistryAndShortcuts $ExpectedCommit $initialCommit
 }
 Step 'upgraded_startup_check' { Run-Startup 'upgraded' }
+
+if ($InWorldRecovery) {
+    Step 'installed_in_world_os_interruption_recovery' { Run-InWorldRecovery }
+}
 
 if ($ForceKillRecovery) {
     Step 'installed_owned_os_kill_startup_cycles' {
