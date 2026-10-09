@@ -3075,6 +3075,11 @@ func _start_up_activities() -> void:
 	_initialize_cinder_race_session()
 	_initialize_caption_presentation()
 	_initialize_live_combat()
+	# Staged Boot builds the world before these shared combat/activity owners
+	# enter the tree. Retry its existing binding after their normal startup so
+	# the physical defense board is ready on both construction paths.
+	world.call(&"_bind_station_defense_external_owners")
+	_ensure_station_defense_encounter_bindings()
 	_initialize_cinder_convoy_threat()
 	_sync_fleet_ship_semantic_audio()
 	_initialize_nearby_activity_audio()

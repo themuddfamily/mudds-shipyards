@@ -3,7 +3,8 @@ set -euo pipefail
 set -o pipefail
 
 # --in-world-interruption runs one actual kill/restart; --activity=beacon or
-# --activity=mining selects unpaid recovery (pilot only); default remains convoy.
+# --activity=mining or --activity=stationdefense selects unpaid recovery
+# (pilot only); default remains convoy.
 # --source selects the current project instead of PACKAGE_PATH; source
 # and PCK identities are recorded separately and neither qualifies native input.
 # --native-export runs PACKAGE_PATH's embedded Linux game directly; it cannot
@@ -44,7 +45,7 @@ RESULTS_ROOT="${PACKAGE_PROBE_RESULTS_ROOT:-$PROJECT_ROOT/artifacts/package-prob
 RUN_ID="${PACKAGE_PROBE_RUN_ID:-$(date -u +%Y%m%dT%H%M%SZ)}"
 AUDIO_DRIVER="${PACKAGE_PROBE_AUDIO_DRIVER:-Dummy}"
 RECOVERY_CONTEXT="${PACKAGE_PROBE_RECOVERY_CONTEXT:-pilot}"
-if [[ "$PROBE_ACTIVITY" != convoy && "$PROBE_ACTIVITY" != beacon && "$PROBE_ACTIVITY" != mining ]]; then
+if [[ "$PROBE_ACTIVITY" != convoy && "$PROBE_ACTIVITY" != beacon && "$PROBE_ACTIVITY" != mining && "$PROBE_ACTIVITY" != stationdefense ]]; then
   echo "Invalid interruption activity" >&2
   exit 2
 fi
@@ -56,7 +57,7 @@ if [[ "$RECOVERY_CONTEXT" != pilot && "$RECOVERY_CONTEXT" != cabin && "$RECOVERY
   echo "Invalid interruption recovery context" >&2
   exit 2
 fi
-if [[ ( "$PROBE_ACTIVITY" == beacon || "$PROBE_ACTIVITY" == mining ) && "$RECOVERY_CONTEXT" != pilot ]]; then
+if [[ ( "$PROBE_ACTIVITY" == beacon || "$PROBE_ACTIVITY" == mining || "$PROBE_ACTIVITY" == stationdefense ) && "$RECOVERY_CONTEXT" != pilot ]]; then
   echo "$PROBE_ACTIVITY interruption currently requires pilot context" >&2
   exit 2
 fi
@@ -265,7 +266,31 @@ try:
     require(ready.get("activity", "convoy") == activity, "arm ignored the selected activity")
     before = document.read_bytes()
     saved = json.loads(before)
-    if activity == "mining":
+    if activity == "stationdefense":
+        terminal = saved["payload"]["station_defense_session"]
+        session = terminal["session"]
+        completion = session["completion"]
+        require(terminal == ready["boundary"] and terminal["schema_version"] == 1
+                and terminal["payload_kind"] == "nearby_sector_activity_session"
+                and terminal["slot_id"] == "station_defense_session" and session["schema_version"] == 2,
+                "defense readiness differs from the actual supported saved terminal")
+        require(session["history"]["activity_id"] == "shipyard_perimeter_defense"
+                and session["history"]["state_id"] == "completed"
+                and session["history"]["generation"] == completion["generation"] > 0
+                and session["history"]["reward_handoff_generation"] == 0
+                and completion["activity_id"] == "shipyard_perimeter_defense"
+                and completion["reward_requested"] is True and completion["reward_granted"] is False,
+                "defense readiness has no genuine completed unpaid report")
+        require(ready["armed_elapsed_seconds"] == 10.5 and ready["receipts"] == 0
+                and ready["runtime_observation"]["craft_piloted"] is True
+                and ready["runtime_observation"]["player_seated"] is True,
+                "defense arm lacks genuine authored-wave elapsed observation or real pilot ownership")
+        require(saved["payload"]["runtime_settings"] == ready["foreign_settings"]
+                and saved["payload"]["jovian_cargo_session"] == ready["foreign_cargo"]
+                and saved["payload"]["game_flow_reward_store"]["reward_counts"] == ready["foreign_reward_counts"]
+                and ready["foreign_reward_counts"].get("debris_route_navigation_data") == 1,
+                "defense arm lost production settings/cargo or the genuinely earned unrelated beacon reward")
+    elif activity == "mining":
         terminal = saved["payload"]["cinder_mining_capacity"]
         session = terminal["session"]
         require(terminal == ready["boundary"] and terminal["schema_version"] == 2
@@ -323,7 +348,27 @@ try:
     require(recovered["crash_events"] == 1, "actual interruption did not publish one crash event")
     after = document.read_bytes()
     final = json.loads(after)
-    if activity == "mining":
+    if activity == "stationdefense":
+        paid = final["payload"]["station_defense_session"]
+        safe = recovered["safe_recovery_observation"]
+        require(safe["craft_piloted"] is True and safe["player_seated"] is True
+                and safe["craft_id"] == ready["runtime_observation"]["craft_id"],
+                "defense restart did not reacquire the real saved safe-home pilot")
+        require(paid == recovered["paid_boundary"]
+                and paid["session"]["completion"] == {**completion, "reward_granted": True}
+                and paid["session"]["history"] == {**session["history"], "reward_handoff_generation": completion["generation"]}
+                and recovered["payment_commit"]["id"].startswith("game-flow-reward-"),
+                "defense retry changed the earned generation or lost the atomic reward acknowledgement")
+        counts = final["payload"]["game_flow_reward_store"]["reward_counts"]
+        require(counts.get("return_defense_report_to_shipyard") == 1
+                and all(counts.get(key) == value for key, value in ready["foreign_reward_counts"].items()),
+                "defense retry lost or duplicated its report or the unrelated genuine reward")
+        require(final["payload"]["runtime_settings"] == ready["foreign_settings"] == recovered["foreign_settings"]
+                and final["payload"]["jovian_cargo_session"] == ready["foreign_cargo"] == recovered["foreign_cargo"],
+                "defense recovery changed actual unrelated settings/cargo")
+        require(recovered["active_combat_restore"] == "NOT_SUPPORTED" and recovered["elapsed_timer_restore"] == "NOT_SUPPORTED",
+                "defense probe must retain the delivered safe-history-only restoration limit")
+    elif activity == "mining":
         paid = final["payload"]["cinder_mining_capacity"]
         safe = recovered["safe_recovery_observation"]
         require(safe["craft_piloted"] is True and safe["player_seated"] is True

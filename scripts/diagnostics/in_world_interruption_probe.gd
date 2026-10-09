@@ -63,6 +63,9 @@ func run_with_main(game: GameFlow, entry: String) -> void:
 	if store == null or game.get_tree() != get_tree():
 		_fail("the supplied production Main owns its existing store and scene tree")
 		return
+	if activity == "stationdefense":
+		await _run_stationdefense(game, store, entry)
+		return
 	if activity == "mining":
 		await _run_mining(game, store, entry)
 		return
@@ -226,12 +229,14 @@ func run_with_main(game: GameFlow, entry: String) -> void:
 
 ## Fault only the existing reward transaction; every checkpoint and recovery
 ## marker still delegates to the actual store's original disk filesystem.
-class BeaconRewardFault extends UserDataFilesystem:
+class ActivityRewardFault extends UserDataFilesystem:
 	var filesystem: UserDataFilesystem
 	var rejected := false
+	var target_activity: String
 
-	func _init(original: UserDataFilesystem) -> void:
+	func _init(original: UserDataFilesystem, target := String(CinderBeaconTraversalActivity.ACTIVITY_ID)) -> void:
 		filesystem = original
+		target_activity = target
 
 	func file_exists(path: String) -> bool:
 		return filesystem.file_exists(path)
@@ -249,7 +254,7 @@ class BeaconRewardFault extends UserDataFilesystem:
 		var document: Variant = JSON.parse_string(bytes.get_string_from_utf8())
 		if document is Dictionary and str(document.get("commit", {}).get("id", "")).begins_with("game-flow-reward-"):
 			var receipt: Dictionary = document.get("payload", {}).get("game_flow_reward_store", {}).get("last_receipt", {})
-			if receipt.get("activity_id") == String(CinderBeaconTraversalActivity.ACTIVITY_ID):
+			if receipt.get("activity_id") == target_activity:
 				rejected = true
 				return ERR_UNAVAILABLE
 		return filesystem.write_bytes_and_flush(path, bytes)
@@ -316,7 +321,7 @@ func _run_beacon(game: GameFlow, store: UserDataStore, entry: String) -> void:
 			get_tree().quit(1)
 			return
 		var baseline := _beacon_receipts(game)
-		var fault := BeaconRewardFault.new(store.get("_filesystem") as UserDataFilesystem)
+		var fault := ActivityRewardFault.new(store.get("_filesystem") as UserDataFilesystem)
 		store.set("_filesystem", fault)
 		craft.global_position = game.call("_cinder_authored_frame_to_world", CinderBeaconTraversalActivity.BEACONS[0])
 		_beacon_start(game)
@@ -576,6 +581,255 @@ func _run_mining(game: GameFlow, store: UserDataStore, entry: String) -> void:
 		"foreign_settings": foreign_settings, "foreign_cargo": foreign_cargo,
 		"runtime_observation": observations, "safe_recovery_observation": safe_observation,
 		"continuation_method": "real_safe_home_pilot_resume_then_ordinary_mining_start_retry",
+		"assertions": _assertions, "entry": entry, "loaded_main_instance_id": main_id, "recovery_context": recovery_context}
+	if _failures.is_empty():
+		print("IN_WORLD_RECOVERY_OK: " + JSON.stringify(outcome))
+		get_tree().quit(0)
+	else:
+		print("IN_WORLD_RECOVERY_FAILED")
+		get_tree().quit(1)
+
+
+func _stationdefense_receipts(game: GameFlow) -> int:
+	var record: Dictionary = game.get_activity_reward_report().authority.record
+	return int(record.reward_counts.get("return_defense_report_to_shipyard", 0))
+
+
+func _stationdefense_start(game: GameFlow) -> void:
+	game.call("_sync_activity_hud")
+	for row in (game.hud.get("_nearby_activity_rows") as VBoxContainer).get_children():
+		if row.get_meta(&"activity_id", &"") == &"station_defense":
+			var button := row.get_child(2) as Button
+			_check(not button.disabled, "the actual defense HUD Start reaches its physical board gate")
+			if not button.disabled:
+				button.emit_signal("pressed")
+			print("STATION_DEFENSE_PHYSICAL_REQUEST: " + JSON.stringify({"board_gate": game.world.get_station_defense_activity_board().get_interaction_snapshot(game.player, game.world.get_station_defense_content().get_generation()), "feedback": (game.hud.get("_nearby_activity_feedback") as Label).text, "heavy_breach_armed": game.call("_heavy_breach_sortie_is_armed"), "bindings": game.get_station_defense_encounter_status()}))
+			return
+	_check(false, "the actual nearby HUD exposes its station-defense Start action")
+
+
+func _stationdefense_on_foot_fixture(game: GameFlow, board: StationDefenseActivityBoard) -> void:
+	# Scenario positioning is bounded to the existing collision-backed station
+	# board. It cannot acquire/release a pilot seat or bypass Main's on-foot gate.
+	game.player.teleport_to(Transform3D(Basis.IDENTITY, board.global_position + Vector3(0.0, 0.0, 1.4)))
+	await _settle_frames(4)
+	_check(not game.get("_piloting") and not game.player.is_seated() and game.player.is_control_enabled()
+		and game.player.global_position.distance_to(board.global_position) <= StationDefenseActivityBoard.INTERACTION_RADIUS,
+		"the real on-foot Player reaches the physical defense board before its HUD request")
+
+
+func _stationdefense_shoot(game: GameFlow, craft: HeroShip, target: RangeOpponent) -> bool:
+	var authority := game.get_combat_authority()
+	var weapon: StringName = game.call("_get_player_combat_weapon_id", craft)
+	for _shot in 16:
+		# Pacing/position fixture only: pause hostile AI movement, keep the
+		# authored damageable/weapon/health and shared resolver unchanged.
+		for enemy in target.get_parent().get_children():
+			if enemy is RangeOpponent:
+				enemy.set_physics_process(false)
+		await get_tree().process_frame
+		var aim := target.global_position
+		craft.global_position = aim + Vector3(0.0, 0.0, 20.0)
+		await get_tree().physics_frame
+		var result := authority.submit_hitscan(craft, weapon, craft.global_position, (aim - craft.global_position).normalized())
+		_check(result.get("accepted", false) and result.get("target_entity") == target and result.get("damaged", false),
+			"the existing pilot weapon resolves real damage on the exact authored defense hostile: %s" % JSON.stringify(result))
+		await get_tree().process_frame
+		if result.get("destroyed", false):
+			return true
+		if not _failures.is_empty():
+			return false
+	return false
+
+
+func _run_stationdefense(game: GameFlow, store: UserDataStore, entry: String) -> void:
+	if recovery_context != "pilot":
+		_fail("station-defense interruption supports the actual pilot recovery context only")
+		return
+	var main_id := game.get_instance_id()
+	game.set_physics_process(false)
+	game.call("_ensure_station_defense_encounter_bindings")
+	var content := game.world.get_station_defense_content() as StationDefenseEncounterContent
+	var board := game.world.get_station_defense_activity_board() as StationDefenseActivityBoard
+	if not is_instance_valid(content) or not is_instance_valid(board):
+		_fail("Boot Main must own the actual authored defense content and physical board")
+		return
+	var craft: HeroShip
+	if stage == "arm":
+		game.call("_on_settings_save_requested")
+		_check(game.cargo_delivery_activity.start(game.cargo_delivery_activity.get_generation()).accepted
+			and game.save_jovian_cargo_session().accepted, "the actual production cargo owner saves unrelated cargo progress")
+		game.start_shift()
+		await _load_beacon_binding(game, "station-defense HUD")
+		await _stationdefense_on_foot_fixture(game, board)
+		_stationdefense_start(game)
+		_check(content.get_snapshot().host.activity.state_id == &"active", "the on-foot HUD request starts the genuine authored defense through its physical board: %s" % JSON.stringify(board.get_last_result()))
+		for enemy in content.get_node(^"OpponentRoster").get_children():
+			if enemy is RangeOpponent:
+				enemy.set_physics_process(false)
+		craft = game.get_flyable_ships()[1] as HeroShip
+		game.canopy_motion_time = 0.01
+		game.boarding_motion_time = 0.02
+		game.player.teleport_to(craft.get_boarding_entry_transform())
+		game.call("_board_ship", craft)
+		_check(await _wait_for_real_pilot(game, craft), "defense arm acquires the real Player pilot before its combat fixture")
+		var context: Dictionary = store.get_snapshot().get(GameFlow.SOLO_SAFE_RECOVERY_SLOT, {})
+		_check(context.get("mode") == "pilot" and context.get("craft_id") == String(craft.get_ship_id()),
+			"the genuine settled defense pilot saves only its supported safe-home identity")
+		# Earn the unrelated reward through the actual authored beacon route,
+		# rather than manufacturing a detached reward request or receipt.
+		craft.global_position = game.call("_cinder_authored_frame_to_world", CinderBeaconTraversalActivity.BEACONS[0])
+		_beacon_start(game)
+		for point in CinderBeaconTraversalActivity.BEACONS:
+			craft.global_position = game.call("_cinder_authored_frame_to_world", point)
+			game.call("_advance_cinder_beacon_traversal", 0.0, game.call("_capture_cinder_actor_sample"))
+		_check(_beacon_receipts(game) == 1 and _stationdefense_receipts(game) == 0,
+			"the actual authored beacon route earns one unrelated reward before defense completion")
+		if not _failures.is_empty():
+			get_tree().quit(1)
+			return
+		var original := store.get("_filesystem") as UserDataFilesystem
+		var fault := ActivityRewardFault.new(original, String(StationDefenseActivityBoard.ACTIVITY_ID))
+		store.set("_filesystem", fault)
+		var generation := content.get_generation()
+		var roster := content.get_node(^"OpponentRoster")
+		var cleared := await _stationdefense_shoot(game, craft, roster.get_node(^"PerimeterRaiderAlpha"))
+		var relief := content.advance_physics(2.5, generation)
+		_check(relief.accepted and content.get_snapshot().host.activity.wave_active, "the real authored relief wave deploys after its complete caller-owned delay: %s" % JSON.stringify(relief))
+		await get_tree().physics_frame
+		cleared = await _stationdefense_shoot(game, craft, roster.get_node(^"PerimeterRaiderBeta")) and cleared
+		cleared = await _stationdefense_shoot(game, craft, roster.get_node(^"PerimeterRaiderGamma")) and cleared
+		var picket := content.advance_physics(8.0, generation)
+		_check(picket.accepted and content.get_snapshot().host.activity.wave_active, "the real authored picket wave deploys after its complete caller-owned delay: %s" % JSON.stringify(picket))
+		await get_tree().physics_frame
+		cleared = await _stationdefense_shoot(game, craft, roster.get_node(^"PerimeterHeavyPicket")) and cleared
+		var live: Dictionary = content.get_snapshot().host.activity
+		var boundary: Dictionary = store.get_snapshot().get("station_defense_session", {})
+		var valid := StationDefenseSessionAdapter.new().restore(boundary.get("session"))
+		_check(cleared and live.state_id == &"completed" and valid.get("accepted", false)
+			and valid.history.state_id == &"completed" and valid.completion.generation == generation
+			and valid.completion.reward_requested and not valid.completion.reward_granted
+			and fault.rejected and board.get_reward_handoff_snapshot().reward_pending and _stationdefense_receipts(game) == 0,
+			"real shared-resolver destruction completes every authored wave and a refused reward write leaves the exact earned durable unpaid report")
+		if not _failures.is_empty():
+			get_tree().quit(1)
+			return
+		var ready := {"boundary": boundary, "receipts": 0, "activity": activity,
+			"armed_elapsed_seconds": live.elapsed_seconds,
+			"foreign_settings": store.get_snapshot().runtime_settings,
+			"foreign_cargo": store.get_snapshot().jovian_cargo_session,
+			"foreign_reward_counts": game.get_activity_reward_report().authority.record.reward_counts,
+			"runtime_observation": _interruption_runtime_observation(game),
+			"fixture_method": "on_foot_physical_board_then_real_pilot_weapon_resolver_hits_with_paused_hostile_AI_and_authored_wave_delays",
+			"entry": entry, "loaded_main_instance_id": main_id, "recovery_context": recovery_context}
+		get_tree().paused = true
+		store.set("_filesystem", original)
+		print("IN_WORLD_INTERRUPTION_READY: " + JSON.stringify(ready))
+		return
+	var boundary: Dictionary = store.get_snapshot().get("station_defense_session", {})
+	var valid := StationDefenseSessionAdapter.new().restore(boundary.get("session"))
+	if boundary.get("schema_version") != 1 or boundary.get("payload_kind") != "nearby_sector_activity_session" \
+			or boundary.get("slot_id") != "station_defense_session" or not valid.get("accepted", false):
+		_fail("defense restart requires an existing supported earned terminal report")
+		return
+	if valid.completion.is_empty() or valid.completion.reward_granted or valid.history.state_id != &"completed":
+		_fail("defense restart requires a genuinely completed unpaid report")
+		return
+	var pending_snapshot := board.get_session_persistence_snapshot()
+	var observations := _interruption_runtime_observation(game)
+	var recovery := game.get_recovery_available_snapshot()
+	var crash_events := 0
+	for event: Dictionary in game.get_session_recovery_diagnostic_snapshot().get("events", []):
+		if event.get("event_code") == "crash_detected":
+			crash_events += 1
+	var live: Dictionary = content.get_snapshot().host.activity
+	_check(live.state_id == &"idle" and content.get_snapshot().host.active_entity_count == 0 and live.elapsed_seconds == 0.0
+		and board.get_reward_handoff_snapshot().reward_pending and board.get_reward_handoff_snapshot().pending_generation == valid.completion.generation
+		and not game.player.is_seated() and not game.active_ship.is_piloted()
+		and crash_events == 1 and not recovery.is_empty() and recovery.get("state") == "running",
+		"fresh Boot restores only the exact owed report into safe idle content without old combat, elapsed timer or pilot-claim replay")
+	var baseline := _stationdefense_receipts(game)
+	var foreign_settings: Dictionary = store.get_snapshot().runtime_settings
+	var foreign_cargo: Dictionary = store.get_snapshot().jovian_cargo_session
+	var foreign_rewards: Dictionary = game.get_activity_reward_report().authority.record.reward_counts
+	var context: Dictionary = store.get_snapshot().get(GameFlow.SOLO_SAFE_RECOVERY_SLOT, {})
+	for candidate in game.get_flyable_ships():
+		if String(candidate.get_ship_id()) == context.get("craft_id"):
+			craft = candidate
+	if craft == null or not _failures.is_empty():
+		_fail("the saved defense pilot identity must resolve its real shipped craft before Resume")
+		return
+	var resumed: Dictionary = game.call("_handle_hud_session_recovery_choice", &"normal_start", int(recovery.session_id), int(recovery.startup_generation))
+	game.canopy_motion_time = 0.01
+	game.boarding_motion_time = 0.02
+	game.disembarking_motion_time = 0.02
+	game.start_shift()
+	var settled := await _wait_for_real_pilot(game, craft)
+	var area := craft.get_node("ShipBoardingArea") as ShipBoardingArea
+	var berth := game.world.get_berth_node(craft.get_home_berth_id()) as ShipBerth
+	_check(resumed.get("accepted", false) and settled and area.get_reservation_token() == game.player
+		and berth.get_occupant() == craft and berth.get_reservation_owner() == craft
+		and craft.global_position.distance_to(game.world.get_berth_transform(craft.get_home_berth_id()).origin) < 0.1
+		and boundary == store.get_snapshot().station_defense_session,
+		"ordinary cold Resume reacquires the real safe-home pilot and preserves the unpaid defense report")
+	Input.action_press(&"move_forward")
+	await get_tree().physics_frame
+	await get_tree().physics_frame
+	Input.action_release(&"move_forward")
+	_check(str(craft.get_telemetry().get("engine_state", "")).to_upper() == "ONLINE" and craft.get_last_ship_command().throttle > 0.0
+		and boundary == store.get_snapshot().station_defense_session,
+		"the recovered real pilot accepts ordinary throttle while the defense report stays unpaid")
+	var safe_observation := _interruption_runtime_observation(game)
+	await _settle_frames(int(ceil(HeroShip.AUTOMATIC_ENGINE_IDLE_SHUTDOWN_SECONDS * Engine.physics_ticks_per_second)) + 3)
+	game.call("_try_exit_ship")
+	for _frame in 180:
+		if not game.get("_transition_busy") and not game.get("_piloting"):
+			break
+		await _settle_frames(1)
+	_check(not game.get("_piloting") and not craft.is_piloted() and not game.player.is_seated()
+		and game.player.is_control_enabled() and area.get_reservation_token() != game.player,
+		"the ordinary idle propulsion and production pilot exit release real seat ownership before the board retry")
+	await _load_beacon_binding(game, "station-defense HUD")
+	await _stationdefense_on_foot_fixture(game, board)
+	if not _failures.is_empty():
+		get_tree().quit(1)
+		return
+	_stationdefense_start(game)
+	var paid: Dictionary = store.get_snapshot().station_defense_session
+	var payment_commit := store.get_commit_metadata()
+	_check(_stationdefense_receipts(game) == baseline + 1 and paid.session.completion.reward_granted
+		and paid.session.completion.generation == valid.completion.generation
+		and paid.session.history.reward_handoff_generation == valid.completion.generation
+		and not board.get_reward_handoff_snapshot().reward_pending
+		and str(payment_commit.id).begins_with("game-flow-reward-"),
+		"the ordinary on-foot physical board HUD retry atomically publishes one reward receipt and the exact earned report acknowledgement")
+	var bytes := FileAccess.get_file_as_bytes(str(store.get("_path")))
+	var duplicate: Dictionary = game.call("_commit_game_flow_activity_reward", {
+		"activity_id": StationDefenseActivityBoard.ACTIVITY_ID, "activity_generation": int(valid.completion.generation),
+		"reward_id": &"return_defense_report_to_shipyard", "reward_authority": false, "granted": false})
+	var stale := board.abort_and_reset(game.player, content.get_generation() - 1)
+	var persistence := board.get("_persistence_binding") as RefCounted
+	var late := persistence.call("save", pending_snapshot, store.get_generation(), "station-defense-late-unpaid") as Dictionary
+	_check(not duplicate.accepted and not stale.accepted and stale.reason == &"stale_generation" and not late.accepted
+		and _stationdefense_receipts(game) == baseline + 1 and paid == store.get_snapshot().station_defense_session
+		and FileAccess.get_file_as_bytes(str(store.get("_path"))) == bytes,
+		"duplicate reward, stale physical reset and genuine late unpaid checkpoint cannot repay or downgrade the acknowledged defense report")
+	for key in foreign_rewards:
+		_check(game.get_activity_reward_report().authority.record.reward_counts.get(key) == foreign_rewards[key],
+			"the existing unrelated earned reward count is preserved")
+	_check(foreign_settings == store.get_snapshot().runtime_settings and foreign_cargo == store.get_snapshot().jovian_cargo_session,
+		"the report retry preserves actual production settings and cargo progress")
+	var closed := game.mark_orderly_shutdown()
+	_check(closed.get("accepted", false), "defense restart closes both existing recovery marker owners")
+	_check(is_instance_valid(game) and game.get_instance_id() == main_id and game.get_tree() == get_tree(),
+		"defense recovery retains Boot's exact supplied Main owner")
+	var outcome := {"boundary": boundary, "paid_boundary": paid, "receipts_before": baseline,
+		"receipts_after": _stationdefense_receipts(game), "payment_commit": payment_commit,
+		"crash_events": crash_events, "activity": activity,
+		"foreign_settings": foreign_settings, "foreign_cargo": foreign_cargo, "foreign_reward_counts": foreign_rewards,
+		"runtime_observation": observations, "safe_recovery_observation": safe_observation,
+		"continuation_method": "real_safe_home_pilot_resume_throttle_idle_pilot_exit_then_on_foot_physical_board_HUD_retry",
+		"active_combat_restore": "NOT_SUPPORTED", "elapsed_timer_restore": "NOT_SUPPORTED",
 		"assertions": _assertions, "entry": entry, "loaded_main_instance_id": main_id, "recovery_context": recovery_context}
 	if _failures.is_empty():
 		print("IN_WORLD_RECOVERY_OK: " + JSON.stringify(outcome))

@@ -201,11 +201,11 @@ static func in_world_probe_request(args: PackedStringArray, display_name: String
 	var rejected := {"requested": true, "accepted": false, "reason": &"unsafe_in_world_probe"}
 	if stages.size() != 1 or stages[0] not in ["arm", "resume"] or display_name != "headless" \
 			or contexts.size() > 1 or (not contexts.is_empty() and contexts[0] not in ["pilot", "cabin", "rest", "crew"]) \
-			or activities.size() > 1 or (not activities.is_empty() and activities[0] not in ["convoy", "beacon", "mining"]):
+			or activities.size() > 1 or (not activities.is_empty() and activities[0] not in ["convoy", "beacon", "mining", "stationdefense"]):
 		return rejected
 	var activity := activities[0] if not activities.is_empty() else "convoy"
 	var context := contexts[0] if not contexts.is_empty() else "pilot"
-	if activity in ["beacon", "mining"] and context != "pilot":
+	if activity in ["beacon", "mining", "stationdefense"] and context != "pilot":
 		return rejected
 	# Engine options are consumed before OS.get_cmdline_args(). Inspect the
 	# actual driver rather than accepting a user argument claiming Dummy audio.

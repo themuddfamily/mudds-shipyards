@@ -46,6 +46,17 @@ func _run() -> void:
 	_check(not StartupLoaderType.in_world_probe_request(mining_args, "x11", "Dummy").accepted
 		and not StartupLoaderType.in_world_probe_request(mining_args, "headless", "PulseAudio").accepted,
 		"mining refuses an active display or audible driver before Main loading")
+	var defense_args := PackedStringArray(["--in-world-interruption-stage=arm", "--in-world-interruption-activity=stationdefense"])
+	_check(StartupLoaderType.in_world_probe_request(defense_args, "headless", "Dummy").accepted,
+		"station-defense interruption admits only its supported pilot recovery")
+	for context in ["cabin", "rest", "crew"]:
+		var unsupported := defense_args.duplicate()
+		unsupported.append("--in-world-interruption-context=" + context)
+		_check(not StartupLoaderType.in_world_probe_request(unsupported, "headless", "Dummy").accepted,
+			"station defense refuses unsupported context before Main loading: %s" % context)
+	_check(not StartupLoaderType.in_world_probe_request(defense_args, "x11", "Dummy").accepted
+		and not StartupLoaderType.in_world_probe_request(defense_args, "headless", "PulseAudio").accepted,
+		"station defense refuses active display and audible input before Main loading")
 	for context in ["pilot", "cabin", "rest", "crew"]:
 		var selected := probe_args.duplicate()
 		selected.append("--in-world-interruption-context=" + context)
@@ -61,6 +72,9 @@ func _run() -> void:
 		_check(not bool(StartupLoaderType.in_world_probe_request(probe_args, "headless", audio_driver).accepted),
 			"the fixture requires the actual Dummy driver: %s" % audio_driver)
 	for unsafe in [
+		PackedStringArray(["--in-world-interruption-activity=stationdefense"]),
+		PackedStringArray(["--in-world-interruption-stage=arm", "--in-world-interruption-activity", "stationdefense"]),
+		PackedStringArray(["--in-world-interruption-stage=arm", "--in-world-interruption-activity=stationdefense", "--in-world-interruption-activity=stationdefense"]),
 		PackedStringArray(["--in-world-interruption-activity=mining"]),
 		PackedStringArray(["--in-world-interruption-stage=arm", "--in-world-interruption-activity", "mining"]),
 		PackedStringArray(["--in-world-interruption-stage=arm", "--in-world-interruption-activity=mining", "--in-world-interruption-activity=mining"]),

@@ -749,6 +749,7 @@ func _test_boot_presents_before_it_builds() -> void:
 	# straight from nothing to done is the dishonest failure mode this guards.
 	var samples: Array[float] = []
 	var warmed_texture_refs: Array[WeakRef] = []
+	var defense_checked := {"done": false}
 	var stages := {}
 	var watcher := func() -> void:
 		if warmed_texture_refs.is_empty():
@@ -765,6 +766,9 @@ func _test_boot_presents_before_it_builds() -> void:
 					and bool(stager.get("_gameplay_startup_started")):
 				_check(not bool(live_main.get("_initialized")),
 					"real gameplay remains uninitialized between loading phases")
+				if not defense_checked.done and boot.get_startup_report().stages[-1].label == "Connecting yard activities":
+					_check_station_defense_startup(live_main, "staged Boot before gameplay initialization")
+					defense_checked.done = true
 	process_frame.connect(watcher)
 	var main := await boot.run_startup()
 	process_frame.disconnect(watcher)
@@ -861,6 +865,7 @@ func _test_boot_presents_before_it_builds() -> void:
 		flow.get_node_or_null("ShipyardWorld") == flow.world,
 		"the coordinator's bindings resolve to the re-added children"
 	)
+	_check(defense_checked.done, "staged Boot verifies defense ownership before admitting gameplay")
 	var fleet: Array[HeroShip] = flow.get_flyable_ships()
 	_check(fleet.size() == 9, "the staged startup registers the complete nine-craft fleet")
 	_check(
@@ -1052,6 +1057,7 @@ func _test_direct_instantiation_is_unstaged() -> void:
 			and bool(main.get("_initialized")),
 		"a directly instantiated coordinator completes gameplay startup synchronously in _ready()"
 	)
+	_check_station_defense_startup(main, "synchronous Main before gameplay")
 	_check(
 		not main.prepare_staged_startup(),
 		"staged startup is refused once Main is already in the tree"
@@ -1075,6 +1081,19 @@ func _test_direct_instantiation_is_unstaged() -> void:
 	main.queue_free()
 	await process_frame
 	await process_frame
+
+
+func _check_station_defense_startup(main: GameFlow, context: String) -> void:
+	var content: StationDefenseEncounterContent = main.world.get_station_defense_content()
+	var board := main.world.get_station_defense_activity_board() as StationDefenseActivityBoard
+	_check(content != null and content.is_content_ready()
+		and content.get_combat_authority() == main.get_combat_authority()
+		and main.get_station_defense_encounter_status().bindings_ready
+		and board != null and board.get_reward_handoff_snapshot().configured
+		and board.get("_persistence_binding") != null
+		and board.get("_session_store") == main.get("_runtime_settings_user_data_store")
+		and main.get_live_combat_source_roster_audit().valid,
+		"%s binds one authored defense, real shared combat, reward and persistence owners" % context)
 
 
 func _check(condition: bool, description: String) -> void:
