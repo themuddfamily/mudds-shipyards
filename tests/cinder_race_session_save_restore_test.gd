@@ -569,29 +569,41 @@ func _test_saved_race_progress_write_recovery() -> void:
 
 
 func _test_running_race_progress_publication() -> void:
-	for terminal_kind: String in ["active", "failed"]:
-		var path := "user://cinder-race-%s-progress-publication.json" % terminal_kind
+	for publication_case: String in ["active", "failed", "countdown_active", "countdown_failed"]:
+		var from_countdown := publication_case.begins_with("countdown_")
+		var terminal_kind := "failed" if publication_case.ends_with("failed") else "active"
+		var path := "user://cinder-race-%s-progress-publication.json" % publication_case
 		var filesystem := RejectingDiskFilesystem.new()
 		var store := Store.new(path, filesystem) as UserDataStore
 		var game := await _make_game(store)
 		game.set_physics_process(false)
 		_check(_complete_real_race(game, 0.25) and _race_receipts(game) == 1 and game.reset_active_activity(),
-			"the %s publication case starts after genuine paid completion and durable reset" % terminal_kind)
+			"the %s publication case starts after genuine paid completion and durable reset" % publication_case)
 		var owner := game.cinder_race_session
 		var craft := game.get_flyable_ships()[1] as HeroShip
 		var started := game.request_activity_start(ROUTE.activity_id)
-		game.call("_physics_process", 2.0)
-		game.call("_physics_process", 0.25)
-		craft.global_position = ROUTE.get_checkpoint_position(0)
-		game.call("_physics_process", 0.0)
+		if from_countdown:
+			game.call("_physics_process", 0.5)
+		else:
+			game.call("_physics_process", 2.0)
+			game.call("_physics_process", 0.25)
+			craft.global_position = ROUTE.get_checkpoint_position(0)
+			game.call("_physics_process", 0.0)
+		var early_saved := game.save_cinder_race_session()
 		var early := owner.capture_persistence_state()
 		var early_bytes := FileAccess.get_file_as_bytes(path)
-		_check(bool(started.get("accepted", false)) and game.get_cinder_race_session_persistence_report().last_save_status.accepted
-			and int(early.race_state.next_checkpoint_index) == 1,
-			"real disk acknowledges the actual first ACTIVE gate before %s write interruption" % terminal_kind)
+		_check(bool(started.get("accepted", false)) and bool(early_saved.get("accepted", false))
+			and owner.get_acknowledged_persistence_state() == early
+			and int(early.race_state.next_checkpoint_index) == (0 if from_countdown else 1)
+			and int(early.race_state.state) == (TimedCheckpointRace.State.COUNTDOWN if from_countdown else TimedCheckpointRace.State.ACTIVE),
+			"real disk acknowledges the actual running boundary before %s write interruption" % publication_case)
 		filesystem.reject_writes = true
-		game.call("_physics_process", 0.5)
-		for checkpoint in range(1, 3):
+		if from_countdown:
+			game.call("_physics_process", 1.5)
+			game.call("_physics_process", 0.75)
+		else:
+			game.call("_physics_process", 0.5)
+		for checkpoint in range(0 if from_countdown else 1, 3):
 			craft.global_position = ROUTE.get_checkpoint_position(checkpoint)
 			game.call("_physics_process", 0.0)
 		if terminal_kind == "failed":
@@ -601,12 +613,12 @@ func _test_running_race_progress_publication() -> void:
 		_check(not bool(rejected.get("accepted", false)) and FileAccess.get_file_as_bytes(path) == early_bytes
 			and owner.get_acknowledged_persistence_state() == early and int(latest.race_state.next_checkpoint_index) == 3
 			and game.get_active_activity_snapshot().state_id == StringName(terminal_kind) and _race_receipts(game) == 1,
-			"rejected later %s writes keep the first acknowledged boundary while the real ordered owner progresses" % terminal_kind)
+			"rejected later %s writes keep the first acknowledged boundary while the real ordered owner progresses" % publication_case)
 		filesystem.reject_writes = false
 		var saved := game.save_cinder_race_session()
 		_check(bool(saved.get("accepted", false)) and owner.capture_persistence_state() == latest
 			and owner.get_acknowledged_persistence_state() == latest and _race_receipts(game) == 1,
-			"ordinary save publishes authentic multiple-gate %s progress after writes recover (%s)" % [terminal_kind, saved.get("reason", "")])
+			"ordinary save publishes authentic multiple-gate %s progress after writes recover (%s)" % [publication_case, saved.get("reason", "")])
 		await _retire_game(game)
 		if not bool(saved.get("accepted", false)):
 			continue
