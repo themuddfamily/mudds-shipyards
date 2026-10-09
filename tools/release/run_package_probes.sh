@@ -2,8 +2,8 @@
 set -euo pipefail
 set -o pipefail
 
-# --in-world-interruption runs one actual kill/restart; --activity=beacon selects
-# unpaid beacon recovery (pilot only), otherwise the original convoy is used.
+# --in-world-interruption runs one actual kill/restart; --activity=beacon or
+# --activity=mining selects unpaid recovery (pilot only); default remains convoy.
 # --source selects the current project instead of PACKAGE_PATH; source
 # and PCK identities are recorded separately and neither qualifies native input.
 # --native-export runs PACKAGE_PATH's embedded Linux game directly; it cannot
@@ -44,7 +44,7 @@ RESULTS_ROOT="${PACKAGE_PROBE_RESULTS_ROOT:-$PROJECT_ROOT/artifacts/package-prob
 RUN_ID="${PACKAGE_PROBE_RUN_ID:-$(date -u +%Y%m%dT%H%M%SZ)}"
 AUDIO_DRIVER="${PACKAGE_PROBE_AUDIO_DRIVER:-Dummy}"
 RECOVERY_CONTEXT="${PACKAGE_PROBE_RECOVERY_CONTEXT:-pilot}"
-if [[ "$PROBE_ACTIVITY" != convoy && "$PROBE_ACTIVITY" != beacon ]]; then
+if [[ "$PROBE_ACTIVITY" != convoy && "$PROBE_ACTIVITY" != beacon && "$PROBE_ACTIVITY" != mining ]]; then
   echo "Invalid interruption activity" >&2
   exit 2
 fi
@@ -56,8 +56,8 @@ if [[ "$RECOVERY_CONTEXT" != pilot && "$RECOVERY_CONTEXT" != cabin && "$RECOVERY
   echo "Invalid interruption recovery context" >&2
   exit 2
 fi
-if [[ "$PROBE_ACTIVITY" == beacon && "$RECOVERY_CONTEXT" != pilot ]]; then
-  echo "Beacon interruption currently requires pilot context" >&2
+if [[ ( "$PROBE_ACTIVITY" == beacon || "$PROBE_ACTIVITY" == mining ) && "$RECOVERY_CONTEXT" != pilot ]]; then
+  echo "$PROBE_ACTIVITY interruption currently requires pilot context" >&2
   exit 2
 fi
 
@@ -265,7 +265,23 @@ try:
     require(ready.get("activity", "convoy") == activity, "arm ignored the selected activity")
     before = document.read_bytes()
     saved = json.loads(before)
-    if activity == "beacon":
+    if activity == "mining":
+        terminal = saved["payload"]["cinder_mining_capacity"]
+        session = terminal["session"]
+        require(terminal == ready["boundary"] and terminal["schema_version"] == 2
+                and terminal["payload_kind"] == "cinder_mining_capacity_receipt"
+                and terminal["slot_id"] == "cinder_mining_capacity", "mining readiness differs from actual saved session")
+        require(session == {"state": 2, "generation": 1, "elapsed_seconds": 6,
+                            "reward_requested": False, "capacity_paid": False}
+                and terminal["capacity"] == {} and ready["receipts"] == 0,
+                "mining readiness has no genuine generation-one full unpaid terminal")
+        require(ready["runtime_observation"]["craft_piloted"] is True
+                and ready["runtime_observation"]["player_seated"] is True, "mining arm has no real pilot")
+        require(not pathlib.Path(str(document) + ".tmp").exists(), "mining blockage remains at kill boundary")
+        require(saved["payload"]["runtime_settings"] == ready["foreign_settings"]
+                and saved["payload"]["mining_probe_foreign_cargo"] == ready["foreign_cargo"],
+                "mining arm lost unrelated settings or cargo")
+    elif activity == "beacon":
         terminal = saved["payload"]["cinder_beacon_session"]
         row = terminal["activities"][0]
         require(terminal == ready["boundary"] and terminal["schema_version"] == 1
@@ -303,11 +319,28 @@ try:
     require(resume_log.read_text(errors="replace").strip().splitlines()[-1].startswith("IN_WORLD_RECOVERY_OK: "), "recovery token is not terminal")
     require(recovered["boundary"] == ready["boundary"], "fresh process changed durable host/threat/escort/clock/progress")
     require(recovered["receipts_before"] == ready["receipts"] and recovered["receipts_after"] == ready["receipts"] + 1,
-            "restart lost or duplicated convoy credit")
+            "restart lost or duplicated the activity receipt")
     require(recovered["crash_events"] == 1, "actual interruption did not publish one crash event")
     after = document.read_bytes()
     final = json.loads(after)
-    if activity == "beacon":
+    if activity == "mining":
+        paid = final["payload"]["cinder_mining_capacity"]
+        safe = recovered["safe_recovery_observation"]
+        require(safe["craft_piloted"] is True and safe["player_seated"] is True
+                and safe["craft_id"] == ready["runtime_observation"]["craft_id"],
+                "mining restart did not reacquire the actual saved pilot craft")
+        require(paid == recovered["paid_boundary"] and recovered["capacity_commits"] == 1
+                and paid["session"] == {**session, "reward_requested": True, "capacity_paid": True},
+                "mining retry changed the genuine timer/generation or duplicated its atomic paid acknowledgement")
+        require(paid["capacity"]["activity_id"] == "cinder_platform_mining_run"
+                and paid["capacity"]["extraction_seconds"] == 6
+                and paid["capacity"]["reward_receipt"] == {"activity_id": "cinder_platform_mining_run",
+                    "reward_id": "cinder_raw_ore_sample", "granted": False, "replay_allowed": False},
+                "mining restart has no actual durable non-granting capacity receipt")
+        require(final["payload"]["runtime_settings"] == ready["foreign_settings"] == recovered["foreign_settings"]
+                and final["payload"]["mining_probe_foreign_cargo"] == ready["foreign_cargo"] == recovered["foreign_cargo"],
+                "mining recovery changed unrelated settings or cargo fields")
+    elif activity == "beacon":
         paid = final["payload"]["cinder_beacon_session"]
         safe = recovered["safe_recovery_observation"]
         require(safe["craft_piloted"] is True and safe["player_seated"] is True

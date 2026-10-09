@@ -63,6 +63,9 @@ func run_with_main(game: GameFlow, entry: String) -> void:
 	if store == null or game.get_tree() != get_tree():
 		_fail("the supplied production Main owns its existing store and scene tree")
 		return
+	if activity == "mining":
+		await _run_mining(game, store, entry)
+		return
 	if activity == "beacon":
 		await _run_beacon(game, store, entry)
 		return
@@ -269,7 +272,7 @@ func _beacon_receipts(game: GameFlow) -> int:
 	return int(record.reward_counts.get(String(CinderBeaconTraversalActivity.REWARD_ID), 0))
 
 
-func _load_beacon_binding(game: GameFlow) -> NearbySectorActivityBinding:
+func _load_beacon_binding(game: GameFlow, activity_label := "beacon") -> NearbySectorActivityBinding:
 	game.cinder_streaming_bootstrap.update_position(CinderStreamingBootstrap.EXPECTED_NAVIGATION_ANCHOR)
 	var binding: NearbySectorActivityBinding
 	for _frame in 180:
@@ -277,7 +280,7 @@ func _load_beacon_binding(game: GameFlow) -> NearbySectorActivityBinding:
 		if is_instance_valid(binding):
 			break
 		await get_tree().process_frame
-	_check(is_instance_valid(binding), "Boot Main streams the actual beacon activity owner")
+	_check(is_instance_valid(binding), "Boot Main streams the actual %s activity owner" % activity_label)
 	game.call("_sync_activity_hud")
 	return binding
 
@@ -402,6 +405,177 @@ func _run_beacon(game: GameFlow, store: UserDataStore, entry: String) -> void:
 		"receipts_after": _beacon_receipts(game), "crash_events": crash_events, "activity": activity,
 		"runtime_observation": observations, "safe_recovery_observation": safe_observation,
 		"continuation_method": "real_safe_home_pilot_resume_then_ordinary_beacon_start_retry",
+		"assertions": _assertions, "entry": entry, "loaded_main_instance_id": main_id, "recovery_context": recovery_context}
+	if _failures.is_empty():
+		print("IN_WORLD_RECOVERY_OK: " + JSON.stringify(outcome))
+		get_tree().quit(0)
+	else:
+		print("IN_WORLD_RECOVERY_FAILED")
+		get_tree().quit(1)
+
+
+func _mining_start(game: GameFlow) -> void:
+	for row in (game.hud.get("_nearby_activity_rows") as VBoxContainer).get_children():
+		if row.get_meta(&"activity_id", &"") == CinderMiningPlatformActivity.ACTIVITY_ID:
+			var button := row.get_child(2) as Button
+			_check(not button.disabled, "the actual nearby HUD exposes an enabled mining Start action")
+			if not button.disabled:
+				button.emit_signal("pressed")
+			return
+	_check(false, "the actual nearby HUD exposes its mining Start action")
+
+
+## Pilot-only capability probe. The extraction owner publishes its genuine
+## six-second completion before a real transaction-path directory refuses the
+## ordinary HUD capacity save. No persisted activity or debt is invented here.
+func _run_mining(game: GameFlow, store: UserDataStore, entry: String) -> void:
+	if recovery_context != "pilot":
+		_fail("mining interruption supports the actual pilot recovery context only")
+		return
+	var main_id := game.get_instance_id()
+	game.set_physics_process(false)
+	var craft: HeroShip
+	var path := str(store.get("_path"))
+	if stage == "arm":
+		game.call("_on_settings_save_requested")
+		var payload := store.get_snapshot()
+		payload["mining_probe_foreign_cargo"] = {"cargo_note": "retain this unrelated cargo field"}
+		_check(store.commit(payload, store.get_generation(), "mining-probe-foreign-cargo").accepted,
+			"the actual profile retains an unrelated cargo fixture beside production settings")
+		craft = game.get_flyable_ships()[1] as HeroShip
+		game.canopy_motion_time = 0.01
+		game.boarding_motion_time = 0.02
+		game.start_shift()
+		game.call("_board_ship", craft)
+		_check(await _wait_for_real_pilot(game, craft), "mining arm acquires the real Player pilot before extraction positioning")
+		var context: Dictionary = store.get_snapshot().get(GameFlow.SOLO_SAFE_RECOVERY_SLOT, {})
+		_check(context.get("mode") == "pilot" and context.get("craft_id") == String(craft.get_ship_id()),
+			"mining arm saves its exact real safe-home pilot context before interruption")
+		var binding := await _load_beacon_binding(game, "mining")
+		if not is_instance_valid(binding) or not _failures.is_empty():
+			get_tree().quit(1)
+			return
+		craft.global_position = game.call("_cinder_authored_frame_to_world", CinderMiningPlatformActivity.APPROACH_ANCHOR)
+		_mining_start(game)
+		var completed := binding.advance_mining_activity_from_caller_sample(
+			CinderMiningPlatformActivity.EXTRACTION_SECONDS, CinderMiningPlatformActivity.APPROACH_ANCHOR)
+		var boundary: Dictionary = store.get_snapshot().get("cinder_mining_capacity", {})
+		_check(completed.accepted and completed.reason == &"complete" and boundary.get("schema_version") == 2
+			and boundary.get("capacity", {}).is_empty() and boundary.get("session", {}).get("state") == CinderMiningPlatformActivity.State.COMPLETE
+			and boundary.session.generation == 1 and boundary.session.elapsed_seconds == CinderMiningPlatformActivity.EXTRACTION_SECONDS
+			and not boundary.session.reward_requested and not boundary.session.capacity_paid,
+			"the real extraction owner durably publishes genuine generation-one full unpaid completion")
+		if not _failures.is_empty():
+			get_tree().quit(1)
+			return
+		var before := FileAccess.get_file_as_bytes(path)
+		_check(DirAccess.make_dir_absolute(path + ".tmp") == OK, "the actual store transaction path is blocked by a real directory")
+		_mining_start(game)
+		var live := binding.get_activity_snapshot(&"mining")
+		_check(live.state_id == &"complete" and live.generation == 1 and live.reward_requested
+			and live.get("persistence_retry_available", false) and not live.get("capacity_persisted", false)
+			and FileAccess.get_file_as_bytes(path) == before
+			and binding.get_cinder_mining_capacity_persistence_snapshot().last_result.reason == &"transaction_path_is_directory",
+			"ordinary HUD Start genuinely refuses capacity publication while preserving the unpaid terminal file")
+		get_tree().paused = true
+		_check(DirAccess.remove_absolute(path + ".tmp") == OK and FileAccess.get_file_as_bytes(path) == before,
+			"the blockage is removed with the genuine owed state paused and no orderly save")
+		if not _failures.is_empty():
+			get_tree().quit(1)
+			return
+		var ready := {"boundary": boundary, "receipts": 0, "activity": activity,
+			"foreign_settings": store.get_snapshot().get("runtime_settings", {}),
+			"foreign_cargo": store.get_snapshot().mining_probe_foreign_cargo,
+			"runtime_observation": _interruption_runtime_observation(game),
+			"entry": entry, "loaded_main_instance_id": main_id, "recovery_context": recovery_context}
+		print("IN_WORLD_INTERRUPTION_READY: " + JSON.stringify(ready))
+		return
+	var boundary: Dictionary = store.get_snapshot().get("cinder_mining_capacity", {})
+	var foreign_settings: Dictionary = store.get_snapshot().get("runtime_settings", {})
+	var foreign_cargo: Dictionary = store.get_snapshot().get("mining_probe_foreign_cargo", {})
+	var binding := await _load_beacon_binding(game, "mining")
+	if not is_instance_valid(binding):
+		get_tree().quit(1)
+		return
+	var persistence := binding.get("_mining_capacity_persistence") as RefCounted
+	if persistence == null or not bool((persistence.call("validate_record", boundary) as Dictionary).get("accepted", false)) \
+			or boundary.get("schema_version") != 2:
+		_fail("mining restart requires an existing valid durable extraction checkpoint")
+		return
+	if int(boundary.session.state) != CinderMiningPlatformActivity.State.COMPLETE or bool(boundary.session.capacity_paid):
+		_fail("mining restart requires a genuine complete unpaid extraction")
+		return
+	var live := binding.get_activity_snapshot(&"mining")
+	var genuine_snapshot := (binding.get("_mining_activity") as RefCounted).call("get_snapshot") as Dictionary
+	var observations := _interruption_runtime_observation(game)
+	var recovery := game.get_recovery_available_snapshot()
+	var crash_events := 0
+	for event: Dictionary in game.get_session_recovery_diagnostic_snapshot().get("events", []):
+		if event.get("event_code") == "crash_detected":
+			crash_events += 1
+	_check(live.state_id == &"complete" and live.generation == 1 and live.elapsed_seconds == CinderMiningPlatformActivity.EXTRACTION_SECONDS
+		and live.get("persistence_retry_available", false) and not live.get("capacity_persisted", false)
+		and boundary.session.state == CinderMiningPlatformActivity.State.COMPLETE and not boundary.session.capacity_paid
+		and boundary.capacity.is_empty() and crash_events == 1 and not recovery.is_empty() and recovery.get("state") == "running",
+		"a fresh Boot process restores the genuine unpaid mining completion and one crash event")
+	var context: Dictionary = store.get_snapshot().get(GameFlow.SOLO_SAFE_RECOVERY_SLOT, {})
+	for candidate in game.get_flyable_ships():
+		if String(candidate.get_ship_id()) == context.get("craft_id"):
+			craft = candidate
+	if craft == null or not _failures.is_empty():
+		_fail("the saved mining pilot context must resolve an actual shipped craft before Resume")
+		return
+	var resumed: Dictionary = game.call("_handle_hud_session_recovery_choice", &"normal_start", int(recovery.session_id), int(recovery.startup_generation))
+	game.canopy_motion_time = 0.01
+	game.boarding_motion_time = 0.02
+	game.start_shift()
+	var settled := await _wait_for_real_pilot(game, craft)
+	var area := craft.get_node("ShipBoardingArea") as ShipBoardingArea
+	var berth := game.world.get_berth_node(craft.get_home_berth_id()) as ShipBerth
+	_check(resumed.get("accepted", false) and settled and area.get_reservation_token() == game.player
+		and berth.get_occupant() == craft and berth.get_reservation_owner() == craft
+		and craft.global_position.distance_to(game.world.get_berth_transform(craft.get_home_berth_id()).origin) < 0.1
+		and boundary == store.get_snapshot().cinder_mining_capacity,
+		"ordinary Resume reacquires the real safe-home pilot and preserves exact unpaid mining progress")
+	Input.action_press(&"move_forward")
+	await get_tree().physics_frame
+	await get_tree().physics_frame
+	Input.action_release(&"move_forward")
+	_check(str(craft.get_telemetry().get("engine_state", "")).to_upper() == "ONLINE" and craft.get_last_ship_command().throttle > 0.0
+		and boundary == store.get_snapshot().cinder_mining_capacity,
+		"the recovered real pilot accepts ordinary throttle without mutating unpaid mining progress")
+	var safe_observation := _interruption_runtime_observation(game)
+	game.call("_sync_activity_hud")
+	var before_generation := store.get_generation()
+	_mining_start(game)
+	var paid: Dictionary = store.get_snapshot().cinder_mining_capacity
+	var capacity_commits := store.get_generation() - before_generation
+	_check(capacity_commits == 1 and paid.session.capacity_paid and paid.session.reward_requested
+		and paid.session.generation == boundary.session.generation and paid.session.elapsed_seconds == boundary.session.elapsed_seconds
+		and paid.capacity.reward_receipt.granted == false and paid.capacity.reward_receipt.replay_allowed == false
+		and binding.get_activity_snapshot(&"mining").get("capacity_persisted", false),
+		"ordinary HUD Start atomically publishes capacity and the same generation paid acknowledgement once")
+	var bytes := FileAccess.get_file_as_bytes(path)
+	var duplicate := binding.request_mining_reward()
+	var late := binding.retry_mining_capacity_persistence()
+	var stale := persistence.call("save_session", genuine_snapshot, false, {}, "mining-probe-late-unpaid") as Dictionary
+	_check(not duplicate.accepted and not late.accepted and not stale.accepted
+		and stale.reason == &"mining_session_stale" and paid == store.get_snapshot().cinder_mining_capacity
+		and FileAccess.get_file_as_bytes(path) == bytes and store.get_generation() == before_generation + 1,
+		"duplicate and genuine late unpaid callbacks are refused without another capacity commit")
+	_check(not foreign_settings.is_empty() and not foreign_cargo.is_empty()
+		and foreign_settings == store.get_snapshot().get("runtime_settings", {})
+		and foreign_cargo == store.get_snapshot().get("mining_probe_foreign_cargo", {}),
+		"mining recovery preserves production settings and unrelated cargo fields")
+	var closed := game.mark_orderly_shutdown()
+	_check(closed.get("accepted", false), "mining restart closes both existing recovery marker owners")
+	_check(is_instance_valid(game) and game.get_instance_id() == main_id and game.get_tree() == get_tree(),
+		"mining recovery retains Boot's exact supplied Main owner")
+	var outcome := {"boundary": boundary, "paid_boundary": paid, "receipts_before": 0, "receipts_after": 1,
+		"capacity_commits": capacity_commits, "crash_events": crash_events, "activity": activity,
+		"foreign_settings": foreign_settings, "foreign_cargo": foreign_cargo,
+		"runtime_observation": observations, "safe_recovery_observation": safe_observation,
+		"continuation_method": "real_safe_home_pilot_resume_then_ordinary_mining_start_retry",
 		"assertions": _assertions, "entry": entry, "loaded_main_instance_id": main_id, "recovery_context": recovery_context}
 	if _failures.is_empty():
 		print("IN_WORLD_RECOVERY_OK: " + JSON.stringify(outcome))
