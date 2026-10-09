@@ -60,7 +60,8 @@ func load(activity: CargoDeliveryActivity, authority: CargoTransferAuthority) ->
 	return {"accepted": true, "reason": &"jovian_session_loaded", "session_state": row.activities[0].progress.cargo_session_state.duplicate(true),
 		"reward_requested": row.activities[0].reward_requested, "reward_granted": row.activities[0].reward_granted}
 
-func save(activity: CargoDeliveryActivity, authority: CargoTransferAuthority, commit_id: String) -> Dictionary:
+func save(activity: CargoDeliveryActivity, authority: CargoTransferAuthority, commit_id: String,
+		reset_source: CargoDeliveryActivity = null) -> Dictionary:
 	if _store == null or activity.get_generation() < 1:
 		return _result(_store != null, &"jovian_session_not_started")
 	var state := JSON.parse_string(JSON.stringify(capture(activity, authority))) as Dictionary
@@ -96,8 +97,19 @@ func save(activity: CargoDeliveryActivity, authority: CargoTransferAuthority, co
 		elif int(after.generation) == int(before.generation) + 1:
 			var reset: bool = int(after.state) == CargoDeliveryActivity.State.IDLE and int(before.state) != CargoDeliveryActivity.State.IDLE \
 				and (int(before.state) != CargoDeliveryActivity.State.COMPLETED or (old.reward_requested and old.reward_granted))
-			var start: bool = int(before.state) == CargoDeliveryActivity.State.IDLE and int(after.state) == CargoDeliveryActivity.State.ACTIVE
+			var start := _next_run_is_proven(before, after, previous.authority_state, state.authority_state)
 			if not reset and not start:
+				return _result(false, &"unproven_jovian_generation")
+		elif int(after.generation) == int(before.generation) + 2 and int(after.state) == CargoDeliveryActivity.State.IDLE:
+			# The missing start write must be proved by the actual retained owner
+			# inside its existing staged reset, not by a bare generation jump.
+			if reset_source == null or not reset_source.owns_staged_persistence_reset(activity, authority):
+				return _result(false, &"unproven_jovian_generation")
+			var source := JSON.parse_string(JSON.stringify(reset_source.capture_persistence_state())) as Dictionary
+			var source_valid := reset_source.validate_persistence_state(source, state.authority_state)
+			if not bool(source_valid.get("accepted", false)) \
+					or int(source.state) not in [CargoDeliveryActivity.State.ACTIVE, CargoDeliveryActivity.State.FAILED, CargoDeliveryActivity.State.EXPIRED] \
+					or not _next_run_is_proven(before, source, previous.authority_state, state.authority_state):
 				return _result(false, &"unproven_jovian_generation")
 		else:
 			return _result(false, &"unproven_jovian_generation")
@@ -112,6 +124,31 @@ func save(activity: CargoDeliveryActivity, authority: CargoTransferAuthority, co
 		return _result(false, &"unproven_jovian_reset")
 	payload[String(SLOT_ID)] = record
 	return _store.commit(payload, _store.get_generation(), commit_id)
+
+func _next_run_is_proven(before: Dictionary, after: Dictionary, previous_inventory: Dictionary, inventory: Dictionary) -> bool:
+	if int(before.state) != CargoDeliveryActivity.State.IDLE or int(after.generation) != int(before.generation) + 1 \
+			or int(after.state) not in [CargoDeliveryActivity.State.ACTIVE, CargoDeliveryActivity.State.COMPLETED,
+				CargoDeliveryActivity.State.FAILED, CargoDeliveryActivity.State.EXPIRED]:
+		return false
+	var old_transfers := _contract_transfers(previous_inventory)
+	var new_transfers := _contract_transfers(inventory)
+	for transfer_id: String in old_transfers:
+		if new_transfers.get(transfer_id, -1) != old_transfers[transfer_id]:
+			return false
+	if int(after.state) == CargoDeliveryActivity.State.COMPLETED:
+		var transfer_id := str(after.expected_transfer_id)
+		return not old_transfers.has(transfer_id) and new_transfers.has(transfer_id) \
+			and new_transfers.size() == old_transfers.size() + 1 \
+			and int(new_transfers[transfer_id]) == int(after.accepted_receipt.receipt_id)
+	return new_transfers.size() == old_transfers.size()
+
+func _contract_transfers(inventory: Dictionary) -> Dictionary:
+	var transfers: Dictionary = {}
+	for entry: Dictionary in inventory.committed_transfers:
+		var transfer_id := str(entry.transfer_id)
+		if transfer_id.begins_with(str(ACTIVITY_ID) + "_g"):
+			transfers[transfer_id] = int(entry.receipt_id)
+	return transfers
 
 func _result(accepted: bool, reason: StringName) -> Dictionary:
 	return {"accepted": accepted, "reason": reason}

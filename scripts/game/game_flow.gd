@@ -2090,7 +2090,7 @@ func save_jovian_cargo_session(candidate: CargoDeliveryActivity = null) -> Dicti
 	if generation < 1 or generation > UserDataStoreType.MAX_GENERATION:
 		return {"accepted": false, "reason": &"jovian_commit_id_exhausted"}
 	_jovian_cargo_session_save_status = _jovian_cargo_session_persistence.save(owner, cargo_transfer_authority,
-		"jovian-cargo-session-%010d" % generation)
+		"jovian-cargo-session-%010d" % generation, cargo_delivery_activity if candidate != null else null)
 	if bool(_jovian_cargo_session_save_status.get("accepted", false)):
 		_runtime_settings_commit_serial = maxi(_runtime_settings_commit_serial, _runtime_settings_user_data_store.get_generation())
 		_sync_production_runtime_settings_state()

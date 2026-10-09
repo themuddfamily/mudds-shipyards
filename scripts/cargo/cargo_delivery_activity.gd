@@ -34,6 +34,7 @@ var _expected_transfer_id: StringName = &""
 var _accepted_receipt: Dictionary = {}
 var _signal_dispatch_active := false
 var _authority_submission_active := false
+var _persistence_reset_candidate: CargoDeliveryActivity
 
 static var _reservations_by_authority_instance: Dictionary = {}
 
@@ -339,11 +340,21 @@ func reset_with_persistence(expected_generation: int, persist_reset: Callable) -
 	_authority.transfer_committed.disconnect(scratch._on_transfer_committed)
 	scratch._adopt_validated_fields(capture_persistence_state())
 	var staged := scratch.reset(expected_generation)
+	_persistence_reset_candidate = scratch if bool(staged.accepted) else null
 	var saved: Variant = persist_reset.call(scratch) if bool(staged.accepted) else staged
+	_persistence_reset_candidate = null
 	_signal_dispatch_active = false
 	if not saved is Dictionary or not bool(saved.get("accepted", false)):
 		return {"accepted": false, "reason": &"delivery_reset_save_rejected", "store_result": saved}
 	return reset(expected_generation)
+
+
+## Only the exact scratch reset currently being committed may prove an unsaved
+## intervening run. Historical candidates and ordinary lifecycle calls cannot.
+func owns_staged_persistence_reset(candidate: CargoDeliveryActivity, authority: CargoTransferAuthority) -> bool:
+	return candidate != null and candidate == _persistence_reset_candidate and _signal_dispatch_active \
+		and _authority == authority and candidate._authority == authority \
+		and candidate.get_state() == State.IDLE and candidate.get_generation() == _generation + 1
 
 
 func _adopt_validated_fields(saved: Dictionary) -> void:
