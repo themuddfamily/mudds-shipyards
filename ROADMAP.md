@@ -219,7 +219,7 @@ Work in the order below: establish the current baseline, close core defects, fin
 
 ### What remains open now
 
-- **Implementation and content:** finalize the shipped roster; finish its required station/fleet forms, animation, crew routes, combat, activity/world content and multiplayer integration. Mining recovery and Jovian engineer controls are integrated but await combined-source validation and a fresh checkpoint.
+- **Implementation and content:** finalize the shipped roster; finish its required station/fleet forms, animation, crew routes, combat, activity/world content and multiplayer integration. Mining recovery and Jovian engineer controls are integrated and pass focused combined-source/package checks on `9ef48fdc2`; that checkpoint awaits publication. Installed mining recovery, engineer OS-interruption, uninterrupted player controls and final-candidate acceptance remain open.
 - **Gameplay acceptance:** complete uninterrupted core play and all shipped activity/planetary return loops; verify repeat use, save/reload, rejected writes and usable crash recovery. Finish native multiplayer and endurance scenarios.
 - **Hardware and player review:** meet native GPU budgets and complete physical-controller, accessibility, first-time-player, visual and audible reviews, including the thirteen required graphical harnesses.
 - **Release:** qualify one final source with its complete regression and matching platform packages; finish clean-platform installation/update/rollback, final recovery, licensing, trusted signing and distribution.
