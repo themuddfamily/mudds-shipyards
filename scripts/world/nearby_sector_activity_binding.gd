@@ -1844,6 +1844,8 @@ func get_beacon_traversal_reward_handoff_snapshot() -> Dictionary:
 func start_beacon_traversal(caller_position: Vector3) -> Dictionary:
 	if _beacon_activity == null:
 		return _result(false, &"not_ready")
+	if _has_pending_beacon_traversal_reward():
+		return _result(false, &"beacon_traversal_reward_save_pending")
 	var result: Dictionary = _beacon_activity.call("start", caller_position)
 	if bool(result.get("accepted", false)):
 		_last_beacon_feedback_reason = &""
@@ -1972,9 +1974,24 @@ func request_beacon_traversal_reward() -> Dictionary:
 	return result
 
 
+## The configured production sink commits before the activity consumes its
+## one-shot request. Keep the completed route until that handoff succeeds;
+## otherwise Reset or a new run would erase the only legitimate save retry.
+func _has_pending_beacon_traversal_reward() -> bool:
+	if _beacon_activity == null or not _beacon_traversal_reward_sink.is_valid():
+		return false
+	var snapshot := _beacon_activity.call("get_snapshot") as Dictionary
+	return (
+		int(snapshot.get("state", -1)) == BEACON_ACTIVITY.State.COMPLETE
+		and not bool(snapshot.get("reward_requested", false))
+	)
+
+
 func reset_beacon_traversal() -> Dictionary:
 	if _beacon_activity == null:
 		return _result(false, &"not_ready")
+	if _has_pending_beacon_traversal_reward():
+		return _result(false, &"beacon_traversal_reward_save_pending")
 	var result: Dictionary = _beacon_activity.call("reset")
 	if bool(result.get("accepted", false)):
 		_last_beacon_feedback_reason = &""
@@ -2805,7 +2822,7 @@ func _beacon_traversal_presentation_snapshot() -> Dictionary:
 		&"idle", &"active", &"complete", &"reset",
 	][clampi(authority_state, BEACON_ACTIVITY.State.IDLE, BEACON_ACTIVITY.State.RESET)]
 	snapshot["presentation_reason"] = _last_beacon_feedback_reason
-	snapshot["reward_pending"] = (
+	snapshot["reward_pending"] = _has_pending_beacon_traversal_reward() or (
 		bool(_last_beacon_reward_result.get("accepted", false))
 		and bool(snapshot.get("reward_requested", false))
 		and request_matches

@@ -704,7 +704,8 @@ func _run() -> void:
 			and rejected_beacon_reward.get("reason", &"") \
 				== &"beacon_traversal_reward_handoff_rejected"
 			and not bool(completed_beacon_snapshot.get("reward_requested", true))
-			and "COMPLETE — CLAIM NAV DATA" in str(
+			and bool(completed_beacon_snapshot.get("reward_pending", false))
+			and "COMPLETE — REWARD PENDING" in str(
 				retained_hud.get_activity_objective_report().get("text", "")
 			),
 		"the remaining authored beacons complete in order while a failed receipt stays retryable",

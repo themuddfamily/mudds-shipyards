@@ -5,6 +5,7 @@ extends SceneTree
 ## it, and the adapter/authority generation fence pays it exactly once.
 
 const MAIN_SCENE := preload("res://scenes/main.tscn")
+const Beacon := preload("res://scripts/world/cinder_beacon_traversal_activity.gd")
 const ROUTE := preload("res://assets/activities/cinder_reach_checkpoint_route.tres")
 const Store := preload("res://scripts/persistence/user_data_store.gd")
 const STORE_PATH := "memory://owed-activity-reward-settings.json"
@@ -156,6 +157,7 @@ func _run() -> void:
 	await process_frame
 	await process_frame
 	await _test_completed_race_reward_crash()
+	await _test_beacon_reset_preserves_owed_reward()
 	_finish()
 
 
@@ -257,6 +259,122 @@ func _test_completed_race_reward_crash() -> void:
 	third.queue_free()
 	await process_frame
 	await process_frame
+
+
+func _test_beacon_reset_preserves_owed_reward() -> void:
+	var path := "user://beacon_owed_reward_%d.json" % Time.get_ticks_usec()
+	var filesystem := InterruptedRewardFilesystem.new()
+	var game := await _make_disk_game(Store.new(path, filesystem))
+	game.start_shift()
+	var craft := game.get_guided_ship()
+	game.player.global_position = craft.get_boarding_position()
+	game.call("_board_ship", craft)
+	for _tick in 300:
+		if game.player.is_seated_at(craft.get_pilot_seat_anchor()) and craft.is_piloted():
+			break
+		await physics_frame
+	_check(game.player.is_seated_at(craft.get_pilot_seat_anchor()) and craft.is_piloted(),
+		"beacon reward fixture boards the real production pilot owner")
+	game.set_physics_process(false)
+	var binding := await _load_beacon_binding(game)
+	if not is_instance_valid(binding):
+		game.queue_free()
+		await process_frame
+		return
+	craft.global_position = game.call("_cinder_authored_frame_to_world", Beacon.BEACONS[0])
+	_beacon_button(game, 2).emit_signal("pressed")
+	var started := binding.get_activity_snapshot(&"beacon_traversal")
+	_check(started.state_id == &"active", "ordinary HUD Start begins the authored beacon route")
+	for point in Beacon.BEACONS:
+		craft.global_position = game.call("_cinder_authored_frame_to_world", point)
+		game.call("_advance_cinder_beacon_traversal", 0.0, game.call("_capture_cinder_actor_sample"))
+	var completed := binding.get_activity_snapshot(&"beacon_traversal")
+	var generation := int(completed.get("generation", 0))
+	_check(completed.state_id == &"complete" and not completed.reward_requested
+		and filesystem.reward_rejected and _receipts(game) == 0,
+		"ordered production ship samples complete the route but a real reward write fails")
+	_check(bool(completed.get("reward_pending", false))
+		and (_beacon_button(game, 2).get_parent().get_child(0) as Label).text.contains("REWARD PENDING"),
+		"the rejected beacon reward stays visibly pending in its retained HUD row")
+	_beacon_button(game, 3).emit_signal("pressed")
+	# An unpaid completion may request the normal reset confirmation first.
+	if _beacon_button(game, 3).text == "CONFIRM RESET":
+		_beacon_button(game, 3).emit_signal("pressed")
+	var after_reset := binding.get_activity_snapshot(&"beacon_traversal")
+	_check(after_reset.state_id == &"complete" and int(after_reset.generation) == generation
+		and int(after_reset.next_beacon_index) == Beacon.BEACONS.size() and _receipts(game) == 0,
+		"ordinary HUD Reset cannot discard the unpaid completion or ordered progress")
+	var direct_start := binding.start_beacon_traversal(Beacon.BEACONS[0])
+	_check(not bool(direct_start.accepted)
+		and int(binding.get_activity_snapshot(&"beacon_traversal").generation) == generation,
+		"the existing binding owner also refuses a new run over its unpaid completion")
+	if after_reset.state_id != &"complete":
+		game.queue_free()
+		await process_frame
+		await process_frame
+		return
+	_beacon_button(game, 2).emit_signal("pressed")
+	_check(binding.get_activity_snapshot(&"beacon_traversal").state_id == &"complete"
+		and _receipts(game) == 0,
+		"Start retries the same legitimate reward while storage still refuses it")
+	filesystem.interrupt_rewards = false
+	_beacon_button(game, 2).emit_signal("pressed")
+	var paid := binding.get_activity_snapshot(&"beacon_traversal")
+	_check(paid.reward_requested and paid.reward_committed and not paid.reward_pending
+		and int(paid.generation) == generation and _receipts(game) == 1
+		and int(_reward_counts(game).get(String(Beacon.REWARD_ID), 0)) == 1,
+		"restored storage lets Start pay the same beacon completion exactly once")
+	binding.request_beacon_traversal_reward()
+	_check(_receipts(game) == 1, "repeated reward requests never repay the completed beacon route")
+	_beacon_button(game, 3).emit_signal("pressed")
+	craft.global_position = game.call("_cinder_authored_frame_to_world", Beacon.BEACONS[0])
+	_beacon_button(game, 2).emit_signal("pressed")
+	var next_run := binding.get_activity_snapshot(&"beacon_traversal")
+	var stale := binding.request_beacon_traversal_reward()
+	_check(next_run.state_id == &"active" and int(next_run.generation) == generation + 1
+		and not bool(stale.accepted)
+		and binding.get_activity_snapshot(&"beacon_traversal").next_beacon_index == 0
+		and _receipts(game) == 1,
+		"paid Reset permits a new generation and the old terminal retry cannot alter it")
+	game.queue_free()
+	await process_frame
+	await process_frame
+	var fresh := await _make_disk_game(Store.new(path, UserDataFilesystem.new()))
+	fresh.set_physics_process(false)
+	var fresh_binding := await _load_beacon_binding(fresh)
+	_check(_receipts(fresh) == 1
+		and int(_reward_counts(fresh).get(String(Beacon.REWARD_ID), 0)) == 1,
+		"fresh Main loads the one paid navigation-data receipt from real disk")
+	if is_instance_valid(fresh_binding):
+		fresh.active_ship.global_position = fresh.call("_cinder_authored_frame_to_world", Beacon.BEACONS[0])
+		_beacon_button(fresh, 2).emit_signal("pressed")
+		_check(fresh_binding.get_activity_snapshot(&"beacon_traversal").state_id == &"active"
+			and _receipts(fresh) == 1,
+			"fresh Main can start a new beacon run without losing its paid progress")
+	fresh.queue_free()
+	await process_frame
+	await process_frame
+
+
+func _load_beacon_binding(game: GameFlow) -> NearbySectorActivityBinding:
+	game.cinder_streaming_bootstrap.update_position(CinderStreamingBootstrap.EXPECTED_NAVIGATION_ANCHOR)
+	var binding: NearbySectorActivityBinding
+	for _frame in 180:
+		binding = game.call("_get_nearby_activity_binding") as NearbySectorActivityBinding
+		if is_instance_valid(binding):
+			break
+		await process_frame
+	_check(is_instance_valid(binding), "production streaming loads the real Cinder beacon owner")
+	game.call("_sync_activity_hud")
+	return binding
+
+
+func _beacon_button(game: GameFlow, index: int) -> Button:
+	var rows := game.hud.get("_nearby_activity_rows") as VBoxContainer
+	for row in rows.get_children():
+		if "cinder_debris_beacon_traversal" in str(row.name):
+			return row.get_child(index) as Button
+	return null
 
 
 func _make_disk_game(store: UserDataStore) -> GameFlow:
