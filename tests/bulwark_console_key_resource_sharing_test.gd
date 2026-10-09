@@ -9,13 +9,16 @@ const KEY_NAMES := [
 	"StarboardConsoleKey01",
 	"StarboardConsoleKey02",
 ]
+# 636fb9cd7 "Add a physically supported walkable Bulwark cabin" fitted the
+# consoles ahead of the starboard seat to clear the port boarding corridor.
+# Freeze that final authored pose, as bulwark_heavy_gunship_test already does.
 const EXPECTED_POSITIONS := [
-	Vector3(-0.76, 2.41, -0.88),
-	Vector3(-0.715, 2.41, -0.56),
-	Vector3(-0.67, 2.41, -0.24),
-	Vector3(0.76, 2.41, -0.88),
-	Vector3(0.805, 2.41, -0.56),
-	Vector3(0.85, 2.41, -0.24),
+	Vector3(0.0105, 2.41, -1.08),
+	Vector3(0.02625, 2.41, -0.92),
+	Vector3(0.042, 2.41, -0.76),
+	Vector3(0.922, 2.41, -1.08),
+	Vector3(0.949, 2.41, -0.92),
+	Vector3(0.976, 2.41, -0.76),
 ]
 
 # Console-key finishes follow the shipped cockpit lighting checkpoints rather
@@ -68,7 +71,9 @@ func _run() -> void:
 			var amber := key_index == 1 or key_index == 4
 			materials_and_transforms_intact = materials_and_transforms_intact \
 				and key.mesh == shared_mesh \
-				and key.position.is_equal_approx(EXPECTED_POSITIONS[key_index]) \
+				and key.transform.is_equal_approx(
+					Transform3D(Basis.IDENTITY, EXPECTED_POSITIONS[key_index])
+				) \
 				and key.visible \
 				and key.cast_shadow == GeometryInstance3D.SHADOW_CASTING_SETTING_ON \
 				and key.layers == 1 \
