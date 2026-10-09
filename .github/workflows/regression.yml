@@ -3,6 +3,11 @@ on:
   pull_request:
   push:
     branches: [main, master]
+    # Checkpoint status updates must not cancel the tested runtime commit.
+    # Pull requests and every other changed path still run the full CI roster.
+    paths-ignore:
+      - 'ROADMAP.md'
+      - 'docs/WINDOWS_INSTALLER.md'
   workflow_dispatch:
   schedule:
     - cron: '23 3 * * 1,4'
