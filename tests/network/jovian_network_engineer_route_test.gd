@@ -400,10 +400,20 @@ func _wait_file(name: String, seconds: float) -> bool:
 	return result
 
 func _write(name: String, data: Dictionary) -> void:
-	print("ENGINEER_PEER_BOUNDARY: ", _role, " ", name, " wall=", Time.get_unix_time_from_system(), " ticks=", Engine.get_physics_frames())
-	var file := FileAccess.open(_directory.path_join(name), FileAccess.WRITE)
+	var target := _directory.path_join(name)
+	var temporary := target + ".tmp-" + str(OS.get_process_id())
+	var file := FileAccess.open(temporary, FileAccess.WRITE)
+	if file == null:
+		_check(false, "peer receipt temporary file opens: " + name)
+		return
 	file.store_string(JSON.stringify(data))
+	file.flush()
+	var write_error := file.get_error()
 	file.close()
+	if write_error != OK or DirAccess.rename_absolute(temporary, target) != OK:
+		_check(false, "complete peer receipt publishes atomically: " + name)
+		return
+	print("ENGINEER_PEER_BOUNDARY: ", _role, " ", name, " wall=", Time.get_unix_time_from_system(), " ticks=", Engine.get_physics_frames())
 
 func _read(name: String) -> Dictionary:
 	if not FileAccess.file_exists(_directory.path_join(name)):
