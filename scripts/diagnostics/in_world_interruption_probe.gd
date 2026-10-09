@@ -67,12 +67,12 @@ func run_with_main(game: GameFlow, entry: String) -> void:
 	if stage == "arm":
 		game.call("_on_settings_save_requested")
 		var craft := (game.get_flyable_ships()[1] if recovery_context == "pilot" else game.get_node("HalyardCrewTransport")) as HeroShip
-		if recovery_context != "crew":
+		if recovery_context == "pilot":
 			game.canopy_motion_time = 0.01
 			game.boarding_motion_time = 0.02
 		game.start_shift()
 		game.call("_board_ship", craft)
-		_check(await _wait_for_real_pilot(game, craft, 300 if recovery_context == "crew" else 120), "the arm leg settles a real Player pilot before any escort fixture setup")
+		_check(await _wait_for_real_pilot(game, craft, 300 if recovery_context != "pilot" else 120), "the arm leg settles a real Player pilot before any escort fixture setup")
 		var saved_context: Dictionary = store.get_snapshot().get(GameFlow.SOLO_SAFE_RECOVERY_SLOT, {})
 		_check(saved_context.get("mode") == "pilot" and saved_context.get("craft_id") == String(craft.get_ship_id()), "the actual settled solo pilot context is durable before the OS interruption")
 		var selected := game.select_activity_kind(GameFlow.ACTIVITY_KIND_CONVOY_ESCORT)
@@ -135,11 +135,11 @@ func run_with_main(game: GameFlow, entry: String) -> void:
 	if craft_index >= 0 and _failures.is_empty():
 		var craft := ships[craft_index] as HeroShip
 		var resumed: Dictionary = game.call("_handle_hud_session_recovery_choice", &"normal_start", int(recovery.session_id), int(recovery.startup_generation))
-		if recovery_context != "crew":
+		if recovery_context == "pilot":
 			game.canopy_motion_time = 0.01
 			game.boarding_motion_time = 0.02
 		game.start_shift()
-		var settled := await _wait_for_real_pilot(game, craft, 300 if recovery_context == "crew" else 120) if recovery_context == "pilot" else await _wait_for_awake_cabin(game, craft)
+		var settled := await _wait_for_real_pilot(game, craft) if recovery_context == "pilot" else await _wait_for_awake_cabin(game, craft)
 		if recovery_context != "pilot":
 			_check(craft.get_ship_id() == GameFlow.HALYARD_SHIP_ID and craft.global_position.distance_to(game.world.get_berth_transform(craft.get_home_berth_id()).origin) < 0.1,
 				"cold cabin recovery resolves the registered Halyard at its exact safe home berth")
@@ -160,10 +160,9 @@ func run_with_main(game: GameFlow, entry: String) -> void:
 			"ordinary cold Resume reacquires the selected real safe home context and preserves the exact convoy before fixture positioning")
 		if recovery_context != "pilot":
 			var start := game.player.global_position
-			var walk_action := &"move_forward" if recovery_context == "crew" else &"move_back"
-			Input.action_press(walk_action)
-			await _settle_frames(24 if recovery_context == "crew" else 20)
-			Input.action_release(walk_action)
+			Input.action_press(&"move_forward")
+			await _settle_frames(24)
+			Input.action_release(&"move_forward")
 			await _settle_frames()
 			_check(game.player.global_position.distance_to(start) > 0.1 and game.player.is_on_floor()
 				and not craft.is_piloted() and game.player.is_control_enabled(),
@@ -173,13 +172,8 @@ func run_with_main(game: GameFlow, entry: String) -> void:
 				and _restored_threat_boundary_matches(game, boundary)
 				and _convoy_receipts(game) == before_receipts,
 				"awake cabin movement preserves the exact failed second convoy and first receipt")
-			if recovery_context == "crew":
-				await _press_real_interaction()
-			else:
-				game.player.teleport_to(craft.get_cabin_stand_transform())
-				await _settle_frames()
-				game.call("_on_interact_requested")
-			_check(await _wait_for_real_pilot(game, craft, 300 if recovery_context == "crew" else 120) and not game.player.is_cabin_containment_active()
+			await _press_real_interaction()
+			_check(await _wait_for_real_pilot(game, craft, 300) and not game.player.is_cabin_containment_active()
 				and not craft.get_moving_interior_component().is_occupant_registered(game.player),
 				"ordinary cabin interaction retakes a real pilot seat and releases passenger owners")
 		Input.action_press(&"move_forward")
@@ -265,6 +259,10 @@ func _settle_airborne_context(game: GameFlow, craft: HeroShip) -> void:
 		game.player.teleport_to(bunk.get_exit_transform())
 		await _settle_frames()
 		game.call("_sit_in_station_seat", bunk)
+		for _frame in 120:
+			if not bool(game.get("_transition_busy")):
+				break
+			await _settle_frames(1)
 		await _settle_frames()
 		_check(game.player.is_sleeping() and game.player.is_seated_at(bunk.get_seat_anchor())
 			and bunk.is_reserved_for(game.player) and not craft.is_piloted(),
