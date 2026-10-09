@@ -1,0 +1,46 @@
+Mudds Shipyards — Bulwark cabin and scan-save retry checkpoint — 2026-10-09
+Source: f0e2c590a8a2249af10d58759c64ac676d215a33
+Executable: MuddsShipyards-f0e2c59.exe
+Executable SHA256: fb58bc477f73bda8a8596f1c86d90d46420816bcb64cd3e7082c2b53f5220dbd
+
+Player-visible changes
+Bulwark now has a recessed service aisle with real standing-capsule clearance
+and moving-floor support. Leave the pilot seat with E, walk the aisle while
+the sealed hull moves, and use E to retake the helm. Safe-home Resume returns you awake to the saved craft at its home berth and
+preserves owed activity rewards; take the helm normally. Recovery acquires
+fresh cabin/hatch owners and grants no pilot claim. This aisle does not
+establish solo gunner or engineer entry.
+A paid derelict scan whose discovery save fails keeps its genuine receipt and
+shows SAVE PENDING with Start retry guidance. Start retries only that save;
+Reset/restart cannot discard it, and no retry pays another reward. Successful
+saving and fresh load clear the retry prompt.
+
+Validation on this exact source and executable
+Independent reviews approve the cabin, scan persistence and player feedback;
+the integrated file blobs match their reviewed authors. Thirteen clean-source
+and thirteen embedded-package suites each pass 700 assertions, with actual
+owning exit 0/reaped and unchanged source/import caches. Each retains seven
+exact Atomic settings_missing/ok warnings. Source graphical checks also retain
+two exact trailing seven-Texture-RID warnings under accepted/open RENDER-001;
+packed headless checks emit no engine/script/leak diagnostic.
+Clean import/export, x64 PE and 1,486-entry embedded PCK/hash pass. Four standard
+package probes pass 223 assertions with no warnings/diagnostics. Strict silent
+isolated native Windows startup exits 0, emits exactly one parsed menu-ready
+record, leaves the mouse free during loading and emits no warnings/diagnostics.
+Producer and root independently verify private-profile/process cleanup.
+Root verifies raw hashes, source/cache parity, ZIP CRC, inner EXE hash and
+initial notes parity. Exact-source core CI 37908972576 passes (broad skipped);
+CodeQL 37908971901 actions/Python passes.
+
+Retained failures and remaining gates
+The precursor d10ae7a standard package failed its old shape-count predicates;
+that failed run remains unchanged and unpublished. Corrected exact fleet
+sampling includes Bulwark's compound hull without loosening clearance limits.
+This checkpoint's full matrix, new OS-kill contexts, matching installer, Linux
+package, native GPU, physical-controller, audible, human visual/playthrough,
+endurance, signing and final-release acceptance are NOT_RUN at packaging.
+The f139257 full run remains separate; its installed and Linux recovery results
+qualify only its own source. RENDER-001 remains open. Broader crew roles,
+docking/planetary/full-activity recovery and all ten roadmap phases remain open.
+
+Published checkpoint ZIP SHA256: 0b2add37deabf0d1843c5f939b8da89d61f2e1d09098a24a0deeaa8836d19e18
