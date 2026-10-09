@@ -100,7 +100,8 @@ var _startup_textures: Array[Texture2D] = []
 
 func _ready() -> void:
 	var command_line := OS.get_cmdline_args()
-	var interruption := in_world_probe_request(command_line, DisplayServer.get_name(), AudioServer.get_driver_name())
+	var interruption := in_world_probe_request(command_line, DisplayServer.get_name(), AudioServer.get_driver_name(),
+		OS.get_environment("MUDDS_PRIVATE_PROBE_INPUT") == "engineer-x11")
 	if bool(interruption.requested):
 		if not bool(interruption.accepted):
 			print("IN_WORLD_RECOVERY_FAILED: " + str(interruption.reason))
@@ -183,9 +184,9 @@ static func cli_mode(args: PackedStringArray) -> StringName:
 	return &""
 
 
-## Only the explicitly silent, headless release path may drive this fixture.
+## Only the silent release driver may use headless or its private engineer X11 input.
 ## Ordinary startup and early information commands never load its Main types.
-static func in_world_probe_request(args: PackedStringArray, display_name: String, audio_driver_name: String) -> Dictionary:
+static func in_world_probe_request(args: PackedStringArray, display_name: String, audio_driver_name: String, private_input_owned: bool = false) -> Dictionary:
 	var stages: Array[String] = []
 	var contexts: Array[String] = []
 	var activities: Array[String] = []
@@ -199,13 +200,20 @@ static func in_world_probe_request(args: PackedStringArray, display_name: String
 	if stages.is_empty() and contexts.is_empty() and activities.is_empty():
 		return {"requested": false, "accepted": false}
 	var rejected := {"requested": true, "accepted": false, "reason": &"unsafe_in_world_probe"}
-	if stages.size() != 1 or stages[0] not in ["arm", "resume"] or display_name != "headless" \
-			or contexts.size() > 1 or (not contexts.is_empty() and contexts[0] not in ["pilot", "cabin", "rest", "crew"]) \
+	if stages.size() != 1 or stages[0] not in ["arm", "resume"] \
+			or contexts.size() > 1 or (not contexts.is_empty() and contexts[0] not in ["pilot", "cabin", "rest", "crew", "engineer"]) \
 			or activities.size() > 1 or (not activities.is_empty() and activities[0] not in ["convoy", "beacon", "mining", "stationdefense"]):
 		return rejected
 	var activity := activities[0] if not activities.is_empty() else "convoy"
 	var context := contexts[0] if not contexts.is_empty() else "pilot"
 	if activity in ["beacon", "mining", "stationdefense"] and context != "pilot":
+		return rejected
+	if context == "engineer":
+		if display_name != "X11" and display_name != "x11":
+			return rejected
+		if not private_input_owned:
+			return rejected
+	elif display_name != "headless" or private_input_owned:
 		return rejected
 	# Engine options are consumed before OS.get_cmdline_args(). Inspect the
 	# actual driver rather than accepting a user argument claiming Dummy audio.

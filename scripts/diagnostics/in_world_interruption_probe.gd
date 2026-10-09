@@ -63,6 +63,9 @@ func run_with_main(game: GameFlow, entry: String) -> void:
 	if store == null or game.get_tree() != get_tree():
 		_fail("the supplied production Main owns its existing store and scene tree")
 		return
+	if recovery_context == "engineer":
+		await _run_engineer(game, store, entry)
+		return
 	if activity == "stationdefense":
 		await _run_stationdefense(game, store, entry)
 		return
@@ -986,7 +989,7 @@ static func _position_escort_fixture(game: GameFlow, craft: HeroShip) -> void:
 	craft.global_position = GameFlow.CINDER_CONVOY_ACTIVATION_CENTER
 
 
-static func finish_convoy(game: GameFlow, craft: HeroShip) -> bool:
+static func finish_convoy(game: GameFlow, craft: HeroShip, report_shot: bool = false) -> bool:
 	var host := game.cinder_convoy_host
 	for _tick in 14:
 		craft.global_position = (host.get_snapshot().entity_position as Vector3) + GameFlow.CINDER_CONVOY_ESCORT_LANE_OFFSET
@@ -999,6 +1002,10 @@ static func finish_convoy(game: GameFlow, craft: HeroShip) -> bool:
 	await game.get_tree().physics_frame
 	var intercepted := game.get_combat_authority().submit_hitscan(craft, GameFlow.RANGE_WEAPON_ID,
 		craft.global_position, attacker.global_position - craft.global_position)
+	if report_shot:
+		print("JOVIAN_ENGINEER_CONVOY_SHOT: " + JSON.stringify({"result": intercepted, "host": host.get_snapshot(),
+			"threat": game.cinder_convoy_threat.get_snapshot(), "source": game.get_combat_authority().get_source_id(craft),
+			"craft_position": craft.global_position, "target_position": attacker.global_position}))
 	var budget := 60
 	while budget > 0 and host.get_snapshot().activity.state_id == &"active":
 		craft.global_position = (host.get_snapshot().entity_position as Vector3) + GameFlow.CINDER_CONVOY_ESCORT_LANE_OFFSET
@@ -1006,3 +1013,331 @@ static func finish_convoy(game: GameFlow, craft: HeroShip) -> bool:
 		budget -= 1
 	return bool(intercepted.get("destroyed", false)) and budget > 0 and host.get_snapshot().activity.state_id == &"completed"
 
+
+
+func _engineer_apply_look(actor: PlayerController, target: Vector3) -> void:
+	# Synthetic mouse input only, matching the existing ordinary route test.
+	if Input.mouse_mode != Input.MOUSE_MODE_CAPTURED:
+		var click := InputEventMouseButton.new()
+		click.button_index = MOUSE_BUTTON_LEFT
+		click.pressed = true
+		actor._unhandled_input(click)
+	var desired := actor.global_basis.inverse() * (target - actor.get_camera().global_position).normalized()
+	var current := actor.global_basis.inverse() * actor.get_interaction_direction().normalized()
+	var yaw := wrapf(atan2(-desired.x, -desired.z) - atan2(-current.x, -current.z), -PI, PI)
+	var pitch := asin(clampf(desired.y, -1.0, 1.0)) - asin(clampf(current.y, -1.0, 1.0))
+	var motion := InputEventMouseMotion.new()
+	motion.relative = Vector2(-yaw, pitch * (1.0 if actor.invert_mouse_y else -1.0)) / actor.mouse_sensitivity
+	actor._unhandled_input(motion)
+
+
+func _engineer_look(actor: PlayerController, target: Vector3) -> void:
+	for _tick in 4:
+		_engineer_apply_look(actor, target)
+		await _settle_frames(1)
+
+
+func _engineer_walk(actor: PlayerController, craft: HeroShip, local_target: Vector3) -> void:
+	var target := craft.to_global(local_target)
+	await _engineer_look(actor, Vector3(target.x, actor.get_camera().global_position.y, target.z))
+	Input.action_press(&"move_forward")
+	for _tick in 160:
+		var flat := craft.to_local(actor.global_position) - local_target
+		flat.y = 0.0
+		if flat.length() < 0.12:
+			break
+		target = craft.to_global(local_target)
+		_engineer_apply_look(actor, Vector3(target.x, actor.get_camera().global_position.y, target.z))
+		await get_tree().physics_frame
+	Input.action_release(&"move_forward")
+	await _settle_frames(4)
+
+
+func _engineer_ramp_walk(game: GameFlow, craft: JovianLightFreighter) -> void:
+	# The sole Player-position fixture is the supported exterior cargo ramp.
+	# Every cabin/chair/helm handoff thereafter is ordinary walking/Interact.
+	game.player.teleport_to(Transform3D(craft.global_basis.orthonormalized(),
+		craft.get_interior_access_marker().global_position + craft.global_basis.y * 0.01))
+	await _settle_frames(10)
+	await _engineer_look(game.player, game.player.global_position - craft.global_basis.z * 20.0 + craft.global_basis.y * 1.5)
+	for leg in [[&"move_right", 50], [&"move_right", 72], [&"move_left", 22], [&"move_forward", 90], [&"move_left", 24]]:
+		Input.action_press(leg[0])
+		for _tick in int(leg[1]):
+			await get_tree().physics_frame
+		Input.action_release(leg[0])
+		await _settle_frames(3)
+	_check(game.player.is_on_floor() and game.player.is_control_enabled(),
+		"the real Player walks the exterior ramp and authored cabin floor to the engineer aisle")
+
+
+func _engineer_claim(game: GameFlow, craft: JovianLightFreighter) -> bool:
+	await _engineer_walk(game.player, craft, Vector3(-1.35, 0.60, -5.25))
+	await _engineer_look(game.player, craft.get_engineer_seat_anchor().global_position + craft.global_basis.y * 1.2)
+	print("JOVIAN_ENGINEER_INPUT_OBSERVATION: " + JSON.stringify({"display": DisplayServer.get_name(), "mouse_mode": int(Input.mouse_mode), "camera_active": game.player.get("_camera_active"), "player_local": craft.to_local(game.player.global_position), "anchor_local": craft.to_local(craft.get_engineer_seat_anchor().global_position), "candidate": str(game.station_interaction_candidate), "phase": int(game.phase), "floor": game.player.is_on_floor(), "control": game.player.is_control_enabled()}))
+	await _press_real_interaction()
+	for _tick in 180:
+		if game.get_solo_crew_seat_status().seated and not game.get("_transition_busy"):
+			break
+		await _settle_frames(1)
+	var status := game.get_solo_crew_seat_status()
+	var assignment: Dictionary = status.assignment
+	return (status.seated and game.player.is_seated_at(craft.get_engineer_seat_anchor())
+		and assignment.get("role") == &"engineer" and assignment.get("seat_id") == craft.ENGINEER_SEAT_ID
+		and craft.get_crew_role_authority() != null and not craft.is_piloted()
+		and game.player.has_meta(HeroShip.SOLO_CREW_ROLE_OCCUPANT_META))
+
+
+func _engineer_stand(game: GameFlow, craft: JovianLightFreighter) -> bool:
+	var owner := craft.get_crew_role_authority()
+	await _press_real_interaction()
+	for _tick in 180:
+		if not game.get("_transition_busy") and not game.player.is_seated() and game.player.is_on_floor():
+			break
+		await _settle_frames(1)
+	return (not game.player.is_seated() and game.player.is_on_floor() and game.player.is_control_enabled()
+		and not game.player.has_meta(HeroShip.SOLO_CREW_ROLE_OCCUPANT_META)
+		and owner != null and owner.get_snapshot().assignments.is_empty())
+
+
+func _engineer_helm(game: GameFlow, craft: JovianLightFreighter) -> bool:
+	await _engineer_walk(game.player, craft, Vector3(0.0, 0.60, -5.25))
+	await _engineer_walk(game.player, craft, Vector3(0.0, 0.60, -6.70))
+	await _engineer_look(game.player, craft.get_pilot_seat_anchor().global_position + craft.global_basis.y * 1.2)
+	await _press_real_interaction()
+	return await _wait_for_real_pilot(game, craft, 300)
+
+
+func _run_engineer(game: GameFlow, store: UserDataStore, entry: String) -> void:
+	if activity != "convoy":
+		_fail("engineer interruption supports only the existing adjacent convoy context")
+		return
+	var main_id := game.get_instance_id()
+	var craft := game.get_node("JovianLightFreighter") as JovianLightFreighter
+	var boundary: Dictionary
+	var before_receipts := 0
+	var context: Dictionary
+	var foreign_settings: Dictionary
+	var foreign_cargo: Dictionary
+	var observation := _interruption_runtime_observation(game)
+	if stage == "arm":
+		game.call("_on_settings_save_requested")
+		# Unrelated real-owner initial-manifest boundary, not a cargo journey:
+		# start/save and its production persisted reset establish a genuine IDLE
+		# record without transfers, completed cargo or inventory/reward injection.
+		var cargo_started := game.cargo_delivery_activity.start(game.cargo_delivery_activity.get_generation())
+		var cargo_saved := game.save_jovian_cargo_session()
+		var cargo_reset := game.cargo_delivery_activity.reset_with_persistence(
+			game.cargo_delivery_activity.get_generation(), game.save_jovian_cargo_session)
+		var cargo_record: Dictionary = store.get_snapshot().get("jovian_cargo_session", {})
+		_check(cargo_started.accepted and cargo_saved.accepted and cargo_reset.accepted
+			and game.cargo_delivery_activity.get_state() == CargoDeliveryActivity.State.IDLE
+			and not cargo_record.is_empty() and int(cargo_record.activities[0].state) == CargoDeliveryActivity.State.IDLE,
+			"the actual cargo start and persisted reset save the unrelated genuine IDLE initial-manifest boundary")
+		if not _failures.is_empty():
+			get_tree().quit(1)
+			return
+		game.canopy_motion_time = 0.01
+		game.boarding_motion_time = 0.02
+		game.disembarking_motion_time = 0.02
+		game.start_shift()
+		var escort := game.get_flyable_ships()[1] as HeroShip
+		game.call("_board_ship", escort)
+		_check(await _wait_for_real_pilot(game, escort), "the real armed Bulwark pilot owns the first adjacent convoy fixture")
+		game.set_physics_process(false)
+		var selected := game.select_activity_kind(GameFlow.ACTIVITY_KIND_CONVOY_ESCORT)
+		await _position_escort_fixture(game, escort)
+		var started := game.request_activity_start(GameFlow.CINDER_CONVOY_ACTIVITY_ID)
+		var arrived := await finish_convoy(game, escort, true)
+		_check(selected.accepted and started.accepted and arrived and _convoy_receipts(game) == 1
+			and game.reset_active_activity(), "the real first convoy pays once and its ordinary reset clears that completed run")
+		if not _failures.is_empty():
+			print("JOVIAN_ENGINEER_FIRST_CONVOY_OBSERVATION: " + JSON.stringify({"selected": selected, "started": started,
+				"arrived": arrived, "receipts": _convoy_receipts(game), "host": game.cinder_convoy_host.get_snapshot(),
+				"reward": game.get_activity_reward_report()}))
+			get_tree().quit(1)
+			return
+		# Return only the scenario-positioned craft to its occupied home berth;
+		# its real pilot exit owns seat, berth and awake Player cleanup.
+		escort.global_transform = game.world.get_berth_transform(escort.get_home_berth_id())
+		game.set_physics_process(true)
+		await _settle_frames(int(ceil(HeroShip.AUTOMATIC_ENGINE_IDLE_SHUTDOWN_SECONDS * Engine.physics_ticks_per_second)) + 3)
+		game.call("_try_exit_ship")
+		for _tick in 180:
+			if not game.get("_piloting") and not game.get("_transition_busy"):
+				break
+			await _settle_frames(1)
+		_check(not game.get("_piloting") and not game.player.is_seated() and game.player.is_control_enabled(),
+			"ordinary home pilot exit releases the first escort before the Jovian walking route")
+		await _engineer_ramp_walk(game, craft)
+		_check(await _engineer_claim(game, craft), "ordinary walk and Interact acquire the real Jovian engineer chair before flight")
+		_check(await _engineer_stand(game, craft), "ordinary stand retires the exact engineer assignment on the supported cabin floor")
+		_check(await _engineer_helm(game, craft), "ordinary cabin walk and Interact acquire the Jovian helm without direct assignment")
+		if not _failures.is_empty():
+			get_tree().quit(1)
+			return
+		game.set_physics_process(false)
+		await _position_escort_fixture(game, craft)
+		var next := game.request_activity_start(GameFlow.CINDER_CONVOY_ACTIVITY_ID)
+		for _tick in 4:
+			craft.global_position = game.cinder_convoy_host.get_snapshot().entity_position + GameFlow.CINDER_CONVOY_ESCORT_LANE_OFFSET
+			game.call("_physics_process", 0.25)
+		_check(next.accepted, "the genuine Jovian pilot starts a distinct second convoy without inventing a weapon or reward")
+		# Existing nonpilot escort fixture holds Main's activity cadence between
+		# these real samples and pilot leave. Craft/Player physics and ordinary
+		# Input keep running; this is not uninterrupted combat restoration.
+		craft.get_local_input_source().notification(MainLoop.NOTIFICATION_APPLICATION_FOCUS_IN)
+		Input.action_press(&"hover")
+		Input.action_press(&"move_forward")
+		await _settle_frames(6)
+		Input.action_release(&"move_forward")
+		Input.action_release(&"hover")
+		# Position-only escort fixture while the real propulsion owner becomes
+		# idle. The subsequent ordinary pilot leave must own this failure;
+		# an earlier natural separation terminal is a different runtime case.
+		for _tick in int(ceil(HeroShip.AUTOMATIC_ENGINE_IDLE_SHUTDOWN_SECONDS * Engine.physics_ticks_per_second)) + 3:
+			if craft.get_telemetry().engine_state == HeroShip.ENGINE_OFFLINE:
+				break
+			craft.global_position = game.cinder_convoy_host.get_snapshot().entity_position + GameFlow.CINDER_CONVOY_ESCORT_LANE_OFFSET
+			await _settle_frames(1)
+		_check(craft.get_telemetry().engine_state == HeroShip.ENGINE_OFFLINE
+			and game.get_active_activity_snapshot().state_id == &"active",
+			"the positioned escort remains genuinely active until actual idle propulsion permits ordinary pilot leave")
+		if not _failures.is_empty():
+			get_tree().quit(1)
+			return
+		await _press_real_interaction()
+		for _tick in 180:
+			if not game.get("_transition_busy") and game.player.is_on_floor() and not craft.is_piloted():
+				break
+			await _settle_frames(1)
+		_check(not craft.get_telemetry().landed and game.player.is_on_floor() and not craft.is_piloted()
+			and game.get_active_activity_snapshot().state_id == &"failed"
+			and game.cinder_convoy_host.get_snapshot().activity.terminal_reason == &"convoy_reported_lost"
+			and game.get("_convoy_terminal_reason") == &"pilot_unseated",
+			"ordinary airborne pilot leave returns the real Player to the cabin and fails the actual second convoy")
+		game.set_physics_process(true)
+		_check(await _engineer_claim(game, craft), "ordinary moving-cabin walk and Interact reacquire the exact Jovian engineer owner before interruption")
+		var saved := game.save_cinder_convoy_session()
+		boundary = _stored_session_state(store)
+		context = store.get_snapshot().get(GameFlow.SOLO_SAFE_RECOVERY_SLOT, {})
+		print("JOVIAN_ENGINEER_SAVE_OBSERVATION: " + JSON.stringify({"save": saved, "context": context,
+			"saved_host": boundary.host_state, "live_host": _canonical(game.cinder_convoy_host.capture_persistence_state()),
+			"saved_threat": boundary.threat_state, "live_threat": _canonical(game.cinder_convoy_threat.capture_persistence_state()),
+			"receipts": _convoy_receipts(game)}))
+		_check(saved.accepted and context.size() == 4 and context.get("mode") == "crew"
+			and context.get("craft_id") == String(craft.get_ship_id())
+			and boundary.escort_ship_id == craft.get_ship_id() and _convoy_receipts(game) == 1
+			and _canonical(game.cinder_convoy_host.capture_persistence_state()) == boundary.host_state
+			and _canonical(game.cinder_convoy_threat.capture_persistence_state()) == boundary.threat_state,
+			"actual engineer admission saves only the existing four-field crew preference beside the genuine failed Jovian convoy and first paid receipt")
+		if not _failures.is_empty():
+			get_tree().quit(1)
+			return
+		var ready := {"boundary": boundary, "receipts": _convoy_receipts(game), "safe_context": context,
+			"foreign_settings": store.get_snapshot().runtime_settings, "foreign_cargo": store.get_snapshot().jovian_cargo_session,
+			"runtime_observation": _interruption_runtime_observation(game), "engineer_observation": game.get_solo_crew_seat_status(),
+			"entry": entry, "loaded_main_instance_id": main_id, "recovery_context": recovery_context}
+		get_tree().paused = true
+		print("IN_WORLD_INTERRUPTION_READY: " + JSON.stringify(ready))
+		return
+	# No context or entitlement may be invented for a fresh profile/missing run.
+	var payload := store.get_snapshot()
+	context = payload.get(GameFlow.SOLO_SAFE_RECOVERY_SLOT, {})
+	if context.size() != 4 or context.get("mode") != "crew" or context.get("craft_id") != String(craft.get_ship_id()) \
+			or not payload.has(String(SLOT)) or not game.get_cinder_convoy_session_persistence_report().restore_status.get("accepted", false):
+		_fail("engineer restart requires a genuinely saved Jovian crew context and supported adjacent convoy")
+		return
+	boundary = _stored_session_state(store)
+	before_receipts = _convoy_receipts(game)
+	foreign_settings = payload.runtime_settings
+	foreign_cargo = payload.jovian_cargo_session
+	var recovery := game.get_recovery_available_snapshot()
+	var crash_events := 0
+	for event: Dictionary in game.get_session_recovery_diagnostic_snapshot().get("events", []):
+		if event.get("event_code") == "crash_detected":
+			crash_events += 1
+	_check(boundary.escort_ship_id == craft.get_ship_id() and game.get_active_activity_snapshot().state_id == &"failed"
+		and _canonical(game.cinder_convoy_host.capture_persistence_state()) == boundary.host_state
+		and _restored_threat_boundary_matches(game, boundary) and crash_events == 1
+		and not game.player.is_seated() and not craft.is_piloted() and craft.get_crew_role_authority() == null,
+		"fresh Boot adopts the exact failed Jovian convoy without replaying engineer, helm or work ownership")
+	var resume := (game.hud.get("_session_recovery_action_buttons") as Dictionary).get(&"continue") as Button
+	_check(resume != null and not recovery.is_empty(), "the real cold engineer recovery offers ordinary HUD Resume")
+	if resume == null or not _failures.is_empty():
+		get_tree().quit(1)
+		return
+	resume.emit_signal("pressed")
+	await _settle_frames(3)
+	game.start_shift()
+	await _settle_frames(12)
+	var awake := await _wait_for_awake_cabin(game, craft)
+	var safe := _interruption_runtime_observation(game)
+	_check(awake and game.active_ship == craft and not game.player.is_sleeping()
+		and not game.player.is_seated() and craft.get_crew_role_authority() == null
+		and not game.player.has_meta(HeroShip.SOLO_CREW_ROLE_OCCUPANT_META)
+		and craft.global_position.distance_to(game.world.get_berth_transform(craft.get_home_berth_id()).origin) < 0.1
+		and _canonical(game.cinder_convoy_host.capture_persistence_state()) == boundary.host_state,
+		"ordinary HUD Resume returns an awake supported home Jovian cabin without engineer, pilot or airborne pose replay")
+	_check(await _engineer_claim(game, craft), "the recovered awake player ordinarily walks and interacts into a fresh actual engineer claim")
+	craft.get_local_input_source().notification(MainLoop.NOTIFICATION_APPLICATION_FOCUS_IN)
+	await _settle_frames(3)
+	var model := craft.get_component_damage()
+	var component: Dictionary = model.get_component_states()[1]
+	# This real localized hull-damage owner fixture creates repair work. It does
+	# not set integrity, kit inventory, claims or repair flags directly.
+	craft.apply_damage(craft.maximum_hull * 0.35, craft.to_global(component.local_position))
+	await _settle_frames(2)
+	var selected := StringName(craft.get_engineer_gameplay_state().selection.get("component_id", &""))
+	var integrity_before := model.get_component_integrity(selected)
+	var kits_before := int(craft.get_engineer_repair_state().resource_units)
+	Input.action_press(&"fire")
+	await _settle_frames(2)
+	var active := craft.get_engineer_repair_state()
+	_check(active.active and int(active.resource_units) == kits_before,
+		"ordinary engineer FIRE starts real timed berthed work without an early kit spend")
+	Input.action_release(&"fire")
+	await _settle_frames(30)
+	var committed := craft.get_engineer_repair_state()
+	var integrity_after := model.get_component_integrity(selected)
+	_check(committed.reason == &"repair_committed" and int(committed.resource_units) == kits_before - 1
+		and model.get_component_integrity(selected) > integrity_before,
+		"normal berth ticks commit real component improvement and exactly one finite repair kit")
+	await _settle_frames(50)
+	craft.apply_damage(craft.maximum_hull * 0.35, craft.to_global(component.local_position))
+	await _settle_frames(2)
+	Input.action_press(&"fire")
+	await _settle_frames(2)
+	_check(craft.get_engineer_repair_state().active, "a subsequent ordinary FIRE starts genuine work before the stand interruption")
+	Input.action_release(&"fire")
+	_check(await _engineer_stand(game, craft) and not craft.get_engineer_repair_state().active
+		and int(craft.get_engineer_repair_state().resource_units) == kits_before - 1,
+		"ordinary midrepair stand retires the exact claim and cancels work without another kit")
+	_check(_convoy_receipts(game) == before_receipts and game.get_active_activity_snapshot().state_id == &"failed"
+		and _canonical(game.cinder_convoy_host.capture_persistence_state()) == boundary.host_state,
+		"ordinary engineer work and stand preserve the adjacent failed convoy and its prior paid receipt")
+	_check(await _engineer_helm(game, craft), "ordinary cabin walking and Interact retake the real Jovian helm after engineer stand")
+	craft.get_local_input_source().notification(MainLoop.NOTIFICATION_APPLICATION_FOCUS_IN)
+	Input.action_press(&"move_forward")
+	await _settle_frames(2)
+	Input.action_release(&"move_forward")
+	_check(craft.get_telemetry().engine_state == HeroShip.ENGINE_ONLINE and craft.get_last_ship_command().throttle > 0.0,
+		"the recovered Jovian helm accepts ordinary throttle without an engineer assignment")
+	_check(_convoy_receipts(game) == before_receipts and foreign_settings == store.get_snapshot().runtime_settings
+		and foreign_cargo == store.get_snapshot().jovian_cargo_session,
+		"role recovery and real repair retain the actual settings, cargo and first convoy receipt")
+	var closed := game.mark_orderly_shutdown()
+	_check(closed.accepted and game.get_instance_id() == main_id, "the exact recovered Boot Main closes both existing marker owners")
+	var outcome := {"boundary": boundary, "receipts_before": before_receipts, "receipts_after": _convoy_receipts(game),
+		"crash_events": crash_events, "runtime_observation": observation, "safe_recovery_observation": safe,
+		"safe_context": context, "foreign_settings": foreign_settings, "foreign_cargo": foreign_cargo,
+		"repair_observation": {"kits_before": kits_before, "kits_after": int(committed.resource_units),
+			"integrity_before": integrity_before, "integrity_after": integrity_after},
+		"live_seat_work_restore": "NOT_SUPPORTED", "repair_inventory_restore": "NOT_SUPPORTED", "airborne_pose_restore": "NOT_SUPPORTED",
+		"continuation_method": "real_awake_home_jovian_cabin_walk_engineer_repair_stand_then_helm_throttle",
+		"assertions": _assertions, "entry": entry, "loaded_main_instance_id": main_id, "recovery_context": recovery_context}
+	if _failures.is_empty():
+		print("IN_WORLD_RECOVERY_OK: " + JSON.stringify(outcome))
+		get_tree().quit(0)
+	else:
+		print("IN_WORLD_RECOVERY_FAILED")
+		get_tree().quit(1)

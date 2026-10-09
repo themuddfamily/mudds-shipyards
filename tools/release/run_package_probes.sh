@@ -53,7 +53,7 @@ if (( IN_WORLD_INTERRUPTION == 0 )) && { (( ACTIVITY_FLAG_SEEN == 1 )) || [[ "$P
   echo "Activity selection requires --in-world-interruption" >&2
   exit 2
 fi
-if [[ "$RECOVERY_CONTEXT" != pilot && "$RECOVERY_CONTEXT" != cabin && "$RECOVERY_CONTEXT" != rest && "$RECOVERY_CONTEXT" != crew ]]; then
+if [[ "$RECOVERY_CONTEXT" != pilot && "$RECOVERY_CONTEXT" != cabin && "$RECOVERY_CONTEXT" != rest && "$RECOVERY_CONTEXT" != crew && "$RECOVERY_CONTEXT" != engineer ]]; then
   echo "Invalid interruption recovery context" >&2
   exit 2
 fi
@@ -79,6 +79,11 @@ fi
 
 if (( NATIVE_EXPORT == 0 )) && ! command -v "$GODOT_BIN" >/dev/null; then
   echo "Godot binary not found: $GODOT_BIN"
+  exit 2
+fi
+
+if [[ "$RECOVERY_CONTEXT" == engineer ]] && ! command -v Xvfb >/dev/null; then
+  echo "Engineer interruption requires driver-owned Xvfb" >&2
   exit 2
 fi
 
@@ -134,7 +139,7 @@ if (( IN_WORLD_INTERRUPTION == 1 )); then
   trap 'forward_interruption_cancel 143' TERM
   trap 'forward_interruption_cancel 129' HUP
   env -u DISPLAY -u WAYLAND_DISPLAY PYTHONDONTWRITEBYTECODE=1 python3 - "$PROJECT_ROOT" "$GODOT_BIN" "$PACKAGE_PATH" "$SOURCE_MODE" "$TIMEOUT_SECONDS" "$RUN_DIR" "$PROBE_WORK_DIR" "$RECOVERY_CONTEXT" "$NATIVE_EXPORT" "$PROBE_ACTIVITY" <<'PYPROBE' &
-import hashlib, json, os, pathlib, re, signal, subprocess, sys, time
+import hashlib, json, os, pathlib, re, secrets, select, signal, subprocess, sys, time
 root, godot, package, source_mode, timeout, run_dir, profile, recovery_context, native_export, activity = sys.argv[1:]
 root, run_dir, profile = map(pathlib.Path, (root, run_dir, profile))
 timeout = int(timeout)
@@ -150,6 +155,7 @@ result = {"status": "FAIL", "mode": "native_export" if native_export else ("sour
 if native_export:
     result["driver_source_commit"] = driver_commit
 children = []
+private_display = None
 registering_child = False
 pending_abort = None
 require_new_result = not result_path.exists()
@@ -194,7 +200,7 @@ cache_before = manifest("cache-before.csv", [".godot"])
 if not source_mode:
     result["package_sha256"] = digest(pathlib.Path(package))
 environment = os.environ.copy()
-for key in ("DISPLAY", "WAYLAND_DISPLAY"):
+for key in ("DISPLAY", "WAYLAND_DISPLAY", "MUDDS_PRIVATE_PROBE_INPUT"):
     environment.pop(key, None)
 for key, directory in {"HOME": "home", "XDG_DATA_HOME": "data", "XDG_CONFIG_HOME": "config",
                        "XDG_CACHE_HOME": "cache", "XDG_STATE_HOME": "state", "XDG_RUNTIME_DIR": "runtime"}.items():
@@ -205,10 +211,14 @@ document = profile / "data/godot/app_userdata/Mudds Shipyards/mudds_user_data.js
 def start(stage):
     global registering_child
     log = run_dir / "logs" / (stage + ".log")
+    # Input-only dummy rendering retains the private display, real input and
+    # physics. The engineer fixture never inherits the caller's display.
+    display_options = (["--display-driver", "x11", "--disable-render-loop", "--rendering-driver", "dummy"]
+                       if recovery_context == "engineer" else ["--headless"])
     if native_export:
-        command = [package, "--headless", "--audio-driver", "Dummy"]
+        command = [package, *display_options, "--audio-driver", "Dummy"]
     else:
-        command = [godot, "--headless", "--audio-driver", "Dummy", "--path", str(root)]
+        command = [godot, *display_options, "--audio-driver", "Dummy", "--path", str(root)]
         if not source_mode:
             command += ["--main-pack", package]
     command += ["--in-world-interruption-stage=" + stage, "--in-world-interruption-context=" + recovery_context]
@@ -227,6 +237,49 @@ def start(stage):
                 abort_probe(pending_abort)
     return process, log, entry
 try:
+    if recovery_context == "engineer":
+        # An explicit high display and -displayfd confirm this exact child's
+        # ownership. Abstract local sockets work even when WSLg mounts the
+        # desktop's filesystem socket directory read-only; never use that path.
+        read_fd, write_fd = os.pipe()
+        display_log = run_dir / "logs/private-x11.log"
+        requested_display = str(100 + secrets.randbelow(10000))
+        require(not os.path.lexists("/tmp/.X11-unix/X" + requested_display), "private display collides with a filesystem socket")
+        display_command = ["Xvfb", ":" + requested_display, "-displayfd", str(write_fd), "-screen", "0", "1280x720x24",
+                           "-nolisten", "tcp", "-nolisten", "unix", "-ac"]
+        try:
+            with display_log.open("w") as output:
+                registering_child = True
+                try:
+                    private_display = subprocess.Popen(display_command, pass_fds=(write_fd,), stdout=output,
+                                                       stderr=subprocess.STDOUT, stdin=subprocess.DEVNULL,
+                                                       env=environment, start_new_session=True)
+                    result["private_display"] = {"pid": private_display.pid, "arguments": display_command,
+                                                 "log": str(display_log)}
+                finally:
+                    registering_child = False
+                    if pending_abort is not None:
+                        abort_probe(pending_abort)
+            os.close(write_fd)
+            write_fd = None
+            display_deadline = time.monotonic() + 15
+            display_bytes = b""
+            while b"\n" not in display_bytes:
+                require(bool(select.select([read_fd], [], [], max(0, display_deadline - time.monotonic()))[0]),
+                        "private Xvfb did not publish its display")
+                chunk = os.read(read_fd, 32)
+                require(bool(chunk) and len(display_bytes) + len(chunk) <= 32, "private Xvfb display acknowledgement was incomplete")
+                display_bytes += chunk
+            display_number = display_bytes.decode().strip()
+            require(display_number == requested_display and private_display.poll() is None
+                    and not os.path.lexists("/tmp/.X11-unix/X" + display_number), "private Xvfb refused display ownership")
+            environment["DISPLAY"] = ":" + display_number
+            environment["MUDDS_PRIVATE_PROBE_INPUT"] = "engineer-x11"
+            result["private_display"]["display"] = environment["DISPLAY"]
+        finally:
+            os.close(read_fd)
+            if write_fd is not None:
+                os.close(write_fd)
     if native_export:
         # SIGKILL must own the actual game, never a Windows interop wrapper.
         require(sys.platform.startswith("linux"), "native-export interruption requires a Linux host")
@@ -258,6 +311,7 @@ try:
         if ready is not None:
             break
         require(arm.poll() is None, "arm process exited before actual durable readiness")
+        require(not diagnostics(arm_log), "arm engine/script diagnostics before readiness")
         time.sleep(0.1)
     require(ready is not None and arm.poll() is None, "missing live IN_WORLD_INTERRUPTION_READY")
     require(not diagnostics(arm_log), "arm engine/script diagnostics")
@@ -323,6 +377,21 @@ try:
     else:
         row = saved["payload"]["cinder_convoy_session"]["activities"][0]
         require(row["progress"]["convoy_session_state"] == ready["boundary"], "readiness differs from real durable document")
+        if recovery_context == "engineer":
+            context = saved["payload"]["solo_safe_recovery"]
+            observed = ready["runtime_observation"]
+            require(context == ready["safe_context"] and len(context) == 4
+                    and context["mode"] == "crew" and context["craft_id"] == "jovian_provisional"
+                    and ready["boundary"]["escort_ship_id"] == "jovian_provisional"
+                    and row["state"] == 3 and ready["receipts"] == 1,
+                    "engineer readiness has no genuine four-field crew preference and failed Jovian convoy")
+            require(observed["craft_id"] == "jovian_provisional" and observed["player_seated"] is True
+                    and observed["craft_piloted"] is False and observed["player_sleeping"] is False
+                    and ready["engineer_observation"]["assignment"]["role"] == "engineer",
+                    "engineer readiness has no actual ordinary engineer owner")
+            require(saved["payload"]["runtime_settings"] == ready["foreign_settings"]
+                    and saved["payload"]["jovian_cargo_session"] == ready["foreign_cargo"],
+                    "engineer arm lost actual settings or cargo")
     require(saved["payload"]["crash_recovery"]["state"] == "running", "no durable running marker before kill")
     (run_dir / "interrupted-document.json").write_bytes(before)
     # Kill this exact Popen handle only. No PID search, external desktop or
@@ -343,7 +412,7 @@ try:
     require(recovered.get("activity", "convoy") == activity, "restart ignored the selected activity")
     require(resume_log.read_text(errors="replace").strip().splitlines()[-1].startswith("IN_WORLD_RECOVERY_OK: "), "recovery token is not terminal")
     require(recovered["boundary"] == ready["boundary"], "fresh process changed durable host/threat/escort/clock/progress")
-    require(recovered["receipts_before"] == ready["receipts"] and recovered["receipts_after"] == ready["receipts"] + 1,
+    require(recovered["receipts_before"] == ready["receipts"] and recovered["receipts_after"] == ready["receipts"] + (0 if recovery_context == "engineer" else 1),
             "restart lost or duplicated the activity receipt")
     require(recovered["crash_events"] == 1, "actual interruption did not publish one crash event")
     after = document.read_bytes()
@@ -399,6 +468,27 @@ try:
                 "beacon retry changed its legitimate terminal generation or cursor")
         require(final["payload"]["game_flow_reward_store"]["reward_counts"]["debris_route_navigation_data"] == ready["receipts"] + 1,
                 "beacon retry lost or duplicated the actual saved navigation-data payment")
+
+    if recovery_context == "engineer":
+        safe = recovered["safe_recovery_observation"]
+        repair = recovered["repair_observation"]
+        require(safe["craft_id"] == "jovian_provisional" and safe["player_seated"] is False
+                and safe["craft_piloted"] is False and safe["player_sleeping"] is False
+                and safe["player_on_floor"] is True and safe["player_control_enabled"] is True
+                and safe["cabin_containment"] is True,
+                "engineer cold Resume did not return usable awake home cabin ownership")
+        require(recovered["safe_context"] == ready["safe_context"]
+                and repair["kits_before"] == 6 and repair["kits_after"] == 5
+                and 0 <= repair["integrity_before"] < repair["integrity_after"] <= 1,
+                "engineer recovery did not commit genuine finite-kit component repair")
+        require(final["payload"]["runtime_settings"] == ready["foreign_settings"] == recovered["foreign_settings"]
+                and final["payload"]["jovian_cargo_session"] == ready["foreign_cargo"] == recovered["foreign_cargo"]
+                and final["payload"]["game_flow_reward_store"]["reward_counts"]["return_convoy_credit_to_shipyard"] == 1,
+                "engineer recovery changed settings, cargo or the actual first convoy payment")
+        require(recovered["live_seat_work_restore"] == "NOT_SUPPORTED"
+                and recovered["repair_inventory_restore"] == "NOT_SUPPORTED"
+                and recovered["airborne_pose_restore"] == "NOT_SUPPORTED",
+                "engineer probe must retain the existing safe-preference-only restoration limit")
     (run_dir / "recovered-document.json").write_bytes(after)
     result["recovered"] = recovered
     require(final["payload"]["crash_recovery"]["state"] == "clean" and final["payload"]["safe_start_recovery"]["state"] == "clean_shutdown",
@@ -413,9 +503,21 @@ finally:
             process.wait(timeout=15)
             result["processes"][children.index(process)]["cleanup_killed"] = True
         result["processes"][children.index(process)]["exit_code"] = process.returncode
+    if private_display is not None:
+        if private_display.poll() is None:
+            private_display.terminate()
+            try:
+                private_display.wait(timeout=15)
+            except subprocess.TimeoutExpired:
+                private_display.kill()
+                private_display.wait(timeout=15)
+        result["private_display"]["exit_code"] = private_display.returncode
+        result["private_display"]["reaped"] = True
+        result["private_display"]["log_sha256"] = digest(pathlib.Path(result["private_display"]["log"]))
     if document.exists():
         (run_dir / "document-at-exit.json").write_bytes(document.read_bytes())
-    result["owned_children_reaped"] = all(process.poll() is not None for process in children)
+    result["owned_children_reaped"] = (all(process.poll() is not None for process in children)
+                                       and (private_display is None or private_display.poll() is not None))
     for entry in result["processes"]:
         entry["log_sha256"] = digest(pathlib.Path(entry["log"]))
     result["source_before_sha256"] = source_before
