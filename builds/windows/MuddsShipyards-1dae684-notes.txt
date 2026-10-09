@@ -1,0 +1,17 @@
+Mudds Shipyards — durable Cinder beacon recovery checkpoint
+Source: 1dae684c4222a70cf1797a30165238e8c8e9c079
+EXE SHA256: ba248470b640f51b84c929c3aeb4c72c9dcef7b6ff3940a33afe766c4b7f6585
+
+A completed Cinder beacon route now survives a fresh game load with its earned navigation-data reward still owed. The route and HUD keep COMPLETE — REWARD PENDING until Start retries the existing save path and pays once. The payment receipt and paid acknowledgement commit together; an outcome that was published despite a directory-sync error reconciles without paying again. Paid Reset can start a new generation; failed writes cannot create a new entitlement, and unsupported newer records are retained and refused safely. Earlier Bulwark ordinary gunner and supported crew/cabin recovery changes are included.
+
+Actual checkpoint validation: clean exact-source import/export passed with the new test UID tracked. Five source suites and the same five against this EXE's embedded package passed148 assertions each: durable beacon recovery34, reward authority29, nearby activity41, retained beacon feedback6 and owed reward38. These exercise actual save rejection, fresh Main restoration, pending-to-Start payment once, the real published_directory_sync_failed boundary, paid Reset/new-generation re-entry, all-writes-fail refusal and newer-record retention. Route completion uses positioned production trigger samples and production HUD signals; ordinary flight through the full route is not qualified. Standard four package probes passed223. Six expected fresh-profile settings_missing warnings are retained across source/package suites; no unexpected warnings or diagnostics.
+
+Native Windows headless startup in a GUID private profile exited0/reaped with exactly one parsed STARTUP_MENU_READY_OK, mouse-free true, warnings0/diagnostics0 and exact copied EXE hash; independent owned-root cleanup passed. All focused actors reaped and recorded PIDs absent. Source/import cache/EXE unchanged. PE x86_64 and embedded PCK payload inventory checked; checkpoint ZIP CRC, inner EXE and initial notes parity passed.
+
+Limits: actual beacon OS-kill recovery NOT_RUN. Native GPU/performance, rendered Windows ordinary controls, controller/audio/human review, endurance, installer/signing, matching new Linux build, full matrix/full1027 and final release NOT_RUN. Prior fullaacd acceptance is separate and cannot qualify this source. Prepared privately; root owns exclusive publication in builds/windows/.
+
+Published checkpoint: these reviewed bytes are now in builds/windows/.
+Checkpoint ZIP SHA256: 414516f0f2d1cc73b88e5be6ffce76070b4bb3427d7ffe64227a10cea6782888
+Standard probes retain four known root/superuser warnings; six focused fresh-settings warnings are recorded above.
+The ZIP preserves immutable initial notes; publication status and ZIP hash are sidecar-only.
+The older frozen 94da8f0 full regression finished FAIL (1024/1027). The newer exact aacd367 full regression is running separately with a recorded gunner timeout (exit124); no full PASS is claimed. This checkpoint does not inherit that source or its results.
