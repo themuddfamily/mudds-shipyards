@@ -8,7 +8,46 @@ by default; optional signing is described in
 [Windows code signing](WINDOWS_CODE_SIGNING.md). A green verification does not
 grant distribution rights or replace the human gates that remain open.
 
-## Latest native checkpoint `3a800bfb4` — 2026-10-09
+## Latest native checkpoint `1e47755a8` — 2026-10-09
+
+The unsigned [installer](../builds/windows/MuddsShipyards-1e47755-setup.exe)
+and [notes](../builds/windows/MuddsShipyards-1e47755-installer-notes.txt) are
+published in `builds/windows/`. Setup is 86,619,737 bytes, SHA256
+`2ebc604e6a69d1b0a8b9863ea5cc6bae2d6cb6ae404795342c6a2f81c8f26677`.
+The exact x64 game is 177,589,168 bytes, SHA256
+`3d242b1c8beab4e09e568a33b6a5e9e9479ef19353e6ebb3727bb3ffb97150f6`.
+Clean compiler `93e5f5e6d` uses NSIS v3.09-4; its original result/hash/log are
+copied unchanged. The x86 bootstrap is unsigned. Immutable build-time native
+verification remains `NOT_RUN`; subsequent executed acceptance is below.
+
+Default 11 steps and three separate 16-step combined contracts pass actual
+`3a800bfb4` → `1e47755a8` → `3a800bfb4` for pilot, cabin and rest. All five
+builder/verifier owners exit 0/reaped. Each contract covers locked upgrade
+refusal (2), exact payload/provenance, startup, actual owned interruption,
+three startup kills/fourth safe-start and journal, backup/newer-data retention,
+rollback and uninstall. The selected context appears in both ordinary-Boot
+markers. Activity arms exit −1/reaped, fresh resumes exit 0/reaped; exact durable
+boundary, receipts 1→2 once, crash1 and clean markers pass. Cabin/rest recover
+awake with supported cabin walking before helm retake; the failed second
+convoy earns nothing, and the genuine third earns the next receipt. Physical
+checks precede escort fixtures; canopy/boarding timings are 0.01/0.02 seconds.
+
+Root independently verifies 36 raw log hashes, 21 completed startups with one
+parsed ready JSON/mouse free, zero engine/script/leak diagnostics, 18 protected
+disk hashes and native process/install/shortcut/HKCU cleanup. The 22 exact
+known warnings are ten missing-settings and twelve intentional newer-schema
+warnings. Activity logs have zero warnings. Activity profiles are removed;
+base profiles and witnesses remain. Existing EXE/checkpoint ZIP are unchanged.
+Evidence: `/root/.cache/mudds-shipyards/roadmap-validation/installer-cabin-boot-1e47755/`.
+
+This qualifies the named unsigned installed checkpoint. Its full matrix is
+`NOT_RUN`; the separate frozen `3a800bfb4` full matrix remains RUNNING. Solo
+crew-seat entry/recovery, docking/planetary/full-activity recovery, uninterrupted
+human controls, native GPU/controller/audio/art review, other platforms,
+interactive/final-candidate installation, signing and release acceptance stay
+open. Historical results retain their own source and scope.
+
+## Native checkpoint `3a800bfb4` — 2026-10-09
 
 The unsigned [installer](../builds/windows/MuddsShipyards-3a800bf-setup.exe)
 and [notes](../builds/windows/MuddsShipyards-3a800bf-installer-notes.txt) are
@@ -503,9 +542,8 @@ verifier passes the selection to both boots and requires an exact
 `recovery_context` in both readiness and recovery records. A pilot-only payload
 cannot qualify a cabin/rest request. The default `pilot` keeps the existing
 invocation compatible with older payloads. Published `1e47755a8` provides the cabin/rest interruption entry, with source,
-Linux-package and exported-Windows checks passing. Its installer/context
-acceptance is in progress; installed cabin/rest remains unqualified until those
-actual verifier runs finish. Earlier `3a800bfb4` lacks that entry.
+Linux-package and exported-Windows checks passing. Its published installer now passes separate pilot/cabin/rest 16-step
+contracts as recorded above. Earlier `3a800bfb4` lacks that entry.
 
 The activity case uses a fresh `<ProbeRoot>\in-world-profile`, separate from
 settings/tutorial fixtures and protected newer documents. After genuine convoy
