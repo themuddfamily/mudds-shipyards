@@ -65,6 +65,9 @@ const SEAT_MAX_REACH := 3.25
 const SEAT_TRANSITION_SECONDS := 0.45
 const MAX_BODIES := 16
 
+var crew_seat_claim: Callable
+var crew_seat_release: Callable
+
 var _session: Node = null
 var _bodies: Dictionary = {}
 var _audit := {
@@ -214,12 +217,13 @@ func release(entity_id: StringName, reason: StringName = &"released") -> Diction
 		return _result(false, &"unknown_body", {"entity_id": entity_id})
 	var record := _bodies[entity_id] as Dictionary
 	_bodies.erase(entity_id)
+	_release_crew_role(record)
 	var body_variant: Variant = record.get("body")
 	var frame_variant: Variant = record.get("frame")
 	var seat_variant: Variant = record.get("seat")
 	if is_instance_valid(body_variant):
 		var body := body_variant as CharacterBody3D
-		if is_instance_valid(seat_variant):
+		if is_instance_valid(seat_variant) and seat_variant is StationSeat:
 			(seat_variant as StationSeat).cancel_reservation(body)
 		if is_instance_valid(frame_variant) and frame_variant.has_method(&"is_occupant_registered") \
 				and frame_variant.is_occupant_registered(body):
@@ -397,6 +401,8 @@ func _handle_interaction(record: Dictionary) -> void:
 ## name, and a seat across the cabin is out of reach however the request is
 ## phrased.
 func _try_sit(record: Dictionary) -> void:
+	if _try_crew_sit(record):
+		return
 	var body := record.get("body") as CharacterBody3D
 	var craft := record.get("craft") as Node3D
 	var origin: Vector3 = body.get_interaction_origin()
@@ -430,12 +436,89 @@ func _try_sit(record: Dictionary) -> void:
 	_set_avatar_mode(record, MovementAuthority.MODE_SEATED)
 
 
+func _try_crew_sit(record: Dictionary) -> bool:
+	if not crew_seat_claim.is_valid():
+		return false
+	var body := record.get("body") as CharacterBody3D
+	var craft := record.get("craft") as Node3D
+	var best: ShipCrewSeat
+	var distance := SEAT_MAX_REACH
+	for candidate in body.get_nearby_interactables():
+		if candidate is ShipCrewSeat and candidate.get_ship() == craft \
+				and candidate.get_role() == &"engineer":
+			var reach: float = body.get_interaction_origin().distance_to(candidate.get_entry_transform().origin)
+			if reach < distance:
+				best = candidate
+				distance = reach
+	if best == null:
+		return false
+	var claimed: Dictionary = crew_seat_claim.call(record, best)
+	if not bool(claimed.get("accepted", false)):
+		_audit.interactions_refused += 1
+		return true
+	record["seat"] = best
+	record["crew_assignment"] = claimed.get("assignment", {})
+	record["crew_exit_local"] = craft.global_transform.affine_inverse() * best.get_exit_transform()
+	body.clear_remote_intent()
+	if not body.begin_boarding(best.get_entry_transform(), best.get_seat_anchor(), SEAT_TRANSITION_SECONDS, craft):
+		_release_crew_role(record)
+		record["seat"] = null
+		_audit.interactions_refused += 1
+		return true
+	record["seat_state"] = &"sitting"
+	_set_avatar_mode(record, MovementAuthority.MODE_SEATED)
+	return true
+
+
+func _release_crew_role(record: Dictionary) -> void:
+	if not (record.get("crew_assignment", {}) as Dictionary).is_empty() and crew_seat_release.is_valid():
+		crew_seat_release.call(record)
+	record.erase("crew_assignment")
+
+
+func get_body_crew_seat(entity_id: StringName) -> ShipCrewSeat:
+	var seat: Variant = (_bodies.get(entity_id, {}) as Dictionary).get("seat")
+	return seat as ShipCrewSeat if is_instance_valid(seat) and seat is ShipCrewSeat else null
+
+
+func stand_crew_body(entity_id: StringName) -> void:
+	var record := _bodies.get(entity_id, {}) as Dictionary
+	var seat := get_body_crew_seat(entity_id)
+	if record.is_empty() or (seat == null and not record.has("crew_assignment")):
+		return
+	_release_crew_role(record)
+	var body := get_body(entity_id)
+	if body != null:
+		var craft := record.get("craft") as HeroShip
+		var pose := body.global_transform
+		if is_instance_valid(craft):
+			pose = craft.global_transform * (record.get("crew_exit_local", Transform3D.IDENTITY) as Transform3D)
+		body.force_recovery_to_on_foot(pose)
+		if is_instance_valid(craft) and not craft.is_destroyed():
+			var report := craft.get_in_flight_cabin_report()
+			body.set_cabin_containment(craft, report.get("local_bounds", AABB()) as AABB, pose)
+		body.clear_remote_intent()
+	record["seat"] = null
+	record["seat_state"] = &"standing"
+	record["last_intent_tick"] = -1
+	_set_avatar_mode(record, MovementAuthority.MODE_ON_FOOT)
+
+
 func _stand(record: Dictionary) -> void:
 	var body := record.get("body") as CharacterBody3D
 	var seat_variant: Variant = record.get("seat")
 	if not is_instance_valid(seat_variant):
 		record["seat"] = null
 		record["seat_state"] = &"standing"
+		return
+	if seat_variant is ShipCrewSeat:
+		var crew_seat := seat_variant as ShipCrewSeat
+		body.set_station_seated_context(false)
+		if body.begin_disembark(crew_seat.get_exit_transform(), SEAT_TRANSITION_SECONDS, record.get("craft") as Node3D):
+			_release_crew_role(record)
+			record["seat_state"] = &"rising"
+		else:
+			body.set_station_seated_context(true)
 		return
 	var seat := seat_variant as StationSeat
 	if not seat.begin_release(body):
@@ -466,9 +549,15 @@ func _on_body_boarded(entity_id: StringName) -> void:
 	var body := record.get("body") as CharacterBody3D
 	var seat_variant: Variant = record.get("seat")
 	if not is_instance_valid(body) or not is_instance_valid(seat_variant):
+		_release_crew_role(record)
 		record["seat"] = null
 		record["seat_state"] = &"standing"
 		_set_avatar_mode(record, MovementAuthority.MODE_ON_FOOT)
+		return
+	if seat_variant is ShipCrewSeat:
+		body.set_station_seated_context(true)
+		record["seat_state"] = &"seated"
+		_audit.seat_claims += 1
 		return
 	var seat := seat_variant as StationSeat
 	seat.finish_transition(body)
@@ -486,7 +575,7 @@ func _on_body_stood(entity_id: StringName) -> void:
 		return
 	var body := record.get("body") as CharacterBody3D
 	var seat_variant: Variant = record.get("seat")
-	if is_instance_valid(seat_variant) and is_instance_valid(body):
+	if is_instance_valid(seat_variant) and seat_variant is StationSeat and is_instance_valid(body):
 		(seat_variant as StationSeat).release(body)
 	record["seat"] = null
 	record["seat_state"] = &"standing"

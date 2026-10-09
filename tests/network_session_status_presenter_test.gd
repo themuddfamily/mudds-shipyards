@@ -16,6 +16,8 @@ func _run() -> void:
 	var connected := presenter.present_snapshot({"state": &"connected", "role": &"client", "detail": "Joined Cinder Run."})
 	_check(connected.message.begins_with("Joined Cinder Run.") and connected.actions[0].id == &"disconnect", "connected state exposes readable detail and disconnect")
 	_check(presenter.request_disconnect().accepted and not presenter.request_retry().accepted, "connected intents remain bounded to disconnect")
+	var engineer := presenter.present_snapshot({"state": &"connected", "role": &"client", "local_role": &"engineer"})
+	_check(engineer.local_role == &"engineer" and engineer.ownership_text == "ENGINEER" and engineer.next_action.contains("REPAIR AT BERTH"), "confirmed engineer role retains explicit ownership and usable controls guidance")
 	var failed := presenter.present_snapshot({"state": &"failed", "detail": "Admission was refused.", "retryable": true})
 	_check(failed.title == "Connection Failed" and failed.actions.size() == 2 and failed.actions[0].id == &"retry", "failed state exposes retry and cancel actions")
 	_check(presenter.request_retry().accepted and presenter.request_cancel().accepted, "failure actions return external intents")

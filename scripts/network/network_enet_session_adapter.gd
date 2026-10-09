@@ -55,6 +55,9 @@ signal damage_respawn_result(result: Dictionary)
 signal moving_interior_result(result: Dictionary)
 signal ship_ownership_result(result: Dictionary)
 signal seat_occupancy_result(result: Dictionary)
+signal engineer_intent_requested(peer_id: int, payload: Dictionary)
+signal engineer_snapshot_received(snapshot: Dictionary)
+
 signal crew_role_result(result: Dictionary)
 signal crew_command_result(result: Dictionary)
 signal crew_snapshot_published(snapshot: Dictionary)
@@ -191,6 +194,8 @@ var _cargo_manifest_replica_revision := 0
 var _cargo_manifest_replica_generation := 0
 var _cargo_manifest_terminal_generation := 0
 var _crew_replica_snapshot: Dictionary = {}
+var _engineer_snapshot_revision := 0
+var _engineer_replica_snapshot: Dictionary = {}
 var _moving_replica_samples: Dictionary = {}
 var _moving_relationship_stream
 var _moving_replica
@@ -560,6 +565,8 @@ func shutdown(reason: StringName = &"requested") -> Dictionary:
 	_cargo_manifest_replica_generation = 0
 	_cargo_manifest_terminal_generation = 0
 	_crew_replica_snapshot.clear()
+	_engineer_snapshot_revision = 0
+	_engineer_replica_snapshot.clear()
 	# A new admitted peer receives a fresh per-recipient moving stream at revision 1.
 	# Retire the old ordering cursor along with its presentation bindings.
 	_reset_moving_interior_jitter(int(
@@ -2437,6 +2444,60 @@ func get_owned_ship(ship_id: StringName) -> Dictionary:
 	return _ship_ownership.get_ship_snapshot(ship_id)
 
 
+## The physical engineer binding, rather than pilot ownership, admits this
+## role. All requests use the same authenticated, replay/rate limited envelope.
+func send_engineer_intent(payload: Dictionary) -> Dictionary:
+	if is_server() or not _configured:
+		return _result(false, &"client_required")
+	_receive_engineer_intent.rpc_id(AUTHORITY_PEER_ID, _make_secure_rpc_packet(&"engineer", payload))
+	return _result(true, &"queued")
+
+
+func publish_engineer_snapshot(peer_id: int, snapshot: Dictionary) -> Dictionary:
+	if not is_server() or not _peer_generations.has(peer_id):
+		return _result(false, &"peer_not_admitted")
+	var packet := snapshot.duplicate(true)
+	packet["recipient_peer_id"] = peer_id
+	packet["peer_generation"] = int(_peer_generations[peer_id])
+	packet["session_generation"] = int(_transport.get_snapshot().session_generation)
+	packet["migration_generation"] = int(_migration.get_snapshot().migration_generation)
+	_engineer_snapshot_revision += 1
+	packet["revision"] = _engineer_snapshot_revision
+	packet["server_tick"] = get_boarding_server_tick()
+	_broadcast_engineer_snapshot.rpc_id(peer_id, packet)
+	return _result(true, &"published")
+
+
+func get_engineer_replica_snapshot() -> Dictionary:
+	return _engineer_replica_snapshot.duplicate(true)
+
+
+@rpc("any_peer", "call_remote", "reliable", 0)
+func _receive_engineer_intent(wire: Dictionary) -> void:
+	if not is_server():
+		return
+	var peer_id := multiplayer.get_remote_sender_id()
+	var payload := _accept_secure_rpc(peer_id, wire, &"engineer")
+	if not payload.is_empty():
+		engineer_intent_requested.emit(peer_id, payload)
+
+
+@rpc("authority", "call_remote", "reliable", 0)
+func _broadcast_engineer_snapshot(packet: Dictionary) -> void:
+	if is_server() or multiplayer.get_remote_sender_id() != AUTHORITY_PEER_ID:
+		return
+	if int(packet.get("recipient_peer_id", 0)) != multiplayer.get_unique_id() \
+			or int(packet.get("peer_generation", 0)) != _next_peer_generation - 1 \
+			or int(packet.get("session_generation", 0)) != int(_transport.get_snapshot().session_generation) \
+			or int(packet.get("migration_generation", 0)) != int(_migration.get_snapshot().migration_generation) \
+			or int(packet.get("revision", 0)) <= _engineer_snapshot_revision:
+		return
+	_engineer_snapshot_revision = int(packet.revision)
+	_engineer_replica_snapshot = packet.duplicate(true)
+	_note_boarding_server_tick_heard(int(packet.get("server_tick", 0)))
+	engineer_snapshot_received.emit(packet.duplicate(true))
+
+
 func register_crew_seat(
 	seat_id: StringName,
 	vessel_id: StringName,
@@ -2818,6 +2879,8 @@ func reset_snapshot_jitter(migration_generation: int = 1) -> Dictionary:
 	_crew_snapshot_codec = CrewSnapshotCodec.new()
 	_crew_snapshot_revision = 0
 	_crew_replica_snapshot.clear()
+	_engineer_snapshot_revision = 0
+	_engineer_replica_snapshot.clear()
 	_reset_moving_interior_jitter(migration_generation)
 	_projectile_snapshot_revision = 0
 	_projectile_recipient_budgets.clear()

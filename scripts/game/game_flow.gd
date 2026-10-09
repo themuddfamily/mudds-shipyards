@@ -80,6 +80,7 @@ const NetworkHalyardCrewCommandBridgeType := preload(
 const NetworkShipAuthorityCompositionType := preload(
 	"res://scripts/network/network_ship_authority_composition.gd"
 )
+const NetworkJovianEngineerBindingType := preload("res://scripts/network/network_jovian_engineer_binding.gd")
 const NETWORK_MAX_SAFE_GENERATION := 9_007_199_254_740_991
 const MovingInteriorRelationshipType := preload(
 	"res://scripts/network/moving_interior_relationship.gd"
@@ -929,6 +930,20 @@ var _solo_crew_lifetime_hook: Node
 var _solo_crew_lifetime_callback: Callable
 var _solo_crew_seat_id: StringName = &""
 var _solo_crew_role: StringName = &""
+var _network_engineer_binding: NetworkJovianEngineerBindingType
+var _network_engineer_generation := 0
+var _network_engineer_pending_seat: ShipCrewSeat
+var _network_engineer_client_seat: ShipCrewSeat
+var _network_engineer_pending_elapsed := 0.0
+var _network_engineer_request_sequence := 0
+var _network_engineer_selected: StringName = &""
+var _network_engineer_source: LocalShipInputSource
+var _network_engineer_source_authority := 1
+var _network_engineer_source_peer := 0
+var _network_engineer_fire_elapsed := 0.0
+var _network_engineer_stand_requested := false
+var _network_engineer_client_claim := 0
+var _network_engineer_recovery_local := Transform3D.IDENTITY
 var _solo_gunner_input_elapsed := 0.0
 var _solo_gunner_source: LocalShipInputSource
 var _solo_gunner_source_owner: CrewSeatRoleAuthority
@@ -5074,6 +5089,7 @@ func _physics_process(delta: float) -> void:
 	if not is_instance_valid(active_ship):
 		active_ship = null
 	_update_solo_gunner_input(delta)
+	_advance_network_engineer(delta)
 	# Client-side: the one boarding request this peer may have outstanding.
 	# Deliberately above the expedition's early return -- a request whose
 	# clock stops is a request that never expires, and a never-expiring
@@ -6777,7 +6793,7 @@ func _publish_network_session_snapshot(
 
 
 func _network_local_role_presentation() -> Dictionary:
-	var local_role: StringName = &"pilot" if _piloting else &"observer"
+	var local_role: StringName = &"pilot" if _piloting else (&"engineer" if is_instance_valid(_network_engineer_client_seat) or (_solo_crew_role == &"engineer" and _solo_crew_claim_is_current()) else &"observer")
 	var craft_name := ""
 	var craft_id: StringName = &""
 	var local_peer_id := 1
@@ -6790,7 +6806,7 @@ func _network_local_role_presentation() -> Dictionary:
 	if is_instance_valid(active_ship):
 		craft_name = active_ship.get_display_name()
 		craft_id = active_ship.get_ship_id()
-		if not _piloting and is_instance_valid(network_session) and network_session.has_method(&"get_crew_role_snapshot"):
+		if not _piloting and local_role != &"engineer" and is_instance_valid(network_session) and network_session.has_method(&"get_crew_role_snapshot"):
 			var role_snapshot := network_session.get_crew_role_snapshot() as Dictionary
 			var roles := role_snapshot.get("roles", {}) as Dictionary
 			for record_variant in roles.values():
@@ -6919,6 +6935,8 @@ func _on_network_session_started(mode: StringName) -> void:
 			# Every production craft has an ownership record from the first
 			# tick, unowned until a pilot grant claims it.
 			_register_network_ship_ownership(fleet_ship)
+	if mode == &"server":
+		_attach_network_engineer_binding()
 	_publish_network_session_snapshot(
 		&"connected" if mode == &"server" else &"connecting",
 		mode,
@@ -6928,6 +6946,11 @@ func _on_network_session_started(mode: StringName) -> void:
 
 
 func _on_network_session_stopped(reason: StringName) -> void:
+	_cancel_network_engineer()
+	_cancel_solo_crew_seat()
+	if _network_engineer_binding != null:
+		_network_engineer_binding.detach()
+		_network_engineer_binding = null
 	_cancel_network_exterior_transition()
 	_stop_lan_discovery_responder()
 	_bomber_payload_canonical_publish_pending = false
@@ -8481,6 +8504,14 @@ func _consume_cinder_bomber_fire_pressed() -> Dictionary:
 ## HeroShip receives wheel events only while piloted. An exact local engineer
 ## instead queues them into that same retained producer before Player zoom.
 func _input(event: InputEvent) -> void:
+	if is_instance_valid(_network_engineer_client_seat) and is_instance_valid(_network_engineer_source) \
+			and event is InputEventMouseButton and event.pressed \
+			and event.button_index in [MOUSE_BUTTON_WHEEL_UP, MOUSE_BUTTON_WHEEL_DOWN]:
+		if not event.is_action(_network_engineer_source.camera_distance_in_action) \
+				and not event.is_action(_network_engineer_source.camera_distance_out_action):
+			_network_engineer_source.queue_camera_distance_delta(-1.0 if event.button_index == MOUSE_BUTTON_WHEEL_UP else 1.0)
+		get_viewport().set_input_as_handled()
+		return
 	if _solo_crew_role != &"engineer" or not _solo_gunner_source_is_current() \
 			or not event is InputEventMouseButton or not (event as InputEventMouseButton).pressed:
 		return
@@ -8993,6 +9024,9 @@ func _on_interact_requested() -> void:
 		return
 	if _piloting or _transition_busy:
 		return
+	if is_instance_valid(_network_engineer_client_seat):
+		_request_network_engineer_stand()
+		return
 	if _station_seated:
 		_stand_from_station_seat()
 		return
@@ -9001,6 +9035,9 @@ func _on_interact_requested() -> void:
 	_refresh_interaction_targets()
 	if is_instance_valid(station_interaction_candidate):
 		if station_interaction_candidate is ShipCrewSeat:
+			if _network_session_mode == &"client":
+				_request_network_engineer_seat(station_interaction_candidate as ShipCrewSeat)
+				return
 			_sit_in_solo_crew_seat(station_interaction_candidate as ShipCrewSeat)
 			return
 		if station_interaction_candidate is StationSeat:
@@ -9070,8 +9107,11 @@ func _release_solo_crew_authority() -> bool:
 		return true
 	if is_instance_valid(_solo_crew_ship) \
 			and _solo_crew_ship.call(&"get_crew_role_authority") == _solo_crew_authority \
+			and not (_network_engineer_binding != null and _network_engineer_binding.authority == _solo_crew_authority) \
 			and not bool(_solo_crew_ship.call(&"detach_crew_role_authority", _solo_crew_authority)):
 		return false
+	if _network_engineer_binding != null and _network_engineer_binding.authority == _solo_crew_authority:
+		_network_engineer_binding.next_request_sequence(_solo_crew_sequence)
 	_solo_crew_authority = null
 	_solo_crew_ship = null
 	_solo_crew_sequence = 0
@@ -9134,7 +9174,7 @@ func _release_retired_solo_crew_claim(assignment: Dictionary) -> bool:
 
 func _sit_in_solo_crew_seat(seat: ShipCrewSeat) -> void:
 	if _transition_busy or _station_seated or _piloting or player.is_seated() \
-			or _network_session_is_live() or _planetary_visit_blocks_network_session() \
+			or (_network_session_is_live() and not (_network_session_mode == &"server" and seat is ShipCrewSeat and seat.get_ship() is JovianLightFreighter and seat.get_role() == &"engineer")) or _planetary_visit_blocks_network_session() \
 			or not is_instance_valid(seat) or not seat.is_inside_tree() or seat.is_queued_for_deletion() \
 			or phase not in [Phase.APPROACH_SHIP, Phase.COMPLETE, Phase.IN_FLIGHT_CABIN]:
 		return
@@ -9161,6 +9201,9 @@ func _sit_in_solo_crew_seat(seat: ShipCrewSeat) -> void:
 			var owner: Variant = (owner_ref as WeakRef).get_ref()
 			if is_instance_valid(owner) and owner != frame:
 				return
+	if _network_session_mode == &"server" and _network_engineer_binding != null and craft is JovianLightFreighter:
+		_solo_crew_authority = _network_engineer_binding.authority
+		_solo_crew_ship = craft
 	# A different attached authority belongs to another session. Never replace
 	# it just because this Player is standing beside the passenger chair.
 	if craft.call(&"get_crew_role_authority") != null and craft.call(&"get_crew_role_authority") != _solo_crew_authority:
@@ -9184,7 +9227,7 @@ func _sit_in_solo_crew_seat(seat: ShipCrewSeat) -> void:
 		return
 	_solo_crew_seat_id = seat.get_seat_id()
 	_solo_crew_role = seat.get_role()
-	_solo_crew_sequence += 1
+	_solo_crew_sequence = _network_engineer_binding.next_request_sequence(_solo_crew_sequence) if _network_engineer_binding != null and _network_engineer_binding.authority == _solo_crew_authority else _solo_crew_sequence + 1
 	var claimed := _solo_crew_authority.claim(
 		1, 1, SOLO_CREW_AVATAR_ID, _solo_crew_seat_id,
 		_solo_crew_role, _solo_crew_sequence
@@ -9455,7 +9498,7 @@ func _submit_solo_engineer_intent(component_id: StringName, repair: float, compo
 
 func _solo_gunner_input_is_available() -> bool:
 	if _transition_busy or not _station_seated or _solo_crew_role not in [&"gunner", &"engineer"] \
-			or _network_session_is_live() or get_tree().paused or not can_process() \
+			or (_network_session_is_live() and not (_network_session_mode == &"server" and _solo_crew_ship is JovianLightFreighter and _solo_crew_role == &"engineer")) or get_tree().paused or not can_process() \
 			or not player.is_control_enabled() or not _solo_crew_claim_is_current() \
 			or _solo_crew_ship.is_piloted():
 		return false
@@ -9712,6 +9755,7 @@ func _end_ship_rest_presentation() -> void:
 
 
 func _cancel_station_seat_for_detach() -> void:
+	_cancel_network_engineer()
 	_cancel_solo_crew_seat()
 	_release_solo_crew_authority()
 	_end_ship_rest_presentation()
@@ -15908,9 +15952,12 @@ func _find_station_interaction_candidate() -> Node3D:
 	var best_candidate: Node3D
 	var best_score := INF
 	for candidate in player.get_nearby_interactables():
-		# The passenger chair is admitted only by the solo crew owner. In a
-		# network cabin it must not hide the host-authorized cockpit/hatch press.
-		if candidate is ShipCrewSeat and _network_session_is_live():
+		# Only the wired Jovian engineer chair can replace the network cabin
+		# hatch prompt; every other optional crew chair keeps its solo gate.
+		if candidate is ShipCrewSeat and _network_session_is_live() \
+				and not (candidate.get_ship() is JovianLightFreighter and candidate.get_role() == &"engineer" \
+					and ((_network_session_mode == &"server" and _network_engineer_binding != null) \
+						or (_network_session_mode == &"client" and _network_client_boarding_holds(candidate.get_ship())))):
 			continue
 		if candidate is ShipBoardingArea:
 			continue
@@ -22946,3 +22993,220 @@ func get_rime_interrupted_visit_status() -> Dictionary:
 			if _rime_expedition_persistence_binding != null else {}
 		),
 	}.duplicate(true)
+
+
+func _attach_network_engineer_binding() -> void:
+	var jovian := _find_flyable_ship_by_id(JOVIAN_SHIP_ID) as JovianLightFreighter
+	var simulation := _ensure_network_remote_body_simulation()
+	if jovian == null or simulation == null or _network_engineer_binding != null:
+		return
+	_network_engineer_generation += 1
+	var binding := NetworkJovianEngineerBindingType.new()
+	if binding.attach(network_session, jovian, simulation, _network_engineer_generation):
+		_network_engineer_binding = binding
+
+
+func _request_network_engineer_seat(seat: ShipCrewSeat) -> void:
+	if _transition_busy or _station_seated or _piloting or not is_instance_valid(seat) \
+			or not seat.get_ship() is JovianLightFreighter or seat.get_role() != &"engineer" \
+			or not _network_client_boarding_holds(seat.get_ship()) \
+			or phase != Phase.IN_FLIGHT_CABIN or seat.get_ship() != _cabin_ship \
+			or seat.get_role_contract().is_empty() or not player.is_on_floor() \
+			or _network_remote_body_intent_source == null or not _network_remote_body_intent_source.is_bound() \
+			or player.get_interaction_origin().distance_to(seat.get_entry_transform().origin) > STATION_SEAT_MAX_REACH:
+		return
+	_network_engineer_pending_seat = seat
+	_network_engineer_pending_elapsed = 0.0
+	_network_remote_body_intent_source.request_interaction()
+
+
+func _request_network_engineer_stand() -> void:
+	if _transition_busy or not _station_seated or _network_remote_body_intent_source == null:
+		return
+	_network_engineer_stand_requested = true
+	_network_remote_body_intent_source.request_interaction()
+
+
+func _advance_network_engineer(delta: float) -> void:
+	if _network_engineer_binding != null:
+		_network_engineer_binding.advance(delta)
+	if _network_session_mode != &"client" or not is_instance_valid(network_session):
+		return
+	if is_instance_valid(_network_engineer_pending_seat):
+		_network_engineer_pending_elapsed += delta
+		if _network_engineer_pending_elapsed > 4.0:
+			_network_engineer_pending_seat = null
+	var view := network_session.get_engineer_replica_snapshot()
+	var assignment := view.get("assignment", {}) as Dictionary
+	var belongs: bool = not assignment.is_empty() and view.get("ship_id") == JOVIAN_SHIP_ID \
+		and StringName(assignment.get("avatar_id", &"")) == _network_remote_body_intent_source.get_entity_id() \
+		and int(view.get("entity_generation", 0)) == _network_remote_body_intent_source.get_entity_generation() \
+		and assignment.get("role") == &"engineer" and assignment.get("seat_id") == JovianLightFreighter.ENGINEER_SEAT_ID \
+		if _network_remote_body_intent_source != null and _network_remote_body_intent_source.is_bound() else false
+	if is_instance_valid(_network_engineer_client_seat):
+		if not belongs or not bool(view.get("seated", false)) or int(assignment.get("claim_sequence", 0)) != _network_engineer_client_claim:
+			if not _transition_busy:
+				_finish_network_engineer_stand()
+			return
+		if _network_engineer_stand_requested or _transition_busy or not player.is_control_enabled() \
+				or get_tree().paused or not can_process():
+			return
+		_update_network_engineer_input(delta, view)
+	elif belongs and bool(view.get("seated", false)):
+		if is_instance_valid(_network_engineer_pending_seat) and not _transition_busy:
+			_present_network_engineer_seat(_network_engineer_pending_seat)
+		elif _network_remote_body_intent_source != null and not _transition_busy:
+			# A confirmation for an expired/abandoned press cannot seize the
+			# local body. Ask the still-owned host body to stand instead.
+			_network_remote_body_intent_source.request_interaction()
+
+
+func _present_network_engineer_seat(seat: ShipCrewSeat) -> void:
+	var craft := seat.get_ship()
+	if craft != _cabin_ship or not _network_client_boarding_holds(craft):
+		return
+	_network_engineer_client_seat = seat
+	_network_engineer_client_claim = int((network_session.get_engineer_replica_snapshot().get("assignment", {}) as Dictionary).get("claim_sequence", 0))
+	_network_engineer_pending_seat = null
+	_network_engineer_selected = &""
+	_network_engineer_stand_requested = false
+	_station_seat_recovery_transform = seat.get_exit_transform()
+	_network_engineer_recovery_local = craft.global_transform.affine_inverse() * seat.get_exit_transform()
+	_transition_busy = true
+	var generation := _begin_transition_generation()
+	if not player.begin_boarding(seat.get_entry_transform(), seat.get_seat_anchor(), minf(boarding_motion_time, 0.45), craft):
+		_cancel_network_engineer()
+		return
+	await player.boarding_completed
+	if generation != _transition_generation or _network_engineer_client_seat != seat:
+		return
+	var current := network_session.get_engineer_replica_snapshot()
+	if not bool(current.get("seated", false)) \
+			or int((current.get("assignment", {}) as Dictionary).get("claim_sequence", 0)) != _network_engineer_client_claim \
+			or _network_remote_body_intent_source == null \
+			or int(current.get("entity_generation", 0)) != _network_remote_body_intent_source.get_entity_generation():
+		_cancel_network_engineer()
+		return
+	_station_seated = true
+	player.set_station_seated_context(true)
+	_transition_busy = false
+	_network_engineer_source = craft.get_local_input_source()
+	if is_instance_valid(_network_engineer_source):
+		_network_engineer_source_authority = _network_engineer_source.get_authority_peer_id()
+		_network_engineer_source_peer = _network_client_peer_id()
+		_network_engineer_source.set_authority_peer_id(_network_engineer_source_peer)
+		_network_engineer_source.reset_stream()
+
+
+func _finish_network_engineer_stand() -> void:
+	var seat := _network_engineer_client_seat
+	if not is_instance_valid(seat):
+		_cancel_network_engineer()
+		return
+	_restore_network_engineer_input_source()
+	_transition_busy = true
+	var generation := _begin_transition_generation()
+	player.set_station_seated_context(false)
+	if not player.begin_disembark(seat.get_exit_transform(), minf(disembarking_motion_time, 0.45), seat.get_ship()):
+		_cancel_network_engineer()
+		return
+	await player.disembarking_completed
+	if generation != _transition_generation:
+		return
+	_network_engineer_client_seat = null
+	_network_engineer_stand_requested = false
+	_station_seated = false
+	_transition_busy = false
+	player.set_control_enabled(true)
+	_bind_cabin_occupancy(_cabin_ship)
+
+
+func _cancel_network_engineer() -> void:
+	_network_engineer_client_claim = 0
+	_network_engineer_pending_seat = null
+	_network_engineer_stand_requested = false
+	_restore_network_engineer_input_source()
+	_network_engineer_selected = &""
+	if not is_instance_valid(_network_engineer_client_seat):
+		_network_engineer_client_seat = null
+		return
+	var pose: Transform3D = _cabin_ship.global_transform * _network_engineer_recovery_local if is_instance_valid(_cabin_ship) and not _cabin_ship.is_destroyed() else world.get_player_spawn()
+	_network_engineer_client_seat = null
+	_invalidate_transition_generation()
+	_station_seated = false
+	_transition_busy = false
+	if is_instance_valid(player):
+		player.force_recovery_to_on_foot(pose)
+		player.set_control_enabled(true)
+		if is_instance_valid(_cabin_ship) and not _cabin_ship.is_destroyed():
+			_bind_cabin_occupancy(_cabin_ship)
+
+
+func _restore_network_engineer_input_source() -> void:
+	# Only the confirmed client chair borrows this producer. Do not overwrite
+	# a later owner if another lifecycle boundary already replaced it.
+	if is_instance_valid(_network_engineer_source) and _network_engineer_source.get_authority_peer_id() == _network_engineer_source_peer:
+		_network_engineer_source.set_authority_peer_id(_network_engineer_source_authority)
+		_network_engineer_source.reset_stream()
+	_network_engineer_source = null
+	_network_engineer_source_peer = 0
+
+
+func _update_network_engineer_input(delta: float, view: Dictionary) -> void:
+	var source := _network_engineer_source
+	var craft := _network_engineer_client_seat.get_ship()
+	if not is_instance_valid(source) or source != craft.get_local_input_source() \
+			or not source.is_enabled_owner() or not source.is_input_configuration_valid() \
+			or not bool(source.call(&"_is_input_sampling_active")):
+		return
+	source.set_input_transform_physics_delta(delta)
+	var command := source.next_command()
+	source.drain_pending_commands(source.get_delivery_generation())
+	var components := view.get("components", {}) as Dictionary
+	var gameplay := view.get("gameplay", {}) as Dictionary
+	var repair := gameplay.get("repair", {}) as Dictionary
+	var damaged: Array[StringName] = []
+	for component_id in ShipComponentDamage.COMPONENT_ORDER:
+		if float(components.get(component_id, 1.0)) < 1.0:
+			damaged.append(component_id)
+	if not damaged.is_empty() and not bool(repair.get("active", false)) \
+			and (_network_engineer_selected not in damaged or not is_zero_approx(command.camera_distance_delta)):
+		var index := damaged.find(_network_engineer_selected)
+		if index < 0:
+			index = 0
+		elif not is_zero_approx(command.camera_distance_delta):
+			index = posmod(index + (1 if command.camera_distance_delta > 0.0 else -1), damaged.size())
+		_network_engineer_selected = damaged[index]
+		_send_network_engineer_intent(view, 0.0)
+	_network_engineer_fire_elapsed -= delta
+	if command.fire and _network_engineer_selected in damaged \
+			and bool(gameplay.get("repair_ready", false)) and _network_engineer_fire_elapsed <= 0.0:
+		_network_engineer_fire_elapsed = 0.2
+		_send_network_engineer_intent(view, 0.2)
+	var selected := _network_engineer_selected
+	hud.set_objective("Engineer // %s %d%% // KITS %d/6 // %s // %d%%\nSelect: wheel or [%s / %s] // Repair [%s] // stand [%s]" % [
+		String(selected).replace("_", " ").capitalize() if not selected.is_empty() else "No damaged components",
+		roundi(float(components.get(selected, 1.0)) * 100.0), int(repair.get("resource_units", 0)),
+		String(view.get("error", &"")).replace("_", " ").to_upper() if not String(view.get("error", &"")).is_empty() else String(repair.get("status", &"idle")).to_upper(),
+		roundi(float(repair.get("progress", 0.0)) * 100.0),
+		hud.call(&"_action_bindings_text", source.camera_distance_in_action),
+		hud.call(&"_action_bindings_text", source.camera_distance_out_action),
+		hud.call(&"_action_bindings_text", source.fire_action), hud.get_action_prompt(&"interact"),
+	])
+
+
+func _send_network_engineer_intent(view: Dictionary, repair: float) -> Dictionary:
+	var assignment := view.get("assignment", {}) as Dictionary
+	_network_engineer_request_sequence += 1
+	return network_session.send_engineer_intent({
+		"avatar_id": StringName(assignment.get("avatar_id", &"")),
+		"entity_generation": int(view.get("entity_generation", 0)),
+		"seat_generation": int(assignment.get("seat_generation", 0)),
+		"claim_sequence": int(assignment.get("claim_sequence", 0)),
+		"component_generation": int((view.get("gameplay", {}) as Dictionary).get("component_generation", 0)),
+		"component_id": _network_engineer_selected, "repair": repair,
+		"request_sequence": _network_engineer_request_sequence,
+		"binding_generation": int(view.get("binding_generation", 0)),
+		"migration_generation": int(view.get("migration_generation", 0)),
+		"server_tick": _network_client_boarding_tick_stamp(),
+	})
