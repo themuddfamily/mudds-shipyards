@@ -1,0 +1,16 @@
+Mudds Shipyards — durable patrol branch checkpoint
+Source: ed359040c25c5045bdd30976c945ac28ab7f7c41
+EXE SHA256: 6c94ca4a0c73edab529ea9fbf452a16b4ad37cdbaba28996f73c30983e69e8bc
+EXE bytes: 177739640
+
+After a paid patrol is explicitly reset, branch buttons work again, including after a fresh load. If saving a branch choice fails, the previous route and reward remain intact. Retrying successfully persists the next choice. Cargo reset and reward behavior stays conserved across failure and fresh-load recovery.
+
+Fresh clean-source import and safe Windows export exit0. Five existing fixtures run sequentially against source and this exact EXE's embedded PCK: patrol save/restore133, activity director82, patrol activity44, patrol production41, cargo production98 — 398 assertions per lane. Every fixture exits0, is reaped and absent, with one terminal sentinel and no errors. Each lane retains22 expected authored-default settings_missing warnings (14 save/restore,1 patrol production,7 cargo production). Strict Linux/embedded-PCK startup exits0 with exactly one STARTUP_MENU_READY_OK and mouse-free during load. AMD64 PE and1490-entry embedded PCK inventory verified. Complete source/import-cache before/after manifests match, executable unchanged. ZIP CRC, inner executable and immutable initial note parity verified. Source-specific b670 crew acceptance is prior evidence; no crew suites were rerun or claimed for this patrol checkpoint.
+
+The author's real red branch failure and final22 expected settings warnings remain retained under author-retained-proof, copied from /tmp/mudds-activity-selection-recovery-proof. These are disclosed historical evidence, not fresh checkpoint failures. This candidate's ten fresh fixture runs and startup all pass.
+
+Native Windows silent menu: HELD_NOT_RUN pending NEW root authorization of exact ed359 source/hash/bytes. Native graphical/network gameplay, native GPU/performance, human/controller/audio play, endurance, signing, installed-game checks and full-current/release qualification remain NOT_RUN. Headless checks qualify their environments only. Root alone publishes; this staged checkpoint is not in Downloads.
+
+Publication acceptance: exact checkpoint published in builds/windows/. Fresh native Windows MENU ONLY now PASS after initial packaging: actual exit0/reaped, exactly one parsed STARTUP_MENU_READY_OK, mouse_free_during_load=true, diagnostics0/warnings0. Private GUID root removed; root independent final CIM query exits0, owned actors0, recorded parent135848/child59888 absent; fresh authority released. Initial ZIP notes retain the earlier HELD_NOT_RUN state and remain immutable. ZIP SHA256: 7b73f6ed4a5abff4c72289e83158d7af2ad0a0a2f88bebf95f3a81c8fe0add6d.
+Additional exact-source player-motion capture passes nine2560x1440 images on isolated X11/softwareForward+; original-resolution agent inspection found no concrete visible defect, source/import hashes unchanged and actors absent. Human/nativeGPU review remains NOT_RUN.
+Earlier author red branch failure remains retained. Native graphical/network gameplay, physical controls, audible/human review, installed recovery, endurance, complete current regression, trusted signing and final release remain NOT_RUN.
