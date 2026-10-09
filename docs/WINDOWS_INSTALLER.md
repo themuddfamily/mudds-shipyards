@@ -51,7 +51,7 @@ remain for inspection. Evidence:
 
 Full source regression, all recovery states, interactive/final-candidate install,
 other desktop platforms, native GPU/controller/audio/art/human acceptance and
-trusted signing remain open. The historical runs below retain their own scope.
+trusted signing remain open. A newer [playable cabin/bunk checkpoint](../builds/windows/MuddsShipyards-3a800bf-notes.txt), `3a800bfb4`, adds awake cabin recovery. Its installer and cabin OS-kill acceptance are NOT_RUN; this qualified `f6b24358b` setup contains the earlier pilot/on-foot recovery slice. The historical runs below retain their own scope.
 
 ## Native checkpoint `e7dedc2` result — 2026-10-08
 
