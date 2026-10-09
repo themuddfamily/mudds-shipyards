@@ -659,9 +659,7 @@ func _test_real_service_route() -> void:
 		await process_frame
 	Input.action_release(&"move_forward")
 	await _brake_actual_craft(craft)
-	for tick in int(ceil(HeroShip.AUTOMATIC_ENGINE_IDLE_SHUTDOWN_SECONDS * Engine.physics_ticks_per_second)) + 4:
-		await physics_frame
-		await process_frame
+	await _wait_for_actual_engine_idle(craft)
 	_check(craft.global_position.distance_to(berth_origin) > 100.0
 		and craft.get_telemetry().engine_state == HeroShip.ENGINE_OFFLINE,
 		"ordinary flight carries Bulwark clear before its sealed service-cabin walk")
@@ -967,8 +965,22 @@ func _brake_actual_craft(craft: HeroShip) -> void:
 	print("BULWARK_ORDINARY_BRAKE: speed=", [initial_speed, craft.velocity.length()], " physics_ticks=", ticks)
 
 
+func _wait_for_actual_engine_idle(craft: HeroShip) -> void:
+	var initial_speed := craft.velocity.length()
+	var first_physics_frame := Engine.get_physics_frames()
+	var ticks := 0
+	var budget := int(ceil(HeroShip.AUTOMATIC_ENGINE_IDLE_SHUTDOWN_SECONDS * Engine.physics_ticks_per_second)) + 4
+	# Wait for the authored engine owner, rather than counting rendered frames.
+	# A slow process frame can include several physics integrations and spend
+	# the remaining drift after the engine has already shut down.
+	while ticks < budget and craft.get_telemetry().engine_state != HeroShip.ENGINE_OFFLINE:
+		await physics_frame
+		ticks += 1
+	print("BULWARK_ACTUAL_ENGINE_IDLE: speed=", [initial_speed, craft.velocity.length()], " observed_ticks=", ticks, " integrated_ticks=", Engine.get_physics_frames() - first_physics_frame, " budget=", budget, " engine=", craft.get_telemetry().engine_state)
+
+
 func _leave_actual_helm(game: GameFlow, craft: HeroShip) -> void:
-	await _settle_frames(int(ceil(HeroShip.AUTOMATIC_ENGINE_IDLE_SHUTDOWN_SECONDS * Engine.physics_ticks_per_second)) + 4)
+	await _wait_for_actual_engine_idle(craft)
 	var event := InputEventAction.new()
 	event.action = &"interact"
 	event.pressed = true
