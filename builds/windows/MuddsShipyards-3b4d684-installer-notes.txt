@@ -1,0 +1,39 @@
+Mudds Shipyards unsigned 3b4d684 checkpoint installer
+Source: 3b4d68427a823e8759585d9906bf94ec1da39631.
+Setup: 86,681,202 bytes; SHA256 0df777dce10b2bf126eade6792367f81ab2e73f2643db3cdc99145775f4704bd.
+Payload: 177,656,464 bytes; SHA256 4ba87fbec263bf4396916f994a4b9edab50997561f860a9d5a94e90ff78d9661.
+NSIS v3.09-4; per-user installer with x64 game. Original compiler metadata and
+sidecars remain unchanged; their build-time native_verification NOT_RUN is
+historical. Actual acceptance below is recorded separately.
+
+Installs the matching durable Cinder scan / Bulwark surface checkpoint.
+Scans retain the last successfully saved progress and unpaid completion;
+Start retries the owed payment once. The Bulwark pressure-join faces now face
+outward. Existing beacon crash recovery and ordinary gunner controls remain.
+
+Actual silent native f0e2c59 -> 3b4d684 -> f0e2c59 acceptance passes all three
+sequential lanes: default 11/11, beacon pilot 16/16, and default-selector convoy
+pilot 16/16. Every owning run exits 0/reaped. Both actual in-world Windows arm
+processes are killed/reaped at -1; fresh resume exits 0/reaped. Real unpaid
+beacon generation/cursor and convoy boundaries survive interruption, usable
+safe-home pilot Resume and throttle precede ordinary HUD Start, and payment
+occurs once (beacon 0 -> 1; convoy 1 -> 2), with one crash event and clean
+markers. Duplicate/late callbacks are refused. Three additional actual startup
+kills in each combined lane, safe-start/journal, corrupt backup recovery,
+settings/tutorial retention, protected newer-document bytes, blocked upgrade,
+rollback startup and uninstall all pass. Player data survives uninstall.
+
+Root and independent review verify 139 retained hashes, actual owned PIDs and
+exits/reaping, nine ordinary startup ready records with mouse-free loading,
+both in-world raw logs/documents and twelve protected newer-document hashes.
+Known settings_missing and intentional newer_schema fallback warnings remain;
+in-world arm/resume logs have no diagnostics or warnings. Independent native
+CIM cleanup confirms zero owned processes, installations, registry entries,
+shortcuts and activity profiles; protected base profiles and raw witnesses remain.
+Evidence: /root/.cache/mudds-shipyards/roadmap-validation/installer-beacon-3b4d684/
+
+Published unsigned checkpoint installer. Current nonpilot installed recovery,
+scan OS-kill, new Linux, human controls/controller/audio/art review, native GPU,
+endurance, trusted signing and final-release qualification remain open. The
+exact-source 1,029-suite full regression is running separately; no full PASS is
+claimed. Jovian engineer work remains separate and is not included in this build.

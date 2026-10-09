@@ -1,0 +1,16 @@
+{
+  "build_label": "0.12.0+3b4d684",
+  "installer": "/root/.cache/mudds-shipyards/roadmap-validation/installer-beacon-3b4d684/MuddsShipyards-3b4d684-setup.exe",
+  "installer_bytes": 86681202,
+  "installer_kind": "nsis-per-user",
+  "installer_sha256": "0df777dce10b2bf126eade6792367f81ab2e73f2643db3cdc99145775f4704bd",
+  "makensis_version": "v3.09-4",
+  "native_verification": "NOT_RUN",
+  "product_version": "0.12.0",
+  "schema_version": 1,
+  "signing": "unsigned",
+  "source_commit": "3b4d68427a823e8759585d9906bf94ec1da39631",
+  "source_exe": "/root/.cache/mudds-shipyards/roadmap-validation/installer-beacon-3b4d684/MuddsShipyards-3b4d684.exe",
+  "source_exe_bytes": 177656464,
+  "source_exe_sha256": "4ba87fbec263bf4396916f994a4b9edab50997561f860a9d5a94e90ff78d9661"
+}

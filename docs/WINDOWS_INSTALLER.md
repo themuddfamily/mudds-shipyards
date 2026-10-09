@@ -8,7 +8,34 @@ by default; optional signing is described in
 [Windows code signing](WINDOWS_CODE_SIGNING.md). A green verification does not
 grant distribution rights or replace the human gates that remain open.
 
-## Latest native checkpoint `f0e2c590a` — 2026-10-09
+## Latest native checkpoint `3b4d68427` — 2026-10-09
+
+The unsigned [installer](../builds/windows/MuddsShipyards-3b4d684-setup.exe) and
+[notes](../builds/windows/MuddsShipyards-3b4d684-installer-notes.txt) are published
+for the durable scan/Bulwark surface checkpoint. Setup SHA256 is
+`0df777dce10b2bf126eade6792367f81ab2e73f2643db3cdc99145775f4704bd`;
+the exact game payload SHA256 is
+`4ba87fbec263bf4396916f994a4b9edab50997561f860a9d5a94e90ff78d9661`.
+
+Actual native `f0e2c590a` → `3b4d68427` → `f0e2c590a` passes three sequential
+contracts: default 11/11, beacon pilot 16/16 and default-selector convoy pilot
+16/16. Every owning run exits 0/reaped. Installed beacon interruption preserves
+the real unpaid generation/cursor until safe-home pilot Resume, usable throttle
+and ordinary HUD Start pay once (0→1); convoy compatibility pays 1→2. Each
+records one crash and clean markers. Owned process kills, startup safe-start,
+backup recovery, newer-document retention, blocked upgrade, rollback and
+uninstall pass. Root and independent review verify all 139 retained hashes,
+raw markers/documents and protected bytes. Final independent CIM finds no owned
+processes, installations, registry entries, shortcuts or activity profiles.
+Compiler sidecars retain their original build-time `native_verification: NOT_RUN`;
+completed native acceptance is recorded separately in the notes and witnesses.
+
+This qualifies headless installed pilot recovery for beacon and convoy. Current
+nonpilot installed recovery, scan OS-kill, human controls, native GPU, trusted
+signing and final-release gates remain open. The exact-source 1,029-suite full
+regression is running separately. New Jovian engineer work is not included.
+
+## Earlier native checkpoint `f0e2c590a` — 2026-10-09
 
 The unsigned [installer](../builds/windows/MuddsShipyards-f0e2c59-setup.exe) and
 [notes](../builds/windows/MuddsShipyards-f0e2c59-installer-notes.txt) are published.
