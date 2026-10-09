@@ -22,6 +22,14 @@ func _run() -> void:
 		"ordinary boot does not opt into the in-world fixture")
 	_check(bool(StartupLoaderType.in_world_probe_request(probe_args, "headless", "Dummy").accepted),
 		"one explicit headless Dummy arm stage is admitted")
+	_check(StartupLoaderType.in_world_probe_request(probe_args, "headless", "Dummy").recovery_context == "pilot",
+		"omitted recovery context keeps the existing pilot contract")
+	for context in ["pilot", "cabin", "rest"]:
+		var selected := probe_args.duplicate()
+		selected.append("--in-world-interruption-context=" + context)
+		var request := StartupLoaderType.in_world_probe_request(selected, "headless", "Dummy")
+		_check(bool(request.accepted) and request.recovery_context == context,
+			"the Boot selector admits and preserves exact context %s" % context)
 	probe_args[0] = "--in-world-interruption-stage=resume"
 	_check(bool(StartupLoaderType.in_world_probe_request(probe_args, "headless", "Dummy").accepted),
 		"one explicit headless Dummy resume stage is admitted")
@@ -31,6 +39,10 @@ func _run() -> void:
 		_check(not bool(StartupLoaderType.in_world_probe_request(probe_args, "headless", audio_driver).accepted),
 			"the fixture requires the actual Dummy driver: %s" % audio_driver)
 	for unsafe in [
+		PackedStringArray(["--in-world-interruption-context=cabin"]),
+		PackedStringArray(["--in-world-interruption-stage=arm", "--in-world-interruption-context=invalid"]),
+		PackedStringArray(["--in-world-interruption-stage=arm", "--in-world-interruption-context", "rest"]),
+		PackedStringArray(["--in-world-interruption-stage=arm", "--in-world-interruption-context=cabin", "--in-world-interruption-context=rest"]),
 		PackedStringArray(["--in-world-interruption-stage=invalid"]),
 		PackedStringArray(["--in-world-interruption-stage", "arm"]),
 		PackedStringArray(["--in-world-interruption-stage=arm", "--in-world-interruption-stage=resume"]),

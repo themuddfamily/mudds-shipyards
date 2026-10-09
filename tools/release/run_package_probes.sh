@@ -28,6 +28,11 @@ TIMEOUT_SECONDS="${PACKAGE_PROBE_TIMEOUT_SECONDS:-300}"
 RESULTS_ROOT="${PACKAGE_PROBE_RESULTS_ROOT:-$PROJECT_ROOT/artifacts/package-probes}"
 RUN_ID="${PACKAGE_PROBE_RUN_ID:-$(date -u +%Y%m%dT%H%M%SZ)}"
 AUDIO_DRIVER="${PACKAGE_PROBE_AUDIO_DRIVER:-Dummy}"
+RECOVERY_CONTEXT="${PACKAGE_PROBE_RECOVERY_CONTEXT:-pilot}"
+if [[ "$RECOVERY_CONTEXT" != pilot && "$RECOVERY_CONTEXT" != cabin && "$RECOVERY_CONTEXT" != rest ]]; then
+  echo "Invalid interruption recovery context" >&2
+  exit 2
+fi
 
 if [[ "$AUDIO_DRIVER" != Dummy ]]; then
   echo "Automated package probe audio requires --audio-driver Dummy"
@@ -100,9 +105,9 @@ if (( IN_WORLD_INTERRUPTION == 1 )); then
   trap 'forward_interruption_cancel 130' INT
   trap 'forward_interruption_cancel 143' TERM
   trap 'forward_interruption_cancel 129' HUP
-  env -u DISPLAY -u WAYLAND_DISPLAY PYTHONDONTWRITEBYTECODE=1 python3 - "$PROJECT_ROOT" "$GODOT_BIN" "$PACKAGE_PATH" "$SOURCE_MODE" "$TIMEOUT_SECONDS" "$RUN_DIR" "$PROBE_WORK_DIR" <<'PYPROBE' &
+  env -u DISPLAY -u WAYLAND_DISPLAY PYTHONDONTWRITEBYTECODE=1 python3 - "$PROJECT_ROOT" "$GODOT_BIN" "$PACKAGE_PATH" "$SOURCE_MODE" "$TIMEOUT_SECONDS" "$RUN_DIR" "$PROBE_WORK_DIR" "$RECOVERY_CONTEXT" <<'PYPROBE' &
 import hashlib, json, os, pathlib, re, signal, subprocess, sys, time
-root, godot, package, source_mode, timeout, run_dir, profile = sys.argv[1:]
+root, godot, package, source_mode, timeout, run_dir, profile, recovery_context = sys.argv[1:]
 root, run_dir, profile = map(pathlib.Path, (root, run_dir, profile))
 timeout = int(timeout)
 source_mode = source_mode == "1"
@@ -111,7 +116,7 @@ result = {"status": "FAIL", "mode": "source" if source_mode else "PCK",
           "project_root": str(root), "private_profile": str(profile), "package": None if source_mode else package,
           "source_commit": subprocess.check_output(["git", "-C", str(root), "rev-parse", "HEAD"], text=True).strip(),
           "native_gpu": "NOT_RUN", "normal_controls": "NOT_RUN",
-          "pilot_seat_world_restore": "NOT_RUN", "processes": []}
+          "pilot_seat_world_restore": "NOT_RUN", "recovery_context": recovery_context, "processes": []}
 children = []
 registering_child = False
 pending_abort = None
@@ -171,7 +176,7 @@ def start(stage):
     command = [godot, "--headless", "--audio-driver", "Dummy", "--path", str(root)]
     if not source_mode:
         command += ["--main-pack", package]
-    command += ["--in-world-interruption-stage=" + stage]
+    command += ["--in-world-interruption-stage=" + stage, "--in-world-interruption-context=" + recovery_context]
     with log.open("w") as output:
         registering_child = True
         try:
@@ -197,6 +202,7 @@ try:
         time.sleep(0.1)
     require(ready is not None and arm.poll() is None, "missing live IN_WORLD_INTERRUPTION_READY")
     require(not diagnostics(arm_log), "arm engine/script diagnostics")
+    require(ready.get("recovery_context") == recovery_context, "arm ignored the selected recovery context")
     require(ready.get("entry") == "startup_completed", "arm did not use Boot's own loaded Main")
     before = document.read_bytes()
     saved = json.loads(before)
@@ -217,6 +223,7 @@ try:
     recovered = token(resume_log, "IN_WORLD_RECOVERY_OK")
     require(resume_entry["exit_code"] == 0 and recovered is not None, "restart did not exit 0 with IN_WORLD_RECOVERY_OK")
     require(not diagnostics(resume_log), "restart engine/script diagnostics")
+    require(recovered.get("recovery_context") == recovery_context, "restart ignored the selected recovery context")
     require(recovered.get("entry") == "startup_completed", "restart did not use Boot's own loaded Main")
     require(resume_log.read_text(errors="replace").strip().splitlines()[-1].startswith("IN_WORLD_RECOVERY_OK: "), "recovery token is not terminal")
     require(recovered["boundary"] == ready["boundary"], "fresh process changed durable host/threat/escort/clock/progress")

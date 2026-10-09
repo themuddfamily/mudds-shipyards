@@ -49,6 +49,7 @@ const CLI_SUPPORT_INFO := &"--support-info"
 const CLI_SUPPORT_EXPORT := &"--support-export"
 const CLI_STARTUP_CHECK := &"--startup-check"
 const CLI_IN_WORLD_STAGE := "--in-world-interruption-stage="
+const CLI_IN_WORLD_CONTEXT := "--in-world-interruption-context="
 
 ## Frames to present before any expensive work starts. Two, because the first
 ## one is where the loading screen's Controls take their layout.
@@ -109,6 +110,7 @@ func _ready() -> void:
 		var probe := load("res://scripts/diagnostics/in_world_interruption_probe.gd").new() as Node
 		probe.name = "InWorldInterruptionProbe"
 		probe.set("stage", interruption.stage)
+		probe.set("recovery_context", interruption.recovery_context)
 		add_child(probe)
 		startup_completed.connect(probe.on_startup_completed)
 	var early_cli_mode := cli_mode(command_line)
@@ -183,19 +185,23 @@ static func cli_mode(args: PackedStringArray) -> StringName:
 ## Ordinary startup and early information commands never load its Main types.
 static func in_world_probe_request(args: PackedStringArray, display_name: String, audio_driver_name: String) -> Dictionary:
 	var stages: Array[String] = []
+	var contexts: Array[String] = []
 	for argument in args:
 		if argument.begins_with("--in-world-interruption-stage"):
 			stages.append(argument.trim_prefix(CLI_IN_WORLD_STAGE) if argument.begins_with(CLI_IN_WORLD_STAGE) else "")
-	if stages.is_empty():
+		if argument.begins_with("--in-world-interruption-context"):
+			contexts.append(argument.trim_prefix(CLI_IN_WORLD_CONTEXT) if argument.begins_with(CLI_IN_WORLD_CONTEXT) else "")
+	if stages.is_empty() and contexts.is_empty():
 		return {"requested": false, "accepted": false}
 	var rejected := {"requested": true, "accepted": false, "reason": &"unsafe_in_world_probe"}
-	if stages.size() != 1 or stages[0] not in ["arm", "resume"] or display_name != "headless":
+	if stages.size() != 1 or stages[0] not in ["arm", "resume"] or display_name != "headless" \
+			or contexts.size() > 1 or (not contexts.is_empty() and contexts[0] not in ["pilot", "cabin", "rest"]):
 		return rejected
 	# Engine options are consumed before OS.get_cmdline_args(). Inspect the
 	# actual driver rather than accepting a user argument claiming Dummy audio.
 	if audio_driver_name != "Dummy" or CLI_STARTUP_CHECK in args or "--frame-capture" in args or not cli_mode(args).is_empty():
 		return rejected
-	return {"requested": true, "accepted": true, "stage": stages[0]}
+	return {"requested": true, "accepted": true, "stage": stages[0], "recovery_context": contexts[0] if not contexts.is_empty() else "pilot"}
 
 
 static func cli_support_export_path(args: PackedStringArray) -> String:
