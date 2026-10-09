@@ -698,6 +698,10 @@ var _cinder_navigator_ping_hud_composition: RefCounted
 var _cinder_navigator_presentation_ship_generation := 0
 var cargo_transfer_authority: CargoTransferAuthority
 var cargo_delivery_activity: CargoDeliveryActivity
+var _jovian_cargo_session_persistence: JovianCargoSessionPersistence
+var _jovian_cargo_restore_attempted := false
+var _jovian_cargo_session_save_status: Dictionary = {}
+var _jovian_cargo_session_restore_status: Dictionary = {}
 ## The four GameFlow-owned route activities remain separate progress
 ## authorities. Their terminal snapshots, the streamed Cinder scan and beacon
 ## run, the physical Heavy Breach board, and the retained Ember relay survey
@@ -1413,6 +1417,7 @@ func _exit_tree() -> void:
 	save_cinder_race_session()
 	save_cinder_patrol_session()
 	save_cinder_convoy_session()
+	save_jovian_cargo_session()
 	_detach_cinder_race_session()
 	_detach_cinder_loadmaster_hud_binding()
 	_detach_boarding_confirmation_hud_composition()
@@ -1967,6 +1972,7 @@ func _initialize_cargo_delivery_composition() -> void:
 		add_child(cargo_transfer_authority)
 	if cargo_delivery_activity != null:
 		_restore_cargo_delivery_bindings()
+		_initialize_jovian_cargo_session_persistence()
 		return
 	_cargo_delivery_source_ship = _find_flyable_ship_by_id(&"jovian_provisional")
 	_cargo_delivery_destination = (
@@ -2035,7 +2041,90 @@ func _initialize_cargo_delivery_composition() -> void:
 	cargo_delivery_activity.activity_reset.connect(
 		_on_cargo_delivery_snapshot_changed
 	)
-	cargo_delivery_activity.completed.connect(_on_cargo_delivery_completed)
+	cargo_delivery_activity.completed.connect(_on_cargo_delivery_owner_completed.bind(cargo_delivery_activity.get_instance_id()))
+	_initialize_jovian_cargo_session_persistence()
+
+
+func _initialize_jovian_cargo_session_persistence() -> void:
+	if _runtime_settings_user_data_store == null or cargo_delivery_activity == null or cargo_transfer_authority == null:
+		return
+	if _jovian_cargo_session_persistence == null:
+		_jovian_cargo_session_persistence = JovianCargoSessionPersistence.new()
+		_jovian_cargo_session_persistence.configure(_runtime_settings_user_data_store)
+	if _jovian_cargo_restore_attempted:
+		return
+	_jovian_cargo_restore_attempted = true
+	var loaded := _jovian_cargo_session_persistence.load(cargo_delivery_activity, cargo_transfer_authority)
+	_jovian_cargo_session_restore_status = loaded.duplicate(true)
+	if not bool(loaded.get("accepted", false)):
+		return
+	var state := loaded.session_state as Dictionary
+	var preflight := cargo_delivery_activity.validate_restore_persistence_state(state.activity_state, state.authority_state)
+	if not bool(preflight.get("accepted", false)):
+		_jovian_cargo_session_restore_status = preflight
+		return
+	var restored := cargo_transfer_authority.restore_delivery_persistence_state(state.authority_state,
+		cargo_delivery_activity.get_snapshot().contract, CARGO_DELIVERY_SOURCE_INITIAL_QUANTITY)
+	if not bool(restored.get("accepted", false)):
+		_jovian_cargo_session_restore_status = restored
+		return
+	_jovian_cargo_session_restore_status = cargo_delivery_activity.restore_persistence_state(state.activity_state, 0)
+	if not bool(_jovian_cargo_session_restore_status.get("accepted", false)):
+		return
+	_selected_activity_kind = ACTIVITY_KIND_CARGO_DELIVERY
+	_active_activity_id = CARGO_DELIVERY_ACTIVITY_ID
+	_active_activity_generation = cargo_delivery_activity.get_generation()
+	_activity_selection_locked = cargo_delivery_activity.get_state() != CargoDeliveryActivity.State.IDLE
+	_cinder_family_reset_selection = cargo_delivery_activity.get_state() == CargoDeliveryActivity.State.IDLE
+	if bool(loaded.reward_requested) and not bool(loaded.reward_granted):
+		_owed_game_flow_activity_rewards.append({"activity_id": CARGO_DELIVERY_ACTIVITY_ID, "generation": cargo_delivery_activity.get_generation()})
+
+
+func save_jovian_cargo_session(candidate: CargoDeliveryActivity = null) -> Dictionary:
+	if _jovian_cargo_session_persistence == null or cargo_transfer_authority == null or _runtime_settings_user_data_store == null:
+		return {"accepted": false, "reason": &"jovian_persistence_unavailable"}
+	var owner := candidate if candidate != null else cargo_delivery_activity
+	if owner == null:
+		return {"accepted": false, "reason": &"jovian_owner_unavailable"}
+	var generation := _runtime_settings_user_data_store.get_generation() + 1
+	if generation < 1 or generation > UserDataStoreType.MAX_GENERATION:
+		return {"accepted": false, "reason": &"jovian_commit_id_exhausted"}
+	_jovian_cargo_session_save_status = _jovian_cargo_session_persistence.save(owner, cargo_transfer_authority,
+		"jovian-cargo-session-%010d" % generation)
+	if bool(_jovian_cargo_session_save_status.get("accepted", false)):
+		_runtime_settings_commit_serial = maxi(_runtime_settings_commit_serial, _runtime_settings_user_data_store.get_generation())
+		_sync_production_runtime_settings_state()
+	return _jovian_cargo_session_save_status.duplicate(true)
+
+
+func _restored_cinder_convoy_has_priority() -> bool:
+	if not bool(_cinder_convoy_session_restore_status.get("accepted", false)) or not is_instance_valid(cinder_convoy_host):
+		return false
+	return int((cinder_convoy_host.get_snapshot().get("activity", {}) as Dictionary).get("state", -1)) == ConvoyEscortActivity.State.ACTIVE \
+		or _has_pending_cinder_convoy_reward()
+
+
+func _restored_jovian_cargo_has_priority() -> bool:
+	return bool(_jovian_cargo_session_restore_status.get("accepted", false)) and cargo_delivery_activity != null \
+		and (cargo_delivery_activity.get_state() == CargoDeliveryActivity.State.ACTIVE or _has_pending_jovian_cargo_reward())
+
+
+func _has_pending_jovian_cargo_reward() -> bool:
+	return cargo_delivery_activity != null and cargo_delivery_activity.get_state() == CargoDeliveryActivity.State.COMPLETED \
+		and _owed_game_flow_activity_rewards.has({"activity_id": CARGO_DELIVERY_ACTIVITY_ID, "generation": cargo_delivery_activity.get_generation()})
+
+
+func _save_outgoing_activity_family() -> Dictionary:
+	match _selected_activity_kind:
+		ACTIVITY_KIND_TIMED_RACE:
+			return save_cinder_race_session()
+		ACTIVITY_KIND_PATROL:
+			return save_cinder_patrol_session()
+		ACTIVITY_KIND_CONVOY_ESCORT:
+			return save_cinder_convoy_session()
+		ACTIVITY_KIND_CARGO_DELIVERY:
+			return save_jovian_cargo_session()
+	return {"accepted": false, "reason": &"unsupported_activity_kind"}
 
 
 func _restore_cargo_delivery_bindings() -> bool:
@@ -2147,7 +2236,10 @@ func _initialize_cinder_race_session_persistence() -> void:
 			or not is_instance_valid(activity_director):
 		return
 	_cinder_race_session_restore_attempted = true
-	if bool(_cinder_convoy_session_restore_status.get("accepted", false)):
+	if _restored_jovian_cargo_has_priority():
+		_cinder_race_session_restore_status = {"accepted": false, "reason": &"jovian_cargo_session_has_priority"}
+		return
+	if _restored_cinder_convoy_has_priority():
 		_cinder_race_session_restore_status = {
 			"accepted": false,
 			"reason": &"convoy_session_already_restored",
@@ -2159,11 +2251,11 @@ func _initialize_cinder_race_session_persistence() -> void:
 	_cinder_race_session_restore_status = loaded.duplicate(true)
 	if not bool(loaded.get("accepted", false)):
 		return
-	# A nonpending older race must not hide the explicit unpaid patrol handoff. Adopt
-	# that patrol through its normal restore below, retaining its generation and
-	# the single shared route owner for both retry and the player's next run.
-	if not (bool(loaded.get("reward_requested", false)) \
-			and not bool(loaded.get("reward_granted", false))):
+	var race_pending := bool(loaded.get("reward_requested", false)) and not bool(loaded.get("reward_granted", false))
+	var race_running := int((loaded.session_state.race_state as Dictionary).state) in [TimedCheckpointRace.State.COUNTDOWN, TimedCheckpointRace.State.ACTIVE]
+	# Explicit live/pending captures may outrank inert retained families. This
+	# selects no guessed latest owner and never changes either saved generation.
+	if not race_pending:
 		var patrol_persistence := CinderPatrolSessionPersistenceType.new()
 		patrol_persistence.configure(
 			_runtime_settings_user_data_store, CINDER_PATROL_SESSION_PERSISTENCE_SLOT
@@ -2176,6 +2268,13 @@ func _initialize_cinder_race_session_persistence() -> void:
 				"accepted": false, "reason": &"pending_patrol_session_has_priority",
 			}
 			return
+		if not race_running and bool(pending_patrol.get("accepted", false)) \
+				and int((pending_patrol.patrol_state as Dictionary).state) == PatrolActivity.State.ACTIVE:
+			_cinder_race_session_restore_status = {"accepted": false, "reason": &"active_patrol_session_has_priority"}
+			return
+	if bool(_cinder_convoy_session_restore_status.get("accepted", false)) and not race_pending and not race_running:
+		_cinder_race_session_restore_status = {"accepted": false, "reason": &"convoy_session_already_restored"}
+		return
 	var restored := cinder_race_session.restore_persistence_state(
 		activity_director,
 		loaded.get("session_state", {}),
@@ -2188,9 +2287,11 @@ func _initialize_cinder_race_session_persistence() -> void:
 	if not bool(restored.get("accepted", false)):
 		return
 	var snapshot := cinder_race_session.get_presentation_snapshot()
+	_selected_activity_kind = ACTIVITY_KIND_TIMED_RACE
 	_active_activity_id = DEFAULT_FREE_FLIGHT_ACTIVITY_ID
 	_active_activity_generation = int(snapshot.get("session_generation", 0))
-	_activity_selection_locked = true
+	_activity_selection_locked = snapshot.get("state_id", &"idle") != &"idle"
+	_cinder_family_reset_selection = not _activity_selection_locked
 	_cinder_race_session_saved_fingerprint = _cinder_race_save_fingerprint(snapshot)
 	# Restoring state emits no historic completion signal. Reconcile only the
 	# durable pending handoff authored by the terminal save; legacy false/false
@@ -2275,7 +2376,10 @@ func _initialize_cinder_patrol_session_persistence() -> void:
 			or patrol_activity == null or not is_instance_valid(activity_director):
 		return
 	_cinder_patrol_session_restore_attempted = true
-	if bool(_cinder_convoy_session_restore_status.get("accepted", false)):
+	if _restored_jovian_cargo_has_priority():
+		_cinder_patrol_session_restore_status = {"accepted": false, "reason": &"jovian_cargo_session_has_priority"}
+		return
+	if _restored_cinder_convoy_has_priority():
 		_cinder_patrol_session_restore_status = {
 			"accepted": false,
 			"reason": &"convoy_session_already_restored",
@@ -2295,6 +2399,11 @@ func _initialize_cinder_patrol_session_persistence() -> void:
 	_cinder_patrol_session_restore_status = loaded.duplicate(true)
 	if not bool(loaded.get("accepted", false)):
 		return
+	var patrol_pending := bool(loaded.get("reward_requested", false)) and not bool(loaded.get("reward_granted", false))
+	if bool(_cinder_convoy_session_restore_status.get("accepted", false)) and not patrol_pending \
+			and int((loaded.patrol_state as Dictionary).state) != PatrolActivity.State.ACTIVE:
+		_cinder_patrol_session_restore_status = {"accepted": false, "reason": &"convoy_session_already_restored"}
+		return
 	var restored := patrol_activity.restore_persistence_state(
 		activity_director,
 		loaded.get("patrol_state", {}),
@@ -2312,7 +2421,8 @@ func _initialize_cinder_patrol_session_persistence() -> void:
 		"activity_id", DEFAULT_FREE_FLIGHT_ACTIVITY_ID
 	))
 	_active_activity_generation = int(snapshot.get("generation", 0))
-	_activity_selection_locked = true
+	_activity_selection_locked = snapshot.get("state_id", &"idle") != &"idle"
+	_cinder_family_reset_selection = not _activity_selection_locked
 	_cinder_patrol_session_saved_fingerprint = _cinder_patrol_save_fingerprint(snapshot)
 	# Restore emits no historical completion signal. Only the explicit pending
 	# handoff from a new terminal save is eligible; legacy false/false is ambiguous.
@@ -2483,10 +2593,12 @@ func _initialize_cinder_convoy_session_persistence() -> void:
 	)
 	var completed := int((session_state.host_state.activity_state as Dictionary).state) == ConvoyEscortActivity.State.COMPLETED
 	_cinder_convoy_runtime_rebind_pending = int((session_state.host_state.activity_state as Dictionary).state) == ConvoyEscortActivity.State.ACTIVE
-	_selected_activity_kind = ACTIVITY_KIND_CONVOY_ESCORT
-	_active_activity_id = CINDER_CONVOY_ACTIVITY_ID
-	_active_activity_generation = cinder_convoy_host.get_generation()
-	_activity_selection_locked = true
+	if not _restored_jovian_cargo_has_priority():
+		_selected_activity_kind = ACTIVITY_KIND_CONVOY_ESCORT
+		_active_activity_id = CINDER_CONVOY_ACTIVITY_ID
+		_active_activity_generation = cinder_convoy_host.get_generation()
+		_activity_selection_locked = int((session_state.host_state.activity_state as Dictionary).state) != ConvoyEscortActivity.State.IDLE
+		_cinder_family_reset_selection = not _activity_selection_locked
 	_convoy_stream_instance_id = 0
 	_convoy_stream_generation = -1
 	_convoy_active_ship_instance_id = 0
@@ -2497,7 +2609,7 @@ func _initialize_cinder_convoy_session_persistence() -> void:
 	)
 
 	if completed and bool(loaded.get("reward_requested", false)) and not bool(loaded.get("reward_granted", false)):
-		_owed_game_flow_activity_rewards.append({"activity_id": CINDER_CONVOY_ACTIVITY_ID, "generation": _active_activity_generation})
+		_owed_game_flow_activity_rewards.append({"activity_id": CINDER_CONVOY_ACTIVITY_ID, "generation": cinder_convoy_host.get_generation()})
 
 
 func save_cinder_convoy_session() -> Dictionary:
@@ -2787,12 +2899,9 @@ func _notification(what: int) -> void:
 			cargo_delivery_activity.activity_reset.disconnect(
 				_on_cargo_delivery_snapshot_changed
 			)
-		if cargo_delivery_activity.completed.is_connected(
-			_on_cargo_delivery_completed
-		):
-			cargo_delivery_activity.completed.disconnect(
-				_on_cargo_delivery_completed
-			)
+		var cargo_completion := _on_cargo_delivery_owner_completed.bind(cargo_delivery_activity.get_instance_id())
+		if cargo_delivery_activity.completed.is_connected(cargo_completion):
+			cargo_delivery_activity.completed.disconnect(cargo_completion)
 		cargo_delivery_activity = null
 	if cinder_race_session != null:
 		if cinder_race_session.presentation_changed.is_connected(
@@ -15272,10 +15381,9 @@ func select_activity_kind(activity_kind: StringName) -> Dictionary:
 		ACTIVITY_KIND_CONVOY_ESCORT,
 	]:
 		return _activity_selection_result(false, &"unsupported_activity_kind")
-	if _cinder_family_reset_selection \
-			and _selected_activity_kind in [ACTIVITY_KIND_TIMED_RACE, ACTIVITY_KIND_PATROL] \
-			and activity_kind not in [ACTIVITY_KIND_TIMED_RACE, ACTIVITY_KIND_PATROL]:
-		return _activity_selection_result(false, &"selection_locked")
+	_retry_owed_game_flow_activity_rewards()
+	if not _owed_game_flow_activity_rewards.is_empty():
+		return _activity_selection_result(false, &"activity_reward_pending")
 	if _activity_selection_locked and activity_kind != _selected_activity_kind:
 		return _activity_selection_result(false, &"selection_locked")
 	if activity_kind == _selected_activity_kind:
@@ -15297,9 +15405,10 @@ func select_activity_kind(activity_kind: StringName) -> Dictionary:
 		and not _restore_cargo_delivery_bindings()
 	):
 		return _activity_selection_result(false, &"activity_attach_failed")
-	if _selected_activity_kind in [ACTIVITY_KIND_TIMED_RACE, ACTIVITY_KIND_PATROL] \
-			and activity_kind in [ACTIVITY_KIND_TIMED_RACE, ACTIVITY_KIND_PATROL]:
+	if activity_kind in [ACTIVITY_KIND_TIMED_RACE, ACTIVITY_KIND_PATROL]:
 		return _select_saved_cinder_family(activity_kind)
+	if not bool(_save_outgoing_activity_family().get("accepted", false)):
+		return _activity_selection_result(false, &"outgoing_family_save_rejected")
 	var previous_kind := _selected_activity_kind
 	var previous_active_id := _active_activity_id
 	var previous_active_generation := _active_activity_generation
@@ -15316,8 +15425,9 @@ func select_activity_kind(activity_kind: StringName) -> Dictionary:
 		_restore_cinder_race_session(false)
 		_sync_activity_hud()
 		return _activity_selection_result(false, &"activity_attach_failed")
-	_active_activity_id = &""
-	_active_activity_generation = 0
+	_active_activity_id = _get_selected_activity_id()
+	_active_activity_generation = _get_selected_activity_generation()
+	_activity_selection_locked = _get_selected_activity_snapshot().get("state_id", &"idle") != &"idle"
 	_sync_activity_hud()
 	return _activity_selection_result(true, &"selected")
 
@@ -15353,8 +15463,7 @@ func _select_saved_cinder_family(activity_kind: StringName) -> Dictionary:
 			target_race = _new_cinder_race_session(false)
 		if target_patrol != null and target_patrol == previous_patrol:
 			target_patrol = _new_cinder_patrol_activity(false)
-	var outgoing_saved := (save_cinder_race_session()
-		if _selected_activity_kind == ACTIVITY_KIND_TIMED_RACE else save_cinder_patrol_session())
+	var outgoing_saved := _save_outgoing_activity_family()
 	if not bool(outgoing_saved.get("accepted", false)):
 		_close_unused_cinder_candidate(target_race, target_patrol, previous_race, previous_patrol)
 		return _activity_selection_result(false, &"outgoing_family_save_rejected")
@@ -15462,6 +15571,8 @@ func request_activity_start(
 	if _cinder_family_selection_active:
 		return {"accepted": false, "reason": &"family_selection_in_progress"}
 	_retry_owed_game_flow_activity_rewards()
+	if _has_pending_jovian_cargo_reward():
+		return {"accepted": false, "reason": &"cargo_reward_pending"}
 	if _has_pending_cinder_race_reward():
 		_present_pending_cinder_race_reward()
 		return {"accepted": false, "reason": &"race_reward_pending"}
@@ -15620,6 +15731,10 @@ func reset_active_activity() -> bool:
 	if _cinder_family_selection_active or not _can_recover_live_activity():
 		return false
 	_retry_owed_game_flow_activity_rewards()
+	if _has_pending_jovian_cargo_reward():
+		if is_instance_valid(hud):
+			hud.toast("Delivery reward pending", "Save the delivery credit before resetting this run.", 3.2, true)
+		return false
 	if _has_pending_cinder_race_reward():
 		_present_pending_cinder_race_reward()
 		return false
@@ -15645,9 +15760,7 @@ func reset_active_activity() -> bool:
 		ACTIVITY_KIND_PATROL:
 			reset = patrol_activity.reset(patrol_activity.get_generation())
 		ACTIVITY_KIND_CARGO_DELIVERY:
-			reset = cargo_delivery_activity.reset(
-				cargo_delivery_activity.get_generation()
-			)
+			reset = cargo_delivery_activity.reset_with_persistence(cargo_delivery_activity.get_generation(), save_jovian_cargo_session)
 		ACTIVITY_KIND_CONVOY_ESCORT:
 			if int((cinder_convoy_host.get_snapshot().get("activity", {}) as Dictionary).get("state", -1)) == ConvoyEscortActivity.State.IDLE:
 				return false
@@ -15658,8 +15771,7 @@ func reset_active_activity() -> bool:
 			)
 	if bool(reset.get("accepted", false)):
 		_active_activity_generation = _get_selected_activity_generation()
-		if _selected_activity_kind in [ACTIVITY_KIND_TIMED_RACE, ACTIVITY_KIND_PATROL] \
-				and _get_selected_activity_snapshot().get("state_id", &"") == &"idle":
+		if _get_selected_activity_snapshot().get("state_id", &"") == &"idle":
 			_activity_selection_locked = false
 			_cinder_family_reset_selection = true
 		if _selected_activity_kind == ACTIVITY_KIND_CONVOY_ESCORT:
@@ -16269,6 +16381,16 @@ func _request_game_flow_activity_reward(
 					_owed_game_flow_activity_rewards.append(pending)
 				_last_game_flow_reward_result = {"accepted": false, "reason": &"reward_terminal_save_rejected", "store_result": terminal_save.duplicate(true)}
 				return _last_game_flow_reward_result.duplicate(true)
+	if activity_id == CARGO_DELIVERY_ACTIVITY_ID and cargo_delivery_activity != null \
+			and cargo_delivery_activity.get_state() == CargoDeliveryActivity.State.COMPLETED \
+			and cargo_delivery_activity.get_generation() == activity_generation:
+		var terminal_save := save_jovian_cargo_session()
+		if not bool(terminal_save.get("accepted", false)):
+			var pending := {"activity_id": activity_id, "generation": activity_generation}
+			if not _owed_game_flow_activity_rewards.has(pending):
+				_owed_game_flow_activity_rewards.append(pending)
+			_last_game_flow_reward_result = {"accepted": false, "reason": &"reward_terminal_save_rejected", "store_result": terminal_save}
+			return _last_game_flow_reward_result.duplicate(true)
 	var completed := {
 		"activity_id": activity_id,
 		"state_id": &"completed",
@@ -17260,15 +17382,24 @@ func _other_activity_is_running() -> bool:
 
 
 func _on_cargo_delivery_snapshot_changed(_snapshot: Dictionary) -> void:
+	save_jovian_cargo_session()
 	if _selected_activity_kind == ACTIVITY_KIND_CARGO_DELIVERY:
 		_sync_activity_hud()
+
+
+func _on_cargo_delivery_owner_completed(snapshot: Dictionary, receipt: Dictionary, owner_instance_id: int) -> void:
+	if cargo_delivery_activity == null or cargo_delivery_activity.get_instance_id() != owner_instance_id:
+		return
+	_on_cargo_delivery_completed(snapshot, receipt)
 
 
 func _on_cargo_delivery_completed(
 	snapshot: Dictionary,
 	receipt: Dictionary
 	) -> void:
-	if _selected_activity_kind != ACTIVITY_KIND_CARGO_DELIVERY:
+	if _selected_activity_kind != ACTIVITY_KIND_CARGO_DELIVERY or cargo_delivery_activity == null \
+			or cargo_delivery_activity.get_state() != CargoDeliveryActivity.State.COMPLETED \
+			or int(snapshot.get("generation", -1)) != cargo_delivery_activity.get_generation():
 		return
 	var reward := _request_game_flow_activity_reward(
 		CARGO_DELIVERY_ACTIVITY_ID,
@@ -18376,11 +18507,12 @@ func _get_selected_activity_snapshot() -> Dictionary:
 			else {}
 		)
 	if _selected_activity_kind == ACTIVITY_KIND_CARGO_DELIVERY:
-		return (
-			cargo_delivery_activity.get_snapshot()
-			if cargo_delivery_activity != null
-			else {}
-		)
+		if cargo_delivery_activity == null:
+			return {}
+		var snapshot := cargo_delivery_activity.get_snapshot()
+		snapshot["state_id"] = _cargo_delivery_state_id(cargo_delivery_activity.get_state())
+		snapshot["running"] = cargo_delivery_activity.get_state() == CargoDeliveryActivity.State.ACTIVE
+		return snapshot
 	return (
 		cinder_race_session.get_presentation_snapshot()
 		if cinder_race_session != null

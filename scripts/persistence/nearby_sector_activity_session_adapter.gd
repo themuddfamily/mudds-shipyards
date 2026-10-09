@@ -9,6 +9,7 @@ const SUPPORTED_ACTIVITY_IDS: Array[StringName] = [
 	&"cinder_reach_emberline_convoy", &"cinder_reach_checkpoint_route",
 	&"cinder_reach_platform_patrol_route",
 	&"cinder_platform_supply_run", &"cinder_platform_mining_run",
+	&"jovian_fabrication_kit_delivery",
 	&"cinder_derelict_structure_scan", &"cinder_debris_beacon_traversal",
 	&"cinder_asteroid_field_threading_run",
 	&"station_defense",

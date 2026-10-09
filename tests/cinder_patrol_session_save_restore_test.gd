@@ -866,9 +866,9 @@ func _test_mixed_race_patrol_restart(race_boundary: StringName) -> void:
 	var hud := fresh.get_node("HUD") as GameHUD
 	var choices := hud.get_activity_selection_report()
 	_check(not bool(choices.buttons[GameFlow.ACTIVITY_KIND_TIMED_RACE].disabled)
-		and bool(choices.buttons[GameFlow.ACTIVITY_KIND_CARGO_DELIVERY].disabled)
-		and bool(choices.buttons[GameFlow.ACTIVITY_KIND_CONVOY_ESCORT].disabled),
-		"the production HUD enables only race/patrol choices after an explicit family reset")
+		and not bool(choices.buttons[GameFlow.ACTIVITY_KIND_CARGO_DELIVERY].disabled)
+		and not bool(choices.buttons[GameFlow.ACTIVITY_KIND_CONVOY_ESCORT].disabled),
+		"the production HUD enables all four choices after an explicit family reset")
 	var race_button := hud.get("_activity_selection_buttons").get(GameFlow.ACTIVITY_KIND_TIMED_RACE) as Button
 	race_button.pressed.emit()
 	var switched := {"accepted": fresh.get_activity_integration_report().selected_activity_kind == GameFlow.ACTIVITY_KIND_TIMED_RACE}
@@ -876,9 +876,10 @@ func _test_mixed_race_patrol_restart(race_boundary: StringName) -> void:
 		and fresh.cinder_race_session.get_session_generation() == int(old_race_record.activities[0].generation)
 		and int(fresh.get_activity_integration_report().attached_route_owner_count) == 1,
 		"mixed %s reset activates the exact saved race generation with one owner" % race_boundary)
-	var cargo_locked := fresh.select_activity_kind(GameFlow.ACTIVITY_KIND_CARGO_DELIVERY)
-	_check(not bool(cargo_locked.accepted) and cargo_locked.reason == &"selection_locked",
-		"the family reset capability preserves the unrelated cargo selection lock")
+	if race_boundary != &"reset":
+		var cargo_locked := fresh.select_activity_kind(GameFlow.ACTIVITY_KIND_CARGO_DELIVERY)
+		_check(not bool(cargo_locked.accepted) and cargo_locked.reason == &"selection_locked",
+			"adopting a terminal target keeps choices locked until its own explicit reset")
 	if race_boundary != &"reset":
 		if race_boundary == &"legacy":
 			fresh.call("_on_cinder_session_completed", fresh.get_active_activity_snapshot())

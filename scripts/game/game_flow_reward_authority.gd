@@ -307,6 +307,55 @@ func commit(request: Variant) -> Dictionary:
 			return _reject(&"reward_generation_already_committed")
 		convoy_completion = saved_convoy
 
+	var cargo_completion: Dictionary = {}
+	if activity_id == CARGO_ACTIVITY_ID:
+		var cargo_slot: Variant = (payload as Dictionary).get("jovian_cargo_session")
+		if not cargo_slot is Dictionary or not cargo_slot.get("activities") is Array or cargo_slot.activities.size() != 1:
+			_commit_active = false
+			return _reject(&"reward_terminal_handoff_invalid")
+		var saved: Variant = cargo_slot.activities[0]
+		if not saved is Dictionary or str(saved.get("activity_id", "")) != str(CARGO_ACTIVITY_ID) \
+				or not _integral(saved.get("state")) or int(saved.get("state", -1)) != CargoDeliveryActivity.State.COMPLETED \
+				or not _integral(saved.get("generation")) or saved.get("reward_requested") != true \
+				or saved.get("reward_granted") is not bool or not saved.get("progress") is Dictionary:
+			_commit_active = false
+			return _reject(&"reward_terminal_handoff_invalid")
+		var session: Variant = saved.progress.get("cargo_session_state")
+		var state: Variant = session.get("activity_state") if session is Dictionary else null
+		if not state is Dictionary or not _integral(state.get("generation")) or not _integral(state.get("state")) \
+				or int(state.get("generation", -1)) != int(saved.generation) \
+				or int(state.get("state", -1)) != CargoDeliveryActivity.State.COMPLETED \
+				or not state.get("contract") is Dictionary or str(state.contract.get("contract_id", "")) != str(CARGO_ACTIVITY_ID) \
+				or not state.get("accepted_receipt") is Dictionary or state.accepted_receipt.get("accepted") != true:
+			_commit_active = false
+			return _reject(&"reward_terminal_handoff_invalid")
+		var receipt := state.accepted_receipt as Dictionary
+		var inventory: Variant = session.get("authority_state")
+		var transfer_id := "%s_g%d" % [CARGO_ACTIVITY_ID, int(saved.generation)]
+		var transfer_proven := false
+		if inventory is Dictionary and inventory.get("committed_transfers") is Array:
+			for entry: Variant in inventory.committed_transfers:
+				if entry is Dictionary and str(entry.get("transfer_id", "")) == transfer_id \
+						and _integral(entry.get("receipt_id")) and _integral(receipt.get("receipt_id")) \
+						and int(entry.receipt_id) > 0 and int(entry.receipt_id) == int(receipt.receipt_id):
+					transfer_proven = true
+		if not transfer_proven or receipt.size() != 12 or str(receipt.get("reason", "")) != "committed" \
+				or str(receipt.get("transfer_id", "")) != transfer_id or str(state.get("expected_transfer_id", "")) != transfer_id \
+				or str(receipt.get("item_id", "")) != "fabrication_kits" or not _integral(receipt.get("quantity")) \
+				or int(receipt.quantity) != 2 or not _integral(state.get("next_phase_index")) or int(state.next_phase_index) != 2 \
+				or JSON.stringify(receipt.get("source_handle")) != JSON.stringify(state.contract.get("source_handle")) \
+				or JSON.stringify(receipt.get("destination_handle")) != JSON.stringify(state.contract.get("destination_handle")):
+			_commit_active = false
+			return _reject(&"reward_terminal_handoff_invalid")
+		if int(saved.generation) != activity_generation:
+			_commit_active = false
+			return _reject(&"reward_generation_unproven")
+		if saved.reward_granted:
+			_record = current
+			_commit_active = false
+			return _reject(&"reward_generation_already_committed")
+		cargo_completion = saved
+
 	# Aurora and Rime are one-time discoveries across Main re-entry and
 	# interrupted saves. Read the durable ledger here, before consuming the
 	# caller's generation.
@@ -364,6 +413,9 @@ func commit(request: Variant) -> Dictionary:
 	if not convoy_completion.is_empty():
 		var acknowledged := (next_payload.cinder_convoy_session.activities[0] as Dictionary)
 		acknowledged.reward_granted = true
+	if not cargo_completion.is_empty():
+		(next_payload.jovian_cargo_session.activities[0] as Dictionary).reward_granted = true
+
 	var committed := _store.call(
 		&"commit",
 		next_payload,

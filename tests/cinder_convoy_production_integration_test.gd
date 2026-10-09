@@ -15,6 +15,23 @@ const EXPECTED_ROUTE := [
 	Vector3(178.0, -54.0, -870.0),
 ]
 
+const STORE_PATH := "user://all-family-convoy-production.json"
+var _filesystem: FrozenFilesystem
+
+
+class FrozenFilesystem extends UserDataFilesystem:
+	var stopped := false
+
+	func write_bytes_and_flush(path: String, bytes: PackedByteArray) -> Error:
+		return ERR_UNAVAILABLE if stopped else super.write_bytes_and_flush(path, bytes)
+
+	func remove_path(path: String) -> Error:
+		return ERR_UNAVAILABLE if stopped else super.remove_path(path)
+
+	func rename_path(from_path: String, to_path: String) -> Error:
+		return ERR_UNAVAILABLE if stopped else super.rename_path(from_path, to_path)
+
+
 var _assertions := 0
 var _failures: Array[String] = []
 
@@ -27,6 +44,8 @@ func _init() -> void:
 
 func _run() -> void:
 	var game := MAIN_SCENE.instantiate() as GameFlow
+	_filesystem = FrozenFilesystem.new()
+	game.configure_runtime_settings_persistence(UserDataStore.new(STORE_PATH, _filesystem), "user://all-family-convoy-legacy.cfg")
 	root.add_child(game)
 	await process_frame
 	await physics_frame
@@ -62,7 +81,7 @@ func _run() -> void:
 		game, host, binding, bootstrap, hud, ship
 	)
 
-	await _cleanup(game)
+	await _test_route_family_restart(game)
 	_finish()
 
 
@@ -571,6 +590,106 @@ func _test_reentry_completion_and_lifecycle_failures(
 		and not bool(game.get_activity_integration_report().get("berth_authority", true)),
 		"real streamed unload synchronously fails and hides the host without reward or berth authority"
 	)
+	_check(game.reset_active_activity() and game.get_active_activity_snapshot().get("state_id") == &"idle",
+		"the actual unloaded convoy accepts an ordinary committed reset to IDLE")
+	var race_button := (hud.get("_activity_selection_buttons") as Dictionary).get(GameFlow.ACTIVITY_KIND_TIMED_RACE) as Button
+	_check(race_button != null and not race_button.disabled,
+		"the ordinary HUD enables Race after a successful convoy reset")
+	race_button.pressed.emit()
+	_check(game.get_activity_integration_report().get("selected_activity_kind") == GameFlow.ACTIVITY_KIND_TIMED_RACE,
+		"the actual HUD Race button selects its family after a successful convoy reset")
+	var convoy_owner := game.cinder_convoy_host
+	var convoy_generation := convoy_owner.get_generation()
+	for kind: StringName in [GameFlow.ACTIVITY_KIND_CARGO_DELIVERY, GameFlow.ACTIVITY_KIND_PATROL,
+			GameFlow.ACTIVITY_KIND_CONVOY_ESCORT, GameFlow.ACTIVITY_KIND_TIMED_RACE]:
+		var button := (hud.get("_activity_selection_buttons") as Dictionary).get(kind) as Button
+		button.pressed.emit()
+		_check(not button.disabled and game.get_activity_integration_report().selected_activity_kind == kind
+			and game.cinder_convoy_host == convoy_owner and convoy_owner.get_generation() == convoy_generation
+			and int(game.get_activity_integration_report().attached_route_owner_count) <= 1,
+			"ordinary %s HUD selection preserves the real reset convoy epoch and one route owner" % kind)
+
+
+
+func _make_restarted_game(filesystem: FrozenFilesystem) -> GameFlow:
+	var game := MAIN_SCENE.instantiate() as GameFlow
+	game.configure_runtime_settings_persistence(UserDataStore.new(STORE_PATH, filesystem), "user://all-family-convoy-legacy.cfg")
+	root.add_child(game)
+	await process_frame
+	await physics_frame
+	await process_frame
+	game.set_physics_process(false)
+	return game
+
+
+func _prepare_route_sortie(game: GameFlow) -> void:
+	game.active_ship = game.get_flyable_ships()[1]
+	game.active_ship.set_piloted(true)
+	game.set("_piloting", true)
+	game.phase = GameFlow.Phase.FREE_FLIGHT
+
+
+func _test_route_family_restart(game: GameFlow) -> void:
+	var convoy_generation := game.cinder_convoy_host.get_generation()
+	_prepare_route_sortie(game)
+	var race_start := game.request_activity_start(GameFlow.DEFAULT_FREE_FLIGHT_ACTIVITY_ID)
+	var race_generation := game.cinder_race_session.get_session_generation()
+	_check(bool(race_start.accepted) and game.get_active_activity_snapshot().state_id == &"countdown"
+		and game.get_cinder_race_session_persistence_report().last_save_status.accepted,
+		"actual convoy reset then ordinary Race choice starts and saves its new countdown owner")
+	_filesystem.stopped = true
+	await _cleanup(game)
+	var race_filesystem := FrozenFilesystem.new()
+	var fresh := await _make_restarted_game(race_filesystem)
+	var report := fresh.get_activity_integration_report()
+	_check(report.selected_activity_kind == GameFlow.ACTIVITY_KIND_TIMED_RACE
+		and fresh.get_active_activity_snapshot().state_id == &"countdown"
+		and fresh.cinder_race_session.get_session_generation() == race_generation
+		and bool(fresh.get_cinder_race_session_persistence_report().restore_status.accepted)
+		and int(report.attached_route_owner_count) == 1
+		and fresh.cinder_convoy_host.get_generation() == convoy_generation
+		and int(fresh.cinder_convoy_host.get_snapshot().activity.state) == ConvoyEscortActivity.State.IDLE,
+		"fresh Main restores the genuine active race above its older inert convoy while retaining the exact convoy floor")
+	_prepare_route_sortie(fresh)
+	_check(fresh.reset_active_activity(), "the restarted race uses its ordinary reset before choosing Patrol")
+	var hud := fresh.get_node("HUD") as GameHUD
+	(hud.get("_activity_selection_buttons").get(GameFlow.ACTIVITY_KIND_PATROL) as Button).pressed.emit()
+	var patrol_start := fresh.request_activity_start(GameFlow.DEFAULT_FREE_FLIGHT_ACTIVITY_ID)
+	var patrol_generation := fresh.patrol_activity.get_generation()
+	_check(bool(patrol_start.accepted) and fresh.get_active_activity_snapshot().state_id == &"active"
+		and fresh.get_cinder_patrol_session_persistence_report().last_save_status.accepted,
+		"ordinary Patrol choice starts and saves above the genuine older race and convoy reset slots")
+	race_filesystem.stopped = true
+	await _cleanup(fresh)
+	var patrol_filesystem := FrozenFilesystem.new()
+	var last := await _make_restarted_game(patrol_filesystem)
+	var last_report := last.get_activity_integration_report()
+	_check(last_report.selected_activity_kind == GameFlow.ACTIVITY_KIND_PATROL
+		and last.get_active_activity_snapshot().state_id == &"active"
+		and last.patrol_activity.get_generation() == patrol_generation
+		and int(last_report.attached_route_owner_count) == 1
+		and last.get_cinder_race_session_persistence_report().restore_status.reason == &"active_patrol_session_has_priority"
+		and bool(last.get_cinder_patrol_session_persistence_report().restore_status.accepted)
+		and last.cinder_convoy_host.get_generation() == convoy_generation,
+		"fresh Main chooses the validated live patrol above both inert older families without inventing a generation")
+	_prepare_route_sortie(last)
+	var route := preload("res://assets/activities/cinder_reach_checkpoint_route.tres")
+	for checkpoint in route.get_checkpoint_count():
+		last.active_ship.global_position = route.get_checkpoint_position(checkpoint)
+		last.call("_physics_process", 0.0)
+		last.call("_physics_process", last.patrol_activity.dwell_seconds)
+	_check(last.get_active_activity_snapshot().state_id == &"completed"
+		and last.get_activity_reward_report().authority.record.last_receipt.activity_id == GameFlow.CINDER_PATROL_REWARD_ACTIVITY_ID,
+		"the genuinely restored patrol remains playable and publishes its ordinary single reward")
+	_check(last.reset_active_activity(), "the paid restored patrol accepts its safe explicit reset")
+	var last_hud := last.get_node("HUD") as GameHUD
+	(last_hud.get("_activity_selection_buttons").get(GameFlow.ACTIVITY_KIND_CONVOY_ESCORT) as Button).pressed.emit()
+	_check(last.get_activity_integration_report().selected_activity_kind == GameFlow.ACTIVITY_KIND_CONVOY_ESCORT
+		and last.cinder_convoy_host.get_generation() == convoy_generation
+		and int(last.get_active_activity_snapshot().state) == ConvoyEscortActivity.State.IDLE
+		and int(last.get_activity_integration_report().attached_route_owner_count) == 0,
+		"ordinary Convoy re-adoption retains its exact inert saved generation after the restored route completes")
+	await _cleanup(last)
 
 
 func _wait_until(predicate: Callable, maximum_frames: int) -> bool:

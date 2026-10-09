@@ -6,7 +6,7 @@ extends SceneTree
 
 const MAIN_SCENE := preload("res://scenes/main.tscn")
 const Store := preload("res://scripts/persistence/user_data_store.gd")
-const STORE_PATH := "memory://cargo-delivery-production-settings.json"
+const STORE_PATH := "user://cargo-delivery-production-settings.json"
 
 var _assertions := 0
 var _failures: Array[String] = []
@@ -14,47 +14,33 @@ var _filesystem: MemoryFilesystem
 
 
 class MemoryFilesystem extends UserDataFilesystem:
-	var files: Dictionary = {}
 	var reject_writes := false
 
-	func file_exists(path: String) -> bool:
-		return files.has(path)
+	func write_bytes_and_flush(path: String, bytes: PackedByteArray) -> Error:
+		return ERR_CANT_CREATE if reject_writes else super.write_bytes_and_flush(path, bytes)
 
-	func directory_exists(_path: String) -> bool:
-		return false
 
-	func ensure_parent_directory(_path: String) -> Error:
-		return OK
-
-	func read_bytes(path: String, maximum_bytes: int) -> Dictionary:
-		if not files.has(path):
-			return {"error": ERR_FILE_NOT_FOUND, "bytes": PackedByteArray()}
-		var bytes := (files[path] as PackedByteArray).duplicate()
-		return {
-			"error": OK if bytes.size() <= maximum_bytes else ERR_FILE_CORRUPT,
-			"bytes": bytes if bytes.size() <= maximum_bytes else PackedByteArray(),
-		}
+class InterruptedRewardFilesystem extends UserDataFilesystem:
+	var stopped := false
+	var interrupt_rewards := true
+	var reward_rejected := false
+	var reject_writes := false
 
 	func write_bytes_and_flush(path: String, bytes: PackedByteArray) -> Error:
-		if reject_writes:
-			return ERR_CANT_CREATE
-		files[path] = bytes.duplicate()
-		return OK
+		if stopped or reject_writes:
+			return ERR_UNAVAILABLE
+		var document: Variant = JSON.parse_string(bytes.get_string_from_utf8())
+		if interrupt_rewards and document is Dictionary and str(document.get("commit", {}).get("id", "")).begins_with("game-flow-reward-"):
+			reward_rejected = true
+			stopped = true
+			return ERR_UNAVAILABLE
+		return super.write_bytes_and_flush(path, bytes)
 
 	func remove_path(path: String) -> Error:
-		if not files.has(path):
-			return ERR_FILE_NOT_FOUND
-		files.erase(path)
-		return OK
+		return ERR_UNAVAILABLE if stopped or reject_writes else super.remove_path(path)
 
 	func rename_path(from_path: String, to_path: String) -> Error:
-		if not files.has(from_path):
-			return ERR_FILE_NOT_FOUND
-		if files.has(to_path):
-			return ERR_ALREADY_EXISTS
-		files[to_path] = (files[from_path] as PackedByteArray).duplicate()
-		files.erase(from_path)
-		return OK
+		return ERR_UNAVAILABLE if stopped or reject_writes else super.rename_path(from_path, to_path)
 
 
 func _initialize() -> void:
@@ -107,7 +93,10 @@ func _run() -> void:
 	)
 	_test_failure_expiry_reset_and_authority(game, hud)
 
+	var saved_generation := game.cargo_delivery_activity.get_generation()
 	await _clean_up(game)
+	await _test_saved_cargo_reentry(saved_generation)
+	await _test_interrupted_cargo_recovery()
 	_finish()
 
 
@@ -517,7 +506,8 @@ func _test_failure_expiry_reset_and_authority(game: GameFlow, hud: GameHUD) -> v
 		"cargo_delivery_activity"
 	) as CargoDeliveryActivity
 	var completed_generation := activity.get_generation()
-	_check(game.reset_active_activity(), "completed delivery resets explicitly")
+	var reset_accepted := game.reset_active_activity()
+	_check(reset_accepted, "completed delivery resets explicitly (%s)" % (game.get("_jovian_cargo_session_save_status") as Dictionary).get("reason", ""))
 	var reward_record := (
 		(game.get_activity_reward_report().get("authority", {}) as Dictionary).get(
 			"record", {}
@@ -606,7 +596,8 @@ func _test_failure_expiry_reset_and_authority(game: GameFlow, hud: GameHUD) -> v
 		and _manifest_quantity(drained.get("cargo_destination_manifest", {}) as Dictionary) == 6,
 		"three deliveries move all six kits to the freight berth"
 	)
-	_check(game.reset_active_activity(), "the drained delivery resets")
+	var final_reset := game.reset_active_activity()
+	_check(final_reset, "the drained delivery resets")
 	game.phase = GameFlow.Phase.FREE_FLIGHT
 	var empty_start := game.request_activity_start(GameFlow.CARGO_DELIVERY_ACTIVITY_ID)
 	_check(
@@ -615,6 +606,226 @@ func _test_failure_expiry_reset_and_authority(game: GameFlow, hud: GameHUD) -> v
 		and game.get_active_activity_snapshot().get("state_id", &"") == &"idle",
 		"an empty Jovian hold refuses the run at departure instead of failing it on landing"
 	)
+	_check(final_reset and game.get_active_activity_snapshot().get("state_id") == &"idle",
+		"the actual completed cargo run retains IDLE after its accepted ordinary reset")
+	var race_button := (hud.get("_activity_selection_buttons") as Dictionary).get(GameFlow.ACTIVITY_KIND_TIMED_RACE) as Button
+	_check(race_button != null and not race_button.disabled,
+		"the ordinary HUD enables Race after a successful cargo reset")
+	race_button.pressed.emit()
+	_check(game.get_activity_integration_report().get("selected_activity_kind") == GameFlow.ACTIVITY_KIND_TIMED_RACE,
+		"the actual HUD Race button selects its family after a successful cargo reset")
+	var cargo_owner := game.cargo_delivery_activity
+	var cargo_generation := cargo_owner.get_generation()
+	for kind: StringName in [GameFlow.ACTIVITY_KIND_PATROL, GameFlow.ACTIVITY_KIND_CARGO_DELIVERY,
+			GameFlow.ACTIVITY_KIND_CONVOY_ESCORT, GameFlow.ACTIVITY_KIND_TIMED_RACE]:
+		var button := (hud.get("_activity_selection_buttons") as Dictionary).get(kind) as Button
+		_check(button != null and not button.disabled, "safe reset exposes the ordinary %s HUD choice" % kind)
+		button.pressed.emit()
+		var chosen := game.get_activity_integration_report()
+		_check(chosen.selected_activity_kind == kind and int(chosen.attached_route_owner_count) <= 1
+			and game.cargo_delivery_activity == cargo_owner and cargo_owner.get_generation() == cargo_generation
+			and _manifest_quantity(chosen.cargo_source_manifest) == 0
+			and _manifest_quantity(chosen.cargo_destination_manifest) == 6,
+			"ordinary %s HUD adoption preserves depleted cargo, generation and one route owner" % kind)
+
+
+
+func _test_saved_cargo_reentry(saved_generation: int) -> void:
+	var fresh := MAIN_SCENE.instantiate() as GameFlow
+	var store := Store.new(STORE_PATH, MemoryFilesystem.new()) as UserDataStore
+	fresh.configure_runtime_settings_persistence(store, "user://cargo-delivery-production-legacy.cfg")
+	root.add_child(fresh)
+	await process_frame
+	await physics_frame
+	await process_frame
+	fresh.set_physics_process(false)
+	var report := fresh.get_activity_integration_report()
+	_check(bool((fresh.get("_jovian_cargo_session_restore_status") as Dictionary).get("accepted", false))
+		and fresh.cargo_delivery_activity.get_generation() == saved_generation
+		and fresh.cargo_delivery_activity.get_state() == CargoDeliveryActivity.State.IDLE
+		and _manifest_quantity(report.cargo_source_manifest) == 0
+		and _manifest_quantity(report.cargo_destination_manifest) == 6,
+		"fresh Main restores the actual reset generation and depleted conserved freight pair without refilling")
+	var before := fresh.cargo_delivery_activity.capture_persistence_state()
+	var malformed := {"schema_version": 1, "activities": [{"activity_id": "jovian_fabrication_kit_delivery",
+		"reward_requested": false, "reward_granted": false, "progress": {}, "wrong_generation": 1, "wrong_state": 0}]}
+	var rejected := (fresh.get("_jovian_cargo_session_persistence") as JovianCargoSessionPersistence).validate_record(
+		malformed, fresh.cargo_delivery_activity, fresh.cargo_transfer_authority)
+	_check(not bool(rejected.accepted) and fresh.cargo_delivery_activity.capture_persistence_state() == before,
+		"a wrong-shape six-key saved cargo row is rejected without script errors or owner mutation")
+	var hud := fresh.get_node("HUD") as GameHUD
+	var cargo_button := (hud.get("_activity_selection_buttons") as Dictionary).get(GameFlow.ACTIVITY_KIND_CARGO_DELIVERY) as Button
+	cargo_button.pressed.emit()
+	_check(fresh.get_activity_integration_report().selected_activity_kind == GameFlow.ACTIVITY_KIND_CARGO_DELIVERY
+		and fresh.cargo_delivery_activity.get_generation() == saved_generation,
+		"fresh Main ordinary Cargo button adopts its exact saved IDLE owner")
+	await _clean_up(fresh)
+
+
+func _make_disk_game(path: String, filesystem: UserDataFilesystem) -> GameFlow:
+	var game := MAIN_SCENE.instantiate() as GameFlow
+	game.configure_runtime_settings_persistence(Store.new(path, filesystem), "user://jovian-crash-legacy.cfg")
+	root.add_child(game)
+	await process_frame
+	await physics_frame
+	await process_frame
+	game.set_physics_process(false)
+	return game
+
+
+func _cargo_receipts(game: GameFlow) -> int:
+	return int((game.get_activity_reward_report().authority.record.get("reward_counts", {}) as Dictionary).get("return_fabrication_kits_to_shipyard", 0))
+
+
+func _prepare_cargo_sortie(game: GameFlow) -> void:
+	game.active_ship = _find_ship(game, &"jovian_provisional")
+	game.active_ship.set_piloted(true)
+	game.set("_piloting", true)
+	game.phase = GameFlow.Phase.FREE_FLIGHT
+
+
+func _commit_unrelated_transfer(game: GameFlow, suffix: String) -> bool:
+	var source := Node.new()
+	var destination := Node.new()
+	game.add_child(source)
+	game.add_child(destination)
+	var authority := game.cargo_transfer_authority
+	var source_record := authority.register_entity(source, StringName("aux_source_" + suffix), StringName("aux_source_manifest_" + suffix), 4,
+		{GameFlow.CARGO_DELIVERY_ITEM_ID: 1})
+	var destination_record := authority.register_entity(destination, StringName("aux_destination_" + suffix), StringName("aux_destination_manifest_" + suffix), 4)
+	var receipt := authority.transfer(StringName("aux_transfer_" + suffix), source_record.handle, destination_record.handle, GameFlow.CARGO_DELIVERY_ITEM_ID, 1)
+	return bool(receipt.accepted) and authority.get_quantity(destination_record.handle, GameFlow.CARGO_DELIVERY_ITEM_ID) == 1
+
+
+func _test_interrupted_cargo_recovery() -> void:
+	const path := "user://jovian-interrupted-session.json"
+	var first_filesystem := InterruptedRewardFilesystem.new()
+	var first := await _make_disk_game(path, first_filesystem)
+	var first_hud := first.get_node("HUD") as GameHUD
+	first.active_ship = first.get_flyable_ships()[1]
+	first.active_ship.set_piloted(true)
+	first.set("_piloting", true)
+	first.phase = GameFlow.Phase.FREE_FLIGHT
+	var earlier_race := first.request_activity_start(GameFlow.DEFAULT_FREE_FLIGHT_ACTIVITY_ID)
+	_check(bool(earlier_race.accepted) and first.reset_active_activity()
+		and first.get_cinder_race_session_persistence_report().last_save_status.accepted,
+		"a genuine earlier Main race reset leaves an admissible saved IDLE route before cargo starts")
+	(first_hud.get("_activity_selection_buttons").get(GameFlow.ACTIVITY_KIND_CARGO_DELIVERY) as Button).pressed.emit()
+	_prepare_cargo_sortie(first)
+	_check(_commit_unrelated_transfer(first, "prior"), "an unrelated actual cargo transfer precedes the saved Main contract")
+	var started := first.request_activity_start(GameFlow.CARGO_DELIVERY_ACTIVITY_ID)
+	var generation := first.cargo_delivery_activity.get_generation()
+	first.cargo_delivery_activity.advance_physics(0.75, generation)
+	var saved := first.save_jovian_cargo_session()
+	var active_capture := first.cargo_delivery_activity.capture_persistence_state()
+	_check(bool(started.accepted) and bool(saved.accepted) and int(active_capture.next_phase_index) == 1,
+		"actual departed Jovian cargo saves its live phase, clock and generation to real disk (%s)" % saved.get("reason", ""))
+	if not bool(saved.accepted):
+		await _clean_up(first)
+		return
+	first_filesystem.stopped = true
+	await _clean_up(first)
+
+	var completion_filesystem := InterruptedRewardFilesystem.new()
+	var resumed := await _make_disk_game(path, completion_filesystem)
+	var resumed_report := resumed.get_activity_integration_report()
+	_check(resumed.cargo_delivery_activity.capture_persistence_state() == active_capture
+		and resumed_report.selected_activity_kind == GameFlow.ACTIVITY_KIND_CARGO_DELIVERY
+		and resumed.get_cinder_race_session_persistence_report().restore_status.reason == &"jovian_cargo_session_has_priority"
+		and _manifest_quantity(resumed_report.cargo_source_manifest) == 6
+		and _manifest_quantity(resumed_report.cargo_destination_manifest) == 0,
+		"fresh Main restores exact mid-ACTIVE cargo phase/time/identity and conserved untransferred inventory")
+	_prepare_cargo_sortie(resumed)
+	_check(_commit_unrelated_transfer(resumed, "current"), "current unrelated containers and receipts remain independently authority-owned after cargo startup restore")
+	var completed := bool(resumed.call("_complete_cargo_delivery_on_return"))
+	var resumed_store := resumed.get("_runtime_settings_user_data_store") as UserDataStore
+	var terminal := resumed_store.get_snapshot().get("jovian_cargo_session", {}) as Dictionary
+	_check(completed and completion_filesystem.reward_rejected and completion_filesystem.stopped
+		and _cargo_receipts(resumed) == 0 and int(terminal.activities[0].state) == CargoDeliveryActivity.State.COMPLETED
+		and bool(terminal.activities[0].reward_requested) and not bool(terminal.activities[0].reward_granted),
+		"genuine transfer publishes durable unpaid completion before its real reward write is rejected")
+	await _clean_up(resumed)
+
+	var retry_filesystem := InterruptedRewardFilesystem.new()
+	var fresh := await _make_disk_game(path, retry_filesystem)
+	var pending := fresh.get_activity_integration_report()
+	_check(fresh.cargo_delivery_activity.get_state() == CargoDeliveryActivity.State.COMPLETED
+		and fresh.cargo_delivery_activity.get_generation() == generation and _cargo_receipts(fresh) == 0
+		and _manifest_quantity(pending.cargo_source_manifest) == 4 and _manifest_quantity(pending.cargo_destination_manifest) == 2
+		and retry_filesystem.reward_rejected and not fresh.reset_active_activity(),
+		"fresh Main keeps the exact owed delivery and transferred pair while failed retries block reset")
+	var pending_hud := fresh.get_node("HUD") as GameHUD
+	var race_button := pending_hud.get("_activity_selection_buttons").get(GameFlow.ACTIVITY_KIND_TIMED_RACE) as Button
+	race_button.pressed.emit()
+	_check(race_button.disabled and fresh.get_activity_integration_report().selected_activity_kind == GameFlow.ACTIVITY_KIND_CARGO_DELIVERY,
+		"an unpaid cargo owner cannot be replaced through the ordinary Race HUD request")
+	retry_filesystem.interrupt_rewards = false
+	retry_filesystem.stopped = false
+	fresh.call("_retry_owed_game_flow_activity_rewards")
+	var fresh_store := fresh.get("_runtime_settings_user_data_store") as UserDataStore
+	_check(_cargo_receipts(fresh) == 1 and fresh_store.get_snapshot().jovian_cargo_session.activities[0].reward_granted,
+		"retry atomically acknowledges the exact completed delivery with one saved reward receipt")
+	var owner := fresh.cargo_delivery_activity
+	var before := owner.capture_persistence_state()
+	var before_inventory := fresh.cargo_transfer_authority.to_dictionary()
+	var before_bytes := FileAccess.get_file_as_bytes(path)
+	var reset_events := {"count": 0}
+	owner.activity_reset.connect(func(_snapshot: Dictionary) -> void: reset_events.count += 1)
+	retry_filesystem.reject_writes = true
+	_check(not fresh.reset_active_activity() and fresh.cargo_delivery_activity == owner
+		and owner.capture_persistence_state() == before and fresh.cargo_transfer_authority.to_dictionary() == before_inventory
+		and FileAccess.get_file_as_bytes(path) == before_bytes and int(reset_events.count) == 0,
+		"rejected cargo reset commit retains exact owner, quantities, ledger, disk bytes and unpublished lifecycle")
+	retry_filesystem.reject_writes = false
+	_check(fresh.reset_active_activity() and int(reset_events.count) == 1 and owner.get_generation() == generation + 1,
+		"accepted cargo reset durably publishes one typed IDLE generation")
+	_prepare_cargo_sortie(fresh)
+	var next_start := fresh.request_activity_start(GameFlow.CARGO_DELIVERY_ACTIVITY_ID)
+	_check(bool(next_start.accepted) and owner.get_generation() == generation + 2
+		and bool(fresh.call("_complete_cargo_delivery_on_return")) and _cargo_receipts(fresh) == 2,
+		"the next real remaining-kit delivery uses a distinct generation and receives exactly one legitimate credit")
+	var paid_snapshot := owner.get_snapshot()
+	_check(fresh.reset_active_activity(), "second paid cargo resets before changing board family")
+	var cargo_idle_generation := owner.get_generation()
+	var patrol_button := pending_hud.get("_activity_selection_buttons").get(GameFlow.ACTIVITY_KIND_PATROL) as Button
+	patrol_button.pressed.emit()
+	fresh.active_ship = fresh.get_flyable_ships()[1]
+	fresh.active_ship.set_piloted(true)
+	fresh.phase = GameFlow.Phase.FREE_FLIGHT
+	var patrol_start := fresh.request_activity_start(GameFlow.DEFAULT_FREE_FLIGHT_ACTIVITY_ID)
+	var route := preload("res://assets/activities/cinder_reach_checkpoint_route.tres")
+	for checkpoint in route.get_checkpoint_count():
+		fresh.active_ship.global_position = route.get_checkpoint_position(checkpoint)
+		fresh.call("_physics_process", 0.0)
+		fresh.call("_physics_process", fresh.patrol_activity.dwell_seconds)
+	_check(bool(patrol_start.accepted) and fresh.get_activity_reward_report().authority.record.last_receipt.activity_id == GameFlow.CINDER_PATROL_REWARD_ACTIVITY_ID,
+		"a genuine later patrol owns the unrelated latest reward receipt")
+	_check(fresh.reset_active_activity(), "the genuine patrol resets before cargo adoption")
+	var cargo_button := pending_hud.get("_activity_selection_buttons").get(GameFlow.ACTIVITY_KIND_CARGO_DELIVERY) as Button
+	cargo_button.pressed.emit()
+	fresh.call("_on_cargo_delivery_owner_completed", paid_snapshot, paid_snapshot.accepted_receipt, owner.get_instance_id())
+	_check(fresh.get_activity_integration_report().selected_activity_kind == GameFlow.ACTIVITY_KIND_CARGO_DELIVERY
+		and owner.get_generation() == cargo_idle_generation and _cargo_receipts(fresh) == 2,
+		"ordinary cargo adoption and stale inactive completion preserve acknowledged credit after a different latest receipt")
+	await _clean_up(fresh)
+
+	var last_filesystem := InterruptedRewardFilesystem.new()
+	last_filesystem.interrupt_rewards = false
+	var last := await _make_disk_game(path, last_filesystem)
+	var last_report := last.get_activity_integration_report()
+	_check(last.cargo_delivery_activity.get_generation() == cargo_idle_generation
+		and last.cargo_delivery_activity.get_state() == CargoDeliveryActivity.State.IDLE
+		and _manifest_quantity(last_report.cargo_source_manifest) == 2 and _manifest_quantity(last_report.cargo_destination_manifest) == 4
+		and _cargo_receipts(last) == 2,
+		"fresh Main retains the accepted cargo reset floor and remaining conserved kits after unrelated receipts")
+	# Startup retains the validated patrol owner too; its saved IDLE may be selected.
+	(last.get_node("HUD").get("_activity_selection_buttons").get(GameFlow.ACTIVITY_KIND_CARGO_DELIVERY) as Button).pressed.emit()
+	_prepare_cargo_sortie(last)
+	var last_start := last.request_activity_start(GameFlow.CARGO_DELIVERY_ACTIVITY_ID)
+	_check(bool(last_start.accepted) and last.cargo_delivery_activity.get_generation() == cargo_idle_generation + 1
+		and bool(last.call("_complete_cargo_delivery_on_return")) and _cargo_receipts(last) == 3,
+		"restart then ordinary next delivery transfers the final actual kits and grants its new generation once")
+	await _clean_up(last)
 
 
 func _find_ship(game: GameFlow, ship_id: StringName) -> HeroShip:

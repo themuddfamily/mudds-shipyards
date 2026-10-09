@@ -9242,9 +9242,7 @@ func _refresh_activity_selection_page(status_reason: StringName) -> void:
 		if button == null:
 			continue
 		var selected := activity_kind == _activity_selection_kind
-		button.disabled = (_activity_selection_locked and not selected) or (
-			_activity_selection_family_reset_only and activity_kind not in [&"timed_race", &"patrol"]
-		)
+		button.disabled = _activity_selection_locked and not selected
 		var base_text := {
 			&"timed_race": "TIMED CINDER RACE",
 			&"patrol": "CINDER PATROL",

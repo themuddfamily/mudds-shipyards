@@ -405,6 +405,140 @@ func to_dictionary() -> Dictionary:
 	}
 
 
+## Validate only the delivery's registered pair. Other manifests and transfer
+## namespaces remain owned by this authority and are never replaced on adoption.
+func validate_delivery_persistence_state(candidate: Variant, contract: Dictionary, initial_quantity: int) -> Dictionary:
+	if not candidate is Dictionary or (candidate as Dictionary).size() != 8:
+		return _result(false, &"invalid_delivery_inventory_state")
+	var saved := candidate as Dictionary
+	if not _persisted_integer(saved.get("schema_version")) or int(saved.schema_version) != SCHEMA_VERSION \
+			or not saved.get("items") is Array or not saved.get("manifests") is Array \
+			or not saved.get("committed_transfers") is Array or not saved.get("committed_transfer_ids") is Array \
+			or not saved.get("entity_generation_cursors") is Array or not saved.get("manifest_generation_cursors") is Array \
+			or not _persisted_integer(saved.get("next_receipt_id")) or int(saved.next_receipt_id) < 1:
+		return _result(false, &"invalid_delivery_inventory_state")
+	var item_id := StringName(contract.get("item_id", &""))
+	var quantity := int(contract.get("quantity", 0))
+	var contract_id := StringName(contract.get("contract_id", &""))
+	if not _item_definitions.has(item_id) or quantity <= 0 or initial_quantity <= 0:
+		return _result(false, &"invalid_delivery_inventory_state")
+	var item_matches := 0
+	for item: Variant in saved.items:
+		if item is Dictionary and str(item.get("item_id", "")) == str(item_id):
+			if JSON.stringify(JSON.parse_string(JSON.stringify(item))) != JSON.stringify(JSON.parse_string(JSON.stringify(_item_definitions[item_id]))):
+				return _result(false, &"delivery_item_configuration_changed")
+			item_matches += 1
+	if item_matches != 1:
+		return _result(false, &"delivery_item_configuration_changed")
+	var pair: Array[Dictionary] = []
+	for handle: Dictionary in [contract.source_handle, contract.destination_handle]:
+		var current := _validate_handle(handle, true)
+		if not bool(current.get("accepted", false)):
+			return current
+		var manifest := current.manifest as CargoManifest
+		var found: Dictionary = {}
+		for entry: Variant in saved.manifests:
+			if entry is Dictionary and str(entry.get("manifest_id", "")) == str(manifest.manifest_id):
+				if not found.is_empty():
+					return _result(false, &"duplicate_delivery_manifest")
+				found = entry
+		if found.size() != 9 or found.get("attached") != true or not found.get("entries") is Array \
+				or str(found.get("owner_entity_id", "")) != str(manifest.owner_entity_id) \
+				or not _persisted_integer(found.get("generation")) or int(found.generation) != manifest.generation \
+				or not _persisted_integer(found.get("owner_generation")) or int(found.owner_generation) != manifest.owner_generation \
+				or not _persisted_integer(found.get("capacity")) or int(found.capacity) != manifest.capacity:
+			return _result(false, &"delivery_manifest_configuration_changed")
+		for cursor_field: String in ["entity_generation_cursors", "manifest_generation_cursors"]:
+			var cursor_id := manifest.owner_entity_id if cursor_field == "entity_generation_cursors" else manifest.manifest_id
+			var cursor_generation := manifest.owner_generation if cursor_field == "entity_generation_cursors" else manifest.generation
+			var cursor_matches := 0
+			for cursor: Variant in saved[cursor_field]:
+				if cursor is Dictionary and str(cursor.get("id", "")) == str(cursor_id):
+					if cursor.size() != 2 or not _persisted_integer(cursor.get("generation")) or int(cursor.generation) != cursor_generation:
+						return _result(false, &"delivery_manifest_configuration_changed")
+					cursor_matches += 1
+			if cursor_matches != 1:
+				return _result(false, &"delivery_manifest_configuration_changed")
+		var amounts: Dictionary = {}
+		if (found.entries as Array).size() > 1:
+			return _result(false, &"invalid_delivery_quantities")
+		for entry: Variant in found.entries:
+			if not entry is Dictionary or entry.size() != 2 or str(entry.get("item_id", "")) != str(item_id) \
+					or not _persisted_integer(entry.get("quantity")) or int(entry.quantity) <= 0:
+				return _result(false, &"invalid_delivery_quantities")
+			amounts[item_id] = int(entry.quantity)
+		var used := int(amounts.get(item_id, 0)) * int((_item_definitions[item_id] as Dictionary).unit_capacity)
+		if used > manifest.capacity or not _persisted_integer(found.get("used_capacity")) or int(found.used_capacity) != used \
+				or not _persisted_integer(found.get("remaining_capacity")) or int(found.remaining_capacity) != manifest.capacity - used:
+			return _result(false, &"invalid_delivery_quantities")
+		pair.append({"manifest": manifest, "quantities": amounts})
+	var transfers: Dictionary = {}
+	var all_receipts: Dictionary = {}
+	var all_ids: Array[String] = []
+	for entry: Variant in saved.committed_transfers:
+		if not entry is Dictionary or entry.size() != 2 or not _persisted_integer(entry.get("receipt_id")) \
+				or int(entry.receipt_id) < 1 or int(entry.receipt_id) >= int(saved.next_receipt_id) \
+				or not CargoItemDefinition.is_stable_id(StringName(str(entry.get("transfer_id", "")))):
+			return _result(false, &"invalid_delivery_transfer_ledger")
+		var transfer_id := str(entry.transfer_id)
+		if all_ids.has(transfer_id) or all_receipts.has(int(entry.receipt_id)):
+			return _result(false, &"invalid_delivery_transfer_ledger")
+		all_ids.append(transfer_id)
+		all_receipts[int(entry.receipt_id)] = true
+		if transfer_id.begins_with(str(contract_id) + "_g"):
+			var generation_text := transfer_id.trim_prefix(str(contract_id) + "_g")
+			if not generation_text.is_valid_int() or generation_text != str(int(generation_text)) \
+					or int(generation_text) < 1 or int(generation_text) > MAX_SAFE_INTEGER:
+				return _result(false, &"invalid_delivery_transfer_ledger")
+			transfers[StringName(transfer_id)] = int(entry.receipt_id)
+	all_ids.sort()
+	if JSON.stringify(all_ids) != JSON.stringify(saved.committed_transfer_ids) \
+			or (saved.committed_transfers as Array).size() > MAX_COMMITTED_TRANSFERS:
+		return _result(false, &"invalid_delivery_transfer_ledger")
+	var source_quantity := int((pair[0].quantities as Dictionary).get(item_id, 0))
+	var destination_quantity := int((pair[1].quantities as Dictionary).get(item_id, 0))
+	if source_quantity + destination_quantity != initial_quantity \
+			or destination_quantity != transfers.size() * quantity:
+		return _result(false, &"delivery_inventory_conservation_failed")
+	return _result(true, &"delivery_inventory_valid", {"pair": pair, "transfers": transfers,
+		"next_receipt_id": int(saved.next_receipt_id)})
+
+
+## Startup-only adoption into the exact newly registered physical pair. Validated
+## historical transfers are retained; unrelated inventory and receipts survive.
+func restore_delivery_persistence_state(candidate: Variant, contract: Dictionary, initial_quantity: int) -> Dictionary:
+	if _mutation_is_guarded() or not is_inside_tree():
+		return _result(false, &"delivery_inventory_restore_unavailable")
+	var validated := validate_delivery_persistence_state(candidate, contract, initial_quantity)
+	if not bool(validated.get("accepted", false)):
+		return validated
+	var item_id := StringName(contract.item_id)
+	if get_quantity(contract.source_handle, item_id) != initial_quantity \
+			or get_quantity(contract.destination_handle, item_id) != 0:
+		return _result(false, &"delivery_inventory_already_live")
+	for transfer_id: StringName in _committed_transfer_ids:
+		if str(transfer_id).begins_with(str(contract.contract_id) + "_g"):
+			return _result(false, &"delivery_inventory_already_live")
+	for transfer_id: StringName in validated.transfers:
+		for existing_id: StringName in _committed_transfer_ids:
+			if int(_committed_transfer_ids[existing_id]) == int(validated.transfers[transfer_id]):
+				return _result(false, &"delivery_receipt_collision")
+	for member: Dictionary in validated.pair:
+		var previous := member.manifest as CargoManifest
+		var replacement := CargoManifest.new(previous.manifest_id, previous.generation,
+			previous.owner_entity_id, previous.owner_generation, previous.capacity, member.quantities)
+		(_records_by_manifest_id[previous.manifest_id] as Dictionary).manifest = replacement
+	for transfer_id: StringName in validated.transfers:
+		_committed_transfer_ids[transfer_id] = int(validated.transfers[transfer_id])
+	_next_receipt_id = maxi(_next_receipt_id, int(validated.next_receipt_id))
+	return _result(true, &"delivery_inventory_restored")
+
+
+func _persisted_integer(value: Variant) -> bool:
+	return (value is int or value is float) and is_finite(float(value)) \
+		and float(value) == floor(float(value)) and absf(float(value)) <= MAX_SAFE_INTEGER
+
+
 func audit() -> Dictionary:
 	var errors := PackedStringArray()
 	var unit_capacities := _unit_capacities()

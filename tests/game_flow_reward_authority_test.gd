@@ -250,6 +250,7 @@ func _run() -> void:
 			and int((after_beacon.reward_counts as Dictionary).debris_route_navigation_data) == 1,
 		"the completed production beacon run records one shared navigation-data receipt"
 	)
+	_check(_save_actual_jovian_completion(store), "a genuine Main-compatible typed transfer owns the Jovian durable terminal handoff")
 	var jovian_cargo := authority.commit(_request(
 		&"jovian_fabrication_kit_delivery",
 		1,
@@ -276,6 +277,12 @@ func _run() -> void:
 	var after_cinder_cargo := (
 		store.get_snapshot().game_flow_reward_store as Dictionary
 	)
+	var restarted_cargo_authority := AuthorityScript.new() as GameFlowRewardAuthority
+	restarted_cargo_authority.configure(store)
+	var paid_cargo_retry := restarted_cargo_authority.commit(_request(AuthorityScript.CARGO_ACTIVITY_ID, 1, AuthorityScript.CARGO_REWARD_ID))
+	_check(not bool(paid_cargo_retry.accepted) and paid_cargo_retry.reason == &"reward_generation_already_committed"
+		and store.get_snapshot().jovian_cargo_session.activities[0].reward_granted,
+		"the typed paid Jovian acknowledgement prevents duplicate credit after an unrelated Cinder receipt becomes latest")
 	_check(
 		bool(cinder_cargo.accepted)
 			and int((cinder_cargo.receipt as Dictionary).receipt_id) == 8
@@ -385,6 +392,38 @@ func _run() -> void:
 		push_error(failure)
 	print("GAME_FLOW_REWARD_AUTHORITY_TEST_OK: %d assertions" % _assertions)
 	quit(0 if _failures.is_empty() else 1)
+
+
+func _save_actual_jovian_completion(store: UserDataStore) -> bool:
+	var transfer := CargoTransferAuthority.new()
+	root.add_child(transfer)
+	var source := Node.new()
+	var destination := Node.new()
+	root.add_child(source)
+	root.add_child(destination)
+	var item := CargoItemDefinition.new()
+	item.item_id = GameFlow.CARGO_DELIVERY_ITEM_ID
+	item.display_name = GameFlow.CARGO_DELIVERY_ITEM_DISPLAY_NAME
+	item.unit_capacity = 1
+	transfer.register_item(item)
+	var registered_source := transfer.register_entity(source, &"jovian_provisional", GameFlow.CARGO_DELIVERY_SOURCE_MANIFEST_ID,
+		GameFlow.CARGO_DELIVERY_SOURCE_CAPACITY, {GameFlow.CARGO_DELIVERY_ITEM_ID: GameFlow.CARGO_DELIVERY_SOURCE_INITIAL_QUANTITY})
+	var registered_destination := transfer.register_entity(destination, &"jovian_freight_berth", GameFlow.CARGO_DELIVERY_DESTINATION_MANIFEST_ID,
+		GameFlow.CARGO_DELIVERY_DESTINATION_CAPACITY)
+	var contract := CargoDeliveryContract.new(GameFlow.CARGO_DELIVERY_ACTIVITY_ID, registered_source.handle, registered_destination.handle,
+		GameFlow.CARGO_DELIVERY_ITEM_ID, GameFlow.CARGO_DELIVERY_QUANTITY, GameFlow.CARGO_DELIVERY_PHASES, GameFlow.CARGO_DELIVERY_DEADLINE_SECONDS)
+	var activity := CargoDeliveryActivity.new(transfer, contract)
+	activity.start(0)
+	for phase: StringName in GameFlow.CARGO_DELIVERY_PHASES:
+		activity.submit_phase(phase, activity.get_generation())
+	var delivered := activity.submit_transfer(activity.get_generation())
+	var persistence := JovianCargoSessionPersistence.new()
+	persistence.configure(store)
+	var saved := persistence.save(activity, transfer, "unit-jovian-terminal")
+	source.free()
+	destination.free()
+	transfer.free()
+	return bool(delivered.accepted) and bool(saved.accepted)
 
 
 func _request(

@@ -226,6 +226,145 @@ func reset(expected_generation: int) -> Dictionary:
 	return _result(true, &"reset")
 
 
+func capture_persistence_state() -> Dictionary:
+	return {"contract": _contract_snapshot.duplicate(true), "state": _state, "generation": _generation,
+		"next_phase_index": _next_phase_index, "elapsed_seconds": _elapsed_seconds,
+		"failure_reason": String(_failure_reason), "expected_transfer_id": String(_expected_transfer_id),
+		"accepted_receipt": _accepted_receipt.duplicate(true)}
+
+
+func validate_persistence_state(candidate: Variant, authority_state: Dictionary) -> Dictionary:
+	if not candidate is Dictionary or (candidate as Dictionary).size() != 8 or not is_configuration_valid():
+		return {"accepted": false, "reason": &"invalid_delivery_state"}
+	var saved := candidate as Dictionary
+	if not saved.get("contract") is Dictionary or _canonical(saved.contract) != _canonical(_contract_snapshot) \
+			or not _persisted_integer(saved.get("state")) or int(saved.state) not in [State.IDLE, State.ACTIVE, State.COMPLETED, State.FAILED, State.EXPIRED] \
+			or not _persisted_integer(saved.get("generation")) or int(saved.generation) < 1 \
+			or not _persisted_integer(saved.get("next_phase_index")) or int(saved.next_phase_index) < 0 \
+			or int(saved.next_phase_index) > _get_ordered_phases().size() \
+			or not (saved.get("elapsed_seconds") is int or saved.get("elapsed_seconds") is float) \
+			or not is_finite(float(saved.elapsed_seconds)) or float(saved.elapsed_seconds) < 0.0 \
+			or saved.get("failure_reason") is not String or saved.get("expected_transfer_id") is not String \
+			or not saved.get("accepted_receipt") is Dictionary:
+		return {"accepted": false, "reason": &"invalid_delivery_state"}
+	var state := int(saved.state)
+	if state == State.IDLE:
+		if int(saved.next_phase_index) != 0 or not is_zero_approx(float(saved.elapsed_seconds)) \
+				or not str(saved.failure_reason).is_empty() or not str(saved.expected_transfer_id).is_empty() \
+				or not (saved.accepted_receipt as Dictionary).is_empty():
+			return {"accepted": false, "reason": &"invalid_delivery_idle_state"}
+	else:
+		if str(saved.expected_transfer_id) != str(_transfer_id_for_generation(int(saved.generation))) \
+				or (state != State.EXPIRED and float(saved.elapsed_seconds) >= _get_deadline_seconds()) \
+				or (state == State.EXPIRED and (float(saved.elapsed_seconds) < _get_deadline_seconds() or str(saved.failure_reason) != "deadline_expired")) \
+				or (state in [State.ACTIVE, State.COMPLETED] and not str(saved.failure_reason).is_empty()) \
+				or (state == State.FAILED and not CargoItemDefinition.is_stable_id(StringName(saved.failure_reason))) \
+				or (state != State.COMPLETED and not (saved.accepted_receipt as Dictionary).is_empty()):
+			return {"accepted": false, "reason": &"invalid_delivery_progress"}
+	var transfers := authority_state.get("committed_transfers", []) as Array
+	var matching_receipt := -1
+	for entry: Dictionary in transfers:
+		var text := str(entry.get("transfer_id", ""))
+		if text.begins_with(str(_contract_snapshot.contract_id) + "_g"):
+			if int(text.trim_prefix(str(_contract_snapshot.contract_id) + "_g")) > int(saved.generation):
+				return {"accepted": false, "reason": &"delivery_generation_behind_transfer"}
+		if text == str(saved.expected_transfer_id):
+			matching_receipt = int(entry.receipt_id)
+	if state == State.ACTIVE and matching_receipt >= 0:
+		return {"accepted": false, "reason": &"delivery_transfer_already_committed"}
+	if state == State.COMPLETED:
+		var receipt := saved.accepted_receipt as Dictionary
+		if int(saved.next_phase_index) != _get_ordered_phases().size() or receipt.size() != 12 \
+				or receipt.get("accepted") != true or str(receipt.get("reason", "")) != "committed" \
+				or str(receipt.get("transfer_id", "")) != str(saved.expected_transfer_id) \
+				or not _persisted_integer(receipt.get("receipt_id")) or int(receipt.receipt_id) != matching_receipt \
+				or str(receipt.get("item_id", "")) != str(_get_item_id()) \
+				or not _persisted_integer(receipt.get("quantity")) or int(receipt.quantity) != _get_quantity() \
+				or _canonical(receipt.get("source_handle")) != _canonical(_get_source_handle()) \
+				or _canonical(receipt.get("destination_handle")) != _canonical(_get_destination_handle()):
+			return {"accepted": false, "reason": &"invalid_delivery_receipt"}
+		for raw_manifest: Variant in authority_state.get("manifests", []):
+			if not raw_manifest is Dictionary or str(raw_manifest.get("manifest_id", "")) not in [str(_get_source_handle().manifest_id), str(_get_destination_handle().manifest_id)]:
+				continue
+			var manifest := raw_manifest as Dictionary
+			var prefix := "source" if str(manifest.manifest_id) == str(_get_source_handle().manifest_id) else "destination"
+			var amount := 0
+			for entry: Dictionary in manifest.entries:
+				if str(entry.item_id) == str(_get_item_id()):
+					amount = int(entry.quantity)
+			if not _persisted_integer(receipt.get(prefix + "_quantity_after")) or int(receipt[prefix + "_quantity_after"]) != amount \
+					or not _persisted_integer(receipt.get(prefix + "_used_capacity_after")) or int(receipt[prefix + "_used_capacity_after"]) != int(manifest.used_capacity):
+				return {"accepted": false, "reason": &"invalid_delivery_receipt"}
+	return {"accepted": true, "reason": &"delivery_state_valid"}
+
+
+## Startup-only adoption. Both owners have been prevalidated before inventory
+## publication, and no historical lifecycle signal is replayed.
+func restore_persistence_state(candidate: Variant, expected_generation: int) -> Dictionary:
+	if _signal_dispatch_active or expected_generation != _generation or _generation != 0 or _state != State.IDLE:
+		return {"accepted": false, "reason": &"delivery_already_live"}
+	var validated := validate_restore_persistence_state(candidate, _authority.to_dictionary())
+	if not bool(validated.accepted):
+		return validated
+	if int(candidate.state) == State.ACTIVE and not _reserve_transfer_id(StringName(candidate.expected_transfer_id)):
+		return {"accepted": false, "reason": &"transfer_id_reserved"}
+	_adopt_validated_fields(candidate as Dictionary)
+	return {"accepted": true, "reason": &"delivery_state_restored"}
+
+
+func validate_restore_persistence_state(candidate: Variant, authority_state: Dictionary) -> Dictionary:
+	if _signal_dispatch_active or _generation != 0 or _state != State.IDLE:
+		return {"accepted": false, "reason": &"delivery_already_live"}
+	var validated := validate_persistence_state(candidate, authority_state)
+	if not bool(validated.accepted):
+		return validated
+	if int(candidate.state) == State.ACTIVE:
+		var reservations := _reservations_by_authority_instance.get(_authority.get_instance_id(), {}) as Dictionary
+		var reference := reservations.get(StringName(candidate.expected_transfer_id)) as WeakRef
+		if reference != null and is_instance_valid(reference.get_ref()) and reference.get_ref() != self:
+			return {"accepted": false, "reason": &"transfer_id_reserved"}
+	return validated
+
+
+func reset_with_persistence(expected_generation: int, persist_reset: Callable) -> Dictionary:
+	if _signal_dispatch_active or expected_generation != _generation or _state == State.IDLE or not persist_reset.is_valid():
+		return {"accepted": false, "reason": &"delivery_reset_unavailable"}
+	var validated := validate_persistence_state(capture_persistence_state(), _authority.to_dictionary())
+	if not bool(validated.accepted):
+		return validated
+	_signal_dispatch_active = true
+	var contract := CargoDeliveryContract.new(StringName(_contract_snapshot.contract_id), _get_source_handle(),
+		_get_destination_handle(), _get_item_id(), _get_quantity(), _get_ordered_phases(), _get_deadline_seconds())
+	var scratch := CargoDeliveryActivity.new(_authority, contract)
+	_authority.transfer_committed.disconnect(scratch._on_transfer_committed)
+	scratch._adopt_validated_fields(capture_persistence_state())
+	var staged := scratch.reset(expected_generation)
+	var saved: Variant = persist_reset.call(scratch) if bool(staged.accepted) else staged
+	_signal_dispatch_active = false
+	if not saved is Dictionary or not bool(saved.get("accepted", false)):
+		return {"accepted": false, "reason": &"delivery_reset_save_rejected", "store_result": saved}
+	return reset(expected_generation)
+
+
+func _adopt_validated_fields(saved: Dictionary) -> void:
+	_state = int(saved.state)
+	_generation = int(saved.generation)
+	_next_phase_index = int(saved.next_phase_index)
+	_elapsed_seconds = float(saved.elapsed_seconds)
+	_failure_reason = StringName(saved.failure_reason)
+	_expected_transfer_id = StringName(saved.expected_transfer_id)
+	_accepted_receipt = (saved.accepted_receipt as Dictionary).duplicate(true)
+
+
+func _canonical(value: Variant) -> String:
+	return JSON.stringify(JSON.parse_string(JSON.stringify(value)))
+
+
+func _persisted_integer(value: Variant) -> bool:
+	return (value is int or value is float) and is_finite(float(value)) \
+		and float(value) == floor(float(value)) and absf(float(value)) <= CargoTransferAuthority.MAX_SAFE_INTEGER
+
+
 func get_state() -> int:
 	return _state
 
