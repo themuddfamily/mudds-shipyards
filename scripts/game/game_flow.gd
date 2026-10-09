@@ -2308,15 +2308,19 @@ func _initialize_cinder_race_session_persistence() -> void:
 ## Explicit save surface used by orderly shutdown and meaningful session
 ## boundaries. It merges into GameFlow's one loaded UserDataStore and never
 ## advances the race, route, or a save-owned clock.
-func save_cinder_race_session() -> Dictionary:
+func save_cinder_race_session(candidate: CinderTimedRaceSession = null, candidate_director: ActivityDirector = null) -> Dictionary:
 	if _cinder_race_session_persistence == null \
 			or cinder_race_session == null \
 			or not is_instance_valid(activity_director):
 		return {"accepted": false, "reason": &"race_session_persistence_unavailable"}
-	if _selected_activity_kind != ACTIVITY_KIND_TIMED_RACE \
+	if candidate == null and _selected_activity_kind != ACTIVITY_KIND_TIMED_RACE \
 			and not bool(cinder_race_session.get_presentation_snapshot().get("attached", false)):
 		return {"accepted": true, "reason": &"race_session_not_selected"}
-	var snapshot := cinder_race_session.get_presentation_snapshot()
+	var owner := candidate if candidate != null else cinder_race_session
+	var director := candidate_director if candidate != null else activity_director
+	if not is_instance_valid(director):
+		return {"accepted": false, "reason": &"race_session_persistence_unavailable"}
+	var snapshot := owner.get_presentation_snapshot()
 	if int(snapshot.get("session_generation", 0)) < 1:
 		return {"accepted": true, "reason": &"race_session_not_started"}
 	var next_generation := _runtime_settings_user_data_store.get_generation() + 1
@@ -2327,7 +2331,7 @@ func save_cinder_race_session() -> Dictionary:
 		next_generation,
 	]
 	_cinder_race_session_save_status = _cinder_race_session_persistence.save(
-		cinder_race_session, activity_director, commit_id
+		owner, director, commit_id, cinder_race_session if candidate != null else null
 	).duplicate(true)
 	if bool(_cinder_race_session_save_status.get("accepted", false)):
 		_cinder_race_session_saved_fingerprint = _cinder_race_save_fingerprint(
@@ -15766,8 +15770,8 @@ func reset_active_activity() -> bool:
 				return false
 			reset = cinder_convoy_host.reset_with_persistence(cinder_convoy_host.get_generation(), _save_cinder_convoy_reset_candidate)
 		_:
-			reset = cinder_race_session.reset(
-				cinder_race_session.get_session_generation()
+			reset = cinder_race_session.reset_with_persistence(
+				cinder_race_session.get_session_generation(), save_cinder_race_session
 			)
 	if bool(reset.get("accepted", false)):
 		_active_activity_generation = _get_selected_activity_generation()

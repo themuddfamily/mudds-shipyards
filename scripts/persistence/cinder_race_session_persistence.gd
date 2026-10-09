@@ -52,12 +52,13 @@ func load(
 func save(
 	session: CinderTimedRaceSession,
 	director: ActivityDirector,
-	commit_id: String
+	commit_id: String,
+	reset_source: CinderTimedRaceSession = null
 	) -> Dictionary:
 	if session == null:
 		return _result(false, &"race_session_save_invalid")
 	return save_state(
-		session.capture_persistence_state(), session, director, commit_id
+		session.capture_persistence_state(), session, director, commit_id, reset_source
 	)
 
 
@@ -68,7 +69,8 @@ func save_state(
 	state: Dictionary,
 	session: CinderTimedRaceSession,
 	director: ActivityDirector,
-	commit_id: String
+	commit_id: String,
+	reset_source: CinderTimedRaceSession = null
 	) -> Dictionary:
 	if not _configured() or session == null or not is_instance_valid(director) \
 			or commit_id.strip_edges().is_empty():
@@ -107,8 +109,11 @@ func save_state(
 				candidate_activity.reward_requested = existing_activity.reward_requested
 				candidate_activity.reward_granted = existing_activity.reward_granted
 		var existing_record := _decode_record(payload[slot_key] as Dictionary)
+		if int(candidate_activity.generation) > int(existing_activity.generation) \
+				and bool(existing_activity.reward_requested) and not bool(existing_activity.reward_granted):
+			return _result(false, &"race_session_reward_pending")
 		var transition := _validate_transition(
-			existing_record.session_state as Dictionary, canonical_state
+			existing_record.session_state as Dictionary, canonical_state, session, director, reset_source
 		)
 		if not bool(transition.get("accepted", false)):
 			return transition
@@ -183,15 +188,26 @@ func get_store_generation() -> int:
 	return _store.get_generation() if _configured() else -1
 
 
-func _validate_transition(existing: Dictionary, candidate: Dictionary) -> Dictionary:
+func _validate_transition(existing: Dictionary, candidate: Dictionary, session: CinderTimedRaceSession,
+		director: ActivityDirector, reset_source: CinderTimedRaceSession) -> Dictionary:
 	var existing_generation := int(existing.get("session_generation", -1))
 	var candidate_generation := int(candidate.get("session_generation", -1))
 	if candidate_generation < existing_generation:
 		return _result(false, &"stale_race_session")
 	if candidate_generation > existing_generation:
+		if candidate_generation == existing_generation + 2 \
+				and int(candidate.race_state.state) == TimedCheckpointRace.State.IDLE \
+				and reset_source != null and reset_source.owns_staged_persistence_reset(session, director):
+			var source := _canonical_state(reset_source.capture_persistence_state())
+			var validated := reset_source.validate_persistence_state(source, director)
+			if bool(validated.get("accepted", false)) \
+					and int(source.race_state.state) in [TimedCheckpointRace.State.COUNTDOWN, TimedCheckpointRace.State.ACTIVE, TimedCheckpointRace.State.FAILED] \
+					and _live_start_is_proven(existing, source, reset_source) \
+					and _same_results(source.race_state, candidate.race_state):
+				return _result(true, &"race_session_unsaved_run_reset")
 		if candidate_generation != existing_generation + 1:
 			return _result(false, &"unproven_race_session_generation")
-		return _validate_next_generation_transition(existing, candidate)
+		return _validate_next_generation_transition(existing, candidate, session)
 	if existing == candidate:
 		return _result(true, &"race_session_unchanged")
 	var existing_race := existing.race_state as Dictionary
@@ -244,11 +260,14 @@ func _validate_transition(existing: Dictionary, candidate: Dictionary) -> Dictio
 
 func _validate_next_generation_transition(
 	existing: Dictionary,
-	candidate: Dictionary
+	candidate: Dictionary,
+	session: CinderTimedRaceSession
 	) -> Dictionary:
 	var existing_race := existing.race_state as Dictionary
 	var candidate_race := candidate.race_state as Dictionary
 	var candidate_state := int(candidate_race.get("state", -1))
+	if _live_start_is_proven(existing, candidate, session):
+		return _result(true, &"race_session_unsaved_run_recovered")
 	if candidate_state not in [
 		TimedCheckpointRace.State.IDLE,
 		TimedCheckpointRace.State.COUNTDOWN,
@@ -261,6 +280,25 @@ func _validate_next_generation_transition(
 			):
 		return _result(false, &"unproven_race_session_generation")
 	return _result(true, &"new_race_session_generation")
+
+
+func _live_start_is_proven(existing: Dictionary, candidate: Dictionary, session: CinderTimedRaceSession) -> bool:
+	if int(existing.race_state.state) != TimedCheckpointRace.State.IDLE \
+			or int(candidate.session_generation) != int(existing.session_generation) + 1 \
+			or _canonical_state(session.get_persistence_start_state()) != existing:
+		return false
+	var before := existing.race_state as Dictionary
+	var after := candidate.race_state as Dictionary
+	if int(after.state) in [TimedCheckpointRace.State.COUNTDOWN, TimedCheckpointRace.State.ACTIVE, TimedCheckpointRace.State.FAILED]:
+		return _same_results(before, after)
+	if int(after.state) != TimedCheckpointRace.State.COMPLETED:
+		return false
+	# The existing typed validators already prove both terminal route states and
+	# last == elapsed + penalty. Preserve the actual prior best-result boundary.
+	var last := float(after.race_elapsed_seconds) + float(after.penalty_seconds)
+	var previous_best := float(before.best_time_seconds)
+	var best := last if previous_best < 0.0 else minf(previous_best, last)
+	return is_equal_approx(float(after.last_time_seconds), last) and is_equal_approx(float(after.best_time_seconds), best)
 
 
 func _active_progress_ordinal(race: Dictionary) -> int:

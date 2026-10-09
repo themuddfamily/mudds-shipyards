@@ -45,6 +45,15 @@ class MemoryFilesystem extends Filesystem:
 		files.erase(from_path)
 		return OK
 
+class RejectingDiskFilesystem extends Filesystem:
+	var reject_writes := false
+	func write_bytes_and_flush(path: String, bytes: PackedByteArray) -> Error:
+		return ERR_UNAVAILABLE if reject_writes else super.write_bytes_and_flush(path, bytes)
+	func remove_path(path: String) -> Error:
+		return ERR_UNAVAILABLE if reject_writes else super.remove_path(path)
+	func rename_path(from_path: String, to_path: String) -> Error:
+		return ERR_UNAVAILABLE if reject_writes else super.rename_path(from_path, to_path)
+
 var _assertions := 0
 var _failures := PackedStringArray()
 
@@ -338,7 +347,124 @@ func _run() -> void:
 	)
 
 	await _retire_game(second)
+	await _test_race_write_recovery()
 	_finish()
+
+
+func _race_receipts(game: GameFlow) -> int:
+	return int((game.get_activity_reward_report().authority.record.get("reward_counts", {}) as Dictionary).get("return_race_record_to_shipyard", 0))
+
+
+func _complete_real_race(game: GameFlow, elapsed: float) -> bool:
+	var craft := game.get_flyable_ships()[1] as HeroShip
+	game.active_ship = craft
+	game.set("_piloting", true)
+	game.phase = GameFlow.Phase.FREE_FLIGHT
+	var started := game.request_activity_start(ROUTE.activity_id)
+	game.call("_physics_process", 2.0)
+	game.call("_physics_process", elapsed)
+	for checkpoint in ROUTE.get_checkpoint_count():
+		craft.global_position = ROUTE.get_checkpoint_position(checkpoint)
+		game.call("_physics_process", 0.0)
+	return bool(started.get("accepted", false)) and game.get_active_activity_snapshot().get("state_id") == &"completed"
+
+
+func _test_race_write_recovery() -> void:
+	const path := "user://cinder-race-write-recovery.json"
+	var filesystem := RejectingDiskFilesystem.new()
+	var store := Store.new(path, filesystem) as UserDataStore
+	var game := await _make_game(store)
+	game.set_physics_process(false)
+	_check(_complete_real_race(game, 0.25) and _race_receipts(game) == 1,
+		"a genuine physical Main race completes and acknowledges its first paid result on real disk")
+	var owner := game.cinder_race_session
+	var generation := owner.get_session_generation()
+	var before := owner.capture_persistence_state()
+	var bytes := FileAccess.get_file_as_bytes(path)
+	var events := {"count": 0}
+	owner.session_reset.connect(func(_snapshot: Dictionary) -> void: events.count += 1)
+	owner.presentation_changed.connect(func(_snapshot: Dictionary) -> void: events.count += 1)
+	filesystem.reject_writes = true
+	var rejected_reset := game.reset_active_activity()
+	_check(not rejected_reset and game.cinder_race_session == owner
+		and owner.capture_persistence_state() == before and FileAccess.get_file_as_bytes(path) == bytes
+		and int(events.count) == 0,
+		"a rejected paid race reset keeps both live authorities, results, disk bytes and unpublished lifecycle")
+	await _retire_game(game)
+
+	var resumed_filesystem := RejectingDiskFilesystem.new()
+	var resumed_store := Store.new(path, resumed_filesystem) as UserDataStore
+	var resumed := await _make_game(resumed_store)
+	resumed.set_physics_process(false)
+	var restored := resumed.cinder_race_session
+	_check(restored.get_session_generation() == generation and restored.capture_persistence_state() == before
+		and _race_receipts(resumed) == 1 and resumed.reset_active_activity(),
+		"fresh Main retains the paid result and an ordinary accepted reset saves its exact IDLE generation")
+	var idle_bytes := FileAccess.get_file_as_bytes(path)
+	resumed_filesystem.reject_writes = true
+	_check(_complete_real_race(resumed, 0.75) and restored.get_session_generation() == generation + 2
+		and _race_receipts(resumed) == 1 and FileAccess.get_file_as_bytes(path) == idle_bytes,
+		"the next actual physical route completes while every start, countdown, gate and terminal save is rejected")
+	_check(not resumed.reset_active_activity()
+		and not bool(resumed.select_activity_kind(GameFlow.ACTIVITY_KIND_PATROL).get("accepted", false)),
+		"the unpaid live race cannot reset or switch away after the missed writes")
+	resumed_filesystem.reject_writes = false
+	var unpaid := restored.capture_persistence_state()
+	var unpaid_reset := restored.reset_with_persistence(restored.get_session_generation(), resumed.save_cinder_race_session)
+	_check(not bool(unpaid_reset.get("accepted", false)) and restored.capture_persistence_state() == unpaid
+		and FileAccess.get_file_as_bytes(path) == idle_bytes and _race_receipts(resumed) == 1,
+		"a genuine staged reset cannot bypass the unpaid completed race after writes recover")
+	resumed.call("_retry_owed_game_flow_activity_rewards")
+	var row := resumed_store.get_snapshot().cinder_timed_race_session.activities[0] as Dictionary
+	_check(_race_receipts(resumed) == 2 and int(row.generation) == generation + 2
+		and bool(row.reward_requested) and bool(row.reward_granted)
+		and is_equal_approx(float(restored.get_presentation_snapshot().last_time_seconds), 0.75)
+		and is_equal_approx(float(restored.get_presentation_snapshot().best_time_seconds), 0.25),
+		"ordinary retry recovers the genuine next-generation race and pays once after writes recover (%s)" %
+		resumed.get_cinder_race_session_persistence_report().last_save_status.get("reason", ""))
+	if _race_receipts(resumed) != 2:
+		await _retire_game(resumed)
+		return
+	resumed.call("_retry_owed_game_flow_activity_rewards")
+	_check(_race_receipts(resumed) == 2, "repeated ordinary retry cannot duplicate the recovered race reward")
+	_check(resumed.reset_active_activity(), "the recovered paid race accepts a durable ordinary reset")
+	var idle_generation := restored.get_session_generation()
+	var next_idle_bytes := FileAccess.get_file_as_bytes(path)
+	resumed_filesystem.reject_writes = true
+	var started := resumed.request_activity_start(ROUTE.activity_id)
+	resumed.call("_physics_process", 2.0)
+	resumed.call("_fail_active_activity", &"ship_destroyed")
+	var failed := restored.capture_persistence_state()
+	_check(bool(started.get("accepted", false)) and resumed.get_active_activity_snapshot().state_id == &"failed"
+		and not resumed.reset_active_activity() and restored.capture_persistence_state() == failed
+		and FileAccess.get_file_as_bytes(path) == next_idle_bytes,
+		"a genuine failed next run retains its owner and saved IDLE while reset writes still fail")
+	resumed_filesystem.reject_writes = false
+	var adapter := resumed.get("_cinder_race_session_persistence") as CinderRaceSessionPersistence
+	var unfenced := {"result": {}}
+	var discarded := {"session": null, "director": null}
+	restored.reset_with_persistence(restored.get_session_generation(), func(candidate: CinderTimedRaceSession, director: ActivityDirector) -> Dictionary:
+		discarded.session = candidate
+		discarded.director = director
+		unfenced.result = adapter.save(candidate, director, "unfenced-race-reset")
+		return {"accepted": false})
+	_check(not bool(unfenced.result.get("accepted", true))
+		and unfenced.result.get("reason") == &"unproven_race_session_generation"
+		and not is_instance_valid(discarded.director)
+		and not restored.owns_staged_persistence_reset(discarded.session, null)
+		and restored.capture_persistence_state() == failed and FileAccess.get_file_as_bytes(path) == next_idle_bytes,
+		"an authentic reset scratch cannot prove a generation jump without its current owner handoff")
+	_check(resumed.reset_active_activity() and restored.get_session_generation() == idle_generation + 2
+		and resumed.get_active_activity_snapshot().state_id == &"idle" and _race_receipts(resumed) == 2,
+		"ordinary reset durably recovers the failed unsaved race using both genuine owner transitions")
+	await _retire_game(resumed)
+	var fresh := await _make_game(Store.new(path, RejectingDiskFilesystem.new()))
+	fresh.set_physics_process(false)
+	_check(fresh.cinder_race_session.get_session_generation() == idle_generation + 2
+		and fresh.get_active_activity_snapshot().state_id == &"idle" and _race_receipts(fresh) == 2
+		and _complete_real_race(fresh, 0.5) and _race_receipts(fresh) == 3,
+		"fresh Main retains the recovered IDLE generations and the next physical race pays its new identity once")
+	await _retire_game(fresh)
 
 
 func _make_game(store: UserDataStore) -> GameFlow:

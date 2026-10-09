@@ -35,6 +35,9 @@ var _pending_race_completion := false
 var _pending_race_failure: StringName = &""
 var _authority_desynchronized := false
 var _presentation_reason: StringName = &""
+var _persistence_start_state: Dictionary = {}
+var _persistence_reset_candidate: CinderTimedRaceSession
+var _persistence_reset_director: ActivityDirector
 
 
 func _init(
@@ -100,6 +103,7 @@ func start(expected_session_generation: int) -> Dictionary:
 		return _finish(false, &"invalid_race_configuration")
 	if _is_running():
 		return _finish(false, &"already_running")
+	var start_state := capture_persistence_state()
 	var activity_start := _director.start_activity(ROUTE.activity_id)
 	if not bool(activity_start.get("accepted", false)):
 		return _finish(false, &"activity_cannot_start")
@@ -118,6 +122,7 @@ func start(expected_session_generation: int) -> Dictionary:
 	_pending_race_failure = &""
 	_authority_desynchronized = false
 	_presentation_reason = &""
+	_persistence_start_state = start_state
 	var result := _finish(true, &"started")
 	_emit_snapshot_signal(session_started)
 	_emit_presentation_changed()
@@ -248,6 +253,7 @@ func reset(expected_session_generation: int) -> Dictionary:
 	)
 	_race_generation = int(race_reset.get("generation", 0))
 	_session_generation += 1
+	_persistence_start_state.clear()
 	_pending_activity_completion = false
 	_pending_race_completion = false
 	_pending_race_failure = &""
@@ -257,6 +263,54 @@ func reset(expected_session_generation: int) -> Dictionary:
 	_emit_snapshot_signal(session_reset)
 	_emit_presentation_changed()
 	return result
+
+
+## Commit a real typed reset in isolated authorities before publishing it on
+## this attached owner. A rejected store cannot advance either live generation.
+func reset_with_persistence(expected_session_generation: int, persist_reset: Callable) -> Dictionary:
+	if _is_reentrant():
+		return _result(false, &"reentrant_call")
+	if expected_session_generation != _session_generation or not _attached or not _session_started_once \
+			or not persist_reset.is_valid():
+		return _result(false, &"race_reset_unavailable")
+	var source := capture_persistence_state()
+	var validated := validate_persistence_state(source, _director)
+	if not bool(validated.get("accepted", false)):
+		return validated
+	_mutation_active = true
+	var staged_director := ActivityDirector.new()
+	staged_director.register_definition(ROUTE)
+	_director.add_child(staged_director)
+	var staged_session := CinderTimedRaceSession.new(_race.lap_count, _race.countdown_seconds, _race.timeout_seconds)
+	var staged := staged_session.restore_persistence_state(staged_director, source, 0)
+	if bool(staged.get("accepted", false)):
+		staged = staged_session.attach(staged_director, staged_session.get_session_generation())
+	if bool(staged.get("accepted", false)):
+		staged = staged_session.reset(staged_session.get_session_generation())
+	var saved: Variant = staged
+	if bool(staged.get("accepted", false)):
+		_persistence_reset_candidate = staged_session
+		_persistence_reset_director = staged_director
+		saved = persist_reset.call(staged_session, staged_director)
+	_persistence_reset_candidate = null
+	_persistence_reset_director = null
+	staged_session.close(staged_session.get_session_generation())
+	staged_director.free()
+	_mutation_active = false
+	if not saved is Dictionary or not bool(saved.get("accepted", false)):
+		return {"accepted": false, "reason": &"race_reset_save_rejected", "store_result": saved}
+	return reset(expected_session_generation)
+
+
+func owns_staged_persistence_reset(candidate: CinderTimedRaceSession, director: ActivityDirector) -> bool:
+	return _mutation_active and candidate != null and candidate == _persistence_reset_candidate \
+		and director == _persistence_reset_director and candidate._director == director \
+		and candidate.get_session_generation() == _session_generation + 1 \
+		and candidate._race.get_state() == TimedCheckpointRace.State.IDLE
+
+
+func get_persistence_start_state() -> Dictionary:
+	return {} if _closed else _persistence_start_state.duplicate(true)
 
 
 ## Permanently releases signal connections so a RefCounted session cannot keep
