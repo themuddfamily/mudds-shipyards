@@ -6,6 +6,7 @@ extends SceneTree
 ## no physics; the integration is `tests/network_remote_body_simulation_test.gd`.
 
 const IntentSource := preload("res://scripts/network/network_remote_body_intent_source.gd")
+const Authority := preload("res://scripts/network/network_movement_authority.gd")
 const Intent := preload("res://scripts/network/network_movement_intent.gd")
 
 var _assertions := 0
@@ -21,6 +22,7 @@ func _run() -> void:
 	_test_edges_survive_between_sends()
 	_test_stamp_tracks_the_observed_server_tick()
 	_test_reconciliation_is_bounded()
+	_test_rejected_opening_recovers()
 	if _failures.is_empty():
 		print("OK: network remote body intent source (%d assertions)" % _assertions)
 		quit(0)
@@ -167,6 +169,90 @@ func _test_reconciliation_is_bounded() -> void:
 		int(audit.corrections) == 1 and not bool(audit.owns_movement_authority),
 		"the audit counts corrections and claims no movement authority"
 	)
+
+
+func _opening_reply(wire: Dictionary, result: Dictionary, server_tick: int) -> Dictionary:
+	return {
+		"recipient_peer_id": int(wire.peer_id), "entity_id": wire.entity_id,
+		"entity_generation": wire.entity_generation, "stream_id": wire.stream_id,
+		"sequence": wire.sequence, "client_tick": wire.client_tick,
+		"server_tick": server_tick, "accepted": bool(result.accepted), "status": result.status,
+	}
+
+
+func _test_rejected_opening_recovers() -> void:
+	var authority := Authority.new(1)
+	authority.register_avatar(1, 2, &"crew_a", 3)
+	authority.set_server_tick(1, 200)
+	var source := IntentSource.new(1)
+	source.bind(&"crew_a", 3)
+	source.request_jump()
+	source.request_interaction()
+	var initial: Dictionary = source.advance(2, _sample(), 0)
+	var refused: Dictionary = authority.accept_intent(2, initial)
+	_check(not refused.accepted and refused.status == &"client_tick_too_old", "real authority rejects opening zero before committing its stream")
+	var stranded: Dictionary = source.advance(2, _sample(), 200)
+	_check(authority.accept_intent(2, stranded).status == &"new_stream_must_start_at_zero", "fresh later sequence cannot bypass strict stream opening")
+	var reply := _opening_reply(initial, refused, 200)
+	var wrong := reply.duplicate(true)
+	wrong.entity_generation += 1
+	_check(not source.accept_opening_result(2, wrong).accepted, "retired body opening reply cannot rewind current source")
+	wrong = reply.duplicate(true)
+	wrong.client_tick += 1
+	_check(not source.accept_opening_result(2, wrong).accepted and not source.accept_opening_result(3, reply).accepted, "opening reply needs exact outstanding zero stamp and owner peer")
+	_check(source.accept_opening_result(2, reply).status == &"opening_retry_queued", "honest clock refusal queues same-owner restamped opening")
+	_check(not source.accept_opening_result(2, reply).accepted, "duplicate refusal cannot reset a queued retry")
+	var retry: Dictionary = source.advance(2, _sample(), 200)
+	_check(retry.stream_id == initial.stream_id and retry.sequence == 0 and retry.client_tick == 200, "retry keeps exact stream identity and strict zero with fresh host clock")
+	_check(bool(retry.jump) and retry.interaction_request_id == initial.interaction_request_id, "refused opening restores jump and retains interaction highwater")
+	var accepted: Dictionary = authority.accept_intent(2, retry)
+	_check(accepted.accepted and source.accept_opening_result(2, _opening_reply(retry, accepted, 200)).status == &"opening_confirmed", "actual authority accepts retry and confirms this exact opening")
+	var delivered: Dictionary = authority.consume_for_tick(&"crew_a", 3, 200)
+	_check(delivered.accepted and bool(delivered.intent.jump) and delivered.intent.interaction_request_id == 1, "recovered edge requests reach authority delivery once")
+	_check(not authority.consume_for_tick(&"crew_a", 3, 201).accepted and not source.accept_opening_result(2, reply).accepted, "delayed clock refusal cannot replay delivered edges or rewind established stream")
+	var next: Dictionary = source.advance(2, _sample(Vector2(0, -1)), 201)
+	_check(next.sequence == 1 and not bool(next.jump) and next.interaction_request_id == 1 and authority.accept_intent(2, next).accepted, "ordinary movement advances normally after acknowledged opening without new edges")
+	_check(not authority.accept_intent(2, retry).accepted and authority.accept_intent(2, initial).status == &"client_tick_too_old", "strict replay and tick fences remain active after recovery")
+	source.bind(&"crew_a", 3)
+	_check(not source.accept_opening_result(2, _opening_reply(retry, accepted, 200)).accepted, "retired stream acknowledgement cannot establish a rebound producer")
+	source.unbind()
+	_check(not source.accept_opening_result(2, reply).accepted, "unbound producer ignores late opening replies")
+	var ahead := IntentSource.new(4)
+	ahead.bind(&"crew_a", 3, 3)
+	var future: Dictionary = ahead.advance(2, _sample(), 500)
+	var too_far: Dictionary = authority.accept_intent(2, future)
+	var movement_clock := authority.get_server_tick()
+	ahead.observe_movement_clock(movement_clock)
+	_check(ahead.has_authoritative_movement_clock() and ahead.estimated_server_tick() == movement_clock and too_far.status == &"client_tick_too_far_ahead" and ahead.accept_opening_result(2, _opening_reply(future, too_far, movement_clock)).accepted, "unaccepted future opening can use exact authority clock correction")
+	authority.set_server_tick(1, movement_clock + 1)
+	ahead.observe_movement_clock(authority.get_server_tick())
+	movement_clock = authority.get_server_tick()
+	var corrected: Dictionary = ahead.advance(2, _sample(), 500)
+	var corrected_result: Dictionary = authority.accept_intent(2, corrected)
+	_check(corrected.sequence == 0 and corrected.client_tick == movement_clock and corrected_result.accepted, "future opening restamps backwards without relaxing host tick or stream fences")
+	ahead.accept_opening_result(2, _opening_reply(corrected, corrected_result, movement_clock))
+	var resumed: Dictionary = {}
+	for _tick in 4:
+		var candidate: Dictionary = ahead.advance(2, _sample(Vector2(0, -1)), -1)
+		if not candidate.is_empty():
+			resumed = candidate
+	authority.set_server_tick(1, movement_clock + 4)
+	_check(ahead.has_authoritative_movement_clock() and resumed.client_tick == movement_clock + 4
+		and resumed.sequence == 1 and authority.accept_intent(2, resumed).accepted,
+		"body clock continues at physics cadence in movement domain while unrelated boarding clock remains 500")
+
+	var observed := IntentSource.new(1)
+	observed.bind(&"crew_a", 3, 4)
+	var opening: Dictionary = observed.advance(2, _sample(), authority.get_server_tick())
+	var opening_result: Dictionary = authority.accept_intent(2, opening)
+	var delayed := _opening_reply(opening, opening_result, authority.get_server_tick())
+	authority.set_server_tick(1, authority.get_server_tick() + 100)
+	observed.observe_movement_clock(authority.get_server_tick())
+	var confirmation: Dictionary = observed.accept_opening_result(2, delayed)
+	var continued: Dictionary = observed.advance(2, _sample(), -1)
+	_check(opening_result.accepted and confirmation.status == &"opening_confirmed"
+		and continued.client_tick == authority.get_server_tick() + 1 and authority.accept_intent(2, continued).accepted,
+		"first actual movement sample establishes trust and delayed accepted opening cannot rewind its newer clock")
 
 
 func _check(condition: bool, description: String) -> void:

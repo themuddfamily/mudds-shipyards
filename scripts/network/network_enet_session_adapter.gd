@@ -11,6 +11,7 @@ extends Node
 
 const LifecycleAdapter := preload("res://scripts/network/network_snapshot_lifecycle_adapter.gd")
 const TransportSecurity := preload("res://scripts/network/network_transport_security.gd")
+const MovementIntent := preload("res://scripts/network/network_movement_intent.gd")
 const MovementAuthority := preload("res://scripts/network/network_movement_authority.gd")
 const BoardingAuthority := preload("res://scripts/network/network_boarding_authority.gd")
 const ProjectileAuthority := preload("res://scripts/network/network_projectile_authority.gd")
@@ -668,6 +669,10 @@ func set_movement_server_tick(server_tick: int) -> Dictionary:
 	if not is_server():
 		return _remember(_result(false, &"authority_required"))
 	return _remember(_movement.set_server_tick(AUTHORITY_PEER_ID, server_tick))
+
+
+func get_movement_server_tick() -> int:
+	return _movement.get_server_tick()
 
 
 ## Retires one exact avatar generation. The mirror of [method register_avatar];
@@ -4386,6 +4391,50 @@ func _receive_movement_intent(wire: Dictionary) -> void:
 		return
 	var result: Dictionary = _movement.accept_intent(source_peer_id, payload)
 	movement_intent_result.emit(result.duplicate(true))
+	_reply_movement_opening(source_peer_id, payload, result)
+
+
+func _reply_movement_opening(peer_id: int, payload: Dictionary, result: Dictionary) -> void:
+	var intent = MovementIntent.from_dictionary(payload)
+	if not intent.is_valid() or intent.get_sequence() != 0 or intent.get_peer_id() != peer_id \
+			or peer_id not in get_admitted_peer_ids():
+		return
+	var body: Dictionary = _movement.get_avatar_snapshot(intent.get_entity_id())
+	if body.is_empty() or int(body.owner_peer_id) != peer_id \
+			or int(body.entity_generation) != intent.get_entity_generation():
+		return
+	# Only this body ledger answers. Pilot commands returned above, and an
+	# unrelated/stale identity is never given an opening acknowledgement.
+	_broadcast_movement_opening.rpc_id(peer_id, {
+		"recipient_peer_id": peer_id, "peer_generation": int(_peer_generations.get(peer_id, 0)),
+		"session_generation": int(_transport.get_snapshot().session_generation),
+		"migration_generation": int(_migration.get_snapshot().migration_generation),
+		"entity_id": intent.get_entity_id(), "entity_generation": intent.get_entity_generation(),
+		"stream_id": intent.get_stream_id(), "sequence": 0,
+		"client_tick": intent.get_client_tick(), "server_tick": _movement.get_server_tick(),
+		"accepted": bool(result.get("accepted", false)), "status": result.get("status", &"invalid_intent"),
+	})
+
+
+@rpc("authority", "call_remote", "reliable", 0)
+func _broadcast_movement_opening(packet: Dictionary) -> void:
+	if is_server() or not is_session_active() or multiplayer.get_remote_sender_id() != AUTHORITY_PEER_ID \
+			or packet.size() != 12:
+		return
+	for field in ["recipient_peer_id", "peer_generation", "session_generation", "migration_generation", "entity_generation", "stream_id", "sequence", "client_tick", "server_tick"]:
+		if not packet.get(field) is int or int(packet[field]) < 0 or int(packet[field]) > 9007199254740991:
+			return
+	if not packet.get("accepted") is bool or not (packet.get("status") is String or packet.get("status") is StringName) \
+			or not (packet.get("entity_id") is String or packet.get("entity_id") is StringName) \
+			or str(packet.entity_id).is_empty() or str(packet.entity_id).length() > MovementIntent.MAX_ID_LENGTH:
+		return
+	if int(packet.recipient_peer_id) != multiplayer.get_unique_id() \
+			or int(packet.peer_generation) != _next_peer_generation - 1 \
+			or int(packet.session_generation) != int(_transport.get_snapshot().session_generation) \
+			or int(packet.migration_generation) != int(_migration.get_snapshot().migration_generation) \
+			or int(packet.entity_generation) <= 0 or int(packet.sequence) != 0:
+		return
+	movement_intent_result.emit(packet.duplicate(true))
 
 
 @rpc("any_peer", "reliable")

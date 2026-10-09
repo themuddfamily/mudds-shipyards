@@ -1685,6 +1685,7 @@ func _network_session_signal_bindings() -> Array:
 		[&"transport_rejected", Callable(self, "_on_network_transport_rejected")],
 		[&"crew_role_result", Callable(self, "_on_network_crew_role_result")],
 		[&"boarding_intent_result", Callable(self, "_on_network_boarding_intent_result")],
+		[&"movement_intent_result", Callable(self, "_on_network_movement_intent_result")],
 		[&"crew_command_result", Callable(self, "_on_network_crew_command_result")],
 		[&"projectile_replica_packet", Callable(self, "_on_projectile_replica_packet")],
 		[&"snapshot_applied", Callable(self, "_on_network_snapshot_applied")],
@@ -12092,6 +12093,12 @@ func bind_network_remote_body(entity_id: StringName, entity_generation: int = 1)
 	return bound
 
 
+func _on_network_movement_intent_result(result: Dictionary) -> void:
+	if _network_session_mode == &"client" and is_instance_valid(network_session) \
+			and _network_remote_body_intent_source != null and _network_remote_body_intent_source.is_bound():
+		_network_remote_body_intent_source.accept_opening_result(_network_client_peer_id(), result)
+
+
 func unbind_network_remote_body() -> Dictionary:
 	if _network_remote_body_intent_source == null:
 		return {"accepted": true, "status": &"unbound"}
@@ -12819,13 +12826,20 @@ func _advance_network_remote_body_intent_stream() -> void:
 			_network_remote_body_intent_source.request_jump()
 	if player.is_control_enabled() and Input.is_action_just_pressed("interact"):
 		_network_remote_body_intent_source.request_interaction()
+	var movement_tick := network_session.get_moving_interior_latest_server_tick()
+	if movement_tick >= 0:
+		_network_remote_body_intent_source.observe_movement_clock(movement_tick)
+	elif not _network_remote_body_intent_source.has_authoritative_movement_clock():
+		# Boarding seeds only the otherwise unknown opening. The first actual
+		# movement observation/reply establishes the body's own clock domain.
+		movement_tick = network_session.get_boarding_server_tick_estimate()
 	var wire: Dictionary = _network_remote_body_intent_source.advance(peer_id, {
 		"move_axis": move_axis,
 		"look_yaw": player.get_look_yaw() if player.has_method(&"get_look_yaw") else 0.0,
 		"look_pitch": 0.0,
 		"run": run,
 		"crouch": false,
-	}, network_session.get_moving_interior_latest_server_tick())
+	}, movement_tick)
 	var frame: MovingInteriorFrame = null
 	if is_instance_valid(_cabin_ship):
 		frame = _cabin_ship.get_in_flight_cabin_report().get("frame") as MovingInteriorFrame

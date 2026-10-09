@@ -62,6 +62,13 @@ var _pose_order: Array = []
 var _sent := 0
 var _corrections := 0
 var _worst_divergence := 0.0
+var _opening_confirmed := false
+var _opening_tick := -1
+var _opening_peer := 0
+var _opening_jump := false
+var _opening_retries := 0
+var _opening_retry_clock := -1
+var _movement_clock_received := false
 
 
 func _init(p_cadence_ticks: int = DEFAULT_CADENCE_TICKS) -> void:
@@ -78,6 +85,7 @@ func bind(entity_id: StringName, entity_generation: int, stream_id: int = -1) ->
 	_entity_generation = entity_generation
 	_stream_id = stream_id if stream_id >= 0 else _stream_id + 1
 	_sequence = -1
+	_clear_opening()
 	_ticks_since_send = _cadence_ticks
 	_last_client_tick = -1
 	_jump_latched = false
@@ -90,6 +98,9 @@ func bind(entity_id: StringName, entity_generation: int, stream_id: int = -1) ->
 
 
 func unbind() -> Dictionary:
+	_clear_opening()
+	_jump_latched = false
+	_interact_latched = false
 	_entity_id = &""
 	_entity_generation = 0
 	_pose_history.clear()
@@ -127,7 +138,10 @@ func request_interaction() -> void:
 func advance(peer_id: int, sample: Dictionary, observed_server_tick: int) -> Dictionary:
 	if not is_bound() or peer_id <= 0:
 		return {}
-	if observed_server_tick != _observed_server_tick:
+	if _opening_retry_clock >= 0:
+		_observed_server_tick = maxi(_observed_server_tick, _opening_retry_clock)
+		_ticks_since_observation = 0
+	elif observed_server_tick >= 0 and observed_server_tick > _observed_server_tick:
 		_observed_server_tick = observed_server_tick
 		_ticks_since_observation = 0
 	else:
@@ -137,6 +151,7 @@ func advance(peer_id: int, sample: Dictionary, observed_server_tick: int) -> Dic
 		return {}
 	_ticks_since_send = 0
 	var estimate := estimated_server_tick()
+	_opening_retry_clock = -1
 	var client_tick := maxi(estimate, _last_client_tick + 1)
 	_sequence += 1
 	_last_client_tick = client_tick
@@ -147,6 +162,11 @@ func advance(peer_id: int, sample: Dictionary, observed_server_tick: int) -> Dic
 	_jump_latched = false
 	_interact_latched = false
 	_sent += 1
+	if not _opening_confirmed:
+		_opening_jump = _opening_jump or jump
+		if _sequence == 0:
+			_opening_tick = client_tick
+			_opening_peer = peer_id
 	var move_axis: Vector2 = sample.get("move_axis", Vector2.ZERO)
 	if not move_axis.is_finite():
 		move_axis = Vector2.ZERO
@@ -158,6 +178,77 @@ func advance(peer_id: int, sample: Dictionary, observed_server_tick: int) -> Dic
 		jump, _interaction_request_id
 	)
 	return intent.to_dictionary()
+
+
+## Only the adapter's authenticated authority reply reaches this seam. A
+## rejected opening has not committed a stream or its edge requests on the
+## host. Restamp that exact stream at zero; never rewind an established one.
+func accept_opening_result(peer_id: int, result: Dictionary) -> Dictionary:
+	if not is_bound() or _opening_confirmed or _opening_tick < 0:
+		return _result(false, &"ignored_opening_result")
+	for field in ["recipient_peer_id", "entity_generation", "stream_id", "sequence", "client_tick", "server_tick"]:
+		if not result.get(field) is int or int(result[field]) < 0 or int(result[field]) > 9007199254740991:
+			return _result(false, &"invalid_opening_result")
+	if not result.get("accepted") is bool or not (result.get("entity_id") is String or result.get("entity_id") is StringName) \
+			or not (result.get("status") is String or result.get("status") is StringName):
+		return _result(false, &"invalid_opening_result")
+	if peer_id != _opening_peer or int(result.recipient_peer_id) != peer_id \
+			or StringName(result.entity_id) != _entity_id or int(result.entity_generation) != _entity_generation \
+			or int(result.stream_id) != _stream_id or int(result.sequence) != 0 \
+			or int(result.client_tick) != _opening_tick:
+		return _result(false, &"ignored_opening_result")
+	if bool(result.accepted) and result.status == &"accepted":
+		_anchor_movement_clock(int(result.server_tick))
+		_opening_confirmed = true
+		_opening_jump = false
+		return _result(true, &"opening_confirmed")
+	if bool(result.accepted) or result.status not in [&"client_tick_too_old", &"client_tick_too_far_ahead"]:
+		return _result(false, &"ignored_opening_result")
+	_sequence = -1
+	# No host timestamp was accepted for this opening. Its clock may be
+	# corrected backwards as well as forwards without replaying host work.
+	_anchor_movement_clock(int(result.server_tick))
+	_last_client_tick = _observed_server_tick - 1
+	_opening_retry_clock = _observed_server_tick
+	_ticks_since_send = _cadence_ticks
+	_jump_latched = _jump_latched or _opening_jump
+	_opening_jump = false
+	_opening_tick = -1
+	_pose_history.clear()
+	_pose_order.clear()
+	_opening_retries += 1
+	return _result(true, &"opening_retry_queued")
+
+
+func has_authoritative_movement_clock() -> bool:
+	return _movement_clock_received
+
+
+## Called only for an actual authoritative movement relationship. Boarding
+## may seed an unknown opening, but it never establishes this clock's trust.
+func observe_movement_clock(server_tick: int) -> void:
+	if is_bound() and server_tick >= 0:
+		_anchor_movement_clock(server_tick)
+
+
+func _anchor_movement_clock(server_tick: int) -> void:
+	# An exact first receipt replaces the provisional bootstrap clock. Once
+	# trusted, movement observations and receipts share one monotonic domain.
+	if not _movement_clock_received or server_tick > _observed_server_tick:
+		_observed_server_tick = server_tick
+		_ticks_since_observation = 0
+	_movement_clock_received = true
+
+
+func _clear_opening() -> void:
+	_movement_clock_received = false
+	_observed_server_tick = -1
+	_ticks_since_observation = 0
+	_opening_retry_clock = -1
+	_opening_confirmed = false
+	_opening_tick = -1
+	_opening_peer = 0
+	_opening_jump = false
 
 
 ## The client's estimate of the authority's current tick, or -1 before any
@@ -227,6 +318,9 @@ func get_audit() -> Dictionary:
 		"sequence": _sequence,
 		"cadence_ticks": _cadence_ticks,
 		"sent": _sent,
+		"opening_confirmed": _opening_confirmed,
+		"movement_clock_received": _movement_clock_received,
+		"opening_retries": _opening_retries,
 		"last_client_tick": _last_client_tick,
 		"observed_server_tick": _observed_server_tick,
 		"estimated_server_tick": estimated_server_tick(),

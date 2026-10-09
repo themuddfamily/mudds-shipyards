@@ -157,6 +157,11 @@ func set_server_tick(source_peer_id: int, server_tick: int) -> Dictionary:
 	return _remember(_result(true, &"server_tick_advanced", {"server_tick": _server_tick}))
 
 
+## Read-only clock for receipts from this ledger's own validation domain.
+func get_server_tick() -> int:
+	return _server_tick
+
+
 ## Changes the movement mode only after the real Player/seat authority commits
 ## a physical boarding or disembark result.
 func set_avatar_mode(

@@ -96,7 +96,8 @@ func _orchestrate() -> void:
 			OS.kill(pid)
 	for failure in _failures:
 		push_error(failure)
-	print("JOVIAN_NETWORK_ENGINEER_ROUTE: %d checks, %d failures; artifacts=%s" % [_checks, _failures.size(), _directory])
+	print("ENGINEER_PEER_ARTIFACTS: ", _directory)
+	print("JOVIAN_NETWORK_ENGINEER_ROUTE: %d checks, %d failures" % [_checks, _failures.size()])
 	quit(0 if _failures.is_empty() else 1)
 
 func _peer_arguments(role: String, display: PackedStringArray) -> PackedStringArray:
@@ -135,13 +136,21 @@ func _spawn_peer(role: String, args: PackedStringArray) -> int:
 func _host() -> void:
 	_player.set_control_enabled(false)
 	_check(_game.host_network_session(_port).accepted, "production host starts without raising default capacity")
+	# Actual immediate publication advances its own clock without advancing
+	# boarding. Keep the honest divergence beyond the unchanged body window.
+	for _index in GameFlow.NETWORK_REMOTE_BODY_MAX_TICK_BEHIND + 64:
+		_game.call("_publish_network_moving_interior_state", _craft, false)
+	print("ENGINEER_CLOCK_PUBLICATION: moving=%d boarding=%d" % [int(_game.get_network_moving_interior_publication_audit().server_tick), _game.network_session.get_boarding_server_tick()])
 	_write("host.ready", {})
 	if not await _wait_file("client.seated", 60.0):
 		print("ENGINEER_HOST_BODY_DEBUG: ", _game.get_network_remote_body_audit(), " movement=", _game.network_session.get_movement_authority_audit())
 		return
 	var simulation := _game.get_network_remote_body_simulation()
 	var peers := _game.network_session.get_admitted_peer_ids()
-	_check(peers.size() == 1, "one actual separate client admitted")
+	var movement_tick := _game.network_session.get_movement_server_tick()
+	var boarding_tick := _game.network_session.get_boarding_server_tick()
+	print("ENGINEER_LEDGER_CLOCKS: movement=%d boarding=%d difference=%d" % [movement_tick, boarding_tick, movement_tick - boarding_tick])
+	_check(peers.size() == 1 and movement_tick - boarding_tick > GameFlow.NETWORK_REMOTE_BODY_MAX_TICK_BEHIND, "one actual separate client moves and claims engineer while ledger clocks exceed unchanged movement window")
 	if peers.is_empty():
 		return
 	var peer := int(peers[0])
@@ -199,7 +208,18 @@ func _client() -> void:
 	await _press(&"interact")
 	_check(await _until(func(): return _game.phase == GameFlow.Phase.IN_FLIGHT_CABIN and _game.get_network_remote_body_intent_source() != null, 12.0), "ordinary hatch Interact admits actual walking body")
 	root.grab_focus()
-	_check(await _until(func(): return not bool(_game.get("_transition_busy")) and _player.is_control_enabled() and _player.is_on_floor(), 8.0), "ordinary hatch boarding finishes before walking")
+	var body_ready := await _until(func(): return not bool(_game.get("_transition_busy")) and _player.is_control_enabled() and _player.is_on_floor(), 8.0)
+	if body_ready:
+		var body_source := _game.get_network_remote_body_intent_source()
+		var prior_retries := int(body_source.get_audit().opening_retries)
+		# Retain the actual admitted body and open a legitimate new source
+		# stream with the missing-relationship clock that stranded it before.
+		_game.bind_network_remote_body(body_source.get_entity_id(), body_source.get_entity_generation())
+		var missing_clock := body_source.advance(_game.network_session.multiplayer.get_unique_id(), {"move_axis": Vector2.ZERO}, -1)
+		_game.network_session.send_movement_intent(missing_clock)
+		body_ready = await _until(func(): return int(body_source.get_audit().opening_retries) > prior_retries and bool(body_source.get_audit().opening_confirmed), 5.0)
+		print("ENGINEER_OPENING_RECOVERY: ", body_source.get_audit())
+	_check(body_ready and not bool(_game.get("_transition_busy")) and _player.is_control_enabled() and _player.is_on_floor(), "ordinary hatch finishes supported and actual refused opening recovers before walking")
 	await _walk(_craft.to_local(_craft.get_engineer_station_role_contract().entry_transform.origin))
 	_check(_player.is_on_floor(), "ordinary cabin walk reaches chair supported")
 	await _look(_craft.get_engineer_seat_anchor().global_position + Vector3.UP * 1.2)
