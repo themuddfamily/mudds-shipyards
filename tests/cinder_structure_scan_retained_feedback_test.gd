@@ -139,6 +139,29 @@ func _initialize() -> void:
 		"reward-pending state is readable once without adding scan or grant authority",
 	)
 
+	var save_pending := _scan(2, 4.0, true)
+	save_pending["reward_committed"] = true
+	save_pending["reward_pending"] = false
+	save_pending["persistence_retry_available"] = true
+	view = hud.set_nearby_activity_snapshot({"structure_scan": save_pending})
+	feedback = _scan_card(view).get("scan_feedback", {}) as Dictionary
+	hud.set_activity_objective("Derelict scan", save_pending.merged({"state_id": &"complete"}))
+	_check(feedback.stage_id == &"discovery_save_pending"
+		and "SAVE PENDING" in _scan_text(_scan_row(hud))
+		and "START" in str(feedback.objective_text)
+		and not "REWARD PENDING" in _scan_text(_scan_row(hud))
+		and "START TO RETRY" in str(hud.get_activity_objective_report().text),
+		"paid discovery save failure stays readable on the retained row and standing objective")
+	save_pending["discovery_persisted"] = true
+	save_pending["persistence_retry_available"] = false
+	view = hud.set_nearby_activity_snapshot({"structure_scan": save_pending})
+	feedback = _scan_card(view).get("scan_feedback", {}) as Dictionary
+	hud.set_activity_objective("Derelict scan", save_pending.merged({"state_id": &"complete"}))
+	_check(feedback.stage_id == &"discovery_recorded"
+		and not "START" in str(feedback.objective_text)
+		and not "START TO RETRY" in str(hud.get_activity_objective_report().text),
+		"recorded discovery clears save retry guidance on both retained and standing views")
+
 	binding.queue_free()
 	hud.queue_free()
 	await process_frame

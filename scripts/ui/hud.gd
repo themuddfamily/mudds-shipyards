@@ -1612,6 +1612,8 @@ func set_activity_objective(display_name: String, snapshot: Dictionary) -> void:
 			&"complete", &"completed":
 				if bool(snapshot.get("discovery_persisted", false)):
 					activity_text = "DERELICT SCAN  COMPLETE — DISCOVERY RECORDED"
+				elif bool(snapshot.get("persistence_retry_available", false)):
+					activity_text = "DERELICT SCAN  SAVE PENDING — REWARD SAVED — START TO RETRY"
 				elif bool(snapshot.get("reward_committed", false)):
 					activity_text = "DERELICT SCAN  COMPLETE — SAMPLE RECORDED"
 				elif bool(snapshot.get("reward_pending", false)):

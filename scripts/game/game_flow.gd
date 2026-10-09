@@ -17868,7 +17868,17 @@ func _present_cinder_structure_scan_completion(reward: Dictionary) -> void:
 		return
 	var authority := reward.get("authority_result", {}) as Dictionary
 	var receipt := authority.get("receipt", {}) as Dictionary
-	if bool(reward.get("accepted", false)) \
+	var persistence := reward.get("persistence_result", {}) as Dictionary
+	if bool(authority.get("granted", false)) \
+			and not bool(reward.get("discovery_persisted", false)) \
+			and not persistence.is_empty() and not bool(persistence.get("accepted", false)):
+		hud.toast(
+			"Derelict scan complete",
+			"Discovery save pending — Shipyard receipt #%d saved; choose Start to retry"
+				% int(receipt.get("receipt_id", 0)),
+			3.2,
+		)
+	elif bool(reward.get("accepted", false)) \
 			and bool(authority.get("accepted", false)):
 		hud.toast(
 			"Derelict scan complete",
@@ -18115,7 +18125,8 @@ func _sync_cinder_structure_scan_activity_hud() -> bool:
 	var presentable := state_id == &"active" or (
 		state_id == &"complete"
 		and not bool(scan.get("discovery_persisted", false))
-		and not bool(scan.get("reward_committed", false))
+		and (not bool(scan.get("reward_committed", false))
+			or bool(scan.get("persistence_retry_available", false)))
 	)
 	if not presentable:
 		return false

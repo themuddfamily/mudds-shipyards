@@ -186,15 +186,30 @@ func _test_paid_discovery_write_recovery() -> void:
 	root.add_child(game)
 	await process_frame
 	game.set_physics_process(false)
-	var cluster := CLUSTER_SCENE.instantiate() as NearbySectorCluster
-	root.add_child(cluster)
-	await process_frame
+	var cluster := await _load_main_cluster(game)
 	var binding := cluster.get_node(^"ActivityBinding") as NearbySectorActivityBinding
 	game.bind_cinder_scan_discovery_persistence(binding)
 	game.call(&"_configure_cinder_structure_scan_reward_handoff", binding)
 	binding.start_structure_scan(ScanActivityScript.APPROACH_ANCHOR)
-	binding.advance_structure_scan(ScanActivityScript.SCAN_SECONDS)
-	var paid := binding.request_structure_scan_reward()
+	var craft := game.get_flyable_ships()[1] as HeroShip
+	game.active_ship = craft
+	craft.global_position = ScanActivityScript.APPROACH_ANCHOR
+	var completed := game.call(&"_advance_cinder_structure_scan", ScanActivityScript.SCAN_SECONDS, {
+		"available": true, "actor_kind": &"ship", "actor_instance_id": craft.get_instance_id(),
+		"position": craft.global_position,
+	}) as Dictionary
+	var paid := completed.get("reward_result", {}) as Dictionary
+	var pending_toast := (game.hud.get("_toast_detail") as Label).text
+	var pending_objective: Dictionary = game.hud.get_activity_objective_report()
+	var pending_card := _scan_card(game.hud.set_nearby_activity_snapshot(binding.get_snapshot()))
+	_check("Discovery save pending" in pending_toast and "choose Start" in pending_toast
+		and "receipt #1 saved" in pending_toast and not "was not saved" in pending_toast
+		and bool(pending_objective.get("visible", false))
+		and "SAVE PENDING" in str(pending_objective.get("text", ""))
+		and "START TO RETRY" in str(pending_objective.get("text", ""))
+		and (pending_card.scan_feedback as Dictionary).stage_id == &"discovery_save_pending"
+		and "START" in str(pending_card.objective_text),
+		"actual Main keeps the paid scan visible with discovery save pending and Start retry guidance")
 	var paid_generation := store.get_generation()
 	var duplicate := binding.request_structure_scan_reward()
 	var snapshot := binding.get_activity_snapshot(&"structure_scan")
@@ -205,7 +220,10 @@ func _test_paid_discovery_write_recovery() -> void:
 		"a real paid scan keeps its terminal receipt and profile bytes after rejected discovery and duplicate")
 	var reset := binding.reset_structure_scan()
 	var restart := binding.start_structure_scan(ScanActivityScript.APPROACH_ANCHOR)
-	var rejected_retry := game.call(&"_start_nearby_activity", binding, ScanActivityScript.ACTIVITY_ID) as Dictionary
+	game.call(&"_on_hud_nearby_activity_intent_requested", {
+		"activity_id": ScanActivityScript.ACTIVITY_ID, "reason": &"start_requested",
+	})
+	var rejected_retry := game.get("_last_cinder_structure_scan_reward_result") as Dictionary
 	_check(not bool(reset.accepted) and not bool(restart.accepted)
 		and not bool(rejected_retry.accepted)
 		and binding.get_activity_snapshot(&"structure_scan").state_id == &"complete"
@@ -213,17 +231,33 @@ func _test_paid_discovery_write_recovery() -> void:
 		and store.get_generation() == paid_generation
 		and FileAccess.get_file_as_bytes(path) == filesystem.reward_bytes,
 		"reset, restart and Start retry preserve the paid discovery while the actual disk path remains blocked")
+	var retry_toast := (game.hud.get("_toast_detail") as Label).text
+	_check("Discovery save pending" in retry_toast and "receipt #1 saved" in retry_toast
+		and not "was not saved" in retry_toast
+		and "START TO RETRY" in str(game.hud.get_activity_objective_report().get("text", "")),
+		"the ordinary Start action retains paid-reward copy and standing retry guidance after another rejected save")
 	filesystem.block_after_reward = false
 	DirAccess.remove_absolute(path + ".tmp")
-	var recovered := game.call(&"_start_nearby_activity", binding, ScanActivityScript.ACTIVITY_ID) as Dictionary
+	game.call(&"_on_hud_nearby_activity_intent_requested", {
+		"activity_id": ScanActivityScript.ACTIVITY_ID, "reason": &"start_requested",
+	})
+	var recovered := game.get("_last_cinder_structure_scan_reward_result") as Dictionary
+	var recovery_generation := store.get_generation()
 	var repeated := binding.call(&"retry_structure_scan_discovery_persistence") as Dictionary
 	var rewards := store.get_snapshot().get("game_flow_reward_store", {}) as Dictionary
 	_check(bool(recovered.accepted) and bool(recovered.get("discovery_persisted", false))
-		and not bool(repeated.get("accepted", false)) and store.get_generation() == paid_generation + 1
+		and not bool(repeated.get("accepted", false))
+		and store.get_generation() == recovery_generation and recovery_generation > paid_generation
 		and int(rewards.total_receipts) == 1
 		and int((rewards.reward_counts as Dictionary).derelict_material_sample) == 1,
 		"the existing Start action saves the paid discovery once after disk recovery without paying again")
-	cluster.queue_free(); game.queue_free()
+	var recorded_card := _scan_card(game.hud.set_nearby_activity_snapshot(binding.get_snapshot()))
+	_check(not "choose Start" in (game.hud.get("_toast_detail") as Label).text
+		and not "START TO RETRY" in str(game.hud.get_activity_objective_report().get("text", ""))
+		and (recorded_card.scan_feedback as Dictionary).stage_id == &"discovery_recorded"
+		and not "START" in str(recorded_card.objective_text),
+		"successful ordinary Start recovery clears the standing and retained-row retry prompts")
+	game.queue_free()
 	for _frame in 3: await process_frame
 
 	var fresh_store := StoreScript.new(path)
@@ -232,9 +266,7 @@ func _test_paid_discovery_write_recovery() -> void:
 	root.add_child(fresh)
 	await process_frame
 	fresh.set_physics_process(false)
-	var fresh_cluster := CLUSTER_SCENE.instantiate() as NearbySectorCluster
-	root.add_child(fresh_cluster)
-	await process_frame
+	var fresh_cluster := await _load_main_cluster(fresh)
 	var fresh_binding := fresh_cluster.get_node(^"ActivityBinding") as NearbySectorActivityBinding
 	fresh.bind_cinder_scan_discovery_persistence(fresh_binding)
 	fresh.call(&"_configure_cinder_structure_scan_reward_handoff", fresh_binding)
@@ -246,15 +278,33 @@ func _test_paid_discovery_write_recovery() -> void:
 		and int(((report.get("authority", {}) as Dictionary).get("record", {}) as Dictionary).get("total_receipts", -1)) == 1
 		and FileAccess.get_file_as_bytes(path) == before_replay,
 		"fresh Main reloads recorded discovery and one paid receipt without replaying the live scan")
+	fresh.call(&"_sync_activity_hud")
+	var restored_card := _scan_card(fresh.hud.set_nearby_activity_snapshot(fresh_binding.get_snapshot()))
+	_check(not "START TO RETRY" in str(fresh.hud.get_activity_objective_report().get("text", ""))
+		and (restored_card.scan_feedback as Dictionary).stage_id == &"discovery_recorded"
+		and not "START" in str(restored_card.objective_text),
+		"fresh Main presents recorded discovery without a stale retry prompt")
 	_check(bool(fresh_binding.start_structure_scan(ScanActivityScript.APPROACH_ANCHOR).accepted),
 		"recorded discovery permits a normal new scan after reload")
-	fresh_cluster.queue_free(); fresh.queue_free()
+	fresh.queue_free()
 	for _frame in 3: await process_frame
 	var cleanup := DirAccess.open(directory)
 	if cleanup != null:
 		for filename in cleanup.get_files():
 			DirAccess.remove_absolute(directory.path_join(filename))
 	DirAccess.remove_absolute(directory)
+
+
+func _load_main_cluster(game: GameFlow) -> NearbySectorCluster:
+	game.get_node(^"CinderStreamingProductionBinding").set_physics_process(false)
+	var bootstrap := game.get_node(^"CinderStreamingBootstrap") as CinderStreamingBootstrap
+	bootstrap.update_position(CinderStreamingBootstrap.EXPECTED_NAVIGATION_ANCHOR)
+	for _frame in 60:
+		if bootstrap.get_loaded_instance() != null:
+			return bootstrap.get_loaded_instance() as NearbySectorCluster
+		await process_frame
+	_check(false, "actual Main loads Cinder through its production bootstrap")
+	return null
 
 
 func _test_terminal_receipt_gate() -> void:

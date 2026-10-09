@@ -810,6 +810,10 @@ func _scan_feedback(state: Dictionary) -> Dictionary:
 						)
 					)
 				)
+				if not discovery_persisted and bool(state.get("persistence_retry_available", false)):
+					stage_id = &"discovery_save_pending"
+					summary = "DISCOVERY SAVE PENDING  //  SHIPYARD REWARD SAVED"
+					objective = "CHOOSE START TO RETRY DISCOVERY SAVE"
 			3:
 				stage_id = &"interrupted"
 				summary = "PROGRESS RESET  //  RETURN TO SCAN MARKER"
