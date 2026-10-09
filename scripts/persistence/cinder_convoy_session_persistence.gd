@@ -53,7 +53,8 @@ func save(
 		host: CinderConvoyEscortHost,
 		escort_ship_id: StringName,
 		commit_id: String,
-		threat: CinderConvoyThreat = null
+		threat: CinderConvoyThreat = null,
+		reset_source: CinderConvoyEscortHost = null
 	) -> Dictionary:
 	if not is_instance_valid(host):
 		return _result(false, &"convoy_session_save_invalid")
@@ -62,7 +63,8 @@ func save(
 		host,
 		escort_ship_id,
 		commit_id,
-		threat
+		threat,
+		reset_source
 	)
 
 
@@ -73,7 +75,8 @@ func save_state(
 		host: CinderConvoyEscortHost,
 		escort_ship_id: StringName,
 		commit_id: String,
-		threat: CinderConvoyThreat = null
+		threat: CinderConvoyThreat = null,
+		reset_source: CinderConvoyEscortHost = null
 	) -> Dictionary:
 	if not _configured() or not is_instance_valid(host) \
 			or not _stable_ship_id(str(escort_ship_id)) \
@@ -111,7 +114,7 @@ func save_state(
 			candidate_activity.reward_granted = existing_activity.reward_granted
 		var existing := _decode_record(payload[slot_key] as Dictionary)
 		var transition := _validate_transition(
-			existing.session_state as Dictionary, canonical_state, existing_activity
+			existing.session_state as Dictionary, canonical_state, existing_activity, host, reset_source
 		)
 		if not bool(transition.get("accepted", false)):
 			return transition
@@ -318,7 +321,8 @@ func _decode_record(record: Dictionary) -> Dictionary:
 	}.duplicate(true)
 
 
-func _validate_transition(existing: Dictionary, candidate: Dictionary, existing_activity: Dictionary) -> Dictionary:
+func _validate_transition(existing: Dictionary, candidate: Dictionary, existing_activity: Dictionary,
+		host: CinderConvoyEscortHost, reset_source: CinderConvoyEscortHost) -> Dictionary:
 	if existing == candidate:
 		return _result(true, &"convoy_session_unchanged")
 	var previous_host := existing.host_state as Dictionary
@@ -328,6 +332,17 @@ func _validate_transition(existing: Dictionary, candidate: Dictionary, existing_
 	var old_generation := int(previous_activity.generation)
 	var new_generation := int(next_activity.generation)
 	if new_generation != old_generation:
+		if int(previous_activity.state) == ConvoyEscortActivity.State.IDLE \
+				and new_generation == old_generation + 2 \
+				and int(next_activity.state) == ConvoyEscortActivity.State.IDLE \
+				and is_instance_valid(reset_source) and reset_source.is_staged_persistence_reset(host) \
+				and _canonical_state(reset_source.get_persistence_start_state()) == previous_host:
+			var source := reset_source.capture_persistence_state()
+			if bool(reset_source.validate_persistence_state(source).get("accepted", false)) \
+					and int(source.activity_state.generation) == old_generation + 1 \
+					and int(source.entity_generation) == int(previous_host.entity_generation) + 1 \
+					and int(candidate_host.entity_generation) == int(source.entity_generation):
+				return _result(true, &"convoy_unsaved_run_reset")
 		if new_generation != old_generation + 1:
 			return _result(false, &"unproven_convoy_generation")
 		if int(previous_activity.state) == ConvoyEscortActivity.State.COMPLETED \
@@ -343,7 +358,8 @@ func _validate_transition(existing: Dictionary, candidate: Dictionary, existing_
 				and str(existing.escort_ship_id) == str(candidate.escort_ship_id):
 			return _result(true, &"convoy_reset_saved")
 		if int(previous_activity.state) == ConvoyEscortActivity.State.IDLE \
-				and int(next_activity.state) == ConvoyEscortActivity.State.ACTIVE \
+				and int(next_activity.state) in [ConvoyEscortActivity.State.ACTIVE, ConvoyEscortActivity.State.COMPLETED, ConvoyEscortActivity.State.FAILED] \
+				and _canonical_state(host.get_persistence_start_state()) == previous_host \
 				and int(candidate_host.entity_generation) == int(previous_host.entity_generation) + 1:
 			return _result(true, &"convoy_new_run_saved")
 		return _result(false, &"unproven_convoy_generation")

@@ -2664,7 +2664,7 @@ func _save_cinder_convoy_reset_candidate(candidate: CinderConvoyEscortHost) -> D
 	if next_generation <= 0 or next_generation > UserDataStoreType.MAX_GENERATION:
 		return {"accepted": false, "reason": &"convoy_session_commit_id_exhausted"}
 	return _cinder_convoy_session_persistence.save(candidate, _cinder_convoy_persistence_ship_id(),
-		"%s%010d" % [CINDER_CONVOY_SESSION_COMMIT_PREFIX, next_generation])
+		"%s%010d" % [CINDER_CONVOY_SESSION_COMMIT_PREFIX, next_generation], null, cinder_convoy_host)
 
 
 func _retire_cinder_convoy_session() -> Dictionary:

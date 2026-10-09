@@ -102,6 +102,8 @@ var _last_entity_position := Vector3.ZERO
 var _mutation_active := false
 var _signal_dispatch_active := false
 var _terminal_signal_generation := -1
+var _persistence_start_state: Dictionary = {}
+var _persistence_reset_candidate: CinderConvoyEscortHost
 
 
 func _init(
@@ -143,6 +145,7 @@ func start(expected_generation: int) -> Dictionary:
 	if _activity.get_state() != ConvoyEscortActivity.State.IDLE:
 		return _finish(false, &"reset_required")
 	_restore_missing_convoy_entity()
+	var previous_state := capture_persistence_state()
 
 	var candidate_entity_generation := _entity_generation + 1
 	var started := _activity.start(
@@ -168,6 +171,7 @@ func start(expected_generation: int) -> Dictionary:
 	_convoy_entity.visible = true
 	_set_entity_position(ROUTE.get_checkpoint_position(0))
 	_orient_toward_route_index(1)
+	_persistence_start_state = previous_state.duplicate(true)
 	var result := _finish(true, &"started")
 	_emit_snapshot(convoy_started)
 	_emit_snapshot(presentation_changed)
@@ -347,7 +351,9 @@ func reset_with_persistence(expected_generation: int, persist_reset: Callable) -
 	if not bool(staged_reset.get("accepted", false)):
 		candidate.free()
 		return _finish(false, &"reset_candidate_rejected")
+	_persistence_reset_candidate = candidate
 	var saved: Variant = persist_reset.call(candidate)
+	_persistence_reset_candidate = null
 	candidate.free()
 	if not saved is Dictionary or not bool(saved.get("accepted", false)):
 		var failed := _finish(false, &"convoy_reset_save_rejected")
@@ -373,6 +379,7 @@ func _publish_typed_reset(expected_generation: int) -> Dictionary:
 	_has_escort_sample = false
 	_last_escort_position = Vector3.ZERO
 	_terminal_signal_generation = -1
+	_persistence_start_state.clear()
 	_convoy_entity.visible = true
 	_set_entity_position(ROUTE.get_checkpoint_position(0))
 	_orient_toward_route_index(1)
@@ -384,6 +391,20 @@ func _publish_typed_reset(expected_generation: int) -> Dictionary:
 
 func get_generation() -> int:
 	return _activity.get_generation() if is_instance_valid(_activity) else 0
+
+
+## Only an accepted real start retains its exact prior owner capture. It is
+## transient proof of an interrupted save, never a serialized generation floor.
+func get_persistence_start_state() -> Dictionary:
+	return _persistence_start_state.duplicate(true) if _attached else {}
+
+
+## A reset witness exists only during this original owner's guarded commit.
+## Historical/discarded scratch instances and completed reward debt cannot use it.
+func is_staged_persistence_reset(candidate: CinderConvoyEscortHost) -> bool:
+	return _attached and _mutation_active and is_instance_valid(candidate) \
+		and candidate == _persistence_reset_candidate and is_instance_valid(_activity) \
+		and _activity.get_state() in [ConvoyEscortActivity.State.ACTIVE, ConvoyEscortActivity.State.FAILED]
 
 
 ## Read-only renderer template for the host-driven client presentation. Copies
