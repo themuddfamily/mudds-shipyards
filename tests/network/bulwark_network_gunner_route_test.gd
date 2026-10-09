@@ -203,9 +203,11 @@ func _host() -> void:
 	await _ticks(35)
 	_check(owner.get_assignment(peer, avatar).is_empty() and not body.is_seated(), "migration releases physical gunner without resurrection")
 	_check(body.get_cabin_containment_report().active, "migration restores usable retained cabin body")
+	_print_chair_state("host_migrated", body, avatar)
 	_write("host.migrated", {})
 	if not await _wait_file("client.disconnect_charging", 20.0):
 		return
+	_print_chair_state("host_disconnect_charge", body, avatar)
 	_check(not owner.get_assignment(peer, avatar).is_empty() and _craft.get_telemetry().engine_state == HeroShip.ENGINE_ONLINE and not (_craft.get_gunner_gameplay_state().role_charges as Dictionary).is_empty(), "remote role is actually occupied, powered and charging at disconnect boundary")
 	_write("host.disconnect_ready", {})
 	if not await _wait_file("client.disconnected", 20.0):
@@ -313,10 +315,26 @@ func _client() -> void:
 		return
 	_check(await _until(func(): return not _player.is_seated() and not bool(_game.get("_transition_busy")), 8.0), "migration releases confirmed client chair presentation")
 	_check(source.get_authority_peer_id() == 1, "migration restores borrowed input source")
-	await _ticks(20)
+	_print_chair_state("client_immediate_migration_recovery", _player)
 	await _look(_craft.get_gunner_station_anchor().global_position + Vector3.UP * 1.2)
+	var ready := await _until(func():
+		var body_source := _game.get_network_remote_body_intent_source()
+		var candidate := _game._find_station_interaction_candidate()
+		return _player.is_on_floor() and _player.is_control_enabled() and not bool(_game.get("_transition_busy")) \
+			and not _player.is_seated() and _game._network_client_boarding_holds(_craft) \
+			and body_source != null and body_source.is_bound() and candidate is ShipCrewSeat \
+			and candidate.get_ship() == _craft and candidate.get_seat_id() == BulwarkHeavyGunship.GUNNER_SEAT_ID,
+		8.0)
+	_print_chair_state("client_before_migration_reseat", _player)
+	_check(ready, "migration recovery reaches supported controllable ordinary chair approach")
+	if not ready:
+		return
 	await _press(&"interact")
-	_check(await _until(func(): return _player.is_seated_at(_craft.get_gunner_station_anchor()) and not bool(_game.get("_transition_busy")), 8.0), "ordinary chair remains reusable after migration")
+	var migration_reseated := await _until(func(): return _player.is_seated_at(_craft.get_gunner_station_anchor()) and not bool(_game.get("_transition_busy")), 8.0)
+	_print_chair_state("client_after_migration_reseat", _player)
+	_check(migration_reseated, "ordinary chair remains reusable after migration")
+	if not migration_reseated:
+		return
 	source.notification(MainLoop.NOTIFICATION_APPLICATION_FOCUS_IN)
 	await _look(target.global_position)
 	Input.action_press(source.fire_action)
@@ -396,15 +414,59 @@ func _wait_file(name: String, seconds: float) -> bool:
 	return result
 
 func _write(name: String, data: Dictionary) -> void:
-	print("GUNNER_PEER_BOUNDARY: ", _role, " ", name)
-	var file := FileAccess.open(_directory.path_join(name), FileAccess.WRITE)
+	var target := _directory.path_join(name)
+	var temporary := target + ".tmp-" + str(OS.get_process_id())
+	var file := FileAccess.open(temporary, FileAccess.WRITE)
+	if file == null:
+		_check(false, "peer receipt temporary file opens: " + name)
+		return
 	file.store_string(JSON.stringify(data))
+	file.flush()
+	var write_error := file.get_error()
 	file.close()
+	if write_error != OK or DirAccess.rename_absolute(temporary, target) != OK:
+		_check(false, "complete peer receipt publishes atomically: " + name)
+		return
+	print("GUNNER_PEER_BOUNDARY: ", _role, " ", name)
 
 func _read(name: String) -> Dictionary:
 	if not FileAccess.file_exists(_directory.path_join(name)):
 		return {}
-	return JSON.parse_string(FileAccess.get_file_as_string(_directory.path_join(name))) as Dictionary
+	var parsed := JSON.new()
+	if parsed.parse(FileAccess.get_file_as_string(_directory.path_join(name))) != OK or not parsed.data is Dictionary:
+		print("GUNNER_INVALID_RECEIPT: ", name)
+		return {}
+	return parsed.data
+
+func _print_chair_state(boundary: String, body: PlayerController, avatar: StringName = &"") -> void:
+	var seat := _craft.find_child("SoloGunnerSeatInteraction", true, false) as ShipCrewSeat
+	var state := {
+		"boundary": boundary, "role": _role, "local_position": _craft.to_local(body.global_position),
+		"floor": body.is_on_floor(), "controls": body.is_control_enabled(), "seated": body.is_seated(),
+		"station_context": body.is_station_seated(), "nearby": body.get_nearby_interactables(),
+		"reach": body.get_interaction_origin().distance_to(seat.get_entry_transform().origin),
+		"epochs": _game.network_session.get_migration_snapshot(),
+		"movement_tick": _game.network_session.get_movement_server_tick(),
+		"relationship_tick": _game.network_session.get_moving_interior_latest_server_tick(),
+		"boarding_tick": _game.network_session.get_boarding_server_tick_estimate(),
+		"view": _game.network_session.get_gunner_replica_snapshot(),
+		"source_owner": _craft.get_local_input_source().get_authority_peer_id(),
+	}
+	if _role == "host":
+		state["body_record"] = _game.get_network_remote_body_simulation().get_body_record(avatar)
+		state["body_audit"] = _game.get_network_remote_body_audit()
+		state["movement_audit"] = _game.network_session.get_movement_authority_audit()
+		state["assignment"] = _craft.get_crew_role_authority().get_assignment(int(NetworkRemoteBodySimulation.get_remote_body_identity(body).get("owner_peer_id", 0)), avatar)
+	else:
+		state["phase"] = _game.phase
+		state["transition_busy"] = _game.get("_transition_busy")
+		state["pending_seat"] = _game.get("_network_engineer_pending_seat")
+		state["boarding_holds"] = _game._network_client_boarding_holds(_craft)
+		state["candidate"] = _game._find_station_interaction_candidate()
+		var source := _game.get_network_remote_body_intent_source()
+		state["body_source_bound"] = source != null and source.is_bound()
+		state["body_source_audit"] = source.get_audit() if source != null else {}
+	print("GUNNER_CHAIR_STATE: ", state)
 
 func _check(condition: bool, description: String) -> void:
 	_checks += 1
