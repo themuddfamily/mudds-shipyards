@@ -1,0 +1,13 @@
+Linux playable checkpoint — 2205dc35f50b8b0e27005a5b4dc6fc274d46c3a2
+
+Walk into Jovian, use its engineer chair, select a damaged component and use FIRE to repair it with finite host-owned kits. Stand or disconnect without retaining chair or repair authority. Network on-foot startup recovers a refused opening against the actual movement ledger; engineer requests retain their existing boarding-clock checks.
+
+Validation: clean Linux export; embedded solo48, input42 and actual separate-peer67 pass with actual exit0/reaped (host25/client30). All three peers load the same selected package. Standalone ELF and fresh unpacked archive startup each exit0 with exactly one parsed STARTUP_MENU_READY_OK and mouse-free loading. Embedded inventory1488, safe archive members, gzip CRC, inner ELF byte parity and executable mode0755 pass. Source/cache/artifact hashes remain unchanged; owned actors are absent.
+
+Retained failures: the original102e47f package orchestrator launched an empty child path (/tmp/mudds-linux-102e47f-evidence/peer.log). The first path-only repair exposed three unrelated negative checks masked by request expiry (/tmp/mudds-engineer-path-package.log, actual exit1). The existing fixture now resolves the project path and refreshes ticks for independent negative requests; the deliberate expired request and runtime fences are unchanged. These failed runs are not relabeled.
+
+ELF SHA256: 52c47beacf353a0edb57efbe822d026abedaf8375d52c9110c226f951120b545
+Archive SHA256: 9868b78fb67c306e28468abccaa3c855459daccc1f24345030b2583a9710254a
+The unchanged five-member export archive contains the executable and desktop-launch files; these notes are a separate sidecar.
+
+Bounded checkpoint, not a final release. Exact-source full regression, clean native Linux desktop/installed launch, native GPU/controller/audio/human review, multiplayer endurance, trusted signing and final release acceptance remain NOT_RUN. The older7b matrix cannot qualify this source. New remote Bulwark gunner integration is not included.
