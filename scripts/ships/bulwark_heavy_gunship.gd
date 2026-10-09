@@ -1357,17 +1357,22 @@ func _fit_cockpit_armor_tub(cockpit: Node3D, armor: Material) -> void:
 
 
 func _tub_quad(surface: SurfaceTool, a: Vector3, b: Vector3, c: Vector3, d: Vector3, inside: Vector3) -> void:
-	var normal := (c - a).cross(b - a).normalized()
-	var points := [a, b, c] if c == d else [a, b, c, a, c, d]
-	if normal.dot((a + b + c + d) * 0.25 - inside) < 0.0:
-		normal = -normal
-		points.reverse()
+	var triangles := [[a, b, c]] if c == d else [[a, b, c], [a, c, d]]
 	var u := (b - a).normalized()
-	var v := u.cross(normal).normalized()
-	for point: Vector3 in points:
-		surface.set_normal(normal)
-		surface.set_uv(Vector2((point - a).dot(u), (point - a).dot(v)))
-		surface.add_vertex(point)
+	# A glazing edge can cross the enclosure roof. Its two joining triangles
+	# then face opposite ways, so orient each against the cabin interior rather
+	# than carrying the first triangle's normal across the whole quad.
+	for points: Array in triangles:
+		var normal: Vector3 = (points[2] - points[0]).cross(points[1] - points[0]).normalized()
+		var center: Vector3 = (points[0] + points[1] + points[2]) / 3.0
+		if normal.dot(center - inside) < 0.0:
+			normal = -normal
+			points.reverse()
+		var v := u.cross(normal).normalized()
+		for point: Vector3 in points:
+			surface.set_normal(normal)
+			surface.set_uv(Vector2((point - a).dot(u), (point - a).dot(v)))
+			surface.add_vertex(point)
 
 
 ## A formed pressure crown supports the retained cabin floor at y=1.87.
