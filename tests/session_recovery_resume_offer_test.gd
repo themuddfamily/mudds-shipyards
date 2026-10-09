@@ -73,6 +73,10 @@ func _init() -> void:
 
 
 func _run() -> void:
+	if "--solo-crew-only" in OS.get_cmdline_user_args():
+		await _test_real_solo_crew_recovery()
+		_finish()
+		return
 	var recovery_snapshot := _test_unclean_shutdown_is_detected_and_clean_quit_is_not()
 	_test_save_summary_names_the_resumed_save()
 	await _test_startup_card_offers_resume_or_start_fresh(recovery_snapshot)
@@ -551,6 +555,14 @@ func _test_real_solo_crew_recovery() -> void:
 	game.player.teleport_to(entry)
 	await _settle_frames()
 	_check(game.station_interaction_candidate == seat and (game.hud.get("_interaction_label") as Label).text.contains("PASSENGER"), "ordinary facing and overlap discover the physical passenger chair and its visible prompt")
+	var contract := (seat as ShipCrewSeat).get_role_contract()
+	_check(contract.get("seat") == craft.get_loadmaster_station_anchor() and contract.get("frame") == craft.get_moving_interior_component() and contract.get("vessel_id") == craft.get_ship_id() and contract.get("seat_id") == &"crew_port_00" and contract.get("role") == &"passenger" and contract.get("entry_transform") == entry and contract.get("exit_transform") == entry, "ordinary Halyard chair publishes its original live craft, role, frame and entry/exit poses")
+	var anchor := craft.get_loadmaster_station_anchor()
+	var anchor_parent := anchor.get_parent()
+	anchor.reparent(game, true)
+	_check((seat as ShipCrewSeat).get_role_contract().is_empty() and not game.player.is_seated() and craft.get_crew_role_authority() == null, "chair discovery refuses an anchor that left its craft hierarchy before granting any crew claim")
+	anchor.reparent(anchor_parent, true)
+	await _settle_frames()
 	var foreign := CrewSeatRoleAuthority.new(1)
 	foreign.register_halyard_roster()
 	foreign.claim(1, 2, &"other_passenger", &"crew_port_00", &"passenger", 1)
@@ -609,8 +621,23 @@ func _test_real_solo_crew_recovery() -> void:
 	await _settle_frames()
 	_check(bool(hosted.get("accepted", false)) and authority.get_snapshot().assignments.is_empty() and not game.player.is_seated() and not game.player.has_meta(HalyardCrewTransport.HALYARD_CREW_ROLE_OCCUPANT_META) and game.player.is_control_enabled() and game.player.is_on_floor(), "successful production host handback releases the local passenger before network composition owns the session")
 	await _press_crew_interaction()
-	_check(not game.player.is_seated(), "live network sessions cannot acquire the solo passenger chair")
+	_check(not game.player.is_seated_at(craft.get_loadmaster_station_anchor()) and not game.player.has_meta(HalyardCrewTransport.HALYARD_CREW_ROLE_OCCUPANT_META) and craft.get_crew_role_authority() == null and (game.get_solo_crew_seat_status().get("assignment", {}) as Dictionary).is_empty(), "live network E cannot acquire a solo passenger claim or physical crew tag")
+	# The network chair filter deliberately lets this press reach the legal
+	# empty cockpit. Prove and finish that actual pilot handoff before teardown.
+	_check(await _wait_for_seat(game, craft) and craft.is_piloted() and game.player.is_seated_at(craft.get_pilot_seat_anchor()), "network E beside the unavailable solo chair uses only the authorized pilot seat")
+	await _press_crew_interaction()
+	await _settle_frames(120)
+	_check(not game.player.is_seated() and game.player.is_control_enabled() and game.player.is_on_floor() and not craft.is_piloted() and not bool(game.get("_transition_busy")), "ordinary E fully leaves the host pilot seat onto supported controllable deck")
 	game.shutdown_network_session(&"crew_test")
+	await _retire_game(game)
+	# Subsequent solo persistence is an independent Main session, using the
+	# same authored chair setup as the initial ordinary passenger fixture.
+	game = await _make_game_with_store(store)
+	craft = game.get_node("HalyardCrewTransport") as HalyardCrewTransport
+	seat = craft.find_child("SoloPassengerSeatInteraction", true, false) as Area3D
+	game.start_shift()
+	game.set_physics_process(true)
+	game.player.teleport_to(seat.call("get_entry_transform"))
 	await _settle_frames()
 	await _press_crew_interaction()
 	_check(game.player.is_seated_at(craft.get_loadmaster_station_anchor()), "ordinary solo input can admit a passenger after network shutdown")

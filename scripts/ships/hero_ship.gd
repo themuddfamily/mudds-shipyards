@@ -1,6 +1,8 @@
 class_name HeroShip
 extends CharacterBody3D
 
+const SOLO_CREW_ROLE_OCCUPANT_META: StringName = &"_solo_crew_role_occupant"
+
 const EngineExhaustPresentation := preload("res://scripts/ships/engine_exhaust_presentation.gd")
 
 ## Flyable Torrent-class interceptor.
@@ -608,6 +610,7 @@ func _ready() -> void:
 	# Fleet subclasses finish replacing the base visual after super._ready().
 	# Discover their retained muzzle lenses only after that replacement settles.
 	call_deferred("_initialize_weapon_component_presentation")
+	call_deferred("_install_solo_crew_seat")
 	_set_camera_current(_is_piloted_from_this_machine())
 	if _is_piloted_from_this_machine() and DisplayServer.get_name() != "headless":
 		Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
@@ -4212,11 +4215,12 @@ static func _has_exact_planetary_cruise_keys(
 
 ## Player demand bypasses the legacy timed-start seam so the command that wakes
 ## the craft is also the command integrated by flight, weapons, and presentation.
-func _wake_engine_for_automatic_demand() -> void:
+func _wake_engine_for_automatic_demand(release_dock_latch: bool = true) -> void:
 	if _engine_state == ENGINE_ONLINE or _destroyed or _hull <= 0.0:
 		return
 	var startup_cue_needed := _engine_state == ENGINE_OFFLINE
-	_docked_latch = false
+	if release_dock_latch:
+		_docked_latch = false
 	_engine_timer = 0.0
 	_engine_state = ENGINE_ONLINE
 	if _ship_audio_rig != null:
@@ -9377,3 +9381,97 @@ func _remove_atmospheric_wind_drift(drift: Vector3) -> void:
 func _discard_pending_atmospheric_wind_drift() -> void:
 	_pending_atmospheric_wind_drift_mps = Vector3.ZERO
 # --- end atmospheric wind drift ----------------------------------------------
+
+
+## Only ships with an authored ordinary crew chair install this discovery area.
+func _install_solo_crew_seat() -> void:
+	if not is_inside_tree() or not has_method(&"get_gunner_station_role_contract"):
+		return
+	var contract: Dictionary = call(&"get_gunner_station_role_contract")
+	var anchor := contract.get("seat") as Marker3D
+	if is_instance_valid(anchor) and anchor.get_node_or_null("SoloGunnerSeatInteraction") == null:
+		preload("res://scripts/interaction/ship_crew_seat.gd").install(anchor, self)
+
+
+func get_solo_crew_occupant_metadata_key() -> StringName:
+	return HalyardCrewTransport.HALYARD_CREW_ROLE_OCCUPANT_META if self is HalyardCrewTransport else SOLO_CREW_ROLE_OCCUPANT_META
+
+
+## The existing ledger owns the role; the existing frame owns physical carry.
+## Halyard retains its original role handoff and metadata contract verbatim.
+func attach_solo_crew_role_occupant(avatar_id: StringName, seat: ShipCrewSeat, occupant: Node3D) -> Dictionary:
+	var contract := seat.get_role_contract()
+	if contract.is_empty() or seat.get_ship() != self:
+		return {"accepted": false, "status": &"station_contract_unavailable"}
+	if self is HalyardCrewTransport:
+		return call(&"attach_crew_role_occupant", 1, avatar_id, seat.get_seat_id(), occupant, {"require_inside_bounds": false})
+	var authority: CrewSeatRoleAuthority = call(&"get_crew_role_authority")
+	var assignment := authority.get_assignment(1, avatar_id) if authority != null else {}
+	var frame := contract.frame as MovingInteriorFrame
+	if not is_instance_valid(occupant) or not occupant.is_inside_tree() \
+			or assignment.get("seat_id") != contract.seat_id or assignment.get("role") != contract.role \
+			or assignment.get("vessel_id") != get_ship_id() \
+			or occupant.has_meta(SOLO_CREW_ROLE_OCCUPANT_META) or frame.is_occupant_registered(occupant):
+		return {"accepted": false, "status": &"occupancy_identity_mismatch"}
+	var registration := frame.register_occupant(occupant, {"require_inside_bounds": true, "registration_source": &"crew_role_seat"})
+	if not bool(registration.get("registered", false)):
+		return registration
+	occupant.set_meta(SOLO_CREW_ROLE_OCCUPANT_META, {
+		"occupant_peer_id": 1, "avatar_id": avatar_id, "seat_id": contract.seat_id,
+		"seat_generation": int(assignment.get("seat_generation", 0)), "role": contract.role,
+		"authority": authority, "frame": frame, "craft": self,
+	})
+	return {"accepted": true, "status": &"registered", "assignment": assignment}
+
+
+func release_solo_crew_role_occupant(avatar_id: StringName, seat_id: StringName, occupant: Node3D, sequence: int, generation: int, owner: CrewSeatRoleAuthority) -> Dictionary:
+	if self is HalyardCrewTransport:
+		return call(&"release_crew_role_occupant", 1, 1, avatar_id, seat_id, occupant, sequence, generation, false, owner)
+	if owner == null or not is_instance_valid(occupant):
+		return {"accepted": false, "status": &"occupant_unavailable"}
+	var metadata := occupant.get_meta(SOLO_CREW_ROLE_OCCUPANT_META, {}) as Dictionary
+	if metadata.get("craft") != self or metadata.get("authority") != owner \
+			or int(metadata.get("occupant_peer_id", 0)) != 1 or metadata.get("avatar_id") != avatar_id \
+			or metadata.get("seat_id") != seat_id or int(metadata.get("seat_generation", 0)) != generation:
+		return {"accepted": false, "status": &"occupancy_identity_mismatch"}
+	var assignment := owner.get_assignment(1, avatar_id)
+	if not assignment.is_empty() and (assignment.get("seat_id") != seat_id or int(assignment.get("seat_generation", 0)) != generation):
+		return {"accepted": false, "status": &"assignment_mismatch"}
+	var result := owner.release(1, 1, avatar_id, seat_id, sequence, generation) if not assignment.is_empty() else {"accepted": true, "status": &"already_released"}
+	if not bool(result.get("accepted", false)):
+		return result
+	var frame := metadata.get("frame") as MovingInteriorFrame
+	if is_instance_valid(frame) and frame.get_moving_frame() == self and frame.is_occupant_registered(occupant):
+		frame.unregister_occupant(occupant, false, &"crew_role_released")
+	if bool(metadata.get("weapon_power_started", false)) and not _piloted and call(&"get_crew_role_authority") == owner:
+		request_engine_stop()
+	occupant.remove_meta(SOLO_CREW_ROLE_OCCUPANT_META)
+	return result
+
+
+## Actual seated weapon demand may power its craft without releasing its dock
+## or receiving a pilot command. The tag remembers only power this role woke.
+func request_solo_crew_weapon_power(avatar_id: StringName, seat: ShipCrewSeat, occupant: Node3D) -> bool:
+	if _reset_for_reuse_mutation_blocked() or _destroyed or _hull <= 0.0 or not is_inside_tree() \
+			or not is_instance_valid(seat) or seat.get_ship() != self or seat.get_role() != &"gunner" \
+			or not is_instance_valid(occupant) or not occupant.has_method(&"is_seated_at") \
+			or not bool(occupant.call(&"is_seated_at", seat.get_seat_anchor())):
+		return false
+	var contract := seat.get_role_contract()
+	var authority: CrewSeatRoleAuthority = call(&"get_crew_role_authority")
+	var metadata := occupant.get_meta(SOLO_CREW_ROLE_OCCUPANT_META, {}) as Dictionary
+	var assignment := authority.get_assignment(1, avatar_id) if authority != null else {}
+	var frame := contract.get("frame") as MovingInteriorFrame
+	if contract.is_empty() or metadata.get("craft") != self or metadata.get("authority") != authority \
+			or metadata.get("avatar_id") != avatar_id or int(metadata.get("occupant_peer_id", 0)) != 1 \
+			or metadata.get("seat_id") != contract.seat_id or metadata.get("role") != &"gunner" \
+			or assignment.get("seat_id") != contract.seat_id or assignment.get("role") != &"gunner" \
+			or assignment.get("vessel_id") != get_ship_id() \
+			or int(metadata.get("seat_generation", 0)) != int(assignment.get("seat_generation", -1)) \
+			or metadata.get("frame") != frame or not is_instance_valid(frame) or not frame.is_occupant_registered(occupant):
+		return false
+	if _engine_state == ENGINE_OFFLINE:
+		metadata["weapon_power_started"] = true
+		occupant.set_meta(SOLO_CREW_ROLE_OCCUPANT_META, metadata)
+		_wake_engine_for_automatic_demand(false)
+	return _engine_state == ENGINE_ONLINE

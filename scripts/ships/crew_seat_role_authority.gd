@@ -102,6 +102,23 @@ func register_halyard_roster(
 	return seal_roster()
 
 
+## The retained Bulwark roster: its two physical flight-deck stations and
+## existing auxiliary policy slots, all sealed by the same role owner.
+func register_bulwark_roster() -> Dictionary:
+	if _roster_sealed:
+		return _remember(_result(false, &"roster_sealed"))
+	for record in [
+		_seat_record(&"pilot_station", &"pilot_seat_anchor", ROLE_PILOT),
+		_seat_record(&"gunner_station", &"gunner_station_anchor", ROLE_GUNNER),
+		_seat_record(&"passenger_slot", &"", ROLE_PASSENGER),
+		_seat_record(&"engineer_slot", &"", ROLE_ENGINEER),
+	]:
+		var registered := register_seat(record.seat_id, &"bulwark_heavy_gunship", record.role, &"bulwark_flight_deck", 1, record.anchor_id)
+		if not bool(registered.get("accepted", false)):
+			return registered
+	return seal_roster()
+
+
 ## The ship/session coordinator owns the roster boundary. Once sealed, a late
 ## or duplicate marker cannot silently become an authoritative seat.
 func seal_roster() -> Dictionary:
