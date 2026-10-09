@@ -4,6 +4,7 @@ extends SceneTree
 ## escort. It uses Main's real host, streaming seam, and one injected atomic
 ## store while proving startup freeze/rebind and hostile payload rejection.
 
+const InterruptionProbe := preload("res://scripts/diagnostics/in_world_interruption_probe.gd")
 const MAIN_SCENE := preload("res://scenes/main.tscn")
 const Store := preload("res://scripts/persistence/user_data_store.gd")
 const Filesystem := preload("res://scripts/persistence/user_data_filesystem.gd")
@@ -389,94 +390,15 @@ func _run() -> void:
 	_finish()
 
 
-## Driven only by the existing release harness's two owned OS processes.
-## Setup uses the same production Main/escort/interception fixture as this suite;
-## this is not normal-controls, pilot-seat or native-hardware qualification.
+## The optional external-script fixture exercises the same supplied-Main driver
+## as ordinary packaged Boot; the release harness itself uses Boot's entry.
 func _run_os_interruption_stage(stage: String) -> void:
 	var store := Store.new(RuntimeSettingsStoreAdapter.DEFAULT_STORE_PATH) as UserDataStore
 	var game := await _make_game(store)
-	game.set_physics_process(false)
-	if stage == "arm":
-		game.call("_on_settings_save_requested")
-		var selected := game.select_activity_kind(GameFlow.ACTIVITY_KIND_CONVOY_ESCORT)
-		var craft := await _prepare_interrupted_convoy(game, 1)
-		var first_start := game.request_activity_start(GameFlow.CINDER_CONVOY_ACTIVITY_ID)
-		var first_arrival := await _finish_interrupted_convoy(game, craft)
-		var reset := game.reset_active_activity()
-		craft.global_position = GameFlow.CINDER_CONVOY_ACTIVATION_CENTER
-		var next_start := game.request_activity_start(GameFlow.CINDER_CONVOY_ACTIVITY_ID)
-		for _tick in 4:
-			craft.global_position = (game.cinder_convoy_host.get_snapshot().entity_position as Vector3) + GameFlow.CINDER_CONVOY_ESCORT_LANE_OFFSET
-			game.call("_physics_process", 0.25)
-		var saved := game.save_cinder_convoy_session()
-		var boundary := _stored_session_state(store)
-		_check(bool(selected.accepted) and bool(first_start.accepted) and first_arrival and reset
-			and bool(next_start.accepted) and bool(saved.accepted) and _convoy_receipts(game) == 1
-			and game.get_active_activity_snapshot().state_id == &"active"
-			and float(boundary.host_state.movement_distance) > 0.0
-			and _canonical(game.cinder_convoy_host.capture_persistence_state()) == boundary.host_state
-			and _canonical(game.cinder_convoy_threat.capture_persistence_state()) == boundary.threat_state,
-			"the actual second in-world convoy and first paid receipt reach their durable boundary")
-		if not _failures.is_empty():
-			await _retire_game(game)
-			quit(1)
-			return
-		var ready := {"boundary": boundary, "receipts": _convoy_receipts(game),
-			"runtime_observation": _interruption_runtime_observation(game)}
-		# No orderly exit or further gameplay/save mutation before the harness kill.
-		paused = true
-		print("IN_WORLD_INTERRUPTION_READY: " + JSON.stringify(ready))
-		return
-	var boundary := _stored_session_state(store)
-	var observations := _interruption_runtime_observation(game)
-	var recovery := game.get_recovery_available_snapshot()
-	var record := game.get_session_recovery_diagnostic_snapshot()
-	var crash_events := 0
-	for event: Dictionary in record.get("events", []):
-		if event.get("event_code") == "crash_detected":
-			crash_events += 1
-	_check(bool(game.get_cinder_convoy_session_persistence_report().restore_status.get("accepted", false))
-		and game.get_active_activity_snapshot().state_id == &"active"
-		and _canonical(game.cinder_convoy_host.capture_persistence_state()) == boundary.host_state
-		and _canonical(game.cinder_convoy_threat.capture_persistence_state()) == boundary.threat_state
-		and not recovery.is_empty() and recovery.get("state") == "running" and crash_events == 1,
-		"a fresh OS process adopts the exact durable convoy and records its genuine interrupted session once")
-	var before_receipts := _convoy_receipts(game)
-	var craft_index := -1
-	var ships := game.get_flyable_ships()
-	for index in ships.size():
-		if ships[index].get_ship_id() == StringName(boundary.escort_ship_id):
-			craft_index = index
-	_check(craft_index >= 0, "the durable escort identity resolves to its actual shipped craft")
-	var arrived := false
-	if craft_index >= 0 and _failures.is_empty():
-		var craft := await _prepare_interrupted_convoy(game, craft_index)
-		arrived = await _finish_interrupted_convoy(game, craft)
-	game.call("_retry_owed_game_flow_activity_rewards")
-	game.call("_retry_owed_game_flow_activity_rewards")
-	_check(arrived and _convoy_receipts(game) == before_receipts + 1
-		and game.get_active_activity_snapshot().state_id == &"completed"
-		and bool(store.get_snapshot()[String(SLOT)].activities[0].reward_granted),
-		"physical continuation after OS interruption pays the distinct convoy once despite repeated retry")
-	var closed := game.mark_orderly_shutdown()
-	_check(bool(closed.get("accepted", false)), "the recovered process closes both existing recovery marker owners")
-	var outcome := {"boundary": boundary, "receipts_before": before_receipts,
-		"receipts_after": _convoy_receipts(game), "crash_events": crash_events,
-		"runtime_observation": observations, "assertions": _assertions}
-	await _retire_game(game)
-	if _failures.is_empty():
-		print("IN_WORLD_RECOVERY_OK: " + JSON.stringify(outcome))
-		quit(0)
-	else:
-		print("IN_WORLD_RECOVERY_FAILED")
-		quit(1)
-
-
-func _interruption_runtime_observation(game: GameFlow) -> Dictionary:
-	return {"phase": int(game.phase), "piloting": bool(game.get("_piloting")),
-		"craft_id": String(game.active_ship.get_ship_id()), "craft_piloted": game.active_ship.is_piloted(),
-		"player_seated": bool(game.player.call("is_seated")),
-		"craft_position": [game.active_ship.global_position.x, game.active_ship.global_position.y, game.active_ship.global_position.z]}
+	var probe := InterruptionProbe.new()
+	probe.stage = stage
+	root.add_child(probe)
+	await probe.run_with_main(game, "fixture")
 
 
 func _test_terminal_convoy_reward_restart() -> String:
@@ -813,39 +735,11 @@ func _test_interrupted_convoy_lifecycle(paid_path: String) -> void:
 
 
 func _prepare_interrupted_convoy(game: GameFlow, craft_index: int) -> HeroShip:
-	var craft := game.get_flyable_ships()[craft_index] as HeroShip
-	craft.set_piloted(true)
-	game.active_ship = craft
-	game.set("_piloting", true)
-	game.set("_sortie_departed_berth", true)
-	game.phase = GameFlow.Phase.FREE_FLIGHT
-	craft.global_position = GameFlow.CINDER_CONVOY_ACTIVATION_CENTER + Vector3(4.01, 0.0, 0.0)
-	game.call("_physics_process", 0.1)
-	await _wait_until(func() -> bool:
-		return is_instance_valid(game.cinder_streaming_bootstrap.get_loaded_instance()), 20)
-	craft.global_position = GameFlow.CINDER_CONVOY_ACTIVATION_CENTER
-	return craft
+	return await InterruptionProbe.prepare_convoy(game, craft_index)
 
 
 func _finish_interrupted_convoy(game: GameFlow, craft: HeroShip) -> bool:
-	var host := game.cinder_convoy_host
-	for _tick in 14:
-		craft.global_position = (host.get_snapshot().entity_position as Vector3) + GameFlow.CINDER_CONVOY_ESCORT_LANE_OFFSET
-		game.call("_physics_process", 0.25)
-		await physics_frame
-	var attacker := game.cinder_convoy_threat.get_attacker()
-	if not is_instance_valid(attacker):
-		return false
-	craft.global_position = attacker.global_position + Vector3(0.0, 0.0, 12.0)
-	await physics_frame
-	var intercepted := game.get_combat_authority().submit_hitscan(craft, GameFlow.RANGE_WEAPON_ID,
-		craft.global_position, attacker.global_position - craft.global_position)
-	var budget := 60
-	while budget > 0 and host.get_snapshot().activity.state_id == &"active":
-		craft.global_position = (host.get_snapshot().entity_position as Vector3) + GameFlow.CINDER_CONVOY_ESCORT_LANE_OFFSET
-		game.call("_physics_process", 0.25)
-		budget -= 1
-	return bool(intercepted.get("destroyed", false)) and budget > 0 and host.get_snapshot().activity.state_id == &"completed"
+	return await InterruptionProbe.finish_convoy(game, craft)
 
 
 func _convoy_disk_bytes(path: String) -> Dictionary:

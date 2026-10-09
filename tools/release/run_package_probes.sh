@@ -171,8 +171,7 @@ def start(stage):
     command = [godot, "--headless", "--audio-driver", "Dummy", "--path", str(root)]
     if not source_mode:
         command += ["--main-pack", package]
-    command += ["--script", "res://tests/cinder_convoy_session_save_restore_test.gd",
-                "--", "--in-world-interruption-stage", stage]
+    command += ["--in-world-interruption-stage=" + stage]
     with log.open("w") as output:
         registering_child = True
         try:
@@ -198,6 +197,7 @@ try:
         time.sleep(0.1)
     require(ready is not None and arm.poll() is None, "missing live IN_WORLD_INTERRUPTION_READY")
     require(not diagnostics(arm_log), "arm engine/script diagnostics")
+    require(ready.get("entry") == "startup_completed", "arm did not use Boot's own loaded Main")
     before = document.read_bytes()
     saved = json.loads(before)
     row = saved["payload"]["cinder_convoy_session"]["activities"][0]
@@ -217,6 +217,7 @@ try:
     recovered = token(resume_log, "IN_WORLD_RECOVERY_OK")
     require(resume_entry["exit_code"] == 0 and recovered is not None, "restart did not exit 0 with IN_WORLD_RECOVERY_OK")
     require(not diagnostics(resume_log), "restart engine/script diagnostics")
+    require(recovered.get("entry") == "startup_completed", "restart did not use Boot's own loaded Main")
     require(resume_log.read_text(errors="replace").strip().splitlines()[-1].startswith("IN_WORLD_RECOVERY_OK: "), "recovery token is not terminal")
     require(recovered["boundary"] == ready["boundary"], "fresh process changed durable host/threat/escort/clock/progress")
     require(recovered["receipts_before"] == ready["receipts"] and recovered["receipts_after"] == ready["receipts"] + 1,

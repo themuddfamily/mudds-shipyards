@@ -17,6 +17,31 @@ func _run() -> void:
 	]:
 		_check(not ResourceLoader.has_cached(script_path),
 			"early Boot and CLI compilation leaves %s for the Main worker" % script_path.get_file())
+	var probe_args := PackedStringArray(["--in-world-interruption-stage=arm"])
+	_check(not bool(StartupLoaderType.in_world_probe_request(PackedStringArray(), "headless", "Dummy").requested),
+		"ordinary boot does not opt into the in-world fixture")
+	_check(bool(StartupLoaderType.in_world_probe_request(probe_args, "headless", "Dummy").accepted),
+		"one explicit headless Dummy arm stage is admitted")
+	probe_args[0] = "--in-world-interruption-stage=resume"
+	_check(bool(StartupLoaderType.in_world_probe_request(probe_args, "headless", "Dummy").accepted),
+		"one explicit headless Dummy resume stage is admitted")
+	_check(not bool(StartupLoaderType.in_world_probe_request(probe_args, "x11", "Dummy").accepted),
+		"the fixture cannot run on a rendered display")
+	for audio_driver in ["", "WASAPI", "PulseAudio"]:
+		_check(not bool(StartupLoaderType.in_world_probe_request(probe_args, "headless", audio_driver).accepted),
+			"the fixture requires the actual Dummy driver: %s" % audio_driver)
+	for unsafe in [
+		PackedStringArray(["--in-world-interruption-stage=invalid"]),
+		PackedStringArray(["--in-world-interruption-stage", "arm"]),
+		PackedStringArray(["--in-world-interruption-stage=arm", "--in-world-interruption-stage=resume"]),
+	]:
+		_check(not bool(StartupLoaderType.in_world_probe_request(unsafe, "headless", "Dummy").accepted),
+			"unsafe or ambiguous in-world stage is rejected: %s" % str(unsafe))
+	for conflicting in ["--startup-check", "--frame-capture", "--version", "--support-info", "--support-export"]:
+		var conflicting_args := probe_args.duplicate()
+		conflicting_args.append(conflicting)
+		_check(not bool(StartupLoaderType.in_world_probe_request(conflicting_args, "headless", "Dummy").accepted),
+			"in-world entry rejects competing exit mode %s" % conflicting)
 	_check(StartupLoaderType.cli_mode(PackedStringArray(["--startup-check"])) == &"", "package startup check follows the real boot path")
 	var menu := Control.new()
 	var button := Button.new()
