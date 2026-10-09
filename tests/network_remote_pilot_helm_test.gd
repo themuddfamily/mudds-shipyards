@@ -878,7 +878,16 @@ func _run_roll_peer() -> void:
 	root.add_child(_host)
 	await process_frame
 	await physics_frame
-	_host.start_shift()
+	# Finish the player's normal menu action before sending physical keys.
+	# Calling Main.start_shift alone leaves the HUD intro accepting the first E.
+	var begin_button := _host.hud.find_child("IntroBeginShiftButton", true, false) as Button
+	_check(is_instance_valid(begin_button), "independent peer has the actual Begin Shift button")
+	if not is_instance_valid(begin_button):
+		quit(1)
+		return
+	begin_button.pressed.emit()
+	_check(await _wait_until(func() -> bool: return _host.phase == GameFlow.Phase.APPROACH_SHIP \
+		and not _host.hud._intro.visible, 8.0), "independent peer enters gameplay through Begin Shift")
 	await process_frame
 	await physics_frame
 	set_multiplayer(SceneMultiplayer.new(), _host.get_path())
@@ -894,8 +903,9 @@ func _run_roll_peer() -> void:
 	_check(await _wait_until(func() -> bool: return not _host.get_network_session().get_server_offer().is_empty(), 15.0),
 		"independent client admitted")
 	var seats: Array[StringName] = [PILOT_SEAT]
-	_host._begin_network_client_boarding_request(_craft, _craft.get_node("ShipBoardingArea"),
-		BoardingIntent.ACTION_BOARD, BoardingIntent.ROLE_PILOT, seats)
+	# Use the real hatch and cockpit keys: a transport hatch grants a cabin
+	# berth first, and the cockpit promotes it while retaining its reservation.
+	await _peer_reboard_from_exterior()
 	_check(await _wait_until(func() -> bool: return _host._piloting and _craft.is_piloted(), 15.0),
 		"host ledger confirms the client pilot presentation")
 	local_source.notification(MainLoop.NOTIFICATION_APPLICATION_FOCUS_IN)
@@ -1042,10 +1052,18 @@ func _run_roll_peer() -> void:
 	_host.shutdown_network_session(&"cancel_pending")
 	_check(local_source.get_authority_peer_id() == original_authority and _host._network_client_helm_input_sources.is_empty(),
 		"cancel before pilot confirmation leaves retained authority unchanged")
+	# Shutdown retains the real solo pilot. Leave through its restored controls
+	# before joining again; teleporting a seated body does not end its owner.
+	_check(await _wait_peer_until(func() -> bool: return _craft.get_telemetry().get("engine_state") == HeroShip.ENGINE_OFFLINE, 8.0),
+		"retained solo propulsion idles offline before reconnect cabin access")
+	await _peer_interact()
+	_check(await _wait_peer_until(func() -> bool: return _host.phase == GameFlow.Phase.IN_FLIGHT_CABIN \
+		and not _host._transition_busy and not _host.player.is_seated() \
+		and _host.get_in_flight_cabin_status().get("carried", false), 8.0),
+		"restored solo controls physically leave the retained pilot into its supported cabin")
 	_check(_host.join_network_session("127.0.0.1", _roll_port).get("accepted", false), "reconnect after cancellation uses the same Main")
 	_check(await _wait_until(func() -> bool: return not _host.get_network_session().get_server_offer().is_empty(), 15.0), "post-cancel peer is admitted")
-	_host._begin_network_client_boarding_request(_craft, _craft.get_node("ShipBoardingArea"),
-		BoardingIntent.ACTION_BOARD, BoardingIntent.ROLE_PILOT, seats)
+	await _peer_take_pilot_from_cabin()
 	_check(await _wait_until(func() -> bool: return _host._piloting and local_source.is_enabled_owner() \
 		and local_source.get_authority_peer_id() == _host._network_client_peer_id(), 15.0), "reconnect confirms a fresh pilot input binding")
 	root.remove_child(_host)
@@ -1085,6 +1103,8 @@ func _wait_peer_until(predicate: Callable, timeout_seconds: float) -> bool:
 
 
 func _peer_interact() -> void:
+	# Deliver the physical edge immediately ahead of the player's physics poll.
+	await physics_frame
 	_roll_key_action(&"interact", true)
 	await _roll_peer_step()
 	_roll_key_action(&"interact", false)
@@ -1400,10 +1420,23 @@ func _peer_reboard_from_exterior() -> void:
 	_host._refresh_interaction_targets()
 	_host.player.teleport_to(Transform3D(Basis.IDENTITY, _craft.get_boarding_position()))
 	await _roll_peer_step(false)
+	_host._refresh_interaction_targets()
+	print("NETWORK_PHYSICAL_HATCH_BEFORE: ", {
+		"phase": _host.phase, "busy": _host._transition_busy, "piloting": _host._piloting,
+		"control": _host.player.is_control_enabled(), "seated": _host.player.is_seated(),
+		"intro": _host.hud._intro.visible, "started": _host.hud._started,
+		"near_ship": _host._near_ship, "candidate": _host.boarding_candidate == _craft,
+		"station": _host.station_interaction_candidate.name if is_instance_valid(_host.station_interaction_candidate) else &"",
+		"main_physics": _host.is_physics_processing(),
+	})
 	await _peer_interact()
 	_check(await _wait_peer_until(func() -> bool: return _host.phase == GameFlow.Phase.IN_FLIGHT_CABIN \
 		and _host._network_client_boarding_claim.get("role") == BoardingIntent.ROLE_PASSENGER \
-		and not _host._transition_busy, 8.0), "physical hatch key boards a confirmed cabin berth after exterior exit")
+		and not _host._transition_busy, 8.0), "physical hatch key boards a confirmed cabin berth")
+	await _peer_take_pilot_from_cabin()
+
+
+func _peer_take_pilot_from_cabin() -> void:
 	_host.player.teleport_to(_craft.get_in_flight_cabin_report().get("stand_transform"))
 	await _roll_peer_step(false)
 	_host._refresh_interaction_targets()

@@ -15565,6 +15565,10 @@ func _find_station_interaction_candidate() -> Node3D:
 	var best_candidate: Node3D
 	var best_score := INF
 	for candidate in player.get_nearby_interactables():
+		# The passenger chair is admitted only by the solo crew owner. In a
+		# network cabin it must not hide the host-authorized cockpit/hatch press.
+		if candidate is ShipCrewSeat and _network_session_is_live():
+			continue
 		if candidate is ShipBoardingArea:
 			continue
 		if not candidate.has_method("get_interaction_prompt") or not candidate.has_method("interact"):

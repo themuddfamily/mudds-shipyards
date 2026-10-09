@@ -552,6 +552,15 @@ func _assert_a_passenger_is_promoted_to_pilot_in_place() -> void:
 	await _drive_session(10)
 	_check(reached and game._network_client_near_pilot_seat(craft),
 		"the passenger reached the cockpit")
+	game._refresh_interaction_targets()
+	print("NETWORK_COCKPIT_INTERACTION: ", {
+		"phase": game.phase, "busy": game._transition_busy,
+		"station": game.station_interaction_candidate.name if is_instance_valid(game.station_interaction_candidate) else &"",
+		"near_ship": game._near_ship, "near_pilot": game._network_client_near_pilot_seat(craft),
+		"control": client_player.is_control_enabled(),
+	})
+	_check(not game.station_interaction_candidate is ShipCrewSeat,
+		"network cockpit interaction excludes the unavailable solo passenger chair")
 	var swaps_before := int(_host.get_network_remote_body_audit().get("hatch_seat_swaps", 0))
 	var requests_before := int(game.get_network_client_boarding_audit().get("requests", 0))
 	await _press_interact()
