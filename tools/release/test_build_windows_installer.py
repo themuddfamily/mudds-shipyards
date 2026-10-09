@@ -447,10 +447,17 @@ try {
         if (-not $rejected) { throw 'unsupported defense marker accepted' }
     }
     $defense = '{"schema_version":1.0,"payload_kind":"nearby_sector_activity_session","slot_id":"station_defense_session","activity_generation":8.0,"session":{"schema_version":2.0,"history":{"activity_id":"shipyard_perimeter_defense","state_id":"completed","generation":2.0,"failure_reason":"","reward_handoff_generation":0.0,"reward_replayable":false},"completion":{"activity_id":"shipyard_perimeter_defense","generation":2.0,"reward_requested":true,"reward_granted":false}}}' | ConvertFrom-Json
-    $ready = [pscustomobject]@{boundary=$defense; receipts=0; armed_elapsed_seconds=10.5; foreign_settings=[pscustomobject]@{values=[pscustomobject]@{graphics_profile='high'}}; foreign_cargo=[pscustomobject]@{generation=1.0; progress='actual-production'}; foreign_reward_counts=[pscustomobject]@{debris_route_navigation_data=1.0}; runtime_observation=[pscustomobject]@{player_seated=$true; craft_piloted=$true; craft_id='bulwark_heavy_gunship'}}
+    $ready = [pscustomobject]@{boundary=$defense; receipts=0; armed_elapsed_seconds=10.5; foreign_settings=[pscustomobject]@{values=[pscustomobject]@{graphics_profile='high'}}; foreign_cargo=[pscustomobject]@{generation=1.0; progress='actual-production'}; foreign_reward_counts=[pscustomobject]@{debris_route_navigation_data=1}; runtime_observation=[pscustomobject]@{player_seated=$true; craft_piloted=$true; craft_id='bulwark_heavy_gunship'}}
     $saved = [pscustomobject]@{payload=[pscustomobject]@{station_defense_session=$defense; runtime_settings=$ready.foreign_settings; jovian_cargo_session=$ready.foreign_cargo; game_flow_reward_store=[pscustomobject]@{reward_counts=$ready.foreign_reward_counts}; crash_recovery=[pscustomobject]@{state='running'}; solo_safe_recovery=[pscustomobject]@{craft_id='bulwark_heavy_gunship'}}}
+    # Genuine store JSON uses 1.0 while GameFlow's ready report uses integer 1.
+    # Typed key/value equality must accept that representation difference.
+    $saved.payload.game_flow_reward_store.reward_counts = '{"debris_route_navigation_data":1.0}' | ConvertFrom-Json
     Assert-InWorldStationArm $saved $ready
     foreach ($mutation in @(
+        {$saved.payload.game_flow_reward_store.reward_counts = [pscustomobject]@{wrong_key=1.0}},
+        {$saved.payload.game_flow_reward_store.reward_counts | Add-Member -NotePropertyName invented -NotePropertyValue 1.0},
+        {$saved.payload.game_flow_reward_store.reward_counts.debris_route_navigation_data='1'},
+        {$saved.payload.game_flow_reward_store.reward_counts.debris_route_navigation_data=1.5},
         {$saved.payload.station_defense_session.schema_version=2.0},
         {$saved.payload.station_defense_session.session.schema_version=3.0},
         {$saved.payload.station_defense_session.session.history.generation=2.5},
@@ -483,6 +490,7 @@ try {
     $paid.session.completion.reward_granted=$true; $paid.session.history.reward_handoff_generation=$paid.session.completion.generation
     $final=[pscustomobject]@{payload=[pscustomobject]@{station_defense_session=$paid; runtime_settings=$ready.foreign_settings; jovian_cargo_session=$ready.foreign_cargo; game_flow_reward_store=[pscustomobject]@{reward_counts=[pscustomobject]@{debris_route_navigation_data=1.0; return_defense_report_to_shipyard=1.0}; last_receipt=[pscustomobject]@{activity_id='shipyard_perimeter_defense'; activity_generation=2.0; reward_id='return_defense_report_to_shipyard'; granted=$true; replay_allowed=$false}}}}
     $recovered=[pscustomobject]@{paid_boundary=$paid; payment_commit=[pscustomobject]@{id='game-flow-reward-actual'}; foreign_settings=$ready.foreign_settings; foreign_cargo=$ready.foreign_cargo; foreign_reward_counts=$ready.foreign_reward_counts; safe_recovery_observation=[pscustomobject]@{player_seated=$true; craft_piloted=$true; piloting=$true; craft_id='bulwark_heavy_gunship'}; continuation_method='real_safe_home_pilot_resume_throttle_idle_pilot_exit_then_on_foot_physical_board_HUD_retry'; active_combat_restore='NOT_SUPPORTED'; elapsed_timer_restore='NOT_SUPPORTED'}
+    $recovered.foreign_reward_counts = '{"debris_route_navigation_data":1.0}' | ConvertFrom-Json
     $defenseLog=Join-Path $root 'defense.log'
     $defenseAssertions=@(
         'PASS: fresh Boot restores only the exact owed report into safe idle content without old combat, elapsed timer or pilot-claim replay',
@@ -510,7 +518,11 @@ try {
         {$final.payload.game_flow_reward_store.last_receipt.replay_allowed=$true},
         {$recovered.payment_commit.id='non-atomic'}, {$recovered.elapsed_timer_restore='PASS'},
         {$recovered.active_combat_restore='PASS'}, {$recovered.safe_recovery_observation.piloting=$false},
-        {$recovered.foreign_cargo=[pscustomobject]@{changed=$true}}
+        {$recovered.foreign_cargo=[pscustomobject]@{changed=$true}},
+        {$recovered.foreign_reward_counts=[pscustomobject]@{wrong_key=1.0}},
+        {$recovered.foreign_reward_counts | Add-Member -NotePropertyName invented -NotePropertyValue 1.0},
+        {$recovered.foreign_reward_counts.debris_route_navigation_data='1'},
+        {$recovered.foreign_reward_counts.debris_route_navigation_data=1.5}
     )) {
         $finalBaseline=$final | ConvertTo-Json -Depth 60; $recoveredBaseline=$recovered | ConvertTo-Json -Depth 60
         & $mutation; $recovered.paid_boundary=$final.payload.station_defense_session; $rejected=$false

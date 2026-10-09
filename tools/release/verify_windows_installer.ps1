@@ -595,7 +595,7 @@ function Assert-InWorldStationArm($saved, $ready) {
     if ($ready.armed_elapsed_seconds -ne 10.5) { throw 'installed defense authored-wave elapsed observation differs' }
     Assert-InWorldStationForeign $saved.payload $ready
     Assert-InWorldStationInteger $ready.receipts
-    if ((InWorld-Canonical $saved.payload.game_flow_reward_store.reward_counts) -ne (InWorld-Canonical $ready.foreign_reward_counts)) { throw 'installed defense arm reward ledger differs from actual readiness' }
+    Assert-InWorldStationKeys $saved.payload.game_flow_reward_store.reward_counts @($ready.foreign_reward_counts.PSObject.Properties.Name)
     $count = $saved.payload.game_flow_reward_store.reward_counts.return_defense_report_to_shipyard
     if ($null -ne $count -and $count -ne 0) { throw 'installed defense fresh receipt baseline differs' }
 }
@@ -615,7 +615,12 @@ function Assert-InWorldStationRecovered($final, $ready, $recovered, [string]$log
     Assert-InWorldStationInteger $receipt.activity_generation 1
     if ($final.payload.game_flow_reward_store.reward_counts.return_defense_report_to_shipyard -ne 1 -or $receipt.activity_id -cne 'shipyard_perimeter_defense' -or $receipt.activity_generation -ne $expected.completion.generation -or $receipt.reward_id -cne 'return_defense_report_to_shipyard' -or $receipt.granted -isnot [bool] -or $receipt.granted -ne $true -or $receipt.replay_allowed -isnot [bool] -or $receipt.replay_allowed -ne $false -or -not ([string]$recovered.payment_commit.id).StartsWith('game-flow-reward-')) { throw 'installed defense lost atomic single receipt acknowledgement' }
     Assert-InWorldStationForeign $final.payload $ready
-    if ((InWorld-Canonical $recovered.foreign_settings) -ne (InWorld-Canonical $ready.foreign_settings) -or (InWorld-Canonical $recovered.foreign_cargo) -ne (InWorld-Canonical $ready.foreign_cargo) -or (InWorld-Canonical $recovered.foreign_reward_counts) -ne (InWorld-Canonical $ready.foreign_reward_counts)) { throw 'installed defense recovered foreign fields differ' }
+    if ((InWorld-Canonical $recovered.foreign_settings) -ne (InWorld-Canonical $ready.foreign_settings) -or (InWorld-Canonical $recovered.foreign_cargo) -ne (InWorld-Canonical $ready.foreign_cargo)) { throw 'installed defense recovered foreign fields differ' }
+    Assert-InWorldStationKeys $recovered.foreign_reward_counts @($ready.foreign_reward_counts.PSObject.Properties.Name)
+    foreach ($entry in $recovered.foreign_reward_counts.PSObject.Properties) {
+        Assert-InWorldStationInteger $entry.Value
+        if ($entry.Value -ne $ready.foreign_reward_counts.($entry.Name)) { throw 'installed defense recovered reward counts differ' }
+    }
     $pilot = $recovered.safe_recovery_observation
     if ($pilot.player_seated -ne $true -or $pilot.craft_piloted -ne $true -or $pilot.piloting -ne $true -or $pilot.craft_id -cne $ready.runtime_observation.craft_id) { throw 'installed defense Resume did not reacquire actual safe-home pilot' }
     if ($recovered.continuation_method -cne 'real_safe_home_pilot_resume_throttle_idle_pilot_exit_then_on_foot_physical_board_HUD_retry' -or $recovered.active_combat_restore -cne 'NOT_SUPPORTED' -or $recovered.elapsed_timer_restore -cne 'NOT_SUPPORTED') { throw 'installed defense continuation/restoration scope differs' }
