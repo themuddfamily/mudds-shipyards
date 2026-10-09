@@ -1,0 +1,54 @@
+Mudds Shipyards — crew interruption recovery checkpoint — 2026-10-09
+Source: 27ffe71da1522a7680b7be380701d6b9e96e8dc8
+Executable: MuddsShipyards-27ffe71.exe
+Executable SHA256: 7262085b46df8085bac5638044093ff15fba1b2e1e0e57f10e688ce1629b2f5d
+
+Player-visible behavior
+Halyard's forward port passenger chair supports ordinary sit/stand. Interrupted
+solo passenger sessions offer explicit Resume awake on supported cabin floor at
+Halyard's home berth. Walk to the helm and interact to fly again. Existing crew,
+cabin and moving-frame ownership is released safely; saved activity progress
+and owed rewards remain protected. Pilot, cabin and bunk-rest recovery remain
+supported. Recovery uses a safe home berth, not the old airborne pose.
+
+Validation on these exact bytes
+Three clean merged-source and three packed-runtime suites pass300 assertions
+each, actual owning exit0/reaped, zero engine/script/leak diagnostics and ten
+exact existing settings_missing/ok warnings per scope. Clean import/export,
+x64 PE and1486-entry PCK pass. Four standard package probes pass223 with no
+warnings/diagnostics. Silent isolated native Windows startup exits0, exactly one
+parsed STARTUP_MENU_READY_OK, mouse free during load and no warnings/diagnostics.
+Root and independent producer review verify raw hashes, frozen source/imports,
+ZIP CRC, inner executable and initial-notes parity, process/profile cleanup.
+
+All four pilot/cabin/rest/crew Linux packaged interruption contexts pass actual
+owned SIGKILL(-9)/cold restart(0), reaped. All four exported Windows contexts
+pass actual owned Process.Kill(-1)/cold restart(0), reaped. They preserve the
+exact durable Convoy boundary, one crash event and receipts1->2 once; orderly
+recovery closes both markers. Cabin/rest/crew use authored motion timings and
+ordinary floor walking/Interact before pilot retake; pilot uses shortened
+canopy/boarding fixtures. Later escort positioning remains a fixture, so these
+checks do not establish an uninterrupted human journey. Raw logs have no
+warnings/diagnostics. Root independently confirms all owned processes/private
+profiles gone and unchanged source/import/executable bytes.
+Exact-source CI37897902368 coreSUCCESS/broadSKIPPED; CodeQL37897902209
+Python/actionsSUCCESS.
+
+Retained failures and remaining work
+Earlier4172 cabin probes selected the newly functional passenger chair instead
+of the helm; original failed package/Windows results remain retained. This
+checkpoint uses actual cockpit walking and ordinary Interact for nonpilot paths.
+The first27 Windows crew helper wrongly required the passenger to be unseated;
+its FAIL and cleanup(-1) remain retained. A separately reviewed predicate fix
+accepts real seated crew while retaining rest-only sleep and every other guard;
+a fresh crew kill/restart run passes. No failed result is relabelled PASS.
+
+Full unfiltered matrix and installer qualification on this source are NOT_RUN.
+The earlier3a full matrix failed1023/1027; four current lifecycle failures remain
+open and are being fixed separately. Other crew roles and Bulwark's supported
+cabin, docking/planetary/full-activity recovery, repeated normal-controls play,
+native GPU/controller/audio/visual/human/endurance and final-release gates remain
+open. This is an unsigned checkpoint. All ten phases and34 completion tasks
+remain open. Automated audio uses Dummy.
+
+Published checkpoint ZIP SHA256: 15da512fef7421c9c588fc942098d57e205d9f4f20f9ab251fed0838151e2ba8
