@@ -2439,14 +2439,18 @@ func _initialize_cinder_patrol_session_persistence() -> void:
 		})
 
 
-func save_cinder_patrol_session() -> Dictionary:
+func save_cinder_patrol_session(candidate: PatrolActivity = null, candidate_director: ActivityDirector = null) -> Dictionary:
 	if _cinder_patrol_session_persistence == null \
 			or patrol_activity == null or not is_instance_valid(activity_director):
 		return {"accepted": false, "reason": &"patrol_session_persistence_unavailable"}
-	if _selected_activity_kind != ACTIVITY_KIND_PATROL \
+	if candidate == null and _selected_activity_kind != ACTIVITY_KIND_PATROL \
 			and not bool(patrol_activity.get_presentation_snapshot().get("attached", false)):
 		return {"accepted": true, "reason": &"patrol_session_not_selected"}
-	var snapshot := patrol_activity.get_presentation_snapshot()
+	var owner := candidate if candidate != null else patrol_activity
+	var director := candidate_director if candidate != null else activity_director
+	if not is_instance_valid(director):
+		return {"accepted": false, "reason": &"patrol_session_persistence_unavailable"}
+	var snapshot := owner.get_presentation_snapshot()
 	if int(snapshot.get("generation", 0)) < 1:
 		return {"accepted": true, "reason": &"patrol_session_not_started"}
 	var next_generation := _runtime_settings_user_data_store.get_generation() + 1
@@ -2457,7 +2461,7 @@ func save_cinder_patrol_session() -> Dictionary:
 		next_generation,
 	]
 	_cinder_patrol_session_save_status = _cinder_patrol_session_persistence.save(
-		patrol_activity, activity_director, commit_id
+		owner, director, commit_id, patrol_activity if candidate != null else null
 	).duplicate(true)
 	if bool(_cinder_patrol_session_save_status.get("accepted", false)):
 		_cinder_patrol_session_saved_fingerprint = _cinder_patrol_save_fingerprint(
@@ -15618,8 +15622,8 @@ func request_activity_start(
 				patrol_activity.get_presentation_snapshot().get("state_id", &"idle")
 			)
 			if patrol_state in [&"completed", &"failed", &"aborted"]:
-				var repeat_reset := patrol_activity.reset(
-					patrol_activity.get_generation()
+				var repeat_reset := patrol_activity.reset_with_persistence(
+					patrol_activity.get_generation(), save_cinder_patrol_session
 				)
 				if not bool(repeat_reset.get("accepted", false)):
 					return _decorate_activity_snapshot(repeat_reset)
@@ -15762,7 +15766,7 @@ func reset_active_activity() -> bool:
 	var reset: Dictionary
 	match _selected_activity_kind:
 		ACTIVITY_KIND_PATROL:
-			reset = patrol_activity.reset(patrol_activity.get_generation())
+			reset = patrol_activity.reset_with_persistence(patrol_activity.get_generation(), save_cinder_patrol_session)
 		ACTIVITY_KIND_CARGO_DELIVERY:
 			reset = cargo_delivery_activity.reset_with_persistence(cargo_delivery_activity.get_generation(), save_jovian_cargo_session)
 		ACTIVITY_KIND_CONVOY_ESCORT:

@@ -106,6 +106,17 @@ class InterruptedPatrolRewardFilesystem extends UserDataFilesystem:
 		return result
 
 
+class RejectingPatrolFilesystem extends UserDataFilesystem:
+	var reject_writes := false
+	var rejected_writes := 0
+
+	func write_bytes_and_flush(path: String, bytes: PackedByteArray) -> Error:
+		if reject_writes:
+			rejected_writes += 1
+			return ERR_UNAVAILABLE
+		return super.write_bytes_and_flush(path, bytes)
+
+
 var _assertions := 0
 var _failures := PackedStringArray()
 
@@ -115,6 +126,10 @@ func _init() -> void:
 
 
 func _run() -> void:
+	if OS.get_cmdline_user_args().has("--genuine-write-recovery"):
+		await _test_genuine_write_recovery()
+		_finish()
+		return
 	var filesystem := MemoryFilesystem.new()
 	var first_store := Store.new(STORE_PATH, filesystem) as UserDataStore
 	first_store.load()
@@ -439,6 +454,7 @@ func _run() -> void:
 	)
 	await _test_terminal_patrol_reward_restart()
 	await _test_terminal_save_failure_and_legacy()
+	await _test_genuine_write_recovery()
 	for race_boundary in [&"paid", &"reset", &"legacy"]:
 		await _test_mixed_race_patrol_restart(race_boundary)
 	_finish()
@@ -769,6 +785,132 @@ func _test_terminal_save_failure_and_legacy() -> void:
 		and not fresh.call("_has_pending_cinder_patrol_reward"),
 		"legacy false/false patrol restores without inferred debt or newly minted credit")
 	await _retire_game(fresh)
+
+
+func _prepare_physical_patrol(game: GameFlow) -> PatrolActivity:
+	game.set_physics_process(false)
+	game.select_activity_kind(GameFlow.ACTIVITY_KIND_PATROL)
+	game.active_ship = game.get_flyable_ships()[1]
+	game.set("_piloting", true)
+	game.phase = GameFlow.Phase.FREE_FLIGHT
+	return game.get_activity_integration_report().get("patrol_activity") as PatrolActivity
+
+
+func _fly_patrol_checkpoint(game: GameFlow, checkpoint: int) -> void:
+	var patrol := game.get_activity_integration_report().get("patrol_activity") as PatrolActivity
+	game.active_ship.global_position = ROUTE.get_checkpoint_position(checkpoint)
+	game.call("_physics_process", 0.0)
+	game.call("_physics_process", patrol.dwell_seconds)
+
+
+func _patrol_disk_snapshot(path: String) -> Dictionary:
+	var snapshot := {}
+	for suffix in ["", ".tmp", ".bak", ".recovery", ".bak.1", ".bak.2", ".bak.3"]:
+		var file_path: String = path + suffix
+		snapshot[suffix] = FileAccess.get_file_as_bytes(file_path) if FileAccess.file_exists(file_path) else null
+	return snapshot
+
+
+func _test_genuine_write_recovery() -> void:
+	var path := "user://patrol_genuine_write_recovery_%d.json" % Time.get_ticks_usec()
+	var filesystem := RejectingPatrolFilesystem.new()
+	var store := Store.new(path, filesystem) as UserDataStore
+	store.load()
+	store.commit({"foreign_patrol_recovery": {"callsign": "MUDDS", "value": 17}}, store.get_generation(), "seed-real-patrol-foreign-data")
+	var game := await _make_game(store)
+	var patrol := _prepare_physical_patrol(game)
+	_check(bool(game.request_activity_start(ROUTE.activity_id).accepted), "physical paid baseline starts")
+	for checkpoint in ROUTE.get_checkpoint_count():
+		_fly_patrol_checkpoint(game, checkpoint)
+	_check(_patrol_receipts(game) == 1 and game.reset_active_activity(), "paid patrol accepts its durable IDLE reset")
+	var durable := _patrol_disk_snapshot(path)
+	filesystem.reject_writes = true
+	_check(bool(game.request_activity_start(ROUTE.activity_id).accepted), "ordinary next patrol starts while ALL writes fail")
+	for checkpoint in ROUTE.get_checkpoint_count():
+		_fly_patrol_checkpoint(game, checkpoint)
+	_check(game.get_active_activity_snapshot().state_id == &"completed" and _patrol_receipts(game) == 1
+		and filesystem.rejected_writes > 0 and _patrol_disk_snapshot(path) == durable,
+		"physical next completion keeps durable paid-reset boundary during complete write outage")
+	filesystem.reject_writes = false
+	game.call("_retry_owed_game_flow_activity_rewards")
+	game.call("_retry_owed_game_flow_activity_rewards")
+	_check(_patrol_receipts(game) == 2 and _stored_patrol_state(store).state == PatrolActivity.State.COMPLETED
+		and _canonical(store.get_snapshot().get("foreign_patrol_recovery", {}) as Dictionary) == _canonical({"callsign": "MUDDS", "value": 17}),
+		"ordinary owed retry bridges unsaved start and checkpoint writes and pays exactly once")
+	await _retire_game(game)
+	path = "user://patrol_active_write_recovery_%d.json" % Time.get_ticks_usec()
+	filesystem = RejectingPatrolFilesystem.new()
+	store = Store.new(path, filesystem) as UserDataStore
+	game = await _make_game(store)
+	patrol = _prepare_physical_patrol(game)
+	# An accepted early ACTIVE save must also bridge multiple lost checkpoint writes.
+	_check(bool(game.request_activity_start(ROUTE.activity_id).accepted), "early ACTIVE recovery run starts")
+	_fly_patrol_checkpoint(game, 0)
+	_check(bool(game.save_cinder_patrol_session().accepted), "early ACTIVE capture is accepted")
+	filesystem.reject_writes = true
+	for checkpoint in range(1, ROUTE.get_checkpoint_count() - 1):
+		_fly_patrol_checkpoint(game, checkpoint)
+	filesystem.reject_writes = false
+	_check(bool(game.save_cinder_patrol_session().accepted), "ordinary ACTIVE save bridges multiple rejected progress writes")
+	var active := _canonical(patrol.capture_persistence_state())
+	await _retire_game(game)
+	game = await _make_game(Store.new(path, filesystem))
+	patrol = _prepare_physical_patrol(game)
+	_check(_canonical(patrol.capture_persistence_state()) == active, "fresh Main restores exact recovered ACTIVE route and clock")
+	filesystem.reject_writes = true
+	_fly_patrol_checkpoint(game, ROUTE.get_checkpoint_count() - 1)
+	_check(_patrol_receipts(game) == 0 and patrol.get_state() == PatrolActivity.State.COMPLETED, "recovered ACTIVE run physically completes while terminal writes fail")
+	filesystem.reject_writes = false
+	game.call("_retry_owed_game_flow_activity_rewards")
+	game.call("_retry_owed_game_flow_activity_rewards")
+	_check(_patrol_receipts(game) == 1, "recovered ACTIVE patrol ordinary terminal retry pays once")
+	await _retire_game(game)
+	# Both genuine failure and an ACTIVE abort/reset must remain transactional.
+	for terminal in [&"failure", &"active", &"abort", &"unsaved_failure"]:
+		var reset_path := "user://patrol_rejected_reset_%s_%d.json" % [terminal, Time.get_ticks_usec()]
+		var reset_filesystem := RejectingPatrolFilesystem.new()
+		var reset_store := Store.new(reset_path, reset_filesystem) as UserDataStore
+		var reset_game := await _make_game(reset_store)
+		var reset_patrol := _prepare_physical_patrol(reset_game)
+		var previous_receipts := 0
+		if terminal == &"unsaved_failure":
+			reset_game.request_activity_start(ROUTE.activity_id)
+			for checkpoint in ROUTE.get_checkpoint_count():
+				_fly_patrol_checkpoint(reset_game, checkpoint)
+			_check(_patrol_receipts(reset_game) == 1 and reset_game.reset_active_activity(), "unsaved-failure fixture retains a paid IDLE boundary")
+			previous_receipts = 1
+			reset_filesystem.reject_writes = true
+		reset_game.request_activity_start(ROUTE.activity_id)
+		_fly_patrol_checkpoint(reset_game, 0)
+		if terminal in [&"failure", &"unsaved_failure"]:
+			reset_game.fail_active_activity(&"genuine_patrol_failure")
+		elif terminal == &"abort":
+			reset_patrol.abort(&"genuine_patrol_abort", reset_patrol.get_generation())
+		var before := _canonical(reset_patrol.capture_persistence_state())
+		var route_before := reset_game.activity_director.get_activity_snapshot(ROUTE.activity_id)
+		var bytes_before := _patrol_disk_snapshot(reset_path)
+		var counts := {"reset": 0, "route_reset": 0}
+		reset_patrol.patrol_reset.connect(func(_snapshot: Dictionary) -> void: counts.reset += 1)
+		reset_game.activity_director.activity_reset.connect(func(_id: StringName, _generation: int) -> void: counts.route_reset += 1)
+		reset_filesystem.reject_writes = true
+		_check(not reset_game.reset_active_activity() and _canonical(reset_patrol.capture_persistence_state()) == before
+			and reset_game.activity_director.get_activity_snapshot(ROUTE.activity_id) == route_before
+			and counts.reset == 0 and counts.route_reset == 0 and _patrol_disk_snapshot(reset_path) == bytes_before,
+			"rejected %s reset preserves both owners, events and actual disk" % terminal)
+		reset_filesystem.reject_writes = false
+		_check(reset_game.reset_active_activity() and counts.reset == 1 and counts.route_reset == 1,
+			"recovered %s reset publishes once after accepting its transaction" % terminal)
+		var reset_state := _canonical(reset_patrol.capture_persistence_state())
+		await _retire_game(reset_game)
+		reset_game = await _make_game(Store.new(reset_path, reset_filesystem))
+		reset_patrol = _prepare_physical_patrol(reset_game)
+		_check(_canonical(reset_patrol.capture_persistence_state()) == reset_state,
+			"fresh Main restores the accepted %s IDLE reset" % terminal)
+		reset_game.request_activity_start(ROUTE.activity_id)
+		for checkpoint in ROUTE.get_checkpoint_count():
+			_fly_patrol_checkpoint(reset_game, checkpoint)
+		_check(_patrol_receipts(reset_game) == previous_receipts + 1, "next physical patrol after %s reset pays once" % terminal)
+		await _retire_game(reset_game)
 
 
 func _test_mixed_race_patrol_restart(race_boundary: StringName) -> void:

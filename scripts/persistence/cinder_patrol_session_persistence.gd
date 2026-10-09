@@ -46,12 +46,13 @@ func load(patrol: PatrolActivity, director: ActivityDirector) -> Dictionary:
 func save(
 	patrol: PatrolActivity,
 	director: ActivityDirector,
-	commit_id: String
+	commit_id: String,
+	reset_source: PatrolActivity = null
 	) -> Dictionary:
 	if patrol == null:
 		return _result(false, &"patrol_session_save_invalid")
 	return save_state(
-		patrol.capture_persistence_state(), patrol, director, commit_id
+		patrol.capture_persistence_state(), patrol, director, commit_id, reset_source
 	)
 
 
@@ -61,7 +62,8 @@ func save_state(
 	state: Dictionary,
 	patrol: PatrolActivity,
 	director: ActivityDirector,
-	commit_id: String
+	commit_id: String,
+	reset_source: PatrolActivity = null
 	) -> Dictionary:
 	if not _configured() or patrol == null or not is_instance_valid(director) \
 			or commit_id.strip_edges().is_empty():
@@ -74,6 +76,8 @@ func save_state(
 	var validated := validate_record(record, patrol, director)
 	if not bool(validated.get("accepted", false)):
 		return validated
+	if not patrol.owns_persistence_authorities(director):
+		return _result(false, &"patrol_session_authority_mismatch")
 	if canonical_state != canonical_live_state:
 		return _result(false, &"patrol_session_not_live_capture")
 	var loaded := _store.load()
@@ -96,13 +100,17 @@ func save_state(
 			# Preserve the atomic receipt ack and ambiguous legacy false/false state.
 			candidate_activity.reward_requested = existing_activity.reward_requested
 			candidate_activity.reward_granted = existing_activity.reward_granted
+		if int(candidate_activity.generation) > int(existing_activity.generation) \
+				and bool(existing_activity.reward_requested) and not bool(existing_activity.reward_granted):
+			return _result(false, &"patrol_session_reward_pending")
 		var existing := _decode_record(payload[slot_key] as Dictionary)
 		var transition := _validate_transition(
-			existing.patrol_state as Dictionary, canonical_state
+			existing.patrol_state as Dictionary, canonical_state, patrol, director, reset_source
 		)
 		if not bool(transition.get("accepted", false)):
 			return transition
 		if transition.get("reason", &"") == &"patrol_session_unchanged":
+			patrol.acknowledge_persisted_capture(canonical_state)
 			return {
 				"accepted": true,
 				"reason": &"patrol_session_unchanged",
@@ -110,6 +118,8 @@ func save_state(
 			}.duplicate(true)
 	payload[slot_key] = record
 	var committed := _store.commit(payload, _store.get_generation(), commit_id)
+	if bool(committed.get("accepted", false)):
+		patrol.acknowledge_persisted_capture(canonical_state)
 	committed["binding_reason"] = (
 		&"patrol_session_saved"
 		if bool(committed.get("accepted", false)) else &"store_rejected"
@@ -182,17 +192,27 @@ func get_store_generation() -> int:
 	return _store.get_generation() if _configured() else -1
 
 
-func _validate_transition(existing: Dictionary, candidate: Dictionary) -> Dictionary:
+func _validate_transition(existing: Dictionary, candidate: Dictionary, patrol: PatrolActivity,
+		director: ActivityDirector, reset_source: PatrolActivity = null) -> Dictionary:
 	var existing_generation := int(existing.get("generation", -1))
 	var candidate_generation := int(candidate.get("generation", -1))
 	if candidate_generation < existing_generation:
 		return _result(false, &"stale_patrol_session")
 	if candidate_generation > existing_generation:
+		if int(candidate.get("state", -1)) == PatrolActivity.State.IDLE \
+				and reset_source != null and reset_source.owns_staged_persistence_reset(patrol, director):
+			var source := _canonical_state(reset_source.get_staged_persistence_reset_source(patrol, director))
+			if not source.is_empty() and (source == existing or _live_progress_is_proven(existing, source, reset_source)):
+				return _result(true, &"patrol_session_proven_reset")
+		if _live_progress_is_proven(existing, candidate, patrol):
+			return _result(true, &"patrol_session_unsaved_run_recovered")
 		if candidate_generation != existing_generation + 1:
 			return _result(false, &"unproven_patrol_generation")
 		return _validate_next_generation(existing, candidate)
 	if existing == candidate:
 		return _result(true, &"patrol_session_unchanged")
+	if _live_progress_is_proven(existing, candidate, patrol):
+		return _result(true, &"patrol_session_unsaved_progress_recovered")
 	var existing_state := int(existing.get("state", -1))
 	var candidate_state := int(candidate.get("state", -1))
 	var existing_progress := int(existing.get("completed_checkpoint_count", -1))
@@ -229,6 +249,29 @@ func _validate_transition(existing: Dictionary, candidate: Dictionary) -> Dictio
 	return _result(false, &"unproven_patrol_transition")
 
 
+## These boundaries are retained by this exact typed owner, never inferred
+## from a generation gap or caller-authored clock/checkpoint values.
+func _live_progress_is_proven(existing: Dictionary, candidate: Dictionary, patrol: PatrolActivity) -> bool:
+	var same_run := int(existing.generation) == int(candidate.generation) \
+		and int(existing.state) == PatrolActivity.State.ACTIVE \
+		and _canonical_state(patrol.get_acknowledged_persistence_state()) == existing
+	var new_run := int(existing.state) == PatrolActivity.State.IDLE \
+		and int(candidate.generation) == int(existing.generation) + 1 \
+		and _canonical_state(patrol.get_persistence_start_state()) == existing
+	if not same_run and not new_run:
+		return false
+	if int(candidate.state) not in [PatrolActivity.State.ACTIVE, PatrolActivity.State.COMPLETED,
+			PatrolActivity.State.FAILED, PatrolActivity.State.ABORTED] \
+			or float(candidate.elapsed_seconds) < float(existing.elapsed_seconds) \
+			or int(candidate.completed_checkpoint_count) < int(existing.completed_checkpoint_count) \
+			or str(candidate.get("branch_id", PatrolActivity.BRANCH_RELAY_SWEEP)) != str(existing.get("branch_id", PatrolActivity.BRANCH_RELAY_SWEEP)) \
+			or str(candidate.activity_id) != str(existing.activity_id):
+		return false
+	if int(candidate.state) == PatrolActivity.State.COMPLETED:
+		return float(candidate.last_duration_seconds) == float(candidate.elapsed_seconds)
+	return float(candidate.last_duration_seconds) == float(existing.last_duration_seconds)
+
+
 func _validate_same_checkpoint_dwell(
 	existing: Dictionary,
 	candidate: Dictionary
@@ -261,7 +304,7 @@ func _validate_next_generation(existing: Dictionary, candidate: Dictionary) -> D
 		if int(candidate.get("completed_checkpoint_count", -1)) != 0 \
 				or not is_zero_approx(float(candidate.get("elapsed_seconds", -1.0))):
 			return _result(false, &"unproven_patrol_generation")
-		return _result(true, &"patrol_session_reset")
+		return _result(false, &"unproven_patrol_reset")
 	if int(existing.get("state", -1)) == PatrolActivity.State.IDLE \
 			and candidate_state == PatrolActivity.State.ACTIVE \
 			and int(candidate.get("completed_checkpoint_count", -1)) == 0 \

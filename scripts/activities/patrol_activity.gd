@@ -37,6 +37,10 @@ var _branch_definitions: Dictionary = {}
 var _selected_branch_id: StringName = BRANCH_RELAY_SWEEP
 
 var _director: ActivityDirector
+var _persistence_start_state: Dictionary = {}
+var _acknowledged_persistence_state: Dictionary = {}
+var _persistence_reset_candidate: PatrolActivity
+var _persistence_reset_director: ActivityDirector
 var _generation := 0
 var _activity_generation := 0
 var _state := State.IDLE
@@ -196,6 +200,7 @@ func start(expected_generation: int, patrol_actor: Variant = null) -> Dictionary
 		var actor_rejection := _patrol_actor_rejection(patrol_actor)
 		if not actor_rejection.is_empty():
 			return _finish(false, actor_rejection)
+	var start_state := capture_persistence_state()
 	var activity_start := _director.start_activity(definition.activity_id)
 	if not bool(activity_start.get("accepted", false)):
 		return _finish(false, &"activity_cannot_start")
@@ -217,6 +222,8 @@ func start(expected_generation: int, patrol_actor: Variant = null) -> Dictionary
 	_pending_terminal_state = State.IDLE
 	if patrol_actor != null:
 		_track_patrol_actor(patrol_actor as Node3D, _generation)
+	_persistence_start_state = start_state
+	_acknowledged_persistence_state.clear()
 	var result := _finish(true, &"started")
 	_emit_snapshot_signal(patrol_started)
 	_emit_snapshot_signal(presentation_changed)
@@ -416,10 +423,91 @@ func reset(expected_generation: int) -> Dictionary:
 	_authority_desynchronized = false
 	_pending_terminal_state = State.IDLE
 	_release_patrol_actor()
+	_persistence_start_state.clear()
+	_acknowledged_persistence_state.clear()
 	var result := _finish(true, &"reset")
 	_emit_snapshot_signal(patrol_reset)
 	_emit_snapshot_signal(presentation_changed)
 	return result
+
+
+## The ordinary typed reset runs on isolated owners first. Only an accepted
+## atomic store commit authorizes publishing the reset on the live owners.
+func reset_with_persistence(expected_generation: int, persist_reset: Callable) -> Dictionary:
+	if _is_reentrant():
+		return _result(false, &"reentrant_call")
+	if expected_generation != _generation or not _attached or not _started_once \
+			or not persist_reset.is_valid() or not owns_persistence_authorities(_director):
+		return _result(false, &"patrol_reset_unavailable")
+	var source := capture_persistence_state()
+	var validated := validate_persistence_state(source, _director)
+	if not bool(validated.get("accepted", false)):
+		return validated
+	_mutation_active = true
+	var staging_root := Node.new()
+	_director.add_child(staging_root)
+	var staged_director := ActivityDirector.new()
+	staging_root.add_child(staged_director)
+	for branch in _branch_definitions:
+		staged_director.register_definition(_branch_definitions[branch] as ActivityDefinition)
+	var staged_patrol := PatrolActivity.new(
+		_branch_definitions[BRANCH_RELAY_SWEEP] as ActivityDefinition, dwell_seconds,
+		_branch_definitions.get(BRANCH_PLATFORM_SWEEP) as ActivityDefinition
+	)
+	var staged := staged_patrol.restore_persistence_state(staged_director, source, 0)
+	if bool(staged.get("accepted", false)):
+		staged = staged_patrol.attach(staged_director, staged_patrol.get_generation())
+	if bool(staged.get("accepted", false)):
+		staged = staged_patrol.reset(staged_patrol.get_generation())
+	var saved: Variant = staged
+	if bool(staged.get("accepted", false)):
+		_persistence_reset_candidate = staged_patrol
+		_persistence_reset_director = staged_director
+		saved = persist_reset.call(staged_patrol, staged_director)
+	_persistence_reset_candidate = null
+	_persistence_reset_director = null
+	staged_patrol.close(staged_patrol.get_generation())
+	staging_root.free()
+	_mutation_active = false
+	if not saved is Dictionary or not bool(saved.get("accepted", false)):
+		return {"accepted": false, "reason": &"patrol_reset_save_rejected", "store_result": saved}
+	return reset(expected_generation)
+
+
+func owns_staged_persistence_reset(candidate: PatrolActivity, director: ActivityDirector) -> bool:
+	return _mutation_active and candidate != null and candidate == _persistence_reset_candidate \
+		and director == _persistence_reset_director and candidate._director == director \
+		and candidate.definition == definition and candidate._generation == _generation + 1 \
+		and candidate._state == State.IDLE and candidate._last_duration == _last_duration
+
+
+func get_staged_persistence_reset_source(candidate: PatrolActivity, director: ActivityDirector) -> Dictionary:
+	if not owns_staged_persistence_reset(candidate, director) or not owns_persistence_authorities(_director):
+		return {}
+	var source := capture_persistence_state()
+	return source if bool(validate_persistence_state(source, _director).get("accepted", false)) else {}
+
+
+func owns_persistence_authorities(director: ActivityDirector) -> bool:
+	return not _closed and not _authority_desynchronized and _director == director \
+		and is_instance_valid(director) and director.is_inside_tree() \
+		and not director.is_queued_for_deletion() and _director_state_matches(director)
+
+
+func get_persistence_start_state() -> Dictionary:
+	return {} if _closed else _persistence_start_state.duplicate(true)
+
+
+func acknowledge_persisted_capture(expected: Dictionary) -> void:
+	if _closed:
+		return
+	var live := capture_persistence_state()
+	if JSON.parse_string(JSON.stringify(expected)) == JSON.parse_string(JSON.stringify(live)):
+		_acknowledged_persistence_state = live
+
+
+func get_acknowledged_persistence_state() -> Dictionary:
+	return {} if _closed else _acknowledged_persistence_state.duplicate(true)
 
 
 ## Permanently disconnects this adapter. Closing does not invent an abort or
@@ -711,6 +799,7 @@ func restore_persistence_state(
 	_authority_desynchronized = false
 	_pending_terminal_state = State.IDLE
 	_release_patrol_actor()
+	_acknowledged_persistence_state = saved.duplicate(true)
 	return _persistence_result(true, &"patrol_state_restored")
 
 
