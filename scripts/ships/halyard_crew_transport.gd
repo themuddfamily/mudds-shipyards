@@ -728,6 +728,17 @@ func attach_crew_role_authority(authority: CrewSeatRoleAuthority) -> Dictionary:
 	return result
 
 
+## A local session may hand this seam back only after its own claims ended.
+## Foreign authority identities and occupied ledgers are never replaced.
+func detach_crew_role_authority(authority: CrewSeatRoleAuthority) -> bool:
+	if authority == null or _crew_role_authority != authority \
+			or not (authority.get_snapshot().get("assignments", []) as Array).is_empty():
+		return false
+	_crew_role_authority = null
+	refresh_crew_status_display()
+	return true
+
+
 func get_crew_role_authority() -> CrewSeatRoleAuthority:
 	return _crew_role_authority
 
@@ -735,7 +746,7 @@ func get_crew_role_authority() -> CrewSeatRoleAuthority:
 ## Explicit presentation refresh from one detached gameplay snapshot. This is
 ## caller-driven and never polls authority or gameplay state.
 func refresh_crew_status_display() -> Dictionary:
-	if _crew_status_display == null or not is_instance_valid(_crew_status_display):
+	if not is_inside_tree() or _crew_status_display == null or not is_instance_valid(_crew_status_display):
 		return {}
 	var snapshot := get_crew_role_gameplay_snapshot()
 	if _skip_next_crew_status_repair_snapshot:
@@ -1172,6 +1183,8 @@ func attach_crew_role_occupant(
 		"seat_id": seat_id,
 		"seat_generation": int(assignment.get("seat_generation", 0)),
 		"role": StringName(assignment.get("role", &"")),
+		"authority": _crew_role_authority,
+		"frame": _moving_interior_component,
 	})
 	var result := _crew_role_result(true, StringName(registration.get("status", &"registered")))
 	result["assignment"] = assignment.duplicate(true)
@@ -1191,45 +1204,49 @@ func release_crew_role_occupant(
 	occupant: Node3D,
 	request_sequence: int,
 	seat_generation: int = 0,
-	inherit_velocity: bool = false
+	inherit_velocity: bool = false,
+	authority_owner: CrewSeatRoleAuthority = null
 ) -> Dictionary:
-	if _crew_role_authority == null:
+	var owner := authority_owner if authority_owner != null else _crew_role_authority
+	if owner == null:
 		return _crew_role_result(false, &"authority_unavailable")
+	if source_peer_id != int(owner.get_snapshot().get("authority_peer_id", 0)):
+		return _crew_role_result(false, &"authority_peer_required")
 	if not is_instance_valid(occupant):
 		return _crew_role_result(false, &"invalid_occupant")
-	if _moving_interior_component == null \
-			or not _moving_interior_component.is_occupant_registered(occupant):
-		return _crew_role_result(false, &"occupancy_not_registered")
 	var metadata := occupant.get_meta(HALYARD_CREW_ROLE_OCCUPANT_META, {}) as Dictionary
 	if int(metadata.get("occupant_peer_id", 0)) != occupant_peer_id \
 			or StringName(metadata.get("avatar_id", &"")) != avatar_id \
-			or StringName(metadata.get("seat_id", &"")) != seat_id:
+			or StringName(metadata.get("seat_id", &"")) != seat_id \
+			or metadata.get("authority", _crew_role_authority) != owner \
+			or (seat_generation > 0 and int(metadata.get("seat_generation", 0)) != seat_generation):
 		return _crew_role_result(false, &"occupancy_identity_mismatch")
-	var assignment := _crew_role_authority.get_assignment(occupant_peer_id, avatar_id)
-	if assignment.is_empty() or StringName(assignment.get("seat_id", &"")) != seat_id:
+	var assignment := owner.get_assignment(occupant_peer_id, avatar_id)
+	if not assignment.is_empty() and StringName(assignment.get("seat_id", &"")) != seat_id:
 		return _crew_role_result(false, &"assignment_not_found")
-	var release := _crew_role_authority.release(
-		source_peer_id,
-		occupant_peer_id,
-		avatar_id,
-		seat_id,
-		request_sequence,
-		seat_generation
-	)
+	var release := {"accepted": true, "status": &"already_released"}
+	if not assignment.is_empty():
+		release = owner.release(
+			source_peer_id, occupant_peer_id, avatar_id, seat_id, request_sequence, seat_generation
+		)
 	if not bool(release.get("accepted", false)):
 		return release
-	var unregistration := _moving_interior_component.unregister_occupant(
-		occupant,
-		inherit_velocity,
-		&"crew_role_released"
-	)
+	var unregistration := {"registered": false, "status": &"frame_already_detached"}
+	if is_instance_valid(_moving_interior_component) \
+			and metadata.get("frame", _moving_interior_component) == _moving_interior_component \
+			and _moving_interior_component.is_occupant_registered(occupant):
+		unregistration = _moving_interior_component.unregister_occupant(
+			occupant, inherit_velocity, &"crew_role_released"
+		)
 	occupant.remove_meta(HALYARD_CREW_ROLE_OCCUPANT_META)
-	_clear_crew_role_state(occupant_peer_id, avatar_id, &"role_released")
-	if seat_id == &"crew_port_01":
-		_clear_engineer_status_display_lifecycle()
+	if owner == _crew_role_authority:
+		_clear_crew_role_state(occupant_peer_id, avatar_id, &"role_released")
+		if seat_id == &"crew_port_01":
+			_clear_engineer_status_display_lifecycle()
 	var result := release.duplicate(true)
 	result["occupancy"] = unregistration.duplicate(true)
-	refresh_crew_status_display()
+	if owner == _crew_role_authority:
+		refresh_crew_status_display()
 	return result
 
 
@@ -3478,6 +3495,8 @@ func _build_crew_cabin() -> void:
 			anchor.set_meta("seat_id", StringName("crew_%s_%02d" % [side_name.to_lower(), row_index]))
 			seat_root.add_child(anchor)
 			_crew_seat_anchors.append(anchor)
+			if side < 0.0 and row_index == 0:
+				preload("res://scripts/interaction/ship_crew_seat.gd").install(anchor, self)
 		# Overhead stowage above the seat rows. The existing pair retains its exact
 		# envelope and node count, but the forward end narrows by
 		# 27 cm per side. From either cabin portal that matte convergence identifies
