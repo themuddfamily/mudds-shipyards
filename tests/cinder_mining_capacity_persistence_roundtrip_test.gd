@@ -56,7 +56,7 @@ func _run() -> void:
 	var persisted := first_binding.get_cinder_mining_capacity_persistence_snapshot()
 	_check(bool(bound.accepted) and bool(started.accepted) and bool(completed.accepted)
 		and bool(receipt.accepted) and not bool(duplicate.accepted)
-		and int(store.get_generation()) == 2,
+		and int(store.get_generation()) == 5,
 		"one full-capacity generation commits its non-granting terminal receipt once")
 	_check((store.get_snapshot().foreign as Dictionary).pilot_profile == "retained"
 		and not bool(((persisted.capacity as Dictionary).reward_receipt as Dictionary).replay_allowed)
@@ -76,15 +76,15 @@ func _run() -> void:
 	var geometry := (second.cluster as NearbySectorCluster).get_mining_activity_presentation_state()
 	var replay := second_binding.request_mining_reward()
 	_check(bool(rebound.accepted) and int(restored.state) == CinderMiningPlatformActivity.State.COMPLETE
-		and bool(restored.capacity_persisted) and not bool(restored.reward_requested)
-		and int(live.state) == CinderMiningPlatformActivity.State.IDLE and int(live.generation) == 0,
-		"reload restores capacity presentation while extraction authority remains idle")
+		and bool(restored.capacity_persisted) and bool(restored.reward_requested)
+		and int(live.state) == CinderMiningPlatformActivity.State.COMPLETE and int(live.generation) == 1,
+		"reload restores the paid extraction generation and capacity presentation")
 	_check((card.mining_feedback as Dictionary).stage_id == &"capacity_recorded"
 		and "CAPACITY READY" in str((card.mining_feedback as Dictionary).summary)
 		and geometry.state_id == &"secured" and bool(geometry.capacity_ready_geometry),
 		"retained HUD, full collectors, and widened hopper restore capacity-ready state")
-	_check(not bool(replay.accepted) and replay.reason == &"not_complete"
-		and int(reloaded_store.get_generation()) == 2,
+	_check(not bool(replay.accepted) and replay.reason == &"reward_already_requested"
+		and int(reloaded_store.get_generation()) == 5,
 		"restored capacity cannot replay reward or create another write")
 
 	var fresh := second_binding.start_mining_activity(CinderMiningPlatformActivity.APPROACH_ANCHOR)
@@ -93,8 +93,8 @@ func _run() -> void:
 	_check(bool(fresh.accepted) and int(active.state) == CinderMiningPlatformActivity.State.ACTIVE
 		and not bool(active.get("capacity_persisted", false))
 		and is_equal_approx(float(active.elapsed_seconds), 2.0)
-		and int(reloaded_store.get_generation()) == 2,
-		"fresh incomplete extraction remains session-scoped and overrides retained summary")
+		and int(reloaded_store.get_generation()) == 7,
+		"fresh incomplete extraction saves progress and overrides retained summary")
 	await _retire(second)
 
 	var third_store := StoreScript.new("memory://cinder-mining-capacity.json", filesystem)
@@ -102,11 +102,12 @@ func _run() -> void:
 	var third_binding := third.binding as NearbySectorActivityBinding
 	(third.flow as GameFlow).bind_cinder_mining_capacity_persistence(third_binding)
 	var stable := third_binding.get_snapshot().mining as Dictionary
-	_check(int(stable.state) == CinderMiningPlatformActivity.State.COMPLETE
-		and bool(stable.capacity_persisted)
-		and is_equal_approx(float(stable.elapsed_seconds), float(stable.extraction_seconds))
-		and int(third_store.get_generation()) == 2,
-		"later reload discards incomplete progress and retains terminal capacity")
+	_check(int(stable.state) == CinderMiningPlatformActivity.State.ACTIVE
+		and not bool(stable.get("capacity_persisted", false))
+		and is_equal_approx(float(stable.elapsed_seconds), 2.0)
+		and int(stable.generation) == 2 and bool(stable.resume_required)
+		and int(third_store.get_generation()) == 7,
+		"later reload restores the successful incomplete checkpoint suspended")
 	await _retire(third)
 
 	for failure in _failures: push_error(failure)
@@ -130,12 +131,12 @@ func _test_failed_save_recovery() -> void:
 	_check(bool(failed.accepted) and not bool(failed.capacity_persisted)
 		and not bool(duplicate.accepted) and duplicate.reason == &"reward_already_requested"
 		and bool(retryable.get("persistence_retry_available", false))
-		and int(store.get_generation()) == 0,
+		and int(store.get_generation()) == 2,
 		"a rejected duplicate keeps the failed terminal receipt and its save retry available")
 	var failed_retry := binding.retry_mining_capacity_persistence()
 	_check(not bool(failed_retry.accepted)
 		and bool(binding.get_activity_snapshot(&"mining").get("persistence_retry_available", false))
-		and int(store.get_generation()) == 0,
+		and int(store.get_generation()) == 2,
 		"another failed write preserves the same completed extraction for later recovery")
 	filesystem.fail_writes = false
 	var recovered := binding.retry_mining_capacity_persistence()
@@ -143,7 +144,7 @@ func _test_failed_save_recovery() -> void:
 	_check(bool(recovered.accepted) and bool(recovered.get("capacity_persisted", false))
 		and not bool(repeated_retry.accepted)
 		and bool(binding.get_activity_snapshot(&"mining").get("capacity_persisted", false))
-		and int(store.get_generation()) == 1,
+		and int(store.get_generation()) == 3,
 		"recovery commits once and a repeated save retry cannot write the terminal receipt again")
 	await _retire(runtime)
 
@@ -154,7 +155,7 @@ func _test_failed_save_recovery() -> void:
 	var restored := reentered_binding.get_activity_snapshot(&"mining")
 	var replay := reentered_binding.request_mining_reward()
 	_check(bool(restored.get("capacity_persisted", false)) and not bool(replay.accepted)
-		and int(reloaded_store.get_generation()) == 1,
+		and int(reloaded_store.get_generation()) == 3,
 		"a recovered capacity receipt survives world reentry without another reward or write")
 	reentered_binding.start_mining_activity(CinderMiningPlatformActivity.APPROACH_ANCHOR)
 	reentered_binding.advance_mining_activity(1.0)
@@ -163,9 +164,9 @@ func _test_failed_save_recovery() -> void:
 	var stale_retry := reentered_binding.retry_mining_capacity_persistence()
 	var restarted := reentered_binding.start_mining_activity(CinderMiningPlatformActivity.APPROACH_ANCHOR)
 	_check(aborted.reason == &"extraction_interrupted" and not bool(stale_retry.accepted)
-		and bool(restarted.accepted) and int(restarted.generation) == 2
+		and bool(restarted.accepted) and int(restarted.generation) == 3
 		and is_zero_approx(float(restarted.elapsed_seconds))
-		and int(reloaded_store.get_generation()) == 1,
+		and int(reloaded_store.get_generation()) == 7,
 		"aborting a later extraction prevents stale receipt retry and starts a fresh empty generation")
 	await _retire(reentered)
 
@@ -208,7 +209,7 @@ func _test_real_file_reset_preserves_pending_capacity() -> void:
 	_check(active.state_id == &"active" and int(active.generation) > first_generation
 		and is_equal_approx(float(active.elapsed_seconds), 2.0)
 		and FileAccess.get_file_as_bytes(profile_path) == saved_bytes,
-		"a new legitimate extraction remains transient while the actual atomic write path is blocked")
+		"a failed checkpoint leaves a new legitimate extraction live while the actual atomic write path is blocked")
 	var completed := game.call(&"_advance_cinder_mining_extraction", 4.0, sample) as Dictionary
 	var request := completed.get("reward_result", {}) as Dictionary
 	var pending := binding.get_activity_snapshot(&"mining")
@@ -257,9 +258,9 @@ func _test_real_file_reset_preserves_pending_capacity() -> void:
 	var before_replay := FileAccess.get_file_as_bytes(profile_path)
 	var replay := fresh_binding.request_mining_reward()
 	_check(bool(fresh_binding.get_activity_snapshot(&"mining").get("capacity_persisted", false))
-		and not bool(replay.accepted) and replay.reason == &"not_complete"
+		and not bool(replay.accepted) and replay.reason == &"reward_already_requested"
 		and FileAccess.get_file_as_bytes(profile_path) == before_replay,
-		"fresh Main retains the recovered capacity without reconstructing live extraction or granting another request")
+		"fresh Main retains the paid generation and capacity without granting another request")
 	fresh.queue_free()
 	for _frame in 3: await process_frame
 	var cleanup := DirAccess.open(directory)

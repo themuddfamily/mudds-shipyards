@@ -94,6 +94,8 @@ var _last_cargo_delivery_persistence_result: Dictionary = {}
 var _mining_capacity_persistence: RefCounted
 var _restored_mining_capacity: Dictionary = {}
 var _last_mining_capacity_persistence_result: Dictionary = {}
+var _mining_capacity_paid := false
+var _mining_checkpoint_elapsed := 0.0
 var _convoy_arrival_persistence: RefCounted
 var _restored_convoy_arrival: Dictionary = {}
 var _last_convoy_arrival_persistence_result: Dictionary = {}
@@ -1324,6 +1326,10 @@ func start_mining_activity(caller_position: Vector3) -> Dictionary:
 		# The previously committed record remains in the atomic store until this
 		# generation successfully replaces it.
 		_restored_mining_capacity.clear()
+		_mining_capacity_paid = false
+		if result.get("reason") == &"started":
+			_mining_checkpoint_elapsed = 0.0
+		_persist_mining_session()
 	elif StringName(result.get("reason", &"")) == &"outside_approach_anchor":
 		# The mining authority deliberately does not retain rejected caller
 		# positions. Retain only its bounded reason for the current presentation
@@ -1337,6 +1343,10 @@ func advance_mining_activity(delta: float) -> Dictionary:
 	if _mining_activity == null:
 		return _result(false, &"not_ready")
 	var result: Dictionary = _mining_activity.call("advance_physics", delta)
+	if bool(result.get("accepted", false)) and (
+			int(result.get("state", -1)) == MINING_ACTIVITY.State.COMPLETE
+			or float(result.get("elapsed_seconds", 0.0)) - _mining_checkpoint_elapsed >= 0.5):
+		_persist_mining_session()
 	_publish_mining_presentation()
 	return result
 
@@ -1357,6 +1367,12 @@ func advance_mining_activity_from_caller_sample(
 		inactive["accepted"] = false
 		inactive["reason"] = &"not_active"
 		return inactive
+	if not is_finite(delta) or delta < 0.0:
+		return _result(false, &"invalid_delta")
+	if bool(before.get("resume_required", false)):
+		if not caller_position.is_finite() or caller_position.distance_to(MINING_ACTIVITY.APPROACH_ANCHOR) > MINING_ACTIVITY.INTERACTION_RADIUS:
+			return _result(false, &"mining_resume_required")
+		_mining_activity.call("start", caller_position)
 	if (
 		not caller_position.is_finite()
 		or caller_position.distance_to(MINING_ACTIVITY.APPROACH_ANCHOR)
@@ -1366,6 +1382,7 @@ func advance_mining_activity_from_caller_sample(
 		if bool(interrupted.get("accepted", false)):
 			_last_mining_feedback_reason = &"outside_extraction_radius"
 			interrupted["reason"] = &"extraction_interrupted"
+			_persist_mining_session()
 		_publish_mining_presentation()
 		return interrupted
 	_last_mining_feedback_reason = &""
@@ -1375,8 +1392,11 @@ func advance_mining_activity_from_caller_sample(
 func request_mining_reward() -> Dictionary:
 	if _mining_activity == null:
 		return _result(false, &"not_ready")
+	if _mining_capacity_paid:
+		return _result(false, &"reward_already_requested")
 	var result: Dictionary = _mining_activity.call("request_reward")
 	if bool(result.get("accepted", false)):
+		_persist_mining_session()
 		var persisted := _persist_mining_capacity(result)
 		result["persistence_result"] = persisted.duplicate(true)
 		result["capacity_persisted"] = bool(persisted.get("accepted", false))
@@ -1430,6 +1450,16 @@ func configure_cinder_mining_capacity_persistence(
 			restored.get("capacity", {}) as Dictionary
 		).duplicate(true)
 		_last_mining_capacity_persistence_result = restored.duplicate(true)
+		var session := restored.get("session", {}) as Dictionary
+		if not session.is_empty():
+			_mining_activity.call("restore_session", session)
+			_mining_capacity_paid = bool(session.capacity_paid)
+			_mining_checkpoint_elapsed = float(session.elapsed_seconds)
+			if int(session.state) == MINING_ACTIVITY.State.COMPLETE and not _mining_capacity_paid:
+				_last_mining_reward_result = _mining_activity.call(
+					"get_pending_reward_request" if bool(session.reward_requested) else "request_reward"
+				) as Dictionary
+				_last_mining_reward_result["capacity_persisted"] = false
 		_publish_mining_presentation()
 	elif StringName(restored.get("reason", &"")) != &"mining_capacity_not_found":
 		_last_mining_capacity_persistence_result = restored.duplicate(true)
@@ -1466,6 +1496,7 @@ func _persist_mining_capacity(reward_result: Dictionary) -> Dictionary:
 		_restored_mining_capacity = (
 			loaded.get("capacity", {}) as Dictionary
 		).duplicate(true)
+		_mining_capacity_paid = true
 	return _last_mining_capacity_persistence_result.duplicate(true)
 
 
@@ -1475,13 +1506,9 @@ func _has_pending_mining_capacity_receipt() -> bool:
 	if _mining_activity == null or _mining_capacity_persistence == null:
 		return false
 	var snapshot := _mining_activity.call("get_snapshot") as Dictionary
-	var request := _last_mining_reward_result.get("reward_request", {}) as Dictionary
 	return (
 		int(snapshot.get("state", -1)) == MINING_ACTIVITY.State.COMPLETE
-		and bool(snapshot.get("reward_requested", false))
-		and bool(_last_mining_reward_result.get("accepted", false))
-		and not bool(_last_mining_reward_result.get("capacity_persisted", false))
-		and int(request.get("generation", -1)) == int(snapshot.get("generation", 0))
+		and not _mining_capacity_paid
 	)
 
 
@@ -1494,8 +1521,25 @@ func reset_mining_activity() -> Dictionary:
 	if bool(result.get("accepted", false)):
 		_last_mining_feedback_reason = &""
 		_last_mining_reward_result.clear()
+		_persist_mining_session()
 	_publish_mining_presentation()
 	return result
+
+
+
+## Save start/reset/terminal transitions immediately and active progress at a
+## half-second cadence measured from the last successful checkpoint.
+func _persist_mining_session() -> Dictionary:
+	if _mining_activity == null or _mining_capacity_persistence == null:
+		return _result(false, &"mining_capacity_persistence_unavailable")
+	var snapshot := _mining_activity.call("get_snapshot") as Dictionary
+	var commit_id := "cinder-mining-session-%010d" % (int(_mining_capacity_persistence.call(&"get_store_generation")) + 1)
+	var saved := _mining_capacity_persistence.call(&"save_session", snapshot,
+		_mining_capacity_paid, _restored_mining_capacity if _mining_capacity_paid else {}, commit_id) as Dictionary
+	_last_mining_capacity_persistence_result = saved.duplicate(true)
+	if bool(saved.get("accepted", false)):
+		_mining_checkpoint_elapsed = float(snapshot.elapsed_seconds)
+	return saved
 
 
 ## Presentation-only observer seam for the existing retained Cinder race gates.
@@ -2693,7 +2737,7 @@ func _mining_presentation_snapshot() -> Dictionary:
 		and bool(snapshot.get("reward_requested", false))
 		and int(last_request.get("generation", -1))
 			== int(snapshot.get("generation", 0))
-		and not bool(_last_mining_capacity_persistence_result.get("accepted", false))
+		and not _mining_capacity_paid
 	)
 	if _restored_mining_capacity.is_empty():
 		return snapshot.duplicate(true)
@@ -2709,7 +2753,7 @@ func _mining_presentation_snapshot() -> Dictionary:
 		snapshot["progress_unitless"] = 1.0
 	elif state != MINING_ACTIVITY.State.COMPLETE:
 		return snapshot.duplicate(true)
-	snapshot["reward_requested"] = false
+	snapshot["reward_requested"] = bool(snapshot.get("reward_requested", false)) if generation > 0 else false
 	snapshot["capacity_persisted"] = true
 	snapshot["persistence_retry_available"] = false
 	snapshot["capacity_receipt"] = _restored_mining_capacity.duplicate(true)

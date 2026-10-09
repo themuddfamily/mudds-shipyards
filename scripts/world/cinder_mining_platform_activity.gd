@@ -24,13 +24,17 @@ var _state := State.IDLE
 var _generation := 0
 var _elapsed := 0.0
 var _reward_requested := false
+var _resume_required := false
 
 
 func start(caller_position: Vector3) -> Dictionary:
-	if _state == State.ACTIVE:
+	if _state == State.ACTIVE and not _resume_required:
 		return _result(false, &"already_active")
 	if not caller_position.is_finite() or caller_position.distance_to(APPROACH_ANCHOR) > INTERACTION_RADIUS:
 		return _result(false, &"outside_approach_anchor")
+	if _state == State.ACTIVE and _resume_required:
+		_resume_required = false
+		return _result(true, &"resumed")
 	_generation += 1
 	_state = State.ACTIVE
 	_elapsed = 0.0
@@ -41,10 +45,12 @@ func start(caller_position: Vector3) -> Dictionary:
 func advance_physics(delta: float) -> Dictionary:
 	if _state != State.ACTIVE:
 		return _result(false, &"not_active")
+	if _resume_required:
+		return _result(false, &"mining_resume_required")
 	if not is_finite(delta) or delta < 0.0:
 		return _result(false, &"invalid_delta")
 	_elapsed = minf(EXTRACTION_SECONDS, _elapsed + delta)
-	if is_equal_approx(_elapsed, EXTRACTION_SECONDS):
+	if _elapsed == EXTRACTION_SECONDS:
 		_state = State.COMPLETE
 	return _result(true, &"complete" if _state == State.COMPLETE else &"advanced")
 
@@ -55,6 +61,12 @@ func request_reward() -> Dictionary:
 	if _reward_requested:
 		return _result(false, &"reward_already_requested")
 	_reward_requested = true
+	return get_pending_reward_request()
+
+
+func get_pending_reward_request() -> Dictionary:
+	if _state != State.COMPLETE or not _reward_requested:
+		return _result(false, &"no_pending_reward_request")
 	var result := _result(true, &"reward_request_ready")
 	result["reward_request"] = {
 		"reward_id": REWARD_ID,
@@ -68,6 +80,7 @@ func request_reward() -> Dictionary:
 func reset() -> Dictionary:
 	if _state == State.IDLE:
 		return _result(false, &"already_idle")
+	_resume_required = false
 	_state = State.RESET
 	_elapsed = 0.0
 	_reward_requested = false
@@ -87,10 +100,54 @@ func get_snapshot() -> Dictionary:
 		"platform_anchor": PLATFORM_ANCHOR,
 		"approach_anchor": APPROACH_ANCHOR,
 		"reward_requested": _reward_requested,
+		"resume_required": _resume_required,
 		"reward_authority": false,
 		"gameplay_authority": false,
 		"network_authority": false,
 	}.duplicate(true)
+
+
+## Restores only a strictly validated extraction checkpoint. A cold active
+## timer waits for an authored approach sample instead of treating station spawn
+## as the player leaving an extraction that has not resumed yet.
+func restore_session(session: Dictionary) -> Dictionary:
+	if not bool(validate_session(session).get("accepted", false)):
+		return _result(false, &"mining_session_payload_corrupt")
+	_state = int(session.state)
+	_generation = int(session.generation)
+	_elapsed = float(session.elapsed_seconds)
+	_reward_requested = bool(session.reward_requested)
+	_resume_required = _state == State.ACTIVE
+	return _result(true, &"mining_session_restored")
+
+
+static func validate_session(candidate: Variant) -> Dictionary:
+	if not candidate is Dictionary:
+		return {"accepted": false}
+	var session := candidate as Dictionary
+	var state: Variant = session.get("state")
+	var generation: Variant = session.get("generation")
+	var elapsed: Variant = session.get("elapsed_seconds")
+	var requested: Variant = session.get("reward_requested")
+	var paid: Variant = session.get("capacity_paid")
+	if session.size() != 5 or not _integral(state) or not _integral(generation) \
+			or int(state) < State.IDLE or int(state) > State.RESET or int(generation) < 0 \
+			or not (elapsed is int or elapsed is float) or not is_finite(float(elapsed)) \
+			or float(elapsed) < 0.0 or float(elapsed) > EXTRACTION_SECONDS \
+			or not requested is bool or not paid is bool:
+		return {"accepted": false}
+	if (int(state) == State.IDLE and (int(generation) != 0 or float(elapsed) != 0.0 or requested or paid)) \
+			or (int(state) != State.IDLE and int(generation) < 1) \
+			or (int(state) == State.ACTIVE and (float(elapsed) >= EXTRACTION_SECONDS or requested or paid)) \
+			or (int(state) == State.COMPLETE and float(elapsed) != EXTRACTION_SECONDS) \
+			or (int(state) == State.COMPLETE and paid and not requested) \
+			or (int(state) == State.RESET and (float(elapsed) != 0.0 or requested)):
+		return {"accepted": false}
+	return {"accepted": true}
+
+
+static func _integral(value: Variant) -> bool:
+	return value is int or (value is float and is_finite(value) and value == floor(value))
 
 
 func audit() -> Dictionary:
