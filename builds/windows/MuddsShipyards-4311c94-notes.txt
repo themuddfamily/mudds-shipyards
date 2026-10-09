@@ -1,0 +1,41 @@
+Mudds Shipyards — pending mining save checkpoint — 2026-10-09
+Source: 4311c94e4cd1a555ac2e1f995f581de07cf9f443
+Executable: MuddsShipyards-4311c94.exe
+Executable SHA256: be55403945e0f96f88b059956ee91296e13b29f739b503db9c7d26f1d6ec61cf
+
+Player-visible change
+When a completed extraction's capacity save fails, activity Reset or a new-run
+attempt now preserves the genuine completed generation and its pending request.
+Use Start to retry saving once storage recovers. A successful save and fresh
+Main retain the capacity without replaying the request. This neither grants ore
+through a new authority nor makes active mining progress durable; progress stays
+session-scoped. Crash recovery while a terminal save remains pending stays open.
+The Bulwark service aisle and paid-scan save-retry feedback from f0e2c59 remain
+included; that earlier checkpoint retains its own broader qualification.
+
+Actual validation on this source and executable
+Independent review approves mining author06ac4ce9e; both integrated blobs match.
+Five clean merged-source and five embedded-package checks each pass97 assertions
+(mining persistence/feedback, production integration and shared scan persistence/
+feedback). Actual owning exits0/reaped, source/import-cache parity and all raw
+hashes pass. Each scope retains two exact Atomic settings_missing/ok warnings,
+with zero engine/script/leak diagnostics and no unexpected warnings.
+Clean import/export, x64 PE and1,486-entry embedded PCK/hash pass. Four standard
+package probes pass223 with no warnings/diagnostics. Strict silent isolated native
+Windows startup exits0 with exactly one parsed menu-ready record, mouse free and
+no warnings/diagnostics; actual private-profile/process cleanup passes.
+ZIP CRC, exact inner EXE and initial notes parity pass. Root and independent
+review verify the artifact and bounded source/package results.
+
+Remaining gates
+Complete regression, new OS interruption, matching installer/Linux, native GPU,
+physical-controller, audible, human visual/ordinary play, endurance, trusted
+signing and final-release acceptance on this source remain NOT_RUN at packaging.
+The f139257 full run, f0e2c59 installer/Linux and earlier results qualify only
+their own source. RENDER-001 remains open despite no occurrence in these headless
+checks. Other activity/recovery states, crew roles, missing production content
+and all ten roadmap phases/34 consolidated completion tasks remain open.
+
+Exact-source CI37910873454 coreSUCCESS/broadSKIPPED; CodeQL37910873019
+actions/PythonSUCCESS.
+Published checkpoint ZIP SHA256: 546e9c38b3eb391e9bba8bd048a788eba426d7b40689a5de70198ac1cddacc6d

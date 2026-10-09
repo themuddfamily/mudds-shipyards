@@ -172,22 +172,24 @@ The runtime was read for Windows-only assumptions:
 
 ## Validation status
 
-The [Linux archive](../builds/linux/MuddsShipyards-f139257-linux-x86_64.tar.gz),
-[binary](../builds/linux/MuddsShipyards-f139257.x86_64) and
-[player notes](../builds/linux/MuddsShipyards-f139257-linux-notes.txt) are published
+The [Linux archive](../builds/linux/MuddsShipyards-f0e2c59-linux-x86_64.tar.gz),
+[binary](../builds/linux/MuddsShipyards-f0e2c59.x86_64) and
+[player notes](../builds/linux/MuddsShipyards-f0e2c59-linux-notes.txt) are published
 in `builds/linux/`. Original export metadata retains build-time
 `startup_check: NOT_RUN`; the executed qualification below is separate.
 
 | Gate | Status |
 | --- | --- |
-| Linux export from a clean commit | PASS on published `f139257f6` binary/tarball |
-| Headless isolated startup check (`STARTUP_MENU_READY_OK`) | PASS on published `f139257f6` binary and extracted tarball; exit 0, one ready record each |
-| Exported-game pilot/cabin/rest/crew interruption | PASS on published `f139257f6` with driver `503f361ba`; all four owned kill/restart contracts and the default PCK pilot regression pass. Original argument failure retained |
-| Isolated desktop-entry installer consumer | PASS on the shipped archive: directory with spaces, exact Exec/Path/Icon, silent startup, unsafe-path refusal and uninstall preserving saved data. Stock launcher parsing used an inert stub; rendered launch remains unqualified |
+| Linux export from a clean commit | PASS on published `f0e2c590a` binary/tarball |
+| Headless isolated startup check (`STARTUP_MENU_READY_OK`) | PASS on published `f0e2c590a` binary and extracted tarball; exit 0, one ready record each |
+| Exported-game pilot/cabin/rest/crew interruption | PASS on published `f0e2c590a`; all four native owned SIGKILL(-9)/restart(0) contracts pass with exact boundaries, receipts1→2 once, crash1 and clean markers. Eight known root warnings retained. Earlier `f139257f6` results remain historical |
+| Isolated desktop-entry installer consumer | PASS only on earlier `f139257f6` archive; NOT_RUN on `f0e2c590a`: directory with spaces, exact Exec/Path/Icon, silent startup, unsafe-path refusal and uninstall preserving saved data. Stock launcher parsing used an inert stub; rendered launch remains unqualified |
 | Clean install on a real Linux desktop (rendered, native GPU, audio) | NOT_RUN |
 | Signing | Not applicable yet. The artifacts are unsigned, and the result JSON says so. |
 
-A headless pass under WSL establishes packaging and boot behaviour only. It
+Canonical artifact/hash/ELF/PCK/tar/source-cache and raw recovery records are independently reviewed. Initial silent import used inherited HOME/XDG; export and runtime checks used private profiles. Earlier custom-basename artifacts are retained as UNQUALIFIED; canonical export and fresh checks establish this package. Newer mining `4311c94e4` is not qualified by these Linux results.
+
+A headless pass under WSL establishes packaging, boot and the stated recovery behavior only. It
 does not qualify native GPU rendering, audio or input on target Linux hardware.
 Keep that gate open until someone runs it on real hardware.
 

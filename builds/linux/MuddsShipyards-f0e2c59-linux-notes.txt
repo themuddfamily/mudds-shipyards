@@ -1,0 +1,43 @@
+Mudds Shipyards — Linux cabin and scan retry checkpoint — 2026-10-09
+Source: f0e2c590a8a2249af10d58759c64ac676d215a33
+Binary: MuddsShipyards-f0e2c59.x86_64
+Binary SHA256: 14cf410fd057ded51ceafcdedcea34dc32148dc078e9cc09ef9bb9d800c7920f
+Tarball SHA256: f9b5fc2a5b13e95deb817e02ef64480ce531fb29a52fe51035ac9a39b14788b1
+
+Player-visible changes
+Bulwark has a supported service aisle: leave the pilot seat with E, walk the
+moving floor with the ordinary standing Player, then retake the helm normally.
+Cabin safe-home Resume returns an awake Player to the saved craft with fresh cabin/
+hatch ownership and preserved owed rewards; it grants no pilot claim.
+A paid derelict scan whose discovery save fails retains its genuine receipt
+and shows SAVE PENDING / Start retry. Retry saves the discovery without another
+payment; activity Reset/new-scan attempts cannot discard it. Success and fresh
+load clear the prompt. Crash recovery before successful discovery saving stays open.
+No solo gunner/engineer route or durable active mining progress is implied.
+
+Actual Linux validation
+Clean exact-source export passes; ELF64 x86_64, 1,486-entry embedded PCK, original
+metadata source/hash, five safe tar entries, executable modes and inner-binary
+parity are independently verified. Original export metadata retains build-time
+startup_check NOT_RUN; separate executed qualification supplies actual results.
+Both canonical binary and tar startups exit0/reaped, with exactly one parsed
+menu-ready event, mouse free and no warnings/diagnostics.
+Native pilot/cabin/rest/crew interruption each passes owned SIGKILL(-9)/reap,
+fresh same-profile restart(0), exact durable boundary, receipts1->2 once, one
+crash event and clean markers. All owned processes/profiles are gone and source/
+cache/artifacts stay unchanged. Eight known root/superuser warnings occur across
+the arm/resume logs; no other warnings or diagnostics. Authored nonpilot walking
+and ordinary Interact precede retake; later escort positioning remains a fixture.
+Root and independent review verify raw hashes and actual documents/processes.
+
+Retained failures and remaining gates
+Prior custom-basename artifacts/logs are UNQUALIFIED and retained; canonical
+export and fresh canonical checks establish this named artifact. Initial silent
+editor import used inherited HOME/XDG, while export and runtime checks used
+private profiles; no game-play qualification comes from that import.
+This is headless Linux/WSL Dummy-driver acceptance. Complete regression, Linux
+focused13, graphical desktop/direct-entry installation and ordinary play, native
+GPU/controller/audio/human visual/endurance, signing and final release remain
+NOT_RUN. RENDER-001 remains open. Windows checks are separate; newer mining
+source4311c94 cannot inherit this checkpoint's qualification. All ten roadmap
+phases and34 consolidated completion tasks remain open.
