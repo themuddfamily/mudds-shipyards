@@ -9045,7 +9045,9 @@ func _sit_in_solo_crew_seat(seat: ShipCrewSeat) -> void:
 		return
 	var frame := cabin.frame as MovingInteriorFrame
 	for key: StringName in [MovingInteriorFrame.REGISTRATION_META, MovingInteriorFrame.OWNER_META]:
-		var owner_ref: Variant = player.get_meta(key, null)
+		if not player.has_meta(key):
+			continue
+		var owner_ref: Variant = player.get_meta(key)
 		if owner_ref is WeakRef:
 			var owner: Variant = (owner_ref as WeakRef).get_ref()
 			if is_instance_valid(owner) and owner != frame:
