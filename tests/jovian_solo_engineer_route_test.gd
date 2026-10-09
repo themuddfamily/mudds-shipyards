@@ -324,16 +324,32 @@ func _run() -> void:
 								and fresh.player.is_control_enabled() and owner.get_snapshot().assignments.is_empty(), "real host handback releases exact engineer claim to usable awake cabin")
 							await _look_toward(fresh.player, craft.get_engineer_seat_anchor().global_position + Vector3.UP * 1.2)
 							await _press_interact()
+							var host_chair_ready := await _wait_until(func() -> bool: return fresh.player.is_seated_at(craft.get_engineer_seat_anchor()) and not bool(fresh.get("_transition_busy")), 4.0)
+							var network_owner := craft.get_crew_role_authority()
+							var network_binding: Object = fresh.get("_network_engineer_binding")
+							var host_assignment := network_owner.get_assignment(1, GameFlow.SOLO_CREW_AVATAR_ID) if network_owner != null else {}
+							_check(host_chair_ready and network_owner != null and network_owner != owner
+								and network_binding != null and network_binding.get("authority") == network_owner
+								and host_assignment.get("role") == &"engineer" and host_assignment.get("seat_id") == craft.ENGINEER_SEAT_ID
+								and fresh.player.has_meta(HeroShip.SOLO_CREW_ROLE_OCCUPANT_META) and not craft.is_piloted(), "network-live ordinary Interact claims exact shared host engineer owner without helm ownership")
+							await _press_interact()
+							_check(await _wait_until(func() -> bool: return not fresh.player.is_seated() and fresh.player.is_control_enabled() and fresh.player.is_on_floor(), 4.0)
+								and network_owner != null and network_owner.get_assignment(1, GameFlow.SOLO_CREW_AVATAR_ID).is_empty()
+								and not craft.is_piloted(), "ordinary network engineer stand releases exact claim to supported usable host Player")
+							var unsupported_seat: ShipCrewSeat
+							for candidate in fresh.find_children("*", "Area3D", true, false):
+								if candidate is ShipCrewSeat and candidate.get_ship() is HalyardCrewTransport and candidate.get_role() != &"engineer":
+									unsupported_seat = candidate
+									break
+							# Exercise the guard with real installed furniture; no role
+							# assignment is injected into this negative request.
+							if unsupported_seat != null:
+								fresh.call("_sit_in_solo_crew_seat", unsupported_seat)
 							await _settle(8)
-							_check(not fresh.player.is_seated_at(craft.get_engineer_seat_anchor())
-								and not fresh.player.has_meta(HeroShip.SOLO_CREW_ROLE_OCCUPANT_META), "network-live ordinary Interact refuses solo engineer assignment")
-							# Empty host pilot boarding is legitimate. Finish that actual
-							# transition and its ordinary exit before the next solo attempt.
-							if bool(fresh.get("_transition_busy")) or fresh.player.is_seated():
-								_check(await _wait_until(func() -> bool: return fresh.player.is_seated_at(craft.get_pilot_seat_anchor()) and craft.is_piloted() and not bool(fresh.get("_transition_busy")), 4.0), "network-live empty helm finishes legitimate pilot ownership without engineer claim")
-								await _wait_until(func() -> bool: return craft.get_telemetry().engine_state == HeroShip.ENGINE_OFFLINE, 3.0)
-								await _press_interact()
-								_check(await _wait_until(func() -> bool: return not fresh.player.is_seated() and fresh.player.is_control_enabled() and fresh.player.is_on_floor(), 4.0), "ordinary authorized pilot leave restores usable on-foot host Player")
+							_check(unsupported_seat != null and not fresh.player.is_seated() and fresh.player.is_on_floor()
+								and fresh.player.is_control_enabled() and not bool(fresh.get("_transition_busy"))
+								and network_owner != null and network_owner.get_snapshot().assignments.is_empty()
+								and not fresh.player.has_meta(HeroShip.SOLO_CREW_ROLE_OCCUPANT_META), "network-live unsupported crew role remains refused without a chair or helm claim")
 							fresh.shutdown_network_session()
 							await _settle(8)
 							await _walk_from_ramp(fresh.player, craft)

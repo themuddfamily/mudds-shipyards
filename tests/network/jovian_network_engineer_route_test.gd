@@ -13,12 +13,24 @@ var _craft: JovianLightFreighter
 var _player: PlayerController
 var _port := 0
 var _store_path := ""
+var _package_under_test := ""
 
 func _init() -> void:
 	call_deferred("_run")
 
 func _run() -> void:
 	var args := OS.get_cmdline_user_args()
+	var package_index := args.find("--package-under-test")
+	if package_index >= 0 and package_index + 1 < args.size():
+		_package_under_test = args[package_index + 1]
+		args.remove_at(package_index + 1)
+		args.remove_at(package_index)
+	if not _package_under_test.is_empty():
+		_check(FileAccess.file_exists("res://project.binary"), "engineer process loads requested package without source game fallback")
+		if not _failures.is_empty():
+			quit(1)
+			return
+		print("ENGINEER_PACKAGE_LOADED: pid=%d package=%s" % [OS.get_process_id(), _package_under_test])
 	if args.size() < 3:
 		await _orchestrate()
 		return
@@ -57,14 +69,11 @@ func _orchestrate() -> void:
 	_directory = "/tmp/mudds-engineer-peers-%d" % OS.get_process_id()
 	DirAccess.make_dir_recursive_absolute(_directory)
 	_port = 26000 + OS.get_process_id() % 15000
-	var base := PackedStringArray(["--headless", "--audio-driver", "Dummy", "--path", ProjectSettings.globalize_path("res://"), "--script", "res://tests/network/jovian_network_engineer_route_test.gd", "--"])
-	var host_args := base.duplicate()
-	host_args.append_array(["host", _directory, str(_port)])
+	var host_args := _peer_arguments("host", PackedStringArray(["--headless"]))
 	var host := _spawn_peer("host", host_args)
 	_check(host > 0, "owned independent host starts")
 	await _wait_file("host.ready", 60.0)
-	var client_args := PackedStringArray(["--display-driver", "x11", "--audio-driver", "Dummy", "--disable-render-loop", "--rendering-method", "gl_compatibility", "--path", ProjectSettings.globalize_path("res://"), "--script", "res://tests/network/jovian_network_engineer_route_test.gd", "--"])
-	client_args.append_array(["client", _directory, str(_port)])
+	var client_args := _peer_arguments("client", PackedStringArray(["--display-driver", "x11", "--disable-render-loop", "--rendering-method", "gl_compatibility"]))
 	var client := _spawn_peer("client", client_args)
 	_check(client > 0, "owned independent client starts")
 	await _wait_file("client.done", 120.0)
@@ -89,6 +98,31 @@ func _orchestrate() -> void:
 		push_error(failure)
 	print("JOVIAN_NETWORK_ENGINEER_ROUTE: %d checks, %d failures; artifacts=%s" % [_checks, _failures.size(), _directory])
 	quit(0 if _failures.is_empty() else 1)
+
+func _peer_arguments(role: String, display: PackedStringArray) -> PackedStringArray:
+	var parent := OS.get_cmdline_args()
+	var path := ProjectSettings.globalize_path("res://")
+	var path_index := parent.find("--path")
+	if path_index >= 0 and path_index + 1 < parent.size():
+		path = parent[path_index + 1]
+	var script := "res://tests/network/jovian_network_engineer_route_test.gd"
+	if not _package_under_test.is_empty():
+		# Tests are excluded from export. Only this fixture is external;
+		# res:// production Main and dependencies come from the selected pack.
+		var script_index := parent.find("--script")
+		if script_index >= 0 and script_index + 1 < parent.size():
+			script = parent[script_index + 1]
+		if script.begins_with("res://"):
+			script = path.path_join(script.trim_prefix("res://"))
+	var args := display.duplicate()
+	args.append_array(["--audio-driver", "Dummy", "--path", path])
+	if not _package_under_test.is_empty():
+		args.append_array(["--main-pack", _package_under_test])
+	args.append_array(["--script", script, "--", role, _directory, str(_port)])
+	if not _package_under_test.is_empty():
+		args.append_array(["--package-under-test", _package_under_test])
+	print("ENGINEER_PEER_LAUNCH: ", role, " ", args)
+	return args
 
 func _spawn_peer(role: String, args: PackedStringArray) -> int:
 	# The wrapper waits for our child and records its actual OS exit status.
