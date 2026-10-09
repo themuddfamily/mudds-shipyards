@@ -362,6 +362,8 @@ const MAIN_SCENE := preload("res://scenes/main.tscn")
 # the complete streamed Cinder delta remain unchanged; no budget is raised.
 const RESIDENT_FINGERPRINT := "98643fff8555121091855b1bb87b9cddd9543298aa96d9abb407f0e68adb86e3"
 const CINDER_LOADED_FINGERPRINT := "6886d5288d7eab74c115b462573c92ffd478687a46dda7229e8b8efc7ae9d464"
+const PACKED_RESIDENT_FINGERPRINT := "d2f5ffa37d36d814a273a1914743e63cdc2bb7de29dca75fd2302caf812cdb2c"
+const PACKED_CINDER_LOADED_FINGERPRINT := "1152c1572fe21af397ae0d06914c2c79d9266e40a4abb06f074b98a430554ad5"
 
 var _assertions := 0
 var _failures := PackedStringArray()
@@ -419,16 +421,17 @@ func _run() -> void:
 	)
 	_check(
 		int(resident.get("bound_phase_unique_materials", -1)) == 647
-			and int(resident.get("retained_reachable_unique_materials", -1)) == 1063
+			and int(resident.get("retained_reachable_unique_materials", -1)) == (1065 if _packed_scene_resources() else 1063)
 			and int(resident.get("lights", -1)) == 327
 			and int(resident.get("nodes", -1)) == 10215,
-		"resident resource roster freezes 647 bound / 1,063 retained materials, 327 lights, and 10,215 nodes"
+		"resident resource roster freezes exact source/export materials, 327 lights, and 10,215 nodes"
 	)
 	_check(
-		str(resident.get("measurement_fingerprint", "")) == RESIDENT_FINGERPRINT,
+		str(resident.get("measurement_fingerprint", "")) == (PACKED_RESIDENT_FINGERPRINT if _packed_scene_resources() else RESIDENT_FINGERPRINT),
 		"resident measurement fingerprint freezes the complete deterministic count contract"
 	)
 	print("GEOMETRY_CENSUS_RESIDENT_RESOURCES: ", _resource_counts(resident))
+	_check_atmosphere_sky_resources(resident)
 	resident_census.free()
 
 	game.process_mode = Node.PROCESS_MODE_INHERIT
@@ -487,10 +490,10 @@ func _run() -> void:
 	)
 	_check(
 		int(loaded.get("bound_phase_unique_materials", -1)) == 705
-			and int(loaded.get("retained_reachable_unique_materials", -1)) == 1126
+			and int(loaded.get("retained_reachable_unique_materials", -1)) == (1128 if _packed_scene_resources() else 1126)
 			and int(loaded.get("lights", -1)) == 362
 			and int(loaded.get("nodes", -1)) == 10803,
-		"loaded resource roster freezes 705 bound / 1,126 retained materials, 362 lights, and 10,803 nodes"
+		"loaded resource roster freezes exact source/export materials, 362 lights, and 10,803 nodes"
 	)
 	var cinder_bucket := (loaded.get("buckets", {}) as Dictionary).get(
 		"CinderStreamingBootstrap", {}
@@ -517,17 +520,41 @@ func _run() -> void:
 		"loaded-minus-resident delta is exact across geometry, retained resources, lights, and nodes"
 	)
 	_check(
-		str(loaded.get("measurement_fingerprint", "")) == CINDER_LOADED_FINGERPRINT
+		str(loaded.get("measurement_fingerprint", "")) == (PACKED_CINDER_LOADED_FINGERPRINT if _packed_scene_resources() else CINDER_LOADED_FINGERPRINT)
 			and str(loaded.get("measurement_fingerprint", ""))
 				!= str(resident.get("measurement_fingerprint", "")),
 		"loaded measurement has its own exact scenario-sensitive fingerprint"
 	)
 	print("GEOMETRY_CENSUS_LOADED_RESOURCES: ", _resource_counts(loaded))
+	_check_atmosphere_sky_resources(loaded)
 	loaded_census.free()
 
 	game.queue_free()
 	await process_frame
 	_finish()
+
+
+func _packed_scene_resources() -> bool:
+	return FileAccess.file_exists("res://scenes/world/components/aurora_temperate_atmosphere_composition.tscn.remap")
+
+
+func _check_atmosphere_sky_resources(report: Dictionary) -> void:
+	# Binary scene export retains one local sky in each unopened composition.
+	# Source PackedScenes retain the shared rig dependency instead. The published
+	# pre-readout package reproduces this exact two-material difference; require
+	# the actual Aurora/Rime resources, rather than allowing arbitrary growth.
+	var packed := _packed_scene_resources()
+	var counts := {"aurora_temperate": 0, "rime_glacial": 0}
+	for descriptor: String in report.get("retained_material_descriptors", PackedStringArray()):
+		for world: String in counts:
+			if descriptor.contains("|ProceduralSkyMaterial|res://scenes/world/components/%s_atmosphere_composition.tscn::" % world):
+				counts[world] += 1
+	var expected := 1 if packed else 0
+	_check(
+		FileAccess.file_exists("res://scenes/world/components/rime_glacial_atmosphere_composition.tscn.remap") == packed
+			and counts.aurora_temperate == expected and counts.rime_glacial == expected,
+		"source/export atmosphere retention contains exactly the expected Aurora and Rime local skies"
+	)
 
 
 ## Printed beside the fingerprint so a legitimate refreeze reads the new
